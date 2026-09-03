@@ -1,12 +1,12 @@
-import { useCallback } from 'react';
-import { liffApi } from '../api/liff-api';
-import { ProgressDots } from '../components/ProgressDots';
-import { ListItem } from '../components/ListItem';
-import { BackButton } from '../components/BackButton';
-import { AutoAdvanceHint } from '../components/AutoAdvanceHint';
-import { useFetchState } from '@/shared-liff/use-fetch-state';
-import { formatCurrency } from '@/lib/format/number';
-import { getStepProgress } from '../lib/step-progress';
+import { useCallback } from "react";
+import { liffApi } from "../api/liff-api";
+import { ProgressDots } from "../components/ProgressDots";
+import { ListItem } from "../components/ListItem";
+import { BackButton } from "../components/BackButton";
+import { AutoAdvanceHint } from "../components/AutoAdvanceHint";
+import { useFetchState } from "@/shared-liff/use-fetch-state";
+import { formatCurrency } from "@/shared-liff/format-number";
+import { getStepProgress } from "../lib/step-progress";
 
 interface TrimmingCourseSelectPageProps {
   clinicId: string;
@@ -16,16 +16,24 @@ interface TrimmingCourseSelectPageProps {
 }
 
 function formatPrice(price: number | null): string {
-  if (price === null) return '';
+  if (price === null) return "";
   return formatCurrency(price);
 }
 
-export function TrimmingCourseSelectPage({ clinicId, idToken, onSelect, onBack }: TrimmingCourseSelectPageProps) {
-  const fetcher = useCallback(() => liffApi.getTrimmingCourses(clinicId, idToken), [clinicId, idToken]);
+export function TrimmingCourseSelectPage({
+  clinicId,
+  idToken,
+  onSelect,
+  onBack,
+}: TrimmingCourseSelectPageProps) {
+  const fetcher = useCallback(
+    () => liffApi.getTrimmingCourses(clinicId, idToken),
+    [clinicId, idToken],
+  );
   // R-F22/R-F23: ステータス別メッセージ解決と再試行導線を共通フックに統合。
-  const { data: courses, loading, error, retry } = useFetchState(fetcher, 'トリミングコースの取得');
+  const { data: courses, loading, error, retry } = useFetchState(fetcher, "トリミングコースの取得");
   // SD-16: トリミングフロー内で一貫した total を使う（他の共有ページと同じ算出元）
-  const { current, total } = getStepProgress('trimmingCourseSelect', true);
+  const { current, total } = getStepProgress("trimmingCourseSelect", true);
 
   return (
     <div className="min-h-screen bg-noah-teal-light flex flex-col">
@@ -58,7 +66,7 @@ export function TrimmingCourseSelectPage({ clinicId, idToken, onSelect, onBack }
             </div>
           ) : (
             <div className="bg-white border-t border-noah-border">
-              {(courses ?? []).map(course => (
+              {(courses ?? []).map((course) => (
                 <ListItem
                   key={course.id}
                   onClick={() => onSelect(course.id, course.name)}

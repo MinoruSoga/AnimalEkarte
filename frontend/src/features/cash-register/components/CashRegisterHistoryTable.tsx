@@ -4,8 +4,8 @@ import { formatJSTDateTimeLocal } from "@/lib/jst-date";
 import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { formatCurrency } from "@/lib/format/number";
 import type { CashRegisterClose } from "../api/get-cash-register-closes";
-import { PERIOD_LABELS } from "../constants";
-import { diffClass, formatDiff } from "./cash-register-history-model";
+import { PERIOD_LABELS } from "../lib/constants";
+import { diffClass, formatDiff } from "../lib/cash-register-history-model";
 
 interface CashRegisterHistoryTableProps {
   rows: CashRegisterClose[];
@@ -19,11 +19,7 @@ export function CashRegisterHistoryTable({
   onSelect,
 }: CashRegisterHistoryTableProps) {
   if (rows.length === 0) {
-    return (
-      <p className={`text-base ${C.text50} py-8 text-center`}>
-        締め履歴がありません
-      </p>
-    );
+    return <p className={`text-base ${C.text50} py-8 text-center`}>締め履歴がありません</p>;
   }
 
   return (
@@ -60,9 +56,7 @@ export function CashRegisterHistoryTable({
                   {close.closeDate.slice(0, 10)}
                 </DataTableRowButton>
               </TableCell>
-              <TableCell className={C.text}>
-                {PERIOD_LABELS[close.period]}
-              </TableCell>
+              <TableCell className={C.text}>{PERIOD_LABELS[close.period]}</TableCell>
               <TableCell className={`text-right ${C.text}`}>
                 {formatCurrency(close.theoreticalCash ?? 0)}
               </TableCell>
@@ -72,9 +66,7 @@ export function CashRegisterHistoryTable({
               <TableCell className={`text-right font-medium ${diffClass(diff)}`}>
                 {formatDiff(diff)}
               </TableCell>
-              <TableCell className={C.text}>
-                {close.closedByStaffName ?? "—"}
-              </TableCell>
+              <TableCell className={C.text}>{close.closedByStaffName ?? "—"}</TableCell>
               <TableCell className={C.text60}>
                 {close.closedAt
                   ? formatJSTDateTimeLocal(close.closedAt).slice(5).replace("T", " ")

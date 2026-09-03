@@ -1,7 +1,4 @@
-import type {
-  CreateInventoryItemRequest,
-  UpdateInventoryItemRequest,
-} from "../api/types";
+import type { CreateInventoryItemRequest, UpdateInventoryItemRequest } from "../types";
 
 function readFormString(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -32,9 +29,7 @@ export function readInventoryFormFields(formData: FormData): InventoryFormFields
   };
 }
 
-export function validateInventoryFormFields(
-  fields: InventoryFormFields,
-): Record<string, string> {
+export function validateInventoryFormFields(fields: InventoryFormFields): Record<string, string> {
   const quantity = Number(fields.quantityStr);
   const minStockLevel = Number(fields.minStockLevelStr);
   return {
@@ -43,7 +38,9 @@ export function validateInventoryFormFields(
     ...(fields.quantityStr.trim() === "" || !Number.isInteger(quantity) || quantity < 0
       ? { quantity: "現在庫数は0以上の整数で入力してください" }
       : {}),
-    ...(fields.minStockLevelStr.trim() === "" || !Number.isInteger(minStockLevel) || minStockLevel < 0
+    ...(fields.minStockLevelStr.trim() === "" ||
+    !Number.isInteger(minStockLevel) ||
+    minStockLevel < 0
       ? { minStockLevel: "最低在庫数は0以上の整数で入力してください" }
       : {}),
   };

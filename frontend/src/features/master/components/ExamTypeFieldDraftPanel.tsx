@@ -1,7 +1,7 @@
 import type { AnimalSpecies } from "../api/animal-species";
 import { C } from "@/lib/design-tokens";
 
-import { QUALITATIVE_VALUES, type ReferenceRangeDraft } from "./exam-type-fields-editor-model";
+import { QUALITATIVE_VALUES, type ReferenceRangeDraft } from "../lib/exam-type-fields-editor-model";
 import { FieldInput, ReferenceRangeInputs } from "./ExamTypeFieldEditors";
 import { useExamTypeFieldSession } from "../hooks/use-exam-type-field-session";
 import type { ExaminationTypeField } from "../api/exam-types-master";
@@ -55,7 +55,11 @@ function ExamTypeFieldDraftForm({
         value={fieldDraft.normalValue}
         onChange={(value) => onFieldChange({ normalValue: value })}
       />
-      {error ? <p role="alert" className={`text-sm ${C.danger}`}>{error}</p> : null}
+      {error ? (
+        <p role="alert" className={`text-sm ${C.danger}`}>
+          {error}
+        </p>
+      ) : null}
       <div className="flex justify-end gap-2">
         <button
           type="button"
@@ -106,31 +110,22 @@ function ExamTypeFieldReferenceRanges({
           動物種の取得に失敗したため、基準範囲を設定できません。
         </p>
       ) : isPending ? (
-        <p
-          role="status"
-          aria-live="polite"
-          aria-atomic="true"
-          className={`text-sm ${C.text50}`}
-        >
+        <p role="status" aria-live="polite" aria-atomic="true" className={`text-sm ${C.text50}`}>
           動物種を読み込み中です。基準範囲はまだ設定できません。
         </p>
       ) : animalSpecies.length === 0 ? (
-        <p
-          role="status"
-          aria-live="polite"
-          aria-atomic="true"
-          className={`text-sm ${C.text50}`}
-        >
+        <p role="status" aria-live="polite" aria-atomic="true" className={`text-sm ${C.text50}`}>
           動物種マスタが登録されていないため、基準範囲を設定できません。
         </p>
       ) : (
         <>
           {animalSpecies.map((species) => {
-            const draft = rangeDrafts.find(
-              (item) => item.animalSpeciesId === species.id,
-            );
+            const draft = rangeDrafts.find((item) => item.animalSpeciesId === species.id);
             return (
-              <div key={species.id} className={`rounded-xs border p-2 ${C.borderLight} ${C.bgWhite}`}>
+              <div
+                key={species.id}
+                className={`rounded-xs border p-2 ${C.borderLight} ${C.bgWhite}`}
+              >
                 <label className={`flex min-h-11 items-center gap-2 text-sm ${C.text}`}>
                   <input
                     type="checkbox"
@@ -150,7 +145,9 @@ function ExamTypeFieldReferenceRanges({
             );
           })}
           <datalist id="exam-qualitative-values">
-            {QUALITATIVE_VALUES.map((item) => <option key={item} value={item} />)}
+            {QUALITATIVE_VALUES.map((item) => (
+              <option key={item} value={item} />
+            ))}
           </datalist>
           <div className="flex justify-end">
             <button

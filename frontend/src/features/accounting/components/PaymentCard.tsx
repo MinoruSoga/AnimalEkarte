@@ -13,7 +13,7 @@ import { formatCurrency } from "@/lib/format/number";
 
 import type { PaymentMethod } from "../types";
 import { PAYMENT_METHOD_LABELS } from "@/constants/payment-method";
-import { hasInvalidChangeOverride, isPaymentSubmitDisabled } from "./accounting-detail-model";
+import { hasInvalidChangeOverride, isPaymentSubmitDisabled } from "../lib/accounting-detail-model";
 
 export interface PaymentSplitDraft {
   method: PaymentMethod;
@@ -24,7 +24,12 @@ export interface PaymentSplitDraft {
   changeAmount?: string;
 }
 
-const PAYMENT_METHODS: PaymentMethod[] = ["cash", "credit_card", "electronic_money", "bank_transfer"];
+const PAYMENT_METHODS: PaymentMethod[] = [
+  "cash",
+  "credit_card",
+  "electronic_money",
+  "bank_transfer",
+];
 
 // FE-RC-049: お預かり金額のクイック切り上げ単位（千円単位 / 一万円単位）。
 const RECEIVED_AMOUNT_ROUND_UNIT_THOUSAND = 1000;
@@ -56,43 +61,69 @@ export const PaymentCard = memo(function PaymentCard({
 
   const isDisabled = isPaymentSubmitDisabled(billingAmount, paymentSplits);
 
-  const handleMethodChange = useCallback((idx: number, method: PaymentMethod) => {
-    onSplitsChange(paymentSplits.map((s, i) => i === idx ? { ...s, method } : s));
-  }, [paymentSplits, onSplitsChange]);
+  const handleMethodChange = useCallback(
+    (idx: number, method: PaymentMethod) => {
+      onSplitsChange(paymentSplits.map((s, i) => (i === idx ? { ...s, method } : s)));
+    },
+    [paymentSplits, onSplitsChange],
+  );
 
-  const handleAmountChange = useCallback((idx: number, value: string) => {
-    onSplitsChange(paymentSplits.map((s, i) => i === idx ? { ...s, amount: value } : s));
-  }, [paymentSplits, onSplitsChange]);
+  const handleAmountChange = useCallback(
+    (idx: number, value: string) => {
+      onSplitsChange(paymentSplits.map((s, i) => (i === idx ? { ...s, amount: value } : s)));
+    },
+    [paymentSplits, onSplitsChange],
+  );
 
-  const handleReceivedChange = useCallback((idx: number, value: string) => {
-    onSplitsChange(paymentSplits.map((s, i) => i === idx ? { ...s, receivedAmount: value } : s));
-  }, [paymentSplits, onSplitsChange]);
+  const handleReceivedChange = useCallback(
+    (idx: number, value: string) => {
+      onSplitsChange(
+        paymentSplits.map((s, i) => (i === idx ? { ...s, receivedAmount: value } : s)),
+      );
+    },
+    [paymentSplits, onSplitsChange],
+  );
 
   // #188: お釣り手動修正モードの ON/OFF。ON 時は現在の派生値（max(0, received-amount)）を初期値に置く。
-  const handleToggleChangeOverride = useCallback((idx: number) => {
-    onSplitsChange(paymentSplits.map((s, i) => {
-      if (i !== idx) return s;
-      if (s.changeOverride) {
-        // 自動計算に戻す: 上書きフィールドを除いた基本ドラフトへ戻す
-        return { method: s.method, amount: s.amount, receivedAmount: s.receivedAmount };
-      }
-      const amt = parseInt(s.amount || "0", 10);
-      const rec = parseInt(s.receivedAmount || "0", 10);
-      return { ...s, changeOverride: true, changeAmount: Math.max(0, rec - amt).toString() };
-    }));
-  }, [paymentSplits, onSplitsChange]);
+  const handleToggleChangeOverride = useCallback(
+    (idx: number) => {
+      onSplitsChange(
+        paymentSplits.map((s, i) => {
+          if (i !== idx) return s;
+          if (s.changeOverride) {
+            // 自動計算に戻す: 上書きフィールドを除いた基本ドラフトへ戻す
+            return { method: s.method, amount: s.amount, receivedAmount: s.receivedAmount };
+          }
+          const amt = parseInt(s.amount || "0", 10);
+          const rec = parseInt(s.receivedAmount || "0", 10);
+          return { ...s, changeOverride: true, changeAmount: Math.max(0, rec - amt).toString() };
+        }),
+      );
+    },
+    [paymentSplits, onSplitsChange],
+  );
 
-  const handleChangeAmountChange = useCallback((idx: number, value: string) => {
-    onSplitsChange(paymentSplits.map((s, i) => i === idx ? { ...s, changeAmount: value } : s));
-  }, [paymentSplits, onSplitsChange]);
+  const handleChangeAmountChange = useCallback(
+    (idx: number, value: string) => {
+      onSplitsChange(paymentSplits.map((s, i) => (i === idx ? { ...s, changeAmount: value } : s)));
+    },
+    [paymentSplits, onSplitsChange],
+  );
 
-  const handleRemoveSplit = useCallback((idx: number) => {
-    onSplitsChange(paymentSplits.filter((_, i) => i !== idx));
-  }, [paymentSplits, onSplitsChange]);
+  const handleRemoveSplit = useCallback(
+    (idx: number) => {
+      onSplitsChange(paymentSplits.filter((_, i) => i !== idx));
+    },
+    [paymentSplits, onSplitsChange],
+  );
 
   const handleAddSplit = useCallback(() => {
-    const rem = billingAmount - paymentSplits.reduce((sum, s) => sum + parseInt(s.amount || "0", 10), 0);
-    onSplitsChange([...paymentSplits, { method: "cash", amount: rem > 0 ? rem.toString() : "", receivedAmount: "" }]);
+    const rem =
+      billingAmount - paymentSplits.reduce((sum, s) => sum + parseInt(s.amount || "0", 10), 0);
+    onSplitsChange([
+      ...paymentSplits,
+      { method: "cash", amount: rem > 0 ? rem.toString() : "", receivedAmount: "" },
+    ]);
   }, [paymentSplits, onSplitsChange, billingAmount]);
 
   return (
@@ -182,7 +213,15 @@ export const PaymentCard = memo(function PaymentCard({
                             type="button"
                             variant="outline"
                             size="sm"
-                            onClick={() => handleReceivedChange(idx, (Math.ceil(parsedAmount / RECEIVED_AMOUNT_ROUND_UNIT_THOUSAND) * RECEIVED_AMOUNT_ROUND_UNIT_THOUSAND).toString())}
+                            onClick={() =>
+                              handleReceivedChange(
+                                idx,
+                                (
+                                  Math.ceil(parsedAmount / RECEIVED_AMOUNT_ROUND_UNIT_THOUSAND) *
+                                  RECEIVED_AMOUNT_ROUND_UNIT_THOUSAND
+                                ).toString(),
+                              )
+                            }
                           >
                             千円単位
                           </Button>
@@ -190,7 +229,16 @@ export const PaymentCard = memo(function PaymentCard({
                             type="button"
                             variant="outline"
                             size="sm"
-                            onClick={() => handleReceivedChange(idx, (Math.ceil(parsedAmount / RECEIVED_AMOUNT_ROUND_UNIT_TEN_THOUSAND) * RECEIVED_AMOUNT_ROUND_UNIT_TEN_THOUSAND).toString())}
+                            onClick={() =>
+                              handleReceivedChange(
+                                idx,
+                                (
+                                  Math.ceil(
+                                    parsedAmount / RECEIVED_AMOUNT_ROUND_UNIT_TEN_THOUSAND,
+                                  ) * RECEIVED_AMOUNT_ROUND_UNIT_TEN_THOUSAND
+                                ).toString(),
+                              )
+                            }
                           >
                             一万単位
                           </Button>
@@ -230,7 +278,9 @@ export const PaymentCard = memo(function PaymentCard({
                           </>
                         ) : (
                           <div className="flex justify-end">
-                            <span className={`text-xl font-bold ${splitChange < 0 ? C.danger : C.text}`}>
+                            <span
+                              className={`text-xl font-bold ${splitChange < 0 ? C.danger : C.text}`}
+                            >
                               {formatCurrency(splitChange)}
                             </span>
                           </div>
@@ -267,8 +317,12 @@ export const PaymentCard = memo(function PaymentCard({
           <div className="space-y-3">
             {paymentSplits.map((split, idx) => (
               <div key={idx} className="flex justify-between items-center text-sm">
-                <span className={C.text50}>{PAYMENT_METHOD_LABELS[split.method] ?? split.method}</span>
-                <span className="font-medium">{formatCurrency(parseInt(split.amount || "0", 10))}</span>
+                <span className={C.text50}>
+                  {PAYMENT_METHOD_LABELS[split.method] ?? split.method}
+                </span>
+                <span className="font-medium">
+                  {formatCurrency(parseInt(split.amount || "0", 10))}
+                </span>
               </div>
             ))}
           </div>

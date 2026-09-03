@@ -1,8 +1,21 @@
-import { describe, it, expect } from "vitest";
-import { render, screen, fireEvent, within } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { act, render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 
 import { StandardClosingTimeSection } from "./StandardClosingTimeSection";
 import type { ClinicSettings } from "@/types/generated/models";
+
+const PERMISSION_DENIED_MESSAGE = "この操作を行う権限がありません";
+
+const { mockUpdateClosingSettings, mockToastError } = vi.hoisted(() => ({
+  mockUpdateClosingSettings: vi.fn(),
+  mockToastError: vi.fn(),
+}));
+
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: mockToastError } }));
+
+vi.mock("../api/update-closing-settings", () => ({
+  updateClosingSettings: (...args: unknown[]) => mockUpdateClosingSettings(...args),
+}));
 
 // このコンポーネントは closing_* と closed_weekdays のみ参照する。
 // ClinicSettings は CPM 閾値など多数のフィールドを持つため、関連フィールドのみの
@@ -20,8 +33,13 @@ function makeSettings(overrides: Partial<ClinicSettings> = {}): ClinicSettings {
 }
 
 describe("StandardClosingTimeSection (#151 時間帯プレビュー・#215 越日対応)", () => {
+  beforeEach(() => {
+    mockUpdateClosingSettings.mockReset().mockResolvedValue(undefined);
+    mockToastError.mockClear();
+  });
+
   it("休診曜日checkboxのfocusable targetを44px以上に保つ", () => {
-    render(<StandardClosingTimeSection settings={makeSettings()} />);
+    render(<StandardClosingTimeSection settings={makeSettings()} canEdit={true} />);
 
     const sunday = screen.getByRole("checkbox", { name: "日" });
     expect(sunday).toHaveClass("absolute", "inset-0", "size-full");
@@ -29,7 +47,7 @@ describe("StandardClosingTimeSection (#151 時間帯プレビュー・#215 越�
   });
 
   it("初期設定から平日・日曜の AM/PM/EMG レンジを表示する", () => {
-    render(<StandardClosingTimeSection settings={makeSettings()} />);
+    render(<StandardClosingTimeSection settings={makeSettings()} canEdit={true} />);
 
     // AM は am_start(9:00) と境界に依存し平日・日曜で共通 → 同一文字列が 2 セル（#215）
     expect(screen.getAllByText("09:00:00～11:59:59")).toHaveLength(2);
@@ -46,7 +64,7 @@ describe("StandardClosingTimeSection (#151 時間帯プレビュー・#215 越�
   });
 
   it("旧来の曖昧表示（区切り時刻のみ・レンジ無し）ではなく、明示的な開始〜終了レンジを表示する", () => {
-    render(<StandardClosingTimeSection settings={makeSettings()} />);
+    render(<StandardClosingTimeSection settings={makeSettings()} canEdit={true} />);
 
     // 単一の時刻ではなく開始〜終了レンジが存在することを固定（回帰防止）。
     // 同日内: AM(2) + PM(2) = 4 セル、越日: EMG(2) = 2 セル（#215）。
@@ -57,7 +75,7 @@ describe("StandardClosingTimeSection (#151 時間帯プレビュー・#215 越�
   });
 
   it("境界時刻の編集でレンジが即時に再計算される（ライブプレビュー）", () => {
-    render(<StandardClosingTimeSection settings={makeSettings()} />);
+    render(<StandardClosingTimeSection settings={makeSettings()} canEdit={true} />);
 
     expect(screen.getAllByText("09:00:00～11:59:59")).toHaveLength(2);
 
@@ -75,7 +93,7 @@ describe("StandardClosingTimeSection (#151 時間帯プレビュー・#215 越�
   });
 
   it("終了時刻を空にすると、誤解を招く部分レンジではなく『未設定』を表示する", () => {
-    render(<StandardClosingTimeSection settings={makeSettings()} />);
+    render(<StandardClosingTimeSection settings={makeSettings()} canEdit={true} />);
 
     const weekdayInput = screen.getByLabelText("平日 終了時間");
     fireEvent.change(weekdayInput, { target: { value: "" } });
@@ -88,5 +106,24 @@ describe("StandardClosingTimeSection (#151 時間帯プレビュー・#215 越�
 
     // 日曜列は引き続きレンジを表示する（部分欠落で全体が壊れない）
     expect(within(pmRow).getByText("12:00:00～17:29:59")).toBeInTheDocument();
+  });
+
+  it("canEdit=false のとき formAction は mutate せず toast.error する", async () => {
+    const { rerender } = render(
+      <StandardClosingTimeSection settings={makeSettings()} canEdit={true} />,
+    );
+    const form = screen.getByLabelText("午前・午後 区切り時間").closest("form");
+    expect(form).not.toBeNull();
+
+    rerender(<StandardClosingTimeSection settings={makeSettings()} canEdit={false} />);
+
+    await act(async () => {
+      form?.requestSubmit();
+    });
+
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalledWith(PERMISSION_DENIED_MESSAGE);
+    });
+    expect(mockUpdateClosingSettings).not.toHaveBeenCalled();
   });
 });

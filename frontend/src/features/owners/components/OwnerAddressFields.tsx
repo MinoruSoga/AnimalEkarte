@@ -5,8 +5,8 @@ import { FormFieldError } from "@/components/shared/FormFieldError";
 import { DatePicker } from "@/components/shared/DatePicker";
 import { C, STYLE } from "@/lib/design-tokens";
 import { toJSTWallDate } from "@/lib/jst-date";
-import { calculateSaigram } from "@/lib/saigram";
-import type { OwnerFieldSectionProps } from "./owner-info-field-shared";
+import { calculateSaigram } from "../lib/saigram";
+import type { OwnerFieldSectionProps } from "../lib/owner-info-field-shared";
 
 interface OwnerAddressFieldsProps extends OwnerFieldSectionProps {
   onPostalCodeLookup: (postalCodeField: string, addressField: string) => void;
@@ -24,7 +24,9 @@ export function OwnerAddressFields({
   return (
     <>
       <div className="space-y-1.5">
-        <Label htmlFor="postalCode" className={`text-sm ${C.text60}`}>郵便番号</Label>
+        <Label htmlFor="postalCode" className={`text-sm ${C.text60}`}>
+          郵便番号
+        </Label>
         <div className="flex gap-1.5">
           <Input
             id="postalCode"
@@ -52,7 +54,9 @@ export function OwnerAddressFields({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="address1" className={`text-sm ${C.text60}`}>住所1（会社）</Label>
+        <Label htmlFor="address1" className={`text-sm ${C.text60}`}>
+          住所1（会社）
+        </Label>
         <Input
           id="address1"
           value={ownerData.address1}
@@ -63,7 +67,9 @@ export function OwnerAddressFields({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="homePostalCode" className={`text-sm ${C.text60}`}>郵便番号(自宅)</Label>
+        <Label htmlFor="homePostalCode" className={`text-sm ${C.text60}`}>
+          郵便番号(自宅)
+        </Label>
         <div className="flex gap-1.5">
           <Input
             id="homePostalCode"
@@ -91,7 +97,9 @@ export function OwnerAddressFields({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="address2" className={`text-sm ${C.text60}`}>住所2（会社）</Label>
+        <Label htmlFor="address2" className={`text-sm ${C.text60}`}>
+          住所2（会社）
+        </Label>
         <Input
           id="address2"
           value={ownerData.address2}
@@ -102,7 +110,9 @@ export function OwnerAddressFields({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="homeAddress1" className={`text-sm ${C.text60}`}>住所1(自宅)</Label>
+        <Label htmlFor="homeAddress1" className={`text-sm ${C.text60}`}>
+          住所1(自宅)
+        </Label>
         <Input
           id="homeAddress1"
           value={ownerData.homeAddress1}
@@ -113,7 +123,9 @@ export function OwnerAddressFields({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="birthDate" className={`text-sm ${C.text60}`}>飼主生年月日</Label>
+        <Label htmlFor="birthDate" className={`text-sm ${C.text60}`}>
+          飼主生年月日
+        </Label>
         <div className="flex flex-col gap-1.5">
           <DatePicker
             id="birthDate"
@@ -141,7 +153,9 @@ export function OwnerAddressFields({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="homeAddress2" className={`text-sm ${C.text60}`}>住所2(自宅)</Label>
+        <Label htmlFor="homeAddress2" className={`text-sm ${C.text60}`}>
+          住所2(自宅)
+        </Label>
         <Input
           id="homeAddress2"
           value={ownerData.homeAddress2}

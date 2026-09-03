@@ -9,14 +9,7 @@
  * モバイル: サイドバーはドロワー化、ハンバーガーボタンで開閉。
  */
 
-import {
-  useState,
-  useMemo,
-  useEffect,
-  useCallback,
-  useDeferredValue,
-  useRef,
-} from "react";
+import { useState, useMemo, useEffect, useCallback, useDeferredValue, useRef } from "react";
 import { Navigate, useParams } from "react-router";
 
 import { C } from "@/lib/design-tokens";
@@ -44,11 +37,9 @@ const DESKTOP_BREAKPOINT_QUERY = "(min-width: 768px)";
 
 export function ManualPage() {
   const params = useParams<{ category?: string; slug?: string }>();
-  const { canView: canViewOverrides, canEdit: canEditManual } =
-    usePermission(ResourceManualEdit);
+  const { canView: canViewOverrides, canEdit: canEditManual } = usePermission(ResourceManualEdit);
 
-  const initialMode: ManualCategory =
-    params.category === "workflows" ? "workflows" : "screens";
+  const initialMode: ManualCategory = params.category === "workflows" ? "workflows" : "screens";
   const [viewMode, setViewMode] = useState<ManualCategory>(initialMode);
   const [query, setQuery] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -71,11 +62,19 @@ export function ManualPage() {
   const overrides = canViewOverrides ? fetchedOverrides : undefined;
 
   const screenArticles = useMemo<ManualArticle[]>(
-    () => applyOverrides(bundledScreenArticles, (overrides ?? []).filter((o) => o.category === "screens")),
+    () =>
+      applyOverrides(
+        bundledScreenArticles,
+        (overrides ?? []).filter((o) => o.category === "screens"),
+      ),
     [overrides],
   );
   const workflowArticles = useMemo<ManualArticle[]>(
-    () => applyOverrides(bundledWorkflowArticles, (overrides ?? []).filter((o) => o.category === "workflows")),
+    () =>
+      applyOverrides(
+        bundledWorkflowArticles,
+        (overrides ?? []).filter((o) => o.category === "workflows"),
+      ),
     [overrides],
   );
 
@@ -126,10 +125,11 @@ export function ManualPage() {
   }, []);
 
   if (!params.category || !params.slug) {
-    const fallback =
-      viewMode === "screens" ? screenArticles[0] : workflowArticles[0];
+    const fallback = viewMode === "screens" ? screenArticles[0] : workflowArticles[0];
     if (fallback) {
-      return <Navigate to={paths.manual.article.getHref(fallback.category, fallback.slug)} replace />;
+      return (
+        <Navigate to={paths.manual.article.getHref(fallback.category, fallback.slug)} replace />
+      );
     }
   }
 
@@ -154,7 +154,11 @@ export function ManualPage() {
 
       {article ? (
         editMode && canEditManual ? (
-          <ManualEditor article={article} onClose={() => setEditMode(false)} />
+          <ManualEditor
+            article={article}
+            onClose={() => setEditMode(false)}
+            canEdit={canEditManual === true}
+          />
         ) : (
           <ManualContent article={article} />
         )

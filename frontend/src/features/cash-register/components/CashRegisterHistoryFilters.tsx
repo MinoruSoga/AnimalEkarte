@@ -1,5 +1,5 @@
 import { STYLE } from "@/lib/design-tokens";
-import { PERIOD_LABELS, PERIOD_OPTIONS, type CashRegisterPeriod } from "../constants";
+import { PERIOD_LABELS, PERIOD_OPTIONS, type CashRegisterPeriod } from "../lib/constants";
 
 export type HistoryPeriodFilter = "all" | CashRegisterPeriod;
 

@@ -1,5 +1,5 @@
 import { useCallback, useDeferredValue, useMemo, useState } from "react";
-import { normalizeKana } from "@/lib/normalize-kana";
+import { normalizedIncludes } from "@/lib/normalize-kana";
 import type { SortOrder } from "@/types";
 import { useGetExaminations } from "../api/get-examinations";
 
@@ -44,15 +44,10 @@ export function useExaminationHistoryFilters({
   const searchedPetHistory = useMemo(() => {
     if (!deferredHistorySearch) return petHistory;
 
-    const searchValue = normalizeKana(deferredHistorySearch).toLowerCase();
     return petHistory.filter(
       (examination) =>
-        normalizeKana(examination.testType)
-          .toLowerCase()
-          .includes(searchValue) ||
-        normalizeKana(examination.resultSummary ?? "")
-          .toLowerCase()
-          .includes(searchValue),
+        normalizedIncludes(examination.testType, deferredHistorySearch) ||
+        normalizedIncludes(examination.resultSummary ?? "", deferredHistorySearch),
     );
   }, [deferredHistorySearch, petHistory]);
 

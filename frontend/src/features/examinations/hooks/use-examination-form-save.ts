@@ -2,7 +2,7 @@ import { toast } from "sonner";
 import type { EntityReadResult } from "@/lib/entity-read-result";
 import type { Pet } from "@/types";
 import type { ExaminationRecord } from "../api/transforms";
-import type { CreateExaminationRequest, UpdateExaminationRequest } from "../api/types";
+import type { CreateExaminationRequest, UpdateExaminationRequest } from "../types";
 import type { ActionState } from "@/types/form";
 import type { ExamItemRow } from "../components/ExamItemsTable";
 import {
@@ -38,9 +38,7 @@ interface ExaminationSaveDeps {
   };
 }
 
-export async function runExaminationSave(
-  deps: ExaminationSaveDeps,
-): Promise<ActionState> {
+export async function runExaminationSave(deps: ExaminationSaveDeps): Promise<ActionState> {
   const current = deps.formDataWithPetRef.current;
   const isPersistedConfirmed = deps.isPersistedConfirmedRef.current;
   const resultsLocked = deps.isPersistedResultsLockedRef.current;
@@ -78,9 +76,7 @@ export async function runExaminationSave(
         changedPatient: deps.activePetRef.current,
       });
       if (patientChange.kind === "blocked") {
-        toast.error(
-          "患者変更の条件が変わりました。検査記録を再読み込みしてください",
-        );
+        toast.error("患者変更の条件が変わりました。検査記録を再読み込みしてください");
         return { success: false, timestamp: Date.now() };
       }
       const req = buildUpdateExaminationRequest({
@@ -106,10 +102,7 @@ export async function runExaminationSave(
         petId: pet.id,
         items,
       });
-      if (
-        !deps.isMutationAllowed("canCreate") ||
-        !deps.isMutationAllowed("canEdit")
-      ) {
+      if (!deps.isMutationAllowed("canCreate") || !deps.isMutationAllowed("canEdit")) {
         return { success: false, timestamp: Date.now() };
       }
       await deps.createMutation.mutateAsync(req);

@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { queryKeys } from "@/lib/query-keys";
-import { getClinicId } from "./get-clinic-id";
+import { getStoredClinicId } from "@/lib/current-clinic";
 import {
   fetchLstepSettings,
   patchLstepSettings,
@@ -18,14 +18,14 @@ export type { LstepSettingsResponse, LstepSettingsRequest } from "../api/lstep-s
 // ─────────────────────────────────────────────────
 
 export function useGetLstepSettings() {
-  const clinicId = getClinicId();
+  const clinicId = getStoredClinicId();
   return useQuery({
     queryKey: queryKeys.lstepSettings(clinicId),
     queryFn: () => {
       // refetch（window focus 等）時も都度最新値を読む — 元の fetchLstepSettings() は
-      // 呼び出しごとに getClinicId() していたため、render 時点の clinicId をクロージャで
+      // 呼び出しごとに getStoredClinicId() していたため、render 時点の clinicId をクロージャで
       // 固定しない（挙動保存）。
-      const currentClinicId = getClinicId();
+      const currentClinicId = getStoredClinicId();
       if (currentClinicId === null) {
         throw new Error("clinic_id is not selected");
       }
@@ -39,10 +39,10 @@ export function useGetLstepSettings() {
 
 export function useUpdateLstepSettings() {
   const queryClient = useQueryClient();
-  const clinicId = getClinicId();
+  const clinicId = getStoredClinicId();
   return useMutation({
     mutationFn: (req: LstepSettingsRequest) => {
-      const currentClinicId = getClinicId();
+      const currentClinicId = getStoredClinicId();
       if (currentClinicId === null) {
         throw new Error("clinic_id is not selected");
       }
@@ -60,7 +60,7 @@ export function useUpdateLstepSettings() {
 export function useTestLstepConnection() {
   return useMutation({
     mutationFn: () => {
-      const currentClinicId = getClinicId();
+      const currentClinicId = getStoredClinicId();
       if (currentClinicId === null) {
         throw new Error("clinic_id is not selected");
       }
@@ -74,7 +74,7 @@ export function useTestLstepConnection() {
 export function useTestLineMessagingConnection() {
   return useMutation({
     mutationFn: () => {
-      const currentClinicId = getClinicId();
+      const currentClinicId = getStoredClinicId();
       if (currentClinicId === null) {
         throw new Error("clinic_id is not selected");
       }
@@ -86,10 +86,10 @@ export function useTestLineMessagingConnection() {
 
 export function useDeleteLstepSettings() {
   const queryClient = useQueryClient();
-  const clinicId = getClinicId();
+  const clinicId = getStoredClinicId();
   return useMutation({
     mutationFn: () => {
-      const currentClinicId = getClinicId();
+      const currentClinicId = getStoredClinicId();
       if (currentClinicId === null) {
         throw new Error("clinic_id is not selected");
       }

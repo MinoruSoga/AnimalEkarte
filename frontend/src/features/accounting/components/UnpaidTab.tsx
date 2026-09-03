@@ -11,7 +11,7 @@ import {
   type UnpaidOwner,
 } from "../api/get-unpaid-billings";
 import { UnpaidTabFilters } from "./UnpaidTabFilters";
-import { parseUnpaidGroupBy, type UnpaidGroupBy } from "./unpaid-tab-model";
+import { parseUnpaidGroupBy, type UnpaidGroupBy } from "../lib/unpaid-tab-model";
 import { UnpaidTabSummaries } from "./UnpaidTabSummaries";
 import {
   UnpaidBillingTable,
@@ -39,44 +39,68 @@ export function UnpaidTab() {
   const [page, setPage] = useState(1);
   const limit = 20;
 
-  const handleStartDateChange = useCallback((next: string) => {
-    setSearchParams((prev) => {
-      const p = new URLSearchParams(prev);
-      if (next) p.set("start_date", next);
-      else p.delete("start_date");
-      return p;
-    }, { replace: true });
-    setPage(1);
-  }, [setSearchParams]);
+  const handleStartDateChange = useCallback(
+    (next: string) => {
+      setSearchParams(
+        (prev) => {
+          const p = new URLSearchParams(prev);
+          if (next) p.set("start_date", next);
+          else p.delete("start_date");
+          return p;
+        },
+        { replace: true },
+      );
+      setPage(1);
+    },
+    [setSearchParams],
+  );
 
-  const handleEndDateChange = useCallback((next: string) => {
-    setSearchParams((prev) => {
-      const p = new URLSearchParams(prev);
-      if (next) p.set("end_date", next);
-      else p.delete("end_date");
-      return p;
-    }, { replace: true });
-    setPage(1);
-  }, [setSearchParams]);
+  const handleEndDateChange = useCallback(
+    (next: string) => {
+      setSearchParams(
+        (prev) => {
+          const p = new URLSearchParams(prev);
+          if (next) p.set("end_date", next);
+          else p.delete("end_date");
+          return p;
+        },
+        { replace: true },
+      );
+      setPage(1);
+    },
+    [setSearchParams],
+  );
 
-  const handleGroupByChange = useCallback((next: UnpaidGroupBy) => {
-    setSearchParams((prev) => {
-      const p = new URLSearchParams(prev);
-      p.set("group_by", next);
-      return p;
-    }, { replace: true });
-    setPage(1);
-  }, [setSearchParams]);
+  const handleGroupByChange = useCallback(
+    (next: UnpaidGroupBy) => {
+      setSearchParams(
+        (prev) => {
+          const p = new URLSearchParams(prev);
+          p.set("group_by", next);
+          return p;
+        },
+        { replace: true },
+      );
+      setPage(1);
+    },
+    [setSearchParams],
+  );
 
-  const handleMonthChange = useCallback((next: string) => {
-    setSearchParams((prev) => {
-      const p = new URLSearchParams(prev);
-      if (next) p.set("month", next);
-      else p.delete("month");
-      return p;
-    }, { replace: true });
-    setPage(1);
-  }, [setSearchParams]);
+  const handleMonthChange = useCallback(
+    (next: string) => {
+      setSearchParams(
+        (prev) => {
+          const p = new URLSearchParams(prev);
+          if (next) p.set("month", next);
+          else p.delete("month");
+          return p;
+        },
+        { replace: true },
+      );
+      setPage(1);
+    },
+    [setSearchParams],
+  );
 
   // groupBy: "monthly" のとき enabled=false になるよう型を統一
   const ownerQuery = useGetUnpaidByOwner({ startDate, endDate, groupBy, page, limit });
@@ -86,19 +110,28 @@ export function UnpaidTab() {
   const summary = ownerQuery.data?.summary;
   const monthlySummary = monthlyQuery.data?.summary;
 
-  const isLoading = groupBy === "owner" ? ownerQuery.isLoading
-    : groupBy === "billing" ? billingQuery.isLoading
-    : monthlyQuery.isLoading;
-  const isError = groupBy === "owner" ? ownerQuery.isError
-    : groupBy === "billing" ? billingQuery.isError
-    : monthlyQuery.isError;
+  const isLoading =
+    groupBy === "owner"
+      ? ownerQuery.isLoading
+      : groupBy === "billing"
+        ? billingQuery.isLoading
+        : monthlyQuery.isLoading;
+  const isError =
+    groupBy === "owner"
+      ? ownerQuery.isError
+      : groupBy === "billing"
+        ? billingQuery.isError
+        : monthlyQuery.isError;
 
   const ownerRows = useMemo<UnpaidOwner[]>(() => ownerQuery.data?.data ?? [], [ownerQuery.data]);
   const monthlyRows = useMemo(() => monthlyQuery.data?.data ?? [], [monthlyQuery.data]);
   const billingRows = billingQuery.data?.data ?? [];
-  const listData = groupBy === "owner" ? ownerQuery.data
-    : groupBy === "billing" ? billingQuery.data
-    : monthlyQuery.data;
+  const listData =
+    groupBy === "owner"
+      ? ownerQuery.data
+      : groupBy === "billing"
+        ? billingQuery.data
+        : monthlyQuery.data;
 
   return (
     <div className="flex flex-col gap-4">
@@ -113,11 +146,7 @@ export function UnpaidTab() {
         onGroupByChange={handleGroupByChange}
       />
 
-      <UnpaidTabSummaries
-        groupBy={groupBy}
-        summary={summary}
-        monthlySummary={monthlySummary}
-      />
+      <UnpaidTabSummaries groupBy={groupBy} summary={summary} monthlySummary={monthlySummary} />
 
       {isLoading ? <LoadingFallback /> : null}
       {isError ? <ErrorFallback message="データの取得に失敗しました" /> : null}

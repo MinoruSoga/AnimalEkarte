@@ -4,7 +4,7 @@ import { handleApiError } from "@/lib/handle-api-error";
 import { queryKeys } from "@/lib/query-keys";
 import type { Examination } from "@/types/generated/models";
 import { transformExamination, type ExaminationRecord } from "./transforms";
-import type { UpdateExaminationRequest } from "./types";
+import type { UpdateExaminationRequest } from "../types";
 
 const updateExamination = async (
   id: string,

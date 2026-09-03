@@ -21,15 +21,11 @@ import {
   type CreateCheckupInput,
   type UpdateCheckupInput,
 } from "../../api/checkups";
-import {
-  CheckupsTable,
-  LstepStatusBadge,
-  type LstepStatus,
-} from "./CheckupsTabTable";
+import { CheckupsTable, LstepStatusBadge, type LstepStatus } from "./CheckupsTabTable";
 import {
   makeDefaultCheckupAddForm,
   type AddCheckupFormState,
-} from "./checkups-tab-table-model";
+} from "../../lib/checkups-tab-table-model";
 
 interface CheckupsTabProps {
   medicalRecordId: string;
@@ -54,24 +50,19 @@ export const CheckupsTab = memo(function CheckupsTab({
   const { mutate: deleteCheckup } = deleteMutation;
 
   const [searchParams] = useSearchParams();
-  const [editingId, setEditingId] = useState<string | null>(
-    () => searchParams.get("checkupId"),
-  );
+  const [editingId, setEditingId] = useState<string | null>(() => searchParams.get("checkupId"));
   const [isAdding, setIsAdding] = useState(false);
   const [addForm, setAddForm] = useState<AddCheckupFormState>(() => makeDefaultCheckupAddForm());
   const [addFormErrors, setAddFormErrors] = useState<Record<string, string>>({});
   const [fieldValues, setFieldValues] = useState<Record<number, CheckupFieldValue>>({});
   const { data: checkupFields = [] } = useGetCheckupTypeFields(addForm.checkup_type_id);
 
-  const handleAddFormChange = useCallback(
-    (field: keyof AddCheckupFormState, value: string) => {
-      setAddForm((prev) => ({ ...prev, [field]: value }));
-      if (field === "checkup_type_id") {
-        setFieldValues({});
-      }
-    },
-    [],
-  );
+  const handleAddFormChange = useCallback((field: keyof AddCheckupFormState, value: string) => {
+    setAddForm((prev) => ({ ...prev, [field]: value }));
+    if (field === "checkup_type_id") {
+      setFieldValues({});
+    }
+  }, []);
 
   const handleFieldValueChange = useCallback((fieldId: number, value: CheckupFieldValue) => {
     setFieldValues((prev) => ({ ...prev, [fieldId]: value }));
@@ -201,9 +192,7 @@ export const CheckupsTab = memo(function CheckupsTab({
 
       {checkupList.length > 0 ? (
         <div className={`${C.bgWhite} border ${C.borderLight} rounded-xs px-4 py-3`}>
-          <span className={`text-sm ${C.text60}`}>
-            健診記録 {checkupList.length} 件
-          </span>
+          <span className={`text-sm ${C.text60}`}>健診記録 {checkupList.length} 件</span>
         </div>
       ) : null}
     </div>

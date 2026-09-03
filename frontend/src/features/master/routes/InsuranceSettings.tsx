@@ -13,8 +13,13 @@ import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
 import { MasterCRUDPage } from "../components/MasterCRUDPage";
 import { InsuranceSidePanel } from "../components/InsuranceSidePanel";
-import type { InsuranceFormData } from "../components/insurance-side-panel-model";
-import { useGetAllInsurances, useCreateInsurance, useUpdateInsurance, useDeleteInsurance } from "../api/insurances";
+import type { InsuranceFormData } from "../lib/insurance-side-panel-model";
+import {
+  useGetAllInsurances,
+  useCreateInsurance,
+  useUpdateInsurance,
+  useDeleteInsurance,
+} from "../api/insurances";
 import type { Insurance, CreateInsuranceRequest, UpdateInsuranceRequest } from "../api/insurances";
 import {
   buildInsuranceCreateRequest,
@@ -45,9 +50,22 @@ export function InsuranceSettings() {
     dirtyGuard: dirty,
     permissions: { canDelete },
   });
-  const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
-  const { handleSave } = useMasterSave<Insurance, InsuranceFormData, CreateInsuranceRequest, UpdateInsuranceRequest>({
-    crud, createMutation, updateMutation,
+  const handleDirtyChange = useCallback(
+    (d: boolean) => {
+      if (d) dirty.markDirty();
+      else dirty.markClean();
+    },
+    [dirty],
+  );
+  const { handleSave } = useMasterSave<
+    Insurance,
+    InsuranceFormData,
+    CreateInsuranceRequest,
+    UpdateInsuranceRequest
+  >({
+    crud,
+    createMutation,
+    updateMutation,
     permissions: { canCreate, canEdit },
     validate: validateInsuranceForm,
     toCreateRequest: buildInsuranceCreateRequest,
@@ -56,43 +74,54 @@ export function InsuranceSettings() {
 
   return (
     <>
-    <MasterCRUDPage title="保険マスタ" icon={<Shield className={`${ICON.page} ${C.text}`} />} resource={ResourceMasterInsurance}
-      entityLabel="保険" searchPlaceholder="保険名で検索..." emptyMessage="保険が登録されていません"
-      crud={crud} handleSave={handleSave} columns={COLUMNS}
-      filterProperties={[MASTER_STATUS_FILTER]}
-      renderRow={(item, onEdit, canEdit) => (
-        <DataTableRow key={item.id}>
-          <TableCell className={`font-medium ${C.text}`}>
-            <DataTableRowButton
-              aria-label={`詳細: 保険 ${item.name} (ID ${item.id})`}
-              onClick={() => onEdit(item)}
-            >
-              {item.name}
-            </DataTableRowButton>
-          </TableCell>
-          <TableCell className={`text-center ${C.text}`}>{item.coverageRate > 0 ? `${item.coverageRate}%` : "-"}</TableCell>
-          <TableCell className={C.text70}>{item.contactPhone || "-"}</TableCell>
-          <TableCell className="text-center"><StatusPill isActive={item.isActive} /></TableCell>
-          <TableCell className="text-right">
-            {canEdit ? (
-              <RowActionButton
+      <MasterCRUDPage
+        title="保険マスタ"
+        icon={<Shield className={`${ICON.page} ${C.text}`} />}
+        resource={ResourceMasterInsurance}
+        entityLabel="保険"
+        searchPlaceholder="保険名で検索..."
+        emptyMessage="保険が登録されていません"
+        crud={crud}
+        handleSave={handleSave}
+        columns={COLUMNS}
+        filterProperties={[MASTER_STATUS_FILTER]}
+        renderRow={(item, onEdit, canEdit) => (
+          <DataTableRow key={item.id}>
+            <TableCell className={`font-medium ${C.text}`}>
+              <DataTableRowButton
+                aria-label={`詳細: 保険 ${item.name} (ID ${item.id})`}
                 onClick={() => onEdit(item)}
-                aria-label={`保険「${item.name}」(ID: ${item.id}) を編集`}
-              />
-            ) : null}
-          </TableCell>
-        </DataTableRow>
-      )}
-      renderSidePanel={(props) => (
-        <InsuranceSidePanel
-          key={props.item?.id ?? "new"}
-          {...props}
-          onSave={handleSave}
-          onDirtyChange={handleDirtyChange}
-        />
-      )}
-    />
-    {dirty.discardDialog}
+              >
+                {item.name}
+              </DataTableRowButton>
+            </TableCell>
+            <TableCell className={`text-center ${C.text}`}>
+              {item.coverageRate > 0 ? `${item.coverageRate}%` : "-"}
+            </TableCell>
+            <TableCell className={C.text70}>{item.contactPhone || "-"}</TableCell>
+            <TableCell className="text-center">
+              <StatusPill isActive={item.isActive} />
+            </TableCell>
+            <TableCell className="text-right">
+              {canEdit ? (
+                <RowActionButton
+                  onClick={() => onEdit(item)}
+                  aria-label={`保険「${item.name}」(ID: ${item.id}) を編集`}
+                />
+              ) : null}
+            </TableCell>
+          </DataTableRow>
+        )}
+        renderSidePanel={(props) => (
+          <InsuranceSidePanel
+            key={props.item?.id ?? "new"}
+            {...props}
+            onSave={handleSave}
+            onDirtyChange={handleDirtyChange}
+          />
+        )}
+      />
+      {dirty.discardDialog}
     </>
   );
 }

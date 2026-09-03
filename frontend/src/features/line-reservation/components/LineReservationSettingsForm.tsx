@@ -1,5 +1,5 @@
 // React/Framework
-import { useActionState, useState, useCallback } from "react";
+import { useActionState, useLayoutEffect, useRef, useState, useCallback } from "react";
 import { Link } from "react-router";
 
 // External
@@ -10,17 +10,13 @@ import { handleApiError } from "@/lib/handle-api-error";
 import { getFormString } from "@/lib/form-data";
 import { C } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
+import { usePermission } from "@/hooks/use-permission";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Select,
-  SelectContent,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { updateLineReservationSetting } from "../api/update-line-reservation-setting";
 import type { ReservationSetting } from "../api/types";
@@ -44,7 +40,7 @@ import {
   isBusinessHoursByWeekday,
   toDisplayTime,
   toStorageTime,
-} from "./line-reservation-settings-form-model";
+} from "../lib/line-reservation-settings-form-model";
 
 // ── SettingsForm ──────────────────────────────────────────────────────────────
 
@@ -53,7 +49,15 @@ interface SettingsFormProps {
   clinicId: string;
 }
 
+const PERMISSION_DENIED_MESSAGE = "この操作を行う権限がありません";
+
 export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormProps) {
+  const { canEdit } = usePermission("reservations");
+  const canEditRef = useRef(canEdit);
+  useLayoutEffect(() => {
+    canEditRef.current = canEdit;
+  }, [canEdit]);
+
   // スカラーフィールド
   const [status, setStatus] = useState(setting.status);
   const [nationalHolidayClosed, setNationalHolidayClosed] = useState(
@@ -63,19 +67,17 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
   const [noStaffMode, setNoStaffMode] = useState(setting.no_staff_mode);
   // BUG-028: defaultValue のままだと form action 完了後に初期 props へリセットされ、
   // 保存済みの新値（0 含む）が UI に残らない。controlled で保持する。
-  const [bookingWindowMinDays, setBookingWindowMinDays] = useState(
-    setting.booking_window_min_days,
-  );
+  const [bookingWindowMinDays, setBookingWindowMinDays] = useState(setting.booking_window_min_days);
 
   // JSONB フィールド（lazy init — 初回レンダー時のみパース）
-  const [closedWeekdays, setClosedWeekdays] = useState<string[]>(
-    () => asJsonb<string[]>(setting.closed_weekdays, [], isStringArray),
+  const [closedWeekdays, setClosedWeekdays] = useState<string[]>(() =>
+    asJsonb<string[]>(setting.closed_weekdays, [], isStringArray),
   );
-  const [businessHours, setBusinessHours] = useState<BusinessHours>(
-    () => asJsonb<BusinessHours>(setting.business_hours, { start: "0900", end: "1900" }, isBusinessHours),
+  const [businessHours, setBusinessHours] = useState<BusinessHours>(() =>
+    asJsonb<BusinessHours>(setting.business_hours, { start: "0900", end: "1900" }, isBusinessHours),
   );
-  const [breakHours, setBreakHours] = useState<BreakHour[]>(
-    () => asJsonb<BreakHour[]>(setting.break_hours, [], isBreakHourArray),
+  const [breakHours, setBreakHours] = useState<BreakHour[]>(() =>
+    asJsonb<BreakHour[]>(setting.break_hours, [], isBreakHourArray),
   );
   // 個別定休日の write owner は ClinicHolidayModal（clinic_holidays）。
   // このフォームは既存 closed_dates を PUT で round-trip するだけにし、編集 UI は置かない。
@@ -88,8 +90,12 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
     );
     return Object.keys(parsed).length > 0;
   });
-  const [weekdayHours, setWeekdayHours] = useState<BusinessHoursByWeekday>(
-    () => asJsonb<BusinessHoursByWeekday>(setting.business_hours_by_weekday, {}, isBusinessHoursByWeekday),
+  const [weekdayHours, setWeekdayHours] = useState<BusinessHoursByWeekday>(() =>
+    asJsonb<BusinessHoursByWeekday>(
+      setting.business_hours_by_weekday,
+      {},
+      isBusinessHoursByWeekday,
+    ),
   );
 
   // ハンドラ（useCallback で安定化）
@@ -106,6 +112,10 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
   }, []);
 
   const [, formAction] = useActionState(async (_prev: null, formData: FormData) => {
+    if (canEditRef.current !== true) {
+      toast.error(PERMISSION_DENIED_MESSAGE);
+      return null;
+    }
     const payload = {
       status,
       national_holiday_closed: nationalHolidayClosed,

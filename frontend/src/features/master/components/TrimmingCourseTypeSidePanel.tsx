@@ -9,7 +9,7 @@ import { useMasterSidePanelForm } from "../hooks/use-master-side-panel-form";
 import {
   trimmingCourseTypeToFormData,
   type TrimmingCourseTypeFormData,
-} from "./trimming-course-type-side-panel-model";
+} from "../lib/trimming-course-type-side-panel-model";
 
 interface TrimmingCourseTypeSidePanelProps {
   item: TrimmingCourseType | null;
@@ -30,25 +30,33 @@ export const TrimmingCourseTypeSidePanel = memo(function TrimmingCourseTypeSideP
 }: TrimmingCourseTypeSidePanelProps) {
   const [nameError, setNameError] = useState("");
 
-  const { formData, setFormData: setFormDataDirty, isDirty, setIsDirty, handleAction } =
-    useMasterSidePanelForm<TrimmingCourseTypeFormData>({
-      initialFormData: trimmingCourseTypeToFormData(item),
-      onSave,
-      onDirtyChange,
-      validate: (data) => {
-        if (!data.name.trim()) {
-          setNameError("名称を入力してください");
-          return false;
-        }
-        setNameError("");
-        return true;
-      },
-    });
+  const {
+    formData,
+    setFormData: setFormDataDirty,
+    isDirty,
+    setIsDirty,
+    handleAction,
+  } = useMasterSidePanelForm<TrimmingCourseTypeFormData>({
+    initialFormData: trimmingCourseTypeToFormData(item),
+    onSave,
+    onDirtyChange,
+    validate: (data) => {
+      if (!data.name.trim()) {
+        setNameError("名称を入力してください");
+        return false;
+      }
+      setNameError("");
+      return true;
+    },
+  });
 
-  const handleTitleChange = useCallback((value: string) => {
-    setFormDataDirty((prev) => ({ ...prev, name: value }));
-    if (value.trim()) setNameError("");
-  }, [setFormDataDirty]);
+  const handleTitleChange = useCallback(
+    (value: string) => {
+      setFormDataDirty((prev) => ({ ...prev, name: value }));
+      if (value.trim()) setNameError("");
+    },
+    [setFormDataDirty],
+  );
 
   const handleToggleActive = useCallback(() => {
     setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }));

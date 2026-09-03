@@ -14,7 +14,7 @@ import {
   WHILE_DRAG_FULL,
   WHILE_DRAG_REDUCED,
   type ReservationTypeColor,
-} from "./week-view-grid-constants";
+} from "../lib/week-view-grid-constants";
 
 interface AppointmentCardProps {
   appointment: Reservation;
@@ -77,9 +77,7 @@ export const AppointmentCard = memo(function AppointmentCard({
   const isFirstVisit = appointment.visitType === "first";
   const typeName = getReservationTypeName(appointment.type);
   const typeLabel =
-    dynamicColorMap?.get(appointment.type)?.isInactive === true
-      ? `${typeName}（無効）`
-      : typeName;
+    dynamicColorMap?.get(appointment.type)?.isInactive === true ? `${typeName}（無効）` : typeName;
 
   const tooltipText = useMemo(
     () =>

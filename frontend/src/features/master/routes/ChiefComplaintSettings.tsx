@@ -13,8 +13,13 @@ import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
 import { MasterCRUDPage } from "../components/MasterCRUDPage";
 import { ChiefComplaintSidePanel } from "../components/ChiefComplaintSidePanel";
-import type { ChiefComplaintFormData } from "../components/chief-complaint-side-panel-model";
-import { useGetChiefComplaintTypes, useCreateChiefComplaintType, useUpdateChiefComplaintType, useDeleteChiefComplaintType } from "../api/chief-complaint-types";
+import type { ChiefComplaintFormData } from "../lib/chief-complaint-side-panel-model";
+import {
+  useGetChiefComplaintTypes,
+  useCreateChiefComplaintType,
+  useUpdateChiefComplaintType,
+  useDeleteChiefComplaintType,
+} from "../api/chief-complaint-types";
 import type {
   ChiefComplaintType,
   CreateChiefComplaintTypeRequest,
@@ -47,9 +52,22 @@ export function ChiefComplaintSettings() {
     dirtyGuard: dirty,
     permissions: { canDelete },
   });
-  const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
-  const { handleSave } = useMasterSave<ChiefComplaintType, ChiefComplaintFormData, CreateChiefComplaintTypeRequest, UpdateChiefComplaintTypeRequest>({
-    crud, createMutation, updateMutation,
+  const handleDirtyChange = useCallback(
+    (d: boolean) => {
+      if (d) dirty.markDirty();
+      else dirty.markClean();
+    },
+    [dirty],
+  );
+  const { handleSave } = useMasterSave<
+    ChiefComplaintType,
+    ChiefComplaintFormData,
+    CreateChiefComplaintTypeRequest,
+    UpdateChiefComplaintTypeRequest
+  >({
+    crud,
+    createMutation,
+    updateMutation,
     permissions: { canCreate, canEdit },
     validate: (d) => (!d.name.trim() ? "名称は必須です" : null),
     toCreateRequest: buildChiefComplaintCreateRequest,
@@ -58,35 +76,50 @@ export function ChiefComplaintSettings() {
 
   return (
     <>
-    <MasterCRUDPage title="主訴マスタ" icon={<MessageSquareText className={`${ICON.page} ${C.text}`} />} resource={ResourceMasterMedical}
-      entityLabel="主訴マスタ" searchPlaceholder="名称で検索..." emptyMessage="主訴マスタが登録されていません"
-      crud={crud} handleSave={handleSave} columns={COLUMNS}
-      filterProperties={[MASTER_STATUS_FILTER]}
-      renderRow={(item, onEdit, canEdit) => (
-        <DataTableRow key={item.id}>
-          <TableCell className={`font-medium ${C.text}`}>
-            <DataTableRowButton
-              aria-label={`詳細: 主訴 ${item.name} (ID ${item.id})`}
-              onClick={() => onEdit(item)}
-            >
-              {item.name}
-            </DataTableRowButton>
-          </TableCell>
-          <TableCell className={C.text}>{item.description}</TableCell>
-          <TableCell className="text-center"><StatusPill isActive={item.isActive} /></TableCell>
-          <TableCell className="text-right">
-            {canEdit ? (
-              <RowActionButton
+      <MasterCRUDPage
+        title="主訴マスタ"
+        icon={<MessageSquareText className={`${ICON.page} ${C.text}`} />}
+        resource={ResourceMasterMedical}
+        entityLabel="主訴マスタ"
+        searchPlaceholder="名称で検索..."
+        emptyMessage="主訴マスタが登録されていません"
+        crud={crud}
+        handleSave={handleSave}
+        columns={COLUMNS}
+        filterProperties={[MASTER_STATUS_FILTER]}
+        renderRow={(item, onEdit, canEdit) => (
+          <DataTableRow key={item.id}>
+            <TableCell className={`font-medium ${C.text}`}>
+              <DataTableRowButton
+                aria-label={`詳細: 主訴 ${item.name} (ID ${item.id})`}
                 onClick={() => onEdit(item)}
-                aria-label={`主訴「${item.name}」(ID: ${item.id}) を編集`}
-              />
-            ) : null}
-          </TableCell>
-        </DataTableRow>
-      )}
-      renderSidePanel={(props) => <ChiefComplaintSidePanel key={props.item?.id ?? "new"} {...props} onDirtyChange={handleDirtyChange} />}
-    />
-    {dirty.discardDialog}
+              >
+                {item.name}
+              </DataTableRowButton>
+            </TableCell>
+            <TableCell className={C.text}>{item.description}</TableCell>
+            <TableCell className="text-center">
+              <StatusPill isActive={item.isActive} />
+            </TableCell>
+            <TableCell className="text-right">
+              {canEdit ? (
+                <RowActionButton
+                  onClick={() => onEdit(item)}
+                  aria-label={`主訴「${item.name}」(ID: ${item.id}) を編集`}
+                />
+              ) : null}
+            </TableCell>
+          </DataTableRow>
+        )}
+        renderSidePanel={(props) => (
+          <ChiefComplaintSidePanel
+            key={props.item?.id ?? "new"}
+            {...props}
+            onDirtyChange={handleDirtyChange}
+          />
+        )}
+      />
+      {dirty.discardDialog}
     </>
   );
 }

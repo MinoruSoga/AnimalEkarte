@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 
 import { todayJSTISO } from "@/lib/jst-date";
-import type { CashRegisterPeriod } from "../constants";
+import type { CashRegisterPeriod } from "../lib/constants";
 
 export function useCashRegisterCloseForm() {
   const today = todayJSTISO();

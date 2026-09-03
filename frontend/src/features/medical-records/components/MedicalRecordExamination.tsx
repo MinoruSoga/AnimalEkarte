@@ -14,7 +14,7 @@ import {
   MEDICAL_RECORD_EXAM_ID_PARAM,
   isTargetExamGroup,
   orderExamGroupsForTarget,
-} from "./medical-record-examination-model";
+} from "../lib/medical-record-examination-model";
 import { C } from "@/lib/design-tokens";
 import { HISTORY_FETCH_LIMIT } from "@/config/fetch-limits";
 import { LabDeviceUnlinkedBanner } from "@/components/shared/LabDeviceUnlinkedBanner/LabDeviceUnlinkedBanner";
@@ -38,21 +38,20 @@ export const MedicalRecordExamination = memo(function MedicalRecordExamination({
   const [searchParams] = useSearchParams();
   const examId = searchParams.get(MEDICAL_RECORD_EXAM_ID_PARAM);
 
-  const { data: examinationResult, isLoading, refetch } = useGetRecordExaminations(
+  const {
+    data: examinationResult,
+    isLoading,
+    refetch,
+  } = useGetRecordExaminations(
     isNewRecord ? undefined : petId,
     isNewRecord ? undefined : medicalRecordId,
   );
-  const apiExamGroups = useMemo(
-    () => examinationResult?.items ?? [],
-    [examinationResult?.items],
-  );
+  const apiExamGroups = useMemo(() => examinationResult?.items ?? [], [examinationResult?.items]);
   const isTruncated = examinationResult?.isTruncated ?? false;
 
   const examGroups = useMemo(() => {
     const filtered = apiExamGroups.filter((g) =>
-      deferredSearch
-        ? g.items.some((item) => normalizedIncludes(item.name, deferredSearch))
-        : true,
+      deferredSearch ? g.items.some((item) => normalizedIncludes(item.name, deferredSearch)) : true,
     );
     return orderExamGroupsForTarget(filtered, examId);
   }, [apiExamGroups, deferredSearch, examId]);
@@ -95,7 +94,9 @@ export const MedicalRecordExamination = memo(function MedicalRecordExamination({
           読み込み中...
         </div>
       ) : examGroups.length === 0 ? (
-        <div className={`flex flex-col items-center justify-center gap-3 h-24 text-sm ${C.text40} pl-1`}>
+        <div
+          className={`flex flex-col items-center justify-center gap-3 h-24 text-sm ${C.text40} pl-1`}
+        >
           <p>
             {isNewRecord
               ? "検査記録はまだありません。カルテ保存後に検査を追加できます。"

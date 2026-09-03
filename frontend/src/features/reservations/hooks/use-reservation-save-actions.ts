@@ -1,4 +1,4 @@
-import { useCallback, useRef, useTransition } from "react";
+import { useCallback, useLayoutEffect, useRef, useTransition } from "react";
 import type { RefObject } from "react";
 import { toast } from "sonner";
 
@@ -10,6 +10,21 @@ import { transformToCreateRequest } from "../api/transforms";
 import { useUpdateReservation } from "../api/update-reservation";
 import { buildReservationUpdateRequest } from "../lib/reservation-actions-model";
 import type { NewOwnerFormData, Pet, ReservationFormData } from "../types";
+
+/** FE-RC-204: action 別の最新権限値。mutation 直前に isMutationAllowed() で再検査する。 */
+export interface ReservationMutationPermissions {
+  canCreate: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+}
+
+export const DENIED_RESERVATION_MUTATION_PERMISSIONS: Readonly<ReservationMutationPermissions> = {
+  canCreate: false,
+  canEdit: false,
+  canDelete: false,
+};
+
+export const PERMISSION_DENIED_MESSAGE = "この操作を行う権限がありません";
 
 interface UseReservationSaveActionsArgs {
   editingAppointmentRef: RefObject<ReservationFormData | null>;
@@ -23,6 +38,8 @@ interface UseReservationSaveActionsArgs {
   handleCloseForm: () => void;
   navigateBackIfNeeded: () => void;
   createMutations: ReservationCreateMutations;
+  /** FE-RC-204: 未指定は fail-closed（全拒否）。 */
+  permissions?: Readonly<ReservationMutationPermissions>;
 }
 
 /** FE-RC-045: use-reservation-actions.ts から保存系（更新/新規飼主/既存ペット）を分離。 */
@@ -32,7 +49,19 @@ export function useReservationSaveActions({
   handleCloseForm,
   navigateBackIfNeeded,
   createMutations,
+  permissions: permissionsArg,
 }: UseReservationSaveActionsArgs) {
+  const permissions = permissionsArg ?? DENIED_RESERVATION_MUTATION_PERMISSIONS;
+  const { canCreate, canEdit, canDelete } = permissions;
+  const permissionsRef = useRef(permissions);
+  useLayoutEffect(() => {
+    permissionsRef.current = { canCreate, canEdit, canDelete };
+  }, [canCreate, canDelete, canEdit]);
+  const isMutationAllowed = useCallback(
+    (action: keyof ReservationMutationPermissions) => permissionsRef.current[action] === true,
+    [],
+  );
+
   const createMutation = useCreateReservation();
   const createBatchMutation = useCreateReservationBatch();
   const updateMutation = useUpdateReservation();
@@ -42,7 +71,9 @@ export function useReservationSaveActions({
   const [, startUpdateTransition] = useTransition();
   const createdPetIdsRef = useRef(new Set<string>());
   const createdReservationIdsRef = useRef(new Set<string>());
-  const newOwnerProgressRef = useRef<{ key: string; ownerID?: string; petID?: string } | null>(null);
+  const newOwnerProgressRef = useRef<{ key: string; ownerID?: string; petID?: string } | null>(
+    null,
+  );
   const resetCreateProgress = useCallback(() => {
     createdPetIdsRef.current.clear();
     createdReservationIdsRef.current.clear();
@@ -142,13 +173,22 @@ export function useReservationSaveActions({
         } else {
           // A selected multi-pet booking is one atomic server-side operation. Do not
           // issue individual creates: the second intentional overlap must not conflict.
-          const { pet_id: _petID, owner_id: _ownerID, ...base } = transformToCreateRequest(data, "0", "0");
+          const {
+            pet_id: _petID,
+            owner_id: _ownerID,
+            ...base
+          } = transformToCreateRequest(data, "0", "0");
           await createBatchReservationAsync({
             ...base,
-            pets: selectedPets.map((pet) => ({ pet_id: Number(pet.id), owner_id: Number(pet.ownerId) })),
+            pets: selectedPets.map((pet) => ({
+              pet_id: Number(pet.id),
+              owner_id: Number(pet.ownerId),
+            })),
           });
         }
-        toast.success(`${selectedPets.length}件の予約を作成しました`, { description: `担当医: ${targetDoctor}` });
+        toast.success(`${selectedPets.length}件の予約を作成しました`, {
+          description: `担当医: ${targetDoctor}`,
+        });
         handleCloseCreateForm();
         navigateBackIfNeeded();
         return null;
@@ -156,7 +196,12 @@ export function useReservationSaveActions({
         return extractApiErrorMessage(error, "作成");
       }
     },
-    [createBatchReservationAsync, createReservationAsync, handleCloseCreateForm, navigateBackIfNeeded],
+    [
+      createBatchReservationAsync,
+      createReservationAsync,
+      handleCloseCreateForm,
+      navigateBackIfNeeded,
+    ],
   );
 
   const handleSave = useCallback(
@@ -169,6 +214,16 @@ export function useReservationSaveActions({
       if (!newOwnerData && selectedPets.length === 0) return null;
 
       const currentEditing = editingAppointmentRef.current;
+      if (currentEditing?.id) {
+        if (!isMutationAllowed("canEdit")) {
+          toast.error(PERMISSION_DENIED_MESSAGE);
+          return PERMISSION_DENIED_MESSAGE;
+        }
+      } else if (!isMutationAllowed("canCreate")) {
+        toast.error(PERMISSION_DENIED_MESSAGE);
+        return PERMISSION_DENIED_MESSAGE;
+      }
+
       const targetDoctor = data.doctor || currentEditing?.doctor || "";
       const hasOverlap = checkOverlap(
         data.start,
@@ -196,6 +251,7 @@ export function useReservationSaveActions({
     [
       checkOverlap,
       editingAppointmentRef,
+      isMutationAllowed,
       saveExistingPetsReservation,
       saveNewOwnerReservation,
       saveUpdateReservation,

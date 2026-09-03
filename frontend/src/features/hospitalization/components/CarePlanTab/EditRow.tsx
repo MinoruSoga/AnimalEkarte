@@ -11,10 +11,15 @@ import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 // Relative
 import { TYPE_SELECT_ITEMS, TIMING_OPTIONS } from "./CarePlanBadges";
 import { CarePlanRefSelect } from "./CarePlanRefSelect";
-import { requiresRef, buildRefFields } from "./care-plan-item-model";
+import { requiresRef, buildRefFields } from "../../lib/care-plan-item-model";
 
 // Types
-import type { CarePlanItem, CarePlanItemType, CarePlanTiming, UpdateCarePlanItemInput } from "../../api/care-plan-items";
+import type {
+  CarePlanItem,
+  CarePlanItemType,
+  CarePlanTiming,
+  UpdateCarePlanItemInput,
+} from "../../api/care-plan-items";
 
 /** item の既存 type に対応する FK 値を取り出す(type 未変更時の初期選択状態) */
 function initialRefId(item: CarePlanItem): string | null {
@@ -73,7 +78,10 @@ export function EditRow({ item, onSave, onCancel }: EditRowProps) {
   const canSave = !!name.trim() && (!needsRef || !!refId);
 
   return (
-    <form action={formAction} className={`flex flex-col gap-2 p-3 ${C.bgBrand5} rounded-lg border ${C.borderBrandLight}`}>
+    <form
+      action={formAction}
+      className={`flex flex-col gap-2 p-3 ${C.bgBrand5} rounded-lg border ${C.borderBrandLight}`}
+    >
       {state.error ? (
         <p role="alert" className={`text-xs ${C.textNotionRed}`}>
           {state.error}
@@ -112,7 +120,14 @@ export function EditRow({ item, onSave, onCancel }: EditRowProps) {
         </div>
       </div>
       <div className="flex gap-2 justify-end">
-        <Button type="button" variant="ghost" size="sm" onClick={onCancel} disabled={isSaving} className="h-7 text-xs">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onCancel}
+          disabled={isSaving}
+          className="h-7 text-xs"
+        >
           キャンセル
         </Button>
         <SubmitButton size="sm" disabled={!canSave} className="h-7 text-xs">

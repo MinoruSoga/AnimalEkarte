@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { InterviewTemplateFormData } from "../components/interview-template-side-panel-model";
+import type { InterviewTemplateFormData } from "../lib/interview-template-side-panel-model";
 import {
   buildInterviewTemplateCreateRequest,
   buildInterviewTemplateUpdateRequest,

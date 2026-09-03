@@ -2,7 +2,13 @@ import { memo, useCallback, useEffect, useState, lazy, Suspense } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { useGetPet } from "@/hooks/use-pet";
 import { usePermission } from "@/hooks/use-permission";
@@ -11,10 +17,12 @@ import { useGetInsurances } from "../api/get-insurances";
 import { useAnimalSpecies } from "../hooks/use-animal-species";
 import type { PetFormData } from "../types";
 import { PetEditModalFields } from "./PetEditModalFields";
-import { createPetFormData } from "./pet-form-data";
+import { createPetFormData } from "../lib/pet-form-data";
 
 const OwnerSearchModal = lazy(() =>
-  import("@/components/shared/OwnerSearchModal/OwnerSearchModal").then((m) => ({ default: m.OwnerSearchModal }))
+  import("@/components/shared/OwnerSearchModal/OwnerSearchModal").then((m) => ({
+    default: m.OwnerSearchModal,
+  })),
 );
 
 interface PetEditModalProps {
@@ -23,7 +31,12 @@ interface PetEditModalProps {
   ownerName?: string;
   petData?: PetFormData;
   onSave: (data: PetFormData) => void;
-  onChangeOwner?: (newOwner: { id: string; name: string; discountRate: number; membershipType: string }) => void;
+  onChangeOwner?: (newOwner: {
+    id: string;
+    name: string;
+    discountRate: number;
+    membershipType: string;
+  }) => void;
   /** BUG-002: 専用 lifecycle 成功後に外側 pets 一覧を同期する */
   onPetLifecycleChange?: (result: {
     petId: string;
@@ -78,8 +91,8 @@ export const PetEditModal = memo(function PetEditModal({
     if (!open) return;
     setFormData(createPetFormData(petData));
     setFieldErrors({});
-  // petData の各フィールドではなく petData 参照自体の変化（open トリガー）で十分
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // petData の各フィールドではなく petData 参照自体の変化（open トリガー）で十分
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   // BUG-003: detail GET が返ったら死亡日・理由をマージ（他フィールドはローカル編集中の値を維持）
@@ -97,7 +110,10 @@ export const PetEditModal = memo(function PetEditModal({
         ...prev,
         deceasedAt: nextAt,
         deceasedReason: nextReason,
-        status: petDetail.status === "死亡" || petDetail.status === "生存" ? petDetail.status : prev.status,
+        status:
+          petDetail.status === "死亡" || petDetail.status === "生存"
+            ? petDetail.status
+            : prev.status,
       };
     });
   }, [open, petDetail, petData?.id]);
@@ -208,9 +224,7 @@ export const PetEditModal = memo(function PetEditModal({
             fieldErrors={fieldErrors}
             clearFieldError={clearFieldError}
             animalSpeciesList={animalSpeciesList}
-            isLoadingSpecies={
-              isLoadingSpecies || isErrorSpecies || animalSpeciesList.length === 0
-            }
+            isLoadingSpecies={isLoadingSpecies || isErrorSpecies || animalSpeciesList.length === 0}
             speciesPlaceholder={speciesPlaceholder}
             insuranceList={insuranceList}
             isLoadingInsurances={isLoadingInsurances}

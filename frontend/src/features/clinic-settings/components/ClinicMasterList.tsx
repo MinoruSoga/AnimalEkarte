@@ -2,7 +2,11 @@ import { Building2, Plus } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { TableCell } from "@/components/ui/table";
-import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
+import {
+  DataTable,
+  DESIGN_TABLE_HEADER_ROW,
+  DESIGN_TABLE_HEADER_CELL,
+} from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
@@ -14,7 +18,7 @@ import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { ResourceHospitalSettings } from "@/types/generated/models";
 import type { Clinic } from "../api/clinics";
-import { CLINIC_STATUS_FILTER } from "./clinic-master-settings-model";
+import { CLINIC_STATUS_FILTER } from "../lib/clinic-master-settings-model";
 
 const COLUMNS = [
   { header: "院名" },
@@ -101,9 +105,7 @@ export function ClinicMasterList({
               <TableCell className={`font-mono text-sm ${C.text80}`}>
                 {item.phoneNumber || "-"}
               </TableCell>
-              <TableCell className={`text-sm ${C.text80}`}>
-                {item.email || "-"}
-              </TableCell>
+              <TableCell className={`text-sm ${C.text80}`}>{item.email || "-"}</TableCell>
               <TableCell className="text-center">
                 <StatusPill isActive={item.isActive} />
               </TableCell>

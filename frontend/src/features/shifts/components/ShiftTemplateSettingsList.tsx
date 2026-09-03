@@ -1,13 +1,17 @@
 import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 
-import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
+import {
+  DataTable,
+  DESIGN_TABLE_HEADER_ROW,
+  DESIGN_TABLE_HEADER_CELL,
+} from "@/components/shared/DataTable/DataTable";
 import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
 import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 import { useSortableList } from "@/hooks/use-sortable-list";
 
 import { ShiftTemplateRow } from "./ShiftTemplateSettingsParts";
-import { SHIFT_STATUS_FILTER, SHIFT_TEMPLATE_COLUMNS } from "./shift-template-table-model";
+import { SHIFT_STATUS_FILTER, SHIFT_TEMPLATE_COLUMNS } from "../lib/shift-template-table-model";
 import type { ShiftTemplate } from "../types";
 
 type SortableSensors = ReturnType<typeof useSortableList<ShiftTemplate>>["sensors"];
@@ -46,11 +50,7 @@ export function ShiftTemplateSettingsList({
         searchPlaceholder="テンプレート名で検索..."
         count={filteredItems.length}
       />
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={onDragEnd}
-      >
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         <SortableContext
           items={filteredItems.map((item) => item.id)}
           strategy={verticalListSortingStrategy}

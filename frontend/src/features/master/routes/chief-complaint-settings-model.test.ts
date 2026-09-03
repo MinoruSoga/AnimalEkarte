@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { ChiefComplaintFormData } from "../components/chief-complaint-side-panel-model";
+import type { ChiefComplaintFormData } from "../lib/chief-complaint-side-panel-model";
 import {
   buildChiefComplaintCreateRequest,
   buildChiefComplaintUpdateRequest,

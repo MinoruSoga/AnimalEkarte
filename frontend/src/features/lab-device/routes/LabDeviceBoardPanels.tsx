@@ -161,18 +161,26 @@ export function LabDeviceUnlinkedPanel({
       <h2 className="text-xl font-semibold">未紐付け</h2>
       {unlinked.length === 0 ? (
         <p className={C.textInkMuted}>未紐付けの受信はありません</p>
-      ) : unlinked.map((card) => (
-        <LabDeviceJobCardView
-          key={card.jobId}
-          card={card}
-          canEdit={canEdit}
-          onAttach={wait ? () => {
-            // FE-RC-012: reject 時は useAttachLabDeviceJob.onError が既に通知済み。
-            // ここでは unhandled rejection 化を防ぐためだけに no-op catch を付ける。
-            void onAttach(card.jobId, wait.petId).then(notifyLabDeviceAttachResult).catch(() => {});
-          } : undefined}
-        />
-      ))}
+      ) : (
+        unlinked.map((card) => (
+          <LabDeviceJobCardView
+            key={card.jobId}
+            card={card}
+            canEdit={canEdit}
+            onAttach={
+              canEdit && wait
+                ? () => {
+                    // FE-RC-012: reject 時は useAttachLabDeviceJob.onError が既に通知済み。
+                    // ここでは unhandled rejection 化を防ぐためだけに no-op catch を付ける。
+                    void onAttach(card.jobId, wait.petId)
+                      .then(notifyLabDeviceAttachResult)
+                      .catch(() => {});
+                  }
+                : undefined
+            }
+          />
+        ))
+      )}
     </section>
   );
 }
@@ -197,35 +205,39 @@ export function LabDeviceReceivedPanel({
       <h2 className="text-xl font-semibold">受信一覧</h2>
       {receivedGroups.length === 0 ? (
         <p className={C.textInkMuted}>受信した検査はありません</p>
-      ) : receivedGroups.map((group) => (
-        <div key={group.day} className="space-y-2">
-          <h3 className="text-heading-3 font-semibold">
-            {labDeviceReceivedDayLabel(group.day, today)}
-          </h3>
-          {group.cards.map((card) => (
-            <LabDeviceJobCardView
-              key={card.jobId}
-              card={card}
-              canEdit={canEdit}
-              onDetach={card.petId ? () => onDetach(card.jobId) : undefined}
-              onAttach={!card.petId && wait ? () => {
-                // FE-RC-012: reject 時は useAttachLabDeviceJob.onError が既に通知済み。
-                // ここでは unhandled rejection 化を防ぐためだけに no-op catch を付ける。
-                void onAttach(card.jobId, wait.petId).then(notifyLabDeviceAttachResult).catch(() => {});
-              } : undefined}
-            />
-          ))}
-        </div>
-      ))}
+      ) : (
+        receivedGroups.map((group) => (
+          <div key={group.day} className="space-y-2">
+            <h3 className="text-heading-3 font-semibold">
+              {labDeviceReceivedDayLabel(group.day, today)}
+            </h3>
+            {group.cards.map((card) => (
+              <LabDeviceJobCardView
+                key={card.jobId}
+                card={card}
+                canEdit={canEdit}
+                onDetach={canEdit && card.petId ? () => onDetach(card.jobId) : undefined}
+                onAttach={
+                  canEdit && !card.petId && wait
+                    ? () => {
+                        // FE-RC-012: reject 時は useAttachLabDeviceJob.onError が既に通知済み。
+                        // ここでは unhandled rejection 化を防ぐためだけに no-op catch を付ける。
+                        void onAttach(card.jobId, wait.petId)
+                          .then(notifyLabDeviceAttachResult)
+                          .catch(() => {});
+                      }
+                    : undefined
+                }
+              />
+            ))}
+          </div>
+        ))
+      )}
     </section>
   );
 }
 
-export function LabDeviceAgentPanel({
-  agentStatus,
-}: {
-  agentStatus: LabDeviceAgentListenStatus;
-}) {
+export function LabDeviceAgentPanel({ agentStatus }: { agentStatus: LabDeviceAgentListenStatus }) {
   const degradedMessage = agentStatus.degraded
     ? labDeviceAgentDegradedErrorMessage(agentStatus.lastErrorCategory)
     : null;
@@ -239,16 +251,16 @@ export function LabDeviceAgentPanel({
       </p>
       {agentStatus.degraded ? (
         <p className={`text-sm ${C.textWarning}`}>
-          未処理 {agentStatus.pending}件 · 判定失敗 {agentStatus.rejected}件 · 受付超過 {agentStatus.overflow + agentStatus.inputOverflow}件
+          未処理 {agentStatus.pending}件 · 判定失敗 {agentStatus.rejected}件 · 受付超過{" "}
+          {agentStatus.overflow + agentStatus.inputOverflow}件
         </p>
       ) : null}
-      {degradedMessage ? (
-        <p className={`text-sm ${C.textWarning}`}>{degradedMessage}</p>
+      {degradedMessage ? <p className={`text-sm ${C.textWarning}`}>{degradedMessage}</p> : null}
+      {agentStatus.connected &&
+      agentStatus.openPorts < agentStatus.configuredPorts &&
+      agentStatus.lastErrorCategory === "none" ? (
+        <p className={`text-sm ${C.textWarning}`}>USB接続を確認してください。</p>
       ) : null}
-      {agentStatus.connected && agentStatus.openPorts < agentStatus.configuredPorts
-        && agentStatus.lastErrorCategory === "none" ? (
-          <p className={`text-sm ${C.textWarning}`}>USB接続を確認してください。</p>
-        ) : null}
       <p className={`text-sm ${C.textInkMuted}`}>
         USBを選ぶ操作はありません。現在はNX600とAU10Vを自動判定します。PU-4010とIDEXXは通信条件確認後に対応します。
       </p>

@@ -1,8 +1,5 @@
-import type {
-  CreateInsuranceRequest,
-  UpdateInsuranceRequest,
-} from "../api/insurances";
-import type { InsuranceFormData } from "../components/insurance-side-panel-model";
+import type { CreateInsuranceRequest, UpdateInsuranceRequest } from "../api/insurances";
+import type { InsuranceFormData } from "../lib/insurance-side-panel-model";
 
 /** BUG-026: FE/BE 同一境界（0〜100）。範囲外は POST せずエラー表示する。 */
 export function validateInsuranceForm(data: InsuranceFormData): string | null {
@@ -23,9 +20,7 @@ export function validateInsuranceForm(data: InsuranceFormData): string | null {
   return null;
 }
 
-export function buildInsuranceCreateRequest(
-  data: InsuranceFormData,
-): CreateInsuranceRequest {
+export function buildInsuranceCreateRequest(data: InsuranceFormData): CreateInsuranceRequest {
   return {
     name: data.name,
     description: data.description || undefined,
@@ -35,8 +30,6 @@ export function buildInsuranceCreateRequest(
   };
 }
 
-export function buildInsuranceUpdateRequest(
-  data: InsuranceFormData,
-): UpdateInsuranceRequest {
+export function buildInsuranceUpdateRequest(data: InsuranceFormData): UpdateInsuranceRequest {
   return buildInsuranceCreateRequest(data);
 }

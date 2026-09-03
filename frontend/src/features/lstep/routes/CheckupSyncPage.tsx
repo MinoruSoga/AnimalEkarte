@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { Button } from "@/components/ui/button";
 import { Send } from "lucide-react";
+import { toast } from "sonner";
 import { CHECKUP_SYNC_OWNER_LIMIT } from "@/constants/lstep-checkup-sync";
 import { usePermission } from "@/hooks/use-permission";
 import { useGetCheckupSyncPreview } from "../api/get-checkup-sync-preview";
@@ -15,6 +16,8 @@ import { todayJSTISO } from "@/lib/jst-date";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { ResourceHospitalSettings } from "@/types/generated/models";
 
+const PERMISSION_DENIED_MESSAGE = "この操作を行う権限がありません";
+
 function buildDefaultTagName(checkupType: CheckupType): string {
   return `checkup_done_${checkupType}_${todayJSTISO().slice(0, 7)}`;
 }
@@ -27,6 +30,10 @@ export function CheckupSyncPage() {
   const [syncResult, setSyncResult] = useState<CheckupSyncResult | null>(null);
 
   const { canCreate } = usePermission(ResourceHospitalSettings);
+  const canCreateRef = useRef(canCreate);
+  useLayoutEffect(() => {
+    canCreateRef.current = canCreate;
+  }, [canCreate]);
   const { data: previewData, isFetching } = useGetCheckupSyncPreview(searchParams);
   const { mutate: createCheckupSync, isPending } = useCreateCheckupSync();
 
@@ -43,6 +50,10 @@ export function CheckupSyncPage() {
   }
 
   function handleConfirm() {
+    if (canCreateRef.current !== true) {
+      toast.error(PERMISSION_DENIED_MESSAGE);
+      return;
+    }
     if (!searchParams || selectedOwnerIds.size > CHECKUP_SYNC_OWNER_LIMIT) return;
     createCheckupSync(
       {
@@ -56,7 +67,7 @@ export function CheckupSyncPage() {
           setConfirmDialogOpen(false);
           setSelectedOwnerIds(new Set());
         },
-      }
+      },
     );
   }
 
@@ -74,9 +85,7 @@ export function CheckupSyncPage() {
       {searchParams !== null ? (
         <div className="mt-6 space-y-4">
           {isFetching ? (
-            <div className={`text-center py-10 ${C.text50} text-sm`}>
-              対象者を検索中...
-            </div>
+            <div className={`text-center py-10 ${C.text50} text-sm`}>対象者を検索中...</div>
           ) : null}
 
           {!isFetching && previewData ? (
@@ -95,17 +104,24 @@ export function CheckupSyncPage() {
           {/* 実行結果 */}
           {syncResult !== null ? (
             <div className={`rounded-lg border ${C.borderLight} p-4 ${C.bgPage30}`}>
-              <p className={`text-sm font-medium ${C.text}`}>Lステップタグの一括付与が完了しました</p>
+              <p className={`text-sm font-medium ${C.text}`}>
+                Lステップタグの一括付与が完了しました
+              </p>
               <p className={`mt-1 text-sm ${C.text60}`}>
-                成功: <span className={`font-semibold ${C.text}`}>{syncResult.success_count}件</span>
+                成功:{" "}
+                <span className={`font-semibold ${C.text}`}>{syncResult.success_count}件</span>
                 {syncResult.skip_count > 0 ? (
                   <>
-                    {'　'}スキップ: <span className={`font-semibold ${C.text50}`}>{syncResult.skip_count}件</span>
+                    {"　"}スキップ:{" "}
+                    <span className={`font-semibold ${C.text50}`}>{syncResult.skip_count}件</span>
                   </>
                 ) : null}
                 {syncResult.failed_count > 0 ? (
                   <>
-                    {'　'}失敗: <span className={`font-semibold ${C.textNotice}`}>{syncResult.failed_count}件</span>
+                    {"　"}失敗:{" "}
+                    <span className={`font-semibold ${C.textNotice}`}>
+                      {syncResult.failed_count}件
+                    </span>
                   </>
                 ) : null}
               </p>
@@ -118,9 +134,7 @@ export function CheckupSyncPage() {
               <p className={`text-sm ${C.text60}`}>
                 {selectedOwnerIds.size > 0 ? (
                   <>
-                    <span className={`font-semibold ${C.text}`}>
-                      {selectedOwnerIds.size}名
-                    </span>
+                    <span className={`font-semibold ${C.text}`}>{selectedOwnerIds.size}名</span>
                     を選択中（最大{CHECKUP_SYNC_OWNER_LIMIT}名）
                   </>
                 ) : (
@@ -131,8 +145,7 @@ export function CheckupSyncPage() {
                 type="button"
                 onClick={handleOpenConfirm}
                 disabled={
-                  selectedOwnerIds.size === 0 ||
-                  selectedOwnerIds.size > CHECKUP_SYNC_OWNER_LIMIT
+                  selectedOwnerIds.size === 0 || selectedOwnerIds.size > CHECKUP_SYNC_OWNER_LIMIT
                 }
                 className={`${C.bgBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} ${C.textOnBrand} h-11 px-4 text-base rounded-full transition-colors shadow-none border-transparent`}
               >

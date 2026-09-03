@@ -12,7 +12,7 @@ import { queryKeys } from "@/lib/query-keys";
 
 import { useGetLstepCsvImports } from "../api/get-lstep-csv-imports";
 import { uploadFriendAttributesCsv } from "../api/upload-friend-attributes-csv";
-import { CSV_STATUS_LABELS } from "./lstep-analytics-model";
+import { CSV_STATUS_LABELS } from "../lib/lstep-analytics-model";
 
 export function LstepCsvImportSection() {
   return (
@@ -42,24 +42,21 @@ function CsvUploadSection() {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFileName, setSelectedFileName] = useState("");
-  const [state, formAction, isPending] = useActionState<UploadState, FormData>(
-    async () => {
-      const file = fileInputRef.current?.files?.[0];
-      if (!file || file.size === 0) {
-        return { error: "CSVファイルを選択してください" };
-      }
-      try {
-        const clinicId = requireStoredClinicId();
-        await uploadFriendAttributesCsv(clinicId, file);
-        queryClient.invalidateQueries({ queryKey: queryKeys.lstepCsvImports.all() });
-        return { success: true };
-      } catch (err) {
-        handleApiError(err, "CSVアップロード");
-        return { error: "アップロードに失敗しました" };
-      }
-    },
-    null,
-  );
+  const [state, formAction, isPending] = useActionState<UploadState, FormData>(async () => {
+    const file = fileInputRef.current?.files?.[0];
+    if (!file || file.size === 0) {
+      return { error: "CSVファイルを選択してください" };
+    }
+    try {
+      const clinicId = requireStoredClinicId();
+      await uploadFriendAttributesCsv(clinicId, file);
+      queryClient.invalidateQueries({ queryKey: queryKeys.lstepCsvImports.all() });
+      return { success: true };
+    } catch (err) {
+      handleApiError(err, "CSVアップロード");
+      return { error: "アップロードに失敗しました" };
+    }
+  }, null);
 
   return (
     <form action={formAction} className="space-y-3">
@@ -103,13 +100,9 @@ function CsvUploadSection() {
           </span>
         </div>
       </div>
-      {state && "error" in state ? (
-        <p className={`text-sm ${C.danger}`}>{state.error}</p>
-      ) : null}
+      {state && "error" in state ? <p className={`text-sm ${C.danger}`}>{state.error}</p> : null}
       {state && "success" in state ? (
-        <p className={`text-sm ${C.textSuccess}`}>
-          アップロードが完了しました
-        </p>
+        <p className={`text-sm ${C.textSuccess}`}>アップロードが完了しました</p>
       ) : null}
       <div className="flex justify-end">
         <SubmitButton disabled={isPending}>
@@ -127,11 +120,7 @@ function CsvImportHistoryTable() {
     return <p className={`text-sm ${C.text40} py-4`}>読み込み中...</p>;
   }
   if (!data || data.length === 0) {
-    return (
-      <p className={`text-sm ${C.text40} py-8 text-center`}>
-        インポート履歴はありません
-      </p>
-    );
+    return <p className={`text-sm ${C.text40} py-8 text-center`}>インポート履歴はありません</p>;
   }
 
   return (
@@ -156,7 +145,10 @@ function CsvImportHistoryTable() {
               <TableCell className={`text-right ${C.text60} tabular-nums`}>
                 {item.row_count.toLocaleString()}
               </TableCell>
-              <TableCell className="text-right tabular-nums" style={{ color: PALETTE.successGreen }}>
+              <TableCell
+                className="text-right tabular-nums"
+                style={{ color: PALETTE.successGreen }}
+              >
                 {item.success_count.toLocaleString()}
               </TableCell>
               <TableCell

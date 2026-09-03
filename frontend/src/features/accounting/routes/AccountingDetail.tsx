@@ -28,7 +28,7 @@ import {
   UngroupedItemsWarningBanner,
   UnbilledBlockingWarningBanner,
 } from "../components/AccountingDetailPanels";
-import { isPaymentSubmitDisabled, isPostCloseSubmitBlocked } from "../components/accounting-detail-model";
+import { isPaymentSubmitDisabled, isPostCloseSubmitBlocked } from "../lib/accounting-detail-model";
 import { useAccountingCompletionAction } from "../hooks/use-accounting-completion-action";
 import { useAccountingDetailState } from "../hooks/use-accounting-detail-state";
 import { useAccountingItemActions } from "../hooks/use-accounting-item-actions";
@@ -36,14 +36,18 @@ import { useAccountingSettlementActions } from "../hooks/use-accounting-settleme
 import type { AccountingItem } from "../types";
 
 const CreditCorrectionDialog = lazy(() =>
-  import("../components/CreditCorrectionDialog").then((m) => ({ default: m.CreditCorrectionDialog })),
+  import("../components/CreditCorrectionDialog").then((m) => ({
+    default: m.CreditCorrectionDialog,
+  })),
 );
 
 interface AccountingDetailProps {
   invoiceRegistrationNumber?: string;
 }
 
-export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistrationNumber }: AccountingDetailProps) {
+export const AccountingDetail = memo(function AccountingDetail({
+  invoiceRegistrationNumber,
+}: AccountingDetailProps) {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -101,27 +105,22 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
   const { user } = useAuth();
   const { canEdit, canCreate, canDelete } = usePermission("accounting");
 
-  const {
-    editConfirmOpen,
-    setEditConfirmOpen,
-    confirmCompletedEdit,
-    formRef,
-    formAction,
-  } = useAccountingCompletionAction({
-    accountingId: id,
-    accounting,
-    calculation,
-    displayItems,
-    hasInsurance,
-    insuranceRatio,
-    paymentSplits,
-    queryClient,
-    navigate,
-    setCompletedPayment,
-    postCloseReason,
-    blockCreateReason: deceasedPetBlockMessage,
-    permissions: { canCreate, canEdit },
-  });
+  const { editConfirmOpen, setEditConfirmOpen, confirmCompletedEdit, formRef, formAction } =
+    useAccountingCompletionAction({
+      accountingId: id,
+      accounting,
+      calculation,
+      displayItems,
+      hasInsurance,
+      insuranceRatio,
+      paymentSplits,
+      queryClient,
+      navigate,
+      setCompletedPayment,
+      postCloseReason,
+      blockCreateReason: deceasedPetBlockMessage,
+      permissions: { canCreate, canEdit },
+    });
   // #118: キャンセルボタン用の専用権限（accounting-cancel の edit = キャンセル可否）
   const { canEdit: canCancelAccounting } = usePermission(ResourceAccountingCancel);
   // #115: 締め後編集専用権限
@@ -143,7 +142,8 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
     Boolean(scheduledDateStr && hasAccountingMutationPermission && canViewCashRegisterClose),
   );
   const isScheduledDateClosed = Boolean(
-    scheduledDateStr && closesData?.data.some((c) => c.closeDate?.slice(0, 10) === scheduledDateStr),
+    scheduledDateStr &&
+    closesData?.data.some((c) => c.closeDate?.slice(0, 10) === scheduledDateStr),
   );
   const clinicForDocument = useMemo(() => {
     const baseClinic = user?.clinic ?? null;
@@ -152,24 +152,25 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
       ...baseClinic,
       invoiceRegistrationNumber,
     };
-  // rerender-dependencies: user?.clinic（オブジェクト）の代わりに user（安定参照）を deps に使用
+    // rerender-dependencies: user?.clinic（オブジェクト）の代わりに user（安定参照）を deps に使用
   }, [user, invoiceRegistrationNumber]);
 
-  const { handleAddItem, handleDeleteItem, handleUpdateItemTax, handleUpdateItemDiscount } = useAccountingItemActions({
-    accountingId: id,
-    accountingStatus: accounting?.status,
-    postCloseReason,
-    canPostCloseEdit,
-    isScheduledDateClosed,
-    baseItems,
-    queryClient,
-    setLocalItems,
-    setNewItemOpen,
-    startAddItemTransition,
-    startDeleteItemTransition,
-    startItemUpdateTransition,
-    permissions: { canCreate, canEdit, canDelete },
-  });
+  const { handleAddItem, handleDeleteItem, handleUpdateItemTax, handleUpdateItemDiscount } =
+    useAccountingItemActions({
+      accountingId: id,
+      accountingStatus: accounting?.status,
+      postCloseReason,
+      canPostCloseEdit,
+      isScheduledDateClosed,
+      baseItems,
+      queryClient,
+      setLocalItems,
+      setNewItemOpen,
+      startAddItemTransition,
+      startDeleteItemTransition,
+      startItemUpdateTransition,
+      permissions: { canCreate, canEdit, canDelete },
+    });
 
   const { handleCancelConfirm, handlePrint, handleRefund } = useAccountingSettlementActions({
     accountingId: id,
@@ -211,10 +212,16 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
               onPrint={handlePrint}
               onCancelClick={() => setCancelConfirmOpen(true)}
               onDismiss={() => navigate(paths.accounting.getHref())}
-              submitLabel={canSubmit ? (accounting.status === "completed" ? "修正を保存する" : "会計を確定する") : undefined}
+              submitLabel={
+                canSubmit
+                  ? accounting.status === "completed"
+                    ? "修正を保存する"
+                    : "会計を確定する"
+                  : undefined
+              }
               submitDisabled={
-                isPaymentSubmitDisabled(calculation.billingAmount, paymentSplits)
-                || isPostCloseSubmitBlocked({
+                isPaymentSubmitDisabled(calculation.billingAmount, paymentSplits) ||
+                isPostCloseSubmitBlocked({
                   isScheduledDateClosed,
                   canPostCloseEdit: Boolean(canPostCloseEdit),
                   postCloseReason,
@@ -234,11 +241,20 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
           />
           <UnbilledBlockingWarningBanner
             show={Boolean(
-              !id && !deceasedPetBlockMessage && (hasBlockingUnbilledWarning || unbilledDetailsError),
+              !id &&
+              !deceasedPetBlockMessage &&
+              (hasBlockingUnbilledWarning || unbilledDetailsError),
             )}
             warnings={
               unbilledDetailsError
-                ? [{ source: "unbilled", code: "unbilled_details_unavailable", count: 1, blocking: true }]
+                ? [
+                    {
+                      source: "unbilled",
+                      code: "unbilled_details_unavailable",
+                      count: 1,
+                      blocking: true,
+                    },
+                  ]
                 : unbilledWarnings
             }
           />
@@ -253,7 +269,9 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
               newItemOpen={newItemOpen}
               isRefunding={isRefunding}
               canEdit={Boolean(canEdit && canViewCashRegisterClose && !blocksNewAccountingSubmit)}
-              canCreate={Boolean(canCreate && canViewCashRegisterClose && !blocksNewAccountingSubmit)}
+              canCreate={Boolean(
+                canCreate && canViewCashRegisterClose && !blocksNewAccountingSubmit,
+              )}
               canDelete={Boolean(canDelete && canViewCashRegisterClose)}
               onNewItemOpenChange={setNewItemOpen}
               onAddItem={handleAddItem}
@@ -287,9 +305,14 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
             </div>
           ) : null}
           {/* #115 / BUG-009 / BUG-004: 締め後または確定済み会計の明細修正理由（権限あり時） */}
-          {(isScheduledDateClosed || accounting.status === "completed") && canSubmit && canPostCloseEdit ? (
+          {(isScheduledDateClosed || accounting.status === "completed") &&
+          canSubmit &&
+          canPostCloseEdit ? (
             <div className="px-4 pb-4">
-              <label htmlFor="postCloseReason" className={`block text-sm font-semibold ${C.danger} mb-1`}>
+              <label
+                htmlFor="postCloseReason"
+                className={`block text-sm font-semibold ${C.danger} mb-1`}
+              >
                 {isScheduledDateClosed
                   ? "⚠ レジ締め済み期間の編集 — 修正理由（必須）"
                   : "⚠ 確定済み会計の明細修正 — 修正理由（必須）"}

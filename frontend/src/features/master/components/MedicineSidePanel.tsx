@@ -5,9 +5,9 @@ import { LAYOUT } from "@/lib/design-tokens";
 import type { Medicine } from "@/types";
 
 import { MedicineSidePanelBody } from "./MedicineSidePanelBody";
-import type { MedicineFormData } from "./medicine-side-panel-model";
+import type { MedicineFormData } from "../lib/medicine-side-panel-model";
 
-export type { MedicineFormData } from "./medicine-side-panel-model";
+export type { MedicineFormData } from "../lib/medicine-side-panel-model";
 
 interface MedicineSidePanelProps {
   isEditing: boolean;

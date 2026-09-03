@@ -4,7 +4,7 @@ import {
   billCheckExtraLines,
   billCheckPricedExtras,
   isUnbillableMasterPrice,
-} from "./medical-record-bill-check-model";
+} from "../lib/medical-record-bill-check-model";
 
 describe("medical-record-bill-check-model", () => {
   it("空・負の価格を請求不能と判定する", () => {
@@ -26,9 +26,7 @@ describe("medical-record-bill-check-model", () => {
       ],
       "10",
     );
-    expect(lines).toEqual([
-      { id: "exam_1", kind: "exam", name: "血液検査", unitPrice: 4200 },
-    ]);
+    expect(lines).toEqual([{ id: "exam_1", kind: "exam", name: "血液検査", unitPrice: 4200 }]);
   });
 
   it("価格未設定行は合計から除外する", () => {

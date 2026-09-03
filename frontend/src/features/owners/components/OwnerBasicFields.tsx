@@ -2,11 +2,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { C, STYLE } from "@/lib/design-tokens";
 import type { ClinicMembership } from "@/types/auth";
-import type { OwnerFieldSectionProps } from "./owner-info-field-shared";
+import type { OwnerFieldSectionProps } from "../lib/owner-info-field-shared";
 
 interface OwnerBasicFieldsProps extends OwnerFieldSectionProps {
   isEdit: boolean;
@@ -30,7 +36,9 @@ export function OwnerBasicFields({
   return (
     <>
       <div className="space-y-1.5">
-        <Label htmlFor="ownerId" className={`text-sm ${C.text60}`}>飼主No</Label>
+        <Label htmlFor="ownerId" className={`text-sm ${C.text60}`}>
+          飼主No
+        </Label>
         {isEdit ? (
           <Input
             id="ownerId"
@@ -48,12 +56,18 @@ export function OwnerBasicFields({
 
       {showClinicSelect ? (
         <div className="space-y-1.5">
-          <Label htmlFor="clinicId" className={`text-sm ${C.text60}`}>登録先医院</Label>
+          <Label htmlFor="clinicId" className={`text-sm ${C.text60}`}>
+            登録先医院
+          </Label>
           <Select
             value={ownerData.clinicId ?? currentClinicId ?? undefined}
             onValueChange={(value) => onChange("clinicId", value)}
           >
-            <SelectTrigger id="clinicId" data-testid="owner-clinic-select" className={STYLE.formInput}>
+            <SelectTrigger
+              id="clinicId"
+              data-testid="owner-clinic-select"
+              className={STYLE.formInput}
+            >
               <SelectValue placeholder="医院を選択" />
             </SelectTrigger>
             <SelectContent>
@@ -68,7 +82,9 @@ export function OwnerBasicFields({
       ) : null}
 
       <div className="space-y-1.5">
-        <Label htmlFor="company" className={`text-sm ${C.text60}`}>会社名</Label>
+        <Label htmlFor="company" className={`text-sm ${C.text60}`}>
+          会社名
+        </Label>
         <Input
           id="company"
           value={ownerData.company}
@@ -106,9 +122,13 @@ export function OwnerBasicFields({
             onCheckedChange={(checked) => onChange("isDangerous", checked)}
             className="origin-left mr-2"
           />
-          <label htmlFor="dangerous" className={`text-sm cursor-pointer ${C.text}`}>該当する</label>
+          <label htmlFor="dangerous" className={`text-sm cursor-pointer ${C.text}`}>
+            該当する
+          </label>
         </div>
-        <Label htmlFor="remarks" className={`text-sm ${C.text60}`}>備考・特記事項</Label>
+        <Label htmlFor="remarks" className={`text-sm ${C.text60}`}>
+          備考・特記事項
+        </Label>
         <Textarea
           id="remarks"
           rows={6}
@@ -139,7 +159,9 @@ export function OwnerBasicFields({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="email" className={`text-sm ${C.text60}`}>メールアドレス</Label>
+        <Label htmlFor="email" className={`text-sm ${C.text60}`}>
+          メールアドレス
+        </Label>
         <Input
           id="email"
           type="email"
@@ -175,7 +197,9 @@ export function OwnerBasicFields({
       </div>
 
       <div className="space-y-1.5 col-span-1 lg:col-span-2">
-        <Label htmlFor="companyPhone" className={`text-sm ${C.text60}`}>会社 電話番号</Label>
+        <Label htmlFor="companyPhone" className={`text-sm ${C.text60}`}>
+          会社 電話番号
+        </Label>
         <Input
           id="companyPhone"
           value={ownerData.companyPhone}

@@ -1,5 +1,13 @@
-import { memo, useActionState, useEffect, useState } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { memo, useActionState, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,6 +15,8 @@ import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C } from "@/lib/design-tokens";
 import { useCreateClinicHoliday, useDeleteClinicHoliday } from "../../api/clinic-holidays";
 import type { ClinicHoliday } from "../../api/clinic-holidays";
+
+const PERMISSION_DENIED_MESSAGE = "この操作を行う権限がありません";
 
 interface ClinicHolidayModalProps {
   open: boolean;
@@ -26,6 +36,10 @@ export const ClinicHolidayModal = memo(function ClinicHolidayModal({
   canEdit,
 }: ClinicHolidayModalProps) {
   const [reason, setReason] = useState(() => existing?.reason ?? "");
+  const canEditRef = useRef(canEdit);
+  useLayoutEffect(() => {
+    canEditRef.current = canEdit;
+  }, [canEdit]);
 
   const setMutation = useCreateClinicHoliday();
   const deleteMutation = useDeleteClinicHoliday();
@@ -39,6 +53,10 @@ export const ClinicHolidayModal = memo(function ClinicHolidayModal({
 
   const [state, formAction] = useActionState<ClinicHolidayFormState, FormData>(
     async (_prev, formData) => {
+      if (canEditRef.current !== true) {
+        toast.error(PERMISSION_DENIED_MESSAGE);
+        return null;
+      }
       const intent = formData.get("intent");
       if (intent === "remove") {
         try {
@@ -75,13 +93,16 @@ export const ClinicHolidayModal = memo(function ClinicHolidayModal({
     : "";
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+    >
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>定休日の設定</DialogTitle>
-          <DialogDescription>
-            {formattedDate} の定休日設定と理由を編集します。
-          </DialogDescription>
+          <DialogDescription>{formattedDate} の定休日設定と理由を編集します。</DialogDescription>
           <p className={`text-sm ${C.text50}`}>{formattedDate}</p>
         </DialogHeader>
 

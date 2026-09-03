@@ -3,21 +3,23 @@ import { Scissors } from "lucide-react";
 
 import { MasterSidePanel, PropertyInput, PropertyRow } from "@/components/shared/SidePeek";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { C, LAYOUT, STYLE } from "@/lib/design-tokens";
 
-import {
-  TARGET_SIZE_OPTIONS,
-  type TargetSize,
-  type TrimmingCourse,
-} from "../api/trimming";
+import { TARGET_SIZE_OPTIONS, type TargetSize, type TrimmingCourse } from "../api/trimming";
 import { useGetTrimmingCourseTypes } from "../api/trimming-course-type";
 import {
   COURSE_TYPE_EMPTY_VALUE,
   TARGET_SIZE_EMPTY_VALUE,
   trimmingCourseToFormData,
   type CourseFormData,
-} from "./trimming-side-panel-model";
+} from "../lib/trimming-side-panel-model";
 
 interface TrimmingCourseSidePanelProps {
   item: TrimmingCourse | null;
@@ -64,40 +66,58 @@ export const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
     }
   }, [formData, onSave, onDirtyChange]);
 
-  const handleTitleChange = useCallback((value: string) => {
-    setFormDataDirty((prev) => ({ ...prev, name: value }));
-    if (value.trim()) setNameError("");
-  }, [setFormDataDirty]);
+  const handleTitleChange = useCallback(
+    (value: string) => {
+      setFormDataDirty((prev) => ({ ...prev, name: value }));
+      if (value.trim()) setNameError("");
+    },
+    [setFormDataDirty],
+  );
 
   const handleToggleStatus = useCallback(() => {
     setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }));
   }, [setFormDataDirty]);
 
-  const handleTargetSizeChange = useCallback((value: string) => {
-    setFormDataDirty((prev) => ({
-      ...prev,
-      targetSize: value === TARGET_SIZE_EMPTY_VALUE ? "" : (value as TargetSize),
-    }));
-  }, [setFormDataDirty]);
+  const handleTargetSizeChange = useCallback(
+    (value: string) => {
+      setFormDataDirty((prev) => ({
+        ...prev,
+        targetSize: value === TARGET_SIZE_EMPTY_VALUE ? "" : (value as TargetSize),
+      }));
+    },
+    [setFormDataDirty],
+  );
 
-  const handleCourseTypeChange = useCallback((value: string) => {
-    setFormDataDirty((prev) => ({
-      ...prev,
-      courseTypeId: value === COURSE_TYPE_EMPTY_VALUE ? "" : value,
-    }));
-  }, [setFormDataDirty]);
+  const handleCourseTypeChange = useCallback(
+    (value: string) => {
+      setFormDataDirty((prev) => ({
+        ...prev,
+        courseTypeId: value === COURSE_TYPE_EMPTY_VALUE ? "" : value,
+      }));
+    },
+    [setFormDataDirty],
+  );
 
-  const handleDurationChange = useCallback((value: string) => {
-    setFormDataDirty((prev) => ({ ...prev, duration: value }));
-  }, [setFormDataDirty]);
+  const handleDurationChange = useCallback(
+    (value: string) => {
+      setFormDataDirty((prev) => ({ ...prev, duration: value }));
+    },
+    [setFormDataDirty],
+  );
 
-  const handlePriceChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    setFormDataDirty((prev) => ({ ...prev, price: event.target.value }));
-  }, [setFormDataDirty]);
+  const handlePriceChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      setFormDataDirty((prev) => ({ ...prev, price: event.target.value }));
+    },
+    [setFormDataDirty],
+  );
 
-  const handleDescriptionChange = useCallback((value: string) => {
-    setFormDataDirty((prev) => ({ ...prev, description: value }));
-  }, [setFormDataDirty]);
+  const handleDescriptionChange = useCallback(
+    (value: string) => {
+      setFormDataDirty((prev) => ({ ...prev, description: value }));
+    },
+    [setFormDataDirty],
+  );
 
   return (
     <MasterSidePanel

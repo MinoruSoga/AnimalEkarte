@@ -3,7 +3,7 @@ import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Clinic } from "../api/clinics";
-import { filterClinics } from "../components/clinic-master-settings-model";
+import { filterClinics } from "../lib/clinic-master-settings-model";
 import { ClinicMasterSettings } from "./ClinicMasterSettings";
 
 const mocks = vi.hoisted(() => ({
@@ -95,7 +95,13 @@ describe("ClinicMasterSettings", () => {
 describe("filterClinics", () => {
   it("院名とステータスで絞り込む", () => {
     const items = [
-      { id: 1, name: "八王子病院", phoneNumber: "042-000-0000", email: "a@example.com", isActive: true },
+      {
+        id: 1,
+        name: "八王子病院",
+        phoneNumber: "042-000-0000",
+        email: "a@example.com",
+        isActive: true,
+      },
       { id: 2, name: "分院", phoneNumber: "", email: "branch@example.com", isActive: false },
     ] as Clinic[];
 

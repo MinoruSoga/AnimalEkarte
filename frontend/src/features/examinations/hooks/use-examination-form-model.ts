@@ -6,7 +6,7 @@ import type {
   CreateExaminationRequest,
   UpdateExaminationRequest,
   UpsertExamItemRequest,
-} from "../api/types";
+} from "../types";
 import type { ExamItemRow } from "../components/ExamItemsTable";
 import type { ExamTypeFieldRow } from "../api/get-exam-type-fields";
 import {
@@ -18,10 +18,7 @@ import {
 /** EXAM_STATUS_EN_TO_JA（正本）の逆写像を導出する（FE5-10）。両写像は完全対称であることを確認済み。 */
 const EXAM_STATUS_JA_TO_EN = Object.fromEntries(
   Object.entries(EXAM_STATUS_EN_TO_JA).map(([en, ja]) => [ja, en]),
-) as Record<
-  string,
-  "pending" | "in_progress" | "result_entered" | "completed" | "confirmed"
->;
+) as Record<string, "pending" | "in_progress" | "result_entered" | "completed" | "confirmed">;
 
 export interface ExaminationMutationPermissions {
   canCreate: boolean;
@@ -131,19 +128,14 @@ export function validateExaminationSave(input: {
   if (!input.current.doctorId) errors.doctorId = "担当医を選択してください";
   if (
     input.isEdit &&
-    (!input.isCurrentEditTarget ||
-      (!input.resultsLocked && !input.areCurrentItemsReady))
+    (!input.isCurrentEditTarget || (!input.resultsLocked && !input.areCurrentItemsReady))
   ) {
     errors.examItems = "検査項目の読み込み完了後に保存してください";
   }
   if (
-    input.formItems.some(
-      (item) =>
-        item.name.trim() === "" && item.inspectionValue.trim() !== "",
-    )
+    input.formItems.some((item) => item.name.trim() === "" && item.inspectionValue.trim() !== "")
   ) {
-    errors.examItems =
-      "結果値を入力した手動項目には項目名が必要です";
+    errors.examItems = "結果値を入力した手動項目には項目名が必要です";
   }
   return errors;
 }
@@ -163,9 +155,7 @@ export function isExaminationPatientChangeLocked(
 }
 
 export type ExaminationPatientChangeDecision =
-  | { kind: "unchanged" }
-  | { kind: "apply"; petId: number }
-  | { kind: "blocked" };
+  { kind: "unchanged" } | { kind: "apply"; petId: number } | { kind: "blocked" };
 
 export function decideExaminationPatientChange(input: {
   currentPetId: string | undefined;
@@ -174,8 +164,7 @@ export function decideExaminationPatientChange(input: {
   changedPatient: { id: string; status: string } | undefined;
 }): ExaminationPatientChangeDecision {
   const patientChanged =
-    input.currentPetId !== undefined &&
-    input.currentPetId !== input.existingPetId;
+    input.currentPetId !== undefined && input.currentPetId !== input.existingPetId;
   if (!patientChanged) return { kind: "unchanged" };
   const changedPetID = Number(input.currentPetId);
   const canApply =
@@ -195,9 +184,7 @@ export function buildUpdateExaminationRequest(input: {
   patientChange: ExaminationPatientChangeDecision;
 }): UpdateExaminationRequest {
   return {
-    status: input.current.status
-      ? EXAM_STATUS_JA_TO_EN[input.current.status]
-      : undefined,
+    status: input.current.status ? EXAM_STATUS_JA_TO_EN[input.current.status] : undefined,
     result_summary: input.current.resultSummary,
     machine: input.current.machine,
     doctor_id: input.current.doctorId ? Number(input.current.doctorId) : null,
@@ -207,9 +194,7 @@ export function buildUpdateExaminationRequest(input: {
         : jstDateStartISOString(input.current.date)
       : undefined,
     ...(!input.resultsLocked ? { items: input.items } : {}),
-    ...(input.patientChange.kind === "apply"
-      ? { pet_id: input.patientChange.petId }
-      : {}),
+    ...(input.patientChange.kind === "apply" ? { pet_id: input.patientChange.petId } : {}),
   };
 }
 
@@ -237,19 +222,12 @@ export function deriveExaminationLockFlags(
   existingExam: ExaminationRecord | undefined,
 ) {
   return {
-    isPersistedConfirmed:
-      isEdit && isPersistedConfirmedStatus(existingExam?.status),
+    isPersistedConfirmed: isEdit && isPersistedConfirmedStatus(existingExam?.status),
     isPersistedCompletedLocked:
       isEdit &&
-      isPersistedCompletedSeal(
-        existingExam?.status,
-        existingExam?.currentRevisionVersion,
-      ),
+      isPersistedCompletedSeal(existingExam?.status, existingExam?.currentRevisionVersion),
     isPersistedResultsLocked:
       isEdit &&
-      isPersistedResultsLocked(
-        existingExam?.status,
-        existingExam?.currentRevisionVersion,
-      ),
+      isPersistedResultsLocked(existingExam?.status, existingExam?.currentRevisionVersion),
   };
 }

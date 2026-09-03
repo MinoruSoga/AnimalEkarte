@@ -1,4 +1,12 @@
-import { useState, useDeferredValue, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useTransition } from "react";
+import {
+  useState,
+  useDeferredValue,
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useTransition,
+} from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { Plus, Syringe } from "lucide-react";
 import { toast } from "sonner";
@@ -53,10 +61,14 @@ export function VaccinationList() {
     });
   }, [activeFilters, deferredSearchTerm]);
 
-  const { data: filteredRecords, allVaccinations, isLoading, error } = useFilterVaccinations(deferredSearchTerm, filters, activeFilters);
-  const pendingDeletePetId = allVaccinations.find(
-    (record) => record.id === pendingDeleteId,
-  )?.petId ?? "";
+  const {
+    data: filteredRecords,
+    allVaccinations,
+    isLoading,
+    error,
+  } = useFilterVaccinations(deferredSearchTerm, filters, activeFilters);
+  const pendingDeletePetId =
+    allVaccinations.find((record) => record.id === pendingDeleteId)?.petId ?? "";
   const { data: pendingDeletePet } = useGetPet(pendingDeletePetId);
 
   const filterProperties = useMemo(
@@ -77,44 +89,37 @@ export function VaccinationList() {
   });
 
   const urlPage = Number(searchParams.get("page") ?? 1);
-  const { totalPages, currentPage, goToPage } = pagination;
+  const { totalPages, goToPage } = pagination;
 
   // FE-RC-028: totalPages を超える URL page をクランプして書き戻す（フィルタ変更等で母集団が縮んだ場合の空ページ対策）。
   useUrlPageSync({ urlPage, totalPages, isLoading, setSearchParams });
 
-  useEffect(() => {
-    const clampedPage = Math.max(1, Math.min(urlPage, totalPages));
-    if (clampedPage !== currentPage) {
-      goToPage(clampedPage);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- FE-144: URL page から内部pagination stateへ反映（ブラウザ戻る/直接リンク対応）
-  }, [urlPage, totalPages]);
-
-  const handlePageChange = useCallback((page: number) => {
-    goToPage(page);
-    setSearchParams(
-      (prev) => nextListSearchParamsWithPage(prev, page),
-      { replace: true },
-    );
-  }, [goToPage, setSearchParams]);
+  const handlePageChange = useCallback(
+    (page: number) => {
+      goToPage(page);
+      setSearchParams((prev) => nextListSearchParamsWithPage(prev, page), { replace: true });
+    },
+    [goToPage, setSearchParams],
+  );
 
   const handleCreate = useCallback(() => {
     navigate(paths.vaccinations.selectPet.getHref());
   }, [navigate]);
 
-  const handleEdit = useCallback((record: VaccinationRecord) => {
-    navigate(vaccinationListDetailHref({
-      id: record.id,
-      medicalRecordId: record.medicalRecordId,
-    }));
-  }, [navigate]);
+  const handleEdit = useCallback(
+    (record: VaccinationRecord) => {
+      navigate(
+        vaccinationListDetailHref({
+          id: record.id,
+          medicalRecordId: record.medicalRecordId,
+        }),
+      );
+    },
+    [navigate],
+  );
 
   const handleDeleteConfirm = useCallback(() => {
-    if (
-      canDeleteRef.current !== true ||
-      !pendingDeleteId ||
-      pendingDeletePet?.status !== "生存"
-    ) {
+    if (canDeleteRef.current !== true || !pendingDeleteId || pendingDeletePet?.status !== "生存") {
       return;
     }
     startDeleteTransition(() => {
@@ -134,48 +139,48 @@ export function VaccinationList() {
 
   return (
     <>
-    <PageLayout
-      title="予防接種管理"
-      resource={ResourceVaccinations}
-      icon={<Syringe className={`${ICON.page} ${C.text}`} />}
-      headerAction={
-        <div className="flex items-center gap-2">
-          {canCreate ? (
-            <PrimaryButton colorVariant="primary" onClick={handleCreate}>
-              <Plus className={`mr-1.5 ${ICON.action}`} />
-              新規登録
-            </PrimaryButton>
-          ) : null}
-        </div>
-      }
-      maxWidth={LAYOUT.pageContentMaxWidth.full}
-    >
-      <VaccinationListContent
-        filterProperties={filterProperties}
-        activeFilters={activeFilters}
-        onFilterChange={setActiveFilters}
-        searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
-        count={filteredRecords.length}
-        activeSorts={activeSorts}
-        onSortChange={setActiveSorts}
-        directionFor={directionFor}
-        toggleSort={toggleSort}
-        isFiltering={isFiltering}
-        pagination={pagination}
-        canEdit={canEdit}
-        canDelete={canDelete}
-        onEdit={handleEdit}
-        onDelete={setPendingDeleteId}
-        onPageChange={handlePageChange}
+      <PageLayout
+        title="予防接種管理"
+        resource={ResourceVaccinations}
+        icon={<Syringe className={`${ICON.page} ${C.text}`} />}
+        headerAction={
+          <div className="flex items-center gap-2">
+            {canCreate ? (
+              <PrimaryButton colorVariant="primary" onClick={handleCreate}>
+                <Plus className={`mr-1.5 ${ICON.action}`} />
+                新規登録
+              </PrimaryButton>
+            ) : null}
+          </div>
+        }
+        maxWidth={LAYOUT.pageContentMaxWidth.full}
+      >
+        <VaccinationListContent
+          filterProperties={filterProperties}
+          activeFilters={activeFilters}
+          onFilterChange={setActiveFilters}
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          count={filteredRecords.length}
+          activeSorts={activeSorts}
+          onSortChange={setActiveSorts}
+          directionFor={directionFor}
+          toggleSort={toggleSort}
+          isFiltering={isFiltering}
+          pagination={pagination}
+          canEdit={canEdit}
+          canDelete={canDelete}
+          onEdit={handleEdit}
+          onDelete={setPendingDeleteId}
+          onPageChange={handlePageChange}
+        />
+      </PageLayout>
+      <VaccinationListDeleteDialog
+        open={pendingDeleteId !== null}
+        isPending={isDeletePending}
+        onClose={() => setPendingDeleteId(null)}
+        onConfirm={handleDeleteConfirm}
       />
-    </PageLayout>
-    <VaccinationListDeleteDialog
-      open={pendingDeleteId !== null}
-      isPending={isDeletePending}
-      onClose={() => setPendingDeleteId(null)}
-      onConfirm={handleDeleteConfirm}
-    />
     </>
   );
 }

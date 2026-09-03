@@ -5,8 +5,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { InventoryForm } from "./InventoryForm";
 
-const { permission, formReturn } = vi.hoisted(() => ({
+const { permission, formReturn, useInventoryFormMock } = vi.hoisted(() => ({
   permission: { current: { canView: true, canCreate: false, canEdit: false, canDelete: false } },
+  useInventoryFormMock: vi.fn(),
   formReturn: {
     current: {
       isEdit: true,
@@ -21,14 +22,16 @@ const { permission, formReturn } = vi.hoisted(() => ({
         unit: "本",
         minStockLevel: 50,
         location: "処置室",
-      } as {
-        name: string;
-        category: string;
-        quantity: number;
-        unit: string;
-        minStockLevel: number;
-        location: string;
-      } | undefined,
+      } as
+        | {
+            name: string;
+            category: string;
+            quantity: number;
+            unit: string;
+            minStockLevel: number;
+            location: string;
+          }
+        | undefined,
       category: "consumable",
       setCategory: vi.fn(),
       resolvedExpiry: "",
@@ -46,7 +49,10 @@ vi.mock("@/hooks/use-permission", () => ({
   usePermission: () => permission.current,
 }));
 vi.mock("../hooks/use-inventory-form", () => ({
-  useInventoryForm: () => formReturn.current,
+  useInventoryForm: (...args: unknown[]) => {
+    useInventoryFormMock(...args);
+    return formReturn.current;
+  },
 }));
 vi.mock("@/components/shared/NavigationBlocker", () => ({
   NavigationBlocker: () => null,
@@ -144,6 +150,7 @@ describe("InventoryForm BUG-507 not-found / network gate", () => {
 
 describe("InventoryForm RBAC", () => {
   beforeEach(() => {
+    useInventoryFormMock.mockClear();
     permission.current = { canView: true, canCreate: false, canEdit: false, canDelete: false };
     formReturn.current = {
       ...formReturn.current,
@@ -165,6 +172,25 @@ describe("InventoryForm RBAC", () => {
     expect(document.querySelector("fieldset")).toBeDisabled();
     expect(screen.queryByRole("button", { name: "更新" })).not.toBeInTheDocument();
   });
+
+  it("usePermission の canCreate/canEdit を useInventoryForm の permissions に渡す", () => {
+    permission.current = { canView: true, canCreate: true, canEdit: false, canDelete: false };
+    renderForm("/inventory/7");
+
+    expect(useInventoryFormMock).toHaveBeenCalledWith("7", {
+      permissions: { canCreate: true, canEdit: false },
+    });
+  });
+
+  it("新規作成ルートでも canCreate/canEdit を permissions に渡す", () => {
+    permission.current = { canView: true, canCreate: false, canEdit: true, canDelete: false };
+    formReturn.current = { ...formReturn.current, isEdit: false };
+    renderForm("/inventory/new");
+
+    expect(useInventoryFormMock).toHaveBeenCalledWith(undefined, {
+      permissions: { canCreate: false, canEdit: true },
+    });
+  });
 });
 
 describe("InventoryForm inline validation (BUG-009)", () => {
@@ -172,6 +198,7 @@ describe("InventoryForm inline validation (BUG-009)", () => {
     permission.current = { canView: true, canCreate: true, canEdit: true, canDelete: false };
     formReturn.current = {
       ...formReturn.current,
+      isEdit: true,
       formState: { success: false, timestamp: 0, fieldErrors: {} },
     };
   });
@@ -226,6 +253,7 @@ describe("InventoryForm header submit (BUG-007)", () => {
     permission.current = { canView: true, canCreate: true, canEdit: true, canDelete: false };
     formReturn.current = {
       ...formReturn.current,
+      isEdit: true,
       formAction: vi.fn(),
       formState: { success: false, timestamp: 0, fieldErrors: {} },
     };

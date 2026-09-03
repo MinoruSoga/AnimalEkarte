@@ -2,7 +2,7 @@ import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 import type { CreateMedicineRequest, UpdateMedicineRequest } from "@/types/medicine";
 import type { Medicine } from "@/types";
 
-import type { MedicineFormData } from "../components/medicine-side-panel-model";
+import type { MedicineFormData } from "../lib/medicine-side-panel-model";
 import { normalizeKana } from "@/lib/normalize-kana";
 import { parseOptionalNumber } from "@/lib/parse-optional-number";
 import type { DosageForm, MedicineUnit } from "@/types/generated/models";
@@ -35,18 +35,20 @@ function isMedicineCategoryNode(medicine: {
   dosageForm?: string;
   medicineUnit?: string;
 }): boolean {
-  return !medicine.parentId && medicine.price === 0 && !medicine.dosageForm && !medicine.medicineUnit;
+  return (
+    !medicine.parentId && medicine.price === 0 && !medicine.dosageForm && !medicine.medicineUnit
+  );
 }
 
 export function applyMedicineCategoryOverrides(
   medicines: Medicine[],
-  overrideCategories: Map<string, string | undefined>
+  overrideCategories: Map<string, string | undefined>,
 ) {
   if (overrideCategories.size === 0) return medicines;
   return medicines.map((medicine) =>
     overrideCategories.has(medicine.id)
       ? { ...medicine, parentId: overrideCategories.get(medicine.id) }
-      : medicine
+      : medicine,
   );
 }
 
@@ -70,14 +72,15 @@ export function groupFilteredMedicines({
     if (filter.key === "status" && typeof filter.value === "string") {
       const want = filter.value === "active";
       items = items.filter((medicine) =>
-        filter.condition === "is" ? medicine.isActive === want : medicine.isActive !== want
+        filter.condition === "is" ? medicine.isActive === want : medicine.isActive !== want,
       );
     }
   }
 
   const normalizedTerm = normalizeKana(searchTerm).toLowerCase();
   const filtered = items.filter(
-    (medicine) => !searchTerm || normalizeKana(medicine.name).toLowerCase().includes(normalizedTerm)
+    (medicine) =>
+      !searchTerm || normalizeKana(medicine.name).toLowerCase().includes(normalizedTerm),
   );
 
   const groupedMedicines = new Map<string, { header: Medicine; items: Medicine[] }>();
@@ -130,9 +133,7 @@ export function resolveMedicineDrag({
     type: "move-category",
     activeItemId,
     overParentId,
-    updateRequest: overParentId
-      ? { parent_id: Number(overParentId) }
-      : { clear_parent_id: true },
+    updateRequest: overParentId ? { parent_id: Number(overParentId) } : { clear_parent_id: true },
   };
 }
 
@@ -159,12 +160,7 @@ export function validateMedicineForm(data: MedicineFormData, isCategory: boolean
   if (!data.name.trim()) {
     return "名称を入力してください";
   }
-  if (
-    !isCategory &&
-    !data.parentId &&
-    !(Number(data.price) > 0) &&
-    !data.dosageForm
-  ) {
+  if (!isCategory && !data.parentId && !(Number(data.price) > 0) && !data.dosageForm) {
     return "薬剤として登録する場合は親カテゴリ、単価、または剤形のいずれかを入力してください";
   }
   return null;
@@ -172,7 +168,7 @@ export function validateMedicineForm(data: MedicineFormData, isCategory: boolean
 
 export function buildMedicineCreateRequest(
   data: MedicineFormData,
-  isCategory: boolean
+  isCategory: boolean,
 ): CreateMedicineRequest {
   const effectivePrice = isCategory ? 0 : data.price;
   return {

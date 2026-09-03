@@ -9,8 +9,8 @@ import {
   TrimmingLeftColumn,
   TrimmingMiddleColumn,
   TrimmingRightColumn,
-} from "../components/trimming-form-columns";
-import type { TrimmingHistoryItem } from "../components/trimming-form-column-types";
+} from "../lib/trimming-form-columns";
+import type { TrimmingHistoryItem } from "../lib/trimming-form-column-types";
 import type { TrimmingSelectableItem } from "./trimming-form-model";
 
 export interface TrimmingPatient {
@@ -107,34 +107,32 @@ export function TrimmingFormColumns({
         nextVisitDate={formData.nextDate ? formatDate(formData.nextDate) : undefined}
         onStaffClick={onOpenStaffModal}
       />
-      {fieldErrors.staffId ? (
-        <FormFieldError message={fieldErrors.staffId} />
-      ) : null}
+      {fieldErrors.staffId ? <FormFieldError message={fieldErrors.staffId} /> : null}
       {fieldErrors.reservationTypeId ? (
         <FormFieldError message={fieldErrors.reservationTypeId} />
       ) : null}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
         <div className="space-y-6 lg:col-span-3">
-        <TrimmingLeftColumn
-          formData={formData}
-          courses={courses}
-          options={options}
-          styleImagePreview={styleImagePreview}
-          onFormChange={onFormChange}
-          onCourseModalOpen={onOpenCourseModal}
-          onStyleImageChange={onStyleImageChange}
-          onRemoveStyleImage={onRemoveStyleImage}
-          courseError={fieldErrors.courseId}
-          showInitialStatusSelector={showInitialStatusSelector}
-        />
-        <TrimmingMiddleColumn
-          formData={formData}
-          completedImagePreview={completedImagePreview}
-          onFormChange={onFormChange}
-          onCompletedImageChange={onCompletedImageChange}
-          onRemoveCompletedImage={onRemoveCompletedImage}
-        />
+          <TrimmingLeftColumn
+            formData={formData}
+            courses={courses}
+            options={options}
+            styleImagePreview={styleImagePreview}
+            onFormChange={onFormChange}
+            onCourseModalOpen={onOpenCourseModal}
+            onStyleImageChange={onStyleImageChange}
+            onRemoveStyleImage={onRemoveStyleImage}
+            courseError={fieldErrors.courseId}
+            showInitialStatusSelector={showInitialStatusSelector}
+          />
+          <TrimmingMiddleColumn
+            formData={formData}
+            completedImagePreview={completedImagePreview}
+            onFormChange={onFormChange}
+            onCompletedImageChange={onCompletedImageChange}
+            onRemoveCompletedImage={onRemoveCompletedImage}
+          />
         </div>
         <TrimmingRightColumn
           sortedHistory={sortedHistory}

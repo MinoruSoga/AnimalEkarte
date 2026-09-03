@@ -1,10 +1,22 @@
 import { memo, useCallback, useState } from "react";
 import { Bed } from "lucide-react";
 
-import { MoneyInput, MasterSidePanel, PropertyInput, PropertyRow, StatusToggleButton } from "@/components/shared/SidePeek";
+import {
+  MoneyInput,
+  MasterSidePanel,
+  PropertyInput,
+  PropertyRow,
+  StatusToggleButton,
+} from "@/components/shared/SidePeek";
 import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSelector";
 import { TaxTypeSelector } from "@/components/shared/TaxTypeSelector/TaxTypeSelector";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { LAYOUT, STYLE } from "@/lib/design-tokens";
 import type { BodySize, BillingUnit, TaxType } from "@/types/generated/models";
 
@@ -17,7 +29,7 @@ import { useMasterSidePanelForm } from "../hooks/use-master-side-panel-form";
 import {
   hospitalizationToFormData,
   type HospitalizationFormData,
-} from "./hospitalization-side-panel-model";
+} from "../lib/hospitalization-side-panel-model";
 
 interface HospitalizationSidePanelProps {
   item: HospitalizationPlan | null;
@@ -38,49 +50,75 @@ export const HospitalizationSidePanel = memo(function HospitalizationSidePanel({
 }: HospitalizationSidePanelProps) {
   const [nameError, setNameError] = useState("");
 
-  const { formData, setFormData: setFormDataDirty, isDirty, setIsDirty, handleAction } =
-    useMasterSidePanelForm<HospitalizationFormData>({
-      initialFormData: hospitalizationToFormData(item),
-      onSave,
-      onDirtyChange,
-      validate: (data) => {
-        if (!data.name.trim()) {
-          setNameError("名称を入力してください");
-          return false;
-        }
-        setNameError("");
-        return true;
-      },
-    });
+  const {
+    formData,
+    setFormData: setFormDataDirty,
+    isDirty,
+    setIsDirty,
+    handleAction,
+  } = useMasterSidePanelForm<HospitalizationFormData>({
+    initialFormData: hospitalizationToFormData(item),
+    onSave,
+    onDirtyChange,
+    validate: (data) => {
+      if (!data.name.trim()) {
+        setNameError("名称を入力してください");
+        return false;
+      }
+      setNameError("");
+      return true;
+    },
+  });
 
-  const handleTitleChange = useCallback((value: string) => {
-    setFormDataDirty((prev) => ({ ...prev, name: value }));
-    if (value.trim()) setNameError("");
-  }, [setFormDataDirty]);
+  const handleTitleChange = useCallback(
+    (value: string) => {
+      setFormDataDirty((prev) => ({ ...prev, name: value }));
+      if (value.trim()) setNameError("");
+    },
+    [setFormDataDirty],
+  );
 
-  const handleBodySizeChange = useCallback((value: string) => {
-    setFormDataDirty((prev) => ({ ...prev, bodySize: value as BodySize }));
-  }, [setFormDataDirty]);
+  const handleBodySizeChange = useCallback(
+    (value: string) => {
+      setFormDataDirty((prev) => ({ ...prev, bodySize: value as BodySize }));
+    },
+    [setFormDataDirty],
+  );
 
-  const handleBillingUnitChange = useCallback((value: string) => {
-    setFormDataDirty((prev) => ({ ...prev, billingUnit: value as BillingUnit }));
-  }, [setFormDataDirty]);
+  const handleBillingUnitChange = useCallback(
+    (value: string) => {
+      setFormDataDirty((prev) => ({ ...prev, billingUnit: value as BillingUnit }));
+    },
+    [setFormDataDirty],
+  );
 
-  const handlePriceChange = useCallback((value: number) => {
-    setFormDataDirty((prev) => ({ ...prev, price: value }));
-  }, [setFormDataDirty]);
+  const handlePriceChange = useCallback(
+    (value: number) => {
+      setFormDataDirty((prev) => ({ ...prev, price: value }));
+    },
+    [setFormDataDirty],
+  );
 
-  const handleTaxTypeChange = useCallback((value: TaxType) => {
-    setFormDataDirty((prev) => ({ ...prev, taxType: value }));
-  }, [setFormDataDirty]);
+  const handleTaxTypeChange = useCallback(
+    (value: TaxType) => {
+      setFormDataDirty((prev) => ({ ...prev, taxType: value }));
+    },
+    [setFormDataDirty],
+  );
 
-  const handleTaxRateChange = useCallback((value: number) => {
-    setFormDataDirty((prev) => ({ ...prev, taxRate: value }));
-  }, [setFormDataDirty]);
+  const handleTaxRateChange = useCallback(
+    (value: number) => {
+      setFormDataDirty((prev) => ({ ...prev, taxRate: value }));
+    },
+    [setFormDataDirty],
+  );
 
-  const handleDescriptionChange = useCallback((value: string) => {
-    setFormDataDirty((prev) => ({ ...prev, description: value }));
-  }, [setFormDataDirty]);
+  const handleDescriptionChange = useCallback(
+    (value: string) => {
+      setFormDataDirty((prev) => ({ ...prev, description: value }));
+    },
+    [setFormDataDirty],
+  );
 
   const handleToggleActive = useCallback(() => {
     setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }));
@@ -136,16 +174,10 @@ export const HospitalizationSidePanel = memo(function HospitalizationSidePanel({
       </PropertyRow>
       <MoneyInput value={formData.price} onChange={handlePriceChange} />
       <PropertyRow label="課税区分">
-        <TaxTypeSelector
-          value={formData.taxType}
-          onChange={handleTaxTypeChange}
-        />
+        <TaxTypeSelector value={formData.taxType} onChange={handleTaxTypeChange} />
       </PropertyRow>
       <PropertyRow label="税率">
-        <TaxRateSelector
-          value={formData.taxRate}
-          onChange={handleTaxRateChange}
-        />
+        <TaxRateSelector value={formData.taxRate} onChange={handleTaxRateChange} />
       </PropertyRow>
       <PropertyRow label="備考">
         <PropertyInput

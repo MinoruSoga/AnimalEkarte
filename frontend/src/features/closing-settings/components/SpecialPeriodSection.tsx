@@ -1,4 +1,4 @@
-import { memo, useActionState, useState, useCallback } from "react";
+import { memo, useActionState, useCallback, useLayoutEffect, useRef, useState } from "react";
 import { Calendar, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { C, LAYOUT, STYLE } from "@/lib/design-tokens";
@@ -8,20 +8,32 @@ import { getFormString } from "@/lib/form-data";
 import type { ClosingSpecialPeriod } from "@/types/generated/models";
 import { useCreateSpecialPeriod, useDeleteSpecialPeriod } from "../api/special-periods";
 
+const PERMISSION_DENIED_MESSAGE = "この操作を行う権限がありません";
+
 interface SpecialPeriodSectionProps {
   periods: ClosingSpecialPeriod[];
+  canEdit: boolean;
 }
 
 export const SpecialPeriodSection = memo(function SpecialPeriodSection({
   periods,
+  canEdit,
 }: SpecialPeriodSectionProps) {
   const [showForm, setShowForm] = useState(false);
   const [note, setNote] = useState("");
   const createMutation = useCreateSpecialPeriod();
   const deleteMutation = useDeleteSpecialPeriod();
   const { mutateAsync } = deleteMutation;
+  const canEditRef = useRef(canEdit);
+  useLayoutEffect(() => {
+    canEditRef.current = canEdit;
+  }, [canEdit]);
 
   const [, formAction] = useActionState(async (_prev: null, formData: FormData) => {
+    if (canEditRef.current !== true) {
+      toast.error(PERMISSION_DENIED_MESSAGE);
+      return null;
+    }
     try {
       await createMutation.mutateAsync({
         start_date: getFormString(formData, "start_date"),
@@ -41,6 +53,10 @@ export const SpecialPeriodSection = memo(function SpecialPeriodSection({
 
   const handleDelete = useCallback(
     async (id: number) => {
+      if (canEditRef.current !== true) {
+        toast.error(PERMISSION_DENIED_MESSAGE);
+        return;
+      }
       try {
         await mutateAsync(id);
         toast.success("特別期間を削除しました");

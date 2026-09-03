@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/table";
 import { C, STYLE } from "@/lib/design-tokens";
 import type { AggregationOwner } from "../api/get-aggregations";
-import type { AggregationTab } from "./aggregation-filter-panel-model";
+import type { AggregationTab } from "../lib/aggregation-filter-panel-model";
 import { getAggregationOwnerColumns } from "./AggregationOwnerTableColumns";
 
 interface AggregationOwnerTableProps {
@@ -22,9 +22,6 @@ interface AggregationOwnerTableProps {
   isError?: boolean;
   errorMessage?: string;
 }
-
-
-
 
 export function AggregationOwnerTable({
   owners,
@@ -102,9 +99,7 @@ export function AggregationOwnerTable({
                   <Checkbox
                     touchTarget
                     checked={selectedOwnerIds.has(owner.owner_id)}
-                    onCheckedChange={(checked) =>
-                      onSelectOwner(owner.owner_id, !!checked)
-                    }
+                    onCheckedChange={(checked) => onSelectOwner(owner.owner_id, !!checked)}
                     aria-label={`${owner.owner_name}を選択`}
                     className="-my-3"
                   />

@@ -1,7 +1,7 @@
 import { C } from "@/lib/design-tokens";
 
 import type { AggregationParams } from "../api/get-aggregations";
-import type { AggregationTab } from "./aggregation-filter-panel-model";
+import type { AggregationTab } from "../lib/aggregation-filter-panel-model";
 import {
   AggregationSearchFilter,
   CPMStageFilter,
@@ -17,7 +17,11 @@ interface AggregationFilterPanelProps {
   activeTab: AggregationTab;
 }
 
-export function AggregationFilterPanel({ params, onParamsChange, activeTab }: AggregationFilterPanelProps) {
+export function AggregationFilterPanel({
+  params,
+  onParamsChange,
+  activeTab,
+}: AggregationFilterPanelProps) {
   const inputClass = `h-11 ${C.borderMedium} ${C.text} ${C.bgWhite} text-base`;
   const labelClass = `text-xs ${C.text50}`;
 

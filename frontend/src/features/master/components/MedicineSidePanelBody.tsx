@@ -7,8 +7,11 @@ import { LAYOUT } from "@/lib/design-tokens";
 import type { Medicine } from "@/types";
 import { MedicineCalculationTypePerWeight } from "@/types/generated/models";
 
-import { MedicineDoseParamsEditor, type MedicineDoseParamsEditorHandle } from "./MedicineDoseParamsEditor";
-import { medicineToFormData, type MedicineFormData } from "./medicine-side-panel-model";
+import {
+  MedicineDoseParamsEditor,
+  type MedicineDoseParamsEditorHandle,
+} from "./MedicineDoseParamsEditor";
+import { medicineToFormData, type MedicineFormData } from "../lib/medicine-side-panel-model";
 import {
   MedicineBasicFlagsSection,
   MedicineDetailSection,
@@ -85,10 +88,13 @@ export const MedicineSidePanelBody = memo(function MedicineSidePanelBody({
     }
   }, [formData, onSave, selectedMedicine]);
 
-  const handleTitleChange = useCallback((value: string) => {
-    setFormDataDirty((prev) => ({ ...prev, name: value }));
-    if (value.trim()) setNameError("");
-  }, [setFormDataDirty]);
+  const handleTitleChange = useCallback(
+    (value: string) => {
+      setFormDataDirty((prev) => ({ ...prev, name: value }));
+      if (value.trim()) setNameError("");
+    },
+    [setFormDataDirty],
+  );
 
   return (
     <MasterSidePanel
@@ -115,18 +121,9 @@ export const MedicineSidePanelBody = memo(function MedicineSidePanelBody({
         isCategory={isCategory}
         setFormDataDirty={setFormDataDirty}
       />
-      <MedicineBasicFlagsSection
-        formData={formData}
-        setFormDataDirty={setFormDataDirty}
-      />
-      <MedicineDetailSection
-        formData={formData}
-        setFormDataDirty={setFormDataDirty}
-      />
-      <MedicineDoseCalculationSection
-        formData={formData}
-        setFormDataDirty={setFormDataDirty}
-      />
+      <MedicineBasicFlagsSection formData={formData} setFormDataDirty={setFormDataDirty} />
+      <MedicineDetailSection formData={formData} setFormDataDirty={setFormDataDirty} />
+      <MedicineDoseCalculationSection formData={formData} setFormDataDirty={setFormDataDirty} />
       {formData.calculationType === MedicineCalculationTypePerWeight ? (
         <MedicineDoseParamsEditor medicineId={selectedMedicine?.id ?? ""} ref={doseParamsRef} />
       ) : null}

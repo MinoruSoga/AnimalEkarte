@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { C } from "@/lib/design-tokens";
 
-import type { UnpaidGroupBy } from "./unpaid-tab-model";
+import type { UnpaidGroupBy } from "../lib/unpaid-tab-model";
 
 interface UnpaidTabFiltersProps {
   groupBy: UnpaidGroupBy;
@@ -31,7 +31,9 @@ export function UnpaidTabFilters({
       {groupBy !== "monthly" ? (
         <>
           <div className="space-y-1.5">
-            <Label htmlFor="startDate" className={`text-sm ${C.text60}`}>開始日</Label>
+            <Label htmlFor="startDate" className={`text-sm ${C.text60}`}>
+              開始日
+            </Label>
             <Input
               id="startDate"
               type="date"
@@ -41,7 +43,9 @@ export function UnpaidTabFilters({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="endDate" className={`text-sm ${C.text60}`}>終了日</Label>
+            <Label htmlFor="endDate" className={`text-sm ${C.text60}`}>
+              終了日
+            </Label>
             <Input
               id="endDate"
               type="date"
@@ -53,7 +57,9 @@ export function UnpaidTabFilters({
         </>
       ) : (
         <div className="space-y-1.5">
-          <Label htmlFor="monthPicker" className={`text-sm ${C.text60}`}>対象月</Label>
+          <Label htmlFor="monthPicker" className={`text-sm ${C.text60}`}>
+            対象月
+          </Label>
           <Input
             id="monthPicker"
             type="month"

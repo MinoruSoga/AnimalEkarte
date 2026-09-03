@@ -1,9 +1,13 @@
 import { AlertCircle, Calendar } from "lucide-react";
-import type { ActiveFilter, FilterProperty, SortProperty } from "@/components/shared/PropertyFilter/types";
+import type {
+  ActiveFilter,
+  FilterProperty,
+  SortProperty,
+} from "@/components/shared/PropertyFilter/types";
 import { paths } from "@/config/paths";
 import { addDaysISO, todayISODate } from "@/lib/iso-date";
-import { normalizeKana } from "@/lib/normalize-kana";
-import type { CheckupFilters } from "../api/types";
+import { normalizedIncludes } from "@/lib/normalize-kana";
+import type { CheckupFilters } from "../types";
 import type { CheckupRecord } from "../api/transforms";
 
 export const FILTER_PROPERTIES: FilterProperty[] = [
@@ -35,17 +39,14 @@ export const CHECKUPS_SORT_PROPERTIES: SortProperty[] = [
   { key: "nextDate", label: "次回予定" },
 ];
 
-export function buildCheckupListFilters(activeFilters: ActiveFilter[]): Pick<
-  CheckupFilters,
-  "startDate" | "endDate" | "nextStartDate" | "nextEndDate"
-> {
+export function buildCheckupListFilters(
+  activeFilters: ActiveFilter[],
+): Pick<CheckupFilters, "startDate" | "endDate" | "nextStartDate" | "nextEndDate"> {
   const today = todayISODate();
   const dateFilter = activeFilters.find((f) => f.key === "date")?.value as
-    | { from?: string; to?: string }
-    | undefined;
+    { from?: string; to?: string } | undefined;
   const alertStatus = activeFilters.find((f) => f.key === "alertStatus")?.value as
-    | string
-    | undefined;
+    string | undefined;
 
   let nextStartDate: string | undefined;
   let nextEndDate: string | undefined;
@@ -70,20 +71,16 @@ export function filterCheckupsBySearch(
   deferredSearch: string,
 ): CheckupRecord[] {
   if (!deferredSearch) return checkups;
-  const normalizedTerm = normalizeKana(deferredSearch).toLowerCase();
   return checkups.filter(
     (c) =>
-      normalizeKana(c.petName).toLowerCase().includes(normalizedTerm) ||
-      normalizeKana(c.ownerName).toLowerCase().includes(normalizedTerm) ||
-      normalizeKana(c.checkupTypeName).toLowerCase().includes(normalizedTerm) ||
-      c.result.toLowerCase().includes(normalizedTerm),
+      normalizedIncludes(c.petName, deferredSearch) ||
+      normalizedIncludes(c.ownerName, deferredSearch) ||
+      normalizedIncludes(c.checkupTypeName, deferredSearch) ||
+      normalizedIncludes(c.result, deferredSearch),
   );
 }
 
-export function nextListSearchParamsWithPage(
-  prev: URLSearchParams,
-  page: number,
-): URLSearchParams {
+export function nextListSearchParamsWithPage(prev: URLSearchParams, page: number): URLSearchParams {
   const next = new URLSearchParams(prev);
   if (page === 1) {
     next.delete("page");

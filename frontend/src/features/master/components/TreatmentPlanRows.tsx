@@ -11,7 +11,10 @@ import { C, ICON } from "@/lib/design-tokens";
 import { formatCurrencyOrDash } from "@/lib/format/number";
 import type { TreatmentItem } from "@/lib/transforms/treatment";
 
-import type { TreatmentTreeItem, TreatmentVirtualRow } from "./treatment-plan-tab-content-model";
+import type {
+  TreatmentTreeItem,
+  TreatmentVirtualRow,
+} from "../lib/treatment-plan-tab-content-model";
 
 interface TreatmentPlanRowProps {
   row: TreatmentVirtualRow;
@@ -38,13 +41,7 @@ export function TreatmentPlanRow({
     );
   }
 
-  return (
-    <ChildTreatmentRow
-      item={row.item}
-      canEdit={canEdit}
-      onEdit={() => onEdit(row.item)}
-    />
-  );
+  return <ChildTreatmentRow item={row.item} canEdit={canEdit} onEdit={() => onEdit(row.item)} />;
 }
 
 interface RootTreatmentRowProps {
@@ -135,11 +132,7 @@ function TreatmentExpandButton({
       aria-label={ariaLabel}
       className={`size-[22px] min-h-11 min-w-11 flex items-center justify-center rounded-xxs ${C.text40} ${C.hoverBgMedium} transition-colors shrink-0`}
     >
-      {isExpanded ? (
-        <ChevronDown className={ICON.xs} />
-      ) : (
-        <ChevronRight className={ICON.xs} />
-      )}
+      {isExpanded ? <ChevronDown className={ICON.xs} /> : <ChevronRight className={ICON.xs} />}
     </button>
   );
 }
@@ -185,9 +178,7 @@ function ChildTreatmentRow({ item, onEdit, canEdit }: ChildTreatmentRowProps) {
 function TreatmentPriceCell({ price }: { price: number }) {
   return (
     <TableCell className="text-right">
-      <span className={`text-base ${C.text70} font-mono`}>
-        {formatCurrencyOrDash(price)}
-      </span>
+      <span className={`text-base ${C.text70} font-mono`}>{formatCurrencyOrDash(price)}</span>
     </TableCell>
   );
 }

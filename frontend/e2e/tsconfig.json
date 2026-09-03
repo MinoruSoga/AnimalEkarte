@@ -5,11 +5,16 @@
   },
   "include": [
     "./fixtures/*.ts",
-    "./helpers/synthetic-api.spec.ts",
-    "./helpers/synthetic-api.ts",
-    "./ui-design-compliance-readonly.spec.ts",
-    "./medical-records-create.spec.ts",
+    "./helpers/**/*.ts",
+    "./pages/**/*.ts",
+    "./*.spec.ts",
     "../src/vite-env.d.ts"
   ],
-  "exclude": []
+  "exclude": [
+    "./fixtures/ui-design-clinical.ts",
+    "./fixtures/ui-design-clinical-request-contracts.ts",
+    "./ui-design-compliance-readonly.spec.ts",
+    "./medical-records-create.spec.ts",
+    "./master-crud.spec.ts"
+  ]
 }

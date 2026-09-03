@@ -7,7 +7,13 @@ import { MASTER_STATUS_FILTER } from "../constants/styles";
 import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
 import { MasterCRUDPage } from "../components/MasterCRUDPage";
-import { useGetAllMerchandiseItems, useCreateMerchandiseItem, useUpdateMerchandiseItem, useDeleteMerchandiseItem, useReorderMerchandiseItems } from "../api/merchandise-items";
+import {
+  useGetAllMerchandiseItems,
+  useCreateMerchandiseItem,
+  useUpdateMerchandiseItem,
+  useDeleteMerchandiseItem,
+  useReorderMerchandiseItems,
+} from "../api/merchandise-items";
 import type {
   FrontendMerchandiseItem,
   CreateMerchandiseItemRequest,
@@ -15,7 +21,7 @@ import type {
 } from "../api/merchandise-items";
 import { MerchandiseSidePanel } from "../components/MerchandiseSidePanel";
 import { MerchandiseSortableTable } from "../components/MerchandiseSortableTable";
-import type { MerchandiseFormData } from "../components/merchandise-side-panel-model";
+import type { MerchandiseFormData } from "../lib/merchandise-side-panel-model";
 import {
   buildMerchandiseCreateRequest,
   buildMerchandiseUpdateRequest,
@@ -41,7 +47,13 @@ export function MerchandiseItemSettings() {
     dirtyGuard: dirty,
     permissions: { canDelete },
   });
-  const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
+  const handleDirtyChange = useCallback(
+    (d: boolean) => {
+      if (d) dirty.markDirty();
+      else dirty.markClean();
+    },
+    [dirty],
+  );
 
   const {
     orderedItems: sortedItems,
@@ -55,10 +67,7 @@ export function MerchandiseItemSettings() {
     items: crud.filteredItems,
     onReorder: (newIds) => {
       if (!canEdit) return;
-      reorderMutation.mutate(
-        { ids: newIds.map(Number) },
-        { onSuccess: resetOrder },
-      );
+      reorderMutation.mutate({ ids: newIds.map(Number) }, { onSuccess: resetOrder });
     },
   });
 
@@ -79,34 +88,39 @@ export function MerchandiseItemSettings() {
 
   return (
     <>
-    <MasterCRUDPage
-      title="商品マスタ"
-      icon={<ShoppingBag className={`${ICON.page} ${C.text}`} />}
-      resource={ResourceMasterMerchandise}
-      entityLabel="品目"
-      searchPlaceholder="品目名で検索..."
-      emptyMessage="品目が登録されていません"
-      crud={crud}
-      handleSave={handleSave}
-      filterProperties={[MASTER_STATUS_FILTER]}
-      columns={[]}
-      renderRow={() => null}
-      renderSidePanel={({ readOnly, ...props }) => (
-        <MerchandiseSidePanel key={props.item?.id ?? "new"} {...props} readOnly={readOnly} onDirtyChange={handleDirtyChange} />
-      )}
-    >
-      <MerchandiseSortableTable
-        items={sortedItems}
-        sensors={sensors}
-        activeId={activeId}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-        onDragCancel={handleDragCancel}
-        canEdit={canEdit}
-        onEdit={crud.handleEdit}
-      />
-    </MasterCRUDPage>
-    {dirty.discardDialog}
+      <MasterCRUDPage
+        title="商品マスタ"
+        icon={<ShoppingBag className={`${ICON.page} ${C.text}`} />}
+        resource={ResourceMasterMerchandise}
+        entityLabel="品目"
+        searchPlaceholder="品目名で検索..."
+        emptyMessage="品目が登録されていません"
+        crud={crud}
+        handleSave={handleSave}
+        filterProperties={[MASTER_STATUS_FILTER]}
+        columns={[]}
+        renderRow={() => null}
+        renderSidePanel={({ readOnly, ...props }) => (
+          <MerchandiseSidePanel
+            key={props.item?.id ?? "new"}
+            {...props}
+            readOnly={readOnly}
+            onDirtyChange={handleDirtyChange}
+          />
+        )}
+      >
+        <MerchandiseSortableTable
+          items={sortedItems}
+          sensors={sensors}
+          activeId={activeId}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragCancel={handleDragCancel}
+          canEdit={canEdit}
+          onEdit={crud.handleEdit}
+        />
+      </MasterCRUDPage>
+      {dirty.discardDialog}
     </>
   );
 }

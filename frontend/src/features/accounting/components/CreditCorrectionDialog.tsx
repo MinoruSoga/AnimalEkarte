@@ -25,7 +25,7 @@ import { correctCreditPayment } from "../api/correct-credit-payment";
 import {
   getCorrectableCardPayments,
   type CorrectableCardMethod,
-} from "./accounting-detail-model";
+} from "../lib/accounting-detail-model";
 import type { Accounting } from "../types";
 
 interface CreditCorrectionDialogProps {
@@ -38,7 +38,11 @@ interface CreditCorrectionDialogProps {
 // #189: 確定済み会計のクレジット（カード）金額を確定後に訂正する専用導線。
 // 確定済み（completed）かつカード系支払いが存在する場合のみ表示する（getCorrectableCardPayments で判定）。
 // 通常の updateAccounting (PATCH) ではなく専用 correctCreditPayment エンドポイントを呼ぶ。
-export function CreditCorrectionDialog({ accounting, isPostClose = false, canPostCloseEdit }: CreditCorrectionDialogProps) {
+export function CreditCorrectionDialog({
+  accounting,
+  isPostClose = false,
+  canPostCloseEdit,
+}: CreditCorrectionDialogProps) {
   const correctable = getCorrectableCardPayments(accounting);
   const [open, setOpen] = useState(false);
   const canPostCloseEditRef = useRef(canPostCloseEdit);
@@ -53,44 +57,47 @@ export function CreditCorrectionDialog({ accounting, isPostClose = false, canPos
   const [memo, setMemo] = useState("");
   const queryClient = useQueryClient();
 
-  const [, formAction] = useActionState<null, FormData>(async (_prev: null, _formData: FormData) => {
-    if (canPostCloseEditRef.current !== true) {
-      toast.error("この操作を行う権限がありません");
-      return null;
-    }
-    const amountNum = parseInt(amount, 10);
-    if (!reason.trim()) {
-      toast.error("訂正理由を入力してください");
-      return null;
-    }
-    if (!Number.isFinite(amountNum) || amountNum <= 0) {
-      toast.error("金額は1円以上で入力してください");
-      return null;
-    }
-    try {
-      await correctCreditPayment(accounting.id, accounting.clinicId, {
-        method,
-        amount: amountNum,
-        reason: reason.trim(),
-        memo: memo.trim() || undefined,
-      });
-      queryClient.invalidateQueries({ queryKey: queryKeys.accountings.all() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.accountings.detail(accounting.id) });
-      // BUG-007: 訂正差額が未納者一覧・飼主未納残高に反映されるよう invalidate
-      queryClient.invalidateQueries({ queryKey: queryKeys.accounting.unpaidAll() });
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.ownerUnpaidBalance(accounting.clinicId, accounting.ownerId),
-      });
-      toast.success("クレジット金額を訂正しました");
-      setReason("");
-      setMemo("");
-      setOpen(false);
-      return null;
-    } catch (error) {
-      handleApiError(error, "クレジット訂正");
-      return null;
-    }
-  }, null);
+  const [, formAction] = useActionState<null, FormData>(
+    async (_prev: null, _formData: FormData) => {
+      if (canPostCloseEditRef.current !== true) {
+        toast.error("この操作を行う権限がありません");
+        return null;
+      }
+      const amountNum = parseInt(amount, 10);
+      if (!reason.trim()) {
+        toast.error("訂正理由を入力してください");
+        return null;
+      }
+      if (!Number.isFinite(amountNum) || amountNum <= 0) {
+        toast.error("金額は1円以上で入力してください");
+        return null;
+      }
+      try {
+        await correctCreditPayment(accounting.id, accounting.clinicId, {
+          method,
+          amount: amountNum,
+          reason: reason.trim(),
+          memo: memo.trim() || undefined,
+        });
+        queryClient.invalidateQueries({ queryKey: queryKeys.accountings.all() });
+        queryClient.invalidateQueries({ queryKey: queryKeys.accountings.detail(accounting.id) });
+        // BUG-007: 訂正差額が未納者一覧・飼主未納残高に反映されるよう invalidate
+        queryClient.invalidateQueries({ queryKey: queryKeys.accounting.unpaidAll() });
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.ownerUnpaidBalance(accounting.clinicId, accounting.ownerId),
+        });
+        toast.success("クレジット金額を訂正しました");
+        setReason("");
+        setMemo("");
+        setOpen(false);
+        return null;
+      } catch (error) {
+        handleApiError(error, "クレジット訂正");
+        return null;
+      }
+    },
+    null,
+  );
 
   // 確定前・カード支払い無しでは導線を出さない（権限ゲートとは別に状態でガード）。
   if (correctable.length === 0) {
@@ -131,7 +138,9 @@ export function CreditCorrectionDialog({ accounting, isPostClose = false, canPos
           </DialogDescription>
         </DialogHeader>
         {isPostClose ? (
-          <p className={`rounded-md border ${C.borderDanger20} ${C.bgDanger8} p-2 text-sm font-semibold ${C.danger}`}>
+          <p
+            className={`rounded-md border ${C.borderDanger20} ${C.bgDanger8} p-2 text-sm font-semibold ${C.danger}`}
+          >
             ⚠ この会計はレジ締め確定済み期間です。訂正すると締め時点の帳票と差異が生じます。
           </p>
         ) : null}
@@ -182,11 +191,7 @@ export function CreditCorrectionDialog({ accounting, isPostClose = false, canPos
           </div>
           <div className="space-y-1">
             <Label htmlFor="cc-memo">メモ（任意）</Label>
-            <Textarea
-              id="cc-memo"
-              value={memo}
-              onChange={(e) => setMemo(e.target.value)}
-            />
+            <Textarea id="cc-memo" value={memo} onChange={(e) => setMemo(e.target.value)} />
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>

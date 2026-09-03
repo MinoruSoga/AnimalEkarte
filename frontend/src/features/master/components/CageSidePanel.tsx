@@ -1,8 +1,20 @@
 import { memo, useCallback, useState } from "react";
 import { Building2 } from "lucide-react";
 
-import { MoneyInput, MasterSidePanel, PropertyInput, PropertyRow, StatusToggleButton } from "@/components/shared/SidePeek";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  MoneyInput,
+  MasterSidePanel,
+  PropertyInput,
+  PropertyRow,
+  StatusToggleButton,
+} from "@/components/shared/SidePeek";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { LAYOUT, STYLE } from "@/lib/design-tokens";
 
 import type { Cage, CageSize, CageType } from "../api/cages";
@@ -12,7 +24,7 @@ import {
   CAGE_TYPE_OPTIONS,
   cageToFormData,
   type CageFormData,
-} from "./cage-side-panel-model";
+} from "../lib/cage-side-panel-model";
 
 interface CageSidePanelProps {
   item: Cage | null;
@@ -33,41 +45,61 @@ export const CageSidePanel = memo(function CageSidePanel({
 }: CageSidePanelProps) {
   const [nameError, setNameError] = useState("");
 
-  const { formData, setFormData: setFormDataDirty, isDirty, setIsDirty, handleAction } =
-    useMasterSidePanelForm<CageFormData>({
-      initialFormData: cageToFormData(item),
-      onSave,
-      onDirtyChange,
-      validate: (data) => {
-        if (!data.name.trim()) {
-          setNameError("名称を入力してください");
-          return false;
-        }
-        setNameError("");
-        return true;
-      },
-    });
+  const {
+    formData,
+    setFormData: setFormDataDirty,
+    isDirty,
+    setIsDirty,
+    handleAction,
+  } = useMasterSidePanelForm<CageFormData>({
+    initialFormData: cageToFormData(item),
+    onSave,
+    onDirtyChange,
+    validate: (data) => {
+      if (!data.name.trim()) {
+        setNameError("名称を入力してください");
+        return false;
+      }
+      setNameError("");
+      return true;
+    },
+  });
 
-  const handleTitleChange = useCallback((value: string) => {
-    setFormDataDirty((prev) => ({ ...prev, name: value }));
-    if (value.trim()) setNameError("");
-  }, [setFormDataDirty]);
+  const handleTitleChange = useCallback(
+    (value: string) => {
+      setFormDataDirty((prev) => ({ ...prev, name: value }));
+      if (value.trim()) setNameError("");
+    },
+    [setFormDataDirty],
+  );
 
-  const handleCageTypeChange = useCallback((value: string) => {
-    setFormDataDirty((prev) => ({ ...prev, cageType: value as CageType }));
-  }, [setFormDataDirty]);
+  const handleCageTypeChange = useCallback(
+    (value: string) => {
+      setFormDataDirty((prev) => ({ ...prev, cageType: value as CageType }));
+    },
+    [setFormDataDirty],
+  );
 
-  const handleCageSizeChange = useCallback((value: string) => {
-    setFormDataDirty((prev) => ({ ...prev, cageSize: value as CageSize }));
-  }, [setFormDataDirty]);
+  const handleCageSizeChange = useCallback(
+    (value: string) => {
+      setFormDataDirty((prev) => ({ ...prev, cageSize: value as CageSize }));
+    },
+    [setFormDataDirty],
+  );
 
-  const handlePriceChange = useCallback((value: number) => {
-    setFormDataDirty((prev) => ({ ...prev, price: value }));
-  }, [setFormDataDirty]);
+  const handlePriceChange = useCallback(
+    (value: number) => {
+      setFormDataDirty((prev) => ({ ...prev, price: value }));
+    },
+    [setFormDataDirty],
+  );
 
-  const handleDescriptionChange = useCallback((value: string) => {
-    setFormDataDirty((prev) => ({ ...prev, description: value }));
-  }, [setFormDataDirty]);
+  const handleDescriptionChange = useCallback(
+    (value: string) => {
+      setFormDataDirty((prev) => ({ ...prev, description: value }));
+    },
+    [setFormDataDirty],
+  );
 
   const handleToggleActive = useCallback(() => {
     setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }));

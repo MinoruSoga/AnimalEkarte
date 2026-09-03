@@ -7,7 +7,7 @@ import { paths } from "@/config/paths";
 import { formatCurrency } from "@/lib/format/number";
 
 import type { AggregationOwner, LastVisitBucket } from "../api/get-aggregations";
-import type { AggregationTab } from "./aggregation-filter-panel-model";
+import type { AggregationTab } from "../lib/aggregation-filter-panel-model";
 
 interface AggregationOwnerColumn {
   key: string;
@@ -195,7 +195,9 @@ const TAB_SPECIFIC_COLUMNS: Record<AggregationTab, AggregationOwnerColumn[]> = {
       label: "経過日数",
       width: "w-24",
       textAlign: "right",
-      render: (owner) => <span className="font-mono">{formatDaysSince(owner.days_since_last_visit)}</span>,
+      render: (owner) => (
+        <span className="font-mono">{formatDaysSince(owner.days_since_last_visit)}</span>
+      ),
     },
     {
       key: "last_visit_bucket",
@@ -222,7 +224,9 @@ const TAB_SPECIFIC_COLUMNS: Record<AggregationTab, AggregationOwnerColumn[]> = {
       label: "累計診療費",
       width: "w-32",
       textAlign: "right",
-      render: (owner) => <span className="font-mono">{formatFee(owner.total_amount ?? owner.total_fee)}</span>,
+      render: (owner) => (
+        <span className="font-mono">{formatFee(owner.total_amount ?? owner.total_fee)}</span>
+      ),
     },
   ],
 };

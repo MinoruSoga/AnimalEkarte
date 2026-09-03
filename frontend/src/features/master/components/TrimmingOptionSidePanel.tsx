@@ -7,10 +7,7 @@ import { C, LAYOUT } from "@/lib/design-tokens";
 
 import type { TrimmingOption } from "../api/trimming";
 import { CombinablePill } from "./TrimmingTabRows";
-import {
-  trimmingOptionToFormData,
-  type OptionFormData,
-} from "./trimming-side-panel-model";
+import { trimmingOptionToFormData, type OptionFormData } from "../lib/trimming-side-panel-model";
 
 interface TrimmingOptionSidePanelProps {
   item: TrimmingOption | null;
@@ -55,30 +52,42 @@ export const TrimmingOptionSidePanel = memo(function TrimmingOptionSidePanel({
     }
   }, [formData, onSave, onDirtyChange]);
 
-  const handleTitleChange = useCallback((value: string) => {
-    setFormDataDirty((prev) => ({ ...prev, name: value }));
-    if (value.trim()) setNameError("");
-  }, [setFormDataDirty]);
+  const handleTitleChange = useCallback(
+    (value: string) => {
+      setFormDataDirty((prev) => ({ ...prev, name: value }));
+      if (value.trim()) setNameError("");
+    },
+    [setFormDataDirty],
+  );
 
   const handleToggleStatus = useCallback(() => {
     setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }));
   }, [setFormDataDirty]);
 
-  const handleDurationChange = useCallback((value: string) => {
-    setFormDataDirty((prev) => ({ ...prev, duration: value }));
-  }, [setFormDataDirty]);
+  const handleDurationChange = useCallback(
+    (value: string) => {
+      setFormDataDirty((prev) => ({ ...prev, duration: value }));
+    },
+    [setFormDataDirty],
+  );
 
   const handleToggleCombinability = useCallback(() => {
     setFormDataDirty((prev) => ({ ...prev, combinable: !prev.combinable }));
   }, [setFormDataDirty]);
 
-  const handlePriceChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    setFormDataDirty((prev) => ({ ...prev, price: event.target.value }));
-  }, [setFormDataDirty]);
+  const handlePriceChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      setFormDataDirty((prev) => ({ ...prev, price: event.target.value }));
+    },
+    [setFormDataDirty],
+  );
 
-  const handleDescriptionChange = useCallback((value: string) => {
-    setFormDataDirty((prev) => ({ ...prev, description: value }));
-  }, [setFormDataDirty]);
+  const handleDescriptionChange = useCallback(
+    (value: string) => {
+      setFormDataDirty((prev) => ({ ...prev, description: value }));
+    },
+    [setFormDataDirty],
+  );
 
   return (
     <MasterSidePanel

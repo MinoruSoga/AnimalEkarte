@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   isTargetExamGroup,
   orderExamGroupsForTarget,
-} from "./medical-record-examination-model";
+} from "../lib/medical-record-examination-model";
 
 describe("isTargetExamGroup", () => {
   it("examId が一致すれば対象", () => {
@@ -23,8 +23,6 @@ describe("orderExamGroupsForTarget", () => {
   });
 
   it("examId が無ければ順序を変えない", () => {
-    expect(
-      orderExamGroupsForTarget([{ id: 1 }, { id: 2 }], null).map((g) => g.id),
-    ).toEqual([1, 2]);
+    expect(orderExamGroupsForTarget([{ id: 1 }, { id: 2 }], null).map((g) => g.id)).toEqual([1, 2]);
   });
 });

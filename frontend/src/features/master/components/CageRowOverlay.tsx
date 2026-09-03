@@ -4,11 +4,7 @@ import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 
 import type { Cage } from "../api/cages";
-import {
-  CAGE_SIZE_LABELS,
-  CAGE_TYPE_LABELS,
-  formatCagePrice,
-} from "./cage-side-panel-model";
+import { CAGE_SIZE_LABELS, CAGE_TYPE_LABELS, formatCagePrice } from "../lib/cage-side-panel-model";
 
 interface CageRowOverlayProps {
   cage: Cage;

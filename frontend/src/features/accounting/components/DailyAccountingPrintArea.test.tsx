@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import { DailyPrintArea } from "./DailyAccountingPrintArea";
 import type { Accounting } from "../types";
-import type { DetailedBreakdown, RowData, TotalsData } from "./daily-accounting-utils";
+import type { DetailedBreakdown, RowData, TotalsData } from "../lib/daily-accounting-utils";
 
 const ZERO_BREAKDOWN: DetailedBreakdown = {
   medical: { cash: 0, card: 0 },
@@ -14,7 +14,9 @@ const ZERO_BREAKDOWN: DetailedBreakdown = {
   goods: { cash: 0, card: 0 },
 };
 
-function accounting(overrides: Partial<Accounting> & Pick<Accounting, "id" | "ownerName" | "petName">): Accounting {
+function accounting(
+  overrides: Partial<Accounting> & Pick<Accounting, "id" | "ownerName" | "petName">,
+): Accounting {
   return {
     clinicId: "1",
     ownerId: "1",
@@ -50,7 +52,10 @@ function row(overrides: Partial<RowData> & Pick<RowData, "accounting" | "total">
 }
 
 const ROWS: RowData[] = [
-  row({ accounting: accounting({ id: "1", ownerName: "田中太郎", petName: "ポチ" }), total: 12345 }),
+  row({
+    accounting: accounting({ id: "1", ownerName: "田中太郎", petName: "ポチ" }),
+    total: 12345,
+  }),
   row({ accounting: accounting({ id: "2", ownerName: "鈴木花子", petName: "タマ" }), total: 0 }),
 ];
 
@@ -98,7 +103,13 @@ describe("DailyAccountingPrintArea: 金額セルの印字が固定されてい�
         medical: { cash: -3000, card: 0 },
       },
     });
-    render(<DailyPrintArea date="2026-07-01" rows={[negativeRow]} totals={{ ...TOTALS, medical: -3000, total: -3000 }} />);
+    render(
+      <DailyPrintArea
+        date="2026-07-01"
+        rows={[negativeRow]}
+        totals={{ ...TOTALS, medical: -3000, total: -3000 }}
+      />,
+    );
     const area = screen.getByTestId("daily-print-area");
     const dataRow = within(area).getByText("赤伝").closest("tr")!;
     const cells = dataRow.querySelectorAll("td");

@@ -17,7 +17,9 @@ import type { Shift, ShiftStaff } from "../../types";
 import type { ClinicHoliday } from "../../api/clinic-holidays";
 
 const ShiftFormDialog = lazy(() =>
-  import("../../components/ShiftFormDialog/ShiftFormDialog").then((m) => ({ default: m.ShiftFormDialog }))
+  import("../../components/ShiftFormDialog/ShiftFormDialog").then((m) => ({
+    default: m.ShiftFormDialog,
+  })),
 );
 
 // FE-RC-085: ネスト三項の代わりに早期 return 関数で日付ヘッダーの色を決定する
@@ -29,7 +31,9 @@ function dateHeaderColorClass(isHoliday: boolean, isSun: boolean, isSat: boolean
 
 // ─── ヘッダー列（静的 JSX）: rendering-hoist-jsx ───────────────────────
 const STAFF_HEADER = (
-  <div className={`sticky left-0 z-20 ${C.bgWhite} px-3 py-2 text-xs font-semibold ${C.text60} border-r border-b ${C.borderLight} w-[120px] min-w-[120px] shrink-0`}>
+  <div
+    className={`sticky left-0 z-20 ${C.bgWhite} px-3 py-2 text-xs font-semibold ${C.text60} border-r border-b ${C.borderLight} w-[120px] min-w-[120px] shrink-0`}
+  >
     スタッフ
   </div>
 );
@@ -156,25 +160,19 @@ export const ShiftCalendar = memo(function ShiftCalendar({
     [occupationFilteredStaffs],
   );
 
-  const handleAddShift = useCallback(
-    (staffId: string, staffName: string, date: string) => {
-      setDialog({ open: true, staffId, staffName, date, editShift: undefined });
-    },
-    [],
-  );
+  const handleAddShift = useCallback((staffId: string, staffName: string, date: string) => {
+    setDialog({ open: true, staffId, staffName, date, editShift: undefined });
+  }, []);
 
-  const handleEditShift = useCallback(
-    (staffId: string, staffName: string, shift: Shift) => {
-      setDialog({
-        open: true,
-        staffId,
-        staffName,
-        date: shift.date,
-        editShift: shift,
-      });
-    },
-    [],
-  );
+  const handleEditShift = useCallback((staffId: string, staffName: string, shift: Shift) => {
+    setDialog({
+      open: true,
+      staffId,
+      staffName,
+      date: shift.date,
+      editShift: shift,
+    });
+  }, []);
 
   const handleCloseDialog = useCallback(() => {
     setDialog(CLOSED_DIALOG);
@@ -186,7 +184,9 @@ export const ShiftCalendar = memo(function ShiftCalendar({
   return (
     <div className="flex flex-col h-full">
       {/* ツールバー */}
-      <div className={`flex items-center justify-between px-4 py-3 border-b ${C.borderLight} ${C.bgWhite} shrink-0`}>
+      <div
+        className={`flex items-center justify-between px-4 py-3 border-b ${C.borderLight} ${C.bgWhite} shrink-0`}
+      >
         <CalendarNavToolbar
           layout="inline"
           variant="outline"
@@ -243,15 +243,25 @@ export const ShiftCalendar = memo(function ShiftCalendar({
                   tabIndex={isClickable ? 0 : undefined}
                   aria-label={isClickable ? `${dateStr} の定休日設定` : undefined}
                   onClick={isClickable ? () => onDateHeaderClick(dateStr) : undefined}
-                  onKeyDown={isClickable ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onDateHeaderClick(dateStr); } } : undefined}
+                  onKeyDown={
+                    isClickable
+                      ? (e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            onDateHeaderClick(dateStr);
+                          }
+                        }
+                      : undefined
+                  }
                   className={`min-w-[52px] w-[52px] px-1 py-2 text-center text-xs font-medium border-r ${C.borderLight} ${colorClass} relative${isClickable ? ` cursor-pointer ${STYLE.tableRowHover} transition-colors` : ""}`}
                 >
                   <div>{day}</div>
-                  <div className="text-2xs opacity-70">
-                    {DAY_OF_WEEK_LABELS[dayOfWeek]}
-                  </div>
+                  <div className="text-2xs opacity-70">{DAY_OF_WEEK_LABELS[dayOfWeek]}</div>
                   {isHoliday ? (
-                    <div className={`absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full ${C.bgStatusRedDot}`} aria-label="定休日" />
+                    <div
+                      className={`absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full ${C.bgStatusRedDot}`}
+                      aria-label="定休日"
+                    />
                   ) : null}
                 </div>
               );
@@ -262,7 +272,9 @@ export const ShiftCalendar = memo(function ShiftCalendar({
           {visibleStaffs.map((staff) => (
             <div key={staff.id} className={`flex border-b ${C.borderDivider} ${C.hoverBgPageHalf}`}>
               {/* スタッフ名列 */}
-              <div className={`sticky left-0 z-10 ${C.bgWhite} w-[120px] min-w-[120px] shrink-0 px-3 py-2 border-r ${C.borderLight} flex items-center overflow-x-auto`}>
+              <div
+                className={`sticky left-0 z-10 ${C.bgWhite} w-[120px] min-w-[120px] shrink-0 px-3 py-2 border-r ${C.borderLight} flex items-center overflow-x-auto`}
+              >
                 <span className={`text-xs font-medium ${C.text} whitespace-nowrap`}>
                   {staff.name}
                 </span>
@@ -313,6 +325,7 @@ export const ShiftCalendar = memo(function ShiftCalendar({
           date={dialog.date}
           editShift={dialog.editShift}
           canEdit={canEdit}
+          canCreate={canCreate}
           canDelete={canDelete}
         />
       </Suspense>

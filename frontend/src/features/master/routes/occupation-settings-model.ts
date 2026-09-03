@@ -1,12 +1,7 @@
-import type {
-  CreateOccupationRequest,
-  UpdateOccupationRequest,
-} from "../api/occupations";
-import type { OccupationFormData } from "../components/occupation-side-panel-model";
+import type { CreateOccupationRequest, UpdateOccupationRequest } from "../api/occupations";
+import type { OccupationFormData } from "../lib/occupation-side-panel-model";
 
-export function buildOccupationCreateRequest(
-  data: OccupationFormData,
-): CreateOccupationRequest {
+export function buildOccupationCreateRequest(data: OccupationFormData): CreateOccupationRequest {
   return {
     name: data.name,
     description: data.description || undefined,
@@ -14,8 +9,6 @@ export function buildOccupationCreateRequest(
   };
 }
 
-export function buildOccupationUpdateRequest(
-  data: OccupationFormData,
-): UpdateOccupationRequest {
+export function buildOccupationUpdateRequest(data: OccupationFormData): UpdateOccupationRequest {
   return buildOccupationCreateRequest(data);
 }

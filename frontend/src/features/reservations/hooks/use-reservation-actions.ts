@@ -1,4 +1,4 @@
-import { useCallback, useTransition } from "react";
+import { useCallback, useLayoutEffect, useRef, useTransition } from "react";
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import type { NavigateFunction } from "react-router";
 import { toast } from "sonner";
@@ -13,12 +13,26 @@ import {
   isDestructiveReservationStatus,
   type StatusConfirmTarget,
 } from "../lib/reservation-actions-model";
-import type { NavigationState, ReservationFormData, Reservation, ReservationStatus } from "../types";
-import { useReservationSaveActions } from "./use-reservation-save-actions";
+import type {
+  NavigationState,
+  ReservationFormData,
+  Reservation,
+  ReservationStatus,
+} from "../types";
+import {
+  DENIED_RESERVATION_MUTATION_PERMISSIONS,
+  PERMISSION_DENIED_MESSAGE,
+  useReservationSaveActions,
+  type ReservationMutationPermissions,
+} from "./use-reservation-save-actions";
 
 export { isDestructiveReservationStatus } from "../lib/reservation-actions-model";
 export type { StatusConfirmTarget } from "../lib/reservation-actions-model";
 export { buildReservationUpdateRequest } from "../lib/reservation-actions-model";
+export {
+  PERMISSION_DENIED_MESSAGE,
+  type ReservationMutationPermissions,
+} from "./use-reservation-save-actions";
 
 interface UseReservationActionsArgs {
   appointments: Reservation[];
@@ -35,6 +49,8 @@ interface UseReservationActionsArgs {
   locationFrom: NavigationState["from"] | null;
   navigate: NavigateFunction;
   createMutations: ReservationCreateMutations;
+  /** FE-RC-204: 未指定は fail-closed（全拒否）。 */
+  permissions?: Readonly<ReservationMutationPermissions>;
 }
 
 export function useReservationActions({
@@ -52,7 +68,19 @@ export function useReservationActions({
   locationFrom,
   navigate,
   createMutations,
+  permissions: permissionsArg,
 }: UseReservationActionsArgs) {
+  const permissions = permissionsArg ?? DENIED_RESERVATION_MUTATION_PERMISSIONS;
+  const { canCreate, canEdit, canDelete } = permissions;
+  const permissionsRef = useRef(permissions);
+  useLayoutEffect(() => {
+    permissionsRef.current = { canCreate, canEdit, canDelete };
+  }, [canCreate, canDelete, canEdit]);
+  const isMutationAllowed = useCallback(
+    (action: keyof ReservationMutationPermissions) => permissionsRef.current[action] === true,
+    [],
+  );
+
   const updateMutation = useUpdateReservation();
   const { mutate: updateReservationFn } = updateMutation;
   const deleteMutation = useDeleteReservation();
@@ -89,10 +117,15 @@ export function useReservationActions({
     handleCloseForm,
     navigateBackIfNeeded,
     createMutations,
+    permissions,
   });
 
   const handleReservationUpdate = useCallback(
     (reservation: Reservation, newStart: Date, newEnd: Date) => {
+      if (!isMutationAllowed("canEdit")) {
+        toast.error(PERMISSION_DENIED_MESSAGE);
+        return;
+      }
       const hasOverlap = checkOverlap(newStart, newEnd, reservation.doctorId ?? "", reservation.id);
 
       if (hasOverlap) {
@@ -112,12 +145,16 @@ export function useReservationActions({
         });
       });
     },
-    [checkOverlap, updateReservationFn],
+    [checkOverlap, isMutationAllowed, updateReservationFn],
   );
 
   /** BUG-020: status のみの最小 payload（日時・担当医の再検証を避ける） */
   const applyStatusChange = useCallback(
     (reservation: Reservation, status: ReservationStatus) => {
+      if (!isMutationAllowed("canEdit")) {
+        toast.error(PERMISSION_DENIED_MESSAGE);
+        return;
+      }
       startUpdateTransition(() => {
         updateReservationFn(
           { id: reservation.id, req: { status } },
@@ -133,11 +170,15 @@ export function useReservationActions({
         );
       });
     },
-    [setDetailAppointment, updateReservationFn],
+    [isMutationAllowed, setDetailAppointment, updateReservationFn],
   );
 
   const handleStatusChange = useCallback(
     (reservation: Reservation, status: ReservationStatus) => {
+      if (!isMutationAllowed("canEdit")) {
+        toast.error(PERMISSION_DENIED_MESSAGE);
+        return;
+      }
       if (status === reservation.status) return;
       if (status === "in_consultation") {
         toast.error("カルテ作成が必要です", {
@@ -152,18 +193,32 @@ export function useReservationActions({
       }
       applyStatusChange(reservation, status);
     },
-    [applyStatusChange, setStatusConfirmOpen, setStatusConfirmTarget],
+    [applyStatusChange, isMutationAllowed, setStatusConfirmOpen, setStatusConfirmTarget],
   );
 
   const executeStatusChange = useCallback(() => {
+    if (!isMutationAllowed("canEdit")) {
+      toast.error(PERMISSION_DENIED_MESSAGE);
+      return;
+    }
     if (!statusConfirmTarget) return;
     const { reservation, status } = statusConfirmTarget;
     setStatusConfirmOpen(false);
     setStatusConfirmTarget(null);
     applyStatusChange(reservation, status);
-  }, [applyStatusChange, setStatusConfirmOpen, setStatusConfirmTarget, statusConfirmTarget]);
+  }, [
+    applyStatusChange,
+    isMutationAllowed,
+    setStatusConfirmOpen,
+    setStatusConfirmTarget,
+    statusConfirmTarget,
+  ]);
 
   const executeDelete = useCallback(() => {
+    if (!isMutationAllowed("canDelete")) {
+      toast.error(PERMISSION_DENIED_MESSAGE);
+      return;
+    }
     if (!deleteTarget) return;
     startDeleteTransition(() => {
       deleteReservationFn(deleteTarget.id, {
@@ -178,7 +233,14 @@ export function useReservationActions({
         // useDeleteReservation の onError が handleApiError 済み。ここでは再通知しない。
       });
     });
-  }, [deleteReservationFn, deleteTarget, handleCloseDetail, setDeleteConfirmOpen, setDeleteTarget]);
+  }, [
+    deleteReservationFn,
+    deleteTarget,
+    handleCloseDetail,
+    isMutationAllowed,
+    setDeleteConfirmOpen,
+    setDeleteTarget,
+  ]);
 
   return {
     handleSave,

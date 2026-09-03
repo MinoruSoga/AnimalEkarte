@@ -1,4 +1,14 @@
-import { memo, useActionState, useCallback, useLayoutEffect, useMemo, useRef, useState, lazy, Suspense } from "react";
+import {
+  memo,
+  useActionState,
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  lazy,
+  Suspense,
+} from "react";
 import { BarChart2, Table2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -8,24 +18,17 @@ import { usePermission } from "@/hooks/use-permission";
 import { C, ICON } from "@/lib/design-tokens";
 import { jstDateTimeLocalToISOString } from "@/lib/jst-date";
 import { INITIAL_ACTION_STATE, type ActionState } from "@/types/form";
-import {
-  useCreateVital,
-  useDeleteVital,
-  useGetVitals,
-  useUpdateVital,
-} from "../../api/vitals";
+import { useCreateVital, useDeleteVital, useGetVitals, useUpdateVital } from "../../api/vitals";
 import type { CreateVitalInput, UpdateVitalInput, Vital } from "../../types";
 // recharts(~100KB+ gzip)を引き込む唯一の依存。グラフは showGraph トグル
 // ON 時のみ描画されるため遅延ロードし、医療記録ルートの初期バンドルから外す。
-const VitalsGraph = lazy(() =>
-  import("./VitalsGraph").then((m) => ({ default: m.VitalsGraph })),
-);
+const VitalsGraph = lazy(() => import("./VitalsGraph").then((m) => ({ default: m.VitalsGraph })));
 import { VitalsTable } from "./VitalsTabTable";
 import {
   EMPTY_VITALS_ADD_FORM,
   parseVitalsNumber,
   type VitalsAddFormState,
-} from "./vitals-tab-table-model";
+} from "../../lib/vitals-tab-table-model";
 
 const PERMISSION_DENIED_MESSAGE = "この操作を行う権限がありません";
 
@@ -45,9 +48,18 @@ export const VitalsTab = memo(function VitalsTab({
 }: VitalsTabProps) {
   const { canCreate, canEdit, canDelete } = usePermission("medical-records");
   const { data: vitals, isLoading, isError } = useGetVitals(medicalRecordId, recordClinicId);
-  const { mutateAsync: createVital, isPending: createPending } = useCreateVital(medicalRecordId, recordClinicId);
-  const { mutate: updateVital, isPending: updatePending } = useUpdateVital(medicalRecordId, recordClinicId);
-  const { mutate: deleteVital, isPending: deletePending } = useDeleteVital(medicalRecordId, recordClinicId);
+  const { mutateAsync: createVital, isPending: createPending } = useCreateVital(
+    medicalRecordId,
+    recordClinicId,
+  );
+  const { mutate: updateVital, isPending: updatePending } = useUpdateVital(
+    medicalRecordId,
+    recordClinicId,
+  );
+  const { mutate: deleteVital, isPending: deletePending } = useDeleteVital(
+    medicalRecordId,
+    recordClinicId,
+  );
 
   const canCreateRef = useRef(canCreate);
   const canEditRef = useRef(canEdit);
@@ -77,11 +89,10 @@ export const VitalsTab = memo(function VitalsTab({
     () =>
       vitals
         ? [...vitals].sort(
-            (a, b) =>
-              new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime()
+            (a, b) => new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime(),
           )
         : [],
-    [vitals]
+    [vitals],
   );
 
   const handleAddFormChange = useCallback((patch: Partial<VitalsAddFormState>) => {
@@ -193,10 +204,10 @@ export const VitalsTab = memo(function VitalsTab({
             toast.success("バイタルを更新しました");
           },
           // FE-RC-005 系: useUpdateVital の onError が既に handleApiError 済み。
-        }
+        },
       );
     },
-    [updateVital]
+    [updateVital],
   );
 
   const handleDeleteConfirm = useCallback(() => {
@@ -244,9 +255,9 @@ export const VitalsTab = memo(function VitalsTab({
       <VitalsTable
         vitals={sortedVitals}
         editingId={editingId}
-        canCreate={canCreate && !isPetDeceased}
-        canEdit={canEdit && !isPetDeceased}
-        canDelete={canDelete && !isPetDeceased}
+        canCreate={Boolean(canCreate && !isPetDeceased)}
+        canEdit={Boolean(canEdit && !isPetDeceased)}
+        canDelete={Boolean(canDelete && !isPetDeceased)}
         isAdding={isAdding}
         addForm={addForm}
         addFormErrors={addFormErrors}
@@ -266,9 +277,7 @@ export const VitalsTab = memo(function VitalsTab({
 
       {sortedVitals.length > 0 ? (
         <div className={`${C.bgWhite} border ${C.borderLight} rounded-xs px-4 py-3`}>
-          <span className={`text-sm ${C.text60}`}>
-            バイタル記録 {sortedVitals.length} 件
-          </span>
+          <span className={`text-sm ${C.text60}`}>バイタル記録 {sortedVitals.length} 件</span>
         </div>
       ) : null}
 

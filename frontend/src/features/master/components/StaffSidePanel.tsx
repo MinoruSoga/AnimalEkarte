@@ -14,11 +14,12 @@ import type { PermissionGroup } from "../api/permission-groups";
 import type { ReservationType } from "../api/reservation-types";
 import { StaffBasicInfoSection } from "./StaffBasicInfoSection";
 import { StaffLineReservationSection } from "./StaffLineReservationSection";
-import { StaffClinicsSection, StaffExcludedReservationTypesSection, StaffPermissionGroupsSection } from "./StaffSidePanelSections";
 import {
-  staffToFormData,
-  type StaffFormData,
-} from "./staff-side-panel-model";
+  StaffClinicsSection,
+  StaffExcludedReservationTypesSection,
+  StaffPermissionGroupsSection,
+} from "./StaffSidePanelSections";
+import { staffToFormData, type StaffFormData } from "../lib/staff-side-panel-model";
 import { useEditableIdSelection } from "../hooks/use-editable-id-selection";
 
 interface StaffSidePanelProps {
@@ -64,10 +65,13 @@ export const StaffSidePanel = memo(function StaffSidePanel({
   }, [isDirty, onDirtyChange]);
 
   const markDirty = useCallback(() => setIsDirty(true), []);
-  const setFormDataDirty = useCallback<typeof setFormData>((updater) => {
-    setFormData(updater);
-    markDirty();
-  }, [markDirty]);
+  const setFormDataDirty = useCallback<typeof setFormData>(
+    (updater) => {
+      setFormData(updater);
+      markDirty();
+    },
+    [markDirty],
+  );
 
   const activeReservationTypes = useMemo(
     () => allReservationTypes.filter((reservationType) => reservationType.isActive),
@@ -109,12 +113,26 @@ export const StaffSidePanel = memo(function StaffSidePanel({
       onSaveCapableReservationTypes(staffId, capableIds);
     }
     setIsDirty(false);
-  }, [formData, isNew, staffId, groupIds, clinicIds, capableIds, onSave, onSaveGroups, onSaveClinics, onSaveCapableReservationTypes]);
+  }, [
+    formData,
+    isNew,
+    staffId,
+    groupIds,
+    clinicIds,
+    capableIds,
+    onSave,
+    onSaveGroups,
+    onSaveClinics,
+    onSaveCapableReservationTypes,
+  ]);
 
-  const handleTitleChange = useCallback((value: string) => {
-    setFormDataDirty((prev) => ({ ...prev, name: value }));
-    if (value.trim()) setNameError("");
-  }, [setFormDataDirty]);
+  const handleTitleChange = useCallback(
+    (value: string) => {
+      setFormDataDirty((prev) => ({ ...prev, name: value }));
+      if (value.trim()) setNameError("");
+    },
+    [setFormDataDirty],
+  );
 
   const handleClose = useCallback(() => {
     setIsDirty(false);
@@ -143,10 +161,7 @@ export const StaffSidePanel = memo(function StaffSidePanel({
         allOccupations={allOccupations}
       />
 
-      <StaffLineReservationSection
-        formData={formData}
-        setFormDataDirty={setFormDataDirty}
-      />
+      <StaffLineReservationSection formData={formData} setFormDataDirty={setFormDataDirty} />
 
       <StaffExcludedReservationTypesSection
         activeReservationTypes={activeReservationTypes}

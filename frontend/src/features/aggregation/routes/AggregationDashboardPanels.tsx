@@ -5,12 +5,16 @@ import { Button } from "@/components/ui/button";
 import { UnifiedTabs } from "@/components/shared/UnifiedTabs";
 import { C, ICON, STYLE, LAYOUT } from "@/lib/design-tokens";
 import type { AggregationCPMStage } from "@/lib/cpm-stage";
-import type { AggregationOwner, AggregationParams, AggregationResponse } from "../api/get-aggregations";
+import type {
+  AggregationOwner,
+  AggregationParams,
+  AggregationResponse,
+} from "../api/get-aggregations";
 import type { CPMStageCountsResult } from "../api/get-cpm-stage-counts";
 import { AggregationFilterPanel } from "../components/AggregationFilterPanel";
 import { AggregationOwnerTable } from "../components/AggregationOwnerTable";
 import { CPMStageSummary } from "../components/CPMStageSummary";
-import type { AggregationTab } from "../components/aggregation-filter-panel-model";
+import type { AggregationTab } from "../lib/aggregation-filter-panel-model";
 import { AGGREGATION_TAB_ITEMS } from "./aggregation-dashboard-model";
 
 interface AggregationDashboardViewProps {
@@ -48,7 +52,9 @@ function AggregationDashboardHeaderAction({
       onClick={onExportCsv}
       disabled={isLoading || selectedCount === 0}
       title={selectedCount === 0 ? "出力対象を選択してください" : undefined}
-      aria-label={selectedCount === 0 ? "CSV出力 (出力対象を選択してください)" : `${selectedCount}件をCSV出力`}
+      aria-label={
+        selectedCount === 0 ? "CSV出力 (出力対象を選択してください)" : `${selectedCount}件をCSV出力`
+      }
     >
       <Download className={`mr-1.5 ${ICON.action}`} />
       {selectedCount > 0 ? `${selectedCount}件をCSV出力` : "CSV出力"}
@@ -96,7 +102,11 @@ export function AggregationDashboardView({
         />
 
         {/* フィルタパネル */}
-        <AggregationFilterPanel params={params} onParamsChange={onParamsChange} activeTab={activeTab} />
+        <AggregationFilterPanel
+          params={params}
+          onParamsChange={onParamsChange}
+          activeTab={activeTab}
+        />
 
         {/* CPM セグメント別の人数サマリー（ISSUE-180）。クリックで一覧を絞り込む。 */}
         <CPMStageSummary
@@ -112,9 +122,7 @@ export function AggregationDashboardView({
         <div className="flex flex-wrap items-center gap-2">
           {data ? <span className={STYLE.searchCount}>{data.total} 件</span> : null}
           {selectedCount > 0 ? (
-            <span className={`text-base font-medium ${C.textBrand}`}>
-              {selectedCount}件選択中
-            </span>
+            <span className={`text-base font-medium ${C.textBrand}`}>{selectedCount}件選択中</span>
           ) : null}
         </div>
 

@@ -3,7 +3,11 @@ import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
-import type { BackendInventoryItem, CreateInventoryItemRequest, UpdateInventoryItemRequest } from "./types";
+import type {
+  BackendInventoryItem,
+  CreateInventoryItemRequest,
+  UpdateInventoryItemRequest,
+} from "../types";
 
 // BUG-412: page/limit をサーバへ転送し total を消費するページネーション対応パラメータ。
 // BUG-411（会計・検査, 93c54ede9）の getAccountingsPage と同型。
@@ -49,7 +53,9 @@ function transformInventoryItem(raw: BackendInventoryItem) {
 
 export type InventoryItem = ReturnType<typeof transformInventoryItem>;
 
-const getInventoryItemsPage = async (params: GetInventoryItemsPageParams): Promise<InventoryItemsPage> => {
+const getInventoryItemsPage = async (
+  params: GetInventoryItemsPageParams,
+): Promise<InventoryItemsPage> => {
   const { data } = await axios.get<InventoryListResponse>("/v1/inventory", { params });
   return {
     data: data.data.map(transformInventoryItem),
@@ -102,7 +108,10 @@ export const useCreateInventoryItem = () => {
   });
 };
 
-const updateInventoryItem = async (id: string, req: UpdateInventoryItemRequest): Promise<InventoryItem> => {
+const updateInventoryItem = async (
+  id: string,
+  req: UpdateInventoryItemRequest,
+): Promise<InventoryItem> => {
   const { data } = await axios.patch<BackendInventoryItem>(`/v1/inventory/${id}`, req);
   return transformInventoryItem(data);
 };
@@ -110,7 +119,8 @@ const updateInventoryItem = async (id: string, req: UpdateInventoryItemRequest):
 export const useUpdateInventoryItem = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, req }: { id: string; req: UpdateInventoryItemRequest }) => updateInventoryItem(id, req),
+    mutationFn: ({ id, req }: { id: string; req: UpdateInventoryItemRequest }) =>
+      updateInventoryItem(id, req),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.inventoryItems.all() });
     },

@@ -1,7 +1,7 @@
 import { C } from "@/lib/design-tokens";
 import { formatCurrency } from "@/lib/format/number";
 
-import type { CashCardAmount } from "./daily-accounting-utils";
+import type { CashCardAmount } from "../lib/daily-accounting-utils";
 
 // ── サマリーカード ────────────────────────────────────────────────
 export function SummaryCard({ label, value }: { label: string; value: string }) {
@@ -34,7 +34,9 @@ export function CatCell({ detail, isMixed }: CatCellProps) {
   return (
     <td className={`border ${C.borderGray300} text-right px-1 py-0.5 text-[9pt] leading-tight`}>
       {detail.cash !== 0 ? <div>現{detail.cash.toLocaleString()}</div> : null}
-      {detail.card !== 0 ? <div className={C.textStatusBlue}>カ{detail.card.toLocaleString()}</div> : null}
+      {detail.card !== 0 ? (
+        <div className={C.textStatusBlue}>カ{detail.card.toLocaleString()}</div>
+      ) : null}
     </td>
   );
 }

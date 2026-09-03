@@ -22,8 +22,8 @@ import {
   resolveLatestVitalWeight,
 } from "../api/medicine-dose-lookup";
 import type { TreatmentItemType, UpdateTreatmentInput } from "../types";
-import { buildMasterSelectionPayload } from "../components/TreatmentsTab/treatments-tab-model";
-import { computeDoseGate, type DoseGateSource } from "../components/TreatmentsTab/treatment-row-dose-gate";
+import { buildMasterSelectionPayload } from "../lib/treatments-tab-model";
+import { computeDoseGate, type DoseGateSource } from "../lib/treatment-row-dose-gate";
 
 export function useTreatmentsTab({
   medicalRecordId,
@@ -57,7 +57,7 @@ export function useTreatmentsTab({
   const { data: medicines } = useGetAllMedicinesMaster();
   const resolvedWeight = useMemo(
     () => (vitals ? resolveLatestVitalWeight(vitals) : null),
-    [vitals]
+    [vitals],
   );
   // react-review-201 HIGH-1: オブジェクトリテラルを直接 props に渡すと毎レンダー新規参照になり
   // TreatmentRow の React.memo が無効化される（全行が無関係な state 変更でも再レンダーされる）。
@@ -67,7 +67,7 @@ export function useTreatmentsTab({
       petSpecies: petSpecies ?? null,
       weightKg: resolvedWeight?.weightKg ?? null,
     }),
-    [medicines, petSpecies, resolvedWeight]
+    [medicines, petSpecies, resolvedWeight],
   );
 
   // マスタ検索ダイアログ
@@ -97,10 +97,7 @@ export function useTreatmentsTab({
   // 合計金額 (selected のみ)
   const { selectedSubtotal, selectedCount, finalTotal } = useMemo(() => {
     const selected = sortedTreatments.filter((t) => t.is_selected);
-    const sub = selected.reduce(
-      (sum, t) => sum + t.unit_price * t.quantity - t.discount_amount,
-      0
-    );
+    const sub = selected.reduce((sum, t) => sum + t.unit_price * t.quantity - t.discount_amount, 0);
     // 飼主割引適用
     const ownerDiscount = Math.floor(sub * (ownerDiscountRate / 100));
     const afterDiscount = sub - ownerDiscount;
@@ -109,18 +106,15 @@ export function useTreatmentsTab({
     return {
       selectedSubtotal: sub,
       selectedCount: selected.length,
-      finalTotal: afterDiscount + tax
+      finalTotal: afterDiscount + tax,
     };
   }, [sortedTreatments, ownerDiscountRate, standardTaxRate]);
 
   // 全明細の合計
   const totalSubtotal = useMemo(
     () =>
-      sortedTreatments.reduce(
-        (sum, t) => sum + t.unit_price * t.quantity - t.discount_amount,
-        0
-      ),
-    [sortedTreatments]
+      sortedTreatments.reduce((sum, t) => sum + t.unit_price * t.quantity - t.discount_amount, 0),
+    [sortedTreatments],
   );
 
   // ── handlers ──
@@ -130,7 +124,7 @@ export function useTreatmentsTab({
       if (!canEdit) return;
       updateTreatmentFn({ treatmentId, input });
     },
-    [canEdit, updateTreatmentFn]
+    [canEdit, updateTreatmentFn],
   );
 
   const handleDelete = useCallback(
@@ -138,7 +132,7 @@ export function useTreatmentsTab({
       if (!canDelete) return;
       deleteTreatmentFn(treatmentId);
     },
-    [canDelete, deleteTreatmentFn]
+    [canDelete, deleteTreatmentFn],
   );
 
   const handleMoveUp = useCallback(
@@ -154,7 +148,7 @@ export function useTreatmentsTab({
       });
       reorderTreatmentsFn({ treatments: newList });
     },
-    [canEdit, sortedTreatments, reorderTreatmentsFn]
+    [canEdit, sortedTreatments, reorderTreatmentsFn],
   );
 
   const handleMoveDown = useCallback(
@@ -170,7 +164,7 @@ export function useTreatmentsTab({
       });
       reorderTreatmentsFn({ treatments: newList });
     },
-    [canEdit, sortedTreatments, reorderTreatmentsFn]
+    [canEdit, sortedTreatments, reorderTreatmentsFn],
   );
 
   // rerender-memo: TreatmentRow(TreatmentsTable 経由)/TreatmentAddControls へ渡す
@@ -195,9 +189,7 @@ export function useTreatmentsTab({
         : 0;
     // 薬品の場合、投与方法を memo に付記する（BE-MEDI-010: 専用カラム実装まで）
     const memoWithRoute =
-      addItemType === "medicine" && addAdminRoute
-        ? `[投与方法: ${addAdminRoute}]`
-        : "";
+      addItemType === "medicine" && addAdminRoute ? `[投与方法: ${addAdminRoute}]` : "";
     createTreatmentFn(
       {
         item_type: addItemType,
@@ -217,7 +209,7 @@ export function useTreatmentsTab({
           setAddAdminRoute("");
           setIsAdding(false);
         },
-      }
+      },
     );
   }, [canCreate, addItemType, addContent, addAdminRoute, sortedTreatments, createTreatmentFn]);
 
@@ -232,82 +224,93 @@ export function useTreatmentsTab({
     setAddAdminRoute("");
   }, []);
 
-  const handleSelectFromMaster = useCallback(async (item: TreatmentMasterItem) => {
-    if (!canCreate) return;
-    const nextOrder =
-      sortedTreatments.length > 0
-        ? sortedTreatments[sortedTreatments.length - 1].sort_order + 1
-        : 0;
+  const handleSelectFromMaster = useCallback(
+    async (item: TreatmentMasterItem) => {
+      if (!canCreate) return;
+      const nextOrder =
+        sortedTreatments.length > 0
+          ? sortedTreatments[sortedTreatments.length - 1].sort_order + 1
+          : 0;
 
-    // #201: 薬剤選択時、体重・species・薬マスタの投与量パラメータが揃えば quantity をプリフィルする。
-    // いずれか欠けている場合は既定値 1（従来通りの手動入力・保存継続）とする。
-    // TASK-025: technical failure（fetch/HTTP/parse）は missing data と型で区別し、通常保存を止める。
-    let quantity = 1;
-    let doseGateSource: DoseGateSource = { kind: "missing" };
-    if (item.medicineId && resolvedWeight) {
-      const medicine = medicines?.find((m) => m.id === item.medicineId);
-      if (medicine) {
-        try {
-          const doseParams = await queryClient.fetchQuery({
-            queryKey: medicineDoseParamsQueryKey(item.medicineId),
-            queryFn: () => fetchMedicineDoseParamsOnce(item.medicineId as string),
-            staleTime: QUERY_STALE_TIMES.STATIC,
-          });
-          const doseCalcInput = buildDoseCalcInput(
-            medicine,
-            doseParams,
-            petSpecies,
-            resolvedWeight.weightKg
-          );
-          doseGateSource = doseCalcInput
-            ? { kind: "ready", input: doseCalcInput }
-            : { kind: "missing" };
-          const preview = computeDosePreview(
-            medicine,
-            doseParams,
-            petSpecies,
-            resolvedWeight.weightKg
-          );
-          // healthcare-review-201 MEDIUM: 推奨値自体が丸め up 等で安全域を超えている場合、
-          // 未編集のまま保存され得るため、その値ではプリフィルしない
-          // （既定値 1 の手動入力とし、実際の保存値を下の物理ブロック判定に通す）。
-          if (preview && !preview.exceedsMax && !preview.belowMin) quantity = preview.quantity;
-        } catch {
-          // technical failure: quantity=1 の silent fallback で create しない。
-          // upstream body は画面に出さない（固定文言のみ）。
-          setMasterDoseBlockReason(DOSE_PARAMS_LOOKUP_FAILED_MESSAGE);
-          setPendingMasterLookupItem(item);
-          return;
+      // #201: 薬剤選択時、体重・species・薬マスタの投与量パラメータが揃えば quantity をプリフィルする。
+      // いずれか欠けている場合は既定値 1（従来通りの手動入力・保存継続）とする。
+      // TASK-025: technical failure（fetch/HTTP/parse）は missing data と型で区別し、通常保存を止める。
+      let quantity = 1;
+      let doseGateSource: DoseGateSource = { kind: "missing" };
+      if (item.medicineId && resolvedWeight) {
+        const medicine = medicines?.find((m) => m.id === item.medicineId);
+        if (medicine) {
+          try {
+            const doseParams = await queryClient.fetchQuery({
+              queryKey: medicineDoseParamsQueryKey(item.medicineId),
+              queryFn: () => fetchMedicineDoseParamsOnce(item.medicineId as string),
+              staleTime: QUERY_STALE_TIMES.STATIC,
+            });
+            const doseCalcInput = buildDoseCalcInput(
+              medicine,
+              doseParams,
+              petSpecies,
+              resolvedWeight.weightKg,
+            );
+            doseGateSource = doseCalcInput
+              ? { kind: "ready", input: doseCalcInput }
+              : { kind: "missing" };
+            const preview = computeDosePreview(
+              medicine,
+              doseParams,
+              petSpecies,
+              resolvedWeight.weightKg,
+            );
+            // healthcare-review-201 MEDIUM: 推奨値自体が丸め up 等で安全域を超えている場合、
+            // 未編集のまま保存され得るため、その値ではプリフィルしない
+            // （既定値 1 の手動入力とし、実際の保存値を下の物理ブロック判定に通す）。
+            if (preview && !preview.exceedsMax && !preview.belowMin) quantity = preview.quantity;
+          } catch {
+            // technical failure: quantity=1 の silent fallback で create しない。
+            // upstream body は画面に出さない（固定文言のみ）。
+            setMasterDoseBlockReason(DOSE_PARAMS_LOOKUP_FAILED_MESSAGE);
+            setPendingMasterLookupItem(item);
+            return;
+          }
         }
       }
-    }
 
-    const payload = buildMasterSelectionPayload({ item, quantity, sortOrder: nextOrder });
+      const payload = buildMasterSelectionPayload({ item, quantity, sortOrder: nextOrder });
 
-    // #201: 実際に submit される quantity がマスタの絶対上限を超える場合は、
-    // ConfirmDialog で解除できない物理ブロックを create 前に適用する。
-    // TASK-377: create 経路に inline 理由 UI が無いため、理由必須の quantity では create を止める
-    // （行追加後の quantity 編集で理由を入力する導線へ誘導）。
-    const gate = computeDoseGate(doseGateSource, quantity);
-    if (gate.isBlocked) {
-      setMasterDoseBlockReason(gate.blockReason);
+      // #201: 実際に submit される quantity がマスタの絶対上限を超える場合は、
+      // ConfirmDialog で解除できない物理ブロックを create 前に適用する。
+      // TASK-377: create 経路に inline 理由 UI が無いため、理由必須の quantity では create を止める
+      // （行追加後の quantity 編集で理由を入力する導線へ誘導）。
+      const gate = computeDoseGate(doseGateSource, quantity);
+      if (gate.isBlocked) {
+        setMasterDoseBlockReason(gate.blockReason);
+        setPendingMasterLookupItem(null);
+        return;
+      }
+      if (gate.requiresDeviationReason) {
+        setMasterDoseBlockReason(
+          gate.reason
+            ? `${gate.reason}。推奨値付近で追加してから数量と逸脱理由を入力してください`
+            : "用量逸脱の理由入力が必要です。推奨値付近で追加してから数量と理由を入力してください",
+        );
+        setPendingMasterLookupItem(null);
+        return;
+      }
+
+      setMasterDoseBlockReason("");
       setPendingMasterLookupItem(null);
-      return;
-    }
-    if (gate.requiresDeviationReason) {
-      setMasterDoseBlockReason(
-        gate.reason
-          ? `${gate.reason}。推奨値付近で追加してから数量と逸脱理由を入力してください`
-          : "用量逸脱の理由入力が必要です。推奨値付近で追加してから数量と理由を入力してください"
-      );
-      setPendingMasterLookupItem(null);
-      return;
-    }
-
-    setMasterDoseBlockReason("");
-    setPendingMasterLookupItem(null);
-    createTreatmentFn(payload, { onSuccess: () => setFocusLastRow(true) });
-  }, [canCreate, sortedTreatments, createTreatmentFn, resolvedWeight, medicines, petSpecies, queryClient]);
+      createTreatmentFn(payload, { onSuccess: () => setFocusLastRow(true) });
+    },
+    [
+      canCreate,
+      sortedTreatments,
+      createTreatmentFn,
+      resolvedWeight,
+      medicines,
+      petSpecies,
+      queryClient,
+    ],
+  );
 
   const handleRetryMasterDoseLookup = useCallback(() => {
     if (!pendingMasterLookupItem) return;

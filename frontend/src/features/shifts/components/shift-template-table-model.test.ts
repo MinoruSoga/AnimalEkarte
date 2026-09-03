@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { ShiftTemplate } from "../types";
-import { filterShiftTemplates } from "./shift-template-table-model";
+import { filterShiftTemplates } from "../lib/shift-template-table-model";
 
 function template(overrides: Partial<ShiftTemplate> = {}): ShiftTemplate {
   return {

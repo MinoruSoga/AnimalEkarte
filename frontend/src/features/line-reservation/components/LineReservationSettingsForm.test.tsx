@@ -1,11 +1,24 @@
-import { describe, it, expect } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
+import { toast } from "sonner";
 import { server } from "@/testing/mocks/node";
 import { createTestWrapper } from "@/testing/TestUtils";
 import { LineReservationSettingsForm } from "./LineReservationSettingsForm";
 import type { ReservationSetting } from "../api/types";
+
+const permission = vi.hoisted(() => ({
+  current: { canView: true, canCreate: true, canEdit: true, canDelete: false },
+}));
+
+vi.mock("@/hooks/use-permission", () => ({
+  usePermission: () => permission.current,
+}));
+
+vi.mock("sonner", () => ({
+  toast: { success: vi.fn(), error: vi.fn() },
+}));
 
 const CLINIC_ID = "clinic-test-1";
 
@@ -47,7 +60,7 @@ function setupPutHandler(responseOverrides: Partial<ReservationSetting> = {}) {
     http.put(`/api/v1/clinics/${CLINIC_ID}/line-reservation-settings`, async ({ request }) => {
       capturedBody = (await request.json()) as Record<string, unknown>;
       return HttpResponse.json({ ...baseSetting, ...capturedBody, ...responseOverrides });
-    })
+    }),
   );
   return () => capturedBody;
 }
@@ -58,13 +71,22 @@ function renderForm(setting: ReservationSetting = baseSetting) {
   });
 }
 
+beforeEach(() => {
+  permission.current = { canView: true, canCreate: true, canEdit: true, canDelete: false };
+  vi.mocked(toast.success).mockClear();
+  vi.mocked(toast.error).mockClear();
+});
+
 function setupClinicHolidayWriteSpies() {
   const posts: unknown[] = [];
   const deletes: string[] = [];
   server.use(
     http.post("/api/v1/clinic-holidays", async ({ request }) => {
       posts.push(await request.json());
-      return HttpResponse.json({ id: 99, clinic_id: 1, date: "2026-08-11", reason: "" }, { status: 201 });
+      return HttpResponse.json(
+        { id: 99, clinic_id: 1, date: "2026-08-11", reason: "" },
+        { status: 201 },
+      );
     }),
     http.delete("/api/v1/clinic-holidays/:date", ({ params }) => {
       deletes.push(String(params.date));
@@ -147,7 +169,9 @@ describe("LineReservationSettingsForm — 個別定休日の二重入力削除",
 
     const closedDatesRow = screen.getByText("特定定休日").parentElement;
     expect(closedDatesRow).not.toBeNull();
-    expect(within(closedDatesRow as HTMLElement).queryByRole("button", { name: "+ 追加" })).not.toBeInTheDocument();
+    expect(
+      within(closedDatesRow as HTMLElement).queryByRole("button", { name: "+ 追加" }),
+    ).not.toBeInTheDocument();
 
     const shiftLink = screen.getByRole("link", { name: "シフト管理" });
     expect(shiftLink).toHaveAttribute("href", "/shifts");
@@ -247,5 +271,22 @@ describe("LineReservationSettingsForm — booking_window_min_days UI sync (BUG-0
     await waitFor(() => {
       expect(screen.getByRole("spinbutton", { name: "最短予約受付（日数）" })).toHaveValue(5);
     });
+  });
+});
+
+describe("LineReservationSettingsForm — FE-RC-210 mutation permission re-check", () => {
+  it("canEdit=false では PUT せず toast.error する", async () => {
+    permission.current = { canView: true, canCreate: true, canEdit: false, canDelete: false };
+    const getBody = setupPutHandler();
+    renderForm();
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "設定を保存" }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith("この操作を行う権限がありません");
+    });
+    expect(getBody()).toBeNull();
+    expect(toast.success).not.toHaveBeenCalled();
   });
 });

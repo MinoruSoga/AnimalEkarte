@@ -4,11 +4,13 @@
  * この飼主に紐付いたLINE顧客を表示し、紐付け/解除を行う。
  * app/pages/OwnerFormPage で line-reservation feature から注入する（依存逆転）。
  */
-import { useState, useCallback, useMemo, memo } from "react";
+import { useState, useCallback, useLayoutEffect, useMemo, useRef, memo } from "react";
 import { Link2, Link2Off, Search, MessageCircle } from "lucide-react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
+import { toast } from "sonner";
 import { C, ICON, PALETTE } from "@/lib/design-tokens";
+import { usePermission } from "@/hooks/use-permission";
 import { EmptyState } from "@/components/shared/DataStates";
 import { normalizeKana } from "@/lib/normalize-kana";
 import { Button } from "@/components/ui/button";
@@ -30,7 +32,17 @@ interface LinkedLineCustomersProps {
   ownerId: number;
 }
 
-export const LinkedLineCustomers = memo(function LinkedLineCustomers({ clinicId, ownerId }: LinkedLineCustomersProps) {
+const PERMISSION_DENIED_MESSAGE = "この操作を行う権限がありません";
+
+export const LinkedLineCustomers = memo(function LinkedLineCustomers({
+  clinicId,
+  ownerId,
+}: LinkedLineCustomersProps) {
+  const { canEdit } = usePermission("owners");
+  const canEditRef = useRef(canEdit);
+  useLayoutEffect(() => {
+    canEditRef.current = canEdit;
+  }, [canEdit]);
   const { data: allCustomers = [] } = useGetLineCustomers(clinicId);
   const linkMutation = useUpdateOwnerLink(clinicId);
   const { mutate } = linkMutation;
@@ -43,13 +55,14 @@ export const LinkedLineCustomers = memo(function LinkedLineCustomers({ clinicId,
   );
 
   // 未紐付けのLINE顧客（リンクダイアログ用）
-  const unlinked = useMemo(
-    () => allCustomers.filter((c) => !c.owner_id),
-    [allCustomers],
-  );
+  const unlinked = useMemo(() => allCustomers.filter((c) => !c.owner_id), [allCustomers]);
 
   const handleUnlink = useCallback(
     (customerId: number) => {
+      if (canEditRef.current !== true) {
+        toast.error(PERMISSION_DENIED_MESSAGE);
+        return;
+      }
       mutate({ customerId, ownerID: null });
     },
     [mutate],
@@ -57,10 +70,11 @@ export const LinkedLineCustomers = memo(function LinkedLineCustomers({ clinicId,
 
   const handleLink = useCallback(
     (customerId: number) => {
-      mutate(
-        { customerId, ownerID: ownerId },
-        { onSuccess: () => setShowLinkDialog(false) },
-      );
+      if (canEditRef.current !== true) {
+        toast.error(PERMISSION_DENIED_MESSAGE);
+        return;
+      }
+      mutate({ customerId, ownerID: ownerId }, { onSuccess: () => setShowLinkDialog(false) });
     },
     [mutate, ownerId],
   );
@@ -101,9 +115,7 @@ export const LinkedLineCustomers = memo(function LinkedLineCustomers({ clinicId,
                   <MessageCircle className={`${ICON.sm} text-white`} />
                 </div>
                 <div>
-                  <p className={`text-sm font-medium ${C.text}`}>
-                    {c.display_name || "名前なし"}
-                  </p>
+                  <p className={`text-sm font-medium ${C.text}`}>{c.display_name || "名前なし"}</p>
                   <p className={`text-xs ${C.textMuted}`}>
                     {c.real_name ? `本名: ${c.real_name}` : ""}
                     {c.created_at
@@ -153,21 +165,23 @@ interface LinkSearchDialogProps {
 function LinkSearchDialog({ unlinked, onLink, onClose, isPending }: LinkSearchDialogProps) {
   const [search, setSearch] = useState("");
 
-  const filtered = useMemo(
-    () => {
-      const q = normalizeKana(search).toLowerCase();
-      if (!q) return unlinked;
-      return unlinked.filter(
-        (c) =>
-          normalizeKana(c.display_name).toLowerCase().includes(q) ||
-          normalizeKana(c.real_name).toLowerCase().includes(q),
-      );
-    },
-    [unlinked, search],
-  );
+  const filtered = useMemo(() => {
+    const q = normalizeKana(search).toLowerCase();
+    if (!q) return unlinked;
+    return unlinked.filter(
+      (c) =>
+        normalizeKana(c.display_name).toLowerCase().includes(q) ||
+        normalizeKana(c.real_name).toLowerCase().includes(q),
+    );
+  }, [unlinked, search]);
 
   return (
-    <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
+    <Dialog
+      open
+      onOpenChange={(v) => {
+        if (!v) onClose();
+      }}
+    >
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>LINEアカウントを紐付け</DialogTitle>

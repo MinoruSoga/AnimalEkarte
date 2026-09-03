@@ -2,7 +2,7 @@ import { Input } from "@/components/ui/input";
 import { C } from "@/lib/design-tokens";
 import { calculateDose } from "@/lib/medicine-dose";
 import type { Treatment } from "../../types";
-import type { DoseGateResult } from "./treatment-row-dose-gate";
+import type { DoseGateResult } from "../../lib/treatment-row-dose-gate";
 
 interface TreatmentDoseMessagesProps {
   treatment: Treatment;
@@ -98,19 +98,19 @@ export function TreatmentDoseMessages({
       ) : null}
       {dosePreview?.eligible ? (
         <div className={`text-xs ${C.text40} text-right mt-0.5`}>
-          推奨{dosePreview.quantity}（{dosePreview.rawMg.toFixed(1)}→{dosePreview.effectiveDoseMg.toFixed(1)}mg）
+          推奨{dosePreview.quantity}（{dosePreview.rawMg.toFixed(1)}→
+          {dosePreview.effectiveDoseMg.toFixed(1)}mg）
         </div>
       ) : null}
       {treatment.dose_amount_mg != null ? (
         <div
           className={`text-xs ${C.text40} text-right mt-0.5`}
           title={
-            treatment.dose_weight_source
-              ? `体重出典: ${treatment.dose_weight_source}`
-              : undefined
+            treatment.dose_weight_source ? `体重出典: ${treatment.dose_weight_source}` : undefined
           }
         >
-          保存時{treatment.dose_amount_mg}{treatment.dose_amount_unit ?? "mg"}
+          保存時{treatment.dose_amount_mg}
+          {treatment.dose_amount_unit ?? "mg"}
           {treatment.dose_weight_kg != null ? `（体重${treatment.dose_weight_kg}kg）` : ""}
         </div>
       ) : null}

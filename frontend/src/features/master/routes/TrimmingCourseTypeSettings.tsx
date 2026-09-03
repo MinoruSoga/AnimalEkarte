@@ -14,7 +14,7 @@ import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
 import { MasterCRUDPage } from "../components/MasterCRUDPage";
 import { TrimmingCourseTypeSidePanel } from "../components/TrimmingCourseTypeSidePanel";
-import type { TrimmingCourseTypeFormData } from "../components/trimming-course-type-side-panel-model";
+import type { TrimmingCourseTypeFormData } from "../lib/trimming-course-type-side-panel-model";
 import {
   useGetTrimmingCourseTypes,
   useCreateTrimmingCourseType,
@@ -54,10 +54,13 @@ export function TrimmingCourseTypeSettings() {
     dirtyGuard: dirty,
     permissions: { canDelete },
   });
-  const handleDirtyChange = useCallback((d: boolean) => {
-    if (d) dirty.markDirty();
-    else dirty.markClean();
-  }, [dirty]);
+  const handleDirtyChange = useCallback(
+    (d: boolean) => {
+      if (d) dirty.markDirty();
+      else dirty.markClean();
+    },
+    [dirty],
+  );
 
   const { handleSave } = useMasterSave<
     TrimmingCourseType,
@@ -76,43 +79,49 @@ export function TrimmingCourseTypeSettings() {
 
   return (
     <>
-    <MasterCRUDPage
-      title="コース種別マスタ"
-      icon={<Scissors className={`${ICON.page} ${C.text}`} />}
-      resource={ResourceMasterTrimming}
-      entityLabel="コース種別"
-      searchPlaceholder="種別名で検索..."
-      emptyMessage="コース種別が登録されていません"
-      crud={crud}
-      handleSave={handleSave}
-      columns={COLUMNS}
-      filterProperties={[MASTER_STATUS_FILTER]}
-      renderRow={(item, onEdit, canEdit) => (
-        <DataTableRow key={item.id}>
-          <TableCell className={`font-medium ${C.text}`}>
-            <DataTableRowButton
-              aria-label={`詳細: コース種別 ${item.name} (ID ${item.id})`}
-              onClick={() => onEdit(item)}
-            >
-              {item.name}
-            </DataTableRowButton>
-          </TableCell>
-          <TableCell className="text-center"><StatusPill isActive={item.isActive} /></TableCell>
-          <TableCell className="text-right">
-            {canEdit ? (
-              <RowActionButton
+      <MasterCRUDPage
+        title="コース種別マスタ"
+        icon={<Scissors className={`${ICON.page} ${C.text}`} />}
+        resource={ResourceMasterTrimming}
+        entityLabel="コース種別"
+        searchPlaceholder="種別名で検索..."
+        emptyMessage="コース種別が登録されていません"
+        crud={crud}
+        handleSave={handleSave}
+        columns={COLUMNS}
+        filterProperties={[MASTER_STATUS_FILTER]}
+        renderRow={(item, onEdit, canEdit) => (
+          <DataTableRow key={item.id}>
+            <TableCell className={`font-medium ${C.text}`}>
+              <DataTableRowButton
+                aria-label={`詳細: コース種別 ${item.name} (ID ${item.id})`}
                 onClick={() => onEdit(item)}
-                aria-label={`コース種別「${item.name}」(ID: ${item.id}) を編集`}
-              />
-            ) : null}
-          </TableCell>
-        </DataTableRow>
-      )}
-      renderSidePanel={(props) => (
-        <TrimmingCourseTypeSidePanel key={props.item?.id ?? "new"} {...props} onDirtyChange={handleDirtyChange} />
-      )}
-    />
-    {dirty.discardDialog}
+              >
+                {item.name}
+              </DataTableRowButton>
+            </TableCell>
+            <TableCell className="text-center">
+              <StatusPill isActive={item.isActive} />
+            </TableCell>
+            <TableCell className="text-right">
+              {canEdit ? (
+                <RowActionButton
+                  onClick={() => onEdit(item)}
+                  aria-label={`コース種別「${item.name}」(ID: ${item.id}) を編集`}
+                />
+              ) : null}
+            </TableCell>
+          </DataTableRow>
+        )}
+        renderSidePanel={(props) => (
+          <TrimmingCourseTypeSidePanel
+            key={props.item?.id ?? "new"}
+            {...props}
+            onDirtyChange={handleDirtyChange}
+          />
+        )}
+      />
+      {dirty.discardDialog}
     </>
   );
 }

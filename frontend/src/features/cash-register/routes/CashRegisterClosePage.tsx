@@ -1,4 +1,4 @@
-import { useActionState, useState, useCallback } from "react";
+import { useActionState, useCallback, useLayoutEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { Calculator } from "lucide-react";
 import { toast } from "sonner";
@@ -8,6 +8,7 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { paths } from "@/config/paths";
 import { getFormString, getFormEnum } from "@/lib/form-data";
 import { useCurrentClinicName } from "@/hooks/use-current-clinic-name";
+import { usePermission } from "@/hooks/use-permission";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,13 +21,15 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useGetCashRegisterPreview } from "../api/get-cash-register-preview";
 import { useCreateCashRegisterClose } from "../api/create-cash-register-close";
-import { PERIOD_LABELS, PERIOD_OPTIONS, type CashRegisterPeriod } from "../constants";
+import { PERIOD_LABELS, PERIOD_OPTIONS, type CashRegisterPeriod } from "../lib/constants";
 import {
   CashRegisterClosePreview,
   CashRegisterCloseTargetSection,
 } from "../components/CashRegisterClosePanels";
 import { useCashRegisterCloseForm } from "../hooks/use-cash-register-close-form";
 import { ResourceCashRegisterClose } from "@/types/generated/models";
+
+const PERMISSION_DENIED_MESSAGE = "この操作を行う権限がありません";
 
 // FE-RC-036: FormData の未検証キャストを避けるための enum ガード。
 function isCashRegisterPeriod(value: string): value is CashRegisterPeriod {
@@ -35,8 +38,15 @@ function isCashRegisterPeriod(value: string): value is CashRegisterPeriod {
 
 export function CashRegisterClosePage() {
   const navigate = useNavigate();
-  const { date, period, previewEnabled, previewNonce, handleDateChange, handlePeriodChange, enablePreview } =
-    useCashRegisterCloseForm();
+  const {
+    date,
+    period,
+    previewEnabled,
+    previewNonce,
+    handleDateChange,
+    handlePeriodChange,
+    enablePreview,
+  } = useCashRegisterCloseForm();
   const clinicName = useCurrentClinicName();
   const [actualCash, setActualCash] = useState<string>("");
   const [showConfirm, setShowConfirm] = useState(false);
@@ -50,6 +60,11 @@ export function CashRegisterClosePage() {
   );
   const createMutation = useCreateCashRegisterClose();
   const { mutateAsync, isPending } = createMutation;
+  const { canCreate } = usePermission(ResourceCashRegisterClose);
+  const permissionsRef = useRef({ canCreate });
+  useLayoutEffect(() => {
+    permissionsRef.current = { canCreate };
+  }, [canCreate]);
 
   const handleActualCashChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setActualCash(e.target.value);
@@ -67,6 +82,11 @@ export function CashRegisterClosePage() {
   }, null);
 
   const handleConfirmClose = useCallback(async () => {
+    if (permissionsRef.current.canCreate !== true) {
+      toast.error(PERMISSION_DENIED_MESSAGE);
+      setShowConfirm(false);
+      return;
+    }
     if (!pendingFormData) return;
     const closeDate = getFormString(pendingFormData, "close_date");
     const closePeriod = getFormEnum(pendingFormData, "period", isCashRegisterPeriod);

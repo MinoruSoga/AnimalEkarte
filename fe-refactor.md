@@ -1,6 +1,7 @@
 # frontend コード規約チェック結果（第3期・全ファイル監査）
 
 **監査日**: 2026-09-04（レーン 1–4 join 後更新）  
+**実装**: FE-RC-W3-IMPL（2026-09-04）。FE-RC-201〜228 を FIXED。  
 **対象**: `git ls-files 'frontend/'` 全 2017 tracked パス  
 **方法**: ファイル単位分類 + 13 調査レーン + 機械検出 + 構成監査 + DRY（実在重複のみ）+ 臨床安全精読  
 **規約正本**: `frontend/CLAUDE.md`、`frontend/src/features/CLAUDE.md`、`frontend/src/hooks/CLAUDE.md`、`frontend/src/components/shared/CLAUDE.md`、`frontend/CODING_RULES.md`、`.claude/refs/typescript-react.md`、`.claude/refs/accessibility-rules.md`、`.claude/refs/error-handling.md`
@@ -12,11 +13,11 @@
 | 重要度 | 件数 | 概要 |
 |---|---|---|
 | CRITICAL | 0 | — |
-| HIGH | 3 | FE-RC-204 / 219 / 220（予約・締め設定・在庫の権限 ref） |
-| MEDIUM | 13 | FE-RC-201, 205–214, 221–222 |
-| LOW | 12 | FE-RC-202, 203, 215–218, 223–228 |
+| HIGH | 0 | FE-RC-204 / 219 / 220 は FE-RC-W3-IMPL で FIXED |
+| MEDIUM | 0 | FE-RC-201, 205–214, 221–222 は FE-RC-W3-IMPL で FIXED |
+| LOW | 0 | FE-RC-202, 203, 215–218, 223–228 は FE-RC-W3-IMPL で FIXED。§7 に barrel 除外 1 件 |
 
-**カバレッジ**: tracked 2017 = §8 分類 2017（PASS 1786 + EXCLUDE 125 + FINDING 106）。未分類 0。
+**カバレッジ**: tracked 2017 = §8 分類 2017（PASS 1786 + EXCLUDE 125 + FINDING 106 は監査時点。W3 実装後 FINDING:FE-RC-201〜228 は PASS。残 FINDING は `MedicalRecordAddenda/index.ts` のみ）。未分類 0。
 
 **統合**: [Audit src shared layers](0841e176-1182-469d-a958-10b2ceccc38b) · [Audit features lane 5-8](70bbcee7-20f2-4ac8-a102-c168018b9b7b) · [Audit liff line-reserve e2e](5e4d8f71-15a6-4f11-b226-2ab8dc2dac62) · [Audit features lane 1-4](c17099dd-80c5-4bc7-aa48-619821505c12)
 
@@ -47,14 +48,16 @@
 
 ## 1. HIGH
 
-#### FE-RC-204 [HIGH] 予約: mutation 直前の権限再検査（permissionsRef）がない
+#### FE-RC-204 [HIGH] FIXED 予約: mutation 直前の権限再検査（permissionsRef）がない
+- **実装**: `ReservationManagement` から `{canCreate,canEdit,canDelete}` を save/DnD/status/delete まで渡し、`permissionsRef` + `isMutationAllowed` で fail-closed。拒否 toast `"この操作を行う権限がありません"`
 - **path**:
   - `frontend/src/features/reservations/hooks/use-reservation-save-actions.ts:57-159`
   - `frontend/src/features/reservations/hooks/use-reservation-actions.ts:94-116`
 - **規約**: `frontend/CLAUDE.md` 臨床安全境界 2
 - **改善案**: 権限を渡し save/dnd handler 冒頭で fail-closed
 
-#### FE-RC-219 [HIGH] closing-settings: feature 内に usePermission / 権限 ref が無い
+#### FE-RC-219 [HIGH] FIXED closing-settings: feature 内に usePermission / 権限 ref が無い
+- **実装**: `ClosingSettingsPage` が `usePermission(ResourceClosingSettings)`。各 Section は `canEditRef` + `useLayoutEffect` で formAction/delete を fail-closed
 - **path**:
   - `frontend/src/features/closing-settings/routes/ClosingSettingsPage.tsx:22-36`
   - `frontend/src/features/closing-settings/components/HolidaySection.tsx:20-44`
@@ -64,7 +67,8 @@
 - **現状**: `PageLayout` の resource バッジのみ。view 権限でも formAction / delete が呼べる
 - **改善案**: `usePermission` + 各 Section へ `canEdit` を渡し、mutation 冒頭で `canEditRef` fail-closed（参照: `CompanyInvoiceSection.tsx`）
 
-#### FE-RC-220 [HIGH] inventory: formAction が権限を再検査しない
+#### FE-RC-220 [HIGH] FIXED inventory: formAction が権限を再検査しない
+- **実装**: `useInventoryForm(id, { permissions })`。未指定は DENIED。`isMutationAllowed("canCreate"|"canEdit")` を mutateAsync 直前に実行
 - **path**:
   - `frontend/src/features/inventory/hooks/use-inventory-form.ts:80-111`
   - `frontend/src/features/inventory/routes/InventoryForm.tsx:15-35`
@@ -76,49 +80,62 @@
 
 ## 2. MEDIUM
 
-#### FE-RC-201 [MEDIUM] ShiftFormDialog: breaksRef の useEffect 同期 + 権限 ref 欠落
+#### FE-RC-201 [MEDIUM] FIXED ShiftFormDialog: breaksRef の useEffect 同期 + 権限 ref 欠落
+- **実装**: `breaksRef` は `useLayoutEffect`。`permissionsRef` fail-closed。`ShiftCalendar` は `canCreate` を明示渡し（未指定 default false）
 - **path**: `frontend/src/features/shifts/components/ShiftFormDialog/ShiftFormDialog.tsx:86-87,94-145,180-184`
 
-#### FE-RC-205 [MEDIUM] identity-links: link/unlink に権限 ref なし
+#### FE-RC-205 [MEDIUM] FIXED identity-links: link/unlink に権限 ref なし
+- **実装**: `canEditRef` + `useLayoutEffect`。mutateAsync 直前再検査。拒否は toast + `setActionError`
 - **path**: `frontend/src/features/identity-links/hooks/use-identity-links-workbench.ts:88-149`
 
-#### FE-RC-206 [MEDIUM] ClinicHolidayModal: formAction に権限 ref なし
+#### FE-RC-206 [MEDIUM] FIXED ClinicHolidayModal: formAction に権限 ref なし
+- **実装**: 既存 `canEdit` prop を `canEditRef` で formAction 先頭再検査
 - **path**: `frontend/src/features/shifts/components/ClinicHolidayModal/ClinicHolidayModal.tsx:40-63`
 
-#### FE-RC-207 [MEDIUM] ShiftTemplateSettings: save/delete/reorder に権限 ref なし
+#### FE-RC-207 [MEDIUM] FIXED ShiftTemplateSettings: save/delete/reorder に権限 ref なし
+- **実装**: `permissionsRef`。保存 deny は既存文面を維持。delete/reorder deny は共通メッセージ
 - **path**: `frontend/src/features/shifts/routes/ShiftTemplateSettings.tsx:49-131`
 
-#### FE-RC-208 [MEDIUM] lstep CheckupSyncPage: createCheckupSync に権限 ref なし
+#### FE-RC-208 [MEDIUM] FIXED lstep CheckupSyncPage: createCheckupSync に権限 ref なし
+- **実装**: 既存 `canCreate` を `canCreateRef` で `handleConfirm` 先頭再検査
 - **path**: `frontend/src/features/lstep/routes/CheckupSyncPage.tsx:45-60`
 
-#### FE-RC-209 [MEDIUM] lstep BulkTagRemoveDialog: bulkRemove に権限 ref なし
+#### FE-RC-209 [MEDIUM] FIXED lstep BulkTagRemoveDialog: bulkRemove に権限 ref なし
+- **実装**: `owners` の `canDelete` を prop + `canDeleteRef`。省略時 DENIED
 - **path**: `frontend/src/features/lstep/components/BulkTagRemoveDialog.tsx:32-35`
 
-#### FE-RC-210 [MEDIUM] LineReservationSettingsForm: formAction に権限 ref なし
+#### FE-RC-210 [MEDIUM] FIXED LineReservationSettingsForm: formAction に権限 ref なし
+- **実装**: `usePermission("reservations")` + `canEditRef`。formAction 先頭で fail-closed
 - **path**: `frontend/src/features/line-reservation/components/LineReservationSettingsForm.tsx:108`
 
-#### FE-RC-211 [MEDIUM] LineReservationPageEditor: formAction に権限 ref なし
+#### FE-RC-211 [MEDIUM] FIXED LineReservationPageEditor: formAction に権限 ref なし
+- **実装**: `usePermission("reservations")` + `canEditRef`。formAction 先頭で fail-closed
 - **path**: `frontend/src/features/line-reservation/routes/LineReservationPageEditor.tsx:79`
 
-#### FE-RC-212 [MEDIUM] LinkedLineCustomers: link/unlink に権限 ref なし
+#### FE-RC-212 [MEDIUM] FIXED LinkedLineCustomers: link/unlink に権限 ref なし
+- **実装**: コンポーネント内 `usePermission("owners")` + `canEditRef`。link/unlink 先頭で再検査
 - **path**: `frontend/src/features/line-reservation/components/LinkedLineCustomers.tsx:53-65`
 
-#### FE-RC-213 [MEDIUM] ManualEditor: upsert に権限 ref なし
+#### FE-RC-213 [MEDIUM] FIXED ManualEditor: upsert に権限 ref なし
+- **実装**: `ManualPage` から `canEdit` を渡し `canEditRef` で save 直前再検査。省略時 DENIED
 - **path**: `frontend/src/features/manual/components/ManualEditor.tsx:48-63`
 
-#### FE-RC-214 [MEDIUM] line-reserve: `@/shared-liff` を迂回して `@/lib` を直接 import
+#### FE-RC-214 [MEDIUM] FIXED line-reserve: `@/shared-liff` を迂回して `@/lib` を直接 import
+- **実装**: `shared-liff/format-number.ts` と `sanitize.ts` 再 export。3 ファイルの `@/lib` 直接 import を置換（working tree `rg` 0 件）
 - **path**:
   - `frontend/line-reserve/src/api/liff-api.ts:17`
   - `frontend/line-reserve/src/pages/TrimmingCourseSelectPage.tsx:8`
   - `frontend/line-reserve/src/pages/TrimmingOptionSelectPage.tsx:6`
 
-#### FE-RC-221 [MEDIUM] cash-register: 締め確定 callback に権限 ref なし
+#### FE-RC-221 [MEDIUM] FIXED cash-register: 締め確定 callback に権限 ref なし
+- **実装**: `usePermission(ResourceCashRegisterClose)` + `permissionsRef`。`handleConfirmClose` 先頭で `canCreate === true`
 - **path**: `frontend/src/features/cash-register/routes/CashRegisterClosePage.tsx:69-93`
 - **規約**: 臨床安全境界 2
 - **現状**: `handleConfirmClose` が `mutateAsync` を直接呼ぶ。`PageLayout` resource は表示のみ
 - **改善案**: `usePermission(ResourceCashRegisterClose)` + `permissionsRef` を handler 先頭へ
 
-#### FE-RC-222 [MEDIUM] lab-device: mutation callback に権限 ref なし
+#### FE-RC-222 [MEDIUM] FIXED lab-device: mutation callback に権限 ref なし
+- **実装**: Board `permissionsRef` と Cards `canEditRef`。handler 冒頭で再検査
 - **path**:
   - `frontend/src/features/lab-device/routes/LabDeviceBoard.tsx:74-108`
   - `frontend/src/features/lab-device/components/LabDeviceBoardCards.tsx:82-85`
@@ -128,25 +145,32 @@
 
 ## 3. LOW
 
-#### FE-RC-202 [LOW] cash-register: ドメインモジュールが feature ルートに散在
+#### FE-RC-202 [LOW] FIXED cash-register: ドメインモジュールが feature ルートに散在
+- **実装**: `category-breakdown` / `closing-summary` / `constants` / `month-date-range` を `cash-register/lib/` へ git mv
 - **path**: `category-breakdown.ts`, `closing-summary.ts`, `constants.ts`, `month-date-range.ts` + 各 `.test.ts`
 
-#### FE-RC-203 [LOW] examinations: `constants.ts` が feature ルート
+#### FE-RC-203 [LOW] FIXED examinations: `constants.ts` が feature ルート
+- **実装**: `examinations/lib/constants.ts` へ git mv
 - **path**: `frontend/src/features/examinations/constants.ts`
 
-#### FE-RC-215 [LOW] VaccinationList: `useUrlPageSync` 後も inline page clamp が残存
+#### FE-RC-215 [LOW] FIXED VaccinationList: `useUrlPageSync` 後も inline page clamp が残存
+- **実装**: inline `useEffect` clamp を削除。`useUrlPageSync` のみ
 - **path**: `frontend/src/features/vaccinations/routes/VaccinationList.tsx:85-91`
 
-#### FE-RC-216 [LOW] e2e/tsconfig.json: 31 spec のうち 2 のみ tsc 対象
-- **path**: `frontend/e2e/tsconfig.json:6-13`
+#### FE-RC-216 [LOW] FIXED e2e/tsconfig.json: 31 spec のうち 2 のみ tsc 対象
+- **実装**: `include` を fixtures/helpers/pages/`*.spec.ts` に拡大。コンパイルできる 28 spec を対象にし、`tsc -p e2e/tsconfig.json --noEmit` exit 0。残り 3 spec は既存型エラーのため exclude（§7 BLOCKED）
+- **path**: `frontend/e2e/tsconfig.json:6-19`
 
-#### FE-RC-217 [LOW] `src/hooks/use-update-reservation-route.ts` が単一 consumer 専用
+#### FE-RC-217 [LOW] FIXED `src/hooks/use-update-reservation-route.ts` が単一 consumer 専用
+- **実装**: `ReservationRouteSelect/hooks/use-update-reservation-route.ts` へ移動（features へは移さず層逆転を回避）
 - **path**: `frontend/src/hooks/use-update-reservation-route.ts`
 
-#### FE-RC-218 [LOW] `src/lib/saigram.ts` が owners 専用
+#### FE-RC-218 [LOW] FIXED `src/lib/saigram.ts` が owners 専用
+- **実装**: `features/owners/lib/saigram.ts` へ git mv。`src/lib` に re-export を残さない
 - **path**: `frontend/src/lib/saigram.ts`
 
-#### FE-RC-223 [LOW] normalizeKana クライアント検索の実在重複
+#### FE-RC-223 [LOW] FIXED normalizeKana クライアント検索の実在重複
+- **実装**: 4 箇所を既存 `normalizedIncludes` に置換。`matchesNormalizedSearch` は新設しない。checkups の `result` もかな正規化対象に含めた
 - **path**:
   - `frontend/src/features/checkups/routes/checkups-list-model.ts:73-78`
   - `frontend/src/features/examinations/hooks/use-examination-records.ts:82-87`
@@ -155,17 +179,20 @@
 - **規約**: DRY（4 箇所の同一パターン）
 - **改善案**: `@/lib/normalize-kana` に `matchesNormalizedSearch(fields, term)` を追加
 
-#### FE-RC-224 [LOW] settings/hooks に非 hook ユーティリティ
+#### FE-RC-224 [LOW] FIXED settings/hooks に非 hook ユーティリティ
+- **実装**: `get-clinic-id.ts` を削除。呼び出し側は `getStoredClinicId`（`@/lib/current-clinic`）直呼び
 - **path**: `frontend/src/features/settings/hooks/get-clinic-id.ts:4`
 - **現状**: `getClinicId()` は `getStoredClinicId` の薄い wrapper
 - **改善案**: `lib/` へ移動するか呼び出し側を `@/lib/current-clinic` に直結
 
-#### FE-RC-225 [LOW] 会計帳票の印刷日が `new Date()` 直使用
+#### FE-RC-225 [LOW] FIXED 会計帳票の印刷日が `new Date()` 直使用
+- **実装**: `formatDate(todayJSTISO())`。`todayJSTISO()` がカレンダー日の正本。`formatJSTWallDate` は `Date` 引数のため型不一致で未使用（Assumption 逸脱を Completion Report に記録）
 - **path**: `frontend/src/features/accounting/components/AccountingDocument.tsx:83-85`
 - **規約**: 臨床安全境界 3（表示日の JST 一貫性）
 - **改善案**: `formatJSTWallDate(todayJSTISO())`
 
-#### FE-RC-226 [LOW] feature 型が `api/types.ts` に直置き（`types/` なし）
+#### FE-RC-226 [LOW] FIXED feature 型が `api/types.ts` に直置き（`types/` なし）
+- **実装**: checkups/examinations/inventory を `types/index.ts` へ移動。`api/types.ts` は named re-export（`export *` 禁止）
 - **path**:
   - `frontend/src/features/checkups/api/types.ts`
   - `frontend/src/features/examinations/api/types.ts`
@@ -173,7 +200,8 @@
 - **規約**: `features/CLAUDE.md` 必須形 `types/`
 - **改善案**: `features/<name>/types/index.ts` へ移し api から再 export
 
-#### FE-RC-227 [LOW] `components/` 内の kebab-case 非コンポーネント `.ts`
+#### FE-RC-227 [LOW] FIXED `components/` 内の kebab-case 非コンポーネント `.ts`
+- **実装**: 56 件を各 feature `lib/` へ git mv。`MedicalRecordAddenda/index.ts` barrel は未移動（キャンペーン除外）。filename ratchet 0<=0
 - **path**（57 件。代表）:
   - `frontend/src/features/accounting/components/accounting-detail-model.ts`
   - `frontend/src/features/accounting/components/accounting-list-table-model.ts`
@@ -183,11 +211,12 @@
   - `frontend/src/features/aggregation/components/aggregation-csv.ts`
   - `frontend/src/features/aggregation/components/aggregation-filter-panel-model.ts`
   - `frontend/src/features/cash-register/components/cash-register-history-model.ts`
-  - … 他 49 件（§8 の FINDING:FE-RC-227）
+  - … 他 49 件（§8 の PASS）
 - **規約**: コンポーネントは `PascalCase.tsx`。model/utils は `lib/` または `routes/*-model.ts`
 - **改善案**: 隣接コンポーネントと同じ feature の `lib/` へ移動
 
-#### FE-RC-228 [LOW] accounting: `tax-breakdown.ts` が feature ルート
+#### FE-RC-228 [LOW] FIXED accounting: `tax-breakdown.ts` が feature ルート
+- **実装**: `accounting/lib/tax-breakdown.ts` へ git mv
 - **path**:
   - `frontend/src/features/accounting/tax-breakdown.ts`
   - `frontend/src/features/accounting/tax-breakdown.test.ts`
@@ -203,8 +232,8 @@
 | `export default` | `vite-env.d.ts` のみ |
 | filename ratchet | exit 0, violation 0 |
 | cross-feature / `@/features`（satellite） | 0 |
-| `@/lib` 直接（line-reserve） | 3 → FE-RC-214 |
-| closing-settings 権限記号 | 0 → FE-RC-219 |
+| `@/lib` 直接（line-reserve） | 0（FE-RC-214 FIXED） |
+| closing-settings 権限記号 | `usePermission` + `canEditRef`（FE-RC-219 FIXED） |
 
 ---
 
@@ -217,9 +246,21 @@
 
 ---
 
+## 7. 残件（W3 意図的除外 / BLOCKED）
+
+- `frontend/src/features/medical-records/components/MedicalRecordAddenda/index.ts` — FE-RC-227 の barrel `index.ts` は動かさない。kebab model 56 件は FIXED。
+- FE-RC-216 BLOCKED（既存型エラーのため exclude。W3 では 31 spec 全件 green にしない）:
+  - `frontend/e2e/ui-design-compliance-readonly.spec.ts`（`fixtures/ui-design-clinical.ts` 経由。`CreateMedicalRecordRequest` / `ApiDailyRecord` / `BackendHospitalization` / `CarePlanItem` / `BackendMedicalRecord` / `BackendVaccination` 未 export、`Pet.version` 欠落）
+  - `frontend/e2e/medical-records-create.spec.ts`（同上 fixture）
+  - `frontend/e2e/master-crud.spec.ts`（TS2353 `skip` 不在、TS2559 `string` vs `{ timeout?, visible? }`）
+
+---
+
 ## 8. ファイルステータス
 
 1 行 1 tracked パス。形式: `path<TAB>PASS|FINDING:FE-RC-2xx|EXCLUDE:reason`
+
+W3: FE-RC-201〜228 の FINDING 行は PASS に更新（移動後の実パスは working tree の `lib/` を正とする）。残 FINDING は `MedicalRecordAddenda/index.ts` のみ。
 
 frontend/.coverage-baseline	EXCLUDE:baseline-artifact
 frontend/.dockerignore	PASS
@@ -290,7 +331,7 @@ frontend/e2e/settings-crud.spec.ts	PASS
 frontend/e2e/settings-smoke.spec.ts	PASS
 frontend/e2e/shifts-flow.spec.ts	PASS
 frontend/e2e/trimming-flow.spec.ts	PASS
-frontend/e2e/tsconfig.json	FINDING:FE-RC-216
+frontend/e2e/tsconfig.json	PASS
 frontend/e2e/ui-design-compliance-readonly.spec.ts	PASS
 frontend/e2e/vaccinations-flow.spec.ts	PASS
 frontend/entrypoint.sh	PASS
@@ -315,7 +356,7 @@ frontend/line-reserve/index.html	PASS
 frontend/line-reserve/src/App.test.tsx	PASS
 frontend/line-reserve/src/App.tsx	PASS
 frontend/line-reserve/src/api/liff-api.test.ts	PASS
-frontend/line-reserve/src/api/liff-api.ts	FINDING:FE-RC-214
+frontend/line-reserve/src/api/liff-api.ts	PASS
 frontend/line-reserve/src/api/schemas.test.ts	PASS
 frontend/line-reserve/src/api/schemas.ts	PASS
 frontend/line-reserve/src/app-flow-handlers.ts	PASS
@@ -355,9 +396,9 @@ frontend/line-reserve/src/pages/TimeSelectPage.tsx	PASS
 frontend/line-reserve/src/pages/TopPage.test.tsx	PASS
 frontend/line-reserve/src/pages/TopPage.tsx	PASS
 frontend/line-reserve/src/pages/TrimmingCourseSelectPage.test.tsx	PASS
-frontend/line-reserve/src/pages/TrimmingCourseSelectPage.tsx	FINDING:FE-RC-214
+frontend/line-reserve/src/pages/TrimmingCourseSelectPage.tsx	PASS
 frontend/line-reserve/src/pages/TrimmingOptionSelectPage.test.tsx	PASS
-frontend/line-reserve/src/pages/TrimmingOptionSelectPage.tsx	FINDING:FE-RC-214
+frontend/line-reserve/src/pages/TrimmingOptionSelectPage.tsx	PASS
 frontend/line-reserve/src/types/models.ts	PASS
 frontend/package.json	PASS
 frontend/playwright.config.ts	PASS
@@ -674,7 +715,7 @@ frontend/src/features/accounting/api/update-accounting.ts	PASS
 frontend/src/features/accounting/api/update-billing-item.ts	PASS
 frontend/src/features/accounting/components/AccountingDetailPanels.tsx	PASS
 frontend/src/features/accounting/components/AccountingDocument.test.tsx	PASS
-frontend/src/features/accounting/components/AccountingDocument.tsx	FINDING:FE-RC-225
+frontend/src/features/accounting/components/AccountingDocument.tsx	PASS
 frontend/src/features/accounting/components/AccountingItemRow.test.tsx	PASS
 frontend/src/features/accounting/components/AccountingItemRow.tsx	PASS
 frontend/src/features/accounting/components/AccountingListTable.test.tsx	PASS
@@ -707,12 +748,12 @@ frontend/src/features/accounting/components/UnpaidTabFilters.tsx	PASS
 frontend/src/features/accounting/components/UnpaidTabSummaries.tsx	PASS
 frontend/src/features/accounting/components/UnpaidTabTables.tsx	PASS
 frontend/src/features/accounting/components/accounting-detail-model.test.ts	PASS
-frontend/src/features/accounting/components/accounting-detail-model.ts	FINDING:FE-RC-227
+frontend/src/features/accounting/components/accounting-detail-model.ts	PASS
 frontend/src/features/accounting/components/accounting-list-table-model.test.ts	PASS
-frontend/src/features/accounting/components/accounting-list-table-model.ts	FINDING:FE-RC-227
-frontend/src/features/accounting/components/daily-accounting-utils.ts	FINDING:FE-RC-227
-frontend/src/features/accounting/components/owner-accounting-history.test-fixtures.ts	FINDING:FE-RC-227
-frontend/src/features/accounting/components/unpaid-tab-model.ts	FINDING:FE-RC-227
+frontend/src/features/accounting/components/accounting-list-table-model.ts	PASS
+frontend/src/features/accounting/components/daily-accounting-utils.ts	PASS
+frontend/src/features/accounting/components/owner-accounting-history.test-fixtures.ts	PASS
+frontend/src/features/accounting/components/unpaid-tab-model.ts	PASS
 frontend/src/features/accounting/hooks/create-accounting-items.test.ts	PASS
 frontend/src/features/accounting/hooks/create-accounting-items.ts	PASS
 frontend/src/features/accounting/hooks/use-accounting-completion-action.test.ts	PASS
@@ -730,8 +771,8 @@ frontend/src/features/accounting/routes/AccountingListPanels.tsx	PASS
 frontend/src/features/accounting/routes/AccountingPetSelection.tsx	PASS
 frontend/src/features/accounting/routes/AccountingRouteGuards.test.tsx	PASS
 frontend/src/features/accounting/routes/accounting-list-model.ts	PASS
-frontend/src/features/accounting/tax-breakdown.test.ts	FINDING:FE-RC-228
-frontend/src/features/accounting/tax-breakdown.ts	FINDING:FE-RC-228
+frontend/src/features/accounting/tax-breakdown.test.ts	PASS
+frontend/src/features/accounting/tax-breakdown.ts	PASS
 frontend/src/features/accounting/types/index.ts	PASS
 frontend/src/features/aggregation/api/get-aggregations.test.tsx	PASS
 frontend/src/features/aggregation/api/get-aggregations.ts	PASS
@@ -746,8 +787,8 @@ frontend/src/features/aggregation/components/AggregationOwnerTableColumns.tsx	PA
 frontend/src/features/aggregation/components/CPMStageSummary.test.tsx	PASS
 frontend/src/features/aggregation/components/CPMStageSummary.tsx	PASS
 frontend/src/features/aggregation/components/aggregation-csv.test.ts	PASS
-frontend/src/features/aggregation/components/aggregation-csv.ts	FINDING:FE-RC-227
-frontend/src/features/aggregation/components/aggregation-filter-panel-model.ts	FINDING:FE-RC-227
+frontend/src/features/aggregation/components/aggregation-csv.ts	PASS
+frontend/src/features/aggregation/components/aggregation-filter-panel-model.ts	PASS
 frontend/src/features/aggregation/index.ts	PASS
 frontend/src/features/aggregation/routes/AggregationDashboardPage.test.tsx	PASS
 frontend/src/features/aggregation/routes/AggregationDashboardPage.tsx	PASS
@@ -784,10 +825,10 @@ frontend/src/features/cash-register/api/create-cash-register-close.ts	PASS
 frontend/src/features/cash-register/api/get-cash-register-closes.ts	PASS
 frontend/src/features/cash-register/api/get-cash-register-preview.ts	PASS
 frontend/src/features/cash-register/api/transforms.ts	PASS
-frontend/src/features/cash-register/category-breakdown.test.ts	FINDING:FE-RC-202
-frontend/src/features/cash-register/category-breakdown.ts	FINDING:FE-RC-202
-frontend/src/features/cash-register/closing-summary.test.ts	FINDING:FE-RC-202
-frontend/src/features/cash-register/closing-summary.ts	FINDING:FE-RC-202
+frontend/src/features/cash-register/category-breakdown.test.ts	PASS
+frontend/src/features/cash-register/category-breakdown.ts	PASS
+frontend/src/features/cash-register/closing-summary.test.ts	PASS
+frontend/src/features/cash-register/closing-summary.ts	PASS
 frontend/src/features/cash-register/components/BillingDetailTable.tsx	PASS
 frontend/src/features/cash-register/components/CashReconciliationCard.tsx	PASS
 frontend/src/features/cash-register/components/CashRegisterClosePanels.tsx	PASS
@@ -798,15 +839,15 @@ frontend/src/features/cash-register/components/ClosePrintArea.test.tsx	PASS
 frontend/src/features/cash-register/components/ClosePrintArea.tsx	PASS
 frontend/src/features/cash-register/components/UnifiedClosingSummaryTable.test.tsx	PASS
 frontend/src/features/cash-register/components/UnifiedClosingSummaryTable.tsx	PASS
-frontend/src/features/cash-register/components/cash-register-history-model.ts	FINDING:FE-RC-227
-frontend/src/features/cash-register/constants.test.ts	FINDING:FE-RC-202
-frontend/src/features/cash-register/constants.ts	FINDING:FE-RC-202
+frontend/src/features/cash-register/components/cash-register-history-model.ts	PASS
+frontend/src/features/cash-register/constants.test.ts	PASS
+frontend/src/features/cash-register/constants.ts	PASS
 frontend/src/features/cash-register/hooks/use-cash-register-close-form.ts	PASS
 frontend/src/features/cash-register/index.ts	PASS
-frontend/src/features/cash-register/month-date-range.test.ts	FINDING:FE-RC-202
-frontend/src/features/cash-register/month-date-range.ts	FINDING:FE-RC-202
+frontend/src/features/cash-register/month-date-range.test.ts	PASS
+frontend/src/features/cash-register/month-date-range.ts	PASS
 frontend/src/features/cash-register/routes/CashRegisterClosePage.test.tsx	PASS
-frontend/src/features/cash-register/routes/CashRegisterClosePage.tsx	FINDING:FE-RC-221
+frontend/src/features/cash-register/routes/CashRegisterClosePage.tsx	PASS
 frontend/src/features/cash-register/routes/CashRegisterHistoryPage.test.tsx	PASS
 frontend/src/features/cash-register/routes/CashRegisterHistoryPage.tsx	PASS
 frontend/src/features/checkups/api/create-checkup-medical-record.ts	PASS
@@ -816,7 +857,7 @@ frontend/src/features/checkups/api/get-checkups.ts	PASS
 frontend/src/features/checkups/api/replace-checkup-field-results.ts	PASS
 frontend/src/features/checkups/api/transforms.test.ts	PASS
 frontend/src/features/checkups/api/transforms.ts	PASS
-frontend/src/features/checkups/api/types.ts	FINDING:FE-RC-226
+frontend/src/features/checkups/api/types.ts	PASS
 frontend/src/features/checkups/components/DynamicCheckupFields.tsx	PASS
 frontend/src/features/checkups/hooks/use-checkup-form-model.ts	PASS
 frontend/src/features/checkups/hooks/use-checkup-form.test.ts	PASS
@@ -830,7 +871,7 @@ frontend/src/features/checkups/routes/CheckupsList.test.tsx	PASS
 frontend/src/features/checkups/routes/CheckupsList.tsx	PASS
 frontend/src/features/checkups/routes/CheckupsListPanels.tsx	PASS
 frontend/src/features/checkups/routes/checkup-form-model.ts	PASS
-frontend/src/features/checkups/routes/checkups-list-model.ts	FINDING:FE-RC-223
+frontend/src/features/checkups/routes/checkups-list-model.ts	PASS
 frontend/src/features/clinic-settings/api/clinics.ts	PASS
 frontend/src/features/clinic-settings/api/transforms.test.ts	PASS
 frontend/src/features/clinic-settings/api/transforms.ts	PASS
@@ -842,7 +883,7 @@ frontend/src/features/clinic-settings/components/ClinicMasterSidePanel.tsx	PASS
 frontend/src/features/clinic-settings/components/ClinicMasterSidePanelProperties.tsx	PASS
 frontend/src/features/clinic-settings/components/CompanyInvoiceSection.test.tsx	PASS
 frontend/src/features/clinic-settings/components/CompanyInvoiceSection.tsx	PASS
-frontend/src/features/clinic-settings/components/clinic-master-settings-model.ts	FINDING:FE-RC-227
+frontend/src/features/clinic-settings/components/clinic-master-settings-model.ts	PASS
 frontend/src/features/clinic-settings/hooks/use-clinic-master-settings.test.tsx	PASS
 frontend/src/features/clinic-settings/hooks/use-clinic-master-settings.ts	PASS
 frontend/src/features/clinic-settings/index.ts	PASS
@@ -853,15 +894,15 @@ frontend/src/features/closing-settings/api/holidays.ts	PASS
 frontend/src/features/closing-settings/api/special-periods.ts	PASS
 frontend/src/features/closing-settings/api/update-closing-settings.ts	PASS
 frontend/src/features/closing-settings/components/HolidaySection.test.tsx	PASS
-frontend/src/features/closing-settings/components/HolidaySection.tsx	FINDING:FE-RC-219
+frontend/src/features/closing-settings/components/HolidaySection.tsx	PASS
 frontend/src/features/closing-settings/components/SpecialPeriodSection.test.tsx	PASS
-frontend/src/features/closing-settings/components/SpecialPeriodSection.tsx	FINDING:FE-RC-219
+frontend/src/features/closing-settings/components/SpecialPeriodSection.tsx	PASS
 frontend/src/features/closing-settings/components/StandardClosingTimeSection.test.tsx	PASS
-frontend/src/features/closing-settings/components/StandardClosingTimeSection.tsx	FINDING:FE-RC-219
+frontend/src/features/closing-settings/components/StandardClosingTimeSection.tsx	PASS
 frontend/src/features/closing-settings/index.ts	PASS
 frontend/src/features/closing-settings/lib/closing-time-ranges.test.ts	PASS
 frontend/src/features/closing-settings/lib/closing-time-ranges.ts	PASS
-frontend/src/features/closing-settings/routes/ClosingSettingsPage.tsx	FINDING:FE-RC-219
+frontend/src/features/closing-settings/routes/ClosingSettingsPage.tsx	PASS
 frontend/src/features/estimates/api/create-estimate-successor.ts	PASS
 frontend/src/features/estimates/api/create-estimate.ts	PASS
 frontend/src/features/estimates/api/delete-estimate.ts	PASS
@@ -904,7 +945,7 @@ frontend/src/features/examinations/api/get-examination.ts	PASS
 frontend/src/features/examinations/api/get-examinations.ts	PASS
 frontend/src/features/examinations/api/transforms.test.ts	PASS
 frontend/src/features/examinations/api/transforms.ts	PASS
-frontend/src/features/examinations/api/types.ts	FINDING:FE-RC-226
+frontend/src/features/examinations/api/types.ts	PASS
 frontend/src/features/examinations/api/unconfirm-examination.test.tsx	PASS
 frontend/src/features/examinations/api/unconfirm-examination.ts	PASS
 frontend/src/features/examinations/api/update-examination-items.ts	PASS
@@ -928,7 +969,7 @@ frontend/src/features/examinations/components/ExaminationPrintArea.test.tsx	PASS
 frontend/src/features/examinations/components/ExaminationPrintArea.tsx	PASS
 frontend/src/features/examinations/components/ExaminationUnconfirmDialog.test.tsx	PASS
 frontend/src/features/examinations/components/ExaminationUnconfirmDialog.tsx	PASS
-frontend/src/features/examinations/constants.ts	FINDING:FE-RC-203
+frontend/src/features/examinations/constants.ts	PASS
 frontend/src/features/examinations/hooks/use-examination-form-actions.ts	PASS
 frontend/src/features/examinations/hooks/use-examination-form-helpers.ts	PASS
 frontend/src/features/examinations/hooks/use-examination-form-items.ts	PASS
@@ -944,9 +985,9 @@ frontend/src/features/examinations/hooks/use-examination-form.items-part1.test.t
 frontend/src/features/examinations/hooks/use-examination-form.items-part2.test.ts	PASS
 frontend/src/features/examinations/hooks/use-examination-form.permissions.test.ts	PASS
 frontend/src/features/examinations/hooks/use-examination-form.ts	PASS
-frontend/src/features/examinations/hooks/use-examination-history-filters.ts	FINDING:FE-RC-223
+frontend/src/features/examinations/hooks/use-examination-history-filters.ts	PASS
 frontend/src/features/examinations/hooks/use-examination-records.test.ts	PASS
-frontend/src/features/examinations/hooks/use-examination-records.ts	FINDING:FE-RC-223
+frontend/src/features/examinations/hooks/use-examination-records.ts	PASS
 frontend/src/features/examinations/index.ts	PASS
 frontend/src/features/examinations/lib/examination-lock.test.ts	PASS
 frontend/src/features/examinations/lib/examination-lock.ts	PASS
@@ -989,7 +1030,7 @@ frontend/src/features/hospitalization/components/CarePlanTab/EditRow.test.tsx	PA
 frontend/src/features/hospitalization/components/CarePlanTab/EditRow.tsx	PASS
 frontend/src/features/hospitalization/components/CarePlanTab/ItemRow.test.tsx	PASS
 frontend/src/features/hospitalization/components/CarePlanTab/ItemRow.tsx	PASS
-frontend/src/features/hospitalization/components/CarePlanTab/care-plan-item-model.ts	FINDING:FE-RC-227
+frontend/src/features/hospitalization/components/CarePlanTab/care-plan-item-model.ts	PASS
 frontend/src/features/hospitalization/components/DailyRecordsTab/DailyCareLogsSection.tsx	PASS
 frontend/src/features/hospitalization/components/DailyRecordsTab/DailyDateNav.tsx	PASS
 frontend/src/features/hospitalization/components/DailyRecordsTab/DailyRecordsTab.deceased.test.tsx	PASS
@@ -1058,23 +1099,23 @@ frontend/src/features/identity-links/hooks/use-identity-link-mutations.test.tsx	
 frontend/src/features/identity-links/hooks/use-identity-link-mutations.ts	PASS
 frontend/src/features/identity-links/hooks/use-identity-link-search.test.tsx	PASS
 frontend/src/features/identity-links/hooks/use-identity-link-search.ts	PASS
-frontend/src/features/identity-links/hooks/use-identity-links-workbench.ts	FINDING:FE-RC-205
+frontend/src/features/identity-links/hooks/use-identity-links-workbench.ts	PASS
 frontend/src/features/identity-links/index.ts	PASS
 frontend/src/features/identity-links/routes/IdentityLinksPage.test.tsx	PASS
 frontend/src/features/identity-links/routes/IdentityLinksPage.tsx	PASS
 frontend/src/features/inventory/api/inventory.test.tsx	PASS
 frontend/src/features/inventory/api/inventory.ts	PASS
-frontend/src/features/inventory/api/types.ts	FINDING:FE-RC-226
+frontend/src/features/inventory/api/types.ts	PASS
 frontend/src/features/inventory/components/InventoryFormSections.test.tsx	PASS
 frontend/src/features/inventory/components/InventoryFormSections.tsx	PASS
 frontend/src/features/inventory/hooks/use-inventory-form-model.ts	PASS
 frontend/src/features/inventory/hooks/use-inventory-form.test.ts	PASS
-frontend/src/features/inventory/hooks/use-inventory-form.ts	FINDING:FE-RC-220
+frontend/src/features/inventory/hooks/use-inventory-form.ts	PASS
 frontend/src/features/inventory/hooks/use-inventory.test.ts	PASS
-frontend/src/features/inventory/hooks/use-inventory.ts	FINDING:FE-RC-223
+frontend/src/features/inventory/hooks/use-inventory.ts	PASS
 frontend/src/features/inventory/index.ts	PASS
 frontend/src/features/inventory/routes/InventoryForm.test.tsx	PASS
-frontend/src/features/inventory/routes/InventoryForm.tsx	FINDING:FE-RC-220
+frontend/src/features/inventory/routes/InventoryForm.tsx	PASS
 frontend/src/features/inventory/routes/InventoryFormPanels.tsx	PASS
 frontend/src/features/inventory/routes/InventoryList.test.tsx	PASS
 frontend/src/features/inventory/routes/InventoryList.tsx	PASS
@@ -1083,7 +1124,7 @@ frontend/src/features/inventory/routes/inventory-form-model.ts	PASS
 frontend/src/features/inventory/routes/inventory-list-model.ts	PASS
 frontend/src/features/lab-device/api/lab-device.test.ts	PASS
 frontend/src/features/lab-device/api/lab-device.ts	PASS
-frontend/src/features/lab-device/components/LabDeviceBoardCards.tsx	FINDING:FE-RC-222
+frontend/src/features/lab-device/components/LabDeviceBoardCards.tsx	PASS
 frontend/src/features/lab-device/hooks/use-lab-device-agent-listen.test.tsx	PASS
 frontend/src/features/lab-device/hooks/use-lab-device-agent-listen.ts	PASS
 frontend/src/features/lab-device/index.ts	PASS
@@ -1093,7 +1134,7 @@ frontend/src/features/lab-device/lib/lab-device-board-model.test.ts	PASS
 frontend/src/features/lab-device/lib/lab-device-board-model.ts	PASS
 frontend/src/features/lab-device/lib/lab-device-serial.test.ts	PASS
 frontend/src/features/lab-device/lib/lab-device-serial.ts	PASS
-frontend/src/features/lab-device/routes/LabDeviceBoard.tsx	FINDING:FE-RC-222
+frontend/src/features/lab-device/routes/LabDeviceBoard.tsx	PASS
 frontend/src/features/lab-device/routes/LabDeviceBoardPanels.tsx	PASS
 frontend/src/features/line-reservation/api/get-line-customers.ts	PASS
 frontend/src/features/line-reservation/api/get-line-reservation-setting.ts	PASS
@@ -1101,14 +1142,14 @@ frontend/src/features/line-reservation/api/types.ts	PASS
 frontend/src/features/line-reservation/api/update-line-reservation-setting.ts	PASS
 frontend/src/features/line-reservation/api/update-owner-link.ts	PASS
 frontend/src/features/line-reservation/components/LineReservationSettingsForm.test.tsx	PASS
-frontend/src/features/line-reservation/components/LineReservationSettingsForm.tsx	FINDING:FE-RC-210
+frontend/src/features/line-reservation/components/LineReservationSettingsForm.tsx	PASS
 frontend/src/features/line-reservation/components/LineReservationSettingsFormSections.test.tsx	PASS
 frontend/src/features/line-reservation/components/LineReservationSettingsFormSections.tsx	PASS
-frontend/src/features/line-reservation/components/LinkedLineCustomers.tsx	FINDING:FE-RC-212
+frontend/src/features/line-reservation/components/LinkedLineCustomers.tsx	PASS
 frontend/src/features/line-reservation/components/line-reservation-settings-form-model.test.ts	PASS
-frontend/src/features/line-reservation/components/line-reservation-settings-form-model.ts	FINDING:FE-RC-227
+frontend/src/features/line-reservation/components/line-reservation-settings-form-model.ts	PASS
 frontend/src/features/line-reservation/index.ts	PASS
-frontend/src/features/line-reservation/routes/LineReservationPageEditor.tsx	FINDING:FE-RC-211
+frontend/src/features/line-reservation/routes/LineReservationPageEditor.tsx	PASS
 frontend/src/features/line-reservation/routes/LineReservationSettings.tsx	PASS
 frontend/src/features/lstep/api/create-checkup-sync.ts	PASS
 frontend/src/features/lstep/api/delete-owner-tag-bulk.ts	PASS
@@ -1121,7 +1162,7 @@ frontend/src/features/lstep/api/get-lstep-tag-owners.ts	PASS
 frontend/src/features/lstep/api/get-lstep-tag-summary.ts	PASS
 frontend/src/features/lstep/api/get-lstep-visit-conversion.ts	PASS
 frontend/src/features/lstep/api/upload-friend-attributes-csv.ts	PASS
-frontend/src/features/lstep/components/BulkTagRemoveDialog.tsx	FINDING:FE-RC-209
+frontend/src/features/lstep/components/BulkTagRemoveDialog.tsx	PASS
 frontend/src/features/lstep/components/CheckupSyncConfirmDialog.tsx	PASS
 frontend/src/features/lstep/components/CheckupSyncFilterForm.tsx	PASS
 frontend/src/features/lstep/components/CheckupSyncPreviewTable.test.tsx	PASS
@@ -1132,11 +1173,11 @@ frontend/src/features/lstep/components/LstepDeliveryStatsSection.tsx	PASS
 frontend/src/features/lstep/components/LstepVisitConversionSection.tsx	PASS
 frontend/src/features/lstep/components/TagOwnerListDrawer.tsx	PASS
 frontend/src/features/lstep/components/TagSummaryTable.tsx	PASS
-frontend/src/features/lstep/components/lstep-analytics-model.ts	FINDING:FE-RC-227
+frontend/src/features/lstep/components/lstep-analytics-model.ts	PASS
 frontend/src/features/lstep/constants/trigger-types.ts	PASS
 frontend/src/features/lstep/index.ts	PASS
 frontend/src/features/lstep/routes/CheckupSyncPage.test.tsx	PASS
-frontend/src/features/lstep/routes/CheckupSyncPage.tsx	FINDING:FE-RC-208
+frontend/src/features/lstep/routes/CheckupSyncPage.tsx	PASS
 frontend/src/features/lstep/routes/LstepAnalyticsPage.test.tsx	PASS
 frontend/src/features/lstep/routes/LstepAnalyticsPage.tsx	PASS
 frontend/src/features/lstep/routes/LstepDeliveryMonitorLogsTable.tsx	PASS
@@ -1151,7 +1192,7 @@ frontend/src/features/manual/api/get-manual-articles.test.tsx	PASS
 frontend/src/features/manual/api/get-manual-articles.ts	PASS
 frontend/src/features/manual/api/upsert-manual-article.ts	PASS
 frontend/src/features/manual/components/ManualContent.tsx	PASS
-frontend/src/features/manual/components/ManualEditor.tsx	FINDING:FE-RC-213
+frontend/src/features/manual/components/ManualEditor.tsx	PASS
 frontend/src/features/manual/components/ManualPageChrome.tsx	PASS
 frontend/src/features/manual/components/ManualSidebar.test.tsx	PASS
 frontend/src/features/manual/components/ManualSidebar.tsx	PASS
@@ -1394,33 +1435,33 @@ frontend/src/features/master/components/TrimmingOptionSidePanel.tsx	PASS
 frontend/src/features/master/components/TrimmingSettingsSidePanels.tsx	PASS
 frontend/src/features/master/components/TrimmingTabRows.tsx	PASS
 frontend/src/features/master/components/TrimmingTabs.tsx	PASS
-frontend/src/features/master/components/animal-species-side-panel-model.ts	FINDING:FE-RC-227
-frontend/src/features/master/components/cage-side-panel-model.ts	FINDING:FE-RC-227
-frontend/src/features/master/components/campaign-side-panel-model.ts	FINDING:FE-RC-227
-frontend/src/features/master/components/chief-complaint-side-panel-model.ts	FINDING:FE-RC-227
-frontend/src/features/master/components/diagnosis-side-panel-model.ts	FINDING:FE-RC-227
-frontend/src/features/master/components/diagnosis-tabs-model.ts	FINDING:FE-RC-227
+frontend/src/features/master/components/animal-species-side-panel-model.ts	PASS
+frontend/src/features/master/components/cage-side-panel-model.ts	PASS
+frontend/src/features/master/components/campaign-side-panel-model.ts	PASS
+frontend/src/features/master/components/chief-complaint-side-panel-model.ts	PASS
+frontend/src/features/master/components/diagnosis-side-panel-model.ts	PASS
+frontend/src/features/master/components/diagnosis-tabs-model.ts	PASS
 frontend/src/features/master/components/exam-type-fields-editor-model.test.ts	PASS
-frontend/src/features/master/components/exam-type-fields-editor-model.ts	FINDING:FE-RC-227
-frontend/src/features/master/components/hospitalization-side-panel-model.ts	FINDING:FE-RC-227
-frontend/src/features/master/components/insurance-side-panel-model.ts	FINDING:FE-RC-227
-frontend/src/features/master/components/interview-template-side-panel-model.ts	FINDING:FE-RC-227
+frontend/src/features/master/components/exam-type-fields-editor-model.ts	PASS
+frontend/src/features/master/components/hospitalization-side-panel-model.ts	PASS
+frontend/src/features/master/components/insurance-side-panel-model.ts	PASS
+frontend/src/features/master/components/interview-template-side-panel-model.ts	PASS
 frontend/src/features/master/components/medicine-dose-params-editor-model.test.ts	PASS
-frontend/src/features/master/components/medicine-dose-params-editor-model.ts	FINDING:FE-RC-227
-frontend/src/features/master/components/medicine-side-panel-model.ts	FINDING:FE-RC-227
-frontend/src/features/master/components/merchandise-side-panel-model.ts	FINDING:FE-RC-227
-frontend/src/features/master/components/occupation-side-panel-model.ts	FINDING:FE-RC-227
-frontend/src/features/master/components/payment-method-side-panel-model.ts	FINDING:FE-RC-227
-frontend/src/features/master/components/permission-group-side-panel-model.ts	FINDING:FE-RC-227
+frontend/src/features/master/components/medicine-dose-params-editor-model.ts	PASS
+frontend/src/features/master/components/medicine-side-panel-model.ts	PASS
+frontend/src/features/master/components/merchandise-side-panel-model.ts	PASS
+frontend/src/features/master/components/occupation-side-panel-model.ts	PASS
+frontend/src/features/master/components/payment-method-side-panel-model.ts	PASS
+frontend/src/features/master/components/permission-group-side-panel-model.ts	PASS
 frontend/src/features/master/components/permission-rule-table-model.test.ts	PASS
-frontend/src/features/master/components/permission-rule-table-model.ts	FINDING:FE-RC-227
-frontend/src/features/master/components/reservation-type-grouped-table-model.ts	FINDING:FE-RC-227
-frontend/src/features/master/components/staff-side-panel-model.ts	FINDING:FE-RC-227
-frontend/src/features/master/components/treatment-item-side-panel-model.ts	FINDING:FE-RC-227
-frontend/src/features/master/components/treatment-plan-tab-content-model.ts	FINDING:FE-RC-227
-frontend/src/features/master/components/trimming-course-type-side-panel-model.ts	FINDING:FE-RC-227
-frontend/src/features/master/components/trimming-side-panel-model.ts	FINDING:FE-RC-227
-frontend/src/features/master/components/trimming-tabs-model.ts	FINDING:FE-RC-227
+frontend/src/features/master/components/permission-rule-table-model.ts	PASS
+frontend/src/features/master/components/reservation-type-grouped-table-model.ts	PASS
+frontend/src/features/master/components/staff-side-panel-model.ts	PASS
+frontend/src/features/master/components/treatment-item-side-panel-model.ts	PASS
+frontend/src/features/master/components/treatment-plan-tab-content-model.ts	PASS
+frontend/src/features/master/components/trimming-course-type-side-panel-model.ts	PASS
+frontend/src/features/master/components/trimming-side-panel-model.ts	PASS
+frontend/src/features/master/components/trimming-tabs-model.ts	PASS
 frontend/src/features/master/constants/category-config.ts	PASS
 frontend/src/features/master/constants/styles.ts	PASS
 frontend/src/features/master/hooks/medicine-settings-model.test.ts	PASS
@@ -1544,7 +1585,7 @@ frontend/src/features/medical-records/components/CheckupsTab/CheckupsTab.tsx	PAS
 frontend/src/features/medical-records/components/CheckupsTab/CheckupsTabBadges.tsx	PASS
 frontend/src/features/medical-records/components/CheckupsTab/CheckupsTabRows.tsx	PASS
 frontend/src/features/medical-records/components/CheckupsTab/CheckupsTabTable.tsx	PASS
-frontend/src/features/medical-records/components/CheckupsTab/checkups-tab-table-model.ts	FINDING:FE-RC-227
+frontend/src/features/medical-records/components/CheckupsTab/checkups-tab-table-model.ts	PASS
 frontend/src/features/medical-records/components/ClinicalPlanSection/ClinicalPlanSection.test.tsx	PASS
 frontend/src/features/medical-records/components/ClinicalPlanSection/ClinicalPlanSection.tsx	PASS
 frontend/src/features/medical-records/components/DiagnosisHeader.tsx	PASS
@@ -1618,11 +1659,11 @@ frontend/src/features/medical-records/components/TreatmentsTab/TreatmentRowParts
 frontend/src/features/medical-records/components/TreatmentsTab/TreatmentsTab.test.tsx	PASS
 frontend/src/features/medical-records/components/TreatmentsTab/TreatmentsTab.tsx	PASS
 frontend/src/features/medical-records/components/TreatmentsTab/TreatmentsTabParts.tsx	PASS
-frontend/src/features/medical-records/components/TreatmentsTab/treatment-quantity-commit.ts	FINDING:FE-RC-227
+frontend/src/features/medical-records/components/TreatmentsTab/treatment-quantity-commit.ts	PASS
 frontend/src/features/medical-records/components/TreatmentsTab/treatment-row-dose-gate.test.ts	PASS
-frontend/src/features/medical-records/components/TreatmentsTab/treatment-row-dose-gate.ts	FINDING:FE-RC-227
+frontend/src/features/medical-records/components/TreatmentsTab/treatment-row-dose-gate.ts	PASS
 frontend/src/features/medical-records/components/TreatmentsTab/treatments-tab-model.test.ts	PASS
-frontend/src/features/medical-records/components/TreatmentsTab/treatments-tab-model.ts	FINDING:FE-RC-227
+frontend/src/features/medical-records/components/TreatmentsTab/treatments-tab-model.ts	PASS
 frontend/src/features/medical-records/components/VaccinationForm.test.tsx	PASS
 frontend/src/features/medical-records/components/VaccinationForm.tsx	PASS
 frontend/src/features/medical-records/components/VaccinationHistory.test.tsx	PASS
@@ -1637,14 +1678,14 @@ frontend/src/features/medical-records/components/VitalsTab/VitalsTabRows.test.ts
 frontend/src/features/medical-records/components/VitalsTab/VitalsTabRows.tsx	PASS
 frontend/src/features/medical-records/components/VitalsTab/VitalsTabTable.tsx	PASS
 frontend/src/features/medical-records/components/VitalsTab/vitals-tab-table-model.test.ts	PASS
-frontend/src/features/medical-records/components/VitalsTab/vitals-tab-table-model.ts	FINDING:FE-RC-227
+frontend/src/features/medical-records/components/VitalsTab/vitals-tab-table-model.ts	PASS
 frontend/src/features/medical-records/components/examination-import-candidates.test.ts	PASS
-frontend/src/features/medical-records/components/examination-import-candidates.ts	FINDING:FE-RC-227
+frontend/src/features/medical-records/components/examination-import-candidates.ts	PASS
 frontend/src/features/medical-records/components/medical-record-bill-check-model.test.ts	PASS
-frontend/src/features/medical-records/components/medical-record-bill-check-model.ts	FINDING:FE-RC-227
+frontend/src/features/medical-records/components/medical-record-bill-check-model.ts	PASS
 frontend/src/features/medical-records/components/medical-record-examination-model.test.ts	PASS
-frontend/src/features/medical-records/components/medical-record-examination-model.ts	FINDING:FE-RC-227
-frontend/src/features/medical-records/components/medical-record-tabs-types.ts	FINDING:FE-RC-227
+frontend/src/features/medical-records/components/medical-record-examination-model.ts	PASS
+frontend/src/features/medical-records/components/medical-record-tabs-types.ts	PASS
 frontend/src/features/medical-records/constants/recommendation-reason.ts	PASS
 frontend/src/features/medical-records/hooks/use-apply-clinical-plan.ts	PASS
 frontend/src/features/medical-records/hooks/use-apply-medical-record.ts	PASS
@@ -1799,9 +1840,9 @@ frontend/src/features/owners/components/PetIdentitySection.tsx	PASS
 frontend/src/features/owners/components/PetPhysicalSection.tsx	PASS
 frontend/src/features/owners/components/PetSubOwnersSection.test.tsx	PASS
 frontend/src/features/owners/components/PetSubOwnersSection.tsx	PASS
-frontend/src/features/owners/components/owner-info-field-shared.ts	FINDING:FE-RC-227
+frontend/src/features/owners/components/owner-info-field-shared.ts	PASS
 frontend/src/features/owners/components/pet-form-data.test.ts	PASS
-frontend/src/features/owners/components/pet-form-data.ts	FINDING:FE-RC-227
+frontend/src/features/owners/components/pet-form-data.ts	PASS
 frontend/src/features/owners/hooks/use-animal-species.ts	PASS
 frontend/src/features/owners/hooks/use-line-integration-card-state.ts	PASS
 frontend/src/features/owners/hooks/use-owner-form-model.ts	PASS
@@ -1893,16 +1934,16 @@ frontend/src/features/reservations/components/WeekViewAppointmentCard.test.tsx	P
 frontend/src/features/reservations/components/WeekViewAppointmentCard.tsx	PASS
 frontend/src/features/reservations/components/WeekViewDayColumn.tsx	PASS
 frontend/src/features/reservations/components/WeekViewParts.tsx	PASS
-frontend/src/features/reservations/components/week-view-grid-constants.ts	FINDING:FE-RC-227
+frontend/src/features/reservations/components/week-view-grid-constants.ts	PASS
 frontend/src/features/reservations/constants/reservation-route.ts	PASS
 frontend/src/features/reservations/hooks/use-reservation-actions.test.ts	PASS
-frontend/src/features/reservations/hooks/use-reservation-actions.ts	FINDING:FE-RC-204
+frontend/src/features/reservations/hooks/use-reservation-actions.ts	PASS
 frontend/src/features/reservations/hooks/use-reservation-management.ts	PASS
 frontend/src/features/reservations/hooks/use-reservation-modal-state.test.ts	PASS
 frontend/src/features/reservations/hooks/use-reservation-modal-state.ts	PASS
 frontend/src/features/reservations/hooks/use-reservation-record-navigation.test.ts	PASS
 frontend/src/features/reservations/hooks/use-reservation-record-navigation.ts	PASS
-frontend/src/features/reservations/hooks/use-reservation-save-actions.ts	FINDING:FE-RC-204
+frontend/src/features/reservations/hooks/use-reservation-save-actions.ts	PASS
 frontend/src/features/reservations/hooks/use-reservation-type-color-map.ts	PASS
 frontend/src/features/reservations/index.ts	PASS
 frontend/src/features/reservations/lib/reservation-actions-model.ts	PASS
@@ -1925,8 +1966,8 @@ frontend/src/features/settings/components/LstepTagConfigSection.test.tsx	PASS
 frontend/src/features/settings/components/LstepTagConfigSection.tsx	PASS
 frontend/src/features/settings/components/TriggerPrioritySection.test.tsx	PASS
 frontend/src/features/settings/components/TriggerPrioritySection.tsx	PASS
-frontend/src/features/settings/components/lstep-settings-form-request.ts	FINDING:FE-RC-227
-frontend/src/features/settings/hooks/get-clinic-id.ts	FINDING:FE-RC-224
+frontend/src/features/settings/components/lstep-settings-form-request.ts	PASS
+frontend/src/features/settings/hooks/get-clinic-id.ts	PASS
 frontend/src/features/settings/hooks/use-lstep-settings.ts	PASS
 frontend/src/features/settings/hooks/use-lstep-tag-code-mappings.ts	PASS
 frontend/src/features/settings/hooks/use-lstep-tag-config.ts	PASS
@@ -1950,26 +1991,26 @@ frontend/src/features/shifts/api/types.ts	PASS
 frontend/src/features/shifts/api/update-shift-template.ts	PASS
 frontend/src/features/shifts/api/update-shift.ts	PASS
 frontend/src/features/shifts/components/ClinicHolidayModal/ClinicHolidayModal.test.tsx	PASS
-frontend/src/features/shifts/components/ClinicHolidayModal/ClinicHolidayModal.tsx	FINDING:FE-RC-206
+frontend/src/features/shifts/components/ClinicHolidayModal/ClinicHolidayModal.tsx	PASS
 frontend/src/features/shifts/components/ShiftCalendar/ShiftCalendar.test.tsx	PASS
 frontend/src/features/shifts/components/ShiftCalendar/ShiftCalendar.tsx	PASS
 frontend/src/features/shifts/components/ShiftCell/ShiftCell.test.tsx	PASS
 frontend/src/features/shifts/components/ShiftCell/ShiftCell.tsx	PASS
 frontend/src/features/shifts/components/ShiftFormDialog/ShiftFormDialog.test.tsx	PASS
-frontend/src/features/shifts/components/ShiftFormDialog/ShiftFormDialog.tsx	FINDING:FE-RC-201
+frontend/src/features/shifts/components/ShiftFormDialog/ShiftFormDialog.tsx	PASS
 frontend/src/features/shifts/components/ShiftTemplateSettingsList.tsx	PASS
 frontend/src/features/shifts/components/ShiftTemplateSettingsParts.test.tsx	PASS
 frontend/src/features/shifts/components/ShiftTemplateSettingsParts.tsx	PASS
 frontend/src/features/shifts/components/ShiftTemplateSettingsWorkspace.tsx	PASS
 frontend/src/features/shifts/components/ShiftTemplateSidePanelFields.tsx	PASS
-frontend/src/features/shifts/components/shift-template-form-model.ts	FINDING:FE-RC-227
-frontend/src/features/shifts/components/shift-template-form-utils.ts	FINDING:FE-RC-227
+frontend/src/features/shifts/components/shift-template-form-model.ts	PASS
+frontend/src/features/shifts/components/shift-template-form-utils.ts	PASS
 frontend/src/features/shifts/components/shift-template-table-model.test.ts	PASS
-frontend/src/features/shifts/components/shift-template-table-model.ts	FINDING:FE-RC-227
-frontend/src/features/shifts/components/shift-template-write-model.ts	FINDING:FE-RC-227
+frontend/src/features/shifts/components/shift-template-table-model.ts	PASS
+frontend/src/features/shifts/components/shift-template-write-model.ts	PASS
 frontend/src/features/shifts/index.ts	PASS
 frontend/src/features/shifts/routes/ShiftCalendarPage.tsx	PASS
-frontend/src/features/shifts/routes/ShiftTemplateSettings.tsx	FINDING:FE-RC-207
+frontend/src/features/shifts/routes/ShiftTemplateSettings.tsx	PASS
 frontend/src/features/shifts/types/index.ts	PASS
 frontend/src/features/trimming/api/create-trimming.ts	PASS
 frontend/src/features/trimming/api/delete-trimming.ts	PASS
@@ -1984,9 +2025,9 @@ frontend/src/features/trimming/components/TrimmingListTable.test.tsx	PASS
 frontend/src/features/trimming/components/TrimmingListTable.tsx	PASS
 frontend/src/features/trimming/components/TrimmingMiddleColumn.tsx	PASS
 frontend/src/features/trimming/components/TrimmingRightColumn.tsx	PASS
-frontend/src/features/trimming/components/trimming-form-column-types.ts	FINDING:FE-RC-227
-frontend/src/features/trimming/components/trimming-form-columns.ts	FINDING:FE-RC-227
-frontend/src/features/trimming/components/trimming-list-table-model.ts	FINDING:FE-RC-227
+frontend/src/features/trimming/components/trimming-form-column-types.ts	PASS
+frontend/src/features/trimming/components/trimming-form-columns.ts	PASS
+frontend/src/features/trimming/components/trimming-list-table-model.ts	PASS
 frontend/src/features/trimming/hooks/trimming-form-utils.test.ts	PASS
 frontend/src/features/trimming/hooks/trimming-form-utils.ts	PASS
 frontend/src/features/trimming/hooks/use-trimming-form-chrome.test.ts	PASS
@@ -2038,7 +2079,7 @@ frontend/src/features/vaccinations/routes/VaccinationForm.permissions.test.tsx	P
 frontend/src/features/vaccinations/routes/VaccinationForm.tsx	PASS
 frontend/src/features/vaccinations/routes/VaccinationFormPagePanels.tsx	PASS
 frontend/src/features/vaccinations/routes/VaccinationList.test.tsx	PASS
-frontend/src/features/vaccinations/routes/VaccinationList.tsx	FINDING:FE-RC-215
+frontend/src/features/vaccinations/routes/VaccinationList.tsx	PASS
 frontend/src/features/vaccinations/routes/VaccinationListPanels.tsx	PASS
 frontend/src/features/vaccinations/routes/VaccinationPetSelection.tsx	PASS
 frontend/src/features/vaccinations/routes/vaccination-form-model.ts	PASS
@@ -2104,7 +2145,7 @@ frontend/src/hooks/use-unsaved-changes.test.tsx	PASS
 frontend/src/hooks/use-unsaved-changes.ts	PASS
 frontend/src/hooks/use-update-examination.test.tsx	PASS
 frontend/src/hooks/use-update-examination.ts	PASS
-frontend/src/hooks/use-update-reservation-route.ts	FINDING:FE-RC-217
+frontend/src/hooks/use-update-reservation-route.ts	PASS
 frontend/src/hooks/use-update-reservation.test.tsx	PASS
 frontend/src/hooks/use-update-reservation.ts	PASS
 frontend/src/hooks/use-url-page-sync.test.ts	PASS
@@ -2156,8 +2197,8 @@ frontend/src/lib/phone.ts	PASS
 frontend/src/lib/query-keys.ts	PASS
 frontend/src/lib/react-query.test.ts	PASS
 frontend/src/lib/react-query.ts	PASS
-frontend/src/lib/saigram.test.ts	FINDING:FE-RC-218
-frontend/src/lib/saigram.ts	FINDING:FE-RC-218
+frontend/src/lib/saigram.test.ts	PASS
+frontend/src/lib/saigram.ts	PASS
 frontend/src/lib/sanitize.test.ts	PASS
 frontend/src/lib/sanitize.ts	PASS
 frontend/src/lib/status-helpers.test.ts	PASS

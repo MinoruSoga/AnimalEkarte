@@ -10,7 +10,7 @@ import {
   buildUnifiedClosingTotals,
   formatClosingCount,
   type UnclassifiedOtherCountInput,
-} from "../closing-summary";
+} from "../lib/closing-summary";
 
 interface UnifiedClosingSummaryTableProps {
   categories: Record<string, Record<string, number>>;
@@ -35,7 +35,8 @@ export const UnifiedClosingSummaryTable = memo(function UnifiedClosingSummaryTab
   categoryCounts,
 }: UnifiedClosingSummaryTableProps) {
   const rows = useMemo(
-    () => buildUnifiedClosingRows(categories, billingDetails, unclassifiedOtherCount, categoryCounts),
+    () =>
+      buildUnifiedClosingRows(categories, billingDetails, unclassifiedOtherCount, categoryCounts),
     [categories, billingDetails, unclassifiedOtherCount, categoryCounts],
   );
   const totals = useMemo(() => buildUnifiedClosingTotals(rows), [rows]);
@@ -68,9 +69,7 @@ export const UnifiedClosingSummaryTable = memo(function UnifiedClosingSummaryTab
               </TableCell>
               {paymentMethods.map((pm) => (
                 <TableCell key={pm.id} className={`text-right ${C.text}`}>
-                  {row.byMethod[pm.name] != null
-                    ? formatCurrency(row.byMethod[pm.name])
-                    : "—"}
+                  {row.byMethod[pm.name] != null ? formatCurrency(row.byMethod[pm.name]) : "—"}
                 </TableCell>
               ))}
               <TableCell className={`text-right font-medium ${C.text}`}>
@@ -87,9 +86,7 @@ export const UnifiedClosingSummaryTable = memo(function UnifiedClosingSummaryTab
             </TableCell>
             {paymentMethods.map((pm) => (
               <TableCell key={pm.id} className={`text-right font-semibold ${C.text}`}>
-                {totals.byMethod[pm.name] != null
-                  ? formatCurrency(totals.byMethod[pm.name])
-                  : "—"}
+                {totals.byMethod[pm.name] != null ? formatCurrency(totals.byMethod[pm.name]) : "—"}
               </TableCell>
             ))}
             <TableCell className={`text-right font-semibold ${C.text}`}>

@@ -1,15 +1,17 @@
 import { memo, useCallback, useState } from "react";
 import { Briefcase } from "lucide-react";
 
-import { MasterSidePanel, PropertyInput, PropertyRow, StatusToggleButton } from "@/components/shared/SidePeek";
+import {
+  MasterSidePanel,
+  PropertyInput,
+  PropertyRow,
+  StatusToggleButton,
+} from "@/components/shared/SidePeek";
 import { LAYOUT } from "@/lib/design-tokens";
 
 import type { Occupation } from "../api/occupations";
 import { useMasterSidePanelForm } from "../hooks/use-master-side-panel-form";
-import {
-  occupationToFormData,
-  type OccupationFormData,
-} from "./occupation-side-panel-model";
+import { occupationToFormData, type OccupationFormData } from "../lib/occupation-side-panel-model";
 
 interface OccupationSidePanelProps {
   item: Occupation | null;
@@ -30,29 +32,40 @@ export const OccupationSidePanel = memo(function OccupationSidePanel({
 }: OccupationSidePanelProps) {
   const [nameError, setNameError] = useState("");
 
-  const { formData, setFormData: setFormDataDirty, isDirty, setIsDirty, handleAction } =
-    useMasterSidePanelForm<OccupationFormData>({
-      initialFormData: occupationToFormData(item),
-      onSave,
-      onDirtyChange,
-      validate: (data) => {
-        if (!data.name.trim()) {
-          setNameError("名称を入力してください");
-          return false;
-        }
-        setNameError("");
-        return true;
-      },
-    });
+  const {
+    formData,
+    setFormData: setFormDataDirty,
+    isDirty,
+    setIsDirty,
+    handleAction,
+  } = useMasterSidePanelForm<OccupationFormData>({
+    initialFormData: occupationToFormData(item),
+    onSave,
+    onDirtyChange,
+    validate: (data) => {
+      if (!data.name.trim()) {
+        setNameError("名称を入力してください");
+        return false;
+      }
+      setNameError("");
+      return true;
+    },
+  });
 
-  const handleTitleChange = useCallback((value: string) => {
-    setFormDataDirty((prev) => ({ ...prev, name: value }));
-    if (value.trim()) setNameError("");
-  }, [setFormDataDirty]);
+  const handleTitleChange = useCallback(
+    (value: string) => {
+      setFormDataDirty((prev) => ({ ...prev, name: value }));
+      if (value.trim()) setNameError("");
+    },
+    [setFormDataDirty],
+  );
 
-  const handleDescriptionChange = useCallback((value: string) => {
-    setFormDataDirty((prev) => ({ ...prev, description: value }));
-  }, [setFormDataDirty]);
+  const handleDescriptionChange = useCallback(
+    (value: string) => {
+      setFormDataDirty((prev) => ({ ...prev, description: value }));
+    },
+    [setFormDataDirty],
+  );
 
   const handleToggleActive = useCallback(() => {
     setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }));

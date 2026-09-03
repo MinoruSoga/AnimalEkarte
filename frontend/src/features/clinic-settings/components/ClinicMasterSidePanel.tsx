@@ -6,7 +6,7 @@ import { FormFieldError } from "@/components/shared/FormFieldError";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C, ICON, LAYOUT, STYLE } from "@/lib/design-tokens";
 import type { Clinic } from "../api/clinics";
-import type { ClinicFormData } from "./clinic-master-settings-model";
+import type { ClinicFormData } from "../lib/clinic-master-settings-model";
 import {
   ClinicBooleanProperty,
   ClinicTaxRateProperty,
@@ -94,9 +94,7 @@ export function ClinicMasterSidePanel({
                 <PropertyRow label="ステータス">
                   <button
                     type="button"
-                    onClick={() =>
-                      setFormData((prev) => ({ ...prev, is_active: !prev.is_active }))
-                    }
+                    onClick={() => setFormData((prev) => ({ ...prev, is_active: !prev.is_active }))}
                     className={`inline-flex items-center rounded-xxs ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
                   >
                     <StatusPill status={formData.is_active ? "active" : "inactive"} />
@@ -299,9 +297,7 @@ export function ClinicMasterSidePanel({
             <button type="button" onClick={onClose} className={STYLE.sidePeekCancelBtn}>
               キャンセル
             </button>
-            {canEdit ? (
-              <SubmitButton className="h-9 px-4">保存</SubmitButton>
-            ) : null}
+            {canEdit ? <SubmitButton className="h-9 px-4">保存</SubmitButton> : null}
           </div>
         </fieldset>
       </form>

@@ -1,6 +1,6 @@
 import { todayJSTISO } from "@/lib/jst-date";
 import type { AggregationParams } from "../api/get-aggregations";
-import type { AggregationTab } from "../components/aggregation-filter-panel-model";
+import type { AggregationTab } from "../lib/aggregation-filter-panel-model";
 
 export const DEFAULT_AGGREGATION_TAB: AggregationTab = "revenue";
 
@@ -47,15 +47,15 @@ export function validateTab(value: unknown): AggregationTab | null {
 export function formatAggregationError(error: unknown): string {
   const baseMessage = "データの読み込みに失敗しました";
   if (error !== null && typeof error === "object") {
-    const response = (error as { response?: { status?: number; statusText?: string; data?: { error?: string } } }).response;
+    const response = (
+      error as { response?: { status?: number; statusText?: string; data?: { error?: string } } }
+    ).response;
     if (response?.status) {
       const detail = response.statusText
         ? `HTTP ${response.status} ${response.statusText}`
         : `HTTP ${response.status}`;
       const apiError = response.data?.error;
-      return apiError
-        ? `${baseMessage} (${detail}: ${apiError})`
-        : `${baseMessage} (${detail})`;
+      return apiError ? `${baseMessage} (${detail}: ${apiError})` : `${baseMessage} (${detail})`;
     }
     if (error instanceof Error && error.message && !error.message.startsWith("Request failed")) {
       return `${baseMessage}: ${error.message}`;

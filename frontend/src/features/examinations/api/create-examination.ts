@@ -3,15 +3,10 @@ import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { queryKeys } from "@/lib/query-keys";
 import { transformExamination, type ExaminationRecord } from "./transforms";
-import type { BackendExamination, CreateExaminationRequest } from "./types";
+import type { BackendExamination, CreateExaminationRequest } from "../types";
 
-const createExamination = async (
-  req: CreateExaminationRequest
-): Promise<ExaminationRecord> => {
-  const { data } = await axios.post<BackendExamination>(
-    "/v1/examinations",
-    req
-  );
+const createExamination = async (req: CreateExaminationRequest): Promise<ExaminationRecord> => {
+  const { data } = await axios.post<BackendExamination>("/v1/examinations", req);
   return transformExamination(data);
 };
 

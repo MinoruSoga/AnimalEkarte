@@ -18,7 +18,7 @@ import {
   parseVitalsNumber,
   toggleWeightValueAndUnit,
   type VitalsAddFormState,
-} from "./vitals-tab-table-model";
+} from "../../lib/vitals-tab-table-model";
 
 interface VitalsDisplayRowProps {
   vital: Vital;
@@ -61,10 +61,7 @@ export function VitalsDisplayRow({
             </button>
           ) : null}
           {canDelete ? (
-            <DeleteIconButton
-              onClick={() => onDeleteClick(vital.id)}
-              disabled={deletePending}
-            />
+            <DeleteIconButton onClick={() => onDeleteClick(vital.id)} disabled={deletePending} />
           ) : null}
         </div>
       </TableCell>
@@ -81,9 +78,7 @@ interface VitalsEditRowProps {
 
 function buildEditRowForm(vital: Vital) {
   return {
-    recorded_at: vital.recorded_at
-      ? formatJSTDateTimeLocal(vital.recorded_at)
-      : "",
+    recorded_at: vital.recorded_at ? formatJSTDateTimeLocal(vital.recorded_at) : "",
     temperature: vital.temperature != null ? String(vital.temperature) : "",
     heart_rate: vital.heart_rate != null ? String(vital.heart_rate) : "",
     respiration_rate: vital.respiration_rate != null ? String(vital.respiration_rate) : "",
@@ -102,19 +97,13 @@ export const VitalsEditRow = memo(function VitalsEditRow({
   const [form, setForm] = useState(() => buildEditRowForm(vital));
   const [editFormErrors, setEditFormErrors] = useState<Record<string, string>>({});
 
-  const handleChange = useCallback(
-    (field: string, value: string | BodyWeightUnit) => {
-      setForm((prev) => ({ ...prev, [field]: value }));
-    },
-    []
-  );
+  const handleChange = useCallback((field: string, value: string | BodyWeightUnit) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+  }, []);
 
   const handleWeightUnitToggle = useCallback(() => {
     setForm((prev) => {
-      const next = toggleWeightValueAndUnit(
-        prev.weight,
-        prev.weight_unit as BodyWeightUnit
-      );
+      const next = toggleWeightValueAndUnit(prev.weight, prev.weight_unit as BodyWeightUnit);
       return { ...prev, weight: next.weight, weight_unit: next.weight_unit };
     });
   }, []);
@@ -332,9 +321,7 @@ export function VitalsAddRow({
         />
         <button
           type="button"
-          onClick={() =>
-            onChange(toggleWeightValueAndUnit(addForm.weight, addForm.weight_unit))
-          }
+          onClick={() => onChange(toggleWeightValueAndUnit(addForm.weight, addForm.weight_unit))}
           className={`text-2xs px-1 h-6 rounded border ${C.borderMedium} ${C.bgPage} ${C.hoverBgPage} min-w-[24px]`}
         >
           {addForm.weight_unit}

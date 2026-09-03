@@ -13,10 +13,14 @@ import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 // Relative
 import { TYPE_SELECT_ITEMS, TIMING_OPTIONS } from "./CarePlanBadges";
 import { CarePlanRefSelect } from "./CarePlanRefSelect";
-import { requiresRef, buildRefFields } from "./care-plan-item-model";
+import { requiresRef, buildRefFields } from "../../lib/care-plan-item-model";
 
 // Types
-import type { CarePlanItemType, CarePlanTiming, CreateCarePlanItemInput } from "../../api/care-plan-items";
+import type {
+  CarePlanItemType,
+  CarePlanTiming,
+  CreateCarePlanItemInput,
+} from "../../api/care-plan-items";
 
 const INITIAL_TIMING: CarePlanTiming[] = ["morning"];
 
@@ -101,7 +105,10 @@ export function AddForm({ onSubmit }: AddFormProps) {
             <span className={`text-xs ${C.text50} shrink-0`}>タイミング:</span>
             <div className="flex gap-2">
               {TIMING_OPTIONS.map((opt) => (
-                <label key={opt.value} className="flex min-h-11 min-w-11 items-center gap-1 cursor-pointer">
+                <label
+                  key={opt.value}
+                  className="flex min-h-11 min-w-11 items-center gap-1 cursor-pointer"
+                >
                   <input
                     type="checkbox"
                     checked={timing.includes(opt.value)}

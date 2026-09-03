@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { TreatmentPlanRow } from "./TreatmentPlanRows";
-import type { TreatmentVirtualRow } from "./treatment-plan-tab-content-model";
+import type { TreatmentVirtualRow } from "../lib/treatment-plan-tab-content-model";
 
 const ROOT_ROW = {
   type: "root",

@@ -7,72 +7,114 @@ import {
   hasInvalidChangeOverride,
   isPaymentSubmitDisabled,
   isPostCloseSubmitBlocked,
-} from "./accounting-detail-model";
+} from "../lib/accounting-detail-model";
 import type { PaymentSplitDraft } from "./PaymentCard";
 import type { Accounting } from "../types";
 
 describe("isPostCloseSubmitBlocked (BUG-004)", () => {
   it("未締めなら理由なしでもブロックしない", () => {
-    expect(isPostCloseSubmitBlocked({
-      isScheduledDateClosed: false,
-      canPostCloseEdit: true,
-      postCloseReason: "",
-    })).toBe(false);
+    expect(
+      isPostCloseSubmitBlocked({
+        isScheduledDateClosed: false,
+        canPostCloseEdit: true,
+        postCloseReason: "",
+      }),
+    ).toBe(false);
   });
 
   it("締め済みで権限なしは確定をブロックする", () => {
-    expect(isPostCloseSubmitBlocked({
-      isScheduledDateClosed: true,
-      canPostCloseEdit: false,
-      postCloseReason: "理由あり",
-    })).toBe(true);
+    expect(
+      isPostCloseSubmitBlocked({
+        isScheduledDateClosed: true,
+        canPostCloseEdit: false,
+        postCloseReason: "理由あり",
+      }),
+    ).toBe(true);
   });
 
   it("締め済みで権限ありでも理由が空ならブロックする", () => {
-    expect(isPostCloseSubmitBlocked({
-      isScheduledDateClosed: true,
-      canPostCloseEdit: true,
-      postCloseReason: "  ",
-    })).toBe(true);
+    expect(
+      isPostCloseSubmitBlocked({
+        isScheduledDateClosed: true,
+        canPostCloseEdit: true,
+        postCloseReason: "  ",
+      }),
+    ).toBe(true);
   });
 
   it("締め済み・権限あり・理由ありは通す", () => {
-    expect(isPostCloseSubmitBlocked({
-      isScheduledDateClosed: true,
-      canPostCloseEdit: true,
-      postCloseReason: "当日締め後の追加精算",
-    })).toBe(false);
+    expect(
+      isPostCloseSubmitBlocked({
+        isScheduledDateClosed: true,
+        canPostCloseEdit: true,
+        postCloseReason: "当日締め後の追加精算",
+      }),
+    ).toBe(false);
   });
 });
 
 describe("buildPaymentSplitRequests (#188 お釣り上書き payload 契約)", () => {
   it("現金・上書きなし: change を received-amount から派生し change_override=false", () => {
-    const splits: PaymentSplitDraft[] = [{ method: "cash", amount: "5000", receivedAmount: "6000" }];
+    const splits: PaymentSplitDraft[] = [
+      { method: "cash", amount: "5000", receivedAmount: "6000" },
+    ];
     expect(buildPaymentSplitRequests(splits)).toEqual([
-      { method: "cash", amount: 5000, received_amount: 6000, change_amount: 1000, change_override: false },
+      {
+        method: "cash",
+        amount: 5000,
+        received_amount: 6000,
+        change_amount: 1000,
+        change_override: false,
+      },
     ]);
   });
 
   it("現金・上書きあり: 入力 changeAmount を verbatim 送出し change_override=true（received-amount と不一致でも）", () => {
     const splits: PaymentSplitDraft[] = [
-      { method: "cash", amount: "5000", receivedAmount: "6000", changeOverride: true, changeAmount: "500" },
+      {
+        method: "cash",
+        amount: "5000",
+        receivedAmount: "6000",
+        changeOverride: true,
+        changeAmount: "500",
+      },
     ];
     expect(buildPaymentSplitRequests(splits)).toEqual([
-      { method: "cash", amount: 5000, received_amount: 6000, change_amount: 500, change_override: true },
+      {
+        method: "cash",
+        amount: 5000,
+        received_amount: 6000,
+        change_amount: 500,
+        change_override: true,
+      },
     ]);
   });
 
   it("上書きモードで負値入力は 0 にクランプする（誤入力耐性）", () => {
     const splits: PaymentSplitDraft[] = [
-      { method: "cash", amount: "5000", receivedAmount: "6000", changeOverride: true, changeAmount: "-300" },
+      {
+        method: "cash",
+        amount: "5000",
+        receivedAmount: "6000",
+        changeOverride: true,
+        changeAmount: "-300",
+      },
     ];
     expect(buildPaymentSplitRequests(splits)[0].change_amount).toBe(0);
   });
 
   it("非現金: received/change を 0 に固め change_override=false", () => {
-    const splits: PaymentSplitDraft[] = [{ method: "credit_card", amount: "5000", receivedAmount: "" }];
+    const splits: PaymentSplitDraft[] = [
+      { method: "credit_card", amount: "5000", receivedAmount: "" },
+    ];
     expect(buildPaymentSplitRequests(splits)).toEqual([
-      { method: "credit_card", amount: 5000, received_amount: 0, change_amount: 0, change_override: false },
+      {
+        method: "credit_card",
+        amount: 5000,
+        received_amount: 0,
+        change_amount: 0,
+        change_override: false,
+      },
     ]);
   });
 
@@ -129,7 +171,9 @@ describe("getCorrectableCardPayments (#189 確定後クレジット訂正の対�
   it("確定済み + 電子マネー split: 対象に含む", () => {
     const acc = {
       status: "completed",
-      paymentSplits: [{ method: "electronic_money", amount: 800, receivedAmount: 0, changeAmount: 0 }],
+      paymentSplits: [
+        { method: "electronic_money", amount: 800, receivedAmount: 0, changeAmount: 0 },
+      ],
     } as unknown as Accounting;
     expect(getCorrectableCardPayments(acc)).toEqual([{ method: "electronic_money", amount: 800 }]);
   });
@@ -156,7 +200,9 @@ describe("getCorrectableCardPayments (#189 確定後クレジット訂正の対�
   it("確定済み + 銀行振込のみ: 対象なし", () => {
     const acc = {
       status: "completed",
-      paymentSplits: [{ method: "bank_transfer", amount: 5000, receivedAmount: 0, changeAmount: 0 }],
+      paymentSplits: [
+        { method: "bank_transfer", amount: 5000, receivedAmount: 0, changeAmount: 0 },
+      ],
     } as unknown as Accounting;
     expect(getCorrectableCardPayments(acc)).toEqual([]);
   });

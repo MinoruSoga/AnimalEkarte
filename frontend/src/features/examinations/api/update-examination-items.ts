@@ -3,7 +3,7 @@ import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { queryKeys } from "@/lib/query-keys";
 import { transformExamResult, type ExamResult } from "./transforms";
-import type { ExamItemsResponse, ReplaceExamItemsRequest } from "./types";
+import type { ExamItemsResponse, ReplaceExamItemsRequest } from "../types";
 
 /**
  * PUT /api/v1/examinations/:id/items — 検査項目を一括置換する。

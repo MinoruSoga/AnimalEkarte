@@ -5,15 +5,18 @@ import { RowActionButton } from "@/components/shared/RowActionButton";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { C, STYLE } from "@/lib/design-tokens";
 
 import type { Cage } from "../api/cages";
-import {
-  CAGE_SIZE_LABELS,
-  CAGE_TYPE_LABELS,
-  formatCagePrice,
-} from "./cage-side-panel-model";
+import { CAGE_SIZE_LABELS, CAGE_TYPE_LABELS, formatCagePrice } from "../lib/cage-side-panel-model";
 import { CageRowOverlay } from "./CageRowOverlay";
 
 const TABLE_COLUMNS = [
@@ -80,7 +83,10 @@ export function CageSortableTable({
                   </TableCell>
                 </TableRow>
               ) : null}
-              <SortableContext items={items.map((item) => item.id)} strategy={verticalListSortingStrategy}>
+              <SortableContext
+                items={items.map((item) => item.id)}
+                strategy={verticalListSortingStrategy}
+              >
                 {items.map((item) => (
                   <SortableDataTableRow
                     key={item.id}

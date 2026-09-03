@@ -1,7 +1,13 @@
 import { useCallback, useImperativeHandle, useRef, useState, type Ref } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { PropertyInput, PropertyRow } from "@/components/shared/SidePeek";
 import { C, STYLE } from "@/lib/design-tokens";
 import type { MedicineDoseParam, MedicineDoseSpecies } from "@/types/generated/models";
@@ -27,7 +33,7 @@ import {
   isDoseParamFormEmpty,
   validateDoseParamForm,
   type DoseParamFormData,
-} from "./medicine-dose-params-editor-model";
+} from "../lib/medicine-dose-params-editor-model";
 import { SELECT_TRIGGER_FULL } from "./MedicineSidePanelSections";
 
 const SPECIES_LABEL: Record<MedicineDoseSpecies, string> = {
@@ -87,9 +93,7 @@ export function MedicineDoseParamsEditor({ medicineId, ref }: MedicineDoseParams
       <div className={`${STYLE.sectionDivider} mt-3 mb-1`} />
       <div className="py-1">
         <div className="flex items-center gap-1.5 py-2 mb-1">
-          <span className={`${STYLE.sectionLabel}`}>
-            種別パラメータ（犬・猫）
-          </span>
+          <span className={`${STYLE.sectionLabel}`}>種別パラメータ（犬・猫）</span>
         </div>
         <p className={`text-sm ${C.text40} px-1 pb-2`}>
           過量防止のため、上限(mg/kgまたはmg)のいずれかは必須です。投与量は下限・上限の範囲内で入力してください。
@@ -126,8 +130,15 @@ interface SpeciesDoseParamPanelProps {
   ref?: Ref<DoseParamPanelHandle>;
 }
 
-function SpeciesDoseParamPanel({ medicineId, species, existingParam, ref }: SpeciesDoseParamPanelProps) {
-  const [formData, setFormData] = useState<DoseParamFormData>(() => doseParamToFormData(existingParam));
+function SpeciesDoseParamPanel({
+  medicineId,
+  species,
+  existingParam,
+  ref,
+}: SpeciesDoseParamPanelProps) {
+  const [formData, setFormData] = useState<DoseParamFormData>(() =>
+    doseParamToFormData(existingParam),
+  );
   const [clientErrors, setClientErrors] = useState<string[]>([]);
   const upsertMutation = useUpsertMedicineDoseParam(medicineId);
   const { mutateAsync, isPending } = upsertMutation;
@@ -250,7 +261,9 @@ function SpeciesDoseParamPanel({ medicineId, species, existingParam, ref }: Spec
           step="any"
           aria-label="絶対上限(mg)"
           value={formData.absoluteMaxDose}
-          onChange={(event) => setFormData((prev) => ({ ...prev, absoluteMaxDose: event.target.value }))}
+          onChange={(event) =>
+            setFormData((prev) => ({ ...prev, absoluteMaxDose: event.target.value }))
+          }
           placeholder="未設定"
           className={`${STYLE.propertyInput} w-28`}
         />
@@ -263,7 +276,9 @@ function SpeciesDoseParamPanel({ medicineId, species, existingParam, ref }: Spec
           step="any"
           aria-label="丸め幅"
           value={formData.roundingStep}
-          onChange={(event) => setFormData((prev) => ({ ...prev, roundingStep: event.target.value }))}
+          onChange={(event) =>
+            setFormData((prev) => ({ ...prev, roundingStep: event.target.value }))
+          }
           placeholder="未設定"
           className={`${STYLE.propertyInput} w-28`}
         />
@@ -275,7 +290,8 @@ function SpeciesDoseParamPanel({ medicineId, species, existingParam, ref }: Spec
           onValueChange={(value) =>
             setFormData((prev) => ({
               ...prev,
-              roundingMode: value === "__none__" ? "" : (value as DoseParamFormData["roundingMode"]),
+              roundingMode:
+                value === "__none__" ? "" : (value as DoseParamFormData["roundingMode"]),
             }))
           }
         >

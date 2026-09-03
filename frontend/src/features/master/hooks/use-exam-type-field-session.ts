@@ -11,7 +11,7 @@ import {
   toReferenceRangeDraft,
   validateReferenceRangeDrafts,
   type ReferenceRangeDraft,
-} from "../components/exam-type-fields-editor-model";
+} from "../lib/exam-type-fields-editor-model";
 
 export interface FieldDraft {
   name: string;
@@ -127,25 +127,22 @@ export function useExamTypeFieldSession({
       if (previous.some((draft) => draft.animalSpeciesId === speciesId)) {
         return previous.filter((draft) => draft.animalSpeciesId !== speciesId);
       }
-      return [
-        ...previous,
-        { animalSpeciesId: speciesId, mode: "numeric", min: "", max: "" },
-      ];
+      return [...previous, { animalSpeciesId: speciesId, mode: "numeric", min: "", max: "" }];
     });
     setError("");
     setRangeDirty(true);
   }, []);
 
-  const updateRange = useCallback((
-    speciesId: string,
-    update: (draft: ReferenceRangeDraft) => ReferenceRangeDraft,
-  ) => {
-    setRangeDrafts((previous) => previous.map((draft) =>
-      draft.animalSpeciesId === speciesId ? update(draft) : draft
-    ));
-    setError("");
-    setRangeDirty(true);
-  }, []);
+  const updateRange = useCallback(
+    (speciesId: string, update: (draft: ReferenceRangeDraft) => ReferenceRangeDraft) => {
+      setRangeDrafts((previous) =>
+        previous.map((draft) => (draft.animalSpeciesId === speciesId ? update(draft) : draft)),
+      );
+      setError("");
+      setRangeDirty(true);
+    },
+    [],
+  );
 
   const patchFieldDraft = useCallback((patch: Partial<FieldDraft>) => {
     setFieldDraft((previous) => ({ ...previous, ...patch }));

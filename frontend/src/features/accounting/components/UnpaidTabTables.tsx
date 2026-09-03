@@ -1,7 +1,14 @@
 import { Pagination } from "@/components/shared/Pagination/Pagination";
 import { DataTableRowLink } from "@/components/shared/DataTable/DataTableRowLink";
 import { EmptyState } from "@/components/shared/DataStates";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { C, STYLE } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
 import { formatCurrency } from "@/lib/format/number";
@@ -10,7 +17,7 @@ import { daysSince } from "@/lib/jst-date";
 
 import type { UnpaidOwner, MonthlyUnpaidResponse } from "../api/get-unpaid-billings";
 import type { Accounting } from "../api/transforms";
-import { unpaidBillingAmount } from "./unpaid-tab-model";
+import { unpaidBillingAmount } from "../lib/unpaid-tab-model";
 
 interface UnpaidOwnerTableProps {
   rows: UnpaidOwner[];
@@ -138,7 +145,10 @@ export function UnpaidMonthlyTable({ rows }: UnpaidMonthlyTableProps) {
         </TableHeader>
         <TableBody>
           {rows.map((row) => (
-            <TableRow key={`${row.owner_id}-${row.pet_id ?? "none"}`} className={STYLE.tableRowHover}>
+            <TableRow
+              key={`${row.owner_id}-${row.pet_id ?? "none"}`}
+              className={STYLE.tableRowHover}
+            >
               <TableCell className="font-medium">
                 <DataTableRowLink
                   to={paths.owners.detail.getHref(String(row.owner_id))}

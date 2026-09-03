@@ -7,7 +7,7 @@ import {
   isBusinessHoursByWeekday,
   toDisplayTime,
   toStorageTime,
-} from "./line-reservation-settings-form-model";
+} from "../lib/line-reservation-settings-form-model";
 
 describe("isStringArray", () => {
   it("string[] を true と判定する", () => {
@@ -51,7 +51,10 @@ describe("isBreakHourArray", () => {
 describe("isBusinessHoursByWeekday", () => {
   it("曜日キー→BusinessHours の Record を true と判定する", () => {
     expect(
-      isBusinessHoursByWeekday({ "1": { start: "0900", end: "1900" }, "2": { start: "1000", end: "1800" } }),
+      isBusinessHoursByWeekday({
+        "1": { start: "0900", end: "1900" },
+        "2": { start: "1000", end: "1800" },
+      }),
     ).toBe(true);
   });
 
@@ -82,14 +85,16 @@ describe("asJsonb", () => {
   });
 
   it("string値: parse は成功するが型不一致なら fallback を返す", () => {
-    expect(asJsonb(JSON.stringify({ start: "0900", end: "1900" }), ["fallback"], isStringArray)).toEqual([
-      "fallback",
-    ]);
+    expect(
+      asJsonb(JSON.stringify({ start: "0900", end: "1900" }), ["fallback"], isStringArray),
+    ).toEqual(["fallback"]);
   });
 
   it("非string値（既にオブジェクト/配列）: 型一致なら値をそのまま返す", () => {
     expect(asJsonb(["1", "2"], [], isStringArray)).toEqual(["1", "2"]);
-    expect(asJsonb({ start: "0900", end: "1900" }, { start: "0000", end: "0000" }, isBusinessHours)).toEqual({
+    expect(
+      asJsonb({ start: "0900", end: "1900" }, { start: "0000", end: "0000" }, isBusinessHours),
+    ).toEqual({
       start: "0900",
       end: "1900",
     });

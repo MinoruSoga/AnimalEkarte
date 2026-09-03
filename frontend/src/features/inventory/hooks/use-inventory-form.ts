@@ -1,4 +1,4 @@
-import { useState, useActionState } from "react";
+import { useState, useActionState, useCallback, useLayoutEffect, useRef } from "react";
 import { toast } from "sonner";
 import {
   isNonDisclosureReadStatus,
@@ -11,10 +11,7 @@ import {
   useUpdateInventoryItem,
 } from "../api/inventory";
 import type { InventoryItem } from "@/types";
-import type {
-  CreateInventoryItemRequest,
-  UpdateInventoryItemRequest,
-} from "../api/types";
+import type { CreateInventoryItemRequest, UpdateInventoryItemRequest } from "../api/types";
 import {
   buildInventoryItemRequest,
   readInventoryFormFields,
@@ -25,10 +22,38 @@ interface FormState {
   success: boolean;
   timestamp: number;
   fieldErrors?: Record<string, string>;
+  error?: string;
 }
 
-export function useInventoryForm(id?: string) {
+/** FE-RC-220: action 別の最新権限値。mutation 直前に isMutationAllowed() で再検査する。 */
+export interface InventoryMutationPermissions {
+  canCreate: boolean;
+  canEdit: boolean;
+}
+
+const DENIED: Readonly<InventoryMutationPermissions> = {
+  canCreate: false,
+  canEdit: false,
+};
+
+const PERMISSION_DENIED_MESSAGE = "この操作を行う権限がありません";
+
+export interface UseInventoryFormArgs {
+  permissions?: Readonly<InventoryMutationPermissions>;
+}
+
+export function useInventoryForm(id?: string, args: UseInventoryFormArgs = {}) {
   const isEdit = Boolean(id);
+  const permissions = args.permissions ?? DENIED;
+  const { canCreate, canEdit } = permissions;
+  const permissionsRef = useRef(permissions);
+  useLayoutEffect(() => {
+    permissionsRef.current = { canCreate, canEdit };
+  }, [canCreate, canEdit]);
+  const isMutationAllowed = useCallback(
+    (action: keyof InventoryMutationPermissions) => permissionsRef.current[action] === true,
+    [],
+  );
 
   const {
     data: inventoryData,
@@ -56,7 +81,7 @@ export function useInventoryForm(id?: string) {
 
   const [prevExistingItem, setPrevExistingItem] = useState(existingItem);
   const [category, setCategory] = useState<InventoryItem["category"]>(
-    existingItem?.category ?? "medicine"
+    existingItem?.category ?? "medicine",
   );
   const [expiryDate, setExpiryDate] = useState("");
   const [lastRestocked, setLastRestocked] = useState("");
@@ -69,13 +94,9 @@ export function useInventoryForm(id?: string) {
   }
 
   const resolvedExpiry =
-    expiryDate ||
-    (existingItem?.expiryDate ? existingItem.expiryDate.slice(0, 10) : "");
+    expiryDate || (existingItem?.expiryDate ? existingItem.expiryDate.slice(0, 10) : "");
   const resolvedLastRestocked =
-    lastRestocked ||
-    (existingItem?.lastRestocked
-      ? existingItem.lastRestocked.slice(0, 10)
-      : "");
+    lastRestocked || (existingItem?.lastRestocked ? existingItem.lastRestocked.slice(0, 10) : "");
 
   const [formState, formAction, isPending] = useActionState(
     async (_prevState: FormState, formData: FormData): Promise<FormState> => {
@@ -95,11 +116,25 @@ export function useInventoryForm(id?: string) {
 
       try {
         if (isEdit && id) {
-          const req: UpdateInventoryItemRequest = buildInventoryItemRequest(fields, resolvedCategory);
+          if (!isMutationAllowed("canEdit")) {
+            toast.error(PERMISSION_DENIED_MESSAGE);
+            return { success: false, error: PERMISSION_DENIED_MESSAGE, timestamp: Date.now() };
+          }
+          const req: UpdateInventoryItemRequest = buildInventoryItemRequest(
+            fields,
+            resolvedCategory,
+          );
           await updateMutation.mutateAsync({ id, req });
           toast.success("在庫情報を更新しました");
         } else {
-          const req: CreateInventoryItemRequest = buildInventoryItemRequest(fields, resolvedCategory);
+          if (!isMutationAllowed("canCreate")) {
+            toast.error(PERMISSION_DENIED_MESSAGE);
+            return { success: false, error: PERMISSION_DENIED_MESSAGE, timestamp: Date.now() };
+          }
+          const req: CreateInventoryItemRequest = buildInventoryItemRequest(
+            fields,
+            resolvedCategory,
+          );
           await createMutation.mutateAsync(req);
           toast.success("在庫情報を登録しました");
         }
@@ -110,7 +145,7 @@ export function useInventoryForm(id?: string) {
         return { success: false, timestamp: Date.now() };
       }
     },
-    { success: false, timestamp: 0, fieldErrors: {} }
+    { success: false, timestamp: 0, fieldErrors: {} },
   );
 
   return {

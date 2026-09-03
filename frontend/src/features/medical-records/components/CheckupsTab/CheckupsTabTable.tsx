@@ -7,7 +7,7 @@ import type { CheckupTypeItem } from "@/hooks/use-treatment-master";
 import type { CheckupFieldValue } from "@/components/shared/DynamicCheckupFields/DynamicCheckupFields";
 import type { CheckupTypeFieldRow } from "@/hooks/use-checkup-fields";
 import type { Checkup, UpdateCheckupInput } from "../../api/checkups";
-import type { AddCheckupFormState } from "./checkups-tab-table-model";
+import type { AddCheckupFormState } from "../../lib/checkups-tab-table-model";
 import { CheckupAddRow, CheckupDisplayRow, CheckupEditRow } from "./CheckupsTabRows";
 
 export { LstepStatusBadge, type LstepStatus } from "./CheckupsTabBadges";
@@ -115,7 +115,7 @@ export function CheckupsTable({
                   onStartEdit={onStartEdit}
                   onDelete={onDelete}
                 />
-              )
+              ),
             )
           )}
         </tbody>

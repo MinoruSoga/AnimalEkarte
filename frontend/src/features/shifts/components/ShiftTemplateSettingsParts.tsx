@@ -18,8 +18,8 @@ import {
   DEFAULT_SHIFT_TEMPLATE_FORM,
   templateToFormData,
   type TemplateFormData,
-} from "./shift-template-form-model";
-import { isShiftTemplateTimeHidden } from "./shift-template-form-utils";
+} from "../lib/shift-template-form-model";
+import { isShiftTemplateTimeHidden } from "../lib/shift-template-form-utils";
 import { ShiftTemplateProperties } from "./ShiftTemplateSidePanelFields";
 
 interface ShiftTemplateRowProps {
@@ -103,11 +103,14 @@ export const ShiftTemplateSidePanel = memo(function ShiftTemplateSidePanel({
     onDirtyChange?.(isDirty);
   }, [isDirty, onDirtyChange]);
 
-  const setFormDataDirty = useCallback<typeof setFormData>((updater) => {
-    if (readOnly) return;
-    setFormData(updater);
-    setIsDirty(true);
-  }, [readOnly]);
+  const setFormDataDirty = useCallback<typeof setFormData>(
+    (updater) => {
+      if (readOnly) return;
+      setFormData(updater);
+      setIsDirty(true);
+    },
+    [readOnly],
+  );
 
   const isTimeHidden = isShiftTemplateTimeHidden(formData.shift_type);
 
@@ -178,9 +181,9 @@ export const ShiftTemplateSidePanel = memo(function ShiftTemplateSidePanel({
             onClick={onClose}
             className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`}
             aria-label="閉じる"
-            >
-              <X className="size-4" aria-hidden="true" />
-            </button>
+          >
+            <X className="size-4" aria-hidden="true" />
+          </button>
         </div>
       </div>
 

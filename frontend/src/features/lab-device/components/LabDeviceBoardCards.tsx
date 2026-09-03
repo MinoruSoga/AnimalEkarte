@@ -1,4 +1,6 @@
+import { useCallback, useLayoutEffect, useRef } from "react";
 import { Link } from "react-router";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { C } from "@/lib/design-tokens";
@@ -17,6 +19,8 @@ import {
   type LabDeviceListenState,
 } from "../lib/lab-device-board-model";
 
+const PERMISSION_DENIED_MESSAGE = "この操作を行う権限がありません";
+
 export function LabDeviceJobCardView({
   card,
   duplicate,
@@ -30,6 +34,24 @@ export function LabDeviceJobCardView({
   onAttach?: () => void;
   canEdit: boolean;
 }) {
+  const canEditRef = useRef(canEdit);
+  useLayoutEffect(() => {
+    canEditRef.current = canEdit;
+  }, [canEdit]);
+  const handleDetach = useCallback(() => {
+    if (canEditRef.current !== true) {
+      toast.error(PERMISSION_DENIED_MESSAGE);
+      return;
+    }
+    onDetach?.();
+  }, [onDetach]);
+  const handleAttach = useCallback(() => {
+    if (canEditRef.current !== true) {
+      toast.error(PERMISSION_DENIED_MESSAGE);
+      return;
+    }
+    onAttach?.();
+  }, [onAttach]);
   return (
     <section className={`rounded-lg border ${C.borderLight} ${C.bgWhite} p-4 space-y-2`}>
       <div className="flex items-baseline justify-between gap-3">
@@ -48,17 +70,12 @@ export function LabDeviceJobCardView({
       <ul className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
         {card.items.map((item) => (
           <li key={`${card.jobId}-${item.sortOrder}-${item.deviceItemCode}`}>
-            <span className="font-medium">{item.deviceItemCode}</span>
-            {" "}
-            {item.valueRaw}
+            <span className="font-medium">{item.deviceItemCode}</span> {item.valueRaw}
             {item.unit ? ` ${item.unit}` : ""}
             {item.needsReview ? (
               <>
                 {" · "}
-                <Link
-                  to={labDeviceUnmappedMasterHref(card.sourceType)}
-                  className="underline"
-                >
+                <Link to={labDeviceUnmappedMasterHref(card.sourceType)} className="underline">
                   未対応
                 </Link>
               </>
@@ -67,9 +84,7 @@ export function LabDeviceJobCardView({
         ))}
       </ul>
       {labDeviceCardNeedsReview(card) ? (
-        <p className={`text-sm ${C.textRed700}`}>
-          {labDeviceNeedsReviewReason(card)}
-        </p>
+        <p className={`text-sm ${C.textRed700}`}>{labDeviceNeedsReviewReason(card)}</p>
       ) : null}
       {labDeviceHasUnmapped(card) ? (
         <p className={`text-sm ${C.textRed700}`}>
@@ -79,11 +94,15 @@ export function LabDeviceJobCardView({
         </p>
       ) : null}
       <div className="flex gap-2">
-        {onDetach && canEdit ? (
-          <Button type="button" variant="outline" size="sm" onClick={onDetach}>取り消す</Button>
+        {onDetach ? (
+          <Button type="button" variant="outline" size="sm" onClick={handleDetach}>
+            取り消す
+          </Button>
         ) : null}
-        {onAttach && canEdit ? (
-          <Button type="button" variant="outline" size="sm" onClick={onAttach}>この子に付ける</Button>
+        {onAttach ? (
+          <Button type="button" variant="outline" size="sm" onClick={handleAttach}>
+            この子に付ける
+          </Button>
         ) : null}
       </div>
     </section>
@@ -108,7 +127,9 @@ export function LabDeviceTodayVisitCard({
       disabled={disabled}
       onClick={onSelect}
       className={`min-h-11 w-full rounded-lg border p-4 text-left space-y-1 ${
-        selected ? `${C.borderActionPrimary} ${C.bgActionPrimaryLight}` : `${C.borderLight} ${C.bgWhite}`
+        selected
+          ? `${C.borderActionPrimary} ${C.bgActionPrimaryLight}`
+          : `${C.borderLight} ${C.bgWhite}`
       }`}
     >
       <p className="text-heading-3 font-semibold">{visit.petName}</p>
@@ -117,9 +138,7 @@ export function LabDeviceTodayVisitCard({
         {visit.species ? ` · ${visit.species}` : ""}
         {visit.visitType ? ` · ${visit.visitType}` : ""}
       </p>
-      {visit.doctorName ? (
-        <p className={`text-sm ${C.textInkMuted}`}>{visit.doctorName}</p>
-      ) : null}
+      {visit.doctorName ? <p className={`text-sm ${C.textInkMuted}`}>{visit.doctorName}</p> : null}
       {selected ? <p className="text-sm font-medium">待機中</p> : null}
     </button>
   );

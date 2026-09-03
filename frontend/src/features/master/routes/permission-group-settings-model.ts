@@ -3,25 +3,21 @@ import type {
   PermissionGroup,
   UpdatePermissionGroupRequest,
 } from "../api/permission-groups";
-import type { PermissionGroupFormData } from "../components/permission-group-side-panel-model";
+import type { PermissionGroupFormData } from "../lib/permission-group-side-panel-model";
 import {
   ALL_PERMISSION_RESOURCES,
   createEmptyPermissionRule,
   type PermissionRule,
-} from "../components/permission-rule-table-model";
+} from "../lib/permission-rule-table-model";
 
-type PermissionGroupRuleRequest = NonNullable<
-  CreatePermissionGroupRequest["rules"]
->[number];
+type PermissionGroupRuleRequest = NonNullable<CreatePermissionGroupRequest["rules"]>[number];
 
 /**
  * Build the complete rule set the matrix UI shows.
  * Overlay form edits on every known resource, and keep any extra resources
  * returned from the API so replace-all cannot silently drop them.
  */
-export function expandPermissionGroupRules(
-  formRules: PermissionRule[],
-): PermissionRule[] {
+export function expandPermissionGroupRules(formRules: PermissionRule[]): PermissionRule[] {
   const byResource = new Map<string, PermissionRule>();
   for (const resource of ALL_PERMISSION_RESOURCES) {
     byResource.set(resource, createEmptyPermissionRule(resource));

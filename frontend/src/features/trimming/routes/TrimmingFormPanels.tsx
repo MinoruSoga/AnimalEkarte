@@ -10,10 +10,14 @@ import { ICON, C, LAYOUT } from "@/lib/design-tokens";
 import { ResourceTrimming } from "@/types/generated/models";
 import type { MasterItem, SortOrder } from "@/types";
 import type { TrimmingFormData } from "@/types/trimming";
-import type { TrimmingHistoryItem } from "../components/trimming-form-column-types";
+import type { TrimmingHistoryItem } from "../lib/trimming-form-column-types";
 import type { MasterSelectItem } from "@/components/shared/MasterSelectModal";
 import { ConfirmDialog, MasterSelectModal } from "./TrimmingLazyModals";
-import { TRIMMING_FORM_ID, type TrimmingFormGate, type TrimmingSelectableItem } from "./trimming-form-model";
+import {
+  TRIMMING_FORM_ID,
+  type TrimmingFormGate,
+  type TrimmingSelectableItem,
+} from "./trimming-form-model";
 import { TrimmingFormColumns, type TrimmingPatient } from "./TrimmingFormColumns";
 
 export function TrimmingFormStatusView({
@@ -39,13 +43,21 @@ export function TrimmingFormStatusView({
   }
   if (gate.kind === "loading") {
     return (
-      <PageLayout title="トリミング" onBack={onBack} icon={<Scissors className={`${ICON.page} ${C.text}`} />}>
+      <PageLayout
+        title="トリミング"
+        onBack={onBack}
+        icon={<Scissors className={`${ICON.page} ${C.text}`} />}
+      >
         <LoadingFallback />
       </PageLayout>
     );
   }
   return (
-    <PageLayout title="トリミング" onBack={onBack} icon={<Scissors className={`${ICON.page} ${C.text}`} />}>
+    <PageLayout
+      title="トリミング"
+      onBack={onBack}
+      icon={<Scissors className={`${ICON.page} ${C.text}`} />}
+    >
       <ErrorFallback message="トリミング記録が見つかりません" />
     </PageLayout>
   );
@@ -166,96 +178,98 @@ export function TrimmingFormBody({
           submitLabel={canSubmit ? (isSaving ? "保存中..." : "保存") : undefined}
           submitDisabled={isSaving}
           submitFormId={TRIMMING_FORM_ID}
-          extra={mode === "edit" && canDelete ? (
-            <Button
-              type="button"
-              onClick={onOpenDeleteConfirm}
-              variant="ghost-danger"
-              className="h-10 rounded-sm text-sm px-4"
-              disabled={isDeleting}
-            >
-              <Trash2 className={`mr-1.5 ${ICON.action}`} />
-              削除
-            </Button>
-          ) : null}
+          extra={
+            mode === "edit" && canDelete ? (
+              <Button
+                type="button"
+                onClick={onOpenDeleteConfirm}
+                variant="ghost-danger"
+                className="h-10 rounded-sm text-sm px-4"
+                disabled={isDeleting}
+              >
+                <Trash2 className={`mr-1.5 ${ICON.action}`} />
+                削除
+              </Button>
+            ) : null
+          }
         />
       }
     >
       <NavigationBlocker when={isDirty ? !isSaving : false} />
       <form id={TRIMMING_FORM_ID} action={formAction}>
-      {selectedPet?.status === "死亡" ? (
-        <div
-          role="status"
-          aria-label="死亡ペットのため保存不可"
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-md border mt-4 ${C.bgWarning50} ${C.borderWarning20} ${C.textWarning}`}
-        >
-          <span className="text-sm font-medium">
-            死亡したペットのトリミング記録は保存できません
-          </span>
-        </div>
-      ) : null}
-      <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
-      {selectedPet ? (
-        <TrimmingFormColumns
-          selectedPet={selectedPet}
-          formData={formData}
-          fieldErrors={fieldErrors}
-          courses={courses}
-          options={options}
-          styleImagePreview={styleImagePreview}
-          completedImagePreview={completedImagePreview}
-          sortedHistory={sortedHistory}
-          isHistoryLoading={isHistoryLoading}
-          historySearchTerm={historySearchTerm}
-          historySortOrder={historySortOrder}
-          historyDateRange={historyDateRange}
-          showInitialStatusSelector={mode === "new" ? !hasExistingAppointment : false}
-          onFormChange={onFormChange}
-          onOpenCourseModal={onOpenCourseModal}
-          onOpenStaffModal={onOpenStaffModal}
-          onStyleImageChange={onStyleImageChange}
-          onCompletedImageChange={onCompletedImageChange}
-          onRemoveStyleImage={onRemoveStyleImage}
-          onRemoveCompletedImage={onRemoveCompletedImage}
-          onHistorySearchTermChange={onHistorySearchTermChange}
-          onHistorySortOrderChange={onHistorySortOrderChange}
-          onHistoryClear={onHistoryClear}
-          onHistoryStartDateChange={onHistoryStartDateChange}
-          onHistoryEndDateChange={onHistoryEndDateChange}
-          onHistoryClick={onHistoryClick}
-        />
-      ) : null}
-      </fieldset>
+        {selectedPet?.status === "死亡" ? (
+          <div
+            role="status"
+            aria-label="死亡ペットのため保存不可"
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-md border mt-4 ${C.bgWarning50} ${C.borderWarning20} ${C.textWarning}`}
+          >
+            <span className="text-sm font-medium">
+              死亡したペットのトリミング記録は保存できません
+            </span>
+          </div>
+        ) : null}
+        <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
+          {selectedPet ? (
+            <TrimmingFormColumns
+              selectedPet={selectedPet}
+              formData={formData}
+              fieldErrors={fieldErrors}
+              courses={courses}
+              options={options}
+              styleImagePreview={styleImagePreview}
+              completedImagePreview={completedImagePreview}
+              sortedHistory={sortedHistory}
+              isHistoryLoading={isHistoryLoading}
+              historySearchTerm={historySearchTerm}
+              historySortOrder={historySortOrder}
+              historyDateRange={historyDateRange}
+              showInitialStatusSelector={mode === "new" ? !hasExistingAppointment : false}
+              onFormChange={onFormChange}
+              onOpenCourseModal={onOpenCourseModal}
+              onOpenStaffModal={onOpenStaffModal}
+              onStyleImageChange={onStyleImageChange}
+              onCompletedImageChange={onCompletedImageChange}
+              onRemoveStyleImage={onRemoveStyleImage}
+              onRemoveCompletedImage={onRemoveCompletedImage}
+              onHistorySearchTermChange={onHistorySearchTermChange}
+              onHistorySortOrderChange={onHistorySortOrderChange}
+              onHistoryClear={onHistoryClear}
+              onHistoryStartDateChange={onHistoryStartDateChange}
+              onHistoryEndDateChange={onHistoryEndDateChange}
+              onHistoryClick={onHistoryClick}
+            />
+          ) : null}
+        </fieldset>
 
-      <Suspense fallback={null}>
-        <MasterSelectModal
-          open={courseModalOpen}
-          onOpenChange={onCourseModalOpenChange}
-          title="コース選択"
-          items={courses}
-          selectedValue={formData.courseId}
-          matchBy="id"
-          onSelect={handleSelectCourse}
-        />
-        <MasterSelectModal
-          open={staffModalOpen}
-          onOpenChange={onStaffModalOpenChange}
-          title="担当スタッフ選択"
-          items={activeStaffItems}
-          selectedValue={formData.staffName}
-          matchBy="name"
-          onSelect={handleSelectStaff}
-        />
-        <ConfirmDialog
-          open={deleteConfirmOpen}
-          onClose={onCloseDeleteConfirm}
-          title="削除確認"
-          description="このトリミング情報を削除してもよろしいですか？"
-          confirmLabel="削除"
-          variant="destructive"
-          onConfirm={onConfirmDelete}
-        />
-      </Suspense>
+        <Suspense fallback={null}>
+          <MasterSelectModal
+            open={courseModalOpen}
+            onOpenChange={onCourseModalOpenChange}
+            title="コース選択"
+            items={courses}
+            selectedValue={formData.courseId}
+            matchBy="id"
+            onSelect={handleSelectCourse}
+          />
+          <MasterSelectModal
+            open={staffModalOpen}
+            onOpenChange={onStaffModalOpenChange}
+            title="担当スタッフ選択"
+            items={activeStaffItems}
+            selectedValue={formData.staffName}
+            matchBy="name"
+            onSelect={handleSelectStaff}
+          />
+          <ConfirmDialog
+            open={deleteConfirmOpen}
+            onClose={onCloseDeleteConfirm}
+            title="削除確認"
+            description="このトリミング情報を削除してもよろしいですか？"
+            confirmLabel="削除"
+            variant="destructive"
+            onConfirm={onConfirmDelete}
+          />
+        </Suspense>
       </form>
     </PageLayout>
   );

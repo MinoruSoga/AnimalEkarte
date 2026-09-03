@@ -3,10 +3,19 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { TreatmentTable, TreatmentItem } from "./TreatmentTable";
 import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
-import { useGetTreatments, useCreateTreatment, useUpdateTreatment, useDeleteTreatment } from "../api/treatments";
-import { useGetBillingConfirmation, useCreateBillingConfirmation, useCreateBillingReturn } from "../api/billing-confirmation";
+import {
+  useGetTreatments,
+  useCreateTreatment,
+  useUpdateTreatment,
+  useDeleteTreatment,
+} from "../api/treatments";
+import {
+  useGetBillingConfirmation,
+  useCreateBillingConfirmation,
+  useCreateBillingReturn,
+} from "../api/billing-confirmation";
 import type { CreateTreatmentInput, UpdateTreatmentInput } from "../types";
-import { resolveItemTypeFromCategory } from "./TreatmentsTab/treatments-tab-model";
+import { resolveItemTypeFromCategory } from "../lib/treatments-tab-model";
 import { usePermission } from "@/hooks/use-permission";
 import { useClinicTaxRates } from "@/hooks/use-clinic-tax-rates";
 import { CheckCircle2, RotateCcw } from "lucide-react";
@@ -21,12 +30,12 @@ import {
   billCheckPricedExtras,
   isUnbillableMasterPrice,
   type BillCheckExtraLine,
-} from "./medical-record-bill-check-model";
+} from "../lib/medical-record-bill-check-model";
 
 const TreatmentSearchDialog = lazy(() =>
   import("@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog").then((m) => ({
     default: m.TreatmentSearchDialog,
-  }))
+  })),
 );
 
 interface BillCheckProps {
@@ -50,7 +59,9 @@ function ExtraLinesList({ title, lines }: { title: string; lines: BillCheckExtra
           <li key={line.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
             <span className={C.text}>{line.name}</span>
             <span className={isUnbillableMasterPrice(line.unitPrice) ? C.danger : C.text}>
-              {isUnbillableMasterPrice(line.unitPrice) ? "価格未設定" : formatCurrency(line.unitPrice)}
+              {isUnbillableMasterPrice(line.unitPrice)
+                ? "価格未設定"
+                : formatCurrency(line.unitPrice)}
             </span>
           </li>
         ))}
@@ -85,29 +96,31 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
   const [isConfirmPending, startConfirmTransition] = useTransition();
 
   const examLines = useMemo(
-    () => billCheckExtraLines(
-      "exam",
-      (examinationResult?.items ?? []).map((exam) => ({
-        id: exam.id,
-        name: exam.name,
-        price: exam.price,
-        medicalRecordId: exam.medicalRecordId,
-      })),
-      medicalRecordId,
-    ),
+    () =>
+      billCheckExtraLines(
+        "exam",
+        (examinationResult?.items ?? []).map((exam) => ({
+          id: exam.id,
+          name: exam.name,
+          price: exam.price,
+          medicalRecordId: exam.medicalRecordId,
+        })),
+        medicalRecordId,
+      ),
     [examinationResult?.items, medicalRecordId],
   );
   const vaccinationLines = useMemo(
-    () => billCheckExtraLines(
-      "vaccination",
-      vaccinations.map((item) => ({
-        id: item.id,
-        name: item.name,
-        price: item.price,
-        medicalRecordId: item.medicalRecordId,
-      })),
-      medicalRecordId,
-    ),
+    () =>
+      billCheckExtraLines(
+        "vaccination",
+        vaccinations.map((item) => ({
+          id: item.id,
+          name: item.name,
+          price: item.price,
+          medicalRecordId: item.medicalRecordId,
+        })),
+        medicalRecordId,
+      ),
     [vaccinations, medicalRecordId],
   );
   const extraLines = useMemo(
@@ -120,7 +133,9 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
   const handleConfirm = useCallback(() => {
     if (!canEdit) return;
     if (extraLines.some((line) => isUnbillableMasterPrice(line.unitPrice))) {
-      toast.error("価格が未設定の検査・接種があるため会計確認できません。マスタの価格を設定してください。");
+      toast.error(
+        "価格が未設定の検査・接種があるため会計確認できません。マスタの価格を設定してください。",
+      );
       return;
     }
     if (treatments.length === 0 && extraLines.length === 0) {
@@ -143,19 +158,22 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
   const { mutate: returnBillingFn } = returnMutation;
   const handleReturn = useCallback(() => {
     if (!canEdit) return;
-    returnBillingFn({
-      return_reason: "医師による差し戻し",
-    }, {
-      onSuccess: () => {
-        toast.success("会計確認を差し戻しました");
+    returnBillingFn(
+      {
+        return_reason: "医師による差し戻し",
       },
-      // FE-RC-005: useCreateBillingReturn の onError が既に handleApiError で
-      // トースト表示済み。ここで onError を渡すと二重トーストになるため渡さない。
-    });
+      {
+        onSuccess: () => {
+          toast.success("会計確認を差し戻しました");
+        },
+        // FE-RC-005: useCreateBillingReturn の onError が既に handleApiError で
+        // トースト表示済み。ここで onError を渡すと二重トーストになるため渡さない。
+      },
+    );
   }, [canEdit, returnBillingFn]);
 
   const items: TreatmentItem[] = useMemo(() => {
-    return treatments.map(t => ({
+    return treatments.map((t) => ({
       id: Number(t.id),
       content: t.content,
       memo: t.memo,
@@ -165,32 +183,38 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
       discountRate: t.discount_rate,
       discountAmount: t.discount_amount,
       status: t.status,
-      is_selected: t.is_selected
+      is_selected: t.is_selected,
     }));
   }, [treatments]);
 
-  const handleUpdateItem = useCallback((id: number, field: keyof TreatmentItem, value: string | number | boolean) => {
-    if (!canEdit) return;
-    const input: UpdateTreatmentInput = {};
-    if (field === "content") input.content = String(value);
-    if (field === "memo") input.memo = String(value);
-    if (field === "is_insurance") input.is_insurance = Boolean(value);
-    if (field === "unitPrice") input.unit_price = Number(value);
-    if (field === "quantity") input.quantity = Number(value);
-    if (field === "discountRate") input.discount_rate = Number(value) / 100;
-    if (field === "discountAmount") input.discount_amount = Number(value);
-    if (field === "status") input.status = String(value);
-    if (field === "is_selected") input.is_selected = Boolean(value);
+  const handleUpdateItem = useCallback(
+    (id: number, field: keyof TreatmentItem, value: string | number | boolean) => {
+      if (!canEdit) return;
+      const input: UpdateTreatmentInput = {};
+      if (field === "content") input.content = String(value);
+      if (field === "memo") input.memo = String(value);
+      if (field === "is_insurance") input.is_insurance = Boolean(value);
+      if (field === "unitPrice") input.unit_price = Number(value);
+      if (field === "quantity") input.quantity = Number(value);
+      if (field === "discountRate") input.discount_rate = Number(value) / 100;
+      if (field === "discountAmount") input.discount_amount = Number(value);
+      if (field === "status") input.status = String(value);
+      if (field === "is_selected") input.is_selected = Boolean(value);
 
-    updateTreatment({ treatmentId: String(id), input });
-  }, [canEdit, updateTreatment]);
+      updateTreatment({ treatmentId: String(id), input });
+    },
+    [canEdit, updateTreatment],
+  );
 
   const { mutate: deleteTreatmentFn } = useDeleteTreatment(medicalRecordId, recordClinicId);
 
-  const handleRemoveItem = useCallback((id: number) => {
-    if (!canDelete) return;
-    deleteTreatmentFn(String(id));
-  }, [canDelete, deleteTreatmentFn]);
+  const handleRemoveItem = useCallback(
+    (id: number) => {
+      if (!canDelete) return;
+      deleteTreatmentFn(String(id));
+    },
+    [canDelete, deleteTreatmentFn],
+  );
 
   // rerender-memo: TreatmentTable は memo。onOpenSearch を inline arrow で
   // 渡すと毎レンダー新規参照になり memo が無効化されるため useCallback で安定化する。
@@ -199,26 +223,30 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
   }, []);
 
   const nextOrder = useMemo(
-    () => treatments.reduce((maxOrder, treatment) => Math.max(maxOrder, treatment.sort_order), -1) + 1,
+    () =>
+      treatments.reduce((maxOrder, treatment) => Math.max(maxOrder, treatment.sort_order), -1) + 1,
     [treatments],
   );
 
-  const handleSelectTreatment = useCallback((item: TreatmentMasterItem) => {
-    if (!canEdit) return;
-    const input: CreateTreatmentInput = {
-      item_type: resolveItemTypeFromCategory(item.category),
-      content: item.name,
-      memo: item.category,
-      unit_price: item.unitPrice,
-      quantity: 1,
-      is_selected: true,
-      is_insurance: true,
-      discount_amount: 0,
-      sort_order: nextOrder,
-    };
-    createTreatment(input);
-    setIsSearchOpen(false);
-  }, [canEdit, nextOrder, createTreatment]);
+  const handleSelectTreatment = useCallback(
+    (item: TreatmentMasterItem) => {
+      if (!canEdit) return;
+      const input: CreateTreatmentInput = {
+        item_type: resolveItemTypeFromCategory(item.category),
+        content: item.name,
+        memo: item.category,
+        unit_price: item.unitPrice,
+        quantity: 1,
+        is_selected: true,
+        is_insurance: true,
+        discount_amount: 0,
+        sort_order: nextOrder,
+      };
+      createTreatment(input);
+      setIsSearchOpen(false);
+    },
+    [canEdit, nextOrder, createTreatment],
+  );
 
   // FE-RC-048: 消費税率はハードコード 0.1 ではなく病院マスタ設定（useClinicTaxRates）を正本にする。
   const { standardTaxRate } = useClinicTaxRates();
@@ -238,13 +266,15 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
     return {
       subtotal: result.subtotal,
       tax: result.tax,
-      total: result.total
+      total: result.total,
     };
   }, [items, pricedExtras, ownerDiscountRate, globalDiscountAmount, standardTaxRate]);
 
   if (isNewRecord) {
     return (
-      <div className={`flex flex-col items-center justify-center p-12 ${C.bgWhite} rounded-lg border border-dashed ${C.text40}`}>
+      <div
+        className={`flex flex-col items-center justify-center p-12 ${C.bgWhite} rounded-lg border border-dashed ${C.text40}`}
+      >
         カルテを保存してから会計確認を行えます
       </div>
     );
@@ -258,7 +288,9 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
         <div className="flex items-center justify-between mb-2">
           <h2 className={`text-sm font-bold ${C.text}`}>会計確認 (医師)</h2>
           {isConfirmed ? (
-            <div className={`px-2 py-1 rounded ${C.bgStatusGreen} ${C.textStatusGreen} text-xs font-bold flex items-center gap-1`}>
+            <div
+              className={`px-2 py-1 rounded ${C.bgStatusGreen} ${C.textStatusGreen} text-xs font-bold flex items-center gap-1`}
+            >
               <CheckCircle2 className={ICON.xxs} />
               確認済み
             </div>
@@ -269,7 +301,9 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
           )}
         </div>
 
-        <div className={`flex-1 min-h-0 ${C.bgWhite} rounded-lg border ${C.borderLight} overflow-hidden flex flex-col`}>
+        <div
+          className={`flex-1 min-h-0 ${C.bgWhite} rounded-lg border ${C.borderLight} overflow-hidden flex flex-col`}
+        >
           <div className="flex-1 min-h-0">
             <TreatmentTable
               items={items}

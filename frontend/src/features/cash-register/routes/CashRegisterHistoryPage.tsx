@@ -7,7 +7,7 @@ import { Pagination } from "@/components/shared/Pagination";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { useGetCashRegisterCloses } from "../api/get-cash-register-closes";
 import type { CashRegisterClose } from "../api/get-cash-register-closes";
-import { monthDateRange } from "../month-date-range";
+import { monthDateRange } from "../lib/month-date-range";
 import { ResourceCashRegisterClose } from "@/types/generated/models";
 import {
   CashRegisterHistoryFilters,
@@ -15,7 +15,7 @@ import {
 } from "../components/CashRegisterHistoryFilters";
 import { CashRegisterHistoryTable } from "../components/CashRegisterHistoryTable";
 import { CashRegisterHistoryDetailDialog } from "../components/CashRegisterHistoryDetailDialog";
-import { parseHighlightDate } from "../components/cash-register-history-model";
+import { parseHighlightDate } from "../lib/cash-register-history-model";
 
 const HISTORY_PAGE_SIZE = 20;
 
@@ -43,17 +43,23 @@ export function CashRegisterHistoryPage() {
     limit: HISTORY_PAGE_SIZE,
   });
 
-  const handleYearChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
-    setYear(Number(e.target.value));
-    setSingleDate(null);
-    setPage(1);
-  }, [setPage]);
+  const handleYearChange = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => {
+      setYear(Number(e.target.value));
+      setSingleDate(null);
+      setPage(1);
+    },
+    [setPage],
+  );
 
-  const handleMonthChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
-    setMonth(Number(e.target.value));
-    setSingleDate(null);
-    setPage(1);
-  }, [setPage]);
+  const handleMonthChange = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => {
+      setMonth(Number(e.target.value));
+      setSingleDate(null);
+      setPage(1);
+    },
+    [setPage],
+  );
 
   const handlePeriodFilterChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
     setPeriodFilter(e.target.value as HistoryPeriodFilter);

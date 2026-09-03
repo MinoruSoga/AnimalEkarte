@@ -3,7 +3,7 @@ import { act, render } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { CourseFormData, OptionFormData } from "../components/trimming-side-panel-model";
+import type { CourseFormData, OptionFormData } from "../lib/trimming-side-panel-model";
 import { TrimmingSettings } from "./TrimmingSettings";
 
 const mocks = vi.hoisted(() => {

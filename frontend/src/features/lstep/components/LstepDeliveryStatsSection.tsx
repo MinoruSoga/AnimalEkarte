@@ -18,7 +18,7 @@ import {
   STATUS_LABELS,
   STATS_STATUSES,
   type CrossRow,
-} from "./lstep-analytics-model";
+} from "../lib/lstep-analytics-model";
 
 interface DeliveryStatsSectionProps {
   yearMonth: string;
@@ -61,9 +61,7 @@ export function DeliveryStatsSection({
         {isLoading ? (
           <p className={`text-sm ${C.text40} py-8 text-center`}>読み込み中...</p>
         ) : isError ? (
-          <p className={`text-sm ${C.danger} py-8 text-center`}>
-            データの取得に失敗しました
-          </p>
+          <p className={`text-sm ${C.danger} py-8 text-center`}>データの取得に失敗しました</p>
         ) : (
           <>
             <DeliveryStatsTable rows={rows} />
@@ -77,11 +75,7 @@ export function DeliveryStatsSection({
 
 function DeliveryStatsTable({ rows }: { rows: CrossRow[] }) {
   if (rows.length === 0) {
-    return (
-      <p className={`text-sm ${C.text40} py-8 text-center`}>
-        この月のデータはありません
-      </p>
-    );
+    return <p className={`text-sm ${C.text40} py-8 text-center`}>この月のデータはありません</p>;
   }
 
   return (
@@ -89,9 +83,7 @@ function DeliveryStatsTable({ rows }: { rows: CrossRow[] }) {
       <table className="w-full text-sm border-collapse">
         <thead>
           <tr className={`${C.bgLight} border-b ${C.borderLight}`}>
-            <TableHead className={`${C.text55} min-w-[180px]`}>
-              トリガー種別
-            </TableHead>
+            <TableHead className={`${C.text55} min-w-[180px]`}>トリガー種別</TableHead>
             {STATS_STATUSES.map((status) => (
               <TableHead key={status} className={`text-right ${C.text55}`}>
                 {STATUS_LABELS[status]}

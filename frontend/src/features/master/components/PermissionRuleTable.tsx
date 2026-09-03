@@ -10,7 +10,7 @@ import {
   createEmptyPermissionRule,
   type PermissionRule,
   type PermissionRuleField,
-} from "./permission-rule-table-model";
+} from "../lib/permission-rule-table-model";
 import { PermissionRuleTableRow } from "./PermissionRuleTableRow";
 
 interface PermissionRuleTableProps {
@@ -33,14 +33,9 @@ export const PermissionRuleTable = memo(function PermissionRuleTable({
         <table className="w-full">
           <thead>
             <tr className={`border-b ${C.borderLight}`}>
-              <TableHead className={C.text50}>
-                リソース
-              </TableHead>
+              <TableHead className={C.text50}>リソース</TableHead>
               {PERMISSION_ACTION_COLUMNS.map(({ field, label }) => (
-                <TableHead
-                  key={field}
-                  className={`text-center ${C.text50}`}
-                >
+                <TableHead key={field} className={`text-center ${C.text50}`}>
                   {label}
                 </TableHead>
               ))}

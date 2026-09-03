@@ -1,5 +1,5 @@
-import axios, { type InternalAxiosRequestConfig } from 'axios';
-import { z } from 'zod';
+import axios, { type InternalAxiosRequestConfig } from "axios";
+import { z } from "zod";
 import type {
   LiffSettings,
   LiffProfile,
@@ -12,10 +12,10 @@ import type {
   CreateReservationResponse,
   TrimmingCourse,
   TrimmingOption,
-} from '../types/models';
-import { API_BASE_URL } from '../lib/liff-config';
-import { sanitizeNullBytes } from '@/lib/sanitize';
-import { devError } from '@/shared-liff/dev-log';
+} from "../types/models";
+import { API_BASE_URL } from "../lib/liff-config";
+import { sanitizeNullBytes } from "@/shared-liff/sanitize";
+import { devError } from "@/shared-liff/dev-log";
 import {
   liffSettingsSchema,
   liffProfileSchema,
@@ -27,7 +27,7 @@ import {
   availableTimeSchema,
   reservationSchema,
   createReservationResponseSchema,
-} from './schemas';
+} from "./schemas";
 
 const httpClient = axios.create({
   baseURL: API_BASE_URL,
@@ -37,7 +37,7 @@ const httpClient = axios.create({
 // NULL バイトを除去する（メインアプリの axios.ts と同じサニタイズロジックを共有利用）。
 function sanitizeRequestBody(config: InternalAxiosRequestConfig): InternalAxiosRequestConfig {
   const method = config.method?.toLowerCase();
-  if ((method === 'post' || method === 'patch' || method === 'put') && config.data) {
+  if ((method === "post" || method === "patch" || method === "put") && config.data) {
     config.data = sanitizeNullBytes(config.data);
   }
   return config;
@@ -72,35 +72,35 @@ function parseOrThrow<T>(schema: z.ZodType<T>, data: unknown, fnName: string): T
 export const liffApi = {
   getSettings: async (clinicId: string): Promise<LiffSettings> => {
     const res = await httpClient.get<unknown>(`${clinicPath(clinicId)}/settings`);
-    return parseOrThrow(liffSettingsSchema, res.data, 'getSettings');
+    return parseOrThrow(liffSettingsSchema, res.data, "getSettings");
   },
 
   getProfile: async (clinicId: string, idToken: string): Promise<LiffProfile> => {
     const res = await httpClient.get<unknown>(`${clinicPath(clinicId)}/profile`, {
       headers: authHeaders(idToken),
     });
-    return parseOrThrow(liffProfileSchema, res.data, 'getProfile');
+    return parseOrThrow(liffProfileSchema, res.data, "getProfile");
   },
 
   getCourses: async (clinicId: string, idToken: string): Promise<Course[]> => {
     const res = await httpClient.get<unknown>(`${clinicPath(clinicId)}/courses`, {
       headers: authHeaders(idToken),
     });
-    return parseOrThrow(z.array(courseSchema), res.data, 'getCourses');
+    return parseOrThrow(z.array(courseSchema), res.data, "getCourses");
   },
 
   getTrimmingCourses: async (clinicId: string, idToken: string): Promise<TrimmingCourse[]> => {
     const res = await httpClient.get<unknown>(`${clinicPath(clinicId)}/trimming-courses`, {
       headers: authHeaders(idToken),
     });
-    return parseOrThrow(z.array(trimmingCourseSchema), res.data, 'getTrimmingCourses');
+    return parseOrThrow(z.array(trimmingCourseSchema), res.data, "getTrimmingCourses");
   },
 
   getTrimmingOptions: async (clinicId: string, idToken: string): Promise<TrimmingOption[]> => {
     const res = await httpClient.get<unknown>(`${clinicPath(clinicId)}/trimming-options`, {
       headers: authHeaders(idToken),
     });
-    return parseOrThrow(z.array(trimmingOptionSchema), res.data, 'getTrimmingOptions');
+    return parseOrThrow(z.array(trimmingOptionSchema), res.data, "getTrimmingOptions");
   },
 
   getStaffs: async (clinicId: string, courseId: number, idToken: string): Promise<Staff[]> => {
@@ -108,7 +108,7 @@ export const liffApi = {
       headers: authHeaders(idToken),
       params: { courseId },
     });
-    return parseOrThrow(z.array(staffSchema), res.data, 'getStaffs');
+    return parseOrThrow(z.array(staffSchema), res.data, "getStaffs");
   },
 
   getAvailableDates: async (
@@ -117,14 +117,11 @@ export const liffApi = {
     staffId: number,
     idToken: string,
   ): Promise<AvailableDate[]> => {
-    const res = await httpClient.get<unknown>(
-      `${clinicPath(clinicId)}/available-dates`,
-      {
-        headers: authHeaders(idToken),
-        params: { courseId, staffId },
-      },
-    );
-    return parseOrThrow(availableDatesResponseSchema, res.data, 'getAvailableDates').dates;
+    const res = await httpClient.get<unknown>(`${clinicPath(clinicId)}/available-dates`, {
+      headers: authHeaders(idToken),
+      params: { courseId, staffId },
+    });
+    return parseOrThrow(availableDatesResponseSchema, res.data, "getAvailableDates").dates;
   },
 
   getAvailableTimes: async (
@@ -138,7 +135,7 @@ export const liffApi = {
       headers: authHeaders(idToken),
       params: { courseId, staffId, date },
     });
-    return parseOrThrow(z.array(availableTimeSchema), res.data, 'getAvailableTimes');
+    return parseOrThrow(z.array(availableTimeSchema), res.data, "getAvailableTimes");
   },
 
   createReservation: async (
@@ -149,14 +146,14 @@ export const liffApi = {
     const res = await httpClient.post<unknown>(`${clinicPath(clinicId)}/reservations`, body, {
       headers: authHeaders(idToken),
     });
-    return parseOrThrow(createReservationResponseSchema, res.data, 'createReservation');
+    return parseOrThrow(createReservationResponseSchema, res.data, "createReservation");
   },
 
   getMyReservations: async (clinicId: string, idToken: string): Promise<Reservation[]> => {
     const res = await httpClient.get<unknown>(`${clinicPath(clinicId)}/my-reservations`, {
       headers: authHeaders(idToken),
     });
-    return parseOrThrow(z.array(reservationSchema), res.data, 'getMyReservations');
+    return parseOrThrow(z.array(reservationSchema), res.data, "getMyReservations");
   },
 
   cancelReservation: async (clinicId: string, id: number, idToken: string): Promise<void> => {

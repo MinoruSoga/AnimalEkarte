@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Axios from "axios";
 import { toast } from "sonner";
 
@@ -37,75 +37,134 @@ import {
 } from "./LabDeviceBoardPanels";
 
 const LAB_DEVICE_AGENT_RECEIVE_TOAST_ID = "lab-device-agent-receive";
+const PERMISSION_DENIED_MESSAGE = "この操作を行う権限がありません";
 
 export function LabDeviceBoard() {
   const { currentClinicId } = useAuth();
   const { canCreate, canEdit } = usePermission(ResourceLabImport);
+  const permissionsRef = useRef({ canCreate, canEdit });
+  useLayoutEffect(() => {
+    permissionsRef.current = { canCreate, canEdit };
+  }, [canCreate, canEdit]);
   const { data: board, isLoading } = useGetLabDeviceBoard(canCreate);
-  const { data: agentConsumerToken } = useGetLabDeviceAgentConsumer(canCreate && currentClinicId !== null);
+  const { data: agentConsumerToken } = useGetLabDeviceAgentConsumer(
+    canCreate && currentClinicId !== null,
+  );
   const putWait = usePutLabDeviceWait();
   const clearWait = useClearLabDeviceWait();
   const receive = useReceiveLabDeviceFrames();
   const attach = useAttachLabDeviceJob();
   const detach = useDetachLabDeviceJob();
-  const [lastReceives, setLastReceives] = useState<Record<string, {
-    clinicId: string;
-    label: string;
-    at: string;
-  }>>({});
+  const [lastReceives, setLastReceives] = useState<
+    Record<
+      string,
+      {
+        clinicId: string;
+        label: string;
+        at: string;
+      }
+    >
+  >({});
   const todayVisits = useMemo(
     () => labDeviceSelectableTodayVisits(board?.todayVisits ?? []),
     [board?.todayVisits],
   );
   const receivedCards = useMemo(
-    () => labDeviceReceivedCards({
-      received: board?.received ?? [],
-      unlinked: board?.unlinked ?? [],
-      saved: board?.saved ?? [],
-    }),
+    () =>
+      labDeviceReceivedCards({
+        received: board?.received ?? [],
+        unlinked: board?.unlinked ?? [],
+        saved: board?.saved ?? [],
+      }),
     [board?.received, board?.saved, board?.unlinked],
   );
-  const receivedGroups = useMemo(
-    () => groupLabDeviceCardsByDay(receivedCards),
-    [receivedCards],
-  );
+  const receivedGroups = useMemo(() => groupLabDeviceCardsByDay(receivedCards), [receivedCards]);
   const today = todayJSTISO();
-  const slots = useMemo(() => parseLabDeviceSlots(board?.station.slotsJson ?? "[]"), [board?.station.slotsJson]);
-  const onFrame = useCallback(async (frame: { payloadBase64: string; deviceHint: "auto" }) => {
-    try {
-      const results = await receive.mutateAsync(frame);
-      toast.dismiss(LAB_DEVICE_AGENT_RECEIVE_TOAST_ID);
-      const first = requireLabDeviceReceiveResult(results);
-      if (currentClinicId === null) {
-        throw new Error("clinic is not selected");
+  const slots = useMemo(
+    () => parseLabDeviceSlots(board?.station.slotsJson ?? "[]"),
+    [board?.station.slotsJson],
+  );
+  const onFrame = useCallback(
+    async (frame: { payloadBase64: string; deviceHint: "auto" }) => {
+      if (permissionsRef.current.canCreate !== true) {
+        toast.error(PERMISSION_DENIED_MESSAGE);
+        return;
       }
-      const slot = slots.find((candidate) => (
-        candidate.deviceHint === first.job.deviceHint || candidate.sourceType === first.job.sourceType
-      ));
-      if (slot) {
-        setLastReceives((current) => ({
-          ...current,
-          [slot.key]: {
-            clinicId: currentClinicId,
-            label: first.duplicate ? "再送（取込済み）" : "受信",
-            at: new Date().toISOString(),
-          },
-        }));
-      }
-    } catch (error) {
-      const status = Axios.isAxiosError(error) ? error.response?.status : undefined;
-      const failure = labDeviceReceiveFailure(status);
-      if (status === 400) {
-        // 400 は mutation 側の onError（handleApiError）が通知済み。ここでは再通知しない（FE-RC-005）。
+      try {
+        const results = await receive.mutateAsync(frame);
         toast.dismiss(LAB_DEVICE_AGENT_RECEIVE_TOAST_ID);
-      } else {
-        // mutation 側 onError の汎用トーストを消し、機器の再送要否を含む具体的な案内に差し替える。
-        toast.dismiss();
-        toast.error(failure.message, { id: LAB_DEVICE_AGENT_RECEIVE_TOAST_ID });
+        const first = requireLabDeviceReceiveResult(results);
+        if (currentClinicId === null) {
+          throw new Error("clinic is not selected");
+        }
+        const slot = slots.find(
+          (candidate) =>
+            candidate.deviceHint === first.job.deviceHint ||
+            candidate.sourceType === first.job.sourceType,
+        );
+        if (slot) {
+          setLastReceives((current) => ({
+            ...current,
+            [slot.key]: {
+              clinicId: currentClinicId,
+              label: first.duplicate ? "再送（取込済み）" : "受信",
+              at: new Date().toISOString(),
+            },
+          }));
+        }
+      } catch (error) {
+        const status = Axios.isAxiosError(error) ? error.response?.status : undefined;
+        const failure = labDeviceReceiveFailure(status);
+        if (status === 400) {
+          // 400 は mutation 側の onError（handleApiError）が通知済み。ここでは再通知しない（FE-RC-005）。
+          toast.dismiss(LAB_DEVICE_AGENT_RECEIVE_TOAST_ID);
+        } else {
+          // mutation 側 onError の汎用トーストを消し、機器の再送要否を含む具体的な案内に差し替える。
+          toast.dismiss();
+          toast.error(failure.message, { id: LAB_DEVICE_AGENT_RECEIVE_TOAST_ID });
+        }
+        throw Object.assign(new Error("lab device receive failed", { cause: error }), { status });
       }
-      throw Object.assign(new Error("lab device receive failed", { cause: error }), { status });
+    },
+    [currentClinicId, receive, slots],
+  );
+  const handleClearWait = useCallback(() => {
+    if (permissionsRef.current.canCreate !== true) {
+      toast.error(PERMISSION_DENIED_MESSAGE);
+      return;
     }
-  }, [currentClinicId, receive, slots]);
+    clearWait.mutate();
+  }, [clearWait]);
+  const handleSelectVisit = useCallback(
+    (petId: number) => {
+      if (permissionsRef.current.canCreate !== true) {
+        toast.error(PERMISSION_DENIED_MESSAGE);
+        return;
+      }
+      putWait.mutate(petId);
+    },
+    [putWait],
+  );
+  const handleAttach = useCallback(
+    (jobId: string, petId: number) => {
+      if (permissionsRef.current.canEdit !== true) {
+        toast.error(PERMISSION_DENIED_MESSAGE);
+        return Promise.reject(new Error(PERMISSION_DENIED_MESSAGE));
+      }
+      return attach.mutateAsync({ jobId, petId });
+    },
+    [attach],
+  );
+  const handleDetach = useCallback(
+    (jobId: string) => {
+      if (permissionsRef.current.canEdit !== true) {
+        toast.error(PERMISSION_DENIED_MESSAGE);
+        return;
+      }
+      detach.mutate(jobId);
+    },
+    [detach],
+  );
   const agentStatus = useLabDeviceAgentListen({
     enabled: canCreate && currentClinicId !== null,
     clinicId: currentClinicId,
@@ -124,7 +183,8 @@ export function LabDeviceBoard() {
       <div className="space-y-6">
         {!canCreate ? (
           <p className={`text-sm ${C.textWarning}`}>
-            受信権限（lab-import の作成）が無いため、このページでは受信できません。権限グループ設定で付与してください
+            受信権限（lab-import
+            の作成）が無いため、このページでは受信できません。権限グループ設定で付与してください
           </p>
         ) : null}
         <section className="space-y-3">
@@ -132,7 +192,7 @@ export function LabDeviceBoard() {
             wait={board?.wait}
             linkLabel={linkLabel}
             canCreate={canCreate}
-            onClearWait={() => clearWait.mutate()}
+            onClearWait={handleClearWait}
             slots={slots}
             receivedCards={receivedCards}
             lastReceives={lastReceives}
@@ -144,22 +204,22 @@ export function LabDeviceBoard() {
             todayVisits={todayVisits}
             waitPetId={board?.wait?.petId}
             canCreate={canCreate}
-            onSelectVisit={(petId) => putWait.mutate(petId)}
+            onSelectVisit={handleSelectVisit}
           />
         </section>
         <LabDeviceUnlinkedPanel
           unlinked={board?.unlinked ?? []}
           wait={board?.wait}
           canEdit={canEdit}
-          onAttach={(jobId, petId) => attach.mutateAsync({ jobId, petId })}
+          onAttach={handleAttach}
         />
         <LabDeviceReceivedPanel
           receivedGroups={receivedGroups}
           today={today}
           canEdit={canEdit}
           wait={board?.wait}
-          onDetach={(jobId) => detach.mutate(jobId)}
-          onAttach={(jobId, petId) => attach.mutateAsync({ jobId, petId })}
+          onDetach={handleDetach}
+          onAttach={handleAttach}
         />
         <LabDeviceAgentPanel agentStatus={agentStatus} />
       </div>

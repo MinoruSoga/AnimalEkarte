@@ -1,5 +1,9 @@
 import { useDeferredValue, useMemo, useState } from "react";
-import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
+import {
+  DataTable,
+  DESIGN_TABLE_HEADER_ROW,
+  DESIGN_TABLE_HEADER_CELL,
+} from "@/components/shared/DataTable/DataTable";
 import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
 import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 import { MASTER_STATUS_FILTER } from "../constants/styles";
@@ -14,7 +18,7 @@ import {
   TRIMMING_COURSE_COLUMNS,
   TRIMMING_OPTION_COLUMNS,
   filterTrimmingItems,
-} from "./trimming-tabs-model";
+} from "../lib/trimming-tabs-model";
 
 interface TrimmingCourseTabProps {
   onEditTargetChange: (value: TrimmingCourse | "new" | null) => void;

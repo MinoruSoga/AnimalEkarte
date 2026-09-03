@@ -6,11 +6,16 @@ import { C } from "@/lib/design-tokens";
 import type { Reservation } from "@/types";
 
 import { DayColumn } from "./WeekViewDayColumn";
-import { HOUR_HEIGHT, HOURS, WEEK_DAYS, type ReservationTypeColor } from "./week-view-grid-constants";
+import {
+  HOUR_HEIGHT,
+  HOURS,
+  WEEK_DAYS,
+  type ReservationTypeColor,
+} from "../lib/week-view-grid-constants";
 
 const INITIAL_SCROLL_HOUR = 9;
 
-export type { ReservationTypeColor } from "./week-view-grid-constants";
+export type { ReservationTypeColor } from "../lib/week-view-grid-constants";
 
 interface WeekViewGridProps {
   startDate: Date;
@@ -40,10 +45,15 @@ export function WeekViewGrid({
   }, []);
 
   return (
-    <div ref={scrollRef} className={`flex-1 border ${C.borderMedium} rounded-lg ${C.bgWhite} overflow-auto relative`}>
+    <div
+      ref={scrollRef}
+      className={`flex-1 border ${C.borderMedium} rounded-lg ${C.bgWhite} overflow-auto relative`}
+    >
       <div style={{ minWidth: "100%" }}>
         <div className={`flex border-b ${C.borderMedium} sticky top-0 z-30 ${C.bgWhite}`}>
-          <div className={`w-12 flex-shrink-0 ${C.bgPage} border-r border-b ${C.borderMedium} sticky left-0 z-40`} />
+          <div
+            className={`w-12 flex-shrink-0 ${C.bgPage} border-r border-b ${C.borderMedium} sticky left-0 z-40`}
+          />
           <WeekHeader
             startDate={startDate}
             appointmentsByDay={appointmentsByDay}
@@ -113,7 +123,9 @@ function WeekHeader({ startDate, appointmentsByDay, columnWidth }: WeekHeaderPro
               <div className={`relative text-xl font-bold ${isToday ? C.textBrand : C.text}`}>
                 {format(day, "d")}
                 {count > 0 ? (
-                  <span className={`absolute -right-7 bottom-0 text-xs whitespace-nowrap ${C.textBrand}`}>
+                  <span
+                    className={`absolute -right-7 bottom-0 text-xs whitespace-nowrap ${C.textBrand}`}
+                  >
                     {count}件
                   </span>
                 ) : null}
@@ -130,7 +142,9 @@ function WeekHeader({ startDate, appointmentsByDay, columnWidth }: WeekHeaderPro
 
 const TimeSidebar = memo(function TimeSidebar() {
   return (
-    <div className={`w-12 flex-shrink-0 flex flex-col ${C.bgPage} border-r ${C.borderMedium} z-30 sticky left-0`}>
+    <div
+      className={`w-12 flex-shrink-0 flex flex-col ${C.bgPage} border-r ${C.borderMedium} z-30 sticky left-0`}
+    >
       {HOURS.map((hour) => (
         <div
           key={hour}

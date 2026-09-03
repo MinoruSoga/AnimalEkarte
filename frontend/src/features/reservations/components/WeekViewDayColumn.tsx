@@ -12,7 +12,7 @@ import {
   HOUR_HEIGHT,
   HOURS,
   type ReservationTypeColor,
-} from "./week-view-grid-constants";
+} from "../lib/week-view-grid-constants";
 
 /** クリック位置から時刻を計算する際のスナップ単位（分） */
 const TIME_SLOT_SNAP_MINUTES = 15;

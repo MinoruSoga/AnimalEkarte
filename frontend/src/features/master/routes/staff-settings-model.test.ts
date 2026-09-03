@@ -5,7 +5,7 @@ import { normalizeKana } from "@/lib/normalize-kana";
 import type { Occupation } from "../api/occupations";
 import type { PermissionGroup } from "../api/permission-groups";
 import type { Staff } from "../api/staffs";
-import type { StaffFormData } from "../components/staff-side-panel-model";
+import type { StaffFormData } from "../lib/staff-side-panel-model";
 import {
   buildGroupsByStaffId,
   buildStaffCreateRequest,
@@ -17,9 +17,42 @@ import {
 } from "./staff-settings-model";
 
 const GROUPS = [
-  { id: "group-1", clinicId: "1", name: "診療", description: "", color: "", isActive: true, sortOrder: 1, rules: [], createdAt: "", updatedAt: "" },
-  { id: "group-2", clinicId: "1", name: "会計", description: "", color: "", isActive: true, sortOrder: 2, rules: [], createdAt: "", updatedAt: "" },
-  { id: "group-3", clinicId: "1", name: "管理", description: "", color: "", isActive: true, sortOrder: 3, rules: [], createdAt: "", updatedAt: "" },
+  {
+    id: "group-1",
+    clinicId: "1",
+    name: "診療",
+    description: "",
+    color: "",
+    isActive: true,
+    sortOrder: 1,
+    rules: [],
+    createdAt: "",
+    updatedAt: "",
+  },
+  {
+    id: "group-2",
+    clinicId: "1",
+    name: "会計",
+    description: "",
+    color: "",
+    isActive: true,
+    sortOrder: 2,
+    rules: [],
+    createdAt: "",
+    updatedAt: "",
+  },
+  {
+    id: "group-3",
+    clinicId: "1",
+    name: "管理",
+    description: "",
+    color: "",
+    isActive: true,
+    sortOrder: 3,
+    rules: [],
+    createdAt: "",
+    updatedAt: "",
+  },
 ] satisfies PermissionGroup[];
 
 const STAFF = {
@@ -78,8 +111,24 @@ describe("staff settings derived model", () => {
 
   it("職種filterはactive項目だけを元順序で公開する", () => {
     const occupations = [
-      { id: "occupation-1", name: "獣医師", description: "", isActive: true, sortOrder: 2, createdAt: "", updatedAt: "" },
-      { id: "occupation-2", name: "停止職種", description: "", isActive: false, sortOrder: 1, createdAt: "", updatedAt: "" },
+      {
+        id: "occupation-1",
+        name: "獣医師",
+        description: "",
+        isActive: true,
+        sortOrder: 2,
+        createdAt: "",
+        updatedAt: "",
+      },
+      {
+        id: "occupation-2",
+        name: "停止職種",
+        description: "",
+        isActive: false,
+        sortOrder: 1,
+        createdAt: "",
+        updatedAt: "",
+      },
     ] satisfies Occupation[];
 
     const properties = buildStaffFilterProperties(occupations);
@@ -98,7 +147,12 @@ describe("staff settings derived model", () => {
   it("statusとoccupationのis/is_notをANDで評価する", () => {
     const matches = [
       { key: "status", condition: "is", value: "active", displayValue: "有効" },
-      { key: "occupationId", condition: "is_not", value: "occupation-2", displayValue: "停止職種以外" },
+      {
+        key: "occupationId",
+        condition: "is_not",
+        value: "occupation-2",
+        displayValue: "停止職種以外",
+      },
     ] satisfies ActiveFilter[];
     const missesStatus = [
       { key: "status", condition: "is_not", value: "active", displayValue: "無効" },
@@ -125,15 +179,17 @@ describe("staff settings derived model", () => {
       reservation_comment: "合成コメント",
       reservation_image_url: "https://example.invalid/staff.png",
     });
-    expect(buildStaffUpdateRequest({
-      ...FORM_DATA,
-      jobTitleId: null,
-      licenseNumber: "",
-      password: "",
-      reservationDisplayName: "",
-      reservationComment: "",
-      reservationImageUrl: "",
-    })).toEqual({
+    expect(
+      buildStaffUpdateRequest({
+        ...FORM_DATA,
+        jobTitleId: null,
+        licenseNumber: "",
+        password: "",
+        reservationDisplayName: "",
+        reservationComment: "",
+        reservationImageUrl: "",
+      }),
+    ).toEqual({
       name: "合成スタッフ",
       license_number: undefined,
       is_active: false,

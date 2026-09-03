@@ -3,7 +3,13 @@ import { Scissors } from "lucide-react";
 
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import { MasterLink } from "@/components/shared/MasterLink";
@@ -12,7 +18,7 @@ import { MasterSelectTrigger } from "@/components/shared/MasterSelectModal/Maste
 import { C, ICON } from "@/lib/design-tokens";
 import { formatCurrency } from "@/lib/format/number";
 
-import type { TrimmingLeftColumnProps } from "./trimming-form-column-types";
+import type { TrimmingLeftColumnProps } from "../lib/trimming-form-column-types";
 import { TrimmingImageUploadField } from "./TrimmingImageUploadField";
 
 const INITIAL_STATUS_VALUES = ["in_consultation", "pending"] as const;
@@ -59,9 +65,7 @@ export const TrimmingLeftColumn = memo(function TrimmingLeftColumn({
             <SelectTrigger className="w-[160px]" aria-label="登録時ステータスを選択">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
-              {INITIAL_STATUS_ITEMS}
-            </SelectContent>
+            <SelectContent>{INITIAL_STATUS_ITEMS}</SelectContent>
           </Select>
         </div>
       ) : null}
@@ -73,7 +77,9 @@ export const TrimmingLeftColumn = memo(function TrimmingLeftColumn({
         </div>
         <MasterSelectTrigger
           id="courseId"
-          selectedItem={selectedCourse ? { name: selectedCourse.name, price: selectedCourse.price } : undefined}
+          selectedItem={
+            selectedCourse ? { name: selectedCourse.name, price: selectedCourse.price } : undefined
+          }
           placeholder="コースを選択"
           icon={<Scissors className={ICON.action} />}
           onClick={onCourseModalOpen}
@@ -90,7 +96,10 @@ export const TrimmingLeftColumn = memo(function TrimmingLeftColumn({
         onScheduleTypeChange={(value) => {
           const baseDate = formData.startTime.slice(0, 10);
           const calculated = calculateNextDate(baseDate, value);
-          onFormChange({ nextScheduleType: value, ...(calculated ? { nextDate: calculated } : {}) });
+          onFormChange({
+            nextScheduleType: value,
+            ...(calculated ? { nextDate: calculated } : {}),
+          });
         }}
         onNextDateChange={(value) => onFormChange({ nextDate: value, nextScheduleType: "other" })}
       />
@@ -132,11 +141,16 @@ export const TrimmingLeftColumn = memo(function TrimmingLeftColumn({
                     if (checked === true) {
                       onFormChange({ optionIds: [...formData.optionIds, option.id] });
                     } else if (checked === false) {
-                      onFormChange({ optionIds: formData.optionIds.filter((id) => id !== option.id) });
+                      onFormChange({
+                        optionIds: formData.optionIds.filter((id) => id !== option.id),
+                      });
                     }
                   }}
                 />
-                <label htmlFor={`option-${option.id}`} className={`text-sm ${C.text} cursor-pointer`}>
+                <label
+                  htmlFor={`option-${option.id}`}
+                  className={`text-sm ${C.text} cursor-pointer`}
+                >
                   {option.name}
                 </label>
                 {option.price != null ? (

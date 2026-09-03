@@ -44,26 +44,16 @@ function downloadCsv(blob: Blob, filename: string): void {
   URL.revokeObjectURL(url);
 }
 
-const TagOwnerListItem = memo(function TagOwnerListItem({
-  owner,
-}: {
-  owner: LstepTagOwner;
-}) {
+const TagOwnerListItem = memo(function TagOwnerListItem({ owner }: { owner: LstepTagOwner }) {
   return (
     <li
       className={`flex items-center justify-between px-4 py-3 ${C.hoverBgPageHalf} transition-colors`}
     >
       <div className="flex flex-col gap-0.5 min-w-0">
-        <span className={`text-sm font-medium ${C.text} truncate`}>
-          {owner.owner_name}
-        </span>
-        <span className={`text-xs ${C.text50}`}>
-          最終来院: {formatDate(owner.last_visit_date)}
-        </span>
+        <span className={`text-sm font-medium ${C.text} truncate`}>{owner.owner_name}</span>
+        <span className={`text-xs ${C.text50}`}>最終来院: {formatDate(owner.last_visit_date)}</span>
         {owner.reason ? (
-          <span className={`text-xs ${C.text50} truncate`}>
-            判定理由: {owner.reason}
-          </span>
+          <span className={`text-xs ${C.text50} truncate`}>判定理由: {owner.reason}</span>
         ) : null}
       </div>
       <Link
@@ -118,12 +108,8 @@ export function TagOwnerListDrawer({
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent side="right" className="w-full max-w-full sm:max-w-[480px] flex flex-col p-0">
           <SheetHeader className="px-4 py-4 pr-16 border-b shrink-0">
-            <SheetTitle className={`${C.text} text-base`}>
-              タグ「{tagName}」の対象者一覧
-            </SheetTitle>
-            <SheetDescription className={C.text50}>
-              {ownerCount}名
-            </SheetDescription>
+            <SheetTitle className={`${C.text} text-base`}>タグ「{tagName}」の対象者一覧</SheetTitle>
+            <SheetDescription className={C.text50}>{ownerCount}名</SheetDescription>
           </SheetHeader>
 
           {/* ツールバー */}
@@ -186,6 +172,7 @@ export function TagOwnerListDrawer({
           tagName={tagName}
           ownerCount={owners.length}
           ownerIds={owners.map((o) => o.owner_id)}
+          canDelete={canDelete}
         />
       ) : null}
     </>

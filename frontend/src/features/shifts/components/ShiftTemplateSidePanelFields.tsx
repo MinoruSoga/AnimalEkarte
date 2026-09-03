@@ -5,20 +5,26 @@ import X from "lucide-react/dist/esm/icons/x";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { C, ICON } from "@/lib/design-tokens";
 
 import { SHIFT_TYPE_LABELS, type ShiftType } from "../types";
-import type { TemplateFormData } from "./shift-template-form-model";
+import type { TemplateFormData } from "../lib/shift-template-form-model";
 
-const SHIFT_TYPE_OPTIONS = (
-  Object.entries(SHIFT_TYPE_LABELS) as [ShiftType, string][]
-).map(([value, label]) => (
-  <SelectItem key={value} value={value}>
-    {label}
-  </SelectItem>
-));
+const SHIFT_TYPE_OPTIONS = (Object.entries(SHIFT_TYPE_LABELS) as [ShiftType, string][]).map(
+  ([value, label]) => (
+    <SelectItem key={value} value={value}>
+      {label}
+    </SelectItem>
+  ),
+);
 
 interface ShiftTemplatePropertiesProps {
   formData: TemplateFormData;
@@ -178,9 +184,7 @@ function BreakEditor({
           ) : null}
         </div>
       ))}
-      {breaks.length === 0 ? (
-        <p className={`text-xs ${C.text40}`}>休憩なし</p>
-      ) : null}
+      {breaks.length === 0 ? <p className={`text-xs ${C.text40}`}>休憩なし</p> : null}
     </div>
   );
 }
@@ -190,7 +194,9 @@ function PropertyRow({ label, children }: { label: string; children: ReactNode }
     <div
       className={`flex gap-2 py-2 px-2 -mx-2 rounded-xxs ${C.hoverBgLight} transition-colors min-h-[40px]`}
     >
-      <div className={`w-[120px] shrink-0 text-sm ${C.text65} select-none truncate flex items-center`}>
+      <div
+        className={`w-[120px] shrink-0 text-sm ${C.text65} select-none truncate flex items-center`}
+      >
         {label}
       </div>
       <div className="flex-1 flex items-center">{children}</div>

@@ -3,7 +3,7 @@ import { C, STYLE } from "@/lib/design-tokens";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/format/number";
-import { PERIOD_OPTIONS, PERIOD_LABELS, type CashRegisterPeriod } from "../constants";
+import { PERIOD_OPTIONS, PERIOD_LABELS, type CashRegisterPeriod } from "../lib/constants";
 import { UnifiedClosingSummaryTable } from "./UnifiedClosingSummaryTable";
 import { CashReconciliationCard } from "./CashReconciliationCard";
 import { BillingDetailTable } from "./BillingDetailTable";
@@ -85,34 +85,28 @@ function CashRegisterCloseTaxBreakdown({ taxBreakdown }: CashRegisterCloseTaxBre
           <p className={`text-xs ${C.text40} mb-1`}>標準税率（10%）</p>
           <div className="flex justify-between text-sm py-1">
             <span className={C.text60}>課税対象額</span>
-            <span className={C.text}>
-              {formatCurrency(taxBreakdown.standard.taxableAmount)}
-            </span>
+            <span className={C.text}>{formatCurrency(taxBreakdown.standard.taxableAmount)}</span>
           </div>
           <div className="flex justify-between text-sm py-1">
             <span className={C.text60}>消費税額</span>
-            <span className={C.text}>
-              {formatCurrency(taxBreakdown.standard.taxAmount)}
-            </span>
+            <span className={C.text}>{formatCurrency(taxBreakdown.standard.taxAmount)}</span>
           </div>
         </div>
         <div>
           <p className={`text-xs ${C.text40} mb-1`}>軽減税率（8%）</p>
           <div className="flex justify-between text-sm py-1">
             <span className={C.text60}>課税対象額</span>
-            <span className={C.text}>
-              {formatCurrency(taxBreakdown.reduced.taxableAmount)}
-            </span>
+            <span className={C.text}>{formatCurrency(taxBreakdown.reduced.taxableAmount)}</span>
           </div>
           <div className="flex justify-between text-sm py-1">
             <span className={C.text60}>消費税額</span>
-            <span className={C.text}>
-              {formatCurrency(taxBreakdown.reduced.taxAmount)}
-            </span>
+            <span className={C.text}>{formatCurrency(taxBreakdown.reduced.taxAmount)}</span>
           </div>
         </div>
       </div>
-      <div className={`mt-3 pt-3 border-t ${C.borderLight} flex justify-between text-sm font-medium max-w-lg`}>
+      <div
+        className={`mt-3 pt-3 border-t ${C.borderLight} flex justify-between text-sm font-medium max-w-lg`}
+      >
         <span className={C.text70}>消費税合計</span>
         <span className={C.text}>
           {formatCurrency(taxBreakdown.standard.taxAmount + taxBreakdown.reduced.taxAmount)}
@@ -191,7 +185,9 @@ function CashRegisterCloseExecuteForm({
           <Button type="button" variant="outline" onClick={onCancel}>
             キャンセル
           </Button>
-          <SubmitButton colorVariant="primary" loadingText="締め中...">締める</SubmitButton>
+          <SubmitButton colorVariant="primary" loadingText="締め中...">
+            締める
+          </SubmitButton>
         </div>
       </form>
     </section>

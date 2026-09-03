@@ -4,7 +4,11 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 import type { TrimmingFormData } from "@/types/trimming";
-import { TrimmingLeftColumn, TrimmingRightColumn, type TrimmingHistoryItem } from "./trimming-form-columns";
+import {
+  TrimmingLeftColumn,
+  TrimmingRightColumn,
+  type TrimmingHistoryItem,
+} from "../lib/trimming-form-columns";
 
 const baseFormData: TrimmingFormData = {
   reservationTypeId: "",

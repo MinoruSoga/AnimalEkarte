@@ -5,14 +5,20 @@ import { toast } from "sonner";
 import { MasterSidePanel, PropertyRow, StatusToggleButton } from "@/components/shared/SidePeek";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { C, LAYOUT } from "@/lib/design-tokens";
 import { normalizeKana } from "@/lib/normalize-kana";
 
 import type { Campaign, CampaignDiscountType } from "../api/campaign";
 import { useGetAllMerchandiseItems } from "../api/merchandise-items";
 import { useMasterSidePanelForm } from "../hooks/use-master-side-panel-form";
-import { campaignToFormData, type CampaignFormData } from "./campaign-side-panel-model";
+import { campaignToFormData, type CampaignFormData } from "../lib/campaign-side-panel-model";
 
 // item_category に対応する対象カテゴリの選択肢
 const CATEGORY_OPTIONS: { value: string; label: string }[] = [
@@ -31,9 +37,7 @@ const CATEGORY_OPTIONS: { value: string; label: string }[] = [
 ];
 
 function toggleSelection(values: string[], value: string): string[] {
-  return values.includes(value)
-    ? values.filter((item) => item !== value)
-    : [...values, value];
+  return values.includes(value) ? values.filter((item) => item !== value) : [...values, value];
 }
 
 interface CampaignSidePanelProps {
@@ -56,55 +60,69 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
   const [nameError, setNameError] = useState("");
   const [periodError, setPeriodError] = useState("");
 
-  const { formData, setFormData: setFormDataDirty, isDirty, setIsDirty, handleAction } =
-    useMasterSidePanelForm<CampaignFormData>({
-      initialFormData: campaignToFormData(item),
-      onSave,
-      onDirtyChange,
-      validate: (data) => {
-        if (!data.name.trim()) {
-          setNameError("名称を入力してください");
-          toast.error("名称を入力してください");
-          return false;
-        }
-        if (!data.startDate || !data.endDate) {
-          setPeriodError("開始日・終了日を入力してください");
-          toast.error("開始日・終了日を入力してください");
-          return false;
-        }
-        if (data.endDate < data.startDate) {
-          setPeriodError("終了日は開始日以降にしてください");
-          toast.error("終了日は開始日以降にしてください");
-          return false;
-        }
-        setNameError("");
-        setPeriodError("");
-        return true;
-      },
-    });
+  const {
+    formData,
+    setFormData: setFormDataDirty,
+    isDirty,
+    setIsDirty,
+    handleAction,
+  } = useMasterSidePanelForm<CampaignFormData>({
+    initialFormData: campaignToFormData(item),
+    onSave,
+    onDirtyChange,
+    validate: (data) => {
+      if (!data.name.trim()) {
+        setNameError("名称を入力してください");
+        toast.error("名称を入力してください");
+        return false;
+      }
+      if (!data.startDate || !data.endDate) {
+        setPeriodError("開始日・終了日を入力してください");
+        toast.error("開始日・終了日を入力してください");
+        return false;
+      }
+      if (data.endDate < data.startDate) {
+        setPeriodError("終了日は開始日以降にしてください");
+        toast.error("終了日は開始日以降にしてください");
+        return false;
+      }
+      setNameError("");
+      setPeriodError("");
+      return true;
+    },
+  });
 
-  const handleTitleChange = useCallback((value: string) => {
-    setFormDataDirty((prev) => ({ ...prev, name: value }));
-    if (value.trim()) setNameError("");
-  }, [setFormDataDirty]);
+  const handleTitleChange = useCallback(
+    (value: string) => {
+      setFormDataDirty((prev) => ({ ...prev, name: value }));
+      if (value.trim()) setNameError("");
+    },
+    [setFormDataDirty],
+  );
 
   const handleToggleActive = useCallback(() => {
     setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }));
   }, [setFormDataDirty]);
 
-  const toggleCategory = useCallback((cat: string) => {
-    setFormDataDirty((prev) => ({
-      ...prev,
-      targetCategories: toggleSelection(prev.targetCategories, cat),
-    }));
-  }, [setFormDataDirty]);
+  const toggleCategory = useCallback(
+    (cat: string) => {
+      setFormDataDirty((prev) => ({
+        ...prev,
+        targetCategories: toggleSelection(prev.targetCategories, cat),
+      }));
+    },
+    [setFormDataDirty],
+  );
 
-  const toggleItem = useCallback((id: string) => {
-    setFormDataDirty((prev) => ({
-      ...prev,
-      targetItemIds: toggleSelection(prev.targetItemIds, id),
-    }));
-  }, [setFormDataDirty]);
+  const toggleItem = useCallback(
+    (id: string) => {
+      setFormDataDirty((prev) => ({
+        ...prev,
+        targetItemIds: toggleSelection(prev.targetItemIds, id),
+      }));
+    },
+    [setFormDataDirty],
+  );
 
   const { data: merchandiseItems = [] } = useGetAllMerchandiseItems();
   const [merchandiseSearch, setMerchandiseSearch] = useState("");
@@ -160,7 +178,9 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
         <Select
           value={formData.discountType}
           disabled={readOnly}
-          onValueChange={(v) => setFormDataDirty((prev) => ({ ...prev, discountType: v as CampaignDiscountType }))}
+          onValueChange={(v) =>
+            setFormDataDirty((prev) => ({ ...prev, discountType: v as CampaignDiscountType }))
+          }
         >
           <SelectTrigger aria-label="割引種別">
             <SelectValue />
@@ -179,7 +199,12 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
           aria-label={formData.discountType === "rate" ? "割引率(%)" : "割引額(円)"}
           value={formData.discountValue}
           disabled={readOnly}
-          onChange={(e) => setFormDataDirty((prev) => ({ ...prev, discountValue: Math.max(0, Number(e.target.value) || 0) }))}
+          onChange={(e) =>
+            setFormDataDirty((prev) => ({
+              ...prev,
+              discountValue: Math.max(0, Number(e.target.value) || 0),
+            }))
+          }
         />
       </PropertyRow>
       <PropertyRow label="対象カテゴリ">

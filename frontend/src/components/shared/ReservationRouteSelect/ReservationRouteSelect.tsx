@@ -11,7 +11,7 @@ import {
   RESERVATION_ROUTE_VALUES,
   type ReservationRoute,
 } from "@/types/reservation-route";
-import { useUpdateReservationRoute } from "@/hooks/use-update-reservation-route";
+import { useUpdateReservationRoute } from "./hooks/use-update-reservation-route";
 
 interface ReservationRouteSelectProps {
   reservationId: string;
@@ -55,9 +55,7 @@ export function ReservationRouteSelect({
               {RESERVATION_ROUTE_LABELS[v]}
             </SelectItem>
           ))}
-          {value !== null ? (
-            <SelectItem value="_clear">クリア</SelectItem>
-          ) : null}
+          {value !== null ? <SelectItem value="_clear">クリア</SelectItem> : null}
         </SelectContent>
       </Select>
     </div>

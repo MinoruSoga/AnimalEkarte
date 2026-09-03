@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  parseVitalsNumber,
-  toggleWeightValueAndUnit,
-} from "./vitals-tab-table-model";
+import { parseVitalsNumber, toggleWeightValueAndUnit } from "../../lib/vitals-tab-table-model";
 
 describe("toggleWeightValueAndUnit", () => {
   it("converts 5 Kg to 5000 g and back without changing physical mass", () => {

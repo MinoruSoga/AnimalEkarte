@@ -1,4 +1,5 @@
-import { useState, useTransition } from "react";
+import { useLayoutEffect, useRef, useState, useTransition } from "react";
+import { toast } from "sonner";
 
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { extractApiErrorMessage } from "@/lib/handle-api-error";
@@ -20,6 +21,7 @@ import {
 } from "./use-identity-link-mutations";
 
 const SEARCH_DEBOUNCE_MS = 300;
+const PERMISSION_DENIED_MESSAGE = "この操作を行う権限がありません";
 
 function sameOwner(a: OwnerSearchItem, b: { clinic_id: number; owner_id: number }): boolean {
   return a.clinic_id === b.clinic_id && a.owner_id === b.owner_id;
@@ -35,6 +37,11 @@ function samePet(a: PetSearchItem, b: { clinic_id: number; pet_id: number }): bo
  * 呼び出し元（IdentityLinksPage）が担う。
  */
 export function useIdentityLinksWorkbench(canEdit: boolean) {
+  const canEditRef = useRef(canEdit);
+  useLayoutEffect(() => {
+    canEditRef.current = canEdit;
+  }, [canEdit]);
+
   const [ownerQuery, setOwnerQuery] = useState("");
   const [petQuery, setPetQuery] = useState("");
   const debouncedOwnerQuery = useDebouncedValue(ownerQuery, SEARCH_DEBOUNCE_MS).trim();
@@ -51,7 +58,8 @@ export function useIdentityLinksWorkbench(canEdit: boolean) {
 
   // ペットリンクの親飼主グループが未確定なら、ペット逆引きで判明した owner_group_id を補完に使う。
   // 飼主側セッションを優先し、異なる id で上書きしない。
-  const effectiveOwnerGroupId = ownerGroupLookup.sessionGroupId ?? petGroupLookup.sessionOwnerGroupId;
+  const effectiveOwnerGroupId =
+    ownerGroupLookup.sessionGroupId ?? petGroupLookup.sessionOwnerGroupId;
 
   const [historyText, setHistoryText] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
@@ -85,11 +93,24 @@ export function useIdentityLinksWorkbench(canEdit: boolean) {
     );
   };
 
+  const denyUnlessCanEdit = (): boolean => {
+    if (canEditRef.current === true) return true;
+    toast.error(PERMISSION_DENIED_MESSAGE);
+    setActionError(PERMISSION_DENIED_MESSAGE);
+    return false;
+  };
+
   const onLinkOwners = () => {
-    if (!canEdit || selectedOwners.length < 2) return;
+    if (selectedOwners.length < 2) return;
+    if (!denyUnlessCanEdit()) return;
     setActionError(null);
     startTransition(async () => {
       try {
+        if (canEditRef.current !== true) {
+          toast.error(PERMISSION_DENIED_MESSAGE);
+          setActionError(PERMISSION_DENIED_MESSAGE);
+          return;
+        }
         await createOwnerLink.mutateAsync(
           selectedOwners.map((o) => ({ clinic_id: o.clinic_id, owner_id: o.owner_id })),
         );
@@ -101,10 +122,16 @@ export function useIdentityLinksWorkbench(canEdit: boolean) {
 
   const onUnlinkOwner = (item: OwnerSearchItem) => {
     const groupId = resolveOwnerGroupId(item);
-    if (!canEdit || groupId == null) return;
+    if (groupId == null) return;
+    if (!denyUnlessCanEdit()) return;
     setActionError(null);
     startTransition(async () => {
       try {
+        if (canEditRef.current !== true) {
+          toast.error(PERMISSION_DENIED_MESSAGE);
+          setActionError(PERMISSION_DENIED_MESSAGE);
+          return;
+        }
         await unlinkOwnerMember.mutateAsync({
           groupId,
           member: { clinic_id: item.clinic_id, owner_id: item.owner_id },
@@ -117,10 +144,16 @@ export function useIdentityLinksWorkbench(canEdit: boolean) {
   };
 
   const onLinkPets = () => {
-    if (!canEdit || effectiveOwnerGroupId == null || selectedPets.length < 2) return;
+    if (effectiveOwnerGroupId == null || selectedPets.length < 2) return;
+    if (!denyUnlessCanEdit()) return;
     setActionError(null);
     startTransition(async () => {
       try {
+        if (canEditRef.current !== true) {
+          toast.error(PERMISSION_DENIED_MESSAGE);
+          setActionError(PERMISSION_DENIED_MESSAGE);
+          return;
+        }
         await createPetLink.mutateAsync({
           ownerGroupId: effectiveOwnerGroupId,
           members: selectedPets.map((p) => ({ clinic_id: p.clinic_id, pet_id: p.pet_id })),
@@ -133,10 +166,16 @@ export function useIdentityLinksWorkbench(canEdit: boolean) {
 
   const onUnlinkPet = (item: PetSearchItem) => {
     const groupId = resolvePetGroupId(item);
-    if (!canEdit || groupId == null) return;
+    if (groupId == null) return;
+    if (!denyUnlessCanEdit()) return;
     setActionError(null);
     startTransition(async () => {
       try {
+        if (canEditRef.current !== true) {
+          toast.error(PERMISSION_DENIED_MESSAGE);
+          setActionError(PERMISSION_DENIED_MESSAGE);
+          return;
+        }
         await unlinkPetMember.mutateAsync({
           groupId,
           member: { clinic_id: item.clinic_id, pet_id: item.pet_id },

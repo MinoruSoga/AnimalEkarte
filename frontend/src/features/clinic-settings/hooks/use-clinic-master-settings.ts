@@ -1,4 +1,14 @@
-import { useActionState, useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
+import {
+  useActionState,
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 
@@ -13,7 +23,7 @@ import {
   clinicToFormData,
   filterClinics,
   type ClinicFormData,
-} from "../components/clinic-master-settings-model";
+} from "../lib/clinic-master-settings-model";
 import {
   useCreateClinic,
   useDeleteClinic,
@@ -84,7 +94,7 @@ export function useClinicMasterSettings() {
         return { success: false, timestamp: Date.now() };
       }
     },
-    { success: false, timestamp: 0 }
+    { success: false, timestamp: 0 },
   );
 
   useEffect(() => {

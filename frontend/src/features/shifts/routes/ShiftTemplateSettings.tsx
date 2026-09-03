@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 
@@ -14,17 +14,24 @@ import { useGetShiftTemplates } from "../api/get-shift-templates";
 import { useReorderShiftTemplates } from "../api/reorder-shift-templates";
 import { useUpdateShiftTemplate } from "../api/update-shift-template";
 import { ShiftTemplateSettingsWorkspace } from "../components/ShiftTemplateSettingsWorkspace";
-import type { TemplateFormData } from "../components/shift-template-form-model";
-import { filterShiftTemplates } from "../components/shift-template-table-model";
+import type { TemplateFormData } from "../lib/shift-template-form-model";
+import { filterShiftTemplates } from "../lib/shift-template-table-model";
 import {
   toShiftTemplateCreateInput,
   toShiftTemplateUpdateInput,
-} from "../components/shift-template-write-model";
+} from "../lib/shift-template-write-model";
 import type { ShiftTemplate } from "../types";
+
+const PERMISSION_DENIED_MESSAGE = "この操作を行う権限がありません";
+const SAVE_PERMISSION_DENIED_MESSAGE = "シフトテンプレートを保存する権限がありません";
 
 export function ShiftTemplateSettings() {
   const navigate = useNavigate();
   const { canCreate, canEdit, canDelete } = usePermission(ResourceShifts);
+  const permissionsRef = useRef({ canCreate, canEdit, canDelete });
+  useLayoutEffect(() => {
+    permissionsRef.current = { canCreate, canEdit, canDelete };
+  }, [canCreate, canEdit, canDelete]);
   const { data: templates = [] } = useGetShiftTemplates();
   const { mutate: createTemplate, isPending: isCreatePending } = useCreateShiftTemplate();
   const { mutate: updateTemplate, isPending: isUpdatePending } = useUpdateShiftTemplate();
@@ -49,7 +56,10 @@ export function ShiftTemplateSettings() {
   const { orderedItems, sensors, handleDragEnd } = useSortableList({
     items: templates,
     onReorder: (newIds) => {
-      if (!canEdit) return;
+      if (permissionsRef.current.canEdit !== true) {
+        toast.error(PERMISSION_DENIED_MESSAGE);
+        return;
+      }
       reorderMutation.mutate(newIds.map(Number));
     },
   });
@@ -67,12 +77,15 @@ export function ShiftTemplateSettings() {
     });
   }, [canCreate, dirty]);
 
-  const handleEdit = useCallback((item: ShiftTemplate) => {
-    dirty.runWithDiscardCheck(() => {
-      setSelectedItem(item);
-      setIsEditing(true);
-    });
-  }, [dirty]);
+  const handleEdit = useCallback(
+    (item: ShiftTemplate) => {
+      dirty.runWithDiscardCheck(() => {
+        setSelectedItem(item);
+        setIsEditing(true);
+      });
+    },
+    [dirty],
+  );
 
   const handleClose = useCallback(() => {
     dirty.runWithDiscardCheck(() => {
@@ -81,43 +94,50 @@ export function ShiftTemplateSettings() {
     });
   }, [dirty]);
 
-  const handleSave = useCallback((formData: TemplateFormData) => {
-    const canSave = selectedItem !== null ? canEdit : canCreate;
-    if (!canSave) {
-      toast.error("シフトテンプレートを保存する権限がありません");
-      return;
-    }
+  const handleSave = useCallback(
+    (formData: TemplateFormData) => {
+      const canSave =
+        selectedItem !== null
+          ? permissionsRef.current.canEdit === true
+          : permissionsRef.current.canCreate === true;
+      if (!canSave) {
+        toast.error(SAVE_PERMISSION_DENIED_MESSAGE);
+        return;
+      }
 
-    if (selectedItem !== null) {
-      updateTemplate(
-        {
-          id: selectedItem.id,
-          input: toShiftTemplateUpdateInput(formData),
-        },
-        {
-          onSuccess: () => {
-            toast.success("テンプレートを更新しました");
-            dirty.markClean();
-            handleClose();
+      if (selectedItem !== null) {
+        updateTemplate(
+          {
+            id: selectedItem.id,
+            input: toShiftTemplateUpdateInput(formData),
           },
-        },
-      );
-    } else {
-      createTemplate(
-        toShiftTemplateCreateInput(formData),
-        {
+          {
+            onSuccess: () => {
+              toast.success("テンプレートを更新しました");
+              dirty.markClean();
+              handleClose();
+            },
+          },
+        );
+      } else {
+        createTemplate(toShiftTemplateCreateInput(formData), {
           onSuccess: () => {
             toast.success("テンプレートを作成しました");
             dirty.markClean();
             handleClose();
           },
-        },
-      );
-    }
-  }, [selectedItem, canEdit, canCreate, createTemplate, updateTemplate, handleClose, dirty]);
+        });
+      }
+    },
+    [selectedItem, createTemplate, updateTemplate, handleClose, dirty],
+  );
 
   const handleDeleteConfirm = useCallback(() => {
-    if (!canDelete || !pendingDelete) return;
+    if (permissionsRef.current.canDelete !== true) {
+      toast.error(PERMISSION_DENIED_MESSAGE);
+      return;
+    }
+    if (!pendingDelete) return;
     deleteTemplate(pendingDelete.id, {
       onSuccess: () => {
         toast.success("テンプレートを削除しました");
@@ -128,7 +148,7 @@ export function ShiftTemplateSettings() {
         }
       },
     });
-  }, [canDelete, pendingDelete, deleteTemplate, selectedItem, handleClose, dirty]);
+  }, [pendingDelete, deleteTemplate, selectedItem, handleClose, dirty]);
 
   return (
     <ShiftTemplateSettingsWorkspace
@@ -148,9 +168,13 @@ export function ShiftTemplateSettings() {
       selectedItem={selectedItem}
       onClose={handleClose}
       onSave={handleSave}
-      onDeleteRequest={canDelete ? () => {
-        if (selectedItem) setPendingDelete(selectedItem);
-      } : undefined}
+      onDeleteRequest={
+        canDelete
+          ? () => {
+              if (selectedItem) setPendingDelete(selectedItem);
+            }
+          : undefined
+      }
       isSaving={isCreatePending || isUpdatePending}
       isPanelReadOnly={selectedItem !== null ? !canEdit : !canCreate}
       onDirtyChange={handleDirtyChange}

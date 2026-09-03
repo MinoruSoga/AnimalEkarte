@@ -1,13 +1,19 @@
 import type { Dispatch, SetStateAction } from "react";
 import { MessageCircle } from "lucide-react";
 
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { PropertyRow } from "@/components/shared/SidePeek";
 import { C, ICON, PALETTE, STYLE } from "@/lib/design-tokens";
 
 import { MASTER_INPUT_CLASS } from "../constants/styles";
-import type { StaffFormData } from "./staff-side-panel-model";
+import type { StaffFormData } from "../lib/staff-side-panel-model";
 
 const STAFF_TYPE_SELECT_ITEMS = (
   <>
@@ -39,7 +45,9 @@ export function StaffLineReservationSection({
           aria-label="LINE表示名"
           className={MASTER_INPUT_CLASS}
           value={formData.reservationDisplayName}
-          onChange={(event) => setFormDataDirty((prev) => ({ ...prev, reservationDisplayName: event.target.value }))}
+          onChange={(event) =>
+            setFormDataDirty((prev) => ({ ...prev, reservationDisplayName: event.target.value }))
+          }
           placeholder={formData.name || "空欄なら氏名を使用"}
         />
       </PropertyRow>
@@ -47,7 +55,9 @@ export function StaffLineReservationSection({
       <PropertyRow label="予約ページに表示">
         <Switch
           checked={formData.reservationVisible}
-          onCheckedChange={(value) => setFormDataDirty((prev) => ({ ...prev, reservationVisible: value }))}
+          onCheckedChange={(value) =>
+            setFormDataDirty((prev) => ({ ...prev, reservationVisible: value }))
+          }
         />
       </PropertyRow>
 
@@ -69,7 +79,9 @@ export function StaffLineReservationSection({
           aria-label="LINE説明文"
           className={MASTER_INPUT_CLASS}
           value={formData.reservationComment}
-          onChange={(event) => setFormDataDirty((prev) => ({ ...prev, reservationComment: event.target.value }))}
+          onChange={(event) =>
+            setFormDataDirty((prev) => ({ ...prev, reservationComment: event.target.value }))
+          }
           placeholder="LINE予約画面に表示する説明"
         />
       </PropertyRow>
@@ -80,7 +92,9 @@ export function StaffLineReservationSection({
           aria-label="画像URL"
           className={MASTER_INPUT_CLASS}
           value={formData.reservationImageUrl}
-          onChange={(event) => setFormDataDirty((prev) => ({ ...prev, reservationImageUrl: event.target.value }))}
+          onChange={(event) =>
+            setFormDataDirty((prev) => ({ ...prev, reservationImageUrl: event.target.value }))
+          }
           placeholder="https://..."
         />
       </PropertyRow>

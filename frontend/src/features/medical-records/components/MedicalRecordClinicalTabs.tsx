@@ -4,7 +4,7 @@ import { MedicalRecordTreatment } from "./MedicalRecordTreatment";
 import { NextVisitDateField } from "./NextVisitDateField";
 import { RecommendationReasonSelect } from "./RecommendationReasonSelect";
 import { MedicalRecordMountedTab } from "./MedicalRecordTabsShared";
-import type { MedicalRecordTabsAreaProps } from "./medical-record-tabs-types";
+import type { MedicalRecordTabsAreaProps } from "../lib/medical-record-tabs-types";
 
 export function MedicalRecordClinicalTabs({
   activeTab,
@@ -46,7 +46,12 @@ export function MedicalRecordClinicalTabs({
 }: MedicalRecordTabsAreaProps & { isFinalized: boolean }) {
   return (
     <>
-      <MedicalRecordMountedTab tab="問診" activeTab={activeTab} mountedTabs={mountedTabs} contentClassName="min-h-0 flex flex-col">
+      <MedicalRecordMountedTab
+        tab="問診"
+        activeTab={activeTab}
+        mountedTabs={mountedTabs}
+        contentClassName="min-h-0 flex flex-col"
+      >
         <MedicalRecordInterview
           chiefComplaint={chiefComplaint}
           setChiefComplaint={onChiefComplaintChange}
@@ -58,7 +63,11 @@ export function MedicalRecordClinicalTabs({
           isFinalized={isFinalized}
         />
       </MedicalRecordMountedTab>
-      <MedicalRecordMountedTab tab="診察/治療プラン" activeTab={activeTab} mountedTabs={mountedTabs}>
+      <MedicalRecordMountedTab
+        tab="診察/治療プラン"
+        activeTab={activeTab}
+        mountedTabs={mountedTabs}
+      >
         <MedicalRecordDiagnosisPlan
           isNewRecord={isNewRecord}
           chiefComplaint={chiefComplaint}

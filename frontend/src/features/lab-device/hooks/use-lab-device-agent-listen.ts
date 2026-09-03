@@ -75,11 +75,17 @@ export function useLabDeviceAgentListen(input: {
     status: LabDeviceAgentListenStatus;
   }>({ clinicId: null, status: disconnectedStatus });
   const onFrameRef = useRef(input.onFrame);
+  const enabledRef = useRef(input.enabled);
   useLayoutEffect(() => {
     onFrameRef.current = input.onFrame;
   }, [input.onFrame]);
+  useLayoutEffect(() => {
+    enabledRef.current = input.enabled;
+  }, [input.enabled]);
   const client = useMemo(
-    () => input.client ?? (input.consumerToken ? createLabDeviceAgentClient(input.consumerToken) : undefined),
+    () =>
+      input.client ??
+      (input.consumerToken ? createLabDeviceAgentClient(input.consumerToken) : undefined),
     [input.client, input.consumerToken],
   );
 
@@ -105,7 +111,12 @@ export function useLabDeviceAgentListen(input: {
         const drained = await drainLabDeviceAgentFrames({
           client,
           signal: controller.signal,
-          receive: (frame) => onFrameRef.current(frame),
+          receive: (frame) => {
+            if (enabledRef.current !== true) {
+              return Promise.resolve();
+            }
+            return onFrameRef.current(frame);
+          },
         });
         if (drained.retryableFailure) {
           retryInterval = Math.min(retryInterval * 2, MAX_RETRY_INTERVAL_MS);
@@ -133,5 +144,7 @@ export function useLabDeviceAgentListen(input: {
     };
   }, [client, input.clinicId, input.enabled]);
 
-  return input.enabled && snapshot.clinicId === input.clinicId ? snapshot.status : disconnectedStatus;
+  return input.enabled && snapshot.clinicId === input.clinicId
+    ? snapshot.status
+    : disconnectedStatus;
 }

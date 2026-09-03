@@ -1,6 +1,6 @@
 import { toast } from "sonner";
 import type { ExaminationMutationPermissions } from "./use-examination-form-model";
-import { UNCONFIRM_REASON_MAX_LENGTH } from "../constants";
+import { UNCONFIRM_REASON_MAX_LENGTH } from "../lib/constants";
 
 export function createExaminationUnconfirmHandler(input: {
   isEdit: boolean;

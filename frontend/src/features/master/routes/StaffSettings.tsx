@@ -7,13 +7,10 @@ import { MASTER_TABLE_COL } from "../constants/styles";
 import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
 import { usePermission } from "@/hooks/use-permission";
-import {
-  validateOptionalEmail,
-  validateOptionalPassword,
-} from "@/lib/validate-credentials";
+import { validateOptionalEmail, validateOptionalPassword } from "@/lib/validate-credentials";
 import { MasterCRUDPage } from "../components/MasterCRUDPage";
 import { StaffSidePanel } from "../components/StaffSidePanel";
-import type { StaffFormData } from "../components/staff-side-panel-model";
+import type { StaffFormData } from "../lib/staff-side-panel-model";
 import { StaffSettingsRow } from "../components/StaffSettingsRow";
 import {
   useCreateStaff,
@@ -66,9 +63,20 @@ export function StaffSettings() {
     dirtyGuard: dirty,
     permissions: { canDelete },
   });
-  const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
+  const handleDirtyChange = useCallback(
+    (d: boolean) => {
+      if (d) dirty.markDirty();
+      else dirty.markClean();
+    },
+    [dirty],
+  );
 
-  const { handleSave } = useMasterSave<Staff, StaffFormData, CreateStaffRequest, UpdateStaffRequest>({
+  const { handleSave } = useMasterSave<
+    Staff,
+    StaffFormData,
+    CreateStaffRequest,
+    UpdateStaffRequest
+  >({
     crud,
     createMutation,
     updateMutation,
@@ -118,45 +126,45 @@ export function StaffSettings() {
 
   return (
     <>
-    <MasterCRUDPage
-      title="スタッフマスタ"
-      icon={<UserRound className={`${ICON.page} ${C.text}`} />}
-      resource={ResourceMasterStaff}
-      entityLabel="スタッフ"
-      searchPlaceholder="氏名、職種で検索..."
-      emptyMessage="スタッフが登録されていません"
-      crud={crud}
-      handleSave={handleSave}
-      columns={COLUMNS}
-      filterProperties={lookups.staffFilterProperties}
-      renderRow={(item, onEdit, rowCanEdit) => (
-        <StaffSettingsRow
-          item={item}
-          groups={lookups.groupsByStaffId.get(item.id) ?? []}
-          onEdit={onEdit}
-          canEdit={rowCanEdit}
-        />
-      )}
-      renderSidePanel={({ item, onClose, onSave, onDeleteRequest, readOnly }) => (
-        <StaffSidePanel
-          key={item?.id ?? "new"}
-          item={item}
-          onClose={onClose}
-          onSave={onSave}
-          onDeleteRequest={onDeleteRequest}
-          readOnly={readOnly}
-          onDirtyChange={handleDirtyChange}
-          allOccupations={lookups.allOccupations}
-          allGroups={lookups.allGroups}
-          onSaveGroups={handleSaveGroups}
-          allClinics={lookups.allClinics}
-          onSaveClinics={handleSaveClinics}
-          allReservationTypes={lookups.allReservationTypes}
-          onSaveCapableReservationTypes={handleSaveCapableReservationTypes}
-        />
-      )}
-    />
-    {dirty.discardDialog}
+      <MasterCRUDPage
+        title="スタッフマスタ"
+        icon={<UserRound className={`${ICON.page} ${C.text}`} />}
+        resource={ResourceMasterStaff}
+        entityLabel="スタッフ"
+        searchPlaceholder="氏名、職種で検索..."
+        emptyMessage="スタッフが登録されていません"
+        crud={crud}
+        handleSave={handleSave}
+        columns={COLUMNS}
+        filterProperties={lookups.staffFilterProperties}
+        renderRow={(item, onEdit, rowCanEdit) => (
+          <StaffSettingsRow
+            item={item}
+            groups={lookups.groupsByStaffId.get(item.id) ?? []}
+            onEdit={onEdit}
+            canEdit={rowCanEdit}
+          />
+        )}
+        renderSidePanel={({ item, onClose, onSave, onDeleteRequest, readOnly }) => (
+          <StaffSidePanel
+            key={item?.id ?? "new"}
+            item={item}
+            onClose={onClose}
+            onSave={onSave}
+            onDeleteRequest={onDeleteRequest}
+            readOnly={readOnly}
+            onDirtyChange={handleDirtyChange}
+            allOccupations={lookups.allOccupations}
+            allGroups={lookups.allGroups}
+            onSaveGroups={handleSaveGroups}
+            allClinics={lookups.allClinics}
+            onSaveClinics={handleSaveClinics}
+            allReservationTypes={lookups.allReservationTypes}
+            onSaveCapableReservationTypes={handleSaveCapableReservationTypes}
+          />
+        )}
+      />
+      {dirty.discardDialog}
     </>
   );
 }

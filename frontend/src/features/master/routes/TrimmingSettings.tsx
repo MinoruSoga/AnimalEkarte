@@ -10,10 +10,7 @@ import { TrimmingDeleteDialogs } from "../components/TrimmingDeleteDialogs";
 import { TrimmingSettingsSidePanels } from "../components/TrimmingSettingsSidePanels";
 import { TrimmingCourseTab, TrimmingOptionTab } from "../components/TrimmingTabs";
 import { MasterTabPage } from "../components/MasterTabPage";
-import type {
-  CourseFormData,
-  OptionFormData,
-} from "../components/trimming-side-panel-model";
+import type { CourseFormData, OptionFormData } from "../lib/trimming-side-panel-model";
 import {
   useCreateTrimmingCourse,
   useCreateTrimmingOption,
@@ -48,10 +45,13 @@ export function TrimmingSettings() {
   const deleteOptionMutation = useDeleteTrimmingOption();
 
   const dirty = useSidePeekDirty();
-  const handleDirtyChange = useCallback((isDirty: boolean) => {
-    if (isDirty) dirty.markDirty();
-    else dirty.markClean();
-  }, [dirty]);
+  const handleDirtyChange = useCallback(
+    (isDirty: boolean) => {
+      if (isDirty) dirty.markDirty();
+      else dirty.markClean();
+    },
+    [dirty],
+  );
 
   const courseCrud = useMasterCRUD<TrimmingCourse>({
     data: undefined,
@@ -74,15 +74,25 @@ export function TrimmingSettings() {
   const optionSetEditTarget = optionCrud.setEditTarget;
   const optionSetPendingDelete = optionCrud.setPendingDelete;
 
-  const handleTabChange = useCallback((tab: string) => {
-    dirty.runWithDiscardCheck(() => {
-      setSearchParams({ tab });
-      courseSetEditTarget(null);
-      optionSetEditTarget(null);
-      courseSetPendingDelete(null);
-      optionSetPendingDelete(null);
-    });
-  }, [setSearchParams, courseSetEditTarget, optionSetEditTarget, courseSetPendingDelete, optionSetPendingDelete, dirty]);
+  const handleTabChange = useCallback(
+    (tab: string) => {
+      dirty.runWithDiscardCheck(() => {
+        setSearchParams({ tab });
+        courseSetEditTarget(null);
+        optionSetEditTarget(null);
+        courseSetPendingDelete(null);
+        optionSetPendingDelete(null);
+      });
+    },
+    [
+      setSearchParams,
+      courseSetEditTarget,
+      optionSetEditTarget,
+      courseSetPendingDelete,
+      optionSetPendingDelete,
+      dirty,
+    ],
+  );
 
   const handleNew = useCallback(() => {
     if (activeTab === "course") courseCrud.handleNew();
@@ -93,7 +103,7 @@ export function TrimmingSettings() {
     crud: courseCrud,
     createMutation: createCourseMutation,
     updateMutation: updateCourseMutation,
-    validate: (data: CourseFormData) => data.name.trim() ? null : "名称を入力してください",
+    validate: (data: CourseFormData) => (data.name.trim() ? null : "名称を入力してください"),
     toCreateRequest: buildTrimmingCourseCreateRequest,
     toUpdateRequest: buildTrimmingCourseUpdateRequest,
     permissions: { canCreate, canEdit },
@@ -103,81 +113,81 @@ export function TrimmingSettings() {
     crud: optionCrud,
     createMutation: createOptionMutation,
     updateMutation: updateOptionMutation,
-    validate: (data: OptionFormData) => data.name.trim() ? null : "名称を入力してください",
+    validate: (data: OptionFormData) => (data.name.trim() ? null : "名称を入力してください"),
     toCreateRequest: buildTrimmingOptionCreateRequest,
     toUpdateRequest: buildTrimmingOptionUpdateRequest,
     permissions: { canCreate, canEdit },
   });
 
-  const handleCourseSave = useCallback(async (data: CourseFormData) => {
-    const ok = await courseSave.handleSave(data);
-    if (ok) dirty.markClean();
-    return ok;
-  }, [courseSave, dirty]);
+  const handleCourseSave = useCallback(
+    async (data: CourseFormData) => {
+      const ok = await courseSave.handleSave(data);
+      if (ok) dirty.markClean();
+      return ok;
+    },
+    [courseSave, dirty],
+  );
 
-  const handleOptionSave = useCallback(async (data: OptionFormData) => {
-    const ok = await optionSave.handleSave(data);
-    if (ok) dirty.markClean();
-    return ok;
-  }, [optionSave, dirty]);
+  const handleOptionSave = useCallback(
+    async (data: OptionFormData) => {
+      const ok = await optionSave.handleSave(data);
+      if (ok) dirty.markClean();
+      return ok;
+    },
+    [optionSave, dirty],
+  );
 
   return (
     <>
-    <MasterTabPage
-      title="トリミングマスタ"
-      icon={<Scissors className={`${ICON.page} ${C.text}`} />}
-      resource={ResourceMasterTrimming}
-      onNew={handleNew}
-      sidePanel={
-        <TrimmingSettingsSidePanels
-          activeTab={activeTab}
-          courseEditTarget={courseCrud.editTarget}
-          coursePanelItem={courseCrud.panelItem}
-          optionEditTarget={optionCrud.editTarget}
-          optionPanelItem={optionCrud.panelItem}
-          canDelete={canDelete}
-          canEdit={canEdit}
-          onCourseClose={courseCrud.handleClose}
-          onCourseSave={handleCourseSave}
-          onCourseDeleteRequest={courseCrud.setPendingDelete}
-          onOptionClose={optionCrud.handleClose}
-          onOptionSave={handleOptionSave}
-          onOptionDeleteRequest={optionCrud.setPendingDelete}
-          onDirtyChange={handleDirtyChange}
-        />
-      }
-      deleteDialogs={
-        <TrimmingDeleteDialogs
-          pendingCourseDelete={courseCrud.pendingDelete}
-          pendingOptionDelete={optionCrud.pendingDelete}
-          onCourseDeleteCancel={courseCrud.handleDeleteCancel}
-          onCourseDeleteConfirm={courseCrud.handleDeleteConfirm}
-          onOptionDeleteCancel={optionCrud.handleDeleteCancel}
-          onOptionDeleteConfirm={optionCrud.handleDeleteConfirm}
-        />
-      }
-    >
-      <UnifiedTabs
-        items={TRIMMING_TABS}
-        value={activeTab}
-        onValueChange={handleTabChange}
-        className="flex flex-col gap-4"
+      <MasterTabPage
+        title="トリミングマスタ"
+        icon={<Scissors className={`${ICON.page} ${C.text}`} />}
+        resource={ResourceMasterTrimming}
+        onNew={handleNew}
+        sidePanel={
+          <TrimmingSettingsSidePanels
+            activeTab={activeTab}
+            courseEditTarget={courseCrud.editTarget}
+            coursePanelItem={courseCrud.panelItem}
+            optionEditTarget={optionCrud.editTarget}
+            optionPanelItem={optionCrud.panelItem}
+            canDelete={canDelete}
+            canEdit={canEdit}
+            onCourseClose={courseCrud.handleClose}
+            onCourseSave={handleCourseSave}
+            onCourseDeleteRequest={courseCrud.setPendingDelete}
+            onOptionClose={optionCrud.handleClose}
+            onOptionSave={handleOptionSave}
+            onOptionDeleteRequest={optionCrud.setPendingDelete}
+            onDirtyChange={handleDirtyChange}
+          />
+        }
+        deleteDialogs={
+          <TrimmingDeleteDialogs
+            pendingCourseDelete={courseCrud.pendingDelete}
+            pendingOptionDelete={optionCrud.pendingDelete}
+            onCourseDeleteCancel={courseCrud.handleDeleteCancel}
+            onCourseDeleteConfirm={courseCrud.handleDeleteConfirm}
+            onOptionDeleteCancel={optionCrud.handleDeleteCancel}
+            onOptionDeleteConfirm={optionCrud.handleDeleteConfirm}
+          />
+        }
       >
-        <UnifiedTabsContent value="course" className="mt-4">
-          <TrimmingCourseTab
-            onEditTargetChange={courseCrud.setEditTarget}
-            canEdit={canEdit}
-          />
-        </UnifiedTabsContent>
-        <UnifiedTabsContent value="option" className="mt-4">
-          <TrimmingOptionTab
-            onEditTargetChange={optionCrud.setEditTarget}
-            canEdit={canEdit}
-          />
-        </UnifiedTabsContent>
-      </UnifiedTabs>
-    </MasterTabPage>
-    {dirty.discardDialog}
+        <UnifiedTabs
+          items={TRIMMING_TABS}
+          value={activeTab}
+          onValueChange={handleTabChange}
+          className="flex flex-col gap-4"
+        >
+          <UnifiedTabsContent value="course" className="mt-4">
+            <TrimmingCourseTab onEditTargetChange={courseCrud.setEditTarget} canEdit={canEdit} />
+          </UnifiedTabsContent>
+          <UnifiedTabsContent value="option" className="mt-4">
+            <TrimmingOptionTab onEditTargetChange={optionCrud.setEditTarget} canEdit={canEdit} />
+          </UnifiedTabsContent>
+        </UnifiedTabs>
+      </MasterTabPage>
+      {dirty.discardDialog}
     </>
   );
 }

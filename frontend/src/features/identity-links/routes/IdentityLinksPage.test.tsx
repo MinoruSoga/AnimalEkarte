@@ -210,10 +210,12 @@ describe("IdentityLinksPage BUG-013 unlink for existing groups", () => {
   it("先行 lookup で session group id があっても、404 メンバーの unlink は disabled のまま", async () => {
     const user = userEvent.setup();
     searchOwnersForLink.mockResolvedValue([ownerHit, ownerHitUnlinked]);
-    findOwnerIdentityGroupByMember.mockImplementation(async (_clinicId: number, ownerId: number) => {
-      if (ownerId === 10) return ownerGroup;
-      return null;
-    });
+    findOwnerIdentityGroupByMember.mockImplementation(
+      async (_clinicId: number, ownerId: number) => {
+        if (ownerId === 10) return ownerGroup;
+        return null;
+      },
+    );
 
     render(<IdentityLinksPage />, { wrapper: createTestWrapper({ router: true }) });
 
@@ -245,6 +247,35 @@ describe("IdentityLinksPage BUG-013 unlink for existing groups", () => {
     expect(unlinkUnlinked).toBeDisabled();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(unlinkOwnerIdentityMember).not.toHaveBeenCalled();
+  });
+
+  it("飼主を2件選択してリンクすると create API を呼ぶ", async () => {
+    const user = userEvent.setup();
+    searchOwnersForLink.mockResolvedValue([ownerHit, ownerHitUnlinked]);
+    createOwnerIdentityGroup.mockResolvedValue(ownerGroup);
+
+    render(<IdentityLinksPage />, { wrapper: createTestWrapper({ router: true }) });
+
+    await user.type(screen.getByPlaceholderText("氏名・カナ・電話"), "佐藤");
+    await waitFor(() => {
+      expect(searchOwnersForLink).toHaveBeenCalledWith("佐藤");
+    });
+
+    await user.click(await screen.findByRole("button", { name: /\[医院 1\] 佐藤太郎/ }));
+    await user.click(await screen.findByRole("button", { name: /\[医院 1\] 未所属花子/ }));
+
+    const linkBtn = screen.getByRole("button", { name: "飼主をリンク" });
+    await waitFor(() => {
+      expect(linkBtn).toBeEnabled();
+    });
+    await user.click(linkBtn);
+
+    await waitFor(() => {
+      expect(createOwnerIdentityGroup).toHaveBeenCalledWith([
+        { clinic_id: 1, owner_id: 10 },
+        { clinic_id: 1, owner_id: 99 },
+      ]);
+    });
   });
 
   it("リンク済みペットを選択すると unlink が有効になり、pet group id で DELETE する", async () => {

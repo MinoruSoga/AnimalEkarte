@@ -9,7 +9,7 @@ import { useMasterSidePanelForm } from "../hooks/use-master-side-panel-form";
 import {
   animalSpeciesToFormData,
   type AnimalSpeciesFormData,
-} from "./animal-species-side-panel-model";
+} from "../lib/animal-species-side-panel-model";
 
 interface AnimalSpeciesSidePanelProps {
   item: AnimalSpecies | null;
@@ -30,25 +30,33 @@ export const AnimalSpeciesSidePanel = memo(function AnimalSpeciesSidePanel({
 }: AnimalSpeciesSidePanelProps) {
   const [nameError, setNameError] = useState("");
 
-  const { formData, setFormData: setFormDataDirty, isDirty, setIsDirty, handleAction } =
-    useMasterSidePanelForm<AnimalSpeciesFormData>({
-      initialFormData: animalSpeciesToFormData(item),
-      onSave,
-      onDirtyChange,
-      validate: (data) => {
-        if (!data.name.trim()) {
-          setNameError("名称を入力してください");
-          return false;
-        }
-        setNameError("");
-        return true;
-      },
-    });
+  const {
+    formData,
+    setFormData: setFormDataDirty,
+    isDirty,
+    setIsDirty,
+    handleAction,
+  } = useMasterSidePanelForm<AnimalSpeciesFormData>({
+    initialFormData: animalSpeciesToFormData(item),
+    onSave,
+    onDirtyChange,
+    validate: (data) => {
+      if (!data.name.trim()) {
+        setNameError("名称を入力してください");
+        return false;
+      }
+      setNameError("");
+      return true;
+    },
+  });
 
-  const handleTitleChange = useCallback((value: string) => {
-    setFormDataDirty((prev) => ({ ...prev, name: value }));
-    if (value.trim()) setNameError("");
-  }, [setFormDataDirty]);
+  const handleTitleChange = useCallback(
+    (value: string) => {
+      setFormDataDirty((prev) => ({ ...prev, name: value }));
+      if (value.trim()) setNameError("");
+    },
+    [setFormDataDirty],
+  );
 
   const handleToggleActive = useCallback(() => {
     setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }));

@@ -8,7 +8,7 @@ import {
 import type { DoseCalcInput } from "@/lib/medicine-dose";
 import { DOSE_PARAMS_LOOKUP_FAILED_MESSAGE } from "../../api/medicine-dose-lookup";
 
-import { computeDoseGate, resolveDoseGateSource } from "./treatment-row-dose-gate";
+import { computeDoseGate, resolveDoseGateSource } from "../../lib/treatment-row-dose-gate";
 
 describe("computeDoseGate", () => {
   it("missing（手動入力対象外）は常に requiresDeviationReason=false", () => {

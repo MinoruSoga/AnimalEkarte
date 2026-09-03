@@ -19,7 +19,7 @@ import {
 } from "@/components/shared/DynamicCheckupFields/DynamicCheckupFields";
 
 import type { Checkup, UpdateCheckupInput } from "../../api/checkups";
-import type { AddCheckupFormState } from "./checkups-tab-table-model";
+import type { AddCheckupFormState } from "../../lib/checkups-tab-table-model";
 
 interface CheckupEditRowProps {
   checkup: Checkup;
@@ -182,10 +182,7 @@ export function CheckupDisplayRow({
             </button>
           ) : null}
           {canDelete && !isFinalized ? (
-            <DeleteIconButton
-              onClick={() => onDelete(checkup.id)}
-              disabled={deletePending}
-            />
+            <DeleteIconButton onClick={() => onDelete(checkup.id)} disabled={deletePending} />
           ) : null}
         </div>
       </TableCell>

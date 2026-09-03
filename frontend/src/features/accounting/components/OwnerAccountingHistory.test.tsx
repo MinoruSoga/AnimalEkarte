@@ -13,7 +13,7 @@ import {
   pendingFixture,
   cancelledFixture,
   createWrapper,
-} from "./owner-accounting-history.test-fixtures";
+} from "../lib/owner-accounting-history.test-fixtures";
 
 /**
  * 飼主詳細から会計履歴を表示し、完了済の会計には「明細兼領収書」リンクが
@@ -59,9 +59,9 @@ describe("OwnerAccountingHistory", () => {
     expect(screen.getByText("たま")).toBeInTheDocument();
 
     // 降順: 102 (2026-04-29) → 101 (2026-04-20)
-    const idCells = screen.getAllByRole("cell").filter((c) =>
-      c.textContent === "101" || c.textContent === "102",
-    );
+    const idCells = screen
+      .getAllByRole("cell")
+      .filter((c) => c.textContent === "101" || c.textContent === "102");
     expect(idCells[0]).toHaveTextContent("102");
     expect(idCells[1]).toHaveTextContent("101");
   });
@@ -90,9 +90,10 @@ describe("OwnerAccountingHistory", () => {
       }),
     ).not.toBeInTheDocument();
     // 詳細リンクは出る
-    expect(
-      screen.getByRole("link", { name: /受付No 102 の会計詳細を開く/ }),
-    ).toHaveAttribute("href", "/accounting/102");
+    expect(screen.getByRole("link", { name: /受付No 102 の会計詳細を開く/ })).toHaveAttribute(
+      "href",
+      "/accounting/102",
+    );
   });
 
   it("会計が0件のとき空状態メッセージを表示する", async () => {
@@ -106,9 +107,7 @@ describe("OwnerAccountingHistory", () => {
       wrapper: createWrapper(),
     });
 
-    expect(
-      await screen.findByText("会計履歴はありません。"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("会計履歴はありません。")).toBeInTheDocument();
   });
 
   it("累計支払い金額は completed の billingAmount を合計して表示する", async () => {
@@ -233,9 +232,9 @@ describe("OwnerAccountingHistory", () => {
 
     await screen.findByText("ぽち");
 
-    const idCells = screen.getAllByRole("cell").filter((c) =>
-      ["101", "102", "103"].includes(c.textContent ?? ""),
-    );
+    const idCells = screen
+      .getAllByRole("cell")
+      .filter((c) => ["101", "102", "103"].includes(c.textContent ?? ""));
     // 102 (04-29) → 103 (04-22) → 101 (04-20)
     expect(idCells.map((c) => c.textContent)).toEqual(["102", "103", "101"]);
   });
@@ -273,9 +272,9 @@ describe("OwnerAccountingHistory", () => {
     expect(ascToggle).toHaveAttribute("aria-pressed", "true");
 
     // 受付日昇順 → 101 (04-20) が先頭
-    const idCells = screen.getAllByRole("cell").filter((c) =>
-      ["101", "102", "103"].includes(c.textContent ?? ""),
-    );
+    const idCells = screen
+      .getAllByRole("cell")
+      .filter((c) => ["101", "102", "103"].includes(c.textContent ?? ""));
     expect(idCells[0]).toHaveTextContent("101");
     expect(idCells[2]).toHaveTextContent("102");
   });
@@ -304,9 +303,9 @@ describe("OwnerAccountingHistory", () => {
     await user.click(screen.getByRole("option", { name: "金額" }));
 
     // 金額降順: 101 (5500) → 103 (3300) → 102 (waiting=0)
-    const idCells = screen.getAllByRole("cell").filter((c) =>
-      ["101", "102", "103"].includes(c.textContent ?? ""),
-    );
+    const idCells = screen
+      .getAllByRole("cell")
+      .filter((c) => ["101", "102", "103"].includes(c.textContent ?? ""));
     expect(idCells[0]).toHaveTextContent("101");
     expect(idCells[1]).toHaveTextContent("103");
     expect(idCells[2]).toHaveTextContent("102");
@@ -336,9 +335,9 @@ describe("OwnerAccountingHistory", () => {
     await user.click(screen.getByRole("button", { name: /降順 — クリックで昇順に切替/ }));
 
     // ID 順: 101=completed, 102=waiting, 104=pending, 105=cancelled
-    const idCells = screen.getAllByRole("cell").filter((c) =>
-      ["101", "102", "104", "105"].includes(c.textContent ?? ""),
-    );
+    const idCells = screen
+      .getAllByRole("cell")
+      .filter((c) => ["101", "102", "104", "105"].includes(c.textContent ?? ""));
     // 昇順並び: waiting(102) → pending(104) → completed(101) → cancelled(105)
     expect(idCells.map((c) => c.textContent)).toEqual(["102", "104", "101", "105"]);
   });

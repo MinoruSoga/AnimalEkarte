@@ -9,8 +9,8 @@ import {
   buildUnifiedClosingTotals,
   formatClosingCount,
   type UnclassifiedOtherCountInput,
-} from "../closing-summary";
-import { CATEGORY_LABELS, PERIOD_LABELS, type CashRegisterPeriod } from "../constants";
+} from "../lib/closing-summary";
+import { CATEGORY_LABELS, PERIOD_LABELS, type CashRegisterPeriod } from "../lib/constants";
 
 interface TaxEntry {
   taxableAmount: number;
@@ -142,13 +142,21 @@ export function ClosePrintArea({
             <tbody>
               <tr>
                 <td className={`border ${C.borderGray300} px-1 py-0.5`}>標準税率（10%）</td>
-                <td className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>{formatCurrency(standard.taxableAmount)}</td>
-                <td className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>{formatCurrency(standard.taxAmount)}</td>
+                <td className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>
+                  {formatCurrency(standard.taxableAmount)}
+                </td>
+                <td className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>
+                  {formatCurrency(standard.taxAmount)}
+                </td>
               </tr>
               <tr>
                 <td className={`border ${C.borderGray300} px-1 py-0.5`}>軽減税率（8%）</td>
-                <td className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>{formatCurrency(reduced.taxableAmount)}</td>
-                <td className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>{formatCurrency(reduced.taxAmount)}</td>
+                <td className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>
+                  {formatCurrency(reduced.taxableAmount)}
+                </td>
+                <td className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>
+                  {formatCurrency(reduced.taxAmount)}
+                </td>
               </tr>
             </tbody>
           </table>
@@ -159,13 +167,17 @@ export function ClosePrintArea({
             <tbody>
               <tr>
                 <td className={`border ${C.borderGray300} px-1 py-0.5`}>理論現金</td>
-                <td className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>{formatCurrency(theoreticalCash)}</td>
+                <td className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>
+                  {formatCurrency(theoreticalCash)}
+                </td>
               </tr>
               {actualCash !== null && difference !== null ? (
                 <>
                   <tr>
                     <td className={`border ${C.borderGray300} px-1 py-0.5`}>実際の現金</td>
-                    <td className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>{formatCurrency(actualCash)}</td>
+                    <td className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>
+                      {formatCurrency(actualCash)}
+                    </td>
                   </tr>
                   <tr className="font-semibold">
                     <td className={`border ${C.borderGray300} px-1 py-0.5`}>差額</td>
@@ -208,11 +220,15 @@ export function ClosePrintArea({
                 {CATEGORY_LABELS[d.category] ?? d.category}
               </td>
               <td className={`border ${C.borderGray300} px-1 py-0.5`}>{d.paymentMethodName}</td>
-              <td className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>{formatCurrency(d.billingAmount)}</td>
+              <td className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>
+                {formatCurrency(d.billingAmount)}
+              </td>
               <td className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>
                 {d.refundAmount > 0 ? `-${formatCurrency(d.refundAmount)}` : "—"}
               </td>
-              <td className={`border ${C.borderGray300} px-1 py-0.5 text-right font-medium`}>{formatCurrency(d.netAmount)}</td>
+              <td className={`border ${C.borderGray300} px-1 py-0.5 text-right font-medium`}>
+                {formatCurrency(d.netAmount)}
+              </td>
             </tr>
           ))}
         </tbody>

@@ -10,7 +10,7 @@ import {
   buildCrossRows,
   currentYearMonth,
   generateMonthOptions,
-} from "../components/lstep-analytics-model";
+} from "../lib/lstep-analytics-model";
 import { useGetLstepDeliveryStats } from "../api/get-lstep-delivery-stats";
 import { useGetLstepVisitConversion } from "../api/get-lstep-visit-conversion";
 

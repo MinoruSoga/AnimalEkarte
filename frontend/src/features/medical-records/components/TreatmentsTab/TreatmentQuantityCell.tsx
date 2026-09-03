@@ -13,7 +13,7 @@ import {
   commitTreatmentQuantity,
   quantityDisplayClassName,
   type QuantityCommitParams,
-} from "./treatment-quantity-commit";
+} from "../../lib/treatment-quantity-commit";
 import { useTreatmentDoseGate } from "../../hooks/use-treatment-dose-gate";
 
 interface TreatmentQuantityCellProps {
@@ -48,12 +48,7 @@ export function TreatmentQuantityCell({
     lastDeviationCommitKeyRef.current = null;
   }, [treatment]);
 
-  const dose = useTreatmentDoseGate(
-    treatment,
-    doseContext,
-    localQuantity,
-    showDeviationReason,
-  );
+  const dose = useTreatmentDoseGate(treatment, doseContext, localQuantity, showDeviationReason);
 
   const commitParams: QuantityCommitParams = {
     localQuantity,

@@ -6,7 +6,13 @@ import { toast } from "sonner";
 import { FlaskConical } from "lucide-react";
 
 // Internal
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { handleApiError } from "@/lib/handle-api-error";
@@ -15,7 +21,7 @@ import { useUpdateExamination } from "@/hooks/use-update-examination";
 import {
   filterImportableExaminations,
   isExaminationImportable,
-} from "./examination-import-candidates";
+} from "../lib/examination-import-candidates";
 
 interface ExaminationImportDialogProps {
   open: boolean;
@@ -35,9 +41,7 @@ export const ExaminationImportDialog = memo(function ExaminationImportDialog({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isLinking, startLinkTransition] = useTransition();
 
-  const { data: examinations = [], isLoading } = useGetExaminations(
-    petId ? { petId } : undefined
-  );
+  const { data: examinations = [], isLoading } = useGetExaminations(petId ? { petId } : undefined);
 
   // BUG-014: 確定済み・リビジョン済みなど取込不可の検査は候補から除外する
   const availableExams = useMemo(
@@ -88,14 +92,7 @@ export const ExaminationImportDialog = memo(function ExaminationImportDialog({
         handleApiError(err, "検査取り込み");
       }
     });
-  }, [
-    examinations,
-    medicalRecordId,
-    selectedIds,
-    updateExamination,
-    onImported,
-    onOpenChange,
-  ]);
+  }, [examinations, medicalRecordId, selectedIds, updateExamination, onImported, onOpenChange]);
 
   const handleClose = useCallback(() => {
     setSelectedIds(new Set());
@@ -120,7 +117,9 @@ export const ExaminationImportDialog = memo(function ExaminationImportDialog({
           {isLoading ? (
             <div className={`text-sm ${C.text40} text-center py-8`}>読み込み中...</div>
           ) : availableExams.length === 0 ? (
-            <div className={`text-sm ${C.text40} text-center py-8`}>取り込める検査記録がありません</div>
+            <div className={`text-sm ${C.text40} text-center py-8`}>
+              取り込める検査記録がありません
+            </div>
           ) : (
             availableExams.map((exam) => {
               const isSelected = selectedIds.has(exam.id);
@@ -147,7 +146,9 @@ export const ExaminationImportDialog = memo(function ExaminationImportDialog({
                     </div>
                     <div
                       className={`w-4 h-4 rounded border-2 flex-shrink-0 ${
-                        isSelected ? `${C.bgStatusBlueDot} ${C.borderBlue500}` : `${C.borderGray300} ${C.bgWhite}`
+                        isSelected
+                          ? `${C.bgStatusBlueDot} ${C.borderBlue500}`
+                          : `${C.borderGray300} ${C.bgWhite}`
                       }`}
                     />
                   </div>

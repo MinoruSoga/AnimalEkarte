@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { Reservation } from "@/types";
-import type { ReservationTypeColor } from "./week-view-grid-constants";
+import type { ReservationTypeColor } from "../lib/week-view-grid-constants";
 import { AppointmentCard } from "./WeekViewAppointmentCard";
 
 const appointment: Reservation = {
@@ -23,7 +23,11 @@ const appointment: Reservation = {
 
 function colorEntry(overrides: Partial<ReservationTypeColor> = {}): ReservationTypeColor {
   return {
-    style: { backgroundColor: "rgba(255, 102, 0, 0.1)", color: "#ff6600", borderColor: "rgba(255, 102, 0, 0.3)" },
+    style: {
+      backgroundColor: "rgba(255, 102, 0, 0.1)",
+      color: "#ff6600",
+      borderColor: "rgba(255, 102, 0, 0.3)",
+    },
     dotStyle: { backgroundColor: "#ff6600" },
     hex: "#ff6600",
     ...overrides,

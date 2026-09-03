@@ -3,7 +3,13 @@ import { ArrowDown, ArrowUp, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { DateRangeInputs } from "@/components/shared/DateRangeInputs";
 import { C, STYLE } from "@/lib/design-tokens";
 
@@ -15,14 +21,14 @@ import type {
   AmountBasis,
   PeriodPreset,
 } from "../api/get-aggregations";
-import type { AggregationTab } from "./aggregation-filter-panel-model";
+import type { AggregationTab } from "../lib/aggregation-filter-panel-model";
 import {
   AMOUNT_BASIS_OPTIONS,
   DEFAULT_SORT_BY_TAB,
   LAST_VISIT_BUCKET_OPTIONS,
   PERIOD_PRESET_OPTIONS,
   SORT_OPTIONS_BY_TAB,
-} from "./aggregation-filter-panel-model";
+} from "../lib/aggregation-filter-panel-model";
 
 interface FilterSectionProps {
   params: AggregationParams;
@@ -104,7 +110,9 @@ export function RevenueFilters({
             className={`${inputClass} w-28`}
             placeholder="下限"
             value={params.min_amount ?? ""}
-            onChange={(e) => onParamsChange({ min_amount: toOptionalNumber(e.target.value), page: 1 })}
+            onChange={(e) =>
+              onParamsChange({ min_amount: toOptionalNumber(e.target.value), page: 1 })
+            }
             min={0}
           />
           <span className={`text-sm ${C.text50}`}>〜</span>
@@ -114,7 +122,9 @@ export function RevenueFilters({
             className={`${inputClass} w-28`}
             placeholder="上限"
             value={params.max_amount ?? ""}
-            onChange={(e) => onParamsChange({ max_amount: toOptionalNumber(e.target.value), page: 1 })}
+            onChange={(e) =>
+              onParamsChange({ max_amount: toOptionalNumber(e.target.value), page: 1 })
+            }
             min={0}
           />
         </div>
@@ -130,7 +140,10 @@ export function RevenueFilters({
             onParamsChange({ include_zero: checked === true ? true : undefined, page: 1 })
           }
         />
-        <label htmlFor="revenue-include-zero" className={`text-sm ${C.text} cursor-pointer select-none`}>
+        <label
+          htmlFor="revenue-include-zero"
+          className={`text-sm ${C.text} cursor-pointer select-none`}
+        >
           0円を含む
         </label>
       </div>
@@ -150,7 +163,9 @@ export function VisitFilters({
         <label className={labelClass}>期間</label>
         <Select
           value={params.period_preset ?? "last_12_months"}
-          onValueChange={(value) => onParamsChange({ period_preset: value as PeriodPreset, page: 1 })}
+          onValueChange={(value) =>
+            onParamsChange({ period_preset: value as PeriodPreset, page: 1 })
+          }
         >
           <SelectTrigger className={inputClass} aria-label="期間">
             <SelectValue />
@@ -185,7 +200,9 @@ export function VisitFilters({
             className={`${inputClass} w-24`}
             placeholder="下限"
             value={params.min_visit_count ?? ""}
-            onChange={(e) => onParamsChange({ min_visit_count: toOptionalNumber(e.target.value), page: 1 })}
+            onChange={(e) =>
+              onParamsChange({ min_visit_count: toOptionalNumber(e.target.value), page: 1 })
+            }
             min={0}
           />
           <span className={`text-sm ${C.text50}`}>〜</span>
@@ -195,7 +212,9 @@ export function VisitFilters({
             className={`${inputClass} w-24`}
             placeholder="上限"
             value={params.max_visit_count ?? ""}
-            onChange={(e) => onParamsChange({ max_visit_count: toOptionalNumber(e.target.value), page: 1 })}
+            onChange={(e) =>
+              onParamsChange({ max_visit_count: toOptionalNumber(e.target.value), page: 1 })
+            }
             min={0}
           />
         </div>
@@ -216,7 +235,9 @@ export function LastVisitFilters({
         <label className={labelClass}>最終来院</label>
         <Select
           value={params.last_visit_bucket ?? "over_3m"}
-          onValueChange={(value) => onParamsChange({ last_visit_bucket: value === "all" ? undefined : value, page: 1 })}
+          onValueChange={(value) =>
+            onParamsChange({ last_visit_bucket: value === "all" ? undefined : value, page: 1 })
+          }
         >
           <SelectTrigger className={inputClass} aria-label="最終来院">
             <SelectValue />
@@ -240,7 +261,10 @@ export function LastVisitFilters({
             onParamsChange({ include_no_visit: checked === true ? true : undefined, page: 1 })
           }
         />
-        <label htmlFor="last-visit-include-no-visit" className={`text-sm ${C.text} cursor-pointer select-none`}>
+        <label
+          htmlFor="last-visit-include-no-visit"
+          className={`text-sm ${C.text} cursor-pointer select-none`}
+        >
           来院なしを含む
         </label>
       </div>
@@ -311,7 +335,9 @@ export function SortControls({
       <div className="flex items-center gap-1">
         <Select
           value={sortValue}
-          onValueChange={(value) => onParamsChange({ sort: value as AggregationSortField, page: 1 })}
+          onValueChange={(value) =>
+            onParamsChange({ sort: value as AggregationSortField, page: 1 })
+          }
         >
           <SelectTrigger className={inputClass} aria-label="並び替え">
             <SelectValue />
@@ -333,11 +359,7 @@ export function SortControls({
           aria-label={orderValue === "asc" ? "昇順 (クリックで降順)" : "降順 (クリックで昇順)"}
           title={orderValue === "asc" ? "昇順" : "降順"}
         >
-          {orderValue === "asc" ? (
-            <ArrowUp className="size-4" />
-          ) : (
-            <ArrowDown className="size-4" />
-          )}
+          {orderValue === "asc" ? <ArrowUp className="size-4" /> : <ArrowDown className="size-4" />}
         </Button>
       </div>
     </div>

@@ -3,7 +3,7 @@ import { axios } from "@/lib/axios";
 import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { PaymentMethodMaster } from "@/types/generated/models";
-import type { CashRegisterPeriod } from "../constants";
+import type { CashRegisterPeriod } from "../lib/constants";
 
 // ── Backend (raw) types ──────────────────────────────────────────────────────
 

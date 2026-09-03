@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { PermissionGroup } from "../api/permission-groups";
-import type { PermissionGroupFormData } from "../components/permission-group-side-panel-model";
+import type { PermissionGroupFormData } from "../lib/permission-group-side-panel-model";
 import { PermissionGroupSettings } from "./PermissionGroupSettings";
 
 const mocks = vi.hoisted(() => ({
@@ -172,9 +172,7 @@ describe("PermissionGroupSettings permission mutation boundaries", () => {
     mocks.permissions.canCreate = true;
     mocks.permissions.canEdit = true;
     mocks.permissions.canDelete = true;
-    mocks.createMutate.mockImplementation(async (req) =>
-      echoPermissionGroupFromRequest(req, "9"),
-    );
+    mocks.createMutate.mockImplementation(async (req) => echoPermissionGroupFromRequest(req, "9"));
     mocks.updateMutate.mockImplementation(async ({ id, req }) =>
       echoPermissionGroupFromRequest(req, id),
     );

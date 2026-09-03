@@ -1,5 +1,5 @@
 import type { TreatmentFormData } from "../components/TreatmentItemSidePanel";
-import type { TreatmentTabConfig } from "../components/treatment-plan-tab-content-model";
+import type { TreatmentTabConfig } from "../lib/treatment-plan-tab-content-model";
 import type { TreatmentItem } from "@/lib/transforms/treatment";
 import type {
   CreateCheckupTypeRequest,
@@ -24,9 +24,7 @@ export const TREATMENT_PLAN_TABS = [
 
 export type TreatmentPlanTabValue = (typeof TREATMENT_PLAN_TABS)[number]["value"];
 
-const TREATMENT_PLAN_TAB_VALUES = new Set<string>(
-  TREATMENT_PLAN_TABS.map((tab) => tab.value),
-);
+const TREATMENT_PLAN_TAB_VALUES = new Set<string>(TREATMENT_PLAN_TABS.map((tab) => tab.value));
 
 export function toTreatmentPlanTabValue(value: string | null): TreatmentPlanTabValue {
   return TREATMENT_PLAN_TAB_VALUES.has(value ?? "")
@@ -98,9 +96,7 @@ export function buildTreatmentTabConfigs({
   };
 }
 
-export function buildConsultationCreateRequest(
-  data: TreatmentFormData,
-): CreateConsultationRequest {
+export function buildConsultationCreateRequest(data: TreatmentFormData): CreateConsultationRequest {
   return {
     name: data.name,
     price: data.price,
@@ -112,9 +108,7 @@ export function buildConsultationCreateRequest(
   };
 }
 
-export function buildConsultationUpdateRequest(
-  data: TreatmentFormData,
-): UpdateConsultationRequest {
+export function buildConsultationUpdateRequest(data: TreatmentFormData): UpdateConsultationRequest {
   const base = buildConsultationCreateRequest(data);
   if (data.parentId === "") return { ...base, clear_parent_id: true };
   return base;
@@ -141,9 +135,7 @@ export function buildExaminationUpdateRequest(
   return base;
 }
 
-export function buildProcedureCreateRequest(
-  data: TreatmentFormData,
-): CreateProcedureRequest {
+export function buildProcedureCreateRequest(data: TreatmentFormData): CreateProcedureRequest {
   return {
     name: data.name,
     price: data.price,
@@ -156,17 +148,13 @@ export function buildProcedureCreateRequest(
   };
 }
 
-export function buildProcedureUpdateRequest(
-  data: TreatmentFormData,
-): UpdateProcedureRequest {
+export function buildProcedureUpdateRequest(data: TreatmentFormData): UpdateProcedureRequest {
   const base = buildProcedureCreateRequest(data);
   if (data.parentId === "") return { ...base, clear_parent_id: true };
   return base;
 }
 
-export function buildVaccineCreateRequest(
-  data: TreatmentFormData,
-): CreateVaccineRequest {
+export function buildVaccineCreateRequest(data: TreatmentFormData): CreateVaccineRequest {
   return {
     name: data.name,
     price: data.price,
@@ -176,17 +164,13 @@ export function buildVaccineCreateRequest(
   };
 }
 
-export function buildVaccineUpdateRequest(
-  data: TreatmentFormData,
-): UpdateVaccineRequest {
+export function buildVaccineUpdateRequest(data: TreatmentFormData): UpdateVaccineRequest {
   const base = buildVaccineCreateRequest(data);
   if (data.parentId === "") return { ...base, clear_parent_id: true };
   return base;
 }
 
-export function buildCheckupCreateRequest(
-  data: TreatmentFormData,
-): CreateCheckupTypeRequest {
+export function buildCheckupCreateRequest(data: TreatmentFormData): CreateCheckupTypeRequest {
   return {
     name: data.name,
     price: data.price,
@@ -196,9 +180,7 @@ export function buildCheckupCreateRequest(
   };
 }
 
-export function buildCheckupUpdateRequest(
-  data: TreatmentFormData,
-): UpdateCheckupTypeRequest {
+export function buildCheckupUpdateRequest(data: TreatmentFormData): UpdateCheckupTypeRequest {
   const base = buildCheckupCreateRequest(data);
   if (data.parentId === "") return { ...base, clear_parent_id: true };
   return base;

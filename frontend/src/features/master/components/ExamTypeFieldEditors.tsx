@@ -1,6 +1,6 @@
 import { C } from "@/lib/design-tokens";
 
-import { QUALITATIVE_VALUES, type ReferenceRangeDraft } from "./exam-type-fields-editor-model";
+import { QUALITATIVE_VALUES, type ReferenceRangeDraft } from "../lib/exam-type-fields-editor-model";
 
 interface FieldInputProps {
   label: string;
@@ -51,11 +51,7 @@ interface ReferenceRangeInputsProps {
   onChange: (update: (draft: ReferenceRangeDraft) => ReferenceRangeDraft) => void;
 }
 
-export function ReferenceRangeInputs({
-  speciesName,
-  draft,
-  onChange,
-}: ReferenceRangeInputsProps) {
+export function ReferenceRangeInputs({ speciesName, draft, onChange }: ReferenceRangeInputsProps) {
   const type = draft.mode === "numeric" ? "number" : "text";
   const rangeKind = draft.mode === "numeric" ? "数値" : "定性";
   return (
@@ -65,14 +61,16 @@ export function ReferenceRangeInputs({
         <select
           aria-label={`${speciesName}の基準範囲種別`}
           value={draft.mode}
-          onChange={(event) => onChange((previous) => ({
-            ...previous,
-            mode: event.target.value === "qualitative" ? "qualitative" : "numeric",
-            min: "",
-            max: "",
-            qualitativeMin: undefined,
-            qualitativeMax: undefined,
-          }))}
+          onChange={(event) =>
+            onChange((previous) => ({
+              ...previous,
+              mode: event.target.value === "qualitative" ? "qualitative" : "numeric",
+              min: "",
+              max: "",
+              qualitativeMin: undefined,
+              qualitativeMax: undefined,
+            }))
+          }
           className={`mt-1 min-h-11 w-full rounded-xs border px-2 ${C.borderMedium} ${C.bgWhite} ${C.text}`}
         >
           <option value="numeric">数値</option>

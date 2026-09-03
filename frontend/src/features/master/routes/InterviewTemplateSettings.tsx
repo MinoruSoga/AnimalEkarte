@@ -14,8 +14,13 @@ import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
 import { MasterCRUDPage } from "../components/MasterCRUDPage";
 import { InterviewTemplateSidePanel } from "../components/InterviewTemplateSidePanel";
-import type { InterviewTemplateFormData } from "../components/interview-template-side-panel-model";
-import { useGetInquiryTemplates, useCreateInquiryTemplate, useUpdateInquiryTemplate, useDeleteInquiryTemplate } from "../api/inquiry-templates";
+import type { InterviewTemplateFormData } from "../lib/interview-template-side-panel-model";
+import {
+  useGetInquiryTemplates,
+  useCreateInquiryTemplate,
+  useUpdateInquiryTemplate,
+  useDeleteInquiryTemplate,
+} from "../api/inquiry-templates";
 import type {
   InquiryTemplate,
   CreateInquiryTemplateRequest,
@@ -50,14 +55,31 @@ export function InterviewTemplateSettings() {
   const deleteMutation = useDeleteInquiryTemplate();
   const dirty = useSidePeekDirty();
   const crud = useMasterCRUD<InquiryTemplate>({
-    data, deleteMutation, entityLabel: "問診テンプレート",
-    searchFilter: (item, lower) => normalizeKana(item.title).toLowerCase().includes(lower) || normalizeKana(item.category).toLowerCase().includes(lower),
+    data,
+    deleteMutation,
+    entityLabel: "問診テンプレート",
+    searchFilter: (item, lower) =>
+      normalizeKana(item.title).toLowerCase().includes(lower) ||
+      normalizeKana(item.category).toLowerCase().includes(lower),
     dirtyGuard: dirty,
     permissions: { canDelete },
   });
-  const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
-  const { handleSave } = useMasterSave<InquiryTemplate, InterviewTemplateFormData, CreateInquiryTemplateRequest, UpdateInquiryTemplateRequest>({
-    crud, createMutation, updateMutation,
+  const handleDirtyChange = useCallback(
+    (d: boolean) => {
+      if (d) dirty.markDirty();
+      else dirty.markClean();
+    },
+    [dirty],
+  );
+  const { handleSave } = useMasterSave<
+    InquiryTemplate,
+    InterviewTemplateFormData,
+    CreateInquiryTemplateRequest,
+    UpdateInquiryTemplateRequest
+  >({
+    crud,
+    createMutation,
+    updateMutation,
     permissions: { canCreate, canEdit },
     validate: (d) => {
       if (!d.title.trim()) return "タイトルは必須です";
@@ -70,35 +92,53 @@ export function InterviewTemplateSettings() {
 
   return (
     <>
-    <MasterCRUDPage title="問診テンプレートマスタ" icon={<FileText className={`${ICON.page} ${C.text}`} />} resource={ResourceMasterMedical}
-      entityLabel="問診テンプレート" searchPlaceholder="カテゴリ、タイトルで検索..." emptyMessage="問診テンプレートが登録されていません"
-      crud={crud} handleSave={handleSave} columns={COLUMNS} deleteNameField="title"
-      filterProperties={[MASTER_STATUS_FILTER]}
-      renderRow={(item, onEdit, canEdit) => (
-        <DataTableRow key={item.id}>
-          <TableCell className={C.text}>{INQUIRY_CATEGORY_LABELS[item.category] ?? item.category}</TableCell>
-          <TableCell className={`font-medium ${C.text}`}>
-            <DataTableRowButton
-              aria-label={`詳細: 問診テンプレート ${item.title} (ID ${item.id})`}
-              onClick={() => onEdit(item)}
-            >
-              {item.title}
-            </DataTableRowButton>
-          </TableCell>
-          <TableCell className="text-center"><StatusPill isActive={item.isActive} /></TableCell>
-          <TableCell className="text-right">
-            {canEdit ? (
-              <RowActionButton
+      <MasterCRUDPage
+        title="問診テンプレートマスタ"
+        icon={<FileText className={`${ICON.page} ${C.text}`} />}
+        resource={ResourceMasterMedical}
+        entityLabel="問診テンプレート"
+        searchPlaceholder="カテゴリ、タイトルで検索..."
+        emptyMessage="問診テンプレートが登録されていません"
+        crud={crud}
+        handleSave={handleSave}
+        columns={COLUMNS}
+        deleteNameField="title"
+        filterProperties={[MASTER_STATUS_FILTER]}
+        renderRow={(item, onEdit, canEdit) => (
+          <DataTableRow key={item.id}>
+            <TableCell className={C.text}>
+              {INQUIRY_CATEGORY_LABELS[item.category] ?? item.category}
+            </TableCell>
+            <TableCell className={`font-medium ${C.text}`}>
+              <DataTableRowButton
+                aria-label={`詳細: 問診テンプレート ${item.title} (ID ${item.id})`}
                 onClick={() => onEdit(item)}
-                aria-label={`問診テンプレート「${item.title}」(ID: ${item.id}) を編集`}
-              />
-            ) : null}
-          </TableCell>
-        </DataTableRow>
-      )}
-      renderSidePanel={(props) => <InterviewTemplateSidePanel key={props.item?.id ?? "new"} {...props} onDirtyChange={handleDirtyChange} />}
-    />
-    {dirty.discardDialog}
+              >
+                {item.title}
+              </DataTableRowButton>
+            </TableCell>
+            <TableCell className="text-center">
+              <StatusPill isActive={item.isActive} />
+            </TableCell>
+            <TableCell className="text-right">
+              {canEdit ? (
+                <RowActionButton
+                  onClick={() => onEdit(item)}
+                  aria-label={`問診テンプレート「${item.title}」(ID: ${item.id}) を編集`}
+                />
+              ) : null}
+            </TableCell>
+          </DataTableRow>
+        )}
+        renderSidePanel={(props) => (
+          <InterviewTemplateSidePanel
+            key={props.item?.id ?? "new"}
+            {...props}
+            onDirtyChange={handleDirtyChange}
+          />
+        )}
+      />
+      {dirty.discardDialog}
     </>
   );
 }

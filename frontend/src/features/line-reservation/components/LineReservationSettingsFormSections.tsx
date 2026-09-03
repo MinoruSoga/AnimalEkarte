@@ -8,7 +8,7 @@ import { C } from "@/lib/design-tokens";
 import { todayJSTISO } from "@/lib/jst-date";
 // asJsonb / toDisplayTime / toStorageTime は LineReservationSettingsFormModel.ts に分離済み
 // (react-refresh/only-export-components: コンポーネントファイルからの値 export 禁止)。
-import { toDisplayTime, toStorageTime } from "./line-reservation-settings-form-model";
+import { toDisplayTime, toStorageTime } from "../lib/line-reservation-settings-form-model";
 
 export type BusinessHours = { start: string; end: string };
 export type BreakHour = { start: string; end: string };
@@ -41,9 +41,7 @@ export const WEEKDAYS = [
 export function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="space-y-3">
-      <h2 className={`text-sm font-semibold ${C.text} border-b ${C.borderLight} pb-2`}>
-        {title}
-      </h2>
+      <h2 className={`text-sm font-semibold ${C.text} border-b ${C.borderLight} pb-2`}>{title}</h2>
       <div className="space-y-4">{children}</div>
     </div>
   );
@@ -183,11 +181,7 @@ interface WeekdayHoursEditorProps {
   onChange: (value: BusinessHoursByWeekday) => void;
 }
 
-export function WeekdayHoursEditor({
-  defaultHours,
-  value,
-  onChange,
-}: WeekdayHoursEditorProps) {
+export function WeekdayHoursEditor({ defaultHours, value, onChange }: WeekdayHoursEditorProps) {
   const handleChange = useCallback(
     (day: string, field: "start" | "end", time: string) => {
       onChange({

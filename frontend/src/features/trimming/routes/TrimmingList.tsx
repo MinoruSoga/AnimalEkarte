@@ -12,7 +12,7 @@ import { useStaffValidation } from "@/hooks/use-staff-validation";
 import { useUrlPageSync } from "@/hooks/use-url-page-sync";
 import { uniqueSortedOptions } from "@/lib/unique-sorted-options";
 
-import { buildTrimmingDynamicFilterProperties } from "../components/trimming-list-table-model";
+import { buildTrimmingDynamicFilterProperties } from "../lib/trimming-list-table-model";
 import { useFilterTrimmingRecords } from "../hooks/use-trimming-records";
 import { TrimmingListContent } from "./TrimmingListPanels";
 
@@ -35,8 +35,7 @@ export function TrimmingList() {
 
   const filters = useMemo<TrimmingFilters>(() => {
     const dateFilter = activeFilters.find((f) => f.key === "date")?.value as
-      | { from?: string; to?: string }
-      | undefined;
+      { from?: string; to?: string } | undefined;
     return {
       startDate: dateFilter?.from,
       endDate: dateFilter?.to,
@@ -62,14 +61,13 @@ export function TrimmingList() {
   const { activeSorts, setActiveSorts, toggleSort, directionFor, sortedData } =
     useSortableData(filteredRecords);
 
-  const {
-    currentPage,
-    paginatedData,
-    totalPages,
-    startIndex,
-    endIndex,
-    goToPage,
-  } = usePagination(sortedData, { pageSize: TRIMMING_PAGE_SIZE, resetKey: [deferredKeyword, JSON.stringify(activeFilters)].join("|") });
+  const { currentPage, paginatedData, totalPages, startIndex, endIndex, goToPage } = usePagination(
+    sortedData,
+    {
+      pageSize: TRIMMING_PAGE_SIZE,
+      resetKey: [deferredKeyword, JSON.stringify(activeFilters)].join("|"),
+    },
+  );
 
   const urlPage = Number(searchParams.get("page") ?? 1);
 
@@ -81,39 +79,51 @@ export function TrimmingList() {
     if (clampedPage !== currentPage) {
       goToPage(clampedPage);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- currentPage/goToPage は意図的に除外（URL変更時のみ同期する設計。FE-144）
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- currentPage/goToPage は意図的に除外（URL変更時のみ同期する設計。FE-144）
   }, [urlPage, totalPages]);
 
-  const handlePageChange = useCallback((page: number) => {
-    goToPage(page);
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      if (page === 1) {
-        next.delete("page");
-      } else {
-        next.set("page", String(page));
-      }
-      return next;
-    }, { replace: true });
-  }, [goToPage, setSearchParams]);
+  const handlePageChange = useCallback(
+    (page: number) => {
+      goToPage(page);
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (page === 1) {
+            next.delete("page");
+          } else {
+            next.set("page", String(page));
+          }
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [goToPage, setSearchParams],
+  );
 
   const deleteModal = useModalState<{ id: string; label: string }>();
 
-  const handleEdit = useCallback((id: string) => {
-    navigate(paths.trimming.detail.getHref(id), { state: { from: paths.trimming.getHref() } });
-  }, [navigate]);
+  const handleEdit = useCallback(
+    (id: string) => {
+      navigate(paths.trimming.detail.getHref(id), { state: { from: paths.trimming.getHref() } });
+    },
+    [navigate],
+  );
 
   const openDeleteModal = deleteModal.open;
   const closeDeleteModal = deleteModal.close;
   const deleteTargetId = deleteModal.item?.id;
   const deleteTargetLabel = deleteModal.item?.label;
 
-  const handleDeleteClick = useCallback((record: TrimmingUI) => {
-    openDeleteModal({
-      id: record.id,
-      label: `${record.ownerName} - ${record.petName}`,
-    });
-  }, [openDeleteModal]);
+  const handleDeleteClick = useCallback(
+    (record: TrimmingUI) => {
+      openDeleteModal({
+        id: record.id,
+        label: `${record.ownerName} - ${record.petName}`,
+      });
+    },
+    [openDeleteModal],
+  );
 
   const handleDeleteConfirm = useCallback(() => {
     if (deleteTargetId && deleteTargetLabel) {

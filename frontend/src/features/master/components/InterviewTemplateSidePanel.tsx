@@ -2,11 +2,7 @@ import { memo, useCallback, useState } from "react";
 import type { ChangeEvent } from "react";
 import { FileText } from "lucide-react";
 
-import {
-  MasterSidePanel,
-  PropertyRow,
-  StatusToggleButton,
-} from "@/components/shared/SidePeek";
+import { MasterSidePanel, PropertyRow, StatusToggleButton } from "@/components/shared/SidePeek";
 import { LAYOUT } from "@/lib/design-tokens";
 
 import type { InquiryTemplate } from "../api/inquiry-templates";
@@ -15,7 +11,7 @@ import { useMasterSidePanelForm } from "../hooks/use-master-side-panel-form";
 import {
   interviewTemplateToFormData,
   type InterviewTemplateFormData,
-} from "./interview-template-side-panel-model";
+} from "../lib/interview-template-side-panel-model";
 
 interface InterviewTemplateSidePanelProps {
   item: InquiryTemplate | null;
@@ -36,33 +32,47 @@ export const InterviewTemplateSidePanel = memo(function InterviewTemplateSidePan
 }: InterviewTemplateSidePanelProps) {
   const [nameError, setNameError] = useState("");
 
-  const { formData, setFormData: setFormDataDirty, isDirty, setIsDirty, handleAction: handleSave } =
-    useMasterSidePanelForm<InterviewTemplateFormData>({
-      initialFormData: interviewTemplateToFormData(item),
-      onSave,
-      onDirtyChange,
-      validate: (data) => {
-        if (!data.title.trim()) {
-          setNameError("タイトルを入力してください");
-          return false;
-        }
-        setNameError("");
-        return true;
-      },
-    });
+  const {
+    formData,
+    setFormData: setFormDataDirty,
+    isDirty,
+    setIsDirty,
+    handleAction: handleSave,
+  } = useMasterSidePanelForm<InterviewTemplateFormData>({
+    initialFormData: interviewTemplateToFormData(item),
+    onSave,
+    onDirtyChange,
+    validate: (data) => {
+      if (!data.title.trim()) {
+        setNameError("タイトルを入力してください");
+        return false;
+      }
+      setNameError("");
+      return true;
+    },
+  });
 
-  const handleTitleChange = useCallback((value: string) => {
-    setFormDataDirty((prev) => ({ ...prev, title: value }));
-    if (value.trim()) setNameError("");
-  }, [setFormDataDirty]);
+  const handleTitleChange = useCallback(
+    (value: string) => {
+      setFormDataDirty((prev) => ({ ...prev, title: value }));
+      if (value.trim()) setNameError("");
+    },
+    [setFormDataDirty],
+  );
 
-  const handleCategoryChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    setFormDataDirty((prev) => ({ ...prev, category: event.target.value }));
-  }, [setFormDataDirty]);
+  const handleCategoryChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      setFormDataDirty((prev) => ({ ...prev, category: event.target.value }));
+    },
+    [setFormDataDirty],
+  );
 
-  const handleContentChange = useCallback((event: ChangeEvent<HTMLTextAreaElement>) => {
-    setFormDataDirty((prev) => ({ ...prev, content: event.target.value }));
-  }, [setFormDataDirty]);
+  const handleContentChange = useCallback(
+    (event: ChangeEvent<HTMLTextAreaElement>) => {
+      setFormDataDirty((prev) => ({ ...prev, content: event.target.value }));
+    },
+    [setFormDataDirty],
+  );
 
   const handleToggleActive = useCallback(() => {
     setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }));

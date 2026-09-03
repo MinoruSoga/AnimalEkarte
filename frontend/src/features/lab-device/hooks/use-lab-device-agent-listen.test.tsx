@@ -13,9 +13,18 @@ function client(overrides: Partial<LabDeviceAgentClient> = {}): LabDeviceAgentCl
   return {
     claim: vi.fn(async () => {}),
     health: vi.fn(async () => ({
-      status: "running", openPorts: 2, configuredPorts: 2, pending: 0, rejected: 0, overflow: 0, inputOverflow: 0,
-      portDiscoveryFailures: 0, portOpenFailures: 0, lastErrorCategory: "none",
-      queueFailures: 0, portCloseFailures: 0,
+      status: "running",
+      openPorts: 2,
+      configuredPorts: 2,
+      pending: 0,
+      rejected: 0,
+      overflow: 0,
+      inputOverflow: 0,
+      portDiscoveryFailures: 0,
+      portOpenFailures: 0,
+      lastErrorCategory: "none",
+      queueFailures: 0,
+      portCloseFailures: 0,
       responseFailures: 0,
     })),
     frames: vi.fn(async () => []),
@@ -28,12 +37,14 @@ function client(overrides: Partial<LabDeviceAgentClient> = {}): LabDeviceAgentCl
 describe("useLabDeviceAgentListen", () => {
   it("polls immediately without Web Serial and reports monitored ports", async () => {
     const agent = client();
-    const { result } = renderHook(() => useLabDeviceAgentListen({
-      enabled: true,
-      clinicId: "clinic-2",
-      client: agent,
-      onFrame: async () => {},
-    }));
+    const { result } = renderHook(() =>
+      useLabDeviceAgentListen({
+        enabled: true,
+        clinicId: "clinic-2",
+        client: agent,
+        onFrame: async () => {},
+      }),
+    );
 
     await waitFor(() => expect(result.current.connected).toBe(true));
     expect(result.current.openPorts).toBe(2);
@@ -45,39 +56,69 @@ describe("useLabDeviceAgentListen", () => {
   it("does not overlap polls and aborts on unmount", async () => {
     vi.useFakeTimers();
     let resolveFrames!: () => void;
-    const frames = vi.fn(() => new Promise<[]>(resolve => { resolveFrames = () => resolve([]); }));
+    const frames = vi.fn(
+      () =>
+        new Promise<[]>((resolve) => {
+          resolveFrames = () => resolve([]);
+        }),
+    );
     const agent = client({ frames });
-    const { unmount } = renderHook(() => useLabDeviceAgentListen({
-      enabled: true,
-      clinicId: "clinic-2",
-      client: agent,
-      onFrame: async () => {},
-    }));
+    const { unmount } = renderHook(() =>
+      useLabDeviceAgentListen({
+        enabled: true,
+        clinicId: "clinic-2",
+        client: agent,
+        onFrame: async () => {},
+      }),
+    );
 
-    await act(async () => { await Promise.resolve(); });
-    await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
     expect(frames).toHaveBeenCalledTimes(1);
 
     resolveFrames();
-    await act(async () => { await Promise.resolve(); });
+    await act(async () => {
+      await Promise.resolve();
+    });
     unmount();
-    await act(async () => { await vi.runAllTimersAsync(); });
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
     expect(frames).toHaveBeenCalledTimes(1);
   });
 
   it("does not poll when disabled and recovers to disconnected after agent failure", async () => {
-    const health = vi.fn().mockResolvedValueOnce({
-      status: "degraded", openPorts: 1, configuredPorts: 2, pending: 1, rejected: 1, overflow: 0,
-      inputOverflow: 0, portDiscoveryFailures: 1, portOpenFailures: 2,
-      lastErrorCategory: "port_open_failed",
-      queueFailures: 0, portCloseFailures: 0,
-      responseFailures: 0,
-    }).mockRejectedValueOnce(new Error("offline"));
+    const health = vi
+      .fn()
+      .mockResolvedValueOnce({
+        status: "degraded",
+        openPorts: 1,
+        configuredPorts: 2,
+        pending: 1,
+        rejected: 1,
+        overflow: 0,
+        inputOverflow: 0,
+        portDiscoveryFailures: 1,
+        portOpenFailures: 2,
+        lastErrorCategory: "port_open_failed",
+        queueFailures: 0,
+        portCloseFailures: 0,
+        responseFailures: 0,
+      })
+      .mockRejectedValueOnce(new Error("offline"));
     const agent = client({ health });
     const { result, rerender } = renderHook(
-      ({ enabled }) => useLabDeviceAgentListen({
-        enabled, clinicId: "clinic-2", client: agent, onFrame: async () => {},
-      }),
+      ({ enabled }) =>
+        useLabDeviceAgentListen({
+          enabled,
+          clinicId: "clinic-2",
+          client: agent,
+          onFrame: async () => {},
+        }),
       { initialProps: { enabled: false } },
     );
     expect(result.current.connected).toBe(false);
@@ -87,7 +128,9 @@ describe("useLabDeviceAgentListen", () => {
     await waitFor(() => expect(result.current.degraded).toBe(true));
     expect(result.current.portOpenFailures).toBe(2);
     expect(result.current.lastErrorCategory).toBe("port_open_failed");
-    await act(async () => { await new Promise(resolve => window.setTimeout(resolve, 800)); });
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 800));
+    });
     await waitFor(() => expect(result.current.connected).toBe(false));
   });
 
@@ -95,32 +138,86 @@ describe("useLabDeviceAgentListen", () => {
     vi.useFakeTimers();
     const frames = vi.fn(async () => [{ id: "frame-1", payloadBase64: "AA==", receivedAt: "now" }]);
     const agent = client({ frames });
-    renderHook(() => useLabDeviceAgentListen({
-      enabled: true,
-      clinicId: "clinic-2",
-      client: agent,
-      onFrame: async () => { throw Object.assign(new Error("offline"), { status: 500 }); },
-    }));
+    renderHook(() =>
+      useLabDeviceAgentListen({
+        enabled: true,
+        clinicId: "clinic-2",
+        client: agent,
+        onFrame: async () => {
+          throw Object.assign(new Error("offline"), { status: 500 });
+        },
+      }),
+    );
 
-    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
     expect(frames).toHaveBeenCalledTimes(1);
-    await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
     expect(frames).toHaveBeenCalledTimes(1);
-    await act(async () => { await vi.advanceTimersByTimeAsync(600); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(600);
+    });
     expect(frames).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not deliver frames after enabled becomes false", async () => {
+    vi.useFakeTimers();
+    const onFrame = vi.fn(async () => {});
+    let resolveFrames!: (
+      value: Array<{ id: string; payloadBase64: string; receivedAt: string }>,
+    ) => void;
+    const frames = vi.fn(
+      () =>
+        new Promise<Array<{ id: string; payloadBase64: string; receivedAt: string }>>((resolve) => {
+          resolveFrames = resolve;
+        }),
+    );
+    const agent = client({ frames });
+    const { rerender } = renderHook(
+      ({ enabled }) =>
+        useLabDeviceAgentListen({
+          enabled,
+          clinicId: "clinic-2",
+          client: agent,
+          onFrame,
+        }),
+      { initialProps: { enabled: true } },
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    rerender({ enabled: false });
+    resolveFrames([{ id: "frame-1", payloadBase64: "AA==", receivedAt: "now" }]);
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(onFrame).not.toHaveBeenCalled();
   });
 
   it("does not expose the previous clinic snapshot while switching clinics", async () => {
     const claim = vi.fn(async (clinicId: string, signal?: AbortSignal) => {
       if (clinicId === "clinic-3") {
-        await new Promise<void>((resolve) => signal?.addEventListener("abort", () => resolve(), { once: true }));
+        await new Promise<void>((resolve) =>
+          signal?.addEventListener("abort", () => resolve(), { once: true }),
+        );
       }
     });
     const agent = client({ claim });
     const { result, rerender, unmount } = renderHook(
-      ({ clinicId }) => useLabDeviceAgentListen({
-        enabled: true, clinicId, client: agent, onFrame: async () => {},
-      }),
+      ({ clinicId }) =>
+        useLabDeviceAgentListen({
+          enabled: true,
+          clinicId,
+          client: agent,
+          onFrame: async () => {},
+        }),
       { initialProps: { clinicId: "clinic-2" } },
     );
     await waitFor(() => expect(result.current.connected).toBe(true));

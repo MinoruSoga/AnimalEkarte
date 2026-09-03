@@ -1,4 +1,4 @@
-import type { BackendCheckupGlobal } from "./types";
+import type { BackendCheckupGlobal } from "../types";
 
 export function transformCheckupGlobal(data: BackendCheckupGlobal) {
   return {

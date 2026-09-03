@@ -8,15 +8,25 @@ import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
 import { MasterCRUDPage } from "../components/MasterCRUDPage";
 import { AnimalSpeciesSidePanel } from "../components/AnimalSpeciesSidePanel";
-import type { AnimalSpeciesFormData } from "../components/animal-species-side-panel-model";
+import type { AnimalSpeciesFormData } from "../lib/animal-species-side-panel-model";
 import {
   ANIMAL_SPECIES_COLUMNS,
   AnimalSpeciesSortableTable,
 } from "../components/AnimalSpeciesSortableTable";
 import { AuthContext } from "@/hooks/auth-context";
 import { usePermission } from "@/hooks/use-permission";
-import { useGetAnimalSpecies, useCreateAnimalSpecies, useUpdateAnimalSpecies, useDeleteAnimalSpecies, useReorderAnimalSpecies } from "../api/animal-species";
-import type { AnimalSpecies, CreateAnimalSpeciesRequest, UpdateAnimalSpeciesRequest } from "../api/animal-species";
+import {
+  useGetAnimalSpecies,
+  useCreateAnimalSpecies,
+  useUpdateAnimalSpecies,
+  useDeleteAnimalSpecies,
+  useReorderAnimalSpecies,
+} from "../api/animal-species";
+import type {
+  AnimalSpecies,
+  CreateAnimalSpeciesRequest,
+  UpdateAnimalSpeciesRequest,
+} from "../api/animal-species";
 import {
   buildAnimalSpeciesCreateRequest,
   buildAnimalSpeciesUpdateRequest,
@@ -30,11 +40,7 @@ export function AnimalSpeciesSettings() {
   // Fail-closed: missing AuthProvider ⇒ no mutation affordances.
   const auth = useContext(AuthContext);
   const canMutate = auth?.user?.isSystemAdmin === true;
-  const {
-    data: animalSpecies = [],
-    isPending,
-    isError,
-  } = useGetAnimalSpecies();
+  const { data: animalSpecies = [], isPending, isError } = useGetAnimalSpecies();
   const isSpeciesUnavailable = isError || isPending;
   const createMutation = useCreateAnimalSpecies();
   const updateMutation = useUpdateAnimalSpecies();
@@ -68,8 +74,15 @@ export function AnimalSpeciesSettings() {
     },
   });
 
-  const { handleSave } = useMasterSave<AnimalSpecies, AnimalSpeciesFormData, CreateAnimalSpeciesRequest, UpdateAnimalSpeciesRequest>({
-    crud, createMutation, updateMutation,
+  const { handleSave } = useMasterSave<
+    AnimalSpecies,
+    AnimalSpeciesFormData,
+    CreateAnimalSpeciesRequest,
+    UpdateAnimalSpeciesRequest
+  >({
+    crud,
+    createMutation,
+    updateMutation,
     validate: (d) => (!d.name.trim() ? "動物種類名は必須です" : null),
     toCreateRequest: buildAnimalSpeciesCreateRequest,
     toUpdateRequest: buildAnimalSpeciesUpdateRequest,
@@ -84,47 +97,50 @@ export function AnimalSpeciesSettings() {
     // 未指定時 usePermission("") は isSystemAdmin のみ true（hasPermission バイパス）になるため、
     // 新規登録/side panel の mutation affordance も system admin に限定される。
     <>
-    <MasterCRUDPage title="動物種類マスタ" icon={<PawPrint className={`${ICON.page} ${C.text}`} />}
-      entityLabel="動物種類" searchPlaceholder="動物種類名で検索..." emptyMessage="動物種類が登録されていません"
-      crud={crud} handleSave={handleSave} columns={ANIMAL_SPECIES_COLUMNS}
-      filterProperties={[MASTER_STATUS_FILTER]}
-      deleteDescription={`「${crud.pendingDelete?.name}」を削除します。ペットで使用中の場合は削除できません。この操作は取り消せません。`}
-      renderRow={() => null}
-      renderSidePanel={({ readOnly, ...props }) => <AnimalSpeciesSidePanel key={props.item?.id ?? "new"} {...props} readOnly={readOnly || (isSpeciesUnavailable && props.item !== null)} onDirtyChange={handleDirtyChange} />}
-    >
-      {isError ? (
-        <p role="alert" aria-atomic="true" className={`text-sm ${C.danger}`}>
-          動物種の取得に失敗しました。
-        </p>
-      ) : isPending ? (
-        <p
-          role="status"
-          aria-live="polite"
-          aria-atomic="true"
-          className={`text-sm ${C.text50}`}
-        >
-          動物種を読み込み中です。
-        </p>
-      ) : animalSpecies.length === 0 ? (
-        <p
-          role="status"
-          aria-live="polite"
-          aria-atomic="true"
-          className={`text-sm ${C.text50}`}
-        >
-          動物種マスタが登録されていません。
-        </p>
-      ) : (
-        <AnimalSpeciesSortableTable
-          items={orderedItems}
-          sensors={sensors}
-          onDragEnd={handleDragEnd}
-          canEdit={canMutate}
-          onEdit={crud.handleEdit}
-        />
-      )}
-    </MasterCRUDPage>
-    {dirty.discardDialog}
+      <MasterCRUDPage
+        title="動物種類マスタ"
+        icon={<PawPrint className={`${ICON.page} ${C.text}`} />}
+        entityLabel="動物種類"
+        searchPlaceholder="動物種類名で検索..."
+        emptyMessage="動物種類が登録されていません"
+        crud={crud}
+        handleSave={handleSave}
+        columns={ANIMAL_SPECIES_COLUMNS}
+        filterProperties={[MASTER_STATUS_FILTER]}
+        deleteDescription={`「${crud.pendingDelete?.name}」を削除します。ペットで使用中の場合は削除できません。この操作は取り消せません。`}
+        renderRow={() => null}
+        renderSidePanel={({ readOnly, ...props }) => (
+          <AnimalSpeciesSidePanel
+            key={props.item?.id ?? "new"}
+            {...props}
+            readOnly={readOnly || (isSpeciesUnavailable && props.item !== null)}
+            onDirtyChange={handleDirtyChange}
+          />
+        )}
+      >
+        {isError ? (
+          <p role="alert" aria-atomic="true" className={`text-sm ${C.danger}`}>
+            動物種の取得に失敗しました。
+          </p>
+        ) : isPending ? (
+          <p role="status" aria-live="polite" aria-atomic="true" className={`text-sm ${C.text50}`}>
+            動物種を読み込み中です。
+          </p>
+        ) : animalSpecies.length === 0 ? (
+          <p role="status" aria-live="polite" aria-atomic="true" className={`text-sm ${C.text50}`}>
+            動物種マスタが登録されていません。
+          </p>
+        ) : (
+          <AnimalSpeciesSortableTable
+            items={orderedItems}
+            sensors={sensors}
+            onDragEnd={handleDragEnd}
+            canEdit={canMutate}
+            onEdit={crud.handleEdit}
+          />
+        )}
+      </MasterCRUDPage>
+      {dirty.discardDialog}
     </>
   );
 }

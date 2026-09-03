@@ -8,7 +8,7 @@ import {
   type MedicineDoseContext,
 } from "../api/medicine-dose-lookup";
 import type { Treatment } from "../types";
-import { computeDoseGate, resolveDoseGateSource } from "../components/TreatmentsTab/treatment-row-dose-gate";
+import { computeDoseGate, resolveDoseGateSource } from "../lib/treatment-row-dose-gate";
 
 export function useTreatmentDoseGate(
   treatment: Treatment,
@@ -20,9 +20,7 @@ export function useTreatmentDoseGate(
   const medicine = isMedicineRow
     ? doseContext.medicines?.find((m) => m.id === treatment.medicine_id)
     : undefined;
-  const doseParamsQuery = useMedicineDoseParams(
-    isMedicineRow ? treatment.medicine_id : undefined,
-  );
+  const doseParamsQuery = useMedicineDoseParams(isMedicineRow ? treatment.medicine_id : undefined);
   const doseParamsAuthority = useMemo(
     () =>
       toDoseParamsAuthority(isMedicineRow ? treatment.medicine_id : undefined, {

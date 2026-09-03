@@ -14,7 +14,7 @@ import {
   makeBackendAccounting,
   makePaginationFixtures,
   createWrapper,
-} from "./owner-accounting-history.test-fixtures";
+} from "../lib/owner-accounting-history.test-fixtures";
 
 /**
  * FE4-18: OwnerAccountingHistory.test.tsx（867 行）から describe 境界で分割。
@@ -29,12 +29,19 @@ describe("OwnerAccountingHistory", () => {
     it("10 件以下ではページネーション UI が非表示", async () => {
       server.use(
         http.get("/api/v1/accountings", () =>
-          HttpResponse.json({ data: [completedFixture, waitingFixture], total: 2, page: 1, limit: 50 }),
+          HttpResponse.json({
+            data: [completedFixture, waitingFixture],
+            total: 2,
+            page: 1,
+            limit: 50,
+          }),
         ),
       );
       render(<OwnerAccountingHistory ownerId={mockOwnerId} />, { wrapper: createWrapper() });
       await screen.findByText("ぽち");
-      expect(screen.queryByRole("navigation", { name: "ページネーション" })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("navigation", { name: "ページネーション" }),
+      ).not.toBeInTheDocument();
     });
 
     it("11 件以上ではページネーション UI が表示され総ページ数が出る", async () => {
@@ -64,9 +71,9 @@ describe("OwnerAccountingHistory", () => {
       expect(screen.getByRole("button", { name: "次のページ" })).toBeEnabled();
 
       // date desc: 211 (04-12) が先頭、200 (04-01) はページ 2
-      const idCells = screen.getAllByRole("cell").filter((c) =>
-        /^2[01]\d$/.test(c.textContent ?? ""),
-      );
+      const idCells = screen
+        .getAllByRole("cell")
+        .filter((c) => /^2[01]\d$/.test(c.textContent ?? ""));
       expect(idCells.map((c) => c.textContent)).toContain("211");
       expect(idCells.map((c) => c.textContent)).not.toContain("200");
       expect(idCells).toHaveLength(10);
@@ -86,9 +93,9 @@ describe("OwnerAccountingHistory", () => {
       await user.click(screen.getByRole("button", { name: "次のページ" }));
 
       // page 2: ids 201, 200 (oldest two)
-      const idCells = screen.getAllByRole("cell").filter((c) =>
-        /^2[01]\d$/.test(c.textContent ?? ""),
-      );
+      const idCells = screen
+        .getAllByRole("cell")
+        .filter((c) => /^2[01]\d$/.test(c.textContent ?? ""));
       expect(idCells.map((c) => c.textContent)).toContain("200");
       expect(idCells.map((c) => c.textContent)).not.toContain("211");
       expect(idCells).toHaveLength(2);
@@ -112,9 +119,9 @@ describe("OwnerAccountingHistory", () => {
       await user.click(screen.getByRole("button", { name: "次のページ" }));
       await user.click(screen.getByRole("button", { name: "前のページ" }));
 
-      const idCells = screen.getAllByRole("cell").filter((c) =>
-        /^2[01]\d$/.test(c.textContent ?? ""),
-      );
+      const idCells = screen
+        .getAllByRole("cell")
+        .filter((c) => /^2[01]\d$/.test(c.textContent ?? ""));
       expect(idCells.map((c) => c.textContent)).toContain("211");
       expect(idCells.map((c) => c.textContent)).not.toContain("200");
       expect(idCells).toHaveLength(10);
@@ -171,7 +178,9 @@ describe("OwnerAccountingHistory", () => {
         http.get("/api/v1/accountings", () =>
           HttpResponse.json({
             data: [completedFixture, completedFixture2, waitingFixture],
-            total: 3, page: 1, limit: 50,
+            total: 3,
+            page: 1,
+            limit: 50,
           }),
         ),
       );
@@ -182,9 +191,9 @@ describe("OwnerAccountingHistory", () => {
       // Select が「金額」を表示している
       expect(screen.getByRole("combobox", { name: "ソート項目" })).toHaveTextContent("金額");
       // 金額降順: 101(5500) → 103(3300) → 102(waiting=0)
-      const idCells = screen.getAllByRole("cell").filter((c) =>
-        ["101", "102", "103"].includes(c.textContent ?? ""),
-      );
+      const idCells = screen
+        .getAllByRole("cell")
+        .filter((c) => ["101", "102", "103"].includes(c.textContent ?? ""));
       expect(idCells[0]).toHaveTextContent("101");
     });
 
@@ -193,7 +202,9 @@ describe("OwnerAccountingHistory", () => {
         http.get("/api/v1/accountings", () =>
           HttpResponse.json({
             data: [completedFixture, completedFixture2, waitingFixture],
-            total: 3, page: 1, limit: 50,
+            total: 3,
+            page: 1,
+            limit: 50,
           }),
         ),
       );
@@ -201,9 +212,10 @@ describe("OwnerAccountingHistory", () => {
         wrapper: createWrapper(["/?ah_order=asc"]),
       });
       await screen.findByText("ぽち");
-      expect(
-        screen.getByRole("button", { name: /昇順 — クリックで降順に切替/ }),
-      ).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByRole("button", { name: /昇順 — クリックで降順に切替/ })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
     });
 
     it("ah_page=2 で初期描画するとページ 2 が表示される", async () => {
@@ -217,9 +229,9 @@ describe("OwnerAccountingHistory", () => {
         wrapper: createWrapper(["/?ah_page=2"]),
       });
       await screen.findByText("12件中 11-12件");
-      const idCells = screen.getAllByRole("cell").filter((c) =>
-        /^2[01]\d$/.test(c.textContent ?? ""),
-      );
+      const idCells = screen
+        .getAllByRole("cell")
+        .filter((c) => /^2[01]\d$/.test(c.textContent ?? ""));
       expect(idCells.map((c) => c.textContent)).toContain("200");
       expect(idCells.map((c) => c.textContent)).not.toContain("211");
     });
@@ -229,7 +241,9 @@ describe("OwnerAccountingHistory", () => {
         http.get("/api/v1/accountings", () =>
           HttpResponse.json({
             data: [completedFixture, completedFixture2, waitingFixture],
-            total: 3, page: 1, limit: 50,
+            total: 3,
+            page: 1,
+            limit: 50,
           }),
         ),
       );
@@ -239,9 +253,9 @@ describe("OwnerAccountingHistory", () => {
       await screen.findByText("ぽち");
       expect(screen.getByRole("combobox", { name: "ソート項目" })).toHaveTextContent("受付日");
       // date desc: 102(04-29) が先頭
-      const idCells = screen.getAllByRole("cell").filter((c) =>
-        ["101", "102", "103"].includes(c.textContent ?? ""),
-      );
+      const idCells = screen
+        .getAllByRole("cell")
+        .filter((c) => ["101", "102", "103"].includes(c.textContent ?? ""));
       expect(idCells[0]).toHaveTextContent("102");
     });
 
@@ -251,7 +265,9 @@ describe("OwnerAccountingHistory", () => {
         http.get("/api/v1/accountings", () =>
           HttpResponse.json({
             data: [completedFixture, completedFixture2, waitingFixture],
-            total: 3, page: 1, limit: 50,
+            total: 3,
+            page: 1,
+            limit: 50,
           }),
         ),
       );
@@ -333,9 +349,7 @@ describe("OwnerAccountingHistory", () => {
       );
       render(<OwnerAccountingHistory ownerId={mockOwnerId} />, { wrapper: createWrapper() });
       await screen.findByText(/未払いの会計が/);
-      expect(
-        screen.getByRole("button", { name: /先頭の未払い行を確認する/ }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /先頭の未払い行を確認する/ })).toBeInTheDocument();
     });
 
     it("バナークリックで先頭未払い行にスクロール＆フォーカスが移る（同一ページ内）", async () => {

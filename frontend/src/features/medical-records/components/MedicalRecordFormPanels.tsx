@@ -4,7 +4,7 @@ import { LAYOUT } from "@/lib/design-tokens";
 import { isMedicalRecordFinalizedStatus } from "../lib/medical-record-lock";
 import { MedicalRecordClinicalTabs } from "./MedicalRecordClinicalTabs";
 import { MedicalRecordServiceTabs } from "./MedicalRecordServiceTabs";
-import type { MedicalRecordTabsAreaProps } from "./medical-record-tabs-types";
+import type { MedicalRecordTabsAreaProps } from "../lib/medical-record-tabs-types";
 
 export { MedicalRecordStickyHeader } from "./MedicalRecordStickyHeader";
 

@@ -30,7 +30,7 @@ export function InventoryForm() {
     formAction,
     formState,
     isPending,
-  } = useInventoryForm(id);
+  } = useInventoryForm(id, { permissions: { canCreate, canEdit } });
 
   const canSubmit = isEdit ? canEdit : canCreate;
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
@@ -46,17 +46,26 @@ export function InventoryForm() {
     navigate(paths.inventory.getHref());
   }, [navigate]);
 
-  const handleCategoryChange = useCallback((value: InventoryItem["category"]) => {
-    setCategory(value);
-  }, [setCategory]);
+  const handleCategoryChange = useCallback(
+    (value: InventoryItem["category"]) => {
+      setCategory(value);
+    },
+    [setCategory],
+  );
 
-  const handleExpiryChange = useCallback((value: string) => {
-    setExpiryDate(value);
-  }, [setExpiryDate]);
+  const handleExpiryChange = useCallback(
+    (value: string) => {
+      setExpiryDate(value);
+    },
+    [setExpiryDate],
+  );
 
-  const handleLastRestockedChange = useCallback((value: string) => {
-    setLastRestocked(value);
-  }, [setLastRestocked]);
+  const handleLastRestockedChange = useCallback(
+    (value: string) => {
+      setLastRestocked(value);
+    },
+    [setLastRestocked],
+  );
 
   const gate = resolveInventoryFormGate({
     isEdit,

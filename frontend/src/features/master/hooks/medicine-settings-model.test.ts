@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 import type { Medicine } from "@/types";
 
-import type { MedicineFormData } from "../components/medicine-side-panel-model";
+import type { MedicineFormData } from "../lib/medicine-side-panel-model";
 import {
   buildMedicineCreateRequest,
   buildMedicineUpdateRequest,
@@ -329,13 +329,15 @@ describe("resolveMedicineDrag", () => {
 
 describe("validateMedicineForm (BUG-006)", () => {
   it("rejects an uncategorized medicine with no price and no dosage form", () => {
-    expect(validateMedicineForm(makeFormData({ parentId: "", price: 0, dosageForm: "" }), false)).toBe(
-      "薬剤として登録する場合は親カテゴリ、単価、または剤形のいずれかを入力してください",
-    );
+    expect(
+      validateMedicineForm(makeFormData({ parentId: "", price: 0, dosageForm: "" }), false),
+    ).toBe("薬剤として登録する場合は親カテゴリ、単価、または剤形のいずれかを入力してください");
   });
 
   it("accepts an uncategorized medicine when dosage form is set", () => {
-    expect(validateMedicineForm(makeFormData({ parentId: "", price: 0, dosageForm: "tablet" }), false)).toBeNull();
+    expect(
+      validateMedicineForm(makeFormData({ parentId: "", price: 0, dosageForm: "tablet" }), false),
+    ).toBeNull();
   });
 });
 

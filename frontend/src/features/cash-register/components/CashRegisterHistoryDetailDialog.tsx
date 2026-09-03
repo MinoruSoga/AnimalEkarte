@@ -9,9 +9,9 @@ import { C } from "@/lib/design-tokens";
 import { formatJSTDateTimeLocal } from "@/lib/jst-date";
 import { formatCurrency } from "@/lib/format/number";
 import type { CashRegisterClose } from "../api/get-cash-register-closes";
-import { PERIOD_LABELS } from "../constants";
-import { summarizeCategoryTotals } from "../category-breakdown";
-import { diffClass, formatDiff } from "./cash-register-history-model";
+import { PERIOD_LABELS } from "../lib/constants";
+import { summarizeCategoryTotals } from "../lib/category-breakdown";
+import { diffClass, formatDiff } from "../lib/cash-register-history-model";
 
 interface CashRegisterHistoryDetailDialogProps {
   selectedClose: CashRegisterClose | null;
@@ -30,16 +30,14 @@ export function CashRegisterHistoryDetailDialog({
     : 0;
 
   return (
-    <Dialog
-      open={selectedClose !== null}
-      onOpenChange={onOpenChange}
-    >
+    <Dialog open={selectedClose !== null} onOpenChange={onOpenChange}>
       <DialogContent>
         {selectedClose ? (
           <>
             <DialogHeader>
               <DialogTitle>
-                {selectedClose.closeDate.slice(0, 10)} {PERIOD_LABELS[selectedClose.period]} の締め詳細
+                {selectedClose.closeDate.slice(0, 10)} {PERIOD_LABELS[selectedClose.period]}{" "}
+                の締め詳細
               </DialogTitle>
               <DialogDescription>
                 この締めレコードの集計内訳と差額を表示しています。
@@ -61,9 +59,7 @@ export function CashRegisterHistoryDetailDialog({
                   {formatDiff(detailDiff)}
                 </dd>
                 <dt className={C.text60}>担当者</dt>
-                <dd className={`text-right ${C.text}`}>
-                  {selectedClose.closedByStaffName ?? "—"}
-                </dd>
+                <dd className={`text-right ${C.text}`}>{selectedClose.closedByStaffName ?? "—"}</dd>
                 <dt className={C.text60}>締め日時</dt>
                 <dd className={`text-right ${C.text}`}>
                   {selectedClose.closedAt

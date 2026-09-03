@@ -59,17 +59,23 @@ export function ReservationManagement({ createMutations }: ReservationManagement
 
   const [searchParams, setSearchParams] = useSearchParams();
   const days: 5 | 7 = searchParams.get("days") === "7" ? 7 : 5;
-  const handleDaysChange = useCallback((next: 5 | 7) => {
-    setSearchParams((prev) => {
-      const params = new URLSearchParams(prev);
-      if (next === 7) {
-        params.set("days", "7");
-      } else {
-        params.delete("days");
-      }
-      return params;
-    }, { replace: true });
-  }, [setSearchParams]);
+  const handleDaysChange = useCallback(
+    (next: 5 | 7) => {
+      setSearchParams(
+        (prev) => {
+          const params = new URLSearchParams(prev);
+          if (next === 7) {
+            params.set("days", "7");
+          } else {
+            params.delete("days");
+          }
+          return params;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
 
   const { selectedClinicIds, isMultiClinic } = useClinicScope();
 
@@ -114,6 +120,7 @@ export function ReservationManagement({ createMutations }: ReservationManagement
     days,
     clinicIds: isMultiClinic ? selectedClinicIds : undefined,
     createMutations,
+    permissions: { canCreate, canEdit, canDelete },
   });
 
   // BUG-069: Reservation → ReservationFormData 変換を行うラッパー
@@ -139,26 +146,20 @@ export function ReservationManagement({ createMutations }: ReservationManagement
   );
 
   const doctorNames = useMemo(
-    () =>
-      Array.from(
-        new Set(appointments.map((a) => a.doctor).filter(Boolean)),
-      ).sort(),
+    () => Array.from(new Set(appointments.map((a) => a.doctor).filter(Boolean))).sort(),
     [appointments],
   );
 
-  const filteredAppointments = useMemo(
-    () => {
-      let result = filterCalendarAppointments(appointments);
-      if (doctorFilter !== "all") {
-        result = result.filter((a) => a.doctor === doctorFilter);
-      }
-      if (sourceFilter !== "all") {
-        result = result.filter((a) => a.source === sourceFilter);
-      }
-      return result;
-    },
-    [appointments, doctorFilter, sourceFilter],
-  );
+  const filteredAppointments = useMemo(() => {
+    let result = filterCalendarAppointments(appointments);
+    if (doctorFilter !== "all") {
+      result = result.filter((a) => a.doctor === doctorFilter);
+    }
+    if (sourceFilter !== "all") {
+      result = result.filter((a) => a.source === sourceFilter);
+    }
+    return result;
+  }, [appointments, doctorFilter, sourceFilter]);
 
   const navigateToday = useCallback(() => setCurrentDate(toJSTWallDate(new Date())), []);
   const navigatePrevious = useCallback(

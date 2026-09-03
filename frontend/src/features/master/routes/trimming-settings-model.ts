@@ -1,7 +1,4 @@
-import type {
-  CourseFormData,
-  OptionFormData,
-} from "../components/trimming-side-panel-model";
+import type { CourseFormData, OptionFormData } from "../lib/trimming-side-panel-model";
 import type {
   CreateTrimmingCourseRequest,
   CreateTrimmingOptionRequest,
@@ -16,14 +13,10 @@ export const TRIMMING_TABS = [
 
 export type TrimmingTabValue = (typeof TRIMMING_TABS)[number]["value"];
 
-const TRIMMING_TAB_VALUES = new Set<string>(
-  TRIMMING_TABS.map((tab) => tab.value),
-);
+const TRIMMING_TAB_VALUES = new Set<string>(TRIMMING_TABS.map((tab) => tab.value));
 
 export function toTrimmingTabValue(value: string | null): TrimmingTabValue {
-  return TRIMMING_TAB_VALUES.has(value ?? "")
-    ? (value as TrimmingTabValue)
-    : "course";
+  return TRIMMING_TAB_VALUES.has(value ?? "") ? (value as TrimmingTabValue) : "course";
 }
 
 function toNullableNumber(value: string): number | null {

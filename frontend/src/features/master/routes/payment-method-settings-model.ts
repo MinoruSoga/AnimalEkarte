@@ -3,7 +3,7 @@ import type {
   PaymentMethod,
   UpdatePaymentMethodRequest,
 } from "../api/payment-method-master";
-import type { PaymentMethodFormData } from "../components/payment-method-side-panel-model";
+import type { PaymentMethodFormData } from "../lib/payment-method-side-panel-model";
 
 /**
  * BUG-029: reject duplicate names on the client so save never looks successful
@@ -22,8 +22,7 @@ export function validatePaymentMethodForm(
   }
   const conflict = (options.existing ?? []).some(
     (item) =>
-      item.name.trim() === name &&
-      (options.editingId === null || item.id !== options.editingId),
+      item.name.trim() === name && (options.editingId === null || item.id !== options.editingId),
   );
   if (conflict) {
     return `支払方法名「${name}」は既に使用されています`;

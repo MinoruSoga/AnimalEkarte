@@ -5,7 +5,7 @@ import { MedicalRecordExamination } from "./MedicalRecordExamination";
 import { MedicalRecordImage } from "./MedicalRecordImage";
 import { MedicalRecordVaccination } from "./MedicalRecordVaccination";
 import { MedicalRecordMountedTab, MedicalRecordSaveRequired } from "./MedicalRecordTabsShared";
-import type { MedicalRecordTabsAreaProps } from "./medical-record-tabs-types";
+import type { MedicalRecordTabsAreaProps } from "../lib/medical-record-tabs-types";
 
 export function MedicalRecordServiceTabs({
   activeTab,
@@ -33,11 +33,19 @@ export function MedicalRecordServiceTabs({
       </MedicalRecordMountedTab>
       <MedicalRecordMountedTab tab="定期健診" activeTab={activeTab} mountedTabs={mountedTabs}>
         <MedicalRecordSaveRequired show={saveRequired}>
-          <CheckupsTab medicalRecordId={recordId ?? ""} lstepStatus={lstepStatus} isFinalized={isFinalized} />
+          <CheckupsTab
+            medicalRecordId={recordId ?? ""}
+            lstepStatus={lstepStatus}
+            isFinalized={isFinalized}
+          />
         </MedicalRecordSaveRequired>
       </MedicalRecordMountedTab>
       <MedicalRecordMountedTab tab="検査" activeTab={activeTab} mountedTabs={mountedTabs}>
-        <MedicalRecordExamination isNewRecord={isNewRecord} petId={selectedPet.id} medicalRecordId={recordId} />
+        <MedicalRecordExamination
+          isNewRecord={isNewRecord}
+          petId={selectedPet.id}
+          medicalRecordId={recordId}
+        />
       </MedicalRecordMountedTab>
       <MedicalRecordMountedTab tab="画像" activeTab={activeTab} mountedTabs={mountedTabs}>
         <MedicalRecordImage

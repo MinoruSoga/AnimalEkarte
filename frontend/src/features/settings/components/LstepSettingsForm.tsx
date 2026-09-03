@@ -11,7 +11,7 @@ import {
   useTestLineMessagingConnection,
   useDeleteLstepSettings,
 } from "../hooks/use-lstep-settings";
-import { buildLstepSettingsRequest } from "./lstep-settings-form-request";
+import { buildLstepSettingsRequest } from "../lib/lstep-settings-form-request";
 import {
   LstepActionFooter,
   LstepConfiguredSummary,
@@ -120,7 +120,9 @@ export function LstepSettingsForm() {
           onDisableRequest={() => setShowDisableSyncConfirm(true)}
           onSyncEnabledChange={setSyncEnabledOverride}
         />
-        <LstepNoticeSection hasLineAccessToken={Boolean(settings?.line_channel_access_token_masked)} />
+        <LstepNoticeSection
+          hasLineAccessToken={Boolean(settings?.line_channel_access_token_masked)}
+        />
         <LstepActionFooter
           isConfigured={isConfigured}
           hasLineAccessToken={Boolean(settings?.line_channel_access_token_masked)}

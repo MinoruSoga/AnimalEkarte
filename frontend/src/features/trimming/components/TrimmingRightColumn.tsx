@@ -4,7 +4,7 @@ import { HistoryFilterPanel } from "@/components/shared/HistoryFilterPanel";
 import { LoadingFallback } from "@/components/shared/DataStates";
 import { C } from "@/lib/design-tokens";
 
-import type { TrimmingRightColumnProps } from "./trimming-form-column-types";
+import type { TrimmingRightColumnProps } from "../lib/trimming-form-column-types";
 
 export const TrimmingRightColumn = memo(function TrimmingRightColumn({
   sortedHistory,
@@ -47,7 +47,7 @@ export const TrimmingRightColumn = memo(function TrimmingRightColumn({
           </div>
         </button>
       )),
-    [sortedHistory, onHistoryClick]
+    [sortedHistory, onHistoryClick],
   );
 
   return (
@@ -73,9 +73,7 @@ export const TrimmingRightColumn = memo(function TrimmingRightColumn({
         {isHistoryLoading ? (
           <LoadingFallback />
         ) : sortedHistory.length === 0 ? (
-          <div className={`text-center py-8 text-sm ${C.text40}`}>
-            施術履歴がありません
-          </div>
+          <div className={`text-center py-8 text-sm ${C.text40}`}>施術履歴がありません</div>
         ) : (
           historyCards
         )}

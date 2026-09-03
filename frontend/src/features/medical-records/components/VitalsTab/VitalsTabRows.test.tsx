@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 
 import type { UpdateVitalInput, Vital } from "../../types";
 import { VitalsAddRow, VitalsEditRow } from "./VitalsTabRows";
-import type { VitalsAddFormState } from "./vitals-tab-table-model";
+import type { VitalsAddFormState } from "../../lib/vitals-tab-table-model";
 
 const baseVital: Vital = {
   id: "55",
@@ -35,7 +35,7 @@ describe("VitalsEditRow weight unit toggle (BUG-015)", () => {
             isPending={false}
           />
         </tbody>
-      </table>
+      </table>,
     );
 
     const unitToggle = screen.getByRole("button", { name: "Kg" });
@@ -67,7 +67,7 @@ describe("VitalsEditRow weight unit toggle (BUG-015)", () => {
             isPending={false}
           />
         </tbody>
-      </table>
+      </table>,
     );
 
     await user.click(screen.getByRole("button", { name: "Kg" }));
@@ -104,7 +104,7 @@ describe("VitalsAddRow weight unit toggle (BUG-015)", () => {
         onChange={onChange}
         formAction={() => undefined}
         onCancel={() => undefined}
-      />
+      />,
     );
 
     await user.click(screen.getByRole("button", { name: "Kg" }));
@@ -137,7 +137,7 @@ describe("VitalsAddRow weight unit toggle (BUG-015)", () => {
         onChange={onChange}
         formAction={() => undefined}
         onCancel={() => undefined}
-      />
+      />,
     );
 
     await user.click(screen.getByRole("button", { name: "Kg" }));

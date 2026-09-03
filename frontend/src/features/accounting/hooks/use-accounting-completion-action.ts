@@ -18,7 +18,10 @@ import { updateAccounting } from "../api/update-accounting";
 import type { PaymentSplitRequest } from "../api/types";
 import type { PaymentSplitDraft } from "../components/PaymentCard";
 import type { Accounting, AccountingItem, PaymentInfo, PaymentMethod } from "../types";
-import { buildPaymentSplitRequests, type AccountingFormState } from "../components/accounting-detail-model";
+import {
+  buildPaymentSplitRequests,
+  type AccountingFormState,
+} from "../lib/accounting-detail-model";
 
 type AccountingCompletionFocusTarget = NonNullable<AccountingFormState["focusTarget"]>;
 
@@ -55,9 +58,7 @@ export function resolveAccountingCompletionFocusTarget(
   return "receivedAmount";
 }
 
-export function focusAccountingCompletionError(
-  target: AccountingCompletionFocusTarget,
-): void {
+export function focusAccountingCompletionError(target: AccountingCompletionFocusTarget): void {
   const candidateIds: readonly string[] =
     target === "postCloseReason"
       ? ["postCloseReason"]
@@ -72,9 +73,7 @@ export function focusAccountingCompletionError(
   }
 }
 
-function toCompleteItems(
-  items: ReadonlyArray<AccountingItem>,
-): CompleteAccountingItemRequest[] {
+function toCompleteItems(items: ReadonlyArray<AccountingItem>): CompleteAccountingItemRequest[] {
   return items.map((item) => ({
     category: item.category,
     name: item.name,
@@ -149,10 +148,11 @@ export interface AccountingCompletionMutationPermissions {
   canEdit: boolean;
 }
 
-const DENIED_ACCOUNTING_COMPLETION_PERMISSIONS: Readonly<AccountingCompletionMutationPermissions> = {
-  canCreate: false,
-  canEdit: false,
-};
+const DENIED_ACCOUNTING_COMPLETION_PERMISSIONS: Readonly<AccountingCompletionMutationPermissions> =
+  {
+    canCreate: false,
+    canEdit: false,
+  };
 
 interface UseAccountingCompletionActionArgs {
   accountingId?: string;
@@ -204,7 +204,8 @@ export function useAccountingCompletionAction({
     permissionsRef.current = permissions;
   }, [permissions]);
   const isMutationAllowed = useCallback(
-    (action: keyof AccountingCompletionMutationPermissions) => permissionsRef.current[action] === true,
+    (action: keyof AccountingCompletionMutationPermissions) =>
+      permissionsRef.current[action] === true,
     [],
   );
 
@@ -232,14 +233,17 @@ export function useAccountingCompletionAction({
 
       const builtSplits: PaymentSplitRequest[] = buildPaymentSplitRequests(paymentSplits);
 
-      const repMethod: PaymentMethod =
-        builtSplits.some((split) => split.method === "cash") ? "cash" :
-        builtSplits.some((split) => split.method === "credit_card") ? "credit_card" :
-        "electronic_money";
+      const repMethod: PaymentMethod = builtSplits.some((split) => split.method === "cash")
+        ? "cash"
+        : builtSplits.some((split) => split.method === "credit_card")
+          ? "credit_card"
+          : "electronic_money";
 
       const cashSplit = builtSplits.find((split) => split.method === "cash");
-      const totalReceived = cashSplit ? cashSplit.received_amount ?? 0 : calculation.billingAmount;
-      const totalChange = cashSplit ? cashSplit.change_amount ?? 0 : 0;
+      const totalReceived = cashSplit
+        ? (cashSplit.received_amount ?? 0)
+        : calculation.billingAmount;
+      const totalChange = cashSplit ? (cashSplit.change_amount ?? 0) : 0;
 
       const paymentInfo: PaymentInfo = {
         subtotal: calculation.subtotal,
@@ -312,7 +316,8 @@ export function useAccountingCompletionAction({
             tax_total: calculation.taxTotal,
             total_amount: calculation.totalAmount,
             insurance_ratio: hasInsurance ? parseFloat(insuranceRatio) : null,
-            insurance_amount: calculation.insuranceAmount !== 0 ? calculation.insuranceAmount : null,
+            insurance_amount:
+              calculation.insuranceAmount !== 0 ? calculation.insuranceAmount : null,
             billing_amount: calculation.billingAmount,
             received_amount: totalReceived,
             change_amount: totalChange,

@@ -7,12 +7,8 @@ import {
 import { MASTER_STATUS_FILTER } from "../constants/styles";
 import type { Occupation } from "../api/occupations";
 import type { PermissionGroup } from "../api/permission-groups";
-import type {
-  CreateStaffRequest,
-  Staff,
-  UpdateStaffRequest,
-} from "../api/staffs";
-import type { StaffFormData } from "../components/staff-side-panel-model";
+import type { CreateStaffRequest, Staff, UpdateStaffRequest } from "../api/staffs";
+import type { StaffFormData } from "../lib/staff-side-panel-model";
 import type { StaffType } from "@/types/generated/models";
 import { normalizeKana } from "@/lib/normalize-kana";
 
@@ -32,7 +28,10 @@ export function buildGroupsByStaffId({
 
   for (const [staffId, groupIds] of staffGroupMap.entries()) {
     const groupIdSet = new Set(groupIds);
-    map.set(staffId, groups.filter((group) => groupIdSet.has(group.id)));
+    map.set(
+      staffId,
+      groups.filter((group) => groupIdSet.has(group.id)),
+    );
   }
   return map;
 }
@@ -56,14 +55,13 @@ export function buildStaffFilterProperties(occupations: Occupation[]): FilterPro
 export function searchStaff(staff: Staff, lowerSearchTerm: string): boolean {
   return (
     normalizeKana(staff.name).toLowerCase().includes(lowerSearchTerm) ||
-    normalizeKana(staff.occupationName ?? "").toLowerCase().includes(lowerSearchTerm)
+    normalizeKana(staff.occupationName ?? "")
+      .toLowerCase()
+      .includes(lowerSearchTerm)
   );
 }
 
-export function filterStaffByMasterFilters(
-  staff: Staff,
-  filters: ActiveFilter[],
-): boolean {
+export function filterStaffByMasterFilters(staff: Staff, filters: ActiveFilter[]): boolean {
   for (const filter of filters) {
     if (filter.key === "status" && typeof filter.value === "string") {
       const want = filter.value === "active";

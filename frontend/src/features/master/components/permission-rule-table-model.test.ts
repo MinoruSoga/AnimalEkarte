@@ -6,7 +6,7 @@ import {
   buildPermissionRuleMap,
   createEmptyPermissionRule,
   type PermissionRule,
-} from "./permission-rule-table-model";
+} from "../lib/permission-rule-table-model";
 
 describe("createEmptyPermissionRule", () => {
   it("指定した resource で全アクション false の初期ルールを返す", () => {

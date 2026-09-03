@@ -4,8 +4,8 @@ import { todayJSTISO } from "@/lib/jst-date";
 import type { AggregationCPMStage } from "@/lib/cpm-stage";
 import { useGetOwnerAggregations, type AggregationParams } from "../api/get-aggregations";
 import { useGetCPMStageCounts } from "../api/get-cpm-stage-counts";
-import { buildCsvContent } from "../components/aggregation-csv";
-import type { AggregationTab } from "../components/aggregation-filter-panel-model";
+import { buildCsvContent } from "../lib/aggregation-csv";
+import type { AggregationTab } from "../lib/aggregation-filter-panel-model";
 import {
   DEFAULT_AGGREGATION_TAB,
   TAB_DEFAULT_PARAMS,
@@ -51,7 +51,7 @@ export function AggregationDashboardPage() {
       // setSearchParams のみで完結。レンダー中の prevTab 比較が params / 選択状態のリセットを担う。
       setSearchParams({ tab: validTab }, { replace: true });
     },
-    [setSearchParams]
+    [setSearchParams],
   );
 
   const handleParamsChange = useCallback((partial: Partial<AggregationParams>) => {
@@ -69,7 +69,7 @@ export function AggregationDashboardPage() {
     (stage: AggregationCPMStage | undefined) => {
       handleParamsChange({ cpm_stage: stage });
     },
-    [handleParamsChange]
+    [handleParamsChange],
   );
 
   const handleSelectAll = useCallback(
@@ -80,7 +80,7 @@ export function AggregationDashboardPage() {
         setSelectedOwnerIds(new Set());
       }
     },
-    [owners]
+    [owners],
   );
 
   const handleSelectOwner = useCallback((ownerId: string, checked: boolean) => {
@@ -99,7 +99,7 @@ export function AggregationDashboardPage() {
 
   const selectedOwners = useMemo(
     () => owners.filter((o) => selectedOwnerIds.has(o.owner_id)),
-    [owners, selectedOwnerIds]
+    [owners, selectedOwnerIds],
   );
 
   const handleExportCsv = useCallback(() => {
