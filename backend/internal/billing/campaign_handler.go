@@ -9,6 +9,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/httpapi"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // CampaignHandler は CampaignService の HTTP handler。
@@ -28,6 +29,9 @@ func (h *CampaignHandler) ListCampaigns(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceAccounting), "view") {
+		return
+	}
 	ms, err := h.svc.List(c.Request.Context(), clinicID)
 	if err != nil {
 		httpapi.RespondError(c, err)
@@ -41,6 +45,9 @@ func (h *CampaignHandler) ListCampaigns(c *gin.Context) {
 func (h *CampaignHandler) GetCampaign(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceAccounting), "view") {
 		return
 	}
 	id, ok := httpapi.ParseIDParam(c, "id")

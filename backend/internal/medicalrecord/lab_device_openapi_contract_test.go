@@ -46,6 +46,7 @@ func TestLabDeviceOpenAPIResponseParity(t *testing.T) {
 		{"LabDeviceItemMaster", reflect.TypeOf(labDeviceItemMasterResponse{})},
 		{"LabDeviceItemMasterEnsureResponse", reflect.TypeOf(labDeviceItemMasterEnsureResponse{})},
 		{"LabDevice", reflect.TypeOf(labDeviceResponse{})},
+		{"LabDeviceAgentConsumer", reflect.TypeOf(labDeviceAgentConsumerResponse{})},
 		{"SaveLabDeviceConfigurationResponse", reflect.TypeOf(saveLabDeviceConfigurationResponse{})},
 		{"LabDeviceJobItem", reflect.TypeOf(labDeviceJobItemResponse{})},
 		{"LabDeviceJobCard", reflect.TypeOf(labDeviceJobCardResponse{})},
@@ -84,6 +85,31 @@ func TestLabDeviceOpenAPIResponseParity(t *testing.T) {
 	assert.Equal(t, "integer", visit.Properties["record_id"].Type)
 	assert.Equal(t, "int64", visit.Properties["record_id"].Format)
 	assert.Equal(t, "boolean", visit.Properties["pet_is_deceased"].Type)
+}
+
+type labDeviceAgentConsumerResponse struct {
+	AgentConsumerToken string `json:"agent_consumer_token"`
+}
+
+func TestLabDeviceOpenAPIAgentConsumerPath(t *testing.T) {
+	src, err := os.ReadFile("../../docs/api.yaml")
+	require.NoError(t, err)
+
+	var spec struct {
+		Paths map[string]struct {
+			Get struct {
+				OperationID string `yaml:"operationId"`
+				Description string `yaml:"description"`
+			} `yaml:"get"`
+		} `yaml:"paths"`
+	}
+	require.NoError(t, yaml.Unmarshal(src, &spec))
+
+	operation, ok := spec.Paths["/lab-device/agent-consumer"]
+	require.True(t, ok, "missing GET /lab-device/agent-consumer")
+	assert.Equal(t, "getLabDeviceAgentConsumer", operation.Get.OperationID)
+	assert.Contains(t, operation.Get.Description, "LAB_DEVICE_AGENT_CONSUMER_TOKEN")
+	assert.Contains(t, operation.Get.Description, "Empty config is 503")
 }
 
 func TestLabDeviceOpenAPIEnsureCountsMatchRuntime(t *testing.T) {

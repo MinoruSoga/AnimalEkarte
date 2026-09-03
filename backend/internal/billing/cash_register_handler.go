@@ -9,6 +9,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/httpapi"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // CashRegisterHandler は CashRegisterService の HTTP handler。
@@ -29,6 +30,9 @@ func NewCashRegisterHandler(svc CashRegisterService, requirePermission Permissio
 func (h *CashRegisterHandler) GetCashRegisterPreview(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceCashRegisterClose), "view") {
 		return
 	}
 	query := newCashRegisterPreviewQuery(c.Request.URL.Query())
@@ -80,6 +84,9 @@ func (h *CashRegisterHandler) ListCashRegisterCloses(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceCashRegisterClose), "view") {
+		return
+	}
 
 	filters, err := newListCashRegisterClosesQuery(c.Request.URL.Query()).toServiceFilters()
 	if err != nil {
@@ -106,6 +113,9 @@ func (h *CashRegisterHandler) ListCashRegisterCloses(c *gin.Context) {
 func (h *CashRegisterHandler) GetCashRegisterClose(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceCashRegisterClose), "view") {
 		return
 	}
 	id, ok := httpapi.ParseIDParam(c, "id")

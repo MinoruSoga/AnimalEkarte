@@ -406,3 +406,71 @@ func TestListPetCheckupResults(t *testing.T) {
 		})
 	}
 }
+
+// SEC-CODEX-UHQPM2 selected-clinic grant
+func TestCheckupFieldSelectedClinicGrant(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name     string
+		resource model.Resource
+		invoke   func(*CheckupHandler, *gin.Context)
+		svc      *mockCheckupFieldResultService
+	}{
+		{
+			name:     "ListCheckupTypeFields returns 403 when selected clinic lacks checkups view grant",
+			resource: model.ResourceCheckups,
+			invoke: func(h *CheckupHandler, c *gin.Context) {
+				h.ListCheckupTypeFields(c)
+			},
+			svc: &mockCheckupFieldResultService{
+				listFieldsFn: func(_ context.Context, _, _ uint64) ([]model.CheckupTypeField, error) {
+					t.Fatal("service must not be reached")
+					return nil, nil
+				},
+			},
+		},
+		{
+			name:     "ListCheckupFieldResults returns 403 when selected clinic lacks medical record view grant",
+			resource: model.ResourceMedicalRecords,
+			invoke: func(h *CheckupHandler, c *gin.Context) {
+				h.ListCheckupFieldResults(c)
+			},
+			svc: &mockCheckupFieldResultService{
+				listByCheckupFn: func(_ context.Context, _, _, _ uint64) ([]model.CheckupFieldResult, error) {
+					t.Fatal("service must not be reached")
+					return nil, nil
+				},
+			},
+		},
+		{
+			name:     "ListPetCheckupResults returns 403 when selected clinic lacks checkups view grant",
+			resource: model.ResourceCheckups,
+			invoke: func(h *CheckupHandler, c *gin.Context) {
+				h.ListPetCheckupResults(c)
+			},
+			svc: &mockCheckupFieldResultService{
+				listByPetFn: func(_ context.Context, _, _ uint64) ([]model.CheckupFieldResult, error) {
+					t.Fatal("service must not be reached")
+					return nil, nil
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithCheckupFieldResultSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/?pet_id=5", http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: "10"}, {Key: "checkupId", Value: "3"}}
+			setClinicID(c)
+			c.Set("clinic_id", "2")
+			c.Set("is_system_admin", false)
+			setResourcePermissionOnlyClinic(c, 1, string(tt.resource), "view")
+			tt.invoke(h, c)
+			assert.Equal(t, http.StatusForbidden, w.Code)
+		})
+	}
+}

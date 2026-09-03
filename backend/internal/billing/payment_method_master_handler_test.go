@@ -92,6 +92,21 @@ func TestPaymentMethodMasterHandler_List(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
+			name: "returns 403 when selected clinic lacks master-payment-method view grant",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("clinic_id", "2")
+				setResourcePermissionOnlyClinic(c, 1, string(model.ResourcePaymentMethod), "view")
+			},
+			svc: &mockPaymentMethodMasterService{
+				listFn: func(_ context.Context, _ uint64) ([]model.PaymentMethodMaster, error) {
+					t.Fatal("payment method service must not be reached")
+					return nil, nil
+				},
+			},
+			wantStatus: http.StatusForbidden,
+		},
+		{
 			name:     "returns 500 on service error",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockPaymentMethodMasterService{
@@ -162,6 +177,22 @@ func TestPaymentMethodMasterHandler_GetByID(t *testing.T) {
 			setupCtx:   func(c *gin.Context) { setClinicID(c) },
 			svc:        &mockPaymentMethodMasterService{},
 			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:    "returns 403 when selected clinic lacks master-payment-method view grant",
+			paramID: "3",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("clinic_id", "2")
+				setResourcePermissionOnlyClinic(c, 1, string(model.ResourcePaymentMethod), "view")
+			},
+			svc: &mockPaymentMethodMasterService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.PaymentMethodMaster, error) {
+					t.Fatal("payment method service must not be reached")
+					return nil, nil
+				},
+			},
+			wantStatus: http.StatusForbidden,
 		},
 		{
 			name:     "returns 404 when payment method not found",

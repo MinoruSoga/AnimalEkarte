@@ -15,6 +15,7 @@ import {
   useAttachLabDeviceJob,
   useClearLabDeviceWait,
   useDetachLabDeviceJob,
+  useGetLabDeviceAgentConsumer,
   useGetLabDeviceBoard,
   usePutLabDeviceWait,
   useReceiveLabDeviceFrames,
@@ -42,6 +43,7 @@ export function LabDeviceBoard() {
   const { currentClinicId } = useAuth();
   const { canCreate, canEdit } = usePermission(ResourceLabImport);
   const { data: board, isLoading } = useGetLabDeviceBoard(canCreate);
+  const { data: agentConsumerToken } = useGetLabDeviceAgentConsumer(canCreate && currentClinicId !== null);
   const putWait = usePutLabDeviceWait();
   const clearWait = useClearLabDeviceWait();
   const receive = useReceiveLabDeviceFrames();
@@ -106,6 +108,7 @@ export function LabDeviceBoard() {
   const agentStatus = useLabDeviceAgentListen({
     enabled: canCreate && currentClinicId !== null,
     clinicId: currentClinicId,
+    consumerToken: agentConsumerToken,
     onFrame,
   });
   const linkLabel = labDeviceAgentConnectionLabel(agentStatus);

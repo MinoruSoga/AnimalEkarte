@@ -664,3 +664,55 @@ func TestBulkUpdateTreatments(t *testing.T) {
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
 }
+
+// SEC-CODEX-UHQPM2 selected-clinic grant
+func TestTreatmentSelectedClinicGrant(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name   string
+		invoke func(*TreatmentHandler, *gin.Context)
+		svc    *mockTreatmentService
+	}{
+		{
+			name: "ListTreatments returns 403 when selected clinic lacks medical record view grant",
+			invoke: func(h *TreatmentHandler, c *gin.Context) {
+				h.ListTreatments(c)
+			},
+			svc: &mockTreatmentService{
+				listFn: func(_ context.Context, _, _ uint64) ([]model.Treatment, error) {
+					t.Fatal("service must not be reached")
+					return nil, nil
+				},
+			},
+		},
+		{
+			name: "ListPetTreatmentHistory returns 403 when selected clinic lacks medical record view grant",
+			invoke: func(h *TreatmentHandler, c *gin.Context) {
+				h.ListPetTreatmentHistory(c)
+			},
+			svc: &mockTreatmentService{
+				listPetHistoryFn: func(_ context.Context, _, _ uint64, _ model.PetTreatmentHistoryFilter, _, _ int) ([]model.Treatment, int64, error) {
+					t.Fatal("service must not be reached")
+					return nil, 0, nil
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithTreatmentSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: "10"}}
+			setClinicID(c)
+			c.Set("clinic_id", "2")
+			c.Set("is_system_admin", false)
+			setResourcePermissionOnlyClinic(c, 1, string(model.ResourceMedicalRecords), "view")
+			tt.invoke(h, c)
+			assert.Equal(t, http.StatusForbidden, w.Code)
+		})
+	}
+}

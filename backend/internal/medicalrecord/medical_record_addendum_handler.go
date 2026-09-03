@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/animal-ekarte/backend/internal/httpapi"
+	"github.com/animal-ekarte/backend/internal/model"
 
 	"github.com/gin-gonic/gin"
 
@@ -25,6 +26,9 @@ func NewMedicalRecordAddendumHandler(service MedicalRecordAddendumService) *Medi
 func (h *MedicalRecordAddendumHandler) ListMedicalRecordAddenda(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMedicalRecords), "view") {
 		return
 	}
 

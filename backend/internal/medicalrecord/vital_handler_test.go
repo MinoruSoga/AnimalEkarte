@@ -128,6 +128,28 @@ func TestListVitals(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 		},
 		{
+			name:    "returns 403 when selected clinic lacks medical record view grant",
+			paramID: "5",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("clinic_id", "2")
+				setResourcePermissionOnlyClinic(c, 1, string(model.ResourceMedicalRecords), "view")
+			},
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					t.Fatal("medical record service must not be reached")
+					return nil, nil
+				},
+			},
+			vitalSvc: &mockVitalService{
+				listFn: func(_ context.Context, _, _ uint64) ([]model.VitalRecord, error) {
+					t.Fatal("vital service must not be reached")
+					return nil, nil
+				},
+			},
+			wantStatus: http.StatusForbidden,
+		},
+		{
 			name:     "returns error from ownership verification",
 			paramID:  "5",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },

@@ -42,6 +42,9 @@ func (h *MedicineDoseParamHandler) ListMedicineDoseParams(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMasterMedical), "view") {
+		return
+	}
 	medicineID, ok := httpapi.ParseIDParam(c, "id")
 	if !ok {
 		return

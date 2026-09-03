@@ -34,7 +34,7 @@ test("canonical origin helper matches the shared Go/browser parity corpus", () =
   }
 });
 
-test("plist configurator writes the exact seven launch arguments without placeholders", () => {
+test("plist configurator writes the exact launch arguments including consumer token", () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "lab-plist-"));
   const plistPath = path.join(tempDir, "agent.plist");
   const templatePath = fileURLToPath(new URL("../packaging/macos/com.animalekarte.lab-device-agent.plist", import.meta.url));
@@ -79,11 +79,13 @@ with open(sys.argv[-1], "rb") as stream:
     "/Users/Test User/Library/Application Support/AnimalEkarte/lab-device-agent-ports",
     "--allowed-origin",
     "https://clinic.example",
+    "--consumer-token",
+    "test-consumer-token",
   ];
 
   try {
     fs.copyFileSync(templatePath, plistPath);
-    const result = spawnSync("sh", [configuratorPath, plistPath, expected[0], expected[2], expected[4], expected[6], "/tmp/out.log", "/tmp/error.log"], {
+    const result = spawnSync("sh", [configuratorPath, plistPath, expected[0], expected[2], expected[4], expected[6], expected[8], "/tmp/out.log", "/tmp/error.log"], {
       encoding: "utf8",
       env: { ...process.env, PATH: `${tempDir}:${process.env.PATH}` },
     });
@@ -119,7 +121,7 @@ exit 77
       const outputDir = path.join(binDir, `bundle-${Math.random().toString(16).slice(2)}`);
       const result = spawnSync("sh", [scriptPath, "123", origin, outputDir], {
         encoding: "utf8",
-        env: { ...process.env, PATH: `${binDir}:${process.env.PATH}` },
+        env: { ...process.env, PATH: `${binDir}:${process.env.PATH}`, LAB_DEVICE_AGENT_CONSUMER_TOKEN: "" },
       });
 
       assert.equal(result.status, 2, `${origin}: ${result.stderr}`);
@@ -181,7 +183,7 @@ test("both macOS entry points canonicalize before later installation work", () =
       try {
         const result = spawnSync("sh", ["-x", entry.path, ...entry.args(raw, tempDir)], {
           encoding: "utf8",
-          env: { ...process.env, HOME: tempDir },
+          env: { ...process.env, HOME: tempDir, LAB_DEVICE_AGENT_CONSUMER_TOKEN: "" },
         });
         const escapedExpected = expected.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
         assert.match(result.stderr, new RegExp(`allowed_origin='?(?:${escapedExpected})'?(?:\\n|$)`), `${entry.path}: ${result.stderr}`);
@@ -206,7 +208,7 @@ exit 77
       fs.rmSync(dockerMarker, { force: true });
       const result = spawnSync("sh", [directInstallPath, "123", origin], {
         encoding: "utf8",
-        env: { ...process.env, HOME: binDir, PATH: `${binDir}:${process.env.PATH}` },
+        env: { ...process.env, HOME: binDir, PATH: `${binDir}:${process.env.PATH}`, LAB_DEVICE_AGENT_CONSUMER_TOKEN: "" },
       });
       assert.equal(result.status, 2, `${origin}: ${result.stderr}`);
       assert.equal(fs.existsSync(dockerMarker), false, `${origin} reached Docker`);
@@ -239,12 +241,87 @@ exit 1
 `, { mode: 0o700 });
   const outputDir = path.join(binDir, "bundle");
   try {
-    const result = spawnSync("sh", [scriptPath, "123", "https://EXAMPLE.test:443", outputDir], {
+    const result = spawnSync("sh", [scriptPath, "123", "https://EXAMPLE.test:443", outputDir, "test-consumer-token"], {
       encoding: "utf8",
-      env: { ...process.env, PATH: `${binDir}:${process.env.PATH}` },
+      env: { ...process.env, PATH: `${binDir}:${process.env.PATH}`, LAB_DEVICE_AGENT_CONSUMER_TOKEN: "" },
     });
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(fs.readFileSync(path.join(outputDir, "lab-device-agent.conf"), "utf8"), "123\nhttps://example.test\n");
+    assert.equal(fs.readFileSync(path.join(outputDir, "lab-device-agent.conf"), "utf8"), "123\nhttps://example.test\ntest-consumer-token\n");
+  } finally {
+    fs.rmSync(binDir, { recursive: true, force: true });
+  }
+});
+
+function stubBundleBuildTools(binDir) {
+  const dockerMarker = path.join(binDir, "docker-called");
+  fs.writeFileSync(path.join(binDir, "docker"), `#!/bin/sh
+: > "${dockerMarker}"
+if [ "$2" = "cp" ]; then
+  for last do :; done
+  printf binary > "$last"
+fi
+`, { mode: 0o700 });
+  fs.writeFileSync(path.join(binDir, "lipo"), `#!/bin/sh
+while [ "$#" -gt 0 ]; do
+  if [ "$1" = "-output" ]; then
+    shift
+    printf binary > "$1"
+    exit 0
+  fi
+  shift
+done
+exit 1
+`, { mode: 0o700 });
+  return dockerMarker;
+}
+
+test("bundle script requires an operator-supplied consumer token and does not generate one", () => {
+  const source = fs.readFileSync(scriptPath, "utf8");
+  assert.match(source, /LAB_DEVICE_AGENT_CONSUMER_TOKEN/);
+  assert.doesNotMatch(source, /openssl\s+rand/);
+});
+
+test("bundle without consumer token fails before Docker", () => {
+  const binDir = fs.mkdtempSync(path.join(os.tmpdir(), "lab-bundle-missing-token-"));
+  const dockerMarker = stubBundleBuildTools(binDir);
+  const outputDir = path.join(binDir, "bundle");
+  try {
+    for (const extra of [[], [""]]) {
+      fs.rmSync(dockerMarker, { force: true });
+      fs.rmSync(outputDir, { recursive: true, force: true });
+      const result = spawnSync("sh", [scriptPath, "123", "https://clinic.example", outputDir, ...extra], {
+        encoding: "utf8",
+        env: { ...process.env, PATH: `${binDir}:${process.env.PATH}`, LAB_DEVICE_AGENT_CONSUMER_TOKEN: "" },
+      });
+      assert.equal(result.status, 2, result.stderr);
+      assert.match(result.stderr, /LAB_DEVICE_AGENT_CONSUMER_TOKEN/);
+      assert.equal(fs.existsSync(dockerMarker), false, "missing token reached Docker");
+      assert.equal(fs.existsSync(outputDir), false, "missing token created output");
+    }
+  } finally {
+    fs.rmSync(binDir, { recursive: true, force: true });
+  }
+});
+
+test("bundle writes the operator-supplied consumer token from env or argument to conf L3", () => {
+  const binDir = fs.mkdtempSync(path.join(os.tmpdir(), "lab-bundle-token-"));
+  stubBundleBuildTools(binDir);
+  try {
+    const envOutputDir = path.join(binDir, "from-env");
+    const envResult = spawnSync("sh", [scriptPath, "123", "https://clinic.example", envOutputDir], {
+      encoding: "utf8",
+      env: { ...process.env, PATH: `${binDir}:${process.env.PATH}`, LAB_DEVICE_AGENT_CONSUMER_TOKEN: "test-consumer-token" },
+    });
+    assert.equal(envResult.status, 0, envResult.stderr);
+    assert.equal(fs.readFileSync(path.join(envOutputDir, "lab-device-agent.conf"), "utf8"), "123\nhttps://clinic.example\ntest-consumer-token\n");
+
+    const argOutputDir = path.join(binDir, "from-arg");
+    const argResult = spawnSync("sh", [scriptPath, "123", "https://clinic.example", argOutputDir, "test-consumer-token"], {
+      encoding: "utf8",
+      env: { ...process.env, PATH: `${binDir}:${process.env.PATH}`, LAB_DEVICE_AGENT_CONSUMER_TOKEN: "env-must-not-win" },
+    });
+    assert.equal(argResult.status, 0, argResult.stderr);
+    assert.equal(fs.readFileSync(path.join(argOutputDir, "lab-device-agent.conf"), "utf8"), "123\nhttps://clinic.example\ntest-consumer-token\n");
   } finally {
     fs.rmSync(binDir, { recursive: true, force: true });
   }
@@ -302,7 +379,7 @@ esac
     installerPath = path.join(bundleDir, "install.sh");
     fs.copyFileSync(fileURLToPath(new URL("../packaging/macos/install-lab-device-agent.sh", import.meta.url)), installerPath);
     fs.writeFileSync(path.join(bundleDir, "lab-device-agent"), "new binary\n");
-    fs.writeFileSync(path.join(bundleDir, "lab-device-agent.conf"), "123\nhttps://clinic.example\n");
+    fs.writeFileSync(path.join(bundleDir, "lab-device-agent.conf"), "123\nhttps://clinic.example\ntest-consumer-token\n");
     fs.writeFileSync(path.join(bundleDir, "com.animalekarte.lab-device-agent.plist"), "template plist\n");
     writeExecutable(path.join(bundleDir, "configure-plist.sh"), "#!/bin/sh\nprintf 'new plist\\n' > \"$1\"\n");
     writeExecutable(path.join(binDir, "shasum"), "#!/bin/sh\nexit 0\n");
@@ -318,13 +395,19 @@ esac
     fs.copyFileSync(fileURLToPath(new URL("../packaging/macos/com.animalekarte.lab-device-agent.plist", import.meta.url)), path.join(fixtureMacos, "com.animalekarte.lab-device-agent.plist"));
     writeExecutable(path.join(fixtureMacos, "configure-lab-device-agent-plist.sh"), "#!/bin/sh\nprintf 'new plist\\n' > \"$1\"\n");
     installerPath = path.join(fixtureScripts, "install-lab-device-agent.sh");
-    args = ["123", "https://clinic.example"];
+    args = ["123", "https://clinic.example", "test-consumer-token"];
   }
 
   t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }));
   const result = spawnSync("sh", [...(installerKind === "direct" ? ["-x"] : []), installerPath, ...args], {
     encoding: "utf8",
-    env: { ...process.env, HOME: homeDir, PATH: `${binDir}:${process.env.PATH}`, LAB_DEVICE_AGENT_DEVICE_DIR: deviceDir },
+    env: {
+      ...process.env,
+      HOME: homeDir,
+      PATH: `${binDir}:${process.env.PATH}`,
+      LAB_DEVICE_AGENT_DEVICE_DIR: deviceDir,
+      LAB_DEVICE_AGENT_CONSUMER_TOKEN: "test-consumer-token",
+    },
   });
   assert.notEqual(result.status, 0, `${installerKind}/${activationFailure} unexpectedly succeeded`);
   assert.equal(fs.readFileSync(binaryPath, "utf8"), "old binary\n");

@@ -8,6 +8,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // VaccinationHandler serves the Vaccination (接種記録) HTTP boundary.
@@ -24,6 +25,9 @@ func NewVaccinationHandler(service VaccinationService) *VaccinationHandler {
 func (h *VaccinationHandler) ListVaccinations(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceVaccinations), "view") {
 		return
 	}
 
@@ -61,6 +65,9 @@ func (h *VaccinationHandler) ListVaccinations(c *gin.Context) {
 func (h *VaccinationHandler) GetVaccination(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceVaccinations), "view") {
 		return
 	}
 	id, ok := httpapi.ParseIDParam(c, "id")

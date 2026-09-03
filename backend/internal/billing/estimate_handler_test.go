@@ -120,6 +120,22 @@ func TestListEstimates(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
+			name:  "returns 403 when selected clinic lacks estimates view grant",
+			query: "page=1&limit=10",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("clinic_id", "2")
+				setResourcePermissionOnlyClinic(c, 1, string(model.ResourceEstimates), "view")
+			},
+			svc: &mockEstimateService{
+				listFn: func(_ context.Context, _ uint64, _, _ *uint64, _ *string, _, _ int) ([]model.Estimate, int64, error) {
+					t.Fatal("estimate service must not be reached")
+					return nil, 0, nil
+				},
+			},
+			wantStatus: http.StatusForbidden,
+		},
+		{
 			name:       "returns 400 on invalid pagination",
 			query:      "page=abc",
 			setupCtx:   func(c *gin.Context) { setClinicID(c) },
@@ -203,6 +219,22 @@ func TestGetEstimate(t *testing.T) {
 			setupCtx:   func(c *gin.Context) { setClinicID(c) },
 			svc:        &mockEstimateService{},
 			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:    "returns 403 when selected clinic lacks estimates view grant",
+			paramID: "1",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("clinic_id", "2")
+				setResourcePermissionOnlyClinic(c, 1, string(model.ResourceEstimates), "view")
+			},
+			svc: &mockEstimateService{
+				getFn: func(_ context.Context, _, _ uint64) (*model.Estimate, error) {
+					t.Fatal("estimate service must not be reached")
+					return nil, nil
+				},
+			},
+			wantStatus: http.StatusForbidden,
 		},
 		{
 			name:     "returns 404 when not found",

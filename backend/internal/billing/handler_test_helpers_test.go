@@ -13,10 +13,14 @@ func allowAllClinicPermission(c *gin.Context) {
 	})
 }
 
-func setAccountingPermissionOnlyClinic(c *gin.Context, clinicID uint64, action string) {
-	httpapi.SetClinicPermissionChecker(c, func(_ *gin.Context, id uint64, resource, act string) bool {
-		return id == clinicID && resource == string(model.ResourceAccounting) && act == action
+func setResourcePermissionOnlyClinic(c *gin.Context, clinicID uint64, resource, action string) {
+	httpapi.SetClinicPermissionChecker(c, func(_ *gin.Context, id uint64, res, act string) bool {
+		return id == clinicID && res == resource && act == action
 	})
+}
+
+func setAccountingPermissionOnlyClinic(c *gin.Context, clinicID uint64, action string) {
+	setResourcePermissionOnlyClinic(c, clinicID, string(model.ResourceAccounting), action)
 }
 
 // setClinicID は handler テスト用に clinic_id を gin.Context へ設定する

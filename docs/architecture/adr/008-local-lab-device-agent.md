@@ -22,7 +22,9 @@ Mac側では`/dev/cu.usbserial-*`を個別ポートとして列挙できる。�
 5. backend成功後だけACKする。400の不正電文はagent内のreject領域に生バイトを保持し、その他の失敗は再試行する。
 6. agentへJWT、APIキー、患者情報を保存しない。
 
-医院IDは秘密情報ではないローカルscope設定として保存する。Frontendは医院IDに一致する単一consumer leaseを取得し、owner token付きでのみframe取得・ACK/rejectできる。これにより別医院のタブや同時consumerへの二重配送を拒否する。
+運用者はAPIの`LAB_DEVICE_AGENT_CONSUMER_TOKEN`と、bundle/installへ渡すconsumer tokenに同一の値を供給する。bundleはtokenを生成せず、4th引数または`LAB_DEVICE_AGENT_CONSUMER_TOKEN`が空ならfail-closedとする。その値を`lab-device-agent.conf`のL3へ保存し、mode 0600で保護する。LaunchAgentは同じ値を`--consumer-token`としてagentへ渡す。認証済みFrontendは`GET /v1/lab-device/agent-consumer`からAPI envの同じ値を取得し、claim・frame取得・ACK/rejectごとに`X-Lab-Device-Consumer-Token`で提示する。JWTはagentへ保存しない。token未設定または不一致ではprotected operationをfail-closedにする。`/health`は診断のため認証不要のままとする。
+
+医院IDは秘密情報ではないローカルscope設定として保存する。Frontendは医院IDに一致する単一consumer leaseを取得し、consumer tokenとowner token付きでのみframe取得・ACK/rejectできる。これにより別医院のタブや同時consumerへの二重配送を拒否する。
 
 機器分類の正本は既存backend decoderとし、agentに分類ロジックを複製しない。
 
@@ -38,7 +40,7 @@ Mac側では`/dev/cu.usbserial-*`を個別ポートとして列挙できる。�
 
 ### Local trust boundary
 
-Macのログイン済みOSユーザーと、そのユーザー権限で動くプロセスを信頼境界内とする。同一ユーザーの任意プロセスはagent HTTPを経由せず`/dev/cu.usbserial-*`を直接読めるため、OSアカウント侵害をagent独自secretで防げるとは扱わない。端末のOSアカウント分離、画面ロック、マルウェア対策を前提とする。HTTPのclinic bindingとconsumer leaseは、正規Frontendの別医院セッション・複数タブ間の誤配送防止を目的とする。
+Macのログイン済みOSユーザーと、そのユーザー権限で動くプロセスを信頼境界内とする。同一ユーザーの任意プロセスはagent HTTPを経由せず`/dev/cu.usbserial-*`を直接読めるため、consumer tokenは同一OSユーザー侵害を防ぐ境界ではない。端末のOSアカウント分離、画面ロック、マルウェア対策を前提とする。HTTPのclinic binding、consumer token、consumer leaseは、正規Frontendの別医院セッション・複数タブ間の誤配送防止を目的とする。
 
 ## Consequences
 

@@ -9,6 +9,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/httpapi"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // PaymentMethodMasterHandler は PaymentMethodMasterService の HTTP handler。
@@ -28,6 +29,9 @@ func (h *PaymentMethodMasterHandler) ListPaymentMethods(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourcePaymentMethod), "view") {
+		return
+	}
 	ms, err := h.svc.List(c.Request.Context(), clinicID)
 	if err != nil {
 		httpapi.RespondError(c, err)
@@ -41,6 +45,9 @@ func (h *PaymentMethodMasterHandler) ListPaymentMethods(c *gin.Context) {
 func (h *PaymentMethodMasterHandler) GetPaymentMethod(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourcePaymentMethod), "view") {
 		return
 	}
 	id, ok := httpapi.ParseIDParam(c, "id")

@@ -15,8 +15,9 @@ cd "$bundle_dir"
 shasum -a 256 -c SHA256SUMS >/dev/null
 clinic_id=$(sed -n '1p' "$bundle_dir/lab-device-agent.conf")
 allowed_origin=$(sed -n '2p' "$bundle_dir/lab-device-agent.conf")
+consumer_token=$(sed -n '3p' "$bundle_dir/lab-device-agent.conf")
 config_lines=$(wc -l < "$bundle_dir/lab-device-agent.conf" | tr -d ' ')
-if [ -z "$clinic_id" ] || [ -z "$allowed_origin" ] || [ "$config_lines" -ne 2 ]; then
+if [ -z "$clinic_id" ] || [ -z "$allowed_origin" ] || [ -z "$consumer_token" ] || [ "$config_lines" -ne 3 ]; then
   echo "Bundle configuration is invalid" >&2
   exit 1
 fi
@@ -48,7 +49,7 @@ chmod 600 "$ports_tmp"
 cp "$bundle_dir/lab-device-agent" "$binary_tmp"
 chmod 700 "$binary_tmp"
 cp "$bundle_dir/com.animalekarte.lab-device-agent.plist" "$plist_tmp"
-"$bundle_dir/configure-plist.sh" "$plist_tmp" "$binary_path" "$clinic_id" "$ports_file" "$allowed_origin" \
+"$bundle_dir/configure-plist.sh" "$plist_tmp" "$binary_path" "$clinic_id" "$ports_file" "$allowed_origin" "$consumer_token" \
   "$install_dir/lab-device-agent.log" "$install_dir/lab-device-agent.error.log"
 chmod 600 "$plist_tmp"
 

@@ -94,6 +94,21 @@ func TestListInsurances(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
+			name: "returns 403 when selected clinic lacks master-insurance view grant",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("clinic_id", "2")
+				setResourcePermissionOnlyClinic(c, 1, string(model.ResourceMasterInsurance), "view")
+			},
+			svc: &mockInsuranceService{
+				listFn: func(_ context.Context, _ uint64) ([]model.Insurance, error) {
+					t.Fatal("insurance service must not be reached")
+					return nil, nil
+				},
+			},
+			wantStatus: http.StatusForbidden,
+		},
+		{
 			name:     "returns 500 on service error",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockInsuranceService{
@@ -164,6 +179,22 @@ func TestGetInsurance(t *testing.T) {
 			setupCtx:   func(c *gin.Context) { setClinicID(c) },
 			svc:        &mockInsuranceService{},
 			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:    "returns 403 when selected clinic lacks master-insurance view grant",
+			paramID: "2",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("clinic_id", "2")
+				setResourcePermissionOnlyClinic(c, 1, string(model.ResourceMasterInsurance), "view")
+			},
+			svc: &mockInsuranceService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.Insurance, error) {
+					t.Fatal("insurance service must not be reached")
+					return nil, nil
+				},
+			},
+			wantStatus: http.StatusForbidden,
 		},
 		{
 			name:     "returns 404 when not found",

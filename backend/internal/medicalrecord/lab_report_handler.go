@@ -8,6 +8,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // LabReportHandler serves the read-only lab-report HTTP boundary (job summaries / exam detail).
@@ -31,6 +32,9 @@ func (h *LabReportHandler) GetLabJobReportSummaries(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceLabImport), "view") {
+		return
+	}
 	jobID, ok := httpapi.ParseUUIDParam(c, "job_id")
 	if !ok {
 		return
@@ -52,6 +56,9 @@ func (h *LabReportHandler) GetLabJobReportSummaries(c *gin.Context) {
 func (h *LabReportHandler) GetLabExamReport(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceLabImport), "view") {
 		return
 	}
 	examIDStr := c.Param("exam_id")

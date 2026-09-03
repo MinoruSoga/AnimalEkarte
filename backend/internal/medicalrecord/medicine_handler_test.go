@@ -604,3 +604,55 @@ func TestReorderMedicines(t *testing.T) {
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
 }
+
+// SEC-CODEX-UHQPM2 selected-clinic grant
+func TestMedicineSelectedClinicGrant(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name   string
+		invoke func(*MedicineHandler, *gin.Context)
+		svc    *mockMedicineService
+	}{
+		{
+			name: "ListMedicines returns 403 when selected clinic lacks master-medical view grant",
+			invoke: func(h *MedicineHandler, c *gin.Context) {
+				h.ListMedicines(c)
+			},
+			svc: &mockMedicineService{
+				listFn: func(_ context.Context, _ uint64, _, _ int) ([]model.Medicine, int64, error) {
+					t.Fatal("service must not be reached")
+					return nil, 0, nil
+				},
+			},
+		},
+		{
+			name: "GetMedicine returns 403 when selected clinic lacks master-medical view grant",
+			invoke: func(h *MedicineHandler, c *gin.Context) {
+				h.GetMedicine(c)
+			},
+			svc: &mockMedicineService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.Medicine, error) {
+					t.Fatal("service must not be reached")
+					return nil, nil
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithMedicineSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: "10"}}
+			setClinicID(c)
+			c.Set("clinic_id", "2")
+			c.Set("is_system_admin", false)
+			setResourcePermissionOnlyClinic(c, 1, string(model.ResourceMasterMedical), "view")
+			tt.invoke(h, c)
+			assert.Equal(t, http.StatusForbidden, w.Code)
+		})
+	}
+}

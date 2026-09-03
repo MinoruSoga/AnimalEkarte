@@ -541,3 +541,55 @@ func TestReorderCheckupTypes(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 }
+
+// SEC-CODEX-UHQPM2 selected-clinic grant
+func TestCheckupTypeSelectedClinicGrant(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name   string
+		invoke func(*CheckupTypeHandler, *gin.Context)
+		svc    *mockCheckupTypeService
+	}{
+		{
+			name: "ListCheckupTypes returns 403 when selected clinic lacks checkups view grant",
+			invoke: func(h *CheckupTypeHandler, c *gin.Context) {
+				h.ListCheckupTypes(c)
+			},
+			svc: &mockCheckupTypeService{
+				listFn: func(_ context.Context, _ uint64) ([]model.CheckupType, error) {
+					t.Fatal("service must not be reached")
+					return nil, nil
+				},
+			},
+		},
+		{
+			name: "GetCheckupType returns 403 when selected clinic lacks checkups view grant",
+			invoke: func(h *CheckupTypeHandler, c *gin.Context) {
+				h.GetCheckupType(c)
+			},
+			svc: &mockCheckupTypeService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.CheckupType, error) {
+					t.Fatal("service must not be reached")
+					return nil, nil
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithCheckupTypeSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: "10"}}
+			setClinicID(c)
+			c.Set("clinic_id", "2")
+			c.Set("is_system_admin", false)
+			setResourcePermissionOnlyClinic(c, 1, string(model.ResourceCheckups), "view")
+			tt.invoke(h, c)
+			assert.Equal(t, http.StatusForbidden, w.Code)
+		})
+	}
+}

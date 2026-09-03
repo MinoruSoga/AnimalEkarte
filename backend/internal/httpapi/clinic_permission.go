@@ -95,14 +95,14 @@ func AuthorizeClinicIDsForPermission(
 
 // RequireSelectedClinicGrant rejects selected-clinic-scoped reads when the
 // request only passed middleware because another assigned clinic holds the grant.
-// Missing checker is skipped so unit tests without RBAC middleware still run.
+// Missing checker is 403 (fail-closed).
 func RequireSelectedClinicGrant(c *gin.Context, resource, action string) bool {
 	if peekedSystemAdmin(c) {
 		return true
 	}
-	check, ok := PeekClinicPermissionChecker(c)
+	check, ok := requireClinicPermissionChecker(c)
 	if !ok {
-		return true
+		return false
 	}
 	clinicID, ok := PeekClinicID(c)
 	if !ok || clinicID == 0 || !check(c, clinicID, resource, action) {
