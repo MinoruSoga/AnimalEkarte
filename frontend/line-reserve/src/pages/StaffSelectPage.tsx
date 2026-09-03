@@ -65,7 +65,7 @@ export function StaffSelectPage({
               ) : null}
             </div>
           ) : (
-            <div className="bg-white border-t border-gray-200">
+            <div className="bg-white border-t border-noah-border">
               {showNoStaffOption ? (
                 <ListItem
                   onClick={() => onSelect(0, '指名なし')}

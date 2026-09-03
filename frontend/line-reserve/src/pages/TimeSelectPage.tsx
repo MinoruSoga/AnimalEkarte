@@ -71,13 +71,13 @@ export function TimeSelectPage({
               この日の空き時間はありません
             </div>
           ) : (
-            <div className="bg-white border-t border-gray-200">
+            <div className="bg-white border-t border-noah-border">
               {times.map(time => (
                 <button
                   key={time.start_time}
                   type="button"
                   onClick={() => onSelect(time.start_time, time.end_time)}
-                  className="w-full flex items-center justify-between px-4 py-4 border-b border-gray-200 hover:bg-noah-teal-light active:bg-noah-teal-light text-left"
+                  className="w-full flex items-center justify-between px-4 py-4 border-b border-noah-border hover:bg-noah-teal-light active:bg-noah-teal-light text-left"
                 >
                   <span className="text-noah-text font-medium">
                     {time.display_time || formatTimeHHMM(time.start_time)}
@@ -86,7 +86,7 @@ export function TimeSelectPage({
                   </span>
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5 text-gray-400"
+                    className="h-5 w-5 text-noah-text-faint"
                     viewBox="0 0 20 20"
                     fill="currentColor"
                     aria-hidden="true"

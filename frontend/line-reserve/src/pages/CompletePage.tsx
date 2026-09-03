@@ -35,9 +35,9 @@ export function CompletePage({
         </div>
 
         {/* 予約詳細カード */}
-        <div className="w-full bg-white rounded-xl border border-gray-200 p-5 mb-4">
+        <div className="w-full bg-white rounded-xl border border-noah-border p-5 mb-4">
           {displayNumber ? (
-            <div className="mb-4 pb-4 border-b border-gray-100">
+            <div className="mb-4 pb-4 border-b border-noah-border-light">
               <p className="text-xs text-noah-text-sub mb-1">予約番号</p>
               <p className="text-lg font-bold text-noah-text font-mono">{displayNumber}</p>
             </div>
@@ -86,7 +86,7 @@ export function CompletePage({
           <button
             type="button"
             onClick={onNewReservation}
-            className="w-full py-3 px-4 border border-gray-300 rounded-xl text-noah-text-sub font-semibold hover:bg-white"
+            className="w-full py-3 px-4 border border-noah-border-input rounded-xl text-noah-text-sub font-semibold hover:bg-white"
           >
             新しい予約をする
           </button>

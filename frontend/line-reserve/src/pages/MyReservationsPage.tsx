@@ -125,7 +125,7 @@ export function MyReservationsPage({
               {reservations.map(reservation => (
                 <div
                   key={reservation.id}
-                  className="bg-white rounded-xl border border-gray-200 p-4"
+                  className="bg-white rounded-xl border border-noah-border p-4"
                 >
                   <div className="flex items-start justify-between mb-2">
                     <div>
@@ -153,11 +153,11 @@ export function MyReservationsPage({
                   </div>
 
                   {reservation.created_at ? (
-                    <p className="text-xs text-gray-400 mt-2">{formatCreatedAt(reservation.created_at)}</p>
+                    <p className="text-xs text-noah-text-faint mt-2">{formatCreatedAt(reservation.created_at)}</p>
                   ) : null}
 
                   {reservation.status === 'confirmed' ? (
-                    <div className="mt-3 pt-3 border-t border-gray-100">
+                    <div className="mt-3 pt-3 border-t border-noah-border-light">
                       {confirmingId === reservation.id ? (
                         <div className="space-y-2">
                           <p className="text-sm text-noah-text">本当にキャンセルしますか？</p>
@@ -174,7 +174,7 @@ export function MyReservationsPage({
                               type="button"
                               onClick={handleCancelDismiss}
                               disabled={isCancelling && cancellingId === reservation.id}
-                              className="text-sm text-noah-text-sub hover:text-noah-text disabled:opacity-50 px-3 py-1.5 rounded-lg border border-gray-200"
+                              className="text-sm text-noah-text-sub hover:text-noah-text disabled:opacity-50 px-3 py-1.5 rounded-lg border border-noah-border"
                             >
                               いいえ
                             </button>

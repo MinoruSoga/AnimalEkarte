@@ -168,7 +168,7 @@ export function CustomerInfoPage({
               value={name}
               onChange={e => { setName(e.target.value); setErrors(prev => ({ ...prev, name: '' })); }}
               aria-invalid={errors.name ? true : undefined}
-              className={`w-full border rounded-xl px-3 py-2 text-noah-text focus:outline-none focus:ring-2 focus:ring-noah-teal focus:border-transparent ${errors.name ? 'border-noah-danger' : 'border-gray-300'}`}
+              className={`w-full border rounded-xl px-3 py-2 text-noah-text focus:outline-none focus:ring-2 focus:ring-noah-teal focus:border-transparent ${errors.name ? 'border-noah-danger' : 'border-noah-border-input'}`}
               placeholder="山田 花子"
             />
             {errors.name ? (
@@ -188,7 +188,7 @@ export function CustomerInfoPage({
               onChange={e => { setPhone(e.target.value); setErrors(prev => ({ ...prev, phone: '' })); }}
               aria-invalid={errors.phone ? true : undefined}
               aria-describedby={errors.phone ? "customer-phone-error" : undefined}
-              className={`w-full border rounded-xl px-3 py-2 text-noah-text focus:outline-none focus:ring-2 focus:ring-noah-teal focus:border-transparent ${errors.phone ? 'border-noah-danger' : 'border-gray-300'}`}
+              className={`w-full border rounded-xl px-3 py-2 text-noah-text focus:outline-none focus:ring-2 focus:ring-noah-teal focus:border-transparent ${errors.phone ? 'border-noah-danger' : 'border-noah-border-input'}`}
               placeholder="090-1234-5678"
             />
             {errors.phone ? (
@@ -206,7 +206,7 @@ export function CustomerInfoPage({
               type="text"
               value={ownerName}
               onChange={e => setOwnerName(e.target.value)}
-              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-noah-text focus:outline-none focus:ring-2 focus:ring-noah-teal focus:border-transparent"
+              className="w-full border border-noah-border-input rounded-xl px-3 py-2 text-noah-text focus:outline-none focus:ring-2 focus:ring-noah-teal focus:border-transparent"
               placeholder="山田 太郎"
             />
           </div>
@@ -222,13 +222,13 @@ export function CustomerInfoPage({
                 {ownerPets.map(pet => (
                   <label
                     key={pet.id}
-                    className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-200 cursor-pointer hover:border-noah-teal transition-colors"
+                    className="flex items-center gap-3 p-3 bg-white rounded-xl border border-noah-border cursor-pointer hover:border-noah-teal transition-colors"
                   >
                     <input
                       type="checkbox"
                       checked={selectedPetIds.has(pet.id)}
                       onChange={() => togglePet(pet.id)}
-                      className="w-5 h-5 rounded border-gray-300 text-noah-teal focus:ring-noah-teal"
+                      className="w-5 h-5 rounded border-noah-border-input text-noah-teal focus:ring-noah-teal"
                     />
                     <div className="flex-1">
                       <span className="text-sm font-medium text-noah-text">{pet.name}</span>
@@ -275,7 +275,7 @@ export function CustomerInfoPage({
 
             {/* 新規ペット追加フォーム */}
             {showNewPetForm ? (
-              <div className="p-3 bg-white rounded-xl border border-gray-200 space-y-3">
+              <div className="p-3 bg-white rounded-xl border border-noah-border space-y-3">
                 <div>
                   <label htmlFor="new-pet-name" className="block text-xs font-medium text-noah-text-sub mb-1">
                     ペット名
@@ -285,7 +285,7 @@ export function CustomerInfoPage({
                     type="text"
                     value={newPetName}
                     onChange={e => setNewPetName(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-noah-text focus:outline-none focus:ring-2 focus:ring-noah-teal focus:border-transparent"
+                    className="w-full border border-noah-border-input rounded-lg px-3 py-2 text-sm text-noah-text focus:outline-none focus:ring-2 focus:ring-noah-teal focus:border-transparent"
                     placeholder="ポチ"
                     autoFocus
                   />
@@ -299,7 +299,7 @@ export function CustomerInfoPage({
                     type="text"
                     value={newPetType}
                     onChange={e => setNewPetType(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-noah-text focus:outline-none focus:ring-2 focus:ring-noah-teal focus:border-transparent"
+                    className="w-full border border-noah-border-input rounded-lg px-3 py-2 text-sm text-noah-text focus:outline-none focus:ring-2 focus:ring-noah-teal focus:border-transparent"
                     placeholder="トイプードル"
                   />
                 </div>
@@ -315,7 +315,7 @@ export function CustomerInfoPage({
                   <button
                     type="button"
                     onClick={() => { setShowNewPetForm(false); setNewPetName(''); setNewPetType(''); }}
-                    className="flex-1 py-2 rounded-lg text-sm font-medium text-noah-text-sub bg-gray-100"
+                    className="flex-1 py-2 rounded-lg text-sm font-medium text-noah-text-sub bg-noah-surface-subtle"
                   >
                     キャンセル
                   </button>
@@ -325,7 +325,7 @@ export function CustomerInfoPage({
               <button
                 type="button"
                 onClick={() => setShowNewPetForm(true)}
-                className="w-full py-2.5 rounded-xl border-2 border-dashed border-gray-300 text-sm text-noah-text-sub hover:border-noah-teal hover:text-noah-teal transition-colors"
+                className="w-full py-2.5 rounded-xl border-2 border-dashed border-noah-border-input text-sm text-noah-text-sub hover:border-noah-teal hover:text-noah-teal transition-colors"
               >
                 + 新しいペットを追加
               </button>

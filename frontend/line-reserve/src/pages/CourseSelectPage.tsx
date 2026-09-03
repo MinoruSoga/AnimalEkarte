@@ -56,7 +56,7 @@ export function CourseSelectPage({ clinicId, idToken, onSelect, onBack }: Course
               ) : null}
             </div>
           ) : (
-            <div className="bg-white border-t border-gray-200">
+            <div className="bg-white border-t border-noah-border">
               {(courses ?? []).map(course => (
                 <ListItem
                   key={course.id}

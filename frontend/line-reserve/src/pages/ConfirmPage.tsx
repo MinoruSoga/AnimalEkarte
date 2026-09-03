@@ -171,11 +171,11 @@ export function ConfirmPage({
           </div>
 
           {/* 予約内容テーブル */}
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="bg-white rounded-xl border border-noah-border overflow-hidden">
             {rows.map(row => (
               <div
                 key={row.label}
-                className="flex border-b border-gray-100 last:border-b-0"
+                className="flex border-b border-noah-border-light last:border-b-0"
               >
                 <div className="w-28 flex-shrink-0 px-4 py-3 bg-noah-teal-light text-sm text-noah-text-sub font-medium">
                   {row.label}
@@ -195,9 +195,9 @@ export function ConfirmPage({
           ) : null}
 
           {cancelNotice ? (
-            <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
-              <p className="text-xs font-medium text-gray-500 mb-1">キャンセルポリシー</p>
-              <p className="text-sm text-gray-700 whitespace-pre-wrap">{cancelNotice}</p>
+            <div className="bg-noah-surface-muted border border-noah-border rounded-xl px-4 py-3">
+              <p className="text-xs font-medium text-noah-text-muted mb-1">キャンセルポリシー</p>
+              <p className="text-sm text-noah-text-body whitespace-pre-wrap">{cancelNotice}</p>
             </div>
           ) : null}
 
@@ -210,7 +210,7 @@ export function ConfirmPage({
 
         <form action={formAction} className="px-4 py-6 space-y-3">
           {privacyPolicy ? (
-            <p className="text-xs text-center text-gray-500 whitespace-pre-wrap">{privacyPolicy}</p>
+            <p className="text-xs text-center text-noah-text-muted whitespace-pre-wrap">{privacyPolicy}</p>
           ) : null}
           <PrimaryButton type="submit" disabled={isPending}>
             {isPending ? '送信中...' : FINAL_CONFIRM_CTA_LABEL}

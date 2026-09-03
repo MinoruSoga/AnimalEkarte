@@ -103,9 +103,9 @@ export function Calendar({ availableDates, selectedDate, onSelect, bookingWindow
   }, [firstDayOfWeek, daysInMonth, viewYear, viewMonth]);
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200">
+    <div className="bg-white rounded-lg border border-noah-border">
       {/* ヘッダー */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-noah-border">
         <button
           type="button"
           onClick={handlePrev}
@@ -134,12 +134,12 @@ export function Calendar({ availableDates, selectedDate, onSelect, bookingWindow
       </div>
 
       {/* 曜日ヘッダー */}
-      <div className="grid grid-cols-7 border-b border-gray-200">
+      <div className="grid grid-cols-7 border-b border-noah-border">
         {WEEK_DAYS.map((day, idx) => (
           <div
             key={day}
             className={`text-center text-xs py-2 font-medium ${
-              idx === 0 ? 'text-red-500' : idx === 6 ? 'text-noah-teal' : 'text-noah-text-sub'
+              idx === 0 ? 'text-noah-danger' : idx === 6 ? 'text-noah-teal' : 'text-noah-text-sub'
             }`}
           >
             {day}
@@ -177,9 +177,9 @@ export function Calendar({ availableDates, selectedDate, onSelect, bookingWindow
                   isSelected
                     ? 'bg-noah-teal text-white rounded-full mx-1 my-1'
                     : isDisabled
-                      ? 'text-gray-300 cursor-not-allowed'
+                      ? 'text-noah-disabled cursor-not-allowed'
                       : dayOfWeek === 0
-                        ? 'text-red-500 hover:bg-red-50'
+                        ? 'text-noah-danger hover:bg-noah-danger-bg'
                         : dayOfWeek === 6
                           ? 'text-noah-teal hover:bg-noah-teal-light'
                           : 'text-noah-text hover:bg-noah-teal-light'
@@ -189,7 +189,7 @@ export function Calendar({ availableDates, selectedDate, onSelect, bookingWindow
                 {cell.day}
               </button>
               {reasonLabel ? (
-                <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block whitespace-nowrap rounded bg-gray-800 px-2 py-0.5 text-xs text-white z-10">
+                <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block whitespace-nowrap rounded bg-noah-tooltip-bg px-2 py-0.5 text-xs text-white z-10">
                   {reasonLabel}
                 </span>
               ) : null}

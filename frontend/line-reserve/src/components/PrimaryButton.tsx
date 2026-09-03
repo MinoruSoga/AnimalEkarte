@@ -20,7 +20,7 @@ export function PrimaryButton({
       disabled={disabled}
       className={`w-full py-3 px-4 rounded-lg font-semibold text-white transition-colors ${
         disabled
-          ? 'bg-gray-300 cursor-not-allowed'
+          ? 'bg-noah-disabled cursor-not-allowed'
           : 'bg-noah-teal hover:bg-noah-teal-dark active:bg-noah-teal-dark'
       } ${className}`}
     >
