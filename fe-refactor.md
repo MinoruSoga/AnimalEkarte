@@ -491,7 +491,7 @@ docker compose exec frontend pnpm lint
 | FE-RC-002 | DONE | examinations/checkups/hospitalization/estimates render-side death block | vitest deceased tests |
 | FE-RC-003 | DONE | vaccination-form-model + ReservationFormModal todayJSTISO | vitest vaccination + ReservationFormModal |
 | FE-RC-004 | DONE | paired with 002 reason UI / ActionState.error | adjacent tests |
-| FE-RC-005 | DONE | callers dropped duplicate toast across lanes | representative vitest |
+| FE-RC-005 | DONE | callers dropped duplicate toast across lanes; 第4追い込み: examinations stale toast test fixed (caller not.toHaveBeenCalled + create-examination onError handleApiError×1) | representative vitest |
 | FE-RC-006 | DONE | ClinicHolidayModal useActionState | L6 commit |
 | FE-RC-007 | DONE | UnlinkedLineIdForm form action | L5 merge |
 | FE-RC-008 | DONE | MedicalRecordVaccination useActionState | vitest vaccination-form |
@@ -604,3 +604,10 @@ docker compose exec frontend pnpm lint
 - vitest 対象スイート: baseline 921 PASS → 926 PASS（examinations 既存 FAIL 1 件は不変）。design-audit / check-filenames / eslint-disable / knip PASS。
 - 全体ゲート 4 本: BLOCKED（policy）。push / claim 解放なし。
 - deviation: 問診履歴 `transformToHistoryItem` は feature UI 型のため hooks/feature に残置（list/detail 写像とは別）。
+
+### 検証要約（統合後・followup4 2026-09-03）
+
+- FE-RC-005 stale テスト修正: `use-examination-form.actions.test.ts` — mutateAsync reject 時 caller は `toast.error` を呼ばず `success: false`。`create-examination.test.ts` 新設で api `onError` → `handleApiError(..., "検査作成")` を 1 回 assert。
+- examinations 単体: RED 1 failed → GREEN（コンテナ稼働時）`Test Files 22 passed` / `Tests 193 passed`。
+- ディレクトリ単位 vitest: 並列実行で frontend コンテナ OOM (exit 137) → 停止。`docker compose up` はエージェント禁止のため **BLOCKED（要ユーザー `docker compose up -d frontend`）**。再開後に 36 単位を同時 1 本で再実行予定。
+- 全体ゲート 4 本: BLOCKED（policy）。push / claim 解放なし。
