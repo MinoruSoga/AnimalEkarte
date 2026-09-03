@@ -68,11 +68,12 @@ function PageEditorForm({ setting, clinicId }: PageEditorFormProps) {
   const [fieldValues, setFieldValues] = useState<Partial<ReservationSetting>>({});
 
   const handleChange = useCallback(
-    (key: keyof ReservationSetting) => (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      const key = e.target.name as keyof ReservationSetting;
       const value = e.target.value;
       setFieldValues((prev) => ({ ...prev, [key]: value }));
     },
-    []
+    [],
   );
 
   const [formState, formAction] = useActionState(
@@ -133,10 +134,11 @@ function PageEditorForm({ setting, clinicId }: PageEditorFormProps) {
           </Label>
           <Textarea
             id={`field-${field.key}`}
+            name={field.key}
             rows={field.rows}
             placeholder={field.placeholder}
             defaultValue={String(setting[field.key] ?? "")}
-            onChange={handleChange(field.key)}
+            onChange={handleChange}
             className={`resize-y text-sm ${C.text}`}
           />
         </div>
