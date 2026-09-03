@@ -4,6 +4,7 @@ import { paths } from "@/config/paths";
 import { isAxiosError } from "axios";
 import { C } from "@/lib/design-tokens";
 import { parseInternalPath } from "@/lib/internal-navigation";
+import { getFormString } from "@/lib/form-data";
 import type { ActionState } from "@/types/form";
 import { INITIAL_ACTION_STATE } from "@/types/form";
 import { useAuth } from "@/hooks/use-auth";
@@ -88,8 +89,8 @@ export const LoginForm = memo(function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [formState, formAction, isPending] = useActionState(
     async (_prevState: ActionState, formData: FormData): Promise<ActionState> => {
-      const emailValue = (formData.get("login-email") as string).trim();
-      const passwordValue = formData.get("login-password") as string;
+      const emailValue = getFormString(formData, "login-email").trim();
+      const passwordValue = getFormString(formData, "login-password");
 
       if (!emailValue) return { success: false, error: "メールアドレスを入力してください", timestamp: Date.now() };
       if (!passwordValue) return { success: false, error: "パスワードを入力してください", timestamp: Date.now() };

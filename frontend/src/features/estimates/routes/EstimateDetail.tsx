@@ -4,7 +4,7 @@ import { paths } from "@/config/paths";
 import { LoadingFallback } from "@/components/shared/DataStates";
 import { useNavigate, useParams } from "react-router";
 import { FileText } from "lucide-react";
-import { useState, useCallback, useTransition } from "react";
+import { useState, useCallback, useActionState, useTransition } from "react";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { useGetEstimate } from "../api/get-estimate";
@@ -34,12 +34,11 @@ export function EstimateDetail() {
   const { data: estimate, isLoading, isError } = useGetEstimate(id);
   const { mutate: deleteEstimate, isPending: isDeleting } = useDeleteEstimate();
   const {
-    mutate: createSuccessor,
+    mutateAsync: createSuccessorAsync,
     isPending: isCreatingSuccessor,
   } = useCreateEstimateSuccessor();
   const { canEdit, canDelete, canCreate } = usePermission("estimates");
   const [isDeletePending, startDeleteTransition] = useTransition();
-  const [isSuccessorPending, startSuccessorTransition] = useTransition();
 
   const handleDelete = useCallback(() => {
     if (!id) return;
@@ -57,33 +56,33 @@ export function EstimateDetail() {
   }, []);
 
   const handleCloseSuccessorDialog = useCallback(() => {
-    if (isCreatingSuccessor || isSuccessorPending) return;
+    if (isCreatingSuccessor) return;
     setShowSuccessorDialog(false);
     setSuccessorReason("");
     setSuccessorReasonError(null);
-  }, [isCreatingSuccessor, isSuccessorPending]);
+  }, [isCreatingSuccessor]);
 
-  const handleCreateSuccessor = useCallback(() => {
-    if (!id) return;
-    if (!isValidSuccessorReason(successorReason)) {
-      setSuccessorReasonError("理由は1〜500文字で入力してください");
-      return;
-    }
-    const trimmed = successorReason.trim();
-    setSuccessorReasonError(null);
-    startSuccessorTransition(() => {
-      createSuccessor(
-        { id, reason: trimmed },
-        {
-          onSuccess: (created) => {
-            setShowSuccessorDialog(false);
-            setSuccessorReason("");
-            navigate(paths.estimates.detail.getHref(created.id));
-          },
-        },
-      );
-    });
-  }, [id, successorReason, createSuccessor, navigate]);
+  const [, successorFormAction, isSuccessorPending] = useActionState<null, FormData>(
+    async (_prev: null, _formData: FormData) => {
+      if (!id) return null;
+      if (!isValidSuccessorReason(successorReason)) {
+        setSuccessorReasonError("理由は1〜500文字で入力してください");
+        return null;
+      }
+      const trimmed = successorReason.trim();
+      setSuccessorReasonError(null);
+      try {
+        const created = await createSuccessorAsync({ id, reason: trimmed });
+        setShowSuccessorDialog(false);
+        setSuccessorReason("");
+        navigate(paths.estimates.detail.getHref(created.id));
+      } catch {
+        // useCreateEstimateSuccessor.onError が既に通知済み(FE-RC-005)
+      }
+      return null;
+    },
+    null,
+  );
 
   if (isLoading) {
     return <LoadingFallback />;
@@ -147,7 +146,7 @@ export function EstimateDetail() {
             setSuccessorReasonError(null);
           }}
           onClose={handleCloseSuccessorDialog}
-          onSubmit={handleCreateSuccessor}
+          formAction={successorFormAction}
         />
       ) : null}
     </PageLayout>

@@ -29,7 +29,7 @@ function chipClass(active: boolean): string {
     "inline-flex min-h-11 min-w-11 items-center gap-1.5 px-3 py-1 rounded-full text-sm border transition-colors";
   return active
     ? `${base} ${C.bgBrand10} ${C.textBrand} border-current`
-    : `${base} bg-white ${C.text} ${C.borderLight} ${C.hoverBgStatusGray}`;
+    : `${base} ${C.bgWhite} ${C.text} ${C.borderLight} ${C.hoverBgStatusGray}`;
 }
 
 // ISSUE-180: CPM セグメント別の人数サマリー。各チップはクリックで一覧を絞り込む。

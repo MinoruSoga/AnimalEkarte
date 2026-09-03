@@ -6,7 +6,7 @@ import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { FormHeaderActions } from "@/components/shared/Form/FormHeaderActions";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { paths } from "@/config/paths";
-import { handleApiError } from "@/lib/handle-api-error";
+import { getFormString, getFormEnum } from "@/lib/form-data";
 import { useCurrentClinicName } from "@/hooks/use-current-clinic-name";
 import {
   AlertDialog,
@@ -20,13 +20,18 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useGetCashRegisterPreview } from "../api/get-cash-register-preview";
 import { useCreateCashRegisterClose } from "../api/create-cash-register-close";
-import { PERIOD_LABELS, type CashRegisterPeriod } from "../constants";
+import { PERIOD_LABELS, PERIOD_OPTIONS, type CashRegisterPeriod } from "../constants";
 import {
   CashRegisterClosePreview,
   CashRegisterCloseTargetSection,
 } from "../components/cash-register-close-panels";
 import { useCashRegisterCloseForm } from "../hooks/use-cash-register-close-form";
 import { ResourceCashRegisterClose } from "@/types/generated/models";
+
+// FE-RC-036: FormData の未検証キャストを避けるための enum ガード。
+function isCashRegisterPeriod(value: string): value is CashRegisterPeriod {
+  return (PERIOD_OPTIONS as readonly string[]).includes(value);
+}
 
 export function CashRegisterClosePage() {
   const navigate = useNavigate();
@@ -62,19 +67,26 @@ export function CashRegisterClosePage() {
 
   const handleConfirmClose = useCallback(async () => {
     if (!pendingFormData) return;
+    const closeDate = getFormString(pendingFormData, "close_date");
+    const closePeriod = getFormEnum(pendingFormData, "period", isCashRegisterPeriod);
+    if (!closeDate || !closePeriod) {
+      toast.error("締め対象の日付・区分が不正です");
+      setShowConfirm(false);
+      return;
+    }
     try {
       await createMutation.mutateAsync({
-        date: pendingFormData.get("close_date") as string,
-        period: pendingFormData.get("period") as CashRegisterPeriod,
-        actual_cash: Number(pendingFormData.get("actual_cash")),
-        memo: (pendingFormData.get("memo") as string) || undefined,
+        date: closeDate,
+        period: closePeriod,
+        actual_cash: Number(getFormString(pendingFormData, "actual_cash")),
+        memo: getFormString(pendingFormData, "memo") || undefined,
       });
       toast.success("締めを実行しました");
       setShowConfirm(false);
       setPendingFormData(null);
       setActualCash("");
-    } catch (error) {
-      handleApiError(error, "締め実行");
+    } catch {
+      // FE-RC-005: useCreateCashRegisterClose.onError が既に handleApiError で通知済み。
       setShowConfirm(false);
     }
   }, [pendingFormData, createMutation]);
@@ -141,12 +153,15 @@ export function CashRegisterClosePage() {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel onClick={handleCancelConfirm}>キャンセル</AlertDialogCancel>
+              <AlertDialogCancel onClick={handleCancelConfirm} disabled={createMutation.isPending}>
+                キャンセル
+              </AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleConfirmClose}
+                disabled={createMutation.isPending}
                 className={`${C.bgBrand} ${C.textOnBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} rounded-full`}
               >
-                締める
+                {createMutation.isPending ? "処理中..." : "締める"}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

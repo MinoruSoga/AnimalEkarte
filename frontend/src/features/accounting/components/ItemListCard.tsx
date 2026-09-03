@@ -1,5 +1,4 @@
 import { memo, useCallback, useDeferredValue, useMemo, useState } from "react";
-import { normalizeKana } from "@/lib/normalize-kana";
 import { Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -15,6 +14,7 @@ import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldErro
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { DEFAULT_STANDARD_TAX_RATE, DEFAULT_REDUCED_TAX_RATE } from "@/constants/tax";
 import { formatCurrency } from "@/lib/format/number";
+import { normalizeKana } from "@/lib/normalize-kana";
 import { CATEGORY_LABELS } from "@/constants/item-category";
 import type { TaxType } from "@/types/generated/models";
 
@@ -39,12 +39,17 @@ const MANUAL_CATEGORY_SELECT_ITEMS = Object.entries(CATEGORY_LABELS).map(([value
   <SelectItem key={value} value={value}>{label}</SelectItem>
 ));
 
+// FE-RC-049: 単価カラム(bigint 系)の実務上の妥当な上限。DB 制約ではなく入力ミス検出用。
+const MAX_MANUAL_ITEM_UNIT_PRICE = 999_999_999;
+// FE-RC-049: 「その他」区分の理由欄の最大文字数。
+const MANUAL_OTHER_REASON_MAX_LENGTH = 500;
+
 function getManualPriceError(value: string): string | null {
   const priceNum = parseInt(value, 10);
   if (isNaN(priceNum) || priceNum < 0) {
     return "単価は0以上の整数で入力してください";
   }
-  if (priceNum > 999999999) {
+  if (priceNum > MAX_MANUAL_ITEM_UNIT_PRICE) {
     return "単価は999,999,999円以下で入力してください";
   }
   return null;
@@ -306,7 +311,7 @@ export const ItemListCard = memo(function ItemListCard({
                         id="manual-other-reason"
                         value={manualOtherReason}
                         onChange={(e) => setManualOtherReason(e.target.value)}
-                        maxLength={500}
+                        maxLength={MANUAL_OTHER_REASON_MAX_LENGTH}
                         placeholder="例: 締め時に分類を確認"
                         className="h-9"
                       />

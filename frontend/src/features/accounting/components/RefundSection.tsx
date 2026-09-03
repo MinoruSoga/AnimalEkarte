@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useActionState, useMemo, useState } from "react";
 import { Plus, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TableCell, TableHead } from "@/components/ui/table";
+import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C, ICON } from "@/lib/design-tokens";
 import { PAYMENT_METHOD_LABELS } from "@/constants/payment-method";
 import { formatJSTDate } from "@/lib/jst-date";
@@ -56,12 +57,12 @@ export const RefundSection = memo(function RefundSection({
   const refundableAmount = totalAmount - totalRefunded;
   const recordedNegative = totalAmount < 0;
 
-  const handleSubmit = useCallback(() => {
+  const [, formAction] = useActionState<null, FormData>(async (_prev: null, _formData: FormData) => {
     const amount = parseInt(refundAmount, 10);
-    if (!amount || amount <= 0) return;
+    if (!amount || amount <= 0) return null;
     if (amount > refundableAmount) {
       toast.error(`返金額は残額 ${formatCurrency(refundableAmount)} 以下で入力してください`);
-      return;
+      return null;
     }
     const paymentMethod =
       refundPaymentMethod !== NO_PAYMENT_METHOD ? (refundPaymentMethod as PaymentMethod) : undefined;
@@ -70,7 +71,8 @@ export const RefundSection = memo(function RefundSection({
     setRefundAmount("");
     setRefundReason("");
     setRefundPaymentMethod(NO_PAYMENT_METHOD);
-  }, [refundAmount, refundReason, refundPaymentMethod, onRefund, refundableAmount]);
+    return null;
+  }, null);
 
   return (
     <Card>
@@ -113,59 +115,64 @@ export const RefundSection = memo(function RefundSection({
                   <DialogTitle>返金を登録</DialogTitle>
                   <DialogDescription>返金金額と理由を入力してください。</DialogDescription>
                 </DialogHeader>
-                <div className="space-y-4 py-2">
-                  <div className="space-y-2">
-                    <Label>返金金額（円）</Label>
-                    <Input
-                      type="number"
-                      step={1}
-                      min={1}
-                      value={refundAmount}
-                      onChange={(e) => setRefundAmount(e.target.value)}
-                      placeholder="0"
-                      className="h-10"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>返金理由（任意）</Label>
-                    <Input
-                      value={refundReason}
-                      onChange={(e) => setRefundReason(e.target.value)}
-                      placeholder="返金理由を入力..."
-                      className="h-10"
-                    />
-                  </div>
-                  {usedPaymentMethods.length > 0 ? (
+                {/* HTML5 required/min が JS toast より先にインターセプトしないよう noValidate */}
+                <form action={formAction} noValidate>
+                  <div className="space-y-4 py-2">
                     <div className="space-y-2">
-                      <Label>支払方法（任意）</Label>
-                      <Select value={refundPaymentMethod} onValueChange={setRefundPaymentMethod}>
-                        <SelectTrigger data-testid="refund-payment-method-trigger" className="h-10">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={NO_PAYMENT_METHOD}>指定なし</SelectItem>
-                          {usedPaymentMethods.map((m) => (
-                            <SelectItem key={m} value={m}>
-                              {PAYMENT_METHOD_LABELS[m] ?? m}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Label htmlFor="refund-amount">返金金額（円）</Label>
+                      <Input
+                        id="refund-amount"
+                        type="number"
+                        step={1}
+                        min={1}
+                        value={refundAmount}
+                        onChange={(e) => setRefundAmount(e.target.value)}
+                        placeholder="0"
+                        className="h-10"
+                      />
                     </div>
-                  ) : null}
-                </div>
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setRefundDialogOpen(false)}>
-                    キャンセル
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={handleSubmit}
-                    disabled={!refundAmount || parseInt(refundAmount, 10) <= 0 || isRefunding}
-                  >
-                    {isRefunding ? "処理中..." : "登録する"}
-                  </Button>
-                </DialogFooter>
+                    <div className="space-y-2">
+                      <Label htmlFor="refund-reason">返金理由（任意）</Label>
+                      <Input
+                        id="refund-reason"
+                        value={refundReason}
+                        onChange={(e) => setRefundReason(e.target.value)}
+                        placeholder="返金理由を入力..."
+                        className="h-10"
+                      />
+                    </div>
+                    {usedPaymentMethods.length > 0 ? (
+                      <div className="space-y-2">
+                        <Label htmlFor="refund-payment-method-trigger">支払方法（任意）</Label>
+                        <Select value={refundPaymentMethod} onValueChange={setRefundPaymentMethod}>
+                          <SelectTrigger
+                            id="refund-payment-method-trigger"
+                            data-testid="refund-payment-method-trigger"
+                            className="h-10"
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={NO_PAYMENT_METHOD}>指定なし</SelectItem>
+                            {usedPaymentMethods.map((m) => (
+                              <SelectItem key={m} value={m}>
+                                {PAYMENT_METHOD_LABELS[m] ?? m}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ) : null}
+                  </div>
+                  <DialogFooter>
+                    <Button type="button" variant="outline" onClick={() => setRefundDialogOpen(false)}>
+                      キャンセル
+                    </Button>
+                    <SubmitButton disabled={!refundAmount || parseInt(refundAmount, 10) <= 0 || isRefunding}>
+                      {isRefunding ? "処理中..." : "登録する"}
+                    </SubmitButton>
+                  </DialogFooter>
+                </form>
               </DialogContent>
             </Dialog>
           ) : null}

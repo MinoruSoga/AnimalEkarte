@@ -4,7 +4,7 @@ import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 
 // Internal
-import { C } from "@/lib/design-tokens";
+import { C, STYLE } from "@/lib/design-tokens";
 import { useClinicTaxRates } from "@/hooks/use-clinic-tax-rates";
 import { formatCurrency } from "@/lib/format/number";
 import { DISPLAY_DATE_FORMAT } from "@/lib/format/date";
@@ -171,7 +171,7 @@ export const AccountingDocument = memo(function AccountingDocument({ accounting,
             <div key="owner_pet_info" className="flex justify-between items-start">
               <div className="space-y-1">
                 {/* BUG-374 TC-367-03: 飼主名が空のとき「様」のみ表示されないようフォールバック */}
-                <div className="text-xl border-b border-black mb-2 pb-1 inline-block min-w-[250px]">
+                <div className={`text-xl border-b ${STYLE.printBorder} mb-2 pb-1 inline-block min-w-[250px]`}>
                   {accounting.ownerName ? `${accounting.ownerName} 様` : "（飼主名未取得）"}
                 </div>
                 <p>ペット名: {accounting.petName} ({accounting.petSpecies})</p>
@@ -185,7 +185,7 @@ export const AccountingDocument = memo(function AccountingDocument({ accounting,
             <div key="items_table">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="border-b-2 border-black">
+                  <tr className={`border-b-2 ${STYLE.printBorder}`}>
                     <th className="py-2">項目</th>
                     <th className="py-2 text-right w-16">税率</th>
                     <th className="py-2 text-right">単価</th>
@@ -251,7 +251,7 @@ export const AccountingDocument = memo(function AccountingDocument({ accounting,
                   </div>
                 ) : null}
 
-                <div className="flex justify-between font-bold text-xl pt-2 border-t border-black">
+                <div className={`flex justify-between font-bold text-xl pt-2 border-t ${STYLE.printBorder}`}>
                   <span>請求金額</span>
                   <span>{formatCurrency(paymentInfo.billingAmount)}</span>
                 </div>

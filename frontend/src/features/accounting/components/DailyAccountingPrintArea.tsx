@@ -20,7 +20,7 @@ export function DailyPrintArea({ date, rows, totals }: DailyPrintAreaProps) {
   return createPortal(
     <div
       hidden
-      className="bg-white"
+      className={C.bgWhite}
       data-testid="daily-print-area"
       style={{ position: "fixed", inset: 0, zIndex: Z.overlay, overflow: "auto", padding: "8mm" }}
     >
@@ -67,7 +67,7 @@ export function DailyPrintArea({ date, rows, totals }: DailyPrintAreaProps) {
           {rows.map(({ accounting: a, detailedBreakdown, total }) => {
             const isMixed = Boolean(a.paymentSplits && a.paymentSplits.length > 1);
             const paymentLabel = isMixed
-              ? a.paymentSplits!.map((s) => PAYMENT_METHOD_LABELS[s.method] ?? s.method).join("/")
+              ? (a.paymentSplits ?? []).map((s) => PAYMENT_METHOD_LABELS[s.method] ?? s.method).join("/")
               : a.payment
                 ? (PAYMENT_METHOD_LABELS[a.payment.method] ?? a.payment.method)
                 : "-";

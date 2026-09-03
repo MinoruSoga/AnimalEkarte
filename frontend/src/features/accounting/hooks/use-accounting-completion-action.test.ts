@@ -129,6 +129,8 @@ function buildHookArgs(overrides: {
     navigate,
     setCompletedPayment,
     postCloseReason: "",
+    // FE-RC-001: このテスト群は「権限あり」時の通常フローを検証するため既定で全許可する。
+    permissions: { canCreate: true, canEdit: true },
   };
 }
 
@@ -279,6 +281,64 @@ describe("useAccountingCompletionAction post-close 400 focus (BUG-009)", () => {
     });
     expect(document.activeElement).toBe(document.getElementById("postCloseReason"));
     expect(completeAccountingMock).toHaveBeenCalledTimes(1);
+    expect(updateAccountingMock).not.toHaveBeenCalled();
+  });
+});
+
+// FE-RC-001: fieldset disabled 等の render 側ガードをバイパスされても action 側で権限を再検証し、fail-closed で API を叩かないことを保証する。
+describe("useAccountingCompletionAction permissions (FE-RC-001 fail-closed)", () => {
+  beforeEach(() => {
+    completeAccountingMock.mockReset();
+    updateAccountingMock.mockReset();
+    handleApiErrorMock.mockReset();
+    vi.mocked(toast.error).mockReset();
+    vi.mocked(toast.success).mockReset();
+  });
+
+  it("canEdit=false（既存会計）では updateAccounting を呼ばず権限エラー toast を出す", async () => {
+    const { result } = renderHook(() =>
+      useAccountingCompletionAction({
+        ...buildHookArgs(),
+        permissions: { canCreate: true, canEdit: false },
+      }),
+    );
+
+    await submitCompletionAction(result.current.formAction);
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith("この操作を行う権限がありません");
+    });
+    expect(updateAccountingMock).not.toHaveBeenCalled();
+  });
+
+  it("canCreate=false（新規会計）では completeAccounting を呼ばない", async () => {
+    const { result } = renderHook(() =>
+      useAccountingCompletionAction({
+        ...buildHookArgs({ accountingId: undefined }),
+        permissions: { canCreate: false, canEdit: true },
+      }),
+    );
+
+    await submitCompletionAction(result.current.formAction);
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith("この操作を行う権限がありません");
+    });
+    expect(completeAccountingMock).not.toHaveBeenCalled();
+  });
+
+  it("permissions 未指定（既定 deny）では API を呼ばない", async () => {
+    const { permissions, ...argsWithoutPermissions } = buildHookArgs();
+    void permissions;
+    const { result } = renderHook(() =>
+      useAccountingCompletionAction(argsWithoutPermissions),
+    );
+
+    await submitCompletionAction(result.current.formAction);
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith("この操作を行う権限がありません");
+    });
     expect(updateAccountingMock).not.toHaveBeenCalled();
   });
 });

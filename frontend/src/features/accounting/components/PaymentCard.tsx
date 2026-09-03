@@ -26,6 +26,10 @@ export interface PaymentSplitDraft {
 
 const PAYMENT_METHODS: PaymentMethod[] = ["cash", "credit_card", "electronic_money", "bank_transfer"];
 
+// FE-RC-049: お預かり金額のクイック切り上げ単位（千円単位 / 一万円単位）。
+const RECEIVED_AMOUNT_ROUND_UNIT_THOUSAND = 1000;
+const RECEIVED_AMOUNT_ROUND_UNIT_TEN_THOUSAND = 10000;
+
 interface PaymentCardProps {
   billingAmount: number;
   paymentSplits: PaymentSplitDraft[];
@@ -116,7 +120,8 @@ export const PaymentCard = memo(function PaymentCard({
               return (
                 <div key={idx} className="border rounded-lg p-3 space-y-3">
                   <div className="flex items-center justify-between">
-                    <Label className="text-xs font-medium">支払方法</Label>
+                    {/* ボタン群の見出しであり単一の input と対応しないため Label ではなく span で表す(FE-RC-041) */}
+                    <span className={`text-xs font-medium ${C.text}`}>支払方法</span>
                     {paymentSplits.length > 1 ? (
                       <DeleteIconButton
                         onClick={() => handleRemoveSplit(idx)}
@@ -177,7 +182,7 @@ export const PaymentCard = memo(function PaymentCard({
                             type="button"
                             variant="outline"
                             size="sm"
-                            onClick={() => handleReceivedChange(idx, (Math.ceil(parsedAmount / 1000) * 1000).toString())}
+                            onClick={() => handleReceivedChange(idx, (Math.ceil(parsedAmount / RECEIVED_AMOUNT_ROUND_UNIT_THOUSAND) * RECEIVED_AMOUNT_ROUND_UNIT_THOUSAND).toString())}
                           >
                             千円単位
                           </Button>
@@ -185,7 +190,7 @@ export const PaymentCard = memo(function PaymentCard({
                             type="button"
                             variant="outline"
                             size="sm"
-                            onClick={() => handleReceivedChange(idx, (Math.ceil(parsedAmount / 10000) * 10000).toString())}
+                            onClick={() => handleReceivedChange(idx, (Math.ceil(parsedAmount / RECEIVED_AMOUNT_ROUND_UNIT_TEN_THOUSAND) * RECEIVED_AMOUNT_ROUND_UNIT_TEN_THOUSAND).toString())}
                           >
                             一万単位
                           </Button>
