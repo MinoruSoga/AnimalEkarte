@@ -1,11 +1,11 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { ShiftCalendar, type StaffItem } from "./ShiftCalendar";
-import type { Shift } from "../../types";
+import { ShiftCalendar } from "./ShiftCalendar";
+import type { Shift, ShiftStaff } from "../../types";
 import type { ClinicHoliday } from "../../api/clinic-holidays";
 import { OCCUPATION_FILTER_ALL, OCCUPATION_FILTER_UNSET } from "../../api/get-staffs";
 
-const STAFFS: StaffItem[] = [
+const STAFFS: ShiftStaff[] = [
   { id: "s1", name: "スタッフA", occupationId: "1", occupationName: "医師" },
 ];
 
@@ -102,7 +102,7 @@ describe("ShiftCalendar staffs 表示", () => {
   });
 
   it("selectedStaffId 指定時は該当スタッフのみ表示する", () => {
-    const staffs: StaffItem[] = [
+    const staffs: ShiftStaff[] = [
       { id: "s1", name: "スタッフA", occupationId: "1", occupationName: "医師" },
       { id: "s2", name: "スタッフB", occupationId: "1", occupationName: "医師" },
     ];
@@ -113,7 +113,7 @@ describe("ShiftCalendar staffs 表示", () => {
   });
 
   it("職種フィルタで該当職種のスタッフ行だけ出す", () => {
-    const staffs: StaffItem[] = [
+    const staffs: ShiftStaff[] = [
       { id: "s1", name: "医師A", occupationId: "10", occupationName: "医師" },
       { id: "s2", name: "看護B", occupationId: "20", occupationName: "看護師" },
       { id: "s3", name: "未設定C", occupationId: null, occupationName: null },
@@ -126,7 +126,7 @@ describe("ShiftCalendar staffs 表示", () => {
   });
 
   it("職種未設定フィルタで occupation 無しのスタッフだけ出す", () => {
-    const staffs: StaffItem[] = [
+    const staffs: ShiftStaff[] = [
       { id: "s1", name: "医師A", occupationId: "10", occupationName: "医師" },
       { id: "s3", name: "未設定C", occupationId: null, occupationName: null },
     ];

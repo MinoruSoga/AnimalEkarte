@@ -1,24 +1,31 @@
-import { C, STYLE } from "@/lib/design-tokens";
-import { DAY_OF_WEEK_LABELS } from "@/constants/day-of-week";
-import { EmptyState } from "@/components/shared/DataStates";
 import { lazy, memo, Suspense, useCallback, useMemo, useState } from "react";
-import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select";
+
 import { CalendarNavToolbar } from "@/components/shared/CalendarNavToolbar";
-import type { Shift, ShiftStaff } from "../../types";
+import { EmptyState } from "@/components/shared/DataStates";
+import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select";
+import { DAY_OF_WEEK_LABELS } from "@/constants/day-of-week";
+import { C, STYLE } from "@/lib/design-tokens";
+
 import { ShiftCell } from "../../components/ShiftCell/ShiftCell";
-import type { ClinicHoliday } from "../../api/clinic-holidays";
 import {
   OCCUPATION_FILTER_ALL,
   OCCUPATION_FILTER_UNSET,
   filterStaffsByOccupation,
 } from "../../api/get-staffs";
 
+import type { Shift, ShiftStaff } from "../../types";
+import type { ClinicHoliday } from "../../api/clinic-holidays";
+
 const ShiftFormDialog = lazy(() =>
   import("../../components/ShiftFormDialog/ShiftFormDialog").then((m) => ({ default: m.ShiftFormDialog }))
 );
 
-/** @deprecated use ShiftStaff from types — kept for existing test imports */
-export type StaffItem = ShiftStaff;
+// FE-RC-085: ネスト三項の代わりに早期 return 関数で日付ヘッダーの色を決定する
+function dateHeaderColorClass(isHoliday: boolean, isSun: boolean, isSat: boolean): string {
+  if (isHoliday || isSun) return C.danger;
+  if (isSat) return C.textBrand;
+  return C.text70;
+}
 
 // ─── ヘッダー列（静的 JSX）: rendering-hoist-jsx ───────────────────────
 const STAFF_HEADER = (
@@ -227,13 +234,7 @@ export const ShiftCalendar = memo(function ShiftCalendar({
               const isSun = dayOfWeek === 0;
               const isSat = dayOfWeek === 6;
               const isHoliday = holidaySet.has(dateStr);
-              const colorClass = isHoliday
-                ? C.danger
-                : isSun
-                  ? C.danger
-                  : isSat
-                    ? C.textBrand
-                    : C.text70;
+              const colorClass = dateHeaderColorClass(isHoliday, isSun, isSat);
               const isClickable = !!onDateHeaderClick && canCreate;
               return (
                 <div
@@ -302,6 +303,9 @@ export const ShiftCalendar = memo(function ShiftCalendar({
       {/* シフト追加・編集ダイアログ */}
       <Suspense fallback={null}>
         <ShiftFormDialog
+          // FE-RC-032: セッションごとに key を変えて再マウントさせ、内部の
+          // useState 初期化子に state リセットを委ねる（useEffect 同期を廃止）。
+          key={`${dialog.open}-${dialog.staffId}-${dialog.date}-${dialog.editShift?.id ?? "new"}`}
           open={dialog.open}
           onClose={handleCloseDialog}
           staffId={dialog.staffId}

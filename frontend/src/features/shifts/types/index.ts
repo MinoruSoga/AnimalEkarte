@@ -43,6 +43,13 @@ export const SHIFT_TYPE_LABELS: Record<ShiftType, string> = {
   paid_leave: "有休",
 };
 
+const SHIFT_TYPE_VALUES: readonly string[] = Object.keys(SHIFT_TYPE_LABELS);
+
+/** FE-RC-037: 外部データ（FormData/API応答）を無検証で `as ShiftType` しないための型ガード */
+export function isShiftType(value: unknown): value is ShiftType {
+  return typeof value === "string" && SHIFT_TYPE_VALUES.includes(value);
+}
+
 
 // シフトカレンダーで使用するスタッフの最小型（feature間importを避けるため）
 export interface ShiftStaff {

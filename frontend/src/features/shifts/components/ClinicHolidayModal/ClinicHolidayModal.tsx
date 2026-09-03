@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C } from "@/lib/design-tokens";
-import { handleApiError } from "@/lib/handle-api-error";
 import { useCreateClinicHoliday, useDeleteClinicHoliday } from "../../api/clinic-holidays";
 import type { ClinicHoliday } from "../../api/clinic-holidays";
 
@@ -46,8 +45,9 @@ export const ClinicHolidayModal = memo(function ClinicHolidayModal({
           await deleteMutation.mutateAsync(date);
           onClose();
           return null;
-        } catch (err) {
-          handleApiError(err, "定休日の解除");
+        } catch {
+          // FE-RC-005: API エラーは useDeleteClinicHoliday の onError
+          // （api/clinic-holidays.ts）が handleApiError 済み。ここでは再通知しない。
           return { error: "定休日の解除に失敗しました" };
         }
       }
@@ -55,8 +55,9 @@ export const ClinicHolidayModal = memo(function ClinicHolidayModal({
         await setMutation.mutateAsync({ date, reason });
         onClose();
         return null;
-      } catch (err) {
-        handleApiError(err, "定休日の設定");
+      } catch {
+        // FE-RC-005: API エラーは useCreateClinicHoliday の onError
+        // （api/clinic-holidays.ts）が handleApiError 済み。ここでは再通知しない。
         return { error: "定休日の設定に失敗しました" };
       }
     },
