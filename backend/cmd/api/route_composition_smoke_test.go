@@ -74,7 +74,10 @@ func TestRouteCompositionSmoke_TargetGraphRegistersEverySurface(t *testing.T) {
 	//   bb32b9fd1 POST   /api/v1/lab-devices
 	//   bb32b9fd1 PATCH  /api/v1/lab-devices/:id
 	//   PR333 fix PUT    /api/v1/lab-devices/:id/configuration
-	require.Len(t, routes, 521)
+	// 2026-09-03: 522 — e5465de17 added GET /api/v1/lab-device/agent-consumer
+	// (lab-device consumer token for the local agent). Documented in
+	// backend/docs/api.yaml and covered by the OpenAPI drift test.
+	require.Len(t, routes, 522)
 	for _, expected := range []string{
 		"GET /health",
 		"GET /uploads/*filepath",
@@ -85,6 +88,7 @@ func TestRouteCompositionSmoke_TargetGraphRegistersEverySurface(t *testing.T) {
 		"GET /api/v1/owners",
 		"GET /api/v1/pets",
 		"PUT /api/v1/lab-devices/:id/configuration",
+		"GET /api/v1/lab-device/agent-consumer",
 
 		"GET /api/v1/masters/staffs",
 		"GET /api/v1/clinics",
