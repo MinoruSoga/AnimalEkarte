@@ -44,7 +44,7 @@ export function TrimmingCourseSelectPage({ clinicId, idToken, onSelect, onBack }
               <div className="text-noah-text-sub">読み込み中...</div>
             </div>
           ) : error ? (
-            <div className="px-4 py-8 text-center text-red-500">
+            <div className="px-4 py-8 text-center text-noah-danger">
               <p role="alert">{error.message}</p>
               {error.canRetry ? (
                 <button

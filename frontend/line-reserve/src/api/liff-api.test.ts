@@ -74,3 +74,46 @@ describe("liffApi（R-F20: NULL バイトサニタイズ）", () => {
     expect(settings).toEqual(settingsFixture);
   });
 });
+
+describe("liffApi（FE-RC-079: clinicId は URL パスセグメントとして encode される）", () => {
+  it("clinicId に '/' を含む値を渡しても、単一の :clinicId セグメントとして解決される", async () => {
+    // clinicId が encode されていないと "/api/liff/a/b/settings" のように
+    // パスセグメントが分裂し、":clinicId/settings" にマッチしなくなる。
+    let capturedClinicId: string | undefined;
+    server.use(
+      http.get("/api/liff/:clinicId/settings", ({ params }) => {
+        capturedClinicId = params.clinicId as string;
+        return HttpResponse.json({
+          liff_id: "123",
+          header_text: "テスト病院",
+          phone_number: "",
+          status: "running",
+          request_example: "",
+          reservation_notice: "",
+          cancel_notice: "",
+          privacy_policy: "",
+          show_no_staff_option: false,
+          booking_window: 30,
+        });
+      }),
+    );
+
+    await liffApi.getSettings("a/b");
+
+    expect(capturedClinicId).toBe("a/b");
+  });
+
+  it("cancelReservation も clinicId を encode してリクエストする", async () => {
+    let capturedClinicId: string | undefined;
+    server.use(
+      http.delete("/api/liff/:clinicId/my-reservations/:id", ({ params }) => {
+        capturedClinicId = params.clinicId as string;
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+
+    await liffApi.cancelReservation("a/b", 1, "test-id-token");
+
+    expect(capturedClinicId).toBe("a/b");
+  });
+});

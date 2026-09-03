@@ -35,4 +35,27 @@ describe("SortableHeader", () => {
       "-my-3",
     );
   });
+
+  describe("a11y (FE-RC-044)", () => {
+    it("direction=ascending のとき aria-label に現在の並び順（昇順）が含まれる", () => {
+      render(<SortableHeader label="診療日" direction="ascending" onToggle={() => {}} />);
+      expect(screen.getByRole("button", { name: "診療日でソート（昇順）" })).toBeInTheDocument();
+    });
+
+    it("direction=descending のとき aria-label に現在の並び順（降順）が含まれる", () => {
+      render(<SortableHeader label="診療日" direction="descending" onToggle={() => {}} />);
+      expect(screen.getByRole("button", { name: "診療日でソート（降順）" })).toBeInTheDocument();
+    });
+
+    it("direction=none のときは既存の accessible name を変えない（呼び出し側テストの互換性）", () => {
+      render(<SortableHeader label="診療日" direction="none" onToggle={() => {}} />);
+      expect(screen.getByRole("button", { name: "診療日でソート" })).toBeInTheDocument();
+    });
+
+    it("方向アイコンは装飾であり aria-hidden を持つ（方向は aria-label 側で伝える）", () => {
+      render(<SortableHeader label="診療日" direction="ascending" onToggle={() => {}} />);
+      const icon = screen.getByRole("button", { name: "診療日でソート（昇順）" }).querySelector("svg");
+      expect(icon).toHaveAttribute("aria-hidden", "true");
+    });
+  });
 });

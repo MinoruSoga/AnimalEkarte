@@ -194,7 +194,7 @@ src/
 |------------------|----------------|------|
 | routes を `app/routes/` に配置 | routes を `features/[feature]/routes/` に配置 | feature内に完結させる方が保守性が高い |
 | `clientLoader`/`clientAction`/`convert()` パターン | inline `lazy()` + 直接 `loader` 設定 | シンプルで読みやすい |
-| AuthLoader を AppProvider 内に配置 | AuthProvider を router の保護ルートに配置 | /login で不要な GET /v1/me を防ぐ |
+| AuthLoader を AppProvider 内に配置 | AuthProvider を router.tsx root route element にアプリ全体（/login 含む）配置 | /login 401 は route 分離でなく AuthProvider 内部の password-recovery 経路のみ restore skip（BUG-031）で防ぐ |
 | `config/env.ts`（Zod検証） | なし（Vite env をそのまま使用） | 現時点では不要 |
 | cross-feature合成なし（features は独立） | `app/pages/` で cross-feature 合成 | 複数 feature を使うページ専用の合成層 |
 
@@ -351,13 +351,18 @@ features/owners/
 
 #### app/router.tsx（React Router Data Mode）
 
+FE-RC-053/060: `AuthProvider` はアプリ全体（`/login` を含む root route の `element`）に配置する。
+`/login` での不要な `GET /v1/me` は route 分離ではなく `AuthProvider` 内部のセッション復元処理
+（password-recovery 経路のみ restore skip、BUG-031）で防ぐ。以下は概念を示す簡略例であり、
+実際のルート定義本体は `app/routes/app-routes.tsx` 以下に分割されている。
+
 ```typescript
 import { lazy, Suspense } from "react";
 import { createBrowserRouter } from "react-router";
 
 import { Layout } from "@/components/shared/Layout";
 import { RootErrorBoundary, RouteErrorBoundary } from "@/components/errors/RouteErrorBoundary";
-import { AuthProvider } from "@/features/auth";
+import { AuthProvider } from "@/features/auth/provider";
 
 /* bundle-dynamic-imports: ログインページは未認証ユーザー専用。認証済みバンドルに含めない */
 const Login = lazy(() =>
@@ -365,24 +370,28 @@ const Login = lazy(() =>
 );
 
 export const router = createBrowserRouter([
-  // ── 未認証ルート ─────────────────────────────────────────────────
-  {
-    path: "/login",
-    element: (
-      <Suspense fallback={null}>
-        <Login />
-      </Suspense>
-    ),
-  },
-
-  // ── 認証済みルート ───────────────────────────────────────────────
-  // AuthProvider を保護ルート側にのみ配置。/login では GET /v1/me を実行しない。
+  // ── AuthProvider をアプリ全体（/login 含む）に配置 ─────────────────
   {
     element: (
       <AuthProvider>
-        <Layout />
+        <Outlet />
       </AuthProvider>
     ),
+    errorElement: <RootErrorBoundary />,
+    children: [
+      // ── 未認証ルート（Layout なし） ───────────────────────────────
+      {
+        path: "/login",
+        element: (
+          <Suspense fallback={null}>
+            <Login />
+          </Suspense>
+        ),
+      },
+
+      // ── 認証済みルート（Layout 配下） ─────────────────────────────
+      {
+    element: <Layout />,
     errorElement: <RootErrorBoundary />,
     children: [
       // ── Reception ────────────────────────────────────────────────

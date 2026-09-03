@@ -108,7 +108,7 @@ describe('CustomerInfoPage', () => {
       const nameInput = screen.getByLabelText(/お名前/);
       expect(screen.getByText('お名前を入力してください')).toBeInTheDocument();
       expect(nameInput).toHaveAttribute('aria-invalid', 'true');
-      expect(nameInput.className).toMatch(/border-red-500/);
+      expect(nameInput.className).toMatch(/border-noah-danger/);
       expect(onNext).not.toHaveBeenCalled();
     });
 
@@ -171,11 +171,11 @@ describe('CustomerInfoPage', () => {
       await user.click(screen.getByRole('button', { name: '次へ' }));
       const nameInput = screen.getByLabelText(/お名前/);
       expect(nameInput).toHaveAttribute('aria-invalid', 'true');
-      expect(nameInput.className).toMatch(/border-red-500/);
+      expect(nameInput.className).toMatch(/border-noah-danger/);
 
       await user.type(nameInput, '鈴木');
       expect(nameInput).not.toHaveAttribute('aria-invalid', 'true');
-      expect(nameInput.className).not.toMatch(/border-red-500/);
+      expect(nameInput.className).not.toMatch(/border-noah-danger/);
     });
   });
 

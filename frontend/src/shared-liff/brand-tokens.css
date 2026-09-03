@@ -12,4 +12,32 @@
   --color-liff-brand-dark: #027078;
   --color-liff-brand-bg: #EDF3F5;
   --color-liff-brand-subtle: #D6EEF0;
+
+  /*
+   * FE-RC-051: liff/line-reserve の予約ステータスバッジ・注意喚起ボックスが raw Tailwind
+   * パレット色（bg-green-100/text-green-800 等）を直書きしていたため semantic token 化する。
+   * 値は Tailwind 既定パレットの var() 参照でエイリアスし、見た目（色）は変更しない —
+   * 目的は「意味（成功/警告/危険/情報）に名前を付ける」ことで、新しい色を発明することではない。
+   */
+  --color-noah-success-bg: var(--color-green-100);
+  --color-noah-success-text: var(--color-green-800);
+  --color-noah-warning-bg: var(--color-yellow-100);
+  --color-noah-warning-box-bg: var(--color-yellow-50);
+  --color-noah-warning-text: var(--color-yellow-800);
+  --color-noah-warning-text-sub: var(--color-yellow-700);
+  --color-noah-warning-border: var(--color-yellow-200);
+  --color-noah-info-bg: var(--color-blue-100);
+  --color-noah-info-box-bg: var(--color-blue-50);
+  --color-noah-info-text: var(--color-blue-800);
+  --color-noah-info-text-sub: var(--color-blue-700);
+  --color-noah-info-border: var(--color-blue-200);
+  --color-noah-danger-subtle: var(--color-red-400);
+  --color-noah-danger: var(--color-red-500);
+  --color-noah-danger-hover: var(--color-red-600);
+  --color-noah-danger-bg: var(--color-red-50);
+  --color-noah-danger-bg-strong: var(--color-red-100);
+  --color-noah-danger-text: var(--color-red-700);
+  --color-noah-danger-border: var(--color-red-200);
+  --color-noah-neutral-bg: var(--color-gray-100);
+  --color-noah-neutral-text: var(--color-gray-600);
 }
