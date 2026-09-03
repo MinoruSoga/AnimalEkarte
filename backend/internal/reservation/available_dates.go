@@ -57,11 +57,11 @@ func ParseAvailableDatesSettings(
 ) (AvailableDatesSettings, error) {
 	var closedWeekdays []int
 	if err := json.Unmarshal(orEmptyJSONArray(closedWeekdaysJSON), &closedWeekdays); err != nil {
-		return AvailableDatesSettings{}, apperrors.WrapInvalidInput("休診設定の解析に失敗しました: " + err.Error())
+		return AvailableDatesSettings{}, apperrors.WrapInvalidInput("休診設定の形式が正しくありません")
 	}
 	var closedDates []string
 	if err := json.Unmarshal(orEmptyJSONArray(closedDatesJSON), &closedDates); err != nil {
-		return AvailableDatesSettings{}, apperrors.WrapInvalidInput("休診設定の解析に失敗しました: " + err.Error())
+		return AvailableDatesSettings{}, apperrors.WrapInvalidInput("休診設定の形式が正しくありません")
 	}
 	return AvailableDatesSettings{
 		ClosedWeekdays:        closedWeekdays,
