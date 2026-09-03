@@ -3,7 +3,6 @@ import { axios } from "@/lib/axios";
 import { formatDate } from "@/lib/format/date";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { queryKeys } from "@/lib/query-keys";
-import { PetStatusDeceased } from "@/types/generated/models";
 import type { MedicalRecordResponse } from "@/types/generated/medicalrecord-responses";
 
 /**
@@ -37,7 +36,8 @@ function transformMedicalRecordForList(record: MedicalRecordResponse) {
     ownerName: record.owner?.name ?? "",
     petId: record.pet_id ? String(record.pet_id) : undefined,
     petName: record.pet?.name ?? "",
-    petIsDeceased: record.pet?.status === PetStatusDeceased,
+    // TASK-444-S1: hooks は @/types/generated/models 禁止のため wire リテラルを直書き。
+    petIsDeceased: record.pet?.status === "deceased",
     species: record.pet?.animal_species?.name ?? "",
     chiefComplaint: record.inquiry?.chief_complaint ?? "",
     chiefComplaintTypeId: record.inquiry?.chief_complaint_type_id ?? null,
