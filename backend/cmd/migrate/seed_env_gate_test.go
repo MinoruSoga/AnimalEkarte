@@ -112,6 +112,9 @@ func TestMasterBundleHasClinicSkeletonAndNoAccounts(t *testing.T) {
 	if !strings.Contains(text, "八王子病院") || !strings.Contains(text, "城東センター病院") {
 		t.Fatal("002_master clinics.csv must name 八王子病院 and 城東センター病院")
 	}
+	if !strings.Contains(text, "ノア動物病院　敷島病院") || !strings.Contains(text, "ノア動物病院　Hako bu neco") {
+		t.Fatal("002_master clinics.csv must name Jouto-group clinics 3 and 4")
+	}
 	if strings.Contains(text, "敷島医院") {
 		t.Fatal("002_master clinics.csv must not include demo-only 敷島医院")
 	}
@@ -143,8 +146,8 @@ func TestMasterBundleHasClinicSkeletonAndNoAccounts(t *testing.T) {
 			kensaClinics[row[clinicIdx]] = true
 		}
 	}
-	if !kensaClinics["1"] || !kensaClinics["2"] {
-		t.Fatalf("002_master exam_types 検査 clinics = %v, want 1 and 2", kensaClinics)
+	if !kensaClinics["1"] || !kensaClinics["2"] || !kensaClinics["3"] || !kensaClinics["4"] {
+		t.Fatalf("002_master exam_types 検査 clinics = %v, want 1-4", kensaClinics)
 	}
 }
 
