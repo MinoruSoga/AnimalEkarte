@@ -65,7 +65,7 @@ type migrationTagSync interface {
 type Migrator struct {
 	cfg     Config
 	db      *gorm.DB
-	owners  owner.LstepRepository
+	owners  owner.LifecycleOwnerRepository
 	tagSync migrationTagSync
 	logger  *slog.Logger
 	records []ProgressRecord
@@ -76,7 +76,7 @@ type Migrator struct {
 func NewMigrator(
 	cfg Config,
 	db *gorm.DB,
-	owners owner.LstepRepository,
+	owners owner.LifecycleOwnerRepository,
 	tagSync migrationTagSync,
 	logger *slog.Logger,
 ) *Migrator {
