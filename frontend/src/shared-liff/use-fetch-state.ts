@@ -20,16 +20,16 @@ export interface UseFetchStateResult<T> {
  */
 export function useFetchState<T>(fetcher: () => Promise<T>, context: string): UseFetchStateResult<T> {
   const [data, setData] = useState<T | null>(null);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<FetchErrorInfo | null>(null);
   const [retryToken, setRetryToken] = useState(0);
+  // FE-RC-071: data/error のどちらも未確定な間だけ loading とする派生値。
+  // 初回 mount は両方 null なので自動的に true になり、retry() 側で error を
+  // 先に消してから effect を再実行するため、effect 内で同期 setState を行う
+  // 必要が無くなり set-state-in-effect の抑制も不要になった。
+  const loading = data === null && error === null;
 
   useEffect(() => {
     let cancelled = false;
-    // 外部 fetcher 開始時に loading/error をリセットする。render 中 setState は不可。
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch lifecycle reset
-    setLoading(true);
-    setError(null);
 
     fetcher()
       .then((result) => {
@@ -39,10 +39,6 @@ export function useFetchState<T>(fetcher: () => Promise<T>, context: string): Us
       .catch((err: unknown) => {
         if (cancelled) return;
         setError(resolveFetchError(err, context));
-      })
-      .finally(() => {
-        if (cancelled) return;
-        setLoading(false);
       });
 
     return () => {
@@ -51,6 +47,7 @@ export function useFetchState<T>(fetcher: () => Promise<T>, context: string): Us
   }, [fetcher, context, retryToken]);
 
   const retry = useCallback(() => {
+    setError(null);
     setRetryToken((t) => t + 1);
   }, []);
 
