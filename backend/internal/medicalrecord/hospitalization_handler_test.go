@@ -356,6 +356,23 @@ func TestCreateHospitalization(t *testing.T) {
 			setupCtx:   func(c *gin.Context) { setClinicID(c) },
 			svc:        &mockHospitalizationService{},
 			wantStatus: http.StatusBadRequest,
+			wantBody:   `"error":"cage_id is required"`,
+		},
+		{
+			name: "returns 400 for inverted date range without wrapping AppError",
+			body: map[string]any{
+				"owner_id":             1,
+				"pet_id":               2,
+				"hospitalization_type": "hospitalization",
+				"start_date":           "2026-05-30T00:00:00Z",
+				"end_date":             "2026-05-28T00:00:00Z",
+				"status":               "admitted",
+				"cage_id":              10,
+			},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockHospitalizationService{},
+			wantStatus: http.StatusBadRequest,
+			wantBody:   `"error":"end_date は start_date 以降である必要があります"`,
 		},
 		{
 			name:     "returns 500 on service error",
@@ -418,6 +435,7 @@ func TestCreateHospitalization(t *testing.T) {
 			assert.Equal(t, tt.wantStatus, w.Code)
 			if tt.wantBody != "" {
 				assert.Contains(t, w.Body.String(), tt.wantBody)
+				assert.NotContains(t, w.Body.String(), "invalid input")
 			}
 			if tt.wantHeader {
 				assert.NotEmpty(t, w.Header().Get("Location"))
@@ -524,6 +542,17 @@ func TestUpdateHospitalization(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 		},
 		{
+			name:    "returns 400 for inverted date range without wrapping AppError",
+			paramID: "1",
+			body: map[string]any{
+				"start_date": "2026-05-30T00:00:00Z",
+				"end_date":   "2026-05-28T00:00:00Z",
+			},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockHospitalizationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
 			name:     "returns 404 when hospitalization not found",
 			paramID:  "999",
 			body:     map[string]any{"memo": "テスト"},
@@ -556,6 +585,25 @@ func TestUpdateHospitalization(t *testing.T) {
 			assert.Equal(t, tt.wantStatus, w.Code)
 		})
 	}
+}
+
+func TestUpdateHospitalization_InvertedDateRangePassesAppErrorThrough(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	h := newHandlerWithHospitalizationSvc(&mockHospitalizationService{})
+	bodyBytes, err := json.Marshal(map[string]any{
+		"start_date": "2026-05-30T00:00:00Z",
+		"end_date":   "2026-05-28T00:00:00Z",
+	})
+	require.NoError(t, err)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(bodyBytes))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Params = gin.Params{{Key: "id", Value: "1"}}
+	setClinicID(c)
+	h.UpdateHospitalization(c)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.JSONEq(t, `{"error":"end_date は start_date 以降である必要があります"}`, w.Body.String())
 }
 
 // ---- DischargeWithBilling ----

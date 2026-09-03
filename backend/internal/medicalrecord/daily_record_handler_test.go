@@ -659,6 +659,47 @@ func TestAddStaffNote(t *testing.T) {
 	}
 }
 
+func TestDailyRecordHandlers_InvalidTimeUsesFixedJapaneseMessage(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	tests := []struct {
+		name string
+		call func(h *DailyRecordHandler, c *gin.Context)
+		body map[string]any
+	}{
+		{
+			name: "vital",
+			call: func(h *DailyRecordHandler, c *gin.Context) { h.AddVitalRecord(c) },
+			body: map[string]any{"time": "09:30"},
+		},
+		{
+			name: "care log",
+			call: func(h *DailyRecordHandler, c *gin.Context) { h.AddCareLog(c) },
+			body: map[string]any{"time": "10:15", "type": "food"},
+		},
+		{
+			name: "staff note",
+			call: func(h *DailyRecordHandler, c *gin.Context) { h.AddStaffNote(c) },
+			body: map[string]any{"time": "11:00", "content": "note"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithDailyRecordSvc(&mockDailyRecordService{})
+			bodyBytes, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "id", Value: "1"}, {Key: "date", Value: "2026-07-01"}}
+			setClinicID(c)
+			tt.call(h, c)
+			assert.Equal(t, http.StatusBadRequest, w.Code)
+			assert.JSONEq(t, `{"error":"日時の形式が正しくありません"}`, w.Body.String())
+		})
+	}
+}
+
 // ---- Comprehensive Test Coverage Documentation ----
 //
 // Daily Record Handler Test Cases

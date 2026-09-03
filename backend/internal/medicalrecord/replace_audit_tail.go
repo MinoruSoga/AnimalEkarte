@@ -8,13 +8,12 @@ import (
 	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
-// logReplaceDeletionTx and auditActorTypeFor are documented, behavior-identical duplicates of
-// internal/service's replace_audit_tail.go / audit_service.go helpers, kept local so this
-// package does not import internal/service (ADR-006). The only structural change is the audit
-// sink: this copy writes through the consumer-side AuditTxLogger + AuditEntry view (service_deps.go)
-// instead of internal/service.AuditTxLogger + *AuditLogInput. The emitted audit record is
-// field-for-field identical (tests assert its contents). Follow-up: collapse both copies onto a
-// shared package once a second migrated domain needs it.
+// logReplaceDeletionTx is the medicalrecord-local replace-audit tail
+// (snapshot → Replace → deletion audit). Actor type comes from
+// auditActorTypeFor, which delegates to sharedkernel.AuditActorTypeFor.
+// The audit sink is the consumer-side AuditTxLogger + AuditEntry view
+// in service_deps.go. The emitted audit record is field-for-field
+// identical (tests assert its contents).
 
 // logReplaceDeletionTx は replace系操作（スナップショット→Replace→削除監査）の監査テールを
 // 一箇所に集約する（BE-refactor.md E-6）。deletedCount<=0（純粋な新規挿入のみで削除を伴わない置換）の

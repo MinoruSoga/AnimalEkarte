@@ -23,7 +23,7 @@ type labImportPreviewRequest struct {
 // labImportRevertRequest は compensating revert のボディ（TASK-032）。
 // reason 必須。Idempotency-Key はヘッダで受け取る。
 type labImportRevertRequest struct {
-	Reason string `json:"reason" binding:"required"`
+	Reason string `json:"reason" binding:"required,max=500"`
 }
 
 // labImportCommitRequest は commit エンドポイントのリクエストボディ。

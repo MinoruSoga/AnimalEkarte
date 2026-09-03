@@ -113,7 +113,7 @@ func (h *HospitalizationHandler) CreateHospitalization(c *gin.Context) {
 
 	svcInput, err := input.toServiceInput()
 	if err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(err.Error()))
+		respondToServiceInputError(c, err)
 		return
 	}
 	ctx := c.Request.Context()
@@ -144,7 +144,7 @@ func (h *HospitalizationHandler) UpdateHospitalization(c *gin.Context) {
 
 	svcInput, err := input.toServiceInput()
 	if err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(err.Error()))
+		respondToServiceInputError(c, err)
 		return
 	}
 

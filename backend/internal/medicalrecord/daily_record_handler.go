@@ -141,7 +141,7 @@ func (h *DailyRecordHandler) AddVitalRecord(c *gin.Context) {
 
 	input, err := req.toServiceInput()
 	if err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(err.Error()))
+		respondToServiceInputError(c, err)
 		return
 	}
 
@@ -181,7 +181,7 @@ func (h *DailyRecordHandler) AddCareLog(c *gin.Context) {
 
 	input, err := req.toServiceInput()
 	if err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(err.Error()))
+		respondToServiceInputError(c, err)
 		return
 	}
 
@@ -221,7 +221,7 @@ func (h *DailyRecordHandler) AddStaffNote(c *gin.Context) {
 
 	input, err := req.toServiceInput()
 	if err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(err.Error()))
+		respondToServiceInputError(c, err)
 		return
 	}
 
