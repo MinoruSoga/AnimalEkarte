@@ -1,8 +1,8 @@
 package medicalrecord
 
 type createTreatmentPlanRequest struct {
-	TreatmentContent string  `json:"treatment_content" binding:"required"`
-	Memo             string  `json:"memo"`
+	TreatmentContent string  `json:"treatment_content" binding:"required,max=1000"`
+	Memo             string  `json:"memo"              binding:"max=1000"`
 	IsInsurance      bool    `json:"is_insurance"`
 	UnitPrice        int64   `json:"unit_price" binding:"min=0"`
 	Quantity         float64 `json:"quantity" binding:"required,gt=0"`
@@ -28,8 +28,8 @@ func (r *createTreatmentPlanRequest) toServiceInput() *CreateTreatmentPlanInput 
 }
 
 type updateTreatmentPlanRequest struct {
-	TreatmentContent *string  `json:"treatment_content"`
-	Memo             *string  `json:"memo"`
+	TreatmentContent *string  `json:"treatment_content" binding:"omitempty,max=1000"`
+	Memo             *string  `json:"memo"              binding:"omitempty,max=1000"`
 	IsInsurance      *bool    `json:"is_insurance"`
 	UnitPrice        *int64   `json:"unit_price" binding:"omitempty,min=0"`
 	Quantity         *float64 `json:"quantity" binding:"omitempty,gt=0"`

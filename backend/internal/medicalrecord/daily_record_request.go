@@ -14,7 +14,7 @@ type addVitalRecordRequest struct {
 	HeartRate       *int     `json:"heart_rate"`
 	RespirationRate *int     `json:"respiration_rate"`
 	Weight          *float64 `json:"weight"`
-	Notes           string   `json:"notes"`
+	Notes           string   `json:"notes"            binding:"max=1000"`
 	StaffID         *uint64  `json:"staff_id"`
 }
 
@@ -40,9 +40,9 @@ type addCareLogRequest struct {
 	Time    string  `json:"time"    binding:"required"`
 	Type    string  `json:"type"    binding:"required,oneof=food excretion medicine treatment other"`
 	Status  string  `json:"status"  binding:"omitempty,oneof=completed partial skipped"`
-	Value   string  `json:"value"`
+	Value   string  `json:"value"   binding:"max=1000"`
 	StaffID *uint64 `json:"staff_id"`
-	Notes   string  `json:"notes"`
+	Notes   string  `json:"notes"   binding:"max=1000"`
 }
 
 func (r *addCareLogRequest) toServiceInput() (*CreateCareLogInput, error) {
@@ -63,7 +63,7 @@ func (r *addCareLogRequest) toServiceInput() (*CreateCareLogInput, error) {
 // addStaffNoteRequest はスタッフメモ記録追加のバインド struct
 type addStaffNoteRequest struct {
 	Time    string  `json:"time"    binding:"required"`
-	Content string  `json:"content" binding:"required"`
+	Content string  `json:"content" binding:"required,max=1000"`
 	StaffID *uint64 `json:"staff_id"`
 }
 
