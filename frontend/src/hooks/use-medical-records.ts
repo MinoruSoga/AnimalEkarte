@@ -3,73 +3,16 @@ import { axios } from "@/lib/axios";
 import { formatDate } from "@/lib/format/date";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { queryKeys } from "@/lib/query-keys";
+import {
+  transformMedicalRecord,
+  type MedicalRecord,
+} from "@/lib/transforms/medical-record";
 import type { MedicalRecordResponse } from "@/types/generated/medicalrecord-responses";
 
 /**
- * FE-RC-015 (followup2): list query の実体を hooks に置く。
- * features → hooks は許可方向。hooks → features は禁止。
- *
- * recommendation_reason の狭義型は feature constants 側の正本のまま。
- * ここでは wire 文字列を保持し、消費者は既存 MedicalRecord 型と構造的に互換。
+ * FE-RC-015: list / history query の実体。
+ * wire→UI 変換は @/lib/transforms/medical-record が正本（followup3）。
  */
-type MedicalRecordStatus = "作成中" | "確定済";
-
-const STATUS_MAP: Record<string, MedicalRecordStatus> = {
-  draft: "作成中",
-  finalized: "確定済",
-};
-
-function toVisitTypeLabel(visitType?: string | null): string | undefined {
-  if (!visitType) return undefined;
-  if (visitType === "first" || visitType === "初診") return "初診";
-  if (visitType === "revisit" || visitType === "再診") return "再診";
-  return visitType;
-}
-
-/** List/detail wire → UI row（feature api/transforms.transformMedicalRecord と同形）。 */
-function transformMedicalRecordForList(record: MedicalRecordResponse) {
-  return {
-    id: String(record.id ?? 0),
-    recordNo: record.record_no,
-    date: formatDate(record.date),
-    ownerId: record.owner_id ? String(record.owner_id) : undefined,
-    ownerName: record.owner?.name ?? "",
-    petId: record.pet_id ? String(record.pet_id) : undefined,
-    petName: record.pet?.name ?? "",
-    // TASK-444-S1: hooks は @/types/generated/models 禁止のため wire リテラルを直書き。
-    petIsDeceased: record.pet?.status === "deceased",
-    species: record.pet?.animal_species?.name ?? "",
-    chiefComplaint: record.inquiry?.chief_complaint ?? "",
-    chiefComplaintTypeId: record.inquiry?.chief_complaint_type_id ?? null,
-    doctor: record.doctor?.name ?? String(record.doctor_id ?? ""),
-    visitType: toVisitTypeLabel(record.visit_type),
-    nextVisitRecommendedDate: record.next_visit_recommended_date ?? "",
-    subjective: undefined as string | undefined,
-    objective: undefined as string | undefined,
-    assessment: undefined as string | undefined,
-    plan: undefined as string | undefined,
-    surgeryNotes: undefined as string | undefined,
-    diagnosis: undefined as string | undefined,
-    treatment: undefined as string | undefined,
-    prescription: undefined as string | undefined,
-    diagnosis1CategoryId: null as number | null,
-    diagnosis1NameId: null as number | null,
-    diagnosis2CategoryId: null as number | null,
-    diagnosis2NameId: null as number | null,
-    notes: record.inquiry?.notes || undefined,
-    accountingId: record.accounting_id ? String(record.accounting_id) : undefined,
-    visitCount: record.visit_count,
-    version: record.version,
-    recommendationReason: (record.recommendation_reason ?? null) as
-      | "revisit"
-      | "checkup"
-      | "prevention"
-      | "exam"
-      | null,
-    clinicId: record.clinic_id ? String(record.clinic_id) : undefined,
-    status: (STATUS_MAP[record.status] ?? "作成中") as MedicalRecordStatus,
-  };
-}
 
 export type MedicalRecordSortKey = "date" | "owner_name" | "pet_name" | "status";
 
@@ -90,7 +33,7 @@ export interface MedicalRecordFilters {
 }
 
 export type MedicalRecordsResult = {
-  data: ReturnType<typeof transformMedicalRecordForList>[];
+  data: MedicalRecord[];
   total: number;
   page: number;
   limit: number;
@@ -131,7 +74,7 @@ export async function getMedicalRecords(
     params,
   });
   return {
-    data: data.data.map(transformMedicalRecordForList),
+    data: data.data.map(transformMedicalRecord),
     total: data.total,
     page: data.page,
     limit: data.limit,
