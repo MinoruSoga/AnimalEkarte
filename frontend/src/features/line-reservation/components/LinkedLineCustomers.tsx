@@ -196,7 +196,7 @@ function LinkSearchDialog({ unlinked, onLink, onClose, isPending }: LinkSearchDi
                   type="button"
                   onClick={() => onLink(c.id)}
                   disabled={isPending}
-                  className={`w-full flex items-center gap-3 p-3 rounded-lg text-left hover:${C.bgHover} transition-colors disabled:opacity-50`}
+                  className={`w-full flex items-center gap-3 p-3 rounded-lg text-left ${C.hoverBgLight} transition-colors disabled:opacity-50`}
                 >
                   <div
                     className="size-8 rounded-full flex items-center justify-center flex-shrink-0"
