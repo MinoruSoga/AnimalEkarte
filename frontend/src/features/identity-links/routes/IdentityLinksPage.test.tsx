@@ -1,8 +1,8 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router";
 
+import { createTestWrapper } from "@/testing/utils";
 import { ResourceIdentityLinks } from "@/types/generated/models";
 import type {
   OwnerGroupResponse,
@@ -106,11 +106,7 @@ describe("IdentityLinksPage permission gates", () => {
 
   it("view が無い場合はホームへリダイレクトする", () => {
     hasPermission.mockReturnValue(false);
-    render(
-      <MemoryRouter>
-        <IdentityLinksPage />
-      </MemoryRouter>,
-    );
+    render(<IdentityLinksPage />, { wrapper: createTestWrapper({ router: true }) });
     // Navigate replaces content; FormHeader title must not appear
     expect(screen.queryByRole("heading", { name: "同一飼主・ペット連携" })).not.toBeInTheDocument();
     expect(hasPermission).toHaveBeenCalledWith(ResourceIdentityLinks, "view");
@@ -120,11 +116,7 @@ describe("IdentityLinksPage permission gates", () => {
     hasPermission.mockImplementation((resource: string, action: string) => {
       return resource === ResourceIdentityLinks && action === "view";
     });
-    render(
-      <MemoryRouter>
-        <IdentityLinksPage />
-      </MemoryRouter>,
-    );
+    render(<IdentityLinksPage />, { wrapper: createTestWrapper({ router: true }) });
     // PageLayout / FormHeader owns the page title
     expect(screen.getByRole("heading", { name: "同一飼主・ペット連携" })).toBeInTheDocument();
     // children status note (+ PermissionBadges may also show 閲覧のみ)
@@ -135,11 +127,7 @@ describe("IdentityLinksPage permission gates", () => {
 
   it("edit がある場合は link ボタンを表示する", () => {
     grantViewEdit();
-    render(
-      <MemoryRouter>
-        <IdentityLinksPage />
-      </MemoryRouter>,
-    );
+    render(<IdentityLinksPage />, { wrapper: createTestWrapper({ router: true }) });
     expect(screen.getByRole("heading", { name: "同一飼主・ペット連携" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "飼主をリンク" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "ペットをリンク" })).toBeInTheDocument();
@@ -166,11 +154,7 @@ describe("IdentityLinksPage BUG-013 unlink for existing groups", () => {
     searchOwnersForLink.mockResolvedValue([ownerHit]);
     findOwnerIdentityGroupByMember.mockResolvedValue(ownerGroup);
 
-    render(
-      <MemoryRouter>
-        <IdentityLinksPage />
-      </MemoryRouter>,
-    );
+    render(<IdentityLinksPage />, { wrapper: createTestWrapper({ router: true }) });
 
     const ownerSearch = screen.getByPlaceholderText("氏名・カナ・電話");
     await user.type(ownerSearch, "佐藤");
@@ -205,11 +189,7 @@ describe("IdentityLinksPage BUG-013 unlink for existing groups", () => {
     searchOwnersForLink.mockResolvedValue([ownerHit]);
     findOwnerIdentityGroupByMember.mockResolvedValue(null);
 
-    render(
-      <MemoryRouter>
-        <IdentityLinksPage />
-      </MemoryRouter>,
-    );
+    render(<IdentityLinksPage />, { wrapper: createTestWrapper({ router: true }) });
 
     await user.type(screen.getByPlaceholderText("氏名・カナ・電話"), "佐藤");
     await waitFor(() => {
@@ -235,11 +215,7 @@ describe("IdentityLinksPage BUG-013 unlink for existing groups", () => {
       return null;
     });
 
-    render(
-      <MemoryRouter>
-        <IdentityLinksPage />
-      </MemoryRouter>,
-    );
+    render(<IdentityLinksPage />, { wrapper: createTestWrapper({ router: true }) });
 
     await user.type(screen.getByPlaceholderText("氏名・カナ・電話"), "佐藤");
     await waitFor(() => {
@@ -276,11 +252,7 @@ describe("IdentityLinksPage BUG-013 unlink for existing groups", () => {
     searchPetsForLink.mockResolvedValue([petHit]);
     findPetIdentityGroupByMember.mockResolvedValue(petGroup);
 
-    render(
-      <MemoryRouter>
-        <IdentityLinksPage />
-      </MemoryRouter>,
-    );
+    render(<IdentityLinksPage />, { wrapper: createTestWrapper({ router: true }) });
 
     await user.type(screen.getByPlaceholderText("ペット名・番号"), "ポチ");
     await waitFor(() => {
@@ -325,11 +297,7 @@ describe("IdentityLinksPage BUG-025 business Japanese copy", () => {
   });
 
   it("検索ラベルに debounce / 300ms などの実装用語を出さない", () => {
-    render(
-      <MemoryRouter>
-        <IdentityLinksPage />
-      </MemoryRouter>,
-    );
+    render(<IdentityLinksPage />, { wrapper: createTestWrapper({ router: true }) });
 
     const labels = screen.getAllByText("検索");
     expect(labels.length).toBeGreaterThanOrEqual(2);
@@ -338,11 +306,7 @@ describe("IdentityLinksPage BUG-025 business Japanese copy", () => {
   });
 
   it("ペット連携の前提メッセージを業務日本語で示す", () => {
-    render(
-      <MemoryRouter>
-        <IdentityLinksPage />
-      </MemoryRouter>,
-    );
+    render(<IdentityLinksPage />, { wrapper: createTestWrapper({ router: true }) });
 
     expect(screen.getByText("親となる飼主の連携グループが必要です。")).toBeInTheDocument();
     expect(screen.queryByText(/identity group/i)).not.toBeInTheDocument();
@@ -352,11 +316,7 @@ describe("IdentityLinksPage BUG-025 business Japanese copy", () => {
     hasPermission.mockImplementation((resource: string, action: string) => {
       return resource === ResourceIdentityLinks && action === "view";
     });
-    render(
-      <MemoryRouter>
-        <IdentityLinksPage />
-      </MemoryRouter>,
-    );
+    render(<IdentityLinksPage />, { wrapper: createTestWrapper({ router: true }) });
 
     expect(screen.getByRole("status")).toHaveTextContent("閲覧のみ（連携の変更権限がありません）");
     expect(screen.getByRole("status")).not.toHaveTextContent(/link\/unlink/i);

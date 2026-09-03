@@ -357,6 +357,16 @@ export const queryKeys = {
       ["medical-record", medicalRecordId, "billing-confirmation"] as const,
   },
 
+  // ── identity-links (同一飼主・ペット連携) ──────────────────────────
+  identityLinks: {
+    ownerSearch: (q: string) => ["identity-links", "owner-search", q] as const,
+    petSearch: (q: string) => ["identity-links", "pet-search", q] as const,
+    ownerGroup: (clinicId: number, ownerId: number) =>
+      ["identity-links", "owner-group", clinicId, ownerId] as const,
+    petGroup: (clinicId: number, petId: number) =>
+      ["identity-links", "pet-group", clinicId, petId] as const,
+  },
+
   // ── manual / closing-settings ─────────────────────────────────────
   manualArticles: {
     all: () => ["manual-articles"] as const,
