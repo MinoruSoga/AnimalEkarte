@@ -35,6 +35,19 @@ describe('shared brand tokens (BUG-026)', () => {
     expect(css).not.toMatch(/#008B94|#007079/);
   });
 
+  it('FE-RC-051: brand-tokens.css defines semantic status tokens aliased to Tailwind defaults (no new colors)', () => {
+    const cssPath = resolve(import.meta.dirname, 'brand-tokens.css');
+    const css = readFileSync(cssPath, 'utf8');
+    // 値は Tailwind 既定パレットの var() 参照でエイリアスする（見た目を変えない）。
+    expect(css).toContain('--color-noah-success-bg: var(--color-green-100)');
+    expect(css).toContain('--color-noah-success-text: var(--color-green-800)');
+    expect(css).toContain('--color-noah-warning-bg: var(--color-yellow-100)');
+    expect(css).toContain('--color-noah-info-bg: var(--color-blue-100)');
+    expect(css).toContain('--color-noah-danger: var(--color-red-500)');
+    expect(css).toContain('--color-noah-danger-bg: var(--color-red-50)');
+    expect(css).toContain('--color-noah-neutral-bg: var(--color-gray-100)');
+  });
+
   it('resolveClinicHeaderText trims and never fabricates a clinic name', () => {
     expect(resolveClinicHeaderText('  ノア動物病院 八王子  ')).toBe('ノア動物病院 八王子');
     expect(resolveClinicHeaderText('')).toBe('');
