@@ -1,12 +1,9 @@
-# frontend コード規約チェック結果（第2期・2026-09-03 再監査）
+# frontend コード規約チェック結果（第3期・全ファイル監査）
 
-`frontend/` 配下（`src/`・`liff/src/`・`line-reserve/src/`。テスト・`components/ui/`・`types/generated/` 除く）を規約正本に照合した。
-
-- 規約正本: `frontend/CLAUDE.md`、`frontend/src/features/CLAUDE.md`、`frontend/src/hooks/CLAUDE.md`、`frontend/src/components/shared/CLAUDE.md`、`.claude/refs/typescript-react.md`、`.claude/refs/accessibility-rules.md`、`.claude/refs/error-handling.md`、`frontend/CODING_RULES.md`（優先順位: 実コード → CLAUDE.md → CODING_RULES.md）
-- 方法: (1) 規約項目ごとの機械検出、(2) 臨床安全 / React フォーム / 配置・命名の 3 領域を並列精読、(3) HIGH は当該ファイルを再読して確定
-- 各所見の `path` は `frontend/` 起点。行番号は再監査時点
-- **第1期（FE-RC-001〜089）は main 統合済み。本台帳は残件と再発のみ。** ID は衝突回避のため **FE-RC-101** から採番する
-- `frontend/CLAUDE.md` の「却下済み提案」は再提案しない（manual chunk 分割、死亡行グレーアウト、一覧行アクションの生死ブロック）
+**監査日**: 2026-09-04（レーン 1–4 join 後更新）  
+**対象**: `git ls-files 'frontend/'` 全 2017 tracked パス  
+**方法**: ファイル単位分類 + 13 調査レーン + 機械検出 + 構成監査 + DRY（実在重複のみ）+ 臨床安全精読  
+**規約正本**: `frontend/CLAUDE.md`、`frontend/src/features/CLAUDE.md`、`frontend/src/hooks/CLAUDE.md`、`frontend/src/components/shared/CLAUDE.md`、`frontend/CODING_RULES.md`、`.claude/refs/typescript-react.md`、`.claude/refs/accessibility-rules.md`、`.claude/refs/error-handling.md`
 
 ---
 
@@ -15,287 +12,2229 @@
 | 重要度 | 件数 | 概要 |
 |---|---|---|
 | CRITICAL | 0 | — |
-| HIGH | 0 | FE-RC-W2 で 101–107 を FIXED |
-| MEDIUM | 1 残 | FE-RC-111 の所有外 `*Mutation` deps（列挙パスは分解済み） |
-| LOW | 2 残 | FE-RC-125 kebab fixture leave、FE-RC-127 LIFF 待ち時間定数 |
+| HIGH | 3 | FE-RC-204 / 219 / 220（予約・締め設定・在庫の権限 ref） |
+| MEDIUM | 13 | FE-RC-201, 205–214, 221–222 |
+| LOW | 12 | FE-RC-202, 203, 215–218, 223–228 |
 
-**第1期で解消済み（本監査で再確認）**: 会計/見積/健診/検査/入院/カルテ新規の死亡二重防壁と `permissionsRef`、二重 toast、疑似フォーム 5 件（FE-RC-006〜010）、IdentityLinks `useQuery`、brand `#038B94`、`&&` リーク、cross-feature import、tsx filename ratchet 0、`any`/`FC`/`forwardRef`/`export default`/`export *`/`utils/`/`queryKey: [` 直書き、800 行超（`design-tokens.ts` 例外のみ）。
+**カバレッジ**: tracked 2017 = §8 分類 2017（PASS 1786 + EXCLUDE 125 + FINDING 106）。未分類 0。
 
-**推奨着手順**: ①トリミング臨床防壁（101/102）→ ②予防接種 render（103）→ ③NextVisitDateField JST（105）→ ④DatePicker 動的クラス（106）→ ⑤CompanyInvoice / lab-device（104/107）→ ⑥MEDIUM。
+**統合**: [Audit src shared layers](0841e176-1182-469d-a958-10b2ceccc38b) · [Audit features lane 5-8](70bbcee7-20f2-4ac8-a102-c168018b9b7b) · [Audit liff line-reserve e2e](5e4d8f71-15a6-4f11-b226-2ab8dc2dac62) · [Audit features lane 1-4](c17099dd-80c5-4bc7-aa48-619821505c12)
+
+**見送った提案（レーン 1–4）**: 公開型の無い feature への空 `types/` / `hooks/` 新設は YAGNI（規約例外の文書化は実装キャンペーン対象外）。`useInventoryList` の `useGet` rename は FE-RC-055 派生 facade 例外に当たるため起票しない。
+
+---
+
+## 0.1 カバレッジ
+
+| レーン | 対象 | ファイル数 | PASS | EXCLUDE | FINDING |
+|---|---|---:|---:|---:|---:|
+| lane-1 | accounting + accounting-reports + aggregation + cash-register | 149 | 129 | 0 | 20 |
+| lane-2 | auth + clinic-settings + closing-settings + settings | 83 | 76 | 0 | 7 |
+| lane-3 | checkups + examinations + hospitalization + lab-device | 190 | 181 | 0 | 9 |
+| lane-4 | estimates + inventory + master | 298 | 269 | 1 | 28 |
+| lane-5 | identity-links + line-reservation + lstep + manual | 180 | 102 | 69 | 9 |
+| lane-6 | medical-records | 188 | 178 | 0 | 10 |
+| lane-7 | owners + owner-report + pets + reception | 177 | 175 | 0 | 2 |
+| lane-8 | reservations + shifts + trimming + vaccinations | 146 | 132 | 0 | 14 |
+| lane-9 | src/hooks + lib + constants + config + app + types | 199 | 187 | 9 | 3 |
+| lane-10 | src/components + shared-liff + styles + assets + testing + root ts/css | 251 | 215 | 36 | 0 |
+| lane-11 | liff/src | 13 | 13 | 0 | 0 |
+| lane-12 | line-reserve/src | 48 | 45 | 0 | 3 |
+| lane-13 | e2e + scripts + frontend root config | 95 | 84 | 10 | 1 |
+| **合計** | — | **2017** | **1786** | **125** | **106** |
 
 ---
 
 ## 1. HIGH
 
-### 臨床安全境界（frontend/CLAUDE.md）
+#### FE-RC-204 [HIGH] 予約: mutation 直前の権限再検査（permissionsRef）がない
+- **path**:
+  - `frontend/src/features/reservations/hooks/use-reservation-save-actions.ts:57-159`
+  - `frontend/src/features/reservations/hooks/use-reservation-actions.ts:94-116`
+- **規約**: `frontend/CLAUDE.md` 臨床安全境界 2
+- **改善案**: 権限を渡し save/dnd handler 冒頭で fail-closed
 
-#### FE-RC-101 [HIGH] トリミング: 死亡ペットの二重防壁がない
-- 対象:
-  - `src/features/trimming/routes/TrimmingForm.tsx:40-41` — `canSubmit` は権限のみ。死亡 `status` を見ない
-  - `src/features/trimming/hooks/use-trimming-form.ts:106-128` — `selectedPets[0]` の存在だけ見て `createMutation`。`pet.status === "死亡"` 拒否なし
-- 規約: 臨床安全境界 1（参照: `OwnerPetsSection.tsx` / `HospitalizationForm.tsx:81-82`）
-- 7 直接記録入力のうち、死亡二重防壁が未実装なのはトリミングのみ
-- 改善案: render で `new-deceased` ゲート（Submit 非表示 + 理由）。`formAction` 冒頭で `selectedPetRef` + `useLayoutEffect` により callback 拒否し `toast.error` または `ActionState.error` を返す
+#### FE-RC-219 [HIGH] closing-settings: feature 内に usePermission / 権限 ref が無い
+- **path**:
+  - `frontend/src/features/closing-settings/routes/ClosingSettingsPage.tsx:22-36`
+  - `frontend/src/features/closing-settings/components/HolidaySection.tsx:20-44`
+  - `frontend/src/features/closing-settings/components/SpecialPeriodSection.tsx:24-40`
+  - `frontend/src/features/closing-settings/components/StandardClosingTimeSection.tsx:42-55`
+- **規約**: 臨床安全境界 2。`rg` で feature 内 `usePermission|permissionsRef|canEditRef` は 0
+- **現状**: `PageLayout` の resource バッジのみ。view 権限でも formAction / delete が呼べる
+- **改善案**: `usePermission` + 各 Section へ `canEdit` を渡し、mutation 冒頭で `canEditRef` fail-closed（参照: `CompanyInvoiceSection.tsx`）
 
-#### FE-RC-102 [HIGH] トリミング: mutation 直前の権限再検査がない
-- 対象: `src/features/trimming/hooks/use-trimming-form.ts:93-97`（create/update）。削除は `use-trimming-form-helpers.ts` の delete handler
-- 現状: `permissionsRef` / `isMutationAllowed` なし。防壁は `TrimmingForm.tsx` の `canSubmit` のみ
-- 規約: 臨床安全境界 2
-- 改善案: `use-examination-form.ts:68-80` と同じ `permissionsRef` + `useLayoutEffect` + `isMutationAllowed()` を action 冒頭へ。`TrimmingForm` から `canCreate`/`canEdit`/`canDelete` を渡す
-
-#### FE-RC-103 [HIGH] 予防接種: 死亡ペットの render 側防壁がなく callback は無音失敗
-- 対象:
-  - `src/features/vaccinations/routes/VaccinationForm.tsx:21` — `canSubmit = id ? canEdit : canCreate`
-  - `src/features/vaccinations/routes/VaccinationFormPagePanels.tsx:178-196` — 死亡でも Submit / 削除ボタンを表示。`PatientInfoCard` に status は出す（`:215`）
-  - `src/features/vaccinations/hooks/use-vaccination-form-helpers.ts:249-253` — callback は死亡を拒否するが `return { success: false, timestamp }` のみ
-- 規約: 臨床安全境界 1 + error-handling「UI を loading/success/error として表現する」
-- 改善案: `CheckupForm.tsx:47-48` と同様に `isPetDeceased` で `canSubmit`/削除を非表示。callback は `toast.error` または `ActionState.error` を返す
-
-#### FE-RC-104 [HIGH] clinic-settings: CompanyInvoiceSection に権限再検査がない
-- 対象: `src/features/clinic-settings/components/CompanyInvoiceSection.tsx:23-27`
-- 現状: `canEdit` は `fieldset disabled`（`:37`）と Submit 表示（`:50`）のみ。`formAction` 内で未検査
-- 規約: 臨床安全境界 2
-- 改善案: `use-clinic-master-settings.ts:48-55,70` と同じ `canEditRef` + `useLayoutEffect` を action 冒頭へ
-
-#### FE-RC-105 [HIGH] カルテ次回来院日が `setHours` 比較（端末 TZ 依存）
-- 対象: `src/features/medical-records/components/NextVisitDateField.tsx:32-47`
-- 現状:
-  ```
-  const now = toJSTWallDate(new Date());
-  now.setHours(0, 0, 0, 0);
-  const selected = new Date(value);
-  selected.setHours(0, 0, 0, 0);
-  ```
-- 規約: 臨床安全境界 3 — `todayJSTISO()` / `isPastJSTDate` の文字列比較。vaccinations / ReservationFormModal は第1期で修正済み
-- 改善案: `if (value !== "" && isPastJSTDate(value))`。2年上限も `todayJSTISO()` 基準の文字列演算へ
-
-### デザイントークン / エラー処理
-
-#### FE-RC-106 [HIGH] DatePicker が `hover:${C.bgBrand}` を実行時合成（FE-RC-013 再発）
-- 対象: `src/components/shared/DatePicker/DatePickerModel.ts:81-93`
-- 規約: Design Tokens。Tailwind v4 は静的走査のため `hover:${C.bgBrand}` は CSS に含まれない
-- 現状: `design-tokens.ts:415` に「FE-RC-013: static hover/focus variants」コメントがあるが、DatePicker は未置換
-- 改善案: `C.hoverBgBrand` / `C.focusBgBrand` 等の**完成形静的トークン**へ置換。`design-system-audit.mjs` に `` hover:${ `` / `` text-[${ `` 検出を追加して再発を止める
-
-#### FE-RC-107 [HIGH] LabDeviceUnlinkedBanner が `void mutateAsync().then()` で失敗時 UI を戻さない
-- 対象: `src/components/shared/LabDeviceUnlinkedBanner/LabDeviceUnlinkedBanner.tsx:57-58,85-96`
-- 規約: error-handling「promise rejection を放置しない」
-- 現状: hook 側 `onError` で toast は出るが、失敗時に `justAttached` / `attachError` が更新されない。`.then` は成功時だけ走る
-- 改善案: `mutate(vars, { onSuccess, onError })`。失敗時は `setJustAttached(null)` / `setAttachError` を明示
+#### FE-RC-220 [HIGH] inventory: formAction が権限を再検査しない
+- **path**:
+  - `frontend/src/features/inventory/hooks/use-inventory-form.ts:80-111`
+  - `frontend/src/features/inventory/routes/InventoryForm.tsx:15-35`
+- **規約**: 臨床安全境界 2
+- **現状**: Submit は `canSubmit` のみ。`useActionState` 内 `mutateAsync` 前に `permissionsRef` なし
+- **改善案**: `estimates/hooks/use-estimate-form.ts` と同様に `isMutationAllowed`
 
 ---
 
 ## 2. MEDIUM
 
-### 臨床安全（残り経路）
+#### FE-RC-201 [MEDIUM] ShiftFormDialog: breaksRef の useEffect 同期 + 権限 ref 欠落
+- **path**: `frontend/src/features/shifts/components/ShiftFormDialog/ShiftFormDialog.tsx:86-87,94-145,180-184`
 
-#### FE-RC-108 [MEDIUM] 予防接種削除ボタンが死亡でも表示される
-- 対象: `src/features/vaccinations/routes/VaccinationFormPagePanels.tsx:178-179`
-- 規約: 臨床安全境界 1。callback 拒否はあるが render が欠ける
-- 改善案: FE-RC-103 と同時に `selectedPet.status === "死亡"` なら削除非表示
+#### FE-RC-205 [MEDIUM] identity-links: link/unlink に権限 ref なし
+- **path**: `frontend/src/features/identity-links/hooks/use-identity-links-workbench.ts:88-149`
 
-#### FE-RC-109 [MEDIUM] 会計キャンセル / 返金に権限再検査がない
-- 対象: `src/features/accounting/hooks/use-accounting-settlement-actions.ts:35-40,56-60`
-- 現状: UI は `canCancelAccounting` / `canEdit`（`AccountingDetail.tsx`）。action 内は未検査
-- 改善案: `canCancelRef` / `canEditRef` + `useLayoutEffect` を mutation 直前に置く
+#### FE-RC-206 [MEDIUM] ClinicHolidayModal: formAction に権限 ref なし
+- **path**: `frontend/src/features/shifts/components/ClinicHolidayModal/ClinicHolidayModal.tsx:40-63`
 
-#### FE-RC-110 [MEDIUM] CreditCorrectionDialog に権限再検査がない
-- 対象: `src/features/accounting/components/CreditCorrectionDialog.tsx:51-62`
-- 現状: 親の `canPostCloseEdit && canSubmit` のみ
-- 改善案: `canPostCloseEditRef` を props で渡し `formAction` 冒頭で再検査
+#### FE-RC-207 [MEDIUM] ShiftTemplateSettings: save/delete/reorder に権限 ref なし
+- **path**: `frontend/src/features/shifts/routes/ShiftTemplateSettings.tsx:49-131`
 
-### Hooks / 再レンダー
+#### FE-RC-208 [MEDIUM] lstep CheckupSyncPage: createCheckupSync に権限 ref なし
+- **path**: `frontend/src/features/lstep/routes/CheckupSyncPage.tsx:45-60`
 
-#### FE-RC-111 [MEDIUM] `useMutation` オブジェクト全体を deps に入れている（FE-RC-026 残）
-- 規約: CODING_RULES §12.1 `rerender-dependencies`
-- 代表:
-  - `src/features/closing-settings/components/HolidaySection.tsx:43` — `[deleteMutation]`
-  - `src/features/reservations/hooks/use-reservation-save-actions.ts:126,157`
-  - `src/features/medical-records/components/VitalsTab/VitalsTab.tsx:119,141,153`
-  - `src/features/medical-records/components/MedicalRecordBillCheck.tsx:221`
-  - `src/features/hospitalization/routes/HospitalizationForm.tsx:53`
-  - `src/features/medical-records/hooks/use-medical-record-quick-patch-actions.ts:105,131,153,177`
-  - `src/features/shifts/routes/ShiftTemplateSettings.tsx:117,131`
-- 改善案: `const { mutateAsync: deleteHoliday } = useDeleteHoliday()` と分解し、deps は安定参照のみ。機械検出用 ratchet（`[.*, *Mutation]`）を検討
+#### FE-RC-209 [MEDIUM] lstep BulkTagRemoveDialog: bulkRemove に権限 ref なし
+- **path**: `frontend/src/features/lstep/components/BulkTagRemoveDialog.tsx:32-35`
 
-#### FE-RC-112 [MEDIUM] カルテ保存が参照する `activeTabRef` を `useEffect` で同期している
-- 対象: `src/features/medical-records/hooks/use-medical-record-save-action.ts:98-102`（同型: `use-medical-record-post-save.ts:25-27`）
-- 規約: 臨床安全境界 2 — commit 直後に発火し得る callback 用 ref は `useLayoutEffect`。`canEditRef` は既に `useLayoutEffect`
-- 改善案: `activeTabRef` も `useLayoutEffect` へ
+#### FE-RC-210 [MEDIUM] LineReservationSettingsForm: formAction に権限 ref なし
+- **path**: `frontend/src/features/line-reservation/components/LineReservationSettingsForm.tsx:108`
 
-#### FE-RC-113 [MEDIUM] memo 子へ毎レンダー新規ハンドラを渡している
-- 対象: `src/components/shared/ReservationFormModal/ReservationFormModal.tsx:320-337`（memo の `ReservationFormFields`）、`:270-272`（memo の `SelectedPetChip`）
-- 規約: CODING_RULES §12.1 `rerender-memo`
-- 改善案: `handleFormChange` / `handleClearError` / `handleRemovePet` を `useCallback` 化
+#### FE-RC-211 [MEDIUM] LineReservationPageEditor: formAction に権限 ref なし
+- **path**: `frontend/src/features/line-reservation/routes/LineReservationPageEditor.tsx:79`
 
-### フォーム
+#### FE-RC-212 [MEDIUM] LinkedLineCustomers: link/unlink に権限 ref なし
+- **path**: `frontend/src/features/line-reservation/components/LinkedLineCustomers.tsx:53-65`
 
-#### FE-RC-114 [MEDIUM] VitalsTab の追加が `onClick` + `mutate`（`<form>` なし）
-- 対象: `src/features/medical-records/components/VitalsTab/VitalsTab.tsx:64-118,232,246`
-- 規約: React 19 Patterns — `useActionState` + `<form action>` + `SubmitButton`
-- 改善案: 追加フォームを `<form action>` 化し、バリデーションは `fieldErrors` + `FormFieldError`
+#### FE-RC-213 [MEDIUM] ManualEditor: upsert に権限 ref なし
+- **path**: `frontend/src/features/manual/components/ManualEditor.tsx:48-63`
 
-#### FE-RC-115 [MEDIUM] line-reserve `CustomerInfoPage` の最終 CTA が form 外 `onClick`
-- 対象: `line-reserve/src/pages/CustomerInfoPage.tsx:337`（`PrimaryButton onClick={handleNext}`）
-- 改善案: 最終ステップを `<form action>` または `useActionState` へ
+#### FE-RC-214 [MEDIUM] line-reserve: `@/shared-liff` を迂回して `@/lib` を直接 import
+- **path**:
+  - `frontend/line-reserve/src/api/liff-api.ts:17`
+  - `frontend/line-reserve/src/pages/TrimmingCourseSelectPage.tsx:8`
+  - `frontend/line-reserve/src/pages/TrimmingOptionSelectPage.tsx:6`
 
-### 配置・DRY
+#### FE-RC-221 [MEDIUM] cash-register: 締め確定 callback に権限 ref なし
+- **path**: `frontend/src/features/cash-register/routes/CashRegisterClosePage.tsx:69-93`
+- **規約**: 臨床安全境界 2
+- **現状**: `handleConfirmClose` が `mutateAsync` を直接呼ぶ。`PageLayout` resource は表示のみ
+- **改善案**: `usePermission(ResourceCashRegisterClose)` + `permissionsRef` を handler 先頭へ
 
-#### FE-RC-116 [MEDIUM] hook が `routes/` に残っている（FE-RC-016 残 3 件）
-- 対象:
-  - `src/features/hospitalization/routes/hospitalization-form-chrome.ts:18` — `useHospitalizationFormChrome`
-  - `src/features/medical-records/routes/MedicalRecordsColumns.tsx:32` — `useMedicalRecordsColumns`
-  - `src/features/trimming/routes/TrimmingFormPanels.tsx:31-32` — `useTrimmingFormChrome`（`react-refresh/only-export-components` disable 付き）
-- 規約: features/CLAUDE.md — hook は `hooks/`
-- 改善案: それぞれ `hooks/` へ移動し eslint-disable を削除
-
-#### FE-RC-117 [MEDIUM] `src/hooks` に単一 feature 専用フック（FE-RC-018 残）
-- 対象:
-  - `src/hooks/use-create-vaccination.ts` — 消費は `medical-records` のみ。加えて `features/vaccinations/api/create-vaccination.ts` に同名 hook があり **二重実装**
-  - `src/hooks/use-reservation-type-color-map.ts` — 消費は `reservations` の 3 ファイルのみ
-- 規約: hooks/CLAUDE.md
-- 改善案: 前者は `features/vaccinations/api` を正本にして medical-records から共有経路を 1 本化（または `src/hooks` に集約して feature 側を re-export）。後者は `features/reservations/hooks/` へ
-
-#### FE-RC-118 [MEDIUM] URL page clamp が `useUrlPageSync` 未使用の一覧に残っている（FE-RC-028 残）
-- 対象（inline `useEffect` + `exhaustive-deps` disable）:
-  - `src/features/hospitalization/routes/HospitalizationList.tsx:92-102`
-  - `src/features/accounting/routes/AccountingList.tsx:99-109`
-  - `src/features/inventory/routes/InventoryList.tsx:81-91`
-- 既に移行済み: trimming / vaccinations / examinations / checkups
-- 改善案: `@/hooks/use-url-page-sync` に寄せ、disable を消す
-
-#### FE-RC-119 [MEDIUM] LIFF 連携が `useEffect` 内で POST する
-- 対象: `liff/src/hooks/use-liff-link.ts:23-88`
-- 規約: CODING_RULES §5.3 / §12.4 — データ取得・mutation は `useQuery`/`useMutation`。StrictMode 二重実行リスク
-- 改善案: `linkPromiseRef.current ??=` で冪等化するか `useMutation` へ。コメント「setState は同期目的のため許容」は取得ではなく副作用 POST には当たらない
+#### FE-RC-222 [MEDIUM] lab-device: mutation callback に権限 ref なし
+- **path**:
+  - `frontend/src/features/lab-device/routes/LabDeviceBoard.tsx:74-108`
+  - `frontend/src/features/lab-device/components/LabDeviceBoardCards.tsx:82-85`
+- **改善案**: `use-lab-device-agent-listen.ts` の fail-closed と揃えて各 handler 冒頭で再検査
 
 ---
 
 ## 3. LOW
 
-#### FE-RC-120 [LOW] ファイル名と export 名が不一致
-- `src/features/lstep/routes/LstepDeliveryMonitorLogsTable.tsx` → `DeliveryLogsTable`
-- `src/features/lstep/components/LstepCsvImportSection.tsx` → `CsvImportSection`
-- `src/features/owner-report/components/OwnerClinicalBasicPanel.tsx` → `BasicInformationPanel`
-- `src/features/medical-records/routes/MedicalRecordsListPanels.tsx` → `MedicalRecordsPageView`
-- `src/features/medical-records/routes/MedicalRecordFormReadyPanels.tsx` → `MedicalRecordFormReadyPage`
+#### FE-RC-202 [LOW] cash-register: ドメインモジュールが feature ルートに散在
+- **path**: `category-breakdown.ts`, `closing-summary.ts`, `constants.ts`, `month-date-range.ts` + 各 `.test.ts`
 
-#### FE-RC-121 [LOW] `frontend/CLAUDE.md` の design-tokens 行数が実測と乖離 — FIXED
-- 文書を実測 **897行**（`focusBgBrand` 追加後）に同期。分割しない判断は維持
+#### FE-RC-203 [LOW] examinations: `constants.ts` が feature ルート
+- **path**: `frontend/src/features/examinations/constants.ts`
 
-#### FE-RC-122 [LOW] stale コメント「型は any」
-- 対象: `src/lib/transforms/reservation.ts:23-25` — 実装は `unknown` + 型ガード。コメントが嘘
-- 同型: `src/features/reception/api/transforms.ts` も確認して揃える
+#### FE-RC-215 [LOW] VaccinationList: `useUrlPageSync` 後も inline page clamp が残存
+- **path**: `frontend/src/features/vaccinations/routes/VaccinationList.tsx:85-91`
 
-#### FE-RC-123 [LOW] `useGetClinicHolidays` の二重実装
-- `src/hooks/use-clinic-holidays.ts` と `src/features/shifts/api/clinic-holidays.ts`
-- 改善案: `@/hooks` を正本にし shifts は re-export
+#### FE-RC-216 [LOW] e2e/tsconfig.json: 31 spec のうち 2 のみ tsc 対象
+- **path**: `frontend/e2e/tsconfig.json:6-13`
 
-#### FE-RC-124 [LOW] shared ReservationFormModal 局所 hook の配置
-- `src/components/shared/ReservationFormModal/use-patient-selection-table.ts` — 同一フォルダ 1 consumer。許容範囲だが `hooks/` サブディレクトリ化が理想
+#### FE-RC-217 [LOW] `src/hooks/use-update-reservation-route.ts` が単一 consumer 専用
+- **path**: `frontend/src/hooks/use-update-reservation-route.ts`
 
-#### FE-RC-125 [LOW] kebab-case `.ts` fixture が filename ratchet に残る
-- `src/features/accounting/components/OwnerAccountingHistory.test-fixtures.ts`（テスト隣接 fixture。tsx 規約対象外だが baseline 1）
+#### FE-RC-218 [LOW] `src/lib/saigram.ts` が owners 専用
+- **path**: `frontend/src/lib/saigram.ts`
 
-#### FE-RC-126 [LOW] 権限拒否時のカルテ保存が無音
-- `src/features/medical-records/hooks/use-medical-record-save-action.ts:108-114` — 確定済み/権限なし/死亡で `{ success: false }` のみ。render 側ゲートはあるので頻度は低い
-- 改善案: FE-RC-103 と同じく `ActionState.error` を返す
+#### FE-RC-223 [LOW] normalizeKana クライアント検索の実在重複
+- **path**:
+  - `frontend/src/features/checkups/routes/checkups-list-model.ts:73-78`
+  - `frontend/src/features/examinations/hooks/use-examination-records.ts:82-87`
+  - `frontend/src/features/examinations/hooks/use-examination-history-filters.ts:47-54`
+  - `frontend/src/features/inventory/hooks/use-inventory.ts:41-46`
+- **規約**: DRY（4 箇所の同一パターン）
+- **改善案**: `@/lib/normalize-kana` に `matchesNormalizedSearch(fields, term)` を追加
 
-#### FE-RC-127 [LOW] `use-liff-link` の `LINK_SUCCESS_DISPLAY_MS = 800` マジックナンバー
-- 命名済み定数なので実害は小さい。他 LIFF 待ち時間と揃えるなら `liff-config` へ
+#### FE-RC-224 [LOW] settings/hooks に非 hook ユーティリティ
+- **path**: `frontend/src/features/settings/hooks/get-clinic-id.ts:4`
+- **現状**: `getClinicId()` は `getStoredClinicId` の薄い wrapper
+- **改善案**: `lib/` へ移動するか呼び出し側を `@/lib/current-clinic` に直結
+
+#### FE-RC-225 [LOW] 会計帳票の印刷日が `new Date()` 直使用
+- **path**: `frontend/src/features/accounting/components/AccountingDocument.tsx:83-85`
+- **規約**: 臨床安全境界 3（表示日の JST 一貫性）
+- **改善案**: `formatJSTWallDate(todayJSTISO())`
+
+#### FE-RC-226 [LOW] feature 型が `api/types.ts` に直置き（`types/` なし）
+- **path**:
+  - `frontend/src/features/checkups/api/types.ts`
+  - `frontend/src/features/examinations/api/types.ts`
+  - `frontend/src/features/inventory/api/types.ts`
+- **規約**: `features/CLAUDE.md` 必須形 `types/`
+- **改善案**: `features/<name>/types/index.ts` へ移し api から再 export
+
+#### FE-RC-227 [LOW] `components/` 内の kebab-case 非コンポーネント `.ts`
+- **path**（57 件。代表）:
+  - `frontend/src/features/accounting/components/accounting-detail-model.ts`
+  - `frontend/src/features/accounting/components/accounting-list-table-model.ts`
+  - `frontend/src/features/accounting/components/daily-accounting-utils.ts`
+  - `frontend/src/features/accounting/components/owner-accounting-history.test-fixtures.ts`
+  - `frontend/src/features/accounting/components/unpaid-tab-model.ts`
+  - `frontend/src/features/aggregation/components/aggregation-csv.ts`
+  - `frontend/src/features/aggregation/components/aggregation-filter-panel-model.ts`
+  - `frontend/src/features/cash-register/components/cash-register-history-model.ts`
+  - … 他 49 件（§8 の FINDING:FE-RC-227）
+- **規約**: コンポーネントは `PascalCase.tsx`。model/utils は `lib/` または `routes/*-model.ts`
+- **改善案**: 隣接コンポーネントと同じ feature の `lib/` へ移動
+
+#### FE-RC-228 [LOW] accounting: `tax-breakdown.ts` が feature ルート
+- **path**:
+  - `frontend/src/features/accounting/tax-breakdown.ts`
+  - `frontend/src/features/accounting/tax-breakdown.test.ts`
+- **改善案**: `lib/` へ `git mv`（FE-RC-202 と同型）
 
 ---
 
-## 4. 機械検出で 0 件（合格）
+## 4. 機械検出
 
 | 規約 | 結果 |
 |---|---|
-| `any` 型（コード） | 0。コメント・HTML `step="any"`・`expect.any` のみ |
-| `FC` / `forwardRef` / arrow export コンポーネント | 0 |
-| `&&` 条件レンダリングの 0/"" リーク | 0 |
-| raw hex（design-tokens / brand-tokens / globals 以外） | 0。`#008B94` は audit のネガティブ fixture のみ |
-| `queryKey: [` 直書き | 0 |
-| `export default` / `export *` | 0（`vite-env.d.ts` 除く） |
-| `utils/` / `__tests__/` / `.gitkeep` | 0 |
-| `<form onSubmit>` / `useState+setIsLoading` 送信 | 0 |
-| deep import（`auth/provider` は CODING_RULES の意図的例外） | 0 |
-| 層逆転 / feature 間 import | 0。`crossFeatureImportBanAllowlist` は空 |
-| `dangerouslySetInnerHTML` / `localStorage` token / `tabIndex` 正値 | 0 |
-| 非テスト 800 行超 | `design-tokens.ts` のみ（documented exception） |
-| `console.log` | 0 |
-| brand `#038B94` / `#027078` | shared-liff 含む一致 |
+| `any` / `FC` / `forwardRef` / `export *` / `queryKey: [` / `console.log` / `setIsLoading` | 0（本番） |
+| `export default` | `vite-env.d.ts` のみ |
+| filename ratchet | exit 0, violation 0 |
+| cross-feature / `@/features`（satellite） | 0 |
+| `@/lib` 直接（line-reserve） | 3 → FE-RC-214 |
+| closing-settings 権限記号 | 0 → FE-RC-219 |
 
 ---
 
-## 5. 第1期台帳との差分（再提案しない）
+## 5. 再開しない（第1期 FE-RC-001〜089 / 第2期 FE-RC-101〜128）
 
-次は本監査で **FIXED** を確認した。再オープンしない。再開条件は第1期と同じ（新しい実行時証拠）。
-
-- FE-RC-001〜004 の会計/見積/健診/検査/入院/カルテ新規経路（権限 ref・死亡二重防壁・vaccinations 日付・ReservationFormModal 日付）
-- FE-RC-005 二重 toast
-- FE-RC-006〜011 疑似フォーム / IdentityLinks `useEffect` フェッチ
-- FE-RC-012 mutation hook 側 `onError`（caller Banner は FE-RC-107 として残）
-- FE-RC-014 brand 色
-- FE-RC-015/017/019/020/047/055/060 配置・型・ESLint 整合
-- FE-RC-021 `&&` リーク
-- FE-RC-028 の trimming/vaccinations/examinations/checkups（Hospitalization/Accounting/Inventory は FE-RC-118）
+- 第1期・第2期 FIXED は再オープンしない
+- FE-RC-117 `use-reservation-type-color-map` の `@/hooks` 正本は維持
+- `useInventoryList` の `useGet` 改名は FE-RC-055 派生 facade 例外
+- 却下済み提案（manual chunk / 死亡行グレー / 一覧行アクション）は再提案しない
 
 ---
 
-## 6. 第2期 FIXED（FE-RC-W2-CAMPAIGN 2026-09-03）
+## 8. ファイルステータス
 
-キャンペーン claim: `claim/FE-RC-CAMPAIGN-2026-09-W2`（エージェントは削除しない）。
+1 行 1 tracked パス。形式: `path<TAB>PASS|FINDING:FE-RC-2xx|EXCLUDE:reason`
 
-- FE-RC-101 / 102 — トリミング死亡二重防壁 + `permissionsRef` / `isMutationAllowed`。拒否は toast + `ActionState.error`。Submit/削除を死亡時非表示
-- FE-RC-103 / 108 — 予防接種 render で Submit/削除非表示。callback 拒否は `toast.error`
-- FE-RC-104 — CompanyInvoice `canEditRef` + `useLayoutEffect`。formAction 冒頭で fail-closed
-- FE-RC-105 — NextVisitDateField は `isPastJSTDate` / `todayJSTISO`。`setHours` 0
-- FE-RC-106 — DatePicker `selected` は `C.hoverBgBrand` / `C.focusBgBrand`。audit C20
-- FE-RC-107 — LabDevice attach は `mutate(..., { onSuccess, onError })`。失敗時 `justAttached` / `attachError` を戻す
-- FE-RC-109 / 110 — 会計返金・キャンセル・クレジット訂正は権限 ref で fail-closed
-- FE-RC-111（列挙パス） — HolidaySection / reservation save-actions / Vitals / BillCheck / HospitalizationForm / quick-patch / ShiftTemplateSettings は `mutate`/`mutateAsync` 分解済み
-- FE-RC-112 / 126 — `activeTabRef` は `useLayoutEffect`。権限/死亡拒否は `ActionState.error`
-- FE-RC-113 — ReservationFormModal の memo 子へ `useCallback` ハンドラ
-- FE-RC-114 — Vitals 追加は `<form action>` + `useActionState`
-- FE-RC-115 — CustomerInfoPage 最終 CTA は `<form action>` + `useActionState`
-- FE-RC-116 — hospitalization / medical-records columns / trimming chrome を `hooks/` へ
-- FE-RC-117 — 二重実装解消。`useCreateVaccination` 実装は `src/hooks` 正本（ESLint: no cross-feature / hooks→features）。feature API は re-export。color-map は物理移動せず feature から re-export（`COLOR_MAP_REL_PATH` 維持）
-- FE-RC-118 — Hospitalization / Accounting / Inventory 一覧は `useUrlPageSync`
-- FE-RC-119 — LIFF POST は `linkPromiseRef.current ??=`
-- FE-RC-120 — export 名をファイル名に合わせた（lstep 2 + owner-report 1 + medical-records 2）
-- FE-RC-121 — `frontend/CLAUDE.md` の design-tokens 行数を実測 897 に同期
-- FE-RC-122 — 「型は any」コメント削除
-- FE-RC-123 — `useGetClinicHolidays` は `@/hooks` 正本、shifts は re-export
-- FE-RC-124 — `use-patient-selection-table` を `ReservationFormModal/hooks/` へ
-- 独立レビュー follow-up（2026-09-03）— `useActionState` stale closure:
-  - 予防接種 save/delete は `formDataRef` / `editPetRef` 未着で fail-closed。edit loading は pet GET を待つ
-  - トリミング save/delete は `formDataRef` / `petFromEditRef` 未着で fail-closed。status なし stub は作らない
-  - カルテ save は `saveSnapshotRef`（所見 + `isFinalized`）。default タブは `success: false`
-  - Vitals は `addFormRef` + 死亡の render/callback 二重防壁。会計キャンセル拒否は toast
-
-## 7. 第2期残件（意図的 leave）
-
-#### FE-RC-111 [MEDIUM] 所有外の `*Mutation` deps
-- キャンペーン列挙パスは FIXED。未 sweep（所有外）:
-  - `src/features/cash-register/routes/CashRegisterClosePage.tsx`
-  - `src/features/master/components/ReservationTypeUnavailableTimesSection.tsx`
-  - `src/features/trimming/hooks/use-trimming-form.ts`（`deleteMutation`。101/102 レーン対象外）
-  - `src/features/closing-settings/components/SpecialPeriodSection.tsx`
-  - `src/features/master/components/ReservationTypeGroupedTable.tsx`
-  - `src/features/examinations/hooks/use-examination-form.ts`
-  - `src/features/reception/hooks/use-reception-kanban.ts` / `use-reception-modal-handlers.ts`
-  - `src/features/master/components/ReservationTypeAvailableSlotsSection.tsx` / `ReservationTypeAvailableSlotsCalendar.tsx` / `ReservationTypeOccupationsSection.tsx` / `MedicineDoseParamsEditor.tsx`
-  - `src/features/medical-records/components/CheckupsTab/CheckupsTab.tsx` / `MedicalRecordImage.tsx`
-  - `src/features/line-reservation/components/LinkedLineCustomers.tsx`
-- 再開条件: 新キャンペーンで所有パスを切る。本キャンペーンは越境しない
-
-#### FE-RC-125 [LOW] kebab-case `.ts` fixture
-- `src/features/accounting/components/OwnerAccountingHistory.test-fixtures.ts`
-- 理由: test-adjacent fixture。tsx filename ratchet 対象外。破壊的 rename リスクのため leave mismatch
-
-#### FE-RC-127 [LOW] `LINK_SUCCESS_DISPLAY_MS = 800`
-- `liff/src/hooks/use-liff-link.ts` — 命名済み定数。`liff-config` 寄せは実害が小さいため未実施
-
-その他メモ:
-- `useMedicalRecordFormReadyState` は `MedicalRecordFormReadyPanels.tsx` 内の非 export ローカル hook（FE-RC-116 対象外）
-- 第1期 FE-RC-001〜089 は再オープンしない
+frontend/.coverage-baseline	EXCLUDE:baseline-artifact
+frontend/.dockerignore	PASS
+frontend/.env.production	EXCLUDE:env-template
+frontend/.env.production.example	EXCLUDE:env-template
+frontend/.eslint-disable-baseline	EXCLUDE:baseline-artifact
+frontend/.filename-baseline	EXCLUDE:baseline-artifact
+frontend/.gitignore	PASS
+frontend/.vercelignore	PASS
+frontend/CLAUDE.md	EXCLUDE:documentation
+frontend/CODING_RULES.md	EXCLUDE:documentation
+frontend/Dockerfile.dev	PASS
+frontend/README.md	EXCLUDE:documentation
+frontend/e2e/README.md	EXCLUDE:documentation
+frontend/e2e/accounting-flow.spec.ts	PASS
+frontend/e2e/accounting-smoke.spec.ts	PASS
+frontend/e2e/auth-flows.spec.ts	PASS
+frontend/e2e/business-smoke.spec.ts	PASS
+frontend/e2e/checkups-flow.spec.ts	PASS
+frontend/e2e/clinical-flows.spec.ts	PASS
+frontend/e2e/clinical-smoke.spec.ts	PASS
+frontend/e2e/estimates-flow.spec.ts	PASS
+frontend/e2e/examinations-flow.spec.ts	PASS
+frontend/e2e/fixtures/ui-design-clinical-constants.ts	PASS
+frontend/e2e/fixtures/ui-design-clinical-request-contracts.ts	PASS
+frontend/e2e/fixtures/ui-design-clinical.ts	PASS
+frontend/e2e/helpers/auth.ts	PASS
+frontend/e2e/helpers/context.ts	PASS
+frontend/e2e/helpers/demo-seed.ts	PASS
+frontend/e2e/helpers/pet-search-regression.ts	PASS
+frontend/e2e/helpers/synthetic-api.spec.ts	PASS
+frontend/e2e/helpers/synthetic-api.ts	PASS
+frontend/e2e/helpers/ui-design-audit.ts	PASS
+frontend/e2e/hospitalization-flow.spec.ts	PASS
+frontend/e2e/inventory-crud.spec.ts	PASS
+frontend/e2e/line-reservation-flow.spec.ts	PASS
+frontend/e2e/lstep-flow.spec.ts	PASS
+frontend/e2e/manual-flow.spec.ts	PASS
+frontend/e2e/master-crud.spec.ts	PASS
+frontend/e2e/medical-records-create.spec.ts	PASS
+frontend/e2e/medical-records-pagination-sort.spec.ts	PASS
+frontend/e2e/medical-records-patient-search.spec.ts	PASS
+frontend/e2e/operations-smoke.spec.ts	PASS
+frontend/e2e/owner-report-layout.spec.ts	PASS
+frontend/e2e/owners-flow.spec.ts	PASS
+frontend/e2e/owners-search.spec.ts	PASS
+frontend/e2e/pages/accounting-page.ts	PASS
+frontend/e2e/pages/base-page.ts	PASS
+frontend/e2e/pages/checkups-page.ts	PASS
+frontend/e2e/pages/estimates-page.ts	PASS
+frontend/e2e/pages/examinations-page.ts	PASS
+frontend/e2e/pages/hospitalization-page.ts	PASS
+frontend/e2e/pages/inventory-page.ts	PASS
+frontend/e2e/pages/login-page.ts	PASS
+frontend/e2e/pages/lstep-page.ts	PASS
+frontend/e2e/pages/manual-page.ts	PASS
+frontend/e2e/pages/medical-records-page.ts	PASS
+frontend/e2e/pages/owners-page.ts	PASS
+frontend/e2e/pages/reservation-form-page.ts	PASS
+frontend/e2e/pages/settings-master-page.ts	PASS
+frontend/e2e/pages/shifts-page.ts	PASS
+frontend/e2e/pages/treatment-items-page.ts	PASS
+frontend/e2e/pages/trimming-page.ts	PASS
+frontend/e2e/pages/vaccinations-page.ts	PASS
+frontend/e2e/reservation-patient-search.spec.ts	PASS
+frontend/e2e/reservations-smoke.spec.ts	PASS
+frontend/e2e/settings-crud.spec.ts	PASS
+frontend/e2e/settings-smoke.spec.ts	PASS
+frontend/e2e/shifts-flow.spec.ts	PASS
+frontend/e2e/trimming-flow.spec.ts	PASS
+frontend/e2e/tsconfig.json	FINDING:FE-RC-216
+frontend/e2e/ui-design-compliance-readonly.spec.ts	PASS
+frontend/e2e/vaccinations-flow.spec.ts	PASS
+frontend/entrypoint.sh	PASS
+frontend/eslint.config.js	PASS
+frontend/generated-models-import-allowlist.json	PASS
+frontend/index.html	PASS
+frontend/knip.json	PASS
+frontend/liff/index.html	PASS
+frontend/liff/src/App.tsx	PASS
+frontend/liff/src/api/liff-api.test.ts	PASS
+frontend/liff/src/api/liff-api.ts	PASS
+frontend/liff/src/hooks/use-liff-link.test.ts	PASS
+frontend/liff/src/hooks/use-liff-link.ts	PASS
+frontend/liff/src/index.css	PASS
+frontend/liff/src/lib/liff-config.ts	PASS
+frontend/liff/src/main.tsx	PASS
+frontend/liff/src/pages/LiffLinkPage.tsx	PASS
+frontend/liff/src/pages/LoadingPage.tsx	PASS
+frontend/liff/src/pages/PetHealthPage.test.tsx	PASS
+frontend/liff/src/pages/PetHealthPage.tsx	PASS
+frontend/line-reserve/index.html	PASS
+frontend/line-reserve/src/App.test.tsx	PASS
+frontend/line-reserve/src/App.tsx	PASS
+frontend/line-reserve/src/api/liff-api.test.ts	PASS
+frontend/line-reserve/src/api/liff-api.ts	FINDING:FE-RC-214
+frontend/line-reserve/src/api/schemas.test.ts	PASS
+frontend/line-reserve/src/api/schemas.ts	PASS
+frontend/line-reserve/src/app-flow-handlers.ts	PASS
+frontend/line-reserve/src/app-page-switch.tsx	PASS
+frontend/line-reserve/src/components/AutoAdvanceHint.tsx	PASS
+frontend/line-reserve/src/components/BackButton.tsx	PASS
+frontend/line-reserve/src/components/Calendar.tsx	PASS
+frontend/line-reserve/src/components/ListItem.tsx	PASS
+frontend/line-reserve/src/components/PrimaryButton.tsx	PASS
+frontend/line-reserve/src/components/ProgressDots.tsx	PASS
+frontend/line-reserve/src/hooks/use-reservation-flow.ts	PASS
+frontend/line-reserve/src/index.css	PASS
+frontend/line-reserve/src/lib/advance-policy.test.ts	PASS
+frontend/line-reserve/src/lib/advance-policy.ts	PASS
+frontend/line-reserve/src/lib/liff-config.ts	PASS
+frontend/line-reserve/src/lib/step-progress.test.ts	PASS
+frontend/line-reserve/src/lib/step-progress.ts	PASS
+frontend/line-reserve/src/main.tsx	PASS
+frontend/line-reserve/src/pages/CompletePage.test.tsx	PASS
+frontend/line-reserve/src/pages/CompletePage.tsx	PASS
+frontend/line-reserve/src/pages/ConfirmPage.test.tsx	PASS
+frontend/line-reserve/src/pages/ConfirmPage.tsx	PASS
+frontend/line-reserve/src/pages/CourseSelectPage.test.tsx	PASS
+frontend/line-reserve/src/pages/CourseSelectPage.tsx	PASS
+frontend/line-reserve/src/pages/CustomerInfoPage.test.tsx	PASS
+frontend/line-reserve/src/pages/CustomerInfoPage.tsx	PASS
+frontend/line-reserve/src/pages/DateSelectPage.test.tsx	PASS
+frontend/line-reserve/src/pages/DateSelectPage.tsx	PASS
+frontend/line-reserve/src/pages/MaintenancePage.tsx	PASS
+frontend/line-reserve/src/pages/MyReservationsPage.test.tsx	PASS
+frontend/line-reserve/src/pages/MyReservationsPage.tsx	PASS
+frontend/line-reserve/src/pages/RequestPage.tsx	PASS
+frontend/line-reserve/src/pages/StaffSelectPage.test.tsx	PASS
+frontend/line-reserve/src/pages/StaffSelectPage.tsx	PASS
+frontend/line-reserve/src/pages/TimeSelectPage.test.tsx	PASS
+frontend/line-reserve/src/pages/TimeSelectPage.tsx	PASS
+frontend/line-reserve/src/pages/TopPage.test.tsx	PASS
+frontend/line-reserve/src/pages/TopPage.tsx	PASS
+frontend/line-reserve/src/pages/TrimmingCourseSelectPage.test.tsx	PASS
+frontend/line-reserve/src/pages/TrimmingCourseSelectPage.tsx	FINDING:FE-RC-214
+frontend/line-reserve/src/pages/TrimmingOptionSelectPage.test.tsx	PASS
+frontend/line-reserve/src/pages/TrimmingOptionSelectPage.tsx	FINDING:FE-RC-214
+frontend/line-reserve/src/types/models.ts	PASS
+frontend/package.json	PASS
+frontend/playwright.config.ts	PASS
+frontend/pnpm-lock.yaml	PASS
+frontend/scripts/check-eslint-disable-rationale.mjs	PASS
+frontend/scripts/check-eslint-disable-rationale.test.mjs	PASS
+frontend/scripts/check-feature-filename-convention.mjs	PASS
+frontend/scripts/check-feature-filename-convention.test.mjs	PASS
+frontend/scripts/coverage-ratchet.mjs	PASS
+frontend/scripts/design-system-audit.mjs	PASS
+frontend/scripts/design-system-audit.test.mjs	PASS
+frontend/scripts/lighthouse-audit.js	PASS
+frontend/scripts/run-e2e.sh	PASS
+frontend/src/app/SettingsRouteGuards.test.tsx	PASS
+frontend/src/app/index.tsx	PASS
+frontend/src/app/pages/AccountingDetailPage.tsx	PASS
+frontend/src/app/pages/OwnerFormPage.test.tsx	PASS
+frontend/src/app/pages/OwnerFormPage.tsx	PASS
+frontend/src/app/pages/OwnersListPage.tsx	PASS
+frontend/src/app/pages/ReservationsPage.tsx	PASS
+frontend/src/app/provider.tsx	PASS
+frontend/src/app/router.tsx	PASS
+frontend/src/app/routes/accounting-routes.tsx	PASS
+frontend/src/app/routes/app-routes.test.tsx	PASS
+frontend/src/app/routes/app-routes.tsx	PASS
+frontend/src/app/routes/clinical-business-routes.tsx	PASS
+frontend/src/app/routes/clinical-care-routes.checkups.test.tsx	PASS
+frontend/src/app/routes/clinical-care-routes.examinations.test.tsx	PASS
+frontend/src/app/routes/clinical-care-routes.tsx	PASS
+frontend/src/app/routes/clinical-care-routes.vaccinations.test.tsx	PASS
+frontend/src/app/routes/clinical-general-routes.tsx	PASS
+frontend/src/app/routes/clinical-routes.tsx	PASS
+frontend/src/app/routes/operations-routes.lstep-delivery-monitor.test.tsx	PASS
+frontend/src/app/routes/operations-routes.tsx	PASS
+frontend/src/app/routes/route-inventory.test.tsx	PASS
+frontend/src/app/routes/settings-routes.lstep-tags.test.tsx	PASS
+frontend/src/app/routes/settings-routes.tsx	PASS
+frontend/src/assets/231a870df600a37e011a0e1140e7608b1f4c3340.png	PASS
+frontend/src/components/errors/RouteErrorBoundary.tsx	PASS
+frontend/src/components/shared/CLAUDE.md	EXCLUDE:documentation
+frontend/src/components/shared/CalendarNavToolbar/CalendarNavToolbar.test.tsx	PASS
+frontend/src/components/shared/CalendarNavToolbar/CalendarNavToolbar.tsx	PASS
+frontend/src/components/shared/CalendarNavToolbar/index.ts	PASS
+frontend/src/components/shared/CategoryChipsFilter/CategoryChipsFilter.test.tsx	PASS
+frontend/src/components/shared/CategoryChipsFilter/CategoryChipsFilter.tsx	PASS
+frontend/src/components/shared/CategoryChipsFilter/index.ts	PASS
+frontend/src/components/shared/ChangePasswordDialog/ChangePasswordDialog.test.tsx	PASS
+frontend/src/components/shared/ChangePasswordDialog/ChangePasswordDialog.tsx	PASS
+frontend/src/components/shared/CharCountTextarea/CharCountTextarea.tsx	PASS
+frontend/src/components/shared/CharCountTextarea/index.ts	PASS
+frontend/src/components/shared/CheckupAlertBadge/CheckupAlertBadge.test.tsx	PASS
+frontend/src/components/shared/CheckupAlertBadge/CheckupAlertBadge.tsx	PASS
+frontend/src/components/shared/ClearableSearchInput/ClearableSearchInput.test.tsx	PASS
+frontend/src/components/shared/ClearableSearchInput/ClearableSearchInput.tsx	PASS
+frontend/src/components/shared/ClearableSearchInput/index.ts	PASS
+frontend/src/components/shared/ClinicScopeFilter/ClinicScopeFilter.test.tsx	PASS
+frontend/src/components/shared/ClinicScopeFilter/ClinicScopeFilter.tsx	PASS
+frontend/src/components/shared/ConfirmDialog/ConfirmDialog.tsx	PASS
+frontend/src/components/shared/ConfirmDialog/index.ts	PASS
+frontend/src/components/shared/DataStates/DataStates.tsx	PASS
+frontend/src/components/shared/DataStates/index.ts	PASS
+frontend/src/components/shared/DataTable/DataTable.test.tsx	PASS
+frontend/src/components/shared/DataTable/DataTable.tsx	PASS
+frontend/src/components/shared/DataTable/DataTableRow.test.tsx	PASS
+frontend/src/components/shared/DataTable/DataTableRow.tsx	PASS
+frontend/src/components/shared/DataTable/DataTableRowButton.test.tsx	PASS
+frontend/src/components/shared/DataTable/DataTableRowButton.tsx	PASS
+frontend/src/components/shared/DataTable/DataTableRowLink.tsx	PASS
+frontend/src/components/shared/DataTable/SortableDataTableRow.test.tsx	PASS
+frontend/src/components/shared/DataTable/SortableDataTableRow.tsx	PASS
+frontend/src/components/shared/DataTable/list-table-col.ts	PASS
+frontend/src/components/shared/DatePicker/DatePicker.test.tsx	PASS
+frontend/src/components/shared/DatePicker/DatePicker.tsx	PASS
+frontend/src/components/shared/DatePicker/DatePickerModel.test.ts	PASS
+frontend/src/components/shared/DatePicker/DatePickerModel.ts	PASS
+frontend/src/components/shared/DatePicker/DatePickerParts.tsx	PASS
+frontend/src/components/shared/DatePicker/DatePickerRange.tsx	PASS
+frontend/src/components/shared/DatePicker/DatePickerSingle.tsx	PASS
+frontend/src/components/shared/DatePicker/index.ts	PASS
+frontend/src/components/shared/DateRangeInputs/DateRangeInputs.test.tsx	PASS
+frontend/src/components/shared/DateRangeInputs/DateRangeInputs.tsx	PASS
+frontend/src/components/shared/DateRangeInputs/index.ts	PASS
+frontend/src/components/shared/DeleteIconButton/DeleteIconButton.test.tsx	PASS
+frontend/src/components/shared/DeleteIconButton/DeleteIconButton.tsx	PASS
+frontend/src/components/shared/DynamicCheckupFields/DynamicCheckupFields.test.tsx	PASS
+frontend/src/components/shared/DynamicCheckupFields/DynamicCheckupFields.tsx	PASS
+frontend/src/components/shared/Feedback/ImageWithFallback.tsx	PASS
+frontend/src/components/shared/Feedback/index.ts	PASS
+frontend/src/components/shared/FilteringIndicator/FilteringIndicator.tsx	PASS
+frontend/src/components/shared/Form/FormHeader.test.tsx	PASS
+frontend/src/components/shared/Form/FormHeader.tsx	PASS
+frontend/src/components/shared/Form/FormHeaderActions.test.tsx	PASS
+frontend/src/components/shared/Form/FormHeaderActions.tsx	PASS
+frontend/src/components/shared/Form/PrimaryButton.test.tsx	PASS
+frontend/src/components/shared/Form/PrimaryButton.tsx	PASS
+frontend/src/components/shared/Form/SubmitButton.test.tsx	PASS
+frontend/src/components/shared/Form/SubmitButton.tsx	PASS
+frontend/src/components/shared/Form/primary-action-button-classes.ts	PASS
+frontend/src/components/shared/FormDialog/FormDialog.tsx	PASS
+frontend/src/components/shared/FormFieldError/FormFieldError.tsx	PASS
+frontend/src/components/shared/FormFieldError/index.ts	PASS
+frontend/src/components/shared/HistoryFilterPanel/HistoryFilterPanel.test.tsx	PASS
+frontend/src/components/shared/HistoryFilterPanel/HistoryFilterPanel.tsx	PASS
+frontend/src/components/shared/HistoryFilterPanel/index.ts	PASS
+frontend/src/components/shared/LabDeviceUnlinkedBanner/LabDeviceUnlinkedBanner.test.tsx	PASS
+frontend/src/components/shared/LabDeviceUnlinkedBanner/LabDeviceUnlinkedBanner.tsx	PASS
+frontend/src/components/shared/Layout/Layout.tsx	PASS
+frontend/src/components/shared/Layout/Sidebar.test.tsx	PASS
+frontend/src/components/shared/Layout/Sidebar.tsx	PASS
+frontend/src/components/shared/Layout/SidebarChrome.tsx	PASS
+frontend/src/components/shared/Layout/SidebarItems.test.tsx	PASS
+frontend/src/components/shared/Layout/SidebarItems.tsx	PASS
+frontend/src/components/shared/Layout/SidebarMenu.tsx	PASS
+frontend/src/components/shared/Layout/sidebar-menu.lab-device-nav.test.ts	PASS
+frontend/src/components/shared/Layout/sidebar-menu.lstep-nav.test.tsx	PASS
+frontend/src/components/shared/MasterLink.test.tsx	PASS
+frontend/src/components/shared/MasterLink.tsx	PASS
+frontend/src/components/shared/MasterSelectModal/MasterSelectModal.test.tsx	PASS
+frontend/src/components/shared/MasterSelectModal/MasterSelectModal.tsx	PASS
+frontend/src/components/shared/MasterSelectModal/MasterSelectTrigger.tsx	PASS
+frontend/src/components/shared/MasterSelectModal/index.ts	PASS
+frontend/src/components/shared/NavigationBlocker/NavigationBlocker.tsx	PASS
+frontend/src/components/shared/NavigationBlocker/index.ts	PASS
+frontend/src/components/shared/NextScheduleField/NextScheduleField.test.tsx	PASS
+frontend/src/components/shared/NextScheduleField/NextScheduleField.tsx	PASS
+frontend/src/components/shared/NextScheduleField/index.ts	PASS
+frontend/src/components/shared/NextScheduleField/next-schedule.ts	PASS
+frontend/src/components/shared/NumberInput/NumberInput.tsx	PASS
+frontend/src/components/shared/OwnerSearchModal/OwnerSearchModal.test.tsx	PASS
+frontend/src/components/shared/OwnerSearchModal/OwnerSearchModal.tsx	PASS
+frontend/src/components/shared/PageLayout/PageLayout.test.tsx	PASS
+frontend/src/components/shared/PageLayout/PageLayout.tsx	PASS
+frontend/src/components/shared/Pagination/Pagination.test.tsx	PASS
+frontend/src/components/shared/Pagination/Pagination.tsx	PASS
+frontend/src/components/shared/Pagination/index.ts	PASS
+frontend/src/components/shared/PastRecordHistoryPanel/PastRecordHistoryPanel.tsx	PASS
+frontend/src/components/shared/PastRecordHistoryPanel/index.ts	PASS
+frontend/src/components/shared/PatientContextHeader/PatientContextHeader.test.tsx	PASS
+frontend/src/components/shared/PatientContextHeader/PatientContextHeader.tsx	PASS
+frontend/src/components/shared/PatientContextHeader/index.ts	PASS
+frontend/src/components/shared/PatientInfoCard/PatientInfoCard.test.tsx	PASS
+frontend/src/components/shared/PatientInfoCard/PatientInfoCard.tsx	PASS
+frontend/src/components/shared/PatientInfoCard/format-pet-details.test.ts	PASS
+frontend/src/components/shared/PatientInfoCard/format-pet-details.ts	PASS
+frontend/src/components/shared/PatientInfoCard/index.ts	PASS
+frontend/src/components/shared/PermissionBadges/PermissionBadges.tsx	PASS
+frontend/src/components/shared/PetDeceasedRecordButton/PetDeceasedBanner.test.tsx	PASS
+frontend/src/components/shared/PetDeceasedRecordButton/PetDeceasedBanner.tsx	PASS
+frontend/src/components/shared/PetDeceasedRecordButton/PetDeceasedDialog.test.tsx	PASS
+frontend/src/components/shared/PetDeceasedRecordButton/PetDeceasedDialog.tsx	PASS
+frontend/src/components/shared/PetDeceasedRecordButton/PetDeceasedRecordButton.test.tsx	PASS
+frontend/src/components/shared/PetDeceasedRecordButton/PetDeceasedRecordButton.tsx	PASS
+frontend/src/components/shared/PetSelection/PetSelectionResultsTable.test.tsx	PASS
+frontend/src/components/shared/PetSelection/PetSelectionResultsTable.tsx	PASS
+frontend/src/components/shared/PetSelection/PetSelectionSearchForm.tsx	PASS
+frontend/src/components/shared/PrintPortal.test.tsx	PASS
+frontend/src/components/shared/PrintPortal.tsx	PASS
+frontend/src/components/shared/PropertyFilter/DateValueEditor.tsx	PASS
+frontend/src/components/shared/PropertyFilter/FilterAddPopover.tsx	PASS
+frontend/src/components/shared/PropertyFilter/FilterRuleRow.tsx	PASS
+frontend/src/components/shared/PropertyFilter/InlineSelector.tsx	PASS
+frontend/src/components/shared/PropertyFilter/PropertyFilter.test.tsx	PASS
+frontend/src/components/shared/PropertyFilter/PropertyFilter.tsx	PASS
+frontend/src/components/shared/PropertyFilter/SortPill.tsx	PASS
+frontend/src/components/shared/PropertyFilter/SortPopover.tsx	PASS
+frontend/src/components/shared/PropertyFilter/date-preset-utils.ts	PASS
+frontend/src/components/shared/PropertyFilter/types.ts	PASS
+frontend/src/components/shared/RequirePermission.test.tsx	PASS
+frontend/src/components/shared/RequirePermission.tsx	PASS
+frontend/src/components/shared/ReservationFormModal/NewOwnerInlineForm.test.tsx	PASS
+frontend/src/components/shared/ReservationFormModal/NewOwnerInlineForm.tsx	PASS
+frontend/src/components/shared/ReservationFormModal/PatientSearchFilters.tsx	PASS
+frontend/src/components/shared/ReservationFormModal/PatientSelectionResults.tsx	PASS
+frontend/src/components/shared/ReservationFormModal/PatientSelectionTable.test.tsx	PASS
+frontend/src/components/shared/ReservationFormModal/PatientSelectionTable.tsx	PASS
+frontend/src/components/shared/ReservationFormModal/ReservationDateTimeFields.tsx	PASS
+frontend/src/components/shared/ReservationFormModal/ReservationFormFields.tsx	PASS
+frontend/src/components/shared/ReservationFormModal/ReservationFormModal.inactive-type.test.tsx	PASS
+frontend/src/components/shared/ReservationFormModal/ReservationFormModal.init-values.test.tsx	PASS
+frontend/src/components/shared/ReservationFormModal/ReservationFormModal.new-owner.test.tsx	PASS
+frontend/src/components/shared/ReservationFormModal/ReservationFormModal.past-date.test.tsx	PASS
+frontend/src/components/shared/ReservationFormModal/ReservationFormModal.staff-candidates.test.tsx	PASS
+frontend/src/components/shared/ReservationFormModal/ReservationFormModal.test-helpers.ts	PASS
+frontend/src/components/shared/ReservationFormModal/ReservationFormModal.tsx	PASS
+frontend/src/components/shared/ReservationFormModal/ReservationFormModal.unavailable-times.test.tsx	PASS
+frontend/src/components/shared/ReservationFormModal/ReservationFormModalPanels.tsx	PASS
+frontend/src/components/shared/ReservationFormModal/ReservationNotesField.tsx	PASS
+frontend/src/components/shared/ReservationFormModal/ReservationTypeAndStaffFields.tsx	PASS
+frontend/src/components/shared/ReservationFormModal/ReservationTypePickerDialog.test.tsx	PASS
+frontend/src/components/shared/ReservationFormModal/ReservationTypePickerDialog.tsx	PASS
+frontend/src/components/shared/ReservationFormModal/filter-staff-candidates.test.ts	PASS
+frontend/src/components/shared/ReservationFormModal/filter-staff-candidates.ts	PASS
+frontend/src/components/shared/ReservationFormModal/hooks/use-patient-selection-table.ts	PASS
+frontend/src/components/shared/ReservationFormModal/patient-selection-table-model.ts	PASS
+frontend/src/components/shared/ReservationFormModal/reservation-time-utils.test.ts	PASS
+frontend/src/components/shared/ReservationFormModal/reservation-time-utils.ts	PASS
+frontend/src/components/shared/ReservationRouteSelect/ReservationRouteSelect.test.tsx	PASS
+frontend/src/components/shared/ReservationRouteSelect/ReservationRouteSelect.tsx	PASS
+frontend/src/components/shared/ReservationRouteSelect/index.ts	PASS
+frontend/src/components/shared/RowActionButton/RowActionButton.tsx	PASS
+frontend/src/components/shared/RowActionButton/index.ts	PASS
+frontend/src/components/shared/RowActionDropdown/RowActionDropdown.tsx	PASS
+frontend/src/components/shared/RowActionDropdown/index.ts	PASS
+frontend/src/components/shared/SidePeek/MasterSidePanel.tsx	PASS
+frontend/src/components/shared/SidePeek/MoneyInput.tsx	PASS
+frontend/src/components/shared/SidePeek/PropertyInput.tsx	PASS
+frontend/src/components/shared/SidePeek/PropertyRow.test.tsx	PASS
+frontend/src/components/shared/SidePeek/PropertyRow.tsx	PASS
+frontend/src/components/shared/SidePeek/SidePeekBody.tsx	PASS
+frontend/src/components/shared/SidePeek/SidePeekFooter.tsx	PASS
+frontend/src/components/shared/SidePeek/SidePeekPanel.tsx	PASS
+frontend/src/components/shared/SidePeek/SidePeekTitleInput.tsx	PASS
+frontend/src/components/shared/SidePeek/SidePeekToolbar.tsx	PASS
+frontend/src/components/shared/SidePeek/StatusToggleButton.tsx	PASS
+frontend/src/components/shared/SidePeek/index.ts	PASS
+frontend/src/components/shared/SortableHeader/SortableHeader.test.tsx	PASS
+frontend/src/components/shared/SortableHeader/SortableHeader.tsx	PASS
+frontend/src/components/shared/StatusBadge/StatusBadge.tsx	PASS
+frontend/src/components/shared/StatusPill/StatusPill.tsx	PASS
+frontend/src/components/shared/TaxRateSelector/TaxRateSelector.tsx	PASS
+frontend/src/components/shared/TaxTypeSelector/TaxTypeSelector.tsx	PASS
+frontend/src/components/shared/TreatmentSearchDialog/TreatmentSearchDialog.test.tsx	PASS
+frontend/src/components/shared/TreatmentSearchDialog/TreatmentSearchDialog.tsx	PASS
+frontend/src/components/shared/UnifiedTabs.test.tsx	PASS
+frontend/src/components/shared/UnifiedTabs.tsx	PASS
+frontend/src/components/ui/alert-dialog.tsx	EXCLUDE:shadcn-ui-no-style-audit
+frontend/src/components/ui/badge-variants.ts	EXCLUDE:shadcn-ui-no-style-audit
+frontend/src/components/ui/badge.tsx	EXCLUDE:shadcn-ui-no-style-audit
+frontend/src/components/ui/button-variants.ts	EXCLUDE:shadcn-ui-no-style-audit
+frontend/src/components/ui/button.test.tsx	EXCLUDE:shadcn-ui-no-style-audit
+frontend/src/components/ui/button.tsx	EXCLUDE:shadcn-ui-no-style-audit
+frontend/src/components/ui/calendar.tsx	EXCLUDE:shadcn-ui-no-style-audit
+frontend/src/components/ui/card.tsx	EXCLUDE:shadcn-ui-no-style-audit
+frontend/src/components/ui/checkbox.tsx	EXCLUDE:shadcn-ui-no-style-audit
+frontend/src/components/ui/command.tsx	EXCLUDE:shadcn-ui-no-style-audit
+frontend/src/components/ui/dialog.tsx	EXCLUDE:shadcn-ui-no-style-audit
+frontend/src/components/ui/dropdown-menu.tsx	EXCLUDE:shadcn-ui-no-style-audit
+frontend/src/components/ui/input.tsx	EXCLUDE:shadcn-ui-no-style-audit
+frontend/src/components/ui/label.tsx	EXCLUDE:shadcn-ui-no-style-audit
+frontend/src/components/ui/popover.tsx	EXCLUDE:shadcn-ui-no-style-audit
+frontend/src/components/ui/radio-group.tsx	EXCLUDE:shadcn-ui-no-style-audit
+frontend/src/components/ui/scroll-area.tsx	EXCLUDE:shadcn-ui-no-style-audit
+frontend/src/components/ui/searchable-select.test.tsx	EXCLUDE:shadcn-ui-no-style-audit
+frontend/src/components/ui/searchable-select.tsx	EXCLUDE:shadcn-ui-no-style-audit
+frontend/src/components/ui/select.test.tsx	EXCLUDE:shadcn-ui-no-style-audit
+frontend/src/components/ui/select.tsx	EXCLUDE:shadcn-ui-no-style-audit
+frontend/src/components/ui/separator.tsx	EXCLUDE:shadcn-ui-no-style-audit
+frontend/src/components/ui/sheet.tsx	EXCLUDE:shadcn-ui-no-style-audit
+frontend/src/components/ui/sonner.tsx	EXCLUDE:shadcn-ui-no-style-audit
+frontend/src/components/ui/switch.tsx	EXCLUDE:shadcn-ui-no-style-audit
+frontend/src/components/ui/table.test.tsx	EXCLUDE:shadcn-ui-no-style-audit
+frontend/src/components/ui/table.tsx	EXCLUDE:shadcn-ui-no-style-audit
+frontend/src/components/ui/tabs.test.tsx	EXCLUDE:shadcn-ui-no-style-audit
+frontend/src/components/ui/tabs.tsx	EXCLUDE:shadcn-ui-no-style-audit
+frontend/src/components/ui/textarea.tsx	EXCLUDE:shadcn-ui-no-style-audit
+frontend/src/components/ui/toggle-group.tsx	EXCLUDE:shadcn-ui-no-style-audit
+frontend/src/components/ui/toggle-variants.ts	EXCLUDE:shadcn-ui-no-style-audit
+frontend/src/components/ui/tooltip.tsx	EXCLUDE:shadcn-ui-no-style-audit
+frontend/src/components/ui/utils.test.ts	EXCLUDE:shadcn-ui-no-style-audit
+frontend/src/components/ui/utils.ts	EXCLUDE:shadcn-ui-no-style-audit
+frontend/src/config/accounting-document-sections.ts	PASS
+frontend/src/config/fetch-limits.ts	PASS
+frontend/src/config/lstep-trigger-types.ts	PASS
+frontend/src/config/paths.test.ts	PASS
+frontend/src/config/paths.ts	PASS
+frontend/src/constants/accounting-status.ts	PASS
+frontend/src/constants/day-of-week.ts	PASS
+frontend/src/constants/item-category.ts	PASS
+frontend/src/constants/lstep-auto-tag-prefixes.ts	PASS
+frontend/src/constants/lstep-checkup-sync.ts	PASS
+frontend/src/constants/lstep-tag-names.ts	PASS
+frontend/src/constants/payment-method.ts	PASS
+frontend/src/constants/status-colors.ts	PASS
+frontend/src/constants/tax.ts	PASS
+frontend/src/features/CLAUDE.md	EXCLUDE:documentation
+frontend/src/features/accounting-reports/api/export-monthly-csv.ts	PASS
+frontend/src/features/accounting-reports/api/get-monthly-report.ts	PASS
+frontend/src/features/accounting-reports/components/CategoryPaymentMatrixTable.test.tsx	PASS
+frontend/src/features/accounting-reports/components/CategoryPaymentMatrixTable.tsx	PASS
+frontend/src/features/accounting-reports/components/DailyBreakdownTable.test.tsx	PASS
+frontend/src/features/accounting-reports/components/DailyBreakdownTable.tsx	PASS
+frontend/src/features/accounting-reports/components/MonthlyReportPrintArea.test.tsx	PASS
+frontend/src/features/accounting-reports/components/MonthlyReportPrintArea.tsx	PASS
+frontend/src/features/accounting-reports/components/MonthlySummaryCards.test.tsx	PASS
+frontend/src/features/accounting-reports/components/MonthlySummaryCards.tsx	PASS
+frontend/src/features/accounting-reports/index.ts	PASS
+frontend/src/features/accounting-reports/routes/AccountingReportsPage.test.tsx	PASS
+frontend/src/features/accounting-reports/routes/AccountingReportsPage.tsx	PASS
+frontend/src/features/accounting-reports/routes/AccountingReportsPagePanels.tsx	PASS
+frontend/src/features/accounting/api/cancel-accounting.ts	PASS
+frontend/src/features/accounting/api/complete-accounting.test.ts	PASS
+frontend/src/features/accounting/api/complete-accounting.ts	PASS
+frontend/src/features/accounting/api/correct-credit-payment.ts	PASS
+frontend/src/features/accounting/api/create-billing-item.ts	PASS
+frontend/src/features/accounting/api/create-refund.ts	PASS
+frontend/src/features/accounting/api/delete-billing-item.test.ts	PASS
+frontend/src/features/accounting/api/delete-billing-item.ts	PASS
+frontend/src/features/accounting/api/get-accounting.ts	PASS
+frontend/src/features/accounting/api/get-accountings.test.tsx	PASS
+frontend/src/features/accounting/api/get-accountings.ts	PASS
+frontend/src/features/accounting/api/get-daily-summary.ts	PASS
+frontend/src/features/accounting/api/get-discount-suggestions.ts	PASS
+frontend/src/features/accounting/api/get-merchandise-items.ts	PASS
+frontend/src/features/accounting/api/get-owner-unpaid-balance.ts	PASS
+frontend/src/features/accounting/api/get-refunds.ts	PASS
+frontend/src/features/accounting/api/get-unbilled-items.test.ts	PASS
+frontend/src/features/accounting/api/get-unbilled-items.ts	PASS
+frontend/src/features/accounting/api/get-ungrouped-items.ts	PASS
+frontend/src/features/accounting/api/get-unpaid-billings.ts	PASS
+frontend/src/features/accounting/api/transforms.test.ts	PASS
+frontend/src/features/accounting/api/transforms.ts	PASS
+frontend/src/features/accounting/api/types.ts	PASS
+frontend/src/features/accounting/api/update-accounting.ts	PASS
+frontend/src/features/accounting/api/update-billing-item.ts	PASS
+frontend/src/features/accounting/components/AccountingDetailPanels.tsx	PASS
+frontend/src/features/accounting/components/AccountingDocument.test.tsx	PASS
+frontend/src/features/accounting/components/AccountingDocument.tsx	FINDING:FE-RC-225
+frontend/src/features/accounting/components/AccountingItemRow.test.tsx	PASS
+frontend/src/features/accounting/components/AccountingItemRow.tsx	PASS
+frontend/src/features/accounting/components/AccountingListTable.test.tsx	PASS
+frontend/src/features/accounting/components/AccountingListTable.tsx	PASS
+frontend/src/features/accounting/components/CreditCorrectionDialog.test.tsx	PASS
+frontend/src/features/accounting/components/CreditCorrectionDialog.tsx	PASS
+frontend/src/features/accounting/components/DailyAccountingPrintArea.test.tsx	PASS
+frontend/src/features/accounting/components/DailyAccountingPrintArea.tsx	PASS
+frontend/src/features/accounting/components/DailyAccountingTab.test.tsx	PASS
+frontend/src/features/accounting/components/DailyAccountingTab.tsx	PASS
+frontend/src/features/accounting/components/DailyAccountingTabParts.tsx	PASS
+frontend/src/features/accounting/components/InsuranceCard.test.tsx	PASS
+frontend/src/features/accounting/components/InsuranceCard.tsx	PASS
+frontend/src/features/accounting/components/ItemListCard.test.tsx	PASS
+frontend/src/features/accounting/components/ItemListCard.tsx	PASS
+frontend/src/features/accounting/components/OwnerAccountingHistory.pagination.test.tsx	PASS
+frontend/src/features/accounting/components/OwnerAccountingHistory.test.tsx	PASS
+frontend/src/features/accounting/components/OwnerAccountingHistory.tsx	PASS
+frontend/src/features/accounting/components/OwnerAccountingHistoryParts.tsx	PASS
+frontend/src/features/accounting/components/OwnerUnpaidBalanceCard.test.tsx	PASS
+frontend/src/features/accounting/components/OwnerUnpaidBalanceCard.tsx	PASS
+frontend/src/features/accounting/components/PaymentCard.bankTransfer.test.tsx	PASS
+frontend/src/features/accounting/components/PaymentCard.test.tsx	PASS
+frontend/src/features/accounting/components/PaymentCard.tsx	PASS
+frontend/src/features/accounting/components/RefundSection.test.tsx	PASS
+frontend/src/features/accounting/components/RefundSection.tsx	PASS
+frontend/src/features/accounting/components/UnpaidTab.test.tsx	PASS
+frontend/src/features/accounting/components/UnpaidTab.tsx	PASS
+frontend/src/features/accounting/components/UnpaidTabFilters.tsx	PASS
+frontend/src/features/accounting/components/UnpaidTabSummaries.tsx	PASS
+frontend/src/features/accounting/components/UnpaidTabTables.tsx	PASS
+frontend/src/features/accounting/components/accounting-detail-model.test.ts	PASS
+frontend/src/features/accounting/components/accounting-detail-model.ts	FINDING:FE-RC-227
+frontend/src/features/accounting/components/accounting-list-table-model.test.ts	PASS
+frontend/src/features/accounting/components/accounting-list-table-model.ts	FINDING:FE-RC-227
+frontend/src/features/accounting/components/daily-accounting-utils.ts	FINDING:FE-RC-227
+frontend/src/features/accounting/components/owner-accounting-history.test-fixtures.ts	FINDING:FE-RC-227
+frontend/src/features/accounting/components/unpaid-tab-model.ts	FINDING:FE-RC-227
+frontend/src/features/accounting/hooks/create-accounting-items.test.ts	PASS
+frontend/src/features/accounting/hooks/create-accounting-items.ts	PASS
+frontend/src/features/accounting/hooks/use-accounting-completion-action.test.ts	PASS
+frontend/src/features/accounting/hooks/use-accounting-completion-action.ts	PASS
+frontend/src/features/accounting/hooks/use-accounting-detail-state.ts	PASS
+frontend/src/features/accounting/hooks/use-accounting-item-actions.test.ts	PASS
+frontend/src/features/accounting/hooks/use-accounting-item-actions.ts	PASS
+frontend/src/features/accounting/hooks/use-accounting-settlement-actions.test.ts	PASS
+frontend/src/features/accounting/hooks/use-accounting-settlement-actions.ts	PASS
+frontend/src/features/accounting/index.ts	PASS
+frontend/src/features/accounting/routes/AccountingDetail.test.tsx	PASS
+frontend/src/features/accounting/routes/AccountingDetail.tsx	PASS
+frontend/src/features/accounting/routes/AccountingList.tsx	PASS
+frontend/src/features/accounting/routes/AccountingListPanels.tsx	PASS
+frontend/src/features/accounting/routes/AccountingPetSelection.tsx	PASS
+frontend/src/features/accounting/routes/AccountingRouteGuards.test.tsx	PASS
+frontend/src/features/accounting/routes/accounting-list-model.ts	PASS
+frontend/src/features/accounting/tax-breakdown.test.ts	FINDING:FE-RC-228
+frontend/src/features/accounting/tax-breakdown.ts	FINDING:FE-RC-228
+frontend/src/features/accounting/types/index.ts	PASS
+frontend/src/features/aggregation/api/get-aggregations.test.tsx	PASS
+frontend/src/features/aggregation/api/get-aggregations.ts	PASS
+frontend/src/features/aggregation/api/get-cpm-stage-counts.test.tsx	PASS
+frontend/src/features/aggregation/api/get-cpm-stage-counts.ts	PASS
+frontend/src/features/aggregation/components/AggregationFilterPanel.test.tsx	PASS
+frontend/src/features/aggregation/components/AggregationFilterPanel.tsx	PASS
+frontend/src/features/aggregation/components/AggregationFilterPanelParts.tsx	PASS
+frontend/src/features/aggregation/components/AggregationOwnerTable.test.tsx	PASS
+frontend/src/features/aggregation/components/AggregationOwnerTable.tsx	PASS
+frontend/src/features/aggregation/components/AggregationOwnerTableColumns.tsx	PASS
+frontend/src/features/aggregation/components/CPMStageSummary.test.tsx	PASS
+frontend/src/features/aggregation/components/CPMStageSummary.tsx	PASS
+frontend/src/features/aggregation/components/aggregation-csv.test.ts	PASS
+frontend/src/features/aggregation/components/aggregation-csv.ts	FINDING:FE-RC-227
+frontend/src/features/aggregation/components/aggregation-filter-panel-model.ts	FINDING:FE-RC-227
+frontend/src/features/aggregation/index.ts	PASS
+frontend/src/features/aggregation/routes/AggregationDashboardPage.test.tsx	PASS
+frontend/src/features/aggregation/routes/AggregationDashboardPage.tsx	PASS
+frontend/src/features/aggregation/routes/AggregationDashboardPanels.tsx	PASS
+frontend/src/features/aggregation/routes/aggregation-dashboard-model.ts	PASS
+frontend/src/features/auth/api/forgot-password.ts	PASS
+frontend/src/features/auth/api/get-me.ts	PASS
+frontend/src/features/auth/api/login.ts	PASS
+frontend/src/features/auth/api/logout.test.ts	PASS
+frontend/src/features/auth/api/logout.ts	PASS
+frontend/src/features/auth/api/refresh-token.ts	PASS
+frontend/src/features/auth/api/reset-password.ts	PASS
+frontend/src/features/auth/api/transforms.test.ts	PASS
+frontend/src/features/auth/api/transforms.ts	PASS
+frontend/src/features/auth/components/AuthProvider.tsx	PASS
+frontend/src/features/auth/components/LoginForm.test.tsx	PASS
+frontend/src/features/auth/components/LoginForm.tsx	PASS
+frontend/src/features/auth/components/LoginFormSections.tsx	PASS
+frontend/src/features/auth/components/login-form.demo-guard.test.ts	PASS
+frontend/src/features/auth/hooks/use-auth-clinic-switch.test.tsx	PASS
+frontend/src/features/auth/hooks/use-auth-initial-session.test.tsx	PASS
+frontend/src/features/auth/index.ts	PASS
+frontend/src/features/auth/lib/show-demo-accounts.test.ts	PASS
+frontend/src/features/auth/lib/show-demo-accounts.ts	PASS
+frontend/src/features/auth/provider.ts	PASS
+frontend/src/features/auth/routes/ForgotPasswordPage.test.tsx	PASS
+frontend/src/features/auth/routes/ForgotPasswordPage.tsx	PASS
+frontend/src/features/auth/routes/Login.tsx	PASS
+frontend/src/features/auth/routes/ResetPasswordPage.test.tsx	PASS
+frontend/src/features/auth/routes/ResetPasswordPage.tsx	PASS
+frontend/src/features/auth/routes/ResetPasswordPageSections.tsx	PASS
+frontend/src/features/auth/types/index.ts	PASS
+frontend/src/features/cash-register/api/create-cash-register-close.ts	PASS
+frontend/src/features/cash-register/api/get-cash-register-closes.ts	PASS
+frontend/src/features/cash-register/api/get-cash-register-preview.ts	PASS
+frontend/src/features/cash-register/api/transforms.ts	PASS
+frontend/src/features/cash-register/category-breakdown.test.ts	FINDING:FE-RC-202
+frontend/src/features/cash-register/category-breakdown.ts	FINDING:FE-RC-202
+frontend/src/features/cash-register/closing-summary.test.ts	FINDING:FE-RC-202
+frontend/src/features/cash-register/closing-summary.ts	FINDING:FE-RC-202
+frontend/src/features/cash-register/components/BillingDetailTable.tsx	PASS
+frontend/src/features/cash-register/components/CashReconciliationCard.tsx	PASS
+frontend/src/features/cash-register/components/CashRegisterClosePanels.tsx	PASS
+frontend/src/features/cash-register/components/CashRegisterHistoryDetailDialog.tsx	PASS
+frontend/src/features/cash-register/components/CashRegisterHistoryFilters.tsx	PASS
+frontend/src/features/cash-register/components/CashRegisterHistoryTable.tsx	PASS
+frontend/src/features/cash-register/components/ClosePrintArea.test.tsx	PASS
+frontend/src/features/cash-register/components/ClosePrintArea.tsx	PASS
+frontend/src/features/cash-register/components/UnifiedClosingSummaryTable.test.tsx	PASS
+frontend/src/features/cash-register/components/UnifiedClosingSummaryTable.tsx	PASS
+frontend/src/features/cash-register/components/cash-register-history-model.ts	FINDING:FE-RC-227
+frontend/src/features/cash-register/constants.test.ts	FINDING:FE-RC-202
+frontend/src/features/cash-register/constants.ts	FINDING:FE-RC-202
+frontend/src/features/cash-register/hooks/use-cash-register-close-form.ts	PASS
+frontend/src/features/cash-register/index.ts	PASS
+frontend/src/features/cash-register/month-date-range.test.ts	FINDING:FE-RC-202
+frontend/src/features/cash-register/month-date-range.ts	FINDING:FE-RC-202
+frontend/src/features/cash-register/routes/CashRegisterClosePage.test.tsx	PASS
+frontend/src/features/cash-register/routes/CashRegisterClosePage.tsx	FINDING:FE-RC-221
+frontend/src/features/cash-register/routes/CashRegisterHistoryPage.test.tsx	PASS
+frontend/src/features/cash-register/routes/CashRegisterHistoryPage.tsx	PASS
+frontend/src/features/checkups/api/create-checkup-medical-record.ts	PASS
+frontend/src/features/checkups/api/get-checkup-type-fields.ts	PASS
+frontend/src/features/checkups/api/get-checkups.test.ts	PASS
+frontend/src/features/checkups/api/get-checkups.ts	PASS
+frontend/src/features/checkups/api/replace-checkup-field-results.ts	PASS
+frontend/src/features/checkups/api/transforms.test.ts	PASS
+frontend/src/features/checkups/api/transforms.ts	PASS
+frontend/src/features/checkups/api/types.ts	FINDING:FE-RC-226
+frontend/src/features/checkups/components/DynamicCheckupFields.tsx	PASS
+frontend/src/features/checkups/hooks/use-checkup-form-model.ts	PASS
+frontend/src/features/checkups/hooks/use-checkup-form.test.ts	PASS
+frontend/src/features/checkups/hooks/use-checkup-form.ts	PASS
+frontend/src/features/checkups/index.ts	PASS
+frontend/src/features/checkups/routes/CheckupForm.test.tsx	PASS
+frontend/src/features/checkups/routes/CheckupForm.tsx	PASS
+frontend/src/features/checkups/routes/CheckupFormPanels.tsx	PASS
+frontend/src/features/checkups/routes/CheckupPetSelection.tsx	PASS
+frontend/src/features/checkups/routes/CheckupsList.test.tsx	PASS
+frontend/src/features/checkups/routes/CheckupsList.tsx	PASS
+frontend/src/features/checkups/routes/CheckupsListPanels.tsx	PASS
+frontend/src/features/checkups/routes/checkup-form-model.ts	PASS
+frontend/src/features/checkups/routes/checkups-list-model.ts	FINDING:FE-RC-223
+frontend/src/features/clinic-settings/api/clinics.ts	PASS
+frontend/src/features/clinic-settings/api/transforms.test.ts	PASS
+frontend/src/features/clinic-settings/api/transforms.ts	PASS
+frontend/src/features/clinic-settings/components/ClinicDeleteDialog.tsx	PASS
+frontend/src/features/clinic-settings/components/ClinicMasterList.test.tsx	PASS
+frontend/src/features/clinic-settings/components/ClinicMasterList.tsx	PASS
+frontend/src/features/clinic-settings/components/ClinicMasterSettingsPanels.tsx	PASS
+frontend/src/features/clinic-settings/components/ClinicMasterSidePanel.tsx	PASS
+frontend/src/features/clinic-settings/components/ClinicMasterSidePanelProperties.tsx	PASS
+frontend/src/features/clinic-settings/components/CompanyInvoiceSection.test.tsx	PASS
+frontend/src/features/clinic-settings/components/CompanyInvoiceSection.tsx	PASS
+frontend/src/features/clinic-settings/components/clinic-master-settings-model.ts	FINDING:FE-RC-227
+frontend/src/features/clinic-settings/hooks/use-clinic-master-settings.test.tsx	PASS
+frontend/src/features/clinic-settings/hooks/use-clinic-master-settings.ts	PASS
+frontend/src/features/clinic-settings/index.ts	PASS
+frontend/src/features/clinic-settings/routes/ClinicMasterSettings.test.tsx	PASS
+frontend/src/features/clinic-settings/routes/ClinicMasterSettings.tsx	PASS
+frontend/src/features/closing-settings/api/get-closing-settings.ts	PASS
+frontend/src/features/closing-settings/api/holidays.ts	PASS
+frontend/src/features/closing-settings/api/special-periods.ts	PASS
+frontend/src/features/closing-settings/api/update-closing-settings.ts	PASS
+frontend/src/features/closing-settings/components/HolidaySection.test.tsx	PASS
+frontend/src/features/closing-settings/components/HolidaySection.tsx	FINDING:FE-RC-219
+frontend/src/features/closing-settings/components/SpecialPeriodSection.test.tsx	PASS
+frontend/src/features/closing-settings/components/SpecialPeriodSection.tsx	FINDING:FE-RC-219
+frontend/src/features/closing-settings/components/StandardClosingTimeSection.test.tsx	PASS
+frontend/src/features/closing-settings/components/StandardClosingTimeSection.tsx	FINDING:FE-RC-219
+frontend/src/features/closing-settings/index.ts	PASS
+frontend/src/features/closing-settings/lib/closing-time-ranges.test.ts	PASS
+frontend/src/features/closing-settings/lib/closing-time-ranges.ts	PASS
+frontend/src/features/closing-settings/routes/ClosingSettingsPage.tsx	FINDING:FE-RC-219
+frontend/src/features/estimates/api/create-estimate-successor.ts	PASS
+frontend/src/features/estimates/api/create-estimate.ts	PASS
+frontend/src/features/estimates/api/delete-estimate.ts	PASS
+frontend/src/features/estimates/api/get-estimate.ts	PASS
+frontend/src/features/estimates/api/get-estimates.ts	PASS
+frontend/src/features/estimates/api/transforms.test.ts	PASS
+frontend/src/features/estimates/api/transforms.ts	PASS
+frontend/src/features/estimates/api/types.ts	PASS
+frontend/src/features/estimates/api/update-estimate.ts	PASS
+frontend/src/features/estimates/components/EstimateFormSections.tsx	PASS
+frontend/src/features/estimates/components/EstimateLineItems/EstimateLineItems.test.tsx	PASS
+frontend/src/features/estimates/components/EstimateLineItems/EstimateLineItems.tsx	PASS
+frontend/src/features/estimates/components/EstimateStatusBadge/EstimateStatusBadge.tsx	PASS
+frontend/src/features/estimates/constants/estimate-status-options.test.ts	PASS
+frontend/src/features/estimates/constants/estimate-status-options.ts	PASS
+frontend/src/features/estimates/hooks/use-estimate-form.test.ts	PASS
+frontend/src/features/estimates/hooks/use-estimate-form.ts	PASS
+frontend/src/features/estimates/index.ts	PASS
+frontend/src/features/estimates/lib/is-estimate-locked-status.test.ts	PASS
+frontend/src/features/estimates/lib/is-estimate-locked-status.ts	PASS
+frontend/src/features/estimates/lib/should-offer-estimate-successor.test.ts	PASS
+frontend/src/features/estimates/lib/should-offer-estimate-successor.ts	PASS
+frontend/src/features/estimates/routes/EstimateDetail.test.tsx	PASS
+frontend/src/features/estimates/routes/EstimateDetail.tsx	PASS
+frontend/src/features/estimates/routes/EstimateDetailPanels.tsx	PASS
+frontend/src/features/estimates/routes/EstimateForm.test.tsx	PASS
+frontend/src/features/estimates/routes/EstimateForm.tsx	PASS
+frontend/src/features/estimates/routes/EstimateList.test.tsx	PASS
+frontend/src/features/estimates/routes/EstimateList.tsx	PASS
+frontend/src/features/estimates/routes/EstimateListPanels.tsx	PASS
+frontend/src/features/estimates/routes/estimate-list-model.ts	PASS
+frontend/src/features/estimates/types/index.ts	PASS
+frontend/src/features/examinations/api/create-examination.test.ts	PASS
+frontend/src/features/examinations/api/create-examination.ts	PASS
+frontend/src/features/examinations/api/delete-examination.ts	PASS
+frontend/src/features/examinations/api/get-exam-type-fields.ts	PASS
+frontend/src/features/examinations/api/get-examination-items.ts	PASS
+frontend/src/features/examinations/api/get-examination-print-snapshot.ts	PASS
+frontend/src/features/examinations/api/get-examination.ts	PASS
+frontend/src/features/examinations/api/get-examinations.ts	PASS
+frontend/src/features/examinations/api/transforms.test.ts	PASS
+frontend/src/features/examinations/api/transforms.ts	PASS
+frontend/src/features/examinations/api/types.ts	FINDING:FE-RC-226
+frontend/src/features/examinations/api/unconfirm-examination.test.tsx	PASS
+frontend/src/features/examinations/api/unconfirm-examination.ts	PASS
+frontend/src/features/examinations/api/update-examination-items.ts	PASS
+frontend/src/features/examinations/api/update-examination.ts	PASS
+frontend/src/features/examinations/components/ExamItemsTable.test.tsx	PASS
+frontend/src/features/examinations/components/ExamItemsTable.tsx	PASS
+frontend/src/features/examinations/components/ExamPivotTable.test.tsx	PASS
+frontend/src/features/examinations/components/ExamPivotTable.tsx	PASS
+frontend/src/features/examinations/components/ExamStatusBadge.test.tsx	PASS
+frontend/src/features/examinations/components/ExamStatusBadge.tsx	PASS
+frontend/src/features/examinations/components/ExaminationCard.tsx	PASS
+frontend/src/features/examinations/components/ExaminationFormFields.test.tsx	PASS
+frontend/src/features/examinations/components/ExaminationFormFields.tsx	PASS
+frontend/src/features/examinations/components/ExaminationFormHeader.tsx	PASS
+frontend/src/features/examinations/components/ExaminationFormStatusPage.tsx	PASS
+frontend/src/features/examinations/components/ExaminationHistoryPanel.test.tsx	PASS
+frontend/src/features/examinations/components/ExaminationHistoryPanel.tsx	PASS
+frontend/src/features/examinations/components/ExaminationPatientChangeDialog.test.tsx	PASS
+frontend/src/features/examinations/components/ExaminationPatientChangeDialog.tsx	PASS
+frontend/src/features/examinations/components/ExaminationPrintArea.test.tsx	PASS
+frontend/src/features/examinations/components/ExaminationPrintArea.tsx	PASS
+frontend/src/features/examinations/components/ExaminationUnconfirmDialog.test.tsx	PASS
+frontend/src/features/examinations/components/ExaminationUnconfirmDialog.tsx	PASS
+frontend/src/features/examinations/constants.ts	FINDING:FE-RC-203
+frontend/src/features/examinations/hooks/use-examination-form-actions.ts	PASS
+frontend/src/features/examinations/hooks/use-examination-form-helpers.ts	PASS
+frontend/src/features/examinations/hooks/use-examination-form-items.ts	PASS
+frontend/src/features/examinations/hooks/use-examination-form-load.ts	PASS
+frontend/src/features/examinations/hooks/use-examination-form-model.ts	PASS
+frontend/src/features/examinations/hooks/use-examination-form-overrides.ts	PASS
+frontend/src/features/examinations/hooks/use-examination-form-page-actions.ts	PASS
+frontend/src/features/examinations/hooks/use-examination-form-pet-sync.ts	PASS
+frontend/src/features/examinations/hooks/use-examination-form-save.ts	PASS
+frontend/src/features/examinations/hooks/use-examination-form.actions.test.ts	PASS
+frontend/src/features/examinations/hooks/use-examination-form.basic.test.ts	PASS
+frontend/src/features/examinations/hooks/use-examination-form.items-part1.test.ts	PASS
+frontend/src/features/examinations/hooks/use-examination-form.items-part2.test.ts	PASS
+frontend/src/features/examinations/hooks/use-examination-form.permissions.test.ts	PASS
+frontend/src/features/examinations/hooks/use-examination-form.ts	PASS
+frontend/src/features/examinations/hooks/use-examination-history-filters.ts	FINDING:FE-RC-223
+frontend/src/features/examinations/hooks/use-examination-records.test.ts	PASS
+frontend/src/features/examinations/hooks/use-examination-records.ts	FINDING:FE-RC-223
+frontend/src/features/examinations/index.ts	PASS
+frontend/src/features/examinations/lib/examination-lock.test.ts	PASS
+frontend/src/features/examinations/lib/examination-lock.ts	PASS
+frontend/src/features/examinations/lib/examination-print-model.ts	PASS
+frontend/src/features/examinations/routes/ExaminationForm.permissions.test.tsx	PASS
+frontend/src/features/examinations/routes/ExaminationForm.tsx	PASS
+frontend/src/features/examinations/routes/ExaminationForm.validation.test.tsx	PASS
+frontend/src/features/examinations/routes/ExaminationPetSelection.tsx	PASS
+frontend/src/features/examinations/routes/ExaminationsList.test.tsx	PASS
+frontend/src/features/examinations/routes/ExaminationsList.tsx	PASS
+frontend/src/features/examinations/routes/ExaminationsListPanels.tsx	PASS
+frontend/src/features/examinations/routes/examinations-list-model.test.ts	PASS
+frontend/src/features/examinations/routes/examinations-list-model.ts	PASS
+frontend/src/features/hospitalization/api/care-plan-items.test.ts	PASS
+frontend/src/features/hospitalization/api/care-plan-items.ts	PASS
+frontend/src/features/hospitalization/api/create-hospitalization.ts	PASS
+frontend/src/features/hospitalization/api/daily-records-types.ts	PASS
+frontend/src/features/hospitalization/api/daily-records.ts	PASS
+frontend/src/features/hospitalization/api/delete-hospitalization.ts	PASS
+frontend/src/features/hospitalization/api/discharge-with-billing.ts	PASS
+frontend/src/features/hospitalization/api/get-hospitalization.ts	PASS
+frontend/src/features/hospitalization/api/get-hospitalizations.test.ts	PASS
+frontend/src/features/hospitalization/api/get-hospitalizations.ts	PASS
+frontend/src/features/hospitalization/api/get-treatment-plans.test.tsx	PASS
+frontend/src/features/hospitalization/api/get-treatment-plans.ts	PASS
+frontend/src/features/hospitalization/api/transforms.test.ts	PASS
+frontend/src/features/hospitalization/api/transforms.ts	PASS
+frontend/src/features/hospitalization/api/treatment-plans-write.test.ts	PASS
+frontend/src/features/hospitalization/api/treatment-plans-write.ts	PASS
+frontend/src/features/hospitalization/api/types.ts	PASS
+frontend/src/features/hospitalization/api/update-hospitalization.ts	PASS
+frontend/src/features/hospitalization/components/CarePlanTab/AddForm.test.tsx	PASS
+frontend/src/features/hospitalization/components/CarePlanTab/AddForm.tsx	PASS
+frontend/src/features/hospitalization/components/CarePlanTab/CarePlanBadges.tsx	PASS
+frontend/src/features/hospitalization/components/CarePlanTab/CarePlanRefSelect.test.tsx	PASS
+frontend/src/features/hospitalization/components/CarePlanTab/CarePlanRefSelect.tsx	PASS
+frontend/src/features/hospitalization/components/CarePlanTab/CarePlanTab.deceased.test.tsx	PASS
+frontend/src/features/hospitalization/components/CarePlanTab/CarePlanTab.tsx	PASS
+frontend/src/features/hospitalization/components/CarePlanTab/EditRow.test.tsx	PASS
+frontend/src/features/hospitalization/components/CarePlanTab/EditRow.tsx	PASS
+frontend/src/features/hospitalization/components/CarePlanTab/ItemRow.test.tsx	PASS
+frontend/src/features/hospitalization/components/CarePlanTab/ItemRow.tsx	PASS
+frontend/src/features/hospitalization/components/CarePlanTab/care-plan-item-model.ts	FINDING:FE-RC-227
+frontend/src/features/hospitalization/components/DailyRecordsTab/DailyCareLogsSection.tsx	PASS
+frontend/src/features/hospitalization/components/DailyRecordsTab/DailyDateNav.tsx	PASS
+frontend/src/features/hospitalization/components/DailyRecordsTab/DailyRecordsTab.deceased.test.tsx	PASS
+frontend/src/features/hospitalization/components/DailyRecordsTab/DailyRecordsTab.permissions.test.tsx	PASS
+frontend/src/features/hospitalization/components/DailyRecordsTab/DailyRecordsTab.test.tsx	PASS
+frontend/src/features/hospitalization/components/DailyRecordsTab/DailyRecordsTab.tsx	PASS
+frontend/src/features/hospitalization/components/DailyRecordsTab/DailyStaffNotesSection.tsx	PASS
+frontend/src/features/hospitalization/components/DailyRecordsTab/DailyVitalsSection.test.tsx	PASS
+frontend/src/features/hospitalization/components/DailyRecordsTab/DailyVitalsSection.tsx	PASS
+frontend/src/features/hospitalization/components/DischargeAlertDialog.tsx	PASS
+frontend/src/features/hospitalization/components/HospitalizationBasicInfo.tsx	PASS
+frontend/src/features/hospitalization/components/HospitalizationBoard.test.tsx	PASS
+frontend/src/features/hospitalization/components/HospitalizationBoard.tsx	PASS
+frontend/src/features/hospitalization/components/HospitalizationCostSummary.test.tsx	PASS
+frontend/src/features/hospitalization/components/HospitalizationCostSummary.tsx	PASS
+frontend/src/features/hospitalization/components/HospitalizationDetailActions.checkin.test.tsx	PASS
+frontend/src/features/hospitalization/components/HospitalizationDetailActions.tsx	PASS
+frontend/src/features/hospitalization/components/HospitalizationExpandedView.tsx	PASS
+frontend/src/features/hospitalization/components/HospitalizationListView.test.tsx	PASS
+frontend/src/features/hospitalization/components/HospitalizationListView.tsx	PASS
+frontend/src/features/hospitalization/components/HospitalizationNoteCard.tsx	PASS
+frontend/src/features/hospitalization/components/HospitalizationPatientHeader.test.tsx	PASS
+frontend/src/features/hospitalization/components/HospitalizationPatientHeader.tsx	PASS
+frontend/src/features/hospitalization/components/HospitalizationTabbedView.tsx	PASS
+frontend/src/features/hospitalization/components/HospitalizationTreatmentTable.test.tsx	PASS
+frontend/src/features/hospitalization/components/HospitalizationTreatmentTable.tsx	PASS
+frontend/src/features/hospitalization/constants/index.ts	PASS
+frontend/src/features/hospitalization/hooks/use-hospitalization-detail.test.tsx	PASS
+frontend/src/features/hospitalization/hooks/use-hospitalization-detail.ts	PASS
+frontend/src/features/hospitalization/hooks/use-hospitalization-form-chrome.ts	PASS
+frontend/src/features/hospitalization/hooks/use-hospitalization-form-helpers.ts	PASS
+frontend/src/features/hospitalization/hooks/use-hospitalization-form-model.test.ts	PASS
+frontend/src/features/hospitalization/hooks/use-hospitalization-form-model.ts	PASS
+frontend/src/features/hospitalization/hooks/use-hospitalization-form.core.test.ts	PASS
+frontend/src/features/hospitalization/hooks/use-hospitalization-form.treatment-plans.test.ts	PASS
+frontend/src/features/hospitalization/hooks/use-hospitalization-form.ts	PASS
+frontend/src/features/hospitalization/hooks/use-hospitalization-list.test.ts	PASS
+frontend/src/features/hospitalization/hooks/use-hospitalization-list.ts	PASS
+frontend/src/features/hospitalization/index.ts	PASS
+frontend/src/features/hospitalization/lib/cage-keyboard-coordinates.test.ts	PASS
+frontend/src/features/hospitalization/lib/cage-keyboard-coordinates.ts	PASS
+frontend/src/features/hospitalization/lib/styles.ts	PASS
+frontend/src/features/hospitalization/routes/HospitalizationDetail.test.tsx	PASS
+frontend/src/features/hospitalization/routes/HospitalizationDetail.tsx	PASS
+frontend/src/features/hospitalization/routes/HospitalizationForm.permissions.test.tsx	PASS
+frontend/src/features/hospitalization/routes/HospitalizationForm.tsx	PASS
+frontend/src/features/hospitalization/routes/HospitalizationFormBody.tsx	PASS
+frontend/src/features/hospitalization/routes/HospitalizationFormFields.tsx	PASS
+frontend/src/features/hospitalization/routes/HospitalizationFormHeaderExtra.tsx	PASS
+frontend/src/features/hospitalization/routes/HospitalizationFormStatusView.tsx	PASS
+frontend/src/features/hospitalization/routes/HospitalizationList.test.tsx	PASS
+frontend/src/features/hospitalization/routes/HospitalizationList.tsx	PASS
+frontend/src/features/hospitalization/routes/HospitalizationListPanels.tsx	PASS
+frontend/src/features/hospitalization/routes/HospitalizationPetSelection.tsx	PASS
+frontend/src/features/hospitalization/routes/hospitalization-form-model.ts	PASS
+frontend/src/features/hospitalization/routes/hospitalization-form-panels.ts	PASS
+frontend/src/features/hospitalization/routes/hospitalization-list-model.ts	PASS
+frontend/src/features/hospitalization/types/index.ts	PASS
+frontend/src/features/identity-links/api/identity-links-api.test.ts	PASS
+frontend/src/features/identity-links/api/identity-links-api.ts	PASS
+frontend/src/features/identity-links/components/OwnerLinkSection.tsx	PASS
+frontend/src/features/identity-links/components/PetLinkSection.tsx	PASS
+frontend/src/features/identity-links/hooks/use-identity-group-lookup.test.tsx	PASS
+frontend/src/features/identity-links/hooks/use-identity-group-lookup.ts	PASS
+frontend/src/features/identity-links/hooks/use-identity-link-mutations.test.tsx	PASS
+frontend/src/features/identity-links/hooks/use-identity-link-mutations.ts	PASS
+frontend/src/features/identity-links/hooks/use-identity-link-search.test.tsx	PASS
+frontend/src/features/identity-links/hooks/use-identity-link-search.ts	PASS
+frontend/src/features/identity-links/hooks/use-identity-links-workbench.ts	FINDING:FE-RC-205
+frontend/src/features/identity-links/index.ts	PASS
+frontend/src/features/identity-links/routes/IdentityLinksPage.test.tsx	PASS
+frontend/src/features/identity-links/routes/IdentityLinksPage.tsx	PASS
+frontend/src/features/inventory/api/inventory.test.tsx	PASS
+frontend/src/features/inventory/api/inventory.ts	PASS
+frontend/src/features/inventory/api/types.ts	FINDING:FE-RC-226
+frontend/src/features/inventory/components/InventoryFormSections.test.tsx	PASS
+frontend/src/features/inventory/components/InventoryFormSections.tsx	PASS
+frontend/src/features/inventory/hooks/use-inventory-form-model.ts	PASS
+frontend/src/features/inventory/hooks/use-inventory-form.test.ts	PASS
+frontend/src/features/inventory/hooks/use-inventory-form.ts	FINDING:FE-RC-220
+frontend/src/features/inventory/hooks/use-inventory.test.ts	PASS
+frontend/src/features/inventory/hooks/use-inventory.ts	FINDING:FE-RC-223
+frontend/src/features/inventory/index.ts	PASS
+frontend/src/features/inventory/routes/InventoryForm.test.tsx	PASS
+frontend/src/features/inventory/routes/InventoryForm.tsx	FINDING:FE-RC-220
+frontend/src/features/inventory/routes/InventoryFormPanels.tsx	PASS
+frontend/src/features/inventory/routes/InventoryList.test.tsx	PASS
+frontend/src/features/inventory/routes/InventoryList.tsx	PASS
+frontend/src/features/inventory/routes/InventoryListPanels.tsx	PASS
+frontend/src/features/inventory/routes/inventory-form-model.ts	PASS
+frontend/src/features/inventory/routes/inventory-list-model.ts	PASS
+frontend/src/features/lab-device/api/lab-device.test.ts	PASS
+frontend/src/features/lab-device/api/lab-device.ts	PASS
+frontend/src/features/lab-device/components/LabDeviceBoardCards.tsx	FINDING:FE-RC-222
+frontend/src/features/lab-device/hooks/use-lab-device-agent-listen.test.tsx	PASS
+frontend/src/features/lab-device/hooks/use-lab-device-agent-listen.ts	PASS
+frontend/src/features/lab-device/index.ts	PASS
+frontend/src/features/lab-device/lib/lab-device-agent.test.ts	PASS
+frontend/src/features/lab-device/lib/lab-device-agent.ts	PASS
+frontend/src/features/lab-device/lib/lab-device-board-model.test.ts	PASS
+frontend/src/features/lab-device/lib/lab-device-board-model.ts	PASS
+frontend/src/features/lab-device/lib/lab-device-serial.test.ts	PASS
+frontend/src/features/lab-device/lib/lab-device-serial.ts	PASS
+frontend/src/features/lab-device/routes/LabDeviceBoard.tsx	FINDING:FE-RC-222
+frontend/src/features/lab-device/routes/LabDeviceBoardPanels.tsx	PASS
+frontend/src/features/line-reservation/api/get-line-customers.ts	PASS
+frontend/src/features/line-reservation/api/get-line-reservation-setting.ts	PASS
+frontend/src/features/line-reservation/api/types.ts	PASS
+frontend/src/features/line-reservation/api/update-line-reservation-setting.ts	PASS
+frontend/src/features/line-reservation/api/update-owner-link.ts	PASS
+frontend/src/features/line-reservation/components/LineReservationSettingsForm.test.tsx	PASS
+frontend/src/features/line-reservation/components/LineReservationSettingsForm.tsx	FINDING:FE-RC-210
+frontend/src/features/line-reservation/components/LineReservationSettingsFormSections.test.tsx	PASS
+frontend/src/features/line-reservation/components/LineReservationSettingsFormSections.tsx	PASS
+frontend/src/features/line-reservation/components/LinkedLineCustomers.tsx	FINDING:FE-RC-212
+frontend/src/features/line-reservation/components/line-reservation-settings-form-model.test.ts	PASS
+frontend/src/features/line-reservation/components/line-reservation-settings-form-model.ts	FINDING:FE-RC-227
+frontend/src/features/line-reservation/index.ts	PASS
+frontend/src/features/line-reservation/routes/LineReservationPageEditor.tsx	FINDING:FE-RC-211
+frontend/src/features/line-reservation/routes/LineReservationSettings.tsx	PASS
+frontend/src/features/lstep/api/create-checkup-sync.ts	PASS
+frontend/src/features/lstep/api/delete-owner-tag-bulk.ts	PASS
+frontend/src/features/lstep/api/get-checkup-sync-preview.ts	PASS
+frontend/src/features/lstep/api/get-lstep-csv-imports.ts	PASS
+frontend/src/features/lstep/api/get-lstep-delivery-stats.ts	PASS
+frontend/src/features/lstep/api/get-lstep-delivery-trigger-logs.ts	PASS
+frontend/src/features/lstep/api/get-lstep-delivery-trigger-summary.ts	PASS
+frontend/src/features/lstep/api/get-lstep-tag-owners.ts	PASS
+frontend/src/features/lstep/api/get-lstep-tag-summary.ts	PASS
+frontend/src/features/lstep/api/get-lstep-visit-conversion.ts	PASS
+frontend/src/features/lstep/api/upload-friend-attributes-csv.ts	PASS
+frontend/src/features/lstep/components/BulkTagRemoveDialog.tsx	FINDING:FE-RC-209
+frontend/src/features/lstep/components/CheckupSyncConfirmDialog.tsx	PASS
+frontend/src/features/lstep/components/CheckupSyncFilterForm.tsx	PASS
+frontend/src/features/lstep/components/CheckupSyncPreviewTable.test.tsx	PASS
+frontend/src/features/lstep/components/CheckupSyncPreviewTable.tsx	PASS
+frontend/src/features/lstep/components/LstepAnalyticsSections.tsx	PASS
+frontend/src/features/lstep/components/LstepCsvImportSection.tsx	PASS
+frontend/src/features/lstep/components/LstepDeliveryStatsSection.tsx	PASS
+frontend/src/features/lstep/components/LstepVisitConversionSection.tsx	PASS
+frontend/src/features/lstep/components/TagOwnerListDrawer.tsx	PASS
+frontend/src/features/lstep/components/TagSummaryTable.tsx	PASS
+frontend/src/features/lstep/components/lstep-analytics-model.ts	FINDING:FE-RC-227
+frontend/src/features/lstep/constants/trigger-types.ts	PASS
+frontend/src/features/lstep/index.ts	PASS
+frontend/src/features/lstep/routes/CheckupSyncPage.test.tsx	PASS
+frontend/src/features/lstep/routes/CheckupSyncPage.tsx	FINDING:FE-RC-208
+frontend/src/features/lstep/routes/LstepAnalyticsPage.test.tsx	PASS
+frontend/src/features/lstep/routes/LstepAnalyticsPage.tsx	PASS
+frontend/src/features/lstep/routes/LstepDeliveryMonitorLogsTable.tsx	PASS
+frontend/src/features/lstep/routes/LstepDeliveryMonitorPage.test.tsx	PASS
+frontend/src/features/lstep/routes/LstepDeliveryMonitorPage.tsx	PASS
+frontend/src/features/lstep/routes/LstepDeliveryMonitorPageParts.tsx	PASS
+frontend/src/features/lstep/routes/LstepTagManagementPage.test.tsx	PASS
+frontend/src/features/lstep/routes/LstepTagManagementPage.tsx	PASS
+frontend/src/features/lstep/routes/lstep-delivery-monitor-page-model.ts	PASS
+frontend/src/features/manual/CLAUDE.md	EXCLUDE:documentation
+frontend/src/features/manual/api/get-manual-articles.test.tsx	PASS
+frontend/src/features/manual/api/get-manual-articles.ts	PASS
+frontend/src/features/manual/api/upsert-manual-article.ts	PASS
+frontend/src/features/manual/components/ManualContent.tsx	PASS
+frontend/src/features/manual/components/ManualEditor.tsx	FINDING:FE-RC-213
+frontend/src/features/manual/components/ManualPageChrome.tsx	PASS
+frontend/src/features/manual/components/ManualSidebar.test.tsx	PASS
+frontend/src/features/manual/components/ManualSidebar.tsx	PASS
+frontend/src/features/manual/components/manual-content.test.ts	PASS
+frontend/src/features/manual/content/images/01-login.png	PASS
+frontend/src/features/manual/content/images/02-reception.png	PASS
+frontend/src/features/manual/content/images/03-owners.png	PASS
+frontend/src/features/manual/content/images/04-medical-records.png	PASS
+frontend/src/features/manual/content/images/05-accounting.png	PASS
+frontend/src/features/manual/content/images/06-reservations.png	PASS
+frontend/src/features/manual/content/images/07-examinations.png	PASS
+frontend/src/features/manual/content/images/08-vaccinations.png	PASS
+frontend/src/features/manual/content/images/09-hospitalization.png	PASS
+frontend/src/features/manual/content/images/10-trimming.png	PASS
+frontend/src/features/manual/content/images/11-checkups.png	PASS
+frontend/src/features/manual/content/images/12-inventory.png	PASS
+frontend/src/features/manual/content/images/13-cash-register.png	PASS
+frontend/src/features/manual/content/images/14-accounting-reports.png	PASS
+frontend/src/features/manual/content/images/15-shifts.png	PASS
+frontend/src/features/manual/content/images/16-line-reservation.png	PASS
+frontend/src/features/manual/content/images/17-lstep.png	PASS
+frontend/src/features/manual/content/images/18-master-settings.png	PASS
+frontend/src/features/manual/content/images/19-aggregation.png	PASS
+frontend/src/features/manual/content/images/20-estimates.png	PASS
+frontend/src/features/manual/content/images/_screenshot-cash-register-final.png	PASS
+frontend/src/features/manual/content/images/_screenshot-cash-register-with-image.png	PASS
+frontend/src/features/manual/content/images/_screenshot-editor-mode.png	PASS
+frontend/src/features/manual/content/images/_screenshot-manual-desktop-final.png	PASS
+frontend/src/features/manual/content/images/_screenshot-manual-mobile-closed.png	PASS
+frontend/src/features/manual/content/images/_screenshot-manual-mobile-fixed.png	PASS
+frontend/src/features/manual/content/images/_screenshot-manual-mobile.png	PASS
+frontend/src/features/manual/content/images/_screenshot-manual-overview.png	PASS
+frontend/src/features/manual/content/images/_screenshot-manual-reception-workflow.png	PASS
+frontend/src/features/manual/content/images/_screenshot-overview-final.png	PASS
+frontend/src/features/manual/content/screens/00-overview.md	EXCLUDE:documentation
+frontend/src/features/manual/content/screens/01-login.md	EXCLUDE:documentation
+frontend/src/features/manual/content/screens/02-reception.md	EXCLUDE:documentation
+frontend/src/features/manual/content/screens/03-owners.md	EXCLUDE:documentation
+frontend/src/features/manual/content/screens/04-medical-records.md	EXCLUDE:documentation
+frontend/src/features/manual/content/screens/05-accounting.md	EXCLUDE:documentation
+frontend/src/features/manual/content/screens/06-reservations.md	EXCLUDE:documentation
+frontend/src/features/manual/content/screens/07-examinations.md	EXCLUDE:documentation
+frontend/src/features/manual/content/screens/08-vaccinations.md	EXCLUDE:documentation
+frontend/src/features/manual/content/screens/09-hospitalization.md	EXCLUDE:documentation
+frontend/src/features/manual/content/screens/10-trimming.md	EXCLUDE:documentation
+frontend/src/features/manual/content/screens/11-checkups.md	EXCLUDE:documentation
+frontend/src/features/manual/content/screens/12-inventory.md	EXCLUDE:documentation
+frontend/src/features/manual/content/screens/13-cash-register.md	EXCLUDE:documentation
+frontend/src/features/manual/content/screens/14-accounting-reports.md	EXCLUDE:documentation
+frontend/src/features/manual/content/screens/15-shifts.md	EXCLUDE:documentation
+frontend/src/features/manual/content/screens/16-line-reservation.md	EXCLUDE:documentation
+frontend/src/features/manual/content/screens/17-lstep.md	EXCLUDE:documentation
+frontend/src/features/manual/content/screens/18-master-settings.md	EXCLUDE:documentation
+frontend/src/features/manual/content/screens/19-aggregation.md	EXCLUDE:documentation
+frontend/src/features/manual/content/screens/20-estimates.md	EXCLUDE:documentation
+frontend/src/features/manual/content/screens/21-common-dialogs.md	EXCLUDE:documentation
+frontend/src/features/manual/content/screens/22-master-treatment.md	EXCLUDE:documentation
+frontend/src/features/manual/content/screens/23-master-medicine.md	EXCLUDE:documentation
+frontend/src/features/manual/content/screens/24-master-permission.md	EXCLUDE:documentation
+frontend/src/features/manual/content/screens/25-master-staff.md	EXCLUDE:documentation
+frontend/src/features/manual/content/screens/26-master-cage.md	EXCLUDE:documentation
+frontend/src/features/manual/content/screens/27-master-shift-template.md	EXCLUDE:documentation
+frontend/src/features/manual/content/screens/28-master-closing-time.md	EXCLUDE:documentation
+frontend/src/features/manual/content/screens/29-master-insurance.md	EXCLUDE:documentation
+frontend/src/features/manual/content/screens/30-master-merchandise.md	EXCLUDE:documentation
+frontend/src/features/manual/content/screens/31-master-payment-methods.md	EXCLUDE:documentation
+frontend/src/features/manual/content/screens/32-master-hospitalization-plan.md	EXCLUDE:documentation
+frontend/src/features/manual/content/screens/33-master-reservation-type.md	EXCLUDE:documentation
+frontend/src/features/manual/content/screens/34-master-animal-species.md	EXCLUDE:documentation
+frontend/src/features/manual/content/screens/35-master-occupation.md	EXCLUDE:documentation
+frontend/src/features/manual/content/screens/36-master-diagnosis.md	EXCLUDE:documentation
+frontend/src/features/manual/content/screens/37-master-interview.md	EXCLUDE:documentation
+frontend/src/features/manual/content/screens/38-master-chief-complaint.md	EXCLUDE:documentation
+frontend/src/features/manual/content/screens/39-master-trimming.md	EXCLUDE:documentation
+frontend/src/features/manual/content/screens/40-automation-rules.md	EXCLUDE:documentation
+frontend/src/features/manual/content/workflows/01-new-owner-first-visit.md	EXCLUDE:documentation
+frontend/src/features/manual/content/workflows/02-existing-owner-visit.md	EXCLUDE:documentation
+frontend/src/features/manual/content/workflows/03-hospitalization-flow.md	EXCLUDE:documentation
+frontend/src/features/manual/content/workflows/04-daily-closing.md	EXCLUDE:documentation
+frontend/src/features/manual/content/workflows/05-monthly-closing.md	EXCLUDE:documentation
+frontend/src/features/manual/content/workflows/06-vaccination-reminder.md	EXCLUDE:documentation
+frontend/src/features/manual/content/workflows/07-line-lstep-flow.md	EXCLUDE:documentation
+frontend/src/features/manual/content/workflows/08-inventory-management.md	EXCLUDE:documentation
+frontend/src/features/manual/content/workflows/09-staff-onboarding.md	EXCLUDE:documentation
+frontend/src/features/manual/content/workflows/10-troubleshooting.md	EXCLUDE:documentation
+frontend/src/features/manual/content/workflows/11-reception-daily-flow.md	EXCLUDE:documentation
+frontend/src/features/manual/content/workflows/12-phone-handling.md	EXCLUDE:documentation
+frontend/src/features/manual/content/workflows/13-accounting-refund.md	EXCLUDE:documentation
+frontend/src/features/manual/content/workflows/14-walk-in-urgent.md	EXCLUDE:documentation
+frontend/src/features/manual/content/workflows/15-multiple-pets-visit.md	EXCLUDE:documentation
+frontend/src/features/manual/content/workflows/16-service-only-visit.md	EXCLUDE:documentation
+frontend/src/features/manual/content/workflows/17-post-payment-purchase.md	EXCLUDE:documentation
+frontend/src/features/manual/content/workflows/18-unpaid-management.md	EXCLUDE:documentation
+frontend/src/features/manual/content/workflows/19-pet-deceased.md	EXCLUDE:documentation
+frontend/src/features/manual/content/workflows/20-security-multi-clinic.md	EXCLUDE:documentation
+frontend/src/features/manual/content/workflows/21-new-staff-day-one.md	EXCLUDE:documentation
+frontend/src/features/manual/content/workflows/22-audit-log.md	EXCLUDE:documentation
+frontend/src/features/manual/content/workflows/23-data-retention.md	EXCLUDE:documentation
+frontend/src/features/manual/content/workflows/24-system-outage-bcp.md	EXCLUDE:documentation
+frontend/src/features/manual/content/workflows/25-owner-inquiry-faq.md	EXCLUDE:documentation
+frontend/src/features/manual/content/workflows/26-efficiency-tips.md	EXCLUDE:documentation
+frontend/src/features/manual/content/workflows/27-manual-edit-request.md	EXCLUDE:documentation
+frontend/src/features/manual/hooks/use-manual-search.ts	PASS
+frontend/src/features/manual/index.ts	PASS
+frontend/src/features/manual/lib/manual-index.ts	PASS
+frontend/src/features/manual/lib/parse-frontmatter.test.ts	PASS
+frontend/src/features/manual/manual-print.css	PASS
+frontend/src/features/manual/routes/ManualPage.test.tsx	PASS
+frontend/src/features/manual/routes/ManualPage.tsx	PASS
+frontend/src/features/master/PATTERNS.md	EXCLUDE:documentation
+frontend/src/features/master/api/animal-species.ts	PASS
+frontend/src/features/master/api/cages.ts	PASS
+frontend/src/features/master/api/campaign.ts	PASS
+frontend/src/features/master/api/checkup-types.ts	PASS
+frontend/src/features/master/api/chief-complaint-types.ts	PASS
+frontend/src/features/master/api/consultations.ts	PASS
+frontend/src/features/master/api/diagnosis.ts	PASS
+frontend/src/features/master/api/exam-types-master.test.ts	PASS
+frontend/src/features/master/api/exam-types-master.ts	PASS
+frontend/src/features/master/api/hospitalization-plans.ts	PASS
+frontend/src/features/master/api/inquiry-templates.ts	PASS
+frontend/src/features/master/api/insurances.ts	PASS
+frontend/src/features/master/api/lab-device-item-masters.ts	PASS
+frontend/src/features/master/api/lab-devices.ts	PASS
+frontend/src/features/master/api/medicine-dose-params.ts	PASS
+frontend/src/features/master/api/medicines.ts	PASS
+frontend/src/features/master/api/merchandise-items.ts	PASS
+frontend/src/features/master/api/occupations.ts	PASS
+frontend/src/features/master/api/payment-method-master.ts	PASS
+frontend/src/features/master/api/permission-groups.ts	PASS
+frontend/src/features/master/api/procedures.ts	PASS
+frontend/src/features/master/api/reservation-type-available-slots.ts	PASS
+frontend/src/features/master/api/reservation-type-groups.ts	PASS
+frontend/src/features/master/api/reservation-type-occupations.ts	PASS
+frontend/src/features/master/api/reservation-type-unavailable-times.ts	PASS
+frontend/src/features/master/api/reservation-types.test.ts	PASS
+frontend/src/features/master/api/reservation-types.ts	PASS
+frontend/src/features/master/api/staff-clinics.ts	PASS
+frontend/src/features/master/api/staff-permission-groups.test.ts	PASS
+frontend/src/features/master/api/staff-permission-groups.ts	PASS
+frontend/src/features/master/api/staff-reservation-types.ts	PASS
+frontend/src/features/master/api/staffs.test.ts	PASS
+frontend/src/features/master/api/staffs.ts	PASS
+frontend/src/features/master/api/trimming-active.test.ts	PASS
+frontend/src/features/master/api/trimming-course-type.ts	PASS
+frontend/src/features/master/api/trimming.ts	PASS
+frontend/src/features/master/api/vaccines-master.ts	PASS
+frontend/src/features/master/components/AnimalSpeciesSidePanel.tsx	PASS
+frontend/src/features/master/components/AnimalSpeciesSortableTable.tsx	PASS
+frontend/src/features/master/components/AvailableSlotOptions.tsx	PASS
+frontend/src/features/master/components/CageRowOverlay.tsx	PASS
+frontend/src/features/master/components/CageSidePanel.tsx	PASS
+frontend/src/features/master/components/CageSortableTable.tsx	PASS
+frontend/src/features/master/components/CampaignSidePanel.test.tsx	PASS
+frontend/src/features/master/components/CampaignSidePanel.tsx	PASS
+frontend/src/features/master/components/ChiefComplaintSidePanel.tsx	PASS
+frontend/src/features/master/components/DayOfWeekSelectItems.tsx	PASS
+frontend/src/features/master/components/DiagnosisDeleteDialogs.tsx	PASS
+frontend/src/features/master/components/DiagnosisNameSidePanel.tsx	PASS
+frontend/src/features/master/components/DiagnosisSettingsSidePanels.tsx	PASS
+frontend/src/features/master/components/DiagnosisSortableTable.tsx	PASS
+frontend/src/features/master/components/DiagnosisTabRows.tsx	PASS
+frontend/src/features/master/components/DiagnosisTabs.test.tsx	PASS
+frontend/src/features/master/components/DiagnosisTabs.tsx	PASS
+frontend/src/features/master/components/DiagnosisTypeSidePanel.tsx	PASS
+frontend/src/features/master/components/ExamTypeFieldDraftPanel.tsx	PASS
+frontend/src/features/master/components/ExamTypeFieldEditors.tsx	PASS
+frontend/src/features/master/components/ExamTypeFieldsEditor.test.tsx	PASS
+frontend/src/features/master/components/ExamTypeFieldsEditor.tsx	PASS
+frontend/src/features/master/components/ExamTypeFieldsTable.tsx	PASS
+frontend/src/features/master/components/HospitalizationSidePanel.tsx	PASS
+frontend/src/features/master/components/InsuranceSidePanel.tsx	PASS
+frontend/src/features/master/components/InterviewTemplateSidePanel.tsx	PASS
+frontend/src/features/master/components/LabDeviceItemMasterSidePanel.tsx	PASS
+frontend/src/features/master/components/MasterCRUDPage.test.tsx	PASS
+frontend/src/features/master/components/MasterCRUDPage.tsx	PASS
+frontend/src/features/master/components/MasterListPage.tsx	PASS
+frontend/src/features/master/components/MasterPageShell.tsx	PASS
+frontend/src/features/master/components/MasterTabPage.tsx	PASS
+frontend/src/features/master/components/MedicineDeleteDialog.tsx	PASS
+frontend/src/features/master/components/MedicineDoseParamsEditor.tsx	PASS
+frontend/src/features/master/components/MedicineSidePanel.tsx	PASS
+frontend/src/features/master/components/MedicineSidePanelBody.tsx	PASS
+frontend/src/features/master/components/MedicineSidePanelSections.tsx	PASS
+frontend/src/features/master/components/MedicineTable.tsx	PASS
+frontend/src/features/master/components/MedicineTableRows.test.tsx	PASS
+frontend/src/features/master/components/MedicineTableRows.tsx	PASS
+frontend/src/features/master/components/MedicineTableSection.tsx	PASS
+frontend/src/features/master/components/MerchandiseRowOverlay.tsx	PASS
+frontend/src/features/master/components/MerchandiseSidePanel.tsx	PASS
+frontend/src/features/master/components/MerchandiseSortableTable.tsx	PASS
+frontend/src/features/master/components/OccupationSidePanel.tsx	PASS
+frontend/src/features/master/components/PaymentMethodSidePanel.tsx	PASS
+frontend/src/features/master/components/PermissionGroupSidePanel.test.tsx	PASS
+frontend/src/features/master/components/PermissionGroupSidePanel.tsx	PASS
+frontend/src/features/master/components/PermissionGroupSortableTable.tsx	PASS
+frontend/src/features/master/components/PermissionRuleTable.tsx	PASS
+frontend/src/features/master/components/PermissionRuleTableRow.test.tsx	PASS
+frontend/src/features/master/components/PermissionRuleTableRow.tsx	PASS
+frontend/src/features/master/components/ReservationTypeAvailableSlotsCalendar.test.tsx	PASS
+frontend/src/features/master/components/ReservationTypeAvailableSlotsCalendar.tsx	PASS
+frontend/src/features/master/components/ReservationTypeAvailableSlotsSection.test.tsx	PASS
+frontend/src/features/master/components/ReservationTypeAvailableSlotsSection.tsx	PASS
+frontend/src/features/master/components/ReservationTypeDeleteDialogs.tsx	PASS
+frontend/src/features/master/components/ReservationTypeGroupSidePanel.tsx	PASS
+frontend/src/features/master/components/ReservationTypeGroupedTable.test.tsx	PASS
+frontend/src/features/master/components/ReservationTypeGroupedTable.tsx	PASS
+frontend/src/features/master/components/ReservationTypeGroupedTableBody.tsx	PASS
+frontend/src/features/master/components/ReservationTypeGroupedTableRows.test.tsx	PASS
+frontend/src/features/master/components/ReservationTypeGroupedTableRows.tsx	PASS
+frontend/src/features/master/components/ReservationTypeOccupationsSection.tsx	PASS
+frontend/src/features/master/components/ReservationTypeSettingsContent.test.tsx	PASS
+frontend/src/features/master/components/ReservationTypeSettingsContent.tsx	PASS
+frontend/src/features/master/components/ReservationTypeSettingsSidePanels.tsx	PASS
+frontend/src/features/master/components/ReservationTypeSidePanel.test.tsx	PASS
+frontend/src/features/master/components/ReservationTypeSidePanel.tsx	PASS
+frontend/src/features/master/components/ReservationTypeTree.test.tsx	PASS
+frontend/src/features/master/components/ReservationTypeTree.tsx	PASS
+frontend/src/features/master/components/ReservationTypeUnavailableTimesSection.tsx	PASS
+frontend/src/features/master/components/StaffBasicInfoSection.tsx	PASS
+frontend/src/features/master/components/StaffCheckboxSection.tsx	PASS
+frontend/src/features/master/components/StaffLineReservationSection.tsx	PASS
+frontend/src/features/master/components/StaffSettingsRow.tsx	PASS
+frontend/src/features/master/components/StaffSidePanel.tsx	PASS
+frontend/src/features/master/components/StaffSidePanelSections.test.tsx	PASS
+frontend/src/features/master/components/StaffSidePanelSections.tsx	PASS
+frontend/src/features/master/components/TreatmentItemSidePanel.test.tsx	PASS
+frontend/src/features/master/components/TreatmentItemSidePanel.tsx	PASS
+frontend/src/features/master/components/TreatmentPlanDeleteDialog.tsx	PASS
+frontend/src/features/master/components/TreatmentPlanRows.test.tsx	PASS
+frontend/src/features/master/components/TreatmentPlanRows.tsx	PASS
+frontend/src/features/master/components/TreatmentPlanSidePanelHost.test.tsx	PASS
+frontend/src/features/master/components/TreatmentPlanSidePanelHost.tsx	PASS
+frontend/src/features/master/components/TreatmentPlanTabContent.test.tsx	PASS
+frontend/src/features/master/components/TreatmentPlanTabContent.tsx	PASS
+frontend/src/features/master/components/TrimmingCourseSidePanel.tsx	PASS
+frontend/src/features/master/components/TrimmingCourseTypeSidePanel.tsx	PASS
+frontend/src/features/master/components/TrimmingDeleteDialogs.tsx	PASS
+frontend/src/features/master/components/TrimmingOptionSidePanel.tsx	PASS
+frontend/src/features/master/components/TrimmingSettingsSidePanels.tsx	PASS
+frontend/src/features/master/components/TrimmingTabRows.tsx	PASS
+frontend/src/features/master/components/TrimmingTabs.tsx	PASS
+frontend/src/features/master/components/animal-species-side-panel-model.ts	FINDING:FE-RC-227
+frontend/src/features/master/components/cage-side-panel-model.ts	FINDING:FE-RC-227
+frontend/src/features/master/components/campaign-side-panel-model.ts	FINDING:FE-RC-227
+frontend/src/features/master/components/chief-complaint-side-panel-model.ts	FINDING:FE-RC-227
+frontend/src/features/master/components/diagnosis-side-panel-model.ts	FINDING:FE-RC-227
+frontend/src/features/master/components/diagnosis-tabs-model.ts	FINDING:FE-RC-227
+frontend/src/features/master/components/exam-type-fields-editor-model.test.ts	PASS
+frontend/src/features/master/components/exam-type-fields-editor-model.ts	FINDING:FE-RC-227
+frontend/src/features/master/components/hospitalization-side-panel-model.ts	FINDING:FE-RC-227
+frontend/src/features/master/components/insurance-side-panel-model.ts	FINDING:FE-RC-227
+frontend/src/features/master/components/interview-template-side-panel-model.ts	FINDING:FE-RC-227
+frontend/src/features/master/components/medicine-dose-params-editor-model.test.ts	PASS
+frontend/src/features/master/components/medicine-dose-params-editor-model.ts	FINDING:FE-RC-227
+frontend/src/features/master/components/medicine-side-panel-model.ts	FINDING:FE-RC-227
+frontend/src/features/master/components/merchandise-side-panel-model.ts	FINDING:FE-RC-227
+frontend/src/features/master/components/occupation-side-panel-model.ts	FINDING:FE-RC-227
+frontend/src/features/master/components/payment-method-side-panel-model.ts	FINDING:FE-RC-227
+frontend/src/features/master/components/permission-group-side-panel-model.ts	FINDING:FE-RC-227
+frontend/src/features/master/components/permission-rule-table-model.test.ts	PASS
+frontend/src/features/master/components/permission-rule-table-model.ts	FINDING:FE-RC-227
+frontend/src/features/master/components/reservation-type-grouped-table-model.ts	FINDING:FE-RC-227
+frontend/src/features/master/components/staff-side-panel-model.ts	FINDING:FE-RC-227
+frontend/src/features/master/components/treatment-item-side-panel-model.ts	FINDING:FE-RC-227
+frontend/src/features/master/components/treatment-plan-tab-content-model.ts	FINDING:FE-RC-227
+frontend/src/features/master/components/trimming-course-type-side-panel-model.ts	FINDING:FE-RC-227
+frontend/src/features/master/components/trimming-side-panel-model.ts	FINDING:FE-RC-227
+frontend/src/features/master/components/trimming-tabs-model.ts	FINDING:FE-RC-227
+frontend/src/features/master/constants/category-config.ts	PASS
+frontend/src/features/master/constants/styles.ts	PASS
+frontend/src/features/master/hooks/medicine-settings-model.test.ts	PASS
+frontend/src/features/master/hooks/medicine-settings-model.ts	PASS
+frontend/src/features/master/hooks/reservation-type-settings-model.ts	PASS
+frontend/src/features/master/hooks/use-editable-id-selection.ts	PASS
+frontend/src/features/master/hooks/use-exam-type-field-session.ts	PASS
+frontend/src/features/master/hooks/use-exam-type-fields-list.ts	PASS
+frontend/src/features/master/hooks/use-lab-device-item-master-settings.ts	PASS
+frontend/src/features/master/hooks/use-master-crud.test.ts	PASS
+frontend/src/features/master/hooks/use-master-crud.ts	PASS
+frontend/src/features/master/hooks/use-master-save.test.ts	PASS
+frontend/src/features/master/hooks/use-master-save.ts	PASS
+frontend/src/features/master/hooks/use-master-side-panel-form.test.ts	PASS
+frontend/src/features/master/hooks/use-master-side-panel-form.ts	PASS
+frontend/src/features/master/hooks/use-medicine-settings.ts	PASS
+frontend/src/features/master/hooks/use-medicine-table-state.test.tsx	PASS
+frontend/src/features/master/hooks/use-medicine-table-state.ts	PASS
+frontend/src/features/master/hooks/use-reservation-type-settings.ts	PASS
+frontend/src/features/master/hooks/use-staff-settings-lookups.ts	PASS
+frontend/src/features/master/hooks/use-treatment-plan-master-resources.ts	PASS
+frontend/src/features/master/hooks/use-treatment-plan-master-saves.ts	PASS
+frontend/src/features/master/index.ts	PASS
+frontend/src/features/master/routes/AnimalSpeciesSettings.test.tsx	PASS
+frontend/src/features/master/routes/AnimalSpeciesSettings.tsx	PASS
+frontend/src/features/master/routes/CageSettings.test.tsx	PASS
+frontend/src/features/master/routes/CageSettings.tsx	PASS
+frontend/src/features/master/routes/CampaignSettings.tsx	PASS
+frontend/src/features/master/routes/ChiefComplaintSettings.test.tsx	PASS
+frontend/src/features/master/routes/ChiefComplaintSettings.tsx	PASS
+frontend/src/features/master/routes/DiagnosisSettings.tsx	PASS
+frontend/src/features/master/routes/HospitalizationSettings.tsx	PASS
+frontend/src/features/master/routes/InsuranceSettings.tsx	PASS
+frontend/src/features/master/routes/InterviewTemplateSettings.test.tsx	PASS
+frontend/src/features/master/routes/InterviewTemplateSettings.tsx	PASS
+frontend/src/features/master/routes/LabDeviceItemMasterSettings.tsx	PASS
+frontend/src/features/master/routes/LineReservationSlotsSettings.test.tsx	PASS
+frontend/src/features/master/routes/LineReservationSlotsSettings.tsx	PASS
+frontend/src/features/master/routes/MasterReorderPermissionGuards.test.tsx	PASS
+frontend/src/features/master/routes/MasterSettingsIndex.tsx	PASS
+frontend/src/features/master/routes/MedicineSettings.tsx	PASS
+frontend/src/features/master/routes/MerchandiseItemSettings.tsx	PASS
+frontend/src/features/master/routes/OccupationSettings.tsx	PASS
+frontend/src/features/master/routes/PaymentMethodSettings.tsx	PASS
+frontend/src/features/master/routes/PermissionGroupSettings.test.tsx	PASS
+frontend/src/features/master/routes/PermissionGroupSettings.tsx	PASS
+frontend/src/features/master/routes/ReservationTypeSettings.tsx	PASS
+frontend/src/features/master/routes/StaffSettings.test.tsx	PASS
+frontend/src/features/master/routes/StaffSettings.tsx	PASS
+frontend/src/features/master/routes/TreatmentPlanMaster.test.tsx	PASS
+frontend/src/features/master/routes/TreatmentPlanMaster.tsx	PASS
+frontend/src/features/master/routes/TreatmentPlanMasterView.tsx	PASS
+frontend/src/features/master/routes/TrimmingCourseTypeSettings.tsx	PASS
+frontend/src/features/master/routes/TrimmingSettings.test.tsx	PASS
+frontend/src/features/master/routes/TrimmingSettings.tsx	PASS
+frontend/src/features/master/routes/animal-species-settings-model.ts	PASS
+frontend/src/features/master/routes/cage-settings-model.ts	PASS
+frontend/src/features/master/routes/campaign-settings-model.ts	PASS
+frontend/src/features/master/routes/chief-complaint-settings-model.test.ts	PASS
+frontend/src/features/master/routes/chief-complaint-settings-model.ts	PASS
+frontend/src/features/master/routes/diagnosis-settings-model.ts	PASS
+frontend/src/features/master/routes/hospitalization-settings-model.ts	PASS
+frontend/src/features/master/routes/insurance-settings-model.test.ts	PASS
+frontend/src/features/master/routes/insurance-settings-model.ts	PASS
+frontend/src/features/master/routes/interview-template-settings-model.test.ts	PASS
+frontend/src/features/master/routes/interview-template-settings-model.ts	PASS
+frontend/src/features/master/routes/lab-device-item-master-drafts.ts	PASS
+frontend/src/features/master/routes/lab-device-item-master-labels.ts	PASS
+frontend/src/features/master/routes/lab-device-item-master-persist.ts	PASS
+frontend/src/features/master/routes/lab-device-item-master-settings-model.test.ts	PASS
+frontend/src/features/master/routes/lab-device-item-master-settings-model.ts	PASS
+frontend/src/features/master/routes/lab-device-item-master-types.ts	PASS
+frontend/src/features/master/routes/lab-device-item-master-validation.ts	PASS
+frontend/src/features/master/routes/master-settings-index-model.test.ts	PASS
+frontend/src/features/master/routes/master-settings-index-model.ts	PASS
+frontend/src/features/master/routes/merchandise-item-settings-model.ts	PASS
+frontend/src/features/master/routes/occupation-settings-model.ts	PASS
+frontend/src/features/master/routes/payment-method-settings-model.test.ts	PASS
+frontend/src/features/master/routes/payment-method-settings-model.ts	PASS
+frontend/src/features/master/routes/permission-group-settings-model.test.ts	PASS
+frontend/src/features/master/routes/permission-group-settings-model.ts	PASS
+frontend/src/features/master/routes/staff-settings-model.test.ts	PASS
+frontend/src/features/master/routes/staff-settings-model.ts	PASS
+frontend/src/features/master/routes/treatment-plan-master-model.test.ts	PASS
+frontend/src/features/master/routes/treatment-plan-master-model.ts	PASS
+frontend/src/features/master/routes/trimming-course-type-settings-model.ts	PASS
+frontend/src/features/master/routes/trimming-settings-model.ts	PASS
+frontend/src/features/medical-records/api/billing-confirmation.test.ts	PASS
+frontend/src/features/medical-records/api/billing-confirmation.ts	PASS
+frontend/src/features/medical-records/api/checkups.ts	PASS
+frontend/src/features/medical-records/api/clinical-plan.ts	PASS
+frontend/src/features/medical-records/api/create-medical-record-addendum.ts	PASS
+frontend/src/features/medical-records/api/create-medical-record.ts	PASS
+frontend/src/features/medical-records/api/delete-medical-record.ts	PASS
+frontend/src/features/medical-records/api/get-chief-complaint-types.ts	PASS
+frontend/src/features/medical-records/api/get-diagnosis-options.ts	PASS
+frontend/src/features/medical-records/api/get-medical-record-addenda.ts	PASS
+frontend/src/features/medical-records/api/get-medical-record-images.ts	PASS
+frontend/src/features/medical-records/api/get-medical-record.ts	PASS
+frontend/src/features/medical-records/api/get-medical-records.test.tsx	PASS
+frontend/src/features/medical-records/api/get-medical-records.ts	PASS
+frontend/src/features/medical-records/api/get-pet-vaccinations.ts	PASS
+frontend/src/features/medical-records/api/get-record-examinations.ts	PASS
+frontend/src/features/medical-records/api/inquiries.ts	PASS
+frontend/src/features/medical-records/api/medical-record-images.test.ts	PASS
+frontend/src/features/medical-records/api/medical-record-images.ts	PASS
+frontend/src/features/medical-records/api/medicine-dose-lookup.test.ts	PASS
+frontend/src/features/medical-records/api/medicine-dose-lookup.ts	PASS
+frontend/src/features/medical-records/api/save-estimate.ts	PASS
+frontend/src/features/medical-records/api/transforms.test.ts	PASS
+frontend/src/features/medical-records/api/transforms.ts	PASS
+frontend/src/features/medical-records/api/treatments.test.ts	PASS
+frontend/src/features/medical-records/api/treatments.ts	PASS
+frontend/src/features/medical-records/api/types.ts	PASS
+frontend/src/features/medical-records/api/update-medical-record.ts	PASS
+frontend/src/features/medical-records/api/update-recommendation-reason.ts	PASS
+frontend/src/features/medical-records/api/vitals.test.ts	PASS
+frontend/src/features/medical-records/api/vitals.ts	PASS
+frontend/src/features/medical-records/components/CheckupsTab/CheckupsTab.test.tsx	PASS
+frontend/src/features/medical-records/components/CheckupsTab/CheckupsTab.tsx	PASS
+frontend/src/features/medical-records/components/CheckupsTab/CheckupsTabBadges.tsx	PASS
+frontend/src/features/medical-records/components/CheckupsTab/CheckupsTabRows.tsx	PASS
+frontend/src/features/medical-records/components/CheckupsTab/CheckupsTabTable.tsx	PASS
+frontend/src/features/medical-records/components/CheckupsTab/checkups-tab-table-model.ts	FINDING:FE-RC-227
+frontend/src/features/medical-records/components/ClinicalPlanSection/ClinicalPlanSection.test.tsx	PASS
+frontend/src/features/medical-records/components/ClinicalPlanSection/ClinicalPlanSection.tsx	PASS
+frontend/src/features/medical-records/components/DiagnosisHeader.tsx	PASS
+frontend/src/features/medical-records/components/DiagnosisHeaderChiefComplaint.tsx	PASS
+frontend/src/features/medical-records/components/DiagnosisHeaderDiagnosis.tsx	PASS
+frontend/src/features/medical-records/components/DiagnosisHeaderPhysicalExam.tsx	PASS
+frontend/src/features/medical-records/components/DiagnosisHeaderSection.tsx	PASS
+frontend/src/features/medical-records/components/EstimateForm.tsx	PASS
+frontend/src/features/medical-records/components/ExaminationFilter.tsx	PASS
+frontend/src/features/medical-records/components/ExaminationGroup.test.tsx	PASS
+frontend/src/features/medical-records/components/ExaminationGroup.tsx	PASS
+frontend/src/features/medical-records/components/ExaminationImportDialog.test.tsx	PASS
+frontend/src/features/medical-records/components/ExaminationImportDialog.tsx	PASS
+frontend/src/features/medical-records/components/ImageGalleryFilter.test.tsx	PASS
+frontend/src/features/medical-records/components/ImageGalleryFilter.tsx	PASS
+frontend/src/features/medical-records/components/ImageGalleryGroup.tsx	PASS
+frontend/src/features/medical-records/components/InterviewChiefComplaint.tsx	PASS
+frontend/src/features/medical-records/components/InterviewClinicalFields.lock.test.tsx	PASS
+frontend/src/features/medical-records/components/InterviewHistory.test.tsx	PASS
+frontend/src/features/medical-records/components/InterviewHistory.tsx	PASS
+frontend/src/features/medical-records/components/InterviewTreatmentPolicy.tsx	PASS
+frontend/src/features/medical-records/components/MedicalRecordAddenda/AddendumItem.tsx	PASS
+frontend/src/features/medical-records/components/MedicalRecordAddenda/AddendumModal.test.tsx	PASS
+frontend/src/features/medical-records/components/MedicalRecordAddenda/AddendumModal.tsx	PASS
+frontend/src/features/medical-records/components/MedicalRecordAddenda/MedicalRecordAddenda.test.tsx	PASS
+frontend/src/features/medical-records/components/MedicalRecordAddenda/MedicalRecordAddenda.tsx	PASS
+frontend/src/features/medical-records/components/MedicalRecordAddenda/index.ts	FINDING:FE-RC-227
+frontend/src/features/medical-records/components/MedicalRecordAutoCreateFailure.test.tsx	PASS
+frontend/src/features/medical-records/components/MedicalRecordAutoCreateFailure.tsx	PASS
+frontend/src/features/medical-records/components/MedicalRecordBillCheck.test.tsx	PASS
+frontend/src/features/medical-records/components/MedicalRecordBillCheck.tsx	PASS
+frontend/src/features/medical-records/components/MedicalRecordClinicalTabs.tsx	PASS
+frontend/src/features/medical-records/components/MedicalRecordDiagnosisPlan.tsx	PASS
+frontend/src/features/medical-records/components/MedicalRecordEstimate.test.tsx	PASS
+frontend/src/features/medical-records/components/MedicalRecordEstimate.tsx	PASS
+frontend/src/features/medical-records/components/MedicalRecordExamination.test.tsx	PASS
+frontend/src/features/medical-records/components/MedicalRecordExamination.tsx	PASS
+frontend/src/features/medical-records/components/MedicalRecordFormActions.test.tsx	PASS
+frontend/src/features/medical-records/components/MedicalRecordFormActions.tsx	PASS
+frontend/src/features/medical-records/components/MedicalRecordFormModals.tsx	PASS
+frontend/src/features/medical-records/components/MedicalRecordFormPanels.test.tsx	PASS
+frontend/src/features/medical-records/components/MedicalRecordFormPanels.tsx	PASS
+frontend/src/features/medical-records/components/MedicalRecordImage.test.tsx	PASS
+frontend/src/features/medical-records/components/MedicalRecordImage.tsx	PASS
+frontend/src/features/medical-records/components/MedicalRecordInterview.test.tsx	PASS
+frontend/src/features/medical-records/components/MedicalRecordInterview.tsx	PASS
+frontend/src/features/medical-records/components/MedicalRecordLazyModals.tsx	PASS
+frontend/src/features/medical-records/components/MedicalRecordPrintView.tsx	PASS
+frontend/src/features/medical-records/components/MedicalRecordServiceTabs.tsx	PASS
+frontend/src/features/medical-records/components/MedicalRecordStickyHeader.tsx	PASS
+frontend/src/features/medical-records/components/MedicalRecordTabsShared.tsx	PASS
+frontend/src/features/medical-records/components/MedicalRecordTreatment.tsx	PASS
+frontend/src/features/medical-records/components/MedicalRecordVaccination.test.tsx	PASS
+frontend/src/features/medical-records/components/MedicalRecordVaccination.tsx	PASS
+frontend/src/features/medical-records/components/NextVisitButton.test.tsx	PASS
+frontend/src/features/medical-records/components/NextVisitButton.tsx	PASS
+frontend/src/features/medical-records/components/NextVisitDateField.test.tsx	PASS
+frontend/src/features/medical-records/components/NextVisitDateField.tsx	PASS
+frontend/src/features/medical-records/components/RecommendationReasonSelect.test.tsx	PASS
+frontend/src/features/medical-records/components/RecommendationReasonSelect.tsx	PASS
+frontend/src/features/medical-records/components/StaffSelectionModal.test.tsx	PASS
+frontend/src/features/medical-records/components/StaffSelectionModal.tsx	PASS
+frontend/src/features/medical-records/components/TreatmentDetailedSummary.tsx	PASS
+frontend/src/features/medical-records/components/TreatmentTable.tsx	PASS
+frontend/src/features/medical-records/components/TreatmentsTab/TreatmentDoseMessages.tsx	PASS
+frontend/src/features/medical-records/components/TreatmentsTab/TreatmentQuantityCell.tsx	PASS
+frontend/src/features/medical-records/components/TreatmentsTab/TreatmentRow.test.tsx	PASS
+frontend/src/features/medical-records/components/TreatmentsTab/TreatmentRow.tsx	PASS
+frontend/src/features/medical-records/components/TreatmentsTab/TreatmentRowEditors.tsx	PASS
+frontend/src/features/medical-records/components/TreatmentsTab/TreatmentRowParts.tsx	PASS
+frontend/src/features/medical-records/components/TreatmentsTab/TreatmentsTab.test.tsx	PASS
+frontend/src/features/medical-records/components/TreatmentsTab/TreatmentsTab.tsx	PASS
+frontend/src/features/medical-records/components/TreatmentsTab/TreatmentsTabParts.tsx	PASS
+frontend/src/features/medical-records/components/TreatmentsTab/treatment-quantity-commit.ts	FINDING:FE-RC-227
+frontend/src/features/medical-records/components/TreatmentsTab/treatment-row-dose-gate.test.ts	PASS
+frontend/src/features/medical-records/components/TreatmentsTab/treatment-row-dose-gate.ts	FINDING:FE-RC-227
+frontend/src/features/medical-records/components/TreatmentsTab/treatments-tab-model.test.ts	PASS
+frontend/src/features/medical-records/components/TreatmentsTab/treatments-tab-model.ts	FINDING:FE-RC-227
+frontend/src/features/medical-records/components/VaccinationForm.test.tsx	PASS
+frontend/src/features/medical-records/components/VaccinationForm.tsx	PASS
+frontend/src/features/medical-records/components/VaccinationHistory.test.tsx	PASS
+frontend/src/features/medical-records/components/VaccinationHistory.tsx	PASS
+frontend/src/features/medical-records/components/VisitTypeSelect.test.tsx	PASS
+frontend/src/features/medical-records/components/VisitTypeSelect.tsx	PASS
+frontend/src/features/medical-records/components/VitalsModal.tsx	PASS
+frontend/src/features/medical-records/components/VitalsTab/VitalsGraph.tsx	PASS
+frontend/src/features/medical-records/components/VitalsTab/VitalsTab.test.tsx	PASS
+frontend/src/features/medical-records/components/VitalsTab/VitalsTab.tsx	PASS
+frontend/src/features/medical-records/components/VitalsTab/VitalsTabRows.test.tsx	PASS
+frontend/src/features/medical-records/components/VitalsTab/VitalsTabRows.tsx	PASS
+frontend/src/features/medical-records/components/VitalsTab/VitalsTabTable.tsx	PASS
+frontend/src/features/medical-records/components/VitalsTab/vitals-tab-table-model.test.ts	PASS
+frontend/src/features/medical-records/components/VitalsTab/vitals-tab-table-model.ts	FINDING:FE-RC-227
+frontend/src/features/medical-records/components/examination-import-candidates.test.ts	PASS
+frontend/src/features/medical-records/components/examination-import-candidates.ts	FINDING:FE-RC-227
+frontend/src/features/medical-records/components/medical-record-bill-check-model.test.ts	PASS
+frontend/src/features/medical-records/components/medical-record-bill-check-model.ts	FINDING:FE-RC-227
+frontend/src/features/medical-records/components/medical-record-examination-model.test.ts	PASS
+frontend/src/features/medical-records/components/medical-record-examination-model.ts	FINDING:FE-RC-227
+frontend/src/features/medical-records/components/medical-record-tabs-types.ts	FINDING:FE-RC-227
+frontend/src/features/medical-records/constants/recommendation-reason.ts	PASS
+frontend/src/features/medical-records/hooks/use-apply-clinical-plan.ts	PASS
+frontend/src/features/medical-records/hooks/use-apply-medical-record.ts	PASS
+frontend/src/features/medical-records/hooks/use-medical-record-addenda.ts	PASS
+frontend/src/features/medical-records/hooks/use-medical-record-auto-create.ts	PASS
+frontend/src/features/medical-records/hooks/use-medical-record-diagnosis-state.ts	PASS
+frontend/src/features/medical-records/hooks/use-medical-record-dirty-fields.ts	PASS
+frontend/src/features/medical-records/hooks/use-medical-record-form-helpers.ts	PASS
+frontend/src/features/medical-records/hooks/use-medical-record-form-modals.ts	PASS
+frontend/src/features/medical-records/hooks/use-medical-record-form-model.test.ts	PASS
+frontend/src/features/medical-records/hooks/use-medical-record-form-model.ts	PASS
+frontend/src/features/medical-records/hooks/use-medical-record-form.action.test.ts	PASS
+frontend/src/features/medical-records/hooks/use-medical-record-form.auto-create-new.test.ts	PASS
+frontend/src/features/medical-records/hooks/use-medical-record-form.auto-create-retry.test.ts	PASS
+frontend/src/features/medical-records/hooks/use-medical-record-form.test.ts	PASS
+frontend/src/features/medical-records/hooks/use-medical-record-form.ts	PASS
+frontend/src/features/medical-records/hooks/use-medical-record-manual-errors.ts	PASS
+frontend/src/features/medical-records/hooks/use-medical-record-owner-change.test.ts	PASS
+frontend/src/features/medical-records/hooks/use-medical-record-owner-change.ts	PASS
+frontend/src/features/medical-records/hooks/use-medical-record-post-save.test.ts	PASS
+frontend/src/features/medical-records/hooks/use-medical-record-post-save.ts	PASS
+frontend/src/features/medical-records/hooks/use-medical-record-quick-patch-actions.test.ts	PASS
+frontend/src/features/medical-records/hooks/use-medical-record-quick-patch-actions.ts	PASS
+frontend/src/features/medical-records/hooks/use-medical-record-save-action.test.ts	PASS
+frontend/src/features/medical-records/hooks/use-medical-record-save-action.ts	PASS
+frontend/src/features/medical-records/hooks/use-medical-record-vaccination-form.test.ts	PASS
+frontend/src/features/medical-records/hooks/use-medical-record-vaccination-form.ts	PASS
+frontend/src/features/medical-records/hooks/use-medical-records-columns.tsx	PASS
+frontend/src/features/medical-records/hooks/use-medical-records-url-state.ts	PASS
+frontend/src/features/medical-records/hooks/use-medical-records.test.ts	PASS
+frontend/src/features/medical-records/hooks/use-medical-records.test.tsx	PASS
+frontend/src/features/medical-records/hooks/use-medical-records.ts	PASS
+frontend/src/features/medical-records/hooks/use-treatment-dose-gate.ts	PASS
+frontend/src/features/medical-records/hooks/use-treatments-tab.ts	PASS
+frontend/src/features/medical-records/index.ts	PASS
+frontend/src/features/medical-records/lib/medical-record-lock.test.ts	PASS
+frontend/src/features/medical-records/lib/medical-record-lock.ts	PASS
+frontend/src/features/medical-records/routes/MedicalRecordForm.not-found.test.tsx	PASS
+frontend/src/features/medical-records/routes/MedicalRecordForm.permissions.test.tsx	PASS
+frontend/src/features/medical-records/routes/MedicalRecordForm.tsx	PASS
+frontend/src/features/medical-records/routes/MedicalRecordFormReadyPanels.tsx	PASS
+frontend/src/features/medical-records/routes/MedicalRecordFormStatusPanels.tsx	PASS
+frontend/src/features/medical-records/routes/MedicalRecordPetSelection.tsx	PASS
+frontend/src/features/medical-records/routes/MedicalRecords.species-status.test.tsx	PASS
+frontend/src/features/medical-records/routes/MedicalRecords.test.tsx	PASS
+frontend/src/features/medical-records/routes/MedicalRecords.tsx	PASS
+frontend/src/features/medical-records/routes/MedicalRecordsListPanels.tsx	PASS
+frontend/src/features/medical-records/routes/medical-record-form-model.ts	PASS
+frontend/src/features/medical-records/routes/medical-records-columns.test.tsx	PASS
+frontend/src/features/medical-records/routes/medical-records-list-model.ts	PASS
+frontend/src/features/medical-records/types/index.ts	PASS
+frontend/src/features/owner-report/api/get-owner-report-pets.test.tsx	PASS
+frontend/src/features/owner-report/api/get-owner-report-pets.ts	PASS
+frontend/src/features/owner-report/api/get-pet-examinations.test.tsx	PASS
+frontend/src/features/owner-report/api/get-pet-examinations.ts	PASS
+frontend/src/features/owner-report/api/get-pet-first-visit.ts	PASS
+frontend/src/features/owner-report/api/get-pet-treatment-history.test.ts	PASS
+frontend/src/features/owner-report/api/get-pet-treatment-history.ts	PASS
+frontend/src/features/owner-report/api/get-pet-trimming-history.test.ts	PASS
+frontend/src/features/owner-report/api/get-pet-trimming-history.ts	PASS
+frontend/src/features/owner-report/components/ClinicalBriefingFields.tsx	PASS
+frontend/src/features/owner-report/components/ClinicalBriefingPanel.tsx	PASS
+frontend/src/features/owner-report/components/ClinicalHistoryMatrix.tsx	PASS
+frontend/src/features/owner-report/components/HistoryTable.tsx	PASS
+frontend/src/features/owner-report/components/OwnerClinicalBasicPanel.tsx	PASS
+frontend/src/features/owner-report/components/OwnerClinicalBriefing.tsx	PASS
+frontend/src/features/owner-report/components/OwnerClinicalHistoryPanel.tsx	PASS
+frontend/src/features/owner-report/components/OwnerClinicalVisitPanels.tsx	PASS
+frontend/src/features/owner-report/components/OwnerReportPanel.tsx	PASS
+frontend/src/features/owner-report/components/PetSwitcher.test.tsx	PASS
+frontend/src/features/owner-report/components/PetSwitcher.tsx	PASS
+frontend/src/features/owner-report/components/ReportPanel.test.tsx	PASS
+frontend/src/features/owner-report/components/ReportPanel.tsx	PASS
+frontend/src/features/owner-report/components/ReportSection.test.tsx	PASS
+frontend/src/features/owner-report/components/ReportSection.tsx	PASS
+frontend/src/features/owner-report/components/SelectedPetContext.test.tsx	PASS
+frontend/src/features/owner-report/components/SelectedPetContext.tsx	PASS
+frontend/src/features/owner-report/components/TrimmingHistorySection.test.tsx	PASS
+frontend/src/features/owner-report/components/TrimmingHistorySection.tsx	PASS
+frontend/src/features/owner-report/hooks/use-owner-clinical-briefing-data.ts	PASS
+frontend/src/features/owner-report/hooks/use-pet-checkup-results.test.ts	PASS
+frontend/src/features/owner-report/hooks/use-pet-checkup-results.ts	PASS
+frontend/src/features/owner-report/index.ts	PASS
+frontend/src/features/owner-report/lib/clinical-briefing.test.ts	PASS
+frontend/src/features/owner-report/lib/clinical-briefing.ts	PASS
+frontend/src/features/owner-report/lib/dm-preference.test.ts	PASS
+frontend/src/features/owner-report/lib/dm-preference.ts	PASS
+frontend/src/features/owner-report/lib/owner-report-pet.ts	PASS
+frontend/src/features/owner-report/lib/pet-age.test.ts	PASS
+frontend/src/features/owner-report/lib/pet-age.ts	PASS
+frontend/src/features/owner-report/lib/report-summary.test.ts	PASS
+frontend/src/features/owner-report/lib/report-summary.ts	PASS
+frontend/src/features/owner-report/owner-report.css	PASS
+frontend/src/features/owner-report/routes/OwnerReport.panels.test.tsx	PASS
+frontend/src/features/owner-report/routes/OwnerReport.summary-boundary.test.tsx	PASS
+frontend/src/features/owner-report/routes/OwnerReport.tsx	PASS
+frontend/src/features/owners/api/confirm-owner-line-id.ts	PASS
+frontend/src/features/owners/api/create-owner-tag.ts	PASS
+frontend/src/features/owners/api/create-owner.ts	PASS
+frontend/src/features/owners/api/delete-owner-tag.ts	PASS
+frontend/src/features/owners/api/delete-owner.ts	PASS
+frontend/src/features/owners/api/generate-line-link-token.test.ts	PASS
+frontend/src/features/owners/api/generate-line-link-token.ts	PASS
+frontend/src/features/owners/api/get-insurances.ts	PASS
+frontend/src/features/owners/api/get-line-send-history.ts	PASS
+frontend/src/features/owners/api/get-owner-line-tags.ts	PASS
+frontend/src/features/owners/api/get-owner-shared-pets.test.ts	PASS
+frontend/src/features/owners/api/get-owner-shared-pets.ts	PASS
+frontend/src/features/owners/api/get-owner.ts	PASS
+frontend/src/features/owners/api/get-pet-sub-owners.test.ts	PASS
+frontend/src/features/owners/api/get-pet-sub-owners.ts	PASS
+frontend/src/features/owners/api/replace-pet-sub-owners.test.ts	PASS
+frontend/src/features/owners/api/replace-pet-sub-owners.ts	PASS
+frontend/src/features/owners/api/send-line-message.ts	PASS
+frontend/src/features/owners/api/transforms.test.ts	PASS
+frontend/src/features/owners/api/transforms.ts	PASS
+frontend/src/features/owners/api/update-owner-delivery-caution.ts	PASS
+frontend/src/features/owners/api/update-owner-delivery-exclusion.ts	PASS
+frontend/src/features/owners/api/update-owner-line.ts	PASS
+frontend/src/features/owners/api/update-owner-transfer-status.ts	PASS
+frontend/src/features/owners/api/update-owner.ts	PASS
+frontend/src/features/owners/api/upload-line-file.ts	PASS
+frontend/src/features/owners/components/LineIntegrationCard.test.tsx	PASS
+frontend/src/features/owners/components/LineIntegrationCard.tsx	PASS
+frontend/src/features/owners/components/LineIntegrationCardParts.test.tsx	PASS
+frontend/src/features/owners/components/LineIntegrationCardParts.tsx	PASS
+frontend/src/features/owners/components/LineIntegrationCardSections.tsx	PASS
+frontend/src/features/owners/components/LineSendHistory.tsx	PASS
+frontend/src/features/owners/components/LineSendPanel.test.tsx	PASS
+frontend/src/features/owners/components/LineSendPanel.tsx	PASS
+frontend/src/features/owners/components/LineSendTypeSelector.tsx	PASS
+frontend/src/features/owners/components/LstepTagAddDialog.tsx	PASS
+frontend/src/features/owners/components/LstepTagList.tsx	PASS
+frontend/src/features/owners/components/LstepTagRemoveInline.tsx	PASS
+frontend/src/features/owners/components/OwnerAddressFields.tsx	PASS
+frontend/src/features/owners/components/OwnerBasicFields.tsx	PASS
+frontend/src/features/owners/components/OwnerInfoSection.test.tsx	PASS
+frontend/src/features/owners/components/OwnerInfoSection.tsx	PASS
+frontend/src/features/owners/components/OwnerMembershipFields.tsx	PASS
+frontend/src/features/owners/components/OwnerPetsSection.test.tsx	PASS
+frontend/src/features/owners/components/OwnerPetsSection.tsx	PASS
+frontend/src/features/owners/components/OwnersListTable.report.test.tsx	PASS
+frontend/src/features/owners/components/OwnersListTable.tsx	PASS
+frontend/src/features/owners/components/PetCareSection.test.tsx	PASS
+frontend/src/features/owners/components/PetCareSection.tsx	PASS
+frontend/src/features/owners/components/PetEditFieldShared.tsx	PASS
+frontend/src/features/owners/components/PetEditModal.species-status.test.tsx	PASS
+frontend/src/features/owners/components/PetEditModal.tsx	PASS
+frontend/src/features/owners/components/PetEditModalFields.test.tsx	PASS
+frontend/src/features/owners/components/PetEditModalFields.tsx	PASS
+frontend/src/features/owners/components/PetIdentitySection.tsx	PASS
+frontend/src/features/owners/components/PetPhysicalSection.tsx	PASS
+frontend/src/features/owners/components/PetSubOwnersSection.test.tsx	PASS
+frontend/src/features/owners/components/PetSubOwnersSection.tsx	PASS
+frontend/src/features/owners/components/owner-info-field-shared.ts	FINDING:FE-RC-227
+frontend/src/features/owners/components/pet-form-data.test.ts	PASS
+frontend/src/features/owners/components/pet-form-data.ts	FINDING:FE-RC-227
+frontend/src/features/owners/hooks/use-animal-species.ts	PASS
+frontend/src/features/owners/hooks/use-line-integration-card-state.ts	PASS
+frontend/src/features/owners/hooks/use-owner-form-model.ts	PASS
+frontend/src/features/owners/hooks/use-owner-form.test.ts	PASS
+frontend/src/features/owners/hooks/use-owner-form.ts	PASS
+frontend/src/features/owners/hooks/use-owner-pet-change-confirm.ts	PASS
+frontend/src/features/owners/hooks/use-pet-form-list-state-crud.test.ts	PASS
+frontend/src/features/owners/hooks/use-pet-form-list-state-danger-reason.test.ts	PASS
+frontend/src/features/owners/hooks/use-pet-form-list-state-death-lifecycle.test.ts	PASS
+frontend/src/features/owners/hooks/use-pet-form-list-state.ts	PASS
+frontend/src/features/owners/hooks/use-pet-sub-owners-section.ts	PASS
+frontend/src/features/owners/hooks/use-postal-code-lookup.ts	PASS
+frontend/src/features/owners/index.ts	PASS
+frontend/src/features/owners/lib/owners-list-filters.ts	PASS
+frontend/src/features/owners/lib/pet-sub-owners-section-model.ts	PASS
+frontend/src/features/owners/lib/post-create-owner-navigation.test.ts	PASS
+frontend/src/features/owners/lib/post-create-owner-navigation.ts	PASS
+frontend/src/features/owners/loaders.test.ts	PASS
+frontend/src/features/owners/loaders.ts	PASS
+frontend/src/features/owners/routes/OwnerForm.bug373.test.tsx	PASS
+frontend/src/features/owners/routes/OwnerForm.clinicSelect.test.tsx	PASS
+frontend/src/features/owners/routes/OwnerForm.permissions.test.tsx	PASS
+frontend/src/features/owners/routes/OwnerForm.tsx	PASS
+frontend/src/features/owners/routes/OwnersList.filter-wiring.test.tsx	PASS
+frontend/src/features/owners/routes/OwnersList.permissions.test.tsx	PASS
+frontend/src/features/owners/routes/OwnersList.species-status.test.tsx	PASS
+frontend/src/features/owners/routes/OwnersList.test.tsx	PASS
+frontend/src/features/owners/routes/OwnersList.tsx	PASS
+frontend/src/features/owners/types/index.ts	PASS
+frontend/src/features/owners/types/pet-label-consistency.test.ts	PASS
+frontend/src/features/pets/api/create-pet.ts	PASS
+frontend/src/features/pets/api/delete-pet.ts	PASS
+frontend/src/features/pets/api/update-pet.ts	PASS
+frontend/src/features/pets/index.ts	PASS
+frontend/src/features/reception/api/get-reception.ts	PASS
+frontend/src/features/reception/api/get-staffs.ts	PASS
+frontend/src/features/reception/api/transforms.test.ts	PASS
+frontend/src/features/reception/api/transforms.ts	PASS
+frontend/src/features/reception/api/types.ts	PASS
+frontend/src/features/reception/api/update-appointment-status.test.tsx	PASS
+frontend/src/features/reception/api/update-appointment-status.ts	PASS
+frontend/src/features/reception/components/AppointmentCard.test.tsx	PASS
+frontend/src/features/reception/components/AppointmentCard.tsx	PASS
+frontend/src/features/reception/components/KanbanColumn.tsx	PASS
+frontend/src/features/reception/components/ReceptionDetailModal.test.tsx	PASS
+frontend/src/features/reception/components/ReceptionDetailModal.tsx	PASS
+frontend/src/features/reception/components/ReceptionDetailModalParts.test.tsx	PASS
+frontend/src/features/reception/components/ReceptionDetailModalParts.tsx	PASS
+frontend/src/features/reception/components/ReceptionDialogActionButtons.test.tsx	PASS
+frontend/src/features/reception/components/ReceptionDialogActionButtons.tsx	PASS
+frontend/src/features/reception/components/ReceptionFilterPanel.tsx	PASS
+frontend/src/features/reception/components/ReceptionTelemetryStrip.test.tsx	PASS
+frontend/src/features/reception/components/ReceptionTelemetryStrip.tsx	PASS
+frontend/src/features/reception/hooks/use-reception-column-view.tsx	PASS
+frontend/src/features/reception/hooks/use-reception-drag-handlers.ts	PASS
+frontend/src/features/reception/hooks/use-reception-kanban.test.ts	PASS
+frontend/src/features/reception/hooks/use-reception-kanban.ts	PASS
+frontend/src/features/reception/hooks/use-reception-modal-handlers.test.ts	PASS
+frontend/src/features/reception/hooks/use-reception-modal-handlers.ts	PASS
+frontend/src/features/reception/hooks/use-reception-telemetry.test.ts	PASS
+frontend/src/features/reception/hooks/use-reception-telemetry.ts	PASS
+frontend/src/features/reception/index.ts	PASS
+frontend/src/features/reception/lib/kanban-columns.test.ts	PASS
+frontend/src/features/reception/lib/kanban-columns.ts	PASS
+frontend/src/features/reception/lib/reception-telemetry.test.ts	PASS
+frontend/src/features/reception/lib/reception-telemetry.ts	PASS
+frontend/src/features/reception/routes/Reception.telemetry.test.tsx	PASS
+frontend/src/features/reception/routes/Reception.tsx	PASS
+frontend/src/features/reception/routes/ReceptionLazyModals.tsx	PASS
+frontend/src/features/reception/routes/ReceptionPagePanels.tsx	PASS
+frontend/src/features/reception/routes/reception-model.ts	PASS
+frontend/src/features/reservations/api/create-reservation.ts	PASS
+frontend/src/features/reservations/api/delete-reservation.ts	PASS
+frontend/src/features/reservations/api/get-reservations.ts	PASS
+frontend/src/features/reservations/api/transforms.test.ts	PASS
+frontend/src/features/reservations/api/transforms.ts	PASS
+frontend/src/features/reservations/api/types.ts	PASS
+frontend/src/features/reservations/api/update-reservation.ts	PASS
+frontend/src/features/reservations/components/DaysRangeToggle.test.tsx	PASS
+frontend/src/features/reservations/components/DaysRangeToggle.tsx	PASS
+frontend/src/features/reservations/components/MonthView.tsx	PASS
+frontend/src/features/reservations/components/ReservationDetailModal.test.tsx	PASS
+frontend/src/features/reservations/components/ReservationDetailModal.tsx	PASS
+frontend/src/features/reservations/components/ReservationManagementCalendar.test.tsx	PASS
+frontend/src/features/reservations/components/ReservationManagementCalendar.tsx	PASS
+frontend/src/features/reservations/components/WeekView.days.test.tsx	PASS
+frontend/src/features/reservations/components/WeekView.tsx	PASS
+frontend/src/features/reservations/components/WeekViewAppointmentCard.test.tsx	PASS
+frontend/src/features/reservations/components/WeekViewAppointmentCard.tsx	PASS
+frontend/src/features/reservations/components/WeekViewDayColumn.tsx	PASS
+frontend/src/features/reservations/components/WeekViewParts.tsx	PASS
+frontend/src/features/reservations/components/week-view-grid-constants.ts	FINDING:FE-RC-227
+frontend/src/features/reservations/constants/reservation-route.ts	PASS
+frontend/src/features/reservations/hooks/use-reservation-actions.test.ts	PASS
+frontend/src/features/reservations/hooks/use-reservation-actions.ts	FINDING:FE-RC-204
+frontend/src/features/reservations/hooks/use-reservation-management.ts	PASS
+frontend/src/features/reservations/hooks/use-reservation-modal-state.test.ts	PASS
+frontend/src/features/reservations/hooks/use-reservation-modal-state.ts	PASS
+frontend/src/features/reservations/hooks/use-reservation-record-navigation.test.ts	PASS
+frontend/src/features/reservations/hooks/use-reservation-record-navigation.ts	PASS
+frontend/src/features/reservations/hooks/use-reservation-save-actions.ts	FINDING:FE-RC-204
+frontend/src/features/reservations/hooks/use-reservation-type-color-map.ts	PASS
+frontend/src/features/reservations/index.ts	PASS
+frontend/src/features/reservations/lib/reservation-actions-model.ts	PASS
+frontend/src/features/reservations/routes/ReservationManagement.tsx	PASS
+frontend/src/features/reservations/routes/reservation-management.filter.test.ts	PASS
+frontend/src/features/reservations/types/index.ts	PASS
+frontend/src/features/settings/api/lstep-settings.ts	PASS
+frontend/src/features/settings/api/lstep-tag-code-mappings.ts	PASS
+frontend/src/features/settings/api/lstep-tag-config.ts	PASS
+frontend/src/features/settings/api/trigger-priorities.ts	PASS
+frontend/src/features/settings/components/LstepSettingsActions.tsx	PASS
+frontend/src/features/settings/components/LstepSettingsFields.tsx	PASS
+frontend/src/features/settings/components/LstepSettingsForm.test.tsx	PASS
+frontend/src/features/settings/components/LstepSettingsForm.tsx	PASS
+frontend/src/features/settings/components/LstepSettingsFormSections.tsx	PASS
+frontend/src/features/settings/components/LstepSettingsStatus.tsx	PASS
+frontend/src/features/settings/components/LstepTagCodeMappingsSection.test.tsx	PASS
+frontend/src/features/settings/components/LstepTagCodeMappingsSection.tsx	PASS
+frontend/src/features/settings/components/LstepTagConfigSection.test.tsx	PASS
+frontend/src/features/settings/components/LstepTagConfigSection.tsx	PASS
+frontend/src/features/settings/components/TriggerPrioritySection.test.tsx	PASS
+frontend/src/features/settings/components/TriggerPrioritySection.tsx	PASS
+frontend/src/features/settings/components/lstep-settings-form-request.ts	FINDING:FE-RC-227
+frontend/src/features/settings/hooks/get-clinic-id.ts	FINDING:FE-RC-224
+frontend/src/features/settings/hooks/use-lstep-settings.ts	PASS
+frontend/src/features/settings/hooks/use-lstep-tag-code-mappings.ts	PASS
+frontend/src/features/settings/hooks/use-lstep-tag-config.ts	PASS
+frontend/src/features/settings/hooks/use-trigger-priorities.ts	PASS
+frontend/src/features/settings/index.ts	PASS
+frontend/src/features/settings/routes/LstepSettingsPage.test.tsx	PASS
+frontend/src/features/settings/routes/LstepSettingsPage.tsx	PASS
+frontend/src/features/shifts/api/clinic-holidays.ts	PASS
+frontend/src/features/shifts/api/create-shift-template.ts	PASS
+frontend/src/features/shifts/api/create-shift.ts	PASS
+frontend/src/features/shifts/api/delete-shift-template.ts	PASS
+frontend/src/features/shifts/api/delete-shift.ts	PASS
+frontend/src/features/shifts/api/get-shift-templates.ts	PASS
+frontend/src/features/shifts/api/get-shifts.ts	PASS
+frontend/src/features/shifts/api/get-staffs.test.ts	PASS
+frontend/src/features/shifts/api/get-staffs.ts	PASS
+frontend/src/features/shifts/api/reorder-shift-templates.ts	PASS
+frontend/src/features/shifts/api/transforms.test.ts	PASS
+frontend/src/features/shifts/api/transforms.ts	PASS
+frontend/src/features/shifts/api/types.ts	PASS
+frontend/src/features/shifts/api/update-shift-template.ts	PASS
+frontend/src/features/shifts/api/update-shift.ts	PASS
+frontend/src/features/shifts/components/ClinicHolidayModal/ClinicHolidayModal.test.tsx	PASS
+frontend/src/features/shifts/components/ClinicHolidayModal/ClinicHolidayModal.tsx	FINDING:FE-RC-206
+frontend/src/features/shifts/components/ShiftCalendar/ShiftCalendar.test.tsx	PASS
+frontend/src/features/shifts/components/ShiftCalendar/ShiftCalendar.tsx	PASS
+frontend/src/features/shifts/components/ShiftCell/ShiftCell.test.tsx	PASS
+frontend/src/features/shifts/components/ShiftCell/ShiftCell.tsx	PASS
+frontend/src/features/shifts/components/ShiftFormDialog/ShiftFormDialog.test.tsx	PASS
+frontend/src/features/shifts/components/ShiftFormDialog/ShiftFormDialog.tsx	FINDING:FE-RC-201
+frontend/src/features/shifts/components/ShiftTemplateSettingsList.tsx	PASS
+frontend/src/features/shifts/components/ShiftTemplateSettingsParts.test.tsx	PASS
+frontend/src/features/shifts/components/ShiftTemplateSettingsParts.tsx	PASS
+frontend/src/features/shifts/components/ShiftTemplateSettingsWorkspace.tsx	PASS
+frontend/src/features/shifts/components/ShiftTemplateSidePanelFields.tsx	PASS
+frontend/src/features/shifts/components/shift-template-form-model.ts	FINDING:FE-RC-227
+frontend/src/features/shifts/components/shift-template-form-utils.ts	FINDING:FE-RC-227
+frontend/src/features/shifts/components/shift-template-table-model.test.ts	PASS
+frontend/src/features/shifts/components/shift-template-table-model.ts	FINDING:FE-RC-227
+frontend/src/features/shifts/components/shift-template-write-model.ts	FINDING:FE-RC-227
+frontend/src/features/shifts/index.ts	PASS
+frontend/src/features/shifts/routes/ShiftCalendarPage.tsx	PASS
+frontend/src/features/shifts/routes/ShiftTemplateSettings.tsx	FINDING:FE-RC-207
+frontend/src/features/shifts/types/index.ts	PASS
+frontend/src/features/trimming/api/create-trimming.ts	PASS
+frontend/src/features/trimming/api/delete-trimming.ts	PASS
+frontend/src/features/trimming/api/get-trimming.ts	PASS
+frontend/src/features/trimming/api/get-trimmings.ts	PASS
+frontend/src/features/trimming/api/transforms.ts	PASS
+frontend/src/features/trimming/api/update-trimming.ts	PASS
+frontend/src/features/trimming/components/TrimmingFormColumns.test.tsx	PASS
+frontend/src/features/trimming/components/TrimmingImageUploadField.tsx	PASS
+frontend/src/features/trimming/components/TrimmingLeftColumn.tsx	PASS
+frontend/src/features/trimming/components/TrimmingListTable.test.tsx	PASS
+frontend/src/features/trimming/components/TrimmingListTable.tsx	PASS
+frontend/src/features/trimming/components/TrimmingMiddleColumn.tsx	PASS
+frontend/src/features/trimming/components/TrimmingRightColumn.tsx	PASS
+frontend/src/features/trimming/components/trimming-form-column-types.ts	FINDING:FE-RC-227
+frontend/src/features/trimming/components/trimming-form-columns.ts	FINDING:FE-RC-227
+frontend/src/features/trimming/components/trimming-list-table-model.ts	FINDING:FE-RC-227
+frontend/src/features/trimming/hooks/trimming-form-utils.test.ts	PASS
+frontend/src/features/trimming/hooks/trimming-form-utils.ts	PASS
+frontend/src/features/trimming/hooks/use-trimming-form-chrome.test.ts	PASS
+frontend/src/features/trimming/hooks/use-trimming-form-chrome.ts	PASS
+frontend/src/features/trimming/hooks/use-trimming-form-helpers.test.ts	PASS
+frontend/src/features/trimming/hooks/use-trimming-form-helpers.ts	PASS
+frontend/src/features/trimming/hooks/use-trimming-form-validation.ts	PASS
+frontend/src/features/trimming/hooks/use-trimming-form.test.ts	PASS
+frontend/src/features/trimming/hooks/use-trimming-form.ts	PASS
+frontend/src/features/trimming/hooks/use-trimming-history.ts	PASS
+frontend/src/features/trimming/hooks/use-trimming-records.test.ts	PASS
+frontend/src/features/trimming/hooks/use-trimming-records.ts	PASS
+frontend/src/features/trimming/index.ts	PASS
+frontend/src/features/trimming/routes/TrimmingForm.permissions.test.tsx	PASS
+frontend/src/features/trimming/routes/TrimmingForm.tsx	PASS
+frontend/src/features/trimming/routes/TrimmingFormColumns.tsx	PASS
+frontend/src/features/trimming/routes/TrimmingFormPanels.tsx	PASS
+frontend/src/features/trimming/routes/TrimmingLazyModals.tsx	PASS
+frontend/src/features/trimming/routes/TrimmingList.test.tsx	PASS
+frontend/src/features/trimming/routes/TrimmingList.tsx	PASS
+frontend/src/features/trimming/routes/TrimmingListPanels.tsx	PASS
+frontend/src/features/trimming/routes/TrimmingPetSelection.tsx	PASS
+frontend/src/features/trimming/routes/trimming-form-model.ts	PASS
+frontend/src/features/vaccinations/api/create-vaccination.ts	PASS
+frontend/src/features/vaccinations/api/delete-vaccination.ts	PASS
+frontend/src/features/vaccinations/api/get-vaccination.ts	PASS
+frontend/src/features/vaccinations/api/get-vaccinations.test.ts	PASS
+frontend/src/features/vaccinations/api/get-vaccinations.ts	PASS
+frontend/src/features/vaccinations/api/transforms.test.ts	PASS
+frontend/src/features/vaccinations/api/transforms.ts	PASS
+frontend/src/features/vaccinations/api/types.ts	PASS
+frontend/src/features/vaccinations/api/update-vaccination.test.tsx	PASS
+frontend/src/features/vaccinations/api/update-vaccination.ts	PASS
+frontend/src/features/vaccinations/components/VaccinationCard.test.tsx	PASS
+frontend/src/features/vaccinations/components/VaccinationCard.tsx	PASS
+frontend/src/features/vaccinations/components/VaccinationFormPanels.test.tsx	PASS
+frontend/src/features/vaccinations/components/VaccinationFormPanels.tsx	PASS
+frontend/src/features/vaccinations/hooks/use-vaccination-form-helpers.ts	PASS
+frontend/src/features/vaccinations/hooks/use-vaccination-form-model.test.ts	PASS
+frontend/src/features/vaccinations/hooks/use-vaccination-form-model.ts	PASS
+frontend/src/features/vaccinations/hooks/use-vaccination-form.permissions.test.ts	PASS
+frontend/src/features/vaccinations/hooks/use-vaccination-form.schedule.test.ts	PASS
+frontend/src/features/vaccinations/hooks/use-vaccination-form.ts	PASS
+frontend/src/features/vaccinations/hooks/use-vaccination-form.validation.test.ts	PASS
+frontend/src/features/vaccinations/hooks/use-vaccinations.test.ts	PASS
+frontend/src/features/vaccinations/hooks/use-vaccinations.ts	PASS
+frontend/src/features/vaccinations/index.ts	PASS
+frontend/src/features/vaccinations/routes/VaccinationForm.permissions.test.tsx	PASS
+frontend/src/features/vaccinations/routes/VaccinationForm.tsx	PASS
+frontend/src/features/vaccinations/routes/VaccinationFormPagePanels.tsx	PASS
+frontend/src/features/vaccinations/routes/VaccinationList.test.tsx	PASS
+frontend/src/features/vaccinations/routes/VaccinationList.tsx	FINDING:FE-RC-215
+frontend/src/features/vaccinations/routes/VaccinationListPanels.tsx	PASS
+frontend/src/features/vaccinations/routes/VaccinationPetSelection.tsx	PASS
+frontend/src/features/vaccinations/routes/vaccination-form-model.ts	PASS
+frontend/src/features/vaccinations/routes/vaccinations-list-model.test.ts	PASS
+frontend/src/features/vaccinations/routes/vaccinations-list-model.ts	PASS
+frontend/src/hooks/CLAUDE.md	EXCLUDE:documentation
+frontend/src/hooks/auth-context.ts	PASS
+frontend/src/hooks/use-animal-species.ts	PASS
+frontend/src/hooks/use-auth.ts	PASS
+frontend/src/hooks/use-cash-register-closes.ts	PASS
+frontend/src/hooks/use-checkup-fields.ts	PASS
+frontend/src/hooks/use-clinic-holidays.ts	PASS
+frontend/src/hooks/use-clinic-scope.ts	PASS
+frontend/src/hooks/use-clinic-tax-rates.ts	PASS
+frontend/src/hooks/use-company.ts	PASS
+frontend/src/hooks/use-create-reservation.ts	PASS
+frontend/src/hooks/use-create-vaccination.ts	PASS
+frontend/src/hooks/use-current-clinic-name.ts	PASS
+frontend/src/hooks/use-debounced-value.test.ts	PASS
+frontend/src/hooks/use-debounced-value.ts	PASS
+frontend/src/hooks/use-examinations.ts	PASS
+frontend/src/hooks/use-get-reservation.ts	PASS
+frontend/src/hooks/use-get-reservations.ts	PASS
+frontend/src/hooks/use-lab-device-unlinked.test.ts	PASS
+frontend/src/hooks/use-lab-device-unlinked.ts	PASS
+frontend/src/hooks/use-master-items.ts	PASS
+frontend/src/hooks/use-medical-records.test.ts	PASS
+frontend/src/hooks/use-medical-records.ts	PASS
+frontend/src/hooks/use-modal-state.ts	PASS
+frontend/src/hooks/use-owner-line-tags.ts	PASS
+frontend/src/hooks/use-owner.ts	PASS
+frontend/src/hooks/use-pagination.test.ts	PASS
+frontend/src/hooks/use-pagination.ts	PASS
+frontend/src/hooks/use-permission.ts	PASS
+frontend/src/hooks/use-pet-selection-page.test.ts	PASS
+frontend/src/hooks/use-pet-selection-page.ts	PASS
+frontend/src/hooks/use-pet-selection.ts	PASS
+frontend/src/hooks/use-pet-vaccinations.test.ts	PASS
+frontend/src/hooks/use-pet-vaccinations.ts	PASS
+frontend/src/hooks/use-pet.test.ts	PASS
+frontend/src/hooks/use-pet.ts	PASS
+frontend/src/hooks/use-record-pet-death.ts	PASS
+frontend/src/hooks/use-reduced-motion.test.tsx	PASS
+frontend/src/hooks/use-reduced-motion.ts	PASS
+frontend/src/hooks/use-reservation-type-color-map.test.ts	PASS
+frontend/src/hooks/use-reservation-type-color-map.ts	PASS
+frontend/src/hooks/use-reservation-type-unavailable-times.ts	PASS
+frontend/src/hooks/use-reservation-types.test.ts	PASS
+frontend/src/hooks/use-reservation-types.ts	PASS
+frontend/src/hooks/use-revoke-pet-death.ts	PASS
+frontend/src/hooks/use-side-peek-dirty.test.tsx	PASS
+frontend/src/hooks/use-side-peek-dirty.tsx	PASS
+frontend/src/hooks/use-sortable-data.test.ts	PASS
+frontend/src/hooks/use-sortable-data.ts	PASS
+frontend/src/hooks/use-sortable-list.ts	PASS
+frontend/src/hooks/use-staff-validation.ts	PASS
+frontend/src/hooks/use-staffs.test.ts	PASS
+frontend/src/hooks/use-staffs.ts	PASS
+frontend/src/hooks/use-title.ts	PASS
+frontend/src/hooks/use-treatment-master.ts	PASS
+frontend/src/hooks/use-trimming-course-types.ts	PASS
+frontend/src/hooks/use-unsaved-changes.test.tsx	PASS
+frontend/src/hooks/use-unsaved-changes.ts	PASS
+frontend/src/hooks/use-update-examination.test.tsx	PASS
+frontend/src/hooks/use-update-examination.ts	PASS
+frontend/src/hooks/use-update-reservation-route.ts	FINDING:FE-RC-217
+frontend/src/hooks/use-update-reservation.test.tsx	PASS
+frontend/src/hooks/use-update-reservation.ts	PASS
+frontend/src/hooks/use-url-page-sync.test.ts	PASS
+frontend/src/hooks/use-url-page-sync.ts	PASS
+frontend/src/index.css	PASS
+frontend/src/lib/auth-route-policy.test.ts	PASS
+frontend/src/lib/auth-route-policy.ts	PASS
+frontend/src/lib/axios.test.ts	PASS
+frontend/src/lib/axios.ts	PASS
+frontend/src/lib/calc-age.test.ts	PASS
+frontend/src/lib/calc-age.ts	PASS
+frontend/src/lib/calculations.test.ts	PASS
+frontend/src/lib/calculations.ts	PASS
+frontend/src/lib/cpm-stage.ts	PASS
+frontend/src/lib/current-clinic.test.ts	PASS
+frontend/src/lib/current-clinic.ts	PASS
+frontend/src/lib/design-tokens.test.ts	PASS
+frontend/src/lib/design-tokens.ts	PASS
+frontend/src/lib/entity-read-result.test.ts	PASS
+frontend/src/lib/entity-read-result.ts	PASS
+frontend/src/lib/form-data.test.ts	PASS
+frontend/src/lib/form-data.ts	PASS
+frontend/src/lib/format/date.test.ts	PASS
+frontend/src/lib/format/date.ts	PASS
+frontend/src/lib/format/number.test.ts	PASS
+frontend/src/lib/format/number.ts	PASS
+frontend/src/lib/handle-api-error.test.ts	PASS
+frontend/src/lib/handle-api-error.ts	PASS
+frontend/src/lib/internal-navigation.test.ts	PASS
+frontend/src/lib/internal-navigation.ts	PASS
+frontend/src/lib/iso-date.test.ts	PASS
+frontend/src/lib/iso-date.ts	PASS
+frontend/src/lib/jst-date.test.ts	PASS
+frontend/src/lib/jst-date.ts	PASS
+frontend/src/lib/lab-device-card-model.test.ts	PASS
+frontend/src/lib/lab-device-card-model.ts	PASS
+frontend/src/lib/line-item-helpers.ts	PASS
+frontend/src/lib/medicine-dose.test.ts	PASS
+frontend/src/lib/medicine-dose.ts	PASS
+frontend/src/lib/normalize-kana.test.ts	PASS
+frontend/src/lib/normalize-kana.ts	PASS
+frontend/src/lib/owner-report-window.test.ts	PASS
+frontend/src/lib/owner-report-window.ts	PASS
+frontend/src/lib/parse-optional-number.ts	PASS
+frontend/src/lib/pet-id.test.ts	PASS
+frontend/src/lib/pet-id.ts	PASS
+frontend/src/lib/phone.test.ts	PASS
+frontend/src/lib/phone.ts	PASS
+frontend/src/lib/query-keys.ts	PASS
+frontend/src/lib/react-query.test.ts	PASS
+frontend/src/lib/react-query.ts	PASS
+frontend/src/lib/saigram.test.ts	FINDING:FE-RC-218
+frontend/src/lib/saigram.ts	FINDING:FE-RC-218
+frontend/src/lib/sanitize.test.ts	PASS
+frontend/src/lib/sanitize.ts	PASS
+frontend/src/lib/status-helpers.test.ts	PASS
+frontend/src/lib/status-helpers.ts	PASS
+frontend/src/lib/transforms/cash-register.test.ts	PASS
+frontend/src/lib/transforms/cash-register.ts	PASS
+frontend/src/lib/transforms/examination.test.ts	PASS
+frontend/src/lib/transforms/examination.ts	PASS
+frontend/src/lib/transforms/medical-record.test.ts	PASS
+frontend/src/lib/transforms/medical-record.ts	PASS
+frontend/src/lib/transforms/medicine.test.ts	PASS
+frontend/src/lib/transforms/medicine.ts	PASS
+frontend/src/lib/transforms/owner.ts	PASS
+frontend/src/lib/transforms/pet.test.ts	PASS
+frontend/src/lib/transforms/pet.ts	PASS
+frontend/src/lib/transforms/reservation.ts	PASS
+frontend/src/lib/transforms/treatment.test.ts	PASS
+frontend/src/lib/transforms/treatment.ts	PASS
+frontend/src/lib/transforms/trimming.test.ts	PASS
+frontend/src/lib/transforms/trimming.ts	PASS
+frontend/src/lib/type-utils.ts	PASS
+frontend/src/lib/unique-sorted-options.ts	PASS
+frontend/src/lib/utils.ts	PASS
+frontend/src/lib/validate-credentials.test.ts	PASS
+frontend/src/lib/validate-credentials.ts	PASS
+frontend/src/main.tsx	PASS
+frontend/src/shared-liff/ErrorBoundary.test.tsx	PASS
+frontend/src/shared-liff/ErrorBoundary.tsx	PASS
+frontend/src/shared-liff/ErrorPage.test.tsx	PASS
+frontend/src/shared-liff/ErrorPage.tsx	PASS
+frontend/src/shared-liff/Spinner.test.tsx	PASS
+frontend/src/shared-liff/Spinner.tsx	PASS
+frontend/src/shared-liff/brand-tokens.css	PASS
+frontend/src/shared-liff/brand-tokens.test.ts	PASS
+frontend/src/shared-liff/brand-tokens.ts	PASS
+frontend/src/shared-liff/dev-log.test.ts	PASS
+frontend/src/shared-liff/dev-log.ts	PASS
+frontend/src/shared-liff/handle-fetch-error.test.ts	PASS
+frontend/src/shared-liff/handle-fetch-error.ts	PASS
+frontend/src/shared-liff/jst-date.test.ts	PASS
+frontend/src/shared-liff/jst-date.ts	PASS
+frontend/src/shared-liff/use-fetch-state.test.ts	PASS
+frontend/src/shared-liff/use-fetch-state.ts	PASS
+frontend/src/shared-liff/use-liff.test.ts	PASS
+frontend/src/shared-liff/use-liff.ts	PASS
+frontend/src/styles/globals.css	PASS
+frontend/src/testing/TestUtils.tsx	PASS
+frontend/src/testing/mocks/handlers.ts	PASS
+frontend/src/testing/mocks/node.ts	PASS
+frontend/src/testing/msw.test.ts	PASS
+frontend/src/testing/setup.ts	PASS
+frontend/src/testing/utils.test.tsx	PASS
+frontend/src/types/auth.ts	PASS
+frontend/src/types/checkup.ts	PASS
+frontend/src/types/diagnosis.ts	PASS
+frontend/src/types/form.ts	PASS
+frontend/src/types/generated-model-response-boundary.test.ts	PASS
+frontend/src/types/generated/auth-responses.ts	EXCLUDE:generated-types-no-style-audit
+frontend/src/types/generated/hospitalization-responses.ts	EXCLUDE:generated-types-no-style-audit
+frontend/src/types/generated/identitylink-responses.ts	EXCLUDE:generated-types-no-style-audit
+frontend/src/types/generated/medicalrecord-responses.ts	EXCLUDE:generated-types-no-style-audit
+frontend/src/types/generated/models.ts	EXCLUDE:generated-types-no-style-audit
+frontend/src/types/generated/owner-responses.ts	EXCLUDE:generated-types-no-style-audit
+frontend/src/types/generated/pet-responses.ts	EXCLUDE:generated-types-no-style-audit
+frontend/src/types/generated/trimming-responses.ts	EXCLUDE:generated-types-no-style-audit
+frontend/src/types/index.ts	PASS
+frontend/src/types/medicine.ts	PASS
+frontend/src/types/owner.ts	PASS
+frontend/src/types/pet.ts	PASS
+frontend/src/types/reservation-create-mutations.ts	PASS
+frontend/src/types/reservation-form.ts	PASS
+frontend/src/types/reservation-route.ts	PASS
+frontend/src/types/reservation-type.ts	PASS
+frontend/src/types/treatment.ts	PASS
+frontend/src/types/trimming.ts	PASS
+frontend/src/vite-env.d.ts	PASS
+frontend/tsconfig.json	PASS
+frontend/tsconfig.node.json	PASS
+frontend/vercel.json	PASS
+frontend/vite.config.ts	PASS
