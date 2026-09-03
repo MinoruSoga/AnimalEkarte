@@ -51,6 +51,11 @@ type LookupRepository interface {
 }
 
 // LstepRepository contains owner persistence consumed by LSTEP workflows.
+//
+// BE-RC-010 freeze (Phase 0): W6 renames this type to LifecycleOwnerRepository
+// (owner vocabulary, no consumer product name). W4 and cmd consumers
+// (cmd/api/lstep_adapters.go, cmd/lstep-migrate/migrator.go) follow that name.
+// Method signatures stay compatible. Mega Repository split (BE-RC-009) is N/A.
 type LstepRepository interface {
 	FindAllWithLineUserID(ctx context.Context, clinicID uint64) ([]model.Owner, error)
 	FindAllWithLineUserIDCursor(ctx context.Context, clinicID, afterID uint64, limit int) ([]model.Owner, error)

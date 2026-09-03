@@ -45,6 +45,8 @@ type StaffRepository interface {
 	// ("reservation_staff")・スコープ機構（primary clinic_id vs assignment EXISTS）・
 	// tx 構成（main assignment 同時作成 / 隣接 swap）が異なり、統合は挙動変更になる。
 	CreateForReservation(ctx context.Context, staff *model.Staff, clinicID uint64) error
+	// UpdateForReservation remains map-typed until W1 switches callers onto
+	// ReservationStaffUpdate. Map conversion is reservationStaffUpdateFields.
 	UpdateForReservation(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	SwapSortOrderForReservation(ctx context.Context, clinicID, id uint64, direction string) error
 }
