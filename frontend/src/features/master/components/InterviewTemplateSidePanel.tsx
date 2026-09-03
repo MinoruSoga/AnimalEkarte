@@ -71,7 +71,7 @@ export const InterviewTemplateSidePanel = memo(function InterviewTemplateSidePan
   const handleClose = useCallback(() => {
     setIsDirty(false);
     onClose();
-  }, [onClose]);
+  }, [onClose, setIsDirty]);
 
   return (
     <MasterSidePanel

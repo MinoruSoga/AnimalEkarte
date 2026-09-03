@@ -1,4 +1,4 @@
-import { formatJSTDate } from "@/lib/jst-date";
+import { formatJSTDate, formatJSTTime } from "@/lib/jst-date";
 import { labDeviceNeedsReviewReason } from "@/lib/lab-device-card-model";
 import type { LabDeviceJobCard, LabDeviceSlot, LabDeviceTodayVisit } from "../api/lab-device";
 
@@ -229,6 +229,16 @@ export function labDeviceAttachFailureToast(attached: LabDeviceJobCard): string 
   return labDeviceCardNeedsReview(attached)
     ? `保存できませんでした（${labDeviceNeedsReviewReason(attached)}）`
     : "保存できませんでした。未紐付けのままです";
+}
+
+export function resolveLabDeviceReceiveTime(
+  liveAt: string | undefined,
+  latestCard: LabDeviceJobCard | undefined,
+): string | undefined {
+  if (liveAt) return formatJSTTime(liveAt);
+  const measuredOrReceived = latestCard?.measuredAt || latestCard?.receivedAt;
+  if (measuredOrReceived) return formatJSTTime(measuredOrReceived);
+  return undefined;
 }
 
 export function labDeviceAgentDegradedErrorMessage(

@@ -76,7 +76,7 @@ export const DiagnosisNameSidePanel = memo(function DiagnosisNameSidePanel({
   const handleClose = useCallback(() => {
     setIsDirty(false);
     onClose();
-  }, [onClose]);
+  }, [onClose, setIsDirty]);
 
   const categorySelectItems = useMemo(
     () => categories.map((category) => (

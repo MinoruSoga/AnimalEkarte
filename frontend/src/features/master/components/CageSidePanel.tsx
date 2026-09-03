@@ -76,7 +76,7 @@ export const CageSidePanel = memo(function CageSidePanel({
   const handleClose = useCallback(() => {
     setIsDirty(false);
     onClose();
-  }, [onClose]);
+  }, [onClose, setIsDirty]);
 
   return (
     <MasterSidePanel

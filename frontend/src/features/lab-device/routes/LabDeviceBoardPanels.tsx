@@ -13,7 +13,6 @@ import {
   LabDeviceJobCardView,
   LabDeviceStatusCard,
   LabDeviceTodayVisitCard,
-  resolveLabDeviceReceiveTime,
 } from "../components/LabDeviceBoardCards";
 import type { LabDeviceAgentListenStatus } from "../hooks/use-lab-device-agent-listen";
 import {
@@ -26,6 +25,7 @@ import {
   labDeviceLatestCardForSlot,
   labDeviceLiveReceiveLabel,
   labDeviceReceivedDayLabel,
+  resolveLabDeviceReceiveTime,
 } from "../lib/lab-device-board-model";
 
 function notifyLabDeviceAttachResult(attached: LabDeviceJobCard): void {

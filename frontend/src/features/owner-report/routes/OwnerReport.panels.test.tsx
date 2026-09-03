@@ -4,14 +4,12 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Routes, Route, useSearchParams } from "react-router";
 
-import { HISTORY_FETCH_LIMIT } from "@/config/fetch-limits";
 import { AuthContext } from "@/hooks/auth-context";
 import type { AuthContextValue } from "@/types/auth";
 import type { Resource, ResourceAction } from "@/types/generated/models";
 import { buildJSTWallDateTime, todayJSTISO } from "@/lib/jst-date";
 import {
   ResourceExaminations,
-  ResourceOwners,
   ResourceVaccinations,
 } from "@/types/generated/models";
 

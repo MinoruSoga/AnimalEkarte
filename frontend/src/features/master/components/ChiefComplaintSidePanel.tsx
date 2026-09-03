@@ -67,7 +67,7 @@ export const ChiefComplaintSidePanel = memo(function ChiefComplaintSidePanel({
   const handleClose = useCallback(() => {
     setIsDirty(false);
     onClose();
-  }, [onClose]);
+  }, [onClose, setIsDirty]);
 
   return (
     <MasterSidePanel

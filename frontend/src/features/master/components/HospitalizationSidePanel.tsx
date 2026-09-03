@@ -89,7 +89,7 @@ export const HospitalizationSidePanel = memo(function HospitalizationSidePanel({
   const handleClose = useCallback(() => {
     setIsDirty(false);
     onClose();
-  }, [onClose]);
+  }, [onClose, setIsDirty]);
 
   return (
     <MasterSidePanel

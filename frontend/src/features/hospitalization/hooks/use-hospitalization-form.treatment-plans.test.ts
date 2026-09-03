@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AxiosError, AxiosHeaders, type InternalAxiosRequestConfig } from "axios";
 import { renderHook, act, waitFor } from "@testing-library/react";
-import { startTransition, useLayoutEffect, useRef } from "react";
+import { startTransition } from "react";
 import { calculateBillingTotals } from "@/lib/calculations";
 import { useGetHospitalizationRaw } from "../api/get-hospitalization";
 import { useGetTreatmentPlans } from "../api/get-treatment-plans";
@@ -15,31 +15,6 @@ async function submitForm(action: ReturnType<typeof useHospitalizationForm>["for
 
 function renderHospitalizationForm(id?: string, canSubmit = true) {
   return renderHook(() => useHospitalizationForm(id, canSubmit));
-}
-
-/** BUG-016: edit mode submit requires a found entity; shared fixture for regression tests. */
-function mockFoundHospitalization(id = 42) {
-  vi.mocked(useGetHospitalizationRaw).mockReturnValue({
-    data: {
-      id,
-      clinic_id: 1,
-      owner_id: 2,
-      pet_id: 3,
-      hospitalization_type: "hospitalization",
-      start_date: "2026-07-23T00:00:00+09:00",
-      end_date: "2026-07-30T00:00:00+09:00",
-      status: "admitted",
-      memo: "m",
-      owner_request: "o",
-      staff_notes: "s",
-      created_at: "2026-07-23T00:00:00+09:00",
-      updated_at: "2026-07-23T00:00:00+09:00",
-    },
-    isLoading: false,
-    isError: false,
-    error: null,
-    refetch: vi.fn(),
-  } as unknown as ReturnType<typeof useGetHospitalizationRaw>);
 }
 
 // ──────────────────────────────────────────────────────────

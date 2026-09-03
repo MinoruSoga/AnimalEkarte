@@ -1,14 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { renderHook, act, waitFor, render, screen } from "@testing-library/react";
-import { createElement, startTransition } from "react";
+import { renderHook, act, waitFor } from "@testing-library/react";
+import { startTransition } from "react";
 import { useMedicalRecordForm } from "./use-medical-record-form";
 import { useGetPet } from "@/hooks/use-pet";
 import { useGetOwner } from "@/hooks/use-owner";
 import { useGetReservationTypesGrouped } from "@/hooks/use-reservation-types";
 import { useCreateReservation } from "@/hooks/use-create-reservation";
 import { useGetReservations } from "@/hooks/use-get-reservations";
-import { useCreateMedicalRecord } from "../api/create-medical-record";
-import { MedicalRecordAutoCreateFailure } from "../components/MedicalRecordAutoCreateFailure";
 
 // ──────────────────────────────────────────────────────────
 // モック定義

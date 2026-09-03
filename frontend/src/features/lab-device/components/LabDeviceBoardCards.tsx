@@ -173,14 +173,3 @@ export function LabDeviceStatusCard({
     </section>
   );
 }
-
-// FE-RC-085: ネスト三項を早期returnへ分解。
-export function resolveLabDeviceReceiveTime(
-  liveAt: string | undefined,
-  latestCard: LabDeviceJobCard | undefined,
-): string | undefined {
-  if (liveAt) return formatJSTTime(liveAt);
-  const measuredOrReceived = latestCard?.measuredAt || latestCard?.receivedAt;
-  if (measuredOrReceived) return formatJSTTime(measuredOrReceived);
-  return undefined;
-}

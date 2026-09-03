@@ -61,7 +61,7 @@ export const OccupationSidePanel = memo(function OccupationSidePanel({
   const handleClose = useCallback(() => {
     setIsDirty(false);
     onClose();
-  }, [onClose]);
+  }, [onClose, setIsDirty]);
 
   return (
     <MasterSidePanel

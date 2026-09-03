@@ -165,7 +165,7 @@ export function MyReservationsPage({
                             <button
                               type="button"
                               onClick={() => handleCancelConfirm(reservation.id)}
-                              disabled={isCancelling && cancellingId === reservation.id}
+                              disabled={Boolean(isCancelling && cancellingId === reservation.id)}
                               className="text-sm text-white bg-noah-danger hover:bg-noah-danger-hover disabled:opacity-50 px-3 py-1.5 rounded-lg"
                             >
                               {isCancelling && cancellingId === reservation.id ? 'キャンセル中...' : 'はい、キャンセルする'}
@@ -173,7 +173,7 @@ export function MyReservationsPage({
                             <button
                               type="button"
                               onClick={handleCancelDismiss}
-                              disabled={isCancelling && cancellingId === reservation.id}
+                              disabled={Boolean(isCancelling && cancellingId === reservation.id)}
                               className="text-sm text-noah-text-sub hover:text-noah-text disabled:opacity-50 px-3 py-1.5 rounded-lg border border-noah-border"
                             >
                               いいえ
@@ -184,7 +184,7 @@ export function MyReservationsPage({
                         <button
                           type="button"
                           onClick={() => handleCancelRequest(reservation.id)}
-                          disabled={isCancelling && cancellingId === reservation.id}
+                          disabled={Boolean(isCancelling && cancellingId === reservation.id)}
                           className="text-sm text-noah-danger hover:text-noah-danger-text disabled:opacity-50"
                         >
                           キャンセルする

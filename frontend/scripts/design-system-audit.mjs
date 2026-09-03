@@ -124,7 +124,7 @@ export const C8_ROUTE_HELPER_ALLOWLIST = new Set([
   path.join("src", "features", "trimming", "routes", "TrimmingForm.tsx"),
   path.join("src", "features", "trimming", "routes", "TrimmingList.tsx"),
   path.join("src", "features", "trimming", "routes", "TrimmingFormColumns.tsx"),
-    path.join("src", "features", "hospitalization", "routes", "HospitalizationFormPanels.tsx"),
+    path.join("src", "features", "hospitalization", "routes", "hospitalization-form-panels.ts"),
   path.join("src", "features", "hospitalization", "routes", "HospitalizationFormBody.tsx"),
   path.join("src", "features", "hospitalization", "routes", "HospitalizationFormFields.tsx"),
   path.join("src", "features", "hospitalization", "routes", "HospitalizationFormStatusView.tsx"),

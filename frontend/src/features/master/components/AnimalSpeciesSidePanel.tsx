@@ -57,7 +57,7 @@ export const AnimalSpeciesSidePanel = memo(function AnimalSpeciesSidePanel({
   const handleClose = useCallback(() => {
     setIsDirty(false);
     onClose();
-  }, [onClose]);
+  }, [onClose, setIsDirty]);
 
   return (
     <MasterSidePanel

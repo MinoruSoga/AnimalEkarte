@@ -61,7 +61,7 @@ export const DiagnosisTypeSidePanel = memo(function DiagnosisTypeSidePanel({
   const handleClose = useCallback(() => {
     setIsDirty(false);
     onClose();
-  }, [onClose]);
+  }, [onClose, setIsDirty]);
 
   return (
     <MasterSidePanel

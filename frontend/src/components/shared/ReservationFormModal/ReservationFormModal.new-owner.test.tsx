@@ -4,7 +4,6 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
 import { ReservationFormModal } from "./ReservationFormModal";
-import type { Reservation } from "@/types";
 import { createWrapper, silentApiHandlers, noop } from "./ReservationFormModal.test-helpers";
 
 // SearchableSelect は Radix Popover を Radix Dialog の内側で開く。jsdom + カバレッジ計装下では

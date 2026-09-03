@@ -69,7 +69,7 @@ export const MerchandiseSidePanel = memo(function MerchandiseSidePanel({
   const handleClose = useCallback(() => {
     setIsDirty(false);
     onClose();
-  }, [onClose]);
+  }, [onClose, setIsDirty]);
 
   return (
     <MasterSidePanel

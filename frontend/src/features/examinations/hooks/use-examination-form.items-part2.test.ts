@@ -1,15 +1,10 @@
 import { renderHook, act, waitFor } from "@testing-library/react";
-import { startTransition, useLayoutEffect, useRef } from "react";
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { AxiosError, AxiosHeaders, type InternalAxiosRequestConfig } from "axios";
+import { startTransition } from "react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { useExaminationForm } from "./use-examination-form";
 import { useSearchParams } from "react-router";
 import { useGetPet } from "@/hooks/use-pet";
 import { usePetSelection } from "@/hooks/use-pet-selection";
-import { useDeleteExamination } from "../api/delete-examination";
-import { useGetExamination } from "../api/get-examination";
-import { useCreateExamination } from "../api/create-examination";
-import { useUpdateExamination } from "../api/update-examination";
 import { jstDateStartISOString, todayJSTISO } from "@/lib/jst-date";
 
 // Mock dependencies

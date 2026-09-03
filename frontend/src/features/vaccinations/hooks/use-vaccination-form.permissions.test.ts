@@ -2,14 +2,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { startTransition, useLayoutEffect, useRef } from "react";
 import { AxiosError, AxiosHeaders, type InternalAxiosRequestConfig } from "axios";
-import { calculateNextDate, useVaccinationForm } from "./use-vaccination-form";
+import { useVaccinationForm } from "./use-vaccination-form";
 import { useGetPet } from "@/hooks/use-pet";
 import { useGetAllVaccinesMaster } from "@/hooks/use-treatment-master";
 import { useGetVaccination } from "../api/get-vaccination";
 import { useCreateVaccination } from "../api/create-vaccination";
 import { useUpdateVaccination } from "../api/update-vaccination";
 import { useDeleteVaccination } from "../api/delete-vaccination";
-import { jstDateStartISOString } from "@/lib/jst-date";
 
 // ──────────────────────────────────────────────────────────
 // モック定義

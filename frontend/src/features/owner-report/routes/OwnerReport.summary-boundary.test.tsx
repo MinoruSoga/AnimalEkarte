@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Routes, Route, useSearchParams } from "react-router";
 
@@ -9,14 +8,8 @@ import { AuthContext } from "@/hooks/auth-context";
 import type { AuthContextValue } from "@/types/auth";
 import type { Resource, ResourceAction } from "@/types/generated/models";
 import { buildJSTWallDateTime, todayJSTISO } from "@/lib/jst-date";
-import {
-  ResourceExaminations,
-  ResourceOwners,
-  ResourceVaccinations,
-} from "@/types/generated/models";
+import { ResourceOwners } from "@/types/generated/models";
 
-import type { OwnerReportPet } from "../api/get-owner-report-pets";
-import { toPet } from "../lib/owner-report-pet";
 import { OwnerReport } from "./OwnerReport";
 
 // ---- data hooks をモックしてセクションデータを決定的に注入する ----
@@ -319,25 +312,6 @@ beforeEach(() => {
 });
 
 const allowAll = () => true;
-
-function baseReportPet(
-  overrides: Partial<OwnerReportPet> = {},
-): OwnerReportPet {
-  return {
-    id: "7",
-    name: "ポチ",
-    petNameKana: "",
-    gender: "",
-    status: "生存",
-    breed: "",
-    color: "",
-    food: "",
-    environment: "",
-    remarks: "",
-    species: "犬",
-    ...overrides,
-  };
-}
 
 // FE-RC-045: OwnerReport.test.tsx (820行) を分割した2ファイル目（サマリー/権限/認証境界）。
 

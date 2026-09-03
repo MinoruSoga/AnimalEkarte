@@ -1,8 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { AxiosError, AxiosHeaders, type InternalAxiosRequestConfig } from "axios";
-import { renderHook, act, waitFor } from "@testing-library/react";
+import { renderHook, act } from "@testing-library/react";
 import { startTransition, useLayoutEffect, useRef } from "react";
-import { calculateBillingTotals } from "@/lib/calculations";
 import { useGetHospitalizationRaw } from "../api/get-hospitalization";
 import { useGetTreatmentPlans } from "../api/get-treatment-plans";
 import { useHospitalizationForm } from "./use-hospitalization-form";

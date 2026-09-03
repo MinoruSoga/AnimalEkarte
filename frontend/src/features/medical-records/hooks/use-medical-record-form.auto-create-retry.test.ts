@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act, waitFor, render, screen } from "@testing-library/react";
-import { createElement, startTransition } from "react";
+import { createElement } from "react";
 import { useMedicalRecordForm } from "./use-medical-record-form";
 import { useGetPet } from "@/hooks/use-pet";
 import { useGetOwner } from "@/hooks/use-owner";
@@ -45,14 +45,6 @@ vi.mock("@/hooks/use-permission", () => ({
 // API フック群をすべてスタブ化（デフォルト: データなし・ローディングなし）
 const noData = { data: undefined, isLoading: false, isError: false };
 const noMutation = { mutateAsync: vi.fn().mockResolvedValue({}), isPending: false };
-
-function runFormAction(action: (payload: FormData) => void) {
-  act(() => {
-    startTransition(() => {
-      action(new FormData());
-    });
-  });
-}
 
 vi.mock("@/hooks/use-pet", () => ({
   useGetPet: vi.fn(() => ({ data: undefined, isLoading: false, isError: false })),
