@@ -40,4 +40,5 @@
 # （*.test.tsx ヒューリスティック起因を含む新規ファイルが lane 統合で混入。本 Phase 2 の
 # 変更対象外のため未解消のまま実測値まで baseline を引き上げて記録する。解消は別チケット）。
 # 2026-09-03 followup Phase 2: FE-RC-017 PascalCase rename — tsx ratchet 44→14 (residual: *.test.tsx heuristic + use-reception-column-view.tsx)
-14
+# 2026-09-03 followup2: isTsxViolation で *.test/*.spec と use-* を除外 → 実測 0
+0

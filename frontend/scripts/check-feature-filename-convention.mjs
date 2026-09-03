@@ -65,6 +65,10 @@ export function isViolation(basename) {
  * `fileText` を渡した場合のみ JSX export の簡易判定を行い、渡さない場合は basename のみで判定する。
  */
 export function isTsxViolation(basename, fileText) {
+  // FE-RC-017 followup2: *.test.tsx / *.spec.tsx はコンポーネントではない。
+  // use-*.tsx は JSX を返す hook（features/CLAUDE.md の正当パターン）なので除外。
+  if (basename.endsWith(".test") || basename.endsWith(".spec")) return false;
+  if (basename.startsWith("use-")) return false;
   if (!LOWERCASE_START_RE.test(basename)) return false;
   if (fileText === undefined) return true;
   return JSX_TAG_RE.test(fileText);

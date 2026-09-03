@@ -34,6 +34,14 @@ const layerInversionRestrictedPattern = {
     "components/hooks/lib から @/features への import は禁止（層逆転）。features 側が components/hooks/lib に依存する一方向のみ許可する。",
 };
 
+// FE-RC-015 followup2: alias だけでなく相対パス（../features/...）での層逆転も禁止。
+const layerInversionRelativeRestrictedPattern = {
+  regex: "^\\.\\.?/(?:\\.\\./)*features/",
+  caseSensitive: true,
+  message:
+    "components/hooks/lib から相対パスで features への import は禁止（層逆転）。features 側が components/hooks/lib に依存する一方向のみ許可する。",
+};
+
 // FE-RC-015/060: feature 間の直接 import（barrel 経由含む）を機械禁止する。
 // deep import（rule 1）は既に禁止済みのため、この pattern が実際に捕捉するのは
 // barrel（@/features/<name>）経由の cross-feature import。
@@ -161,12 +169,16 @@ export default tseslint.config(
   {
     // FE7-0: 層逆転禁止。components/hooks/lib から @/features への import を禁止する
     // （features は components/hooks/lib に依存してよいが逆方向は禁止 — 一方向依存の強制）。
+    // FE-RC-015 followup2: 相対パス（../features/...）も同様に禁止。
     files: ["src/components/**", "src/hooks/**", "src/lib/**"],
     rules: {
       "no-restricted-imports": [
         "error",
         {
-          patterns: [layerInversionRestrictedPattern],
+          patterns: [
+            layerInversionRestrictedPattern,
+            layerInversionRelativeRestrictedPattern,
+          ],
         },
       ],
     },
@@ -266,6 +278,7 @@ export default tseslint.config(
           paths: [generatedModelsPathRestriction],
           patterns: [
             layerInversionRestrictedPattern,
+            layerInversionRelativeRestrictedPattern,
             generatedModelsRelativeImportPattern,
           ],
         },
