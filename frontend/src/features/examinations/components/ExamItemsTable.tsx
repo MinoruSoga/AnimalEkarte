@@ -2,13 +2,15 @@
 import { memo, useCallback, useId, useLayoutEffect, useRef } from "react";
 
 // External
-import { CheckCircle, Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 
 // Internal
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { C, ICON } from "@/lib/design-tokens";
+
+// Relative
+import { ExamStatusBadge } from "./ExamStatusBadge";
 
 // 検査項目テーブルの 1 行。
 // status / isAssessed / isAbnormal は backend が導出した値を表示するだけ（FE で再計算しない）。
@@ -39,57 +41,6 @@ interface ExamItemsTableProps {
   onRemoveItem?: (key: string) => void;
   onChangeName?: (key: string, value: string) => void;
   disabled?: boolean;
-}
-
-function StatusBadge({
-  status,
-  isAssessed,
-}: {
-  status?: "normal" | "high" | "low";
-  isAssessed?: boolean;
-}) {
-  if (status === "high") {
-    return (
-      <Badge
-        variant="destructive"
-        className={`h-8 px-3 text-xs ${C.bgDanger} ${C.hoverBgDanger90}`}
-      >
-        HIGH
-      </Badge>
-    );
-  }
-  if (status === "low") {
-    return (
-      <Badge
-        variant="outline"
-        className={`h-8 px-3 text-xs ${C.textStatusBlue} ${C.borderBlue400} ${C.bgStatusBlueLight}`}
-      >
-        LOW
-      </Badge>
-    );
-  }
-  if (isAssessed === false) {
-    return (
-      <Badge
-        variant="outline"
-        className={`h-8 px-3 text-xs ${C.textWarning} ${C.borderWarning20} ${C.bgWarning50}`}
-      >
-        未判定
-        <span className="sr-only">（基準値未設定のため判定していない）</span>
-      </Badge>
-    );
-  }
-  if (status === "normal") {
-    return (
-      <CheckCircle
-        role="img"
-        aria-label="基準値内"
-        className={`${ICON.action} ${C.textStatusGreen} opacity-50`}
-      />
-    );
-  }
-  // 未判定（保存前）
-  return <span className={`text-xs ${C.text45}`}>-</span>;
 }
 
 /**
@@ -274,7 +225,7 @@ export const ExamItemsTable = memo(function ExamItemsTable({
               <div
                 className={`p-2 border-r ${C.borderMedium} flex justify-center items-center`}
               >
-                <StatusBadge
+                <ExamStatusBadge
                   status={item.status}
                   isAssessed={item.isAssessed}
                 />

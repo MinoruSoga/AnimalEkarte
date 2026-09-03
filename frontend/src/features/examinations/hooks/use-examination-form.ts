@@ -174,6 +174,9 @@ export function useExaminationForm(
     formData: formDataWithPet,
     setFormData,
     petSelection,
+    // FE-RC-002: callback 側（runExaminationSave 等）の拒否と対になる render 側の防壁。
+    // SubmitButton 非表示・PatientInfoCard の死亡表示に使う（二重防壁）。
+    isPetDeceased: hasExplicitlyDeceasedPet,
     formAction,
     formState,
     fieldErrors: manualFieldErrors,

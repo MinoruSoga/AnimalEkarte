@@ -123,6 +123,37 @@ describe("ExaminationFormFields", () => {
     expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
   });
 
+  it("FE-RC-002: 死亡ペット（isPetDeceased）では権限があっても保存buttonを表示しない", () => {
+    render(
+      <MemoryRouter>
+        <ExaminationFormFields
+          formData={{ date: "2026-07-21T00:00:00+09:00", status: "依頼中" }}
+          examTypes={[{ id: "5", name: "血液検査（院内）" }]}
+          staffList={[{ id: "3", name: "林文明" }]}
+          masterLoading={false}
+          isEdit={false}
+          isDeleting={false}
+          isConfirmed={false}
+          isPetDeceased
+          canEdit
+          canCreate
+          canDelete
+          onSetFormData={vi.fn()}
+          onBack={vi.fn()}
+          onDeleteClick={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
+  });
+
+  it("FE-RC-002: isPetDeceased=false（既定値）では他条件が揃えば保存buttonを表示する", () => {
+    renderFields();
+
+    expect(screen.getByRole("button", { name: "保存" })).toBeInTheDocument();
+  });
+
   it("編集は作成権限なしでも編集権限があれば保存buttonを表示する", () => {
     renderFields({ isEdit: true, canCreate: false, canEdit: true });
 

@@ -50,29 +50,25 @@ vi.mock("@/hooks/use-master-items", () => ({
   },
 }));
 
-vi.mock("@/features/master", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/features/master")>();
-  return {
-    ...actual,
-    useGetStaffs: () => ({
-      data: [
-        {
-          id: "3",
-          name: "林文明",
-          staffType: "doctor",
-          isActive: true,
-        },
-        {
-          id: "99",
-          name: "お手入れ・オゾン療法",
-          staffType: "resource",
-          isActive: true,
-        },
-      ],
-      isLoading: false,
-    }),
-  };
-});
+vi.mock("@/hooks/use-staffs", () => ({
+  useGetStaffs: () => ({
+    data: [
+      {
+        id: "3",
+        name: "林文明",
+        staffType: "doctor",
+        isActive: true,
+      },
+      {
+        id: "99",
+        name: "お手入れ・オゾン療法",
+        staffType: "resource",
+        isActive: true,
+      },
+    ],
+    isLoading: false,
+  }),
+}));
 
 // ExaminationForm は未紐付け受信バナーを描画する。バナーは useQuery を使うため
 // QueryClientProvider の無いフォーム単体テストでは null に差し替える。

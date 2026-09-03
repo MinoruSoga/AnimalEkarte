@@ -1,6 +1,6 @@
 // React/Framework
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
-import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useCallback, useDeferredValue, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
 // External
@@ -12,6 +12,7 @@ import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { useSortableData } from "@/hooks/use-sortable-data";
 import { usePermission } from "@/hooks/use-permission";
+import { useUrlPageSync } from "@/hooks/use-url-page-sync";
 import { paths } from "@/config/paths";
 import { useGetCheckups } from "../api/get-checkups";
 
@@ -25,6 +26,7 @@ import {
   checkupChartHref,
   filterCheckupsBySearch,
   nextListSearchParamsWithPage,
+  nextListSearchParamsWithoutPage,
 } from "./checkups-list-model";
 
 export function CheckupsList() {
@@ -39,17 +41,12 @@ export function CheckupsList() {
 
   const filters = useMemo(() => buildCheckupListFilters(activeFilters), [activeFilters]);
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const filtersResetKey = JSON.stringify(filters);
-  const [prevFiltersResetKey, setPrevFiltersResetKey] = useState(filtersResetKey);
-  if (prevFiltersResetKey !== filtersResetKey) {
-    setPrevFiltersResetKey(filtersResetKey);
-    setCurrentPage(1);
-  }
+  // FE-RC-028: ページ番号のソースはURLのみ。ローカルstateは持たない（ExaminationsListと同様の単一ソース化）。
+  const urlPage = Math.max(1, Number(searchParams.get("page") ?? 1) || 1);
 
   const requestFilters = useMemo(
-    () => ({ ...filters, page: currentPage, limit: PAGE_SIZE }),
-    [filters, currentPage],
+    () => ({ ...filters, page: urlPage, limit: PAGE_SIZE }),
+    [filters, urlPage],
   );
 
   const { data: checkupsResult, isLoading, error } = useGetCheckups(requestFilters);
@@ -60,7 +57,7 @@ export function CheckupsList() {
   const total = checkupsResult?.total ?? 0;
   const limit = checkupsResult?.limit ?? PAGE_SIZE;
   const totalPages = Math.max(1, Math.ceil(total / limit));
-  const safePage = Math.min(currentPage, totalPages);
+  const safePage = Math.min(urlPage, totalPages);
 
   const filteredRecords = useMemo(
     () => filterCheckupsBySearch(checkups, deferredSearch),
@@ -73,24 +70,27 @@ export function CheckupsList() {
   const startIndex = total === 0 ? 0 : (safePage - 1) * limit + 1;
   const endIndex = Math.min(safePage * limit, total);
 
-  // FE-144: URLクエリパラメータからページ番号を読み取り、ローカル状態と同期
-  // （URLが変わったときのみ。totalPages はサーバ応答後に確定するためクランプが必要）
-  const urlPage = Number(searchParams.get("page") ?? 1);
-  useEffect(() => {
-    const clampedPage = Math.max(1, Math.min(urlPage, totalPages));
-    if (clampedPage !== currentPage) {
-      // URL/サーバ total 由来のページ同期。render 中 setState は不可のため effect で反映する。
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- FE-144 URL page clamp sync
-      setCurrentPage(clampedPage);
-    }
-  // currentPage は比較対象のみ。URL/totalPages 変化時だけ同期する（自己ループ防止）
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- FE-144 URL page sync
-  }, [urlPage, totalPages]);
+  // FE-144 / FE-RC-028: URLの page がサーバ total から導いた totalPages を超えている場合はクランプする
+  // （フィルタ変更等で母集団が縮んだ場合に空ページへ迷い込むのを防ぐ）。共通 hook に委譲。
+  useUrlPageSync({
+    urlPage,
+    totalPages,
+    isLoading,
+    setSearchParams,
+  });
 
   const handlePageChange = useCallback((page: number) => {
-    setCurrentPage(page);
     setSearchParams(
       (prev) => nextListSearchParamsWithPage(prev, page),
+      { replace: true },
+    );
+  }, [setSearchParams]);
+
+  const handleFilterChange = useCallback((next: ActiveFilter[]) => {
+    setActiveFilters(next);
+    // フィルタ変更時はページを1へ戻す（母集団が変わるため）
+    setSearchParams(
+      (prev) => nextListSearchParamsWithoutPage(prev),
       { replace: true },
     );
   }, [setSearchParams]);
@@ -123,7 +123,7 @@ export function CheckupsList() {
     >
       <CheckupsListContent
         activeFilters={activeFilters}
-        onFilterChange={setActiveFilters}
+        onFilterChange={handleFilterChange}
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
         count={isLoading ? undefined : filteredRecords.length}
