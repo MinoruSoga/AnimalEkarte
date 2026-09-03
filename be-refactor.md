@@ -246,16 +246,16 @@
 
 ## 7. 実施記録
 
-キャンペーンブランチ: `refactor/be-rc-2026-09`（base `42510f25c`）。claim: `claim/BE-RC-CAMPAIGN-2026-09`（削除せず残置）。
+先行キャンペーン `refactor/be-rc-2026-09` は `main` `58ba81915`（`docs: be-refactor.md campaign record`）へ fast-forward 済み。旧 `claim/BE-RC-CAMPAIGN-2026-09` はユーザーが削除済み。本 leftover: `refactor/be-rc-leftover-2026-09`（base `58ba81915`）。claim: `claim/BE-RC-LEFTOVER-2026-09`（統合まで残す）。`claim/FE-RC-*` は本キャンペーン対象外。
 
 | ID | Status | 変更ファイル | 検証 |
 |---|---|---|---|
 | BE-RC-001 | DONE | `staff/reservation_staff_update.go`, `staff/staff_repository.go`, `reservation/reservation_staff_repository.go`, `reservation/reservation_staff_service.go`, isolation/mocks, `staff/staff_clinic_assignment_reservation_race_test.go`（`package staff_test` へ移し import cycle 解消） | `docker compose exec -T backend go test ./internal/staff/...` ok; `./internal/reservation/...` ok。exported `UpdateForReservation` / `staffsWriter` は `ReservationStaffUpdate`。production staff は reservation を import しない |
-| BE-RC-002 | DONE | billing/lstep/medicalrecord/owner/pet request ファイルと既存 request テスト | ShouldBindJSON 超過テスト追加。reason 500 / memo-notes-content-AfterText 1000 / name 255 / LINE Text 5000 / FileName+Purpose 255 |
+| BE-RC-002 | DONE | 先行: billing/lstep/medicalrecord/owner/pet request。leftover: `billing/billing_item_request.go` `createBillingItemRequest.Name`、`owner/http_request.go` `createPetForOwnerRequest.Name`、`billing_item_request_test.go`、`owner/http_request_freetext_max_test.go` | leftover: `binding:"required,max=255"`。`docker compose run --rm --no-deps -T --entrypoint go -v leftover/backend:/app backend test ./internal/billing/ ./internal/owner/ -run 'TestCreateBillingItemRequest_NameMax\|TestCreatePetForOwnerRequest_NameMax'` ok（256 reject / 255 accept） |
 | BE-RC-003 | DONE | `inventory/repository.go` `DeleteIfUnused`; `billing/payment_method_master_repository.go`; `billing/insurance_repository.go` | `./internal/inventory/...` ok。billing は `PaymentMethodMasterRepository_Delete|InsuranceRepository_Delete|PaymentMethodMasterRepository_Update` 緑。package 全体の LTV/CompleteForAccounting 失敗は testdb WIP 由来で本差分外 |
 | BE-RC-004 | N/A | — | 他マスター Count→Delete 一括は CODING_RULES residual。003 の 3 面のみ実施 |
 | BE-RC-005 | N/A | — | slog 一括削除は別タスク。新規に二重ログを増やしていない |
-| BE-RC-006 | DONE | 列挙 handler（reservation/liff/validators/queries, hospitalization/daily_record, inventory, cash_register, chronic_condition, shift, http_password, lstep CSV/checkup_sync） | `WrapInvalidInput(err.Error())` 列挙サイト 0（テストコメント除く）。固定日本語または AppError 素通し |
+| BE-RC-006 | DONE | 先行: 列挙 handler。leftover 閉集合: `medical_record_request.go`、`checkup_package_manifest.go`、`available_dates.go`、`staff_provisioning.go`、`staff_provisioning_validate.go` + 対応テスト | leftover: `err.Error()` / `fmt.Sprintf(%v, err)` 連結 0。固定日本語。`docker compose run --rm --no-deps -T --entrypoint go -v leftover/backend:/app backend test ./internal/medicalrecord/ ./internal/reservation/ ./internal/staff/ -run 'InvalidStatus\|InvalidEnum\|ParseAndCanonicalizeCheckupPackage\|ParseAvailableDatesSettings\|TestStaffProvisioning_Decode\|SecurePath'` ok |
 | BE-RC-007 | DONE | `billing/payment_method_master_repository.go` | 同一 tx の update+reload。reload 失敗で write rollback。テスト追加 |
 | BE-RC-008 | DONE | `clinic/ports.go`, `clinic_repository.go`, `clinic_service.go` | 消費者 `ClinicRepository.Update(map)` を `UpdateClinic(*UpdateClinicInput)` に置換。AST gate 追加 |
 | BE-RC-009 | N/A | — | fat interface 一括分割はしない。触った面で mega Repository を広げていない |
@@ -265,9 +265,9 @@
 | BE-RC-013 | DONE | `medicalrecord/vaccination_service_test.go` | `os.Setenv` 0、`t.Setenv` あり。`db_testmain_test.go` は testdb `sync.Once` 用の TestMain 残置 |
 | BE-RC-014 | N/A | — | pgx string Contains は BUG-138 既知例外。新規に同パターンを増やしていない |
 | BE-RC-015 | N/A | — | stutter 一括 rename は別タスク |
-| BE-RC-016 | DONE | allowlist 内 stale `// Package handler\|service\|repository` を実 package 名へ（staff/billing/medicalrecord）。`reservation_type_handler.go` と trimming は allowlist 外のため残置 | allowlist 内 0。allowlist 外は N/A residual |
+| BE-RC-016 | DONE | leftover: `reservation_type_handler.go`、`trimming_service.go`、`trimming_service_mutate.go`、`trimming_service_validate.go`（stale `// Package handler\|service` を削除。package コメントは既存 `doc.go` / `trimming_course_repository.go`） | `rg '^// Package (handler\|service\|repository)\b' backend/internal --glob '!**/cmd/**'` = 0。`gofmt -l` 空。trimming/reservation compile 緑 |
 | BE-RC-017 | N/A | — | 同一 package 内 map Update 一括 unexport はしない。001/008 の境界のみ typed 化 |
-| BE-RC-018 | DONE | `reservation/reservation_staff_write_owner_lint_test.go` | map を `UpdateForReservation` に戻すと RED。現状 GREEN（reservation パッケージテスト） |
+| BE-RC-018 | DONE | 先行: `reservation/reservation_staff_write_owner_lint_test.go`（map `UpdateForReservation` 禁止、維持）。leftover: `staff/staff_table_write_owner_lint_test.go`（`staffs` + `shift_entries` テーブル mutation AST gate） | scanner: owner 外 `Model(&model.Staff{}).Update` と `Table("shift_entries").Create` が RED。Count/Find/Joins GREEN。`TestStaffTableWriteOwnerLint` 本番 GREEN（`testdb/` は MakeDoctor 用テストカーネルとして walk 後スキップ。domain package は除外していない）。`TestReservationStaffWriteOwnerLint` GREEN。`appointment_write_owner_lint_test.go` 未変更 |
 | BE-RC-019 | N/A | — | medicalrecord 分割はしない。layer サブパッケージ禁止 |
 | BE-RC-020 | N/A | — | nested_summary 3 package コピーは意図的現状維持 |
 | BE-RC-021 | N/A | — | GoDoc 一括はしない |
@@ -277,4 +277,5 @@
 Assumptions からの deviation:
 - typed staff command のフィールドは prompt 仮定（nameKana/role/username/...）ではなく現行 `buildReservationStaffUpdate` のキー（name, staff_type, reservation_visible, reservation_comment, sort_order）。加えて既存 `PatchStatus` が書いていた `is_active` のみ typed 化。
 - W1 は `ReservationStaffRepository` シグネチャ変更に伴い `liff_service_*_test.go` の mock を型合わせ（compile 必須）。
+- leftover 018: `WalkInternalTreeT` は `testdb/*.go` を含む。`testdb.MakeDoctor` は GORM `Create(*model.Staff)` のため、typed-Create 検出を入れると testdb が RED になる。testdb は allowlist 外のテストカーネルなので、本番 walk 後に `testdb/` prefix だけスキップする（domain package の除外リストは作っていない）。backend イメージに `golangci-lint` が無いため scoped lint は Makefile と同じ `golangci/golangci-lint:v2.11.4`。`docker compose run backend go test` は air entrypoint のため `--entrypoint go` / `--entrypoint gofmt` を使う。
 - レーン writer が `claim/BE-RC-*` を追加作成した。キャンペーン claim に加え残置。削除は USER-only。

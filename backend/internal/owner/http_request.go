@@ -112,7 +112,7 @@ func newListOwnersQuery(values url.Values) listOwnersQuery {
 
 // createPetForOwnerRequest は飼主登録時のペット入力バインド struct
 type createPetForOwnerRequest struct {
-	Name            string    `json:"name"              binding:"required"`
+	Name            string    `json:"name"              binding:"required,max=255"`
 	AnimalSpeciesID uint64    `json:"animal_species_id" binding:"required"`
 	NameKana        string    `json:"name_kana"        binding:"omitempty,max=100"`
 	Breed           string    `json:"breed"            binding:"omitempty,max=100"`

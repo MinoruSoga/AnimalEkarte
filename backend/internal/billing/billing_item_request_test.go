@@ -262,3 +262,32 @@ func TestBillingItemRequest_PostCloseReasonMax(t *testing.T) {
 		})
 	}
 }
+
+func TestCreateBillingItemRequest_NameMax(t *testing.T) {
+	tests := []struct {
+		name    string
+		length  int
+		wantErr bool
+	}{
+		{name: "255 chars accepted", length: 255, wantErr: false},
+		{name: "256 chars rejected", length: 256, wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := bindJSONBody(t, map[string]any{
+				"billing_id": 1,
+				"name":       strings.Repeat("a", tt.length),
+			}, &createBillingItemRequest{})
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("ShouldBindJSON = nil, want over-max error")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("ShouldBindJSON = %v, want nil", err)
+			}
+		})
+	}
+}

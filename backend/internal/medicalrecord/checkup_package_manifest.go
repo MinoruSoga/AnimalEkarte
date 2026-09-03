@@ -60,7 +60,7 @@ func ParseAndCanonicalizeCheckupPackage(raw []byte) (*CanonicalCheckupPackage, e
 	dec.DisallowUnknownFields()
 	var manifest CheckupPackageManifest
 	if err := dec.Decode(&manifest); err != nil {
-		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("invalid checkup package manifest: %v", err))
+		return nil, apperrors.WrapInvalidInput("マニフェストの形式が正しくありません")
 	}
 	if dec.More() {
 		return nil, apperrors.WrapInvalidInput("invalid checkup package manifest: trailing content")
@@ -195,7 +195,7 @@ func normalizeAndValidateCheckupFieldOptions(f *CheckupPackageFieldDef, ft model
 		}
 		minV, maxV, err := parseOptionalDecimalPair(f.MinValue, f.MaxValue)
 		if err != nil {
-			return apperrors.WrapInvalidInput(fmt.Sprintf("field %q: %v", f.Key, err))
+			return apperrors.WrapInvalidInput("健診パッケージの数値範囲が不正です")
 		}
 		if minV != nil && maxV != nil && *minV > *maxV {
 			return apperrors.WrapInvalidInput(fmt.Sprintf("field %q min_value must be <= max_value", f.Key))
