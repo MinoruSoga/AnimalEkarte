@@ -1,4 +1,4 @@
-// Package repository provides data access implementations for Staff entity.
+// Package staff owns staffs persistence and reservation-originated staffs writes.
 package staff
 
 import (
@@ -45,9 +45,7 @@ type StaffRepository interface {
 	// ("reservation_staff")・スコープ機構（primary clinic_id vs assignment EXISTS）・
 	// tx 構成（main assignment 同時作成 / 隣接 swap）が異なり、統合は挙動変更になる。
 	CreateForReservation(ctx context.Context, staff *model.Staff, clinicID uint64) error
-	// UpdateForReservation remains map-typed until W1 switches callers onto
-	// ReservationStaffUpdate. Map conversion is reservationStaffUpdateFields.
-	UpdateForReservation(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	UpdateForReservation(ctx context.Context, clinicID, id uint64, cmd ReservationStaffUpdate) error
 	SwapSortOrderForReservation(ctx context.Context, clinicID, id uint64, direction string) error
 }
 
@@ -533,7 +531,12 @@ func (r *staffRepository) CreateForReservation(ctx context.Context, staff *model
 // UpdateForReservation は予約用の staffs 更新（primary clinic_id スコープ・リソース名 reservation_staff）。
 // BE-refactor.md X-8: persistence.DBOrTx(ctx, r.db) にすることで、reservationStaffService.Update が
 // Transactor.WithTx で本メソッドと UpdateExcludedReservationTypes を括った場合に同一 tx へ参加する。
-func (r *staffRepository) UpdateForReservation(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+// Empty commands are a no-op so reservation can always delegate without a map length check.
+func (r *staffRepository) UpdateForReservation(ctx context.Context, clinicID, id uint64, cmd ReservationStaffUpdate) error {
+	fields := reservationStaffUpdateFields(cmd)
+	if len(fields) == 0 {
+		return nil
+	}
 	return persistence.UpdateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.Staff{}, "reservation_staff", clinicID, id, fields)
 }
 

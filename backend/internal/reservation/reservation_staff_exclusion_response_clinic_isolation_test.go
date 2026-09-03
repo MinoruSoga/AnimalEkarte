@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	staffpkg "github.com/animal-ekarte/backend/internal/staff"
 	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
@@ -30,7 +31,7 @@ func (exclusionResponseStaffWriter) UpdateForReservation(
 	context.Context,
 	uint64,
 	uint64,
-	map[string]any,
+	staffpkg.ReservationStaffUpdate,
 ) error {
 	return nil
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
+	staffpkg "github.com/animal-ekarte/backend/internal/staff"
 )
 
 // ReservationStaffRepository は予約スタッフ（staffs の予約用ラッパー）のデータアクセスインターフェース
@@ -21,7 +22,7 @@ type ReservationStaffRepository interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Staff, error)
 	LockForMutation(ctx context.Context, clinicID, id uint64) (*model.Staff, error)
 	Create(ctx context.Context, staff *model.Staff, clinicID uint64) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	Update(ctx context.Context, clinicID, id uint64, cmd staffpkg.ReservationStaffUpdate) error
 	UpdateSortOrder(ctx context.Context, clinicID, id uint64, direction string) error
 	// ExcludedReservationTypes
 	FindAllExcludedReservationTypes(ctx context.Context, clinicID, staffID uint64) ([]model.StaffReservationExclusion, error)
@@ -45,7 +46,7 @@ type reservationStaffRepository struct {
 // staffsWriter は staff domain の予約用途 staffs write の最小 view（ADR-006 論点#1 案A）。
 type staffsWriter interface {
 	CreateForReservation(ctx context.Context, staff *model.Staff, clinicID uint64) error
-	UpdateForReservation(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	UpdateForReservation(ctx context.Context, clinicID, id uint64, cmd staffpkg.ReservationStaffUpdate) error
 	SwapSortOrderForReservation(ctx context.Context, clinicID, id uint64, direction string) error
 }
 
@@ -156,8 +157,8 @@ func (r *reservationStaffRepository) Create(ctx context.Context, staff *model.St
 }
 
 // Update は staffRepository.UpdateForReservation へ delegate する（ADR-006 論点#1 案A: 実装は staff domain 側）。
-func (r *reservationStaffRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	return r.staff.UpdateForReservation(ctx, clinicID, id, fields)
+func (r *reservationStaffRepository) Update(ctx context.Context, clinicID, id uint64, cmd staffpkg.ReservationStaffUpdate) error {
+	return r.staff.UpdateForReservation(ctx, clinicID, id, cmd)
 }
 
 // UpdateSortOrder は staffRepository.SwapSortOrderForReservation へ delegate する（ADR-006 論点#1 案A: 実装は staff domain 側）。

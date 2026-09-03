@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	staffpkg "github.com/animal-ekarte/backend/internal/staff"
 )
 
 // ---- local minimal ReservationStaffRepository mock (scoped to this file) ----
@@ -40,7 +41,7 @@ func (m *staffAvailMockReservationStaffRepository) LockForMutation(
 func (m *staffAvailMockReservationStaffRepository) Create(_ context.Context, _ *model.Staff, _ uint64) error {
 	return nil
 }
-func (m *staffAvailMockReservationStaffRepository) Update(_ context.Context, _, _ uint64, _ map[string]any) error {
+func (m *staffAvailMockReservationStaffRepository) Update(_ context.Context, _, _ uint64, _ staffpkg.ReservationStaffUpdate) error {
 	return nil
 }
 func (m *staffAvailMockReservationStaffRepository) Delete(_ context.Context, _, _ uint64) error {

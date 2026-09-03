@@ -131,7 +131,7 @@ func (m *coreMockStaffRepository) CreateForReservation(_ context.Context, _ *mod
 	return nil
 }
 
-func (m *coreMockStaffRepository) UpdateForReservation(_ context.Context, _, _ uint64, _ map[string]any) error {
+func (m *coreMockStaffRepository) UpdateForReservation(_ context.Context, _, _ uint64, _ ReservationStaffUpdate) error {
 	return nil
 }
 
