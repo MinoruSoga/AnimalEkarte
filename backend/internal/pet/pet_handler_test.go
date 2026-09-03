@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -564,6 +565,74 @@ func TestDeletePet(t *testing.T) {
 		h.DeletePet(c)
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
+}
+
+func TestChronicConditionInputError_PassesThroughAppError(t *testing.T) {
+	inner := apperrors.WrapInvalidInput("既存の入力エラー")
+	got := chronicConditionInputError(inner)
+	assert.Equal(t, inner, got)
+
+	var appErr *apperrors.AppError
+	require.True(t, errors.As(got, &appErr))
+	assert.Equal(t, "既存の入力エラー", appErr.Message)
+	assert.NotContains(t, appErr.Message, "invalid input")
+}
+
+func TestChronicConditionInputError_MapsDateParseToFixedJapanese(t *testing.T) {
+	got := chronicConditionInputError(fmt.Errorf("diagnosed_at must be YYYY-MM-DD"))
+	var appErr *apperrors.AppError
+	require.True(t, errors.As(got, &appErr))
+	assert.Equal(t, "日時の形式が正しくありません", appErr.Message)
+	assert.True(t, apperrors.IsInvalidInput(got))
+	assert.NotContains(t, got.Error(), "diagnosed_at must be")
+}
+
+func TestCreateChronicCondition_InvalidDiagnosedAtUsesFixedJapanese(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	h := newHandlerWithChronicConditionSvc(&mockChronicConditionService{})
+
+	body, err := json.Marshal(map[string]any{
+		"condition_code": "a",
+		"condition_name": "A",
+		"diagnosed_at":   "2026/05/28",
+	})
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Params = gin.Params{{Key: "id", Value: "3"}}
+	setClinicID(c)
+
+	h.CreateChronicCondition(c)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "日時の形式が正しくありません")
+	assert.NotContains(t, w.Body.String(), "diagnosed_at must be")
+}
+
+func TestUpdateChronicCondition_InvalidDiagnosedAtUsesFixedJapanese(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	h := newHandlerWithChronicConditionSvc(&mockChronicConditionService{})
+
+	body, err := json.Marshal(map[string]any{
+		"diagnosed_at": "2026/05/28",
+	})
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(body))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Params = gin.Params{{Key: "id", Value: "3"}, {Key: "cc_id", Value: "1"}}
+	setClinicID(c)
+
+	h.UpdateChronicCondition(c)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "日時の形式が正しくありません")
+	assert.NotContains(t, w.Body.String(), "diagnosed_at must be")
 }
 
 // ---- Comprehensive Test Coverage Documentation ----

@@ -1,6 +1,7 @@
 package pet
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -68,6 +69,14 @@ func (h *Handler) ListChronicConditions(c *gin.Context) {
 	c.JSON(http.StatusOK, toChronicConditionListResponse(records))
 }
 
+func chronicConditionInputError(err error) error {
+	var appErr *apperrors.AppError
+	if errors.As(err, &appErr) {
+		return err
+	}
+	return apperrors.WrapInvalidInput("日時の形式が正しくありません")
+}
+
 // CreateChronicCondition POST /pets/:id/chronic-conditions
 func (h *Handler) CreateChronicCondition(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
@@ -87,7 +96,7 @@ func (h *Handler) CreateChronicCondition(c *gin.Context) {
 
 	input, err := req.toServiceInput()
 	if err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(err.Error()))
+		httpapi.RespondError(c, chronicConditionInputError(err))
 		return
 	}
 
@@ -124,7 +133,7 @@ func (h *Handler) UpdateChronicCondition(c *gin.Context) {
 
 	input, err := req.toServiceInput()
 	if err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(err.Error()))
+		httpapi.RespondError(c, chronicConditionInputError(err))
 		return
 	}
 
