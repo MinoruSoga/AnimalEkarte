@@ -501,9 +501,9 @@ docker compose exec frontend pnpm lint
 | FE-RC-012 | DONE（初回 DONE 表記は誤り、追い込みで onError 5→6） | lab-device.ts useReceiveLabDeviceFrames onError | rg -c onError=6; vitest lab-device |
 | FE-RC-013 | DONE（初回残 12 箇所を追い込みで解消） | design-tokens hover/focus 静的トークン + 12 call sites | rg 動的クラス=0 |
 | FE-RC-014 | DONE | shared-liff brand = PALETTE.brand | brand-tokens.test |
-| FE-RC-015 | DONE（初回例外を撤回し hooks 昇格） | use-medical-records.ts; eslint allowlist 空 | cross-feature awk=0; owner-report 例外なし |
+| FE-RC-015 | DONE（追い込みで相対 re-export 層逆転 → 第2追い込みで実体移動・順方向 re-export） | hooks に list/history 実体; feature api は `@/hooks` re-export のみ; ESLint 相対 `../features/` 禁止 | relative features from hooks/lib/components=0; vitest medical-records+owner-report 518; knip PASS |
 | FE-RC-016 | DONE（reception + treatments hooks 移動） | use-reception-column-view; use-treatments-tab | hooks_out=0 |
-| FE-RC-017 | DONE（PascalCase リネーム） | 42 git mv; baseline 44→14 | kebab コンポ=0; check-filenames OK |
+| FE-RC-017 | DONE（PascalCase リネーム; followup2 で *.test/use-* 除外し tsx baseline 14→0） | 42 git mv; isTsxViolation 除外 | kebab コンポ=0; check-filenames OK; baseline 2行目=0 |
 | FE-RC-018 | DONE | pet-checkup-results → owner-report | Phase 0 |
 | FE-RC-019 | DONE | AuthProvider split | Phase 0 |
 | FE-RC-020 | DONE | types/checkup.ts | Phase 0 |
@@ -584,4 +584,14 @@ docker compose exec frontend pnpm lint
 - `pnpm unused` / `design-audit` / `check-filenames` / eslint-disable baseline: PASS
 - 全体ゲート 4 本: BLOCKED（policy・ユーザー明示許可なし）
 - worktree: fe-rc2-LA/LB/LC 削除予定。`sec-codex-uhqpm2` 残置。claim 未解放。
+### 検証要約（統合後・followup2 2026-09-03）
+
+- 第2追い込み: FE-RC-015 相対 re-export（hooks→features）を解消。`use-medical-records.ts` に list/history 実体、`get-medical-records.ts` は `@/hooks/use-medical-records` 順方向 re-export のみ。
+- ESLint: `layerInversionRelativeRestrictedPattern` を層逆転 2 ブロックへ追加。probe `../features/owners` → `no-restricted-imports`。
+- Filename ratchet: `isTsxViolation` が `.test`/`.spec`/`use-` を除外。`.filename-baseline` 2 行目 14→0。隣接テスト 5 PASS。
+- `origin/main` (`ae6bfeace`) を `--no-ff` merge 済み（`git merge-base --is-ancestor` exit 0）。
+- スコープ検証: vitest medical-records+owner-report **76 files / 518 tests PASS**; design-audit PASS; check-filenames PASS; eslint-disable baseline PASS; `pnpm unused` PASS。
+- 既知残: `LabDeviceUnlinkedBanner` の `@/features/lab-device` deep import（Phase 0 ESLint off 例外）。相対 features from hooks/lib/components = 0。
+- transform 重複（hooks list vs feature `transforms.ts`）: drift リスクとして記録。一本化は後続。
+- 全体ゲート 4 本: BLOCKED（policy・ユーザー明示許可なし）。push / claim 解放なし。
 
