@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useState, type ReactNode } from "react";
+import { memo, useCallback, useState, type ReactNode } from "react";
 import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
 import { MasterSidePanel, MoneyInput, PropertyInput, PropertyRow, StatusToggleButton } from "@/components/shared/SidePeek";
 import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSelector";
@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { C, LAYOUT } from "@/lib/design-tokens";
 import type { TreatmentItem } from "@/lib/transforms/treatment";
 import type { TaxType } from "@/types/generated/models";
+import { useMasterSidePanelForm } from "../hooks/use-master-side-panel-form";
 import {
   ANESTHESIA_OPTIONS,
   PRICE_ERROR_MESSAGE,
@@ -45,7 +46,7 @@ interface TreatmentItemSidePanelProps {
   /** true = 子を持つ root → parentId セレクタを非表示にして root 固定 */
   hasChildren: boolean;
   onClose: () => void;
-  onSave: (data: TreatmentFormData) => void;
+  onSave: (data: TreatmentFormData) => Promise<boolean> | boolean;
   onDeleteRequest?: () => void;
   readOnly?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
@@ -66,48 +67,41 @@ export const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
   details,
   showAnesthesia = false,
 }: TreatmentItemSidePanelProps) {
-  const [formData, setFormData] = useState<TreatmentFormData>(() => ({
-    name: item?.name ?? "",
-    price: item?.price ?? 0,
-    description: item?.description ?? "",
-    isActive: item?.isActive ?? true,
-    taxType: (item?.taxType ?? "excluded") as TaxType,
-    taxRate: item?.taxRate ?? 0.1,
-    isNonInsurance: item?.isNonInsurance ?? false,
-    parentId: undefined,
-    anesthesia: initialAnesthesia(item?.anesthesia),
-  }));
   const [nameError, setNameError] = useState("");
   const [priceError, setPriceError] = useState("");
-  const [isDirty, setIsDirty] = useState(false);
 
-  useEffect(() => {
-    onDirtyChange?.(isDirty);
-  }, [isDirty, onDirtyChange]);
-
-  const setFormDataDirty = useCallback<typeof setFormData>((updater) => {
-    setFormData(updater);
-    setIsDirty(true);
-  }, []);
-
-  const handleAction = useCallback(() => {
-    let hasError = false;
-    if (!formData.name.trim()) {
-      setNameError("名称を入力してください");
-      hasError = true;
-    } else {
-      setNameError("");
-    }
-    if (formData.price < 0) {
-      setPriceError(PRICE_ERROR_MESSAGE);
-      hasError = true;
-    } else {
-      setPriceError("");
-    }
-    if (hasError) return;
-    onSave(formData);
-    setIsDirty(false);
-  }, [formData, onSave]);
+  const { formData, setFormData: setFormDataDirty, handleAction } =
+    useMasterSidePanelForm<TreatmentFormData>({
+      initialFormData: {
+        name: item?.name ?? "",
+        price: item?.price ?? 0,
+        description: item?.description ?? "",
+        isActive: item?.isActive ?? true,
+        taxType: (item?.taxType ?? "excluded") as TaxType,
+        taxRate: item?.taxRate ?? 0.1,
+        isNonInsurance: item?.isNonInsurance ?? false,
+        parentId: undefined,
+        anesthesia: initialAnesthesia(item?.anesthesia),
+      },
+      onSave,
+      onDirtyChange,
+      validate: (data) => {
+        let hasError = false;
+        if (!data.name.trim()) {
+          setNameError("名称を入力してください");
+          hasError = true;
+        } else {
+          setNameError("");
+        }
+        if (data.price < 0) {
+          setPriceError(PRICE_ERROR_MESSAGE);
+          hasError = true;
+        } else {
+          setPriceError("");
+        }
+        return !hasError;
+      },
+    });
 
   const handleTitleChange = useCallback((value: string) => {
     setFormDataDirty((prev) => ({ ...prev, name: value }));

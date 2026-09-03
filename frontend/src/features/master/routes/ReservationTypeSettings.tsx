@@ -8,7 +8,7 @@ import { ResourceMasterReservationType } from "@/types/generated/models";
 import { ReservationTypeDeleteDialogs } from "../components/ReservationTypeDeleteDialogs";
 import { ReservationTypeSettingsContent } from "../components/ReservationTypeSettingsContent";
 import { ReservationTypeSettingsSidePanels } from "../components/ReservationTypeSettingsSidePanels";
-import { useReservationTypeSettings } from "./use-reservation-type-settings";
+import { useReservationTypeSettings } from "../hooks/use-reservation-type-settings";
 
 export function ReservationTypeSettings() {
   const navigate = useNavigate();

@@ -20,7 +20,7 @@ import {
   buildVaccineCreateRequest,
   buildVaccineUpdateRequest,
   type TreatmentPlanTabValue,
-} from "./treatment-plan-master-model";
+} from "../routes/treatment-plan-master-model";
 import type { useTreatmentPlanMasterResources } from "./use-treatment-plan-master-resources";
 
 type TreatmentPlanResources = ReturnType<typeof useTreatmentPlanMasterResources>;
@@ -113,7 +113,7 @@ export function useTreatmentPlanMasterSaves({
   }), [consultationSave, examinationSave, procedureSave, vaccineSave, checkupSave]);
 
   const handleSave = useCallback((data: TreatmentFormData) => {
-    saveHooksByTab[activeTab].handleSave(data);
+    return saveHooksByTab[activeTab].handleSave(data);
   }, [activeTab, saveHooksByTab]);
 
   return { handleSave };

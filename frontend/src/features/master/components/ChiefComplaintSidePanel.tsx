@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useState } from "react";
 import type { ChangeEvent } from "react";
 import { MessageSquareText } from "lucide-react";
 
@@ -11,6 +11,7 @@ import { LAYOUT } from "@/lib/design-tokens";
 
 import type { ChiefComplaintType } from "../api/chief-complaint-types";
 import { MASTER_INPUT_CLASS } from "../constants/styles";
+import { useMasterSidePanelForm } from "../hooks/use-master-side-panel-form";
 import {
   chiefComplaintToFormData,
   type ChiefComplaintFormData,
@@ -19,7 +20,7 @@ import {
 interface ChiefComplaintSidePanelProps {
   item: ChiefComplaintType | null;
   onClose: () => void;
-  onSave: (data: ChiefComplaintFormData) => void;
+  onSave: (data: ChiefComplaintFormData) => Promise<boolean> | boolean;
   onDeleteRequest?: (item: ChiefComplaintType) => void;
   readOnly?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
@@ -33,20 +34,22 @@ export const ChiefComplaintSidePanel = memo(function ChiefComplaintSidePanel({
   readOnly,
   onDirtyChange,
 }: ChiefComplaintSidePanelProps) {
-  const [formData, setFormData] = useState<ChiefComplaintFormData>(() =>
-    chiefComplaintToFormData(item),
-  );
-  const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
 
-  useEffect(() => {
-    onDirtyChange?.(isDirty);
-  }, [isDirty, onDirtyChange]);
-
-  const setFormDataDirty = useCallback<typeof setFormData>((updater) => {
-    setFormData(updater);
-    setIsDirty(true);
-  }, []);
+  const { formData, setFormData: setFormDataDirty, isDirty, setIsDirty, handleAction } =
+    useMasterSidePanelForm<ChiefComplaintFormData>({
+      initialFormData: chiefComplaintToFormData(item),
+      onSave,
+      onDirtyChange,
+      validate: (data) => {
+        if (!data.name.trim()) {
+          setNameError("名称を入力してください");
+          return false;
+        }
+        setNameError("");
+        return true;
+      },
+    });
 
   const handleTitleChange = useCallback((value: string) => {
     setFormDataDirty((prev) => ({ ...prev, name: value }));
@@ -60,16 +63,6 @@ export const ChiefComplaintSidePanel = memo(function ChiefComplaintSidePanel({
   const handleToggleActive = useCallback(() => {
     setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }));
   }, [setFormDataDirty]);
-
-  const handleAction = useCallback(() => {
-    if (!formData.name.trim()) {
-      setNameError("名称を入力してください");
-      return;
-    }
-    setNameError("");
-    onSave(formData);
-    setIsDirty(false);
-  }, [formData, onSave]);
 
   const handleClose = useCallback(() => {
     setIsDirty(false);

@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useRef } from "react";
+import { memo, useCallback, useLayoutEffect, useRef } from "react";
 
 import { CHECKUP_SYNC_OWNER_LIMIT } from "@/constants/lstep-checkup-sync";
 import { C, STYLE, PALETTE } from "@/lib/design-tokens";
@@ -104,7 +104,7 @@ export function CheckupSyncPreviewTable({
   );
 
   const selectedIdsRef = useRef(selectedIds);
-  useEffect(() => {
+  useLayoutEffect(() => {
     selectedIdsRef.current = selectedIds;
   }, [selectedIds]);
 

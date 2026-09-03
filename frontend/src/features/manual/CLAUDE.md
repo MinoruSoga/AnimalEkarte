@@ -160,8 +160,8 @@ NN-kebab-case.md     例: 01-login.md, 03-hospitalization-flow.md
 
 ## テスト
 
-- `__tests__/parse-frontmatter.test.ts` — frontmatter parser の単体テスト
-- 統合テスト: 必要に応じて `__tests__/ManualPage.test.tsx` を追加
+- テストは対象ファイルと同階層に配置する（`__tests__/` ディレクトリは使わない）。例: `lib/parse-frontmatter.test.ts` — frontmatter parser の単体テスト
+- 統合テスト: 必要に応じて `routes/ManualPage.test.tsx` のようにルート/コンポーネントと同階層に追加
 - Vitest を使用: `docker compose exec frontend pnpm test:run -- src/features/manual`
 
 ## 依存パッケージ

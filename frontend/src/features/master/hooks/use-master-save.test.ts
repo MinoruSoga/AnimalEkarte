@@ -427,7 +427,7 @@ describe("useMasterSave", () => {
     expect(toast.success).not.toHaveBeenCalled();
   });
 
-  it("mutate自体がonErrorを呼んだ場合はfalseを返し、handleApiErrorを呼ぶ", async () => {
+  it("mutate自体がonErrorを呼んだ場合はfalseを返す(handleApiErrorはmutation自身のonErrorに委譲し二重通知しない)", async () => {
     const { handleApiError } = await import("@/lib/handle-api-error");
     const editTarget: TestEntity = { id: "42", name: "既存ケージ" };
     const { crud, setEditTarget } = buildCrud(editTarget);
@@ -454,7 +454,9 @@ describe("useMasterSave", () => {
     });
 
     expect(saveResult).toBe(false);
-    expect(handleApiError).toHaveBeenCalledWith(expect.any(Error), "更新");
+    // create/updateMutation の onError (master/api/*.ts) が既に handleApiError 済みのため、
+    // ここで再度呼ぶと二重 toast になる。呼ばれないことを確認する。
+    expect(handleApiError).not.toHaveBeenCalled();
     expect(setEditTarget).not.toHaveBeenCalled();
   });
 });

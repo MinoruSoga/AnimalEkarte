@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useLayoutEffect, useRef } from "react";
 
 import { useSortableList } from "@/hooks/use-sortable-list";
 
@@ -28,7 +28,7 @@ export function useExamTypeFieldsList(
     },
   });
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     resetOrderRef.current = resetOrder;
   }, [resetOrder]);
 

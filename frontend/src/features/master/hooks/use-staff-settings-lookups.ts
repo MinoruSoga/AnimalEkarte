@@ -12,7 +12,7 @@ import {
   buildGroupsByStaffId,
   buildStaffFilterProperties,
   buildStaffIds,
-} from "./staff-settings-model";
+} from "../routes/staff-settings-model";
 
 export function useStaffSettingsLookups() {
   const { data } = useGetStaffs();

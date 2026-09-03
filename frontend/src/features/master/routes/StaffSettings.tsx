@@ -30,7 +30,7 @@ import {
   filterStaffByMasterFilters,
   searchStaff,
 } from "./staff-settings-model";
-import { useStaffSettingsLookups } from "./use-staff-settings-lookups";
+import { useStaffSettingsLookups } from "../hooks/use-staff-settings-lookups";
 import { ResourceMasterStaff, ResourceMasterPermission } from "@/types/generated/models";
 
 const COLUMNS = [

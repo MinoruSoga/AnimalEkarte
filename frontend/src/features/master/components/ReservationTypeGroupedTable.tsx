@@ -1,6 +1,6 @@
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useSortableList } from "@/hooks/use-sortable-list";
 import { C, STYLE } from "@/lib/design-tokens";
 import { useReorderReservationTypes } from "../api/reservation-types";
@@ -57,7 +57,7 @@ export function ReservationTypeGroupedTable({
   const { orderedItems, sensors, handleDragStart, handleDragEnd, handleDragCancel, resetOrder } =
     useSortableList({ items: categories, onReorder: handleReorder });
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     resetOrderRef.current = resetOrder;
   }, [resetOrder]);
 
