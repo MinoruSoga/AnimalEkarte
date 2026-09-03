@@ -149,7 +149,7 @@ export interface AccountingCompletionMutationPermissions {
   canEdit: boolean;
 }
 
-export const DENIED_ACCOUNTING_COMPLETION_PERMISSIONS: Readonly<AccountingCompletionMutationPermissions> = {
+const DENIED_ACCOUNTING_COMPLETION_PERMISSIONS: Readonly<AccountingCompletionMutationPermissions> = {
   canCreate: false,
   canEdit: false,
 };

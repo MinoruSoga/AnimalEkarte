@@ -53,7 +53,7 @@ export interface EstimateMutationPermissions {
   canEdit: boolean;
 }
 
-export const DENIED_ESTIMATE_MUTATION_PERMISSIONS: Readonly<EstimateMutationPermissions> = {
+const DENIED_ESTIMATE_MUTATION_PERMISSIONS: Readonly<EstimateMutationPermissions> = {
   canCreate: false,
   canEdit: false,
 };

@@ -104,7 +104,7 @@ function DeliveryStatsTable({ rows }: { rows: CrossRow[] }) {
           {rows.map((row) => (
             <tr
               key={row.trigger_type}
-              className={`border-b ${C.borderLight} hover:${C.bgLight} transition-colors`}
+              className={`border-b ${C.borderLight} ${C.hoverBgTint} transition-colors`}
             >
               <TableCell className={C.text80}>
                 {TriggerTypeLabels[row.trigger_type] ?? row.trigger_type}

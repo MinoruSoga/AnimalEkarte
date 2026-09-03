@@ -116,7 +116,7 @@ describe("lab-device API mutations (FE-RC-012)", () => {
     expect(mockedHandleApiError).toHaveBeenCalledWith(apiError, "検査結果の紐付け解除");
   });
 
-  it("useReceiveLabDeviceFrames: 呼び出し元(LabDeviceBoard.onFrame)がトースト出し分け・重複防止を担うため、mutation 側の onError では handleApiError を呼ばない（FE-RC-005 の二重トースト回避）", async () => {
+  it("useReceiveLabDeviceFrames: 失敗時に onError で handleApiError を呼ぶ（サイレント失敗防止・FE-RC-012 followup）", async () => {
     const apiError = new Error("bad frame");
     mockedPost.mockRejectedValueOnce(apiError);
     const { result } = renderHook(() => useReceiveLabDeviceFrames(), {
@@ -129,6 +129,8 @@ describe("lab-device API mutations (FE-RC-012)", () => {
       ).rejects.toThrow();
     });
 
-    expect(mockedHandleApiError).not.toHaveBeenCalled();
+    // LabDeviceBoard.onFrame は 400 系ならこの通知で足りるため再通知せず、
+    // 401/500 系のみ機器向けの具体的な案内に差し替える（二重トースト回避、FE-RC-005）。
+    expect(mockedHandleApiError).toHaveBeenCalledWith(apiError, "検査機器電文の受信");
   });
 });

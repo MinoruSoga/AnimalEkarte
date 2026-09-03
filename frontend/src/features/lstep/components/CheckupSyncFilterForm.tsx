@@ -1,5 +1,6 @@
 import { useActionState } from "react";
 import { C, STYLE } from "@/lib/design-tokens";
+import { getFormString } from "@/lib/form-data";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import type {
   CheckupSyncParams,
@@ -54,7 +55,7 @@ export function CheckupSyncFilterForm({
       _prev: FilterFormState,
       formData: FormData
     ): Promise<FilterFormState> => {
-      const checkupType = formData.get("checkup_type") as string;
+      const checkupType = getFormString(formData, "checkup_type");
       if (!checkupType) {
         return { error: "検診種別を選択してください" };
       }
@@ -63,13 +64,13 @@ export function CheckupSyncFilterForm({
         checkup_type: checkupType as CheckupType,
       };
 
-      const species = formData.get("species") as string;
+      const species = getFormString(formData, "species");
       if (species.trim()) params.species = species.trim();
 
-      const lastVisitBefore = formData.get("last_visit_before") as string;
+      const lastVisitBefore = getFormString(formData, "last_visit_before");
       if (lastVisitBefore) params.last_visit_before = lastVisitBefore;
 
-      const lastVisitAfter = formData.get("last_visit_after") as string;
+      const lastVisitAfter = getFormString(formData, "last_visit_after");
       if (lastVisitAfter) params.last_visit_after = lastVisitAfter;
 
       // ISSUE-009: 追加フィルタ
@@ -89,11 +90,11 @@ export function CheckupSyncFilterForm({
         return { error: "最小年齢は最大年齢以下で指定してください" };
       }
 
-      const chronic = formData.get("has_chronic_condition") as string;
+      const chronic = getFormString(formData, "has_chronic_condition");
       if (chronic === "true") params.has_chronic_condition = true;
       else if (chronic === "false") params.has_chronic_condition = false;
 
-      const cpmStage = formData.get("cpm_stage") as string;
+      const cpmStage = getFormString(formData, "cpm_stage");
       if (cpmStage) params.cpm_stage = cpmStage as CPMStage;
 
       const minTotalAmount = parseOptionalInt(formData.get("min_total_amount"));
@@ -114,10 +115,10 @@ export function CheckupSyncFilterForm({
         params.min_annual_visit_count = minAnnualVisitCount.value;
       }
 
-      const lastCheckupBefore = formData.get("last_checkup_before") as string;
+      const lastCheckupBefore = getFormString(formData, "last_checkup_before");
       if (lastCheckupBefore) params.last_checkup_before = lastCheckupBefore;
 
-      const lastCheckupAfter = formData.get("last_checkup_after") as string;
+      const lastCheckupAfter = getFormString(formData, "last_checkup_after");
       if (lastCheckupAfter) params.last_checkup_after = lastCheckupAfter;
 
       onSearch(params);

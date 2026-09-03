@@ -147,7 +147,7 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
                   [...RESERVATION_STATUS_VALUES]
                 )}
               >
-                <SelectTrigger className={`h-7 w-auto gap-1 border-0 ${C.bgWhite}/60 hover:${C.bgWhite}/80 text-sm px-2 shadow-none focus:ring-0`}>
+                <SelectTrigger className={`h-7 w-auto gap-1 border-0 ${C.bgWhite60} ${C.hoverBgWhite80} text-sm px-2 shadow-none focus:ring-0`}>
                   <SelectValue placeholder="変更" />
                 </SelectTrigger>
                 <SelectContent>

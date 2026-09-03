@@ -292,9 +292,11 @@ export function useClearLabDeviceWait() {
   });
 }
 
-// FE-RC-012: onFrame (呼び出し元) が status 別のトースト出し分け・重複防止(toast id)・再スロー
-// まで一貫して担っているため、ここに handleApiError を追加すると FE-RC-005 で問題視される
-// トースト二重表示を再発させる。呼び出し元の catch が唯一のエラー通知経路である。
+// FE-RC-012 followup: unhandled rejection を防ぐため mutation 側にも onError を持たせる。
+// onFrame (呼び出し元 LabDeviceBoard.tsx) は status 別のトースト出し分け・重複防止(toast id)・
+// 再スローも行うため、400 系はここでの汎用メッセージのみで足り caller 側は再通知しない。
+// 401/500 系は機器の再送要否など安全上重要な案内が異なるため、caller 側で
+// toast.dismiss() によりこの汎用トーストを差し替える（FE-RC-005 の二重通知を実質回避）。
 export function useReceiveLabDeviceFrames() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -306,6 +308,7 @@ export function useReceiveLabDeviceFrames() {
       return data.results.map((row) => ({ duplicate: row.duplicate, job: toCard(row.job) }));
     },
     onSuccess: () => invalidateBoard(queryClient),
+    onError: (error) => handleApiError(error, "検査機器電文の受信"),
   });
 }
 

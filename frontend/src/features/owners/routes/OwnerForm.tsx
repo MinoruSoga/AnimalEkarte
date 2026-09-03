@@ -21,13 +21,13 @@ import { useTitle } from "@/hooks/use-title";
 import { usePostalCodeLookup } from "../hooks/use-postal-code-lookup";
 import { useAuth } from "@/hooks/use-auth";
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
-import { handleApiError } from "@/lib/handle-api-error";
 import { setStoredClinicId } from "@/lib/current-clinic";
 import { paths } from "@/config/paths";
 import { usePermission } from "@/hooks/use-permission";
 import { OwnerInfoSection } from "../components/OwnerInfoSection";
 import { OwnerPetsSection } from "../components/OwnerPetsSection";
 import { useOwnerForm } from "../hooks/use-owner-form";
+import { useOwnerPetChangeConfirm } from "../hooks/use-owner-pet-change-confirm";
 import { resolvePostCreateOwnerNavigation } from "../lib/post-create-owner-navigation";
 import type { PetMutations } from "@/types/pet";
 import type { OwnerData, MembershipTypeLabel } from "../types";
@@ -84,10 +84,6 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
   const { canView: canViewAccounting } = usePermission("accounting");
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
   const [deletePetTarget, setDeletePetTarget] = useState<{
-    id: string;
-    name: string;
-  } | null>(null);
-  const [pendingOwnerChange, setPendingOwnerChange] = useState<{
     id: string;
     name: string;
   } | null>(null);
@@ -197,70 +193,19 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
     navigate(paths.owners.getHref());
   };
 
-  // BUG-373: 飼主変更 — discount_rate/membership_type が異なる時のみ確認モーダル
-  const handlePetChangeOwner = useCallback(
-    (newOwner: { id: string; name: string; discountRate: number; membershipType: string }) => {
-      const currentEditingPet = editingPetRef.current;
-      if (
-        canEditRef.current !== true ||
-        !currentEditingPet?.id ||
-        currentEditingPet.status === "死亡" ||
-        !petMutations
-      ) {
-        return;
-      }
-      const needsConfirm =
-        (ownerData.discountRate ?? 0) !== newOwner.discountRate ||
-        ownerData.membershipType !== newOwner.membershipType;
-      if (needsConfirm) {
-        setPendingOwnerChange({ id: newOwner.id, name: newOwner.name });
-      } else {
-        if (canEditRef.current !== true) return;
-        petMutations.updatePetMutate(
-          { id: currentEditingPet.id, req: { owner_id: Number(newOwner.id) } },
-          {
-            onSuccess: () => {
-              toast.success(`飼主を ${newOwner.name} に変更しました`);
-              setPetModalOpen(false);
-            },
-            onError: (error) => {
-              handleApiError(error, "飼主変更");
-            },
-          },
-        );
-      }
-    },
-    [petMutations, ownerData.discountRate, ownerData.membershipType, setPetModalOpen],
-  );
-
-  const handleConfirmOwnerChange = useCallback(() => {
-    const currentEditingPet = editingPetRef.current;
-    if (
-      canEditRef.current !== true ||
-      !pendingOwnerChange ||
-      !currentEditingPet?.id ||
-      currentEditingPet.status === "死亡" ||
-      !petMutations
-    ) {
-      return;
-    }
-    const newOwner = pendingOwnerChange;
-    if (canEditRef.current !== true) return;
-    petMutations.updatePetMutate(
-      { id: currentEditingPet.id, req: { owner_id: Number(newOwner.id) } },
-      {
-        onSuccess: () => {
-          toast.success(`飼主を ${newOwner.name} に変更しました`);
-          setPendingOwnerChange(null);
-          setPetModalOpen(false);
-        },
-        onError: (error) => {
-          handleApiError(error, "飼主変更");
-          setPendingOwnerChange(null);
-        },
-      },
-    );
-  }, [pendingOwnerChange, petMutations, setPetModalOpen]);
+  const {
+    pendingOwnerChange,
+    setPendingOwnerChange,
+    handlePetChangeOwner,
+    handleConfirmOwnerChange,
+  } = useOwnerPetChangeConfirm({
+    editingPetRef,
+    canEditRef,
+    petMutations,
+    ownerDiscountRate: ownerData.discountRate,
+    ownerMembershipType: ownerData.membershipType,
+    setPetModalOpen,
+  });
 
   // rerender-functional-setstate: setOwnerData・markDirty は両方安定した参照なので
   // useCallback で handleInputChange を安定化できる → MembershipTypeButtons memo の前提条件

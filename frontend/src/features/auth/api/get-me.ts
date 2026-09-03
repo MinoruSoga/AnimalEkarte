@@ -2,6 +2,7 @@ import Axios from "axios";
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { ME_QUERY_KEY } from "@/lib/query-keys";
+import { QUERY_STALE_TIMES } from "@/lib/react-query";
 import { type BackendMeResponse, mapMeToAuthUser } from "./transforms";
 import type { AuthUser } from "../types";
 
@@ -24,7 +25,7 @@ export function useGetMe(enabled = true) {
     queryKey: ME_QUERY_KEY,
     queryFn: getMe,
     enabled,
-    staleTime: 10 * 1000,
+    staleTime: QUERY_STALE_TIMES.SESSION,
     refetchInterval: (query) => {
       if (
         query.state.error !== null &&

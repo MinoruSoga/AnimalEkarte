@@ -3,6 +3,7 @@ import { axios } from "@/lib/axios";
 import { getStoredClinicId } from "@/lib/current-clinic";
 import type { CPMStage } from "@/lib/cpm-stage";
 import { queryKeys } from "@/lib/query-keys";
+import { QUERY_STALE_TIMES } from "@/lib/react-query";
 
 export type CheckupType =
   | "annual"
@@ -84,6 +85,6 @@ export function useGetCheckupSyncPreview(params: CheckupSyncParams | null) {
       return data;
     },
     enabled: params !== null && clinicId !== null,
-    staleTime: 0,
+    staleTime: QUERY_STALE_TIMES.NONE,
   });
 }

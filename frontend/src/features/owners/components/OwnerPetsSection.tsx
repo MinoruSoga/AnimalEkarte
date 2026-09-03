@@ -168,7 +168,7 @@ const PetTableRow = memo(function PetTableRow({
                       if (current.status !== "生存" || current.canDelete !== true) return;
                       onDeleteRequest(pet.id, pet.petName);
                     }}
-                    className={`${C.danger} focus:${C.danger} ${C.focusBgLight}`}
+                    className={`${C.danger} ${C.focusDanger} ${C.focusBgLight}`}
                   >
                     <Trash2 className={`mr-2 ${ICON.action}`} />
                     削除
