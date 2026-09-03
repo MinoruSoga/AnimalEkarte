@@ -12,14 +12,14 @@ export function ListItem({ onClick, children, subtitle, description, imageUrl, i
     <button
       type="button"
       onClick={onClick}
-      className="w-full flex items-center justify-between px-4 py-4 border-b border-gray-200 hover:bg-noah-teal-light active:bg-noah-teal-light text-left"
+      className="w-full flex items-center justify-between px-4 py-4 border-b border-noah-border hover:bg-noah-teal-light active:bg-noah-teal-light text-left"
     >
       <div className="flex items-center gap-3 flex-1 min-w-0">
         {imageUrl ? (
           <img
             src={imageUrl}
             alt=""
-            className="w-12 h-12 rounded-lg object-cover flex-shrink-0 bg-gray-100"
+            className="w-12 h-12 rounded-lg object-cover flex-shrink-0 bg-noah-surface-subtle"
             onError={(e) => {
               if (imageFallback) {
                 (e.currentTarget as HTMLImageElement).src = imageFallback;
@@ -30,14 +30,14 @@ export function ListItem({ onClick, children, subtitle, description, imageUrl, i
           />
         ) : null}
         <div className="min-w-0">
-          <div className="text-gray-800 font-medium">{children}</div>
-          {subtitle ? <div className="text-sm text-gray-500 mt-0.5">{subtitle}</div> : null}
-          {description ? <div className="text-xs text-gray-400 mt-1 line-clamp-2">{description}</div> : null}
+          <div className="text-noah-text-strong font-medium">{children}</div>
+          {subtitle ? <div className="text-sm text-noah-text-muted mt-0.5">{subtitle}</div> : null}
+          {description ? <div className="text-xs text-noah-text-faint mt-1 line-clamp-2">{description}</div> : null}
         </div>
       </div>
       <svg
         xmlns="http://www.w3.org/2000/svg"
-        className="h-5 w-5 text-gray-400 flex-shrink-0 ml-2"
+        className="h-5 w-5 text-noah-text-faint flex-shrink-0 ml-2"
         viewBox="0 0 20 20"
         fill="currentColor"
         aria-hidden="true"

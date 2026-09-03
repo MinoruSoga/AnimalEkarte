@@ -46,7 +46,7 @@ export const SidePeekTitleInput = memo(function SidePeekTitleInput({
       <input
         id={id}
         type="text"
-        className={`w-full bg-transparent ${C.text} ${C.textPlaceholderFaint} outline-none border-none p-0`}
+        className={`w-full bg-transparent ${C.text} ${C.textPlaceholderFaint} outline-none border-none p-0 rounded-xxs focus-visible:ring-2 ${C.focusRingAccent40}`}
         style={{
           fontSize: LAYOUT.pageTitle.fontSize,
           fontWeight: LAYOUT.pageTitle.fontWeight,

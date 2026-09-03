@@ -53,7 +53,7 @@ export function RequestPage({
             onChange={handleChange}
             placeholder={requestExample || 'ご要望・メモをご入力ください'}
             rows={6}
-            className="w-full border border-gray-300 rounded-xl px-3 py-2 text-noah-text focus:outline-none focus:ring-2 focus:ring-noah-teal focus:border-transparent resize-none"
+            className="w-full border border-noah-border-input rounded-xl px-3 py-2 text-noah-text focus:outline-none focus:ring-2 focus:ring-noah-teal focus:border-transparent resize-none"
           />
         </div>
 

@@ -214,7 +214,7 @@ export const FilterRuleRow = memo(function FilterRuleRow({
       <button
         type="button"
         onClick={onRemove}
-        className={`ml-auto p-0.5 rounded-xxs ${C.text30} hover:${C.text60} ${C.hoverBgMedium} opacity-0 group-hover:opacity-100 transition-opacity`}
+        className={`ml-auto p-0.5 rounded-xxs ${C.text30} ${C.hoverText60} ${C.hoverBgMedium} opacity-0 group-hover:opacity-100 transition-opacity`}
         aria-label={`${property?.label ?? filter.key} フィルタを削除`}
       >
         <X className={ICON.page} />

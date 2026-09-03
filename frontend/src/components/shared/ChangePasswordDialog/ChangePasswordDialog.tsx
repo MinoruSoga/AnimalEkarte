@@ -9,6 +9,7 @@ import { toast } from "sonner";
 
 // Internal
 import { axios } from "@/lib/axios";
+import { getFormString } from "@/lib/form-data";
 import { extractApiErrorMessage, handleApiError } from "@/lib/handle-api-error";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -108,9 +109,9 @@ export const ChangePasswordDialog = memo(function ChangePasswordDialog({
 
   const [state, formAction] = useActionState<FormState, FormData>(
     async (_prev, formData) => {
-      const currentPassword = formData.get("current_password") as string;
-      const newPassword = formData.get("new_password") as string;
-      const confirmPassword = formData.get("confirm_password") as string;
+      const currentPassword = getFormString(formData, "current_password");
+      const newPassword = getFormString(formData, "new_password");
+      const confirmPassword = getFormString(formData, "confirm_password");
 
       if (!currentPassword || !newPassword || !confirmPassword) {
         return { error: "すべての項目を入力してください", currentPassword };

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useBlocker } from "react-router";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 
@@ -32,15 +32,22 @@ function NavigationBlockerDialog({
       currentLocation.pathname !== nextLocation.pathname,
   );
 
+  // FE-RC-031: cleanup は unmount 時にしか実行されないため、mount 時点の
+  // `blocker` を deps=[] で固定 closure すると常に初期状態（unblocked）しか
+  // 見えず no-op になっていた。ref で常に最新の blocker を参照する。
+  const blockerRef = useRef(blocker);
+  useEffect(() => {
+    blockerRef.current = blocker;
+  }, [blocker]);
+
   // If blocking was deactivated externally (parent sets when=false
   // → this component unmounts), reset any pending block first.
   useEffect(() => {
     return () => {
-      if (blocker.state === "blocked") {
-        blocker.reset();
+      if (blockerRef.current.state === "blocked") {
+        blockerRef.current.reset();
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // When the user confirms leaving, proceed and notify parent.

@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C, STYLE } from "@/lib/design-tokens";
+import { getFormString } from "@/lib/form-data";
 import { handleApiError } from "@/lib/handle-api-error";
 import { todayJSTISO } from "@/lib/jst-date";
 import type { ActionState } from "@/types/form";
@@ -57,8 +58,8 @@ export function PetDeceasedDialog({
       _prevState: ActionState<unknown>,
       formData: FormData,
     ): Promise<ActionState<unknown>> => {
-      const deceasedAt = (formData.get("deceased_at") as string).trim();
-      const deceasedReason = (formData.get("deceased_reason") as string).trim();
+      const deceasedAt = getFormString(formData, "deceased_at").trim();
+      const deceasedReason = getFormString(formData, "deceased_reason").trim();
 
       if (!deceasedAt) {
         return {
@@ -181,7 +182,7 @@ export function PetDeceasedDialog({
               name="deceased_reason"
               rows={3}
               placeholder="例: 老衰、腫瘍など"
-              className={`${STYLE.textarea} text-sm`}
+              className={`${STYLE.textarea} text-sm focus-visible:ring-2 ${C.focusRingAccent40}`}
               disabled={isPending}
             />
           </div>

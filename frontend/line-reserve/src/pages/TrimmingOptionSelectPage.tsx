@@ -75,19 +75,19 @@ export function TrimmingOptionSelectPage({
               ) : null}
             </div>
           ) : (
-            <div className="bg-white border-t border-gray-200">
+            <div className="bg-white border-t border-noah-border">
               {(options ?? []).map(option => (
                 <button
                   key={option.id}
                   type="button"
-                  className="w-full flex items-center px-4 py-4 border-b border-gray-100 text-left active:bg-gray-50"
+                  className="w-full flex items-center px-4 py-4 border-b border-noah-border-light text-left active:bg-noah-surface-muted"
                   onClick={() => toggleOption(option.id)}
                 >
                   <div
                     className={`w-5 h-5 rounded border-2 flex-shrink-0 flex items-center justify-center mr-3 ${
                       selected.has(option.id)
                         ? 'bg-noah-teal border-noah-teal'
-                        : 'border-gray-300'
+                        : 'border-noah-border-input'
                     }`}
                   >
                     {selected.has(option.id) ? (
@@ -98,7 +98,7 @@ export function TrimmingOptionSelectPage({
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-gray-900">{option.name}</span>
+                      <span className="text-sm font-medium text-noah-text-heading">{option.name}</span>
                       {option.price !== null ? (
                         <span className="text-sm text-noah-teal-dark ml-2 flex-shrink-0">
                           {formatPrice(option.price)}
@@ -115,7 +115,7 @@ export function TrimmingOptionSelectPage({
           )}
         </div>
 
-        <div className="px-4 py-4 bg-white border-t border-gray-200">
+        <div className="px-4 py-4 bg-white border-t border-noah-border">
           <button
             type="button"
             className="w-full py-3 bg-noah-teal text-white rounded-lg font-medium text-sm active:opacity-80"

@@ -2,7 +2,7 @@ import { useActionState, useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { useGetAllVaccinesMaster } from "@/hooks/use-treatment-master";
-import { useCreateVaccination } from "@/hooks/use-vaccinations";
+import { useCreateVaccination } from "@/hooks/use-create-vaccination";
 import { todayJSTISO } from "@/lib/jst-date";
 import {
   calculateNextDate,

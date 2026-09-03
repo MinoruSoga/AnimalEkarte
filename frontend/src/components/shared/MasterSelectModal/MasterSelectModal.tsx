@@ -114,7 +114,7 @@ export const MasterSelectModal = memo(function MasterSelectModal({
                         <Check className={`${ICON.xs} ${C.textWhite}`} />
                       </div>
                     ) : (
-                      <div className={`size-5 rounded-full border ${C.borderLight} group-hover:${C.borderPrimary} transition-colors`} />
+                      <div className={`size-5 rounded-full border ${C.borderLight} ${C.groupHoverBorderPrimary} transition-colors`} />
                     )}
                   </div>
                 </button>

@@ -392,3 +392,49 @@ describe("extractApiErrorMessage 400/403/404 Japanese guard (BUG-006)", () => {
     ).toBe(ja);
   });
 });
+
+describe("extractApiErrorMessage 非Axios エラー (FE-RC-075)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("非Axios Error の message は生のまま返さず、汎用文言にする", () => {
+    const message = extractApiErrorMessage(
+      new TypeError("Cannot read properties of undefined (reading 'foo')"),
+      "保存",
+    );
+    expect(message).toBe("保存中に予期しないエラーが発生しました。");
+    expect(message).not.toMatch(/undefined|reading/i);
+  });
+
+  it("非Axios エラーでも toast には汎用文言のみが渡る", () => {
+    handleApiError(new Error("zod: invalid_type at path.to.field"), "保存");
+    expect(toast.error).toHaveBeenCalledWith(
+      "保存中に予期しないエラーが発生しました。",
+    );
+    expect(toast.error).not.toHaveBeenCalledWith(
+      expect.stringContaining("zod"),
+    );
+  });
+
+  it("Error でも message が空文字なら汎用文言にする", () => {
+    expect(extractApiErrorMessage(new Error(""), "更新")).toBe(
+      "更新中に予期しないエラーが発生しました。",
+    );
+  });
+
+  it("Error でも message が空白のみなら汎用文言にする", () => {
+    expect(extractApiErrorMessage(new Error("   "), "更新")).toBe(
+      "更新中に予期しないエラーが発生しました。",
+    );
+  });
+
+  it("Error 以外の非Axios値（文字列/undefined）でも汎用文言にする", () => {
+    expect(extractApiErrorMessage("plain string error", "削除")).toBe(
+      "削除中に予期しないエラーが発生しました。",
+    );
+    expect(extractApiErrorMessage(undefined, "削除")).toBe(
+      "削除中に予期しないエラーが発生しました。",
+    );
+  });
+});

@@ -63,7 +63,7 @@ const getPetVaccinations = async (
 
 /**
  * Shared hook for fetching a pet's vaccination history.
- * queryKey ["vaccinations", "pet", petId] は use-vaccinations.ts の
+ * queryKey ["vaccinations", "pet", petId] は use-create-vaccination.ts の
  * useCreateVaccination の invalidateQueries(["vaccinations"]) と prefix 一致し、
  * mutation 成功時にこの query も無効化される。
  */

@@ -179,8 +179,11 @@ export function extractApiErrorMessage(err: unknown, context = "操作"): string
     }
     return `${context}に失敗しました。ネットワーク接続を確認してください。`;
   }
-  if (err instanceof Error && err.message.trim()) {
-    return err.message;
+  // FE-RC-075: zod/TypeError 等の英語メッセージがそのままトーストに出ると
+  // ユーザー向けの文言として不適切なため、汎用文言に統一する。生のメッセージは
+  // 調査用に DEV コンソールへのみ出す（本番では出さない）。
+  if (err instanceof Error && err.message.trim() && import.meta.env.DEV) {
+    console.error(`[handle-api-error] non-Axios error (${context}):`, err.message);
   }
   return `${context}中に予期しないエラーが発生しました。`;
 }
@@ -193,8 +196,6 @@ export function extractApiErrorMessage(err: unknown, context = "操作"): string
  * @param context - Japanese context string for the operation (e.g. "保存", "削除")
  */
 export function handleApiError(err: unknown, context: string): void {
+  // 非Axios エラーの DEV ログは extractApiErrorMessage 側で一元的に出す（二重ログ防止）。
   toast.error(extractApiErrorMessage(err, context));
-  if (!axios.isAxiosError(err) && import.meta.env.DEV) {
-    console.error("Non-Axios Error:", err);
-  }
 }

@@ -28,7 +28,7 @@ export function MoneyInput({
             type="number"
             aria-label={label}
             aria-invalid={error ? true : undefined}
-            className={`w-32 bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-xxs ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`}
+            className={`w-32 bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-xxs ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder} focus-visible:ring-2 ${C.focusRingAccent40}`}
             value={Number.isNaN(value) || value === 0 ? "" : value}
             onChange={(e) => {
               const next = e.target.valueAsNumber;

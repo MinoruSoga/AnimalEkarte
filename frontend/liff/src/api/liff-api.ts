@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { API_BASE_URL } from '../lib/liff-config';
+import { devError } from '@/shared-liff/dev-log';
 
 export class LiffApiError extends Error {
   constructor(public readonly status: number, message: string) {
@@ -63,7 +64,7 @@ export async function fetchHealthCard(idToken: string, clinicId: string): Promis
 
   if (!res.ok) {
     const text = await res.text().catch(() => '');
-    console.error('[fetchHealthCard] error:', res.status, text);
+    devError('[fetchHealthCard] error:', res.status, text);
     // R-F22: status を保持した LiffApiError に統一し、呼び出し側でステータスコード別の
     // エラーメッセージ・再試行可否を判定できるようにする（linkLineAccount と同じ規約）。
     throw new LiffApiError(res.status, `HealthCard fetch failed: ${res.status}`);
@@ -72,7 +73,7 @@ export async function fetchHealthCard(idToken: string, clinicId: string): Promis
   const json: unknown = await res.json();
   const parsed = healthCardResponseSchema.safeParse(json);
   if (!parsed.success) {
-    console.error('[fetchHealthCard] invalid response shape:', parsed.error);
+    devError('[fetchHealthCard] invalid response shape:', parsed.error);
     throw new Error('HealthCard response validation failed');
   }
 
@@ -95,7 +96,7 @@ export async function fetchBrandSettings(clinicId: string): Promise<BrandSetting
   const json: unknown = await res.json();
   const parsed = brandSettingsSchema.safeParse(json);
   if (!parsed.success) {
-    console.error('[fetchBrandSettings] invalid response shape:', parsed.error);
+    devError('[fetchBrandSettings] invalid response shape:', parsed.error);
     throw new Error('Brand settings response validation failed');
   }
 

@@ -57,7 +57,7 @@ export function TrimmingCourseSelectPage({ clinicId, idToken, onSelect, onBack }
               ) : null}
             </div>
           ) : (
-            <div className="bg-white border-t border-gray-200">
+            <div className="bg-white border-t border-noah-border">
               {(courses ?? []).map(course => (
                 <ListItem
                   key={course.id}

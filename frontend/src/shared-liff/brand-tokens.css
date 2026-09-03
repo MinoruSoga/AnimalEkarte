@@ -40,4 +40,24 @@
   --color-noah-danger-border: var(--color-red-200);
   --color-noah-neutral-bg: var(--color-gray-100);
   --color-noah-neutral-text: var(--color-gray-600);
+
+  /*
+   * FE-RC-051 (残件): liff/line-reserve のカード・区切り線・ヘルパーテキストが
+   * raw な gray/red パレットを直書きしていた分。同じ考え方（意味に名前を付け、
+   * 色そのものは変更しない）で汎用 UI クロム用トークンを追加する。
+   */
+  --color-noah-border: var(--color-gray-200);
+  --color-noah-border-light: var(--color-gray-100);
+  --color-noah-border-faint: var(--color-gray-50);
+  --color-noah-border-input: var(--color-gray-300);
+  --color-noah-text-muted: var(--color-gray-500);
+  --color-noah-text-secondary: var(--color-gray-600);
+  --color-noah-text-faint: var(--color-gray-400);
+  --color-noah-text-body: var(--color-gray-700);
+  --color-noah-text-strong: var(--color-gray-800);
+  --color-noah-text-heading: var(--color-gray-900);
+  --color-noah-surface-muted: var(--color-gray-50);
+  --color-noah-surface-subtle: var(--color-gray-100);
+  --color-noah-disabled: var(--color-gray-300);
+  --color-noah-tooltip-bg: var(--color-gray-800);
 }

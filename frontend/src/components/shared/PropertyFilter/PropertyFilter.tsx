@@ -164,7 +164,7 @@ export const PropertyFilter = memo(function PropertyFilter({
               className={`h-9 w-9 p-0 ${C.hoverBgMedium} ${
                 searchOpen
                   ? C.textBrand
-                  : `${C.text50} hover:${C.text80}`
+                  : `${C.text50} ${C.hoverText80}`
               }`}
               onClick={handleSearchToggle}
               aria-label="検索"
@@ -193,7 +193,7 @@ export const PropertyFilter = memo(function PropertyFilter({
             <button
               type="button"
               onClick={() => onSearchChange("")}
-              className={`absolute right-0 top-1/2 flex min-h-11 min-w-11 -translate-y-1/2 items-center justify-center rounded-sm ${C.text40} hover:${C.text80} ${C.hoverBgMedium} transition-colors`}
+              className={`absolute right-0 top-1/2 flex min-h-11 min-w-11 -translate-y-1/2 items-center justify-center rounded-sm ${C.text40} ${C.hoverText80} ${C.hoverBgMedium} transition-colors`}
               aria-label="検索をクリア"
             >
               <X className={ICON.smXs} />

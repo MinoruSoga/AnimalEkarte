@@ -114,7 +114,7 @@ export const DateValueEditor = memo(function DateValueEditor({
             button_previous: `size-8 p-0 rounded-sm ${C.bgMutedBadge} opacity-50 hover:opacity-100 inline-flex items-center justify-center pointer-events-auto`,
             button_next: `size-8 p-0 rounded-sm ${C.bgMutedBadge} opacity-50 hover:opacity-100 inline-flex items-center justify-center pointer-events-auto`,
             dropdowns: "flex items-center gap-1",
-            dropdown: `text-sm font-medium bg-transparent border-none cursor-pointer focus:outline-none hover:opacity-70 py-0.5 px-1 rounded ${C.bgMutedBadge}`,
+            dropdown: `text-sm font-medium bg-transparent border-none cursor-pointer focus:outline-none hover:opacity-70 py-0.5 px-1 rounded ${C.bgMutedBadge} focus-visible:ring-2 ${C.focusRingAccent40}`,
           }}
           formatters={{
             formatMonthDropdown: (month) => {

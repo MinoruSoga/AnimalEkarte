@@ -197,7 +197,7 @@ export const FilterAddPopover = memo(function FilterAddPopover({
         <Button
           variant="ghost"
           size="sm"
-          className={`h-9 gap-2 text-base ${C.text50} hover:${C.text80} ${C.hoverBgLight} px-3`}
+          className={`h-9 gap-2 text-base ${C.text50} ${C.hoverText80} ${C.hoverBgLight} px-3`}
         >
           <Plus className={ICON.page} />
           フィルタを追加
@@ -213,7 +213,7 @@ export const FilterAddPopover = memo(function FilterAddPopover({
             <button
               type="button"
               onClick={handleBack}
-              className={`flex items-center gap-1 text-base ${C.text50} hover:${C.text80} px-1`}
+              className={`flex items-center gap-1 text-base ${C.text50} ${C.hoverText80} px-1`}
             >
               <ChevronLeft className={ICON.action} />
               戻る
@@ -325,7 +325,7 @@ export const FilterAddPopover = memo(function FilterAddPopover({
                   button_previous: `size-8 p-0 rounded-sm ${C.hoverBgLight} opacity-50 hover:opacity-100 inline-flex items-center justify-center pointer-events-auto`,
                   button_next: `size-8 p-0 rounded-sm ${C.hoverBgLight} opacity-50 hover:opacity-100 inline-flex items-center justify-center pointer-events-auto`,
                   dropdowns: "flex items-center gap-1",
-                  dropdown: `text-sm font-medium bg-transparent border-none cursor-pointer focus:outline-none hover:opacity-70 py-0.5 px-1 rounded ${C.hoverBgLight}`,
+                  dropdown: `text-sm font-medium bg-transparent border-none cursor-pointer focus:outline-none hover:opacity-70 py-0.5 px-1 rounded ${C.hoverBgLight} focus-visible:ring-2 ${C.focusRingAccent40}`,
                 }}
                 formatters={{
                   formatMonthDropdown: (month) => {
