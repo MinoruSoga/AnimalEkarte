@@ -103,28 +103,23 @@ const mockVisitConversionEmpty: VisitConversionSummaryResponse = {
 
 function setupStatsHandler(data: MonthlyDeliveryStatsResponse) {
   server.use(
-    http.get(
-      `/api/v1/clinics/${CLINIC_ID}/lstep/analytics/delivery-stats`,
-      () => HttpResponse.json(data)
-    )
+    http.get(`/api/v1/clinics/${CLINIC_ID}/lstep/analytics/delivery-stats`, () =>
+      HttpResponse.json(data),
+    ),
   );
 }
 
 function setupCsvImportsHandler(data: LstepCsvImportItem[]) {
   server.use(
-    http.get(
-      `/api/v1/clinics/${CLINIC_ID}/lstep/csv-imports`,
-      () => HttpResponse.json(data)
-    )
+    http.get(`/api/v1/clinics/${CLINIC_ID}/lstep/csv-imports`, () => HttpResponse.json(data)),
   );
 }
 
 function setupVisitConversionHandler(data: VisitConversionSummaryResponse) {
   server.use(
-    http.get(
-      `/api/v1/clinics/${CLINIC_ID}/lstep/analytics/visit-conversion`,
-      () => HttpResponse.json(data)
-    )
+    http.get(`/api/v1/clinics/${CLINIC_ID}/lstep/analytics/visit-conversion`, () =>
+      HttpResponse.json(data),
+    ),
   );
 }
 
@@ -144,7 +139,7 @@ function createWrapper() {
 async function renderAndWait(
   stats: MonthlyDeliveryStatsResponse = mockStats,
   csvImports: LstepCsvImportItem[] = mockCsvImports,
-  visitConversion: VisitConversionSummaryResponse = mockVisitConversion
+  visitConversion: VisitConversionSummaryResponse = mockVisitConversion,
 ) {
   setupStatsHandler(stats);
   setupCsvImportsHandler(csvImports);
@@ -194,11 +189,7 @@ describe("LstepAnalyticsPage — A: セクション描画", () => {
     expect(uploadRow).toHaveClass("flex-col", "sm:flex-row", "sm:items-center");
     expect(uploadControls).toHaveClass("w-full", "min-w-0", "sm:w-auto");
     expect(fileName).toHaveClass("min-w-0", "flex-1", "truncate", "sm:max-w-40");
-    expect(input.closest("label")).toHaveClass(
-      "min-h-11",
-      "min-w-11",
-      "focus-within:ring-ring",
-    );
+    expect(input.closest("label")).toHaveClass("min-h-11", "min-w-11", "focus-within:ring-ring");
   });
 });
 
@@ -238,14 +229,11 @@ describe("LstepAnalyticsPage — C: 年月フィルター", () => {
   it("年月を変更すると API が再リクエストされる", async () => {
     let requestedYearMonth = "";
     server.use(
-      http.get(
-        `/api/v1/clinics/${CLINIC_ID}/lstep/analytics/delivery-stats`,
-        ({ request }) => {
-          const url = new URL(request.url);
-          requestedYearMonth = url.searchParams.get("year_month") ?? "";
-          return HttpResponse.json(mockStatsEmpty);
-        }
-      )
+      http.get(`/api/v1/clinics/${CLINIC_ID}/lstep/analytics/delivery-stats`, ({ request }) => {
+        const url = new URL(request.url);
+        requestedYearMonth = url.searchParams.get("year_month") ?? "";
+        return HttpResponse.json(mockStatsEmpty);
+      }),
     );
     setupCsvImportsHandler(mockCsvImports);
     setupVisitConversionHandler(mockVisitConversionEmpty);
@@ -346,9 +334,7 @@ describe("LstepAnalyticsPage — E: CSV アップロード", () => {
     const submitBtn = screen.getByRole("button", { name: "アップロード" });
     await user.click(submitBtn);
     await waitFor(() => {
-      expect(
-        screen.getByText("CSVファイルを選択してください")
-      ).toBeInTheDocument();
+      expect(screen.getByText("CSVファイルを選択してください")).toBeInTheDocument();
     });
   });
 
@@ -377,9 +363,12 @@ describe("LstepAnalyticsPage — E: CSV アップロード", () => {
     const submitBtn = screen.getByRole("button", { name: "アップロード" });
     await user.click(submitBtn);
 
-    await waitFor(() => {
-      expect(screen.getByText("アップロードが完了しました")).toBeInTheDocument();
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(screen.getByText("アップロードが完了しました")).toBeInTheDocument();
+      },
+      { timeout: 3000 },
+    );
 
     postSpy.mockRestore();
   });

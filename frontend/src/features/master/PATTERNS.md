@@ -54,11 +54,11 @@ PageLayout
 
 ### 行の高さ
 
-| 要素 | クラス | 高さ |
-|------|--------|------|
-| テーブル行（`DataTableRow`） | `h-12` | 48px |
-| ヘッダ行 | `h-11` | 44px |
-| セル垂直パディング | `py-2.5` | 上下10px |
+| 要素                         | クラス   | 高さ     |
+| ---------------------------- | -------- | -------- |
+| テーブル行（`DataTableRow`） | `h-12`   | 48px     |
+| ヘッダ行                     | `h-11`   | 44px     |
+| セル垂直パディング           | `py-2.5` | 上下10px |
 
 **すべての TableCell に `py-2.5` を付与すること。**
 
@@ -70,9 +70,9 @@ PageLayout
 // ─────────────────────────────────────────────────
 
 const COLUMNS = [
-  { header: "", className: "w-[32px]" },              // D&Dハンドル（必須・先頭）
-  { header: "名称" },                                  // メイン名称（flex-1）
-  { header: "備考", className: "w-[240px]" },          // 補足（固定幅）
+  { header: "", className: "w-[32px]" }, // D&Dハンドル（必須・先頭）
+  { header: "名称" }, // メイン名称（flex-1）
+  { header: "備考", className: "w-[240px]" }, // 補足（固定幅）
   { header: "ステータス", className: "w-[100px]", align: "center" as const },
   { header: "操作", className: "w-[80px]", align: "right" as const },
 ];
@@ -80,14 +80,14 @@ const COLUMNS = [
 
 **カラム幅のガイドライン:**
 
-| カラム用途 | 推奨幅 |
-|-----------|--------|
-| D&Dハンドル | `w-[32px]` |
-| 主要名称 | 幅なし（flex-1） |
-| 所属カテゴリ | `w-[160px]` |
-| 備考・説明 | `w-[240px]`（`truncate` + `max-w-[240px]`） |
-| ステータス | `w-[100px]`、`align: "center"` |
-| 操作ボタン | `w-[80px]`、`align: "right"` |
+| カラム用途   | 推奨幅                                      |
+| ------------ | ------------------------------------------- |
+| D&Dハンドル  | `w-[32px]`                                  |
+| 主要名称     | 幅なし（flex-1）                            |
+| 所属カテゴリ | `w-[160px]`                                 |
+| 備考・説明   | `w-[240px]`（`truncate` + `max-w-[240px]`） |
+| ステータス   | `w-[100px]`、`align: "center"`              |
+| 操作ボタン   | `w-[80px]`、`align: "right"`                |
 
 ### セルのスタイル
 
@@ -140,13 +140,13 @@ interface UseSortableListOptions<T extends { id: string }> {
 
 // 戻り値
 interface UseSortableListReturn<T> {
-  orderedItems: T[];                    // 楽観的順序適用済みアイテム（これをレンダリングする）
+  orderedItems: T[]; // 楽観的順序適用済みアイテム（これをレンダリングする）
   sensors: ReturnType<typeof useSensors>;
-  activeId: string | null;              // ドラッグ中のID
+  activeId: string | null; // ドラッグ中のID
   handleDragStart: (e) => void;
   handleDragEnd: (e) => void;
   handleDragCancel: () => void;
-  resetOrder: () => void;               // API失敗時などに楽観的順序をリセット
+  resetOrder: () => void; // API失敗時などに楽観的順序をリセット
 }
 ```
 
@@ -191,7 +191,11 @@ const filteredItems = useMemo(() => ..., [orderedItems, searchTerm]);
 ### SortableRow コンポーネント
 
 ```tsx
-function SortableXxxRow({ item, canEdit, onEdit }: {
+function SortableXxxRow({
+  item,
+  canEdit,
+  onEdit,
+}: {
   item: Xxx;
   canEdit: boolean;
   onEdit: () => void;
@@ -203,10 +207,7 @@ function SortableXxxRow({ item, canEdit, onEdit }: {
       dragDisabled={!canEdit}
     >
       <TableCell>
-        <DataTableRowButton
-          aria-label={`詳細: 項目 ${item.name} (ID ${item.id})`}
-          onClick={onEdit}
-        >
+        <DataTableRowButton aria-label={`詳細: 項目 ${item.name} (ID ${item.id})`} onClick={onEdit}>
           {item.name}
         </DataTableRowButton>
       </TableCell>
@@ -217,6 +218,7 @@ function SortableXxxRow({ item, canEdit, onEdit }: {
 ```
 
 **注意点:**
+
 - 行全体へ `onClick` を付けない。表示・編集はセル内の native link / button から行う
 - `SortableDataTableRow` は native 44px drag buttonへ `attributes` / `listeners` / `setActivatorNodeRef` を集約し、`setNodeRef` は測定対象の `<tr>` に保持する
 - 並べ替えはwrite操作なので、edit権限がない場合は必ず `dragDisabled` にする
@@ -265,24 +267,26 @@ const activeItem = useMemo(
 
 ### 寸法
 
-| トークン | 値 |
-|---------|-----|
-| `LAYOUT.sidePeek.width` | `"w-[520px]"` |
-| `LAYOUT.sidePeek.widthPx` | `520` |
+| トークン                  | 値            |
+| ------------------------- | ------------- |
+| `LAYOUT.sidePeek.width`   | `"w-[520px]"` |
+| `LAYOUT.sidePeek.widthPx` | `520`         |
 
 ### 基本構造
 
 ```tsx
 // isEditing フラグで条件レンダー（&& 禁止、? : null を使う）
-{isEditing ? (
-  <XxxSidePanel
-    key={selectedItem ? String(selectedItem.id) : "new"}  // key でリセット
-    item={selectedItem}
-    onClose={handleClose}
-    onSave={handleSave}
-    onDeleteRequest={() => setPendingDelete(selectedItem)}
-  />
-) : null}
+{
+  isEditing ? (
+    <XxxSidePanel
+      key={selectedItem ? String(selectedItem.id) : "new"} // key でリセット
+      item={selectedItem}
+      onClose={handleClose}
+      onSave={handleSave}
+      onDeleteRequest={() => setPendingDelete(selectedItem)}
+    />
+  ) : null;
+}
 ```
 
 ### サイドピークの実装
@@ -339,7 +343,7 @@ function XxxSidePanel({ item, onClose, onSave, onDeleteRequest }) {
           <div className="pb-1 mb-4">
             <input
               type="text"
-              className={`w-full bg-transparent ${C.text} placeholder:text-[rgba(55,53,47,0.15)] outline-none border-none p-0`}
+              className={`w-full bg-transparent ${C.text} placeholder:text-[rgba(55,53,47,0.15)] outline-none border-none p-0`} focus-visible:ring-2 ${C.focusRingAccent40}
               style={{
                 fontSize: LAYOUT.pageTitle.fontSize,    // "30px"
                 fontWeight: LAYOUT.pageTitle.fontWeight, // 700
@@ -403,8 +407,12 @@ Notion スタイルのキーバリュー行。ラベル幅 `140px` 固定。
 ```tsx
 function PropertyRow({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className={`flex gap-2 py-2 px-2 -mx-2 rounded-[3px] ${C.hoverBgLight} transition-colors min-h-[40px]`}>
-      <div className={`w-[140px] shrink-0 text-sm ${C.text65} select-none truncate flex items-center`}>
+    <div
+      className={`flex gap-2 py-2 px-2 -mx-2 rounded-[3px] ${C.hoverBgLight} transition-colors min-h-[40px]`}
+    >
+      <div
+        className={`w-[140px] shrink-0 text-sm ${C.text65} select-none truncate flex items-center`}
+      >
         {label}
       </div>
       <div className="flex-1 flex items-center">{children}</div>
@@ -424,7 +432,7 @@ function PropInput({ value, onChange, placeholder }: {
   return (
     <input
       type="text"
-      className={`w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`}
+      className={`w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`} focus-visible:ring-2 ${C.focusRingAccent40}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder ?? "空"}
@@ -437,17 +445,17 @@ function PropInput({ value, onChange, placeholder }: {
 
 トークンの実体は `frontend/src/lib/design-tokens.ts` が SSOT。色を直書きせず、常に `C.*` / `STYLE.*` 経由で参照する。
 
-| トークン | 定義（`design-tokens.ts` の合成元） |
-|---------|------------|
-| `STYLE.sidePeekPanel` | `flex flex-col h-full overflow-y-auto bg-white border-l ${C.borderLight} shadow-panel`（FE9-2: design-system.md §5.1 shadow-panel トークンへ移行。値は同一） |
-| `STYLE.sidePeekToolbar` | `flex items-center justify-between h-[48px] px-3 shrink-0` |
-| `STYLE.sidePeekToolbarBtn` | `size-9 flex items-center justify-center rounded-[3px] ${C.text45} ${C.hoverBgMedium} transition-colors` |
-| `STYLE.sidePeekBody` | `flex-1 overflow-y-auto` |
-| `STYLE.sidePeekFooter` | `flex items-center justify-end gap-2 px-4 py-3 border-t ${C.borderLight} shrink-0` |
-| `STYLE.sidePeekCancelBtn` | `px-4 py-[7px] text-base ${C.text65} ${C.hoverBgLight} rounded-[3px] transition-colors cursor-pointer` |
-| （保存ボタン） | 共通トークン化されていない。`px-5 py-[7px] text-base text-white ${C.bgBrand} ${C.hoverBgBrand} rounded-full transition-colors cursor-pointer ${STYLE.pillShadow}` を直書きする（`ShiftTemplateSettingsParts.tsx` の実例を参照。FE5-3 で未使用だった `STYLE.sidePeekSaveBtn` を削除済み） |
-| `STYLE.pageIcon` | `size-[38px] flex items-center justify-center rounded-[3px] ${C.bgPage} ${C.text45}` |
-| `LAYOUT.pageIcon.innerIcon` | `"size-5"` |
+| トークン                    | 定義（`design-tokens.ts` の合成元）                                                                                                                                                                                                                                                      |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `STYLE.sidePeekPanel`       | `flex flex-col h-full overflow-y-auto bg-white border-l ${C.borderLight} shadow-panel`（FE9-2: design-system.md §5.1 shadow-panel トークンへ移行。値は同一）                                                                                                                             |
+| `STYLE.sidePeekToolbar`     | `flex items-center justify-between h-[48px] px-3 shrink-0`                                                                                                                                                                                                                               |
+| `STYLE.sidePeekToolbarBtn`  | `size-9 flex items-center justify-center rounded-[3px] ${C.text45} ${C.hoverBgMedium} transition-colors`                                                                                                                                                                                 |
+| `STYLE.sidePeekBody`        | `flex-1 overflow-y-auto`                                                                                                                                                                                                                                                                 |
+| `STYLE.sidePeekFooter`      | `flex items-center justify-end gap-2 px-4 py-3 border-t ${C.borderLight} shrink-0`                                                                                                                                                                                                       |
+| `STYLE.sidePeekCancelBtn`   | `px-4 py-[7px] text-base ${C.text65} ${C.hoverBgLight} rounded-[3px] transition-colors cursor-pointer`                                                                                                                                                                                   |
+| （保存ボタン）              | 共通トークン化されていない。`px-5 py-[7px] text-base text-white ${C.bgBrand} ${C.hoverBgBrand} rounded-full transition-colors cursor-pointer ${STYLE.pillShadow}` を直書きする（`ShiftTemplateSettingsParts.tsx` の実例を参照。FE5-3 で未使用だった `STYLE.sidePeekSaveBtn` を削除済み） |
+| `STYLE.pageIcon`            | `size-[38px] flex items-center justify-center rounded-[3px] ${C.bgPage} ${C.text45}`                                                                                                                                                                                                     |
+| `LAYOUT.pageIcon.innerIcon` | `"size-5"`                                                                                                                                                                                                                                                                               |
 
 ### アニメーション付きサイドピーク（高度なパターン）
 
@@ -483,16 +491,16 @@ const panelDuration = useReducedMotion() ? 0 : 0.2;
 ```tsx
 const STATUS_CONFIG = {
   active: {
-    dot:   C.bgBrandDot,     // ブランドteal ドット
+    dot: C.bgBrandDot, // ブランドteal ドット
     label: "有効",
-    bg:    C.bgBrandLight,   // 薄teal背景
-    text:  C.textBrandDark,  // 濃teal テキスト
+    bg: C.bgBrandLight, // 薄teal背景
+    text: C.textBrandDark, // 濃teal テキスト
   },
   inactive: {
-    dot:   C.bgPrimary10,    // グレードット
+    dot: C.bgPrimary10, // グレードット
     label: "無効",
-    bg:    C.bgInactive,     // グレー背景
-    text:  C.text60,
+    bg: C.bgInactive, // グレー背景
+    text: C.text60,
   },
 } as const;
 
@@ -558,23 +566,23 @@ import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilte
   onSearchChange={setSearchTerm}
   searchPlaceholder="カテゴリ名で検索..."
   count={filteredItems.length}
-/>
+/>;
 ```
 
-| Props | 型 | 説明 |
-|-------|-----|------|
-| `properties` | `FilterProperty[]` | フィルタ可能なプロパティ定義 |
-| `activeFilters` | `ActiveFilter[]` | 現在アクティブなフィルタ |
-| `onFilterChange` | `(filters: ActiveFilter[]) => void` | フィルタ変更ハンドラ |
-| `filterLogic` | `"and" \| "or"?` | フィルタ論理（デフォルト: `"and"`） |
-| `onFilterLogicChange` | `(logic: FilterLogic) => void?` | 論理切替ハンドラ |
-| `searchTerm` | `string?` | 検索語（state） |
-| `onSearchChange` | `(v: string) => void?` | 検索変更ハンドラ |
-| `searchPlaceholder` | `string?` | 入力プレースホルダー |
-| `count` | `number?` | 結果件数（`N 件` 表示） |
-| `sortProperties` | `SortProperty[]?` | ソート可能なプロパティ |
-| `activeSorts` | `ActiveSort[]?` | アクティブなソート |
-| `onSortChange` | `(sorts: ActiveSort[]) => void?` | ソート変更ハンドラ |
+| Props                 | 型                                  | 説明                                |
+| --------------------- | ----------------------------------- | ----------------------------------- |
+| `properties`          | `FilterProperty[]`                  | フィルタ可能なプロパティ定義        |
+| `activeFilters`       | `ActiveFilter[]`                    | 現在アクティブなフィルタ            |
+| `onFilterChange`      | `(filters: ActiveFilter[]) => void` | フィルタ変更ハンドラ                |
+| `filterLogic`         | `"and" \| "or"?`                    | フィルタ論理（デフォルト: `"and"`） |
+| `onFilterLogicChange` | `(logic: FilterLogic) => void?`     | 論理切替ハンドラ                    |
+| `searchTerm`          | `string?`                           | 検索語（state）                     |
+| `onSearchChange`      | `(v: string) => void?`              | 検索変更ハンドラ                    |
+| `searchPlaceholder`   | `string?`                           | 入力プレースホルダー                |
+| `count`               | `number?`                           | 結果件数（`N 件` 表示）             |
+| `sortProperties`      | `SortProperty[]?`                   | ソート可能なプロパティ              |
+| `activeSorts`         | `ActiveSort[]?`                     | アクティブなソート                  |
+| `onSortChange`        | `(sorts: ActiveSort[]) => void?`    | ソート変更ハンドラ                  |
 
 **注意**: `count` は `filteredItems.length`（フィルタ後）を渡す。全件数は渡さない。
 
@@ -609,7 +617,7 @@ export function XxxSettings() {
             <TabsPrimitive.Trigger
               key={tab.value}
               value={tab.value}
-              className={`h-9 border-b-2 border-b-transparent px-4 text-sm ${C.text60} outline-none transition-colors cursor-pointer
+              className={`h-9 border-b-2 border-b-transparent px-4 text-sm ${C.text60} outline-none transition-colors cursor-pointer focus-visible:ring-2 ${C.focusRingAccent40}
                 ${C.dataActiveBorderB} ${C.dataActiveText} data-[state=active]:font-medium`}
             >
               {tab.label}

@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { queryKeys } from "@/lib/query-keys";
 
-export interface ReplacePetSubOwnerItem {
+interface ReplacePetSubOwnerItem {
   owner_id: number;
   relationship: string;
 }

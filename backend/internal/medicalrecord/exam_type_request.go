@@ -57,13 +57,7 @@ type createExamTypeFieldRequest struct {
 func (r createExamTypeFieldRequest) toServiceCommand(examTypeID uint64) *CreateExamTypeFieldCommand {
 	return &CreateExamTypeFieldCommand{
 		ExamTypeID: examTypeID,
-		Field: CreateExamTypeFieldInput{
-			Name:            r.Name,
-			InspectionValue: r.InspectionValue,
-			NormalValue:     r.NormalValue,
-			Unit:            r.Unit,
-			SortOrder:       r.SortOrder,
-		},
+		Field:      CreateExamTypeFieldInput(r),
 	}
 }
 
@@ -94,13 +88,7 @@ type examReferenceRangeRequest struct {
 }
 
 func (r examReferenceRangeRequest) toServiceInput() ReferenceRangeInput {
-	return ReferenceRangeInput{
-		AnimalSpeciesID: r.AnimalSpeciesID,
-		RefMin:          r.RefMin,
-		RefMax:          r.RefMax,
-		QualitativeMin:  r.QualitativeMin,
-		QualitativeMax:  r.QualitativeMax,
-	}
+	return ReferenceRangeInput(r)
 }
 
 type replaceExamReferenceRangesRequest struct {

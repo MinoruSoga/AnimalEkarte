@@ -209,6 +209,11 @@ func (m *mockLineChannelCredentialRepo) FindCredentialByClinicServiceKey(
 	if m.findByClinicServiceKeyFn != nil {
 		return m.findByClinicServiceKeyFn(ctx, clinicID, service, keyName)
 	}
+	// Default secret for webhook HMAC tests. Liff ID is absent unless a test
+	// supplies it — avoids accidental liff_url built from the channel secret.
+	if keyName == model.IntegrationKeyLiffID {
+		return nil, apperrors.WrapNotFound("clinic_integration", keyName)
+	}
 	return &model.ClinicIntegration{
 		ID:       clinicID,
 		ClinicID: clinicID,
@@ -246,6 +251,11 @@ func newTestLineLinkService(
 			)
 			if findErr != nil || credential == nil || credential.KeyValue == "" {
 				return credential, findErr
+			}
+			// Match production storage: only secret-shaped keys are ciphertext at rest.
+			// liff_id stays plaintext so GenerateLinkToken can read it directly.
+			if !model.IsEncryptedKey(keyName) {
+				return credential, nil
 			}
 			ciphertext, encryptErr := cipher.Encrypt(credential.KeyValue)
 			if encryptErr != nil {
@@ -320,6 +330,93 @@ func TestLineLinkService_GenerateLinkToken_NoLiffID(t *testing.T) {
 	result, err := svc.GenerateLinkToken(context.Background(), 1, 42)
 	require.NoError(t, err)
 	assert.Empty(t, result.LiffURL)
+}
+
+// BUG-504: missing line_reservation_settings must not surface as opaque owner 404.
+// Staff UI already shows the issue button for an existing unlinked owner.
+func TestLineLinkService_GenerateLinkToken_ReservationSettingNotFoundStillIssuesToken(t *testing.T) {
+	var created bool
+	svc := newTestLineLinkService(
+		&mockLstepOwnerRepo{},
+		&mockLineLinkTokenRepo{
+			createFn: func(_ context.Context, _ *model.LineLinkToken) error {
+				created = true
+				return nil
+			},
+		},
+		&mockLineLinkSettingRepo{
+			findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+				return nil, apperrors.WrapNotFound("line_reservation_setting", "clinic")
+			},
+		},
+	)
+	result, err := svc.GenerateLinkToken(context.Background(), 1, 42)
+	require.NoError(t, err)
+	assert.True(t, created)
+	assert.NotEmpty(t, result.Token)
+	assert.Empty(t, result.LiffURL)
+}
+
+// BUG-504: LIFF ID configured under L-step clinic_integrations must build liff_url
+// when line_reservation_settings row is absent or has empty liff_id.
+func TestLineLinkService_GenerateLinkToken_FallsBackToLstepLiffID(t *testing.T) {
+	const lstepLiffID = "1234567890-lstepLiff"
+	svc := newTestLineLinkService(
+		&mockLstepOwnerRepo{},
+		&mockLineLinkTokenRepo{},
+		&mockLineLinkSettingRepo{
+			findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+				return nil, apperrors.WrapNotFound("line_reservation_setting", "clinic")
+			},
+		},
+		&mockLineChannelCredentialRepo{
+			findByClinicServiceKeyFn: func(
+				_ context.Context,
+				clinicID uint64,
+				service, keyName string,
+			) (*model.ClinicIntegration, error) {
+				assert.Equal(t, uint64(1), clinicID)
+				assert.Equal(t, model.IntegrationServiceLstep, service)
+				assert.Equal(t, model.IntegrationKeyLiffID, keyName)
+				return &model.ClinicIntegration{
+					ClinicID: clinicID,
+					Service:  service,
+					KeyName:  keyName,
+					KeyValue: lstepLiffID,
+				}, nil
+			},
+		},
+	)
+	result, err := svc.GenerateLinkToken(context.Background(), 1, 42)
+	require.NoError(t, err)
+	assert.Contains(t, result.LiffURL, "liff.line.me/"+lstepLiffID)
+	assert.Contains(t, result.LiffURL, result.Token)
+	assert.Contains(t, result.LiffURL, "clinic_id=1")
+}
+
+func TestLineLinkService_GenerateLinkToken_PrefersReservationLiffIDOverLstep(t *testing.T) {
+	svc := newTestLineLinkService(
+		&mockLstepOwnerRepo{},
+		&mockLineLinkTokenRepo{},
+		&mockLineLinkSettingRepo{
+			findByClinicIDFn: func(_ context.Context, clinicID uint64) (*model.LineReservationSetting, error) {
+				return &model.LineReservationSetting{ClinicID: clinicID, LiffID: "reserve-liff"}, nil
+			},
+		},
+		&mockLineChannelCredentialRepo{
+			findByClinicServiceKeyFn: func(
+				_ context.Context,
+				_ uint64,
+				_, _ string,
+			) (*model.ClinicIntegration, error) {
+				t.Fatal("must not consult L-step LiffID when reservation LiffID is present")
+				return nil, nil
+			},
+		},
+	)
+	result, err := svc.GenerateLinkToken(context.Background(), 1, 42)
+	require.NoError(t, err)
+	assert.Contains(t, result.LiffURL, "liff.line.me/reserve-liff")
 }
 
 // --- HandleWebhook tests ---

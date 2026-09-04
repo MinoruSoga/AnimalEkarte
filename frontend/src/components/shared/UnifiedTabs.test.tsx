@@ -10,9 +10,7 @@ const ITEMS = [
 
 describe("UnifiedTabs interaction surface", () => {
   it("全tab triggerを44px以上のnative buttonとして描画する", () => {
-    render(
-      <UnifiedTabs items={ITEMS} value="first" onValueChange={() => undefined} />,
-    );
+    render(<UnifiedTabs items={ITEMS} value="first" onValueChange={() => undefined} />);
 
     for (const tab of screen.getAllByRole("tab")) {
       expect(tab.tagName).toBe("BUTTON");
@@ -31,11 +29,7 @@ describe("UnifiedTabs interaction surface", () => {
 
   it("transition中のheadless rootをaria-busyで通知する", () => {
     const { container } = render(
-      <UnifiedTabsRoot
-        value="first"
-        onValueChange={() => undefined}
-        ariaBusy
-      >
+      <UnifiedTabsRoot value="first" onValueChange={() => undefined} ariaBusy>
         <div>content</div>
       </UnifiedTabsRoot>,
     );

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -89,12 +90,12 @@ func (q *listMedicalRecordQuery) toServiceFilters() (listMedicalRecordFilters, e
 	}
 	var status *model.MedicalRecordStatus
 	if q.Status != "" {
-		parsed, err := validateEnum(q.Status,
+		parsed, err := httpapi.ValidateEnum(q.Status,
 			model.MedicalRecordStatusDraft,
 			model.MedicalRecordStatusFinalized,
 		)
 		if err != nil {
-			return listMedicalRecordFilters{}, apperrors.WrapInvalidInput("invalid status: " + err.Error())
+			return listMedicalRecordFilters{}, apperrors.WrapInvalidInput("ステータスの値が不正です")
 		}
 		status = &parsed
 	}
@@ -188,12 +189,12 @@ func (r *createMedicalRecordRequest) toServiceInput(staffID uint64) (CreateMedic
 
 	var status *model.MedicalRecordStatus
 	if r.Status != "" {
-		parsedStatus, err := validateEnum(r.Status,
+		parsedStatus, err := httpapi.ValidateEnum(r.Status,
 			model.MedicalRecordStatusDraft,
 			model.MedicalRecordStatusFinalized,
 		)
 		if err != nil {
-			return CreateMedicalRecordInput{}, apperrors.WrapInvalidInput("invalid status: " + err.Error())
+			return CreateMedicalRecordInput{}, apperrors.WrapInvalidInput("ステータスの値が不正です")
 		}
 		status = &parsedStatus
 	}
@@ -281,7 +282,7 @@ type patchMedicalRecordRecommendationReasonRequest struct {
 }
 
 func (r patchMedicalRecordRecommendationReasonRequest) toServiceInput() UpdateRecommendationReasonInput {
-	return UpdateRecommendationReasonInput{Reason: r.Reason}
+	return UpdateRecommendationReasonInput(r)
 }
 
 // updateMedicalRecordRequest はカルテ更新のバインド struct
@@ -300,35 +301,34 @@ type updateMedicalRecordRequest struct {
 func (r updateMedicalRecordRequest) toServiceInput(actorID uint64) (UpdateMedicalRecordInput, error) {
 	var status *model.MedicalRecordStatus
 	if r.Status != nil {
-		s, err := validateEnum(*r.Status,
+		s, err := httpapi.ValidateEnum(*r.Status,
 			model.MedicalRecordStatusDraft,
 			model.MedicalRecordStatusFinalized,
 		)
 		if err != nil {
-			return UpdateMedicalRecordInput{}, apperrors.WrapInvalidInput("invalid status: " + err.Error())
+			return UpdateMedicalRecordInput{}, apperrors.WrapInvalidInput("ステータスの値が不正です")
 		}
 		status = &s
 	}
 
 	var nextVisitDate *time.Time
 	var clearNextVisit bool
-	if r.NextVisitRecommendedDate != nil {
-		if *r.NextVisitRecommendedDate == "" {
-			clearNextVisit = true // 空文字 = 明示的クリア → DB を NULL にする
-		} else {
-			parsed, err := time.ParseInLocation(time.DateOnly, *r.NextVisitRecommendedDate, time.Local)
-			if err != nil {
-				return UpdateMedicalRecordInput{}, apperrors.WrapInvalidInput("invalid next_visit_recommended_date format (expected YYYY-MM-DD)")
-			}
-			nextVisitDate = &parsed
+	if r.NextVisitRecommendedDate != nil && *r.NextVisitRecommendedDate == "" {
+		clearNextVisit = true // 空文字 = 明示的クリア → DB を NULL にする
+	}
+	if r.NextVisitRecommendedDate != nil && *r.NextVisitRecommendedDate != "" {
+		parsed, err := time.ParseInLocation(time.DateOnly, *r.NextVisitRecommendedDate, time.Local)
+		if err != nil {
+			return UpdateMedicalRecordInput{}, apperrors.WrapInvalidInput("invalid next_visit_recommended_date format (expected YYYY-MM-DD)")
 		}
+		nextVisitDate = &parsed
 	}
 
 	var visitType *model.VisitType
 	if r.VisitType != nil {
-		vt, err := validateEnum(*r.VisitType, model.VisitTypeFirst, model.VisitTypeRevisit)
+		vt, err := httpapi.ValidateEnum(*r.VisitType, model.VisitTypeFirst, model.VisitTypeRevisit)
 		if err != nil {
-			return UpdateMedicalRecordInput{}, apperrors.WrapInvalidInput("invalid visit_type: " + err.Error())
+			return UpdateMedicalRecordInput{}, apperrors.WrapInvalidInput("来院区分の値が不正です")
 		}
 		visitType = &vt
 	}

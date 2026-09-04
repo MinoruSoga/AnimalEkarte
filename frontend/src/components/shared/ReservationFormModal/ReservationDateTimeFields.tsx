@@ -3,7 +3,13 @@ import { ja } from "date-fns/locale";
 import { C, ICON } from "@/lib/design-tokens";
 import { Label } from "@/components/ui/label";
 import { FormFieldError } from "@/components/shared/FormFieldError";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarIcon, Clock, ArrowRight } from "lucide-react";
@@ -12,8 +18,7 @@ import { DISPLAY_TIME_FORMAT } from "@/lib/format/date";
 import { TIME_OPTIONS } from "./reservation-time-utils";
 import type { Reservation } from "@/types";
 
-const TRIGGER_CLASS =
-  `h-9 text-sm bg-white ${C.borderMediumLight} ${C.text} ${C.hoverBgSubtle} transition-colors`;
+const TRIGGER_CLASS = `h-9 text-sm bg-white ${C.borderMediumLight} ${C.text} ${C.hoverBgSubtle} transition-colors`;
 
 export interface FieldLabelProps {
   children: React.ReactNode;
@@ -27,7 +32,9 @@ export function FieldLabel({ children, required, trailing }: FieldLabelProps) {
       <Label className={`text-xs ${C.text40} font-medium`}>
         {children}
         {required ? (
-          <span style={{ color: C.danger }} className="ml-1" aria-hidden="true">*</span>
+          <span style={{ color: C.danger }} className="ml-1" aria-hidden="true">
+            *
+          </span>
         ) : null}
       </Label>
       {trailing ? <div>{trailing}</div> : null}
@@ -64,7 +71,7 @@ export function ReservationDateTimeFields({
               type="button"
               className={cn(
                 `flex h-9 w-full items-center justify-between rounded border px-3 py-1 text-sm transition-colors ${C.borderMediumLight} ${C.text} bg-white ${C.hoverBgSubtle}`,
-                !formData.start && C.text40
+                !formData.start && C.text40,
               )}
             >
               <span className="flex items-center">
@@ -110,7 +117,9 @@ export function ReservationDateTimeFields({
         <div className={`flex items-center gap-2 text-xs ${C.text40} font-medium`}>
           <Clock className={ICON.action} />
           時間
-          <span style={{ color: C.danger }} className="ml-0.5" aria-hidden="true">*</span>
+          <span style={{ color: C.danger }} className="ml-0.5" aria-hidden="true">
+            *
+          </span>
         </div>
         <div className="flex items-center gap-2">
           <Select

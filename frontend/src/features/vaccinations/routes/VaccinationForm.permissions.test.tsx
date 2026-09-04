@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { VaccinationForm } from "./VaccinationForm";
@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   canCreate: false,
   canEdit: true,
   canDelete: false,
+  selectedPetStatus: undefined as string | undefined,
   useVaccinationForm: vi.fn(),
 }));
 
@@ -42,7 +43,12 @@ vi.mock("../api/get-vaccinations", () => ({
 }));
 
 vi.mock("@/components/shared/PageLayout/PageLayout", () => ({
-  PageLayout: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  PageLayout: ({ children, headerAction }: { children: ReactNode; headerAction?: ReactNode }) => (
+    <div>
+      {headerAction}
+      {children}
+    </div>
+  ),
 }));
 
 vi.mock("@/components/shared/NavigationBlocker", () => ({
@@ -68,11 +74,21 @@ beforeEach(() => {
   mocks.canCreate = false;
   mocks.canEdit = true;
   mocks.canDelete = false;
+  mocks.selectedPetStatus = undefined;
   mocks.useVaccinationForm.mockReset();
   mocks.useVaccinationForm.mockImplementation(() => ({
     isEdit: mocks.id !== undefined,
+    isReadLoading: false,
+    isEditPetReady: true,
     petSelection: {
-      selectedPets: [{ id: "pet-1", ownerId: "owner-1", name: "ポチ" }],
+      selectedPets: [
+        {
+          id: "pet-1",
+          ownerId: "owner-1",
+          name: "ポチ",
+          status: mocks.selectedPetStatus,
+        },
+      ],
     },
     form: {
       doctorName: "",
@@ -140,5 +156,45 @@ describe("VaccinationForm — mutation permission wiring", () => {
       canEdit: false,
       canDelete: true,
     });
+  });
+});
+
+describe("VaccinationForm — 死亡ペット render側二重防壁 (FE-RC-103/108)", () => {
+  it("死亡ペットでは権限があっても保存・削除を出さず、理由バナーを出す", () => {
+    mocks.id = "vaccination-1";
+    mocks.canCreate = true;
+    mocks.canEdit = true;
+    mocks.canDelete = true;
+    mocks.selectedPetStatus = "死亡";
+
+    render(<VaccinationForm />);
+
+    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "削除" })).not.toBeInTheDocument();
+    expect(screen.getByText("死亡したペットの予防接種記録は保存できません")).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "死亡ペットのため保存不可" })).toBeInTheDocument();
+  });
+
+  it("生存ペットでは作成権限があれば保存を表示し、死亡理由は出さない", () => {
+    mocks.canCreate = true;
+    mocks.selectedPetStatus = "生存";
+
+    render(<VaccinationForm />);
+
+    expect(screen.getByRole("button", { name: "保存" })).toBeInTheDocument();
+    expect(
+      screen.queryByText("死亡したペットの予防接種記録は保存できません"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("編集かつ削除権限ありの生存ペットでは削除を表示する", () => {
+    mocks.id = "vaccination-1";
+    mocks.canEdit = true;
+    mocks.canDelete = true;
+    mocks.selectedPetStatus = "生存";
+
+    render(<VaccinationForm />);
+
+    expect(screen.getByRole("button", { name: "削除" })).toBeInTheDocument();
   });
 });

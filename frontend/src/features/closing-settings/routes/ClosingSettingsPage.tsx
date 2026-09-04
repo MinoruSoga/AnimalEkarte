@@ -4,6 +4,7 @@ import { C, ICON } from "@/lib/design-tokens";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { paths } from "@/config/paths";
+import { usePermission } from "@/hooks/use-permission";
 import { ResourceClosingSettings } from "@/types/generated/models";
 import { useGetClosingSettings } from "../api/get-closing-settings";
 import { useGetHolidays } from "../api/holidays";
@@ -13,6 +14,7 @@ import { HolidaySection } from "../components/HolidaySection";
 
 export function ClosingSettingsPage() {
   const navigate = useNavigate();
+  const { canEdit } = usePermission(ResourceClosingSettings);
   const { data, isLoading, isError } = useGetClosingSettings();
   const { data: holidays = [], isLoading: holidaysLoading } = useGetHolidays();
 
@@ -31,9 +33,9 @@ export function ClosingSettingsPage() {
       {isError || (!isLoading && !data) ? <ErrorFallback /> : null}
       {!loading && data ? (
         <div className="space-y-6">
-          <StandardClosingTimeSection settings={data.settings} />
-          <SpecialPeriodSection periods={data.special_periods} />
-          <HolidaySection holidays={holidays} />
+          <StandardClosingTimeSection settings={data.settings} canEdit={canEdit} />
+          <SpecialPeriodSection periods={data.special_periods} canEdit={canEdit} />
+          <HolidaySection holidays={holidays} canEdit={canEdit} />
         </div>
       ) : null}
     </PageLayout>

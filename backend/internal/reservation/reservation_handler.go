@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -27,8 +28,7 @@ func NewReservationHandler(svc ReservationService, medicalRecord medicalRecordAu
 	return &ReservationHandler{svc: svc, medicalRecord: medicalRecord, liff: liff, staffAssignments: staffAssignments}
 }
 
-// checkDoctorClinicAssignment は医師が指定クリニックに所属しているかを確認する共通ヘルパー
-// （internal/handler/validation.go の同名メソッドの忠実な移植・appointment/liff 残留consumerは旧実装を継続使用）。
+// checkDoctorClinicAssignment は医師が指定クリニックに所属しているかを確認する。
 func (h *ReservationHandler) checkDoctorClinicAssignment(ctx context.Context, clinicID, doctorID uint64) error {
 	if doctorID == 0 {
 		return nil
@@ -53,8 +53,12 @@ func toReservationAvailableTimeResponse(slot *TimeSlot) liffTimeSlotResponse {
 
 // ListReservations godoc
 func (h *ReservationHandler) ListReservations(c *gin.Context) {
-	// #86: 拠点横断一覧 — clinic_ids クエリ指定時は所属検証済みの複数医院、未指定は現在の医院のみ
-	clinicIDs, ok := httpapi.ResolveListClinicIDs(c)
+	// #86: 拠点横断一覧 — 所属かつ reservations:view を持つ医院だけをスコープにする
+	clinicIDs, ok := httpapi.ResolveListClinicIDsForPermission(
+		c,
+		string(model.ResourceReservations),
+		"view",
+	)
 	if !ok {
 		return
 	}
@@ -67,7 +71,7 @@ func (h *ReservationHandler) ListReservations(c *gin.Context) {
 	q := newListReservationQuery(c.Request.URL.Query())
 	filters, err := q.toServiceFilters()
 	if err != nil {
-		respondError(c, apperrors.WrapInvalidInput(err.Error()))
+		respondError(c, passthroughOrInvalidDateTime(err))
 		return
 	}
 
@@ -81,8 +85,12 @@ func (h *ReservationHandler) ListReservations(c *gin.Context) {
 
 // GetReservation godoc
 func (h *ReservationHandler) GetReservation(c *gin.Context) {
-	// #86: 詳細画面の拠点横断閲覧 — 所属医院全体をスコープにしてレコードを取得する
-	clinicIDs, ok := httpapi.ResolveAllClinicIDs(c)
+	// #86: 詳細画面の拠点横断閲覧 — 所属かつ reservations:view を持つ医院だけをスコープにする
+	clinicIDs, ok := httpapi.ResolveAllClinicIDsForPermission(
+		c,
+		string(model.ResourceReservations),
+		"view",
+	)
 	if !ok {
 		return
 	}
@@ -114,7 +122,16 @@ func (h *ReservationHandler) GetReservationAvailableTimes(c *gin.Context) {
 		respondError(c, apperrors.WrapNotImplemented("予約可能時間の取得は未設定です"))
 		return
 	}
-	slots, err := h.liff.GetAvailableTimes(c.Request.Context(), clinicID, filters.ReservationTypeID, filters.StaffID, filters.Date)
+	// BUG-015: staff path allows inactive types via GetStaffAvailableTimes when present.
+	// Falls back to GetAvailableTimes for mocks that only implement liffAvailability.
+	var slots []TimeSlot
+	if staffTimes, ok := h.liff.(interface {
+		GetStaffAvailableTimes(ctx context.Context, clinicID, typeID, staffID uint64, date time.Time) ([]TimeSlot, error)
+	}); ok {
+		slots, err = staffTimes.GetStaffAvailableTimes(c.Request.Context(), clinicID, filters.ReservationTypeID, filters.StaffID, filters.Date)
+	} else {
+		slots, err = h.liff.GetAvailableTimes(c.Request.Context(), clinicID, filters.ReservationTypeID, filters.StaffID, filters.Date)
+	}
 	if err != nil {
 		respondError(c, err)
 		return
@@ -140,7 +157,7 @@ func (h *ReservationHandler) CreateReservation(c *gin.Context) {
 
 	svcInput, err := input.toServiceInput(clinicID, staffID)
 	if err != nil {
-		respondError(c, apperrors.WrapInvalidInput(err.Error()))
+		respondError(c, passthroughOrInvalidDateTime(err))
 		return
 	}
 
@@ -167,6 +184,48 @@ func (h *ReservationHandler) CreateReservation(c *gin.Context) {
 	c.JSON(http.StatusCreated, toReservationResponse(reservation))
 }
 
+// CreateReservationBatch creates a single atomic shared doctor/time booking for selected pets.
+func (h *ReservationHandler) CreateReservationBatch(c *gin.Context) {
+	clinicID, ok := httpapi.ExtractClinicID(c)
+	if !ok {
+		return
+	}
+	staffID, ok := httpapi.ExtractStaffID(c)
+	if !ok {
+		return
+	}
+	var req createReservationBatchRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+		return
+	}
+	input, pets, err := req.toServiceInput(clinicID, staffID)
+	if err != nil {
+		respondError(c, passthroughOrInvalidDateTime(err))
+		return
+	}
+	if input.DoctorID != nil {
+		if err := h.checkDoctorClinicAssignment(c.Request.Context(), clinicID, *input.DoctorID); err != nil {
+			respondError(c, err)
+			return
+		}
+	}
+	reservations, err := h.svc.CreateBatch(c.Request.Context(), input, pets)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	for _, reservation := range reservations {
+		// CreateBatch constructs rows without preloads. Reload so the shared predicate can
+		// reliably exclude trimming and other non-clinical reservation types.
+		loaded, loadErr := h.svc.GetByID(c.Request.Context(), clinicID, reservation.ID)
+		if loadErr == nil && shouldAutoCreateMedicalRecordForReservation(loaded) && h.medicalRecord != nil {
+			h.medicalRecord.AutoCreateFromReservation(c.Request.Context(), clinicID, loaded)
+		}
+	}
+	c.JSON(http.StatusCreated, httpapi.MapSlice(reservations, toReservationResponse))
+}
+
 // UpdateReservation godoc
 func (h *ReservationHandler) UpdateReservation(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
@@ -185,7 +244,7 @@ func (h *ReservationHandler) UpdateReservation(c *gin.Context) {
 
 	svcInput, err := input.toServiceInput()
 	if err != nil {
-		respondError(c, apperrors.WrapInvalidInput(err.Error()))
+		respondError(c, passthroughOrInvalidDateTime(err))
 		return
 	}
 

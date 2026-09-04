@@ -3,7 +3,6 @@ package billing
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -91,22 +90,31 @@ func validatePaymentSplits(splits []PaymentSplitInput, billingAmount *int64) err
 		}
 		total += s.Amount
 		if s.Method == model.PaymentMethodCash {
-			if s.ReceivedAmount < s.Amount {
-				return apperrors.WrapInvalidInput("現金の預り金が不足しています")
-			}
-			if s.ChangeOverride {
-				// #188: お釣り直接上書きモード。レジ実機（カルテ非連動）の誤差を会計記録に反映するため
-				// change == received - amount の整合検証を意図的に緩和する。下限ガード（change >= 0）は維持する。
-				if s.ChangeAmount < 0 {
-					return apperrors.WrapInvalidInput("お釣りは0円以上でなければなりません")
-				}
-			} else if s.ChangeAmount != s.ReceivedAmount-s.Amount {
-				return apperrors.WrapInvalidInput("お釣り計算が不正です")
+			if err := validateCashSplit(s); err != nil {
+				return err
 			}
 		}
 	}
 	if billingAmount != nil && total != *billingAmount {
 		return apperrors.WrapInvalidInput(fmt.Sprintf("支払い内訳の合計（%d）が請求金額（%d）と一致しません", total, *billingAmount))
+	}
+	return nil
+}
+
+func validateCashSplit(s PaymentSplitInput) error {
+	if s.ReceivedAmount < s.Amount {
+		return apperrors.WrapInvalidInput("現金の預り金が不足しています")
+	}
+	if s.ChangeOverride {
+		// #188: お釣り直接上書きモード。レジ実機（カルテ非連動）の誤差を会計記録に反映するため
+		// change == received - amount の整合検証を意図的に緩和する。下限ガード（change >= 0）は維持する。
+		if s.ChangeAmount < 0 {
+			return apperrors.WrapInvalidInput("お釣りは0円以上でなければなりません")
+		}
+		return nil
+	}
+	if s.ChangeAmount != s.ReceivedAmount-s.Amount {
+		return apperrors.WrapInvalidInput("お釣り計算が不正です")
 	}
 	return nil
 }
@@ -240,17 +248,6 @@ func buildAccountingUpdate(input *UpdateAccountingInput) map[string]any {
 	}
 	if input.HasInsurance != nil {
 		fields["has_insurance"] = *input.HasInsurance
-	}
-	if input.Status != nil {
-		fields["status"] = *input.Status
-		// P10: status = completed 時は server time で completed_at を上書き（client clock skew 防止）
-		if *input.Status == model.BillingStatusCompleted {
-			now := time.Now()
-			fields["completed_at"] = now
-		}
-	} else if input.CompletedAt != nil {
-		// status 変更なし、かつ completed_at 送信時のみ受け取る（completed 状態での再設定は許可しない）
-		fields["completed_at"] = *input.CompletedAt
 	}
 	if input.ScheduledDate != nil {
 		fields["scheduled_date"] = *input.ScheduledDate

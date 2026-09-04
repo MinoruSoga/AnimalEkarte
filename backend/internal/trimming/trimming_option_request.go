@@ -1,8 +1,8 @@
 package trimming
 
 type createTrimmingOptionRequest struct {
-	Name         string `json:"name"        binding:"required"`
-	Price        *int64 `json:"price"`
+	Name  string `json:"name"        binding:"required"`
+	Price *int64 `json:"price"`
 	// IsActive / IsCombinable are *bool so omitted resolves to true; explicit false is preserved.
 	IsActive     *bool  `json:"is_active"`
 	Description  string `json:"description"`

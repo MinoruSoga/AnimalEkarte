@@ -1,8 +1,8 @@
 # scenarios/ — 納品前受け入れテストシナリオ
 
-> **目的**: 納品前に主要業務が実データ相当環境で通ることを証明する受け入れシナリオの索引を提供する。  
-> **読者**: 検証実施者（AI エージェント / 人間どちらでも実行可能）・PO。  
-> **タイミング**: 納品前検証・大きなリリース前。  
+> **目的**: 納品前に主要業務が実データ相当環境で通ることを証明する受け入れシナリオの索引を提供する。
+> **読者**: 検証実施者（AI エージェント / 人間どちらでも実行可能）・PO。
+> **タイミング**: 納品前検証・大きなリリース前。
 > **アーキテクチャ正本**: [../TEST_ARCHITECTURE.md](../TEST_ARCHITECTURE.md)（L4 受入層）
 
 ## 既存テストとの分担（重複させない）
@@ -35,9 +35,13 @@
 
 実行順の制約: S01 を最初に、S10 は S08 の後。S13 は独立。それ以外は任意順。
 
+機器クライアントの独立確認票: [LAB_DEVICE_CLIENT_UAT.md](LAB_DEVICE_CLIENT_UAT.md)（NX600/AU10V。未確定機器を PASS にしない）。
+
+**#254 close 条件の再配置（結果は書かない）**: [UAT-254-CLOSE-CHECKLIST.md](UAT-254-CLOSE-CHECKLIST.md)。local PASS では close しない。実施レーンは BRT-68。
+
 ## V シリーズ — フォーム検証（入力・更新・DB 整合 + **項目単位**）
 
-業務フロー横断の S シリーズと別軸で、全永続化フォームの入力・更新・DB 整合を検証する。
+業務フロー横断の S シリーズと別軸で、inventory に exact field key が収録された永続化フォームの入力・更新・DB 整合を検証する。inventory 再構築完了までは「全フォーム」を主張しない。
 
 | 文書 | 役割 |
 |:--|:--|
@@ -49,19 +53,21 @@
 
 | ID | ファイル | 対象ドメイン | フォーム数 |
 |:---|:---|:---|:---|
-| [V01](V01-clinical-forms.md) | 臨床系 | 臨床 | 18 |
-| [V02](V02-accounting-reservation-forms.md) | 会計・予約・受付・シフト・**在庫** | 会計/予約/在庫 | **12** |
-| [V03](V03-owner-pet-staff-forms.md) | 飼主・ペット・スタッフ・権限・医院 | 顧客/組織 | 7 |
-| [V04](V04-settings-master-forms.md) | /settings マスタ | マスタ | 30 |
-| [V05](V05-auth-line-forms.md) | 認証・LIFF・LINE・Lステップ | 認証/LINE | 18 |
-| **合計** | | | **85** |
+| [V01](V01-clinical-forms.md) | 臨床系 | 臨床 | **算定保留** |
+| [V02](V02-accounting-reservation-forms.md) | 会計・予約・受付・シフト・**在庫** | 会計/予約/在庫 | **算定保留** |
+| [V03](V03-owner-pet-staff-forms.md) | 飼主・ペット・スタッフ・権限・医院 | 顧客/組織 | **算定保留** |
+| [V04](V04-settings-master-forms.md) | /settings マスタ | マスタ | **算定保留** |
+| [V05](V05-auth-line-forms.md) | 認証・LIFF・LINE・Lステップ | 認証/LINE | **算定保留** |
+| **合計** | | | **算定保留** |
 
-（旧 84 = 在庫フォーム未計上。2026-08-14 に `inventory-form` を V02 §12 へ追加。）
+フォーム inventory は再構築中であり、全フォーム・全項目の完了や一意フォーム総数はまだ主張できない。route inventory の 86 product pages はフォーム数とは別の指標。
 
 ## 実行と記録のルール
 
-- **環境**: [../UAT-ENV-SETUP.md](../UAT-ENV-SETUP.md)。ローカル（seed 003_demo）または STG（004_staging）。前提データは検索条件で指定（ID 直書き禁止）。
-- **実行記録はシナリオファイルに書かない**。FAIL は root [`todo.md`](../../../../todo.md) 受入バグ節。証跡は `reports/uat-YYYY-MM-DD/`（results は `formId.fieldKey.Fx` 推奨）。
+- **環境**: 自動投入されるのは `002_master` の参照マスタだけ。各シナリオに記載した合成 fixture を、承認済み UAT skeleton/import 手順でローカルの使い捨て clinic に作成する。手順の正本が `../UAT-ENV-SETUP.md` で修正済みであることを実行前に確認する。共有 STG、既存患者・飼主、固定 ID は使用しない。
+- **実行記録はシナリオファイルに書かない**。証跡は gitignore の `reports/uat-YYYY-MM-DD/`（results は `formId.fieldKey.Fx` 推奨）。
+- **製品 FAIL は `bug.md` 必須**（確認済みのみ · 見出し重複禁止 · env/権限 BLOCKED は書かない）。PARTIAL は bug.md にしない。Linear Issue 化は後続レーン。
+- **S シリーズは core 受入**: local では S01→S13 を実施し FINAL を書く。V シリーズは項目単位の別軸（inventory 全 fieldKey）。「全て実施」は少なくとも core S の実行完了を指し、FAIL/PARTIAL/BLOCKED が残る場合は「全て PASS」と言わない。
 - **AI 実行**: browser-test + Chrome DevTools MCP、または Playwright MCP / 再現スクリプト。
 - **【要実測】**: 初回実測後、正しければ期待結果へ昇格。
 - **クレデンシャル禁止**: パスワード・トークンを本ディレクトリに書かない。アカウントはロール名。認証は `E2E_LOGIN_*`。

@@ -18,10 +18,12 @@ import (
 // audit is nil-safe: a nil LabAuditLogger disables the best-effort audit trail without changing
 // the import flow. revert may be nil only in legacy tests that do not exercise compensating revert.
 type LabImportHandler struct {
-	resultImport LabResultImportService
-	job          LabImportJobService
-	audit        LabAuditLogger
-	revert       LabImportRevertService
+	resultImport  LabResultImportService
+	job           LabImportJobService
+	audit         LabAuditLogger
+	revert        LabImportRevertService
+	deviceMasters LabDeviceItemMasterService
+	deviceReceive LabDeviceReceiveService
 }
 
 // NewLabImportHandler initializes a LabImportHandler. audit may be nil (audit trail disabled).
@@ -151,6 +153,9 @@ func (h *LabImportHandler) GetLabImportJob(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceLabImport), "view") {
+		return
+	}
 	jobID, ok := httpapi.ParseUUIDParam(c, "job_id")
 	if !ok {
 		return
@@ -169,6 +174,9 @@ func (h *LabImportHandler) GetLabImportJob(c *gin.Context) {
 func (h *LabImportHandler) ListLabImportEvents(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceLabImport), "view") {
 		return
 	}
 	jobID, ok := httpapi.ParseUUIDParam(c, "job_id")

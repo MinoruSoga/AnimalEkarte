@@ -66,13 +66,8 @@ func (s *lstepDeliveryTriggerService) applySuppression(
 		}
 		for i := range active {
 			l := &active[i]
-			if client != nil && lineUserID != "" {
-				if removeErr := client.RemoveTag(ctx, lineUserID, l.TriggerType); removeErr != nil {
-					slog.ErrorContext(ctx, "delivery trigger: failed to remove demoted tag",
-						"log_id", l.ID, "trigger", l.TriggerType, "error", removeErr)
-					// fail-closed: do not fire the higher-priority trigger if exclusivity cannot be restored
-					return false, apperrors.Wrap(removeErr, "failed to remove demoted trigger tag")
-				}
+			if remErr := removeDemotedTriggerTag(ctx, client, lineUserID, l); remErr != nil {
+				return false, remErr
 			}
 			reason := fmt.Sprintf("superseded by %s (priority %d < %d)", triggerType, currentPri, bestPri)
 			if suppErr := s.triggerLogRepo.UpdateSuppressed(ctx, clinicID, l.ID, reason); suppErr != nil {
@@ -106,6 +101,18 @@ func (s *lstepDeliveryTriggerService) demoteRemoveTarget(
 		return nil, "", buildErr
 	}
 	return client, *owner.LineUserID, nil
+}
+
+func removeDemotedTriggerTag(ctx context.Context, client lstep.Client, lineUserID string, log *model.LstepDeliveryTriggerLog) error {
+	if client == nil || lineUserID == "" {
+		return nil
+	}
+	if removeErr := client.RemoveTag(ctx, lineUserID, log.TriggerType); removeErr != nil {
+		slog.ErrorContext(ctx, "delivery trigger: failed to remove demoted tag",
+			"log_id", log.ID, "trigger", log.TriggerType, "error", removeErr)
+		return apperrors.Wrap(removeErr, "failed to remove demoted trigger tag")
+	}
+	return nil
 }
 
 // runBatch は ownerID リストに対して除外チェック・重複チェック・タグ付与・ログ記録を行う汎用バッチ実行。

@@ -3,10 +3,10 @@ package medicalrecord
 import (
 	"fmt"
 	"net/url"
-	"slices"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -90,25 +90,25 @@ func (r dischargeWithBillingRequest) toServiceInput(actorID uint64) DischargeWit
 
 // createHospitalizationRequest は入院作成のバインド struct
 type createHospitalizationRequest struct {
-	OwnerID              uint64                        `json:"owner_id"               binding:"required"`
-	PetID                uint64                        `json:"pet_id"                 binding:"required"`
-	HospitalizationType  string                        `json:"hospitalization_type"   binding:"required,oneof=hospitalization hotel"`
-	StartDate            time.Time                     `json:"start_date"             binding:"required"`
-	EndDate              time.Time                     `json:"end_date"               binding:"required"`
-	Status               string                        `json:"status"                 binding:"omitempty,oneof=admitted discharged reserved"`
-	CageID               *uint64                       `json:"cage_id"`
-	DoctorID             *uint64                       `json:"doctor_id"`
-	Memo                 string                        `json:"memo"`
-	OwnerRequest         string                        `json:"owner_request"`
-	StaffNotes           string                        `json:"staff_notes"`
-	IsInsurance          bool                          `json:"is_insurance"`
-	InsuranceCompanyName *string                       `json:"insurance_company_name,omitempty"`
-	InsuranceNumber      *string                       `json:"insurance_number,omitempty"`
-	TreatmentPlans       []createTreatmentPlanRequest  `json:"treatment_plans"`
+	OwnerID              uint64                       `json:"owner_id"               binding:"required"`
+	PetID                uint64                       `json:"pet_id"                 binding:"required"`
+	HospitalizationType  string                       `json:"hospitalization_type"   binding:"required,oneof=hospitalization hotel"`
+	StartDate            time.Time                    `json:"start_date"             binding:"required"`
+	EndDate              time.Time                    `json:"end_date"               binding:"required"`
+	Status               string                       `json:"status"                 binding:"omitempty,oneof=admitted discharged reserved"`
+	CageID               *uint64                      `json:"cage_id"`
+	DoctorID             *uint64                      `json:"doctor_id"`
+	Memo                 string                       `json:"memo"`
+	OwnerRequest         string                       `json:"owner_request"`
+	StaffNotes           string                       `json:"staff_notes"`
+	IsInsurance          bool                         `json:"is_insurance"`
+	InsuranceCompanyName *string                      `json:"insurance_company_name,omitempty"`
+	InsuranceNumber      *string                      `json:"insurance_number,omitempty"`
+	TreatmentPlans       []createTreatmentPlanRequest `json:"treatment_plans"`
 }
 
 func (r *createHospitalizationRequest) toServiceInput() (*CreateHospitalizationInput, error) {
-	hospType, err := validateEnum(r.HospitalizationType,
+	hospType, err := httpapi.ValidateEnum(r.HospitalizationType,
 		model.HospitalizationTypeInpatient,
 		model.HospitalizationTypeHotel,
 	)
@@ -118,7 +118,7 @@ func (r *createHospitalizationRequest) toServiceInput() (*CreateHospitalizationI
 
 	var status model.HospitalizationStatus
 	if r.Status != "" {
-		s, err := validateEnum(r.Status,
+		s, err := httpapi.ValidateEnum(r.Status,
 			model.HospitalizationStatusAdmitted,
 			model.HospitalizationStatusDischarged,
 			model.HospitalizationStatusReserved,
@@ -200,7 +200,7 @@ func (r *updateHospitalizationRequest) toServiceInput() (UpdateHospitalizationIn
 		InsuranceNumber:      r.InsuranceNumber,
 	}
 	if r.HospitalizationType != nil {
-		hospType, err := validateEnum(*r.HospitalizationType,
+		hospType, err := httpapi.ValidateEnum(*r.HospitalizationType,
 			model.HospitalizationTypeInpatient,
 			model.HospitalizationTypeHotel,
 		)
@@ -210,7 +210,7 @@ func (r *updateHospitalizationRequest) toServiceInput() (UpdateHospitalizationIn
 		input.HospitalizationType = &hospType
 	}
 	if r.Status != nil {
-		status, err := validateEnum(*r.Status,
+		status, err := httpapi.ValidateEnum(*r.Status,
 			model.HospitalizationStatusAdmitted,
 			model.HospitalizationStatusDischarged,
 			model.HospitalizationStatusReserved,
@@ -227,14 +227,4 @@ func (r *updateHospitalizationRequest) toServiceInput() (UpdateHospitalizationIn
 		}
 	}
 	return input, nil
-}
-
-// validateEnum は internal/handler/validation.go の同名 generic の最小複製（BE9-2D ⑤:
-// 原本は旧 package の appointment/medical_record request が引き続き使うため移動不可。純関数）。
-func validateEnum[T ~string](v string, allowed ...T) (T, error) {
-	if slices.Contains(allowed, T(v)) {
-		return T(v), nil
-	}
-	var zero T
-	return zero, fmt.Errorf("invalid value %q", v)
 }

@@ -451,11 +451,13 @@ func TestListGlobalCheckups(t *testing.T) {
 	}{
 		{
 			name:     "returns global checkups with default pagination and real total",
-			query:    "start_date=2026-01-01",
+			query:    "pet_id=42&start_date=2026-01-01",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockCheckupService{
 				listByClinicFn: func(_ context.Context, input ListCheckupsByClinicInput) ([]model.Checkup, int64, error) {
 					assert.Equal(t, uint64(1), input.ClinicID)
+					require.NotNil(t, input.PetID)
+					assert.Equal(t, uint64(42), *input.PetID)
 					assert.NotNil(t, input.StartDate)
 					assert.Equal(t, 1, input.Page, "デフォルト page=1")
 					assert.Equal(t, 20, input.Limit, "デフォルト limit=20")
@@ -478,6 +480,13 @@ func TestListGlobalCheckups(t *testing.T) {
 			},
 			wantStatus: http.StatusOK,
 			wantBody:   `"total":11,"page":2,"limit":5`,
+		},
+		{
+			name:       "returns 400 for invalid pet_id",
+			query:      "pet_id=invalid",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockCheckupService{},
+			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:       "returns 400 for invalid pagination",
@@ -516,6 +525,61 @@ func TestListGlobalCheckups(t *testing.T) {
 			if tt.wantBody != "" {
 				assert.Contains(t, w.Body.String(), tt.wantBody)
 			}
+		})
+	}
+}
+
+// SEC-CODEX-UHQPM2 selected-clinic grant
+func TestCheckupSelectedClinicGrant(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name     string
+		resource model.Resource
+		invoke   func(*CheckupHandler, *gin.Context)
+		svc      *mockCheckupService
+	}{
+		{
+			name:     "ListCheckups returns 403 when selected clinic lacks medical record view grant",
+			resource: model.ResourceMedicalRecords,
+			invoke: func(h *CheckupHandler, c *gin.Context) {
+				h.ListCheckups(c)
+			},
+			svc: &mockCheckupService{
+				listFn: func(_ context.Context, _, _ uint64) ([]model.Checkup, error) {
+					t.Fatal("service must not be reached")
+					return nil, nil
+				},
+			},
+		},
+		{
+			name:     "ListGlobalCheckups returns 403 when selected clinic lacks checkups view grant",
+			resource: model.ResourceCheckups,
+			invoke: func(h *CheckupHandler, c *gin.Context) {
+				h.ListGlobalCheckups(c)
+			},
+			svc: &mockCheckupService{
+				listByClinicFn: func(_ context.Context, _ ListCheckupsByClinicInput) ([]model.Checkup, int64, error) {
+					t.Fatal("service must not be reached")
+					return nil, 0, nil
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithCheckupSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: "10"}}
+			setClinicID(c)
+			c.Set("clinic_id", "2")
+			c.Set("is_system_admin", false)
+			setResourcePermissionOnlyClinic(c, 1, string(tt.resource), "view")
+			tt.invoke(h, c)
+			assert.Equal(t, http.StatusForbidden, w.Code)
 		})
 	}
 }

@@ -67,7 +67,7 @@ func (h *Handler) CreateInventory(c *gin.Context) {
 
 	input, err := req.toServiceInput()
 	if err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(err.Error()))
+		httpapi.RespondError(c, err)
 		return
 	}
 
@@ -99,7 +99,7 @@ func (h *Handler) UpdateInventory(c *gin.Context) {
 
 	input, err := req.toServiceInput()
 	if err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(err.Error()))
+		httpapi.RespondError(c, err)
 		return
 	}
 

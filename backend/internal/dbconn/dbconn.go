@@ -4,7 +4,11 @@ package dbconn
 
 import (
 	"fmt"
+	"net/url"
 	"os"
+	"strconv"
+
+	"github.com/jackc/pgx/v5"
 
 	"github.com/animal-ekarte/backend/internal/config"
 )
@@ -57,6 +61,38 @@ func (c ConnParams) DSN(dbname string) string {
 		dsn += " sslrootcert=" + c.SSLRootCert
 	}
 	return dsn
+}
+
+// PGXConfig builds a pgx connection configuration without interpolating any
+// environment-controlled identity value into a libpq keyword DSN. This keeps
+// whitespace and '=' in credentials or database names from becoming new
+// connection keywords.
+func (c ConnParams) PGXConfig(dbname string) (*pgx.ConnConfig, error) {
+	port, err := strconv.ParseUint(c.Port, 10, 16)
+	if err != nil || port == 0 {
+		return nil, fmt.Errorf("DB_PORT must be an integer between 1 and 65535")
+	}
+	switch c.SSLMode {
+	case "disable", "require", "verify-ca", "verify-full":
+	default:
+		return nil, fmt.Errorf("unsupported DB_SSL_MODE %q", c.SSLMode)
+	}
+	values := url.Values{"sslmode": []string{c.SSLMode}}
+	if c.SSLRootCert != "" {
+		values.Set("sslrootcert", c.SSLRootCert)
+	}
+	cfg, err := pgx.ParseConfig("postgres://placeholder.invalid/placeholder?" + values.Encode())
+	if err != nil {
+		return nil, fmt.Errorf("initialize database configuration: %w", err)
+	}
+	cfg.Host = c.Host
+	cfg.Port = uint16(port)
+	cfg.User = c.User
+	cfg.Password = c.Password
+	cfg.Database = dbname
+	cfg.Fallbacks = nil
+	cfg.RuntimeParams = map[string]string{"TimeZone": JapanTimeZone}
+	return cfg, nil
 }
 
 // localHosts is the superset guard (5 entries, including IPv6 loopback forms)

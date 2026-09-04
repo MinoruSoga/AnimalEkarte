@@ -112,6 +112,39 @@ func TestAsNameUniqueConflict_ShiftTemplateAndLstepPrefix(t *testing.T) {
 	assert.True(t, RespondWithConflictCode(prefix))
 }
 
+func TestAsNameUniqueConflict_TreatmentItemNames(t *testing.T) {
+	cases := []struct {
+		constraint string
+		code       string
+		resource   string
+		name       string
+	}{
+		{ConstraintConsultationName, CodeConsultationNameConflict, "consultation", "V04診察"},
+		{ConstraintExamTypeName, CodeExamTypeNameConflict, "examination_type", "V04検査"},
+		{ConstraintProcedureName, CodeProcedureNameConflict, "procedure", "V04処置"},
+		{ConstraintVaccineName, CodeVaccineNameConflict, "vaccine", "V04予防接種"},
+		{ConstraintCheckupTypeName, CodeCheckupTypeNameConflict, "checkup_type", "V04定期健診"},
+		{ConstraintMedicineName, CodeMedicineNameConflict, "medicine", "V04薬剤"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.code, func(t *testing.T) {
+			conflict := AsNameUniqueConflict(
+				FromGORM(&pgconn.PgError{Code: "23505", ConstraintName: tc.constraint}, tc.resource, ""),
+				tc.name,
+				tc.constraint,
+				tc.code,
+			)
+			require.Error(t, conflict)
+			assert.True(t, IsNameConflict(conflict, tc.code))
+			assert.True(t, RespondWithConflictCode(conflict))
+			var appErr *AppError
+			require.True(t, errors.As(conflict, &appErr))
+			assert.Equal(t, tc.name, appErr.Params["name"])
+			assert.NotContains(t, appErr.Message, tc.resource+" '' already exists")
+		})
+	}
+}
+
 func TestConflictHTTPExtras_AndRespondFlag(t *testing.T) {
 	err := WrapNameConflict(CodePermissionGroupNameConflict, "執行")
 	extras := ConflictHTTPExtras(err)

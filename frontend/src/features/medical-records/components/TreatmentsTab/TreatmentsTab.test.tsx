@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 
 import { server } from "@/testing/mocks/node";
-import { createTestWrapper } from "@/testing/utils";
+import { createTestWrapper } from "@/testing/TestUtils";
 import { TreatmentsTab } from "./TreatmentsTab";
 import type { TreatmentMasterItem } from "@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog";
 
@@ -72,7 +72,7 @@ function installUnsafeMedicineHandlers() {
           created_at: "2026-07-15T00:00:00Z",
           updated_at: "2026-07-15T00:00:00Z",
         },
-      ])
+      ]),
     ),
     http.get("*/v1/masters/medicines", () =>
       HttpResponse.json([
@@ -89,7 +89,7 @@ function installUnsafeMedicineHandlers() {
           calculation_type: "per_weight",
           strength: 50,
         },
-      ])
+      ]),
     ),
     http.get("*/v1/masters/medicines/1/dose-params", () =>
       HttpResponse.json([
@@ -107,8 +107,8 @@ function installUnsafeMedicineHandlers() {
           created_at: "2026-07-15T00:00:00Z",
           updated_at: "2026-07-15T00:00:00Z",
         },
-      ])
-    )
+      ]),
+    ),
   );
 }
 
@@ -124,7 +124,7 @@ describe("TreatmentsTab — マスタ選択時の投与量 hard gate (P1-7)", ()
       http.post("*/v1/medical-records/:id/treatments", async () => {
         createCalled = true;
         return HttpResponse.json({ id: "new-1" }, { status: 201 });
-      })
+      }),
     );
 
     const user = userEvent.setup();
@@ -147,7 +147,7 @@ describe("TreatmentsTab — マスタ選択時の投与量 hard gate (P1-7)", ()
       http.post("*/v1/medical-records/:id/treatments", async () => {
         createCalled = true;
         return HttpResponse.json({ id: "new-2" }, { status: 201 });
-      })
+      }),
     );
 
     const user = userEvent.setup();
@@ -175,8 +175,8 @@ describe("TreatmentsTab — dose-params technical failure (TASK-025)", () => {
     installUnsafeMedicineHandlers();
     server.use(
       http.get("*/v1/masters/medicines/1/dose-params", () =>
-        HttpResponse.json({ message: UPSTREAM_LEAK }, { status: 500 })
-      )
+        HttpResponse.json({ message: UPSTREAM_LEAK }, { status: 500 }),
+      ),
     );
   }
 
@@ -187,7 +187,7 @@ describe("TreatmentsTab — dose-params technical failure (TASK-025)", () => {
       http.post("*/v1/medical-records/:id/treatments", async () => {
         createCount += 1;
         return HttpResponse.json({ id: "new-fail-1" }, { status: 201 });
-      })
+      }),
     );
 
     const user = userEvent.setup();
@@ -211,7 +211,7 @@ describe("TreatmentsTab — dose-params technical failure (TASK-025)", () => {
       http.post("*/v1/medical-records/:id/treatments", async () => {
         createCount += 1;
         return HttpResponse.json({ id: "new-fail-2" }, { status: 201 });
-      })
+      }),
     );
 
     const user = userEvent.setup();
@@ -243,8 +243,8 @@ describe("TreatmentsTab — dose-params technical failure (TASK-025)", () => {
             calculation_type: "per_weight",
             strength: 10,
           },
-        ])
-      )
+        ]),
+      ),
     );
 
     let doseParamsCalls = 0;
@@ -270,7 +270,7 @@ describe("TreatmentsTab — dose-params technical failure (TASK-025)", () => {
             updated_at: "2026-07-15T00:00:00Z",
           },
         ]);
-      })
+      }),
     );
 
     let createCount = 0;
@@ -278,7 +278,7 @@ describe("TreatmentsTab — dose-params technical failure (TASK-025)", () => {
       http.post("*/v1/medical-records/:id/treatments", async () => {
         createCount += 1;
         return HttpResponse.json({ id: "new-retry-1" }, { status: 201 });
-      })
+      }),
     );
 
     const user = userEvent.setup();
@@ -287,7 +287,9 @@ describe("TreatmentsTab — dose-params technical failure (TASK-025)", () => {
     });
 
     await user.click(await screen.findByRole("button", { name: "劇薬Aを選択" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent(/投与量パラメータを取得できなかった/);
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /投与量パラメータを取得できなかった/,
+    );
     expect(createCount).toBe(0);
 
     // QueryClient が失敗をキャッシュしている可能性があるため、再試行前に失敗キャッシュを捨てる経路は
@@ -299,15 +301,13 @@ describe("TreatmentsTab — dose-params technical failure (TASK-025)", () => {
 
   it("体重未記録でも technical failure alert にせず create を継続する（missing data）", async () => {
     installUnsafeMedicineHandlers();
-    server.use(
-      http.get("*/v1/medical-records/:id/vitals", () => HttpResponse.json([]))
-    );
+    server.use(http.get("*/v1/medical-records/:id/vitals", () => HttpResponse.json([])));
     let createCount = 0;
     server.use(
       http.post("*/v1/medical-records/:id/treatments", async () => {
         createCount += 1;
         return HttpResponse.json({ id: "new-miss-weight" }, { status: 201 });
-      })
+      }),
     );
 
     const user = userEvent.setup();
@@ -327,7 +327,7 @@ describe("TreatmentsTab — dose-params technical failure (TASK-025)", () => {
       http.post("*/v1/medical-records/:id/treatments", async () => {
         createCount += 1;
         return HttpResponse.json({ id: "new-miss-species" }, { status: 201 });
-      })
+      }),
     );
 
     const user = userEvent.setup();
@@ -342,15 +342,13 @@ describe("TreatmentsTab — dose-params technical failure (TASK-025)", () => {
 
   it("dose-params 200 で該当 species なし（[]）でも technical failure にせず create を継続する", async () => {
     installUnsafeMedicineHandlers();
-    server.use(
-      http.get("*/v1/masters/medicines/1/dose-params", () => HttpResponse.json([]))
-    );
+    server.use(http.get("*/v1/masters/medicines/1/dose-params", () => HttpResponse.json([])));
     let createCount = 0;
     server.use(
       http.post("*/v1/medical-records/:id/treatments", async () => {
         createCount += 1;
         return HttpResponse.json({ id: "new-miss-param" }, { status: 201 });
-      })
+      }),
     );
 
     const user = userEvent.setup();

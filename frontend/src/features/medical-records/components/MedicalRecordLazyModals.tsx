@@ -9,7 +9,9 @@ export const VitalsModal = lazy(() =>
 );
 
 export const OwnerSearchModal = lazy(() =>
-  import("@/components/shared/OwnerSearchModal/OwnerSearchModal").then((m) => ({ default: m.OwnerSearchModal })),
+  import("@/components/shared/OwnerSearchModal/OwnerSearchModal").then((m) => ({
+    default: m.OwnerSearchModal,
+  })),
 );
 
 export const ExaminationImportDialog = lazy(() =>

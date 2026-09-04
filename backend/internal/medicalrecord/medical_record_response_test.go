@@ -3,9 +3,10 @@ package medicalrecord
 import (
 	"testing"
 
-	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 func TestToMedicalRecordResponse_InquirySummaryIncludesNotes(t *testing.T) {
@@ -30,6 +31,33 @@ func TestToMedicalRecordResponse_InquirySummaryIncludesNotes(t *testing.T) {
 	assert.Equal(t, inquiryID, resp.Inquiry.ID)
 	assert.Equal(t, "UAT再検証 主訴", resp.Inquiry.ChiefComplaint)
 	assert.Equal(t, "UAT再検証 治療方針", resp.Inquiry.Notes)
+}
+
+func TestToMedicalRecordResponse_IncludesVisitTypeAndChiefComplaintType(t *testing.T) {
+	t.Parallel()
+
+	visitType := model.VisitTypeFirst
+	typeID := uint64(7)
+	record := &model.MedicalRecord{
+		ID:        42,
+		ClinicID:  1,
+		RecordNo:  "MR-042",
+		Status:    model.MedicalRecordStatusDraft,
+		Version:   1,
+		VisitType: &visitType,
+		Inquiry: &model.Inquiry{
+			ID:                   9,
+			ChiefComplaint:       "主訴",
+			ChiefComplaintTypeID: &typeID,
+		},
+	}
+
+	resp := toMedicalRecordResponse(record)
+	require.NotNil(t, resp.VisitType)
+	assert.Equal(t, "first", *resp.VisitType)
+	require.NotNil(t, resp.Inquiry)
+	require.NotNil(t, resp.Inquiry.ChiefComplaintTypeID)
+	assert.Equal(t, typeID, *resp.Inquiry.ChiefComplaintTypeID)
 }
 
 func TestToMedicalRecordResponse_InquirySummaryEmptyNotes(t *testing.T) {

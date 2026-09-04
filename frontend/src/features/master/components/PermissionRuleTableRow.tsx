@@ -8,7 +8,7 @@ import {
   RESOURCE_LABELS,
   type PermissionRule,
   type PermissionRuleField,
-} from "./permission-rule-table-model";
+} from "../lib/permission-rule-table-model";
 
 interface PermissionRuleTableRowProps {
   resource: string;
@@ -25,9 +25,7 @@ export function PermissionRuleTableRow({
 }: PermissionRuleTableRowProps) {
   return (
     <DataTableRow>
-      <TableCell className={`text-sm ${C.text}`}>
-        {RESOURCE_LABELS[resource] || resource}
-      </TableCell>
+      <TableCell className={`text-sm ${C.text}`}>{RESOURCE_LABELS[resource] || resource}</TableCell>
       {PERMISSION_ACTION_COLUMNS.map(({ field, label }) => (
         <PermissionCheckboxCell
           key={field}

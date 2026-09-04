@@ -10,7 +10,9 @@ import { C } from "@/lib/design-tokens";
 export function LoadingFallback({ className }: { className?: string }) {
   return (
     <div className={`flex justify-center items-center p-8 ${className ?? ""}`}>
-      <div className={`inline-block animate-spin rounded-full h-8 w-8 border-b-2 ${C.borderPrimary}`} />
+      <div
+        className={`inline-block animate-spin rounded-full h-8 w-8 border-b-2 ${C.borderPrimary}`}
+      />
     </div>
   );
 }
@@ -23,11 +25,7 @@ export function ErrorFallback({
   message?: string;
   className?: string;
 }) {
-  return (
-    <div className={`p-4 ${C.danger} ${className ?? ""}`}>
-      {message}
-    </div>
-  );
+  return <div className={`p-4 ${C.danger} ${className ?? ""}`}>{message}</div>;
 }
 
 /**

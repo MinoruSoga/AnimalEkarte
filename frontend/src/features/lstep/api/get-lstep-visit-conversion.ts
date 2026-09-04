@@ -27,7 +27,7 @@ export function useGetLstepVisitConversion(yearMonth: string, days = 30) {
     queryFn: async () => {
       const clinicId = requireStoredClinicId();
       const { data } = await axios.get<VisitConversionSummaryResponse>(
-        `/v1/clinics/${clinicId}/lstep/analytics/visit-conversion?year_month=${yearMonth}&days=${days}`
+        `/v1/clinics/${clinicId}/lstep/analytics/visit-conversion?year_month=${yearMonth}&days=${days}`,
       );
       return data;
     },

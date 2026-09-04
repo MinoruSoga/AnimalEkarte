@@ -1,4 +1,4 @@
-// Package service provides business logic implementations for Staff entity.
+// Package staff provides staff use cases.
 package staff
 
 import (
@@ -68,13 +68,16 @@ type UpdateStaffInput struct {
 	// every active assignment observed under the mutation transaction.
 	AuthorizedClinicIDs []uint64
 	IsSystemAdmin       bool
+	// ActorStaffID is the authenticated staff performing the update when known.
+	// Zero means the actor staff id was not available on the request context.
+	ActorStaffID uint64
 	// CredentialAudit is derived from the authenticated request context and is
 	// required only when Password requests a credential replacement.
 	CredentialAudit *CredentialMutationAudit
 }
 
-// SetClinicAssignmentsInput はスタッフのクリニック割当全置換と、実行者の認可済み
-// clinic scope をまとめた入力である。ClinicIDs と AuthorizedClinicIDs は変更しない。
+// SetClinicAssignmentsInput はスタッフのクリニック割当を実行者の mutable scope で
+// 差分更新するための入力である。ClinicIDs と AuthorizedClinicIDs は変更しない。
 type SetClinicAssignmentsInput struct {
 	StaffID             uint64
 	ClinicIDs           []uint64
@@ -114,7 +117,7 @@ type StaffCoreService interface {
 	// email 重複チェック・bcrypt ハッシュ化・Account 作成・Staff 作成を一括で行う。
 	CreateWithAccount(ctx context.Context, input *CreateStaffWithAccountInput) (*model.Staff, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateStaffInput) (*model.Staff, error)
-	Delete(ctx context.Context, clinicID, id uint64) error
+	Delete(ctx context.Context, clinicID, id uint64, isSystemAdmin bool) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
@@ -122,9 +125,9 @@ type StaffCoreService interface {
 type StaffAccountService interface {
 	// FindByAccountID はアカウントIDに紐づくスタッフを返す。
 	FindByAccountID(ctx context.Context, accountID uint64) (*model.Staff, error)
-	// SetClinicAssignments はスタッフのクリニック割当をトランザクション内で差し替える。
-	// staff・既存割当を決定的な順序でロックし、解除対象 clinic の予約・シフト依存を
-	// 同じ transaction で拒否してから置換する。最初の1件は is_main=true となる。
+	// SetClinicAssignments はスタッフのクリニック割当をトランザクション内で
+	// 実行者の mutable scope に対する差分として更新する。staff・既存割当を決定的な
+	// 順序でロックし、解除対象 clinic の予約・シフト依存を同じ transaction で拒否する。
 	SetClinicAssignments(ctx context.Context, input *SetClinicAssignmentsInput) error
 	// VerifyClinicMembership はスタッフが指定クリニックに所属しているかを確認する。
 	// 所属していない場合は ErrNotFound を返す。

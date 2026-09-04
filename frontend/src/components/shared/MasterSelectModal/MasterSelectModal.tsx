@@ -1,13 +1,19 @@
 import { useState, useMemo, useCallback, useDeferredValue, memo } from "react";
 import { Check } from "lucide-react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { EmptyState } from "@/components/shared/DataStates";
 import { ClearableSearchInput } from "@/components/shared/ClearableSearchInput";
 import { C, ICON } from "@/lib/design-tokens";
 import { normalizeKana } from "@/lib/normalize-kana";
 import { formatCurrency } from "@/lib/format/number";
 
-interface MasterItem {
+export interface MasterSelectItem {
   id: string | number;
   name: string;
   price?: number;
@@ -17,8 +23,8 @@ interface MasterSelectModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
-  items: MasterItem[];
-  onSelect: (item: MasterItem) => void;
+  items: MasterSelectItem[];
+  onSelect: (item: MasterSelectItem) => void;
   selectedValue?: string | number | null;
   searchPlaceholder?: string;
 
@@ -50,12 +56,12 @@ export const MasterSelectModal = memo(function MasterSelectModal({
   }, [items, deferredSearchTerm]);
 
   const handleSelect = useCallback(
-    (item: MasterItem) => {
+    (item: MasterSelectItem) => {
       onSelect(item);
       onOpenChange(false);
       setSearchTerm("");
     },
-    [onSelect, onOpenChange]
+    [onSelect, onOpenChange],
   );
 
   return (
@@ -82,9 +88,7 @@ export const MasterSelectModal = memo(function MasterSelectModal({
           ) : (
             filtered.map((item) => {
               const isSelected =
-                matchBy === "id"
-                  ? selectedValue === item.id
-                  : selectedValue === item.name;
+                matchBy === "id" ? selectedValue === item.id : selectedValue === item.name;
 
               return (
                 <button
@@ -110,11 +114,15 @@ export const MasterSelectModal = memo(function MasterSelectModal({
                   </div>
                   <div className="flex items-center gap-2 shrink-0 ml-3">
                     {isSelected ? (
-                      <div className={`size-5 rounded-full ${C.bgBrand} flex items-center justify-center`}>
+                      <div
+                        className={`size-5 rounded-full ${C.bgBrand} flex items-center justify-center`}
+                      >
                         <Check className={`${ICON.xs} ${C.textWhite}`} />
                       </div>
                     ) : (
-                      <div className={`size-5 rounded-full border ${C.borderLight} group-hover:${C.borderPrimary} transition-colors`} />
+                      <div
+                        className={`size-5 rounded-full border ${C.borderLight} ${C.groupHoverBorderPrimary} transition-colors`}
+                      />
                     )}
                   </div>
                 </button>

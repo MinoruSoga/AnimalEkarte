@@ -80,6 +80,17 @@ func (m *mockStaffClinicAssignmentRepository) Delete(ctx context.Context, staffI
 	return nil
 }
 
+func (m *mockStaffClinicAssignmentRepository) DeleteByStaffAndClinicIDs(
+	ctx context.Context,
+	staffID uint64,
+	clinicIDs []uint64,
+) error {
+	if len(clinicIDs) == 0 {
+		return nil
+	}
+	return m.Delete(ctx, staffID)
+}
+
 // ---- Tests: NewStaffClinicAssignmentService ----
 
 func TestNewStaffClinicAssignmentService(t *testing.T) {

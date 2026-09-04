@@ -78,7 +78,13 @@ func (s *accountingService) Cancel(ctx context.Context, clinicID, id uint64, act
 	billingID := id
 	aType := sharedkernel.AuditActorTypeFor(actorID)
 
+	if s.transactor == nil {
+		return apperrors.WrapInternalServerError("billing transactor is required for billing cancel")
+	}
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if err := s.lockCloseBoundaries(txCtx, clinicID, existing.ScheduledDate); err != nil {
+			return err
+		}
 		fields := map[string]any{"status": model.BillingStatusCancelled}
 		if _, err := s.repo.Update(txCtx, clinicID, id, fields); err != nil {
 			slog.ErrorContext(txCtx, "failed to cancel accounting", "error", err, "billing_id", id, "clinic_id", clinicID)

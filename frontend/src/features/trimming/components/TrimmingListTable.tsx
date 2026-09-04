@@ -1,7 +1,11 @@
 import { AlertTriangle, Edit, Trash2 } from "lucide-react";
 import { memo } from "react";
 import { TableCell } from "@/components/ui/table";
-import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
+import {
+  DataTable,
+  DESIGN_TABLE_HEADER_ROW,
+  DESIGN_TABLE_HEADER_CELL,
+} from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { DataTableRowLink } from "@/components/shared/DataTable/DataTableRowLink";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
@@ -215,9 +219,7 @@ const TrimmingTableRow = memo(function TrimmingTableRow({
 }: TrimmingTableRowProps) {
   return (
     <DataTableRow>
-      <TableCell className={`font-mono ${C.text}`}>
-        {record.date}
-      </TableCell>
+      <TableCell className={`font-mono ${C.text}`}>{record.date}</TableCell>
       <TableCell className={C.text}>{record.ownerName}</TableCell>
       <TableCell>
         <div className="flex flex-col">
@@ -261,17 +263,25 @@ const TrimmingTableRow = memo(function TrimmingTableRow({
           <RowActionDropdown
             ariaLabel={`トリミング操作: ${record.petName} ${record.date} ID ${record.id}`}
             actions={[
-              ...(canEdit ? [{
-                label: "編集",
-                icon: Edit,
-                onClick: () => onEdit(record.id),
-              }] : []),
-              ...(canDelete ? [{
-                label: "削除",
-                icon: Trash2,
-                variant: "destructive" as const,
-                onClick: () => onDeleteClick(record),
-              }] : []),
+              ...(canEdit
+                ? [
+                    {
+                      label: "編集",
+                      icon: Edit,
+                      onClick: () => onEdit(record.id),
+                    },
+                  ]
+                : []),
+              ...(canDelete
+                ? [
+                    {
+                      label: "削除",
+                      icon: Trash2,
+                      variant: "destructive" as const,
+                      onClick: () => onDeleteClick(record),
+                    },
+                  ]
+                : []),
             ]}
           />
         ) : null}

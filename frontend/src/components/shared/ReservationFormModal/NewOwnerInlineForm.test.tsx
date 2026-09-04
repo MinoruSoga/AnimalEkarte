@@ -34,9 +34,7 @@ const EMPTY_FORM: NewOwnerFormData = {
 const mockedUseAnimalSpecies = vi.mocked(useAnimalSpecies);
 type AnimalSpeciesState = ReturnType<typeof useAnimalSpecies>;
 
-function mockAnimalSpecies(
-  overrides: Partial<AnimalSpeciesState> = {},
-) {
+function mockAnimalSpecies(overrides: Partial<AnimalSpeciesState> = {}) {
   mockedUseAnimalSpecies.mockReturnValue({
     allSpecies: [],
     activeSpecies: [],
@@ -48,13 +46,7 @@ function mockAnimalSpecies(
 }
 
 function renderForm(onChange = vi.fn()) {
-  render(
-    <NewOwnerInlineForm
-      value={EMPTY_FORM}
-      onChange={onChange}
-      errors={{}}
-    />,
-  );
+  render(<NewOwnerInlineForm value={EMPTY_FORM} onChange={onChange} errors={{}} />);
   return onChange;
 }
 
@@ -131,38 +123,37 @@ describe("NewOwnerInlineForm animal species states", () => {
   it("失敗はalert、読み込み中と空状態はpoliteなstatusとして通知する", () => {
     mockAnimalSpecies({ isError: true, error: new Error("internal detail") });
     const { rerender } = render(
-      <NewOwnerInlineForm
-        value={EMPTY_FORM}
-        onChange={vi.fn()}
-        errors={{}}
-      />,
+      <NewOwnerInlineForm value={EMPTY_FORM} onChange={vi.fn()} errors={{}} />,
     );
 
     expect(screen.getByRole("alert")).toHaveAttribute("aria-atomic", "true");
 
     mockAnimalSpecies({ isLoading: true });
-    rerender(
-      <NewOwnerInlineForm
-        value={EMPTY_FORM}
-        onChange={vi.fn()}
-        errors={{}}
-      />,
-    );
+    rerender(<NewOwnerInlineForm value={EMPTY_FORM} onChange={vi.fn()} errors={{}} />);
 
     expect(screen.getByRole("status")).toHaveAttribute("aria-live", "polite");
     expect(screen.getByRole("status")).toHaveAttribute("aria-atomic", "true");
 
     mockAnimalSpecies();
-    rerender(
-      <NewOwnerInlineForm
-        value={EMPTY_FORM}
-        onChange={vi.fn()}
-        errors={{}}
-      />,
-    );
+    rerender(<NewOwnerInlineForm value={EMPTY_FORM} onChange={vi.fn()} errors={{}} />);
 
     expect(screen.getByRole("status")).toHaveAttribute("aria-live", "polite");
     expect(screen.getByRole("status")).toHaveAttribute("aria-atomic", "true");
+  });
+
+  it("電話番号エラーを入力へ aria で関連付ける", () => {
+    render(
+      <NewOwnerInlineForm
+        value={EMPTY_FORM}
+        onChange={vi.fn()}
+        errors={{ phone: "電話番号の形式が正しくありません" }}
+      />,
+    );
+
+    const phone = screen.getByRole("textbox", { name: "電話番号" });
+    expect(phone).toHaveAttribute("aria-invalid", "true");
+    expect(phone).toHaveAttribute("aria-describedby", "new-owner-phone-error");
+    expect(screen.getByRole("alert")).toHaveAttribute("id", "new-owner-phone-error");
   });
 
   it("動物種の取得失敗中も動物種以外の入力を利用できる", async () => {
@@ -171,13 +162,7 @@ describe("NewOwnerInlineForm animal species states", () => {
 
     function FormHarness() {
       const [value, setValue] = useState(EMPTY_FORM);
-      return (
-        <NewOwnerInlineForm
-          value={value}
-          onChange={setValue}
-          errors={{}}
-        />
-      );
+      return <NewOwnerInlineForm value={value} onChange={setValue} errors={{}} />;
     }
 
     render(<FormHarness />);

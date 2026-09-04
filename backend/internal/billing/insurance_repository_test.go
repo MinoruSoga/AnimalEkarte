@@ -218,6 +218,40 @@ func TestInsuranceRepository_Delete(t *testing.T) {
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
+
+	t.Run("ペットで使用中なら Conflict で行は残る", func(t *testing.T) {
+		used := testdb.MakeInsurance(t, db, clinicA, "使用中削除対象保険")
+		owner := testdb.MakeTestOwner(t, db, clinicA, "使用中保険飼主")
+		testdb.MakePetWithInsurance(t, db, clinicA, owner.ID, &used.ID, "使用中保険ペット")
+
+		err := repo.Delete(ctx, clinicA, used.ID)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsConflict(err), "expected Conflict, got %v", err)
+		assert.Contains(t, err.Error(), "この保険はペット情報で使用中のため削除できません")
+
+		got, findErr := repo.FindByID(ctx, clinicA, used.ID)
+		require.NoError(t, findErr)
+		assert.Equal(t, used.ID, got.ID)
+	})
+
+	t.Run("CountUsage==0 直後にペットが紐づいても削除は失敗する", func(t *testing.T) {
+		target := testdb.MakeInsurance(t, db, clinicA, "TOCTOU保険")
+		count, err := repo.CountUsageByInsuranceID(ctx, clinicA, target.ID)
+		require.NoError(t, err)
+		require.Equal(t, int64(0), count)
+
+		owner := testdb.MakeTestOwner(t, db, clinicA, "TOCTOU保険飼主")
+		testdb.MakePetWithInsurance(t, db, clinicA, owner.ID, &target.ID, "TOCTOU保険ペット")
+
+		err = repo.Delete(ctx, clinicA, target.ID)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsConflict(err), "expected Conflict, got %v", err)
+		assert.Contains(t, err.Error(), "この保険はペット情報で使用中のため削除できません")
+
+		got, findErr := repo.FindByID(ctx, clinicA, target.ID)
+		require.NoError(t, findErr)
+		assert.Equal(t, target.ID, got.ID)
+	})
 }
 
 func TestInsuranceRepository_Reorder(t *testing.T) {

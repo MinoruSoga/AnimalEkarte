@@ -34,11 +34,15 @@ describe("transformClinic", () => {
   });
 
   it("phone_number を phoneNumber にマップする", () => {
-    expect(transformClinic({ ...minimal, phone_number: "06-9999-0000" }).phoneNumber).toBe("06-9999-0000");
+    expect(transformClinic({ ...minimal, phone_number: "06-9999-0000" }).phoneNumber).toBe(
+      "06-9999-0000",
+    );
   });
 
   it("fax_number を faxNumber にマップする", () => {
-    expect(transformClinic({ ...minimal, fax_number: "06-9999-0001" }).faxNumber).toBe("06-9999-0001");
+    expect(transformClinic({ ...minimal, fax_number: "06-9999-0001" }).faxNumber).toBe(
+      "06-9999-0001",
+    );
   });
 
   it("registration_number を registrationNumber にマップする", () => {
@@ -50,7 +54,9 @@ describe("transformClinic", () => {
   });
 
   it("logo_url を logoUrl にマップする", () => {
-    expect(transformClinic({ ...minimal, logo_url: "https://cdn/logo.png" }).logoUrl).toBe("https://cdn/logo.png");
+    expect(transformClinic({ ...minimal, logo_url: "https://cdn/logo.png" }).logoUrl).toBe(
+      "https://cdn/logo.png",
+    );
   });
 
   it("logo_url が null のとき null を返す", () => {

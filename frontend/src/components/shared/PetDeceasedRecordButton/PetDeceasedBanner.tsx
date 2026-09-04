@@ -61,9 +61,7 @@ export function PetDeceasedBanner({
           {age !== null ? (
             <span>
               享年: <span className={`font-medium ${C.text}`}>{age}歳</span>
-              <span className={`ml-1.5 ${C.text50}`}>
-                （{formattedDate} 永眠）
-              </span>
+              <span className={`ml-1.5 ${C.text50}`}>（{formattedDate} 永眠）</span>
             </span>
           ) : (
             <span>

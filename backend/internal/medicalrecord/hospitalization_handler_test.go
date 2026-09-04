@@ -356,6 +356,23 @@ func TestCreateHospitalization(t *testing.T) {
 			setupCtx:   func(c *gin.Context) { setClinicID(c) },
 			svc:        &mockHospitalizationService{},
 			wantStatus: http.StatusBadRequest,
+			wantBody:   `"error":"cage_id is required"`,
+		},
+		{
+			name: "returns 400 for inverted date range without wrapping AppError",
+			body: map[string]any{
+				"owner_id":             1,
+				"pet_id":               2,
+				"hospitalization_type": "hospitalization",
+				"start_date":           "2026-05-30T00:00:00Z",
+				"end_date":             "2026-05-28T00:00:00Z",
+				"status":               "admitted",
+				"cage_id":              10,
+			},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockHospitalizationService{},
+			wantStatus: http.StatusBadRequest,
+			wantBody:   `"error":"end_date は start_date 以降である必要があります"`,
 		},
 		{
 			name:     "returns 500 on service error",
@@ -413,12 +430,12 @@ func TestCreateHospitalization(t *testing.T) {
 			c.Request.Header.Set("Content-Type", "application/json")
 			tt.setupCtx(c)
 
-
 			h.CreateHospitalization(c)
 
 			assert.Equal(t, tt.wantStatus, w.Code)
 			if tt.wantBody != "" {
 				assert.Contains(t, w.Body.String(), tt.wantBody)
+				assert.NotContains(t, w.Body.String(), "invalid input")
 			}
 			if tt.wantHeader {
 				assert.NotEmpty(t, w.Header().Get("Location"))
@@ -525,6 +542,17 @@ func TestUpdateHospitalization(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 		},
 		{
+			name:    "returns 400 for inverted date range without wrapping AppError",
+			paramID: "1",
+			body: map[string]any{
+				"start_date": "2026-05-30T00:00:00Z",
+				"end_date":   "2026-05-28T00:00:00Z",
+			},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockHospitalizationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
 			name:     "returns 404 when hospitalization not found",
 			paramID:  "999",
 			body:     map[string]any{"memo": "テスト"},
@@ -557,6 +585,25 @@ func TestUpdateHospitalization(t *testing.T) {
 			assert.Equal(t, tt.wantStatus, w.Code)
 		})
 	}
+}
+
+func TestUpdateHospitalization_InvertedDateRangePassesAppErrorThrough(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	h := newHandlerWithHospitalizationSvc(&mockHospitalizationService{})
+	bodyBytes, err := json.Marshal(map[string]any{
+		"start_date": "2026-05-30T00:00:00Z",
+		"end_date":   "2026-05-28T00:00:00Z",
+	})
+	require.NoError(t, err)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(bodyBytes))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Params = gin.Params{{Key: "id", Value: "1"}}
+	setClinicID(c)
+	h.UpdateHospitalization(c)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.JSONEq(t, `{"error":"end_date は start_date 以降である必要があります"}`, w.Body.String())
 }
 
 // ---- DischargeWithBilling ----
@@ -961,3 +1008,55 @@ func newDeleteHospitalizationRouter(svc HospitalizationService) *gin.Engine {
 //    - Test DischargeWithBilling transaction (discharge + accounting creation)
 //    - Test date validation (start_date <= end_date)
 //
+
+// SEC-CODEX-UHQPM2 selected-clinic grant
+func TestHospitalizationSelectedClinicGrant(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name   string
+		invoke func(*HospitalizationHandler, *gin.Context)
+		svc    *mockHospitalizationService
+	}{
+		{
+			name: "ListHospitalizations returns 403 when selected clinic lacks hospitalization view grant",
+			invoke: func(h *HospitalizationHandler, c *gin.Context) {
+				h.ListHospitalizations(c)
+			},
+			svc: &mockHospitalizationService{
+				listFn: func(_ context.Context, _ uint64, _, _ *uint64, _, _, _ *string, _, _ int) ([]model.Hospitalization, int64, error) {
+					t.Fatal("service must not be reached")
+					return nil, 0, nil
+				},
+			},
+		},
+		{
+			name: "GetHospitalization returns 403 when selected clinic lacks hospitalization view grant",
+			invoke: func(h *HospitalizationHandler, c *gin.Context) {
+				h.GetHospitalization(c)
+			},
+			svc: &mockHospitalizationService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.Hospitalization, error) {
+					t.Fatal("service must not be reached")
+					return nil, nil
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithHospitalizationSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: "10"}}
+			setClinicID(c)
+			c.Set("clinic_id", "2")
+			c.Set("is_system_admin", false)
+			setResourcePermissionOnlyClinic(c, 1, string(model.ResourceHospitalization), "view")
+			tt.invoke(h, c)
+			assert.Equal(t, http.StatusForbidden, w.Code)
+		})
+	}
+}

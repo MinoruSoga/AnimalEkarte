@@ -1,5 +1,7 @@
-# A4 UI rehearsal only. This override creates a disposable, localhost-only
-# full stack under a unique Compose project. It must never target shared data.
+# A4 UI rehearsal overlay on docker-compose.yml — do not fold into the daily
+# stack. Unique Compose project, localhost ports, disposable volumes. Shared
+# animalekarte data is forbidden. old_db A4 is CONTRACT READY / EXECUTION
+# BLOCKED until a formal KNJO 21-table bundle exists; keep until that run.
 services:
   db:
     env_file: !override

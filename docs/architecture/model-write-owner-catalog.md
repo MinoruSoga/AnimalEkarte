@@ -42,7 +42,7 @@
 | `PermissionGroup`, `PermissionGroupRule`, `StaffPermissionGroup` | permission tables | `auth` | Clinic-scoped RBAC definitions |
 | `Owner` | `owners` | `owner` | |
 | `Pet`, `PetOwner`, `PetChronicCondition` | `pets`, `pet_owners`, `pet_chronic_conditions` | `pet` | |
-| `AnimalSpecies` | `animal_species` | `pet` (or clinic master via pet flows) | Shared species master; writes via pet/clinic master paths — treat `pet` as primary app owner unless a dedicated master package is introduced |
+| `AnimalSpecies` | `animal_species` | `pet` | Global shared species master; current writes are exclusively owned by `pet` |
 | `MedicalRecord`, addenda, images | `medical_records`, … | `medicalrecord` | Clinical record aggregate |
 | `Checkup`, checkup types/fields/results | `checkups`, … | `medicalrecord` | |
 | `Examination`, `ExamResult`, exam types/fields/ranges | `exams`, `exam_results`, … | `medicalrecord` | |
@@ -51,13 +51,14 @@
 | `Hospitalization`, daily/care/treatment plan rows, `Cage`, plans | hospitalization tables | `medicalrecord` | Discharge+billing orchestrates billing in same tx — see orchestration catalog |
 | `Inquiry`, `InquiryTemplate`, diagnosis masters, chief complaint | inquiry / diagnosis tables | `medicalrecord` | |
 | `LabImport*`, `LabExamReport*` | lab import/report tables | `medicalrecord` | Saga-style import; still medicalrecord owner |
+| `LabDevice`, `LabDeviceWait`, `LabDeviceItemMaster`, `LabDeviceStationSettings`, `LabImportJobItem` | `lab_devices`, `lab_device_waits`, `lab_device_item_masters`, `lab_device_station_settings`, `lab_import_job_items` | `medicalrecord` | ADR-007。device 受信は `job_id`+`pet_id`。fixture Commit に載せない |
 | `Billing`, `BillingItem`, `Payment`, `PaymentSplit` | `billings`, … | `billing` | |
 | `Estimate`, `EstimateItem` | `estimates`, … | `billing` | |
 | `BillingConfirmation`, `BillingRefund` | confirmation / refund tables | `billing` | |
 | `Campaign*`, `CashRegisterClose*`, `PaymentMethodMaster`, `Insurance` | billing-adjacent | `billing` | |
 | `InventoryItem`, `MerchandiseItem` | inventory tables | `inventory` | Co-tx with medicine from medicalrecord uses inventory owner APIs/tx scope |
 | `Clinic`, `ClinicSettings`, `ClinicHoliday`, `ClosingSpecialPeriod`, `ClinicIntegration` | clinic tables | `clinic` | |
-| `Company` | `companies` | `clinic` | Multi-clinic org if used |
+| `Company` | `companies` | `clinic` | Global singleton configuration (`id=1`), owned by clinic |
 | `LineCustomer`, `LineLinkToken`, `LineSendLog`, `SharedFile` | LINE tables | `lstep` | |
 | `Lstep*` settings/tags/csv/delivery counters | lstep tables | `lstep` | |
 | `OwnerIdentityGroup*`, `PetIdentityGroup*` | identity group tables | `identitylink` | No Go import of owner/pet packages |

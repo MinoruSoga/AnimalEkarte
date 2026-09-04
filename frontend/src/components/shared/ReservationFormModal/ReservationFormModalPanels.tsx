@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useCallback } from "react";
 import { Calendar, CalendarCheck, PawPrint, Search, UserPlus, Users, X } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +7,7 @@ import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/co
 import { Label } from "@/components/ui/label";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { ReservationRouteSelect } from "@/components/shared/ReservationRouteSelect";
+import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import type { NewOwnerFormData } from "@/types/reservation-form";
 import type { ReservationRoute } from "@/types/reservation-route";
 import { C, ICON, PALETTE } from "@/lib/design-tokens";
@@ -137,7 +138,8 @@ export function ReservationPatientPanel({
             data-testid="mode-existing"
             className={`flex-1 px-3 py-1.5 text-xs font-medium transition-colors ${ownerMode === "existing" ? `${C.bgBrand} ${C.textOnBrand}` : `bg-white ${C.text60}`}`}
           >
-            <Users size={12} className="inline mr-1" />既存飼主
+            <Users size={12} className="inline mr-1" />
+            既存飼主
           </button>
           <button
             type="button"
@@ -145,7 +147,8 @@ export function ReservationPatientPanel({
             data-testid="mode-new"
             className={`flex-1 px-3 py-1.5 text-xs font-medium transition-colors ${ownerMode === "new" ? `${C.bgBrand} ${C.textOnBrand}` : `bg-white ${C.text60}`}`}
           >
-            <UserPlus size={12} className="inline mr-1" />新規飼主
+            <UserPlus size={12} className="inline mr-1" />
+            新規飼主
           </button>
         </div>
       ) : null}
@@ -157,10 +160,7 @@ export function ReservationPatientPanel({
             <Label className={`text-sm font-bold ${C.text}`}>患者検索</Label>
           </div>
           <div className="flex-1 overflow-hidden flex flex-col min-h-0">
-            <PatientSelectionTable
-              onSelect={onPetSelect}
-              selectedPets={selectedPets}
-            />
+            <PatientSelectionTable onSelect={onPetSelect} selectedPets={selectedPets} />
           </div>
         </>
       ) : (
@@ -253,23 +253,28 @@ function SelectedPatientSummary({
   validationError?: string;
   onSelectedPetsChange: (updater: (prev: Pet[]) => Pet[]) => void;
 }) {
+  const handleRemovePet = useCallback(
+    (petId: string) => {
+      onSelectedPetsChange((prev) => prev.filter((item) => item.id !== petId));
+    },
+    [onSelectedPetsChange],
+  );
+
   return (
-    <div className={`rounded-lg border p-3 transition-colors ${selectedPets.length > 0 ? `${C.bgBrandLight50} ${C.borderBrandLight}` : `${C.bgPage} ${C.borderMediumLight}`}`}>
+    <div
+      className={`rounded-lg border p-3 transition-colors ${selectedPets.length > 0 ? `${C.bgBrandLight50} ${C.borderBrandLight}` : `${C.bgPage} ${C.borderMediumLight}`}`}
+    >
       <Label className={`text-2xs ${C.text40} font-semibold uppercase block mb-3`}>
         予約対象（選択中）
-        <span style={{ color: C.danger }} className="ml-1 normal-case" aria-hidden="true">*</span>
+        <span style={{ color: C.danger }} className="ml-1 normal-case" aria-hidden="true">
+          *
+        </span>
       </Label>
 
       {selectedPets.length > 0 ? (
         <div className="flex flex-col gap-2">
           {selectedPets.map((pet) => (
-            <SelectedPetChip
-              key={pet.id}
-              pet={pet}
-              onRemove={() => {
-                onSelectedPetsChange((prev) => prev.filter((item) => item.id !== pet.id));
-              }}
-            />
+            <SelectedPetChip key={pet.id} pet={pet} onRemove={handleRemovePet} />
           ))}
         </div>
       ) : (
@@ -288,13 +293,18 @@ const SelectedPetChip = memo(function SelectedPetChip({
   onRemove,
 }: {
   pet: Pet;
-  onRemove: () => void;
+  onRemove: (petId: string) => void;
 }) {
   return (
-    <div className={`flex items-center gap-2 bg-white p-2 rounded-lg border ${C.borderMediumLight}`}>
+    <div
+      className={`flex items-center gap-2 bg-white p-2 rounded-lg border ${C.borderMediumLight}`}
+    >
       <PawPrint className={`${ICON.action} ${C.text60} flex-shrink-0`} />
       <span className={`text-sm font-bold ${C.text}`}>{pet.name}</span>
-      <Badge variant="outline" className={`text-2xs font-normal ${C.text60} ${C.bgPage} ${C.borderMediumLight} h-5`}>
+      <Badge
+        variant="outline"
+        className={`text-2xs font-normal ${C.text60} ${C.bgPage} ${C.borderMediumLight} h-5`}
+      >
         {pet.species}
       </Badge>
       <span className={`text-2xs ${C.text60} ml-auto`}>
@@ -302,7 +312,7 @@ const SelectedPetChip = memo(function SelectedPetChip({
       </span>
       <button
         type="button"
-        onClick={onRemove}
+        onClick={() => onRemove(pet.id)}
         className={`ml-1 p-1 ${C.hoverBgDanger5} rounded transition-colors`}
       >
         <X className={`${ICON.action} ${C.danger} ${C.hoverTextDanger}`} />
@@ -314,14 +324,18 @@ const SelectedPetChip = memo(function SelectedPetChip({
 function LineStatusNotice({ status }: { status: LstepStatus }) {
   if (status === "not-linked") {
     return (
-      <div className={`rounded-xs border ${C.borderNotice} ${C.bgNotice40} px-3 py-2 text-xs ${C.textNotice}`}>
+      <div
+        className={`rounded-xs border ${C.borderNotice} ${C.bgNotice40} px-3 py-2 text-xs ${C.textNotice}`}
+      >
         この飼い主はLINEアカウントが未連携のため、予約確定後のLINE自動通知は送信されません。
       </div>
     );
   }
   if (status === "opt-out") {
     return (
-      <div className={`rounded-xs border ${C.borderMediumLight} ${C.bgPage30} px-3 py-2 text-xs ${C.text40}`}>
+      <div
+        className={`rounded-xs border ${C.borderMediumLight} ${C.bgPage30} px-3 py-2 text-xs ${C.text40}`}
+      >
         この飼い主はLINEメッセージの受信を拒否しています。予約確定後のLINE自動通知は送信されません。
       </div>
     );
@@ -344,8 +358,8 @@ interface ReservationModalFooterProps {
   selectedPetsCount: number;
   isEditMode: boolean;
   canSave: boolean;
+  isSubmitting?: boolean;
   onClose: () => void;
-  onSave: () => void;
 }
 
 export function ReservationModalFooter({
@@ -353,8 +367,8 @@ export function ReservationModalFooter({
   selectedPetsCount,
   isEditMode,
   canSave,
+  isSubmitting = false,
   onClose,
-  onSave,
 }: ReservationModalFooterProps) {
   return (
     <DialogFooter className="p-4 border-t bg-white shrink-0 h-14 flex items-center justify-between gap-2">
@@ -372,16 +386,19 @@ export function ReservationModalFooter({
         )}
       </div>
       <div className="flex gap-2">
-        <Button variant="outline" onClick={onClose} className="h-10 text-sm">
+        <Button
+          variant="outline"
+          onClick={onClose}
+          className="h-10 text-sm"
+          disabled={isSubmitting}
+        >
           キャンセル
         </Button>
         {canSave ? (
-          <Button
-            onClick={onSave}
-            className={`${C.bgBrand} ${C.textOnBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} h-10 text-sm rounded-full min-w-[100px]`}
-          >
+          // FE-RC-023: 手組みの pending/disabled ロジックを共有 SubmitButton（useFormStatus 連動）へ統一
+          <SubmitButton loadingText="送信中...">
             {isEditMode ? "更新する" : "予約を確定"}
-          </Button>
+          </SubmitButton>
         ) : null}
       </div>
     </DialogFooter>

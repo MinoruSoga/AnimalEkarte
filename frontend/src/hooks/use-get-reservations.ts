@@ -43,7 +43,8 @@ function buildReservationParams(filters?: ReservationFilters): Record<string, st
   if (filters?.source) params.source = filters.source;
   if (filters?.petId) params.pet_id = filters.petId;
   if (filters?.ownerId) params.owner_id = filters.ownerId;
-  if (filters?.clinicIds && filters.clinicIds.length > 1) params.clinic_ids = filters.clinicIds.join(",");
+  if (filters?.clinicIds && filters.clinicIds.length > 1)
+    params.clinic_ids = filters.clinicIds.join(",");
   return params;
 }
 

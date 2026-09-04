@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { toast } from "sonner";
 import { server } from "@/testing/mocks/node";
-import { createTestWrapper } from "@/testing/utils";
+import { createTestWrapper } from "@/testing/TestUtils";
 
 import { RefundSection } from "./RefundSection";
 
@@ -21,11 +21,59 @@ const handlers = [http.get("/api/v1/accountings/:id/refunds", () => HttpResponse
 
 // 会計の支払方法内訳（混在: カード + 現金）
 const splits = [
-  { id: 1, clinicId: "1", billingId: "1", method: "credit_card" as const, amount: 3000, receivedAmount: 3000, changeAmount: 0 },
-  { id: 2, clinicId: "1", billingId: "1", method: "cash" as const, amount: 2000, receivedAmount: 2000, changeAmount: 0 },
+  {
+    id: 1,
+    clinicId: "1",
+    billingId: "1",
+    method: "credit_card" as const,
+    amount: 3000,
+    receivedAmount: 3000,
+    changeAmount: 0,
+  },
+  {
+    id: 2,
+    clinicId: "1",
+    billingId: "1",
+    method: "cash" as const,
+    amount: 2000,
+    receivedAmount: 2000,
+    changeAmount: 0,
+  },
 ];
 
 afterEach(() => server.resetHandlers());
+
+describe("RefundSection — 移行負額", () => {
+  it("請求金額が負のときは返金登録できず記録金額を表示する", async () => {
+    server.use(...handlers);
+    render(
+      <RefundSection
+        accountingId="1"
+        totalAmount={-3000}
+        paymentSplits={[
+          {
+            id: 1,
+            clinicId: "1",
+            billingId: "1",
+            method: "cash",
+            amount: -3000,
+            receivedAmount: 0,
+            changeAmount: 0,
+          },
+        ]}
+        isRefunding={false}
+        onRefund={vi.fn()}
+        canEdit={true}
+      />,
+      { wrapper: createWrapper() },
+    );
+
+    expect(await screen.findByText(/記録金額 ¥-3,000/)).toBeInTheDocument();
+    const register = screen.getByRole("button", { name: /返金を登録/ });
+    expect(register).toBeDisabled();
+    expect(register).toHaveAttribute("aria-describedby", "refund-recorded-amount");
+  });
+});
 
 describe("RefundSection — 支払方法別返金 (#60)", () => {
   it("支払方法未指定で返金登録すると onRefund の第3引数が undefined", async () => {

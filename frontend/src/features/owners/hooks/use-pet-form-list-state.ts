@@ -1,7 +1,11 @@
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
-import { transformCreatePetRequest, transformUpdatePetRequest, PET_STATUS_REVERSE_MAP } from "@/lib/transforms/pet";
+import {
+  transformCreatePetRequest,
+  transformUpdatePetRequest,
+  PET_STATUS_REVERSE_MAP,
+} from "@/lib/transforms/pet";
 import type { Pet } from "@/types";
 import type { PetMutations } from "@/types/pet";
 import type { PetFormData } from "../types";
@@ -99,22 +103,19 @@ export function usePetFormListState({
   };
 
   const handleDeletePet = (petId: string) => {
-    const target = petsRef.current.find(p => p.id === petId);
-    if (
-      target?.status === "死亡" ||
-      permissionsRef.current.canDelete !== true
-    ) {
+    const target = petsRef.current.find((p) => p.id === petId);
+    if (target?.status === "死亡" || permissionsRef.current.canDelete !== true) {
       return;
     }
     if (target?.isPending) {
-      setPets(prev => prev.filter(p => p.id !== petId));
+      setPets((prev) => prev.filter((p) => p.id !== petId));
       toast.success("ペットを削除しました");
       return;
     }
 
     petMutations?.deletePetMutate(petId, {
       onSuccess: () => {
-        setPets(prev => prev.filter((pet) => pet.id !== petId));
+        setPets((prev) => prev.filter((pet) => pet.id !== petId));
         toast.success("ペットを削除しました");
       },
       onError: (error: unknown) => {
@@ -127,12 +128,10 @@ export function usePetFormListState({
     if (editingPet) {
       if (editingPet.isPending) {
         if (permissionsRef.current.canEdit !== true) return;
-        setPets(prev =>
-          prev.map(p =>
-            p.id === editingPet.id
-              ? { ...petData, id: editingPet.id, isPending: true }
-              : p
-          )
+        setPets((prev) =>
+          prev.map((p) =>
+            p.id === editingPet.id ? { ...petData, id: editingPet.id, isPending: true } : p,
+          ),
         );
         return;
       }
@@ -162,10 +161,7 @@ export function usePetFormListState({
         remarks: petData.remarks,
       });
 
-      if (
-        permissionsRef.current.canEdit !== true ||
-        currentPet.status === "死亡"
-      ) {
+      if (permissionsRef.current.canEdit !== true || currentPet.status === "死亡") {
         return;
       }
       // BUG-415: 生死ステータスの変更は監査付きの死亡登録/取消エンドポイント
@@ -177,17 +173,15 @@ export function usePetFormListState({
         { id: editingPet.id, req: updateRequest },
         {
           onSuccess: () => {
-            setPets(prev =>
-              prev.map((pet) =>
-                pet.id === editingPet.id ? { ...pet, ...petData } : pet
-              )
+            setPets((prev) =>
+              prev.map((pet) => (pet.id === editingPet.id ? { ...pet, ...petData } : pet)),
             );
             toast.success("ペット情報を更新しました");
           },
           onError: (error: unknown) => {
             handleApiError(error, "更新");
           },
-        }
+        },
       );
     } else {
       if (!petData.animalSpeciesId) {
@@ -197,7 +191,7 @@ export function usePetFormListState({
       if (!id) {
         if (permissionsRef.current.canCreate !== true) return;
         const tempId = `temp-${Date.now()}`;
-        setPets(prev => [...prev, { ...petData, id: tempId, isPending: true }]);
+        setPets((prev) => [...prev, { ...petData, id: tempId, isPending: true }]);
         return;
       }
 
@@ -245,7 +239,8 @@ export function usePetFormListState({
             food: newPetData.food || "",
             environment: newPetData.environment || "",
             neuteredDate: newPetData.neuteredDate || "",
-            acquisitionType: (newPetData.acquisitionType as PetFormData["acquisitionType"]) || "購入",
+            acquisitionType:
+              (newPetData.acquisitionType as PetFormData["acquisitionType"]) || "購入",
             dangerLevel: (newPetData.dangerLevel as PetFormData["dangerLevel"]) || "低",
             dangerReason: newPetData.dangerReason || "",
             remarks: newPetData.remarks || "",
@@ -255,7 +250,7 @@ export function usePetFormListState({
             insuranceDetails: newPetData.insuranceDetails,
             deceasedAt: newPetData.deceasedAt,
           };
-          setPets(prev => [...prev, newPet]);
+          setPets((prev) => [...prev, newPet]);
           toast.success("ペットを追加しました");
         },
         onError: (error: unknown) => {

@@ -27,6 +27,8 @@ type coreMockStaffRepository struct {
 	deleteFn                           func(ctx context.Context, clinicID, id uint64) error
 	reorderFn                          func(ctx context.Context, clinicID uint64, ids []uint64) error
 	countBlockingReferencesByStaffIDFn func(ctx context.Context, clinicID, staffID uint64) ([]StaffDependencyCount, error)
+	isActiveSystemAdminStaffFn         func(ctx context.Context, staffID uint64) (bool, error)
+	countActiveSystemAdminStaffFn      func(ctx context.Context) (int64, error)
 }
 
 func (m *coreMockStaffRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int) ([]model.Staff, int64, error) {
@@ -111,11 +113,25 @@ func (m *coreMockStaffRepository) CountBlockingReferencesByStaffID(ctx context.C
 	return nil, nil
 }
 
+func (m *coreMockStaffRepository) IsActiveSystemAdminStaff(ctx context.Context, staffID uint64) (bool, error) {
+	if m.isActiveSystemAdminStaffFn != nil {
+		return m.isActiveSystemAdminStaffFn(ctx, staffID)
+	}
+	return false, nil
+}
+
+func (m *coreMockStaffRepository) CountActiveSystemAdminStaff(ctx context.Context) (int64, error) {
+	if m.countActiveSystemAdminStaffFn != nil {
+		return m.countActiveSystemAdminStaffFn(ctx)
+	}
+	return 0, nil
+}
+
 func (m *coreMockStaffRepository) CreateForReservation(_ context.Context, _ *model.Staff, _ uint64) error {
 	return nil
 }
 
-func (m *coreMockStaffRepository) UpdateForReservation(_ context.Context, _, _ uint64, _ map[string]any) error {
+func (m *coreMockStaffRepository) UpdateForReservation(_ context.Context, _, _ uint64, _ ReservationStaffUpdate) error {
 	return nil
 }
 
@@ -216,6 +232,13 @@ func (m *coreMockStaffClinicAssignmentRepository) RestoreOrCreate(
 func (m *coreMockStaffClinicAssignmentRepository) Delete(_ context.Context, _ uint64) error {
 	return nil
 }
+func (m *coreMockStaffClinicAssignmentRepository) DeleteByStaffAndClinicIDs(
+	_ context.Context,
+	_ uint64,
+	_ []uint64,
+) error {
+	return nil
+}
 
 type coreMockReservationQueryRepository struct {
 	existsByStaffIDFn        func(ctx context.Context, clinicID, staffID uint64) (bool, error)
@@ -278,7 +301,6 @@ func (m *coreMockReservationQueryRepository) FindPetOwnerInClinic(_ context.Cont
 func (m *coreMockReservationQueryRepository) FindPetByIDInClinic(_ context.Context, _, petID uint64) (*model.Pet, error) {
 	return &model.Pet{ID: petID, Status: model.PetStatusAlive}, nil
 }
-
 
 func (m *coreMockReservationQueryRepository) AssertLineCustomerInClinic(_ context.Context, _, _ uint64) error {
 	return nil

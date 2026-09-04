@@ -29,12 +29,17 @@ type MutationOpts<TData> = {
 function buildCrud(editTarget: TestEntity | "new" | null) {
   const setEditTarget = vi.fn();
   const startSaveTransition = vi.fn((cb: () => void) => cb());
-  return { crud: { editTarget, setEditTarget, startSaveTransition }, setEditTarget, startSaveTransition };
+  return {
+    crud: { editTarget, setEditTarget, startSaveTransition },
+    setEditTarget,
+    startSaveTransition,
+  };
 }
 
-function buildMutation<TVars>(
-  impl?: (vars: TVars, opts?: MutationOpts<TestEntity>) => void,
-): { mutation: UseMutationResult<TestEntity, Error, TVars>; mutate: ReturnType<typeof vi.fn> } {
+function buildMutation<TVars>(impl?: (vars: TVars, opts?: MutationOpts<TestEntity>) => void): {
+  mutation: UseMutationResult<TestEntity, Error, TVars>;
+  mutate: ReturnType<typeof vi.fn>;
+} {
   const mutate = vi.fn(impl);
   const mutateAsync = vi.fn(
     (vars: TVars) =>
@@ -124,7 +129,10 @@ describe("useMasterSave", () => {
     const { mutation: createMutation, mutate: createMutate } = buildMutation<TestCreateReq>(
       (_vars, opts) => opts?.onSuccess?.(savedEntity),
     );
-    const { mutation: updateMutation, mutate: updateMutate } = buildMutation<{ id: string; req: TestUpdateReq }>();
+    const { mutation: updateMutation, mutate: updateMutate } = buildMutation<{
+      id: string;
+      req: TestUpdateReq;
+    }>();
 
     const { result } = renderHook(() =>
       useMasterSave<TestEntity, TestForm, TestCreateReq, TestUpdateReq>({
@@ -144,7 +152,10 @@ describe("useMasterSave", () => {
     });
 
     expect(saveResult).toBe(true);
-    expect(createMutate).toHaveBeenCalledWith({ name: "新規ケージ" }, expect.objectContaining({ onSuccess: expect.any(Function), onError: expect.any(Function) }));
+    expect(createMutate).toHaveBeenCalledWith(
+      { name: "新規ケージ" },
+      expect.objectContaining({ onSuccess: expect.any(Function), onError: expect.any(Function) }),
+    );
     expect(updateMutate).not.toHaveBeenCalled();
     expect(toast.success).toHaveBeenCalledWith("登録しました");
     expect(setEditTarget).toHaveBeenCalledWith(null);
@@ -154,9 +165,10 @@ describe("useMasterSave", () => {
     const editTarget: TestEntity = { id: "42", name: "既存ケージ" };
     const { crud, setEditTarget } = buildCrud(editTarget);
     const { mutation: createMutation, mutate: createMutate } = buildMutation<TestCreateReq>();
-    const { mutation: updateMutation, mutate: updateMutate } = buildMutation<{ id: string; req: TestUpdateReq }>(
-      (_vars, opts) => opts?.onSuccess?.(savedEntity),
-    );
+    const { mutation: updateMutation, mutate: updateMutate } = buildMutation<{
+      id: string;
+      req: TestUpdateReq;
+    }>((_vars, opts) => opts?.onSuccess?.(savedEntity));
 
     const { result } = renderHook(() =>
       useMasterSave<TestEntity, TestForm, TestCreateReq, TestUpdateReq>({
@@ -188,7 +200,10 @@ describe("useMasterSave", () => {
   it("canCreateがtrueでない場合はfalseを返してmutationを発行しない", async () => {
     const { crud, startSaveTransition } = buildCrud("new");
     const { mutation: createMutation, mutate: createMutate } = buildMutation<TestCreateReq>();
-    const { mutation: updateMutation, mutate: updateMutate } = buildMutation<{ id: string; req: TestUpdateReq }>();
+    const { mutation: updateMutation, mutate: updateMutate } = buildMutation<{
+      id: string;
+      req: TestUpdateReq;
+    }>();
     const onSuccess = vi.fn();
 
     const { result } = renderHook(() =>
@@ -220,7 +235,10 @@ describe("useMasterSave", () => {
     const editTarget: TestEntity = { id: "42", name: "既存ケージ" };
     const { crud, startSaveTransition } = buildCrud(editTarget);
     const { mutation: createMutation, mutate: createMutate } = buildMutation<TestCreateReq>();
-    const { mutation: updateMutation, mutate: updateMutate } = buildMutation<{ id: string; req: TestUpdateReq }>();
+    const { mutation: updateMutation, mutate: updateMutate } = buildMutation<{
+      id: string;
+      req: TestUpdateReq;
+    }>();
     const onSuccess = vi.fn();
 
     const { result } = renderHook(() =>
@@ -251,7 +269,10 @@ describe("useMasterSave", () => {
   it("canCreateがtrueならcreate payloadを維持する", () => {
     const { crud } = buildCrud("new");
     const { mutation: createMutation, mutate: createMutate } = buildMutation<TestCreateReq>();
-    const { mutation: updateMutation, mutate: updateMutate } = buildMutation<{ id: string; req: TestUpdateReq }>();
+    const { mutation: updateMutation, mutate: updateMutate } = buildMutation<{
+      id: string;
+      req: TestUpdateReq;
+    }>();
 
     const { result } = renderHook(() =>
       useMasterSave<TestEntity, TestForm, TestCreateReq, TestUpdateReq>({
@@ -280,7 +301,10 @@ describe("useMasterSave", () => {
     const editTarget: TestEntity = { id: "42", name: "既存ケージ" };
     const { crud } = buildCrud(editTarget);
     const { mutation: createMutation, mutate: createMutate } = buildMutation<TestCreateReq>();
-    const { mutation: updateMutation, mutate: updateMutate } = buildMutation<{ id: string; req: TestUpdateReq }>();
+    const { mutation: updateMutation, mutate: updateMutate } = buildMutation<{
+      id: string;
+      req: TestUpdateReq;
+    }>();
 
     const { result } = renderHook(() =>
       useMasterSave<TestEntity, TestForm, TestCreateReq, TestUpdateReq>({
@@ -370,7 +394,10 @@ describe("useMasterSave", () => {
     const { mutation: createMutation, mutate: createMutate } = buildMutation<TestCreateReq>(
       (_vars, opts) => opts?.onSuccess?.(savedEntity),
     );
-    const { mutation: updateMutation, mutate: updateMutate } = buildMutation<{ id: string; req: TestUpdateReq }>();
+    const { mutation: updateMutation, mutate: updateMutate } = buildMutation<{
+      id: string;
+      req: TestUpdateReq;
+    }>();
 
     const { result } = renderHook(() =>
       useMasterSave<TestEntity, TestForm, TestCreateReq, TestUpdateReq>({
@@ -427,7 +454,7 @@ describe("useMasterSave", () => {
     expect(toast.success).not.toHaveBeenCalled();
   });
 
-  it("mutate自体がonErrorを呼んだ場合はfalseを返し、handleApiErrorを呼ぶ", async () => {
+  it("mutate自体がonErrorを呼んだ場合はfalseを返す(handleApiErrorはmutation自身のonErrorに委譲し二重通知しない)", async () => {
     const { handleApiError } = await import("@/lib/handle-api-error");
     const editTarget: TestEntity = { id: "42", name: "既存ケージ" };
     const { crud, setEditTarget } = buildCrud(editTarget);
@@ -454,7 +481,9 @@ describe("useMasterSave", () => {
     });
 
     expect(saveResult).toBe(false);
-    expect(handleApiError).toHaveBeenCalledWith(expect.any(Error), "更新");
+    // create/updateMutation の onError (master/api/*.ts) が既に handleApiError 済みのため、
+    // ここで再度呼ぶと二重 toast になる。呼ばれないことを確認する。
+    expect(handleApiError).not.toHaveBeenCalled();
     expect(setEditTarget).not.toHaveBeenCalled();
   });
 });

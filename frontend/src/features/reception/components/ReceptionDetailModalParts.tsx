@@ -36,10 +36,7 @@ interface ReceptionDialogHeaderProps {
   currentStatus?: string;
 }
 
-export function ReceptionDialogHeader({
-  appointment,
-  currentStatus,
-}: ReceptionDialogHeaderProps) {
+export function ReceptionDialogHeader({ appointment, currentStatus }: ReceptionDialogHeaderProps) {
   const visitTypeClass =
     appointment.visitType === "初診"
       ? `${C.bgBrandLight} ${C.textBrand}`
@@ -69,9 +66,7 @@ export function ReceptionDialogHeader({
           </Badge>
         ) : null}
       </div>
-      <DialogDescription className="sr-only">
-        予約の詳細情報
-      </DialogDescription>
+      <DialogDescription className="sr-only">予約の詳細情報</DialogDescription>
     </DialogHeader>
   );
 }
@@ -110,13 +105,11 @@ const RelatedPages = memo(function RelatedPages({
               else onCreateMedicalRecord();
             }}
           >
-            {isTrimming ? (
-              <Scissors className={ICON.xs} />
-            ) : (
-              <FileText className={ICON.xs} />
-            )}
+            {isTrimming ? <Scissors className={ICON.xs} /> : <FileText className={ICON.xs} />}
             <span>{isTrimming ? "施術" : "カルテ"}</span>
-            <ExternalLink className={`${ICON.xs} opacity-0 group-hover:opacity-100 transition-opacity`} />
+            <ExternalLink
+              className={`${ICON.xs} opacity-0 group-hover:opacity-100 transition-opacity`}
+            />
           </button>
         ) : null}
 
@@ -124,19 +117,19 @@ const RelatedPages = memo(function RelatedPages({
           <button type="button" className={RELATED_BTN_ACCOUNTING} onClick={onCreateAccounting}>
             <CreditCard className={ICON.xs} />
             <span>会計</span>
-            <ExternalLink className={`${ICON.xs} opacity-0 group-hover:opacity-100 transition-opacity`} />
+            <ExternalLink
+              className={`${ICON.xs} opacity-0 group-hover:opacity-100 transition-opacity`}
+            />
           </button>
         ) : null}
 
         {canCreateHospitalization ? (
-          <button
-            type="button"
-            className={RELATED_BTN_HOSPITAL}
-            onClick={onCreateHospitalization}
-          >
+          <button type="button" className={RELATED_BTN_HOSPITAL} onClick={onCreateHospitalization}>
             <BedDouble className={ICON.xs} />
             <span>入院</span>
-            <ExternalLink className={`${ICON.xs} opacity-0 group-hover:opacity-100 transition-opacity`} />
+            <ExternalLink
+              className={`${ICON.xs} opacity-0 group-hover:opacity-100 transition-opacity`}
+            />
           </button>
         ) : null}
       </div>

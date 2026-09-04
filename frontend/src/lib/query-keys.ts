@@ -1,30 +1,8 @@
 /**
- * React Query キーファクトリー
- *
- * TanStack Query の階層一致によるキャッシュ無効化を確実にするため、
- * queryKey を一元管理する。
- *
- * 使用方法:
- *   queryKey: queryKeys.accountings.detail(id)
- *   invalidateQueries({ queryKey: queryKeys.accountings.all() })
- *
- * 命名規則:
- *   all()       → 当該エンティティの全キャッシュを無効化したい場合
- *   list(x)     → フィルタ/パラメータ付き一覧
- *   detail(id)  → 詳細キャッシュ (id 指定)
- *
- * 設計方針 (FE-refactor.md 残件1 / FE-R1):
- *   - clinicId はキーに含めない（clinic 切替は queryClient.clear() + full reload
- *     で担保されるため。SPA 切替をやる場合は別途設計する）。
- *   - このファイルは feature 層より下位（lib/）に位置するため、feature 固有の
- *     filters/params 型はここに import しない。呼び出し側の型で渡し、
- *     ジェネリクスでそのままタプルに埋め込む。
- *   - 既存の inline queryKey タプルをバイト同一で温存することを優先する。
- *     命名の不整合（例: "unbilledItems" の camelCase、"accountings" と
- *     "accounting" が別プレフィックスであること）はキャッシュキーの変更を
- *     避けるためにそのまま保持し、コメントで注記する。
+ * React Query キーファクトリー（TanStack Query 階層 invalidate 用）。
+ * all()/list()/detail(id)。clinicId はキーに含めない（切替は clear + reload）。
+ * feature 固有 filters 型は import しない。既存 inline キーはバイト同一を優先。
  */
-
 export const queryKeys = {
   // ── accounting (会計) ────────────────────────────────────────────
   accountings: {
@@ -37,6 +15,7 @@ export const queryKeys = {
   },
   /** 単数形 "accounting" を第一要素に持つ別ネームスペース（accountings とは別キー） */
   accounting: {
+    unpaidAll: () => ["accounting", "unpaid"] as const,
     unpaidBillings: <P>(groupBy: "owner" | "billing" | "monthly", params: P) =>
       ["accounting", "unpaid", groupBy, params] as const,
     ungroupedItems: (petId: string, date: string) => ["accounting-ungrouped", petId, date] as const,
@@ -45,7 +24,8 @@ export const queryKeys = {
       ["accounting", "daily-summary", date, clinicIds] as const,
   },
   accountingRefunds: (billingId: string) => ["accounting-refunds", billingId] as const,
-  billingItemDiscountSuggestions: (itemId: string) => ["billing-item-discount-suggestions", itemId] as const,
+  billingItemDiscountSuggestions: (itemId: string) =>
+    ["billing-item-discount-suggestions", itemId] as const,
   // P2-11: clinicId をキーに含める（拠点横断で開いた記録のクリニックごとに残高が異なるため、
   // ownerId のみでは他クリニックのキャッシュ値を誤って再利用してしまう）
   ownerUnpaidBalance: (clinicId: string, ownerId: string | undefined) =>
@@ -64,6 +44,12 @@ export const queryKeys = {
      * invalidate は ["masters","staffs"] prefix で両方を無効化できる。
      */
     staffSelectorList: () => ["masters", "staffs", "selector-list"] as const,
+    /**
+     * トリミングコース CRUD のフル shape（isActive 等）。
+     * useGetMasterItems("trimmingCourse") の MasterItem[] とは別キー（cache poison 防止）。
+     * invalidate は ["masters","trimmingCourse"] prefix で両方を無効化できる。
+     */
+    trimmingCoursesFull: () => ["masters", "trimmingCourse", "full"] as const,
     animalSpecies: {
       /** features/master/api/animal-species.ts の CRUD 用ベースキー */
       all: () => ["masters", "animal-species"] as const,
@@ -72,12 +58,14 @@ export const queryKeys = {
         ["masters", "animal-species", includeInactive ? "all" : "active"] as const,
     },
     /** features/master/api/medicine-dose-params.ts の種別（dog/cat）パラメータ CRUD 用 (#201) */
-    medicineDoseParams: (medicineId: string) => ["masters", "medicines", medicineId, "dose-params"] as const,
+    medicineDoseParams: (medicineId: string) =>
+      ["masters", "medicines", medicineId, "dose-params"] as const,
     /**
      * get-diagnosis-options.ts の診断名一覧。masters.category とは別シェイプ（第3要素あり）。
      * type_id は診断名 API 上は数値だが、呼び出し元の型 (number | string | null) をそのまま許容する。
      */
-    diagnosisNames: (typeId?: number | string | null) => ["masters", "diagnosis-names", typeId ?? null] as const,
+    diagnosisNames: (typeId?: number | string | null) =>
+      ["masters", "diagnosis-names", typeId ?? null] as const,
     /**
      * 既知の未解決バグ: reservation-types CRUD (SERVICE_TYPES_QUERY_KEY =
      * masters.category("reservation-types")) を invalidate しても、このキーは
@@ -90,7 +78,8 @@ export const queryKeys = {
       clinicId: string | null,
       reservationTypeId: string,
       resource: "available-slots" | "occupations" | "unavailable-times",
-    ) => ["masters", "clinics", clinicId, "reservation-types", reservationTypeId, resource] as const,
+    ) =>
+      ["masters", "clinics", clinicId, "reservation-types", reservationTypeId, resource] as const,
   },
 
   staffs: {
@@ -131,6 +120,11 @@ export const queryKeys = {
   reservations: {
     all: () => ["reservations"] as const,
     list: <F>(filters: F) => ["reservations", filters] as const,
+    /**
+     * ["reservations", ...] prefix match には含まれない。detail 更新を伴う
+     * mutation（use-update-reservation.ts 等）は all() だけでなく detail(id) も
+     * 明示的に invalidate する必要がある（既存の呼び出し側は対応済み）。
+     */
     detail: (id: string) => ["reservation", id] as const,
     availableTimes: (reservationTypeId: string, date: string, staffId?: string) =>
       ["reservations", "available-times", reservationTypeId, date, staffId ?? ""] as const,
@@ -144,6 +138,12 @@ export const queryKeys = {
   examinations: {
     all: () => ["examinations"] as const,
     list: <F>(filters: F) => ["examinations", filters] as const,
+    /**
+     * FE-RC-081: 単数形 "examination" が第一要素のため all()/list() の
+     * ["examinations", ...] prefix match には含まれない。detail 更新を伴う
+     * mutation（update-examination.ts 等）は all() だけでなく detail(id) も
+     * 明示的に invalidate する必要がある（既存の呼び出し側は対応済み）。
+     */
     detail: (id: string) => ["examination", id] as const,
     items: (id: string) => ["examination-items", id] as const,
     // Nested under examinations.all() so update/unconfirm/items invalidations refresh print.
@@ -152,10 +152,23 @@ export const queryKeys = {
     typeFields: (examTypeId: string) => ["exam-type-fields", examTypeId] as const,
     /** features/medical-records 側からの参照。["pet",...]ではなく["examinations","pet",petId] */
     byPet: (petId: string) => ["examinations", "pet", petId] as const,
+    byRecord: (medicalRecordId: string) => ["examinations", "record", medicalRecordId] as const,
+  },
+  labDevice: {
+    board: () => ["lab-device", "board"] as const,
+    unlinked: () => ["lab-device", "unlinked"] as const,
+    station: () => ["lab-device", "station"] as const,
+    agentConsumer: () => ["lab-device", "agent-consumer"] as const,
   },
   vaccinations: {
     all: () => ["vaccinations"] as const,
     list: <F>(filters: F) => ["vaccinations", filters] as const,
+    /**
+     * FE-RC-081: 単数形 "vaccination" が第一要素のため all()/list() の
+     * ["vaccinations", ...] prefix match には含まれない。detail 更新を伴う
+     * mutation（update-vaccination.ts 等）は all() だけでなく detail(id) も
+     * 明示的に invalidate する必要がある（既存の呼び出し側は対応済み）。
+     */
     detail: (id: string) => ["vaccination", id] as const,
     byPet: (petId: string) => ["vaccinations", "pet", petId] as const,
   },
@@ -164,6 +177,13 @@ export const queryKeys = {
   hospitalizations: {
     all: () => ["hospitalizations"] as const,
     list: <F>(filters: F) => ["hospitalizations", filters] as const,
+    /**
+     * FE-RC-081: 単数形 "hospitalization" が第一要素のため all()/list() の
+     * ["hospitalizations", ...] prefix match には含まれない。detail/detailRaw
+     * 更新を伴う mutation（update-hospitalization.ts）は all() だけでなく
+     * detail(id) と detailRaw(id) の両方を明示的に invalidate する必要がある
+     * （既存の呼び出し側は対応済み）。
+     */
     detail: (id: string) => ["hospitalization", id] as const,
     detailRaw: (id: string) => ["hospitalization", "raw", id] as const,
     carePlanItems: (hospitalizationId: string) =>
@@ -171,7 +191,8 @@ export const queryKeys = {
     treatmentPlans: (hospitalizationId: string) =>
       ["hospitalizations", hospitalizationId, "treatment-plans"] as const,
     dailyRecords: {
-      all: (hospitalizationId: string) => ["hospitalizations", hospitalizationId, "daily-records"] as const,
+      all: (hospitalizationId: string) =>
+        ["hospitalizations", hospitalizationId, "daily-records"] as const,
       byDate: (hospitalizationId: string, date: string) =>
         ["hospitalizations", hospitalizationId, "daily-records", date] as const,
     },
@@ -181,6 +202,12 @@ export const queryKeys = {
   trimmings: {
     all: () => ["trimmings"] as const,
     list: <F>(filters: F) => ["trimmings", filters] as const,
+    /**
+     * FE-RC-081: 単数形 "trimming" が第一要素のため all()/list() の
+     * ["trimmings", ...] prefix match には含まれない。detail 更新を伴う
+     * mutation（update-trimming.ts）は all() だけでなく detail(id) も
+     * 明示的に invalidate する必要がある（既存の呼び出し側は対応済み）。
+     */
     detail: (id: string) => ["trimming", id] as const,
     byPet: (petId: string) => ["trimmings", "pet", petId] as const,
   },
@@ -209,7 +236,10 @@ export const queryKeys = {
   cashRegister: {
     preview: {
       all: () => ["cash-register-preview"] as const,
-      byDatePeriod: (date: string, period: string) => ["cash-register-preview", date, period] as const,
+      byDatePeriod: (date: string, period: string) =>
+        ["cash-register-preview", date, period] as const,
+      byDatePeriodRefresh: (date: string, period: string, refreshNonce: number) =>
+        ["cash-register-preview", date, period, refreshNonce] as const,
     },
     closes: {
       all: () => ["cash-register-closes"] as const,
@@ -220,7 +250,8 @@ export const queryKeys = {
   // ── aggregation (集計) ────────────────────────────────────────────
   ownerAggregations: {
     list: <P>(params: P) => ["owner-aggregations", params] as const,
-    cpmStageCounts: <P>(stage: string, baseParams: P) => ["owner-aggregations-cpm-count", stage, baseParams] as const,
+    cpmStageCounts: <P>(stage: string, baseParams: P) =>
+      ["owner-aggregations-cpm-count", stage, baseParams] as const,
   },
 
   // ── inventory (在庫) ──────────────────────────────────────────────
@@ -265,8 +296,10 @@ export const queryKeys = {
   lstepTagOwners: {
     list: <P>(params: P) => ["lstep-tag-owners", params] as const,
   },
-  checkupSyncPreview: <P>(clinicId: string | null, params: P) => ["checkup-sync-preview", clinicId, params] as const,
-  lstepVisitConversion: (yearMonth: string, days: number) => ["lstep-visit-conversion", yearMonth, days] as const,
+  checkupSyncPreview: <P>(clinicId: string | null, params: P) =>
+    ["checkup-sync-preview", clinicId, params] as const,
+  lstepVisitConversion: (yearMonth: string, days: number) =>
+    ["lstep-visit-conversion", yearMonth, days] as const,
   lstepDeliveryStats: (yearMonth: string) => ["lstep-delivery-stats", yearMonth] as const,
 
   // ── owners ────────────────────────────────────────────────────────
@@ -299,13 +332,11 @@ export const queryKeys = {
   },
   petSubOwners: {
     detail: (petId: string) => ["pet-sub-owners", petId] as const,
-    metadata: (petId: string) =>
-      ["pet", petId, "sub-owner-metadata"] as const,
+    metadata: (petId: string) => ["pet", petId, "sub-owner-metadata"] as const,
   },
 
   // ── owner-report ──────────────────────────────────────────────────
-  ownerReportPets: (ownerId: string) =>
-    ["owner-report-pets", ownerId] as const,
+  ownerReportPets: (ownerId: string) => ["owner-report-pets", ownerId] as const,
   petTrimmingHistory: (petId: string) => ["pet-trimmings", "report", petId] as const,
   petTreatmentHistory: <F, O>(petId: string, filter: F, options: O) =>
     ["pet-treatment-history", petId, filter, options] as const,
@@ -327,19 +358,37 @@ export const queryKeys = {
      * clinicId 付きキーも包含するため mutation 側の invalidate は変更不要。
      */
     vitals: (medicalRecordId: string, clinicId?: string) =>
-      clinicId ? (["vitals", medicalRecordId, clinicId] as const) : (["vitals", medicalRecordId] as const),
+      clinicId
+        ? (["vitals", medicalRecordId, clinicId] as const)
+        : (["vitals", medicalRecordId] as const),
     treatments: (medicalRecordId: string, clinicId?: string) =>
-      clinicId ? (["treatments", medicalRecordId, clinicId] as const) : (["treatments", medicalRecordId] as const),
+      clinicId
+        ? (["treatments", medicalRecordId, clinicId] as const)
+        : (["treatments", medicalRecordId] as const),
     checkups: (medicalRecordId: string) => ["checkups", medicalRecordId] as const,
     addenda: (medicalRecordId: string) => ["record-addenda", medicalRecordId] as const,
     images: (medicalRecordId: string, clinicId?: string) =>
-      clinicId ? (["record-images", medicalRecordId, clinicId] as const) : (["record-images", medicalRecordId] as const),
+      clinicId
+        ? (["record-images", medicalRecordId, clinicId] as const)
+        : (["record-images", medicalRecordId] as const),
     clinicalPlan: (medicalRecordId: string, clinicId?: string) =>
-      clinicId ? (["clinical-plan", medicalRecordId, clinicId] as const) : (["clinical-plan", medicalRecordId] as const),
+      clinicId
+        ? (["clinical-plan", medicalRecordId, clinicId] as const)
+        : (["clinical-plan", medicalRecordId] as const),
     estimate: (medicalRecordId: string) => ["estimate", "record", medicalRecordId] as const,
     /** medicalRecords.detail(id) と "medical-record" プレフィックスを共有（意図的） */
     billingConfirmation: (medicalRecordId: string) =>
       ["medical-record", medicalRecordId, "billing-confirmation"] as const,
+  },
+
+  // ── identity-links (同一飼主・ペット連携) ──────────────────────────
+  identityLinks: {
+    ownerSearch: (q: string) => ["identity-links", "owner-search", q] as const,
+    petSearch: (q: string) => ["identity-links", "pet-search", q] as const,
+    ownerGroup: (clinicId: number, ownerId: number) =>
+      ["identity-links", "owner-group", clinicId, ownerId] as const,
+    petGroup: (clinicId: number, petId: number) =>
+      ["identity-links", "pet-group", clinicId, petId] as const,
   },
 
   // ── manual / closing-settings ─────────────────────────────────────

@@ -1,241 +1,137 @@
-# ステージング環境・スモークテスト手順書 (Smoke Test Guide)
+# ステージング CRUD スモークテスト
 
-> **目的**: デプロイ直後のCRUD導線(医院・権限・スタッフ)確認手順を定義する。
-> **読者**: デプロイ担当。
-> **タイミング**: デプロイ直後の手動確認時。
+> **目的**: デプロイ直後に医院・権限グループ・スタッフの認可とresource stateを確認する。
+> **境界**: 共有STGへの実行は承認済みoperatorのみ。資格情報、cookie値、PHIを記録しない。
 
-> **Animal Ekarte**: デプロイ直後の基本動作とデータ整合性の最終確認
-> **最新更新**: 2026-07-10 | **目的**: 本番リリース前の最終デプロイ検証
+自動 `stg-smoke.yml` はhealthのみである。この手順は手動で実施し、作成したIDと元値をrun sheetに記録する。
 
----
+## 1. 準備
 
-> [!WARNING]
-> **⚠️ 2026-06**: login/readonly/CRUD の自動 smoke は `STG_DEMO_*` secret 未設定で約1年間
-> 機能していなかったため撤去された（`stg-smoke.yml` は現状 health 疎通のみ）。当時の自動化計画
-> (`CRUD-SMOKE-AUTOMATION.md`) は歴史的記録として退役済み（git 履歴参照。旧 docs/archive/ は削除済み）。
-> 本手順書の CRUD 項目は **手動 curl** 又は本表の項目を参照して実施する。
-> CRUD の正しさ自体は backend unit/integration テスト + FE route-guard テストでカバー済み。
-
-## 1. テストの目的
-本テストは、デプロイ完了直後のステージング環境において、主要な 3 系統（医院・権限・スタッフ）の機能が、インフラ・DB・API の各層で正しく連携して動作することを確認するために実施します。
-
-**合格基準**: 全 CRUD 操作が期待通りのステータスコードを返し、外部キー保護・権限保護が正常に機能すること。
-
----
-
-## 2. 準備：API アクセスと認証
-
-### 2.1 環境変数のセット
 ```bash
 export API_V1=https://api.stg.noah-karte.com/api/v1
-export HEALTH_ENDPOINT=https://api.stg.noah-karte.com/health
+umask 077
+export COOKIE_JAR=/secure/path/stg-smoke.cookies
+RESPONSE_FILE="$(mktemp)"
+chmod 600 "$COOKIE_JAR" "$RESPONSE_FILE"
+trap 'rm -f "$RESPONSE_FILE"' EXIT
 ```
 
-### 2.2 認証フロー
+- `hospital-settings:view` を持つ承認済みアカウントと、持たないアカウントを用意する。
+- browser/curlのHttpOnly cookie認証を使う。cookie/token/password値を文書、shell history、artifactへ残さない。
+- 既存医院を編集する場合は、変更前の値を安全なrun sheetへ記録し、同じAPIで必ず復元する。
 
-**重要**: Stone に保存した認証情報（password・token・cookie）を文書化しないこと。以下は認証フローの手順のみ記載します。
+## 2. 医院
 
-1. ステージング環境にブラウザでアクセス: https://stg.noah-karte.com
-2. `system_admin` 権限を持つアカウントでログイン
-3. ブラウザ DevTools (F12) → Network タブを開く
-4. 任意の API リクエストをクリック → Request headers を確認
-5. `Cookie: access_token=...` と `Cookie: refresh_token=...` をメモ（このセッション内のみ）
-6. 以下のテストで `${TOKEN}` として参照
+### A-1 全医院scope
 
-**代替**: curl に `-b "access_token=${TOKEN}; refresh_token=${REFRESH}"` で認証を含める
+`hospital-settings:view` を持つsessionで実行する。
 
----
-
-## 3. テスト項目と実行例
-
-### A. 医院 (Clinics) 系統
-
-#### A-1. 一覧取得（全医院、admin scope）
 ```bash
-curl -X GET "${API_V1}/clinics" \
-  -b "access_token=${TOKEN}" \
-  -H "Accept: application/json"
+curl -sS -o ${RESPONSE_FILE} -w '%{http_code}
+' \
+  "${API_V1}/clinics?scope=all" -b "$COOKIE_JAR" -H 'Accept: application/json'
 ```
-**期待**: `200 OK` + clinic list（admin は全医院表示）
 
-#### A-2. 一覧取得（権限制限チェック）
-```bash
-# 一般スタッフアカウントで実行
-curl -X GET "${API_V1}/clinics?scope=all" \
-  -b "access_token=${STAFF_TOKEN}" \
-  -H "Accept: application/json"
-```
-**期待**: `403 Forbidden`（scope=all は admin のみ）
+**期待:** `200`。`system_admin`という名前ではなく、必要permissionで判定する。
 
-#### A-3. 医院編集・保存
+### A-2 権限拒否
+
+`hospital-settings:view` を持たない別sessionで同じ `?scope=all` を実行する。
+
+**期待:** `403`。scopeを省略した一覧はassigned clinicsを返す別contractであり、この拒否testの代用にしない。
+
+### A-3 既存医院の編集と復元
+
+承認済みtest clinicだけをPATCHし、`200`とGETしたresource stateを確認する。直後に保存済みの元値へPATCHして復元し、再GETする。別clinic IDへのaccessも認可どおり拒否されることを確認する。医院をこのrunで新規作成しない。
+
+## 3. 権限グループ
+
+### B-1 作成
+
 ```bash
-CLINIC_ID="<existing_clinic_id>"
-curl -X PATCH "${API_V1}/clinics/${CLINIC_ID}" \
-  -b "access_token=${TOKEN}" \
-  -H "Content-Type: application/json" \
+curl -sS -X POST "${API_V1}/masters/permission-groups" \
+  -b "$COOKIE_JAR" -H 'Content-Type: application/json' \
   -d '{
-    "name": "TEST-UPDATE-'$(date +%s)'",
-    "phone_number": "090-1234-5678"
+    "name":"TEST-GROUP-<run-id>",
+    "description":"Smoke test temporary group",
+    "color":"#64748B",
+    "is_active":true,
+    "sort_order":9999,
+    "rules":[{
+      "resource":"medical_records",
+      "can_view":true,
+      "can_create":false,
+      "can_edit":false,
+      "can_delete":false
+    }]
   }'
 ```
-**期待**: `200 OK` + updated clinic object
-**検証**: UI で自動更新されることを確認
 
-#### A-4. マルチテナント検証
-STG-001 実行結果: 各医院スタッフが自身の clinic_id スコープのデータのみ取得可能。他医院データは 403 で拒否される（正常動作）。
+**期待:** `201`。返されたIDを `TEST_GROUP_ID` として記録する。`permissions/action`形式は使わない。
 
----
+### B-2 in-use保護
 
-### B. 権限グループ (Permission Groups) 系統
+同じclinic内でactive staff assignmentが存在する、事前に確認済みのgroupを選ぶ。そのIDへのDELETEが `409` になることを確認する。ID `1` や `system_admin`という名前を保護contractとしてhard-codeしない。
 
-#### B-1. 新規グループ作成
-```bash
-curl -X POST "${API_V1}/masters/permission-groups" \
-  -b "access_token=${TOKEN}" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "TEST-GROUP-'$(date +%s)'",
-    "description": "Smoke test temporary group",
-    "permissions": [
-      {"resource": "medical_records", "action": "view"}
-    ]
-  }'
-```
-**期待**: `201 Created` + group ID（e.g., `12345`）
+### B-3 cleanup
 
-#### B-2. グループ削除（保護確認）
-```bash
-# system_admin 削除試行
-curl -X DELETE "${API_V1}/masters/permission-groups/1" \
-  -b "access_token=${TOKEN}"
-```
-**期待**: `409 Conflict`（system_admin グループは削除不可）
+このrunがB-1で作成し、staff assignmentが無い `TEST_GROUP_ID` だけをDELETEする。
 
-#### B-3. テスト用グループ削除（cleanup）
-```bash
-curl -X DELETE "${API_V1}/masters/permission-groups/${TEST_GROUP_ID}" \
-  -b "access_token=${TOKEN}"
-```
-**期待**: `204 No Content`（テスト用グループは削除可能）
+**期待:** `204`。list/detailで非activeまたはnot foundとなる実装contractを確認する。
 
----
+## 4. スタッフ
 
-### C. スタッフ (Staffs) 系統
-
-#### C-1. スタッフ新規登録
-```bash
-curl -X POST "${API_V1}/masters/staffs" \
-  -b "access_token=${TOKEN}" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "TEST-STAFF-'$(date +%s)'",
-    "email": "smoke-test-'$(date +%s)'@example.com",
-    "role": "veterinarian"
-  }'
-```
-**期待**: `201 Created` + staff ID（e.g., `staff-123`）
-
-#### C-2. ログイン検証
-```bash
-# 新規登録されたスタッフで curl リクエスト可能か確認
-curl -X GET "${API_V1}/me" \
-  -b "access_token=${NEW_STAFF_TOKEN}"
-```
-**期待**: `200 OK` + 登録されたスタッフ情報
-
-#### C-3. 削除保護（FK 検証）
-```bash
-# カルテ添付データがあるスタッフを削除
-curl -X DELETE "${API_V1}/masters/staffs/${ATTACHED_STAFF_ID}" \
-  -b "access_token=${TOKEN}"
-```
-**期待**: `409 Conflict`（子レコード存在のため削除拒否）
-
-STG-001 実行結果: DELETE カルテが存在するスタッフに対して `409 Conflict` を返す確認済み。
-
-#### C-4. 削除可能スタッフの削除（cleanup）
-```bash
-curl -X DELETE "${API_V1}/masters/staffs/${TEST_STAFF_ID}" \
-  -b "access_token=${TOKEN}"
-```
-**期待**: `204 No Content`
-
----
-
-## 4. ステータスコード期待値表
-
-| 操作 | 期待ステータス | 条件 |
-|------|----------------|------|
-| GET / PATCH (成功) | `200 OK` | 権限あり、レコード存在 |
-| POST (成功) | `201 Created` | バリデーション通過 |
-| DELETE (成功) | `204 No Content` | 子レコード無し |
-| DELETE (失敗 FK) | `409 Conflict` | 子レコード存在（正常な保護） |
-| 権限なし | `403 Forbidden` | scope が異なる、admin のみ機能 |
-| バリデーション失敗 | `400 Bad Request` | 必須項目欠損、型不正 |
-| システムエラー | `500+ Internal Server Error` | **即座にロールバック** |
-
-詳細は [Delete / Soft Delete 設計パターン](../../architecture/delete-soft-delete-patterns.md) の FK 制約と soft delete の注意点を参照してください。
-
----
-
-## 5. 監査ログ検証
-
-全 CRUD 操作後、`audit_logs` テーブル（または monitoring ダッシュボード）に以下を確認：
-- 操作者 ID (`staff_id`) が記録されているか
-- アクション (`CREATE`, `UPDATE`, `DELETE`) が正確か
-- `resource_type` が `clinic`, `permission_group`, `staff` か
-- タイムスタンプが操作時刻と一致するか
+### C-1 CRUD-only staff作成
 
 ```bash
-# 例: Cloudflare Workers Logs を確認
-cd backend
-npx wrangler tail --config wrangler.jsonc --format pretty
+curl -sS -X POST "${API_V1}/masters/staffs" \
+  -b "$COOKIE_JAR" -H 'Content-Type: application/json' \
+  -d '{"name":"TEST-STAFF-<run-id>","sort_order":9999}'
 ```
 
----
+**期待:** `201`。返されたIDを `TEST_STAFF_ID` として記録する。このCRUD payloadに存在しない `role` を送らず、email/password無しのstaffでlogin testをしない。
 
-## 6. テスト データの削除ポリシー
+### C-2 account loginが必要な場合
 
-### 6.1 推奨: API 経由での削除
-上記の curl 削除例に従い、API で段階的に削除します。理由：
-- 監査ログが自動記録される
-- 外部キー制約を API レイヤで検証できる
-- 本番環境での手順と同一
+CRUD作成とは分離する。[スタッフアカウント払い出し](./STAFF_ACCOUNT_PROVISIONING.md) の承認済み経路で、有効な `staff_type` と生成済み8〜72文字passwordを持つaccountを作る。login routeは `POST /api/v1/login`。credential値は記録しない。remote provisioning mechanismが未承認なら、このcaseは **BLOCKED** と記録し、CRUD staffへemailだけを追加して代替しない。
 
-### 6.2 例外: DB 直接削除
-以下の場合のみ、team lead 承認を得て DB 直接削除可能：
-- API が 5xx エラーで応答不可
-- テストデータが大量に残存し、一括削除が必要
-- FK 階層の削除順序が複雑で、API では実行困難
+### C-3 FK保護とcleanup
 
-**実行前に**: 組織の DevOps / SRE チームに削除内容と理由を報告し、書面承認を取得してください。
+- active child recordを持つ同一clinic staffへのDELETEが `409` になることを確認する。
+- このrunでC-1に作成しchild recordが無い `TEST_STAFF_ID` だけをDELETEし、`204`と後続GET/list stateを確認する。
 
-### 6.3 Cleanup タイムライン
-1. テスト完了直後: CLI での削除実行
-2. 削除確認: GET で 404 or リスト外を確認（API 層）
-3. 監査ログ確認: DELETE アクション記録を audit_logs テーブルで確認し、runtime errorはWorkers Logsで確認
-4. レポート作成: 削除したレコード数・操作者・タイムスタンプをログに記録
+## 5. 期待status
 
----
+| case | 期待 |
+|---|---|
+| authorized GET/PATCH | `200` |
+| valid POST | `201` |
+| unassigned test resource DELETE | `204` |
+| active dependencyありDELETE | `409` |
+| `scope=all` permissionなし | `403` |
+| invalid payload | `400` |
 
-## 7. 異常発見時のアクション
+想定外の4xx/5xx、tenant越境、復元失敗はrelease stopとする。
 
-不具合が発見された場合の判定フロー：
+## 6. 監査contract
 
-| 症状 | ステータスコード | アクション |
-|------|-------------------|-----------|
-| 权限エラー（期待外） | 403 / 401 | 認証情報確認、キャッシュクリア |
-| FK 保護失敗（409 でなく 400/500） | 400 / 500 | **即座にロールバック** |
-| 404（レコード存在が期待） | 404 | 入力データ確認、test データ状態確認 |
-| 5xx エラー | 500+ | **即座に復旧判断**、Workers Logsを確認してlast-known-good再デプロイまたは基盤復旧へ進む |
-| 監査ログ未記録 | (実行済も記録なし) | DB トランザクション確認、ロールバック判断 |
+| route family | この手順での合格証跡 | `audit_logs` |
+|---|---|---|
+| clinics | HTTP status + GETしたresource state + 元値復元 | uniformな明示contractなし。存在を必須にしない |
+| permission groups | HTTP status + resource state | mutationに明示的監査contractあり。actor/action/resource/clinicを確認 |
+| staffs | HTTP status + resource state | uniformな明示contractなし。存在を必須にしない |
 
-詳細は `docs/ops/deploy/README.md` §4 のロールバック判定基準を参照してください。
+Workers Logsはruntime failureの調査用で、application auditの代替ではない。未実装のclinic/staff auditを手動INSERTして成功扱いにしない。
 
----
+## 7. cleanupと直接DB操作の境界
 
-## 参考資料
+1. このrunが作成したIDだけを対象にする。
+2. dependencyの子から親へAPIで削除する。
+3. GET/listでresource stateを確認する。
+4. permission-groupだけは明示contractに従いauditも確認する。
 
-- **デプロイメント運用**: `docs/ops/deploy/README.md`
-- **CI/CD パイプライン**: `docs/ops/deploy/CI-CD-PIPELINE.md`
-- **スタッフ研修**: チーム内 wiki の「STG 運用」セクション
+直接DB削除は通常cleanupではない。API不能時の承認済みincident procedureに限り、target、clinic scope、対象ID、backup/restore、transaction、rollback条件、post-check、実施者を事前に固定する。「大量」「APIでは面倒」だけを理由にしない。application由来に見せるmanual audit rowを作らない。
+
+## 8. 結果記録
+
+commit/deploy run、実施時刻、caseごとのstatus、作成/cleanupした非PHI ID、復元結果、blockerを記録する。cookie、password、responseの個人情報は残さない。

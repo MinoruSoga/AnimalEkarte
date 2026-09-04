@@ -40,9 +40,7 @@ export const MasterSelectTrigger = memo(function MasterSelectTrigger({
         >
           <div className="flex items-center justify-between">
             <div>
-              <div className={`text-sm ${C.text}`}>
-                {selectedItem.name}
-              </div>
+              <div className={`text-sm ${C.text}`}>{selectedItem.name}</div>
               {selectedItem.price != null ? (
                 <div className={`text-xs ${C.text60} mt-0.5`}>
                   {formatCurrency(selectedItem.price)}
@@ -67,9 +65,7 @@ export const MasterSelectTrigger = memo(function MasterSelectTrigger({
         className={`w-full h-11 px-3 border ${C.borderPrimary} ${C.bgPage} rounded-md cursor-pointer ${C.hoverBgPage} transition-colors flex items-center justify-between text-left`}
       >
         <div className="flex items-center gap-2 min-w-0">
-          <span className={`text-sm ${C.text} truncate`}>
-            {selectedItem.name}
-          </span>
+          <span className={`text-sm ${C.text} truncate`}>{selectedItem.name}</span>
           {selectedItem.price != null ? (
             <span className={`text-xs ${C.text50} shrink-0`}>
               {formatCurrency(selectedItem.price)}

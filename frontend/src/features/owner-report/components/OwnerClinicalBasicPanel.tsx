@@ -28,21 +28,12 @@ function PetBasicDetails({
   return (
     <>
       <DetailField label="ふりがな" value={pet.petNameKana} />
-      <DetailField
-        label="年齢"
-        value={pet.birthDate ? formatPetAge(pet.birthDate) : null}
-      />
+      <DetailField label="年齢" value={pet.birthDate ? formatPetAge(pet.birthDate) : null} />
       <DetailField label="生年月日" value={formatDate(pet.birthDate)} />
       <DetailField label="性別" value={pet.gender} />
-      <DetailField
-        label="種類・品種"
-        value={[pet.species, pet.breed].filter(Boolean).join("・")}
-      />
+      <DetailField label="種類・品種" value={[pet.species, pet.breed].filter(Boolean).join("・")} />
       <DetailField label="毛色" value={pet.color} />
-      <DetailField
-        label="体重"
-        value={pet.weight ? `${pet.weight} kg` : undefined}
-      />
+      <DetailField label="体重" value={pet.weight ? `${pet.weight} kg` : undefined} />
       <DetailField label="前回来院" value={formatDate(pet.lastVisit)} />
       <DetailField label="初診日" value={firstVisitValue} />
       <DetailField label="血液型" value={pet.bloodType} />
@@ -53,20 +44,14 @@ function PetBasicDetails({
       <DetailField label="飼育環境" value={pet.environment} />
       <DetailField
         label="保険"
-        value={[pet.insuranceName, pet.insuranceDetails]
-          .filter(Boolean)
-          .join("・")}
+        value={[pet.insuranceName, pet.insuranceDetails].filter(Boolean).join("・")}
       />
     </>
   );
 }
 
 function OwnerBasicDetails({ owner }: Pick<BasicDetailsProps, "owner">) {
-  const address = [
-    owner.postalCode ? `〒${owner.postalCode}` : "",
-    owner.address1,
-    owner.address2,
-  ]
+  const address = [owner.postalCode ? `〒${owner.postalCode}` : "", owner.address1, owner.address2]
     .filter(Boolean)
     .join(" ");
   return (
@@ -74,24 +59,17 @@ function OwnerBasicDetails({ owner }: Pick<BasicDetailsProps, "owner">) {
       <DetailField label="電話" value={owner.phone} />
       <DetailField label="会員区分" value={owner.membershipType} />
       {address ? <DetailField label="住所" value={address} /> : null}
-      {owner.company ? (
-        <DetailField label="勤務先" value={owner.company} />
-      ) : null}
-      {owner.companyPhone ? (
-        <DetailField label="勤務先TEL" value={owner.companyPhone} />
-      ) : null}
+      {owner.company ? <DetailField label="勤務先" value={owner.company} /> : null}
+      {owner.companyPhone ? <DetailField label="勤務先TEL" value={owner.companyPhone} /> : null}
       {owner.email ? <DetailField label="メール" value={owner.email} /> : null}
       {owner.dmPreference != null ? (
-        <DetailField
-          label="DM"
-          value={formatDMPreference(owner.dmPreference)}
-        />
+        <DetailField label="DM" value={formatDMPreference(owner.dmPreference)} />
       ) : null}
     </>
   );
 }
 
-export function BasicInformationPanel(props: BasicDetailsProps) {
+export function OwnerClinicalBasicPanel(props: BasicDetailsProps) {
   return (
     <ClinicalBriefingPanel
       title="基本情報"

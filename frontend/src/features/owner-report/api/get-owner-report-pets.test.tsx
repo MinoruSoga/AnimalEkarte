@@ -1,8 +1,5 @@
 import type { ReactNode } from "react";
-import {
-  QueryClient,
-  QueryClientProvider,
-} from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
@@ -13,16 +10,8 @@ import { server } from "@/testing/mocks/node";
 import { useGetOwnerReportPets } from "./get-owner-report-pets";
 
 function createWrapper(queryClient: QueryClient) {
-  return function TestQueryClientProvider({
-    children,
-  }: {
-    children: ReactNode;
-  }) {
-    return (
-      <QueryClientProvider client={queryClient}>
-        {children}
-      </QueryClientProvider>
-    );
+  return function TestQueryClientProvider({ children }: { children: ReactNode }) {
+    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
   };
 }
 
@@ -94,17 +83,10 @@ describe("useGetOwnerReportPets", () => {
     };
     expect(requestedPath).toBe("/api/v1/owners/42/report/pets");
     expect(result.current.data).toEqual([expectedPet]);
-    expect(queryKeys.ownerReportPets("42")).toEqual([
-      "owner-report-pets",
-      "42",
-    ]);
+    expect(queryKeys.ownerReportPets("42")).toEqual(["owner-report-pets", "42"]);
+    expect(queryClient.getQueryData(queryKeys.ownerReportPets("42"))).toEqual([expectedPet]);
     expect(
-      queryClient.getQueryData(queryKeys.ownerReportPets("42")),
-    ).toEqual([expectedPet]);
-    expect(
-      queryClient.getQueryData(
-        queryKeys.pets.list("42", { includeDeceased: true }),
-      ),
+      queryClient.getQueryData(queryKeys.pets.list("42", { includeDeceased: true })),
     ).toBeUndefined();
     expect(result.current.data?.[0]).not.toHaveProperty("dangerLevel");
     expect(result.current.data?.[0]).not.toHaveProperty("dangerReason");

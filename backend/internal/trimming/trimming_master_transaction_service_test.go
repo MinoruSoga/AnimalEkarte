@@ -29,19 +29,41 @@ func requireTrimmingMasterTxContext(t *testing.T, ctx context.Context) {
 	assert.Equal(t, true, ctx.Value(trimmingMasterTxMarkerKey{}))
 }
 
-func TestTrimmingCourseService_Delete_DeletesThenRechecksUsageInTransaction(t *testing.T) {
+func TestTrimmingCourseService_Delete_CountsThenDeletesInTransaction(t *testing.T) {
 	var operations []string
 	txCalls := 0
 	repo := &mockTrimmingCourseRepository{
+		countUsageByCourseIDFn: func(ctx context.Context, _, _ uint64) (int64, error) {
+			requireTrimmingMasterTxContext(t, ctx)
+			operations = append(operations, "count")
+			return 0, nil
+		},
 		deleteFn: func(ctx context.Context, _, _ uint64) error {
 			requireTrimmingMasterTxContext(t, ctx)
 			operations = append(operations, "delete")
 			return nil
 		},
+	}
+	svc := NewTrimmingCourseService(repo, &mockMinimalCourseTypeRepo{}, trimmingMasterTxSpy(t, &txCalls))
+
+	require.NoError(t, svc.Delete(context.Background(), 1, 10))
+	assert.Equal(t, 1, txCalls)
+	assert.Equal(t, []string{"count", "delete"}, operations)
+}
+
+func TestTrimmingCourseService_Delete_CountConflictSkipsDelete(t *testing.T) {
+	var operations []string
+	txCalls := 0
+	repo := &mockTrimmingCourseRepository{
 		countUsageByCourseIDFn: func(ctx context.Context, _, _ uint64) (int64, error) {
 			requireTrimmingMasterTxContext(t, ctx)
 			operations = append(operations, "count")
 			return 1, nil
+		},
+		deleteFn: func(ctx context.Context, _, _ uint64) error {
+			requireTrimmingMasterTxContext(t, ctx)
+			operations = append(operations, "delete")
+			return nil
 		},
 	}
 	svc := NewTrimmingCourseService(repo, &mockMinimalCourseTypeRepo{}, trimmingMasterTxSpy(t, &txCalls))
@@ -51,22 +73,22 @@ func TestTrimmingCourseService_Delete_DeletesThenRechecksUsageInTransaction(t *t
 	require.Error(t, err)
 	assert.True(t, apperrors.IsConflict(err))
 	assert.Equal(t, 1, txCalls)
-	assert.Equal(t, []string{"delete", "count"}, operations)
+	assert.Equal(t, []string{"count"}, operations)
 }
 
-func TestTrimmingOptionService_Delete_DeletesThenRechecksUsageInTransaction(t *testing.T) {
+func TestTrimmingOptionService_Delete_CountConflictSkipsDelete(t *testing.T) {
 	var operations []string
 	txCalls := 0
 	repo := &mockTrimmingOptionRepository{
-		deleteFn: func(ctx context.Context, _, _ uint64) error {
-			requireTrimmingMasterTxContext(t, ctx)
-			operations = append(operations, "delete")
-			return nil
-		},
 		countRecordsByOptFn: func(ctx context.Context, _, _ uint64) (int64, error) {
 			requireTrimmingMasterTxContext(t, ctx)
 			operations = append(operations, "count")
 			return 1, nil
+		},
+		deleteFn: func(ctx context.Context, _, _ uint64) error {
+			requireTrimmingMasterTxContext(t, ctx)
+			operations = append(operations, "delete")
+			return nil
 		},
 	}
 	svc := NewTrimmingOptionService(repo, trimmingMasterTxSpy(t, &txCalls))
@@ -76,22 +98,22 @@ func TestTrimmingOptionService_Delete_DeletesThenRechecksUsageInTransaction(t *t
 	require.Error(t, err)
 	assert.True(t, apperrors.IsConflict(err))
 	assert.Equal(t, 1, txCalls)
-	assert.Equal(t, []string{"delete", "count"}, operations)
+	assert.Equal(t, []string{"count"}, operations)
 }
 
-func TestTrimmingCourseTypeService_Delete_DeletesThenRechecksUsageInTransaction(t *testing.T) {
+func TestTrimmingCourseTypeService_Delete_CountConflictSkipsDelete(t *testing.T) {
 	var operations []string
 	txCalls := 0
 	repo := &mockTrimmingCourseTypeRepository{
-		deleteFn: func(ctx context.Context, _, _ uint64) error {
-			requireTrimmingMasterTxContext(t, ctx)
-			operations = append(operations, "delete")
-			return nil
-		},
 		countUsageFn: func(ctx context.Context, _, _ uint64) (int64, error) {
 			requireTrimmingMasterTxContext(t, ctx)
 			operations = append(operations, "count")
 			return 1, nil
+		},
+		deleteFn: func(ctx context.Context, _, _ uint64) error {
+			requireTrimmingMasterTxContext(t, ctx)
+			operations = append(operations, "delete")
+			return nil
 		},
 	}
 	svc := NewTrimmingCourseTypeService(repo, trimmingMasterTxSpy(t, &txCalls))
@@ -101,7 +123,7 @@ func TestTrimmingCourseTypeService_Delete_DeletesThenRechecksUsageInTransaction(
 	require.Error(t, err)
 	assert.True(t, apperrors.IsConflict(err))
 	assert.Equal(t, 1, txCalls)
-	assert.Equal(t, []string{"delete", "count"}, operations)
+	assert.Equal(t, []string{"count"}, operations)
 }
 
 func TestTrimmingCourseService_Create_ValidatesCourseTypeAndWritesInTransaction(t *testing.T) {

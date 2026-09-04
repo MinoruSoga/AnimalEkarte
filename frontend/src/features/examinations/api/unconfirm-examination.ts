@@ -4,10 +4,7 @@ import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { queryKeys } from "@/lib/query-keys";
 import { transformExamination, type ExaminationRecord } from "./transforms";
-import type {
-  BackendExamination,
-  UnconfirmExaminationRequest,
-} from "./types";
+import type { BackendExamination, UnconfirmExaminationRequest } from "../types";
 
 async function unconfirmExamination(
   id: string,

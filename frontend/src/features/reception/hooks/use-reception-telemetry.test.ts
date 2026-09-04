@@ -9,6 +9,7 @@ function makeAppointment(overrides: Partial<ReceptionAppointment> = {}): Recepti
     id: "1",
     time: "10:00",
     visitDate: "2026-07-05",
+    end: new Date(2026, 6, 5, 10, 30, 0),
     ownerName: "山田",
     petType: "犬",
     petName: "ポチ",
@@ -31,7 +32,10 @@ describe("useReceptionTelemetry", () => {
   // フックの引数契約レベルで直接検証する。誤って filteredColumns を渡す退行を防ぐ。
   it("フィルタで絞り込まれた columns を渡しても、渡した columns 全体の件数をそのまま返す(呼び出し側が columns を渡す契約であることの保証)", () => {
     const fullColumns: ColumnData[] = [
-      { title: "受付予約", appointments: [makeAppointment({ id: "1" }), makeAppointment({ id: "2" })] },
+      {
+        title: "受付予約",
+        appointments: [makeAppointment({ id: "1" }), makeAppointment({ id: "2" })],
+      },
       { title: "受付済", appointments: [makeAppointment({ id: "3", status: "checked_in" })] },
     ];
     // フィルタが適用されて 1 件しか残っていない状態を模したより小さい columns
@@ -73,7 +77,9 @@ describe("useReceptionTelemetry", () => {
       const columns: ColumnData[] = [
         {
           title: "受付済",
-          appointments: [makeAppointment({ status: "checked_in", checkedInAt: "2026-07-05T09:50:00Z" })],
+          appointments: [
+            makeAppointment({ status: "checked_in", checkedInAt: "2026-07-05T09:50:00Z" }),
+          ],
         },
       ];
 

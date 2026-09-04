@@ -26,7 +26,8 @@ export const transformBackendMedicineToFrontend = (data: BackendMedicine) => ({
   isNonInsurance: data.is_non_insurance ?? false,
   createdAt: data.created_at ?? "",
   updatedAt: data.updated_at ?? "",
-  calculationType: (data.calculation_type ?? MedicineCalculationTypeNone) as MedicineCalculationType,
+  calculationType: (data.calculation_type ??
+    MedicineCalculationTypeNone) as MedicineCalculationType,
   strength: data.strength,
   frequencyPerDay: data.frequency_per_day,
   defaultDurationDays: data.default_duration_days,

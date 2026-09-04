@@ -32,6 +32,15 @@ export function formatDate(dateString: string | undefined | null): string {
  * 本関数はローカル getter で整形するため、渡す Date は DatePickerModel.parseLocalDate 等の
  * ローカル正午 parse から得たものを想定する（line-reserve 側の UTC 深夜 Date を渡すと TZ 依存でずれる）。
  */
+/** 表示用のスラッシュ日付 + 曜日（予約モーダル等）。正本は yyyy/MM/dd。 */
+export function formatDateWithWeekday(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const weekday = DAY_OF_WEEK_LABEL_LIST[date.getDay()];
+  return `${year}/${month}/${day} (${weekday})`;
+}
+
 export function formatJapaneseDate(date: Date): string {
   const year = date.getFullYear();
   const month = date.getMonth() + 1;

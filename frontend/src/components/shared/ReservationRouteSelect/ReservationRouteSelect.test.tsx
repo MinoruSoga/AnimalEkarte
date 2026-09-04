@@ -3,7 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
-import { createTestWrapper } from "@/testing/utils";
+import { createTestWrapper } from "@/testing/TestUtils";
 import { ReservationRouteSelect } from "./ReservationRouteSelect";
 import type { ReservationRoute } from "@/types/reservation-route";
 
@@ -33,12 +33,8 @@ function createWrapper() {
 
 function renderSelect(value: ReservationRoute | null, disabled = false) {
   render(
-    <ReservationRouteSelect
-      reservationId={RESERVATION_ID}
-      value={value}
-      disabled={disabled}
-    />,
-    { wrapper: createWrapper() }
+    <ReservationRouteSelect reservationId={RESERVATION_ID} value={value} disabled={disabled} />,
+    { wrapper: createWrapper() },
   );
 }
 
@@ -118,9 +114,12 @@ describe("ReservationRouteSelect — C: PATCH エンドポイント呼び出し"
         `/api/v1/reservations/${RESERVATION_ID}/reservation-route`,
         async ({ request }) => {
           capturedBody = await request.json();
-          return HttpResponse.json({ ...minimalReservationApiResponse, reservation_route: "reception" });
-        }
-      )
+          return HttpResponse.json({
+            ...minimalReservationApiResponse,
+            reservation_route: "reception",
+          });
+        },
+      ),
     );
     renderSelect(null);
     const user = userEvent.setup();
@@ -139,9 +138,12 @@ describe("ReservationRouteSelect — C: PATCH エンドポイント呼び出し"
         `/api/v1/reservations/${RESERVATION_ID}/reservation-route`,
         async ({ request }) => {
           capturedBody = await request.json();
-          return HttpResponse.json({ ...minimalReservationApiResponse, reservation_route: "exam_room" });
-        }
-      )
+          return HttpResponse.json({
+            ...minimalReservationApiResponse,
+            reservation_route: "exam_room",
+          });
+        },
+      ),
     );
     renderSelect(null);
     const user = userEvent.setup();
@@ -161,8 +163,8 @@ describe("ReservationRouteSelect — C: PATCH エンドポイント呼び出し"
         async ({ request }) => {
           capturedBody = await request.json();
           return HttpResponse.json({ ...minimalReservationApiResponse, reservation_route: null });
-        }
-      )
+        },
+      ),
     );
     renderSelect("line");
     const user = userEvent.setup();

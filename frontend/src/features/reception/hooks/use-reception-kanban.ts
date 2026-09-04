@@ -1,6 +1,5 @@
 import { useState, useMemo, useRef, useCallback, useLayoutEffect, useTransition } from "react";
 import { toast } from "sonner";
-import { handleApiError } from "@/lib/handle-api-error";
 import type { ColumnData, ReservationStatus } from "@/types";
 import { PetStatusDeceased } from "@/types/generated/models";
 // bundle-barrel-imports: barrel経由ではなく各ファイルから直接import
@@ -9,6 +8,15 @@ import { useGetStaffs, buildStaffMap } from "../api/get-staffs";
 import { useUpdateAppointmentStatus } from "../api/update-appointment-status";
 import { COLUMN_TITLE_TO_STATUS, RECEPTION_COLUMNS } from "../api/transforms";
 import type { ReceptionColumn, ReceptionAppointment } from "../api/types";
+import {
+  captureCardSnapshot,
+  findAppointment,
+  mergeCard,
+  relocateCard,
+  removeCard,
+  restoreCardSnapshot,
+} from "../lib/kanban-columns";
+import type { CardSnapshot } from "../lib/kanban-columns";
 
 /** カラム遷移の状態機械: 現在カラム title → 次カラム title。会計済 は terminal（昇格先なし）。 */
 const NEXT_COLUMN_TITLE: Record<string, string> = {
@@ -21,8 +29,16 @@ const NEXT_COLUMN_TITLE: Record<string, string> = {
 /** terminal カラム: ここから advance すると completed 確定 + ローカル除外になる */
 const TERMINAL_COLUMN_TITLE = "会計済";
 
+/** 受付済→診療中 の直接ドラッグ警告を再表示するまでの最短間隔（連打での toast 多重表示を防ぐ） */
+const INVALID_DRAG_ALERT_THROTTLE_MS = 3000;
+/** 上記警告 toast の表示時間 */
+const INVALID_DRAG_ALERT_DURATION_MS = 4000;
+
 /** ReceptionAppointment にスタッフ名解決を適用して返す */
-function toAppointment(appt: ReceptionAppointment, staffMap: Map<string, string>): ReceptionAppointment {
+function toAppointment(
+  appt: ReceptionAppointment,
+  staffMap: Map<string, string>,
+): ReceptionAppointment {
   return {
     ...appt,
     // doctor_id（UUID）をスタッフ名に変換。未登録IDの場合はUUIDをそのまま表示
@@ -39,123 +55,12 @@ function toColumnData(col: ReceptionColumn, staffMap: Map<string, string>): Colu
   };
 }
 
-// --- 純粋な columns 変換ヘルパー（楽観的 UI 更新の DRY 化）---
-// いずれも新しい columns を返し、対象が見つからなければ null を返す（呼び出し側で `?? prev`）。
-
-/** 各カラムと appointments 配列を複製した浅いクローンを返す */
-function cloneColumns(columns: ColumnData[]): ColumnData[] {
-  return columns.map((col) => ({ ...col, appointments: [...col.appointments] }));
-}
-
-/** id のカードを全カラムから除外した columns を返す */
-function removeCard(columns: ColumnData[], cardId: string): ColumnData[] | null {
-  const next = cloneColumns(columns);
-  for (const col of next) {
-    const index = col.appointments.findIndex((a) => a.id === cardId);
-    if (index > -1) {
-      col.appointments.splice(index, 1);
-      return next;
-    }
-  }
-  return null;
-}
-
-/** id のカードへ updated のフィールドをマージした columns を返す */
-function mergeCard(columns: ColumnData[], updated: ReceptionAppointment): ColumnData[] | null {
-  const next = cloneColumns(columns);
-  for (const col of next) {
-    const index = col.appointments.findIndex((a) => a.id === updated.id);
-    if (index > -1) {
-      col.appointments[index] = { ...col.appointments[index], ...updated };
-      return next;
-    }
-  }
-  return null;
-}
-
-/**
- * card を sourceTitle → targetTitle へ移した columns を返す。
- * target 内の挿入位置は resolveInsertIndex（card を抜いた後の target appointments を受け取る）で決定し、
- * 省略時は末尾。source/target カラムまたは card が見つからなければ null。
- */
-function relocateCard(
-  columns: ColumnData[],
-  cardId: string,
-  sourceTitle: string,
-  targetTitle: string,
-  resolveInsertIndex?: (targetAppointments: ReceptionAppointment[]) => number,
-): ColumnData[] | null {
-  const next = cloneColumns(columns);
-  const sourceCol = next.find((c) => c.title === sourceTitle);
-  const targetCol = next.find((c) => c.title === targetTitle);
-  if (!sourceCol || !targetCol) return null;
-
-  const dragIndex = sourceCol.appointments.findIndex((a) => a.id === cardId);
-  if (dragIndex === -1) return null;
-
-  // 同一カラム移動では sourceCol === targetCol。splice 後の target を resolveInsertIndex が見る。
-  const [card] = sourceCol.appointments.splice(dragIndex, 1);
-  const insertIndex = resolveInsertIndex
-    ? resolveInsertIndex(targetCol.appointments)
-    : targetCol.appointments.length;
-  targetCol.appointments.splice(insertIndex, 0, card);
-  return next;
-}
-
 interface UseReceptionKanbanPermissions {
   canEditReservation?: boolean;
   canDeleteReservation?: boolean;
 }
 
 type ReservationMutationAction = "edit" | "delete";
-
-function findAppointment(
-  columns: ColumnData[],
-  appointmentId: string,
-): ReceptionAppointment | undefined {
-  return columns
-    .flatMap((column) => column.appointments)
-    .find((appointment) => appointment.id === appointmentId);
-}
-
-interface CardSnapshot {
-  appointment: ReceptionAppointment;
-  columnTitle: string;
-  index: number;
-}
-
-function captureCardSnapshot(
-  columns: ColumnData[],
-  appointmentId: string,
-): CardSnapshot | null {
-  for (const column of columns) {
-    const index = column.appointments.findIndex(
-      (appointment) => appointment.id === appointmentId,
-    );
-    if (index !== -1) {
-      return {
-        appointment: column.appointments[index],
-        columnTitle: column.title,
-        index,
-      };
-    }
-  }
-  return null;
-}
-
-/** 対象カードだけを操作前の位置と内容へ戻し、他カードの最新状態は維持する。 */
-function restoreCardSnapshot(columns: ColumnData[], snapshot: CardSnapshot): ColumnData[] {
-  const next = removeCard(columns, snapshot.appointment.id) ?? cloneColumns(columns);
-  const originalColumn = next.find((column) => column.title === snapshot.columnTitle);
-  if (!originalColumn) return columns;
-
-  originalColumn.appointments.splice(
-    Math.min(snapshot.index, originalColumn.appointments.length),
-    0,
-    snapshot.appointment,
-  );
-  return next;
-}
 
 export function useReceptionKanban({
   canEditReservation,
@@ -165,6 +70,7 @@ export function useReceptionKanban({
   const { data: apiColumns, isLoading, isError } = useGetReception(today);
   const { data: staffs } = useGetStaffs();
   const updateStatusMutation = useUpdateAppointmentStatus();
+  const { mutateAsync } = updateStatusMutation;
   // rerender-transitions: API mutation の pending 管理に useTransition を使用
   // （useState(false) + setIsPending パターンは try-finally でリセット漏れが起きるため禁止）
   const [isUpdatingStatus, startUpdateStatusTransition] = useTransition();
@@ -257,7 +163,7 @@ export function useReceptionKanban({
   /**
    * ステータス変更 API を useTransition でラップする共通ラッパ。
    * - 成功時: onSuccess を実行
-   * - 失敗時: handleApiError(errorLabel) + 対象カードだけを操作前 snapshot へ戻す
+   * - 失敗時: 対象カードだけを操作前 snapshot へ戻す（通知は useUpdateAppointmentStatus 側の onError に一本化）
    */
   const runStatusMutation = useCallback(
     (
@@ -265,7 +171,6 @@ export function useReceptionKanban({
       status: ReservationStatus,
       opts: {
         action: ReservationMutationAction;
-        errorLabel?: string;
         rollbackSnapshot?: CardSnapshot | null;
         onSuccess?: () => void;
       },
@@ -278,23 +183,21 @@ export function useReceptionKanban({
       return new Promise<boolean>((resolve) => {
         startUpdateStatusTransition(async () => {
           try {
-            await updateStatusMutation.mutateAsync({ id, status });
+            await mutateAsync({ id, status });
             opts.onSuccess?.();
             resolve(true);
-          } catch (error: unknown) {
-            handleApiError(error, opts.errorLabel ?? "更新");
+          } catch {
+            // useUpdateAppointmentStatus の onError が handleApiError 済み。ここでは再通知しない。
             const rollbackSnapshot = opts.rollbackSnapshot;
             if (rollbackSnapshot) {
-              setColumns((currentColumns) =>
-                restoreCardSnapshot(currentColumns, rollbackSnapshot),
-              );
+              setColumns((currentColumns) => restoreCardSnapshot(currentColumns, rollbackSnapshot));
             }
             resolve(false);
           }
         });
       });
     },
-    [hasMutationPermission, updateStatusMutation, startUpdateStatusTransition],
+    [hasMutationPermission, mutateAsync, startUpdateStatusTransition],
   );
 
   /** カードをドラッグで sourceColumn → targetColumn へ移動する。受付済→診療中 直行は禁止。 */
@@ -311,10 +214,10 @@ export function useReceptionKanban({
       // 受付済 → 診療中 への直接ドラッグは禁止（カルテ作成が必要）
       if (sourceColumn === "受付済" && targetColumn === "診療中") {
         const now = Date.now();
-        if (now - lastAlertRef.current > 3000) {
+        if (now - lastAlertRef.current > INVALID_DRAG_ALERT_THROTTLE_MS) {
           toast.error("カルテ作成が必要です", {
             description: "このステータスに変更するには、詳細画面からカルテを作成してください。",
-            duration: 4000,
+            duration: INVALID_DRAG_ALERT_DURATION_MS,
           });
           lastAlertRef.current = now;
         }
@@ -334,15 +237,16 @@ export function useReceptionKanban({
       }
 
       // 楽観的 UI 更新。filtered target の参照カードを raw target にマップして挿入位置を決める。
-      setColumns((prev) =>
-        relocateCard(prev, cardId, sourceColumn, targetColumn, (targetAppointments) => {
-          if (hoverIndex < targetColFiltered.appointments.length) {
-            const referenceCard = targetColFiltered.appointments[hoverIndex];
-            const refIndex = targetAppointments.findIndex((a) => a.id === referenceCard.id);
-            if (refIndex !== -1) return refIndex;
-          }
-          return targetAppointments.length;
-        }) ?? prev,
+      setColumns(
+        (prev) =>
+          relocateCard(prev, cardId, sourceColumn, targetColumn, (targetAppointments) => {
+            if (hoverIndex < targetColFiltered.appointments.length) {
+              const referenceCard = targetColFiltered.appointments[hoverIndex];
+              const refIndex = targetAppointments.findIndex((a) => a.id === referenceCard.id);
+              if (refIndex !== -1) return refIndex;
+            }
+            return targetAppointments.length;
+          }) ?? prev,
       );
       return true;
     },
@@ -400,30 +304,32 @@ export function useReceptionKanban({
   const cancelAppointment = useCallback(
     (appointmentId: string): Promise<boolean> => {
       if (!hasMutationPermission("delete")) return Promise.resolve(false);
-      if (
-        findAppointment(columnsRef.current, appointmentId)?.petStatus === PetStatusDeceased
-      ) return Promise.resolve(false);
+      if (findAppointment(columnsRef.current, appointmentId)?.petStatus === PetStatusDeceased)
+        return Promise.resolve(false);
       const rollbackSnapshot = captureCardSnapshot(columnsRef.current, appointmentId);
       if (!rollbackSnapshot) return Promise.resolve(false);
       // 楽観的: ローカルからも除外
       setColumns((prev) => removeCard(prev, appointmentId) ?? prev);
       return runStatusMutation(appointmentId, "cancelled", {
         action: "delete",
-        errorLabel: "取り消し",
         rollbackSnapshot,
       });
     },
     [hasMutationPermission, runStatusMutation],
   );
 
-  const updateAppointment = useCallback((updatedAppointment: ReceptionAppointment) => {
-    if (!hasMutationPermission("edit")) return;
-    if (
-      findAppointment(columnsRef.current, updatedAppointment.id)?.petStatus === PetStatusDeceased
-    ) return;
-    setColumns((prev) => mergeCard(prev, updatedAppointment) ?? prev);
-    toast.success("予約情報を更新しました");
-  }, [hasMutationPermission]);
+  const updateAppointment = useCallback(
+    (updatedAppointment: ReceptionAppointment) => {
+      if (!hasMutationPermission("edit")) return;
+      if (
+        findAppointment(columnsRef.current, updatedAppointment.id)?.petStatus === PetStatusDeceased
+      )
+        return;
+      setColumns((prev) => mergeCard(prev, updatedAppointment) ?? prev);
+      toast.success("予約情報を更新しました");
+    },
+    [hasMutationPermission],
+  );
 
   return {
     columns, // ローカル状態（ポーリング影響を避けるためドラッグハンドラで使用）

@@ -105,7 +105,7 @@ func TestReservationService_Create_RejectsCrossClinicOwnerPet(t *testing.T) {
 
 	t.Run("accepts same-clinic matching owner and pet", func(t *testing.T) {
 		created := false
-		svc := NewReservationServiceWithAvailabilityAndType(linkAwareRepo(&created), typeRepo, &mockTransactor{}, nil, nil)
+		svc := NewReservationServiceWithClinicHolidays(linkAwareRepo(&created), typeRepo, &mockTransactor{}, nil, nil, nil, &mockLineReservationSettingFinder{}, &mockClinicHolidayFinder{})
 		out, err := svc.Create(context.Background(), base(ptrU64(ownedOwnerID), ptrU64(ownedPetID)))
 		require.NoError(t, err)
 		require.NotNil(t, out)
@@ -114,7 +114,7 @@ func TestReservationService_Create_RejectsCrossClinicOwnerPet(t *testing.T) {
 
 	t.Run("accepts nil owner and nil pet (existing contract)", func(t *testing.T) {
 		created := false
-		svc := NewReservationServiceWithAvailabilityAndType(linkAwareRepo(&created), typeRepo, &mockTransactor{}, nil, nil)
+		svc := NewReservationServiceWithClinicHolidays(linkAwareRepo(&created), typeRepo, &mockTransactor{}, nil, nil, nil, &mockLineReservationSettingFinder{}, &mockClinicHolidayFinder{})
 		out, err := svc.Create(context.Background(), base(nil, nil))
 		require.NoError(t, err)
 		require.NotNil(t, out)
@@ -123,7 +123,7 @@ func TestReservationService_Create_RejectsCrossClinicOwnerPet(t *testing.T) {
 
 	t.Run("accepts owner only", func(t *testing.T) {
 		created := false
-		svc := NewReservationServiceWithAvailabilityAndType(linkAwareRepo(&created), typeRepo, &mockTransactor{}, nil, nil)
+		svc := NewReservationServiceWithClinicHolidays(linkAwareRepo(&created), typeRepo, &mockTransactor{}, nil, nil, nil, &mockLineReservationSettingFinder{}, &mockClinicHolidayFinder{})
 		out, err := svc.Create(context.Background(), base(ptrU64(ownedOwnerID), nil))
 		require.NoError(t, err)
 		require.NotNil(t, out)
@@ -132,7 +132,7 @@ func TestReservationService_Create_RejectsCrossClinicOwnerPet(t *testing.T) {
 
 	t.Run("accepts pet only", func(t *testing.T) {
 		created := false
-		svc := NewReservationServiceWithAvailabilityAndType(linkAwareRepo(&created), typeRepo, &mockTransactor{}, nil, nil)
+		svc := NewReservationServiceWithClinicHolidays(linkAwareRepo(&created), typeRepo, &mockTransactor{}, nil, nil, nil, &mockLineReservationSettingFinder{}, &mockClinicHolidayFinder{})
 		out, err := svc.Create(context.Background(), base(nil, ptrU64(ownedPetID)))
 		require.NoError(t, err)
 		require.NotNil(t, out)

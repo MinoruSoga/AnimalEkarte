@@ -40,13 +40,7 @@ function dragEvent(activeId: string, overId: string): DragEndEvent {
   } as unknown as DragEndEvent;
 }
 
-function renderState({
-  canEdit,
-  medicines,
-}: {
-  canEdit: boolean;
-  medicines: Medicine[];
-}) {
+function renderState({ canEdit, medicines }: { canEdit: boolean; medicines: Medicine[] }) {
   const reorder = vi.fn();
   const update = vi.fn();
   const reorderMutation = { mutate: reorder } as unknown as UseMutationResult<

@@ -16,7 +16,7 @@ import {
   buildDiagnosisTypeNameMap,
   filterDiagnosisNamesBySearch,
   filterDiagnosisTypesBySearch,
-} from "./diagnosis-tabs-model";
+} from "../lib/diagnosis-tabs-model";
 import { DiagnosisSortableTable } from "./DiagnosisSortableTable";
 
 interface DiagnosisTypeTabProps {
@@ -30,14 +30,17 @@ export function DiagnosisTypeTab({ onEditTargetChange, canEdit }: DiagnosisTypeT
   const { data: rawCategories } = useGetDiagnosisTypes();
   const reorderMutation = useReorderDiagnosisTypes();
 
-  const { orderedItems: orderedCategories, sensors, handleDragEnd: handleCategoryDragEnd } =
-    useSortableList({
-      items: rawCategories ?? [],
-      onReorder: (newIds) => {
-        if (!canEdit) return;
-        reorderMutation.mutate({ ids: newIds.map(Number) });
-      },
-    });
+  const {
+    orderedItems: orderedCategories,
+    sensors,
+    handleDragEnd: handleCategoryDragEnd,
+  } = useSortableList({
+    items: rawCategories ?? [],
+    onReorder: (newIds) => {
+      if (!canEdit) return;
+      reorderMutation.mutate({ ids: newIds.map(Number) });
+    },
+  });
 
   const deferredSearch = useDeferredValue(searchTerm);
 
@@ -88,14 +91,17 @@ export function DiagnosisNameTab({ onEditTargetChange, canEdit }: DiagnosisNameT
   const { data: rawNames } = useGetDiagnosisNames();
   const reorderMutation = useReorderDiagnosisNames();
 
-  const { orderedItems: orderedNames, sensors, handleDragEnd: handleNameDragEnd } =
-    useSortableList({
-      items: rawNames ?? [],
-      onReorder: (newIds) => {
-        if (!canEdit) return;
-        reorderMutation.mutate({ ids: newIds.map(Number) });
-      },
-    });
+  const {
+    orderedItems: orderedNames,
+    sensors,
+    handleDragEnd: handleNameDragEnd,
+  } = useSortableList({
+    items: rawNames ?? [],
+    onReorder: (newIds) => {
+      if (!canEdit) return;
+      reorderMutation.mutate({ ids: newIds.map(Number) });
+    },
+  });
 
   const deferredSearch = useDeferredValue(searchTerm);
 
@@ -103,10 +109,7 @@ export function DiagnosisNameTab({ onEditTargetChange, canEdit }: DiagnosisNameT
     return filterDiagnosisNamesBySearch(orderedNames, deferredSearch);
   }, [orderedNames, deferredSearch]);
 
-  const categoryMap = useMemo(
-    () => buildDiagnosisTypeNameMap(rawCategories),
-    [rawCategories],
-  );
+  const categoryMap = useMemo(() => buildDiagnosisTypeNameMap(rawCategories), [rawCategories]);
 
   return (
     <div className="flex flex-col gap-4">

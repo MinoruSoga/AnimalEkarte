@@ -194,12 +194,7 @@ func defaultRepoRoots(explicit string) ([]string, error) {
 	// Prefer module root detection from working directory when present.
 	if wd, err := os.Getwd(); err == nil {
 		if moduleRoot := findGoModRoot(wd); moduleRoot != "" {
-			roots = append(roots, moduleRoot)
-			// backend/ is often the module root; also exclude its parent monorepo root.
-			parent := filepath.Dir(moduleRoot)
-			if parent != moduleRoot && parent != string(filepath.Separator) {
-				roots = append(roots, parent)
-			}
+			roots = appendModuleRootAndParent(roots, moduleRoot)
 		}
 	}
 	if envRoot := os.Getenv("STAFF_PROVISION_REPO_ROOT"); envRoot != "" {
@@ -209,6 +204,15 @@ func defaultRepoRoots(explicit string) ([]string, error) {
 		roots = append(roots, filepath.Clean(envRoot))
 	}
 	return uniqueStrings(roots), nil
+}
+
+func appendModuleRootAndParent(roots []string, moduleRoot string) []string {
+	roots = append(roots, moduleRoot)
+	parent := filepath.Dir(moduleRoot)
+	if parent != moduleRoot && parent != string(filepath.Separator) {
+		roots = append(roots, parent)
+	}
+	return roots
 }
 
 func findGoModRoot(start string) string {

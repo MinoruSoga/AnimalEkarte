@@ -1,13 +1,12 @@
 // External
 import { memo, useMemo } from "react";
-import { format } from "date-fns";
-import { ja } from "date-fns/locale";
 
 // Internal
-import { C } from "@/lib/design-tokens";
+import { C, STYLE } from "@/lib/design-tokens";
 import { useClinicTaxRates } from "@/hooks/use-clinic-tax-rates";
+import { formatDate } from "@/lib/format/date";
 import { formatCurrency } from "@/lib/format/number";
-import { DISPLAY_DATE_FORMAT } from "@/lib/format/date";
+import { todayJSTISO } from "@/lib/jst-date";
 // #190: セクション定数 — R-F2-S9 で src/config/ へ抽出
 import {
   DOCUMENT_SECTION_KEYS,
@@ -16,7 +15,7 @@ import {
 
 // Types
 import type { Accounting, PaymentInfo } from "../types";
-import { calcTaxBreakdown } from "../tax-breakdown";
+import { calcTaxBreakdown, recordedLineNet } from "../lib/tax-breakdown";
 
 type DocumentPaymentInfo = Pick<
   PaymentInfo,
@@ -79,11 +78,12 @@ function safeImageUrl(url: string | null | undefined): string | undefined {
  *       accountingDocumentSectionOrder が空 → デフォルト順。
  *       show_xxx が未設定 (undefined) → true（後方互換）。
  */
-export const AccountingDocument = memo(function AccountingDocument({ accounting, paymentInfo, clinic }: AccountingDocumentProps) {
-  const currentDate = useMemo(
-    () => format(new Date(), DISPLAY_DATE_FORMAT, { locale: ja }),
-    [],
-  );
+export const AccountingDocument = memo(function AccountingDocument({
+  accounting,
+  paymentInfo,
+  clinic,
+}: AccountingDocumentProps) {
+  const currentDate = useMemo(() => formatDate(todayJSTISO()), []);
 
   const { standardTaxRate: standardRate, reducedTaxRate: reducedRate } = useClinicTaxRates();
 
@@ -112,10 +112,10 @@ export const AccountingDocument = memo(function AccountingDocument({ accounting,
   const effectiveOrder = useMemo<DocumentSectionKey[]>(() => {
     const rawOrder = clinic?.accountingDocumentSectionOrder ?? [];
     const validKeys = rawOrder.filter((k): k is DocumentSectionKey =>
-      (DOCUMENT_SECTION_KEYS as readonly string[]).includes(k)
+      (DOCUMENT_SECTION_KEYS as readonly string[]).includes(k),
     );
     if (validKeys.length === 0) return [...DOCUMENT_SECTION_KEYS];
-    const missing = DOCUMENT_SECTION_KEYS.filter(k => !validKeys.includes(k));
+    const missing = DOCUMENT_SECTION_KEYS.filter((k) => !validKeys.includes(k));
     return [...validKeys, ...missing];
   }, [clinic?.accountingDocumentSectionOrder]);
 
@@ -129,16 +129,20 @@ export const AccountingDocument = memo(function AccountingDocument({ accounting,
   };
 
   return (
-    <div className={`${C.bgWhite} p-8 text-sm font-sans flex flex-col gap-6 border mx-auto max-w-2xl print:max-w-none print:w-full print:border-none print:p-0`}>
+    <div
+      className={`${C.bgWhite} p-8 text-sm font-sans flex flex-col gap-6 border mx-auto max-w-2xl print:max-w-none print:w-full print:border-none print:p-0`}
+    >
       {/* AC-6: 登録番号未設定警告（セクション順に非依存） */}
       {!hasRegistrationNumber && showRegistrationWarning ? (
-        <div className={`border ${C.borderRed300} ${C.bgRed50} ${C.textRed700} p-2 text-xs rounded print:hidden`}>
+        <div
+          className={`border ${C.borderRed300} ${C.bgRed50} ${C.textRed700} p-2 text-xs rounded print:hidden`}
+        >
           登録番号が未設定です。病院設定から登録してください。適格請求書として無効となります。
         </div>
       ) : null}
 
       {/* #190: セクションを effectiveOrder 順に描画（非表示はスキップ） */}
-      {effectiveOrder.map(key => {
+      {effectiveOrder.map((key) => {
         if (!sectionVisible[key]) return null;
 
         if (key === "clinic_header") {
@@ -158,7 +162,9 @@ export const AccountingDocument = memo(function AccountingDocument({ accounting,
                   />
                 ) : null}
                 <p className={`font-bold text-base ${C.text} mb-1`}>{clinic?.name}</p>
-                <p>〒{clinic?.postalCode} {clinic?.address}</p>
+                <p>
+                  〒{clinic?.postalCode} {clinic?.address}
+                </p>
                 <p>TEL: {clinic?.phoneNumber}</p>
                 <p>登録番号: {hasRegistrationNumber ? registrationNumber : "未設定"}</p>
               </div>
@@ -171,10 +177,14 @@ export const AccountingDocument = memo(function AccountingDocument({ accounting,
             <div key="owner_pet_info" className="flex justify-between items-start">
               <div className="space-y-1">
                 {/* BUG-374 TC-367-03: 飼主名が空のとき「様」のみ表示されないようフォールバック */}
-                <div className="text-xl border-b border-black mb-2 pb-1 inline-block min-w-[250px]">
+                <div
+                  className={`text-xl border-b ${STYLE.printBorder} mb-2 pb-1 inline-block min-w-[250px]`}
+                >
                   {accounting.ownerName ? `${accounting.ownerName} 様` : "（飼主名未取得）"}
                 </div>
-                <p>ペット名: {accounting.petName} ({accounting.petSpecies})</p>
+                <p>
+                  ペット名: {accounting.petName} ({accounting.petSpecies})
+                </p>
               </div>
             </div>
           );
@@ -185,7 +195,7 @@ export const AccountingDocument = memo(function AccountingDocument({ accounting,
             <div key="items_table">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="border-b-2 border-black">
+                  <tr className={`border-b-2 ${STYLE.printBorder}`}>
                     <th className="py-2">項目</th>
                     <th className="py-2 text-right w-16">税率</th>
                     <th className="py-2 text-right">単価</th>
@@ -201,23 +211,32 @@ export const AccountingDocument = memo(function AccountingDocument({ accounting,
                       <tr key={item.id}>
                         <td className="py-2">
                           <div className="font-medium">
-                            {isReduced ? <span className="mr-1">※</span> : null}{item.name}
+                            {isReduced ? <span className="mr-1">※</span> : null}
+                            {item.name}
                           </div>
-                          {item.category && showItemCategory ? <span className={`text-xs ${C.text50}`}>{item.category}</span> : null}
+                          {item.category && showItemCategory ? (
+                            <span className={`text-xs ${C.text50}`}>{item.category}</span>
+                          ) : null}
                           {item.discountAmount > 0 ? (
-                            <span className={`block text-xs ${C.text50}`}>割引 −{formatCurrency(item.discountAmount)}</span>
+                            <span className={`block text-xs ${C.text50}`}>
+                              割引 −{formatCurrency(item.discountAmount)}
+                            </span>
                           ) : null}
                         </td>
-                        <td className="py-2 text-right text-xs">{ratePercent}%{isReduced ? "※" : ""}</td>
+                        <td className="py-2 text-right text-xs">
+                          {ratePercent}%{isReduced ? "※" : ""}
+                        </td>
                         <td className="py-2 text-right">{formatCurrency(item.unitPrice)}</td>
                         <td className="py-2 text-center">{item.quantity}</td>
-                        <td className="py-2 text-right">{formatCurrency(Math.max(item.unitPrice * item.quantity - item.discountAmount, 0))}</td>
+                        <td className="py-2 text-right">{formatCurrency(recordedLineNet(item))}</td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
-              <p className={`text-xs ${C.text50} mt-2`}>※ は軽減税率（{taxBreakdown.reducedRatePercent}%）対象品</p>
+              <p className={`text-xs ${C.text50} mt-2`}>
+                ※ は軽減税率（{taxBreakdown.reducedRatePercent}%）対象品
+              </p>
             </div>
           );
         }
@@ -234,12 +253,18 @@ export const AccountingDocument = memo(function AccountingDocument({ accounting,
                 <div className={`text-xs ${C.text60} space-y-1 pt-2`}>
                   <div className="flex justify-between">
                     <span>{taxBreakdown.standardRatePercent}%対象</span>
-                    <span>{formatCurrency(taxBreakdown.standardBase)}（内 消費税 {formatCurrency(taxBreakdown.standardAmount)}）</span>
+                    <span>
+                      {formatCurrency(taxBreakdown.standardBase)}（内 消費税{" "}
+                      {formatCurrency(taxBreakdown.standardAmount)}）
+                    </span>
                   </div>
-                  {taxBreakdown.reducedBase > 0 ? (
+                  {taxBreakdown.reducedBase !== 0 ? (
                     <div className="flex justify-between">
                       <span>{taxBreakdown.reducedRatePercent}%対象 ※軽減税率</span>
-                      <span>{formatCurrency(taxBreakdown.reducedBase)}（内 消費税 {formatCurrency(taxBreakdown.reducedAmount)}）</span>
+                      <span>
+                        {formatCurrency(taxBreakdown.reducedBase)}（内 消費税{" "}
+                        {formatCurrency(taxBreakdown.reducedAmount)}）
+                      </span>
                     </div>
                   ) : null}
                 </div>
@@ -251,7 +276,9 @@ export const AccountingDocument = memo(function AccountingDocument({ accounting,
                   </div>
                 ) : null}
 
-                <div className="flex justify-between font-bold text-xl pt-2 border-t border-black">
+                <div
+                  className={`flex justify-between font-bold text-xl pt-2 border-t ${STYLE.printBorder}`}
+                >
                   <span>請求金額</span>
                   <span>{formatCurrency(paymentInfo.billingAmount)}</span>
                 </div>
@@ -271,7 +298,12 @@ export const AccountingDocument = memo(function AccountingDocument({ accounting,
 
         if (key === "footer_note") {
           return (
-            <p key="footer_note" className={`text-xs ${C.text60} border-t pt-3 whitespace-pre-wrap`}>{footerNote}</p>
+            <p
+              key="footer_note"
+              className={`text-xs ${C.text60} border-t pt-3 whitespace-pre-wrap`}
+            >
+              {footerNote}
+            </p>
           );
         }
 

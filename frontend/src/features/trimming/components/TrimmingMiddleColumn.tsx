@@ -2,12 +2,18 @@ import { memo } from "react";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { C } from "@/lib/design-tokens";
 
-import type { TrimmingMiddleColumnProps } from "./trimming-form-column-types";
+import type { TrimmingMiddleColumnProps } from "../lib/trimming-form-column-types";
 import { TrimmingImageUploadField } from "./TrimmingImageUploadField";
 
 const BW_UNIT_ITEMS = (
@@ -27,7 +33,9 @@ export const TrimmingMiddleColumn = memo(function TrimmingMiddleColumn({
   return (
     <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} p-3 space-y-4`}>
       <div>
-        <Label htmlFor="trimming-bw" className={`text-sm ${C.text60} mb-2 block`}>体重 (BW)</Label>
+        <Label htmlFor="trimming-bw" className={`text-sm ${C.text60} mb-2 block`}>
+          体重 (BW)
+        </Label>
         <div className="flex gap-2">
           <NumberInput
             id="trimming-bw"
@@ -43,15 +51,15 @@ export const TrimmingMiddleColumn = memo(function TrimmingMiddleColumn({
             <SelectTrigger className="w-[80px]" aria-label="体重単位">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
-              {BW_UNIT_ITEMS}
-            </SelectContent>
+            <SelectContent>{BW_UNIT_ITEMS}</SelectContent>
           </Select>
         </div>
       </div>
 
       <div>
-        <Label htmlFor="trimming-bt" className={`text-sm ${C.text60} mb-2 block`}>体温 (BT)</Label>
+        <Label htmlFor="trimming-bt" className={`text-sm ${C.text60} mb-2 block`}>
+          体温 (BT)
+        </Label>
         <NumberInput
           id="trimming-bt"
           step={0.1}
@@ -90,7 +98,9 @@ export const TrimmingMiddleColumn = memo(function TrimmingMiddleColumn({
       </div>
 
       <div>
-        <Label htmlFor="trimming-remarks" className={`text-sm ${C.text60} mb-2 block`}>備考</Label>
+        <Label htmlFor="trimming-remarks" className={`text-sm ${C.text60} mb-2 block`}>
+          備考
+        </Label>
         <Textarea
           id="trimming-remarks"
           value={formData.remarks}

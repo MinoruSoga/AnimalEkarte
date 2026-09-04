@@ -7,24 +7,14 @@ import {
 
 describe("shouldOfferEstimateSuccessor / isValidSuccessorReason", () => {
   it("estimate successor offer rules match locked create policy", () => {
-    expect(
-      shouldOfferEstimateSuccessor({ canCreate: true, status: "approved" }),
-    ).toBe(true);
-    expect(
-      shouldOfferEstimateSuccessor({ canCreate: true, status: "rejected" }),
-    ).toBe(true);
+    expect(shouldOfferEstimateSuccessor({ canCreate: true, status: "approved" })).toBe(true);
+    expect(shouldOfferEstimateSuccessor({ canCreate: true, status: "rejected" })).toBe(true);
 
-    expect(
-      shouldOfferEstimateSuccessor({ canCreate: true, status: "draft" }),
-    ).toBe(false);
-    expect(
-      shouldOfferEstimateSuccessor({ canCreate: true, status: "sent" }),
-    ).toBe(false);
+    expect(shouldOfferEstimateSuccessor({ canCreate: true, status: "draft" })).toBe(false);
+    expect(shouldOfferEstimateSuccessor({ canCreate: true, status: "sent" })).toBe(false);
 
     for (const status of ["draft", "sent", "approved", "rejected"] as const) {
-      expect(
-        shouldOfferEstimateSuccessor({ canCreate: false, status }),
-      ).toBe(false);
+      expect(shouldOfferEstimateSuccessor({ canCreate: false, status })).toBe(false);
     }
 
     expect(isValidSuccessorReason("x")).toBe(true);

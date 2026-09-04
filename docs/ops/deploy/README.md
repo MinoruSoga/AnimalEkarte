@@ -5,7 +5,7 @@
 > **タイミング**: デプロイ運用開始時。
 
 > **Animal Ekarte**: ステージング・本番環境へのデプロイと安定稼働のためのガイド
-> **最新更新**: 2026-07-31 | **ステータス**: STG 自動デプロイ稼働中 / Production 未構築
+> **最新更新**: 2026-08-31 | **checked-in config**: STG workflow/configあり。Production workflowは未実装。**live provider状態はUNKNOWNで、実行前にdated receiptが必要**
 
 ---
 
@@ -13,8 +13,8 @@
 
 | 環境 | Frontend URL | API Base URL | インフラ管理 |
 |:---|:---|:---|:---|
-| **Staging** | [stg.noah-karte.com](https://stg.noah-karte.com) | [api.stg.noah-karte.com/api](https://api.stg.noah-karte.com/api) | Backend: Cloudflare Workers + Containers / DB: PlanetScale / Frontend: Vercel |
-| **Production** | noah-karte.com（予定） | api.noah-karte.com/api（予定） | 未構築（#253・[`../infra/production/runbook.md`](../infra/production/runbook.md)） |
+| **Staging（設定値）** | [stg.noah-karte.com](https://stg.noah-karte.com) | [api.stg.noah-karte.com/api](https://api.stg.noah-karte.com/api) | checked-in target。稼働状態は実行時確認 |
+| **Production（draft設定）** | noah-karte.com（予定） | api.noah-karte.com/api（予定） | workflow未実装。provider実体はUNKNOWN（#253・[`../infra/production/runbook.md`](../infra/production/runbook.md)） |
 
 ---
 
@@ -34,12 +34,17 @@
 - **[Durable Scheduler運用 (runbooks/SCHEDULER_OPERATIONS.md)](./runbooks/SCHEDULER_OPERATIONS.md)**: 定期jobのstatus、pause/resume、missing-slot catch-up、通知、障害復旧。BE9のcode/configは実装済みだが、今回versionの実環境deploy/rehearsalはrelease gateとして未実施。
 - **[Vercel フロントエンド検証手順 (VERCEL-FRONTEND-STAGING-TEST.md)](./VERCEL-FRONTEND-STAGING-TEST.md)**: デプロイ後の UI・ログイン・API 連携検証。
 - **[休憩時間データ形状監査 (BREAK-HOURS-SHAPE-AUDIT.md)](./BREAK-HOURS-SHAPE-AUDIT.md)**: R1-3 デプロイ前の STG/本番 break_hours 形状監査手順。
-- **[本番 Cloudflare 基盤 事前構築手順 (../infra/production/setup.md)](./../infra/production/setup.md)**: 本番環境（noah-karte.com）を CF Workers + Containers + PlanetScale で新設する実施手順（#253・7/18 Go-live 前提構築）。
+- **[本番 Cloudflare 基盤 事前構築手順 (../infra/production/setup.md)](./../infra/production/setup.md)**: 本番環境（noah-karte.com）を CF Workers + Containers + PlanetScale で新設する実施手順（billing recovery と production approval gate の実装・検証後に USER が日程を決定）。
 - **[PlanetScale STG シード投入 Runbook (STG_PLANETSCALE_SEED_RUNBOOK.md)](./STG_PLANETSCALE_SEED_RUNBOOK.md)**: PlanetScale STG スキーマ初期化後の seed 復元・検証手順。
 - **[CSV seed運用 (SEED_MIGRATION_OPERATIONS.md)](./SEED_MIGRATION_OPERATIONS.md)**: `APP_ENV` 別のseed適用範囲、再生成手順、old_db 21表CSVとの境界。
+- **[old_db 医院別ローカル隔離 (OLD_DB_HANDOFF_LOCAL.md)](./OLD_DB_HANDOFF_LOCAL.md)**: 21表CSVを `seeds/_old_db_handoff/<clinic>/` へ置く手順（`make seed` 非対象）。
 - **[医院 CSV カットオーバー投入 (CLINIC_CSV_IMPORT.md)](./CLINIC_CSV_IMPORT.md)**: old_db の21表CSVをmanifest digestに固定し、preflight/apply/verifyするF6手順。
 - **[A4 UI rehearsal isolated stack (A4_UI_REHEARSAL.md)](./A4_UI_REHEARSAL.md)**: 正式21表CSVの画面確認専用localhost-only disposable Compose環境とruntime証跡手順。
 - **[F8 G4 synthetic failure rehearsal (F8_G4_FAILURE_REHEARSAL.md)](./F8_G4_FAILURE_REHEARSAL.md)**: 固定synthetic FK違反でtransaction rollback・21表空band・seed preflightを証明する専用disposable runner。
+- **[ローカル DB リセット (LOCAL_DB_RESET.md)](./LOCAL_DB_RESET.md)**: ローカル開発 DB の再作成・migration 再適用・seed 復元手順。
+- **[スタッフアカウント払い出し (STAFF_ACCOUNT_PROVISIONING.md)](./STAFF_ACCOUNT_PROVISIONING.md)**: 医院スタッフの初期アカウント作成・権限グループ割当・引き渡し手順。
+- **[検査機器 有線疎通 (LAB_DEVICE_CONNECTIVITY.md)](./LAB_DEVICE_CONNECTIVITY.md)**: 実装契約。手元・医院の操作手順は old_db `docs/lab-go/hospital-field-pack/手元テスト手順.md`。
+- **[外部連携棚卸し (CLOUDFLARE-EXTERNAL-INTEGRATIONS-AUDIT.md)](./CLOUDFLARE-EXTERNAL-INTEGRATIONS-AUDIT.md)**: LINE / Lステップ / SMTP / LIFF の egress 依存棚卸しと、LINE webhook redelivery・error 統計の release pending 項目。
 - **[Delete / Soft Delete 設計パターン](../../architecture/delete-soft-delete-patterns.md)**: Hard Delete と Soft Delete の使い分け、FK 制約との関係、実装パターン、STG-001 教訓。
 
 > PR #49 Post-Merge Smoke Checklist（PR固有の使い切りチェックリスト）・CRUD スモーク自動化戦略
@@ -64,11 +69,18 @@ workers.dev の `/health` と実 URL を比較して DNS / Worker / Container �
 Cloudflare Dashboard の Workers Logs / Containers と、対象の GitHub Actions run を確認します。
 Workers Logs はインフラ障害調査用で、診療記録の変更監査は DB の `audit_logs` が正本です。
 
-### 3.3 手動デプロイの実行
+### 3.3 手動デプロイの実行（共有STG・人間承認必須）
+
+**HARD STOP:** named human owner/approval、review済みcommit、refがそのcommitへ解決すること、対象Worker/config、secret scope、共有STG利用可否を記録する。未確認なら実行しない。正本は [staging runbook](../infra/staging/runbook.md)。
+
 ```bash
-# GitHub Actions のワークフローを staging ブランチで起動
+REVIEWED_SHA='<reviewed-commit>'
+REMOTE_SHA="$(gh api 'repos/{owner}/{repo}/git/ref/heads/staging' --jq '.object.sha')"
+test "$REMOTE_SHA" = "$(git rev-parse "${REVIEWED_SHA}^{commit}")" || exit 1
 gh workflow run backend-deploy.yml --ref staging
 ```
+
+dispatch後は対象runの`headSha`が`REVIEWED_SHA`と一致することをnames-only metadataで確認し、不一致なら停止する。
 
 ### 3.4 自動スモークテストの実行 (手動トリガー)
 ```bash
@@ -132,8 +144,8 @@ gh workflow run stg-smoke.yml
 | 条件 | 確認方法 | 判定 |
 |------|--------|------|
 | **ヘルスチェック PASS** | §4.1 をすべて通過 | ✅ |
-| **CRUD スモークテスト PASS** | [CRUD-SMOKE-TEST.md](./CRUD-SMOKE-TEST.md) を完全実行し、全ステータスコードが期待値 | ✅ |
-| **テストデータ削除完了・記録済み** | [CRUD-SMOKE-TEST.md](./CRUD-SMOKE-TEST.md) §6 の cleanup 完了、削除レコード数・操作者・タイムスタンプをログ記録 | ✅ |
+| **CRUD スモークテスト PASS** | [CRUD-SMOKE-TEST.md](./CRUD-SMOKE-TEST.md) の A-1〜A-3、B-1〜B-3、C-1〜C-3 を実行し、HTTP/resource state と明示された監査契約を確認 | ✅ |
+| **テストデータ削除完了・記録済み** | 同手順の cleanup で、その run が作成した ID だけを削除し、resource state と実装済みの監査だけを記録 | ✅ |
 
 **3 つすべて ✅ の場合**: STG デプロイ成功。Production は未構築のため、別途 production readiness が必要。
 

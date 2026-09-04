@@ -13,11 +13,7 @@ interface DiagnosisTypeRowProps {
   onEdit: (item: DiagnosisType) => void;
 }
 
-export function DiagnosisTypeRow({
-  item,
-  canEdit,
-  onEdit,
-}: DiagnosisTypeRowProps) {
+export function DiagnosisTypeRow({ item, canEdit, onEdit }: DiagnosisTypeRowProps) {
   return (
     <SortableDataTableRow
       key={item.id}
@@ -33,7 +29,9 @@ export function DiagnosisTypeRow({
           >
             {item.name}
           </DataTableRowButton>
-        ) : item.name}
+        ) : (
+          item.name
+        )}
       </TableCell>
       <TableCell className={`${C.text70} truncate max-w-[240px]`}>
         {item.description || "-"}
@@ -60,12 +58,7 @@ interface DiagnosisNameRowProps {
   onEdit: (item: DiagnosisName) => void;
 }
 
-export function DiagnosisNameRow({
-  item,
-  categoryMap,
-  canEdit,
-  onEdit,
-}: DiagnosisNameRowProps) {
+export function DiagnosisNameRow({ item, categoryMap, canEdit, onEdit }: DiagnosisNameRowProps) {
   return (
     <SortableDataTableRow
       key={item.id}
@@ -73,9 +66,7 @@ export function DiagnosisNameRow({
       dragLabel={`並べ替え: 診断病名 ${item.name} (ID ${item.id})`}
       dragDisabled={!canEdit}
     >
-      <TableCell className={C.text70}>
-        {categoryMap.get(item.diagnosisTypeId) ?? "-"}
-      </TableCell>
+      <TableCell className={C.text70}>{categoryMap.get(item.diagnosisTypeId) ?? "-"}</TableCell>
       <TableCell className={`font-medium ${C.text}`}>
         {canEdit ? (
           <DataTableRowButton
@@ -84,7 +75,9 @@ export function DiagnosisNameRow({
           >
             {item.name}
           </DataTableRowButton>
-        ) : item.name}
+        ) : (
+          item.name
+        )}
       </TableCell>
       <TableCell className="text-center">
         <StatusPill isActive={item.isActive} />

@@ -2,7 +2,13 @@
 import { useState, useCallback, useMemo, useDeferredValue, memo, Fragment } from "react";
 
 // Internal
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { EmptyState } from "@/components/shared/DataStates";
 import { ClearableSearchInput } from "@/components/shared/ClearableSearchInput";
 import { CategoryChipsFilter } from "@/components/shared/CategoryChipsFilter";
@@ -56,13 +62,16 @@ export const TreatmentSearchDialog = memo(function TreatmentSearchDialog({
   const { data: checkupTypes = [] } = useGetAllCheckupTypes();
   const { data: medicines = [] } = useGetAllMedicinesMaster();
 
-  const handleOpenChange = useCallback((nextOpen: boolean) => {
-    if (!nextOpen) {
-      setActiveCategory(null);
-      setSearchTerm("");
-    }
-    onOpenChange(nextOpen);
-  }, [onOpenChange]);
+  const handleOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (!nextOpen) {
+        setActiveCategory(null);
+        setSearchTerm("");
+      }
+      onOpenChange(nextOpen);
+    },
+    [onOpenChange],
+  );
 
   // Build treatment master from API data
   const TREATMENT_MASTER = useMemo(() => {
@@ -93,10 +102,17 @@ export const TreatmentSearchDialog = memo(function TreatmentSearchDialog({
     });
 
     medicines.forEach((m) => {
-      // カテゴリ見出し行（parentId なし・price=0）は選択対象から除外する。
-      const isCategoryPlaceholder = !m.parentId && m.price === 0;
+      // カテゴリ見出し行のみ除外。未分類でも剤形/単位/単価があれば薬剤として出す (BUG-006)。
+      const isCategoryPlaceholder =
+        !m.parentId && m.price === 0 && !m.dosageForm && !m.medicineUnit;
       if (m.isActive && !isCategoryPlaceholder) {
-        items.push({ id: m.id, name: m.name, unitPrice: m.price, category: "薬剤", medicineId: m.id });
+        items.push({
+          id: m.id,
+          name: m.name,
+          unitPrice: m.price,
+          category: "薬剤",
+          medicineId: m.id,
+        });
       }
     });
 
@@ -104,16 +120,19 @@ export const TreatmentSearchDialog = memo(function TreatmentSearchDialog({
   }, [consultations, procedures, vaccines, checkupTypes, medicines]);
 
   const searchableItems = useMemo(
-    () => TREATMENT_MASTER.map((item) => ({
-      item,
-      normalizedName: normalizeKana(item.name).toLowerCase(),
-    })),
+    () =>
+      TREATMENT_MASTER.map((item) => ({
+        item,
+        normalizedName: normalizeKana(item.name).toLowerCase(),
+      })),
     [TREATMENT_MASTER],
   );
 
   // Filter items by search term and category（カタカナ・ひらがな非区別）
   const filteredItems = useMemo(() => {
-    const normalizedTerm = deferredSearchTerm ? normalizeKana(deferredSearchTerm).toLowerCase() : "";
+    const normalizedTerm = deferredSearchTerm
+      ? normalizeKana(deferredSearchTerm).toLowerCase()
+      : "";
     return searchableItems.flatMap(({ item, normalizedName }) => {
       const matchesSearch = !deferredSearchTerm || normalizedName.includes(normalizedTerm);
       const matchesCategory = !activeCategory || item.category === activeCategory;
@@ -123,11 +142,14 @@ export const TreatmentSearchDialog = memo(function TreatmentSearchDialog({
 
   // Group filtered items by category
   const groupedItems = useMemo(() => {
-    return filteredItems.reduce((acc, item) => {
-      if (!acc[item.category]) acc[item.category] = [];
-      acc[item.category].push(item);
-      return acc;
-    }, {} as Record<string, TreatmentMasterItem[]>);
+    return filteredItems.reduce(
+      (acc, item) => {
+        if (!acc[item.category]) acc[item.category] = [];
+        acc[item.category].push(item);
+        return acc;
+      },
+      {} as Record<string, TreatmentMasterItem[]>,
+    );
   }, [filteredItems]);
 
   // Calculate all categories once
@@ -138,12 +160,15 @@ export const TreatmentSearchDialog = memo(function TreatmentSearchDialog({
     ];
   }, [groupedItems]);
 
-  const handleSelect = useCallback((item: TreatmentMasterItem) => {
-    onSelect(item);
-    onOpenChange(false);
-    setSearchTerm("");
-    setActiveCategory(null);
-  }, [onSelect, onOpenChange]);
+  const handleSelect = useCallback(
+    (item: TreatmentMasterItem) => {
+      onSelect(item);
+      onOpenChange(false);
+      setSearchTerm("");
+      setActiveCategory(null);
+    },
+    [onSelect, onOpenChange],
+  );
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -172,7 +197,10 @@ export const TreatmentSearchDialog = memo(function TreatmentSearchDialog({
         />
 
         {/* Item List */}
-        <FilteringIndicator isFiltering={isFiltering} className="flex-1 overflow-y-auto space-y-1 pr-1 max-h-[400px]">
+        <FilteringIndicator
+          isFiltering={isFiltering}
+          className="flex-1 overflow-y-auto space-y-1 pr-1 max-h-[400px]"
+        >
           {filteredItems.length === 0 ? (
             <EmptyState message="該当する治療プランが見つかりません。" />
           ) : (
@@ -201,7 +229,9 @@ export const TreatmentSearchDialog = memo(function TreatmentSearchDialog({
                             {formatCurrency(item.unitPrice)}
                           </div>
                         </div>
-                        <div className={`size-5 rounded-full border ${C.borderLight} group-hover:border-current transition-colors shrink-0 ml-3`} />
+                        <div
+                          className={`size-5 rounded-full border ${C.borderLight} group-hover:border-current transition-colors shrink-0 ml-3`}
+                        />
                       </button>
                     ))}
                   </div>

@@ -291,6 +291,18 @@ func TestCreateMedicine(t *testing.T) {
 			},
 			wantStatus: http.StatusInternalServerError,
 		},
+		{
+			name:     "returns 409 structured name conflict with params.name (BUG-011)",
+			body:     map[string]any{"name": "V04薬剤", "is_active": true},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockMedicineService{
+				createFn: func(_ context.Context, _ uint64, _ *CreateMedicineInput) (*model.Medicine, error) {
+					return nil, apperrors.WrapNameConflict(apperrors.CodeMedicineNameConflict, "V04薬剤")
+				},
+			},
+			wantStatus: http.StatusConflict,
+			wantBody:   `"params":{"name":"V04薬剤"}`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -311,6 +323,10 @@ func TestCreateMedicine(t *testing.T) {
 			assert.Equal(t, tt.wantStatus, w.Code)
 			if tt.wantBody != "" {
 				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+			if tt.name == "returns 409 structured name conflict with params.name (BUG-011)" {
+				assert.Contains(t, w.Body.String(), `"code":"medicine_name_conflict"`)
+				assert.NotContains(t, w.Body.String(), "medicine '' already exists")
 			}
 		})
 	}
@@ -398,6 +414,19 @@ func TestUpdateMedicine(t *testing.T) {
 				},
 			},
 			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 409 structured name conflict with params.name (BUG-011)",
+			paramID:  "1",
+			body:     map[string]any{"name": "V04薬剤"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockMedicineService{
+				updateFn: func(_ context.Context, _, _ uint64, _ *UpdateMedicineInput) (*model.Medicine, error) {
+					return nil, apperrors.WrapNameConflict(apperrors.CodeMedicineNameConflict, "V04薬剤")
+				},
+			},
+			wantStatus: http.StatusConflict,
+			wantBody:   `"name":"V04薬剤"`,
 		},
 	}
 
@@ -574,4 +603,56 @@ func TestReorderMedicines(t *testing.T) {
 		h.ReorderMedicines(c)
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
+}
+
+// SEC-CODEX-UHQPM2 selected-clinic grant
+func TestMedicineSelectedClinicGrant(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name   string
+		invoke func(*MedicineHandler, *gin.Context)
+		svc    *mockMedicineService
+	}{
+		{
+			name: "ListMedicines returns 403 when selected clinic lacks master-medical view grant",
+			invoke: func(h *MedicineHandler, c *gin.Context) {
+				h.ListMedicines(c)
+			},
+			svc: &mockMedicineService{
+				listFn: func(_ context.Context, _ uint64, _, _ int) ([]model.Medicine, int64, error) {
+					t.Fatal("service must not be reached")
+					return nil, 0, nil
+				},
+			},
+		},
+		{
+			name: "GetMedicine returns 403 when selected clinic lacks master-medical view grant",
+			invoke: func(h *MedicineHandler, c *gin.Context) {
+				h.GetMedicine(c)
+			},
+			svc: &mockMedicineService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.Medicine, error) {
+					t.Fatal("service must not be reached")
+					return nil, nil
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithMedicineSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: "10"}}
+			setClinicID(c)
+			c.Set("clinic_id", "2")
+			c.Set("is_system_admin", false)
+			setResourcePermissionOnlyClinic(c, 1, string(model.ResourceMasterMedical), "view")
+			tt.invoke(h, c)
+			assert.Equal(t, http.StatusForbidden, w.Code)
+		})
+	}
 }

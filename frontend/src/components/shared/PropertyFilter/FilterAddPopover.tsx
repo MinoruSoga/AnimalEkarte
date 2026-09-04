@@ -5,19 +5,20 @@ import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandInput, CommandItem, CommandList, CommandEmpty } from "@/components/ui/command";
+import {
+  Command,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandEmpty,
+} from "@/components/ui/command";
 import { Calendar } from "@/components/ui/calendar";
 import { toJSTWallDate } from "@/lib/jst-date";
 import type { DateRange } from "react-day-picker";
 import { FILTER_CONDITIONS } from "./types";
 import { DATE_PRESETS, resolvePreset } from "./date-preset-utils";
 import type { DatePreset } from "./date-preset-utils";
-import type {
-  FilterProperty,
-  ActiveFilter,
-  FilterCondition,
-  FilterOption,
-} from "./types";
+import type { FilterProperty, ActiveFilter, FilterCondition, FilterOption } from "./types";
 
 // ─── Step tracking ────────────────────────────────────────
 
@@ -43,10 +44,7 @@ export const FilterAddPopover = memo(function FilterAddPopover({
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
   // Filter out already-used properties
-  const activeKeys = useMemo(
-    () => new Set(activeFilters.map((f) => f.key)),
-    [activeFilters],
-  );
+  const activeKeys = useMemo(() => new Set(activeFilters.map((f) => f.key)), [activeFilters]);
   const availableProperties = useMemo(
     () => properties.filter((p) => !activeKeys.has(p.key)),
     [properties, activeKeys],
@@ -187,7 +185,11 @@ export const FilterAddPopover = memo(function FilterAddPopover({
 
   // FROM → TO display for date-value step
   const hasFrom = !!dateRange?.from;
-  const hasTo = !!(dateRange?.to && dateRange.from && dateRange.to.getTime() !== dateRange.from.getTime());
+  const hasTo = !!(
+    dateRange?.to &&
+    dateRange.from &&
+    dateRange.to.getTime() !== dateRange.from.getTime()
+  );
   const fromDisplay = hasFrom ? format(dateRange!.from!, "M月d日") : "開始日";
   const toDisplay = hasTo ? format(dateRange!.to!, "M月d日") : "終了日";
 
@@ -197,7 +199,7 @@ export const FilterAddPopover = memo(function FilterAddPopover({
         <Button
           variant="ghost"
           size="sm"
-          className={`h-9 gap-2 text-base ${C.text50} hover:${C.text80} ${C.hoverBgLight} px-3`}
+          className={`h-9 gap-2 text-base ${C.text50} ${C.hoverText80} ${C.hoverBgLight} px-3`}
         >
           <Plus className={ICON.page} />
           フィルタを追加
@@ -213,7 +215,7 @@ export const FilterAddPopover = memo(function FilterAddPopover({
             <button
               type="button"
               onClick={handleBack}
-              className={`flex items-center gap-1 text-base ${C.text50} hover:${C.text80} px-1`}
+              className={`flex items-center gap-1 text-base ${C.text50} ${C.hoverText80} px-1`}
             >
               <ChevronLeft className={ICON.action} />
               戻る
@@ -233,9 +235,7 @@ export const FilterAddPopover = memo(function FilterAddPopover({
                   onSelect={() => handleSelectProperty(prop)}
                   className="text-base"
                 >
-                  {prop.icon ? (
-                    <prop.icon className={`mr-2 ${ICON.xs} ${C.text50}`} />
-                  ) : null}
+                  {prop.icon ? <prop.icon className={`mr-2 ${ICON.xs} ${C.text50}`} /> : null}
                   {prop.label}
                 </CommandItem>
               ))}
@@ -244,12 +244,9 @@ export const FilterAddPopover = memo(function FilterAddPopover({
         ) : step === "condition" ? (
           /* Step 2: Condition selection (select/multi-select only) */
           <div className="py-1">
-            <p className={`text-base ${C.text40} px-3 py-1.5`}>
-              {selectedProperty?.label} - 条件
-            </p>
+            <p className={`text-base ${C.text40} px-3 py-1.5`}>{selectedProperty?.label} - 条件</p>
             {(
-              FILTER_CONDITIONS[selectedProperty?.type ?? "select"] ??
-              FILTER_CONDITIONS.select
+              FILTER_CONDITIONS[selectedProperty?.type ?? "select"] ?? FILTER_CONDITIONS.select
             ).map((cond) => (
               <button
                 key={cond.value}
@@ -298,19 +295,27 @@ export const FilterAddPopover = memo(function FilterAddPopover({
             {/* Calendar column */}
             <div className="p-3">
               {/* FROM → TO header */}
-              <div className={`flex items-center justify-center gap-3 mb-3 px-3 py-2 ${C.bgPage} rounded-xs`}>
-                <span className={`text-sm font-mono tabular-nums ${hasFrom ? `${C.text} font-medium` : C.text30}`}>
+              <div
+                className={`flex items-center justify-center gap-3 mb-3 px-3 py-2 ${C.bgPage} rounded-xs`}
+              >
+                <span
+                  className={`text-sm font-mono tabular-nums ${hasFrom ? `${C.text} font-medium` : C.text30}`}
+                >
                   {fromDisplay}
                 </span>
                 <span className={`${C.text30} text-xs`}>→</span>
-                <span className={`text-sm font-mono tabular-nums ${hasTo ? `${C.text} font-medium` : C.text30}`}>
+                <span
+                  className={`text-sm font-mono tabular-nums ${hasTo ? `${C.text} font-medium` : C.text30}`}
+                >
                   {toDisplay}
                 </span>
               </div>
               <Calendar
                 mode="range"
                 selected={dateRange}
-                onSelect={(range) => { if (range) handleCalendarSelect(range); }}
+                onSelect={(range) => {
+                  if (range) handleCalendarSelect(range);
+                }}
                 numberOfMonths={1}
                 locale={ja}
                 className="rounded-md"
@@ -325,11 +330,12 @@ export const FilterAddPopover = memo(function FilterAddPopover({
                   button_previous: `size-8 p-0 rounded-sm ${C.hoverBgLight} opacity-50 hover:opacity-100 inline-flex items-center justify-center pointer-events-auto`,
                   button_next: `size-8 p-0 rounded-sm ${C.hoverBgLight} opacity-50 hover:opacity-100 inline-flex items-center justify-center pointer-events-auto`,
                   dropdowns: "flex items-center gap-1",
-                  dropdown: `text-sm font-medium bg-transparent border-none cursor-pointer focus:outline-none hover:opacity-70 py-0.5 px-1 rounded ${C.hoverBgLight}`,
+                  dropdown: `text-sm font-medium bg-transparent border-none cursor-pointer focus:outline-none hover:opacity-70 py-0.5 px-1 rounded ${C.hoverBgLight} focus-visible:ring-2 ${C.focusRingAccent40}`,
                 }}
                 formatters={{
                   formatMonthDropdown: (month) => {
-                    const monthNumber = month instanceof Date ? month.getMonth() + 1 : Number(month) + 1;
+                    const monthNumber =
+                      month instanceof Date ? month.getMonth() + 1 : Number(month) + 1;
                     return `${monthNumber}月`;
                   },
                   formatYearDropdown: (year) => {

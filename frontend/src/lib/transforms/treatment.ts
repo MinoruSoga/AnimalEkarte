@@ -47,8 +47,6 @@ export const transformExaminationType = (data: ExaminationType) => ({
   updatedAt: data.updated_at ?? "",
 });
 
-export type ExamTypeField = ReturnType<typeof transformExaminationType>;
-
 // ─────────────────────────────────────────────────
 // Procedure
 // ─────────────────────────────────────────────────

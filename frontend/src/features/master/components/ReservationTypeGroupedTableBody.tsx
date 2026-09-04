@@ -11,7 +11,7 @@ import {
 import {
   UNCATEGORIZED_RESERVATION_TYPE_GROUP_ID,
   type ReservationTypesByGroup,
-} from "./reservation-type-grouped-table-model";
+} from "../lib/reservation-type-grouped-table-model";
 
 interface ReservationTypeGroupedTableBodyProps {
   groups: ReservationTypeGroup[];
@@ -111,11 +111,7 @@ function ReservationTypeGroupCategories({
   );
 }
 
-function ReservationTypeRows({
-  categories,
-  canEdit,
-  onCategoryEdit,
-}: ReservationTypeRowsProps) {
+function ReservationTypeRows({ categories, canEdit, onCategoryEdit }: ReservationTypeRowsProps) {
   return (
     <>
       {categories.map((category) => (

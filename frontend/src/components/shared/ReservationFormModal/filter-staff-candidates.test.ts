@@ -9,16 +9,12 @@ const staff = (id: number) => ({ id, name: `S${id}` });
 describe("filterStaffCandidatesByCapability", () => {
   it("returns all candidates when no reservation type is selected", () => {
     const candidates = [staff(1), staff(2)];
-    expect(
-      filterStaffCandidatesByCapability(candidates, null, undefined),
-    ).toEqual(candidates);
+    expect(filterStaffCandidatesByCapability(candidates, null, undefined)).toEqual(candidates);
   });
 
   it("fail-closed: empty when capability metadata is pending", () => {
     const candidates = [staff(1), staff(2)];
-    expect(
-      filterStaffCandidatesByCapability(candidates, "5", undefined),
-    ).toEqual([]);
+    expect(filterStaffCandidatesByCapability(candidates, "5", undefined)).toEqual([]);
   });
 
   it("keeps only staff with affirmative capable_courses for the type", () => {
@@ -38,11 +34,7 @@ describe("filterStaffCandidatesByCapability", () => {
         },
       ],
     ]);
-    const result = filterStaffCandidatesByCapability(
-      [staff(10), staff(11)],
-      "5",
-      map,
-    );
+    const result = filterStaffCandidatesByCapability([staff(10), staff(11)], "5", map);
     expect(result.map((s) => s.id)).toEqual([11]);
   });
 
@@ -50,11 +42,7 @@ describe("filterStaffCandidatesByCapability", () => {
     const map = new Map<string, ReservationStaffCapabilityLike>([
       ["11", { id: 11, capable_courses: [{ id: 5 }] }],
     ]);
-    const result = filterStaffCandidatesByCapability(
-      [staff(10), staff(11)],
-      "5",
-      map,
-    );
+    const result = filterStaffCandidatesByCapability([staff(10), staff(11)], "5", map);
     expect(result.map((s) => s.id)).toEqual([11]);
   });
 
@@ -62,8 +50,6 @@ describe("filterStaffCandidatesByCapability", () => {
     const map = new Map<string, ReservationStaffCapabilityLike>([
       ["10", { id: 10, capable_courses: [] }],
     ]);
-    expect(
-      filterStaffCandidatesByCapability([staff(10)], "5", map),
-    ).toEqual([]);
+    expect(filterStaffCandidatesByCapability([staff(10)], "5", map)).toEqual([]);
   });
 });

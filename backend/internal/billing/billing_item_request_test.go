@@ -2,6 +2,7 @@ package billing
 
 import (
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -193,5 +194,100 @@ func TestUpdateBillingItemRequest_ToServiceInput_InvalidTaxType(t *testing.T) {
 	}
 	if input != nil {
 		t.Fatalf("input = %#v, want nil", input)
+	}
+}
+
+func TestBillingItemRequest_PostCloseReasonMax(t *testing.T) {
+	tests := []struct {
+		name    string
+		payload map[string]any
+		dest    any
+		wantErr bool
+	}{
+		{
+			name: "create post_close_reason at 500 is accepted",
+			payload: map[string]any{
+				"billing_id":        1,
+				"name":              "明細",
+				"post_close_reason": strings.Repeat("a", 500),
+			},
+			dest: &createBillingItemRequest{},
+		},
+		{
+			name: "create post_close_reason over 500 is rejected",
+			payload: map[string]any{
+				"billing_id":        1,
+				"name":              "明細",
+				"post_close_reason": strings.Repeat("a", 501),
+			},
+			dest:    &createBillingItemRequest{},
+			wantErr: true,
+		},
+		{
+			name:    "update post_close_reason at 500 is accepted",
+			payload: map[string]any{"post_close_reason": strings.Repeat("a", 500)},
+			dest:    &updateBillingItemRequest{},
+		},
+		{
+			name:    "update post_close_reason over 500 is rejected",
+			payload: map[string]any{"post_close_reason": strings.Repeat("a", 501)},
+			dest:    &updateBillingItemRequest{},
+			wantErr: true,
+		},
+		{
+			name:    "delete post_close_reason at 500 is accepted",
+			payload: map[string]any{"post_close_reason": strings.Repeat("a", 500)},
+			dest:    &deleteBillingItemRequest{},
+		},
+		{
+			name:    "delete post_close_reason over 500 is rejected",
+			payload: map[string]any{"post_close_reason": strings.Repeat("a", 501)},
+			dest:    &deleteBillingItemRequest{},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := bindJSONBody(t, tt.payload, tt.dest)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("ShouldBindJSON = nil, want over-max error")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("ShouldBindJSON = %v, want nil", err)
+			}
+		})
+	}
+}
+
+func TestCreateBillingItemRequest_NameMax(t *testing.T) {
+	tests := []struct {
+		name    string
+		length  int
+		wantErr bool
+	}{
+		{name: "255 chars accepted", length: 255, wantErr: false},
+		{name: "256 chars rejected", length: 256, wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := bindJSONBody(t, map[string]any{
+				"billing_id": 1,
+				"name":       strings.Repeat("a", tt.length),
+			}, &createBillingItemRequest{})
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("ShouldBindJSON = nil, want over-max error")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("ShouldBindJSON = %v, want nil", err)
+			}
+		})
 	}
 }

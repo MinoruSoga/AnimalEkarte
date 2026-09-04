@@ -176,6 +176,21 @@ func TestOccupationRepository_Delete(t *testing.T) {
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
+
+	t.Run("使用中なら Conflict で行は残る", func(t *testing.T) {
+		seedClinicsForFK(t, db, clinicA)
+		occ := makeOccupation(t, db, clinicA, "使用中職種")
+		staff := makeStaffWithOccupation(t, db, clinicA, occ.ID, "使用中職種スタッフ")
+		makeStaffClinicAssignment(t, db, staff.ID, clinicA)
+
+		err := repo.Delete(ctx, clinicA, occ.ID)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsConflict(err), "expected Conflict, got %v", err)
+
+		got, findErr := repo.FindByID(ctx, clinicA, occ.ID)
+		require.NoError(t, findErr)
+		assert.Equal(t, occ.ID, got.ID)
+	})
 }
 
 func TestOccupationRepository_Reorder(t *testing.T) {

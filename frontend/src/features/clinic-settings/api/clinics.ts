@@ -66,17 +66,12 @@ async function listClinics(): Promise<TransformedClinic[]> {
   return (data ?? []).map(transformClinic);
 }
 
-async function createClinic(
-  req: CreateClinicRequest,
-): Promise<TransformedClinic> {
+async function createClinic(req: CreateClinicRequest): Promise<TransformedClinic> {
   const { data } = await axios.post<BackendClinic>("/v1/clinics", req);
   return transformClinic(data);
 }
 
-async function updateClinic(
-  id: number,
-  req: UpdateClinicRequest,
-): Promise<TransformedClinic> {
+async function updateClinic(id: number, req: UpdateClinicRequest): Promise<TransformedClinic> {
   const { data } = await axios.patch<BackendClinic>(`/v1/clinics/${id}`, req);
   return transformClinic(data);
 }
@@ -112,8 +107,7 @@ export function useCreateClinic() {
 export function useUpdateClinic() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, req }: { id: number; req: UpdateClinicRequest }) =>
-      updateClinic(id, req),
+    mutationFn: ({ id, req }: { id: number; req: UpdateClinicRequest }) => updateClinic(id, req),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.clinics.all() });
     },

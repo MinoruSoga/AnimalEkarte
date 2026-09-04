@@ -1,7 +1,7 @@
 # Codex Settings
 
 > OpenAI Codex エージェント専用の作業入口。
-> 詳細ルールの一次情報は `.claude/CLAUDE.md`、標準ワークフローは `docs/AI_DEVELOPMENT_WORKFLOW.md` を参照する。
+> 詳細ルールの一次情報は `.claude/CLAUDE.md`を参照する。
 
 ## 目的
 
@@ -11,8 +11,7 @@
 
 1. 仕様を読む
    - `docs/` の仕様書
-   - `docs/tasks/open/**/00-OVERVIEW.md`
-   - `docs/tasks/open/**/ISSUE-*.md`
+   - `docs/work/phase2-deferred.md`（保留事項）
 2. 既存コードを読む
    - 近い feature
    - handler / service / repository
@@ -54,9 +53,7 @@
 まず以下を読んで、仕様とタスクを理解してください。
 - docs/<対象機能の仕様書>.md
 - backend/docs/api.yaml（API contract 正本）
-- docs/tasks/open/<対象タスク>/00-OVERVIEW.md
-- docs/tasks/open/<対象タスク>/BE.md
-- docs/tasks/open/<対象タスク>/ISSUE-XXX-be-*.md（担当 issue のみ）
+- 現在のタスク定義と、必要なら `docs/work/phase2-deferred.md`
 
 担当範囲は backend/ のみです。
 ...
@@ -70,9 +67,7 @@
 まず以下を読んで、仕様とタスクを理解してください。
 - docs/<対象機能の仕様書>.md
 - backend/docs/api.yaml（API contract 正本）
-- docs/tasks/open/<対象タスク>/00-OVERVIEW.md
-- docs/tasks/open/<対象タスク>/FE.md
-- docs/tasks/open/<対象タスク>/ISSUE-XXX-fe-*.md（担当 issue のみ）
+- 現在のタスク定義と、必要なら `docs/work/phase2-deferred.md`
 
 担当範囲は frontend/ のみです。
 ...
@@ -87,7 +82,7 @@
 
 ## 実装ハーネス（Implement → Verify → Approve Loop）
 
-規約準拠（P1-P18 / React 19パターン）を自動ループで保証する実装フロー。
+プロジェクトの現行規約を確認しながら実装とレビューを反復するフロー。
 最大3イテレーションで承認を目指す。
 
 ### 使い方
@@ -124,13 +119,10 @@ docker compose exec frontend pnpm type-check            # NG: 全体type-check
 | 状況 | 推奨 |
 |------|------|
 | イシューが明確でリスクが低い | `/implement` で一気通貫 |
-| P1-P18 / React 19 準拠を自動保証したい | `/harness` でループ付き実装 |
-| 設計が複雑・複数レイヤーにまたがる | `/plan` → `/harness` |
+| 変更が複数レイヤーにまたがる | 影響範囲・仕様・検証を先に明文化してから実装 |
 
 ---
 
 ## 参照
 
 - `.claude/CLAUDE.md`
-- `docs/AI_DEVELOPMENT_WORKFLOW.md`
-- `.codex/commands/` — 利用可能なコマンド一覧

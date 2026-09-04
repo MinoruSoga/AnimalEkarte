@@ -1,16 +1,16 @@
 # インフラドキュメント（SSOT）
 
-> **目的**: 現行インフラ（Cloudflare）の構成・運用・規約の入口。**環境ごとに STG / PROD を分離**して管理する。
-> **読者**: 全開発者・PO。**タイミング**: インフラ変更・障害対応・環境構築の前。
+> 現行の **checked-in configuration** と運用契約の入口。外部 runtime/account 状態は、実作業前に人が確認する。
 
 | ドキュメント | 内容 |
 |---|---|
-| [architecture.md](architecture.md) | 現行構成の全体像（env 共通） |
-| [iac-guidelines.md](iac-guidelines.md) | IaC 運用規約（Terraform/Wrangler 境界・state・token・drift） |
+| [architecture.md](architecture.md) | checked-in topology と、外部検証が必要な境界 |
+| [iac-guidelines.md](iac-guidelines.md) | Terraform/Wrangler、state、token、drift の契約 |
 | [staging/runbook.md](staging/runbook.md) | STG 運用手順 |
-| [production/setup.md](production/setup.md) | 本番構築手順（#253） |
-| [production/runbook.md](production/runbook.md) | 本番運用手順（構築後に整備） |
-| [_archive/](_archive/) | 完了した作業の凍結記録（STG 移行全記録・AWS 時代の文書） |
+| [production/setup.md](production/setup.md) | 本番構築前の契約。すべての runtime 項目は構築時に人手検証が必要 |
+| [production/runbook.md](production/runbook.md) | 本番運用契約。setup 完了・検証前は実行不可 |
+| [reorg-plan.md](reorg-plan.md) | **historical / unfinished plan。実行手順ではない** |
 
-- コードの所在: Terraform = `infra/cloudflare/`（Phase B で `envs/{staging,production}` + `modules/` へ移行予定 — [reorg-plan.md](reorg-plan.md)）／Wrangler = `backend/wrangler*.jsonc`
-- デプロイ・seed 等の作業手順は [docs/ops/deploy/](../deploy/README.md) が正本（本ディレクトリからは重複させず参照する）
+Terraform は現在 `infra/cloudflare/` の flat STG と `production/` に分かれる。Wrangler は `backend/wrangler.jsonc` と `backend/wrangler.production.jsonc`。未実装の module/env layout を現行構成と呼ばない。
+
+デプロイと seed の実行手順は [deploy/](../deploy/README.md) を参照する。AWS 廃止資料の git-history pointer は [architecture.md](architecture.md) に集約する。

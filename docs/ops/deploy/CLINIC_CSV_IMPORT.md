@@ -14,7 +14,7 @@
 | dry-run と代表データ照合 | `make csv-import-preflight`（source+target read-only）。DB 書き込みなし | 実装済み。代表データ手動照合は USER |
 | clinic/owner/pet/staff 越境・FK・金額 | band 検査、clinic_id isolation、validated FK、payment graph | 実装+unit。実 DB 照合は rehearsal |
 | rerun が二重作成しない / 部分 commit なし | 非空 band は `CUTOVER_REF_BAND_OCCUPIED` で fail-closed。単一 transaction | 実装+unit |
-| stop/rollback・非PHI audit | report は件数+seed ID のみ。エラーは table/行番号/`CUTOVER_REF_*` のみ（氏名等なし） | 実装+unit / F8 rehearsal |
+| stop/rollback・非PHI audit | report は status/timestamp、manifest digest、clinic/run/target metadata、ID band、aggregate count、6 seed ID、failure stage のみ。エラーは table/行番号/`CUTOVER_REF_*` のみ（CSV cell/氏名等なし） | 実装+unit / F8 rehearsal |
 | production cutover | #253/#254/#255 gate 後に USER 実施 | **本 lane では実施しない** |
 
 ### 21 表 source→target mapping（formal cutover v1）
@@ -51,8 +51,10 @@
 - **非PHI エラー ID**: `CUTOVER_REF_BAND_OCCUPIED` / `CUTOVER_REF_CLINIC_ISOLATION` / `CUTOVER_REF_ROW_COUNT` と table・CSV 行番号のみ。セル値は出さない。
 
 `REHEARSAL_ONLY` / `PARTIAL` bundleを
-`backend/migrations/seeds/_old_db_handoff/<clinic>/<run>/` に置くことは、
-ローカル保管にすぎません。正式preflightはこれを拒否し、`cmd/migrate` も読みません。
+`backend/migrations/seeds/_old_db_handoff/<clinic>/` に置くことは、
+ローカル保管にすぎません。正式preflightはこれを拒否し、`cmd/migrate` / `make seed` も読みません。
+医院別の配置コマンドは `make old-db-handoff-stage`（手順:
+[OLD_DB_HANDOFF_LOCAL.md](./OLD_DB_HANDOFF_LOCAL.md)）。
 21 CSVを `003_demo` へ直接コピーしてseedとして扱うことは禁止します。実行可能seedへの
 変換は現行コードでは未実装です。[SEED_MIGRATION_OPERATIONS.md](./SEED_MIGRATION_OPERATIONS.md)
 のBLOCKED境界に従い、21表専用adapterを実装・検証するまでは隔離保管に留めます。
@@ -68,12 +70,12 @@
 - target seed ID は6つとも明示する。予約種別・支払方法を表示名や先頭行から暗黙解決しない。
 - apply は対象 band が21表すべて空の場合だけ実行し、既存行を削除・置換しない。
 - apply は単一 transaction、advisory lock、table lockを使う。CSV が preflight 後に変わった場合は再 SHA-256 検証で全 rollback する。
-- CSV/manifest は PHI を含み得る。行値をログ・report・Git・チャットへ出さない。report は aggregate count と再検証に必要な非PHIの6 seed IDのみを記録し、固定mount `/migration-reports` 直下へ0600/no-clobberで作成する。
+- CSV/manifest は PHI を含み得る。行値をログ・report・Git・チャットへ出さない。report は status/timestamp、manifest digest、clinic/run/target metadata、ID band、aggregate count、再検証に必要な非PHIの6 seed ID、failure stage を記録し、CSV cell値は記録せず、固定mount `/migration-reports` 直下へ0600/no-clobberで作成する。
 
 ## 事前準備
 
 1. target DB の検証済み full backup を取得し、復元手順と担当者を確定する。
-2. 旧増分002〜009を統合した現行 `001_init.sql` で target DB を再構築済みであることを確認する。統合前001が適用済みのDBはchecksum mismatchになるため `DB_RESET=true` 相当の承認済み再構築が必須で、手書きSQLによる差分適用は使わない。001内の通常の `CREATE INDEX` は対象テーブルへの書き込みを待たせ得るため、事前リハーサルで所要時間を測り、maintenance window内で適用する。
+2. 対象を、この HEAD の現行 `backend/migrations/*.sql`（現在は統合済み `001_init.sql`）で再構築済みであることを確認する。異なる内容の001が適用済みのDBはchecksum mismatchになるため `DB_RESET=true` 相当の承認済み再構築が必須で、手書きSQLによる差分適用は使わない。001内の通常の `CREATE INDEX` は対象テーブルへの書き込みを待たせ得るため、事前リハーサルで所要時間を測り、maintenance window内で適用する。
 3. target DB を既存の運用経路で起動・疎通確認する。CSV Make targets は `--no-deps` で実行し、target container/service を作成・再作成しない。
 4. 次の target seed ID を対象医院で確認する。
    - active clinic
@@ -124,7 +126,7 @@ run sheet上でbackup取得・復元手順・担当者を再確認したoperator
 - 復元確認済み backup が存在
 - target host が `DB_HOST` と完全一致
 - target database が `DB_NAME` と完全一致
-- aggregate count + 6 seed IDだけを含むreportの新規パス（既存 report を上書きしない）
+- status/timestamp、manifest digest、clinic/run/target metadata、ID band、aggregate count、6 seed ID、failure stage だけを含みCSV cell値を含まないreportの新規パス（既存 report を上書きしない）
 
 apply 後、各 table の件数・clinic isolation・会計親子/支払方法/分割金額の整合・completed timestamp・sequence floor/max ID を transaction 内で検証してから commit します。21 sequence は既存値を下げず、次回 application ID が `1,000,000,000` 以上かつ現行`max(id)`超になるよう進めます。
 
@@ -142,6 +144,7 @@ make csv-import-verify
 - transaction 内の失敗はデータ行を自動 rollback し、report は `FAILED_DATA_ROLLED_BACK` になります。同じ source digest でも、原因を解消して新しい作業確認を取るまで再実行しません。PostgreSQL sequence はtransaction rollback対象外ですが、処理は値を下げずapplication予約域へ進めるだけなので、失敗時に残り得るのは安全な番号飛びだけです。
 - commit応答が失われた場合は、commit済みかrollback済みかを断定せずreportを `COMMIT_OUTCOME_UNKNOWN` とします。再実行・backup restore・運用開始をすべて止め、同じmanifest/seedでread-onlyの `make csv-import-verify` を実行してDB管理者が結果を照合するまで状態変更を行いません。
 - process crashや強制終了後にapply reportがmissing、malformed、または `STARTED` のままの場合もcommit結果を証明できないため、`COMMIT_OUTCOME_UNKNOWN` と同じ未確定状態として扱います。reportを作り直す再実行やbackup restoreへ進まず、targetを隔離してread-only verifyとDB照合を先に行います。
+- one-shot STG UAT importのreportが `PASS` になるのは、apply後の最終verify成功時だけです。commit済みapplyの最終verifyが失敗した場合は `FAILED_POST_COMMIT_VERIFY` / failure stage `verify` とし、targetを隔離して原因を照合します。
 - commit 後の rollback は、後続 application row を cascade delete する危険があるため importer に削除コマンドを持たせません。メンテナンス状態を維持し、事前に検証した full backup を復元します。
 - band が既に占有されている場合、`make csv-import` は置換せず fail-closed します。手書き DELETE や別経路への迂回はしません。
 
@@ -159,3 +162,24 @@ docker compose exec backend go test ./cmd/migrate -count=1
 
 F8 の失敗側リハーサルは、通常 importer に fault injection を追加せず、専用の
 [F8 G4 synthetic failure rehearsal](F8_G4_FAILURE_REHEARSAL.md) を使用します。
+
+## rehearsal 前提（#250 / BRT-42 · 2026-08-20）
+
+**cutover 実行と架空 COMPLETE bundle は禁止。** 本節は手順の不足を埋めるだけ。
+
+| 前提 | 状態 | 根拠 |
+|---|---|---|
+| formal COMPLETE producer bundle 受領 | **未記入**（受領記録なし） | Linear BRT-42 / #250。KNJO source 未完全のため apply は本文どおり BLOCKED |
+| `payments.csv` / `payment_splits.csv` が正件数 | 現行 KNJO は header-only（本文） | 正件数になるまで preflight 拒否 |
+| F8 G4 synthetic failure rehearsal | 手順あり（専用 compose。本番 CSV 不可） | [F8_G4_FAILURE_REHEARSAL.md](F8_G4_FAILURE_REHEARSAL.md) |
+| 代表データ手動照合 | **未記入** | USER |
+| production cutover | **しない** | #253/#254/#255 gate 後の USER |
+
+COMPLETE 受領後の rehearsal 順（実行は USER。本セッションでは走らせない）:
+
+1. bundle を repo 外に置き、PHI を git / Issue に載せない
+2. `make csv-import-preflight`（write 0）
+3. 隔離 DB での F8 G4（本番 CSV を渡さない）
+4. 隔離 rehearsal apply（共有 STG/PROD は承認後のみ）
+5. `make csv-import-verify`（read-only）
+6. production cutover は gate 後の別作業

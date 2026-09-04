@@ -16,11 +16,6 @@ export { ReservationTypeSettings } from "./routes/ReservationTypeSettings";
 export { LineReservationSlotsSettings } from "./routes/LineReservationSlotsSettings";
 export { StaffSettings } from "./routes/StaffSettings";
 export { TreatmentPlanMaster } from "./routes/TreatmentPlanMaster";
+export { LabDeviceItemMasterSettings } from "./routes/LabDeviceItemMasterSettings";
 export { TrimmingSettings } from "./routes/TrimmingSettings";
 export { TrimmingCourseTypeSettings } from "./routes/TrimmingCourseTypeSettings";
-
-export { useGetCompany, useUpdateCompany } from "./api/company";
-export { useGetAllMedicines } from "./api/medicines";
-export { useGetAllProcedures } from "./api/procedures";
-export { useGetAllHospitalizationPlans } from "./api/hospitalization-plans";
-export { useGetStaffs } from "./api/staffs";

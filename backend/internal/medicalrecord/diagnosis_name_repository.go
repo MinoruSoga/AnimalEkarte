@@ -114,16 +114,33 @@ func (r *diagnosisNameRepository) Update(ctx context.Context, clinicID, id uint6
 }
 
 func (r *diagnosisNameRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).
-		Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).
+	result := persistence.DBOrTx(ctx, r.db).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ?", id).
+		Where(`NOT EXISTS (
+			SELECT 1 FROM clinical_plans
+			JOIN medical_records ON medical_records.id = clinical_plans.medical_record_id
+			  AND medical_records.clinic_id = ?
+			  AND medical_records.deleted_at IS NULL
+			WHERE (clinical_plans.diagnosis_name_id = diagnosis_names.id
+			    OR clinical_plans.diagnosis_2_name_id = diagnosis_names.id)
+			  AND clinical_plans.deleted_at IS NULL
+		)`, clinicID).
 		Delete(&model.DiagnosisName{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "diagnosis_name", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("diagnosis_name", fmt.Sprintf("%d", id))
+		return r.normalizeDiagnosisNameDeleteMiss(ctx, clinicID, id)
 	}
 	return nil
+}
+
+func (r *diagnosisNameRepository) normalizeDiagnosisNameDeleteMiss(ctx context.Context, clinicID, id uint64) error {
+	if _, err := r.FindByID(ctx, clinicID, id); err != nil {
+		return err
+	}
+	return apperrors.WrapConflict("この診断名は診療記録で使用中のため削除できません")
 }
 
 // CountUsageByDiagnosisNameID は診断名を参照している clinical_plans の件数を返す（BUG-113）

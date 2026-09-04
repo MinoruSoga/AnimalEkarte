@@ -63,7 +63,7 @@ func TestBuildOwnerUpdate(t *testing.T) {
 		fields := buildOwnerUpdate(input)
 
 		assert.Equal(t, name, fields[colOwnerName])
-		assert.Equal(t, nameKana, fields[colOwnerNameKana])
+		assert.Equal(t, "やまだたろう", fields[colOwnerNameKana])
 		require.NotNil(t, fields[colBirthDate])
 		assert.Equal(t, birthDate, *fields[colBirthDate].(*time.Time))
 		assert.False(t, fields[colBirthDate].(*time.Time).IsZero())

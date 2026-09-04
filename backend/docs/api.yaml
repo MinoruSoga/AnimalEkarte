@@ -177,6 +177,10 @@ components:
           format: int64
         name:
           type: string
+        price:
+          type: integer
+          format: int64
+          nullable: true
     BillingItem:
       type: object
       description: 会計明細項目
@@ -4316,6 +4320,12 @@ components:
           type: integer
           format: int64
           nullable: true
+        pet_id:
+          type: integer
+          format: int64
+          nullable: true
+        pet:
+          $ref: '#/components/schemas/Pet'
         status:
           type: string
           enum:
@@ -4374,6 +4384,10 @@ components:
           type: integer
           format: int64
           nullable: true
+        pet_id:
+          type: integer
+          format: int64
+          nullable: true
         status:
           type: string
           enum: [draft, sent]
@@ -4406,6 +4420,10 @@ components:
       properties:
         title:
           type: string
+          nullable: true
+        pet_id:
+          type: integer
+          format: int64
           nullable: true
         status:
           type: string
@@ -7883,6 +7901,313 @@ components:
         updated_at:
           type: string
           format: date-time
+    LabDeviceItemMaster:
+      type: object
+      required: [id, source_type, device_item_code, unit, value_shape, exam_type_field_id, sort_order, is_active]
+      properties:
+        id:
+          type: integer
+          format: int64
+        source_type:
+          type: string
+          enum: [fuji_nx600, fuji_au10v, arkray_pu4010, idexx_vetlab]
+        device_item_code:
+          type: string
+        unit:
+          type: string
+        value_shape:
+          type: string
+          enum: [numeric, inequality, qual_and_num, dash, text]
+        exam_type_field_id:
+          type: integer
+          format: int64
+          nullable: true
+        sort_order:
+          type: integer
+        is_active:
+          type: boolean
+    UpdateLabDeviceItemMasterRequest:
+      type: object
+      required: [is_active]
+      properties:
+        unit:
+          type: string
+        exam_type_field_id:
+          type: integer
+          format: int64
+          nullable: true
+        is_active:
+          type: boolean
+    LabDeviceItemMasterEnsureResponse:
+      type: object
+      required: [inserted_count, items]
+      properties:
+        inserted_count:
+          type: integer
+          format: int64
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/LabDeviceItemMaster'
+    LabDevice:
+      type: object
+      required: [id, source_type, name, exam_type_id, is_active, sort_order]
+      properties:
+        id:
+          type: integer
+          format: int64
+        source_type:
+          type: string
+          enum: [fuji_nx600, fuji_au10v, arkray_pu4010, idexx_vetlab]
+        name:
+          type: string
+        exam_type_id:
+          type: integer
+          format: int64
+          nullable: true
+        is_active:
+          type: boolean
+        sort_order:
+          type: integer
+    LabDeviceAgentConsumer:
+      type: object
+      required: [agent_consumer_token]
+      properties:
+        agent_consumer_token:
+          type: string
+          example: test-consumer-token
+    CreateLabDeviceRequest:
+      type: object
+      required: [name, source_type]
+      properties:
+        name:
+          type: string
+        source_type:
+          type: string
+          enum: [fuji_nx600, fuji_au10v, arkray_pu4010, idexx_vetlab]
+        exam_type_id:
+          type: integer
+          format: int64
+          nullable: true
+        is_active:
+          type: boolean
+        sort_order:
+          type: integer
+    UpdateLabDeviceRequest:
+      type: object
+      required: [name, is_active, sort_order]
+      properties:
+        name:
+          type: string
+        exam_type_id:
+          type: integer
+          format: int64
+          nullable: true
+        is_active:
+          type: boolean
+        sort_order:
+          type: integer
+    SaveLabDeviceConfigurationItemRequest:
+      type: object
+      required: [id, is_active]
+      properties:
+        id:
+          type: integer
+          format: int64
+        unit:
+          type: string
+        exam_type_field_id:
+          type: integer
+          format: int64
+          nullable: true
+        is_active:
+          type: boolean
+    SaveLabDeviceConfigurationRequest:
+      type: object
+      required: [device, items]
+      properties:
+        device:
+          $ref: '#/components/schemas/UpdateLabDeviceRequest'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SaveLabDeviceConfigurationItemRequest'
+    SaveLabDeviceConfigurationResponse:
+      type: object
+      required: [device, items]
+      properties:
+        device:
+          $ref: '#/components/schemas/LabDevice'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/LabDeviceItemMaster'
+    LabDeviceJobItem:
+      type: object
+      required: [device_item_code, value_raw, unit, flag, needs_review, sort_order]
+      properties:
+        device_item_code:
+          type: string
+        value_raw:
+          type: string
+        unit:
+          type: string
+        flag:
+          type: string
+        exam_type_field_id:
+          type: integer
+          format: int64
+        needs_review:
+          type: boolean
+        sort_order:
+          type: integer
+    LabDeviceJobCard:
+      type: object
+      required: [job_id, source_type, device_hint, status, specimen_id_raw, item_count, unmapped_item_count, clock_skew, items]
+      properties:
+        job_id:
+          type: string
+          format: uuid
+        source_type:
+          type: string
+          enum: [fuji_nx600, fuji_au10v, arkray_pu4010, idexx_vetlab]
+        device_hint:
+          type: string
+        status:
+          type: string
+        pet_id:
+          type: integer
+          format: int64
+        pet_name:
+          type: string
+        measured_at:
+          type: string
+          format: date-time
+        received_at:
+          type: string
+          format: date-time
+        specimen_id_raw:
+          type: string
+        item_count:
+          type: integer
+        unmapped_item_count:
+          type: integer
+        clock_skew:
+          type: boolean
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/LabDeviceJobItem'
+        review_reason:
+          type: string
+    LabDeviceWait:
+      type: object
+      required: [pet_id, pet_name, staff_id, expires_at]
+      properties:
+        pet_id:
+          type: integer
+          format: int64
+        pet_name:
+          type: string
+        staff_id:
+          type: integer
+          format: int64
+        expires_at:
+          type: string
+          format: date-time
+    LabDeviceStation:
+      type: object
+      required: [wait_ttl_seconds, slots_json]
+      properties:
+        wait_ttl_seconds:
+          type: integer
+        slots_json:
+          type: string
+    LabDeviceTodayVisit:
+      type: object
+      required: [record_id, pet_id, pet_name, owner_name, species, doctor_name, visit_type]
+      properties:
+        record_id:
+          type: integer
+          format: int64
+        pet_id:
+          type: integer
+          format: int64
+        pet_name:
+          type: string
+        owner_name:
+          type: string
+        species:
+          type: string
+        doctor_name:
+          type: string
+        visit_type:
+          type: string
+        pet_is_deceased:
+          type: boolean
+    LabDeviceBoard:
+      type: object
+      required: [wait, unlinked, saved, received, today_visits, station]
+      properties:
+        wait:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/LabDeviceWait'
+        unlinked:
+          type: array
+          items:
+            $ref: '#/components/schemas/LabDeviceJobCard'
+        saved:
+          type: array
+          items:
+            $ref: '#/components/schemas/LabDeviceJobCard'
+        received:
+          type: array
+          items:
+            $ref: '#/components/schemas/LabDeviceJobCard'
+        today_visits:
+          type: array
+          items:
+            $ref: '#/components/schemas/LabDeviceTodayVisit'
+        station:
+          $ref: '#/components/schemas/LabDeviceStation'
+    LabDeviceFramesRequest:
+      type: object
+      required: [payload_base64]
+      properties:
+        payload_base64:
+          type: string
+        device_hint:
+          type: string
+    LabDeviceFramesResponse:
+      type: object
+      required: [results]
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/LabDeviceFrameResult'
+    LabDeviceFrameResult:
+      type: object
+      required: [duplicate, job]
+      properties:
+        duplicate:
+          type: boolean
+        job:
+          $ref: '#/components/schemas/LabDeviceJobCard'
+    LabDevicePetRequest:
+      type: object
+      required: [pet_id]
+      properties:
+        pet_id:
+          type: integer
+          format: int64
+    LabDeviceStationUpdateRequest:
+      type: object
+      required: [slots_json]
+      properties:
+        slots_json:
+          type: string
     LabImportRevertRequest:
       type: object
       required: [reason]
@@ -11168,6 +11493,51 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
+  /reservations/batch:
+    post:
+      operationId: createReservationBatch
+      summary: 選択ペットの同一枠予約を原子的に作成
+      tags: [Reservations]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [start_time, end_time, reservation_type_id, visit_type, pets]
+              properties:
+                start_time: { type: string, format: date-time }
+                end_time: { type: string, format: date-time }
+                reservation_type_id: { type: integer, format: int64 }
+                visit_type: { type: string, enum: [first, revisit] }
+                doctor_id: { type: integer, format: int64 }
+                is_designated: { type: boolean }
+                status: { type: string, enum: [confirmed, pending, cancelled, checked_in, in_consultation, accounting, completed] }
+                notes: { type: string }
+                source: { type: string, enum: [manual, line] }
+                reservation_route: { type: string, enum: [line, phone, reception, exam_room, record_shortcut] }
+                pets:
+                  type: array
+                  minItems: 2
+                  items:
+                    type: object
+                    required: [owner_id, pet_id]
+                    properties:
+                      owner_id: { type: integer, format: int64 }
+                      pet_id: { type: integer, format: int64 }
+      responses:
+        '201':
+          description: 全ペット分の予約を作成
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ReservationAppointment' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/InternalError' }
   /reservations/available-times:
     get:
       operationId: getReservationAvailableTimes
@@ -12582,6 +12952,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
+
   /closing-settings:
     get:
       operationId: getClosingSettings
@@ -13437,6 +13808,10 @@ paths:
         - name: owner_id
           in: query
           description: 飼主IDで絞り込み
+          schema: {type: integer, format: int64}
+        - name: medical_record_id
+          in: query
+          description: カルテIDで絞り込み
           schema: {type: integer, format: int64}
         - name: status
           in: query
@@ -20445,6 +20820,12 @@ paths:
         - name: limit
           in: query
           schema: {type: integer, default: 20}
+        - name: pet_id
+          in: query
+          description: 指定ペットの健診履歴だけをページング対象にする
+          schema:
+            type: integer
+            format: int64
         - name: start_date
           in: query
           schema:
@@ -20483,6 +20864,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '500':
           $ref: '#/components/responses/InternalError'
   /checkups/field-results:
@@ -22825,6 +23208,72 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
+  /lab-imports/{job_id}/attach:
+    post:
+      operationId: attachLabDeviceJob
+      summary: 未紐付け受信をペットに付ける
+      description: ResourceLabImport edit。device source の未紐付け job を pet に紐付け、対応する draft 検査の永続化まで同一 transaction で原子的に実行する。途中で失敗した場合は write 全体を rollback する。
+      tags: [LabImports]
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LabDevicePetRequest'
+      responses:
+        '200':
+          description: 付けたカード
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LabDeviceJobCard'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /lab-imports/{job_id}/detach:
+    post:
+      operationId: detachLabDeviceJob
+      summary: 受信のペット紐付けを取り消す
+      description: ResourceLabImport edit。persisted job は import 由来 draft 検査の guarded retraction に成功した場合のみ、同一 transaction で検査を retract して未紐付けへ戻す。検査が安全に retract できない場合は 409 かつ write ゼロ。reverted job は detach しない。
+      tags: [LabImports]
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 未紐付けに戻したカード
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LabDeviceJobCard'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /lab-imports/{job_id}/revert:
     post:
       operationId: postLabImportRevert
@@ -22871,6 +23320,364 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /lab-device-item-masters:
+    get:
+      operationId: listLabDeviceItemMasters
+      summary: 検査機器項目マスタ一覧
+      description: ResourceLabImport view。日常の送信経路には出さない。CSVアップロードは無い。
+      tags: [LabImports]
+      parameters:
+        - name: source_type
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [fuji_nx600, fuji_au10v, arkray_pu4010, idexx_vetlab]
+      responses:
+        '200':
+          description: マスタ行
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LabDeviceItemMaster'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /lab-device-item-masters/ensure:
+    post:
+      operationId: ensureLabDeviceItemMasters
+      summary: 観測カタログ36行と既定機器4行を医院へ冪等投入
+      description: ResourceLabImport edit。既存行の exam_type_field_id は上書きしない。未知コードは追加しない。lab_devices の既定4行も無ければ作る。
+      tags: [LabImports]
+      responses:
+        '200':
+          description: 投入結果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LabDeviceItemMasterEnsureResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /lab-device-item-masters/{id}:
+    patch:
+      operationId: updateLabDeviceItemMaster
+      summary: 載せる先（検査項目）・単位・有効を更新
+      description: ResourceLabImport edit。source_type と device_item_code は変更しない。表示名は exam_type_fields.name を正とする。
+      tags: [LabImports]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateLabDeviceItemMasterRequest'
+      responses:
+        '200':
+          description: 更新後の行
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LabDeviceItemMaster'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /lab-devices:
+    get:
+      operationId: listLabDevices
+      summary: 検査機器一覧
+      description: ResourceLabImport view。機器名と載せる検査種別の医院マスタ（lab_devices）。
+      tags: [LabImports]
+      responses:
+        '200':
+          description: 機器行
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LabDevice'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createLabDevice
+      summary: 検査機器を登録
+      description: ResourceLabImport create。source_type は clinic 内で一意（対応プロトコルは4種）。
+      tags: [LabImports]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLabDeviceRequest'
+      responses:
+        '201':
+          description: 作成した機器行
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LabDevice'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /lab-devices/{id}:
+    patch:
+      operationId: updateLabDevice
+      summary: 機器名・検査種別・有効・並び順を更新
+      description: ResourceLabImport edit。source_type は変更しない。is_active / sort_order は必須（省略をゼロ値として書かない）。
+      tags: [LabImports]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateLabDeviceRequest'
+      responses:
+        '200':
+          description: 更新後の機器行
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LabDevice'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /lab-devices/{id}/configuration:
+    put:
+      operationId: saveLabDeviceConfiguration
+      summary: 検査機器と項目マッピングを一括更新
+      description: ResourceLabImport edit。機器本体と全項目マッピングを同一transactionで保存する。
+      tags: [LabImports]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveLabDeviceConfigurationRequest'
+      responses:
+        '200':
+          description: 更新後の機器と項目マッピング
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaveLabDeviceConfigurationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /lab-device/frames:
+    post:
+      operationId: receiveLabDeviceFrames
+      summary: 検査機器フレームを受信する
+      description: ResourceLabImport create。サーバがデコードしジョブ+項目を書く。バイトはログしない。上限 8KiB。
+      tags: [LabImports]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LabDeviceFramesRequest'
+      responses:
+        '200':
+          description: 受信結果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LabDeviceFramesResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /lab-device/wait:
+    put:
+      operationId: putLabDeviceWait
+      summary: 医院あたり有効待機を1件置く
+      description: ResourceLabImport create。別の子を選ぶと置き換える。
+      tags: [LabImports]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LabDevicePetRequest'
+      responses:
+        '200':
+          description: 有効待機
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LabDeviceWait'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deleteLabDeviceWait
+      summary: 待機を1操作で解除する
+      description: ResourceLabImport create。
+      tags: [LabImports]
+      responses:
+        '204':
+          description: 解除済み
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /lab-device/agent-consumer:
+    get:
+      operationId: getLabDeviceAgentConsumer
+      summary: 検査機器エージェントの consumer token
+      description: ResourceLabImport create. Returns the operator-supplied installation consumer token from LAB_DEVICE_AGENT_CONSUMER_TOKEN. Empty config is 503.
+      tags: [LabImports]
+      responses:
+        '200':
+          description: 設定済み consumer token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LabDeviceAgentConsumer'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          description: LAB_DEVICE_AGENT_CONSUMER_TOKEN is unset
+  /lab-device/board:
+    get:
+      operationId: getLabDeviceBoard
+      summary: 検査受信の1画面掲示板
+      description: ResourceLabImport create。有効待機・未紐付け・直近の保存カード。
+      tags: [LabImports]
+      responses:
+        '200':
+          description: 掲示板
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LabDeviceBoard'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /lab-device/unlinked:
+    get:
+      operationId: getLabDeviceUnlinked
+      summary: 未紐付け受信一覧（診察端末バナー）
+      description: ResourceLabImport view。page/q は無い。
+      tags: [LabImports]
+      responses:
+        '200':
+          description: 未紐付けカード
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LabDeviceJobCard'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /lab-device/station:
+    get:
+      operationId: getLabDeviceStation
+      summary: 検査口の論理スロット
+      description: ResourceLabImport view。TTL の数値 UI は無い。
+      tags: [LabImports]
+      responses:
+        '200':
+          description: 医院スロット
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LabDeviceStation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    put:
+      operationId: putLabDeviceStation
+      summary: 論理スロットを更新する
+      description: ResourceLabImport edit。wait_ttl_seconds は変えない。
+      tags: [LabImports]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LabDeviceStationUpdateRequest'
+      responses:
+        '200':
+          description: 更新後スロット
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LabDeviceStation'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalError'
   /lab-reports/jobs/{job_id}/summaries:

@@ -12,10 +12,22 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// HasPermission evaluates one resource/action pair against authenticated context.
+// HasPermission evaluates one resource/action pair against the selected clinic.
 // Context peeks never write a response (AUS-09); RequirePermission owns the single write.
 func (h *HTTPHandler) HasPermission(
 	c *gin.Context,
+	resource, action string,
+) bool {
+	clinicID, _ := httpapi.PeekClinicID(c)
+	return h.HasPermissionInClinic(c, clinicID, resource, action)
+}
+
+// HasPermissionInClinic evaluates one resource/action pair for a destination clinic.
+// system_admin remains an explicit bypass. Missing identity, a zero clinic, a nil
+// EffectivePermissions dependency, or a repository error fail closed.
+func (h *HTTPHandler) HasPermissionInClinic(
+	c *gin.Context,
+	clinicID uint64,
 	resource, action string,
 ) bool {
 	isSystemAdmin, ok := httpapi.PeekIsSystemAdmin(c)
@@ -27,11 +39,7 @@ func (h *HTTPHandler) HasPermission(
 	}
 
 	staffID, ok := httpapi.PeekStaffID(c)
-	if !ok {
-		return false
-	}
-	clinicID, ok := httpapi.PeekClinicID(c)
-	if !ok || h.deps.EffectivePermissions == nil {
+	if !ok || clinicID == 0 || h.deps.EffectivePermissions == nil {
 		return false
 	}
 	rules, err := h.deps.EffectivePermissions.GetEffectivePermissions(
@@ -42,6 +50,13 @@ func (h *HTTPHandler) HasPermission(
 	if err != nil {
 		return false
 	}
+	return permissionRulesAllow(rules, resource, action)
+}
+
+func permissionRulesAllow(
+	rules []model.PermissionGroupRule,
+	resource, action string,
+) bool {
 	for i := range rules {
 		rule := &rules[i]
 		if rule.Resource != resource {
@@ -61,15 +76,28 @@ func (h *HTTPHandler) HasPermission(
 	return false
 }
 
+func (h *HTTPHandler) attachClinicPermissionChecker(c *gin.Context) {
+	httpapi.SetClinicPermissionChecker(c, h.HasPermissionInClinic)
+}
+
 // RequirePermission rejects requests lacking one resource/action permission.
+// Writes still require the grant in the selected clinic. Safe methods (GET/HEAD)
+// may proceed when another authorized clinic holds the grant so list/detail
+// expansion can Filter/Authorize destination clinics instead of reusing the
+// selected clinic's deny.
 func (h *HTTPHandler) RequirePermission(resource, action string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if !h.HasPermission(c, resource, action) {
-			httpapi.RespondError(c, apperrors.WrapForbidden("forbidden"))
-			c.Abort()
+		h.attachClinicPermissionChecker(c)
+		if h.HasPermission(c, resource, action) {
+			c.Next()
 			return
 		}
-		c.Next()
+		if isSafeHTTPMethod(c) && h.hasPermissionInAuthorizedClinics(c, resource, action) {
+			c.Next()
+			return
+		}
+		httpapi.RespondError(c, apperrors.WrapForbidden("forbidden"))
+		c.Abort()
 	}
 }
 
@@ -78,15 +106,53 @@ func (h *HTTPHandler) RequirePermissionAny(
 	permissions ...PermissionRequirement,
 ) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		h.attachClinicPermissionChecker(c)
 		for _, permission := range permissions {
 			if h.HasPermission(c, permission.Resource, permission.Action) {
 				c.Next()
 				return
 			}
 		}
+		if isSafeHTTPMethod(c) {
+			for _, permission := range permissions {
+				if h.hasPermissionInAuthorizedClinics(c, permission.Resource, permission.Action) {
+					c.Next()
+					return
+				}
+			}
+		}
 		httpapi.RespondError(c, apperrors.WrapForbidden("forbidden"))
 		c.Abort()
 	}
+}
+
+func isSafeHTTPMethod(c *gin.Context) bool {
+	if c == nil || c.Request == nil {
+		return false
+	}
+	switch c.Request.Method {
+	case http.MethodGet, http.MethodHead:
+		return true
+	default:
+		return false
+	}
+}
+
+func (h *HTTPHandler) hasPermissionInAuthorizedClinics(c *gin.Context, resource, action string) bool {
+	val, exists := c.Get("clinic_ids")
+	if !exists {
+		return false
+	}
+	ids, ok := val.([]uint64)
+	if !ok {
+		return false
+	}
+	for _, id := range ids {
+		if id != 0 && h.HasPermissionInClinic(c, id, resource, action) {
+			return true
+		}
+	}
+	return false
 }
 
 // RequireDiscountEditFloat enforces discount:edit for changed float values.
@@ -183,13 +249,7 @@ func permissionGroupRuleInputs(
 	}
 	inputs := make([]SetPermissionGroupRulesInput, 0, len(rules))
 	for _, rule := range rules {
-		inputs = append(inputs, SetPermissionGroupRulesInput{
-			Resource:  rule.Resource,
-			CanView:   rule.CanView,
-			CanCreate: rule.CanCreate,
-			CanEdit:   rule.CanEdit,
-			CanDelete: rule.CanDelete,
-		})
+		inputs = append(inputs, SetPermissionGroupRulesInput(rule))
 	}
 	return inputs
 }

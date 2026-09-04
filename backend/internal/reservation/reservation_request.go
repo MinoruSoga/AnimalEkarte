@@ -1,16 +1,15 @@
 package reservation
 
-// reservation_request.go — BE9-2C R③: internal/handler/appointment_request.go から
-// 予約CRUD用 query parser 2組を分離移動（appointment系=R④は残置）。
+// reservation_request.go — 予約 CRUD 用 query parser。
 
 import (
 	"fmt"
 	"net/url"
-	"slices"
 	"strconv"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -171,7 +170,7 @@ func (r *createReservationRequest) toServiceInput(clinicID, staffID uint64) (*Cr
 		input.ReservationRoute = &r.ReservationRoute
 	}
 	if r.VisitType != "" {
-		vt, err := validateEnum(r.VisitType,
+		vt, err := httpapi.ValidateEnum(r.VisitType,
 			model.VisitTypeFirst,
 			model.VisitTypeRevisit,
 		)
@@ -181,7 +180,7 @@ func (r *createReservationRequest) toServiceInput(clinicID, staffID uint64) (*Cr
 		input.VisitType = vt
 	}
 	if r.Status != "" {
-		status, err := validateEnum(r.Status,
+		status, err := httpapi.ValidateEnum(r.Status,
 			model.ReservationStatusConfirmed,
 			model.ReservationStatusPending,
 			model.ReservationStatusCancelled,
@@ -196,6 +195,37 @@ func (r *createReservationRequest) toServiceInput(clinicID, staffID uint64) (*Cr
 		input.Status = status
 	}
 	return input, nil
+}
+
+type createReservationBatchPetRequest struct {
+	OwnerID uint64 `json:"owner_id" binding:"required"`
+	PetID   uint64 `json:"pet_id" binding:"required"`
+}
+
+type createReservationBatchRequest struct {
+	StartTime         time.Time                          `json:"start_time" binding:"required"`
+	EndTime           time.Time                          `json:"end_time" binding:"required"`
+	ReservationTypeID uint64                             `json:"reservation_type_id" binding:"required"`
+	VisitType         string                             `json:"visit_type" binding:"required"`
+	DoctorID          *uint64                            `json:"doctor_id"`
+	IsDesignated      bool                               `json:"is_designated"`
+	Status            string                             `json:"status" binding:"omitempty,oneof=confirmed pending cancelled checked_in in_consultation accounting completed"`
+	Notes             string                             `json:"notes"`
+	Source            string                             `json:"source" binding:"omitempty,oneof=manual line"`
+	ReservationRoute  string                             `json:"reservation_route" binding:"omitempty,oneof=line phone reception exam_room record_shortcut"`
+	Pets              []createReservationBatchPetRequest `json:"pets" binding:"required,min=2"`
+}
+
+func (r *createReservationBatchRequest) toServiceInput(clinicID, staffID uint64) (*CreateManualReservationInput, []ReservationBatchPet, error) {
+	input, err := (&createReservationRequest{StartTime: r.StartTime, EndTime: r.EndTime, ReservationTypeID: r.ReservationTypeID, VisitType: r.VisitType, DoctorID: r.DoctorID, IsDesignated: r.IsDesignated, Status: r.Status, Notes: r.Notes, Source: r.Source, ReservationRoute: r.ReservationRoute}).toServiceInput(clinicID, staffID)
+	if err != nil {
+		return nil, nil, err
+	}
+	pets := make([]ReservationBatchPet, len(r.Pets))
+	for i, pet := range r.Pets {
+		pets[i] = ReservationBatchPet(pet)
+	}
+	return input, pets, nil
 }
 
 // patchReservationReservationRouteRequest は予約経路更新リクエスト（FEAT-381-2）。
@@ -233,7 +263,7 @@ func (r *updateReservationRequest) toServiceInput() (UpdateReservationInput, err
 		Notes:             r.Notes,
 	}
 	if r.VisitType != nil {
-		vt, err := validateEnum(*r.VisitType,
+		vt, err := httpapi.ValidateEnum(*r.VisitType,
 			model.VisitTypeFirst,
 			model.VisitTypeRevisit,
 		)
@@ -243,7 +273,7 @@ func (r *updateReservationRequest) toServiceInput() (UpdateReservationInput, err
 		input.VisitType = &vt
 	}
 	if r.Status != nil {
-		status, err := validateEnum(*r.Status,
+		status, err := httpapi.ValidateEnum(*r.Status,
 			model.ReservationStatusConfirmed,
 			model.ReservationStatusPending,
 			model.ReservationStatusCancelled,
@@ -260,17 +290,9 @@ func (r *updateReservationRequest) toServiceInput() (UpdateReservationInput, err
 	return input, nil
 }
 
-// parseRequiredUintQueryFilter / parseOptionalUintQueryValue —
-// internal/handler/list_query_request.go の同名ヘルパーの複製（liff系=R⑤残留consumerあり・R⑤で統合）。
+// parseRequiredUintQueryFilter / parseOptionalUintQueryValue parse reservation query IDs.
 func parseOptionalUintQueryFilter(value, field string) (*uint64, error) {
-	if value == "" {
-		return nil, nil
-	}
-	id, err := strconv.ParseUint(value, 10, 64)
-	if err != nil {
-		return nil, apperrors.WrapInvalidInput("invalid " + field)
-	}
-	return &id, nil
+	return httpapi.ParseOptionalUint64Field(value, field)
 }
 
 func parseRequiredUintQueryFilter(value, field string) (uint64, error) {
@@ -290,14 +312,4 @@ func parseOptionalUintQueryValue(value string) uint64 {
 		return 0
 	}
 	return id
-}
-
-// validateEnum は internal/handler/validation.go の同名 generic ヘルパーの複製
-// （残留consumer多数のため原本残置・当該domain移行時に統合）。
-func validateEnum[T ~string](v string, allowed ...T) (T, error) {
-	if slices.Contains(allowed, T(v)) {
-		return T(v), nil
-	}
-	var zero T
-	return zero, fmt.Errorf("invalid value %q", v)
 }

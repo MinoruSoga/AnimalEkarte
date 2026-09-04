@@ -3,7 +3,7 @@ import { axios } from "@/lib/axios";
 import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { PaymentMethodMaster } from "@/types/generated/models";
-import type { CashRegisterPeriod } from "../constants";
+import type { CashRegisterPeriod } from "../lib/constants";
 
 // ── Backend (raw) types ──────────────────────────────────────────────────────
 
@@ -132,9 +132,10 @@ export const useGetCashRegisterPreview = (
   date: string,
   period: CashRegisterPeriod,
   enabled: boolean,
+  refreshNonce = 0,
 ) =>
   useQuery({
-    queryKey: queryKeys.cashRegister.preview.byDatePeriod(date, period),
+    queryKey: queryKeys.cashRegister.preview.byDatePeriodRefresh(date, period, refreshNonce),
     queryFn: () => getCashRegisterPreview(date, period),
     enabled: enabled && !!date,
     staleTime: QUERY_STALE_TIMES.REALTIME,

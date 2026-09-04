@@ -1,5 +1,5 @@
 import { useLayoutEffect } from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, useLocation } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -41,13 +41,7 @@ vi.mock("@/hooks/use-pet", () => ({
 }));
 
 vi.mock("@/components/shared/ConfirmDialog/ConfirmDialog", () => ({
-  ConfirmDialog: ({
-    open,
-    onConfirm,
-  }: {
-    open: boolean;
-    onConfirm: () => void;
-  }) => {
+  ConfirmDialog: ({ open, onConfirm }: { open: boolean; onConfirm: () => void }) => {
     listMocks.confirmDelete = onConfirm;
     return open ? <button onClick={onConfirm}>確認削除</button> : null;
   },
@@ -73,8 +67,8 @@ const vaccination: VaccinationRecord = {
 };
 
 function LocationProbe() {
-  const { pathname } = useLocation();
-  return <output data-testid="location">{pathname}</output>;
+  const { pathname, search } = useLocation();
+  return <output data-testid="location">{`${pathname}${search}`}</output>;
 }
 
 function DeleteRevocationHarness({ confirmAfterRender }: { confirmAfterRender: boolean }) {
@@ -116,9 +110,7 @@ beforeEach(() => {
 describe("VaccinationList mutation permission boundary", () => {
   it("削除権限剥奪をcommitした直後のlayout phaseで確認してもdelete mutationを発行しない", async () => {
     const user = userEvent.setup();
-    const view = renderPage(
-      <DeleteRevocationHarness confirmAfterRender={false} />,
-    );
+    const view = renderPage(<DeleteRevocationHarness confirmAfterRender={false} />);
 
     await user.click(screen.getByRole("button", { name: /vac-1/ }));
     await user.click(screen.getByRole("menuitem", { name: "削除" }));
@@ -166,7 +158,13 @@ describe("VaccinationList mutation permission boundary", () => {
     expect(screen.getByTestId("location")).toHaveTextContent(/^\/vaccinations$/);
   });
 
-  it("編集対象が生存petなら従来どおりdetailへ遷移する", async () => {
+  it("カルテ紐付け済みの行はカルテ予防接種タブへ遷移する", async () => {
+    mockUseFilterVaccinations.mockReturnValue({
+      data: [{ ...vaccination, medicalRecordId: "mr-1" }],
+      allVaccinations: [{ ...vaccination, medicalRecordId: "mr-1" }],
+      isLoading: false,
+      error: null,
+    });
     const user = userEvent.setup();
     renderPage();
 
@@ -174,8 +172,18 @@ describe("VaccinationList mutation permission boundary", () => {
     await user.click(screen.getByRole("menuitem", { name: "編集" }));
 
     expect(screen.getByTestId("location")).toHaveTextContent(
-      /^\/vaccinations\/vac-1$/,
+      "/medical-records/mr-1?tab=%E4%BA%88%E9%98%B2%E6%8E%A5%E7%A8%AE&vaccinationId=vac-1",
     );
+  });
+
+  it("編集対象が生存petなら従来どおりdetailへ遷移する", async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(screen.getByRole("button", { name: /vac-1/ }));
+    await user.click(screen.getByRole("menuitem", { name: "編集" }));
+
+    expect(screen.getByTestId("location")).toHaveTextContent(/^\/vaccinations\/vac-1$/);
   });
 
   it("削除対象petのlookup失敗時はdelete mutationを発行しない", async () => {
@@ -274,5 +282,20 @@ describe("VaccinationList 次回予定の期限超過表示", () => {
     expect(cell).not.toHaveClass(C.danger);
     expect(cell).toHaveTextContent(/^\s*$/);
     expect(cell).not.toHaveTextContent("期限超過");
+  });
+});
+
+describe("VaccinationList URL page 同期（FE-RC-028: useUrlPageSync）", () => {
+  it("totalPagesを超えるURL pageは読み込み後にクランプされる", async () => {
+    render(
+      <MemoryRouter initialEntries={["/vaccinations?page=99"]}>
+        <VaccinationList />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("location")).toHaveTextContent(/^\/vaccinations$/);
+    });
   });
 });

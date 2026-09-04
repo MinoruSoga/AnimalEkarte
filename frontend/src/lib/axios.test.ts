@@ -1,8 +1,4 @@
-import {
-  AxiosError,
-  AxiosHeaders,
-  type AxiosAdapter,
-} from "axios";
+import { AxiosError, AxiosHeaders, type AxiosAdapter } from "axios";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { axios } from "./axios";
@@ -24,19 +20,13 @@ function setWindowLocation(pathname: string, search = ""): void {
 }
 
 const unauthorizedAdapter: AxiosAdapter = async (config) => {
-  throw new AxiosError(
-    "request unauthorized",
-    AxiosError.ERR_BAD_REQUEST,
+  throw new AxiosError("request unauthorized", AxiosError.ERR_BAD_REQUEST, config, undefined, {
     config,
-    undefined,
-    {
-      config,
-      data: { message: "unauthorized" },
-      headers: new AxiosHeaders(),
-      status: 401,
-      statusText: "Unauthorized",
-    },
-  );
+    data: { message: "unauthorized" },
+    headers: new AxiosHeaders(),
+    status: 401,
+    statusText: "Unauthorized",
+  });
 };
 
 describe("axios 401 route policy", () => {
@@ -95,26 +85,20 @@ describe("axios 401 route policy", () => {
 
   it("redirects a protected route 401 to login with a safe from value", async () => {
     setWindowLocation("/owners/300588", "?tab=summary");
-    vi.spyOn(axios, "post").mockRejectedValue(
-      new AxiosError("refresh unauthorized"),
-    );
+    vi.spyOn(axios, "post").mockRejectedValue(new AxiosError("refresh unauthorized"));
 
     await expect(
       axios.request({ adapter: unauthorizedAdapter, method: "get", url: "/v1/owners/300588" }),
     ).rejects.toThrow("refresh unauthorized");
 
-    expect(window.location.href).toBe(
-      "/login?from=%2Fowners%2F300588%3Ftab%3Dsummary",
-    );
+    expect(window.location.href).toBe("/login?from=%2Fowners%2F300588%3Ftab%3Dsummary");
   });
 
   it.each(["//evil.example", "/\\evil.example", "/%5Cevil.example"])(
     "prevents an unsafe redirect candidate %s in the from value",
     async (pathname) => {
       setWindowLocation(pathname);
-      vi.spyOn(axios, "post").mockRejectedValue(
-        new AxiosError("refresh unauthorized"),
-      );
+      vi.spyOn(axios, "post").mockRejectedValue(new AxiosError("refresh unauthorized"));
 
       await expect(
         axios.request({ adapter: unauthorizedAdapter, method: "get", url: "/v1/private" }),

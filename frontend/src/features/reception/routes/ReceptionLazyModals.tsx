@@ -5,5 +5,7 @@ export const ReceptionDetailModal = lazy(() =>
 );
 
 export const ReservationFormModal = lazy(() =>
-  import("@/components/shared/ReservationFormModal/ReservationFormModal").then((m) => ({ default: m.ReservationFormModal })),
+  import("@/components/shared/ReservationFormModal/ReservationFormModal").then((m) => ({
+    default: m.ReservationFormModal,
+  })),
 );

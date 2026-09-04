@@ -14,7 +14,7 @@ func buildOwnerUpdate(input *UpdateOwnerInput) map[string]any {
 		fields[colOwnerName] = *input.OwnerName
 	}
 	if input.OwnerNameKana != nil {
-		fields[colOwnerNameKana] = *input.OwnerNameKana
+		fields[colOwnerNameKana] = normalizeNameKana(*input.OwnerNameKana)
 	}
 	if input.BirthDate != nil {
 		// *input.BirthDate は nil なら NULL クリア、非 nil なら日付更新。

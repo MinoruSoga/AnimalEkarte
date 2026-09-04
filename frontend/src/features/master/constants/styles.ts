@@ -2,7 +2,7 @@ import { CircleDot } from "lucide-react";
 import { C } from "@/lib/design-tokens";
 import type { FilterProperty } from "@/components/shared/PropertyFilter/types";
 
-export const MASTER_INPUT_CLASS = `w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-xxs ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`;
+export const MASTER_INPUT_CLASS = `w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-xxs ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder} focus-visible:ring-2 ${C.focusRingAccent40}`;
 
 /** 全マスタ共通: 有効/無効 ステータスフィルタプロパティ */
 export const MASTER_STATUS_FILTER: FilterProperty = {
@@ -23,7 +23,7 @@ export const MASTER_STATUS_FILTER: FilterProperty = {
  * DESIGN.mdのspacingスケールは32pxまでのため、列幅(コンテンツ駆動の100-200px域)はスケール対象外の構造値として扱う。
  */
 export const MASTER_TABLE_COL = {
-  w80:  "w-[80px]",
+  w80: "w-[80px]",
   w100: "w-[100px]",
   w120: "w-[120px]",
   w130: "w-[130px]",

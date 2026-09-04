@@ -2,13 +2,12 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import type { QueryClient } from "@tanstack/react-query";
 
+import { toast } from "sonner";
+
 import { createBillingItem } from "../api/create-billing-item";
 import { deleteBillingItem } from "../api/delete-billing-item";
 import { updateBillingItem } from "../api/update-billing-item";
-import {
-  buildPostCloseReasonField,
-  useAccountingItemActions,
-} from "./use-accounting-item-actions";
+import { buildPostCloseReasonField, useAccountingItemActions } from "./use-accounting-item-actions";
 
 vi.mock("../api/create-billing-item", () => ({
   createBillingItem: vi.fn(),
@@ -34,10 +33,12 @@ function runNow(cb: () => void) {
   void cb();
 }
 
-function buildParams(overrides: {
-  postCloseReason?: string;
-  accountingId?: string;
-} = {}) {
+function buildParams(
+  overrides: {
+    postCloseReason?: string;
+    accountingId?: string;
+  } = {},
+) {
   const setLocalItems = vi.fn();
   const setNewItemOpen = vi.fn();
   const queryClient = {
@@ -55,6 +56,9 @@ function buildParams(overrides: {
     startDeleteItemTransition: runNow,
     startItemUpdateTransition: runNow,
     postCloseReason: overrides.postCloseReason,
+    // FE-RC-001: このテスト群は「権限あり」時の通常フローを検証するため既定で全許可する。
+    // fail-closed の検証は別 describe（権限なしブロック）で行う。
+    permissions: { canCreate: true, canEdit: true, canDelete: true },
   };
 }
 
@@ -177,5 +181,62 @@ describe("useAccountingItemActions post_close_reason (BUG-021)", () => {
         post_close_reason: "割引訂正",
       }),
     );
+  });
+});
+
+// FE-RC-001: fieldset disabled 等の render 側ガードをバイパスされても各 handler が fail-closed で API を叩かないことを保証する。
+describe("useAccountingItemActions permissions (FE-RC-001 fail-closed)", () => {
+  beforeEach(() => {
+    createBillingItemMock.mockReset();
+    deleteBillingItemMock.mockReset();
+    updateBillingItemMock.mockReset();
+    vi.mocked(toast.error).mockClear();
+  });
+
+  it("permissions 未指定（既定 deny）では handleAddItem が createBillingItem を呼ばない", () => {
+    const params = buildParams();
+    const paramsWithoutPermissions = { ...params, permissions: undefined };
+    const { result } = renderHook(() => useAccountingItemActions(paramsWithoutPermissions));
+
+    act(() => {
+      result.current.handleAddItem({ name: "追加明細", price: "1000", category: "goods" });
+    });
+
+    expect(createBillingItemMock).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith("この操作を行う権限がありません");
+  });
+
+  it("canDelete=false では handleDeleteItem が deleteBillingItem を呼ばない", () => {
+    const params = buildParams();
+    const { result } = renderHook(() =>
+      useAccountingItemActions({
+        ...params,
+        permissions: { canCreate: true, canEdit: true, canDelete: false },
+      }),
+    );
+
+    act(() => {
+      result.current.handleDeleteItem("99");
+    });
+
+    expect(deleteBillingItemMock).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith("この操作を行う権限がありません");
+  });
+
+  it("canEdit=false では handleUpdateItemTax / handleUpdateItemDiscount が API を呼ばない", () => {
+    const params = buildParams();
+    const { result } = renderHook(() =>
+      useAccountingItemActions({
+        ...params,
+        permissions: { canCreate: true, canEdit: false, canDelete: true },
+      }),
+    );
+
+    act(() => {
+      result.current.handleUpdateItemTax("7", "included", 0.08);
+      result.current.handleUpdateItemDiscount("8", 100);
+    });
+
+    expect(updateBillingItemMock).not.toHaveBeenCalled();
   });
 });

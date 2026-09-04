@@ -1,13 +1,19 @@
 import { useCallback, useMemo, type ChangeEvent, type Dispatch, type SetStateAction } from "react";
 
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { PropertyRow, StatusToggleButton } from "@/components/shared/SidePeek";
 import { C, STYLE } from "@/lib/design-tokens";
 
 import type { Staff } from "../api/staffs";
 import type { Occupation } from "../api/occupations";
 import { MASTER_INPUT_CLASS } from "../constants/styles";
-import type { StaffFormData } from "./staff-side-panel-model";
+import type { StaffFormData } from "../lib/staff-side-panel-model";
 
 interface StaffBasicInfoSectionProps {
   item: Staff | null;
@@ -29,7 +35,9 @@ export function StaffBasicInfoSection({
       allOccupations
         .filter((occupation) => occupation.isActive)
         .map((occupation) => (
-          <SelectItem key={occupation.id} value={occupation.id}>{occupation.name}</SelectItem>
+          <SelectItem key={occupation.id} value={occupation.id}>
+            {occupation.name}
+          </SelectItem>
         )),
     [allOccupations],
   );
@@ -38,34 +46,40 @@ export function StaffBasicInfoSection({
     setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }));
   }, [setFormDataDirty]);
 
-  const handleOccupationChange = useCallback((value: string) => {
-    setFormDataDirty((prev) => ({ ...prev, jobTitleId: value }));
-  }, [setFormDataDirty]);
+  const handleOccupationChange = useCallback(
+    (value: string) => {
+      setFormDataDirty((prev) => ({ ...prev, jobTitleId: value }));
+    },
+    [setFormDataDirty],
+  );
 
-  const handleLicenseNumberChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    setFormDataDirty((prev) => ({ ...prev, licenseNumber: event.target.value }));
-  }, [setFormDataDirty]);
+  const handleLicenseNumberChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      setFormDataDirty((prev) => ({ ...prev, licenseNumber: event.target.value }));
+    },
+    [setFormDataDirty],
+  );
 
-  const handleEmailChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    setFormDataDirty((prev) => ({ ...prev, email: event.target.value }));
-  }, [setFormDataDirty]);
+  const handleEmailChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      setFormDataDirty((prev) => ({ ...prev, email: event.target.value }));
+    },
+    [setFormDataDirty],
+  );
 
-  const handlePasswordChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    setFormDataDirty((prev) => ({ ...prev, password: event.target.value }));
-  }, [setFormDataDirty]);
+  const handlePasswordChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      setFormDataDirty((prev) => ({ ...prev, password: event.target.value }));
+    },
+    [setFormDataDirty],
+  );
 
   return (
     <>
-      <StatusToggleButton
-        isActive={formData.isActive}
-        onToggle={handleToggleActive}
-      />
+      <StatusToggleButton isActive={formData.isActive} onToggle={handleToggleActive} />
 
       <PropertyRow label="職種">
-        <Select
-          value={formData.jobTitleId ?? undefined}
-          onValueChange={handleOccupationChange}
-        >
+        <Select value={formData.jobTitleId ?? undefined} onValueChange={handleOccupationChange}>
           <SelectTrigger className={STYLE.selectCompact}>
             <SelectValue placeholder="選択" />
           </SelectTrigger>

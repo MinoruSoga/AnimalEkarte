@@ -3,7 +3,7 @@ import { axios } from "@/lib/axios";
 import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { transformCheckupGlobal } from "./transforms";
-import type { BackendCheckupGlobal, CheckupFilters } from "./types";
+import type { BackendCheckupGlobal, CheckupFilters } from "../types";
 import type { CheckupRecord } from "./transforms";
 
 interface CheckupsListResponse {
@@ -25,11 +25,12 @@ export interface CheckupsResult {
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
 
-const getCheckups = async (filters?: CheckupFilters): Promise<CheckupsResult> => {
+export const getCheckups = async (filters?: CheckupFilters): Promise<CheckupsResult> => {
   const params: Record<string, string | number> = {
     page: filters?.page ?? DEFAULT_PAGE,
     limit: filters?.limit ?? DEFAULT_LIMIT,
   };
+  if (filters?.petId) params.pet_id = filters.petId;
   if (filters?.startDate) params.start_date = filters.startDate;
   if (filters?.endDate) params.end_date = filters.endDate;
   if (filters?.nextStartDate) params.next_start_date = filters.nextStartDate;

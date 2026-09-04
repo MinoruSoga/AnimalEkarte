@@ -35,11 +35,7 @@ export function ExaminationPatientChangeDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          className="h-11 min-w-11 text-sm"
-        >
+        <Button type="button" variant="outline" className="h-11 min-w-11 text-sm">
           患者を変更
         </Button>
       </DialogTrigger>

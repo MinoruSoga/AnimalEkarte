@@ -35,6 +35,30 @@ const (
 	// CodeLstepAutoManagedPrefixConflict is returned when an auto-managed L-step
 	// prefix collides (constraint lstep_auto_managed_prefixes_prefix_key). BUG-026.
 	CodeLstepAutoManagedPrefixConflict = "lstep_auto_managed_prefix_conflict"
+	// CodeCageNameConflict is returned when a clinic-scoped cage name collides
+	// (constraint idx_cages_clinic_name). BUG-022.
+	CodeCageNameConflict = "cage_name_conflict"
+	// CodeOccupationNameConflict is returned when a clinic-scoped occupation name
+	// collides (constraint idx_occupations_clinic_name). BUG-022.
+	CodeOccupationNameConflict = "occupation_name_conflict"
+	// CodeConsultationNameConflict is returned when a clinic-scoped consultation
+	// name collides (constraint idx_consultations_clinic_name). BUG-017.
+	CodeConsultationNameConflict = "consultation_name_conflict"
+	// CodeExamTypeNameConflict is returned when a clinic-scoped exam type name
+	// collides (constraint idx_exam_types_clinic_name). BUG-017.
+	CodeExamTypeNameConflict = "exam_type_name_conflict"
+	// CodeProcedureNameConflict is returned when a clinic-scoped procedure name
+	// collides (constraint idx_procedures_clinic_name). BUG-017.
+	CodeProcedureNameConflict = "procedure_name_conflict"
+	// CodeVaccineNameConflict is returned when a clinic-scoped vaccine name
+	// collides (constraint idx_vaccines_clinic_name). BUG-017.
+	CodeVaccineNameConflict = "vaccine_name_conflict"
+	// CodeCheckupTypeNameConflict is returned when a clinic-scoped checkup type name
+	// collides (constraint idx_checkup_types_clinic_name). BUG-017.
+	CodeCheckupTypeNameConflict = "checkup_type_name_conflict"
+	// CodeMedicineNameConflict is returned when a clinic-scoped medicine name
+	// collides (constraint idx_medicines_clinic_name). BUG-011.
+	CodeMedicineNameConflict = "medicine_name_conflict"
 )
 
 // Measured PostgreSQL unique constraint names used for fail-closed mapping.
@@ -50,6 +74,22 @@ const (
 	ConstraintShiftTemplateName = "uk_shift_templates_clinic_name"
 	// ConstraintLstepAutoManagedPrefix is UNIQUE (prefix) on lstep_auto_managed_prefixes.
 	ConstraintLstepAutoManagedPrefix = "lstep_auto_managed_prefixes_prefix_key"
+	// ConstraintCageName is UNIQUE (clinic_id, name) WHERE deleted_at IS NULL.
+	ConstraintCageName = "idx_cages_clinic_name"
+	// ConstraintOccupationName is UNIQUE (clinic_id, name) WHERE deleted_at IS NULL.
+	ConstraintOccupationName = "idx_occupations_clinic_name"
+	// ConstraintConsultationName is UNIQUE (clinic_id, name) WHERE deleted_at IS NULL.
+	ConstraintConsultationName = "idx_consultations_clinic_name"
+	// ConstraintExamTypeName is UNIQUE (clinic_id, name) WHERE deleted_at IS NULL.
+	ConstraintExamTypeName = "idx_exam_types_clinic_name"
+	// ConstraintProcedureName is UNIQUE (clinic_id, name) WHERE deleted_at IS NULL.
+	ConstraintProcedureName = "idx_procedures_clinic_name"
+	// ConstraintVaccineName is UNIQUE (clinic_id, name) WHERE deleted_at IS NULL.
+	ConstraintVaccineName = "idx_vaccines_clinic_name"
+	// ConstraintCheckupTypeName is UNIQUE (clinic_id, name) WHERE deleted_at IS NULL.
+	ConstraintCheckupTypeName = "idx_checkup_types_clinic_name"
+	// ConstraintMedicineName is UNIQUE (clinic_id, name) WHERE deleted_at IS NULL.
+	ConstraintMedicineName = "idx_medicines_clinic_name"
 )
 
 // AppError はアプリケーション固有のエラー
@@ -213,7 +253,15 @@ func RespondWithConflictCode(err error) bool {
 	case CodePermissionGroupNameConflict,
 		CodeAnimalSpeciesNameConflict,
 		CodeShiftTemplateNameConflict,
-		CodeLstepAutoManagedPrefixConflict:
+		CodeLstepAutoManagedPrefixConflict,
+		CodeCageNameConflict,
+		CodeOccupationNameConflict,
+		CodeConsultationNameConflict,
+		CodeExamTypeNameConflict,
+		CodeProcedureNameConflict,
+		CodeVaccineNameConflict,
+		CodeCheckupTypeNameConflict,
+		CodeMedicineNameConflict:
 		return true
 	default:
 		return len(appErr.Params) > 0
@@ -293,10 +341,7 @@ func FromGORM(err error, resource, id string) error {
 	}
 	// BUG-138: pgx ドライバのエンコードエラー（pgconn.PgError ではない）をキャッチ。
 	// int32 範囲超過などで "unable to encode" が発生した場合。
-	errMsg := err.Error()
-	if strings.Contains(errMsg, "unable to encode") ||
-		strings.Contains(errMsg, "greater than maximum value") ||
-		strings.Contains(errMsg, "less than minimum value") {
+	if isPgxEncodeRangeMessage(err.Error()) {
 		return WrapInvalidInput("数値が範囲外です")
 	}
 	// BUG-138: PostgreSQL エラーコードに基づくハンドリング

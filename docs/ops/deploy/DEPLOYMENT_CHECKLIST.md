@@ -5,7 +5,7 @@
 > **タイミング**: デプロイ実行前。
 
 > **Animal Ekarte**: ステージングおよび本番環境への安全な移行手順
-> **最新更新**: 2026-07-23 | **ステータス**: STG 稼働中 / Production 未構築
+> **最新更新**: 2026-08-31 | **checked-in config**: STG target/workflowあり、Production workflow未実装。live provider状態はUNKNOWNで実行時receiptが必要
 
 ---
 
@@ -20,7 +20,7 @@
 - [ ] **自動テストの PASS**
   - [ ] `make test`: バックエンド単体・結合テスト（PASS 100%）。
   - [ ] `make test-front`: フロントエンド Vitest（PASS 100%）。
-  - [ ] `docker compose exec frontend pnpm test:e2e`: Playwright による、予約〜診察〜会計の完走。
+  - [ ] `make e2e`（必要なら `make e2e ARGS='e2e/<spec>.spec.ts'`）: support済みPlaywright runnerで予約〜診察〜会計を完走。
 
 ---
 
@@ -30,20 +30,19 @@
 [`../infra/architecture.md`](../infra/architecture.md) を正本とし、バックエンドは Cloudflare Workers + Containers、
 DB は PlanetScale Postgres を使用します。AWS ECS/RDS は廃止済みで、切り戻し先はありません。
 
-- [ ] **環境変数（Secret）の完全同期**
-  - [ ] `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASSWORD` / `DB_NAME` / `DB_SSL_MODE`: 対象環境の PlanetScale Postgres を指しているか（`wrangler secret put` で投入）。
-  - [ ] `JWT_SECRET`: 本番用（32文字以上のランダム文字列）の設定。
-  - [ ] `INTEGRATION_ENCRYPTION_KEY`: 病院別 API キー保護用の AES-256 キー。
-  - [ ] `S3_SHARED_BUCKET`: 共有ファイル（LINE連携用、実体は Cloudflare R2）のバケット準備。
+- [ ] **Secret names と vars を分離して検証**
+  - [ ] 対象の `backend/wrangler.jsonc` または `backend/wrangler.production.jsonc` の `secrets.required` を names-only SSOT とし、値を表示せず全nameを確認する。
+  - [ ] `vars` は別に検証する。`DB_PORT` / `DB_NAME` / `DB_SSL_MODE` / `S3_SHARED_BUCKET` 等の非secret varsを `wrangler secret put` へ送らない。
 - [ ] **DB マイグレーションの整合性**
-  - [ ] 全 115 テーブルのスキーマが、ローカルのマイグレーション（`001_init.sql`。旧増分`002`〜`009`および2026-07-27夕統合の旧`002`〜`004`の原文・元コミット・SHA-256は末尾のアーカイブ節へ統合済み、詳細は`docs/architecture/erd.md` §4.3）と完全一致しているか。
+  - [ ] このHEADの現行 `backend/migrations/*.sql` からfresh DB schemaを構築でき、migration-key coverageが `missing=0` になることを承認済み検証で確認する。固定table数を合格条件にしない。
   - [ ] 初期マスタデータ（`backend/migrations/seeds/002_master/`）の投入準備完了。
 
 ---
 
-## 3. リリリース実行手順
+## 3. リリース実行手順
 
-1.  **ブランチ管理**: 開発完了機能を `staging` または `production` ブランチへマージ（バックエンドは `staging` push で `backend-deploy.yml` が自動起動。本番向けバックエンド自動デプロイワークフローは未整備）。
+1. **ブランチ管理**: 日常開発は `main`。STGはreview済みの `main -> staging` PRを使う。
+   - **Production stop**: backendとfrontendのproduction approval gateが両方実装・検証されるまで、`production` へmerge/pushしない。現行frontend workflowはproduction branchのfrontend変更をEnvironment approvalなしで自動deployする。
 2.  **デプロイ監視**: 
     - GitHub Actions `backend-deploy.yml`（Cloudflare Workers + Containers デプロイ）の進捗監視。
     - Vercel ダッシュボードにて、フロントエンドのビルド成功とエッジ配信を確認。

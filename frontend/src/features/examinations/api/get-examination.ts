@@ -3,7 +3,7 @@ import { axios } from "@/lib/axios";
 import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { transformExamination, type ExaminationRecord } from "./transforms";
-import type { BackendExamination } from "./types";
+import type { BackendExamination } from "../types";
 
 const getExamination = async (id: string): Promise<ExaminationRecord> => {
   const { data } = await axios.get<BackendExamination>(`/v1/examinations/${id}`);
@@ -19,4 +19,3 @@ export const useGetExamination = (id: string) => {
     gcTime: QUERY_GC_TIMES.STANDARD,
   });
 };
-

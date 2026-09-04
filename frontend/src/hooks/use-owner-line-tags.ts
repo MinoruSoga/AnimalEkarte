@@ -12,12 +12,9 @@ export interface OwnerLineStatus {
   fetched_at: string;
 }
 
-async function getOwnerLineTags(
-  clinicId: string,
-  ownerId: string
-): Promise<OwnerLineStatus> {
+async function getOwnerLineTags(clinicId: string, ownerId: string): Promise<OwnerLineStatus> {
   const { data } = await axios.get<OwnerLineStatus>(
-    `/v1/clinics/${clinicId}/owners/${ownerId}/lstep/tags`
+    `/v1/clinics/${clinicId}/owners/${ownerId}/lstep/tags`,
   );
   return data;
 }

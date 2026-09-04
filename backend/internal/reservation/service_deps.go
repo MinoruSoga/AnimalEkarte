@@ -27,8 +27,11 @@ type Transactor interface {
 
 // ReservationStaffDeleter is the reservation-owned business-intent port for
 // removing a staff member through the canonical staff lifecycle.
+// isSystemAdmin mirrors the staff domain's signature. This route is addressed
+// per clinic (/clinics/:clinic_id/reservation-staffs/:staffId), so it always
+// passes false: deletion here stays scoped to the clinic in the path.
 type ReservationStaffDeleter interface {
-	Delete(ctx context.Context, clinicID, staffID uint64) error
+	Delete(ctx context.Context, clinicID, staffID uint64, isSystemAdmin bool) error
 }
 
 // trimmingCourseFinder / trimmingOptionFinder は trimming マスタ（未移行 domain）の
@@ -63,6 +66,12 @@ type staffAssignmentFinder interface {
 // lineReservationSettingFinder は LINE 予約設定（R⑥未移行 repo）の最小view（通知用）。
 type lineReservationSettingFinder interface {
 	FindByClinicID(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error)
+}
+
+// clinicHolidayFinder は clinic_holidays の日付検索に使う consumer-side 最小 view。
+// reservation は clinic package を import せず、composition が具象を注入する。
+type clinicHolidayFinder interface {
+	FindByDate(ctx context.Context, clinicID uint64, date time.Time) (*model.ClinicHoliday, error)
 }
 
 // ---- LIFF 用 consumer-side views（未移行 domain の repo・BE9-2C R⑤）----

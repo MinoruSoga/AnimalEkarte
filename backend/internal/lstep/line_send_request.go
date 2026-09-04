@@ -14,10 +14,10 @@ func normalizeMessageType(t string) string {
 
 type lineSendRequest struct {
 	MessageType string  `json:"message_type" binding:"required"`
-	Text        string  `json:"text"`
+	Text        string  `json:"text" binding:"omitempty,max=5000"`
 	FileID      *uint64 `json:"file_id"`
-	FileName    string  `json:"file_name"`
-	Purpose     string  `json:"purpose"`
+	FileName    string  `json:"file_name" binding:"omitempty,max=255"`
+	Purpose     string  `json:"purpose" binding:"omitempty,max=255"`
 }
 
 func (r lineSendRequest) toServiceInput(ownerID, staffID uint64) *SendLineMessageInput {

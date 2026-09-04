@@ -71,9 +71,7 @@ export const ExaminationCard = memo(function ExaminationCard({
 
         {/* Result summary */}
         {examination.resultSummary ? (
-          <p className={`mt-2 text-sm ${C.text70} line-clamp-2`}>
-            {examination.resultSummary}
-          </p>
+          <p className={`mt-2 text-sm ${C.text70} line-clamp-2`}>{examination.resultSummary}</p>
         ) : null}
       </CardContent>
     </Card>

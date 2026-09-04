@@ -28,7 +28,7 @@ type mockVaccinationService struct {
 	deleteFn  func(ctx context.Context, clinicID, id uint64) error
 }
 
-func (m *mockVaccinationService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Vaccination, int64, error) {
+func (m *mockVaccinationService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, search string, page, limit int) ([]model.Vaccination, int64, error) {
 	return m.listFn(ctx, clinicID, petID, ownerID, startDate, endDate, page, limit)
 }
 
@@ -481,4 +481,56 @@ func TestDeleteVaccination(t *testing.T) {
 		h.DeleteVaccination(c)
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
+}
+
+// SEC-CODEX-UHQPM2 selected-clinic grant
+func TestVaccinationSelectedClinicGrant(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name   string
+		invoke func(*VaccinationHandler, *gin.Context)
+		svc    *mockVaccinationService
+	}{
+		{
+			name: "ListVaccinations returns 403 when selected clinic lacks vaccinations view grant",
+			invoke: func(h *VaccinationHandler, c *gin.Context) {
+				h.ListVaccinations(c)
+			},
+			svc: &mockVaccinationService{
+				listFn: func(_ context.Context, _ uint64, _, _ *uint64, _, _ *string, _, _ int) ([]model.Vaccination, int64, error) {
+					t.Fatal("service must not be reached")
+					return nil, 0, nil
+				},
+			},
+		},
+		{
+			name: "GetVaccination returns 403 when selected clinic lacks vaccinations view grant",
+			invoke: func(h *VaccinationHandler, c *gin.Context) {
+				h.GetVaccination(c)
+			},
+			svc: &mockVaccinationService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.Vaccination, error) {
+					t.Fatal("service must not be reached")
+					return nil, nil
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithVaccinationSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: "10"}}
+			setClinicID(c)
+			c.Set("clinic_id", "2")
+			c.Set("is_system_admin", false)
+			setResourcePermissionOnlyClinic(c, 1, string(model.ResourceVaccinations), "view")
+			tt.invoke(h, c)
+			assert.Equal(t, http.StatusForbidden, w.Code)
+		})
+	}
 }

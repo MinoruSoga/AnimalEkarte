@@ -17,27 +17,26 @@ docs/
 ├── spec/                   … 仕様系: システムが何をするか（業務・画面・UI）
 ├── ops/                    … 運用系: デプロイ・CI・テスト・インフラ
 ├── delivery/               … 納品系: クライアント納品物（Go-live・操作マニュアル）
-└── work/                   … 進行中の作業台帳・採択済み決裁・任意ブラウザ結果
+└── work/                   … 補助メモ・採択済み決裁・今期外索引（実行 SoT ではない）
 ```
 
 | カテゴリ | 索引 | 概要 |
 |:---|:---|:---|
 | **意思決定原則** | [product-philosophy.md](product-philosophy.md) | 5 ステップの意思決定原則。新機能・仕様変更の着手前に必読 |
-| **説明系** | [architecture/README.md](architecture/README.md) | レイヤード構造・ERD・RBAC/マルチテナント・データフロー・削除設計・ADR |
+| **説明系** | [architecture/README.md](architecture/README.md) | domain/capability-first modular monolith・package 境界・ERD・RBAC/マルチテナント・データフロー・削除設計・ADR |
 | **仕様系** | [spec/README.md](spec/README.md) | 機能要件・全画面仕様・会計/顧客分析/予約フロー・デザイン規約・LINE 連携 |
 | **運用系** | [ops/README.md](ops/README.md) | デプロイ・ランブック・テスト・CI/カバレッジポリシー・インフラ構成 |
 | **納品系** | [delivery/README.md](delivery/README.md) | 納品パッケージ・Go-live 手順・現場向け操作マニュアル |
-| **作業台帳** | [work/README.md](work/README.md) | 補助メモ・採択済み決裁（正本は root `todo.md` / `todo-po.md`） |
-> **フォルダ規律**: docs/ 直下に新カテゴリを追加する場合は本表と CI ゲート（`scripts/check-docs-symbol-drift.sh` の TOP_ALLOWLIST）を同コミットで更新すること。allowlist 外のフォルダは CI が拒否する。
+| **作業台帳** | [work/README.md](work/README.md) | 補助メモ・採択済み決裁・今期外索引（実行 SoT は Linear。root 台帳の例外は下記参照） |
+> **フォルダ規律**: docs/ 直下に新カテゴリを追加する場合は本表とローカル必須ゲート（`scripts/check-docs-symbol-drift.sh` の TOP_DIR_ALLOWLIST）を同コミットで更新すること。allowlist 外のフォルダは `make ci` が拒否する。
 
 ## 横断事項
 
-- **API contract**: 正本は [`backend/docs/api.yaml`](../backend/docs/api.yaml)（Swagger UI 表示は `docker compose -f docker-compose.swagger.yml up`）。
-- **docs ドリフトゲート**: `scripts/check-docs-symbol-drift.sh`（CI の docs-symbol-drift ジョブ）が、spec/screens/ 系ドキュメントの言及シンボル実在と宣言数値（テーブル数・リソース数等）の実装一致を機械検査する。
-- **タスク台帳（正本）**: root [`todo.md`](../todo.md)（技術・バグ・アーキ・着手可能な実行 §8）· [`todo-po.md`](../todo-po.md)（PO 確認待ちだけ）。旧 `q&a.html` は削除済。`STATUS.md` / `PO-todo.md` は削除済。`bug.md` はポインタのみ（バグ Open は `todo.md`）。
-- **作業補助**: [`work/README.md`](work/README.md)（採択済み Fable 方針・ledger。レポート置き場ではない）。
-- 旧長文 STATUS は `docs/work/archives/` と git 履歴。
+- **API contract**: 正本は [`backend/docs/api.yaml`](../backend/docs/api.yaml)（Swagger UI 表示は `make docs-ui`）。
+- **docs ドリフトゲート**: `scripts/check-docs-symbol-drift.sh`（GitHub CI ではなく `make ci` のローカル必須ゲート。分担は [ops/ci-policy.md](ops/ci-policy.md)）が、spec/screens/ 系ドキュメントの言及シンボル実在と宣言数値（テーブル数・リソース数等）の実装一致を機械検査する。
+- **タスク台帳**: 実行 SoT は **Linear**（hub BRT-4）。`todo-po.md` は入口ポインタ。[`todo.md`](../todo.md) は STG 実データ運用テストの例外台帳を含み、[`bug.md`](../bug.md) は UAT 製品 FAIL 台帳を含む。競合時の状態の正本は Linear。root 例外台帳は同一変更で同期し、終了条件と削除予定を台帳内に明記する。時点レポートは CorpVault `evidence/2026-08-20-*` と git 履歴。`reports/` は gitignore（新規 UAT をコミットしない）。
+- **作業補助**: [`work/README.md`](work/README.md)（採択済み方針の短いポインタ。レポート置き場ではない）。
 
 ---
 
-**最新更新**: 2026-08-13 | **ステータス**: 作業 SoT を `todo.md` + `todo-po.md` の 2 本に統合
+**最新更新**: 2026-08-31 | **ステータス**: 実行 SoT は Linear（BRT-4）。docs/ は 5 カテゴリ体制で、ファイル単位の説明は各フォルダ README が正本

@@ -17,7 +17,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-
 func setSystemAdminAuth(c *gin.Context) {
 	c.Set("is_system_admin", true)
 	c.Set("clinic_id", "1")
@@ -499,7 +498,6 @@ func TestReorderAnimalSpecies(t *testing.T) {
 		})
 	}
 }
-
 
 func TestCreateAnimalSpecies_RejectsNonSystemAdmin(t *testing.T) {
 	gin.SetMode(gin.TestMode)

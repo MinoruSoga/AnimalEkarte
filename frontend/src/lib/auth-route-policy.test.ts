@@ -30,12 +30,7 @@ describe("isPasswordRecoveryPublicPath", () => {
     expect(isLoginPublicPath(paths.home.path)).toBe(false);
   });
 
-  it.each([
-    "/forgot-password",
-    "/forgot-password/",
-    "/reset-password",
-    "/reset-password/",
-  ])(
+  it.each(["/forgot-password", "/forgot-password/", "/reset-password", "/reset-password/"])(
     "allows the password recovery path %s with an optional trailing slash",
     (pathname) => {
       expect(isPasswordRecoveryPublicPath(pathname)).toBe(true);

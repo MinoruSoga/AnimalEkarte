@@ -26,6 +26,7 @@ interface MasterSidePanelProps {
   isDirty?: boolean;
   /** BUG-158: true の場合、保存・削除ボタンを非表示にし、閲覧モードで表示 */
   readOnly?: boolean;
+  className?: string;
   children: ReactNode;
 }
 
@@ -44,6 +45,7 @@ export const MasterSidePanel = memo(function MasterSidePanel({
   titleMaxLength,
   isDirty = false,
   readOnly = false,
+  className,
   children,
 }: MasterSidePanelProps) {
   // --- Focus Management (Accessibility) ---
@@ -79,7 +81,12 @@ export const MasterSidePanel = memo(function MasterSidePanel({
 
   const content = (
     <>
-      <SidePeekToolbar isNew={isNew} onClose={onClose} onDelete={readOnly ? undefined : onDelete} readOnly={readOnly} />
+      <SidePeekToolbar
+        isNew={isNew}
+        onClose={onClose}
+        onDelete={readOnly ? undefined : onDelete}
+        readOnly={readOnly}
+      />
       <SidePeekBody>
         <div className="pt-4 pb-2">
           <div className={STYLE.pageIcon}>{icon}</div>
@@ -96,19 +103,24 @@ export const MasterSidePanel = memo(function MasterSidePanel({
         <div className={`${STYLE.sectionDivider} mb-1`} />
         <div className="py-1">{children}</div>
       </SidePeekBody>
-      <SidePeekFooter onCancel={onClose} onSave={readOnly ? undefined : onSave} isPending={isPending} readOnly={readOnly} />
+      <SidePeekFooter
+        onCancel={onClose}
+        onSave={readOnly ? undefined : onSave}
+        isPending={isPending}
+        readOnly={readOnly}
+      />
     </>
   );
 
   return (
-    <SidePeekPanel onKeyDown={handleKeyDown}>
+    <SidePeekPanel className={className} onKeyDown={handleKeyDown}>
       <NavigationBlocker
         when={isDirty}
         title="変更が保存されていません"
         description="変更が保存されていません。ページを離れますか？"
       />
       {action ? (
-        <form action={action} className="flex-1 flex flex-col min-h-0">
+        <form action={action} noValidate className="flex-1 flex flex-col min-h-0">
           {content}
         </form>
       ) : (

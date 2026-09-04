@@ -39,3 +39,12 @@ export function formatCurrencyOrDash(amount: number | undefined | null): string 
   if (amount === undefined || amount === null || amount <= 0) return "-";
   return formatCurrency(amount);
 }
+
+/**
+ * 記録済み金額の空欄表示。0 / 未設定は "-"、負額は符号のまま出す。
+ * 正の金額だけ見せる `formatCurrencyOrDash` とは別（移行の赤伝・負額用）。
+ */
+export function formatCurrencyIfNonzero(amount: number | undefined | null): string {
+  if (amount === undefined || amount === null || amount === 0) return "-";
+  return formatCurrency(amount);
+}

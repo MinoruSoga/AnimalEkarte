@@ -176,12 +176,12 @@ func (s *lineLinkService) GenerateLinkToken(ctx context.Context, clinicID, owner
 		return nil, apperrors.Wrap(err, "failed to find owner")
 	}
 
-	// Read configuration before writing so a setting failure cannot leave an
-	// unusable bearer-token row behind.
-	setting, err := s.lineSettingRepo.FindByClinicID(ctx, clinicID)
+	// Resolve LIFF ID before writing so a lookup failure cannot leave an
+	// unusable bearer-token row behind. Missing line_reservation_settings is not
+	// an owner miss (BUG-504): fall through to L-step clinic_integrations LiffID.
+	liffID, err := s.resolveLinkTokenLiffID(ctx, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to find line setting for liff url", "error", err)
-		return nil, apperrors.Wrap(err, "failed to find line reservation setting")
+		return nil, err
 	}
 
 	tokenBytes := make([]byte, lineLinkTokenBytes)
@@ -203,7 +203,7 @@ func (s *lineLinkService) GenerateLinkToken(ctx context.Context, clinicID, owner
 	}
 
 	liffURL := ""
-	if setting.LiffID != "" {
+	if liffID != "" {
 		// FE の LiffLinkPage（frontend/liff/src/pages/LiffLinkPage.tsx）は
 		// token と clinic_id の両方をクエリから読む（clinic_id 欠落だと useLiffLink が
 		// 即座に「無効なURL」エラーで停止する・SD-14）。
@@ -211,7 +211,7 @@ func (s *lineLinkService) GenerateLinkToken(ctx context.Context, clinicID, owner
 			"token":     {rawToken},
 			"clinic_id": {fmt.Sprintf("%d", clinicID)},
 		}
-		liffURL = fmt.Sprintf("https://liff.line.me/%s?%s", setting.LiffID, query.Encode())
+		liffURL = fmt.Sprintf("https://liff.line.me/%s?%s", liffID, query.Encode())
 	}
 
 	return &LinkTokenResult{
@@ -219,6 +219,44 @@ func (s *lineLinkService) GenerateLinkToken(ctx context.Context, clinicID, owner
 		ExpiresAt: expiresAt,
 		LiffURL:   liffURL,
 	}, nil
+}
+
+// resolveLinkTokenLiffID prefers line_reservation_settings.liff_id, then falls
+// back to the L-step clinic_integrations liff_id staff configure in settings.
+// Absence of either store is not an error; empty LiffID yields empty liff_url.
+func (s *lineLinkService) resolveLinkTokenLiffID(ctx context.Context, clinicID uint64) (string, error) {
+	if s.lineSettingRepo != nil {
+		setting, err := s.lineSettingRepo.FindByClinicID(ctx, clinicID)
+		if err != nil && !apperrors.IsNotFound(err) {
+			slog.ErrorContext(ctx, "failed to find line setting for liff url", "error", err)
+			return "", apperrors.Wrap(err, "failed to find line reservation setting")
+		}
+		if setting != nil && setting.LiffID != "" {
+			return setting.LiffID, nil
+		}
+	}
+
+	if s.lineCredentialRepo == nil {
+		return "", nil
+	}
+	credential, err := s.lineCredentialRepo.FindCredentialByClinicServiceKey(
+		ctx,
+		clinicID,
+		model.IntegrationServiceLstep,
+		model.IntegrationKeyLiffID,
+	)
+	if err != nil {
+		if apperrors.IsNotFound(err) {
+			return "", nil
+		}
+		slog.ErrorContext(ctx, "failed to find lstep liff id for link token", "error", err)
+		return "", apperrors.Wrap(err, "failed to find lstep liff id")
+	}
+	if credential == nil || credential.KeyValue == "" {
+		return "", nil
+	}
+	// liff_id is stored plaintext (model.IsEncryptedKey is false).
+	return credential.KeyValue, nil
 }
 
 // LinkAccount は LINE ID Token を検証してトークン対応の飼い主に LINE User ID を紐付ける。
@@ -481,16 +519,9 @@ func (s *lineLinkService) cachedDecryptChannelSecret(
 	}
 	now := time.Now()
 	if credential.ID != 0 {
-		s.secretCacheMu.Lock()
-		if entry, ok := s.secretCache[credential.ID]; ok {
-			if entry.ciphertext == ciphertext && now.Before(entry.expiresAt) {
-				plaintext := entry.plaintext
-				s.secretCacheMu.Unlock()
-				return plaintext
-			}
-			delete(s.secretCache, credential.ID)
+		if plaintext, ok := s.lookupSecretCache(credential.ID, ciphertext, now); ok {
+			return plaintext
 		}
-		s.secretCacheMu.Unlock()
 	}
 
 	plaintext := lineCredentialDecrypt(ctx, s.cipher, ciphertext)
@@ -509,6 +540,20 @@ func (s *lineLinkService) cachedDecryptChannelSecret(
 	}
 	s.secretCacheMu.Unlock()
 	return plaintext
+}
+
+func (s *lineLinkService) lookupSecretCache(id uint64, ciphertext string, now time.Time) (string, bool) {
+	s.secretCacheMu.Lock()
+	defer s.secretCacheMu.Unlock()
+	entry, ok := s.secretCache[id]
+	if !ok {
+		return "", false
+	}
+	if entry.ciphertext == ciphertext && now.Before(entry.expiresAt) {
+		return entry.plaintext, true
+	}
+	delete(s.secretCache, id)
+	return "", false
 }
 
 // verifyLineSignature は LINE HMAC-SHA256 署名を検証する。

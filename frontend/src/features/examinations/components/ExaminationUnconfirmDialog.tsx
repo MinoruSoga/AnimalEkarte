@@ -30,13 +30,9 @@ interface UnconfirmFormState {
 function UnconfirmForm({ onUnconfirm, onClose }: UnconfirmFormProps) {
   const [reasonLength, setReasonLength] = useState(0);
   const [state, formAction] = useActionState(
-    async (
-      _previous: UnconfirmFormState,
-      formData: FormData,
-    ): Promise<UnconfirmFormState> => {
+    async (_previous: UnconfirmFormState, formData: FormData): Promise<UnconfirmFormState> => {
       const reasonEntry = formData.get("reason");
-      const reason =
-        typeof reasonEntry === "string" ? reasonEntry.trim() : "";
+      const reason = typeof reasonEntry === "string" ? reasonEntry.trim() : "";
       if (!reason) return { error: "確定解除理由は必須です" };
       if (reason.length > MAX_UNCONFIRM_REASON_LENGTH) {
         return {
@@ -99,12 +95,7 @@ function UnconfirmForm({ onUnconfirm, onClose }: UnconfirmFormProps) {
         </p>
       </div>
       <div className="flex justify-end gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onClose}
-          className="h-11 min-w-11"
-        >
+        <Button type="button" variant="outline" onClick={onClose} className="h-11 min-w-11">
           キャンセル
         </Button>
         <SubmitButton loadingText="解除中...">確定を解除する</SubmitButton>
@@ -113,19 +104,13 @@ function UnconfirmForm({ onUnconfirm, onClose }: UnconfirmFormProps) {
   );
 }
 
-export function ExaminationUnconfirmDialog({
-  onUnconfirm,
-}: ExaminationUnconfirmDialogProps) {
+export function ExaminationUnconfirmDialog({ onUnconfirm }: ExaminationUnconfirmDialogProps) {
   const [open, setOpen] = useState(false);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          className={`h-11 min-w-11 text-sm ${C.danger}`}
-        >
+        <Button type="button" variant="outline" className={`h-11 min-w-11 text-sm ${C.danger}`}>
           確定解除
         </Button>
       </DialogTrigger>
@@ -136,12 +121,7 @@ export function ExaminationUnconfirmDialog({
             確定時点の記録を保持したまま編集可能な状態へ戻します。理由は監査履歴に記録されます。
           </DialogDescription>
         </DialogHeader>
-        {open ? (
-          <UnconfirmForm
-            onUnconfirm={onUnconfirm}
-            onClose={() => setOpen(false)}
-          />
-        ) : null}
+        {open ? <UnconfirmForm onUnconfirm={onUnconfirm} onClose={() => setOpen(false)} /> : null}
       </DialogContent>
     </Dialog>
   );

@@ -15,10 +15,10 @@ interface ReservationTypeSettingsSidePanelsProps {
   canDelete: boolean;
   canEdit: boolean;
   onGroupClose: () => void;
-  onGroupSave: (data: GroupFormData) => void;
+  onGroupSave: (data: GroupFormData) => Promise<boolean> | boolean;
   onGroupDeleteRequest: (item: ReservationTypeGroup) => void;
   onCategoryClose: () => void;
-  onCategorySave: (data: CategoryFormData) => void;
+  onCategorySave: (data: CategoryFormData) => Promise<boolean> | boolean;
   onCategoryDeleteRequest: (item: ReservationType) => void;
   onDirtyChange: (dirty: boolean) => void;
 }

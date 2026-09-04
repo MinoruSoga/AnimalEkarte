@@ -1,6 +1,9 @@
 package medicalrecord
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestCreateTreatmentPlanRequest_ToServiceInput(t *testing.T) {
 	req := createTreatmentPlanRequest{
@@ -72,5 +75,69 @@ func TestUpdateTreatmentPlanRequest_ToServiceInput(t *testing.T) {
 	}
 	if input.SortOrder == nil || *input.SortOrder != sortOrder {
 		t.Errorf("SortOrder = %v, want %d", input.SortOrder, sortOrder)
+	}
+}
+
+func TestTreatmentPlanRequests_RejectsOverMax(t *testing.T) {
+	over1000 := strings.Repeat("x", 1001)
+	tests := []struct {
+		name string
+		dst  any
+		body map[string]any
+	}{
+		{
+			name: "create treatment_content over max=1000",
+			dst:  &createTreatmentPlanRequest{},
+			body: map[string]any{"treatment_content": over1000, "quantity": 1},
+		},
+		{
+			name: "create memo over max=1000",
+			dst:  &createTreatmentPlanRequest{},
+			body: map[string]any{"treatment_content": "content", "quantity": 1, "memo": over1000},
+		},
+		{
+			name: "update treatment_content over max=1000",
+			dst:  &updateTreatmentPlanRequest{},
+			body: map[string]any{"treatment_content": over1000},
+		},
+		{
+			name: "update memo over max=1000",
+			dst:  &updateTreatmentPlanRequest{},
+			body: map[string]any{"memo": over1000},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := shouldBindJSON(t, tt.body, tt.dst); err == nil {
+				t.Fatal("ShouldBindJSON() error = nil, want over-max rejection")
+			}
+		})
+	}
+}
+
+func TestTreatmentPlanRequests_AcceptsAtMax(t *testing.T) {
+	at1000 := strings.Repeat("x", 1000)
+	tests := []struct {
+		name string
+		dst  any
+		body map[string]any
+	}{
+		{
+			name: "create treatment_content and memo at max=1000",
+			dst:  &createTreatmentPlanRequest{},
+			body: map[string]any{"treatment_content": at1000, "quantity": 1, "memo": at1000},
+		},
+		{
+			name: "update treatment_content and memo at max=1000",
+			dst:  &updateTreatmentPlanRequest{},
+			body: map[string]any{"treatment_content": at1000, "memo": at1000},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := shouldBindJSON(t, tt.body, tt.dst); err != nil {
+				t.Fatalf("ShouldBindJSON() error = %v, want nil at max", err)
+			}
+		})
 	}
 }

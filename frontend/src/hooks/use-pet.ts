@@ -84,9 +84,7 @@ export function useGetPets(
   );
   const baseQueryKey = queryKeys.pets.list(ownerId, options);
   const query = useQuery({
-    queryKey: hasServerListKey
-      ? [...baseQueryKey, serverListKey]
-      : baseQueryKey,
+    queryKey: hasServerListKey ? [...baseQueryKey, serverListKey] : baseQueryKey,
     queryFn: async () => {
       const params = {
         ...(ownerId ? { owner_id: ownerId } : {}),
@@ -105,9 +103,7 @@ export function useGetPets(
       };
     },
     enabled: queryOptions.enabled ?? true,
-    placeholderData: queryOptions.preservePreviousData
-      ? keepPreviousData
-      : undefined,
+    placeholderData: queryOptions.preservePreviousData ? keepPreviousData : undefined,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
   });

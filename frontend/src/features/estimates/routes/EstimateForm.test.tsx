@@ -1,12 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AxiosError, AxiosHeaders, type InternalAxiosRequestConfig } from "axios";
 import { render, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router";
 import type { Estimate } from "../types";
-import {
-  CREATE_STATUS_OPTIONS,
-  EDIT_STATUS_OPTIONS,
-} from "../constants/estimate-status-options";
+import { CREATE_STATUS_OPTIONS, EDIT_STATUS_OPTIONS } from "../constants/estimate-status-options";
 import { EstimateForm } from "./EstimateForm";
 
 const { mockEstimate, mockGetState, mockNavigate, mockToast, mockFormState } = vi.hoisted(() => ({
@@ -115,31 +113,34 @@ function makeEstimate(status: Estimate["status"]): Estimate {
 }
 
 function renderEditForm() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
-    <MemoryRouter initialEntries={["/estimates/1/edit"]}>
-      <Routes>
-        <Route path="/estimates/:id/edit" element={<EstimateForm />} />
-      </Routes>
-    </MemoryRouter>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={["/estimates/1/edit"]}>
+        <Routes>
+          <Route path="/estimates/:id/edit" element={<EstimateForm />} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 
 function renderCreateForm() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
-    <MemoryRouter initialEntries={["/estimates/new"]}>
-      <Routes>
-        <Route path="/estimates/new" element={<EstimateForm />} />
-      </Routes>
-    </MemoryRouter>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={["/estimates/new"]}>
+        <Routes>
+          <Route path="/estimates/new" element={<EstimateForm />} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 
 describe("EstimateForm status options re-export", () => {
   it("Create 用選択肢は draft / sent のみ（utils 単一ソース）", () => {
-    expect(CREATE_STATUS_OPTIONS.map((o) => o.value)).toEqual([
-      "draft",
-      "sent",
-    ]);
+    expect(CREATE_STATUS_OPTIONS.map((o) => o.value)).toEqual(["draft", "sent"]);
   });
 
   it("Edit 用選択肢は draft / sent / approved / rejected の 4 値（utils 単一ソース）", () => {
@@ -195,9 +196,7 @@ describe("EstimateForm locked edit redirect", () => {
     renderEditForm();
 
     await waitFor(() => {
-      expect(mockToast.info).toHaveBeenCalledWith(
-        "承認済みまたは却下済みの見積書は編集できません",
-      );
+      expect(mockToast.info).toHaveBeenCalledWith("承認済みまたは却下済みの見積書は編集できません");
       expect(mockNavigate).toHaveBeenCalledWith("/estimates/1", { replace: true });
     });
   });
@@ -207,9 +206,7 @@ describe("EstimateForm locked edit redirect", () => {
     renderEditForm();
 
     await waitFor(() => {
-      expect(mockToast.info).toHaveBeenCalledWith(
-        "承認済みまたは却下済みの見積書は編集できません",
-      );
+      expect(mockToast.info).toHaveBeenCalledWith("承認済みまたは却下済みの見積書は編集できません");
       expect(mockNavigate).toHaveBeenCalledWith("/estimates/1", { replace: true });
     });
   });
@@ -245,26 +242,19 @@ describe("EstimateForm mobile-first layout", () => {
   });
 });
 
-
 describe("EstimateForm BUG-019 not-found / network gate", () => {
   function axiosError(status: number | undefined) {
     const config = { headers: new AxiosHeaders() } as InternalAxiosRequestConfig;
     if (status === undefined) {
       return new AxiosError("Network Error", AxiosError.ERR_NETWORK, config, undefined, undefined);
     }
-    return new AxiosError(
-      "request failed",
-      AxiosError.ERR_BAD_RESPONSE,
+    return new AxiosError("request failed", AxiosError.ERR_BAD_RESPONSE, config, undefined, {
       config,
-      undefined,
-      {
-        config,
-        data: { error: "not found" },
-        headers: new AxiosHeaders(),
-        status,
-        statusText: "Error",
-      },
-    );
+      data: { error: "not found" },
+      headers: new AxiosHeaders(),
+      status,
+      statusText: "Error",
+    });
   }
 
   beforeEach(() => {

@@ -26,10 +26,10 @@ function buildExaminationParams(filters?: ExaminationFilters): Record<string, st
   return params;
 }
 
-const getExaminations = async (
-  filters?: ExaminationFilters,
-): Promise<ExaminationRecord[]> => {
-  const { data } = await axios.get<ExaminationsListResponse>("/v1/examinations", { params: buildExaminationParams(filters) });
+const getExaminations = async (filters?: ExaminationFilters): Promise<ExaminationRecord[]> => {
+  const { data } = await axios.get<ExaminationsListResponse>("/v1/examinations", {
+    params: buildExaminationParams(filters),
+  });
   return data.data.map(transformExamination);
 };
 
@@ -60,14 +60,17 @@ export interface ExaminationPageFilters extends ExaminationFilters {
   limit: number;
 }
 
-const getExaminationsPage = async (
-  filters: ExaminationPageFilters,
-): Promise<ExaminationsPage> => {
+const getExaminationsPage = async (filters: ExaminationPageFilters): Promise<ExaminationsPage> => {
   const params = buildExaminationParams(filters);
   params.page = String(filters.page);
   params.limit = String(filters.limit);
   const { data } = await axios.get<ExaminationsListResponse>("/v1/examinations", { params });
-  return { data: data.data.map(transformExamination), total: data.total, page: data.page, limit: data.limit };
+  return {
+    data: data.data.map(transformExamination),
+    total: data.total,
+    page: data.page,
+    limit: data.limit,
+  };
 };
 
 /**

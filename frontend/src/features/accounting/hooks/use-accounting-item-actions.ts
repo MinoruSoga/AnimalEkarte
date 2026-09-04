@@ -1,4 +1,4 @@
-import { useCallback, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useLayoutEffect, useRef, type Dispatch, type SetStateAction } from "react";
 
 import type { QueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -19,6 +19,19 @@ type CreateManualBillingItemRequest = CreateBillingItemRequest & {
   other_reason?: string;
 };
 
+/** FE-RC-001: fieldset disabled 等の render 側ガードをバイパスされても各 handler で再検証する。 */
+export interface AccountingItemMutationPermissions {
+  canCreate: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+}
+
+const DENIED_ACCOUNTING_ITEM_PERMISSIONS: Readonly<AccountingItemMutationPermissions> = {
+  canCreate: false,
+  canEdit: false,
+  canDelete: false,
+};
+
 interface UseAccountingItemActionsParams {
   accountingId: string | undefined;
   /** 会計 status（completed 時は明細 PATCH に修正理由必須 — BUG-009） */
@@ -36,10 +49,14 @@ interface UseAccountingItemActionsParams {
   startAddItemTransition: (callback: () => void) => void;
   startDeleteItemTransition: (callback: () => void) => void;
   startItemUpdateTransition: (callback: () => void) => void;
+  /** FE-RC-001: handler 開始時に再検証する canCreate/canEdit/canDelete */
+  permissions?: Readonly<AccountingItemMutationPermissions>;
 }
 
 /** 空文字は送らない。trim 後の理由のみ API に載せる（BUG-021 add/delete）。 */
-export function buildPostCloseReasonField(postCloseReason?: string): { post_close_reason?: string } {
+export function buildPostCloseReasonField(postCloseReason?: string): {
+  post_close_reason?: string;
+} {
   const trimmed = postCloseReason?.trim();
   return trimmed ? { post_close_reason: trimmed } : {};
 }
@@ -90,9 +107,30 @@ export function useAccountingItemActions({
   startAddItemTransition,
   startDeleteItemTransition,
   startItemUpdateTransition,
+  permissions = DENIED_ACCOUNTING_ITEM_PERMISSIONS,
 }: UseAccountingItemActionsParams) {
+  const permissionsRef = useRef(permissions);
+  useLayoutEffect(() => {
+    permissionsRef.current = permissions;
+  }, [permissions]);
+  const isMutationAllowed = useCallback(
+    (action: keyof AccountingItemMutationPermissions) => permissionsRef.current[action] === true,
+    [],
+  );
+
   const handleAddItem = useCallback(
-    ({ name, price, category, otherReason, taxRate, merchandiseItemId }: AddAccountingItemInput) => {
+    ({
+      name,
+      price,
+      category,
+      otherReason,
+      taxRate,
+      merchandiseItemId,
+    }: AddAccountingItemInput) => {
+      if (!isMutationAllowed(accountingId ? "canEdit" : "canCreate")) {
+        toast.error("この操作を行う権限がありません");
+        return;
+      }
       const unitPrice = parseInt(price, 10);
       const qty = 1;
       const rate = taxRate ?? DEFAULT_STANDARD_TAX_RATE;
@@ -137,7 +175,9 @@ export function useAccountingItemActions({
               ...buildPostCloseReasonField(postCloseReason),
             };
             await createBillingItem(request);
-            await queryClient.refetchQueries({ queryKey: queryKeys.accountings.detail(accountingId) });
+            await queryClient.refetchQueries({
+              queryKey: queryKeys.accountings.detail(accountingId),
+            });
             setLocalItems(null);
             toast.success("明細を追加しました");
           } catch (error) {
@@ -152,6 +192,7 @@ export function useAccountingItemActions({
     [
       accountingId,
       baseItems,
+      isMutationAllowed,
       postCloseReason,
       queryClient,
       setLocalItems,
@@ -162,6 +203,10 @@ export function useAccountingItemActions({
 
   const handleDeleteItem = useCallback(
     (itemId: string) => {
+      if (!isMutationAllowed("canDelete")) {
+        toast.error("この操作を行う権限がありません");
+        return;
+      }
       if (!accountingId || itemId.startsWith("manual_")) {
         setLocalItems((prev) => (prev ?? baseItems).filter((i) => i.id !== itemId));
         return;
@@ -176,7 +221,9 @@ export function useAccountingItemActions({
             itemId,
             Object.keys(reasonField).length > 0 ? reasonField : undefined,
           );
-          await queryClient.refetchQueries({ queryKey: queryKeys.accountings.detail(accountingId) });
+          await queryClient.refetchQueries({
+            queryKey: queryKeys.accountings.detail(accountingId),
+          });
           setLocalItems(null);
           toast.success("明細を削除しました");
         } catch (error) {
@@ -185,12 +232,24 @@ export function useAccountingItemActions({
         }
       });
     },
-    [accountingId, baseItems, postCloseReason, queryClient, setLocalItems, startDeleteItemTransition],
+    [
+      accountingId,
+      baseItems,
+      isMutationAllowed,
+      postCloseReason,
+      queryClient,
+      setLocalItems,
+      startDeleteItemTransition,
+    ],
   );
 
   const handleUpdateItemTax = useCallback(
     (itemId: string, taxType: TaxType, taxRate: number) => {
       if (!accountingId) return;
+      if (!isMutationAllowed("canEdit")) {
+        toast.error("この操作を行う権限がありません");
+        return;
+      }
       const gate = buildPostClosePayload({
         accountingStatus,
         postCloseReason,
@@ -216,6 +275,7 @@ export function useAccountingItemActions({
       accountingId,
       accountingStatus,
       canPostCloseEdit,
+      isMutationAllowed,
       isScheduledDateClosed,
       postCloseReason,
       queryClient,
@@ -226,6 +286,10 @@ export function useAccountingItemActions({
   const handleUpdateItemDiscount = useCallback(
     (itemId: string, discountAmount: number) => {
       if (!accountingId) return;
+      if (!isMutationAllowed("canEdit")) {
+        toast.error("この操作を行う権限がありません");
+        return;
+      }
       const gate = buildPostClosePayload({
         accountingStatus,
         postCloseReason,
@@ -250,6 +314,7 @@ export function useAccountingItemActions({
       accountingId,
       accountingStatus,
       canPostCloseEdit,
+      isMutationAllowed,
       isScheduledDateClosed,
       postCloseReason,
       queryClient,

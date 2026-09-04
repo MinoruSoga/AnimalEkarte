@@ -1,16 +1,7 @@
 import type { VisitType, ReservationStatus } from "@/types";
 import type { ReservationRoute } from "../constants/reservation-route";
-export type {
-  Reservation,
-  ReservationStatus,
-  CalendarView,
-  NavigationState,
-  Pet,
-} from "@/types";
-export {
-  CALENDAR_VIEW_VALUES,
-  RESERVATION_STATUS_VALUES,
-} from "@/types";
+export type { Reservation, ReservationStatus, CalendarView, NavigationState, Pet } from "@/types";
+export { CALENDAR_VIEW_VALUES, RESERVATION_STATUS_VALUES } from "@/types";
 
 /**
  * Form state for creating/editing a reservation.

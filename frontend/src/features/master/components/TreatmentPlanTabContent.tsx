@@ -1,7 +1,11 @@
 import { useCallback, useDeferredValue, useMemo, useState } from "react";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
+import {
+  DataTable,
+  DESIGN_TABLE_HEADER_ROW,
+  DESIGN_TABLE_HEADER_CELL,
+} from "@/components/shared/DataTable/DataTable";
 import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
 import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 import { useSortableList } from "@/hooks/use-sortable-list";
@@ -14,7 +18,7 @@ import {
   buildTreatmentRows,
   buildTreatmentTree,
   filterTreatmentRoots,
-} from "./treatment-plan-tab-content-model";
+} from "../lib/treatment-plan-tab-content-model";
 
 interface TreatmentPlanTabContentProps extends TreatmentTabConfig {
   onEditTargetChange: (value: TreatmentItem | "new" | null) => void;
@@ -36,7 +40,11 @@ export function TreatmentPlanTabContent({
 
   const treeItems = useMemo(() => buildTreatmentTree(rawData ?? []), [rawData]);
 
-  const { orderedItems: orderedRoots, sensors, handleDragEnd } = useSortableList({
+  const {
+    orderedItems: orderedRoots,
+    sensors,
+    handleDragEnd,
+  } = useSortableList({
     items: treeItems,
     onReorder: (newIds) => {
       if (!canEdit) return;
@@ -70,9 +78,12 @@ export function TreatmentPlanTabContent({
 
   const totalCount = (rawData ?? []).length;
 
-  const handleEdit = useCallback((item: TreatmentItem) => {
-    onEditTargetChange(item);
-  }, [onEditTargetChange]);
+  const handleEdit = useCallback(
+    (item: TreatmentItem) => {
+      onEditTargetChange(item);
+    },
+    [onEditTargetChange],
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -86,11 +97,7 @@ export function TreatmentPlanTabContent({
         count={totalCount}
       />
 
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={handleDragEnd}
-      >
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext
           items={filteredRoots.map((root) => root.id)}
           strategy={verticalListSortingStrategy}

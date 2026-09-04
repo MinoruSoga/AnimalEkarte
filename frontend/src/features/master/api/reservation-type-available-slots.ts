@@ -36,9 +36,9 @@ const availableSlotsKey = (clinicId: string, reservationTypeId: string) =>
 async function getAvailableSlots(
   reservationTypeId: string,
 ): Promise<ReservationTypeAvailableSlot[]> {
-  const { data } = await axios.get<ReservationTypeAvailableSlotRaw[] | { data: ReservationTypeAvailableSlotRaw[] }>(
-    `/v1/masters/reservation-types/${reservationTypeId}/available-slots`,
-  );
+  const { data } = await axios.get<
+    ReservationTypeAvailableSlotRaw[] | { data: ReservationTypeAvailableSlotRaw[] }
+  >(`/v1/masters/reservation-types/${reservationTypeId}/available-slots`);
   const items = Array.isArray(data) ? data : data.data;
   return items.map(transformAvailableSlot);
 }
@@ -47,19 +47,11 @@ async function createAvailableSlot(
   reservationTypeId: string,
   req: CreateAvailableSlotRequest,
 ): Promise<void> {
-  await axios.post(
-    `/v1/masters/reservation-types/${reservationTypeId}/available-slots`,
-    req,
-  );
+  await axios.post(`/v1/masters/reservation-types/${reservationTypeId}/available-slots`, req);
 }
 
-async function deleteAvailableSlot(
-  reservationTypeId: string,
-  id: number,
-): Promise<void> {
-  await axios.delete(
-    `/v1/masters/reservation-types/${reservationTypeId}/available-slots/${id}`,
-  );
+async function deleteAvailableSlot(reservationTypeId: string, id: number): Promise<void> {
+  await axios.delete(`/v1/masters/reservation-types/${reservationTypeId}/available-slots/${id}`);
 }
 
 export function useGetAvailableSlots(clinicId: string, reservationTypeId: string) {
@@ -75,8 +67,7 @@ export function useGetAvailableSlots(clinicId: string, reservationTypeId: string
 export function useCreateAvailableSlot(clinicId: string, reservationTypeId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (req: CreateAvailableSlotRequest) =>
-      createAvailableSlot(reservationTypeId, req),
+    mutationFn: (req: CreateAvailableSlotRequest) => createAvailableSlot(reservationTypeId, req),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: availableSlotsKey(clinicId, reservationTypeId) }),
     onError: (error: unknown) => handleApiError(error, "予約可能枠の作成"),

@@ -20,7 +20,7 @@
 - P1–P18 を廃止し、公式ガイドと application safety invariant に基づく review へ置き換える。
 - clinic/owner/pet/staff isolation、認可、監査、医療データ完全性は framework 非依存の [Backend Application Invariants](../../../.claude/refs/backend-application-invariants.md) と ADR-002 で維持する。
 
-現在の directory を一括移動する決定ではない。既存 code は変更時に凝集性と依存関係を評価し、価値のある範囲で漸進的に改善する。
+採用時、この ADR 自体は directory の一括移動を許可しなかった。その後 ADR-006 が domain migration を完了した。移行期間中だけ旧 directory と新しい境界が一時的に共存した。
 
 ## Consequences
 
@@ -34,7 +34,7 @@
 ### Trade-offs
 
 - resource ごとに最適な package shape が異なり、固定 template より設計判断が必要になる。
-- 現行 directory と新しい規約が一時的に共存する。
+- 移行中は旧 directory と新しい規約が一時的に共存した。ADR-006 完了後、旧3 layer directory は残っていない。
 - project 固有 pattern が必要な場合は、公式要件と混ぜず ADR/invariant として根拠を記録する必要がある。
 
 ## References

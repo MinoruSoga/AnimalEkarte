@@ -14,39 +14,40 @@ import (
 )
 
 var acceptedTopLevelPackages = map[string]struct{}{
-	"apicontract":   {},
-	"apperrors":     {},
-	"audit":         {},
-	"auth":          {},
-	"authjwt":       {},
-	"billing":       {},
-	"clinic":        {},
-	"config":        {},
-	"csvimport":     {},
-	"dbconn":        {},
-	"httpapi":       {},
-	"identitylink":  {},
-	"infra":         {},
-	"inventory":     {},
-	"lintscan":      {},
-	"logger":        {},
-	"lstep":         {},
-	"manualarticle": {},
-	"medicalrecord": {},
-	"middleware":    {},
-	"model":         {},
-	"owner":         {},
-	"persistence":   {},
-	"pet":           {},
-	"reservation":   {},
-	"scheduler":     {},
-	"seedbundle":    {},
-	"sharedkernel":  {},
-	"staff":         {},
-	"testdb":        {},
-	"textsearch":    {},
-	"timeutil":      {},
-	"trimming":      {},
+	"apicontract":    {},
+	"apperrors":      {},
+	"audit":          {},
+	"auth":           {},
+	"authjwt":        {},
+	"billing":        {},
+	"clinic":         {},
+	"config":         {},
+	"csvimport":      {},
+	"dbconn":         {},
+	"httpapi":        {},
+	"identitylink":   {},
+	"infra":          {},
+	"inventory":      {},
+	"labdeviceagent": {},
+	"lintscan":       {},
+	"logger":         {},
+	"lstep":          {},
+	"manualarticle":  {},
+	"medicalrecord":  {},
+	"middleware":     {},
+	"model":          {},
+	"owner":          {},
+	"persistence":    {},
+	"pet":            {},
+	"reservation":    {},
+	"scheduler":      {},
+	"seedbundle":     {},
+	"sharedkernel":   {},
+	"staff":          {},
+	"testdb":         {},
+	"textsearch":     {},
+	"timeutil":       {},
+	"trimming":       {},
 }
 
 var domainPackages = map[string]struct{}{
@@ -103,7 +104,7 @@ func TestPackageBoundaryGate(t *testing.T) {
 	})
 
 	t.Run("accepted_and_bucket_sets_are_disjoint", func(t *testing.T) {
-		requireSetSize(t, "accepted top-level packages", acceptedTopLevelPackages, 33)
+		requireSetSize(t, "accepted top-level packages", acceptedTopLevelPackages, 34)
 		requireSetSize(t, "domain packages", domainPackages, 14)
 		requireSetSize(t, "layer package names", layerPackageNames, 6)
 		requireSetSize(t, "bucket package names", bucketPackageNames, 5)

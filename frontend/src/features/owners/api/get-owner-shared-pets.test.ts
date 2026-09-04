@@ -6,10 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { axios } from "@/lib/axios";
 import { queryKeys } from "@/lib/query-keys";
 import { QUERY_GC_TIMES, QUERY_STALE_TIMES } from "@/lib/react-query";
-import {
-  getOwnerSharedPets,
-  useGetOwnerSharedPets,
-} from "./get-owner-shared-pets";
+import { getOwnerSharedPets, useGetOwnerSharedPets } from "./get-owner-shared-pets";
 
 vi.mock("@/lib/axios", () => ({
   axios: {
@@ -86,15 +83,12 @@ describe("owner shared-pet query", () => {
     expect(query?.options.gcTime).toBe(QUERY_GC_TIMES.LONG);
   });
 
-  it.each([undefined, ""] as const)(
-    "owner IDが%jならリクエストしない",
-    async (ownerId) => {
-      const { result } = renderHook(() => useGetOwnerSharedPets(ownerId), {
-        wrapper: createWrapper(),
-      });
+  it.each([undefined, ""] as const)("owner IDが%jならリクエストしない", async (ownerId) => {
+    const { result } = renderHook(() => useGetOwnerSharedPets(ownerId), {
+      wrapper: createWrapper(),
+    });
 
-      await waitFor(() => expect(result.current.fetchStatus).toBe("idle"));
-      expect(mockedGet).not.toHaveBeenCalled();
-    },
-  );
+    await waitFor(() => expect(result.current.fetchStatus).toBe("idle"));
+    expect(mockedGet).not.toHaveBeenCalled();
+  });
 });

@@ -57,11 +57,11 @@ func ParseAvailableDatesSettings(
 ) (AvailableDatesSettings, error) {
 	var closedWeekdays []int
 	if err := json.Unmarshal(orEmptyJSONArray(closedWeekdaysJSON), &closedWeekdays); err != nil {
-		return AvailableDatesSettings{}, apperrors.WrapInvalidInput("休診設定の解析に失敗しました: " + err.Error())
+		return AvailableDatesSettings{}, apperrors.WrapInvalidInput("休診設定の形式が正しくありません")
 	}
 	var closedDates []string
 	if err := json.Unmarshal(orEmptyJSONArray(closedDatesJSON), &closedDates); err != nil {
-		return AvailableDatesSettings{}, apperrors.WrapInvalidInput("休診設定の解析に失敗しました: " + err.Error())
+		return AvailableDatesSettings{}, apperrors.WrapInvalidInput("休診設定の形式が正しくありません")
 	}
 	return AvailableDatesSettings{
 		ClosedWeekdays:        closedWeekdays,
@@ -147,95 +147,103 @@ func CalcAvailableDates(ctx context.Context, input *AvailableDatesInput) ([]Avai
 	results := make([]AvailableDateResult, 0, availableDatesResultCap(input.Settings.BookingWindowMaxDays))
 
 	for d := minDate; !d.After(maxDate); d = d.AddDate(0, 0, 1) {
-		dateStr := d.Format(time.DateOnly)
-		wd := int(d.Weekday()) // 0=Sun,...,6=Sat
-
-		result := AvailableDateResult{
-			Date:    dateStr,
-			Weekday: wd,
+		result, err := evaluateAvailableDate(ctx, d, input, closedDateSet, closedWeekdaySet)
+		if err != nil {
+			return nil, window, err
 		}
-
-		// 休業曜日チェック
-		if _, closed := closedWeekdaySet[wd]; closed {
-			result.Available = false
-			result.Reason = "closed"
-			results = append(results, result)
-			continue
-		}
-
-		// 休業日チェック
-		if _, closed := closedDateSet[dateStr]; closed {
-			result.Available = false
-			result.Reason = "closed"
-			results = append(results, result)
-			continue
-		}
-
-		// 祝日チェック
-		if input.Settings.NationalHolidayClosed && holiday.IsHoliday(d) {
-			result.Available = false
-			result.Reason = "holiday"
-			results = append(results, result)
-			continue
-		}
-
-		// コースの曜日オプションチェック
-		if !checkDayOption(input.Settings.ReservationDayOption, wd) {
-			result.Available = false
-			result.Reason = "closed"
-			results = append(results, result)
-			continue
-		}
-
-		// スタッフ個人設定・時間枠チェック
-		if input.StaffInputsFn != nil && input.SlotSettingsFn != nil {
-			staffInputs, err := input.StaffInputsFn(ctx, d, input.TypeID, input.StaffID)
-			if err != nil {
-				return nil, window, err
-			}
-
-			// 全スタッフが休日かチェック
-			allOff := true
-			for _, si := range staffInputs {
-				if si.ScheduleOverride == nil {
-					allOff = false
-					break
-				}
-				if si.ScheduleOverride.ShiftType != "off" && si.ScheduleOverride.ShiftType != "paid_leave" {
-					allOff = false
-					break
-				}
-			}
-			if allOff && len(staffInputs) > 0 {
-				result.Available = false
-				result.Reason = "staff_off"
-				results = append(results, result)
-				continue
-			}
-
-			// 時間枠が1つ以上あるかチェック
-			slotInput := input.SlotSettingsFn(d)
-			slotInput.Staffs = staffInputs
-			slots, err := GenerateTimeSlots(&slotInput)
-			if err != nil {
-				return nil, window, err
-			}
-			if input.SlotFilterFn != nil {
-				slots = input.SlotFilterFn(d, slots)
-			}
-			if len(slots) == 0 {
-				result.Available = false
-				result.Reason = "no_slots"
-				results = append(results, result)
-				continue
-			}
-		}
-
-		result.Available = true
 		results = append(results, result)
 	}
 
 	return results, window, nil
+}
+
+func evaluateAvailableDate(
+	ctx context.Context,
+	d time.Time,
+	input *AvailableDatesInput,
+	closedDateSet map[string]struct{},
+	closedWeekdaySet map[int]struct{},
+) (AvailableDateResult, error) {
+	dateStr := d.Format(time.DateOnly)
+	wd := int(d.Weekday()) // 0=Sun,...,6=Sat
+
+	result := AvailableDateResult{
+		Date:    dateStr,
+		Weekday: wd,
+	}
+
+	// 休業曜日チェック
+	if _, closed := closedWeekdaySet[wd]; closed {
+		result.Available = false
+		result.Reason = "closed"
+		return result, nil
+	}
+
+	// 休業日チェック
+	if _, closed := closedDateSet[dateStr]; closed {
+		result.Available = false
+		result.Reason = "closed"
+		return result, nil
+	}
+
+	// 祝日チェック
+	if input.Settings.NationalHolidayClosed && holiday.IsHoliday(d) {
+		result.Available = false
+		result.Reason = "holiday"
+		return result, nil
+	}
+
+	// コースの曜日オプションチェック
+	if !checkDayOption(input.Settings.ReservationDayOption, wd) {
+		result.Available = false
+		result.Reason = "closed"
+		return result, nil
+	}
+
+	// スタッフ個人設定・時間枠チェック
+	if input.StaffInputsFn != nil && input.SlotSettingsFn != nil {
+		staffInputs, err := input.StaffInputsFn(ctx, d, input.TypeID, input.StaffID)
+		if err != nil {
+			return result, err
+		}
+
+		// 全スタッフが休日かチェック
+		allOff := true
+		for _, si := range staffInputs {
+			if si.ScheduleOverride == nil {
+				allOff = false
+				break
+			}
+			if si.ScheduleOverride.ShiftType != "off" && si.ScheduleOverride.ShiftType != "paid_leave" {
+				allOff = false
+				break
+			}
+		}
+		if allOff && len(staffInputs) > 0 {
+			result.Available = false
+			result.Reason = "staff_off"
+			return result, nil
+		}
+
+		// 時間枠が1つ以上あるかチェック
+		slotInput := input.SlotSettingsFn(d)
+		slotInput.Staffs = staffInputs
+		slots, err := GenerateTimeSlots(&slotInput)
+		if err != nil {
+			return result, err
+		}
+		if input.SlotFilterFn != nil {
+			slots = input.SlotFilterFn(d, slots)
+		}
+		if len(slots) == 0 {
+			result.Available = false
+			result.Reason = "no_slots"
+			return result, nil
+		}
+	}
+
+	result.Available = true
+	return result, nil
 }
 
 // checkDayOption はコースの曜日オプションに対して予約可能かチェックする。

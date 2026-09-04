@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -465,4 +466,42 @@ func TestRefundService_ListByBillingID(t *testing.T) {
 		assert.Error(t, err)
 		assert.Nil(t, items)
 	})
+}
+
+func TestRefundService_Create_LocksCloseBoundary(t *testing.T) {
+	scheduled := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	accountRepo := &mockAccountingRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) {
+			b := completedBillingForRefund()
+			b.ScheduledDate = scheduled
+			return b, nil
+		},
+	}
+	refundRepo := &mockRefundRepo{
+		createFn: func(_ context.Context, r *model.BillingRefund) error {
+			r.ID = 200
+			return nil
+		},
+	}
+	var locked []string
+	closeRepo := &mockCashRegisterCloseRepository{
+		lockCloseBoundaryFn: func(_ context.Context, clinicID uint64, date time.Time) error {
+			assert.Equal(t, uint64(1), clinicID)
+			locked = append(locked, date.Format(time.DateOnly))
+			return nil
+		},
+	}
+	svc := NewRefundService(
+		refundRepo, accountRepo, &noopAuditTxLogger{}, &mockTransactor{},
+		WithRefundCloseRepository(closeRepo),
+	)
+
+	_, err := svc.Create(context.Background(), 1, 1, CreateRefundInput{
+		StaffID: ptrUint64(1),
+		Amount:  1000,
+		Reason:  "返金",
+	})
+	assert.NoError(t, err)
+	assert.Contains(t, locked, "2026-06-01")
+	assert.Contains(t, locked, time.Now().Format(time.DateOnly))
 }

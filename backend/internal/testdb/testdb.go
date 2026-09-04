@@ -32,7 +32,13 @@ import (
 // TRUNCATE のみ SetupTestDB 内で呼び出し毎に実行し、テスト間データ分離を維持する。
 //
 // ドメインテーブルの AutoMigrate も EnsureAutoMigrated 経由でモデル型ごとに一度だけに抑える。
-// テスト間データ分離は各ヘルパーの TRUNCATE に依存する。呼び出し側パッケージに t.Parallel() は無い。
+// テスト間データ分離は truncateCoreTestTables（単一接続・単一 TRUNCATE・
+// idle-in-transaction 切断）に依存する。同一プロセスの t.Parallel() や
+// 先行テストのリーク tx が ACCESS EXCLUSIVE と組んで 40P01 を起こさないようにする。
+//
+// AutoMigrate does not apply 001_init.sql. Composite FKs, EXCLUDE gist, and trigger-copied
+// clinic_id columns exist only on a migrate-built database. testdb remains a GORM double;
+// those 001 invariants are proven by snippet pins and disposable MIGRATE_SQL_INTEGRATION.
 var (
 	sharedTestDB         *gorm.DB
 	sharedTestDBOnce     sync.Once
@@ -54,8 +60,10 @@ func modelElemType(m any) reflect.Type {
 }
 
 // EnsureAutoMigrated は各モデル型についてプロセス全体で一度だけ db.AutoMigrate を実行する。
-// 既に migrate 済みの型はスキップし、GORM のスキーマ内省コストを削減する。
+// スキップするのは既に migrate 済みの型（プロセス内キャッシュ）であり、既存テーブルをスキップするわけではない。
 // DROP TABLE 後の再作成には使わないこと（キャッシュが再 CREATE を抑止する）。
+// many2many join table が既にある場合、GORM AutoMigrate は列追加で widen しないことがある
+// （staff_permission_groups.created_at は setupSharedTestSchema の ALTER で補う）。
 func EnsureAutoMigrated(db *gorm.DB, models ...any) error {
 	if len(models) == 0 {
 		return nil
@@ -137,12 +145,7 @@ func SetupTestDB(t *testing.T) *gorm.DB {
 		t.Fatalf("failed to set up shared test schema: %v", sharedTestSchemaErr)
 	}
 
-	// Truncate tables to ensure clean state (data isolation between tests)
-	db.Exec("TRUNCATE TABLE billing_refunds CASCADE")
-	db.Exec("TRUNCATE TABLE payments CASCADE")
-	db.Exec("TRUNCATE TABLE billings CASCADE")
-	db.Exec("TRUNCATE TABLE medical_records CASCADE")
-	db.Exec("TRUNCATE TABLE owners CASCADE")
+	truncateCoreTestTables(t, db)
 
 	return db
 }
@@ -194,6 +197,26 @@ func EnsureClinicSettingsTable(t *testing.T, db *gorm.DB) {
 	`).Error)
 }
 
+// EnsureStaffPermissionGroupsCreatedAt self-heals a stale ekarte_db_test where
+// staff_permission_groups was created as a bare many2many join (staff_id, group_id only).
+// model.StaffPermissionGroup.CreatedAt and 001_init.sql both require created_at.
+// GORM AutoMigrate does not always widen an existing join table that
+// PermissionGroup.Staffs many2many already provisioned without the extra column.
+func EnsureStaffPermissionGroupsCreatedAt(t *testing.T, db *gorm.DB) {
+	t.Helper()
+	require.NoError(t, ensureStaffPermissionGroupsCreatedAt(db))
+}
+
+func ensureStaffPermissionGroupsCreatedAt(db *gorm.DB) error {
+	if err := db.Exec(`
+		ALTER TABLE staff_permission_groups
+		ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now()
+	`).Error; err != nil {
+		return fmt.Errorf("failed to ensure staff_permission_groups.created_at: %w", err)
+	}
+	return nil
+}
+
 // MakeTestOwner はテスト用の Owner を作成して返す。
 func MakeTestOwner(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.Owner {
 	t.Helper()
@@ -229,11 +252,7 @@ func SetupIsolatedTestDB(t *testing.T) *gorm.DB {
 		t.Fatalf("failed to set up shared test schema (isolated): %v", err)
 	}
 
-	db.Exec("TRUNCATE TABLE billing_refunds CASCADE")
-	db.Exec("TRUNCATE TABLE payments CASCADE")
-	db.Exec("TRUNCATE TABLE billings CASCADE")
-	db.Exec("TRUNCATE TABLE medical_records CASCADE")
-	db.Exec("TRUNCATE TABLE owners CASCADE")
+	truncateCoreTestTables(t, db)
 
 	return db
 }
@@ -328,7 +347,7 @@ var SharedTestSchemaEnumTypes = []EnumType{
 	{"tax_type", "CREATE TYPE tax_type AS ENUM ('included', 'excluded', 'exempt')"},
 	// lab_import（検査結果取込ジョブ）関連
 	{"lab_import_job_status", "CREATE TYPE lab_import_job_status AS ENUM ('received', 'validated', 'mapped', 'persisted', 'duplicate', 'needs_review', 'failed', 'reverted')"},
-	{"lab_import_source_type", "CREATE TYPE lab_import_source_type AS ENUM ('fixture', 'drwan', 'manual')"},
+	{"lab_import_source_type", "CREATE TYPE lab_import_source_type AS ENUM ('fixture', 'drwan', 'manual', 'fuji_nx600', 'fuji_au10v', 'arkray_pu4010', 'idexx_vetlab')"},
 	// #211 健診パッケージ（migration 010 → 001_init.sql 統合済み）
 	{"checkup_field_type", "CREATE TYPE checkup_field_type AS ENUM ('number', 'single_select', 'multi_select', 'boolean', 'checklist', 'text')"},
 }
@@ -472,6 +491,12 @@ func setupSharedTestSchema(db *gorm.DB) error {
 		return fmt.Errorf("failed to migrate test db: %w", err)
 	}
 	MarkAutoMigrated(coreModels...)
+	// PermissionGroup.Staffs many2many creates a bare join table during the
+	// AutoMigrate above. Registering StaffPermissionGroup later does not
+	// reliably ADD created_at; ALTER is the source of truth for test DB.
+	if err := ensureStaffPermissionGroupsCreatedAt(db); err != nil {
+		return err
+	}
 	return nil
 }
 

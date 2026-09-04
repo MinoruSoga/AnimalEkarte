@@ -1,4 +1,4 @@
-// Package service provides business logic implementations for HospitalizationPlan entity.
+// Package medicalrecord provides hospitalization plan use cases.
 package medicalrecord
 
 import (

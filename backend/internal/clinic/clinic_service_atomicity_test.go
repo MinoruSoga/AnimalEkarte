@@ -52,7 +52,7 @@ func (r *atomicClinicStore) Create(ctx context.Context, clinic *model.Clinic) er
 	return nil
 }
 
-func (r *atomicClinicStore) Update(context.Context, uint64, map[string]any) error {
+func (r *atomicClinicStore) UpdateClinic(context.Context, uint64, *UpdateClinicInput) error {
 	return nil
 }
 

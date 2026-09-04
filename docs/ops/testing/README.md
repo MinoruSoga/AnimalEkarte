@@ -1,30 +1,28 @@
 # testing/ — テスト・品質保証
 
-> **目的**: テスト戦略・検証手順・品質記録のドキュメント索引を提供する。  
-> **読者**: 全開発者・QA・AI エージェント。  
-> **タイミング**: テスト実施・テスト戦略変更・品質検証の前。
+> **目的**: テスト戦略・検証手順・品質記録の索引を提供する。
 
-編集時のルール・品質基準の原則は [CLAUDE.md](CLAUDE.md) を参照。
+編集規則は [CLAUDE.md](CLAUDE.md) を参照する。
 
 ## 索引
 
 | ドキュメント | 内容 | いつ読むか |
 |:---|:---|:---|
-| **[TEST_ARCHITECTURE.md](TEST_ARCHITECTURE.md)** | **テストアーキテクチャ（層 L0–L5・受入 L4・項目単位・記録）** | **受入・戦略確認の最初** |
-| [UAT-ENV-SETUP.md](UAT-ENV-SETUP.md) | 受入実行環境の準備・チェックスクリプト | scenarios 実行前 |
-| [scenarios/](scenarios/README.md) | 納品前受け入れ（S01–S13 + V01–V05 + 項目単位 F） | 納品前・大きなリリース前 |
-| [scenarios/FIELD-LEVEL-PROTOCOL.md](scenarios/FIELD-LEVEL-PROTOCOL.md) | フォーム**項目単位**チェック F0–F6 | V シリーズ実施時 |
-| [scenarios/FORM-FIELD-INVENTORY.md](scenarios/FORM-FIELD-INVENTORY.md) | 全フォーム×項目の棚卸し | 項目単位カバー確認 |
-| [INTEGRATION_TEST_PLAN.md](INTEGRATION_TEST_PLAN.md) | Unit/Integration/E2E・負荷試験 | 自動テスト方針 |
-| [E2E_TESTING_GUIDE.md](E2E_TESTING_GUIDE.md) | Playwright E2E 実行・追加 | L3 回帰 |
-| [SECTION_14_MANUAL_TEST_GUIDE.md](SECTION_14_MANUAL_TEST_GUIDE.md) | ドメイン重点の手動/browser-test | L5 補完 |
-| [PERFORMANCE_PROFILING.md](PERFORMANCE_PROFILING.md) | pprof / Lighthouse | 性能調査 |
+| **[TEST_ARCHITECTURE.md](TEST_ARCHITECTURE.md)** | **L0–L5、証跡、環境境界** | **最初** |
+| [UAT-ENV-SETUP.md](UAT-ENV-SETUP.md) | stack と明示的な fixture/account provisioning | scenarios 実行前 |
+| [scenarios/](scenarios/README.md) | S01–S13、V01–V05、項目単位 F | 納品前・大きなリリース前 |
+| [scenarios/FIELD-LEVEL-PROTOCOL.md](scenarios/FIELD-LEVEL-PROTOCOL.md) | フォーム項目単位 F0–F6 | V シリーズ実施時 |
+| [scenarios/FORM-FIELD-INVENTORY.md](scenarios/FORM-FIELD-INVENTORY.md) | 宣言済みフォーム群・項目。wildcard/実測待ちを含む | カバー範囲確認 |
+| [INTEGRATION_TEST_PLAN.md](INTEGRATION_TEST_PLAN.md) | Unit/API/E2E と負荷試験の現状 | 自動テスト方針 |
+| [E2E_TESTING_GUIDE.md](E2E_TESTING_GUIDE.md) | 実装済み Playwright coverage と runner | L3 回帰 |
+| [liff-verification.md](liff-verification.md) | LIFF の mock/実 LINE と秘密管理境界 | LIFF/LINE 検証 |
+| [SECTION_14_MANUAL_TEST_GUIDE.md](SECTION_14_MANUAL_TEST_GUIDE.md) | L5 の focused exploratory supplement | 補完確認 |
+| [PERFORMANCE_PROFILING.md](PERFORMANCE_PROFILING.md) | Lighthouse、k6、SQL 分析、現行 profiler の制約 | 性能調査 |
 
-## AI エージェント向け注記
+## 重要な現状
 
-- **受入の正本は [scenarios/](scenarios/README.md)**。アーキテクチャは [TEST_ARCHITECTURE.md](TEST_ARCHITECTURE.md)。
-- フォーム受入は **項目単位まで**（[FIELD-LEVEL-PROTOCOL.md](scenarios/FIELD-LEVEL-PROTOCOL.md)）。C1 代表 1 項目だけでは完了にしない。
-- 環境: `./docs/ops/testing/scripts/check-uat-env.sh` → [UAT-ENV-SETUP.md](UAT-ENV-SETUP.md)。
-- カバレッジ基準の正本は [../coverage-policy.md](../coverage-policy.md)（ratchet 方式）。
-- BE9 完了後の HTTP テストは各 `internal/<domain>` と `cmd/api`。
-- FAIL / 要対応は root [`todo.md`](../../../todo.md) 受入バグ節。シナリオ md に結果を書かない。証跡は `reports/uat-YYYY-MM-DD/`。
+- migration は `002_master` だけをロードし、UAT account/clinical fixture は作らない。準備は [UAT-ENV-SETUP.md](UAT-ENV-SETUP.md) に従う。
+- E2E の GitHub workflow は manual・non-gating で、account/fixture provisioning がないため authenticated suite は現在 BLOCKED。
+- performance workflow の k6 job も fresh master-only DB に account provisioning がなく、現在 BLOCKED。
+- unique form総数はinventory再構築完了まで算定保留。exact key未収録や動的定義が残る間は「全fieldを網羅」と言わない。
+- カバレッジ基準は [../coverage-policy.md](../coverage-policy.md)。確認済み UAT FAIL は `bug.md` で重複確認・記録後に Linear で追跡する。その他の新規 defect は通常の Linear intake に従う。

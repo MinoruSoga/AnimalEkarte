@@ -62,11 +62,7 @@ describe("examination-lock (BUG-033)", () => {
     const record = transformExamination(payload);
     expect(record.status).toBe("完了");
     expect(record.currentRevisionVersion).toBeUndefined();
-    expect(
-      isPersistedCompletedSeal(record.status, record.currentRevisionVersion),
-    ).toBe(true);
-    expect(
-      isPersistedResultsLocked(record.status, record.currentRevisionVersion),
-    ).toBe(true);
+    expect(isPersistedCompletedSeal(record.status, record.currentRevisionVersion)).toBe(true);
+    expect(isPersistedResultsLocked(record.status, record.currentRevisionVersion)).toBe(true);
   });
 });

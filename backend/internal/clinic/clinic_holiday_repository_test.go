@@ -21,6 +21,7 @@ func setupClinicHolidayTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := testdb.SetupTestDB(t)
 	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.Company{}, &model.Clinic{}, &model.ClinicHoliday{}))
+	require.NoError(t, db.Exec("TRUNCATE TABLE clinic_holidays").Error)
 	// clinics/companies はテスト全体で TRUNCATE されない共有テーブル。他ファイル
 	// （staff_preload_clinic_isolation_test.go の seedClinicsForFK 等）が clinics.id を
 	// 明示指定して手動 INSERT すると、bigserial シーケンスの内部カウンタは追従せず、
@@ -104,18 +105,19 @@ func TestClinicHolidayRepository_Save(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "臨時休診", got.Reason)
 
-	// 同一 (clinic_id, date) での再 Save は UPSERT で reason を上書きする
+	// 同一 (clinic_id, date) の再 Save は上書きせず AlreadyExists（BUG-015）
 	second := &model.ClinicHoliday{ClinicID: clinic.ID, Date: date, Reason: "理由変更後"}
 	_, err = repo.Save(ctx, clinic.ID, second)
-	require.NoError(t, err)
+	require.Error(t, err)
+	assert.True(t, apperrors.IsAlreadyExists(err))
 
 	got2, err := repo.FindByDate(ctx, clinic.ID, date)
 	require.NoError(t, err)
-	assert.Equal(t, "理由変更後", got2.Reason)
+	assert.Equal(t, "臨時休診", got2.Reason, "既存 reason は上書きされない")
 
 	var count int64
 	db.Model(&model.ClinicHoliday{}).Where("clinic_id = ? AND date = ?", clinic.ID, date.Format("2006-01-02")).Count(&count)
-	assert.Equal(t, int64(1), count, "UPSERT のため行は増えない")
+	assert.Equal(t, int64(1), count, "重複追加では行が増えない")
 }
 
 // POC-09: Save は struct の ClinicID より arg clinicID を正として書き込む。

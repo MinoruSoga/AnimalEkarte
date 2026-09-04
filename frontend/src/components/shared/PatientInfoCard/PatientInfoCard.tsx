@@ -43,10 +43,11 @@ function normalizeAlertDate(value: string): string | undefined {
   const day = Number(dayText);
   const candidate = new Date(Date.UTC(year, month - 1, day));
   if (
-    candidate.getUTCFullYear() !== year
-    || candidate.getUTCMonth() !== month - 1
-    || candidate.getUTCDate() !== day
-  ) return undefined;
+    candidate.getUTCFullYear() !== year ||
+    candidate.getUTCMonth() !== month - 1 ||
+    candidate.getUTCDate() !== day
+  )
+    return undefined;
 
   return `${yearText}-${monthText}-${dayText}`;
 }
@@ -57,16 +58,16 @@ export const PatientInfoCard = memo(function PatientInfoCard({
   petNumber,
   weight,
   status = "alive",
-  staffName = "医師A",
-  staffLabel = "",
+  staffName = "",
+  staffLabel = "担当医",
   reservationType = "診療",
   reservationTypeLabel = "診療種別",
   // BUG-006: 臨床画面に固定ダミー属性を出さない。未指定は不明。
   petDetails = "不明",
-  insuranceName = "ペット保険Aプラン",
-  insuranceDetails = "普通or危険",
-  nextVisitDate = "-",
-  nextVisitContent = "-",
+  insuranceName = "",
+  insuranceDetails = "",
+  nextVisitDate,
+  nextVisitContent,
   visitCount,
   sticky = true,
   hideStaff = false,
@@ -77,7 +78,7 @@ export const PatientInfoCard = memo(function PatientInfoCard({
   staffButtonId,
 }: PatientInfoCardProps) {
   const isDeceased = status === "deceased";
-  const nextVisitAlertDate = normalizeAlertDate(nextVisitDate);
+  const nextVisitAlertDate = nextVisitDate ? normalizeAlertDate(nextVisitDate) : undefined;
 
   return (
     <div
@@ -111,14 +112,18 @@ export const PatientInfoCard = memo(function PatientInfoCard({
               {petName}
             </span>
             {isDeceased ? (
-              <span className={`text-2xs font-semibold px-1.5 py-0.5 rounded ${C.bgDanger} ${C.textWhite} uppercase ml-1`}>
+              <span
+                className={`text-2xs font-semibold px-1.5 py-0.5 rounded ${C.bgDanger} ${C.textWhite} uppercase ml-1`}
+              >
                 【死亡】
               </span>
             ) : null}
           </div>
           <div className={`flex flex-wrap items-center gap-x-3 gap-y-1 text-sm ${C.text60}`}>
             {petNumber ? (
-              <span className={`font-mono text-2xs px-1 py-0 rounded ${C.bgPage} border ${C.borderMediumLight} ${C.text40} leading-4`}>
+              <span
+                className={`font-mono text-2xs px-1 py-0 rounded ${C.bgPage} border ${C.borderMediumLight} ${C.text40} leading-4`}
+              >
                 #{petNumber}
               </span>
             ) : null}
@@ -129,9 +134,7 @@ export const PatientInfoCard = memo(function PatientInfoCard({
               <Activity className={ICON.xs} /> {weight}
             </span>
             {typeof visitCount === "number" ? (
-              <span className="flex items-center gap-1">
-                来院 {visitCount} 回
-              </span>
+              <span className="flex items-center gap-1">来院 {visitCount} 回</span>
             ) : null}
           </div>
         </div>
@@ -156,20 +159,31 @@ export const PatientInfoCard = memo(function PatientInfoCard({
           </div>
 
           {/* Insurance */}
-          <div className={`flex min-w-0 flex-col gap-0.5 px-3 py-1.5 rounded min-h-[38px] justify-center ${C.bgPage} border ${C.borderLight} basis-[140px] grow`}>
-            <span className={`text-sm font-medium ${C.text} truncate`}>{insuranceName}</span>
-            <span className={`text-sm ${C.text60} truncate`}>{insuranceDetails}</span>
+          <div
+            className={`flex min-w-0 flex-col gap-0.5 px-3 py-1.5 rounded min-h-[38px] justify-center ${C.bgPage} border ${C.borderLight} basis-[140px] grow`}
+          >
+            <span className={`text-sm font-medium ${C.text} truncate`}>
+              {insuranceName || "保険情報未登録"}
+            </span>
+            {insuranceDetails ? (
+              <span className={`text-sm ${C.text60} truncate`}>{insuranceDetails}</span>
+            ) : null}
           </div>
 
-          {/* Next Visit — clinical cue must remain visible */}
-          <div className={`flex min-w-0 flex-col gap-0.5 px-3 py-1.5 rounded min-h-[38px] justify-center ${C.bgPage} border ${C.borderLight} basis-[140px] grow`}>
-            <div className="flex items-center gap-1">
-              <Calendar className={`${ICON.xs} ${C.text60}`} />
-              <span className={`text-sm ${C.text}`}>次回 {nextVisitDate}</span>
+          {nextVisitDate && nextVisitDate !== "-" ? (
+            <div
+              className={`flex min-w-0 flex-col gap-0.5 px-3 py-1.5 rounded min-h-[38px] justify-center ${C.bgPage} border ${C.borderLight} basis-[140px] grow`}
+            >
+              <div className="flex items-center gap-1">
+                <Calendar className={`${ICON.xs} ${C.text60}`} />
+                <span className={`text-sm ${C.text}`}>次回 {nextVisitDate}</span>
+              </div>
+              <CheckupAlertBadge nextDate={nextVisitAlertDate} />
+              {nextVisitContent && nextVisitContent !== "-" ? (
+                <span className={`text-sm ${C.text60} truncate`}>{nextVisitContent}</span>
+              ) : null}
             </div>
-            <CheckupAlertBadge nextDate={nextVisitAlertDate} />
-            <span className={`text-sm ${C.text60} truncate`}>{nextVisitContent}</span>
-          </div>
+          ) : null}
         </div>
 
         {/* Staff & Actions */}
@@ -200,7 +214,9 @@ export const PatientInfoCard = memo(function PatientInfoCard({
                 <ChevronDown className={`${ICON.xs} ${C.text40}`} />
               </Button>
             ) : (
-              <div className={`h-9 text-sm flex items-center gap-1 px-3 rounded-md ${C.bgPage} ${C.text} border ${C.borderMedium}`}>
+              <div
+                className={`h-9 text-sm flex items-center gap-1 px-3 rounded-md ${C.bgPage} ${C.text} border ${C.borderMedium}`}
+              >
                 {staffLabel ? `${staffLabel}${staffName}` : staffName}
               </div>
             )

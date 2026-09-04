@@ -134,14 +134,32 @@ func (r *occupationRepository) Update(ctx context.Context, clinicID, id uint64, 
 }
 
 func (r *occupationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	return persistence.DeleteScopedByID(
-		ctx,
-		persistence.DBOrTx(ctx, r.db),
-		&model.Occupation{},
-		"occupation",
-		clinicID,
-		id,
-	)
+	result := persistence.DBOrTx(ctx, r.db).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ?", id).
+		Where(`NOT EXISTS (
+			SELECT 1 FROM staffs
+			JOIN staff_clinic_assignments ON staff_clinic_assignments.staff_id = staffs.id
+			  AND staff_clinic_assignments.clinic_id = ?
+			  AND staff_clinic_assignments.deleted_at IS NULL
+			WHERE staffs.occupation_id = occupations.id
+			  AND staffs.deleted_at IS NULL
+		)`, clinicID).
+		Delete(&model.Occupation{})
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "occupation", fmt.Sprintf("%d", id))
+	}
+	if result.RowsAffected == 0 {
+		return r.normalizeOccupationDeleteMiss(ctx, clinicID, id)
+	}
+	return nil
+}
+
+func (r *occupationRepository) normalizeOccupationDeleteMiss(ctx context.Context, clinicID, id uint64) error {
+	if _, err := r.FindByID(ctx, clinicID, id); err != nil {
+		return err
+	}
+	return apperrors.WrapConflict("この役職はスタッフ情報で使用中のため削除できません")
 }
 
 // CountUsageByOccupationID returns staff references for the occupation (BUG-112).

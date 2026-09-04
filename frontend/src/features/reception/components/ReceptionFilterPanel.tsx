@@ -28,7 +28,9 @@ export function ReceptionFilterPanel({
   onTrimmingOnlyChange,
 }: ReceptionFilterPanelProps) {
   return (
-    <div className={`${C.bgWhite} border-b border-border px-6 py-4 animate-in slide-in-from-top-1 fade-in duration-200`}>
+    <div
+      className={`${C.bgWhite} border-b border-border px-6 py-4 animate-in slide-in-from-top-1 fade-in duration-200`}
+    >
       <div className="flex flex-wrap gap-8">
         <div className="space-y-2">
           <h4 className={`font-bold text-base ${C.text}`}>診察区分</h4>
@@ -41,7 +43,10 @@ export function ReceptionFilterPanel({
                   onCheckedChange={() => onToggleVisitType(type)}
                   className="size-4"
                 />
-                <Label htmlFor={`visit-${type}`} className={`text-base font-normal cursor-pointer ${C.text}`}>
+                <Label
+                  htmlFor={`visit-${type}`}
+                  className={`text-base font-normal cursor-pointer ${C.text}`}
+                >
                   {type}
                 </Label>
               </div>
@@ -70,7 +75,10 @@ export function ReceptionFilterPanel({
               onCheckedChange={(checked) => onTrimmingOnlyChange(checked === true)}
               className="size-4"
             />
-            <Label htmlFor="trimming-only" className={`text-base font-normal cursor-pointer ${C.text}`}>
+            <Label
+              htmlFor="trimming-only"
+              className={`text-base font-normal cursor-pointer ${C.text}`}
+            >
               トリミングのみ表示
             </Label>
           </div>

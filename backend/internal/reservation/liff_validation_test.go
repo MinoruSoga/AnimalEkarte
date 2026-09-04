@@ -104,6 +104,16 @@ func TestValidateLiffReservationInput(t *testing.T) {
 			errSubstr: "customer_name",
 		},
 		{
+			name: "phone に数字以外が含まれる → 400",
+			build: func() liffCreateReservationRequest {
+				cf := map[string]any{"phone": "abc"}
+				b, _ := json.Marshal(cf)
+				return liffCreateReservationRequest{CustomerFields: b}
+			},
+			wantErr:   true,
+			errSubstr: "電話番号",
+		},
+		{
 			name: "ネスト配列内の string も長さ検証される → 400",
 			build: func() liffCreateReservationRequest {
 				cf := map[string]any{

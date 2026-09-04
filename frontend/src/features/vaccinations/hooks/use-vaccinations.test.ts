@@ -11,11 +11,20 @@ import { useGetVaccinations } from "../api/get-vaccinations";
 
 const mockRecords = [
   { ownerName: "ヤマダタロウ", petName: "ポチ", vaccineName: "狂犬病ワクチン", doctor: "田中" },
-  { ownerName: "さとうけんじ", petName: "たまごろう", vaccineName: "フィラリア予防", doctor: "佐藤" },
+  {
+    ownerName: "さとうけんじ",
+    petName: "たまごろう",
+    vaccineName: "フィラリア予防",
+    doctor: "佐藤",
+  },
 ];
 
 function setup(searchTerm: string) {
-  vi.mocked(useGetVaccinations).mockReturnValue({ data: mockRecords as never, isLoading: false, error: null });
+  vi.mocked(useGetVaccinations).mockReturnValue({
+    data: mockRecords as never,
+    isLoading: false,
+    error: null,
+  });
   return renderHook(() => useFilterVaccinations(searchTerm));
 }
 

@@ -55,6 +55,10 @@ func (h *Handler) SearchOwners(c *gin.Context) {
 		return
 	}
 	q := c.Query("q")
+	if len(q) > 255 {
+		httpapi.RespondError(c, apperrors.WrapInvalidInput("q must be at most 255 characters"))
+		return
+	}
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	owners, err := h.service.SearchOwners(c.Request.Context(), actor, q, limit)
 	if err != nil {
@@ -71,6 +75,10 @@ func (h *Handler) SearchPets(c *gin.Context) {
 		return
 	}
 	q := c.Query("q")
+	if len(q) > 255 {
+		httpapi.RespondError(c, apperrors.WrapInvalidInput("q must be at most 255 characters"))
+		return
+	}
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	pets, err := h.service.SearchPets(c.Request.Context(), actor, q, limit)
 	if err != nil {
@@ -182,10 +190,7 @@ func (h *Handler) UnlinkOwnerMember(c *gin.Context) {
 		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
-	if err := h.service.UnlinkOwnerMember(c.Request.Context(), actor, groupID, OwnerMemberRef{
-		ClinicID: req.ClinicID,
-		OwnerID:  req.OwnerID,
-	}); err != nil {
+	if err := h.service.UnlinkOwnerMember(c.Request.Context(), actor, groupID, OwnerMemberRef(req)); err != nil {
 		httpapi.RespondError(c, err)
 		return
 	}
@@ -294,10 +299,7 @@ func (h *Handler) UnlinkPetMember(c *gin.Context) {
 		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
-	if err := h.service.UnlinkPetMember(c.Request.Context(), actor, groupID, PetMemberRef{
-		ClinicID: req.ClinicID,
-		PetID:    req.PetID,
-	}); err != nil {
+	if err := h.service.UnlinkPetMember(c.Request.Context(), actor, groupID, PetMemberRef(req)); err != nil {
 		httpapi.RespondError(c, err)
 		return
 	}

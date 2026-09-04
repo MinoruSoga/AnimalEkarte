@@ -8,7 +8,7 @@ import type { FrontendMerchandiseItem } from "../api/merchandise-items";
 import {
   formatMerchandiseTaxRate,
   MERCHANDISE_CATEGORY_LABELS,
-} from "./merchandise-side-panel-model";
+} from "../lib/merchandise-side-panel-model";
 
 interface MerchandiseRowOverlayProps {
   item: FrontendMerchandiseItem;

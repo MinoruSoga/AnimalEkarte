@@ -25,9 +25,7 @@ interface TestEntity {
   name: string;
 }
 
-function buildCrud(
-  editTarget: TestEntity | "new",
-): UseMasterCRUDReturn<TestEntity> {
+function buildCrud(editTarget: TestEntity | "new"): UseMasterCRUDReturn<TestEntity> {
   const panelItem = editTarget === "new" ? null : editTarget;
   const startSaveTransition: TransitionStartFunction = (callback) => {
     callback();
@@ -72,9 +70,7 @@ function renderPage(editTarget: TestEntity | "new") {
       handleSave={vi.fn()}
       columns={[]}
       renderRow={() => null}
-      renderSidePanel={({ readOnly }) => (
-        <p>{readOnly ? "閲覧のみ" : "編集可能"}</p>
-      )}
+      renderSidePanel={({ readOnly }) => <p>{readOnly ? "閲覧のみ" : "編集可能"}</p>}
     >
       <div>一覧</div>
     </MasterCRUDPage>,

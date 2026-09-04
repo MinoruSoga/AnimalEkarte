@@ -91,6 +91,22 @@ func TestGetBillingConfirmation(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 		},
 		{
+			name:    "returns 403 when selected clinic lacks accounting view grant",
+			paramID: "5",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("clinic_id", "2")
+				setAccountingPermissionOnlyClinic(c, 1, "view")
+			},
+			svc: &mockBillingConfirmationService{
+				getOrCreateFn: func(_ context.Context, _, _ uint64) (*model.BillingConfirmation, error) {
+					t.Fatal("billing confirmation service must not be reached")
+					return nil, nil
+				},
+			},
+			wantStatus: http.StatusForbidden,
+		},
+		{
 			name:     "returns 500 on service error",
 			paramID:  "5",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },

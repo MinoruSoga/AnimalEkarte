@@ -7,6 +7,9 @@ function getCandidateId(item: BackendAccountingItem): string {
   if (item.vaccination_id != null) {
     return `vaccination_${item.vaccination_id}`;
   }
+  if (item.exam_id != null) {
+    return `exam_${item.exam_id}`;
+  }
   if (item.treatment_id != null) {
     return `treatment_${item.treatment_id}`;
   }

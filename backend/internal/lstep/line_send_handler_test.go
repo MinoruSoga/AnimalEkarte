@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -122,7 +123,7 @@ func TestPostLineSend(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			name:    "returns 400 when text exceeds 500 chars",
+			name:    "returns 200 when text is LINE max 5000 chars",
 			paramID: "1",
 			setupCtx: func(c *gin.Context) {
 				setClinicID(c)
@@ -130,7 +131,21 @@ func TestPostLineSend(t *testing.T) {
 			},
 			body: bodyMap{
 				"message_type": "text",
-				"text":         string(make([]byte, 501)), // 501 ASCII chars
+				"text":         strings.Repeat("a", 5000),
+			},
+			svc:        &mockLineSendService{},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:    "returns 400 when text exceeds 5000 chars",
+			paramID: "1",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				setStaffID(c)
+			},
+			body: bodyMap{
+				"message_type": "text",
+				"text":         strings.Repeat("a", 5001),
 			},
 			svc:        &mockLineSendService{},
 			wantStatus: http.StatusBadRequest,

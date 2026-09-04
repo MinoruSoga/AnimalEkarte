@@ -21,6 +21,7 @@ interface HospitalizationPaginatedResponse {
 }
 
 export interface HospitalizationFilters {
+  petId?: string;
   startDate?: string; // YYYY-MM-DD（入院開始日の範囲）
   endDate?: string; // YYYY-MM-DD
   /** UI タブ値（active/reserved/discharged/all）。wire 変換は getHospitalizations 内で行う。 */
@@ -44,6 +45,7 @@ const getHospitalizations = async (
   const limit = filters?.limit ?? HOSPITALIZATION_LIST_DEFAULT_LIMIT;
   const params: Record<string, string | number> = { page, limit };
 
+  if (filters?.petId) params.pet_id = filters.petId;
   if (filters?.startDate) params.start_date = filters.startDate;
   if (filters?.endDate) params.end_date = filters.endDate;
 
@@ -56,10 +58,9 @@ const getHospitalizations = async (
     }
   }
 
-  const { data } = await axios.get<HospitalizationPaginatedResponse>(
-    "/v1/hospitalizations",
-    { params },
-  );
+  const { data } = await axios.get<HospitalizationPaginatedResponse>("/v1/hospitalizations", {
+    params,
+  });
   return {
     data: (data.data ?? []).map(transformHospitalization),
     total: data.total,

@@ -2,7 +2,11 @@ import { type ComponentProps } from "react";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 
-import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
+import {
+  DataTable,
+  DESIGN_TABLE_HEADER_ROW,
+  DESIGN_TABLE_HEADER_CELL,
+} from "@/components/shared/DataTable/DataTable";
 import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";

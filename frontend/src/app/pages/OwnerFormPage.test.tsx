@@ -45,18 +45,21 @@ describe("OwnerFormPage loader/query dedup", () => {
   });
 
   it("編集routeではloaderのownerを再利用し、同一owner queryを重ねない", async () => {
-    const router = createMemoryRouter([
-      {
-        path: "/owners/:id",
-        loader: () => ({ owner: OWNER }),
-        HydrateFallback: () => null,
-        element: (
-          <Suspense fallback={null}>
-            <OwnerFormPage />
-          </Suspense>
-        ),
-      },
-    ], { initialEntries: ["/owners/owner-1"] });
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/owners/:id",
+          loader: () => ({ owner: OWNER }),
+          HydrateFallback: () => null,
+          element: (
+            <Suspense fallback={null}>
+              <OwnerFormPage />
+            </Suspense>
+          ),
+        },
+      ],
+      { initialEntries: ["/owners/owner-1"] },
+    );
 
     render(<RouterProvider router={router} />);
 

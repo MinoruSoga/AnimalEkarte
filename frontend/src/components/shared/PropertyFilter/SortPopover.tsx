@@ -3,7 +3,13 @@ import { memo, useState, useCallback } from "react";
 import { ArrowUpDown, ArrowUp, ArrowDown, X, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandInput, CommandItem, CommandList, CommandEmpty } from "@/components/ui/command";
+import {
+  Command,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandEmpty,
+} from "@/components/ui/command";
 import type { SortProperty, ActiveSort } from "./types";
 
 // ─── Sort Rule Row ───────────────────────────────────────────
@@ -56,9 +62,7 @@ const SortRuleRow = memo(function SortRuleRow({
                   }}
                   className="text-base"
                 >
-                  {prop.icon ? (
-                    <prop.icon className={`mr-2 ${ICON.xs} ${C.text50}`} />
-                  ) : null}
+                  {prop.icon ? <prop.icon className={`mr-2 ${ICON.xs} ${C.text50}`} /> : null}
                   {prop.label}
                 </CommandItem>
               ))}
@@ -114,9 +118,7 @@ export const SortPopover = memo(function SortPopover({
     (key: string) => {
       onSortChange(
         activeSorts.map((s) =>
-          s.key === key
-            ? { ...s, direction: s.direction === "asc" ? "desc" : "asc" }
-            : s,
+          s.key === key ? { ...s, direction: s.direction === "asc" ? "desc" : "asc" } : s,
         ),
       );
     },
@@ -127,11 +129,7 @@ export const SortPopover = memo(function SortPopover({
     (oldKey: string, newKey: string) => {
       if (oldKey === newKey) return;
       // Replace old sort with new property, keep direction
-      onSortChange(
-        activeSorts.map((s) =>
-          s.key === oldKey ? { ...s, key: newKey } : s,
-        ),
-      );
+      onSortChange(activeSorts.map((s) => (s.key === oldKey ? { ...s, key: newKey } : s)));
     },
     [activeSorts, onSortChange],
   );
@@ -162,7 +160,7 @@ export const SortPopover = memo(function SortPopover({
         <Button
           variant="ghost"
           size="sm"
-          className={`h-9 w-9 p-0 ${C.text50} hover:${C.text80} ${C.hoverBgLight}`}
+          className={`h-9 w-9 p-0 ${C.text50} ${C.hoverText80} ${C.hoverBgLight}`}
           aria-label="並べ替え"
         >
           <ArrowUpDown className={ICON.lg} />
@@ -187,9 +185,7 @@ export const SortPopover = memo(function SortPopover({
               ))}
             </div>
           ) : (
-            <p className={`text-base ${C.text30} py-2`}>
-              並べ替えが設定されていません
-            </p>
+            <p className={`text-base ${C.text30} py-2`}>並べ替えが設定されていません</p>
           )}
 
           {/* Add sort */}
@@ -206,9 +202,7 @@ export const SortPopover = memo(function SortPopover({
                         onSelect={() => handleAddSort(prop.key)}
                         className="text-base"
                       >
-                        {prop.icon ? (
-                          <prop.icon className={`mr-2 ${ICON.xs} ${C.text50}`} />
-                        ) : null}
+                        {prop.icon ? <prop.icon className={`mr-2 ${ICON.xs} ${C.text50}`} /> : null}
                         {prop.label}
                       </CommandItem>
                     ))}

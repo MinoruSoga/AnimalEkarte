@@ -30,7 +30,7 @@ Exit code is 0 only when every check passes, non-zero otherwise, so it can be
 wired into CI or a pre-edit guard.
 
 Usage:
-    python3 scripts/verify_research_html.py [path/to/research-cloudflare.html]
+    python3 scripts/verify_research_html.py path/to/research-cloudflare.html
 """
 
 from __future__ import annotations
@@ -42,7 +42,7 @@ import sys
 
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_TARGET = ROOT / "research-cloudflare.html"
+
 
 # IaC + cost truth sources the deliverable's figures must reconcile against.
 TERRAFORM_DIR = ROOT / "infra" / "terraform"
@@ -413,8 +413,10 @@ def run(target: Path) -> int:
 
 
 def main(argv: list[str]) -> int:
-    target = Path(argv[1]).resolve() if len(argv) > 1 else DEFAULT_TARGET
-    return run(target)
+    if len(argv) != 2:
+        print("usage: verify_research_html.py path/to/research-cloudflare.html", file=sys.stderr)
+        return 2
+    return run(Path(argv[1]).resolve())
 
 
 if __name__ == "__main__":

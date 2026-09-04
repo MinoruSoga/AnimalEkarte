@@ -1,5 +1,12 @@
 import { useMemo, useCallback, memo } from "react";
-import { CommandDialog, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
+import {
+  CommandDialog,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+} from "@/components/ui/command";
 import { Check } from "lucide-react";
 import { C, ICON } from "@/lib/design-tokens";
 import { useGetStaffs } from "@/hooks/use-staffs";
@@ -36,7 +43,7 @@ export const StaffSelectionModal = memo(function StaffSelectionModal({
   }, [staffs]);
 
   const commandFilter = useCallback(
-    (value: string, search: string) => normalizedIncludes(value, search) ? 1 : 0,
+    (value: string, search: string) => (normalizedIncludes(value, search) ? 1 : 0),
     [],
   );
 
@@ -79,12 +86,8 @@ export const StaffSelectionModal = memo(function StaffSelectionModal({
                     className={`cursor-pointer !py-2 ${isSelected ? C.bgPage : ""}`}
                   >
                     <div className="flex flex-1 items-center justify-between">
-                      <span className={`font-medium ${C.text} text-sm`}>
-                        {staff.name}
-                      </span>
-                      {isSelected ? (
-                        <Check className={`${ICON.action} ${C.text}`} />
-                      ) : null}
+                      <span className={`font-medium ${C.text} text-sm`}>{staff.name}</span>
+                      {isSelected ? <Check className={`${ICON.action} ${C.text}`} /> : null}
                     </div>
                   </CommandItem>
                 );

@@ -5,10 +5,9 @@
   },
   "include": [
     "./fixtures/*.ts",
-    "./helpers/synthetic-api.spec.ts",
-    "./helpers/synthetic-api.ts",
-    "./ui-design-compliance-readonly.spec.ts",
-    "./medical-records-create.spec.ts",
+    "./helpers/**/*.ts",
+    "./pages/**/*.ts",
+    "./*.spec.ts",
     "../src/vite-env.d.ts"
   ],
   "exclude": []

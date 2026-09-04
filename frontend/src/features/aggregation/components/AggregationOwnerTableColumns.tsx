@@ -2,12 +2,12 @@ import type { ReactNode } from "react";
 import { Link } from "react-router";
 
 import { BADGE, C } from "@/lib/design-tokens";
-import { CPM_STAGE_SHORT_LABELS, type CPMStage } from "@/lib/cpm-stage";
+import { AGGREGATION_CPM_STAGE_SHORT_LABELS, type AggregationCPMStage } from "@/lib/cpm-stage";
 import { paths } from "@/config/paths";
 import { formatCurrency } from "@/lib/format/number";
 
 import type { AggregationOwner, LastVisitBucket } from "../api/get-aggregations";
-import type { AggregationTab } from "./aggregation-filter-panel-model";
+import type { AggregationTab } from "../lib/aggregation-filter-panel-model";
 
 interface AggregationOwnerColumn {
   key: string;
@@ -78,16 +78,17 @@ const OWNER_NAME_COLUMN: AggregationOwnerColumn = {
 
 // ISSUE-180: CPM セグメントのバッジ。色は意味的に割当
 // （green=成長, gray=休眠, purple=最上位, blue=コア, yellow=新規, orange=単発）。
-const CPM_STAGE_BADGE_CLASS: Record<CPMStage, string> = {
+const CPM_STAGE_BADGE_CLASS: Record<AggregationCPMStage, string> = {
   cpm_noah: BADGE.purple,
   cpm_core: BADGE.blue,
   cpm_growing: BADGE.green,
   cpm_encounter: BADGE.yellow,
   cpm_spot: BADGE.orange,
   cpm_dormant: BADGE.gray,
+  cpm_unclassified: BADGE.gray,
 };
 
-function renderCPMStageBadge(stage: CPMStage | undefined) {
+function renderCPMStageBadge(stage: AggregationCPMStage | undefined) {
   if (!stage) {
     return <span className={`text-sm ${C.text40}`}>—</span>;
   }
@@ -96,7 +97,7 @@ function renderCPMStageBadge(stage: CPMStage | undefined) {
     <span
       className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${CPM_STAGE_BADGE_CLASS[stage]}`}
     >
-      {CPM_STAGE_SHORT_LABELS[stage]}
+      {AGGREGATION_CPM_STAGE_SHORT_LABELS[stage]}
     </span>
   );
 }
@@ -194,7 +195,9 @@ const TAB_SPECIFIC_COLUMNS: Record<AggregationTab, AggregationOwnerColumn[]> = {
       label: "経過日数",
       width: "w-24",
       textAlign: "right",
-      render: (owner) => <span className="font-mono">{formatDaysSince(owner.days_since_last_visit)}</span>,
+      render: (owner) => (
+        <span className="font-mono">{formatDaysSince(owner.days_since_last_visit)}</span>
+      ),
     },
     {
       key: "last_visit_bucket",
@@ -221,7 +224,9 @@ const TAB_SPECIFIC_COLUMNS: Record<AggregationTab, AggregationOwnerColumn[]> = {
       label: "累計診療費",
       width: "w-32",
       textAlign: "right",
-      render: (owner) => <span className="font-mono">{formatFee(owner.total_amount ?? owner.total_fee)}</span>,
+      render: (owner) => (
+        <span className="font-mono">{formatFee(owner.total_amount ?? owner.total_fee)}</span>
+      ),
     },
   ],
 };

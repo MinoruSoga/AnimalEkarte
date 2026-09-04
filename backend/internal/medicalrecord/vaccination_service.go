@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -88,7 +89,7 @@ func buildVaccinationUpdate(input *UpdateVaccinationInput) map[string]any {
 }
 
 type VaccinationService interface {
-	List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Vaccination, int64, error)
+	List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, search string, page, limit int) ([]model.Vaccination, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Vaccination, error)
 	Create(ctx context.Context, clinicID uint64, input *CreateVaccinationInput) (*model.Vaccination, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateVaccinationInput) (*model.Vaccination, error)
@@ -118,8 +119,8 @@ func NewVaccinationService(
 	}
 }
 
-func (s *vaccinationService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Vaccination, int64, error) {
-	items, total, err := s.repo.FindAll(ctx, clinicID, petID, ownerID, startDate, endDate, page, limit)
+func (s *vaccinationService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, search string, page, limit int) ([]model.Vaccination, int64, error) {
+	items, total, err := s.repo.FindAll(ctx, clinicID, petID, ownerID, startDate, endDate, search, page, limit)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list vaccinations", "error", err)
 		return nil, 0, apperrors.Wrap(err, "failed to list vaccinations")
@@ -142,6 +143,12 @@ func (s *vaccinationService) Create(ctx context.Context, clinicID uint64, input 
 	}
 	if input.VaccineID == 0 {
 		return nil, apperrors.WrapInvalidInput("vaccine_id is required")
+	}
+	if err := errIfVaccinationDateAfterToday(input.Date); err != nil {
+		return nil, err
+	}
+	if err := errIfNextDateNotAfterVaccinationDate(input.Date, input.NextDate); err != nil {
+		return nil, err
 	}
 	if s.transactor == nil {
 		return nil, apperrors.WrapInternalServerError("vaccination transaction dependency is required")
@@ -199,6 +206,11 @@ func (s *vaccinationService) Update(ctx context.Context, clinicID, id uint64, in
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
+	if input.Date != nil {
+		if err := errIfVaccinationDateAfterToday(*input.Date); err != nil {
+			return nil, err
+		}
+	}
 	if s.transactor == nil {
 		return nil, apperrors.WrapInternalServerError("vaccination transaction dependency is required")
 	}
@@ -230,6 +242,17 @@ func (s *vaccinationService) Update(ctx context.Context, clinicID, id uint64, in
 			lockedMedicalRecordID, lockedPetID, lockedDoctorID, lockedVaccineID,
 		) {
 			return apperrors.WrapConflict("vaccination relations changed concurrently")
+		}
+		effectiveDate := locked.Date
+		if input.Date != nil {
+			effectiveDate = *input.Date
+		}
+		effectiveNextDate := locked.NextDate
+		if input.NextDate != nil {
+			effectiveNextDate = input.NextDate
+		}
+		if err := errIfNextDateNotAfterVaccinationDate(effectiveDate, effectiveNextDate); err != nil {
+			return err
 		}
 		vaccination, err = s.repo.Update(txCtx, clinicID, id, fields)
 		if err != nil {
@@ -280,6 +303,32 @@ func (s *vaccinationService) resyncOwnerVaccineTags(ctx context.Context, clinicI
 	if err := s.tagSyncSvc.ResyncOwnerVaccineTags(ctx, clinicID, ownerID); err != nil {
 		slog.ErrorContext(ctx, "failed to resync owner vaccine tags", "error", err, "clinic_id", clinicID, "owner_id", ownerID, "vaccination_id", vaccination.ID)
 	}
+}
+
+func errIfVaccinationDateAfterToday(date time.Time) error {
+	now := time.Now()
+	dateJST := date.In(config.JST)
+	nowJST := now.In(config.JST)
+	dateDay := time.Date(dateJST.Year(), dateJST.Month(), dateJST.Day(), 0, 0, 0, 0, config.JST)
+	today := time.Date(nowJST.Year(), nowJST.Month(), nowJST.Day(), 0, 0, 0, 0, config.JST)
+	if dateDay.After(today) {
+		return apperrors.WrapInvalidInput("接種日は今日以前の日付を入力してください")
+	}
+	return nil
+}
+
+func errIfNextDateNotAfterVaccinationDate(vaccinationDate time.Time, nextDate *time.Time) error {
+	if nextDate == nil {
+		return nil
+	}
+	dateJST := vaccinationDate.In(config.JST)
+	nextJST := nextDate.In(config.JST)
+	dateDay := time.Date(dateJST.Year(), dateJST.Month(), dateJST.Day(), 0, 0, 0, 0, config.JST)
+	nextDay := time.Date(nextJST.Year(), nextJST.Month(), nextJST.Day(), 0, 0, 0, 0, config.JST)
+	if !nextDay.After(dateDay) {
+		return apperrors.WrapInvalidInput("次回予定日は接種日より後の日付を入力してください")
+	}
+	return nil
 }
 
 func effectiveVaccinationRelations(existing *model.Vaccination, input *UpdateVaccinationInput) (medicalRecordID, petID, doctorID *uint64, vaccineID uint64) {
@@ -338,20 +387,14 @@ func (s *vaccinationService) validateRelations(ctx context.Context, clinicID uin
 		if err != nil {
 			return apperrors.Wrap(err, "failed to verify vaccination medical record ownership")
 		}
-		if record.OwnerID != nil {
-			if err := s.relationVerifier.AssertOwnerInClinic(ctx, clinicID, *record.OwnerID); err != nil {
-				return apperrors.Wrap(err, "failed to verify medical record owner ownership")
-			}
+		if err := s.assertVaccinationRecordOwner(ctx, clinicID, record); err != nil {
+			return err
 		}
-		if record.PetID != nil {
-			if _, err := s.relationVerifier.FindPetOwnerInClinic(ctx, clinicID, *record.PetID); err != nil {
-				return apperrors.Wrap(err, "failed to verify medical record pet ownership")
-			}
+		if err := s.assertVaccinationRecordPet(ctx, clinicID, record); err != nil {
+			return err
 		}
-		if petID != nil {
-			if record.PetID == nil || *record.PetID != *petID {
-				return apperrors.WrapNotFound("medical_record", "relation")
-			}
+		if petID != nil && (record.PetID == nil || *record.PetID != *petID) {
+			return apperrors.WrapNotFound("medical_record", "relation")
 		}
 	}
 
@@ -359,6 +402,26 @@ func (s *vaccinationService) validateRelations(ctx context.Context, clinicID uin
 		if err := s.relationVerifier.AssertMedicalRecordDoctorInClinic(ctx, clinicID, *doctorID); err != nil {
 			return apperrors.Wrap(err, "failed to verify vaccination doctor ownership")
 		}
+	}
+	return nil
+}
+
+func (s *vaccinationService) assertVaccinationRecordOwner(ctx context.Context, clinicID uint64, record *model.MedicalRecord) error {
+	if record.OwnerID == nil {
+		return nil
+	}
+	if err := s.relationVerifier.AssertOwnerInClinic(ctx, clinicID, *record.OwnerID); err != nil {
+		return apperrors.Wrap(err, "failed to verify medical record owner ownership")
+	}
+	return nil
+}
+
+func (s *vaccinationService) assertVaccinationRecordPet(ctx context.Context, clinicID uint64, record *model.MedicalRecord) error {
+	if record.PetID == nil {
+		return nil
+	}
+	if _, err := s.relationVerifier.FindPetOwnerInClinic(ctx, clinicID, *record.PetID); err != nil {
+		return apperrors.Wrap(err, "failed to verify medical record pet ownership")
 	}
 	return nil
 }

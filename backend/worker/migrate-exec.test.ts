@@ -8,7 +8,16 @@
 import { describe, expect, it } from "vitest";
 import { isAuthorizedMigrateRequest, timingSafeEqual, toMigrateResponse } from "./migrate-exec";
 
-const SECRET = "test-migrate-secret-value";
+function utf8ByteLength(value: string): number {
+  return new TextEncoder().encode(value).length;
+}
+
+function dummySecret(utf8Bytes: number): string {
+  return "t".repeat(utf8Bytes);
+}
+
+// Dummy fixture only — not a real credential. Must stay >= 32 UTF-8 bytes.
+const SECRET = dummySecret(48);
 
 function requestWithAuth(header: string | null): Request {
   const headers = new Headers();
@@ -63,8 +72,39 @@ describe("isAuthorizedMigrateRequest", () => {
   });
 
   it("returns true for a correct `Bearer <secret>` header", () => {
+    expect(utf8ByteLength(SECRET)).toBeGreaterThanOrEqual(32);
     const req = requestWithAuth(`Bearer ${SECRET}`);
     expect(isAuthorizedMigrateRequest(req, SECRET)).toBe(true);
+  });
+
+  it("returns false when a matching Bearer secret is 31 UTF-8 bytes", () => {
+    const secret = dummySecret(31);
+    expect(utf8ByteLength(secret)).toBe(31);
+    const req = requestWithAuth(`Bearer ${secret}`);
+    expect(isAuthorizedMigrateRequest(req, secret)).toBe(false);
+  });
+
+  it("returns true when a matching Bearer secret is exactly 32 UTF-8 bytes", () => {
+    const secret = dummySecret(32);
+    expect(utf8ByteLength(secret)).toBe(32);
+    const req = requestWithAuth(`Bearer ${secret}`);
+    expect(isAuthorizedMigrateRequest(req, secret)).toBe(true);
+  });
+
+  it("returns true when a matching Bearer secret is longer than 32 UTF-8 bytes", () => {
+    const secret = dummySecret(33);
+    expect(utf8ByteLength(secret)).toBe(33);
+    const req = requestWithAuth(`Bearer ${secret}`);
+    expect(isAuthorizedMigrateRequest(req, secret)).toBe(true);
+  });
+
+  it("uses UTF-8 byte length, not JS string length", () => {
+    // 30 ASCII + U+00E9 (2 UTF-8 bytes) = 31 JS chars, 32 UTF-8 bytes.
+    const secret = `${dummySecret(30)}\u00e9`;
+    expect(secret.length).toBe(31);
+    expect(utf8ByteLength(secret)).toBe(32);
+    const req = requestWithAuth(`Bearer ${secret}`);
+    expect(isAuthorizedMigrateRequest(req, secret)).toBe(true);
   });
 });
 

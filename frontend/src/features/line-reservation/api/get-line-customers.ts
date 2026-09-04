@@ -5,9 +5,7 @@ import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { LineCustomer } from "./types";
 
 async function getLineCustomers(clinicId: string): Promise<LineCustomer[]> {
-  const { data } = await axios.get<LineCustomer[]>(
-    `/v1/clinics/${clinicId}/line-customers`
-  );
+  const { data } = await axios.get<LineCustomer[]>(`/v1/clinics/${clinicId}/line-customers`);
   return data ?? [];
 }
 

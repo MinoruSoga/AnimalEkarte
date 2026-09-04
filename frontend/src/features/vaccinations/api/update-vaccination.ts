@@ -8,12 +8,9 @@ import type { BackendVaccination, UpdateVaccinationRequest } from "./types";
 
 const updateVaccination = async (
   id: string,
-  req: UpdateVaccinationRequest
+  req: UpdateVaccinationRequest,
 ): Promise<VaccinationRecord> => {
-  const { data } = await axios.patch<BackendVaccination>(
-    `/v1/vaccinations/${id}`,
-    req
-  );
+  const { data } = await axios.patch<BackendVaccination>(`/v1/vaccinations/${id}`, req);
   return transformVaccination(data);
 };
 
@@ -21,13 +18,8 @@ export const useUpdateVaccination = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({
-      id,
-      req,
-    }: {
-      id: string;
-      req: UpdateVaccinationRequest;
-    }) => updateVaccination(id, req),
+    mutationFn: ({ id, req }: { id: string; req: UpdateVaccinationRequest }) =>
+      updateVaccination(id, req),
     onSuccess: (_data, { id }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.vaccinations.all() });
       // FE4-6 fix: detail クエリの実キーは ["vaccination", id]（単数形）。

@@ -22,5 +22,5 @@
 
 ## AI エージェント向け注記
 
-- screens/ 配下と design-system.md が言及するコンポーネント名・フック名・画面数は CI の docs-symbol-drift ゲートで実在チェックされる。実在しないシンボル名を書くと CI が落ちる。
+- screens/ 配下と design-system.md が言及するコンポーネント名・フック名・画面数はローカル `make ci` の docs-symbol-drift ゲートで実在チェックされる。実在しないシンボル名を書くとローカル検査が失敗する。GitHub Actions の必須 gate ではない。
 - 「臨床の安全」（specification.md §2.1）は product-philosophy.md より優先される。

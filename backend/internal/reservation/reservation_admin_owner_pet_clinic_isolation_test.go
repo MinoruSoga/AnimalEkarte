@@ -74,8 +74,8 @@ func TestReservationAdminService_Create_RejectsCrossClinicOwnerPetLineCustomer(t
 	}
 
 	newSvc := func(created *bool) ReservationAdminService {
-		return NewReservationAdminServiceWithAvailabilityAndType(
-			&mockReservationAdminRepository{}, linkAwareRepo(created), typeRepo, &mockTransactor{}, nil, nil,
+		return NewReservationAdminServiceWithClinicHolidays(
+			&mockReservationAdminRepository{}, linkAwareRepo(created), typeRepo, &mockTransactor{}, nil, nil, nil, openDayHolidayFinder(),
 		)
 	}
 
@@ -163,8 +163,8 @@ func TestReservationAdminService_Create_OwnerPetConsistencyAndNilContract(t *tes
 		}
 	}
 	newSvc := func(created *bool) ReservationAdminService {
-		return NewReservationAdminServiceWithAvailabilityAndType(
-			&mockReservationAdminRepository{}, linkAwareRepo(created), typeRepo, &mockTransactor{}, nil, nil,
+		return NewReservationAdminServiceWithClinicHolidays(
+			&mockReservationAdminRepository{}, linkAwareRepo(created), typeRepo, &mockTransactor{}, nil, nil, nil, openDayHolidayFinder(),
 		)
 	}
 

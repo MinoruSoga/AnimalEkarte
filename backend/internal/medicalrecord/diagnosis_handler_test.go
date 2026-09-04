@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -21,6 +22,15 @@ import (
 // 由来・同一実装。medicalrecord パッケージのハンドラテスト全体で共有）。
 func setClinicID(c *gin.Context) {
 	c.Set("clinic_id", "1")
+	httpapi.SetClinicPermissionChecker(c, func(_ *gin.Context, _ uint64, _, _ string) bool {
+		return true
+	})
+}
+
+func setResourcePermissionOnlyClinic(c *gin.Context, clinicID uint64, resource, action string) {
+	httpapi.SetClinicPermissionChecker(c, func(_ *gin.Context, id uint64, res, act string) bool {
+		return id == clinicID && res == resource && act == action
+	})
 }
 
 // ---- mock DiagnosisTypeService ----
@@ -1140,6 +1150,100 @@ func TestListDiagnosisNamesAll(t *testing.T) {
 			if tt.wantBody != "" {
 				assert.Contains(t, w.Body.String(), tt.wantBody)
 			}
+		})
+	}
+}
+
+// SEC-CODEX-UHQPM2 selected-clinic grant
+func TestDiagnosisSelectedClinicGrant(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name    string
+		invoke  func(*DiagnosisHandler, *gin.Context)
+		typeSvc *mockDiagnosisTypeService
+		nameSvc *mockDiagnosisNameService
+	}{
+		{
+			name: "ListDiagnosisTypes returns 403 when selected clinic lacks master-medical view grant",
+			invoke: func(h *DiagnosisHandler, c *gin.Context) {
+				h.ListDiagnosisTypes(c)
+			},
+			typeSvc: &mockDiagnosisTypeService{
+				listFn: func(_ context.Context, _ uint64, _, _ int) ([]model.DiagnosisType, int64, error) {
+					t.Fatal("service must not be reached")
+					return nil, 0, nil
+				},
+			},
+			nameSvc: &mockDiagnosisNameService{},
+		},
+		{
+			name: "GetDiagnosisType returns 403 when selected clinic lacks master-medical view grant",
+			invoke: func(h *DiagnosisHandler, c *gin.Context) {
+				h.GetDiagnosisType(c)
+			},
+			typeSvc: &mockDiagnosisTypeService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.DiagnosisType, error) {
+					t.Fatal("service must not be reached")
+					return nil, nil
+				},
+			},
+			nameSvc: &mockDiagnosisNameService{},
+		},
+		{
+			name: "ListDiagnosisNames returns 403 when selected clinic lacks master-medical view grant",
+			invoke: func(h *DiagnosisHandler, c *gin.Context) {
+				h.ListDiagnosisNames(c)
+			},
+			typeSvc: &mockDiagnosisTypeService{},
+			nameSvc: &mockDiagnosisNameService{
+				listFn: func(_ context.Context, _ uint64, _ *uint64, _, _ int) ([]model.DiagnosisName, int64, error) {
+					t.Fatal("service must not be reached")
+					return nil, 0, nil
+				},
+			},
+		},
+		{
+			name: "ListDiagnosisNamesAll returns 403 when selected clinic lacks master-medical view grant",
+			invoke: func(h *DiagnosisHandler, c *gin.Context) {
+				h.ListDiagnosisNamesAll(c)
+			},
+			typeSvc: &mockDiagnosisTypeService{},
+			nameSvc: &mockDiagnosisNameService{
+				listNamesFn: func(_ context.Context, _ uint64, _ *uint64) ([]model.DiagnosisName, error) {
+					t.Fatal("service must not be reached")
+					return nil, nil
+				},
+			},
+		},
+		{
+			name: "GetDiagnosisName returns 403 when selected clinic lacks master-medical view grant",
+			invoke: func(h *DiagnosisHandler, c *gin.Context) {
+				h.GetDiagnosisName(c)
+			},
+			typeSvc: &mockDiagnosisTypeService{},
+			nameSvc: &mockDiagnosisNameService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.DiagnosisName, error) {
+					t.Fatal("service must not be reached")
+					return nil, nil
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithDiagnosisSvc(tt.typeSvc, tt.nameSvc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: "10"}}
+			setClinicID(c)
+			c.Set("clinic_id", "2")
+			c.Set("is_system_admin", false)
+			setResourcePermissionOnlyClinic(c, 1, string(model.ResourceMasterMedical), "view")
+			tt.invoke(h, c)
+			assert.Equal(t, http.StatusForbidden, w.Code)
 		})
 	}
 }

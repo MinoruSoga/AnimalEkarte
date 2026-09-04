@@ -11,7 +11,8 @@
 
 | 経路 | トリガー | 承認 | 到達先 |
 |---|---|---|---|
-| **STG 自動** | `main` の変更が `staging` へ PR マージされた結果の `staging` push（対象 path） | 不要（自動） | STG Cloudflare Worker/Container + Vercel preview |
+| **STG backend 自動** | `staging` push で backend workflow の対象 path が変わった場合 | 不要（自動） | STG Cloudflare Worker/Container |
+| **STG frontend 自動** | `staging` push で frontend workflow の対象 path が変わった場合 | 不要（自動） | Vercel preview |
 | **Production** | `production` ブランチへの対象 path push、または `workflow_dispatch` で production を指定 | **GitHub Environment `production` の Required reviewers 必須** | 本番 Cloudflare (`api.noah-karte.com`) + Vercel production |
 | **main 単独 push** | CI（`ci.yml` 等）のみ | n/a | **本番へはデプロイしない**（acceptance 禁止） |
 
@@ -23,17 +24,17 @@
 4. **secret / credential / PHI を log・artifact・Issue に出さない**。値の生成・登録は人間のみ（#89 依存）。
 5. **CI green は GitHub Actions billing/spending 復旧が前提**。agent は支払い・上限変更を実行しない（§7）。
 
-### 0.2 現状（実装 vs 契約）
+### 0.2 Checked-in config と dated external observation（実行前に再検証）
 
 | 項目 | 現状 | 契約上の次アクション |
 |---|---|---|
 | STG backend auto-deploy | ✅ `backend-deploy.yml` が `staging` push で稼働 | 維持 |
 | STG frontend auto-deploy | ✅ `frontend-deploy.yml` が `staging` push で稼働 | 維持 |
-| Production backend workflow | ⚠ 未適用（`setup.md` §8 提案 diff） | Environment 作成後に workflow 適用 |
-| Production Environment + Required reviewers | ⚠ 未作成（`setup.md` §7） | USER が GitHub 設定 |
-| Production frontend | ⚠ `production` push で Vercel デプロイ可能だが Environment ゲート無し | Environment 保護を backend と揃える |
+| Production backend workflow | ⚠ 未適用（`setup.md` §8 提案 diff）。`environment:` ジョブキー無し | USER が §7 ゲート確定後に適用。**agent は適用しない** |
+| Production Environment + Required reviewers | **外部観測 2026-08-20（現在値ではない）**: `Production`（大文字）、reviewers空。observer/receiptを実行時に再取得し、未確認はUNKNOWN/HOLD | USER が名前一致と Required reviewers を設定。agent は reviewer 追加しない |
+| Production frontend | ⚠ `production` push で Vercel デプロイ可能だが GitHub Environment ゲート無し（`inputs.environment` は Vercel 入力） | Environment 保護を backend と揃える |
 | ECS workflow | ✅ repository に残存なし | 再導入禁止 |
-| CI green on latest main | ❌ billing/spending limit で job が即 failure | USER billing 復旧（§7） |
+| CI green on latest main | **外部観測（期限切れ）**: 過去にbilling/spending failure。現在値はUNKNOWN | USERが実行時run URL/ID・headSha・確認時刻を記録 |
 
 本番構築の人間手順は [`../infra/production/setup.md`](../infra/production/setup.md)、稼働後の日常運用は [`../infra/production/runbook.md`](../infra/production/runbook.md) を正本とする。
 
@@ -47,8 +48,7 @@
 | Backend API (PROD) | Cloudflare Workers + Containers | `wrangler deploy -c wrangler.production.jsonc` + migrate + `/health` | `production` push（**Environment 承認後**・workflow 適用後） | 同上（`setup.md` §8） |
 | Frontend (STG/PROD) | Vercel | Vercel CLI | `staging` / `production` への対象 path push | `.github/workflows/frontend-deploy.yml` |
 
-移行経緯は [`../infra/_archive/migration-cloudflare.md`](../infra/_archive/migration-cloudflare.md) を参照する。
-現在のインフラ構成と運用手順は [`../infra/README.md`](../infra/README.md) を正本とする。
+現在のインフラ構成と運用手順は [`../infra/README.md`](../infra/README.md) を正本とする。STG 移行の実施記録は git 履歴。
 
 ---
 
@@ -70,14 +70,17 @@ deploy 直後から migration 完了まで（最大 `MIGRATE_TIMEOUT=150s`）新
 
 ### 2.2 手動実行と障害対応
 
-```bash
-# STG
-gh workflow run backend-deploy.yml --ref staging
+**HARD STOP:** named human approval、review済みimmutable commit/ref、target Worker/config、secret scope、共有環境の利用可否を先に記録する。PRODはworkflow実装とEnvironment protectionを外部receiptで確認できるまで実行禁止。
 
-# PROD（workflow 適用 + Environment secrets 登録後）
-# Required reviewers 承認待ちでジョブが一時停止する
-gh workflow run backend-deploy.yml --ref production
+```bash
+REVIEWED_SHA='<reviewed-commit>'
+TARGET_REF='staging' # production は現在 HOLD
+REMOTE_SHA="$(gh api "repos/{owner}/{repo}/git/ref/heads/${TARGET_REF}" --jq '.object.sha')"
+test "$REMOTE_SHA" = "$(git rev-parse "${REVIEWED_SHA}^{commit}")" || exit 1
+gh workflow run backend-deploy.yml --ref "$TARGET_REF"
 ```
+
+dispatch後はrun metadataの`headSha == REVIEWED_SHA`を確認し、不一致なら停止する。
 
 - 失敗した job を成功扱いにせず、deploy / migration / health / smoke のどこで失敗したかを切り分ける
 - DB reset、credential 変更、production 操作は別途明示承認を得る

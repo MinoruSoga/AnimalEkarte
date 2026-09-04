@@ -3,7 +3,7 @@ import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
-import { createTestWrapper } from "@/testing/utils";
+import { createTestWrapper } from "@/testing/TestUtils";
 import { LstepTagCodeMappingsSection } from "./LstepTagCodeMappingsSection";
 import type { TagCodeMappingItem } from "../hooks/use-lstep-tag-code-mappings";
 
@@ -32,25 +32,18 @@ function createWrapper() {
 
 function setupGetHandler(data: TagCodeMappingItem[]) {
   server.use(
-    http.get(`/api/v1/clinics/${CLINIC_ID}/lstep-tag-code-mappings`, () =>
-      HttpResponse.json(data),
-    ),
+    http.get(`/api/v1/clinics/${CLINIC_ID}/lstep-tag-code-mappings`, () => HttpResponse.json(data)),
   );
 }
 
-function setupPutHandler(
-  onRequest?: (body: unknown) => void,
-  status = 200,
-) {
+function setupPutHandler(onRequest?: (body: unknown) => void, status = 200) {
   server.use(
     http.put(
       `/api/v1/clinics/${CLINIC_ID}/lstep-tag-code-mappings/:tagName`,
       async ({ request }) => {
         const body = await request.json();
         onRequest?.(body);
-        return status === 200
-          ? HttpResponse.json([])
-          : new HttpResponse(null, { status });
+        return status === 200 ? HttpResponse.json([]) : new HttpResponse(null, { status });
       },
     ),
   );
@@ -96,8 +89,9 @@ describe("LstepTagCodeMappingsSection — A: GET 結果表示", () => {
 
   it("API エラー時は失敗メッセージを出す", async () => {
     server.use(
-      http.get(`/api/v1/clinics/${CLINIC_ID}/lstep-tag-code-mappings`, () =>
-        new HttpResponse(null, { status: 500 }),
+      http.get(
+        `/api/v1/clinics/${CLINIC_ID}/lstep-tag-code-mappings`,
+        () => new HttpResponse(null, { status: 500 }),
       ),
     );
 
@@ -124,9 +118,7 @@ describe("LstepTagCodeMappingsSection — B: 編集フォーム開閉", () => {
     await user.click(editButtons[0]);
 
     expect(screen.getByRole("button", { name: "保存" })).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "キャンセル" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "キャンセル" })).toBeInTheDocument();
   });
 
   it("キャンセルボタンで編集フォームが閉じる", async () => {
@@ -135,15 +127,11 @@ describe("LstepTagCodeMappingsSection — B: 編集フォーム開閉", () => {
     const user = userEvent.setup();
     await user.click(screen.getAllByRole("button", { name: "編集" })[0]);
 
-    expect(
-      screen.getByRole("button", { name: "キャンセル" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "キャンセル" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "キャンセル" }));
 
-    expect(
-      screen.queryByRole("button", { name: "キャンセル" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "キャンセル" })).not.toBeInTheDocument();
   });
 
   it("既存マッピングが編集フォームの初期値として反映される", async () => {
@@ -236,9 +224,7 @@ describe("LstepTagCodeMappingsSection — C: PUT 送信", () => {
 
     const user = userEvent.setup();
     await user.click(screen.getAllByRole("button", { name: "編集" })[0]);
-    expect(
-      screen.getByRole("button", { name: "キャンセル" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "キャンセル" })).toBeInTheDocument();
 
     const codeTypeInput = screen.getAllByPlaceholderText("例: checkup_type")[0];
     fireEvent.change(codeTypeInput, { target: { value: "t" } });
@@ -246,9 +232,7 @@ describe("LstepTagCodeMappingsSection — C: PUT 送信", () => {
     await user.click(screen.getByRole("button", { name: "保存" }));
 
     await waitFor(() => {
-      expect(
-        screen.queryByRole("button", { name: "キャンセル" }),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "キャンセル" })).not.toBeInTheDocument();
     });
   });
 });

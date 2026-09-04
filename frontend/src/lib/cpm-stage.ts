@@ -6,12 +6,10 @@
 // ※ feature をまたぐ共有のため lib に置く。feature 内へ deep import しないこと。
 
 export type CPMStage =
-  | "cpm_encounter"
-  | "cpm_growing"
-  | "cpm_core"
-  | "cpm_spot"
-  | "cpm_noah"
-  | "cpm_dormant";
+  "cpm_encounter" | "cpm_growing" | "cpm_core" | "cpm_spot" | "cpm_noah" | "cpm_dormant";
+
+/** 集計ダッシュボード用。6区分に入らない飼主をチップで辿れるようにする (BUG-003)。 */
+export type AggregationCPMStage = CPMStage | "cpm_unclassified";
 
 export interface CPMStageOption {
   value: CPMStage;
@@ -29,7 +27,7 @@ export const CPM_STAGE_OPTIONS: readonly CPMStageOption[] = [
 ] as const;
 
 // 短縮ラベル（一覧バッジ・人数サマリーチップ用）。
-export const CPM_STAGE_SHORT_LABELS: Record<CPMStage, string> = {
+const CPM_STAGE_SHORT_LABELS: Record<CPMStage, string> = {
   cpm_encounter: "Encounter",
   cpm_growing: "Growing",
   cpm_core: "Core",
@@ -38,5 +36,18 @@ export const CPM_STAGE_SHORT_LABELS: Record<CPMStage, string> = {
   cpm_dormant: "Dormant",
 };
 
-// CPMStage 値域の配列（反復・網羅処理用）。OPTIONS から導出して定義の二重化を防ぐ。
-export const CPM_STAGES: readonly CPMStage[] = CPM_STAGE_OPTIONS.map((o) => o.value);
+export const AGGREGATION_CPM_STAGE_OPTIONS: readonly {
+  value: AggregationCPMStage;
+  label: string;
+}[] = [
+  ...CPM_STAGE_OPTIONS,
+  { value: "cpm_unclassified", label: "Unclassified（未分類）" },
+] as const;
+
+export const AGGREGATION_CPM_STAGE_SHORT_LABELS: Record<AggregationCPMStage, string> = {
+  ...CPM_STAGE_SHORT_LABELS,
+  cpm_unclassified: "Unclassified",
+};
+
+export const AGGREGATION_CPM_STAGES: readonly AggregationCPMStage[] =
+  AGGREGATION_CPM_STAGE_OPTIONS.map((o) => o.value);

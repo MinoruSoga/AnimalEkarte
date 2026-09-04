@@ -72,7 +72,17 @@ func (r *inquiryTemplateRepository) Update(ctx context.Context, clinicID, id uin
 }
 
 func (r *inquiryTemplateRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	return persistence.DeleteScopedByID(ctx, r.db, &model.InquiryTemplate{}, "inquiry_template", clinicID, id)
+	result := persistence.DBOrTx(ctx, r.db).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ?", id).
+		Delete(&model.InquiryTemplate{})
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "inquiry_template", fmt.Sprintf("%d", id))
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.WrapNotFound("inquiry_template", fmt.Sprintf("%d", id))
+	}
+	return nil
 }
 
 // 現スキーマに inquiry_template_id を参照する FK テーブルが存在しないため常に 0 を返す。

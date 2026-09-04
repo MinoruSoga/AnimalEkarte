@@ -35,8 +35,8 @@ type reservationAdminRepository struct{ db *gorm.DB }
 // Customer history returns the most recent rows only (full paging is a
 // follow-up outside this repository unit).
 const (
-	maxAdminMonthRows         = persistence.MaxMasterListRows
-	maxCustomerHistoryRows    = 100
+	maxAdminMonthRows      = persistence.MaxMasterListRows
+	maxCustomerHistoryRows = 100
 )
 
 func NewReservationAdminRepository(db *gorm.DB) ReservationAdminRepository {
@@ -50,9 +50,9 @@ func (r *reservationAdminRepository) FindAllByMonth(ctx context.Context, clinicI
 	items := make([]model.Reservation, 0)
 	err := r.db.WithContext(ctx).
 		Preload("ReservationType", "clinic_id = ? AND deleted_at IS NULL", clinicID).
-		Preload("Doctor", "deleted_at IS NULL").
+		Preload("Doctor", staffAssignedToClinicsCond, []uint64{clinicID}).
 		Preload("LineCustomer", "clinic_id = ?", clinicID).
-		Scopes(persistence.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID), reservationRelationsMatchParentClinic).
 		Where("start_time >= ? AND start_time < ?", start, end).
 		Order("start_time ASC").
 		Limit(maxAdminMonthRows).
@@ -71,12 +71,12 @@ func (r *reservationAdminRepository) FindAllByDay(ctx context.Context, clinicID 
 	items := make([]model.Reservation, 0)
 	err := r.db.WithContext(ctx).
 		Preload("ReservationType", "clinic_id = ? AND deleted_at IS NULL", clinicID).
-		Preload("Doctor", "deleted_at IS NULL").
-		Preload("CreatedByStaff", "deleted_at IS NULL").
+		Preload("Doctor", staffAssignedToClinicsCond, []uint64{clinicID}).
+		Preload("CreatedByStaff", staffAssignedToClinicsCond, []uint64{clinicID}).
 		Preload("LineCustomer", "clinic_id = ?", clinicID).
 		Preload("Owner", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Pet", "clinic_id = ? AND deleted_at IS NULL", clinicID).
-		Scopes(persistence.ClinicScope(clinicID)).
+		Scopes(persistence.ClinicScope(clinicID), reservationRelationsMatchParentClinic).
 		Where("start_time >= ? AND start_time < ?", start, end).
 		Order("start_time ASC").
 		Find(&items).Error
@@ -117,8 +117,8 @@ func (r *reservationAdminRepository) FindAllByCustomerID(ctx context.Context, cl
 	items := make([]model.Reservation, 0)
 	err := r.db.WithContext(ctx).
 		Preload("ReservationType", "clinic_id = ? AND deleted_at IS NULL", clinicID).
-		Preload("Doctor", "deleted_at IS NULL").
-		Scopes(persistence.ClinicScope(clinicID)).
+		Preload("Doctor", staffAssignedToClinicsCond, []uint64{clinicID}).
+		Scopes(persistence.ClinicScope(clinicID), reservationRelationsMatchParentClinic).
 		Where("line_customer_id = ? AND deleted_at IS NULL", customerID).
 		Order("start_time DESC").
 		Limit(maxCustomerHistoryRows).
@@ -133,10 +133,10 @@ func (r *reservationAdminRepository) FindByIDForNotify(ctx context.Context, clin
 	var appt model.Reservation
 	err := r.db.WithContext(ctx).
 		Preload("ReservationType", "clinic_id = ? AND deleted_at IS NULL", clinicID).
-		Preload("Doctor", "deleted_at IS NULL").
+		Preload("Doctor", staffAssignedToClinicsCond, []uint64{clinicID}).
 		Preload("Owner", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Pet", "clinic_id = ? AND deleted_at IS NULL", clinicID).
-		Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).First(&appt).Error
+		Scopes(persistence.ClinicScope(clinicID), reservationRelationsMatchParentClinic).Where("id = ?", id).First(&appt).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "appointment", fmt.Sprintf("%d", id))
 	}

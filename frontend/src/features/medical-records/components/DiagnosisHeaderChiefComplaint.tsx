@@ -28,9 +28,7 @@ export const DiagnosisHeaderChiefComplaint = memo(function DiagnosisHeaderChiefC
         className={`h-full min-h-0 rounded-md border ${C.borderMedium} ${C.bgPage} p-3 text-sm ${C.text}`}
       >
         {content ? (
-          <div className="whitespace-pre-wrap leading-relaxed font-mono">
-            {content}
-          </div>
+          <div className="whitespace-pre-wrap leading-relaxed font-mono">{content}</div>
         ) : (
           <div className={`flex items-center justify-center h-full ${C.text40} italic`}>
             主訴の入力はありません

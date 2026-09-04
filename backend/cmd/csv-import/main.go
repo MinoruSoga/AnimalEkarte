@@ -45,6 +45,7 @@ type options struct {
 	confirmTargetHost         string
 	confirmTargetDatabase     string
 	reportPath                string
+	allowLocalRehearsal       bool
 }
 
 type auditReport struct {
@@ -72,7 +73,8 @@ type cutoverTarget interface {
 }
 
 type pgxCutoverTarget struct {
-	pool *pgxpool.Pool
+	pool           *pgxpool.Pool
+	localRehearsal bool
 }
 
 func (t *pgxCutoverTarget) Ping(ctx context.Context) error {
@@ -95,11 +97,20 @@ func (t *pgxCutoverTarget) Verify(ctx context.Context, manifest csvimport.Cutove
 		return fmt.Errorf("begin repeatable-read cutover verification: %w", err)
 	}
 	defer func() { _ = tx.Rollback(context.WithoutCancel(ctx)) }()
-	return csvimport.VerifyCutover(ctx, tx, manifest, seeds)
+	provenance := csvimport.CutoverProvenanceContract{Mode: csvimport.CutoverProvenanceFormal}
+	if t.localRehearsal {
+		provenance.Mode = csvimport.CutoverProvenanceLocalRehearsal
+	}
+	return csvimport.VerifyCutoverWithProvenance(ctx, tx, manifest, seeds, provenance)
 }
 
 func (t *pgxCutoverTarget) Apply(ctx context.Context, bundle csvimport.CutoverBundle, seeds csvimport.CutoverSeedIDs) (csvimport.CutoverResult, error) {
-	return csvimport.ApplyCutover(ctx, t.pool, bundle, seeds)
+	iso := pgx.Serializable
+	if t.localRehearsal {
+		// Avoid SSI predicate-lock exhaustion on multi-million-row local imports.
+		iso = pgx.RepeatableRead
+	}
+	return csvimport.ApplyCutoverWithIsolation(ctx, t.pool, bundle, seeds, iso)
 }
 
 type runDependencies struct {
@@ -126,6 +137,21 @@ func productionRunDependencies() runDependencies {
 	}
 }
 
+func cutoverProvenanceMode(local bool) csvimport.CutoverProvenanceMode {
+	if local {
+		return csvimport.CutoverProvenanceLocalRehearsal
+	}
+	return csvimport.CutoverProvenanceFormal
+}
+
+func openCutoverTarget(ctx context.Context, poolConfig *pgxpool.Config, localRehearsal bool) (cutoverTarget, error) {
+	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
+	if err != nil {
+		return nil, err
+	}
+	return &pgxCutoverTarget{pool: pool, localRehearsal: localRehearsal}, nil
+}
+
 func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	if err := run(context.Background(), os.Args[1:], logger); err != nil {
@@ -146,11 +172,18 @@ func runWithDependencies(ctx context.Context, args []string, logger *slog.Logger
 	if err != nil {
 		return err
 	}
+	if opt.allowLocalRehearsal {
+		if err := requireLocalRehearsalEnv(); err != nil {
+			return err
+		}
+	}
+
 	bundle, err := deps.preflightBundle(opt.sourceDir, csvimport.ExpectedCutoverSource{
 		ManifestSHA256: opt.manifestSHA256,
 		ClinicCode:     opt.clinicCode,
 		ClinicOrdinal:  opt.clinicOrdinal,
 		RunID:          opt.runID,
+		Provenance:     csvimport.CutoverProvenanceContract{Mode: cutoverProvenanceMode(opt.allowLocalRehearsal)},
 	})
 	if err != nil {
 		return fmt.Errorf("source preflight failed: %w", err)
@@ -159,6 +192,9 @@ func runWithDependencies(ctx context.Context, args []string, logger *slog.Logger
 	conn, err := deps.fromEnv()
 	if err != nil {
 		return err
+	}
+	if opt.allowLocalRehearsal && !dbconn.IsLocalHost(conn.Host) {
+		return fmt.Errorf("local rehearsal import requires a local DB_HOST")
 	}
 	database := os.Getenv("DB_NAME")
 	if database == "" {
@@ -174,7 +210,12 @@ func runWithDependencies(ctx context.Context, args []string, logger *slog.Logger
 	if err != nil {
 		return err
 	}
-	target, err := deps.openTarget(ctx, poolConfig)
+	var target cutoverTarget
+	if opt.allowLocalRehearsal {
+		target, err = openCutoverTarget(ctx, poolConfig, true)
+	} else {
+		target, err = deps.openTarget(ctx, poolConfig)
+	}
 	if err != nil {
 		return fmt.Errorf("open target database: %w", err)
 	}
@@ -273,6 +314,7 @@ func parseOptions(args []string) (options, error) {
 	flags.StringVar(&opt.confirmTargetHost, "confirm-target-host", "", "required for apply; must exactly equal DB_HOST")
 	flags.StringVar(&opt.confirmTargetDatabase, "confirm-target-database", "", "required for apply; must exactly equal DB_NAME")
 	flags.StringVar(&opt.reportPath, "report-path", "", "required absolute path for the owner-only aggregate apply report")
+	flags.BoolVar(&opt.allowLocalRehearsal, "allow-local-rehearsal", false, "local disposable only: accept REHEARSAL_ONLY/UNVERIFIED producer bundles")
 	if err := flags.Parse(args[1:]); err != nil {
 		return options{}, err
 	}
@@ -280,6 +322,19 @@ func parseOptions(args []string) (options, error) {
 		return options{}, fmt.Errorf("unexpected positional arguments")
 	}
 	return opt, nil
+}
+
+func requireLocalRehearsalEnv() error {
+	appEnv := strings.ToLower(strings.TrimSpace(os.Getenv("APP_ENV")))
+	switch appEnv {
+	case "development", "local", "dev", "test":
+	default:
+		return fmt.Errorf("local rehearsal import requires APP_ENV development/local/dev/test")
+	}
+	if os.Getenv("CSV_IMPORT_ALLOW_LOCAL_REHEARSAL") != "1" {
+		return fmt.Errorf("local rehearsal import requires CSV_IMPORT_ALLOW_LOCAL_REHEARSAL=1")
+	}
+	return nil
 }
 
 func validateApplyConfirmations(opt options, targetHost, targetDatabase string) error {

@@ -57,6 +57,9 @@ func (h *TreatmentHandler) ListTreatments(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMedicalRecords), "view") {
+		return
+	}
 	medicalRecordID, ok := httpapi.ParseIDParam(c, "id")
 	if !ok {
 		return
@@ -78,6 +81,9 @@ func (h *TreatmentHandler) ListTreatments(c *gin.Context) {
 func (h *TreatmentHandler) ListPetTreatmentHistory(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMedicalRecords), "view") {
 		return
 	}
 	petID, ok := httpapi.ParseIDParam(c, "id")

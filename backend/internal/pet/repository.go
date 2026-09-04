@@ -106,80 +106,11 @@ func (r *repository) FindAll(ctx context.Context, clinicIDs []uint64, filters Pe
 		return pets, 0, nil
 	}
 
-	buildBase := func() *gorm.DB {
-		// owners への LEFT JOIN は search 有無に関わらず常に張る
-		// (owners.name_kana ASC を安定順序の主キーにするため、Order 句が常にこの JOIN を要求する)。
-		// clinicScopeIn は "clinic_id" を無修飾で参照し pets/owners 両方に同名列を持つため、
-		// JOIN 併用時の曖昧列エラーを避けて pets.clinic_id / owners.clinic_id を明示指定する
-		// （owners 側も同一 clinicIDs で二重にスコープし、クロステナント JOIN 汚染を防ぐ）。
-		// BUG-454: owners.clinic_id = pets.clinic_id 相関で、認可集合に両院が含まれても
-		// 破損した pet(A)->owner(B) FK を search/order の JOIN 経由で復元しない。
-		// Select("pets.*") は Find 側のみ（Count に付けると COUNT("pets".*) で 42703）。
-		q := r.db.WithContext(ctx).Model(&model.Pet{}).
-			Where("pets.clinic_id IN ?", clinicIDs).
-			Where("pets.deleted_at IS NULL").
-			Joins("LEFT JOIN owners ON owners.id = pets.owner_id AND owners.clinic_id = pets.clinic_id AND owners.clinic_id IN ? AND owners.deleted_at IS NULL", clinicIDs)
-		if filters.OwnerID != nil {
-			q = q.Where("pets.owner_id = ?", *filters.OwnerID)
-		}
-		if filters.AnimalSpeciesID != nil {
-			q = q.Where("pets.animal_species_id = ?", *filters.AnimalSpeciesID)
-		}
-		if !filters.IncludeDeceased {
-			q = q.Where("pets.deceased_at IS NULL")
-		}
-		if filters.Search != "" {
-			// 空白のみは fail-closed で 0 件（空フィルタ扱いで全件返さない）。
-			compactSearch := compactSearchText(filters.Search)
-			if compactSearch == "" {
-				q = q.Where("1 = 0")
-				return q
-			}
-			// raw name の同一表記一致は既存の trgm index を利用可能な形で残し、
-			// translate() した name/name_kana との比較でカナ表記をまたぐ一致を補う。
-			// 空白除去形は「姓 名」入力の半角/全角/連続空白差を順序保持で吸収する（BUG-001）。
-			// 飼主No は独立カラムではなく owners.id の text 一致。pet_number は文字列列。
-			// いずれもユーザ入力を数値パースせずバインドする。
-			rawPattern := "%" + textsearch.EscapeLike(filters.Search) + "%"
-			normalizedPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(filters.Search)) + "%"
-			compactPattern := "%" + textsearch.EscapeLike(compactSearch) + "%"
-			compactNormalizedPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(compactSearch)) + "%"
-			trimmedSearch := strings.TrimSpace(filters.Search)
-			q = q.Where(
-				`(pets.name ILIKE ? ESCAPE '\'`+
-					` OR translate(pets.name, ?, ?) ILIKE ? ESCAPE '\'`+
-					` OR translate(pets.name_kana, ?, ?) ILIKE ? ESCAPE '\'`+
-					` OR owners.name ILIKE ? ESCAPE '\'`+
-					` OR translate(owners.name, ?, ?) ILIKE ? ESCAPE '\'`+
-					` OR translate(owners.name_kana, ?, ?) ILIKE ? ESCAPE '\'`+
-					` OR owners.phone ILIKE ? ESCAPE '\'`+
-					// POSIX [[:space:]] is ASCII-only; include ideographic space U+3000 so
-					// stored full-width spaces match Go compactSearchText (unicode.IsSpace).
-					` OR regexp_replace(owners.name, '[[:space:]　]+', '', 'g') ILIKE ? ESCAPE '\'`+
-					` OR regexp_replace(translate(owners.name, ?, ?), '[[:space:]　]+', '', 'g') ILIKE ? ESCAPE '\'`+
-					` OR CAST(owners.id AS text) = ?`+
-					` OR pets.pet_number ILIKE ? ESCAPE '\')`,
-				rawPattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
-				rawPattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
-				normalizedPattern,
-				compactPattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, compactNormalizedPattern,
-				trimmedSearch,
-				"%"+textsearch.EscapeLike(trimmedSearch)+"%",
-			)
-		}
-		return q
-	}
-
-	if err := buildBase().Count(&total).Error; err != nil {
+	if err := r.petListQuery(ctx, clinicIDs, filters).Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "pet", "")
 	}
 	// BRT-70: JOIN 時の owners 列混入 scan を避けるため Find だけ pets.* を明示する。
-	if err := buildBase().
+	if err := r.petListQuery(ctx, clinicIDs, filters).
 		Select("pets.*").
 		Preload("Owner", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
 		Preload("AnimalSpecies").
@@ -197,6 +128,85 @@ func (r *repository) FindAll(ctx context.Context, clinicIDs []uint64, filters Pe
 		sanitizePetOwnerRelation(&pets[i])
 	}
 	return pets, total, nil
+}
+
+func (r *repository) petListQuery(ctx context.Context, clinicIDs []uint64, filters PetListFilters) *gorm.DB {
+	// owners への LEFT JOIN は search 有無に関わらず常に張る
+	// (owners.name_kana ASC を安定順序の主キーにするため、Order 句が常にこの JOIN を要求する)。
+	// clinicScopeIn は "clinic_id" を無修飾で参照し pets/owners 両方に同名列を持つため、
+	// JOIN 併用時の曖昧列エラーを避けて pets.clinic_id / owners.clinic_id を明示指定する
+	// （owners 側も同一 clinicIDs で二重にスコープし、クロステナント JOIN 汚染を防ぐ）。
+	// BUG-454: owners.clinic_id = pets.clinic_id 相関で、認可集合に両院が含まれても
+	// 破損した pet(A)->owner(B) FK を search/order の JOIN 経由で復元しない。
+	// Select("pets.*") は Find 側のみ（Count に付けると COUNT("pets".*) で 42703）。
+	q := r.db.WithContext(ctx).Model(&model.Pet{}).
+		Where("pets.clinic_id IN ?", clinicIDs).
+		Where("pets.deleted_at IS NULL").
+		Joins("LEFT JOIN owners ON owners.id = pets.owner_id AND owners.clinic_id = pets.clinic_id AND owners.clinic_id IN ? AND owners.deleted_at IS NULL", clinicIDs)
+	if filters.OwnerID != nil {
+		q = q.Where("pets.owner_id = ?", *filters.OwnerID)
+	}
+	if filters.AnimalSpeciesID != nil {
+		q = q.Where("pets.animal_species_id = ?", *filters.AnimalSpeciesID)
+	}
+	if !filters.IncludeDeceased {
+		// deceased_at と status の両方で除外する。seed/旧データは status=deceased でも
+		// deceased_at が NULL のことがあり、列片方だけ見ると死亡個体が検索に混入する（BUG-001）。
+		q = q.Where("pets.deceased_at IS NULL AND pets.status <> ?", model.PetStatusDeceased)
+	}
+	return applyPetListSearch(q, filters.Search)
+}
+
+func applyPetListSearch(q *gorm.DB, search string) *gorm.DB {
+	if search == "" {
+		return q
+	}
+	// 空白のみは fail-closed で 0 件（空フィルタ扱いで全件返さない）。
+	compactSearch := compactSearchText(search)
+	if compactSearch == "" {
+		return q.Where("1 = 0")
+	}
+	// raw name の同一表記一致は既存の trgm index を利用可能な形で残し、
+	// translate() した name/name_kana との比較でカナ表記をまたぐ一致を補う。
+	// 空白除去形は「姓 名」入力の半角/全角/連続空白差を順序保持で吸収する（BUG-001）。
+	// 飼主No は独立カラムではなく owners.id の text 一致。pet_number は文字列列。
+	// いずれもユーザ入力を数値パースせずバインドする。
+	qSearch := textsearch.NormalizeQuerySpaces(search)
+	rawPattern := "%" + textsearch.EscapeLike(qSearch) + "%"
+	normalizedPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(qSearch)) + "%"
+	compactPattern := "%" + textsearch.EscapeLike(compactSearch) + "%"
+	compactNormalizedPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(compactSearch)) + "%"
+	trimmedSearch := strings.TrimSpace(search)
+	return q.Where(
+		`(pets.name ILIKE ? ESCAPE '\'`+
+			` OR translate(pets.name, ?, ?) ILIKE ? ESCAPE '\'`+
+			` OR translate(pets.name, ?, ?) ILIKE ? ESCAPE '\'`+
+			` OR translate(pets.name_kana, ?, ?) ILIKE ? ESCAPE '\'`+
+			` OR owners.name ILIKE ? ESCAPE '\'`+
+			` OR translate(owners.name, ?, ?) ILIKE ? ESCAPE '\'`+
+			` OR translate(owners.name, ?, ?) ILIKE ? ESCAPE '\'`+
+			` OR translate(owners.name_kana, ?, ?) ILIKE ? ESCAPE '\'`+
+			` OR owners.phone ILIKE ? ESCAPE '\'`+
+			// POSIX [[:space:]] is ASCII-only; include ideographic space U+3000 so
+			// stored full-width spaces match Go compactSearchText (unicode.IsSpace).
+			` OR regexp_replace(owners.name, '[[:space:]　]+', '', 'g') ILIKE ? ESCAPE '\'`+
+			` OR regexp_replace(translate(owners.name, ?, ?), '[[:space:]　]+', '', 'g') ILIKE ? ESCAPE '\'`+
+			` OR CAST(owners.id AS text) = ?`+
+			` OR pets.pet_number ILIKE ? ESCAPE '\')`,
+		rawPattern,
+		textsearch.SpaceSourceChars, textsearch.SpaceTargetChars, rawPattern,
+		textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
+		textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
+		rawPattern,
+		textsearch.SpaceSourceChars, textsearch.SpaceTargetChars, rawPattern,
+		textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
+		textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
+		normalizedPattern,
+		compactPattern,
+		textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, compactNormalizedPattern,
+		trimmedSearch,
+		"%"+textsearch.EscapeLike(trimmedSearch)+"%",
+	)
 }
 
 func (r *repository) FindOwnerReportPets(ctx context.Context, clinicIDs []uint64, ownerID uint64) ([]model.Pet, error) {

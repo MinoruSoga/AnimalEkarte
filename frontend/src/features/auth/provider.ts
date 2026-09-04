@@ -1,1 +1,1 @@
-export { AuthProvider } from "./hooks/use-auth";
+export { AuthProvider } from "./components/AuthProvider";

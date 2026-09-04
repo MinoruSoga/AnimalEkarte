@@ -1,5 +1,5 @@
 import type { CreateCageRequest, UpdateCageRequest } from "../api/cages";
-import type { CageFormData } from "../components/cage-side-panel-model";
+import type { CageFormData } from "../lib/cage-side-panel-model";
 
 export function buildCageCreateRequest(data: CageFormData): CreateCageRequest {
   return {

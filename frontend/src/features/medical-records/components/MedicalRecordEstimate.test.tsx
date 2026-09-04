@@ -9,7 +9,14 @@ import { MedicalRecordEstimate } from "./MedicalRecordEstimate";
 
 const mockCreateMutateAsync = vi.fn();
 const mockUpdateMutateAsync = vi.fn();
-let mockExisting: { id: number; title: string; comment?: string; notes?: string; discount_amount?: number; items?: unknown[] } | null = null;
+let mockExisting: {
+  id: number;
+  title: string;
+  comment?: string;
+  notes?: string;
+  discount_amount?: number;
+  items?: unknown[];
+} | null = null;
 
 vi.mock("sonner", () => ({
   toast: {
@@ -25,6 +32,16 @@ vi.mock("@/lib/handle-api-error", () => ({
 
 vi.mock("@/hooks/use-permission", () => ({
   usePermission: () => ({ canEdit: true, canCreate: true, canDelete: true }),
+}));
+
+// FE-RC-048: useClinicTaxRates は独立に useAuth() を呼ぶため最小モックが必要。
+// mockClinic は病院マスタの税率設定をテストごとに切り替えるための可変参照。
+const { mockClinic } = vi.hoisted(() => ({
+  mockClinic: { current: {} as { standardTaxRate?: number; reducedTaxRate?: number } },
+}));
+
+vi.mock("@/hooks/use-auth", () => ({
+  useAuth: () => ({ user: { clinic: mockClinic.current } }),
 }));
 
 vi.mock("../api/save-estimate", () => ({
@@ -47,6 +64,7 @@ describe("MedicalRecordEstimate BUG-016 resave", () => {
     mockUpdateMutateAsync.mockReset();
     vi.mocked(toast.success).mockClear();
     vi.mocked(toast.error).mockClear();
+    mockClinic.current = {};
   });
 
   it("初回保存は POST (create)、2回目以降は PATCH (update) を呼び成功トーストは実成功時のみ", async () => {
@@ -160,6 +178,34 @@ describe("MedicalRecordEstimate BUG-016 resave", () => {
       id: 7,
       payload: expect.objectContaining({ title: "既存更新" }),
     });
+  });
+
+  it("FE-RC-048: 病院マスタの税率設定 (8%) を消費税計算に反映する", () => {
+    mockClinic.current = { standardTaxRate: 0.08 };
+    mockExisting = {
+      id: 8,
+      title: "税率テスト",
+      comment: "",
+      notes: "",
+      discount_amount: 0,
+      items: [
+        {
+          id: 1,
+          name: "検査A",
+          unit_price: 1000,
+          quantity: 1,
+          discount_rate: 0,
+          discount_amount: 0,
+          is_insurance_applicable: false,
+        },
+      ],
+    };
+
+    render(createElement(MedicalRecordEstimate, { medicalRecordId: "8" }), { wrapper });
+
+    // 1000円 * 8% = 80円（ハードコード 10% なら 100円になるはず）
+    expect(screen.getByText("￥80")).toBeInTheDocument();
+    expect(screen.queryByText("￥100")).not.toBeInTheDocument();
   });
 
   it("API 失敗時は成功トーストを出さない", async () => {

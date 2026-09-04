@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/animal-ekarte/backend/internal/httpapi"
-
 	"github.com/gin-gonic/gin"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/httpapi"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // ExaminationHandler serves the examination HTTP boundary. Moved from internal/handler
@@ -26,6 +26,9 @@ func NewExaminationHandler(service ExaminationService) *ExaminationHandler {
 func (h *ExaminationHandler) ListExaminations(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceExaminations), "view") {
 		return
 	}
 
@@ -47,6 +50,7 @@ func (h *ExaminationHandler) ListExaminations(c *gin.Context) {
 		clinicID,
 		filters.PetID,
 		filters.OwnerID,
+		filters.MedicalRecordID,
 		filters.Status,
 		filters.StartDate,
 		filters.EndDate,
@@ -70,6 +74,9 @@ func (h *ExaminationHandler) GetExamination(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceExaminations), "view") {
+		return
+	}
 	id, ok := httpapi.ParseIDParam(c, "id")
 	if !ok {
 		return
@@ -87,6 +94,9 @@ func (h *ExaminationHandler) GetExamination(c *gin.Context) {
 func (h *ExaminationHandler) GetExaminationPrintSnapshot(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceExaminations), "view") {
 		return
 	}
 	id, ok := httpapi.ParseIDParam(c, "id")
@@ -203,6 +213,9 @@ func (h *ExaminationHandler) UnconfirmExamination(c *gin.Context) {
 func (h *ExaminationHandler) ListExaminationItems(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceExaminations), "view") {
 		return
 	}
 	id, ok := httpapi.ParseIDParam(c, "id")

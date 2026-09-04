@@ -51,15 +51,16 @@ export const ClinicalPlanSection = memo(function ClinicalPlanSection({
   void _medicalRecordId;
   void _recordClinicId;
   const { data: diagnosisTypes = [], isLoading: isTypesLoading } = useGetDiagnosisTypes();
-  const { data: diagnosisNames = [], isLoading: isNamesLoading } = useGetDiagnosisNames(diagnosisTypeId);
+  const { data: diagnosisNames = [], isLoading: isNamesLoading } =
+    useGetDiagnosisNames(diagnosisTypeId);
 
   const typeOptions = useMemo<SearchableSelectOption[]>(
     () => diagnosisTypes.map((t) => ({ value: String(t.id), label: t.name })),
-    [diagnosisTypes]
+    [diagnosisTypes],
   );
   const nameOptions = useMemo<SearchableSelectOption[]>(
     () => diagnosisNames.map((n) => ({ value: String(n.id), label: n.name })),
-    [diagnosisNames]
+    [diagnosisNames],
   );
 
   return (
@@ -107,9 +108,11 @@ export const ClinicalPlanSection = memo(function ClinicalPlanSection({
             options={nameOptions}
             disabled={isNamesLoading || !diagnosisTypeId || !canEdit}
             placeholder={
-              isNamesLoading ? "読み込み中..." :
-              !diagnosisTypeId ? "先にカテゴリを選択" :
-              "病名を選択"
+              isNamesLoading
+                ? "読み込み中..."
+                : !diagnosisTypeId
+                  ? "先にカテゴリを選択"
+                  : "病名を選択"
             }
             searchPlaceholder="病名を検索..."
           />

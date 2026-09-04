@@ -1,1 +1,1 @@
-export { LoadingFallback, ErrorFallback, EmptyState } from './DataStates';
+export { LoadingFallback, ErrorFallback, EmptyState } from "./DataStates";

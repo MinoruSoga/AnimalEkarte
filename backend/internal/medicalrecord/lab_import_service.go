@@ -19,9 +19,9 @@ import (
 // オペレーターが validated または failed に遷移させるまでジョブはオープンのまま。
 // Phase 1 以降でタイムアウトスイープを実装する場合は FinishedAt IS NULL を利用すること。
 var labImportTransitions = map[model.LabImportJobStatus][]model.LabImportJobStatus{
-	model.LabImportJobStatusReceived:    {model.LabImportJobStatusValidated, model.LabImportJobStatusFailed},
-	model.LabImportJobStatusValidated:   {model.LabImportJobStatusMapped, model.LabImportJobStatusNeedsReview, model.LabImportJobStatusFailed},
-	model.LabImportJobStatusMapped:      {model.LabImportJobStatusPersisted, model.LabImportJobStatusDuplicate, model.LabImportJobStatusNeedsReview, model.LabImportJobStatusFailed},
+	model.LabImportJobStatusReceived:  {model.LabImportJobStatusValidated, model.LabImportJobStatusFailed},
+	model.LabImportJobStatusValidated: {model.LabImportJobStatusMapped, model.LabImportJobStatusNeedsReview, model.LabImportJobStatusFailed},
+	model.LabImportJobStatusMapped:    {model.LabImportJobStatusPersisted, model.LabImportJobStatusDuplicate, model.LabImportJobStatusNeedsReview, model.LabImportJobStatusFailed},
 	// TASK-032: persisted → reverted is the sole compensating terminal transition.
 	// It is owned by RevertLabImport, not TransitionStatus (different permission/endpoint).
 	model.LabImportJobStatusPersisted:   {model.LabImportJobStatusReverted},
@@ -187,6 +187,9 @@ func (s *labImportJobService) GetJob(ctx context.Context, clinicID uint64, jobID
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get lab import job")
 	}
+	if job.SourceType == model.LabImportSourceTypeDrWan {
+		return nil, apperrors.WrapInvalidInput("source_type=drwan cannot be opened")
+	}
 	return job, nil
 }
 
@@ -205,9 +208,12 @@ func (s *labImportJobService) PreviewBatch(_ context.Context, _ uint64, batch mo
 			"source_type=drwan is BLOCKED: Dr.Wan MDB schema not confirmed; external device access not permitted in Phase 0",
 		)
 	case model.LabImportSourceTypeManual:
-		// manual upload is not yet implemented; block until Phase 2
 		resp.BlockedReasons = append(resp.BlockedReasons,
 			"source_type=manual is not yet implemented; available from Phase 2",
+		)
+	case model.LabImportSourceTypeFujiNX600, model.LabImportSourceTypeFujiAU10V, model.LabImportSourceTypeArkrayPU4010:
+		resp.BlockedReasons = append(resp.BlockedReasons,
+			"device source_type cannot use preview/commit; use /lab-device/frames",
 		)
 	}
 

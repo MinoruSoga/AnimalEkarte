@@ -27,7 +27,7 @@ describe("RequirePermission — 振る舞いテスト", () => {
         <RequirePermission resource="accounting">
           <div data-testid="protected-content">protected</div>
         </RequirePermission>
-      </AuthContext.Provider>
+      </AuthContext.Provider>,
     );
     expect(screen.getByTestId("protected-content")).toBeInTheDocument();
     expect(screen.queryByText(/アクセス権限がありません/)).not.toBeInTheDocument();
@@ -39,7 +39,7 @@ describe("RequirePermission — 振る舞いテスト", () => {
         <RequirePermission resource="accounting">
           <div data-testid="protected-content">protected</div>
         </RequirePermission>
-      </AuthContext.Provider>
+      </AuthContext.Provider>,
     );
     expect(
       screen.getByRole("heading", { level: 1, name: "アクセス権限がありません" }),
@@ -56,14 +56,14 @@ describe("RequirePermission — 振る舞いテスト", () => {
         >
           <div data-testid="protected-content">protected</div>
         </RequirePermission>
-      </AuthContext.Provider>
+      </AuthContext.Provider>,
     );
     expect(screen.getByTestId("custom-fallback")).toBeInTheDocument();
     expect(screen.queryByText(/アクセス権限がありません/)).not.toBeInTheDocument();
     expect(screen.queryByTestId("protected-content")).not.toBeInTheDocument();
   });
 
-  it("action 省略時は \"view\" が hasPermission に渡る", () => {
+  it('action 省略時は "view" が hasPermission に渡る', () => {
     let capturedAction: ResourceAction | undefined;
     render(
       <AuthContext.Provider
@@ -75,12 +75,12 @@ describe("RequirePermission — 振る舞いテスト", () => {
         <RequirePermission resource="accounting">
           <div />
         </RequirePermission>
-      </AuthContext.Provider>
+      </AuthContext.Provider>,
     );
     expect(capturedAction).toBe("view");
   });
 
-  it("action=\"create\" 指定時は hasPermission に \"create\" が渡る", () => {
+  it('action="create" 指定時は hasPermission に "create" が渡る', () => {
     let capturedAction: ResourceAction | undefined;
     render(
       <AuthContext.Provider
@@ -92,7 +92,7 @@ describe("RequirePermission — 振る舞いテスト", () => {
         <RequirePermission resource="accounting" action="create">
           <div />
         </RequirePermission>
-      </AuthContext.Provider>
+      </AuthContext.Provider>,
     );
     expect(capturedAction).toBe("create");
   });

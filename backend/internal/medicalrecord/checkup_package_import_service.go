@@ -2,16 +2,13 @@ package medicalrecord
 
 import (
 	"context"
-	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
-	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
-	"gorm.io/datatypes"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -87,201 +84,11 @@ func (s *checkupPackageImportService) Apply(ctx context.Context, clinicID, actor
 
 	var operator *CheckupPackageImportOperatorReceipt
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		db := persistence.DBOrTx(txCtx, s.db)
-
-		// Clinic row lock serializes concurrent apply for the same clinic.
-		var clinic model.Clinic
-		if err := db.Clauses(clause.Locking{Strength: "UPDATE"}).
-			Where("id = ?", clinicID).
-			First(&clinic).Error; err != nil {
-			return apperrors.FromGORM(err, "clinic", fmt.Sprintf("%d", clinicID))
-		}
-		if err := s.validateActorInClinic(txCtx, clinicID, actorID); err != nil {
-			return err
-		}
-
-		// Existing receipt for same namespace/version?
-		var existing model.CheckupPackageImportReceipt
-		findErr := db.Where(
-			"clinic_id = ? AND namespace = ? AND version = ?",
-			clinicID, canonical.Manifest.Namespace, canonical.Manifest.Version,
-		).First(&existing).Error
-		if findErr == nil {
-			if existing.ContentDigest == canonical.Digest {
-				operator = &CheckupPackageImportOperatorReceipt{
-					ReceiptID:     opaqueReceiptIDFromUint(existing.ID),
-					Result:        "noop",
-					TypesCreated:  0,
-					FieldsCreated: 0,
-				}
-				slog.InfoContext(txCtx, "checkup package import noop",
-					slog.String("receipt_id", operator.ReceiptID),
-					slog.String("result", "noop"),
-				)
-				return nil
-			}
-			return apperrors.WrapConflict("checkup package version content conflict")
-		}
-		if findErr != nil && !apperrors.IsNotFound(apperrors.FromGORM(findErr, "checkup_package_import_receipt", "lookup")) {
-			// distinguish not found
-			if findErr != gorm.ErrRecordNotFound {
-				return apperrors.FromGORM(findErr, "checkup_package_import_receipt", "lookup")
-			}
-		}
-
-		if err := s.preflightCollisions(txCtx, clinicID, canonical); err != nil {
-			return err
-		}
-
-		// Write types then fields in stable key order (already canonicalized).
-		typeIDByKey := make(map[string]uint64, len(canonical.Manifest.Types))
-		typesCreated := 0
-		// Two-pass types: parents first (no parent_key), then children.
-		var roots, children []CheckupPackageTypeDef
-		for _, t := range canonical.Manifest.Types {
-			if t.ParentKey == nil {
-				roots = append(roots, t)
-			} else {
-				children = append(children, t)
-			}
-		}
-		for _, pass := range [][]CheckupPackageTypeDef{roots, children} {
-			for _, t := range pass {
-				var parentID *uint64
-				if t.ParentKey != nil {
-					id, ok := typeIDByKey[*t.ParentKey]
-					if !ok {
-						return apperrors.WrapInvalidInput(fmt.Sprintf("parent type %q not resolved", *t.ParentKey))
-					}
-					parentID = &id
-				}
-				ns := canonical.Manifest.Namespace
-				key := t.Key
-				row := model.CheckupType{
-					ClinicID:        clinicID,
-					Name:            t.Name,
-					IsActive:        t.IsActive,
-					Description:     t.Description,
-					Interval:        t.Interval,
-					TargetAge:       t.TargetAge,
-					ParentID:        parentID,
-					ImportNamespace: &ns,
-					ImportKey:       &key,
-					SortOrder:       t.SortOrder,
-				}
-				if err := db.Create(&row).Error; err != nil {
-					return apperrors.FromGORM(err, "checkup_type", t.Key)
-				}
-				typeIDByKey[t.Key] = row.ID
-				typesCreated++
-			}
-		}
-
-		fieldsCreated := 0
-		fieldIDByKey := make(map[string]uint64, len(canonical.Manifest.Fields))
-		for _, f := range canonical.Manifest.Fields {
-			typeID, ok := typeIDByKey[f.TypeKey]
-			if !ok {
-				return apperrors.WrapInvalidInput(fmt.Sprintf("field type_key %q missing", f.TypeKey))
-			}
-			opts, err := json.Marshal(f.Options)
-			if err != nil {
-				return apperrors.Wrap(err, "marshal field options")
-			}
-			var minV, maxV *float64
-			if f.MinValue != nil {
-				v, err := strconv.ParseFloat(*f.MinValue, 64)
-				if err != nil {
-					return apperrors.WrapInvalidInput("invalid min_value")
-				}
-				minV = &v
-			}
-			if f.MaxValue != nil {
-				v, err := strconv.ParseFloat(*f.MaxValue, 64)
-				if err != nil {
-					return apperrors.WrapInvalidInput("invalid max_value")
-				}
-				maxV = &v
-			}
-			ns := canonical.Manifest.Namespace
-			key := f.Key
-			row := model.CheckupTypeField{
-				ClinicID:        clinicID,
-				CheckupTypeID:   typeID,
-				Name:            f.Name,
-				FieldType:       model.CheckupFieldType(f.FieldType),
-				Unit:            f.Unit,
-				MinValue:        minV,
-				MaxValue:        maxV,
-				Options:         datatypes.JSON(opts),
-				IsProvisional:   false,
-				ImportNamespace: &ns,
-				ImportKey:       &key,
-				SortOrder:       f.SortOrder,
-			}
-			if err := db.Create(&row).Error; err != nil {
-				return apperrors.FromGORM(err, "checkup_type_field", f.Key)
-			}
-			fieldIDByKey[f.Key] = row.ID
-			fieldsCreated++
-		}
-
-		mapping := map[string]any{
-			"types":  typeIDByKey,
-			"fields": fieldIDByKey,
-		}
-		mappingJSON, err := json.Marshal(mapping)
+		receipt, err := s.applyCheckupPackageInTx(txCtx, clinicID, actorID, canonical)
 		if err != nil {
-			return apperrors.Wrap(err, "marshal resource mapping")
+			return err
 		}
-
-		receipt := model.CheckupPackageImportReceipt{
-			ClinicID:            clinicID,
-			Namespace:           canonical.Manifest.Namespace,
-			Version:             canonical.Manifest.Version,
-			ContentDigest:       canonical.Digest,
-			Status:              model.CheckupPackageImportStatusApplied,
-			ActorID:             actorID,
-			TypesCreated:        typesCreated,
-			FieldsCreated:       fieldsCreated,
-			ResourceMapping:     mappingJSON,
-			ClinicalApprovalRef: canonical.Manifest.ClinicalApprovalRef,
-		}
-		if err := db.Create(&receipt).Error; err != nil {
-			return apperrors.FromGORM(err, "checkup_package_import_receipt", canonical.Manifest.Version)
-		}
-
-		if s.auditTx != nil {
-			clinicIDCopy := clinicID
-			receiptID := receipt.ID
-			if err := s.auditTx.LogEntryTx(txCtx, &AuditEntry{
-				ClinicID:   &clinicIDCopy,
-				ActorID:    &actorID,
-				Action:     model.AuditActionCheckupPackageImportApply,
-				Resource:   model.AuditResourceCheckupPackageImport,
-				ResourceID: &receiptID,
-				NewValue: map[string]any{
-					"namespace":      receipt.Namespace,
-					"version":        receipt.Version,
-					"types_created":  typesCreated,
-					"fields_created": fieldsCreated,
-					"status":         string(receipt.Status),
-				},
-			}); err != nil {
-				return err
-			}
-		}
-
-		operator = &CheckupPackageImportOperatorReceipt{
-			ReceiptID:     opaqueReceiptIDFromUint(receipt.ID),
-			Result:        "applied",
-			TypesCreated:  typesCreated,
-			FieldsCreated: fieldsCreated,
-		}
-		slog.InfoContext(txCtx, "checkup package import applied",
-			slog.String("receipt_id", operator.ReceiptID),
-			slog.String("result", "applied"),
-		)
+		operator = receipt
 		return nil
 	}); err != nil {
 		return nil, err
@@ -314,7 +121,7 @@ func (s *checkupPackageImportService) preflightCollisions(ctx context.Context, c
 		if err == nil {
 			return apperrors.WrapConflict(fmt.Sprintf("type stable key %q already imported", t.Key))
 		}
-		if err != gorm.ErrRecordNotFound {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return apperrors.FromGORM(err, "checkup_type", t.Key)
 		}
 		// Name collision (active)
@@ -326,7 +133,7 @@ func (s *checkupPackageImportService) preflightCollisions(ctx context.Context, c
 		if err == nil {
 			return apperrors.WrapConflict(fmt.Sprintf("type name %q already exists", t.Name))
 		}
-		if err != gorm.ErrRecordNotFound {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return apperrors.FromGORM(err, "checkup_type", t.Name)
 		}
 	}
@@ -339,7 +146,7 @@ func (s *checkupPackageImportService) preflightCollisions(ctx context.Context, c
 		if err == nil {
 			return apperrors.WrapConflict(fmt.Sprintf("field stable key %q already imported", f.Key))
 		}
-		if err != gorm.ErrRecordNotFound {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return apperrors.FromGORM(err, "checkup_type_field", f.Key)
 		}
 	}

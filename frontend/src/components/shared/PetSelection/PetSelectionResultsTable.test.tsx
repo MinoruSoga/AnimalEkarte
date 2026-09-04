@@ -74,13 +74,7 @@ function createResults(
 // GET /v1/pets の失敗（400 等）が「該当0件」として利用者に嘘をついていた。
 describe("PetSelectionResultsTable empty/error/loading states", () => {
   it("取得失敗時はエラー文言を出し、0件表示を一切しない", () => {
-    render(
-      <PetSelectionResultsTable
-        pets={createResults([])}
-        onSelect={vi.fn()}
-        isError
-      />,
-    );
+    render(<PetSelectionResultsTable pets={createResults([])} onSelect={vi.fn()} isError />);
 
     expect(screen.getByText(ERROR_MESSAGE)).toBeInTheDocument();
     expect(screen.queryByText(EMPTY_MESSAGE)).not.toBeInTheDocument();
@@ -88,13 +82,7 @@ describe("PetSelectionResultsTable empty/error/loading states", () => {
   });
 
   it("読み込み中は0件でも空表示・件数を出さない", () => {
-    render(
-      <PetSelectionResultsTable
-        pets={createResults([])}
-        onSelect={vi.fn()}
-        isLoading
-      />,
-    );
+    render(<PetSelectionResultsTable pets={createResults([])} onSelect={vi.fn()} isLoading />);
 
     expect(screen.getByText(LOADING_MESSAGE)).toBeInTheDocument();
     expect(screen.queryByText(EMPTY_MESSAGE)).not.toBeInTheDocument();
@@ -103,12 +91,7 @@ describe("PetSelectionResultsTable empty/error/loading states", () => {
 
   it("エラーは読み込み中より優先して表示する", () => {
     render(
-      <PetSelectionResultsTable
-        pets={createResults([])}
-        onSelect={vi.fn()}
-        isError
-        isLoading
-      />,
+      <PetSelectionResultsTable pets={createResults([])} onSelect={vi.fn()} isError isLoading />,
     );
 
     expect(screen.getByText(ERROR_MESSAGE)).toBeInTheDocument();
@@ -116,9 +99,7 @@ describe("PetSelectionResultsTable empty/error/loading states", () => {
   });
 
   it("prop 未指定なら従来どおり0件の空表示を維持する（既定の後方互換）", () => {
-    render(
-      <PetSelectionResultsTable pets={createResults([])} onSelect={vi.fn()} />,
-    );
+    render(<PetSelectionResultsTable pets={createResults([])} onSelect={vi.fn()} />);
 
     expect(screen.getByText(EMPTY_MESSAGE)).toBeInTheDocument();
     expect(screen.getByText("0件")).toBeInTheDocument();
@@ -154,12 +135,7 @@ describe("PetSelectionResultsTable empty/error/loading states", () => {
   });
 
   it("取得成功時は件数と行を表示しエラー文言を出さない", () => {
-    render(
-      <PetSelectionResultsTable
-        pets={createResults([PET])}
-        onSelect={vi.fn()}
-      />,
-    );
+    render(<PetSelectionResultsTable pets={createResults([PET])} onSelect={vi.fn()} />);
 
     expect(screen.getByText("1件中 1-1件")).toBeInTheDocument();
     expect(screen.getByText("ポチ")).toBeInTheDocument();
@@ -363,9 +339,7 @@ describe("PetSelectionSearchForm backend filters", () => {
 
     await user.click(screen.getByRole("combobox", { name: "種別" }));
     await user.click(screen.getByRole("option", { name: "犬" }));
-    expect(setSearchParams).toHaveBeenCalledWith(
-      expect.objectContaining({ species: "3" }),
-    );
+    expect(setSearchParams).toHaveBeenCalledWith(expect.objectContaining({ species: "3" }));
   });
 
   // BUG-451: backend が述語を持たない条件を欄として出すと、利用者は
@@ -381,9 +355,7 @@ describe("PetSelectionSearchForm backend filters", () => {
     );
 
     expect(screen.getAllByRole("textbox")).toHaveLength(2);
-    expect(
-      screen.getByRole("textbox", { name: "飼主No" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "飼主No" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "種別" })).toBeInTheDocument();
 
     for (const removed of [
@@ -394,9 +366,7 @@ describe("PetSelectionSearchForm backend filters", () => {
       "ペット名よみ",
       "住所",
     ]) {
-      expect(
-        screen.queryByRole("textbox", { name: removed }),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByRole("textbox", { name: removed })).not.toBeInTheDocument();
     }
   });
 
@@ -410,9 +380,7 @@ describe("PetSelectionSearchForm backend filters", () => {
       />,
     );
 
-    expect(
-      screen.queryByRole("button", { name: "検索" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "検索" })).not.toBeInTheDocument();
     expect(screen.getByText("入力すると自動で検索します")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "クリア" })).toBeInTheDocument();
   });
@@ -438,12 +406,8 @@ describe("PetSelectionResultsTable row actions", () => {
       C.borderDanger20,
     );
     expect(screen.getByText("ハイ").parentElement).toHaveTextContent("⚠ 危険");
-    expect(screen.getByText("ミドル").parentElement).not.toHaveTextContent(
-      "⚠ 危険",
-    );
-    expect(screen.getByText("未判定").parentElement).not.toHaveTextContent(
-      "⚠ 危険",
-    );
+    expect(screen.getByText("ミドル").parentElement).not.toHaveTextContent("⚠ 危険");
+    expect(screen.getByText("未判定").parentElement).not.toHaveTextContent("⚠ 危険");
   });
 
   it("保存済みの高危険度理由をclickで開き、同じtriggerの再clickで閉じる", async () => {
@@ -470,48 +434,37 @@ describe("PetSelectionResultsTable row actions", () => {
     ["undefined", undefined],
     ["空文字", ""],
     ["空白のみ", "   "],
-  ])(
-    "高危険度理由が%sならclickで理由未登録を表示する",
-    async (_caseName, dangerReason) => {
-      const user = userEvent.setup();
-      const trigger = renderHighDangerPet(dangerReason);
+  ])("高危険度理由が%sならclickで理由未登録を表示する", async (_caseName, dangerReason) => {
+    const user = userEvent.setup();
+    const trigger = renderHighDangerPet(dangerReason);
 
-      await user.click(trigger);
+    await user.click(trigger);
 
-      expect(await screen.findByText("理由未登録")).toBeInTheDocument();
-    },
-  );
+    expect(await screen.findByText("理由未登録")).toBeInTheDocument();
+  });
 
   it.each([
     ["Enter", "{Enter}"],
     ["Space", " "],
-  ])(
-    "%sで高危険度理由を開き、同じキーで閉じる",
-    async (_keyName, key) => {
-      const user = userEvent.setup();
-      const trigger = renderHighDangerPet(DANGER_REASON);
+  ])("%sで高危険度理由を開き、同じキーで閉じる", async (_keyName, key) => {
+    const user = userEvent.setup();
+    const trigger = renderHighDangerPet(DANGER_REASON);
 
-      trigger.focus();
-      await user.keyboard(key);
-      expect(await screen.findByText(DANGER_REASON)).toBeInTheDocument();
+    trigger.focus();
+    await user.keyboard(key);
+    expect(await screen.findByText(DANGER_REASON)).toBeInTheDocument();
 
-      trigger.focus();
-      await user.keyboard(key);
-      await waitFor(() => {
-        expect(screen.queryByText(DANGER_REASON)).not.toBeInTheDocument();
-      });
-    },
-  );
+    trigger.focus();
+    await user.keyboard(key);
+    await waitFor(() => {
+      expect(screen.queryByText(DANGER_REASON)).not.toBeInTheDocument();
+    });
+  });
 
   it("行は選択せず、固有名の44px native buttonだけが選択する", async () => {
     const user = userEvent.setup();
     const onSelect = vi.fn();
-    render(
-      <PetSelectionResultsTable
-        pets={createResults([PET])}
-        onSelect={onSelect}
-      />,
-    );
+    render(<PetSelectionResultsTable pets={createResults([PET])} onSelect={onSelect} />);
 
     await user.click(screen.getByText("山田 太郎"));
     expect(onSelect).not.toHaveBeenCalled();
@@ -539,10 +492,7 @@ describe("PetSelectionResultsTable row actions", () => {
     expect(selectButton).toBeDisabled();
     expect(selectButton).toHaveTextContent("選択不可");
     expect(screen.getByText("死亡")).toBeInTheDocument();
-    expect(selectButton.closest("tr")).toHaveClass(
-      "opacity-60",
-      "grayscale-[0.5]",
-    );
+    expect(selectButton.closest("tr")).toHaveClass("opacity-60", "grayscale-[0.5]");
     await user.click(selectButton);
     expect(onSelect).not.toHaveBeenCalled();
   });

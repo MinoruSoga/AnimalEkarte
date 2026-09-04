@@ -97,7 +97,9 @@ func (a lstepLineLinkAuditTxAdapter) LogOwnerLineLinkTx(
 	})
 }
 
-type ownerLifecycleWriterAdapter struct{ inner owner.LstepRepository }
+type ownerLifecycleWriterAdapter struct {
+	inner owner.LifecycleOwnerRepository
+}
 
 func (a ownerLifecycleWriterAdapter) RecordLstepOptOut(ctx context.Context, clinicID, ownerID uint64, at time.Time, reason string) error {
 	return a.inner.RecordLstepOptOut(ctx, clinicID, ownerID, at, reason)

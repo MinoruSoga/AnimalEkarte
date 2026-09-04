@@ -12,7 +12,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/timeutil"
 )
 
 // ---- レスポンス型（フロントエンド期待形式） ----
@@ -142,128 +141,20 @@ func buildMonthlyReportResponse(
 	taxRates accountingReportTaxRates,
 	matrix *CategoryPaymentMatrix,
 ) *MonthlyReportResponse {
-	// 日付別の集計マップを構築
-	type dailyAgg struct {
-		amNet    int64
-		pmNet    int64
-		amCount  int64
-		pmCount  int64
-		refund   int64
-		amClosed bool
-		pmClosed bool
-	}
-	dailyMap := make(map[string]*dailyAgg)
-
 	byPaymentMethod := make(map[string]int64)
 	byCategory := make(map[string]int64)
-	var totalAmount int64
-	totalRefund := raw.TotalRefund
-
-	// 支払方法別集計 + 日別 net 合算
-	for _, row := range raw.PaymentRows {
-		d, ok := dailyMap[row.Date]
-		if !ok {
-			d = &dailyAgg{
-				amClosed: raw.ClosedAM[row.Date],
-				pmClosed: raw.ClosedPM[row.Date],
-			}
-			dailyMap[row.Date] = d
-		}
-		d.pmNet += row.Amount
-		totalAmount += row.Amount
-		pmName := resolvePaymentMethodName(row.PaymentMethodID, payMethodNames)
-		byPaymentMethod[pmName] += row.Amount
-	}
-
-	// 日別件数を DailyBillingCount から注入
-	for date, count := range raw.DailyBillingCount {
-		d, ok := dailyMap[date]
-		if !ok {
-			d = &dailyAgg{
-				amClosed: raw.ClosedAM[date],
-				pmClosed: raw.ClosedPM[date],
-			}
-			dailyMap[date] = d
-		}
-		d.pmCount = count
-	}
-
-	// カテゴリ別集計
+	dailyMap, totalAmount := accumulateMonthlyDailyMap(raw, byPaymentMethod, payMethodNames)
 	for _, row := range raw.CategoryRows {
 		byCategory[row.Category] += row.Amount
 	}
-
-	// 締め状態を dailyMap に反映（PaymentRows が空の日付用）
-	for date, closed := range raw.ClosedAM {
-		if _, ok := dailyMap[date]; !ok {
-			dailyMap[date] = &dailyAgg{}
-		}
-		if closed {
-			dailyMap[date].amClosed = true
-		}
-	}
-	for date, closed := range raw.ClosedPM {
-		if _, ok := dailyMap[date]; !ok {
-			dailyMap[date] = &dailyAgg{}
-		}
-		if closed {
-			dailyMap[date].pmClosed = true
-		}
-	}
-
-	// 税率別集計を TaxBreakdownSummary に変換
-	var taxSummary TaxBreakdownSummary
-	for _, tr := range raw.TaxBreakdown {
-		if isReducedTaxRate(tr.TaxRate, taxRates) {
-			taxSummary.Reduced.TaxableAmount += tr.TaxableAmount
-			taxSummary.Reduced.TaxAmount += tr.TaxAmount
-		} else {
-			taxSummary.Standard.TaxableAmount += tr.TaxableAmount
-			taxSummary.Standard.TaxAmount += tr.TaxAmount
-		}
-	}
-
-	// 日別明細スライスを期間内の日付昇順で構築
-	days := int(endDate.Sub(startDate).Hours()/24) + 1
-	if days < 0 {
-		days = 0
-	}
-	dailyDetails := make([]DailyReportDetail, 0, days)
-	workingDays := 0
-
-	for d := startDate; !d.After(endDate); d = d.AddDate(0, 0, 1) {
-		dateStr := d.Format(time.DateOnly)
-		isHoliday := holidaySet[dateStr]
-
-		agg := dailyMap[dateStr]
-		detail := DailyReportDetail{
-			Date:      dateStr,
-			Weekday:   timeutil.WeekdayJP(d),
-			IsHoliday: isHoliday,
-		}
-		if agg != nil {
-			detail.AMCount = agg.amCount
-			detail.AMNet = agg.amNet
-			detail.PMCount = agg.pmCount
-			detail.PMNet = agg.pmNet
-			detail.DayNet = agg.amNet + agg.pmNet
-			detail.Refund = agg.refund
-			detail.AMClosed = agg.amClosed
-			detail.PMClosed = agg.pmClosed
-		}
-
-		if !isHoliday {
-			workingDays++
-		}
-
-		dailyDetails = append(dailyDetails, detail)
-	}
+	taxSummary := summarizeMonthlyTax(raw, taxRates)
+	dailyDetails, workingDays := buildMonthlyDailyDetails(startDate, endDate, dailyMap, holidaySet)
 
 	summary := MonthlyReportSummary{
 		WorkingDays:     workingDays,
 		TotalBillings:   raw.BillingCount,
 		TotalAmount:     totalAmount,
-		TotalRefund:     totalRefund,
+		TotalRefund:     raw.TotalRefund,
 		NetAmount:       raw.GrandTotal,
 		ByPaymentMethod: byPaymentMethod,
 		ByCategory:      byCategory,

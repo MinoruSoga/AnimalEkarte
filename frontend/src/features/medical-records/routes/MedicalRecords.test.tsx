@@ -125,10 +125,7 @@ function mockMedicalRecords(records: MedicalRecord[]) {
 function LocationProbe() {
   const { pathname, state } = useLocation();
   const from =
-    state &&
-    typeof state === "object" &&
-    "from" in state &&
-    typeof state.from === "string"
+    state && typeof state === "object" && "from" in state && typeof state.from === "string"
       ? state.from
       : "";
   return (
@@ -195,9 +192,7 @@ describe("MedicalRecords row navigation accessibility", () => {
     expect(detailLink).toHaveAccessibleName(/mr-1/);
     expect(detailLink).toHaveClass("min-h-11", "min-w-11");
     fireEvent.click(detailLink);
-    expect(screen.getByTestId("location-from")).toHaveTextContent(
-      /^\/medical-records$/,
-    );
+    expect(screen.getByTestId("location-from")).toHaveTextContent(/^\/medical-records$/);
   });
 
   it("detail link以外のセルclickでは行遷移しない", () => {
@@ -226,9 +221,7 @@ describe("MedicalRecords contextual actions", () => {
     mockMedicalRecords([makeMedicalRecord()]);
     renderPage();
 
-    expect(
-      screen.getByRole("button", { name: /カルテ操作:.*mr-1/ }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /カルテ操作:.*mr-1/ })).toBeInTheDocument();
   });
 
   it("無効な担当医の警告をscreen readerへ文脈付きで説明する", () => {
@@ -250,9 +243,7 @@ describe("MedicalRecords contextual actions", () => {
         ["clinic-2", "分院"],
       ]),
     });
-    mockMedicalRecords([
-      makeMedicalRecord({ clinicId: "clinic-2", accountingId: "acct-other" }),
-    ]);
+    mockMedicalRecords([makeMedicalRecord({ clinicId: "clinic-2", accountingId: "acct-other" })]);
 
     renderPage();
 

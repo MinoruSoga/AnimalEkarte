@@ -24,6 +24,7 @@ type StaffClinicAssignmentRepository interface {
 	RestoreOrCreate(ctx context.Context, assignment *model.StaffClinicAssignment) error
 	Create(ctx context.Context, assignment *model.StaffClinicAssignment) error
 	Delete(ctx context.Context, staffID uint64) error
+	DeleteByStaffAndClinicIDs(ctx context.Context, staffID uint64, clinicIDs []uint64) error
 }
 
 // repository は Repository の実装
@@ -151,6 +152,10 @@ func (r *staffClinicAssignmentRepository) RestoreOrCreate(
 		ClinicID: assignment.ClinicID,
 		IsMain:   assignment.IsMain,
 	}
+	// ON CONFLICT (staff_id, clinic_id) needs a matching unique index. 001_init.sql
+	// declares CONSTRAINT uk_staff_clinic; model.StaffClinicAssignment carries the
+	// same name as a uniqueIndex tag so AutoMigrate-built test databases get it too.
+	// Dropping either side makes this upsert fail 42P10 on a fresh database only.
 	if err := persistence.DBOrTx(ctx, r.db).
 		Clauses(clause.OnConflict{
 			Columns: []clause.Column{
@@ -184,6 +189,25 @@ func (r *staffClinicAssignmentRepository) Create(ctx context.Context, assignment
 // Delete はスタッフの全クリニック所属を削除する
 func (r *staffClinicAssignmentRepository) Delete(ctx context.Context, staffID uint64) error {
 	if err := persistence.DBOrTx(ctx, r.db).Where("staff_id = ?", staffID).Delete(&model.StaffClinicAssignment{}).Error; err != nil {
+		return apperrors.FromGORM(err, "staff_clinic_assignment", fmt.Sprintf("staff_id=%d", staffID))
+	}
+	return nil
+}
+
+// DeleteByStaffAndClinicIDs soft-deletes only the listed clinic assignments.
+// Empty clinicIDs is a no-op so assignments outside the actor's mutable scope
+// are never touched. Uses persistence.DBOrTx to join an ambient transaction.
+func (r *staffClinicAssignmentRepository) DeleteByStaffAndClinicIDs(
+	ctx context.Context,
+	staffID uint64,
+	clinicIDs []uint64,
+) error {
+	if len(clinicIDs) == 0 {
+		return nil
+	}
+	if err := persistence.DBOrTx(ctx, r.db).
+		Where("staff_id = ? AND clinic_id IN ?", staffID, clinicIDs).
+		Delete(&model.StaffClinicAssignment{}).Error; err != nil {
 		return apperrors.FromGORM(err, "staff_clinic_assignment", fmt.Sprintf("staff_id=%d", staffID))
 	}
 	return nil

@@ -7,7 +7,10 @@ import { PaymentCard, type PaymentSplitDraft } from "./PaymentCard";
 // #127: 銀行振込 (bank_transfer) が会計 UI で選択でき、選択時に
 // method="bank_transfer" がフォーム state へ反映されることを検証する。
 // 支払方法セレクタは Radix Select ではなく Button グリッドのため決定的にテストできる。
-function renderCard(overrides?: { splits?: PaymentSplitDraft[]; onSplitsChange?: (s: PaymentSplitDraft[]) => void }) {
+function renderCard(overrides?: {
+  splits?: PaymentSplitDraft[];
+  onSplitsChange?: (s: PaymentSplitDraft[]) => void;
+}) {
   const splits: PaymentSplitDraft[] = overrides?.splits ?? [
     { method: "cash", amount: "5000", receivedAmount: "5000" },
   ];

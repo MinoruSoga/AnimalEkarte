@@ -18,7 +18,7 @@ export const medicineDoseParamsQueryKey = queryKeys.masters.medicineDoseParams;
 
 const getMedicineDoseParams = async (medicineId: string): Promise<MedicineDoseParam[]> => {
   const { data } = await axios.get<MedicineDoseParam[]>(
-    `/v1/masters/medicines/${medicineId}/dose-params`
+    `/v1/masters/medicines/${medicineId}/dose-params`,
   );
   return data;
 };

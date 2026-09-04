@@ -2,7 +2,6 @@ package medicalrecord
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"time"
 
@@ -10,6 +9,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // LabExamPersistInput は lab import バッチ 1 行分の変換済み入力。
@@ -37,6 +37,7 @@ type LabExamItemInput struct {
 	ReferenceValue  string
 	RefMin          *float64
 	RefMax          *float64
+	ExamTypeFieldID *uint64
 	SortOrder       int
 }
 
@@ -81,6 +82,7 @@ func buildExamResults(examID uint64, items []LabExamItemInput) []model.ExamResul
 		status, isAbnormal := computeExamResultStatus(item.InspectionValue, item.RefMin, item.RefMax)
 		out = append(out, model.ExamResult{
 			ExamID:          examID,
+			ExamTypeItemID:  item.ExamTypeFieldID,
 			Name:            item.Name,
 			InspectionValue: item.InspectionValue,
 			Unit:            item.Unit,
@@ -96,6 +98,7 @@ func buildExamResults(examID uint64, items []LabExamItemInput) []model.ExamResul
 }
 
 type LabImportExaminationService interface {
+	PersistExam(ctx context.Context, input LabExamPersistInput) (*LabExamPersistResult, error)
 	// PersistBatch は複数 exam を順次永続化し全行の結果を返す。
 	// 個別行のエラーは LabExamPersistResult.RowError に記録する。
 	// バッチ全体のエラー（context キャンセル等）は関数エラーとして返す。
@@ -156,48 +159,8 @@ func (s *labImportExaminationService) persistExam(ctx context.Context, input Lab
 		return nil, apperrors.WrapInvalidInput("date is required")
 	}
 
-	// クロステナント write 防止: 別 clinic の exam_type を紐付けると、その exam_type が持つ
-	// 異常値判定の基準値/単位（exam_type_fields）が検査記録に混入する（#124 同型）。所有権を検証する。
-	if _, err := s.examTypeRepo.FindByID(ctx, input.ClinicID, input.ExamTypeID); err != nil {
-		slog.ErrorContext(ctx, "failed to verify exam type ownership",
-			"error", err,
-			"exam_type_id", input.ExamTypeID,
-			"clinic_id", input.ClinicID,
-		)
-		return nil, apperrors.Wrap(err, "failed to verify exam type ownership")
-	}
-
-	// クロステナント write 防止 (P1-2, PR #186 review): 別 clinic の pet/medical_record を
-	// 紐付けると、他院の患者データが lab import 経由で漏洩・混入する。所有権を検証する。
-	if input.PetID != nil {
-		if _, err := s.petRepo.FindByID(ctx, input.ClinicID, *input.PetID); err != nil {
-			slog.ErrorContext(ctx, "failed to verify pet ownership",
-				"error", err,
-				"pet_id", *input.PetID,
-				"clinic_id", input.ClinicID,
-			)
-			return nil, apperrors.Wrap(err, "failed to verify pet ownership")
-		}
-	}
-	if input.MedicalRecordID != nil {
-		record, err := s.medicalRecordRepo.FindByID(ctx, input.ClinicID, *input.MedicalRecordID)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to verify medical record ownership",
-				"error", err,
-				"medical_record_id", *input.MedicalRecordID,
-				"clinic_id", input.ClinicID,
-			)
-			return nil, apperrors.Wrap(err, "failed to verify medical record ownership")
-		}
-		// 同一 clinic 内でも pet と medical_record の相関が崩れると、他患者のカルテへ
-		// 検査結果が混入する。manual examination write の validateClinicalRelations と同方針で
-		// fail-closed にする（存在リークを避けるため NotFound を返す）。
-		// HC-005: lab import は MedicalRecord の status を検証しない（確定済みへの追記を許容）。
-		if input.PetID != nil {
-			if record == nil || record.PetID == nil || *record.PetID != *input.PetID {
-				return nil, apperrors.WrapNotFound("medical_record", "relation")
-			}
-		}
+	if err := s.verifyLabExamPersistOwnership(ctx, input); err != nil {
+		return nil, err
 	}
 
 	dup, err := s.dupChecker.IsDuplicate(ctx, input)
@@ -216,10 +179,7 @@ func (s *labImportExaminationService) persistExam(ctx context.Context, input Lab
 			slog.Uint64("exam_type_id", input.ExamTypeID),
 			slog.String("job_id", input.JobID.String()),
 		)
-		return &LabExamPersistResult{
-			Duplicate: true,
-			JobID:     input.JobID,
-		}, nil
+		return skippedDuplicateLabExam(input), nil
 	}
 
 	if s.transactor == nil {
@@ -241,37 +201,10 @@ func (s *labImportExaminationService) persistExam(ctx context.Context, input Lab
 
 	// exam 本体と exam_results は 1 つの検査結果 business graph なので同一 transaction で原子的に書く
 	// （BE-refactor.md MRC-05 / X-06）。Replace 失敗時は rollback により孤児 exam を残さない。
-	var duplicateOnCreate bool
-	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		if err := s.examRepo.Create(txCtx, exam); err != nil {
-			// DB unique 制約違反（TOCTOU 安全ネット）: 重複として扱う
-			if apperrors.IsAlreadyExists(err) {
-				duplicateOnCreate = true
-				return nil
-			}
-			slog.ErrorContext(txCtx, "lab import exam create failed",
-				"error", err,
-				"clinic_id", input.ClinicID,
-				"job_id", input.JobID.String(),
-			)
-			return apperrors.Wrap(err, "failed to create exam from lab import")
-		}
-
-		if len(input.Items) > 0 {
-			items := buildExamResults(exam.ID, input.Items)
-			if _, _, err := s.examRepo.ReplaceItemsByExamID(txCtx, input.ClinicID, exam.ID, items); err != nil {
-				slog.ErrorContext(txCtx, "lab import exam items save failed",
-					"error", err,
-					"clinic_id", input.ClinicID,
-					"exam_id", exam.ID,
-					"job_id", input.JobID.String(),
-				)
-				return apperrors.Wrap(err, fmt.Sprintf("failed to save exam items for exam %d", exam.ID))
-			}
-		}
-		return nil
-	}); err != nil {
-		return nil, err
+	// 既に ambient tx がある（device receive/attach）ときは内側で新規 Transaction を開かない。
+	duplicateOnCreate, writeErr := s.persistLabExamWrite(ctx, input, exam)
+	if writeErr != nil {
+		return nil, writeErr
 	}
 	if duplicateOnCreate {
 		slog.InfoContext(ctx, "lab import exam skipped (db duplicate on create)",
@@ -279,10 +212,7 @@ func (s *labImportExaminationService) persistExam(ctx context.Context, input Lab
 			slog.Uint64("exam_type_id", input.ExamTypeID),
 			slog.String("job_id", input.JobID.String()),
 		)
-		return &LabExamPersistResult{
-			Duplicate: true,
-			JobID:     input.JobID,
-		}, nil
+		return skippedDuplicateLabExam(input), nil
 	}
 
 	slog.InfoContext(ctx, "lab import exam persisted",
@@ -298,6 +228,39 @@ func (s *labImportExaminationService) persistExam(ctx context.Context, input Lab
 		Duplicate: false,
 		JobID:     input.JobID,
 	}, nil
+}
+
+func skippedDuplicateLabExam(input LabExamPersistInput) *LabExamPersistResult {
+	return &LabExamPersistResult{
+		Duplicate: true,
+		JobID:     input.JobID,
+	}
+}
+
+func (s *labImportExaminationService) persistLabExamWrite(
+	ctx context.Context,
+	input LabExamPersistInput,
+	exam *model.Examination,
+) (bool, error) {
+	var duplicateOnCreate bool
+	write := func(txCtx context.Context) error {
+		dup, err := s.writeLabExamGraph(txCtx, input, exam)
+		if err != nil {
+			return err
+		}
+		duplicateOnCreate = dup
+		return nil
+	}
+	if persistence.TxFromContext(ctx) != nil {
+		err := write(ctx)
+		return duplicateOnCreate, err
+	}
+	err := s.transactor.WithTx(ctx, write)
+	return duplicateOnCreate, err
+}
+
+func (s *labImportExaminationService) PersistExam(ctx context.Context, input LabExamPersistInput) (*LabExamPersistResult, error) {
+	return s.persistExam(ctx, input)
 }
 
 // PersistBatch は全行を処理し、個別行エラーを LabExamPersistResult.RowError に記録する。
@@ -322,6 +285,24 @@ func (s *labImportExaminationService) PersistBatch(ctx context.Context, inputs [
 		results = append(results, res)
 	}
 	return results, nil
+}
+
+func requireOwnedExamTypeFields(examType *model.ExaminationType, items []LabExamItemInput) error {
+	owned := make(map[uint64]struct{})
+	if examType != nil {
+		for i := range examType.Items {
+			owned[examType.Items[i].ID] = struct{}{}
+		}
+	}
+	for _, item := range items {
+		if item.ExamTypeFieldID == nil {
+			continue
+		}
+		if _, ok := owned[*item.ExamTypeFieldID]; !ok {
+			return apperrors.WrapInvalidInput("exam_type_field が当該検査種別に属していません（別クリニック/別種別の項目は紐付けできません）")
+		}
+	}
+	return nil
 }
 
 // computeExamResultStatus: ③で複製していたが⑦の examination_service 移動で原本に統合（計画通りの自己解消）。

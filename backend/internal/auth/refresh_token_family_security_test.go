@@ -416,7 +416,7 @@ func TestRefreshTokenConcurrentReuseMarkerOutlivesDelayedWinner(t *testing.T) {
 	require.True(t, exists)
 	assert.False(
 		t,
-		descendantClaims.ExpiresAt.Time.After(markerExpiry),
+		descendantClaims.ExpiresAt.After(markerExpiry),
 		"delayed winner must not outlive the concurrent family revocation marker",
 	)
 }

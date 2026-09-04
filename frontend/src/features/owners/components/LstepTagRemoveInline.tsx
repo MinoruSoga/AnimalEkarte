@@ -8,11 +8,7 @@ interface LstepTagRemoveInlineProps {
   onCancel: () => void;
 }
 
-export function LstepTagRemoveInline({
-  tagName,
-  ownerId,
-  onCancel,
-}: LstepTagRemoveInlineProps) {
+export function LstepTagRemoveInline({ tagName, ownerId, onCancel }: LstepTagRemoveInlineProps) {
   const { mutate, isPending } = useDeleteOwnerTag(ownerId);
 
   const handleRemove = () => {

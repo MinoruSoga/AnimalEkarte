@@ -43,18 +43,13 @@ export const PropertyFilter = memo(function PropertyFilter({
 
   const handleUpdateFilter = useCallback(
     (updated: ActiveFilter) => {
-      onFilterChange(
-        activeFilters.map((f) => (f.key === updated.key ? updated : f)),
-      );
+      onFilterChange(activeFilters.map((f) => (f.key === updated.key ? updated : f)));
     },
     [activeFilters, onFilterChange],
   );
 
   // Property lookup map for rule rows
-  const propertyMap = useMemo(
-    () => new Map(properties.map((p) => [p.key, p])),
-    [properties],
-  );
+  const propertyMap = useMemo(() => new Map(properties.map((p) => [p.key, p])), [properties]);
 
   // ── Sort handlers ──
 
@@ -63,9 +58,7 @@ export const PropertyFilter = memo(function PropertyFilter({
       if (!onSortChange || !activeSorts) return;
       onSortChange(
         activeSorts.map((s) =>
-          s.key === key
-            ? { ...s, direction: s.direction === "asc" ? "desc" : "asc" }
-            : s,
+          s.key === key ? { ...s, direction: s.direction === "asc" ? "desc" : "asc" } : s,
         ),
       );
     },
@@ -75,11 +68,7 @@ export const PropertyFilter = memo(function PropertyFilter({
   const handleSortChangeProperty = useCallback(
     (oldKey: string, newKey: string) => {
       if (!onSortChange || !activeSorts || oldKey === newKey) return;
-      onSortChange(
-        activeSorts.map((s) =>
-          s.key === oldKey ? { ...s, key: newKey } : s,
-        ),
-      );
+      onSortChange(activeSorts.map((s) => (s.key === oldKey ? { ...s, key: newKey } : s)));
     },
     [activeSorts, onSortChange],
   );
@@ -110,23 +99,21 @@ export const PropertyFilter = memo(function PropertyFilter({
       {/* Toolbar row */}
       <div className="flex flex-wrap items-center gap-2">
         {/* 左側: 件数 + ソートピル + フィルタピル + フィルタ追加 */}
-        {count !== undefined ? (
-          <span className={STYLE.searchCount}>{count} 件</span>
-        ) : null}
+        {count !== undefined ? <span className={STYLE.searchCount}>{count} 件</span> : null}
 
         {/* Sort pills (orange) */}
-        {hasActiveSorts && sortProperties ? (
-          activeSorts.map((sort) => (
-            <SortPill
-              key={sort.key}
-              sort={sort}
-              sortProperties={sortProperties}
-              onToggleDirection={handleSortToggleDirection}
-              onChangeProperty={handleSortChangeProperty}
-              onRemove={handleSortRemove}
-            />
-          ))
-        ) : null}
+        {hasActiveSorts && sortProperties
+          ? activeSorts.map((sort) => (
+              <SortPill
+                key={sort.key}
+                sort={sort}
+                sortProperties={sortProperties}
+                onToggleDirection={handleSortToggleDirection}
+                onChangeProperty={handleSortChangeProperty}
+                onRemove={handleSortRemove}
+              />
+            ))
+          : null}
 
         {/* フィルタ追加ボタン */}
         <FilterAddPopover
@@ -162,9 +149,7 @@ export const PropertyFilter = memo(function PropertyFilter({
               variant="ghost"
               size="sm"
               className={`h-9 w-9 p-0 ${C.hoverBgMedium} ${
-                searchOpen
-                  ? C.textBrand
-                  : `${C.text50} hover:${C.text80}`
+                searchOpen ? C.textBrand : `${C.text50} ${C.hoverText80}`
               }`}
               onClick={handleSearchToggle}
               aria-label="検索"
@@ -193,7 +178,7 @@ export const PropertyFilter = memo(function PropertyFilter({
             <button
               type="button"
               onClick={() => onSearchChange("")}
-              className={`absolute right-0 top-1/2 flex min-h-11 min-w-11 -translate-y-1/2 items-center justify-center rounded-sm ${C.text40} hover:${C.text80} ${C.hoverBgMedium} transition-colors`}
+              className={`absolute right-0 top-1/2 flex min-h-11 min-w-11 -translate-y-1/2 items-center justify-center rounded-sm ${C.text40} ${C.hoverText80} ${C.hoverBgMedium} transition-colors`}
               aria-label="検索をクリア"
             >
               <X className={ICON.smXs} />
@@ -212,9 +197,7 @@ export const PropertyFilter = memo(function PropertyFilter({
               property={propertyMap.get(filter.key)}
               isFirst={i === 0}
               logic={filterLogic}
-              onLogicChange={
-                activeFilters.length >= 2 ? onFilterLogicChange : undefined
-              }
+              onLogicChange={activeFilters.length >= 2 ? onFilterLogicChange : undefined}
               onUpdate={handleUpdateFilter}
               onRemove={() => handleRemoveFilter(filter.key)}
             />

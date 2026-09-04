@@ -2,26 +2,22 @@ import { HistoryFilterPanel } from "@/components/shared/HistoryFilterPanel";
 import { MasterLink } from "@/components/shared/MasterLink";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import { DatePicker } from "@/components/shared/DatePicker/DatePicker";
+import { NextScheduleField } from "@/components/shared/NextScheduleField";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { C } from "@/lib/design-tokens";
 import { toJSTWallDate } from "@/lib/jst-date";
 import type { SortOrder } from "@/types";
 import type { VaccinationRecord } from "../api/transforms";
 import { VaccinationCard } from "./VaccinationCard";
-
-// BUG-005: API/DB enum は "other"（model.NextScheduleTypeOther）。旧 "custom" は無効値で
-// 保存失敗 or セレクタ非表示になり、手動相当 type を選べない/再表示できない。
-const NEXT_SCHEDULE_ITEMS = (
-  <>
-    <SelectItem value="3weeks">3週後</SelectItem>
-    <SelectItem value="4weeks">4週後</SelectItem>
-    <SelectItem value="1year">1年後</SelectItem>
-    <SelectItem value="other">以外（手動）</SelectItem>
-  </>
-);
 
 interface VaccineOption {
   value: string;
@@ -133,7 +129,9 @@ export function VaccinationFieldsPanel({
         {doctorName ? (
           <div className="space-y-2">
             <span className={`block text-sm ${C.text60}`}>担当医</span>
-            <p className={`min-h-11 flex items-center rounded-md border ${C.borderLight} ${C.bgPage} px-3 text-sm ${C.text}`}>
+            <p
+              className={`min-h-11 flex items-center rounded-md border ${C.borderLight} ${C.bgPage} px-3 text-sm ${C.text}`}
+            >
               {doctorName}
             </p>
           </div>
@@ -155,41 +153,53 @@ export function VaccinationFieldsPanel({
         <div className="space-y-2">
           <Label>LOT番号</Label>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <LotInput id="vaccination-lot-1" label="LOT 1" value={lot1} onChange={onLot1Change} onMarkDirty={onMarkDirty} />
-            <LotInput id="vaccination-lot-2" label="LOT 2" value={lot2} onChange={onLot2Change} onMarkDirty={onMarkDirty} />
-            <LotInput id="vaccination-lot-3" label="LOT 3" value={lot3} onChange={onLot3Change} onMarkDirty={onMarkDirty} />
-            <LotInput id="vaccination-lot-4" label="LOT 4" value={lot4} onChange={onLot4Change} onMarkDirty={onMarkDirty} />
+            <LotInput
+              id="vaccination-lot-1"
+              label="LOT 1"
+              value={lot1}
+              onChange={onLot1Change}
+              onMarkDirty={onMarkDirty}
+            />
+            <LotInput
+              id="vaccination-lot-2"
+              label="LOT 2"
+              value={lot2}
+              onChange={onLot2Change}
+              onMarkDirty={onMarkDirty}
+            />
+            <LotInput
+              id="vaccination-lot-3"
+              label="LOT 3"
+              value={lot3}
+              onChange={onLot3Change}
+              onMarkDirty={onMarkDirty}
+            />
+            <LotInput
+              id="vaccination-lot-4"
+              label="LOT 4"
+              value={lot4}
+              onChange={onLot4Change}
+              onMarkDirty={onMarkDirty}
+            />
           </div>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="vaccination-next-schedule">次回の予定</Label>
-          <div className="flex gap-3 items-center flex-wrap">
-            <Select
-              value={nextScheduleType}
-              onValueChange={(value) => {
-                onMarkDirty();
-                onNextScheduleTypeChange(value);
-              }}
-            >
-              <SelectTrigger id="vaccination-next-schedule" className="w-[130px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>{NEXT_SCHEDULE_ITEMS}</SelectContent>
-            </Select>
-            <Label htmlFor="vaccination-next-date" className="sr-only">次回接種予定日</Label>
-            <DatePicker
-              id="vaccination-next-date"
-              value={nextDate}
-              onChange={(value) => {
-                onMarkDirty();
-                onNextDateChange(value);
-              }}
-              className="flex-1 min-w-[160px]"
-            />
-          </div>
-          <FormFieldError message={fieldErrors.nextDate} />
-        </div>
+        <NextScheduleField
+          typeId="vaccination-next-schedule"
+          dateId="vaccination-next-date"
+          scheduleType={nextScheduleType}
+          nextDate={nextDate}
+          dateAriaLabel="次回接種予定日"
+          error={fieldErrors.nextDate}
+          onScheduleTypeChange={(value) => {
+            onMarkDirty();
+            onNextScheduleTypeChange(value);
+          }}
+          onNextDateChange={(value) => {
+            onMarkDirty();
+            onNextDateChange(value);
+          }}
+        />
 
         <div className="space-y-2">
           <Label htmlFor="vaccination-remarks">備考</Label>
@@ -220,7 +230,9 @@ interface LotInputProps {
 function LotInput({ id, label, value, onChange, onMarkDirty }: LotInputProps) {
   return (
     <div className="space-y-1">
-      <Label htmlFor={id} className={`text-xs ${C.text60}`}>{label}</Label>
+      <Label htmlFor={id} className={`text-xs ${C.text60}`}>
+        {label}
+      </Label>
       <Input
         id={id}
         value={value}

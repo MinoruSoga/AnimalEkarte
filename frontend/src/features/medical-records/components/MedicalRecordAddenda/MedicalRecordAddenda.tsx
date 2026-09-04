@@ -19,12 +19,7 @@ export function MedicalRecordAddenda({
 }: MedicalRecordAddendaProps) {
   if (!isMedicalRecordFinalizedStatus(recordStatus)) return null;
 
-  return (
-    <MedicalRecordAddendaContent
-      medicalRecordId={medicalRecordId}
-      canEdit={canEdit}
-    />
-  );
+  return <MedicalRecordAddendaContent medicalRecordId={medicalRecordId} canEdit={canEdit} />;
 }
 
 interface ContentProps {

@@ -1,10 +1,12 @@
-// Package handler provides HTTP handler implementations for Medicine entity.
+// Package medicalrecord provides medicine HTTP handlers.
 package medicalrecord
 
 import (
 	"fmt"
-	"github.com/animal-ekarte/backend/internal/httpapi"
 	"net/http"
+
+	"github.com/animal-ekarte/backend/internal/httpapi"
+	"github.com/animal-ekarte/backend/internal/model"
 
 	"github.com/gin-gonic/gin"
 
@@ -30,6 +32,9 @@ func (h *MedicineHandler) ListMedicines(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMasterMedical), "view") {
+		return
+	}
 
 	// マスタ系は全件返却（他マスタと統一）。service.List のページネーション引数は固定値で全件取得。
 	medicines, _, err := h.service.List(c.Request.Context(), clinicID, 1, medicineListMaxLimit)
@@ -44,6 +49,9 @@ func (h *MedicineHandler) ListMedicines(c *gin.Context) {
 func (h *MedicineHandler) GetMedicine(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMasterMedical), "view") {
 		return
 	}
 	id, ok := httpapi.ParseIDParam(c, "id")
@@ -76,7 +84,7 @@ func (h *MedicineHandler) CreateMedicine(c *gin.Context) {
 	createInput.ActorID = httpapi.OptionalStaffID(c) // #201 B-2: per_weight 有効化 audit の実施者
 	medicine, err := h.service.Create(c.Request.Context(), clinicID, createInput)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		httpapi.RespondErrorPreferringConflictCode(c, err)
 		return
 	}
 	c.Header("Location", fmt.Sprintf("/v1/masters/medicines/%d", medicine.ID))
@@ -104,7 +112,7 @@ func (h *MedicineHandler) UpdateMedicine(c *gin.Context) {
 	updateInput.ActorID = httpapi.OptionalStaffID(c) // #201 B-2: per_weight 有効化 audit の実施者
 	medicine, err := h.service.Update(c.Request.Context(), clinicID, id, updateInput)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		httpapi.RespondErrorPreferringConflictCode(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, toMedicineResponse(medicine))

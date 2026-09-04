@@ -1,5 +1,5 @@
 ---
-description: "タスク実装（STATUS.md の TASK-XXX / STATUS.md の BUG-XXX）→ セルフレビュー → クローズ"
+description: "Linear Issue実装 → セルフレビュー → Linear証跡更新"
 argument-hint: "TASK-XXX | BUG-XXX"
 ---
 
@@ -7,8 +7,8 @@ argument-hint: "TASK-XXX | BUG-XXX"
 
 指定されたタスクIDを実装する。台帳は repo 直下の 2 ファイル（いずれも git 追跡・ローカル連番）:
 
-- `TASK-XXX` → `STATUS.md`（残タスク台帳。索引/サマリー表 + `## 個別タスク詳細` の `### TASK-XXX:` 節）
-- `BUG-XXX` → `STATUS.md`（受入テストバグ台帳。`## BUG-XXX:` 節 + `### 実装計画`）
+- 実行タスク、仕様、受け入れ条件、状態、依存関係のSoTはLinear Issue。
+- `docs/work/phase2-deferred.md`は今期外・見送りの索引であり実装台帳ではない。
 
 タスクが GitHub Issue（`#NNN`）を参照する場合、仕様・受け入れ条件の正本は該当 Issue 本文とコメント。`3-session-agent.html` は Issue 分類ビューであり台帳ではない（旧 `#ledger` は 2026-07-31 廃止・経緯は git 履歴）。
 
@@ -22,18 +22,15 @@ argument-hint: "TASK-XXX | BUG-XXX"
 ## 使い方
 
 ```
-/implement TASK-027   # STATUS.md のタスクを実装
-/implement BUG-009    # STATUS.md のバグを実装
+/implement BRT-123   # Linear Issueを実装
 /implement            # 両台帳の open ID 一覧を表示して選択
 
 # タスクlookup / ID一覧
-grep -n '<タスクID>' STATUS.md
-grep -oE '^### TASK-[0-9A-Za-z-]+' STATUS.md
-grep -oE '^## BUG-[0-9]+' STATUS.md
+LinearでIssue本文・コメント・依存関係を確認する
 ```
 
 ## 引数
 
-$ARGUMENTS — タスクID（例: `TASK-027`, `BUG-009`）。省略時は `STATUS.md` 索引表と `STATUS.md` 対応状況サマリの open ID 一覧を表示。
+$ARGUMENTS — Linear Issue ID（例: `BRT-123`）。省略時は実装対象のLinear IDをユーザーに求める。
 
 > 旧 `3-session-agent.html#ledger`・`BE-XXX` / `FE-XXX`・`docs/tasks/` 体系はすべて廃止済み（経緯は git 履歴参照）。新規実装には使用しない。

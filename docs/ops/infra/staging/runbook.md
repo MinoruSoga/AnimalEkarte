@@ -1,29 +1,26 @@
 # STG 運用 Runbook（Cloudflare）
 
-> **目的**: STG の日常運用と障害初動。**読者**: 運用担当・開発者。手順の詳細は各正本へのポインタで示す（二重管理しない）。
+> External state is verification-required. この文書は HEAD の workflow/config contract のみを説明する。
 
-## デプロイ
+## Deploy
 
-- **自動**: `staging` ブランチへ push（`backend/**` 変更時）→ `backend-deploy.yml`（deploy → /health → migrate → smoke）
-- **手動**: `gh workflow run backend-deploy.yml --ref staging`
-- main→staging は **merge commit** 方式の PR（squash はコミット履歴の祖先関係を切る — 運用注意）
+- 自動: `staging` pushで`backend/**`、`.github/workflows/backend-deploy.yml`、root `package.json`、root `pnpm-lock.yaml`のいずれかが変わった場合。`infra/cloudflare/**`単独ではtriggerされず、Terraformは別の承認済みplan/apply手順で扱う。
+- 順序: **deploy → migrate → `/health` → optional smoke**。
+- 手動 dispatch も存在する。実行は人が対象 ref、approval、secret scope を確認して行う。
 
-## DB（PlanetScale）
+## DB and seed
 
-- 接続調査は **TTL 付き診断ロール**で: `pscale role create animalekarte-stg main <name> --org noah-animalekarte --inherited-roles postgres --ttl 30m`（使い捨て・値は保存しない）
-- migrate は CI が実行（`POST /_internal/migrate`・`MIGRATE_RUN_SECRET` 認証）。seed/checksum の扱い・フルデモ再投入は [deploy/STG_PLANETSCALE_SEED_RUNBOOK.md](../../deploy/STG_PLANETSCALE_SEED_RUNBOOK.md) が正本
-- **資格情報ローテーション**: `pscale role reset-default` → GH Secrets（STG_DB_USER/PASSWORD）更新 → `worker-secret-sync.yml` 実行 → 再デプロイ
-- ⚠️ 未解決: public スキーマ 109 オブジェクトの所有者が失効ロールのまま（PlanetScale サポートへ REASSIGN 依頼が唯一の解 — ALTER 系 migration の前に必須。詳細 = [_archive/migration-cloudflare.md](../_archive/migration-cloudflare.md) P7-2 観測 #2）
+- migrate は `POST /_internal/migrate` と `MIGRATE_RUN_SECRET` を使う workflow contract。
+- 現行 `BundleOrderForEnv` は全環境で `002_master` のみ。`003_demo` / `004_staging` や full-demo 再投入を前提にしない。UAT/synthetic data は承認済みの明示 import と lifecycle owner を別途定義する。
+- 過去の「public schema 109 objects」「REASSIGN が唯一解」は dated incident observation であり current fact ではない。schema owner と provider-supported remediation を PlanetScale/runtime で再検証してから ALTER migration を行う。
+- credential rotation、DB access、shared STG operation は人による明示承認が必要。
 
-## 障害初動
+## Incident triage
 
-1. `/health` 確認（workers.dev 直行と実 URL の両方 — 切り分けになる）
-2. デプロイ直後なら**ローリング更新の旧イメージ残留**を疑う（15 分静置 → 再確認）
-3. 全断+DB 接続エラーなら**接続スロット枯渇**を疑う（プール設定 `DB_MAX_OPEN_CONNS` と滞留接続 — 過去事例 = 観測 #2）
-4. Cloudflare 側の障害確認: https://www.cloudflarestatus.com/
-5. 切り戻し先は無い（AWS 廃止済み）。復旧は CF 側修正 or スナップショット+IaC 再建
+1. workers.dev path と configured domain の `/health` を比較する。
+2. deploy直後の rolling update を考慮する。
+3. DB connection error は pool/slot metrics を確認する。過去事例を current diagnosis とみなさない。
+4. provider status を確認する。
+5. AWS rollback target は repository decision 上存在しない。Cloudflare 側の修正または検証済み backup + IaC restore contract を使う。
 
-## 検証コマンド
-
-- スモーク: `STG_DEMO_EMAIL=... STG_DEMO_PASSWORD=... ./infra/scripts/cf-crud-smoke.sh`
-- migrate 単発: `./infra/scripts/cf-run-migrate.sh`（`MIGRATE_RUN_SECRET` 必要）
+runtime、DB 内容、credential、provider status は本更新では確認していない。

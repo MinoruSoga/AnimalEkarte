@@ -1,11 +1,11 @@
-import '@testing-library/jest-dom';
-import { beforeAll, afterEach, afterAll } from 'vitest';
-import { server } from './mocks/node';
+import "@testing-library/jest-dom";
+import { beforeAll, afterEach, afterAll } from "vitest";
+import { server } from "./mocks/node";
 
 // jsdom polyfills for Radix UI primitives (Select / Dropdown / Popover etc).
 // jsdom does not implement Pointer Events API or scrollIntoView, which Radix relies on
 // internally when toggling open state via mouse interactions in tests.
-if (typeof window !== 'undefined') {
+if (typeof window !== "undefined") {
   if (!Element.prototype.hasPointerCapture) {
     Element.prototype.hasPointerCapture = () => false;
   }
@@ -30,7 +30,7 @@ if (typeof window !== 'undefined') {
   // Sidebar.tsx and Radix UI call window.matchMedia for responsive breakpoints.
   // jsdom does not implement it; stub with a no-op that always returns matches=false.
   if (!window.matchMedia) {
-    Object.defineProperty(window, 'matchMedia', {
+    Object.defineProperty(window, "matchMedia", {
       writable: true,
       value: (query: string) => ({
         matches: false,
@@ -47,7 +47,7 @@ if (typeof window !== 'undefined') {
 }
 
 // Start server before all tests
-beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
+beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
 
 //  Reset handlers after each test `important for test isolation`
 afterEach(() => server.resetHandlers());

@@ -2,7 +2,7 @@ import { ICON, C } from "@/lib/design-tokens";
 import { useState, useMemo, useCallback, Suspense, lazy } from "react";
 import { useSearchParams } from "react-router";
 import { useClinicScope } from "@/hooks/use-clinic-scope";
-import { addMonths, subMonths, addWeeks, subWeeks } from "date-fns";
+import { addMonths, format, subMonths, addWeeks, subWeeks } from "date-fns";
 
 import { CalendarIcon, Plus } from "lucide-react";
 import { FormHeader } from "@/components/shared/Form/FormHeader";
@@ -25,8 +25,9 @@ const ReservationFormModal = lazy(() =>
     default: m.ReservationFormModal,
   })),
 );
+import { useGetClinicHolidays } from "@/hooks/use-clinic-holidays";
 import { useReservationManagement } from "../hooks/use-reservation-management";
-import { useReservationTypeColorMap } from "@/hooks/use-reservation-type-color-map";
+import { useReservationTypeColorMap } from "../hooks/use-reservation-type-color-map";
 import { usePermission } from "@/hooks/use-permission";
 import { ReservationManagementCalendar } from "../components/ReservationManagementCalendar";
 const ReservationDetailModal = lazy(() =>
@@ -58,21 +59,33 @@ export function ReservationManagement({ createMutations }: ReservationManagement
 
   const [searchParams, setSearchParams] = useSearchParams();
   const days: 5 | 7 = searchParams.get("days") === "7" ? 7 : 5;
-  const handleDaysChange = useCallback((next: 5 | 7) => {
-    setSearchParams((prev) => {
-      const params = new URLSearchParams(prev);
-      if (next === 7) {
-        params.set("days", "7");
-      } else {
-        params.delete("days");
-      }
-      return params;
-    }, { replace: true });
-  }, [setSearchParams]);
+  const handleDaysChange = useCallback(
+    (next: 5 | 7) => {
+      setSearchParams(
+        (prev) => {
+          const params = new URLSearchParams(prev);
+          if (next === 7) {
+            params.set("days", "7");
+          } else {
+            params.delete("days");
+          }
+          return params;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
 
   const { selectedClinicIds, isMultiClinic } = useClinicScope();
 
   const { activeEntries, colorMap: dynamicColorMap } = useReservationTypeColorMap();
+  const yearMonth = format(currentDate, "yyyy-MM");
+  const { data: clinicHolidays = [] } = useGetClinicHolidays(yearMonth);
+  const holidayDates = useMemo(
+    () => new Set(clinicHolidays.map((holiday) => holiday.date)),
+    [clinicHolidays],
+  );
 
   const {
     appointments,
@@ -107,6 +120,7 @@ export function ReservationManagement({ createMutations }: ReservationManagement
     days,
     clinicIds: isMultiClinic ? selectedClinicIds : undefined,
     createMutations,
+    permissions: { canCreate, canEdit, canDelete },
   });
 
   // BUG-069: Reservation → ReservationFormData 変換を行うラッパー
@@ -132,26 +146,20 @@ export function ReservationManagement({ createMutations }: ReservationManagement
   );
 
   const doctorNames = useMemo(
-    () =>
-      Array.from(
-        new Set(appointments.map((a) => a.doctor).filter(Boolean)),
-      ).sort(),
+    () => Array.from(new Set(appointments.map((a) => a.doctor).filter(Boolean))).sort(),
     [appointments],
   );
 
-  const filteredAppointments = useMemo(
-    () => {
-      let result = filterCalendarAppointments(appointments);
-      if (doctorFilter !== "all") {
-        result = result.filter((a) => a.doctor === doctorFilter);
-      }
-      if (sourceFilter !== "all") {
-        result = result.filter((a) => a.source === sourceFilter);
-      }
-      return result;
-    },
-    [appointments, doctorFilter, sourceFilter],
-  );
+  const filteredAppointments = useMemo(() => {
+    let result = filterCalendarAppointments(appointments);
+    if (doctorFilter !== "all") {
+      result = result.filter((a) => a.doctor === doctorFilter);
+    }
+    if (sourceFilter !== "all") {
+      result = result.filter((a) => a.source === sourceFilter);
+    }
+    return result;
+  }, [appointments, doctorFilter, sourceFilter]);
 
   const navigateToday = useCallback(() => setCurrentDate(toJSTWallDate(new Date())), []);
   const navigatePrevious = useCallback(
@@ -210,6 +218,7 @@ export function ReservationManagement({ createMutations }: ReservationManagement
         onMonthDateClick={handleMonthDateClick}
         onTimeSlotClick={handleTimeSlotClick}
         onAppointmentUpdate={handleReservationUpdate}
+        holidayDates={holidayDates}
       />
 
       <Suspense fallback={null}>

@@ -23,12 +23,13 @@ export function transformAccountingItem(item: BackendAccountingItem) {
     taxType: item.tax_type ?? "excluded",
     taxRate,
     taxAmount: item.tax_amount ?? 0,
-    subtotal: item.subtotal ?? Math.max(Math.round(unitPrice * quantity) - (item.discount_amount ?? 0), 0),
+    subtotal: item.subtotal ?? Math.round(unitPrice * quantity) - (item.discount_amount ?? 0),
     isInsuranceApplicable: item.is_insurance_applicable,
     source: item.source as "medical_record" | "manual" | "hospitalization" | "trimming",
     otherReason: item.other_reason,
     merchandiseItemId: item.merchandise_item_id ? String(item.merchandise_item_id) : undefined,
     vaccinationId: item.vaccination_id ? String(item.vaccination_id) : undefined,
+    examId: item.exam_id ? String(item.exam_id) : undefined,
     treatmentId: item.treatment_id ? String(item.treatment_id) : undefined,
     medicalRecordId: item.medical_record_id ? String(item.medical_record_id) : undefined,
     appointmentId: item.appointment_id ? String(item.appointment_id) : undefined,
@@ -107,9 +108,10 @@ export function transformToAccounting(data: BackendAccounting) {
     completedAt: data.completed_at ?? undefined,
     items: (data.items ?? []).map(transformAccountingItem),
     payment: buildPaymentInfo(data),
-    paymentSplits: splits && splits.length > 0
-      ? splits.map((s) => transformPaymentSplit(s as PaymentSplitWithStaff))
-      : undefined,
+    paymentSplits:
+      splits && splits.length > 0
+        ? splits.map((s) => transformPaymentSplit(s as PaymentSplitWithStaff))
+        : undefined,
     totalRefundedAmount: data.total_refunded_amount ?? 0,
     /** BUG-007: 未収残高（waiting 全額 or クレジット訂正後の patient_due−支払額） */
     outstandingAmount: data.outstanding_amount ?? 0,

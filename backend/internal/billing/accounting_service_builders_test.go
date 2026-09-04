@@ -199,37 +199,10 @@ func TestBuildAccountingUpdate(t *testing.T) {
 		assert.NotContains(t, got, "completed_at")
 	})
 
-	t.Run("Statusがcompletedの場合はcompleted_atをサーバー時刻で設定", func(t *testing.T) {
+	t.Run("Statusとcompleted_atは汎用更新mapに出ない", func(t *testing.T) {
 		status := model.BillingStatusCompleted
-		before := time.Now()
-		got := buildAccountingUpdate(&UpdateAccountingInput{Status: &status})
-		after := time.Now()
-
-		assert.Equal(t, status, got["status"])
-		completedAt, ok := got["completed_at"].(time.Time)
-		assert.True(t, ok)
-		assert.False(t, completedAt.Before(before))
-		assert.False(t, completedAt.After(after))
-	})
-
-	t.Run("Statusがcompleted以外の場合はcompleted_atを設定しない", func(t *testing.T) {
-		status := model.BillingStatusPending
-		got := buildAccountingUpdate(&UpdateAccountingInput{Status: &status})
-
-		assert.Equal(t, status, got["status"])
-		assert.NotContains(t, got, "completed_at")
-	})
-
-	t.Run("Statusがnilかつcompleted_at指定時はそのまま設定", func(t *testing.T) {
 		completedAt := time.Date(2026, 6, 30, 12, 0, 0, 0, time.UTC)
-		got := buildAccountingUpdate(&UpdateAccountingInput{CompletedAt: &completedAt})
-
-		assert.NotContains(t, got, "status")
-		assert.Equal(t, completedAt, got["completed_at"])
-	})
-
-	t.Run("Statusがnilかつcompleted_atもnilの場合はどちらも設定しない", func(t *testing.T) {
-		got := buildAccountingUpdate(&UpdateAccountingInput{})
+		got := buildAccountingUpdate(&UpdateAccountingInput{Status: &status, CompletedAt: &completedAt})
 
 		assert.NotContains(t, got, "status")
 		assert.NotContains(t, got, "completed_at")

@@ -22,12 +22,7 @@ describe("LineReservationSettingsFormSections responsive layout", () => {
   });
 
   it("休憩時間はmobileで縦積み・入力全幅、sm以上で横並びに戻る", () => {
-    render(
-      <BreakHoursEditor
-        value={[{ start: "1200", end: "1300" }]}
-        onChange={vi.fn()}
-      />,
-    );
+    render(<BreakHoursEditor value={[{ start: "1200", end: "1300" }]} onChange={vi.fn()} />);
 
     const inputs = screen.getAllByDisplayValue(/12:00|13:00/);
     const row = inputs[0].parentElement;

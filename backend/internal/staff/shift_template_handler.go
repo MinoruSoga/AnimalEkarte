@@ -16,6 +16,9 @@ func (h *Handler) GetShiftTemplate(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceShifts), "view") {
+		return
+	}
 	id, ok := parseIDParam(c, "id")
 	if !ok {
 		return
@@ -32,6 +35,9 @@ func (h *Handler) GetShiftTemplate(c *gin.Context) {
 func (h *Handler) ListShiftTemplates(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceShifts), "view") {
 		return
 	}
 	items, err := h.svc.ShiftTemplate.List(c.Request.Context(), clinicID)

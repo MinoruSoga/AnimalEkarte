@@ -9,12 +9,7 @@
  * cannot silently unlock a sealed exam.
  */
 
-export type ExaminationLockStatus =
-  | "依頼中"
-  | "検査中"
-  | "結果入力済み"
-  | "完了"
-  | "確定";
+export type ExaminationLockStatus = "依頼中" | "検査中" | "結果入力済み" | "完了" | "確定";
 
 /** Normalize FE JA labels and BE EN enums used by lock checks. */
 export function normalizeExaminationLockStatus(
@@ -39,9 +34,7 @@ export function normalizeExaminationLockStatus(
   }
 }
 
-export function isPersistedConfirmedStatus(
-  status: string | undefined | null,
-): boolean {
+export function isPersistedConfirmedStatus(status: string | undefined | null): boolean {
   return normalizeExaminationLockStatus(status) === "確定";
 }
 
@@ -50,10 +43,7 @@ export function isPersistedCompletedSeal(
   status: string | undefined | null,
   currentRevisionVersion: number | undefined | null,
 ): boolean {
-  return (
-    normalizeExaminationLockStatus(status) === "完了" &&
-    currentRevisionVersion == null
-  );
+  return normalizeExaminationLockStatus(status) === "完了" && currentRevisionVersion == null;
 }
 
 export function isPersistedResultsLocked(
@@ -61,7 +51,6 @@ export function isPersistedResultsLocked(
   currentRevisionVersion: number | undefined | null,
 ): boolean {
   return (
-    isPersistedConfirmedStatus(status) ||
-    isPersistedCompletedSeal(status, currentRevisionVersion)
+    isPersistedConfirmedStatus(status) || isPersistedCompletedSeal(status, currentRevisionVersion)
   );
 }

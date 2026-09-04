@@ -1,13 +1,13 @@
-import { test, expect } from '@playwright/test';
-import type { BrowserContext } from '@playwright/test';
-import { createAuthedContext } from './helpers/context';
-import { EstimatesPage } from './pages/estimates-page';
+import { test, expect } from "@playwright/test";
+import type { BrowserContext } from "@playwright/test";
+import { createAuthedContext } from "./helpers/context";
+import { EstimatesPage } from "./pages/estimates-page";
 
 // E2E flow tests for estimates (/estimates) pages.
 // Covers: list page, new form, detail, edit form.
 // Seed data: admin@noavet.jp is system_admin with full access.
 
-test.describe('見積書管理 フロー E2E', () => {
+test.describe("見積書管理 フロー E2E", () => {
   let context: BrowserContext;
 
   test.beforeAll(async ({ browser }) => {
@@ -18,7 +18,7 @@ test.describe('見積書管理 フロー E2E', () => {
     await context.close();
   });
 
-  test('/estimates — 見積書一覧が表示される', async () => {
+  test("/estimates — 見積書一覧が表示される", async () => {
     const page = await context.newPage();
     const estimates = new EstimatesPage(page);
     try {
@@ -34,7 +34,7 @@ test.describe('見積書管理 フロー E2E', () => {
     }
   });
 
-  test('/estimates/new — 見積書新規作成フォームが表示される', async () => {
+  test("/estimates/new — 見積書新規作成フォームが表示される", async () => {
     const page = await context.newPage();
     const estimates = new EstimatesPage(page);
     try {
@@ -49,7 +49,7 @@ test.describe('見積書管理 フロー E2E', () => {
     }
   });
 
-  test('/estimates/:id — 見積書詳細フォームが表示される', async () => {
+  test("/estimates/:id — 見積書詳細フォームが表示される", async () => {
     const page = await context.newPage();
     const estimates = new EstimatesPage(page);
     try {
@@ -70,7 +70,7 @@ test.describe('見積書管理 フロー E2E', () => {
     }
   });
 
-  test('/estimates/:id/edit — 見積書編集フォームが表示される', async () => {
+  test("/estimates/:id/edit — 見積書編集フォームが表示される", async () => {
     const page = await context.newPage();
     const estimates = new EstimatesPage(page);
     try {
@@ -95,7 +95,7 @@ test.describe('見積書管理 フロー E2E', () => {
     }
   });
 
-  test('/estimates — 一覧で検索が機能する', async () => {
+  test("/estimates — 一覧で検索が機能する", async () => {
     const page = await context.newPage();
     const estimates = new EstimatesPage(page);
     try {
@@ -110,17 +110,17 @@ test.describe('見積書管理 フロー E2E', () => {
       await estimates.searchToggle().click();
       const searchInput = estimates.searchInput();
       await expect(searchInput).toBeVisible();
-      await searchInput.fill('Mass');
+      await searchInput.fill("Mass");
 
       // Wait for search to apply (debounce/API response)
-      await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => null);
+      await page.waitForLoadState("networkidle", { timeout: 10000 }).catch(() => null);
 
       // Verify filtered results are narrower or search input is retained
       const filteredRows = await estimates.rows().count();
       expect(filteredRows).toBeLessThanOrEqual(initialRowCount);
 
       // Verify the search term is still in the input
-      await expect(searchInput).toHaveValue('Mass');
+      await expect(searchInput).toHaveValue("Mass");
     } finally {
       await page.close();
     }

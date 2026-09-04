@@ -7,7 +7,6 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // Estimate successor draft creation (TASK-012).
@@ -61,77 +60,25 @@ func (s *estimateService) CreateSuccessor(
 		notes = *input.Notes
 	}
 	actorID := input.ActorID
-	originalIDCopy := original.ID
 
 	var successor *model.Estimate
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		// FINAL: 確定カルテでも LockDraftMedicalRecord を呼ばない（明示訂正パス）。
-		// created_by は actor の clinic 所属を検証する。
-		if err := s.verifyCreatedByClinicMembership(txCtx, clinicID, actorID); err != nil {
+		created, err := s.createSuccessorInTx(txCtx, clinicID, actorID, original, title, comment, notes, reason)
+		if err != nil {
 			return err
 		}
-		estimateNo, err := s.repo.AllocateNextEstimateNo(txCtx, clinicID)
-		if err != nil {
-			slog.ErrorContext(txCtx, "failed to allocate estimate number for successor", "error", err)
-			return apperrors.Wrap(err, "failed to allocate estimate number")
-		}
-
-		successor = &model.Estimate{
-			ClinicID:             clinicID,
-			EstimateNo:           estimateNo,
-			MedicalRecordID:      original.MedicalRecordID,
-			Title:                title,
-			OwnerID:              original.OwnerID,
-			Status:               model.EstimateStatusDraft,
-			Subtotal:             original.Subtotal,
-			TaxTotal:             original.TaxTotal,
-			TotalAmount:          original.TotalAmount,
-			InsuranceAmount:      original.InsuranceAmount,
-			DiscountAmount:       original.DiscountAmount,
-			ValidUntil:           original.ValidUntil,
-			Comment:              comment,
-			Notes:                notes,
-			CreatedBy:            &actorID,
-			SupersedesEstimateID: &originalIDCopy,
-		}
-		if err := s.repo.Create(txCtx, successor); err != nil {
-			slog.ErrorContext(txCtx, "failed to create successor estimate", "error", err)
-			return apperrors.Wrap(err, "failed to create successor estimate")
-		}
-
-		// fail-closed: 監査失敗 → 後継 INSERT ごとロールバック。原行は未変更のまま。
-		if err := s.auditTx.LogEntryTx(txCtx, &AuditEntry{
-			ClinicID:   &clinicID,
-			ActorID:    &actorID,
-			ActorType:  sharedkernel.AuditActorTypeFor(&actorID),
-			Action:     "supersede",
-			Resource:   "estimate",
-			ResourceID: &successor.ID,
-			NewValue: map[string]any{
-				"original_id":  original.ID,
-				"successor_id": successor.ID,
-				"reason":       reason,
-				"estimate_no":  successor.EstimateNo,
-			},
-		}); err != nil {
-			slog.ErrorContext(txCtx, "audit log failed for estimate supersede", "error", err, "successor_id", successor.ID)
-			return apperrors.Wrap(err, "failed to write estimate supersede audit log")
-		}
+		successor = created
 		return nil
 	}); err != nil {
 		return nil, err
+	}
+	if successor == nil {
+		return nil, apperrors.WrapInternalServerError("estimate successor create returned empty record")
 	}
 
 	slog.InfoContext(ctx, "estimate successor created",
 		slog.Uint64("original_id", original.ID),
 		slog.Uint64("successor_id", successor.ID),
 		slog.Uint64("clinic_id", clinicID))
-
-	created, err := s.repo.FindByID(ctx, clinicID, successor.ID)
-	if err != nil {
-		// commit 済み成功を後段 read error で失敗応答へ反転させない: 最低限の successor を返す。
-		slog.ErrorContext(ctx, "failed to get successor estimate after create", "error", err)
-		return successor, nil
-	}
-	return created, nil
+	return successor, nil
 }

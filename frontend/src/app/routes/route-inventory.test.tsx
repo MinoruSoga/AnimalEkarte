@@ -35,22 +35,27 @@ function flattenLeafRoutes(routes: RouteObject[], parentPath = ""): LeafRoute[] 
   return routes.flatMap((route) => {
     const path = joinRoutePath(parentPath, route.path, route.index === true);
     if (route.children?.length) return flattenLeafRoutes(route.children, path);
-    return [{
-      path,
-      isRedirect: isValidElement(route.element) && route.element.type === Navigate,
-    }];
+    return [
+      {
+        path,
+        isRedirect: isValidElement(route.element) && route.element.type === Navigate,
+      },
+    ];
   });
 }
 
 describe("main app route inventory", () => {
-  it("84 product pages, 12 redirects, wildcard 1を重複なく維持する", () => {
+  it("86 product pages, 12 redirects, wildcard 1を重複なく維持する", () => {
     const leaves = flattenLeafRoutes(appRoutes);
     const wildcard = leaves.filter((route) => route.path === "*");
-    const redirects = leaves.filter((route) => route.isRedirect).map((route) => route.path).toSorted();
+    const redirects = leaves
+      .filter((route) => route.isRedirect)
+      .map((route) => route.path)
+      .toSorted();
     const pages = leaves.filter((route) => route.path !== "*" && !route.isRedirect);
 
-    expect(pages).toHaveLength(84);
-    expect(new Set(pages.map((route) => route.path)).size).toBe(84);
+    expect(pages).toHaveLength(86);
+    expect(new Set(pages.map((route) => route.path)).size).toBe(86);
     expect(wildcard).toHaveLength(1);
     expect(redirects).toEqual(EXPECTED_REDIRECT_PATHS);
   });

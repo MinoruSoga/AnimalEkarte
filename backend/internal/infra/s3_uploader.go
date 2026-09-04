@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -13,6 +14,7 @@ import (
 // S3Uploader は AWS S3 にファイルをアップロードする FileUploader 実装。
 type S3Uploader struct {
 	client        *s3.Client
+	presign       *s3.PresignClient
 	bucket        string
 	region        string
 	endpoint      string
@@ -24,7 +26,7 @@ type S3Uploader struct {
 // endpoint は S3 API 接続先（空文字=AWS 既定、非空=Cloudflare R2 等の S3 互換ストレージ、
 // この場合 path-style でアクセスする）。
 // publicBaseURL（env: S3_PUBLIC_BASE_URL）はブラウザ向けオブジェクト公開 URL の base。
-// S3 API endpoint とは別ホストであり、設定時はアップロード後 URL の組み立てに優先使用する。
+// Upload は公開 URL ではなくオブジェクト key を返す。取得は GetSignedURL を使う。
 func NewS3Uploader(ctx context.Context, bucket, region, endpoint, publicBaseURL string) (*S3Uploader, error) {
 	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(region))
 	if err != nil {
@@ -35,6 +37,7 @@ func NewS3Uploader(ctx context.Context, bucket, region, endpoint, publicBaseURL 
 	})
 	return &S3Uploader{
 		client:        client,
+		presign:       s3.NewPresignClient(client),
 		bucket:        bucket,
 		region:        region,
 		endpoint:      endpoint,
@@ -42,7 +45,7 @@ func NewS3Uploader(ctx context.Context, bucket, region, endpoint, publicBaseURL 
 	}, nil
 }
 
-// Upload はファイルを S3 にアップロードし、公開 URL を返す。
+// Upload はファイルを S3 にアップロードし、オブジェクト key を返す。
 func (u *S3Uploader) Upload(ctx context.Context, key string, body io.Reader, contentType string) (string, error) {
 	_, err := u.client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket:      aws.String(u.bucket),
@@ -53,7 +56,24 @@ func (u *S3Uploader) Upload(ctx context.Context, key string, body io.Reader, con
 	if err != nil {
 		return "", fmt.Errorf("s3 upload failed: %w", err)
 	}
-	return buildS3ObjectURL(u.publicBaseURL, u.endpoint, u.bucket, u.region, key), nil
+	return key, nil
+}
+
+// GetSignedURL は指定 TTL の S3 署名付き URL を生成する。presign 未設定は fail-closed。
+func (u *S3Uploader) GetSignedURL(ctx context.Context, key string, ttl time.Duration) (string, error) {
+	if u.presign == nil {
+		return "", fmt.Errorf("s3 presign client is not configured")
+	}
+	req, err := u.presign.PresignGetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(u.bucket),
+		Key:    aws.String(key),
+	}, func(o *s3.PresignOptions) {
+		o.Expires = ttl
+	})
+	if err != nil {
+		return "", fmt.Errorf("s3 presign failed: %w", err)
+	}
+	return req.URL, nil
 }
 
 // Delete は S3 からオブジェクトを削除する。

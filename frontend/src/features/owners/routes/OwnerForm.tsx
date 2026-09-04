@@ -5,6 +5,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
 } from "react";
 import { useNavigate, useParams, useLoaderData } from "react-router";
@@ -20,13 +21,13 @@ import { useTitle } from "@/hooks/use-title";
 import { usePostalCodeLookup } from "../hooks/use-postal-code-lookup";
 import { useAuth } from "@/hooks/use-auth";
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
-import { handleApiError } from "@/lib/handle-api-error";
 import { setStoredClinicId } from "@/lib/current-clinic";
 import { paths } from "@/config/paths";
 import { usePermission } from "@/hooks/use-permission";
 import { OwnerInfoSection } from "../components/OwnerInfoSection";
 import { OwnerPetsSection } from "../components/OwnerPetsSection";
 import { useOwnerForm } from "../hooks/use-owner-form";
+import { useOwnerPetChangeConfirm } from "../hooks/use-owner-pet-change-confirm";
 import { resolvePostCreateOwnerNavigation } from "../lib/post-create-owner-navigation";
 import type { PetMutations } from "@/types/pet";
 import type { OwnerData, MembershipTypeLabel } from "../types";
@@ -35,7 +36,7 @@ import { ResourceOwners } from "@/types/generated/models";
 
 // Lazy-loaded modal — only loaded when first opened (bundle-dynamic-imports)
 const PetEditModal = lazy(() =>
-  import("../components/PetEditModal").then(m => ({ default: m.PetEditModal }))
+  import("../components/PetEditModal").then((m) => ({ default: m.PetEditModal })),
 );
 
 // rendering-hoist-jsx: アクセシビリティ用定数をモジュールレベルに巻き上げ（毎レンダー再生成を回避）
@@ -83,10 +84,6 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
   const { canView: canViewAccounting } = usePermission("accounting");
   const { isDirty, markDirty, markClean } = useUnsavedChanges();
   const [deletePetTarget, setDeletePetTarget] = useState<{
-    id: string;
-    name: string;
-  } | null>(null);
-  const [pendingOwnerChange, setPendingOwnerChange] = useState<{
     id: string;
     name: string;
   } | null>(null);
@@ -146,7 +143,9 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
         });
         if (plan.mode === "hard") {
           if (!setStoredClinicId(plan.clinicId)) {
-            toast.error("クリニックの切替に失敗しました。登録は完了しています。医院を切り替えてから詳細を開いてください。");
+            toast.error(
+              "クリニックの切替に失敗しました。登録は完了しています。医院を切り替えてから詳細を開いてください。",
+            );
             navigate(paths.owners.getHref());
             return;
           }
@@ -172,95 +171,54 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
     queryClient,
   ]);
 
+  // fieldErrors の「キーの集合」が変わったときだけ発火させたい（値の再代入では発火不要）。
+  // オブジェクト参照そのものを deps に使うと毎レンダーで新規オブジェクトになり無限発火するため、
+  // キー集合の署名文字列を useMemo 化して deps にする（FE-RC-066）。
+  const errorFieldsSignature = useMemo(
+    () => Object.keys(fieldErrors).sort().join(","),
+    [fieldErrors],
+  );
+
   // BUG-084: バリデーションエラー後に最初のエラーフィールドへフォーカスを移動する
   // フォームのアクセシビリティ改善（WCAG 2.4.3 Focus Order / 3.3.1 Error Identification）
   useEffect(() => {
-    const errorFields = Object.keys(fieldErrors);
+    const errorFields = errorFieldsSignature ? errorFieldsSignature.split(",") : [];
     if (errorFields.length === 0) return;
     // 優先度順にフォーカスする最初のフィールドを探す
-    const firstErrorField = OWNER_PRIORITY_FIELDS.find((f) => errorFields.includes(f)) ?? errorFields[0];
+    const firstErrorField =
+      OWNER_PRIORITY_FIELDS.find((f) => errorFields.includes(f)) ?? errorFields[0];
     const domId = OWNER_FIELD_ID_MAP[firstErrorField] ?? firstErrorField;
     const el = document.getElementById(domId) as HTMLElement | null;
     el?.focus();
-  // fieldErrors オブジェクトのキー変化で発火させるため JSON.stringify を使用
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(Object.keys(fieldErrors).sort())]);
+  }, [errorFieldsSignature]);
 
   const handleBack = () => {
     navigate(paths.owners.getHref());
   };
 
-  // BUG-373: 飼主変更 — discount_rate/membership_type が異なる時のみ確認モーダル
-  const handlePetChangeOwner = useCallback(
-    (newOwner: { id: string; name: string; discountRate: number; membershipType: string }) => {
-      const currentEditingPet = editingPetRef.current;
-      if (
-        canEditRef.current !== true ||
-        !currentEditingPet?.id ||
-        currentEditingPet.status === "死亡" ||
-        !petMutations
-      ) {
-        return;
-      }
-      const needsConfirm =
-        (ownerData.discountRate ?? 0) !== newOwner.discountRate ||
-        ownerData.membershipType !== newOwner.membershipType;
-      if (needsConfirm) {
-        setPendingOwnerChange({ id: newOwner.id, name: newOwner.name });
-      } else {
-        if (canEditRef.current !== true) return;
-        petMutations.updatePetMutate(
-          { id: currentEditingPet.id, req: { owner_id: Number(newOwner.id) } },
-          {
-            onSuccess: () => {
-              toast.success(`飼主を ${newOwner.name} に変更しました`);
-              setPetModalOpen(false);
-            },
-            onError: (error) => {
-              handleApiError(error, "飼主変更");
-            },
-          },
-        );
-      }
-    },
-    [petMutations, ownerData.discountRate, ownerData.membershipType, setPetModalOpen],
-  );
-
-  const handleConfirmOwnerChange = useCallback(() => {
-    const currentEditingPet = editingPetRef.current;
-    if (
-      canEditRef.current !== true ||
-      !pendingOwnerChange ||
-      !currentEditingPet?.id ||
-      currentEditingPet.status === "死亡" ||
-      !petMutations
-    ) {
-      return;
-    }
-    const newOwner = pendingOwnerChange;
-    if (canEditRef.current !== true) return;
-    petMutations.updatePetMutate(
-      { id: currentEditingPet.id, req: { owner_id: Number(newOwner.id) } },
-      {
-        onSuccess: () => {
-          toast.success(`飼主を ${newOwner.name} に変更しました`);
-          setPendingOwnerChange(null);
-          setPetModalOpen(false);
-        },
-        onError: (error) => {
-          handleApiError(error, "飼主変更");
-          setPendingOwnerChange(null);
-        },
-      },
-    );
-  }, [pendingOwnerChange, petMutations, setPetModalOpen]);
+  const {
+    pendingOwnerChange,
+    setPendingOwnerChange,
+    handlePetChangeOwner,
+    handleConfirmOwnerChange,
+  } = useOwnerPetChangeConfirm({
+    editingPetRef,
+    canEditRef,
+    petMutations,
+    ownerDiscountRate: ownerData.discountRate,
+    ownerMembershipType: ownerData.membershipType,
+    setPetModalOpen,
+  });
 
   // rerender-functional-setstate: setOwnerData・markDirty は両方安定した参照なので
   // useCallback で handleInputChange を安定化できる → MembershipTypeButtons memo の前提条件
-  const handleInputChange = useCallback((field: string, value: string | boolean | number | null | undefined) => {
-    setOwnerData(prev => ({ ...prev, [field]: value }));
-    markDirty();
-  }, [setOwnerData, markDirty]);
+  const handleInputChange = useCallback(
+    (field: string, value: string | boolean | number | null | undefined) => {
+      setOwnerData((prev) => ({ ...prev, [field]: value }));
+      markDirty();
+    },
+    [setOwnerData, markDirty],
+  );
 
   const handleConfirmDeletePet = () => {
     if (deletePetTarget) {
@@ -275,9 +233,12 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
   }, []);
 
   // MembershipTypeButtons の onChange prop を安定化（handleInputChange が stable なので依存なし）
-  const handleMembershipChange = useCallback((type: MembershipTypeLabel) => {
-    handleInputChange("membershipType", type);
-  }, [handleInputChange]);
+  const handleMembershipChange = useCallback(
+    (type: MembershipTypeLabel) => {
+      handleInputChange("membershipType", type);
+    },
+    [handleInputChange],
+  );
 
   // 郵便番号検索
   const { lookup } = usePostalCodeLookup();
@@ -309,8 +270,7 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
           ) : null
         }
       >
-        {/* FE6-8: jsx-no-leaked-render は非型認識のため isDirty を boolean と静的に断定できず !! で明示する */}
-        <NavigationBlocker when={!!isDirty && !isLoading} />
+        <NavigationBlocker when={isDirty ? !isLoading : false} />
         <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
           <div className={`mb-4 rounded-lg ${C.bgWhite} p-4 border ${C.borderMedium}`}>
             <h2 className={`mb-3 text-sm font-bold ${C.text} flex items-center gap-2`}>
@@ -352,17 +312,13 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
                 会計履歴
               </h2>
             </div>
-            <Suspense fallback={null}>
-              {accountingSection}
-            </Suspense>
+            <Suspense fallback={null}>{accountingSection}</Suspense>
           </div>
         ) : null}
 
         {/* LINE連携セクション（編集モードのみ・app層から注入） */}
         {isEdit && lineSection ? (
-          <div className={`mt-6 p-4 rounded-lg border ${C.borderLight}`}>
-            {lineSection}
-          </div>
+          <div className={`mt-6 p-4 rounded-lg border ${C.borderLight}`}>{lineSection}</div>
         ) : null}
 
         <Suspense fallback={null}>

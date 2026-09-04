@@ -116,7 +116,7 @@ func (m *mockStaffService) Update(ctx context.Context, clinicID, id uint64, inpu
 	return nil, nil
 }
 
-func (m *mockStaffService) Delete(ctx context.Context, clinicID, id uint64) error {
+func (m *mockStaffService) Delete(ctx context.Context, clinicID, id uint64, _ bool) error {
 	if m.deleteFn != nil {
 		return m.deleteFn(ctx, clinicID, id)
 	}

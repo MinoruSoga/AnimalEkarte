@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"math"
+	"strings"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -19,6 +21,7 @@ type CreateEstimateInput struct {
 	MedicalRecordID *uint64
 	Title           string
 	OwnerID         *uint64
+	PetID           *uint64
 	Status          model.EstimateStatus
 	Subtotal        int64
 	TaxTotal        int64
@@ -29,6 +32,19 @@ type CreateEstimateInput struct {
 	Comment         string
 	Notes           string
 	CreatedBy       *uint64
+	Items           []EstimateItemInput
+}
+
+// EstimateItemInput は見積明細の作成/置換入力。
+type EstimateItemInput struct {
+	Name                  string
+	Category              model.ItemCategory
+	UnitPrice             int64
+	Quantity              float64
+	DiscountRate          float64
+	DiscountAmount        int64
+	IsInsuranceApplicable bool
+	SortOrder             int
 }
 
 // CreateSuccessorInput は確定見積の後継ドラフト作成入力（TASK-012 FINAL B）。
@@ -55,6 +71,7 @@ type UpdateEstimateInput struct {
 	Comment         *string
 	Notes           *string
 	ActorID         *uint64 // 監査ログ用（永続化しない）。handler extractStaffID から渡す。
+	Items           *[]EstimateItemInput
 }
 
 func buildEstimateUpdate(input *UpdateEstimateInput) map[string]any {
@@ -92,6 +109,101 @@ func buildEstimateUpdate(input *UpdateEstimateInput) map[string]any {
 		fields["notes"] = *input.Notes
 	}
 	return fields
+}
+
+func validateEstimateItemInputs(inputs []EstimateItemInput) error {
+	for i, input := range inputs {
+		if strings.TrimSpace(input.Name) == "" {
+			return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].name is required", i))
+		}
+		if input.Category != "" {
+			if err := validateItemCategory(string(input.Category)); err != nil {
+				return apperrors.Wrap(err, fmt.Sprintf("items[%d].category is invalid", i))
+			}
+		}
+		if input.UnitPrice < 0 {
+			return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].unit_price must be 0 or greater", i))
+		}
+		if input.Quantity <= 0 || math.IsNaN(input.Quantity) || math.IsInf(input.Quantity, 0) {
+			return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].quantity must be a positive finite value", i))
+		}
+		if input.DiscountRate < 0 || input.DiscountRate > 100 || math.IsNaN(input.DiscountRate) || math.IsInf(input.DiscountRate, 0) {
+			return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].discount_rate must be between 0 and 100", i))
+		}
+		if input.DiscountAmount < 0 {
+			return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].discount_amount must be 0 or greater", i))
+		}
+	}
+	return nil
+}
+
+func estimateItemsFromInput(estimateID uint64, inputs []EstimateItemInput) []model.EstimateItem {
+	items := make([]model.EstimateItem, 0, len(inputs))
+	for i, in := range inputs {
+		category := in.Category
+		if category == "" {
+			category = model.ItemCategoryOther
+		}
+		sortOrder := in.SortOrder
+		if sortOrder == 0 {
+			sortOrder = i
+		}
+		items = append(items, model.EstimateItem{
+			EstimateID:            estimateID,
+			Name:                  strings.TrimSpace(in.Name),
+			Category:              category,
+			UnitPrice:             in.UnitPrice,
+			Quantity:              in.Quantity,
+			TaxType:               model.TaxTypeExcluded,
+			TaxRate:               0.10,
+			DiscountRate:          in.DiscountRate,
+			DiscountAmount:        in.DiscountAmount,
+			IsInsuranceApplicable: in.IsInsuranceApplicable,
+			SortOrder:             sortOrder,
+		})
+	}
+	return items
+}
+
+// calculateEstimateTotals mirrors CalculateBillingTotals for EstimateItem.
+// Header insurance_amount and discount_amount remain separate existing fields.
+func calculateEstimateTotals(items []model.EstimateItem) (subtotal, taxTotal, totalAmount int64) {
+	var excludedTax int64
+	for i := range items {
+		itemSubtotal := max(int64(math.Round(float64(items[i].UnitPrice)*items[i].Quantity))-items[i].DiscountAmount, 0)
+		taxAmount := items[i].CalculateTaxAmount()
+		subtotal += itemSubtotal
+		taxTotal += taxAmount
+		if items[i].TaxType == model.TaxTypeExcluded {
+			excludedTax += taxAmount
+		}
+	}
+	totalAmount = subtotal + excludedTax
+	return
+}
+
+func cloneEstimateItemsForSuccessor(estimateID uint64, items []model.EstimateItem) []model.EstimateItem {
+	out := make([]model.EstimateItem, 0, len(items))
+	for _, it := range items {
+		out = append(out, model.EstimateItem{
+			EstimateID:            estimateID,
+			Name:                  it.Name,
+			Category:              it.Category,
+			UnitPrice:             it.UnitPrice,
+			Quantity:              it.Quantity,
+			TaxType:               it.TaxType,
+			TaxRate:               it.TaxRate,
+			DiscountRate:          it.DiscountRate,
+			DiscountAmount:        it.DiscountAmount,
+			IsInsuranceApplicable: it.IsInsuranceApplicable,
+			ConsultationID:        it.ConsultationID,
+			ProcedureID:           it.ProcedureID,
+			MedicineID:            it.MedicineID,
+			MerchandiseItemID:     it.MerchandiseItemID,
+			SortOrder:             it.SortOrder,
+		})
+	}
+	return out
 }
 
 func isEstimateLocked(status model.EstimateStatus) bool {
@@ -197,7 +309,7 @@ func (s *estimateService) logEstimateChangeBestEffort(
 func (s *estimateService) validateEstimateRelatedFKs(
 	ctx context.Context,
 	clinicID uint64,
-	medicalRecordID, ownerID *uint64,
+	medicalRecordID, ownerID, petID *uint64,
 ) error {
 	var mr *model.MedicalRecord
 	if medicalRecordID != nil {
@@ -211,21 +323,41 @@ func (s *estimateService) validateEstimateRelatedFKs(
 		mr = record
 	}
 
-	if ownerID != nil {
+	if ownerID != nil || petID != nil {
 		if s.reservationRepo == nil {
-			return apperrors.WrapNotFound("owner", fmt.Sprintf("%d", *ownerID))
+			return notFoundOwnerOrPet(petID, ownerID)
 		}
-		if err := reservation.ValidateReservationOwnerPetLinksWithRepo(ctx, s.reservationRepo, clinicID, ownerID, nil); err != nil {
+		if err := reservation.ValidateReservationOwnerPetLinksWithRepo(ctx, s.reservationRepo, clinicID, ownerID, petID); err != nil {
 			return err
 		}
 	}
 
 	if mr != nil {
-		if err := AssertBillingLinksMatchMedicalRecord(mr, ownerID, nil); err != nil {
+		if err := AssertBillingLinksMatchMedicalRecord(mr, ownerID, petID); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func notFoundOwnerOrPet(petID, ownerID *uint64) error {
+	if petID != nil {
+		return apperrors.WrapNotFound("pet", fmt.Sprintf("%d", *petID))
+	}
+	return apperrors.WrapNotFound("owner", fmt.Sprintf("%d", *ownerID))
+}
+
+func lockDraftMedicalRecordIfPresent(
+	ctx context.Context,
+	repo sharedkernel.MedicalRecordLocker,
+	clinicID uint64,
+	medicalRecordID *uint64,
+	findMsg, conflictMsg string,
+) error {
+	if medicalRecordID == nil {
+		return nil
+	}
+	return sharedkernel.LockDraftMedicalRecord(ctx, repo, clinicID, *medicalRecordID, findMsg, conflictMsg)
 }
 
 func (s *estimateService) verifyCreatedByClinicMembership(ctx context.Context, clinicID, staffID uint64) error {
@@ -280,6 +412,9 @@ func (s *estimateService) Create(ctx context.Context, clinicID uint64, input *Cr
 	if input.DiscountAmount < 0 {
 		return nil, apperrors.WrapInvalidInput("discount_amount must be 0 or greater")
 	}
+	if err := validateEstimateItemInputs(input.Items); err != nil {
+		return nil, err
+	}
 
 	if input.CreatedBy == nil {
 		return nil, apperrors.WrapInvalidInput("created_by is required")
@@ -290,6 +425,7 @@ func (s *estimateService) Create(ctx context.Context, clinicID uint64, input *Cr
 		MedicalRecordID: input.MedicalRecordID,
 		Title:           input.Title,
 		OwnerID:         input.OwnerID,
+		PetID:           input.PetID,
 		Subtotal:        input.Subtotal,
 		TaxTotal:        input.TaxTotal,
 		TotalAmount:     input.TotalAmount,
@@ -300,6 +436,10 @@ func (s *estimateService) Create(ctx context.Context, clinicID uint64, input *Cr
 		Notes:           input.Notes,
 		CreatedBy:       input.CreatedBy,
 	}
+	preparedItems := estimateItemsFromInput(0, input.Items)
+	if len(preparedItems) > 0 {
+		estimate.Subtotal, estimate.TaxTotal, estimate.TotalAmount = calculateEstimateTotals(preparedItems)
+	}
 	if input.Status != "" {
 		estimate.Status = input.Status
 	} else {
@@ -309,45 +449,24 @@ func (s *estimateService) Create(ctx context.Context, clinicID uint64, input *Cr
 		return nil, apperrors.WrapConflict("承認済みまたは却下済みの見積書は作成できません")
 	}
 
+	var created *model.Estimate
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		// SD-2 + BE-refactor.md X-11: 親カルテが確定済みの場合は見積書追加を拒否。見積は
-		// medical_record_id 任意（カルテに紐付かない独立見積も許容）のため、指定時のみガードする。
-		if input.MedicalRecordID != nil {
-			if err := sharedkernel.LockDraftMedicalRecord(txCtx, s.medicalRecordRepo, clinicID, *input.MedicalRecordID,
-				"failed to find medical record", "確定済みカルテに見積書を追加できません"); err != nil {
-				return err
-			}
-		}
-		if err := s.validateEstimateRelatedFKs(txCtx, clinicID, input.MedicalRecordID, input.OwnerID); err != nil {
-			return err
-		}
-		if err := s.verifyCreatedByClinicMembership(txCtx, clinicID, *input.CreatedBy); err != nil {
-			return err
-		}
-		// TASK-012: clinic スコープの EST-{N} を原子採番してから INSERT する。
-		estimateNo, err := s.repo.AllocateNextEstimateNo(txCtx, clinicID)
+		got, err := s.createEstimateInTx(txCtx, clinicID, input, estimate, preparedItems)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to allocate estimate number", "error", err)
-			return apperrors.Wrap(err, "failed to allocate estimate number")
+			return err
 		}
-		estimate.EstimateNo = estimateNo
-		if err := s.repo.Create(txCtx, estimate); err != nil {
-			slog.ErrorContext(txCtx, "failed to create estimate", "error", err)
-			return apperrors.Wrap(err, "failed to create estimate")
-		}
+		created = got
 		return nil
 	}); err != nil {
 		return nil, err
 	}
+	if created == nil {
+		return nil, apperrors.WrapInternalServerError("estimate create returned empty record")
+	}
 
 	slog.InfoContext(ctx, "estimate created",
-		slog.Uint64("estimate_id", estimate.ID),
+		slog.Uint64("estimate_id", created.ID),
 		slog.Uint64("clinic_id", clinicID))
-	created, err := s.repo.FindByID(ctx, clinicID, estimate.ID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get estimate after create", "error", err)
-		return nil, apperrors.Wrap(err, "failed to get estimate after create")
-	}
 
 	// 監査ログ: create（best-effort）。actor は CreatedBy。
 	s.logEstimateChangeBestEffort(ctx, clinicID, input.CreatedBy, "create", created.ID, nil, extractEstimateImportantFields(created))
@@ -355,60 +474,23 @@ func (s *estimateService) Create(ctx context.Context, clinicID uint64, input *Cr
 }
 
 func (s *estimateService) Update(ctx context.Context, clinicID, id uint64, input *UpdateEstimateInput) (*model.Estimate, error) {
-	existing, err := s.repo.FindByID(ctx, clinicID, id)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to find estimate", "error", err)
-		return nil, apperrors.Wrap(err, "failed to find estimate")
-	}
-	if isEstimateLocked(existing.Status) {
-		return nil, apperrors.WrapConflict("承認済みまたは却下済みの見積書は編集できません")
-	}
-	if input.Subtotal != nil && *input.Subtotal < 0 {
-		return nil, apperrors.WrapInvalidInput("subtotal must be 0 or greater")
-	}
-	if input.TaxTotal != nil && *input.TaxTotal < 0 {
-		return nil, apperrors.WrapInvalidInput("tax_total must be 0 or greater")
-	}
-	if input.TotalAmount != nil && *input.TotalAmount < 0 {
-		return nil, apperrors.WrapInvalidInput("total_amount must be 0 or greater")
-	}
-	if input.InsuranceAmount != nil && *input.InsuranceAmount < 0 {
-		return nil, apperrors.WrapInvalidInput("insurance_amount must be 0 or greater")
-	}
-	if input.DiscountAmount != nil && *input.DiscountAmount < 0 {
-		return nil, apperrors.WrapInvalidInput("discount_amount must be 0 or greater")
-	}
-	fields := buildEstimateUpdate(input)
-	if len(fields) == 0 {
-		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
-	}
-	isBecomingApproved := input.Status != nil && *input.Status == model.EstimateStatusApproved &&
-		existing.Status != model.EstimateStatusApproved
-	isBecomingRejected := input.Status != nil && *input.Status == model.EstimateStatusRejected &&
-		existing.Status != model.EstimateStatusRejected
-
-	var updated *model.Estimate
+	var existing, updated *model.Estimate
+	var isBecomingApproved, isBecomingRejected bool
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		// SD-2 + BE-refactor.md X-11: 親カルテが確定済みの場合は見積書編集を拒否。
-		if existing.MedicalRecordID != nil {
-			if err := sharedkernel.LockDraftMedicalRecord(txCtx, s.medicalRecordRepo, clinicID, *existing.MedicalRecordID,
-				"failed to find medical record", "確定済みカルテの見積書は編集できません"); err != nil {
-				return err
-			}
-		}
-		// UpdateIfNotLocked: FindByID→isEstimateLocked と Update の間に approved/rejected へ
-		// 遷移されても、status NOT IN 述語で原子的に拒否する（0 行 → Conflict）。
-		got, err := s.repo.UpdateIfNotLocked(txCtx, clinicID, id, fields)
+		result, err := s.updateEstimateInTx(txCtx, clinicID, id, input)
 		if err != nil {
-			if !apperrors.IsConflict(err) {
-				slog.ErrorContext(txCtx, "failed to update estimate", "error", err)
-			}
-			return apperrors.Wrap(err, "failed to update estimate")
+			return err
 		}
-		updated = got
+		existing = result.existing
+		updated = result.updated
+		isBecomingApproved = result.isBecomingApproved
+		isBecomingRejected = result.isBecomingRejected
 		return nil
 	}); err != nil {
 		return nil, err
+	}
+	if existing == nil || updated == nil {
+		return nil, apperrors.WrapInternalServerError("estimate update returned empty record")
 	}
 	slog.InfoContext(ctx, "estimate updated",
 		slog.Uint64("estimate_id", id),
@@ -439,11 +521,9 @@ func (s *estimateService) Delete(ctx context.Context, clinicID, id uint64, actor
 	oldValue := extractEstimateImportantFields(existing)
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		// SD-2 + BE-refactor.md X-11: 親カルテが確定済みの場合は見積書削除を拒否。
-		if existing.MedicalRecordID != nil {
-			if err := sharedkernel.LockDraftMedicalRecord(txCtx, s.medicalRecordRepo, clinicID, *existing.MedicalRecordID,
-				"failed to find medical record", "確定済みカルテの見積書は削除できません"); err != nil {
-				return err
-			}
+		if err := lockDraftMedicalRecordIfPresent(txCtx, s.medicalRecordRepo, clinicID, existing.MedicalRecordID,
+			"failed to find medical record", "確定済みカルテの見積書は削除できません"); err != nil {
+			return err
 		}
 		// 早期 Count は UX 用。防御の本体は DeleteIfNotLocked の原子条件（status + active items=0）。
 		count, err := s.repo.CountItemsByEstimateID(txCtx, clinicID, id)

@@ -24,19 +24,13 @@ function CurrentLocation() {
 
 function invalidTokenError(): AxiosError {
   const config: InternalAxiosRequestConfig = { headers: new AxiosHeaders() };
-  return new AxiosError(
-    "invalid or expired token",
-    AxiosError.ERR_BAD_REQUEST,
+  return new AxiosError("invalid or expired token", AxiosError.ERR_BAD_REQUEST, config, undefined, {
     config,
-    undefined,
-    {
-      config,
-      data: { message: "invalid or expired token" },
-      headers: new AxiosHeaders(),
-      status: 400,
-      statusText: "Bad Request",
-    },
-  );
+    data: { message: "invalid or expired token" },
+    headers: new AxiosHeaders(),
+    status: 400,
+    statusText: "Bad Request",
+  });
 }
 
 describe("ResetPasswordPage recovery behavior", () => {
@@ -52,9 +46,9 @@ describe("ResetPasswordPage recovery behavior", () => {
       </MemoryRouter>,
     );
 
-    expect(
-      screen.getByRole("link", { name: "パスワードリセットを再申請する" }),
-    ).toHaveClass("min-h-11");
+    expect(screen.getByRole("link", { name: "パスワードリセットを再申請する" })).toHaveClass(
+      "min-h-11",
+    );
     expect(resetPassword).not.toHaveBeenCalled();
   });
 
@@ -90,13 +84,9 @@ describe("ResetPasswordPage recovery behavior", () => {
       </MemoryRouter>,
     );
 
-    expect(
-      screen.getByRole("heading", { name: "新しいパスワードの設定" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "新しいパスワードの設定" })).toBeInTheDocument();
     await waitFor(() =>
-      expect(screen.getByTestId("current-location")).toHaveTextContent(
-        /^\/reset-password$/,
-      ),
+      expect(screen.getByTestId("current-location")).toHaveTextContent(/^\/reset-password$/),
     );
     expect(screen.getByTestId("current-location")).not.toHaveTextContent("token");
   });
@@ -116,21 +106,15 @@ describe("ResetPasswordPage recovery behavior", () => {
 
       await user.type(screen.getByLabelText("新しいパスワード"), "password123");
       await user.type(screen.getByLabelText("パスワード（確認）"), "password123");
-      await user.click(
-        screen.getByRole("button", { name: "パスワードを設定する" }),
-      );
+      await user.click(screen.getByRole("button", { name: "パスワードを設定する" }));
 
       expect(
         await screen.findByText(
           "パスワードのリセットに失敗しました。リンクの有効期限が切れている可能性があります。",
         ),
       ).toBeInTheDocument();
-      expect(
-        screen.getByRole("heading", { name: "新しいパスワードの設定" }),
-      ).toBeInTheDocument();
-      expect(screen.getByTestId("current-location")).toHaveTextContent(
-        /^\/reset-password$/,
-      );
+      expect(screen.getByRole("heading", { name: "新しいパスワードの設定" })).toBeInTheDocument();
+      expect(screen.getByTestId("current-location")).toHaveTextContent(/^\/reset-password$/);
       expect(screen.getByTestId("current-location")).not.toHaveTextContent(token);
       expect(resetPassword).toHaveBeenCalledWith({
         token,

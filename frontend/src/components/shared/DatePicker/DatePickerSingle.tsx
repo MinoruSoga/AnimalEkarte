@@ -153,7 +153,7 @@ export function SinglePicker({
             onBlur={handleBlur}
             onKeyDown={handleInputKeyDown}
             placeholder={placeholder}
-            className={`-my-px min-h-11 flex-1 min-w-0 bg-transparent outline-none text-sm ${C.text} placeholder:${C.text40}`}
+            className={`-my-px min-h-11 flex-1 min-w-0 bg-transparent outline-none text-sm ${C.text} ${C.textPlaceholder} focus-visible:ring-2 ${C.focusRingAccent40}`}
           />
           {value ? <ClearButton onClick={handleClear} /> : null}
         </div>
@@ -189,10 +189,7 @@ export function SinglePicker({
             classNames={SINGLE_CALENDAR_CLASSES}
           />
         ) : (
-          <MonthGrid
-            currentMonth={displayMonth.getMonth()}
-            onSelect={handleMonthSelect}
-          />
+          <MonthGrid currentMonth={displayMonth.getMonth()} onSelect={handleMonthSelect} />
         )}
 
         <div className={`border-t ${C.borderLight} px-3 py-1.5`}>

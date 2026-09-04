@@ -18,15 +18,15 @@ section: 運用・管理
 
 関連 URL:
 
-| 用途 | URL |
-|------|-----|
-| 一覧 | `/accounting` |
-| ペット選択 | `/accounting/select-pet` |
-| 新規 | `/accounting/new` |
-| 詳細・精算 | `/accounting/:id` |
-| レジ締め | `/accounting/close` |
-| 締め履歴 | `/accounting/close/history` |
-| 月次集計レポート | `/accounting/reports` |
+| 用途             | URL                         |
+| ---------------- | --------------------------- |
+| 一覧             | `/accounting`               |
+| ペット選択       | `/accounting/select-pet`    |
+| 新規             | `/accounting/new`           |
+| 詳細・精算       | `/accounting/:id`           |
+| レジ締め         | `/accounting/close`         |
+| 締め履歴         | `/accounting/close/history` |
+| 月次集計レポート | `/accounting/reports`       |
 
 ## 画面イメージ
 
@@ -36,11 +36,11 @@ section: 運用・管理
 
 ### タブ
 
-| タブ | 内容 |
-|------|------|
-| 会計一覧 | 期間・条件での会計一覧（既定） |
-| 当日会計 | 指定日の精算済会計と日計（`?tab=daily`） |
-| 未納者一覧 | 売掛・未入金の抽出（`?tab=unpaid`） |
+| タブ       | 内容                                     |
+| ---------- | ---------------------------------------- |
+| 会計一覧   | 期間・条件での会計一覧（既定）           |
+| 当日会計   | 指定日の精算済会計と日計（`?tab=daily`） |
+| 未納者一覧 | 売掛・未入金の抽出（`?tab=unpaid`）      |
 
 ### 会計一覧の表示項目
 
@@ -132,26 +132,26 @@ section: 運用・管理
 
 ## 必要な権限
 
-| 操作 | 権限の目安 |
-|------|------------|
-| 画面を見る | `accounting:view` |
-| 新規作成 | `accounting:create` |
-| 編集・確定 | `accounting:edit` |
-| キャンセル（取消） | `accounting-cancel:edit` |
+| 操作                   | 権限の目安                        |
+| ---------------------- | --------------------------------- |
+| 画面を見る             | `accounting:view`                 |
+| 新規作成               | `accounting:create`               |
+| 編集・確定             | `accounting:edit`                 |
+| キャンセル（取消）     | `accounting-cancel:edit`          |
 | 締め後修正・カード訂正 | `accounting-post-close-edit:edit` |
-| 返金記録 | `accounting:create`（返金 API） |
+| 返金記録               | `accounting:create`（返金 API）   |
 
 ---
 
 ## 関連する画面
 
-| 画面 | 関係 |
-|------|------|
-| カルテ（`/medical-records`） | 処置・医師確認・未請求明細の元 |
-| 検査管理（`/examinations`） | 検査費用の元データ |
-| トリミング（`/trimming`） | コース・オプションが未請求明細に入る |
-| 在庫管理（`/inventory`） | 物販・薬剤の在庫 |
-| レジ締め（`/accounting/close`） | 日次ロック |
-| 月次集計レポート（`/accounting/reports`） | 集計 |
+| 画面                                      | 関係                                 |
+| ----------------------------------------- | ------------------------------------ |
+| カルテ（`/medical-records`）              | 処置・医師確認・未請求明細の元       |
+| 検査管理（`/examinations`）               | 検査費用の元データ                   |
+| トリミング（`/trimming`）                 | コース・オプションが未請求明細に入る |
+| 在庫管理（`/inventory`）                  | 物販・薬剤の在庫                     |
+| レジ締め（`/accounting/close`）           | 日次ロック                           |
+| 月次集計レポート（`/accounting/reports`） | 集計                                 |
 
 ---

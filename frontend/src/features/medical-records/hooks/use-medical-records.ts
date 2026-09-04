@@ -38,8 +38,7 @@ export function useMedicalRecordsList({
 }: UseMedicalRecordsListParams) {
   const filters = useMemo<MedicalRecordFilters>(() => {
     const dateFilter = activeFilters.find((f) => f.key === "date")?.value as
-      | { from?: string; to?: string }
-      | undefined;
+      { from?: string; to?: string } | undefined;
     const statusFilter = activeFilters.find((f) => f.key === "status" && f.condition === "is");
     const doctorFilter = activeFilters.find((f) => f.key === "doctor" && f.condition === "is");
     const speciesFilter = activeFilters.find((f) => f.key === "species" && f.condition === "is");

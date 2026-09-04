@@ -1,4 +1,4 @@
-// Package handler provides HTTP handler implementations for Staff entity.
+// Package staff provides staff HTTP handlers.
 package staff
 
 import (
@@ -118,6 +118,9 @@ func (h *Handler) UpdateStaff(c *gin.Context) {
 	input := req.toServiceInput()
 	input.AuthorizedClinicIDs = authorizedClinicIDs
 	input.IsSystemAdmin = isSystemAdmin
+	if actor := optionalStaffID(c); actor != nil {
+		input.ActorStaffID = *actor
+	}
 	if passwordReplacement {
 		input.CredentialAudit = &CredentialMutationAudit{
 			ClinicID:      clinicID,
@@ -142,7 +145,15 @@ func (h *Handler) GetStaff(c *gin.Context) {
 	if !ok {
 		return
 	}
-	staff, err := h.svc.Staff.GetByIDInClinic(c.Request.Context(), clinicID, id)
+	var (
+		staff *model.Staff
+		err   error
+	)
+	if peekedSystemAdmin(c) {
+		staff, err = h.svc.Staff.GetByID(c.Request.Context(), id)
+	} else {
+		staff, err = h.svc.Staff.GetByIDInClinic(c.Request.Context(), clinicID, id)
+	}
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -164,7 +175,7 @@ func (h *Handler) DeleteStaff(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput("自分自身を削除することはできません"))
 		return
 	}
-	if err := h.svc.Staff.Delete(c.Request.Context(), clinicID, id); err != nil {
+	if err := h.svc.Staff.Delete(c.Request.Context(), clinicID, id, peekedSystemAdmin(c)); err != nil {
 		RespondError(c, err)
 		return
 	}
@@ -216,7 +227,20 @@ func (h *Handler) GetStaffClinicAssignments(c *gin.Context) {
 		return
 	}
 
+	isSystemAdmin, ok := extractIsSystemAdmin(c)
+	if !ok {
+		return
+	}
 	authorizedClinicIDs, ok := httpapi.ExtractClinicIDs(c)
+	if !ok {
+		return
+	}
+	authorizedClinicIDs, ok = httpapi.FilterClinicIDsForPermission(
+		c,
+		authorizedClinicIDs,
+		string(model.ResourceMasterStaff),
+		"view",
+	)
 	if !ok {
 		return
 	}
@@ -233,7 +257,7 @@ func (h *Handler) GetStaffClinicAssignments(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, staffClinicAssignmentsResponse{
-		ClinicIDs: visibleStaffClinicIDs(id, assignments, authorizedClinicIDs),
+		ClinicIDs: visibleStaffClinicIDs(id, assignments, authorizedClinicIDs, isSystemAdmin),
 	})
 }
 
@@ -241,23 +265,29 @@ func visibleStaffClinicIDs(
 	staffID uint64,
 	assignments []model.StaffClinicAssignment,
 	authorizedClinicIDs []uint64,
+	isSystemAdmin bool,
 ) []uint64 {
 	authorized := make(map[uint64]struct{}, len(authorizedClinicIDs))
-	for _, clinicID := range authorizedClinicIDs {
-		authorized[clinicID] = struct{}{}
+	if !isSystemAdmin {
+		for _, clinicID := range authorizedClinicIDs {
+			authorized[clinicID] = struct{}{}
+		}
 	}
 
 	visible := make([]uint64, 0, len(assignments))
 	seen := make(map[uint64]struct{}, len(assignments))
-	for _, assignment := range assignments {
+	for i := range assignments {
+		assignment := &assignments[i]
 		if assignment.StaffID != staffID || assignment.ClinicID == 0 || assignment.DeletedAt.Valid {
 			continue
 		}
 		if _, duplicate := seen[assignment.ClinicID]; duplicate {
 			continue
 		}
-		if _, allowed := authorized[assignment.ClinicID]; !allowed {
-			continue
+		if !isSystemAdmin {
+			if _, allowed := authorized[assignment.ClinicID]; !allowed {
+				continue
+			}
 		}
 		seen[assignment.ClinicID] = struct{}{}
 		visible = append(visible, assignment.ClinicID)
@@ -295,6 +325,23 @@ func (h *Handler) SetStaffClinicAssignments(c *gin.Context) {
 	authorizedClinicIDs, ok := httpapi.ExtractClinicIDs(c)
 	if !ok {
 		return
+	}
+	authorizedClinicIDs, ok = httpapi.FilterClinicIDsForPermission(
+		c,
+		authorizedClinicIDs,
+		string(model.ResourceMasterStaff),
+		"edit",
+	)
+	if !ok {
+		return
+	}
+	if !isSystemAdmin {
+		for _, clinicID := range normalizedClinicIDs {
+			if !slices.Contains(authorizedClinicIDs, clinicID) {
+				RespondError(c, apperrors.WrapForbidden("cannot assign staff outside authorized clinics"))
+				return
+			}
+		}
 	}
 
 	if err := h.svc.Staff.SetClinicAssignments(c.Request.Context(), &SetClinicAssignmentsInput{

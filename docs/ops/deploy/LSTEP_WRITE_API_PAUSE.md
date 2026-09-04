@@ -5,7 +5,7 @@
 > **タイミング**: Lステップ書込み再開を判断する時。
 
 > **対象**: Lステップへのタグ付与・タグ解除・プロパティ更新の外部 API 呼び出し
-> **状態**: **deploy gate 既定 OFF**（`LSTEP_WRITE_API_ENABLED` 未設定）。読み取り系 API とアプリ内 DB 更新は継続。
+> **状態**: リポジトリ設定では **deploy gate 既定 OFF**。実際の deployed value は、承認済みの names-only 確認経路で別途確認する。読み取り系 API とアプリ内 DB 更新は継続。
 
 ---
 

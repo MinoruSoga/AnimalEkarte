@@ -5,11 +5,11 @@
 > **タイミング**: CPM判定・配信トリガー仕様の確認時。
 
 > **Animal Ekarte**: カルテデータに基づいた自動マーケティングの実現
-> **最新更新**: 2026-07-30 | **ステータス**: Production Ready
+> **最新更新**: 2026-08-31 | **ステータス**: 実装済みだが既知の安全・性能gapあり。deployment / credential / external scenario / monitoring readiness は [release readiness runbook](../../ops/deploy/runbooks/STG_PRE_DEPLOY_READINESS_CHECK.md) 等のrelease evidenceで別管理
 
 ---
 
-> **注記 (2026-07-10 / 更新 2026-07-31)**: Lステップへの Write API（タグ付与・タグ解除・プロパティ更新）は **`LSTEP_WRITE_API_ENABLED`（既定 OFF）+ clinic `is_sync_enabled` の二重 gate** で抑止。gate OFF 時は外部 HTTP 0 + `ErrWriteDisabled`（silent noop 成功ではない）。判定・アプリ内 DB・監査は継続。詳細: [`docs/ops/deploy/LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)
+> **注記 (2026-07-10 / 更新 2026-07-31)**: Lステップへの Write API（タグ付与・タグ解除・プロパティ更新）は **`LSTEP_WRITE_API_ENABLED`（既定 OFF）+ clinic `is_sync_enabled` の二重 gate** で抑止。gate OFF 時は外部 HTTP 0 + `ErrWriteDisabled`（silent noop 成功ではない）。その後のローカル DB / cache / audit / logging は呼び出し元ごとの失敗契約に従い、一律には継続しない。詳細: [`docs/ops/deploy/LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)
 
 ---
 
@@ -35,6 +35,9 @@
 
 LTV 上位 20% は CPM ステージとは独立した `LTV_上位20` タグとして別途付与される。
 
+### 2.1a CPM V1（金額＋期間）と残余
+タグ同期の既定は医院設定の CPM バージョンに従う。V1 は Encounter / Growing / Core / Spot / Noah / Dormant の 6 区分。該当しない飼主は `cpm_unclassified`（配信対象外。`allCPMStages` に含めない）。顧客集計ダッシュボードの人数チップは 6 区分 + Unclassified の 7 つ（画面正本: [36-aggregation-dashboard.md](../screens/36-aggregation-dashboard.md)）。
+
 ### 2.2 休眠予備軍 (VISITタグ)
 最終来院日からの経過日数に応じ、以下のタグを自動付与・解除します。
 - `VISIT_120日超` / `VISIT_180日超` / `VISIT_220日超` / `VISIT_240日超`
@@ -48,27 +51,27 @@ LTV 上位 20% は CPM ステージとは独立した `LTV_上位20` タグと�
 | 優先度 | トリガーコード | 内容 |
 |:---:|:---|:---|
 | **2** | `dormant_prevention_365d` | 最終来院から 1 年経過。 |
-| **3** | `checkup_followup` | 健診結果に基づく精密検査案内。 |
+| **3** | `checkup_followup` | 健診作成後に起動する follow-up。現行 call に健診結果や精密検査要否の predicate はない。 |
 | **4** | `filaria_alert` / `flea_tick_alert` | フィラリア・ノミダニシーズン開始。 |
 | **5** | `dormant_prevention_240d` | 休眠防止ステップ（240日経過）。 |
 | **6** | `dormant_prevention_210d` | 休眠防止ステップ（210日経過）。 |
 | **7** | `dormant_prevention_180d` | 休眠防止ステップ（180日経過）。 |
 | **8** | `vaccine_deadline_60d` / `vaccine_deadline_30d` | ワクチン期限の 60日/30日前通知。 |
 | **10** | `food_refill_reminder` | 療法食の購入から約 30日後の案内。 |
-| **11** | `next_visit_reminder` | カルテ指定の「次回来院推奨日」の直前。 |
+| **11** | `next_visit_reminder` | カルテ指定の「次回来院推奨日」の当日。 |
 | **12** | `birthday_message` | ペットの誕生日の当日祝い。 |
 | **13** | `first_visit_followup_3d` / `first_visit_followup_7d` | 初診の 3日後、7日後の調子伺い。 |
-| **14** | `first_visit_welcome` | 初診会計完了直後の挨拶。 |
+| **14** | `first_visit_welcome` | 初回 medical record 作成後（post-commit）の挨拶。会計完了起点ではない。 |
 
 ---
 
 ## 4. 配信安全ガード (Safety Controls)
 
-医療機関としての信頼を守るため、以下の条件を最優先し、誤送信を物理的に遮断します。
+現行の最終配信除外確認は owner opt-out、`delivery_excluded`、LINE ID、cached EXCL tag を確認する。同日 claim と優先度抑制により、同日に競合する trigger は高優先度を選ぶ。
 
-1.  **スタッフによる停止**: 飼主詳細の「配信除外」スイッチがオンの場合。
-2.  **死亡・転院ガード**: ペットが `deceased` または `transferred` となった瞬間、関連する全リマインドを破棄。
-3.  **重複回避 (De-duplication)**: 同日に複数の配信が重なる場合、高優先度の 1 通のみを送信し、飼主への過剰な通知を防止。
+**既知の safety gap**: `PetStatus` は `alive` / `deceased` であり、`transferred` status はこの契約にない。最終 claim / write 前の確認は pet status を直接読まない。全 pet 死亡時の tag cleanup は best-effort で、durable exclusion flag を確立しない。また一部候補 query は死亡 pet を除外しない。したがって死亡・転院関連配信の絶対遮断は保証しない。
+
+必要な是正契約は、候補取得時と最終 claim / 外部 write 直前の両方で durable な owner/pet 除外証跡を fail-closed に確認し、cache / external write failure の alert、reconciliation、手動停止 fallback を持つことである。この source defect は本 docs-only 変更では修正しない。
 
 ---
 
@@ -84,12 +87,12 @@ LSTEP の失敗時挙動は経路ごとに 1 契約だけを持つ。詳細ア�
 
 ### 5.1 書き込み停止と運用停止
 
-- **Write dual-gate**: タグ付与・解除・プロパティ更新の外部 HTTP は deploy/clinic gate で抑止（`ErrWriteDisabled`）。判定・アプリ内 DB・監査は継続。[`LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)
+- **Write dual-gate**: タグ付与・解除・プロパティ更新の外部 HTTP は deploy/clinic gate で抑止され `ErrWriteDisabled` が返る。その後のローカル DB / cache / audit / logging は呼び出し元ごとの失敗契約に従い、一律には継続しない。[`LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)
 - **clinic 停止**: `is_sync_enabled=false` の医院は再有効化後もサービス層で同期対象外。
 
 ### 5.2 定時 delivery バッチの読み取り要件
 
-候補 owner 集合に対する owner / 当日 claim / 優先度抑制 / tag-cache 読みは clinic スコープの bulk-read を必須とし、owner 数線形の N+1 読みを置かない。opt-out・suppression・daily-claim の意味論と bounded memory は維持する。
+通常経路は clinic スコープの bulk-read を使う。ただし production には bulk failure 後の per-owner day-log / owner / tag-cache read fallback があり、owner 数線形となる既知の degraded-mode gap がある。実行上限・metrics を備えた bounded fallback にするか、source fallback を除去するまで unconditional な no-N+1 invariant は主張しない。opt-out・suppression・daily-claim の意味論と bounded memory は維持する。
 
 ---
 

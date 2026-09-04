@@ -1,7 +1,6 @@
 package staff
 
 import (
-	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -94,11 +93,18 @@ func extractIsSystemAdmin(c *gin.Context) (bool, bool) {
 	return httpapi.ExtractIsSystemAdmin(c)
 }
 
+// peekedSystemAdmin is fail-closed: a missing or invalid is_system_admin
+// peek is treated as non-admin and never opens a membership bypass.
+func peekedSystemAdmin(c *gin.Context) bool {
+	isAdmin, ok := httpapi.PeekIsSystemAdmin(c)
+	return ok && isAdmin
+}
+
 func optionalStaffID(c *gin.Context) *uint64 {
 	return httpapi.OptionalStaffID(c)
 }
 
-func parseIDParam(c *gin.Context, key string) (uint64, bool) {
+func parseIDParam(c *gin.Context, key string) (uint64, bool) { //nolint:unparam // key is part of the httpapi helper signature; current callers all use "id"
 	return httpapi.ParseIDParam(c, key)
 }
 
@@ -121,14 +127,7 @@ func localTimeRFC3339(value time.Time) string {
 type reorderRequest = httpapi.ReorderRequest
 
 func parseOptionalUintQueryFilter(value, field string) (*uint64, error) {
-	if value == "" {
-		return nil, nil
-	}
-	id, err := strconv.ParseUint(value, 10, 64)
-	if err != nil {
-		return nil, apperrors.WrapInvalidInput("invalid " + field)
-	}
-	return &id, nil
+	return httpapi.ParseOptionalUint64Field(value, field)
 }
 
 func (h *Handler) resolveStaffWithClinic(c *gin.Context) (clinicID, staffID uint64, ok bool) {
@@ -139,6 +138,9 @@ func (h *Handler) resolveStaffWithClinic(c *gin.Context) (clinicID, staffID uint
 	staffID, ok = parseIDParam(c, "id")
 	if !ok {
 		return 0, 0, false
+	}
+	if peekedSystemAdmin(c) {
+		return clinicID, staffID, true
 	}
 	if err := h.svc.Staff.VerifyClinicMembership(c.Request.Context(), staffID, clinicID); err != nil {
 		RespondError(c, err)

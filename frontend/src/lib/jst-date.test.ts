@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   buildJSTWallDateTime,
+  currentJSTMonthDateRange,
   currentJSTYearMonth,
   daysSince,
   formatJSTDate,
@@ -67,6 +68,20 @@ describe("jst-date", () => {
       expect(daysSince("2026-03-31", "2026-04-01")).toBe(1);
       // refDate がより過去の場合は負値を 0 にクランプする
       expect(daysSince("2026-04-01", "2026-03-31")).toBe(0);
+    });
+
+    it("currentJSTMonthDateRangeはJST当月の初日と末日を返す", () => {
+      vi.setSystemTime(new Date("2026-05-31T14:59:00Z"));
+      expect(currentJSTMonthDateRange()).toEqual({
+        start: "2026-05-01",
+        end: "2026-05-31",
+      });
+
+      vi.setSystemTime(new Date("2026-05-31T15:00:00Z"));
+      expect(currentJSTMonthDateRange()).toEqual({
+        start: "2026-06-01",
+        end: "2026-06-30",
+      });
     });
 
     it("currentJSTYearMonthはJSTの年月を返す", () => {

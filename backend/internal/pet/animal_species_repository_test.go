@@ -193,6 +193,23 @@ func TestAnimalSpeciesRepository_Delete(t *testing.T) {
 		err := repo.Delete(ctx, species.ID)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
+
+	t.Run("ペットが参照していれば Conflict で行は残る", func(t *testing.T) {
+		require.NoError(t, testdb.EnsureAutoMigrated(db, &model.Owner{}, &model.Pet{}))
+		used := &model.AnimalSpecies{Name: "使用中動物種"}
+		require.NoError(t, db.WithContext(ctx).Create(used).Error)
+		owner := testdb.MakeTestOwner(t, db, 1, "動物種削除飼主")
+		pet := &model.Pet{ClinicID: 1, OwnerID: owner.ID, AnimalSpeciesID: used.ID, Name: "参照ペット"}
+		require.NoError(t, db.WithContext(ctx).Create(pet).Error)
+
+		err := repo.Delete(ctx, used.ID)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsConflict(err), "expected Conflict, got %v", err)
+
+		got, findErr := repo.FindByID(ctx, used.ID)
+		require.NoError(t, findErr)
+		assert.Equal(t, used.ID, got.ID)
+	})
 }
 
 func TestAnimalSpeciesRepository_Reorder(t *testing.T) {

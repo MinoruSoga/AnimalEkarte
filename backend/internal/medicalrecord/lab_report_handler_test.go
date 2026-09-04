@@ -567,3 +567,55 @@ func TestGetLabExamReport_ExactFieldAllowlist_NilOptionalFields(t *testing.T) {
 		assert.True(t, allowed, "unexpected key in detail response (nil-optional case): %q", key)
 	}
 }
+
+// SEC-CODEX-UHQPM2 selected-clinic grant
+func TestLabReportSelectedClinicGrant(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name   string
+		invoke func(*LabReportHandler, *gin.Context)
+		query  *stubLabReportQueryService
+	}{
+		{
+			name: "GetLabJobReportSummaries returns 403 when selected clinic lacks lab-import view grant",
+			invoke: func(h *LabReportHandler, c *gin.Context) {
+				h.GetLabJobReportSummaries(c)
+			},
+			query: &stubLabReportQueryService{
+				listFn: func(_ context.Context, _ uint64, _ uuid.UUID) ([]model.LabExamReportSummary, error) {
+					t.Fatal("service must not be reached")
+					return nil, nil
+				},
+			},
+		},
+		{
+			name: "GetLabExamReport returns 403 when selected clinic lacks lab-import view grant",
+			invoke: func(h *LabReportHandler, c *gin.Context) {
+				h.GetLabExamReport(c)
+			},
+			query: &stubLabReportQueryService{
+				getFn: func(_ context.Context, _, _ uint64) (*model.LabExamReportDetail, error) {
+					t.Fatal("service must not be reached")
+					return nil, nil
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := NewLabReportHandler(tt.query)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			c.Params = gin.Params{{Key: "job_id", Value: uuid.New().String()}, {Key: "exam_id", Value: "10"}}
+			setClinicID(c)
+			c.Set("clinic_id", "2")
+			c.Set("is_system_admin", false)
+			setResourcePermissionOnlyClinic(c, 1, string(model.ResourceLabImport), "view")
+			tt.invoke(h, c)
+			assert.Equal(t, http.StatusForbidden, w.Code)
+		})
+	}
+}

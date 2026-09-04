@@ -22,10 +22,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/animal-ekarte/backend/internal/config"
-	"github.com/animal-ekarte/backend/internal/dbconn"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/animal-ekarte/backend/internal/config"
+	"github.com/animal-ekarte/backend/internal/dbconn"
 )
 
 // ManifestEntry is one entry in new-schema-import-manifest.json.

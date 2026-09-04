@@ -45,15 +45,22 @@ describe("transformHospitalization (HospitalizationResponse wire)", () => {
   });
 
   it("hospitalization_type: hospitalization → '入院'", () => {
-    expect(transformHospitalization({ ...minimal, hospitalization_type: "hospitalization" }).hospitalizationType).toBe("入院");
+    expect(
+      transformHospitalization({ ...minimal, hospitalization_type: "hospitalization" })
+        .hospitalizationType,
+    ).toBe("入院");
   });
 
   it("hospitalization_type: hotel → 'ホテル'", () => {
-    expect(transformHospitalization({ ...minimal, hospitalization_type: "hotel" }).hospitalizationType).toBe("ホテル");
+    expect(
+      transformHospitalization({ ...minimal, hospitalization_type: "hotel" }).hospitalizationType,
+    ).toBe("ホテル");
   });
 
   it("未知の hospitalization_type は '入院' にフォールバックする", () => {
-    expect(transformHospitalization({ ...minimal, hospitalization_type: "other" }).hospitalizationType).toBe("入院");
+    expect(
+      transformHospitalization({ ...minimal, hospitalization_type: "other" }).hospitalizationType,
+    ).toBe("入院");
   });
 
   it("start_date を整形する", () => {

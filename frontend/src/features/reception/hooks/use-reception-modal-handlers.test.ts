@@ -2,11 +2,7 @@ import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Pet } from "@/types";
-import {
-  DangerLevelHigh,
-  PetStatusAlive,
-  PetStatusDeceased,
-} from "@/types/generated/models";
+import { DangerLevelHigh, PetStatusAlive, PetStatusDeceased } from "@/types/generated/models";
 
 import { useReceptionModalHandlers } from "./use-reception-modal-handlers";
 import type { ReceptionAppointment } from "../api/types";
@@ -30,6 +26,7 @@ const baseAppointment: ReceptionAppointment = {
   id: "101",
   time: "09:45",
   visitDate: "2026-06-01",
+  end: new Date(2026, 5, 1, 10, 5, 0),
   ownerName: "山田",
   petType: "犬",
   petName: "ポチ",
@@ -98,12 +95,13 @@ function renderHandlers(
   const advanceStatus = vi.fn();
   const cancelAppointment = vi.fn();
   const view = renderHook(
-    (permissions: HandlerProps) => useReceptionModalHandlers({
-      advanceStatus,
-      cancelAppointment,
-      updateAppointment,
-      ...permissions,
-    }),
+    (permissions: HandlerProps) =>
+      useReceptionModalHandlers({
+        advanceStatus,
+        cancelAppointment,
+        updateAppointment,
+        ...permissions,
+      }),
     { initialProps: initialPermissions },
   );
   return { ...view, advanceStatus, cancelAppointment };
@@ -139,7 +137,7 @@ describe("useReceptionModalHandlers", () => {
     expect(result.current.editingAppointment?.start?.getHours()).toBe(9);
     expect(result.current.editingAppointment?.start?.getMinutes()).toBe(45);
     expect(result.current.editingAppointment?.end?.getHours()).toBe(10);
-    expect(result.current.editingAppointment?.end?.getMinutes()).toBe(45);
+    expect(result.current.editingAppointment?.end?.getMinutes()).toBe(5);
     expect(result.current.editingAppointment?.type).toBe("1");
     expect(result.current.editingAppointment?.doctor).toBe("33");
     expect(result.current.editingAppointment?.status).toBe("checked_in");
@@ -168,19 +166,16 @@ describe("useReceptionModalHandlers", () => {
       {
         id: "101",
         req: expect.objectContaining({
-          start_time: "2026-06-01T00:45:00.000Z",
-          end_time: "2026-06-01T01:45:00.000Z",
-          visit_type: "revisit",
           pet_id: 10,
           owner_id: 20,
-          reservation_type_id: 1,
-          doctor_id: 33,
-          is_designated: false,
           status: "checked_in",
         }),
       },
       expect.objectContaining({ onSuccess: expect.any(Function) }),
     );
+    const req = (updateReservationMock.mock.calls[0]?.[0] as { req: Record<string, unknown> }).req;
+    expect(req).not.toHaveProperty("start_time");
+    expect(req).not.toHaveProperty("end_time");
     expect(updateAppointment).toHaveBeenCalledWith(
       expect.objectContaining({
         id: "101",
@@ -307,16 +302,10 @@ describe("useReceptionModalHandlers", () => {
       );
     });
 
-    expect(updateReservationMock).toHaveBeenCalledWith(
-      {
-        id: "101",
-        req: expect.objectContaining({
-          reservation_type_id: undefined,
-          doctor_id: undefined,
-        }),
-      },
-      expect.objectContaining({ onSuccess: expect.any(Function) }),
-    );
+    expect(updateReservationMock).toHaveBeenCalledOnce();
+    const req = (updateReservationMock.mock.calls[0]?.[0] as { req: Record<string, unknown> }).req;
+    expect(req).not.toHaveProperty("reservation_type_id");
+    expect(req).not.toHaveProperty("doctor_id");
   });
 
   it("編集対象に新しく選択されたペットが死亡の場合は予約更新を拒否する", () => {
@@ -502,5 +491,60 @@ describe("useReceptionModalHandlers", () => {
 
     expect(toastSuccessMock).toHaveBeenCalledWith("予約を取り消しました");
     expect(result.current.cancelConfirmOpen).toBe(false);
+  });
+
+  describe("受付編集の終了時刻復元 (BUG-002)", () => {
+    const restoredEnd = new Date(2026, 5, 1, 10, 5, 0);
+    const appointmentWithRealEnd = {
+      ...baseAppointment,
+      end: restoredEnd,
+      notes: "元メモ",
+    };
+
+    it("handleEditAppointment は appointment.end の実終了時刻をフォームへ復元する", () => {
+      const { result } = renderHandlers();
+
+      act(() => {
+        result.current.handleEditAppointment(appointmentWithRealEnd);
+      });
+
+      expect(result.current.editingAppointment?.end?.getFullYear()).toBe(2026);
+      expect(result.current.editingAppointment?.end?.getMonth()).toBe(5);
+      expect(result.current.editingAppointment?.end?.getDate()).toBe(1);
+      expect(result.current.editingAppointment?.end?.getHours()).toBe(10);
+      expect(result.current.editingAppointment?.end?.getMinutes()).toBe(5);
+    });
+
+    it("復元した終了時刻のままメモだけ変更した保存では start_time/end_time を送らない", () => {
+      const { result } = renderHandlers();
+
+      act(() => {
+        result.current.handleEditAppointment(appointmentWithRealEnd);
+      });
+      act(() => {
+        result.current.handleEditSave(
+          {
+            start: new Date(2026, 5, 1, 9, 45, 0),
+            end: restoredEnd,
+            visitType: "revisit",
+            type: "1",
+            doctor: "33",
+            notes: "メモだけ変更",
+          },
+          [],
+        );
+      });
+
+      expect(updateReservationMock).toHaveBeenCalledOnce();
+      const payload = updateReservationMock.mock.calls[0]?.[0] as {
+        id: string;
+        req: Record<string, unknown>;
+      };
+      expect(payload.req).not.toHaveProperty("start_time");
+      expect(payload.req).not.toHaveProperty("end_time");
+      expect(payload.req).not.toHaveProperty("doctor_id");
+      expect(payload.req).not.toHaveProperty("reservation_type_id");
+      expect(payload.req.notes).toBe("メモだけ変更");
+    });
   });
 });

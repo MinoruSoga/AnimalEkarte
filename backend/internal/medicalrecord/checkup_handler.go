@@ -8,6 +8,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // CheckupHandler serves the Checkup (定期健診) HTTP boundary, including the typed
@@ -30,6 +31,9 @@ func NewCheckupHandler(service CheckupService, fieldResultService CheckupFieldRe
 func (h *CheckupHandler) ListCheckups(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMedicalRecords), "view") {
 		return
 	}
 
@@ -146,6 +150,9 @@ func (h *CheckupHandler) ListGlobalCheckups(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceCheckups), "view") {
+		return
+	}
 
 	page, limit, err := httpapi.ParsePagination(c)
 	if err != nil {
@@ -154,7 +161,11 @@ func (h *CheckupHandler) ListGlobalCheckups(c *gin.Context) {
 	}
 
 	query := newListGlobalCheckupsQuery(clinicID, c.Request.URL.Query())
-	input := query.toServiceInput()
+	input, err := query.toServiceInput()
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
 	input.Page = page
 	input.Limit = limit
 

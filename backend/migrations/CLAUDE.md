@@ -16,7 +16,7 @@
 - **CASCADE DELETE（原則禁止・例外あり）**: 下記の考え方に従うこと
 
   **禁止（絶対）**: `owners` / `pets` / `medical_records` 等の PHI・業務データが親となるCASCADEで、削除により診療履歴・会計・バイタル等が連鎖消去されうる設計は禁止。  
-  service 層で依存チェックして 409 を返す（P10 参照）を優先し、DBレベルのCASCADE に頼らない。
+  service 層で依存チェックして 409 を返すことを優先し、DBレベルのCASCADE に頼らない（backend CODING_RULES / application invariants 参照。旧 P1–P18 チェックリストは廃止済み）。
 
   **許容される例外**: "純粋な従属データ" で、親が消える時に必ず消えてよい行のみCASCADEを許容する。
   - 中間テーブル / join table（例: `permission_group_staffs`、`shift_template_reservation_types`）
@@ -41,7 +41,7 @@ docker compose exec db psql ...  # 直接 SQL 実行
 
 ## seed データは CSV が正、SQL は DDL のみ（2026-07 stub 削除 + 001 完全統合）
 
-`backend/migrations/` 直下の `.sql` は DDL 専用。2026-07-27 に当時の incremental 002–009 を原文のまま `001_init.sql` 末尾へ統合し、同日夕に追加分の incremental 002–004（`002_pets_owners_clinic_composite_unique` / `003_add_pet_owners` / `004_add_exam_result_qualitative_bounds`）も同じ方式で統合して、直下 DDL を単一ファイルへ戻した。2026-07-29 にさらに incremental 002–007（`pets.version` / exam_results index / inventory quantity CHECK / payments.clinic_id+clinic軸複合FK / payment method system_key 一致トリガー / owners phone 部分 unique）をセクション9へ同様式で統合した。2026-07-31 に append-only だった incremental 002–006（LSTEP day unique / closing EXCLUDE / identity links / LINE bot user id / medical-record image upload quota）をセクション10へ同様式で統合し、直下 DDL を再び `001_init.sql` 単一ファイルへ戻した。今後スキーマ変更を追加する場合も、適用済みファイルの checksum を変える影響を先に評価する。
+`backend/migrations/` 直下の `.sql` は DDL 専用。過去の incremental DDL は複数回に分けて原文のまま `001_init.sql` 末尾の統合セクションへ統合済み（各回の内訳・元コミット・SHA-256 は `001_init.sql` の統合セクションと git 履歴が正）。今後スキーマ変更を追加する場合も、適用済みファイルの checksum を変える影響を先に評価する。
 
 直下 DDL の顔ぶれ・本数は固定ではない（増分の追加・`001_init.sql` への統合で変わる）。正の在庫は次の実測とする:
 
@@ -49,13 +49,11 @@ docker compose exec db psql ...  # 直接 SQL 実行
 ls backend/migrations/*.sql
 ```
 
-seed 側の構成は `seeds/{002_master,003_demo,004_staging}/` — CSV シードバンドル（`*.csv` + `manifest.json`。SQL ファイルではない。`internal/seedbundle.BundleOrder` 固定順）。`001_init.sql` に取り込まれた旧増分の本文は、末尾の統合セクション（セクション8・9・10 等）に原文・元コミット・SHA-256 付きで残る。
-
-旧 002/003/004 の seed stub SQL、旧インデックス増分（`002_add_checkup_vaccination_indexes.sql` 等）、旧 005–012、2026-07-17 朝に一時的に存在した upgrade path incremental（`002_checkup_field_clinic_composite_fk.sql` / `003`–`011`）、2026-07-22〜27に追加された旧 incremental 002–009、2026-07-27 夕に統合した `002_pets_owners_clinic_composite_unique.sql` / `003_add_pet_owners.sql` / `004_add_exam_result_qualitative_bounds.sql`、2026-07-29に統合した `002_add_pets_version.sql`〜`007_owners_clinic_phone_unique.sql`、および2026-07-31に統合した `002_lstep_delivery_trigger_log_daily_unique.sql`〜`006_medical_record_image_upload_quota.sql` は全て独立ファイルとしては削除済み（統合当時の事実）。それら統合済み本文の所在は `001_init.sql` の統合セクション。**直下の現行増分の在庫は `ls backend/migrations/*.sql` を正とする**（本節にファイル名・本数を列挙しない）。
+seed 側の構成は `seeds/002_master/` — CSV シードバンドル（`*.csv` + `manifest.json`。SQL ファイルではない。`internal/seedbundle.BundleOrder` は master のみ）。医院骨格（clinics / 権限 / 検査 / トリミング予約種別 / 支払方法）は 002 に置く。臨床行は `_old_db_handoff` から local reset で入れる。`001_init.sql` に取り込まれた旧増分の本文は、末尾の統合セクション（セクション8・9・10 等）に原文・元コミット・SHA-256 付きで残る。
 
 **統合前DBのno-resetアップグレード経路は存在しない**: 旧 `001_init.sql` が `schema_migrations` に記録済みの既存 DB（ローカル/STG/PROD）は、001 統合による checksum 変更で migrate が fail する。適用経路は `DB_RESET=true` のスキーマ再構築（USER手動）のみ。ローカルは `LOCAL_DB_RESET.md`、STGは明示承認後の再構築計画に従う。現行Cloudflare workflowに自動reset経路はない。
 
-- **cmd/migrate は二段フェーズ構成**: ①直下の `*.sql`（本数は固定ではない。検算: `ls backend/migrations/*.sql`）を昇順適用 → ②`internal/seedbundle.BundleOrderForEnv(APP_ENV)` が許可した順で CSV バンドルを pgx `COPY FROM STDIN` ロード（`backend/cmd/migrate/csvbundle.go`）。local/dev/testは3 bundle、staging/production/空/未知は`002_master`のみ。DDL 失敗時は seed フェーズへ進まない
+- **cmd/migrate は二段フェーズ構成**: ①直下の `*.sql`（本数は固定ではない。検算: `ls backend/migrations/*.sql`）を昇順適用 → ②`internal/seedbundle.BundleOrderForEnv(APP_ENV)` が許可した順で CSV バンドルを pgx `COPY FROM STDIN` ロード（`backend/cmd/migrate/csvbundle.go`）。全環境 `002_master` のみ（003_demo / 004_staging 退役）。DDL 失敗時は seed フェーズへ進まない
 - 実行対象seedは `BundleOrderForEnv(APP_ENV)` が列挙する exact directoryだけ。`backend/migrations/seeds/_old_db_handoff/` はローカル保管用であり、`cmd/migrate` の入力bundleとして列挙しない
 - **schema_migrations の記録キー**: DDL は従来通りファイル名。seed バンドルは `internal/seedbundle.BundleMigrationKey(bundleDir)` が返す `"seeds/<bundle>"`（例: `seeds/002_master`）— stub SQL ファイル名には二度と紐付かない。fresh DB 適用後の正しい終了状態の行数は **直下 `*.sql` の本数 + `BundleOrderForEnv(APP_ENV)` が許可したseed数**。DDL 本数の検算は `ls backend/migrations/*.sql`
 - **両フェーズ後のキー突合（fail-closed）**: `cmd/migrate` は適用完了後に `Migration key coverage` 行を1行出す（`missing` / `extra` / `expected` / `recorded`）。`missing=0` なら期待キーは全て記録済み。欠落があれば非ゼロ終了する。`extra` は統合・削除でディスクから消えた履歴キーであり失敗にしない。再構築の成否は固定在庫数ではなくこのサマリー行で判定する

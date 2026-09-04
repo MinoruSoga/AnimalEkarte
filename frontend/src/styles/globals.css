@@ -13,18 +13,18 @@
   --primary: #038b94;
   --primary-active: #027078;
   --primary-foreground: #ffffff;
-  --secondary: #F1F0EE;
+  --secondary: #f1f0ee;
   --secondary-foreground: #000000;
-  --muted: #F1F0EE;
+  --muted: #f1f0ee;
   --muted-foreground: #615d59;
   --accent: #f6f5f4;
   --accent-foreground: #000000;
-  --destructive: #C0392B;
+  --destructive: #c0392b;
   --destructive-foreground: #ffffff;
   --border: #e6e6e6;
   --input: #dddddd;
   --input-background: rgba(242, 241, 238, 0.6);
-  --switch-background: #E3E2E0;
+  --switch-background: #e3e2e0;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
   --ring: #038b94;
@@ -87,42 +87,47 @@
 }
 
 @theme inline {
-  --font-sans: 'Inter', 'Noto Sans JP', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-sans: "Inter", "Noto Sans JP", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   /* ── DESIGN.md typography 字義スケール（FE11: size/line-height/letter-spacing の3属性を全ロールで一致させる）──
      Tailwind v4 の type-scale namespace は --text-*--line-height / --text-*--letter-spacing を伴走させられるため、
      呼び出し側のクラスを変えずに全域へ字義値を適用できる。 */
-  --text-xs: 0.875rem;  /* 14px — DESIGN.md caption */
-  --text-xs--line-height: 1.43;  /* DESIGN.md caption 1.43（Tailwind 既定 1.33 を上書き） */
-  --text-sm: 0.9375rem;  /* 15px — DESIGN.md body-sm */
-  --text-sm--line-height: 1.33;  /* DESIGN.md body-sm 1.33（Tailwind 既定 1.43 を上書き） */
-  --text-base--line-height: 1.5;  /* DESIGN.md body-md 1.5 */
-  --text-xl--letter-spacing: -0.125px;  /* DESIGN.md title の負トラッキング（Inter 代替時は明示適用と規定） */
+  --text-xs: 0.875rem; /* 14px — DESIGN.md caption */
+  --text-xs--line-height: 1.43; /* DESIGN.md caption 1.43（Tailwind 既定 1.33 を上書き） */
+  --text-sm: 0.9375rem; /* 15px — DESIGN.md body-sm */
+  --text-sm--line-height: 1.33; /* DESIGN.md body-sm 1.33（Tailwind 既定 1.43 を上書き） */
+  --text-base--line-height: 1.5; /* DESIGN.md body-md 1.5 */
+  --text-xl--letter-spacing: -0.125px; /* DESIGN.md title の負トラッキング（Inter 代替時は明示適用と規定） */
   /* DESIGN.md heading ロール（FE11-F4）。Tailwind 既定の text-2xl/3xl/4xl(24/30/36px) は
      DESIGN.md のスケールに存在しない値なので、描画箇所を以下のロールへ写像する。 */
-  --text-heading-3: 1.375rem;  /* 22px — カードタイトル */
+  --text-heading-3: 1.375rem; /* 22px — カードタイトル */
   --text-heading-3--line-height: 1.27;
   --text-heading-3--letter-spacing: -0.25px;
-  --text-heading-2: 1.625rem;  /* 26px — サブセクション見出し */
+  --text-heading-2: 1.625rem; /* 26px — サブセクション見出し */
   --text-heading-2--line-height: 1.23;
   --text-heading-2--letter-spacing: -0.625px;
-  --text-heading-1: 2.5rem;  /* 40px — ページ/セクション見出し */
+  --text-heading-1: 2.5rem; /* 40px — ページ/セクション見出し */
   --text-heading-1--line-height: 1.1;
   --text-heading-1--letter-spacing: -1px;
-  --notion-shadow: rgba(15,15,15,0.04) 0px 0px 0px 1px, rgba(15,15,15,0.04) 0px 4px 18px;
-  --notion-shadow-btn: rgba(15,15,15,0.04) 0px 1px 2px;
+  --notion-shadow: rgba(15, 15, 15, 0.04) 0px 0px 0px 1px, rgba(15, 15, 15, 0.04) 0px 4px 18px;
+  --notion-shadow-btn: rgba(15, 15, 15, 0.04) 0px 1px 2px;
   /* FE9-1: DESIGN.md §5 Elevation 実装トークン（design-system.md §5.1 が正本。Tailwind v4 が shadow-level1 等を生成） */
-  --shadow-level1: 0 0.175px 1.041px rgba(0,0,0,0.01), 0 0.8px 2.925px rgba(0,0,0,0.02), 0 2.025px 7.847px rgba(0,0,0,0.027), 0 4px 18px rgba(0,0,0,0.04);
-  --shadow-level2: 0 0.8px 2.9px rgba(0,0,0,0.02), 0 2px 7.8px rgba(0,0,0,0.027), 0 4px 18px rgba(0,0,0,0.04), 0 10px 32px rgba(0,0,0,0.045), 0 23px 52px rgba(0,0,0,0.05);
-  --shadow-btn: rgba(15,15,15,0.04) 0px 1px 2px;
-  --shadow-panel: -1px 0 5px rgba(0,0,0,0.02);
+  --shadow-level1:
+    0 0.175px 1.041px rgba(0, 0, 0, 0.01), 0 0.8px 2.925px rgba(0, 0, 0, 0.02),
+    0 2.025px 7.847px rgba(0, 0, 0, 0.027), 0 4px 18px rgba(0, 0, 0, 0.04);
+  --shadow-level2:
+    0 0.8px 2.9px rgba(0, 0, 0, 0.02), 0 2px 7.8px rgba(0, 0, 0, 0.027),
+    0 4px 18px rgba(0, 0, 0, 0.04), 0 10px 32px rgba(0, 0, 0, 0.045),
+    0 23px 52px rgba(0, 0, 0, 0.05);
+  --shadow-btn: rgba(15, 15, 15, 0.04) 0px 1px 2px;
+  --shadow-panel: -1px 0 5px rgba(0, 0, 0, 0.02);
   --shadow-focus-primary: 0 0 0 2px #038b94;
   --shadow-focus-brand: 0 0 0 2px #038b94;
   /* FE9-2: STYLE.brandGlow（Layout ナビ進捗バーの brand グロー）の任意値を C10 ガード対象外化のためトークン化。値は既存直値のまま。 */
-  --shadow-brand-glow: 0 0 8px rgba(3,139,148,0.5);
-  --shadow-primary-glow: 0 0 8px rgba(3,139,148,0.5);
-  --text-2xs: 0.75rem;  /* 12px — DESIGN.md eyebrow 最小段（FE10 字義化: 11px 製品拡張を撤回） */
-  --text-2xs--line-height: 1.33;  /* DESIGN.md eyebrow 1.33（FE11: 製品値 1.45 を撤回） */
-  --text-2xs--letter-spacing: 0.125px;  /* DESIGN.md eyebrow +0.125px（FE11: tracking-wide=+0.3px 代用を撤回） */
+  --shadow-brand-glow: 0 0 8px rgba(3, 139, 148, 0.5);
+  --shadow-primary-glow: 0 0 8px rgba(3, 139, 148, 0.5);
+  --text-2xs: 0.75rem; /* 12px — DESIGN.md eyebrow 最小段（FE10 字義化: 11px 製品拡張を撤回） */
+  --text-2xs--line-height: 1.33; /* DESIGN.md eyebrow 1.33（FE11: 製品値 1.45 を撤回） */
+  --text-2xs--letter-spacing: 0.125px; /* DESIGN.md eyebrow +0.125px（FE11: tracking-wide=+0.3px 代用を撤回） */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -177,15 +182,28 @@
   }
 
   html {
-    font-family: 'Inter', 'Noto Sans JP', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family:
+      "Inter",
+      "Noto Sans JP",
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      sans-serif;
   }
 
   body {
     @apply bg-background text-foreground;
-    font-family: 'Inter', 'Noto Sans JP', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family:
+      "Inter",
+      "Noto Sans JP",
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      sans-serif;
   }
 
-  html, body {
+  html,
+  body {
     width: 100%;
     height: 100%;
     margin: 0;
@@ -203,7 +221,7 @@
  * Base typography. This is not applied to elements which have an ancestor with a Tailwind text class.
  */
 @layer base {
-  :where(:not(:has([class*=' text-']), :not(:has([class^='text-'])))) {
+  :where(:not(:has([class*=" text-"]), :not(:has([class^="text-"])))) {
     /* FE11-F4: DESIGN.md heading ロールへ整列（旧 text-2xl/xl/lg = 24/20/18px は DESIGN.md 非仕様値） */
     h1 {
       font-size: var(--text-heading-2);
@@ -263,8 +281,15 @@ html {
 }
 
 /* Override Tailwind preflight font-family */
-html, body {
-  font-family: 'Inter', 'Noto Sans JP', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+html,
+body {
+  font-family:
+    "Inter",
+    "Noto Sans JP",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif !important;
 }
 
 @keyframes progress-indeterminate {

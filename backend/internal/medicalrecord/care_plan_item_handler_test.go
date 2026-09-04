@@ -567,3 +567,43 @@ func TestDeleteCarePlanItem(t *testing.T) {
 //    - Test parent hierarchy isolation
 //    - Test FK constraints (care_plan_id must exist)
 //
+
+// SEC-CODEX-UHQPM2 selected-clinic grant
+func TestListCarePlanItemsSelectedClinicGrant(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name   string
+		invoke func(*CarePlanItemHandler, *gin.Context)
+		svc    *mockCarePlanItemService
+	}{
+		{
+			name: "ListCarePlanItems returns 403 when selected clinic lacks hospitalization view grant",
+			invoke: func(h *CarePlanItemHandler, c *gin.Context) {
+				h.ListCarePlanItems(c)
+			},
+			svc: &mockCarePlanItemService{
+				listFn: func(_ context.Context, _, _ uint64) ([]model.CarePlanItem, error) {
+					t.Fatal("service must not be reached")
+					return nil, nil
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithCarePlanItemSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: "10"}}
+			setClinicID(c)
+			c.Set("clinic_id", "2")
+			c.Set("is_system_admin", false)
+			setResourcePermissionOnlyClinic(c, 1, string(model.ResourceHospitalization), "view")
+			tt.invoke(h, c)
+			assert.Equal(t, http.StatusForbidden, w.Code)
+		})
+	}
+}

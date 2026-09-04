@@ -41,12 +41,18 @@ describe("transformTrimming", () => {
   });
 
   it("start_time を T以前の日付部分のみに整形する", () => {
-    const result = transformTrimming({ ...minimalBackend, start_time: "2026-03-25T10:00:00+09:00" });
+    const result = transformTrimming({
+      ...minimalBackend,
+      start_time: "2026-03-25T10:00:00+09:00",
+    });
     expect(result.date).toBe("2026-03-25");
   });
 
   it("start_time が未設定のとき空文字を返す", () => {
-    const result = transformTrimming({ ...minimalBackend, start_time: undefined as unknown as string });
+    const result = transformTrimming({
+      ...minimalBackend,
+      start_time: undefined as unknown as string,
+    });
     expect(result.date).toBe("");
   });
 
@@ -146,13 +152,19 @@ describe("transformTrimming", () => {
   it("optionIds は options 配列の id を string 変換したリスト", () => {
     const result = transformTrimming({
       ...minimalBackend,
-      options: [{ id: 1, name: "爪切り" }, { id: 2, name: "耳掃除" }],
+      options: [
+        { id: 1, name: "爪切り" },
+        { id: 2, name: "耳掃除" },
+      ],
     });
     expect(result.optionIds).toEqual(["1", "2"]);
   });
 
   it("options が未設定のとき optionIds は空配列", () => {
-    const result = transformTrimming({ ...minimalBackend, options: undefined as unknown as BackendTrimming["options"] });
+    const result = transformTrimming({
+      ...minimalBackend,
+      options: undefined as unknown as BackendTrimming["options"],
+    });
     expect(result.optionIds).toEqual([]);
   });
 });

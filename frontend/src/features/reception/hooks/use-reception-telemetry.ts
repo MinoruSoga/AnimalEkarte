@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ColumnData } from "@/types";
-import { computeCheckedInWaitStats, computeReceptionTotalCount, type TelemetryWaitStats } from "../lib/reception-telemetry";
+import {
+  computeCheckedInWaitStats,
+  computeReceptionTotalCount,
+  type TelemetryWaitStats,
+} from "../lib/reception-telemetry";
 
 const RECOMPUTE_INTERVAL_MS = 60_000;
 

@@ -15,9 +15,7 @@ const KNOWN_STATUS_MAP: Record<string, Exclude<HospitalizationStatus, "不明">>
  * treatment_plans / care_plan_items / daily_records は detail wire に無い
  * （専用 nested endpoint が正本）。
  */
-export const transformHospitalization = (
-  hosp: BackendHospitalization
-) => {
+export const transformHospitalization = (hosp: BackendHospitalization) => {
   const typeMap: Record<string, HospitalizationType> = {
     hospitalization: "入院",
     hotel: "ホテル",

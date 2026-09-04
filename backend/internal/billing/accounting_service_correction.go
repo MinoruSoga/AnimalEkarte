@@ -58,131 +58,114 @@ func (s *accountingService) CorrectCreditPayment(ctx context.Context, input *Cor
 		return nil, apperrors.WrapInvalidInput("訂正金額は1円以上でなければなりません")
 	}
 
+	var updated *model.Billing
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		// FOR UPDATE で確定済み会計を行ロック取得（多重訂正・返金との競合を防止）
-		billing, err := s.repo.LockAndFindByID(txCtx, input.ClinicID, input.BillingID)
-		if err != nil {
-			slog.ErrorContext(txCtx, "failed to lock billing for credit correction", "error", err, "billing_id", input.BillingID)
-			return apperrors.Wrap(err, "failed to lock billing for credit correction")
-		}
-
-		// 確定済み（completed）以外は訂正不可。確定前は通常の編集フロー（PATCH）で対応する。
-		if billing.Status != model.BillingStatusCompleted {
-			return apperrors.WrapInvalidInput("確定済みの会計のみクレジット訂正できます")
-		}
-
-		// 訂正対象のカード内訳を特定
-		targetIdx := -1
-		for i := range billing.PaymentSplits {
-			if billing.PaymentSplits[i].Method == input.Method {
-				targetIdx = i
-				break
-			}
-		}
-		if targetIdx < 0 {
-			return apperrors.WrapInvalidInput("対象のカード支払い内訳が存在しません")
-		}
-		target := billing.PaymentSplits[targetIdx]
-
-		if len(billing.Payments) == 0 {
-			return apperrors.WrapInvalidInput("支払い情報が存在しません")
-		}
-		oldBillingAmount := billing.Payments[0].BillingAmount
-
-		// 訂正後の内訳を新規スライスとして構築（既存はミューテートしない）
-		corrected := make([]model.PaymentSplit, len(billing.PaymentSplits))
-		copy(corrected, billing.PaymentSplits)
-		corrected[targetIdx].Amount = input.Amount
-		corrected[targetIdx].ReceivedAmount = 0 // カード内訳は受領額・お釣りを持たない（既存の格納規約）
-		corrected[targetIdx].ChangeAmount = 0
-		corrected[targetIdx].PaidBy = input.StaffID
-
-		var newBillingAmount int64
-		for i := range corrected {
-			newBillingAmount += corrected[i].Amount
-		}
-
-		// 整合検証（重複手段・金額>0・現金お釣り整合。#188 上書きは再導出済みで維持）。
-		// billingAmount 引数には意図的に nil を渡す（総額照合はしない）。
-		// 訂正は「実際に決済された金額」へ billing_amount を再定義するフロー（#188 のレジ実態記録と同思想）で、
-		// 総額は corrected 内訳の合計そのもの（newBillingAmount）に従属する。ゆえに &newBillingAmount を渡すと
-		// validatePaymentSplits 内の total==*billingAmount 照合は sum==sum で恒真＝無検証になり、呼び出し形が誤解を招く。
-		// PO 決定（2026-07-02・bug.md M-1）: 本挙動（総額変更許容＋監査 delta 記録）を最終仕様として確定。
-		// 厳格化（訂正後合計＝請求額の強制）は、単一 split 書換 API と「保存済み内訳合計＝請求額」の
-		// 不変条件の下では金額を変える全訂正を 400 にするため不採用（詳細は #189 コメント）。
-		if err := validatePaymentSplits(toValidationInputs(corrected), nil); err != nil {
-			return apperrors.Wrap(err, "failed to validate corrected payment splits")
-		}
-
-		// 支払いヘッダは既存値を保全し billing_amount のみ再計算（医療費・保険・割引は不変）
-		payment := billing.Payments[0]
-		payment.BillingAmount = newBillingAmount
-		if err := s.repo.SavePayment(txCtx, &payment); err != nil {
-			slog.ErrorContext(txCtx, "failed to save payment during credit correction", "error", err, "billing_id", input.BillingID)
-			return apperrors.Wrap(err, "failed to save payment during credit correction")
-		}
-		if err := s.repo.SavePaymentSplits(txCtx, corrected); err != nil {
-			slog.ErrorContext(txCtx, "failed to save payment splits during credit correction", "error", err, "billing_id", input.BillingID)
-			return apperrors.Wrap(err, "failed to save payment splits during credit correction")
-		}
-
-		slog.InfoContext(txCtx, "credit payment corrected",
-			slog.Uint64("clinic_id", input.ClinicID),
-			slog.Uint64("billing_id", input.BillingID),
-			slog.String("method", string(input.Method)),
-			slog.Int64("before_amount", target.Amount),
-			slog.Int64("after_amount", input.Amount))
-
-		// M-1: 総額（billing_amount）が変化した訂正は売上金額の改変であり、追跡可能性のため明示的に記録する。
-		if oldBillingAmount != newBillingAmount {
-			slog.InfoContext(txCtx, "credit correction changed billing amount",
-				slog.Uint64("clinic_id", input.ClinicID),
-				slog.Uint64("billing_id", input.BillingID),
-				slog.Int64("old_billing_amount", oldBillingAmount),
-				slog.Int64("new_billing_amount", newBillingAmount))
-		}
-
-		// M-2 / W-013 HIGH-1: write 時に締め状態を再評価。handler フラグのみに依存しない。
-		postClose, err := s.resolvePostCloseInTx(txCtx, input.ClinicID, billing.ScheduledDate, input.IsPostClose)
-		if err != nil {
+		if err := s.correctCreditPaymentInTx(txCtx, input); err != nil {
 			return err
 		}
-		if postClose {
-			input.IsPostClose = true
-			slog.WarnContext(txCtx, "credit correction on closed period",
-				slog.Uint64("clinic_id", input.ClinicID),
-				slog.Uint64("billing_id", input.BillingID),
-				slog.String("scheduled_date", billing.ScheduledDate.Format(time.DateOnly)))
-			// HIGH-2: 監査に加え append-only adjustment を同一 tx で fail-closed に残す。
-			if err := s.recordPostCloseAdjustment(
-				txCtx,
-				input.ClinicID,
-				input.BillingID,
-				billing.ScheduledDate,
-				input.Reason,
-				input.StaffID,
-				newBillingAmount-oldBillingAmount,
-			); err != nil {
-				return err
-			}
+		loaded, err := s.repo.FindByID(txCtx, input.ClinicID, input.BillingID)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to reload accounting after credit correction")
 		}
-
-		// 監査ログ（fail-closed: 失敗時は tx をロールバックし訂正ごと無効にする。BE-refactor.md R1-2・#211 パターン踏襲）
-		if err := s.logCreditCorrection(txCtx, input, &target, oldBillingAmount, newBillingAmount, billing.ScheduledDate); err != nil {
-			return err
-		}
+		updated = loaded
 		return nil
 	}); err != nil {
 		return nil, apperrors.Wrap(err, "failed to correct credit payment in transaction")
 	}
-
-	// 訂正後の最新レコードを返す
-	updated, err := s.repo.FindByID(ctx, input.ClinicID, input.BillingID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to reload accounting after credit correction", "error", err, "billing_id", input.BillingID)
-		return nil, apperrors.Wrap(err, "failed to reload accounting after credit correction")
-	}
 	return updated, nil
+}
+
+func (s *accountingService) correctCreditPaymentInTx(txCtx context.Context, input *CorrectCreditPaymentInput) error {
+	billing, err := s.repo.LockAndFindByID(txCtx, input.ClinicID, input.BillingID)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to lock billing for credit correction")
+	}
+
+	if billing.Status != model.BillingStatusCompleted {
+		return apperrors.WrapInvalidInput("確定済みの会計のみクレジット訂正できます")
+	}
+
+	targetIdx := -1
+	for i := range billing.PaymentSplits {
+		if billing.PaymentSplits[i].Method == input.Method {
+			targetIdx = i
+			break
+		}
+	}
+	if targetIdx < 0 {
+		return apperrors.WrapInvalidInput("対象のカード支払い内訳が存在しません")
+	}
+	target := billing.PaymentSplits[targetIdx]
+
+	if len(billing.Payments) == 0 {
+		return apperrors.WrapInvalidInput("支払い情報が存在しません")
+	}
+	oldBillingAmount := billing.Payments[0].BillingAmount
+
+	corrected := make([]model.PaymentSplit, len(billing.PaymentSplits))
+	copy(corrected, billing.PaymentSplits)
+	corrected[targetIdx].Amount = input.Amount
+	corrected[targetIdx].ReceivedAmount = 0
+	corrected[targetIdx].ChangeAmount = 0
+	corrected[targetIdx].PaidBy = input.StaffID
+
+	var newBillingAmount int64
+	for i := range corrected {
+		newBillingAmount += corrected[i].Amount
+	}
+
+	if err := validatePaymentSplits(toValidationInputs(corrected), nil); err != nil {
+		return apperrors.Wrap(err, "failed to validate corrected payment splits")
+	}
+
+	payment := billing.Payments[0]
+	payment.BillingAmount = newBillingAmount
+	if err := s.repo.SavePayment(txCtx, &payment); err != nil {
+		return apperrors.Wrap(err, "failed to save payment during credit correction")
+	}
+	if err := s.repo.SavePaymentSplits(txCtx, corrected); err != nil {
+		return apperrors.Wrap(err, "failed to save payment splits during credit correction")
+	}
+
+	slog.InfoContext(txCtx, "credit payment corrected",
+		slog.Uint64("clinic_id", input.ClinicID),
+		slog.Uint64("billing_id", input.BillingID),
+		slog.String("method", string(input.Method)),
+		slog.Int64("before_amount", target.Amount),
+		slog.Int64("after_amount", input.Amount))
+
+	if oldBillingAmount != newBillingAmount {
+		slog.InfoContext(txCtx, "credit correction changed billing amount",
+			slog.Uint64("clinic_id", input.ClinicID),
+			slog.Uint64("billing_id", input.BillingID),
+			slog.Int64("old_billing_amount", oldBillingAmount),
+			slog.Int64("new_billing_amount", newBillingAmount))
+	}
+
+	postClose, err := s.resolvePostCloseInTx(txCtx, input.ClinicID, billing.ScheduledDate, input.IsPostClose)
+	if err != nil {
+		return err
+	}
+	if postClose {
+		input.IsPostClose = true
+		slog.WarnContext(txCtx, "credit correction on closed period",
+			slog.Uint64("clinic_id", input.ClinicID),
+			slog.Uint64("billing_id", input.BillingID),
+			slog.String("scheduled_date", billing.ScheduledDate.Format(time.DateOnly)))
+		if err := s.recordPostCloseAdjustment(
+			txCtx,
+			input.ClinicID,
+			input.BillingID,
+			billing.ScheduledDate,
+			input.Reason,
+			input.StaffID,
+			newBillingAmount-oldBillingAmount,
+		); err != nil {
+			return err
+		}
+	}
+
+	return s.logCreditCorrection(txCtx, input, &target, oldBillingAmount, newBillingAmount, billing.ScheduledDate)
 }
 
 // logCreditCorrection はクレジット訂正の監査ログを記録する（before/after・理由・メモ・実行者）。

@@ -340,3 +340,43 @@ func TestMedicineDoseParamRouteTreeCoexistence(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w2.Code)
 	assert.True(t, listCalled, "/medicines/:id/dose-params は list ハンドラへ解決される")
 }
+
+// SEC-CODEX-UHQPM2 selected-clinic grant
+func TestListMedicineDoseParamsSelectedClinicGrant(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name   string
+		invoke func(*MedicineDoseParamHandler, *gin.Context)
+		svc    *mockMedicineDoseParamService
+	}{
+		{
+			name: "ListMedicineDoseParams returns 403 when selected clinic lacks master-medical view grant",
+			invoke: func(h *MedicineDoseParamHandler, c *gin.Context) {
+				h.ListMedicineDoseParams(c)
+			},
+			svc: &mockMedicineDoseParamService{
+				listFn: func(_ context.Context, _, _ uint64) ([]model.MedicineDoseParam, error) {
+					t.Fatal("service must not be reached")
+					return nil, nil
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithDoseParamSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: "10"}}
+			setClinicID(c)
+			c.Set("clinic_id", "2")
+			c.Set("is_system_admin", false)
+			setResourcePermissionOnlyClinic(c, 1, string(model.ResourceMasterMedical), "view")
+			tt.invoke(h, c)
+			assert.Equal(t, http.StatusForbidden, w.Code)
+		})
+	}
+}

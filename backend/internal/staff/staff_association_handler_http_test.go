@@ -29,6 +29,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 	staffdomain "github.com/animal-ekarte/backend/internal/staff"
 )
@@ -331,6 +332,26 @@ func TestSetStaffClinicAssignments_Characterization(t *testing.T) {
 		newHandlerWithStaffSvc(svc).SetStaffClinicAssignments(staffAssocCtx(w, http.MethodPut, []byte(`{"clinic_ids":[1,3]}`)))
 		require.Equal(t, http.StatusOK, w.Code)
 		assert.JSONEq(t, `{"clinic_ids":[1,3]}`, w.Body.String())
+	})
+
+	t.Run("403 when adding a clinic that lacks master-staff:edit", func(t *testing.T) {
+		svc := &mockStaffService{
+			setClinicAssignmentsFn: func(_ context.Context, _ *staffdomain.SetClinicAssignmentsInput) error {
+				t.Fatal("service must not assign a clinic that lacks master-staff:edit")
+				return nil
+			},
+		}
+		w := httptest.NewRecorder()
+		c := staffAssocCtx(w, http.MethodPut, []byte(`{"clinic_ids":[1,3]}`))
+		httpapi.SetClinicPermissionChecker(c, func(_ *gin.Context, clinicID uint64, resource, action string) bool {
+			return clinicID == 1 &&
+				resource == string(model.ResourceMasterStaff) &&
+				action == "edit"
+		})
+
+		newHandlerWithStaffSvc(svc).SetStaffClinicAssignments(c)
+
+		assert.Equal(t, http.StatusForbidden, w.Code)
 	})
 
 	t.Run("200 deduplicates clinic_ids while preserving order", func(t *testing.T) {

@@ -182,28 +182,28 @@ func (s *clinicalPlanService) validateDiagnosisTypeNameConsistency(ctx context.C
 
 func (s *clinicalPlanService) GetOrCreate(ctx context.Context, clinicID, medicalRecordID uint64) (*model.ClinicalPlan, error) {
 	plan, err := s.repo.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
-	if err != nil {
-		if !apperrors.IsNotFound(err) {
-			slog.ErrorContext(ctx, "failed to get clinical plan", "error", err)
-			return nil, apperrors.Wrap(err, "failed to get clinical plan")
-		}
-		if _, ownerErr := s.medRec.FindByID(ctx, clinicID, medicalRecordID); ownerErr != nil {
-			if !apperrors.IsNotFound(ownerErr) {
-				slog.ErrorContext(ctx, "failed to verify parent medical record", "error", ownerErr)
-			}
-			return nil, apperrors.Wrap(ownerErr, "failed to verify parent medical record")
-		}
-		plan = &model.ClinicalPlan{MedicalRecordID: medicalRecordID}
-		if err := s.repo.Create(ctx, plan); err != nil {
-			slog.ErrorContext(ctx, "failed to create clinical plan", "error", err)
-			return nil, apperrors.Wrap(err, "failed to create clinical plan")
-		}
-		slog.InfoContext(ctx, "clinical_plan created",
-			slog.Uint64("clinic_id", clinicID),
-			slog.Uint64("clinical_plan_id", plan.ID),
-			slog.Uint64("medical_record_id", medicalRecordID))
+	if err == nil {
 		return plan, nil
 	}
+	if !apperrors.IsNotFound(err) {
+		slog.ErrorContext(ctx, "failed to get clinical plan", "error", err)
+		return nil, apperrors.Wrap(err, "failed to get clinical plan")
+	}
+	if _, ownerErr := s.medRec.FindByID(ctx, clinicID, medicalRecordID); ownerErr != nil {
+		if !apperrors.IsNotFound(ownerErr) {
+			slog.ErrorContext(ctx, "failed to verify parent medical record", "error", ownerErr)
+		}
+		return nil, apperrors.Wrap(ownerErr, "failed to verify parent medical record")
+	}
+	plan = &model.ClinicalPlan{MedicalRecordID: medicalRecordID}
+	if err := s.repo.Create(ctx, plan); err != nil {
+		slog.ErrorContext(ctx, "failed to create clinical plan", "error", err)
+		return nil, apperrors.Wrap(err, "failed to create clinical plan")
+	}
+	slog.InfoContext(ctx, "clinical_plan created",
+		slog.Uint64("clinic_id", clinicID),
+		slog.Uint64("clinical_plan_id", plan.ID),
+		slog.Uint64("medical_record_id", medicalRecordID))
 	return plan, nil
 }
 

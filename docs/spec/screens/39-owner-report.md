@@ -95,7 +95,7 @@
 | メソッド | エンドポイント | 用途 | 必須権限 |
 |:---|:---|:---|:---|
 | GET | `/api/v1/owners/:id` | 飼主基本情報 | `owners:view` |
-| GET | `/api/v1/pets?owner_id=` | 同居ペット一覧 | `owners:view` |
+| GET | `/api/v1/owners/:id/report/pets` | Owner Report用に絞った同居ペット一覧 | `owners:view` |
 | GET | `/api/v1/pets/:id/first-visit` | 初診日 | `medical-records:view` |
 | GET | `/api/v1/medical-records?pet_id=&status=finalized&sort=date&order=desc` | 前回診療・診療履歴（最大100件） | `medical-records:view` |
 | GET | `/api/v1/pets/:id/treatment-history` | 薬・処方と処置（filter=all） | `medical-records:view` |

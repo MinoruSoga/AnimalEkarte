@@ -148,6 +148,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	reservations.GET("/available-times", h.requirePermission(string(model.ResourceReservations), "view"), h.reservationCRUD.GetReservationAvailableTimes)
 	reservations.GET("/:id", h.requirePermission(string(model.ResourceReservations), "view"), h.reservationCRUD.GetReservation)
 	reservations.POST("", h.requirePermission(string(model.ResourceReservations), "create"), h.reservationCRUD.CreateReservation)
+	reservations.POST("/batch", h.requirePermission(string(model.ResourceReservations), "create"), h.reservationCRUD.CreateReservationBatch)
 	reservations.PATCH("/:id", h.requirePermission(string(model.ResourceReservations), "edit"), h.reservationCRUD.UpdateReservation)
 	reservations.PATCH("/:id/reservation-route", h.requirePermission(string(model.ResourceReservations), "edit"), h.reservationCRUD.UpdateReservationReservationRoute)
 	reservations.DELETE("/:id", h.requirePermission(string(model.ResourceReservations), "delete"), h.reservationCRUD.DeleteReservation)

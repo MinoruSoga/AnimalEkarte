@@ -1,15 +1,19 @@
 # 予防接種入力/編集 仕様書 (Vaccination Form)
 
 ## 概要
-- **画面の目的**: ワクチン接種等の詳細記録（ロット番号）の作成、および次回予定日の管理。
+- **画面の目的**: ワクチン接種等の詳細記録（ロット番号）の編集、および次回予定日の管理。
 - **URLパターン**: 
-  - 新規作成: `/vaccinations/new?petId=xxx`
+  - 新規作成: `/vaccinations/new?petId=xxx`（`petId` 未指定時はペット選択へ誘導）。カルテ「予防接種」タブにも別の入力実装がある
   - 編集: `/vaccinations/:id`
-- **アクセス権限**: 親 `/vaccinations` は `ResourceVaccinations` **`view`**。`/new` は **`create`**。`:id` は親 view 継承、保存/削除は `usePermission`
+- **アクセス権限**: 親 `/vaccinations` は `ResourceVaccinations` **`view`**。`:id` は親 view 継承、保存/削除は `usePermission`
 
 ---
 
 ## 1. 画面構成
+
+### 1.0 患者ヘッダー
+- **`PatientInfoCard`**: `formatPatientPetDetails` に `species` / 生年月日 / 性別 / 去勢避妊を渡す。動物種は先頭に実データを出す。欠損の年齢・性別・去勢避妊だけ「不明」（固定ダミーの「犬」は使わない）。
+- カルテ「予防接種」タブ（[06-medical-records-form.md](./06-medical-records-form.md)）は本画面とは別実装。タブ左ペインの一覧も同じ `GET /vaccinations?pet_id=` を使う。
 
 ### 1.1 接種基本情報
 - **接種日**: 必須入力（未入力はエラー）。未来日は選択不可。

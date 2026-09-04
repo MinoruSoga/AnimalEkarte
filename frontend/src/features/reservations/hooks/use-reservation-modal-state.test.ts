@@ -13,12 +13,14 @@ describe("useReservationModalState", () => {
     );
 
     expect(result.current.isFormOpen).toBe(true);
-    expect(result.current.editingAppointment).toEqual(expect.objectContaining({
-      status: "checked_in",
-      reservationRoute: "reception",
-      source: "manual",
-      visitType: "first",
-    }));
+    expect(result.current.editingAppointment).toEqual(
+      expect.objectContaining({
+        status: "checked_in",
+        reservationRoute: "reception",
+        source: "manual",
+        visitType: "first",
+      }),
+    );
     expect(result.current.editingAppointment?.start?.getMinutes()).toBe(15);
     expect(result.current.editingAppointment?.end?.getTime()).toBe(
       (result.current.editingAppointment?.start?.getTime() ?? 0) + 60 * 60 * 1000,
@@ -36,10 +38,12 @@ describe("useReservationModalState", () => {
     );
 
     expect(result.current.isFormOpen).toBe(true);
-    expect(result.current.editingAppointment).toEqual(expect.objectContaining({
-      status: "confirmed",
-      visitType: "first",
-    }));
+    expect(result.current.editingAppointment).toEqual(
+      expect.objectContaining({
+        status: "confirmed",
+        visitType: "first",
+      }),
+    );
     // 受付 walk-in と異なり reservationRoute は強制しない（モーダルで選択）
     expect(result.current.editingAppointment?.reservationRoute).toBeUndefined();
     expect(result.current.editingAppointment?.start?.getMinutes()).toBe(15);

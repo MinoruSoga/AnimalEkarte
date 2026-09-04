@@ -1,7 +1,13 @@
 import { useActionState, useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { CalendarDays, Clock, Plus, Trash2 } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
@@ -11,12 +17,9 @@ import {
   useCreateAvailableSlot,
   useDeleteAvailableSlot,
 } from "../api/reservation-type-available-slots";
-import {
-  AvailableSlotTypeWeekly,
-  AvailableSlotTypeSpecific,
-} from "@/types/generated/models";
+import { AvailableSlotTypeWeekly, AvailableSlotTypeSpecific } from "@/types/generated/models";
 import { TIME_SELECT_ITEMS } from "./AvailableSlotOptions";
-import { DAY_OF_WEEK_SELECT_ITEMS } from "./day-of-week-select-items";
+import { DAY_OF_WEEK_SELECT_ITEMS } from "./DayOfWeekSelectItems";
 import type { CreateAvailableSlotRequest } from "../api/reservation-type-available-slots";
 
 interface FormState {
@@ -42,13 +45,17 @@ export function ReservationTypeAvailableSlotsSection({ clinicId, reservationType
   const { data: items = [], isLoading } = useGetAvailableSlots(clinicId, reservationTypeId);
   const createMutation = useCreateAvailableSlot(clinicId, reservationTypeId);
   const deleteMutation = useDeleteAvailableSlot(clinicId, reservationTypeId);
+  const { mutate } = deleteMutation;
 
   const [form, setForm] = useState<FormState>(DEFAULT_FORM);
   const navigate = useNavigate();
 
-  const handleFieldChange = useCallback(<K extends keyof FormState>(key: K, value: FormState[K]) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
-  }, []);
+  const handleFieldChange = useCallback(
+    <K extends keyof FormState>(key: K, value: FormState[K]) => {
+      setForm((prev) => ({ ...prev, [key]: value }));
+    },
+    [],
+  );
 
   const [, formAction] = useActionState(async () => {
     try {
@@ -67,34 +74,42 @@ export function ReservationTypeAvailableSlotsSection({ clinicId, reservationType
     }
   }, null);
 
-  const handleDelete = useCallback((id: number) => {
-    deleteMutation.mutate(id);
-  }, [deleteMutation]);
+  const handleDelete = useCallback(
+    (id: number) => {
+      mutate(id);
+    },
+    [mutate],
+  );
 
-  const itemList = useMemo(() => items.map((item) => {
-    const label = item.availableType === AvailableSlotTypeWeekly
-      ? `毎週${DAY_OF_WEEK_LABELS[item.dayOfWeek ?? 0]}曜日`
-      : item.specificDate ?? "";
+  const itemList = useMemo(
+    () =>
+      items.map((item) => {
+        const label =
+          item.availableType === AvailableSlotTypeWeekly
+            ? `毎週${DAY_OF_WEEK_LABELS[item.dayOfWeek ?? 0]}曜日`
+            : (item.specificDate ?? "");
 
-    return (
-      <div
-        key={item.id}
-        className={`flex items-center justify-between gap-2 py-1.5 px-2 rounded-xxs ${C.hoverBgLight} transition-colors group`}
-      >
-        <Clock className={`${ICON.smXs} ${C.text40} shrink-0`} />
-        <span className={`flex-1 text-sm ${C.text}`}>{label}</span>
-        <span className={`text-sm ${C.text50} tabular-nums`}>{item.startTime}</span>
-        <button
-          type="button"
-          onClick={() => handleDelete(item.id)}
-          className={`opacity-0 group-hover:opacity-100 ${ICON.smXs} ${C.text40} ${C.hoverTextDanger} transition-colors`}
-          aria-label="削除"
-        >
-          <Trash2 className={ICON.smXs} />
-        </button>
-      </div>
-    );
-  }), [items, handleDelete]);
+        return (
+          <div
+            key={item.id}
+            className={`flex items-center justify-between gap-2 py-1.5 px-2 rounded-xxs ${C.hoverBgLight} transition-colors group`}
+          >
+            <Clock className={`${ICON.smXs} ${C.text40} shrink-0`} />
+            <span className={`flex-1 text-sm ${C.text}`}>{label}</span>
+            <span className={`text-sm ${C.text50} tabular-nums`}>{item.startTime}</span>
+            <button
+              type="button"
+              onClick={() => handleDelete(item.id)}
+              className={`opacity-0 group-hover:opacity-100 ${ICON.smXs} ${C.text40} ${C.hoverTextDanger} transition-colors`}
+              aria-label="削除"
+            >
+              <Trash2 className={ICON.smXs} />
+            </button>
+          </div>
+        );
+      }),
+    [items, handleDelete],
+  );
 
   return (
     <div className={`mt-4 pt-4 ${STYLE.sectionDivider}`}>
@@ -103,7 +118,9 @@ export function ReservationTypeAvailableSlotsSection({ clinicId, reservationType
         <p className={`text-xs font-medium ${C.text50}`}>予約可能枠</p>
         <button
           type="button"
-          onClick={() => navigate(`${paths.lineReservation.slots.getHref()}?typeId=${reservationTypeId}`)}
+          onClick={() =>
+            navigate(`${paths.lineReservation.slots.getHref()}?typeId=${reservationTypeId}`)
+          }
           className={`ml-auto flex items-center gap-1 text-xs ${C.text50} ${C.hoverTextBrand} transition-colors`}
         >
           <CalendarDays className={ICON.smXs} />

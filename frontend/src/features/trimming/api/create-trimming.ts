@@ -6,9 +6,7 @@ import type { TrimmingUI } from "@/types";
 import { transformTrimming } from "./transforms";
 import type { BackendTrimming, CreateTrimmingRequest } from "@/types/trimming";
 
-const createTrimming = async (
-  req: CreateTrimmingRequest
-): Promise<TrimmingUI> => {
+const createTrimming = async (req: CreateTrimmingRequest): Promise<TrimmingUI> => {
   const { data } = await axios.post<BackendTrimming>("/v1/trimmings", req);
   return transformTrimming(data);
 };

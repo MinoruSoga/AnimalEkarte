@@ -42,14 +42,11 @@ describe("HospitalizationDetail — notFound/error ハンドリング (Issue #55
   it("API が 404 を返すとき「入院情報が見つかりません」が表示される", async () => {
     server.use(
       http.get(`/api/v1/hospitalizations/${HOSP_ID}`, () =>
-        HttpResponse.json({ error: "not found" }, { status: 404 })
-      )
+        HttpResponse.json({ error: "not found" }, { status: 404 }),
+      ),
     );
 
-    render(
-      <HospitalizationDetail />,
-      { wrapper: createWrapper(`/hospitalization/${HOSP_ID}`) }
-    );
+    render(<HospitalizationDetail />, { wrapper: createWrapper(`/hospitalization/${HOSP_ID}`) });
 
     await waitFor(() => {
       expect(screen.getByText("入院情報が見つかりません")).toBeInTheDocument();
@@ -75,7 +72,7 @@ describe("HospitalizationDetail — notFound/error ハンドリング (Issue #55
             <Route path="/hospitalization/" element={<HospitalizationDetail />} />
           </Routes>
         </MemoryRouter>
-      </QueryClientProvider>
+      </QueryClientProvider>,
     );
 
     // id が undefined → !id ガードが即座に発動 → "入院情報が見つかりません"
@@ -85,14 +82,11 @@ describe("HospitalizationDetail — notFound/error ハンドリング (Issue #55
   it("API がサーバーエラー (500) を返すとき汎用エラーが表示される（空白にならない）", async () => {
     server.use(
       http.get(`/api/v1/hospitalizations/${HOSP_ID}`, () =>
-        HttpResponse.json({ error: "internal server error" }, { status: 500 })
-      )
+        HttpResponse.json({ error: "internal server error" }, { status: 500 }),
+      ),
     );
 
-    render(
-      <HospitalizationDetail />,
-      { wrapper: createWrapper(`/hospitalization/${HOSP_ID}`) }
-    );
+    render(<HospitalizationDetail />, { wrapper: createWrapper(`/hospitalization/${HOSP_ID}`) });
 
     await waitFor(() => {
       expect(screen.getByText("データの取得に失敗しました")).toBeInTheDocument();

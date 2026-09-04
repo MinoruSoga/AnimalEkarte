@@ -83,7 +83,7 @@ func (s *tokenService) jwtKeyFunc(token *jwt.Token) (any, error) {
 }
 
 func (s *tokenService) parseClaims(tokenStr string) (*authjwt.Claims, error) {
-	if len(tokenStr) == 0 || len(tokenStr) > maxJWTBytes {
+	if tokenStr == "" || len(tokenStr) > maxJWTBytes {
 		return nil, fmt.Errorf("%w: jwt input length is invalid", jwt.ErrTokenMalformed)
 	}
 	claims := &authjwt.Claims{}
@@ -330,7 +330,7 @@ func TokenMatchesAccountEpoch(claims *authjwt.Claims, accountEpoch int64) bool {
 	if claims.AccountEpoch < 0 || claims.IssuedAt == nil {
 		return false
 	}
-	return claims.IssuedAt.Time.Unix() > time.Unix(0, accountEpoch).Unix()
+	return claims.IssuedAt.Unix() > time.Unix(0, accountEpoch).Unix()
 }
 
 func (s *tokenService) ParseRefreshTokenClaims(tokenStr string) (*authjwt.Claims, error) {

@@ -201,24 +201,14 @@ func detectLegacySeedKeys(db *sql.DB, logger *slog.Logger) error {
 
 // legacyTranslationTargets returns the schema_migrations keys that
 // translateLegacySeedKeys marks applied whenever ANY legacy key is found.
-// It always returns all three bundles that have a legacy stub equivalent,
-// never only the bundles whose specific legacy filename was found in
-// schema_migrations. Bundles introduced after the stub era must remain
-// eligible for normal application. Pure, no DB access — this is what the
-// translation unit tests exercise directly.
+// It returns only bundles that still exist in the current seed layout. Pure,
+// no DB access — this is what the translation unit tests exercise directly.
 //
-// Why "all", not "only the ones found" (PR #186 security review, HIGH): the
-// pre-2026-07 binary applied every *.sql file unconditionally in one pass, so
-// a routinely-migrated DB carries all three legacy keys together. But nothing
-// guarantees that invariant for every real DB (e.g. one hand-curated to skip
-// demo/staging on purpose) — marking only the found subset would leave the
-// other seeds/<bundle> keys "unapplied", and the runSeedBundles call right
-// after this would then auto-COPY those CSV bundles onto what may be a real
-// database. guardEmptyMigrationHistoryは履歴が空の既存schemaを拒否するが、legacy keyが
-// 存在するDBはその対象ではないため、translateLegacySeedKeysがlegacy相当3件を一括して
-// 適用済み記録する保守的な姿勢を維持し、found key単位では判断しない。
+// The pre-2026-07 binary recorded legacy stub keys together. Only 002_master
+// remains a current bundle; retired 003_demo and 004_staging must not be
+// checksummed or recorded because their source directories no longer exist.
 func legacyTranslationTargets() []string {
-	legacyBundleDirs := [...]string{"002_master", "003_demo", "004_staging"}
+	legacyBundleDirs := [...]string{"002_master"}
 	keys := make([]string, 0, len(legacyBundleDirs))
 	for _, bundleDir := range legacyBundleDirs {
 		keys = append(keys, seedbundle.BundleMigrationKey(bundleDir))
@@ -357,67 +347,17 @@ func isAlreadyApplied(db *sql.DB, filename, checksum string) (bool, error) {
 		return false, fmt.Errorf("failed to query schema_migrations: %w", err)
 	}
 
-	// 適用済みだが checksum が異なる → 改変されている
+	// Applied migration drift has no automatic repair path. A checksum alone
+	// cannot prove that every schema delta was applied, so fail before any DDL
+	// or schema_migrations update. Rebuilds remain an explicit operator action.
 	if storedChecksum != checksum {
 		fmt.Fprintf(os.Stderr, "checksum_mismatch_seen file=%s applied=%s current=%s\n", filename, storedChecksum, checksum)
-		repaired, repairErr := tryRepairKnownChecksumDrift(db, filename, storedChecksum, checksum)
-		if repairErr != nil {
-			fmt.Fprintf(os.Stderr, "checksum_repair_err file=%s err=%v\n", filename, repairErr)
-			return true, repairErr
-		}
-		if repaired {
-			fmt.Fprintf(os.Stderr, "checksum_repair_ok file=%s\n", filename)
-			return true, nil
-		}
-		fmt.Fprintf(os.Stderr, "checksum_repair_not_applicable file=%s\n", filename)
 		return true, fmt.Errorf(
-			"checksum mismatch for %s: applied=%s, current=%s — migration file was modified after execution",
+			"checksum mismatch for %s: applied=%s, current=%s — automatic checksum repair is unsupported; rebuild with DB_RESET=true under an approved reset plan (local procedure: docs/ops/deploy/LOCAL_DB_RESET.md)",
 			filename, storedChecksum, checksum,
 		)
 	}
 
-	return true, nil
-}
-
-// knownChecksumRepairs maps filename → appliedChecksum → currentChecksum for
-// STG-safe drifts already reviewed (additive DDL only; never destructive).
-// Companion side-effects for a pair live in tryRepairKnownChecksumDrift.
-var knownChecksumRepairs = map[string]map[string]string{
-	// 2026-08: lab_import_job_status gained 'reverted' (CREATE TYPE + ADD VALUE IF NOT EXISTS).
-	"001_init.sql": {
-		"28e954b32fd606a122e0cb29815ea277f8a96cb0966208f39e6fe69dd8cb9c4e": "287bfce66c810503c43c8a5c1d4cf414f561af2555314eb4119be74253ce77ce",
-	},
-}
-
-func tryRepairKnownChecksumDrift(db *sql.DB, filename, applied, current string) (bool, error) {
-	wantByApplied, ok := knownChecksumRepairs[filename]
-	if !ok {
-		return false, nil
-	}
-	want, ok := wantByApplied[applied]
-	if !ok || want != current {
-		return false, nil
-	}
-
-	// Ensure additive enum value exists before accepting the new checksum.
-	// ADD VALUE IF NOT EXISTS cannot always run inside an explicit transaction.
-	if filename == "001_init.sql" {
-		if _, err := db.Exec(`ALTER TYPE lab_import_job_status ADD VALUE IF NOT EXISTS 'reverted'`); err != nil {
-			return false, fmt.Errorf("checksum repair companion SQL failed for %s: %w", filename, err)
-		}
-	}
-
-	res, err := db.Exec(
-		`UPDATE schema_migrations SET checksum = $1 WHERE filename = $2 AND checksum = $3`,
-		current, filename, applied,
-	)
-	if err != nil {
-		return false, fmt.Errorf("checksum repair update failed for %s: %w", filename, err)
-	}
-	n, _ := res.RowsAffected()
-	if n != 1 {
-		return false, fmt.Errorf("checksum repair updated %d rows for %s (want 1)", n, filename)
-	}
 	return true, nil
 }
 
@@ -544,8 +484,8 @@ func seedBundlesForCurrentEnv() []string {
 
 // runSeedBundles はフェーズ2: CSV シードバンドルを APP_ENV ゲート付き順でロードする。
 // local development/test allowlist（development/local/dev/test）では
-// 002_master → 003_demo → 004_staging。production / staging / empty / unknown は
-// 002_master のみ（SEC-CS2-F01: staging へ privileged demo 資格情報を投入しない）。
+// 002_master のみ（医院骨格 + 参照マスタ。003_demo / 004_staging は退役。
+// SEC-CS2-F01: accounts / 臨床デモを migrate で載せない）。
 // フェーズ1が全て commit した後にのみ実行される。各バンドルは applyCSVBundle が
 // 単一トランザクションで完走した後にのみ schema_migrations へ
 // seedbundle.BundleMigrationKey で記録されるため、CSVロードが失敗した場合は何も

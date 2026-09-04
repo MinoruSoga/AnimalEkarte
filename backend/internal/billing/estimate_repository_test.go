@@ -199,6 +199,24 @@ func TestEstimateRepository_UpdateIfNotLocked(t *testing.T) {
 		assert.Equal(t, "sent更新", got.Title)
 	})
 
+	t.Run("draft status は空 fields でも行を取得できる", func(t *testing.T) {
+		e := makeEstimate(t, db, clinicA, owner.ID, model.EstimateStatusDraft)
+
+		got, err := repo.UpdateIfNotLocked(ctx, clinicA, e.ID, map[string]any{})
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		assert.Equal(t, e.ID, got.ID)
+	})
+
+	t.Run("approved status は空 fields でも Conflict", func(t *testing.T) {
+		e := makeEstimate(t, db, clinicA, owner.ID, model.EstimateStatusApproved)
+
+		got, err := repo.UpdateIfNotLocked(ctx, clinicA, e.ID, map[string]any{})
+		assert.Nil(t, got)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsConflict(err), "expected Conflict, got %v", err)
+	})
+
 	t.Run("approved status は Conflict（行は変わらない）", func(t *testing.T) {
 		e := makeEstimate(t, db, clinicA, owner.ID, model.EstimateStatusApproved)
 		originalTitle := e.Title

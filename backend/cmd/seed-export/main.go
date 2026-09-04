@@ -1,16 +1,6 @@
-// cmd/seed-export dumps the final row state of the 90 seeded tables into CSV
-// files under backend/migrations/seeds/{002_master,003_demo,004_staging}/, so
-// cmd/migrate can load them via COPY at startup. As of the 2026-07 CSV-only
-// migration there is no seed SQL left to read: backend/migrations/ contains
-// DDL-only SQL migrations, and 002/003/004 seed data exists solely as directories of
-// CSV + manifest.json under seeds/ — the stub SELECT-1 *.sql files that used
-// to sit between them and cmd/migrate have been deleted.
-//
-// This tool never reads or parses seed SQL — there is none. It creates a
-// disposable database, applies the DDL migrations plus the seed bundles to it via
-// the existing, UNMODIFIED cmd/migrate binary (so the historical `DO $$ ...
-// random() ...` reservation-generator block, now frozen into the 003_demo
-// CSV bundle, is never re-executed), then COPY-dumps the resulting tables.
+// cmd/seed-export dumps the final row state of the master seed tables into CSV
+// files under backend/migrations/seeds/002_master/, so cmd/migrate can load
+// them via COPY at startup. Clinical rows are not seeded.
 // Re-running this tool is safe and reproducible by construction: it only
 // ever reads rows cmd/migrate already materialized via COPY from the
 // committed CSVs, so repeated exports read the same rows.

@@ -172,6 +172,13 @@ vi.mock("../hooks/use-medical-record-post-save", () => ({
 vi.mock("../api/get-medical-record", () => ({
   useGetMedicalRecord: () => ({ data: undefined }),
 }));
+vi.mock("../api/billing-confirmation", () => ({
+  useGetBillingConfirmation: () => ({
+    data: { status: "confirmed" },
+    isLoading: false,
+    isError: false,
+  }),
+}));
 
 vi.mock("../api/get-medical-records", () => ({
   useGetPetMedicalHistory: () => ({ historyItems: [] }),
@@ -189,7 +196,7 @@ vi.mock("../api/delete-medical-record", () => ({
   useDeleteMedicalRecord: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
-vi.mock("../components/MedicalRecordAddenda", () => ({
+vi.mock("../components/MedicalRecordAddenda/MedicalRecordAddenda", () => ({
   MedicalRecordAddenda: () => null,
 }));
 
@@ -330,9 +337,7 @@ describe("MedicalRecordForm BUG-002 deceased new hard stop", () => {
     mockFormState.current.isNewRecord = true;
     mockFormState.current.selectedPet = deceasedPet;
     render(<MedicalRecordForm />);
-    expect(
-      screen.getByText("死亡したペットは新規カルテを作成できません"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("死亡したペットは新規カルテを作成できません")).toBeInTheDocument();
     expect(screen.queryByText("sticky-header")).not.toBeInTheDocument();
     expect(screen.queryByText("tabs-area")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();

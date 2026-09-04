@@ -1,11 +1,36 @@
 import { memo, useLayoutEffect, useRef } from "react";
 import { useNavigate } from "react-router";
-import { Bed, Calendar, CreditCard, Edit, FileText, MoreHorizontal, PawPrint, Plus, Scissors, Trash2 } from "lucide-react";
+import {
+  Bed,
+  Calendar,
+  CreditCard,
+  Edit,
+  FileText,
+  MoreHorizontal,
+  PawPrint,
+  Plus,
+  Scissors,
+  Trash2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
 import { mapPetStatusLabel, PET_GENDER_MAP } from "@/lib/transforms/pet";
@@ -49,9 +74,7 @@ const PetTableRow = memo(function PetTableRow({
       canDelete,
     };
   }, [canCreate, canDelete, canEdit, pet.status]);
-  const backFrom = ownerId
-    ? paths.owners.detail.getHref(ownerId)
-    : paths.owners.getHref();
+  const backFrom = ownerId ? paths.owners.detail.getHref(ownerId) : paths.owners.getHref();
 
   return (
     <TableRow className={`transition-colors ${C.borderDivider} ${C.hoverBgPage} h-12`}>
@@ -67,7 +90,9 @@ const PetTableRow = memo(function PetTableRow({
           >
             {pet.petName}
           </DataTableRowButton>
-        ) : pet.petName}
+        ) : (
+          pet.petName
+        )}
       </TableCell>
       <TableCell className={STYLE.tableCell}>{pet.status}</TableCell>
       <TableCell className={STYLE.tableCell}>{pet.species}</TableCell>
@@ -76,13 +101,9 @@ const PetTableRow = memo(function PetTableRow({
         {pet.birthDate ? pet.birthDate.slice(0, 10) : ""}
       </TableCell>
       <TableCell className={STYLE.tableCell}>{pet.color}</TableCell>
-      <TableCell className={STYLE.tableCell}>
-        {pet.weight ? `${pet.weight} kg` : ""}
-      </TableCell>
+      <TableCell className={STYLE.tableCell}>{pet.weight ? `${pet.weight} kg` : ""}</TableCell>
       <TableCell className={STYLE.tableCell}>{pet.environment}</TableCell>
-      <TableCell className={`${STYLE.tableCell} truncate max-w-[200px]`}>
-        {pet.remarks}
-      </TableCell>
+      <TableCell className={`${STYLE.tableCell} truncate max-w-[200px]`}>{pet.remarks}</TableCell>
       <TableCell>
         <div className="flex gap-1 justify-end">
           <DropdownMenu>
@@ -121,7 +142,9 @@ const PetTableRow = memo(function PetTableRow({
                     onClick={() => {
                       const current = actionBoundaryRef.current;
                       if (current.status !== "生存" || current.canCreate !== true) return;
-                      navigate(`${paths.medicalRecords.new.getHref()}?petId=${pet.id}`, { state: { from: backFrom } });
+                      navigate(`${paths.medicalRecords.new.getHref()}?petId=${pet.id}`, {
+                        state: { from: backFrom },
+                      });
                     }}
                   >
                     <FileText className={`mr-2 ${ICON.action}`} />
@@ -131,7 +154,9 @@ const PetTableRow = memo(function PetTableRow({
                     onClick={() => {
                       const current = actionBoundaryRef.current;
                       if (current.status !== "生存" || current.canCreate !== true) return;
-                      navigate(`${paths.trimming.new.getHref()}?petId=${pet.id}`, { state: { from: backFrom } });
+                      navigate(`${paths.trimming.new.getHref()}?petId=${pet.id}`, {
+                        state: { from: backFrom },
+                      });
                     }}
                   >
                     <Scissors className={`mr-2 ${ICON.action}`} />
@@ -141,7 +166,9 @@ const PetTableRow = memo(function PetTableRow({
                     onClick={() => {
                       const current = actionBoundaryRef.current;
                       if (current.status !== "生存" || current.canCreate !== true) return;
-                      navigate(`${paths.hospitalization.new.getHref()}?petId=${pet.id}`, { state: { from: backFrom } });
+                      navigate(`${paths.hospitalization.new.getHref()}?petId=${pet.id}`, {
+                        state: { from: backFrom },
+                      });
                     }}
                   >
                     <Bed className={`mr-2 ${ICON.action}`} />
@@ -151,7 +178,9 @@ const PetTableRow = memo(function PetTableRow({
                     onClick={() => {
                       const current = actionBoundaryRef.current;
                       if (current.status !== "生存" || current.canCreate !== true) return;
-                      navigate(`${paths.accounting.new.getHref()}?petId=${pet.id}`, { state: { from: backFrom } });
+                      navigate(`${paths.accounting.new.getHref()}?petId=${pet.id}`, {
+                        state: { from: backFrom },
+                      });
                     }}
                   >
                     <CreditCard className={`mr-2 ${ICON.action}`} />
@@ -168,7 +197,7 @@ const PetTableRow = memo(function PetTableRow({
                       if (current.status !== "生存" || current.canDelete !== true) return;
                       onDeleteRequest(pet.id, pet.petName);
                     }}
-                    className={`${C.danger} focus:${C.danger} ${C.focusBgLight}`}
+                    className={`${C.danger} ${C.focusDanger} ${C.focusBgLight}`}
                   >
                     <Trash2 className={`mr-2 ${ICON.action}`} />
                     削除
@@ -198,13 +227,9 @@ const SharedPetTableRow = memo(function SharedPetTableRow({
           {pet.relationship !== "" ? <span>{pet.relationship}</span> : null}
         </div>
       </TableCell>
-      <TableCell className={STYLE.tableCell}>
-        {mapPetStatusLabel(pet.status)}
-      </TableCell>
+      <TableCell className={STYLE.tableCell}>{mapPetStatusLabel(pet.status)}</TableCell>
       <TableCell className={STYLE.tableCell}>{pet.animal_species.name}</TableCell>
-      <TableCell className={STYLE.tableCell}>
-        {PET_GENDER_MAP[pet.gender] ?? pet.gender}
-      </TableCell>
+      <TableCell className={STYLE.tableCell}>{PET_GENDER_MAP[pet.gender] ?? pet.gender}</TableCell>
       <TableCell className={STYLE.tableCell}>
         {pet.birth_date ? pet.birth_date.slice(0, 10) : ""}
       </TableCell>
@@ -213,9 +238,7 @@ const SharedPetTableRow = memo(function SharedPetTableRow({
         {pet.weight !== null ? `${pet.weight} kg` : ""}
       </TableCell>
       <TableCell className={STYLE.tableCell}>{pet.environment}</TableCell>
-      <TableCell className={`${STYLE.tableCell} truncate max-w-[200px]`}>
-        {pet.remarks}
-      </TableCell>
+      <TableCell className={`${STYLE.tableCell} truncate max-w-[200px]`}>{pet.remarks}</TableCell>
       <TableCell />
     </TableRow>
   );
@@ -271,10 +294,7 @@ export function OwnerPetsSection({
   } = useGetOwnerSharedPets(ownerId);
   const sharedPets = sharedPetsResponse?.shared_pets ?? [];
   const showEmptyState =
-    pets.length === 0 &&
-    sharedPets.length === 0 &&
-    !isSharedPetsLoading &&
-    !isSharedPetsError;
+    pets.length === 0 && sharedPets.length === 0 && !isSharedPetsLoading && !isSharedPetsError;
 
   return (
     <div className="mb-4 space-y-3">

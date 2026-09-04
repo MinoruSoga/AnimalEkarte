@@ -11,6 +11,7 @@ import { queryKeys } from "@/lib/query-keys";
 export interface ClinicSummary {
   id: string;
   name: string;
+  isActive: boolean;
 }
 
 const getClinicsListKey = (scope?: "all") => queryKeys.clinics.list(scope);
@@ -20,11 +21,15 @@ export function useGetClinicsList(scope?: "all") {
     queryKey: getClinicsListKey(scope),
     queryFn: async (): Promise<ClinicSummary[]> => {
       const params = scope ? { scope } : undefined;
-      const { data } = await axios.get<Array<{ id: number; name: string }>>(
+      const { data } = await axios.get<Array<{ id: number; name: string; is_active?: boolean }>>(
         "/v1/clinics",
         { params },
       );
-      return data.map((c) => ({ id: String(c.id), name: c.name }));
+      return data.map((c) => ({
+        id: String(c.id),
+        name: c.name,
+        isActive: c.is_active !== false,
+      }));
     },
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -35,8 +40,7 @@ export function useGetClinicsList(scope?: "all") {
 // Staff Clinic Assignments API
 // ─────────────────────────────────────────────────
 
-const STAFF_CLINICS_KEY = (staffId: string) =>
-  queryKeys.staffs.subResource(staffId, "clinics");
+const STAFF_CLINICS_KEY = (staffId: string) => queryKeys.staffs.subResource(staffId, "clinics");
 
 export function useGetStaffClinics(staffId: string | null) {
   return useQuery({
@@ -56,13 +60,7 @@ export function useGetStaffClinics(staffId: string | null) {
 export function useUpdateStaffClinics() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({
-      staffId,
-      clinicIds,
-    }: {
-      staffId: string;
-      clinicIds: string[];
-    }) => {
+    mutationFn: async ({ staffId, clinicIds }: { staffId: string; clinicIds: string[] }) => {
       await axios.put(`/v1/masters/staffs/${staffId}/clinics`, {
         clinic_ids: clinicIds.map((id) => parseInt(id, 10)),
       });

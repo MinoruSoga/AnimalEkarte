@@ -3,9 +3,7 @@ import type {
   BackendHospitalization,
   CarePlanItem,
 } from "@/features/hospitalization";
-import type {
-  BackendMedicalRecord,
-} from "@/features/medical-records";
+import type { BackendMedicalRecord } from "@/features/medical-records";
 import type { BackendVaccination } from "@/features/vaccinations";
 import type {
   MeClinicInfo,
@@ -29,10 +27,7 @@ import type {
 import type { BackendTrimming } from "../../src/types/trimming";
 import type { SyntheticEndpoint } from "../helpers/synthetic-api";
 import type { SyntheticRenderedAssertion } from "../helpers/ui-design-audit";
-import {
-  SYNTHETIC_CREATED_AT as CREATED_AT,
-  SYNTHETIC_IDS,
-} from "./ui-design-clinical-constants";
+import { SYNTHETIC_CREATED_AT as CREATED_AT, SYNTHETIC_IDS } from "./ui-design-clinical-constants";
 import {
   validateMedicalRecordCreate,
   validateReservationCreate,
@@ -76,11 +71,13 @@ export function createSyntheticMeResponse(
     occupation: "合成監査職種",
     main_clinic_id: String(SYNTHETIC_IDS.clinic),
     clinic: SYNTHETIC_ME_CLINIC,
-    clinics: [{
-      clinic_id: String(SYNTHETIC_IDS.clinic),
-      clinic_name: SYNTHETIC_ME_CLINIC.name,
-      is_main: true,
-    }],
+    clinics: [
+      {
+        clinic_id: String(SYNTHETIC_IDS.clinic),
+        clinic_name: SYNTHETIC_ME_CLINIC.name,
+        is_main: true,
+      },
+    ],
     permissions: { ...permissions },
   };
 }
@@ -176,6 +173,7 @@ export const SYNTHETIC_PET = {
   environment: "",
   phone: "",
   remarks: "synthetic fixture only",
+  version: 1,
   created_at: CREATED_AT,
   updated_at: CREATED_AT,
   owner: SYNTHETIC_OWNER,
@@ -275,11 +273,7 @@ const SYNTHETIC_HOSPITALIZATION = {
   updated_at: CREATED_AT,
   owner: SYNTHETIC_OWNER,
   pet: SYNTHETIC_PET,
-  cage: SYNTHETIC_CAGE,
   doctor: SYNTHETIC_STAFF,
-  care_plan_items: [],
-  daily_records: [],
-  treatment_plans: [SYNTHETIC_TREATMENT_PLAN],
 } satisfies BackendHospitalization;
 
 const SYNTHETIC_DAILY_RECORD = {
@@ -533,18 +527,27 @@ export const SYNTHETIC_CLINICAL_SCENARIOS = {
     renderedAssertions: [
       { kind: "visibleText", value: SYNTHETIC_PET.name },
       { kind: "visibleText", value: "再診" },
-      { kind: "containsText", selector: "button[aria-label^='担当医:']", value: SYNTHETIC_STAFF.name },
+      {
+        kind: "containsText",
+        selector: "button[aria-label^='担当医:']",
+        value: SYNTHETIC_STAFF.name,
+      },
       { kind: "value", selector: "input[aria-label='診察日']", value: CREATED_AT.slice(0, 10) },
     ],
-    expectedLocalBusinessNonGet: [
-      "POST:/api/v1/reservations",
-      "POST:/api/v1/medical-records",
-    ],
+    expectedLocalBusinessNonGet: ["POST:/api/v1/reservations", "POST:/api/v1/medical-records"],
     endpoints: defineEndpoints([
       SYNTHETIC_ME_ENDPOINT,
       { method: "GET", pathname: `/api/v1/pets/${SYNTHETIC_IDS.pet}`, response: SYNTHETIC_PET },
-      { method: "GET", pathname: `/api/v1/owners/${SYNTHETIC_IDS.owner}`, response: SYNTHETIC_OWNER_API_RESPONSE },
-      { method: "GET", pathname: "/api/v1/masters/reservation-types", response: [SYNTHETIC_RESERVATION_TYPE] },
+      {
+        method: "GET",
+        pathname: `/api/v1/owners/${SYNTHETIC_IDS.owner}`,
+        response: SYNTHETIC_OWNER_API_RESPONSE,
+      },
+      {
+        method: "GET",
+        pathname: "/api/v1/masters/reservation-types",
+        response: [SYNTHETIC_RESERVATION_TYPE],
+      },
       {
         method: "GET",
         pathname: "/api/v1/reservations",
@@ -579,7 +582,11 @@ export const SYNTHETIC_CLINICAL_SCENARIOS = {
         } satisfies Readonly<Record<string, string>>,
         response: { data: [], total: 0, page: 1, limit: 50 },
       },
-      { method: "GET", pathname: `${MEDICAL_RECORD_PATH}/clinical-plan`, response: SYNTHETIC_CLINICAL_PLAN },
+      {
+        method: "GET",
+        pathname: `${MEDICAL_RECORD_PATH}/clinical-plan`,
+        response: SYNTHETIC_CLINICAL_PLAN,
+      },
       { method: "GET", pathname: `${MEDICAL_RECORD_PATH}/treatments`, response: [] },
       { method: "GET", pathname: `${MEDICAL_RECORD_PATH}/vitals`, response: [] },
       { method: "GET", pathname: `${MEDICAL_RECORD_PATH}/addenda`, response: [] },
@@ -666,16 +673,40 @@ export const SYNTHETIC_CLINICAL_SCENARIOS = {
       { kind: "containsText", selector: "#staffId", value: SYNTHETIC_STAFF.name },
       { kind: "containsText", selector: "#courseId", value: SYNTHETIC_TRIMMING_COURSE.name },
       { kind: "checked", selector: `#option-${SYNTHETIC_IDS.trimmingOption}` },
-      { kind: "value", selector: "textarea[placeholder='スタイルの希望を入力...']", value: SYNTHETIC_TRIMMING.style_request },
-      { kind: "value", selector: "input[placeholder='体重']", value: String(SYNTHETIC_TRIMMING.bw) },
-      { kind: "value", selector: "input[placeholder='体温']", value: String(SYNTHETIC_TRIMMING.bt) },
-      { kind: "value", selector: "input[placeholder='シャンプー名']", value: SYNTHETIC_TRIMMING.used_shampoo },
-      { kind: "value", selector: "input[placeholder='リボン']", value: SYNTHETIC_TRIMMING.used_ribbon },
+      {
+        kind: "value",
+        selector: "textarea[placeholder='スタイルの希望を入力...']",
+        value: SYNTHETIC_TRIMMING.style_request,
+      },
+      {
+        kind: "value",
+        selector: "input[placeholder='体重']",
+        value: String(SYNTHETIC_TRIMMING.bw),
+      },
+      {
+        kind: "value",
+        selector: "input[placeholder='体温']",
+        value: String(SYNTHETIC_TRIMMING.bt),
+      },
+      {
+        kind: "value",
+        selector: "input[placeholder='シャンプー名']",
+        value: SYNTHETIC_TRIMMING.used_shampoo,
+      },
+      {
+        kind: "value",
+        selector: "input[placeholder='リボン']",
+        value: SYNTHETIC_TRIMMING.used_ribbon,
+      },
     ],
     expectedLocalBusinessNonGet: [],
     endpoints: defineEndpoints([
       SYNTHETIC_ME_ENDPOINT,
-      { method: "GET", pathname: `/api/v1/trimmings/${SYNTHETIC_IDS.trimming}`, response: SYNTHETIC_TRIMMING },
+      {
+        method: "GET",
+        pathname: `/api/v1/trimmings/${SYNTHETIC_IDS.trimming}`,
+        response: SYNTHETIC_TRIMMING,
+      },
       {
         method: "GET",
         pathname: "/api/v1/trimmings",
@@ -686,11 +717,27 @@ export const SYNTHETIC_CLINICAL_SCENARIOS = {
         } satisfies Readonly<Record<string, string>>,
         response: { data: [SYNTHETIC_TRIMMING], total: 1, page: 1, limit: 100 },
       },
-      { method: "GET", pathname: "/api/v1/masters/reservation-types", response: [SYNTHETIC_RESERVATION_TYPE] },
-      { method: "GET", pathname: "/api/v1/masters/trimming-courses", response: [SYNTHETIC_TRIMMING_COURSE] },
-      { method: "GET", pathname: "/api/v1/masters/trimming-options", response: [SYNTHETIC_TRIMMING_OPTION] },
+      {
+        method: "GET",
+        pathname: "/api/v1/masters/reservation-types",
+        response: [SYNTHETIC_RESERVATION_TYPE],
+      },
+      {
+        method: "GET",
+        pathname: "/api/v1/masters/trimming-courses",
+        response: [SYNTHETIC_TRIMMING_COURSE],
+      },
+      {
+        method: "GET",
+        pathname: "/api/v1/masters/trimming-options",
+        response: [SYNTHETIC_TRIMMING_OPTION],
+      },
       { method: "GET", pathname: "/api/v1/masters/staffs", response: [SYNTHETIC_STAFF] },
-      { method: "GET", pathname: "/api/v1/masters/trimming-course-types", response: [SYNTHETIC_TRIMMING_COURSE_TYPE] },
+      {
+        method: "GET",
+        pathname: "/api/v1/masters/trimming-course-types",
+        response: [SYNTHETIC_TRIMMING_COURSE_TYPE],
+      },
     ]),
   },
   vaccinationEdit: {
@@ -703,16 +750,36 @@ export const SYNTHETIC_CLINICAL_SCENARIOS = {
       { kind: "visibleText", value: SYNTHETIC_STAFF.name },
       { kind: "valueContains", selector: "#vaccination-date", value: "2026年7月23日" },
       { kind: "selectedOption", selector: "#vaccine-select", value: SYNTHETIC_VACCINE.name },
-      { kind: "value", selector: "input[placeholder='補助説明を入力']", value: SYNTHETIC_VACCINATION.supplemental },
-      { kind: "value", selector: "input[placeholder='LOT 1番号']", value: SYNTHETIC_VACCINATION.lot1 },
+      {
+        kind: "value",
+        selector: "input[placeholder='補助説明を入力']",
+        value: SYNTHETIC_VACCINATION.supplemental,
+      },
+      {
+        kind: "value",
+        selector: "input[placeholder='LOT 1番号']",
+        value: SYNTHETIC_VACCINATION.lot1,
+      },
       { kind: "valueContains", selector: "#vaccination-next-date", value: "2027年7月23日" },
-      { kind: "value", selector: "textarea[placeholder='備考を入力']", value: SYNTHETIC_VACCINATION.remarks },
+      {
+        kind: "value",
+        selector: "textarea[placeholder='備考を入力']",
+        value: SYNTHETIC_VACCINATION.remarks,
+      },
     ],
     expectedLocalBusinessNonGet: [],
     endpoints: defineEndpoints([
       SYNTHETIC_ME_ENDPOINT,
-      { method: "GET", pathname: `/api/v1/vaccinations/${SYNTHETIC_IDS.vaccination}`, response: SYNTHETIC_VACCINATION },
-      { method: "GET", pathname: "/api/v1/vaccinations", response: { data: [SYNTHETIC_VACCINATION] } },
+      {
+        method: "GET",
+        pathname: `/api/v1/vaccinations/${SYNTHETIC_IDS.vaccination}`,
+        response: SYNTHETIC_VACCINATION,
+      },
+      {
+        method: "GET",
+        pathname: "/api/v1/vaccinations",
+        response: { data: [SYNTHETIC_VACCINATION] },
+      },
       { method: "GET", pathname: `/api/v1/pets/${SYNTHETIC_IDS.pet}`, response: SYNTHETIC_PET },
       { method: "GET", pathname: "/api/v1/masters/vaccines", response: [SYNTHETIC_VACCINE] },
     ]),

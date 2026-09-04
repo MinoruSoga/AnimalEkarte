@@ -110,6 +110,9 @@ func (s *checkupTypeService) Create(ctx context.Context, clinicID uint64, input 
 	if err := validateRequiredName(input.Name); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate required name")
 	}
+	if err := validateNonNegativePrice(input.Price); err != nil {
+		return nil, apperrors.Wrap(err, "failed to validate non negative price")
+	}
 	if err := s.validateParentOwnership(ctx, clinicID, input.ParentID); err != nil {
 		return nil, err
 	}
@@ -125,6 +128,14 @@ func (s *checkupTypeService) Create(ctx context.Context, clinicID uint64, input 
 		SortOrder:   input.SortOrder,
 	}
 	if err := s.repo.Create(ctx, checkupType); err != nil {
+		if conflict := apperrors.AsNameUniqueConflict(
+			err,
+			input.Name,
+			apperrors.ConstraintCheckupTypeName,
+			apperrors.CodeCheckupTypeNameConflict,
+		); conflict != nil {
+			return nil, conflict
+		}
 		slog.ErrorContext(ctx, "failed to create checkup type", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to create checkup type")
 	}
@@ -147,12 +158,27 @@ func (s *checkupTypeService) Update(ctx context.Context, clinicID, id uint64, in
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate optional name")
 	}
+	if err := validateNonNegativePrice(input.Price); err != nil {
+		return nil, apperrors.Wrap(err, "failed to validate non negative price")
+	}
 	fields := buildCheckupTypeUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput(errMsgAtLeastOneField)
 	}
 	checkupType, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
+		nameForConflict := ""
+		if input.Name != nil {
+			nameForConflict = *input.Name
+		}
+		if conflict := apperrors.AsNameUniqueConflict(
+			err,
+			nameForConflict,
+			apperrors.ConstraintCheckupTypeName,
+			apperrors.CodeCheckupTypeNameConflict,
+		); conflict != nil {
+			return nil, conflict
+		}
 		slog.ErrorContext(ctx, "failed to update checkup type", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to update checkup type")
 	}

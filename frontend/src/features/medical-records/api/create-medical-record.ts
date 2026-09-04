@@ -6,13 +6,8 @@ import type { MedicalRecord } from "@/types";
 import { transformMedicalRecord } from "./transforms";
 import type { BackendMedicalRecord, CreateMedicalRecordRequest } from "./types";
 
-const createMedicalRecord = async (
-  req: CreateMedicalRecordRequest
-): Promise<MedicalRecord> => {
-  const { data } = await axios.post<BackendMedicalRecord>(
-    "/v1/medical-records",
-    req
-  );
+const createMedicalRecord = async (req: CreateMedicalRecordRequest): Promise<MedicalRecord> => {
+  const { data } = await axios.post<BackendMedicalRecord>("/v1/medical-records", req);
   return transformMedicalRecord(data);
 };
 

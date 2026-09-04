@@ -55,6 +55,45 @@ func TestParseAvailableDatesSettings(t *testing.T) {
 		assert.Equal(t, AvailableDatesSettings{}, settings)
 		assert.True(t, apperrors.IsInvalidInput(err))
 	})
+
+	t.Run("unmarshal error does not leak json internals", func(t *testing.T) {
+		tests := []struct {
+			name               string
+			closedWeekdaysJSON []byte
+			closedDatesJSON    []byte
+		}{
+			{
+				name:               "壊れたclosed_weekdays JSONは内部エラーを漏らさない",
+				closedWeekdaysJSON: []byte("bad json"),
+				closedDatesJSON:    []byte("[\"2026-01-01\"]"),
+			},
+			{
+				name:               "壊れたclosed_dates JSONは内部エラーを漏らさない",
+				closedWeekdaysJSON: []byte("[1]"),
+				closedDatesJSON:    []byte("bad json"),
+			},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				settings, err := ParseAvailableDatesSettings(
+					tt.closedWeekdaysJSON,
+					tt.closedDatesJSON,
+					false,
+					1, 30, 3,
+					"none",
+				)
+				assert.Error(t, err)
+				assert.Equal(t, AvailableDatesSettings{}, settings)
+				assert.True(t, apperrors.IsInvalidInput(err))
+
+				var appErr *apperrors.AppError
+				assert.ErrorAs(t, err, &appErr)
+				assert.Equal(t, "休診設定の形式が正しくありません", appErr.Message)
+				assert.NotContains(t, err.Error(), "invalid character")
+				assert.NotContains(t, err.Error(), "json:")
+			})
+		}
+	})
 }
 
 // TestOrEmptyJSONArray は orEmptyJSONArray の nil/空/非空バイト列の分岐を直接検証する。

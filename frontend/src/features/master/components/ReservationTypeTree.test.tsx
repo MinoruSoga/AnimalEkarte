@@ -206,9 +206,7 @@ describe("ReservationTypeTree", () => {
       isActive: false,
     });
 
-    render(
-      <ReservationTypeTree types={[inactiveRoot]} selectedId={null} onSelect={onSelect} />,
-    );
+    render(<ReservationTypeTree types={[inactiveRoot]} selectedId={null} onSelect={onSelect} />);
 
     await user.click(screen.getByRole("button", { name: "停止中の区分（無効）" }));
     expect(onSelect).toHaveBeenCalledWith("20");

@@ -51,9 +51,7 @@ export const VaccinationCard = memo(function VaccinationCard({
         {/* 次回接種予定日 */}
         {vaccination.nextDate ? (
           <div
-            className={`flex items-center gap-1.5 mt-1.5 text-sm ${
-              overdue ? C.danger : C.text60
-            }`}
+            className={`flex items-center gap-1.5 mt-1.5 text-sm ${overdue ? C.danger : C.text60}`}
           >
             {overdue ? (
               <AlertTriangle className={`${ICON.xs} shrink-0`} />
@@ -62,9 +60,7 @@ export const VaccinationCard = memo(function VaccinationCard({
             )}
             <span>
               次回: {vaccination.nextDate}
-              {overdue ? (
-                <span className="ml-1.5 text-xs font-medium">（期限超過）</span>
-              ) : null}
+              {overdue ? <span className="ml-1.5 text-xs font-medium">（期限超過）</span> : null}
             </span>
           </div>
         ) : null}

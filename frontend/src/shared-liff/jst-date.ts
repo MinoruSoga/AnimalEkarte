@@ -9,10 +9,10 @@
 
 const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
-const WEEK_DAYS = ['日', '月', '火', '水', '木', '金', '土'] as const;
+const WEEK_DAYS = ["日", "月", "火", "水", "木", "金", "土"] as const;
 
 function pad(value: number): string {
-  return String(value).padStart(2, '0');
+  return String(value).padStart(2, "0");
 }
 
 function toJSTWallDate(date: Date = new Date()): Date {
@@ -20,7 +20,7 @@ function toJSTWallDate(date: Date = new Date()): Date {
 }
 
 export function parseISODate(dateStr: string): Date {
-  const [year, month, day] = dateStr.split('-').map(Number);
+  const [year, month, day] = dateStr.split("-").map(Number);
   return new Date(Date.UTC(year, month - 1, day));
 }
 
@@ -36,7 +36,7 @@ export function getJSTToday(): Date {
 }
 
 export function formatJapaneseDate(dateStr: string, padded = false): string {
-  if (!dateStr) return '';
+  if (!dateStr) return "";
   const date = parseISODate(dateStr);
   const year = date.getUTCFullYear();
   const month = date.getUTCMonth() + 1;
@@ -49,7 +49,7 @@ export function formatJapaneseDate(dateStr: string, padded = false): string {
 }
 
 export function formatJSTApplicationDate(isoStr: string): string {
-  if (!isoStr) return '';
+  if (!isoStr) return "";
   const date = toJSTWallDate(new Date(isoStr));
   return `${date.getUTCFullYear()}年${date.getUTCMonth() + 1}月${date.getUTCDate()}日 申し込み`;
 }

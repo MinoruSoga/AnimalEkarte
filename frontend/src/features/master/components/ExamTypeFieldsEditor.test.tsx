@@ -3,10 +3,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type {
-  AnimalSpecies,
-  useGetAnimalSpecies,
-} from "../api/animal-species";
+import type { AnimalSpecies, useGetAnimalSpecies } from "../api/animal-species";
 import type { ExaminationTypeMaster } from "../api/exam-types-master";
 import { ExamTypeFieldsEditor } from "./ExamTypeFieldsEditor";
 
@@ -93,24 +90,28 @@ const examType: ExaminationTypeMaster = {
   isNonInsurance: false,
   createdAt: "",
   updatedAt: "",
-  items: [{
-    id: "31",
-    examTypeId: "3",
-    name: "白血球",
-    inspectionValue: "",
-    normalValue: "",
-    unit: "/μL",
-    sortOrder: 1,
-    createdAt: "",
-    updatedAt: "",
-    referenceRanges: [{
-      id: "41",
-      examTypeFieldId: "31",
-      animalSpeciesId: "2",
-      refMin: 5,
-      refMax: 10,
-    }],
-  }],
+  items: [
+    {
+      id: "31",
+      examTypeId: "3",
+      name: "白血球",
+      inspectionValue: "",
+      normalValue: "",
+      unit: "/μL",
+      sortOrder: 1,
+      createdAt: "",
+      updatedAt: "",
+      referenceRanges: [
+        {
+          id: "41",
+          examTypeFieldId: "31",
+          animalSpeciesId: "2",
+          refMin: 5,
+          refMax: 10,
+        },
+      ],
+    },
+  ],
 };
 
 const animalSpecies: AnimalSpecies[] = [
@@ -149,23 +150,20 @@ describe("ExamTypeFieldsEditor", () => {
 
   it("exposes accessible field create/edit/delete and reorder controls", async () => {
     const user = userEvent.setup();
-    render(
-      <ExamTypeFieldsEditor
-        examType={examType}
-        canCreate
-        canEdit
-        canDelete
-      />,
-    );
+    render(<ExamTypeFieldsEditor examType={examType} canCreate canEdit canDelete />);
 
     expect(screen.getByRole("heading", { name: "検査項目" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "検査項目を追加" })).toBeInTheDocument();
-    expect(screen.getByRole("button", {
-      name: "編集: 検査項目 白血球 (ID 31)",
-    })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", {
-      name: "削除: 検査項目 白血球 (ID 31)",
-    }));
+    expect(
+      screen.getByRole("button", {
+        name: "編集: 検査項目 白血球 (ID 31)",
+      }),
+    ).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", {
+        name: "削除: 検査項目 白血球 (ID 31)",
+      }),
+    );
     expect(mocks.remove).toHaveBeenCalledWith({ examTypeId: "3", fieldId: "31" });
 
     mocks.reorderCallbacks.at(-1)?.(["31"]);
@@ -196,18 +194,13 @@ describe("ExamTypeFieldsEditor", () => {
 
   it("validates reversed numeric ranges before full replacement", async () => {
     const user = userEvent.setup();
-    render(
-      <ExamTypeFieldsEditor
-        examType={examType}
-        canCreate
-        canEdit
-        canDelete
-      />,
-    );
+    render(<ExamTypeFieldsEditor examType={examType} canCreate canEdit canDelete />);
 
-    await user.click(screen.getByRole("button", {
-      name: "編集: 検査項目 白血球 (ID 31)",
-    }));
+    await user.click(
+      screen.getByRole("button", {
+        name: "編集: 検査項目 白血球 (ID 31)",
+      }),
+    );
     const min = screen.getByRole("spinbutton", { name: "犬の数値下限" });
     const max = screen.getByRole("spinbutton", { name: "犬の数値上限" });
     await user.clear(min);
@@ -216,26 +209,19 @@ describe("ExamTypeFieldsEditor", () => {
     await user.type(max, "5");
     await user.click(screen.getByRole("button", { name: "基準範囲を保存" }));
 
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      "数値範囲の下限は上限以下にしてください",
-    );
+    expect(screen.getByRole("alert")).toHaveTextContent("数値範囲の下限は上限以下にしてください");
     expect(mocks.replace).not.toHaveBeenCalled();
   });
 
   it("sends an explicit empty array when all species ranges are cleared", async () => {
     const user = userEvent.setup();
-    render(
-      <ExamTypeFieldsEditor
-        examType={examType}
-        canCreate
-        canEdit
-        canDelete
-      />,
-    );
+    render(<ExamTypeFieldsEditor examType={examType} canCreate canEdit canDelete />);
 
-    await user.click(screen.getByRole("button", {
-      name: "編集: 検査項目 白血球 (ID 31)",
-    }));
+    await user.click(
+      screen.getByRole("button", {
+        name: "編集: 検査項目 白血球 (ID 31)",
+      }),
+    );
     await user.click(screen.getByRole("checkbox", { name: "犬の基準範囲を使用" }));
     await user.click(screen.getByRole("button", { name: "基準範囲を保存" }));
 
@@ -254,31 +240,22 @@ describe("ExamTypeFieldsEditor", () => {
       isPending: true,
     });
     const user = userEvent.setup();
-    render(
-      <ExamTypeFieldsEditor
-        examType={examType}
-        canCreate
-        canEdit
-        canDelete
-      />,
-    );
+    render(<ExamTypeFieldsEditor examType={examType} canCreate canEdit canDelete />);
 
-    await user.click(screen.getByRole("button", {
-      name: "編集: 検査項目 白血球 (ID 31)",
-    }));
+    await user.click(
+      screen.getByRole("button", {
+        name: "編集: 検査項目 白血球 (ID 31)",
+      }),
+    );
 
     const status = screen.getByRole("status");
-    expect(status).toHaveTextContent(
-      "動物種を読み込み中です。基準範囲はまだ設定できません。",
-    );
+    expect(status).toHaveTextContent("動物種を読み込み中です。基準範囲はまだ設定できません。");
     expect(status).toHaveAttribute("aria-live", "polite");
     expect(status).toHaveAttribute("aria-atomic", "true");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    expect(screen.queryByText(/動物種マスタが登録されていない/))
-      .not.toBeInTheDocument();
+    expect(screen.queryByText(/動物種マスタが登録されていない/)).not.toBeInTheDocument();
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "基準範囲を保存" }))
-      .not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "基準範囲を保存" })).not.toBeInTheDocument();
   });
 
   it("shows an accessible generic fetch error without raw details or range controls", async () => {
@@ -290,32 +267,23 @@ describe("ExamTypeFieldsEditor", () => {
       isPending: false,
     });
     const user = userEvent.setup();
-    render(
-      <ExamTypeFieldsEditor
-        examType={examType}
-        canCreate
-        canEdit
-        canDelete
-      />,
-    );
+    render(<ExamTypeFieldsEditor examType={examType} canCreate canEdit canDelete />);
 
-    await user.click(screen.getByRole("button", {
-      name: "編集: 検査項目 白血球 (ID 31)",
-    }));
+    await user.click(
+      screen.getByRole("button", {
+        name: "編集: 検査項目 白血球 (ID 31)",
+      }),
+    );
 
     const alert = screen.getByRole("alert");
-    expect(alert).toHaveTextContent(
-      "動物種の取得に失敗したため、基準範囲を設定できません。",
-    );
+    expect(alert).toHaveTextContent("動物種の取得に失敗したため、基準範囲を設定できません。");
     expect(alert).toHaveAttribute("aria-atomic", "true");
     expect(screen.queryByText(rawError)).not.toBeInTheDocument();
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
     expect(screen.queryByText(/動物種を読み込み中/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/動物種マスタが登録されていない/))
-      .not.toBeInTheDocument();
+    expect(screen.queryByText(/動物種マスタが登録されていない/)).not.toBeInTheDocument();
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "基準範囲を保存" }))
-      .not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "基準範囲を保存" })).not.toBeInTheDocument();
   });
 
   it("shows a distinct accessible status when the species master is empty", async () => {
@@ -326,18 +294,13 @@ describe("ExamTypeFieldsEditor", () => {
       isPending: false,
     });
     const user = userEvent.setup();
-    render(
-      <ExamTypeFieldsEditor
-        examType={examType}
-        canCreate
-        canEdit
-        canDelete
-      />,
-    );
+    render(<ExamTypeFieldsEditor examType={examType} canCreate canEdit canDelete />);
 
-    await user.click(screen.getByRole("button", {
-      name: "編集: 検査項目 白血球 (ID 31)",
-    }));
+    await user.click(
+      screen.getByRole("button", {
+        name: "編集: 検査項目 白血球 (ID 31)",
+      }),
+    );
 
     const status = screen.getByRole("status");
     expect(status).toHaveTextContent(
@@ -348,8 +311,7 @@ describe("ExamTypeFieldsEditor", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(screen.queryByText(/動物種を読み込み中/)).not.toBeInTheDocument();
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "基準範囲を保存" }))
-      .not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "基準範囲を保存" })).not.toBeInTheDocument();
   });
 
   it("still saves edited field metadata with the exact payload after a species fetch error", async () => {
@@ -360,18 +322,13 @@ describe("ExamTypeFieldsEditor", () => {
       isPending: false,
     });
     const user = userEvent.setup();
-    render(
-      <ExamTypeFieldsEditor
-        examType={examType}
-        canCreate
-        canEdit
-        canDelete
-      />,
-    );
+    render(<ExamTypeFieldsEditor examType={examType} canCreate canEdit canDelete />);
 
-    await user.click(screen.getByRole("button", {
-      name: "編集: 検査項目 白血球 (ID 31)",
-    }));
+    await user.click(
+      screen.getByRole("button", {
+        name: "編集: 検査項目 白血球 (ID 31)",
+      }),
+    );
     const name = screen.getByRole("textbox", { name: "検査項目名" });
     await user.clear(name);
     await user.type(name, "赤血球");
@@ -395,18 +352,15 @@ describe("ExamTypeFieldsEditor", () => {
     const parentKeyDown = vi.fn();
     render(
       <form onSubmit={parentSubmit} onKeyDown={parentKeyDown}>
-        <ExamTypeFieldsEditor
-          examType={examType}
-          canCreate
-          canEdit
-          canDelete
-        />
+        <ExamTypeFieldsEditor examType={examType} canCreate canEdit canDelete />
       </form>,
     );
 
-    await user.click(screen.getByRole("button", {
-      name: "編集: 検査項目 白血球 (ID 31)",
-    }));
+    await user.click(
+      screen.getByRole("button", {
+        name: "編集: 検査項目 白血球 (ID 31)",
+      }),
+    );
     await user.type(screen.getByRole("textbox", { name: "検査項目名" }), "{enter}");
 
     expect(parentSubmit).not.toHaveBeenCalled();
@@ -426,25 +380,31 @@ describe("ExamTypeFieldsEditor", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", {
-      name: "編集: 検査項目 白血球 (ID 31)",
-    }));
+    await user.click(
+      screen.getByRole("button", {
+        name: "編集: 検査項目 白血球 (ID 31)",
+      }),
+    );
     await user.type(screen.getByRole("textbox", { name: "単位" }), "x");
     expect(onDirtyChange).toHaveBeenLastCalledWith(true);
 
     await user.click(screen.getByRole("button", { name: "キャンセル" }));
     expect(onDirtyChange).toHaveBeenLastCalledWith(false);
 
-    await user.click(screen.getByRole("button", {
-      name: "編集: 検査項目 白血球 (ID 31)",
-    }));
+    await user.click(
+      screen.getByRole("button", {
+        name: "編集: 検査項目 白血球 (ID 31)",
+      }),
+    );
     await user.type(screen.getByRole("textbox", { name: "単位" }), "y");
     await user.click(screen.getByRole("button", { name: "検査項目情報を保存" }));
     expect(onDirtyChange).toHaveBeenLastCalledWith(false);
 
-    await user.click(screen.getByRole("button", {
-      name: "編集: 検査項目 白血球 (ID 31)",
-    }));
+    await user.click(
+      screen.getByRole("button", {
+        name: "編集: 検査項目 白血球 (ID 31)",
+      }),
+    );
     await user.type(screen.getByRole("textbox", { name: "単位" }), "z");
     rerender(
       <ExamTypeFieldsEditor
@@ -473,9 +433,11 @@ describe("ExamTypeFieldsEditor", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", {
-      name: "編集: 検査項目 白血球 (ID 31)",
-    }));
+    await user.click(
+      screen.getByRole("button", {
+        name: "編集: 検査項目 白血球 (ID 31)",
+      }),
+    );
     await user.type(screen.getByRole("textbox", { name: "単位" }), "z");
     await user.click(screen.getByRole("button", { name: "検査項目情報を保存" }));
 
@@ -496,29 +458,34 @@ describe("ExamTypeFieldsEditor", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", {
-      name: "編集: 検査項目 白血球 (ID 31)",
-    }));
+    await user.click(
+      screen.getByRole("button", {
+        name: "編集: 検査項目 白血球 (ID 31)",
+      }),
+    );
     await user.type(screen.getByRole("textbox", { name: "単位" }), "x");
     const rangeMax = screen.getByRole("spinbutton", { name: "犬の数値上限" });
     await user.clear(rangeMax);
     await user.type(rangeMax, "12");
 
     expect(screen.getByRole("button", { name: "検査項目を追加" })).toBeDisabled();
-    expect(screen.getByRole("button", {
-      name: "編集: 検査項目 白血球 (ID 31)",
-    })).toBeDisabled();
-    expect(screen.getByRole("button", {
-      name: "削除: 検査項目 白血球 (ID 31)",
-    })).toBeDisabled();
+    expect(
+      screen.getByRole("button", {
+        name: "編集: 検査項目 白血球 (ID 31)",
+      }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", {
+        name: "削除: 検査項目 白血球 (ID 31)",
+      }),
+    ).toBeDisabled();
     mocks.reorderCallbacks.at(-1)?.(["31"]);
     expect(mocks.reorder).not.toHaveBeenCalled();
 
     await user.click(screen.getByRole("button", { name: "検査項目情報を保存" }));
 
     expect(mocks.update).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole("spinbutton", { name: "犬の数値上限" }))
-      .toHaveValue(12);
+    expect(screen.getByRole("spinbutton", { name: "犬の数値上限" })).toHaveValue(12);
     expect(onDirtyChange).toHaveBeenLastCalledWith(true);
 
     await user.click(screen.getByRole("button", { name: "基準範囲を保存" }));
@@ -539,9 +506,11 @@ describe("ExamTypeFieldsEditor", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", {
-      name: "編集: 検査項目 白血球 (ID 31)",
-    }));
+    await user.click(
+      screen.getByRole("button", {
+        name: "編集: 検査項目 白血球 (ID 31)",
+      }),
+    );
     const unit = screen.getByRole("textbox", { name: "単位" });
     await user.type(unit, "y");
     const rangeMax = screen.getByRole("spinbutton", { name: "犬の数値上限" });

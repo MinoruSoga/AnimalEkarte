@@ -89,74 +89,10 @@ func ToMeResponse(
 	allClinics []model.Clinic,
 	effectivePerms EffectivePermissions,
 ) *MeResponse {
-	meClinicList := make([]MeClinicMembership, 0)
 	isSystemAdmin := account != nil && account.IsSystemAdmin
-	if isSystemAdmin {
-		for i := range allClinics {
-			clinic := &allClinics[i]
-			if clinic.ID == 0 || !clinic.IsActive {
-				continue
-			}
-			clinicID := strconv.FormatUint(clinic.ID, 10)
-			meClinicList = append(meClinicList, MeClinicMembership{
-				ClinicID:   clinicID,
-				ClinicName: clinic.Name,
-				IsMain:     clinicID == mainClinicID,
-			})
-		}
-	} else if staff != nil {
-		for i := range staff.ClinicAssignments {
-			assignment := &staff.ClinicAssignments[i]
-			clinicID := strconv.FormatUint(assignment.ClinicID, 10)
-			meClinicList = append(meClinicList, MeClinicMembership{
-				ClinicID:   clinicID,
-				ClinicName: clinicNameMap[clinicID],
-				IsMain:     clinicID == mainClinicID,
-			})
-		}
-	}
-
 	permissions := effectivePerms
 	if permissions == nil {
 		permissions = make(EffectivePermissions)
-	}
-
-	var selectedClinic *MeClinicInfo
-	for i := range allClinics {
-		clinic := &allClinics[i]
-		if strconv.FormatUint(clinic.ID, 10) != mainClinicID {
-			continue
-		}
-		var logoURL *string
-		if clinic.LogoURL != "" {
-			logo := clinic.LogoURL
-			logoURL = &logo
-		}
-		selectedClinic = &MeClinicInfo{
-			ID:                         strconv.FormatUint(clinic.ID, 10),
-			Name:                       clinic.Name,
-			PostalCode:                 clinic.PostalCode,
-			Address:                    clinic.Address,
-			PhoneNumber:                clinic.PhoneNumber,
-			FaxNumber:                  clinic.FaxNumber,
-			RegistrationNumber:         clinic.RegistrationNumber,
-			DirectorName:               clinic.DirectorName,
-			Email:                      clinic.Email,
-			Website:                    clinic.Website,
-			LogoURL:                    logoURL,
-			StandardTaxRate:            clinic.StandardTaxRate,
-			ReducedTaxRate:             clinic.ReducedTaxRate,
-			AccountingDocumentShowLogo: clinic.AccountingDocumentShowLogo,
-			AccountingDocumentShowRegistrationWarning: clinic.AccountingDocumentShowRegistrationWarning,
-			AccountingDocumentShowItemCategory:        clinic.AccountingDocumentShowItemCategory,
-			AccountingDocumentFooterNote:              clinic.AccountingDocumentFooterNote,
-			AccountingDocumentShowClinicHeader:        clinic.AccountingDocumentShowClinicHeader,
-			AccountingDocumentShowOwnerPetInfo:        clinic.AccountingDocumentShowOwnerPetInfo,
-			AccountingDocumentShowItemsTable:          clinic.AccountingDocumentShowItemsTable,
-			AccountingDocumentShowPaymentSummary:      clinic.AccountingDocumentShowPaymentSummary,
-			AccountingDocumentSectionOrder:            append([]string{}, clinic.AccountingDocumentSectionOrder...),
-		}
-		break
 	}
 
 	var occupation *string
@@ -184,10 +120,87 @@ func ToMeResponse(
 		IsSystemAdmin: isSystemAdmin,
 		Occupation:    occupation,
 		MainClinicID:  mainClinicID,
-		Clinic:        selectedClinic,
-		Clinics:       meClinicList,
+		Clinic:        selectedMeClinicInfo(allClinics, mainClinicID),
+		Clinics:       meClinicMemberships(staff, isSystemAdmin, mainClinicID, clinicNameMap, allClinics),
 		Permissions:   permissions,
 	}
+}
+
+func meClinicMemberships(
+	staff *model.Staff,
+	isSystemAdmin bool,
+	mainClinicID string,
+	clinicNameMap map[string]string,
+	allClinics []model.Clinic,
+) []MeClinicMembership {
+	meClinicList := make([]MeClinicMembership, 0)
+	if isSystemAdmin {
+		for i := range allClinics {
+			clinic := &allClinics[i]
+			if clinic.ID == 0 || !clinic.IsActive {
+				continue
+			}
+			clinicID := strconv.FormatUint(clinic.ID, 10)
+			meClinicList = append(meClinicList, MeClinicMembership{
+				ClinicID:   clinicID,
+				ClinicName: clinic.Name,
+				IsMain:     clinicID == mainClinicID,
+			})
+		}
+		return meClinicList
+	}
+	if staff == nil {
+		return meClinicList
+	}
+	for i := range staff.ClinicAssignments {
+		assignment := &staff.ClinicAssignments[i]
+		clinicID := strconv.FormatUint(assignment.ClinicID, 10)
+		meClinicList = append(meClinicList, MeClinicMembership{
+			ClinicID:   clinicID,
+			ClinicName: clinicNameMap[clinicID],
+			IsMain:     clinicID == mainClinicID,
+		})
+	}
+	return meClinicList
+}
+
+func selectedMeClinicInfo(allClinics []model.Clinic, mainClinicID string) *MeClinicInfo {
+	for i := range allClinics {
+		clinic := &allClinics[i]
+		if strconv.FormatUint(clinic.ID, 10) != mainClinicID {
+			continue
+		}
+		var logoURL *string
+		if clinic.LogoURL != "" {
+			logo := clinic.LogoURL
+			logoURL = &logo
+		}
+		return &MeClinicInfo{
+			ID:                         strconv.FormatUint(clinic.ID, 10),
+			Name:                       clinic.Name,
+			PostalCode:                 clinic.PostalCode,
+			Address:                    clinic.Address,
+			PhoneNumber:                clinic.PhoneNumber,
+			FaxNumber:                  clinic.FaxNumber,
+			RegistrationNumber:         clinic.RegistrationNumber,
+			DirectorName:               clinic.DirectorName,
+			Email:                      clinic.Email,
+			Website:                    clinic.Website,
+			LogoURL:                    logoURL,
+			StandardTaxRate:            clinic.StandardTaxRate,
+			ReducedTaxRate:             clinic.ReducedTaxRate,
+			AccountingDocumentShowLogo: clinic.AccountingDocumentShowLogo,
+			AccountingDocumentShowRegistrationWarning: clinic.AccountingDocumentShowRegistrationWarning,
+			AccountingDocumentShowItemCategory:        clinic.AccountingDocumentShowItemCategory,
+			AccountingDocumentFooterNote:              clinic.AccountingDocumentFooterNote,
+			AccountingDocumentShowClinicHeader:        clinic.AccountingDocumentShowClinicHeader,
+			AccountingDocumentShowOwnerPetInfo:        clinic.AccountingDocumentShowOwnerPetInfo,
+			AccountingDocumentShowItemsTable:          clinic.AccountingDocumentShowItemsTable,
+			AccountingDocumentShowPaymentSummary:      clinic.AccountingDocumentShowPaymentSummary,
+			AccountingDocumentSectionOrder:            append([]string{}, clinic.AccountingDocumentSectionOrder...),
+		}
+	}
+	return nil
 }
 
 // BuildAllPermissions returns the system-administrator permission map.
@@ -234,12 +247,7 @@ func ToHTTPEffectivePermissions(perms AuthEffectivePermissions) EffectivePermiss
 	}
 	result := make(EffectivePermissions, len(perms))
 	for resource, permission := range perms {
-		result[resource] = ResourcePermission{
-			View:   permission.View,
-			Create: permission.Create,
-			Edit:   permission.Edit,
-			Delete: permission.Delete,
-		}
+		result[resource] = ResourcePermission(permission)
 	}
 	return result
 }

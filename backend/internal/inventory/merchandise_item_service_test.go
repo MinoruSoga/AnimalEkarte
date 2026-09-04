@@ -442,7 +442,6 @@ func TestMerchandiseItemService_Update(t *testing.T) {
 // ---- Delete テスト ----
 
 func TestMerchandiseItemService_Delete_Success(t *testing.T) {
-	// Soft-delete first, then usage re-check under the same WithTx.
 	var deleted, counted bool
 	inTx := false
 	tx := &mockMerchandiseItemTransactor{withTxFn: func(ctx context.Context, fn func(context.Context) error) error {
@@ -451,16 +450,16 @@ func TestMerchandiseItemService_Delete_Success(t *testing.T) {
 		return fn(ctx)
 	}}
 	repo := &mockMerchandiseItemRepository{
-		deleteFn: func(_ context.Context, _, _ uint64) error {
-			assert.True(t, inTx, "Delete must run inside WithTx")
-			deleted = true
-			return nil
-		},
 		countUsageByMerchandiseItemFn: func(_ context.Context, _, _ uint64) (int64, error) {
 			assert.True(t, inTx, "CountUsage must run inside WithTx")
-			assert.True(t, deleted, "soft-delete must precede usage re-check")
 			counted = true
 			return 0, nil
+		},
+		deleteFn: func(_ context.Context, _, _ uint64) error {
+			assert.True(t, inTx, "Delete must run inside WithTx")
+			assert.True(t, counted, "UX count must precede atomic delete")
+			deleted = true
+			return nil
 		},
 	}
 	svc := newTestMerchandiseItemServiceWithTx(repo, tx)
@@ -489,13 +488,14 @@ func TestMerchandiseItemService_Delete_NotFound(t *testing.T) {
 }
 
 func TestMerchandiseItemService_Delete_ConflictWhenInUse(t *testing.T) {
-	// Soft-delete succeeds inside the tx; usage re-check returns Conflict and rolls back.
+	deleted := false
 	repo := &mockMerchandiseItemRepository{
-		deleteFn: func(_ context.Context, _, _ uint64) error {
-			return nil
-		},
 		countUsageByMerchandiseItemFn: func(_ context.Context, _, _ uint64) (int64, error) {
-			return 2, nil // billing / estimate / campaign target references
+			return 2, nil
+		},
+		deleteFn: func(_ context.Context, _, _ uint64) error {
+			deleted = true
+			return nil
 		},
 	}
 	svc := newTestMerchandiseItemService(repo)
@@ -505,6 +505,7 @@ func TestMerchandiseItemService_Delete_ConflictWhenInUse(t *testing.T) {
 	assert.Error(t, err)
 	assert.True(t, apperrors.IsConflict(err))
 	assert.False(t, apperrors.IsNotFound(err), "usage conflict must stay distinct from NotFound")
+	assert.False(t, deleted, "atomic delete must not run after UX count conflict")
 }
 
 func TestMerchandiseItemService_Delete_CountUsageError(t *testing.T) {

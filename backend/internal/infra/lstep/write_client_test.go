@@ -57,7 +57,12 @@ func enableWriteGate(t *testing.T) {
 }
 
 func newTestClient(baseURL string) Client {
-	return NewClient(testAPIKey, baseURL)
+	// httptest は loopback のため本番の hardened sharedHTTPClient は使わない。
+	return &httpLstepClient{
+		apiKey:  testAPIKey,
+		baseURL: baseURL,
+		http:    &http.Client{Timeout: defaultTimeout},
+	}
 }
 
 func assertNoSecretLeak(t *testing.T, err error) {

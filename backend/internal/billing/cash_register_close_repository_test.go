@@ -146,8 +146,7 @@ func TestCashRegisterCloseRepository_CreateAdjustment_ReasonRequired(t *testing.
 }
 
 func TestCashRegisterCloseRepository_AppendOnlyContract_NoDeleteMethod(t *testing.T) {
-	// コンパイル時契約: CashRegisterCloseRepository に Update/Delete は無い。
-	// ランタイムでは Create 後も FindByID で取得でき、app から reopen できないことを固定する。
+	// 通常経路に一般 Update/Delete は無い。締め記録は append-only。
 	db := setupCashRegisterCloseTestDB(t)
 	repo := NewCashRegisterCloseRepository(db)
 	ctx := context.Background()
@@ -158,16 +157,14 @@ func TestCashRegisterCloseRepository_AppendOnlyContract_NoDeleteMethod(t *testin
 	require.NotNil(t, got)
 	assert.Equal(t, c.ID, got.ID)
 
-	// soft-delete 再開は productize しない。GORM Delete は app 経路ではなく、
-	// migration 003 適用後は immutability trigger が UPDATE/DELETE を拒否する。
-	// ここでは app API に Delete が無いことと、再 Create が拒否されることを固定する。
+	// 同一キーの再 Create は拒否される。
 	err = repo.Create(ctx, &model.CashRegisterClose{
 		ClinicID:          1,
 		CloseDate:         time.Date(2026, 6, 5, 0, 0, 0, 0, time.UTC),
 		Period:            "emg",
 		CategoryBreakdown: json.RawMessage(`{}`),
 	})
-	require.Error(t, err, "同一 date/period の再 Create は不可（append-only・再オープン禁止）")
+	require.Error(t, err, "同一 date/period の再 Create は不可")
 }
 
 func TestCashRegisterCloseRepository_FindAll(t *testing.T) {

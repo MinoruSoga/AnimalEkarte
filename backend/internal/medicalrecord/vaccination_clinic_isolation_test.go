@@ -278,7 +278,7 @@ func TestVaccinationRepository_RelationPreloadsAreClinicScoped(t *testing.T) {
 	assert.True(t, apperrors.IsNotFound(err))
 	assert.Nil(t, got)
 
-	listed, total, err := repo.FindAll(ctx, clinicA, nil, nil, nil, nil, 1, 100)
+	listed, total, err := repo.FindAll(ctx, clinicA, nil, nil, nil, nil, "", 1, 100)
 	require.NoError(t, err)
 	assert.Equal(t, int64(2), total, "only the valid assigned-doctor and nurse rows remain")
 	for _, item := range listed {
@@ -341,7 +341,7 @@ func TestVaccinationRepository_FindByOwnerIsClinicScoped(t *testing.T) {
 			got, err := repo.FindByOwner(ctx, clinicA, ownerID)
 			require.NoError(t, err)
 			assert.Empty(t, got)
-			listed, total, err := repo.FindAll(ctx, clinicA, nil, &ownerID, nil, nil, 1, 100)
+			listed, total, err := repo.FindAll(ctx, clinicA, nil, &ownerID, nil, nil, "", 1, 100)
 			require.NoError(t, err)
 			assert.Empty(t, listed)
 			assert.Zero(t, total)

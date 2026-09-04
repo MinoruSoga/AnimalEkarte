@@ -1,3 +1,4 @@
+import { isAxiosError } from "axios";
 import { axios } from "@/lib/axios";
 import type {
   LinkedTreatmentHistoryResponse,
@@ -16,11 +17,46 @@ export async function searchOwnersForLink(q: string, limit = 20): Promise<OwnerS
 }
 
 export async function searchPetsForLink(q: string, limit = 20): Promise<PetSearchItem[]> {
-  const { data } = await axios.get<{ items: PetSearchItem[] }>(
-    "/v1/identity-links/pets/search",
-    { params: { q, limit } },
-  );
+  const { data } = await axios.get<{ items: PetSearchItem[] }>("/v1/identity-links/pets/search", {
+    params: { q, limit },
+  });
   return data.items ?? [];
+}
+
+/** Reverse lookup: 404 (no visible group) → null; 403/other errors rethrow. */
+export async function findOwnerIdentityGroupByMember(
+  clinicId: number,
+  ownerId: number,
+): Promise<OwnerGroupResponse | null> {
+  try {
+    const { data } = await axios.get<OwnerGroupResponse>(
+      `/v1/identity-links/owners/${clinicId}/${ownerId}/group`,
+    );
+    return data;
+  } catch (err: unknown) {
+    if (isAxiosError(err) && err.response?.status === 404) {
+      return null;
+    }
+    throw err;
+  }
+}
+
+/** Reverse lookup: 404 (no visible group) → null; 403/other errors rethrow. */
+export async function findPetIdentityGroupByMember(
+  clinicId: number,
+  petId: number,
+): Promise<PetGroupResponse | null> {
+  try {
+    const { data } = await axios.get<PetGroupResponse>(
+      `/v1/identity-links/pets/${clinicId}/${petId}/group`,
+    );
+    return data;
+  } catch (err: unknown) {
+    if (isAxiosError(err) && err.response?.status === 404) {
+      return null;
+    }
+    throw err;
+  }
 }
 
 export async function createOwnerIdentityGroup(

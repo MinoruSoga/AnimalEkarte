@@ -24,8 +24,8 @@ func (Account) TableName() string { return "accounts" }
 
 type StaffClinicAssignment struct {
 	ID        uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
-	StaffID   uint64         `gorm:"not null"                                       json:"staff_id"`
-	ClinicID  uint64         `gorm:"not null"                                       json:"clinic_id"`
+	StaffID   uint64         `gorm:"not null;uniqueIndex:uk_staff_clinic"           json:"staff_id"`
+	ClinicID  uint64         `gorm:"not null;uniqueIndex:uk_staff_clinic"           json:"clinic_id"`
 	IsMain    bool           `gorm:"default:false"                                  json:"is_main"`
 	CreatedAt time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`

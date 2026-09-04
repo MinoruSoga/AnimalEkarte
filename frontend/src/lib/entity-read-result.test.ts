@@ -1,35 +1,20 @@
 import { describe, expect, it, vi } from "vitest";
 import { AxiosError, AxiosHeaders, type InternalAxiosRequestConfig } from "axios";
-import {
-  isNonDisclosureReadStatus,
-  resolveEntityReadResult,
-} from "./entity-read-result";
+import { isNonDisclosureReadStatus, resolveEntityReadResult } from "./entity-read-result";
 
 function axiosError(status: number | undefined): AxiosError {
   const config = { headers: new AxiosHeaders() } as InternalAxiosRequestConfig;
   if (status === undefined) {
     // Network failure: no response
-    return new AxiosError(
-      "Network Error",
-      AxiosError.ERR_NETWORK,
-      config,
-      undefined,
-      undefined,
-    );
+    return new AxiosError("Network Error", AxiosError.ERR_NETWORK, config, undefined, undefined);
   }
-  return new AxiosError(
-    "request failed",
-    AxiosError.ERR_BAD_RESPONSE,
+  return new AxiosError("request failed", AxiosError.ERR_BAD_RESPONSE, config, undefined, {
     config,
-    undefined,
-    {
-      config,
-      data: { error: "not found" },
-      headers: new AxiosHeaders(),
-      status,
-      statusText: "Error",
-    },
-  );
+    data: { error: "not found" },
+    headers: new AxiosHeaders(),
+    status,
+    statusText: "Error",
+  });
 }
 
 describe("resolveEntityReadResult", () => {

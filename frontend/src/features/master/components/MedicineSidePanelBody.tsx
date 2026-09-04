@@ -1,13 +1,17 @@
-import { memo, useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import Pill from "lucide-react/dist/esm/icons/pill";
+import { toast } from "sonner";
 
 import { MasterSidePanel } from "@/components/shared/SidePeek";
 import { LAYOUT } from "@/lib/design-tokens";
 import type { Medicine } from "@/types";
 import { MedicineCalculationTypePerWeight } from "@/types/generated/models";
 
-import { MedicineDoseParamsEditor } from "./MedicineDoseParamsEditor";
-import { medicineToFormData, type MedicineFormData } from "./medicine-side-panel-model";
+import {
+  MedicineDoseParamsEditor,
+  type MedicineDoseParamsEditorHandle,
+} from "./MedicineDoseParamsEditor";
+import { medicineToFormData, type MedicineFormData } from "../lib/medicine-side-panel-model";
 import {
   MedicineBasicFlagsSection,
   MedicineDetailSection,
@@ -22,7 +26,7 @@ interface MedicineSidePanelBodyProps {
   defaultParentId?: string;
   categoryMedicines: Medicine[];
   onCloseEdit: () => void;
-  onSave: (data: MedicineFormData) => void;
+  onSave: (data: MedicineFormData) => Promise<boolean> | boolean;
   onDeleteRequest: () => void;
   readOnly?: boolean;
   canDelete?: boolean;
@@ -46,6 +50,7 @@ export const MedicineSidePanelBody = memo(function MedicineSidePanelBody({
   );
   const [nameError, setNameError] = useState("");
   const [isDirty, setIsDirty] = useState(false);
+  const doseParamsRef = useRef<MedicineDoseParamsEditorHandle>(null);
 
   useEffect(() => {
     onDirtyChange?.(isDirty);
@@ -56,20 +61,40 @@ export const MedicineSidePanelBody = memo(function MedicineSidePanelBody({
     setIsDirty(true);
   }, []);
 
-  const handleAction = useCallback(() => {
+  const handleAction = useCallback(async () => {
     if (!formData.name.trim()) {
       setNameError("名称を入力してください");
       return;
     }
     setNameError("");
-    onSave(formData);
-    setIsDirty(false);
-  }, [formData, onSave]);
+    let saved: boolean;
+    if (selectedMedicine) {
+      const doseOk = (await doseParamsRef.current?.saveFilled()) ?? true;
+      if (!doseOk) {
+        toast.error("投与量パラメータの入力内容を確認してください");
+        return;
+      }
+      saved = Boolean(await onSave(formData));
+    } else {
+      const drafts = await doseParamsRef.current?.collectFilled();
+      if (drafts === false) {
+        toast.error("投与量パラメータの入力内容を確認してください");
+        return;
+      }
+      saved = Boolean(await onSave({ ...formData, doseParamDrafts: drafts ?? [] }));
+    }
+    if (saved) {
+      setIsDirty(false);
+    }
+  }, [formData, onSave, selectedMedicine]);
 
-  const handleTitleChange = useCallback((value: string) => {
-    setFormDataDirty((prev) => ({ ...prev, name: value }));
-    if (value.trim()) setNameError("");
-  }, [setFormDataDirty]);
+  const handleTitleChange = useCallback(
+    (value: string) => {
+      setFormDataDirty((prev) => ({ ...prev, name: value }));
+      if (value.trim()) setNameError("");
+    },
+    [setFormDataDirty],
+  );
 
   return (
     <MasterSidePanel
@@ -77,7 +102,7 @@ export const MedicineSidePanelBody = memo(function MedicineSidePanelBody({
       title={formData.name}
       onTitleChange={handleTitleChange}
       onClose={onCloseEdit}
-      action={handleAction}
+      onSave={handleAction}
       onDelete={selectedMedicine && canDelete ? onDeleteRequest : undefined}
       icon={<Pill className={LAYOUT.pageIcon.innerIcon} />}
       titlePlaceholder="薬品名"
@@ -96,20 +121,11 @@ export const MedicineSidePanelBody = memo(function MedicineSidePanelBody({
         isCategory={isCategory}
         setFormDataDirty={setFormDataDirty}
       />
-      <MedicineBasicFlagsSection
-        formData={formData}
-        setFormDataDirty={setFormDataDirty}
-      />
-      <MedicineDetailSection
-        formData={formData}
-        setFormDataDirty={setFormDataDirty}
-      />
-      <MedicineDoseCalculationSection
-        formData={formData}
-        setFormDataDirty={setFormDataDirty}
-      />
-      {selectedMedicine && formData.calculationType === MedicineCalculationTypePerWeight ? (
-        <MedicineDoseParamsEditor medicineId={selectedMedicine.id} />
+      <MedicineBasicFlagsSection formData={formData} setFormDataDirty={setFormDataDirty} />
+      <MedicineDetailSection formData={formData} setFormDataDirty={setFormDataDirty} />
+      <MedicineDoseCalculationSection formData={formData} setFormDataDirty={setFormDataDirty} />
+      {formData.calculationType === MedicineCalculationTypePerWeight ? (
+        <MedicineDoseParamsEditor medicineId={selectedMedicine?.id ?? ""} ref={doseParamsRef} />
       ) : null}
     </MasterSidePanel>
   );

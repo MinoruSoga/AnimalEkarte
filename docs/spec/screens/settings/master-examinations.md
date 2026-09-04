@@ -3,6 +3,7 @@
 ## 概要
 - **画面の目的**: 血液検査や生化学検査等、検査プラン（`exam_types`）の名称・価格の定義、および測定項目（`exam_type_fields`）と基準値の管理。
 - **URLパターン**: `/settings/treatment-items?tab=examination`
+- **導線**: サイドバー「マスタ設定」→「カルテ関連」→「検査マスタ」。新規画面は作らず、診療項目の検査タブへ直リンクする。
 - **アクセス権限**: 診療マスタ管理権限が必要（`ResourceMasterMedical`）
 - **注意**: 検査プラン本体は [master-treatment.md](./master-treatment.md) と同一の `TreatmentPlanMaster` / サイドパネル UI を共有する。測定項目・単位・基準値はサイドパネル内の **`ExamTypeFieldsEditor`** で編集する（「管理 UI が存在しない」は誤り）。
 
@@ -31,6 +32,9 @@
 
 ### 2. 表示順
 プラン一覧の reorder API に加え、フィールド単位の reorder も `ExamTypeFieldsEditor` から実行できる。
+
+### 3. 名称一意
+検査プラン名は医院内で一意（`idx_exam_types_clinic_name`）。重複保存の 409 とトースト（`検査『…』は既に使用されています`）は診療項目マスタ共通仕様（[master-treatment.md §2.3](./master-treatment.md)）に従う。
 
 ---
 

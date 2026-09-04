@@ -24,7 +24,9 @@ const PROCEDURES = [{ id: "2", name: "点滴処置", price: 2000, isActive: true
 const VACCINES = [{ id: "3", name: "混合ワクチン", price: 5000, isActive: true }];
 const CHECKUP_TYPES = [{ id: "4", name: "血液検査", price: 4000, isActive: true }];
 // #201: 薬剤カテゴリ。parentId 未設定・price>0 のためカテゴリ見出し行として除外されない。
-const MEDICINES = [{ id: "5", name: "アモキシシリン", price: 100, isActive: true, parentId: "cat-1" }];
+const MEDICINES = [
+  { id: "5", name: "アモキシシリン", price: 100, isActive: true, parentId: "cat-1" },
+];
 
 function mockHooksWithData() {
   vi.mocked(useGetAllConsultations).mockReturnValue({
@@ -126,9 +128,7 @@ describe("TreatmentSearchDialog", () => {
 
     await user.click(screen.getByText("一般診察"));
 
-    expect(onSelect).toHaveBeenCalledWith(
-      expect.objectContaining({ id: "1", name: "一般診察" }),
-    );
+    expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ id: "1", name: "一般診察" }));
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 

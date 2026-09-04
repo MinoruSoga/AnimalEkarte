@@ -1,1 +1,0 @@
-export const EXAM_PIVOT_RECENT_LIMIT = 10;

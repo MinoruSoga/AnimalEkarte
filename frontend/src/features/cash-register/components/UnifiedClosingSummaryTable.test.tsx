@@ -77,7 +77,11 @@ describe("UnifiedClosingSummaryTable (#153 統合テーブル)", () => {
 
   it("データが無い場合は空メッセージを表示する", () => {
     render(
-      <UnifiedClosingSummaryTable categories={{}} paymentMethods={PAYMENT_METHODS} billingDetails={[]} />,
+      <UnifiedClosingSummaryTable
+        categories={{}}
+        paymentMethods={PAYMENT_METHODS}
+        billingDetails={[]}
+      />,
     );
     expect(screen.getByText("対象期間の会計データがありません")).toBeInTheDocument();
   });
@@ -87,7 +91,10 @@ describe("UnifiedClosingSummaryTable (#153 統合テーブル)", () => {
       <UnifiedClosingSummaryTable
         categories={{ other: { 現金: 1000 } }}
         paymentMethods={PAYMENT_METHODS}
-        billingDetails={[detail({ billingId: 1, category: "other" }), detail({ billingId: 1, category: "other" })]}
+        billingDetails={[
+          detail({ billingId: 1, category: "other" }),
+          detail({ billingId: 1, category: "other" }),
+        ]}
         unclassifiedOtherCount={1}
       />,
     );
@@ -108,4 +115,3 @@ describe("UnifiedClosingSummaryTable (#153 統合テーブル)", () => {
     expect(within(unrecordedRow).getByText("記録なし")).toBeInTheDocument();
   });
 });
-

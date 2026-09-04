@@ -20,6 +20,10 @@ vi.mock("./ExaminationImportDialog", () => ({
   ExaminationImportDialog: () => null,
 }));
 
+vi.mock("@/components/shared/LabDeviceUnlinkedBanner/LabDeviceUnlinkedBanner", () => ({
+  LabDeviceUnlinkedBanner: () => null,
+}));
+
 const makeItem = (overrides: Partial<ExamResult> = {}): ExamResult => ({
   id: "1",
   examTypeFieldId: 1,
@@ -42,20 +46,24 @@ const EXAM_GROUPS: ExamGroup[] = [
     id: 1,
     date: "2026-01-01 10:00",
     machine: "DRI-CHEM",
-    items: [
-      makeItem({ id: "1", name: "グルコース" }),
-      makeItem({ id: "2", name: "クレアチニン" }),
-    ],
+    name: "血液検査",
+    price: 4200,
+    medicalRecordId: "9",
+    items: [makeItem({ id: "1", name: "グルコース" }), makeItem({ id: "2", name: "クレアチニン" })],
   },
   {
     id: 2,
     date: "2026-01-02 10:00",
     machine: "DRI-CHEM",
+    name: "血液検査",
+    price: 4200,
+    medicalRecordId: "9",
     items: [makeItem({ id: "3", name: "ビリルビン" })],
   },
 ];
 
 beforeEach(() => {
+  Element.prototype.scrollIntoView = vi.fn();
   vi.mocked(useGetRecordExaminations).mockReturnValue({
     data: { items: EXAM_GROUPS, isTruncated: false },
     isLoading: false,
@@ -126,6 +134,20 @@ describe("MedicalRecordExamination — カナ混同検索", () => {
     });
   });
 
+  it("examId があるとき対象検査を先頭にして強調する", () => {
+    render(
+      <MemoryRouter initialEntries={["/?examId=2"]}>
+        <MedicalRecordExamination petId="1" medicalRecordId="9" />
+      </MemoryRouter>,
+    );
+
+    expect(useGetRecordExaminations).toHaveBeenCalledWith("1", "9");
+    const groups = document.querySelectorAll("[id^='exam-group-']");
+    expect(groups[0]).toHaveAttribute("id", "exam-group-2");
+    expect(groups[0]).toHaveAttribute("aria-current", "true");
+    expect(groups[1]).toHaveAttribute("id", "exam-group-1");
+  });
+
   it("各検査グループへ対象petIdを渡して時系列導線を構成する", () => {
     renderExaminations();
 
@@ -135,13 +157,7 @@ describe("MedicalRecordExamination — カナ混同検索", () => {
     const secondDetailLink = screen.getByRole("link", {
       name: "2026-01-02 10:00の検歴を表示",
     });
-    expect(firstDetailLink).toHaveAttribute(
-      "href",
-      "/examinations/1?petId=1&historyView=pivot",
-    );
-    expect(secondDetailLink).toHaveAttribute(
-      "href",
-      "/examinations/2?petId=1&historyView=pivot",
-    );
+    expect(firstDetailLink).toHaveAttribute("href", "/examinations/1?petId=1&historyView=pivot");
+    expect(secondDetailLink).toHaveAttribute("href", "/examinations/2?petId=1&historyView=pivot");
   });
 });

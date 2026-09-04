@@ -45,6 +45,10 @@ func (m *mockReservationService) GetByIDForClinics(ctx context.Context, clinicID
 	return nil, nil
 }
 
+func (m *mockReservationService) CreateBatch(_ context.Context, _ *CreateManualReservationInput, _ []ReservationBatchPet) ([]model.Reservation, error) {
+	return nil, nil
+}
+
 func (m *mockReservationService) Create(ctx context.Context, input *CreateManualReservationInput) (*model.Reservation, error) {
 	return m.createFn(ctx, input)
 }
@@ -176,6 +180,23 @@ func TestListReservations(t *testing.T) {
 			setupCtx:   func(c *gin.Context) { setClinicID(c) },
 			svc:        &mockReservationService{},
 			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:  "returns 403 when clinic_ids lacks reservations:view",
+			query: "page=1&limit=10&clinic_ids=2",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("is_system_admin", false)
+				c.Set("clinic_ids", []uint64{1, 2})
+				setReservationsViewOnlyClinic(c, 1)
+			},
+			svc: &mockReservationService{
+				listFn: func(_ context.Context, _ []uint64, _, _ int, _, _, _ *time.Time, _, _ *string, _, _ *uint64) ([]model.Reservation, int64, error) {
+					t.Fatal("must not list a clinic that lacks reservations:view")
+					return nil, 0, nil
+				},
+			},
+			wantStatus: http.StatusForbidden,
 		},
 		{
 			name:       "returns 401 when clinic_id is missing",
@@ -360,6 +381,48 @@ func TestGetReservationAvailableTimes(t *testing.T) {
 			}
 		})
 	}
+}
+
+// mockStaffPreferringAvailability implements GetStaffAvailableTimes for BUG-015 staff path.
+type mockStaffPreferringAvailability struct {
+	staffCalls int
+	liffCalls  int
+}
+
+func (m *mockStaffPreferringAvailability) GetAvailableTimes(
+	_ context.Context, _, _, _ uint64, _ time.Time,
+) ([]TimeSlot, error) {
+	m.liffCalls++
+	return nil, apperrors.WrapInvalidInput("reservation type is inactive")
+}
+
+func (m *mockStaffPreferringAvailability) GetStaffAvailableTimes(
+	_ context.Context, _, _, _ uint64, _ time.Time,
+) ([]TimeSlot, error) {
+	m.staffCalls++
+	return []TimeSlot{{StartTime: "0945", EndTime: "1045"}}, nil
+}
+
+func TestGetReservationAvailableTimes_PrefersStaffAvailableTimes(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	svc := &mockStaffPreferringAvailability{}
+	h := newHandlerWithLiffSvc(svc)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(
+		http.MethodGet,
+		"/?reservation_type_id=5&staff_id=10&date=2026-06-01",
+		http.NoBody,
+	)
+	setClinicID(c)
+
+	h.GetReservationAvailableTimes(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), `"start_time":"0945"`)
+	assert.Equal(t, 1, svc.staffCalls, "staff GetStaffAvailableTimes must be used when available")
+	assert.Zero(t, svc.liffCalls, "LIFF GetAvailableTimes must not run when staff method exists")
 }
 
 // ---- CreateReservation ----

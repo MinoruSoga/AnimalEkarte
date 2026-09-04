@@ -5,7 +5,7 @@
 > **タイミング**: LINE連携機能の全体像を把握したい時。
 
 > **Animal Ekarte**: 飼い主向け予約体験と CRM 戦略の統合
-> **最新更新**: 2026-06-12
+> **最新更新**: 2026-08-31
 
 ---
 
@@ -22,8 +22,8 @@
 - **[lstep-integration.md](./lstep-integration.md)**: **【重要】** マーケティング戦略、CPM 判定ロジック、15 種の自動配信トリガー詳細。
 - **[cost-analysis.md](./cost-analysis.md)**: Messaging / Lステップ課金と配信ボリューム試算（docs-only）。
 
-### 原本・ソース
-- **[`01_曽我さん向け_カルテLステップ連携実装仕様書.md`](./01_曽我さん向け_カルテLステップ連携実装仕様書.md)**: クライアント受領の正本仕様書。
+### 原本
+- クライアント受領原本の外部 restricted evidence location は CorpVault `evidence/2026-08-20-docs-cleanup/client/`（repository 外であり、この commit の検証対象・開発時の必須依存ではない）。製品側の repository SoT は [lstep-integration.md](./lstep-integration.md)。
 
 ---
 
@@ -34,7 +34,7 @@
 ### 主要な価値
 - **オペレーションの自動化**: LINE 予約がカルテ受付（カンバン）へ即座に反映され、スタッフの手入力コストを削減。
 - **臨床データに基づく CRM**: 診察結果や最終来院日に基づき、Lステップが「忘れられない病院」として自動で飼い主をフォロー。
-- **高精度な空き枠管理**: 院内シフト (`/shifts`) と完全連動し、オーバーブッキングを物理的に防止。
+- **競合を拒否する空き枠管理**: 作成transaction内で予約種別規則とappointment conflictを再検証する。明示staffはclinic所属・capability・LIFF公開/activeを検査するが、**選択時刻のshift再検証は未実装のsource gap**であり、frontendのshift絞り込みだけを安全根拠にしない。
 
 ---
 

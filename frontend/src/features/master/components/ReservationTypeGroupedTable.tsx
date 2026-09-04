@@ -1,13 +1,14 @@
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useSortableList } from "@/hooks/use-sortable-list";
 import { C, STYLE } from "@/lib/design-tokens";
 import { useReorderReservationTypes } from "../api/reservation-types";
 import type { ReservationType } from "../api/reservation-types";
 import type { ReservationTypeGroup } from "../api/reservation-type-groups";
+import { MASTER_TABLE_COL } from "../constants/styles";
 import { ReservationTypeGroupedTableBody } from "./ReservationTypeGroupedTableBody";
-import { groupReservationTypesByGroupId } from "./reservation-type-grouped-table-model";
+import { groupReservationTypesByGroupId } from "../lib/reservation-type-grouped-table-model";
 
 interface ReservationTypeGroupedTableProps {
   groups: ReservationTypeGroup[];
@@ -28,17 +29,15 @@ export function ReservationTypeGroupedTable({
 }: ReservationTypeGroupedTableProps) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const reorderMutation = useReorderReservationTypes();
+  const { mutate } = reorderMutation;
   const resetOrderRef = useRef<() => void>(() => {});
 
   const handleReorder = useCallback(
     (newIds: string[]) => {
       if (!canEdit) return;
-      reorderMutation.mutate(
-        { ids: newIds.map(Number) },
-        { onError: () => resetOrderRef.current() },
-      );
+      mutate({ ids: newIds.map(Number) }, { onError: () => resetOrderRef.current() });
     },
-    [canEdit, reorderMutation],
+    [canEdit, mutate],
   );
 
   const toggleCollapse = useCallback((id: string) => {
@@ -56,7 +55,7 @@ export function ReservationTypeGroupedTable({
   const { orderedItems, sensors, handleDragStart, handleDragEnd, handleDragCancel, resetOrder } =
     useSortableList({ items: categories, onReorder: handleReorder });
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     resetOrderRef.current = resetOrder;
   }, [resetOrder]);
 
@@ -73,15 +72,24 @@ export function ReservationTypeGroupedTable({
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}
     >
-      <SortableContext items={orderedItems.map((item) => item.id)} strategy={verticalListSortingStrategy}>
-        <div className={`rounded-xs border ${C.borderLight} overflow-x-auto overflow-y-hidden ${C.bgWhite}`}>
+      <SortableContext
+        items={orderedItems.map((item) => item.id)}
+        strategy={verticalListSortingStrategy}
+      >
+        <div
+          className={`rounded-xs border ${C.borderLight} overflow-x-auto overflow-y-hidden ${C.bgWhite}`}
+        >
           <table className="w-full border-collapse">
             <thead>
               <tr className={STYLE.tableHeaderRow}>
                 <th data-c18-structural-cell className="w-11 px-0" />
                 <th className={`text-left ${STYLE.tableHeaderCell}`}>名称</th>
                 <th className={`text-left ${STYLE.tableHeaderCell} w-56`}>備考</th>
-                <th className={`text-center ${STYLE.tableHeaderCell} w-24 whitespace-nowrap`}>ステータス</th>
+                <th
+                  className={`text-center ${STYLE.tableHeaderCell} ${MASTER_TABLE_COL.w100} whitespace-nowrap`}
+                >
+                  ステータス
+                </th>
                 <th data-c18-structural-cell className="w-20" />
               </tr>
             </thead>

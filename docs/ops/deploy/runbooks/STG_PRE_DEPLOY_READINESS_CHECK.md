@@ -1,94 +1,69 @@
-# リリース準備・検証ランブック (Release Readiness Check)
+# STG リリース準備チェック
 
-> **目的**: 本番反映前の最終検証ランブックを提供する。
-> **読者**: DevOps/Team Lead。
-> **タイミング**: 本番反映前の最終検証時。
+> **目的**: reviewed `main -> staging` delivery後のrepository-derived gatesを定義する。
+> **境界**: Production approval gatesは別途実装・検証が必要。このcheckのPASSだけでproductionへmerge/pushしない。
 
-> **Animal Ekarte**: 安全かつ確実なステージング反映と本番昇格のための手順
-> **最新更新**: 2026-07-23 | **ステータス**: STG 推奨運用手順（Production 未構築）
+## 1. Configuration audit
 
----
+- [ ] target `backend/wrangler.jsonc`（またはproduction target file）の`secrets.required`をnames-only SSOTとして全nameを確認した。値を表示・記録していない。
+- [ ] Wrangler `vars`を別に確認した。secretとvarを混同していない。
+- [ ] workflowが要求するGitHub secret **names** をcurrent workflowから導出し、names-onlyで確認した。
+- [ ] `.env.staging`をcurrent/tracked config surfaceとして使っていない。
+- [ ] CIのrequired jobsがsuccessで、path-filterによる`skipped`をcomponentのgreen証跡にしていない。
 
-## 1. 概要
-本ランブックは、`main` ブランチの最新コードを `staging` 環境へ反映し、最終的なスモークテストを行うための、機械的かつ厳格なチェックリストです。本番環境は未構築のため、本チェックの PASS だけで本番昇格可能とは判定しません。
+## 2. Migration / seed gate
 
----
+Normal backend deliveryは`wrangler deploy -> POST /_internal/migrate -> /health`の順。
 
-## 2. フェーズ 1: 事前監査 (Audit)
+- [ ] current `backend/migrations/*.sql`を全てplanへ含めた。
+- [ ] exactly `BundleOrderForEnv(APP_ENV)`を適用した。現在は`002_master`のみ。
+- [ ] `002_master/manifest.json`から12-table inventory/load orderを導出し、listed filesが揃う。
+- [ ] migrate logの`Migration key coverage missing=0`を確認した。固定row/key/table countを使っていない。
+- [ ] checksum mismatchがない。
+- [ ] legacy seed keyを検出していない。検出時はrelease stopとし、[known source blocker](../SEED_MIGRATION_OPERATIONS.md#2-known-blocker-legacy-seed-keys)のreviewed code fix/recovery planを待つ。
 
-デプロイを開始する前に、環境設定と CI の状態を確定させます。
+`verify_seed_matches_stg_dump_full.sh`はmandatory gateではない。approved non-repository `STG_DUMP=/absolute/path`、data handling approval、master-only contractが揃う別rehearsalでのみ使える。通常checkoutにdumpが無いことをfailureにしない。
 
-### 2.1 環境変数（Secret）の監査
-- [ ] `.env.staging` 内に平文のパスワードや秘密鍵が混入していないか。
-- [ ] `JWT_SECRET`, `INTEGRATION_ENCRYPTION_KEY` 等の必須変数が定義されているか。
-- [ ] `CORS_ALLOWED_ORIGIN` に正しいフロントエンド URL が設定されているか。
+Shared DB rebuildはworkflow optionではない。[STG_PLANETSCALE_SEED_RUNBOOK.md](../STG_PLANETSCALE_SEED_RUNBOOK.md)のtarget/data-owner/backup/rollback/approval gateを満たす場合だけapproved operatorが行う。
 
-### 2.2 CI パイプラインの検証
-- [ ] `ci.yml` ワークフローが `success` であること。
-- [ ] **注意**: `skipped` になったジョブ（バックエンド/フロントエンド等）がないか、`paths-filter` の挙動を再確認する。
+## 3. Post-deploy checks
 
----
+### 3.1 Infrastructure
 
-## 3. フェーズ 2: デプロイ実行 (Deploy)
+- [ ] custom-domain `/health` が`200` / `{"status":"ok"}`。
+- [ ] failure時はapproved workers.dev endpointと比較し、DNS/routeとWorker/Container/DBを分離した。
+- [ ] backend workflowのdeploy/migrate/post-migrate healthが全てsuccess。
+- [ ] image更新を伴う場合はdocumented rolling window後にも確認した。
+- [ ] frontend API rewrite blocker（[Vercel runbook](../VERCEL-FRONTEND-STAGING-TEST.md)）が解消・検証済み。未解消ならfrontend/API smokeはBLOCKED。
 
-### 3.1 マイグレーションと、必要時のみ行う DB 再作成
+### 3.2 Corrected CRUD cases
 
-現行の `backend-deploy.yml` は `workflow_dispatch` 可能ですが、`db_reset` 入力はありません。
-通常は次の手動トリガー、または `staging` push に伴う自動実行で `wrangler deploy` → migrate → health を通します。
+[CRUD-SMOKE-TEST.md](../CRUD-SMOKE-TEST.md)の次を実行する。
 
-```bash
-gh workflow run backend-deploy.yml --ref staging
-```
+- A-1 `GET /clinics?scope=all` with `hospital-settings:view` -> 200
+- A-2 same route without permission -> 403
+- A-3 approved existing clinic PATCH、readback、元値restore
+- B-1 valid permission-group payload -> 201
+- B-2 active staff assignmentのあるclinic-scoped group DELETE -> 409
+- B-3 smoke-created unused group cleanup -> 204
+- C-1 CRUD-only staff create -> 201
+- C-2 loginが必要ならapproved provisioning + `POST /api/v1/login`。remote mechanism未承認ならBLOCKED
+- C-3 dependency protectionとsmoke-created staff cleanup
 
-共有 STG の DB 再作成は workflow のオプションではなく、データを破棄する別オペレーションです。
-必要な場合だけ明示承認を得て [STG_PLANETSCALE_SEED_RUNBOOK.md](../STG_PLANETSCALE_SEED_RUNBOOK.md)
-に従います。AWS ECS/RDS は廃止済みで、DB 再作成や切り戻しには使用できません。
+Clinic/staffはHTTP/resource state、permission-group成功mutationだけexplicit auditを確認する。run-created IDsだけをcleanupし、cookie/password/token/PHIを記録しない。
 
-- **監視項目**:
-  - Worker の migrate レスポンス（`POST /_internal/migrate` の exit code）と `/health` ポーリング結果を確認。
-  - fresh DB では直下 DDL 全数（`ls backend/migrations/*.sql` を正とする）+ seed バンドル（`002_master` → `003_demo` → `004_staging`）が完了し、`schema_migrations` の行数が「直下 DDL 本数 + seed バンドル数」に一致することを確認。
-  - Checksum mismatch がないことを確認。旧 seed key の検出時は旧形式相当の 002〜004 が legacy translation されることを確認する。
-- **シード突合検証**: `bash scripts/verify_seed_matches_stg_dump_full.sh` → exit 0 確認 (seed が STG dump と全テーブルで一致すること)。
+## 4. Stop criteria
 
----
+1つでも該当すればrelease successにしない。
 
-## 4. フェーズ 3: 最終検証 (Post-Deploy Check)
+- migration coverage missing、checksum mismatch、legacy translation blocker
+- health failure、unexpected 4xx/5xx、tenant isolation failure
+- frontend `/api`がAPIではなくSPA `index.html`へfallback
+- restore/cleanup failure
+- required approval gate、backup/rollback、account/provisioningが未確認
 
-### 4.1 ヘルスチェック
-- [ ] `GET /health` -> `200 OK`（実 URL と workers.dev の両経路で確認し、DNS/Worker/Container のどこで失敗しているか切り分ける）。
-- [ ] デプロイ直後は旧コンテナイメージが残りうるため、イメージ更新を伴う検証では 15 分静置後にも再確認する。
+AWSはretiredでrollback先ではない。Cloudflare/Vercel側の修正・last-known-good rebuild/redeployとcurrent infra runbookで復旧する。
 
-### 4.2 スモークテスト (CRUD Smoke Test)
-[スモークテスト手順書](../CRUD-SMOKE-TEST.md) に従い、以下の基本導線をブラウザで確認します。
-- **医院管理**: 既存医院の編集・保存。
-- **権限管理**: 権限グループの変更と、ログアウト/再ログイン後の反映。
-- **スタッフ管理**: ログイン可否と、所属医院の切り替え。
+## 5. Record
 
----
-
-## 5. リリース失敗・復旧開始基準
-
-以下のいずれか 1 つでも該当した場合、リリース成功とはせず、即座に復旧を開始してください。
-1.  API エラーレートが **1%** を超過。
-2.  画面の初期ロードに **5 秒** 以上を要する。
-3.  スモークテスト中に 1 件でも致命的なバグ（500エラー等）を発見。
-
-> AWS への切り戻しやホットスタンバイは存在しません。ここでいう復旧はリリース中止・
-> Cloudflare 側の修正または再デプロイ・必要に応じたスナップショット + 現行 IaC からの再建を指します。
-> 初動は [`../../infra/staging/runbook.md`](../../infra/staging/runbook.md) に従います。
-
----
-
-## 6. 結果の記録
-
-デプロイ完了後、以下のテンプレートを用いて `ops_deploy_YYYYMMDD.md` として記録を残します。
-
-```markdown
-### リリース記録 (YYYY-MM-DD)
-- **対象 Commit**: [sha]
-- **スモークテスト結果**: PASS / FAIL
-- **エラーログ**: 0 件（Cloudflare Workers Logs / Containers）
-- **特記事項**: [なし/あり]
-```
-
----
+commit、workflow/run ID、target、各gateのPASS/FAIL/BLOCKED、nonsecret evidence、cleanup IDs/count、deferred blockerを記録する。external deployed stateをrepository configだけで「確認済み」にしない。

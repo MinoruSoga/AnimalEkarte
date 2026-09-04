@@ -14,7 +14,13 @@ import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIco
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 // rendering-hoist-jsx: 静的SelectItem定数をモジュールスコープに巻き上げ
 const TREATMENT_STATUS_ITEMS = (
@@ -64,12 +70,14 @@ export const TreatmentTable = memo(function TreatmentTable({
     : "grid-cols-[3fr_2fr_0.8fr_1fr_0.8fr_1fr_1fr_1fr_0.8fr]";
 
   return (
-    <div className={`flex-1 flex flex-col min-h-0 border ${C.borderMedium} rounded-lg ${C.bgWhite} overflow-hidden`}>
+    <div
+      className={`flex-1 flex flex-col min-h-0 border ${C.borderMedium} rounded-lg ${C.bgWhite} overflow-hidden`}
+    >
       {/* Header — DESIGN.md ex-data-table-cell: canvas-soft 背景 + eyebrow 相当タイポグラフィ（STYLE.sectionLabel） */}
       <div
         className={cn(
           `grid gap-0 border-b ${C.borderMedium} ${C.bgPage} ${STYLE.sectionLabel} min-h-[48px] items-center`,
-          gridColsClass
+          gridColsClass,
         )}
       >
         {showStatus ? <HeaderCell align="center">ステータス</HeaderCell> : null}
@@ -93,7 +101,7 @@ export const TreatmentTable = memo(function TreatmentTable({
               key={item.id}
               className={cn(
                 `grid gap-0 border-b ${C.borderLight} ${C.bgWhite} text-sm ${C.text} items-center ${C.hoverBgPageHalf} transition-colors h-12 group`,
-                gridColsClass
+                gridColsClass,
               )}
             >
               {showStatus ? (
@@ -135,7 +143,7 @@ export const TreatmentTable = memo(function TreatmentTable({
                   onClick={() => onUpdate(item.id, "is_insurance", !item.is_insurance)}
                   className={cn(
                     "h-full w-full flex items-center justify-center",
-                    disabled ? "cursor-not-allowed opacity-60" : `cursor-pointer ${C.hoverBgPage}`
+                    disabled ? "cursor-not-allowed opacity-60" : `cursor-pointer ${C.hoverBgPage}`,
                   )}
                 >
                   {item.is_insurance ? (
@@ -253,7 +261,7 @@ function HeaderCell({
         `p-2 ${C.borderMedium} h-full flex items-center`,
         !last && "border-r",
         align === "center" && "justify-center",
-        align === "right" && "justify-end"
+        align === "right" && "justify-end",
       )}
     >
       {children}
@@ -281,7 +289,7 @@ function Cell({
         !last && "border-r",
         align === "center" && "justify-center",
         align === "right" && "justify-end",
-        className
+        className,
       )}
       onClick={onClick}
     >
@@ -326,7 +334,7 @@ function TableInput({
         "h-full w-full border-none bg-transparent rounded-none focus-visible:ring-0 px-3 text-sm shadow-none",
         align === "right" && "text-right",
         disabled && "opacity-60 cursor-not-allowed",
-        className
+        className,
       )}
       placeholder={placeholder}
     />

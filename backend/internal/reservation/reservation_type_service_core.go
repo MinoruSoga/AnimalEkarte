@@ -12,7 +12,6 @@ import (
 func (s *reservationTypeService) List(ctx context.Context, clinicID uint64) ([]model.ReservationType, error) {
 	items, err := s.repo.FindAllWithChildren(ctx, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list reservation types", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to list reservation types")
 	}
 	return items, nil
@@ -21,7 +20,6 @@ func (s *reservationTypeService) List(ctx context.Context, clinicID uint64) ([]m
 func (s *reservationTypeService) GetByID(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error) {
 	result, err := s.repo.FindByIDWithChildren(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get reservation type", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get reservation type")
 	}
 	return result, nil
@@ -79,13 +77,11 @@ func (s *reservationTypeService) Create(ctx context.Context, clinicID uint64, in
 		GroupID:                input.GroupID,
 	}
 	if err := s.repo.Create(ctx, st); err != nil {
-		slog.ErrorContext(ctx, "failed to create reservation type", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to create reservation type")
 	}
 	slog.InfoContext(ctx, "reservation type created", slog.Uint64("clinic_id", clinicID), slog.Uint64("reservation_type_id", st.ID))
 	created, err := s.repo.FindByIDWithChildren(ctx, clinicID, st.ID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get reservation type after create", "error", err, "id", st.ID, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get reservation type after create")
 	}
 	return created, nil
@@ -96,7 +92,6 @@ func (s *reservationTypeService) Update(ctx context.Context, clinicID, id uint64
 		return nil, apperrors.WrapInvalidInput(sharedkernel.ErrMsgInputNotNil)
 	}
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to get reservation type", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get reservation type")
 	}
 	if err := sharedkernel.ValidateOptionalName(input.Name); err != nil {
@@ -114,7 +109,6 @@ func (s *reservationTypeService) Update(ctx context.Context, clinicID, id uint64
 	if input.ParentID != nil {
 		childCount, err := s.repo.CountChildrenByParentID(ctx, clinicID, id)
 		if err != nil {
-			slog.ErrorContext(ctx, "failed to count reservation type children", "error", err, "id", id, "clinic_id", clinicID)
 			return nil, apperrors.Wrap(err, "failed to count reservation type children")
 		}
 		if childCount > 0 {
@@ -132,12 +126,10 @@ func (s *reservationTypeService) Update(ctx context.Context, clinicID, id uint64
 		return nil, apperrors.WrapInvalidInput(sharedkernel.ErrMsgAtLeastOneField)
 	}
 	if _, err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-		slog.ErrorContext(ctx, "failed to update reservation type", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to update reservation type")
 	}
 	result, err := s.repo.FindByIDWithChildren(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get reservation type after update", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get reservation type after update")
 	}
 	slog.InfoContext(ctx, "reservation type updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("reservation_type_id", id))
@@ -150,7 +142,6 @@ func (s *reservationTypeService) Delete(ctx context.Context, clinicID, id uint64
 	}
 	childCount, err := s.repo.CountChildrenByParentID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check reservation type children", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to check reservation type children")
 	}
 	if childCount > 0 {
@@ -158,14 +149,12 @@ func (s *reservationTypeService) Delete(ctx context.Context, clinicID, id uint64
 	}
 	count, err := s.repo.CountUsageByReservationTypeID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check reservation type usage", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to check reservation type usage")
 	}
 	if count > 0 {
 		return apperrors.WrapConflict("この項目は予約データで使用中のため削除できません")
 	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to delete reservation type", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete reservation type")
 	}
 	slog.InfoContext(ctx, "reservation type deleted", slog.Uint64("clinic_id", clinicID), slog.Uint64("reservation_type_id", id))
@@ -177,7 +166,6 @@ func (s *reservationTypeService) Reorder(ctx context.Context, clinicID uint64, i
 		return apperrors.WrapInvalidInput(sharedkernel.ErrMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
-		slog.ErrorContext(ctx, "failed to reorder reservation types", "error", err, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to reorder reservation types")
 	}
 	slog.InfoContext(ctx, "reservation type reordered", slog.Uint64("clinic_id", clinicID), slog.Int("count", len(ids)))
@@ -197,7 +185,6 @@ func (s *reservationTypeService) validateReservationTypeParent(ctx context.Conte
 	}
 	parent, err := s.repo.FindByID(ctx, clinicID, *parentID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to find parent reservation type", "error", err, "parent_id", *parentID, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to find parent reservation type")
 	}
 	if parent.ParentID != nil {
@@ -215,7 +202,6 @@ func (s *reservationTypeService) validateReservationTypeGroup(ctx context.Contex
 		return nil
 	}
 	if _, err := s.groupRepo.FindByID(ctx, clinicID, *groupID); err != nil {
-		slog.ErrorContext(ctx, "reservation type group not found or belongs to different clinic", "error", err, "group_id", *groupID, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to verify reservation type group ownership")
 	}
 	return nil

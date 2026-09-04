@@ -507,14 +507,14 @@ func (m *bulkCountTriggerLogRepo) UpdateSuppressed(_ context.Context, _, _ uint6
 }
 
 type deliveryBatchQueryCounts struct {
-	ownerFindByID           int
-	ownerFindByIDs          int
-	tagFindByOwner          int
-	tagFindByOwners         int
-	logExistsToday          int
-	logFindByOwnerAndDate   int
-	logFindByDateRange      int
-	firedCount              int
+	ownerFindByID         int
+	ownerFindByIDs        int
+	tagFindByOwner        int
+	tagFindByOwners       int
+	logExistsToday        int
+	logFindByOwnerAndDate int
+	logFindByDateRange    int
+	firedCount            int
 }
 
 func runDeliveryBatchWithCounts(t *testing.T, ownerCount int, dayLogs []model.LstepDeliveryTriggerLog, tagsByOwner map[uint64][]*model.LstepTagCache) deliveryBatchQueryCounts {

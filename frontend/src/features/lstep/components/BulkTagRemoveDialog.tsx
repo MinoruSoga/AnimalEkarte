@@ -1,4 +1,5 @@
-import { useCallback } from "react";
+import { useCallback, useLayoutEffect, useRef } from "react";
+import { toast } from "sonner";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -12,12 +13,15 @@ import { Button } from "@/components/ui/button";
 import { C, STYLE } from "@/lib/design-tokens";
 import { useBulkRemoveTag } from "../api/delete-owner-tag-bulk";
 
+const PERMISSION_DENIED_MESSAGE = "この操作を行う権限がありません";
+
 interface BulkTagRemoveDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   tagName: string;
   ownerCount: number;
   ownerIds: string[];
+  canDelete?: boolean;
 }
 
 export function BulkTagRemoveDialog({
@@ -26,10 +30,19 @@ export function BulkTagRemoveDialog({
   tagName,
   ownerCount,
   ownerIds,
+  canDelete = false,
 }: BulkTagRemoveDialogProps) {
   const { bulkRemove, progress } = useBulkRemoveTag();
+  const canDeleteRef = useRef(canDelete);
+  useLayoutEffect(() => {
+    canDeleteRef.current = canDelete;
+  }, [canDelete]);
 
   const handleConfirm = useCallback(async () => {
+    if (canDeleteRef.current !== true) {
+      toast.error(PERMISSION_DENIED_MESSAGE);
+      return;
+    }
     await bulkRemove(tagName, ownerIds);
     onOpenChange(false);
   }, [bulkRemove, tagName, ownerIds, onOpenChange]);
@@ -69,17 +82,10 @@ export function BulkTagRemoveDialog({
         ) : null}
 
         <AlertDialogFooter>
-          <AlertDialogCancel
-            onClick={handleCancel}
-            disabled={progress.isRunning}
-          >
+          <AlertDialogCancel onClick={handleCancel} disabled={progress.isRunning}>
             キャンセル
           </AlertDialogCancel>
-          <Button
-            className={STYLE.btnDanger}
-            onClick={handleConfirm}
-            disabled={progress.isRunning}
-          >
+          <Button className={STYLE.btnDanger} onClick={handleConfirm} disabled={progress.isRunning}>
             {progress.isRunning ? "解除中..." : "一括解除"}
           </Button>
         </AlertDialogFooter>

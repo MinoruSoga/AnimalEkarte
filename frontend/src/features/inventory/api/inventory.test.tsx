@@ -69,10 +69,9 @@ describe("useGetInventoryItemsPage（BUG-412）", () => {
       },
     });
 
-    const { result } = renderHook(
-      () => useGetInventoryItemsPage({ page: 1, limit: 20 }),
-      { wrapper },
-    );
+    const { result } = renderHook(() => useGetInventoryItemsPage({ page: 1, limit: 20 }), {
+      wrapper,
+    });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 

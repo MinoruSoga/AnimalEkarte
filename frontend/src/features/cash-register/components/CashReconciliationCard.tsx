@@ -23,9 +23,7 @@ export const CashReconciliationCard = memo(function CashReconciliationCard({
       </div>
       <div className="flex justify-between items-center">
         <span className={`text-base ${C.text70}`}>実際の現金</span>
-        <span className={`text-base font-semibold ${C.text}`}>
-          {formatCurrency(actualCash)}
-        </span>
+        <span className={`text-base font-semibold ${C.text}`}>{formatCurrency(actualCash)}</span>
       </div>
       <div className={`flex justify-between items-center border-t pt-3 ${C.borderLight}`}>
         <span className={`text-base font-medium ${C.text}`}>差額</span>

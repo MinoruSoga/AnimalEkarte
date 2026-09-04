@@ -1,11 +1,10 @@
 import { memo, useMemo } from "react";
 
-import { Label } from "@/components/ui/label";
 import { HistoryFilterPanel } from "@/components/shared/HistoryFilterPanel";
 import { LoadingFallback } from "@/components/shared/DataStates";
 import { C } from "@/lib/design-tokens";
 
-import type { TrimmingRightColumnProps } from "./trimming-form-column-types";
+import type { TrimmingRightColumnProps } from "../lib/trimming-form-column-types";
 
 export const TrimmingRightColumn = memo(function TrimmingRightColumn({
   sortedHistory,
@@ -48,13 +47,13 @@ export const TrimmingRightColumn = memo(function TrimmingRightColumn({
           </div>
         </button>
       )),
-    [sortedHistory, onHistoryClick]
+    [sortedHistory, onHistoryClick],
   );
 
   return (
-    <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} p-3 space-y-4`}>
+    <div className={`lg:col-span-2 ${C.bgWhite} rounded-lg border ${C.borderMedium} p-3 space-y-4`}>
       <div>
-        <Label className={`text-sm ${C.text60} mb-2 block`}>施術履歴</Label>
+        <h3 className={`text-base font-semibold ${C.text} mb-2`}>過去の施術履歴</h3>
         <HistoryFilterPanel
           searchTerm={historySearchTerm}
           onSearchTermChange={onSearchTermChange}
@@ -74,9 +73,7 @@ export const TrimmingRightColumn = memo(function TrimmingRightColumn({
         {isHistoryLoading ? (
           <LoadingFallback />
         ) : sortedHistory.length === 0 ? (
-          <div className={`text-center py-8 text-sm ${C.text40}`}>
-            施術履歴がありません
-          </div>
+          <div className={`text-center py-8 text-sm ${C.text40}`}>施術履歴がありません</div>
         ) : (
           historyCards
         )}

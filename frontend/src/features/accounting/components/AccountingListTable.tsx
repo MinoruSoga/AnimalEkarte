@@ -1,12 +1,20 @@
 import { Calendar, CircleDot, CreditCard, FileText, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TableCell } from "@/components/ui/table";
-import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
+import {
+  DataTable,
+  DESIGN_TABLE_HEADER_ROW,
+  DESIGN_TABLE_HEADER_CELL,
+} from "@/components/shared/DataTable/DataTable";
+import { LIST_TABLE_COL } from "@/components/shared/DataTable/list-table-col";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { DataTableRowLink } from "@/components/shared/DataTable/DataTableRowLink";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
 import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
-import { CONDITIONS_NO_EMPTY, CONDITIONS_WITH_EMPTY } from "@/components/shared/PropertyFilter/types";
+import {
+  CONDITIONS_NO_EMPTY,
+  CONDITIONS_WITH_EMPTY,
+} from "@/components/shared/PropertyFilter/types";
 import type {
   ActiveFilter,
   ActiveSort,
@@ -22,9 +30,10 @@ import { C, ICON } from "@/lib/design-tokens";
 import { PAYMENT_METHOD_LABELS } from "@/constants/payment-method";
 import { ACCOUNTING_STATUS_LABELS } from "@/constants/accounting-status";
 import { formatCurrency } from "@/lib/format/number";
+import { formatDate } from "@/lib/format/date";
 import { getAccountingStatusColor } from "@/lib/status-helpers";
 import type { Accounting as AccountingType } from "../types";
-import { calculateAccountingTotal } from "./accounting-list-table-model";
+import { calculateAccountingTotal } from "../lib/accounting-list-table-model";
 
 const FILTER_PROPERTIES: FilterProperty[] = [
   {
@@ -158,7 +167,7 @@ export function AccountingListTable({
           onToggle={() => onToggleSort("status")}
         />
       ),
-      className: "w-[100px]",
+      className: LIST_TABLE_COL.status,
     },
     { header: "カルテ", className: "w-[80px] hidden lg:table-cell", align: "center" as const },
     { header: "操作", className: "w-[100px]", align: "right" as const },
@@ -234,6 +243,7 @@ function AccountingListRow({
   onMedicalRecordOpen,
 }: AccountingListRowProps) {
   const statusLabel = ACCOUNTING_STATUS_LABELS[accounting.status] ?? accounting.status;
+  const recordedTotal = calculateAccountingTotal(accounting);
 
   return (
     <DataTableRow key={accounting.id}>
@@ -247,24 +257,26 @@ function AccountingListRow({
           to={paths.accounting.detail.getHref(accounting.id)}
           aria-label={`会計「${accounting.scheduledDate} ${accounting.ownerName} / ${accounting.petName}」(ID: ${accounting.id}) の詳細を開く`}
         >
-          {accounting.scheduledDate}
+          {formatDate(accounting.scheduledDate)}
         </DataTableRowLink>
       </TableCell>
       <TableCell className={C.text}>{accounting.ownerName}</TableCell>
       <TableCell className={C.text}>{accounting.petName}</TableCell>
       <TableCell className={`text-right font-mono font-medium ${C.text}`}>
-        {formatCurrency(calculateAccountingTotal(accounting))}
+        {formatCurrency(recordedTotal)}
       </TableCell>
       <TableCell className={`text-center ${C.text}`}>
         {accounting.payment ? PAYMENT_METHOD_LABELS[accounting.payment.method] : "-"}
       </TableCell>
-      <TableCell>
+      <TableCell className={LIST_TABLE_COL.status}>
         <div className="flex flex-wrap gap-1 items-center">
           <StatusBadge colorClass={getAccountingStatusColor(statusLabel)}>
             {statusLabel}
           </StatusBadge>
           {accounting.totalRefundedAmount > 0 ? (
-            <span className={`inline-flex items-center gap-0.5 text-2xs font-medium px-1.5 py-0.5 rounded ${C.bgDiscountLight} ${C.textDiscount} ${C.borderOrangeBadge}`}>
+            <span
+              className={`inline-flex items-center gap-0.5 text-2xs font-medium px-1.5 py-0.5 rounded ${C.bgDiscountLight} ${C.textDiscount} ${C.borderOrangeBadge}`}
+            >
               <RotateCcw className={ICON.action} />
               返金あり
             </span>

@@ -31,9 +31,7 @@ export interface SyntheticInterceptorRequest {
   postData(): string | null;
 }
 
-export type SyntheticFulfillOptions =
-  | { json: unknown }
-  | { body: string; contentType: string };
+export type SyntheticFulfillOptions = { json: unknown } | { body: string; contentType: string };
 
 export interface SyntheticInterceptorRoute {
   request(): SyntheticInterceptorRequest;
@@ -47,16 +45,11 @@ export interface SyntheticInterceptorPage {
     url: string,
     handler: (route: SyntheticInterceptorRoute) => Promise<void>,
   ): Promise<unknown>;
-  unroute(
-    url: string,
-    handler: (route: SyntheticInterceptorRoute) => Promise<void>,
-  ): Promise<void>;
+  unroute(url: string, handler: (route: SyntheticInterceptorRoute) => Promise<void>): Promise<void>;
   isClosed(): boolean;
 }
 
-type JsonResponseFactory = (
-  request: SyntheticInterceptorRequest,
-) => unknown | Promise<unknown>;
+type JsonResponseFactory = (request: SyntheticInterceptorRequest) => unknown | Promise<unknown>;
 
 export interface SyntheticEndpoint {
   method: SyntheticHttpMethod;
@@ -112,13 +105,19 @@ function matchesPath(expected: string | RegExp, actual: string): boolean {
 }
 
 function matchesQuery(expected: Readonly<Record<string, string>> | undefined, url: URL): boolean {
-  const actualEntries = [...url.searchParams.entries()].sort(([left], [right]) => left.localeCompare(right));
-  const expectedEntries = Object.entries(expected ?? {}).sort(([left], [right]) => left.localeCompare(right));
-  return actualEntries.length === expectedEntries.length &&
+  const actualEntries = [...url.searchParams.entries()].sort(([left], [right]) =>
+    left.localeCompare(right),
+  );
+  const expectedEntries = Object.entries(expected ?? {}).sort(([left], [right]) =>
+    left.localeCompare(right),
+  );
+  return (
+    actualEntries.length === expectedEntries.length &&
     actualEntries.every(([key, value], index) => {
       const expectedEntry = expectedEntries[index];
       return expectedEntry?.[0] === key && expectedEntry[1] === value;
-    });
+    })
+  );
 }
 
 function createLedger(): SyntheticRequestLedger {
@@ -156,7 +155,9 @@ function readJsonBody(request: SyntheticInterceptorRequest): unknown {
 }
 
 export function isBusinessNonGet(request: string): boolean {
-  return !request.startsWith("GET:") && !request.startsWith("HEAD:") && !request.startsWith("OPTIONS:");
+  return (
+    !request.startsWith("GET:") && !request.startsWith("HEAD:") && !request.startsWith("OPTIONS:")
+  );
 }
 
 export async function installSyntheticApiInterceptor(
@@ -171,8 +172,7 @@ export async function installSyntheticApiInterceptor(
   };
 
   const isUnexpectedOrigin = (requestUrl: URL): boolean =>
-    options.expectedOrigin !== undefined &&
-    requestUrl.origin !== options.expectedOrigin;
+    options.expectedOrigin !== undefined && requestUrl.origin !== options.expectedOrigin;
 
   // Non-API surface: assets never consult synthetic endpoints, clinic/CSRF
   // headers, or the business non-GET allowlist — those stay API-only.
@@ -233,7 +233,10 @@ export async function installSyntheticApiInterceptor(
       endpoint = findEndpoint(endpoints, request);
     } catch (error) {
       record("blocked", key);
-      record("validationFailures", `${key}:${error instanceof Error ? error.message : "matcher error"}`);
+      record(
+        "validationFailures",
+        `${key}:${error instanceof Error ? error.message : "matcher error"}`,
+      );
       await route.abort("blockedbyclient");
       return;
     }
@@ -251,12 +254,16 @@ export async function installSyntheticApiInterceptor(
           }
         }
         if (endpoint.validateBody) endpoint.validateBody(readJsonBody(request), request);
-        response = typeof endpoint.response === "function"
-          ? await endpoint.response(request)
-          : endpoint.response;
+        response =
+          typeof endpoint.response === "function"
+            ? await endpoint.response(request)
+            : endpoint.response;
       } catch (error) {
         record("blocked", key);
-        record("validationFailures", `${key}:${error instanceof Error ? error.message : "fixture error"}`);
+        record(
+          "validationFailures",
+          `${key}:${error instanceof Error ? error.message : "fixture error"}`,
+        );
         await route.abort("blockedbyclient");
         return;
       }

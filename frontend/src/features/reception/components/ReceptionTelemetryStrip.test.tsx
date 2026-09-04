@@ -57,7 +57,10 @@ describe("ReceptionTelemetryStrip", () => {
   });
 
   it("コンポーネントソースに raw hex カラーリテラルを直書きしない(design-tokens 経由のみ)", () => {
-    const sourcePath = join(process.cwd(), "src/features/reception/components/ReceptionTelemetryStrip.tsx");
+    const sourcePath = join(
+      process.cwd(),
+      "src/features/reception/components/ReceptionTelemetryStrip.tsx",
+    );
     const source = readFileSync(sourcePath, "utf-8");
 
     // C.xxx / STYLE.xxx トークン定義側の #hex は design-tokens.ts に閉じ込め、

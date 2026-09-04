@@ -318,12 +318,22 @@ func TestConsultationService_Create(t *testing.T) {
 			input:   &CreateConsultationInput{Name: ""},
 			wantErr: true,
 		},
+		{
+			name: "returns validation error when price is negative",
+			input: &CreateConsultationInput{
+				Name:  "Negative Price Consultation",
+				Price: func(v int64) *int64 { return &v }(-100),
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			createCalled := false
 			repo := &mockConsultationRepository{
 				createFn: func(_ context.Context, _ *model.Consultation) error {
+					createCalled = true
 					return tt.repoErr
 				},
 			}
@@ -334,6 +344,10 @@ func TestConsultationService_Create(t *testing.T) {
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Nil(t, consultation)
+				if tt.name == "returns validation error when price is negative" {
+					assert.True(t, apperrors.IsInvalidInput(err))
+					assert.False(t, createCalled)
+				}
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, consultation)
@@ -445,10 +459,18 @@ func TestConsultationService_Update(t *testing.T) {
 			input:   UpdateConsultationInput{Name: strPtr("")},
 			wantErr: true,
 		},
+		{
+			name: "returns validation error when price is negative",
+			input: UpdateConsultationInput{
+				Price: func(v int64) *int64 { return &v }(-500),
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			updateCalled := false
 			repo := &mockConsultationRepository{
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Consultation, error) {
 					if tt.findByIDErr != nil {
@@ -457,6 +479,7 @@ func TestConsultationService_Update(t *testing.T) {
 					return &model.Consultation{ID: 1, ClinicID: 1}, nil
 				},
 				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Consultation, error) {
+					updateCalled = true
 					if tt.repoErr != nil {
 						return nil, tt.repoErr
 					}
@@ -472,6 +495,10 @@ func TestConsultationService_Update(t *testing.T) {
 				assert.Nil(t, consultation)
 				if tt.wantNotFound {
 					assert.True(t, apperrors.IsNotFound(err))
+				}
+				if tt.name == "returns validation error when price is negative" {
+					assert.True(t, apperrors.IsInvalidInput(err))
+					assert.False(t, updateCalled)
 				}
 			} else {
 				assert.NoError(t, err)

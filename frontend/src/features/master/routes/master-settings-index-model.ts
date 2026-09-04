@@ -9,6 +9,8 @@ import {
   Scissors,
   Stethoscope,
   Tag,
+  FlaskConical,
+  TestTube,
 } from "lucide-react";
 import { CATEGORY_CONFIG } from "../constants/category-config";
 import type { MasterSettingsCategory } from "../constants/category-config";
@@ -21,6 +23,7 @@ import {
   ResourceMasterTrimming,
   ResourcePaymentMethod,
   ResourceShifts,
+  ResourceLabImport,
 } from "@/types/generated/models";
 
 export type GroupKey =
@@ -33,7 +36,9 @@ export type GroupKey =
   | "shift_template"
   | "paymentMethods"
   | "campaigns"
-  | "closingTime";
+  | "closingTime"
+  | "examinationItems"
+  | "labDeviceItemMasters";
 
 export type MasterCardKey = MasterSettingsCategory | GroupKey;
 
@@ -134,18 +139,45 @@ export const GROUP_CARD_CONFIG: Record<GroupKey, GroupCardConfig> = {
     resource: ResourceClosingSettings,
     countCategories: [],
   },
+  examinationItems: {
+    label: "検査マスタ",
+    description: "検査種別と測定項目・基準値を管理します。機器の対応表は検査機器マスタです",
+    IconComponent: TestTube,
+    path: "/settings/treatment-items?tab=examination",
+    resource: ResourceMasterMedical,
+    countCategories: [],
+  },
+  labDeviceItemMasters: {
+    label: "検査機器マスタ",
+    description: "NX600 / AU10V / 尿を検査へ対応付けます。日常の送信画面には出しません",
+    IconComponent: FlaskConical,
+    path: "/settings/lab-device-item-masters",
+    resource: ResourceLabImport,
+    countCategories: [],
+  },
 };
 
 export const MASTER_SECTIONS: SectionDef[] = [
   { title: "基本設定", keys: ["clinic", "animal_species"] },
   {
     title: "カルテ",
-    keys: ["treatmentItems", "diagnosisGroup", "inquiry_template", "chief_complaint", "medicine"],
+    keys: [
+      "treatmentItems",
+      "diagnosisGroup",
+      "inquiry_template",
+      "chief_complaint",
+      "medicine",
+      "examinationItems",
+      "labDeviceItemMasters",
+    ],
   },
   { title: "予約管理マスタ", keys: ["reservationType"] },
   { title: "入院・ケージ管理", keys: ["hospitalization", "cage"] },
   { title: "トリミング関連", keys: ["trimmingGroup", "trimmingCourseTypes"] },
-  { title: "会計・商品", keys: ["merchandise_item", "insurance", "paymentMethods", "campaigns", "closingTime"] },
+  {
+    title: "会計・商品",
+    keys: ["merchandise_item", "insurance", "paymentMethods", "campaigns", "closingTime"],
+  },
   { title: "スタッフ・権限", keys: ["staff", "occupations", "permission_group"] },
   { title: "シフト管理", keys: ["shift_template"] },
 ];

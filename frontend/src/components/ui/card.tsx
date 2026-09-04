@@ -40,12 +40,7 @@ interface CardTitleProps extends React.HTMLAttributes<HTMLHeadingElement> {
 
 function CardTitle({ className, ref, ...props }: CardTitleProps) {
   return (
-    <h4
-      ref={ref}
-      data-slot="card-title"
-      className={cn("leading-none", className)}
-      {...props}
-    />
+    <h4 ref={ref} data-slot="card-title" className={cn("leading-none", className)} {...props} />
   );
 }
 
@@ -60,9 +55,4 @@ function CardContent({ className, ref, ...props }: CardProps) {
   );
 }
 
-export {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-};
+export { Card, CardHeader, CardTitle, CardContent };

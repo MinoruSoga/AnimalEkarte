@@ -1,4 +1,5 @@
 import { PrintPortal } from "@/components/shared/PrintPortal";
+import { C } from "@/lib/design-tokens";
 import type { ExaminationPrintModel } from "../lib/examination-print-model";
 
 interface ExaminationPrintAreaProps {
@@ -16,7 +17,7 @@ export function ExaminationPrintArea({ model }: ExaminationPrintAreaProps) {
         {model.isDraft && model.watermark ? (
           <p
             data-testid="examination-print-watermark"
-            className="absolute inset-x-0 top-0 text-[18pt] font-bold text-red-600 opacity-70 tracking-widest"
+            className={`absolute inset-x-0 top-0 text-[18pt] font-bold ${C.textRed700} opacity-70 tracking-widest`}
           >
             {model.watermark}
           </p>
@@ -32,46 +33,40 @@ export function ExaminationPrintArea({ model }: ExaminationPrintAreaProps) {
       <table className="w-full text-[9pt] border-collapse mb-3">
         <tbody>
           <tr>
-            <th className="border border-gray-400 bg-gray-100 px-2 py-1 text-left w-24">
+            <th className={`border ${C.borderGray300} ${C.bgGray100} px-2 py-1 text-left w-24`}>
               カルテ番号
             </th>
-            <td className="border border-gray-300 px-2 py-1">
+            <td className={`border ${C.borderGray300} px-2 py-1`}>
               {model.medicalRecordNo || "—"}
             </td>
-            <th className="border border-gray-400 bg-gray-100 px-2 py-1 text-left w-24">
+            <th className={`border ${C.borderGray300} ${C.bgGray100} px-2 py-1 text-left w-24`}>
               飼主
             </th>
-            <td className="border border-gray-300 px-2 py-1">
-              {model.ownerName || "—"}
-            </td>
-            <th className="border border-gray-400 bg-gray-100 px-2 py-1 text-left w-24">
+            <td className={`border ${C.borderGray300} px-2 py-1`}>{model.ownerName || "—"}</td>
+            <th className={`border ${C.borderGray300} ${C.bgGray100} px-2 py-1 text-left w-24`}>
               ペット
             </th>
-            <td className="border border-gray-300 px-2 py-1">
+            <td className={`border ${C.borderGray300} px-2 py-1`}>
               {model.petName || "—"}
               {model.speciesName ? ` (${model.speciesName})` : null}
             </td>
           </tr>
           <tr>
-            <th className="border border-gray-400 bg-gray-100 px-2 py-1 text-left">
+            <th className={`border ${C.borderGray300} ${C.bgGray100} px-2 py-1 text-left`}>
               担当医
             </th>
-            <td className="border border-gray-300 px-2 py-1">
-              {model.doctorName || "—"}
-            </td>
-            <th className="border border-gray-400 bg-gray-100 px-2 py-1 text-left">
-              機器
-            </th>
-            <td className="border border-gray-300 px-2 py-1" colSpan={3}>
+            <td className={`border ${C.borderGray300} px-2 py-1`}>{model.doctorName || "—"}</td>
+            <th className={`border ${C.borderGray300} ${C.bgGray100} px-2 py-1 text-left`}>機器</th>
+            <td className={`border ${C.borderGray300} px-2 py-1`} colSpan={3}>
               {model.machine || "—"}
             </td>
           </tr>
           {model.resultSummary ? (
             <tr>
-              <th className="border border-gray-400 bg-gray-100 px-2 py-1 text-left">
+              <th className={`border ${C.borderGray300} ${C.bgGray100} px-2 py-1 text-left`}>
                 結果要約
               </th>
-              <td className="border border-gray-300 px-2 py-1" colSpan={5}>
+              <td className={`border ${C.borderGray300} px-2 py-1`} colSpan={5}>
                 {model.resultSummary}
               </td>
             </tr>
@@ -82,40 +77,35 @@ export function ExaminationPrintArea({ model }: ExaminationPrintAreaProps) {
       <p className="font-semibold text-[9pt] mb-1">検査項目</p>
       <table className="w-full text-[9pt] border-collapse">
         <thead>
-          <tr className="bg-gray-100">
-            <th className="border border-gray-400 px-1 py-0.5 text-left">項目</th>
-            <th className="border border-gray-400 px-1 py-0.5 text-right">結果</th>
-            <th className="border border-gray-400 px-1 py-0.5 text-left">単位</th>
-            <th className="border border-gray-400 px-1 py-0.5 text-left">基準</th>
-            <th className="border border-gray-400 px-1 py-0.5 text-center">判定</th>
+          <tr className={C.bgGray100}>
+            <th className={`border ${C.borderGray300} px-1 py-0.5 text-left`}>項目</th>
+            <th className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>結果</th>
+            <th className={`border ${C.borderGray300} px-1 py-0.5 text-left`}>単位</th>
+            <th className={`border ${C.borderGray300} px-1 py-0.5 text-left`}>基準</th>
+            <th className={`border ${C.borderGray300} px-1 py-0.5 text-center`}>判定</th>
           </tr>
         </thead>
         <tbody>
           {model.rows.length === 0 ? (
             <tr>
-              <td
-                className="border border-gray-300 px-1 py-0.5 text-gray-500"
-                colSpan={5}
-              >
+              <td className={`border ${C.borderGray300} px-1 py-0.5 ${C.textMuted}`} colSpan={5}>
                 項目なし
               </td>
             </tr>
           ) : (
             model.rows.map((row) => (
               <tr key={row.id}>
-                <td className="border border-gray-300 px-1 py-0.5">{row.name}</td>
+                <td className={`border ${C.borderGray300} px-1 py-0.5`}>{row.name}</td>
                 <td
-                  className={`border border-gray-300 px-1 py-0.5 text-right${
+                  className={`border ${C.borderGray300} px-1 py-0.5 text-right${
                     row.isAbnormal ? " font-semibold" : ""
                   }`}
                 >
                   {row.inspectionValue}
                 </td>
-                <td className="border border-gray-300 px-1 py-0.5">{row.unit}</td>
-                <td className="border border-gray-300 px-1 py-0.5">
-                  {row.referenceValue}
-                </td>
-                <td className="border border-gray-300 px-1 py-0.5 text-center">
+                <td className={`border ${C.borderGray300} px-1 py-0.5`}>{row.unit}</td>
+                <td className={`border ${C.borderGray300} px-1 py-0.5`}>{row.referenceValue}</td>
+                <td className={`border ${C.borderGray300} px-1 py-0.5 text-center`}>
                   {row.statusLabel}
                 </td>
               </tr>

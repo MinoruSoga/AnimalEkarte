@@ -1,9 +1,4 @@
-export const RECOMMENDATION_REASON_VALUES = [
-  "revisit",
-  "checkup",
-  "prevention",
-  "exam",
-] as const;
+export const RECOMMENDATION_REASON_VALUES = ["revisit", "checkup", "prevention", "exam"] as const;
 
 export type RecommendationReason = (typeof RECOMMENDATION_REASON_VALUES)[number];
 

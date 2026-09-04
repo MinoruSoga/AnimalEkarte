@@ -160,7 +160,18 @@ func (r *examinationRepository) AppendOfficialRevision(
 	if err := tx.WithContext(ctx).Create(revision).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "examination_revision", fmt.Sprintf("examination_id=%d", examinationID))
 	}
+	if err := persistOfficialRevisionItems(ctx, tx, clinicID, examinationID, items); err != nil {
+		return 0, err
+	}
+	return initialExaminationRevisionVersion, nil
+}
 
+func persistOfficialRevisionItems(
+	ctx context.Context,
+	tx *gorm.DB,
+	clinicID, examinationID uint64,
+	items []model.ExamResult,
+) error {
 	revisionItems := make([]model.ExaminationRevisionItem, 0, len(items))
 	for i := range items {
 		item := items[i]
@@ -194,10 +205,10 @@ func (r *examinationRepository) AppendOfficialRevision(
 	}
 	if len(revisionItems) > 0 {
 		if err := tx.WithContext(ctx).Create(&revisionItems).Error; err != nil {
-			return 0, apperrors.FromGORM(err, "examination_revision_item", fmt.Sprintf("examination_id=%d", examinationID))
+			return apperrors.FromGORM(err, "examination_revision_item", fmt.Sprintf("examination_id=%d", examinationID))
 		}
 	}
-	return initialExaminationRevisionVersion, nil
+	return nil
 }
 
 func isFirstConfirmSourceStatus(status model.ExaminationStatus) bool {
@@ -244,13 +255,8 @@ func (r *examinationRepository) loadOfficialRevisionSnapshot(
 		}
 		record = &locked
 		snapshot.display.MedicalRecordNo = locked.RecordNo
-		if locked.OwnerID != nil {
-			owner, err := lockRevisionOwner(ctx, tx, clinicID, *locked.OwnerID)
-			if err != nil {
-				return nil, nil, apperrors.Wrap(err, "failed to verify medical record owner")
-			}
-			snapshot.medicalRecordOwnerID = cloneOptionalUint64(locked.OwnerID)
-			snapshot.display.MedicalRecordOwnerName = owner.Name
+		if err := copyRevisionRecordOwner(ctx, tx, clinicID, &locked, snapshot); err != nil {
+			return nil, nil, err
 		}
 	}
 
@@ -315,6 +321,35 @@ func lockRevisionOwner(ctx context.Context, tx *gorm.DB, clinicID, ownerID uint6
 		return nil, apperrors.FromGORM(err, "owner", fmt.Sprintf("%d", ownerID))
 	}
 	return &owner, nil
+}
+
+func copyRevisionRecordOwner(
+	ctx context.Context,
+	tx *gorm.DB,
+	clinicID uint64,
+	locked *model.MedicalRecord,
+	snapshot *examinationRevisionSnapshot,
+) error {
+	if locked.OwnerID == nil {
+		return nil
+	}
+	owner, err := lockRevisionOwner(ctx, tx, clinicID, *locked.OwnerID)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to verify medical record owner")
+	}
+	snapshot.medicalRecordOwnerID = cloneOptionalUint64(locked.OwnerID)
+	snapshot.display.MedicalRecordOwnerName = owner.Name
+	return nil
+}
+
+func assertRevisionRecordOwner(ctx context.Context, tx *gorm.DB, clinicID uint64, locked *model.MedicalRecord) error {
+	if locked.OwnerID == nil {
+		return nil
+	}
+	if _, err := lockRevisionOwner(ctx, tx, clinicID, *locked.OwnerID); err != nil {
+		return apperrors.Wrap(err, "failed to verify medical record owner")
+	}
+	return nil
 }
 
 func lockRevisionPetGraph(
@@ -468,6 +503,18 @@ func (r *examinationRepository) FindOfficialByID(
 		return nil, apperrors.WrapInternalServerError("official examination revision has an incomplete patient snapshot")
 	}
 
+	exam := projectOfficialExamination(revision, display, items)
+	return &ExaminationOfficialProjection{
+		Examination:     exam,
+		OfficialVersion: revision.Version,
+	}, nil
+}
+
+func projectOfficialExamination(
+	revision model.ExaminationRevision,
+	display model.ExaminationDisplaySnapshot,
+	items []model.ExaminationRevisionItem,
+) model.Examination {
 	exam := model.Examination{
 		ID:              revision.ExaminationID,
 		ClinicID:        revision.ClinicID,
@@ -542,10 +589,7 @@ func (r *examinationRepository) FindOfficialByID(
 			UpdatedAt:       item.CreatedAt,
 		})
 	}
-	return &ExaminationOfficialProjection{
-		Examination:     exam,
-		OfficialVersion: revision.Version,
-	}, nil
+	return exam
 }
 
 func cloneOptionalUint64(value *uint64) *uint64 {

@@ -1,4 +1,4 @@
-// Package service provides business logic implementations for Insurance entity.
+// Package billing provides insurance master use cases.
 package billing
 
 import (

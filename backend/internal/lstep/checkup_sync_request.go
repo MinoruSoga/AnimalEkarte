@@ -1,7 +1,6 @@
 package lstep
 
 import (
-	"fmt"
 	"net/url"
 	"strconv"
 	"time"
@@ -81,6 +80,12 @@ func newCheckupSyncPreviewQuery(values url.Values) checkupSyncPreviewQuery {
 }
 
 func (q *checkupSyncPreviewQuery) toServiceInput() (*PreviewCheckupSyncInput, error) {
+	switch q.CheckupType {
+	case "annual", "dental", "blood", "skin", "cancer", "other":
+	default:
+		return nil, apperrors.WrapInvalidInput("checkup_type は annual/dental/blood/skin/cancer/other のいずれかを指定してください")
+	}
+
 	input := &PreviewCheckupSyncInput{
 		CheckupType: q.CheckupType,
 		Species:     q.Species,
@@ -99,6 +104,9 @@ func (q *checkupSyncPreviewQuery) toServiceInput() (*PreviewCheckupSyncInput, er
 	}
 	if input.MaxAgeYears, err = parseOptionalNonNegInt(q.MaxAgeYears, "max_age_years"); err != nil {
 		return nil, err
+	}
+	if input.MinAgeYears != nil && input.MaxAgeYears != nil && *input.MinAgeYears > *input.MaxAgeYears {
+		return nil, apperrors.WrapInvalidInput("min_age_years は max_age_years 以下で指定してください")
 	}
 	if q.HasChronicCondition != "" {
 		switch q.HasChronicCondition {
@@ -149,14 +157,14 @@ type checkupSyncRequest struct {
 
 func (r checkupSyncRequest) toServiceInput() (CreateCheckupSyncInput, error) {
 	if !IsValidManualTagName(r.TagName) {
-		return CreateCheckupSyncInput{}, fmt.Errorf("tag_name は英数字・アンダースコア・ハイフンのみ使用可能です（1〜100文字）")
+		return CreateCheckupSyncInput{}, apperrors.WrapInvalidInput("tag_name は英数字・アンダースコア・ハイフンのみ使用可能です（1〜100文字）")
 	}
 
 	ownerIDs := make([]uint64, 0, len(r.OwnerIDs))
 	for _, s := range r.OwnerIDs {
 		id, err := strconv.ParseUint(s, 10, 64)
 		if err != nil {
-			return CreateCheckupSyncInput{}, fmt.Errorf("owner_ids の値が不正です: %s", s)
+			return CreateCheckupSyncInput{}, apperrors.WrapInvalidInput("owner_ids の値が不正です")
 		}
 		ownerIDs = append(ownerIDs, id)
 	}

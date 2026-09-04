@@ -11,7 +11,7 @@ vi.mock("@/hooks/use-auth", () => ({
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
-import { createTestWrapper } from "@/testing/utils";
+import { createTestWrapper } from "@/testing/TestUtils";
 
 import { DailyAccountingTab } from "./DailyAccountingTab";
 
@@ -111,9 +111,7 @@ describe("DailyAccountingTab", () => {
           limit: 50,
         }),
       ),
-      http.get("*/v1/accountings/daily-summary", () =>
-        HttpResponse.json(DAILY_SUMMARY),
-      ),
+      http.get("*/v1/accountings/daily-summary", () => HttpResponse.json(DAILY_SUMMARY)),
     );
   });
 
@@ -142,6 +140,63 @@ describe("DailyAccountingTab", () => {
     const amounts = cells.map((el) => el.textContent);
     expect(amounts.some((t) => t?.includes("3,000"))).toBe(true);
     expect(amounts.some((t) => t?.includes("2,000"))).toBe(true);
+  });
+
+  it("負の診療金額を符号のまま表示する", async () => {
+    server.use(
+      http.get("*/v1/accountings", () =>
+        HttpResponse.json({
+          data: [
+            makeAccounting({
+              subtotal: -3000,
+              tax_total: 0,
+              total_amount: -3000,
+              items: [
+                {
+                  id: 1,
+                  billing_id: 1,
+                  category: "examination",
+                  name: "赤伝",
+                  unit_price: -3000,
+                  quantity: 1,
+                  tax_rate: 0,
+                  tax_type: "excluded",
+                  tax_amount: 0,
+                  subtotal: -3000,
+                  is_insurance_applicable: false,
+                  source: "medical_record",
+                },
+              ],
+              payments: [
+                {
+                  id: 1,
+                  billing_id: 1,
+                  method: "cash",
+                  total_amount: -3000,
+                  billing_amount: -3000,
+                  received_amount: 0,
+                  change_amount: 0,
+                  insurance_amount: 0,
+                  discount_amount: 0,
+                },
+              ],
+            }),
+          ],
+          total: 1,
+          page: 1,
+          limit: 50,
+        }),
+      ),
+    );
+    renderTab();
+    await waitFor(() => {
+      expect(screen.getByTestId("daily-accounting-table")).toBeInTheDocument();
+    });
+    const table = screen.getByTestId("daily-accounting-table");
+    const row = within(table).getByText("田中太郎").closest("tr");
+    expect(row).not.toBeNull();
+    const cells = within(row as HTMLElement).getAllByRole("cell");
+    expect(cells[3]).toHaveTextContent("¥-3,000");
   });
 
   it("支払方法が表示される", async () => {
@@ -217,8 +272,26 @@ describe("DailyAccountingTab", () => {
           data: [
             makeAccounting({
               payment_splits: [
-                { id: 1, clinic_id: 1, billing_id: 1, method: "cash", amount: 2000, received_amount: 3000, change_amount: 1000, created_at: `${TODAY}T10:00:00Z` },
-                { id: 2, clinic_id: 1, billing_id: 1, method: "credit_card", amount: 3500, received_amount: 0, change_amount: 0, created_at: `${TODAY}T10:00:00Z` },
+                {
+                  id: 1,
+                  clinic_id: 1,
+                  billing_id: 1,
+                  method: "cash",
+                  amount: 2000,
+                  received_amount: 3000,
+                  change_amount: 1000,
+                  created_at: `${TODAY}T10:00:00Z`,
+                },
+                {
+                  id: 2,
+                  clinic_id: 1,
+                  billing_id: 1,
+                  method: "credit_card",
+                  amount: 3500,
+                  received_amount: 0,
+                  change_amount: 0,
+                  created_at: `${TODAY}T10:00:00Z`,
+                },
               ],
             }),
           ],
@@ -235,7 +308,9 @@ describe("DailyAccountingTab", () => {
     const table = screen.getByTestId("daily-accounting-table");
     // paymentSplits.length > 1 のとき method ラベルを " / " 区切りで結合して表示する
     // FE5-25: PAYMENT_METHOD_LABELS_SHORT 廃止により credit_card は "カード" → "クレジットカード" へ変更
-    expect(within(table).getByText(/現金.*クレジットカード|クレジットカード.*現金/)).toBeInTheDocument();
+    expect(
+      within(table).getByText(/現金.*クレジットカード|クレジットカード.*現金/),
+    ).toBeInTheDocument();
   });
 
   // ── #117: 新規テスト ──────────────────────────────────────────────

@@ -291,6 +291,42 @@ func TestReservationTypeRepository_Delete(t *testing.T) {
 		assert.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
+
+	t.Run("CountUsage==0 直後に予約が紐づいても削除は失敗する", func(t *testing.T) {
+		target := makeReservationTypeLinked(t, db, clinicA, "TOCTOU使用区分", nil, nil)
+		count, err := repo.CountUsageByReservationTypeID(ctx, clinicA, target.ID)
+		require.NoError(t, err)
+		require.Equal(t, int64(0), count)
+
+		makeUsageAppointment(t, db, clinicA, target.ID, false)
+
+		err = repo.Delete(ctx, clinicA, target.ID)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsConflict(err), "expected Conflict, got %v", err)
+		assert.Contains(t, err.Error(), "この項目は予約データで使用中のため削除できません")
+
+		got, findErr := repo.FindByID(ctx, clinicA, target.ID)
+		require.NoError(t, findErr)
+		assert.Equal(t, target.ID, got.ID)
+	})
+
+	t.Run("CountChildren==0 直後に子区分が付いても削除は失敗する", func(t *testing.T) {
+		parent := makeReservationTypeLinked(t, db, clinicA, "TOCTOU親区分", nil, nil)
+		count, err := repo.CountChildrenByParentID(ctx, clinicA, parent.ID)
+		require.NoError(t, err)
+		require.Equal(t, int64(0), count)
+
+		_ = makeReservationTypeLinked(t, db, clinicA, "TOCTOU子区分", nil, &parent.ID)
+
+		err = repo.Delete(ctx, clinicA, parent.ID)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsConflict(err), "expected Conflict, got %v", err)
+		assert.Contains(t, err.Error(), "この予約区分には子予約区分が登録されているため削除できません")
+
+		got, findErr := repo.FindByID(ctx, clinicA, parent.ID)
+		require.NoError(t, findErr)
+		assert.Equal(t, parent.ID, got.ID)
+	})
 }
 
 func TestReservationTypeRepository_Reorder(t *testing.T) {

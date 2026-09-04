@@ -161,6 +161,20 @@ func TestCheckupRepository_FindByClinicID_FiltersAndClinicIsolation(t *testing.T
 		assert.EqualValues(t, 3, total2)
 		assert.Equal(t, old.ID, got2[0].ID)
 	})
+
+	t.Run("PetID で page 選択前に絞り込む", func(t *testing.T) {
+		otherPet := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "健診一覧ポチA2")
+		otherMR := makeHistoryMedicalRecord(t, db, clinicA, otherPet.ID, "MR-LIST-A2", time.Now())
+		_ = makeCheckupWithDates(t, db, clinicA, otherMR.ID, otherPet.ID, ctA.ID, d3, nil)
+		got, total, err := repo.FindByClinicID(ctx, clinicA, CheckupFilters{PetID: &petA.ID}, 1, 2)
+		require.NoError(t, err)
+		require.Len(t, got, 2)
+		assert.EqualValues(t, 3, total)
+		for _, checkup := range got {
+			require.NotNil(t, checkup.PetID)
+			assert.Equal(t, petA.ID, *checkup.PetID)
+		}
+	})
 }
 
 func TestCheckupRepository_PatientRelationsAreClinicScoped(t *testing.T) {

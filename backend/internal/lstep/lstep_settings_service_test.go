@@ -53,6 +53,10 @@ func (m *mockLstepSettingsRepository) DeleteByClinicAndService(ctx context.Conte
 	return nil
 }
 
+func (m *mockLstepSettingsRepository) DeleteByClinicServiceAndKey(_ context.Context, _ uint64, _, _ string) error {
+	return nil
+}
+
 // ---- mock LstepSyncSettingsRepository ----
 
 type mockLstepSyncSettingsRepository struct {
@@ -509,6 +513,29 @@ func TestBuildLstepSettingsResponse(t *testing.T) {
 // ================================================================
 // UpdateSettings: 未カバー分岐の網羅
 // ================================================================
+
+func TestUpdateSettings_RejectsLoopbackBaseURL(t *testing.T) {
+	upsertCalled := false
+	repo := &mockLstepSettingsRepository{
+		upsertFn: func(_ context.Context, _ *model.ClinicIntegration) error {
+			upsertCalled = true
+			return nil
+		},
+	}
+	svc := NewLstepSettingsService(repo, &mockLstepSyncSettingsRepository{}, nil, nil, nil)
+
+	for _, raw := range []string{
+		"http://127.0.0.1",
+		"http://localhost",
+		"http://[::1]",
+	} {
+		upsertCalled = false
+		_, err := svc.UpdateSettings(context.Background(), 1, &UpdateLstepSettingsInput{LstepBaseURL: raw}, nil)
+		require.Error(t, err, raw)
+		assert.True(t, apperrors.IsInvalidInput(err), raw)
+		assert.False(t, upsertCalled, raw)
+	}
+}
 
 func TestUpdateSettings_IntegrationCredentialsError(t *testing.T) {
 	repo := &mockLstepSettingsRepository{

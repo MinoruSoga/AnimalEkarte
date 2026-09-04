@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { startTransition } from "react";
 import { useTrimmingForm } from "./use-trimming-form";
+import { useGetPet } from "@/hooks/use-pet";
 import { useGetReservationTypesGrouped } from "@/hooks/use-reservation-types";
 import { useGetTrimmings } from "../api/get-trimmings";
 
@@ -18,8 +19,8 @@ const {
   mockExistingTrimmingHolder,
 } = vi.hoisted(() => ({
   mockNavigate: vi.fn(),
-  mockToast: { info: vi.fn(), success: vi.fn() },
-  mockSelectedPets: [] as Array<{ id: string; ownerId: string; name: string }>,
+  mockToast: { info: vi.fn(), success: vi.fn(), error: vi.fn() },
+  mockSelectedPets: [] as Array<{ id: string; ownerId: string; name: string; status?: string }>,
   mockSetSelectedPets: vi.fn(),
   mockCreateMutateAsync: vi.fn().mockResolvedValue({}),
   mockUpdateMutateAsync: vi.fn().mockResolvedValue({}),
@@ -115,6 +116,50 @@ async function submitFormAction(action: (payload: FormData) => void | Promise<un
   });
 }
 
+const ALLOW_ALL_PERMISSIONS = {
+  canCreate: true,
+  canEdit: true,
+  canDelete: true,
+} as const;
+
+const DECEASED_SAVE_MESSAGE = "死亡したペットのトリミング記録は保存できません";
+const DECEASED_DELETE_MESSAGE = "死亡したペットのトリミング記録は削除できません";
+const PET_LOADING_MESSAGE = "ペット情報の読み込みが完了してから保存してください";
+const PERMISSION_DENIED_MESSAGE = "この操作を行う権限がありません";
+
+const LIVING_EDIT_PET = {
+  id: "10",
+  ownerId: "20",
+  name: "ポチ",
+  status: "生存",
+};
+
+const DECEASED_EDIT_PET = {
+  id: "10",
+  ownerId: "20",
+  name: "ポチ",
+  status: "死亡",
+};
+
+function mockLivingEditPet(petId = "10") {
+  mockExistingTrimmingHolder.value = {
+    ...(mockExistingTrimmingHolder.value ?? {}),
+    id: "15",
+    petId,
+  };
+  vi.mocked(useGetPet).mockImplementation(
+    (requestedPetId) =>
+      ({
+        data: requestedPetId === petId ? LIVING_EDIT_PET : undefined,
+        isLoading: false,
+      }) as ReturnType<typeof useGetPet>,
+  );
+}
+
+function renderTrimmingForm(id?: string) {
+  return renderHook(() => useTrimmingForm(id, ALLOW_ALL_PERMISSIONS));
+}
+
 describe("useTrimmingForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -124,7 +169,9 @@ describe("useTrimmingForm", () => {
     mockSelectedPets.length = 0;
     mockCreateMutateAsync.mockResolvedValue({});
     mockUpdateMutateAsync.mockResolvedValue({});
-    vi.mocked(useGetTrimmings).mockReturnValue({ data: [], isLoading: false } as ReturnType<typeof useGetTrimmings>);
+    vi.mocked(useGetTrimmings).mockReturnValue({ data: [], isLoading: false } as ReturnType<
+      typeof useGetTrimmings
+    >);
     vi.mocked(useGetReservationTypesGrouped).mockReturnValue({
       data: [
         {
@@ -146,7 +193,7 @@ describe("useTrimmingForm", () => {
   it("新規保存時に画面入力項目を create payload に含める", async () => {
     mockSelectedPets.push({ id: "10", ownerId: "20", name: "ポチ" });
 
-    const { result } = renderHook(() => useTrimmingForm());
+    const { result } = renderTrimmingForm();
 
     act(() => {
       result.current.setFormData({
@@ -188,7 +235,7 @@ describe("useTrimmingForm", () => {
   it("#233: カルテ直接新規作成で initialStatus=pending を選択した場合は status=pending を送る", async () => {
     mockSelectedPets.push({ id: "10", ownerId: "20", name: "ポチ" });
 
-    const { result } = renderHook(() => useTrimmingForm());
+    const { result } = renderTrimmingForm();
 
     act(() => {
       result.current.setFormData({
@@ -211,7 +258,7 @@ describe("useTrimmingForm", () => {
   it("#233: hasExistingAppointment はカルテ直接新規作成で false を返す", () => {
     mockSelectedPets.push({ id: "10", ownerId: "20", name: "ポチ" });
 
-    const { result } = renderHook(() => useTrimmingForm());
+    const { result } = renderTrimmingForm();
 
     expect(result.current.hasExistingAppointment).toBe(false);
   });
@@ -220,7 +267,7 @@ describe("useTrimmingForm", () => {
     mockLocationStateHolder.value = { appointmentId: "77" };
     mockSelectedPets.push({ id: "10", ownerId: "20", name: "ポチ" });
 
-    const { result } = renderHook(() => useTrimmingForm());
+    const { result } = renderTrimmingForm();
 
     expect(result.current.hasExistingAppointment).toBe(true);
 
@@ -246,7 +293,7 @@ describe("useTrimmingForm", () => {
     mockSearchParamsHolder.value = new URLSearchParams({ visitDate: "2026-06-01" });
     mockSelectedPets.push({ id: "10", ownerId: "20", name: "ポチ" });
 
-    const { result } = renderHook(() => useTrimmingForm());
+    const { result } = renderTrimmingForm();
 
     act(() => {
       result.current.setFormData({
@@ -266,10 +313,14 @@ describe("useTrimmingForm", () => {
         course_id: 4,
         status: "in_consultation",
         reservation_route: "record_shortcut",
-        start_time: "2026-06-01T10:00:00+09:00",
-        end_time: "2026-06-01T11:30:00+09:00",
       }),
     );
+    const payload = mockCreateMutateAsync.mock.calls[0]?.[0] as {
+      start_time: string;
+      end_time: string;
+    };
+    expect(payload.start_time).toMatch(/^2026-06-01T\d{2}:\d{2}:\d{2}\.\d{3}\+09:00$/);
+    expect(payload.end_time).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}\+09:00$/);
   });
 
   it("一覧新規作成では同日同ペットの未完了 trimming appointment に詳細を作成する", async () => {
@@ -287,7 +338,7 @@ describe("useTrimmingForm", () => {
       isLoading: false,
     } as ReturnType<typeof useGetTrimmings>);
 
-    const { result } = renderHook(() => useTrimmingForm());
+    const { result } = renderTrimmingForm();
 
     act(() => {
       result.current.setFormData({
@@ -322,7 +373,7 @@ describe("useTrimmingForm", () => {
       isLoading: false,
     } as ReturnType<typeof useGetTrimmings>);
 
-    const { result } = renderHook(() => useTrimmingForm());
+    const { result } = renderTrimmingForm();
 
     act(() => {
       result.current.setFormData({
@@ -344,7 +395,8 @@ describe("useTrimmingForm", () => {
   });
 
   it("編集保存時にコース・担当者・オプションを update payload に含める", async () => {
-    const { result } = renderHook(() => useTrimmingForm("15"));
+    mockLivingEditPet();
+    const { result } = renderTrimmingForm("15");
 
     act(() => {
       result.current.setFormData({
@@ -377,7 +429,7 @@ describe("useTrimmingForm", () => {
   it("担当者とコースが未選択の新規保存では API を呼ばない", async () => {
     mockSelectedPets.push({ id: "10", ownerId: "20", name: "ポチ" });
 
-    const { result } = renderHook(() => useTrimmingForm());
+    const { result } = renderTrimmingForm();
 
     await submitFormAction(result.current.formAction);
 
@@ -405,7 +457,7 @@ describe("useTrimmingForm", () => {
     } as ReturnType<typeof useGetReservationTypesGrouped>);
     mockSelectedPets.push({ id: "10", ownerId: "20", name: "ポチ" });
 
-    const { result } = renderHook(() => useTrimmingForm());
+    const { result } = renderTrimmingForm();
 
     act(() => {
       result.current.setFormData({
@@ -417,14 +469,16 @@ describe("useTrimmingForm", () => {
     await submitFormAction(result.current.formAction);
 
     expect(mockCreateMutateAsync).not.toHaveBeenCalled();
-    expect(result.current.fieldErrors.reservationTypeId).toBe("トリミング予約区分が設定されていません");
+    expect(result.current.fieldErrors.reservationTypeId).toBe(
+      "トリミング予約区分が設定されていません",
+    );
   });
 
   it("受付から遷移した新規保存では既存 appointment_id を使い日時を上書きしない", async () => {
     mockLocationStateHolder.value = { appointmentId: "77" };
     mockSelectedPets.push({ id: "10", ownerId: "20", name: "ポチ" });
 
-    const { result } = renderHook(() => useTrimmingForm());
+    const { result } = renderTrimmingForm();
 
     act(() => {
       result.current.setFormData({
@@ -457,7 +511,7 @@ describe("useTrimmingForm", () => {
       staff: "さくら（デモ）",
     };
 
-    const { result } = renderHook(() => useTrimmingForm());
+    const { result } = renderTrimmingForm();
 
     await waitFor(() => {
       expect(result.current.formData.staffId).toBe("33");
@@ -477,7 +531,7 @@ describe("useTrimmingForm", () => {
     };
     mockSelectedPets.push({ id: "10", ownerId: "20", name: "ポチ" });
 
-    const { result } = renderHook(() => useTrimmingForm());
+    const { result } = renderTrimmingForm();
 
     await waitFor(() => {
       expect(result.current.formData.staffId).toBe("33");
@@ -516,7 +570,7 @@ describe("useTrimmingForm", () => {
       remarks: "皮膚注意",
     };
 
-    const { result } = renderHook(() => useTrimmingForm());
+    const { result } = renderTrimmingForm();
 
     await waitFor(() => {
       expect(result.current.formData.courseId).toBe("4");
@@ -537,5 +591,295 @@ describe("useTrimmingForm", () => {
         option_ids: [7],
       }),
     });
+  });
+});
+
+describe("useTrimmingForm permissions (FE-RC-101 fail-closed)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockLocationStateHolder.value = null;
+    mockSearchParamsHolder.value = new URLSearchParams();
+    mockExistingTrimmingHolder.value = undefined;
+    mockSelectedPets.length = 0;
+    mockCreateMutateAsync.mockResolvedValue({});
+    mockUpdateMutateAsync.mockResolvedValue({});
+    vi.mocked(useGetTrimmings).mockReturnValue({ data: [], isLoading: false } as ReturnType<
+      typeof useGetTrimmings
+    >);
+    vi.mocked(useGetReservationTypesGrouped).mockReturnValue({
+      data: [
+        {
+          label: "トリミング",
+          types: [
+            {
+              id: 9,
+              name: "シャンプーコース",
+              category: "trimming",
+              is_internal: false,
+              sort_order: 1,
+            },
+          ],
+        },
+      ],
+    } as ReturnType<typeof useGetReservationTypesGrouped>);
+  });
+
+  it("canCreate=false の新規保存では create mutation を呼ばず toast.error する", async () => {
+    mockSelectedPets.push({ id: "10", ownerId: "20", name: "ポチ", status: "生存" });
+
+    const { result } = renderHook(() =>
+      useTrimmingForm(undefined, { canCreate: false, canEdit: true, canDelete: true }),
+    );
+
+    act(() => {
+      result.current.setFormData({ staffId: "3", courseId: "4" });
+    });
+
+    await submitFormAction(result.current.formAction);
+
+    expect(mockCreateMutateAsync).not.toHaveBeenCalled();
+    expect(mockUpdateMutateAsync).not.toHaveBeenCalled();
+    expect(mockToast.error).toHaveBeenCalledWith(PERMISSION_DENIED_MESSAGE);
+    expect(result.current.formState.success).toBe(false);
+    expect(result.current.formState.error).toBe(PERMISSION_DENIED_MESSAGE);
+  });
+
+  it("canEdit=false の編集保存では update mutation を呼ばず toast.error する", async () => {
+    mockSelectedPets.push({ id: "10", ownerId: "20", name: "ポチ", status: "生存" });
+
+    const { result } = renderHook(() =>
+      useTrimmingForm("15", { canCreate: true, canEdit: false, canDelete: true }),
+    );
+
+    act(() => {
+      result.current.setFormData({ staffId: "3", courseId: "4" });
+    });
+
+    await submitFormAction(result.current.formAction);
+
+    expect(mockUpdateMutateAsync).not.toHaveBeenCalled();
+    expect(mockCreateMutateAsync).not.toHaveBeenCalled();
+    expect(mockToast.error).toHaveBeenCalledWith(PERMISSION_DENIED_MESSAGE);
+    expect(result.current.formState.success).toBe(false);
+    expect(result.current.formState.error).toBe(PERMISSION_DENIED_MESSAGE);
+  });
+
+  it("permissions 未指定（既定 deny）では create/update いずれも呼ばない", async () => {
+    mockSelectedPets.push({ id: "10", ownerId: "20", name: "ポチ", status: "生存" });
+
+    const { result } = renderHook(() => useTrimmingForm());
+
+    act(() => {
+      result.current.setFormData({ staffId: "3", courseId: "4" });
+    });
+
+    await submitFormAction(result.current.formAction);
+
+    expect(mockCreateMutateAsync).not.toHaveBeenCalled();
+    expect(mockUpdateMutateAsync).not.toHaveBeenCalled();
+    expect(mockToast.error).toHaveBeenCalledWith(PERMISSION_DENIED_MESSAGE);
+    expect(result.current.formState.success).toBe(false);
+  });
+
+  it("canDelete=false では delete mutation を呼ばず toast.error する", () => {
+    mockSelectedPets.push({ id: "10", ownerId: "20", name: "ポチ", status: "生存" });
+
+    const { result } = renderHook(() =>
+      useTrimmingForm("15", { canCreate: true, canEdit: true, canDelete: false }),
+    );
+
+    act(() => {
+      result.current.handleDelete();
+    });
+
+    expect(mockDeleteMutate).not.toHaveBeenCalled();
+    expect(mockToast.error).toHaveBeenCalledWith(PERMISSION_DENIED_MESSAGE);
+  });
+
+  it("作成権限が剥奪された後は取得済み formAction でも create mutation を発行しない", async () => {
+    mockSelectedPets.push({ id: "10", ownerId: "20", name: "ポチ", status: "生存" });
+
+    const { result, rerender } = renderHook(
+      ({ canCreate }: { canCreate: boolean }) =>
+        useTrimmingForm(undefined, { canCreate, canEdit: true, canDelete: true }),
+      { initialProps: { canCreate: true } },
+    );
+
+    act(() => {
+      result.current.setFormData({ staffId: "3", courseId: "4" });
+    });
+    const capturedAction = result.current.formAction;
+
+    rerender({ canCreate: false });
+    await submitFormAction(capturedAction);
+
+    expect(mockCreateMutateAsync).not.toHaveBeenCalled();
+    expect(mockToast.error).toHaveBeenCalledWith(PERMISSION_DENIED_MESSAGE);
+    expect(result.current.formState.success).toBe(false);
+  });
+
+  it("取得済み formAction は後続 commit の formDataRef を送る", async () => {
+    mockSelectedPets.push({ id: "10", ownerId: "20", name: "ポチ", status: "生存" });
+
+    const { result } = renderTrimmingForm();
+    act(() => {
+      result.current.setFormData({ staffId: "3", courseId: "4" });
+    });
+    const capturedAction = result.current.formAction;
+
+    act(() => {
+      result.current.setFormData({ staffId: "8", courseId: "4" });
+    });
+    await submitFormAction(capturedAction);
+
+    expect(mockCreateMutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        staff_id: 8,
+        course_id: 4,
+      }),
+    );
+  });
+
+  it("編集で petFromEdit 未着なら update mutation を発行しない", async () => {
+    const { result } = renderTrimmingForm("15");
+
+    act(() => {
+      result.current.setFormData({ staffId: "3", courseId: "4" });
+    });
+    await submitFormAction(result.current.formAction);
+
+    expect(mockUpdateMutateAsync).not.toHaveBeenCalled();
+    expect(mockToast.error).toHaveBeenCalledWith(PET_LOADING_MESSAGE);
+    expect(result.current.formState.success).toBe(false);
+    expect(result.current.formState.error).toBe(PET_LOADING_MESSAGE);
+  });
+
+  it("編集で petFromEdit 未着なら delete mutation を発行しない", () => {
+    const { result } = renderTrimmingForm("15");
+
+    act(() => {
+      result.current.handleDelete();
+    });
+
+    expect(mockDeleteMutate).not.toHaveBeenCalled();
+    expect(mockToast.error).toHaveBeenCalledWith(
+      "ペット情報の読み込みが完了してから削除してください",
+    );
+  });
+});
+
+describe("useTrimmingForm deceased pet (FE-RC-102 dual-gate)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockLocationStateHolder.value = null;
+    mockSearchParamsHolder.value = new URLSearchParams();
+    mockExistingTrimmingHolder.value = undefined;
+    mockSelectedPets.length = 0;
+    mockCreateMutateAsync.mockResolvedValue({});
+    mockUpdateMutateAsync.mockResolvedValue({});
+    vi.mocked(useGetTrimmings).mockReturnValue({ data: [], isLoading: false } as ReturnType<
+      typeof useGetTrimmings
+    >);
+    vi.mocked(useGetReservationTypesGrouped).mockReturnValue({
+      data: [
+        {
+          label: "トリミング",
+          types: [
+            {
+              id: 9,
+              name: "シャンプーコース",
+              category: "trimming",
+              is_internal: false,
+              sort_order: 1,
+            },
+          ],
+        },
+      ],
+    } as ReturnType<typeof useGetReservationTypesGrouped>);
+  });
+
+  it("死亡ペットの新規保存では create mutation を呼ばず toast.error する", async () => {
+    mockSelectedPets.push({ id: "10", ownerId: "20", name: "ポチ", status: "死亡" });
+
+    const { result } = renderTrimmingForm();
+
+    act(() => {
+      result.current.setFormData({ staffId: "3", courseId: "4" });
+    });
+
+    await submitFormAction(result.current.formAction);
+
+    expect(mockCreateMutateAsync).not.toHaveBeenCalled();
+    expect(mockUpdateMutateAsync).not.toHaveBeenCalled();
+    expect(mockToast.error).toHaveBeenCalledWith(DECEASED_SAVE_MESSAGE);
+    expect(result.current.formState.success).toBe(false);
+    expect(result.current.formState.error).toBe(DECEASED_SAVE_MESSAGE);
+  });
+
+  it("死亡ペットの編集保存では update mutation を呼ばず toast.error する", async () => {
+    mockSelectedPets.push({ id: "10", ownerId: "20", name: "ポチ", status: "死亡" });
+
+    const { result } = renderTrimmingForm("15");
+
+    act(() => {
+      result.current.setFormData({ staffId: "3", courseId: "4" });
+    });
+
+    await submitFormAction(result.current.formAction);
+
+    expect(mockUpdateMutateAsync).not.toHaveBeenCalled();
+    expect(mockCreateMutateAsync).not.toHaveBeenCalled();
+    expect(mockToast.error).toHaveBeenCalledWith(DECEASED_SAVE_MESSAGE);
+    expect(result.current.formState.success).toBe(false);
+    expect(result.current.formState.error).toBe(DECEASED_SAVE_MESSAGE);
+  });
+
+  it("死亡ペットの同日詳細更新でも update mutation を呼ばない", async () => {
+    mockSearchParamsHolder.value = new URLSearchParams({ petId: "10", visitDate: "2026-06-01" });
+    mockSelectedPets.push({ id: "10", ownerId: "20", name: "ポチ", status: "死亡" });
+    vi.mocked(useGetTrimmings).mockReturnValue({
+      data: [
+        {
+          id: "77",
+          hasDetail: true,
+          status: "予約",
+          reservationTypeId: "9",
+        },
+      ],
+      isLoading: false,
+    } as ReturnType<typeof useGetTrimmings>);
+
+    const { result } = renderTrimmingForm();
+
+    act(() => {
+      result.current.setFormData({ staffId: "3", courseId: "4" });
+    });
+
+    await submitFormAction(result.current.formAction);
+
+    expect(mockCreateMutateAsync).not.toHaveBeenCalled();
+    expect(mockUpdateMutateAsync).not.toHaveBeenCalled();
+    expect(mockToast.error).toHaveBeenCalledWith(DECEASED_SAVE_MESSAGE);
+  });
+
+  it("死亡ペットでは delete mutation を呼ばず toast.error する", () => {
+    mockExistingTrimmingHolder.value = { id: "15", petId: "10" };
+    vi.mocked(useGetPet).mockImplementation(
+      (requestedPetId) =>
+        ({
+          data: requestedPetId === "10" ? DECEASED_EDIT_PET : undefined,
+          isLoading: false,
+        }) as ReturnType<typeof useGetPet>,
+    );
+    mockSelectedPets.push({ id: "10", ownerId: "20", name: "ポチ", status: "死亡" });
+
+    const { result } = renderTrimmingForm("15");
+
+    act(() => {
+      result.current.handleDelete();
+    });
+
+    expect(mockDeleteMutate).not.toHaveBeenCalled();
+    expect(mockToast.error).toHaveBeenCalledWith(DECEASED_DELETE_MESSAGE);
   });
 });

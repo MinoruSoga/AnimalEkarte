@@ -1,67 +1,88 @@
-import { memo, useActionState, useState, useCallback } from "react";
+import { memo, useActionState, useCallback, useLayoutEffect, useRef, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { C, STYLE } from "@/lib/design-tokens";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { EmptyState } from "@/components/shared/DataStates";
-import { handleApiError } from "@/lib/handle-api-error";
+import { getFormString } from "@/lib/form-data";
 import type { ClosingHoliday } from "../api/holidays";
 import { useCreateHoliday, useDeleteHoliday } from "../api/holidays";
 
+const PERMISSION_DENIED_MESSAGE = "この操作を行う権限がありません";
+
 interface HolidaySectionProps {
   holidays: ClosingHoliday[];
+  canEdit: boolean;
 }
 
-export const HolidaySection = memo(function HolidaySection({ holidays }: HolidaySectionProps) {
+export const HolidaySection = memo(function HolidaySection({
+  holidays,
+  canEdit,
+}: HolidaySectionProps) {
   const [showForm, setShowForm] = useState(false);
   const createMutation = useCreateHoliday();
-  const deleteMutation = useDeleteHoliday();
+  const { mutateAsync: deleteHoliday } = useDeleteHoliday();
+  const canEditRef = useRef(canEdit);
+  useLayoutEffect(() => {
+    canEditRef.current = canEdit;
+  }, [canEdit]);
 
   const [, formAction] = useActionState(async (_prev: null, formData: FormData) => {
+    if (canEditRef.current !== true) {
+      toast.error(PERMISSION_DENIED_MESSAGE);
+      return null;
+    }
     try {
       await createMutation.mutateAsync({
-        date: formData.get("date") as string,
-        reason: (formData.get("reason") as string) || undefined,
+        date: getFormString(formData, "date"),
+        reason: getFormString(formData, "reason") || undefined,
       });
       toast.success("休診日を追加しました");
       setShowForm(false);
-    } catch (error) {
-      handleApiError(error, "休診日の追加");
+    } catch {
+      // FE-RC-005: useCreateHoliday.onError が既に handleApiError で通知済み。
     }
     return null;
   }, null);
 
   const handleDelete = useCallback(
     async (date: string) => {
+      if (canEditRef.current !== true) {
+        toast.error(PERMISSION_DENIED_MESSAGE);
+        return;
+      }
       try {
-        await deleteMutation.mutateAsync(date);
+        await deleteHoliday(date);
         toast.success("休診日を削除しました");
-      } catch (error) {
-        handleApiError(error, "休診日の削除");
+      } catch {
+        // FE-RC-005: useDeleteHoliday.onError が既に handleApiError で通知済み。
       }
     },
-    [deleteMutation],
+    [deleteHoliday],
   );
 
   const handleShowForm = useCallback(() => setShowForm(true), []);
   const handleHideForm = useCallback(() => setShowForm(false), []);
 
   return (
-    <section className={`bg-white rounded-lg border ${C.borderLight} p-6`}>
+    <section className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
       <div className="flex items-center justify-between mb-4">
         <h2 className={`text-base font-semibold ${C.text}`}>個別休診日</h2>
         <button
           type="button"
           onClick={handleShowForm}
-          className={`flex min-h-11 min-w-11 items-center gap-1.5 text-base ${C.textBrand} ${C.hoverBgBrand} hover:text-white rounded-xs px-3 transition-colors`}
+          className={`flex min-h-11 min-w-11 items-center gap-1.5 text-base ${C.textBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} rounded-xs px-3 transition-colors`}
         >
           <Plus className="size-4" />
-          追加
+          新規登録
         </button>
       </div>
 
       {showForm ? (
-        <form action={formAction} className={`mb-4 p-4 rounded-lg border ${C.borderMedium} space-y-3`}>
+        <form
+          action={formAction}
+          className={`mb-4 p-4 rounded-lg border ${C.borderMedium} space-y-3`}
+        >
           <p className={`text-base font-medium ${C.text}`}>新しい休診日</p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>

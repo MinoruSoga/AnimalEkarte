@@ -50,13 +50,13 @@ func NewMedicalRecordImageHandler(
 // verifyOwnership は clinicID + medicalRecordID を検証しテナント分離を保証する（pre-move
 // internal/handler.Handler.verifyMedicalRecordOwnership のローカル移植）。検証済みの
 // MedicalRecord と成否を返す。
-func (h *MedicalRecordImageHandler) verifyOwnership(c *gin.Context, clinicID, medicalRecordID uint64) (*model.MedicalRecord, bool) {
-	mr, err := h.medicalRecord.GetByID(c.Request.Context(), clinicID, medicalRecordID)
+func (h *MedicalRecordImageHandler) verifyOwnership(c *gin.Context, clinicID, medicalRecordID uint64) bool {
+	_, err := h.medicalRecord.GetByID(c.Request.Context(), clinicID, medicalRecordID)
 	if err != nil {
 		httpapi.RespondError(c, err)
-		return nil, false
+		return false
 	}
-	return mr, true
+	return true
 }
 
 // ListMedicalRecordImages godoc
@@ -66,11 +66,14 @@ func (h *MedicalRecordImageHandler) ListMedicalRecordImages(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMedicalRecords), "view") {
+		return
+	}
 	medicalRecordID, ok := httpapi.ParseIDParam(c, "id")
 	if !ok {
 		return
 	}
-	if _, ok := h.verifyOwnership(c, clinicID, medicalRecordID); !ok {
+	if !h.verifyOwnership(c, clinicID, medicalRecordID) {
 		return
 	}
 
@@ -80,7 +83,15 @@ func (h *MedicalRecordImageHandler) ListMedicalRecordImages(c *gin.Context) {
 		return
 	}
 
-	items := httpapi.MapSlice(images, toMedicalRecordImageResponse)
+	items := make([]medicalRecordImageResponse, 0, len(images))
+	for i := range images {
+		item, signErr := h.signedMedicalRecordImageResponse(c.Request.Context(), &images[i])
+		if signErr != nil {
+			httpapi.RespondError(c, apperrors.Wrap(signErr, "failed to sign medical record image url"))
+			return
+		}
+		items = append(items, item)
+	}
 	c.JSON(http.StatusOK, items)
 }
 
@@ -95,7 +106,7 @@ func (h *MedicalRecordImageHandler) CreateMedicalRecordImage(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if _, ok := h.verifyOwnership(c, clinicID, medicalRecordID); !ok {
+	if !h.verifyOwnership(c, clinicID, medicalRecordID) {
 		return
 	}
 
@@ -110,13 +121,28 @@ func (h *MedicalRecordImageHandler) CreateMedicalRecordImage(c *gin.Context) {
 		return
 	}
 
-	image, err := h.service.Create(c.Request.Context(), clinicID, medicalRecordID, req.toServiceInput())
+	input := req.toServiceInput()
+	signedImageURL, err := h.signStoredMedicalRecordImageURL(c.Request.Context(), medicalRecordID, input.ImageURL)
+	if err != nil {
+		httpapi.RespondError(c, apperrors.Wrap(err, "failed to sign medical record image url"))
+		return
+	}
+	signedThumbURL, err := h.signStoredMedicalRecordImageURL(c.Request.Context(), medicalRecordID, input.ThumbnailURL)
+	if err != nil {
+		httpapi.RespondError(c, apperrors.Wrap(err, "failed to sign medical record image url"))
+		return
+	}
+
+	image, err := h.service.Create(c.Request.Context(), clinicID, medicalRecordID, input)
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return
 	}
+	resp := toMedicalRecordImageResponse(image)
+	resp.ImageURL = signedImageURL
+	resp.ThumbnailURL = signedThumbURL
 	c.Header("Location", fmt.Sprintf("/api/v1/medical-records/%d/images/%d", medicalRecordID, image.ID))
-	c.JSON(http.StatusCreated, toMedicalRecordImageResponse(image))
+	c.JSON(http.StatusCreated, resp)
 }
 
 // DeleteMedicalRecordImage godoc
@@ -130,7 +156,7 @@ func (h *MedicalRecordImageHandler) DeleteMedicalRecordImage(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if _, ok := h.verifyOwnership(c, clinicID, medicalRecordID); !ok {
+	if !h.verifyOwnership(c, clinicID, medicalRecordID) {
 		return
 	}
 
@@ -162,7 +188,7 @@ func (h *MedicalRecordImageHandler) UploadMedicalRecordImage(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if _, ok := h.verifyOwnership(c, clinicID, medicalRecordID); !ok {
+	if !h.verifyOwnership(c, clinicID, medicalRecordID) {
 		return
 	}
 
@@ -213,28 +239,81 @@ func (h *MedicalRecordImageHandler) UploadMedicalRecordImage(c *gin.Context) {
 		return
 	}
 
-	// Upload via FileUploader (S3 or local)
+	// Upload via FileUploader (S3 or local). Persist the object key, never a public URL.
 	key := uploadMeta.uploadKey(medicalRecordID, storedName)
-	imageURL, err := h.uploader.Upload(c.Request.Context(), key, file, uploadMeta.mimeType)
-	if err != nil {
+	if _, err := h.uploader.Upload(c.Request.Context(), key, file, uploadMeta.mimeType); err != nil {
 		httpapi.RespondError(c, apperrors.Wrap(err, "failed to upload file"))
 		return
 	}
 
-	now := time.Now()
-	input := uploadMeta.toUploadedInput(imageURL, now).toServiceInput()
-
-	image, err := h.service.Create(c.Request.Context(), clinicID, medicalRecordID, input)
-	if err != nil {
-		// Clean up uploaded file on service error (best-effort, non-blocking)
+	cleanupUpload := func() {
 		if delErr := h.uploader.Delete(c.Request.Context(), key); delErr != nil {
 			slog.WarnContext(c.Request.Context(), "failed to delete uploaded image on service error (best-effort)", "error", delErr, "key", key)
 		}
+	}
+
+	signedImageURL, err := h.signStoredMedicalRecordImageURL(c.Request.Context(), medicalRecordID, key)
+	if err != nil {
+		cleanupUpload()
+		httpapi.RespondError(c, apperrors.Wrap(err, "failed to sign medical record image url"))
+		return
+	}
+
+	now := time.Now()
+	input := uploadMeta.toUploadedInput(key, now).toServiceInput()
+
+	image, err := h.service.Create(c.Request.Context(), clinicID, medicalRecordID, input)
+	if err != nil {
+		cleanupUpload()
 		httpapi.RespondError(c, err)
 		return
 	}
+	resp := toMedicalRecordImageResponse(image)
+	resp.ImageURL = signedImageURL
 	c.Header("Location", fmt.Sprintf("/api/v1/medical-records/%d/images/%d", medicalRecordID, image.ID))
-	c.JSON(http.StatusCreated, toMedicalRecordImageResponse(image))
+	c.JSON(http.StatusCreated, resp)
+}
+
+func (h *MedicalRecordImageHandler) signedMedicalRecordImageResponse(ctx context.Context, img *model.MedicalRecordImage) (medicalRecordImageResponse, error) {
+	resp := toMedicalRecordImageResponse(img)
+	imageURL, err := h.signStoredMedicalRecordImageURL(ctx, img.MedicalRecordID, resp.ImageURL)
+	if err != nil {
+		return medicalRecordImageResponse{}, err
+	}
+	resp.ImageURL = imageURL
+	thumbURL, err := h.signStoredMedicalRecordImageURL(ctx, img.MedicalRecordID, resp.ThumbnailURL)
+	if err != nil {
+		return medicalRecordImageResponse{}, err
+	}
+	resp.ThumbnailURL = thumbURL
+	return resp, nil
+}
+
+func (h *MedicalRecordImageHandler) signStoredMedicalRecordImageURL(ctx context.Context, medicalRecordID uint64, stored string) (string, error) {
+	key, isObject, err := resolveMedicalRecordImageStorageKey(stored)
+	if err != nil {
+		return "", err
+	}
+	if !isObject {
+		return stored, nil
+	}
+	if !medicalRecordImageKeyBelongsToRecord(key, medicalRecordID) {
+		if medicalRecordImageHasHTTPScheme(stored) {
+			return stored, nil
+		}
+		return "", errMedicalRecordImageStorageKeyUnresolved
+	}
+	if h.uploader == nil {
+		return "", fmt.Errorf("file uploader is not configured")
+	}
+	signed, err := h.uploader.GetSignedURL(ctx, key, medicalRecordImageSignedURLTTL)
+	if err != nil {
+		return "", err
+	}
+	if signed == "" {
+		return "", fmt.Errorf("signed url is empty")
+	}
+	return signed, nil
 }
 
 // respondMedicalRecordImageUploadQuotaError maps quota errors to stable HTTP 429 messages

@@ -13,8 +13,13 @@ import (
 	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
+func closeBoundaryLockKey(clinicID uint64, date time.Time) string {
+	day := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
+	return fmt.Sprintf("cash_register_close:clinic:%d:date:%s", clinicID, day.Format(time.DateOnly))
+}
+
 // CashRegisterCloseRepository はレジ締めレコードのデータアクセスインターフェース。
-// W-013 FINAL B: Create / CreateAdjustment のみ。Update・Delete・soft-delete 再開は持たない（append-only）。
+// W-013: 通常経路は Create / CreateAdjustment のみ（一般 Update は持たない）。
 type CashRegisterCloseRepository interface {
 	Create(ctx context.Context, c *model.CashRegisterClose) error
 	// CreateAdjustment は締め後訂正台帳へ 1 行追記する。ambient tx があれば参加する（fail-closed）。
@@ -24,6 +29,9 @@ type CashRegisterCloseRepository interface {
 	FindByDateAndPeriod(ctx context.Context, clinicID uint64, date time.Time, period string) (*model.CashRegisterClose, error)
 	// #115: 指定日に1件以上のレジ締めレコードが存在するか確認する。
 	HasCloseOnDate(ctx context.Context, clinicID uint64, date time.Time) (bool, error)
+	// LockCloseBoundary は clinic+日付の締め境界を pg_advisory_xact_lock で直列化する。
+	// ambient tx 不在は fail-closed。会計 Update/Complete と Close 作成が同じ鍵を共有する。
+	LockCloseBoundary(ctx context.Context, clinicID uint64, date time.Time) error
 }
 
 type cashRegisterCloseRepository struct{ db *gorm.DB }
@@ -34,8 +42,37 @@ func NewCashRegisterCloseRepository(db *gorm.DB) CashRegisterCloseRepository {
 }
 
 func (r *cashRegisterCloseRepository) Create(ctx context.Context, c *model.CashRegisterClose) error {
+	if c == nil {
+		return apperrors.WrapInvalidInput("cash register close is required")
+	}
+	if persistence.TxFromContext(ctx) == nil {
+		return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+			return r.createLocked(persistence.WithTxValue(ctx, tx), c)
+		})
+	}
+	return r.createLocked(ctx, c)
+}
+
+func (r *cashRegisterCloseRepository) createLocked(ctx context.Context, c *model.CashRegisterClose) error {
+	if err := r.LockCloseBoundary(ctx, c.ClinicID, c.CloseDate); err != nil {
+		return err
+	}
 	if err := persistence.DBOrTx(ctx, r.db).Create(c).Error; err != nil {
 		return apperrors.FromGORM(err, "cash_register_close", "")
+	}
+	return nil
+}
+
+func (r *cashRegisterCloseRepository) LockCloseBoundary(ctx context.Context, clinicID uint64, date time.Time) error {
+	tx := persistence.TxFromContext(ctx)
+	if tx == nil {
+		return apperrors.WrapInternalServerError("close-boundary lock requires an active transaction")
+	}
+	if err := tx.WithContext(ctx).Exec(
+		"SELECT pg_advisory_xact_lock(hashtextextended(?, 0))",
+		closeBoundaryLockKey(clinicID, date),
+	).Error; err != nil {
+		return apperrors.Wrap(err, "failed to acquire cash register close-boundary lock")
 	}
 	return nil
 }

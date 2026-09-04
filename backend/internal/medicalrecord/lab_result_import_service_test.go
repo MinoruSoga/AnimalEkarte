@@ -293,6 +293,21 @@ func TestLabResultImportService_Commit_NonFixtureBlocked_Manual(t *testing.T) {
 	}
 }
 
+func TestLabResultImportService_Commit_DeviceSourcesBlocked(t *testing.T) {
+	svc := NewLabResultImportService(newStubLabJobService(), &stubLabExamService{})
+	inputs := []LabExamPersistInput{{ClinicID: 1, ExamTypeID: 1, Date: time.Now(), JobID: uuid.New()}}
+	for _, source := range []model.LabImportSourceType{
+		model.LabImportSourceTypeFujiNX600,
+		model.LabImportSourceTypeFujiAU10V,
+		model.LabImportSourceTypeArkrayPU4010,
+	} {
+		_, err := svc.Commit(context.Background(), 1, model.LabInboundBatch{SourceType: source, ReceivedAt: time.Now()}, inputs)
+		if err == nil || !apperrors.IsInvalidInput(err) {
+			t.Fatalf("%s must not commit via fixture allowlist, err=%v", source, err)
+		}
+	}
+}
+
 // TestLabResultImportService_Commit_Fixture_Happy verifies a fixture commit creates a job,
 // persists exams, records events, and returns a summary with persisted_count.
 func TestLabResultImportService_Commit_Fixture_Happy(t *testing.T) {

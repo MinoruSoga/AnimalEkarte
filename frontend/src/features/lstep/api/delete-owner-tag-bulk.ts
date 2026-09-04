@@ -31,9 +31,7 @@ export function useBulkRemoveTag(): UseBulkRemoveTagResult {
     setProgress({ done: 0, total: ownerIds.length, isRunning: true });
 
     for (const ownerId of ownerIds) {
-      await axios.delete(
-        `/v1/clinics/${clinicId}/owners/${ownerId}/lstep/tags/${tagName}`
-      );
+      await axios.delete(`/v1/clinics/${clinicId}/owners/${ownerId}/lstep/tags/${tagName}`);
       setProgress((prev) => ({ ...prev, done: prev.done + 1 }));
     }
 

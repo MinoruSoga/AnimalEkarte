@@ -1,6 +1,13 @@
 package pet
 
-import "github.com/animal-ekarte/backend/internal/model"
+import (
+	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/textsearch"
+)
+
+func normalizeNameKana(value string) string {
+	return textsearch.NormalizeKana(value)
+}
 
 func buildPetModel(clinicID uint64, petNumber string, input *CreatePetInput) *model.Pet {
 	pet := &model.Pet{
@@ -9,7 +16,7 @@ func buildPetModel(clinicID uint64, petNumber string, input *CreatePetInput) *mo
 		AnimalSpeciesID: input.AnimalSpeciesID,
 		PetNumber:       petNumber,
 		Name:            input.Name,
-		NameKana:        input.PetNameKana,
+		NameKana:        normalizeNameKana(input.PetNameKana),
 		BirthDate:       input.BirthDate,
 		Breed:           input.Breed,
 		Color:           input.Color,

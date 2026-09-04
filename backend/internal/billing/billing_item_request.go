@@ -36,7 +36,7 @@ func (q unbilledItemsQuery) toPetID() (uint64, error) {
 type createBillingItemRequest struct {
 	BillingID             uint64  `json:"billing_id" binding:"required"`
 	Category              string  `json:"category"  binding:"omitempty,oneof=examination test procedure surgery medicine food goods other vaccine trimming hotel training"`
-	Name                  string  `json:"name"      binding:"required"`
+	Name                  string  `json:"name"      binding:"required,max=255"`
 	UnitPrice             int64   `json:"unit_price" binding:"min=0"`
 	Quantity              float64 `json:"quantity"   binding:"min=0"`
 	DiscountRate          float64 `json:"discount_rate" binding:"min=0,max=100"`
@@ -45,16 +45,17 @@ type createBillingItemRequest struct {
 	TaxRate               float64 `json:"tax_rate"`
 	IsInsuranceApplicable bool    `json:"is_insurance_applicable"`
 	Source                string  `json:"source"    binding:"omitempty,oneof=medical_record manual hospitalization trimming"`
-	OtherReason           *string `json:"other_reason"`
+	OtherReason           *string `json:"other_reason" binding:"omitempty,max=500"`
 	TreatmentID           *uint64 `json:"treatment_id"`
 	VaccinationID         *uint64 `json:"vaccination_id"`
+	ExamID                *uint64 `json:"exam_id"`
 	AppointmentID         *uint64 `json:"appointment_id"`
 	TrimmingCourseID      *uint64 `json:"trimming_course_id"`
 	TrimmingOptionID      *uint64 `json:"trimming_option_id"`
 	MerchandiseItemID     *uint64 `json:"merchandise_item_id"`
 	SortOrder             int     `json:"sort_order"`
 	// #115 / BUG-463: 締め後編集理由（レジ締め済み期間の明細を変更する場合は必須）
-	PostCloseReason *string `json:"post_close_reason"`
+	PostCloseReason *string `json:"post_close_reason" binding:"omitempty,max=500"`
 }
 
 // updateBillingItemRequest は明細更新リクエスト（nil = 未指定）。
@@ -67,13 +68,13 @@ type updateBillingItemRequest struct {
 	TaxRate               *float64 `json:"tax_rate"`
 	IsInsuranceApplicable *bool    `json:"is_insurance_applicable"`
 	// #115 / BUG-463: 締め後編集理由（レジ締め済み期間の明細を変更する場合は必須）
-	PostCloseReason *string `json:"post_close_reason"`
+	PostCloseReason *string `json:"post_close_reason" binding:"omitempty,max=500"`
 }
 
 // deleteBillingItemRequest は明細削除の任意 body。
 // 締め後削除時のみ post_close_reason を送る（BUG-463 residual）。
 type deleteBillingItemRequest struct {
-	PostCloseReason *string `json:"post_close_reason"`
+	PostCloseReason *string `json:"post_close_reason" binding:"omitempty,max=500"`
 }
 
 func (r *createBillingItemRequest) toServiceInput(clinicID uint64) *CreateBillingItemInput {
@@ -93,6 +94,7 @@ func (r *createBillingItemRequest) toServiceInput(clinicID uint64) *CreateBillin
 		OtherReason:           r.OtherReason,
 		TreatmentID:           r.TreatmentID,
 		VaccinationID:         r.VaccinationID,
+		ExamID:                r.ExamID,
 		AppointmentID:         r.AppointmentID,
 		TrimmingCourseID:      r.TrimmingCourseID,
 		TrimmingOptionID:      r.TrimmingOptionID,
@@ -125,31 +127,32 @@ func (r updateBillingItemRequest) toServiceInput() (*UpdateBillingItemInput, err
 }
 
 type BillingItemResponse struct {
-	ID                    uint64    `json:"id"`
-	BillingID             uint64    `json:"billing_id"`
-	Category              string    `json:"category"`
-	Name                  string    `json:"name"`
-	UnitPrice             int64     `json:"unit_price"`
-	Quantity              float64   `json:"quantity"`
-	DiscountRate          float64   `json:"discount_rate"`
-	DiscountAmount        int64     `json:"discount_amount"`
-	Subtotal              int64     `json:"subtotal"`
-	TaxType               string    `json:"tax_type"`
-	TaxRate               float64   `json:"tax_rate"`
-	TaxAmount             int64     `json:"tax_amount"`
-	IsInsuranceApplicable bool      `json:"is_insurance_applicable"`
-	Source                string    `json:"source"`
-	OtherReason           *string   `json:"other_reason,omitempty"`
-	TreatmentID           *uint64   `json:"treatment_id,omitempty"`
+	ID                    uint64  `json:"id"`
+	BillingID             uint64  `json:"billing_id"`
+	Category              string  `json:"category"`
+	Name                  string  `json:"name"`
+	UnitPrice             int64   `json:"unit_price"`
+	Quantity              float64 `json:"quantity"`
+	DiscountRate          float64 `json:"discount_rate"`
+	DiscountAmount        int64   `json:"discount_amount"`
+	Subtotal              int64   `json:"subtotal"`
+	TaxType               string  `json:"tax_type"`
+	TaxRate               float64 `json:"tax_rate"`
+	TaxAmount             int64   `json:"tax_amount"`
+	IsInsuranceApplicable bool    `json:"is_insurance_applicable"`
+	Source                string  `json:"source"`
+	OtherReason           *string `json:"other_reason,omitempty" binding:"omitempty,max=500"`
+	TreatmentID           *uint64 `json:"treatment_id,omitempty"`
 	// MedicalRecordID は未請求候補など、treatment 由来の親カルテ（DB 列ではない仮想値）。
-	MedicalRecordID       *uint64   `json:"medical_record_id,omitempty"`
-	VaccinationID         *uint64   `json:"vaccination_id,omitempty"`
-	AppointmentID         *uint64   `json:"appointment_id,omitempty"`
-	TrimmingCourseID      *uint64   `json:"trimming_course_id,omitempty"`
-	TrimmingOptionID      *uint64   `json:"trimming_option_id,omitempty"`
-	MerchandiseItemID     *uint64   `json:"merchandise_item_id,omitempty"`
-	SortOrder             int       `json:"sort_order"`
-	CreatedAt             time.Time `json:"created_at"`
+	MedicalRecordID   *uint64   `json:"medical_record_id,omitempty"`
+	VaccinationID     *uint64   `json:"vaccination_id,omitempty"`
+	ExamID            *uint64   `json:"exam_id,omitempty"`
+	AppointmentID     *uint64   `json:"appointment_id,omitempty"`
+	TrimmingCourseID  *uint64   `json:"trimming_course_id,omitempty"`
+	TrimmingOptionID  *uint64   `json:"trimming_option_id,omitempty"`
+	MerchandiseItemID *uint64   `json:"merchandise_item_id,omitempty"`
+	SortOrder         int       `json:"sort_order"`
+	CreatedAt         time.Time `json:"created_at"`
 }
 
 func ToBillingItemResponse(item *model.BillingItem) BillingItemResponse {
@@ -175,6 +178,7 @@ func ToBillingItemResponse(item *model.BillingItem) BillingItemResponse {
 		TreatmentID:           item.TreatmentID,
 		MedicalRecordID:       item.MedicalRecordID,
 		VaccinationID:         item.VaccinationID,
+		ExamID:                item.ExamID,
 		AppointmentID:         item.AppointmentID,
 		TrimmingCourseID:      item.TrimmingCourseID,
 		TrimmingOptionID:      item.TrimmingOptionID,

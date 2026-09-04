@@ -9,6 +9,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	staffpkg "github.com/animal-ekarte/backend/internal/staff"
 )
 
 // mockReservationStaffRepository は ReservationStaffRepository のテスト用モック実装
@@ -17,7 +18,7 @@ type mockReservationStaffRepository struct {
 	findByIDFn                             func(ctx context.Context, clinicID, id uint64) (*model.Staff, error)
 	lockForMutationFn                      func(ctx context.Context, clinicID, id uint64) (*model.Staff, error)
 	createFn                               func(ctx context.Context, staff *model.Staff, clinicID uint64) error
-	updateFieldsFn                         func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	updateFieldsFn                         func(ctx context.Context, clinicID, id uint64, cmd staffpkg.ReservationStaffUpdate) error
 	deleteFn                               func(ctx context.Context, clinicID, id uint64) error
 	countUsageByStaffIDFn                  func() (int64, error)
 	swapSortOrderFn                        func(ctx context.Context, clinicID, id uint64, direction string) error
@@ -52,9 +53,9 @@ func (m *mockReservationStaffRepository) Create(ctx context.Context, staff *mode
 	return m.createFn(ctx, staff, clinicID)
 }
 
-func (m *mockReservationStaffRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+func (m *mockReservationStaffRepository) Update(ctx context.Context, clinicID, id uint64, cmd staffpkg.ReservationStaffUpdate) error {
 	if m.updateFieldsFn != nil {
-		return m.updateFieldsFn(ctx, clinicID, id, fields)
+		return m.updateFieldsFn(ctx, clinicID, id, cmd)
 	}
 	return nil
 }
@@ -391,14 +392,14 @@ func TestBuildReservationStaffUpdate(t *testing.T) {
 	sortOrder := 5
 
 	tests := []struct {
-		name       string
-		input      *UpdateReservationStaffInput
-		wantFields map[string]any
+		name  string
+		input *UpdateReservationStaffInput
+		want  staffpkg.ReservationStaffUpdate
 	}{
 		{
-			name:       "all fields nil produces empty map",
-			input:      &UpdateReservationStaffInput{},
-			wantFields: map[string]any{},
+			name:  "all fields nil produces empty command",
+			input: &UpdateReservationStaffInput{},
+			want:  staffpkg.ReservationStaffUpdate{},
 		},
 		{
 			name: "all fields set",
@@ -409,12 +410,12 @@ func TestBuildReservationStaffUpdate(t *testing.T) {
 				ReservationComment: &comment,
 				SortOrder:          &sortOrder,
 			},
-			wantFields: map[string]any{
-				colReservationStaffName:               name,
-				colReservationStaffStaffType:          staffType,
-				colReservationStaffReservationVisible: visible,
-				colReservationStaffReservationComment: comment,
-				colReservationStaffSortOrder:          sortOrder,
+			want: staffpkg.ReservationStaffUpdate{
+				Name:               &name,
+				StaffType:          &staffType,
+				ReservationVisible: &visible,
+				ReservationComment: &comment,
+				SortOrder:          &sortOrder,
 			},
 		},
 		{
@@ -422,8 +423,8 @@ func TestBuildReservationStaffUpdate(t *testing.T) {
 			input: &UpdateReservationStaffInput{
 				Name: &name,
 			},
-			wantFields: map[string]any{
-				colReservationStaffName: name,
+			want: staffpkg.ReservationStaffUpdate{
+				Name: &name,
 			},
 		},
 	}
@@ -431,7 +432,7 @@ func TestBuildReservationStaffUpdate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := buildReservationStaffUpdate(tt.input)
-			assert.Equal(t, tt.wantFields, got)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
@@ -442,7 +443,7 @@ func TestReservationStaffService_Update_Success(t *testing.T) {
 		findByIDFn: func(_ context.Context, _, id uint64) (*model.Staff, error) {
 			return &model.Staff{ID: id, Name: "更新後の名前"}, nil
 		},
-		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ staffpkg.ReservationStaffUpdate) error {
 			return nil
 		},
 	}
@@ -464,7 +465,7 @@ func TestReservationStaffService_Update_DoesNotReplaceCapabilities(t *testing.T)
 		findByIDFn: func(_ context.Context, _, id uint64) (*model.Staff, error) {
 			return &model.Staff{ID: id, Name: name}, nil
 		},
-		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ staffpkg.ReservationStaffUpdate) error {
 			return nil
 		},
 		replaceExcludedReservationTypesFn: func(_ context.Context, _, _ uint64, _ []uint64) error {
@@ -504,7 +505,7 @@ func TestReservationStaffService_Update_RepoUpdateError(t *testing.T) {
 		findByIDFn: func(_ context.Context, _, id uint64) (*model.Staff, error) {
 			return &model.Staff{ID: id}, nil
 		},
-		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ staffpkg.ReservationStaffUpdate) error {
 			return errors.New("db error")
 		},
 	}
@@ -530,7 +531,7 @@ func TestReservationStaffService_Update_FindByIDAfterUpdateError(t *testing.T) {
 			}
 			return nil, errors.New("db error")
 		},
-		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ staffpkg.ReservationStaffUpdate) error {
 			return nil
 		},
 	}
@@ -550,7 +551,7 @@ func TestReservationStaffService_Update_FindExcludedAfterUpdateError(t *testing.
 		findByIDFn: func(_ context.Context, _, id uint64) (*model.Staff, error) {
 			return &model.Staff{ID: id}, nil
 		},
-		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ staffpkg.ReservationStaffUpdate) error {
 			return nil
 		},
 		findExcludedReservationTypesFn: func(_ context.Context, _, _ uint64) ([]model.StaffReservationExclusion, error) {
@@ -576,7 +577,7 @@ func TestReservationStaffService_Update_TransactorError(t *testing.T) {
 		findByIDFn: func(_ context.Context, _, id uint64) (*model.Staff, error) {
 			return &model.Staff{ID: id}, nil
 		},
-		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ staffpkg.ReservationStaffUpdate) error {
 			t.Fatal("transactor.WithTx がエラーを返す場合、repo.Update は呼ばれてはならない")
 			return nil
 		},
@@ -628,7 +629,7 @@ func TestReservationStaffService_PatchStatus_UpdateError(t *testing.T) {
 		findByIDFn: func(_ context.Context, _, id uint64) (*model.Staff, error) {
 			return &model.Staff{ID: id}, nil
 		},
-		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ staffpkg.ReservationStaffUpdate) error {
 			return errors.New("db error")
 		},
 	}
@@ -735,7 +736,7 @@ func TestReservationStaffService_MutationsAcquireExclusiveOwnershipFirst(t *test
 					}
 					return &model.Staff{ID: id, ClinicID: clinicID}, nil
 				},
-				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ staffpkg.ReservationStaffUpdate) error {
 					events = append(events, "update")
 					return nil
 				},

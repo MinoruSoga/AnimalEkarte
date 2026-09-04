@@ -56,7 +56,13 @@ export const MasterTabPage = memo(function MasterTabPage({
 }: MasterTabPageProps) {
   return (
     <>
-      <MasterPageShell title={title} icon={icon} resource={resource} onNew={onNew} sidePanel={sidePanel}>
+      <MasterPageShell
+        title={title}
+        icon={icon}
+        resource={resource}
+        onNew={onNew}
+        sidePanel={sidePanel}
+      >
         {children}
       </MasterPageShell>
 

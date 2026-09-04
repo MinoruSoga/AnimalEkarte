@@ -4,10 +4,11 @@ package lstep
 type updateLstepSettingsRequest struct {
 	LstepAPIKey string `json:"lstep_api_key"`
 	// LstepBaseURL: https + allowlisted host only when non-empty (LSA-01). max bounds request size.
-	LstepBaseURL string `json:"lstep_base_url" binding:"omitempty,max=512"`
-	LineChannelAccessToken   string  `json:"line_channel_access_token"`
-	LineChannelSecret        string  `json:"line_channel_secret"`
-	LiffID                   string  `json:"liff_id"`
+	LstepBaseURL           string `json:"lstep_base_url" binding:"omitempty,max=512"`
+	LineChannelAccessToken string `json:"line_channel_access_token"`
+	LineChannelSecret      string `json:"line_channel_secret"`
+	// nil=変更なし、空文字=クリア（LIFF ID のみ空文字クリアを許可）。
+	LiffID                   *string `json:"liff_id"`
 	LineAccountName          string  `json:"line_account_name"`
 	IsSyncEnabled            *bool   `json:"is_sync_enabled"`
 	CPMVersion               *string `json:"cpm_version"`
@@ -44,7 +45,8 @@ func (r *updateLstepSettingsRequest) toServiceInput() *UpdateLstepSettingsInput 
 		LstepBaseURL:                 r.LstepBaseURL,
 		LineChannelAccessToken:       r.LineChannelAccessToken,
 		LineChannelSecret:            r.LineChannelSecret,
-		LiffID:                       r.LiffID,
+		LiffID:                       derefLiffID(r.LiffID),
+		ClearLiffID:                  r.LiffID != nil && *r.LiffID == "",
 		LineAccountName:              r.LineAccountName,
 		IsSyncEnabled:                r.IsSyncEnabled,
 		CPMVersion:                   r.CPMVersion,
@@ -72,4 +74,11 @@ func (r *updateLstepSettingsRequest) toServiceInput() *UpdateLstepSettingsInput 
 		HealthPreventionLookbackDays: r.HealthPreventionLookbackDays,
 		VaccineDeadlineDays:          r.VaccineDeadlineDays,
 	}
+}
+
+func derefLiffID(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }

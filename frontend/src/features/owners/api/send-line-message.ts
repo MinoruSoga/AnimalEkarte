@@ -7,6 +7,10 @@ import { queryKeys } from "@/lib/query-keys";
 
 export type LineSendType = "text" | "pdf_url" | "image_url";
 
+export function isLineSendType(value: string): value is LineSendType {
+  return value === "text" || value === "pdf_url" || value === "image_url";
+}
+
 export interface LineSendRequest {
   message_type: LineSendType;
   text?: string;
@@ -18,12 +22,9 @@ export interface LineSendRequest {
 async function sendLineMessage(
   clinicId: string,
   ownerId: string,
-  body: LineSendRequest
+  body: LineSendRequest,
 ): Promise<void> {
-  await axios.post(
-    `/v1/clinics/${clinicId}/owners/${ownerId}/line/send`,
-    body
-  );
+  await axios.post(`/v1/clinics/${clinicId}/owners/${ownerId}/line/send`, body);
 }
 
 export function useSendLineMessage(ownerId: string) {

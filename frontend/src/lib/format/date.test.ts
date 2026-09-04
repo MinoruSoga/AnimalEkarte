@@ -37,4 +37,3 @@ describe("formatDate", () => {
     expect(formatDate("not-a-date")).toBe("-");
   });
 });
-

@@ -52,7 +52,25 @@ func validateLiffReservationInput(req *liffCreateReservationRequest) error {
 			return err
 		}
 	}
+	if phone, ok := fields["phone"].(string); ok && phone != "" && !isValidLiffPhone(phone) {
+		return apperrors.WrapInvalidInput("電話番号の形式が正しくありません")
+	}
 	return nil
+}
+
+func isValidLiffPhone(phone string) bool {
+	digits := 0
+	for _, r := range phone {
+		switch {
+		case r >= '0' && r <= '9':
+			digits++
+		case r == '-' || r == '+' || r == ' ' || r == '(' || r == ')':
+			continue
+		default:
+			return false
+		}
+	}
+	return digits >= 10
 }
 
 // validateCustomerFieldValue は customer_fields の値を再帰的に検証する。

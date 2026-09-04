@@ -3,6 +3,8 @@ package medicalrecord
 import (
 	"context"
 	"errors"
+	"net"
+	"os"
 	"testing"
 	"time"
 
@@ -10,8 +12,47 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
 )
+
+// TestMedicalrecordIsolatedDockerDBHostFallback remaps DB_HOST when bare
+// `docker run` cannot resolve compose hostname "db". docker-compose.yml
+// publishes Postgres as host port 5434.
+func TestMedicalrecordIsolatedDockerDBHostFallback(t *testing.T) {
+	ensureMedicalrecordTestDBReachableFromIsolatedDocker(t)
+}
+
+func isolatedDockerDBFallback() (host, port string, ok bool) {
+	if os.Getenv("TEST_DATABASE_URL") != "" {
+		return "", "", false
+	}
+	if h := os.Getenv("DB_HOST"); h != "" && h != "db" {
+		return "", "", false
+	}
+	if _, err := net.DefaultResolver.LookupHost(context.Background(), "db"); err == nil {
+		return "", "", false
+	}
+	const fallbackHost = "host.docker.internal"
+	const fallbackPort = "5434"
+	d := net.Dialer{Timeout: 500 * time.Millisecond}
+	conn, err := d.DialContext(context.Background(), "tcp", net.JoinHostPort(fallbackHost, fallbackPort))
+	if err != nil {
+		return "", "", false
+	}
+	_ = conn.Close()
+	return fallbackHost, fallbackPort, true
+}
+
+func ensureMedicalrecordTestDBReachableFromIsolatedDocker(t *testing.T) {
+	t.Helper()
+	host, port, ok := isolatedDockerDBFallback()
+	if !ok {
+		return
+	}
+	t.Setenv("DB_HOST", host)
+	t.Setenv("DB_PORT", port)
+}
 
 // mockVaccinationRepository は VaccinationRepository のテスト用モック実装
 type mockVaccinationRepository struct {
@@ -24,7 +65,7 @@ type mockVaccinationRepository struct {
 	deleteFn       func(ctx context.Context, clinicID, id uint64) error
 }
 
-func (m *mockVaccinationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Vaccination, int64, error) {
+func (m *mockVaccinationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, search string, page, limit int) ([]model.Vaccination, int64, error) {
 	return m.findAllFn(ctx, clinicID, petID, ownerID, startDate, endDate, page, limit)
 }
 
@@ -290,7 +331,7 @@ func TestVaccinationService_List(t *testing.T) {
 			}
 			svc := newTestVaccinationService(repo, okVaccineRepo(), nil)
 
-			vaccinations, total, err := svc.List(context.Background(), tt.clinicID, tt.petID, tt.ownerID, nil, nil, tt.page, tt.limit)
+			vaccinations, total, err := svc.List(context.Background(), tt.clinicID, tt.petID, tt.ownerID, nil, nil, "", tt.page, tt.limit)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -517,6 +558,242 @@ func TestVaccinationService_Create(t *testing.T) {
 				assert.NoError(t, err)
 				assert.NotNil(t, vaccination)
 			}
+		})
+	}
+}
+
+func TestVaccinationService_Create_RejectsFutureVaccinationDate(t *testing.T) {
+	nowJST := time.Now().In(config.JST)
+	today := time.Date(nowJST.Year(), nowJST.Month(), nowJST.Day(), 10, 0, 0, 0, config.JST)
+	tomorrow := today.AddDate(0, 0, 1)
+	yesterday := today.AddDate(0, 0, -1)
+	nextDate := today.AddDate(0, 1, 0)
+	sameDayNext := today
+
+	tests := []struct {
+		name        string
+		date        time.Time
+		nextDate    *time.Time
+		wantErr     bool
+		wantInvalid bool
+		wantMsg     string
+		wantCreate  bool
+	}{
+		{
+			name:        "rejects tomorrow JST",
+			date:        tomorrow,
+			wantErr:     true,
+			wantInvalid: true,
+			wantMsg:     "今日以前",
+			wantCreate:  false,
+		},
+		{
+			name:       "allows today JST with nil next_date",
+			date:       today,
+			wantCreate: true,
+		},
+		{
+			name:       "allows future next_date when date is today",
+			date:       today,
+			nextDate:   &nextDate,
+			wantCreate: true,
+		},
+		{
+			name:        "rejects next_date before vaccination date",
+			date:        today,
+			nextDate:    &yesterday,
+			wantErr:     true,
+			wantInvalid: true,
+			wantMsg:     "次回予定日は接種日より後",
+			wantCreate:  false,
+		},
+		{
+			name:        "rejects next_date equal to vaccination date",
+			date:        today,
+			nextDate:    &sameDayNext,
+			wantErr:     true,
+			wantInvalid: true,
+			wantMsg:     "次回予定日は接種日より後",
+			wantCreate:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			createCalled := false
+			repo := &mockVaccinationRepository{
+				createFn: func(_ context.Context, vaccination *model.Vaccination) error {
+					createCalled = true
+					vaccination.ID = 10
+					return nil
+				},
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.Vaccination, error) {
+					return &model.Vaccination{ID: id, VaccineID: 1, Date: tt.date, NextDate: tt.nextDate}, nil
+				},
+			}
+			svc := newTestVaccinationService(repo, okVaccineRepo(), nil)
+
+			got, err := svc.Create(context.Background(), 1, &CreateVaccinationInput{
+				VaccineID: 1,
+				Date:      tt.date,
+				NextDate:  tt.nextDate,
+			})
+
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Nil(t, got)
+				if tt.wantInvalid {
+					assert.True(t, apperrors.IsInvalidInput(err), "expected invalid input but got: %v", err)
+				}
+				if tt.wantMsg != "" {
+					assert.Contains(t, err.Error(), tt.wantMsg)
+				}
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, got)
+			}
+			assert.Equal(t, tt.wantCreate, createCalled)
+		})
+	}
+}
+
+func TestVaccinationService_Update_RejectsFutureVaccinationDate(t *testing.T) {
+	nowJST := time.Now().In(config.JST)
+	today := time.Date(nowJST.Year(), nowJST.Month(), nowJST.Day(), 10, 0, 0, 0, config.JST)
+	tomorrow := today.AddDate(0, 0, 1)
+	yesterday := today.AddDate(0, 0, -1)
+	dayBeforeYesterday := today.AddDate(0, 0, -2)
+	nextDate := today.AddDate(0, 1, 0)
+	sameDayNext := today
+	supplemental := "追記"
+
+	tests := []struct {
+		name           string
+		input          UpdateVaccinationInput
+		storedDate     time.Time
+		storedNextDate *time.Time
+		wantErr        bool
+		wantInvalid    bool
+		wantMsg        string
+		wantUpdate     bool
+	}{
+		{
+			name: "rejects tomorrow JST",
+			input: UpdateVaccinationInput{
+				Date: &tomorrow,
+			},
+			wantErr:     true,
+			wantInvalid: true,
+			wantMsg:     "今日以前",
+			wantUpdate:  false,
+		},
+		{
+			name: "allows today JST with nil next_date",
+			input: UpdateVaccinationInput{
+				Date: &today,
+			},
+			wantUpdate: true,
+		},
+		{
+			name: "allows future next_date when date is today",
+			input: UpdateVaccinationInput{
+				Date:     &today,
+				NextDate: &nextDate,
+			},
+			wantUpdate: true,
+		},
+		{
+			name: "allows next_date after stored date when date is omitted",
+			input: UpdateVaccinationInput{
+				NextDate: &nextDate,
+			},
+			storedDate: yesterday,
+			wantUpdate: true,
+		},
+		{
+			name: "rejects next_date before stored date when date is omitted",
+			input: UpdateVaccinationInput{
+				NextDate: &dayBeforeYesterday,
+			},
+			storedDate:  yesterday,
+			wantErr:     true,
+			wantInvalid: true,
+			wantMsg:     "次回予定日は接種日より後",
+			wantUpdate:  false,
+		},
+		{
+			name: "rejects date moved to or after stored next_date",
+			input: UpdateVaccinationInput{
+				Date: &today,
+			},
+			storedDate:     dayBeforeYesterday,
+			storedNextDate: &today,
+			wantErr:        true,
+			wantInvalid:    true,
+			wantMsg:        "次回予定日は接種日より後",
+			wantUpdate:     false,
+		},
+		{
+			name: "rejects next_date equal to vaccination date",
+			input: UpdateVaccinationInput{
+				Date:     &today,
+				NextDate: &sameDayNext,
+			},
+			wantErr:     true,
+			wantInvalid: true,
+			wantMsg:     "次回予定日は接種日より後",
+			wantUpdate:  false,
+		},
+		{
+			name: "omitting date does not inspect stored date",
+			input: UpdateVaccinationInput{
+				Supplemental: &supplemental,
+			},
+			storedDate: tomorrow,
+			wantUpdate: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			updateCalled := false
+			stored := tt.storedDate
+			if stored.IsZero() {
+				stored = today.AddDate(0, 0, -1)
+			}
+			repo := &mockVaccinationRepository{
+				findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Vaccination, error) {
+					return &model.Vaccination{
+						ID:        id,
+						ClinicID:  clinicID,
+						VaccineID: 1,
+						Date:      stored,
+						NextDate:  tt.storedNextDate,
+					}, nil
+				},
+				updateFieldsFn: func(_ context.Context, _, id uint64, _ map[string]any) (*model.Vaccination, error) {
+					updateCalled = true
+					return &model.Vaccination{ID: id, Date: stored}, nil
+				},
+			}
+			svc := newTestVaccinationService(repo, okVaccineRepo(), nil)
+
+			got, err := svc.Update(context.Background(), 1, 1, &tt.input)
+
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Nil(t, got)
+				if tt.wantInvalid {
+					assert.True(t, apperrors.IsInvalidInput(err), "expected invalid input but got: %v", err)
+				}
+				if tt.wantMsg != "" {
+					assert.Contains(t, err.Error(), tt.wantMsg)
+				}
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, got)
+			}
+			assert.Equal(t, tt.wantUpdate, updateCalled)
 		})
 	}
 }

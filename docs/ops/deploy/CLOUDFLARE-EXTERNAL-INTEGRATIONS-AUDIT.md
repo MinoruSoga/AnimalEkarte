@@ -11,52 +11,36 @@
 ## 背景（AWS → Cloudflare の egress 差分）
 
 AWS STG は `fck-nat EC2 (t4g.nano) + Elastic IP ×1` により、Private Subnet（ECS Fargate タスク）
-からの outbound 通信を **単一の固定 IP** に安定化していた（`research-cloudflare.html` L165-167）。
+からの outbound 通信を **単一の固定 IP** に安定化していた（2026-07 調査 HTML。vault `evidence/2026-08-20-root-docs/research-cloudflare.html`）。
 
 Cloudflare Workers + Containers には EIP に相当する概念がない。Container の outbound は
-Cloudflare のエッジ網を経由するため、**送信元 IP は固定されない**（`research-cloudflare.html` L143, L539）。
+Cloudflare のエッジ網を経由するため、**送信元 IP は固定されない**（同調査）。
 これが影響するのは、送信先サービスが「IP allowlist」方式のアクセス制御を採用している場合のみ。
 本ドキュメントは LINE / Lステップ / SMTP / LIFF の各連携についてこの依存の有無を確認する。
 
 ---
 
-## 棚卸し表
+## 現行棚卸し
 
-| 連携 | 認証方式 | IP allowlist 要否 | STG 現状（試行9〜12時点） | Cloudflare 移行影響 | 試行12 結果 |
-|:---|:---|:---|:---|:---|:---|
-| **LINE Messaging API**（`api.line.me`） | Bearer Channel Access Token（`backend/internal/infra/line/client.go` L51） | **既定では不要**。LINE公式ガイドラインは「IPアドレスでのアクセス制御禁止（webhook受信側）」を明言。push送信側（outbound）は long-lived channel access token 使用時に**オプションでIP許可リストを設定可能**（LINE Developers Console > Security タブ）だが、既定は無効。 | Channel Access Token / Secret はクリニックごと `clinic_integrations` テーブルでDB管理（`config.go`にはグローバル環境変数経路なし）。`wrangler.jsonc` の `LINE_CHANNEL_ACCESS_TOKEN`/`LINE_CHANNEL_SECRET` はグローバルfallback用の予約枠のみで試行9時点で空投入。 | 対象クリニックがLINE Developers ConsoleでオプションのIP許可リストを**有効化していない限り無影響**。有効化しているクリニックがある場合はCloudflare移行後に送信失敗するため、本番カットオーバー前に全クリニックのLINE Developers Console > Security設定を確認する運用チェックが必要（P7-3で確認事項として引き継ぎ）。 | **PASS**（doc結論）。live push は BLOCKED — 理由: STG `clinic_integrations` に実クリニックのトークン/LINE User IDが登録されており、誤配信リスク回避のためテスト専用データが確認できない本試行では送信しない（inventory onlyに留める）。 |
-| **Lステップ**（`api.lstep.jp`） | Bearer API Key（`lstep_settings_connection.go` L63, `tag.go`/`user.go`） | 不明（Lステップ公式に許可リスト機能の記載なし、要ベンダー確認）。現状は **Write系4メソッドが `[DISABLED]`** のため影響評価不要。 | `LSTEP_WRITE_API_PAUSE.md` に記載の通り、`tag.go`（`AddTag`/`RemoveTag`/`AddTagBulk`）と `user.go`（`SetProperty`）がHTTP送信を抑止し入力検証のみ実施。読み取り系（`TestConnection`の`testLstepAPI`によるGET `/api/v1/tags`疎通確認）は継続。 | Write再有効化時は、対象クリニックのLステップ管理画面でIP許可リスト機能の有無を確認する項目を`LSTEP_WRITE_API_PAUSE.md`の再有効化前提条件に追加すべき（本ドキュメントで指摘、実際のmdファイル更新はスコープ外）。 | **PASS**（DISABLED状態の確認+doc記載）。grep結果は下記参照。 |
-| **SMTP**（587/465 egress） | `SMTP_HOST`/`SMTP_USER`/`SMTP_PASS`（`config.go` L60-64, `net/smtp.SendMail`使用） | IP allowlist方式ではなくSMTP認証（PLAIN AUTH）+ TLS/STARTTLS前提のため、送信元IPには非依存と想定されるが、送信先SMTPサーバー側の設定次第で送信元IPレンジ制限がある可能性は残る。 | `wrangler.jsonc`の`secrets.required`に`SMTP_HOST`/`SMTP_USER`/`SMTP_PASS`が登録されているが、試行9記録によれば空文字投入の可能性がある。試行12で`wrangler secret list`を実施し名前の存在のみ確認（値は非取得）。 | 値が空の場合、`appointment_notification_service.go` L301の`if s.cfg.SMTPHost == ""`ガードにより送信自体がスキップされるため、Cloudflare移行によるリグレッションは発生しない（無効化されたまま）。 | 下記「SMTP secret 確認結果」参照。 |
-| **LIFF / コールバックURL** | LINE Login ID Token検証（`liff_auth.go`、`verifyLiffIDToken`） | 該当なし（IDトークン検証方式、IPには非依存） | `wrangler.jsonc` vars の `FRONTEND_URL=https://stg.noah-karte.com`固定。`frontend/vercel.json`のrewriteは`https://api.stg.noah-karte.com`（AWS側）向けで、workers.dev他ドメインへの動的切替機構はない。LIFF ID（`{channelID}-{appID}`形式）はクリニックごとDB管理（`liff_auth.go` L105）。 | P1-2（NS切替）完了前は、LIFFアプリ本番導線（`frontend/liff`, `frontend/line-reserve`）がworkers.dev経由のAPIに到達する経路が存在しない（vercel.jsonのrewrite先固定のため）。 | **BLOCKED**（P7-3へdefer）。理由: LIFF本番導線の検証にはDNS切替(P1-2)後の`api.stg.noah-karte.com`→Cloudflare Route解決が前提となり、workers.dev段階のPhase 4では検証不可。 |
+この表は repository contract と dated evidence を分ける。deployed secret value、外部 console 設定、live send の成否は本更新では確認していない。
 
----
+| 連携 | repository contract | 現行判定 |
+|:---|:---|:---|
+| LINE Messaging API | `backend/internal/infra/line/client.go` の bearer token。送信元 IP allowlist は外部 console の任意設定 | repository 上は対応可能。実 clinic の allowlist と live send は `UNVERIFIED` |
+| Lステップ | `backend/internal/infra/lstep/client.go`, `tag.go`, `user.go`。deploy gate `LSTEP_WRITE_API_ENABLED` が exact `true` かつ clinic `is_sync_enabled=true` の二重 gate を通ると4 write methodが実 HTTPを送る。repository defaultはOFF | deployed gate と vendor allowlist は `UNVERIFIED`。`[DISABLED]` grep を現行証跡に使わない |
+| SMTP | `backend/internal/infra/smtp/sender.go`。SMTP auth/TLSを使う。必要な名前の正本は target `backend/wrangler.jsonc` の `secrets.required` | names/value/provider-side IP restriction と controlled send は `UNVERIFIED` |
+| LIFF | ID token検証。`api.stg.noah-karte.com` は 2026-07-17 に Cloudflare へ cutover 済みという ops SSOT を前提とする | DNS prerequisiteは解消。test channel/accountを使う controlled STG rehearsal までは `UNVERIFIED` |
 
-## LSTEP `[DISABLED]` grep結果（AC-P47-2）
+### Lステップ release gate
 
-```
-backend/internal/infra/lstep/tag.go:22:	// [DISABLED] HTTP call to POST /contacts/{id}/tags is suppressed.
-backend/internal/infra/lstep/tag.go:35:	// [DISABLED] HTTP call to DELETE /contacts/{id}/tags is suppressed.
-backend/internal/infra/lstep/tag.go:76:	// [DISABLED] HTTP call to POST /contacts/tags/bulk is suppressed.
-backend/internal/infra/lstep/user.go:69:	// [DISABLED] HTTP call to POST /contacts/{id}/properties is suppressed.
-```
+- repository 設定の既定OFFと deployed state を混同しない。deployed value は承認済み names-only channel で確認する。
+- writeを許可する前に、deploy gate、clinic flag、対象test account、vendorのIP制限、停止手段、失敗通知を確認する。
+- `AddTag` / `RemoveTag` / `AddTagBulk` / `SetProperty` はgate通過時に実HTTPを行う。旧 `[DISABLED]` コメントは現行事実ではない。
+- 詳細は [LSTEP_WRITE_API_PAUSE.md](./LSTEP_WRITE_API_PAUSE.md)。
 
-4箇所すべて`[DISABLED]`のまま。`LSTEP_WRITE_API_PAUSE.md`の再有効化前提条件（5項目）も未達のため、本試行ではコード変更なし（スコープ外）。
+### SMTP secret evidence
 
----
-
-## SMTP secret 確認結果（AC-P47-4）
-
-`wrangler secret list --name animalekarte-stg-api` を試行12で実施（値は取得しない。名前のみ）。
-結果、`SMTP_HOST` / `SMTP_USER` / `SMTP_PASS` の3つとも `secret_text` として登録済みであることを確認した
-（`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`/`DB_HOST`/`DB_PASSWORD`/`DB_USER`/`INTEGRATION_ENCRYPTION_KEY`/
-`JWT_SECRET`/`LINE_CHANNEL_ACCESS_TOKEN`/`LINE_CHANNEL_SECRET`/`LSTEP_API_KEY`/`MIGRATE_RUN_SECRET`も同時に
-登録済みであることを確認。`wrangler.jsonc`の`secrets.required`一覧と一致）。
-
-**結論: BLOCKED（inventory only）**。理由:
-- `wrangler secret list` は名前の存在のみを返し、値（空文字か実値か）は取得できない。試行9記録では「SMTP/LINE/LSTEP（未使用分は空文字）を投入済み」とあり、空文字投入の可能性が残る。
-- `config.go` L93 の `Validate()` は `SMTPHost != ""` の場合のみ `SMTP_PORT`妥当性を検査し、`appointment_notification_service.go` L301 の送信処理も `SMTPHost == ""` なら即スキップする設計のため、空文字であればCloudflare移行によるリグレッションは発生しない。
-- 実際に空文字か実値かを判定するには、アプリ経由の送信トリガー（予約通知・パスワードリセットメール等）を実行する必要があるが、実値が設定されていた場合に実際のメールアドレスへ送信してしまうリスクがあるため、本試行では見合わせる。
-- SMTP認証（PLAIN AUTH + STARTTLS/TLS）はIP allowlist方式ではないため、値が実際に設定されていた場合でもCloudflareの非固定egress IPによる新規の疎通リスクは低いと想定されるが、送信先SMTPサーバー側のIPレンジ制限方針は未確認のため実測が望ましい（P7以降でsecret値確認済みの担当者が実施することを推奨）。
+過去の `wrangler secret list` 結果は dated evidence にすぎない。現在の必要名は target Wrangler file の `secrets.required` から導出し、値を取得・記録しない。SMTP実装は `backend/internal/infra/smtp/sender.go` を参照し、brittleな行番号や旧service pathを根拠にしない。
 
 ---
 
@@ -89,7 +73,7 @@ backend/internal/infra/lstep/user.go:69:	// [DISABLED] HTTP call to POST /contac
 
 ## リスクレジスタへの反映（AC-P47-6）
 
-`../infra/_archive/migration-cloudflare.md` §9 のリスク登録簿「IP allowlist」行について、試行12の結論（LINE既定非依存・オプション機能のみ要確認、SMTP/LIFFはBLOCKED理由付き）を追記する。詳細は `../infra/_archive/migration-cloudflare.md` 試行12セクションを参照。
+IP allowlist: LINEは任意設定を要確認。Lステップ/SMTPはprovider設定とdeployed stateが未検証。LIFFのDNS prerequisiteは解消済みだがcontrolled STG rehearsalは未実施。
 
 ---
 
@@ -98,6 +82,6 @@ backend/internal/infra/lstep/user.go:69:	// [DISABLED] HTTP call to POST /contac
 | 連携 | 判定 |
 |:---|:---|
 | LINE | PASS（IP allowlist inventory）／inbound redelivery: RELEASE PENDING（code deploy後のConsole有効化・error監視・rehearsal待ち）／live send: BLOCKED（誤配信リスク回避のためinventory only） |
-| Lステップ | PASS（DISABLED状態確認） |
-| SMTP | BLOCKED（secret名確認済み・値非取得・誤配信リスク回避のためlive smoke見合わせ） |
-| LIFF | BLOCKED（P7-3 defer、DNS切替前提） |
+| Lステップ | UNVERIFIED（repository default OFF。二重gate通過時は実HTTP） |
+| SMTP | UNVERIFIED（target Wrangler の必要名、deployed value、controlled sendを要確認） |
+| LIFF | UNVERIFIED（DNS prerequisiteは解消。controlled STG rehearsal待ち） |

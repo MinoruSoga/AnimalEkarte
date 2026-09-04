@@ -6,7 +6,6 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 func (s *medicalRecordService) List(ctx context.Context, clinicIDs []uint64, filters MedicalRecordListFilters, page, limit int) ([]model.MedicalRecord, int64, error) {
@@ -214,66 +213,24 @@ func (s *medicalRecordService) Update(ctx context.Context, clinicID, id uint64, 
 
 	var record *model.MedicalRecord
 	if err := s.withTx(ctx, func(txCtx context.Context) error {
-		if needsLinkValidation {
-			if err := s.validateMedicalRecordOwnerPetLinks(txCtx, clinicID, finalOwnerID, finalPetID); err != nil {
-				return err
-			}
-		} else if isBecomingFinalized {
-			if err := s.validateMedicalRecordSnapshotOwnerPetClinicRelations(txCtx, clinicID, finalOwnerID, finalPetID); err != nil {
-				return err
-			}
-		}
-		if input.DoctorID != nil || isBecomingFinalized {
-			if err := s.validateMedicalRecordDoctor(txCtx, clinicID, finalDoctorID); err != nil {
-				return err
-			}
-		}
-		if isBecomingFinalized && existing.AppointmentID != nil {
-			if s.reservationRepo == nil {
-				return apperrors.WrapInternalServerError("reservation lifecycle dependency is required to finalize an appointment-linked medical record")
-			}
-			if err := s.reservationRepo.PrepareForMedicalRecordFinalization(txCtx, clinicID, *existing.AppointmentID); err != nil {
-				return apperrors.Wrap(err, "failed to prepare appointment for medical record finalization")
-			}
-		}
-		if existing.AppointmentID != nil && (needsContextValidation || isBecomingFinalized) {
-			if s.reservationRepo == nil {
-				return apperrors.WrapInternalServerError("reservation lifecycle dependency is required to validate an appointment-linked medical record")
-			}
-			if err := s.reservationRepo.BackfillForMedicalRecord(
-				txCtx,
-				clinicID,
-				*existing.AppointmentID,
-				finalOwnerID,
-				finalPetID,
-				finalDoctorID,
-			); err != nil {
-				return apperrors.Wrap(err, "failed to lock and validate appointment for medical record update")
-			}
-		}
-		if isBecomingFinalized && s.auditTx == nil {
-			return apperrors.WrapInternalServerError("medical record finalize audit dependency is required")
-		}
-		updated, err := s.repo.Update(txCtx, clinicID, id, fields, input.Version)
+		updated, err := s.updateMedicalRecordInTx(
+			txCtx,
+			clinicID,
+			id,
+			existing,
+			input,
+			fields,
+			finalOwnerID,
+			finalPetID,
+			finalDoctorID,
+			needsLinkValidation,
+			needsContextValidation,
+			isBecomingFinalized,
+		)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to update medical record", "error", err)
-			return apperrors.Wrap(err, "failed to update medical record")
+			return err
 		}
 		record = updated
-		if isBecomingFinalized {
-			resourceID := id
-			if err := s.auditTx.LogEntryTx(txCtx, &AuditEntry{
-				ClinicID:   &clinicID,
-				ActorID:    input.ActorID,
-				ActorType:  sharedkernel.AuditActorTypeFor(input.ActorID),
-				Action:     "finalize",
-				Resource:   "medical_record",
-				ResourceID: &resourceID,
-				NewValue:   extractMedicalRecordImportantFields(record),
-			}); err != nil {
-				return apperrors.Wrap(err, "failed to audit medical record finalize")
-			}
-		}
 		return nil
 	}); err != nil {
 		return nil, err
@@ -283,14 +240,7 @@ func (s *medicalRecordService) Update(ctx context.Context, clinicID, id uint64, 
 		slog.Uint64("clinic_id", clinicID))
 
 	// 監査ログ: update（best-effort）。finalize は上の transaction 内で fail-closed に記録する。
-	if s.auditService != nil {
-		oldDiff, newDiff := diffMedicalRecordImportantFields(existing, record)
-		if oldDiff != nil {
-			if err := s.auditService.LogMedicalRecordChange(ctx, clinicID, input.ActorID, "update", id, oldDiff, newDiff); err != nil {
-				slog.ErrorContext(ctx, "audit log failed for medical record update", "error", err, "record_id", id)
-			}
-		}
-	}
+	s.logMedicalRecordChangeBestEffort(ctx, clinicID, input.ActorID, "update", id, existing, record, "audit log failed for medical record update")
 
 	if isBecomingFinalized {
 		s.syncVisitCompletionTags(ctx, clinicID, record)
@@ -303,6 +253,17 @@ func (s *medicalRecordService) Update(ctx context.Context, clinicID, id uint64, 
 func (s *medicalRecordService) Delete(ctx context.Context, clinicID, id uint64) error {
 	var existing *model.MedicalRecord
 	if err := s.withTx(ctx, func(txCtx context.Context) error {
+		// appointments を先にロックし、予約側（LockAndFindByID → COUNT）と同じ順序にする。
+		link, err := s.repo.LockLinkedAppointmentForUpdate(txCtx, clinicID, id)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to lock linked appointment for deletion")
+		}
+		if link != nil && link.Appointment != nil && link.Appointment.Status == model.ReservationStatusInConsultation {
+			return wrapMedicalRecordDeleteConflict(
+				medicalRecordDeleteStateConflict,
+				"診療中の予約に紐づくカルテは削除できません",
+			)
+		}
 		locked, err := s.repo.LockByIDForUpdate(txCtx, clinicID, id)
 		if err != nil {
 			return apperrors.Wrap(err, "failed to lock medical record for deletion")
@@ -396,14 +357,43 @@ func (s *medicalRecordService) UpdateRecommendationReason(
 		slog.String("reason", input.Reason))
 
 	// 監査ログ: update（best-effort）
-	if s.auditService != nil {
-		oldDiff, newDiff := diffMedicalRecordImportantFields(existing, record)
-		if oldDiff != nil {
-			if err := s.auditService.LogMedicalRecordChange(ctx, clinicID, nil, "update", id, oldDiff, newDiff); err != nil {
-				slog.ErrorContext(ctx, "audit log failed for recommendation_reason update", "error", err, "record_id", id)
-			}
-		}
-	}
+	s.logMedicalRecordChangeBestEffort(ctx, clinicID, nil, "update", id, existing, record, "audit log failed for recommendation_reason update")
 
 	return record, nil
+}
+
+func (s *medicalRecordService) validateMedicalRecordUpdateLinks(
+	ctx context.Context,
+	clinicID uint64,
+	ownerID, petID *uint64,
+	needsLinkValidation, isBecomingFinalized bool,
+) error {
+	if needsLinkValidation {
+		return s.validateMedicalRecordOwnerPetLinks(ctx, clinicID, ownerID, petID)
+	}
+	if isBecomingFinalized {
+		return s.validateMedicalRecordSnapshotOwnerPetClinicRelations(ctx, clinicID, ownerID, petID)
+	}
+	return nil
+}
+
+func (s *medicalRecordService) logMedicalRecordChangeBestEffort(
+	ctx context.Context,
+	clinicID uint64,
+	actorID *uint64,
+	action string,
+	id uint64,
+	existing, record *model.MedicalRecord,
+	failMsg string,
+) {
+	if s.auditService == nil {
+		return
+	}
+	oldDiff, newDiff := diffMedicalRecordImportantFields(existing, record)
+	if oldDiff == nil {
+		return
+	}
+	if err := s.auditService.LogMedicalRecordChange(ctx, clinicID, actorID, action, id, oldDiff, newDiff); err != nil {
+		slog.ErrorContext(ctx, failMsg, "error", err, "record_id", id)
+	}
 }

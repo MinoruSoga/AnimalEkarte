@@ -6,34 +6,17 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	staffpkg "github.com/animal-ekarte/backend/internal/staff"
 )
 
-const (
-	colReservationStaffName               = "name"
-	colReservationStaffStaffType          = "staff_type"
-	colReservationStaffReservationVisible = "reservation_visible"
-	colReservationStaffReservationComment = "reservation_comment"
-	colReservationStaffSortOrder          = "sort_order"
-)
-
-func buildReservationStaffUpdate(input *UpdateReservationStaffInput) map[string]any {
-	fields := make(map[string]any)
-	if input.Name != nil {
-		fields[colReservationStaffName] = *input.Name
+func buildReservationStaffUpdate(input *UpdateReservationStaffInput) staffpkg.ReservationStaffUpdate {
+	return staffpkg.ReservationStaffUpdate{
+		Name:               input.Name,
+		StaffType:          input.StaffType,
+		ReservationVisible: input.ReservationVisible,
+		ReservationComment: input.ReservationComment,
+		SortOrder:          input.SortOrder,
 	}
-	if input.StaffType != nil {
-		fields[colReservationStaffStaffType] = *input.StaffType
-	}
-	if input.ReservationVisible != nil {
-		fields[colReservationStaffReservationVisible] = *input.ReservationVisible
-	}
-	if input.ReservationComment != nil {
-		fields[colReservationStaffReservationComment] = *input.ReservationComment
-	}
-	if input.SortOrder != nil {
-		fields[colReservationStaffSortOrder] = *input.SortOrder
-	}
-	return fields
 }
 
 // CreateReservationStaffInput は予約スタッフ作成の入力データ
@@ -53,6 +36,7 @@ type UpdateReservationStaffInput struct {
 	ReservationComment *string
 	SortOrder          *int
 }
+
 // ReservationStaffCoreService は予約スタッフの CRUD・ステータス・並び順操作
 type ReservationStaffCoreService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.Staff, error)
@@ -181,12 +165,9 @@ func (s *reservationStaffService) Update(ctx context.Context, clinicID, id uint6
 			slog.ErrorContext(txCtx, "failed to verify reservation staff ownership", "error", err)
 			return apperrors.Wrap(err, "failed to verify reservation staff ownership")
 		}
-		fields := buildReservationStaffUpdate(input)
-		if len(fields) > 0 {
-			if err := s.repo.Update(txCtx, clinicID, id, fields); err != nil {
-				slog.ErrorContext(txCtx, "failed to update reservation staff", "error", err, "id", id, "clinic_id", clinicID)
-				return apperrors.Wrap(err, "failed to update reservation staff")
-			}
+		if err := s.repo.Update(txCtx, clinicID, id, buildReservationStaffUpdate(input)); err != nil {
+			slog.ErrorContext(txCtx, "failed to update reservation staff", "error", err, "id", id, "clinic_id", clinicID)
+			return apperrors.Wrap(err, "failed to update reservation staff")
 		}
 		var err error
 		updated, err = s.repo.FindByID(txCtx, clinicID, id)
@@ -225,7 +206,7 @@ func (s *reservationStaffService) Delete(ctx context.Context, clinicID, id uint6
 	if s.staffDeleter == nil {
 		return apperrors.WrapInternalServerError("reservation staff deleter is not configured")
 	}
-	if err := s.staffDeleter.Delete(ctx, clinicID, id); err != nil {
+	if err := s.staffDeleter.Delete(ctx, clinicID, id, false); err != nil {
 		return apperrors.Wrap(err, "failed to delete reservation staff")
 	}
 	slog.InfoContext(ctx, "reservation staff deleted",
@@ -242,7 +223,7 @@ func (s *reservationStaffService) PatchStatus(ctx context.Context, clinicID, id 
 			slog.ErrorContext(txCtx, "failed to verify reservation staff ownership", "error", err)
 			return apperrors.Wrap(err, "failed to verify reservation staff ownership")
 		}
-		if err := s.repo.Update(txCtx, clinicID, id, map[string]any{"is_active": isActive}); err != nil {
+		if err := s.repo.Update(txCtx, clinicID, id, staffpkg.ReservationStaffUpdate{IsActive: &isActive}); err != nil {
 			slog.ErrorContext(txCtx, "failed to patch staff status", "error", err, "id", id, "clinic_id", clinicID)
 			return apperrors.Wrap(err, "failed to patch staff status")
 		}

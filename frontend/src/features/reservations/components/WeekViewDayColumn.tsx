@@ -12,7 +12,14 @@ import {
   HOUR_HEIGHT,
   HOURS,
   type ReservationTypeColor,
-} from "./week-view-grid-constants";
+} from "../lib/week-view-grid-constants";
+
+/** クリック位置から時刻を計算する際のスナップ単位（分） */
+const TIME_SLOT_SNAP_MINUTES = 15;
+/** タップ判定: この移動量(px)未満ならスクロールではなくタップとみなす */
+const TAP_MOVEMENT_THRESHOLD_PX = 10;
+/** タップ判定: この時間(ms)未満ならタップとみなす */
+const TAP_DURATION_THRESHOLD_MS = 300;
 
 interface DayColumnProps {
   date: Date;
@@ -41,7 +48,9 @@ export const DayColumn = memo(function DayColumn({
   const computeTimeFromY = useCallback(
     (y: number): Date => {
       const hoursFromStart = y / HOUR_HEIGHT;
-      const totalMinutes = Math.round(Math.floor(hoursFromStart * 60) / 15) * 15;
+      const totalMinutes =
+        Math.round(Math.floor(hoursFromStart * 60) / TIME_SLOT_SNAP_MINUTES) *
+        TIME_SLOT_SNAP_MINUTES;
       const clickedDate = new Date(date);
       clickedDate.setHours(0, 0, 0, 0);
       clickedDate.setMinutes(totalMinutes);
@@ -73,7 +82,7 @@ export const DayColumn = memo(function DayColumn({
       const dy = Math.abs(touch.clientY - touchStartY.current);
       const dt = Date.now() - touchStartTime.current;
 
-      if (dy < 10 && dt < 300) {
+      if (dy < TAP_MOVEMENT_THRESHOLD_PX && dt < TAP_DURATION_THRESHOLD_MS) {
         const rect = e.currentTarget.getBoundingClientRect();
         const y = touch.clientY - rect.top;
         onTimeSlotClick(computeTimeFromY(y));

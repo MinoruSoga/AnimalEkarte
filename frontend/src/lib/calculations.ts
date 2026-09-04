@@ -8,7 +8,7 @@
  * BillingItem.CalculateTaxAmount (外税・内税は Math.round、割引後ベース)。
  */
 
-export type BillingTaxType = "excluded" | "included" | "exempt";
+type BillingTaxType = "excluded" | "included" | "exempt";
 
 interface BillingItem {
   unitPrice: number;
@@ -93,8 +93,7 @@ export function calculateBillingTotals(
     const rate = typeof item.taxRate === "number" ? item.taxRate : defaultTaxRate;
     const taxType: BillingTaxType = item.taxType ?? "excluded";
     // Keep integer yen base after proportional discount
-    const scaledBase =
-      scale === 1 ? bases[i]! : Math.max(0, Math.round(bases[i]! * scale));
+    const scaledBase = scale === 1 ? bases[i]! : Math.max(0, Math.round(bases[i]! * scale));
     const itemTax = lineTaxAmount(scaledBase, rate, taxType);
     tax += itemTax;
     if (taxType === "excluded") {

@@ -94,7 +94,6 @@ func (s *lstepLifecycleService) HandlePetDeath(ctx context.Context, clinicID, pe
 	// P1: FindByID before Update
 	pet, err := s.petRepo.FindByID(ctx, clinicID, petID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to find pet for death recording", "error", err)
 		return apperrors.Wrap(err, "failed to find pet")
 	}
 	if pet.Status == model.PetStatusDeceased {
@@ -112,7 +111,6 @@ func (s *lstepLifecycleService) HandlePetDeath(ctx context.Context, clinicID, pe
 	actorType := sharedkernel.AuditActorTypeFor(actorID)
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		if err := s.petRepo.RecordDeath(txCtx, clinicID, petID, deceasedAt, reason); err != nil {
-			slog.ErrorContext(txCtx, "failed to update pet deceased fields", "error", err)
 			return apperrors.Wrap(err, "failed to record pet death")
 		}
 		if auditErr := s.auditTx.LogEntryTx(txCtx, &LifecycleAuditEntry{
@@ -142,13 +140,7 @@ func (s *lstepLifecycleService) HandlePetDeath(ctx context.Context, clinicID, pe
 	}
 
 	if len(livingPets) == 0 {
-		// 全ペット死亡 → Lステップタグを全解除
-		owner, findErr := s.ownerRepo.FindByID(ctx, clinicID, ownerID)
-		if findErr == nil && owner != nil && owner.LineUserID != nil && *owner.LineUserID != "" {
-			if removeErr := s.removeAllTagsFromLstep(ctx, clinicID, ownerID, *owner.LineUserID); removeErr != nil {
-				slog.ErrorContext(ctx, "failed to remove lstep tags on all-pets-dead", "error", removeErr)
-			}
-		}
+		s.clearAllTagsIfLinked(ctx, clinicID, ownerID)
 		return nil
 	}
 
@@ -179,12 +171,26 @@ func (s *lstepLifecycleService) HandlePetDeath(ctx context.Context, clinicID, pe
 	return nil
 }
 
+func (s *lstepLifecycleService) clearAllTagsIfLinked(ctx context.Context, clinicID, ownerID uint64) {
+	owner, findErr := s.ownerRepo.FindByID(ctx, clinicID, ownerID)
+	if findErr != nil {
+		slog.ErrorContext(ctx, "failed to load owner for lstep tag clear", "error", findErr, "clinic_id", clinicID, "owner_id", ownerID)
+		return
+	}
+	if owner == nil || owner.LineUserID == nil || *owner.LineUserID == "" {
+		slog.InfoContext(ctx, "lstep tag clear skipped: owner is not LINE-linked", "clinic_id", clinicID, "owner_id", ownerID)
+		return
+	}
+	if removeErr := s.removeAllTagsFromLstep(ctx, clinicID, ownerID, *owner.LineUserID); removeErr != nil {
+		slog.ErrorContext(ctx, "failed to remove lstep tags on all-pets-dead", "error", removeErr)
+	}
+}
+
 // HandlePetRevival はペット死亡取り消しを記録し CPM タグを再同期する。
 func (s *lstepLifecycleService) HandlePetRevival(ctx context.Context, clinicID, petID uint64, actorID *uint64) error {
 	// P1: FindByID before Update
 	pet, err := s.petRepo.FindByID(ctx, clinicID, petID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to find pet for revival", "error", err)
 		return apperrors.Wrap(err, "failed to find pet")
 	}
 	if pet.Status != model.PetStatusDeceased {
@@ -198,7 +204,6 @@ func (s *lstepLifecycleService) HandlePetRevival(ctx context.Context, clinicID, 
 	actorType := sharedkernel.AuditActorTypeFor(actorID)
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		if err := s.petRepo.ClearDeath(txCtx, clinicID, petID); err != nil {
-			slog.ErrorContext(txCtx, "failed to clear pet deceased fields", "error", err)
 			return apperrors.Wrap(err, "failed to record pet revival")
 		}
 		if auditErr := s.auditTx.LogEntryTx(txCtx, &LifecycleAuditEntry{
@@ -240,13 +245,11 @@ func (s *lstepLifecycleService) HandleOwnerOptOut(ctx context.Context, clinicID,
 	// P1: FindByID before Update
 	owner, err := s.ownerRepo.FindByID(ctx, clinicID, ownerID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to find owner for opt-out", "error", err)
 		return apperrors.Wrap(err, "failed to find owner")
 	}
 
 	now := time.Now()
 	if err := s.ownerRepo.RecordLstepOptOut(ctx, clinicID, ownerID, now, reason); err != nil {
-		slog.ErrorContext(ctx, "failed to update owner opt-out fields", "error", err)
 		return apperrors.Wrap(err, "failed to record owner opt-out")
 	}
 
@@ -271,12 +274,10 @@ func (s *lstepLifecycleService) HandleOwnerOptOut(ctx context.Context, clinicID,
 func (s *lstepLifecycleService) HandleOwnerOptIn(ctx context.Context, clinicID, ownerID uint64, actorID *uint64) error {
 	// P1: FindByID before Update
 	if _, err := s.ownerRepo.FindByID(ctx, clinicID, ownerID); err != nil {
-		slog.ErrorContext(ctx, "failed to find owner for opt-in", "error", err)
 		return apperrors.Wrap(err, "failed to find owner")
 	}
 
 	if err := s.ownerRepo.ClearLstepOptOut(ctx, clinicID, ownerID); err != nil {
-		slog.ErrorContext(ctx, "failed to update owner opt-in fields", "error", err)
 		return apperrors.Wrap(err, "failed to record owner opt-in")
 	}
 
@@ -296,6 +297,7 @@ func (s *lstepLifecycleService) HandleOwnerOptIn(ctx context.Context, clinicID, 
 func (s *lstepLifecycleService) HandleOwnerDeletion(ctx context.Context, clinicID, ownerID uint64) error {
 	owner, err := s.ownerRepo.FindByID(ctx, clinicID, ownerID)
 	if err != nil {
+		// owner.DeleteOwner は戻り値を捨てる（best-effort）。RespondError しないので診断ログを残す。
 		slog.ErrorContext(ctx, "failed to find owner for deletion cleanup", "error", err)
 		return apperrors.Wrap(err, "failed to find owner")
 	}
@@ -370,16 +372,17 @@ func (s *lstepLifecycleService) removePetDerivedTagsFromLstep(ctx context.Contex
 	}
 	for _, t := range cached {
 		for _, prefix := range petDerivedPrefixes {
-			if strings.HasPrefix(t.TagName, prefix) {
-				if removeErr := client.RemoveTag(ctx, lineUserID, t.TagName); removeErr != nil {
-					slog.ErrorContext(ctx, "failed to remove pet-derived tag", "error", removeErr, "tag", t.TagName)
-				} else {
-					if delErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, t.TagName); delErr != nil {
-						slog.ErrorContext(ctx, "failed to delete pet-derived tag cache", "error", delErr, "tag", t.TagName)
-					}
-				}
+			if !strings.HasPrefix(t.TagName, prefix) {
+				continue
+			}
+			if removeErr := client.RemoveTag(ctx, lineUserID, t.TagName); removeErr != nil {
+				slog.ErrorContext(ctx, "failed to remove pet-derived tag", "error", removeErr, "tag", t.TagName)
 				break
 			}
+			if delErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, t.TagName); delErr != nil {
+				slog.ErrorContext(ctx, "failed to delete pet-derived tag cache", "error", delErr, "tag", t.TagName)
+			}
+			break
 		}
 	}
 }

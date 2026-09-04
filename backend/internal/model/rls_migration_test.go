@@ -66,6 +66,32 @@ func TestRLSMigrationCoversParentScopedChildTables(t *testing.T) {
 	}
 }
 
+func TestLabDevicesMigrationHasDirectClinicRLS(t *testing.T) {
+	t.Parallel()
+
+	sql := readMigrationFile(t, "../../migrations/001_init.sql")
+	const policy = "SELECT app_private.apply_rls_policy(\n    'lab_devices'::regclass,\n    'tenant_clinic_id_isolation',\n    'app_private.has_clinic_access(clinic_id)',\n    'app_private.has_clinic_access(clinic_id)'\n);"
+	if !strings.Contains(sql, policy) {
+		t.Fatalf("lab_devices RLS policy must directly scope USING and WITH CHECK by clinic_id:\n%s", policy)
+	}
+}
+
+func TestEstimatesMigrationBindsPetToClinic(t *testing.T) {
+	t.Parallel()
+
+	sql := readMigrationFile(t, "../../migrations/001_init.sql")
+	requiredSnippets := []string{
+		"ALTER TABLE pets\n    ADD CONSTRAINT uq_pets_clinic_id_id\n    UNIQUE (clinic_id, id);",
+		"ALTER TABLE estimates\n  ADD COLUMN IF NOT EXISTS pet_id bigint;",
+		"ALTER TABLE estimates\n  ADD CONSTRAINT fk_estimates_pet_clinic\n  FOREIGN KEY (clinic_id, pet_id)\n  REFERENCES pets (clinic_id, id)\n  ON DELETE SET NULL (pet_id);",
+	}
+	for _, required := range requiredSnippets {
+		if !strings.Contains(sql, required) {
+			t.Fatalf("estimates migration must bind pet_id to the estimate clinic:\n%s", required)
+		}
+	}
+}
+
 // TestExamResultsTenantBoundaryScopedViaParentExam — BE-refactor.md R3-7 (D13) exam_results 部分。
 //
 // exam_results は clinic_id カラムを持たないため、checkup_field_results 同型の
@@ -112,6 +138,48 @@ func TestExamResultsTenantBoundaryScopedViaParentExam(t *testing.T) {
 		if strings.HasPrefix(trimmed, "clinic_id ") {
 			t.Fatalf("exam_results に clinic_id カラムが追加されている。複合 FK が可能になったので R3-7 の設計を見直すこと: %s", trimmed)
 		}
+	}
+}
+
+func TestRLSMigrationTrimmingOptionsUsesFinalDirectClinicBoundary(t *testing.T) {
+	t.Parallel()
+	sql := readMigrationFile(t, "../../migrations/001_init.sql")
+
+	columnAt := strings.LastIndex(sql, "ALTER TABLE appointment_trimming_options\n    ADD COLUMN clinic_id bigint NOT NULL")
+	if columnAt < 0 {
+		t.Fatal("appointment_trimming_options.clinic_id ADD COLUMN missing")
+	}
+	policy := extractFinalRLSPolicyApplication(t, sql, "appointment_trimming_options")
+	if strings.LastIndex(sql, "SELECT app_private.apply_rls_policy(\n    'appointment_trimming_options',") < columnAt {
+		t.Fatal("final appointment_trimming_options RLS policy must be applied after clinic_id exists")
+	}
+	const directClinicScope = "'app_private.has_clinic_access(clinic_id)'"
+	if strings.Count(policy, directClinicScope) != 2 {
+		t.Fatalf("final appointment_trimming_options RLS policy must directly scope USING and WITH CHECK by clinic_id:\n%s", policy)
+	}
+	if strings.Contains(policy, "EXISTS (") {
+		t.Fatalf("final appointment_trimming_options RLS policy must not retain the historical parent-scoped expression:\n%s", policy)
+	}
+}
+
+func TestRLSMigrationPaymentsUsesFinalDirectClinicBoundary(t *testing.T) {
+	t.Parallel()
+	sql := readMigrationFile(t, "../../migrations/001_init.sql")
+
+	columnAt := strings.LastIndex(sql, "ALTER TABLE payments\n    ALTER COLUMN clinic_id SET NOT NULL")
+	if columnAt < 0 {
+		t.Fatal("payments.clinic_id SET NOT NULL missing")
+	}
+	policy := extractFinalRLSPolicyApplication(t, sql, "payments")
+	if strings.LastIndex(sql, "SELECT app_private.apply_rls_policy(\n    'payments',") < columnAt {
+		t.Fatal("final payments RLS policy must be applied after clinic_id is NOT NULL")
+	}
+	const directClinicScope = "'app_private.has_clinic_access(clinic_id)'"
+	if strings.Count(policy, directClinicScope) != 2 {
+		t.Fatalf("final payments RLS policy must directly scope USING and WITH CHECK by clinic_id:\n%s", policy)
+	}
+	if strings.Contains(policy, "EXISTS (") {
+		t.Fatalf("final payments RLS policy must not retain the historical parent-scoped expression:\n%s", policy)
 	}
 }
 

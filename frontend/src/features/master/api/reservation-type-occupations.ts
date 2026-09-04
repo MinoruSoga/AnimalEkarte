@@ -9,9 +9,7 @@ import type { ReservationTypeOccupation as ReservationTypeOccupationRaw } from "
 // Transform function
 // ─────────────────────────────────────────────────
 
-function transformReservationTypeOccupation(
-  raw: ReservationTypeOccupationRaw,
-) {
+function transformReservationTypeOccupation(raw: ReservationTypeOccupationRaw) {
   return {
     id: raw.id,
     clinicId: raw.clinic_id,
@@ -48,23 +46,14 @@ async function getReservationTypeOccupations(
   return data.data.map(transformReservationTypeOccupation);
 }
 
-async function linkOccupation(
-  reservationTypeId: string,
-  occupationId: number,
-): Promise<void> {
-  await axios.post(
-    `/v1/masters/reservation-types/${reservationTypeId}/occupations`,
-    { occupation_id: occupationId },
-  );
+async function linkOccupation(reservationTypeId: string, occupationId: number): Promise<void> {
+  await axios.post(`/v1/masters/reservation-types/${reservationTypeId}/occupations`, {
+    occupation_id: occupationId,
+  });
 }
 
-async function unlinkOccupation(
-  reservationTypeId: string,
-  id: number,
-): Promise<void> {
-  await axios.delete(
-    `/v1/masters/reservation-types/${reservationTypeId}/occupations/${id}`,
-  );
+async function unlinkOccupation(reservationTypeId: string, id: number): Promise<void> {
+  await axios.delete(`/v1/masters/reservation-types/${reservationTypeId}/occupations/${id}`);
 }
 
 // ─────────────────────────────────────────────────

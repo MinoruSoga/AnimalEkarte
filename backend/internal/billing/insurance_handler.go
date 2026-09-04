@@ -1,4 +1,4 @@
-// Package handler provides HTTP handler implementations for Insurance entity.
+// Package billing provides insurance HTTP handlers.
 package billing
 
 import (
@@ -10,6 +10,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/httpapi"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // InsuranceHandler は InsuranceService の HTTP handler。
@@ -30,6 +31,9 @@ func (h *InsuranceHandler) ListInsurances(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMasterInsurance), "view") {
+		return
+	}
 	insurances, err := h.svc.List(c.Request.Context(), clinicID)
 	if err != nil {
 		httpapi.RespondError(c, err)
@@ -42,6 +46,9 @@ func (h *InsuranceHandler) ListInsurances(c *gin.Context) {
 func (h *InsuranceHandler) GetInsurance(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMasterInsurance), "view") {
 		return
 	}
 	id, ok := httpapi.ParseIDParam(c, "id")

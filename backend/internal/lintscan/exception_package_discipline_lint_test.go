@@ -20,7 +20,9 @@ import (
 var csvImportAllowedImporterPrefixes = []string{
 	"cmd/csv-import/",
 	"cmd/csv-import-failure-rehearsal/",
+	"cmd/csv-import-stg-uat/",
 	"cmd/seed-export/",
+	"cmd/stg-uat-skeleton/",
 }
 
 const csvImportPath = "github.com/animal-ekarte/backend/internal/csvimport"
@@ -62,6 +64,12 @@ func TestExceptionPackageDiscipline(t *testing.T) {
 		}
 		if !csvImportImporterAllowed("cmd/csv-import-failure-rehearsal/main.go") {
 			t.Fatal("expected failure-rehearsal to be allowed")
+		}
+		if !csvImportImporterAllowed("cmd/csv-import-stg-uat/main.go") {
+			t.Fatal("expected STG UAT import tooling to be allowed")
+		}
+		if !csvImportImporterAllowed("cmd/stg-uat-skeleton/main.go") {
+			t.Fatal("expected STG UAT skeleton tooling to be allowed")
 		}
 	})
 

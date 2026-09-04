@@ -155,10 +155,13 @@ func TestCheckupSyncService_PreviewCheckupSync_EmptyResult(t *testing.T) {
 // 偽 lstep サーバ・各種モックを束ねたサービスを返す。
 // addTagFn は AddTag リクエストを受けた際の検証フック（nil 可）。
 func newCheckupSyncSvcForCreate(
+	t *testing.T,
 	owners map[uint64]*model.Owner,
 	livingPetCounts map[uint64]int64,
 	addTagFn func(lineUserID, tagName string) int, // 戻り値は HTTPステータスコード
 ) (CheckupSyncService, *httptest.Server) {
+	t.Helper()
+	useHttptestLstepClient(t)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// /contacts/{lineUserID}/tags の AddTag のみ想定。
 		status := http.StatusOK
@@ -248,7 +251,7 @@ func TestCheckupSyncService_CreateCheckupSync_SkipsByExclusionReason(t *testing.
 	}
 
 	addTagCalls := make(map[string]int)
-	svc, server := newCheckupSyncSvcForCreate(owners, livingPetCounts, func(lineUserID, _ string) int {
+	svc, server := newCheckupSyncSvcForCreate(t, owners, livingPetCounts, func(lineUserID, _ string) int {
 		addTagCalls[lineUserID]++
 		return http.StatusOK
 	})
@@ -286,7 +289,7 @@ func TestCheckupSyncService_CreateCheckupSync_AllSkipped(t *testing.T) {
 	livingPetCounts := map[uint64]int64{10: 0} // 死亡ペットのみ
 
 	addTagCalls := 0
-	svc, server := newCheckupSyncSvcForCreate(owners, livingPetCounts, func(_, _ string) int {
+	svc, server := newCheckupSyncSvcForCreate(t, owners, livingPetCounts, func(_, _ string) int {
 		addTagCalls++
 		return http.StatusOK
 	})
@@ -696,6 +699,7 @@ func TestCheckupSyncService_PreviewCheckupSync_PersistsMetadata_NilFilters(t *te
 func TestCheckupSyncService_CreateCheckupSync_PersistsMetadata(t *testing.T) {
 	// 成功経路の metadata を検証するため deploy write gate を有効化する。
 	t.Setenv(lstepapi.EnvWriteAPIEnabled, "true")
+	useHttptestLstepClient(t)
 
 	// CreateCheckupSync は HTTP モックが必要なため newCheckupSyncSvcForCreate と組み合わせる。
 	lineID1 := "U_eligible"
@@ -986,6 +990,7 @@ func TestCheckupSyncService_CreateCheckupSync_ClinicSyncDisabled_ZeroHTTP(t *tes
 // deploy gate true + clinic sync true のとき HTTP 1 と tag cache receipt 1 を証明する。
 func TestCheckupSyncService_CreateCheckupSync_BothGatesTrue_HTTPAndReceipt(t *testing.T) {
 	t.Setenv(lstepapi.EnvWriteAPIEnabled, "true")
+	useHttptestLstepClient(t)
 
 	lineID := "U_both_gates"
 	owners := map[uint64]*model.Owner{

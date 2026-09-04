@@ -3,13 +3,16 @@ package medicalrecord
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"net/textproto"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -47,9 +50,11 @@ func (m *mockMedicalRecordImageService) Delete(ctx context.Context, clinicID, me
 // ---- mock FileUploader (infra.FileUploader) ----
 
 type mockMedicalRecordImageUploader struct {
-	uploadFn    func(ctx context.Context, key string, body io.Reader, contentType string) (string, error)
-	deleteFn    func(ctx context.Context, key string) error
-	deleteCalls []string
+	uploadFn       func(ctx context.Context, key string, body io.Reader, contentType string) (string, error)
+	deleteFn       func(ctx context.Context, key string) error
+	getSignedURLFn func(ctx context.Context, key string, ttl time.Duration) (string, error)
+	deleteCalls    []string
+	signedURLCalls []string
 }
 
 func (m *mockMedicalRecordImageUploader) Upload(ctx context.Context, key string, body io.Reader, contentType string) (string, error) {
@@ -62,6 +67,14 @@ func (m *mockMedicalRecordImageUploader) Delete(ctx context.Context, key string)
 		return m.deleteFn(ctx, key)
 	}
 	return nil
+}
+
+func (m *mockMedicalRecordImageUploader) GetSignedURL(ctx context.Context, key string, ttl time.Duration) (string, error) {
+	m.signedURLCalls = append(m.signedURLCalls, key)
+	if m.getSignedURLFn != nil {
+		return m.getSignedURLFn(ctx, key, ttl)
+	}
+	return "https://signed.example/tmp?key=" + key, nil
 }
 
 // fileUploader は internal/medicalrecord がローカル宣言する consumer-side interface（handler_deps.go）。
@@ -139,6 +152,28 @@ func TestListMedicalRecordImages(t *testing.T) {
 			mrSvc:      &mockMedicalRecordService{},
 			imgSvc:     &mockMedicalRecordImageService{},
 			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:    "returns 403 when selected clinic lacks medical record view grant",
+			paramID: "5",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("clinic_id", "2")
+				setResourcePermissionOnlyClinic(c, 1, string(model.ResourceMedicalRecords), "view")
+			},
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					t.Fatal("medical record service must not be reached")
+					return nil, nil
+				},
+			},
+			imgSvc: &mockMedicalRecordImageService{
+				listFn: func(_ context.Context, _, _ uint64) ([]model.MedicalRecordImage, error) {
+					t.Fatal("image service must not be reached")
+					return nil, nil
+				},
+			},
+			wantStatus: http.StatusForbidden,
 		},
 		{
 			name:     "returns error from ownership verification",
@@ -627,10 +662,444 @@ func TestUploadMedicalRecordImage(t *testing.T) {
 				assert.NotEmpty(t, w.Header().Get("Location"))
 			}
 			if tt.wantDeleteCall {
-				assert.NotEmpty(t, tt.uploader.deleteCalls, "expected uploader.Delete to be called for cleanup")
+				require.NotEmpty(t, tt.uploader.deleteCalls, "expected uploader.Delete to be called for cleanup")
+				assert.True(t, strings.HasPrefix(tt.uploader.deleteCalls[0], "medical-records/"+tt.paramID+"/"),
+					"cleanup must Delete by object key, got %q", tt.uploader.deleteCalls[0])
+				assert.NotContains(t, tt.uploader.deleteCalls[0], "https://")
 			}
 		})
 	}
+}
+
+func ownedMedicalRecordImageGetter() *mockMedicalRecordService {
+	return &mockMedicalRecordService{
+		getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{ID: id, ClinicID: clinicID}, nil
+		},
+	}
+}
+
+func TestUploadMedicalRecordImage_PersistsObjectKeyAndReturnsSignedURL(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	const signed = "https://signed.example/tmp?sig=upload"
+	var persistedURL string
+	uploader := &mockMedicalRecordImageUploader{
+		uploadFn: func(_ context.Context, key string, _ io.Reader, contentType string) (string, error) {
+			assert.Equal(t, "image/png", contentType)
+			assert.True(t, strings.HasPrefix(key, "medical-records/5/"), "upload key = %q", key)
+			return "https://uploads.example.test/" + key, nil
+		},
+		getSignedURLFn: func(_ context.Context, key string, ttl time.Duration) (string, error) {
+			assert.Equal(t, medicalRecordImageSignedURLTTL, ttl)
+			assert.True(t, strings.HasPrefix(key, "medical-records/5/"), "signed key = %q", key)
+			assert.NotContains(t, key, "https://")
+			return signed, nil
+		},
+	}
+
+	h := newHandlerWithMedicalRecordImageSvc(
+		ownedMedicalRecordImageGetter(),
+		&mockMedicalRecordImageService{
+			createFn: func(_ context.Context, clinicID, medicalRecordID uint64, input *CreateMedicalRecordImageInput) (*model.MedicalRecordImage, error) {
+				assert.Equal(t, uint64(1), clinicID)
+				assert.Equal(t, uint64(5), medicalRecordID)
+				persistedURL = input.ImageURL
+				assert.True(t, strings.HasPrefix(input.ImageURL, "medical-records/5/"), "ImageURL = %q", input.ImageURL)
+				assert.NotContains(t, input.ImageURL, "https://")
+				assert.NotContains(t, input.ImageURL, "uploads.example.test")
+				return &model.MedicalRecordImage{
+					ID:              3,
+					MedicalRecordID: medicalRecordID,
+					ImageURL:        input.ImageURL,
+					ImageType:       input.ImageType,
+				}, nil
+			},
+		},
+		uploader,
+	)
+
+	body, ct := buildImageMultipart(t, "photo.png", "image/png", []byte("fake-image-bytes"))
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/medical-records/5/images/upload", body)
+	c.Request.Header.Set("Content-Type", ct)
+	c.Params = gin.Params{{Key: "id", Value: "5"}}
+	setClinicID(c)
+	setStaffID(c)
+
+	h.UploadMedicalRecordImage(c)
+
+	assert.Equal(t, http.StatusCreated, w.Code)
+	assert.True(t, strings.HasPrefix(persistedURL, "medical-records/5/"))
+	assert.Contains(t, w.Body.String(), `"image_url":"`+signed+`"`)
+	assert.NotContains(t, w.Body.String(), "https://uploads.example.test/")
+	assert.NotContains(t, w.Body.String(), persistedURL)
+	require.Len(t, uploader.signedURLCalls, 1)
+}
+
+func TestUploadMedicalRecordImage_CleanupDeletesObjectKeyNotPublicURL(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	uploader := &mockMedicalRecordImageUploader{
+		uploadFn: func(_ context.Context, key string, _ io.Reader, _ string) (string, error) {
+			return "https://uploads.example.test/" + key, nil
+		},
+	}
+	h := newHandlerWithMedicalRecordImageSvc(
+		ownedMedicalRecordImageGetter(),
+		&mockMedicalRecordImageService{
+			createFn: func(_ context.Context, _, _ uint64, _ *CreateMedicalRecordImageInput) (*model.MedicalRecordImage, error) {
+				return nil, fmt.Errorf("db failure")
+			},
+		},
+		uploader,
+	)
+
+	body, ct := buildImageMultipart(t, "photo.png", "image/png", []byte("fake"))
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/medical-records/5/images/upload", body)
+	c.Request.Header.Set("Content-Type", ct)
+	c.Params = gin.Params{{Key: "id", Value: "5"}}
+	setClinicID(c)
+	setStaffID(c)
+
+	h.UploadMedicalRecordImage(c)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	require.Len(t, uploader.deleteCalls, 1)
+	assert.True(t, strings.HasPrefix(uploader.deleteCalls[0], "medical-records/5/"))
+	assert.NotContains(t, uploader.deleteCalls[0], "https://")
+	assert.NotContains(t, uploader.deleteCalls[0], "uploads.example.test")
+}
+
+func TestListMedicalRecordImages_SignsStorageKeys(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	const storedKey = "medical-records/5/uuid.png"
+	const signed = "https://signed.example/tmp?sig=list"
+	uploader := &mockMedicalRecordImageUploader{
+		getSignedURLFn: func(_ context.Context, key string, ttl time.Duration) (string, error) {
+			assert.Equal(t, storedKey, key)
+			assert.Equal(t, medicalRecordImageSignedURLTTL, ttl)
+			return signed, nil
+		},
+	}
+	h := newHandlerWithMedicalRecordImageSvc(
+		ownedMedicalRecordImageGetter(),
+		&mockMedicalRecordImageService{
+			listFn: func(_ context.Context, clinicID, medicalRecordID uint64) ([]model.MedicalRecordImage, error) {
+				assert.Equal(t, uint64(1), clinicID)
+				assert.Equal(t, uint64(5), medicalRecordID)
+				return []model.MedicalRecordImage{{
+					ID:              1,
+					MedicalRecordID: medicalRecordID,
+					ImageURL:        storedKey,
+					ThumbnailURL:    "",
+				}}, nil
+			},
+		},
+		uploader,
+	)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/medical-records/5/images", http.NoBody)
+	c.Params = gin.Params{{Key: "id", Value: "5"}}
+	setClinicID(c)
+
+	h.ListMedicalRecordImages(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var items []medicalRecordImageResponse
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &items))
+	require.Len(t, items, 1)
+	assert.Equal(t, signed, items[0].ImageURL)
+	assert.Empty(t, items[0].ThumbnailURL)
+	assert.NotEqual(t, storedKey, items[0].ImageURL)
+	assert.NotContains(t, w.Body.String(), `"image_url":"`+storedKey+`"`)
+}
+
+func TestListMedicalRecordImages_SignErrorFailClosedOmitsDurableURL(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	const durable = "https://cdn.example/medical-records/5/secret-durable.png"
+	uploader := &mockMedicalRecordImageUploader{
+		getSignedURLFn: func(_ context.Context, key string, ttl time.Duration) (string, error) {
+			assert.Equal(t, "medical-records/5/secret-durable.png", key)
+			assert.Equal(t, medicalRecordImageSignedURLTTL, ttl)
+			return "", fmt.Errorf("presign failed")
+		},
+	}
+	h := newHandlerWithMedicalRecordImageSvc(
+		ownedMedicalRecordImageGetter(),
+		&mockMedicalRecordImageService{
+			listFn: func(_ context.Context, _, _ uint64) ([]model.MedicalRecordImage, error) {
+				return []model.MedicalRecordImage{{
+					ID:              1,
+					MedicalRecordID: 5,
+					ImageURL:        durable,
+				}}, nil
+			},
+		},
+		uploader,
+	)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/medical-records/5/images", http.NoBody)
+	c.Params = gin.Params{{Key: "id", Value: "5"}}
+	setClinicID(c)
+
+	h.ListMedicalRecordImages(c)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.NotContains(t, w.Body.String(), durable)
+	assert.NotContains(t, w.Body.String(), "secret-durable")
+}
+
+func TestListMedicalRecordImages_JSONCreateHTTPSUnchanged(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	const clientURL = "https://example.test/a.png"
+	uploader := &mockMedicalRecordImageUploader{
+		getSignedURLFn: func(_ context.Context, key string, _ time.Duration) (string, error) {
+			t.Fatalf("must not sign JSON-create client URL, key=%q", key)
+			return "", nil
+		},
+	}
+	h := newHandlerWithMedicalRecordImageSvc(
+		ownedMedicalRecordImageGetter(),
+		&mockMedicalRecordImageService{
+			listFn: func(_ context.Context, _, medicalRecordID uint64) ([]model.MedicalRecordImage, error) {
+				return []model.MedicalRecordImage{{
+					ID:              1,
+					MedicalRecordID: medicalRecordID,
+					ImageURL:        clientURL,
+				}}, nil
+			},
+		},
+		uploader,
+	)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/medical-records/5/images", http.NoBody)
+	c.Params = gin.Params{{Key: "id", Value: "5"}}
+	setClinicID(c)
+
+	h.ListMedicalRecordImages(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), clientURL)
+	assert.Empty(t, uploader.signedURLCalls)
+}
+
+func TestListMedicalRecordImages_LegacyPublicURLExtractsKeyAndSigns(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	const legacy = "https://cdn.example/medical-records/5/uuid.png"
+	const legacyThumb = "https://cdn.example/medical-records/5/uuid-thumb.png"
+	uploader := &mockMedicalRecordImageUploader{
+		getSignedURLFn: func(_ context.Context, key string, ttl time.Duration) (string, error) {
+			assert.Contains(t, []string{"medical-records/5/uuid.png", "medical-records/5/uuid-thumb.png"}, key)
+			assert.Equal(t, medicalRecordImageSignedURLTTL, ttl)
+			return "https://signed.example/tmp?key=" + key, nil
+		},
+	}
+	h := newHandlerWithMedicalRecordImageSvc(
+		ownedMedicalRecordImageGetter(),
+		&mockMedicalRecordImageService{
+			listFn: func(_ context.Context, _, medicalRecordID uint64) ([]model.MedicalRecordImage, error) {
+				return []model.MedicalRecordImage{{
+					ID:              2,
+					MedicalRecordID: medicalRecordID,
+					ImageURL:        legacy,
+					ThumbnailURL:    legacyThumb,
+				}}, nil
+			},
+		},
+		uploader,
+	)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/medical-records/5/images", http.NoBody)
+	c.Params = gin.Params{{Key: "id", Value: "5"}}
+	setClinicID(c)
+
+	h.ListMedicalRecordImages(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var items []medicalRecordImageResponse
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &items))
+	require.Len(t, items, 1)
+	assert.Equal(t, "https://signed.example/tmp?key=medical-records/5/uuid.png", items[0].ImageURL)
+	assert.Equal(t, "https://signed.example/tmp?key=medical-records/5/uuid-thumb.png", items[0].ThumbnailURL)
+	assert.NotContains(t, w.Body.String(), legacy)
+	assert.NotContains(t, w.Body.String(), legacyThumb)
+	assert.Equal(t, []string{"medical-records/5/uuid.png", "medical-records/5/uuid-thumb.png"}, uploader.signedURLCalls)
+}
+
+func TestListMedicalRecordImages_DoesNotSignBeforeOwnershipCheck(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	uploader := &mockMedicalRecordImageUploader{
+		getSignedURLFn: func(_ context.Context, key string, _ time.Duration) (string, error) {
+			t.Fatalf("must not sign before clinic-authorized ownership check, key=%q", key)
+			return "", nil
+		},
+	}
+	h := newHandlerWithMedicalRecordImageSvc(
+		&mockMedicalRecordService{
+			getByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+				return nil, apperrors.WrapNotFound("medical_record", "5")
+			},
+		},
+		&mockMedicalRecordImageService{
+			listFn: func(_ context.Context, _, _ uint64) ([]model.MedicalRecordImage, error) {
+				t.Fatal("list must not run when ownership fails")
+				return nil, nil
+			},
+		},
+		uploader,
+	)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/medical-records/5/images", http.NoBody)
+	c.Params = gin.Params{{Key: "id", Value: "5"}}
+	setClinicID(c)
+
+	h.ListMedicalRecordImages(c)
+
+	assert.Equal(t, http.StatusNotFound, w.Code)
+	assert.Empty(t, uploader.signedURLCalls)
+}
+
+func TestListMedicalRecordImages_DoesNotSignForeignMedicalRecordKey(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	const foreign = "https://cdn.example/medical-records/50/other-clinic.png"
+	uploader := &mockMedicalRecordImageUploader{
+		getSignedURLFn: func(_ context.Context, key string, _ time.Duration) (string, error) {
+			t.Fatalf("must not sign a key for another medical record, key=%q", key)
+			return "", nil
+		},
+	}
+	h := newHandlerWithMedicalRecordImageSvc(
+		ownedMedicalRecordImageGetter(),
+		&mockMedicalRecordImageService{
+			listFn: func(_ context.Context, _, medicalRecordID uint64) ([]model.MedicalRecordImage, error) {
+				return []model.MedicalRecordImage{{
+					ID:              1,
+					MedicalRecordID: medicalRecordID,
+					ImageURL:        foreign,
+				}}, nil
+			},
+		},
+		uploader,
+	)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/medical-records/5/images", http.NoBody)
+	c.Params = gin.Params{{Key: "id", Value: "5"}}
+	setClinicID(c)
+
+	h.ListMedicalRecordImages(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), foreign)
+	assert.Empty(t, uploader.signedURLCalls)
+}
+
+func TestUploadMedicalRecordImage_SignErrorDeletesObjectAndDoesNotCreate(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	createCalls := 0
+	uploader := &mockMedicalRecordImageUploader{
+		uploadFn: func(_ context.Context, key string, _ io.Reader, _ string) (string, error) {
+			assert.True(t, strings.HasPrefix(key, "medical-records/5/"))
+			return key, nil
+		},
+		getSignedURLFn: func(_ context.Context, _ string, _ time.Duration) (string, error) {
+			return "", fmt.Errorf("presign failed")
+		},
+	}
+	h := newHandlerWithMedicalRecordImageSvc(
+		ownedMedicalRecordImageGetter(),
+		&mockMedicalRecordImageService{
+			createFn: func(_ context.Context, _, _ uint64, _ *CreateMedicalRecordImageInput) (*model.MedicalRecordImage, error) {
+				createCalls++
+				t.Fatal("Create must not run when signing fails")
+				return nil, nil
+			},
+		},
+		uploader,
+	)
+
+	body, ct := buildImageMultipart(t, "photo.png", "image/png", []byte("fake"))
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/medical-records/5/images/upload", body)
+	c.Request.Header.Set("Content-Type", ct)
+	c.Params = gin.Params{{Key: "id", Value: "5"}}
+	setClinicID(c)
+	setStaffID(c)
+
+	h.UploadMedicalRecordImage(c)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Zero(t, createCalls)
+	require.Len(t, uploader.deleteCalls, 1)
+	assert.True(t, strings.HasPrefix(uploader.deleteCalls[0], "medical-records/5/"))
+	assert.NotContains(t, w.Body.String(), "https://uploads.example.test/")
+}
+
+func TestCreateMedicalRecordImage_DoesNotSignForeignMedicalRecordURL(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	const foreign = "https://cdn.example/medical-records/50/other.png"
+	createCalls := 0
+	uploader := &mockMedicalRecordImageUploader{
+		getSignedURLFn: func(_ context.Context, key string, _ time.Duration) (string, error) {
+			t.Fatalf("must not sign a key for another medical record, key=%q", key)
+			return "", nil
+		},
+	}
+	h := newHandlerWithMedicalRecordImageSvc(
+		ownedMedicalRecordImageGetter(),
+		&mockMedicalRecordImageService{
+			createFn: func(_ context.Context, _, medicalRecordID uint64, input *CreateMedicalRecordImageInput) (*model.MedicalRecordImage, error) {
+				createCalls++
+				return &model.MedicalRecordImage{
+					ID:              9,
+					MedicalRecordID: medicalRecordID,
+					ImageURL:        input.ImageURL,
+					ImageType:       input.ImageType,
+				}, nil
+			},
+		},
+		uploader,
+	)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/medical-records/5/images", bytes.NewReader([]byte(
+		`{"image_url":"`+foreign+`","image_type":"xray"}`,
+	)))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Params = gin.Params{{Key: "id", Value: "5"}}
+	setClinicID(c)
+
+	h.CreateMedicalRecordImage(c)
+
+	assert.Equal(t, http.StatusCreated, w.Code)
+	assert.Equal(t, 1, createCalls)
+	assert.Contains(t, w.Body.String(), foreign)
+	assert.Empty(t, uploader.signedURLCalls)
 }
 
 // ---- Comprehensive Test Coverage Documentation ----

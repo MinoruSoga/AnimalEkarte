@@ -108,7 +108,9 @@ export function useCreateSendPurposeTagPrefix() {
   return useMutation({
     mutationFn: createSendPurposeTagPrefix,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.lstepTagConfig.sendPurposeTagPrefixes() });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.lstepTagConfig.sendPurposeTagPrefixes(),
+      });
     },
     onError: (error) => handleApiError(error, "LINE送信目的タグプレフィックスの追加"),
   });
@@ -119,7 +121,9 @@ export function useDeleteSendPurposeTagPrefix() {
   return useMutation({
     mutationFn: deleteSendPurposeTagPrefix,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.lstepTagConfig.sendPurposeTagPrefixes() });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.lstepTagConfig.sendPurposeTagPrefixes(),
+      });
     },
     onError: (error) => handleApiError(error, "LINE送信目的タグプレフィックスの削除"),
   });

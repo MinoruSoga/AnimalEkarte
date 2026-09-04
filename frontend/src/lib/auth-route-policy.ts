@@ -5,10 +5,7 @@ const PASSWORD_RECOVERY_PUBLIC_PATHS = [
   paths.auth.resetPassword.path,
 ] as const;
 
-const AUTH_PUBLIC_PATHS = [
-  paths.auth.login.path,
-  ...PASSWORD_RECOVERY_PUBLIC_PATHS,
-] as const;
+const AUTH_PUBLIC_PATHS = [paths.auth.login.path, ...PASSWORD_RECOVERY_PUBLIC_PATHS] as const;
 
 function matchesExactPath(pathname: string, path: string): boolean {
   return pathname === path || pathname === `${path}/`;
@@ -16,9 +13,7 @@ function matchesExactPath(pathname: string, path: string): boolean {
 
 /** Password recovery routes that must remain usable without session restoration. */
 export function isPasswordRecoveryPublicPath(pathname: string): boolean {
-  return PASSWORD_RECOVERY_PUBLIC_PATHS.some((path) =>
-    matchesExactPath(pathname, path),
-  );
+  return PASSWORD_RECOVERY_PUBLIC_PATHS.some((path) => matchesExactPath(pathname, path));
 }
 
 /** Public auth routes whose expected 401s must not start session refresh. */

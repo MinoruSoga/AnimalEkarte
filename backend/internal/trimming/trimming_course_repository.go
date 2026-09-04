@@ -75,7 +75,41 @@ func (r *trimmingCourseRepository) Update(ctx context.Context, clinicID, id uint
 }
 
 func (r *trimmingCourseRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	return persistence.DeleteScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.TrimmingCourse{}, "trimming_course", clinicID, id)
+	return persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		if err := tx.
+			Clauses(clause.Locking{Strength: "UPDATE"}).
+			Scopes(persistence.ClinicScope(clinicID)).
+			Where("id = ?", id).
+			First(&model.TrimmingCourse{}).Error; err != nil {
+			return apperrors.FromGORM(err, "trimming_course", fmt.Sprintf("%d", id))
+		}
+		result := tx.
+			Scopes(persistence.ClinicScope(clinicID)).
+			Where("id = ?", id).
+			Where(`NOT EXISTS (
+				SELECT 1 FROM appointment_trimming_details
+				JOIN appointments ON appointments.id = appointment_trimming_details.appointment_id
+				  AND appointments.clinic_id = ?
+				  AND appointments.deleted_at IS NULL
+				WHERE appointment_trimming_details.clinic_id = ?
+				  AND appointment_trimming_details.course_id = trimming_courses.id
+			)`, clinicID, clinicID).
+			Delete(&model.TrimmingCourse{})
+		if result.Error != nil {
+			return apperrors.FromGORM(result.Error, "trimming_course", fmt.Sprintf("%d", id))
+		}
+		if result.RowsAffected == 0 {
+			return r.normalizeTrimmingCourseDeleteMiss(persistence.WithTxValue(ctx, tx), clinicID, id)
+		}
+		return nil
+	})
+}
+
+func (r *trimmingCourseRepository) normalizeTrimmingCourseDeleteMiss(ctx context.Context, clinicID, id uint64) error {
+	if _, err := r.FindByID(ctx, clinicID, id); err != nil {
+		return err
+	}
+	return apperrors.WrapConflict("このトリミングコースはトリミング記録で使用中のため削除できません")
 }
 
 // CountUsageByTrimmingCourseID は指定コースを使用しているトリミング詳細数を返す（BUG-111）

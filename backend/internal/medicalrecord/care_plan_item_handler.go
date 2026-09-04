@@ -8,6 +8,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // CarePlanItemHandler serves the care-plan-item HTTP boundary. Moved from internal/handler
@@ -26,6 +27,9 @@ func NewCarePlanItemHandler(service CarePlanItemService) *CarePlanItemHandler {
 func (h *CarePlanItemHandler) ListCarePlanItems(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceHospitalization), "view") {
 		return
 	}
 	hospitalizationID, ok := httpapi.ParseIDParam(c, "id")

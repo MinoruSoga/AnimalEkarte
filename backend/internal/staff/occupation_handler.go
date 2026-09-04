@@ -1,4 +1,4 @@
-// Package handler provides HTTP handler implementations for Occupation entity.
+// Package staff provides occupation HTTP handlers.
 package staff
 
 import (
@@ -6,6 +6,8 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/animal-ekarte/backend/internal/httpapi"
 )
 
 // ---- Occupation ----
@@ -57,7 +59,7 @@ func (h *Handler) CreateOccupation(c *gin.Context) {
 
 	occ, err := h.svc.Occupation.Create(c.Request.Context(), clinicID, req.toServiceInput())
 	if err != nil {
-		RespondError(c, err)
+		httpapi.RespondErrorPreferringConflictCode(c, err)
 		return
 	}
 	c.Header("Location", fmt.Sprintf("/v1/masters/occupations/%d", occ.ID))
@@ -83,7 +85,7 @@ func (h *Handler) UpdateOccupation(c *gin.Context) {
 
 	updated, err := h.svc.Occupation.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
 	if err != nil {
-		RespondError(c, err)
+		httpapi.RespondErrorPreferringConflictCode(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, toOccupationResponse(updated))

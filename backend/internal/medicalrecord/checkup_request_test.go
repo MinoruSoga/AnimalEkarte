@@ -163,7 +163,10 @@ func TestListGlobalCheckupsQuery_ToServiceInput(t *testing.T) {
 		NextEndDate: &nextEndDate,
 	}
 
-	input := query.toServiceInput()
+	input, err := query.toServiceInput()
+	if err != nil {
+		t.Fatalf("toServiceInput returned error: %v", err)
+	}
 
 	if input.ClinicID != query.ClinicID {
 		t.Errorf("ClinicID = %d, want %d", input.ClinicID, query.ClinicID)
@@ -178,12 +181,20 @@ func TestListGlobalCheckupsQuery_ToServiceInput(t *testing.T) {
 
 func TestNewListGlobalCheckupsQuery(t *testing.T) {
 	query := newListGlobalCheckupsQuery(1, url.Values{
+		"pet_id":          {"42"},
 		"start_date":      {"2026-01-01"},
 		"end_date":        {"2026-01-31"},
 		"next_start_date": {"2026-12-01"},
 		"next_end_date":   {"2026-12-31"},
 	})
 
+	input, err := query.toServiceInput()
+	if err != nil {
+		t.Fatalf("toServiceInput returned error: %v", err)
+	}
+	if input.PetID == nil || *input.PetID != 42 {
+		t.Errorf("PetID = %v, want 42", input.PetID)
+	}
 	if query.ClinicID != 1 {
 		t.Errorf("ClinicID = %d, want 1", query.ClinicID)
 	}
@@ -198,5 +209,13 @@ func TestNewListGlobalCheckupsQuery(t *testing.T) {
 	}
 	if query.NextEndDate == nil || *query.NextEndDate != "2026-12-31" {
 		t.Errorf("NextEndDate = %v, want 2026-12-31", query.NextEndDate)
+	}
+}
+
+func TestListGlobalCheckupsQuery_InvalidPetID(t *testing.T) {
+	query := newListGlobalCheckupsQuery(1, url.Values{"pet_id": {"invalid"}})
+	_, err := query.toServiceInput()
+	if err == nil || !apperrors.IsInvalidInput(err) {
+		t.Fatalf("error = %v, want invalid input", err)
 	}
 }

@@ -26,13 +26,7 @@ func (r replaceCheckupFieldResultsRequest) toServiceInput() []UpsertCheckupField
 	}
 	inputs := make([]UpsertCheckupFieldResultInput, 0, len(r.Results))
 	for _, item := range r.Results {
-		inputs = append(inputs, UpsertCheckupFieldResultInput{
-			CheckupTypeFieldID: item.CheckupTypeFieldID,
-			ValueNumber:        item.ValueNumber,
-			ValueText:          item.ValueText,
-			ValueBool:          item.ValueBool,
-			ValueList:          item.ValueList,
-		})
+		inputs = append(inputs, UpsertCheckupFieldResultInput(item))
 	}
 	return inputs
 }

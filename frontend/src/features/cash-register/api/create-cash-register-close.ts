@@ -3,7 +3,7 @@ import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { queryKeys } from "@/lib/query-keys";
 import type { CashRegisterClose as BackendCashRegisterClose } from "@/types/generated/models";
-import type { CashRegisterPeriod } from "../constants";
+import type { CashRegisterPeriod } from "../lib/constants";
 import { transformCashRegisterClose } from "./transforms";
 import type { CashRegisterClose } from "./transforms";
 
@@ -17,7 +17,10 @@ interface CreateCashRegisterCloseRequest {
 const createCashRegisterClose = async (
   data: CreateCashRegisterCloseRequest,
 ): Promise<CashRegisterClose> => {
-  const { data: res } = await axios.post<BackendCashRegisterClose>("/v1/cash-register/closes", data);
+  const { data: res } = await axios.post<BackendCashRegisterClose>(
+    "/v1/cash-register/closes",
+    data,
+  );
   return transformCashRegisterClose(res);
 };
 

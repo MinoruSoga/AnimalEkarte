@@ -48,7 +48,7 @@ export function RootErrorBoundary() {
       <AlertCircle className={`size-16 ${C.danger}`} />
       <h1 className={`text-heading-3 font-bold ${C.text}`}>エラーが発生しました</h1>
       <p className={`${C.text50} text-center max-w-md`}>{message}</p>
-      <Button onClick={() => window.location.href = paths.home.getHref()} variant="outline">
+      <Button onClick={() => (window.location.href = paths.home.getHref())} variant="outline">
         <Home className={`${ICON.action} mr-2`} />
         再読み込み
       </Button>

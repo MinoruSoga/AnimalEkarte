@@ -23,8 +23,11 @@ type ReservationTypeOccupationRepository interface {
 	Create(ctx context.Context, o *model.ReservationTypeOccupation) error
 	// Delete は物理削除（論理削除なし）
 	Delete(ctx context.Context, clinicID, reservationTypeID, occupationID uint64) error
-	// CountWorkingStaffByReservationTypeIDs は複数日分の出勤スタッフ数を1クエリでまとめて返す(G7-1: 日付ループN+1回避)。
-	// 戻り値のキーは time.DateOnly 形式(JST)。シフトが無い日はキーとして存在しない(0扱い)。dates が空なら空map即返し。
+	// CountWorkingStaffByReservationTypeIDs は複数日分の出勤候補スタッフ数をまとめて返す(G7-1: 日付ループN+1回避)。
+	// 職種紐付けがあり同一 clinic の is_active かつ reservation_visible なスタッフを候補とする。
+	// 当該日の shift_entries が off/paid_leave のスタッフは除外する。シフト行なしは出勤候補（スロット判定と同じ）。
+	// 戻り値のキーは time.DateOnly 形式(JST)。候補が1人以上なら要求日すべてのキーを埋める。
+	// 候補が0人なら空map（applyOccupationGuard は欠落キーを 0 扱い）。dates が空なら空map即返し。
 	CountWorkingStaffByReservationTypeIDs(ctx context.Context, clinicID, reservationTypeID uint64, dates []time.Time) (map[string]int64, error)
 }
 
@@ -104,28 +107,62 @@ func (r *reservationTypeOccupationRepository) CountWorkingStaffByReservationType
 	for i, d := range dates {
 		dateStrs[i] = d.In(config.JST).Format(time.DateOnly)
 	}
+
+	type countRow struct {
+		Cnt int64 `gorm:"column:cnt"`
+	}
+	var eligibleRow countRow
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT COUNT(DISTINCT s.id) AS cnt
+		FROM reservation_type_occupations rto
+		JOIN staffs s ON s.occupation_id = rto.occupation_id
+			AND s.deleted_at IS NULL
+			AND s.clinic_id = ?
+			AND s.is_active = TRUE
+			AND s.reservation_visible = TRUE
+		WHERE rto.clinic_id = ?
+		  AND rto.reservation_type_id = ?
+	`, clinicID, clinicID, reservationTypeID).Scan(&eligibleRow).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "count_working_staff_eligible", fmt.Sprintf("type=%d", reservationTypeID))
+	}
+	if eligibleRow.Cnt == 0 {
+		return result, nil
+	}
+	for _, dateStr := range dateStrs {
+		result[dateStr] = eligibleRow.Cnt
+	}
+
 	type row struct {
 		Date  string `gorm:"column:date"`
 		Count int64  `gorm:"column:cnt"`
 	}
 	var rows []row
-	err := r.db.WithContext(ctx).Raw(`
+	err = r.db.WithContext(ctx).Raw(`
 		SELECT se.date::text AS date, COUNT(DISTINCT se.staff_id) AS cnt
 		FROM reservation_type_occupations rto
-		JOIN staffs s ON s.occupation_id = rto.occupation_id AND s.deleted_at IS NULL
+		JOIN staffs s ON s.occupation_id = rto.occupation_id
+			AND s.deleted_at IS NULL
+			AND s.clinic_id = ?
+			AND s.is_active = TRUE
+			AND s.reservation_visible = TRUE
 		JOIN shift_entries se ON se.staff_id = s.id
 			AND se.clinic_id = ?
 			AND se.date IN ?
-			AND se.shift_type NOT IN ('off', 'paid_leave')
+			AND se.shift_type IN ('off', 'paid_leave')
 		WHERE rto.clinic_id = ?
 		  AND rto.reservation_type_id = ?
 		GROUP BY se.date
-	`, clinicID, dateStrs, clinicID, reservationTypeID).Scan(&rows).Error
+	`, clinicID, clinicID, dateStrs, clinicID, reservationTypeID).Scan(&rows).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "count_working_staff_batch", fmt.Sprintf("type=%d", reservationTypeID))
 	}
 	for _, rw := range rows {
-		result[rw.Date] = rw.Count
+		working := eligibleRow.Cnt - rw.Count
+		if working < 0 {
+			working = 0
+		}
+		result[rw.Date] = working
 	}
 	return result, nil
 }

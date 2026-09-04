@@ -33,17 +33,16 @@ export const PageLayout = memo(function PageLayout({
   align = "center",
   scrollContainerRef,
 }: PageLayoutProps) {
-  const actionContent = (resource != null || headerAction != null) ? (
-    <div className="flex items-center gap-3">
-      {resource != null ? <PermissionBadges resource={resource} /> : null}
-      {headerAction != null ? headerAction : null}
-    </div>
-  ) : null;
+  const actionContent =
+    resource != null || headerAction != null ? (
+      <div className="flex items-center gap-3">
+        {resource != null ? <PermissionBadges resource={resource} /> : null}
+        {headerAction != null ? headerAction : null}
+      </div>
+    ) : null;
 
   return (
-    <div
-      className={`flex min-w-0 flex-col h-full ${STYLE.page} ${className || ""}`}
-    >
+    <div className={`flex min-w-0 flex-col h-full ${STYLE.page} ${className || ""}`}>
       <FormHeader
         title={title}
         description={description}

@@ -1,9 +1,9 @@
 import { HISTORY_FETCH_LIMIT } from "@/config/fetch-limits";
-import { useGetMedicalRecords } from "@/features/medical-records";
+import { useGetMedicalRecords } from "@/hooks/use-medical-records";
 import { useGetReservations } from "@/hooks/use-get-reservations";
 import { usePermission } from "@/hooks/use-permission";
-import { useGetPetCheckupResults } from "@/hooks/use-pet-checkup-results";
 import { useGetPetVaccinations } from "@/hooks/use-pet-vaccinations";
+import { useGetPetCheckupResults } from "./use-pet-checkup-results";
 import { formatJSTDate, todayJSTISO } from "@/lib/jst-date";
 import {
   ResourceCheckups,
@@ -52,13 +52,9 @@ function useClinicalQueries(
   const vaccinationsQuery = useGetPetVaccinations(
     permissions.vaccination.canView ? petId : undefined,
   );
-  const checkupsQuery = useGetPetCheckupResults(
-    permissions.checkup.canView ? petId : undefined,
-  );
+  const checkupsQuery = useGetPetCheckupResults(permissions.checkup.canView ? petId : undefined);
   const treatmentsQuery = useGetPetTreatmentHistory(petId, "all");
-  const trimmingQuery = useGetPetTrimmingHistory(
-    permissions.trimming.canView ? petId : undefined,
-  );
+  const trimmingQuery = useGetPetTrimmingHistory(permissions.trimming.canView ? petId : undefined);
   const reservationsQuery = useGetReservations({
     startDate: today,
     endDate: addDaysISO(today, 365),
@@ -85,6 +81,4 @@ export function useOwnerClinicalBriefingData(petId: string) {
   return { permissions, today, ...queries };
 }
 
-export type OwnerClinicalBriefingData = ReturnType<
-  typeof useOwnerClinicalBriefingData
->;
+export type OwnerClinicalBriefingData = ReturnType<typeof useOwnerClinicalBriefingData>;

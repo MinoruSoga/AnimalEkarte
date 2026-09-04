@@ -21,6 +21,8 @@ const mocks = vi.hoisted(() => ({
   formFieldsMounted: vi.fn(),
   formFieldsUnmounted: vi.fn(),
   formFieldsProps: vi.fn(),
+  patientInfoCard: vi.fn(),
+  isPetDeceased: false,
   searchParams: "",
   setSearchParams: vi.fn(),
 }));
@@ -29,33 +31,31 @@ vi.mock("react-router", () => ({
   useNavigate: () => vi.fn(),
   useLocation: () => ({ state: undefined }),
   useParams: () => ({ id: mocks.id }),
-  useSearchParams: () => [
-    new URLSearchParams(mocks.searchParams),
-    mocks.setSearchParams,
-  ],
+  useSearchParams: () => [new URLSearchParams(mocks.searchParams), mocks.setSearchParams],
 }));
 
 vi.mock("@/hooks/use-permission", () => ({
   usePermission: (resource: string) => ({
     canCreate: resource === "examination-unconfirm" ? false : mocks.canCreate,
-    canEdit:
-      resource === "examination-unconfirm" ? mocks.canUnconfirm : mocks.canEdit,
+    canEdit: resource === "examination-unconfirm" ? mocks.canUnconfirm : mocks.canEdit,
     canDelete: resource === "examination-unconfirm" ? false : mocks.canDelete,
     canView: true,
   }),
 }));
 
 vi.mock("@/hooks/use-master-items", () => ({
-  useMasterItems: () => ({ data: [], isLoading: false }),
+  useGetMasterItems: () => ({ data: [], isLoading: false }),
 }));
 
-vi.mock("@/features/master", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/features/master")>();
-  return {
-    ...actual,
-    useGetStaffs: mocks.useGetStaffs,
-  };
-});
+vi.mock("@/hooks/use-staffs", () => ({
+  useGetStaffs: mocks.useGetStaffs,
+}));
+
+// ExaminationForm は未紐付け受信バナーを描画する。バナーは useQuery を使うため
+// QueryClientProvider の無いフォーム単体テストでは null に差し替える。
+vi.mock("@/components/shared/LabDeviceUnlinkedBanner/LabDeviceUnlinkedBanner", () => ({
+  LabDeviceUnlinkedBanner: () => null,
+}));
 
 vi.mock("@/hooks/use-unsaved-changes", () => ({
   useUnsavedChanges: () => ({
@@ -94,7 +94,10 @@ vi.mock("@/components/shared/ConfirmDialog", () => ({
 }));
 
 vi.mock("@/components/shared/PatientInfoCard", () => ({
-  PatientInfoCard: () => null,
+  PatientInfoCard: (props: unknown) => {
+    mocks.patientInfoCard(props);
+    return null;
+  },
 }));
 
 vi.mock("../components/ExamItemsTable", () => ({
@@ -102,9 +105,7 @@ vi.mock("../components/ExamItemsTable", () => ({
 }));
 
 vi.mock("../components/ExaminationFormFields", () => ({
-  ExaminationFormFields: (props: {
-    staffList: { id: string; name: string }[];
-  }) => {
+  ExaminationFormFields: (props: { staffList: { id: string; name: string }[] }) => {
     mocks.formFieldsProps(props);
     useEffect(() => {
       mocks.formFieldsMounted();
@@ -143,6 +144,7 @@ beforeEach(() => {
   mocks.canUnconfirm = false;
   mocks.isPersistedConfirmed = false;
   mocks.isPatientChangeLocked = true;
+  mocks.isPetDeceased = false;
   mocks.searchParams = "";
   mocks.setSearchParams.mockReset();
   mocks.historyPanel.mockReset();
@@ -151,6 +153,7 @@ beforeEach(() => {
   mocks.formFieldsMounted.mockReset();
   mocks.formFieldsUnmounted.mockReset();
   mocks.formFieldsProps.mockReset();
+  mocks.patientInfoCard.mockReset();
   mocks.useGetExaminations.mockReset();
   mocks.useGetExaminations.mockReturnValue({ data: [] });
   mocks.useGetStaffs.mockReset();
@@ -159,6 +162,7 @@ beforeEach(() => {
   mocks.useExaminationForm.mockImplementation(() => ({
     formData: { status: "依頼中", petId: "pet-1" },
     setFormData: vi.fn(),
+    isPetDeceased: mocks.isPetDeceased,
     petSelection: {
       selectedPets: [
         {
@@ -235,9 +239,7 @@ describe("ExaminationForm — doctor candidate filter (BUG-005)", () => {
       staffList: { id: string; name: string }[];
     };
     expect(lastProps.staffList).toEqual([{ id: "1", name: "林文明" }]);
-    expect(lastProps.staffList.map((s) => s.name)).not.toContain(
-      "お手入れ・オゾン療法",
-    );
+    expect(lastProps.staffList.map((s) => s.name)).not.toContain("お手入れ・オゾン療法");
     expect(lastProps.staffList.map((s) => s.id)).not.toEqual(
       expect.arrayContaining(["2", "3", "4", "5"]),
     );
@@ -262,16 +264,12 @@ describe("ExaminationForm — mutation permission wiring", () => {
   it("create/edit/delete の現在値を hook へ渡す", () => {
     const view = render(<ExaminationForm />);
 
-    expect(mocks.useExaminationForm).toHaveBeenLastCalledWith(
-      undefined,
-      undefined,
-      {
-        canCreate: false,
-        canEdit: true,
-        canDelete: false,
-        canUnconfirm: false,
-      },
-    );
+    expect(mocks.useExaminationForm).toHaveBeenLastCalledWith(undefined, undefined, {
+      canCreate: false,
+      canEdit: true,
+      canDelete: false,
+      canUnconfirm: false,
+    });
 
     mocks.id = "examination-1";
     mocks.canCreate = true;
@@ -279,16 +277,12 @@ describe("ExaminationForm — mutation permission wiring", () => {
     mocks.canDelete = true;
     view.rerender(<ExaminationForm />);
 
-    expect(mocks.useExaminationForm).toHaveBeenLastCalledWith(
-      "examination-1",
-      undefined,
-      {
-        canCreate: true,
-        canEdit: false,
-        canDelete: true,
-        canUnconfirm: false,
-      },
-    );
+    expect(mocks.useExaminationForm).toHaveBeenLastCalledWith("examination-1", undefined, {
+      canCreate: true,
+      canEdit: false,
+      canDelete: true,
+      canUnconfirm: false,
+    });
   });
 
   it("新規作成は作成権限があっても編集権限なしならフォームをdisabledにする", () => {
@@ -345,9 +339,7 @@ describe("ExaminationForm — mutation permission wiring", () => {
 
     render(<ExaminationForm />);
 
-    expect(
-      screen.queryByRole("button", { name: "確定解除" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "確定解除" })).not.toBeInTheDocument();
   });
 
   it("初回confirm前かつ編集権限ありのときだけ患者変更を表示する", () => {
@@ -356,22 +348,47 @@ describe("ExaminationForm — mutation permission wiring", () => {
     mocks.isPatientChangeLocked = false;
 
     const view = render(<ExaminationForm />);
-    expect(
-      screen.getByRole("button", { name: "患者を変更" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "患者を変更" })).toBeInTheDocument();
 
     mocks.isPatientChangeLocked = true;
     view.rerender(<ExaminationForm />);
-    expect(
-      screen.queryByRole("button", { name: "患者を変更" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "患者を変更" })).not.toBeInTheDocument();
+  });
+});
+
+describe("ExaminationForm — 死亡ペット render側二重防壁 (FE-RC-002)", () => {
+  it("死亡ペットでは権限があってもfieldsetをdisabledにし、理由バナーとPatientInfoCardのdeceased statusを出す", () => {
+    mocks.canCreate = true;
+    mocks.canEdit = true;
+    mocks.isPetDeceased = true;
+
+    render(<ExaminationForm />);
+
+    expect(screen.getByRole("button", { name: "保存" }).closest("fieldset")).toBeDisabled();
+    expect(screen.getByText("死亡したペットの検査記録は保存できません")).toBeInTheDocument();
+    expect(mocks.patientInfoCard).toHaveBeenLastCalledWith(
+      expect.objectContaining({ status: "deceased" }),
+    );
+  });
+
+  it("生存ペットではfieldsetを有効にし、理由バナーを出さない", () => {
+    mocks.canCreate = true;
+    mocks.canEdit = true;
+    mocks.isPetDeceased = false;
+
+    render(<ExaminationForm />);
+
+    expect(screen.getByRole("button", { name: "保存" }).closest("fieldset")).not.toBeDisabled();
+    expect(screen.queryByText("死亡したペットの検査記録は保存できません")).not.toBeInTheDocument();
+    expect(mocks.patientInfoCard).toHaveBeenLastCalledWith(
+      expect.objectContaining({ status: "alive" }),
+    );
   });
 });
 
 describe("ExaminationForm — history pivot wiring", () => {
   it("petIdをserver-side filterへ渡し、historyView=pivotを初期表示へ反映する", () => {
-    mocks.searchParams =
-      "petId=pet-1&medicalRecordId=record-1&historyView=pivot";
+    mocks.searchParams = "petId=pet-1&medicalRecordId=record-1&historyView=pivot";
 
     render(<ExaminationForm />);
 
@@ -394,11 +411,8 @@ describe("ExaminationForm — history pivot wiring", () => {
     };
     act(() => props.onHistoryViewChange("pivot"));
 
-    const nextParams = mocks.setSearchParams.mock
-      .lastCall?.[0] as URLSearchParams;
-    expect(nextParams.toString()).toBe(
-      "petId=pet-1&medicalRecordId=record-1&historyView=pivot",
-    );
+    const nextParams = mocks.setSearchParams.mock.lastCall?.[0] as URLSearchParams;
+    expect(nextParams.toString()).toBe("petId=pet-1&medicalRecordId=record-1&historyView=pivot");
   });
 
   it("view-only時も読み取り専用の履歴切替をdisabled fieldset外に置く", () => {

@@ -1,8 +1,9 @@
 package medicalrecord
 
 import (
-	"github.com/animal-ekarte/backend/internal/httpapi"
 	"net/http"
+
+	"github.com/animal-ekarte/backend/internal/httpapi"
 
 	"github.com/gin-gonic/gin"
 
@@ -39,6 +40,9 @@ func parseDoseSpeciesParam(c *gin.Context) (model.MedicineDoseSpecies, bool) {
 func (h *MedicineDoseParamHandler) ListMedicineDoseParams(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMasterMedical), "view") {
 		return
 	}
 	medicineID, ok := httpapi.ParseIDParam(c, "id")

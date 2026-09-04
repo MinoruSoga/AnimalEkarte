@@ -1,6 +1,7 @@
 import { calcAgePartsAt } from "@/lib/calc-age";
 
 export interface PatientPetDemographics {
+  species?: string | null;
   birthDate?: string | null;
   gender?: string | null;
   neuteredDate?: string | null;
@@ -16,9 +17,16 @@ export function formatPatientPetDetails(
   pet: PatientPetDemographics,
   now: Date = new Date(),
 ): string {
-  return [formatAgePart(pet.birthDate, now), formatGenderPart(pet.gender), formatNeuteredPart(pet.gender, pet.neuteredDate)].join(
-    " / ",
-  );
+  const parts = [
+    formatAgePart(pet.birthDate, now),
+    formatGenderPart(pet.gender),
+    formatNeuteredPart(pet.gender, pet.neuteredDate),
+  ];
+  const species = pet.species?.trim();
+  if (species) {
+    parts.unshift(species);
+  }
+  return parts.join(" / ");
 }
 
 function formatAgePart(birthDate: string | null | undefined, now: Date): string {
@@ -39,7 +47,7 @@ function formatAgePart(birthDate: string | null | undefined, now: Date): string 
 
   const { years, months } = calcAgePartsAt(dateOnly, now);
   if (years < 0) return UNKNOWN;
-  return `${years}才${months}ヶ月`;
+  return `${years}歳${months}ヶ月`;
 }
 
 function formatGenderPart(gender: string | null | undefined): string {

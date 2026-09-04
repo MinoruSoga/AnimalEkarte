@@ -88,9 +88,7 @@ export function ReservationTypeTree({ types, selectedId, onSelect }: Props) {
               >
                 {leaves.map((leaf) => {
                   const isSelected = leaf.id === selectedId;
-                  const leafAriaLabel = leaf.isActive
-                    ? undefined
-                    : `${leaf.name}（無効）`;
+                  const leafAriaLabel = leaf.isActive ? undefined : `${leaf.name}（無効）`;
                   return (
                     <button
                       key={leaf.id}
@@ -105,9 +103,7 @@ export function ReservationTypeTree({ types, selectedId, onSelect }: Props) {
                       />
                       <span className="truncate flex-1">{leaf.name}</span>
                       {!leaf.isActive ? (
-                        <span className={`shrink-0 text-2xs ${C.text40}`}>
-                          （無効）
-                        </span>
+                        <span className={`shrink-0 text-2xs ${C.text40}`}>（無効）</span>
                       ) : null}
                     </button>
                   );
@@ -130,9 +126,7 @@ export function ReservationTypeTree({ types, selectedId, onSelect }: Props) {
             aria-label={leafAriaLabel}
             className={leafClassName(isSelected, leaf.isActive)}
           >
-            <Circle
-              className={`${ICON.smXs} shrink-0 ${isSelected ? "fill-current" : ""}`}
-            />
+            <Circle className={`${ICON.smXs} shrink-0 ${isSelected ? "fill-current" : ""}`} />
             <span className="truncate flex-1">{leaf.name}</span>
             {!leaf.isActive ? (
               <span className={`shrink-0 text-2xs ${C.text40}`}>（無効）</span>

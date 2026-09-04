@@ -15,20 +15,23 @@ import (
 )
 
 type reservationStaffDeleteRecorder struct {
-	calls    int
-	clinicID uint64
-	staffID  uint64
-	err      error
+	calls         int
+	clinicID      uint64
+	staffID       uint64
+	isSystemAdmin bool
+	err           error
 }
 
 func (r *reservationStaffDeleteRecorder) Delete(
 	_ context.Context,
 	clinicID uint64,
 	staffID uint64,
+	isSystemAdmin bool,
 ) error {
 	r.calls++
 	r.clinicID = clinicID
 	r.staffID = staffID
+	r.isSystemAdmin = isSystemAdmin
 	return r.err
 }
 
@@ -56,6 +59,11 @@ func TestReservationStaffService_Delete_DelegatesToCanonicalStaffService(t *test
 	assert.Equal(t, 1, deleter.calls)
 	assert.Equal(t, uint64(17), deleter.clinicID)
 	assert.Equal(t, uint64(29), deleter.staffID)
+	assert.False(
+		t,
+		deleter.isSystemAdmin,
+		"clinic-addressed reservation-staff deletion never takes the system-admin bypass",
+	)
 }
 
 func TestReservationStaffService_Delete_FailsClosedWithoutCanonicalDeleter(t *testing.T) {
@@ -101,7 +109,9 @@ func TestReservationStaffDeleteSourceContract(t *testing.T) {
 	serviceSource, err := os.ReadFile("reservation_staff_service.go")
 	require.NoError(t, err)
 	deleteBody := string(serviceSource)
-	require.Contains(t, deleteBody, "s.staffDeleter.Delete(ctx, clinicID, id)")
+	// isSystemAdmin=false is part of the contract: this route is addressed per
+	// clinic, so deletion never takes the staff domain's system-admin bypass.
+	require.Contains(t, deleteBody, "s.staffDeleter.Delete(ctx, clinicID, id, false)")
 	assert.False(t, strings.Contains(deleteBody, "s.repo.Delete(ctx, clinicID, id)"))
 
 	compositionSource, err := os.ReadFile("../../cmd/api/composition_reservation.go")

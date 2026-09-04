@@ -111,7 +111,7 @@ describe("CageSettings (useMasterCRUD / useMasterSave 統合テスト)", () => {
 
     expect(await screen.findByText("1番ケージ")).toBeInTheDocument();
 
-    await user.click(await screen.findByText("新しいケージを追加..."));
+    await user.click(await screen.findByRole("button", { name: "新規登録" }));
 
     const titleInput = await screen.findByPlaceholderText("無題");
     await user.type(titleInput, "2番ケージ");
@@ -139,9 +139,11 @@ describe("CageSettings (useMasterCRUD / useMasterSave 統合テスト)", () => {
     const user = userEvent.setup();
     renderPage();
 
-    await user.click(await screen.findByRole("button", {
-      name: "詳細: ケージ 1番ケージ (ID 1)",
-    }));
+    await user.click(
+      await screen.findByRole("button", {
+        name: "詳細: ケージ 1番ケージ (ID 1)",
+      }),
+    );
 
     const titleInput = await screen.findByDisplayValue("1番ケージ");
     await user.clear(titleInput);
@@ -169,9 +171,11 @@ describe("CageSettings (useMasterCRUD / useMasterSave 統合テスト)", () => {
     const user = userEvent.setup();
     renderPage();
 
-    await user.click(await screen.findByRole("button", {
-      name: "詳細: ケージ 1番ケージ (ID 1)",
-    }));
+    await user.click(
+      await screen.findByRole("button", {
+        name: "詳細: ケージ 1番ケージ (ID 1)",
+      }),
+    );
     await user.click(await screen.findByRole("button", { name: "削除" }));
 
     const dialog = await screen.findByRole("alertdialog");
@@ -198,9 +202,11 @@ describe("CageSettings (useMasterCRUD / useMasterSave 統合テスト)", () => {
     const user = userEvent.setup();
     const { refreshPermissions } = renderPage();
 
-    await user.click(await screen.findByRole("button", {
-      name: "詳細: ケージ 1番ケージ (ID 1)",
-    }));
+    await user.click(
+      await screen.findByRole("button", {
+        name: "詳細: ケージ 1番ケージ (ID 1)",
+      }),
+    );
     await user.click(await screen.findByRole("button", { name: "削除" }));
     expect(await screen.findByRole("alertdialog")).toBeInTheDocument();
 
@@ -231,7 +237,7 @@ describe("CageSettings (useMasterCRUD / useMasterSave 統合テスト)", () => {
     const user = userEvent.setup();
     renderPage();
 
-    await user.click(await screen.findByText("新しいケージを追加..."));
+    await user.click(await screen.findByRole("button", { name: "新規登録" }));
     await screen.findByPlaceholderText("無題");
     await user.click(screen.getByRole("button", { name: "保存" }));
 

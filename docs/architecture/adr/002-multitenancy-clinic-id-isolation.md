@@ -26,7 +26,7 @@ GORM helperの使用有無だけで安全と判定しない。raw SQL、join、p
 
 **ポジティブ:**
 - schema、query predicate、application ownership check、runtime testの多層防御で漏洩リスクを下げられる
-- golangci-lint + `healthcare-reviewer` agent による静的検証で漏洩パターンを早期発見
+- `internal/lintscan` の AST gate と runtime isolation test、重点 review の `clinic-isolation-auditor` で漏洩パターンを検出する。広範な healthcare review は補助であり、golangci-lint 単独を隔離の証明にしない
 
 **ネガティブ:**
 - clinic-scoped operationは認証済みclinic identityを明示的に受け渡す必要がある

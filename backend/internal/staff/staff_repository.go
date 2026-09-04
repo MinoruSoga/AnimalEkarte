@@ -1,4 +1,4 @@
-// Package repository provides data access implementations for Staff entity.
+// Package staff owns staffs persistence and reservation-originated staffs writes.
 package staff
 
 import (
@@ -25,6 +25,13 @@ type StaffRepository interface {
 	LockActiveByIDForUpdateInClinic(ctx context.Context, clinicID, id uint64) (*model.Staff, error)
 	LockActiveByIDForShare(ctx context.Context, id uint64) (*model.Staff, error)
 	FindByAccountID(ctx context.Context, accountID uint64) (*model.Staff, error)
+	// IsActiveSystemAdminStaff reports whether the staff can currently authenticate
+	// as a system administrator (active staff + active system-admin account).
+	IsActiveSystemAdminStaff(ctx context.Context, staffID uint64) (bool, error)
+	// CountActiveSystemAdminStaff counts staff who can currently authenticate as
+	// system administrators. Callers must hold the mutation transaction so the
+	// count is consistent with concurrent deactivation attempts.
+	CountActiveSystemAdminStaff(ctx context.Context) (int64, error)
 	// Create はスタッフを作成する。
 	Create(ctx context.Context, staff *model.Staff) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
@@ -38,7 +45,7 @@ type StaffRepository interface {
 	// ("reservation_staff")・スコープ機構（primary clinic_id vs assignment EXISTS）・
 	// tx 構成（main assignment 同時作成 / 隣接 swap）が異なり、統合は挙動変更になる。
 	CreateForReservation(ctx context.Context, staff *model.Staff, clinicID uint64) error
-	UpdateForReservation(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	UpdateForReservation(ctx context.Context, clinicID, id uint64, cmd ReservationStaffUpdate) error
 	SwapSortOrderForReservation(ctx context.Context, clinicID, id uint64, direction string) error
 }
 
@@ -212,6 +219,52 @@ func (r *staffRepository) FindByAccountID(ctx context.Context, accountID uint64)
 	return &staff, nil
 }
 
+// activeSystemAdminStaffQuery is the shared predicate for staff who can currently
+// authenticate as system administrators.
+func (r *staffRepository) activeSystemAdminStaffQuery(ctx context.Context) *gorm.DB {
+	return persistence.DBOrTx(ctx, r.db).Model(&model.Staff{}).
+		Joins("INNER JOIN accounts ON accounts.id = staffs.account_id AND accounts.deleted_at IS NULL").
+		Where("staffs.deleted_at IS NULL").
+		Where("staffs.is_active = TRUE").
+		Where("accounts.is_active = TRUE").
+		Where("accounts.is_system_admin = TRUE")
+}
+
+// IsActiveSystemAdminStaff reports whether the staff can currently authenticate
+// as a system administrator.
+func (r *staffRepository) IsActiveSystemAdminStaff(ctx context.Context, staffID uint64) (bool, error) {
+	var count int64
+	err := r.activeSystemAdminStaffQuery(ctx).
+		Where("staffs.id = ?", staffID).
+		Count(&count).Error
+	if err != nil {
+		return false, apperrors.FromGORM(err, "staff", fmt.Sprintf("%d", staffID))
+	}
+	return count > 0, nil
+}
+
+// CountActiveSystemAdminStaff counts staff who can currently authenticate as
+// system administrators. When an ambient transaction is present, matching staff
+// rows are locked FOR UPDATE in deterministic order so concurrent deactivations
+// serialize on the last-admin check.
+func (r *staffRepository) CountActiveSystemAdminStaff(ctx context.Context) (int64, error) {
+	db := r.activeSystemAdminStaffQuery(ctx)
+	if persistence.TxFromContext(ctx) != nil {
+		var ids []uint64
+		if err := db.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Order("staffs.id ASC").
+			Pluck("staffs.id", &ids).Error; err != nil {
+			return 0, apperrors.FromGORM(err, "staff", "active_system_admin_count")
+		}
+		return int64(len(ids)), nil
+	}
+	var count int64
+	if err := db.Count(&count).Error; err != nil {
+		return 0, apperrors.FromGORM(err, "staff", "active_system_admin_count")
+	}
+	return count, nil
+}
+
 func (r *staffRepository) Create(ctx context.Context, staff *model.Staff) error {
 	db := persistence.DBOrTx(ctx, r.db)
 	// Capture intent before Create: gorm default:true omits zero bools from INSERT.
@@ -292,15 +345,86 @@ func (r *staffRepository) Delete(ctx context.Context, clinicID, id uint64) error
 
 		result := tx.
 			Model(&model.Staff{}).
-			Where("id = ?", id).
+			Where("staffs.id = ?", id).
 			Where("EXISTS (SELECT 1 FROM staff_clinic_assignments WHERE staff_clinic_assignments.staff_id = staffs.id AND staff_clinic_assignments.clinic_id = ? AND staff_clinic_assignments.deleted_at IS NULL)", clinicID).
+			Where(`NOT EXISTS (
+				SELECT 1 FROM appointments
+				WHERE appointments.doctor_id = staffs.id
+				  AND appointments.clinic_id = ?
+				  AND appointments.deleted_at IS NULL
+			)`, clinicID).
+			Where(`NOT EXISTS (
+				SELECT 1 FROM shift_entries
+				WHERE shift_entries.staff_id = staffs.id
+				  AND shift_entries.clinic_id = ?
+			)`, clinicID).
+			Where(`NOT EXISTS (
+				SELECT 1 FROM medical_records
+				WHERE medical_records.clinic_id = ?
+				  AND medical_records.deleted_at IS NULL
+				  AND (medical_records.doctor_id = staffs.id OR medical_records.entered_by = staffs.id)
+			)`, clinicID).
+			Where(`NOT EXISTS (
+				SELECT 1 FROM hospitalizations
+				WHERE hospitalizations.doctor_id = staffs.id
+				  AND hospitalizations.clinic_id = ?
+				  AND hospitalizations.deleted_at IS NULL
+			)`, clinicID).
+			Where(`NOT EXISTS (
+				SELECT 1 FROM exams
+				WHERE exams.doctor_id = staffs.id
+				  AND exams.clinic_id = ?
+				  AND exams.deleted_at IS NULL
+			)`, clinicID).
+			Where(`NOT EXISTS (
+				SELECT 1 FROM billing_refunds
+				WHERE billing_refunds.refunded_by = staffs.id
+				  AND billing_refunds.clinic_id = ?
+			)`, clinicID).
+			Where(`NOT EXISTS (
+				SELECT 1 FROM cash_register_closes
+				WHERE cash_register_closes.closed_by = staffs.id
+				  AND cash_register_closes.clinic_id = ?
+			)`, clinicID).
+			Where(`NOT EXISTS (
+				SELECT 1 FROM medical_record_addenda
+				JOIN medical_records ON medical_records.id = medical_record_addenda.medical_record_id
+				  AND medical_records.clinic_id = medical_record_addenda.clinic_id
+				WHERE medical_record_addenda.clinic_id = ?
+				  AND medical_record_addenda.author_user_id = staffs.id
+			)`, clinicID).
+			Where(`NOT EXISTS (
+				SELECT 1 FROM vital_records
+				WHERE vital_records.clinic_id = ?
+				  AND vital_records.staff_id = staffs.id
+				  AND vital_records.deleted_at IS NULL
+				  AND (
+					(vital_records.medical_record_id IS NOT NULL AND EXISTS (
+						SELECT 1 FROM medical_records
+						WHERE medical_records.id = vital_records.medical_record_id
+						  AND medical_records.clinic_id = vital_records.clinic_id
+					))
+					OR
+					(vital_records.daily_record_id IS NOT NULL AND EXISTS (
+						SELECT 1 FROM daily_records
+						WHERE daily_records.id = vital_records.daily_record_id
+						  AND daily_records.clinic_id = vital_records.clinic_id
+					))
+				  )
+			)`, clinicID).
+			Where(`NOT EXISTS (
+				SELECT 1 FROM payments
+				JOIN billings ON billings.id = payments.billing_id AND billings.clinic_id = ?
+				WHERE payments.paid_by = staffs.id
+				  AND payments.deleted_at IS NULL
+			)`, clinicID).
 			Update("deleted_at", gorm.Expr("now()"))
 		if result.Error != nil {
 			operationErr = apperrors.FromGORM(result.Error, "staff", staffID)
 			return operationErr
 		}
 		if result.RowsAffected == 0 {
-			operationErr = apperrors.WrapNotFound("staff", staffID)
+			operationErr = r.normalizeStaffDeleteMiss(persistence.WithTxValue(ctx, tx), clinicID, id)
 			return operationErr
 		}
 		return nil
@@ -312,6 +436,13 @@ func (r *staffRepository) Delete(ctx context.Context, clinicID, id uint64) error
 		return apperrors.FromGORM(transactionErr, "staff", staffID)
 	}
 	return nil
+}
+
+func (r *staffRepository) normalizeStaffDeleteMiss(ctx context.Context, clinicID, id uint64) error {
+	if _, err := r.FindByIDInClinic(ctx, clinicID, id); err != nil {
+		return err
+	}
+	return apperrors.WrapConflict("関連データを残しているため削除できません")
 }
 
 func (r *staffRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
@@ -478,7 +609,12 @@ func (r *staffRepository) CreateForReservation(ctx context.Context, staff *model
 // UpdateForReservation は予約用の staffs 更新（primary clinic_id スコープ・リソース名 reservation_staff）。
 // BE-refactor.md X-8: persistence.DBOrTx(ctx, r.db) にすることで、reservationStaffService.Update が
 // Transactor.WithTx で本メソッドと UpdateExcludedReservationTypes を括った場合に同一 tx へ参加する。
-func (r *staffRepository) UpdateForReservation(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+// Empty commands are a no-op so reservation can always delegate without a map length check.
+func (r *staffRepository) UpdateForReservation(ctx context.Context, clinicID, id uint64, cmd ReservationStaffUpdate) error {
+	fields := reservationStaffUpdateFields(cmd)
+	if len(fields) == 0 {
+		return nil
+	}
 	return persistence.UpdateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.Staff{}, "reservation_staff", clinicID, id, fields)
 }
 

@@ -163,16 +163,16 @@ type createAccountingRequest struct {
 	TaxTotal          int64      `json:"tax_total"     binding:"min=0"`
 	TotalAmount       int64      `json:"total_amount"  binding:"min=0"`
 	HasInsurance      bool       `json:"has_insurance"`
-	Status            string     `json:"status"        binding:"omitempty,oneof=waiting pending completed cancelled"`
+	Status            string     `json:"status"        binding:"omitempty,oneof=waiting pending"`
 	ScheduledDate     time.Time  `json:"scheduled_date" binding:"required"`
 	CompletedAt       *time.Time `json:"completed_at"`
-	Memo              string     `json:"memo"`
+	Memo              string     `json:"memo" binding:"max=1000"`
 }
 
 // completeAccountingItemRequest は BUG-018 complete command の明細1行。
 type completeAccountingItemRequest struct {
 	Category              string  `json:"category"  binding:"omitempty,oneof=examination test procedure surgery medicine food goods other vaccine trimming hotel training"`
-	Name                  string  `json:"name"      binding:"required"`
+	Name                  string  `json:"name"      binding:"required,max=255"`
 	UnitPrice             int64   `json:"unit_price" binding:"min=0"`
 	Quantity              float64 `json:"quantity"   binding:"required,gt=0"`
 	DiscountRate          float64 `json:"discount_rate" binding:"min=0,max=100"`
@@ -181,10 +181,11 @@ type completeAccountingItemRequest struct {
 	TaxRate               float64 `json:"tax_rate"`
 	IsInsuranceApplicable bool    `json:"is_insurance_applicable"`
 	Source                string  `json:"source"    binding:"omitempty,oneof=medical_record manual hospitalization trimming"`
-	OtherReason           *string `json:"other_reason"`
+	OtherReason           *string `json:"other_reason" binding:"omitempty,max=500"`
 	MerchandiseItemID     *uint64 `json:"merchandise_item_id"`
 	TreatmentID           *uint64 `json:"treatment_id"`
 	VaccinationID         *uint64 `json:"vaccination_id"`
+	ExamID                *uint64 `json:"exam_id"`
 	AppointmentID         *uint64 `json:"appointment_id"`
 	TrimmingCourseID      *uint64 `json:"trimming_course_id"`
 	TrimmingOptionID      *uint64 `json:"trimming_option_id"`
@@ -199,40 +200,21 @@ type completeAccountingRequest struct {
 	OwnerID           *uint64                         `json:"owner_id"`
 	PetID             *uint64                         `json:"pet_id"`
 	ScheduledDate     time.Time                       `json:"scheduled_date" binding:"required"`
-	Memo              string                          `json:"memo"`
+	Memo              string                          `json:"memo" binding:"max=1000"`
 	HasInsurance      bool                            `json:"has_insurance"`
 	InsuranceRatio    *float64                        `json:"insurance_ratio"`
-	InsuranceName     *string                         `json:"insurance_name"`
+	InsuranceName     *string                         `json:"insurance_name" binding:"omitempty,max=255"`
 	InsuranceAmount   *int64                          `json:"insurance_amount"`
 	DiscountAmount    *int64                          `json:"discount_amount"`
 	Items             []completeAccountingItemRequest `json:"items" binding:"required,min=1,dive"`
 	PaymentSplits     []paymentSplitRequest           `json:"payment_splits" binding:"max=50,dive"`
-	PostCloseReason   *string                         `json:"post_close_reason"`
+	PostCloseReason   *string                         `json:"post_close_reason" binding:"omitempty,max=500"`
 }
 
 func (r *completeAccountingRequest) toServiceInput(clinicID, staffID uint64, idempotencyKey string) *CompleteAccountingInput {
 	items := make([]CompleteAccountingItemInput, 0, len(r.Items))
 	for _, it := range r.Items {
-		items = append(items, CompleteAccountingItemInput{
-			Category:              it.Category,
-			Name:                  it.Name,
-			UnitPrice:             it.UnitPrice,
-			Quantity:              it.Quantity,
-			DiscountRate:          it.DiscountRate,
-			DiscountAmount:        it.DiscountAmount,
-			TaxType:               it.TaxType,
-			TaxRate:               it.TaxRate,
-			IsInsuranceApplicable: it.IsInsuranceApplicable,
-			Source:                it.Source,
-			OtherReason:           it.OtherReason,
-			MerchandiseItemID:     it.MerchandiseItemID,
-			TreatmentID:           it.TreatmentID,
-			VaccinationID:         it.VaccinationID,
-			AppointmentID:         it.AppointmentID,
-			TrimmingCourseID:      it.TrimmingCourseID,
-			TrimmingOptionID:      it.TrimmingOptionID,
-			SortOrder:             it.SortOrder,
-		})
+		items = append(items, CompleteAccountingItemInput(it))
 	}
 	return &CompleteAccountingInput{
 		ClinicID:          clinicID,
@@ -312,8 +294,8 @@ func toPaymentSplitInputs(reqs []paymentSplitRequest) []PaymentSplitInput {
 type correctCreditPaymentRequest struct {
 	Method string `json:"method" binding:"required,oneof=credit_card electronic_money"`
 	Amount int64  `json:"amount" binding:"required,min=1"`
-	Reason string `json:"reason" binding:"required"`
-	Memo   string `json:"memo"`
+	Reason string `json:"reason" binding:"required,max=500"`
+	Memo   string `json:"memo" binding:"max=1000"`
 }
 
 func (r *correctCreditPaymentRequest) toServiceInput(id, clinicID, staffID uint64) *CorrectCreditPaymentInput {
@@ -343,11 +325,11 @@ type updateAccountingRequest struct {
 	Status            *string    `json:"status"        binding:"omitempty,oneof=waiting pending completed cancelled"`
 	ScheduledDate     *time.Time `json:"scheduled_date"`
 	CompletedAt       *time.Time `json:"completed_at"`
-	Memo              *string    `json:"memo"`
+	Memo              *string    `json:"memo" binding:"omitempty,max=1000"`
 	// Payment フィールド（会計完了時に同時送信される）
 	PaymentMethod   *string  `json:"payment_method"  binding:"omitempty,oneof=cash credit_card electronic_money bank_transfer"`
 	InsuranceRatio  *float64 `json:"insurance_ratio"`
-	InsuranceName   *string  `json:"insurance_name"`
+	InsuranceName   *string  `json:"insurance_name" binding:"omitempty,max=255"`
 	InsuranceAmount *int64   `json:"insurance_amount"`
 	DiscountAmount  *int64   `json:"discount_amount"`
 	BillingAmount   *int64   `json:"billing_amount"`
@@ -356,7 +338,7 @@ type updateAccountingRequest struct {
 	// PaymentSplits: 混在支払い内訳（nil = 従来単一支払い互換）
 	PaymentSplits []paymentSplitRequest `json:"payment_splits" binding:"max=50,dive"`
 	// #115: 締め後編集理由（レジ締め済み期間の会計を編集する場合は必須）
-	PostCloseReason *string `json:"post_close_reason"`
+	PostCloseReason *string `json:"post_close_reason" binding:"omitempty,max=500"`
 }
 
 func (r *updateAccountingRequest) toServiceInput(id, clinicID, staffID uint64) *UpdateAccountingInput {

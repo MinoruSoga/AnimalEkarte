@@ -250,12 +250,15 @@ func TestReservationWrites_RunStaffGuardInsideWriteTransaction(t *testing.T) {
 				tx Transactor,
 				guard *recordingReservationStaffWriteGuard,
 			) error {
-				svc := NewReservationServiceWithAvailabilityAndType(
+				svc := NewReservationServiceWithClinicHolidays(
 					repo,
 					nil,
 					tx,
 					guard,
 					nil,
+					nil,
+					nil,
+					openDayHolidayFinder(),
 				)
 				_, err := svc.Update(
 					context.Background(),
@@ -286,13 +289,15 @@ func TestReservationWrites_RunStaffGuardInsideWriteTransaction(t *testing.T) {
 				tx Transactor,
 				guard *recordingReservationStaffWriteGuard,
 			) error {
-				svc := NewReservationAdminServiceWithAvailabilityAndType(
+				svc := NewReservationAdminServiceWithClinicHolidays(
 					&mockReservationAdminRepository{},
 					repo,
 					nil,
 					tx,
 					guard,
 					nil,
+					nil,
+					openDayHolidayFinder(),
 				)
 				_, err := svc.Create(context.Background(), clinicID, &CreateReservationAdminInput{
 					StartTime:         start,
@@ -324,8 +329,9 @@ func TestReservationWrites_RunStaffGuardInsideWriteTransaction(t *testing.T) {
 				StartTime:         start,
 				EndTime:           end,
 				ReservationTypeID: reservationType,
-				DoctorID:          uint64PtrForReservationStaffGuard(doctorID),
-				Status:            model.ReservationStatusPending,
+				// Leave doctor unset so the Update path actually changes doctor_id
+				// and still runs the staff write guard (BUG-006 skips unchanged schedule).
+				Status: model.ReservationStatusPending,
 			}
 			repo := &mockReservationRepository{
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Reservation, error) {

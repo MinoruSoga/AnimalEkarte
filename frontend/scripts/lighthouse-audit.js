@@ -10,41 +10,42 @@
  * $ node frontend/scripts/lighthouse-audit.js --url http://localhost:3000
  */
 
-import lighthouse from 'lighthouse';
-import * as chromeLauncher from 'chrome-launcher';
-import fs from 'node:fs';
-import path from 'node:path';
+import lighthouse from "lighthouse";
+import * as chromeLauncher from "chrome-launcher";
+import fs from "node:fs";
+import path from "node:path";
 
-const BASE_URL = process.argv.find(arg => arg.startsWith('--url'))?.split('=')[1] || 'http://localhost:3000';
-const OUTPUT_DIR = 'frontend/audit-results';
-const JST_TIME_ZONE = 'Asia/Tokyo';
+const BASE_URL =
+  process.argv.find((arg) => arg.startsWith("--url"))?.split("=")[1] || "http://localhost:3000";
+const OUTPUT_DIR = "frontend/audit-results";
+const JST_TIME_ZONE = "Asia/Tokyo";
 
 function formatJSTTimestamp(date = new Date()) {
-  const parts = new Intl.DateTimeFormat('ja-JP', {
+  const parts = new Intl.DateTimeFormat("ja-JP", {
     timeZone: JST_TIME_ZONE,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
     hour12: false,
   }).formatToParts(date);
-  const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
   return `${values.year}-${values.month}-${values.day}T${values.hour}:${values.minute}:${values.second}+09:00`;
 }
 
 async function launchChrome() {
-  const chrome = await chromeLauncher.launch({ chromeFlags: ['--headless'] });
+  const chrome = await chromeLauncher.launch({ chromeFlags: ["--headless"] });
   return chrome;
 }
 
 async function runLighthouse(url, chrome) {
   const options = {
-    logLevel: 'info',
-    output: 'json',
+    logLevel: "info",
+    output: "json",
     port: chrome.port,
-    onlyCategories: ['performance', 'accessibility', 'best-practices', 'seo'],
+    onlyCategories: ["performance", "accessibility", "best-practices", "seo"],
   };
 
   const runnerResult = await lighthouse(url, options);
@@ -75,26 +76,26 @@ function generateReport(results) {
   // Core Web Vitals
   const metrics = results.lhr.audits;
   report.metrics = {
-    firstContentfulPaint: metrics['first-contentful-paint']?.numericValue || null,
-    largestContentfulPaint: metrics['largest-contentful-paint']?.numericValue || null,
-    cumulativeLayoutShift: metrics['cumulative-layout-shift']?.numericValue || null,
-    interactive: metrics['interactive']?.numericValue || null,
+    firstContentfulPaint: metrics["first-contentful-paint"]?.numericValue || null,
+    largestContentfulPaint: metrics["largest-contentful-paint"]?.numericValue || null,
+    cumulativeLayoutShift: metrics["cumulative-layout-shift"]?.numericValue || null,
+    interactive: metrics["interactive"]?.numericValue || null,
   };
 
   return report;
 }
 
 function displayReport(report) {
-  console.log('\n=== Lighthouse Audit Results ===\n');
+  console.log("\n=== Lighthouse Audit Results ===\n");
 
-  console.log('Categories:');
+  console.log("Categories:");
   for (const [name, data] of Object.entries(report.categories)) {
     const score = data.score;
-    const status = score >= 90 ? '✅' : score >= 50 ? '⚠️' : '❌';
+    const status = score >= 90 ? "✅" : score >= 50 ? "⚠️" : "❌";
     console.log(`  ${status} ${data.title}: ${score}/100`);
   }
 
-  console.log('\nCore Web Vitals:');
+  console.log("\nCore Web Vitals:");
   console.log(`  First Contentful Paint: ${report.metrics.firstContentfulPaint?.toFixed(2)}ms`);
   console.log(`  Largest Contentful Paint: ${report.metrics.largestContentfulPaint?.toFixed(2)}ms`);
   console.log(`  Cumulative Layout Shift: ${report.metrics.cumulativeLayoutShift?.toFixed(3)}`);
@@ -117,7 +118,7 @@ async function main() {
     const report = generateReport(results);
 
     // ファイルに保存
-    const timestamp = formatJSTTimestamp().replace(/[:+]/g, '-');
+    const timestamp = formatJSTTimestamp().replace(/[:+]/g, "-");
     const reportPath = path.join(OUTPUT_DIR, `lighthouse-${timestamp}.json`);
     fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
 
@@ -128,16 +129,16 @@ async function main() {
     // 結果がしきい値を超えたかチェック
     const performance = report.categories.performance.score;
     if (performance < 75) {
-      console.warn('\n⚠️ Performance score is below target (75). Consider optimization.');
+      console.warn("\n⚠️ Performance score is below target (75). Consider optimization.");
       process.exit(1);
     }
   } catch (error) {
-    console.error('Error running Lighthouse audit:', error);
+    console.error("Error running Lighthouse audit:", error);
     process.exit(1);
   }
 }
 
 main().catch((err) => {
-  console.error('Fatal error:', err);
+  console.error("Fatal error:", err);
   process.exit(1);
 });

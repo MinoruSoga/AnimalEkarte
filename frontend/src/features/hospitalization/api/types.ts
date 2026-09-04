@@ -8,7 +8,7 @@ import type { HospitalizationResponse } from "@/types/generated/hospitalization-
 export type BackendHospitalization = HospitalizationResponse;
 
 /** Nested plan on POST /hospitalizations (TASK-001 atomic create). Same shape as createTreatmentPlanRequest. */
-export interface NestedCreateTreatmentPlanRequest {
+interface NestedCreateTreatmentPlanRequest {
   treatment_content: string;
   memo?: string;
   is_insurance?: boolean;
@@ -29,6 +29,7 @@ export interface CreateHospitalizationRequest {
   owner_request?: string;
   staff_notes?: string;
   memo?: string;
+  doctor_id?: string;
   is_insurance?: boolean;
   insurance_company_name?: string | null;
   insurance_number?: string | null;
@@ -44,6 +45,7 @@ export interface UpdateHospitalizationRequest {
   owner_request?: string;
   staff_notes?: string;
   memo?: string;
+  doctor_id?: string;
   is_insurance?: boolean;
   insurance_company_name?: string | null;
   insurance_number?: string | null;

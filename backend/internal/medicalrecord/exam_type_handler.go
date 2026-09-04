@@ -27,6 +27,9 @@ func (h *ExamTypeHandler) ListExaminationTypes(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMasterMedical), "view") {
+		return
+	}
 	exTypes, err := h.service.List(c.Request.Context(), clinicID)
 	if err != nil {
 		httpapi.RespondError(c, err)
@@ -47,6 +50,9 @@ func (h *ExamTypeHandler) ListExaminationTypes(c *gin.Context) {
 func (h *ExamTypeHandler) GetExaminationType(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMasterMedical), "view") {
 		return
 	}
 	id, ok := httpapi.ParseIDParam(c, "id")
@@ -185,9 +191,9 @@ func parseExamTypeFieldIDs(c *gin.Context) (uint64, uint64, uint64, bool) {
 
 func examTypeFieldIDs(examTypes []model.ExaminationType) []uint64 {
 	fieldIDs := make([]uint64, 0)
-	for i := range examTypes {
-		for j := range examTypes[i].Items {
-			fieldIDs = append(fieldIDs, examTypes[i].Items[j].ID)
+	for _, examType := range examTypes {
+		for _, item := range examType.Items {
+			fieldIDs = append(fieldIDs, item.ID)
 		}
 	}
 	return fieldIDs
@@ -208,7 +214,7 @@ func (h *ExamTypeHandler) CreateExaminationType(c *gin.Context) {
 
 	examType, err := h.service.Create(c.Request.Context(), clinicID, req.toServiceInput())
 	if err != nil {
-		httpapi.RespondError(c, err)
+		httpapi.RespondErrorPreferringConflictCode(c, err)
 		return
 	}
 	c.Header("Location", fmt.Sprintf("/v1/masters/examination-types/%d", examType.ID))
@@ -233,7 +239,7 @@ func (h *ExamTypeHandler) UpdateExaminationType(c *gin.Context) {
 
 	exType, err := h.service.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
 	if err != nil {
-		httpapi.RespondError(c, err)
+		httpapi.RespondErrorPreferringConflictCode(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, toExaminationTypeResponse(exType))

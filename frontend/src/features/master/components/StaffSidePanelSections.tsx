@@ -55,20 +55,14 @@ export function StaffExcludedReservationTypesSection({
       </div>
 
       {isNew ? (
-        <p className={`text-xs ${C.text50} pl-0.5`}>
-          スタッフ登録後に設定できます
-        </p>
+        <p className={`text-xs ${C.text50} pl-0.5`}>スタッフ登録後に設定できます</p>
       ) : allReservationTypes.length === 0 ? (
-        <p className={`text-xs ${C.text50} pl-0.5`}>
-          予約区分が登録されていません
-        </p>
+        <p className={`text-xs ${C.text50} pl-0.5`}>予約区分が登録されていません</p>
       ) : (
         <div className="space-y-3">
           {Array.from(grouped.entries()).map(([label, reservationTypes]) => (
             <div key={label} className="space-y-0.5">
-              <p className={`text-2xs font-medium ${C.text40} px-0.5`}>
-                {label}
-              </p>
+              <p className={`text-2xs font-medium ${C.text40} px-0.5`}>{label}</p>
               {reservationTypes.map((reservationType) => (
                 <label
                   key={reservationType.id}
@@ -76,9 +70,7 @@ export function StaffExcludedReservationTypesSection({
                 >
                   <Checkbox
                     checked={capableIdSet.has(reservationType.id)}
-                    onCheckedChange={(checked) =>
-                      onToggle(reservationType.id, checked === true)
-                    }
+                    onCheckedChange={(checked) => onToggle(reservationType.id, checked === true)}
                   />
                   <span
                     className={`${ICON.dotMd} rounded-full shrink-0`}
@@ -102,12 +94,23 @@ interface StaffClinicsSectionProps {
   onToggle: (clinicId: string, checked: boolean) => void;
 }
 
-export function StaffClinicsSection({ allClinics, clinicIdSet, isNew, onToggle }: StaffClinicsSectionProps) {
+export function StaffClinicsSection({
+  allClinics,
+  clinicIdSet,
+  isNew,
+  onToggle,
+}: StaffClinicsSectionProps) {
+  const clinicItems = allClinics
+    .filter((clinic) => clinic.isActive || clinicIdSet.has(clinic.id))
+    .map((clinic) => ({
+      ...clinic,
+      name: clinic.isActive ? clinic.name : `${clinic.name}（無効）`,
+    }));
   return (
     <StaffCheckboxSection
       title="所属医院"
       icon={<Building2 className={`${ICON.xs} ${C.text50}`} />}
-      items={allClinics}
+      items={clinicItems}
       checkedIdSet={clinicIdSet}
       isDisabledUntilSaved={isNew}
       disabledMessage="スタッフ登録後に所属医院を設定できます"
@@ -124,7 +127,12 @@ interface StaffPermissionGroupsSectionProps {
   onToggle: (groupId: string, checked: boolean) => void;
 }
 
-export function StaffPermissionGroupsSection({ allGroups, groupIdSet, isNew, onToggle }: StaffPermissionGroupsSectionProps) {
+export function StaffPermissionGroupsSection({
+  allGroups,
+  groupIdSet,
+  isNew,
+  onToggle,
+}: StaffPermissionGroupsSectionProps) {
   return (
     <StaffCheckboxSection
       title="権限グループ"

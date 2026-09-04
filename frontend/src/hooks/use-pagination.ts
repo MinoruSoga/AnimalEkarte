@@ -34,7 +34,7 @@ interface UsePaginationReturn<T> {
 
 export function usePagination<T>(
   data: T[],
-  options: UsePaginationOptions = {}
+  options: UsePaginationOptions = {},
 ): UsePaginationReturn<T> {
   const { pageSize = 20, resetKey } = options;
   const [currentPage, setCurrentPage] = useState(1);
@@ -64,7 +64,7 @@ export function usePagination<T>(
     (page: number) => {
       setCurrentPage(Math.max(1, Math.min(page, totalPages)));
     },
-    [totalPages]
+    [totalPages],
   );
 
   const nextPage = useCallback(() => {

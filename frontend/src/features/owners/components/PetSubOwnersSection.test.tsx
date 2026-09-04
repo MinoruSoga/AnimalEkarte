@@ -36,9 +36,7 @@ vi.mock("@/lib/axios", () => ({
 }));
 
 vi.mock("../api/get-pet-sub-owners", async (importOriginal) => ({
-  ...(await importOriginal<
-    typeof import("../api/get-pet-sub-owners")
-  >()),
+  ...(await importOriginal<typeof import("../api/get-pet-sub-owners")>()),
   useGetPetSubOwners: () => ({
     data: mocks.subOwnersError ? undefined : mocks.subOwners,
     isLoading: false,
@@ -66,11 +64,7 @@ function renderSection(element: ReactElement) {
     },
   });
 
-  return render(
-    <QueryClientProvider client={queryClient}>
-      {element}
-    </QueryClientProvider>,
-  );
+  return render(<QueryClientProvider client={queryClient}>{element}</QueryClientProvider>);
 }
 
 describe("PetSubOwnersSection", () => {
@@ -97,23 +91,14 @@ describe("PetSubOwnersSection", () => {
     const user = userEvent.setup();
     renderSection(<PetSubOwnersSection petId="7" canEdit />);
 
-    await user.type(
-      screen.getByRole("searchbox", { name: "副飼主を検索" }),
-      "鈴木",
-    );
+    await user.type(screen.getByRole("searchbox", { name: "副飼主を検索" }), "鈴木");
     await waitFor(() => expect(mockedGet).toHaveBeenCalledTimes(1));
 
     await user.click(screen.getByRole("combobox", { name: "副飼主を追加" }));
-    expect(
-      screen.queryByRole("option", { name: "山田 太郎" }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("option", { name: "山田 花子" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "山田 太郎" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "山田 花子" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("option", { name: "鈴木 次郎" }));
-    expect(
-      screen.getByRole("searchbox", { name: "副飼主を検索" }),
-    ).toHaveValue("");
+    expect(screen.getByRole("searchbox", { name: "副飼主を検索" })).toHaveValue("");
 
     const relationship = screen.getByRole("textbox", {
       name: "続柄（鈴木 次郎）",
@@ -122,9 +107,7 @@ describe("PetSubOwnersSection", () => {
     await user.type(relationship, "祖父");
     expect(relationship).toHaveValue("祖父");
 
-    await user.click(
-      screen.getByRole("button", { name: "副飼主 山田 花子を削除" }),
-    );
+    await user.click(screen.getByRole("button", { name: "副飼主 山田 花子を削除" }));
     expect(screen.queryByText("山田 花子")).not.toBeInTheDocument();
     expect(screen.getByText("鈴木 次郎")).toBeInTheDocument();
   });
@@ -133,9 +116,7 @@ describe("PetSubOwnersSection", () => {
     const user = userEvent.setup();
     renderSection(<PetSubOwnersSection petId="7" canEdit />);
 
-    await user.click(
-      screen.getByRole("button", { name: "副飼主 山田 花子を削除" }),
-    );
+    await user.click(screen.getByRole("button", { name: "副飼主 山田 花子を削除" }));
     await user.click(screen.getByRole("button", { name: "副飼主を保存" }));
 
     await waitFor(() =>
@@ -161,9 +142,7 @@ describe("PetSubOwnersSection", () => {
     await user.type(relationship, "母");
     await user.click(screen.getByRole("button", { name: "副飼主を保存" }));
 
-    expect(
-      await screen.findByRole("alert"),
-    ).toHaveTextContent(
+    expect(await screen.findByRole("alert")).toHaveTextContent(
       "他の端末でペット情報が変更されました。再読み込みしてから、もう一度保存してください。",
     );
     expect(relationship).toHaveValue("母");
@@ -193,9 +172,7 @@ describe("PetSubOwnersSection", () => {
 
     await user.click(screen.getByRole("button", { name: "副飼主を保存" }));
 
-    expect(await screen.findByRole("status")).toHaveTextContent(
-      "副飼主を保存しました",
-    );
+    expect(await screen.findByRole("status")).toHaveTextContent("副飼主を保存しました");
   });
 
   it("保存中は編集を無効化し、保存後の再編集では成功表示を隠す", async () => {
@@ -211,21 +188,13 @@ describe("PetSubOwnersSection", () => {
 
     await user.click(screen.getByRole("button", { name: "副飼主を保存" }));
 
-    expect(
-      screen.getByRole("textbox", { name: "続柄（山田 花子）" }),
-    ).toBeDisabled();
-    expect(
-      screen.getByRole("button", { name: "副飼主 山田 花子を削除" }),
-    ).toBeDisabled();
-    expect(
-      screen.getByRole("searchbox", { name: "副飼主を検索" }),
-    ).toBeDisabled();
+    expect(screen.getByRole("textbox", { name: "続柄（山田 花子）" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "副飼主 山田 花子を削除" })).toBeDisabled();
+    expect(screen.getByRole("searchbox", { name: "副飼主を検索" })).toBeDisabled();
     expect(screen.getByRole("combobox", { name: "副飼主を追加" })).toBeDisabled();
 
     resolveSave?.();
-    expect(await screen.findByRole("status")).toHaveTextContent(
-      "副飼主を保存しました",
-    );
+    expect(await screen.findByRole("status")).toHaveTextContent("副飼主を保存しました");
 
     const relationship = screen.getByRole("textbox", {
       name: "続柄（山田 花子）",
@@ -263,13 +232,9 @@ describe("PetSubOwnersSection", () => {
     const user = userEvent.setup();
     renderSection(<PetSubOwnersSection petId="7" canEdit />);
 
-    await user.click(
-      screen.getByRole("button", { name: "副飼主 山田 花子を削除" }),
-    );
+    await user.click(screen.getByRole("button", { name: "副飼主 山田 花子を削除" }));
 
-    expect(
-      screen.getByRole("searchbox", { name: "副飼主を検索" }),
-    ).toHaveFocus();
+    expect(screen.getByRole("searchbox", { name: "副飼主を検索" })).toHaveFocus();
   });
 
   it("連続入力を300msデバウンスし、入力文字数より少ない候補取得に抑える", async () => {
@@ -293,17 +258,10 @@ describe("PetSubOwnersSection", () => {
     const user = userEvent.setup();
     renderSection(<PetSubOwnersSection petId="7" canEdit />);
 
-    await user.type(
-      screen.getByRole("searchbox", { name: "副飼主を検索" }),
-      "   ",
-    );
+    await user.type(screen.getByRole("searchbox", { name: "副飼主を検索" }), "   ");
 
-    await act(
-      () => new Promise((resolve) => setTimeout(resolve, 350)),
-    );
+    await act(() => new Promise((resolve) => setTimeout(resolve, 350)));
     expect(mockedGet).not.toHaveBeenCalled();
-    expect(
-      screen.getByRole("combobox", { name: "副飼主を追加" }),
-    ).toBeDisabled();
+    expect(screen.getByRole("combobox", { name: "副飼主を追加" })).toBeDisabled();
   });
 });

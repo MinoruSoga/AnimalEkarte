@@ -1,8 +1,5 @@
 import type { Owner } from "@/types/owner";
-import type {
-  OwnerResponse,
-  PetInOwnerResponse,
-} from "@/types/generated/owner-responses";
+import type { OwnerResponse, PetInOwnerResponse } from "@/types/generated/owner-responses";
 import type { PetResponse } from "@/types/generated/pet-responses";
 import { transformBackendPetToFrontend } from "@/lib/transforms/pet";
 
@@ -16,10 +13,10 @@ import { transformBackendPetToFrontend } from "@/lib/transforms/pet";
 export type OwnerApiResponse = OwnerResponse;
 
 const MEMBERSHIP_TYPE_FROM_API: Record<string, string> = {
-  "non_member": "非会員",
-  "member": "会員",
-  "deceased": "退亡者",
-  "transferred": "他診/準",
+  non_member: "非会員",
+  member: "会員",
+  deceased: "退亡者",
+  transferred: "他診/準",
 };
 
 /**
@@ -55,7 +52,8 @@ export const transformOwner = (owner: OwnerResponse): Owner => ({
   remarks: owner.remarks ?? "",
   isDangerous: owner.is_dangerous ?? false,
   discountRate: owner.discount_rate ?? 0,
-  membershipType: MEMBERSHIP_TYPE_FROM_API[owner.membership_type ?? ""] ?? owner.membership_type ?? "",
+  membershipType:
+    MEMBERSHIP_TYPE_FROM_API[owner.membership_type ?? ""] ?? owner.membership_type ?? "",
   // line_user_id / lstep_* は OwnerResponse に存在しない（models.Owner のみ）。
   // LINE 連携 UI は owner-line-tags 等の専用 API を参照する（use-line-integration-card-state）。
   lineUserId: undefined,

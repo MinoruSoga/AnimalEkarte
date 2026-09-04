@@ -1,12 +1,17 @@
 // React/Framework
-import { useState, useRef, useMemo, useCallback, useDeferredValue, useTransition, useEffect, useLayoutEffect } from "react";
+import {
+  useState,
+  useRef,
+  useMemo,
+  useCallback,
+  useDeferredValue,
+  useTransition,
+  useLayoutEffect,
+} from "react";
 import { normalizeKana } from "@/lib/normalize-kana";
 
 // External
 import { toast } from "sonner";
-
-// Shared
-import { handleApiError } from "@/lib/handle-api-error";
 
 // Types
 import type { UseMutationResult } from "@tanstack/react-query";
@@ -50,8 +55,12 @@ interface UseMasterCRUDOptions<T extends MasterEntity> {
   /**
    * BUG-380: サイドパネル編集中の未保存変更を管理するガード。
    * 指定された場合、別行クリック・パネル閉じ・新規作成時に確認ダイアログを出す。
+   * 本番は runWithDiscardCheck（継続処理を保持）。confirmDiscard はテスト mock 互換。
    */
-  dirtyGuard?: { confirmDiscard: () => boolean };
+  dirtyGuard?: {
+    confirmDiscard?: () => boolean;
+    runWithDiscardCheck?: (fn: () => void) => void;
+  };
 
   /** Delete permission enforced at the mutation boundary. */
   permissions: MasterCRUDPermissions;
@@ -106,7 +115,10 @@ export function defaultSearchFilter<T extends MasterEntity>(item: T, term: strin
 // Default active filter application (isActive status)
 // ─────────────────────────────────────────────────
 
-export function defaultActiveFilterApply<T extends MasterEntity>(item: T, filters: ActiveFilter[]): boolean {
+export function defaultActiveFilterApply<T extends MasterEntity>(
+  item: T,
+  filters: ActiveFilter[],
+): boolean {
   const record = item as Record<string, unknown>;
   for (const filter of filters) {
     if (filter.key === "status" && typeof filter.value === "string") {
@@ -174,7 +186,9 @@ export function useMasterCRUD<T extends MasterEntity>({
   const [pendingDelete, setPendingDelete] = useState<T | null>(null);
   // rerender-dependencies: pendingDelete オブジェクトを ref 経由で参照し handleDeleteConfirm deps から除外
   const pendingDeleteRef = useRef<T | null>(null);
-  useEffect(() => { pendingDeleteRef.current = pendingDelete; }, [pendingDelete]);
+  useLayoutEffect(() => {
+    pendingDeleteRef.current = pendingDelete;
+  }, [pendingDelete]);
   const canDelete = permissions.canDelete;
   const permissionsRef = useRef<MasterCRUDPermissions>({
     canDelete: canDelete === true,
@@ -215,47 +229,52 @@ export function useMasterCRUD<T extends MasterEntity>({
 
   // ── Handlers ──
   // BUG-380: dirtyGuard 指定時は未保存変更の破棄確認を挟む。
-  const confirmDiscard = useCallback(() => {
-    if (!dirtyGuard) return true;
-    return dirtyGuard.confirmDiscard();
-  }, [dirtyGuard]);
+  const withDirtyGuard = useCallback(
+    (fn: () => void) => {
+      if (dirtyGuard?.runWithDiscardCheck) {
+        dirtyGuard.runWithDiscardCheck(fn);
+        return;
+      }
+      if (dirtyGuard?.confirmDiscard && !dirtyGuard.confirmDiscard()) return;
+      fn();
+    },
+    [dirtyGuard],
+  );
 
   const handleClose = useCallback(() => {
-    if (!confirmDiscard()) return;
-    setEditTarget(null);
-  }, [confirmDiscard]);
+    withDirtyGuard(() => setEditTarget(null));
+  }, [withDirtyGuard]);
 
   const handleNew = useCallback(() => {
-    if (!confirmDiscard()) return;
-    setEditTarget("new");
-  }, [confirmDiscard]);
+    withDirtyGuard(() => setEditTarget("new"));
+  }, [withDirtyGuard]);
 
   const handleEdit = useCallback(
     (item: T) => {
-      if (!confirmDiscard()) return;
-      setEditTarget(item);
+      withDirtyGuard(() => setEditTarget(item));
     },
-    [confirmDiscard],
+    [withDirtyGuard],
   );
 
   const handleDeleteRequest = useCallback((item: T) => setPendingDelete(item), []);
 
   const handleDeleteCancel = useCallback(() => setPendingDelete(null), []);
 
+  const { mutate: deleteMasterFn } = deleteMutation;
   const handleDeleteConfirm = useCallback(() => {
     const target = pendingDeleteRef.current;
     if (!target) return;
     const currentPermissions = permissionsRef.current;
     if (currentPermissions.canDelete !== true) return;
-    deleteMutation.mutate(target.id, {
+    // onError は deleteMutation 側（各 master/api/*.ts の useDeleteXxx）で handleApiError 済み。
+    deleteMasterFn(target.id, {
       onSuccess: () => {
         setPendingDelete(null);
         setEditTarget(null);
         toast.success(`${entityLabel}を削除しました`);
       },
-      onError: (error) => handleApiError(error, `${entityLabel}の削除`),
     });
-  }, [deleteMutation, entityLabel]);
+  }, [deleteMasterFn, entityLabel]);
 
   const handleSortChange = useCallback((sorts: ActiveSort[]) => {
     setActiveSorts(sorts);

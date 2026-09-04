@@ -6,6 +6,9 @@ const Toaster = ({ ...props }: ToasterProps) => {
       theme="light"
       className="toaster group"
       closeButton
+      position="top-left"
+      offset={72}
+      duration={4000}
       style={
         {
           "--normal-bg": "var(--popover)",

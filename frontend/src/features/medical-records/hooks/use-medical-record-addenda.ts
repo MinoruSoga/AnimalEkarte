@@ -22,7 +22,9 @@ export function useCreateMedicalRecordAddendum(medicalRecordId: string) {
     mutationFn: (input: CreateMedicalRecordAddendumInput) =>
       createMedicalRecordAddendum(medicalRecordId, input),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.medicalRecords.addenda(medicalRecordId) });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.medicalRecords.addenda(medicalRecordId),
+      });
     },
   });
 }

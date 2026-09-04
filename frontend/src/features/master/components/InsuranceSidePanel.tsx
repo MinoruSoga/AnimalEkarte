@@ -8,16 +8,13 @@ import {
   PropertyRow,
   StatusToggleButton,
 } from "@/components/shared/SidePeek";
-import { LAYOUT } from "@/lib/design-tokens";
+import { C, LAYOUT } from "@/lib/design-tokens";
 import { handleApiError } from "@/lib/handle-api-error";
 
 import type { Insurance } from "../api/insurances";
 import { MASTER_INPUT_CLASS } from "../constants/styles";
 import { validateInsuranceForm } from "../routes/insurance-settings-model";
-import {
-  insuranceToFormData,
-  type InsuranceFormData,
-} from "./insurance-side-panel-model";
+import { insuranceToFormData, type InsuranceFormData } from "../lib/insurance-side-panel-model";
 
 interface InsuranceSidePanelProps {
   item: Insurance | null;
@@ -51,23 +48,35 @@ export const InsuranceSidePanel = memo(function InsuranceSidePanel({
     setIsDirty(true);
   }, []);
 
-  const handleTitleChange = useCallback((value: string) => {
-    setFormDataDirty((prev) => ({ ...prev, name: value }));
-    if (value.trim()) setNameError("");
-  }, [setFormDataDirty]);
+  const handleTitleChange = useCallback(
+    (value: string) => {
+      setFormDataDirty((prev) => ({ ...prev, name: value }));
+      if (value.trim()) setNameError("");
+    },
+    [setFormDataDirty],
+  );
 
-  const handleCoverageRateChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    setFormDataDirty((prev) => ({ ...prev, coverageRate: event.target.value }));
-    setCoverageError("");
-  }, [setFormDataDirty]);
+  const handleCoverageRateChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      setFormDataDirty((prev) => ({ ...prev, coverageRate: event.target.value }));
+      setCoverageError("");
+    },
+    [setFormDataDirty],
+  );
 
-  const handleContactPhoneChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    setFormDataDirty((prev) => ({ ...prev, contactPhone: event.target.value }));
-  }, [setFormDataDirty]);
+  const handleContactPhoneChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      setFormDataDirty((prev) => ({ ...prev, contactPhone: event.target.value }));
+    },
+    [setFormDataDirty],
+  );
 
-  const handleDescriptionChange = useCallback((value: string) => {
-    setFormDataDirty((prev) => ({ ...prev, description: value }));
-  }, [setFormDataDirty]);
+  const handleDescriptionChange = useCallback(
+    (value: string) => {
+      setFormDataDirty((prev) => ({ ...prev, description: value }));
+    },
+    [setFormDataDirty],
+  );
 
   const handleToggleActive = useCallback(() => {
     setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }));
@@ -81,9 +90,7 @@ export const InsuranceSidePanel = memo(function InsuranceSidePanel({
     setNameError("");
     // Surface field-level error; useMasterSave re-validates and toasts (no success path).
     const validationError = validateInsuranceForm(formData);
-    setCoverageError(
-      validationError && validationError.includes("補償率") ? validationError : "",
-    );
+    setCoverageError(validationError && validationError.includes("補償率") ? validationError : "");
     try {
       const saved = await onSave(formData);
       if (saved) {
@@ -119,7 +126,6 @@ export const InsuranceSidePanel = memo(function InsuranceSidePanel({
         <input
           type="number"
           min={0}
-          max={100}
           step={1}
           aria-label="補償率(%)"
           aria-invalid={coverageError ? true : undefined}
@@ -129,7 +135,7 @@ export const InsuranceSidePanel = memo(function InsuranceSidePanel({
           placeholder="0"
         />
         {coverageError ? (
-          <p className="mt-1 text-sm text-red-600" role="alert">
+          <p className={`mt-1 text-sm ${C.danger}`} role="alert">
             {coverageError}
           </p>
         ) : null}

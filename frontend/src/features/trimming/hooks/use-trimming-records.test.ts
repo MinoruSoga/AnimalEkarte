@@ -18,8 +18,22 @@ vi.mock("../api/delete-trimming", () => ({
 import { useGetTrimmingsPage } from "../api/get-trimmings";
 
 const mockRecords = [
-  { ownerName: "ヤマダタロウ", petName: "ポチ", status: "active", species: "犬", staff: "田中", breed: "トイプードル" },
-  { ownerName: "さとうけんじ", petName: "たまごろう", status: "active", species: "猫", staff: "佐藤", breed: "" },
+  {
+    ownerName: "ヤマダタロウ",
+    petName: "ポチ",
+    status: "active",
+    species: "犬",
+    staff: "田中",
+    breed: "トイプードル",
+  },
+  {
+    ownerName: "さとうけんじ",
+    petName: "たまごろう",
+    status: "active",
+    species: "猫",
+    staff: "佐藤",
+    breed: "",
+  },
 ];
 
 function setup(searchTerm: string) {

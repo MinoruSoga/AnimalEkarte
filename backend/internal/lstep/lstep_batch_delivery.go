@@ -6,6 +6,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -24,7 +25,7 @@ func (s *lstepBatchService) runDeliveryTriggersForClinicAt(
 	asOf time.Time,
 ) (int, []error) {
 	if s.lstepDeliveryTrigger == nil {
-		return 0, nil
+		return 0, []error{apperrors.WrapInternalServerError("lstep delivery trigger dependency is required")}
 	}
 	type batchFn func(context.Context, uint64, time.Time) (int, []error)
 	type batchEntry struct {

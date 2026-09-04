@@ -732,3 +732,55 @@ func TestDeleteConsultation(t *testing.T) {
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
 }
+
+// SEC-CODEX-UHQPM2 selected-clinic grant
+func TestConsultationSelectedClinicGrant(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name   string
+		invoke func(*ConsultationHandler, *gin.Context)
+		svc    *mockConsultationService
+	}{
+		{
+			name: "ListConsultations returns 403 when selected clinic lacks master-medical view grant",
+			invoke: func(h *ConsultationHandler, c *gin.Context) {
+				h.ListConsultations(c)
+			},
+			svc: &mockConsultationService{
+				listFn: func(_ context.Context, _ uint64) ([]model.Consultation, error) {
+					t.Fatal("service must not be reached")
+					return nil, nil
+				},
+			},
+		},
+		{
+			name: "GetConsultation returns 403 when selected clinic lacks master-medical view grant",
+			invoke: func(h *ConsultationHandler, c *gin.Context) {
+				h.GetConsultation(c)
+			},
+			svc: &mockConsultationService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.Consultation, error) {
+					t.Fatal("service must not be reached")
+					return nil, nil
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithConsultationSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: "10"}}
+			setClinicID(c)
+			c.Set("clinic_id", "2")
+			c.Set("is_system_admin", false)
+			setResourcePermissionOnlyClinic(c, 1, string(model.ResourceMasterMedical), "view")
+			tt.invoke(h, c)
+			assert.Equal(t, http.StatusForbidden, w.Code)
+		})
+	}
+}

@@ -92,6 +92,8 @@ func TestEstimateService_Create_RejectsCrossClinicMedicalRecordAndOwner(t *testi
 	const ownedOwnerID = uint64(10)
 	const foreignOwnerID = uint64(999)
 	const otherOwnerID = uint64(11)
+	const ownedPetID = uint64(20)
+	const foreignPetID = uint64(902)
 
 	linkAware := func(created *bool) EstimateService {
 		repo := &mockEstimateRepository{
@@ -121,6 +123,12 @@ func TestEstimateService_Create_RejectsCrossClinicMedicalRecordAndOwner(t *testi
 					return apperrors.WrapNotFound("owner", "foreign")
 				}
 				return nil
+			},
+			findPetOwnerInClinicFn: func(_ context.Context, gotClinicID, petID uint64) (uint64, error) {
+				if gotClinicID != clinicID || petID != ownedPetID {
+					return 0, apperrors.WrapNotFound("pet", "foreign")
+				}
+				return ownedOwnerID, nil
 			},
 		}
 		return NewEstimateService(repo, mrRepo, resRepo, &mockStaffClinicMembershipCounter{}, nil, noopTransactor{})
@@ -193,10 +201,24 @@ func TestEstimateService_Create_RejectsCrossClinicMedicalRecordAndOwner(t *testi
 		in := base()
 		in.MedicalRecordID = ptrU64(ownedMRID)
 		in.OwnerID = ptrU64(ownedOwnerID)
+		in.PetID = ptrU64(ownedPetID)
 		out, err := svc.Create(context.Background(), clinicID, in)
 		require.NoError(t, err)
 		require.NotNil(t, out)
 		assert.True(t, created)
+	})
+
+	t.Run("rejects cross-clinic pet_id and does not persist", func(t *testing.T) {
+		created := false
+		svc := linkAware(&created)
+		in := base()
+		in.OwnerID = ptrU64(ownedOwnerID)
+		in.PetID = ptrU64(foreignPetID)
+		out, err := svc.Create(context.Background(), clinicID, in)
+		assert.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err), "want NotFound, got %v", err)
+		assert.Nil(t, out)
+		assert.False(t, created)
 	})
 }
 

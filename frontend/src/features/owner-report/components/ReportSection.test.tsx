@@ -61,7 +61,9 @@ describe("ReportSection", () => {
 
   it("SD-18: isTruncated=true のとき打ち切り注記を children の前に表示する", () => {
     renderSection({ isTruncated: true });
-    expect(screen.getByTestId("section-truncation-notice")).toHaveTextContent("直近100件を表示しています");
+    expect(screen.getByTestId("section-truncation-notice")).toHaveTextContent(
+      "直近100件を表示しています",
+    );
     expect(screen.getByText("本文コンテンツ")).toBeInTheDocument();
   });
 

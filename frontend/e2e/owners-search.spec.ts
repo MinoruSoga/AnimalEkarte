@@ -1,8 +1,8 @@
-import { test, expect } from '@playwright/test';
-import type { BrowserContext } from '@playwright/test';
-import { createAuthedContext } from './helpers/context';
-import { DEMO_PETER_PET } from './helpers/demo-seed';
-import { OwnersPage } from './pages/owners-page';
+import { test, expect } from "@playwright/test";
+import type { BrowserContext } from "@playwright/test";
+import { createAuthedContext } from "./helpers/context";
+import { DEMO_PETER_PET } from "./helpers/demo-seed";
+import { OwnersPage } from "./pages/owners-page";
 
 // Primary execution: scripts/run-e2e.sh (mcr.microsoft.com/playwright Docker image, connects to localhost:3003 via host.docker.internal).
 // Fallback: macOS native `pnpm test:e2e` (requires playwright browsers installed on host).
@@ -10,8 +10,10 @@ import { OwnersPage } from './pages/owners-page';
 // Design: fresh page per test within shared context to avoid Chromium
 // state accumulation across many navigations.
 
-test.describe('飼主一覧 かな検索', () => {
-  test('未ログイン時は /owners にアクセスすると /login にリダイレクトされる', async ({ browser }) => {
+test.describe("飼主一覧 かな検索", () => {
+  test("未ログイン時は /owners にアクセスすると /login にリダイレクトされる", async ({
+    browser,
+  }) => {
     // Use a fresh context with no auth state.
     // domcontentloaded avoids waiting for all Vite ES-module requests; the
     // Browser redirect (/login) fires after JS loads, so poll via waitForURL.
@@ -22,7 +24,7 @@ test.describe('飼主一覧 かな検索', () => {
     await freshContext.close();
   });
 
-  test.describe('ログイン後', () => {
+  test.describe("ログイン後", () => {
     let loggedInContext: BrowserContext;
 
     test.beforeAll(async ({ browser }) => {
@@ -33,7 +35,7 @@ test.describe('飼主一覧 かな検索', () => {
       await loggedInContext.close();
     });
 
-    test('ひらがな「ぴーたー」で検索するとカタカナ「ピーター」が表示される', async () => {
+    test("ひらがな「ぴーたー」で検索するとカタカナ「ピーター」が表示される", async () => {
       const page = await loggedInContext.newPage();
       const owners = new OwnersPage(page);
       try {
@@ -41,7 +43,7 @@ test.describe('飼主一覧 かな検索', () => {
         await expect(page).toHaveURL(/\/owners/);
 
         // Open search bar (toggle button with aria-label="検索")
-        await page.getByRole('button', { name: '検索' }).click();
+        await page.getByRole("button", { name: "検索" }).click();
 
         // Search input appears
         const searchInput = owners.searchInput();
@@ -57,14 +59,14 @@ test.describe('飼主一覧 かな検索', () => {
       }
     });
 
-    test('カタカナ「ピーター」で検索しても「ピーター」が表示される (ひらがな・カタカナ統一検索)', async () => {
+    test("カタカナ「ピーター」で検索しても「ピーター」が表示される (ひらがな・カタカナ統一検索)", async () => {
       const page = await loggedInContext.newPage();
       const owners = new OwnersPage(page);
       try {
         await owners.gotoList();
         await expect(page).toHaveURL(/\/owners/);
 
-        await page.getByRole('button', { name: '検索' }).click();
+        await page.getByRole("button", { name: "検索" }).click();
         const searchInput = owners.searchInput();
         await expect(searchInput).toBeVisible();
 

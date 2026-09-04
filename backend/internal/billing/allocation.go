@@ -144,7 +144,7 @@ func AllocateBillingPayments(in AllocationBillingInput) map[string]map[string]in
 		}
 	}
 
-	fallback := string(fallbackAllocationCategory())
+	fallback := fallbackAllocationCategory()
 	if len(cats) == 0 {
 		cats = []string{fallback}
 		weights = []int64{1}

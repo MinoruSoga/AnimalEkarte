@@ -1,18 +1,22 @@
 import { useState, useCallback, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router";
-import { addHours, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addDays, format } from "date-fns";
+import {
+  addHours,
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+  addDays,
+  format,
+} from "date-fns";
 import { ja } from "date-fns/locale";
-import type {
-  CalendarView,
-  Reservation,
-  ReservationFormData,
-  NavigationState,
-} from "../types";
+import type { CalendarView, Reservation, ReservationFormData, NavigationState } from "../types";
 import type { ReservationCreateMutations } from "@/types/reservation-create-mutations";
 
 import { useGetReservations } from "../api/get-reservations";
 import {
   useReservationActions,
+  type ReservationMutationPermissions,
   type StatusConfirmTarget,
 } from "./use-reservation-actions";
 import { useReservationModalState } from "./use-reservation-modal-state";
@@ -27,9 +31,18 @@ interface UseReservationManagementParams {
   /** #86: 拠点横断表示。複数医院IDのとき clinic_ids をAPIに送信する */
   clinicIds?: string[];
   createMutations: ReservationCreateMutations;
+  /** FE-RC-204: 未指定は fail-closed（全拒否）。 */
+  permissions?: Readonly<ReservationMutationPermissions>;
 }
 
-export function useReservationManagement({ currentDate, view, days, clinicIds, createMutations }: UseReservationManagementParams) {
+export function useReservationManagement({
+  currentDate,
+  view,
+  days,
+  clinicIds,
+  createMutations,
+  permissions,
+}: UseReservationManagementParams) {
   const navigate = useNavigate();
   const location = useLocation();
   const locationFrom = (location.state as NavigationState | null)?.from ?? null;
@@ -48,7 +61,11 @@ export function useReservationManagement({ currentDate, view, days, clinicIds, c
     return { startDate: format(start, "yyyy-MM-dd"), endDate: format(end, "yyyy-MM-dd") };
   }, [currentDate, view, days]);
 
-  const { data: appointments = EMPTY_RESERVATIONS, isLoading } = useGetReservations({ startDate, endDate, clinicIds });
+  const { data: appointments = EMPTY_RESERVATIONS, isLoading } = useGetReservations({
+    startDate,
+    endDate,
+    clinicIds,
+  });
 
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Reservation | null>(null);
@@ -80,7 +97,7 @@ export function useReservationManagement({ currentDate, view, days, clinicIds, c
       };
       handleOpenForm(stub);
     },
-    [handleOpenForm]
+    [handleOpenForm],
   );
 
   const {
@@ -89,6 +106,7 @@ export function useReservationManagement({ currentDate, view, days, clinicIds, c
     handleStatusChange,
     executeStatusChange,
     executeDelete,
+    handleCloseCreateForm,
   } = useReservationActions({
     appointments,
     editingAppointmentRef,
@@ -104,6 +122,7 @@ export function useReservationManagement({ currentDate, view, days, clinicIds, c
     locationFrom,
     navigate,
     createMutations,
+    permissions,
   });
 
   const handleDelete = useCallback((reservation: Reservation) => {
@@ -137,7 +156,7 @@ export function useReservationManagement({ currentDate, view, days, clinicIds, c
     isFormOpen,
     editingAppointment,
     handleOpenForm,
-    handleCloseForm,
+    handleCloseForm: handleCloseCreateForm,
     handleSave,
 
     // Detail modal

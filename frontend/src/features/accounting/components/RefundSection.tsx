@@ -1,14 +1,29 @@
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useActionState, useMemo, useState } from "react";
 import { Plus, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { TableCell, TableHead } from "@/components/ui/table";
+import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C, ICON } from "@/lib/design-tokens";
 import { PAYMENT_METHOD_LABELS } from "@/constants/payment-method";
 import { formatJSTDate } from "@/lib/jst-date";
@@ -54,22 +69,29 @@ export const RefundSection = memo(function RefundSection({
 
   const totalRefunded = refunds.reduce((sum, r) => sum + r.amount, 0);
   const refundableAmount = totalAmount - totalRefunded;
+  const recordedNegative = totalAmount < 0;
 
-  const handleSubmit = useCallback(() => {
-    const amount = parseInt(refundAmount, 10);
-    if (!amount || amount <= 0) return;
-    if (amount > refundableAmount) {
-      toast.error(`返金額は残額 ${formatCurrency(refundableAmount)} 以下で入力してください`);
-      return;
-    }
-    const paymentMethod =
-      refundPaymentMethod !== NO_PAYMENT_METHOD ? (refundPaymentMethod as PaymentMethod) : undefined;
-    onRefund(amount, refundReason, paymentMethod);
-    setRefundDialogOpen(false);
-    setRefundAmount("");
-    setRefundReason("");
-    setRefundPaymentMethod(NO_PAYMENT_METHOD);
-  }, [refundAmount, refundReason, refundPaymentMethod, onRefund, refundableAmount]);
+  const [, formAction] = useActionState<null, FormData>(
+    async (_prev: null, _formData: FormData) => {
+      const amount = parseInt(refundAmount, 10);
+      if (!amount || amount <= 0) return null;
+      if (amount > refundableAmount) {
+        toast.error(`返金額は残額 ${formatCurrency(refundableAmount)} 以下で入力してください`);
+        return null;
+      }
+      const paymentMethod =
+        refundPaymentMethod !== NO_PAYMENT_METHOD
+          ? (refundPaymentMethod as PaymentMethod)
+          : undefined;
+      onRefund(amount, refundReason, paymentMethod);
+      setRefundDialogOpen(false);
+      setRefundAmount("");
+      setRefundReason("");
+      setRefundPaymentMethod(NO_PAYMENT_METHOD);
+      return null;
+    },
+    null,
+  );
 
   return (
     <Card>
@@ -78,11 +100,15 @@ export const RefundSection = memo(function RefundSection({
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <RotateCcw className={`${ICON.action} ${C.textDiscount}`} />
             返金管理
-            <span className={`text-xs font-normal ${C.text50}`}>
-              残額 {formatCurrency(refundableAmount)}
+            <span id="refund-recorded-amount" className={`text-xs font-normal ${C.text50}`}>
+              {recordedNegative
+                ? `記録金額 ${formatCurrency(totalAmount)}`
+                : `残額 ${formatCurrency(refundableAmount)}`}
             </span>
             {totalRefunded > 0 ? (
-              <span className={`text-xs font-normal ${C.textDiscount} ${C.bgDiscountLight} px-2 py-0.5 rounded`}>
+              <span
+                className={`text-xs font-normal ${C.textDiscount} ${C.bgDiscountLight} px-2 py-0.5 rounded`}
+              >
                 合計 {formatCurrency(totalRefunded)} 返金済
               </span>
             ) : null}
@@ -95,7 +121,8 @@ export const RefundSection = memo(function RefundSection({
                   variant="outline"
                   size="sm"
                   className="h-8 text-xs"
-                  disabled={refundableAmount <= 0}
+                  disabled={recordedNegative || refundableAmount <= 0}
+                  aria-describedby="refund-recorded-amount"
                 >
                   <Plus className={`mr-1 ${ICON.action}`} />
                   返金を登録
@@ -106,59 +133,70 @@ export const RefundSection = memo(function RefundSection({
                   <DialogTitle>返金を登録</DialogTitle>
                   <DialogDescription>返金金額と理由を入力してください。</DialogDescription>
                 </DialogHeader>
-                <div className="space-y-4 py-2">
-                  <div className="space-y-2">
-                    <Label>返金金額（円）</Label>
-                    <Input
-                      type="number"
-                      step={1}
-                      min={1}
-                      value={refundAmount}
-                      onChange={(e) => setRefundAmount(e.target.value)}
-                      placeholder="0"
-                      className="h-10"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>返金理由（任意）</Label>
-                    <Input
-                      value={refundReason}
-                      onChange={(e) => setRefundReason(e.target.value)}
-                      placeholder="返金理由を入力..."
-                      className="h-10"
-                    />
-                  </div>
-                  {usedPaymentMethods.length > 0 ? (
+                {/* HTML5 required/min が JS toast より先にインターセプトしないよう noValidate */}
+                <form action={formAction} noValidate>
+                  <div className="space-y-4 py-2">
                     <div className="space-y-2">
-                      <Label>支払方法（任意）</Label>
-                      <Select value={refundPaymentMethod} onValueChange={setRefundPaymentMethod}>
-                        <SelectTrigger data-testid="refund-payment-method-trigger" className="h-10">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={NO_PAYMENT_METHOD}>指定なし</SelectItem>
-                          {usedPaymentMethods.map((m) => (
-                            <SelectItem key={m} value={m}>
-                              {PAYMENT_METHOD_LABELS[m] ?? m}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Label htmlFor="refund-amount">返金金額（円）</Label>
+                      <Input
+                        id="refund-amount"
+                        type="number"
+                        step={1}
+                        min={1}
+                        value={refundAmount}
+                        onChange={(e) => setRefundAmount(e.target.value)}
+                        placeholder="0"
+                        className="h-10"
+                      />
                     </div>
-                  ) : null}
-                </div>
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setRefundDialogOpen(false)}>
-                    キャンセル
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={handleSubmit}
-                    disabled={!refundAmount || parseInt(refundAmount, 10) <= 0 || isRefunding}
-                  >
-                    {isRefunding ? "処理中..." : "登録する"}
-                  </Button>
-                </DialogFooter>
+                    <div className="space-y-2">
+                      <Label htmlFor="refund-reason">返金理由（任意）</Label>
+                      <Input
+                        id="refund-reason"
+                        value={refundReason}
+                        onChange={(e) => setRefundReason(e.target.value)}
+                        placeholder="返金理由を入力..."
+                        className="h-10"
+                      />
+                    </div>
+                    {usedPaymentMethods.length > 0 ? (
+                      <div className="space-y-2">
+                        <Label htmlFor="refund-payment-method-trigger">支払方法（任意）</Label>
+                        <Select value={refundPaymentMethod} onValueChange={setRefundPaymentMethod}>
+                          <SelectTrigger
+                            id="refund-payment-method-trigger"
+                            data-testid="refund-payment-method-trigger"
+                            className="h-10"
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={NO_PAYMENT_METHOD}>指定なし</SelectItem>
+                            {usedPaymentMethods.map((m) => (
+                              <SelectItem key={m} value={m}>
+                                {PAYMENT_METHOD_LABELS[m] ?? m}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ) : null}
+                  </div>
+                  <DialogFooter>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setRefundDialogOpen(false)}
+                    >
+                      キャンセル
+                    </Button>
+                    <SubmitButton
+                      disabled={!refundAmount || parseInt(refundAmount, 10) <= 0 || isRefunding}
+                    >
+                      {isRefunding ? "処理中..." : "登録する"}
+                    </SubmitButton>
+                  </DialogFooter>
+                </form>
               </DialogContent>
             </Dialog>
           ) : null}
@@ -182,14 +220,14 @@ export const RefundSection = memo(function RefundSection({
                   <TableCell className={`font-mono ${C.text50}`}>
                     {formatJSTDate(r.refundedAt)}
                   </TableCell>
-                  <TableCell className={C.text50}>
-                    {r.refundedByName || "-"}
-                  </TableCell>
+                  <TableCell className={C.text50}>{r.refundedByName || "-"}</TableCell>
                   <TableCell className={`text-right font-medium ${C.textDiscount}`}>
                     {formatCurrency(r.amount)}
                   </TableCell>
                   <TableCell className={C.text50}>
-                    {r.paymentMethod ? (PAYMENT_METHOD_LABELS[r.paymentMethod as PaymentMethod] ?? r.paymentMethod) : "-"}
+                    {r.paymentMethod
+                      ? (PAYMENT_METHOD_LABELS[r.paymentMethod as PaymentMethod] ?? r.paymentMethod)
+                      : "-"}
                   </TableCell>
                   <TableCell className={`${C.text50} max-w-[120px] truncate`}>
                     {r.reason || "-"}

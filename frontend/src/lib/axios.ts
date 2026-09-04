@@ -1,8 +1,5 @@
 import Axios, { type InternalAxiosRequestConfig, type AxiosError } from "axios";
-import {
-  isAuthPublicPath,
-  isPasswordRecoveryPublicPath,
-} from "@/lib/auth-route-policy";
+import { isAuthPublicPath, isPasswordRecoveryPublicPath } from "@/lib/auth-route-policy";
 import { getStoredClinicId } from "@/lib/current-clinic";
 import { parseInternalPath } from "@/lib/internal-navigation";
 import { sanitizeNullBytes } from "@/lib/sanitize";
@@ -79,21 +76,36 @@ function processQueue(error: AxiosError | null): void {
   pendingRequests = [];
 }
 
-type RetryableConfig = InternalAxiosRequestConfig & { 
+type RetryableConfig = InternalAxiosRequestConfig & {
   _retryCount?: number;
   _retry?: boolean;
 };
 
+/**
+ * FE-RC-076: 未認証セッションをログインへ退避する共通処理。
+ * 401 ハンドリング内の 2 か所（既存パスワード変更 401 とリフレッシュ失敗時）で
+ * 同一ロジックが重複していたため抽出（DRY）。`from` は内部相対パスのみを許可し
+ * （parseInternalPath）、オープンリダイレクトを防ぐ。
+ */
+function redirectToLogin(): void {
+  const safePath =
+    parseInternalPath(`${window.location.pathname}${window.location.search}`) ??
+    paths.home.getHref();
+  const from = encodeURIComponent(safePath);
+  window.location.href = `${paths.auth.login.getHref()}?from=${from}`;
+}
+
 axios.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-      const config = error.config as RetryableConfig | undefined;
+    const config = error.config as RetryableConfig | undefined;
     if (!config) return Promise.reject(error);
 
     // --- 1. 自動リトライロジック (GETリクエストのみ) ---
     const isGetRequest = config.method?.toLowerCase() === "get";
     const isNetworkError = !error.response && error.code !== "ERR_CANCELED";
-    const isServerError = error.response && error.response.status >= 502 && error.response.status <= 504;
+    const isServerError =
+      error.response && error.response.status >= 502 && error.response.status <= 504;
 
     if (isGetRequest && (isNetworkError || isServerError)) {
       config._retryCount = config._retryCount ?? 0;
@@ -101,17 +113,14 @@ axios.interceptors.response.use(
       if (config._retryCount < MAX_RETRIES) {
         config._retryCount += 1;
         // 指数バックオフ的な待機
-        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * config._retryCount!));
+        await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS * config._retryCount!));
         return axios(config);
       }
     }
 
     // Public auth pages intentionally work without a session. Expected login/recovery
     // 401s belong to the page and must not trigger a refresh request.
-    if (
-      error.response?.status === 401 &&
-      isAuthPublicPath(window.location.pathname)
-    ) {
+    if (error.response?.status === 401 && isAuthPublicPath(window.location.pathname)) {
       return Promise.reject(error);
     }
 
@@ -121,18 +130,16 @@ axios.interceptors.response.use(
       error.response?.status !== 401 ||
       originalRequest === undefined ||
       originalRequest._retry === true ||
-      originalRequest.url?.includes("/auth/refresh") === true
+      originalRequest.url?.includes("/auth/refresh") === true ||
+      originalRequest.url?.includes("/users/me/password") === true
     ) {
-      // 401 で上記条件に当てはまらない場合（リフレッシュ不可）はログインへ
+      // パスワード変更の 401 は「現在のパスワード誤り」でありセッション切れではない（BUG-026）
       if (
         error.response?.status === 401 &&
-        window.location.pathname !== "/login"
+        window.location.pathname !== "/login" &&
+        originalRequest?.url?.includes("/users/me/password") !== true
       ) {
-        const safePath =
-          parseInternalPath(`${window.location.pathname}${window.location.search}`) ??
-          paths.home.getHref();
-        const from = encodeURIComponent(safePath);
-        window.location.href = `${paths.auth.login.getHref()}?from=${from}`;
+        redirectToLogin();
       }
       return Promise.reject(error);
     }
@@ -160,11 +167,7 @@ axios.interceptors.response.use(
         window.location.pathname !== "/login" &&
         !isPasswordRecoveryPublicPath(window.location.pathname)
       ) {
-        const safePath =
-          parseInternalPath(`${window.location.pathname}${window.location.search}`) ??
-          paths.home.getHref();
-        const from = encodeURIComponent(safePath);
-        window.location.href = `${paths.auth.login.getHref()}?from=${from}`;
+        redirectToLogin();
       }
       return Promise.reject(refreshError);
     } finally {

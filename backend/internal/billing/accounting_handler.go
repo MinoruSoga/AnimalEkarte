@@ -34,7 +34,11 @@ func NewAccountingHandler(svc AccountingService, cashRegister cashRegisterCloseC
 
 // ListAccountings godoc
 func (h *AccountingHandler) ListAccountings(c *gin.Context) {
-	clinicIDs, ok := httpapi.ResolveListClinicIDs(c)
+	clinicIDs, ok := httpapi.ResolveListClinicIDsForPermission(
+		c,
+		string(model.ResourceAccounting),
+		"view",
+	)
 	if !ok {
 		return
 	}
@@ -80,8 +84,12 @@ func (h *AccountingHandler) ListAccountings(c *gin.Context) {
 
 // GetAccounting godoc
 func (h *AccountingHandler) GetAccounting(c *gin.Context) {
-	// #86: 詳細画面の拠点横断閲覧 — 所属医院全体をスコープにしてレコードを取得する
-	clinicIDs, ok := httpapi.ResolveAllClinicIDs(c)
+	// #86: 詳細画面の拠点横断閲覧 — 所属かつ accounting:view を持つ医院だけをスコープにする
+	clinicIDs, ok := httpapi.ResolveAllClinicIDsForPermission(
+		c,
+		string(model.ResourceAccounting),
+		"view",
+	)
 	if !ok {
 		return
 	}
@@ -233,13 +241,17 @@ func (h *AccountingHandler) UpdateAccounting(c *gin.Context) {
 
 	ctx := c.Request.Context()
 
-	// #115: 締め後編集チェック
+	// #115: 締め後編集チェックは source（既存予定日）と destination（変更後予定日）の両方。
 	existing, err := h.svc.GetByID(ctx, clinicID, id)
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return
 	}
-	isClosed, err := h.cashRegister.IsDateClosed(ctx, clinicID, existing.ScheduledDate)
+	destDate := existing.ScheduledDate
+	if input.ScheduledDate != nil {
+		destDate = *input.ScheduledDate
+	}
+	isClosed, err := h.anyAccountingDateClosed(ctx, clinicID, existing.ScheduledDate, destDate)
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return
@@ -323,6 +335,9 @@ func (h *AccountingHandler) ListUnpaidBillings(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceAccounting), "view") {
+		return
+	}
 	page, limit, err := httpapi.ParsePagination(c)
 	if err != nil {
 		httpapi.RespondError(c, err)
@@ -364,6 +379,9 @@ func (h *AccountingHandler) GetOwnerUnpaidBalance(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceAccounting), "view") {
+		return
+	}
 	ownerID, err := strconv.ParseUint(c.Query("owner_id"), 10, 64)
 	if err != nil || ownerID == 0 {
 		httpapi.RespondError(c, apperrors.WrapInvalidInput("owner_id is required"))
@@ -382,6 +400,9 @@ func (h *AccountingHandler) GetOwnerUnpaidBalance(c *gin.Context) {
 func (h *AccountingHandler) GetUnpaidMonthlySummary(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceAccounting), "view") {
 		return
 	}
 	page, limit, err := httpapi.ParsePagination(c)
@@ -409,7 +430,11 @@ func (h *AccountingHandler) GetUnpaidMonthlySummary(c *gin.Context) {
 // GET /v1/accountings/daily-summary?date=YYYY-MM-DD[&clinic_ids=1,2]
 // clinic_ids が複数の場合は per_clinic 配列を追加で返す (#86 段階3 論点4=2)。
 func (h *AccountingHandler) GetDailySummary(c *gin.Context) {
-	clinicIDs, ok := httpapi.ResolveListClinicIDs(c)
+	clinicIDs, ok := httpapi.ResolveListClinicIDsForPermission(
+		c,
+		string(model.ResourceAccounting),
+		"view",
+	)
 	if !ok {
 		return
 	}
@@ -457,4 +482,27 @@ func (h *AccountingHandler) CancelAccounting(c *gin.Context) {
 // optionalStaffID は httpapi.OptionalStaffID への薄い委譲（エラーを書かない actor 取得・B④）。
 func optionalStaffID(c *gin.Context) *uint64 {
 	return httpapi.OptionalStaffID(c)
+}
+
+// anyAccountingDateClosed は source/destination 予定日のいずれかが締め済みなら true。
+func (h *AccountingHandler) anyAccountingDateClosed(ctx context.Context, clinicID uint64, dates ...time.Time) (bool, error) {
+	seen := make(map[string]struct{}, len(dates))
+	for _, date := range dates {
+		if date.IsZero() {
+			continue
+		}
+		key := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC).Format(time.DateOnly)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		closed, err := h.cashRegister.IsDateClosed(ctx, clinicID, date)
+		if err != nil {
+			return false, err
+		}
+		if closed {
+			return true, nil
+		}
+	}
+	return false, nil
 }

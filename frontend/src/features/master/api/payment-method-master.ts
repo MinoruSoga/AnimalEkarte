@@ -48,7 +48,10 @@ const createPaymentMethod = async (req: CreatePaymentMethodRequest): Promise<Pay
   return transformPaymentMethod(data);
 };
 
-const updatePaymentMethod = async (id: string, req: UpdatePaymentMethodRequest): Promise<PaymentMethod> => {
+const updatePaymentMethod = async (
+  id: string,
+  req: UpdatePaymentMethodRequest,
+): Promise<PaymentMethod> => {
   const { data } = await axios.patch<ModelPaymentMethodMaster>(`/v1/payment-methods/${id}`, req);
   return transformPaymentMethod(data);
 };
@@ -73,7 +76,8 @@ export const useCreatePaymentMethod = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: createPaymentMethod,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("payment-methods") }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("payment-methods") }),
     onError: (error) => handleApiError(error, "作成"),
   });
 };
@@ -83,7 +87,8 @@ export const useUpdatePaymentMethod = () => {
   return useMutation({
     mutationFn: ({ id, req }: { id: string; req: UpdatePaymentMethodRequest }) =>
       updatePaymentMethod(id, req),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("payment-methods") }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("payment-methods") }),
     onError: (error) => handleApiError(error, "更新"),
   });
 };
@@ -92,9 +97,8 @@ export const useDeletePaymentMethod = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: deletePaymentMethod,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("payment-methods") }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("payment-methods") }),
     onError: (error) => handleApiError(error, "削除"),
   });
 };
-
-

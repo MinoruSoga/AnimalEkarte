@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"testing"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/infra/httpx"
@@ -28,7 +29,8 @@ const (
 // sharedHTTPClient はLステップAPI呼出全体で共有するhttp.Client。
 // 操作毎にNewClientを呼ぶたびに新規Transportを生成するとTCP/TLS接続が再利用されない
 // （BE-refactor.md B-3）。資格情報はリクエストヘッダ渡しのためクリニック間で共有して問題ない。
-var sharedHTTPClient = &http.Client{Timeout: defaultTimeout}
+// Dial は loopback / RFC1918 / CGNAT を拒否し、リダイレクトは追わない。
+var sharedHTTPClient = newHardenedHTTPClient(defaultTimeout)
 
 // Client はLステップAPIクライアントのインターフェース。
 // DI可能にすることでテスト時のモック差し替えを可能にする。
@@ -66,6 +68,19 @@ func NewClient(apiKey, baseURL string) Client {
 		apiKey:  apiKey,
 		baseURL: baseURL,
 		http:    sharedHTTPClient,
+	}
+}
+
+// NewInsecureTestClient talks to httptest.Server (loopback). It panics outside
+// `go test` so production binaries cannot use it to bypass hardenedDialContext.
+func NewInsecureTestClient(apiKey, baseURL string) Client {
+	if !testing.Testing() {
+		panic("lstep.NewInsecureTestClient is test-only")
+	}
+	return &httpLstepClient{
+		apiKey:  apiKey,
+		baseURL: baseURL,
+		http:    &http.Client{Timeout: defaultTimeout},
 	}
 }
 

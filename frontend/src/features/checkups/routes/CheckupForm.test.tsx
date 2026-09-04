@@ -23,6 +23,10 @@ vi.mock("@/hooks/use-staffs", () => ({
   useGetStaffs: () => ({ data: [{ id: "10", name: "獣医師A", isActive: true }] }),
 }));
 
+vi.mock("../api/get-checkups", () => ({
+  useGetCheckups: () => ({ data: { data: [], total: 0, page: 1, limit: 100 }, isLoading: false }),
+}));
+
 function renderForm() {
   return render(
     <MemoryRouter>
@@ -48,6 +52,7 @@ beforeEach(() => {
     form: {
       checkupTypeId: "",
       date: "",
+      nextScheduleType: "1year",
       nextDate: "",
       doctorId: "",
       result: "",
@@ -61,6 +66,7 @@ beforeEach(() => {
     setFieldValue: vi.fn(),
     setCheckupTypeId: vi.fn(),
     setDate: vi.fn(),
+    setNextScheduleType: vi.fn(),
     setNextDate: vi.fn(),
     setDoctorId: vi.fn(),
     setResult: vi.fn(),
@@ -87,7 +93,8 @@ describe("CheckupForm permissions", () => {
     expect(screen.getByRole("group", { name: "定期健診入力" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "保存" })).toBeDisabled();
     expect(screen.getByRole("textbox", { name: "結果・所見" })).toBeDisabled();
-    for (const combobox of screen.getAllByRole("combobox")) {
+    const inputGroup = screen.getByRole("group", { name: "定期健診入力" });
+    for (const combobox of inputGroup.querySelectorAll('[role="combobox"]')) {
       expect(combobox).toBeDisabled();
     }
 
@@ -139,5 +146,72 @@ describe("CheckupForm permissions", () => {
     expect(screen.getByRole("group", { name: "定期健診入力" })).not.toBeDisabled();
     expect(screen.getByRole("button", { name: "保存" })).toBeEnabled();
     expect(screen.getByRole("textbox", { name: "結果・所見" })).toBeEnabled();
+  });
+});
+
+describe("CheckupForm 死亡ペット render側二重防壁 (FE-RC-004)", () => {
+  beforeEach(() => {
+    vi.mocked(usePermission).mockReturnValue({
+      canView: true,
+      canCreate: true,
+      canEdit: true,
+      canDelete: false,
+    });
+  });
+
+  it("死亡ペットでは SubmitButton を非表示にし、理由を表示する（callback ガードとの二重防壁）", () => {
+    vi.mocked(useCheckupForm).mockReturnValue({
+      pet: {
+        id: "pet-1",
+        ownerId: "owner-1",
+        ownerName: "山田 太郎",
+        name: "ポチ",
+        petNumber: "0001",
+        weight: "5.0kg",
+        status: "死亡",
+      },
+      isPetLoading: false,
+      form: {
+        checkupTypeId: "",
+        date: "",
+        nextScheduleType: "1year",
+        nextDate: "",
+        doctorId: "",
+        result: "",
+      },
+      formAction: formActionMock,
+      formState: { success: false, timestamp: 0 },
+      isPending: false,
+      fieldErrors: {},
+      checkupFields: [],
+      fieldValues: {},
+      setFieldValue: vi.fn(),
+      setCheckupTypeId: vi.fn(),
+      setDate: vi.fn(),
+      setNextScheduleType: vi.fn(),
+      setNextDate: vi.fn(),
+      setDoctorId: vi.fn(),
+      setResult: vi.fn(),
+    } as ReturnType<typeof useCheckupForm>);
+
+    renderForm();
+
+    // render 側防壁: SubmitButton 自体をレンダリングしない（disabled だけにしない）
+    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
+    expect(screen.getByText("死亡したペットの定期健診記録は保存できません")).toBeInTheDocument();
+    expect(screen.getByText("【死亡】")).toBeInTheDocument();
+
+    // callback 側防壁: 何らかの理由で form submit が発火しても action を呼ばない
+    fireEvent.submit(screen.getByRole("form", { name: "定期健診登録フォーム" }));
+    expect(formActionMock).not.toHaveBeenCalled();
+  });
+
+  it("生存ペットでは SubmitButton を表示し、死亡理由は表示しない", () => {
+    renderForm();
+
+    expect(screen.getByRole("button", { name: "保存" })).toBeInTheDocument();
+    expect(
+      screen.queryByText("死亡したペットの定期健診記録は保存できません"),
+    ).not.toBeInTheDocument();
   });
 });

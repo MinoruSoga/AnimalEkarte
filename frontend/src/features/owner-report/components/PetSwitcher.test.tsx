@@ -24,10 +24,7 @@ describe("PetSwitcher", () => {
     expect(select).toHaveValue("1");
     expect(select).toHaveAttribute("id", "owner-report-pet-switcher");
     expect(select).toHaveAttribute("name", "petId");
-    expect(screen.getByText("ペット切替")).toHaveAttribute(
-      "for",
-      "owner-report-pet-switcher",
-    );
+    expect(screen.getByText("ペット切替")).toHaveAttribute("for", "owner-report-pet-switcher");
     expect(screen.getByRole("option", { name: "ポチ（犬）" })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "タマ（猫）" })).toBeInTheDocument();
     expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
@@ -51,9 +48,7 @@ describe("PetSwitcher", () => {
 
   it("名称と種別が未登録でも空の選択肢にしない", () => {
     const onSelect = vi.fn();
-    render(
-      <PetSwitcher pets={[makePet("4", "", "")]} selectedPetId="4" onSelect={onSelect} />,
-    );
+    render(<PetSwitcher pets={[makePet("4", "", "")]} selectedPetId="4" onSelect={onSelect} />);
 
     expect(screen.getByRole("option", { name: "-" })).toBeInTheDocument();
   });

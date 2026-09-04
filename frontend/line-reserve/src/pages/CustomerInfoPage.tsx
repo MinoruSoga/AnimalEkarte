@@ -1,8 +1,15 @@
-import { useState, useCallback, useMemo } from 'react';
-import type { CustomerInfo, LiffProfile, PetSelection, OwnerPet } from '../types/models';
-import { ProgressDots } from '../components/ProgressDots';
-import { PrimaryButton } from '../components/PrimaryButton';
-import { BackButton } from '../components/BackButton';
+import { useState, useCallback, useMemo, useActionState, useRef, useLayoutEffect } from "react";
+import type { CustomerInfo, LiffProfile, PetSelection, OwnerPet } from "../types/models";
+import { ProgressDots } from "../components/ProgressDots";
+import { PrimaryButton } from "../components/PrimaryButton";
+import { BackButton } from "../components/BackButton";
+import { EXPLICIT_PRIMARY_CTA_LABEL } from "../lib/advance-policy";
+
+const BACKEND_PHONE_CHARACTERS = /^[0-9+ ()-]+$/;
+
+function isBackendCompatiblePhone(phone: string): boolean {
+  return BACKEND_PHONE_CHARACTERS.test(phone) && phone.replace(/\D/g, "").length >= 10;
+}
 
 interface CustomerInfoPageProps {
   profile: LiffProfile | null;
@@ -15,38 +22,36 @@ interface CustomerInfoPageProps {
 function ownerPetToSelection(pet: OwnerPet): PetSelection {
   return {
     name: pet.name,
-    type: pet.animal_species?.name ?? '',
+    type: pet.animal_species?.name ?? "",
     isNew: false,
   };
 }
 
 /** additional_fields の pets 配列から PetSelection[] を復元 */
-function restorePetsFromProfile(profile: LiffProfile | null, initial: PetSelection[]): PetSelection[] {
+function restorePetsFromProfile(
+  profile: LiffProfile | null,
+  initial: PetSelection[],
+): PetSelection[] {
   if (initial.length > 0) return initial;
 
   const af = profile?.additional_fields;
   if (af?.pets && af.pets.length > 0) {
-    return af.pets.map(p => ({ name: p.name, type: p.type, isNew: p.is_new }));
+    return af.pets.map((p) => ({ name: p.name, type: p.type, isNew: p.is_new }));
   }
   return [];
 }
 
-export function CustomerInfoPage({
-  profile,
-  initialInfo,
-  onNext,
-  onBack,
-}: CustomerInfoPageProps) {
+export function CustomerInfoPage({ profile, initialInfo, onNext, onBack }: CustomerInfoPageProps) {
   const owner = profile?.owner;
   const ownerPets: OwnerPet[] = useMemo(() => owner?.pets ?? [], [owner?.pets]);
   const f = profile?.additional_fields;
 
   // ---- 基本情報 ----
   // BUG-387: 初期値優先順 — initialInfo（戻り操作）→ additional_fields（リピーター前回入力）→ owner（紐付け済みオーナー）
-  const [name, setName] = useState(() => initialInfo.name || f?.name || owner?.owner_name || '');
-  const [phone, setPhone] = useState(() => initialInfo.phone || f?.phone || owner?.phone || '');
+  const [name, setName] = useState(() => initialInfo.name || f?.name || owner?.owner_name || "");
+  const [phone, setPhone] = useState(() => initialInfo.phone || f?.phone || owner?.phone || "");
   const [ownerName, setOwnerName] = useState(
-    () => initialInfo.ownerName || f?.owner_name || owner?.owner_name || '',
+    () => initialInfo.ownerName || f?.owner_name || owner?.owner_name || "",
   );
 
   // ---- ペット選択 ----
@@ -57,7 +62,7 @@ export function CustomerInfoPage({
     const restored = restorePetsFromProfile(profile, initialInfo.pets);
     for (const pet of restored) {
       if (!pet.isNew) {
-        const match = ownerPets.find(op => op.name === pet.name);
+        const match = ownerPets.find((op) => op.name === pet.name);
         if (match) set.add(match.id);
       }
     }
@@ -71,19 +76,19 @@ export function CustomerInfoPage({
   // 新規ペット一覧（自由入力）
   const [newPets, setNewPets] = useState<PetSelection[]>(() => {
     const restored = restorePetsFromProfile(profile, initialInfo.pets);
-    return restored.filter(p => p.isNew === true);
+    return restored.filter((p) => p.isNew === true);
   });
 
   // 新規ペット入力フォーム
-  const [newPetName, setNewPetName] = useState('');
-  const [newPetType, setNewPetType] = useState('');
+  const [newPetName, setNewPetName] = useState("");
+  const [newPetType, setNewPetType] = useState("");
   const [showNewPetForm, setShowNewPetForm] = useState(false);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // ---- ハンドラ ----
   const togglePet = useCallback((petId: number) => {
-    setSelectedPetIds(prev => {
+    setSelectedPetIds((prev) => {
       const next = new Set(prev);
       if (next.has(petId)) {
         next.delete(petId);
@@ -97,20 +102,25 @@ export function CustomerInfoPage({
   const handleAddNewPet = useCallback(() => {
     const trimmedName = newPetName.trim();
     if (!trimmedName) return;
-    setNewPets(prev => [...prev, { name: trimmedName, type: newPetType.trim(), isNew: true }]);
-    setNewPetName('');
-    setNewPetType('');
+    setNewPets((prev) => [...prev, { name: trimmedName, type: newPetType.trim(), isNew: true }]);
+    setNewPetName("");
+    setNewPetType("");
     setShowNewPetForm(false);
   }, [newPetName, newPetType]);
 
   const handleRemoveNewPet = useCallback((index: number) => {
-    setNewPets(prev => prev.filter((_, i) => i !== index));
+    setNewPets((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
   const validate = useCallback((): boolean => {
     const newErrors: Record<string, string> = {};
-    if (!name.trim()) newErrors.name = 'お名前を入力してください';
-    if (!phone.trim()) newErrors.phone = '電話番号を入力してください';
+    if (!name.trim()) newErrors.name = "お名前を入力してください";
+    if (!phone.trim()) {
+      newErrors.phone = "電話番号を入力してください";
+    } else if (!isBackendCompatiblePhone(phone.trim())) {
+      newErrors.phone =
+        "電話番号の形式が正しくありません（例：090-1234-5678 または +81 90 1234 5678）";
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }, [name, phone]);
@@ -120,7 +130,7 @@ export function CustomerInfoPage({
 
     // 選択済み既存ペット + 新規ペットを統合
     const selectedOwnerPets: PetSelection[] = ownerPets
-      .filter(op => selectedPetIds.has(op.id))
+      .filter((op) => selectedPetIds.has(op.id))
       .map(ownerPetToSelection);
 
     const allPets = [...selectedOwnerPets, ...newPets];
@@ -132,6 +142,16 @@ export function CustomerInfoPage({
       pets: allPets,
     });
   }, [validate, ownerPets, selectedPetIds, newPets, name, phone, ownerName, onNext]);
+
+  const handleNextRef = useRef(handleNext);
+  useLayoutEffect(() => {
+    handleNextRef.current = handleNext;
+  }, [handleNext]);
+
+  const [, formAction, isPending] = useActionState(async () => {
+    handleNextRef.current();
+    return null;
+  }, null);
 
   const hasOwnerPets = ownerPets.length > 0;
 
@@ -148,51 +168,73 @@ export function CustomerInfoPage({
         <div className="flex-1 px-4 space-y-4">
           {/* お名前 */}
           <div>
-            <label htmlFor="customer-name" className="block text-sm font-medium text-noah-text-sub mb-1">
-              お名前 <span className="text-red-500">*</span>
+            <label
+              htmlFor="customer-name"
+              className="block text-sm font-medium text-noah-text-sub mb-1"
+            >
+              お名前 <span className="text-noah-danger">*</span>
             </label>
             <input
               id="customer-name"
               type="text"
               value={name}
-              onChange={e => { setName(e.target.value); setErrors(prev => ({ ...prev, name: '' })); }}
-              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-noah-text focus:outline-none focus:ring-2 focus:ring-noah-teal focus:border-transparent"
+              onChange={(e) => {
+                setName(e.target.value);
+                setErrors((prev) => ({ ...prev, name: "" }));
+              }}
+              aria-invalid={errors.name ? true : undefined}
+              className={`w-full border rounded-xl px-3 py-2 text-noah-text focus:outline-none focus:ring-2 focus:ring-noah-teal focus:border-transparent ${errors.name ? "border-noah-danger" : "border-noah-border-input"}`}
               placeholder="山田 花子"
             />
             {errors.name ? (
-              <p className="mt-1 text-sm text-red-500" role="alert">{errors.name}</p>
+              <p className="mt-1 text-sm text-noah-danger" role="alert">
+                {errors.name}
+              </p>
             ) : null}
           </div>
 
           {/* 電話番号 */}
           <div>
-            <label htmlFor="customer-phone" className="block text-sm font-medium text-noah-text-sub mb-1">
-              電話番号 <span className="text-red-500">*</span>
+            <label
+              htmlFor="customer-phone"
+              className="block text-sm font-medium text-noah-text-sub mb-1"
+            >
+              電話番号 <span className="text-noah-danger">*</span>
             </label>
             <input
               id="customer-phone"
               type="tel"
               value={phone}
-              onChange={e => { setPhone(e.target.value); setErrors(prev => ({ ...prev, phone: '' })); }}
-              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-noah-text focus:outline-none focus:ring-2 focus:ring-noah-teal focus:border-transparent"
+              onChange={(e) => {
+                setPhone(e.target.value);
+                setErrors((prev) => ({ ...prev, phone: "" }));
+              }}
+              aria-invalid={errors.phone ? true : undefined}
+              aria-describedby={errors.phone ? "customer-phone-error" : undefined}
+              className={`w-full border rounded-xl px-3 py-2 text-noah-text focus:outline-none focus:ring-2 focus:ring-noah-teal focus:border-transparent ${errors.phone ? "border-noah-danger" : "border-noah-border-input"}`}
               placeholder="090-1234-5678"
             />
             {errors.phone ? (
-              <p className="mt-1 text-sm text-red-500" role="alert">{errors.phone}</p>
+              <p id="customer-phone-error" className="mt-1 text-sm text-noah-danger" role="alert">
+                {errors.phone}
+              </p>
             ) : null}
           </div>
 
           {/* 飼い主名 */}
           <div>
-            <label htmlFor="owner-name" className="block text-sm font-medium text-noah-text-sub mb-1">
+            <label
+              htmlFor="owner-name"
+              className="block text-sm font-medium text-noah-text-sub mb-1"
+            >
               飼い主名
             </label>
             <input
               id="owner-name"
               type="text"
               value={ownerName}
-              onChange={e => setOwnerName(e.target.value)}
-              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-noah-text focus:outline-none focus:ring-2 focus:ring-noah-teal focus:border-transparent"
+              onChange={(e) => setOwnerName(e.target.value)}
+              className="w-full border border-noah-border-input rounded-xl px-3 py-2 text-noah-text focus:outline-none focus:ring-2 focus:ring-noah-teal focus:border-transparent"
               placeholder="山田 太郎"
             />
           </div>
@@ -205,16 +247,16 @@ export function CustomerInfoPage({
             {hasOwnerPets ? (
               <div className="space-y-2 mb-3">
                 <p className="text-xs text-noah-text-sub">登録済みのペットを選択してください</p>
-                {ownerPets.map(pet => (
+                {ownerPets.map((pet) => (
                   <label
                     key={pet.id}
-                    className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-200 cursor-pointer hover:border-noah-teal transition-colors"
+                    className="flex items-center gap-3 p-3 bg-white rounded-xl border border-noah-border cursor-pointer hover:border-noah-teal transition-colors"
                   >
                     <input
                       type="checkbox"
                       checked={selectedPetIds.has(pet.id)}
                       onChange={() => togglePet(pet.id)}
-                      className="w-5 h-5 rounded border-gray-300 text-noah-teal focus:ring-noah-teal"
+                      className="w-5 h-5 rounded border-noah-border-input text-noah-teal focus:ring-noah-teal"
                     />
                     <div className="flex-1">
                       <span className="text-sm font-medium text-noah-text">{pet.name}</span>
@@ -249,7 +291,7 @@ export function CustomerInfoPage({
                     <button
                       type="button"
                       onClick={() => handleRemoveNewPet(index)}
-                      className="text-red-400 hover:text-red-600 text-sm px-2"
+                      className="text-noah-danger-subtle hover:text-noah-danger-hover text-sm px-2"
                       aria-label={`${pet.name}を削除`}
                     >
                       削除
@@ -261,31 +303,37 @@ export function CustomerInfoPage({
 
             {/* 新規ペット追加フォーム */}
             {showNewPetForm ? (
-              <div className="p-3 bg-white rounded-xl border border-gray-200 space-y-3">
+              <div className="p-3 bg-white rounded-xl border border-noah-border space-y-3">
                 <div>
-                  <label htmlFor="new-pet-name" className="block text-xs font-medium text-noah-text-sub mb-1">
+                  <label
+                    htmlFor="new-pet-name"
+                    className="block text-xs font-medium text-noah-text-sub mb-1"
+                  >
                     ペット名
                   </label>
                   <input
                     id="new-pet-name"
                     type="text"
                     value={newPetName}
-                    onChange={e => setNewPetName(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-noah-text focus:outline-none focus:ring-2 focus:ring-noah-teal focus:border-transparent"
+                    onChange={(e) => setNewPetName(e.target.value)}
+                    className="w-full border border-noah-border-input rounded-lg px-3 py-2 text-sm text-noah-text focus:outline-none focus:ring-2 focus:ring-noah-teal focus:border-transparent"
                     placeholder="ポチ"
                     autoFocus
                   />
                 </div>
                 <div>
-                  <label htmlFor="new-pet-type" className="block text-xs font-medium text-noah-text-sub mb-1">
+                  <label
+                    htmlFor="new-pet-type"
+                    className="block text-xs font-medium text-noah-text-sub mb-1"
+                  >
                     種類
                   </label>
                   <input
                     id="new-pet-type"
                     type="text"
                     value={newPetType}
-                    onChange={e => setNewPetType(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-noah-text focus:outline-none focus:ring-2 focus:ring-noah-teal focus:border-transparent"
+                    onChange={(e) => setNewPetType(e.target.value)}
+                    className="w-full border border-noah-border-input rounded-lg px-3 py-2 text-sm text-noah-text focus:outline-none focus:ring-2 focus:ring-noah-teal focus:border-transparent"
                     placeholder="トイプードル"
                   />
                 </div>
@@ -300,8 +348,12 @@ export function CustomerInfoPage({
                   </button>
                   <button
                     type="button"
-                    onClick={() => { setShowNewPetForm(false); setNewPetName(''); setNewPetType(''); }}
-                    className="flex-1 py-2 rounded-lg text-sm font-medium text-noah-text-sub bg-gray-100"
+                    onClick={() => {
+                      setShowNewPetForm(false);
+                      setNewPetName("");
+                      setNewPetType("");
+                    }}
+                    className="flex-1 py-2 rounded-lg text-sm font-medium text-noah-text-sub bg-noah-surface-subtle"
                   >
                     キャンセル
                   </button>
@@ -311,7 +363,7 @@ export function CustomerInfoPage({
               <button
                 type="button"
                 onClick={() => setShowNewPetForm(true)}
-                className="w-full py-2.5 rounded-xl border-2 border-dashed border-gray-300 text-sm text-noah-text-sub hover:border-noah-teal hover:text-noah-teal transition-colors"
+                className="w-full py-2.5 rounded-xl border-2 border-dashed border-noah-border-input text-sm text-noah-text-sub hover:border-noah-teal hover:text-noah-teal transition-colors"
               >
                 + 新しいペットを追加
               </button>
@@ -319,9 +371,11 @@ export function CustomerInfoPage({
           </div>
         </div>
 
-        <div className="px-4 py-6">
-          <PrimaryButton onClick={handleNext}>次へ</PrimaryButton>
-        </div>
+        <form action={formAction} className="px-4 py-6">
+          <PrimaryButton type="submit" disabled={isPending}>
+            {EXPLICIT_PRIMARY_CTA_LABEL}
+          </PrimaryButton>
+        </form>
       </div>
     </div>
   );

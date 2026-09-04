@@ -7,15 +7,12 @@ import { C, LAYOUT } from "@/lib/design-tokens";
 
 import type { TrimmingOption } from "../api/trimming";
 import { CombinablePill } from "./TrimmingTabRows";
-import {
-  trimmingOptionToFormData,
-  type OptionFormData,
-} from "./trimming-side-panel-model";
+import { trimmingOptionToFormData, type OptionFormData } from "../lib/trimming-side-panel-model";
 
 interface TrimmingOptionSidePanelProps {
   item: TrimmingOption | null;
   onClose: () => void;
-  onSave: (data: OptionFormData) => void;
+  onSave: (data: OptionFormData) => Promise<boolean> | boolean;
   onDeleteRequest?: (item: TrimmingOption) => void;
   readOnly?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
@@ -42,40 +39,55 @@ export const TrimmingOptionSidePanel = memo(function TrimmingOptionSidePanel({
     setIsDirty(true);
   }, []);
 
-  const handleAction = useCallback(() => {
+  const handleAction = useCallback(async () => {
     if (!formData.name.trim()) {
       setNameError("名称を入力してください");
       return;
     }
     setNameError("");
-    onSave(formData);
-    setIsDirty(false);
-  }, [formData, onSave]);
+    const saved = await onSave(formData);
+    if (saved) {
+      setIsDirty(false);
+      onDirtyChange?.(false);
+    }
+  }, [formData, onSave, onDirtyChange]);
 
-  const handleTitleChange = useCallback((value: string) => {
-    setFormDataDirty((prev) => ({ ...prev, name: value }));
-    if (value.trim()) setNameError("");
-  }, [setFormDataDirty]);
+  const handleTitleChange = useCallback(
+    (value: string) => {
+      setFormDataDirty((prev) => ({ ...prev, name: value }));
+      if (value.trim()) setNameError("");
+    },
+    [setFormDataDirty],
+  );
 
   const handleToggleStatus = useCallback(() => {
     setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }));
   }, [setFormDataDirty]);
 
-  const handleDurationChange = useCallback((value: string) => {
-    setFormDataDirty((prev) => ({ ...prev, duration: value }));
-  }, [setFormDataDirty]);
+  const handleDurationChange = useCallback(
+    (value: string) => {
+      setFormDataDirty((prev) => ({ ...prev, duration: value }));
+    },
+    [setFormDataDirty],
+  );
 
   const handleToggleCombinability = useCallback(() => {
     setFormDataDirty((prev) => ({ ...prev, combinable: !prev.combinable }));
   }, [setFormDataDirty]);
 
-  const handlePriceChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    setFormDataDirty((prev) => ({ ...prev, price: event.target.value }));
-  }, [setFormDataDirty]);
+  const handlePriceChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      setFormDataDirty((prev) => ({ ...prev, price: event.target.value }));
+    },
+    [setFormDataDirty],
+  );
 
-  const handleDescriptionChange = useCallback((value: string) => {
-    setFormDataDirty((prev) => ({ ...prev, description: value }));
-  }, [setFormDataDirty]);
+  const handleDescriptionChange = useCallback(
+    (value: string) => {
+      setFormDataDirty((prev) => ({ ...prev, description: value }));
+    },
+    [setFormDataDirty],
+  );
 
   return (
     <MasterSidePanel
@@ -126,7 +138,7 @@ export const TrimmingOptionSidePanel = memo(function TrimmingOptionSidePanel({
             type="number"
             min={0}
             aria-label="単価(税込)"
-            className={`w-32 bg-transparent text-base ${C.text} outline-none border-none ${LAYOUT.inputCompact} ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`}
+            className={`w-32 bg-transparent text-base ${C.text} outline-none border-none ${LAYOUT.inputCompact} ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder} focus-visible:ring-2 ${C.focusRingAccent40}`}
             value={formData.price}
             onChange={handlePriceChange}
             placeholder="0"

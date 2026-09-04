@@ -13,20 +13,36 @@
   min-height: 0;
 }
 
-.owner-report-area-attention { grid-area: attention; }
-.owner-report-area-today { grid-area: today; }
-.owner-report-area-next { grid-area: next; }
-.owner-report-area-last { grid-area: last; }
-.owner-report-area-basic { grid-area: basic; }
-.owner-report-area-history { grid-area: history; }
+.owner-report-area-attention {
+  grid-area: attention;
+}
+.owner-report-area-today {
+  grid-area: today;
+}
+.owner-report-area-next {
+  grid-area: next;
+}
+.owner-report-area-last {
+  grid-area: last;
+}
+.owner-report-area-basic {
+  grid-area: basic;
+}
+.owner-report-area-history {
+  grid-area: history;
+}
 
 .owner-report-history-matrix {
   width: 100%;
   table-layout: fixed;
 }
 
-.owner-report-history-kind-column { width: 5.25rem; }
-.owner-report-history-record-column { width: 12.5rem; }
+.owner-report-history-kind-column {
+  width: 5.25rem;
+}
+.owner-report-history-record-column {
+  width: 12.5rem;
+}
 
 @media (max-width: 840px) {
   .owner-report-dashboard {
@@ -41,8 +57,12 @@
     grid-template-rows: 1.45fr 0.8fr 0.8fr 1fr 1fr 1.45fr;
   }
 
-  .owner-report-history-kind-column { width: 4.5rem; }
-  .owner-report-history-record-column { width: 11.75rem; }
+  .owner-report-history-kind-column {
+    width: 4.5rem;
+  }
+  .owner-report-history-record-column {
+    width: 11.75rem;
+  }
 }
 
 @media (max-height: 600px) and (min-width: 841px) {
@@ -54,8 +74,12 @@
     grid-template-rows: minmax(0, 0.8fr) minmax(0, 1.2fr);
   }
 
-  .owner-report-history-kind-column { width: 4.5rem; }
-  .owner-report-history-record-column { width: 11.5rem; }
+  .owner-report-history-kind-column {
+    width: 4.5rem;
+  }
+  .owner-report-history-record-column {
+    width: 11.5rem;
+  }
 }
 
 @media (max-width: 840px) and (max-height: 600px) {

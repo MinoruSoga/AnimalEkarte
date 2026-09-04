@@ -306,6 +306,10 @@ func TestDB_MedicalRecordRepositoryFindAllCorrelatesRelationsToEachParentClinic(
 		OwnerID: &ownerA.ID, PetID: &petA.ID, DoctorID: &inactiveDoctor.ID,
 	})
 
+	unassignedDoctorRecord := makeFullMedicalRecord(t, db, &model.MedicalRecord{
+		ClinicID: clinicA, RecordNo: "MR-UNASSIGNED-DOCTOR", Date: time.Now(),
+		OwnerID: &ownerA.ID, PetID: &petA.ID, DoctorID: &unassignedDoctor.ID,
+	})
 	pollutedRecords := []*model.MedicalRecord{
 		makeFullMedicalRecord(t, db, &model.MedicalRecord{
 			ClinicID: clinicA, RecordNo: "MR-FOREIGN-OWNER", Date: time.Now(),
@@ -314,10 +318,6 @@ func TestDB_MedicalRecordRepositoryFindAllCorrelatesRelationsToEachParentClinic(
 		makeFullMedicalRecord(t, db, &model.MedicalRecord{
 			ClinicID: clinicA, RecordNo: "MR-FOREIGN-PET", Date: time.Now(),
 			OwnerID: &ownerA.ID, PetID: &petB.ID,
-		}),
-		makeFullMedicalRecord(t, db, &model.MedicalRecord{
-			ClinicID: clinicA, RecordNo: "MR-UNASSIGNED-DOCTOR", Date: time.Now(),
-			OwnerID: &ownerA.ID, PetID: &petA.ID, DoctorID: &unassignedDoctor.ID,
 		}),
 		makeFullMedicalRecord(t, db, &model.MedicalRecord{
 			ClinicID: clinicA, RecordNo: "MR-FOREIGN-ENTERED-BY", Date: time.Now(),
@@ -350,7 +350,7 @@ func TestDB_MedicalRecordRepositoryFindAllCorrelatesRelationsToEachParentClinic(
 	// still leak clinic B's polluted billing into clinic A's parent record.
 	got, total, err := repo.FindAll(ctx, []uint64{clinicA, clinicB}, MedicalRecordListFilters{}, 1, 100)
 	require.NoError(t, err)
-	require.EqualValues(t, 4, total)
+	require.EqualValues(t, 5, total)
 
 	byID := make(map[uint64]model.MedicalRecord, len(got))
 	for _, record := range got {
@@ -382,6 +382,9 @@ func TestDB_MedicalRecordRepositoryFindAllCorrelatesRelationsToEachParentClinic(
 	inactiveDoctorResult, ok := byID[inactiveDoctorRecord.ID]
 	require.True(t, ok, "inactive same-clinic staff must not hide the medical-record history")
 	assert.Nil(t, inactiveDoctorResult.Doctor, "inactive staff is hidden by the current-relation preload")
+
+	_, ok = byID[unassignedDoctorRecord.ID]
+	assert.True(t, ok, "same-clinic staff without assignment must appear in the list")
 
 	for _, polluted := range pollutedRecords {
 		_, ok := byID[polluted.ID]
@@ -718,6 +721,22 @@ func TestMedicalRecordRepository_FindByID(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, got.Inquiry, "Inquiry が Preload されていない（BUG-406 根本原因）")
 		assert.Equal(t, "再読込後も残るはずの主訴", got.Inquiry.ChiefComplaint)
+	})
+
+	t.Run("所属未登録の担当医・入力者でも詳細は取得できる", func(t *testing.T) {
+		// seed 検査の medical_record_id は存在するが、imported doctor に
+		// staff_clinic_assignments が無い。一覧スコープで詳細まで隠すと
+		// 検査管理からのカルテ検査タブが 404 になる。
+		unassigned := makeMedicalRecordListStaff(t, db, clinicA, "所属未登録医師", model.StaffTypeDoctor)
+		recUnassigned := makeFullMedicalRecord(t, db, &model.MedicalRecord{
+			ClinicID: clinicA, RecordNo: "FBI-UNASSIGNED", Date: time.Now(),
+			OwnerID: &ownerA.ID, PetID: &petA.ID, DoctorID: &unassigned.ID, EnteredBy: &unassigned.ID,
+		})
+
+		got, err := repo.FindByID(ctx, clinicA, recUnassigned.ID)
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		assert.Equal(t, recUnassigned.ID, got.ID)
 	})
 }
 

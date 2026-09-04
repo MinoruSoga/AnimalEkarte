@@ -3,9 +3,12 @@ package lstep
 import (
 	"net/url"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin/binding"
+
+	"github.com/animal-ekarte/backend/internal/apperrors"
 )
 
 func TestCheckupSyncPreviewQuery_ToServiceInput(t *testing.T) {
@@ -45,14 +48,14 @@ func TestCheckupSyncPreviewQuery_ToServiceInput(t *testing.T) {
 }
 
 func TestCheckupSyncPreviewQuery_ToServiceInput_InvalidBool(t *testing.T) {
-	_, err := (&checkupSyncPreviewQuery{HasChronicCondition: "yes"}).toServiceInput()
+	_, err := (&checkupSyncPreviewQuery{CheckupType: "annual", HasChronicCondition: "yes"}).toServiceInput()
 	if err == nil {
 		t.Fatalf("toServiceInput() error = nil, want error")
 	}
 }
 
 func TestCheckupSyncPreviewQuery_ToServiceInput_InvalidCPMStage(t *testing.T) {
-	_, err := (&checkupSyncPreviewQuery{CPMStage: "invalid"}).toServiceInput()
+	_, err := (&checkupSyncPreviewQuery{CheckupType: "annual", CPMStage: "invalid"}).toServiceInput()
 	if err == nil {
 		t.Fatalf("toServiceInput() error = nil, want error")
 	}
@@ -76,28 +79,6 @@ func TestCheckupSyncRequest_ToServiceInput(t *testing.T) {
 	}
 	if input.TagName != "annual_checkup" {
 		t.Fatalf("TagName = %q, want annual_checkup", input.TagName)
-	}
-}
-
-func TestCheckupSyncRequest_ToServiceInput_InvalidOwnerID(t *testing.T) {
-	_, err := (&checkupSyncRequest{
-		CheckupType: "annual",
-		OwnerIDs:    []string{"x"},
-		TagName:     "annual_checkup",
-	}).toServiceInput()
-	if err == nil {
-		t.Fatalf("toServiceInput() error = nil, want error")
-	}
-}
-
-func TestCheckupSyncRequest_ToServiceInput_InvalidTagName(t *testing.T) {
-	_, err := (&checkupSyncRequest{
-		CheckupType: "annual",
-		OwnerIDs:    []string{"1"},
-		TagName:     "invalid tag!",
-	}).toServiceInput()
-	if err == nil {
-		t.Fatalf("toServiceInput() error = nil, want error")
 	}
 }
 
@@ -150,18 +131,23 @@ func TestCheckupSyncPreviewQuery_ToServiceInput_InvalidFields(t *testing.T) {
 		name  string
 		query checkupSyncPreviewQuery
 	}{
-		{name: "invalid last_visit_before", query: checkupSyncPreviewQuery{LastVisitBefore: "not-a-date"}},
-		{name: "invalid last_visit_after", query: checkupSyncPreviewQuery{LastVisitAfter: "not-a-date"}},
-		{name: "invalid min_age_years", query: checkupSyncPreviewQuery{MinAgeYears: "abc"}},
-		{name: "negative min_age_years", query: checkupSyncPreviewQuery{MinAgeYears: "-1"}},
-		{name: "invalid max_age_years", query: checkupSyncPreviewQuery{MaxAgeYears: "abc"}},
-		{name: "negative max_age_years", query: checkupSyncPreviewQuery{MaxAgeYears: "-1"}},
-		{name: "invalid min_total_amount", query: checkupSyncPreviewQuery{MinTotalAmount: "abc"}},
-		{name: "negative min_total_amount", query: checkupSyncPreviewQuery{MinTotalAmount: "-1"}},
-		{name: "invalid min_annual_visit_count", query: checkupSyncPreviewQuery{MinAnnualVisitCount: "abc"}},
-		{name: "negative min_annual_visit_count", query: checkupSyncPreviewQuery{MinAnnualVisitCount: "-1"}},
-		{name: "invalid last_checkup_before", query: checkupSyncPreviewQuery{LastCheckupBefore: "not-a-date"}},
-		{name: "invalid last_checkup_after", query: checkupSyncPreviewQuery{LastCheckupAfter: "not-a-date"}},
+		{name: "empty checkup_type", query: checkupSyncPreviewQuery{}},
+		{name: "unknown checkup_type", query: checkupSyncPreviewQuery{CheckupType: "unknown"}},
+		{name: "invalid last_visit_before", query: checkupSyncPreviewQuery{CheckupType: "annual", LastVisitBefore: "not-a-date"}},
+		{name: "invalid last_visit_after", query: checkupSyncPreviewQuery{CheckupType: "annual", LastVisitAfter: "not-a-date"}},
+		{name: "invalid min_age_years", query: checkupSyncPreviewQuery{CheckupType: "annual", MinAgeYears: "abc"}},
+		{name: "negative min_age_years", query: checkupSyncPreviewQuery{CheckupType: "annual", MinAgeYears: "-1"}},
+		{name: "fractional min_age_years", query: checkupSyncPreviewQuery{CheckupType: "annual", MinAgeYears: "2.5"}},
+		{name: "invalid max_age_years", query: checkupSyncPreviewQuery{CheckupType: "annual", MaxAgeYears: "abc"}},
+		{name: "negative max_age_years", query: checkupSyncPreviewQuery{CheckupType: "annual", MaxAgeYears: "-1"}},
+		{name: "fractional max_age_years", query: checkupSyncPreviewQuery{CheckupType: "annual", MaxAgeYears: "2.5"}},
+		{name: "min_age_years greater than max_age_years", query: checkupSyncPreviewQuery{CheckupType: "annual", MinAgeYears: "10", MaxAgeYears: "5"}},
+		{name: "invalid min_total_amount", query: checkupSyncPreviewQuery{CheckupType: "annual", MinTotalAmount: "abc"}},
+		{name: "negative min_total_amount", query: checkupSyncPreviewQuery{CheckupType: "annual", MinTotalAmount: "-1"}},
+		{name: "invalid min_annual_visit_count", query: checkupSyncPreviewQuery{CheckupType: "annual", MinAnnualVisitCount: "abc"}},
+		{name: "negative min_annual_visit_count", query: checkupSyncPreviewQuery{CheckupType: "annual", MinAnnualVisitCount: "-1"}},
+		{name: "invalid last_checkup_before", query: checkupSyncPreviewQuery{CheckupType: "annual", LastCheckupBefore: "not-a-date"}},
+		{name: "invalid last_checkup_after", query: checkupSyncPreviewQuery{CheckupType: "annual", LastCheckupAfter: "not-a-date"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -174,7 +160,7 @@ func TestCheckupSyncPreviewQuery_ToServiceInput_InvalidFields(t *testing.T) {
 }
 
 func TestCheckupSyncPreviewQuery_ToServiceInput_HasChronicConditionTrue(t *testing.T) {
-	input, err := (&checkupSyncPreviewQuery{HasChronicCondition: "true"}).toServiceInput()
+	input, err := (&checkupSyncPreviewQuery{CheckupType: "annual", HasChronicCondition: "true"}).toServiceInput()
 	if err != nil {
 		t.Fatalf("toServiceInput() error = %v", err)
 	}
@@ -184,9 +170,12 @@ func TestCheckupSyncPreviewQuery_ToServiceInput_HasChronicConditionTrue(t *testi
 }
 
 func TestCheckupSyncPreviewQuery_ToServiceInput_EmptyValues(t *testing.T) {
-	input, err := (&checkupSyncPreviewQuery{}).toServiceInput()
+	input, err := (&checkupSyncPreviewQuery{CheckupType: "annual"}).toServiceInput()
 	if err != nil {
 		t.Fatalf("toServiceInput() error = %v", err)
+	}
+	if input.CheckupType != "annual" {
+		t.Fatalf("CheckupType = %q, want annual", input.CheckupType)
 	}
 	if input.CPMStage != "" {
 		t.Fatalf("CPMStage = %q, want empty", input.CPMStage)
@@ -202,6 +191,38 @@ func TestCheckupSyncPreviewQuery_ToServiceInput_EmptyValues(t *testing.T) {
 	}
 	if input.LastCheckupBefore != nil || input.LastCheckupAfter != nil {
 		t.Fatalf("last checkup filters = %v/%v, want nil", input.LastCheckupBefore, input.LastCheckupAfter)
+	}
+}
+
+func TestCheckupSyncPreviewQuery_ToServiceInput_AgeBounds(t *testing.T) {
+	tests := []struct {
+		name        string
+		minAgeYears string
+		maxAgeYears string
+		wantMin     *int
+		wantMax     *int
+	}{
+		{name: "equal ages allowed", minAgeYears: "5", maxAgeYears: "5", wantMin: intPtr(5), wantMax: intPtr(5)},
+		{name: "min only allowed", minAgeYears: "3", wantMin: intPtr(3)},
+		{name: "max only allowed", maxAgeYears: "12", wantMax: intPtr(12)},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			input, err := (&checkupSyncPreviewQuery{
+				CheckupType: "dental",
+				MinAgeYears: tt.minAgeYears,
+				MaxAgeYears: tt.maxAgeYears,
+			}).toServiceInput()
+			if err != nil {
+				t.Fatalf("toServiceInput() error = %v", err)
+			}
+			if (input.MinAgeYears == nil) != (tt.wantMin == nil) || (input.MinAgeYears != nil && *input.MinAgeYears != *tt.wantMin) {
+				t.Fatalf("MinAgeYears = %v, want %v", input.MinAgeYears, tt.wantMin)
+			}
+			if (input.MaxAgeYears == nil) != (tt.wantMax == nil) || (input.MaxAgeYears != nil && *input.MaxAgeYears != *tt.wantMax) {
+				t.Fatalf("MaxAgeYears = %v, want %v", input.MaxAgeYears, tt.wantMax)
+			}
+		})
 	}
 }
 
@@ -246,5 +267,36 @@ func TestNewCheckupSyncPreviewQuery_Empty(t *testing.T) {
 	q := newCheckupSyncPreviewQuery(url.Values{})
 	if q != (checkupSyncPreviewQuery{}) {
 		t.Fatalf("newCheckupSyncPreviewQuery() = %+v, want zero value", q)
+	}
+}
+
+func TestCheckupSyncRequest_ToServiceInput_InvalidTagName(t *testing.T) {
+	_, err := (checkupSyncRequest{
+		CheckupType: "annual",
+		OwnerIDs:    []string{"1"},
+		TagName:     "invalid tag!",
+	}).toServiceInput()
+	if err == nil {
+		t.Fatal("toServiceInput() error = nil, want InvalidInput")
+	}
+	if !apperrors.IsInvalidInput(err) {
+		t.Fatalf("toServiceInput() error = %v, want InvalidInput", err)
+	}
+}
+
+func TestCheckupSyncRequest_ToServiceInput_InvalidOwnerID(t *testing.T) {
+	_, err := (checkupSyncRequest{
+		CheckupType: "annual",
+		OwnerIDs:    []string{"x"},
+		TagName:     "annual_checkup",
+	}).toServiceInput()
+	if err == nil {
+		t.Fatal("toServiceInput() error = nil, want InvalidInput")
+	}
+	if !apperrors.IsInvalidInput(err) {
+		t.Fatalf("toServiceInput() error = %v, want InvalidInput", err)
+	}
+	if !strings.Contains(err.Error(), "owner_ids の値が不正です") {
+		t.Fatalf("error = %q, want owner_ids message", err.Error())
 	}
 }

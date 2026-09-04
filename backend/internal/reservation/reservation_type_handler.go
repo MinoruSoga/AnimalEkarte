@@ -1,4 +1,3 @@
-// Package handler provides HTTP handler implementations for ReservationType entity.
 package reservation
 
 import (

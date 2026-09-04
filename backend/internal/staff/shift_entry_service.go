@@ -142,12 +142,6 @@ func validateShiftType(s model.ShiftType) error {
 	}
 }
 
-// requiresTimeSlot は時刻（start_time/end_time）が必要なシフト種別かどうかを返す。
-// off・paid_leave は時刻不要。
-func requiresTimeSlot(shiftType model.ShiftType) bool {
-	return sharedkernel.RequiresTimeSlot(shiftType)
-}
-
 // validateShiftTimes は時刻が必要なシフト種別で end_time <= start_time でないかを検証する。
 // startTime/endTime は "15:04:05" 形式の文字列。
 func validateShiftTimes(shiftType model.ShiftType, startTime, endTime *string) error {

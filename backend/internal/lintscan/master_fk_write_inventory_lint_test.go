@@ -31,10 +31,10 @@ package lintscan
 //     are added): medicineDoseParamService.Upsert, staffService.Set{Excluded,Capable}ReservationTypeIDs,
 //     staffService.SetPermissionGroupIDs (PermissionGroup; mitigated — repo UpdateStaffGroups
 //     does a clinic-scoped IN-check), reservationTypeService.LinkOccupation (mitigated — FindByID).
-//  3. A master FK propagated through a non-`model.` cross-package struct parameter. The sole
-//     reviewed occurrence is owner.PetRegistrationIntent at the pet owner-registration adapter;
-//     knownSafeParamQualifiers plus knownReviewedExternalParamOccurrences pin both its exact
-//     type and call site so any new external command fails closed and is forced into review.
+//  3. A master FK propagated through a non-`model.` cross-package struct parameter.
+//     Reviewed occurrences are pinned in knownReviewedExternalParamOccurrences (exact type +
+//     write entrypoint). knownSafeParamQualifiers plus that map keep any new external command
+//     fail-closed.
 //  4. (field-name/shape matching limits, independent of role scope) A master-FK-bearing DTO reached only via an UNREGISTERED
 //     field name (not a key of clinicScopedMasterFKField) is invisible by design — this gate
 //     detects by field-name matching, not exhaustive type inspection. A struct type reachable
@@ -211,6 +211,12 @@ var knownReviewedExternalParamOccurrences = map[string]map[string]struct{}{
 	"owner.PetRegistrationIntent": {
 		"pet.OwnerRegistrationAdapter.CreateForOwnerRegistration": {},
 	},
+	// ReservationStaffUpdate is the staff-owned column patch (name/staff_type/visibility/
+	// comment/sort_order/is_active). It does not carry a clinic-scoped master FK. Pin the
+	// exact reservation-staff Update occurrence so a new staff command still fails closed.
+	"staffpkg.ReservationStaffUpdate": {
+		"reservation.reservationStaffRepository.Update": {},
+	},
 }
 
 // masterFKWriteStatus records WHY a master-FK write is on the allowlist. The gate does not
@@ -289,12 +295,17 @@ var masterFKWriteAllowlist = []masterFKWriteEntry{
 	{"examTypeService.ReplaceReferenceRanges", statusGuarded, []string{"ExamTypeFieldID"}, "ReplaceReferenceRangesCommand.ExamTypeFieldID is locked with clinic_id and exam_type_id correlation before replacement in the same transaction; DB test: TestExamReferenceRangeService_ReplaceAtomicClinicSafeAndNoHistoryRewrite"},
 	{"examTypeService.Update", statusGuarded, []string{"ParentID"}, "as Create — validateParentOwnership guards *input.ParentID before repo.Update (X-14 batch3); test: TestExamTypeService_Update_RejectsCrossClinicParentFK (internal/medicalrecord/exam_type_cross_tenant_test.go)"},
 	{"inquiryService.Save", statusGuarded, []string{"ChiefComplaintTypeID"}, "internal/medicalrecord/inquiry_service.go (BE9-2D, moved from internal/service): chiefComplaintTypeRepo.FindByID(ctx, input.ClinicID, *ChiefComplaintTypeID) before persist (X-14 batch U4); test: TestInquiryService_Save_RejectsCrossClinicChiefComplaintType (internal/medicalrecord/cross_tenant_master_fk_write_test.go)"},
-	{"labImportExaminationService.PersistBatch", statusGuarded, []string{"ExamTypeID"}, "internal/medicalrecord/lab_import_examination_service.go (BE9-2D sub-batch③, moved from internal/service): PersistBatch delegates each row to persistExam (unexported, B-5), which guards ExamTypeID (X-14 batch U3); test: TestLabImportExaminationService_PersistBatch_RejectsCrossClinicExamType (internal/medicalrecord/cross_tenant_master_fk_write_test.go)"},
-	// Issue #249 R-3: IsDuplicate now takes LabExamPersistInput (carries ExamTypeID) but only
-	// filters existing exams by clinic_id+exam_type_id+date+payload — it does not persist ExamTypeID.
-	// Ownership of ExamTypeID on the write path remains labImportExaminationService.persistExam.
-	{"LabImportDuplicateCheckerDB.IsDuplicate", statusExempt, []string{"ExamTypeID"}, "internal/medicalrecord/lab_import_repository.go (Issue #249 R-3): read-only full-identical duplicate probe; ExamTypeID is a candidate filter only (no INSERT/UPDATE of exam_type_id). Persist path guards ExamTypeID in labImportExaminationService.persistExam (see labImportExaminationService.PersistBatch)."},
-	{"labResultImportService.Commit", statusGuarded, []string{"ExamTypeID"}, "internal/medicalrecord/lab_result_import_service.go (BE9-2D sub-batch③, moved from internal/service): Commit delegates to labImportExaminationService.PersistBatch/persistExam, which guards ExamTypeID (X-14 batch U3); test: TestLabResultImportService_Commit_RejectsCrossClinicExamType (internal/medicalrecord/cross_tenant_master_fk_write_test.go)"},
+	{"labDeviceItemMasterService.CreateDevice", statusGuarded, []string{"ExamTypeID"}, "internal/medicalrecord/lab_device_item_master_service.go: CreateDevice calls validateExamType → repo.FindExamType(ctx, clinicID, *examTypeID) before CreateDevice; test: TestLabDeviceService_CreateUpdateAndIsolation"},
+	{"labDeviceItemMasterService.SaveConfiguration", statusGuarded, []string{"ExamTypeFieldID", "ExamTypeID"}, "internal/medicalrecord/lab_device_item_master_service.go: SaveConfiguration uses one transaction, validates the device ExamTypeID and every item ExamTypeFieldID with clinic-scoped lookups before persisting; test: TestLabDeviceItemMasterService_SaveConfigurationRollsBackAllChanges"},
+	{"labDeviceItemMasterService.Update", statusGuarded, []string{"ExamTypeFieldID"}, "internal/medicalrecord/lab_device_item_master_service.go: Update calls repo.FindExamTypeField(ctx, clinicID, *ExamTypeFieldID) before persist; test: TestLabDeviceItemMasterService_UpdateAndResolve"},
+	{"labDeviceItemMasterService.UpdateDevice", statusGuarded, []string{"ExamTypeID"}, "internal/medicalrecord/lab_device_item_master_service.go: UpdateDevice calls validateExamType → repo.FindExamType(ctx, clinicID, *examTypeID) before UpdateDevice; test: TestLabDeviceItemMasterService_UpdateDevice_RejectsCrossClinicExamType"},
+	{"labImportExaminationService.PersistBatch", statusGuarded, []string{"ExamTypeFieldID", "ExamTypeID"}, "internal/medicalrecord/lab_import_examination_service.go: PersistBatch delegates each row to persistExam, which FindByID-guards ExamTypeID then requireOwnedExamTypeFields against examType.Items for nested ExamTypeFieldID; tests: TestLabImportExaminationService_PersistBatch_RejectsCrossClinicExamType, TestLabImportExaminationService_PersistBatch_RejectsCrossClinicExamTypeField"},
+	{"labImportExaminationService.PersistExam", statusGuarded, []string{"ExamTypeFieldID", "ExamTypeID"}, "internal/medicalrecord/lab_import_examination_service.go: PersistExam is persistExam; ExamTypeID via examTypeRepo.FindByID(ctx, clinicID, ExamTypeID), nested Items[].ExamTypeFieldID via requireOwnedExamTypeFields (same membership check as examination replaceItemsTx); tests: TestLabImportExaminationService_PersistExam_RejectsCrossClinicExamType, TestLabImportExaminationService_PersistExam_RejectsCrossClinicExamTypeField"},
+	// Issue #249 R-3: IsDuplicate takes LabExamPersistInput (now also carries nested ExamTypeFieldID)
+	// but only filters existing exams by clinic_id+exam_type_id+date+payload — it does not INSERT/UPDATE
+	// exam_type_id or exam_type_field_id. Ownership stays on persistExam.
+	{"LabImportDuplicateCheckerDB.IsDuplicate", statusExempt, []string{"ExamTypeFieldID", "ExamTypeID"}, "internal/medicalrecord/lab_import_repository.go: read-only full-identical duplicate probe; ExamTypeID is a candidate filter only and ExamTypeFieldID is unused in the payload match (no persist of either FK). Write path: labImportExaminationService.persistExam."},
+	{"labResultImportService.Commit", statusGuarded, []string{"ExamTypeFieldID", "ExamTypeID"}, "internal/medicalrecord/lab_result_import_service.go: Commit delegates to PersistBatch/persistExam, which guards ExamTypeID and nested ExamTypeFieldID; tests: TestLabResultImportService_Commit_RejectsCrossClinicExamType, TestLabResultImportService_Commit_RejectsCrossClinicExamTypeField"},
 	{"medicalRecordService.CreateSubRecords", statusGuarded, []string{"ChiefComplaintTypeID", "Diagnosis1CategoryID", "Diagnosis1NameID", "Diagnosis2TypeID", "Diagnosis2NameID"}, "medical_record_subrecords.go: chiefComplaintTypeRepo.FindByID before inquiry upsert; validateCreateSubRecordDiagnosisFKs (validateDiagnosisFKs-equivalent, unexported local helper) guards all four diagnosis FKs before clinicalPlanRepo.Update (X-14 batch U4); best-effort — failure skips the write (Warn), does not error. test: TestMedicalRecordService_CreateSubRecords_RejectsCrossClinicChiefComplaintType, TestMedicalRecordService_CreateSubRecords_RejectsCrossClinicDiagnosisFK"},
 	{"medicineService.Create", statusGuarded, []string{"InventoryID", "ParentID"}, "internal/medicalrecord/medicine_service.go (BE9-2D ⑥, moved): validateParentOwnership (self-ref repo.FindByID) + validateInventoryOwnership (inventoryRepo.FindByID) before persist (X-14 batch U2); test: TestMedicineService_Create_RejectsCrossClinicParentFK, TestMedicineService_Create_RejectsCrossClinicInventoryFK"},
 	{"medicineService.Update", statusGuarded, []string{"InventoryID", "ParentID"}, "as Create — validateParentOwnership/validateInventoryOwnership guard *input.ParentID/*input.InventoryID before repo.Update (X-14 batch U2); test: TestMedicineService_Update_RejectsCrossClinicParentFK, TestMedicineService_Update_RejectsCrossClinicInventoryFK"},
@@ -303,6 +314,7 @@ var masterFKWriteAllowlist = []masterFKWriteEntry{
 	{"reservationRepository.CreateForTrimming", statusGuarded, []string{"ReservationTypeID"}, "BE9-2E-0 appointment write owner: assertTrimmingReservationType scopes id+category to clinic before insert; test: TestReservationRepository_CreateForTrimmingRejectsForeignReservationType"},
 	{"reservationAdminService.Create", statusGuarded, []string{"ReservationTypeID"}, "appointment_admin_service.go:124 reservation.CheckReservationTypeCapacity(ctx, s.resRepo, s.typeRepo, ...) unconditionally calls typeRepo.FindByID(ctx, clinicID, ReservationTypeID) before persist (X-14 U6b); test: TestReservationAdminService_Create_RejectsCrossClinicReservationType"},
 	{"reservationService.Create", statusGuarded, []string{"ReservationTypeID"}, "reservation_service.go: added unconditional s.typeRepo.FindByID(ctx, input.ClinicID, ReservationTypeID) before persist — closes the shortcut-route hole where reception/exam_room/record_shortcut routes (or advanced statuses) set enforceBookingConstraints=false and previously skipped the FindByID embedded in reservation.CheckReservationTypeCapacity (X-14 U6b); test: TestReservationService_Create_RejectsCrossClinicReservationType"},
+	{"reservationService.CreateBatch", statusGuarded, []string{"ReservationTypeID"}, "reservation_service.go: CreateBatch validates ReservationTypeID via typeRepo.FindByID(ctx, input.ClinicID, ...) before its atomic transaction, then validates staff capability, owner/pet links, and each persisted reservation; tests: TestReservationService_CreateBatch_RejectsCrossClinicReservationType and batch atomicity coverage."},
 	{"reservationService.Update", statusGuarded, []string{"ReservationTypeID"}, "reservation_service.go:389 updateWithConflictCheck unconditionally calls reservation.CheckReservationTypeCapacity → typeRepo.FindByID(ctx, clinicID, resolvedReservationTypeID) whenever ReservationTypeID changes (needsConflictCheck gate); pre-existing guard, dedicated isolation test added (X-14 U6b); test: TestReservationService_Update_RejectsCrossClinicReservationType"},
 	{"reservationTypeService.Create", statusGuarded, []string{"GroupID", "ParentID"}, "ParentID validated via validateReservationTypeParent (pre-existing); GroupID now validated via new validateReservationTypeGroup → groupRepo.FindByID(ctx, clinicID, *GroupID) (X-14 U6b, groupRepo DI added to NewReservationTypeService); test: TestReservationTypeService_Create_RejectsCrossClinicGroupID"},
 	{"reservationTypeService.Update", statusGuarded, []string{"GroupID", "ParentID"}, "as Create — validateReservationTypeGroup guards *input.GroupID before repo.Update; validateReservationTypeParent guards ParentID (X-14 U6b); test: TestReservationTypeService_Update_RejectsCrossClinicGroupID, TestReservationTypeService_Update_RejectsCrossClinicParentID"},
@@ -973,17 +985,20 @@ func TestMasterFKWriteInventory_ExternalParamExceptionIsExactAndLive(t *testing.
 	}
 
 	_, stats := analyzeRealServiceSource(t)
-	observed := false
+	live := map[string]map[string]struct{}{}
 	for _, param := range stats.externalParams {
-		if param.qualifiedType() == reviewed.qualifiedType() &&
-			param.occurrence() == reviewed.occurrence() {
-			observed = true
-			break
+		if live[param.qualifiedType()] == nil {
+			live[param.qualifiedType()] = map[string]struct{}{}
 		}
+		live[param.qualifiedType()][param.occurrence()] = struct{}{}
 	}
-	if !observed {
-		t.Fatalf("reviewed external-param exception is stale: %s at %s was not observed",
-			reviewed.qualifiedType(), reviewed.occurrence())
+	for qualifiedType, occurrences := range knownReviewedExternalParamOccurrences {
+		for occurrence := range occurrences {
+			if _, ok := live[qualifiedType][occurrence]; !ok {
+				t.Errorf("reviewed external-param exception is stale: %s at %s was not observed",
+					qualifiedType, occurrence)
+			}
+		}
 	}
 }
 

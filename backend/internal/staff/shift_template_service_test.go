@@ -14,14 +14,14 @@ import (
 // ---- mockShiftTemplateRepository ----
 
 type mockShiftTemplateRepository struct {
-	findAllFn              func(ctx context.Context, clinicID uint64) ([]model.ShiftTemplate, error)
-	findByIDFn             func(ctx context.Context, clinicID, id uint64) (*model.ShiftTemplate, error)
-	lockForUpdateFn        func(ctx context.Context, clinicID, id uint64) (*model.ShiftTemplate, error)
-	createFn               func(ctx context.Context, tpl *model.ShiftTemplate) error
-	updateFn               func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ShiftTemplate, error)
-	deleteFn               func(ctx context.Context, clinicID, id uint64) error
-	updateBreaksFn         func(ctx context.Context, templateID uint64, breaks []model.ShiftTemplateBreak) error
-	reorderFn func(ctx context.Context, clinicID uint64, ids []uint64) error
+	findAllFn       func(ctx context.Context, clinicID uint64) ([]model.ShiftTemplate, error)
+	findByIDFn      func(ctx context.Context, clinicID, id uint64) (*model.ShiftTemplate, error)
+	lockForUpdateFn func(ctx context.Context, clinicID, id uint64) (*model.ShiftTemplate, error)
+	createFn        func(ctx context.Context, tpl *model.ShiftTemplate) error
+	updateFn        func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ShiftTemplate, error)
+	deleteFn        func(ctx context.Context, clinicID, id uint64) error
+	updateBreaksFn  func(ctx context.Context, templateID uint64, breaks []model.ShiftTemplateBreak) error
+	reorderFn       func(ctx context.Context, clinicID uint64, ids []uint64) error
 	// countUsageByTemplateID is retained only so older Delete table fixtures in
 	// shift_template_service_update_test.go still compile; the repository method is gone (AUS-04).
 	countUsageByTemplateID func(ctx context.Context, clinicID, id uint64) (int64, error)

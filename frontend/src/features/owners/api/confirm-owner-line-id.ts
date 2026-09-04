@@ -9,7 +9,7 @@ import { transformOwner, type OwnerApiResponse } from "./transforms";
 
 async function confirmOwnerLineId(clinicId: string, ownerId: string): Promise<Owner> {
   const { data } = await axios.patch<OwnerApiResponse>(
-    `/v1/clinics/${clinicId}/owners/${ownerId}/line-id-confirm`
+    `/v1/clinics/${clinicId}/owners/${ownerId}/line-id-confirm`,
   );
   return transformOwner(data);
 }

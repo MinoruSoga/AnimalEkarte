@@ -1,4 +1,4 @@
-// Package service provides business logic implementations for Occupation entity.
+// Package staff provides occupation use cases.
 package staff
 
 import (
@@ -72,7 +72,6 @@ func NewOccupationService(repo OccupationRepository) OccupationService {
 func (s *occupationService) List(ctx context.Context, clinicID uint64) ([]model.Occupation, error) {
 	items, err := s.repo.FindAll(ctx, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list occupations", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to list occupations")
 	}
 	return items, nil
@@ -81,7 +80,6 @@ func (s *occupationService) List(ctx context.Context, clinicID uint64) ([]model.
 func (s *occupationService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Occupation, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get occupation", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get occupation")
 	}
 	return result, nil
@@ -99,7 +97,14 @@ func (s *occupationService) Create(ctx context.Context, clinicID uint64, input *
 		IsActive:    input.IsActive,
 	}
 	if err := s.repo.Create(ctx, occupation); err != nil {
-		slog.ErrorContext(ctx, "failed to create occupation", "error", err, "clinic_id", clinicID)
+		if conflict := apperrors.AsNameUniqueConflict(
+			err,
+			input.Name,
+			apperrors.ConstraintOccupationName,
+			apperrors.CodeOccupationNameConflict,
+		); conflict != nil {
+			return nil, conflict
+		}
 		return nil, apperrors.Wrap(err, "failed to create occupation")
 	}
 	slog.InfoContext(ctx, "occupation created",
@@ -126,12 +131,23 @@ func (s *occupationService) Update(ctx context.Context, clinicID, id uint64, inp
 		}
 		updated, err := s.repo.Update(txCtx, clinicID, id, fields)
 		if err != nil {
+			nameForConflict := ""
+			if input.Name != nil {
+				nameForConflict = *input.Name
+			}
+			if conflict := apperrors.AsNameUniqueConflict(
+				err,
+				nameForConflict,
+				apperrors.ConstraintOccupationName,
+				apperrors.CodeOccupationNameConflict,
+			); conflict != nil {
+				return conflict
+			}
 			return apperrors.Wrap(err, "failed to update occupation")
 		}
 		result = updated
 		return nil
 	}); err != nil {
-		slog.ErrorContext(ctx, "failed to update occupation", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to update occupation")
 	}
 	slog.InfoContext(ctx, "occupation updated",
@@ -157,7 +173,6 @@ func (s *occupationService) Delete(ctx context.Context, clinicID, id uint64) err
 		}
 		return nil
 	}); err != nil {
-		slog.ErrorContext(ctx, "failed to delete occupation", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete occupation")
 	}
 	slog.InfoContext(ctx, "occupation deleted",
@@ -171,7 +186,6 @@ func (s *occupationService) Reorder(ctx context.Context, clinicID uint64, ids []
 		return apperrors.WrapInvalidInput(ErrMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
-		slog.ErrorContext(ctx, "failed to reorder occupations", "error", err, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to reorder occupations")
 	}
 	slog.InfoContext(ctx, "occupations reordered",

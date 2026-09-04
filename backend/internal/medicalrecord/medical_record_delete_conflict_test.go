@@ -14,17 +14,25 @@ import (
 
 func TestMedicalRecordService_DeleteConflictKindsPreservePublicContract(t *testing.T) {
 	tests := []struct {
-		name          string
-		lockedStatus  model.MedicalRecordStatus
-		estimateCount int64
-		wantKind      medicalRecordDeleteConflictKind
-		wantMessage   string
+		name              string
+		lockedStatus      model.MedicalRecordStatus
+		estimateCount     int64
+		appointmentStatus model.ReservationStatus
+		wantKind          medicalRecordDeleteConflictKind
+		wantMessage       string
 	}{
 		{
 			name:         "locked record state changed",
 			lockedStatus: model.MedicalRecordStatusFinalized,
 			wantKind:     medicalRecordDeleteStateConflict,
 			wantMessage:  "確定済みまたは下書き以外の診療記録は削除できません",
+		},
+		{
+			name:              "linked appointment already in consultation",
+			lockedStatus:      model.MedicalRecordStatusDraft,
+			appointmentStatus: model.ReservationStatusInConsultation,
+			wantKind:          medicalRecordDeleteStateConflict,
+			wantMessage:       "診療中の予約に紐づくカルテは削除できません",
 		},
 		{
 			name:          "estimate dependency exists",
@@ -44,6 +52,12 @@ func TestMedicalRecordService_DeleteConflictKindsPreservePublicContract(t *testi
 						ClinicID: 3,
 						Status:   tt.lockedStatus,
 					}, nil
+				},
+				lockLinkedAppointmentForUpdateFn: func(_ context.Context, _, _ uint64) (*linkedAppointmentLock, error) {
+					if tt.appointmentStatus == "" {
+						return &linkedAppointmentLock{}, nil
+					}
+					return &linkedAppointmentLock{Appointment: &model.Reservation{ID: 7, ClinicID: 3, Status: tt.appointmentStatus}}, nil
 				},
 				countEstimatesByMedicalRecordIDFn: func(_ context.Context, _ uint64) (int64, error) {
 					return tt.estimateCount, nil

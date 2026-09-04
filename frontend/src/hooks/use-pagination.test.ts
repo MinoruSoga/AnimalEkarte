@@ -14,9 +14,7 @@ describe("usePagination", () => {
     });
 
     it("カスタム pageSize を受け付ける", () => {
-      const { result } = renderHook(() =>
-        usePagination(makeData(10), { pageSize: 5 })
-      );
+      const { result } = renderHook(() => usePagination(makeData(10), { pageSize: 5 }));
       expect(result.current.totalPages).toBe(2);
       expect(result.current.paginatedData).toHaveLength(5);
     });
@@ -120,9 +118,7 @@ describe("usePagination", () => {
   describe("resetKey による自動リセット", () => {
     it("resetKey が変わると currentPage が 1 にリセットされる", () => {
       let key = "a";
-      const { result, rerender } = renderHook(() =>
-        usePagination(makeData(50), { resetKey: key })
-      );
+      const { result, rerender } = renderHook(() => usePagination(makeData(50), { resetKey: key }));
       act(() => result.current.goToPage(3));
       expect(result.current.currentPage).toBe(3);
 

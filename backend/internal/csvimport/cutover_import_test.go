@@ -640,8 +640,9 @@ func TestPreflightRejectsMissingValidatedCompositeForeignKey(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "validated composite foreign key") {
 		t.Fatalf("PreflightCutoverTarget() error = %v, want composite foreign-key rejection", err)
 	}
-	if !strings.Contains(err.Error(), "payments(") {
-		t.Fatalf("PreflightCutoverTarget() error = %v, want payments composite naming", err)
+	if !strings.Contains(err.Error(), "medical_records(") && !strings.Contains(err.Error(), "payments(") &&
+		!strings.Contains(err.Error(), "appointments(") {
+		t.Fatalf("PreflightCutoverTarget() error = %v, want required composite naming", err)
 	}
 }
 
@@ -672,6 +673,11 @@ func TestCutoverRequiredForeignKeysIncludePaymentContract(t *testing.T) {
 
 func TestCutoverRequiredCompositeForeignKeysIncludePaymentClinicAxis(t *testing.T) {
 	required := map[string]bool{
+		"medical_records(doctor_id, clinic_id)->staffs(id, clinic_id)":           false,
+		"medical_records(entered_by, clinic_id)->staffs(id, clinic_id)":          false,
+		"appointments(clinic_id, owner_id)->owners(clinic_id, id)":               false,
+		"appointments(clinic_id, pet_id)->pets(clinic_id, id)":                   false,
+		"appointments(doctor_id, clinic_id)->staffs(id, clinic_id)":              false,
 		"payments(billing_id, clinic_id)->billings(id, clinic_id)":               false,
 		"payments(payment_method_id, clinic_id)->payment_methods(id, clinic_id)": false,
 	}
@@ -809,8 +815,8 @@ func TestPaymentGraphVerificationQueryFailsClosedForNullsAndOutsideBandSplits(t 
 		"payment.insurance_amount IS NULL",
 		"payment.insurance_amount < 0",
 		"payment.discount_amount IS NULL",
-		"payment.discount_amount < 0",
 		"payment.billing_amount IS NULL",
+		"payment.billing_amount = 0",
 		"payment.received_amount IS NULL",
 		"payment.change_amount IS NULL",
 		"payment.created_at IS NULL",
@@ -829,7 +835,7 @@ func TestPaymentGraphVerificationQueryFailsClosedForNullsAndOutsideBandSplits(t 
 		"billing.status NOT IN ('waiting', 'completed', 'cancelled', 'pending')",
 		"payment.billing_status IS DISTINCT FROM 'completed'",
 		"payment.billing_completed_at IS DISTINCT FROM payment.created_at",
-		"billing.completed_at IS NULL OR payment.id IS NULL",
+		"COALESCE(billing.total_amount, 0) <> 0",
 	}
 	for _, fragment := range required {
 		if !strings.Contains(verifyCutoverPaymentGraphQuery, fragment) {
@@ -860,6 +866,7 @@ func TestVerifyCutoverPaymentGraphPreservesQueryErrorIdentity(t *testing.T) {
 		errorTargetQuerier{err: queryErr},
 		&manifest,
 		validCutoverSeeds(),
+		CutoverProvenanceContract{Mode: CutoverProvenanceFormal},
 	)
 	if !errors.Is(err, queryErr) {
 		t.Fatalf("verifyCutoverPaymentGraph() error = %v, want wrapped query error", err)

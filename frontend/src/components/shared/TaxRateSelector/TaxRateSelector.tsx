@@ -1,5 +1,11 @@
 import { memo } from "react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { STYLE } from "@/lib/design-tokens";
 
 // Static JSX hoisted (rendering-hoist-jsx)
@@ -26,11 +32,7 @@ export const TaxRateSelector = memo(function TaxRateSelector({
   className,
 }: TaxRateSelectorProps) {
   return (
-    <Select
-      value={String(value)}
-      onValueChange={(v) => onChange(Number(v))}
-      disabled={disabled}
-    >
+    <Select value={String(value)} onValueChange={(v) => onChange(Number(v))} disabled={disabled}>
       <SelectTrigger
         aria-label={ariaLabel}
         className={`${STYLE.selectCompact} ${className ?? ""}`.trimEnd()}

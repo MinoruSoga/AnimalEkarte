@@ -8,4 +8,3 @@ export async function updateShift(id: string, input: UpdateShiftInput): Promise<
   const { data } = await axios.patch<BackendShift>(`/v1/shifts/${id}`, input);
   return transformShift(data);
 }
-

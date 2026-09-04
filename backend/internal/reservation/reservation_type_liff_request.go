@@ -1,14 +1,14 @@
 package reservation
 
 type createReservationTypeLiffRequest struct {
-	Name                 string `json:"name"                   binding:"required"`
-	Color                string `json:"color"`
-	Description          string `json:"description"`
-	SortOrder            int    `json:"sort_order"`
-	DurationMinutes      int    `json:"duration_minutes"`
-	MaxConcurrent        *int   `json:"max_concurrent"`
-	ShortName            string `json:"short_name"`
-	ShowShortName        bool   `json:"show_short_name"`
+	Name            string `json:"name"                   binding:"required"`
+	Color           string `json:"color"`
+	Description     string `json:"description"`
+	SortOrder       int    `json:"sort_order"`
+	DurationMinutes int    `json:"duration_minutes"`
+	MaxConcurrent   *int   `json:"max_concurrent"`
+	ShortName       string `json:"short_name"`
+	ShowShortName   bool   `json:"show_short_name"`
 	// ReservationVisible is *bool so omitted stays the LIFF default (true).
 	// Explicit false is preserved; this avoids silently flipping omit→false after compensation.
 	ReservationVisible   *bool  `json:"reservation_visible"`

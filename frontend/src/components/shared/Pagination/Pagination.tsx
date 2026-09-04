@@ -62,10 +62,15 @@ export const Pagination = memo(function Pagination({
 
   const pageNumbers = getPageNumbers();
 
+  // FE-RC-044: nav ランドマークはこのコンポーネント側で付けない。少なくとも
+  // OwnerAccountingHistory.tsx が既に `<nav aria-label="ページネーション">` で外側から
+  // ラップする規約を持っており、ここで同名の nav を追加すると入れ子で aria-label が重複し
+  // 「複数要素が見つかる」a11y クエリの破壊的衝突になる（実測: pagination.test.tsx で検出）。
   return (
     <div className="flex items-center justify-between py-3 px-1">
       <div className={STYLE.paginationInfo}>
-        {totalCount.toLocaleString()}件中 {startIndex.toLocaleString()}-{endIndex.toLocaleString()}件
+        {totalCount.toLocaleString()}件中 {startIndex.toLocaleString()}-{endIndex.toLocaleString()}
+        件
       </div>
 
       <div className="flex items-center gap-1">
@@ -79,7 +84,7 @@ export const Pagination = memo(function Pagination({
           aria-label="最初のページ"
           data-testid="pagination-first"
         >
-          <ChevronsLeft className={ICON.action} />
+          <ChevronsLeft aria-hidden="true" className={ICON.action} />
         </Button>
 
         {/* Previous */}
@@ -92,7 +97,7 @@ export const Pagination = memo(function Pagination({
           aria-label="前のページ"
           data-testid="pagination-prev"
         >
-          <ChevronLeft className={ICON.action} />
+          <ChevronLeft aria-hidden="true" className={ICON.action} />
         </Button>
 
         {/* Page numbers */}
@@ -100,6 +105,7 @@ export const Pagination = memo(function Pagination({
           page === "ellipsis" ? (
             <span
               key={`ellipsis-${idx}`}
+              aria-hidden="true"
               className={`px-1 text-base ${C.text40}`}
             >
               ...
@@ -109,16 +115,17 @@ export const Pagination = memo(function Pagination({
               key={page}
               variant={currentPage === page ? "default" : "ghost"}
               size="icon"
-              className={
-                currentPage === page
-                  ? STYLE.paginationBtnActive
-                  : STYLE.paginationBtn
-              }
+              className={currentPage === page ? STYLE.paginationBtnActive : STYLE.paginationBtn}
               onClick={() => onPageChange(page)}
+              // FE-RC-044: aria-label は付けない — 付けると accessible name が数字テキストから
+              // 上書きされ、他 feature の既存テスト（getByRole("button", { name: "2" }) 等）が
+              // 割れる。aria-current="page" のみで現在ページを SR に伝える（WAI-ARIA pagination
+              // pattern としても十分）。
+              aria-current={currentPage === page ? "page" : undefined}
             >
               {page}
             </Button>
-          )
+          ),
         )}
 
         {/* Next */}
@@ -131,7 +138,7 @@ export const Pagination = memo(function Pagination({
           aria-label="次のページ"
           data-testid="pagination-next"
         >
-          <ChevronRight className={ICON.action} />
+          <ChevronRight aria-hidden="true" className={ICON.action} />
         </Button>
 
         {/* Last page */}
@@ -144,7 +151,7 @@ export const Pagination = memo(function Pagination({
           aria-label="最後のページ"
           data-testid="pagination-last"
         >
-          <ChevronsRight className={ICON.action} />
+          <ChevronsRight aria-hidden="true" className={ICON.action} />
         </Button>
       </div>
     </div>

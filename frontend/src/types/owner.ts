@@ -4,12 +4,7 @@
  * See backend/internal/owner/http_request.go for the authoritative field names.
  */
 import type { Pet } from "./index";
-import type {
-  AcquisitionType,
-  DangerLevel,
-  PetGender,
-  PetStatus,
-} from "./generated/models";
+import type { AcquisitionType, DangerLevel, PetGender, PetStatus } from "./generated/models";
 
 /** UI-facing Owner type (camelCase, string IDs — post-transform) */
 export interface Owner {
@@ -107,7 +102,8 @@ export interface CreateOwnerRequest {
  * birth_date は PATCH で null を送ると既存値を消去する。
  * @see backend/internal/owner/http_request.go updateOwnerRequest
  */
-export type UpdateOwnerRequest =
-  Partial<Omit<CreateOwnerRequest, "clinic_id" | "birth_date" | "pets">> & {
-    birth_date?: string | null;
-  };
+export type UpdateOwnerRequest = Partial<
+  Omit<CreateOwnerRequest, "clinic_id" | "birth_date" | "pets">
+> & {
+  birth_date?: string | null;
+};

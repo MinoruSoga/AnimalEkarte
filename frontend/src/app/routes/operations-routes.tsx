@@ -24,13 +24,15 @@ export const operationsRoutes: RouteObject[] = [
             <Outlet />
           </RequirePermission>
         ),
-        children: [{
-          index: true,
-          lazy: async () => {
-            const { CheckupSyncPage } = await import("@/features/lstep");
-            return { Component: CheckupSyncPage };
+        children: [
+          {
+            index: true,
+            lazy: async () => {
+              const { CheckupSyncPage } = await import("@/features/lstep");
+              return { Component: CheckupSyncPage };
+            },
           },
-        }],
+        ],
       },
       {
         path: "delivery-monitor",
@@ -39,13 +41,15 @@ export const operationsRoutes: RouteObject[] = [
             <Outlet />
           </RequirePermission>
         ),
-        children: [{
-          index: true,
-          lazy: async () => {
-            const { LstepDeliveryMonitorPage } = await import("@/features/lstep");
-            return { Component: LstepDeliveryMonitorPage };
+        children: [
+          {
+            index: true,
+            lazy: async () => {
+              const { LstepDeliveryMonitorPage } = await import("@/features/lstep");
+              return { Component: LstepDeliveryMonitorPage };
+            },
           },
-        }],
+        ],
       },
       {
         path: "analytics",
@@ -54,13 +58,15 @@ export const operationsRoutes: RouteObject[] = [
             <Outlet />
           </RequirePermission>
         ),
-        children: [{
-          index: true,
-          lazy: async () => {
-            const { LstepAnalyticsPage } = await import("@/features/lstep");
-            return { Component: LstepAnalyticsPage };
+        children: [
+          {
+            index: true,
+            lazy: async () => {
+              const { LstepAnalyticsPage } = await import("@/features/lstep");
+              return { Component: LstepAnalyticsPage };
+            },
           },
-        }],
+        ],
       },
     ],
   },

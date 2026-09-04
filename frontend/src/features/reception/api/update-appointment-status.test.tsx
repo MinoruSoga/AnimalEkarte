@@ -44,10 +44,7 @@ describe("useUpdateAppointmentStatus", () => {
       arrange: () => mockedPatch.mockRejectedValueOnce(new Error("boom")),
       expectError: true,
     },
-  ])("$label時に reception query を exactly once 再同期する", async ({
-    arrange,
-    expectError,
-  }) => {
+  ])("$label時に reception query を exactly once 再同期する", async ({ arrange, expectError }) => {
     arrange();
     const queryClient = new QueryClient({
       defaultOptions: {
@@ -55,17 +52,13 @@ describe("useUpdateAppointmentStatus", () => {
         queries: { retry: false },
       },
     });
-    const invalidateSpy = vi
-      .spyOn(queryClient, "invalidateQueries")
-      .mockResolvedValue(undefined);
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries").mockResolvedValue(undefined);
     const { result } = renderHook(() => useUpdateAppointmentStatus(), {
       wrapper: createWrapper(queryClient),
     });
 
     await act(async () => {
-      await result.current
-        .mutateAsync({ id: "101", status: "checked_in" })
-        .catch(() => undefined);
+      await result.current.mutateAsync({ id: "101", status: "checked_in" }).catch(() => undefined);
     });
 
     expect(invalidateSpy).toHaveBeenCalledTimes(1);
@@ -73,10 +66,7 @@ describe("useUpdateAppointmentStatus", () => {
       queryKey: queryKeys.reception.all(),
     });
     if (expectError) {
-      expect(mockedHandleApiError).toHaveBeenCalledWith(
-        expect.any(Error),
-        "受付ステータスの更新",
-      );
+      expect(mockedHandleApiError).toHaveBeenCalledWith(expect.any(Error), "受付ステータスの更新");
     } else {
       expect(mockedHandleApiError).not.toHaveBeenCalled();
     }

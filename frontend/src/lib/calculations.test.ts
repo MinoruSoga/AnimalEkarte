@@ -47,11 +47,7 @@ describe("calculateBillingTotals", () => {
   });
 
   it("taxRate 未指定の明細は引数 taxRate（既定 10%）を使う（後方互換）", () => {
-    const result = calculateBillingTotals(
-      [{ unitPrice: 1000, quantity: 1 }],
-      0,
-      0,
-    );
+    const result = calculateBillingTotals([{ unitPrice: 1000, quantity: 1 }], 0, 0);
     expect(result.tax).toBe(100);
     expect(result.total).toBe(1100);
   });

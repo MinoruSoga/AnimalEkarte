@@ -10,7 +10,8 @@ import type { SortOrder } from "@/types";
 
 import { examinationItemsQueryOptions } from "../api/get-examination-items";
 import type { ExaminationRecord, ExamResult } from "../api/transforms";
-import { EXAM_PIVOT_RECENT_LIMIT } from "../constants";
+import { EXAM_PIVOT_RECENT_LIMIT } from "../lib/constants";
+import { ExamStatusBadge } from "./ExamStatusBadge";
 
 interface ExamPivotTableProps {
   examinations: ExaminationRecord[];
@@ -31,10 +32,7 @@ function normalizeLegacyValue(value: string): string {
   return value.normalize("NFKC").trim();
 }
 
-function getPivotRowKey(
-  examination: ExaminationRecord,
-  item: ExamResult,
-): string {
+function getPivotRowKey(examination: ExaminationRecord, item: ExamResult): string {
   if (item.examTypeFieldId !== undefined) {
     return `field:${item.examTypeFieldId}`;
   }
@@ -51,7 +49,7 @@ function formatStoredReference(item: ExamResult): string {
     return item.referenceValue;
   }
 
-  // TODO(Phase 2): 保存済み refMin/refMax 表示をマスタ解決済み基準値へ置換する。
+  // 既知の制約: 保存済み refMin/refMax はマスタ解決済み基準値ではなく保存時点の値をそのまま表示する。
   if (item.refMin !== undefined || item.refMax !== undefined) {
     return `${item.refMin ?? ""}-${item.refMax ?? ""}`;
   }
@@ -83,9 +81,7 @@ function buildPivotRows(
               currentRows[key]?.cells[examination.id] !== undefined,
           );
           const key =
-            occupiedKeys.length === 0
-              ? baseKey
-              : `${baseKey}:duplicate:${occupiedKeys.length + 1}`;
+            occupiedKeys.length === 0 ? baseKey : `${baseKey}:duplicate:${occupiedKeys.length + 1}`;
           const existing = currentRows[key];
           const cells = {
             ...(existing?.cells ?? {}),
@@ -122,74 +118,17 @@ function buildPivotRows(
 
   return Object.values(rowsByKey).sort(
     (left, right) =>
-      left.sortOrder - right.sortOrder ||
-      left.label.localeCompare(right.label, "ja"),
+      left.sortOrder - right.sortOrder || left.label.localeCompare(right.label, "ja"),
   );
-}
-
-function StatusBadge({
-  status,
-  isAssessed,
-}: {
-  status: ExamResult["status"];
-  isAssessed: ExamResult["isAssessed"];
-}) {
-  if (status === "high") {
-    return (
-      <Badge
-        variant="destructive"
-        className={`h-8 px-2 text-xs ${C.bgDanger} ${C.hoverBgDanger90}`}
-      >
-        HIGH
-      </Badge>
-    );
-  }
-
-  if (status === "low") {
-    return (
-      <Badge
-        variant="outline"
-        className={`h-8 px-2 text-xs ${C.textStatusBlue} ${C.borderBlue400} ${C.bgStatusBlueLight}`}
-      >
-        LOW
-      </Badge>
-    );
-  }
-
-  if (isAssessed === false) {
-    return (
-      <Badge
-        variant="outline"
-        className={`h-8 px-2 text-xs ${C.textWarning} ${C.borderWarning20} ${C.bgWarning50}`}
-      >
-        未判定
-        <span className="sr-only">（基準値未設定のため判定していない）</span>
-      </Badge>
-    );
-  }
-
-  if (status === "normal") {
-    return null;
-  }
-
-  return null;
 }
 
 function PivotValueCell({ item }: { item: ExamResult | undefined }) {
   if (!item) {
-    return (
-      <TableCell className={`min-w-24 border-l text-center ${C.borderMedium}`}>
-        -
-      </TableCell>
-    );
+    return <TableCell className={`min-w-24 border-l text-center ${C.borderMedium}`}>-</TableCell>;
   }
 
   const statusClass =
-    item.status === "high"
-      ? C.bgDanger8
-      : item.status === "low"
-        ? C.bgStatusBlueLight
-        : C.bgWhite;
+    item.status === "high" ? C.bgDanger8 : item.status === "low" ? C.bgStatusBlueLight : C.bgWhite;
 
   return (
     <TableCell
@@ -198,7 +137,7 @@ function PivotValueCell({ item }: { item: ExamResult | undefined }) {
     >
       <div className="flex min-h-8 items-center justify-center gap-2">
         <span className="font-mono">{item.inspectionValue}</span>
-        <StatusBadge status={item.status} isAssessed={item.isAssessed} />
+        <ExamStatusBadge status={item.status} isAssessed={item.isAssessed} compact />
       </div>
     </TableCell>
   );
@@ -221,10 +160,7 @@ function getExaminationColumnLabel(
   return `${examination.date} ${sameDayIndex + 1}件目`;
 }
 
-export function ExamPivotTable({
-  examinations,
-  sortOrder,
-}: ExamPivotTableProps) {
+export function ExamPivotTable({ examinations, sortOrder }: ExamPivotTableProps) {
   const [itemFilter, setItemFilter] = useState("");
   const deferredItemFilter = useDeferredValue(itemFilter);
   const recentExaminations = useMemo(
@@ -235,19 +171,14 @@ export function ExamPivotTable({
     [examinations],
   );
   const displayedExaminations = useMemo(
-    () =>
-      sortOrder === "asc"
-        ? [...recentExaminations].reverse()
-        : recentExaminations,
+    () => (sortOrder === "asc" ? [...recentExaminations].reverse() : recentExaminations),
     [recentExaminations, sortOrder],
   );
 
-  // Phase 1 intentionally bounds this N+1 fan-out to the latest 10 exams.
-  // TODO(Phase 2): replace with a single bulk examination-items endpoint.
+  // 既知の制約: この N+1 fan-out は直近 EXAM_PIVOT_RECENT_LIMIT 件に意図的に絞っている。
+  // 件数が増える場合は一括取得エンドポイントへの置換を検討する。
   const itemQueries = useQueries({
-    queries: recentExaminations.map((examination) =>
-      examinationItemsQueryOptions(examination.id),
-    ),
+    queries: recentExaminations.map((examination) => examinationItemsQueryOptions(examination.id)),
   });
   const itemsByExaminationId = useMemo(
     () =>
@@ -263,10 +194,7 @@ export function ExamPivotTable({
     () => buildPivotRows(recentExaminations, itemsByExaminationId),
     [itemsByExaminationId, recentExaminations],
   );
-  const normalizedFilter = deferredItemFilter
-    .normalize("NFKC")
-    .trim()
-    .toLocaleLowerCase();
+  const normalizedFilter = deferredItemFilter.normalize("NFKC").trim().toLocaleLowerCase();
   const visibleRows = useMemo(
     () =>
       normalizedFilter
@@ -281,11 +209,7 @@ export function ExamPivotTable({
   );
 
   if (recentExaminations.length === 0) {
-    return (
-      <p className={`py-6 text-center text-sm ${C.text45}`}>
-        検査記録がありません
-      </p>
-    );
+    return <p className={`py-6 text-center text-sm ${C.text45}`}>検査記録がありません</p>;
   }
 
   if (itemQueries.some((query) => query.isError)) {
@@ -325,15 +249,11 @@ export function ExamPivotTable({
       </div>
 
       {visibleRows.length > 0 ? (
-        <div
-          className={`overflow-x-auto rounded-lg border ${C.borderMedium} ${C.bgWhite}`}
-        >
+        <div className={`overflow-x-auto rounded-lg border ${C.borderMedium} ${C.bgWhite}`}>
           <table className={`min-w-full border-collapse text-sm ${C.text}`}>
             <thead>
               <tr className={`${C.bgPage} ${STYLE.sectionLabel}`}>
-                <TableHead className="min-w-36">
-                  項目名
-                </TableHead>
+                <TableHead className="min-w-36">項目名</TableHead>
                 <TableHead className={`min-w-20 border-l text-center ${C.borderMedium}`}>
                   単位
                 </TableHead>
@@ -343,10 +263,7 @@ export function ExamPivotTable({
                 {displayedExaminations.map((examination) => (
                   <TableHead
                     key={examination.id}
-                    aria-label={getExaminationColumnLabel(
-                      examination,
-                      displayedExaminations,
-                    )}
+                    aria-label={getExaminationColumnLabel(examination, displayedExaminations)}
                     className={`min-w-24 border-l text-center ${C.borderMedium}`}
                   >
                     {examination.date}
@@ -375,10 +292,7 @@ export function ExamPivotTable({
                     {row.reference}
                   </TableCell>
                   {displayedExaminations.map((examination) => (
-                    <PivotValueCell
-                      key={examination.id}
-                      item={row.cells[examination.id]}
-                    />
+                    <PivotValueCell key={examination.id} item={row.cells[examination.id]} />
                   ))}
                 </tr>
               ))}
@@ -387,9 +301,7 @@ export function ExamPivotTable({
         </div>
       ) : (
         <p className={`py-6 text-center text-sm ${C.text45}`}>
-          {normalizedFilter
-            ? "該当する検査項目がありません"
-            : "表示できる実施済み項目がありません"}
+          {normalizedFilter ? "該当する検査項目がありません" : "表示できる実施済み項目がありません"}
         </p>
       )}
     </div>

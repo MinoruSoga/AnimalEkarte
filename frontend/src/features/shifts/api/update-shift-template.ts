@@ -4,7 +4,10 @@ import { handleApiError } from "@/lib/handle-api-error";
 import { queryKeys } from "@/lib/query-keys";
 import type { UpdateShiftTemplateInput, ShiftTemplate } from "../types";
 
-async function updateShiftTemplate(id: string, input: UpdateShiftTemplateInput): Promise<ShiftTemplate> {
+async function updateShiftTemplate(
+  id: string,
+  input: UpdateShiftTemplateInput,
+): Promise<ShiftTemplate> {
   const { data } = await axios.patch<ShiftTemplate>(`/v1/shift-templates/${id}`, input);
   return data;
 }

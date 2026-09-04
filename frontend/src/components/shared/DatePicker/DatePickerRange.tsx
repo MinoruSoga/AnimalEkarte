@@ -153,10 +153,7 @@ export function RangePicker({
             classNames={RANGE_CALENDAR_CLASSES}
           />
         ) : (
-          <MonthGrid
-            currentMonth={displayMonth.getMonth()}
-            onSelect={handleMonthSelect}
-          />
+          <MonthGrid currentMonth={displayMonth.getMonth()} onSelect={handleMonthSelect} />
         )}
       </PopoverContent>
     </Popover>

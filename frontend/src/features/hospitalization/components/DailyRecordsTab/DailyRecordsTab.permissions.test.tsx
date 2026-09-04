@@ -1,9 +1,4 @@
-import {
-  useLayoutEffect,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -36,7 +31,7 @@ const mocks = vi.hoisted(() => ({
   carePlanUpdateCallback: undefined as ((input: UpdateCarePlanItemInput) => void) | undefined,
   carePlanDeleteCallback: undefined as ((itemId: string) => void) | undefined,
   carePlanEditCallback: undefined as ((itemId: string) => void) | undefined,
-  vitalCallback: undefined as ((payload: CreateVitalRecordRequest) => void) | undefined,
+  vitalCallback: undefined as ((payload: CreateVitalRecordRequest) => Promise<void>) | undefined,
   careLogCallback: undefined as ((payload: CreateCareLogRequest) => void) | undefined,
   staffNoteCallback: undefined as ((payload: CreateStaffNoteRequest) => void) | undefined,
   dailyRecordCallback: undefined as (() => void) | undefined,
@@ -57,25 +52,27 @@ vi.mock("@/hooks/use-permission", () => ({
 
 vi.mock("../../api/care-plan-items", () => ({
   useGetCarePlanItems: () => ({
-    data: [{
-      id: "item-1",
-      hospitalization_id: "hospitalization-1",
-      type: "instruction",
-      name: "既存項目",
-      description: "",
-      timing: ["morning"],
-      status: "active",
-      notes: "",
-      unit_price: 0,
-      category: "",
-      sort_order: 0,
-      created_at: "",
-      updated_at: "",
-    } satisfies CarePlanItem],
+    data: [
+      {
+        id: "item-1",
+        hospitalization_id: "hospitalization-1",
+        type: "instruction",
+        name: "既存項目",
+        description: "",
+        timing: ["morning"],
+        status: "active",
+        notes: "",
+        unit_price: 0,
+        category: "",
+        sort_order: 0,
+        created_at: "",
+        updated_at: "",
+      } satisfies CarePlanItem,
+    ],
     isLoading: false,
   }),
-  useCreateCarePlanItem: () => ({ mutate: mocks.createCarePlanItem, isPending: false }),
-  useUpdateCarePlanItem: () => ({ mutate: mocks.updateCarePlanItem, isPending: false }),
+  useCreateCarePlanItem: () => ({ mutateAsync: mocks.createCarePlanItem, isPending: false }),
+  useUpdateCarePlanItem: () => ({ mutateAsync: mocks.updateCarePlanItem, isPending: false }),
   useDeleteCarePlanItem: () => ({ mutate: mocks.deleteCarePlanItem, isPending: false }),
 }));
 
@@ -140,19 +137,31 @@ vi.mock("@/components/ui/button", () => ({
   },
 }));
 vi.mock("./DailyVitalsSection", () => ({
-  DailyVitalsSection: ({ onAddVital }: { onAddVital: (payload: CreateVitalRecordRequest) => void }) => {
+  DailyVitalsSection: ({
+    onAddVital,
+  }: {
+    onAddVital: (payload: CreateVitalRecordRequest) => Promise<void>;
+  }) => {
     mocks.vitalCallback = onAddVital;
     return null;
   },
 }));
 vi.mock("./DailyCareLogsSection", () => ({
-  DailyCareLogsSection: ({ onAddCareLog }: { onAddCareLog: (payload: CreateCareLogRequest) => void }) => {
+  DailyCareLogsSection: ({
+    onAddCareLog,
+  }: {
+    onAddCareLog: (payload: CreateCareLogRequest) => void;
+  }) => {
     mocks.careLogCallback = onAddCareLog;
     return null;
   },
 }));
 vi.mock("./DailyStaffNotesSection", () => ({
-  DailyStaffNotesSection: ({ onAddStaffNote }: { onAddStaffNote: (payload: CreateStaffNoteRequest) => void }) => {
+  DailyStaffNotesSection: ({
+    onAddStaffNote,
+  }: {
+    onAddStaffNote: (payload: CreateStaffNoteRequest) => void;
+  }) => {
     mocks.staffNoteCallback = onAddStaffNote;
     return null;
   },
@@ -174,12 +183,12 @@ function renderChildMutationBoundaries() {
 
 function SameCommitRevocationHarness() {
   const [revoked, setRevoked] = useState(false);
-  const capturedCreateRef = useRef<
-    ((input: CreateCarePlanItemInput) => void) | undefined
-  >(undefined);
-  const capturedVitalRef = useRef<
-    ((payload: CreateVitalRecordRequest) => void) | undefined
-  >(undefined);
+  const capturedCreateRef = useRef<((input: CreateCarePlanItemInput) => void) | undefined>(
+    undefined,
+  );
+  const capturedVitalRef = useRef<((payload: CreateVitalRecordRequest) => void) | undefined>(
+    undefined,
+  );
 
   useLayoutEffect(() => {
     if (revoked) {
@@ -211,15 +220,11 @@ function SameCommitRevocationHarness() {
         作成権限を失効
       </button>
       <CarePlanTab
-        hospitalizationId={
-          revoked ? "hospitalization-2" : "hospitalization-1"
-        }
+        hospitalizationId={revoked ? "hospitalization-2" : "hospitalization-1"}
         petIsDeceased={false}
       />
       <DailyRecordsTab
-        hospitalizationId={
-          revoked ? "hospitalization-2" : "hospitalization-1"
-        }
+        hospitalizationId={revoked ? "hospitalization-2" : "hospitalization-1"}
         admissionDate="2026-07-01"
         dischargeDate="2026-07-14"
         petIsDeceased={false}
@@ -356,15 +361,31 @@ describe("hospitalization child mutation permission boundaries", () => {
     });
 
     await waitFor(() => {
-      expect(mocks.createVital).toHaveBeenCalledWith({ time: "10:00:00", temperature: 38.5, staff_id: 7 });
-      expect(mocks.createCareLog).toHaveBeenCalledWith({ time: "10:01:00", type: "food", staff_id: 7 });
-      expect(mocks.createStaffNote).toHaveBeenCalledWith({ time: "10:02:00", content: "メモ", staff_id: 7 });
+      expect(mocks.createVital).toHaveBeenCalledWith({
+        time: "10:00:00",
+        temperature: 38.5,
+        staff_id: 7,
+      });
+      expect(mocks.createCareLog).toHaveBeenCalledWith({
+        time: "10:01:00",
+        type: "food",
+        staff_id: 7,
+      });
+      expect(mocks.createStaffNote).toHaveBeenCalledWith({
+        time: "10:02:00",
+        content: "メモ",
+        staff_id: 7,
+      });
     });
-    expect(mocks.createCarePlanItem).toHaveBeenCalledWith({ type: "instruction", name: "追加", timing: ["morning"] });
+    expect(mocks.createCarePlanItem).toHaveBeenCalledWith({
+      type: "instruction",
+      name: "追加",
+      timing: ["morning"],
+    });
     expect(mocks.updateCarePlanItem).toHaveBeenCalledWith({
       itemId: "item-1",
       input: { type: "instruction", name: "更新", timing: ["morning"] },
-    }, expect.any(Object));
+    });
     expect(mocks.deleteCarePlanItem).toHaveBeenCalledWith("item-1", expect.any(Object));
   });
 

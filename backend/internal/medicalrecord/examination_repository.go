@@ -17,7 +17,7 @@ import (
 )
 
 type ExaminationRepository interface {
-	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error)
+	FindAll(ctx context.Context, clinicID uint64, petID, ownerID, medicalRecordID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
 	LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
 	// FindByJobID は clinic_id + job_id で絞り込んだ exams を日付降順で返す（Phase 4B.2）。
@@ -41,13 +41,22 @@ func NewExaminationRepository(db *gorm.DB) ExaminationRepository {
 	return &examinationRepository{db: db}
 }
 
-func (r *examinationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error) {
+func (r *examinationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID, medicalRecordID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error) {
 	buildBase := func() *gorm.DB {
 		q := persistence.DBOrTx(ctx, r.db).Model(&model.Examination{}).
 			Where("exams.clinic_id = ?", clinicID).
 			Scopes(examinationPatientRelationsScope(clinicID))
-		if petID != nil {
+		switch {
+		case petID != nil && medicalRecordID != nil:
+			// カルテ検査タブの契約: そのカルテへ取り込んだ検査に加え、同じペットの
+			// 未取り込み検査（機器受信 attach 直後は medical_record_id IS NULL）も返す。
+			// record 単独条件にすると機器由来の結果が診察中に見えなくなる。
+			q = q.Where("exams.pet_id = ?", *petID).
+				Where("(exams.medical_record_id = ? OR exams.medical_record_id IS NULL)", *medicalRecordID)
+		case petID != nil:
 			q = q.Where("exams.pet_id = ?", *petID)
+		case medicalRecordID != nil:
+			q = q.Where("exams.medical_record_id = ?", *medicalRecordID)
 		}
 		if ownerID != nil {
 			q = q.Joins(

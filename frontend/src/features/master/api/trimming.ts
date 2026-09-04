@@ -64,13 +64,24 @@ export type UpdateTrimmingOptionRequest = Partial<TrimmingOptionBase>;
 // Transform functions
 // ─────────────────────────────────────────────────
 
+/** キャッシュ汚染時の MasterItem.status も吸収して有効/無効を判定する */
+export function resolveTrimmingActiveFlag(item: {
+  is_active?: boolean;
+  isActive?: boolean;
+  status?: string;
+}): boolean {
+  if (typeof item.is_active === "boolean") return item.is_active;
+  if (typeof item.isActive === "boolean") return item.isActive;
+  return item.status === "active";
+}
+
 function transformTrimmingCourse(data: ModelTrimmingCourse) {
   return {
     id: String(data.id ?? 0),
     clinicId: String(data.clinic_id ?? 0),
     name: data.name,
     price: data.price ?? null,
-    isActive: data.is_active,
+    isActive: resolveTrimmingActiveFlag(data),
     description: data.description,
     targetSize: (data.target_size as TargetSize) ?? null,
     courseTypeId: data.course_type_id != null ? String(data.course_type_id) : null,
@@ -89,7 +100,7 @@ function transformTrimmingOption(data: ModelTrimmingOption) {
     clinicId: String(data.clinic_id ?? 0),
     name: data.name,
     price: data.price ?? null,
-    isActive: data.is_active,
+    isActive: resolveTrimmingActiveFlag(data),
     description: data.description,
     duration: data.duration ?? null,
     combinable: data.is_combinable,
@@ -105,25 +116,18 @@ export type TrimmingOption = ReturnType<typeof transformTrimmingOption>;
 // Query keys
 // ─────────────────────────────────────────────────
 
-// P8: useMasterItems("trimmingCourse") と queryKey を統一（キャッシュ無効化が機能するため）
+// P8: useGetMasterItems("trimmingCourse") と queryKey を統一（キャッシュ無効化が機能するため）
 // ─────────────────────────────────────────────────
 // API functions - TrimmingCourse
 // ─────────────────────────────────────────────────
 
 async function listTrimmingCourses(): Promise<TrimmingCourse[]> {
-  const { data } = await axios.get<ModelTrimmingCourse[]>(
-    "/v1/masters/trimming-courses",
-  );
+  const { data } = await axios.get<ModelTrimmingCourse[]>("/v1/masters/trimming-courses");
   return data.map(transformTrimmingCourse);
 }
 
-async function createTrimmingCourse(
-  req: CreateTrimmingCourseRequest,
-): Promise<TrimmingCourse> {
-  const { data } = await axios.post<ModelTrimmingCourse>(
-    "/v1/masters/trimming-courses",
-    req,
-  );
+async function createTrimmingCourse(req: CreateTrimmingCourseRequest): Promise<TrimmingCourse> {
+  const { data } = await axios.post<ModelTrimmingCourse>("/v1/masters/trimming-courses", req);
   return transformTrimmingCourse(data);
 }
 
@@ -147,19 +151,12 @@ async function deleteTrimmingCourse(id: string): Promise<void> {
 // ─────────────────────────────────────────────────
 
 async function listTrimmingOptions(): Promise<TrimmingOption[]> {
-  const { data } = await axios.get<ModelTrimmingOption[]>(
-    "/v1/masters/trimming-options",
-  );
+  const { data } = await axios.get<ModelTrimmingOption[]>("/v1/masters/trimming-options");
   return data.map(transformTrimmingOption);
 }
 
-async function createTrimmingOption(
-  req: CreateTrimmingOptionRequest,
-): Promise<TrimmingOption> {
-  const { data } = await axios.post<ModelTrimmingOption>(
-    "/v1/masters/trimming-options",
-    req,
-  );
+async function createTrimmingOption(req: CreateTrimmingOptionRequest): Promise<TrimmingOption> {
+  const { data } = await axios.post<ModelTrimmingOption>("/v1/masters/trimming-options", req);
   return transformTrimmingOption(data);
 }
 
@@ -184,7 +181,7 @@ async function deleteTrimmingOption(id: string): Promise<void> {
 
 export function useGetTrimmingCourses() {
   return useQuery({
-    queryKey: queryKeys.masters.category("trimmingCourse"),
+    queryKey: queryKeys.masters.trimmingCoursesFull(),
     queryFn: listTrimmingCourses,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -224,7 +221,6 @@ export function useDeleteTrimmingCourse() {
     onError: (error) => handleApiError(error, "削除"),
   });
 }
-
 
 // ─────────────────────────────────────────────────
 // TanStack Query hooks - TrimmingOption
@@ -272,4 +268,3 @@ export function useDeleteTrimmingOption() {
     onError: (error) => handleApiError(error, "削除"),
   });
 }
-

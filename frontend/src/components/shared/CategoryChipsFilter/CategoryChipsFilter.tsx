@@ -40,7 +40,8 @@ export const CategoryChipsFilter = memo(function CategoryChipsFilter({
   hoverEffect = "button",
 }: CategoryChipsFilterProps) {
   const roundedClass = chipRounded === "sm" ? "rounded-sm" : "rounded-md";
-  const hoverTransitionClass = hoverEffect === "badge" ? "hover:opacity-80 transition-all" : "transition-colors";
+  const hoverTransitionClass =
+    hoverEffect === "badge" ? "hover:opacity-80 transition-all" : "transition-colors";
 
   return (
     <div

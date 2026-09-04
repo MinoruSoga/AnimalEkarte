@@ -50,8 +50,9 @@ type LookupRepository interface {
 	FindByIDs(ctx context.Context, clinicID uint64, ids []uint64) ([]*model.Owner, error)
 }
 
-// LstepRepository contains owner persistence consumed by LSTEP workflows.
-type LstepRepository interface {
+// LifecycleOwnerRepository contains owner persistence used by owner-lifecycle
+// workflows (LINE follow/block, delivery opt-out).
+type LifecycleOwnerRepository interface {
 	FindAllWithLineUserID(ctx context.Context, clinicID uint64) ([]model.Owner, error)
 	FindAllWithLineUserIDCursor(ctx context.Context, clinicID, afterID uint64, limit int) ([]model.Owner, error)
 	LockLineLinkOwner(ctx context.Context, clinicID, ownerID uint64) (*model.Owner, error)
@@ -76,7 +77,7 @@ type LstepRepository interface {
 type Repository interface {
 	ServiceRepository
 	LookupRepository
-	LstepRepository
+	LifecycleOwnerRepository
 	OwnerDeleteLocker
 }
 
@@ -106,17 +107,26 @@ func (r *ownerRepository) FindAll(ctx context.Context, clinicIDs []uint64, page,
 			// raw name の一致は既存の trgm index を利用可能な形で残し、
 			// name と name_kana の正規化枝でカナ表記を対称に検索する。
 			// phone と email は従来どおり正規化済み pattern で比較する。
-			rawPattern := "%" + textsearch.EscapeLike(search) + "%"
-			normalizedPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(search)) + "%"
+			// 空白のみは fail-closed で 0 件。U+3000 は query 側 NormalizeQuerySpaces と
+			// column 側 translate(space / kana+space) で半角空白と相互に一致させる (BUG-001)。
+			qSearch := textsearch.NormalizeQuerySpaces(search)
+			if qSearch == "" {
+				q = q.Where("1 = 0")
+				return q
+			}
+			rawPattern := "%" + textsearch.EscapeLike(qSearch) + "%"
+			normalizedPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(qSearch)) + "%"
 			q = q.Where(
 				`(name ILIKE ? ESCAPE '\'`+
+					` OR translate(name, ?, ?) ILIKE ? ESCAPE '\'`+
 					` OR translate(name, ?, ?) ILIKE ? ESCAPE '\'`+
 					` OR translate(name_kana, ?, ?) ILIKE ? ESCAPE '\'`+
 					` OR phone ILIKE ? ESCAPE '\'`+
 					` OR email ILIKE ? ESCAPE '\')`,
 				rawPattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+				textsearch.SpaceSourceChars, textsearch.SpaceTargetChars, rawPattern,
+				textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
+				textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
 				normalizedPattern,
 				normalizedPattern,
 			)

@@ -16,10 +16,7 @@ interface UseSortableDataOptions<T> {
   getSortValue?: (item: T, key: string) => string | number;
 }
 
-export function useSortableData<T extends object>(
-  data: T[],
-  options?: UseSortableDataOptions<T>,
-) {
+export function useSortableData<T extends object>(data: T[], options?: UseSortableDataOptions<T>) {
   const [activeSorts, setActiveSorts] = useState<ActiveSortItem[]>([]);
 
   const toggleSort = useCallback((key: string) => {
@@ -27,9 +24,7 @@ export function useSortableData<T extends object>(
       const existing = prev.find((s) => s.key === key);
       if (!existing) return [{ key, direction: "asc" as const }];
       if (existing.direction === "asc") {
-        return prev.map((s) =>
-          s.key === key ? { ...s, direction: "desc" as const } : s,
-        );
+        return prev.map((s) => (s.key === key ? { ...s, direction: "desc" as const } : s));
       }
       return prev.filter((s) => s.key !== key);
     });
@@ -66,7 +61,8 @@ export function useSortableData<T extends object>(
           }
         } else if (numericKeys?.includes(key)) {
           const cmp =
-            Number((a as Record<string, unknown>)[key] ?? 0) - Number((b as Record<string, unknown>)[key] ?? 0);
+            Number((a as Record<string, unknown>)[key] ?? 0) -
+            Number((b as Record<string, unknown>)[key] ?? 0);
           if (cmp !== 0) return sort.direction === "asc" ? cmp : -cmp;
         } else {
           const aVal = String((a as Record<string, unknown>)[key] ?? "");

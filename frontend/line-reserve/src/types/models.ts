@@ -4,7 +4,7 @@ export interface LiffSettings {
   liff_id: string;
   header_text: string;
   phone_number: string;
-  status: 'running' | 'stopped';
+  status: "running" | "stopped";
   request_example: string;
   reservation_notice: string;
   cancel_notice: string;
@@ -45,7 +45,7 @@ export interface Course {
   reservation_comment: string;
   reservation_image_url: string;
   sort_order: number;
-  category?: 'general' | 'trimming';
+  category?: "general" | "trimming";
 }
 
 export interface TrimmingCourse {
@@ -75,12 +75,12 @@ export interface Staff {
 export interface AvailableDate {
   date: string; // "YYYY-MM-DD"
   available: boolean;
-  reason?: 'closed' | 'holiday' | 'staff_off' | 'no_slots'; // 予約不可の理由
+  reason?: "closed" | "holiday" | "staff_off" | "no_slots"; // 予約不可の理由
 }
 
 export interface AvailableTime {
   start_time: string; // "HHMM"
-  end_time: string;   // "HHMM"
+  end_time: string; // "HHMM"
   display_time?: string; // Backend未実装のためオプショナル。formatTime でフォールバック
 }
 
@@ -88,19 +88,20 @@ export interface AvailableTime {
 export interface Reservation {
   id: number;
   course_name: string;
+  pet_name?: string;
   staff_name: string; // 指名なし予約は backend が省略するため schemas.ts 側で '' デフォルト
-  date: string;       // "YYYY-MM-DD"
+  date: string; // "YYYY-MM-DD"
   start_time: string; // "HH:MM"
-  end_time: string;   // "HH:MM"
+  end_time: string; // "HH:MM"
   status:
-    | 'confirmed'
-    | 'pending'
-    | 'cancelled'
-    | 'checked_in'
-    | 'in_consultation'
-    | 'accounting'
-    | 'completed'
-    | 'no_show';
+    | "confirmed"
+    | "pending"
+    | "cancelled"
+    | "checked_in"
+    | "in_consultation"
+    | "accounting"
+    | "completed"
+    | "no_show";
   notes: string; // 空文字時は backend が省略するため schemas.ts 側で '' デフォルト
   created_at: string;
 }
@@ -114,7 +115,7 @@ export interface CreateReservationResponse {
 export interface PetSelection {
   name: string;
   type: string;
-  isNew?: boolean;   // true = 自由入力で追加した新規ペット
+  isNew?: boolean; // true = 自由入力で追加した新規ペット
 }
 
 interface CustomerFields {
@@ -127,13 +128,13 @@ interface CustomerFields {
 export interface CreateReservationBody {
   course_id: number;
   staff_id: number;
-  date: string;                    // "YYYY-MM-DD"
-  start_time: string;              // "HHMM"
-  end_time: string;                // "HHMM"
+  date: string; // "YYYY-MM-DD"
+  start_time: string; // "HHMM"
+  end_time: string; // "HHMM"
   customer_fields: CustomerFields;
   request_text: string;
-  trimming_course_id?: number;     // BE-120
-  trimming_option_ids?: number[];  // BE-120
+  trimming_course_id?: number; // BE-120
+  trimming_option_ids?: number[]; // BE-120
 }
 
 export interface CustomerInfo {
@@ -147,31 +148,31 @@ export interface ReservationFlow {
   customerInfo: CustomerInfo;
   courseId: number | null;
   courseName: string;
-  courseCategory: 'general' | 'trimming';
+  courseCategory: "general" | "trimming";
   staffId: number; // 0 = 指名なし
   staffName: string;
-  date: string;      // "YYYY-MM-DD"
+  date: string; // "YYYY-MM-DD"
   startTime: string; // "HHMM"
-  endTime: string;   // "HHMM"
+  endTime: string; // "HHMM"
   requestText: string;
-  trimmingCourseId: number | null;  // BE-120
-  trimmingCourseName: string;       // BE-120
-  trimmingOptionIds: number[];      // BE-120
+  trimmingCourseId: number | null; // BE-120
+  trimmingCourseName: string; // BE-120
+  trimmingOptionIds: number[]; // BE-120
 }
 
 export type PageType =
-  | 'loading'
-  | 'error'
-  | 'maintenance'
-  | 'top'
-  | 'my-reservations'
-  | 'step1'
-  | 'step2'
-  | 'step2b'  // トリミングコース選択（category=trimming の場合）
-  | 'step2c'  // トリミングオプション選択
-  | 'step3'
-  | 'step4'
-  | 'step5'
-  | 'step6'
-  | 'step7'
-  | 'step8';
+  | "loading"
+  | "error"
+  | "maintenance"
+  | "top"
+  | "my-reservations"
+  | "step1"
+  | "step2"
+  | "step2b" // トリミングコース選択（category=trimming の場合）
+  | "step2c" // トリミングオプション選択
+  | "step3"
+  | "step4"
+  | "step5"
+  | "step6"
+  | "step7"
+  | "step8";

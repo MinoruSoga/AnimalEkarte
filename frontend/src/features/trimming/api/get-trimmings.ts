@@ -9,7 +9,7 @@ import type { TrimmingListResponse } from "@/types/trimming";
 
 export interface TrimmingFilters {
   startDate?: string; // YYYY-MM-DD
-  endDate?: string;   // YYYY-MM-DD
+  endDate?: string; // YYYY-MM-DD
   petId?: string;
   enabled?: boolean;
 }

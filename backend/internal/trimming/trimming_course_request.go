@@ -1,8 +1,8 @@
 package trimming
 
 type createTrimmingCourseRequest struct {
-	Name         string  `json:"name"        binding:"required"`
-	Price        *int64  `json:"price"`
+	Name  string `json:"name"        binding:"required"`
+	Price *int64 `json:"price"`
 	// IsActive is *bool so JSON binding can distinguish omitted / false / true.
 	// Omitted (nil) resolves to true in toServiceInput.
 	IsActive     *bool   `json:"is_active"`

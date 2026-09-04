@@ -16,7 +16,9 @@ func TestStaffCredentialMutationAuditSourceContract(t *testing.T) {
 
 	serviceSource := sourceAfterStaffAuditMarker(
 		t,
-		readStaffCredentialAuditSource(t, "staff_service_core.go"),
+		readStaffCredentialAuditSource(t, "staff_service_core.go")+
+			"\n"+
+			readStaffCredentialAuditSource(t, "staff_service_update.go"),
 		"func (s *staffService) Update(",
 	)
 	assertStaffAuditSourceOrder(

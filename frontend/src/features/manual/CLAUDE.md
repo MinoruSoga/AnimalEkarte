@@ -4,17 +4,17 @@
 
 ## アーキテクチャ
 
-| 項目 | 採用 |
-|------|------|
-| ソース形式 | Markdown (frontmatter 付き) |
-| 取り込み | Vite `import.meta.glob('*.md', { query: '?raw', eager: true })` |
-| 解析 | 自前 frontmatter parser (`lib/manual-index.ts`) |
-| レンダリング | `react-markdown` + `remark-gfm` (テーブル/タスクリスト対応) |
-| 画像 | `import.meta.glob('*', { query: '?url', eager: true })` でハッシュ付き URL に解決 |
-| 検索 | `fuse.js` fuzzy search (画面別/業務フロー横断) |
-| 印刷 | `manual-print.css` で `@media print` ルール |
-| ルーティング | `react-router` lazy load。`/manual/:category/:slug` |
-| 認可 | permission gating 無し（認証済み全スタッフ閲覧可） |
+| 項目         | 採用                                                                              |
+| ------------ | --------------------------------------------------------------------------------- |
+| ソース形式   | Markdown (frontmatter 付き)                                                       |
+| 取り込み     | Vite `import.meta.glob('*.md', { query: '?raw', eager: true })`                   |
+| 解析         | 自前 frontmatter parser (`lib/manual-index.ts`)                                   |
+| レンダリング | `react-markdown` + `remark-gfm` (テーブル/タスクリスト対応)                       |
+| 画像         | `import.meta.glob('*', { query: '?url', eager: true })` でハッシュ付き URL に解決 |
+| 検索         | `fuse.js` fuzzy search (画面別/業務フロー横断)                                    |
+| 印刷         | `manual-print.css` で `@media print` ルール                                       |
+| ルーティング | `react-router` lazy load。`/manual/:category/:slug`                               |
+| 認可         | permission gating 無し（認証済み全スタッフ閲覧可）                                |
 
 ## ディレクトリ構成
 
@@ -26,11 +26,11 @@
 
 ### 編集の保存方式（3 種類）
 
-| 方式 | 必要権限 | 即時反映 | 用途 |
-|------|--------|--------|------|
-| 「保存」ボタン → DB 保存 | `ResourceManualEdit` edit | ✅ | 管理者の自力修正 |
-| 「コピー」 → IT 担当へ | 不要 | × | 一般スタッフが編集案を作る |
-| 「ダウンロード」 → IT 担当へ | 不要 | × | 同上 |
+| 方式                         | 必要権限                  | 即時反映 | 用途                       |
+| ---------------------------- | ------------------------- | -------- | -------------------------- |
+| 「保存」ボタン → DB 保存     | `ResourceManualEdit` edit | ✅       | 管理者の自力修正           |
+| 「コピー」 → IT 担当へ       | 不要                      | ×        | 一般スタッフが編集案を作る |
+| 「ダウンロード」 → IT 担当へ | 不要                      | ×        | 同上                       |
 
 ### バックエンド統合
 
@@ -82,15 +82,16 @@ section: セクション名
 ...
 ```
 
-| キー | 型 | 必須 | 用途 |
-|------|----|----|-----|
-| `title` | string | ✅ | 目次・タブで表示される項目名 |
-| `order` | number | ✅ | セクション内表示順 (昇順) |
-| `section` | string | ✅ | サイドバーのグループ名 |
+| キー      | 型     | 必須 | 用途                         |
+| --------- | ------ | ---- | ---------------------------- |
+| `title`   | string | ✅   | 目次・タブで表示される項目名 |
+| `order`   | number | ✅   | セクション内表示順 (昇順)    |
+| `section` | string | ✅   | サイドバーのグループ名       |
 
 ### セクション分類
 
 **screens/**:
+
 - 基本 (ログイン・概要)
 - 診療業務 (受付・カルテ・検査・予防接種・トリミング・定期健診)
 - 運用・管理 (会計・レジ締め・月次・入院・在庫・シフト)
@@ -98,6 +99,7 @@ section: セクション名
 - システム設定 (マスタ設定)
 
 **workflows/**:
+
 - 来院対応 (新規飼主・既存飼主・入院)
 - 日次・月次業務 (締め・集計)
 - 定期業務 (ワクチン・在庫)
@@ -160,9 +162,9 @@ NN-kebab-case.md     例: 01-login.md, 03-hospitalization-flow.md
 
 ## テスト
 
-- `__tests__/parse-frontmatter.test.ts` — frontmatter parser の単体テスト
-- 統合テスト: 必要に応じて `__tests__/ManualPage.test.tsx` を追加
-- Vitest を使用: `docker compose exec frontend pnpm test:run -- src/features/manual`
+- テストは対象ファイルと同階層に配置する（`__tests__/` ディレクトリは使わない）。例: `lib/parse-frontmatter.test.ts` — frontmatter parser の単体テスト
+- 統合テスト: 必要に応じて `routes/ManualPage.test.tsx` のようにルート/コンポーネントと同階層に追加
+- Vitest を使用: `docker compose exec frontend npx vitest run src/features/manual`
 
 ## 依存パッケージ
 
@@ -178,10 +180,10 @@ NN-kebab-case.md     例: 01-login.md, 03-hospitalization-flow.md
 
 ## トラブルシューティング
 
-| 症状 | 原因と対処 |
-|------|----------|
-| 新規 MD が目次に出ない | frontmatter 欠落 → 必須キー (`title`/`order`/`section`) を確認 |
-| 画像が表示されない | 配置場所が `content/images/` 直下になっているか、参照パスが `images/xxx.png` 形式か確認 |
-| 検索ヒットしない | `searchText` は markdown 記号除去後の文字列。記号のみのクエリは無視される |
-| HMR で更新が反映されない | Vite 開発サーバを再起動 (`docker compose restart frontend`) |
-| 印刷時にサイドバーが残る | `no-print` クラスが適切に付与されているか、印刷対象が `.manual-root` 配下か確認 |
+| 症状                     | 原因と対処                                                                              |
+| ------------------------ | --------------------------------------------------------------------------------------- |
+| 新規 MD が目次に出ない   | frontmatter 欠落 → 必須キー (`title`/`order`/`section`) を確認                          |
+| 画像が表示されない       | 配置場所が `content/images/` 直下になっているか、参照パスが `images/xxx.png` 形式か確認 |
+| 検索ヒットしない         | `searchText` は markdown 記号除去後の文字列。記号のみのクエリは無視される               |
+| HMR で更新が反映されない | Vite 開発サーバを再起動 (`docker compose restart frontend`)                             |
+| 印刷時にサイドバーが残る | `no-print` クラスが適切に付与されているか、印刷対象が `.manual-root` 配下か確認         |

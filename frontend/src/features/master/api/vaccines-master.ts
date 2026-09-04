@@ -69,8 +69,7 @@ export const useDeleteVaccineMaster = () => {
 export const useReorderVaccinesMaster = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (req: ReorderTreatmentRequest) =>
-      axios.patch("/v1/masters/vaccines/reorder", req),
+    mutationFn: (req: ReorderTreatmentRequest) => axios.patch("/v1/masters/vaccines/reorder", req),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.masters.category("vaccines") }),
     onError: (error) => handleApiError(error, "操作"),
   });

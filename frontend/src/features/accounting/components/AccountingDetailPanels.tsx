@@ -1,7 +1,15 @@
 import { AlertTriangle, EyeOff, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { FormHeaderActions } from "@/components/shared/Form/FormHeaderActions";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { C, ICON, Z_CLASS } from "@/lib/design-tokens";
 import { formatCurrency } from "@/lib/format/number";
 import type { TaxType } from "@/types/generated/models";
@@ -19,6 +27,9 @@ interface AccountingHeaderActionsProps {
   isCancelling: boolean;
   onPrint: () => void;
   onCancelClick: () => void;
+  onDismiss?: () => void;
+  submitLabel?: string;
+  submitDisabled?: boolean;
 }
 
 export function AccountingHeaderActions({
@@ -27,8 +38,19 @@ export function AccountingHeaderActions({
   isCancelling,
   onPrint,
   onCancelClick,
+  onDismiss,
+  submitLabel,
+  submitDisabled,
 }: AccountingHeaderActionsProps) {
-  if (status !== "completed") return undefined;
+  if (status !== "completed") {
+    return onDismiss ? (
+      <FormHeaderActions
+        onCancel={onDismiss}
+        submitLabel={submitLabel}
+        submitDisabled={submitDisabled}
+      />
+    ) : undefined;
+  }
 
   return (
     <div className="flex gap-2">
@@ -99,9 +121,14 @@ export function UngroupedItemsWarningBanner({
       role="alert"
       aria-label="同日に会計対象化されていない項目があります"
     >
-      <AlertTriangle className={`shrink-0 h-4 w-4 mt-0.5 ${C.textWarningIcon}`} aria-hidden="true" />
+      <AlertTriangle
+        className={`shrink-0 h-4 w-4 mt-0.5 ${C.textWarningIcon}`}
+        aria-hidden="true"
+      />
       <div className="text-sm">
-        <span className="font-medium">同日にまだ会計対象化されていない項目があります（{parts.join(" / ")}）。</span>
+        <span className="font-medium">
+          同日にまだ会計対象化されていない項目があります（{parts.join(" / ")}）。
+        </span>
         <span className={`block ${C.text60} mt-0.5`}>
           受付ボードで対象を会計待ちに進めてから会計すると、1会計にまとめられます。
         </span>
@@ -328,14 +355,13 @@ interface AccountingPrintAreaProps {
   clinic: ClinicInfo | null;
 }
 
-export function AccountingPrintArea({
-  accounting,
-  clinic,
-}: AccountingPrintAreaProps) {
+export function AccountingPrintArea({ accounting, clinic }: AccountingPrintAreaProps) {
   if (!accounting.payment) return null;
 
   return (
-    <div className={`hidden print:block fixed inset-0 ${C.bgWhite} ${Z_CLASS.overlay} p-0 m-0 w-full h-full`}>
+    <div
+      className={`hidden print:block fixed inset-0 ${C.bgWhite} ${Z_CLASS.overlay} p-0 m-0 w-full h-full`}
+    >
       <style type="text/css" media="print">
         {`
           @page { size: auto; margin: 0; }

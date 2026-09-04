@@ -17,13 +17,10 @@ export function useRecordPetDeath() {
   return useMutation({
     mutationFn: async ({ petId, deceasedAt, deceasedReason }: RecordPetDeathVariables) => {
       const clinicId = requireStoredClinicId();
-      await axios.patch(
-        `/v1/clinics/${clinicId}/pets/${petId}/death`,
-        {
-          deceased_at: deceasedAt,
-          reason: deceasedReason,
-        },
-      );
+      await axios.patch(`/v1/clinics/${clinicId}/pets/${petId}/death`, {
+        deceased_at: deceasedAt,
+        reason: deceasedReason,
+      });
     },
     onSuccess: (_, { petId }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.pets.detail(petId) });

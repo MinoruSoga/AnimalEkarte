@@ -38,24 +38,30 @@ export function useMedicalRecordsUrlState(resetKey: string): UseMedicalRecordsUr
       : undefined;
   const sortOrder: "asc" | "desc" = searchParams.get("order") === "asc" ? "asc" : "desc";
 
-  const handleSortToggle = useCallback((key: MedicalRecordSortKey) => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      const currentSort = next.get("sort");
-      const currentOrder = next.get("order") === "asc" ? "asc" : "desc";
-      if (currentSort !== key) {
-        next.set("sort", key);
-        next.set("order", "desc");
-      } else if (currentOrder === "desc") {
-        next.set("order", "asc");
-      } else {
-        next.delete("sort");
-        next.delete("order");
-      }
-      next.delete("page");
-      return next;
-    }, { replace: true });
-  }, [setSearchParams]);
+  const handleSortToggle = useCallback(
+    (key: MedicalRecordSortKey) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          const currentSort = next.get("sort");
+          const currentOrder = next.get("order") === "asc" ? "asc" : "desc";
+          if (currentSort !== key) {
+            next.set("sort", key);
+            next.set("order", "desc");
+          } else if (currentOrder === "desc") {
+            next.set("order", "asc");
+          } else {
+            next.delete("sort");
+            next.delete("order");
+          }
+          next.delete("page");
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
 
   const directionForSort = useCallback(
     (key: MedicalRecordSortKey): "ascending" | "descending" | "none" => {
@@ -65,17 +71,23 @@ export function useMedicalRecordsUrlState(resetKey: string): UseMedicalRecordsUr
     [sortKey, sortOrder],
   );
 
-  const handlePageChange = useCallback((page: number) => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      if (page <= 1) {
-        next.delete("page");
-      } else {
-        next.set("page", String(page));
-      }
-      return next;
-    }, { replace: true });
-  }, [setSearchParams]);
+  const handlePageChange = useCallback(
+    (page: number) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (page <= 1) {
+            next.delete("page");
+          } else {
+            next.set("page", String(page));
+          }
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
 
   return {
     searchParams,

@@ -1,16 +1,16 @@
 # V03: 飼主・ペット・スタッフ・権限系フォーム検証（入力・更新・DB整合）
 
-> **目的**: 飼主・ペット・スタッフ・権限グループ・医院マスタの全 7 フォームについて、入力検証（必須・形式・境界）・更新の永続化・DB 整合（FK 選択肢・一意制約・URL 直叩き）が実機ブラウザ経由で正しく機能することを納品前に証明する。
+> **目的**: 飼主・ペット・スタッフ・権限グループ・医院マスタの収録済みフォームについて、入力検証（必須・形式・境界）・更新の永続化・DB 整合（FK 選択肢・一意制約・URL 直叩き）が実機ブラウザ経由で正しく機能することを納品前に証明する。
 > **所要目安**: 90分 / **深度**: フォーム検証 + **項目単位 F プロトコル**
-> **フォーム数**: 7
+> **フォーム数**: inventory 再構築中のため算定保留。全フォーム完了はまだ主張しない。
 > **項目単位**: [FIELD-LEVEL-PROTOCOL.md](FIELD-LEVEL-PROTOCOL.md) + [FORM-FIELD-INVENTORY.md](FORM-FIELD-INVENTORY.md) §V03。**全 fieldKey に F0–F6**（権限マトリクスは resource×action の永続を含む）。
 > **仕様正本**: [screens/04-owners-form.md](../../../spec/screens/04-owners-form.md)・[screens/settings/master-staff.md](../../../spec/screens/settings/master-staff.md)・[screens/settings/master-permission-group.md](../../../spec/screens/settings/master-permission-group.md)・[screens/19-clinic-settings.md](../../../spec/screens/19-clinic-settings.md)
 
 ## 前提条件
 
-- 環境: ローカル（seed 003_demo）。ログイン: admin ロール（スタッフ・権限グループ・医院マスタの編集権限を含む）。
-- 本シナリオで作成するデータは名前に「V03」を含め、終了時に削除（削除導線がなければ無効化）する。
-- スコープ外: クロステナント隔離（BE isolation テスト群が正本）。汎用データ駆動マスタ（動物種・診断名・薬剤等）の SidePanel 自体は V04 の対象（本書では FK 選択肢の供給元としてのみ触る）。死亡登録の業務的副作用（予約・カルテ・会計ブロック、LINE 配信停止）は [S01](S01-deceased-pet-guard.md) が正本。
+- ローカルの使い捨て clinic に、owners/pets/staff/permission groups/clinic settings の必要権限を持つ attached account と専用マスタを作成する。
+- 作成データは `V03` 接頭辞を使い、試験後に削除または無効化する。seed account、固定 ID、既存業務データを使わない。
+- クロステナント隔離は automated isolation test、死亡登録の副作用は S01 を正本とする。
 
 ## 共通チェック手順
 
@@ -29,7 +29,7 @@
 | # | 操作 | 期待結果 |
 |:--|:--|:--|
 | C2-1 | 既存レコードを編集して保存 | 詳細・一覧に変更が反映される |
-| C2-2 | ページを再読込（F5） | 変更が永続している |
+| C2-2 | ページを再読込（ブラウザ再読込。F4 の確認手順） | 変更が永続している |
 | C2-3 | 編集フォームを再オープン | 保存した値が初期表示される |
 
 **C3 DB 存在チェック**
@@ -51,7 +51,7 @@
 
 | # | 操作 | 期待結果 |
 |:--|:--|:--|
-| 1 | (C1-1) 新規で飼主名・よみ・電話番号を 1 欄ずつ空にして保存 | 3 欄とも保存されずエラー表示（FE 必須。編集時のよみは任意 — BE update は name 指定時のみ必須検証） |
+| 1 | (C1-1) 新規で飼主名・よみ・電話番号を 1 欄ずつ空にして保存 | 3 欄とも保存されずエラー表示（FE 必須。編集時のよみは任意 — BE update は name 指定時のみ必須検証）。form は `noValidate`（HTML5 email/max が Action 前に黙って止めない） |
 | 2 | (C1-2) 電話に英字混入 / メールに `abc` / 郵便番号に `12-3456` を入力して保存 | いずれも拒否（FE: 電話は数字・ハイフン・括弧・スペース・`+` のみ、郵便番号は `123-4567` 形式・ハイフン省略可。BE はより厳格で `0` 始まりハイフン任意の電話形式のみ受理 — FE を通っても BE で拒否されるケースがある点に留意） |
 | 3 | (C1-3) 値引率に 0 → 保存、100 → 保存、101 → 保存 | 0・100 は受理、101 は拒否（FE `use-owner-form.ts` BUG-066 / BE とも 0〜100。保険マスタ補償率と同境界 — V04 §1） |
 | 4 | (C2) 既存飼主の氏名・電話・会員種別を変更して保存 → 一覧/詳細 → 再読込 → 再オープン | C2-1〜C2-3 のとおり反映・永続・初期表示 |
@@ -59,7 +59,7 @@
 | 6 | (C3-1) 新規登録時の登録先医院の選択肢 | 医院マスタ実データ由来（§7 手順 2 で追加する「V03医院」が選択肢へ反映される）。未選択時はサーバ側で現在医院に登録（#84） |
 | 7 | (C3-2) 既存飼主と同一メール / 同一電話番号で新規登録 | いずれも拒否。「このメールアドレスはすでに登録されています」「この電話番号はすでに登録されています」（BE 409。メールは `(clinic_id, email)` 部分 UNIQUE・電話は service 層チェック） |
 | 8 | (C3-3) `/owners/<存在しない ID>` を直叩き | 404/エラー画面 |
-| 9 | (C2) 既存飼主の飼主生年月日を任意の過去日へ変更して保存 → 再読込 → 再オープン | C2-1〜C2-3 のとおり、同じ日付が永続・初期表示される |
+| 9 | (C2) 既存飼主の飼主生年月日を任意の過去日へ変更して保存 → 再読込 → 再オープン | C2-1〜C2-3 のとおり、同じ日付が永続・初期表示される。生年月日欄はサイグラムと縦積みで、確定後も日付全体が見える |
 | 10 | 飼主生年月日を空にして保存し、Network の PATCH payload を確認 → 再読込 → 再オープン | `birth_date: null` が送信され、DB 値が NULL となり、再オープンでも空欄になる |
 | 11 | 生年月日を設定し直した後、直前の PATCH を DevTools の「編集して再送」で開き、`birth_date` を payload から削除して備考だけ変更 → 再読込 → 再オープン | 備考は更新されるが、生年月日は変更されない（`birth_date` 省略 = 変更なし） |
 
@@ -87,7 +87,7 @@
 |:--|:--|:--|
 | 1 | 新規飼主フォームで有効なペットを 2 件 pending 追加 | 保存前はフォーム内一覧にのみ表示される（API 未送信）。行の編集・削除ができる |
 | 2 | 飼主を保存 | 飼主作成成功後、飼主詳細にペット 2 件が新規飼主に紐付いて登録済み（Network: `POST /pets` は発行されず nested `pets` のみ） |
-| 3 | 一括登録の部分失敗の観察 | **部分成功 UX は存在しない（2026-08-01 コード/契約実測）**。BE `CreateWithPets` は同一 TX で owner+pets を全体成功/rollback。FE は単一 `createOwner` + 成功トースト「飼主情報を登録しました」/ 失敗は `handleApiError(..., "保存")` 1 本。動物種未選択 pending は送信対象から除外（`isPending && animalSpeciesId`） |
+| 3 | 一括登録の部分失敗の観察 | **部分成功 UX は存在しない**。BE `CreateWithPets` は同一 TX で owner+pets を全体成功/rollback。FE は単一 `createOwner` + 成功トースト「飼主情報を登録しました」/ 失敗は `handleApiError(..., "保存")` 1 本。動物種未選択 pending は送信対象から除外（`isPending && animalSpeciesId`） |
 
 - FK・一意制約・URL の各チェックは §2 と共通のため省略（C3 全項該当なし）。
 
@@ -129,7 +129,7 @@
 |:--|:--|:--|
 | 1 | (C1-1) グループ名を空で保存 | 「グループ名を入力してください」で保存されない（色は PALETTE デフォルトのため空にならない。形式/境界の対象フィールドなし — C1-2/C1-3 該当なし） |
 | 2 | 新規「V03グループ」を作成し、説明・色・複数リソースの view/create/edit/delete をチェックして保存 → (C2) 一覧 → 再読込 → 再オープン | マトリクスのチェック状態を含め C2-1〜C2-3 のとおり永続・初期表示。列は 表示/作成/編集/削除（`PERMISSION_ACTION_COLUMNS`）。行は `ALL_PERMISSION_RESOURCES`（`permission-rule-table-model.ts` の `RESOURCE_LABELS` 全キー — 例: `owners`・`medical-records`・`discount`・`master-permission`・**`identity-links`（同一飼主・ペット連携 / S13）** 等）で固定。ハードコード外の行追加 UI はない |
-| 3 | (C3-2) 既存グループと同名のグループを新規作成 | 保存されない（`permission_groups(clinic_id, name)` UNIQUE・deleted_at IS NULL 限定）。POST 409 + sonner トースト（白画面・500 なし）。トースト文面は生 BE メッセージ `permission_group '' already exists`（空 name 表示）— 品質は **BUG-023**（2026-08-01 実測） |
+| 3 | (C3-2) 既存グループと同名のグループを新規作成 | 保存されない（`permission_groups(clinic_id, name)` UNIQUE・deleted_at IS NULL 限定）。POST 409 + sonner トースト（白画面・500 なし）。トーストは `権限グループ名『…』は既に使用されています`。backend の stable conflict code/name を FE が利用者向け文言へ変換する |
 | 4 | 自己剥奪ガード: admin 自身が所属するグループの `master-permission` edit のチェックを外して保存 | 拒否され保存されない（BE BUG-140 ガード — 自分の権限管理権を自分で剥奪不可）。再オープンでチェックが残っていることを確認 |
 | 5 | マトリクスに `identity-links`（同一飼主・ペット連携）行があることを確認し、view/edit を ON で保存 → 再オープン | 行が存在しチェックが永続する。業務フロー（link/unlink/history）の受け入れは [S13](S13-identity-links-manual-correction.md) 正本 — 本節はフォーム永続のみ |
 
@@ -143,9 +143,9 @@
 |:--|:--|:--|
 | 1 | (C1-1) 院名を空で保存 | 「院名は必須です」で保存されない（FE 必須チェックが唯一のガードのため必ず実機確認） |
 | 2 | 新規医院「V03医院」を院名のみで保存 | 保存成功・一覧反映。§1 手順 6 の登録先医院選択肢にも反映される |
-| 3 | 副作用: スタッフの所属に「V03医院」を追加（§5 手順 5 の導線）→ 医院を「V03医院」へ切替 → `/settings/permission-groups` を確認 | デフォルト権限グループ「執行」「一般」が自動作成されている（[master-permission-group.md §2](../../../spec/screens/settings/master-permission-group.md)。権限ルールは未付与） |
-| 4 | (C1-3) 既存医院の通常税率・軽減税率を範囲内/範囲外の値で保存 | FE は **% 表記**の spinbutton（min=0 max=100、単位 `%`）。101 は HTML 制約で API 未到達（ブラウザ「値は 100 以下にする必要があります。」）。範囲内 10/8 → payload `standard_tax_rate:0.1` / `reduced_tax_rate:0.08`；100 → `1.0`（BE 0〜1 小数と整合。2026-08-01 実測） |
-| 5 | 郵便番号・メールに形式違反を入力して保存 | **素通しではない**。メール `type=email` のネイティブ検証（`abc` は保存ブロック）。API 到達時は PATCH 400 `postal_code の値が正しくありません; email の値が正しくありません` + トースト。郵便番号 `12-3456` も BE 拒否（2026-08-01 実測） |
+| 3 | 副作用: スタッフの所属に「V03医院」を追加（§5 手順 5 の導線）→ 医院を「V03医院」へ切替 → `/settings/permission-groups` を確認 | デフォルト権限グループ「執行」「一般」が `defaultPermissionRuleTable` 付きで自動作成されている。`examination-unconfirm` は執行も含め default-deny。動物種マスタは執行・一般とも view-only |
+| 4 | (C1-3) 既存医院の通常税率・軽減税率を範囲内/範囲外の値で保存 | FE は **% 表記**の spinbutton（min=0 max=100、単位 `%`）。101 は HTML 制約で API 未到達（ブラウザ「値は 100 以下にする必要があります。」）。範囲内 10/8 → payload `standard_tax_rate:0.1` / `reduced_tax_rate:0.08`；100 → `1.0`（BE 0〜1 小数と整合） |
+| 5 | 郵便番号・メールに形式違反を入力して保存 | **素通しではない**。メール `type=email` のネイティブ検証（`abc` は保存ブロック）。API 到達時は PATCH 400 `postal_code の値が正しくありません; email の値が正しくありません` + トースト。郵便番号 `12-3456` も BE 拒否 |
 | 6 | (C2) 既存医院の住所・電話・会計帳票設定（セクション表示トグル・フッター注記 — #190）を変更 → 保存 → 再読込 → 再オープン | C2-1〜C2-3 のとおり。帳票トグル群・表示順も保持される |
 | 7 | (C3-2 逆確認) 既存医院と同名の医院を新規保存 | 受理される（clinics.name に UNIQUE なし — 同名医院は作成可能が現仕様）。確認後は「V03医院」共々無効化する |
 
@@ -156,11 +156,9 @@
 - 既存の機械テストが覆う範囲: FE component test（`OwnerForm` 系 3 本＋`OwnerInfoSection`、`PetEditModalFields`・`PetCareSection`・`pet-form-data`・`use-pet-form-list-state`、`PetDeceasedDialog`/`PetDeceasedBanner`、`StaffSettings`・`StaffSidePanelSections`、`permission-rule-table-model`、clinic `transforms`）が FE 単体のバリデーション分岐を、BE テスト（validators_owner/contact/pet/auth・`backend/internal/owner/service_core_test.go` の重複 409・staff_service_account/permissions・permission_group_service・clinic_service）がサーバ側検証を網羅する。E2E は owners-flow（フォーム表示まで）と settings-smoke（表示のみ）で、保存成功・一意制約違反の通しフローは存在しない。
 - 本シナリオは上記が個別レイヤで検証済みの挙動を**実ブラウザ → API → DB → 再表示の統合点で通す受け入れ時の実機検証**であり、特に「保存の永続化（C2）」と FE/BE 非対称ガード（ペット性別・体重上限 200kg = FE のみ、スタッフパスワード英数字混在 = BE のみ）を重点とする。
 - マスタ系 3 フォーム（§5〜§7）は共通の MasterSidePanel シェル上にあり、FE 必須は名称のみ・形式/範囲は BE 依存という構造 — BE エラー（409/400）がトーストへ正しく表示されること（handleApiError 経由）が共通確認点。
-- NG 項目はリポジトリ直下 [`todo.md` 受入バグ](../../../../todo.md) へ `### BUG-XXX` 節として起票する（ローカル連番 最大+1・[README.md](README.md) のルールに従う）。
+- NG 項目はリポジトリ直下 [`bug.md` の確認済み製品不具合](../../../../bug.md) へ `### BUG-XXX` 節として起票する（ローカル連番 最大+1・[README.md](README.md) のルールに従う）。
 
 ## 実装突合
-- 突合日: 2026-08-07
-- HEAD: 844e43f69
 - 変更:
   - §1 値引率境界を 0/100/101 の三点に明確化（FE BUG-066・BE 0〜100）
   - §6 権限マトリクス: 列（view/create/edit/delete）と `ALL_PERMISSION_RESOURCES` 由来の固定行を明記。`identity-links` 行の永続を手順 5 で確認し、業務フローは S13 へ委譲

@@ -119,17 +119,18 @@ export function OwnersListTable({
           renderRow={(pet) => {
             // #86: 別医院の行は詳細リンク・編集・削除を抑止（閲覧のみ）。
             const isOtherClinic = !!(
-              currentClinicId && pet.clinicId && pet.clinicId !== currentClinicId
+              currentClinicId &&
+              pet.clinicId &&
+              pet.clinicId !== currentClinicId
             );
             return (
-              // FE6-8: jsx-no-leaked-render は非型認識のため各 can* を boolean と静的に断定できず !! で明示する
               <OwnersListRow
                 key={pet.id}
                 pet={pet}
                 canViewDetail={!isOtherClinic}
-                canEdit={!!canEdit && !isOtherClinic}
-                canDelete={!!canDelete && !isOtherClinic}
-                canReport={!!canReport && !isOtherClinic}
+                canEdit={canEdit ? !isOtherClinic : false}
+                canDelete={canDelete ? !isOtherClinic : false}
+                canReport={canReport ? !isOtherClinic : false}
                 showClinicColumn={showClinicColumn}
                 clinicNameById={clinicNameById}
                 onEdit={onEdit}
@@ -196,7 +197,9 @@ function OwnersListRow({
             >
               {pet.ownerName}
             </DataTableRowLink>
-          ) : pet.ownerName}
+          ) : (
+            pet.ownerName
+          )}
           {pet.dangerLevel === "高" ? (
             <Popover>
               <PopoverTrigger asChild>
@@ -225,7 +228,10 @@ function OwnersListRow({
       </TableCell>
       {/* #86: 拠点横断表示時のみ医院列を表示 */}
       {showClinicColumn ? (
-        <TableCell className={`${STYLE.tableCell} whitespace-nowrap`} data-testid="owner-row-clinic">
+        <TableCell
+          className={`${STYLE.tableCell} whitespace-nowrap`}
+          data-testid="owner-row-clinic"
+        >
           {clinicNameById?.get(pet.clinicId ?? "") ?? "-"}
         </TableCell>
       ) : null}
@@ -235,9 +241,7 @@ function OwnersListRow({
       <TableCell className={`${STYLE.tableCell} whitespace-nowrap`}>{pet.name}</TableCell>
       <TableCell className="whitespace-nowrap">
         {pet.status ? (
-          <StatusBadge colorClass={getPetStatusColor(pet.status)}>
-            {pet.status}
-          </StatusBadge>
+          <StatusBadge colorClass={getPetStatusColor(pet.status)}>{pet.status}</StatusBadge>
         ) : null}
       </TableCell>
       <TableCell className={`${STYLE.tableCell} whitespace-nowrap`}>{pet.species}</TableCell>
@@ -258,22 +262,34 @@ function OwnersListRow({
           <RowActionDropdown
             ariaLabel={`飼主「${pet.ownerName}」(ID: ${pet.ownerId})・ペット「${pet.name}」(ID: ${pet.id}) の操作`}
             actions={[
-              ...(canEdit ? [{
-                label: "編集",
-                icon: Pencil,
-                onClick: () => onEdit(pet.ownerId),
-              }] : []),
-              ...(canReport ? [{
-                label: "レポート",
-                icon: FileText,
-                onClick: () => onReport(pet.ownerId, pet.id),
-              }] : []),
-              ...(canDelete ? [{
-                label: "削除",
-                icon: Trash2,
-                variant: "destructive" as const,
-                onClick: () => onDeleteRequest(pet.ownerId, pet.ownerName),
-              }] : []),
+              ...(canEdit
+                ? [
+                    {
+                      label: "編集",
+                      icon: Pencil,
+                      onClick: () => onEdit(pet.ownerId),
+                    },
+                  ]
+                : []),
+              ...(canReport
+                ? [
+                    {
+                      label: "レポート",
+                      icon: FileText,
+                      onClick: () => onReport(pet.ownerId, pet.id),
+                    },
+                  ]
+                : []),
+              ...(canDelete
+                ? [
+                    {
+                      label: "削除",
+                      icon: Trash2,
+                      variant: "destructive" as const,
+                      onClick: () => onDeleteRequest(pet.ownerId, pet.ownerName),
+                    },
+                  ]
+                : []),
             ]}
           />
         ) : null}

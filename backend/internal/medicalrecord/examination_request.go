@@ -10,32 +10,35 @@ import (
 )
 
 type listExaminationQuery struct {
-	PetID        string
-	OwnerID      string
-	Status       string
-	StartDate    string
-	EndDate      string
-	IncludeItems string
+	PetID           string
+	OwnerID         string
+	MedicalRecordID string
+	Status          string
+	StartDate       string
+	EndDate         string
+	IncludeItems    string
 }
 
 func newListExaminationQuery(values url.Values) listExaminationQuery {
 	return listExaminationQuery{
-		PetID:        values.Get("pet_id"),
-		OwnerID:      values.Get("owner_id"),
-		Status:       values.Get("status"),
-		StartDate:    values.Get("start_date"),
-		EndDate:      values.Get("end_date"),
-		IncludeItems: values.Get("include_items"),
+		PetID:           values.Get("pet_id"),
+		OwnerID:         values.Get("owner_id"),
+		MedicalRecordID: values.Get("medical_record_id"),
+		Status:          values.Get("status"),
+		StartDate:       values.Get("start_date"),
+		EndDate:         values.Get("end_date"),
+		IncludeItems:    values.Get("include_items"),
 	}
 }
 
 type listExaminationFilters struct {
-	PetID        *uint64
-	OwnerID      *uint64
-	Status       *string
-	StartDate    *string
-	EndDate      *string
-	IncludeItems bool
+	PetID           *uint64
+	OwnerID         *uint64
+	MedicalRecordID *uint64
+	Status          *string
+	StartDate       *string
+	EndDate         *string
+	IncludeItems    bool
 }
 
 func (q *listExaminationQuery) toServiceFilters() (listExaminationFilters, error) {
@@ -44,6 +47,10 @@ func (q *listExaminationQuery) toServiceFilters() (listExaminationFilters, error
 		return listExaminationFilters{}, err
 	}
 	ownerID, err := parseOptionalUintQueryFilter(q.OwnerID, "owner_id")
+	if err != nil {
+		return listExaminationFilters{}, err
+	}
+	medicalRecordID, err := parseOptionalUintQueryFilter(q.MedicalRecordID, "medical_record_id")
 	if err != nil {
 		return listExaminationFilters{}, err
 	}
@@ -60,12 +67,13 @@ func (q *listExaminationQuery) toServiceFilters() (listExaminationFilters, error
 		return listExaminationFilters{}, err
 	}
 	return listExaminationFilters{
-		PetID:        petID,
-		OwnerID:      ownerID,
-		Status:       optionalStringQueryFilter(q.Status),
-		StartDate:    startDate,
-		EndDate:      endDate,
-		IncludeItems: includeItems,
+		PetID:           petID,
+		OwnerID:         ownerID,
+		MedicalRecordID: medicalRecordID,
+		Status:          optionalStringQueryFilter(q.Status),
+		StartDate:       startDate,
+		EndDate:         endDate,
+		IncludeItems:    includeItems,
 	}, nil
 }
 

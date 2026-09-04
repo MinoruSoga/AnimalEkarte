@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { requireStoredClinicId } from "@/lib/current-clinic";
-import type { CPMStage } from "@/lib/cpm-stage";
+import type { AggregationCPMStage } from "@/lib/cpm-stage";
 import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES } from "@/lib/react-query";
 
@@ -20,23 +20,11 @@ export type AggregationSortField =
   | "annual_visit_count"
   | "visit_count";
 
-export type AmountBasis =
-  | "gross_total_amount"
-  | "paid_amount"
-  | "net_paid_amount";
+export type AmountBasis = "gross_total_amount" | "paid_amount" | "net_paid_amount";
 
-export type PeriodPreset =
-  | "last_3_months"
-  | "last_6_months"
-  | "last_12_months"
-  | "calendar_year";
+export type PeriodPreset = "last_3_months" | "last_6_months" | "last_12_months" | "calendar_year";
 
-export type LastVisitBucket =
-  | "within_3m"
-  | "over_3m"
-  | "over_6m"
-  | "over_1y"
-  | "no_visit";
+export type LastVisitBucket = "within_3m" | "over_3m" | "over_6m" | "over_1y" | "no_visit";
 
 export interface AggregationOwner {
   owner_id: string;
@@ -57,7 +45,7 @@ export interface AggregationOwner {
   total_amount?: number;
   total_fee?: number;
   // CPM セグメント（ISSUE-180）。BE が各飼主の CPM V1 判定結果を返す（`cpm_stage,omitempty`）。
-  cpm_stage?: CPMStage;
+  cpm_stage?: AggregationCPMStage;
 }
 
 export interface AggregationParams {
@@ -82,7 +70,7 @@ export interface AggregationParams {
   last_visit_bucket?: string;
   include_no_visit?: boolean;
   // CPM セグメント絞り込み（ISSUE-180）。BE は "cpm_xxx" / "xxx" 双方を受理する。
-  cpm_stage?: CPMStage;
+  cpm_stage?: AggregationCPMStage;
 }
 
 export interface AggregationResponse {
@@ -101,7 +89,7 @@ export function useGetOwnerAggregations(params: AggregationParams) {
       // BUG-012: client timeout so dashboard leaves infinite loading on BE hang.
       const { data } = await axios.get<AggregationResponse>(
         `/v1/clinics/${clinicId}/owners/aggregations`,
-        { params, timeout: 25_000 }
+        { params, timeout: 25_000 },
       );
       return data;
     },

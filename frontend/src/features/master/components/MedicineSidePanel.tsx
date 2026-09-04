@@ -5,9 +5,9 @@ import { LAYOUT } from "@/lib/design-tokens";
 import type { Medicine } from "@/types";
 
 import { MedicineSidePanelBody } from "./MedicineSidePanelBody";
-import type { MedicineFormData } from "./medicine-side-panel-model";
+import type { MedicineFormData } from "../lib/medicine-side-panel-model";
 
-export type { MedicineFormData } from "./medicine-side-panel-model";
+export type { MedicineFormData } from "../lib/medicine-side-panel-model";
 
 interface MedicineSidePanelProps {
   isEditing: boolean;
@@ -17,7 +17,7 @@ interface MedicineSidePanelProps {
   categoryMedicines: Medicine[];
   panelDuration: number;
   onCloseEdit: () => void;
-  onSave: (data: MedicineFormData) => void;
+  onSave: (data: MedicineFormData) => Promise<boolean> | boolean;
   onDeleteRequest: () => void;
   readOnly?: boolean;
   canDelete?: boolean;

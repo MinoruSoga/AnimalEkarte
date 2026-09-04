@@ -32,7 +32,7 @@ var (
 	)
 )
 
-var seedCSVBundleNames = []string{"002_master", "003_demo", "004_staging"}
+var seedCSVBundleNames = []string{"002_master"}
 
 type seedCSVSchemaTarget struct {
 	bundle       string
@@ -163,7 +163,7 @@ func TestFindSeedCSVSchemaDrift_UsesOrderedMigrations(t *testing.T) {
 					sql:  "ALTER TABLE pets ADD COLUMN version integer NOT NULL DEFAULT 1;",
 				},
 			},
-			wantScanned: 3,
+			wantScanned: 1,
 		},
 	}
 

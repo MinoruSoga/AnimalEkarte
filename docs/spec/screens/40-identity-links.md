@@ -23,13 +23,13 @@
 
 - 検索入力（placeholder「氏名・カナ・電話」）。`useDebouncedValue` 300ms 後に `searchOwnersForLink`。
 - ヒット一覧をトグル選択（clinic_id + owner_id）。
-- `canEdit` 時: 「飼主をリンク」（選択 2 件以上）、メンバーごとの unlink（直近作成の `ownerGroupId` 必須）。
+- `canEdit` 時: 「飼主をリンク」（選択 2 件以上）、メンバーごとの unlink。メンバー選択時に `findOwnerIdentityGroupByMember` で逆引きし、そのメンバーの group ID が解決した場合だけ unlink を有効化する。
 
 ### 1.3 ペットリンク
 
 - 親の飼主 identity group（`ownerGroupId`）が必要である旨を表示。
 - 検索入力（placeholder「ペット名・番号」）→ `searchPetsForLink`（300ms debounce）。
-- `canEdit` 時: 「ペットをリンク」（ownerGroupId ありかつ選択 2 件以上）、メンバーごとの unlink（`petGroupId` 必須）。
+- `canEdit` 時: 「ペットをリンク」（ownerGroupId ありかつ選択 2 件以上）、メンバーごとの unlink。メンバー選択時に `findPetIdentityGroupByMember` で逆引きし、そのメンバーの group ID が解決した場合だけ unlink を有効化する。
 - 選択ペットごとに「連携履歴」ボタン → `getLinkedTreatmentHistory`（view/edit どちらでも可）。結果は plain text /「（履歴なし）」。
 
 ### 1.4 空・エラー・pending
@@ -43,9 +43,9 @@
 
 ## 2. 主要フロー・制約
 
-1. 飼主を 2 件以上選択 → 飼主グループ作成 → `ownerGroupId` 保持。
-2. その group を親にしてペットを 2 件以上選択 → ペットグループ作成。
-3. Phase 1 UI は group をメンバー lookup GET で再読込しない（作成直後の group id をセッション内 state で保持）。
+1. 飼主を 2 件以上選択 → 飼主グループ作成 → `ownerGroupId` 保持。既存メンバーを選択した場合はメンバー逆引き GET で group ID を解決する。
+2. その group を親にしてペットを 2 件以上選択 → ペットグループ作成。既存ペットの選択時も同様にメンバー逆引き GET を行う。
+3. group ID はメンバーごとに保持する。そのメンバーの逆引きが成功した場合だけ unlink を有効化し、別メンバーの session group ID を使って unlink を有効化しない。
 4. クロス医院の無断リンクはサーバ拒否。fail-closed の権限デフォルト（新規医院テンプレートに identity-links を付けない）。
 5. **親飼主 group の全医院セット必須（mutation）**: ペット group 作成（`CreatePetGroup`）では、actor が親 owner group の **anchor（`CreatedClinicID`）＋全 active owner member の clinic** および全 pet clinic に所属していること。1 医院でも欠けると Forbidden・ゼロ書き込み。any-member フォールバックは禁止（`assertActorCoversOwnerGroupClinics`）。既存 pet group の Add/Unlink は `assertCanManagePetGroup`（pet group anchor + owner-group anchor + 全 pet member clinics）。閲覧（GET/search/history）は actor clinic でフィルタ可。
 
@@ -77,6 +77,8 @@
 |:---|:---|:---|:---|
 | GET | `/api/v1/identity-links/owners/search` | 飼主検索 (`q`, `limit`) | `view` |
 | GET | `/api/v1/identity-links/pets/search` | ペット検索 | `view` |
+| GET | `/api/v1/identity-links/owners/:clinic_id/:owner_id/group` | 選択した飼主メンバーの group 逆引き | `view` |
+| GET | `/api/v1/identity-links/pets/:clinic_id/:pet_id/group` | 選択したペットメンバーの group 逆引き | `view` |
 | POST | `/api/v1/identity-links/owner-groups` | 飼主グループ作成 | `edit` |
 | DELETE | `/api/v1/identity-links/owner-groups/:groupId/members` | 飼主メンバー unlink | `edit` |
 | POST | `/api/v1/identity-links/pet-groups` | ペットグループ作成（`owner_group_id` 必須） | `edit` |
@@ -88,10 +90,8 @@
 | メソッド | エンドポイント | 用途 | 必須アクション |
 |:---|:---|:---|:---|
 | GET | `/api/v1/identity-links/owner-groups/:id` | group 取得（可視メンバーのみ） | `view` |
-| GET | `/api/v1/identity-links/owners/:clinic_id/:owner_id/group` | 飼主メンバー逆引き | `view` |
 | POST | `/api/v1/identity-links/owner-groups/:id/members` | 飼主メンバー追加 | `edit` |
 | GET | `/api/v1/identity-links/pet-groups/:id` | pet group 取得 | `view` |
-| GET | `/api/v1/identity-links/pets/:clinic_id/:pet_id/group` | ペットメンバー逆引き | `view` |
 | POST | `/api/v1/identity-links/pet-groups/:id/members` | ペットメンバー追加 | `edit` |
 
 OpenAPI 正本: `backend/docs/api.yaml`（`/identity-links/*`）。ルート drift gate は `backend/internal/apicontract/openapi_route_drift_test.go` が identitylink package を walk。
@@ -100,7 +100,7 @@ OpenAPI 正本: `backend/docs/api.yaml`（`/identity-links/*`）。ルート dri
 
 - ルート: `frontend/src/app/routes/operations-routes.tsx`
 - Feature: `frontend/src/features/identity-links/`
-- 製品 leaf 数の正本は `route-inventory.test.tsx`（84 product pages）。本ファイルは **画面仕様インデックス上の 1 葉**であり、product leaf 数と「番号付き md ファイル数」は一致しない。
+- 製品 leaf 数の正本は `route-inventory.test.tsx`。本ファイルは **画面仕様インデックス上の 1 葉**であり、product leaf 数と「番号付き md ファイル数」は一致しない。
 
 ---
 

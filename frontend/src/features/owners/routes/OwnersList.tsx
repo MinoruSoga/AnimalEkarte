@@ -10,7 +10,13 @@ import {
   useLayoutEffect,
   useRef,
 } from "react";
-import { useNavigate, useLoaderData, useRevalidator, useSearchParams, useNavigation } from "react-router";
+import {
+  useNavigate,
+  useLoaderData,
+  useRevalidator,
+  useSearchParams,
+  useNavigation,
+} from "react-router";
 
 // Hooks
 import { useModalState } from "@/hooks/use-modal-state";
@@ -37,7 +43,7 @@ import { usePermission } from "@/hooks/use-permission";
 
 // bundle-dynamic-imports: PetEditModal を遅延ロード
 const PetEditModal = lazy(() =>
-  import("../components/PetEditModal").then((m) => ({ default: m.PetEditModal }))
+  import("../components/PetEditModal").then((m) => ({ default: m.PetEditModal })),
 );
 
 // Types
@@ -131,10 +137,13 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
     isError: isSpeciesError,
   } = useAnimalSpecies();
   const speciesFilterOptions = useMemo(
-    () => isSpeciesError || isSpeciesLoading ? [] : buildSpeciesFilterOptions(activeSpecies),
+    () => (isSpeciesError || isSpeciesLoading ? [] : buildSpeciesFilterOptions(activeSpecies)),
     [activeSpecies, isSpeciesError, isSpeciesLoading],
   );
-  const filterProperties = useMemo(() => buildOwnerFilterProperties(speciesFilterOptions), [speciesFilterOptions]);
+  const filterProperties = useMemo(
+    () => buildOwnerFilterProperties(speciesFilterOptions),
+    [speciesFilterOptions],
+  );
 
   // rerender-derived-state-no-effect: activeFilters は URL(searchParams) からの純粋な派生値のため
   // useState+resync ではなく useMemo で直接算出する（source of truth は常に searchParams）。
@@ -146,12 +155,16 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
   useEffect(() => {
     if (searchTerm === urlSearch) return;
     const timer = setTimeout(() => {
-      setSearchParams((prev) => {
-        const next = new URLSearchParams(prev);
-        if (searchTerm) next.set("search", searchTerm); else next.delete("search");
-        next.delete("page");
-        return next;
-      }, { replace: true });
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (searchTerm) next.set("search", searchTerm);
+          else next.delete("search");
+          next.delete("page");
+          return next;
+        },
+        { replace: true },
+      );
     }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [searchTerm, urlSearch, setSearchParams]);
@@ -167,39 +180,54 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
     setSearchTerm(urlSearch);
   }
 
-  const handleFilterChange = useCallback((filters: ActiveFilter[]) => {
-    const { species, include_deceased } = activeFiltersToParams(filters);
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      if (species) next.set("species", species); else next.delete("species");
-      if (include_deceased) next.set("include_deceased", include_deceased); else next.delete("include_deceased");
-      next.delete("page");
-      return next;
-    }, { replace: true });
-  }, [setSearchParams]);
+  const handleFilterChange = useCallback(
+    (filters: ActiveFilter[]) => {
+      const { species, include_deceased } = activeFiltersToParams(filters);
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (species) next.set("species", species);
+          else next.delete("species");
+          if (include_deceased) next.set("include_deceased", include_deceased);
+          else next.delete("include_deceased");
+          next.delete("page");
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
 
   const deleteModal = useModalState<{ id: string; name: string }>();
   const [isDeleting, startDeleteTransition] = useTransition();
   const petModal = useModalState<Pet>();
-  const [_isPetSaving, startPetSaveTransition] = useTransition();
+  // PetEditModal は保存呼び出し後すぐ閉じるため pending state を UI で使わない（FE-RC-083）
+  const [, startPetSaveTransition] = useTransition();
 
   const totalPages = Math.max(1, Math.ceil(total / limit));
   const startIndex = total === 0 ? 0 : (page - 1) * limit + 1;
   const endIndex = Math.min(page * limit, total);
 
   // BUG-049 踏襲: ページ変更時に URL クエリパラメータを更新（loader が再フェッチする）
-  const handlePageChange = useCallback((nextPage: number) => {
-    const clamped = Math.max(1, Math.min(nextPage, totalPages));
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      if (clamped === 1) {
-        next.delete("page");
-      } else {
-        next.set("page", String(clamped));
-      }
-      return next;
-    }, { replace: true });
-  }, [totalPages, setSearchParams]);
+  const handlePageChange = useCallback(
+    (nextPage: number) => {
+      const clamped = Math.max(1, Math.min(nextPage, totalPages));
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (clamped === 1) {
+            next.delete("page");
+          } else {
+            next.set("page", String(clamped));
+          }
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [totalPages, setSearchParams],
+  );
 
   // #266: loader 再フェッチ中（検索・フィルタ・ページ変更）の視覚フィードバック
   const isFiltering = navigation.state === "loading";
@@ -209,9 +237,12 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
   }, [navigate]);
 
   // rerender-functional-setstate: useCallback で安定した関数参照を維持
-  const handleEdit = useCallback((ownerId: string) => {
-    navigate(paths.owners.detail.getHref(ownerId));
-  }, [navigate]);
+  const handleEdit = useCallback(
+    (ownerId: string) => {
+      navigate(paths.owners.detail.getHref(ownerId));
+    },
+    [navigate],
+  );
 
   // #158: 飼主レポートを別ウィンドウで開く。初期ペットを ?petId= で指定する。
   const handleReport = useCallback((ownerId: string, petId: string) => {
@@ -223,45 +254,51 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
   const closePetModal = petModal.close;
 
   // PetEditModal の保存ハンドラ
-  const handlePetSave = useCallback((formData: PetFormData) => {
-    if (!petModalItem || !onUpdatePet) return;
-    startPetSaveTransition(async () => {
-      try {
-        const req = transformUpdatePetRequest({
-          name: formData.petName,
-          petNameKana: formData.petNameKana,
-          animalSpeciesId: formData.animalSpeciesId,
-          gender: formData.gender,
-          birthDate: formData.birthDate,
-          breed: formData.breed,
-          color: formData.color,
-          weight: formData.weight,
-          food: formData.food,
-          environment: formData.environment,
-          neuteredDate: formData.neuteredDate,
-          acquisitionType: formData.acquisitionType,
-          dangerLevel: formData.dangerLevel,
-          dangerReason: formData.dangerReason,
-          originalDangerReason: petModalItem.dangerReason,
-          // status は渡さない(BUG-415): transformUpdatePetRequest は status を無視する。
-          insuranceId: formData.insuranceId,
-          remarks: formData.remarks,
-        });
-        if (canEditRef.current !== true) return;
-        await onUpdatePet(petModalItem.id, req);
-        toast.success("ペット情報を更新しました");
-        closePetModal();
-        revalidator.revalidate();
-      } catch (error: unknown) {
-        handleApiError(error, "更新");
-      }
-    });
-  }, [petModalItem, closePetModal, onUpdatePet, revalidator]);
+  const handlePetSave = useCallback(
+    (formData: PetFormData) => {
+      if (!petModalItem || !onUpdatePet) return;
+      startPetSaveTransition(async () => {
+        try {
+          const req = transformUpdatePetRequest({
+            name: formData.petName,
+            petNameKana: formData.petNameKana,
+            animalSpeciesId: formData.animalSpeciesId,
+            gender: formData.gender,
+            birthDate: formData.birthDate,
+            breed: formData.breed,
+            color: formData.color,
+            weight: formData.weight,
+            food: formData.food,
+            environment: formData.environment,
+            neuteredDate: formData.neuteredDate,
+            acquisitionType: formData.acquisitionType,
+            dangerLevel: formData.dangerLevel,
+            dangerReason: formData.dangerReason,
+            originalDangerReason: petModalItem.dangerReason,
+            // status は渡さない(BUG-415): transformUpdatePetRequest は status を無視する。
+            insuranceId: formData.insuranceId,
+            remarks: formData.remarks,
+          });
+          if (canEditRef.current !== true) return;
+          await onUpdatePet(petModalItem.id, req);
+          toast.success("ペット情報を更新しました");
+          closePetModal();
+          revalidator.revalidate();
+        } catch (error: unknown) {
+          handleApiError(error, "更新");
+        }
+      });
+    },
+    [petModalItem, closePetModal, onUpdatePet, revalidator],
+  );
 
   const openDeleteModal = deleteModal.open;
-  const handleDeleteRequest = useCallback((ownerId: string, ownerName: string) => {
-    openDeleteModal({ id: ownerId, name: ownerName });
-  }, [openDeleteModal]);
+  const handleDeleteRequest = useCallback(
+    (ownerId: string, ownerName: string) => {
+      openDeleteModal({ id: ownerId, name: ownerName });
+    },
+    [openDeleteModal],
+  );
 
   // rerender-dependencies: object依存を避け primitive の id のみを dep に使用
   const pendingDeleteOwnerId = deleteModal.item?.id ?? null;
@@ -353,7 +390,9 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
       {/* Delete Confirm Dialog */}
       <ConfirmDialog
         open={deleteModal.isOpen}
-        onClose={() => { if (!isDeleting) deleteModal.close(); }}
+        onClose={() => {
+          if (!isDeleting) deleteModal.close();
+        }}
         onConfirm={handleConfirmDelete}
         title="飼主を削除しますか？"
         description={`飼主「${deleteModal.item?.name}」を削除します。この操作は取り消すことができません。なお、ペットが紐付いている場合は削除できません（先にペットを削除してください）。`}

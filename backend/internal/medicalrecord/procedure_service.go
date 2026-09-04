@@ -1,4 +1,4 @@
-// Package service provides business logic implementations for Procedure entity.
+// Package medicalrecord provides procedure use cases.
 package medicalrecord
 
 import (
@@ -166,6 +166,14 @@ func (s *procedureService) Create(ctx context.Context, clinicID uint64, input *C
 		procedure.ParentID = input.ParentID
 	}
 	if err := s.repo.Create(ctx, procedure); err != nil {
+		if conflict := apperrors.AsNameUniqueConflict(
+			err,
+			input.Name,
+			apperrors.ConstraintProcedureName,
+			apperrors.CodeProcedureNameConflict,
+		); conflict != nil {
+			return nil, conflict
+		}
 		slog.ErrorContext(ctx, "failed to create procedure", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to create procedure")
 	}
@@ -205,6 +213,18 @@ func (s *procedureService) Update(ctx context.Context, clinicID, id uint64, inpu
 	}
 	procedure, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
+		nameForConflict := ""
+		if input.Name != nil {
+			nameForConflict = *input.Name
+		}
+		if conflict := apperrors.AsNameUniqueConflict(
+			err,
+			nameForConflict,
+			apperrors.ConstraintProcedureName,
+			apperrors.CodeProcedureNameConflict,
+		); conflict != nil {
+			return nil, conflict
+		}
 		slog.ErrorContext(ctx, "failed to update procedure", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to update procedure")
 	}

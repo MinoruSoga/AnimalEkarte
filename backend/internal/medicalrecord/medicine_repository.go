@@ -1,4 +1,4 @@
-// Package repository provides data access implementations for Medicine entity.
+// Package medicalrecord provides medicine persistence.
 package medicalrecord
 
 // Moved from internal/repository (BE9-2D ⑥ Batch A). 旧 package-private helper は repohelpers
@@ -118,5 +118,50 @@ func (r *medicineRepository) Reorder(ctx context.Context, clinicID uint64, ids [
 }
 
 func (r *medicineRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	return persistence.DeleteScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.Medicine{}, "medicine", clinicID, id)
+	result := persistence.DBOrTx(ctx, r.db).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ?", id).
+		Where(`NOT EXISTS (
+			SELECT 1 FROM medicines children
+			WHERE children.parent_id = medicines.id
+			  AND children.clinic_id = ?
+			  AND children.deleted_at IS NULL
+		)`, clinicID).
+		Where(`NOT EXISTS (
+			SELECT 1 FROM treatments
+			JOIN medical_records ON medical_records.id = treatments.medical_record_id
+			  AND medical_records.clinic_id = ?
+			  AND medical_records.deleted_at IS NULL
+			WHERE treatments.medicine_id = medicines.id
+			  AND treatments.deleted_at IS NULL
+		)`, clinicID).
+		Where(`NOT EXISTS (
+			SELECT 1 FROM care_plan_items
+			JOIN hospitalizations ON hospitalizations.id = care_plan_items.hospitalization_id
+			  AND hospitalizations.clinic_id = ?
+			  AND hospitalizations.deleted_at IS NULL
+			WHERE care_plan_items.medicine_id = medicines.id
+		)`, clinicID).
+		Delete(&model.Medicine{})
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "medicine", fmt.Sprintf("%d", id))
+	}
+	if result.RowsAffected == 0 {
+		return r.normalizeMedicineDeleteMiss(ctx, clinicID, id)
+	}
+	return nil
+}
+
+func (r *medicineRepository) normalizeMedicineDeleteMiss(ctx context.Context, clinicID, id uint64) error {
+	if _, err := r.FindByID(ctx, clinicID, id); err != nil {
+		return err
+	}
+	childCount, err := r.CountChildrenByParentID(ctx, clinicID, id)
+	if err != nil {
+		return err
+	}
+	if childCount > 0 {
+		return apperrors.WrapConflict(fmt.Sprintf("このカテゴリには%d件の薬剤が含まれています。先に薬剤を削除してください", childCount))
+	}
+	return apperrors.WrapConflict("この薬剤は診療記録で使用中のため削除できません")
 }

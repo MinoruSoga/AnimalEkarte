@@ -2,13 +2,15 @@
 import { memo, useCallback, useId, useLayoutEffect, useRef } from "react";
 
 // External
-import { CheckCircle, Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 
 // Internal
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { C, ICON } from "@/lib/design-tokens";
+
+// Relative
+import { ExamStatusBadge } from "./ExamStatusBadge";
 
 // 検査項目テーブルの 1 行。
 // status / isAssessed / isAbnormal は backend が導出した値を表示するだけ（FE で再計算しない）。
@@ -41,57 +43,6 @@ interface ExamItemsTableProps {
   disabled?: boolean;
 }
 
-function StatusBadge({
-  status,
-  isAssessed,
-}: {
-  status?: "normal" | "high" | "low";
-  isAssessed?: boolean;
-}) {
-  if (status === "high") {
-    return (
-      <Badge
-        variant="destructive"
-        className={`h-8 px-3 text-xs ${C.bgDanger} ${C.hoverBgDanger90}`}
-      >
-        HIGH
-      </Badge>
-    );
-  }
-  if (status === "low") {
-    return (
-      <Badge
-        variant="outline"
-        className={`h-8 px-3 text-xs ${C.textStatusBlue} ${C.borderBlue400} ${C.bgStatusBlueLight}`}
-      >
-        LOW
-      </Badge>
-    );
-  }
-  if (isAssessed === false) {
-    return (
-      <Badge
-        variant="outline"
-        className={`h-8 px-3 text-xs ${C.textWarning} ${C.borderWarning20} ${C.bgWarning50}`}
-      >
-        未判定
-        <span className="sr-only">（基準値未設定のため判定していない）</span>
-      </Badge>
-    );
-  }
-  if (status === "normal") {
-    return (
-      <CheckCircle
-        role="img"
-        aria-label="基準値内"
-        className={`${ICON.action} ${C.textStatusGreen} opacity-50`}
-      />
-    );
-  }
-  // 未判定（保存前）
-  return <span className={`text-xs ${C.text45}`}>-</span>;
-}
-
 /**
  * 検査項目テーブル — `ExaminationForm` に組み込む編集可能テーブル。
  *
@@ -113,27 +64,20 @@ export const ExamItemsTable = memo(function ExamItemsTable({
   const nameInputRefs = useRef(new Map<string, HTMLInputElement>());
   const removeButtonRefs = useRef(new Map<string, HTMLButtonElement>());
   const previousItemKeysRef = useRef(items.map((item) => item.key));
-  const pendingFocusRef = useRef<
-    { type: "add" } | { type: "remove"; index: number } | null
-  >(null);
+  const pendingFocusRef = useRef<{ type: "add" } | { type: "remove"; index: number } | null>(null);
 
   useLayoutEffect(() => {
     const pendingFocus = pendingFocusRef.current;
     const previousKeys = previousItemKeysRef.current;
 
     if (pendingFocus?.type === "add") {
-      const addedKey = items.find(
-        (item) => !previousKeys.includes(item.key),
-      )?.key;
+      const addedKey = items.find((item) => !previousKeys.includes(item.key))?.key;
       if (addedKey) {
         nameInputRefs.current.get(addedKey)?.focus();
       }
     } else if (pendingFocus?.type === "remove") {
-      const focusKey =
-        items[pendingFocus.index]?.key ?? items[pendingFocus.index - 1]?.key;
-      const focusTarget = focusKey
-        ? removeButtonRefs.current.get(focusKey)
-        : addButtonRef.current;
+      const focusKey = items[pendingFocus.index]?.key ?? items[pendingFocus.index - 1]?.key;
+      const focusTarget = focusKey ? removeButtonRefs.current.get(focusKey) : addButtonRef.current;
       focusTarget?.focus();
     }
 
@@ -196,18 +140,10 @@ export const ExamItemsTable = memo(function ExamItemsTable({
             className={`min-w-[700px] grid grid-cols-[2fr_1.5fr_1fr_1.8fr_1.2fr_0.8fr] gap-0 border-b ${C.borderMedium} ${C.bgPage} text-sm font-bold ${C.text80} h-11 items-center`}
           >
             <div className={`p-2 border-r ${C.borderMedium} pl-3`}>項目名</div>
-            <div className={`p-2 border-r ${C.borderMedium} text-right`}>
-              結果値
-            </div>
-            <div className={`p-2 border-r ${C.borderMedium} text-center`}>
-              単位
-            </div>
-            <div className={`p-2 border-r ${C.borderMedium} text-center`}>
-              基準値
-            </div>
-            <div className={`p-2 border-r ${C.borderMedium} text-center`}>
-              判定
-            </div>
+            <div className={`p-2 border-r ${C.borderMedium} text-right`}>結果値</div>
+            <div className={`p-2 border-r ${C.borderMedium} text-center`}>単位</div>
+            <div className={`p-2 border-r ${C.borderMedium} text-center`}>基準値</div>
+            <div className={`p-2 border-r ${C.borderMedium} text-center`}>判定</div>
             <div className="p-2 text-center">操作</div>
           </div>
           {items.map((item, idx) => (
@@ -225,9 +161,7 @@ export const ExamItemsTable = memo(function ExamItemsTable({
                   : C.bgWhite
               } text-sm ${C.text} items-center min-h-12`}
             >
-              <div
-                className={`p-2 border-r ${C.borderMedium} pl-3 font-medium`}
-              >
+              <div className={`p-2 border-r ${C.borderMedium} pl-3 font-medium`}>
                 {item.examTypeFieldId === undefined && onChangeName ? (
                   <Input
                     ref={(node) => {
@@ -261,23 +195,14 @@ export const ExamItemsTable = memo(function ExamItemsTable({
                   aria-label={`${item.name.trim() || `検査項目${idx + 1}`}の結果値`}
                 />
               </div>
-              <div
-                className={`p-2 border-r ${C.borderMedium} text-center ${C.text60} text-sm`}
-              >
+              <div className={`p-2 border-r ${C.borderMedium} text-center ${C.text60} text-sm`}>
                 {item.unit || "-"}
               </div>
-              <div
-                className={`p-2 border-r ${C.borderMedium} text-center ${C.text60} text-sm`}
-              >
+              <div className={`p-2 border-r ${C.borderMedium} text-center ${C.text60} text-sm`}>
                 {item.referenceValue || item.normalValue || "-"}
               </div>
-              <div
-                className={`p-2 border-r ${C.borderMedium} flex justify-center items-center`}
-              >
-                <StatusBadge
-                  status={item.status}
-                  isAssessed={item.isAssessed}
-                />
+              <div className={`p-2 border-r ${C.borderMedium} flex justify-center items-center`}>
+                <ExamStatusBadge status={item.status} isAssessed={item.isAssessed} />
               </div>
               <div className="p-0.5 flex justify-center items-center">
                 {onRemoveItem ? (

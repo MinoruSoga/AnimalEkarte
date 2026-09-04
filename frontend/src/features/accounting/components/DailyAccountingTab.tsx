@@ -18,11 +18,15 @@ import { LoadingFallback, ErrorFallback, EmptyState } from "@/components/shared/
 import { C, ICON } from "@/lib/design-tokens";
 import { PAYMENT_METHOD_LABELS } from "@/constants/payment-method";
 import { todayJSTISO } from "@/lib/jst-date";
-import { formatCurrency } from "@/lib/format/number";
+import { formatCurrency, formatCurrencyIfNonzero } from "@/lib/format/number";
 
 import { useGetAccountings } from "../api/get-accountings";
 import { useGetDailySummary } from "../api/get-daily-summary";
-import type { ClinicDailySummaryItem, DailySummary, PerClinicDailySummaryResponse } from "../api/get-daily-summary";
+import type {
+  ClinicDailySummaryItem,
+  DailySummary,
+  PerClinicDailySummaryResponse,
+} from "../api/get-daily-summary";
 import type { PaymentMethod } from "../types";
 
 import { DailyPrintArea } from "./DailyAccountingPrintArea";
@@ -32,8 +36,8 @@ import {
   getCategoryBreakdown,
   apportionPayment,
   getRowCashTotal,
-} from "./daily-accounting-utils";
-import type { RowData, TotalsData } from "./daily-accounting-utils";
+} from "../lib/daily-accounting-utils";
+import type { RowData, TotalsData } from "../lib/daily-accounting-utils";
 
 const EMPTY_CLINIC_NAME_MAP = new Map<string, string>();
 
@@ -57,15 +61,25 @@ export function DailyAccountingTab({
   const isMultiClinic = selectedClinicIds !== undefined && selectedClinicIds.length > 1;
   const selectedDate = searchParams.get("daily_date") ?? todayJSTISO();
 
-  const handleDateChange = useCallback((next: string) => {
-    setSearchParams((prev) => {
-      const p = new URLSearchParams(prev);
-      p.set("daily_date", next);
-      return p;
-    }, { replace: true });
-  }, [setSearchParams]);
+  const handleDateChange = useCallback(
+    (next: string) => {
+      setSearchParams(
+        (prev) => {
+          const p = new URLSearchParams(prev);
+          p.set("daily_date", next);
+          return p;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
 
-  const { data: accountings = [], isLoading, isError } = useGetAccountings({
+  const {
+    data: accountings = [],
+    isLoading,
+    isError,
+  } = useGetAccountings({
     startDate: selectedDate,
     endDate: selectedDate,
     clinicIds: selectedClinicIds,
@@ -83,12 +97,8 @@ export function DailyAccountingTab({
         const breakdown = getCategoryBreakdown(a.items);
         const cashTotal = getRowCashTotal(a);
         const detailedBreakdown = apportionPayment(breakdown, cashTotal);
-        const subtotal =
-          a.payment?.subtotal ??
-          a.items.reduce((s, i) => s + i.subtotal, 0);
-        const tax =
-          a.payment?.taxTotal ??
-          a.items.reduce((s, i) => s + i.taxAmount, 0);
+        const subtotal = a.payment?.subtotal ?? a.items.reduce((s, i) => s + i.subtotal, 0);
+        const tax = a.payment?.taxTotal ?? a.items.reduce((s, i) => s + i.taxAmount, 0);
         const discount = Math.abs(a.payment?.discountAmount ?? 0);
         const total = a.payment?.totalAmount ?? subtotal + tax;
         return { accounting: a, breakdown, detailedBreakdown, subtotal, tax, discount, total };
@@ -110,7 +120,19 @@ export function DailyAccountingTab({
         discount: acc.discount + r.discount,
         total: acc.total + r.total,
       }),
-      { medical: 0, surgery: 0, rv: 0, food: 0, trimming: 0, hotel: 0, goods: 0, subtotal: 0, tax: 0, discount: 0, total: 0 },
+      {
+        medical: 0,
+        surgery: 0,
+        rv: 0,
+        food: 0,
+        trimming: 0,
+        hotel: 0,
+        goods: 0,
+        subtotal: 0,
+        tax: 0,
+        discount: 0,
+        total: 0,
+      },
     );
   }, [rows]);
 
@@ -124,7 +146,9 @@ export function DailyAccountingTab({
         {/* 日付選択 + 印刷ボタン + 集計カード */}
         <div className="flex flex-wrap items-end gap-4">
           <div className="space-y-1.5">
-            <Label htmlFor="daily-date" className={`text-sm ${C.text60}`}>対象日</Label>
+            <Label htmlFor="daily-date" className={`text-sm ${C.text60}`}>
+              対象日
+            </Label>
             <Input
               id="daily-date"
               type="date"
@@ -163,7 +187,10 @@ export function DailyAccountingTab({
           {perClinicSummaries.length > 0 ? (
             <div className="flex flex-col gap-2" data-testid="daily-summary-per-clinic">
               {perClinicSummaries.map((cs) => (
-                <div key={cs.clinic_id} className={`rounded-lg border ${C.borderLight} px-3 py-2 ${C.bgWhite}`}>
+                <div
+                  key={cs.clinic_id}
+                  className={`rounded-lg border ${C.borderLight} px-3 py-2 ${C.bgWhite}`}
+                >
                   <p className={`text-xs font-medium ${C.text60} mb-1.5`}>
                     {clinicNameById.get(String(cs.clinic_id)) ?? `拠点 ${cs.clinic_id}`}
                   </p>
@@ -198,21 +225,41 @@ export function DailyAccountingTab({
               <Table>
                 <TableHeader>
                   <TableRow className={`${C.bgPage30}`}>
-                    <TableHead className={`${C.text60} whitespace-nowrap w-[90px]`}>領収No</TableHead>
+                    <TableHead className={`${C.text60} whitespace-nowrap w-[90px]`}>
+                      領収No
+                    </TableHead>
                     {isMultiClinic ? (
-                      <TableHead className={`${C.text60} whitespace-nowrap w-[100px]`}>拠点</TableHead>
+                      <TableHead className={`${C.text60} whitespace-nowrap w-[100px]`}>
+                        拠点
+                      </TableHead>
                     ) : null}
                     <TableHead className={`${C.text60} whitespace-nowrap`}>飼主名</TableHead>
                     <TableHead className={`${C.text60} whitespace-nowrap`}>ペット名</TableHead>
-                    <TableHead className={`text-right ${C.text60} whitespace-nowrap`}>診療</TableHead>
-                    <TableHead className={`text-right ${C.text60} whitespace-nowrap`}>外科</TableHead>
+                    <TableHead className={`text-right ${C.text60} whitespace-nowrap`}>
+                      診療
+                    </TableHead>
+                    <TableHead className={`text-right ${C.text60} whitespace-nowrap`}>
+                      外科
+                    </TableHead>
                     <TableHead className={`text-right ${C.text60} whitespace-nowrap`}>RV</TableHead>
-                    <TableHead className={`text-right ${C.text60} whitespace-nowrap`}>フード</TableHead>
-                    <TableHead className={`text-right ${C.text60} whitespace-nowrap`}>トリミング</TableHead>
-                    <TableHead className={`text-right ${C.text60} whitespace-nowrap`}>ホテル</TableHead>
-                    <TableHead className={`text-right ${C.text60} whitespace-nowrap`}>用品他</TableHead>
-                    <TableHead className={`text-right ${C.text60} whitespace-nowrap`}>売上合計</TableHead>
-                    <TableHead className={`text-center ${C.text60} whitespace-nowrap`}>支払方法</TableHead>
+                    <TableHead className={`text-right ${C.text60} whitespace-nowrap`}>
+                      フード
+                    </TableHead>
+                    <TableHead className={`text-right ${C.text60} whitespace-nowrap`}>
+                      トリミング
+                    </TableHead>
+                    <TableHead className={`text-right ${C.text60} whitespace-nowrap`}>
+                      ホテル
+                    </TableHead>
+                    <TableHead className={`text-right ${C.text60} whitespace-nowrap`}>
+                      用品他
+                    </TableHead>
+                    <TableHead className={`text-right ${C.text60} whitespace-nowrap`}>
+                      売上合計
+                    </TableHead>
+                    <TableHead className={`text-center ${C.text60} whitespace-nowrap`}>
+                      支払方法
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -233,32 +280,34 @@ export function DailyAccountingTab({
                         {a.petName}
                       </TableCell>
                       <TableCell className={`text-right text-sm font-mono ${C.text60}`}>
-                        {breakdown.medical > 0 ? formatCurrency(breakdown.medical) : "-"}
+                        {formatCurrencyIfNonzero(breakdown.medical)}
                       </TableCell>
                       <TableCell className={`text-right text-sm font-mono ${C.text60}`}>
-                        {breakdown.surgery > 0 ? formatCurrency(breakdown.surgery) : "-"}
+                        {formatCurrencyIfNonzero(breakdown.surgery)}
                       </TableCell>
                       <TableCell className={`text-right text-sm font-mono ${C.text60}`}>
-                        {breakdown.rv > 0 ? formatCurrency(breakdown.rv) : "-"}
+                        {formatCurrencyIfNonzero(breakdown.rv)}
                       </TableCell>
                       <TableCell className={`text-right text-sm font-mono ${C.text60}`}>
-                        {breakdown.food > 0 ? formatCurrency(breakdown.food) : "-"}
+                        {formatCurrencyIfNonzero(breakdown.food)}
                       </TableCell>
                       <TableCell className={`text-right text-sm font-mono ${C.text60}`}>
-                        {breakdown.trimming > 0 ? formatCurrency(breakdown.trimming) : "-"}
+                        {formatCurrencyIfNonzero(breakdown.trimming)}
                       </TableCell>
                       <TableCell className={`text-right text-sm font-mono ${C.text60}`}>
-                        {breakdown.hotel > 0 ? formatCurrency(breakdown.hotel) : "-"}
+                        {formatCurrencyIfNonzero(breakdown.hotel)}
                       </TableCell>
                       <TableCell className={`text-right text-sm font-mono ${C.text60}`}>
-                        {breakdown.goods > 0 ? formatCurrency(breakdown.goods) : "-"}
+                        {formatCurrencyIfNonzero(breakdown.goods)}
                       </TableCell>
                       <TableCell className={`text-right text-sm font-mono font-semibold ${C.text}`}>
                         {formatCurrency(total)}
                       </TableCell>
                       <TableCell className={`text-center text-sm whitespace-nowrap ${C.text60}`}>
                         {a.paymentSplits && a.paymentSplits.length > 1
-                          ? a.paymentSplits.map((s) => PAYMENT_METHOD_LABELS[s.method] ?? s.method).join(" / ")
+                          ? a.paymentSplits
+                              .map((s) => PAYMENT_METHOD_LABELS[s.method] ?? s.method)
+                              .join(" / ")
                           : a.payment
                             ? (PAYMENT_METHOD_LABELS[a.payment.method] ?? a.payment.method)
                             : "-"}
@@ -268,27 +317,29 @@ export function DailyAccountingTab({
                 </TableBody>
                 <TableFooter>
                   <TableRow className={`font-bold border-t-2 ${C.borderLight}`}>
-                    <TableCell colSpan={labelColSpan} className="text-sm">合計（{rows.length}件）</TableCell>
-                    <TableCell className="text-right text-sm font-mono">
-                      {totals.medical > 0 ? formatCurrency(totals.medical) : "-"}
+                    <TableCell colSpan={labelColSpan} className="text-sm">
+                      合計（{rows.length}件）
                     </TableCell>
                     <TableCell className="text-right text-sm font-mono">
-                      {totals.surgery > 0 ? formatCurrency(totals.surgery) : "-"}
+                      {formatCurrencyIfNonzero(totals.medical)}
                     </TableCell>
                     <TableCell className="text-right text-sm font-mono">
-                      {totals.rv > 0 ? formatCurrency(totals.rv) : "-"}
+                      {formatCurrencyIfNonzero(totals.surgery)}
                     </TableCell>
                     <TableCell className="text-right text-sm font-mono">
-                      {totals.food > 0 ? formatCurrency(totals.food) : "-"}
+                      {formatCurrencyIfNonzero(totals.rv)}
                     </TableCell>
                     <TableCell className="text-right text-sm font-mono">
-                      {totals.trimming > 0 ? formatCurrency(totals.trimming) : "-"}
+                      {formatCurrencyIfNonzero(totals.food)}
                     </TableCell>
                     <TableCell className="text-right text-sm font-mono">
-                      {totals.hotel > 0 ? formatCurrency(totals.hotel) : "-"}
+                      {formatCurrencyIfNonzero(totals.trimming)}
                     </TableCell>
                     <TableCell className="text-right text-sm font-mono">
-                      {totals.goods > 0 ? formatCurrency(totals.goods) : "-"}
+                      {formatCurrencyIfNonzero(totals.hotel)}
+                    </TableCell>
+                    <TableCell className="text-right text-sm font-mono">
+                      {formatCurrencyIfNonzero(totals.goods)}
                     </TableCell>
                     <TableCell className="text-right text-sm font-mono">
                       <span className="font-bold">{formatCurrency(totals.total)}</span>
@@ -303,9 +354,7 @@ export function DailyAccountingTab({
       </div>
 
       {/* 印刷エリア: print時のみ表示 */}
-      {rows.length > 0 ? (
-        <DailyPrintArea date={selectedDate} rows={rows} totals={totals} />
-      ) : null}
+      {rows.length > 0 ? <DailyPrintArea date={selectedDate} rows={rows} totals={totals} /> : null}
     </>
   );
 }

@@ -1,0 +1,63 @@
+/* Shared customer-facing brand theme (LINE reservation + LIFF). Teal/blue-gray — not mint green. */
+@theme {
+  --color-noah-teal: #038b94;
+  --color-noah-teal-dark: #027078;
+  --color-noah-teal-light: #edf3f5;
+  --color-noah-accent: #ff8a43;
+  --color-noah-text: #212529;
+  --color-noah-text-sub: #333333;
+
+  /* LIFF alias tokens: same palette so existing bg-liff-brand* classes match line-reserve chrome */
+  --color-liff-brand: #038b94;
+  --color-liff-brand-dark: #027078;
+  --color-liff-brand-bg: #edf3f5;
+  --color-liff-brand-subtle: #d6eef0;
+
+  /*
+   * FE-RC-051: liff/line-reserve の予約ステータスバッジ・注意喚起ボックスが raw Tailwind
+   * パレット色（bg-green-100/text-green-800 等）を直書きしていたため semantic token 化する。
+   * 値は Tailwind 既定パレットの var() 参照でエイリアスし、見た目（色）は変更しない —
+   * 目的は「意味（成功/警告/危険/情報）に名前を付ける」ことで、新しい色を発明することではない。
+   */
+  --color-noah-success-bg: var(--color-green-100);
+  --color-noah-success-text: var(--color-green-800);
+  --color-noah-warning-bg: var(--color-yellow-100);
+  --color-noah-warning-box-bg: var(--color-yellow-50);
+  --color-noah-warning-text: var(--color-yellow-800);
+  --color-noah-warning-text-sub: var(--color-yellow-700);
+  --color-noah-warning-border: var(--color-yellow-200);
+  --color-noah-info-bg: var(--color-blue-100);
+  --color-noah-info-box-bg: var(--color-blue-50);
+  --color-noah-info-text: var(--color-blue-800);
+  --color-noah-info-text-sub: var(--color-blue-700);
+  --color-noah-info-border: var(--color-blue-200);
+  --color-noah-danger-subtle: var(--color-red-400);
+  --color-noah-danger: var(--color-red-500);
+  --color-noah-danger-hover: var(--color-red-600);
+  --color-noah-danger-bg: var(--color-red-50);
+  --color-noah-danger-bg-strong: var(--color-red-100);
+  --color-noah-danger-text: var(--color-red-700);
+  --color-noah-danger-border: var(--color-red-200);
+  --color-noah-neutral-bg: var(--color-gray-100);
+  --color-noah-neutral-text: var(--color-gray-600);
+
+  /*
+   * FE-RC-051 (残件): liff/line-reserve のカード・区切り線・ヘルパーテキストが
+   * raw な gray/red パレットを直書きしていた分。同じ考え方（意味に名前を付け、
+   * 色そのものは変更しない）で汎用 UI クロム用トークンを追加する。
+   */
+  --color-noah-border: var(--color-gray-200);
+  --color-noah-border-light: var(--color-gray-100);
+  --color-noah-border-faint: var(--color-gray-50);
+  --color-noah-border-input: var(--color-gray-300);
+  --color-noah-text-muted: var(--color-gray-500);
+  --color-noah-text-secondary: var(--color-gray-600);
+  --color-noah-text-faint: var(--color-gray-400);
+  --color-noah-text-body: var(--color-gray-700);
+  --color-noah-text-strong: var(--color-gray-800);
+  --color-noah-text-heading: var(--color-gray-900);
+  --color-noah-surface-muted: var(--color-gray-50);
+  --color-noah-surface-subtle: var(--color-gray-100);
+  --color-noah-disabled: var(--color-gray-300);
+  --color-noah-tooltip-bg: var(--color-gray-800);
+}

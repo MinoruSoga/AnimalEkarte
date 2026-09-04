@@ -7,9 +7,10 @@ import {
   doseParamToFormData,
   findDoseParamBySpecies,
   INITIAL_DOSE_PARAM_FORM,
+  isDoseParamFormEmpty,
   validateDoseParamForm,
   type DoseParamFormData,
-} from "./medicine-dose-params-editor-model";
+} from "../lib/medicine-dose-params-editor-model";
 
 function makeForm(overrides: Partial<DoseParamFormData> = {}): DoseParamFormData {
   return { ...INITIAL_DOSE_PARAM_FORM, dosePerKg: "10", maxMgPerKg: "20", ...overrides };
@@ -52,8 +53,21 @@ describe("validateDoseParamForm", () => {
     expect(result.errors).toContain("下限は上限以下にしてください");
   });
 
+  it("accepts min == max (BUG-013)", () => {
+    const result = validateDoseParamForm(
+      makeForm({
+        dosePerKg: "10",
+        minMgPerKg: "10",
+        maxMgPerKg: "10",
+      }),
+    );
+    expect(result.isValid).toBe(true);
+  });
+
   it("rejects dose_per_kg below min", () => {
-    const result = validateDoseParamForm(makeForm({ dosePerKg: "5", minMgPerKg: "10", maxMgPerKg: "20" }));
+    const result = validateDoseParamForm(
+      makeForm({ dosePerKg: "5", minMgPerKg: "10", maxMgPerKg: "20" }),
+    );
     expect(result.errors).toContain("投与量は下限以上にしてください");
   });
 
@@ -74,12 +88,16 @@ describe("validateDoseParamForm", () => {
 
   it("rejects rounding_step set without rounding_mode", () => {
     const result = validateDoseParamForm(makeForm({ roundingStep: "0.5", roundingMode: "" }));
-    expect(result.errors).toContain("丸め幅と丸め方向はどちらも設定するか、どちらも未設定にしてください");
+    expect(result.errors).toContain(
+      "丸め幅と丸め方向はどちらも設定するか、どちらも未設定にしてください",
+    );
   });
 
   it("rejects rounding_mode set without rounding_step", () => {
     const result = validateDoseParamForm(makeForm({ roundingStep: "", roundingMode: "up" }));
-    expect(result.errors).toContain("丸め幅と丸め方向はどちらも設定するか、どちらも未設定にしてください");
+    expect(result.errors).toContain(
+      "丸め幅と丸め方向はどちらも設定するか、どちらも未設定にしてください",
+    );
   });
 
   it("passes when both rounding_step and rounding_mode are set together", () => {
@@ -91,7 +109,11 @@ describe("validateDoseParamForm", () => {
 describe("buildUpsertDoseParamRequest", () => {
   it("omits unset optional fields", () => {
     const request = buildUpsertDoseParamRequest(makeForm());
-    expect(request).toEqual({ dose_basis: "per_administration", dose_per_kg: 10, max_mg_per_kg: 20 });
+    expect(request).toEqual({
+      dose_basis: "per_administration",
+      dose_per_kg: 10,
+      max_mg_per_kg: 20,
+    });
   });
 
   it("includes all optional fields when set", () => {
@@ -102,7 +124,7 @@ describe("buildUpsertDoseParamRequest", () => {
         roundingStep: "0.5",
         roundingMode: "up",
         notes: "備考",
-      })
+      }),
     );
     expect(request).toEqual({
       dose_basis: "per_administration",
@@ -158,5 +180,15 @@ describe("findDoseParamBySpecies", () => {
 
   it("returns undefined when params is undefined", () => {
     expect(findDoseParamBySpecies(undefined, "dog")).toBeUndefined();
+  });
+});
+
+describe("isDoseParamFormEmpty", () => {
+  it("treats the initial form as empty", () => {
+    expect(isDoseParamFormEmpty(INITIAL_DOSE_PARAM_FORM)).toBe(true);
+  });
+
+  it("treats a filled dose as not empty", () => {
+    expect(isDoseParamFormEmpty(makeForm())).toBe(false);
   });
 });

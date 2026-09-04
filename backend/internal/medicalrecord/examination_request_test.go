@@ -17,18 +17,20 @@ func TestNewListExaminationQuery(t *testing.T) {
 		{
 			name: "extracts all query parameters",
 			values: url.Values{
-				"pet_id":     []string{"10"},
-				"owner_id":   []string{"20"},
-				"status":     []string{"completed"},
-				"start_date": []string{"2026-05-01"},
-				"end_date":   []string{"2026-05-31"},
+				"pet_id":            []string{"10"},
+				"owner_id":          []string{"20"},
+				"medical_record_id": []string{"30"},
+				"status":            []string{"completed"},
+				"start_date":        []string{"2026-05-01"},
+				"end_date":          []string{"2026-05-31"},
 			},
 			want: listExaminationQuery{
-				PetID:     "10",
-				OwnerID:   "20",
-				Status:    "completed",
-				StartDate: "2026-05-01",
-				EndDate:   "2026-05-31",
+				PetID:           "10",
+				OwnerID:         "20",
+				MedicalRecordID: "30",
+				Status:          "completed",
+				StartDate:       "2026-05-01",
+				EndDate:         "2026-05-31",
 			},
 		},
 		{
@@ -55,11 +57,12 @@ func TestNewListExaminationQuery(t *testing.T) {
 
 func TestListExaminationQuery_ToServiceFilters(t *testing.T) {
 	filters, err := (&listExaminationQuery{
-		PetID:     "10",
-		OwnerID:   "20",
-		Status:    "completed",
-		StartDate: "2026-05-01",
-		EndDate:   "2026-05-31",
+		PetID:           "10",
+		OwnerID:         "20",
+		MedicalRecordID: "30",
+		Status:          "completed",
+		StartDate:       "2026-05-01",
+		EndDate:         "2026-05-31",
 	}).toServiceFilters()
 	if err != nil {
 		t.Fatalf("toServiceFilters returned error: %v", err)
@@ -70,6 +73,9 @@ func TestListExaminationQuery_ToServiceFilters(t *testing.T) {
 	}
 	if filters.OwnerID == nil || *filters.OwnerID != 20 {
 		t.Fatalf("OwnerID = %v, want 20", filters.OwnerID)
+	}
+	if filters.MedicalRecordID == nil || *filters.MedicalRecordID != 30 {
+		t.Fatalf("MedicalRecordID = %v, want 30", filters.MedicalRecordID)
 	}
 	if filters.Status == nil || *filters.Status != "completed" {
 		t.Fatalf("Status = %v, want completed", filters.Status)
@@ -89,6 +95,7 @@ func TestListExaminationQuery_ToServiceFilters_InvalidInput(t *testing.T) {
 	}{
 		{name: "pet_id", query: listExaminationQuery{PetID: "abc"}},
 		{name: "owner_id", query: listExaminationQuery{OwnerID: "abc"}},
+		{name: "medical_record_id", query: listExaminationQuery{MedicalRecordID: "abc"}},
 		{name: "start_date", query: listExaminationQuery{StartDate: "2026/05/01"}},
 		{name: "end_date", query: listExaminationQuery{EndDate: "2026/05/31"}},
 	}

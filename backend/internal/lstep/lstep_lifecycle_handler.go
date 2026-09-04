@@ -27,7 +27,7 @@ func (h *Handler) UpdatePetDeath(c *gin.Context) {
 		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
-	if req.DeceasedAt == nil || req.DeceasedAt.Time.IsZero() {
+	if req.DeceasedAt == nil || req.DeceasedAt.IsZero() {
 		httpapi.RespondError(c, apperrors.WrapInvalidInput("deceased_at は必須です"))
 		return
 	}

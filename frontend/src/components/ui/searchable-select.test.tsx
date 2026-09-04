@@ -14,10 +14,7 @@ describe("SearchableSelect", () => {
       />,
     );
 
-    expect(screen.getByRole("combobox", { name: "合成監査選択" })).toHaveClass(
-      "h-11",
-      "min-w-11",
-    );
+    expect(screen.getByRole("combobox", { name: "合成監査選択" })).toHaveClass("h-11", "min-w-11");
   });
 
   it("BUG-017: ariaInvalid と ariaDescribedBy をトリガーへ伝播する", () => {

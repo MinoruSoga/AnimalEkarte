@@ -98,9 +98,15 @@ function baseEligibleInput(): DoseCalcInput {
 
 describe("calculateDose eligibility (fail-closed)", () => {
   const cases: [string, (input: DoseCalcInput) => DoseCalcInput][] = [
-    ["calculation_type=none", (input) => ({ ...input, calculationType: MedicineCalculationTypeNone })],
+    [
+      "calculation_type=none",
+      (input) => ({ ...input, calculationType: MedicineCalculationTypeNone }),
+    ],
     ["medicine_unit nil", (input) => ({ ...input, medicineUnit: null })],
-    ["medicine_unit per_dose は不適格", (input) => ({ ...input, medicineUnit: MedicineUnitPerDose })],
+    [
+      "medicine_unit per_dose は不適格",
+      (input) => ({ ...input, medicineUnit: MedicineUnitPerDose }),
+    ],
     ["strength nil", (input) => ({ ...input, strength: null })],
     ["strength <= 0", (input) => ({ ...input, strength: 0 })],
     ["dose_per_kg <= 0", (input) => ({ ...input, dosePerKg: 0 })],

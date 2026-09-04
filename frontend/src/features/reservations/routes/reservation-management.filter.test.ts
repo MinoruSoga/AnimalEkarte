@@ -2,7 +2,9 @@ import { describe, it, expect } from "vitest";
 import type { Reservation } from "../types";
 import { filterCalendarAppointments } from "./ReservationManagement";
 
-function makeReservation(overrides: { id: string } & Partial<Omit<Reservation, "id">>): Reservation {
+function makeReservation(
+  overrides: { id: string } & Partial<Omit<Reservation, "id">>,
+): Reservation {
   return {
     id: overrides.id,
     start: new Date("2026-06-15T09:00:00"),
@@ -68,9 +70,7 @@ describe("filterCalendarAppointments (#116)", () => {
       "completed",
       "no_show",
     ];
-    const appointments = statuses.map((status, i) =>
-      makeReservation({ id: String(i), status }),
-    );
+    const appointments = statuses.map((status, i) => makeReservation({ id: String(i), status }));
     const result = filterCalendarAppointments(appointments);
     expect(result).toHaveLength(statuses.length);
   });

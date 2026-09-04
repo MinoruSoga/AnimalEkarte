@@ -7,13 +7,38 @@ import { paths } from "@/config/paths";
 import { LAYOUT } from "@/lib/design-tokens";
 
 export function MedicalRecordPetSelection() {
-  const { searchParams, setSearchParams, petPage, error, isLoading, handleClear, handleSelect, handleBack } =
-    usePetSelectionPage({ selectPath: paths.medicalRecords.new.getHref(), backPath: paths.medicalRecords.getHref() });
+  const {
+    searchParams,
+    setSearchParams,
+    petPage,
+    error,
+    isLoading,
+    handleClear,
+    handleSelect,
+    handleBack,
+  } = usePetSelectionPage({
+    selectPath: paths.medicalRecords.new.getHref(),
+    backPath: paths.medicalRecords.getHref(),
+  });
 
   return (
-    <PageLayout title="カルテ作成 - ペット選択" onBack={handleBack} resource={ResourceMedicalRecords} maxWidth={LAYOUT.pageContentMaxWidth.full}>
-      <PetSelectionSearchForm searchParams={searchParams} setSearchParams={setSearchParams} onClear={handleClear} />
-      <PetSelectionResultsTable pets={petPage} onSelect={handleSelect} isError={Boolean(error)} isLoading={isLoading} />
+    <PageLayout
+      title="カルテ登録 - ペット選択"
+      onBack={handleBack}
+      resource={ResourceMedicalRecords}
+      maxWidth={LAYOUT.pageContentMaxWidth.full}
+    >
+      <PetSelectionSearchForm
+        searchParams={searchParams}
+        setSearchParams={setSearchParams}
+        onClear={handleClear}
+      />
+      <PetSelectionResultsTable
+        pets={petPage}
+        onSelect={handleSelect}
+        isError={Boolean(error)}
+        isLoading={isLoading}
+      />
     </PageLayout>
   );
 }

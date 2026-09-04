@@ -95,8 +95,7 @@ function mapOwnerReportPet(pet: OwnerReportPetWire): OwnerReportPet {
     weight: pet.weight?.toString(),
     neuteredDate: dateOnly(pet.neutered_date),
     acquisitionType: pet.acquisition_type
-      ? (ACQUISITION_TYPE_LABELS[pet.acquisition_type] ??
-        pet.acquisition_type)
+      ? (ACQUISITION_TYPE_LABELS[pet.acquisition_type] ?? pet.acquisition_type)
       : undefined,
     food: pet.food,
     environment: pet.environment,
@@ -105,9 +104,7 @@ function mapOwnerReportPet(pet: OwnerReportPetWire): OwnerReportPet {
     species: pet.animal_species?.name ?? "",
     insuranceName: pet.insurance?.name,
     insuranceDetails:
-      pet.insurance?.coverage_rate != null
-        ? `${pet.insurance.coverage_rate}%補償`
-        : undefined,
+      pet.insurance?.coverage_rate != null ? `${pet.insurance.coverage_rate}%補償` : undefined,
   };
 }
 

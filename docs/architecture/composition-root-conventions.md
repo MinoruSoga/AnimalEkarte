@@ -10,7 +10,7 @@
 
 | Do | Don't |
 |----|--------|
-| Add or extend `composition_<domain>.go` (and domain-local `*_repositories.go` / `*_services.go` when needed) | Dump new domain constructors into `main.go` |
+| Established domain/group composition (`composition_<domain>.go` 等) または domain `NewApplication` を拡張する。機械 gate が直接 pin する core entry files は `composition_runtime.go`, `composition_auth.go`, `composition_staff.go`, `composition_clinic.go`, `composition_owner_pet.go`, `composition_reservation.go`, `composition_billing.go`, `composition_medicalrecord.go` | Dump new domain constructors into `main.go`; 1 domain = 1 file と決めつける |
 | Prefer domain package constructors (`lstep.NewApplication`, `reservation.New…`) | Re-open central `internal/service` / `internal/repository` |
 | Pass **narrow** cross-domain deps (interfaces / typed deps structs) | Pass a kitchen-sink “all services” bag |
 
@@ -49,7 +49,7 @@ Primary monitor: `backend/cmd/api/route_composition_smoke_test.go`.
 - Pins **exact** unique Method+Path count (update the constant + changelog comment when routes intentionally change).  
 - Samples critical public/protected surfaces.
 
-When adding routes: update OpenAPI drift allowlists / `docs/api.yaml` per existing apicontract gates **and** bump the smoke count with a one-line reason.
+When adding routes: update OpenAPI drift allowlists / `backend/docs/api.yaml` per existing apicontract gates **and** bump the smoke count with a one-line reason.
 
 ### A5-5 — No consumer-0 root facades
 

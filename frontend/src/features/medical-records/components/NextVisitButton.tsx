@@ -1,9 +1,5 @@
 import { CalendarPlus, Calendar, Pencil } from "lucide-react";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { C, ICON } from "@/lib/design-tokens";
@@ -44,21 +40,12 @@ export function NextVisitButton({
             >
               {hasValue ? (
                 <>
-                  <Calendar
-                    className={`${ICON.sm} ${C.text60}`}
-                    aria-hidden="true"
-                  />
+                  <Calendar className={`${ICON.sm} ${C.text60}`} aria-hidden="true" />
                   <span>{value}</span>
-                  <Pencil
-                    className={`${ICON.sm} ${C.text40}`}
-                    aria-hidden="true"
-                  />
+                  <Pencil className={`${ICON.sm} ${C.text40}`} aria-hidden="true" />
                 </>
               ) : (
-                <CalendarPlus
-                  className={`${ICON.sm} ${C.text40}`}
-                  aria-hidden="true"
-                />
+                <CalendarPlus className={`${ICON.sm} ${C.text40}`} aria-hidden="true" />
               )}
             </Button>
           </PopoverTrigger>

@@ -49,11 +49,11 @@ export const ExaminationFilter = memo(function ExaminationFilter({
       </div>
 
       {/* Filters */}
-      <div className={`flex flex-col md:flex-row items-end gap-4 ${C.bgWhite} p-4 rounded-lg border ${C.borderMedium}`}>
+      <div
+        className={`flex flex-col md:flex-row items-end gap-4 ${C.bgWhite} p-4 rounded-lg border ${C.borderMedium}`}
+      >
         <div className="flex flex-col gap-1.5 w-full md:w-[300px]">
-          <Label className={`text-sm font-medium ${C.text60}`}>
-            検査項目検索
-          </Label>
+          <Label className={`text-sm font-medium ${C.text60}`}>検査項目検索</Label>
           <Input
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
@@ -63,9 +63,7 @@ export const ExaminationFilter = memo(function ExaminationFilter({
         </div>
 
         <div className="flex flex-col gap-1.5 w-full md:w-[400px]">
-          <Label className={`text-sm font-medium ${C.text60}`}>
-            期間
-          </Label>
+          <Label className={`text-sm font-medium ${C.text60}`}>期間</Label>
           <div className="flex items-center gap-2">
             <DatePicker
               value={dateStart}

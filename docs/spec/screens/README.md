@@ -4,7 +4,7 @@
 > **読者**: 新規参加エンジニア・PdM。
 > **タイミング**: 画面インデックス参照・全体像把握時。
 
-本ディレクトリ直下の番号付き仕様（`[0-9]*.md`）は **41 ファイル**（フロー文書 `99-medical-record-flow` を含む）。製品ルートの product leaf 数（`route-inventory` の 84）とは数え方が異なる。各ファイルに画面の機能、レイアウト、API 連携の詳細を定義する。
+本ディレクトリ直下の番号付き仕様（`[0-9]*.md`）は **41 ファイル**（フロー文書 `99-medical-record-flow` を含む）。製品ルートの product leaf 数（`route-inventory` の 86）とは数え方が異なる。各ファイルに画面の機能、レイアウト、API 連携の詳細を定義する。
 
 ---
 
@@ -18,7 +18,8 @@
 | 05 | **カルテ一覧** | [05-medical-records-list.md](./05-medical-records-list.md) | 全診療記録の時系列検索。 |
 | 06 | **カルテ詳細・入力** | [06-medical-records-form.md](./06-medical-records-form.md) | SOAPS 形式の診療録作成（9 タブ構成）。 |
 | 12 | **検査一覧** | [12-examinations-list.md](./12-examinations-list.md) | 検査オーダー状況と結果の進捗管理。 |
-| 13 | **検査登録・結果** | [13-examinations-form.md](./13-examinations-form.md) | 数値検査の入力と基準値判定。 |
+| 13 | **検査登録・結果** | [13-examinations-form.md](./13-examinations-form.md) | 数値検査の入力と基準値判定。未紐付け受信は1クリックで後付け。 |
+| — | **検査受信** | `/lab-device`（`LabDeviceBoard`） | 医院に設定された検査機器の単一掲示板。機器カードで受信状況をリアルタイム表示。本日診療中カルテをカード選択。日別の受信一覧。未紐付け・［取り消す］。医院セットアップで機器接続を1回許可。 |
 | 14 | **予防接種一覧** | [14-vaccinations-list.md](./14-vaccinations-list.md) | 接種実績と次回予定の時系列リスト。 |
 | 15 | **予防接種登録** | [15-vaccinations-form.md](./15-vaccinations-form.md) | ワクチン履歴記録と次回予定自動計算。 |
 | 16 | **トリミング一覧** | [16-trimming-list.md](./16-trimming-list.md) | 施術予約と完了ステータスの管理。 |
@@ -34,7 +35,7 @@
 |:---|:---|:---|:---|
 | 07 | **入院管理一覧** | [07-hospitalization-list.md](./07-hospitalization-list.md) | ボードビューによるケージ稼働状況の監視. |
 | 08 | **入院詳細・記録** | [08-hospitalization-detail.md](./08-hospitalization-detail.md) | デイリーケア計画と時系列バイタル記録。 |
-| 09 | **入院登録・編集** | [09-hospitalization-form.md](./09-hospitalization-form.md) | ケアプランと値引き設定の定義。 |
+| 09 | **入院登録・編集** | [09-hospitalization-form.md](./09-hospitalization-form.md) | 入院基本情報と登録時治療プラン（料金明細スナップショット）の定義。 |
 
 ---
 
@@ -87,4 +88,4 @@
 
 ---
 
-**最新更新**: 2026-08-14 | **ステータス**: Static/Code Sync (123 Tables / 37 Resources; Fresh DB Apply Pending — `todo.md` OPS-13)
+**最新更新**: 2026-08-30 | **ステータス**: Static/Code Sync (128 Tables / 37 Resources); release state は Linear hub [BRT-4](https://linear.app/baritechllc/issue/BRT-4) を参照。作業入口は [`todo.md`](../../../todo.md)。

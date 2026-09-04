@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
-import { createTestWrapper } from "@/testing/utils";
+import { createTestWrapper } from "@/testing/TestUtils";
 import { CURRENT_CLINIC_STORAGE_KEY } from "@/lib/current-clinic";
 import { useGenerateLineLinkToken } from "./generate-line-link-token";
 
@@ -47,7 +47,11 @@ describe("useGenerateLineLinkToken (SD-14)", () => {
       http.post("*/v1/owners/:id/line/link-token", ({ request }) => {
         receivedClinicHeader = request.headers.get("X-Clinic-ID");
         return HttpResponse.json(
-          { token: "abc123", expires_at: "2026-07-17T00:00:00+09:00", liff_url: "https://liff.line.me/x?token=abc123&clinic_id=1" },
+          {
+            token: "abc123",
+            expires_at: "2026-07-17T00:00:00+09:00",
+            liff_url: "https://liff.line.me/x?token=abc123&clinic_id=1",
+          },
           { status: 201 },
         );
       }),

@@ -12,22 +12,15 @@ interface UpdateOwnerLineBody {
 async function updateOwnerLine(
   clinicId: string,
   ownerId: string,
-  body: UpdateOwnerLineBody
+  body: UpdateOwnerLineBody,
 ): Promise<void> {
-  await axios.patch(
-    `/v1/clinics/${clinicId}/owners/${ownerId}/line-user-id`,
-    body
-  );
+  await axios.patch(`/v1/clinics/${clinicId}/owners/${ownerId}/line-user-id`, body);
 }
 
-async function unlinkOwnerLine(
-  clinicId: string,
-  ownerId: string
-): Promise<void> {
-  await axios.patch(
-    `/v1/clinics/${clinicId}/owners/${ownerId}/line-user-id`,
-    { line_user_id: null }
-  );
+async function unlinkOwnerLine(clinicId: string, ownerId: string): Promise<void> {
+  await axios.patch(`/v1/clinics/${clinicId}/owners/${ownerId}/line-user-id`, {
+    line_user_id: null,
+  });
 }
 
 export function useUpdateOwnerLine(ownerId: string) {

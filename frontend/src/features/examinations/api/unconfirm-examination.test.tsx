@@ -10,9 +10,7 @@ import { useUnconfirmExamination } from "./unconfirm-examination";
 
 function createWrapper(queryClient: QueryClient) {
   return function Wrapper({ children }: { children: ReactNode }) {
-    return (
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    );
+    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
   };
 }
 
@@ -94,11 +92,9 @@ describe("useUnconfirmExamination", () => {
     });
 
     let settled = false;
-    const mutation = result.current
-      .mutateAsync({ id: "7", reason: "再確認のため" })
-      .then(() => {
-        settled = true;
-      });
+    const mutation = result.current.mutateAsync({ id: "7", reason: "再確認のため" }).then(() => {
+      settled = true;
+    });
 
     await waitFor(() => expect(invalidateSpy).toHaveBeenCalledTimes(3));
     await Promise.resolve();

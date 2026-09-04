@@ -20,8 +20,7 @@ export function NewOwnerInlineForm({ value, onChange, errors }: NewOwnerInlineFo
     isLoading: isLoadingSpecies,
     isError: isSpeciesError,
   } = useAnimalSpecies();
-  const isSpeciesUnavailable =
-    isSpeciesError || isLoadingSpecies || activeSpecies.length === 0;
+  const isSpeciesUnavailable = isSpeciesError || isLoadingSpecies || activeSpecies.length === 0;
 
   return (
     <div className="flex flex-col gap-4 overflow-y-auto flex-1 min-h-0 pb-2">
@@ -32,7 +31,10 @@ export function NewOwnerInlineForm({ value, onChange, errors }: NewOwnerInlineFo
 
       <div className="flex flex-col gap-1">
         <Label htmlFor="new-owner-name" className={`text-xs ${C.text60}`}>
-          飼主名 <span aria-hidden="true" className={C.textRequired}>*</span>
+          飼主名{" "}
+          <span aria-hidden="true" className={C.textRequired}>
+            *
+          </span>
         </Label>
         <Input
           id="new-owner-name"
@@ -47,7 +49,10 @@ export function NewOwnerInlineForm({ value, onChange, errors }: NewOwnerInlineFo
 
       <div className="flex flex-col gap-1">
         <Label htmlFor="new-owner-phone" className={`text-xs ${C.text60}`}>
-          電話番号 <span aria-hidden="true" className={C.textRequired}>*</span>
+          電話番号{" "}
+          <span aria-hidden="true" className={C.textRequired}>
+            *
+          </span>
         </Label>
         <Input
           id="new-owner-phone"
@@ -57,13 +62,18 @@ export function NewOwnerInlineForm({ value, onChange, errors }: NewOwnerInlineFo
           placeholder="例: 090-1234-5678"
           className="h-9 text-sm"
           type="tel"
+          aria-invalid={errors.phone ? true : undefined}
+          aria-describedby={errors.phone ? "new-owner-phone-error" : undefined}
         />
-        <FormFieldError message={errors.phone} />
+        <FormFieldError id="new-owner-phone-error" message={errors.phone} />
       </div>
 
       <div className="flex flex-col gap-1">
         <Label htmlFor="new-owner-pet-name" className={`text-xs ${C.text60}`}>
-          ペット名 <span aria-hidden="true" className={C.textRequired}>*</span>
+          ペット名{" "}
+          <span aria-hidden="true" className={C.textRequired}>
+            *
+          </span>
         </Label>
         <Input
           id="new-owner-pet-name"
@@ -78,7 +88,10 @@ export function NewOwnerInlineForm({ value, onChange, errors }: NewOwnerInlineFo
 
       <div className="flex flex-col gap-1">
         <Label htmlFor="new-owner-species" className={`text-xs ${C.text60}`}>
-          動物種 <span aria-hidden="true" className={C.textRequired}>*</span>
+          動物種{" "}
+          <span aria-hidden="true" className={C.textRequired}>
+            *
+          </span>
         </Label>
         <SearchableSelect
           id="new-owner-species"
@@ -91,29 +104,15 @@ export function NewOwnerInlineForm({ value, onChange, errors }: NewOwnerInlineFo
           triggerTestId="new-owner-species"
         />
         {isSpeciesError ? (
-          <p
-            role="alert"
-            aria-atomic="true"
-            className={`text-xs ${C.danger}`}
-          >
+          <p role="alert" aria-atomic="true" className={`text-xs ${C.danger}`}>
             動物種の取得に失敗しました。
           </p>
         ) : isLoadingSpecies ? (
-          <p
-            role="status"
-            aria-live="polite"
-            aria-atomic="true"
-            className={`text-xs ${C.text50}`}
-          >
+          <p role="status" aria-live="polite" aria-atomic="true" className={`text-xs ${C.text50}`}>
             動物種を読み込み中です。
           </p>
         ) : activeSpecies.length === 0 ? (
-          <p
-            role="status"
-            aria-live="polite"
-            aria-atomic="true"
-            className={`text-xs ${C.text50}`}
-          >
+          <p role="status" aria-live="polite" aria-atomic="true" className={`text-xs ${C.text50}`}>
             動物種マスタが登録されていません。
           </p>
         ) : null}
@@ -122,7 +121,10 @@ export function NewOwnerInlineForm({ value, onChange, errors }: NewOwnerInlineFo
 
       <div className="flex flex-col gap-1">
         <Label htmlFor="new-owner-chief-complaint" className={`text-xs ${C.text60}`}>
-          主訴 <span aria-hidden="true" className={C.textRequired}>*</span>
+          主訴{" "}
+          <span aria-hidden="true" className={C.textRequired}>
+            *
+          </span>
         </Label>
         <Textarea
           id="new-owner-chief-complaint"

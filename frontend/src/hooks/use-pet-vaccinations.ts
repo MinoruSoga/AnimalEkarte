@@ -35,6 +35,8 @@ function transformToHistoryItem(v: Vaccination) {
   return {
     id: v.id,
     name: v.vaccine?.name ?? `ワクチン(ID:${v.vaccine_id})`,
+    medicalRecordId: v.medical_record_id != null ? String(v.medical_record_id) : undefined,
+    price: v.vaccine?.price ?? null,
     date: formatDate(v.date),
     next: formatDate(v.next_date),
     vaccineId: v.vaccine_id ?? 0,
@@ -48,9 +50,7 @@ function transformToHistoryItem(v: Vaccination) {
 }
 export type PetVaccinationHistoryItem = ReturnType<typeof transformToHistoryItem>;
 
-const getPetVaccinations = async (
-  petId: string,
-): Promise<PetVaccinationHistoryItem[]> => {
+const getPetVaccinations = async (petId: string): Promise<PetVaccinationHistoryItem[]> => {
   // BUG-007: always pass page/limit + pet_id. Default BE limit=20 page-window
   // hid newer rows behind future-dated seed data when clients omitted limit.
   const { data } = await axios.get<{ data: Vaccination[] }>("/v1/vaccinations", {
@@ -61,7 +61,7 @@ const getPetVaccinations = async (
 
 /**
  * Shared hook for fetching a pet's vaccination history.
- * queryKey ["vaccinations", "pet", petId] は use-vaccinations.ts の
+ * queryKey ["vaccinations", "pet", petId] は use-create-vaccination.ts の
  * useCreateVaccination の invalidateQueries(["vaccinations"]) と prefix 一致し、
  * mutation 成功時にこの query も無効化される。
  */

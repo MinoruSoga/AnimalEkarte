@@ -1,9 +1,16 @@
 import { useActionState, useState } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C } from "@/lib/design-tokens";
 import { handleApiError } from "@/lib/handle-api-error";
+import { getFormString } from "@/lib/form-data";
 import { useCreateMedicalRecordAddendum } from "../../hooks/use-medical-record-addenda";
 
 const MAX_REASON_LENGTH = 500;
@@ -20,12 +27,14 @@ interface FormState {
 
 export function AddendumModal({ open, onOpenChange, medicalRecordId }: AddendumModalProps) {
   const { mutateAsync } = useCreateMedicalRecordAddendum(medicalRecordId);
-  const [reasonLength, setReasonLength] = useState(0);
+  const [afterText, setAfterText] = useState("");
+  const [reason, setReason] = useState("");
+  const reasonLength = reason.length;
 
   const [state, formAction] = useActionState(
     async (_prev: FormState, formData: FormData): Promise<FormState> => {
-      const afterText = (formData.get("after_text") as string | null)?.trim() ?? "";
-      const reason = (formData.get("reason") as string | null)?.trim() ?? "";
+      const afterText = getFormString(formData, "after_text").trim();
+      const reason = getFormString(formData, "reason").trim();
 
       if (!afterText) return { error: "修正内容は必須です" };
       if (!reason) return { error: "修正理由は必須です" };
@@ -39,7 +48,7 @@ export function AddendumModal({ open, onOpenChange, medicalRecordId }: AddendumM
         return { error: null };
       } catch (err) {
         const isAxiosError = (e: unknown): e is { response?: { status: number } } =>
-          e !== null && typeof e === 'object' && 'response' in e;
+          e !== null && typeof e === "object" && "response" in e;
         if (isAxiosError(err) && err.response?.status === 409) {
           return { error: "確定済みカルテでないため追記できません" };
         }
@@ -55,9 +64,7 @@ export function AddendumModal({ open, onOpenChange, medicalRecordId }: AddendumM
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>追記</DialogTitle>
-          <DialogDescription>
-            確定済みカルテに修正内容と理由を追記します。
-          </DialogDescription>
+          <DialogDescription>確定済みカルテに修正内容と理由を追記します。</DialogDescription>
         </DialogHeader>
         <form action={formAction} className="space-y-4">
           {state.error ? (
@@ -75,31 +82,35 @@ export function AddendumModal({ open, onOpenChange, medicalRecordId }: AddendumM
               className={`block text-sm font-medium ${C.text} mb-1`}
             >
               修正内容
-              <span className={`ml-1 text-sm ${C.textNotionRed}`} aria-hidden="true">*</span>
+              <span className={`ml-1 text-sm ${C.textNotionRed}`} aria-hidden="true">
+                *
+              </span>
             </label>
             <textarea
               id="addendum-after-text"
               name="after_text"
               aria-required="true"
               rows={5}
+              value={afterText}
+              onChange={(e) => setAfterText(e.target.value)}
               className={`w-full border ${C.borderMedium} rounded-xs px-3 py-2 text-base ${C.text} resize-y focus:outline-none focus:ring-1 ${C.focusRingBrand}`}
             />
           </div>
 
           <div>
-            <label
-              htmlFor="addendum-reason"
-              className={`block text-sm font-medium ${C.text} mb-1`}
-            >
+            <label htmlFor="addendum-reason" className={`block text-sm font-medium ${C.text} mb-1`}>
               修正理由
-              <span className={`ml-1 text-sm ${C.textNotionRed}`} aria-hidden="true">*</span>
+              <span className={`ml-1 text-sm ${C.textNotionRed}`} aria-hidden="true">
+                *
+              </span>
             </label>
             <textarea
               id="addendum-reason"
               name="reason"
               aria-required="true"
               rows={3}
-              onChange={(e) => setReasonLength(e.target.value.length)}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
               className={`w-full border ${C.borderMedium} rounded-xs px-3 py-2 text-base ${C.text} resize-y focus:outline-none focus:ring-1 ${C.focusRingBrand}`}
             />
             <p
@@ -114,7 +125,9 @@ export function AddendumModal({ open, onOpenChange, medicalRecordId }: AddendumM
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               キャンセル
             </Button>
-            <SubmitButton colorVariant="primary" loadingText="保存中...">追記を保存</SubmitButton>
+            <SubmitButton colorVariant="primary" loadingText="保存中...">
+              追記を保存
+            </SubmitButton>
           </div>
         </form>
       </DialogContent>

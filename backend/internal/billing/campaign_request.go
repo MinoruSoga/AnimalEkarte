@@ -9,7 +9,7 @@ import (
 
 // createCampaignRequest は割引キャンペーン作成リクエスト (#81)
 type createCampaignRequest struct {
-	Name             string   `json:"name"           binding:"required"`
+	Name             string   `json:"name"           binding:"required,max=255"`
 	StartDate        string   `json:"start_date"     binding:"required"` // YYYY-MM-DD
 	EndDate          string   `json:"end_date"       binding:"required"` // YYYY-MM-DD
 	DiscountType     string   `json:"discount_type"  binding:"required,oneof=rate amount"`
@@ -48,7 +48,7 @@ func (r *createCampaignRequest) toServiceInput() (*CreateCampaignInput, error) {
 
 // updateCampaignRequest は割引キャンペーン更新リクエスト（nil = 未指定）。
 type updateCampaignRequest struct {
-	Name             *string   `json:"name"`
+	Name             *string   `json:"name" binding:"omitempty,max=255"`
 	StartDate        *string   `json:"start_date"`
 	EndDate          *string   `json:"end_date"`
 	DiscountType     *string   `json:"discount_type"  binding:"omitempty,oneof=rate amount"`

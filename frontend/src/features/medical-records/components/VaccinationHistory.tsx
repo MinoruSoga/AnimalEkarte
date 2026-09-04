@@ -3,7 +3,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DatePicker } from "@/components/shared/DatePicker/DatePicker";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { C, STYLE } from "@/lib/design-tokens";
 import { normalizedIncludes } from "@/lib/normalize-kana";
 
@@ -15,7 +21,7 @@ const SORT_ORDER_SELECT_ITEMS = (
   </>
 );
 
-interface HistoryItem {
+export interface VaccinationHistoryItem {
   id: number;
   name: string;
   date: string;
@@ -30,9 +36,9 @@ interface HistoryItem {
 }
 
 interface VaccinationHistoryProps {
-  historyItems: HistoryItem[];
+  historyItems: VaccinationHistoryItem[];
   isLoading?: boolean;
-  onDuplicate?: (item: HistoryItem) => void;
+  onDuplicate?: (item: VaccinationHistoryItem) => void;
   canCreate?: boolean;
 }
 
@@ -60,8 +66,8 @@ export const VaccinationHistory = memo(function VaccinationHistory({
     });
 
   return (
-    <div className="col-span-1 flex flex-col gap-3 lg:col-span-6">
-      <h2 className={`text-sm font-bold ${C.text}`}>予防接種履歴</h2>
+    <div className="col-span-1 flex flex-col gap-3 lg:col-span-2">
+      <h2 className={`text-base font-semibold ${C.text}`}>過去の接種履歴</h2>
 
       {/* Filters */}
       <div className={`space-y-3 ${C.bgWhite} p-3 rounded-lg border ${C.borderMedium}`}>
@@ -110,19 +116,17 @@ export const VaccinationHistory = memo(function VaccinationHistory({
       </div>
 
       {/* Table */}
-      <div className={`border ${C.borderMedium} rounded-lg ${C.bgWhite} overflow-hidden flex-1 flex flex-col`}>
+      <div
+        className={`border ${C.borderMedium} rounded-lg ${C.bgWhite} overflow-hidden flex-1 flex flex-col`}
+      >
         {/* Header — DESIGN.md ex-data-table-cell: canvas-soft 背景 + eyebrow 相当タイポグラフィ（STYLE.sectionLabel） */}
-        <div className={`flex items-center border-b ${C.borderMedium} ${C.bgPage} ${STYLE.sectionLabel} h-12 shrink-0`}>
+        <div
+          className={`flex items-center border-b ${C.borderMedium} ${C.bgPage} ${STYLE.sectionLabel} h-12 shrink-0`}
+        >
           <div className="flex-1 px-3 text-center">予防接種名</div>
-          <div className={`w-[100px] px-2 text-center border-l ${C.borderMedium}`}>
-            実施日
-          </div>
-          <div className={`w-[100px] px-2 text-center border-l ${C.borderMedium}`}>
-            次予定
-          </div>
-          <div className={`w-[70px] px-2 text-center border-l ${C.borderMedium}`}>
-            操作
-          </div>
+          <div className={`w-[100px] px-2 text-center border-l ${C.borderMedium}`}>実施日</div>
+          <div className={`w-[100px] px-2 text-center border-l ${C.borderMedium}`}>次予定</div>
+          <div className={`w-[70px] px-2 text-center border-l ${C.borderMedium}`}>操作</div>
         </div>
 
         {/* Scrollable Rows */}
@@ -136,31 +140,37 @@ export const VaccinationHistory = memo(function VaccinationHistory({
               接種記録がありません
             </div>
           ) : null}
-          {!isLoading ? filteredItems.map((item) => (
-            <div
-              key={item.id}
-              className={`flex items-center border-b ${C.borderMedium} ${C.bgWhite} text-sm ${C.text} h-12 ${C.hoverBgPageHalf} transition-colors`}
-            >
-              <div className="flex-1 px-3 truncate font-medium">{item.name}</div>
-              <div className={`w-[100px] px-2 text-center border-l ${C.borderMedium} font-mono text-sm`}>
-                {item.date}
-              </div>
-              <div className={`w-[100px] px-2 text-center border-l ${C.borderMedium} font-mono text-sm`}>
-                {item.next}
-              </div>
-              <div className={`w-[70px] px-2 flex justify-center border-l ${C.borderMedium}`}>
-                {canCreate ? (
-                  <Button
-                    size="sm"
-                    className={`h-10 w-[50px] text-sm ${C.bgBrand} ${C.textOnBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} rounded-full border-transparent px-0`}
-                    onClick={() => onDuplicate?.(item)}
+          {!isLoading
+            ? filteredItems.map((item) => (
+                <div
+                  key={item.id}
+                  className={`flex items-center border-b ${C.borderMedium} ${C.bgWhite} text-sm ${C.text} h-12 ${C.hoverBgPageHalf} transition-colors`}
+                >
+                  <div className="flex-1 px-3 truncate font-medium">{item.name}</div>
+                  <div
+                    className={`w-[100px] px-2 text-center border-l ${C.borderMedium} font-mono text-sm`}
                   >
-                    複製
-                  </Button>
-                ) : null}
-              </div>
-            </div>
-          )) : null}
+                    {item.date}
+                  </div>
+                  <div
+                    className={`w-[100px] px-2 text-center border-l ${C.borderMedium} font-mono text-sm`}
+                  >
+                    {item.next}
+                  </div>
+                  <div className={`w-[70px] px-2 flex justify-center border-l ${C.borderMedium}`}>
+                    {canCreate ? (
+                      <Button
+                        size="sm"
+                        className={`h-10 w-[50px] text-sm ${C.bgBrand} ${C.textOnBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} rounded-full border-transparent px-0`}
+                        onClick={() => onDuplicate?.(item)}
+                      >
+                        複製
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+              ))
+            : null}
         </div>
       </div>
     </div>

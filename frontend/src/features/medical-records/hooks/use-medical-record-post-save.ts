@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 
 import { handleApiError } from "@/lib/handle-api-error";
 import type { ActionState } from "@/types/form";
@@ -22,7 +22,7 @@ export function useMedicalRecordPostSave({
   const activeTabRef = useRef(activeTab);
   const estimateSaveRef = useRef<(() => Promise<void>) | null>(null);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     activeTabRef.current = activeTab;
   }, [activeTab]);
 
@@ -41,10 +41,7 @@ export function useMedicalRecordPostSave({
           const save = estimateSaveRef.current;
           // BUG-016: 登録済み save が無い成功は黙って dirty クリアしない
           if (!save) {
-            handleApiError(
-              new Error("見積書の保存ハンドラが未登録です"),
-              "データの保存",
-            );
+            handleApiError(new Error("見積書の保存ハンドラが未登録です"), "データの保存");
             return;
           }
           await save();

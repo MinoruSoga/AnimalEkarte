@@ -1,6 +1,8 @@
 package medicalrecord
 
 import (
+	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -56,6 +58,36 @@ func TestListMedicalRecordQuery_ToServiceFilters_InvalidInput(t *testing.T) {
 			if !apperrors.IsInvalidInput(err) {
 				t.Fatalf("error = %v, want invalid input", err)
 			}
+		})
+	}
+}
+
+func TestListMedicalRecordQuery_ToServiceFilters_InvalidStatusDoesNotLeakEnumError(t *testing.T) {
+	tests := []struct {
+		name   string
+		status string
+	}{
+		{name: "unknown status", status: "archived"},
+		{name: "mixed case", status: "Draft"},
+		{name: "empty string is skipped", status: ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			filters, err := (&listMedicalRecordQuery{Status: tt.status}).toServiceFilters()
+			if tt.status == "" {
+				if err != nil {
+					t.Fatalf("empty status: toServiceFilters returned error: %v", err)
+				}
+				if filters.Status != nil {
+					t.Fatalf("empty status: Status = %v, want nil", filters.Status)
+				}
+				return
+			}
+			if filters != (listMedicalRecordFilters{}) {
+				t.Fatalf("filters = %#v, want zero value", filters)
+			}
+			assertFixedInvalidInputMessage(t, err, "ステータスの値が不正です", "invalid value")
 		})
 	}
 }
@@ -134,6 +166,43 @@ func TestCreateMedicalRecordRequest_ToServiceInput_InvalidOwnerID(t *testing.T) 
 	}
 	if !apperrors.IsInvalidInput(err) {
 		t.Fatalf("error = %v, want invalid input", err)
+	}
+}
+
+func TestCreateMedicalRecordRequest_ToServiceInput_InvalidStatusDoesNotLeakEnumError(t *testing.T) {
+	ownerID := "10"
+	petID := "20"
+	tests := []struct {
+		name   string
+		status string
+	}{
+		{name: "unknown status", status: "archived"},
+		{name: "mixed case", status: "Finalized"},
+		{name: "empty status is omitted", status: ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := createMedicalRecordRequest{
+				OwnerID: &ownerID,
+				PetID:   &petID,
+				Status:  tt.status,
+			}
+			input, err := req.toServiceInput(9)
+			if tt.status == "" {
+				if err != nil {
+					t.Fatalf("empty status: toServiceInput returned error: %v", err)
+				}
+				if input.Status != nil {
+					t.Fatalf("empty status: Status = %v, want nil", input.Status)
+				}
+				return
+			}
+			if input.EnteredBy != nil {
+				t.Fatalf("input = %#v, want zero value", input)
+			}
+			assertFixedInvalidInputMessage(t, err, "ステータスの値が不正です", "invalid value")
+		})
 	}
 }
 
@@ -234,6 +303,62 @@ func TestUpdateMedicalRecordRequest_ToServiceInput_InvalidNextVisitDate(t *testi
 	}
 }
 
+func TestUpdateMedicalRecordRequest_ToServiceInput_InvalidEnumDoesNotLeakEnumError(t *testing.T) {
+	invalidStatus := "archived"
+	mixedStatus := "draft "
+	emptyStatus := ""
+	invalidVisitType := "walkin"
+	emptyVisitType := ""
+	mixedVisitType := "First"
+
+	tests := []struct {
+		name    string
+		req     updateMedicalRecordRequest
+		wantMsg string
+	}{
+		{
+			name:    "unknown status",
+			req:     updateMedicalRecordRequest{Status: &invalidStatus},
+			wantMsg: "ステータスの値が不正です",
+		},
+		{
+			name:    "empty status",
+			req:     updateMedicalRecordRequest{Status: &emptyStatus},
+			wantMsg: "ステータスの値が不正です",
+		},
+		{
+			name:    "status with trailing space",
+			req:     updateMedicalRecordRequest{Status: &mixedStatus},
+			wantMsg: "ステータスの値が不正です",
+		},
+		{
+			name:    "unknown visit_type",
+			req:     updateMedicalRecordRequest{VisitType: &invalidVisitType},
+			wantMsg: "来院区分の値が不正です",
+		},
+		{
+			name:    "empty visit_type",
+			req:     updateMedicalRecordRequest{VisitType: &emptyVisitType},
+			wantMsg: "来院区分の値が不正です",
+		},
+		{
+			name:    "mixed case visit_type",
+			req:     updateMedicalRecordRequest{VisitType: &mixedVisitType},
+			wantMsg: "来院区分の値が不正です",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			input, err := tt.req.toServiceInput(9)
+			if input.ActorID != nil {
+				t.Fatalf("input = %#v, want zero value", input)
+			}
+			assertFixedInvalidInputMessage(t, err, tt.wantMsg, "invalid value")
+		})
+	}
+}
+
 // TestResolveMedicalRecordSort は B-1 follow-up の列ソート server 化における
 // sort/order query の許可リスト検証を網羅する。
 func TestResolveMedicalRecordSort(t *testing.T) {
@@ -287,5 +412,31 @@ func TestPatchMedicalRecordRecommendationReasonRequest_ToServiceInput(t *testing
 
 	if input.Reason != req.Reason {
 		t.Fatalf("Reason = %q, want %q", input.Reason, req.Reason)
+	}
+}
+
+func assertFixedInvalidInputMessage(t *testing.T, err error, wantMessage string, forbiddenSubstrings ...string) {
+	t.Helper()
+	if err == nil {
+		t.Fatal("error = nil, want invalid input")
+	}
+	if !apperrors.IsInvalidInput(err) {
+		t.Fatalf("error = %v, want invalid input", err)
+	}
+	got := err.Error()
+	if !strings.Contains(got, wantMessage) {
+		t.Fatalf("error = %q, want to contain %q", got, wantMessage)
+	}
+	for _, leak := range forbiddenSubstrings {
+		if strings.Contains(got, leak) {
+			t.Fatalf("error leaked %q: %q", leak, got)
+		}
+	}
+	var appErr *apperrors.AppError
+	if !errors.As(err, &appErr) {
+		t.Fatalf("error = %T (%v), want AppError", err, err)
+	}
+	if appErr.Message != wantMessage {
+		t.Fatalf("AppError.Message = %q, want %q", appErr.Message, wantMessage)
 	}
 }

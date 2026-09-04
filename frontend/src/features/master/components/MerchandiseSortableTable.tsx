@@ -1,21 +1,26 @@
 import { type ComponentProps, useMemo } from "react";
 import { DndContext, DragOverlay, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { Plus } from "lucide-react";
-
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { C, ICON, STYLE } from "@/lib/design-tokens";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { C, STYLE } from "@/lib/design-tokens";
 import { formatCurrency } from "@/lib/format/number";
 
 import type { FrontendMerchandiseItem } from "../api/merchandise-items";
 import {
   formatMerchandiseTaxRate,
   MERCHANDISE_CATEGORY_LABELS,
-} from "./merchandise-side-panel-model";
+} from "../lib/merchandise-side-panel-model";
 import { MerchandiseRowOverlay } from "./MerchandiseRowOverlay";
 
 const TABLE_COLUMNS = [
@@ -35,10 +40,8 @@ interface MerchandiseSortableTableProps {
   onDragStart: NonNullable<ComponentProps<typeof DndContext>["onDragStart"]>;
   onDragEnd: NonNullable<ComponentProps<typeof DndContext>["onDragEnd"]>;
   onDragCancel: NonNullable<ComponentProps<typeof DndContext>["onDragCancel"]>;
-  canCreate: boolean;
   canEdit: boolean;
   onEdit: (item: FrontendMerchandiseItem) => void;
-  onNew: () => void;
 }
 
 export function MerchandiseSortableTable({
@@ -48,10 +51,8 @@ export function MerchandiseSortableTable({
   onDragStart,
   onDragEnd,
   onDragCancel,
-  canCreate,
   canEdit,
   onEdit,
-  onNew,
 }: MerchandiseSortableTableProps) {
   const activeItem = useMemo(
     () => items.find((item) => item.id === activeId) ?? null,
@@ -86,7 +87,10 @@ export function MerchandiseSortableTable({
                   </TableCell>
                 </TableRow>
               ) : null}
-              <SortableContext items={items.map((item) => item.id)} strategy={verticalListSortingStrategy}>
+              <SortableContext
+                items={items.map((item) => item.id)}
+                strategy={verticalListSortingStrategy}
+              >
                 {items.map((item) => (
                   <SortableDataTableRow
                     key={item.id}
@@ -132,12 +136,6 @@ export function MerchandiseSortableTable({
           </DragOverlay>
         </DndContext>
       </div>
-      {canCreate ? (
-        <button type="button" onClick={onNew} className={STYLE.inlineAddBtn}>
-          <Plus className={ICON.xs} />
-          新しい品目を追加...
-        </button>
-      ) : null}
     </div>
   );
 }

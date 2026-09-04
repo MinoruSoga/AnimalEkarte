@@ -3,7 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
-import { createTestWrapper } from "@/testing/utils";
+import { createTestWrapper } from "@/testing/TestUtils";
 import type { InventoryItem as BackendInventoryItem } from "@/types/generated/models";
 import { InventoryList } from "./InventoryList";
 
@@ -90,8 +90,8 @@ describe("InventoryList — BUG-414 category/status の is_not フィルタ", ()
   it("BUG-414: category に is_not 条件を指定すると、一致する item が除外され一致しない item は表示される", async () => {
     server.use(
       http.get("*/v1/inventory", () =>
-        HttpResponse.json({ data: mockItems, total: mockItems.length, page: 1, limit: 20 })
-      )
+        HttpResponse.json({ data: mockItems, total: mockItems.length, page: 1, limit: 20 }),
+      ),
     );
 
     renderList();
@@ -111,8 +111,8 @@ describe("InventoryList — BUG-414 category/status の is_not フィルタ", ()
   it("BUG-414: status に is_not 条件を指定すると、一致する item が除外され一致しない item は表示される", async () => {
     server.use(
       http.get("*/v1/inventory", () =>
-        HttpResponse.json({ data: mockItems, total: mockItems.length, page: 1, limit: 20 })
-      )
+        HttpResponse.json({ data: mockItems, total: mockItems.length, page: 1, limit: 20 }),
+      ),
     );
 
     renderList();
@@ -138,8 +138,8 @@ describe("InventoryList row navigation accessibility", () => {
   it("編集権限がある行に品名・ID付き44px native detail linkを表示する", async () => {
     server.use(
       http.get("*/v1/inventory", () =>
-        HttpResponse.json({ data: [mockItems[0]], total: 1, page: 1, limit: 20 })
-      )
+        HttpResponse.json({ data: [mockItems[0]], total: 1, page: 1, limit: 20 }),
+      ),
     );
 
     renderList();
@@ -154,8 +154,8 @@ describe("InventoryList row navigation accessibility", () => {
     mockHasPermission.mockImplementation((_resource, action) => action !== "edit");
     server.use(
       http.get("*/v1/inventory", () =>
-        HttpResponse.json({ data: [mockItems[0]], total: 1, page: 1, limit: 20 })
-      )
+        HttpResponse.json({ data: [mockItems[0]], total: 1, page: 1, limit: 20 }),
+      ),
     );
 
     renderList();

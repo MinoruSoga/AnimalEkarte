@@ -10,10 +10,7 @@ import type React from "react";
  * Type guard that checks if a string value is one of the allowed values.
  * Uses `.some()` to avoid `as` type assertions internally.
  */
-export function isOneOf<T extends string>(
-  value: string,
-  values: readonly T[]
-): value is T {
+export function isOneOf<T extends string>(value: string, values: readonly T[]): value is T {
   return values.some((v) => v === value);
 }
 
@@ -30,7 +27,7 @@ export function isOneOf<T extends string>(
  */
 export function typedSetter<T extends string>(
   setter: ((value: T) => void) | React.Dispatch<React.SetStateAction<T>>,
-  validValues: readonly T[]
+  validValues: readonly T[],
 ): (value: string) => void {
   return (value: string) => {
     if (isOneOf(value, validValues)) {

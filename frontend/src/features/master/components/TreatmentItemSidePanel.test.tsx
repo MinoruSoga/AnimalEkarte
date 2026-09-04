@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -105,20 +105,26 @@ describe("TreatmentItemSidePanel procedure anesthesia (BUG-028)", () => {
 
   it("shows Japanese field error and does not call onSave when price is negative", async () => {
     const user = userEvent.setup();
-    const { onSave } = renderPanel({ showAnesthesia: true });
-
-    const title = document.getElementById("master-title");
-    if (title) {
-      await user.type(title, "V04処置テスト");
-    }
-
+    // Seed price via props (number typing is racy). waitFor: React 19 form action commits async.
+    const item: TreatmentItem = {
+      id: "101",
+      name: "負数単価の処置",
+      price: -100,
+      isActive: true,
+      description: "",
+      sortOrder: 1,
+      taxType: "excluded",
+      taxRate: 0.1,
+      anesthesia: "none",
+    };
+    const { onSave } = renderPanel({ item, showAnesthesia: true });
     const priceInput = screen.getByLabelText("単価(税込)");
-    await user.clear(priceInput);
-    await user.type(priceInput, "-100");
 
     await user.click(screen.getByRole("button", { name: "保存" }));
 
-    expect(screen.getByText("金額は0以上を入力してください")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("金額は0以上を入力してください")).toBeInTheDocument();
+    });
     expect(priceInput).toHaveAttribute("aria-invalid", "true");
     expect(onSave).not.toHaveBeenCalled();
   });

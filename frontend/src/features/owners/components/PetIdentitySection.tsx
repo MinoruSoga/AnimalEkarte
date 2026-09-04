@@ -14,7 +14,7 @@ import {
   INPUT_CLS,
   GENDER_SELECT_ITEMS,
   type PetFieldSectionProps,
-} from "./pet-edit-field-shared";
+} from "./PetEditFieldShared";
 
 export interface AnimalSpeciesOption {
   id: string | number;
@@ -45,7 +45,9 @@ export function PetIdentitySection({
   return (
     <div className="space-y-2">
       <div className="space-y-1">
-        <Label htmlFor="petNumber" className={LABEL_CLS}>ペットNo</Label>
+        <Label htmlFor="petNumber" className={LABEL_CLS}>
+          ペットNo
+        </Label>
         {isEdit ? (
           <Input
             id="petNumber"
@@ -80,7 +82,9 @@ export function PetIdentitySection({
       </div>
 
       <div className="space-y-1">
-        <Label htmlFor="petNameKana" className={LABEL_CLS}>ペット名よみ</Label>
+        <Label htmlFor="petNameKana" className={LABEL_CLS}>
+          ペット名よみ
+        </Label>
         <Input
           id="petNameKana"
           placeholder="例: いりす"
@@ -121,7 +125,9 @@ export function PetIdentitySection({
             }
           }}
         >
-          <SelectTrigger className={`${INPUT_CLS} ${fieldErrors.gender ? STYLE.formInputError : ""}`}>
+          <SelectTrigger
+            className={`${INPUT_CLS} ${fieldErrors.gender ? STYLE.formInputError : ""}`}
+          >
             <SelectValue placeholder="選択してください" />
           </SelectTrigger>
           <SelectContent>{GENDER_SELECT_ITEMS}</SelectContent>
@@ -130,7 +136,9 @@ export function PetIdentitySection({
       </div>
 
       <div className="space-y-1">
-        <Label htmlFor="birthDate" className={LABEL_CLS}>生年月日</Label>
+        <Label htmlFor="birthDate" className={LABEL_CLS}>
+          生年月日
+        </Label>
         <DatePicker
           id="birthDate"
           value={formData.birthDate}

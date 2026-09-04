@@ -8,8 +8,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
-	"sort"
-	"strings"
 	"testing"
 
 	"github.com/animal-ekarte/backend/internal/dbconn"
@@ -59,21 +57,19 @@ func TestRunSQLMigrationsAgainstDisposablePostgres(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	wantDDL := listInventorySQLFiles(t)
+
 	var applied int
 	if err := db.QueryRow(`
 SELECT count(*)
 FROM schema_migrations
-WHERE filename IN (
-  '001_init.sql',
-  '002_ensure_pet_owners.sql'
-)`).Scan(&applied); err != nil {
+WHERE filename NOT LIKE 'seeds/%'`).Scan(&applied); err != nil {
 		t.Fatal(err)
 	}
-	if applied != 2 {
-		t.Fatalf("applied DDL migrations = %d, want 2", applied)
+	if applied != len(wantDDL) {
+		t.Fatalf("applied DDL migrations = %d, want %d (%v)", applied, len(wantDDL), wantDDL)
 	}
 
-	// Topology: 001 init + append-only ensure migrations.
 	var ddlKeys []string
 	rows, err := db.Query(`
 SELECT filename
@@ -94,8 +90,13 @@ ORDER BY filename`)
 	if err := rows.Err(); err != nil {
 		t.Fatal(err)
 	}
-	if len(ddlKeys) != 2 || ddlKeys[0] != "001_init.sql" || ddlKeys[1] != "002_ensure_pet_owners.sql" {
-		t.Fatalf("DDL schema_migrations keys = %v, want [001_init.sql 002_ensure_pet_owners.sql]", ddlKeys)
+	if len(ddlKeys) != len(wantDDL) {
+		t.Fatalf("DDL schema_migrations keys = %v, want %v", ddlKeys, wantDDL)
+	}
+	for i := range wantDDL {
+		if ddlKeys[i] != wantDDL[i] {
+			t.Fatalf("DDL schema_migrations keys = %v, want %v", ddlKeys, wantDDL)
+		}
 	}
 
 	// Rerun is a no-op: second apply must leave history and succeed.
@@ -109,14 +110,52 @@ FROM schema_migrations
 WHERE filename NOT LIKE 'seeds/%'`).Scan(&appliedAfterRerun); err != nil {
 		t.Fatal(err)
 	}
-	if appliedAfterRerun != 2 {
-		t.Fatalf("after rerun DDL keys = %d, want 2", appliedAfterRerun)
+	if appliedAfterRerun != len(wantDDL) {
+		t.Fatalf("after rerun DDL keys = %d, want %d", appliedAfterRerun, len(wantDDL))
+	}
+
+	requiredConstraints := []string{
+		"uq_appointments_id_clinic",
+		"fk_medical_records_appointment_clinic",
+		"fk_appointments_owner_clinic",
+		"fk_appointment_trimming_details_appointment_clinic",
+		"fk_appointment_trimming_options_appointment_clinic",
+		"fk_billing_items_appointment_clinic",
+		"excl_appointments_doctor_timerange",
+	}
+	for _, name := range requiredConstraints {
+		var exists bool
+		if err := db.QueryRow(`
+SELECT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = $1
+)`, name).Scan(&exists); err != nil {
+			t.Fatal(err)
+		}
+		if !exists {
+			t.Fatalf("pg_constraint %s missing after 001 apply", name)
+		}
+	}
+
+	var ownerFkeyStillExists bool
+	if err := db.QueryRow(`
+SELECT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'appointments_owner_id_fkey'
+)`).Scan(&ownerFkeyStillExists); err != nil {
+		t.Fatal(err)
+	}
+	if ownerFkeyStillExists {
+		t.Fatal("appointments_owner_id_fkey must be dropped after composite SET NULL FK")
 	}
 }
 
-// TestTopLevelDDLMigrationInventoryIncludesInitAndEnsure asserts the post-consolidation
-// disk topology: 001_init.sql plus append-only ensure migrations under migrations/ (maxdepth 1).
-func TestTopLevelDDLMigrationInventoryIncludesInitAndEnsure(t *testing.T) {
+var topLevelDDLNamePattern = regexp.MustCompile(`^[0-9]{3}_[a-z0-9_]+\.sql$`)
+
+func inventoryMigrationsDir(t *testing.T) string {
+	t.Helper()
 	dir := migrationsDir
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		// CI / host: resolve relative to this test file (backend/cmd/migrate → backend/migrations).
@@ -126,22 +165,26 @@ func TestTopLevelDDLMigrationInventoryIncludesInitAndEnsure(t *testing.T) {
 		}
 		dir = filepath.Join(filepath.Dir(thisFile), "..", "..", "migrations")
 	}
-	entries, err := os.ReadDir(dir)
+	if filepath.Base(dir) != "migrations" {
+		t.Fatalf("migrationsDir base = %q, want migrations", filepath.Base(dir))
+	}
+	return dir
+}
+
+func listInventorySQLFiles(t *testing.T) []string {
+	t.Helper()
+	names, err := listTopLevelDDLFilenames(inventoryMigrationsDir(t))
 	if err != nil {
-		t.Fatalf("read migrations dir %s: %v", dir, err)
+		t.Fatalf("list top-level DDL: %v", err)
 	}
-	var sqlFiles []string
-	for _, e := range entries {
-		if e.IsDir() {
-			continue
-		}
-		name := e.Name()
-		if strings.HasSuffix(name, ".sql") {
-			sqlFiles = append(sqlFiles, name)
-		}
-	}
-	sort.Strings(sqlFiles)
-	want := []string{"001_init.sql", "002_ensure_pet_owners.sql"}
+	return names
+}
+
+// TestTopLevelDDLMigrationInventoryIncludesInitAndEnsure asserts the post-consolidation
+// disk topology: 001_init.sql only under migrations/ (maxdepth 1).
+func TestTopLevelDDLMigrationInventoryIncludesInitAndEnsure(t *testing.T) {
+	sqlFiles := listInventorySQLFiles(t)
+	want := []string{"001_init.sql"}
 	if len(sqlFiles) != len(want) {
 		t.Fatalf("top-level DDL files = %v, want %v", sqlFiles, want)
 	}
@@ -150,8 +193,10 @@ func TestTopLevelDDLMigrationInventoryIncludesInitAndEnsure(t *testing.T) {
 			t.Fatalf("top-level DDL files = %v, want %v", sqlFiles, want)
 		}
 	}
-	if filepath.Base(dir) != "migrations" {
-		t.Fatalf("migrationsDir base = %q, want migrations", filepath.Base(dir))
+	for _, name := range sqlFiles {
+		if !topLevelDDLNamePattern.MatchString(name) {
+			t.Fatalf("top-level DDL file %q does not match %s", name, topLevelDDLNamePattern.String())
+		}
 	}
 }
 

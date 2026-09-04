@@ -3,7 +3,7 @@ package pet
 // createAnimalSpeciesRequest is the presence-aware create body for animal species.
 // IsActive is *bool so JSON binding can distinguish omitted / false / true.
 type createAnimalSpeciesRequest struct {
-	Name      string `json:"name"      binding:"required"`
+	Name      string `json:"name"      binding:"required,max=255"`
 	IsActive  *bool  `json:"is_active"`
 	SortOrder int    `json:"sort_order"`
 }
@@ -23,7 +23,7 @@ func (r createAnimalSpeciesRequest) toServiceInput() *CreateAnimalSpeciesInput {
 }
 
 type updateAnimalSpeciesRequest struct {
-	Name      *string `json:"name"`
+	Name      *string `json:"name" binding:"omitempty,max=255"`
 	IsActive  *bool   `json:"is_active"`
 	SortOrder *int    `json:"sort_order"`
 }

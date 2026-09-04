@@ -105,28 +105,30 @@ func buildHospitalizationUpdate(input *UpdateHospitalizationInput) map[string]an
 		fields["staff_notes"] = *input.StaffNotes
 	}
 	if input.IsInsurance != nil {
-		if !*input.IsInsurance {
-			// 保険なしに切り替えた場合は保険情報を NULL にする
-			fields["insurance_company_name"] = nil
-			fields["insurance_number"] = nil
-		} else {
-			if input.InsuranceCompanyName != nil {
-				fields["insurance_company_name"] = *input.InsuranceCompanyName
-			}
-			if input.InsuranceNumber != nil {
-				fields["insurance_number"] = *input.InsuranceNumber
-			}
-		}
-	} else {
-		// IsInsurance が nil でも保険フィールド単体の更新は許容する
-		if input.InsuranceCompanyName != nil {
-			fields["insurance_company_name"] = *input.InsuranceCompanyName
-		}
-		if input.InsuranceNumber != nil {
-			fields["insurance_number"] = *input.InsuranceNumber
-		}
+		applyHospitalizationInsuranceToggle(fields, input)
+		return fields
+	}
+	if input.InsuranceCompanyName != nil {
+		fields["insurance_company_name"] = *input.InsuranceCompanyName
+	}
+	if input.InsuranceNumber != nil {
+		fields["insurance_number"] = *input.InsuranceNumber
 	}
 	return fields
+}
+
+func applyHospitalizationInsuranceToggle(fields map[string]any, input *UpdateHospitalizationInput) {
+	if !*input.IsInsurance {
+		fields["insurance_company_name"] = nil
+		fields["insurance_number"] = nil
+		return
+	}
+	if input.InsuranceCompanyName != nil {
+		fields["insurance_company_name"] = *input.InsuranceCompanyName
+	}
+	if input.InsuranceNumber != nil {
+		fields["insurance_number"] = *input.InsuranceNumber
+	}
 }
 
 type HospitalizationService interface {
@@ -323,84 +325,7 @@ func (s *hospitalizationService) Create(ctx context.Context, clinicID uint64, in
 		return nil, apperrors.WrapInternalServerError("hospitalization write transaction dependency is required")
 	}
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		// Validate every request-derived clinic-scoped FK in the same transaction as persistence.
-		ownerID, petID := input.OwnerID, input.PetID
-		if err := sharedkernel.ValidateReservationOwnerPetLinks(txCtx, s.reservationRepo, clinicID, &ownerID, &petID); err != nil {
-			return err
-		}
-		if err := validatePetNotDeceased(txCtx, s.petRepo, clinicID, petID, "死亡したペットは入院登録できません"); err != nil {
-			return err
-		}
-		if err := validateOwnedMasterFK(txCtx, "cage", clinicID, input.CageID,
-			func(actx context.Context, cid, mid uint64) error {
-				_, err := s.cageRepo.FindByID(actx, cid, mid)
-				return err
-			}); err != nil {
-			return err
-		}
-		if err := s.validateDoctor(txCtx, clinicID, input.DoctorID); err != nil {
-			return err
-		}
-		if err := s.hospRepo.Create(txCtx, hospitalization); err != nil {
-			slog.ErrorContext(txCtx, "failed to create hospitalization", "error", err)
-			return apperrors.Wrap(err, "failed to create hospitalization")
-		}
-		// Nested treatment plans share this TX (TASK-001-BE). Use plan repo only —
-		// treatmentPlanService.Create opens its own outer transaction and would not join.
-		if len(input.TreatmentPlans) > 0 {
-			if s.treatmentPlanRepo == nil {
-				return apperrors.WrapInternalServerError("hospitalization treatment plan repository is required for nested create")
-			}
-			// BUG-032: registration-time treatment rows must surface on detail CarePlan tab
-			// (GET .../care-plan-items). carePlanItemService.Create opens its own TX and cannot join.
-			if s.carePlanItemRepo == nil {
-				return apperrors.WrapInternalServerError("hospitalization care plan item repository is required for nested create")
-			}
-			hospID := hospitalization.ID
-			for i := range input.TreatmentPlans {
-				planInput := &input.TreatmentPlans[i]
-				if err := validateTreatmentPlanMoney(planInput.UnitPrice, planInput.Quantity, planInput.DiscountRate, planInput.DiscountAmount); err != nil {
-					return err
-				}
-				if planInput.TreatmentContent == "" {
-					return apperrors.WrapInvalidInput("treatment_content is required")
-				}
-				subtotal := computeTreatmentPlanSubtotal(planInput.UnitPrice, planInput.Quantity, planInput.DiscountRate, planInput.DiscountAmount)
-				plan := &model.TreatmentPlan{
-					ClinicID:          clinicID,
-					HospitalizationID: &hospID,
-					TreatmentContent:  planInput.TreatmentContent,
-					Memo:              planInput.Memo,
-					IsInsurance:       planInput.IsInsurance,
-					UnitPrice:         planInput.UnitPrice,
-					Quantity:          planInput.Quantity,
-					DiscountRate:      planInput.DiscountRate,
-					DiscountAmount:    planInput.DiscountAmount,
-					Subtotal:          subtotal,
-					SortOrder:         planInput.SortOrder,
-				}
-				if err := s.treatmentPlanRepo.Create(txCtx, plan); err != nil {
-					slog.ErrorContext(txCtx, "failed to create nested treatment plan", "error", err, "index", i)
-					return apperrors.Wrap(err, "failed to create nested treatment plan")
-				}
-				// Seed instruction care-plan rows from the same registration snapshot (BUG-032).
-				// type=instruction needs no master FK (chk_care_plan_item_ref). unit_price stays 0 so
-				// discharge billing is not auto-charged from estimate-only treatment lines.
-				careItem := &model.CarePlanItem{
-					HospitalizationID: hospID,
-					Type:              model.CarePlanTypeInstruction,
-					Name:              planInput.TreatmentContent,
-					Notes:             planInput.Memo,
-					Status:            model.CarePlanStatusActive,
-					SortOrder:         planInput.SortOrder,
-				}
-				if err := s.carePlanItemRepo.Create(txCtx, careItem); err != nil {
-					slog.ErrorContext(txCtx, "failed to create nested care plan item from treatment plan", "error", err, "index", i)
-					return apperrors.Wrap(err, "failed to create nested care plan item")
-				}
-			}
-		}
-		return nil
+		return s.createHospitalizationInTx(txCtx, clinicID, input, hospitalization)
 	}); err != nil {
 		return nil, err
 	}

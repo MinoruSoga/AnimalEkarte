@@ -36,6 +36,222 @@ func TestPreflightCutoverBundleAcceptsExactContract(t *testing.T) {
 	}
 }
 
+func TestPreflightCutoverBundleAcceptsNegativeRefundAmounts(t *testing.T) {
+	dir, manifestDigest := writeCutoverFixture(t, func(f *fixtureBundle) {
+		billingColumns := CutoverTableSpecs()[11].Columns
+		paymentColumns := CutoverTableSpecs()[13].Columns
+		splitColumns := CutoverTableSpecs()[14].Columns
+		f.rows["billings"][0][columnIndex(billingColumns, "total_amount")] = "-3000"
+		f.rows["payments"][0][columnIndex(paymentColumns, "subtotal")] = "-3000"
+		f.rows["payments"][0][columnIndex(paymentColumns, "tax_total")] = "0"
+		f.rows["payments"][0][columnIndex(paymentColumns, "total_amount")] = "-3000"
+		f.rows["payments"][0][columnIndex(paymentColumns, "billing_amount")] = "-3000"
+		f.rows["payments"][0][columnIndex(paymentColumns, "received_amount")] = "-3000"
+		f.rows["payments"][0][columnIndex(paymentColumns, "change_amount")] = "0"
+		f.rows["payment_splits"][0][columnIndex(splitColumns, "amount")] = "-3000"
+		f.rows["payment_splits"][0][columnIndex(splitColumns, "received_amount")] = "-3000"
+		f.rows["payment_splits"][0][columnIndex(splitColumns, "change_amount")] = "0"
+	})
+
+	if _, err := PreflightCutoverBundle(dir, ExpectedCutoverSource{
+		ManifestSHA256: manifestDigest,
+		ClinicCode:     "hachioji",
+		ClinicOrdinal:  1,
+		RunID:          "run-1",
+	}); err != nil {
+		t.Fatalf("PreflightCutoverBundle(negative refund) error = %v", err)
+	}
+}
+
+func TestPreflightCutoverBundleAcceptsWindowZeroCompletedBillingWithoutPayment(t *testing.T) {
+	dir, manifestDigest := writeCutoverFixture(t, func(f *fixtureBundle) {
+		billingColumns := CutoverTableSpecs()[11].Columns
+		zero := append([]string(nil), f.rows["billings"][0]...)
+		zero[columnIndex(billingColumns, "id")] = "1000002"
+		zero[columnIndex(billingColumns, "total_amount")] = "0"
+		f.rows["billings"] = append(f.rows["billings"], zero)
+		f.manifest.Tables[11].RowCount++
+	})
+
+	if _, err := PreflightCutoverBundle(dir, ExpectedCutoverSource{
+		ManifestSHA256: manifestDigest,
+		ClinicCode:     "hachioji",
+		ClinicOrdinal:  1,
+		RunID:          "run-1",
+	}); err != nil {
+		t.Fatalf("PreflightCutoverBundle(window-zero completed) error = %v", err)
+	}
+}
+
+func TestPreflightCutoverBundleAcceptsLocalRehearsalBundle(t *testing.T) {
+	dir, manifestDigest := writeCutoverFixture(t, func(f *fixtureBundle) {
+		f.manifest.Status = "REHEARSAL_ONLY"
+		f.manifest.HandoffEligibility = "REHEARSAL_ONLY"
+		f.manifest.SourceCompletenessStatus = "UNVERIFIED"
+		f.manifest.SourceComplete = false
+		f.manifest.SourceProvenanceVerified = false
+		f.manifest.StageMappingSHA256 = strings.Repeat("a", 64)
+		empty := []string{}
+		f.manifest.IncompleteSourceTables = &empty
+		billingColumns := CutoverTableSpecs()[11].Columns
+		f.rows["billings"][0][columnIndex(billingColumns, "status")] = "pending"
+		f.rows["billings"][0][columnIndex(billingColumns, "completed_at")] = ""
+		f.rows["payments"] = nil
+		f.rows["payment_splits"] = nil
+		f.manifest.Tables[13].RowCount = 0
+		f.manifest.Tables[14].RowCount = 0
+	})
+
+	bundle, err := PreflightCutoverBundle(dir, ExpectedCutoverSource{
+		ManifestSHA256: manifestDigest,
+		ClinicCode:     "hachioji",
+		ClinicOrdinal:  1,
+		RunID:          "run-1",
+		Provenance:     CutoverProvenanceContract{Mode: CutoverProvenanceLocalRehearsal},
+	})
+	if err != nil {
+		t.Fatalf("PreflightCutoverBundle(local rehearsal) error = %v", err)
+	}
+	if bundle.Manifest.Status != "REHEARSAL_ONLY" {
+		t.Fatalf("status = %q, want REHEARSAL_ONLY", bundle.Manifest.Status)
+	}
+}
+
+func TestPreflightCutoverBundleAcceptsLocalRehearsalOutputDirSuffix(t *testing.T) {
+	dir, manifestDigest := writeCutoverFixture(t, func(f *fixtureBundle) {
+		f.manifest.OutputDir += "-rehearsal-current"
+	})
+	if _, err := PreflightCutoverBundle(dir, ExpectedCutoverSource{
+		ManifestSHA256: manifestDigest,
+		ClinicCode:     "hachioji",
+		ClinicOrdinal:  1,
+		RunID:          "run-1",
+		Provenance:     CutoverProvenanceContract{Mode: CutoverProvenanceLocalRehearsal},
+	}); err != nil {
+		t.Fatalf("PreflightCutoverBundle(local rehearsal output suffix) error = %v", err)
+	}
+}
+
+func TestStagingRehearsalProvenanceRequiresTargetBinding(t *testing.T) {
+	manifest := CutoverManifest{}
+	for _, contract := range []CutoverProvenanceContract{
+		{Mode: CutoverProvenanceStagingRehearsal},
+		{Mode: CutoverProvenanceStagingRehearsal, Target: CutoverTargetBinding{Environment: "local", Host: "db", Database: "ekarte", ClinicID: 1}},
+	} {
+		if err := validateCutoverProducerProvenance(manifest, contract); err == nil || !strings.Contains(err.Error(), "target binding") {
+			t.Fatalf("contract %+v error = %v, want target binding rejection", contract, err)
+		}
+	}
+}
+
+func TestStagingRehearsalProvenanceAcceptsFullyVerifiedProducer(t *testing.T) {
+	dir, digest := writeCutoverFixture(t, nil)
+
+	if _, err := PreflightCutoverBundle(dir, stagingExpectedCutoverSource(digest)); err != nil {
+		t.Fatalf("PreflightCutoverBundle(staging rehearsal) error = %v", err)
+	}
+}
+
+func TestStagingRehearsalProvenanceRejectsWeakProducerEvidence(t *testing.T) {
+	tests := []struct {
+		name    string
+		mutate  func(*fixtureBundle)
+		wantErr string
+	}{
+		{
+			name: "rehearsal-only status",
+			mutate: func(f *fixtureBundle) {
+				f.manifest.Status = "REHEARSAL_ONLY"
+			},
+			wantErr: "status",
+		},
+		{
+			name: "rehearsal-only handoff",
+			mutate: func(f *fixtureBundle) {
+				f.manifest.HandoffEligibility = "REHEARSAL_ONLY"
+			},
+			wantErr: "handoff eligibility",
+		},
+		{
+			name: "partial source completeness",
+			mutate: func(f *fixtureBundle) {
+				f.manifest.SourceCompletenessStatus = "PARTIAL"
+			},
+			wantErr: "source completeness",
+		},
+		{
+			name: "unverified source completeness",
+			mutate: func(f *fixtureBundle) {
+				f.manifest.SourceCompletenessStatus = "UNVERIFIED"
+			},
+			wantErr: "source completeness",
+		},
+		{
+			name: "source incomplete",
+			mutate: func(f *fixtureBundle) {
+				f.manifest.SourceComplete = false
+			},
+			wantErr: "source completeness",
+		},
+		{
+			name: "source provenance unverified",
+			mutate: func(f *fixtureBundle) {
+				f.manifest.SourceProvenanceVerified = false
+			},
+			wantErr: "source completeness",
+		},
+		{
+			name: "producer identity unverified",
+			mutate: func(f *fixtureBundle) {
+				f.manifest.SourceIdentity.Verified = false
+			},
+			wantErr: "source identity",
+		},
+		{
+			name: "producer evidence missing",
+			mutate: func(f *fixtureBundle) {
+				f.manifest.SourceEvidenceSHA256.KNJORecovery = ""
+			},
+			wantErr: "evidence digest",
+		},
+		{
+			name: "stage mapping is not frozen",
+			mutate: func(f *fixtureBundle) {
+				f.manifest.StageMappingSHA256 = strings.Repeat("0", 64)
+			},
+			wantErr: "mapping contract",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir, digest := writeCutoverFixture(t, tt.mutate)
+			_, err := PreflightCutoverBundle(dir, stagingExpectedCutoverSource(digest))
+			if err == nil || !strings.Contains(strings.ToLower(err.Error()), strings.ToLower(tt.wantErr)) {
+				t.Fatalf("error = %v, want text %q", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func stagingExpectedCutoverSource(manifestDigest string) ExpectedCutoverSource {
+	return ExpectedCutoverSource{
+		ManifestSHA256: manifestDigest,
+		ClinicCode:     "hachioji",
+		ClinicOrdinal:  1,
+		RunID:          "run-1",
+		Provenance: CutoverProvenanceContract{
+			Mode: CutoverProvenanceStagingRehearsal,
+			Target: CutoverTargetBinding{
+				Environment: "staging",
+				Host:        "staging-db",
+				Database:    "animalekarte",
+				ClinicID:    1,
+			},
+		},
+	}
+}
+
 func TestPreflightCutoverBundleRejectsInvalidProducerProvenance(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -186,6 +402,16 @@ func TestCutoverTableSpecsMatchPaymentContract(t *testing.T) {
 	}) {
 		t.Fatalf("billings columns = %v", billings.Columns)
 	}
+	billingItems := specs[12]
+	if !slices.Equal(billingItems.Columns, []string{
+		"id", "clinic_id", "billing_id", "category", "name", "unit_price", "quantity",
+		"tax_type", "is_insurance_applicable", "sort_order",
+	}) {
+		t.Fatalf("billing_items columns = %v", billingItems.Columns)
+	}
+	if !slices.Equal(billingItems.BandColumns, []string{"id", "billing_id"}) {
+		t.Fatalf("billing_items band columns = %v", billingItems.BandColumns)
+	}
 	payments := specs[13]
 	if !slices.Equal(payments.Columns, []string{
 		"id", "clinic_id", "billing_id", "subtotal", "tax_total", "total_amount",
@@ -208,6 +434,17 @@ func TestCutoverTableSpecsMatchPaymentContract(t *testing.T) {
 	if !slices.Equal(paymentSplits.BandColumns, []string{"id", "billing_id", "paid_by"}) {
 		t.Fatalf("payment_splits band columns = %v", paymentSplits.BandColumns)
 	}
+	estimates := specs[15]
+	if !slices.Equal(estimates.Columns, []string{
+		"id", "clinic_id", "estimate_no", "medical_record_id", "title", "owner_id", "pet_id",
+		"status", "subtotal", "tax_total", "total_amount", "insurance_amount",
+		"discount_amount", "valid_until", "comment", "notes", "created_by", "created_at",
+	}) {
+		t.Fatalf("estimates columns = %v", estimates.Columns)
+	}
+	if !slices.Equal(estimates.BandColumns, []string{"id", "medical_record_id", "owner_id", "pet_id", "created_by"}) {
+		t.Fatalf("estimates band columns = %v", estimates.BandColumns)
+	}
 
 	wantPlaceholders := map[string]string{
 		"staffs.clinic_id":            "{{CLINIC_ID}}",
@@ -222,6 +459,7 @@ func TestCutoverTableSpecsMatchPaymentContract(t *testing.T) {
 		"appointments.reservation_type_id":                        "{{TRIMMING_RESERVATION_TYPE_ID}}",
 		"appointment_trimming_details.clinic_id":                  "{{CLINIC_ID}}",
 		"billings.clinic_id":                                      "{{CLINIC_ID}}",
+		"billing_items.clinic_id":                                 "{{CLINIC_ID}}",
 		"payments.clinic_id":                                      "{{CLINIC_ID}}",
 		"payments.payment_method_id (cash)":                       "{{PAYMENT_METHOD_CASH_ID}}",
 		"payments.payment_method_id (credit_card)":                "{{PAYMENT_METHOD_CREDIT_CARD_ID}}",
@@ -244,8 +482,8 @@ func TestCutoverTableSpecsDeclareNonNullableTextColumns(t *testing.T) {
 		"staffs":                       {"name", "license_number"},
 		"procedures":                   {"name", "description"},
 		"merchandise_items":            {"name"},
-		"owners":                       {"name", "company", "postal_code", "address1", "address2", "home_postal_code", "home_address1", "home_address2", "phone", "company_phone", "email", "remarks"},
-		"pets":                         {"pet_number", "name", "breed", "color", "food", "remarks"},
+		"owners":                       {"name", "name_kana", "company", "postal_code", "address1", "address2", "home_postal_code", "home_address1", "home_address2", "phone", "company_phone", "email", "remarks"},
+		"pets":                         {"pet_number", "name", "name_kana", "breed", "color", "food", "remarks"},
 		"medical_records":              {"record_no"},
 		"inquiries":                    {"chief_complaint", "owner_observations", "history", "notes", "allergy_info", "current_medications"},
 		"clinical_plans":               {"physical_exam", "diagnosis_details", "treatment_policy"},
@@ -285,7 +523,7 @@ func TestCutoverMappingCoverageCoversAllFormalTables(t *testing.T) {
 
 	// Child tables without clinic_id must still declare parent-FK isolation.
 	wantParentFK := map[string]struct{}{
-		"inquiries": {}, "clinical_plans": {}, "billing_items": {},
+		"inquiries": {}, "clinical_plans": {},
 		"estimate_items": {}, "exam_results": {},
 	}
 
@@ -495,25 +733,12 @@ func TestPreflightCutoverBundleRejectsPaymentContractViolations(t *testing.T) {
 			wantErr: "clinic placeholder",
 		},
 		{
-			name: "payment subtotal is negative",
+			name: "payment billing amount is zero",
 			mutate: func(f *fixtureBundle) {
-				f.rows["payments"][0][columnIndex(CutoverTableSpecs()[13].Columns, "subtotal")] = "-1"
+				f.rows["payments"][0][columnIndex(CutoverTableSpecs()[13].Columns, "billing_amount")] = "0"
+				f.rows["payment_splits"][0][columnIndex(CutoverTableSpecs()[14].Columns, "amount")] = "0"
 			},
-			wantErr: "subtotal",
-		},
-		{
-			name: "payment tax total is negative",
-			mutate: func(f *fixtureBundle) {
-				f.rows["payments"][0][columnIndex(CutoverTableSpecs()[13].Columns, "tax_total")] = "-1"
-			},
-			wantErr: "tax_total",
-		},
-		{
-			name: "payment total amount is negative",
-			mutate: func(f *fixtureBundle) {
-				f.rows["payments"][0][columnIndex(CutoverTableSpecs()[13].Columns, "total_amount")] = "-1"
-			},
-			wantErr: "total_amount",
+			wantErr: "violate the cutover contract",
 		},
 		{
 			name: "payment total amount disagrees with billing",
@@ -537,11 +762,11 @@ func TestPreflightCutoverBundleRejectsPaymentContractViolations(t *testing.T) {
 			wantErr: "insurance_amount",
 		},
 		{
-			name: "discount amount is negative",
+			name: "payment split amount is zero",
 			mutate: func(f *fixtureBundle) {
-				f.rows["payments"][0][columnIndex(CutoverTableSpecs()[13].Columns, "discount_amount")] = "-1"
+				f.rows["payment_splits"][0][columnIndex(CutoverTableSpecs()[14].Columns, "amount")] = "0"
 			},
-			wantErr: "discount_amount",
+			wantErr: "must not be zero",
 		},
 		{
 			name: "completed billing timestamp is missing",
@@ -622,12 +847,27 @@ func TestPreflightCutoverBundleRejectsPaymentContractViolations(t *testing.T) {
 	}
 }
 
+func TestPreflightCutoverBundleAllowsHistoricalPaymentSnapshotOnlyForLocalRehearsal(t *testing.T) {
+	dir, manifestDigest := writeCutoverFixture(t, func(f *fixtureBundle) {
+		billingColumns := CutoverTableSpecs()[11].Columns
+		f.rows["billings"][0][columnIndex(billingColumns, "total_amount")] = "1"
+	})
+	expected := ExpectedCutoverSource{ManifestSHA256: manifestDigest, ClinicCode: "hachioji", ClinicOrdinal: 1, RunID: "run-1"}
+	if _, err := PreflightCutoverBundle(dir, expected); err == nil || !strings.Contains(err.Error(), "payment snapshot does not match billing") {
+		t.Fatalf("formal preflight error = %v, want payment snapshot rejection", err)
+	}
+	expected.Provenance.Mode = CutoverProvenanceLocalRehearsal
+	if _, err := PreflightCutoverBundle(dir, expected); err != nil {
+		t.Fatalf("local rehearsal preflight error = %v", err)
+	}
+}
+
 func TestValidateCutoverPaymentGraphRejectsUnboundedPaymentInventory(t *testing.T) {
 	manifest := CutoverManifest{Tables: []CutoverManifestTable{
 		{Table: "payments", File: "payments.csv", RowCount: maxCutoverPaymentRows + 1},
 		{Table: "payment_splits", File: "payment_splits.csv", RowCount: 0},
 	}}
-	err := validateCutoverPaymentGraph(t.TempDir(), &manifest)
+	err := validateCutoverPaymentGraph(t.TempDir(), &manifest, CutoverProvenanceContract{})
 	if err == nil || !strings.Contains(err.Error(), "payment limit") {
 		t.Fatalf("validateCutoverPaymentGraph() error = %v, want payment limit rejection", err)
 	}
@@ -927,4 +1167,19 @@ func columnIndex(columns []string, name string) int {
 		}
 	}
 	return -1
+}
+
+func TestDecodeCutoverManifestAcceptsKnownHandoffPackageMetadata(t *testing.T) {
+	manifest, err := decodeCutoverManifest([]byte(`{
+		"packagingMode":"REHEARSAL_ONLY_COPY",
+		"sourcePackage":"sensitive-local/example",
+		"note":"local rehearsal only",
+		"sourcePackageManifestSha256":"1a08edbb2c6aa4050399d55d29204cd15cfbaa23baa30d512221b0b3d9372591"
+	}`))
+	if err != nil {
+		t.Fatalf("decodeCutoverManifest() error = %v", err)
+	}
+	if manifest.PackagingMode != "REHEARSAL_ONLY_COPY" || manifest.SourcePackage != "sensitive-local/example" {
+		t.Fatalf("handoff metadata was not preserved: %+v", manifest)
+	}
 }

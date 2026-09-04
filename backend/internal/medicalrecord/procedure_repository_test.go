@@ -23,13 +23,23 @@ import (
 )
 
 // setupProcedureRepositoryTestDB は procedures テーブルと、CountUsageByProcedureID が
-// JOIN する medical_records / treatments を用意する。
+// JOIN する medical_records / treatments / hospitalizations / care_plan_items を用意する。
+// care_plan_items は soft-delete しない設計。CountUsageByProcedureID は
+// hospitalizations.deleted_at でテナント JOIN する。
 func setupProcedureRepositoryTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := testdb.SetupTestDB(t)
-	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.Procedure{}, &model.MedicalRecord{}, &model.Treatment{}))
+	require.NoError(t, testdb.EnsureAutoMigrated(db,
+		&model.Procedure{},
+		&model.MedicalRecord{},
+		&model.Treatment{},
+		&model.Hospitalization{},
+		&model.CarePlanItem{},
+	))
 	db.Exec("TRUNCATE TABLE treatments CASCADE")
 	db.Exec("TRUNCATE TABLE procedures CASCADE")
+	db.Exec("TRUNCATE TABLE care_plan_items CASCADE")
+	db.Exec("TRUNCATE TABLE hospitalizations CASCADE")
 	return db
 }
 
@@ -239,17 +249,10 @@ func TestRepository_CountChildrenByParentID(t *testing.T) {
 	})
 }
 
-// TestRepository_CountUsageByProcedureID_KnownCarePlanItemsColumnBug は
-// CountUsageByProcedureID（BUG-107）の既知の不具合（本テストで顕在化）を検証する。
-//
-// 既知の不具合: CountUsageByProcedureID の care_plan_items 集計クエリ（repository.go
-// 内の第2クエリ）が `care_plan_items.deleted_at IS NULL` を参照するが、care_plan_items テーブルには
-// deleted_at 列が存在しない（migrations/001_init.sql の CREATE TABLE care_plan_items 定義・
-// model.CarePlanItem 構造体のいずれにも soft-delete 列がない）。medicine_repository.go の
-// CountUsageByMedicineID と全く同型の不具合（medicine_repository_test.go の
-// TestMedicineRepository_CountUsageByMedicineID_TreatmentUsage を参照）。
-// そのため treatments 側の集計が成功していても、本メソッドは呼び出す度にエラーを返す。
-func TestRepository_CountUsageByProcedureID_KnownCarePlanItemsColumnBug(t *testing.T) {
+// TestRepository_CountUsageByProcedureID は treatments + care_plan_items の参照合計を返す。
+// 実装（procedure_repository.go）が正本。care_plan_items.deleted_at を参照していた旧
+// characterization は obsolete（care_plan_items は soft-delete しない設計）。
+func TestRepository_CountUsageByProcedureID(t *testing.T) {
 	db := setupProcedureRepositoryTestDB(t)
 	repo := NewProcedureRepository(db)
 	ctx := context.Background()
@@ -263,6 +266,7 @@ func TestRepository_CountUsageByProcedureID_KnownCarePlanItemsColumnBug(t *testi
 	treatment := &model.Treatment{MedicalRecordID: mr.ID, ItemType: model.TreatmentItemTypeProcedure, ProcedureID: &proc.ID}
 	require.NoError(t, db.WithContext(ctx).Create(treatment).Error)
 
-	_, err := repo.CountUsageByProcedureID(ctx, clinicA, proc.ID)
-	require.Error(t, err, "care_plan_items.deleted_at 列が存在しないため既知の不具合でエラーになる")
+	count, err := repo.CountUsageByProcedureID(ctx, clinicA, proc.ID)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), count, "treatment 1件 + care_plan_items 0件 = 1")
 }

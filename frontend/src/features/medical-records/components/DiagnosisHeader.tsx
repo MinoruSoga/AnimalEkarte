@@ -24,6 +24,10 @@ interface DiagnosisHeaderProps {
   diagnosis2NameId?: number | null;
   setDiagnosis2NameId?: (id: number | null) => void;
   diagnosis1NameIdError?: string | null;
+  selectedDiagnosisType?: { id: string | number; name: string } | null;
+  selectedDiagnosisName?: { id: string | number; name: string } | null;
+  selectedDiagnosis2Type?: { id: string | number; name: string } | null;
+  selectedDiagnosis2Name?: { id: string | number; name: string } | null;
 }
 
 export const DiagnosisHeader = memo(function DiagnosisHeader({
@@ -41,6 +45,10 @@ export const DiagnosisHeader = memo(function DiagnosisHeader({
   diagnosis2NameId,
   setDiagnosis2NameId,
   diagnosis1NameIdError,
+  selectedDiagnosisType,
+  selectedDiagnosisName,
+  selectedDiagnosis2Type,
+  selectedDiagnosis2Name,
 }: DiagnosisHeaderProps) {
   const { canEdit } = usePermission("medical-records");
   return (
@@ -64,6 +72,10 @@ export const DiagnosisHeader = memo(function DiagnosisHeader({
         setDiagnosis2NameId={setDiagnosis2NameId}
         canEdit={canEdit}
         diagnosis1NameIdError={diagnosis1NameIdError}
+        selectedDiagnosisType={selectedDiagnosisType}
+        selectedDiagnosisName={selectedDiagnosisName}
+        selectedDiagnosis2Type={selectedDiagnosis2Type}
+        selectedDiagnosis2Name={selectedDiagnosis2Name}
       />
     </div>
   );

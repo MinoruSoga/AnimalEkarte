@@ -4,6 +4,7 @@ import { usePermission } from "@/hooks/use-permission";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { TableCell } from "@/components/ui/table";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
+import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { C, ICON } from "@/lib/design-tokens";
@@ -12,7 +13,7 @@ import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
 import { MasterCRUDPage } from "../components/MasterCRUDPage";
 import { PaymentMethodSidePanel } from "../components/PaymentMethodSidePanel";
-import type { PaymentMethodFormData } from "../components/payment-method-side-panel-model";
+import type { PaymentMethodFormData } from "../lib/payment-method-side-panel-model";
 import {
   useGetPaymentMethods,
   useCreatePaymentMethod,
@@ -54,7 +55,13 @@ export function PaymentMethodSettings() {
     dirtyGuard: dirty,
     permissions: { canDelete },
   });
-  const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
+  const handleDirtyChange = useCallback(
+    (d: boolean) => {
+      if (d) dirty.markDirty();
+      else dirty.markClean();
+    },
+    [dirty],
+  );
 
   const editingId =
     crud.editTarget !== null && crud.editTarget !== "new" ? crud.editTarget.id : null;
@@ -78,34 +85,51 @@ export function PaymentMethodSettings() {
   });
 
   return (
-    <MasterCRUDPage
-      title="支払方法マスタ"
-      icon={<CreditCard className={`${ICON.page} ${C.text}`} />}
-      resource={ResourcePaymentMethod}
-      entityLabel="支払方法"
-      searchPlaceholder="支払方法名で検索..."
-      emptyMessage="支払方法が登録されていません"
-      crud={crud}
-      handleSave={handleSave}
-      columns={COLUMNS}
-      filterProperties={[MASTER_STATUS_FILTER]}
-      renderRow={(item, onEdit, canEdit) => (
-        <DataTableRow key={item.id}>
-          <TableCell className={`font-medium ${C.text}`}>{item.name}</TableCell>
-          <TableCell className="text-center"><StatusPill isActive={item.isActive} /></TableCell>
-          <TableCell className="text-right">
-            {canEdit ? (
-              <RowActionButton
+    <>
+      <MasterCRUDPage
+        title="支払方法マスタ"
+        icon={<CreditCard className={`${ICON.page} ${C.text}`} />}
+        resource={ResourcePaymentMethod}
+        entityLabel="支払方法"
+        searchPlaceholder="支払方法名で検索..."
+        emptyMessage="支払方法が登録されていません"
+        crud={crud}
+        handleSave={handleSave}
+        columns={COLUMNS}
+        filterProperties={[MASTER_STATUS_FILTER]}
+        renderRow={(item, onEdit, canEdit) => (
+          <DataTableRow key={item.id}>
+            <TableCell className={`font-medium ${C.text}`}>
+              <DataTableRowButton
+                aria-label={`詳細: 支払方法 ${item.name} (ID ${item.id})`}
                 onClick={() => onEdit(item)}
-                aria-label={`支払方法「${item.name}」(ID: ${item.id}) を編集`}
-              />
-            ) : null}
-          </TableCell>
-        </DataTableRow>
-      )}
-      renderSidePanel={(props) => (
-        <PaymentMethodSidePanel key={props.item?.id ?? "new"} {...props} onDirtyChange={handleDirtyChange} />
-      )}
-    />
+              >
+                {item.name}
+              </DataTableRowButton>
+            </TableCell>
+            <TableCell className="text-center">
+              <StatusPill isActive={item.isActive} />
+            </TableCell>
+            <TableCell className="text-right">
+              {canEdit ? (
+                <RowActionButton
+                  onClick={() => onEdit(item)}
+                  aria-label={`支払方法「${item.name}」(ID: ${item.id}) を編集`}
+                />
+              ) : null}
+            </TableCell>
+          </DataTableRow>
+        )}
+        renderSidePanel={(props) => (
+          <PaymentMethodSidePanel
+            key={props.item?.id ?? "new"}
+            {...props}
+            onSave={handleSave}
+            onDirtyChange={handleDirtyChange}
+          />
+        )}
+      />
+      {dirty.discardDialog}
+    </>
   );
 }

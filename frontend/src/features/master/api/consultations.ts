@@ -34,7 +34,8 @@ export const useCreateConsultation = () => {
       const { data } = await axios.post<Consultation>("/v1/masters/consultations", req);
       return transformConsultation(data);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.masters.category("consultations") }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: queryKeys.masters.category("consultations") }),
     onError: (error) => handleApiError(error, "操作"),
   });
 };
@@ -49,13 +50,11 @@ export const useUpdateConsultation = () => {
       id: string;
       req: UpdateConsultationRequest;
     }): Promise<ConsultationItem> => {
-      const { data } = await axios.patch<Consultation>(
-        `/v1/masters/consultations/${id}`,
-        req,
-      );
+      const { data } = await axios.patch<Consultation>(`/v1/masters/consultations/${id}`, req);
       return transformConsultation(data);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.masters.category("consultations") }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: queryKeys.masters.category("consultations") }),
     onError: (error) => handleApiError(error, "操作"),
   });
 };
@@ -64,7 +63,8 @@ export const useDeleteConsultation = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => axios.delete(`/v1/masters/consultations/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.masters.category("consultations") }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: queryKeys.masters.category("consultations") }),
     onError: (error) => handleApiError(error, "操作"),
   });
 };
@@ -74,7 +74,8 @@ export const useReorderConsultations = () => {
   return useMutation({
     mutationFn: (req: ReorderTreatmentRequest) =>
       axios.patch("/v1/masters/consultations/reorder", req),
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.masters.category("consultations") }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: queryKeys.masters.category("consultations") }),
     onError: (error) => handleApiError(error, "操作"),
   });
 };

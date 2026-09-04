@@ -82,7 +82,40 @@ func (r *trimmingOptionRepository) Update(ctx context.Context, clinicID, id uint
 }
 
 func (r *trimmingOptionRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	return persistence.DeleteScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.TrimmingOption{}, "trimming_option", clinicID, id)
+	return persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		if err := tx.
+			Clauses(clause.Locking{Strength: "UPDATE"}).
+			Scopes(persistence.ClinicScope(clinicID)).
+			Where("id = ?", id).
+			First(&model.TrimmingOption{}).Error; err != nil {
+			return apperrors.FromGORM(err, "trimming_option", fmt.Sprintf("%d", id))
+		}
+		result := tx.
+			Scopes(persistence.ClinicScope(clinicID)).
+			Where("id = ?", id).
+			Where(`NOT EXISTS (
+				SELECT 1 FROM appointment_trimming_options
+				JOIN appointments ON appointments.id = appointment_trimming_options.appointment_id
+				  AND appointments.clinic_id = ?
+				  AND appointments.deleted_at IS NULL
+				WHERE appointment_trimming_options.option_id = trimming_options.id
+			)`, clinicID).
+			Delete(&model.TrimmingOption{})
+		if result.Error != nil {
+			return apperrors.FromGORM(result.Error, "trimming_option", fmt.Sprintf("%d", id))
+		}
+		if result.RowsAffected == 0 {
+			return r.normalizeTrimmingOptionDeleteMiss(persistence.WithTxValue(ctx, tx), clinicID, id)
+		}
+		return nil
+	})
+}
+
+func (r *trimmingOptionRepository) normalizeTrimmingOptionDeleteMiss(ctx context.Context, clinicID, id uint64) error {
+	if _, err := r.FindByID(ctx, clinicID, id); err != nil {
+		return err
+	}
+	return apperrors.WrapConflict("このトリミングオプションはトリミング記録で使用中のため削除できません")
 }
 
 func (r *trimmingOptionRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {

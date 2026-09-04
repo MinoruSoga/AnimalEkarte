@@ -4,7 +4,7 @@
 - **画面の目的**: システムが自動生成した Lステップ **配信トリガー** の実行状況、除外判定、および API 通信の成否をリアルタイムに監視する。
 - **観測範囲**: `lstep_delivery_trigger_log` のみ。会計確定後の CPM 同期など **ordinary タグ同期（request-local secondary）は本画面の対象外**であり、当該経路は trigger log に書かない。
 - **URLパターン**: `/lstep/delivery-monitor`
-- **アクセス権限**: FE は親 `/lstep` の `ResourceHospitalSettings` **かつ** 子 `ResourceLstepAnalytics` の両方。BE API は `ResourceLstepAnalytics`。
+- **アクセス権限**: FE/BE とも `ResourceLstepAnalytics:view`。親 `/lstep` は権限を加算しない。
 - **Deploy gate（`LSTEP_WRITE_API_ENABLED`）**: Write 系が無効のとき HTTP を送らず **`ErrWriteDisabled` を返す（`nil` 成功にしない）**。判定・除外・ログ行の作成と監視 UI は継続する（[`LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)。enable / stop / rollback 手順は同 runbook が正本）。
 - **Clinic gate（`is_sync_enabled` / API キー）**: 同期無効または API キー未設定の clinic はクライアント未構築による意図的スキップ（`nil, nil`）。deploy gate とは**別契約**である。
 
@@ -12,7 +12,7 @@
 
 ## 1. 画面構成
 
-### 1.1 配信実行ログテーブル (`DeliveryLogsTable`)
+### 1.1 配信実行ログテーブル (`LstepDeliveryMonitorLogsTable`)
 指定期間（既定は当日）の配信（および配信予定）が予定日時の降順で表示されます（サーバ側ページネーション付き）。
 
 | カラム | 説明 |
@@ -68,7 +68,7 @@ Deploy gate（`LSTEP_WRITE_API_ENABLED`）OFF 時は外部タグ write が HTTP 
 ### 構成コンポーネント
 - **`LstepDeliveryMonitorPage`**: メイン監視ページ。
 - **`DeliveryMonitorFilters`**: 期間・トリガー種別・ステータスの検索フィルタ。
-- **`LstepDeliveryMonitorLogsTable`**: 配信ログの一覧テーブル `DeliveryLogsTable`（ステータスは `BADGE` デザイントークンで色分け表示。`Pagination` によるページ送り）。
+- **`LstepDeliveryMonitorLogsTable`**: 配信ログの一覧テーブル（ステータスは `BADGE` デザイントークンで色分け表示。`Pagination` によるページ送り）。
 - **`LstepDeliveryMonitorPageParts`**: サマリカード（`DeliverySummaryCards`）・失敗警告（`DeliveryFailedWarning`）・除外理由内訳（`DeliveryExcludedReasonBreakdown`）の部品群。
 
 ### API連携

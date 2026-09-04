@@ -4,18 +4,18 @@
 
 ## 技術スタック
 
-| 技術 | バージョン |
-|------|-----------|
-| React | 19 |
-| TypeScript | 5.7 |
-| Vite | 6 |
-| Tailwind CSS | 4 |
-| shadcn/ui | Radix UI |
-| React Router | 7 (Data Mode) |
-| TanStack Query | v5 |
-| Axios | HTTP Client |
-| Vitest | テスト |
-| Zustand | 状態管理 |
+| 技術           | バージョン    |
+| -------------- | ------------- |
+| React          | 19            |
+| TypeScript     | 5.7           |
+| Vite           | 6             |
+| Tailwind CSS   | 4             |
+| shadcn/ui      | Radix UI      |
+| React Router   | 7 (Data Mode) |
+| TanStack Query | v5            |
+| Axios          | HTTP Client   |
+| Vitest         | テスト        |
+| Zustand        | 状態管理      |
 
 ---
 
@@ -34,12 +34,12 @@ docker compose exec frontend pnpm lint
 docker compose exec frontend pnpm test:run
 ```
 
-| タスク | コマンド |
-|--------|---------|
-| ビルド | `docker compose exec frontend pnpm build` |
-| Lint | `docker compose exec frontend pnpm lint` |
-| テスト | `docker compose exec frontend pnpm test:run` |
-| テスト (watch) | `docker compose exec frontend pnpm test` |
+| タスク         | コマンド                                     |
+| -------------- | -------------------------------------------- |
+| ビルド         | `docker compose exec frontend pnpm build`    |
+| Lint           | `docker compose exec frontend pnpm lint`     |
+| テスト         | `docker compose exec frontend pnpm test:run` |
+| テスト (watch) | `docker compose exec frontend pnpm test`     |
 
 ---
 
@@ -111,22 +111,22 @@ frontend/src/
 
 ## 機能一覧
 
-| 機能 | パス | 説明 |
-|------|------|------|
-| ダッシュボード | `/` | 予約カンバン、本日の予定 |
-| 飼主・ペット管理 | `/owners` | 飼主・ペット情報管理 ★参照実装 |
-| カルテ管理 | `/medical-records` | 診察記録、治療計画 |
-| 予約管理 | `/reservations` | 予約の登録・変更 |
-| 入院管理 | `/hospitalization` | 入院・ホテル管理 |
-| 診察 | `/examinations` | 検査記録 |
-| 会計 | `/accounting` | 精算処理 |
-| ワクチン | `/vaccinations` | 予防接種管理 |
-| トリミング | `/trimming` | トリミング予約 |
-| 在庫管理 | `/inventory` | 薬剤・物品在庫 |
-| 見積 | `/estimates` | 見積作成・管理 |
-| シフト管理 | `/shifts` | スタッフシフトカレンダー |
-| マスタ設定 | `/settings/*` | 各種マスタ管理 |
-| 病院設定 | `/settings/clinic` | クリニック基本情報 |
+| 機能             | パス               | 説明                           |
+| ---------------- | ------------------ | ------------------------------ |
+| ダッシュボード   | `/`                | 予約カンバン、本日の予定       |
+| 飼主・ペット管理 | `/owners`          | 飼主・ペット情報管理 ★参照実装 |
+| カルテ管理       | `/medical-records` | 診察記録、治療計画             |
+| 予約管理         | `/reservations`    | 予約の登録・変更               |
+| 入院管理         | `/hospitalization` | 入院・ホテル管理               |
+| 診察             | `/examinations`    | 検査記録                       |
+| 会計             | `/accounting`      | 精算処理                       |
+| ワクチン         | `/vaccinations`    | 予防接種管理                   |
+| トリミング       | `/trimming`        | トリミング予約                 |
+| 在庫管理         | `/inventory`       | 薬剤・物品在庫                 |
+| 見積             | `/estimates`       | 見積作成・管理                 |
+| シフト管理       | `/shifts`          | スタッフシフトカレンダー       |
+| マスタ設定       | `/settings/*`      | 各種マスタ管理                 |
+| 病院設定         | `/settings/clinic` | クリニック基本情報             |
 
 ---
 
@@ -135,20 +135,20 @@ frontend/src/
 `features/owners/` はすべての Vercel React Best Practices パターンを実装した参照実装。
 新機能を実装する際はこの feature を手本にすること。
 
-| パターン | 実装ファイル | 内容 |
-|---------|------------|------|
-| `memo()` によるセクション分割 | `routes/OwnerForm.tsx` | `OwnerInfoSection`, `PetTableRow`, `MembershipTypeButtons` |
-| `useCallback` によるハンドラ安定化 | `routes/OwnerForm.tsx` | `handleInputChange`, `handleDeletePetRequest` |
-| `lazy()` + `Suspense` の遅延ロード | `routes/OwnerForm.tsx` | `PetEditModal` |
-| 静的 JSX のモジュール定数化 | `routes/OwnerForm.tsx` | `PET_TABLE_HEADER` |
-| `useDeferredValue` による検索遅延 | `routes/OwnersList.tsx` | `deferredSearchTerm` |
-| `useActionState` による送信・pending 管理 | `hooks/use-owner-form.ts` | `formAction`, `isPending` |
-| `useState(() => ...)` lazy init | `hooks/use-owner-form.ts` | `mapOwnerToFormData` |
-| API 由来 JSX の `useMemo` キャッシュ | `components/PetEditModal.tsx` | `animalSpeciesSelectItems` |
-| `Promise.all` による並列フェッチ | `loaders.ts` | `ownersLoader` |
-| `? (...) : null` 条件レンダー | `routes/OwnersList.tsx` | `pet.status ?` |
-| 直接ファイル import | `routes/OwnersList.tsx` | `../api/delete-owner` |
-| cross-feature props 注入 | `app/pages/OwnerFormPage.tsx` | `petMutations` を `OwnerForm` に注入 |
+| パターン                                  | 実装ファイル                  | 内容                                                       |
+| ----------------------------------------- | ----------------------------- | ---------------------------------------------------------- |
+| `memo()` によるセクション分割             | `routes/OwnerForm.tsx`        | `OwnerInfoSection`, `PetTableRow`, `MembershipTypeButtons` |
+| `useCallback` によるハンドラ安定化        | `routes/OwnerForm.tsx`        | `handleInputChange`, `handleDeletePetRequest`              |
+| `lazy()` + `Suspense` の遅延ロード        | `routes/OwnerForm.tsx`        | `PetEditModal`                                             |
+| 静的 JSX のモジュール定数化               | `routes/OwnerForm.tsx`        | `PET_TABLE_HEADER`                                         |
+| `useDeferredValue` による検索遅延         | `routes/OwnersList.tsx`       | `deferredSearchTerm`                                       |
+| `useActionState` による送信・pending 管理 | `hooks/use-owner-form.ts`     | `formAction`, `isPending`                                  |
+| `useState(() => ...)` lazy init           | `hooks/use-owner-form.ts`     | `mapOwnerToFormData`                                       |
+| API 由来 JSX の `useMemo` キャッシュ      | `components/PetEditModal.tsx` | `animalSpeciesSelectItems`                                 |
+| `Promise.all` による並列フェッチ          | `loaders.ts`                  | `ownersLoader`                                             |
+| `? (...) : null` 条件レンダー             | `routes/OwnersList.tsx`       | `pet.status ?`                                             |
+| 直接ファイル import                       | `routes/OwnersList.tsx`       | `../api/delete-owner`                                      |
+| cross-feature props 注入                  | `app/pages/OwnerFormPage.tsx` | `petMutations` を `OwnerForm` に注入                       |
 
 詳細: `frontend/CODING_RULES.md` Section 12 参照。
 
@@ -158,27 +158,27 @@ frontend/src/
 
 ### ファイル命名
 
-| 対象 | 規則 | 例 |
-|------|------|-----|
-| コンポーネント | PascalCase.tsx | `OwnerForm.tsx` |
-| hooks | kebab-case.ts（ファイル）／ `useXxx`（シンボル） | `use-owner-form.ts` exports `useOwnerForm` |
-| API ファイル | kebab-case.ts | `get-owners.ts`, `create-owner.ts` |
-| ユーティリティ | kebab-case.ts | `format-date.ts` |
-| ディレクトリ | kebab-case | `medical-records/` |
+| 対象           | 規則                                             | 例                                         |
+| -------------- | ------------------------------------------------ | ------------------------------------------ |
+| コンポーネント | PascalCase.tsx                                   | `OwnerForm.tsx`                            |
+| hooks          | kebab-case.ts（ファイル）／ `useXxx`（シンボル） | `use-owner-form.ts` exports `useOwnerForm` |
+| API ファイル   | kebab-case.ts                                    | `get-owners.ts`, `create-owner.ts`         |
+| ユーティリティ | kebab-case.ts                                    | `format-date.ts`                           |
+| ディレクトリ   | kebab-case                                       | `medical-records/`                         |
 
 ### React 19 禁止事項
 
-| 禁止 | 代替 |
-|------|------|
-| `FC` / `React.FC` | 関数宣言 |
-| `forwardRef` | ref as prop |
-| `any` 型 | `unknown` + 型ガード |
-| feature 間 import | app/pages/ で合成（props 注入） |
-| `export *` | 明示的 named export |
-| `&&` 条件レンダー | `? (...) : null` |
+| 禁止                                                           | 代替                                         |
+| -------------------------------------------------------------- | -------------------------------------------- |
+| `FC` / `React.FC`                                              | 関数宣言                                     |
+| `forwardRef`                                                   | ref as prop                                  |
+| `any` 型                                                       | `unknown` + 型ガード                         |
+| feature 間 import                                              | app/pages/ で合成（props 注入）              |
+| `export *`                                                     | 明示的 named export                          |
+| `&&` 条件レンダー                                              | `? (...) : null`                             |
 | feature 外からの deep import（`@/features/xxx/routes/...` 等） | feature の index.ts 経由（`@/features/xxx`） |
-| `useOwners` 等（動詞省略） | `useGetOwners`（動詞 + エンティティ） |
-| `localStorage` に token 保存 | httpOnly Cookie + `withCredentials: true` |
+| `useOwners` 等（動詞省略）                                     | `useGetOwners`（動詞 + エンティティ）        |
+| `localStorage` に token 保存                                   | httpOnly Cookie + `withCredentials: true`    |
 
 ### import 順序
 
@@ -192,7 +192,7 @@ import { toast } from "sonner";
 
 // 3. 共有モジュール (@/)
 import { Button } from "@/components/ui/button";
-import { formatDate } from "@/utils/format/date";  // barrel 経由不可、直接 import
+import { formatDate } from "@/utils/format/date"; // barrel 経由不可、直接 import
 
 // 4. feature 内部（相対パス）
 import { useOwnerForm } from "../hooks/useOwnerForm";
@@ -202,6 +202,16 @@ import type { Owner } from "@/types/owner";
 ```
 
 ---
+
+## ローカル DEV デモアカウント
+
+ログイン画面のデモアカウント（`import.meta.env.DEV` のみ）は staff-attach 後の
+`stg-staff-{id}@example.test` を一覧する。ワンクリック入力のパスワードは
+`VITE_DEMO_LOGIN_PASSWORD`（`frontend/.env.local`、gitignored）から読む。
+
+- staff-attach 共有 secret と同一値にする（リテラル `password` は不可）
+- 値をコミットしない。同期: `python3 scripts/sync-vite-demo-login-password.py`
+- Vite は起動時に env を読むため、変更後は frontend コンテナの再起動が必要
 
 ## トラブルシューティング
 
@@ -230,9 +240,9 @@ make clean
 
 ## 参照
 
-| ドキュメント | 説明 |
-|-------------|------|
-| [コーディング規約](./CODING_RULES.md) | 詳細なルール（Section 12: パフォーマンス最適化） |
-| [Claude 設定](./CLAUDE.md) | 実装パターン・禁止事項 |
-| [React 19](https://react.dev/blog/2024/12/05/react-19) | 公式リリースノート |
-| [bulletproof-react](https://github.com/alan2207/bulletproof-react) | アーキテクチャ参照 |
+| ドキュメント                                                       | 説明                                             |
+| ------------------------------------------------------------------ | ------------------------------------------------ |
+| [コーディング規約](./CODING_RULES.md)                              | 詳細なルール（Section 12: パフォーマンス最適化） |
+| [Claude 設定](./CLAUDE.md)                                         | 実装パターン・禁止事項                           |
+| [React 19](https://react.dev/blog/2024/12/05/react-19)             | 公式リリースノート                               |
+| [bulletproof-react](https://github.com/alan2207/bulletproof-react) | アーキテクチャ参照                               |

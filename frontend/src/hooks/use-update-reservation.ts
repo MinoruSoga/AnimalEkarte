@@ -25,12 +25,9 @@ export interface UpdateReservationRequest {
 
 const updateReservation = async (
   id: string,
-  req: UpdateReservationRequest
+  req: UpdateReservationRequest,
 ): Promise<Reservation> => {
-  const { data } = await axios.patch<BackendReservation>(
-    `/v1/reservations/${id}`,
-    req
-  );
+  const { data } = await axios.patch<BackendReservation>(`/v1/reservations/${id}`, req);
   return transformReservation(data);
 };
 
@@ -51,7 +48,7 @@ export const useUpdateReservation = () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.reception.all() });
       // FE4-6 fix: detail クエリの実キーは queryKeys.reservations.detail(id)
       // （正本: src/hooks/use-get-reservation.ts）。list prefix invalidation はこれを包含しない。
-      // 先例: src/hooks/use-update-reservation-route.ts は list + detail の両方を invalidate している。
+      // 先例: ReservationRouteSelect/hooks/use-update-reservation-route.ts は list + detail の両方を invalidate している。
       queryClient.invalidateQueries({ queryKey: queryKeys.reservations.detail(id) });
     },
     onError: (error) => handleApiError(error, "予約更新"),

@@ -9,10 +9,7 @@ export const TriggerStatusLabels: Record<string, string> = {
 };
 
 // BADGE design token 色マッピング
-export const TriggerStatusBadge: Record<
-  string,
-  "blue" | "green" | "gray" | "red"
-> = {
+export const TriggerStatusBadge: Record<string, "blue" | "green" | "gray" | "red"> = {
   scheduled: "blue",
   fired: "green",
   excluded: "gray",

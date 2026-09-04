@@ -10,6 +10,11 @@ import (
 	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
+const (
+	UnbilledWarningSourceExam                   = "exam"
+	UnbilledWarningCodeExamTypeMasterUnbillable = "exam_type_master_unbillable"
+)
+
 // Unbilled aggregation and same-day ungrouped summary helpers for BillingItemService.
 // Split from billing_item_service.go (ARCH-A4-billing S1) for file cohesion only — behavior unchanged.
 
@@ -41,12 +46,27 @@ func (s *billingItemService) aggregateUnbilled(ctx context.Context, clinicID, pe
 	}
 	items = append(items, vaccinationItems...)
 
-	warnings := make([]UnbilledWarning, 0, 1)
+	warnings := make([]UnbilledWarning, 0, 2)
 	if unbillableCount > 0 {
 		warnings = append(warnings, UnbilledWarning{
 			Source:   UnbilledWarningSourceVaccination,
 			Code:     UnbilledWarningCodeVaccinationMasterUnbillable,
 			Count:    unbillableCount,
+			Blocking: true,
+		})
+	}
+
+	examItems, examUnbillable, examErr := s.repo.FindUnbilledExamItemsByPetID(ctx, clinicID, petID)
+	if examErr != nil {
+		slog.ErrorContext(ctx, "failed to find unbilled exam items", "error", examErr)
+		return nil, apperrors.Wrap(examErr, "failed to find unbilled exam items")
+	}
+	items = append(items, examItems...)
+	if examUnbillable > 0 {
+		warnings = append(warnings, UnbilledWarning{
+			Source:   UnbilledWarningSourceExam,
+			Code:     UnbilledWarningCodeExamTypeMasterUnbillable,
+			Count:    examUnbillable,
 			Blocking: true,
 		})
 	}

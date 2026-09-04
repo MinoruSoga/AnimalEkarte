@@ -52,7 +52,32 @@ func TestRouteCompositionSmoke_TargetGraphRegistersEverySurface(t *testing.T) {
 	//   f609832ce (TASK-374) POST /api/v1/checkup-package-imports
 	// 2026-08-04: 504 — TASK-032 POST /api/v1/lab-imports/:job_id/revert
 	// All seven are documented in docs/api.yaml and covered by the OpenAPI drift test.
-	require.Len(t, routes, 504)
+	// 2026-08-23: 519 — fifteen ResourceLabImport product routes landed after
+	// d586fdc75 (last green pin 504) without the constant being updated.
+	// Originating commits: c635bdb68 receive Joto analyzers on the wait board
+	// and persist exams; bb32b9fd1 persist lab devices and land exams on the
+	// chart tab. Enumerated so the number is auditable. All fifteen are
+	// documented in backend/docs/api.yaml:
+	//   c635bdb68 GET    /api/v1/lab-device-item-masters
+	//   c635bdb68 POST   /api/v1/lab-device-item-masters/ensure
+	//   c635bdb68 PATCH  /api/v1/lab-device-item-masters/:id
+	//   c635bdb68 POST   /api/v1/lab-device/frames
+	//   c635bdb68 PUT    /api/v1/lab-device/wait
+	//   c635bdb68 DELETE /api/v1/lab-device/wait
+	//   c635bdb68 GET    /api/v1/lab-device/board
+	//   c635bdb68 GET    /api/v1/lab-device/unlinked
+	//   c635bdb68 GET    /api/v1/lab-device/station
+	//   c635bdb68 PUT    /api/v1/lab-device/station
+	//   c635bdb68 POST   /api/v1/lab-imports/:job_id/attach
+	//   c635bdb68 POST   /api/v1/lab-imports/:job_id/detach
+	//   bb32b9fd1 GET    /api/v1/lab-devices
+	//   bb32b9fd1 POST   /api/v1/lab-devices
+	//   bb32b9fd1 PATCH  /api/v1/lab-devices/:id
+	//   PR333 fix PUT    /api/v1/lab-devices/:id/configuration
+	// 2026-09-03: 522 — e5465de17 added GET /api/v1/lab-device/agent-consumer
+	// (lab-device consumer token for the local agent). Documented in
+	// backend/docs/api.yaml and covered by the OpenAPI drift test.
+	require.Len(t, routes, 522)
 	for _, expected := range []string{
 		"GET /health",
 		"GET /uploads/*filepath",
@@ -62,6 +87,9 @@ func TestRouteCompositionSmoke_TargetGraphRegistersEverySurface(t *testing.T) {
 		"GET /api/v1/masters/permission-groups",
 		"GET /api/v1/owners",
 		"GET /api/v1/pets",
+		"PUT /api/v1/lab-devices/:id/configuration",
+		"GET /api/v1/lab-device/agent-consumer",
+
 		"GET /api/v1/masters/staffs",
 		"GET /api/v1/clinics",
 		"GET /api/v1/medical-records",
@@ -79,7 +107,7 @@ func TestRouteCompositionSmoke_TargetGraphRegistersEverySurface(t *testing.T) {
 		"/api/v1/masters/permission-groups",
 		"/api/v1/owners",
 	} {
-		request := httptest.NewRequest(http.MethodGet, protectedPath, nil)
+		request := httptest.NewRequest(http.MethodGet, protectedPath, http.NoBody)
 		response := httptest.NewRecorder()
 		router.ServeHTTP(response, request)
 		assert.Equal(t, http.StatusUnauthorized, response.Code, protectedPath)

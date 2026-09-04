@@ -129,9 +129,7 @@ export function LineReservationSlotsSettings() {
 
         {/* 右: カレンダーパネル */}
         <div className="flex-1 min-h-0 flex flex-col p-4 gap-3 overflow-hidden">
-          {breadcrumb ? (
-            <p className={`text-sm font-medium ${C.text60}`}>{breadcrumb}</p>
-          ) : null}
+          {breadcrumb ? <p className={`text-sm font-medium ${C.text60}`}>{breadcrumb}</p> : null}
 
           {isLoading ? (
             <p className={`text-sm ${C.text40} py-4`}>読み込み中...</p>

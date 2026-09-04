@@ -5,16 +5,10 @@ interface UseEditableIdSelectionOptions {
   markDirty: () => void;
 }
 
-export function useEditableIdSelection({
-  serverIds,
-  markDirty,
-}: UseEditableIdSelectionOptions) {
+export function useEditableIdSelection({ serverIds, markDirty }: UseEditableIdSelectionOptions) {
   const [userEditedIds, setUserEditedIds] = useState<string[] | null>(null);
 
-  const ids = useMemo(
-    () => userEditedIds ?? serverIds ?? [],
-    [userEditedIds, serverIds],
-  );
+  const ids = useMemo(() => userEditedIds ?? serverIds ?? [], [userEditedIds, serverIds]);
   const idSet = useMemo(() => new Set(ids), [ids]);
 
   const handleToggle = useCallback(

@@ -3,8 +3,8 @@
  *
  * 判定内容:
  *   C1 — legacy 構造色（`C.accent` / 旧 accent `#2383E2`）禁止。brand/primary teal と臨床 semantic 色を許可。
- *   C3 — hex 直書き（文字列/テンプレートリテラル内）禁止。
- *   C5 — CTA の `colorVariant` は semantic primary、brand、互換 default のみ。
+ *   C3 — hex 直書き（文字列/テンプレートリテラル内）禁止。定義正本 `design-tokens.ts` / `shared-liff/brand-tokens.ts` は除外。
+ *   C5 — CTA の `colorVariant` は semantic primary、brand、destructive、互換 default のみ。
  *   C6 — rgba()/rgb()/hsla()/hsl() の直値禁止（doc §1 の臨床安全 C6a とは ID 分離: 本スクリプトは C6b）。
  *   C7 — PageLayout maxWidth の生値禁止（`max-w-full` / `max-w-[Npx]`）。トークン経由のみ。
  *   C8 — `src/features/<feat>/routes/<file>.tsx` が PageLayout / Master*Page / allowlist のいずれか。
@@ -13,12 +13,13 @@
  *   C11 — font-size 任意値禁止。
  *   C12 — DESIGN.md に存在しない font-size 段禁止。
  *   C13 — DESIGN.md ink 4段を迂回する黒アルファ禁止。
- *   C14 — typography role の letter-spacing を上書きする tracking utility 禁止。
+ *   C14 — typography role の letter-spacing を上書きする tracking utility 禁止（`*PrintArea*` は印刷透かしとして除外）。
  *   C15 — 本体 routes/pages で named white/black color の直接指定禁止。
  *   C16 — DESIGN.md spacing scale に存在しない 20px utility（`*-5`）禁止。
  *   C17 — CSS の直接 `box-shadow` / `filter: drop-shadow(...)` 禁止。
  *   C18 — Table primitive / raw th・td 呼び出し側で typography / padding / 背景を非仕様値へ上書きすることを禁止。
  *   C19 — table row（DataTableRow / SortableDataTableRow / TableRow / tr）の行全体クリックを禁止。
+ *   C20 — Tailwind 実行時合成（`hover:${` / `focus:${` / `text-[${`）禁止。完成形静的トークンのみ（FE-RC-013 / FE-RC-106）。
  *
  * C2/C4（PageLayout 使用）は C8 で routes 配下を機械化。新規リーフを allowlist に載せる場合は
  * C8_ALLOWLIST と docs/spec/ui-design-compliance.md §2 を同一コミットで更新する。
@@ -40,15 +41,17 @@ const CSS_SCAN_EXTENSIONS = new Set([".css"]);
 const EXCLUDE_DIR_NAMES = new Set(["node_modules", "dist", "generated"]);
 const LEAF_DIR_NAMES = new Set(["routes", "pages"]);
 
-// design-tokens.ts は色定数の定義正本のため C3/C6 の allowlist。
+// design-tokens.ts は本体色定数の定義正本のため C3/C6 の allowlist。
 const DESIGN_TOKENS_REL_PATH = path.join("src", "lib", "design-tokens.ts");
+// LIFF / LINE 予約の共有ブランドパレット定義正本（本体 design-tokens とは別系統）。
+const BRAND_TOKENS_REL_PATH = path.join("src", "shared-liff", "brand-tokens.ts");
 // 実行時に動的生成する rgba() のみ扱う（JSDoc で根拠を記載済み）ため C6 の allowlist。
 const COLOR_MAP_REL_PATH = path.join("src", "hooks", "use-reservation-type-color-map.ts");
 
 const C1_RE = /C\.accent\b|#2383E2/i;
 const C3_RE = /['"`]#[0-9A-Fa-f]{3,8}['"`]|(?:(?:[a-z-]+):)*(?:bg|text|border|ring|outline|fill|stroke|decoration)-\[#[0-9A-Fa-f]{3,8}\](?:\/[0-9]+)?/;
 const C5_RE = /colorVariant="([a-zA-Z]+)"/g;
-const C5_ALLOWED_VALUES = new Set(["default", "primary", "brand"]);
+const C5_ALLOWED_VALUES = new Set(["default", "primary", "brand", "destructive"]);
 const C6_RE = /rgba?\(|hsla?\(/;
 const C7_RE = /maxWidth=["']max-w-(full|\[[0-9]+px\])["']/;
 const C9_RE = /rounded(?:-[trbl]{1,2})?-\[[0-9]+px\]/
@@ -78,6 +81,8 @@ const C18_TABLE_HORIZONTAL_PADDING_RE = /\b(?:px|pl|pr|ps|pe)-(?:px|[0-9]+(?:\.5
 /** C18(raw): 背景は行側（STYLE.tableHeaderRow の bgPage 帯）が正本。セル単位の bg 再指定を禁止。 */
 const C18_TABLE_RAW_CELL_BG_RE = /(?:^|[^-\w])bg-|(?:^|[^\w$])C\.bg[A-Z]/;
 const C19_TABLE_ROW_OPENING_TAG_START_RE = /<(?:DataTableRow|SortableDataTableRow|TableRow|tr)\b/g;
+/** C20: Tailwind v4 は静的走査のみ。`hover:${C.x}` 等の実行時合成は CSS に出ない（FE-RC-013 / FE-RC-106）。 */
+const C20_RUNTIME_SYNTHESIS_RE = /hover:\$\{|focus:\$\{|text-\[\$\{/;
 
 /** C8: 独自 shell を持つ正当な route page（相対パス完全一致）。 */
 export const C8_PAGE_ALLOWLIST = new Set([
@@ -92,13 +97,42 @@ export const C8_PAGE_ALLOWLIST = new Set([
   path.join("src", "features", "master", "routes", "LineReservationSlotsSettings.tsx"),
 ]);
 
-/** C8: routes/ に置かれているが route page ではない helper（相対パス完全一致）。 */
+/** C8: routes/ に置かれているが route page ではない helper、または 150 行分割で shell を sibling へ移した薄い route（相対パス完全一致）。 */
 export const C8_ROUTE_HELPER_ALLOWLIST = new Set([
   path.join("src", "features", "trimming", "routes", "TrimmingLazyModals.tsx"),
   path.join("src", "features", "reception", "routes", "ReceptionLazyModals.tsx"),
   path.join("src", "features", "lstep", "routes", "LstepDeliveryMonitorPageParts.tsx"),
   path.join("src", "features", "lstep", "routes", "LstepDeliveryMonitorLogsTable.tsx"),
-  path.join("src", "features", "medical-records", "routes", "medical-records-columns.tsx"),
+  path.join("src", "features", "accounting", "routes", "AccountingListPanels.tsx"),
+  path.join("src", "features", "accounting-reports", "routes", "AccountingReportsPagePanels.tsx"),
+  path.join("src", "features", "aggregation", "routes", "AggregationDashboardPage.tsx"),
+  path.join("src", "features", "auth", "routes", "ResetPasswordPageSections.tsx"),
+  path.join("src", "features", "checkups", "routes", "CheckupsListPanels.tsx"),
+  path.join("src", "features", "checkups", "routes", "CheckupFormPanels.tsx"),
+  path.join("src", "features", "estimates", "routes", "EstimateDetailPanels.tsx"),
+  path.join("src", "features", "estimates", "routes", "EstimateListPanels.tsx"),
+  path.join("src", "features", "examinations", "routes", "ExaminationsListPanels.tsx"),
+  path.join("src", "features", "hospitalization", "routes", "HospitalizationForm.tsx"),
+  path.join("src", "features", "hospitalization", "routes", "HospitalizationList.tsx"),
+  path.join("src", "features", "inventory", "routes", "InventoryForm.tsx"),
+  path.join("src", "features", "inventory", "routes", "InventoryListPanels.tsx"),
+  path.join("src", "features", "lab-device", "routes", "LabDeviceBoardPanels.tsx"),
+  path.join("src", "features", "master", "routes", "TreatmentPlanMaster.tsx"),
+  path.join("src", "features", "medical-records", "routes", "MedicalRecordForm.tsx"),
+  path.join("src", "features", "medical-records", "routes", "MedicalRecords.tsx"),
+  path.join("src", "features", "reception", "routes", "ReceptionPagePanels.tsx"),
+  path.join("src", "features", "reception", "routes", "use-reception-column-view.tsx"),
+  path.join("src", "features", "shifts", "routes", "ShiftTemplateSettings.tsx"),
+  path.join("src", "features", "trimming", "routes", "TrimmingForm.tsx"),
+  path.join("src", "features", "trimming", "routes", "TrimmingList.tsx"),
+  path.join("src", "features", "trimming", "routes", "TrimmingFormColumns.tsx"),
+  path.join("src", "features", "hospitalization", "routes", "HospitalizationFormBody.tsx"),
+  path.join("src", "features", "hospitalization", "routes", "HospitalizationFormFields.tsx"),
+  path.join("src", "features", "hospitalization", "routes", "HospitalizationFormStatusView.tsx"),
+  path.join("src", "features", "hospitalization", "routes", "HospitalizationFormHeaderExtra.tsx"),
+  path.join("src", "features", "trimming", "routes", "TrimmingFormPanels.tsx"),
+  path.join("src", "features", "vaccinations", "routes", "VaccinationForm.tsx"),
+  path.join("src", "features", "vaccinations", "routes", "VaccinationListPanels.tsx"),
 ]);
 export const C8_ALLOWLIST = new Set([
   ...C8_PAGE_ALLOWLIST,
@@ -133,12 +167,20 @@ export const C18_RAW_CELL_ALLOWLIST = new Set([
 const C18_RAW_CELL_PRINT_BASENAME_RE = /PrintArea/;
 
 /**
+ * isPrintSurfaceFile は印刷帳票コンポーネント（basename に PrintArea）かを判定する。
+ * 画面用 typography / cell 規則（C14 / C18）の対象外。
+ */
+export function isPrintSurfaceFile(relPath) {
+  return C18_RAW_CELL_PRINT_BASENAME_RE.test(path.basename(relPath));
+}
+
+/**
  * isC18RawCellExemptFile は raw th/td 検査の対象外ファイルか判定する。
  * allowlist・print 帳票・別アプリ（liff / line-reserve / shared-liff / MedicalRecordPrintView = FE11 除外）を除外する。
  */
 export function isC18RawCellExemptFile(relPath) {
   if (C18_RAW_CELL_ALLOWLIST.has(relPath)) return true;
-  if (C18_RAW_CELL_PRINT_BASENAME_RE.test(path.basename(relPath))) return true;
+  if (isPrintSurfaceFile(relPath)) return true;
   return isFE11ExcludedPath(relPath);
 }
 
@@ -174,6 +216,13 @@ export function isLeafRouteFile(relPath) {
  */
 export function isDesignTokensFile(relPath) {
   return relPath === DESIGN_TOKENS_REL_PATH;
+}
+
+/**
+ * isBrandTokensFile は LIFF/LINE 予約ブランドパレット本体（C3 allowlist）かを判定する。
+ */
+export function isBrandTokensFile(relPath) {
+  return relPath === BRAND_TOKENS_REL_PATH;
 }
 
 /**
@@ -344,7 +393,8 @@ export function checkC13(text) {
  */
 export function checkC14(text, relPath = "") {
   // FE11 は本体84ルートが対象。別アプリは C12 と同じ明示 allowlist とする。
-  if (isFE11ExcludedPath(relPath)) return [];
+  // 印刷帳票の透かし letter-spacing は画面用 typography role の対象外（C18 と同じ *PrintArea*）。
+  if (isFE11ExcludedPath(relPath) || isPrintSurfaceFile(relPath)) return [];
   const violations = [];
   text.split("\n").forEach((line, i) => {
     if (C14_RE.test(line)) {
@@ -723,6 +773,90 @@ export function checkC19(text, relPath = "") {
   return violations;
 }
 
+/**
+ * stripTsCommentsPreservingLines は行コメントとブロックコメントを空白化し、行番号を保つ。
+ * 文字列・テンプレートリテラル内はそのまま残す（C20 の検出対象は template 内の合成）。
+ */
+export function stripTsCommentsPreservingLines(text) {
+  let result = "";
+  let mode = "code";
+  let escaped = false;
+  for (let i = 0; i < text.length; i += 1) {
+    const char = text[i];
+    const next = text[i + 1];
+
+    if (mode === "line-comment") {
+      if (char === "\n") {
+        mode = "code";
+        result += "\n";
+      } else {
+        result += " ";
+      }
+      continue;
+    }
+    if (mode === "block-comment") {
+      if (char === "*" && next === "/") {
+        mode = "code";
+        result += "  ";
+        i += 1;
+      } else {
+        result += char === "\n" ? "\n" : " ";
+      }
+      continue;
+    }
+    if (mode === "single" || mode === "double" || mode === "template") {
+      result += char;
+      if (escaped) escaped = false;
+      else if (char === "\\") escaped = true;
+      else if (
+        (mode === "single" && char === "'")
+        || (mode === "double" && char === '"')
+        || (mode === "template" && char === "`")
+      ) {
+        mode = "code";
+      }
+      continue;
+    }
+
+    if (char === "/" && next === "/") {
+      mode = "line-comment";
+      result += "  ";
+      i += 1;
+    } else if (char === "/" && next === "*") {
+      mode = "block-comment";
+      result += "  ";
+      i += 1;
+    } else if (char === "'") {
+      mode = "single";
+      result += char;
+    } else if (char === '"') {
+      mode = "double";
+      result += char;
+    } else if (char === "`") {
+      mode = "template";
+      result += char;
+    } else {
+      result += char;
+    }
+  }
+  return result;
+}
+
+/**
+ * checkC20 は Tailwind v4 が拾えない実行時クラス合成を検出する（FE-RC-013 / FE-RC-106）。
+ * コメントは除外する（design-tokens の FE-RC-013 説明は違反にしない）。
+ */
+export function checkC20(text) {
+  const violations = [];
+  const code = stripTsCommentsPreservingLines(text);
+  code.split("\n").forEach((line, i) => {
+    if (C20_RUNTIME_SYNTHESIS_RE.test(line)) {
+      violations.push({ lineNumber: i + 1, text: line.trim() });
+    }
+  });
+  return violations;
+}
+
 function isFE11ExcludedPath(relPath) {
   const segments = relPath.split(/[\\/]/);
   const normalizedPath = segments.join("/");
@@ -756,11 +890,11 @@ async function walk(dir, exts, excludeNames) {
 
 /**
  * collectViolations は cwd 配下の SCAN_ROOTS（src・liff/src・line-reserve/src）を走査し、
- * C1〜C19 違反を集計する純粋寄りの関数。
- * ファイル I/O のみ副作用を持ち、判定ロジック自体は checkC1〜checkC19 に委譲する。
+ * C1〜C20 違反を集計する純粋寄りの関数。
+ * ファイル I/O のみ副作用を持ち、判定ロジック自体は checkC1〜checkC20 に委譲する。
  */
 export async function collectViolations(cwd) {
-  const result = { c1: [], c3: [], c5: [], c6: [], c7: [], c8: [], c9: [], c10: [], c11: [], c12: [], c13: [], c14: [], c15: [], c16: [], c17: [], c18: [], c19: [] };
+  const result = { c1: [], c3: [], c5: [], c6: [], c7: [], c8: [], c9: [], c10: [], c11: [], c12: [], c13: [], c14: [], c15: [], c16: [], c17: [], c18: [], c19: [], c20: [] };
 
   for (const scanRoot of SCAN_ROOTS) {
     const root = path.join(cwd, scanRoot);
@@ -774,7 +908,7 @@ export async function collectViolations(cwd) {
       for (const v of checkC1(text)) {
         result.c1.push({ file: relPath, ...v });
       }
-      if (!isTest && !isDesignTokensFile(relPath)) {
+      if (!isTest && !isDesignTokensFile(relPath) && !isBrandTokensFile(relPath)) {
         for (const v of checkC3(text)) {
           result.c3.push({ file: relPath, ...v });
         }
@@ -822,6 +956,9 @@ export async function collectViolations(cwd) {
         }
         for (const v of checkC19(text, relPath)) {
           result.c19.push({ file: relPath, ...v });
+        }
+        for (const v of checkC20(text)) {
+          result.c20.push({ file: relPath, ...v });
         }
       }
 
@@ -892,11 +1029,12 @@ async function main() {
   printGroup("C17 CSS shadow 直書き", result.c17);
   printGroup("C18 table cell override", result.c18);
   printGroup("C19 table row onClick", result.c19);
+  printGroup("C20 runtime Tailwind synthesis", result.c20);
 
   const total = result.c1.length + result.c3.length + result.c5.length + result.c6.length
     + result.c7.length + result.c8.length + result.c9.length + result.c10.length + result.c11.length
     + result.c12.length + result.c13.length + result.c14.length + result.c15.length + result.c16.length
-    + result.c17.length + result.c18.length + result.c19.length;
+    + result.c17.length + result.c18.length + result.c19.length + result.c20.length;
   if (total > 0) {
     console.log(`design-system-audit: FAIL — ${total} 件の違反`);
     process.exit(1);

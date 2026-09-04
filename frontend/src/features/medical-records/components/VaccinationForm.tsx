@@ -4,13 +4,13 @@ import { memo } from "react";
 // Internal
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { DatePicker } from "@/components/shared/DatePicker";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { MasterLink } from "@/components/shared/MasterLink";
+import { NextScheduleField } from "@/components/shared/NextScheduleField";
+import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C } from "@/lib/design-tokens";
 
 interface VaccineOption {
@@ -42,8 +42,6 @@ interface VaccinationFormProps {
   setRemarks: (v: string) => void;
   /** BUG-015: 必須未選択時のインラインエラー（独立フォームと同文言） */
   fieldErrors?: Record<string, string>;
-  onSave?: () => void;
-  isSaving?: boolean;
 }
 
 export const VaccinationForm = memo(function VaccinationForm({
@@ -69,11 +67,9 @@ export const VaccinationForm = memo(function VaccinationForm({
   remarks,
   setRemarks,
   fieldErrors = {},
-  onSave,
-  isSaving,
 }: VaccinationFormProps) {
   return (
-    <div className="col-span-1 flex flex-col gap-4 lg:col-span-6">
+    <div className="col-span-1 flex flex-col gap-4 lg:col-span-3">
       {/* Row 1: Name and Date */}
       <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
@@ -93,9 +89,7 @@ export const VaccinationForm = memo(function VaccinationForm({
           <FormFieldError id="mr-vaccine-error" message={fieldErrors.vaccineId} />
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label className={`text-sm font-medium ${C.text60}`}>
-            予防接種日
-          </Label>
+          <Label className={`text-sm font-medium ${C.text60}`}>予防接種日</Label>
           <DatePicker value={date} onChange={setDate} />
           <FormFieldError id="mr-vaccine-date-error" message={fieldErrors.date} />
         </div>
@@ -103,9 +97,7 @@ export const VaccinationForm = memo(function VaccinationForm({
 
       {/* Supplemental */}
       <div className="flex flex-col gap-1.5">
-        <Label className={`text-sm font-medium ${C.text60}`}>
-          補助説明
-        </Label>
+        <Label className={`text-sm font-medium ${C.text60}`}>補助説明</Label>
         <Input
           value={supplemental}
           onChange={(e) => setSupplemental(e.target.value)}
@@ -116,9 +108,7 @@ export const VaccinationForm = memo(function VaccinationForm({
       {/* LOT Numbers */}
       <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
-          <Label className={`text-sm font-medium ${C.text60}`}>
-            LOT1
-          </Label>
+          <Label className={`text-sm font-medium ${C.text60}`}>LOT1</Label>
           <Input
             value={lot1}
             onChange={(e) => setLot1(e.target.value)}
@@ -126,9 +116,7 @@ export const VaccinationForm = memo(function VaccinationForm({
           />
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label className={`text-sm font-medium ${C.text60}`}>
-            LOT2
-          </Label>
+          <Label className={`text-sm font-medium ${C.text60}`}>LOT2</Label>
           <Input
             value={lot2}
             onChange={(e) => setLot2(e.target.value)}
@@ -136,9 +124,7 @@ export const VaccinationForm = memo(function VaccinationForm({
           />
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label className={`text-sm font-medium ${C.text60}`}>
-            LOT3
-          </Label>
+          <Label className={`text-sm font-medium ${C.text60}`}>LOT3</Label>
           <Input
             value={lot3}
             onChange={(e) => setLot3(e.target.value)}
@@ -146,9 +132,7 @@ export const VaccinationForm = memo(function VaccinationForm({
           />
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label className={`text-sm font-medium ${C.text60}`}>
-            LOT4
-          </Label>
+          <Label className={`text-sm font-medium ${C.text60}`}>LOT4</Label>
           <Input
             value={lot4}
             onChange={(e) => setLot4(e.target.value)}
@@ -157,84 +141,19 @@ export const VaccinationForm = memo(function VaccinationForm({
         </div>
       </div>
 
-      {/* Next Schedule Type */}
-      <div className="flex flex-col gap-1.5">
-        <Label className={`text-sm font-medium ${C.text60}`}>
-          次回予防接種予定設定
-        </Label>
-        <RadioGroup
-          value={nextScheduleType}
-          onValueChange={setNextScheduleType}
-          className="flex flex-row gap-6 pt-2"
-        >
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem
-              value="3weeks"
-              id="r1"
-              className={`${C.borderMedium} ${C.text}`}
-            />
-            <Label
-              htmlFor="r1"
-              className={`font-normal ${C.text} text-sm cursor-pointer`}
-            >
-              3週間後
-            </Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem
-              value="4weeks"
-              id="r2"
-              className={`${C.borderMedium} ${C.text}`}
-            />
-            <Label
-              htmlFor="r2"
-              className={`font-normal ${C.text} text-sm cursor-pointer`}
-            >
-              4週間後
-            </Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem
-              value="1year"
-              id="r3"
-              className={`${C.borderMedium} ${C.text}`}
-            />
-            <Label
-              htmlFor="r3"
-              className={`font-normal ${C.text} text-sm cursor-pointer`}
-            >
-              1年後
-            </Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem
-              value="other"
-              id="r4"
-              className={`${C.borderMedium} ${C.text}`}
-            />
-            <Label
-              htmlFor="r4"
-              className={`font-normal ${C.text} text-sm cursor-pointer`}
-            >
-              以外
-            </Label>
-          </div>
-        </RadioGroup>
-      </div>
-
-      {/* Next Date */}
-      <div className="flex flex-col gap-1.5">
-        <Label className={`text-sm font-medium ${C.text60}`}>
-          次回予定日
-        </Label>
-        <DatePicker value={nextDate} onChange={setNextDate} />
-      </div>
+      <NextScheduleField
+        typeId="mr-vaccination-next-schedule"
+        dateId="mr-vaccination-next-date"
+        scheduleType={nextScheduleType}
+        nextDate={nextDate}
+        onScheduleTypeChange={setNextScheduleType}
+        onNextDateChange={setNextDate}
+        dateAriaLabel="次回接種予定日"
+      />
 
       {/* Remarks */}
       <div className="flex flex-col gap-1.5 flex-1 min-h-0">
-        <Label className={`text-sm font-medium ${C.text60}`}>
-          備考
-        </Label>
+        <Label className={`text-sm font-medium ${C.text60}`}>備考</Label>
         <Textarea
           value={remarks}
           onChange={(e) => setRemarks(e.target.value)}
@@ -242,20 +161,12 @@ export const VaccinationForm = memo(function VaccinationForm({
         />
       </div>
 
-      {/* Save Button */}
-      {onSave ? (
-        <div className="pt-2">
-          <Button
-            type="button"
-            onClick={onSave}
-            disabled={isSaving}
-            className={`${C.bgBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} ${C.textOnBrand} rounded-full border-transparent transition-colors`}
-          >
-            {isSaving ? "登録中..." : "接種記録を追加"}
-          </Button>
-        </div>
-      ) : null}
-
+      {/* Save Button — React 19 useFormStatus 経由で親 <form> の pending を自動反映 */}
+      <div className="pt-2">
+        <SubmitButton colorVariant="primary" loadingText="登録中...">
+          接種記録を追加
+        </SubmitButton>
+      </div>
     </div>
   );
 });

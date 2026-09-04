@@ -1,6 +1,13 @@
 package owner
 
-import "github.com/animal-ekarte/backend/internal/model"
+import (
+	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/textsearch"
+)
+
+func normalizeNameKana(value string) string {
+	return textsearch.NormalizeKana(value)
+}
 
 func buildOwnerModel(clinicID uint64, input *CreateOwnerInput) *model.Owner {
 	membershipType := input.MembershipType
@@ -11,7 +18,7 @@ func buildOwnerModel(clinicID uint64, input *CreateOwnerInput) *model.Owner {
 	return &model.Owner{
 		ClinicID:       clinicID,
 		Name:           input.OwnerName,
-		NameKana:       input.OwnerNameKana,
+		NameKana:       normalizeNameKana(input.OwnerNameKana),
 		BirthDate:      input.BirthDate,
 		Company:        input.Company,
 		PostalCode:     input.PostalCode,
@@ -38,7 +45,7 @@ func buildOwnerPetModels(inputs []CreatePetForOwnerInput) []model.Pet {
 		pet := model.Pet{
 			Name:            p.Name,
 			AnimalSpeciesID: p.AnimalSpeciesID,
-			NameKana:        p.PetNameKana,
+			NameKana:        normalizeNameKana(p.PetNameKana),
 			Breed:           p.Breed,
 			Color:           p.Color,
 			BirthDate:       p.BirthDate,

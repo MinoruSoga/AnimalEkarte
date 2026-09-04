@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"github.com/animal-ekarte/backend/internal/clinic"
 	"github.com/animal-ekarte/backend/internal/medicalrecord"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/owner"
@@ -27,6 +28,7 @@ type reservationRepositories struct {
 	AvailableSlots          reservation.ReservationTypeAvailableSlotRepository
 	TypeOccupations         reservation.ReservationTypeOccupationRepository
 	Occupations             staff.OccupationRepository
+	ClinicHolidays          clinic.ClinicHolidayRepository
 }
 
 func newReservationRepositories(
@@ -48,6 +50,7 @@ func newReservationRepositories(
 		AvailableSlots:          reservation.NewReservationTypeAvailableSlotRepository(db),
 		TypeOccupations:         reservation.NewReservationTypeOccupationRepository(db),
 		Occupations:             occupations,
+		ClinicHolidays:          clinic.NewClinicHolidayRepository(db),
 	}
 }
 
@@ -189,13 +192,15 @@ func newReservationService(
 	r reservationRepositories,
 	d reservationServiceDependencies,
 ) reservation.ReservationService {
-	return reservation.NewReservationServiceWithAvailabilityAndType(
+	return reservation.NewReservationServiceWithClinicHolidays(
 		r.Reservations,
 		r.ReservationTypes,
 		d.Transactor,
 		r.ReservationStaff,
 		r.UnavailableTimes,
 		r.AvailableSlots,
+		r.LineReservationSettings,
+		r.ClinicHolidays,
 	)
 }
 
@@ -212,6 +217,7 @@ func newReservationAdminService(
 		r.UnavailableTimes,
 		r.AvailableSlots,
 		d.MedicalRecords,
+		r.ClinicHolidays,
 	)
 }
 
@@ -239,6 +245,7 @@ func newReservationLiffService(
 		d.TrimmingOptions,
 		d.TrimmingDetails,
 		d.Vaccinations,
+		r.ClinicHolidays,
 		d.MedicalRecords,
 	)
 }

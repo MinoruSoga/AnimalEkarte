@@ -3,7 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
-import { createTestWrapper } from "@/testing/utils";
+import { createTestWrapper } from "@/testing/TestUtils";
 import { LstepTagConfigSection } from "./LstepTagConfigSection";
 
 function createWrapper() {
@@ -21,15 +21,9 @@ afterEach(() => {
 describe("LstepTagConfigSection — A: GET 結果表示", () => {
   it("セクションヘッダーが表示される", async () => {
     server.use(
-      http.get("/api/v1/lstep-tag-config/auto-managed-prefixes", () =>
-        HttpResponse.json([]),
-      ),
-      http.get("/api/v1/lstep-tag-config/condition-tag-mappings", () =>
-        HttpResponse.json([]),
-      ),
-      http.get("/api/v1/lstep-tag-config/send-purpose-tag-prefixes", () =>
-        HttpResponse.json([]),
-      ),
+      http.get("/api/v1/lstep-tag-config/auto-managed-prefixes", () => HttpResponse.json([])),
+      http.get("/api/v1/lstep-tag-config/condition-tag-mappings", () => HttpResponse.json([])),
+      http.get("/api/v1/lstep-tag-config/send-purpose-tag-prefixes", () => HttpResponse.json([])),
     );
 
     render(<LstepTagConfigSection />, { wrapper: createWrapper() });
@@ -46,15 +40,9 @@ describe("LstepTagConfigSection — A: GET 結果表示", () => {
 
   it("データが空の場合、全セクションで「登録なし」が表示される", async () => {
     server.use(
-      http.get("/api/v1/lstep-tag-config/auto-managed-prefixes", () =>
-        HttpResponse.json([]),
-      ),
-      http.get("/api/v1/lstep-tag-config/condition-tag-mappings", () =>
-        HttpResponse.json([]),
-      ),
-      http.get("/api/v1/lstep-tag-config/send-purpose-tag-prefixes", () =>
-        HttpResponse.json([]),
-      ),
+      http.get("/api/v1/lstep-tag-config/auto-managed-prefixes", () => HttpResponse.json([])),
+      http.get("/api/v1/lstep-tag-config/condition-tag-mappings", () => HttpResponse.json([])),
+      http.get("/api/v1/lstep-tag-config/send-purpose-tag-prefixes", () => HttpResponse.json([])),
     );
 
     render(<LstepTagConfigSection />, { wrapper: createWrapper() });
@@ -69,16 +57,10 @@ describe("LstepTagConfigSection — A: GET 結果表示", () => {
   it("自動管理プレフィックスの一覧が表示される", async () => {
     server.use(
       http.get("/api/v1/lstep-tag-config/auto-managed-prefixes", () =>
-        HttpResponse.json([
-          { id: 1, prefix: "vaccine_", category: "C2", description: null },
-        ]),
+        HttpResponse.json([{ id: 1, prefix: "vaccine_", category: "C2", description: null }]),
       ),
-      http.get("/api/v1/lstep-tag-config/condition-tag-mappings", () =>
-        HttpResponse.json([]),
-      ),
-      http.get("/api/v1/lstep-tag-config/send-purpose-tag-prefixes", () =>
-        HttpResponse.json([]),
-      ),
+      http.get("/api/v1/lstep-tag-config/condition-tag-mappings", () => HttpResponse.json([])),
+      http.get("/api/v1/lstep-tag-config/send-purpose-tag-prefixes", () => HttpResponse.json([])),
     );
 
     render(<LstepTagConfigSection />, { wrapper: createWrapper() });
@@ -92,17 +74,13 @@ describe("LstepTagConfigSection — A: GET 結果表示", () => {
 
   it("慢性疾患タグマッピングの一覧が表示される", async () => {
     server.use(
-      http.get("/api/v1/lstep-tag-config/auto-managed-prefixes", () =>
-        HttpResponse.json([]),
-      ),
+      http.get("/api/v1/lstep-tag-config/auto-managed-prefixes", () => HttpResponse.json([])),
       http.get("/api/v1/lstep-tag-config/condition-tag-mappings", () =>
         HttpResponse.json([
           { id: 1, condition_code: "DM", tag_name: "CHRON_DM", description: null },
         ]),
       ),
-      http.get("/api/v1/lstep-tag-config/send-purpose-tag-prefixes", () =>
-        HttpResponse.json([]),
-      ),
+      http.get("/api/v1/lstep-tag-config/send-purpose-tag-prefixes", () => HttpResponse.json([])),
     );
 
     render(<LstepTagConfigSection />, { wrapper: createWrapper() });
@@ -116,12 +94,8 @@ describe("LstepTagConfigSection — A: GET 結果表示", () => {
 
   it("送信目的タグプレフィックスの一覧が表示される", async () => {
     server.use(
-      http.get("/api/v1/lstep-tag-config/auto-managed-prefixes", () =>
-        HttpResponse.json([]),
-      ),
-      http.get("/api/v1/lstep-tag-config/condition-tag-mappings", () =>
-        HttpResponse.json([]),
-      ),
+      http.get("/api/v1/lstep-tag-config/auto-managed-prefixes", () => HttpResponse.json([])),
+      http.get("/api/v1/lstep-tag-config/condition-tag-mappings", () => HttpResponse.json([])),
       http.get("/api/v1/lstep-tag-config/send-purpose-tag-prefixes", () =>
         HttpResponse.json([
           { id: 1, purpose: "vaccine_reminder", tag_prefix: "PREV_", description: null },
@@ -146,17 +120,14 @@ describe("LstepTagConfigSection — A: GET 結果表示", () => {
 describe("LstepTagConfigSection — B: POST 追加", () => {
   it("プレフィックスとカテゴリを入力して追加するとリストに反映される", async () => {
     server.use(
-      http.get("/api/v1/lstep-tag-config/auto-managed-prefixes", () =>
-        HttpResponse.json([]),
-      ),
-      http.get("/api/v1/lstep-tag-config/condition-tag-mappings", () =>
-        HttpResponse.json([]),
-      ),
-      http.get("/api/v1/lstep-tag-config/send-purpose-tag-prefixes", () =>
-        HttpResponse.json([]),
-      ),
+      http.get("/api/v1/lstep-tag-config/auto-managed-prefixes", () => HttpResponse.json([])),
+      http.get("/api/v1/lstep-tag-config/condition-tag-mappings", () => HttpResponse.json([])),
+      http.get("/api/v1/lstep-tag-config/send-purpose-tag-prefixes", () => HttpResponse.json([])),
       http.post("/api/v1/lstep-tag-config/auto-managed-prefixes", () =>
-        HttpResponse.json({ id: 10, prefix: "vaccine_", category: "C2", description: null }, { status: 201 }),
+        HttpResponse.json(
+          { id: 10, prefix: "vaccine_", category: "C2", description: null },
+          { status: 201 },
+        ),
       ),
     );
 
@@ -175,9 +146,7 @@ describe("LstepTagConfigSection — B: POST 追加", () => {
     // invalidate後に再フェッチで追加済みリストを返す
     server.use(
       http.get("/api/v1/lstep-tag-config/auto-managed-prefixes", () =>
-        HttpResponse.json([
-          { id: 10, prefix: "vaccine_", category: "C2", description: null },
-        ]),
+        HttpResponse.json([{ id: 10, prefix: "vaccine_", category: "C2", description: null }]),
       ),
     );
 
@@ -191,15 +160,9 @@ describe("LstepTagConfigSection — B: POST 追加", () => {
 
   it("フィールドが空のまま追加しようとするとエラーが表示される", async () => {
     server.use(
-      http.get("/api/v1/lstep-tag-config/auto-managed-prefixes", () =>
-        HttpResponse.json([]),
-      ),
-      http.get("/api/v1/lstep-tag-config/condition-tag-mappings", () =>
-        HttpResponse.json([]),
-      ),
-      http.get("/api/v1/lstep-tag-config/send-purpose-tag-prefixes", () =>
-        HttpResponse.json([]),
-      ),
+      http.get("/api/v1/lstep-tag-config/auto-managed-prefixes", () => HttpResponse.json([])),
+      http.get("/api/v1/lstep-tag-config/condition-tag-mappings", () => HttpResponse.json([])),
+      http.get("/api/v1/lstep-tag-config/send-purpose-tag-prefixes", () => HttpResponse.json([])),
     );
 
     render(<LstepTagConfigSection />, { wrapper: createWrapper() });
@@ -226,18 +189,13 @@ describe("LstepTagConfigSection — C: DELETE 削除", () => {
   it("削除ボタンをクリックするとリストから消える", async () => {
     server.use(
       http.get("/api/v1/lstep-tag-config/auto-managed-prefixes", () =>
-        HttpResponse.json([
-          { id: 1, prefix: "vaccine_", category: "C2", description: null },
-        ]),
+        HttpResponse.json([{ id: 1, prefix: "vaccine_", category: "C2", description: null }]),
       ),
-      http.get("/api/v1/lstep-tag-config/condition-tag-mappings", () =>
-        HttpResponse.json([]),
-      ),
-      http.get("/api/v1/lstep-tag-config/send-purpose-tag-prefixes", () =>
-        HttpResponse.json([]),
-      ),
-      http.delete("/api/v1/lstep-tag-config/auto-managed-prefixes/:id", () =>
-        new HttpResponse(null, { status: 204 }),
+      http.get("/api/v1/lstep-tag-config/condition-tag-mappings", () => HttpResponse.json([])),
+      http.get("/api/v1/lstep-tag-config/send-purpose-tag-prefixes", () => HttpResponse.json([])),
+      http.delete(
+        "/api/v1/lstep-tag-config/auto-managed-prefixes/:id",
+        () => new HttpResponse(null, { status: 204 }),
       ),
     );
 
@@ -249,9 +207,7 @@ describe("LstepTagConfigSection — C: DELETE 削除", () => {
 
     // 削除後は空リストを返す
     server.use(
-      http.get("/api/v1/lstep-tag-config/auto-managed-prefixes", () =>
-        HttpResponse.json([]),
-      ),
+      http.get("/api/v1/lstep-tag-config/auto-managed-prefixes", () => HttpResponse.json([])),
     );
 
     const user = userEvent.setup();

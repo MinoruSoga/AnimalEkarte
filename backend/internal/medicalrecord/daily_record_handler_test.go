@@ -659,6 +659,47 @@ func TestAddStaffNote(t *testing.T) {
 	}
 }
 
+func TestDailyRecordHandlers_InvalidTimeUsesFixedJapaneseMessage(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	tests := []struct {
+		name string
+		call func(h *DailyRecordHandler, c *gin.Context)
+		body map[string]any
+	}{
+		{
+			name: "vital",
+			call: func(h *DailyRecordHandler, c *gin.Context) { h.AddVitalRecord(c) },
+			body: map[string]any{"time": "09:30"},
+		},
+		{
+			name: "care log",
+			call: func(h *DailyRecordHandler, c *gin.Context) { h.AddCareLog(c) },
+			body: map[string]any{"time": "10:15", "type": "food"},
+		},
+		{
+			name: "staff note",
+			call: func(h *DailyRecordHandler, c *gin.Context) { h.AddStaffNote(c) },
+			body: map[string]any{"time": "11:00", "content": "note"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithDailyRecordSvc(&mockDailyRecordService{})
+			bodyBytes, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "id", Value: "1"}, {Key: "date", Value: "2026-07-01"}}
+			setClinicID(c)
+			tt.call(h, c)
+			assert.Equal(t, http.StatusBadRequest, w.Code)
+			assert.JSONEq(t, `{"error":"日時の形式が正しくありません"}`, w.Body.String())
+		})
+	}
+}
+
 // ---- Comprehensive Test Coverage Documentation ----
 //
 // Daily Record Handler Test Cases
@@ -815,3 +856,55 @@ func TestAddStaffNote(t *testing.T) {
 //    - Test cascade behavior for child records (vitals, medications, care logs)
 //    - Verify clinic_id inheritance from parent hospitalization
 //
+
+// SEC-CODEX-UHQPM2 selected-clinic grant
+func TestDailyRecordSelectedClinicGrant(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name   string
+		invoke func(*DailyRecordHandler, *gin.Context)
+		svc    *mockDailyRecordService
+	}{
+		{
+			name: "ListDailyRecords returns 403 when selected clinic lacks hospitalization view grant",
+			invoke: func(h *DailyRecordHandler, c *gin.Context) {
+				h.ListDailyRecords(c)
+			},
+			svc: &mockDailyRecordService{
+				listFn: func(_ context.Context, _, _ uint64) ([]model.DailyRecord, error) {
+					t.Fatal("service must not be reached")
+					return nil, nil
+				},
+			},
+		},
+		{
+			name: "GetDailyRecord returns 403 when selected clinic lacks hospitalization view grant",
+			invoke: func(h *DailyRecordHandler, c *gin.Context) {
+				h.GetDailyRecord(c)
+			},
+			svc: &mockDailyRecordService{
+				getByDateFn: func(_ context.Context, _, _ uint64, _ time.Time) (*model.DailyRecord, error) {
+					t.Fatal("service must not be reached")
+					return nil, nil
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithDailyRecordSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: "10"}, {Key: "date", Value: "2026-05-01"}}
+			setClinicID(c)
+			c.Set("clinic_id", "2")
+			c.Set("is_system_admin", false)
+			setResourcePermissionOnlyClinic(c, 1, string(model.ResourceHospitalization), "view")
+			tt.invoke(h, c)
+			assert.Equal(t, http.StatusForbidden, w.Code)
+		})
+	}
+}

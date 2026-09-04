@@ -23,7 +23,7 @@ import (
 func setupReservationTypeLiffTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := testdb.SetupTestDB(t)
-	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.ReservationTypeGroup{}, &model.ReservationType{}))
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.ReservationTypeGroup{}, &model.ReservationType{}, &model.Reservation{}))
 	db.Exec("TRUNCATE TABLE reservation_types CASCADE")
 	db.Exec("TRUNCATE TABLE reservation_type_groups CASCADE")
 	return db
@@ -226,6 +226,57 @@ func TestReservationTypeLiffRepository_Delete(t *testing.T) {
 		assert.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
+
+	t.Run("CountUsage==0 直後に予約が紐づいても削除は失敗する", func(t *testing.T) {
+		typeRepo := NewReservationTypeRepository(db)
+		target := makeReservationTypeLinked(t, db, clinicA, "TOCTOU LIFFコース", nil, nil)
+		count, err := typeRepo.CountUsageByReservationTypeID(ctx, clinicA, target.ID)
+		require.NoError(t, err)
+		require.Equal(t, int64(0), count)
+
+		makeUsageAppointment(t, db, clinicA, target.ID, false)
+
+		err = repo.Delete(ctx, clinicA, target.ID)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsConflict(err), "expected Conflict, got %v", err)
+		assert.Contains(t, err.Error(), "この予約コースは予約データで使用中のため削除できません")
+
+		got, findErr := repo.FindByID(ctx, clinicA, target.ID)
+		require.NoError(t, findErr)
+		assert.Equal(t, target.ID, got.ID)
+	})
+
+	t.Run("DeleteWithDependencyChecks: CountUsage==0 直後の参照追加は Conflict で行が残る", func(t *testing.T) {
+		typeRepo := NewReservationTypeRepository(db)
+		target := makeReservationTypeLinked(t, db, clinicA, "TOCTOU LIFF依存チェック", nil, nil)
+		count, err := typeRepo.CountUsageByReservationTypeID(ctx, clinicA, target.ID)
+		require.NoError(t, err)
+		require.Equal(t, int64(0), count)
+
+		makeUsageAppointment(t, db, clinicA, target.ID, false)
+
+		usage := liffUsageExistsByType{repo: typeRepo}
+		err = repo.DeleteWithDependencyChecks(ctx, clinicA, target.ID, usage)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsConflict(err), "expected Conflict, got %v", err)
+		assert.Contains(t, err.Error(), "この予約コースは予約データで使用中のため削除できません")
+
+		got, findErr := repo.FindByID(ctx, clinicA, target.ID)
+		require.NoError(t, findErr)
+		assert.Equal(t, target.ID, got.ID)
+	})
+}
+
+type liffUsageExistsByType struct {
+	repo ReservationTypeRepository
+}
+
+func (u liffUsageExistsByType) ExistsByReservationTypeID(ctx context.Context, clinicID, reservationTypeID uint64) (bool, error) {
+	count, err := u.repo.CountUsageByReservationTypeID(ctx, clinicID, reservationTypeID)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }
 
 func TestReservationTypeLiffRepository_UpdateSortOrder(t *testing.T) {

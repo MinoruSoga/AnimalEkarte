@@ -1,11 +1,27 @@
 import { Fragment, type ComponentProps } from "react";
-import { DndContext, DragOverlay, closestCenter, type DragStartEvent, type DragEndEvent } from "@dnd-kit/core";
+import {
+  DndContext,
+  DragOverlay,
+  closestCenter,
+  type DragStartEvent,
+  type DragEndEvent,
+} from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import Plus from "lucide-react/dist/esm/icons/plus";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ICON, STYLE } from "@/lib/design-tokens";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { STYLE } from "@/lib/design-tokens";
 import type { Medicine } from "@/types";
-import { MedicineCategoryHeaderRow, MedicineRowOverlay, SortableMedicineRow } from "./MedicineTableRows";
+import {
+  MedicineCategoryHeaderRow,
+  MedicineRowOverlay,
+  SortableMedicineRow,
+} from "./MedicineTableRows";
 
 interface MedicineTableProps {
   sensors: ComponentProps<typeof DndContext>["sensors"];
@@ -55,14 +71,18 @@ export function MedicineTable({
               <TableRow className={STYLE.tableHeaderRow}>
                 <TableHead className="w-11 px-0" />
                 <TableHead className={`${STYLE.tableHeaderCell} pl-3`}>薬品名</TableHead>
-                <TableHead className={`${STYLE.tableHeaderCell} w-[100px] text-center`}>剤形</TableHead>
+                <TableHead className={`${STYLE.tableHeaderCell} w-[100px] text-center`}>
+                  剤形
+                </TableHead>
                 <TableHead className={`${STYLE.tableHeaderCell} w-[130px] text-right pr-4`}>
                   単価(税込)
                 </TableHead>
                 <TableHead className={`${STYLE.tableHeaderCell} w-[110px] text-center`}>
                   ステータス
                 </TableHead>
-                <TableHead className={`${STYLE.tableHeaderCell} w-[80px] text-center`}>操作</TableHead>
+                <TableHead className={`${STYLE.tableHeaderCell} w-[80px] text-center`}>
+                  操作
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -129,27 +149,18 @@ export function MedicineTable({
           </Table>
 
           <DragOverlay dropAnimation={null}>
-            {activeId ? (
-              (() => {
-                const medicine = orderedMedicinesById.get(activeId);
-                if (!medicine) return null;
-                return <MedicineRowOverlay medicine={medicine} grouped={Boolean(medicine.parentId)} />;
-              })()
-            ) : null}
+            {activeId
+              ? (() => {
+                  const medicine = orderedMedicinesById.get(activeId);
+                  if (!medicine) return null;
+                  return (
+                    <MedicineRowOverlay medicine={medicine} grouped={Boolean(medicine.parentId)} />
+                  );
+                })()
+              : null}
           </DragOverlay>
         </DndContext>
       </div>
-
-      {canCreate ? (
-        <button
-          type="button"
-          onClick={() => onCreate()}
-          className={STYLE.inlineAddBtn}
-        >
-          <Plus className={ICON.xs} />
-          新しい薬剤を追加...
-        </button>
-      ) : null}
     </div>
   );
 }

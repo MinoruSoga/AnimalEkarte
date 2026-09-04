@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -25,6 +27,7 @@ type mockCashRegisterCloseRepository struct {
 	findByIDFn            func(ctx context.Context, clinicID, id uint64) (*model.CashRegisterClose, error)
 	findByDateAndPeriodFn func(ctx context.Context, clinicID uint64, date time.Time, period string) (*model.CashRegisterClose, error)
 	hasCloseOnDateFn      func(ctx context.Context, clinicID uint64, date time.Time) (bool, error)
+	lockCloseBoundaryFn   func(ctx context.Context, clinicID uint64, date time.Time) error
 }
 
 func (m *mockCashRegisterCloseRepository) Create(ctx context.Context, c *model.CashRegisterClose) error {
@@ -67,6 +70,13 @@ func (m *mockCashRegisterCloseRepository) HasCloseOnDate(ctx context.Context, cl
 		return m.hasCloseOnDateFn(ctx, clinicID, date)
 	}
 	return false, nil
+}
+
+func (m *mockCashRegisterCloseRepository) LockCloseBoundary(ctx context.Context, clinicID uint64, date time.Time) error {
+	if m.lockCloseBoundaryFn != nil {
+		return m.lockCloseBoundaryFn(ctx, clinicID, date)
+	}
+	return nil
 }
 
 // ---- モック: closingScheduleResolver（ResolveSchedule のみ） ----
@@ -139,7 +149,7 @@ func newCashRegisterService(
 	payMethodRepo *mockPaymentMethodMasterRepository,
 ) CashRegisterService {
 	// clinicRepo の zero-value mock は nil clinic を返し、税率は既定値（標準10%/軽減8%）になる（M-7）。
-	return NewCashRegisterService(closeRepo, accountingRepo, closingsSvc, payMethodRepo, &mockClinicRepository{})
+	return NewCashRegisterService(closeRepo, accountingRepo, closingsSvc, payMethodRepo, &mockClinicRepository{}, noopTransactor{})
 }
 
 // ---- テスト ----
@@ -491,6 +501,9 @@ func TestCashRegisterService_Close(t *testing.T) {
 		Memo:       "通常締め",
 	}
 
+	holidayCreateCalled := &atomic.Bool{}
+	negativeCreateCalled := &atomic.Bool{}
+
 	tests := []struct {
 		name                  string
 		input                 CloseRegisterInput
@@ -499,6 +512,7 @@ func TestCashRegisterService_Close(t *testing.T) {
 		getCloseAggregateFn   func(ctx context.Context, input GetCloseAggregateInput) (*CloseAggregateResult, error)
 		findAllPayMethodFn    func(ctx context.Context, clinicID uint64) ([]model.PaymentMethodMaster, error)
 		createFn              func(ctx context.Context, c *model.CashRegisterClose) error
+		createCalled          *atomic.Bool
 		wantErr               bool
 		wantErrIs             error
 		checkResult           func(t *testing.T, got *model.CashRegisterClose)
@@ -607,6 +621,57 @@ func TestCashRegisterService_Close(t *testing.T) {
 			wantErrIs: apperrors.ErrConflict,
 		},
 		{
+			name:  "エラー: 休診日は締め処理できない → ErrInvalidInput",
+			input: validInput,
+			findByDateAndPeriodFn: func(_ context.Context, _ uint64, _ time.Time, _ string) (*model.CashRegisterClose, error) {
+				return nil, nil
+			},
+			resolveScheduleFn: func(_ context.Context, _ uint64, _ time.Time) (*sharedkernel.DaySchedule, error) {
+				s := defaultSchedule()
+				return &sharedkernel.DaySchedule{
+					AmPmBoundary: s.AmPmBoundary,
+					PmEnd:        s.PmEnd,
+					IsHoliday:    true,
+				}, nil
+			},
+			getCloseAggregateFn: func(_ context.Context, _ GetCloseAggregateInput) (*CloseAggregateResult, error) {
+				return emptyAggregateResult(), nil
+			},
+			createFn: func(_ context.Context, _ *model.CashRegisterClose) error {
+				holidayCreateCalled.Store(true)
+				return nil
+			},
+			createCalled: holidayCreateCalled,
+			wantErr:      true,
+			wantErrIs:    apperrors.ErrInvalidInput,
+		},
+		{
+			name: "エラー: ActualCash が負 → ErrInvalidInput",
+			input: CloseRegisterInput{
+				Date:       validInput.Date,
+				Period:     validInput.Period,
+				ActualCash: -1,
+				Memo:       validInput.Memo,
+				ClosedBy:   validInput.ClosedBy,
+			},
+			findByDateAndPeriodFn: func(_ context.Context, _ uint64, _ time.Time, _ string) (*model.CashRegisterClose, error) {
+				return nil, nil
+			},
+			resolveScheduleFn: func(_ context.Context, _ uint64, _ time.Time) (*sharedkernel.DaySchedule, error) {
+				return defaultSchedule(), nil
+			},
+			getCloseAggregateFn: func(_ context.Context, _ GetCloseAggregateInput) (*CloseAggregateResult, error) {
+				return emptyAggregateResult(), nil
+			},
+			createFn: func(_ context.Context, _ *model.CashRegisterClose) error {
+				negativeCreateCalled.Store(true)
+				return nil
+			},
+			createCalled: negativeCreateCalled,
+			wantErr:      true,
+			wantErrIs:    apperrors.ErrInvalidInput,
+		},
+		{
 			name:  "エラー: 二重締め確認（FindByDateAndPeriod）がリポジトリエラーを返す",
 			input: validInput,
 			findByDateAndPeriodFn: func(_ context.Context, _ uint64, _ time.Time, _ string) (*model.CashRegisterClose, error) {
@@ -699,6 +764,9 @@ func TestCashRegisterService_Close(t *testing.T) {
 					assert.True(t, errors.Is(err, tt.wantErrIs), "want errors.Is(%v), got %v", tt.wantErrIs, err)
 				}
 				assert.Nil(t, got)
+				if tt.createCalled != nil {
+					assert.False(t, tt.createCalled.Load(), "closeRepo.Create must not be called")
+				}
 				return
 			}
 			assert.NoError(t, err)
@@ -708,6 +776,70 @@ func TestCashRegisterService_Close(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCashRegisterService_Close_LocksBeforeAggregate(t *testing.T) {
+	targetDate := time.Date(2026, 4, 20, 0, 0, 0, 0, time.UTC)
+	var order []string
+	closeRepo := &mockCashRegisterCloseRepository{
+		lockCloseBoundaryFn: func(_ context.Context, clinicID uint64, date time.Time) error {
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, "2026-04-20", date.Format(time.DateOnly))
+			order = append(order, "lock")
+			return nil
+		},
+		findByDateAndPeriodFn: func(_ context.Context, _ uint64, _ time.Time, _ string) (*model.CashRegisterClose, error) {
+			order = append(order, "duplicate")
+			return nil, nil
+		},
+		createFn: func(_ context.Context, _ *model.CashRegisterClose) error {
+			order = append(order, "create")
+			return nil
+		},
+	}
+	accountingRepo := &mockAccountingRepository{
+		getCloseAggregateFn: func(_ context.Context, _ GetCloseAggregateInput) (*CloseAggregateResult, error) {
+			order = append(order, "aggregate")
+			return emptyAggregateResult(), nil
+		},
+		getCategoryPaymentAllocationDataFn: func(_ context.Context, _ uint64, _, _ time.Time) (*CategoryPaymentAllocationData, error) {
+			return allocationDataFromAggregate(emptyAggregateResult()), nil
+		},
+	}
+	closingsSvc := &mockClosingSettingsService{
+		resolveScheduleFn: func(_ context.Context, _ uint64, _ time.Time) (*sharedkernel.DaySchedule, error) {
+			return defaultSchedule(), nil
+		},
+	}
+	payMethodRepo := &mockPaymentMethodMasterRepository{
+		findAllFn: func(_ context.Context, _ uint64) ([]model.PaymentMethodMaster, error) {
+			return []model.PaymentMethodMaster{
+				{ID: 1, Name: "現金", SystemKey: ptrString("cash"), IsActive: true},
+			}, nil
+		},
+	}
+	svc := newCashRegisterService(closeRepo, accountingRepo, closingsSvc, payMethodRepo)
+
+	got, err := svc.Close(context.Background(), 1, CloseRegisterInput{
+		Date:       targetDate,
+		Period:     "am",
+		ActualCash: 0,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	require.NotEmpty(t, order)
+	assert.Equal(t, "lock", order[0])
+	lockIdx, aggIdx := -1, -1
+	for i, step := range order {
+		if step == "lock" && lockIdx < 0 {
+			lockIdx = i
+		}
+		if step == "aggregate" {
+			aggIdx = i
+		}
+	}
+	require.GreaterOrEqual(t, lockIdx, 0)
+	require.Greater(t, aggIdx, lockIdx)
 }
 
 // TestCashRegisterService_IsDateClosed は #115 締め後編集チェックをテストする。
@@ -1284,7 +1416,7 @@ func TestCashRegisterService_GetPreview_ClinicRepoError(t *testing.T) {
 			return nil, errors.New("clinic lookup error")
 		},
 	}
-	svc := NewCashRegisterService(closeRepo, accountingRepo, closingsSvc, payMethodRepo, clinicRepo)
+	svc := NewCashRegisterService(closeRepo, accountingRepo, closingsSvc, payMethodRepo, clinicRepo, noopTransactor{})
 
 	got, err := svc.GetPreview(context.Background(), 1, "2026-04-20", "am")
 

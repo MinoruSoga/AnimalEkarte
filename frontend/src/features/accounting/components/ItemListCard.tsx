@@ -1,20 +1,40 @@
 import { memo, useCallback, useDeferredValue, useMemo, useState } from "react";
-import { normalizeKana } from "@/lib/normalize-kana";
 import { Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { EmptyState } from "@/components/shared/DataStates";
 import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { DEFAULT_STANDARD_TAX_RATE, DEFAULT_REDUCED_TAX_RATE } from "@/constants/tax";
 import { formatCurrency } from "@/lib/format/number";
+import { normalizeKana } from "@/lib/normalize-kana";
 import { CATEGORY_LABELS } from "@/constants/item-category";
 import type { TaxType } from "@/types/generated/models";
 
@@ -32,19 +52,28 @@ const MERCHANDISE_CATEGORY_OPTIONS = [
 ];
 
 const MERCHANDISE_CATEGORY_SELECT_ITEMS = MERCHANDISE_CATEGORY_OPTIONS.map((o) => (
-  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+  <SelectItem key={o.value} value={o.value}>
+    {o.label}
+  </SelectItem>
 ));
 
 const MANUAL_CATEGORY_SELECT_ITEMS = Object.entries(CATEGORY_LABELS).map(([value, label]) => (
-  <SelectItem key={value} value={value}>{label}</SelectItem>
+  <SelectItem key={value} value={value}>
+    {label}
+  </SelectItem>
 ));
+
+// FE-RC-049: 単価カラム(bigint 系)の実務上の妥当な上限。DB 制約ではなく入力ミス検出用。
+const MAX_MANUAL_ITEM_UNIT_PRICE = 999_999_999;
+// FE-RC-049: 「その他」区分の理由欄の最大文字数。
+const MANUAL_OTHER_REASON_MAX_LENGTH = 500;
 
 function getManualPriceError(value: string): string | null {
   const priceNum = parseInt(value, 10);
   if (isNaN(priceNum) || priceNum < 0) {
     return "単価は0以上の整数で入力してください";
   }
-  if (priceNum > 999999999) {
+  if (priceNum > MAX_MANUAL_ITEM_UNIT_PRICE) {
     return "単価は999,999,999円以下で入力してください";
   }
   return null;
@@ -100,7 +129,9 @@ export const ItemListCard = memo(function ItemListCard({
     }
     if (deferredMerchandiseSearch) {
       const normalizedTerm = normalizeKana(deferredMerchandiseSearch).toLowerCase();
-      result = result.filter((item) => normalizeKana(item.name).toLowerCase().includes(normalizedTerm));
+      result = result.filter((item) =>
+        normalizeKana(item.name).toLowerCase().includes(normalizedTerm),
+      );
     }
     return result;
   }, [merchandiseItems, categoryFilter, deferredMerchandiseSearch]);
@@ -184,7 +215,9 @@ export const ItemListCard = memo(function ItemListCard({
             <DialogContent className={`${LAYOUT.modal.md} max-h-[70vh] flex flex-col`}>
               <DialogHeader>
                 <DialogTitle>物販・その他追加</DialogTitle>
-                <DialogDescription>マスタから選択するか、手動入力で追加できます。</DialogDescription>
+                <DialogDescription>
+                  マスタから選択するか、手動入力で追加できます。
+                </DialogDescription>
               </DialogHeader>
               <div className="flex gap-0 border-b">
                 <button
@@ -226,9 +259,7 @@ export const ItemListCard = memo(function ItemListCard({
                       <SelectTrigger aria-label="品目カテゴリ" className="w-[120px] h-11">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent>
-                        {MERCHANDISE_CATEGORY_SELECT_ITEMS}
-                      </SelectContent>
+                      <SelectContent>{MERCHANDISE_CATEGORY_SELECT_ITEMS}</SelectContent>
                     </Select>
                   </div>
                   <div className="flex-1 overflow-auto min-h-[200px] border rounded-md">
@@ -245,7 +276,10 @@ export const ItemListCard = memo(function ItemListCard({
                         </thead>
                         <tbody>
                           {filteredMerchandise.map((item) => (
-                            <tr key={item.id} className={`border-b ${C.hoverBgLight} transition-colors`}>
+                            <tr
+                              key={item.id}
+                              className={`border-b ${C.hoverBgLight} transition-colors`}
+                            >
                               <TableCell className="font-medium">{item.name}</TableCell>
                               <TableCell className={C.text50}>
                                 {CATEGORY_LABELS[item.category as ItemCategory] ?? item.category}
@@ -254,7 +288,11 @@ export const ItemListCard = memo(function ItemListCard({
                                 {formatCurrency(item.unitPrice)}
                               </TableCell>
                               <TableCell className={`text-right ${C.text50}`}>
-                                {item.taxRate === DEFAULT_STANDARD_TAX_RATE ? "10%" : item.taxRate === DEFAULT_REDUCED_TAX_RATE ? "8%" : `${item.taxRate * 100}%`}
+                                {item.taxRate === DEFAULT_STANDARD_TAX_RATE
+                                  ? "10%"
+                                  : item.taxRate === DEFAULT_REDUCED_TAX_RATE
+                                    ? "8%"
+                                    : `${item.taxRate * 100}%`}
                               </TableCell>
                               <TableCell>
                                 <DataTableRowButton
@@ -278,7 +316,9 @@ export const ItemListCard = memo(function ItemListCard({
               ) : (
                 <div className="flex flex-col gap-4 py-4">
                   <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="manual-name" className="text-sm">品目名 <span className={C.textRequired}>*</span></Label>
+                    <Label htmlFor="manual-name" className="text-sm">
+                      品目名 <span className={C.textRequired}>*</span>
+                    </Label>
                     <Input
                       id="manual-name"
                       autoFocus
@@ -289,31 +329,35 @@ export const ItemListCard = memo(function ItemListCard({
                     />
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="manual-category" className="text-sm">カテゴリ <span className={C.textRequired}>*</span></Label>
+                    <Label htmlFor="manual-category" className="text-sm">
+                      カテゴリ <span className={C.textRequired}>*</span>
+                    </Label>
                     <Select value={manualCategory} onValueChange={handleManualCategoryChange}>
                       <SelectTrigger id="manual-category" aria-label="カテゴリ">
                         <SelectValue placeholder="カテゴリを選択" />
                       </SelectTrigger>
-                      <SelectContent>
-                        {MANUAL_CATEGORY_SELECT_ITEMS}
-                      </SelectContent>
+                      <SelectContent>{MANUAL_CATEGORY_SELECT_ITEMS}</SelectContent>
                     </Select>
                   </div>
                   {manualCategory === "other" ? (
                     <div className="flex flex-col gap-1.5">
-                      <Label htmlFor="manual-other-reason" className="text-sm">その他理由 <span className={C.textRequired}>*</span></Label>
+                      <Label htmlFor="manual-other-reason" className="text-sm">
+                        その他理由 <span className={C.textRequired}>*</span>
+                      </Label>
                       <Input
                         id="manual-other-reason"
                         value={manualOtherReason}
                         onChange={(e) => setManualOtherReason(e.target.value)}
-                        maxLength={500}
+                        maxLength={MANUAL_OTHER_REASON_MAX_LENGTH}
                         placeholder="例: 締め時に分類を確認"
                         className="h-9"
                       />
                     </div>
                   ) : null}
                   <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="manual-price" className="text-sm">単価（円）<span className={C.textRequired}>*</span></Label>
+                    <Label htmlFor="manual-price" className="text-sm">
+                      単価（円）<span className={C.textRequired}>*</span>
+                    </Label>
                     <Input
                       id="manual-price"
                       type="number"
@@ -350,13 +394,13 @@ export const ItemListCard = memo(function ItemListCard({
           <TableHeader className={`sticky top-0 ${C.bgPage} z-10 shadow-level1`}>
             <TableRow>
               <TableHead className="w-[100px]">区分</TableHead>
-              <TableHead>項目名</TableHead>
+              <TableHead className="min-w-[180px]">項目名</TableHead>
               <TableHead className="text-right w-[90px]">単価</TableHead>
               <TableHead className="text-center w-[60px]">数量</TableHead>
               <TableHead className="text-center w-[90px]">割引</TableHead>
               <TableHead className="w-[100px] text-center">課税区分</TableHead>
               <TableHead className="text-center w-[70px]">税率</TableHead>
-              <TableHead className="text-right w-[80px]">税額</TableHead>
+              <TableHead className="text-right w-[80px] whitespace-nowrap">税額</TableHead>
               <TableHead className="text-center w-[60px]">保険</TableHead>
               <TableHead className="text-right w-[100px]">金額</TableHead>
               <TableHead className="w-[50px]" />
@@ -368,9 +412,7 @@ export const ItemListCard = memo(function ItemListCard({
       <div className={`p-4 ${C.bgPage} border-t flex justify-end gap-6 text-sm`}>
         <span>税抜小計: {formatCurrency(subtotal)}</span>
         <span>消費税: {formatCurrency(taxTotal)}</span>
-        <span className="font-bold text-xl">
-          合計: {formatCurrency(totalAmount)}
-        </span>
+        <span className="font-bold text-xl">合計: {formatCurrency(totalAmount)}</span>
       </div>
     </Card>
   );

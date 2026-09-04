@@ -4,7 +4,13 @@ import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldErro
 import { DatePicker } from "@/components/shared/DatePicker/DatePicker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { C } from "@/lib/design-tokens";
 import type { InventoryItem } from "@/types";
 
@@ -20,8 +26,10 @@ interface BasicInfoSectionProps {
   defaultUnit: string | undefined;
   category: InventoryItem["category"];
   existingCategory: InventoryItem["category"] | undefined;
-  onCategoryChange: (value: string) => void;
+  onCategoryChange: (value: InventoryItem["category"]) => void;
   onMarkDirty: () => void;
+  nameError?: string;
+  unitError?: string;
 }
 
 export const BasicInfoSection = memo(function BasicInfoSection({
@@ -31,7 +39,11 @@ export const BasicInfoSection = memo(function BasicInfoSection({
   existingCategory,
   onCategoryChange,
   onMarkDirty,
+  nameError,
+  unitError,
 }: BasicInfoSectionProps) {
+  const [name, setName] = useState(defaultName ?? "");
+  const [unit, setUnit] = useState(defaultUnit ?? "");
   return (
     <div className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
       <h3 className={`text-base font-medium ${C.text} mb-4`}>基本情報</h3>
@@ -43,11 +55,18 @@ export const BasicInfoSection = memo(function BasicInfoSection({
           <Input
             id="name"
             name="name"
-            defaultValue={defaultName}
+            value={name}
+            onChange={(event) => {
+              setName(event.target.value);
+              onMarkDirty();
+            }}
             placeholder="品名を入力"
             className={`mt-1 ${C.bgWhite} ${C.borderMedium}`}
-            required
+            aria-invalid={nameError ? true : undefined}
+            aria-describedby={nameError ? "name-error" : undefined}
+            aria-required="true"
           />
+          <FormFieldError id="name-error" message={nameError} />
         </div>
         <div>
           <Label htmlFor="category" className={`text-sm ${C.text}`}>
@@ -56,8 +75,10 @@ export const BasicInfoSection = memo(function BasicInfoSection({
           <Select
             value={category || (existingCategory ?? "medicine")}
             onValueChange={(value) => {
+              const option = CATEGORY_OPTIONS.find((entry) => entry.value === value);
+              if (!option) return;
               onMarkDirty();
-              onCategoryChange(value);
+              onCategoryChange(option.value);
             }}
           >
             <SelectTrigger id="category" className={`mt-1 ${C.bgWhite} ${C.borderMedium}`}>
@@ -79,11 +100,18 @@ export const BasicInfoSection = memo(function BasicInfoSection({
           <Input
             id="unit"
             name="unit"
-            defaultValue={defaultUnit}
+            value={unit}
+            onChange={(event) => {
+              setUnit(event.target.value);
+              onMarkDirty();
+            }}
             placeholder="例: 錠, 本, 袋"
             className={`mt-1 ${C.bgWhite} ${C.borderMedium}`}
-            required
+            aria-invalid={unitError ? true : undefined}
+            aria-describedby={unitError ? "unit-error" : undefined}
+            aria-required="true"
           />
+          <FormFieldError id="unit-error" message={unitError} />
         </div>
       </div>
     </div>
@@ -115,11 +143,12 @@ export const StockInfoSection = memo(function StockInfoSection({
   const [minStockLevel, setMinStockLevel] = useState(String(defaultMinStockLevel ?? 0));
   const parsedQuantity = Number(quantity);
   const parsedMinStockLevel = Number(minStockLevel);
-  const stockStatus = parsedQuantity <= 0
-    ? `在庫切れ — 現在庫数 ${parsedQuantity || 0}、最低在庫数 ${parsedMinStockLevel || 0}`
-    : parsedMinStockLevel > 0 && parsedQuantity <= parsedMinStockLevel
-      ? `在庫不足（残少）— 現在庫数 ${parsedQuantity}、最低在庫数 ${parsedMinStockLevel}`
-      : null;
+  const stockStatus =
+    parsedQuantity <= 0
+      ? `在庫切れ — 現在庫数 ${parsedQuantity || 0}、最低在庫数 ${parsedMinStockLevel || 0}`
+      : parsedMinStockLevel > 0 && parsedQuantity <= parsedMinStockLevel
+        ? `在庫不足（残少）— 現在庫数 ${parsedQuantity}、最低在庫数 ${parsedMinStockLevel}`
+        : null;
 
   return (
     <div className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
@@ -143,7 +172,6 @@ export const StockInfoSection = memo(function StockInfoSection({
             id="quantity"
             name="quantity"
             type="number"
-            min="0"
             step="1"
             value={quantity}
             onChange={(event) => {
@@ -153,7 +181,7 @@ export const StockInfoSection = memo(function StockInfoSection({
             className={`mt-1 ${C.bgWhite} ${C.borderMedium}`}
             aria-invalid={quantityError ? true : undefined}
             aria-describedby={quantityError ? "quantity-error" : undefined}
-            required
+            aria-required="true"
           />
           <FormFieldError id="quantity-error" message={quantityError} />
         </div>
@@ -165,7 +193,6 @@ export const StockInfoSection = memo(function StockInfoSection({
             id="minStockLevel"
             name="minStockLevel"
             type="number"
-            min="0"
             step="1"
             value={minStockLevel}
             onChange={(event) => {
@@ -175,7 +202,7 @@ export const StockInfoSection = memo(function StockInfoSection({
             className={`mt-1 ${C.bgWhite} ${C.borderMedium}`}
             aria-invalid={minStockLevelError ? true : undefined}
             aria-describedby={minStockLevelError ? "minStockLevel-error" : undefined}
-            required
+            aria-required="true"
           />
           <FormFieldError id="minStockLevel-error" message={minStockLevelError} />
         </div>

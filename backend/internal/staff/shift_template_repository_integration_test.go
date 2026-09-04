@@ -287,5 +287,3 @@ func TestShiftTemplateRepository_Reorder(t *testing.T) {
 		assert.True(t, apperrors.IsInvalidInput(err), "他クリニックのIDはInvalidInputで拒否される: %v", err)
 	})
 }
-
-

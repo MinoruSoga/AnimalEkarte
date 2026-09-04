@@ -132,43 +132,9 @@ func (r *currentAccessResolver) Resolve(
 		)
 	}
 
-	staff, err := r.staff.FindCurrentAccessStaff(ctx, staffID)
+	_, account, accountEpoch, err := r.loadCurrentAccessIdentity(ctx, staffID)
 	if err != nil {
-		return nil, &StaffLookupError{cause: err}
-	}
-	if staff == nil || staff.ID != staffID || !staff.IsActive ||
-		staff.IsDeleted {
-		return nil, apperrors.WrapForbidden(
-			"staff account is no longer active",
-		)
-	}
-	if staff.AccountID == nil || *staff.AccountID == 0 {
-		return nil, apperrors.WrapUnauthorized(
-			"staff account link is unavailable",
-		)
-	}
-
-	accountID := *staff.AccountID
-	account, err := r.accounts.GetByID(ctx, accountID)
-	if err != nil {
-		if apperrors.IsNotFound(err) {
-			return nil, apperrors.WrapUnauthorized(
-				"linked account is no longer active",
-			)
-		}
-		return nil, apperrors.Wrap(err, "failed to resolve linked account")
-	}
-	if account == nil || account.ID != accountID || !account.IsActive ||
-		account.DeletedAt.Valid {
-		return nil, apperrors.WrapUnauthorized(
-			"linked account is no longer active",
-		)
-	}
-	accountEpoch := account.UpdatedAt.UnixNano()
-	if accountEpoch <= 0 {
-		return nil, apperrors.WrapUnauthorized(
-			"linked account session epoch is unavailable",
-		)
+		return nil, err
 	}
 
 	assignments, err := r.assignments.FindAllByStaffID(ctx, staffID)
@@ -182,18 +148,89 @@ func (r *currentAccessResolver) Resolve(
 	if err != nil {
 		return nil, err
 	}
+	clinicIDs, mainClinicID, err = r.resolveCurrentAccessClinics(
+		ctx,
+		account,
+		clinicIDs,
+		mainClinicID,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &CurrentAccess{
+		StaffID:       staffID,
+		AccountEpoch:  accountEpoch,
+		IsSystemAdmin: account.IsSystemAdmin,
+		MainClinicID:  mainClinicID,
+		ClinicIDs:     clinicIDs,
+	}, nil
+}
+
+func (r *currentAccessResolver) loadCurrentAccessIdentity(
+	ctx context.Context,
+	staffID uint64,
+) (*CurrentAccessStaffIdentity, *model.Account, int64, error) {
+	staff, err := r.staff.FindCurrentAccessStaff(ctx, staffID)
+	if err != nil {
+		return nil, nil, 0, &StaffLookupError{cause: err}
+	}
+	if staff == nil || staff.ID != staffID || !staff.IsActive ||
+		staff.IsDeleted {
+		return nil, nil, 0, apperrors.WrapForbidden(
+			"staff account is no longer active",
+		)
+	}
+	if staff.AccountID == nil || *staff.AccountID == 0 {
+		return nil, nil, 0, apperrors.WrapUnauthorized(
+			"staff account link is unavailable",
+		)
+	}
+
+	accountID := *staff.AccountID
+	account, err := r.accounts.GetByID(ctx, accountID)
+	if err != nil {
+		if apperrors.IsNotFound(err) {
+			return nil, nil, 0, apperrors.WrapUnauthorized(
+				"linked account is no longer active",
+			)
+		}
+		return nil, nil, 0, apperrors.Wrap(err, "failed to resolve linked account")
+	}
+	if account == nil || account.ID != accountID || !account.IsActive ||
+		account.DeletedAt.Valid {
+		return nil, nil, 0, apperrors.WrapUnauthorized(
+			"linked account is no longer active",
+		)
+	}
+	accountEpoch := account.UpdatedAt.UnixNano()
+	if accountEpoch <= 0 {
+		return nil, nil, 0, apperrors.WrapUnauthorized(
+			"linked account session epoch is unavailable",
+		)
+	}
+	return staff, account, accountEpoch, nil
+}
+
+func (r *currentAccessResolver) resolveCurrentAccessClinics(
+	ctx context.Context,
+	account *model.Account,
+	clinicIDs []uint64,
+	mainClinicID string,
+) ([]uint64, string, error) {
 	if r.clinics == nil {
-		return nil, apperrors.WrapInternalServerError(
+		return nil, "", apperrors.WrapInternalServerError(
 			"current clinic authority is not configured",
 		)
 	}
 	clinics, clinicErr := r.clinics.ListClinics(ctx)
 	if clinicErr != nil {
-		return nil, apperrors.Wrap(
+		return nil, "", apperrors.Wrap(
 			clinicErr,
 			"failed to resolve active clinic authority",
 		)
 	}
+	var err error
 	if account.IsSystemAdmin {
 		clinicIDs, mainClinicID, err = currentSystemAdminClinicAccess(
 			mainClinicID,
@@ -206,17 +243,7 @@ func (r *currentAccessResolver) Resolve(
 			clinics,
 		)
 	}
-	if err != nil {
-		return nil, err
-	}
-
-	return &CurrentAccess{
-		StaffID:       staffID,
-		AccountEpoch:  accountEpoch,
-		IsSystemAdmin: account.IsSystemAdmin,
-		MainClinicID:  mainClinicID,
-		ClinicIDs:     clinicIDs,
-	}, nil
+	return clinicIDs, mainClinicID, err
 }
 
 func currentClinicAccess(

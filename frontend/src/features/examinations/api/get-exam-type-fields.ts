@@ -26,15 +26,13 @@ const getExamTypeFields = async (id: string): Promise<ExamTypeFieldRow[]> => {
   return items
     .slice()
     .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-    .map(
-      (field): ExamTypeFieldRow => ({
-        id: Number(field.id),
-        name: field.name ?? "",
-        unit: field.unit ?? "",
-        normalValue: field.normal_value ?? "",
-        sortOrder: field.sort_order ?? 0,
-      }),
-    );
+    .map((field): ExamTypeFieldRow => ({
+      id: Number(field.id),
+      name: field.name ?? "",
+      unit: field.unit ?? "",
+      normalValue: field.normal_value ?? "",
+      sortOrder: field.sort_order ?? 0,
+    }));
 };
 
 export const useGetExamTypeFields = (examTypeId: string) => {

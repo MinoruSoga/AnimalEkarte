@@ -1,22 +1,41 @@
 #!/bin/sh
-# Pre-commit hook: gofmt + フロントエンドの lint + 型チェックを実行
-# make setup-hooks でインストール
+# Pre-commit: secrets, file-size, gofmt, frontend lint + typecheck + format check
+# Installed by `make setup-hooks` into .git/hooks/pre-commit (wrapper) or via core.hooksPath.
 
 set -e
 
+ROOT=$(git rev-parse --show-toplevel)
+cd "$ROOT"
+
 echo "Pre-commit: チェック開始..."
 
-# ── Go: gofmt（ステージ済みの .go ファイルのみ、高速）──
+# Optional code-review-graph (best-effort; also chained from .git/hooks wrapper)
+if command -v code-review-graph >/dev/null 2>&1; then
+  code-review-graph update || true
+  code-review-graph detect-changes --brief || true
+fi
+
+# ── Secrets ──
+sh "$ROOT/.githooks/lib/check-secrets.sh"
+
+# ── File size hard limit (800) ──
+sh "$ROOT/.githooks/lib/check-file-sizes.sh"
+
+# ── Go: gofmt（ステージ済みの .go ファイルのみ）──
 STAGED_GO=$(git diff --cached --name-only --diff-filter=ACM | grep '\.go$' || true)
 if [ -n "$STAGED_GO" ]; then
   echo "  [Go] gofmt チェック..."
   UNFORMATTED=""
   for f in $STAGED_GO; do
     if [ -f "$f" ]; then
-      result=$(docker run --rm \
-        -v "$(pwd)":/app -w /app \
-        golang:1.25-alpine \
-        gofmt -l "$f" 2>/dev/null)
+      if command -v gofmt >/dev/null 2>&1; then
+        result=$(gofmt -l "$f" 2>/dev/null || true)
+      else
+        result=$(docker run --rm \
+          -v "$ROOT":/app -w /app \
+          golang:1.25-alpine \
+          gofmt -l "$f" 2>/dev/null || true)
+      fi
       if [ -n "$result" ]; then
         UNFORMATTED="$UNFORMATTED $f"
       fi
@@ -30,16 +49,33 @@ if [ -n "$STAGED_GO" ]; then
   fi
 fi
 
-# ── Frontend: コンテナ起動確認 ──
-if ! docker compose exec -T frontend true 2>/dev/null; then
-  echo "Pre-commit: frontendコンテナが未起動のためスキップします（make up で起動してください）"
-  exit 0
+# ── Frontend: コンテナ起動時のみ lint / tsc / prettier ──
+STAGED_FE=$(git diff --cached --name-only --diff-filter=ACM | grep -E '^frontend/' || true)
+if [ -n "$STAGED_FE" ]; then
+  if ! docker compose exec -T frontend true 2>/dev/null; then
+    echo "Pre-commit: frontendコンテナが未起動のため FE チェックをスキップ（make up で起動してください）"
+  else
+    FE_REL=$(echo "$STAGED_FE" | sed 's|^frontend/||')
+    # Explicit paths bypass ESLint/Prettier ignore; skip codegen output.
+    FE_LINT=$(echo "$FE_REL" | grep -E '\.(ts|tsx|js|jsx|mjs|cjs)$' | grep -vE '(^|/)types/generated/' || true)
+    FE_PRETTIER=$(echo "$FE_REL" | grep -E '\.(ts|tsx|js|jsx|mjs|cjs|json|css|md)$' | grep -vE '(^|/)types/generated/' || true)
+
+    if [ -n "$FE_LINT" ]; then
+      echo "  [Frontend] eslint (staged)..."
+      # shellcheck disable=SC2086
+      docker compose exec -T frontend pnpm exec eslint --max-warnings 0 $FE_LINT
+    fi
+
+    # Full tsc is expensive; keep it when any FE source/config is staged.
+    echo "  [Frontend] 型チェック (tsc --noEmit)..."
+    docker compose exec -T frontend pnpm exec tsc --noEmit
+
+    if [ -n "$FE_PRETTIER" ] && docker compose exec -T frontend pnpm exec prettier --version >/dev/null 2>&1; then
+      echo "  [Frontend] prettier check (staged)..."
+      # shellcheck disable=SC2086
+      docker compose exec -T frontend pnpm exec prettier --check $FE_PRETTIER
+    fi
+  fi
 fi
-
-echo "  [Frontend] lint..."
-docker compose exec -T frontend npm run lint
-
-echo "  [Frontend] 型チェック (tsc --noEmit)..."
-docker compose exec -T frontend npx tsc --noEmit
 
 echo "Pre-commit: すべて通過。commit を続行します。"

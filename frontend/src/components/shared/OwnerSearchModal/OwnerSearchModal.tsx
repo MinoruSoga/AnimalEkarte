@@ -6,7 +6,13 @@ import { useState, useCallback, useDeferredValue, useTransition, memo } from "re
 import { Search, Users } from "lucide-react";
 
 // Internal
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { TableCell, TableHead } from "@/components/ui/table";
@@ -31,7 +37,12 @@ interface OwnerSummary {
 interface OwnerSearchModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSelect: (owner: { id: string; name: string; discountRate: number; membershipType: string }) => void;
+  onSelect: (owner: {
+    id: string;
+    name: string;
+    discountRate: number;
+    membershipType: string;
+  }) => void;
   currentOwnerName?: string;
 }
 
@@ -154,7 +165,9 @@ export const OwnerSearchModal = memo(function OwnerSearchModal({
           {/* Search */}
           <div className="flex items-center gap-2 px-1">
             <div className="relative flex-1">
-              <Search className={`absolute left-3 top-1/2 -translate-y-1/2 ${ICON.action} ${C.text40}`} />
+              <Search
+                className={`absolute left-3 top-1/2 -translate-y-1/2 ${ICON.action} ${C.text40}`}
+              />
               <Input
                 autoFocus
                 value={searchTerm}
@@ -199,11 +212,16 @@ export const OwnerSearchModal = memo(function OwnerSearchModal({
                   </thead>
                   <tbody>
                     {filteredOwners.map((owner) => (
-                      <tr key={owner.id} className={`border-b ${C.borderDivider} ${C.hoverBgLight} transition-colors`}>
+                      <tr
+                        key={owner.id}
+                        className={`border-b ${C.borderDivider} ${C.hoverBgLight} transition-colors`}
+                      >
                         <TableCell className={`${C.text60} font-mono`}>{owner.id}</TableCell>
                         <TableCell className={`font-medium ${C.text}`}>{owner.name}</TableCell>
                         <TableCell className={C.text}>{owner.phone || "-"}</TableCell>
-                        <TableCell className={`${C.text60} truncate max-w-[200px]`}>{owner.address || "-"}</TableCell>
+                        <TableCell className={`${C.text60} truncate max-w-[200px]`}>
+                          {owner.address || "-"}
+                        </TableCell>
                         <TableCell>
                           <DataTableRowButton
                             aria-label={`選択: 飼主 ${owner.name} (ID ${owner.id})`}

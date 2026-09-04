@@ -1,11 +1,11 @@
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import type { NavigateFunction } from "react-router";
 import type { QueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { paths } from "@/config/paths";
-import { handleApiError } from "@/lib/handle-api-error";
+import { extractApiErrorMessage, handleApiError } from "@/lib/handle-api-error";
 import { jstDateStartISOString, jstNowISOString } from "@/lib/jst-date";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -18,11 +18,62 @@ import { updateAccounting } from "../api/update-accounting";
 import type { PaymentSplitRequest } from "../api/types";
 import type { PaymentSplitDraft } from "../components/PaymentCard";
 import type { Accounting, AccountingItem, PaymentInfo, PaymentMethod } from "../types";
-import { buildPaymentSplitRequests, type AccountingFormState } from "../components/accounting-detail-model";
+import {
+  buildPaymentSplitRequests,
+  type AccountingFormState,
+} from "../lib/accounting-detail-model";
 
-function toCompleteItems(
-  items: ReadonlyArray<AccountingItem>,
-): CompleteAccountingItemRequest[] {
+type AccountingCompletionFocusTarget = NonNullable<AccountingFormState["focusTarget"]>;
+
+const POST_CLOSE_REASON_MARKER = "post_close_reason";
+
+function readAxiosErrorBody(error: unknown): string {
+  if (typeof error !== "object" || error === null || !("response" in error)) {
+    return "";
+  }
+  const response = error.response;
+  if (typeof response !== "object" || response === null || !("data" in response)) {
+    return "";
+  }
+  const data = response.data;
+  if (typeof data !== "object" || data === null || !("error" in data)) {
+    return "";
+  }
+  const message = data.error;
+  return typeof message === "string" ? message : "";
+}
+
+/** 締め後理由不足の 400 は postCloseReason、それ以外の失敗は預り金欄へフォーカスする。 */
+export function resolveAccountingCompletionFocusTarget(
+  error: unknown,
+): AccountingCompletionFocusTarget {
+  const extracted = extractApiErrorMessage(error, "会計の処理");
+  const axiosMessage = readAxiosErrorBody(error);
+  if (
+    extracted.includes(POST_CLOSE_REASON_MARKER) ||
+    axiosMessage.includes(POST_CLOSE_REASON_MARKER)
+  ) {
+    return "postCloseReason";
+  }
+  return "receivedAmount";
+}
+
+export function focusAccountingCompletionError(target: AccountingCompletionFocusTarget): void {
+  const candidateIds: readonly string[] =
+    target === "postCloseReason"
+      ? ["postCloseReason"]
+      : ["receivedAmount", "payment-split-0-received"];
+  for (const id of candidateIds) {
+    const element = document.getElementById(id);
+    if (element instanceof HTMLElement) {
+      element.focus();
+      element.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+  }
+}
+
+function toCompleteItems(items: ReadonlyArray<AccountingItem>): CompleteAccountingItemRequest[] {
   return items.map((item) => ({
     category: item.category,
     name: item.name,
@@ -39,6 +90,7 @@ function toCompleteItems(
       : {}),
     merchandise_item_id: item.merchandiseItemId ? Number(item.merchandiseItemId) : undefined,
     vaccination_id: item.vaccinationId ? Number(item.vaccinationId) : undefined,
+    exam_id: item.examId ? Number(item.examId) : undefined,
     treatment_id: item.treatmentId ? Number(item.treatmentId) : undefined,
     appointment_id: item.appointmentId ? Number(item.appointmentId) : undefined,
     trimming_course_id: item.trimmingCourseId ? Number(item.trimmingCourseId) : undefined,
@@ -90,6 +142,18 @@ interface AccountingCalculation {
   billingAmount: number;
 }
 
+/** FE-RC-001: fieldset disabled 等の render 側ガードをバイパスされても action 側で再検証するための最小権限セット。 */
+export interface AccountingCompletionMutationPermissions {
+  canCreate: boolean;
+  canEdit: boolean;
+}
+
+const DENIED_ACCOUNTING_COMPLETION_PERMISSIONS: Readonly<AccountingCompletionMutationPermissions> =
+  {
+    canCreate: false,
+    canEdit: false,
+  };
+
 interface UseAccountingCompletionActionArgs {
   accountingId?: string;
   accounting: Accounting | null;
@@ -104,6 +168,8 @@ interface UseAccountingCompletionActionArgs {
   postCloseReason?: string; // #115: 締め後編集理由
   /** BUG-001: 新規会計でペット生死が拒否対象のとき complete を発行しない */
   blockCreateReason?: string;
+  /** FE-RC-001: action 開始時に再検証する canCreate/canEdit */
+  permissions?: Readonly<AccountingCompletionMutationPermissions>;
 }
 
 export function useAccountingCompletionAction({
@@ -119,6 +185,7 @@ export function useAccountingCompletionAction({
   setCompletedPayment,
   postCloseReason,
   blockCreateReason,
+  permissions = DENIED_ACCOUNTING_COMPLETION_PERMISSIONS,
 }: UseAccountingCompletionActionArgs) {
   const [editConfirmOpen, setEditConfirmOpen] = useState(false);
   const editConfirmedRef = useRef(false);
@@ -127,13 +194,30 @@ export function useAccountingCompletionAction({
   const completeIdempotencyKeyRef = useRef<string | null>(null);
   const completePayloadFingerprintRef = useRef<string | null>(null);
   const blockCreateReasonRef = useRef(blockCreateReason);
-  useEffect(() => {
+  // FE-RC-030: 次の paint 前に同期反映し、action 発火直前の値の取り違えを防ぐ。
+  useLayoutEffect(() => {
     blockCreateReasonRef.current = blockCreateReason;
   }, [blockCreateReason]);
+
+  const permissionsRef = useRef(permissions);
+  useLayoutEffect(() => {
+    permissionsRef.current = permissions;
+  }, [permissions]);
+  const isMutationAllowed = useCallback(
+    (action: keyof AccountingCompletionMutationPermissions) =>
+      permissionsRef.current[action] === true,
+    [],
+  );
 
   const [formState, formAction, isPending] = useActionState(
     async (_prevState: AccountingFormState, _formData: FormData): Promise<AccountingFormState> => {
       if (!accounting || !calculation) return { success: false, timestamp: Date.now() };
+
+      // FE-RC-001: fieldset disabled 等の render 側ガードをバイパスされても action 側で再検証する。
+      if (!isMutationAllowed(accountingId ? "canEdit" : "canCreate")) {
+        toast.error("この操作を行う権限がありません");
+        return { success: false, timestamp: Date.now() };
+      }
 
       // BUG-001: 死亡 / 未確認ペットの新規確定は API を叩かず fail-closed。
       if (!accountingId && blockCreateReasonRef.current) {
@@ -149,14 +233,17 @@ export function useAccountingCompletionAction({
 
       const builtSplits: PaymentSplitRequest[] = buildPaymentSplitRequests(paymentSplits);
 
-      const repMethod: PaymentMethod =
-        builtSplits.some((split) => split.method === "cash") ? "cash" :
-        builtSplits.some((split) => split.method === "credit_card") ? "credit_card" :
-        "electronic_money";
+      const repMethod: PaymentMethod = builtSplits.some((split) => split.method === "cash")
+        ? "cash"
+        : builtSplits.some((split) => split.method === "credit_card")
+          ? "credit_card"
+          : "electronic_money";
 
       const cashSplit = builtSplits.find((split) => split.method === "cash");
-      const totalReceived = cashSplit ? cashSplit.received_amount ?? 0 : calculation.billingAmount;
-      const totalChange = cashSplit ? cashSplit.change_amount ?? 0 : 0;
+      const totalReceived = cashSplit
+        ? (cashSplit.received_amount ?? 0)
+        : calculation.billingAmount;
+      const totalChange = cashSplit ? (cashSplit.change_amount ?? 0) : 0;
 
       const paymentInfo: PaymentInfo = {
         subtotal: calculation.subtotal,
@@ -229,7 +316,8 @@ export function useAccountingCompletionAction({
             tax_total: calculation.taxTotal,
             total_amount: calculation.totalAmount,
             insurance_ratio: hasInsurance ? parseFloat(insuranceRatio) : null,
-            insurance_amount: calculation.insuranceAmount !== 0 ? calculation.insuranceAmount : null,
+            insurance_amount:
+              calculation.insuranceAmount !== 0 ? calculation.insuranceAmount : null,
             billing_amount: calculation.billingAmount,
             received_amount: totalReceived,
             change_amount: totalChange,
@@ -245,21 +333,21 @@ export function useAccountingCompletionAction({
         return { success: true, timestamp: Date.now() };
       } catch (error) {
         handleApiError(error, "会計の処理");
-        return { success: false, timestamp: Date.now() };
+        return {
+          success: false,
+          timestamp: Date.now(),
+          focusTarget: resolveAccountingCompletionFocusTarget(error),
+        };
       }
     },
     { success: false, timestamp: 0 },
   );
 
   useEffect(() => {
-    if (formState.success === false && formState.timestamp > 0) {
-      const element = document.getElementById("receivedAmount");
-      if (element) {
-        element.focus();
-        element.scrollIntoView({ behavior: "smooth", block: "center" });
-      }
+    if (formState.success === false && formState.timestamp > 0 && formState.focusTarget) {
+      focusAccountingCompletionError(formState.focusTarget);
     }
-  }, [formState.success, formState.timestamp]);
+  }, [formState.success, formState.timestamp, formState.focusTarget]);
 
   const confirmCompletedEdit = () => {
     editConfirmedRef.current = true;

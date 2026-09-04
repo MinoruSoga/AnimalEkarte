@@ -9,7 +9,7 @@ import {
 } from "../constants/trigger-types";
 import { formatDeliveryMonitorDatetime } from "./lstep-delivery-monitor-page-model";
 
-interface DeliveryLogsTableProps {
+interface LstepDeliveryMonitorLogsTableProps {
   logsPage: DeliveryTriggerLogsPageResponse | undefined;
   logsLoading: boolean;
   page: number;
@@ -18,14 +18,14 @@ interface DeliveryLogsTableProps {
   onNextPage: () => void;
 }
 
-export function DeliveryLogsTable({
+export function LstepDeliveryMonitorLogsTable({
   logsPage,
   logsLoading,
   page,
   totalPages,
   onPreviousPage,
   onNextPage,
-}: DeliveryLogsTableProps) {
+}: LstepDeliveryMonitorLogsTableProps) {
   return (
     <div className={`${C.bgWhite} border ${C.borderLight} rounded-xs flex flex-col flex-1 min-h-0`}>
       <div className={`${STYLE.tableContainer} flex-1 overflow-auto`}>
@@ -62,7 +62,7 @@ export function DeliveryLogsTable({
 function DeliveryLogsTableBody({
   logsPage,
   logsLoading,
-}: Pick<DeliveryLogsTableProps, "logsPage" | "logsLoading">) {
+}: Pick<LstepDeliveryMonitorLogsTableProps, "logsPage" | "logsLoading">) {
   if (logsLoading) {
     return (
       <tr>
@@ -87,11 +87,17 @@ function DeliveryLogsTableBody({
     const badgeColor = TriggerStatusBadge[item.status] ?? "gray";
     return (
       <tr key={item.id} className={STYLE.tableRow} data-testid="log-row">
-        <td className={STYLE.tableCell}>{TriggerTypeLabels[item.trigger_type] ?? item.trigger_type}</td>
-        <td className={STYLE.tableCell}>{item.owner_name}</td>
-        <td className={`${STYLE.tableCell} font-mono`}>{formatDeliveryMonitorDatetime(item.scheduled_at)}</td>
         <td className={STYLE.tableCell}>
-          <span className={`inline-flex items-center px-2 py-0.5 rounded border text-xs ${BADGE[badgeColor]}`}>
+          {TriggerTypeLabels[item.trigger_type] ?? item.trigger_type}
+        </td>
+        <td className={STYLE.tableCell}>{item.owner_name}</td>
+        <td className={`${STYLE.tableCell} font-mono`}>
+          {formatDeliveryMonitorDatetime(item.scheduled_at)}
+        </td>
+        <td className={STYLE.tableCell}>
+          <span
+            className={`inline-flex items-center px-2 py-0.5 rounded border text-xs ${BADGE[badgeColor]}`}
+          >
             {TriggerStatusLabels[item.status] ?? item.status}
           </span>
         </td>

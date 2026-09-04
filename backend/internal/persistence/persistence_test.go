@@ -49,7 +49,7 @@ func TestSharedScopeAndJunctionSurfaceIsAvailable(t *testing.T) {
 	require.NotNil(t, MedicalRecordTenantScope("treatments", 1))
 	require.NotNil(t, Paginate(1, 20))
 
-	var _ Transactor = NewTransactor(&gorm.DB{})
+	var _ = NewTransactor(&gorm.DB{})
 	var _ = DBOrTx
 	var _ = FindByIDScoped[struct{}]
 	var _ = ReplaceChildRowsByParentID[struct{}]

@@ -23,6 +23,7 @@ type mockReservationRepository struct {
 	updateFieldsFn                     func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
 	deleteFn                           func(ctx context.Context, clinicID, id uint64) error
 	countMedicalRecordsByReservationID func(ctx context.Context, reservationID uint64) (int64, error)
+	hasDoctorConflictFn                func(ctx context.Context, clinicID, doctorID uint64, start, end time.Time, excludeID *uint64) (bool, error)
 	countOnDutyDoctorsFn               func(ctx context.Context, clinicID uint64, date time.Time) (int64, error)
 	countConflictsFn                   func(ctx context.Context, clinicID uint64, start, end time.Time, excludeID *uint64) (int64, error)
 	countByTypeAndStartTimeFn          func(ctx context.Context, clinicID, reservationTypeID uint64, startTime time.Time, excludeID *uint64) (int64, error)
@@ -30,6 +31,7 @@ type mockReservationRepository struct {
 	findPetOwnerInClinicFn             func(ctx context.Context, clinicID, petID uint64) (uint64, error)
 	findPetByIDInClinicFn              func(ctx context.Context, clinicID, petID uint64) (*model.Pet, error)
 	assertLineCustomerInClinicFn       func(ctx context.Context, clinicID, lineCustomerID uint64) error
+	acquireBookingLockFn               func(ctx context.Context, clinicID uint64) error
 }
 
 func (m *mockReservationRepository) FindAll(ctx context.Context, clinicIDs []uint64, page, limit int, date, startDate, endDate *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error) {
@@ -74,7 +76,10 @@ func (m *mockReservationRepository) CountMedicalRecordsByReservationID(ctx conte
 	return 0, nil
 }
 
-func (m *mockReservationRepository) AcquireBookingLock(_ context.Context, _ uint64) error {
+func (m *mockReservationRepository) AcquireBookingLock(ctx context.Context, clinicID uint64) error {
+	if m.acquireBookingLockFn != nil {
+		return m.acquireBookingLockFn(ctx, clinicID)
+	}
 	return nil
 }
 
@@ -85,7 +90,10 @@ func (m *mockReservationRepository) LockAndFindByID(ctx context.Context, clinicI
 	return nil, nil
 }
 
-func (m *mockReservationRepository) HasDoctorConflict(_ context.Context, _, _ uint64, _, _ time.Time, _ *uint64) (bool, error) {
+func (m *mockReservationRepository) HasDoctorConflict(ctx context.Context, clinicID, doctorID uint64, start, end time.Time, excludeID *uint64) (bool, error) {
+	if m.hasDoctorConflictFn != nil {
+		return m.hasDoctorConflictFn(ctx, clinicID, doctorID, start, end, excludeID)
+	}
 	return false, nil
 }
 
@@ -524,7 +532,7 @@ func TestReservationService_Create_RejectsFullReservationTypeCapacity(t *testing
 			return &model.ReservationType{ID: id, ClinicID: clinicID, MaxConcurrent: &maxConcurrent}, nil
 		},
 	}
-	svc := NewReservationServiceWithAvailabilityAndType(repo, typeRepo, &mockTransactor{}, nil, nil)
+	svc := NewReservationServiceWithClinicHolidays(repo, typeRepo, &mockTransactor{}, nil, nil, nil, &mockLineReservationSettingFinder{}, &mockClinicHolidayFinder{})
 
 	result, err := svc.Create(context.Background(), &CreateManualReservationInput{
 		ClinicID:          1,
@@ -680,6 +688,507 @@ func TestReservationService_Create_RejectsUnavailableTime(t *testing.T) {
 	assert.True(t, apperrors.IsInvalidInput(err), "expected ErrInvalidInput but got: %v", err)
 }
 
+type mockLineReservationSettingFinder struct {
+	findByClinicIDFn func(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error)
+}
+
+func (m *mockLineReservationSettingFinder) FindByClinicID(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error) {
+	if m.findByClinicIDFn != nil {
+		return m.findByClinicIDFn(ctx, clinicID)
+	}
+	return &model.LineReservationSetting{
+		ClosedWeekdays:        []byte("[]"),
+		ClosedDates:           []byte("[]"),
+		NationalHolidayClosed: false,
+	}, nil
+}
+
+func closedDayCreateRepo(t *testing.T) *mockReservationRepository {
+	t.Helper()
+	return &mockReservationRepository{
+		createFn: func(_ context.Context, appt *model.Reservation) error {
+			appt.ID = 10
+			return nil
+		},
+		countOnDutyDoctorsFn: func(_ context.Context, _ uint64, _ time.Time) (int64, error) {
+			return 1, nil
+		},
+		countConflictsFn: func(_ context.Context, _ uint64, _, _ time.Time, _ *uint64) (int64, error) {
+			return 0, nil
+		},
+	}
+}
+
+func TestReservationService_Create_RejectsClosedWeekdayWhenConstraintsApply(t *testing.T) {
+	// 2026-06-01 is Monday.
+	start := time.Date(2026, 6, 1, 10, 0, 0, 0, config.JST)
+	createCalled := false
+	repo := closedDayCreateRepo(t)
+	repo.createFn = func(_ context.Context, _ *model.Reservation) error {
+		createCalled = true
+		return nil
+	}
+	finder := &mockLineReservationSettingFinder{
+		findByClinicIDFn: func(_ context.Context, clinicID uint64) (*model.LineReservationSetting, error) {
+			assert.Equal(t, uint64(1), clinicID)
+			return &model.LineReservationSetting{
+				ClosedWeekdays:        []byte("[1]"),
+				ClosedDates:           []byte("[]"),
+				NationalHolidayClosed: false,
+			}, nil
+		},
+	}
+	svc := NewReservationServiceWithLineSettings(repo, nil, &mockTransactor{}, nil, nil, nil, finder)
+
+	result, err := svc.Create(context.Background(), &CreateManualReservationInput{
+		ClinicID:          1,
+		StartTime:         start,
+		EndTime:           start.Add(30 * time.Minute),
+		ReservationTypeID: 5,
+		Status:            model.ReservationStatusPending,
+	})
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.True(t, apperrors.IsInvalidInput(err), "expected invalid input but got: %v", err)
+	assert.Contains(t, err.Error(), "休業曜日")
+	assert.False(t, createCalled)
+}
+
+func TestReservationService_Create_RejectsClosedDateWhenConstraintsApply(t *testing.T) {
+	start := time.Date(2026, 6, 2, 10, 0, 0, 0, config.JST)
+	createCalled := false
+	repo := closedDayCreateRepo(t)
+	repo.createFn = func(_ context.Context, _ *model.Reservation) error {
+		createCalled = true
+		return nil
+	}
+	finder := &mockLineReservationSettingFinder{
+		findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+			return &model.LineReservationSetting{
+				ClosedWeekdays:        []byte("[]"),
+				ClosedDates:           []byte(`["2026-06-02"]`),
+				NationalHolidayClosed: false,
+			}, nil
+		},
+	}
+	svc := NewReservationServiceWithLineSettings(repo, nil, &mockTransactor{}, nil, nil, nil, finder)
+
+	result, err := svc.Create(context.Background(), &CreateManualReservationInput{
+		ClinicID:          1,
+		StartTime:         start,
+		EndTime:           start.Add(30 * time.Minute),
+		ReservationTypeID: 5,
+		Status:            model.ReservationStatusConfirmed,
+	})
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.True(t, apperrors.IsInvalidInput(err), "expected invalid input but got: %v", err)
+	assert.Contains(t, err.Error(), "休業日")
+	assert.False(t, createCalled)
+}
+
+func TestReservationService_Create_RejectsNationalHolidayWhenConstraintsApply(t *testing.T) {
+	start := time.Date(2026, 1, 1, 10, 0, 0, 0, config.JST)
+	createCalled := false
+	repo := closedDayCreateRepo(t)
+	repo.createFn = func(_ context.Context, _ *model.Reservation) error {
+		createCalled = true
+		return nil
+	}
+	finder := &mockLineReservationSettingFinder{
+		findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+			return &model.LineReservationSetting{
+				ClosedWeekdays:        []byte("[]"),
+				ClosedDates:           []byte("[]"),
+				NationalHolidayClosed: true,
+			}, nil
+		},
+	}
+	svc := NewReservationServiceWithLineSettings(repo, nil, &mockTransactor{}, nil, nil, nil, finder)
+
+	result, err := svc.Create(context.Background(), &CreateManualReservationInput{
+		ClinicID:          1,
+		StartTime:         start,
+		EndTime:           start.Add(30 * time.Minute),
+		ReservationTypeID: 5,
+		Status:            model.ReservationStatusPending,
+	})
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.True(t, apperrors.IsInvalidInput(err), "expected invalid input but got: %v", err)
+	assert.Contains(t, err.Error(), "祝日")
+	assert.False(t, createCalled)
+}
+
+func TestReservationService_Create_AllowsClosedDayForWalkInRoutes(t *testing.T) {
+	start := time.Date(2026, 6, 1, 10, 0, 0, 0, config.JST)
+	finder := &mockLineReservationSettingFinder{
+		findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+			t.Fatal("walk-in routes must not load closed-day settings")
+			return nil, nil
+		},
+	}
+	routes := []string{"reception", "exam_room", "record_shortcut"}
+	for _, route := range routes {
+		t.Run(route, func(t *testing.T) {
+			created := false
+			repo := closedDayCreateRepo(t)
+			repo.createFn = func(_ context.Context, appt *model.Reservation) error {
+				created = true
+				appt.ID = 10
+				return nil
+			}
+			svc := NewReservationServiceWithLineSettings(repo, nil, &mockTransactor{}, nil, nil, nil, finder)
+			routeCopy := route
+
+			result, err := svc.Create(context.Background(), &CreateManualReservationInput{
+				ClinicID:          1,
+				StartTime:         start,
+				EndTime:           start.Add(30 * time.Minute),
+				ReservationTypeID: 5,
+				Status:            model.ReservationStatusPending,
+				ReservationRoute:  &routeCopy,
+			})
+
+			assert.NoError(t, err)
+			assert.NotNil(t, result)
+			assert.True(t, created)
+		})
+	}
+}
+
+func TestReservationService_Create_AllowsClosedDayForCheckedInStatus(t *testing.T) {
+	start := time.Date(2026, 6, 1, 10, 0, 0, 0, config.JST)
+	created := false
+	repo := closedDayCreateRepo(t)
+	repo.createFn = func(_ context.Context, appt *model.Reservation) error {
+		created = true
+		appt.ID = 10
+		return nil
+	}
+	finder := &mockLineReservationSettingFinder{
+		findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+			t.Fatal("checked_in+ create must not load closed-day settings")
+			return nil, nil
+		},
+	}
+	svc := NewReservationServiceWithLineSettings(repo, nil, &mockTransactor{}, nil, nil, nil, finder)
+
+	result, err := svc.Create(context.Background(), &CreateManualReservationInput{
+		ClinicID:          1,
+		StartTime:         start,
+		EndTime:           start.Add(30 * time.Minute),
+		ReservationTypeID: 5,
+		Status:            model.ReservationStatusCheckedIn,
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.True(t, created)
+}
+
+func TestReservationService_Create_FailsClosedWhenSettingsCannotBeLoaded(t *testing.T) {
+	start := time.Date(2026, 6, 1, 10, 0, 0, 0, config.JST)
+	createCalled := false
+	repo := closedDayCreateRepo(t)
+	repo.createFn = func(_ context.Context, _ *model.Reservation) error {
+		createCalled = true
+		return nil
+	}
+	finder := &mockLineReservationSettingFinder{
+		findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+			return nil, errors.New("settings db error")
+		},
+	}
+	svc := NewReservationServiceWithLineSettings(repo, nil, &mockTransactor{}, nil, nil, nil, finder)
+
+	result, err := svc.Create(context.Background(), &CreateManualReservationInput{
+		ClinicID:          1,
+		StartTime:         start,
+		EndTime:           start.Add(30 * time.Minute),
+		ReservationTypeID: 5,
+		Status:            model.ReservationStatusPending,
+	})
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.False(t, createCalled)
+	assert.False(t, apperrors.IsInvalidInput(err), "load failure must not look like a closed-day validation error")
+}
+
+func TestReservationService_Create_AllowsWhenLineSettingsMissing(t *testing.T) {
+	start := time.Date(2026, 6, 1, 10, 0, 0, 0, config.JST)
+	created := false
+	repo := closedDayCreateRepo(t)
+	repo.createFn = func(_ context.Context, appt *model.Reservation) error {
+		created = true
+		appt.ID = 10
+		return nil
+	}
+	finder := &mockLineReservationSettingFinder{
+		findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+			return nil, apperrors.WrapNotFound("line_reservation_setting", "clinic")
+		},
+	}
+	svc := NewReservationServiceWithClinicHolidays(repo, nil, &mockTransactor{}, nil, nil, nil, finder, openDayHolidayFinder())
+
+	result, err := svc.Create(context.Background(), &CreateManualReservationInput{
+		ClinicID:          1,
+		StartTime:         start,
+		EndTime:           start.Add(30 * time.Minute),
+		ReservationTypeID: 5,
+		Status:            model.ReservationStatusPending,
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.True(t, created)
+}
+
+type mockClinicHolidayFinder struct {
+	findByDateFn func(ctx context.Context, clinicID uint64, date time.Time) (*model.ClinicHoliday, error)
+}
+
+func (m *mockClinicHolidayFinder) FindByDate(ctx context.Context, clinicID uint64, date time.Time) (*model.ClinicHoliday, error) {
+	if m.findByDateFn != nil {
+		return m.findByDateFn(ctx, clinicID, date)
+	}
+	return nil, apperrors.WrapNotFound("clinic_holiday", date.Format(time.DateOnly))
+}
+
+func openDayHolidayFinder() *mockClinicHolidayFinder {
+	return &mockClinicHolidayFinder{}
+}
+
+func TestReservationService_Create_RejectsClinicHolidayWhenConstraintsApply(t *testing.T) {
+	start := time.Date(2026, 6, 2, 10, 0, 0, 0, config.JST)
+	createCalled := false
+	repo := closedDayCreateRepo(t)
+	repo.createFn = func(_ context.Context, _ *model.Reservation) error {
+		createCalled = true
+		return nil
+	}
+	finder := &mockLineReservationSettingFinder{
+		findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+			return &model.LineReservationSetting{
+				ClosedWeekdays:        []byte("[]"),
+				ClosedDates:           []byte("[]"),
+				NationalHolidayClosed: false,
+			}, nil
+		},
+	}
+	holidayFinder := &mockClinicHolidayFinder{
+		findByDateFn: func(_ context.Context, clinicID uint64, date time.Time) (*model.ClinicHoliday, error) {
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, "2026-06-02", date.In(config.JST).Format(time.DateOnly))
+			return &model.ClinicHoliday{ID: 1, ClinicID: clinicID, Date: date, Reason: "臨時休診"}, nil
+		},
+	}
+	svc := NewReservationServiceWithClinicHolidays(repo, nil, &mockTransactor{}, nil, nil, nil, finder, holidayFinder)
+
+	result, err := svc.Create(context.Background(), &CreateManualReservationInput{
+		ClinicID:          1,
+		StartTime:         start,
+		EndTime:           start.Add(30 * time.Minute),
+		ReservationTypeID: 5,
+		Status:            model.ReservationStatusConfirmed,
+	})
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.True(t, apperrors.IsInvalidInput(err), "expected invalid input but got: %v", err)
+	assert.Contains(t, err.Error(), "休診日")
+	assert.False(t, createCalled)
+}
+
+func TestReservationService_Create_AllowsWhenClinicHolidayNotFound(t *testing.T) {
+	start := time.Date(2026, 6, 2, 10, 0, 0, 0, config.JST)
+	createCalled := false
+	holidayCalled := false
+	repo := closedDayCreateRepo(t)
+	repo.createFn = func(_ context.Context, appt *model.Reservation) error {
+		createCalled = true
+		appt.ID = 10
+		return nil
+	}
+	finder := &mockLineReservationSettingFinder{
+		findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+			return &model.LineReservationSetting{
+				ClosedWeekdays:        []byte("[]"),
+				ClosedDates:           []byte("[]"),
+				NationalHolidayClosed: false,
+			}, nil
+		},
+	}
+	holidayFinder := &mockClinicHolidayFinder{
+		findByDateFn: func(_ context.Context, clinicID uint64, date time.Time) (*model.ClinicHoliday, error) {
+			holidayCalled = true
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, "2026-06-02", date.In(config.JST).Format(time.DateOnly))
+			return nil, apperrors.WrapNotFound("clinic_holiday", date.Format(time.DateOnly))
+		},
+	}
+	svc := NewReservationServiceWithClinicHolidays(repo, nil, &mockTransactor{}, nil, nil, nil, finder, holidayFinder)
+
+	result, err := svc.Create(context.Background(), &CreateManualReservationInput{
+		ClinicID:          1,
+		StartTime:         start,
+		EndTime:           start.Add(30 * time.Minute),
+		ReservationTypeID: 5,
+		Status:            model.ReservationStatusPending,
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.True(t, holidayCalled)
+	assert.True(t, createCalled)
+}
+
+func TestReservationService_Create_WalkInRoutesDoNotCallClinicHolidayFinder(t *testing.T) {
+	start := time.Date(2026, 6, 1, 10, 0, 0, 0, config.JST)
+	finder := &mockLineReservationSettingFinder{
+		findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+			t.Fatal("walk-in routes must not load closed-day settings")
+			return nil, nil
+		},
+	}
+	holidayFinder := &mockClinicHolidayFinder{
+		findByDateFn: func(_ context.Context, _ uint64, _ time.Time) (*model.ClinicHoliday, error) {
+			t.Fatal("walk-in routes must not load clinic_holidays")
+			return nil, nil
+		},
+	}
+	routes := []string{"reception", "exam_room", "record_shortcut"}
+	for _, route := range routes {
+		t.Run(route, func(t *testing.T) {
+			created := false
+			repo := closedDayCreateRepo(t)
+			repo.createFn = func(_ context.Context, appt *model.Reservation) error {
+				created = true
+				appt.ID = 10
+				return nil
+			}
+			svc := NewReservationServiceWithClinicHolidays(repo, nil, &mockTransactor{}, nil, nil, nil, finder, holidayFinder)
+			routeCopy := route
+
+			result, err := svc.Create(context.Background(), &CreateManualReservationInput{
+				ClinicID:          1,
+				StartTime:         start,
+				EndTime:           start.Add(30 * time.Minute),
+				ReservationTypeID: 5,
+				Status:            model.ReservationStatusPending,
+				ReservationRoute:  &routeCopy,
+			})
+
+			assert.NoError(t, err)
+			assert.NotNil(t, result)
+			assert.True(t, created)
+		})
+	}
+}
+
+func TestReservationService_Create_FailsClosedWhenClinicHolidayFinderErrors(t *testing.T) {
+	start := time.Date(2026, 6, 2, 10, 0, 0, 0, config.JST)
+	createCalled := false
+	repo := closedDayCreateRepo(t)
+	repo.createFn = func(_ context.Context, _ *model.Reservation) error {
+		createCalled = true
+		return nil
+	}
+	finder := &mockLineReservationSettingFinder{
+		findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+			return &model.LineReservationSetting{
+				ClosedWeekdays:        []byte("[]"),
+				ClosedDates:           []byte("[]"),
+				NationalHolidayClosed: false,
+			}, nil
+		},
+	}
+	holidayFinder := &mockClinicHolidayFinder{
+		findByDateFn: func(_ context.Context, _ uint64, _ time.Time) (*model.ClinicHoliday, error) {
+			return nil, errors.New("clinic_holidays db error")
+		},
+	}
+	svc := NewReservationServiceWithClinicHolidays(repo, nil, &mockTransactor{}, nil, nil, nil, finder, holidayFinder)
+
+	result, err := svc.Create(context.Background(), &CreateManualReservationInput{
+		ClinicID:          1,
+		StartTime:         start,
+		EndTime:           start.Add(30 * time.Minute),
+		ReservationTypeID: 5,
+		Status:            model.ReservationStatusPending,
+	})
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.False(t, createCalled)
+	assert.False(t, apperrors.IsInvalidInput(err), "finder failure must not look like a closed-day validation error")
+}
+
+func TestReservationService_Create_FailsClosedWhenClinicHolidayFinderMissing(t *testing.T) {
+	start := time.Date(2026, 6, 2, 10, 0, 0, 0, config.JST)
+	createCalled := false
+	repo := closedDayCreateRepo(t)
+	repo.createFn = func(_ context.Context, _ *model.Reservation) error {
+		createCalled = true
+		return nil
+	}
+	finder := &mockLineReservationSettingFinder{
+		findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+			return &model.LineReservationSetting{
+				ClosedWeekdays:        []byte("[]"),
+				ClosedDates:           []byte("[]"),
+				NationalHolidayClosed: false,
+			}, nil
+		},
+	}
+	svc := NewReservationServiceWithLineSettings(repo, nil, &mockTransactor{}, nil, nil, nil, finder)
+
+	result, err := svc.Create(context.Background(), &CreateManualReservationInput{
+		ClinicID:          1,
+		StartTime:         start,
+		EndTime:           start.Add(30 * time.Minute),
+		ReservationTypeID: 5,
+		Status:            model.ReservationStatusPending,
+	})
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.False(t, createCalled)
+	var appErr *apperrors.AppError
+	require.ErrorAs(t, err, &appErr)
+	assert.Equal(t, "INTERNAL", appErr.Code)
+}
+
+func TestReservationService_Create_FailsClosedWhenSettingFinderMissing(t *testing.T) {
+	start := time.Date(2026, 6, 1, 10, 0, 0, 0, config.JST)
+	createCalled := false
+	repo := closedDayCreateRepo(t)
+	repo.createFn = func(_ context.Context, _ *model.Reservation) error {
+		createCalled = true
+		return nil
+	}
+	svc := NewReservationServiceWithAvailabilityAndType(repo, nil, &mockTransactor{}, nil, nil)
+
+	result, err := svc.Create(context.Background(), &CreateManualReservationInput{
+		ClinicID:          1,
+		StartTime:         start,
+		EndTime:           start.Add(30 * time.Minute),
+		ReservationTypeID: 5,
+		Status:            model.ReservationStatusPending,
+	})
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.False(t, createCalled)
+	var appErr *apperrors.AppError
+	require.ErrorAs(t, err, &appErr)
+	assert.Equal(t, "INTERNAL", appErr.Code)
+}
+
 func TestReservationService_Create_SkipsBookingConstraintsForInConsultation(t *testing.T) {
 	start := time.Date(2026, 6, 1, 10, 30, 0, 0, config.JST)
 	end := start.Add(30 * time.Minute)
@@ -774,6 +1283,19 @@ func TestReservationService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockReservationRepository{
+				findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+					if tt.wantNF {
+						return nil, tt.repoErr
+					}
+					return &model.Reservation{
+						ID:                id,
+						ClinicID:          clinicID,
+						ReservationTypeID: 1,
+						Status:            model.ReservationStatusPending,
+						StartTime:         time.Date(2026, 6, 1, 10, 0, 0, 0, config.JST),
+						EndTime:           time.Date(2026, 6, 1, 10, 30, 0, 0, config.JST),
+					}, nil
+				},
 				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
 					if tt.repoErr != nil {
 						return nil, tt.repoErr
@@ -849,7 +1371,7 @@ func TestReservationService_Update_RejectsFullReservationTypeCapacity(t *testing
 			return &model.ReservationType{ID: id, ClinicID: clinicID, MaxConcurrent: &maxConcurrent}, nil
 		},
 	}
-	svc := NewReservationServiceWithAvailabilityAndType(repo, typeRepo, &mockTransactor{}, nil, nil)
+	svc := NewReservationServiceWithClinicHolidays(repo, typeRepo, &mockTransactor{}, nil, nil, nil, nil, openDayHolidayFinder())
 	nextEnd := nextStart.Add(30 * time.Minute)
 
 	result, err := svc.Update(context.Background(), 1, 1, &UpdateReservationInput{StartTime: &nextStart, EndTime: &nextEnd})
@@ -860,6 +1382,406 @@ func TestReservationService_Update_RejectsFullReservationTypeCapacity(t *testing
 	assert.False(t, updateCalled)
 }
 
+// BUG-006: フロントはメモのみ編集でも start/end/doctor をフル送信する。
+// payload の存在ではなく current との実変更で conflict/absence を再評価する。
+func TestReservationService_Update_SkipsConflictCheckWhenScheduleUnchanged(t *testing.T) {
+	start := time.Date(2026, 6, 1, 10, 0, 0, 0, config.JST)
+	end := start.Add(30 * time.Minute)
+	doctorID := uint64(7)
+	typeID := uint64(9)
+	notes := "メモのみ変更"
+	current := func(clinicID, id uint64) *model.Reservation {
+		return &model.Reservation{
+			ID:                id,
+			ClinicID:          clinicID,
+			ReservationTypeID: typeID,
+			DoctorID:          &doctorID,
+			StartTime:         start,
+			EndTime:           end,
+			Status:            model.ReservationStatusPending,
+		}
+	}
+	updateCalled := false
+	repo := &mockReservationRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+			return current(clinicID, id), nil
+		},
+		lockAndFindByIDFn: func(_ context.Context, _, _ uint64) (*model.Reservation, error) {
+			t.Fatal("unchanged schedule must not lock for conflict check")
+			return nil, nil
+		},
+		hasDoctorConflictFn: func(_ context.Context, _, _ uint64, _, _ time.Time, _ *uint64) (bool, error) {
+			t.Fatal("unchanged schedule must not call doctor conflict checker")
+			return false, nil
+		},
+		countOnDutyDoctorsFn: func(_ context.Context, _ uint64, _ time.Time) (int64, error) {
+			t.Fatal("unchanged schedule must not call on-duty checker")
+			return 0, nil
+		},
+		countConflictsFn: func(_ context.Context, _ uint64, _, _ time.Time, _ *uint64) (int64, error) {
+			t.Fatal("unchanged schedule must not call conflict counter")
+			return 0, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.Reservation, error) {
+			updateCalled = true
+			assert.Equal(t, notes, fields["notes"])
+			return &model.Reservation{ID: 1, ClinicID: 1, Notes: notes}, nil
+		},
+	}
+	svc := NewReservationServiceWithAvailabilityAndType(repo, nil, &mockTransactor{}, nil, nil)
+
+	result, err := svc.Update(context.Background(), 1, 1, &UpdateReservationInput{
+		StartTime:         &start,
+		EndTime:           &end,
+		DoctorID:          &doctorID,
+		ReservationTypeID: &typeID,
+		Notes:             &notes,
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.True(t, updateCalled)
+}
+
+func TestReservationService_Update_RejectsClosedWeekdayWhenStartMoves(t *testing.T) {
+	currentStart := time.Date(2026, 6, 2, 10, 0, 0, 0, config.JST)
+	closedStart := time.Date(2026, 6, 1, 10, 0, 0, 0, config.JST) // Monday
+	updateCalled := false
+	current := func(clinicID, id uint64) *model.Reservation {
+		return &model.Reservation{ID: id, ClinicID: clinicID, ReservationTypeID: 9, StartTime: currentStart, EndTime: currentStart.Add(30 * time.Minute), Status: model.ReservationStatusPending}
+	}
+	repo := &mockReservationRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+			return current(clinicID, id), nil
+		},
+		lockAndFindByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+			return current(clinicID, id), nil
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
+			updateCalled = true
+			return &model.Reservation{}, nil
+		},
+	}
+	settings := &mockLineReservationSettingFinder{findByClinicIDFn: func(_ context.Context, clinicID uint64) (*model.LineReservationSetting, error) {
+		return &model.LineReservationSetting{ClinicID: clinicID, ClosedWeekdays: []byte("[1]"), ClosedDates: []byte("[]")}, nil
+	}}
+	svc := NewReservationServiceWithClinicHolidays(repo, nil, &mockTransactor{}, nil, nil, nil, settings, openDayHolidayFinder())
+
+	result, err := svc.Update(context.Background(), 1, 1, &UpdateReservationInput{StartTime: &closedStart, EndTime: ptrTime(closedStart.Add(30 * time.Minute))})
+
+	require.Error(t, err)
+	assert.Nil(t, result)
+	assert.True(t, apperrors.IsInvalidInput(err), "expected invalid input but got: %v", err)
+	assert.Contains(t, err.Error(), "休業曜日")
+	assert.False(t, updateCalled)
+}
+
+func TestReservationService_Update_RejectsClinicHolidayWhenStartMovesOntoHoliday(t *testing.T) {
+	currentStart := time.Date(2026, 6, 1, 10, 0, 0, 0, config.JST)
+	holidayStart := time.Date(2026, 6, 2, 10, 0, 0, 0, config.JST)
+	holidayEnd := holidayStart.Add(30 * time.Minute)
+	updateCalled := false
+	current := func(clinicID, id uint64) *model.Reservation {
+		return &model.Reservation{
+			ID:                id,
+			ClinicID:          clinicID,
+			ReservationTypeID: 9,
+			StartTime:         currentStart,
+			EndTime:           currentStart.Add(30 * time.Minute),
+			Status:            model.ReservationStatusPending,
+		}
+	}
+	repo := &mockReservationRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+			return current(clinicID, id), nil
+		},
+		lockAndFindByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+			return current(clinicID, id), nil
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
+			updateCalled = true
+			return &model.Reservation{}, nil
+		},
+	}
+	holidayFinder := &mockClinicHolidayFinder{
+		findByDateFn: func(_ context.Context, clinicID uint64, date time.Time) (*model.ClinicHoliday, error) {
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, "2026-06-02", date.In(config.JST).Format(time.DateOnly))
+			return &model.ClinicHoliday{ID: 1, ClinicID: clinicID, Date: date, Reason: "臨時休診"}, nil
+		},
+	}
+	svc := NewReservationServiceWithClinicHolidays(repo, nil, &mockTransactor{}, nil, nil, nil, &mockLineReservationSettingFinder{}, holidayFinder)
+
+	result, err := svc.Update(context.Background(), 1, 1, &UpdateReservationInput{
+		StartTime: &holidayStart,
+		EndTime:   &holidayEnd,
+	})
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.True(t, apperrors.IsInvalidInput(err), "expected invalid input but got: %v", err)
+	assert.Contains(t, err.Error(), "休診日")
+	assert.False(t, updateCalled)
+}
+
+func TestReservationService_Update_DoesNotCallClinicHolidayFinderWhenScheduleUnchanged(t *testing.T) {
+	start := time.Date(2026, 6, 1, 10, 0, 0, 0, config.JST)
+	end := start.Add(30 * time.Minute)
+	doctorID := uint64(7)
+	typeID := uint64(9)
+	notes := "メモのみ変更"
+	current := func(clinicID, id uint64) *model.Reservation {
+		return &model.Reservation{
+			ID:                id,
+			ClinicID:          clinicID,
+			ReservationTypeID: typeID,
+			DoctorID:          &doctorID,
+			StartTime:         start,
+			EndTime:           end,
+			Status:            model.ReservationStatusPending,
+		}
+	}
+	updateCalled := false
+	repo := &mockReservationRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+			return current(clinicID, id), nil
+		},
+		lockAndFindByIDFn: func(_ context.Context, _, _ uint64) (*model.Reservation, error) {
+			t.Fatal("unchanged schedule must not lock for holiday check")
+			return nil, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.Reservation, error) {
+			updateCalled = true
+			assert.Equal(t, notes, fields["notes"])
+			return &model.Reservation{ID: 1, ClinicID: 1, Notes: notes}, nil
+		},
+	}
+	holidayFinder := &mockClinicHolidayFinder{
+		findByDateFn: func(_ context.Context, _ uint64, _ time.Time) (*model.ClinicHoliday, error) {
+			t.Fatal("unchanged schedule must not load clinic_holidays")
+			return nil, nil
+		},
+	}
+	svc := NewReservationServiceWithClinicHolidays(repo, nil, &mockTransactor{}, nil, nil, nil, &mockLineReservationSettingFinder{}, holidayFinder)
+
+	result, err := svc.Update(context.Background(), 1, 1, &UpdateReservationInput{
+		StartTime:         &start,
+		EndTime:           &end,
+		DoctorID:          &doctorID,
+		ReservationTypeID: &typeID,
+		Notes:             &notes,
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.True(t, updateCalled)
+}
+
+func TestReservationService_Update_ConflictChecksWhenStartChanges(t *testing.T) {
+	start := time.Date(2026, 6, 1, 10, 0, 0, 0, config.JST)
+	end := start.Add(30 * time.Minute)
+	nextStart := start.Add(time.Hour)
+	nextEnd := nextStart.Add(30 * time.Minute)
+	onDutyCalled := false
+	conflictCalled := false
+	current := func(clinicID, id uint64) *model.Reservation {
+		return &model.Reservation{
+			ID:                id,
+			ClinicID:          clinicID,
+			ReservationTypeID: 9,
+			StartTime:         start,
+			EndTime:           end,
+			Status:            model.ReservationStatusPending,
+		}
+	}
+	repo := &mockReservationRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+			return current(clinicID, id), nil
+		},
+		lockAndFindByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+			return current(clinicID, id), nil
+		},
+		countOnDutyDoctorsFn: func(_ context.Context, _ uint64, _ time.Time) (int64, error) {
+			onDutyCalled = true
+			return 1, nil
+		},
+		countConflictsFn: func(_ context.Context, _ uint64, _, _ time.Time, _ *uint64) (int64, error) {
+			conflictCalled = true
+			return 0, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, id uint64, _ map[string]any) (*model.Reservation, error) {
+			return &model.Reservation{ID: id, ClinicID: 1, StartTime: nextStart, EndTime: nextEnd}, nil
+		},
+	}
+	svc := NewReservationServiceWithClinicHolidays(repo, nil, &mockTransactor{}, nil, nil, nil, nil, openDayHolidayFinder())
+
+	result, err := svc.Update(context.Background(), 1, 1, &UpdateReservationInput{
+		StartTime: &nextStart,
+		EndTime:   &nextEnd,
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.True(t, onDutyCalled, "actual start change must re-run on-duty/absence check")
+	assert.True(t, conflictCalled, "actual start change must re-run conflict check")
+}
+
+func TestReservationService_Update_SkipsConflictCheckWhenAlreadyCheckedIn(t *testing.T) {
+	start := time.Date(2026, 6, 1, 10, 0, 0, 0, config.JST)
+	end := start.Add(30 * time.Minute)
+	nextStart := start.Add(time.Hour)
+	nextEnd := nextStart.Add(30 * time.Minute)
+	current := func(clinicID, id uint64) *model.Reservation {
+		return &model.Reservation{
+			ID:                id,
+			ClinicID:          clinicID,
+			ReservationTypeID: 9,
+			StartTime:         start,
+			EndTime:           end,
+			Status:            model.ReservationStatusCheckedIn,
+		}
+	}
+	updateCalled := false
+	repo := &mockReservationRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+			return current(clinicID, id), nil
+		},
+		lockAndFindByIDFn: func(_ context.Context, _, _ uint64) (*model.Reservation, error) {
+			t.Fatal("checked_in reservation must not re-run booking conflict lock")
+			return nil, nil
+		},
+		countOnDutyDoctorsFn: func(_ context.Context, _ uint64, _ time.Time) (int64, error) {
+			t.Fatal("checked_in reservation must not re-run on-duty checker")
+			return 0, nil
+		},
+		countConflictsFn: func(_ context.Context, _ uint64, _, _ time.Time, _ *uint64) (int64, error) {
+			t.Fatal("checked_in reservation must not re-run conflict counter")
+			return 0, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, id uint64, _ map[string]any) (*model.Reservation, error) {
+			updateCalled = true
+			return &model.Reservation{ID: id, ClinicID: 1, Status: model.ReservationStatusCheckedIn, StartTime: nextStart, EndTime: nextEnd}, nil
+		},
+	}
+	svc := NewReservationServiceWithAvailabilityAndType(repo, nil, &mockTransactor{}, nil, nil)
+
+	result, err := svc.Update(context.Background(), 1, 1, &UpdateReservationInput{
+		StartTime: &nextStart,
+		EndTime:   &nextEnd,
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.True(t, updateCalled)
+}
+
+// G-1: checked_in 以降でも担当者/予約区分の実変更は capability を検証する。
+// BUG-006 のスロット競合/出勤チェック skip は維持する。
+func TestReservationService_Update_RejectsIncapableDoctorWhenStatusCheckedInOrLater(t *testing.T) {
+	start := time.Date(2026, 6, 1, 10, 0, 0, 0, config.JST)
+	end := start.Add(30 * time.Minute)
+	currentDoctorID := uint64(7)
+	nextDoctorID := uint64(8)
+	typeID := uint64(9)
+
+	tests := []struct {
+		name    string
+		status  model.ReservationStatus
+		capable bool
+		wantErr bool
+	}{
+		{name: "checked_in: incapable doctor is rejected", status: model.ReservationStatusCheckedIn, capable: false, wantErr: true},
+		{name: "in_consultation: incapable doctor is rejected", status: model.ReservationStatusInConsultation, capable: false, wantErr: true},
+		{name: "accounting: incapable doctor is rejected", status: model.ReservationStatusAccounting, capable: false, wantErr: true},
+		{name: "completed: incapable doctor is rejected", status: model.ReservationStatusCompleted, capable: false, wantErr: true},
+		{name: "checked_in: capable doctor change succeeds without slot checks", status: model.ReservationStatusCheckedIn, capable: true, wantErr: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			current := func(clinicID, id uint64) *model.Reservation {
+				return &model.Reservation{
+					ID:                id,
+					ClinicID:          clinicID,
+					ReservationTypeID: typeID,
+					DoctorID:          &currentDoctorID,
+					StartTime:         start,
+					EndTime:           end,
+					Status:            tt.status,
+				}
+			}
+			updateCalled := false
+			repo := &mockReservationRepository{
+				findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+					return current(clinicID, id), nil
+				},
+				lockAndFindByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+					return current(clinicID, id), nil
+				},
+				hasDoctorConflictFn: func(_ context.Context, _, _ uint64, _, _ time.Time, _ *uint64) (bool, error) {
+					t.Fatal("checked_in+ doctor change must not call doctor conflict checker")
+					return false, nil
+				},
+				countOnDutyDoctorsFn: func(_ context.Context, _ uint64, _ time.Time) (int64, error) {
+					t.Fatal("checked_in+ doctor change must not call on-duty checker")
+					return 0, nil
+				},
+				countConflictsFn: func(_ context.Context, _ uint64, _, _ time.Time, _ *uint64) (int64, error) {
+					t.Fatal("checked_in+ doctor change must not call conflict counter")
+					return 0, nil
+				},
+				updateFieldsFn: func(_ context.Context, _, id uint64, fields map[string]any) (*model.Reservation, error) {
+					if tt.wantErr {
+						t.Fatal("incapable doctor must not update the reservation")
+						return nil, nil
+					}
+					updateCalled = true
+					assert.Equal(t, nextDoctorID, fields["doctor_id"])
+					return &model.Reservation{
+						ID:                id,
+						ClinicID:          1,
+						ReservationTypeID: typeID,
+						DoctorID:          &nextDoctorID,
+						StartTime:         start,
+						EndTime:           end,
+						Status:            tt.status,
+					}, nil
+				},
+			}
+			staffRepo := &mockReservationStaffRepository{
+				findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Staff, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, nextDoctorID, id)
+					return &model.Staff{ID: id, ClinicID: clinicID, IsActive: true}, nil
+				},
+				supportsReservationTypeFn: func(_ context.Context, clinicID, staffID, reservationTypeID uint64) (bool, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, nextDoctorID, staffID)
+					assert.Equal(t, typeID, reservationTypeID)
+					return tt.capable, nil
+				},
+			}
+			svc := NewReservationServiceWithAvailabilityAndType(repo, nil, &mockTransactor{}, staffRepo, nil)
+
+			result, err := svc.Update(context.Background(), 1, 1, &UpdateReservationInput{
+				DoctorID: &nextDoctorID,
+			})
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Nil(t, result)
+				assert.True(t, apperrors.IsInvalidInput(err), "expected invalid input but got: %v", err)
+				assert.Contains(t, err.Error(), "選択した担当者はこの予約区分に対応していません")
+				assert.False(t, updateCalled)
+				return
+			}
+			assert.NoError(t, err)
+			assert.NotNil(t, result)
+			assert.True(t, updateCalled)
+		})
+	}
+}
+
 // Q7: キャンセル(status=cancelled)への更新時は repo.Delete でソフトデリートし、
 // 予約管理(FindAll の deleted_at IS NULL)から除外されることを保証する。
 // RSV-06: status 更新と soft delete は同一 WithTx 内で原子的に行う。
@@ -868,6 +1790,9 @@ func TestReservationService_Update_CancelledSoftDeletes(t *testing.T) {
 	deleteCalled := false
 	updateCalled := false
 	repo := &mockReservationRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+			return &model.Reservation{ID: id, ClinicID: clinicID, Status: model.ReservationStatusPending}, nil
+		},
 		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
 			updateCalled = true
 			return &model.Reservation{ID: 1, ClinicID: 1, Status: model.ReservationStatusCancelled}, nil
@@ -892,6 +1817,9 @@ func TestReservationService_Update_CancelRollsBackWhenDeleteFails(t *testing.T) 
 	statusCancelled := model.ReservationStatusCancelled
 	updateCalled := false
 	repo := &mockReservationRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+			return &model.Reservation{ID: id, ClinicID: clinicID, Status: model.ReservationStatusPending}, nil
+		},
 		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
 			updateCalled = true
 			return &model.Reservation{ID: 1, ClinicID: 1, Status: model.ReservationStatusCancelled}, nil
@@ -1128,6 +2056,154 @@ func TestReservationService_Update_FailsClosedWithoutTransactor(t *testing.T) {
 			assert.Equal(t, "INTERNAL", appErr.Code)
 		})
 	}
+}
+
+func TestReservationService_Update_RejectsInConsultationWithoutMedicalRecord(t *testing.T) {
+	status := model.ReservationStatusInConsultation
+	current := func(clinicID, id uint64) *model.Reservation {
+		return &model.Reservation{
+			ID:                id,
+			ClinicID:          clinicID,
+			ReservationTypeID: 5,
+			Status:            model.ReservationStatusCheckedIn,
+		}
+	}
+	repo := &mockReservationRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+			return current(clinicID, id), nil
+		},
+		lockAndFindByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+			return current(clinicID, id), nil
+		},
+		countMedicalRecordsByReservationID: func(_ context.Context, _ uint64) (int64, error) {
+			return 0, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
+			t.Fatal("must not transition to in_consultation without a medical record")
+			return nil, nil
+		},
+	}
+	svc := NewReservationServiceWithAvailabilityAndType(repo, nil, &mockTransactor{}, nil, nil)
+
+	result, err := svc.Update(context.Background(), 1, 1, &UpdateReservationInput{Status: &status})
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.True(t, apperrors.IsConflict(err), "expected conflict but got: %v", err)
+}
+
+func TestReservationService_Update_AllowsInConsultationWhenMedicalRecordExists(t *testing.T) {
+	status := model.ReservationStatusInConsultation
+	counted := false
+	current := func(clinicID, id uint64) *model.Reservation {
+		return &model.Reservation{
+			ID:                id,
+			ClinicID:          clinicID,
+			ReservationTypeID: 5,
+			Status:            model.ReservationStatusCheckedIn,
+		}
+	}
+	repo := &mockReservationRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+			return current(clinicID, id), nil
+		},
+		lockAndFindByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+			return current(clinicID, id), nil
+		},
+		countMedicalRecordsByReservationID: func(_ context.Context, reservationID uint64) (int64, error) {
+			counted = true
+			assert.Equal(t, uint64(1), reservationID)
+			return 1, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, id uint64, _ map[string]any) (*model.Reservation, error) {
+			return &model.Reservation{ID: id, ClinicID: 1, Status: model.ReservationStatusInConsultation}, nil
+		},
+	}
+	svc := NewReservationServiceWithAvailabilityAndType(repo, nil, &mockTransactor{}, nil, nil)
+
+	result, err := svc.Update(context.Background(), 1, 1, &UpdateReservationInput{Status: &status})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.True(t, counted)
+	assert.Equal(t, model.ReservationStatusInConsultation, result.Status)
+}
+
+func TestReservationService_Update_FailsClosedWhenInConsultationRecordCountErrors(t *testing.T) {
+	status := model.ReservationStatusInConsultation
+	current := func(clinicID, id uint64) *model.Reservation {
+		return &model.Reservation{
+			ID:                id,
+			ClinicID:          clinicID,
+			ReservationTypeID: 5,
+			Status:            model.ReservationStatusCheckedIn,
+		}
+	}
+	repo := &mockReservationRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+			return current(clinicID, id), nil
+		},
+		lockAndFindByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+			return current(clinicID, id), nil
+		},
+		countMedicalRecordsByReservationID: func(_ context.Context, _ uint64) (int64, error) {
+			return 0, errors.New("db error")
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
+			t.Fatal("must not transition to in_consultation when record count fails")
+			return nil, nil
+		},
+	}
+	svc := NewReservationServiceWithAvailabilityAndType(repo, nil, &mockTransactor{}, nil, nil)
+
+	result, err := svc.Update(context.Background(), 1, 1, &UpdateReservationInput{Status: &status})
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.False(t, apperrors.IsConflict(err), "count failure must not be reported as a business conflict")
+}
+
+func TestReservationService_Update_InConsultationMedicalRecordCountRunsAfterRowLock(t *testing.T) {
+	status := model.ReservationStatusInConsultation
+	var events []string
+	current := func(clinicID, id uint64) *model.Reservation {
+		return &model.Reservation{
+			ID:                id,
+			ClinicID:          clinicID,
+			ReservationTypeID: 5,
+			Status:            model.ReservationStatusCheckedIn,
+		}
+	}
+	repo := &mockReservationRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+			events = append(events, "find")
+			return current(clinicID, id), nil
+		},
+		lockAndFindByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+			events = append(events, "lock")
+			return current(clinicID, id), nil
+		},
+		acquireBookingLockFn: func(_ context.Context, _ uint64) error {
+			t.Fatal("status-only in_consultation must not take booking advisory lock")
+			return nil
+		},
+		countMedicalRecordsByReservationID: func(_ context.Context, reservationID uint64) (int64, error) {
+			events = append(events, "count")
+			assert.Equal(t, uint64(1), reservationID)
+			return 1, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, id uint64, _ map[string]any) (*model.Reservation, error) {
+			events = append(events, "update")
+			return &model.Reservation{ID: id, ClinicID: 1, Status: model.ReservationStatusInConsultation}, nil
+		},
+	}
+	svc := NewReservationServiceWithAvailabilityAndType(repo, nil, &mockTransactor{}, nil, nil)
+
+	result, err := svc.Update(context.Background(), 1, 1, &UpdateReservationInput{Status: &status})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, []string{"find", "lock", "count", "update"}, events)
 }
 
 func TestReservationService_Update_RejectsLineCheckedInWithoutOwnerPet(t *testing.T) {
@@ -1486,4 +2562,34 @@ func TestReservationService_Update_RejectsDeceasedPetReplacement(t *testing.T) {
 	assert.True(t, apperrors.IsInvalidInput(err), "expected InvalidInput, got: %v", err)
 	assert.Nil(t, result)
 	assert.False(t, updateCalled, "repo.update must not run when replacement pet is deceased")
+}
+
+func TestReservationService_CreateBatch_AllowsSelectedPetsButRejectsExistingOverlap(t *testing.T) {
+	start := time.Date(2027, 6, 1, 10, 0, 0, 0, time.UTC)
+	created := 0
+	conflicting := false
+	repo := &mockReservationRepository{
+		createFn: func(_ context.Context, _ *model.Reservation) error { created++; return nil },
+		hasDoctorConflictFn: func(_ context.Context, _ uint64, _ uint64, _, _ time.Time, _ *uint64) (bool, error) {
+			return false, nil
+		},
+		findPetOwnerInClinicFn: func(_ context.Context, _ uint64, _ uint64) (uint64, error) { return 1, nil },
+		countConflictsFn: func(_ context.Context, _ uint64, _, _ time.Time, _ *uint64) (int64, error) {
+			if conflicting {
+				return 1, nil
+			}
+			return 0, nil
+		},
+	}
+	svc := NewReservationServiceWithClinicHolidays(repo, nil, &mockTransactor{}, nil, nil, nil, &mockLineReservationSettingFinder{}, &mockClinicHolidayFinder{})
+	input := &CreateManualReservationInput{ClinicID: 1, StartTime: start, EndTime: start.Add(time.Hour), ReservationTypeID: 1, Status: model.ReservationStatusConfirmed, Source: model.ReservationSourceManual}
+	reservations, err := svc.CreateBatch(context.Background(), input, []ReservationBatchPet{{OwnerID: 1, PetID: 10}, {OwnerID: 1, PetID: 11}})
+	require.NoError(t, err)
+	assert.Len(t, reservations, 2)
+	assert.Equal(t, 2, created)
+
+	conflicting = true
+	_, err = svc.CreateBatch(context.Background(), input, []ReservationBatchPet{{OwnerID: 1, PetID: 12}, {OwnerID: 1, PetID: 13}})
+	require.Error(t, err)
+	assert.Equal(t, 2, created, "unrelated overlap must reject the whole batch before inserts")
 }

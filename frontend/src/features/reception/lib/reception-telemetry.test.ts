@@ -8,6 +8,7 @@ function makeAppointment(overrides: Partial<ReceptionAppointment> = {}): Recepti
     id: "1",
     time: "10:00",
     visitDate: "2026-07-05",
+    end: new Date(2026, 6, 5, 10, 30, 0),
     ownerName: "山田",
     petType: "犬",
     petName: "ポチ",
@@ -85,8 +86,18 @@ describe("computeCheckedInWaitStats", () => {
     const now = new Date("2026-07-05T10:30:00Z");
     const columns = makeColumns({
       受付済: [
-        makeAppointment({ id: "1", petName: "ポチ", status: "checked_in", checkedInAt: "2026-07-05T10:20:00Z" }), // 10分待ち
-        makeAppointment({ id: "2", petName: "ミルク", status: "checked_in", checkedInAt: "2026-07-05T09:58:00Z" }), // 32分待ち
+        makeAppointment({
+          id: "1",
+          petName: "ポチ",
+          status: "checked_in",
+          checkedInAt: "2026-07-05T10:20:00Z",
+        }), // 10分待ち
+        makeAppointment({
+          id: "2",
+          petName: "ミルク",
+          status: "checked_in",
+          checkedInAt: "2026-07-05T09:58:00Z",
+        }), // 32分待ち
       ],
     });
 
@@ -100,9 +111,24 @@ describe("computeCheckedInWaitStats", () => {
     const now = new Date("2026-07-05T10:30:00Z");
     const columns = makeColumns({
       受付済: [
-        makeAppointment({ id: "1", petName: "ポチ", status: "checked_in", checkedInAt: "2026-07-05T10:25:00Z" }),
-        makeAppointment({ id: "2", petName: "ミルク", status: "checked_in", checkedInAt: "2026-07-05T09:58:00Z" }),
-        makeAppointment({ id: "3", petName: "タマ", status: "checked_in", checkedInAt: "2026-07-05T10:10:00Z" }),
+        makeAppointment({
+          id: "1",
+          petName: "ポチ",
+          status: "checked_in",
+          checkedInAt: "2026-07-05T10:25:00Z",
+        }),
+        makeAppointment({
+          id: "2",
+          petName: "ミルク",
+          status: "checked_in",
+          checkedInAt: "2026-07-05T09:58:00Z",
+        }),
+        makeAppointment({
+          id: "3",
+          petName: "タマ",
+          status: "checked_in",
+          checkedInAt: "2026-07-05T10:10:00Z",
+        }),
       ],
     });
 

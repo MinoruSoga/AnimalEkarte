@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { createTestWrapper } from "@/testing/utils";
+import { createTestWrapper } from "@/testing/TestUtils";
 import type { ColumnData } from "@/types";
 import { Reception } from "./Reception";
 
@@ -26,6 +26,7 @@ const columnsFixture: ColumnData[] = [
         id: "1",
         time: "10:00",
         visitDate: "2026-07-05",
+        end: new Date(2026, 6, 5, 10, 30, 0),
         ownerName: "山田",
         petType: "犬",
         petName: "ポチ",
@@ -50,6 +51,7 @@ const columnsFixture: ColumnData[] = [
         id: "2",
         time: "09:30",
         visitDate: "2026-07-05",
+        end: new Date(2026, 6, 5, 10, 0, 0),
         ownerName: "鈴木",
         petType: "猫",
         petName: "ミルク",

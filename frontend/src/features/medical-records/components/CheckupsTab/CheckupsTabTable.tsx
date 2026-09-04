@@ -4,8 +4,10 @@ import { TableCell, TableHead } from "@/components/ui/table";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import type { StaffItem } from "@/hooks/use-staffs";
 import type { CheckupTypeItem } from "@/hooks/use-treatment-master";
+import type { CheckupFieldValue } from "@/components/shared/DynamicCheckupFields/DynamicCheckupFields";
+import type { CheckupTypeFieldRow } from "@/hooks/use-checkup-fields";
 import type { Checkup, UpdateCheckupInput } from "../../api/checkups";
-import type { AddCheckupFormState } from "./checkups-tab-table-model";
+import type { AddCheckupFormState } from "../../lib/checkups-tab-table-model";
 import { CheckupAddRow, CheckupDisplayRow, CheckupEditRow } from "./CheckupsTabRows";
 
 export { LstepStatusBadge, type LstepStatus } from "./CheckupsTabBadges";
@@ -14,9 +16,9 @@ export { LstepStatusBadge, type LstepStatus } from "./CheckupsTabBadges";
 const TABLE_HEADER = (
   <thead>
     <tr className={`border-b ${C.borderLight} ${C.bgPage} h-11`}>
-      <TableHead className="w-32">日付</TableHead>
+      <TableHead className="min-w-[10rem] w-40">日付</TableHead>
       <TableHead className="w-40">健診種別</TableHead>
-      <TableHead className="w-32">次回予定日</TableHead>
+      <TableHead className="min-w-[10rem] w-40">次回の予定</TableHead>
       <TableHead className="w-32">担当医</TableHead>
       <TableHead>結果</TableHead>
       <TableHead className="w-24 text-right">操作</TableHead>
@@ -39,8 +41,11 @@ interface CheckupsTableProps {
   createPending: boolean;
   updatePending: boolean;
   deletePending: boolean;
+  checkupFields: CheckupTypeFieldRow[];
+  fieldValues: Record<number, CheckupFieldValue>;
   onStartAdd: () => void;
   onAddFormChange: (field: keyof AddCheckupFormState, value: string) => void;
+  onFieldValueChange: (fieldId: number, value: CheckupFieldValue) => void;
   onAddSubmit: () => void;
   onAddCancel: () => void;
   onStartEdit: (checkupId: string) => void;
@@ -64,8 +69,11 @@ export function CheckupsTable({
   createPending,
   updatePending,
   deletePending,
+  checkupFields,
+  fieldValues,
   onStartAdd,
   onAddFormChange,
+  onFieldValueChange,
   onAddSubmit,
   onAddCancel,
   onStartEdit,
@@ -107,7 +115,7 @@ export function CheckupsTable({
                   onStartEdit={onStartEdit}
                   onDelete={onDelete}
                 />
-              )
+              ),
             )
           )}
         </tbody>
@@ -126,7 +134,10 @@ export function CheckupsTable({
           checkupTypes={checkupTypes}
           staffs={staffs}
           isPending={createPending}
+          checkupFields={checkupFields}
+          fieldValues={fieldValues}
           onChange={onAddFormChange}
+          onFieldValueChange={onFieldValueChange}
           onSubmit={onAddSubmit}
           onCancel={onAddCancel}
         />

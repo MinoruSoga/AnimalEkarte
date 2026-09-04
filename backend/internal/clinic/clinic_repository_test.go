@@ -483,7 +483,7 @@ func TestClinicRepository_Create(t *testing.T) {
 	assert.InDelta(t, 0.10, got.StandardTaxRate, 0.0001, "未指定時は DB デフォルト税率が適用される")
 }
 
-func TestClinicRepository_Update(t *testing.T) {
+func TestClinicRepository_UpdateClinic(t *testing.T) {
 	db := setupClinicTestDB(t)
 	repo := NewClinicRepository(db)
 	ctx := context.Background()
@@ -491,7 +491,8 @@ func TestClinicRepository_Update(t *testing.T) {
 	clinic := makeClinicFixture(t, db, "更新前クリニック")
 
 	t.Run("成功", func(t *testing.T) {
-		err := repo.Update(ctx, clinic.ID, map[string]any{"name": "更新後クリニック"})
+		name := "更新後クリニック"
+		err := repo.UpdateClinic(ctx, clinic.ID, &UpdateClinicInput{Name: &name})
 		require.NoError(t, err)
 		got, err := repo.FindByID(ctx, clinic.ID)
 		require.NoError(t, err)
@@ -499,9 +500,18 @@ func TestClinicRepository_Update(t *testing.T) {
 	})
 
 	t.Run("存在しないIDはNotFound", func(t *testing.T) {
-		err := repo.Update(ctx, 999888002, map[string]any{"name": "x"})
+		name := "x"
+		err := repo.UpdateClinic(ctx, 999888002, &UpdateClinicInput{Name: &name})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err), "エラーは NotFound であるべき: %v", err)
+	})
+
+	t.Run("空入力はno-op", func(t *testing.T) {
+		err := repo.UpdateClinic(ctx, clinic.ID, &UpdateClinicInput{})
+		require.NoError(t, err)
+		got, err := repo.FindByID(ctx, clinic.ID)
+		require.NoError(t, err)
+		assert.Equal(t, "更新後クリニック", got.Name)
 	})
 }
 
@@ -544,6 +554,20 @@ func TestClinicRepository_Delete(t *testing.T) {
 		err := repo.Delete(ctx, 999888003)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err), "エラーは NotFound であるべき: %v", err)
+	})
+
+	t.Run("飼主が紐付いていれば Conflict で行は残る", func(t *testing.T) {
+		require.NoError(t, testdb.EnsureAutoMigrated(db, &model.Owner{}))
+		clinic := makeClinicFixture(t, db, "飼主付き削除拒否クリニック")
+		testdb.MakeTestOwner(t, db, clinic.ID, "削除阻止飼主")
+
+		err := repo.Delete(ctx, clinic.ID)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsConflict(err), "expected Conflict, got %v", err)
+
+		got, findErr := repo.FindByID(ctx, clinic.ID)
+		require.NoError(t, findErr)
+		assert.Equal(t, clinic.ID, got.ID)
 	})
 }
 

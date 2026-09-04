@@ -50,9 +50,7 @@ describe("ExaminationFormFields", () => {
 
     const testType = screen.getByRole("combobox", { name: "検査種別" });
     const doctor = screen.getByRole("combobox", { name: "担当医" });
-    expect(
-      screen.getByText("検査種別を選択してください"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("検査種別を選択してください")).toBeInTheDocument();
     expect(screen.getByText("担当医を選択してください")).toBeInTheDocument();
     expect(screen.getAllByRole("alert")).toHaveLength(2);
 
@@ -63,9 +61,7 @@ describe("ExaminationFormFields", () => {
     expect(document.getElementById("testTypeId-error")).toHaveTextContent(
       "検査種別を選択してください",
     );
-    expect(document.getElementById("doctorId-error")).toHaveTextContent(
-      "担当医を選択してください",
-    );
+    expect(document.getElementById("doctorId-error")).toHaveTextContent("担当医を選択してください");
   });
 
   it("BUG-017: 値変更時に onSetFormData が呼ばれ sibling error 表示は親の fieldErrors に従う", async () => {
@@ -82,9 +78,7 @@ describe("ExaminationFormFields", () => {
     await user.click(screen.getByRole("combobox", { name: "検査種別" }));
     await user.click(screen.getByRole("option", { name: "血液検査（院内）" }));
 
-    expect(onSetFormData).toHaveBeenCalledWith(
-      expect.objectContaining({ testTypeId: "5" }),
-    );
+    expect(onSetFormData).toHaveBeenCalledWith(expect.objectContaining({ testTypeId: "5" }));
     // Component itself does not clear sibling; parent supplies remaining error
     expect(screen.getByText("担当医を選択してください")).toBeInTheDocument();
   });
@@ -100,10 +94,7 @@ describe("ExaminationFormFields", () => {
 
     expect(screen.getByRole("combobox", { name: "検査種別" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "担当医" })).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "ステータス" })).toHaveClass(
-      "h-11",
-      "min-w-11",
-    );
+    expect(screen.getByRole("combobox", { name: "ステータス" })).toHaveClass("h-11", "min-w-11");
     expect(screen.getByRole("textbox", { name: "備考・所見" })).toBeInTheDocument();
   });
 
@@ -121,6 +112,37 @@ describe("ExaminationFormFields", () => {
     renderFields({ canCreate: true, canEdit: false });
 
     expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
+  });
+
+  it("FE-RC-002: 死亡ペット（isPetDeceased）では権限があっても保存buttonを表示しない", () => {
+    render(
+      <MemoryRouter>
+        <ExaminationFormFields
+          formData={{ date: "2026-07-21T00:00:00+09:00", status: "依頼中" }}
+          examTypes={[{ id: "5", name: "血液検査（院内）" }]}
+          staffList={[{ id: "3", name: "林文明" }]}
+          masterLoading={false}
+          isEdit={false}
+          isDeleting={false}
+          isConfirmed={false}
+          isPetDeceased
+          canEdit
+          canCreate
+          canDelete
+          onSetFormData={vi.fn()}
+          onBack={vi.fn()}
+          onDeleteClick={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
+  });
+
+  it("FE-RC-002: isPetDeceased=false（既定値）では他条件が揃えば保存buttonを表示する", () => {
+    renderFields();
+
+    expect(screen.getByRole("button", { name: "保存" })).toBeInTheDocument();
   });
 
   it("編集は作成権限なしでも編集権限があれば保存buttonを表示する", () => {
@@ -201,9 +223,7 @@ describe("ExaminationFormFields", () => {
       </MemoryRouter>,
     );
 
-    expect(
-      screen.getByText(/完了済みのため結果の編集・削除はできません/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/完了済みのため結果の編集・削除はできません/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "削除" })).not.toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "ステータス" })).not.toBeDisabled();

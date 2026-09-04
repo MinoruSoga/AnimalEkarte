@@ -7,9 +7,14 @@ import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldErro
 import { EstimateForm } from "./EstimateForm";
 import { TreatmentTable, TreatmentItem } from "./TreatmentTable";
 import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
-import { useGetEstimateByRecord, useCreateEstimateRecord, useUpdateEstimateRecord } from "../api/save-estimate";
+import {
+  useGetEstimateByRecord,
+  useCreateEstimateRecord,
+  useUpdateEstimateRecord,
+} from "../api/save-estimate";
 import { C } from "@/lib/design-tokens";
 import { usePermission } from "@/hooks/use-permission";
+import { useClinicTaxRates } from "@/hooks/use-clinic-tax-rates";
 import type { Estimate, EstimateItem } from "@/types/generated/models";
 
 // EstimateItem (BE snake_case) → TreatmentItem (UI camelCase) の明示変換。
@@ -66,6 +71,8 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
   const [items, setItems] = useState<TreatmentItem[]>([]);
 
   const { canEdit } = usePermission("medical-records");
+  // FE-RC-048: 消費税率はハードコード 0.1 ではなく病院マスタ設定を正本にする。
+  const { standardTaxRate } = useClinicTaxRates();
 
   // Load existing estimate
   const { data: existingEstimate } = useGetEstimateByRecord(
@@ -116,9 +123,7 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
 
   const handleUpdateItem = useCallback(
     (id: number, field: keyof TreatmentItem, value: string | number | boolean) => {
-      setItems((prev) =>
-        prev.map((item) => (item.id === id ? { ...item, [field]: value } : item)),
-      );
+      setItems((prev) => prev.map((item) => (item.id === id ? { ...item, [field]: value } : item)));
     },
     [],
   );
@@ -131,9 +136,9 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
       const discount = Number(item.discountAmount) || 0;
       return sum + (price * qty - discount);
     }, 0);
-    const taxAmount = Math.floor(sub * 0.1);
+    const taxAmount = Math.floor(sub * standardTaxRate);
     return { subtotal: sub, tax: taxAmount, total: sub + taxAmount };
-  }, [items]);
+  }, [items, standardTaxRate]);
 
   /**
    * BUG-016: メイン保存 post-save から await される。
@@ -160,6 +165,18 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
       comment,
       notes: remarks,
       medical_record_id: Number(medicalRecordId),
+      items: items
+        .filter((item) => item.content.trim())
+        .map((item, index) => ({
+          name: item.content,
+          category: "other",
+          unit_price: Number(item.unitPrice) || 0,
+          quantity: Number(item.quantity) || 1,
+          discount_rate: Number(item.discountRate) || 0,
+          discount_amount: Number(item.discountAmount) || 0,
+          is_insurance_applicable: Boolean(item.is_insurance),
+          sort_order: index,
+        })),
     };
 
     try {
@@ -189,6 +206,7 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
     existingEstimate?.id,
     updateEstimate,
     createEstimate,
+    items,
   ]);
 
   useEffect(() => {
@@ -231,9 +249,7 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
       {/* Comments & Remarks */}
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1">
-          <Label className={`text-sm font-medium ${C.text60}`}>
-            コメント
-          </Label>
+          <Label className={`text-sm font-medium ${C.text60}`}>コメント</Label>
           <Textarea
             value={comment}
             onChange={(e) => setComment(e.target.value)}
@@ -242,9 +258,7 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
           />
         </div>
         <div className="flex flex-col gap-1">
-          <Label className={`text-sm font-medium ${C.text60}`}>
-            備考
-          </Label>
+          <Label className={`text-sm font-medium ${C.text60}`}>備考</Label>
           <Textarea
             value={remarks}
             onChange={(e) => setRemarks(e.target.value)}

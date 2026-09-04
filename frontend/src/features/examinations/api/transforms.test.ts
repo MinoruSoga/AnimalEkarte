@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { BackendExamination, ExamItemsResponse } from "./types";
+import type { BackendExamination, ExamItemsResponse } from "../types";
 import { transformExamination, transformExamResult } from "./transforms";
 
 function makeBackendItem(
@@ -29,10 +29,9 @@ describe("transformExamResult", () => {
   it.each([{ isAssessed: false }, { isAssessed: true }])(
     "server-computed assessed state $isAssessed を行データへ写像する",
     ({ isAssessed }) => {
-      expect(
-        transformExamResult(makeBackendItem({ is_assessed: isAssessed }))
-          .isAssessed,
-      ).toBe(isAssessed);
+      expect(transformExamResult(makeBackendItem({ is_assessed: isAssessed })).isAssessed).toBe(
+        isAssessed,
+      );
     },
   );
 
@@ -80,8 +79,6 @@ describe("transformExamination", () => {
   });
 
   it("revision pointer がない未確定記録では undefined を維持する", () => {
-    expect(
-      transformExamination(minimalExamination).currentRevisionVersion,
-    ).toBeUndefined();
+    expect(transformExamination(minimalExamination).currentRevisionVersion).toBeUndefined();
   });
 });

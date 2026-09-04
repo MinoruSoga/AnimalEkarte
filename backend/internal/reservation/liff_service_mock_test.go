@@ -8,6 +8,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	staffpkg "github.com/animal-ekarte/backend/internal/staff"
 )
 
 // ================================================================
@@ -114,7 +115,7 @@ func (m *mockLiffStaffRepository) Create(_ context.Context, _ *model.Staff, _ ui
 	return nil
 }
 
-func (m *mockLiffStaffRepository) Update(_ context.Context, _, _ uint64, _ map[string]any) error {
+func (m *mockLiffStaffRepository) Update(_ context.Context, _, _ uint64, _ staffpkg.ReservationStaffUpdate) error {
 	return nil
 }
 
@@ -488,7 +489,6 @@ func (m *mockLiffReservationRepository) FindPetOwnerInClinic(_ context.Context, 
 func (m *mockLiffReservationRepository) FindPetByIDInClinic(_ context.Context, _, petID uint64) (*model.Pet, error) {
 	return &model.Pet{ID: petID, Status: model.PetStatusAlive}, nil
 }
-
 
 func (m *mockLiffReservationRepository) AssertLineCustomerInClinic(_ context.Context, _, _ uint64) error {
 	return nil

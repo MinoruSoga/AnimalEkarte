@@ -110,12 +110,20 @@ func (m *mockStaffRepository) CountBlockingReferencesByStaffID(ctx context.Conte
 	return m.countBlockingRefsFn(ctx, clinicID, staffID)
 }
 
+func (m *mockStaffRepository) IsActiveSystemAdminStaff(_ context.Context, _ uint64) (bool, error) {
+	return false, nil
+}
+
+func (m *mockStaffRepository) CountActiveSystemAdminStaff(_ context.Context) (int64, error) {
+	return 0, nil
+}
+
 // 予約用途 write（ADR-006 論点#1 案A）は staff service からは呼ばれない no-op スタブ。
 func (m *mockStaffRepository) CreateForReservation(_ context.Context, _ *model.Staff, _ uint64) error {
 	return nil
 }
 
-func (m *mockStaffRepository) UpdateForReservation(_ context.Context, _, _ uint64, _ map[string]any) error {
+func (m *mockStaffRepository) UpdateForReservation(_ context.Context, _, _ uint64, _ ReservationStaffUpdate) error {
 	return nil
 }
 
@@ -190,7 +198,6 @@ func (m *mockReservationForStaff) FindPetOwnerInClinic(_ context.Context, _, _ u
 func (m *mockReservationForStaff) FindPetByIDInClinic(_ context.Context, _, petID uint64) (*model.Pet, error) {
 	return &model.Pet{ID: petID, Status: model.PetStatusAlive}, nil
 }
-
 
 func (m *mockReservationForStaff) AssertLineCustomerInClinic(_ context.Context, _, _ uint64) error {
 	return nil
@@ -327,10 +334,11 @@ func (m *mockAccountForStaff) Delete(_ context.Context, _ uint64) error { return
 
 // mockAssignmentForStaff は Staff テストで使用する StaffClinicAssignmentRepository のスタブ
 type mockAssignmentForStaff struct {
-	deleteByStaffIDFn func(ctx context.Context, staffID uint64) error
-	createFn          func(ctx context.Context, a *model.StaffClinicAssignment) error
-	lockActiveFn      func(ctx context.Context, staffID uint64) ([]model.StaffClinicAssignment, error)
-	restoreOrCreateFn func(ctx context.Context, a *model.StaffClinicAssignment) error
+	deleteByStaffIDFn   func(ctx context.Context, staffID uint64) error
+	deleteByClinicIDsFn func(ctx context.Context, staffID uint64, clinicIDs []uint64) error
+	createFn            func(ctx context.Context, a *model.StaffClinicAssignment) error
+	lockActiveFn        func(ctx context.Context, staffID uint64) ([]model.StaffClinicAssignment, error)
+	restoreOrCreateFn   func(ctx context.Context, a *model.StaffClinicAssignment) error
 }
 
 func (m *mockAssignmentForStaff) FindByStaffID(_ context.Context, _ uint64) ([]model.StaffClinicAssignment, error) {
@@ -376,6 +384,22 @@ func (m *mockAssignmentForStaff) RestoreOrCreate(ctx context.Context, a *model.S
 	return m.Create(ctx, a)
 }
 func (m *mockAssignmentForStaff) Delete(ctx context.Context, staffID uint64) error {
+	if m.deleteByStaffIDFn != nil {
+		return m.deleteByStaffIDFn(ctx, staffID)
+	}
+	return nil
+}
+func (m *mockAssignmentForStaff) DeleteByStaffAndClinicIDs(
+	ctx context.Context,
+	staffID uint64,
+	clinicIDs []uint64,
+) error {
+	if m.deleteByClinicIDsFn != nil {
+		return m.deleteByClinicIDsFn(ctx, staffID, clinicIDs)
+	}
+	if len(clinicIDs) == 0 {
+		return nil
+	}
 	if m.deleteByStaffIDFn != nil {
 		return m.deleteByStaffIDFn(ctx, staffID)
 	}

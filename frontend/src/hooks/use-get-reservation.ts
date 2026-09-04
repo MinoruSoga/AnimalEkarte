@@ -6,9 +6,7 @@ import { transformReservation } from "@/lib/transforms/reservation";
 import type { Reservation as BackendReservation } from "@/types/generated/models";
 
 const getReservation = async (id: string) =>
-  transformReservation(
-    (await axios.get<BackendReservation>(`/v1/reservations/${id}`)).data
-  );
+  transformReservation((await axios.get<BackendReservation>(`/v1/reservations/${id}`)).data);
 
 export function useGetReservation(id: string) {
   return useQuery({

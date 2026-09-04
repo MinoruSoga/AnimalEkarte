@@ -57,7 +57,7 @@ func TestRegisterRoutes_PermissionViewOnlyVsManage(t *testing.T) {
 	// Fire each registered route once to capture permission middleware resource/action.
 	for _, route := range routes {
 		calls = nil
-		req := httptest.NewRequest(route.Method, route.Path, nil)
+		req := httptest.NewRequest(route.Method, route.Path, http.NoBody)
 		// Replace path params with dummy numbers for gin matching.
 		path := route.Path
 		// gin route table Path still has :params; use a matching concrete path.
@@ -77,7 +77,7 @@ func TestRegisterRoutes_PermissionViewOnlyVsManage(t *testing.T) {
 		case "/api/v1/identity-links/pets/:clinic_id/:pet_id/treatment-history":
 			path = "/api/v1/identity-links/pets/1/2/treatment-history"
 		}
-		req = httptest.NewRequest(route.Method, path, nil)
+		req = httptest.NewRequest(route.Method, path, http.NoBody)
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
 		require.NotEmpty(t, calls, "permission middleware must run for %s %s", route.Method, route.Path)

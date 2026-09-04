@@ -186,7 +186,7 @@ func ReorderGlobal(
 }
 
 // Paginate converts one-origin page/limit values into a GORM scope.
-func Paginate(page int, limit int) func(*gorm.DB) *gorm.DB {
+func Paginate(page, limit int) func(*gorm.DB) *gorm.DB {
 	return func(db *gorm.DB) *gorm.DB {
 		return db.Offset((page - 1) * limit).Limit(limit)
 	}

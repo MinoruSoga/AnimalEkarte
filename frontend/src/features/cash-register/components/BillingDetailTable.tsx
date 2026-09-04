@@ -4,7 +4,7 @@ import { C, STYLE } from "@/lib/design-tokens";
 import { formatJSTTime } from "@/lib/jst-date";
 import { formatCurrency } from "@/lib/format/number";
 import type { CloseBillingDetail } from "../api/get-cash-register-preview";
-import { CATEGORY_LABELS } from "../constants";
+import { CATEGORY_LABELS } from "../lib/constants";
 
 interface BillingDetailTableProps {
   details: CloseBillingDetail[];
@@ -14,9 +14,7 @@ export const BillingDetailTable = memo(function BillingDetailTable({
   details,
 }: BillingDetailTableProps) {
   if (details.length === 0) {
-    return (
-      <p className={`text-base ${C.text50} py-4 text-center`}>会計明細がありません</p>
-    );
+    return <p className={`text-base ${C.text50} py-4 text-center`}>会計明細がありません</p>;
   }
 
   return (
@@ -35,10 +33,7 @@ export const BillingDetailTable = memo(function BillingDetailTable({
         </thead>
         <tbody>
           {details.map((detail) => (
-            <tr
-              key={detail.billingId}
-              className={`border-b ${C.borderLight} ${STYLE.tableRow}`}
-            >
+            <tr key={detail.billingId} className={`border-b ${C.borderLight} ${STYLE.tableRow}`}>
               <TableCell className={`${C.text60} whitespace-nowrap`}>
                 {detail.paidAt ? formatJSTTime(detail.paidAt) : "—"}
               </TableCell>

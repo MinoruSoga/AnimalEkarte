@@ -28,10 +28,11 @@ export function timingSafeEqual(a: string, b: string): boolean {
 
 /**
  * `Authorization: Bearer <MIGRATE_RUN_SECRET>` を検証する。
- * secret が未設定(空文字)の場合は常に false — 誤って認証をバイパスしない。
+ * secret が未設定・空・UTF-8 バイト長 32 未満の場合は常に false
+ * (誤って認証をバイパスしない。長さは JS 文字列長ではなく TextEncoder の UTF-8 バイト)。
  */
 export function isAuthorizedMigrateRequest(request: Request, secret: string | undefined): boolean {
-  if (!secret) {
+  if (secret === undefined || new TextEncoder().encode(secret).length < 32) {
     return false;
   }
   const authHeader = request.headers.get("Authorization") ?? "";

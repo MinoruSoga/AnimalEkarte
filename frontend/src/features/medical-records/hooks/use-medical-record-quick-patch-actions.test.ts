@@ -137,7 +137,10 @@ describe("useMedicalRecordQuickPatchActions — mutation permission boundary", (
   // 来院種別/次回予定は新規作成時(recordIdなし)にローカルstateのみ更新する既存契約を持つ。
   // guard追加でこの経路を殺さないことを固定する(Mode 3照合で検出したregressionの再発防止)。
   it("新規作成時(recordIdなし)は権限ありでもローカルstateを更新しmutationを発行しない", () => {
-    const { result, mutateAsync, setVisitType, setNextVisitDate } = renderQuickPatchActions(true, "");
+    const { result, mutateAsync, setVisitType, setNextVisitDate } = renderQuickPatchActions(
+      true,
+      "",
+    );
 
     act(() => {
       result.current.handleVisitTypeChange("初診");
@@ -181,6 +184,6 @@ describe("useMedicalRecordQuickPatchActions — mutation permission boundary", (
       id: "record-1",
       req: { status: "finalized", version: 3 },
     });
-    expect(queryClient.invalidateQueries).toHaveBeenCalledTimes(3);
+    expect(queryClient.invalidateQueries).toHaveBeenCalledTimes(4);
   });
 });

@@ -135,8 +135,7 @@ func TestImportFriendAttributesCSV_EmptyFile(t *testing.T) {
 }
 
 // TestImportFriendAttributesCSV_MismatchedFieldCount: ヘッダーとデータ行の列数が異なる場合、
-// csv.Reader の ErrFieldCount により「failed to parse CSV」で InvalidInput を返すことを確認。
-// repo 到達前 (line 82-85) に return するため nil repo で safe。
+// 固定の CSV 形式エラーを返し、encoding/csv の内部メッセージをクライアントへ出さない。
 func TestImportFriendAttributesCSV_MismatchedFieldCount(t *testing.T) {
 	svc := &lstepCsvImportService{}
 	csv := "a,b\n1,2,3\n"
@@ -145,6 +144,9 @@ func TestImportFriendAttributesCSV_MismatchedFieldCount(t *testing.T) {
 
 	require.Error(t, err)
 	assert.True(t, apperrors.IsInvalidInput(err))
+	assert.Contains(t, err.Error(), csvFormatInvalidMsg)
+	assert.NotContains(t, err.Error(), "failed to parse CSV")
+	assert.NotContains(t, err.Error(), "wrong number of fields")
 }
 
 func TestImportFriendAttributesCSV_RejectsTooManyRowsBeforeActorLookup(t *testing.T) {
@@ -294,6 +296,8 @@ func TestImportFriendAttributesCSV_InvalidHeader_CreateFailedRecordError(t *test
 
 	require.Error(t, err)
 	assert.True(t, apperrors.IsInvalidInput(err))
+	assert.Contains(t, err.Error(), csvFormatInvalidMsg)
+	assert.NotContains(t, err.Error(), "required column not found")
 	assert.True(t, createCalled)
 }
 

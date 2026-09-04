@@ -11,4 +11,3 @@ export async function createShift(input: CreateShiftInput): Promise<Shift> {
   });
   return transformShift(data);
 }
-

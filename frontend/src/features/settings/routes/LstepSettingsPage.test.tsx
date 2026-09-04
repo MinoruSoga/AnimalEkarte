@@ -18,15 +18,11 @@ vi.mock("../components/TriggerPrioritySection", () => ({
 }));
 
 vi.mock("../components/LstepTagCodeMappingsSection", () => ({
-  LstepTagCodeMappingsSection: () => (
-    <div data-testid="lstep-tag-code-mappings-section" />
-  ),
+  LstepTagCodeMappingsSection: () => <div data-testid="lstep-tag-code-mappings-section" />,
 }));
 
 vi.mock("../components/LstepTagConfigSection", () => ({
-  LstepTagConfigSection: () => (
-    <div data-testid="lstep-tag-config-section" />
-  ),
+  LstepTagConfigSection: () => <div data-testid="lstep-tag-config-section" />,
 }));
 
 import { LstepSettingsPage } from "./LstepSettingsPage";
@@ -46,9 +42,7 @@ describe("LstepSettingsPage", () => {
     expect(screen.getByText("Lステップ連携設定")).toBeInTheDocument();
     expect(screen.getByTestId("lstep-settings-form")).toBeInTheDocument();
     expect(screen.getByTestId("trigger-priority-section")).toBeInTheDocument();
-    expect(
-      screen.getByTestId("lstep-tag-code-mappings-section"),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("lstep-tag-code-mappings-section")).toBeInTheDocument();
   });
 
   it("canEdit=false で権限なしメッセージを表示する", () => {
@@ -56,11 +50,7 @@ describe("LstepSettingsPage", () => {
 
     render(<LstepSettingsPage />);
 
-    expect(
-      screen.getByText("この画面を表示する権限がありません。"),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByTestId("lstep-settings-form"),
-    ).not.toBeInTheDocument();
+    expect(screen.getByText("この画面を表示する権限がありません。")).toBeInTheDocument();
+    expect(screen.queryByTestId("lstep-settings-form")).not.toBeInTheDocument();
   });
 });

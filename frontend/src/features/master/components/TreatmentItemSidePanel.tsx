@@ -1,20 +1,33 @@
-import { memo, useCallback, useEffect, useState, type ReactNode } from "react";
+import { memo, useCallback, useState, type ReactNode } from "react";
 import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
-import { MasterSidePanel, MoneyInput, PropertyInput, PropertyRow, StatusToggleButton } from "@/components/shared/SidePeek";
+import {
+  MasterSidePanel,
+  MoneyInput,
+  PropertyInput,
+  PropertyRow,
+  StatusToggleButton,
+} from "@/components/shared/SidePeek";
 import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSelector";
 import { TaxTypeSelector } from "@/components/shared/TaxTypeSelector/TaxTypeSelector";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { C, LAYOUT } from "@/lib/design-tokens";
 import type { TreatmentItem } from "@/lib/transforms/treatment";
 import type { TaxType } from "@/types/generated/models";
+import { useMasterSidePanelForm } from "../hooks/use-master-side-panel-form";
 import {
   ANESTHESIA_OPTIONS,
   PRICE_ERROR_MESSAGE,
   initialAnesthesia,
   isAnesthesiaOptionValue,
   type AnesthesiaOptionValue,
-} from "./treatment-item-side-panel-model";
+} from "../lib/treatment-item-side-panel-model";
 
 export type TreatmentFormData = {
   name: string;
@@ -45,7 +58,7 @@ interface TreatmentItemSidePanelProps {
   /** true = 子を持つ root → parentId セレクタを非表示にして root 固定 */
   hasChildren: boolean;
   onClose: () => void;
-  onSave: (data: TreatmentFormData) => void;
+  onSave: (data: TreatmentFormData) => Promise<boolean> | boolean;
   onDeleteRequest?: () => void;
   readOnly?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
@@ -66,58 +79,60 @@ export const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
   details,
   showAnesthesia = false,
 }: TreatmentItemSidePanelProps) {
-  const [formData, setFormData] = useState<TreatmentFormData>(() => ({
-    name: item?.name ?? "",
-    price: item?.price ?? 0,
-    description: item?.description ?? "",
-    isActive: item?.isActive ?? true,
-    taxType: (item?.taxType ?? "excluded") as TaxType,
-    taxRate: item?.taxRate ?? 0.1,
-    isNonInsurance: item?.isNonInsurance ?? false,
-    parentId: undefined,
-    anesthesia: initialAnesthesia(item?.anesthesia),
-  }));
   const [nameError, setNameError] = useState("");
   const [priceError, setPriceError] = useState("");
-  const [isDirty, setIsDirty] = useState(false);
 
-  useEffect(() => {
-    onDirtyChange?.(isDirty);
-  }, [isDirty, onDirtyChange]);
+  const {
+    formData,
+    setFormData: setFormDataDirty,
+    handleAction,
+  } = useMasterSidePanelForm<TreatmentFormData>({
+    initialFormData: {
+      name: item?.name ?? "",
+      price: item?.price ?? 0,
+      description: item?.description ?? "",
+      isActive: item?.isActive ?? true,
+      taxType: (item?.taxType ?? "excluded") as TaxType,
+      taxRate: item?.taxRate ?? 0.1,
+      isNonInsurance: item?.isNonInsurance ?? false,
+      parentId: undefined,
+      anesthesia: initialAnesthesia(item?.anesthesia),
+    },
+    onSave,
+    onDirtyChange,
+    validate: (data) => {
+      let hasError = false;
+      if (!data.name.trim()) {
+        setNameError("名称を入力してください");
+        hasError = true;
+      } else {
+        setNameError("");
+      }
+      if (data.price < 0) {
+        setPriceError(PRICE_ERROR_MESSAGE);
+        hasError = true;
+      } else {
+        setPriceError("");
+      }
+      return !hasError;
+    },
+  });
 
-  const setFormDataDirty = useCallback<typeof setFormData>((updater) => {
-    setFormData(updater);
-    setIsDirty(true);
-  }, []);
+  const handleTitleChange = useCallback(
+    (value: string) => {
+      setFormDataDirty((prev) => ({ ...prev, name: value }));
+      if (value.trim()) setNameError("");
+    },
+    [setFormDataDirty],
+  );
 
-  const handleAction = useCallback(() => {
-    let hasError = false;
-    if (!formData.name.trim()) {
-      setNameError("名称を入力してください");
-      hasError = true;
-    } else {
-      setNameError("");
-    }
-    if (formData.price < 0) {
-      setPriceError(PRICE_ERROR_MESSAGE);
-      hasError = true;
-    } else {
-      setPriceError("");
-    }
-    if (hasError) return;
-    onSave(formData);
-    setIsDirty(false);
-  }, [formData, onSave]);
-
-  const handleTitleChange = useCallback((value: string) => {
-    setFormDataDirty((prev) => ({ ...prev, name: value }));
-    if (value.trim()) setNameError("");
-  }, [setFormDataDirty]);
-
-  const handlePriceChange = useCallback((value: number) => {
-    setFormDataDirty((prev) => ({ ...prev, price: value }));
-    if (value >= 0) setPriceError("");
-  }, [setFormDataDirty]);
+  const handlePriceChange = useCallback(
+    (value: number) => {
+      setFormDataDirty((prev) => ({ ...prev, price: value }));
+      if (value >= 0) setPriceError("");
+    },
+    [setFormDataDirty],
+  );
 
   return (
     <MasterSidePanel
@@ -136,16 +151,13 @@ export const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
         isActive={formData.isActive}
         onToggle={() => setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }))}
       />
-      <MoneyInput
-        value={formData.price}
-        onChange={handlePriceChange}
-        error={priceError}
-      />
+      <MoneyInput value={formData.price} onChange={handlePriceChange} error={priceError} />
       {showAnesthesia ? (
         <PropertyRow label="麻酔区分">
           {readOnly ? (
             <span className={`text-base ${C.text}`}>
-              {ANESTHESIA_OPTIONS.find((o) => o.value === formData.anesthesia)?.label ?? formData.anesthesia}
+              {ANESTHESIA_OPTIONS.find((o) => o.value === formData.anesthesia)?.label ??
+                formData.anesthesia}
             </span>
           ) : (
             <Select
@@ -158,15 +170,10 @@ export const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
                 }));
               }}
             >
-              <SelectTrigger
-                className={SELECT_TRIGGER_FULL}
-                aria-label="麻酔区分"
-              >
+              <SelectTrigger className={SELECT_TRIGGER_FULL} aria-label="麻酔区分">
                 <SelectValue placeholder="麻酔区分を選択" />
               </SelectTrigger>
-              <SelectContent>
-                {ANESTHESIA_SELECT_ITEMS}
-              </SelectContent>
+              <SelectContent>{ANESTHESIA_SELECT_ITEMS}</SelectContent>
             </Select>
           )}
         </PropertyRow>
@@ -186,7 +193,9 @@ export const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
       <PropertyRow label="保険対象外">
         <button
           type="button"
-          onClick={() => setFormDataDirty((prev) => ({ ...prev, isNonInsurance: !prev.isNonInsurance }))}
+          onClick={() =>
+            setFormDataDirty((prev) => ({ ...prev, isNonInsurance: !prev.isNonInsurance }))
+          }
           aria-label="保険対象外を切り替え"
           className={`inline-flex items-center rounded-xxs ${C.hoverBgLight} transition-colors py-0.5 px-1.5 cursor-pointer text-sm ${formData.isNonInsurance ? C.textBrand : C.text50}`}
         >
@@ -195,9 +204,7 @@ export const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
       </PropertyRow>
       {hasChildren ? (
         <PropertyRow label="親カテゴリ">
-          <span className={`text-base ${C.text50}`}>
-            子項目があるため変更できません
-          </span>
+          <span className={`text-base ${C.text50}`}>子項目があるため変更できません</span>
         </PropertyRow>
       ) : (
         <PropertyRow label="親カテゴリ">
@@ -211,8 +218,10 @@ export const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
             <SearchableSelect
               value={
                 formData.parentId !== undefined
-                  ? (formData.parentId || "__none__")
-                  : (item?.parentId != null ? String(item.parentId) : "__none__")
+                  ? formData.parentId || "__none__"
+                  : item?.parentId != null
+                    ? String(item.parentId)
+                    : "__none__"
               }
               onValueChange={(value) =>
                 setFormDataDirty((prev) => ({

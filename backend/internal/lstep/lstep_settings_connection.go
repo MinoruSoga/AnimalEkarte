@@ -5,18 +5,74 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/infra/line"
+	infralstep "github.com/animal-ekarte/backend/internal/infra/lstep"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// connectionProbeClient is a timeout-bound client for connectivity probes (LSA-01/LSA-08).
-// Do not use http.DefaultClient (no timeout).
-var connectionProbeClient = &http.Client{Timeout: 10 * time.Second}
+const connectionProbeTimeout = 10 * time.Second
+
+var (
+	errConnectionRedirect = errors.New("redirect disallowed")
+	errBlockedDialAddress = errors.New("blocked dial address")
+	lookupProbeIPAddr     = defaultLookupProbeIPAddr
+	connectionProbeClient = newOutboundProbeClient(connectionProbeTimeout)
+)
+
+func defaultLookupProbeIPAddr(ctx context.Context, host string) ([]net.IPAddr, error) {
+	return net.DefaultResolver.LookupIPAddr(ctx, host)
+}
+
+func probeCheckRedirect(*http.Request, []*http.Request) error {
+	return errConnectionRedirect
+}
+
+func newOutboundProbeClient(timeout time.Duration) *http.Client {
+	return &http.Client{
+		Timeout:       timeout,
+		CheckRedirect: probeCheckRedirect,
+		Transport: &http.Transport{
+			Proxy:                 nil,
+			DialContext:           probeDialContext,
+			ForceAttemptHTTP2:     true,
+			MaxIdleConns:          4,
+			IdleConnTimeout:       30 * time.Second,
+			TLSHandshakeTimeout:   timeout,
+			ExpectContinueTimeout: time.Second,
+		},
+	}
+}
+
+func probeDialContext(ctx context.Context, network, addr string) (net.Conn, error) {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return nil, err
+	}
+	ips, err := lookupProbeIPAddr(ctx, host)
+	if err != nil {
+		return nil, err
+	}
+	if len(ips) == 0 {
+		return nil, errBlockedDialAddress
+	}
+	for _, ipa := range ips {
+		if isForbiddenProbeIP(ipa.IP) {
+			return nil, errBlockedDialAddress
+		}
+	}
+	d := &net.Dialer{Timeout: connectionProbeTimeout}
+	return d.DialContext(ctx, network, net.JoinHostPort(ips[0].IP.String(), port))
+}
+
+func isForbiddenProbeIP(ip net.IP) bool {
+	return infralstep.IsForbiddenDialIP(ip)
+}
 
 func (s *lstepSettingsService) TestConnection(ctx context.Context, clinicID uint64) (*LstepConnectionTestResult, error) {
 	records, err := s.repo.FindByClinicAndService(ctx, clinicID, model.IntegrationServiceLstep)
@@ -116,9 +172,17 @@ func classifyConnectionProbeError(err error) string {
 	if errors.Is(err, errConnectionUnauthorized) {
 		return "unauthorized"
 	}
+	if errors.Is(err, errConnectionRedirect) || errors.Is(err, errBlockedDialAddress) {
+		return "unreachable"
+	}
 	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 		return "timeout"
 	}
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		return "timeout"
+	}
+	// Fallback only: remaining Contains must not proliferate. Prefer typed errors.Is/As above.
 	msg := strings.ToLower(err.Error())
 	switch {
 	case strings.Contains(msg, "timeout") || strings.Contains(msg, "deadline"):

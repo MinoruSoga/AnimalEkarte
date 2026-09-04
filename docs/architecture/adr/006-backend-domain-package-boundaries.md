@@ -21,7 +21,7 @@ BE-refactor.md の BE9-2A（本ADRの起票元タスク）は、当時の全761 
 
 2026-07-24のfollow-up hardeningでは、LINE webhookの全setting-secret readを受信前identity解決だけの限定例外とし、一意に署名一致したclinicへowner lookup/updateをscopeした。duplicate secretによる曖昧系はfail closed、owner未登録のtyped NotFoundだけをno-op、真のlookup/update errorはnon-2xx retryへ伝播する。follow/unfollow更新は`clinic_id + owner id + expected line_user_id`とLINE event timestampを使うCASとし、stale・duplicate・out-of-order・再連携前IDは`RowsAffected == 0`の安全なno-op、同時刻はunfollow優先とする。公開LIFF account linkはowner PIIを返さない`204 No Content`とし、LINE ID token検証はredirectを追従しない。billing confirmation/returnは認証済みstaffをactorとし、`Content-Type: application/json`（charset parameter可）以外を415、bodyを8 KiBのexact-key/string strict single-object JSON、trim後non-blankの`return_reason` 500文字、`memo` 1,000文字として境界で強制する。scheduler opsはCloudflare Access JWKSをWorker isolate内で10分cacheし、同時取得を集約、unknown `kid`/upstream failure後のrefreshを60秒cooldownしてfail closedにする。
 
-本ADRのimplemented判定はcode/package境界についての判定であり、release readyを意味しない。fresh DB migration実適用・checksum/rollback確認、remote CI/full coverage artifact、production deploy/configuration、scheduler/observability/alert/recovery rehearsalは[`todo.md` OPS-13〜17](../../../todo.md#ops)のrelease gateとして未実施である。
+本ADRのimplemented判定はcode/package境界についての判定であり、release readyを意味しない。fresh DB migration実適用・checksum/rollback確認、remote CI/full coverage artifact、production deploy/configuration、scheduler/observability/alert/recovery rehearsalは Linear hub [BRT-4](https://linear.app/baritechllc/issue/BRT-4) / [`todo.md`](../../../todo.md) の release gate として未実施である（旧 OPS-13〜17 節は死リンク）。
 
 ## Decision
 
@@ -39,12 +39,15 @@ backend/internal/
   # 現状維持（既存の凝集cross-cutting package）:
   config/ dbconn/ middleware/ infra/ model/
   timeutil/ seedbundle/ logger/ csvimport/
+  labdeviceagent/  # cmd/lab-device-agent 専用のローカル検査機器 agent。domain ではない
   authjwt/ apperrors/ apicontract/ lintscan/
   audit/ persistence/ scheduler/ sharedkernel/
   textsearch/ testdb/
 ```
 
 > 2026-07-30 amendment: `identitylink/` を #239 Phase 1 の vertical slice として target domain に追加（cross-clinic owner/pet identity 連結）。依存は `apperrors` / `audit` / `httpapi` / `model` / `persistence` / `textsearch` のみ（owner/pet package への Go import は無し）。
+
+> 2026-08-22 amendment: `labdeviceagent/` を keep-tier に追加する。Mac ローカル検査機器の serial-port agent（ADR-008）であり、consumer は `cmd/lab-device-agent` のみ。14 target domain には含めない。
 
 ### Product philosophyに基づく運用境界（project decision）
 

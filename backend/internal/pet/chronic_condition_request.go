@@ -7,7 +7,7 @@ import (
 
 type createChronicConditionRequest struct {
 	ConditionCode string  `json:"condition_code" binding:"required"`
-	ConditionName string  `json:"condition_name" binding:"required"`
+	ConditionName string  `json:"condition_name" binding:"required,max=255"`
 	DiagnosedAt   string  `json:"diagnosed_at"   binding:"required"`
 	Notes         *string `json:"notes"`
 	IsActive      *bool   `json:"is_active"`
@@ -35,7 +35,7 @@ func (r createChronicConditionRequest) toServiceInput() (CreateChronicConditionI
 
 type updateChronicConditionRequest struct {
 	ConditionCode *string `json:"condition_code"`
-	ConditionName *string `json:"condition_name"`
+	ConditionName *string `json:"condition_name" binding:"omitempty,max=255"`
 	DiagnosedAt   *string `json:"diagnosed_at"`
 	Notes         *string `json:"notes"`
 	IsActive      *bool   `json:"is_active"`

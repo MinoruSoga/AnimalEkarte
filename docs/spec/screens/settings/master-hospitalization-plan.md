@@ -24,7 +24,7 @@
 ## 主要な機能
 
 ### 1. 会計への自動集計は本マスタの単価を使用しない
-退院処理（`DischargeWithBilling`、`backend/internal/service/hospitalization_service.go:313-422`）は、`HospitalizationPlan` の単価・対象体格・入院日数の計算を一切参照しません。実際に会計明細へ変換されるのは、入院記録に紐づく `CarePlanItem`（ケアプランタスク）一件ごとの手動設定単価（数量は常に 1 固定）です。本マスタの単価は入院プラン一覧の参考表示にとどまり、会計自動生成のロジックには組み込まれていません。
+退院処理（`DischargeWithBilling`、`backend/internal/medicalrecord/hospitalization_service.go`）は、`HospitalizationPlan` の単価・対象体格・入院日数の計算を一切参照しません。実際に会計明細へ変換されるのは、入院記録に紐づく `CarePlanItem`（ケアプランタスク）一件ごとの手動設定単価（数量は常に 1 固定）です。本マスタの単価は入院プラン一覧の参考表示にとどまり、会計自動生成のロジックには組み込まれていません。
 
 ### 2. ケアプランとの関連（別画面）
 `CarePlanItem`（ケアプランタスク）は任意で `hospitalization_plan_id` を持てるが、これは入院登録時にタスクを自動展開する機能ではなく、本設定画面のサイドパネルからも編集できない。

@@ -1,3 +1,5 @@
+import { formatJSTDate } from "@/lib/jst-date";
+
 export const CLINICAL_HISTORY_KINDS = [
   "診療",
   "検査",
@@ -80,7 +82,7 @@ export interface ClinicalHistorySources {
   trimmings: ReadonlyArray<TrimmingSource>;
 }
 
-export interface ClinicalHistoryEntry {
+interface ClinicalHistoryEntry {
   id: string;
   kind: ClinicalHistoryKind;
   dateKey: string;
@@ -91,13 +93,13 @@ export interface ClinicalHistoryEntry {
   isAlert?: boolean;
 }
 
-export interface ClinicalHistoryColumn {
+interface ClinicalHistoryColumn {
   dateKey: string;
   label: string;
   entries: ClinicalHistoryEntry[];
 }
 
-export interface ClinicalHistoryRow {
+interface ClinicalHistoryRow {
   kind: ClinicalHistoryKind;
   count: number;
 }
@@ -111,9 +113,7 @@ export interface ClinicalHistoryMatrix {
 function isValidDateParts(year: number, month: number, day: number): boolean {
   const date = new Date(Date.UTC(year, month - 1, day));
   return (
-    date.getUTCFullYear() === year &&
-    date.getUTCMonth() === month - 1 &&
-    date.getUTCDate() === day
+    date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
   );
 }
 
@@ -139,9 +139,7 @@ function joinDetail(parts: ReadonlyArray<string | undefined>): string | undefine
   return detail || undefined;
 }
 
-function medicalRecordEntries(
-  records: ReadonlyArray<MedicalRecordSource>,
-): ClinicalHistoryEntry[] {
+function medicalRecordEntries(records: ReadonlyArray<MedicalRecordSource>): ClinicalHistoryEntry[] {
   return records.flatMap((record) => {
     const dateKey = normalizeClinicalDate(record.date);
     if (!dateKey) return [];
@@ -286,9 +284,7 @@ function trimmingEntries(trimmings: ReadonlyArray<TrimmingSource>): ClinicalHist
   });
 }
 
-export function buildClinicalHistoryMatrix(
-  sources: ClinicalHistorySources,
-): ClinicalHistoryMatrix {
+export function buildClinicalHistoryMatrix(sources: ClinicalHistorySources): ClinicalHistoryMatrix {
   const entries = [
     ...medicalRecordEntries(sources.medicalRecords),
     ...examinationEntries(sources.examinations),
@@ -298,8 +294,9 @@ export function buildClinicalHistoryMatrix(
     ...treatmentEntries(sources.treatments, "処置"),
     ...trimmingEntries(sources.trimmings),
   ];
-  const dateKeys = [...new Set(entries.map((entry) => entry.dateKey))]
-    .sort((left, right) => right.localeCompare(left));
+  const dateKeys = [...new Set(entries.map((entry) => entry.dateKey))].sort((left, right) =>
+    right.localeCompare(left),
+  );
 
   return {
     columns: dateKeys.map((dateKey) => ({
@@ -322,8 +319,11 @@ interface AppointmentSource {
   status: string;
 }
 
+// FE-RC-027: ローカル getter (getFullYear/getMonth/getDate) はクライアント OS の
+// タイムゾーンに依存するため、JST 固定の壁時計日付を保証する共通ヘルパーに委譲する
+// （@/lib/jst-date と同じ UTC オフセット計算契約に統一）。
 function wallDateISO(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  return formatJSTDate(date);
 }
 
 const INACTIVE_FUTURE_STATUSES = new Set(["cancelled", "no_show", "completed"]);
@@ -332,15 +332,18 @@ export function selectAppointmentBriefing<T extends AppointmentSource>(
   reservations: ReadonlyArray<T>,
   today: string,
 ): { today?: T; next?: T } {
-  const sorted = [...reservations].sort((left, right) => left.start.getTime() - right.start.getTime());
-  const todayReservations = sorted.filter((reservation) => wallDateISO(reservation.start) === today);
+  const sorted = [...reservations].sort(
+    (left, right) => left.start.getTime() - right.start.getTime(),
+  );
+  const todayReservations = sorted.filter(
+    (reservation) => wallDateISO(reservation.start) === today,
+  );
   const todayActive = todayReservations.find(
     (reservation) => !INACTIVE_FUTURE_STATUSES.has(reservation.status),
   );
   const next = sorted.find(
     (reservation) =>
-      wallDateISO(reservation.start) > today &&
-      !INACTIVE_FUTURE_STATUSES.has(reservation.status),
+      wallDateISO(reservation.start) > today && !INACTIVE_FUTURE_STATUSES.has(reservation.status),
   );
 
   return { today: todayActive ?? todayReservations[0], next };

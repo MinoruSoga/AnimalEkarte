@@ -15,15 +15,15 @@
 | セクション名 | 管理対象（リンク） |
 |:---|:---|
 | **基本設定** | [医院情報](./19-clinic-settings.md)、[動物種類マスタ](./settings/master-animal-species.md) |
-| **カルテ** | [診療項目](./settings/master-treatment.md)（[検査項目定義](./settings/master-examinations.md)は診療項目のタブ内で管理）、[診断マスタ](./settings/master-diagnosis.md)、[問診テンプレート](./settings/master-interview.md)、[主訴種別](./settings/master-chief-complaint.md)、[薬剤マスタ](./settings/master-medicine.md) |
+| **カルテ** | [診療項目](./settings/master-treatment.md)、[検査マスタ](./settings/master-examinations.md)（診療項目の検査タブ。サイドバー「マスタ設定」→「カルテ関連」→「検査マスタ」。`/settings/treatment-items?tab=examination`）、[診断マスタ](./settings/master-diagnosis.md)、[問診テンプレート](./settings/master-interview.md)、[主訴種別](./settings/master-chief-complaint.md)、[薬剤マスタ](./settings/master-medicine.md)、検査機器マスタ（サイドバー「マスタ設定」→「カルテ関連」→「検査機器マスタ」。`/settings/lab-device-item-masters`。機器名と検査種別は `lab_devices`。登録は `lab-import:create`、編集は `lab-import:edit`。日常の送信画面には出さない） |
 | **予約管理マスタ** | [予約区分マスタ](./settings/master-reservation-type.md) |
 | **入院・ケージ管理** | [入院プラン](./settings/master-hospitalization-plan.md)、[ケージマスタ](./settings/master-cage.md) |
 | **トリミング関連** | [トリミングマスタ](./settings/master-trimming.md)、[トリミングコース種別](./settings/master-trimming-course-type.md) |
-| **会計・商品** | [商品マスタ](./settings/master-merchandise.md)、[保険マスタ](./settings/master-insurance.md)、[支払方法](./settings/payment-methods.md)、[締め時間設定](./settings/closing-time-settings.md) |
+| **会計・商品** | [商品マスタ](./settings/master-merchandise.md)、[保険マスタ](./settings/master-insurance.md)、[支払方法](./settings/payment-methods.md)、[割引キャンペーン](./settings/master-campaigns.md)、[締め時間設定](./settings/closing-time-settings.md) |
 | **スタッフ・権限** | [スタッフ管理](./settings/master-staff.md)、[職種マスタ](./settings/master-occupation.md)、[権限グループ設定](./settings/master-permission-group.md) |
 | **シフト管理** | [シフトパターン](./settings/master-shift-template.md) |
 
-> 補足: [割引キャンペーン](./settings/master-campaigns.md)（`/settings/campaigns`）はルートは存在するがこのポータルのカードには含まれない。[LINE予約設定](./28-line-reservation.md)（`/line-reservation`）と [Lステップ連携設定](./31-lstep-integration.md) はサイドバーの別セクションから遷移する。
+> 補足: [LINE予約設定](./28-line-reservation.md)（`/line-reservation`）と [Lステップ連携設定](./31-lstep-integration.md) はサイドバーの別セクションから遷移する。
 
 ---
 
@@ -43,7 +43,7 @@
 ## 技術仕様
 
 ### 権限制御 (RBAC)
-ポータル画面自体は全ユーザーが閲覧可能ですが、個別のマスタへのアクセスおよび操作権限は、`ResourceMasterMedical`, `ResourceMasterStaff`, `ResourceMasterTrimming` 等のリソースキーに基づき、バックエンドのハンドラー層で厳格に認可チェック（`RequirePermission`）が適用されます。
+ポータルは認証 `Layout` 内で全ユーザーが閲覧可能です。カードは `usePermission` / `hasPermission` で表示を絞り、個別フロントエンドルートは `RequirePermission` でガードします。各 API は同じ resource/action をサーバー側でも認可します。
 
 ### 使用コンポーネント
 - **`MasterSettingsIndex`**: メインコンテナ。

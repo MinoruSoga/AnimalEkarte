@@ -17,11 +17,11 @@ import (
 // CheckupPackageManifest is the strict schema for a versioned import package.
 // Clinic ID and actor ID are intentionally absent — request context is authority.
 type CheckupPackageManifest struct {
-	Namespace             string                      `json:"namespace"`
-	Version               string                      `json:"version"`
-	ClinicalApprovalRef   string                      `json:"clinical_approval_ref"`
-	Types                 []CheckupPackageTypeDef     `json:"types"`
-	Fields                []CheckupPackageFieldDef    `json:"fields"`
+	Namespace           string                   `json:"namespace"`
+	Version             string                   `json:"version"`
+	ClinicalApprovalRef string                   `json:"clinical_approval_ref"`
+	Types               []CheckupPackageTypeDef  `json:"types"`
+	Fields              []CheckupPackageFieldDef `json:"fields"`
 }
 
 type CheckupPackageTypeDef struct {
@@ -60,7 +60,7 @@ func ParseAndCanonicalizeCheckupPackage(raw []byte) (*CanonicalCheckupPackage, e
 	dec.DisallowUnknownFields()
 	var manifest CheckupPackageManifest
 	if err := dec.Decode(&manifest); err != nil {
-		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("invalid checkup package manifest: %v", err))
+		return nil, apperrors.WrapInvalidInput("マニフェストの形式が正しくありません")
 	}
 	if dec.More() {
 		return nil, apperrors.WrapInvalidInput("invalid checkup package manifest: trailing content")
@@ -69,10 +69,7 @@ func ParseAndCanonicalizeCheckupPackage(raw []byte) (*CanonicalCheckupPackage, e
 	if err := validateCheckupPackageManifest(&manifest); err != nil {
 		return nil, err
 	}
-	canonical, err := canonicalizeCheckupPackage(&manifest)
-	if err != nil {
-		return nil, err
-	}
+	canonical := canonicalizeCheckupPackage(&manifest)
 	digest, err := digestCheckupPackage(canonical)
 	if err != nil {
 		return nil, err
@@ -97,6 +94,14 @@ func validateCheckupPackageManifest(m *CheckupPackageManifest) error {
 		return apperrors.WrapInvalidInput("manifest types must not be empty")
 	}
 
+	typeKeys, err := normalizeAndValidateCheckupTypes(m)
+	if err != nil {
+		return err
+	}
+	return validateCheckupPackageFields(m, typeKeys)
+}
+
+func normalizeAndValidateCheckupTypes(m *CheckupPackageManifest) (map[string]struct{}, error) {
 	typeKeys := make(map[string]struct{}, len(m.Types))
 	for i := range m.Types {
 		t := &m.Types[i]
@@ -114,24 +119,27 @@ func validateCheckupPackageManifest(m *CheckupPackageManifest) error {
 			}
 		}
 		if t.Key == "" || t.Name == "" {
-			return apperrors.WrapInvalidInput("type key and name are required")
+			return nil, apperrors.WrapInvalidInput("type key and name are required")
 		}
 		if _, dup := typeKeys[t.Key]; dup {
-			return apperrors.WrapInvalidInput(fmt.Sprintf("duplicate type key %q", t.Key))
+			return nil, apperrors.WrapInvalidInput(fmt.Sprintf("duplicate type key %q", t.Key))
 		}
 		typeKeys[t.Key] = struct{}{}
 	}
 	for i := range m.Types {
 		if m.Types[i].ParentKey != nil {
 			if _, ok := typeKeys[*m.Types[i].ParentKey]; !ok {
-				return apperrors.WrapInvalidInput(fmt.Sprintf("unknown parent_key %q", *m.Types[i].ParentKey))
+				return nil, apperrors.WrapInvalidInput(fmt.Sprintf("unknown parent_key %q", *m.Types[i].ParentKey))
 			}
 			if *m.Types[i].ParentKey == m.Types[i].Key {
-				return apperrors.WrapInvalidInput("type cannot parent itself")
+				return nil, apperrors.WrapInvalidInput("type cannot parent itself")
 			}
 		}
 	}
+	return typeKeys, nil
+}
 
+func validateCheckupPackageFields(m *CheckupPackageManifest, typeKeys map[string]struct{}) error {
 	fieldKeys := make(map[string]struct{}, len(m.Fields))
 	for i := range m.Fields {
 		f := &m.Fields[i]
@@ -157,45 +165,51 @@ func validateCheckupPackageManifest(m *CheckupPackageManifest) error {
 		if !ft.IsValid() {
 			return apperrors.WrapInvalidInput(fmt.Sprintf("field %q has invalid field_type %q", f.Key, f.FieldType))
 		}
-		// Normalize options: trim, reject empties/duplicates
-		normalized := make([]string, 0, len(f.Options))
-		seenOpt := map[string]struct{}{}
-		for _, opt := range f.Options {
-			opt = strings.TrimSpace(opt)
-			if opt == "" {
-				return apperrors.WrapInvalidInput(fmt.Sprintf("field %q has empty option", f.Key))
-			}
-			if _, dup := seenOpt[opt]; dup {
-				return apperrors.WrapInvalidInput(fmt.Sprintf("field %q has duplicate option %q", f.Key, opt))
-			}
-			seenOpt[opt] = struct{}{}
-			normalized = append(normalized, opt)
+		if err := normalizeAndValidateCheckupFieldOptions(f, ft); err != nil {
+			return err
 		}
-		f.Options = normalized
+	}
+	return nil
+}
 
-		switch ft {
-		case model.CheckupFieldTypeNumber:
-			if len(f.Options) != 0 {
-				return apperrors.WrapInvalidInput(fmt.Sprintf("number field %q must have empty options", f.Key))
-			}
-			minV, maxV, err := parseOptionalDecimalPair(f.MinValue, f.MaxValue)
-			if err != nil {
-				return apperrors.WrapInvalidInput(fmt.Sprintf("field %q: %v", f.Key, err))
-			}
-			if minV != nil && maxV != nil && *minV > *maxV {
-				return apperrors.WrapInvalidInput(fmt.Sprintf("field %q min_value must be <= max_value", f.Key))
-			}
-		case model.CheckupFieldTypeSingleSelect, model.CheckupFieldTypeMultiSelect, model.CheckupFieldTypeChecklist:
-			if len(f.Options) == 0 {
-				return apperrors.WrapInvalidInput(fmt.Sprintf("field %q requires non-empty options", f.Key))
-			}
-			if f.MinValue != nil || f.MaxValue != nil {
-				return apperrors.WrapInvalidInput(fmt.Sprintf("field %q must not set min/max", f.Key))
-			}
-		case model.CheckupFieldTypeBoolean, model.CheckupFieldTypeText:
-			if len(f.Options) != 0 || f.MinValue != nil || f.MaxValue != nil {
-				return apperrors.WrapInvalidInput(fmt.Sprintf("field %q must have empty options and min/max", f.Key))
-			}
+func normalizeAndValidateCheckupFieldOptions(f *CheckupPackageFieldDef, ft model.CheckupFieldType) error {
+	normalized := make([]string, 0, len(f.Options))
+	seenOpt := map[string]struct{}{}
+	for _, opt := range f.Options {
+		opt = strings.TrimSpace(opt)
+		if opt == "" {
+			return apperrors.WrapInvalidInput(fmt.Sprintf("field %q has empty option", f.Key))
+		}
+		if _, dup := seenOpt[opt]; dup {
+			return apperrors.WrapInvalidInput(fmt.Sprintf("field %q has duplicate option %q", f.Key, opt))
+		}
+		seenOpt[opt] = struct{}{}
+		normalized = append(normalized, opt)
+	}
+	f.Options = normalized
+
+	switch ft {
+	case model.CheckupFieldTypeNumber:
+		if len(f.Options) != 0 {
+			return apperrors.WrapInvalidInput(fmt.Sprintf("number field %q must have empty options", f.Key))
+		}
+		minV, maxV, err := parseOptionalDecimalPair(f.MinValue, f.MaxValue)
+		if err != nil {
+			return apperrors.WrapInvalidInput("健診パッケージの数値範囲が不正です")
+		}
+		if minV != nil && maxV != nil && *minV > *maxV {
+			return apperrors.WrapInvalidInput(fmt.Sprintf("field %q min_value must be <= max_value", f.Key))
+		}
+	case model.CheckupFieldTypeSingleSelect, model.CheckupFieldTypeMultiSelect, model.CheckupFieldTypeChecklist:
+		if len(f.Options) == 0 {
+			return apperrors.WrapInvalidInput(fmt.Sprintf("field %q requires non-empty options", f.Key))
+		}
+		if f.MinValue != nil || f.MaxValue != nil {
+			return apperrors.WrapInvalidInput(fmt.Sprintf("field %q must not set min/max", f.Key))
+		}
+	case model.CheckupFieldTypeBoolean, model.CheckupFieldTypeText:
+		if len(f.Options) != 0 || f.MinValue != nil || f.MaxValue != nil {
+			return apperrors.WrapInvalidInput(fmt.Sprintf("field %q must have empty options and min/max", f.Key))
 		}
 	}
 	return nil
@@ -238,7 +252,7 @@ func formatDecimal10_4(v float64) string {
 	return strconv.FormatFloat(v, 'f', 4, 64)
 }
 
-func canonicalizeCheckupPackage(m *CheckupPackageManifest) (*CheckupPackageManifest, error) {
+func canonicalizeCheckupPackage(m *CheckupPackageManifest) *CheckupPackageManifest {
 	out := *m
 	types := append([]CheckupPackageTypeDef(nil), m.Types...)
 	fields := append([]CheckupPackageFieldDef(nil), m.Fields...)
@@ -246,7 +260,7 @@ func canonicalizeCheckupPackage(m *CheckupPackageManifest) (*CheckupPackageManif
 	sort.SliceStable(fields, func(i, j int) bool { return fields[i].Key < fields[j].Key })
 	out.Types = types
 	out.Fields = fields
-	return &out, nil
+	return &out
 }
 
 func digestCheckupPackage(m *CheckupPackageManifest) (string, error) {

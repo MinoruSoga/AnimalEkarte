@@ -47,16 +47,20 @@ func (r *billingItemRepository) FindUnbilledVaccinationItemsByPetID(
 		WHERE vaccination.clinic_id = ?
 		  AND vaccination.pet_id = ?
 		  AND vaccination.deleted_at IS NULL
-		  AND (
-		      vaccination.medical_record_id IS NULL
-		      OR EXISTS (
-		          SELECT 1
-		          FROM medical_records AS medical_record
-		          WHERE medical_record.id = vaccination.medical_record_id
-		            AND medical_record.clinic_id = vaccination.clinic_id
-		            AND medical_record.pet_id = vaccination.pet_id
-		            AND medical_record.deleted_at IS NULL
-		      )
+		  AND vaccination.medical_record_id IS NOT NULL
+		  AND EXISTS (
+		      SELECT 1
+		      FROM medical_records AS medical_record
+		      WHERE medical_record.id = vaccination.medical_record_id
+		        AND medical_record.clinic_id = vaccination.clinic_id
+		        AND medical_record.pet_id = vaccination.pet_id
+		        AND medical_record.deleted_at IS NULL
+		  )
+		  AND EXISTS (
+		      SELECT 1
+		      FROM billing_confirmations AS billing_confirmation
+		      WHERE billing_confirmation.medical_record_id = vaccination.medical_record_id
+		        AND billing_confirmation.status = 'confirmed'
 		  )
 		  AND NOT EXISTS (
 		      SELECT 1
@@ -94,6 +98,88 @@ func (r *billingItemRepository) FindUnbilledVaccinationItemsByPetID(
 			TaxRate:       sharedkernel.DefaultTaxRate,
 			Source:        model.ItemSourceMedicalRecord,
 			VaccinationID: &vaccinationID,
+		})
+	}
+	return items, unbillableCount, nil
+}
+
+func (r *billingItemRepository) FindUnbilledExamItemsByPetID(
+	ctx context.Context,
+	clinicID, petID uint64,
+) ([]model.BillingItem, int, error) {
+	type examBillingRow struct {
+		ExamID        uint64
+		ExamTypeID    *uint64
+		Name          *string
+		UnitPrice     *int64
+		MedicalRecord uint64
+	}
+	rows := make([]examBillingRow, 0)
+	if err := r.db.WithContext(ctx).Raw(`
+		SELECT
+			exam.id AS exam_id,
+			exam_type.id AS exam_type_id,
+			exam_type.name AS name,
+			exam_type.price AS unit_price,
+			exam.medical_record_id AS medical_record
+		FROM exams AS exam
+		JOIN pets AS pet
+		  ON pet.id = exam.pet_id
+		 AND pet.clinic_id = exam.clinic_id
+		 AND pet.deleted_at IS NULL
+		JOIN medical_records AS medical_record
+		  ON medical_record.id = exam.medical_record_id
+		 AND medical_record.clinic_id = exam.clinic_id
+		 AND medical_record.pet_id = exam.pet_id
+		 AND medical_record.deleted_at IS NULL
+		JOIN billing_confirmations AS billing_confirmation
+		  ON billing_confirmation.medical_record_id = exam.medical_record_id
+		 AND billing_confirmation.status = 'confirmed'
+		LEFT JOIN exam_types AS exam_type
+		  ON exam_type.id = exam.exam_type_id
+		 AND exam_type.clinic_id = exam.clinic_id
+		 AND exam_type.deleted_at IS NULL
+		WHERE exam.clinic_id = ?
+		  AND exam.pet_id = ?
+		  AND exam.deleted_at IS NULL
+		  AND exam.medical_record_id IS NOT NULL
+		  AND NOT EXISTS (
+		      SELECT 1
+		      FROM billing_items AS billing_item
+		      WHERE billing_item.exam_id = exam.id
+		        AND billing_item.clinic_id = exam.clinic_id
+		        AND billing_item.deleted_at IS NULL
+		  )
+		ORDER BY exam.date ASC, exam.id ASC
+	`, clinicID, petID).Scan(&rows).Error; err != nil {
+		return nil, 0, apperrors.FromGORM(err, "exam", fmt.Sprintf("pet:%d", petID))
+	}
+
+	items := make([]model.BillingItem, 0, len(rows))
+	unbillableCount := 0
+	for i := range rows {
+		row := &rows[i]
+		if row.ExamTypeID == nil ||
+			row.Name == nil ||
+			strings.TrimSpace(*row.Name) == "" ||
+			row.UnitPrice == nil ||
+			*row.UnitPrice < 0 {
+			unbillableCount++
+			continue
+		}
+		examID := row.ExamID
+		medicalRecordID := row.MedicalRecord
+		items = append(items, model.BillingItem{
+			ID:              examID,
+			Category:        model.ItemCategoryTest,
+			Name:            *row.Name,
+			UnitPrice:       *row.UnitPrice,
+			Quantity:        1,
+			TaxType:         model.TaxTypeExcluded,
+			TaxRate:         sharedkernel.DefaultTaxRate,
+			Source:          model.ItemSourceMedicalRecord,
+			ExamID:          &examID,
+			MedicalRecordID: &medicalRecordID,
 		})
 	}
 	return items, unbillableCount, nil

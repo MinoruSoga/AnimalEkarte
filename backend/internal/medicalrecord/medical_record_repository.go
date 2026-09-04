@@ -14,7 +14,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
-	"github.com/animal-ekarte/backend/internal/textsearch"
 )
 
 // MedicalRecordListFilters はカルテ一覧のフィルタ条件（B-1: server-side pagination/search 拡張）。
@@ -93,6 +92,11 @@ type MedicalRecordRepository interface {
 	FindOwnersByNextVisitRecommended(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error)
 	// CountByOwnerID は飼い主に紐付く有効カルテ数を返す（初診判定用: FEAT-383 Phase 2）。
 	CountByOwnerID(ctx context.Context, clinicID, ownerID uint64) (int64, error)
+	// LockLinkedAppointmentForUpdate は削除経路が appointments 行ロックを medical_records
+	// より先に取るための FOR UPDATE。予約の in_consultation 遷移（LockAndFindByID → COUNT）
+	// と同じロック順序にし、AB-BA を避ける。ambient tx 必須。appointment_id が無い、または
+	// 親 appointments 行が既に無い場合は Appointment==nil の result を返す（(nil,nil) は使わない）。
+	LockLinkedAppointmentForUpdate(ctx context.Context, clinicID, medicalRecordID uint64) (*linkedAppointmentLock, error)
 	// LockByIDForUpdate は FOR UPDATE でカルテを行ロック取得する（BE-refactor.md X-11:
 	// 確定(finalize)と子エンティティ書込の競合防止）。treatment/examination/vital/prescription/
 	// checkup_field_result の各サービスが子書込トランザクションの先頭で呼び出し、返却された
@@ -124,6 +128,12 @@ func NewMedicalRecordRepository(db *gorm.DB) MedicalRecordRepository {
 	return &medicalRecordRepository{db: db}
 }
 
+// linkedAppointmentLock is the appointments-first row lock taken on medical-record delete.
+// Appointment is nil when the record has no live parent appointment.
+type linkedAppointmentLock struct {
+	Appointment *model.Reservation
+}
+
 func (r *medicalRecordRepository) AcquireAutoCreateLock(
 	ctx context.Context,
 	clinicID, petID uint64,
@@ -143,158 +153,48 @@ func (r *medicalRecordRepository) AcquireAutoCreateLock(
 	return acquired, nil
 }
 
-func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicIDs []uint64, filters MedicalRecordListFilters, page, limit int) ([]model.MedicalRecord, int64, error) {
-	records := make([]model.MedicalRecord, 0)
-	var total int64
-
-	// フェイルセーフ: 検証バグ等で空スライスが渡っても全件露出させない
-	if len(clinicIDs) == 0 {
-		return []model.MedicalRecord{}, 0, nil
-	}
-
-	// search / animal_species_id / 列ソート(pet_name・owner_name) は pets / owners / inquiries への JOIN が必要。
-	// inquiries.medical_record_id と owners/pets の FK は 1 レコードにつき高々1件のため LEFT JOIN による重複行は発生しない。
-	needsPetJoin := filters.AnimalSpeciesID != nil || filters.Search != "" || filters.Sort == "pet_name"
-	needsOwnerJoin := filters.Search != "" || filters.Sort == "owner_name"
-	needsInquiryJoin := filters.Search != ""
-
-	buildBase := func() *gorm.DB {
-		// clinicScopeIn は "clinic_id" を無修飾で参照するため、pets/owners
-		// （いずれも clinic_id 列を持つ）を LEFT JOIN すると曖昧になる。
-		// search/animal_species_id フィルタで JOIN が入るケースがあるため、
-		// ここでは常に medical_records.clinic_id を明示指定する。
-		q := r.db.WithContext(ctx).
-			Model(&model.MedicalRecord{}).
-			Where("medical_records.clinic_id IN ?", clinicIDs).
-			Scopes(medicalRecordListRelationsScope())
-		if needsPetJoin {
-			q = q.Joins("LEFT JOIN pets ON pets.id = medical_records.pet_id AND pets.clinic_id = medical_records.clinic_id AND pets.deleted_at IS NULL")
-		}
-		if needsOwnerJoin {
-			q = q.Joins("LEFT JOIN owners ON owners.id = medical_records.owner_id AND owners.clinic_id = medical_records.clinic_id AND owners.deleted_at IS NULL")
-		}
-		if needsInquiryJoin {
-			q = q.Joins("LEFT JOIN inquiries ON inquiries.medical_record_id = medical_records.id")
-		}
-		if filters.PetID != nil {
-			q = q.Where("medical_records.pet_id = ?", *filters.PetID)
-		}
-		if filters.OwnerID != nil {
-			q = q.Where(`
-				EXISTS (
+// medicalRecordDetailRelationsScope is used by FindByID and FindAll. Owner/pet must belong to
+// the parent clinic. Staff FKs may be same-clinic staffs without an assignment
+// row (imported seed) or assigned to the parent clinic while their primary
+// clinic differs. A staff FK that belongs to another clinic and has no parent
+// assignment still fail-closes. Same-clinic unassigned staff records appear in
+// カルテ一覧 (imported seed).
+func medicalRecordDetailRelationsScope() func(*gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		return db.Scopes(medicalRecordOwnerPetRelationsScope()).Where(`
+			(
+				medical_records.doctor_id IS NULL OR EXISTS (
 					SELECT 1
-					FROM pets current_owner_pet
-					JOIN owners current_owner
-					  ON current_owner.id = current_owner_pet.owner_id
-					 AND current_owner.clinic_id = current_owner_pet.clinic_id
-					WHERE current_owner_pet.id = medical_records.pet_id
-					  AND current_owner_pet.clinic_id = medical_records.clinic_id
-					  AND current_owner.id = ?
+					FROM staffs scoped_doctor
+					WHERE scoped_doctor.id = medical_records.doctor_id
+					  AND scoped_doctor.clinic_id = medical_records.clinic_id
+				) OR EXISTS (
+					SELECT 1
+					FROM staff_clinic_assignments scoped_doctor_assignment
+					WHERE scoped_doctor_assignment.staff_id = medical_records.doctor_id
+					  AND scoped_doctor_assignment.clinic_id = medical_records.clinic_id
 				)
-			`, *filters.OwnerID)
-		}
-		if filters.StartDate != nil {
-			q = q.Where("medical_records.date >= ?", *filters.StartDate)
-		}
-		if filters.EndDate != nil {
-			q = q.Where("medical_records.date <= ?", *filters.EndDate)
-		}
-		if filters.Status != nil {
-			q = q.Where("medical_records.status = ?", *filters.Status)
-		}
-		if filters.DoctorID != nil {
-			q = q.Where("medical_records.doctor_id = ?", *filters.DoctorID)
-		}
-		if filters.AnimalSpeciesID != nil {
-			q = q.Where("pets.animal_species_id = ?", *filters.AnimalSpeciesID)
-		}
-		if filters.Search != "" {
-			// raw name の同一表記一致は既存の trgm index を利用できる形で残し、
-			// translate() 枝では検索語と name/name_kana をひらがなに揃えて表記差も吸収する。
-			rawPattern := "%" + textsearch.EscapeLike(filters.Search) + "%"
-			normalizedPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(filters.Search)) + "%"
-			q = q.Where(
-				`(medical_records.record_no ILIKE ? ESCAPE '\'`+
-					` OR owners.name ILIKE ? ESCAPE '\'`+
-					` OR translate(owners.name, ?, ?) ILIKE ? ESCAPE '\'`+
-					` OR translate(owners.name_kana, ?, ?) ILIKE ? ESCAPE '\'`+
-					` OR pets.name ILIKE ? ESCAPE '\'`+
-					` OR translate(pets.name, ?, ?) ILIKE ? ESCAPE '\'`+
-					` OR translate(pets.name_kana, ?, ?) ILIKE ? ESCAPE '\'`+
-					` OR inquiries.chief_complaint ILIKE ? ESCAPE '\'`+
-					` OR EXISTS (`+
-					`SELECT 1 FROM treatments searched_treatment`+
-					` WHERE searched_treatment.medical_record_id = medical_records.id`+
-					` AND searched_treatment.deleted_at IS NULL`+
-					` AND (`+
-					`translate(searched_treatment.content, ?, ?) ILIKE ? ESCAPE '\'`+
-					` OR translate(searched_treatment.memo, ?, ?) ILIKE ? ESCAPE '\'`+
-					` OR EXISTS (`+
-					`SELECT 1 FROM procedures searched_procedure`+
-					` WHERE searched_procedure.id = searched_treatment.procedure_id`+
-					` AND searched_procedure.clinic_id = medical_records.clinic_id`+
-					` AND searched_procedure.deleted_at IS NULL`+
-					` AND translate(searched_procedure.name, ?, ?) ILIKE ? ESCAPE '\')`+
-					` OR EXISTS (`+
-					`SELECT 1 FROM medicines searched_medicine`+
-					` WHERE searched_medicine.id = searched_treatment.medicine_id`+
-					` AND searched_medicine.clinic_id = medical_records.clinic_id`+
-					` AND searched_medicine.deleted_at IS NULL`+
-					` AND translate(searched_medicine.name, ?, ?) ILIKE ? ESCAPE '\')`+
-					` OR EXISTS (`+
-					`SELECT 1 FROM consultations searched_consultation`+
-					` WHERE searched_consultation.id = searched_treatment.consultation_id`+
-					` AND searched_consultation.clinic_id = medical_records.clinic_id`+
-					` AND searched_consultation.deleted_at IS NULL`+
-					` AND translate(searched_consultation.name, ?, ?) ILIKE ? ESCAPE '\')`+
-					` OR EXISTS (`+
-					`SELECT 1 FROM inventory_items searched_inventory`+
-					` WHERE searched_inventory.id = searched_treatment.inventory_id`+
-					` AND searched_inventory.clinic_id = medical_records.clinic_id`+
-					` AND searched_inventory.deleted_at IS NULL`+
-					` AND translate(searched_inventory.name, ?, ?) ILIKE ? ESCAPE '\'))))`,
-				normalizedPattern,
-				rawPattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
-				rawPattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
-				normalizedPattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
-				textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
 			)
-		}
-		return q
+			AND (
+				medical_records.entered_by IS NULL OR EXISTS (
+					SELECT 1
+					FROM staffs scoped_entered_by
+					WHERE scoped_entered_by.id = medical_records.entered_by
+					  AND scoped_entered_by.clinic_id = medical_records.clinic_id
+				) OR EXISTS (
+					SELECT 1
+					FROM staff_clinic_assignments scoped_entered_by_assignment
+					WHERE scoped_entered_by_assignment.staff_id = medical_records.entered_by
+					  AND scoped_entered_by_assignment.clinic_id = medical_records.clinic_id
+				)
+			)
+		`)
 	}
-
-	if err := buildBase().Count(&total).Error; err != nil {
-		return nil, 0, apperrors.FromGORM(err, "medical_record", "")
-	}
-	if err := buildBase().
-		Scopes(paginate(page, limit)).Order(medicalRecordOrderClause(filters.Sort, filters.Order)).
-		Preload("Owner", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
-		Preload("Pet", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
-		Preload("Pet.AnimalSpecies").
-		Preload("Doctor", medicalRecordStaffPreload(clinicIDs, true)).
-		Preload("EnteredByStaff", medicalRecordStaffPreload(clinicIDs, false)).
-		Preload("Inquiry").
-		Preload("Billing", medicalRecordBillingPreload(clinicIDs)).
-		Find(&records).Error; err != nil {
-		return nil, 0, apperrors.FromGORM(err, "medical_record", "")
-	}
-	return records, total, nil
 }
 
-// medicalRecordListRelationsScope excludes parent rows whose clinic-owned relations point
-// outside the parent clinic. Soft-deleted same-clinic relations and historical staff
-// assignments remain valid evidence so that a retirement or deletion does not hide the
-// medical-record history; current relation visibility remains a Preload concern.
-func medicalRecordListRelationsScope() func(*gorm.DB) *gorm.DB {
+// medicalRecordOwnerPetRelationsScope keeps a parent only when owner/pet FKs
+// resolve inside the parent clinic.
+func medicalRecordOwnerPetRelationsScope() func(*gorm.DB) *gorm.DB {
 	return func(db *gorm.DB) *gorm.DB {
 		return db.Where(`
 			(
@@ -314,26 +214,6 @@ func medicalRecordListRelationsScope() func(*gorm.DB) *gorm.DB {
 					 AND scoped_pet_owner.clinic_id = scoped_pet.clinic_id
 					WHERE scoped_pet.id = medical_records.pet_id
 					  AND scoped_pet.clinic_id = medical_records.clinic_id
-				)
-			)
-			AND (
-				medical_records.doctor_id IS NULL OR EXISTS (
-					SELECT 1
-					FROM staff_clinic_assignments scoped_doctor_assignment
-					JOIN staffs scoped_doctor
-					  ON scoped_doctor.id = scoped_doctor_assignment.staff_id
-					WHERE scoped_doctor_assignment.staff_id = medical_records.doctor_id
-					  AND scoped_doctor_assignment.clinic_id = medical_records.clinic_id
-				)
-			)
-			AND (
-				medical_records.entered_by IS NULL OR EXISTS (
-					SELECT 1
-					FROM staff_clinic_assignments scoped_entered_by_assignment
-					JOIN staffs scoped_entered_by
-					  ON scoped_entered_by.id = scoped_entered_by_assignment.staff_id
-					WHERE scoped_entered_by_assignment.staff_id = medical_records.entered_by
-					  AND scoped_entered_by_assignment.clinic_id = medical_records.clinic_id
 				)
 			)
 		`)
@@ -448,7 +328,7 @@ func (r *medicalRecordRepository) findMedicalRecordByID(ctx context.Context, cli
 		Preload("Pet", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
 		Preload("Pet.AnimalSpecies").
 		Preload("Inquiry").
-		Scopes(scope, medicalRecordListRelationsScope()).
+		Scopes(scope, medicalRecordDetailRelationsScope()).
 		Where("id = ?", id).
 		First(&record).Error
 	if err != nil {
@@ -486,21 +366,65 @@ func (r *medicalRecordRepository) Update(ctx context.Context, clinicID, id uint6
 		return nil, apperrors.FromGORM(result.Error, "medical_record", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
-		if expectedVersion != nil {
-			var current model.MedicalRecord
-			err := persistence.DBOrTx(ctx, r.db).
-				Model(&model.MedicalRecord{}).
-				Scopes(persistence.ClinicScope(clinicID)).
-				Where("id = ?", id).
-				First(&current).Error
-			if err == nil && current.Status == model.MedicalRecordStatusDraft {
-				return nil, apperrors.WrapConflict("他のユーザーがこのカルテを変更しました。再読み込みしてください")
-			}
-		}
-		// status != draft（finalized or already being updated）
-		return nil, apperrors.WrapConflict("medical_record is not in draft status")
+		return nil, r.conflictAfterZeroMedicalRecordRows(ctx, clinicID, id, expectedVersion)
 	}
 	return r.FindByID(ctx, clinicID, id)
+}
+
+func (r *medicalRecordRepository) conflictAfterZeroMedicalRecordRows(
+	ctx context.Context,
+	clinicID, id uint64,
+	expectedVersion *int,
+) error {
+	if expectedVersion == nil {
+		return apperrors.WrapConflict("medical_record is not in draft status")
+	}
+	var current model.MedicalRecord
+	err := persistence.DBOrTx(ctx, r.db).
+		Model(&model.MedicalRecord{}).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ?", id).
+		First(&current).Error
+	if err == nil && current.Status == model.MedicalRecordStatusDraft {
+		return apperrors.WrapConflict("他のユーザーがこのカルテを変更しました。再読み込みしてください")
+	}
+	// status != draft（finalized or already being updated）
+	return apperrors.WrapConflict("medical_record is not in draft status")
+}
+
+// LockLinkedAppointmentForUpdate は medical_records.appointment_id を先に読み、親
+// appointments を FOR UPDATE する。カルテ行はロックしない（呼び出し元がこの後に
+// LockByIDForUpdate する）。読み取りのみで appointments へは write しない。
+func (r *medicalRecordRepository) LockLinkedAppointmentForUpdate(ctx context.Context, clinicID, medicalRecordID uint64) (*linkedAppointmentLock, error) {
+	if persistence.TxFromContext(ctx) == nil {
+		return nil, apperrors.WrapInternalServerError("appointment row lock requires an ambient transaction")
+	}
+	var row struct {
+		AppointmentID *uint64 `gorm:"column:appointment_id"`
+	}
+	if err := persistence.DBOrTx(ctx, r.db).
+		Model(&model.MedicalRecord{}).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Select("appointment_id").
+		Where("id = ?", medicalRecordID).
+		Take(&row).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "medical_record", fmt.Sprintf("%d", medicalRecordID))
+	}
+	if row.AppointmentID == nil {
+		return &linkedAppointmentLock{}, nil
+	}
+	var appt model.Reservation
+	err := persistence.DBOrTx(ctx, r.db).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("id = ? AND clinic_id = ?", *row.AppointmentID, clinicID).
+		First(&appt).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return &linkedAppointmentLock{}, nil
+		}
+		return nil, apperrors.FromGORM(err, "reservation", fmt.Sprintf("%d", *row.AppointmentID))
+	}
+	return &linkedAppointmentLock{Appointment: &appt}, nil
 }
 
 func (r *medicalRecordRepository) Delete(ctx context.Context, clinicID, id uint64) error {

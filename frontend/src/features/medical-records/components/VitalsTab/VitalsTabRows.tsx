@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { TableCell } from "@/components/ui/table";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
+import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { formatJSTDateTimeLocal, jstDateTimeLocalToISOString } from "@/lib/jst-date";
 import type { BodyWeightUnit, UpdateVitalInput, Vital } from "../../types";
@@ -17,7 +18,7 @@ import {
   parseVitalsNumber,
   toggleWeightValueAndUnit,
   type VitalsAddFormState,
-} from "./vitals-tab-table-model";
+} from "../../lib/vitals-tab-table-model";
 
 interface VitalsDisplayRowProps {
   vital: Vital;
@@ -60,10 +61,7 @@ export function VitalsDisplayRow({
             </button>
           ) : null}
           {canDelete ? (
-            <DeleteIconButton
-              onClick={() => onDeleteClick(vital.id)}
-              disabled={deletePending}
-            />
+            <DeleteIconButton onClick={() => onDeleteClick(vital.id)} disabled={deletePending} />
           ) : null}
         </div>
       </TableCell>
@@ -80,9 +78,7 @@ interface VitalsEditRowProps {
 
 function buildEditRowForm(vital: Vital) {
   return {
-    recorded_at: vital.recorded_at
-      ? formatJSTDateTimeLocal(vital.recorded_at)
-      : "",
+    recorded_at: vital.recorded_at ? formatJSTDateTimeLocal(vital.recorded_at) : "",
     temperature: vital.temperature != null ? String(vital.temperature) : "",
     heart_rate: vital.heart_rate != null ? String(vital.heart_rate) : "",
     respiration_rate: vital.respiration_rate != null ? String(vital.respiration_rate) : "",
@@ -101,19 +97,13 @@ export const VitalsEditRow = memo(function VitalsEditRow({
   const [form, setForm] = useState(() => buildEditRowForm(vital));
   const [editFormErrors, setEditFormErrors] = useState<Record<string, string>>({});
 
-  const handleChange = useCallback(
-    (field: string, value: string | BodyWeightUnit) => {
-      setForm((prev) => ({ ...prev, [field]: value }));
-    },
-    []
-  );
+  const handleChange = useCallback((field: string, value: string | BodyWeightUnit) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+  }, []);
 
   const handleWeightUnitToggle = useCallback(() => {
     setForm((prev) => {
-      const next = toggleWeightValueAndUnit(
-        prev.weight,
-        prev.weight_unit as BodyWeightUnit
-      );
+      const next = toggleWeightValueAndUnit(prev.weight, prev.weight_unit as BodyWeightUnit);
       return { ...prev, weight: next.weight, weight_unit: next.weight_unit };
     });
   }, []);
@@ -252,23 +242,34 @@ export const VitalsEditRow = memo(function VitalsEditRow({
 interface VitalsAddRowProps {
   addForm: VitalsAddFormState;
   errors: Record<string, string>;
+  actionError?: string | null;
   isPending: boolean;
   /** 単一フィールドまたは体重単位トグルの原子パッチ（weight + weight_unit）。 */
   onChange: (patch: Partial<VitalsAddFormState>) => void;
-  onSubmit: () => void;
+  formAction: (payload: FormData) => void;
   onCancel: () => void;
 }
 
 export function VitalsAddRow({
   addForm,
   errors,
+  actionError,
   isPending,
   onChange,
-  onSubmit,
+  formAction,
   onCancel,
 }: VitalsAddRowProps) {
   return (
-    <div className={`flex flex-wrap items-start gap-2 px-3 py-2 border-t ${C.borderLight} ${C.bgPage30}`}>
+    <form
+      action={formAction}
+      aria-label="バイタル追加"
+      className={`flex flex-wrap items-start gap-2 px-3 py-2 border-t ${C.borderLight} ${C.bgPage30}`}
+    >
+      {actionError ? (
+        <p role="alert" className={`w-full text-xs ${C.danger}`}>
+          {actionError}
+        </p>
+      ) : null}
       <div className="flex flex-col">
         <input
           autoFocus
@@ -320,9 +321,7 @@ export function VitalsAddRow({
         />
         <button
           type="button"
-          onClick={() =>
-            onChange(toggleWeightValueAndUnit(addForm.weight, addForm.weight_unit))
-          }
+          onClick={() => onChange(toggleWeightValueAndUnit(addForm.weight, addForm.weight_unit))}
           className={`text-2xs px-1 h-6 rounded border ${C.borderMedium} ${C.bgPage} ${C.hoverBgPage} min-w-[24px]`}
         >
           {addForm.weight_unit}
@@ -333,22 +332,22 @@ export function VitalsAddRow({
         value={addForm.note}
         onChange={(e) => onChange({ note: e.target.value })}
         onKeyDown={(e) => {
-          if (e.key === "Enter") onSubmit();
           if (e.key === "Escape") onCancel();
         }}
         placeholder="メモ"
         aria-label="メモ"
         className={`${ADD_INPUT_CLASS} flex-1 min-w-[120px]`}
       />
-      <Button
+      <SubmitButton
         size="sm"
-        className={`${C.bgBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} ${C.textOnBrand} rounded-full border-transparent transition-colors h-8 text-xs px-3`}
-        onClick={onSubmit}
+        loadingText="追加中..."
         disabled={isPending || !addForm.recorded_at}
+        className="h-8 text-xs px-3"
       >
         追加
-      </Button>
+      </SubmitButton>
       <Button
+        type="button"
         size="sm"
         variant="outline"
         className={`h-8 text-xs px-3 ${C.borderMedium}`}
@@ -356,6 +355,6 @@ export function VitalsAddRow({
       >
         キャンセル
       </Button>
-    </div>
+    </form>
   );
 }

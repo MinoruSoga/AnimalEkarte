@@ -25,7 +25,7 @@ export function useGetLstepCsvImports(limit = 20) {
     queryFn: async () => {
       const clinicId = requireStoredClinicId();
       const { data } = await axios.get<LstepCsvImportItem[]>(
-        `/v1/clinics/${clinicId}/lstep/csv-imports?limit=${limit}`
+        `/v1/clinics/${clinicId}/lstep/csv-imports?limit=${limit}`,
       );
       return data;
     },

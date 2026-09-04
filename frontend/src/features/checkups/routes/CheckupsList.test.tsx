@@ -7,7 +7,7 @@ import { AuthContext } from "@/hooks/auth-context";
 import type { AuthContextValue } from "@/types/auth";
 import { ResourceCheckups, ResourceMedicalRecords } from "@/types/generated/models";
 import { CheckupsList } from "./CheckupsList";
-import type { CheckupFilters } from "../api/types";
+import type { CheckupFilters } from "../types";
 
 // ---- mock useGetCheckups ----
 
@@ -43,17 +43,19 @@ function makeAuthCtx(
   };
 }
 
-function makeCheckupRecord(overrides: Partial<{
-  id: string;
-  medicalRecordId: string;
-  date: string;
-  ownerName: string;
-  petName: string;
-  checkupTypeName: string;
-  result: string;
-  nextDate: string | undefined;
-  doctorName: string;
-}> = {}) {
+function makeCheckupRecord(
+  overrides: Partial<{
+    id: string;
+    medicalRecordId: string;
+    date: string;
+    ownerName: string;
+    petName: string;
+    checkupTypeName: string;
+    result: string;
+    nextDate: string | undefined;
+    doctorName: string;
+  }> = {},
+) {
   return {
     id: "chk-1",
     medicalRecordId: "mr-1",
@@ -82,13 +84,11 @@ function makeCheckupsResult(
 }
 
 function LocationProbe() {
-  const { pathname } = useLocation();
-  return <output data-testid="location">{pathname}</output>;
+  const { pathname, search } = useLocation();
+  return <output data-testid="location">{`${pathname}${search}`}</output>;
 }
 
-function createWrapper(
-  hasPermission: AuthContextValue["hasPermission"] = allowAllPermissions,
-) {
+function createWrapper(hasPermission: AuthContextValue["hasPermission"] = allowAllPermissions) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -306,7 +306,8 @@ describe("CheckupsList — E: サーバページング (X-16②)", () => {
     await user.click(screen.getByRole("button", { name: "次のページ" }));
 
     await waitFor(() => {
-      const lastCall = vi.mocked(useGetCheckups).mock.calls.at(-1)?.[0] as CheckupFilters | undefined;
+      const lastCall = vi.mocked(useGetCheckups).mock.calls.at(-1)?.[0] as
+        CheckupFilters | undefined;
       expect(lastCall?.page).toBe(2);
     });
   });
@@ -325,7 +326,10 @@ describe("CheckupsList — row navigation accessibility", () => {
     render(<CheckupsList />, { wrapper: createWrapper() });
 
     const detailLink = screen.getByRole("link", { name: /ポチ/ });
-    expect(detailLink).toHaveAttribute("href", "/medical-records/mr-1");
+    expect(detailLink).toHaveAttribute(
+      "href",
+      "/medical-records/mr-1?tab=%E5%AE%9A%E6%9C%9F%E5%81%A5%E8%A8%BA&checkupId=chk-1",
+    );
     expect(detailLink).toHaveAccessibleName(/ポチ/);
     expect(detailLink).toHaveAccessibleName(/2026-07-13/);
     expect(detailLink).toHaveAccessibleName(/chk-1/);
@@ -338,6 +342,15 @@ describe("CheckupsList — row navigation accessibility", () => {
     fireEvent.click(screen.getByText("山田 太郎"));
 
     expect(screen.getByTestId("location")).toHaveTextContent(/^\/checkups$/);
+  });
+
+  it("編集ボタンは定期健診タブ付きカルテへ遷移する (BUG-022)", async () => {
+    const user = userEvent.setup();
+    render(<CheckupsList />, { wrapper: createWrapper() });
+    await user.click(screen.getByRole("button", { name: /健診操作/ }));
+    expect(screen.getByTestId("location")).toHaveTextContent(
+      /\/medical-records\/mr-1\?tab=.*checkupId=chk-1/,
+    );
   });
 });
 
@@ -369,8 +382,7 @@ describe("CheckupsList — medical record permission boundary", () => {
       (resource, action) =>
         (resource === ResourceCheckups && action === "view") ||
         (resource === ResourceMedicalRecords && action === "view") ||
-        (resource === ResourceMedicalRecords &&
-          (action === "create" || action === "edit")),
+        (resource === ResourceMedicalRecords && (action === "create" || action === "edit")),
     );
 
     render(<CheckupsList />, { wrapper: createWrapper(hasPermission) });
@@ -403,8 +415,7 @@ describe("CheckupsList — medical record permission boundary", () => {
     const hasPermission: AuthContextValue["hasPermission"] = vi.fn(
       (resource, action) =>
         (resource === ResourceCheckups && action === "view") ||
-        (resource === ResourceMedicalRecords &&
-          (action === "view" || action === "edit")),
+        (resource === ResourceMedicalRecords && (action === "view" || action === "edit")),
     );
     vi.mocked(useGetCheckups).mockReturnValue({
       data: makeCheckupsResult([makeCheckupRecord()]),

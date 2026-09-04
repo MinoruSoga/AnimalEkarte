@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { useLocation } from "react-router";
-import { createTestWrapper } from "./utils";
+import { createTestWrapper } from "./TestUtils";
 
 function LocationProbe() {
   const location = useLocation();

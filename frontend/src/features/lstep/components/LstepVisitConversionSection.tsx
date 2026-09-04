@@ -1,9 +1,9 @@
-import { C, PALETTE } from "@/lib/design-tokens";
+import { C } from "@/lib/design-tokens";
 import { TableCell, TableHead } from "@/components/ui/table";
 
 import type { VisitConversionSummaryResponse } from "../api/get-lstep-visit-conversion";
 import { TriggerTypeLabels } from "../constants/trigger-types";
-import { formatPercent } from "./lstep-analytics-model";
+import { formatPercent } from "../lib/lstep-analytics-model";
 
 interface VisitConversionSectionProps {
   data?: VisitConversionSummaryResponse;
@@ -11,11 +11,7 @@ interface VisitConversionSectionProps {
   isError: boolean;
 }
 
-export function VisitConversionSection({
-  data,
-  isLoading,
-  isError,
-}: VisitConversionSectionProps) {
+export function VisitConversionSection({ data, isLoading, isError }: VisitConversionSectionProps) {
   return (
     <section aria-labelledby="visit-conversion-heading" className="space-y-4 mt-8">
       <div className="flex items-center justify-between">
@@ -29,9 +25,7 @@ export function VisitConversionSection({
         {isLoading ? (
           <p className={`text-sm ${C.text40} py-8 text-center`}>読み込み中...</p>
         ) : isError ? (
-          <p className={`text-sm text-[${PALETTE.danger}] py-8 text-center`}>
-            来院率データの取得に失敗しました
-          </p>
+          <p className={`text-sm ${C.danger} py-8 text-center`}>来院率データの取得に失敗しました</p>
         ) : (
           <>
             <VisitConversionCards data={data} />
@@ -65,9 +59,7 @@ function MetricCard({ label, value }: { label: string; value: string }) {
 function VisitConversionTable({ data }: { data?: VisitConversionSummaryResponse }) {
   if (!data || data.rows.length === 0) {
     return (
-      <p className={`text-sm ${C.text40} py-6 text-center`}>
-        この月の来院率データはありません
-      </p>
+      <p className={`text-sm ${C.text40} py-6 text-center`}>この月の来院率データはありません</p>
     );
   }
 
@@ -76,9 +68,7 @@ function VisitConversionTable({ data }: { data?: VisitConversionSummaryResponse 
       <table className="w-full text-sm border-collapse">
         <thead>
           <tr className={`${C.bgLight} border-b ${C.borderLight}`}>
-            <TableHead className={`${C.text55} min-w-[180px]`}>
-              トリガー種別
-            </TableHead>
+            <TableHead className={`${C.text55} min-w-[180px]`}>トリガー種別</TableHead>
             <TableHead className={`text-right ${C.text55}`}>送信件数</TableHead>
             <TableHead className={`text-right ${C.text55}`}>来院件数</TableHead>
             <TableHead className={`text-right ${C.text55}`}>来院率</TableHead>

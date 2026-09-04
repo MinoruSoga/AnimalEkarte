@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router";
@@ -31,14 +31,16 @@ const makeGroup = (overrides: Partial<ExamGroup> = {}): ExamGroup => ({
   id: 100,
   date: "2026-04-29 10:00",
   machine: "DRI-CHEM",
+  name: "血液検査",
+  price: 4200,
   items: [makeItem()],
   ...overrides,
 });
 
-function renderGroup(group = makeGroup()) {
+function renderGroup(group = makeGroup(), highlighted = false) {
   return render(
     <MemoryRouter>
-      <ExaminationGroup group={group} petId="7" />
+      <ExaminationGroup group={group} petId="7" highlighted={highlighted} />
     </MemoryRouter>,
   );
 }
@@ -60,6 +62,14 @@ describe("ExaminationGroup", () => {
     for (const cls of STYLE.sectionLabel.split(" ")) {
       expect(headerRow?.className).toContain(cls);
     }
+  });
+
+  it("highlighted のとき着地用 id と aria-current を付ける", () => {
+    Element.prototype.scrollIntoView = vi.fn();
+    renderGroup(makeGroup(), true);
+    const region = document.getElementById("exam-group-100");
+    expect(region).toHaveAttribute("aria-current", "true");
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
   });
 
   it("date と machine をヘッダに表示する", () => {
@@ -188,14 +198,8 @@ describe("ExaminationGroup", () => {
         items: [makeItem({ status: "normal", isAssessed: false })],
       }),
     );
-    expect(screen.getByText("未判定")).toHaveClass(
-      C.textWarning,
-      C.borderWarning20,
-      C.bgWarning50,
-    );
-    expect(
-      screen.getByText("（基準値未設定のため判定していない）"),
-    ).toHaveClass("sr-only");
+    expect(screen.getByText("未判定")).toHaveClass(C.textWarning, C.borderWarning20, C.bgWarning50);
+    expect(screen.getByText("（基準値未設定のため判定していない）")).toHaveClass("sr-only");
     expect(screen.queryByLabelText("基準値内")).not.toBeInTheDocument();
   });
 

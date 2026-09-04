@@ -36,6 +36,10 @@ type AccountRepository interface {
 	) error
 }
 
+type accountRepository struct {
+	db *gorm.DB
+}
+
 // FindByIDForUpdate locks a non-deleted account row for a transaction-scoped mutation.
 func (r *accountRepository) FindByIDForUpdate(
 	ctx context.Context,
@@ -52,10 +56,6 @@ func (r *accountRepository) FindByIDForUpdate(
 		return nil, apperrors.FromGORM(err, "account", fmt.Sprintf("%d", id))
 	}
 	return &account, nil
-}
-
-type accountRepository struct {
-	db *gorm.DB
 }
 
 // NewAccountRepository constructs global login-account persistence.

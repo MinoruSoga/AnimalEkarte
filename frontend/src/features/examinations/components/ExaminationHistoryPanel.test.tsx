@@ -32,11 +32,7 @@ const EXAMINATION: ExaminationRecord = {
   items: undefined,
 };
 
-function HistoryPanelHarness({
-  initialView = "cards",
-}: {
-  initialView?: "cards" | "pivot";
-}) {
+function HistoryPanelHarness({ initialView = "cards" }: { initialView?: "cards" | "pivot" }) {
   const [view, setView] = useState<"cards" | "pivot">(initialView);
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
 
@@ -80,9 +76,6 @@ describe("ExaminationHistoryPanel", () => {
     render(<HistoryPanelHarness initialView="pivot" />);
 
     expect(screen.getByText("ピボット:1")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "時系列" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    expect(screen.getByRole("button", { name: "時系列" })).toHaveAttribute("aria-pressed", "true");
   });
 });

@@ -72,6 +72,9 @@ func (m *mockBillingItemRepository) FindUnbilledTrimmingItemsByPetID(_ context.C
 func (m *mockBillingItemRepository) FindUnbilledVaccinationItemsByPetID(_ context.Context, _, _ uint64) ([]model.BillingItem, int, error) {
 	return nil, 0, nil
 }
+func (m *mockBillingItemRepository) FindUnbilledExamItemsByPetID(_ context.Context, _, _ uint64) ([]model.BillingItem, int, error) {
+	return nil, 0, nil
+}
 func (m *mockBillingItemRepository) CountNonAccountingTrimmingByPetAndDate(_ context.Context, _, _ uint64, _ time.Time) (int64, error) {
 	return 0, nil
 }
@@ -81,6 +84,12 @@ func (m *mockBillingItemRepository) ValidateCreateReferences(ctx context.Context
 	}
 	return m.validateCreateReferencesFn(ctx, clinicID, billingID, merchandiseItemID, treatmentID, appointmentID, trimmingCourseID, trimmingOptionID)
 }
+func (m *mockBillingItemRepository) ValidateExamCreateReference(
+	_ context.Context, _, _, _ uint64,
+) error {
+	return nil
+}
+
 func (m *mockBillingItemRepository) ValidateVaccinationCreateReference(
 	_ context.Context,
 	_, _, _ uint64,
@@ -137,7 +146,7 @@ func TestBillingItemService_GetUngroupedSameDaySummary(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, int64(2), summary.MedicalRecordCount)
-	// defaultMockBillingItemRepo は ungroupedTrimmingCounter 未実装のため trimming は 0(型アサーション skip)
+	// defaultMockBillingItemRepo.CountNonAccountingTrimmingByPetAndDate は 0 を返す
 	assert.Equal(t, int64(0), summary.TrimmingCount)
 }
 

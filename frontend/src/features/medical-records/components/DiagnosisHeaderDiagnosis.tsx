@@ -15,6 +15,8 @@ import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/s
 import { useGetDiagnosisTypes, useGetDiagnosisNames } from "../api/get-diagnosis-options";
 import { DiagnosisHeaderSection } from "./DiagnosisHeaderSection";
 
+type SelectedDiagnosisOption = { id: string | number; name: string } | null | undefined;
+
 interface DiagnosisHeaderDiagnosisProps {
   diagnosisDetails: string;
   setDiagnosisDetails: (v: string) => void;
@@ -28,6 +30,20 @@ interface DiagnosisHeaderDiagnosisProps {
   setDiagnosis2NameId?: (id: number | null) => void;
   canEdit: boolean;
   diagnosis1NameIdError?: string | null;
+  selectedDiagnosisType?: SelectedDiagnosisOption;
+  selectedDiagnosisName?: SelectedDiagnosisOption;
+  selectedDiagnosis2Type?: SelectedDiagnosisOption;
+  selectedDiagnosis2Name?: SelectedDiagnosisOption;
+}
+
+function mergeSelectedOption(
+  options: SearchableSelectOption[],
+  selected: SelectedDiagnosisOption,
+): SearchableSelectOption[] {
+  if (!selected) return options;
+  const value = String(selected.id);
+  if (options.some((option) => option.value === value)) return options;
+  return [{ value, label: selected.name }, ...options];
 }
 
 export const DiagnosisHeaderDiagnosis = memo(function DiagnosisHeaderDiagnosis({
@@ -43,32 +59,51 @@ export const DiagnosisHeaderDiagnosis = memo(function DiagnosisHeaderDiagnosis({
   setDiagnosis2NameId,
   canEdit,
   diagnosis1NameIdError,
+  selectedDiagnosisType,
+  selectedDiagnosisName,
+  selectedDiagnosis2Type,
+  selectedDiagnosis2Name,
 }: DiagnosisHeaderDiagnosisProps) {
   const { data: categories = [], isLoading: isTypesLoading } = useGetDiagnosisTypes();
-  const { data: names1 = [], isLoading: isNames1Loading } = useGetDiagnosisNames(diagnosis1CategoryId);
-  const { data: names2 = [], isLoading: isNames2Loading } = useGetDiagnosisNames(diagnosis2CategoryId);
+  const { data: names1 = [], isLoading: isNames1Loading } =
+    useGetDiagnosisNames(diagnosis1CategoryId);
+  const { data: names2 = [], isLoading: isNames2Loading } =
+    useGetDiagnosisNames(diagnosis2CategoryId);
 
   // SearchableSelect 用に選択肢を {value,label} 形へ変換(参照安定のため memo 化)
   const categoryOptions = useMemo<SearchableSelectOption[]>(
-    () => categories.map((cat) => ({ value: String(cat.id), label: cat.name })),
-    [categories]
+    () =>
+      mergeSelectedOption(
+        mergeSelectedOption(
+          categories.map((cat) => ({ value: String(cat.id), label: cat.name })),
+          selectedDiagnosisType,
+        ),
+        selectedDiagnosis2Type,
+      ),
+    [categories, selectedDiagnosisType, selectedDiagnosis2Type],
   );
   const names1Options = useMemo<SearchableSelectOption[]>(
-    () => names1.map((name) => ({ value: String(name.id), label: name.name })),
-    [names1]
+    () =>
+      mergeSelectedOption(
+        names1.map((name) => ({ value: String(name.id), label: name.name })),
+        selectedDiagnosisName,
+      ),
+    [names1, selectedDiagnosisName],
   );
   const names2Options = useMemo<SearchableSelectOption[]>(
-    () => names2.map((name) => ({ value: String(name.id), label: name.name })),
-    [names2]
+    () =>
+      mergeSelectedOption(
+        names2.map((name) => ({ value: String(name.id), label: name.name })),
+        selectedDiagnosis2Name,
+      ),
+    [names2, selectedDiagnosis2Name],
   );
 
   const controls = (
     <div className="flex flex-col gap-2">
       <div className="flex flex-col">
         <div className="flex items-center gap-2">
-          <Label className={`w-10 shrink-0 text-sm font-medium ${C.text60} mb-0`}>
-            診断1
-          </Label>
+          <Label className={`w-10 shrink-0 text-sm font-medium ${C.text60} mb-0`}>診断1</Label>
           <SearchableSelect
             value={diagnosis1CategoryId ? String(diagnosis1CategoryId) : ""}
             onValueChange={(value) => {
@@ -98,9 +133,7 @@ export const DiagnosisHeaderDiagnosis = memo(function DiagnosisHeaderDiagnosis({
       </div>
 
       <div className="flex items-center gap-2">
-        <Label className={`w-10 shrink-0 text-sm font-medium ${C.text60} mb-0`}>
-          診断2
-        </Label>
+        <Label className={`w-10 shrink-0 text-sm font-medium ${C.text60} mb-0`}>診断2</Label>
         <SearchableSelect
           value={diagnosis2CategoryId ? String(diagnosis2CategoryId) : ""}
           onValueChange={(value) => {

@@ -2,11 +2,13 @@ package billing
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -17,6 +19,9 @@ import (
 type EstimateRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, ownerID, medicalRecordID *uint64, status *string, page, limit int) ([]model.Estimate, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Estimate, error)
+	// LockEditableByID locks an active editable estimate parent in the ambient transaction,
+	// then loads its active items from that same transaction.
+	LockEditableByID(ctx context.Context, clinicID, id uint64) (*model.Estimate, error)
 	Create(ctx context.Context, estimate *model.Estimate) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	// UpdateIfNotLocked は status NOT IN (approved, rejected) のときだけ更新する。
@@ -31,6 +36,8 @@ type EstimateRepository interface {
 	// （唯一の呼び出し元 estimateService.Delete が clinicID を既に保持・ownership 検証済み）。
 	// estimate_items 自体は clinic_id を持たないため estimates への JOIN で述語を付与する。
 	CountItemsByEstimateID(ctx context.Context, clinicID, estimateID uint64) (int64, error)
+	// ReplaceItems は estimate_items を一括置換する（soft-delete 既存 → 挿入）。
+	ReplaceItems(ctx context.Context, clinicID, estimateID uint64, items []model.EstimateItem) error
 	// AllocateNextEstimateNo は clinic スコープで見積番号 EST-{N} を原子的に採番する。
 	// 呼び出し元の ambient tx 内で pg_advisory_xact_lock を取り、EST-% の最大数値接尾辞+1 を返す。
 	// EST-% が無い場合は max(id)+1 をフォールバックとする（空テーブルは EST-1）。
@@ -71,7 +78,10 @@ func (r *estimateRepository) FindAll(ctx context.Context, clinicID uint64, owner
 	}
 	// AUD-005: Owner Preload clinic-scoped (callers: List/Create refetch FindByID).
 	if err := q.Preload("Owner", "clinic_id = ? AND deleted_at IS NULL", clinicID).
-		Preload("Items", "deleted_at IS NULL").
+		Preload("Pet", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Preload("Items", func(db *gorm.DB) *gorm.DB {
+			return db.Where("deleted_at IS NULL").Order("sort_order ASC, id ASC")
+		}).
 		Scopes(persistence.Paginate(page, limit)).Order("created_at DESC").Find(&estimates).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "estimate", "")
 	}
@@ -85,13 +95,37 @@ func (r *estimateRepository) FindByID(ctx context.Context, clinicID, id uint64) 
 	var estimate model.Estimate
 	err := persistence.DBOrTx(ctx, r.db).
 		Preload("Owner", "clinic_id = ? AND deleted_at IS NULL", clinicID).
-		Preload("Items", "deleted_at IS NULL").
+		Preload("Pet", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Preload("Items", func(db *gorm.DB) *gorm.DB {
+			return db.Where("deleted_at IS NULL").Order("sort_order ASC, id ASC")
+		}).
 		Preload("CreatedStaff", "deleted_at IS NULL").
 		Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).First(&estimate).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "estimate", fmt.Sprintf("%d", id))
 	}
 	return &estimate, nil
+}
+
+// LockEditableByID serializes every estimate edit on the parent row before active items
+// are loaded. The lock remains held through the caller's ambient transaction.
+func (r *estimateRepository) LockEditableByID(ctx context.Context, clinicID, id uint64) (*model.Estimate, error) {
+	if persistence.TxFromContext(ctx) == nil {
+		return nil, apperrors.WrapInternalServerError("estimate edit lock requires an active transaction")
+	}
+	var parent model.Estimate
+	err := persistence.DBOrTx(ctx, r.db).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ?", id).
+		First(&parent).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "estimate", fmt.Sprintf("%d", id))
+	}
+	if isEstimateLocked(parent.Status) {
+		return nil, apperrors.WrapConflict("承認済みまたは却下済みの見積書は編集できません")
+	}
+	return r.FindByID(ctx, clinicID, id)
 }
 
 // Create は persistence.DBOrTx(ctx, r.db) で ambient tx に参加する（SD-2 系ガード監査: estimateService.Create が
@@ -111,7 +145,25 @@ func (r *estimateRepository) Update(ctx context.Context, clinicID, id uint64, fi
 // UpdateIfNotLocked は persistence.DBOrTx(ctx, r.db) で ambient tx に参加する（SD-2 系ガード監査:
 // estimateService.Update が確定済みカルテガードのため LockByIDForUpdate と同一 tx に束ねる）。
 func (r *estimateRepository) UpdateIfNotLocked(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Estimate, error) {
-	result := persistence.DBOrTx(ctx, r.db).
+	db := persistence.DBOrTx(ctx, r.db)
+	if len(fields) == 0 {
+		// An items-only PATCH still needs an atomic status guard. GORM Updates with an
+		// empty map affects zero rows, so lock the eligible parent instead and hold the
+		// lock through ReplaceItems in the caller's transaction.
+		var estimate model.Estimate
+		err := db.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Scopes(persistence.ClinicScope(clinicID)).
+			Where("id = ? AND status NOT IN ?", id, []model.EstimateStatus{
+				model.EstimateStatusApproved,
+				model.EstimateStatusRejected,
+			}).
+			First(&estimate).Error
+		if err != nil {
+			return nil, mapEstimateLockConflict(err, id)
+		}
+		return r.FindByID(ctx, clinicID, id)
+	}
+	result := db.
 		Model(&model.Estimate{}).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id = ? AND status NOT IN ?", id, []model.EstimateStatus{
@@ -174,11 +226,39 @@ func (r *estimateRepository) normalizeDeleteIfNotLockedMiss(ctx context.Context,
 	return apperrors.WrapConflict("承認済みまたは却下済みの見積書は削除できません")
 }
 
-// CountItemsByEstimateID は見積書に紐付く明細行の件数を返す（BUG-201）
-// BE-refactor.md R2-5 (D12): clinic_id 述語を追加。estimate_items は clinic_id カラムを持たないため
-// estimates への JOIN で述語を付与する。
-// persistence.DBOrTx(ctx, r.db) で ambient tx に参加する（SD-2 系ガード監査: estimateService.Delete の
-// LockByIDForUpdate と同一 tx から呼ばれるため）。
+// ReplaceItems は親見積を FOR UPDATE で固定してから明細を置換する。
+// estimate_items は clinic_id を持たないため、親行の clinic スコープ＋行ロックで越境と TOCTOU を防ぐ。
+// FOR UPDATE 依存のため ambient tx 不在は fail-closed。
+func (r *estimateRepository) ReplaceItems(ctx context.Context, clinicID, estimateID uint64, items []model.EstimateItem) error {
+	if persistence.TxFromContext(ctx) == nil {
+		return apperrors.WrapInternalServerError("estimate item replace requires an active transaction")
+	}
+	db := persistence.DBOrTx(ctx, r.db)
+	var parent model.Estimate
+	if err := db.Model(&model.Estimate{}).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Select("id").
+		Where("id = ?", estimateID).
+		First(&parent).Error; err != nil {
+		return apperrors.FromGORM(err, "estimate", fmt.Sprintf("%d", estimateID))
+	}
+	if err := db.Where("estimate_id = ?", estimateID).Delete(&model.EstimateItem{}).Error; err != nil {
+		return apperrors.FromGORM(err, "estimate_item", "")
+	}
+	if len(items) == 0 {
+		return nil
+	}
+	for i := range items {
+		items[i].EstimateID = estimateID
+		items[i].ID = 0
+	}
+	if err := db.Create(&items).Error; err != nil {
+		return apperrors.FromGORM(err, "estimate_item", "")
+	}
+	return nil
+}
+
 func (r *estimateRepository) CountItemsByEstimateID(ctx context.Context, clinicID, estimateID uint64) (int64, error) {
 	var count int64
 	if err := persistence.DBOrTx(ctx, r.db).
@@ -246,4 +326,11 @@ func (r *estimateRepository) AllocateNextEstimateNo(ctx context.Context, clinicI
 	}
 
 	return fmt.Sprintf("EST-%d", next), nil
+}
+
+func mapEstimateLockConflict(err error, id uint64) error {
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return apperrors.WrapConflict("承認済みまたは却下済みの見積書は編集できません")
+	}
+	return apperrors.FromGORM(err, "estimate", fmt.Sprintf("%d", id))
 }

@@ -7,9 +7,7 @@ import { unavailableTimesKey } from "@/hooks/use-reservation-type-unavailable-ti
 // components/shared/ReservationFormModal からも参照される cross-feature データ取得のため
 // @/hooks/use-reservation-type-unavailable-times.ts へ移設。
 // このファイルには master 画面専用の CRUD mutation のみ残す。
-export {
-  useGetUnavailableTimes,
-} from "@/hooks/use-reservation-type-unavailable-times";
+export { useGetUnavailableTimes } from "@/hooks/use-reservation-type-unavailable-times";
 
 // ─────────────────────────────────────────────────
 // Request types
@@ -31,19 +29,11 @@ async function createUnavailableTime(
   reservationTypeId: string,
   req: CreateUnavailableTimeRequest,
 ): Promise<void> {
-  await axios.post(
-    `/v1/masters/reservation-types/${reservationTypeId}/unavailable-times`,
-    req,
-  );
+  await axios.post(`/v1/masters/reservation-types/${reservationTypeId}/unavailable-times`, req);
 }
 
-async function deleteUnavailableTime(
-  reservationTypeId: string,
-  id: number,
-): Promise<void> {
-  await axios.delete(
-    `/v1/masters/reservation-types/${reservationTypeId}/unavailable-times/${id}`,
-  );
+async function deleteUnavailableTime(reservationTypeId: string, id: number): Promise<void> {
+  await axios.delete(`/v1/masters/reservation-types/${reservationTypeId}/unavailable-times/${id}`);
 }
 
 // ─────────────────────────────────────────────────

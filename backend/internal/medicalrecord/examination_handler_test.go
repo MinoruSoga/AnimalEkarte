@@ -21,6 +21,82 @@ func TestExaminationHandlerCompiles(t *testing.T) {
 	assert.True(t, true, "examination_handler.go compiled successfully")
 }
 
+func TestExaminationSelectedClinicGrant(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name   string
+		invoke func(*ExaminationHandler, *gin.Context)
+		svc    *mockExaminationService
+	}{
+		{
+			name: "ListExaminations",
+			invoke: func(h *ExaminationHandler, c *gin.Context) {
+				h.ListExaminations(c)
+			},
+			svc: &mockExaminationService{
+				listFn: func(_ context.Context, _ uint64, _, _, _ *uint64, _, _, _ *string, _, _ int) ([]model.Examination, int64, error) {
+					t.Fatal("examination service must not be reached")
+					return nil, 0, nil
+				},
+			},
+		},
+		{
+			name: "GetExamination",
+			invoke: func(h *ExaminationHandler, c *gin.Context) {
+				h.GetExamination(c)
+			},
+			svc: &mockExaminationService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.Examination, error) {
+					t.Fatal("examination service must not be reached")
+					return nil, nil
+				},
+			},
+		},
+		{
+			name: "GetExaminationPrintSnapshot",
+			invoke: func(h *ExaminationHandler, c *gin.Context) {
+				h.GetExaminationPrintSnapshot(c)
+			},
+			svc: &mockExaminationService{
+				getPrintSnapshotFn: func(_ context.Context, _, _ uint64, _ *uint64) (*ExaminationPrintSnapshot, error) {
+					t.Fatal("examination service must not be reached")
+					return nil, nil
+				},
+			},
+		},
+		{
+			name: "ListExaminationItems",
+			invoke: func(h *ExaminationHandler, c *gin.Context) {
+				h.ListExaminationItems(c)
+			},
+			svc: &mockExaminationService{
+				listItemsFn: func(_ context.Context, _, _ uint64) ([]model.ExamResult, error) {
+					t.Fatal("examination service must not be reached")
+					return nil, nil
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithExaminationSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: "10"}}
+			setClinicID(c)
+			c.Set("clinic_id", "2")
+			setResourcePermissionOnlyClinic(c, 1, string(model.ResourceExaminations), "view")
+
+			tt.invoke(h, c)
+
+			assert.Equal(t, http.StatusForbidden, w.Code)
+		})
+	}
+}
+
 func TestExaminationUnconfirmHandler_ValidatesReasonActorAndReturnsExamination(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -120,7 +196,7 @@ func TestListExaminations(t *testing.T) {
 			query:    "",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockExaminationService{
-				listFn: func(_ context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error) {
+				listFn: func(_ context.Context, clinicID uint64, petID, ownerID, medicalRecordID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, 1, page)
 					assert.Equal(t, 20, limit)
@@ -135,7 +211,7 @@ func TestListExaminations(t *testing.T) {
 			query:    "pet_id=5&status=completed&start_date=2026-05-01&end_date=2026-05-31&page=2&limit=10",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockExaminationService{
-				listFn: func(_ context.Context, _ uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error) {
+				listFn: func(_ context.Context, _ uint64, petID, ownerID, medicalRecordID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error) {
 					assert.NotNil(t, petID)
 					assert.Equal(t, uint64(5), *petID)
 					assert.NotNil(t, status)
@@ -174,11 +250,33 @@ func TestListExaminations(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 		},
 		{
+			name:     "applies medical_record_id filter",
+			query:    "medical_record_id=9",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockExaminationService{
+				listFn: func(_ context.Context, _ uint64, _, _, medicalRecordID *uint64, _, _, _ *string, _, _ int) ([]model.Examination, int64, error) {
+					if medicalRecordID == nil || *medicalRecordID != 9 {
+						return nil, 0, fmt.Errorf("expected medicalRecordID=9")
+					}
+					return []model.Examination{}, 0, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"total":0`,
+		},
+		{
+			name:       "returns 400 when medical_record_id filter is invalid",
+			query:      "medical_record_id=abc",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockExaminationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
 			name:     "returns 500 on service error",
 			query:    "",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockExaminationService{
-				listFn: func(_ context.Context, _ uint64, _, _ *uint64, _, _, _ *string, _, _ int) ([]model.Examination, int64, error) {
+				listFn: func(_ context.Context, _ uint64, _, _, _ *uint64, _, _, _ *string, _, _ int) ([]model.Examination, int64, error) {
 					return nil, 0, fmt.Errorf("db failure")
 				},
 			},

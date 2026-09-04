@@ -18,8 +18,14 @@ vi.mock("@/features/owners/components/PetEditModal", () => ({
 
 vi.mock("@/hooks/use-animal-species", () => ({
   useAnimalSpecies: vi.fn(() => ({
-    activeSpecies: [{ id: 1, name: "犬" }, { id: 2, name: "猫" }],
-    allSpecies: [{ id: 1, name: "犬" }, { id: 2, name: "猫" }],
+    activeSpecies: [
+      { id: 1, name: "犬" },
+      { id: 2, name: "猫" },
+    ],
+    allSpecies: [
+      { id: 1, name: "犬" },
+      { id: 2, name: "猫" },
+    ],
   })),
 }));
 
@@ -81,12 +87,12 @@ function renderOwnersList(loader: (request: Request) => OwnersLoaderData, initia
         loader: ({ request }) => loader(request),
       },
     ],
-    { initialEntries: [initialPath] }
+    { initialEntries: [initialPath] },
   );
   render(
     <AuthContext.Provider value={makeAuthCtx()}>
       <RouterProvider router={router} />
-    </AuthContext.Provider>
+    </AuthContext.Provider>,
   );
   return router;
 }
@@ -104,12 +110,17 @@ describe("OwnersList — #266 サーバサイド検索・フィルタ・ペー�
 
     const user = userEvent.setup();
     await user.click(screen.getByRole("button", { name: "検索" }));
-    const searchInput = screen.getByPlaceholderText("飼主名、ペット名、電話番号、飼主No、ペット番号...");
+    const searchInput = screen.getByPlaceholderText(
+      "飼主名、ペット名、電話番号、飼主No、ペット番号...",
+    );
     await user.type(searchInput, "田中");
 
-    await waitFor(() => {
-      expect(router.state.location.search).toContain("search=%E7%94%B0%E4%B8%AD");
-    }, { timeout: 2000 });
+    await waitFor(
+      () => {
+        expect(router.state.location.search).toContain("search=%E7%94%B0%E4%B8%AD");
+      },
+      { timeout: 2000 },
+    );
 
     expect(requests.some((s) => s.includes("search=%E7%94%B0%E4%B8%AD"))).toBe(true);
   });
@@ -123,15 +134,22 @@ describe("OwnersList — #266 サーバサイド検索・フィルタ・ペー�
     expect(
       activeFiltersToParams([
         { key: "species", condition: "is", value: "2", displayValue: "猫" },
-        { key: "include_deceased", condition: "is", value: "true", displayValue: "死亡ペットも含める" },
-      ])
+        {
+          key: "include_deceased",
+          condition: "is",
+          value: "true",
+          displayValue: "死亡ペットも含める",
+        },
+      ]),
     ).toEqual({ species: "2", include_deceased: "true" });
     expect(activeFiltersToParams([])).toEqual({ species: undefined, include_deceased: undefined });
   });
 
   it("activeFiltersToParams: include_deceased=false（既定値）は URL に残さない", () => {
     expect(
-      activeFiltersToParams([{ key: "include_deceased", condition: "is", value: "false", displayValue: "生存のみ" }])
+      activeFiltersToParams([
+        { key: "include_deceased", condition: "is", value: "false", displayValue: "生存のみ" },
+      ]),
     ).toEqual({ species: undefined, include_deceased: undefined });
   });
 
@@ -139,19 +157,31 @@ describe("OwnersList — #266 サーバサイド検索・フィルタ・ペー�
     // FilterAddPopover は conditions 上書きを無視して全条件を提示するため、is_not 等が選ばれうる。
     // is_not の value をそのまま「一致」として送ると絞り込みの意味が反転するため、is 以外は無視する。
     expect(
-      activeFiltersToParams([{ key: "species", condition: "is_not", value: "1", displayValue: "犬" }])
+      activeFiltersToParams([
+        { key: "species", condition: "is_not", value: "1", displayValue: "犬" },
+      ]),
     ).toEqual({ species: undefined, include_deceased: undefined });
     expect(
-      activeFiltersToParams([{ key: "include_deceased", condition: "is_empty", value: "", displayValue: "空" }])
+      activeFiltersToParams([
+        { key: "include_deceased", condition: "is_empty", value: "", displayValue: "空" },
+      ]),
     ).toEqual({ species: undefined, include_deceased: undefined });
   });
 
   it("paramsToActiveFilters: URL パラメータから ActiveFilter[] を復元する（表示ラベル付き）", () => {
-    const speciesOptions = [{ value: "1", label: "犬" }, { value: "2", label: "猫" }];
+    const speciesOptions = [
+      { value: "1", label: "犬" },
+      { value: "2", label: "猫" },
+    ];
     const params = new URLSearchParams("species=2&include_deceased=true");
     expect(paramsToActiveFilters(params, speciesOptions)).toEqual([
       { key: "species", condition: "is", value: "2", displayValue: "猫" },
-      { key: "include_deceased", condition: "is", value: "true", displayValue: "死亡ペットも含める" },
+      {
+        key: "include_deceased",
+        condition: "is",
+        value: "true",
+        displayValue: "死亡ペットも含める",
+      },
     ]);
     expect(paramsToActiveFilters(new URLSearchParams(), speciesOptions)).toEqual([]);
   });

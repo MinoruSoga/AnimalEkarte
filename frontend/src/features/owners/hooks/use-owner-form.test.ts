@@ -3,7 +3,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { transformBackendPetToFrontend } from "@/lib/transforms/pet";
-import { createTestWrapper } from "@/testing/utils";
+import { createTestWrapper } from "@/testing/TestUtils";
 import type { PetResponse } from "@/types/generated/pet-responses";
 import type { Owner } from "@/types/owner";
 import type { PetMutations } from "@/types/pet";
@@ -103,7 +103,7 @@ describe("useOwnerForm birth_date payload (BUG-432)", () => {
     const { result } = renderHook(
       () => useOwnerForm(undefined, undefined, undefined, CREATE_PERMISSIONS),
       {
-      wrapper: createTestWrapper(),
+        wrapper: createTestWrapper(),
       },
     );
     act(() => {
@@ -211,10 +211,9 @@ describe("useOwnerForm dangerReason readback", () => {
 
     const { owner } = await ownerLoader({ params: { id: "123" } });
 
-    const { result } = renderHook(
-      () => useOwnerForm("123", owner, undefined, EDIT_PERMISSIONS),
-      { wrapper: createTestWrapper() },
-    );
+    const { result } = renderHook(() => useOwnerForm("123", owner, undefined, EDIT_PERMISSIONS), {
+      wrapper: createTestWrapper(),
+    });
 
     expect(mockAxiosGet).toHaveBeenCalledWith("/v1/pets/7");
     expect(result.current.pets[0].dangerReason).toBe("保定時に噛む");
@@ -252,15 +251,12 @@ describe("useOwnerForm death lifecycle readback (BUG-022)", () => {
     mockAxiosGet.mockResolvedValue({ data: backendPet });
 
     const { owner } = await ownerLoader({ params: { id: "123" } });
-    const { result } = renderHook(
-      () => useOwnerForm("123", owner, undefined, EDIT_PERMISSIONS),
-      { wrapper: createTestWrapper() },
-    );
+    const { result } = renderHook(() => useOwnerForm("123", owner, undefined, EDIT_PERMISSIONS), {
+      wrapper: createTestWrapper(),
+    });
 
     expect(mockAxiosGet).toHaveBeenCalledWith("/v1/pets/7");
-    expect(result.current.pets[0]).toEqual(
-      expect.objectContaining({ status: "死亡", deceasedAt }),
-    );
+    expect(result.current.pets[0]).toEqual(expect.objectContaining({ status: "死亡", deceasedAt }));
   });
 
   it("既存owner petの欠損statusは生存へ推測しない", () => {
@@ -351,9 +347,7 @@ describe("useOwnerForm atomic owner and pets creation", () => {
 
     await waitFor(() => {
       expect(result.current.pets).toHaveLength(1);
-      expect(result.current.pets[0]).toEqual(
-        expect.objectContaining({ isPending: true }),
-      );
+      expect(result.current.pets[0]).toEqual(expect.objectContaining({ isPending: true }));
     });
     await submitForm(result.current.formAction);
 
@@ -539,9 +533,7 @@ describe("useOwnerForm create success payload (BUG-010)", () => {
     await waitFor(() => {
       expect(result.current.formState.success).toBe(true);
     });
-    expect(mockCreateOwner).toHaveBeenCalledWith(
-      expect.objectContaining({ clinic_id: 2 }),
-    );
+    expect(mockCreateOwner).toHaveBeenCalledWith(expect.objectContaining({ clinic_id: 2 }));
     expect(result.current.formState.data).toEqual({ id: "new-owner", clinicId: "2" });
   });
 

@@ -54,7 +54,6 @@ const deleteTrimmingCourseType = async (id: string): Promise<void> => {
   await axios.delete(`/v1/masters/trimming-course-types/${id}`);
 };
 
-
 // ─────────────────────────────────────────────────
 // Mutation hooks
 // ─────────────────────────────────────────────────
@@ -63,7 +62,10 @@ export const useCreateTrimmingCourseType = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: createTrimmingCourseType,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("trimming-course-types") }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.masters.category("trimming-course-types"),
+      }),
     onError: (error) => handleApiError(error, "作成"),
   });
 };
@@ -73,7 +75,10 @@ export const useUpdateTrimmingCourseType = () => {
   return useMutation({
     mutationFn: ({ id, req }: { id: string; req: UpdateTrimmingCourseTypeRequest }) =>
       updateTrimmingCourseType(id, req),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("trimming-course-types") }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.masters.category("trimming-course-types"),
+      }),
     onError: (error) => handleApiError(error, "更新"),
   });
 };
@@ -82,8 +87,10 @@ export const useDeleteTrimmingCourseType = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: deleteTrimmingCourseType,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("trimming-course-types") }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.masters.category("trimming-course-types"),
+      }),
     onError: (error) => handleApiError(error, "削除"),
   });
 };
-

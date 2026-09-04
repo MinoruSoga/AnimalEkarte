@@ -36,7 +36,7 @@ func TestReservationValidators_ValidateAndCreate_RejectsCrossClinicReservationTy
 				return nil
 			},
 		}
-		return NewReservationValidators(&mockTransactor{}, repo, typeRepo, &mockReservationStaffRepositoryForCapability{}, okTrimmingCourseRepo(), okTrimmingOptionRepo(), &mockTrimmingDetailRepository{})
+		return NewReservationValidators(&mockTransactor{}, repo, typeRepo, &mockReservationStaffRepositoryForCapability{}, okTrimmingCourseRepo(), okTrimmingOptionRepo(), &mockTrimmingDetailRepository{}, openDayHolidayFinder())
 	}
 
 	baseInput := func(typeID uint64) *CreateReservationInput {
@@ -97,7 +97,7 @@ func TestReservationValidators_ValidateAndCreate_RejectsCrossClinicTrimmingFK(t 
 				return nil
 			},
 		}
-		return NewReservationValidators(&mockTransactor{}, repo, typeRepo, &mockReservationStaffRepositoryForCapability{}, courseRepo, optionRepo, &mockTrimmingDetailRepository{})
+		return NewReservationValidators(&mockTransactor{}, repo, typeRepo, &mockReservationStaffRepositoryForCapability{}, courseRepo, optionRepo, &mockTrimmingDetailRepository{}, openDayHolidayFinder())
 	}
 
 	baseInput := func() *CreateReservationInput {
@@ -193,6 +193,7 @@ func TestReservationValidators_ValidateAndCreate_ValidatesPublicStaffInsideTrans
 		validators := NewReservationValidators(
 			&mockTransactor{}, repo, typeRepo, staffRepo,
 			okTrimmingCourseRepo(), okTrimmingOptionRepo(), &mockTrimmingDetailRepository{},
+			openDayHolidayFinder(),
 		)
 
 		out, err := validators.ValidateAndCreate(context.Background(), baseInput())
@@ -221,6 +222,7 @@ func TestReservationValidators_ValidateAndCreate_ValidatesPublicStaffInsideTrans
 		validators := NewReservationValidators(
 			tx, &mockReservationRepository{createFn: func(_ context.Context, _ *model.Reservation) error { return nil }}, typeRepo, staffRepo,
 			okTrimmingCourseRepo(), okTrimmingOptionRepo(), &mockTrimmingDetailRepository{},
+			openDayHolidayFinder(),
 		)
 
 		out, err := validators.ValidateAndCreate(context.Background(), baseInput())
@@ -275,6 +277,7 @@ func TestReservationValidators_ValidateAndCreate_TrimmingWritesAreAtomicAndActiv
 			&mockTransactor{},
 			&mockReservationRepository{createFn: func(_ context.Context, _ *model.Reservation) error { created = true; return nil }},
 			typeRepo, &mockReservationStaffRepositoryForCapability{}, courseRepo, optionRepo, &mockTrimmingDetailRepository{},
+			openDayHolidayFinder(),
 		)
 
 		out, err := validators.ValidateAndCreate(context.Background(), baseInput())
@@ -304,6 +307,7 @@ func TestReservationValidators_ValidateAndCreate_TrimmingWritesAreAtomicAndActiv
 				return nil
 			}},
 			typeRepo, &mockReservationStaffRepositoryForCapability{}, courseRepo, optionRepo, detailRepo,
+			openDayHolidayFinder(),
 		)
 
 		out, err := validators.ValidateAndCreate(context.Background(), baseInput())
@@ -412,7 +416,7 @@ func TestReservationService_Update_RejectsCrossClinicReservationType(t *testing.
 				return &model.Reservation{ID: reservationID, ClinicID: clinicID}, nil
 			},
 		}
-		return NewReservationServiceWithAvailabilityAndType(repo, typeRepo, &mockTransactor{}, nil, nil)
+		return NewReservationServiceWithClinicHolidays(repo, typeRepo, &mockTransactor{}, nil, nil, nil, nil, openDayHolidayFinder())
 	}
 
 	t.Run("rejects cross-clinic reservation_type_id and does not persist", func(t *testing.T) {
@@ -458,8 +462,8 @@ func TestReservationAdminService_Create_RejectsCrossClinicReservationType(t *tes
 				return nil
 			},
 		}
-		return NewReservationAdminServiceWithAvailabilityAndType(
-			&mockReservationAdminRepository{}, resRepo, typeRepo, &mockTransactor{}, nil, nil,
+		return NewReservationAdminServiceWithClinicHolidays(
+			&mockReservationAdminRepository{}, resRepo, typeRepo, &mockTransactor{}, nil, nil, nil, openDayHolidayFinder(),
 		)
 	}
 
@@ -532,7 +536,7 @@ func TestLiffService_CreateReservation_RejectsCrossClinicTrimmingFK(t *testing.T
 			reservationRepo:    reservationRepo,
 			trimmingDetailRepo: &mockTrimmingDetailRepository{},
 			notifier:           nil,
-			validators:         NewReservationValidators(&mockTransactor{}, reservationRepo, typeRepo, &mockReservationStaffRepositoryForCapability{}, courseRepo, okTrimmingOptionRepo(), &mockTrimmingDetailRepository{}),
+			validators:         NewReservationValidators(&mockTransactor{}, reservationRepo, typeRepo, &mockReservationStaffRepositoryForCapability{}, courseRepo, okTrimmingOptionRepo(), &mockTrimmingDetailRepository{}, openDayHolidayFinder()),
 		}
 	}
 

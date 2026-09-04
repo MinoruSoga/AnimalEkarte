@@ -116,6 +116,19 @@ func (r authCredentialAuditSubjectResolver) ResolveCredentialAuditSubject(
 		)
 	}
 
+	activeClinicIDs, activeClinics := activeCredentialAuditClinics(clinics)
+	assignedClinicID, err := pickCredentialAuditClinicID(account, staffRecord.ID, assignments, activeClinicIDs, activeClinics)
+	if err != nil {
+		return auth.CredentialAuditSubject{}, err
+	}
+
+	return auth.CredentialAuditSubject{
+		ClinicID: assignedClinicID,
+		StaffID:  staffRecord.ID,
+	}, nil
+}
+
+func activeCredentialAuditClinics(clinics []model.Clinic) ([]uint64, map[uint64]struct{}) {
 	activeClinicIDs := make([]uint64, 0, len(clinics))
 	activeClinics := make(map[uint64]struct{}, len(clinics))
 	for i := range clinics {
@@ -129,16 +142,25 @@ func (r authCredentialAuditSubjectResolver) ResolveCredentialAuditSubject(
 		activeClinics[clinic.ID] = struct{}{}
 		activeClinicIDs = append(activeClinicIDs, clinic.ID)
 	}
+	return activeClinicIDs, activeClinics
+}
 
+func pickCredentialAuditClinicID(
+	account *model.Account,
+	staffID uint64,
+	assignments []model.StaffClinicAssignment,
+	activeClinicIDs []uint64,
+	activeClinics map[uint64]struct{},
+) (uint64, error) {
 	var assignedClinicID uint64
 	for i := range assignments {
 		assignment := &assignments[i]
 		if assignment.DeletedAt.Valid {
 			continue
 		}
-		if assignment.StaffID != staffRecord.ID ||
+		if assignment.StaffID != staffID ||
 			assignment.ClinicID == 0 {
-			return auth.CredentialAuditSubject{}, apperrors.WrapInternalServerError(
+			return 0, apperrors.WrapInternalServerError(
 				"credential audit clinic assignment is invalid",
 			)
 		}
@@ -159,13 +181,9 @@ func (r authCredentialAuditSubjectResolver) ResolveCredentialAuditSubject(
 		assignedClinicID = activeClinicIDs[0]
 	}
 	if assignedClinicID == 0 {
-		return auth.CredentialAuditSubject{}, apperrors.WrapForbidden(
+		return 0, apperrors.WrapForbidden(
 			"no active credential audit clinic is available",
 		)
 	}
-
-	return auth.CredentialAuditSubject{
-		ClinicID: assignedClinicID,
-		StaffID:  staffRecord.ID,
-	}, nil
+	return assignedClinicID, nil
 }

@@ -11,12 +11,12 @@ export function ProgressDots({ current, total }: ProgressDotsProps) {
           key={i}
           className={`rounded-full transition-all ${
             i + 1 === current
-              ? 'w-3 h-3 bg-noah-teal'
+              ? "w-3 h-3 bg-noah-teal"
               : i + 1 < current
-                ? 'w-2 h-2 bg-noah-teal opacity-50'
-                : 'w-2 h-2 bg-gray-300'
+                ? "w-2 h-2 bg-noah-teal opacity-50"
+                : "w-2 h-2 bg-noah-disabled"
           }`}
-          aria-label={`ステップ ${i + 1}${i + 1 === current ? '（現在）' : ''}`}
+          aria-label={`ステップ ${i + 1}${i + 1 === current ? "（現在）" : ""}`}
         />
       ))}
     </div>

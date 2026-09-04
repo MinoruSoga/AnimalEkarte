@@ -1,7 +1,10 @@
 import { C } from "@/lib/design-tokens";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select";
-import { ReservationTypePickerDialog, type ReservationTypePickerGroup } from "@/components/shared/ReservationFormModal/ReservationTypePickerDialog";
+import {
+  ReservationTypePickerDialog,
+  type ReservationTypePickerGroup,
+} from "@/components/shared/ReservationFormModal/ReservationTypePickerDialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { ChevronDown } from "lucide-react";
@@ -16,6 +19,7 @@ const VISIT_TYPE_VALUES = ["first", "revisit"] as const;
 interface SelectedReservationType {
   color: string;
   name: string;
+  isActive: boolean;
 }
 
 interface ReservationTypeAndStaffFieldsProps {
@@ -47,13 +51,7 @@ export function ReservationTypeAndStaffFields({
         <div className="space-y-1.5">
           <FieldLabel
             required
-            trailing={
-              <MasterLink
-                category="reservationType"
-                label="編集"
-                className="text-2xs"
-              />
-            }
+            trailing={<MasterLink category="reservationType" label="編集" className="text-2xs" />}
           >
             予約区分
           </FieldLabel>
@@ -77,7 +75,12 @@ export function ReservationTypeAndStaffFields({
                   className="size-3 shrink-0 rounded-full"
                   style={{ backgroundColor: selectedReservationType.color }}
                 />
-                <span className={cn("line-clamp-1", C.text)}>{selectedReservationType.name}</span>
+                <span className={cn("line-clamp-1", C.text)}>
+                  {selectedReservationType.name}
+                  {!selectedReservationType.isActive ? (
+                    <span className={cn("ml-1 shrink-0 text-2xs", C.text40)}>（無効）</span>
+                  ) : null}
+                </span>
               </span>
             ) : (
               <span className={C.text40}>選択してください</span>
@@ -114,7 +117,7 @@ export function ReservationTypeAndStaffFields({
                   `block h-9 rounded-full border-2 px-3 py-1.5 text-center text-sm font-medium cursor-pointer transition-colors ${C.text}`,
                   formData.visitType === "first"
                     ? `${C.borderBrand} ${C.bgBrand8}`
-                    : `${C.borderMediumLight} bg-white ${C.hoverBgSubtle}`
+                    : `${C.borderMediumLight} bg-white ${C.hoverBgSubtle}`,
                 )}
               >
                 初診
@@ -128,7 +131,7 @@ export function ReservationTypeAndStaffFields({
                   `block h-9 rounded-full border-2 px-3 py-1.5 text-center text-sm font-medium cursor-pointer transition-colors ${C.text}`,
                   formData.visitType === "revisit"
                     ? `${C.borderBrand} ${C.bgBrand8}`
-                    : `${C.borderMediumLight} bg-white ${C.hoverBgSubtle}`
+                    : `${C.borderMediumLight} bg-white ${C.hoverBgSubtle}`,
                 )}
               >
                 再診
@@ -139,15 +142,7 @@ export function ReservationTypeAndStaffFields({
       </div>
 
       <div className="space-y-1.5">
-        <FieldLabel
-          trailing={
-            <MasterLink
-              category="staff"
-              label="編集"
-              className="text-2xs"
-            />
-          }
-        >
+        <FieldLabel trailing={<MasterLink category="staff" label="編集" className="text-2xs" />}>
           担当者
         </FieldLabel>
         <SearchableSelect

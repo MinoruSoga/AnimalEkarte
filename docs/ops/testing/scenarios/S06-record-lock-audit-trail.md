@@ -6,24 +6,24 @@
 
 ## 前提条件
 
-- 環境: ローカル（seed 003_demo）。ログイン: vet ロール（medical-records の create/edit 権限あり）。
-- 対象ペット: ペット検索で「ステータス=生存」のペットを 1 頭選ぶ。
-- `audit_logs` の確認は管理 UI が存在しないため DB 参照（**USER 実施**）。
+- ローカルの使い捨て clinic に、medical-records create/edit と会計(医師確認)に必要な権限を持つ attached account、生存ペットを作成する。
+- `audit_logs` の直接確認は USER が承認済み read-only 手順でローカル環境だけに対して実施する。資格情報や行内容をシナリオへ転記しない。
+- 試験後に専用 fixture を削除する。
 - 依存シナリオ: なし。
 
 ## 手順と期待結果
 
 | # | 操作 | 期待結果 |
 |:--|:--|:--|
-| 1 | カルテ新規作成 → ペット選択 → 「問診」タブで主訴、「診察/治療プラン」タブで所見（S/O/A）・診断名を入力し保存（[06 §1/§2.2](../../../spec/screens/06-medical-records-form.md)） | 保存成功。カルテ一覧にステータス「作成中」で表示される（[05 §1.2](../../../spec/screens/05-medical-records-list.md)) |
+| 1 | `/medical-records/new?petId=` を開く → 問診タブで主訴、診察/治療プランタブで所見・診断名を保存 | 表示と同時に draft が自動 `POST` され URL が `/medical-records/:id` に昇格する。保存はタブ別（問診=`/inquiries`、診察=`/clinical-plan`）。一覧に「作成中」で出る |
 | 2 | 「治療」タブで処置明細を 1 件追加する | 明細は行単位で即時保存される（[06 §2.2](../../../spec/screens/06-medical-records-form.md)） |
-| 3 | カルテ本体（主訴等）を変更して再保存する | 保存成功。「作成中」の間は臨床内容の追記・変更が可能（[05 §1.2](../../../spec/screens/05-medical-records-list.md)） |
-| 4 | カルテを確定（Lock）する: 画面右下フローティングの「確定する」（`MedicalRecordFloatingActions`。`canEdit`・保存済み・未確定のときのみ）→ `MedicalRecordFinalizeDialog` で「確定後はカルテを編集できなくなります。修正が必要な場合は訂正追記（addendum）を使用してください。この操作は元に戻せません。」を確認し「確定する」（[06 §2.3](../../../spec/screens/06-medical-records-form.md)） | ステータスが「確定済」（BE `finalized`）に変わる（[05 §1.2](../../../spec/screens/05-medical-records-list.md)）。詳細に確定済みバナーが出て「確定する」ボタンは消える |
+| 3 | カルテ本体（主訴等）を変更して再保存する。続けてヘッダーの来院種別を保存ボタンなしで変更し再読込する | タブ保存は成功する。来院種別は即時 PATCH + 詳細キャッシュ invalidate で再読込後も残る。appointment 紐付き通常カルテの診察日変更は BE Conflict |
+| 4 | 会計確認前に「確定する」を確認し、その後「会計(医師確認)」を完了してから確定（Lock）する | 会計確認の loading/error/未確認時は fail-closed で disabled、title は「会計確認が未完了です」。会計確認が `confirmed` になった後だけ確定ダイアログを開ける。確定後はステータスが `finalized`、確定済みバナーが表示され、ボタンは消える |
 | 5 | 確定済みカルテを開き、属性を変更して保存を試行する | 主要タブは fieldset 一括無効（`isFinalized` または `!canSubmit` — [06 §2.3](../../../spec/screens/06-medical-records-form.md)）。保存ボタンも disabled。直接 API 更新は 409: 「確定済みカルテは編集できません。訂正追記 (addendum) を使用してください」（`medical_record_crud.go`） |
 | 6 | 確定済みカルテの削除導線を確認する | **詳細**: `canDelete={canDelete && !isFinalized}` のためフローティング「削除」は出ない。**一覧**: 現行 UI は確定済でも canDelete なら「削除」メニューが出うる — 実行時 BE が拒否する（draft 以外は削除不可）。直接 API: 「確定済みまたは下書き以外の診療記録は削除できません」（[05 §3.1](../../../spec/screens/05-medical-records-list.md)） |
-| 7 | 確定済みカルテの各タブ下部「追記する」から訂正追記（addendum）を行う（修正内容・修正理由が必須 — `AddendumModal`） | 保存後、時刻・スタッフ ID 付きの時系列リストとして表示され、リロード後も永続する（[06 §2.3](../../../spec/screens/06-medical-records-form.md)）。addendum は fieldset 外（`MedicalRecordAddenda`） |
-| 8 | 確定の解除（確定済 → 作成中へ戻す）を試行する | 解除（unfinalize）API はバックエンドに存在しない（`medical_record_crud.go` に該当メソッドなし）。確定は一方向遷移であり、確定後の修正経路は訂正追記（addendum）のみ。解除機能が必要な場合は GAP-1 とは別に要件を起票する（2026-07-16 Fable 代理決裁） |
-| 9 | 手順 1〜4 の操作について `audit_logs` を DB で確認する（**USER 実施**。例: resource がカルテ関連の行を時刻降順で参照） | 作成（create）・更新（update）・確定の各操作が、操作者（actor_id）・時刻（created_at）・変更内容（old/new_value）付きで記録されている（[specification.md §2.1](../../../spec/specification.md)「全テーブルの CRUD を audit_logs で追跡」） |
+| 7 | 確定済みカルテの各タブ下部「追記する」から訂正追記（addendum）を行う（修正内容・修正理由が必須 — `AddendumModal`） | 保存後、時刻・スタッフ ID 付きの時系列リストとして表示され、リロード後も永続する。バリデーション失敗後も入力済み側は消えない（controlled）。未確定カルテでは追記セクション自体が非表示 |
+| 8 | 確定の解除（確定済 → 作成中へ戻す）を試行する | 解除（unfinalize）API はバックエンドに存在しない（`medical_record_crud.go` に該当メソッドなし）。確定は一方向遷移であり、確定後の修正経路は訂正追記（addendum）のみ。解除機能が必要な場合は GAP-1 とは別に要件を起票する |
+| 9 | 手順 1〜4 の操作について `audit_logs` を DB で確認する（**USER 実施**。例: resource がカルテ関連の行を時刻降順で参照） | 確定（finalize）は本体と同一 TX で fail-closed に残る。作成・通常更新は best-effort（欠落しても本体成功を失敗にしない）。全テーブル自動監査ではない（[specification.md §2.1](../../../spec/specification.md)） |
 
 ## 確認観点
 
@@ -45,11 +45,8 @@
 
 ## 実装突合
 
-- 突合日: 2026-08-07
-- HEAD: `844e43f69`
 - 変更サマリ:
   - 確定ダイアログ文言を実装全文に更新
   - 編集拒否メッセージに addendum 誘導句を追加（409）
   - 削除拒否メッセージを「確定済みまたは下書き以外の診療記録は削除できません」に修正
   - 一覧は確定済でも削除メニューが出うる / 詳細は非表示、と UI 差を明記
-

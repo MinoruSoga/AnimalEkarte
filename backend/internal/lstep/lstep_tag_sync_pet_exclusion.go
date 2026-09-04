@@ -75,19 +75,15 @@ func (s *lstepTagSyncService) SyncExclusionTags(ctx context.Context, clinicID, o
 		if addErr := client.AddTag(ctx, lineUserID, exclTagDeliveryCaution); addErr != nil {
 			slog.ErrorContext(ctx, "failed to add EXCL caution tag", "error", addErr)
 			apiFailed = true
-		} else {
-			if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, exclTagDeliveryCaution, "auto", ""); cacheErr != nil {
-				slog.ErrorContext(ctx, "failed to upsert EXCL caution tag cache", "error", cacheErr)
-			}
+		} else if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, exclTagDeliveryCaution, "auto", ""); cacheErr != nil {
+			slog.ErrorContext(ctx, "failed to upsert EXCL caution tag cache", "error", cacheErr)
 		}
 	} else {
 		if delErr := client.RemoveTag(ctx, lineUserID, exclTagDeliveryCaution); delErr != nil {
 			slog.ErrorContext(ctx, "failed to remove EXCL caution tag", "error", delErr)
 			apiFailed = true
-		} else {
-			if delCacheErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, exclTagDeliveryCaution); delCacheErr != nil {
-				slog.WarnContext(ctx, "failed to delete tag from cache (best-effort)", "error", delCacheErr, "owner_id", ownerID, "tag", exclTagDeliveryCaution)
-			}
+		} else if delCacheErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, exclTagDeliveryCaution); delCacheErr != nil {
+			slog.WarnContext(ctx, "failed to delete tag from cache (best-effort)", "error", delCacheErr, "owner_id", ownerID, "tag", exclTagDeliveryCaution)
 		}
 	}
 

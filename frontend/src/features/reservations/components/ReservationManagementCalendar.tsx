@@ -2,10 +2,16 @@ import { lazy, Suspense, useMemo } from "react";
 import type React from "react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select";
 import { CalendarNavToolbar } from "@/components/shared/CalendarNavToolbar";
-import type { LegendEntry, ReservationTypeColor } from "@/hooks/use-reservation-type-color-map";
+import type { LegendEntry, ReservationTypeColor } from "../hooks/use-reservation-type-color-map";
 import { C, ICON } from "@/lib/design-tokens";
 import { typedSetter } from "@/lib/type-utils";
 import { getCalendarViewLabel } from "@/lib/status-helpers";
@@ -16,9 +22,7 @@ import { DaysRangeToggle } from "./DaysRangeToggle";
 const MonthView = lazy(() =>
   import("./MonthView").then((module) => ({ default: module.MonthView })),
 );
-const WeekView = lazy(() =>
-  import("./WeekView").then((module) => ({ default: module.WeekView })),
-);
+const WeekView = lazy(() => import("./WeekView").then((module) => ({ default: module.WeekView })));
 
 const SOURCE_FILTER_SELECT_ITEMS = (
   <>
@@ -56,6 +60,7 @@ interface ReservationManagementCalendarProps {
   onMonthDateClick: (date: Date) => void;
   onTimeSlotClick: (date: Date) => void;
   onAppointmentUpdate: (reservation: Reservation, newStart: Date, newEnd: Date) => void;
+  holidayDates?: ReadonlySet<string>;
 }
 
 export function ReservationManagementCalendar({
@@ -80,6 +85,7 @@ export function ReservationManagementCalendar({
   onMonthDateClick,
   onTimeSlotClick,
   onAppointmentUpdate,
+  holidayDates,
 }: ReservationManagementCalendarProps) {
   const doctorFilterOptions = useMemo<SearchableSelectOption[]>(
     () => [
@@ -113,7 +119,10 @@ export function ReservationManagementCalendar({
           data-testid="reservation-toolbar-filters"
         >
           <Select value={sourceFilter} onValueChange={onSourceFilterChange}>
-            <SelectTrigger aria-label="予約ソース" className={`w-[140px] ${C.bgWhite} ${C.borderMedium} h-11 text-base`}>
+            <SelectTrigger
+              aria-label="予約ソース"
+              className={`w-[140px] ${C.bgWhite} ${C.borderMedium} h-11 text-base`}
+            >
               <SelectValue placeholder="予約ソース" />
             </SelectTrigger>
             <SelectContent>{SOURCE_FILTER_SELECT_ITEMS}</SelectContent>
@@ -130,17 +139,16 @@ export function ReservationManagementCalendar({
           />
 
           <Select value={view} onValueChange={typedSetter(onViewChange, CALENDAR_VIEW_VALUES)}>
-            <SelectTrigger aria-label="カレンダー表示切替" className={`w-[140px] ${C.bgWhite} ${C.borderMedium} h-11 text-base`}>
+            <SelectTrigger
+              aria-label="カレンダー表示切替"
+              className={`w-[140px] ${C.bgWhite} ${C.borderMedium} h-11 text-base`}
+            >
               <SelectValue placeholder="表示切替" />
             </SelectTrigger>
-            <SelectContent>
-              {CALENDAR_VIEW_SELECT_ITEMS}
-            </SelectContent>
+            <SelectContent>{CALENDAR_VIEW_SELECT_ITEMS}</SelectContent>
           </Select>
 
-          {view === "week" ? (
-            <DaysRangeToggle days={days} onChange={onDaysChange} />
-          ) : null}
+          {view === "week" ? <DaysRangeToggle days={days} onChange={onDaysChange} /> : null}
         </div>
       </div>
 
@@ -158,7 +166,9 @@ export function ReservationManagementCalendar({
           fallback={
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
-                <div className={`inline-block animate-spin rounded-full h-8 w-8 border-b-2 ${C.borderPrimary}`} />
+                <div
+                  className={`inline-block animate-spin rounded-full h-8 w-8 border-b-2 ${C.borderPrimary}`}
+                />
                 <p className={`mt-2 ${C.text60} text-base`}>読み込み中...</p>
               </div>
             </div>
@@ -171,13 +181,21 @@ export function ReservationManagementCalendar({
               onAppointmentClick={onAppointmentClick}
               onDateClick={onMonthDateClick}
               dynamicColorMap={dynamicColorMap}
+              holidayDates={holidayDates}
             />
           ) : (
             <WeekView
               currentDate={currentDate}
               appointments={appointments}
               onAppointmentClick={onAppointmentClick}
-              onTimeSlotClick={canCreate ? onTimeSlotClick : undefined}
+              onTimeSlotClick={
+                canCreate
+                  ? (date) => {
+                      if (holidayDates?.has(format(date, "yyyy-MM-dd"))) return;
+                      onTimeSlotClick(date);
+                    }
+                  : undefined
+              }
               onAppointmentUpdate={onAppointmentUpdate}
               dynamicColorMap={dynamicColorMap}
               days={days}

@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import type { InventoryItem } from "@/types";
 import { useGetInventoryItemsPage } from "../api/inventory";
-import { normalizeKana } from "@/lib/normalize-kana";
+import { normalizedIncludes } from "@/lib/normalize-kana";
 type CategoryFilter = InventoryItem["category"] | "all";
 type StatusFilter = InventoryItem["status"] | "all";
 
@@ -28,7 +28,11 @@ export function useInventoryList({
 
   // BUG-412: page/limit をサーバへ転送し、レスポンスの total/page/limit を消費する
   // （旧実装は data のみ返し total/page/limit を捨てていたため 20 件超が不可視だった）。
-  const { data: pageResult, isLoading, isError } = useGetInventoryItemsPage({
+  const {
+    data: pageResult,
+    isLoading,
+    isError,
+  } = useGetInventoryItemsPage({
     category: categoryParam,
     status: statusParam,
     page,
@@ -38,12 +42,11 @@ export function useInventoryList({
 
   const filteredItems = useMemo(() => {
     if (!searchTerm) return items;
-    const normalizedTerm = normalizeKana(searchTerm).toLowerCase();
     return items.filter(
       (item) =>
-        normalizeKana(item.name).toLowerCase().includes(normalizedTerm) ||
-        (item.location ? normalizeKana(item.location).toLowerCase().includes(normalizedTerm) : false) ||
-        (item.supplier ? normalizeKana(item.supplier).toLowerCase().includes(normalizedTerm) : false)
+        normalizedIncludes(item.name, searchTerm) ||
+        normalizedIncludes(item.location ?? "", searchTerm) ||
+        normalizedIncludes(item.supplier ?? "", searchTerm),
     );
   }, [items, searchTerm]);
 
@@ -51,19 +54,13 @@ export function useInventoryList({
   // ならない。現在ページの items から集計すると、ページを送るたびに件数が変動する偽の集計になる
   // (BUG-412のページネーション化に伴い新規混入しうる回帰)。status=low / out_of_stock を明示指定し、
   // total(サーバー実COUNT)のみを参照する軽量クエリ(limit:1, data未使用)で代替する。
-  const {
-    data: lowStockPage,
-    isError: isLowStockError,
-  } = useGetInventoryItemsPage({
+  const { data: lowStockPage, isError: isLowStockError } = useGetInventoryItemsPage({
     category: categoryParam,
     status: "low",
     page: 1,
     limit: 1,
   });
-  const {
-    data: outOfStockPage,
-    isError: isOutOfStockError,
-  } = useGetInventoryItemsPage({
+  const { data: outOfStockPage, isError: isOutOfStockError } = useGetInventoryItemsPage({
     category: categoryParam,
     status: "out_of_stock",
     page: 1,
@@ -80,7 +77,7 @@ export function useInventoryList({
       outOfStock: outOfStockPage?.total ?? 0,
       isError: isLowStockError || isOutOfStockError,
     }),
-    [pageResult, lowStockPage, outOfStockPage, isLowStockError, isOutOfStockError]
+    [pageResult, lowStockPage, outOfStockPage, isLowStockError, isOutOfStockError],
   );
 
   return {

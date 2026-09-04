@@ -8,7 +8,7 @@ const data: any = response.data;
 
 // ✅ unknown + 型ガード
 const parseData = (data: unknown): Owner | null => {
-  if (data && typeof data === 'object' && 'id' in data) return data as Owner;
+  if (data && typeof data === "object" && "id" in data) return data as Owner;
   return null;
 };
 ```
@@ -62,16 +62,16 @@ import { C, STYLE } from '@/lib/design-tokens';
 <div style={{ color: '#37352F' }}>
 ```
 
-`lib/design-tokens.ts`（805行）は 800行ファイルサイズ規約の documented exception。トークンテーブルの分割は可読性を下げるだけで得られる便益がないため、分割しない（FE7-4 判断・2026-07-18）。
+`lib/design-tokens.ts`（897行）は 800行ファイルサイズ規約の documented exception。トークンテーブルの分割は可読性を下げるだけで得られる便益がないため、分割しない（FE7-4 判断・2026-07-18。FE-RC-121 で実測に同期）。
 
 ## Feature Indexing (MANDATORY)
 
 ```typescript
 // ✅ index.ts 経由
-import { OwnerCard, useOwners } from '@/features/owners';
+import { OwnerCard, useOwners } from "@/features/owners";
 
 // ❌ deep import 禁止
-import { OwnerCard } from '@/features/owners/components/OwnerCard';
+import { OwnerCard } from "@/features/owners/components/OwnerCard";
 ```
 
 詳細は `src/features/CLAUDE.md` を参照。
@@ -80,10 +80,10 @@ import { OwnerCard } from '@/features/owners/components/OwnerCard';
 
 ```typescript
 // ✅ 共有ヘルパは lib/ に一元化
-import { formatCurrency } from '@/lib/format/number';
+import { formatCurrency } from "@/lib/format/number";
 
 // ❌ utils/ ディレクトリの新設禁止
-import { formatCurrency } from '@/utils/format';
+import { formatCurrency } from "@/TestUtils/format";
 ```
 
 共有ヘルパの置き場所は `lib/` の1箇所のみ。`utils/` ディレクトリの新規作成を禁止する（FE7-1 で `utils/` を `lib/` へ統合済み・2026-07-18）。
@@ -92,7 +92,7 @@ import { formatCurrency } from '@/utils/format';
 
 ```typescript
 // ✅ 共有定数は src/constants/ に一元化
-import { RECEPTION_STATUS_COLORS } from '@/constants/status-colors';
+import { RECEPTION_STATUS_COLORS } from "@/constants/status-colors";
 
 // ❌ 他ディレクトリ（lib/、feature 内など）での新規共有定数ファイル作成禁止
 ```
@@ -113,11 +113,12 @@ import { RECEPTION_STATUS_COLORS } from '@/constants/status-colors';
 
 ## Import 境界 Lint (ESLint no-restricted-imports) (MANDATORY)
 
-`eslint.config.js` に以下3種の境界ルールが入っている。違反は ESLint で機械検出される（過去に cross-feature import 38件が人力レビューをすり抜けていた実績を受けた機械ガード化、第2期監査。FE7-0・2026-07-18）。
+`eslint.config.js` に以下4種の境界ルールが入っている。違反は ESLint で機械検出される（過去に cross-feature import 38件が人力レビューをすり抜けていた実績を受けた機械ガード化、第2期監査。FE7-0・2026-07-18）。
 
 1. **deep import 禁止**（全域）: feature の外から `@/features/<name>/...` への直接 import を禁止。外からは `@/features/<name>`（index.ts）経由、feature 内部も相対 import を使うこと。
-2. **層逆転禁止**: `src/components/`, `src/hooks/`, `src/lib/` から `@/features` への import を禁止（features は components/hooks/lib に依存してよいが逆方向は禁止）。
+2. **層逆転禁止**: `src/components/`, `src/hooks/`, `src/lib/` から `@/features` への import を禁止（features は components/hooks/lib に依存してよいが逆方向は禁止）。相対パス（`../features/...`）も同様に禁止。
 3. **アプリ境界**: `liff/src/`, `line-reserve/src/` から `@/features` への import を禁止。
+4. **feature 間 import 禁止**（`src/features/<a>/**` → `@/features/<b>`）: barrel（index.ts）経由でも feature 間の直接 import を禁止する（FE-RC-015/060・2026-09-03。CODING_RULES.md §1.2 との不整合を解消し ESLint 側も全面禁止に統一）。cross-feature の値が必要な場合は `components/shared`・`src/hooks`・`src/lib` へ昇格するか、`app/pages/` の合成層で props 注入すること。唯一の例外は `src/features/owner-report/hooks/use-owner-clinical-briefing-data.ts`（`@/features/medical-records` の `useGetMedicalRecords` を読み取り専用で参照。`transformMedicalRecord` は診療録ドメインの正本ロジックで、cross-feature 消費のための複製は DRY 違反・drift リスクの方が大きいと判断し、具体的な問題が出るまで現状維持。`eslint.config.js` の `crossFeatureImportBanAllowlist` で管理）。
 
 ## Prohibited Commands (must NOT auto-execute)
 
@@ -139,7 +140,7 @@ docker compose exec frontend pnpm install
 - `docker compose exec frontend pnpm test:run -- <path>` は罠 — `--` 以降のパスがスコープ指定として渡らず全件実行になる。スコープ限定したい場合は必ず `docker compose exec frontend npx vitest run <path>` を使うこと（`.claude/skills/scoped-verification-gates/SKILL.md` と整合）。
 - `tsc --noEmit`（`pnpm type-check`）は `tsconfig.json` の `exclude` によりテストファイルを検証しない。import 改名・移行の検証罠（3アプリ全域grep・vitest実証手順）は `.claude/skills/scoped-verification-gates/SKILL.md`「検証の罠」節を参照。
 - `PageLayout` に `resource` prop を渡す route の render test では `PermissionBadges → usePermission → useAuth` が呼ばれるため、`vi.mock("@/hooks/use-auth", () => ({ useAuth: () => ({ ... hasPermission: () => true }) }))` が必須（`AuthProvider` 無しだと `useAuth must be used within an AuthProvider` で全滅する）。正例: `frontend/src/features/cash-register/routes/CashRegisterHistoryPage.test.tsx`。
-- 新規リーフルートを追加したら `docs/spec/ui-design-compliance.md` §2 のページ表を同じコミットで更新すること。C1/C3/C5/C6b/C7〜C19 は `pnpm design-audit`（make ci 配線済み）で機械検証される。C8 は `src/features/*/routes/*.tsx` の PageLayout / Master*Page /相対パス完全一致 allowlist（14件 = 独自page 9 + helper 5）を検査する — 正当な非 PageLayout ルートは `design-system-audit.mjs` の対応する allowlist へ同一コミットで追記すること。C18 は `TableHead` / `TableCell` 呼び出し側による非仕様 typography・vertical padding の再上書き、C19 は `DataTableRow` / `SortableDataTableRow` / `TableRow` / raw `tr` の行全体 `onClick` を禁止する。遷移・表示・選択はcell内のnative link/button、並べ替えは44px drag handleを使う。空stateで追加vertical paddingが必要な場合だけ `data-empty-state` + `colSpan` + `text-center` を明示する。
+- 新規リーフルートを追加したら `docs/spec/ui-design-compliance.md` §2 のページ表を同じコミットで更新すること。C1/C3/C5/C6b/C7〜C19 は `pnpm design-audit`（make ci 配線済み）で機械検証される。C8 は `src/features/*/routes/*.tsx` の PageLayout / Master*Page /相対パス完全一致 allowlist（44件 = 独自page 9 + helper 35）を検査する — 正当な非 PageLayout ルートは `design-system-audit.mjs` の対応する allowlist へ同一コミットで追記すること。C18 は `TableHead` / `TableCell` 呼び出し側による非仕様 typography・vertical padding の再上書き、C19 は `DataTableRow` / `SortableDataTableRow` / `TableRow` / raw `tr` の行全体 `onClick` を禁止する。遷移・表示・選択はcell内のnative link/button、並べ替えは44px drag handleを使う。空stateで追加vertical paddingが必要な場合だけ `data-empty-state` + `colSpan` + `text-center` を明示する。
 
 ## DESIGN.md / 製品デザイン適用範囲（MANDATORY・FE11 2026-07-21）
 

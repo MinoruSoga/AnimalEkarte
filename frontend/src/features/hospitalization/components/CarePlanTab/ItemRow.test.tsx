@@ -36,14 +36,7 @@ describe("ItemRow", () => {
     const user = userEvent.setup();
     const onEdit = vi.fn();
     const onDelete = vi.fn();
-    render(
-      <ItemRow
-        item={item}
-        onEdit={onEdit}
-        onDelete={onDelete}
-        isDeleting={false}
-      />,
-    );
+    render(<ItemRow item={item} onEdit={onEdit} onDelete={onDelete} isDeleting={false} />);
 
     const editButton = screen.getByRole("button", { name: "編集" });
     const deleteButton = screen.getByRole("button", { name: "削除" });

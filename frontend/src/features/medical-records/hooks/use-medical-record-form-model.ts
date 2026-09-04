@@ -1,20 +1,12 @@
-import { formatJSTDate } from "@/lib/jst-date";
+import { formatJSTDate, formatJSTTime } from "@/lib/jst-date";
 
 export { formatJSTDate };
-
-export const DEFAULT_CHIEF_COMPLAINT = "# どんな症状\n\n# どこが\n\n# いつから\n\n# その他・備考\n\n# フリースペース";
+export const DEFAULT_CHIEF_COMPLAINT =
+  "# どんな症状\n\n# どこが\n\n# いつから\n\n# その他・備考\n\n# フリースペース";
 /** 問診 notes 比較用。clinical_plan.treatment_policy の初期値には使わない（BUG-010）。 */
 export const DEFAULT_TREATMENT_POLICY = "# 治療方針";
-/**
- * 歴史的テンプレート固定文字列。BUG-010 以前は plan/assessment 初期値に使われ
- * 保存時にユーザー入力を上書きした。clinical_plan 3欄の初期値には使わない。
- */
-export const DEFAULT_PLAN = "# 治療方針";
-export const DEFAULT_ASSESSMENT = "# 診断詳細";
 
 export const DEFAULT_RECEPTION_APPOINTMENT_MINUTES = 15;
-
-const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
 export interface MedicalRecordReservationType {
   id: number;
@@ -29,24 +21,33 @@ export interface MedicalRecordReservationTypeGroup {
   types: MedicalRecordReservationType[];
 }
 
-export function toVisitTypeValue(visitTypeLabel: string): "first" | "revisit" {
-  return visitTypeLabel === "初診" || visitTypeLabel === "first" ? "first" : "revisit";
-}
-
-function padDatePart(value: number): string {
-  return String(value).padStart(2, "0");
-}
-
-function formatJSTDateTime(date: Date): string {
-  const jstDate = new Date(date.getTime() + JST_OFFSET_MS);
-  return `${formatJSTDate(date)}T${padDatePart(jstDate.getUTCHours())}:${padDatePart(jstDate.getUTCMinutes())}:00+09:00`;
-}
-
-function createDateAtCurrentJSTTime(visitDate: string, timeSource: Date): Date {
-  const jstTime = new Date(timeSource.getTime() + JST_OFFSET_MS);
-  return new Date(
-    `${visitDate}T${padDatePart(jstTime.getUTCHours())}:${padDatePart(jstTime.getUTCMinutes())}:00+09:00`
+export function isSupportedVisitTypeLabel(visitTypeLabel: string): boolean {
+  return (
+    visitTypeLabel === "初診" ||
+    visitTypeLabel === "first" ||
+    visitTypeLabel === "再診" ||
+    visitTypeLabel === "revisit"
   );
+}
+
+/** Maps UI/API labels to the BE visit_type enum. Unknown labels must not become revisit. */
+export function toVisitTypeValue(visitTypeLabel: string): "first" | "revisit" | null {
+  if (visitTypeLabel === "初診" || visitTypeLabel === "first") return "first";
+  if (visitTypeLabel === "再診" || visitTypeLabel === "revisit") return "revisit";
+  return null;
+}
+
+// FE-RC-027: JST の時刻計算は lib/jst-date.ts の共通ヘルパーに委譲する
+// （旧実装は JST_OFFSET_MS + padDatePart をこのファイルで再実装していた重複）。
+function formatJSTDateTime(date: Date): string {
+  return `${formatJSTDate(date)}T${formatJSTTime(date)}:00+09:00`;
+}
+
+// buildJSTWallDateTime は「ローカル tz = JST」前提のローカル Date 構築契約
+// （DatePicker 系）のため、実行環境の tz に依存せず絶対時刻を保証する必要がある
+// ここでは使わない。formatJSTTime の +09:00 オフセット計算のみ再利用する。
+function createDateAtCurrentJSTTime(visitDate: string, timeSource: Date): Date {
+  return new Date(`${visitDate}T${formatJSTTime(timeSource)}:00+09:00`);
 }
 
 export function createReceptionAppointmentTimeRange(durationMinutes: number, visitDate?: string) {
@@ -74,16 +75,18 @@ export function normalizeVisitDate(value: unknown): string | undefined {
 
 export function findGeneralReservationType(
   groups: readonly MedicalRecordReservationTypeGroup[] | undefined,
-  visitType: string
+  visitType: string,
 ) {
   const generalTypes = groups
     ?.flatMap((group) => group.types)
     .filter((type) => type.category === "general" && !type.is_internal)
     .sort((a, b) => a.sort_order - b.sort_order);
 
-  return generalTypes?.find((type) =>
-    toVisitTypeValue(visitType) === "revisit"
-      ? type.name.includes("再診")
-      : !type.name.includes("再診")
-  ) ?? generalTypes?.[0];
+  return (
+    generalTypes?.find((type) =>
+      toVisitTypeValue(visitType) !== "first"
+        ? type.name.includes("再診")
+        : !type.name.includes("再診"),
+    ) ?? generalTypes?.[0]
+  );
 }

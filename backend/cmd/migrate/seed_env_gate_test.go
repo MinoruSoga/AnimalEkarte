@@ -43,12 +43,12 @@ func TestSeedBundlesForEnv_StagingIsMasterOnly(t *testing.T) {
 	}
 }
 
-func TestSeedBundlesForEnv_LocalDevAndTestIncludesDemo(t *testing.T) {
+func TestSeedBundlesForEnv_LocalDevAndTestIsMasterOnly(t *testing.T) {
 	t.Parallel()
 
 	for _, env := range []string{"development", "local", "test", "dev"} {
 		got := seedBundlesForEnv(env)
-		want := []string{"002_master", "003_demo", "004_staging"}
+		want := []string{"002_master"}
 		if !slices.Equal(got, want) {
 			t.Fatalf("env %q plan = %v, want %v", env, got, want)
 		}
@@ -82,7 +82,7 @@ func TestSeedBundlesForCurrentEnv_ReadsAPP_ENV(t *testing.T) {
 
 	t.Setenv("APP_ENV", "development")
 	got = seedBundlesForCurrentEnv()
-	want := []string{"002_master", "003_demo", "004_staging"}
+	want := []string{"002_master"}
 	if !slices.Equal(got, want) {
 		t.Fatalf("APP_ENV=development plan = %v, want %v", got, want)
 	}
@@ -97,89 +97,80 @@ func TestSeedBundlesForCurrentEnv_ReadsAPP_ENV(t *testing.T) {
 	}
 }
 
-// TestDemoBundleHasActiveSystemAdminDocumentsIntentionalDemoOnly asserts that
-// the demo seed still contains active system-admin accounts. That is intentional
-// for local development/test only; production and staging paths must not load
-// this bundle (see TestSeedBundlesForEnv_ProductionPlanExcludesDemo and
-// TestSeedBundlesForEnv_StagingIsMasterOnly). This test does not read or
-// assert any credential material.
-func TestDemoBundleHasActiveSystemAdminDocumentsIntentionalDemoOnly(t *testing.T) {
+func TestMasterBundleHasClinicSkeletonAndNoAccounts(t *testing.T) {
 	t.Parallel()
 
-	raw, err := readDemoAccountsCSV()
+	root := masterSeedDir(t)
+	if _, err := os.Stat(filepath.Join(root, "accounts.csv")); !os.IsNotExist(err) {
+		t.Fatalf("002_master must not contain accounts.csv (got err=%v)", err)
+	}
+	clinics, err := os.ReadFile(filepath.Join(root, "clinics.csv"))
 	if err != nil {
-		t.Fatalf("read demo accounts.csv: %v", err)
+		t.Fatalf("read clinics.csv: %v", err)
 	}
-	// Parse CSV properly (avoid brittle ",t,t," substring on hash lines).
-	r := csv.NewReader(strings.NewReader(string(raw)))
-	rows, err := r.ReadAll()
+	text := string(clinics)
+	if !strings.Contains(text, "八王子病院") || !strings.Contains(text, "城東センター病院") {
+		t.Fatal("002_master clinics.csv must name 八王子病院 and 城東センター病院")
+	}
+	if !strings.Contains(text, "ノア動物病院　敷島病院") || !strings.Contains(text, "ノア動物病院　Hako bu neco") {
+		t.Fatal("002_master clinics.csv must name Jouto-group clinics 3 and 4")
+	}
+	if strings.Contains(text, "敷島医院") {
+		t.Fatal("002_master clinics.csv must not include demo-only 敷島医院")
+	}
+	f, err := os.Open(filepath.Join(root, "exam_types.csv"))
+	if err != nil {
+		t.Fatalf("open exam_types.csv: %v", err)
+	}
+	defer f.Close()
+	rows, err := csv.NewReader(f).ReadAll()
 	if err != nil || len(rows) < 2 {
-		t.Fatalf("parse demo accounts.csv: rows=%d err=%v", len(rows), err)
+		t.Fatalf("parse exam_types.csv: rows=%d err=%v", len(rows), err)
 	}
-	header := rows[0]
-	col := map[string]int{}
-	for i, h := range header {
-		col[strings.TrimSpace(h)] = i
+	nameIdx := -1
+	clinicIdx := -1
+	for i, h := range rows[0] {
+		switch h {
+		case "name":
+			nameIdx = i
+		case "clinic_id":
+			clinicIdx = i
+		}
 	}
-	ia, okA := col["is_active"]
-	isa, okS := col["is_system_admin"]
-	if !okA || !okS {
-		t.Fatalf("demo accounts.csv missing is_active/is_system_admin columns: %v", header)
+	if nameIdx < 0 || clinicIdx < 0 {
+		t.Fatalf("exam_types.csv missing name/clinic_id: %v", rows[0])
 	}
-	found := false
+	kensaClinics := map[string]bool{}
 	for _, row := range rows[1:] {
-		if len(row) <= ia || len(row) <= isa {
-			continue
-		}
-		if row[ia] == "t" && row[isa] == "t" {
-			found = true
-			break
+		if row[nameIdx] == "検査" {
+			kensaClinics[row[clinicIdx]] = true
 		}
 	}
-	if !found {
-		t.Fatal("003_demo accounts.csv is expected to contain at least one active system admin (is_active=t, is_system_admin=t); demo-only intentional")
-	}
-
-	// Production and staging plans must still exclude the demo bundle that carries those accounts.
-	for _, env := range []string{"production", "staging"} {
-		if slices.Contains(seedBundlesForEnv(env), "003_demo") {
-			t.Fatalf("%s seed plan must not load 003_demo despite demo CSV containing system admins", env)
-		}
+	if !kensaClinics["1"] || !kensaClinics["2"] || !kensaClinics["3"] || !kensaClinics["4"] {
+		t.Fatalf("002_master exam_types 検査 clinics = %v, want 1-4", kensaClinics)
 	}
 }
 
-func readDemoAccountsCSV() ([]byte, error) {
-	candidates := []string{}
+func masterSeedDir(t *testing.T) string {
+	t.Helper()
 	if _, thisFile, _, ok := runtime.Caller(0); ok {
-		candidates = append(candidates,
-			filepath.Join(filepath.Dir(thisFile), "..", "..", "migrations", "seeds", "003_demo", "accounts.csv"),
-		)
+		p := filepath.Join(filepath.Dir(thisFile), "..", "..", "migrations", "seeds", "002_master")
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
 	}
 	if wd, err := os.Getwd(); err == nil {
-		candidates = append(candidates,
-			filepath.Join(wd, "migrations", "seeds", "003_demo", "accounts.csv"),
-			filepath.Join(wd, "backend", "migrations", "seeds", "003_demo", "accounts.csv"),
-			filepath.Join(wd, "..", "migrations", "seeds", "003_demo", "accounts.csv"),
-			filepath.Join(wd, "..", "..", "migrations", "seeds", "003_demo", "accounts.csv"),
-		)
-	}
-	if ws := os.Getenv("GITHUB_WORKSPACE"); ws != "" {
-		candidates = append(candidates,
-			filepath.Join(ws, "backend", "migrations", "seeds", "003_demo", "accounts.csv"),
-		)
-	}
-	var last error
-	for _, p := range candidates {
-		raw, err := os.ReadFile(p)
-		if err == nil {
-			return raw, nil
+		for _, p := range []string{
+			filepath.Join(wd, "migrations", "seeds", "002_master"),
+			filepath.Join(wd, "backend", "migrations", "seeds", "002_master"),
+		} {
+			if _, err := os.Stat(p); err == nil {
+				return p
+			}
 		}
-		last = err
 	}
-	if last == nil {
-		last = os.ErrNotExist
-	}
-	return nil, last
+	t.Fatal("002_master seed dir not found")
+	return ""
 }
 
 func TestBundleOrderForEnv_MatchesSeedBundlesForEnv(t *testing.T) {

@@ -28,6 +28,8 @@ type Repository interface {
 
 	LockOwnerGroupByID(ctx context.Context, groupID uint64) (*model.OwnerIdentityGroup, error)
 	LockPetGroupByID(ctx context.Context, groupID uint64) (*model.PetIdentityGroup, error)
+	FindOwnerGroupByID(ctx context.Context, groupID uint64) (*model.OwnerIdentityGroup, error)
+	FindPetGroupByID(ctx context.Context, groupID uint64) (*model.PetIdentityGroup, error)
 
 	ListActiveOwnerMembers(ctx context.Context, groupID uint64) ([]model.OwnerIdentityGroupMember, error)
 	ListActivePetMembers(ctx context.Context, groupID uint64) ([]model.PetIdentityGroupMember, error)
@@ -45,6 +47,7 @@ type Repository interface {
 	SoftDeletePetMember(ctx context.Context, memberID uint64) error
 	SoftDeletePetGroup(ctx context.Context, groupID uint64) error
 	CountActivePetMembers(ctx context.Context, groupID uint64) (int64, error)
+	CountActivePetGroupsByOwnerGroupID(ctx context.Context, ownerGroupID uint64) (int64, error)
 
 	// IsOwnerActiveInGroup reports whether (clinicID, ownerID) is an active member of groupID.
 	IsOwnerActiveInGroup(ctx context.Context, groupID, clinicID, ownerID uint64) (bool, error)
@@ -84,7 +87,7 @@ func (r *repository) SearchOwners(ctx context.Context, clinicIDs []uint64, query
 	if limit <= 0 || limit > 50 {
 		limit = 20
 	}
-	q := strings.TrimSpace(query)
+	q := textsearch.NormalizeQuerySpaces(query)
 	if q == "" {
 		return []model.Owner{}, nil
 	}
@@ -96,12 +99,14 @@ func (r *repository) SearchOwners(ctx context.Context, clinicIDs []uint64, query
 	err := r.conn(ctx).
 		Scopes(persistence.ClinicScopeIn(clinicIDs)).
 		Where(
-			`(name ILIKE ? OR name_kana ILIKE ? OR phone ILIKE ?
-			  OR translate(name, ?, ?) ILIKE ?
-			  OR translate(name_kana, ?, ?) ILIKE ?)`,
-			rawPattern, rawPattern, rawPattern,
-			textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
-			textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+			`(translate(name, ?, ?) ILIKE ? ESCAPE '\'
+			  OR name_kana ILIKE ? ESCAPE '\' OR phone ILIKE ? ESCAPE '\'
+			  OR translate(name, ?, ?) ILIKE ? ESCAPE '\'
+			  OR translate(name_kana, ?, ?) ILIKE ? ESCAPE '\')`,
+			textsearch.SpaceSourceChars, textsearch.SpaceTargetChars, rawPattern,
+			rawPattern, rawPattern,
+			textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
+			textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
 		).
 		Order("clinic_id ASC, id ASC").
 		Limit(limit).
@@ -119,7 +124,7 @@ func (r *repository) SearchPets(ctx context.Context, clinicIDs []uint64, query s
 	if limit <= 0 || limit > 50 {
 		limit = 20
 	}
-	q := strings.TrimSpace(query)
+	q := textsearch.NormalizeQuerySpaces(query)
 	if q == "" {
 		return []model.Pet{}, nil
 	}
@@ -131,12 +136,14 @@ func (r *repository) SearchPets(ctx context.Context, clinicIDs []uint64, query s
 	err := r.conn(ctx).
 		Scopes(persistence.ClinicScopeIn(clinicIDs)).
 		Where(
-			`(name ILIKE ? OR name_kana ILIKE ? OR pet_number ILIKE ?
-			  OR translate(name, ?, ?) ILIKE ?
-			  OR translate(name_kana, ?, ?) ILIKE ?)`,
-			rawPattern, rawPattern, rawPattern,
-			textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
-			textsearch.KanaSourceChars, textsearch.KanaTargetChars, normalizedPattern,
+			`(translate(name, ?, ?) ILIKE ? ESCAPE '\'
+			  OR name_kana ILIKE ? ESCAPE '\' OR pet_number ILIKE ? ESCAPE '\'
+			  OR translate(name, ?, ?) ILIKE ? ESCAPE '\'
+			  OR translate(name_kana, ?, ?) ILIKE ? ESCAPE '\')`,
+			textsearch.SpaceSourceChars, textsearch.SpaceTargetChars, rawPattern,
+			rawPattern, rawPattern,
+			textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
+			textsearch.KanaAndSpaceSourceChars, textsearch.KanaAndSpaceTargetChars, normalizedPattern,
 		).
 		Order("clinic_id ASC, id ASC").
 		Limit(limit).
@@ -245,6 +252,17 @@ func (r *repository) FindActivePetMembership(ctx context.Context, clinicID, petI
 	return &m, nil
 }
 
+func (r *repository) FindOwnerGroupByID(ctx context.Context, groupID uint64) (*model.OwnerIdentityGroup, error) {
+	var g model.OwnerIdentityGroup
+	err := r.conn(ctx).
+		Where("id = ? AND deleted_at IS NULL", groupID).
+		First(&g).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "owner_identity_group", fmt.Sprintf("%d", groupID))
+	}
+	return &g, nil
+}
+
 func (r *repository) LockOwnerGroupByID(ctx context.Context, groupID uint64) (*model.OwnerIdentityGroup, error) {
 	tx, err := r.requireAmbientTx(ctx)
 	if err != nil {
@@ -267,6 +285,17 @@ func (r *repository) LockPetGroupByID(ctx context.Context, groupID uint64) (*mod
 	}
 	var g model.PetIdentityGroup
 	err = tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("id = ? AND deleted_at IS NULL", groupID).
+		First(&g).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "pet_identity_group", fmt.Sprintf("%d", groupID))
+	}
+	return &g, nil
+}
+
+func (r *repository) FindPetGroupByID(ctx context.Context, groupID uint64) (*model.PetIdentityGroup, error) {
+	var g model.PetIdentityGroup
+	err := r.conn(ctx).
 		Where("id = ? AND deleted_at IS NULL", groupID).
 		First(&g).Error
 	if err != nil {
@@ -461,6 +490,17 @@ func (r *repository) CountActivePetMembers(ctx context.Context, groupID uint64) 
 	return n, nil
 }
 
+func (r *repository) CountActivePetGroupsByOwnerGroupID(ctx context.Context, ownerGroupID uint64) (int64, error) {
+	var n int64
+	err := r.conn(ctx).Model(&model.PetIdentityGroup{}).
+		Where("owner_group_id = ? AND deleted_at IS NULL", ownerGroupID).
+		Count(&n).Error
+	if err != nil {
+		return 0, apperrors.FromGORM(err, "pet_identity_group", fmt.Sprintf("owner_group:%d", ownerGroupID))
+	}
+	return n, nil
+}
+
 func (r *repository) IsOwnerActiveInGroup(ctx context.Context, groupID, clinicID, ownerID uint64) (bool, error) {
 	var n int64
 	err := r.conn(ctx).Model(&model.OwnerIdentityGroupMember{}).
@@ -603,18 +643,7 @@ func (r *repository) ListLinkedTreatmentHistory(
 
 	out := make([]LinkedTreatmentHistoryItem, 0, len(rows))
 	for _, row := range rows {
-		out = append(out, LinkedTreatmentHistoryItem{
-			ClinicID:        row.ClinicID,
-			PetID:           row.PetID,
-			MedicalRecordID: row.MedicalRecordID,
-			RecordNo:        row.RecordNo,
-			RecordDate:      row.RecordDate,
-			TreatmentID:     row.TreatmentID,
-			ItemType:        row.ItemType,
-			Content:         row.Content,
-			UnitPrice:       row.UnitPrice,
-			Quantity:        row.Quantity,
-		})
+		out = append(out, LinkedTreatmentHistoryItem(row))
 	}
 	return out, total, nil
 }

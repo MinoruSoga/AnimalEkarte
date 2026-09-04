@@ -2,8 +2,10 @@ package medicalrecord
 
 import (
 	"net/url"
+	"strings"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -12,6 +14,7 @@ type listVaccinationQuery struct {
 	OwnerID   string
 	StartDate string
 	EndDate   string
+	Search    string
 }
 
 func newListVaccinationQuery(values url.Values) listVaccinationQuery {
@@ -20,6 +23,7 @@ func newListVaccinationQuery(values url.Values) listVaccinationQuery {
 		OwnerID:   values.Get("owner_id"),
 		StartDate: values.Get("start_date"),
 		EndDate:   values.Get("end_date"),
+		Search:    values.Get("search"),
 	}
 }
 
@@ -28,6 +32,7 @@ type listVaccinationFilters struct {
 	OwnerID   *uint64
 	StartDate *string
 	EndDate   *string
+	Search    string
 }
 
 func (q listVaccinationQuery) toServiceFilters() (listVaccinationFilters, error) {
@@ -52,6 +57,7 @@ func (q listVaccinationQuery) toServiceFilters() (listVaccinationFilters, error)
 		OwnerID:   ownerID,
 		StartDate: startDate,
 		EndDate:   endDate,
+		Search:    strings.TrimSpace(q.Search),
 	}, nil
 }
 
@@ -73,7 +79,7 @@ type createVaccinationRequest struct {
 }
 
 func (r *createVaccinationRequest) toServiceInput() (*CreateVaccinationInput, error) {
-	date, err := parseDate(r.Date)
+	date, err := httpapi.ParseDate(r.Date)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +87,7 @@ func (r *createVaccinationRequest) toServiceInput() (*CreateVaccinationInput, er
 		return nil, apperrors.WrapInvalidInput("date is required")
 	}
 
-	nextDate, err := parseDate(r.NextDate)
+	nextDate, err := httpapi.ParseDate(r.NextDate)
 	if err != nil {
 		return nil, err
 	}
@@ -128,12 +134,12 @@ type updateVaccinationRequest struct {
 }
 
 func (r *updateVaccinationRequest) toServiceInput() (*UpdateVaccinationInput, error) {
-	date, err := parseDate(r.Date)
+	date, err := httpapi.ParseDate(r.Date)
 	if err != nil {
 		return nil, err
 	}
 
-	nextDate, err := parseDate(r.NextDate)
+	nextDate, err := httpapi.ParseDate(r.NextDate)
 	if err != nil {
 		return nil, err
 	}

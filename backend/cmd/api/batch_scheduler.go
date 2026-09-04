@@ -16,7 +16,7 @@ import (
 
 // schedulerInternalTokenHeader is the application-level privilege header for
 // all-clinic scheduled batch routes (DEC-36 / CMD-02).
-const schedulerInternalTokenHeader = "X-Scheduler-Token"
+const schedulerInternalTokenHeader = "X-Scheduler-Token" //nolint:gosec // G101: HTTP header name, not a credential
 
 var errScheduledBatchUnavailable = errors.New("scheduled batch service is unavailable")
 

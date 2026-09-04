@@ -145,17 +145,25 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"billing/billing_confirmation_repository.go|billingConfirmationRepository.LockActiveStaffAssignment": {},
 	"billing/billing_confirmation_repository.go|billingConfirmationRepository.Update":                    {},
 	// billing_item (R1-1)
-	"billing/billing_item_repository.go|billingItemRepository.Create":              {},
-	"billing/billing_item_repository.go|billingItemRepository.Delete":              {},
-	"billing/billing_item_repository.go|billingItemRepository.FindByBillingID":     {},
-	"billing/billing_item_repository.go|billingItemRepository.FindByID":            {},
-	"billing/billing_item_repository.go|billingItemRepository.Update":              {},
+	"billing/billing_item_repository.go|billingItemRepository.Create":          {},
+	"billing/billing_item_repository.go|billingItemRepository.Delete":          {},
+	"billing/billing_item_repository.go|billingItemRepository.FindByBillingID": {},
+	"billing/billing_item_repository.go|billingItemRepository.FindByID":        {},
+	"billing/billing_item_repository.go|billingItemRepository.Update":          {},
+	// BUG-506 create runs only inside AccountingService.WithTx and requires the ambient tx.
+	// Runtime: billing_item_reference_repository_test.go and accounting Complete tests.
+	"billing/billing_item_service_create.go|billingItemService.createItemInAmbientTx": {},
 	// UpdateBillingTotals is a thin wrapper; ambient-tx body is updateBillingTotals.
 	"billing/billing_item_repository.go|billingItemRepository.updateBillingTotals": {},
 	// Create validates every request-derived FK under shared locks in the same
 	// transaction. Runtime: billing_item_reference_repository_test.go.
-	"billing/billing_item_repository.go|billingItemRepository.ValidateCreateReferences":           {},
-	"billing/billing_item_repository.go|billingItemRepository.ValidateVaccinationCreateReference": {},
+	"billing/billing_item_repository.go|billingItemRepository.ValidateCreateReferences":                       {},
+	"billing/billing_item_repository_vaccination.go|billingItemRepository.ValidateVaccinationCreateReference": {},
+	// AE-LAB exam billing FK validation. TxFromContext fail-closed + exam_types SHARE lock.
+	// Runtime: TestBillingItemRepository_ValidateExamCreateReference_FailClosedWithoutAmbientTx
+	// and TestBillingItemRepository_ValidateExamCreateReferenceLocksExamTypeInAmbientTransaction.
+	"billing/billing_item_exam.go|billingItemRepository.ExamBillingValues":           {},
+	"billing/billing_item_exam.go|billingItemRepository.ValidateExamCreateReference": {},
 	// campaign
 	"billing/campaign_repository.go|campaignRepository.FindAllApplicableForItem": {}, // BE8-4 batch9: moved from campaign_repository.go
 	"billing/campaign_repository.go|campaignRepository.FindApplicableForItem":    {}, // BE8-4 batch9: moved from campaign_repository.go
@@ -167,11 +175,26 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"billing/campaign_repository.go|campaignRepository.FindAll":  {},
 	"billing/campaign_repository.go|campaignRepository.FindByID": {},
 	"billing/campaign_repository.go|campaignRepository.Update":   {},
+	// Insurance master unused-delete is atomic (clinic_id+id+pets.insurance_id NOT EXISTS)
+	// and joins ambient tx. FindByID/CountUsage/Update share that tx for reload and
+	// usage re-check. Runtime: insurance_repository_tx_atomicity_test.go
+	"billing/insurance_repository.go|insuranceRepository.CountUsageByInsuranceID": {},
+	"billing/insurance_repository.go|insuranceRepository.Delete":                  {},
+	"billing/insurance_repository.go|insuranceRepository.FindByID":                {},
+	"billing/insurance_repository.go|insuranceRepository.Update":                  {},
+	// Payment-method unused-delete and post-update reload join ambient tx.
+	// Runtime: payment_method_master_repository_tx_atomicity_test.go
+	"billing/payment_method_master_repository.go|paymentMethodMasterRepository.CountUsageByPaymentMethodID": {},
+	"billing/payment_method_master_repository.go|paymentMethodMasterRepository.Delete":                      {},
+	"billing/payment_method_master_repository.go|paymentMethodMasterRepository.FindByID":                    {},
+	"billing/payment_method_master_repository.go|paymentMethodMasterRepository.Update":                      {},
 	// BE-X06-LSTEP-SETTINGS-01 / LSA-06: settings write graph joins ambient tx.
 	// Runtime: lstep_settings_tx_atomicity_test.go
 	"lstep/lstep_settings_repository.go|lstepSettingsRepository.FindByClinicAndService":   {},
 	"lstep/lstep_settings_repository.go|lstepSettingsRepository.Upsert":                   {},
 	"lstep/lstep_settings_repository.go|lstepSettingsRepository.DeleteByClinicAndService": {},
+	// Runtime: TestLstepSettingsRepository_DeleteByClinicServiceAndKey_RollsBackWhenAmbientTxFails
+	"lstep/lstep_settings_repository.go|lstepSettingsRepository.DeleteByClinicServiceAndKey": {},
 	// Runtime: TestLstepSettingsRepository_FindCredentialByClinicServiceKey_SeesUncommittedUpsert
 	"lstep/lstep_settings_repository.go|lstepSettingsRepository.FindCredentialByClinicServiceKey":    {},
 	"lstep/lstep_sync_settings_repository.go|lstepSyncSettingsRepository.FindByClinicID":             {},
@@ -257,15 +280,21 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// UpdateIfNotLocked/normalizeDeleteIfNotLockedMiss の tx 内再取得のため併せて追加)
 	"billing/estimate_repository.go|estimateRepository.Create":                 {},
 	"billing/estimate_repository.go|estimateRepository.FindByID":               {},
+	"billing/estimate_repository.go|estimateRepository.LockEditableByID":       {},
 	"billing/estimate_repository.go|estimateRepository.UpdateIfNotLocked":      {},
 	"billing/estimate_repository.go|estimateRepository.DeleteIfNotLocked":      {},
 	"billing/estimate_repository.go|estimateRepository.CountItemsByEstimateID": {},
+	"billing/estimate_repository.go|estimateRepository.ReplaceItems":           {},
 	// Runtime: TestEstimateRepository_AllocateNextEstimateNo_SeesUncommittedInsertAndRollsBack
 	// + TestEstimateRepository_AllocateNextEstimateNo_AdvisoryLockBlocksConcurrentSession
 	"billing/estimate_repository.go|estimateRepository.AllocateNextEstimateNo": {},
 	// W-013 cash register close writes/reads join ambient tx (post-close correction atomicity).
+	// Create is a thin wrapper (opens a local tx when none is ambient) around createLocked.
+	// createLocked takes LockCloseBoundary then DBOrTx insert.
 	// Runtime: cash_register_close_repository_tx_atomicity_test.go
-	"billing/cash_register_close_repository.go|cashRegisterCloseRepository.Create":              {},
+	//   Create_* covers createLocked; LockCloseBoundary_* covers the advisory lock.
+	"billing/cash_register_close_repository.go|cashRegisterCloseRepository.createLocked":        {},
+	"billing/cash_register_close_repository.go|cashRegisterCloseRepository.LockCloseBoundary":   {},
 	"billing/cash_register_close_repository.go|cashRegisterCloseRepository.CreateAdjustment":    {},
 	"billing/cash_register_close_repository.go|cashRegisterCloseRepository.FindAll":             {},
 	"billing/cash_register_close_repository.go|cashRegisterCloseRepository.FindByID":            {},
@@ -292,23 +321,23 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 
 	// TASK-032: lab import job/event/receipt/retraction repos participate in ambient tx.
 	// Lock/CAS methods require ambient tx (no base DB fallback).
-	"medicalrecord/lab_import_repository.go|labImportJobRepository.Create":                       {},
-	"medicalrecord/lab_import_repository.go|labImportJobRepository.Update":                       {},
-	"medicalrecord/lab_import_repository.go|labImportJobRepository.FindByID":                     {},
-	"medicalrecord/lab_import_repository.go|labImportJobRepository.LockByIDForUpdate":            {},
-	"medicalrecord/lab_import_repository.go|labImportJobRepository.CompareAndSetStatus":          {},
-	"medicalrecord/lab_import_repository.go|labImportEventRepository.Create":                     {},
-	"medicalrecord/lab_import_repository.go|labImportEventRepository.FindByJob":                  {},
-	"medicalrecord/lab_import_repository.go|labImportEventRepository.HasEventType":               {},
-	"medicalrecord/lab_import_repository.go|labImportUsageReceiptRepository.Create":              {},
-	"medicalrecord/lab_import_repository.go|labImportUsageReceiptRepository.LockByJobForUpdate":  {},
-	"medicalrecord/lab_import_repository.go|labImportUsageReceiptRepository.CountByJob":          {},
+	"medicalrecord/lab_import_repository.go|labImportJobRepository.Create":                            {},
+	"medicalrecord/lab_import_repository.go|labImportJobRepository.Update":                            {},
+	"medicalrecord/lab_import_repository.go|labImportJobRepository.FindByID":                          {},
+	"medicalrecord/lab_import_repository.go|labImportJobRepository.LockByIDForUpdate":                 {},
+	"medicalrecord/lab_import_repository.go|labImportJobRepository.CompareAndSetStatus":               {},
+	"medicalrecord/lab_import_repository.go|labImportEventRepository.Create":                          {},
+	"medicalrecord/lab_import_repository.go|labImportEventRepository.FindByJob":                       {},
+	"medicalrecord/lab_import_repository.go|labImportEventRepository.HasEventType":                    {},
+	"medicalrecord/lab_import_repository.go|labImportUsageReceiptRepository.Create":                   {},
+	"medicalrecord/lab_import_repository.go|labImportUsageReceiptRepository.LockByJobForUpdate":       {},
+	"medicalrecord/lab_import_repository.go|labImportUsageReceiptRepository.CountByJob":               {},
 	"medicalrecord/lab_import_repository.go|labImportUsageReceiptRepository.CountManualMutationByJob": {},
 	"medicalrecord/lab_import_repository.go|labImportRevertReceiptRepository.FindByIdempotencyKey":    {},
 	"medicalrecord/lab_import_repository.go|labImportRevertReceiptRepository.LockByIdempotencyKey":    {},
 	"medicalrecord/lab_import_repository.go|labImportRevertReceiptRepository.Create":                  {},
 	"medicalrecord/lab_import_repository.go|labImportRetractionRepository.CreateWithItems":            {},
-	"medicalrecord/lab_import_repository.go|LabImportDuplicateCheckerDB.IsDuplicate":                 {},
+	"medicalrecord/lab_import_repository.go|LabImportDuplicateCheckerDB.IsDuplicate":                  {},
 	// TASK-032 revert service helpers that read under ambient tx.
 	"medicalrecord/lab_import_revert_service.go|labImportRevertService.lockLinkedExamsByJob": {},
 	"medicalrecord/lab_import_revert_service.go|labImportRevertService.assertRevertSafe":     {},
@@ -324,9 +353,9 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// TASK-031: print snapshot is read-only revision load; ambient tx optional via DBOrTx.
 	"medicalrecord/examination_print_snapshot.go|examinationRepository.FindPrintSnapshot": {},
 	// TASK-374: clinic-scoped package import apply/preflight participate in ambient tx.
-	"medicalrecord/checkup_package_import_service.go|checkupPackageImportService.Apply":                 {},
-	"medicalrecord/checkup_package_import_service.go|checkupPackageImportService.preflightCollisions":   {},
-	"medicalrecord/checkup_package_import_service.go|checkupPackageImportService.validateActorInClinic": {},
+	"medicalrecord/checkup_package_import_apply_tx.go|checkupPackageImportService.applyCheckupPackageInTx": {},
+	"medicalrecord/checkup_package_import_service.go|checkupPackageImportService.preflightCollisions":      {},
+	"medicalrecord/checkup_package_import_service.go|checkupPackageImportService.validateActorInClinic":    {},
 	// TASK-027 Slice B: unconfirm/edit/reconfirm revision writes and pointer CAS all fail closed
 	// without the service-owned ambient transaction. Runtime rollback proof:
 	// TestExaminationRevision_UnconfirmAuditFailureRollsBackWorkingRevisionAndPointer.
@@ -375,8 +404,13 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/medical_record_repository.go|medicalRecordRepository.Create":                          {},
 	"medicalrecord/medical_record_repository.go|medicalRecordRepository.Delete":                          {}, // draft-only CAS soft delete must share finalization transactions
 	"medicalrecord/medical_record_repository.go|medicalRecordRepository.FindByAppointmentID":             {}, // appointment row-lock serialization proof in medicalrecord package
-	"medicalrecord/medical_record_repository.go|medicalRecordRepository.Update":                          {},
-	"medicalrecord/medical_record_repository.go|medicalRecordRepository.findMedicalRecordByID":           {},
+	// F-1: delete takes appointments FOR UPDATE before medical_records. Runtime:
+	// TestMedicalRecordService_DeleteWaitsOnAppointmentRowLockBeforeInConsultationCommit
+	// TestMedicalRecordRepository_LockLinkedAppointmentForUpdate_WaitsOnAppointmentRowLock
+	"medicalrecord/medical_record_repository.go|medicalRecordRepository.LockLinkedAppointmentForUpdate":     {},
+	"medicalrecord/medical_record_repository.go|medicalRecordRepository.Update":                             {},
+	"medicalrecord/medical_record_repository.go|medicalRecordRepository.conflictAfterZeroMedicalRecordRows": {},
+	"medicalrecord/medical_record_repository.go|medicalRecordRepository.findMedicalRecordByID":              {},
 	// vaccination (BE9-2E-0: patient/master validation, readback, and writes must share the
 	// service-owned transaction. Runtime proofs live in vaccination_transaction_concurrency_test.go;
 	// clinic-scoped read/preload coverage lives in vaccination_clinic_isolation_test.go.)
@@ -389,6 +423,17 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/vaccination_repository.go|vaccinationRepository.LockByIDForUpdate":           {},
 	"medicalrecord/vaccination_repository.go|vaccinationRepository.Update":                      {},
 	"medicalrecord/vaccine_repository.go|vaccineRepository.FindByID":                            {},
+	"medicalrecord/vaccine_repository.go|vaccineRepository.Delete":                              {}, // Runtime: TestVaccineRepository_Delete_RollsBackWhenAmbientTxFails
+	// Clinical master unused-delete joins ambient tx (NOT EXISTS usage/child predicates).
+	// Runtime: clinical_master_delete_tx_atomicity_test.go
+	"medicalrecord/consultation_repository.go|consultationRepositoryImpl.Delete":            {},
+	"medicalrecord/checkup_type_repository.go|checkupTypeRepository.Delete":                 {},
+	"medicalrecord/hospitalization_plan_repository.go|hospitalizationPlanRepository.Delete": {},
+	"medicalrecord/chief_complaint_repository.go|chiefComplaintTypeRepository.Delete":       {},
+	"medicalrecord/diagnosis_name_repository.go|diagnosisNameRepository.Delete":             {},
+	"medicalrecord/diagnosis_type_repository.go|diagnosisTypeRepository.Delete":             {},
+	// Runtime: TestInquiryTemplateRepository_Delete_JoinsAmbientTransaction
+	"medicalrecord/inquiry_template_repository.go|inquiryTemplateRepository.Delete": {},
 	// BUG-425: tag-code replacement is one transaction; every replacement write must use DBOrTx.
 	"lstep/lstep_tag_code_mapping_repository.go|lstepTagCodeMappingRepository.Create":                         {},
 	"lstep/lstep_tag_code_mapping_repository.go|lstepTagCodeMappingRepository.SoftDelete":                     {},
@@ -494,27 +539,27 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"billing/refund_repository.go|refundRepository.SumByBillingID":                 {}, // BE8-4 batch8: moved from refund_repository.go
 	"billing/refund_repository.go|refundRepository.SumByBillingIDAndPaymentMethod": {}, // BE8-4 batch8: moved from refund_repository.go
 	// reservation (uniform dbOrTx)
-	"reservation/reservation_repository.go|reservationRepository.AssertLineCustomerInClinic":                       {}, // AUD-001
-	"reservation/reservation_repository.go|reservationRepository.AssertOwnerInClinic":                              {}, // AUD-001
-	"reservation/reservation_repository.go|reservationRepository.AcquireBookingLock":                               {}, // X-9 (Appendix-A phantom-booking fix)
-	"reservation/reservation_repository.go|reservationRepository.FindPetOwnerInClinic":                             {}, // AUD-001
-	"reservation/reservation_repository.go|reservationRepository.CountByCustomerAndDateRange":                      {},
-	"reservation/reservation_repository.go|reservationRepository.CountByDateAndSource":                             {},
-	"reservation/reservation_repository.go|reservationRepository.CountByTypeAndStartTime":                          {},
-	"reservation/reservation_repository.go|reservationRepository.CountByTypeAndStartTimes":                         {},
-	"reservation/reservation_repository.go|reservationRepository.CountConflicts":                                   {},
-	"reservation/reservation_repository.go|reservationRepository.CountMedicalRecordsByReservationID":               {},
-	"reservation/reservation_repository.go|reservationRepository.CountOnDutyDoctors":                               {},
+	"reservation/reservation_repository_queries.go|reservationRepository.AssertLineCustomerInClinic":               {}, // AUD-001
+	"reservation/reservation_repository_queries.go|reservationRepository.AssertOwnerInClinic":                      {}, // AUD-001
+	"reservation/reservation_repository_slots.go|reservationRepository.AcquireBookingLock":                         {}, // X-9 (Appendix-A phantom-booking fix)
+	"reservation/reservation_repository_queries.go|reservationRepository.FindPetOwnerInClinic":                     {}, // AUD-001
+	"reservation/reservation_repository_queries.go|reservationRepository.CountByCustomerAndDateRange":              {},
+	"reservation/reservation_repository_queries.go|reservationRepository.CountByDateAndSource":                     {},
+	"reservation/reservation_repository_queries.go|reservationRepository.CountByTypeAndStartTime":                  {},
+	"reservation/reservation_repository_queries.go|reservationRepository.CountByTypeAndStartTimes":                 {},
+	"reservation/reservation_repository_slots.go|reservationRepository.CountConflicts":                             {},
+	"reservation/reservation_repository_slots.go|reservationRepository.CountMedicalRecordsByReservationID":         {},
+	"reservation/reservation_repository_slots.go|reservationRepository.CountOnDutyDoctors":                         {},
 	"reservation/reservation_repository.go|reservationRepository.Create":                                           {},
 	"reservation/reservation_repository.go|reservationRepository.Delete":                                           {},
-	"reservation/reservation_repository.go|reservationRepository.ExistsByReservationTypeID":                        {},
-	"reservation/reservation_repository.go|reservationRepository.ExistsByStaffID":                                  {},
+	"reservation/reservation_repository_slots.go|reservationRepository.ExistsByReservationTypeID":                  {},
+	"reservation/reservation_repository_slots.go|reservationRepository.ExistsByStaffID":                            {},
 	"reservation/reservation_repository.go|reservationRepository.FindAll":                                          {},
-	"reservation/reservation_repository.go|reservationRepository.FindAllByCategory":                                {},
-	"reservation/reservation_repository.go|reservationRepository.FindClinicIDsByStaffID":                           {},
+	"reservation/reservation_repository_queries.go|reservationRepository.FindAllByCategory":                        {},
+	"reservation/reservation_repository_slots.go|reservationRepository.FindClinicIDsByStaffID":                     {},
 	"reservation/reservation_repository.go|reservationRepository.findReservationByID":                              {},
-	"reservation/reservation_repository.go|reservationRepository.HasDoctorConflict":                                {},
-	"reservation/reservation_repository.go|reservationRepository.LockAndFindByID":                                  {},
+	"reservation/reservation_repository_slots.go|reservationRepository.HasDoctorConflict":                          {},
+	"reservation/reservation_repository_slots.go|reservationRepository.LockAndFindByID":                            {},
 	"reservation/reservation_repository.go|reservationRepository.update":                                           {},
 	"reservation/reservation_intent_repository.go|reservationRepository.CompleteForAccounting":                     {}, // BE9-2E-0 write owner
 	"reservation/reservation_intent_repository.go|reservationRepository.DeleteForTrimming":                         {}, // BE9-2E-0 typed delete + ambient-tx rollback test
@@ -549,8 +594,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"trimming/trimming_option_repository.go|trimmingOptionRepository.FindAll":                           {},
 	"trimming/trimming_option_repository.go|trimmingOptionRepository.FindByID":                          {},
 	"trimming/trimming_option_repository.go|trimmingOptionRepository.Update":                            {},
-	// reservationtype domain package (methods that previously used dbOrTx; Update/Delete remain
-	// r.db.WithContext by design — behavior preserved from flat file; facade keeps service imports)
+	// reservationtype domain package (methods that previously used dbOrTx).
 	"reservation/reservation_type_repository.go|reservationTypeRepository.CountChildrenByParentID":       {},
 	"reservation/reservation_type_repository.go|reservationTypeRepository.CountUsageByReservationTypeID": {},
 	"reservation/reservation_type_repository.go|reservationTypeRepository.Create":                        {},
@@ -559,11 +603,16 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"reservation/reservation_type_repository.go|reservationTypeRepository.FindByID":                      {},
 	"reservation/reservation_type_repository.go|reservationTypeRepository.FindByIDWithChildren":          {},
 	"reservation/reservation_type_repository.go|reservationTypeRepository.Update":                        {},
+	// Unused-delete (no children / no appointments) joins ambient tx.
+	// Runtime: reservation_type_delete_tx_atomicity_test.go
+	"reservation/reservation_type_repository.go|reservationTypeRepository.Delete":            {},
+	"reservation/reservation_type_group_repository.go|reservationTypeGroupRepository.Delete": {},
 	// staff_clinic_assignment (moved into internal/staff). Runtime lock/replace proofs live in
 	// staff_clinic_assignment_*_test.go and staff_assignment_concurrency_test.go.
 	"staff/staff_clinic_assignment_repository.go|staffClinicAssignmentRepository.CountByStaffAndClinic":      {},
 	"staff/staff_clinic_assignment_repository.go|staffClinicAssignmentRepository.Create":                     {},
 	"staff/staff_clinic_assignment_repository.go|staffClinicAssignmentRepository.Delete":                     {},
+	"staff/staff_clinic_assignment_repository.go|staffClinicAssignmentRepository.DeleteByStaffAndClinicIDs":  {},
 	"staff/staff_clinic_assignment_repository.go|staffClinicAssignmentRepository.FindByStaffAndClinic":       {},
 	"staff/staff_clinic_assignment_repository.go|staffClinicAssignmentRepository.FindByStaffID":              {},
 	"staff/staff_clinic_assignment_repository.go|staffClinicAssignmentRepository.LockActiveByStaff":          {},
@@ -583,6 +632,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"staff/staff_repository.go|staffRepository.Reorder":                          {},
 	"staff/staff_repository.go|staffRepository.Update":                           {},
 	"staff/staff_repository.go|staffRepository.UpdatePrimaryClinicID":            {},
+	"staff/staff_repository.go|staffRepository.activeSystemAdminStaffQuery":      {},
 	// ADR-006 論点#1 案A: reservation_staff_repository.go から移動した予約用途 write
 	"staff/staff_repository.go|staffRepository.CreateForReservation":        {},
 	"staff/staff_repository.go|staffRepository.UpdateForReservation":        {},
@@ -701,6 +751,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"inventory/repository.go|repository.CountUsageByInventoryID":                      {}, // BE8-4 batch18: moved from inventory_repository.go
 	"inventory/repository.go|repository.UpdateNameByMedicineCategory":                 {}, // BE8-4 batch18: moved from inventory_repository.go
 	"inventory/repository.go|repository.DeleteByNameAndMedicineCategory":              {}, // BE8-4 batch18: moved from inventory_repository.go
+	"inventory/repository.go|repository.DeleteIfUnused":                               {}, // Runtime: TestInventoryRepository_DeleteIfUnused_AmbientTxRollback
 	// BUG-465 landed DBOrTx on merchandise Create/Update without allowlist (main red).
 	// Runtime: merchandise_item_repository_test.go AmbientTxRollback cases.
 	"inventory/merchandise_item_repository.go|merchandiseItemRepository.Create": {},
@@ -748,17 +799,36 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"reservation/reservation_staff_repository.go|reservationStaffRepository.LockForMutation":                          {},
 	"reservation/reservation_staff_repository.go|reservationStaffRepository.SupportsReservationType":                  {}, // assignment/capability SHARE-lock concurrency proof
 	// Durable scheduler reads use an explicit slot timestamp and participate in the caller's tx.
-	"reservation/reservation_repository.go|reservationRepository.FindNoShowCandidatesAt": {},
+	"reservation/reservation_repository_queries.go|reservationRepository.FindNoShowCandidatesAt": {},
 	// SD-10 deceased write guard: ambient SHARE-lock read. Runtime:
 	// TestReservationRepository_FindPetByIDInClinic_SeesUncommittedDeceasedUpdate
 	// + TestReservationRepository_FindPetByIDInClinic_ShareLockBlocksConcurrentWriter
-	"reservation/reservation_repository.go|reservationRepository.FindPetByIDInClinic": {},
+	"reservation/reservation_repository_queries.go|reservationRepository.FindPetByIDInClinic": {},
 
 	// Runtime: TestExamReferenceRangeRepository_FindAnimalSpeciesID_HoldsExamShareLockUntilAmbientTransactionCommits.
 	"medicalrecord/exam_reference_range_repository.go|examinationRepository.FindAnimalSpeciesID": {},
 
 	// Runtime: TestExamReferenceRangeRepository_ResolveByFieldIDs_HoldsReferenceRangeShareLockUntilAmbientTransactionCommits.
 	"medicalrecord/exam_reference_range_repository.go|examinationRepository.ResolveByFieldIDs": {},
+
+	// AE-LAB lab_device master/device catalog. Writers roll back with ambient tx; readers
+	// see uncommitted writes. Runtime: lab_device_item_master_repository_tx_atomicity_test.go
+	"medicalrecord/lab_device_item_master_repository.go|labDeviceItemMasterRepository.FindByClinicSourceCodes": {},
+	"medicalrecord/lab_device_item_master_repository.go|labDeviceItemMasterRepository.FindExamTypeField":       {},
+	"medicalrecord/lab_device_item_master_repository.go|labDeviceItemMasterRepository.EnsureCatalog":           {},
+	"medicalrecord/lab_device_item_master_repository.go|labDeviceItemMasterRepository.Update":                  {},
+	"medicalrecord/lab_device_item_master_repository.go|labDeviceItemMasterRepository.FindDeviceByID":          {},
+	"medicalrecord/lab_device_item_master_repository.go|labDeviceItemMasterRepository.FindByID":                {},
+	"medicalrecord/lab_device_item_master_repository.go|labDeviceItemMasterRepository.ListDevices":             {},
+	"medicalrecord/lab_device_item_master_repository.go|labDeviceItemMasterRepository.UpdateDevice":            {},
+	"medicalrecord/lab_device_item_master_repository.go|labDeviceItemMasterRepository.EnsureDevices":           {},
+	"medicalrecord/lab_device_item_master_repository.go|labDeviceItemMasterRepository.CreateDevice":            {},
+	"medicalrecord/lab_device_item_master_repository.go|labDeviceItemMasterRepository.List":                    {},
+	"medicalrecord/lab_device_item_master_repository.go|labDeviceItemMasterRepository.FindExamType":            {},
+	"medicalrecord/lab_device_item_master_repository.go|labDeviceItemMasterRepository.FindExamTypeFields":      {},
+	// Private DBOrTx helper for receive jobs/waits/station. Runtime:
+	// TestLabDeviceReceiveRepository_CreateJobWithItems_RollsBackWhenAmbientTxFails
+	"medicalrecord/lab_device_receive_repository.go|labDeviceReceiveRepository.q": {},
 }
 
 type ambientTxParticipationShape uint8
@@ -837,10 +907,26 @@ var ambientTxParticipationExpectations = map[string]ambientTxParticipationExpect
 	"billing/billing_confirmation_repository.go|billingConfirmationRepository.LockActiveStaffAssignment": {
 		shape: ambientTxRequired,
 	},
+	// Close-boundary advisory lock is fail-closed: TxFromContext only, never DBOrTx fallback.
+	// Runtime: TestCashRegisterCloseRepository_LockCloseBoundary_RequiresAmbientTx and
+	// TestCashRegisterCloseRepository_LockCloseBoundary_AdvisoryLockBlocksConcurrentSession.
+	"billing/cash_register_close_repository.go|cashRegisterCloseRepository.LockCloseBoundary": {
+		shape: ambientTxRequired,
+	},
 	"billing/billing_item_repository.go|billingItemRepository.ValidateCreateReferences": {
 		shape: ambientTxRequired,
 	},
-	"billing/billing_item_repository.go|billingItemRepository.ValidateVaccinationCreateReference": {
+	"billing/billing_item_service_create.go|billingItemService.createItemInAmbientTx": {
+		shape: ambientTxRequired,
+	},
+	"billing/billing_item_repository_vaccination.go|billingItemRepository.ValidateVaccinationCreateReference": {
+		shape: ambientTxRequired,
+	},
+	"billing/billing_item_exam.go|billingItemRepository.ValidateExamCreateReference": {
+		shape: ambientTxRequired,
+	},
+	// Canonical exam name/price is read under the same mandatory transaction that validates the exam reference.
+	"billing/billing_item_exam.go|billingItemRepository.ExamBillingValues": {
 		shape: ambientTxRequired,
 	},
 	"pet/owner_registration.go|writer.CreateForOwnerRegistration": {

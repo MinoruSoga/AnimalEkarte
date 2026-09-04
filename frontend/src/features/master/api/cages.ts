@@ -78,8 +78,7 @@ const updateCage = async (id: string, req: UpdateCageRequest): Promise<Cage> => 
 export const useUpdateCage = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, req }: { id: string; req: UpdateCageRequest }) =>
-      updateCage(id, req),
+    mutationFn: ({ id, req }: { id: string; req: UpdateCageRequest }) => updateCage(id, req),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("cages") });
     },

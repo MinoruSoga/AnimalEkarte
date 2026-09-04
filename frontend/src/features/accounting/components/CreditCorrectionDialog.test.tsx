@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { toast } from "sonner";
 import { server } from "@/testing/mocks/node";
-import { createTestWrapper } from "@/testing/utils";
+import { createTestWrapper } from "@/testing/TestUtils";
 import { CURRENT_CLINIC_STORAGE_KEY } from "@/lib/current-clinic";
 
 import { CreditCorrectionDialog } from "./CreditCorrectionDialog";
@@ -20,7 +20,9 @@ function makeAccounting(overrides: Partial<Accounting>): Accounting {
     id: "10",
     clinicId: "1",
     status: "completed",
-    paymentSplits: [{ id: "1", method: "credit_card", amount: 10000, receivedAmount: 0, changeAmount: 0 }],
+    paymentSplits: [
+      { id: "1", method: "credit_card", amount: 10000, receivedAmount: 0, changeAmount: 0 },
+    ],
     ...overrides,
   } as unknown as Accounting;
 }
@@ -31,10 +33,17 @@ afterEach(() => {
   vi.mocked(toast.success).mockClear();
 });
 
-function renderDialog(accounting: Accounting, isPostClose = false) {
-  return render(<CreditCorrectionDialog accounting={accounting} isPostClose={isPostClose} />, {
-    wrapper: createTestWrapper(),
-  });
+function renderDialog(accounting: Accounting, isPostClose = false, canPostCloseEdit = true) {
+  return render(
+    <CreditCorrectionDialog
+      accounting={accounting}
+      isPostClose={isPostClose}
+      canPostCloseEdit={canPostCloseEdit}
+    />,
+    {
+      wrapper: createTestWrapper(),
+    },
+  );
 }
 
 describe("CreditCorrectionDialog 表示ゲート (#189)", () => {
@@ -51,7 +60,9 @@ describe("CreditCorrectionDialog 表示ゲート (#189)", () => {
   it("確定済みだが現金のみ: 導線を出さない", () => {
     renderDialog(
       makeAccounting({
-        paymentSplits: [{ id: "1", method: "cash", amount: 10000, receivedAmount: 10000, changeAmount: 0 }] as Accounting["paymentSplits"],
+        paymentSplits: [
+          { id: "1", method: "cash", amount: 10000, receivedAmount: 10000, changeAmount: 0 },
+        ] as Accounting["paymentSplits"],
       }),
     );
     expect(screen.queryByRole("button", { name: "クレジット訂正" })).not.toBeInTheDocument();
@@ -117,7 +128,13 @@ describe("CreditCorrectionDialog 送信 (#189)", () => {
     server.use(
       http.post("*/v1/accountings/10/credit-correction", () => {
         posted = true;
-        return HttpResponse.json({ id: 10, clinic_id: 1, status: "completed", payment_splits: [], payments: [] });
+        return HttpResponse.json({
+          id: 10,
+          clinic_id: 1,
+          status: "completed",
+          payment_splits: [],
+          payments: [],
+        });
       }),
     );
 
@@ -140,7 +157,13 @@ describe("CreditCorrectionDialog 送信 (#189)", () => {
     server.use(
       http.post("*/v1/accountings/10/credit-correction", () => {
         posted = true;
-        return HttpResponse.json({ id: 10, clinic_id: 1, status: "completed", payment_splits: [], payments: [] });
+        return HttpResponse.json({
+          id: 10,
+          clinic_id: 1,
+          status: "completed",
+          payment_splits: [],
+          payments: [],
+        });
       }),
     );
 
@@ -155,6 +178,78 @@ describe("CreditCorrectionDialog 送信 (#189)", () => {
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith("金額は1円以上で入力してください");
+    });
+    expect(posted).toBe(false);
+  });
+});
+
+describe("CreditCorrectionDialog 権限再チェック (FE-RC-110)", () => {
+  it("canPostCloseEdit=false では POST せず toast する", async () => {
+    let posted = false;
+    server.use(
+      http.post("*/v1/accountings/10/credit-correction", () => {
+        posted = true;
+        return HttpResponse.json({
+          id: 10,
+          clinic_id: 1,
+          status: "completed",
+          payment_splits: [],
+          payments: [],
+        });
+      }),
+    );
+
+    const user = userEvent.setup();
+    renderDialog(makeAccounting({}), false, false);
+    await user.click(screen.getByRole("button", { name: "クレジット訂正" }));
+    await user.type(
+      await screen.findByLabelText("訂正理由（必須）"),
+      "端末への入力金額を打ち間違えたため",
+    );
+    await user.click(screen.getByRole("button", { name: "訂正を保存" }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith("この操作を行う権限がありません");
+    });
+    expect(posted).toBe(false);
+  });
+
+  it("開いたあと canPostCloseEdit が false になると最新の ref で送信を拒否する", async () => {
+    let posted = false;
+    server.use(
+      http.post("*/v1/accountings/10/credit-correction", () => {
+        posted = true;
+        return HttpResponse.json({
+          id: 10,
+          clinic_id: 1,
+          status: "completed",
+          payment_splits: [],
+          payments: [],
+        });
+      }),
+    );
+
+    const accounting = makeAccounting({});
+    const user = userEvent.setup();
+    const { rerender } = renderDialog(accounting);
+    await user.click(screen.getByRole("button", { name: "クレジット訂正" }));
+    await user.type(
+      await screen.findByLabelText("訂正理由（必須）"),
+      "端末への入力金額を打ち間違えたため",
+    );
+
+    rerender(
+      <CreditCorrectionDialog
+        accounting={accounting}
+        isPostClose={false}
+        canPostCloseEdit={false}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "訂正を保存" }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith("この操作を行う権限がありません");
     });
     expect(posted).toBe(false);
   });

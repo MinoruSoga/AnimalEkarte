@@ -5,7 +5,13 @@ import { PropertyInput, PropertyRow } from "@/components/shared/SidePeek";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSelector";
 import { TaxTypeSelector } from "@/components/shared/TaxTypeSelector/TaxTypeSelector";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import type { Medicine } from "@/types";
@@ -14,7 +20,7 @@ import {
   MedicineCalculationTypePerWeight,
 } from "@/types/generated/models";
 
-import type { MedicineFormData } from "./medicine-side-panel-model";
+import type { MedicineFormData } from "../lib/medicine-side-panel-model";
 
 const DOSAGE_FORM_SELECT_ITEMS = (
   <>
@@ -60,10 +66,12 @@ export function MedicineParentCategorySection({
       ) : (
         <SearchableSelect
           value={formData.parentId || "__none__"}
-          onValueChange={(value) => setFormDataDirty((prev) => ({
-            ...prev,
-            parentId: value === "__none__" ? "" : value,
-          }))}
+          onValueChange={(value) =>
+            setFormDataDirty((prev) => ({
+              ...prev,
+              parentId: value === "__none__" ? "" : value,
+            }))
+          }
           options={[
             { value: "__none__", label: "なし（未分類）" },
             ...categoryMedicines.map((category) => ({ value: category.id, label: category.name })),
@@ -100,7 +108,9 @@ export function MedicinePriceTaxSection({
               min={0}
               aria-label="単価(税込)"
               value={formData.price}
-              onChange={(event) => setFormDataDirty((prev) => ({ ...prev, price: Number(event.target.value) }))}
+              onChange={(event) =>
+                setFormDataDirty((prev) => ({ ...prev, price: Number(event.target.value) }))
+              }
               placeholder="0"
               className={`${STYLE.propertyInput} w-28`}
             />
@@ -151,7 +161,9 @@ export function MedicineBasicFlagsSection({
       <PropertyRow label="保険対象外">
         <button
           type="button"
-          onClick={() => setFormDataDirty((prev) => ({ ...prev, isNonInsurance: !prev.isNonInsurance }))}
+          onClick={() =>
+            setFormDataDirty((prev) => ({ ...prev, isNonInsurance: !prev.isNonInsurance }))
+          }
           aria-label="保険対象外を切り替え"
           className={`inline-flex items-center rounded-xxs ${C.hoverBgLight} transition-colors py-0.5 px-1.5 cursor-pointer text-sm ${formData.isNonInsurance ? C.textBrand : C.text50}`}
         >
@@ -175,19 +187,14 @@ interface MedicineDetailSectionProps {
   setFormDataDirty: SetMedicineFormDataDirty;
 }
 
-export function MedicineDetailSection({
-  formData,
-  setFormDataDirty,
-}: MedicineDetailSectionProps) {
+export function MedicineDetailSection({ formData, setFormDataDirty }: MedicineDetailSectionProps) {
   return (
     <>
       <div className={`${STYLE.sectionDivider} mt-3 mb-1`} />
       <div className="py-1">
         <div className="flex items-center gap-1.5 py-2 mb-1">
           <Pill className={`${ICON.xs} ${C.text40}`} />
-          <span className={`${STYLE.sectionLabel}`}>
-            薬剤詳細
-          </span>
+          <span className={`${STYLE.sectionLabel}`}>薬剤詳細</span>
         </div>
 
         <PropertyRow label="剤形">
@@ -205,7 +212,9 @@ export function MedicineDetailSection({
         <PropertyRow label="単位">
           <Select
             value={formData.medicineUnit}
-            onValueChange={(value) => setFormDataDirty((prev) => ({ ...prev, medicineUnit: value }))}
+            onValueChange={(value) =>
+              setFormDataDirty((prev) => ({ ...prev, medicineUnit: value }))
+            }
           >
             <SelectTrigger className={SELECT_TRIGGER_FULL}>
               <SelectValue />
@@ -240,9 +249,7 @@ export function MedicineDoseCalculationSection({
       <div className="py-1">
         <div className="flex items-center gap-1.5 py-2 mb-1">
           <Pill className={`${ICON.xs} ${C.text40}`} />
-          <span className={`${STYLE.sectionLabel}`}>
-            投与量自動計算
-          </span>
+          <span className={`${STYLE.sectionLabel}`}>投与量自動計算</span>
         </div>
 
         <PropertyRow label="計算方式">

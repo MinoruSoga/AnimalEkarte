@@ -45,6 +45,7 @@ type reservationAdminService struct {
 	unavailableTimeRepo  ReservationTypeUnavailableTimeRepository
 	availableSlotRepo    ReservationTypeAvailableSlotRepository
 	medicalRecord        medicalRecordAutoCreator
+	holidayFinder        clinicHolidayFinder
 }
 
 func NewReservationAdminServiceWithAvailabilityAndType(repo ReservationAdminRepository, resRepo ReservationRepository, typeRepo reservationTypeFinder, tx Transactor, reservationStaffRepo ReservationStaffWriteGuard, unavailableTimeRepo ReservationTypeUnavailableTimeRepository, availableSlotRepo ...ReservationTypeAvailableSlotRepository) ReservationAdminService {
@@ -52,15 +53,7 @@ func NewReservationAdminServiceWithAvailabilityAndType(repo ReservationAdminRepo
 	if len(availableSlotRepo) > 0 {
 		slotRepo = availableSlotRepo[0]
 	}
-	return &reservationAdminService{
-		repo:                 repo,
-		resRepo:              resRepo,
-		typeRepo:             typeRepo,
-		tx:                   tx,
-		reservationStaffRepo: reservationStaffRepo,
-		unavailableTimeRepo:  unavailableTimeRepo,
-		availableSlotRepo:    slotRepo,
-	}
+	return newReservationAdminService(repo, resRepo, typeRepo, tx, reservationStaffRepo, unavailableTimeRepo, slotRepo, nil, nil)
 }
 
 func NewReservationAdminServiceWithMedicalRecord(
@@ -72,7 +65,35 @@ func NewReservationAdminServiceWithMedicalRecord(
 	unavailableTimeRepo ReservationTypeUnavailableTimeRepository,
 	availableSlotRepo ReservationTypeAvailableSlotRepository,
 	medicalRecord medicalRecordAutoCreator,
+	holidayFinder clinicHolidayFinder,
 ) ReservationAdminService {
+	return newReservationAdminService(repo, resRepo, typeRepo, tx, reservationStaffRepo, unavailableTimeRepo, availableSlotRepo, medicalRecord, holidayFinder)
+}
+
+func NewReservationAdminServiceWithClinicHolidays(
+	repo ReservationAdminRepository,
+	resRepo ReservationRepository,
+	typeRepo reservationTypeFinder,
+	tx Transactor,
+	reservationStaffRepo ReservationStaffWriteGuard,
+	unavailableTimeRepo ReservationTypeUnavailableTimeRepository,
+	availableSlotRepo ReservationTypeAvailableSlotRepository,
+	holidayFinder clinicHolidayFinder,
+) ReservationAdminService {
+	return newReservationAdminService(repo, resRepo, typeRepo, tx, reservationStaffRepo, unavailableTimeRepo, availableSlotRepo, nil, holidayFinder)
+}
+
+func newReservationAdminService(
+	repo ReservationAdminRepository,
+	resRepo ReservationRepository,
+	typeRepo reservationTypeFinder,
+	tx Transactor,
+	reservationStaffRepo ReservationStaffWriteGuard,
+	unavailableTimeRepo ReservationTypeUnavailableTimeRepository,
+	availableSlotRepo ReservationTypeAvailableSlotRepository,
+	medicalRecord medicalRecordAutoCreator,
+	holidayFinder clinicHolidayFinder,
+) *reservationAdminService {
 	return &reservationAdminService{
 		repo:                 repo,
 		resRepo:              resRepo,
@@ -82,6 +103,7 @@ func NewReservationAdminServiceWithMedicalRecord(
 		unavailableTimeRepo:  unavailableTimeRepo,
 		availableSlotRepo:    availableSlotRepo,
 		medicalRecord:        medicalRecord,
+		holidayFinder:        holidayFinder,
 	}
 }
 
@@ -144,6 +166,9 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 			if err := s.resRepo.AssertLineCustomerInClinic(ctx, clinicID, *input.LineCustomerID); err != nil {
 				return apperrors.Wrap(err, "failed to verify line customer ownership")
 			}
+		}
+		if err := validateClinicHoliday(ctx, s.holidayFinder, clinicID, input.StartTime); err != nil {
+			return err
 		}
 		if err := CheckSlotConflict(ctx, s.resRepo, clinicID, input.DoctorID, input.StartTime, input.EndTime, nil); err != nil {
 			return apperrors.Wrap(err, "failed to check slot conflict")

@@ -12,23 +12,21 @@ type NameServerFields = "id" | "clinic_id" | "created_at" | "updated_at" | "cate
 // DiagnosisType request types (models.ts から導出)
 // ─────────────────────────────────────────────────
 
-export type CreateDiagnosisTypeRequest =
-  Required<Pick<ModelDiagnosisType, "name">> &
+export type CreateDiagnosisTypeRequest = Required<Pick<ModelDiagnosisType, "name">> &
   Partial<Omit<ModelDiagnosisType, CategoryServerFields | "name">>;
 
-export type UpdateDiagnosisTypeRequest =
-  Partial<Omit<ModelDiagnosisType, CategoryServerFields>>;
+export type UpdateDiagnosisTypeRequest = Partial<Omit<ModelDiagnosisType, CategoryServerFields>>;
 
 // ─────────────────────────────────────────────────
 // DiagnosisName request types (models.ts から導出)
 // ─────────────────────────────────────────────────
 
-export type CreateDiagnosisNameRequest =
-  Required<Pick<ModelDiagnosisName, "name" | "diagnosis_type_id">> &
+export type CreateDiagnosisNameRequest = Required<
+  Pick<ModelDiagnosisName, "name" | "diagnosis_type_id">
+> &
   Partial<Omit<ModelDiagnosisName, NameServerFields | "name" | "diagnosis_type_id">>;
 
-export type UpdateDiagnosisNameRequest =
-  Partial<Omit<ModelDiagnosisName, NameServerFields>>;
+export type UpdateDiagnosisNameRequest = Partial<Omit<ModelDiagnosisName, NameServerFields>>;
 
 // ─────────────────────────────────────────────────
 // Reorder request types (models.ts に対応フィールドなし → 手書き)

@@ -1,5 +1,9 @@
 import { memo, type ReactNode } from "react";
-import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
+import {
+  DataTable,
+  DESIGN_TABLE_HEADER_ROW,
+  DESIGN_TABLE_HEADER_CELL,
+} from "@/components/shared/DataTable/DataTable";
 import { MasterListPage } from "../components/MasterListPage";
 import { usePermission } from "@/hooks/use-permission";
 import type { UseMasterCRUDReturn } from "../hooks/use-master-crud";
@@ -23,7 +27,7 @@ interface Column {
 interface SidePanelRenderProps<T, TForm = Record<string, unknown>> {
   item: T | null;
   onClose: () => void;
-  onSave: (data: TForm) => Promise<boolean> | boolean | void;
+  onSave: (data: TForm) => Promise<boolean> | boolean;
   onDeleteRequest: ((item: T) => void) | undefined;
   /** BUG-158: true の場合、保存・削除ボタンを非表示にする */
   readOnly?: boolean;
@@ -46,7 +50,7 @@ interface MasterCRUDPageProps<T extends MasterEntity, TForm = Record<string, unk
   /** CRUD state from useMasterCRUD */
   crud: UseMasterCRUDReturn<T>;
   /** Save handler from useMasterSave */
-  handleSave: (data: TForm) => Promise<boolean> | boolean | void;
+  handleSave: (data: TForm) => Promise<boolean> | boolean;
 
   /** Table columns */
   columns: Column[];
@@ -76,7 +80,10 @@ interface MasterCRUDPageProps<T extends MasterEntity, TForm = Record<string, unk
 // Component
 // ─────────────────────────────────────────────────
 
-export const MasterCRUDPage = memo(function MasterCRUDPage<T extends MasterEntity, TForm = Record<string, unknown>>({
+export const MasterCRUDPage = memo(function MasterCRUDPage<
+  T extends MasterEntity,
+  TForm = Record<string, unknown>,
+>({
   title,
   icon,
   entityLabel,
@@ -132,8 +139,7 @@ export const MasterCRUDPage = memo(function MasterCRUDPage<T extends MasterEntit
       deleteOpen={crud.pendingDelete !== null}
       deleteTitle={`${entityLabel}を削除しますか？`}
       deleteDescription={
-        deleteDescription ??
-        `「${deleteName}」を削除します。この操作は取り消せません。`
+        deleteDescription ?? `「${deleteName}」を削除します。この操作は取り消せません。`
       }
       onDeleteConfirm={crud.handleDeleteConfirm}
       onDeleteCancel={crud.handleDeleteCancel}
@@ -150,4 +156,6 @@ export const MasterCRUDPage = memo(function MasterCRUDPage<T extends MasterEntit
       )}
     </MasterListPage>
   );
-}) as <T extends MasterEntity, TForm = Record<string, unknown>>(props: MasterCRUDPageProps<T, TForm>) => ReactNode;
+}) as <T extends MasterEntity, TForm = Record<string, unknown>>(
+  props: MasterCRUDPageProps<T, TForm>,
+) => ReactNode;

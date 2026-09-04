@@ -1,24 +1,24 @@
 import { memo } from "react";
-import { H_STYLES } from "../styles";
+import { H_STYLES } from "../lib/styles";
 import { C } from "@/lib/design-tokens";
 
 interface HospitalizationCostSummaryProps {
-    totals: {
-        subtotalBeforeDiscount: number;
-        subtotalAfterDiscount: number;
-        consumptionTax: number;
-        total: number;
-    };
+  totals: {
+    subtotalBeforeDiscount: number;
+    subtotalAfterDiscount: number;
+    consumptionTax: number;
+    total: number;
+  };
 }
 
 /** Read-only cost summary from treatment-plan line items (no bulk discount inputs). */
 export const HospitalizationCostSummary = memo(function HospitalizationCostSummary({
-    totals,
+  totals,
 }: HospitalizationCostSummaryProps) {
   return (
     <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} ${H_STYLES.padding.box}`}>
       <h2 className={`${H_STYLES.text.base} font-bold mb-3 ${C.text}`}>診療費計算</h2>
-      
+
       <div className="space-y-2">
         {/* 小計 */}
         <div className={`flex items-center justify-between py-1.5 border-b ${C.borderLight}`}>

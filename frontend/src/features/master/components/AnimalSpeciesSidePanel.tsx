@@ -1,19 +1,20 @@
-import { memo, useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useState } from "react";
 import PawPrint from "lucide-react/dist/esm/icons/paw-print";
 
 import { MasterSidePanel, StatusToggleButton } from "@/components/shared/SidePeek";
 import { LAYOUT } from "@/lib/design-tokens";
 
 import type { AnimalSpecies } from "../api/animal-species";
+import { useMasterSidePanelForm } from "../hooks/use-master-side-panel-form";
 import {
   animalSpeciesToFormData,
   type AnimalSpeciesFormData,
-} from "./animal-species-side-panel-model";
+} from "../lib/animal-species-side-panel-model";
 
 interface AnimalSpeciesSidePanelProps {
   item: AnimalSpecies | null;
   onClose: () => void;
-  onSave: (data: AnimalSpeciesFormData) => void;
+  onSave: (data: AnimalSpeciesFormData) => Promise<boolean> | boolean;
   onDeleteRequest?: (item: AnimalSpecies) => void;
   readOnly?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
@@ -27,44 +28,44 @@ export const AnimalSpeciesSidePanel = memo(function AnimalSpeciesSidePanel({
   readOnly,
   onDirtyChange,
 }: AnimalSpeciesSidePanelProps) {
-  const [formData, setFormData] = useState<AnimalSpeciesFormData>(() =>
-    animalSpeciesToFormData(item),
-  );
-  const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
 
-  useEffect(() => {
-    onDirtyChange?.(isDirty);
-  }, [isDirty, onDirtyChange]);
+  const {
+    formData,
+    setFormData: setFormDataDirty,
+    isDirty,
+    setIsDirty,
+    handleAction,
+  } = useMasterSidePanelForm<AnimalSpeciesFormData>({
+    initialFormData: animalSpeciesToFormData(item),
+    onSave,
+    onDirtyChange,
+    validate: (data) => {
+      if (!data.name.trim()) {
+        setNameError("名称を入力してください");
+        return false;
+      }
+      setNameError("");
+      return true;
+    },
+  });
 
-  const setFormDataDirty = useCallback<typeof setFormData>((updater) => {
-    setFormData(updater);
-    setIsDirty(true);
-  }, []);
-
-  const handleTitleChange = useCallback((value: string) => {
-    setFormDataDirty((prev) => ({ ...prev, name: value }));
-    if (value.trim()) setNameError("");
-  }, [setFormDataDirty]);
+  const handleTitleChange = useCallback(
+    (value: string) => {
+      setFormDataDirty((prev) => ({ ...prev, name: value }));
+      if (value.trim()) setNameError("");
+    },
+    [setFormDataDirty],
+  );
 
   const handleToggleActive = useCallback(() => {
     setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }));
   }, [setFormDataDirty]);
 
-  const handleAction = useCallback(() => {
-    if (!formData.name.trim()) {
-      setNameError("名称を入力してください");
-      return;
-    }
-    setNameError("");
-    onSave(formData);
-    setIsDirty(false);
-  }, [formData, onSave]);
-
   const handleClose = useCallback(() => {
     setIsDirty(false);
     onClose();
-  }, [onClose]);
+  }, [onClose, setIsDirty]);
 
   return (
     <MasterSidePanel

@@ -8,14 +8,14 @@ import (
 )
 
 type reservationStaffResponse struct {
-	ID                  uint64                   `json:"id"`
-	Name                string                   `json:"name"`
-	IsActive            bool                     `json:"is_active"`
-	SortOrder           int                      `json:"sort_order"`
-	StaffType           string                   `json:"staff_type"`
-	ReservationVisible  bool                     `json:"reservation_visible"`
-	ReservationComment  string                   `json:"reservation_comment"`
-	ReservationImageURL string                   `json:"reservation_image_url"`
+	ID                  uint64 `json:"id"`
+	Name                string `json:"name"`
+	IsActive            bool   `json:"is_active"`
+	SortOrder           int    `json:"sort_order"`
+	StaffType           string `json:"staff_type"`
+	ReservationVisible  bool   `json:"reservation_visible"`
+	ReservationComment  string `json:"reservation_comment"`
+	ReservationImageURL string `json:"reservation_image_url"`
 	// ExcludedCourses is a Stage B compatibility facade derived from capabilities.
 	ExcludedCourses []excludedCourseResponse `json:"excluded_courses"`
 	// CapableCourses is the affirmative capability surface (TASK-021 Stage B).

@@ -19,7 +19,9 @@ export function useTrimmingHistory(petId: string) {
     const filtered = petTrimmings.filter((trimming) => {
       if (
         deferredHistorySearch &&
-        !normalizeKana(trimming.styleRequest).toLowerCase().includes(normalizeKana(deferredHistorySearch).toLowerCase())
+        !normalizeKana(trimming.styleRequest)
+          .toLowerCase()
+          .includes(normalizeKana(deferredHistorySearch).toLowerCase())
       ) {
         return false;
       }
@@ -33,7 +35,13 @@ export function useTrimmingHistory(petId: string) {
       const dateB = new Date(b.date).getTime();
       return historySortOrder === "desc" ? dateB - dateA : dateA - dateB;
     });
-  }, [petTrimmings, deferredHistorySearch, historyDateRangeFrom, historyDateRangeTo, historySortOrder]);
+  }, [
+    petTrimmings,
+    deferredHistorySearch,
+    historyDateRangeFrom,
+    historyDateRangeTo,
+    historySortOrder,
+  ]);
 
   const handleHistoryClear = useCallback(() => {
     setHistorySearchTerm("");

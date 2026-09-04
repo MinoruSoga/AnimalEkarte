@@ -2,7 +2,13 @@ import { C, ICON } from "@/lib/design-tokens";
 import { memo, useState, useCallback } from "react";
 import { ArrowUp, ArrowDown, ChevronDown, X } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandInput, CommandItem, CommandList, CommandEmpty } from "@/components/ui/command";
+import {
+  Command,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandEmpty,
+} from "@/components/ui/command";
 import type { SortProperty, ActiveSort } from "./types";
 
 interface SortPillProps {
@@ -53,9 +59,7 @@ export const SortPill = memo(function SortPill({
           className={`inline-flex items-center gap-1.5 h-8 px-3 text-base font-medium rounded-xxs ${C.bgDiscountLight} ${C.textDiscount} ${C.bgDiscountHover} transition-colors whitespace-nowrap`}
         >
           <DirectionIcon className={`${ICON.page} shrink-0`} />
-          <span className="truncate max-w-[140px]">
-            {property?.label ?? sort.key}
-          </span>
+          <span className="truncate max-w-[140px]">{property?.label ?? sort.key}</span>
           <ChevronDown className={`${ICON.page} shrink-0 opacity-60`} />
         </button>
       </PopoverTrigger>
@@ -79,9 +83,7 @@ export const SortPill = memo(function SortPill({
           <div className={`border-t ${C.borderLight} my-1`} />
 
           {/* Property change */}
-          <p className={`text-base ${C.text40} px-3 py-1`}>
-            プロパティを変更
-          </p>
+          <p className={`text-base ${C.text40} px-3 py-1`}>プロパティを変更</p>
           <Command>
             <CommandInput placeholder="検索..." />
             <CommandList>
@@ -92,9 +94,7 @@ export const SortPill = memo(function SortPill({
                   onSelect={() => handleSelectProperty(prop.key)}
                   className={`text-base ${prop.key === sort.key ? `${C.bgBrand8} ${C.textBrand}` : ""}`}
                 >
-                  {prop.icon ? (
-                    <prop.icon className={`mr-2 ${ICON.xs} ${C.text50}`} />
-                  ) : null}
+                  {prop.icon ? <prop.icon className={`mr-2 ${ICON.xs} ${C.text50}`} /> : null}
                   {prop.label}
                 </CommandItem>
               ))}

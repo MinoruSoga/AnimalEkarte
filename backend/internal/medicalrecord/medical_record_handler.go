@@ -2,12 +2,12 @@ package medicalrecord
 
 import (
 	"fmt"
-	"github.com/animal-ekarte/backend/internal/httpapi"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -24,8 +24,12 @@ func NewMedicalRecordHandler(service MedicalRecordService) *MedicalRecordHandler
 
 // ListMedicalRecords godoc
 func (h *MedicalRecordHandler) ListMedicalRecords(c *gin.Context) {
-	// #86: 拠点横断一覧 — clinic_ids クエリ指定時は所属検証済みの複数医院、未指定は現在の医院のみ
-	clinicIDs, ok := httpapi.ResolveListClinicIDs(c)
+	// #86: 拠点横断一覧 — 所属かつ medical-records:view を持つ医院だけをスコープにする
+	clinicIDs, ok := httpapi.ResolveListClinicIDsForPermission(
+		c,
+		string(model.ResourceMedicalRecords),
+		"view",
+	)
 	if !ok {
 		return
 	}
@@ -60,8 +64,12 @@ func (h *MedicalRecordHandler) ListMedicalRecords(c *gin.Context) {
 
 // GetMedicalRecord godoc
 func (h *MedicalRecordHandler) GetMedicalRecord(c *gin.Context) {
-	// #86: 詳細画面の拠点横断閲覧 — 所属医院全体をスコープにしてレコードを取得する
-	clinicIDs, ok := httpapi.ResolveAllClinicIDs(c)
+	// #86: 詳細画面の拠点横断閲覧 — 所属かつ medical-records:view を持つ医院だけをスコープにする
+	clinicIDs, ok := httpapi.ResolveAllClinicIDsForPermission(
+		c,
+		string(model.ResourceMedicalRecords),
+		"view",
+	)
 	if !ok {
 		return
 	}

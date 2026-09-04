@@ -1,10 +1,12 @@
-// Package handler provides HTTP handler implementations for Procedure entity.
+// Package medicalrecord provides procedure HTTP handlers.
 package medicalrecord
 
 import (
 	"fmt"
-	"github.com/animal-ekarte/backend/internal/httpapi"
 	"net/http"
+
+	"github.com/animal-ekarte/backend/internal/httpapi"
+	"github.com/animal-ekarte/backend/internal/model"
 
 	"github.com/gin-gonic/gin"
 
@@ -29,6 +31,9 @@ func (h *ProcedureHandler) ListProcedures(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMasterMedical), "view") {
+		return
+	}
 	procedures, err := h.service.List(c.Request.Context(), clinicID)
 	if err != nil {
 		httpapi.RespondError(c, err)
@@ -41,6 +46,9 @@ func (h *ProcedureHandler) ListProcedures(c *gin.Context) {
 func (h *ProcedureHandler) GetProcedure(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMasterMedical), "view") {
 		return
 	}
 	id, ok := httpapi.ParseIDParam(c, "id")
@@ -70,7 +78,7 @@ func (h *ProcedureHandler) CreateProcedure(c *gin.Context) {
 
 	procedure, err := h.service.Create(c.Request.Context(), clinicID, req.toServiceInput())
 	if err != nil {
-		httpapi.RespondError(c, err)
+		httpapi.RespondErrorPreferringConflictCode(c, err)
 		return
 	}
 	c.Header("Location", fmt.Sprintf("/v1/masters/procedures/%d", procedure.ID))
@@ -95,7 +103,7 @@ func (h *ProcedureHandler) UpdateProcedure(c *gin.Context) {
 
 	procedure, err := h.service.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
 	if err != nil {
-		httpapi.RespondError(c, err)
+		httpapi.RespondErrorPreferringConflictCode(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, toProcedureResponse(procedure))

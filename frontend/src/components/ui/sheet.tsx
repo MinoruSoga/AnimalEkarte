@@ -4,26 +4,19 @@ import { XIcon } from "lucide-react";
 
 import { cn } from "./utils";
 
-function Sheet({
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Root>) {
+function Sheet({ ...props }: React.ComponentProps<typeof DialogPrimitive.Root>) {
   return <DialogPrimitive.Root data-slot="sheet" {...props} />;
 }
 
-function SheetTrigger({
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Trigger>) {
+function SheetTrigger({ ...props }: React.ComponentProps<typeof DialogPrimitive.Trigger>) {
   return <DialogPrimitive.Trigger data-slot="sheet-trigger" {...props} />;
 }
 
-function SheetPortal({
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Portal>) {
+function SheetPortal({ ...props }: React.ComponentProps<typeof DialogPrimitive.Portal>) {
   return <DialogPrimitive.Portal data-slot="sheet-portal" {...props} />;
 }
 
-interface SheetOverlayProps
-  extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay> {
+interface SheetOverlayProps extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay> {
   ref?: React.Ref<React.ElementRef<typeof DialogPrimitive.Overlay>>;
 }
 
@@ -43,8 +36,7 @@ function SheetOverlay({ className, ref, ...props }: SheetOverlayProps) {
 
 type SheetSide = "top" | "right" | "bottom" | "left";
 
-interface SheetContentProps
-  extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> {
+interface SheetContentProps extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> {
   ref?: React.Ref<React.ElementRef<typeof DialogPrimitive.Content>>;
   side?: SheetSide;
 }
@@ -58,13 +50,7 @@ const sheetSideVariants: Record<SheetSide, string> = {
   left: "data-[state=open]:slide-in-from-left data-[state=closed]:slide-out-to-left inset-y-0 left-0 h-full w-3/4 border-r sm:max-w-sm",
 };
 
-function SheetContent({
-  className,
-  children,
-  side = "right",
-  ref,
-  ...props
-}: SheetContentProps) {
+function SheetContent({ className, children, side = "right", ref, ...props }: SheetContentProps) {
   return (
     <SheetPortal>
       <SheetOverlay />
@@ -98,10 +84,7 @@ function SheetHeader({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
-function SheetTitle({
-  className,
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Title>) {
+function SheetTitle({ className, ...props }: React.ComponentProps<typeof DialogPrimitive.Title>) {
   return (
     <DialogPrimitive.Title
       data-slot="sheet-title"
@@ -124,11 +107,4 @@ function SheetDescription({
   );
 }
 
-export {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-};
+export { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger };

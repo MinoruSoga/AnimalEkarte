@@ -29,7 +29,7 @@
 ここで定義されたケージは、入院一覧画面（`/hospitalization`）のボードビューで利用される。
 
 ### 2. 重複割り当てチェック（未実装）
-`backend/internal/service/hospitalization_service.go` の Create/Update には、同一ケージへの重複割り当てを防止するバリデーションは実装されていない。複数の入院記録に同じ `cage_id` を設定することは現状ブロックされない。
+`backend/internal/medicalrecord/hospitalization_service.go` の Create/Update には、同一ケージへの重複割り当てを防止するバリデーションは実装されていない。複数の入院記録に同じ `cage_id` を設定することは現状ブロックされない。
 
 ---
 

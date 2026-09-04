@@ -47,17 +47,14 @@ export const ImageGalleryGroup = memo(function ImageGalleryGroup({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-col gap-0 w-full">
-        <h3 className={`text-sm font-bold font-mono mb-1 ${C.text}`}>
-          {group.date}
-        </h3>
+        <h3 className={`text-sm font-bold font-mono mb-1 ${C.text}`}>{group.date}</h3>
         <div className={`h-[1px] w-full ${C.bgLight}`} />
       </div>
 
       <div className="flex flex-wrap gap-4 mt-2">
         {group.images.map((img) => {
           const isPdf =
-            img.mimeType === "application/pdf" ||
-            img.name.toLowerCase().endsWith(".pdf");
+            img.mimeType === "application/pdf" || img.name.toLowerCase().endsWith(".pdf");
           const isDeleting = isDeletingId === img.id;
 
           return (
@@ -85,15 +82,9 @@ export const ImageGalleryGroup = memo(function ImageGalleryGroup({
                     <span className={`text-xs ${C.text50}`}>PDF</span>
                   </div>
                 ) : img.src ? (
-                  <img
-                    src={img.src}
-                    alt={img.name}
-                    className="w-full h-full object-cover"
-                  />
+                  <img src={img.src} alt={img.name} className="w-full h-full object-cover" />
                 ) : (
-                  <span className={`text-sm font-medium ${C.text50}`}>
-                    {img.label}
-                  </span>
+                  <span className={`text-sm font-medium ${C.text50}`}>{img.label}</span>
                 )}
 
                 {/* Delete button — visible on hover */}
@@ -110,7 +101,9 @@ export const ImageGalleryGroup = memo(function ImageGalleryGroup({
                 ) : null}
 
                 {isDeleting ? (
-                  <div className={`absolute inset-0 flex items-center justify-center ${C.bgWhite}/70`}>
+                  <div
+                    className={`absolute inset-0 flex items-center justify-center ${C.bgWhite}/70`}
+                  >
                     <span className={`text-xs ${C.text50}`}>削除中...</span>
                   </div>
                 ) : null}

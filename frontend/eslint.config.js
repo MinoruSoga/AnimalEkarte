@@ -15,10 +15,7 @@ import react from "eslint-plugin-react";
 // files only (allowlisted files keep the earlier blocks unchanged).
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const generatedModelsImportAllowlist = JSON.parse(
-  readFileSync(
-    path.join(__dirname, "generated-models-import-allowlist.json"),
-    "utf8",
-  ),
+  readFileSync(path.join(__dirname, "generated-models-import-allowlist.json"), "utf8"),
 );
 
 const deepImportRestrictedPattern = {
@@ -33,6 +30,27 @@ const layerInversionRestrictedPattern = {
   message:
     "components/hooks/lib から @/features への import は禁止（層逆転）。features 側が components/hooks/lib に依存する一方向のみ許可する。",
 };
+
+// FE-RC-015 followup2: alias だけでなく相対パス（../features/...）での層逆転も禁止。
+const layerInversionRelativeRestrictedPattern = {
+  regex: "^\\.\\.?/(?:\\.\\./)*features/",
+  caseSensitive: true,
+  message:
+    "components/hooks/lib から相対パスで features への import は禁止（層逆転）。features 側が components/hooks/lib に依存する一方向のみ許可する。",
+};
+
+// FE-RC-015/060: feature 間の直接 import（barrel 経由含む）を機械禁止する。
+// deep import（rule 1）は既に禁止済みのため、この pattern が実際に捕捉するのは
+// barrel（@/features/<name>）経由の cross-feature import。
+const crossFeatureRestrictedPattern = {
+  group: ["@/features", "@/features/**"],
+  message:
+    "feature 間の直接 import は禁止（CODING_RULES.md §1.2）。他 feature の値は components/shared・hooks・lib へ昇格するか、app/pages/ の cross-feature 合成層で props 注入すること。",
+};
+
+// FE-RC-015 followup: owner-report は @/hooks/use-medical-records 経由に統一。
+// 例外 allowlist は空（feature→feature を機械禁止）。
+const crossFeatureImportBanAllowlist = [];
 
 const generatedModelsBoundaryMessage =
   "TASK-444-S1: @/types/generated/models は Go ドメインモデル由来で HTTP wire 応答型ではない（BUG-431/BUG-433）。新規 import 禁止。既存利用は generated-models-import-allowlist.json に凍結。応答型は domain 別 generated/*-responses または専用 DTO を使うこと（TASK-444-S2）。";
@@ -70,14 +88,11 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      "react-refresh/only-export-components": [
-        "warn",
-        { allowConstantExport: true },
-      ],
+      "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
       // FE6-8: {cond && <JSX>} は cond が 0 / 空文字のとき意図せず数値・文字列を
       // レンダリングしてしまう（frontend/CLAUDE.md の Conditional Render 規約）。
       // recommended セットは入れず、このルールのみ有効化する。現状違反 0 件。
-      "react/jsx-no-leaked-render": "error",
+      "react/jsx-no-leaked-render": ["error", { validStrategies: ["ternary"] }],
       "@typescript-eslint/no-unused-vars": [
         "warn",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
@@ -109,6 +124,12 @@ export default tseslint.config(
             "CallExpression[callee.property.name=/^(setQueryData|getQueryData|removeQueries|resetQueries|cancelQueries|refetchQueries|invalidateQueries)$/] > ArrayExpression.arguments:first-child",
           message:
             "queryKey に配列リテラルを直書きしない。frontend/src/lib/query-keys.ts の queryKeys ファクトリー（または ME_QUERY_KEY）経由で参照すること。",
+        },
+        {
+          // CODING_RULES.md: default export 禁止（IDE 補完・命名の一貫性）
+          // eslint-plugin-import の import/no-default-export 相当。
+          selector: "ExportDefaultDeclaration",
+          message: "default export は禁止。named export を使うこと（CODING_RULES.md）。",
         },
       ],
       "no-restricted-properties": [
@@ -148,12 +169,13 @@ export default tseslint.config(
   {
     // FE7-0: 層逆転禁止。components/hooks/lib から @/features への import を禁止する
     // （features は components/hooks/lib に依存してよいが逆方向は禁止 — 一方向依存の強制）。
+    // FE-RC-015 followup2: 相対パス（../features/...）も同様に禁止。
     files: ["src/components/**", "src/hooks/**", "src/lib/**"],
     rules: {
       "no-restricted-imports": [
         "error",
         {
-          patterns: [layerInversionRestrictedPattern],
+          patterns: [layerInversionRestrictedPattern, layerInversionRelativeRestrictedPattern],
         },
       ],
     },
@@ -182,12 +204,39 @@ export default tseslint.config(
     // allowlist. Non-layer src files only — re-state deep-import so this later
     // no-restricted-imports block does not weaken FE7-0.
     files: ["src/**/*.{ts,tsx}"],
-    ignores: [
-      ...generatedModelsImportAllowlist,
-      "src/components/**",
-      "src/hooks/**",
-      "src/lib/**",
-    ],
+    ignores: [...generatedModelsImportAllowlist, "src/components/**", "src/hooks/**", "src/lib/**"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [generatedModelsPathRestriction],
+          patterns: [deepImportRestrictedPattern, generatedModelsRelativeImportPattern],
+        },
+      ],
+    },
+  },
+  {
+    // FE-RC-015/060: feature 間 import 禁止（src/features/** 全体・generated-models
+    // allowlist 対象ファイル含む）。models freeze の対象外ファイルにも cross-feature-ban
+    // だけは適用するための broad block。次の narrower block（models freeze 対象）が
+    // 同じファイルに一致する場合はそちらが有効な設定として勝つ（flat config は
+    // no-restricted-imports を feature 単位でマージせず後勝ちで完全上書きするため）。
+    files: ["src/features/**/*.{ts,tsx}"],
+    ignores: crossFeatureImportBanAllowlist,
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [deepImportRestrictedPattern, crossFeatureRestrictedPattern],
+        },
+      ],
+    },
+  },
+  {
+    // FE-RC-015/060: 上記 cross-feature-ban を models freeze 対象ファイルにも適用する
+    // （deep-import + generated-models + cross-feature の3つを同時に再度明示）。
+    files: ["src/features/**/*.{ts,tsx}"],
+    ignores: [...generatedModelsImportAllowlist, ...crossFeatureImportBanAllowlist],
     rules: {
       "no-restricted-imports": [
         "error",
@@ -196,6 +245,7 @@ export default tseslint.config(
           patterns: [
             deepImportRestrictedPattern,
             generatedModelsRelativeImportPattern,
+            crossFeatureRestrictedPattern,
           ],
         },
       ],
@@ -204,11 +254,7 @@ export default tseslint.config(
   {
     // TASK-444-S1: same models freeze for components/hooks/lib, re-stating the
     // layer-inversion boundary (flat config replaces, does not merge, rule options).
-    files: [
-      "src/components/**/*.{ts,tsx}",
-      "src/hooks/**/*.{ts,tsx}",
-      "src/lib/**/*.{ts,tsx}",
-    ],
+    files: ["src/components/**/*.{ts,tsx}", "src/hooks/**/*.{ts,tsx}", "src/lib/**/*.{ts,tsx}"],
     ignores: generatedModelsImportAllowlist,
     rules: {
       "no-restricted-imports": [
@@ -217,17 +263,11 @@ export default tseslint.config(
           paths: [generatedModelsPathRestriction],
           patterns: [
             layerInversionRestrictedPattern,
+            layerInversionRelativeRestrictedPattern,
             generatedModelsRelativeImportPattern,
           ],
         },
       ],
-    },
-  },
-  {
-    // AuthProvider (component) と useAuth (hook re-export) が同居するため Fast Refresh 警告を抑制
-    files: ["src/features/auth/hooks/use-auth.tsx"],
-    rules: {
-      "react-refresh/only-export-components": "off",
     },
   },
   {
@@ -240,6 +280,9 @@ export default tseslint.config(
       "src/app/routes/app-routes.tsx",
       "src/components/shared/DataTable/DataTable.tsx",
       "src/features/auth/components/LoginForm.tsx",
+      "src/components/shared/DynamicCheckupFields/DynamicCheckupFields.tsx",
+      // FE-RC-015: checkups 側は components/shared への re-export shim（後方互換維持）。
+      // 実体と同じ組み合わせ（component + helper 関数）を re-export するため同一の抑制が必要。
       "src/features/checkups/components/DynamicCheckupFields.tsx",
       "src/features/hospitalization/components/CarePlanTab/CarePlanBadges.tsx",
       "src/features/line-reservation/components/LineReservationSettingsFormSections.tsx",
@@ -264,5 +307,12 @@ export default tseslint.config(
         },
       ],
     },
-  }
+  },
+  // Tooling entrypoints require default export (Vite/Playwright). Ambient icon modules too.
+  {
+    files: ["vite.config.ts", "playwright.config.ts", "**/*.d.ts"],
+    rules: {
+      "no-restricted-syntax": "off",
+    },
+  },
 );

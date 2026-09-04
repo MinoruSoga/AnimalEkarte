@@ -1,7 +1,7 @@
 -- =============================================================================
 -- Animal Ekarte - 統合スキーマ定義 v23.0 (consolidated)
 -- PostgreSQL 18
--- テーブル数: 108 (旧 001–021 + mig-005〜mig-013 + 取扱説明書テーブル + #81キャンペーンテーブル + 新 005-007 + 増分 005-012 を統合)
+-- テーブル数: 128 (旧 001–021 + mig-005〜mig-013 + 取扱説明書テーブル + #81キャンペーンテーブル + 新 005-007 + 増分 005-012 を統合)
 -- 統合内容:
 --   002: マスタシードデータ
 --   003: デモシードデータ
@@ -678,6 +678,9 @@ CREATE TABLE inventory_items (
     deleted_at      timestamptz
 );
 
+ALTER TABLE inventory_items
+    ADD CONSTRAINT uq_inventory_items_id_clinic UNIQUE (id, clinic_id);
+
 -- ------------------------------------
 -- 9. exam_types（検査種別マスタ）
 -- ------------------------------------
@@ -790,6 +793,9 @@ CREATE TABLE cages (
     deleted_at  timestamptz
 );
 
+ALTER TABLE cages
+    ADD CONSTRAINT uq_cages_id_clinic UNIQUE (id, clinic_id);
+
 -- ------------------------------------
 -- 15. reservation_type_groups（予約区分グループマスタ）
 -- ------------------------------------
@@ -844,6 +850,9 @@ COMMENT ON COLUMN reservation_types.max_concurrent IS
 CREATE INDEX idx_reservation_types_parent
   ON reservation_types(parent_id)
   WHERE parent_id IS NOT NULL AND deleted_at IS NULL;
+
+ALTER TABLE reservation_types
+    ADD CONSTRAINT uq_reservation_types_id_clinic UNIQUE (id, clinic_id);
 
 -- ------------------------------------
 -- 16b. reservation_type_available_slots（予約区分予約可能開始時刻）
@@ -901,6 +910,9 @@ CREATE TABLE consultations (
     deleted_at     timestamptz
 );
 
+ALTER TABLE consultations
+    ADD CONSTRAINT uq_consultations_id_clinic UNIQUE (id, clinic_id);
+
 -- ------------------------------------
 -- 18. procedures（処置項目マスタ）
 -- ------------------------------------
@@ -927,6 +939,9 @@ CREATE TABLE procedures (
 CREATE INDEX IF NOT EXISTS idx_procedures_clinic_is_surgery
     ON procedures(clinic_id, is_surgery)
     WHERE is_surgery = true;
+
+ALTER TABLE procedures
+    ADD CONSTRAINT uq_procedures_id_clinic UNIQUE (id, clinic_id);
 
 -- ------------------------------------
 -- 19. hospitalization_plans（入院プランマスタ）
@@ -1244,6 +1259,9 @@ CREATE TABLE line_customers (
 );
 CREATE INDEX idx_line_customers_owner
     ON line_customers(owner_id) WHERE owner_id IS NOT NULL;
+
+ALTER TABLE line_customers
+    ADD CONSTRAINT uq_line_customers_id_clinic UNIQUE (id, clinic_id);
 
 -- ------------------------------------
 -- 32a. shared_files（LINE個別送信用ファイルストレージ: 006 統合）
@@ -1867,6 +1885,8 @@ CREATE TABLE staff_notes (
 -- ------------------------------------
 -- 56. billings（会計）
 -- ------------------------------------
+-- AE-MIG-NEG-1 / 旧 002_allow_negative_billing_amounts.sql:
+-- Jouto 返品・赤伝は負の請求額を記録するため chk_billings_amounts は置かない。
 CREATE TABLE billings (
     id                 BIGSERIAL      PRIMARY KEY,
     clinic_id          bigint         NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
@@ -1884,8 +1904,7 @@ CREATE TABLE billings (
     memo               text           NOT NULL DEFAULT '',
     created_at         timestamptz    NOT NULL DEFAULT now(),
     updated_at         timestamptz    NOT NULL DEFAULT now(),
-    deleted_at         timestamptz,
-    CONSTRAINT chk_billings_amounts CHECK (subtotal >= 0 AND tax_total >= 0 AND total_amount >= 0)
+    deleted_at         timestamptz
 );
 
 -- ------------------------------------
@@ -2718,7 +2737,6 @@ CREATE INDEX idx_appointments_line_customer ON appointments(line_customer_id)
 CREATE UNIQUE INDEX uk_appointment_staff_time
     ON appointments (clinic_id, doctor_id, start_time)
     WHERE deleted_at IS NULL AND status != 'cancelled';
-
 -- =============================================
 -- 68. reservation_type_unavailable_times（予約区分予約不可時間）
 -- =============================================
@@ -3215,9 +3233,11 @@ SELECT app_private.apply_rls_policy(
 --   failed → received
 --
 -- Source types (lab_import_source_type):
---   fixture  : テスト・開発用フィクスチャ入力 (Phase 0 で使用可能)
---   drwan    : Dr.Wan MDB アダプタ (Phase BLOCKED — MDB スキーマ未確認)
---   manual   : 手動 CSV/JSON アップロード (Phase 2+ 予定)
+--   fixture        : テスト・開発用フィクスチャ入力 (Phase 0 で使用可能)
+--   drwan          : Dr.Wan MDB アダプタ (製品経路では開けない)
+--   manual         : 手動 CSV/JSON アップロード (Phase 2+ 予定)
+--   fuji_nx600 / fuji_au10v / arkray_pu4010 : 城東3台（ADR-007。fresh 001 に含む）
+--   idexx_vetlab                             : IDEXX VetLab Station PIMS シリアル（COM5 / JOU-LAB-X）
 
 -- ------------------------------------
 -- ENUM types
@@ -3236,7 +3256,11 @@ CREATE TYPE lab_import_job_status AS ENUM (
 CREATE TYPE lab_import_source_type AS ENUM (
     'fixture',
     'drwan',
-    'manual'
+    'manual',
+    'fuji_nx600',
+    'fuji_au10v',
+    'arkray_pu4010',
+    'idexx_vetlab'
 );
 
 -- ------------------------------------
@@ -3512,6 +3536,13 @@ COMMENT ON COLUMN medicine_dose_params.clinic_id IS '親 medicines から非正�
 COMMENT ON COLUMN medicine_dose_params.dose_per_kg IS '体重あたり投与量 mg/kg。dose_basis で 1回量/1日量を解釈';
 COMMENT ON COLUMN medicine_dose_params.absolute_max_dose IS '体重非依存の mg/head 上限。大型患者で max_mg_per_kg より binding になり得る';
 
+SELECT app_private.apply_rls_policy(
+    'medicine_dose_params',
+    'tenant_medicine_dose_params_isolation',
+    'app_private.has_clinic_access(clinic_id)',
+    'app_private.has_clinic_access(clinic_id)'
+);
+
 -- ------------------------------------
 -- treatments: C2 精度拡張 + 計算根拠スナップショット
 -- ------------------------------------
@@ -3525,6 +3556,78 @@ ALTER TABLE treatments
 
 COMMENT ON COLUMN treatments.dose_amount_mg IS '#201 丸め後の実効用量(mg)。安全域(C1)判定に使用';
 COMMENT ON COLUMN treatments.dose_param_snapshot IS '#201 計算根拠を値で固定（マスタ後変更・論理削除でも当時値を保全）';
+
+ALTER TABLE treatments
+    ADD COLUMN clinic_id bigint NOT NULL;
+
+ALTER TABLE treatments
+    ADD CONSTRAINT fk_treatments_clinic_id
+    FOREIGN KEY (clinic_id)
+    REFERENCES clinics (id)
+    ON DELETE RESTRICT;
+
+CREATE INDEX idx_treatments_clinic_id
+    ON treatments (clinic_id);
+
+ALTER TABLE treatments
+    ADD CONSTRAINT fk_treatments_medicine_clinic
+    FOREIGN KEY (medicine_id, clinic_id)
+    REFERENCES medicines (id, clinic_id)
+    ON DELETE SET NULL (medicine_id);
+
+ALTER TABLE treatments
+    ADD CONSTRAINT fk_treatments_consultation_clinic
+    FOREIGN KEY (consultation_id, clinic_id)
+    REFERENCES consultations (id, clinic_id)
+    ON DELETE SET NULL (consultation_id);
+
+ALTER TABLE treatments
+    ADD CONSTRAINT fk_treatments_procedure_clinic
+    FOREIGN KEY (procedure_id, clinic_id)
+    REFERENCES procedures (id, clinic_id)
+    ON DELETE SET NULL (procedure_id);
+
+ALTER TABLE treatments
+    ADD CONSTRAINT fk_treatments_inventory_clinic
+    FOREIGN KEY (inventory_id, clinic_id)
+    REFERENCES inventory_items (id, clinic_id)
+    ON DELETE SET NULL (inventory_id);
+
+SELECT app_private.apply_rls_policy(
+    'treatments',
+    'tenant_treatments_isolation',
+    'app_private.has_clinic_access(clinic_id)',
+    'app_private.has_clinic_access(clinic_id)'
+);
+
+CREATE OR REPLACE FUNCTION app_private.sync_treatments_clinic_id()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    parent_clinic_id bigint;
+BEGIN
+    SELECT medical_record.clinic_id
+    INTO parent_clinic_id
+    FROM medical_records AS medical_record
+    WHERE medical_record.id = NEW.medical_record_id;
+
+    IF parent_clinic_id IS NULL THEN
+        RAISE EXCEPTION
+            'treatments.medical_record_id % has no parent clinic_id',
+            NEW.medical_record_id
+            USING ERRCODE = 'foreign_key_violation';
+    END IF;
+
+    NEW.clinic_id := parent_clinic_id;
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_treatments_sync_clinic_id
+    BEFORE INSERT OR UPDATE ON treatments
+    FOR EACH ROW
+    EXECUTE FUNCTION app_private.sync_treatments_clinic_id();
 
 -- =============================================================================
 -- 010_add_checkup_packages.sql
@@ -3776,6 +3879,13 @@ CREATE INDEX IF NOT EXISTS idx_medical_records_appointment_id
     ON medical_records (appointment_id)
     WHERE appointment_id IS NOT NULL;
 
+CREATE UNIQUE INDEX uq_medical_records_clinic_appointment_active
+    ON medical_records (clinic_id, appointment_id)
+    WHERE appointment_id IS NOT NULL AND deleted_at IS NULL;
+
+COMMENT ON INDEX uq_medical_records_clinic_appointment_active IS
+    'At most one active medical_record per (clinic_id, appointment_id). NULL appointment_id (unlinked/manual) and soft-deleted rows are excluded. Not a same-pet-same-day unique.';
+
 -- Source file: 004_payment_splits_billing_id_index.sql
 -- Purpose: payment graph 検証と billing 単位の集計を支える。
 -- Source commit: 20e014b36
@@ -3919,7 +4029,7 @@ ALTER TABLE pets
 -- Source file: 008_add_billing_item_vaccination_provenance.sql
 -- Purpose: 会計明細へ予防接種 provenance と clinic 制約を追加する。
 -- Source commit: 65a0dd08d
--- Source SHA-256: daa676aed130da0ddefa30c4fd72e18b422dcc67ab919c7ea76dd0e40ac73d79
+-- Source SHA-256: 251ebb5b09edce09104c0b4da938175a088d57962efa9566bc222d3c13bc251f
 ALTER TABLE billing_items
     ADD COLUMN vaccination_id bigint,
     ADD COLUMN clinic_id bigint,
@@ -3956,7 +4066,7 @@ COMMENT ON COLUMN billing_items.vaccination_id IS
     '予防接種イベント由来の会計明細を識別するprovenance';
 
 COMMENT ON COLUMN billing_items.clinic_id IS
-    '予防接種provenanceがある明細だけに保持する内部tenant scope';
+    'vaccination または exam provenance がある明細だけに保持する内部tenant scope';
 
 -- Source file: 009_add_billing_items_other_reason.sql
 -- Purpose: other 分類の理由と会計明細の作成者を記録する。
@@ -4136,6 +4246,13 @@ ALTER TABLE payments
     ON DELETE RESTRICT;
 
 CREATE INDEX idx_payments_clinic_id ON payments (clinic_id);
+
+SELECT app_private.apply_rls_policy(
+    'payments',
+    'tenant_payments_isolation',
+    'app_private.has_clinic_access(clinic_id)',
+    'app_private.has_clinic_access(clinic_id)'
+);
 
 -- =============================================================================
 -- 4. BUG-454: pets owner must belong to the same clinic
@@ -4463,6 +4580,18 @@ ALTER TABLE closing_special_periods
 COMMENT ON CONSTRAINT excl_closing_special_periods_clinic_daterange ON closing_special_periods IS
     'POC-05: no overlapping special periods within the same clinic';
 
+ALTER TABLE appointments
+    ADD CONSTRAINT excl_appointments_doctor_timerange
+    EXCLUDE USING gist (
+        clinic_id WITH =,
+        doctor_id WITH =,
+        tstzrange(start_time, end_time, '[)') WITH &&
+    )
+    WHERE (deleted_at IS NULL AND status <> 'cancelled' AND doctor_id IS NOT NULL);
+
+COMMENT ON CONSTRAINT excl_appointments_doctor_timerange ON appointments IS
+    'No overlapping [start_time, end_time) for the same clinic+doctor. cancelled, soft-deleted, and unassigned-doctor rows are excluded. Complements uk_appointment_staff_time (same start_time).';
+
 -- Source file: 004_add_identity_links.sql
 -- Purpose: #239 Phase 1: 医院横断 owner/pet identity link 4 テーブル + 明示 RLS。
 -- Source commit: fb11108c8a9faec5cf8af07f4d1bc0f3f95ab60f
@@ -4667,6 +4796,19 @@ CREATE INDEX IF NOT EXISTS idx_mri_upload_quota_staff_acquired
 CREATE INDEX IF NOT EXISTS idx_mri_upload_quota_inflight
   ON medical_record_image_upload_quota (clinic_id, staff_id)
   WHERE released_at IS NULL;
+
+ALTER TABLE medical_record_image_upload_quota
+    ADD CONSTRAINT fk_medical_record_image_upload_quota_clinic
+    FOREIGN KEY (clinic_id)
+    REFERENCES clinics (id)
+    ON DELETE RESTRICT;
+
+SELECT app_private.apply_rls_policy(
+    'medical_record_image_upload_quota',
+    'tenant_medical_record_image_upload_quota_isolation',
+    'app_private.has_clinic_access(clinic_id)',
+    'app_private.has_clinic_access(clinic_id)'
+);
 
 -- =============================================================================
 -- 11. 増分マイグレーション統合アーカイブ (旧 002〜008 / 2026-08-04)
@@ -5575,3 +5717,545 @@ SELECT app_private.apply_rls_policy(
     'app_private.has_clinic_access(clinic_id)',
     'app_private.has_clinic_access(clinic_id)'
 );
+
+ALTER TABLE medical_record_image_upload_quota
+    ADD CONSTRAINT fk_medical_record_image_upload_quota_staff_clinic
+    FOREIGN KEY (staff_id, clinic_id)
+    REFERENCES staffs (id, clinic_id)
+    ON DELETE RESTRICT;
+
+ALTER TABLE appointments
+    ADD CONSTRAINT uq_appointments_id_clinic UNIQUE (id, clinic_id);
+
+ALTER TABLE appointments
+    ADD CONSTRAINT fk_appointments_owner_clinic
+    FOREIGN KEY (clinic_id, owner_id)
+    REFERENCES owners (clinic_id, id)
+    ON DELETE SET NULL (owner_id);
+
+ALTER TABLE appointments
+    ADD CONSTRAINT fk_appointments_pet_clinic
+    FOREIGN KEY (clinic_id, pet_id)
+    REFERENCES pets (clinic_id, id)
+    ON DELETE SET NULL (pet_id);
+
+ALTER TABLE appointments
+    ADD CONSTRAINT fk_appointments_reservation_type_clinic
+    FOREIGN KEY (reservation_type_id, clinic_id)
+    REFERENCES reservation_types (id, clinic_id)
+    ON DELETE RESTRICT;
+
+ALTER TABLE appointments
+    ADD CONSTRAINT fk_appointments_doctor_clinic
+    FOREIGN KEY (doctor_id, clinic_id)
+    REFERENCES staffs (id, clinic_id)
+    ON DELETE SET NULL (doctor_id);
+
+ALTER TABLE appointments
+    ADD CONSTRAINT fk_appointments_created_by_clinic
+    FOREIGN KEY (created_by, clinic_id)
+    REFERENCES staffs (id, clinic_id)
+    ON DELETE RESTRICT;
+
+ALTER TABLE appointments
+    ADD CONSTRAINT fk_appointments_line_customer_clinic
+    FOREIGN KEY (line_customer_id, clinic_id)
+    REFERENCES line_customers (id, clinic_id)
+    ON DELETE SET NULL (line_customer_id);
+
+ALTER TABLE appointments
+    DROP CONSTRAINT appointments_owner_id_fkey,
+    DROP CONSTRAINT appointments_pet_id_fkey,
+    DROP CONSTRAINT appointments_doctor_id_fkey,
+    DROP CONSTRAINT appointments_line_customer_id_fkey;
+
+ALTER TABLE hospitalizations
+    ADD CONSTRAINT fk_hospitalizations_owner_clinic
+    FOREIGN KEY (clinic_id, owner_id)
+    REFERENCES owners (clinic_id, id)
+    ON DELETE RESTRICT;
+
+ALTER TABLE hospitalizations
+    ADD CONSTRAINT fk_hospitalizations_pet_clinic
+    FOREIGN KEY (clinic_id, pet_id)
+    REFERENCES pets (clinic_id, id)
+    ON DELETE RESTRICT;
+
+ALTER TABLE hospitalizations
+    ADD CONSTRAINT fk_hospitalizations_cage_clinic
+    FOREIGN KEY (cage_id, clinic_id)
+    REFERENCES cages (id, clinic_id)
+    ON DELETE SET NULL (cage_id);
+
+ALTER TABLE hospitalizations
+    ADD CONSTRAINT fk_hospitalizations_doctor_clinic
+    FOREIGN KEY (doctor_id, clinic_id)
+    REFERENCES staffs (id, clinic_id)
+    ON DELETE SET NULL (doctor_id);
+
+ALTER TABLE hospitalizations
+    DROP CONSTRAINT hospitalizations_cage_id_fkey,
+    DROP CONSTRAINT hospitalizations_doctor_id_fkey;
+
+ALTER TABLE prescriptions
+    ADD CONSTRAINT fk_prescriptions_owner_clinic
+    FOREIGN KEY (clinic_id, owner_id)
+    REFERENCES owners (clinic_id, id)
+    ON DELETE RESTRICT;
+
+ALTER TABLE prescriptions
+    ADD CONSTRAINT fk_prescriptions_pet_clinic
+    FOREIGN KEY (clinic_id, pet_id)
+    REFERENCES pets (clinic_id, id)
+    ON DELETE RESTRICT;
+
+ALTER TABLE prescriptions
+    ADD CONSTRAINT fk_prescriptions_medical_record_clinic
+    FOREIGN KEY (medical_record_id, clinic_id)
+    REFERENCES medical_records (id, clinic_id)
+    ON DELETE RESTRICT;
+
+ALTER TABLE medical_records
+    DROP CONSTRAINT medical_records_appointment_id_fkey,
+    DROP CONSTRAINT medical_records_doctor_id_fkey,
+    DROP CONSTRAINT medical_records_entered_by_fkey,
+    ADD CONSTRAINT fk_medical_records_appointment_clinic
+        FOREIGN KEY (appointment_id, clinic_id)
+        REFERENCES appointments (id, clinic_id)
+        ON DELETE SET NULL (appointment_id),
+    ADD CONSTRAINT fk_medical_records_doctor_clinic
+        FOREIGN KEY (doctor_id, clinic_id)
+        REFERENCES staffs (id, clinic_id)
+        ON DELETE SET NULL (doctor_id),
+    ADD CONSTRAINT fk_medical_records_entered_by_clinic
+        FOREIGN KEY (entered_by, clinic_id)
+        REFERENCES staffs (id, clinic_id)
+        ON DELETE RESTRICT;
+
+ALTER TABLE appointment_trimming_details
+    ADD CONSTRAINT fk_appointment_trimming_details_appointment_clinic
+        FOREIGN KEY (appointment_id, clinic_id)
+        REFERENCES appointments (id, clinic_id)
+        ON DELETE CASCADE;
+
+-- appointment_trimming_options は CREATE TABLE 時点では clinic_id を持たない。
+-- この ADD COLUMN NOT NULL は 001 の fresh 適用でテーブルが空のときだけ成功する。
+-- トリガーは BEFORE INSERT/UPDATE のみで、既存行の backfill はしない。
+ALTER TABLE appointment_trimming_options
+    ADD COLUMN clinic_id bigint NOT NULL;
+
+ALTER TABLE appointment_trimming_options
+    ADD CONSTRAINT fk_appointment_trimming_options_clinic_id
+    FOREIGN KEY (clinic_id)
+    REFERENCES clinics (id)
+    ON DELETE RESTRICT;
+
+CREATE INDEX idx_appointment_trimming_options_clinic_id
+    ON appointment_trimming_options (clinic_id);
+
+CREATE OR REPLACE FUNCTION app_private.sync_appointment_trimming_options_clinic_id()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    parent_clinic_id bigint;
+BEGIN
+    SELECT appointment.clinic_id
+    INTO parent_clinic_id
+    FROM appointments AS appointment
+    WHERE appointment.id = NEW.appointment_id;
+
+    IF parent_clinic_id IS NULL THEN
+        RAISE EXCEPTION
+            'appointment_trimming_options.appointment_id % has no parent clinic_id',
+            NEW.appointment_id
+            USING ERRCODE = 'foreign_key_violation';
+    END IF;
+
+    NEW.clinic_id := parent_clinic_id;
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_appointment_trimming_options_sync_clinic_id
+    BEFORE INSERT OR UPDATE ON appointment_trimming_options
+    FOR EACH ROW
+    EXECUTE FUNCTION app_private.sync_appointment_trimming_options_clinic_id();
+
+ALTER TABLE appointment_trimming_options
+    ADD CONSTRAINT fk_appointment_trimming_options_appointment_clinic
+        FOREIGN KEY (appointment_id, clinic_id)
+        REFERENCES appointments (id, clinic_id)
+        ON DELETE CASCADE;
+
+SELECT app_private.apply_rls_policy(
+    'appointment_trimming_options',
+    'tenant_appointment_trimming_options_isolation',
+    'app_private.has_clinic_access(clinic_id)',
+    'app_private.has_clinic_access(clinic_id)'
+);
+
+-- =============================================================================
+-- 13. 増分マイグレーション統合 (003 / 004 / 005 / 006 / 2026-08-19)
+-- =============================================================================
+-- 本番運用前の DB リセット前提で独立ファイルを 001 へ畳み込む。
+-- 005 の ADD VALUE は CREATE TYPE へ取り込んだためここでは繰り返さない。
+-- Source SHA-256:
+--   003_add_estimates_pet_id.sql          94795f5b76fef336e18fed758527ececd126c23df44ade31f386c227595d9604
+--   004_lab_device_item_masters.sql       5db554b103c787d20fc9181fcbff593a72468003400517d7ddb0133201586abf
+--   005_lab_import_source_type_device.sql 82c2bb2cf268fa42f47a00a07c520c6fdc56c32d4ed25b3522ef0ee5667e0145
+--   006_lab_device_receive.sql            1254627bf033fa57602b14d2958f4e7ce185894fb13c4cec196d8f892fc66349
+
+-- Source file: 003_add_estimates_pet_id.sql
+-- Purpose: BUG-009 見積 pet_id。CREATE TABLE 途中へ畳み込むと seed COPY の列順が崩れる。
+-- estimates.csv は supersedes_estimate_id の後ろに pet_id がある（SELECT * 順）。
+ALTER TABLE estimates
+  ADD COLUMN IF NOT EXISTS pet_id bigint;
+
+
+ALTER TABLE estimates
+  ADD CONSTRAINT fk_estimates_pet_clinic
+  FOREIGN KEY (clinic_id, pet_id)
+  REFERENCES pets (clinic_id, id)
+  ON DELETE SET NULL (pet_id);
+
+CREATE INDEX IF NOT EXISTS idx_estimates_clinic_pet
+  ON estimates (clinic_id, pet_id)
+  WHERE pet_id IS NOT NULL AND deleted_at IS NULL;
+
+COMMENT ON COLUMN estimates.pet_id IS
+    'BUG-009: /estimates/new?petId= の永続紐付け。clinic 所有は service で検証する';
+
+-- Source file: 004_lab_device_item_masters.sql
+CREATE TABLE lab_device_item_masters (
+    id                  bigserial       PRIMARY KEY,
+    clinic_id           bigint          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    source_type         varchar(32)     NOT NULL,
+    device_item_code    varchar(64)     NOT NULL,
+    unit                varchar(32)     NOT NULL DEFAULT '',
+    value_shape         varchar(32)     NOT NULL,
+    exam_type_field_id  bigint,
+    sort_order          integer         NOT NULL DEFAULT 0,
+    is_active           boolean         NOT NULL DEFAULT true,
+    created_at          timestamptz     NOT NULL DEFAULT now(),
+    updated_at          timestamptz     NOT NULL DEFAULT now(),
+    CONSTRAINT chk_lab_device_item_masters_source_type
+        CHECK (source_type IN ('fuji_nx600', 'fuji_au10v', 'arkray_pu4010', 'idexx_vetlab')),
+    CONSTRAINT chk_lab_device_item_masters_value_shape
+        CHECK (value_shape IN ('numeric', 'inequality', 'qual_and_num', 'dash', 'text')),
+    CONSTRAINT uq_lab_device_item_masters_clinic_source_code
+        UNIQUE (clinic_id, source_type, device_item_code)
+);
+
+ALTER TABLE lab_device_item_masters
+    ADD CONSTRAINT fk_lab_device_item_masters_field_clinic
+    FOREIGN KEY (exam_type_field_id, clinic_id)
+    REFERENCES exam_type_fields (id, clinic_id)
+    ON DELETE RESTRICT;
+
+CREATE INDEX idx_lab_device_item_masters_clinic_source
+    ON lab_device_item_masters (clinic_id, source_type, sort_order);
+
+COMMENT ON TABLE lab_device_item_masters IS
+    '検査機器コード→検査項目フィールド。初期25行は埋め込みカタログ。CSVアップロードは製品経路にしない';
+COMMENT ON COLUMN lab_device_item_masters.device_item_code IS
+    '電文コードそのもの。Na-P の -P を削らない';
+COMMENT ON COLUMN lab_device_item_masters.exam_type_field_id IS
+    '未設定なら persist しない（needs_review）';
+
+-- Source file: 006_lab_device_receive.sql
+ALTER TABLE lab_import_jobs
+    ADD COLUMN IF NOT EXISTS pet_id bigint,
+    ADD COLUMN IF NOT EXISTS measured_at timestamptz,
+    ADD COLUMN IF NOT EXISTS received_at timestamptz,
+    ADD COLUMN IF NOT EXISTS device_hint varchar(32) NOT NULL DEFAULT '',
+    ADD COLUMN IF NOT EXISTS specimen_id_raw varchar(64) NOT NULL DEFAULT '',
+    ADD COLUMN IF NOT EXISTS unmapped_item_count int NOT NULL DEFAULT 0;
+
+ALTER TABLE lab_import_jobs
+    ADD CONSTRAINT fk_lab_import_jobs_pet_clinic
+    FOREIGN KEY (clinic_id, pet_id)
+    REFERENCES pets (clinic_id, id)
+    ON DELETE RESTRICT;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_lab_import_jobs_clinic_source_fingerprint
+    ON lab_import_jobs (clinic_id, source_type, source_fingerprint)
+    WHERE source_fingerprint <> '';
+
+CREATE INDEX IF NOT EXISTS idx_lab_import_jobs_clinic_unlinked
+    ON lab_import_jobs (clinic_id, received_at DESC)
+    WHERE pet_id IS NULL
+      AND source_type IN ('fuji_nx600', 'fuji_au10v', 'arkray_pu4010', 'idexx_vetlab');
+
+COMMENT ON COLUMN lab_import_jobs.pet_id IS 'device 行のみ。未紐付けは NULL。検体IDでは埋めない';
+COMMENT ON COLUMN lab_import_jobs.measured_at IS '電文日時。検査日の正';
+COMMENT ON COLUMN lab_import_jobs.received_at IS 'デコード成功時刻。検査日にしない';
+COMMENT ON COLUMN lab_import_jobs.specimen_id_raw IS '表示専用。紐付けキーにしない。ログに出さない';
+
+CREATE TABLE lab_import_job_items (
+    id                  bigserial       PRIMARY KEY,
+    clinic_id           bigint          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    job_id              uuid            NOT NULL,
+    device_item_code    varchar(64)     NOT NULL,
+    value_raw           varchar(64)     NOT NULL DEFAULT '',
+    unit                varchar(32)     NOT NULL DEFAULT '',
+    flag                varchar(32)     NOT NULL DEFAULT '',
+    exam_type_field_id  bigint,
+    needs_review        boolean         NOT NULL DEFAULT false,
+    sort_order          integer         NOT NULL DEFAULT 0,
+    created_at          timestamptz     NOT NULL DEFAULT now(),
+    CONSTRAINT fk_lab_import_job_items_job_clinic
+        FOREIGN KEY (clinic_id, job_id)
+        REFERENCES lab_import_jobs (clinic_id, id)
+        ON DELETE RESTRICT,
+    CONSTRAINT fk_lab_import_job_items_field_clinic
+        FOREIGN KEY (exam_type_field_id, clinic_id)
+        REFERENCES exam_type_fields (id, clinic_id)
+        ON DELETE RESTRICT
+);
+
+CREATE INDEX idx_lab_import_job_items_clinic_job
+    ON lab_import_job_items (clinic_id, job_id, sort_order);
+
+COMMENT ON TABLE lab_import_job_items IS '1受信フレームの項目。生バイトは持たない';
+COMMENT ON COLUMN lab_import_job_items.device_item_code IS '電文コードそのもの。Na-P の -P を削らない';
+
+CREATE TABLE lab_device_waits (
+    id          bigserial       PRIMARY KEY,
+    clinic_id   bigint          NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    pet_id      bigint          NOT NULL,
+    staff_id    bigint          NOT NULL,
+    expires_at  timestamptz     NOT NULL,
+    cleared_at  timestamptz,
+    created_at  timestamptz     NOT NULL DEFAULT now(),
+    updated_at  timestamptz     NOT NULL DEFAULT now(),
+    CONSTRAINT fk_lab_device_waits_pet_clinic
+        FOREIGN KEY (clinic_id, pet_id)
+        REFERENCES pets (clinic_id, id)
+        ON DELETE RESTRICT,
+    CONSTRAINT fk_lab_device_waits_staff_clinic
+        FOREIGN KEY (staff_id, clinic_id)
+        REFERENCES staffs (id, clinic_id)
+        ON DELETE RESTRICT
+);
+
+CREATE UNIQUE INDEX uq_lab_device_waits_clinic_active
+    ON lab_device_waits (clinic_id)
+    WHERE cleared_at IS NULL;
+
+CREATE INDEX idx_lab_device_waits_clinic_expires
+    ON lab_device_waits (clinic_id, expires_at);
+
+COMMENT ON TABLE lab_device_waits IS '医院あたり有効待機は1件。期限切れは未紐付けへ落とす';
+
+CREATE TABLE lab_device_station_settings (
+    clinic_id           bigint          PRIMARY KEY REFERENCES clinics(id) ON DELETE RESTRICT,
+    wait_ttl_seconds    integer         NOT NULL DEFAULT 1800,
+    slots_json          jsonb           NOT NULL DEFAULT '[]'::jsonb,
+    created_at          timestamptz     NOT NULL DEFAULT now(),
+    updated_at          timestamptz     NOT NULL DEFAULT now(),
+    CONSTRAINT chk_lab_device_station_settings_ttl
+        CHECK (wait_ttl_seconds >= 60 AND wait_ttl_seconds <= 86400)
+);
+
+COMMENT ON TABLE lab_device_station_settings IS '待機TTLと論理スロット。clinic_settings には載せない';
+COMMENT ON COLUMN lab_device_station_settings.wait_ttl_seconds IS '製品KPIにしない。数値チューニングUIは作らない';
+
+SELECT app_private.apply_rls_policy(
+    'lab_device_item_masters'::regclass,
+    'tenant_clinic_id_isolation',
+    'app_private.has_clinic_access(clinic_id)',
+    'app_private.has_clinic_access(clinic_id)'
+);
+SELECT app_private.apply_rls_policy(
+    'lab_import_job_items'::regclass,
+    'tenant_clinic_id_isolation',
+    'app_private.has_clinic_access(clinic_id)',
+    'app_private.has_clinic_access(clinic_id)'
+);
+SELECT app_private.apply_rls_policy(
+    'lab_device_waits'::regclass,
+    'tenant_clinic_id_isolation',
+    'app_private.has_clinic_access(clinic_id)',
+    'app_private.has_clinic_access(clinic_id)'
+);
+SELECT app_private.apply_rls_policy(
+    'lab_device_station_settings'::regclass,
+    'tenant_clinic_id_isolation',
+    'app_private.has_clinic_access(clinic_id)',
+    'app_private.has_clinic_access(clinic_id)'
+);
+
+-- =============================================================================
+-- 14. 増分マイグレーション統合 (002 / 003 / 004 / 005 / 006 / 2026-08-20)
+-- =============================================================================
+-- 本番運用前の DB リセット前提で独立ファイルを 001 へ畳み込む。
+-- 002_ensure_pet_owners.sql は 001_init の定義と完全重複のため内容省略。
+-- 003_drop_lab_device_item_display_name.sql の DROP COLUMN 効果は、
+--   セクション13 の lab_device_item_masters CREATE TABLE から display_name を
+--   除去することで表現したため、ここでは繰り返さない。
+-- Source SHA-256:
+--   002_ensure_pet_owners.sql                  4acb97f2ca2cf372097737a1e51cfe9f4ad332d31902c5327fd78b7ee1cc7488
+--   003_drop_lab_device_item_display_name.sql  562e372ba193374749cff2f54bc4b2de296144441ec71990203614cda3ccb98f
+--   004_lab_devices.sql                        c55f0e303b1761b9978f1d266ec3ba267f0a8bf0459722b94cdb7c998435fa35
+--   005_fix_lab_device_station_slots.sql       cb8ce199997361e843ffc9f065988f57f180fc1c2ba3c5956c8971d77b5ba229
+--   006_billing_item_exam_provenance.sql       e09a57f0a031c5fa11b323f6c10d5abda6b6d542c7a1e8646c2c47533d311d7f
+
+-- Source file: 004_lab_devices.sql
+-- Clinic-owned lab devices. Display names and exam binding are stored here.
+CREATE TABLE lab_devices (
+    id            bigserial     PRIMARY KEY,
+    clinic_id     bigint        NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    source_type   varchar(32)   NOT NULL,
+    name          varchar(100)  NOT NULL,
+    exam_type_id  bigint,
+    is_active     boolean       NOT NULL DEFAULT true,
+    sort_order    integer       NOT NULL DEFAULT 0,
+    created_at    timestamptz   NOT NULL DEFAULT now(),
+    updated_at    timestamptz   NOT NULL DEFAULT now(),
+    CONSTRAINT chk_lab_devices_source_type
+        CHECK (source_type IN ('fuji_nx600', 'fuji_au10v', 'arkray_pu4010', 'idexx_vetlab')),
+    CONSTRAINT uq_lab_devices_clinic_source
+        UNIQUE (clinic_id, source_type),
+    CONSTRAINT uq_lab_devices_clinic_name
+        UNIQUE (clinic_id, name)
+);
+
+ALTER TABLE lab_devices
+    ADD CONSTRAINT uq_lab_devices_id_clinic UNIQUE (id, clinic_id);
+
+ALTER TABLE lab_devices
+    ADD CONSTRAINT fk_lab_devices_exam_type_clinic
+    FOREIGN KEY (exam_type_id, clinic_id)
+    REFERENCES exam_types (id, clinic_id)
+    ON DELETE RESTRICT;
+
+SELECT app_private.apply_rls_policy(
+    'lab_devices'::regclass,
+    'tenant_clinic_id_isolation',
+    'app_private.has_clinic_access(clinic_id)',
+    'app_private.has_clinic_access(clinic_id)'
+);
+
+CREATE INDEX idx_lab_devices_clinic_sort
+    ON lab_devices (clinic_id, sort_order);
+
+COMMENT ON TABLE lab_devices IS
+    '検査機器マスタ。表示名と検査種別の対応。source_type は電文プロトコル';
+COMMENT ON COLUMN lab_devices.name IS
+    '医院が付ける機器名。フロント定数には置かない';
+COMMENT ON COLUMN lab_devices.exam_type_id IS
+    'この機器が載せる検査種別。未設定可';
+
+-- Source file: 005_fix_lab_device_station_slots.sql
+-- PU-4010 の既定スロットが 9600 のまま保存された station 行を 2400 8(E)1 へ直す。
+-- 電文正本 old_db/docs/lab-go/go-impl/device-serial-adapter.md: 尿は 2400 8E1。
+-- 新規 DB では lab_device_station_settings に行が無く、UPDATE は 0 行ヒット（no-op）。
+UPDATE lab_device_station_settings
+SET slots_json = '[{"key":"nx600","source_type":"fuji_nx600","device_hint":"NX600","baud":9600},{"key":"au10v","source_type":"fuji_au10v","device_hint":"AU10V","baud":9600},{"key":"pu4010","source_type":"arkray_pu4010","device_hint":"PU-4010","baud":2400,"parity":"even"}]'
+WHERE slots_json = '[{"key":"nx600","source_type":"fuji_nx600","device_hint":"NX600","baud":9600},{"key":"au10v","source_type":"fuji_au10v","device_hint":"AU10V","baud":9600},{"key":"pu4010","source_type":"arkray_pu4010","device_hint":"PU-4010","baud":9600}]';
+
+-- Source file: 006_billing_item_exam_provenance.sql
+-- 検査イベント由来の会計明細 provenance（接種 vaccination_id と同型）。
+-- clinic_id は vaccination または exam の provenance がある明細だけに置く。
+
+ALTER TABLE exams
+    ADD CONSTRAINT uq_exams_id_clinic UNIQUE (id, clinic_id);
+
+ALTER TABLE billing_items
+    DROP CONSTRAINT IF EXISTS chk_billing_items_vaccination_clinic_pair;
+
+ALTER TABLE billing_items
+    ADD COLUMN IF NOT EXISTS exam_id bigint;
+
+UPDATE billing_items AS item
+SET clinic_id = billing.clinic_id
+FROM billings AS billing
+WHERE billing.id = item.billing_id;
+
+ALTER TABLE billing_items
+    ALTER COLUMN clinic_id SET NOT NULL;
+
+ALTER TABLE billing_items
+    DROP CONSTRAINT billing_items_appointment_id_fkey,
+    ADD CONSTRAINT fk_billing_items_appointment_clinic
+        FOREIGN KEY (appointment_id, clinic_id)
+        REFERENCES appointments (id, clinic_id)
+        ON DELETE SET NULL (appointment_id);
+
+ALTER TABLE billing_items
+    ADD CONSTRAINT chk_billing_items_provenance_exclusive
+        CHECK (num_nonnulls(vaccination_id, exam_id) <= 1);
+
+CREATE INDEX idx_billing_items_clinic_id
+    ON billing_items (clinic_id);
+
+ALTER TABLE billing_items
+    ADD CONSTRAINT fk_billing_items_exam_clinic
+        FOREIGN KEY (exam_id, clinic_id)
+        REFERENCES exams (id, clinic_id)
+        ON DELETE RESTRICT;
+
+CREATE UNIQUE INDEX uq_billing_items_exam_lifetime
+    ON billing_items(exam_id)
+    WHERE exam_id IS NOT NULL;
+
+SELECT app_private.apply_rls_policy(
+    'billing_items',
+    'tenant_billing_items_isolation',
+    'app_private.has_clinic_access(clinic_id)',
+    'app_private.has_clinic_access(clinic_id)'
+);
+
+CREATE OR REPLACE FUNCTION app_private.sync_billing_items_clinic_id()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    parent_clinic_id bigint;
+BEGIN
+    SELECT billing.clinic_id
+    INTO parent_clinic_id
+    FROM billings AS billing
+    WHERE billing.id = NEW.billing_id;
+
+    IF parent_clinic_id IS NULL THEN
+        RAISE EXCEPTION
+            'billing_items.billing_id % has no parent clinic_id',
+            NEW.billing_id
+            USING ERRCODE = 'foreign_key_violation';
+    END IF;
+
+    NEW.clinic_id := parent_clinic_id;
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_billing_items_sync_clinic_id
+    BEFORE INSERT OR UPDATE ON billing_items
+    FOR EACH ROW
+    EXECUTE FUNCTION app_private.sync_billing_items_clinic_id();
+
+COMMENT ON COLUMN billing_items.exam_id IS
+    '検査イベント由来の会計明細を識別するprovenance';
+
+COMMENT ON COLUMN billing_items.clinic_id IS
+    '全会計明細の tenant scope。親 billings.clinic_id からトリガーが常に複製する。vaccination/exam provenance 専用ではない。';
+
+-- =============================================================================
+-- 15. 増分マイグレーション統合 (002 / 2026-08-25)
+-- =============================================================================
+-- 本番運用前の DB リセット前提で独立ファイルを 001 へ畳み込む。
+-- 002_allow_negative_billing_amounts.sql の DROP CONSTRAINT 効果は、
+--   レイヤー7 の billings CREATE TABLE から chk_billings_amounts を
+--   除去することで表現したため、ここでは繰り返さない。
+-- Source commit: 55f29ce5c043bf29d7207fc3faa02e27850c271b
+-- Source SHA-256:
+--   002_allow_negative_billing_amounts.sql  07cea93ff88349461577bc423c9e85c85d3fe98371c0a5e82e3cb408c8888988
+
+-- Source file: 002_allow_negative_billing_amounts.sql
+-- AE-MIG-NEG-1: Jouto KNJO refunds/red-slips are negative billings and
+-- cash/card splits. Drop the non-negative CHECK so CSV import can load them
+-- as recorded. Fresh DBs still create the CHECK in 001_init.sql then drop it
+-- here so existing environments can migrate without resetting 001.
+-- ALTER TABLE billings DROP CONSTRAINT IF EXISTS chk_billings_amounts;

@@ -1,8 +1,7 @@
 import type { EstimateStatus } from "../types";
 
 /** locked 見積の編集拒否時に Form / hook で共有するメッセージ */
-export const ESTIMATE_LOCKED_EDIT_MESSAGE =
-  "承認済みまたは却下済みの見積書は編集できません";
+export const ESTIMATE_LOCKED_EDIT_MESSAGE = "承認済みまたは却下済みの見積書は編集できません";
 
 /**
  * Backend `isEstimateLocked`（approved / rejected）と同義。

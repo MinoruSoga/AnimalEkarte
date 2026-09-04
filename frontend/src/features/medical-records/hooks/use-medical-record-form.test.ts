@@ -9,7 +9,7 @@ import { useGetReservationTypesGrouped } from "@/hooks/use-reservation-types";
 import { useCreateReservation } from "@/hooks/use-create-reservation";
 import { useGetReservations } from "@/hooks/use-get-reservations";
 import { server } from "@/testing/mocks/node";
-import { createTestWrapper } from "@/testing/utils";
+import { createTestWrapper } from "@/testing/TestUtils";
 
 // ──────────────────────────────────────────────────────────
 // モック定義
@@ -17,8 +17,9 @@ import { createTestWrapper } from "@/testing/utils";
 //
 // FE4-18: 821 行(分割前)だったため describe 境界で分割。新規作成 auto-create
 // effect / formAction（useActionState）の回帰は
-// use-medical-record-form.auto-create.test.ts を参照。vi.mock はファイル
-// スコープで hoist されるため、この定義ブロックは両ファイルへ逐語複製している
+// use-medical-record-form.auto-create-new.test.ts / auto-create-retry.test.ts /
+// action.test.ts を参照（FE-RC-045 でさらに describe 単位に分割済み）。vi.mock は
+// ファイルスコープで hoist されるため、この定義ブロックは各ファイルへ逐語複製している
 // （値・ロジックは 1 文字も変えていない）。
 
 const mockNavigate = vi.fn();
@@ -55,8 +56,12 @@ vi.mock("@/hooks/use-pet", () => ({
 }));
 vi.mock("@/hooks/use-owner", () => ({ useGetOwner: vi.fn(() => noData) }));
 const mockUseGetMedicalRecord = vi.fn(() => noData);
-vi.mock("../api/get-medical-record", () => ({ useGetMedicalRecord: (...args: unknown[]) => mockUseGetMedicalRecord(...args) }));
-vi.mock("../api/create-medical-record", () => ({ useCreateMedicalRecord: vi.fn(() => noMutation) }));
+vi.mock("../api/get-medical-record", () => ({
+  useGetMedicalRecord: (...args: unknown[]) => mockUseGetMedicalRecord(...args),
+}));
+vi.mock("../api/create-medical-record", () => ({
+  useCreateMedicalRecord: vi.fn(() => noMutation),
+}));
 vi.mock("@/hooks/use-create-reservation", () => ({
   useCreateReservation: vi.fn(() => noMutation),
 }));
@@ -111,14 +116,12 @@ describe("useGetPets enabled guard", () => {
         return HttpResponse.json({ data: [] });
       }),
     );
-    const { useGetPets: useActualGetPets } = await vi.importActual<
-      typeof import("@/hooks/use-pet")
-    >("@/hooks/use-pet");
+    const { useGetPets: useActualGetPets } =
+      await vi.importActual<typeof import("@/hooks/use-pet")>("@/hooks/use-pet");
 
-    const { result } = renderHook(
-      () => useActualGetPets(ownerId, {}, { enabled: false }),
-      { wrapper: createTestWrapper() },
-    );
+    const { result } = renderHook(() => useActualGetPets(ownerId, {}, { enabled: false }), {
+      wrapper: createTestWrapper(),
+    });
 
     await waitFor(() => expect(result.current.fetchStatus).toBe("idle"));
     expect(requestCount).toBe(0);
@@ -161,7 +164,9 @@ describe("useMedicalRecordForm", () => {
       mutateAsync: vi.fn().mockResolvedValue({ id: "appointment-1" }),
       isPending: false,
     } as ReturnType<typeof useCreateReservation>);
-    vi.mocked(useGetReservations).mockReturnValue({ data: [], isLoading: false } as ReturnType<typeof useGetReservations>);
+    vi.mocked(useGetReservations).mockReturnValue({ data: [], isLoading: false } as ReturnType<
+      typeof useGetReservations
+    >);
   });
 
   afterEach(() => {
@@ -213,6 +218,12 @@ describe("useMedicalRecordForm", () => {
     it("activeTab の初期値は '問診'", () => {
       const { result } = renderHook(() => useMedicalRecordForm("10"));
       expect(result.current.activeTab).toBe("問診");
+    });
+
+    it("?tab=定期健診 なら activeTab を定期健診にする (BUG-022)", () => {
+      mockSearchParams = new URLSearchParams({ tab: "定期健診" });
+      const { result } = renderHook(() => useMedicalRecordForm("10"));
+      expect(result.current.activeTab).toBe("定期健診");
     });
 
     it("visitType の初期値は '再診'", () => {
@@ -450,7 +461,9 @@ describe("useMedicalRecordForm", () => {
       const { result } = renderHook(() => useMedicalRecordForm("10"));
       const items = [{ id: "1", name: "処置A", quantity: 1, unitPrice: 1000, total: 1000 }];
       act(() => {
-        result.current.setTreatmentPlanItems(items as Parameters<typeof result.current.setTreatmentPlanItems>[0]);
+        result.current.setTreatmentPlanItems(
+          items as Parameters<typeof result.current.setTreatmentPlanItems>[0],
+        );
       });
       expect(result.current.treatmentPlanItems).toEqual(items);
     });
@@ -459,7 +472,9 @@ describe("useMedicalRecordForm", () => {
       const { result } = renderHook(() => useMedicalRecordForm("10"));
       const items = [{ id: "2", name: "処置B", quantity: 2, unitPrice: 500, total: 1000 }];
       act(() => {
-        result.current.setTreatmentCompletedItems(items as Parameters<typeof result.current.setTreatmentCompletedItems>[0]);
+        result.current.setTreatmentCompletedItems(
+          items as Parameters<typeof result.current.setTreatmentCompletedItems>[0],
+        );
       });
       expect(result.current.treatmentCompletedItems).toEqual(items);
     });
@@ -521,9 +536,7 @@ describe("useMedicalRecordForm", () => {
       act(() => {
         result.current.handleBack();
       });
-      expect(mockNavigate).toHaveBeenCalledWith(
-        expect.stringContaining("select-pet")
-      );
+      expect(mockNavigate).toHaveBeenCalledWith(expect.stringContaining("select-pet"));
     });
 
     it("recordId あり・location.state なし → カルテ一覧にナビゲート", () => {
@@ -533,9 +546,7 @@ describe("useMedicalRecordForm", () => {
         result.current.handleBack();
       });
       // paths.medicalRecords.getHref() = "/medical-records"
-      expect(mockNavigate).toHaveBeenCalledWith(
-        expect.stringContaining("medical-record")
-      );
+      expect(mockNavigate).toHaveBeenCalledWith(expect.stringContaining("medical-record"));
     });
   });
 
@@ -581,19 +592,37 @@ describe("useMedicalRecordForm", () => {
     it("recordId なしの場合、confirmOwnerChange は mutateAsync を呼ばない", async () => {
       const { result } = renderHook(() => useMedicalRecordForm());
       // owner が undefined のため needsConfirm = true → dialog が表示される
-      act(() => { result.current.requestOwnerChange({ id: "5", name: "佐藤", discountRate: 0, membershipType: "" }); });
+      act(() => {
+        result.current.requestOwnerChange({
+          id: "5",
+          name: "佐藤",
+          discountRate: 0,
+          membershipType: "",
+        });
+      });
       // pendingOwnerChange がセットされる
       expect(result.current.pendingOwnerChange).toEqual({ id: "5", name: "佐藤" });
       // recordId なしのため confirm しても mutation は呼ばれない
-      await act(async () => { result.current.confirmOwnerChange(); });
+      await act(async () => {
+        result.current.confirmOwnerChange();
+      });
       expect(noMutation.mutateAsync).not.toHaveBeenCalled();
     });
 
     it("cancelOwnerChange で pending をリセットできる", () => {
       const { result } = renderHook(() => useMedicalRecordForm("10"));
-      act(() => { result.current.requestOwnerChange({ id: "5", name: "佐藤", discountRate: 0, membershipType: "" }); });
+      act(() => {
+        result.current.requestOwnerChange({
+          id: "5",
+          name: "佐藤",
+          discountRate: 0,
+          membershipType: "",
+        });
+      });
       expect(result.current.pendingOwnerChange).not.toBeNull();
-      act(() => { result.current.cancelOwnerChange(); });
+      act(() => {
+        result.current.cancelOwnerChange();
+      });
       expect(result.current.pendingOwnerChange).toBeNull();
     });
   });
@@ -602,17 +631,23 @@ describe("useMedicalRecordForm", () => {
   // BUG-373: requestOwnerChange 条件付き確認ダイアログ
   // ──────────────────────────
   describe("BUG-373: requestOwnerChange — 飼主変更 条件付き確認", () => {
-    const ownerQueryWith = (discountRate: number, membershipType: string) => ({
-      data: { discountRate, membershipType } as never,
-      isLoading: false,
-      isError: false,
-    } as never);
+    const ownerQueryWith = (discountRate: number, membershipType: string) =>
+      ({
+        data: { discountRate, membershipType } as never,
+        isLoading: false,
+        isError: false,
+      }) as never;
 
     it("owner 未ロード(undefined) → 安全策として dialog を表示する", () => {
       // デフォルト: useGetOwner → noData (data: undefined)
       const { result } = renderHook(() => useMedicalRecordForm("10"));
       act(() => {
-        result.current.requestOwnerChange({ id: "5", name: "鈴木", discountRate: 10, membershipType: "会員" });
+        result.current.requestOwnerChange({
+          id: "5",
+          name: "鈴木",
+          discountRate: 10,
+          membershipType: "会員",
+        });
       });
       expect(result.current.pendingOwnerChange).toEqual({ id: "5", name: "鈴木" });
     });
@@ -621,7 +656,12 @@ describe("useMedicalRecordForm", () => {
       vi.mocked(useGetOwner).mockReturnValue(ownerQueryWith(10, "会員"));
       const { result } = renderHook(() => useMedicalRecordForm("10"));
       await act(async () => {
-        result.current.requestOwnerChange({ id: "5", name: "鈴木", discountRate: 10, membershipType: "会員" });
+        result.current.requestOwnerChange({
+          id: "5",
+          name: "鈴木",
+          discountRate: 10,
+          membershipType: "会員",
+        });
         await Promise.resolve();
       });
       expect(result.current.pendingOwnerChange).toBeNull();
@@ -632,7 +672,12 @@ describe("useMedicalRecordForm", () => {
       vi.mocked(useGetOwner).mockReturnValue(ownerQueryWith(10, "会員"));
       const { result } = renderHook(() => useMedicalRecordForm("10"));
       act(() => {
-        result.current.requestOwnerChange({ id: "5", name: "鈴木", discountRate: 20, membershipType: "会員" });
+        result.current.requestOwnerChange({
+          id: "5",
+          name: "鈴木",
+          discountRate: 20,
+          membershipType: "会員",
+        });
       });
       expect(result.current.pendingOwnerChange).toEqual({ id: "5", name: "鈴木" });
     });
@@ -641,7 +686,12 @@ describe("useMedicalRecordForm", () => {
       vi.mocked(useGetOwner).mockReturnValue(ownerQueryWith(10, "会員"));
       const { result } = renderHook(() => useMedicalRecordForm("10"));
       act(() => {
-        result.current.requestOwnerChange({ id: "5", name: "鈴木", discountRate: 10, membershipType: "非会員" });
+        result.current.requestOwnerChange({
+          id: "5",
+          name: "鈴木",
+          discountRate: 10,
+          membershipType: "非会員",
+        });
       });
       expect(result.current.pendingOwnerChange).toEqual({ id: "5", name: "鈴木" });
     });
@@ -651,7 +701,12 @@ describe("useMedicalRecordForm", () => {
       const { result } = renderHook(() => useMedicalRecordForm("10"));
       // discount_rate 違い → dialog 表示
       act(() => {
-        result.current.requestOwnerChange({ id: "5", name: "鈴木", discountRate: 20, membershipType: "会員" });
+        result.current.requestOwnerChange({
+          id: "5",
+          name: "鈴木",
+          discountRate: 20,
+          membershipType: "会員",
+        });
       });
       expect(result.current.pendingOwnerChange).not.toBeNull();
       // 続行 → mutation 実行
@@ -671,21 +726,21 @@ describe("useMedicalRecordForm", () => {
     function axiosError(status: number | undefined) {
       const config = { headers: new AxiosHeaders() } as InternalAxiosRequestConfig;
       if (status === undefined) {
-        return new AxiosError("Network Error", AxiosError.ERR_NETWORK, config, undefined, undefined);
-      }
-      return new AxiosError(
-        "request failed",
-        AxiosError.ERR_BAD_RESPONSE,
-        config,
-        undefined,
-        {
+        return new AxiosError(
+          "Network Error",
+          AxiosError.ERR_NETWORK,
           config,
-          data: { error: "not found" },
-          headers: new AxiosHeaders(),
-          status,
-          statusText: "Error",
-        },
-      );
+          undefined,
+          undefined,
+        );
+      }
+      return new AxiosError("request failed", AxiosError.ERR_BAD_RESPONSE, config, undefined, {
+        config,
+        data: { error: "not found" },
+        headers: new AxiosHeaders(),
+        status,
+        statusText: "Error",
+      });
     }
 
     it("loading → isReadLoading、notFound ではない", () => {

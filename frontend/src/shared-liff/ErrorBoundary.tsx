@@ -1,4 +1,4 @@
-import { Component, type ReactNode } from 'react';
+import { Component, type ReactNode } from "react";
 
 interface Props {
   fallback: ReactNode;
@@ -23,7 +23,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: unknown): void {
     if (import.meta.env.DEV) {
-      console.error('[shared-liff] uncaught render error', error);
+      console.error("[shared-liff] uncaught render error", error);
     }
   }
 

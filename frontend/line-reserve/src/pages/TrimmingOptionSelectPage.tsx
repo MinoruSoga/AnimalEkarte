@@ -1,10 +1,11 @@
-import { useCallback, useState } from 'react';
-import { liffApi } from '../api/liff-api';
-import { ProgressDots } from '../components/ProgressDots';
-import { BackButton } from '../components/BackButton';
-import { useFetchState } from '@/shared-liff/use-fetch-state';
-import { formatCurrency } from '@/lib/format/number';
-import { getStepProgress } from '../lib/step-progress';
+import { useCallback, useState } from "react";
+import { liffApi } from "../api/liff-api";
+import { ProgressDots } from "../components/ProgressDots";
+import { BackButton } from "../components/BackButton";
+import { useFetchState } from "@/shared-liff/use-fetch-state";
+import { formatCurrency } from "@/shared-liff/format-number";
+import { getStepProgress } from "../lib/step-progress";
+import { EXPLICIT_PRIMARY_CTA_LABEL } from "../lib/advance-policy";
 
 interface TrimmingOptionSelectPageProps {
   clinicId: string;
@@ -15,7 +16,7 @@ interface TrimmingOptionSelectPageProps {
 }
 
 function formatPrice(price: number | null): string {
-  if (price === null) return '';
+  if (price === null) return "";
   return `+${formatCurrency(price)}`;
 }
 
@@ -27,13 +28,16 @@ export function TrimmingOptionSelectPage({
   onBack,
 }: TrimmingOptionSelectPageProps) {
   const [selected, setSelected] = useState<Set<number>>(new Set(selectedOptionIds));
-  const fetcher = useCallback(() => liffApi.getTrimmingOptions(clinicId, idToken), [clinicId, idToken]);
+  const fetcher = useCallback(
+    () => liffApi.getTrimmingOptions(clinicId, idToken),
+    [clinicId, idToken],
+  );
   // R-F22/R-F23: ステータス別メッセージ解決と再試行導線を共通フックに統合。
-  const { data: options, loading, error, retry } = useFetchState(fetcher, 'オプションの取得');
-  const { current, total } = getStepProgress('trimmingOptionSelect', true);
+  const { data: options, loading, error, retry } = useFetchState(fetcher, "オプションの取得");
+  const { current, total } = getStepProgress("trimmingOptionSelect", true);
 
   const toggleOption = (id: number) => {
-    setSelected(prev => {
+    setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
         next.delete(id);
@@ -61,7 +65,7 @@ export function TrimmingOptionSelectPage({
               <div className="text-noah-text-sub">読み込み中...</div>
             </div>
           ) : error ? (
-            <div className="px-4 py-8 text-center text-red-500">
+            <div className="px-4 py-8 text-center text-noah-danger">
               <p role="alert">{error.message}</p>
               {error.canRetry ? (
                 <button
@@ -74,30 +78,43 @@ export function TrimmingOptionSelectPage({
               ) : null}
             </div>
           ) : (
-            <div className="bg-white border-t border-gray-200">
-              {(options ?? []).map(option => (
+            <div className="bg-white border-t border-noah-border">
+              {(options ?? []).map((option) => (
                 <button
                   key={option.id}
                   type="button"
-                  className="w-full flex items-center px-4 py-4 border-b border-gray-100 text-left active:bg-gray-50"
+                  className="w-full flex items-center px-4 py-4 border-b border-noah-border-light text-left active:bg-noah-surface-muted"
                   onClick={() => toggleOption(option.id)}
                 >
                   <div
                     className={`w-5 h-5 rounded border-2 flex-shrink-0 flex items-center justify-center mr-3 ${
                       selected.has(option.id)
-                        ? 'bg-noah-teal border-noah-teal'
-                        : 'border-gray-300'
+                        ? "bg-noah-teal border-noah-teal"
+                        : "border-noah-border-input"
                     }`}
                   >
                     {selected.has(option.id) ? (
-                      <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 12 12" aria-hidden="true">
-                        <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      <svg
+                        className="w-3 h-3 text-white"
+                        fill="none"
+                        viewBox="0 0 12 12"
+                        aria-hidden="true"
+                      >
+                        <path
+                          d="M2 6l3 3 5-5"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
                       </svg>
                     ) : null}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-gray-900">{option.name}</span>
+                      <span className="text-sm font-medium text-noah-text-heading">
+                        {option.name}
+                      </span>
                       {option.price !== null ? (
                         <span className="text-sm text-noah-teal-dark ml-2 flex-shrink-0">
                           {formatPrice(option.price)}
@@ -105,7 +122,9 @@ export function TrimmingOptionSelectPage({
                       ) : null}
                     </div>
                     {option.description ? (
-                      <p className="text-xs text-noah-text-sub mt-0.5 truncate">{option.description}</p>
+                      <p className="text-xs text-noah-text-sub mt-0.5 truncate">
+                        {option.description}
+                      </p>
                     ) : null}
                   </div>
                 </button>
@@ -114,13 +133,13 @@ export function TrimmingOptionSelectPage({
           )}
         </div>
 
-        <div className="px-4 py-4 bg-white border-t border-gray-200">
+        <div className="px-4 py-4 bg-white border-t border-noah-border">
           <button
             type="button"
             className="w-full py-3 bg-noah-teal text-white rounded-lg font-medium text-sm active:opacity-80"
             onClick={() => onNext(Array.from(selected))}
           >
-            次へ進む
+            {EXPLICIT_PRIMARY_CTA_LABEL}
           </button>
         </div>
       </div>

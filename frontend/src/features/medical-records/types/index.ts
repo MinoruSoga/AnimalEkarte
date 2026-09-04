@@ -6,10 +6,7 @@
  */
 // FE6-3: tygo enum_style: "union"（FE6-1/FE6-2）により生成定数が真の literal union になったため、
 // 手書き union を生成型からの re-export へ移行した。drift テストは union-drift.test.ts から削除済み。
-import type {
-  TreatmentItemType,
-  BodyWeightUnit,
-} from "@/types/generated/models";
+import type { TreatmentItemType, BodyWeightUnit } from "@/types/generated/models";
 export type { TreatmentItemType, BodyWeightUnit };
 
 /** Interview (問診) history list item */
@@ -102,7 +99,7 @@ export interface BulkReorderTreatmentsInput {
 // ── BillingConfirmation (会計医師確認) ──────────────────────────────────────
 
 /** 会計医師確認ステータス @see {@link import("@/types/generated/models").ConfirmationStatus} */
-type ConfirmationStatus = 'pending' | 'confirmed' | 'returned';
+type ConfirmationStatus = "pending" | "confirmed" | "returned";
 
 /** 会計医師確認レコード */
 export interface BillingConfirmation {

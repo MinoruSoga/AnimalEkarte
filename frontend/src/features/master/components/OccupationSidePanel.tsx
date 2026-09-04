@@ -1,19 +1,22 @@
-import { memo, useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useState } from "react";
 import { Briefcase } from "lucide-react";
 
-import { MasterSidePanel, PropertyInput, PropertyRow, StatusToggleButton } from "@/components/shared/SidePeek";
+import {
+  MasterSidePanel,
+  PropertyInput,
+  PropertyRow,
+  StatusToggleButton,
+} from "@/components/shared/SidePeek";
 import { LAYOUT } from "@/lib/design-tokens";
 
 import type { Occupation } from "../api/occupations";
-import {
-  occupationToFormData,
-  type OccupationFormData,
-} from "./occupation-side-panel-model";
+import { useMasterSidePanelForm } from "../hooks/use-master-side-panel-form";
+import { occupationToFormData, type OccupationFormData } from "../lib/occupation-side-panel-model";
 
 interface OccupationSidePanelProps {
   item: Occupation | null;
   onClose: () => void;
-  onSave: (data: OccupationFormData) => void;
+  onSave: (data: OccupationFormData) => Promise<boolean> | boolean;
   onDeleteRequest?: (item: Occupation) => void;
   readOnly?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
@@ -27,46 +30,51 @@ export const OccupationSidePanel = memo(function OccupationSidePanel({
   readOnly,
   onDirtyChange,
 }: OccupationSidePanelProps) {
-  const [formData, setFormData] = useState<OccupationFormData>(() => occupationToFormData(item));
-  const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
 
-  useEffect(() => {
-    onDirtyChange?.(isDirty);
-  }, [isDirty, onDirtyChange]);
+  const {
+    formData,
+    setFormData: setFormDataDirty,
+    isDirty,
+    setIsDirty,
+    handleAction,
+  } = useMasterSidePanelForm<OccupationFormData>({
+    initialFormData: occupationToFormData(item),
+    onSave,
+    onDirtyChange,
+    validate: (data) => {
+      if (!data.name.trim()) {
+        setNameError("名称を入力してください");
+        return false;
+      }
+      setNameError("");
+      return true;
+    },
+  });
 
-  const setFormDataDirty = useCallback<typeof setFormData>((updater) => {
-    setFormData(updater);
-    setIsDirty(true);
-  }, []);
+  const handleTitleChange = useCallback(
+    (value: string) => {
+      setFormDataDirty((prev) => ({ ...prev, name: value }));
+      if (value.trim()) setNameError("");
+    },
+    [setFormDataDirty],
+  );
 
-  const handleTitleChange = useCallback((value: string) => {
-    setFormDataDirty((prev) => ({ ...prev, name: value }));
-    if (value.trim()) setNameError("");
-  }, [setFormDataDirty]);
-
-  const handleDescriptionChange = useCallback((value: string) => {
-    setFormDataDirty((prev) => ({ ...prev, description: value }));
-  }, [setFormDataDirty]);
+  const handleDescriptionChange = useCallback(
+    (value: string) => {
+      setFormDataDirty((prev) => ({ ...prev, description: value }));
+    },
+    [setFormDataDirty],
+  );
 
   const handleToggleActive = useCallback(() => {
     setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }));
   }, [setFormDataDirty]);
 
-  const handleAction = useCallback(() => {
-    if (!formData.name.trim()) {
-      setNameError("名称を入力してください");
-      return;
-    }
-    setNameError("");
-    onSave(formData);
-    setIsDirty(false);
-  }, [formData, onSave]);
-
   const handleClose = useCallback(() => {
     setIsDirty(false);
     onClose();
-  }, [onClose]);
+  }, [onClose, setIsDirty]);
 
   return (
     <MasterSidePanel

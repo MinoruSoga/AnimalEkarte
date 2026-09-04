@@ -132,7 +132,7 @@ func (s *lstepTagService) buildClient(ctx context.Context, clinicID uint64) (lst
 	if apiKey == "" {
 		return nil, nil
 	}
-	return lstep.NewClient(apiKey, baseURL), nil
+	return newLstepAPIClient(apiKey, baseURL), nil
 }
 
 func (s *lstepTagService) GetOwnerTags(ctx context.Context, clinicID, ownerID uint64) (*OwnerTagsResult, error) {

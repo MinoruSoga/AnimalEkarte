@@ -30,10 +30,7 @@ export const DateValueEditor = memo(function DateValueEditor({
   const handlePresetClick = useCallback(
     (from: Date, to: Date, label: string) => {
       setDateRange({ from, to });
-      onApply(
-        { from: format(from, "yyyy-MM-dd"), to: format(to, "yyyy-MM-dd") },
-        label,
-      );
+      onApply({ from: format(from, "yyyy-MM-dd"), to: format(to, "yyyy-MM-dd") }, label);
     },
     [onApply],
   );
@@ -86,11 +83,15 @@ export const DateValueEditor = memo(function DateValueEditor({
         <div
           className={`flex items-center justify-center gap-3 mb-3 px-3 py-2 ${C.bgPage} rounded-xs`}
         >
-          <span className={`text-sm font-mono tabular-nums ${hasFrom ? `${C.text} font-medium` : C.text30}`}>
+          <span
+            className={`text-sm font-mono tabular-nums ${hasFrom ? `${C.text} font-medium` : C.text30}`}
+          >
             {fromDisplay}
           </span>
           <span className={`${C.text30} text-xs`}>→</span>
-          <span className={`text-sm font-mono tabular-nums ${hasTo ? `${C.text} font-medium` : C.text30}`}>
+          <span
+            className={`text-sm font-mono tabular-nums ${hasTo ? `${C.text} font-medium` : C.text30}`}
+          >
             {toDisplay}
           </span>
         </div>
@@ -114,7 +115,7 @@ export const DateValueEditor = memo(function DateValueEditor({
             button_previous: `size-8 p-0 rounded-sm ${C.bgMutedBadge} opacity-50 hover:opacity-100 inline-flex items-center justify-center pointer-events-auto`,
             button_next: `size-8 p-0 rounded-sm ${C.bgMutedBadge} opacity-50 hover:opacity-100 inline-flex items-center justify-center pointer-events-auto`,
             dropdowns: "flex items-center gap-1",
-            dropdown: `text-sm font-medium bg-transparent border-none cursor-pointer focus:outline-none hover:opacity-70 py-0.5 px-1 rounded ${C.bgMutedBadge}`,
+            dropdown: `text-sm font-medium bg-transparent border-none cursor-pointer focus:outline-none hover:opacity-70 py-0.5 px-1 rounded ${C.bgMutedBadge} focus-visible:ring-2 ${C.focusRingAccent40}`,
           }}
           formatters={{
             formatMonthDropdown: (month) => {

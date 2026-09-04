@@ -40,6 +40,11 @@ type CreateManualReservationInput struct {
 }
 
 // UpdateReservationInput は予約更新のサービス入力 DTO
+type ReservationBatchPet struct {
+	OwnerID uint64
+	PetID   uint64
+}
+
 type UpdateReservationInput struct {
 	StartTime         *time.Time
 	EndTime           *time.Time
@@ -107,6 +112,7 @@ type ReservationService interface {
 	// GetByIDForClinics は複数医院スコープで予約を1件取得する (#86 詳細画面拠点横断)。clinicIDs はハンドラ層で所属検証済みであること。
 	GetByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Reservation, error)
 	Create(ctx context.Context, input *CreateManualReservationInput) (*model.Reservation, error)
+	CreateBatch(ctx context.Context, input *CreateManualReservationInput, pets []ReservationBatchPet) ([]model.Reservation, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationInput) (*model.Reservation, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	UpdateReservationRoute(ctx context.Context, clinicID, id uint64, input UpdateReservationRouteInput) (*model.Reservation, error)
@@ -119,6 +125,8 @@ type reservationService struct {
 	reservationStaffRepo ReservationStaffWriteGuard
 	unavailableTimeRepo  ReservationTypeUnavailableTimeRepository
 	availableSlotRepo    ReservationTypeAvailableSlotRepository
+	settingFinder        lineReservationSettingFinder
+	holidayFinder        clinicHolidayFinder
 }
 
 func NewReservationServiceWithAvailabilityAndType(repo ReservationRepository, typeRepo reservationTypeFinder, tx Transactor, reservationStaffRepo ReservationStaffWriteGuard, unavailableTimeRepo ReservationTypeUnavailableTimeRepository, availableSlotRepo ...ReservationTypeAvailableSlotRepository) ReservationService {
@@ -126,13 +134,59 @@ func NewReservationServiceWithAvailabilityAndType(repo ReservationRepository, ty
 	if len(availableSlotRepo) > 0 {
 		slotRepo = availableSlotRepo[0]
 	}
+	return newReservationService(repo, typeRepo, tx, reservationStaffRepo, unavailableTimeRepo, slotRepo, nil, nil)
+}
+
+// NewReservationServiceWithLineSettings is the backward-compatible constructor
+// that also injects LINE reservation settings for closed-day checks on constrained Create.
+// holidayFinder is omitted (nil). Constrained Create/Update then fail closed with
+// "clinic holiday lookup is required"; they do not skip clinic_holidays.
+// Production composition must use NewReservationServiceWithClinicHolidays.
+func NewReservationServiceWithLineSettings(
+	repo ReservationRepository,
+	typeRepo reservationTypeFinder,
+	tx Transactor,
+	reservationStaffRepo ReservationStaffWriteGuard,
+	unavailableTimeRepo ReservationTypeUnavailableTimeRepository,
+	availableSlotRepo ReservationTypeAvailableSlotRepository,
+	settingFinder lineReservationSettingFinder,
+) ReservationService {
+	return newReservationService(repo, typeRepo, tx, reservationStaffRepo, unavailableTimeRepo, availableSlotRepo, settingFinder, nil)
+}
+
+// NewReservationServiceWithClinicHolidays injects LINE settings and clinic_holidays.
+func NewReservationServiceWithClinicHolidays(
+	repo ReservationRepository,
+	typeRepo reservationTypeFinder,
+	tx Transactor,
+	reservationStaffRepo ReservationStaffWriteGuard,
+	unavailableTimeRepo ReservationTypeUnavailableTimeRepository,
+	availableSlotRepo ReservationTypeAvailableSlotRepository,
+	settingFinder lineReservationSettingFinder,
+	holidayFinder clinicHolidayFinder,
+) ReservationService {
+	return newReservationService(repo, typeRepo, tx, reservationStaffRepo, unavailableTimeRepo, availableSlotRepo, settingFinder, holidayFinder)
+}
+
+func newReservationService(
+	repo ReservationRepository,
+	typeRepo reservationTypeFinder,
+	tx Transactor,
+	reservationStaffRepo ReservationStaffWriteGuard,
+	unavailableTimeRepo ReservationTypeUnavailableTimeRepository,
+	availableSlotRepo ReservationTypeAvailableSlotRepository,
+	settingFinder lineReservationSettingFinder,
+	holidayFinder clinicHolidayFinder,
+) *reservationService {
 	return &reservationService{
 		repo:                 repo,
 		typeRepo:             typeRepo,
 		tx:                   tx,
 		reservationStaffRepo: reservationStaffRepo,
 		unavailableTimeRepo:  unavailableTimeRepo,
-		availableSlotRepo:    slotRepo,
+		availableSlotRepo:    availableSlotRepo,
+		settingFinder:        settingFinder,
+		holidayFinder:        holidayFinder,
 	}
 }
 
@@ -282,6 +336,12 @@ func (s *reservationService) Create(ctx context.Context, input *CreateManualRese
 			return err
 		}
 		if enforceBookingConstraints {
+			if err := s.validateCreateClosedDays(ctx, reservation.ClinicID, reservation.StartTime); err != nil {
+				return err
+			}
+			if err := s.validateCreateClinicHoliday(ctx, reservation.ClinicID, reservation.StartTime); err != nil {
+				return err
+			}
 			if err := s.repo.AcquireBookingLock(ctx, reservation.ClinicID); err != nil {
 				return err
 			}
@@ -303,364 +363,83 @@ func (s *reservationService) Create(ctx context.Context, input *CreateManualRese
 	return reservation, nil
 }
 
-func ShouldEnforceReservationBookingConstraints(status model.ReservationStatus, route *string) bool {
-	if route != nil {
-		switch *route {
-		case "reception", "exam_room", "record_shortcut":
-			return false
-		}
+// CreateBatch atomically creates one intentionally shared doctor/time booking for selected pets.
+// The batch is the sole exception to the normal one-reservation-per-doctor-slot rule.
+// It acquires the same clinic advisory lock and rejects any pre-existing, unrelated overlap.
+func (s *reservationService) CreateBatch(ctx context.Context, input *CreateManualReservationInput, pets []ReservationBatchPet) ([]model.Reservation, error) {
+	if input == nil || len(pets) < 2 {
+		return nil, apperrors.WrapInvalidInput("at least two pets are required for a reservation batch")
 	}
-	switch status {
-	case model.ReservationStatusCheckedIn,
-		model.ReservationStatusInConsultation,
-		model.ReservationStatusAccounting,
-		model.ReservationStatusCompleted:
-		return false
-	default:
-		return true
-	}
-}
-
-// validateTimeRange は end_time > start_time を確認する共通バリデーション
-// （BE9-2C R①: 実装は sharedkernel.ValidateTimeRange へ昇格・本関数は既存呼び出し面互換の delegate）。
-func validateTimeRange(startTime, endTime time.Time) error {
-	return sharedkernel.ValidateTimeRange(startTime, endTime)
-}
-
-// errNoDoctorsOnDuty は当日の出勤医師が 0 人のためスロット予約不可を示すセンチネルエラー。
-// *apperrors.AppError なので RespondError が errors.As で Message を抽出し日本語メッセージを返す。
-// LINE パスでは reservation_validators.go が errors.Is でこれを識別し RedirectStep: 4 を返す。
-// ※ WrapConflict はパッケージレベル変数として固定ポインタを保持するため errors.Is が機能する。
-var errNoDoctorsOnDuty = apperrors.WrapConflict("本日は医師が出勤していないため予約できません")
-
-type slotConflictChecker interface {
-	HasDoctorConflict(ctx context.Context, clinicID, doctorID uint64, start, end time.Time, excludeID *uint64) (bool, error)
-	CountOnDutyDoctors(ctx context.Context, clinicID uint64, date time.Time) (int64, error)
-	CountConflicts(ctx context.Context, clinicID uint64, start, end time.Time, excludeID *uint64) (int64, error)
-}
-
-// checkDoctorSlotConflict は特定医師の時間枠重複をチェックする（SELECT FOR UPDATE）。
-func checkDoctorSlotConflict(ctx context.Context, repo slotConflictChecker, clinicID, doctorID uint64, start, end time.Time, excludeID *uint64) error {
-	conflict, err := repo.HasDoctorConflict(ctx, clinicID, doctorID, start, end, excludeID)
-	if err != nil {
-		return apperrors.Wrap(err, "check doctor slot conflict")
-	}
-	if conflict {
-		return apperrors.WrapConflict("この時間枠は既に予約が入っています")
-	}
-	return nil
-}
-
-// checkCapacitySlotConflict は出勤医師数を上限として時間枠の空き確認をする（SELECT FOR UPDATE）。
-// 出勤医師が 0 人の場合は errNoDoctorsOnDuty を返す（LINE パスで RedirectStep を分岐するため）。
-func checkCapacitySlotConflict(ctx context.Context, repo slotConflictChecker, clinicID uint64, start, end time.Time, excludeID *uint64) error {
-	doctorCount, err := repo.CountOnDutyDoctors(ctx, clinicID, start)
-	if err != nil {
-		return apperrors.Wrap(err, "count on-duty doctors")
-	}
-	if doctorCount == 0 {
-		return errNoDoctorsOnDuty
-	}
-
-	conflictCount, err := repo.CountConflicts(ctx, clinicID, start, end, excludeID)
-	if err != nil {
-		return apperrors.Wrap(err, "count conflicts")
-	}
-	if conflictCount >= doctorCount {
-		return apperrors.WrapConflict("この時間枠は満員です（出勤医師数に達しています）")
-	}
-	return nil
-}
-
-// CheckSlotConflict は時間枠の空き・重複をチェックする（SELECT FOR UPDATE）。
-//
-//   - doctor_id 指定時 → 同一医師の重複のみチェック（別医師は許可）
-//   - doctor_id nil 時 → その日の出勤医師数を上限として全予約件数をチェック
-//
-// excludeID が非 nil の場合、その予約 ID を競合対象から除外する（Update 時の自己競合防止）。
-// 競合がある場合は apperrors.ErrConflict ラップエラーを返す。
-func CheckSlotConflict(ctx context.Context, repo slotConflictChecker, clinicID uint64, doctorID *uint64, startTime, endTime time.Time, excludeID *uint64) error {
-	if doctorID != nil {
-		return checkDoctorSlotConflict(ctx, repo, clinicID, *doctorID, startTime, endTime, excludeID)
-	}
-	return checkCapacitySlotConflict(ctx, repo, clinicID, startTime, endTime, excludeID)
-}
-
-// resolveUpdateParams は現在の予約と更新入力から、競合チェックに使用する時刻・医師 ID を確定する。
-// 未指定フィールドは現在値を維持する。DoctorID=0 は NULL（医師未指定）として扱う。
-func resolveUpdateParams(current *model.Reservation, input *UpdateReservationInput) (start, end time.Time, doctorID *uint64) {
-	start = current.StartTime
-	if input.StartTime != nil {
-		start = *input.StartTime
-	}
-	end = current.EndTime
-	if input.EndTime != nil {
-		end = *input.EndTime
-	}
-	doctorID = current.DoctorID
-	if input.DoctorID != nil {
-		if *input.DoctorID == 0 {
-			doctorID = nil // 0 は「医師未指定」として NULL 扱い
-		} else {
-			doctorID = input.DoctorID
-		}
-	}
-	return start, end, doctorID
-}
-
-func validateLineReservationCheckedInLink(current *model.Reservation, input *UpdateReservationInput) error {
-	if input.Status == nil || *input.Status != model.ReservationStatusCheckedIn {
-		return nil
-	}
-	if current.Source != model.ReservationSourceLine || current.LineCustomerID == nil {
-		return nil
-	}
-	// AUD-001: 0 クリアの意味と揃える（*uint64(0) を non-nil のまま通さない）
-	ownerID, petID := resolveFinalOwnerPet(current, input)
-	if ownerID == nil || petID == nil {
-		return apperrors.WrapInvalidInput("LINE予約を受付済みにする前に飼主とペットの紐付けが必要です")
-	}
-	return nil
-}
-
-// updateWithConflictCheck は SELECT FOR UPDATE + トランザクション内で競合チェック + 予約更新を実行する。
-// 時刻・医師変更がある場合にのみ呼び出す。
-func (s *reservationService) updateWithConflictCheck(ctx context.Context, clinicID, id uint64, fields map[string]any, input *UpdateReservationInput) (*model.Reservation, error) {
-	if s.tx == nil {
-		return nil, apperrors.WrapInternalServerError("reservation transaction dependency is required")
-	}
-	var result *model.Reservation
-	if err := s.tx.WithTx(ctx, func(ctx context.Context) error {
-		// BE-refactor.md X-9: 空き枠への同時更新（別予約への時刻変更等）もファントムの対象
-		// のため、competing な Create と同じ advisory lock で直列化する。
-		if err := s.repo.AcquireBookingLock(ctx, clinicID); err != nil {
-			return err
-		}
-		// 現在の予約を行ロックで取得（競合チェックの基準値として使用）
-		current, err := s.repo.LockAndFindByID(ctx, clinicID, id)
-		if err != nil {
-			return err
-		}
-		finalOwnerID, finalPetID := resolveFinalOwnerPet(current, input)
-		if err := ValidateReservationOwnerPetLinksWithRepo(ctx, s.repo, clinicID, finalOwnerID, finalPetID); err != nil {
-			return err
-		}
-		// #261 P0: 死亡拒否は pet 付け替え/新規紐付け時のみ（既存死亡ペット予約の時刻変更等は許可）。
-		if input.PetID != nil && *input.PetID != 0 {
-			if err := ValidateReservationPetNotDeceased(ctx, s.repo, clinicID, input.PetID); err != nil {
-				return err
-			}
-		}
-
-		resolvedStart, resolvedEnd, resolvedDoctorID := resolveUpdateParams(current, input)
-		resolvedReservationTypeID := current.ReservationTypeID
-		if input.ReservationTypeID != nil {
-			resolvedReservationTypeID = *input.ReservationTypeID
-		}
-		if input.DoctorID != nil || input.ReservationTypeID != nil {
-			if err := ValidateReservationStaffCapability(ctx, s.reservationStaffRepo, clinicID, resolvedDoctorID, resolvedReservationTypeID); err != nil {
-				return err
-			}
-		}
-
-		if input.StartTime != nil || input.EndTime != nil {
-			if err := validateTimeRange(resolvedStart, resolvedEnd); err != nil {
-				return err
-			}
-		}
-
-		if err := CheckSlotConflict(ctx, s.repo, clinicID, resolvedDoctorID, resolvedStart, resolvedEnd, &id); err != nil {
-			return err
-		}
-		if err := CheckReservationTypeCapacity(ctx, s.repo, s.typeRepo, clinicID, resolvedReservationTypeID, resolvedStart, &id); err != nil {
-			return err
-		}
-
-		updated, err := s.repo.update(ctx, clinicID, id, fields)
-		if err != nil {
-			return err
-		}
-		result = updated
-		return nil
-	}); err != nil {
-		slog.ErrorContext(ctx, "failed to update reservation with conflict check", "error", err)
-		return nil, apperrors.Wrap(err, "failed to update reservation with conflict check")
-	}
-	return result, nil
-}
-
-func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationInput) (*model.Reservation, error) {
-	if input == nil {
-		return nil, apperrors.WrapInvalidInput("input must not be nil")
-	}
-	current, err := s.repo.FindByID(ctx, clinicID, id)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to find reservation", "error", err)
-		return nil, apperrors.Wrap(err, "failed to find reservation")
-	}
-	if err := validateLineReservationCheckedInLink(current, input); err != nil {
-		return nil, err
-	}
-	if input.StartTime != nil || input.EndTime != nil || input.ReservationTypeID != nil {
-		resolvedStart, resolvedEnd, _ := resolveUpdateParams(current, input)
-		resolvedReservationTypeID := current.ReservationTypeID
-		if input.ReservationTypeID != nil {
-			resolvedReservationTypeID = *input.ReservationTypeID
-		}
-		if err := ValidateReservationTypeAvailableTime(ctx, s.unavailableTimeRepo, clinicID, resolvedReservationTypeID, resolvedStart, resolvedEnd); err != nil {
-			return nil, err
-		}
-	}
-	fields := buildReservationUpdate(input)
-	// 受付ヘッダー テレメトリ（change-ui.md Phase 2）: checked_in への遷移時点の時刻を記録する。
-	// UpdatedAt(autoUpdateTime) は予約編集全般でリセットされ待ち時間算出に流用できないため、
-	// 専用カラムへ遷移時刻を都度スタンプする（再受付時は最後の遷移時刻で上書き）。
-	if input.Status != nil && *input.Status == model.ReservationStatusCheckedIn && current.Status != model.ReservationStatusCheckedIn {
-		fields["checked_in_at"] = time.Now()
-	}
-	if len(fields) == 0 {
-		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
-	}
-
-	// 時刻・医師・予約区分の変更がある場合のみ競合チェックが必要
-	needsConflictCheck := input.StartTime != nil || input.EndTime != nil || input.DoctorID != nil || input.ReservationTypeID != nil
-	needsLinkValidation := input.OwnerID != nil || input.PetID != nil
-	isCancel := input.Status != nil && *input.Status == model.ReservationStatusCancelled
-
-	// RSV-06 / X-06: cancel = status update + soft delete as one business graph.
-	// Q7: soft-delete after status=cancelled so FindByID (deleted_at IS NULL) can still return
-	// the cancelled row from the update path before Delete; both must share one transaction.
-	if isCancel {
-		if s.tx == nil {
-			return nil, apperrors.WrapInternalServerError("reservation transaction dependency is required")
-		}
-		var updated *model.Reservation
-		if err := s.tx.WithTx(ctx, func(txCtx context.Context) error {
-			u, err := s.applyReservationUpdate(txCtx, clinicID, id, fields, input, needsConflictCheck, needsLinkValidation)
-			if err != nil {
-				return err
-			}
-			if err := s.repo.Delete(txCtx, clinicID, id); err != nil {
-				slog.ErrorContext(txCtx, "failed to soft-delete cancelled reservation", "error", err)
-				return apperrors.Wrap(err, "failed to soft-delete cancelled reservation")
-			}
-			updated = u
-			return nil
-		}); err != nil {
-			slog.ErrorContext(ctx, "failed to cancel reservation", "error", err)
-			return nil, apperrors.Wrap(err, "failed to cancel reservation")
-		}
-		slog.InfoContext(ctx, "reservation updated",
-			slog.Uint64("reservation_id", id),
-			slog.Uint64("clinic_id", clinicID))
-		return updated, nil
-	}
-
-	updated, err := s.applyReservationUpdate(ctx, clinicID, id, fields, input, needsConflictCheck, needsLinkValidation)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to update reservation", "error", err)
-		return nil, apperrors.Wrap(err, "failed to update reservation")
-	}
-
-	slog.InfoContext(ctx, "reservation updated",
-		slog.Uint64("reservation_id", id),
-		slog.Uint64("clinic_id", clinicID))
-	return updated, nil
-}
-
-// applyReservationUpdate applies field updates with the existing conflict/link branching.
-// Caller supplies ambient transaction when atomic multi-write is required (e.g. cancel).
-func (s *reservationService) applyReservationUpdate(
-	ctx context.Context,
-	clinicID, id uint64,
-	fields map[string]any,
-	input *UpdateReservationInput,
-	needsConflictCheck, needsLinkValidation bool,
-) (*model.Reservation, error) {
-	switch {
-	case needsConflictCheck:
-		// 時刻・医師変更あり: SELECT FOR UPDATE + トランザクションで競合を防止（リンク検証も tx 内）
-		return s.updateWithConflictCheck(ctx, clinicID, id, fields, input)
-	case needsLinkValidation:
-		// Owner/Pet 変更: 検証と書込みを同一 tx に置く（AUD-001）。
-		if s.tx == nil {
-			return nil, apperrors.WrapInternalServerError("reservation transaction dependency is required")
-		}
-		var result *model.Reservation
-		if err := s.tx.WithTx(ctx, func(ctx context.Context) error {
-			locked, err := s.repo.LockAndFindByID(ctx, clinicID, id)
-			if err != nil {
-				return err
-			}
-			finalOwnerID, finalPetID := resolveFinalOwnerPet(locked, input)
-			if err := ValidateReservationOwnerPetLinksWithRepo(ctx, s.repo, clinicID, finalOwnerID, finalPetID); err != nil {
-				return err
-			}
-			// #261 P0: pet 付け替え/新規紐付け時のみ死亡拒否（既存関連のままの更新は許可）。
-			if input.PetID != nil && *input.PetID != 0 {
-				if err := ValidateReservationPetNotDeceased(ctx, s.repo, clinicID, input.PetID); err != nil {
-					return err
-				}
-			}
-			u, err := s.repo.update(ctx, clinicID, id, fields)
-			if err != nil {
-				return err
-			}
-			result = u
-			return nil
-		}); err != nil {
-			return nil, err
-		}
-		return result, nil
-	default:
-		return s.repo.update(ctx, clinicID, id, fields)
-	}
-}
-func (s *reservationService) UpdateReservationRoute(ctx context.Context, clinicID, id uint64, input UpdateReservationRouteInput) (*model.Reservation, error) {
-	if input.Route != "" {
-		if _, ok := AllowedReservationRoutes[input.Route]; !ok {
+	if input.ReservationRoute != nil {
+		if _, ok := AllowedReservationRoutes[*input.ReservationRoute]; !ok {
 			return nil, apperrors.WrapInvalidInput(AllowedReservationRoutesMessage)
 		}
 	}
-	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		return nil, apperrors.Wrap(err, "failed to find reservation")
+	if err := validateTimeRange(input.StartTime, input.EndTime); err != nil {
+		return nil, err
 	}
-	var routeValue any
-	if input.Route == "" {
-		routeValue = nil
-	} else {
-		routeValue = input.Route
+	if s.tx == nil {
+		return nil, apperrors.WrapInternalServerError("reservation transaction dependency is required")
 	}
-	reservation, err := s.repo.update(ctx, clinicID, id, map[string]any{colReservationRoute: routeValue})
+	if s.typeRepo != nil {
+		if _, err := s.typeRepo.FindByID(ctx, input.ClinicID, input.ReservationTypeID); err != nil {
+			return nil, apperrors.Wrap(err, "failed to verify reservation type ownership")
+		}
+	}
+	enforceBookingConstraints := ShouldEnforceReservationBookingConstraints(input.Status, input.ReservationRoute)
+	if enforceBookingConstraints {
+		if err := ValidateReservationTypeAvailableTime(ctx, s.unavailableTimeRepo, input.ClinicID, input.ReservationTypeID, input.StartTime, input.EndTime); err != nil {
+			return nil, err
+		}
+	}
+	created := make([]model.Reservation, 0, len(pets))
+	err := s.tx.WithTx(ctx, func(ctx context.Context) error {
+		if err := ValidateReservationStaffCapability(ctx, s.reservationStaffRepo, input.ClinicID, input.DoctorID, input.ReservationTypeID); err != nil {
+			return err
+		}
+		if enforceBookingConstraints {
+			if err := s.repo.AcquireBookingLock(ctx, input.ClinicID); err != nil {
+				return err
+			}
+			if err := s.validateCreateClosedDays(ctx, input.ClinicID, input.StartTime); err != nil {
+				return err
+			}
+			if err := s.validateCreateClinicHoliday(ctx, input.ClinicID, input.StartTime); err != nil {
+				return err
+			}
+			if err := CheckSlotConflict(ctx, s.repo, input.ClinicID, input.DoctorID, input.StartTime, input.EndTime, nil); err != nil {
+				return err
+			}
+			if err := CheckReservationTypeCapacityForCount(ctx, s.repo, s.typeRepo, input.ClinicID, input.ReservationTypeID, input.StartTime, len(pets)); err != nil {
+				return err
+			}
+		}
+		seen := make(map[uint64]struct{}, len(pets))
+		for _, pet := range pets {
+			if pet.OwnerID == 0 || pet.PetID == 0 {
+				return apperrors.WrapInvalidInput("owner_id and pet_id are required for a reservation batch")
+			}
+			if _, duplicate := seen[pet.PetID]; duplicate {
+				return apperrors.WrapInvalidInput("each pet may appear only once in a reservation batch")
+			}
+			seen[pet.PetID] = struct{}{}
+			ownerID, petID := pet.OwnerID, pet.PetID
+			if err := ValidateReservationOwnerPetLinksWithRepo(ctx, s.repo, input.ClinicID, &ownerID, &petID); err != nil {
+				return err
+			}
+			if err := ValidateReservationPetNotDeceased(ctx, s.repo, input.ClinicID, &petID); err != nil {
+				return err
+			}
+			reservation := model.Reservation{ClinicID: input.ClinicID, StartTime: input.StartTime, EndTime: input.EndTime, OwnerID: &ownerID, PetID: &petID, VisitType: input.VisitType, ReservationTypeID: input.ReservationTypeID, DoctorID: input.DoctorID, IsDesignated: input.IsDesignated, Status: input.Status, Notes: input.Notes, Source: input.Source, CreatedBy: input.CreatedBy, ReservationRoute: input.ReservationRoute}
+			if err := s.repo.Create(ctx, &reservation); err != nil {
+				return err
+			}
+			created = append(created, reservation)
+		}
+		return nil
+	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to update reservation_route", "error", err, "id", id, "clinic_id", clinicID)
-		return nil, apperrors.Wrap(err, "failed to update reservation_route")
+		return nil, apperrors.Wrap(err, "failed to create reservation batch")
 	}
-	slog.InfoContext(ctx, "reservation_route updated",
-		slog.Uint64("reservation_id", id),
-		slog.Uint64("clinic_id", clinicID),
-		slog.String("route", input.Route))
-	return reservation, nil
-}
-
-func (s *reservationService) Delete(ctx context.Context, clinicID, id uint64) error {
-	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		return apperrors.Wrap(err, "failed to find reservation")
-	}
-	count, err := s.repo.CountMedicalRecordsByReservationID(ctx, clinicID, id)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to check reservation dependencies", "error", err, "id", id, "clinic_id", clinicID)
-		return apperrors.Wrap(err, "failed to check reservation dependencies")
-	}
-	if count > 0 {
-		return apperrors.WrapConflict("この予約にはカルテが紐付いているため削除できません")
-	}
-	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to delete reservation", "error", err, "id", id, "clinic_id", clinicID)
-		return apperrors.Wrap(err, "failed to delete reservation")
-	}
-	slog.InfoContext(ctx, "reservation deleted",
-		slog.Uint64("reservation_id", id),
-		slog.Uint64("clinic_id", clinicID))
-	return nil
+	return created, nil
 }

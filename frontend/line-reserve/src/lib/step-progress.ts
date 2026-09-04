@@ -3,37 +3,37 @@
 // 各ページはこの並びの中の自分の位置だけを指定すればよいようにする。
 
 export type FlowStepKey =
-  | 'customerInfo'
-  | 'courseSelect'
-  | 'trimmingCourseSelect'
-  | 'trimmingOptionSelect'
-  | 'staffSelect'
-  | 'dateSelect'
-  | 'timeSelect'
-  | 'request'
-  | 'confirm';
+  | "customerInfo"
+  | "courseSelect"
+  | "trimmingCourseSelect"
+  | "trimmingOptionSelect"
+  | "staffSelect"
+  | "dateSelect"
+  | "timeSelect"
+  | "request"
+  | "confirm";
 
 // 完了ページ（CompletePage）は ProgressDots を表示しないが、進捗の母数には含める。
 const GENERAL_FLOW_STEPS: FlowStepKey[] = [
-  'customerInfo',
-  'courseSelect',
-  'staffSelect',
-  'dateSelect',
-  'timeSelect',
-  'request',
-  'confirm',
+  "customerInfo",
+  "courseSelect",
+  "staffSelect",
+  "dateSelect",
+  "timeSelect",
+  "request",
+  "confirm",
 ];
 
 const TRIMMING_FLOW_STEPS: FlowStepKey[] = [
-  'customerInfo',
-  'courseSelect',
-  'trimmingCourseSelect',
-  'trimmingOptionSelect',
-  'staffSelect',
-  'dateSelect',
-  'timeSelect',
-  'request',
-  'confirm',
+  "customerInfo",
+  "courseSelect",
+  "trimmingCourseSelect",
+  "trimmingOptionSelect",
+  "staffSelect",
+  "dateSelect",
+  "timeSelect",
+  "request",
+  "confirm",
 ];
 
 const COMPLETE_STEP_COUNT = 1;

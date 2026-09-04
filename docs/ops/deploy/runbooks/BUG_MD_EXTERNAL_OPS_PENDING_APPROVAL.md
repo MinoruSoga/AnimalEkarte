@@ -6,7 +6,7 @@
 >
 > **AWS 退役境界**: AWS ECS/RDS は 2026-07-20 に廃止済みで、切り戻し先や
 > ホットスタンバイではない。旧 workflow・Terraform・SSM・ECS CLI 手順は実行しない。
-> 当時の証跡は [`../../infra/_archive/aws-legacy/`](../../infra/_archive/aws-legacy/) の凍結履歴だけを参照する。
+> 当時の証跡は git 履歴だけを参照する（2026-08-20 削除。`git show e0260d32f^:docs/ops/infra/_archive/aws-legacy/` 配下）。
 
 ---
 
@@ -23,6 +23,8 @@
 
 ## 1. 露出クレデンシャルのローテーション（SEC-SECRETS-5 / #89/#97）
 
+> **Target binding gate:** 実行前にenvironment、exact config path、Worker名、change IDを記録する。`backend/`から STG は `npx wrangler secret put <NAME> -c wrangler.jsonc`、PROD は `npx wrangler secret put <NAME> -c wrangler.production.jsonc` を使う。config省略は禁止。names-only確認でtarget不一致なら停止する。
+
 > 🚨 **ユーザー所有・credential-impacting**。エージェントは実行しない。
 > PUBLIC リポジトリ履歴および過去の seed/Issue 露出に対する正攻法は **ローテーション**（filter-repo 禁止）。
 
@@ -30,10 +32,10 @@
 
 | # | 系統 | 手順（概要） | 投入先 |
 |---|------|--------------|--------|
-| 1 | PlanetScale DB | `pscale role reset-default`（またはコンソールでパスワード再発行） | `wrangler secret put DB_PASSWORD`（および接続 URL 系） |
-| 2 | Cloudflare API / Worker secrets | トークン再発行 + `wrangler secret put` で必須キー再投入 | Cloudflare Secrets + GitHub `CLOUDFLARE_API_TOKEN` |
-| 3 | LINE channel secret / access token | LINE Developers Console で再発行 | アプリ UI（Lステップ設定 / LINE 予約設定）から保存（DB 暗号化）。seed には実値を戻さない |
-| 4 | JWT / INTEGRATION_ENCRYPTION_KEY 等 | 新規乱数生成 | `wrangler secret put`（`backend/wrangler.jsonc` の `secrets.required`） |
+| 1 | PlanetScale DB | `pscale role reset-default`（またはコンソールでパスワード再発行） | `DB_HOST`、`DB_USER`、`DB_PASSWORD`それぞれについて、target config明示の`npx wrangler secret put <NAME> -c <exact-config>`を1回ずつ実行（`DB_PORT` / `DB_NAME` / TLS は target Wrangler の非secret vars） |
+| 2 | Cloudflare API / Worker secrets | トークン再発行 + target config明示の `npx wrangler secret put <NAME> -c <exact-config>` | Cloudflare Secrets + GitHub `CLOUDFLARE_API_TOKEN` |
+| 3 | LINE channel secret / access token | LINE Developers Console で再発行 | アプリUI `/settings/integrations/lstep` から保存（LINE予約設定はsecret/tokenを扱わない）（DB 暗号化）。seed には実値を戻さない |
+| 4 | JWT / INTEGRATION_ENCRYPTION_KEY 等 | 新規乱数生成 | target config明示の `npx wrangler secret put <NAME> -c <exact-config>`（target Wranglerの`secrets.required`） |
 
 検証（ローテーション後・ユーザー実施）:
 
@@ -43,7 +45,19 @@ curl -sS -o /dev/null -w '%{http_code}\n' https://api.stg.noah-karte.com/health
 # 旧値でのアクセスが拒否されること（各コンソール / wrangler の確認 UI）
 ```
 
-ローテーション完了後のみ: Issue #97 本文の実値マスク（`gh issue edit` — ユーザー実施）。
+### 1.1 不足チェック（#89/#97 / BRT-37 · 2026-08-20）
+
+**実ローテ・値の記載・git filter-repo は禁止。** 証跡は非機密 1 行のみ。
+
+| 系統 | 手順の所在 | 実行 | 非機密 receipt |
+|---|---|---|---|
+| 1 PlanetScale DB | 上表 + [staging/runbook.md](../../infra/staging/runbook.md) | USER | **未記入** |
+| 2 Cloudflare API / Worker | 上表 + `wrangler secret put` | USER | **未記入** |
+| 3 LINE channel | 上表。値は UI から。seed に戻さない | USER | **未記入** |
+| 4 JWT / INTEGRATION_ENCRYPTION_KEY | 上表。新規乱数。値は書かない | USER | **未記入** |
+| #97 本文マスク | ローテ完了後のみ `gh issue edit` | USER | **未記入** |
+
+順: 新発行 → secret 投入 → 再デプロイ → `/health` → 旧 revoke → 旧値拒否確認。完了まで #89/#97 は close しない。
 
 GitHub Secrets（`CLOUDFLARE_API_TOKEN`, `MIGRATE_RUN_SECRET`, `STG_DEMO_EMAIL`, `STG_DEMO_PASSWORD`）
 の登録手順は [`infra/cloudflare/README.md`](../../../../infra/cloudflare/README.md) の「CI デプロイ」を正とする。

@@ -5,8 +5,8 @@ import (
 )
 
 type createReservationTypeRequest struct {
-	Name        string  `json:"name"        binding:"required"`
-	Color       string  `json:"color"`
+	Name  string `json:"name"        binding:"required"`
+	Color string `json:"color"`
 	// IsActive is *bool so JSON binding can distinguish omitted / false / true.
 	// Omitted (nil) resolves to true in toServiceInput.
 	IsActive    *bool   `json:"is_active"`

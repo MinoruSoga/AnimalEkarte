@@ -1,7 +1,7 @@
 package billing
 
 type createInsuranceRequest struct {
-	Name         string `json:"name"          binding:"required"`
+	Name         string `json:"name"          binding:"required,max=255"`
 	IsActive     bool   `json:"is_active"`
 	Description  string `json:"description"`
 	CoverageRate *int   `json:"coverage_rate" binding:"omitempty,min=0,max=100"`
@@ -21,7 +21,7 @@ func (r createInsuranceRequest) toServiceInput() *CreateInsuranceInput {
 }
 
 type updateInsuranceRequest struct {
-	Name         *string `json:"name"`
+	Name         *string `json:"name" binding:"omitempty,max=255"`
 	IsActive     *bool   `json:"is_active"`
 	Description  *string `json:"description"`
 	CoverageRate *int    `json:"coverage_rate" binding:"omitempty,min=0,max=100"`

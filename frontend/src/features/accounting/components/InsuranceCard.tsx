@@ -3,7 +3,13 @@ import { CreditCard } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { C, ICON } from "@/lib/design-tokens";
 
@@ -56,7 +62,9 @@ export const InsuranceCard = memo(function InsuranceCard({
               <SelectContent>{INSURANCE_RATIO_ITEMS}</SelectContent>
             </Select>
           </div>
-          <div className={`flex justify-between items-center text-sm font-medium ${C.textStatusGreen} ${C.bgStatusGreen} p-2 rounded`}>
+          <div
+            className={`flex justify-between items-center text-sm font-medium ${C.textStatusGreen} ${C.bgStatusGreen} p-2 rounded`}
+          >
             <span>保険負担額（マイナス）</span>
             <span>{insuranceAmount.toLocaleString()} 円</span>
           </div>

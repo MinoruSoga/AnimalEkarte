@@ -42,4 +42,3 @@ export function calcLineItemAmount(item: LineItemBase): {
     total: subtotal - discount,
   };
 }
-

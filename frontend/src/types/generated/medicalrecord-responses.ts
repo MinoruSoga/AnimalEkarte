@@ -31,6 +31,7 @@ export interface MedicalRecordResponse {
   pet?: PetSummaryResponse;
   doctor?: StaffSummaryResponse;
   inquiry?: InquirySummaryResponse;
+  visit_type?: string;
 }
 /**
  * InquirySummaryResponse is the inquiry embed on medical-record list/detail wire.
@@ -41,37 +42,35 @@ export interface InquirySummaryResponse {
   id: number /* uint64 */;
   chief_complaint: string;
   notes: string;
+  chief_complaint_type_id?: number /* uint64 */;
 }
 
 //////////
 // source: nested_summary_response.go
 
 /**
- * StaffSummaryResponse mirrors internal/handler.StaffSummaryResponse (staff_response.go).
+ * StaffSummaryResponse is the nested staff JSON for medicalrecord responses.
  */
 export interface StaffSummaryResponse {
   id: number /* uint64 */;
   name: string;
 }
 /**
- * OwnerSummaryResponse mirrors internal/handler.OwnerSummaryResponse (owner_response.go).
+ * OwnerSummaryResponse is the nested owner JSON for medicalrecord responses.
  */
 export interface OwnerSummaryResponse {
   id: number /* uint64 */;
   name: string;
 }
 /**
- * AnimalSpeciesSummaryResponse mirrors internal/handler.AnimalSpeciesSummaryResponse
- * (pet_response.go).
+ * AnimalSpeciesSummaryResponse is the nested species JSON for medicalrecord responses.
  */
 export interface AnimalSpeciesSummaryResponse {
   id: number /* uint64 */;
   name: string;
 }
 /**
- * PetSummaryResponse mirrors internal/handler.PetSummaryResponse (pet_response.go). Only the
- * fields the vaccination list response actually serializes are populated by toPetSummary,
- * identical to the original.
+ * PetSummaryResponse is the nested pet JSON for vaccination/checkup lists.
  */
 export interface PetSummaryResponse {
   id: number /* uint64 */;
@@ -80,6 +79,9 @@ export interface PetSummaryResponse {
   weight?: number /* float64 */;
   status?: string;
   breed?: string;
+  gender?: string;
+  birth_date?: string;
+  neutered_date?: string;
   animal_species?: AnimalSpeciesSummaryResponse;
   owner?: OwnerSummaryResponse;
 }

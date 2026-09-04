@@ -8,10 +8,7 @@ import { Button } from "@/components/ui/button";
 import { C, ICON, STYLE, LAYOUT } from "@/lib/design-tokens";
 import { queryKeys } from "@/lib/query-keys";
 import { useAuth } from "@/hooks/use-auth";
-import {
-  ResourceLstepAnalytics,
-  ResourceOwners,
-} from "@/types/generated/models";
+import { ResourceLstepAnalytics, ResourceOwners } from "@/types/generated/models";
 import { useGetLstepTagSummary } from "../api/get-lstep-tag-summary";
 import { TagSummaryTable } from "../components/TagSummaryTable";
 import { TagOwnerListDrawer } from "../components/TagOwnerListDrawer";
@@ -53,10 +50,6 @@ export function LstepTagManagementPage() {
     setDrawerState({ open: true, tagName, ownerCount });
   }, []);
 
-  const handleBulkRemove = useCallback((tagName: string, ownerCount: number) => {
-    setDrawerState({ open: true, tagName, ownerCount });
-  }, []);
-
   const handleDrawerOpenChange = useCallback((open: boolean) => {
     setDrawerState((prev) => ({ ...prev, open }));
   }, []);
@@ -71,9 +64,7 @@ export function LstepTagManagementPage() {
       headerAction={
         <div className="flex items-center gap-3">
           {relativeTime !== null ? (
-            <span className={`text-sm ${C.text50}`}>
-              最終更新: {relativeTime}
-            </span>
+            <span className={`text-sm ${C.text50}`}>最終更新: {relativeTime}</span>
           ) : null}
           <Button
             variant="outline"
@@ -98,13 +89,7 @@ export function LstepTagManagementPage() {
             }
           />
         ) : (
-          <TagSummaryTable
-            tags={tags}
-            isLoading={isLoading}
-            onViewOwners={handleViewOwners}
-            onBulkRemove={handleBulkRemove}
-            canDelete={canDeleteOwnerTags}
-          />
+          <TagSummaryTable tags={tags} isLoading={isLoading} onViewOwners={handleViewOwners} />
         )}
       </div>
 

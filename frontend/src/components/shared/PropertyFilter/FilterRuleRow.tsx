@@ -14,10 +14,7 @@ import type {
 
 // ─── Condition label helpers ──────────────────────────────
 
-function getConditionLabel(
-  condition: FilterCondition,
-  filterType: string,
-): string {
+function getConditionLabel(condition: FilterCondition, filterType: string): string {
   const conditions = FILTER_CONDITIONS[filterType as keyof typeof FILTER_CONDITIONS];
   return conditions?.find((c) => c.value === condition)?.label ?? condition;
 }
@@ -110,8 +107,7 @@ export const FilterRuleRow = memo(function FilterRuleRow({
   // ── Logic label ──
 
   const logicLabel = logic === "and" ? "AND" : "OR";
-  const isEmptyCondition =
-    filter.condition === "is_empty" || filter.condition === "is_not_empty";
+  const isEmptyCondition = filter.condition === "is_empty" || filter.condition === "is_not_empty";
 
   return (
     <div className="flex items-center gap-1.5 py-0.5 group">
@@ -124,9 +120,7 @@ export const FilterRuleRow = memo(function FilterRuleRow({
                 type="button"
                 onClick={() => onLogicChange("and")}
                 className={`w-full text-left px-2 py-1 text-base rounded-xxs transition-colors ${
-                  logic === "and"
-                    ? `${C.bgBrand5} ${C.textBrand}`
-                    : `${C.text} ${C.hoverBgMedium}`
+                  logic === "and" ? `${C.bgBrand5} ${C.textBrand}` : `${C.text} ${C.hoverBgMedium}`
                 }`}
               >
                 AND
@@ -135,9 +129,7 @@ export const FilterRuleRow = memo(function FilterRuleRow({
                 type="button"
                 onClick={() => onLogicChange("or")}
                 className={`w-full text-left px-2 py-1 text-base rounded-xxs transition-colors ${
-                  logic === "or"
-                    ? `${C.bgBrand5} ${C.textBrand}`
-                    : `${C.text} ${C.hoverBgMedium}`
+                  logic === "or" ? `${C.bgBrand5} ${C.textBrand}` : `${C.text} ${C.hoverBgMedium}`
                 }`}
               >
                 OR
@@ -178,21 +170,11 @@ export const FilterRuleRow = memo(function FilterRuleRow({
 
       {/* Value column */}
       {isEmptyCondition ? null : isDateRange ? (
-        <InlineSelector
-          label={filter.displayValue || "期間を選択"}
-          popoverWidth="w-auto"
-          noPadding
-        >
-          <DateValueEditor
-            currentValue={currentDateValue}
-            onApply={handleDateValueApply}
-          />
+        <InlineSelector label={filter.displayValue || "期間を選択"} popoverWidth="w-auto" noPadding>
+          <DateValueEditor currentValue={currentDateValue} onApply={handleDateValueApply} />
         </InlineSelector>
       ) : (
-        <InlineSelector
-          label={filter.displayValue || "値を選択"}
-          popoverWidth="w-[180px]"
-        >
+        <InlineSelector label={filter.displayValue || "値を選択"} popoverWidth="w-[180px]">
           {(property?.options ?? []).map((opt) => (
             <button
               key={opt.value}
@@ -214,7 +196,7 @@ export const FilterRuleRow = memo(function FilterRuleRow({
       <button
         type="button"
         onClick={onRemove}
-        className={`ml-auto p-0.5 rounded-xxs ${C.text30} hover:${C.text60} ${C.hoverBgMedium} opacity-0 group-hover:opacity-100 transition-opacity`}
+        className={`ml-auto p-0.5 rounded-xxs ${C.text30} ${C.hoverText60} ${C.hoverBgMedium} opacity-0 group-hover:opacity-100 transition-opacity`}
         aria-label={`${property?.label ?? filter.key} フィルタを削除`}
       >
         <X className={ICON.page} />

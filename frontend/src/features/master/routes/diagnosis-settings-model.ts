@@ -1,7 +1,7 @@
 import type {
   DiagnosisNameFormData,
   DiagnosisTypeFormData,
-} from "../components/diagnosis-side-panel-model";
+} from "../lib/diagnosis-side-panel-model";
 import type {
   CreateDiagnosisNameRequest,
   CreateDiagnosisTypeRequest,
@@ -16,14 +16,10 @@ export const DIAGNOSIS_TABS = [
 
 export type DiagnosisTabValue = (typeof DIAGNOSIS_TABS)[number]["value"];
 
-const DIAGNOSIS_TAB_VALUES = new Set<string>(
-  DIAGNOSIS_TABS.map((tab) => tab.value),
-);
+const DIAGNOSIS_TAB_VALUES = new Set<string>(DIAGNOSIS_TABS.map((tab) => tab.value));
 
 export function toDiagnosisTabValue(value: string | null): DiagnosisTabValue {
-  return DIAGNOSIS_TAB_VALUES.has(value ?? "")
-    ? (value as DiagnosisTabValue)
-    : "diagnosis_type";
+  return DIAGNOSIS_TAB_VALUES.has(value ?? "") ? (value as DiagnosisTabValue) : "diagnosis_type";
 }
 
 export function buildDiagnosisTypeCreateRequest(

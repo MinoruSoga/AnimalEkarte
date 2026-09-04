@@ -12,7 +12,18 @@ services:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME}
-    command: ["postgres", "-c", "timezone=Asia/Tokyo"]
+    # max_locks_per_transaction: large old_db CSV apply (single Serializable tx,
+    # multi-million rows / many indexes) otherwise fails with "out of shared memory".
+    command:
+      [
+        "postgres",
+        "-c",
+        "timezone=Asia/Tokyo",
+        "-c",
+        "max_locks_per_transaction=512",
+        "-c",
+        "shared_buffers=256MB",
+      ]
     ports:
       - "5434:5432"
     volumes:
@@ -41,7 +52,15 @@ services:
       - "8080:8080"
     volumes:
       - ./backend:/app
+      - ./Makefile:/Makefile:ro
       - ./docs:/docs:ro
+      # lintscan DEMO_ACCOUNTS vs 003_demo gate reads LoginForm.tsx at /frontend
+      # (backend is mounted at /app, so moduleRoot/../frontend resolves to /frontend).
+      - ./frontend:/frontend:ro
+      # lintscan handoff-delete-closure gate reads the reset cleanup SQL at /scripts
+      # (same moduleRoot/../scripts trick). CI runs `go test` from a full checkout,
+      # where ../scripts already resolves; this mount keeps the gate runnable locally.
+      - ./scripts:/scripts:ro
       - go_mod_cache:/go/pkg/mod
       - go_build_cache:/root/.cache/go-build
     env_file:
@@ -115,6 +134,67 @@ services:
     # /output/*.ts はコンテナ内パスなので、frontend bind mount 上の generated/ へ sed で書き換える。
     # 新パッケージを tygo.yaml に足したら、ここにも同じ置換を1行追加すること（忘れると生成物が host に出ない）。
     command: /bin/sh -c "cd /app && sed -e 's|/output/models.ts|/frontend/src/types/generated/models.ts|' -e 's|/output/auth-responses.ts|/frontend/src/types/generated/auth-responses.ts|' -e 's|/output/trimming-responses.ts|/frontend/src/types/generated/trimming-responses.ts|' -e 's|/output/pet-responses.ts|/frontend/src/types/generated/pet-responses.ts|' -e 's|/output/owner-responses.ts|/frontend/src/types/generated/owner-responses.ts|' -e 's|/output/medicalrecord-responses.ts|/frontend/src/types/generated/medicalrecord-responses.ts|' -e 's|/output/hospitalization-responses.ts|/frontend/src/types/generated/hospitalization-responses.ts|' -e 's|/output/identitylink-responses.ts|/frontend/src/types/generated/identitylink-responses.ts|' tygo.yaml > /tmp/tygo-ci.yaml && go run github.com/gzuidhof/tygo@v0.2.21 generate --config /tmp/tygo-ci.yaml"
+
+  # profile `docs` — `make docs-ui`. `make up` では起動しない。
+  swagger-ui:
+    profiles: [docs]
+    image: swaggerapi/swagger-ui:v5.32.8
+    ports:
+      - "8081:8080"
+    environment:
+      SWAGGER_JSON: /docs/api.yaml
+      SWAGGER_JSON_URL: http://localhost:8080/api/swagger.json
+      BASE_URL: /swagger
+      URLS: |
+        [
+          {
+            "url": "file:///docs/api.yaml",
+            "name": "OpenAPI 3.0"
+          }
+        ]
+    volumes:
+      - ./backend/docs:/docs:ro
+
+  redoc:
+    profiles: [docs]
+    image: redocly/redoc:v2.5.3
+    ports:
+      - "8082:80"
+    environment:
+      SPEC_URL: /docs/api.yaml
+    volumes:
+      - ./backend/docs:/usr/share/nginx/html/docs:ro
+
+  # profile `csv-import` — `make csv-import-*`. old_db には繋がず、本番投入は別承認。
+  csv-import:
+    profiles: [csv-import]
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    networks:
+      - ekarte-network
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app:ro
+      - go_mod_cache:/go/pkg/mod
+      - go_build_cache:/root/.cache/go-build
+      - ${CSV_IMPORT_SOURCE_DIR:-./sensitive-local/csv-import-reports}:/migration-input:ro
+      - ./sensitive-local/csv-import-reports:/migration-reports
+    environment:
+      TZ: Asia/Tokyo
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      DB_SSL_MODE: ${DB_SSL_MODE:-disable}
+      # Local reset rehearsal import only (must stay empty for formal cutover).
+      APP_ENV: ${APP_ENV:-development}
+      CSV_IMPORT_ALLOW_LOCAL_REHEARSAL: ${CSV_IMPORT_ALLOW_LOCAL_REHEARSAL:-}
+    entrypoint: ["go", "run", "./cmd/csv-import"]
+    restart: "no"
 
 volumes:
   postgres_data:

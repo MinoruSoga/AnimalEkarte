@@ -22,6 +22,7 @@ import type {
   Consultation,
   Procedure,
   Medicine as MedicineModel,
+  HospitalizationPlan as HospitalizationPlanModel,
 } from "@/types/generated/models";
 
 export type { VaccineItem, CheckupTypeItem, ConsultationItem, ProcedureItem };
@@ -91,6 +92,31 @@ export function useGetAllMedicinesMaster() {
     queryFn: async (): Promise<Medicine[]> => {
       const { data } = await axios.get<MedicineModel[]>("/v1/masters/medicines");
       return data.map(transformBackendMedicineToFrontend);
+    },
+    staleTime: QUERY_STALE_TIMES.STATIC,
+    gcTime: QUERY_GC_TIMES.LONG,
+  });
+}
+
+export interface HospitalizationPlanRefItem {
+  id: string;
+  name: string;
+}
+
+/**
+ * FE-RC-015: hospitalization/CarePlanRefSelect が features/master を直接 import
+ * していた feature-to-feature import を解消するための読み取り専用参照。
+ * queryKey は features/master/api/hospitalization-plans.ts の
+ * useGetAllHospitalizationPlans と同一にしてキャッシュを共有する。
+ */
+export function useGetAllHospitalizationPlansMaster() {
+  return useQuery({
+    queryKey: queryKeys.masters.category("hospitalization-plans"),
+    queryFn: async (): Promise<HospitalizationPlanRefItem[]> => {
+      const { data } = await axios.get<HospitalizationPlanModel[]>(
+        "/v1/masters/hospitalization-plans",
+      );
+      return data.map((item) => ({ id: String(item.id), name: item.name }));
     },
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,

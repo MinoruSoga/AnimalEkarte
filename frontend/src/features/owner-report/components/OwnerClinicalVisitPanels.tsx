@@ -6,21 +6,14 @@ import type { Pet } from "@/types";
 import { RESERVATION_STATUS_LABELS } from "@/types";
 
 import type { OwnerClinicalBriefingData } from "../hooks/use-owner-clinical-briefing-data";
-import {
-  normalizeClinicalDate,
-  selectAppointmentBriefing,
-} from "../lib/clinical-briefing";
+import { normalizeClinicalDate, selectAppointmentBriefing } from "../lib/clinical-briefing";
 import {
   countLatestExaminationAbnormalResults,
   selectLatestOverdueVaccination,
   selectUpcomingVaccination,
 } from "../lib/report-summary";
 import { ClinicalBriefingPanel } from "./ClinicalBriefingPanel";
-import {
-  BriefingField,
-  DataStatus,
-  DetailField,
-} from "./ClinicalBriefingFields";
+import { BriefingField, DataStatus, DetailField } from "./ClinicalBriefingFields";
 
 interface DataPanelProps {
   data: OwnerClinicalBriefingData;
@@ -38,10 +31,7 @@ function latestExamination(data: OwnerClinicalBriefingData) {
 function latestMedicine(data: OwnerClinicalBriefingData) {
   const treatments = data.treatmentsQuery.data?.items ?? [];
   return [...treatments]
-    .filter(
-      (item) =>
-        item.itemType === "medicine" && normalizeClinicalDate(item.date),
-    )
+    .filter((item) => item.itemType === "medicine" && normalizeClinicalDate(item.date))
     .sort((left, right) => {
       const rightDate = normalizeClinicalDate(right.date) ?? "";
       const leftDate = normalizeClinicalDate(left.date) ?? "";
@@ -70,9 +60,7 @@ function PreVisitStatusFields({ data }: DataPanelProps) {
   const vaccination = vaccinationBriefing(data);
 
   return (
-    <div
-      className={`mt-1 grid min-w-0 grid-cols-2 gap-1 border-t pt-1 ${C.borderDivider}`}
-    >
+    <div className={`mt-1 grid min-w-0 grid-cols-2 gap-1 border-t pt-1 ${C.borderDivider}`}>
       <DataStatus
         noPermission={!data.permissions.examination.canView}
         isLoading={data.examinationsQuery.isLoading}
@@ -171,22 +159,10 @@ export function TodayVisitPanel({ data }: DataPanelProps) {
       >
         {appointment ? (
           <div className="grid grid-cols-3 gap-1">
-            <BriefingField
-              label="時刻"
-              value={formatJSTWallTime(appointment.start)}
-            />
-            <BriefingField
-              label="区分"
-              value={reservationVisitType(appointment)}
-            />
-            <BriefingField
-              label="状態"
-              value={reservationStatus(appointment)}
-            />
-            <BriefingField
-              label="予約内容"
-              value={appointment.type || "記録なし"}
-            />
+            <BriefingField label="時刻" value={formatJSTWallTime(appointment.start)} />
+            <BriefingField label="区分" value={reservationVisitType(appointment)} />
+            <BriefingField label="状態" value={reservationStatus(appointment)} />
+            <BriefingField label="予約内容" value={appointment.type || "記録なし"} />
             <BriefingField label="担当" value={appointment.doctor || "未定"} />
           </div>
         ) : undefined}
@@ -199,10 +175,7 @@ function nextReservationValue(data: OwnerClinicalBriefingData): string {
   if (!data.permissions.reservation.canView) return "閲覧権限なし";
   if (data.reservationsQuery.isLoading) return "読み込み中...";
   if (data.reservationsQuery.isError) return "取得失敗";
-  const appointment = selectAppointmentBriefing(
-    data.reservationsQuery.data ?? [],
-    data.today,
-  ).next;
+  const appointment = selectAppointmentBriefing(data.reservationsQuery.data ?? [], data.today).next;
   return appointment
     ? `${formatJSTWallDate(appointment.start)} ${formatJSTWallTime(appointment.start)}`
     : "予約なし";
@@ -211,8 +184,7 @@ function nextReservationValue(data: OwnerClinicalBriefingData): string {
 function recommendedVisitValue(data: OwnerClinicalBriefingData): string {
   if (data.medicalRecordsQuery.isLoading) return "読み込み中...";
   if (data.medicalRecordsQuery.isError) return "取得失敗";
-  const recommendedDate =
-    data.medicalRecordsQuery.data?.data[0]?.nextVisitRecommendedDate;
+  const recommendedDate = data.medicalRecordsQuery.data?.data[0]?.nextVisitRecommendedDate;
   return recommendedDate ? formatDate(recommendedDate) : "記録なし";
 }
 

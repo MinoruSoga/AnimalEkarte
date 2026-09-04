@@ -195,13 +195,6 @@ func ownerAggregationQueryDefault(values url.Values, key, fallback string) strin
 	return fallback
 }
 
-func optionalStringQueryFilter(value string) *string {
-	if value == "" {
-		return nil
-	}
-	return &value
-}
-
 // parseOwnerAggregationDate accepts empty or YYYY-MM-DD (G2A-05). Invalid → 400.
 func parseOwnerAggregationDate(value, field string) (*string, error) {
 	if value == "" {

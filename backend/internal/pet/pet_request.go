@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 )
 
 type nullableStringRequestField struct {
@@ -66,17 +67,13 @@ func parseOptionalBoolQueryFilter(value, field string, defaultVal bool) (bool, e
 }
 
 func parseOptionalUintQueryFilter(value, field string) (*uint64, error) {
-	if value == "" {
-		return nil, nil
-	}
-	id, err := strconv.ParseUint(value, 10, 64)
-	if err != nil {
-		return nil, apperrors.WrapInvalidInput("invalid " + field)
-	}
-	return &id, nil
+	return httpapi.ParseOptionalUint64Field(value, field)
 }
 
 func (q listPetQuery) toServiceFilters() (listPetFilters, error) {
+	if len(q.Search) > 255 {
+		return listPetFilters{}, apperrors.WrapInvalidInput("search must be at most 255 characters")
+	}
 	ownerID, err := parseOptionalUintQueryFilter(q.OwnerID, "owner_id")
 	if err != nil {
 		return listPetFilters{}, err
@@ -102,7 +99,7 @@ func (q listPetQuery) toServiceFilters() (listPetFilters, error) {
 type createPetRequest struct {
 	OwnerID         uint64    `json:"owner_id"          binding:"required"`
 	AnimalSpeciesID uint64    `json:"animal_species_id" binding:"required"`
-	Name            string    `json:"name"              binding:"required"`
+	Name            string    `json:"name"              binding:"required,max=255"`
 	NameKana        string    `json:"name_kana"        binding:"omitempty,max=100"`
 	Gender          string    `json:"gender"            binding:"omitempty,oneof=male female unknown"`
 	Status          string    `json:"status"            binding:"omitempty,oneof=alive deceased"`
@@ -154,8 +151,8 @@ func (r *createPetRequest) toServiceInput() *CreatePetInput {
 type updatePetRequest struct {
 	OwnerID         *uint64 `json:"owner_id"`
 	AnimalSpeciesID *uint64 `json:"animal_species_id"`
-	PetNumber       *string `json:"pet_number"` // 自動採番後も手動変更可
-	Name            *string `json:"name"`
+	PetNumber       *string `json:"pet_number" binding:"omitempty,max=50"` // 自動採番後も手動変更可
+	Name            *string `json:"name"              binding:"omitempty,max=255"`
 	NameKana        *string `json:"name_kana"        binding:"omitempty,max=100"`
 	Gender          *string `json:"gender"            binding:"omitempty,oneof=male female unknown"`
 	// Status は意図的に持たない(BUG-415)。status の書込は Create と /:id/death

@@ -1,16 +1,18 @@
 package medicalrecord
 
 import (
-	"github.com/animal-ekarte/backend/internal/httpapi"
 	"time"
+
+	"github.com/animal-ekarte/backend/internal/httpapi"
 
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // examTypeSummaryResponse は検査要約内で使用する検査種別の要約型
 type examTypeSummaryResponse struct {
-	ID   uint64 `json:"id"`
-	Name string `json:"name"`
+	ID    uint64 `json:"id"`
+	Name  string `json:"name"`
+	Price *int64 `json:"price,omitempty"`
 }
 
 type examinationResponse struct {
@@ -54,8 +56,9 @@ func toExaminationResponse(exam *model.Examination) examinationResponse {
 	}
 	if exam.ExaminationType != nil {
 		resp.ExamType = &examTypeSummaryResponse{
-			ID:   exam.ExaminationType.ID,
-			Name: exam.ExaminationType.Name,
+			ID:    exam.ExaminationType.ID,
+			Name:  exam.ExaminationType.Name,
+			Price: exam.ExaminationType.Price,
 		}
 	}
 	return resp

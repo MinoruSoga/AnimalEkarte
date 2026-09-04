@@ -217,3 +217,78 @@ func TestRepository_LinkedTreatmentHistory_PairScope(t *testing.T) {
 func errorsIsForbidden(err error) bool {
 	return errors.Is(err, apperrors.ErrForbidden)
 }
+
+func TestRepository_SearchOwners_IdeographicSpaceFourWay(t *testing.T) {
+	db := setupIdentityLinkTestDB(t)
+	repo := NewRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	tests := []struct {
+		name       string
+		storedName string
+		query      string
+	}{
+		{name: "DB fullwidth × query fullwidth", storedName: "全角全角姓　全角全角名", query: "全角全角姓　全角全角名"},
+		{name: "DB fullwidth × query halfwidth", storedName: "全角半角姓　全角半角名", query: "全角半角姓 全角半角名"},
+		{name: "DB halfwidth × query fullwidth", storedName: "半角全角姓 半角全角名", query: "半角全角姓　半角全角名"},
+		{name: "DB halfwidth × query halfwidth", storedName: "半角半角姓 半角半角名", query: "半角半角姓 半角半角名"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			owner := seedClinicOwner(t, db, clinicA, tt.storedName)
+			foreign := seedClinicOwner(t, db, clinicB, tt.storedName)
+
+			got, err := repo.SearchOwners(ctx, []uint64{clinicA}, tt.query, 20)
+			require.NoError(t, err)
+			require.Len(t, got, 1)
+			assert.Equal(t, owner.ID, got[0].ID)
+			assert.Equal(t, clinicA, got[0].ClinicID)
+			assert.NotEqual(t, foreign.ID, got[0].ID)
+		})
+	}
+
+	t.Run("empty and ideographic-space-only queries return no rows", func(t *testing.T) {
+		_ = seedClinicOwner(t, db, clinicA, "空白のみ除外姓 空白のみ除外名")
+		for _, query := range []string{"", "　　", "   "} {
+			got, err := repo.SearchOwners(ctx, []uint64{clinicA}, query, 20)
+			require.NoError(t, err, "query=%q", query)
+			assert.Empty(t, got, "query=%q", query)
+		}
+	})
+}
+
+func TestRepository_SearchPets_IdeographicSpaceFourWay(t *testing.T) {
+	db := setupIdentityLinkTestDB(t)
+	repo := NewRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	tests := []struct {
+		name       string
+		storedName string
+		query      string
+	}{
+		{name: "DB fullwidth × query fullwidth", storedName: "全角全角ペット　甲", query: "全角全角ペット　甲"},
+		{name: "DB fullwidth × query halfwidth", storedName: "全角半角ペット　乙", query: "全角半角ペット 乙"},
+		{name: "DB halfwidth × query fullwidth", storedName: "半角全角ペット 丙", query: "半角全角ペット　丙"},
+		{name: "DB halfwidth × query halfwidth", storedName: "半角半角ペット 丁", query: "半角半角ペット 丁"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ownerA := seedClinicOwner(t, db, clinicA, "pet-space-owner-a-"+tt.name)
+			ownerB := seedClinicOwner(t, db, clinicB, "pet-space-owner-b-"+tt.name)
+			pet := seedPet(t, db, clinicA, ownerA.ID, tt.storedName)
+			foreign := seedPet(t, db, clinicB, ownerB.ID, tt.storedName)
+
+			got, err := repo.SearchPets(ctx, []uint64{clinicA}, tt.query, 20)
+			require.NoError(t, err)
+			require.Len(t, got, 1)
+			assert.Equal(t, pet.ID, got[0].ID)
+			assert.Equal(t, clinicA, got[0].ClinicID)
+			assert.NotEqual(t, foreign.ID, got[0].ID)
+		})
+	}
+}

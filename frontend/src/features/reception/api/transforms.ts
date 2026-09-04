@@ -1,4 +1,4 @@
-import { formatJSTDate, formatJSTTime } from "@/lib/jst-date";
+import { formatJSTDate, formatJSTTime, toJSTWallDate } from "@/lib/jst-date";
 import type { ReservationStatus } from "@/types";
 import type {
   DangerLevel,
@@ -6,10 +6,9 @@ import type {
   Reservation as BackendReceptionReservation,
 } from "@/types/generated/models";
 
-type BackendReceptionPetWithDangerReason =
-  NonNullable<BackendReceptionReservation["pet"]> & {
-    danger_reason?: string;
-  };
+type BackendReceptionPetWithDangerReason = NonNullable<BackendReceptionReservation["pet"]> & {
+  danger_reason?: string;
+};
 
 interface CustomerFieldsJSON {
   customer_name?: string;
@@ -19,7 +18,7 @@ interface CustomerFieldsJSON {
 
 /**
  * customer_fields は json.RawMessage（Go）なので JSON オブジェクトとしてそのまま届く。
- * 型は any だが、JSONB 由来のオブジェクトとして扱う。
+ * 入力は unknown。オブジェクトであることを確認してから CustomerFieldsJSON として扱う。
  */
 function parseCustomerFields(raw: unknown): CustomerFieldsJSON {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
@@ -45,7 +44,6 @@ export const RECEPTION_COLUMNS: Omit<ReceptionColumn, "appointments">[] = [
   { id: "accounting", title: "会計待ち" },
   { id: "completed", title: "会計済" },
 ];
-
 
 /** 日本語タイトル → カラム ID マッピング */
 export const COLUMN_TITLE_TO_STATUS: Record<string, ReservationStatus> = {
@@ -80,7 +78,7 @@ function optionalID(value: number | null | undefined): string {
 
 /** BackendReceptionReservation → ReceptionAppointment 変換 */
 export function transformReservationToReceptionAppointment(
-  reservation: BackendReceptionReservation
+  reservation: BackendReceptionReservation,
 ) {
   const time = formatJSTTime(reservation.start_time);
   const cf = parseCustomerFields(reservation.customer_fields);
@@ -88,10 +86,11 @@ export function transformReservationToReceptionAppointment(
 
   const petName = pet?.name ?? cf.pets?.[0]?.name ?? "";
   // animal_species ネストがないため、animal_species_id からマッピング
-  const petType = pet?.animal_species?.name
-    ?? (pet?.animal_species_id ? ANIMAL_SPECIES_MAP[pet.animal_species_id] : undefined)
-    ?? cf.pets?.[0]?.type
-    ?? "犬";
+  const petType =
+    pet?.animal_species?.name ??
+    (pet?.animal_species_id ? ANIMAL_SPECIES_MAP[pet.animal_species_id] : undefined) ??
+    cf.pets?.[0]?.type ??
+    "犬";
   const petSentinelFields: {
     petStatus?: PetStatus;
     petDangerLevel?: DangerLevel;
@@ -109,6 +108,7 @@ export function transformReservationToReceptionAppointment(
     id: String(reservation.id ?? 0),
     time,
     visitDate: formatJSTDate(reservation.start_time),
+    end: toJSTWallDate(reservation.end_time),
     ownerName,
     petType,
     petName,
@@ -118,7 +118,9 @@ export function transformReservationToReceptionAppointment(
     reservationTypeId: optionalID(reservation.reservation_type_id),
     reservationCategory: reservation.reservation_type?.category ?? "general",
     isDesignated: reservation.is_designated,
-    doctor: reservation.doctor?.name ?? (reservation.doctor_id ? String(reservation.doctor_id) : undefined),
+    doctor:
+      reservation.doctor?.name ??
+      (reservation.doctor_id ? String(reservation.doctor_id) : undefined),
     doctorId: optionalID(reservation.doctor_id),
     petId: optionalID(reservation.pet_id),
     ownerId: optionalID(reservation.owner_id),
@@ -134,9 +136,11 @@ export function transformReservationToReceptionAppointment(
  * キャンセル済みの予約はカンバンに表示しない
  */
 export function transformReservationsToReceptionColumns(
-  reservations: BackendReceptionReservation[]
+  reservations: BackendReceptionReservation[],
 ): ReceptionColumn[] {
-  const activeReservations = reservations.filter((r) => r.status !== "cancelled" && r.status !== "no_show");
+  const activeReservations = reservations.filter(
+    (r) => r.status !== "cancelled" && r.status !== "no_show",
+  );
   const appointments = activeReservations.map(transformReservationToReceptionAppointment);
 
   return RECEPTION_COLUMNS.map((col) => ({

@@ -23,9 +23,7 @@ export const useGetTrimming = (id: string) => {
 };
 
 // Fetch trimmings by pet ID
-const getTrimmingsByPetId = async (
-  petId: string
-): Promise<TrimmingUI[]> => {
+const getTrimmingsByPetId = async (petId: string): Promise<TrimmingUI[]> => {
   const { data } = await axios.get<TrimmingListResponse>("/v1/trimmings", {
     params: { pet_id: petId, page: 1, limit: HISTORY_FETCH_LIMIT },
   });
@@ -41,4 +39,3 @@ export const useGetTrimmingsByPetId = (petId: string) => {
     gcTime: QUERY_GC_TIMES.STANDARD,
   });
 };
-

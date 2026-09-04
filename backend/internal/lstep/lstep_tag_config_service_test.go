@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -155,6 +156,21 @@ func TestCreateConditionTagMapping_Error(t *testing.T) {
 		TagName:       "CHRON_DM",
 	})
 	assert.Error(t, err)
+}
+
+func TestCreateConditionTagMapping_RemapsAlreadyExistsToConditionCode(t *testing.T) {
+	repo := &mockLstepTagConfigRepository{
+		createConditionTagMappingFn: func(_ context.Context, _ *model.LstepConditionTagMapping) error {
+			return apperrors.WrapAlreadyExists("lstep_condition_tag_mapping", "")
+		},
+	}
+	_, err := newTagConfigSvc(repo).CreateConditionTagMapping(context.Background(), CreateConditionTagMappingInput{
+		ConditionCode: "CKD",
+		TagName:       "CHRON_CKD",
+	})
+	require.Error(t, err)
+	require.True(t, apperrors.IsAlreadyExists(err))
+	assert.Contains(t, err.Error(), "CKD")
 }
 
 func TestDeleteConditionTagMapping_OK(t *testing.T) {

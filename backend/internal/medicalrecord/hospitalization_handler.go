@@ -8,6 +8,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // HospitalizationHandler serves the hospitalization HTTP boundary. Moved from internal/handler
@@ -28,6 +29,9 @@ func NewHospitalizationHandler(service HospitalizationService, hasPermission Per
 func (h *HospitalizationHandler) ListHospitalizations(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceHospitalization), "view") {
 		return
 	}
 	page, limit, err := httpapi.ParsePagination(c)
@@ -65,6 +69,9 @@ func (h *HospitalizationHandler) ListHospitalizations(c *gin.Context) {
 func (h *HospitalizationHandler) GetHospitalization(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceHospitalization), "view") {
 		return
 	}
 	id, ok := httpapi.ParseIDParam(c, "id")
@@ -106,7 +113,7 @@ func (h *HospitalizationHandler) CreateHospitalization(c *gin.Context) {
 
 	svcInput, err := input.toServiceInput()
 	if err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(err.Error()))
+		respondToServiceInputError(c, err)
 		return
 	}
 	ctx := c.Request.Context()
@@ -137,7 +144,7 @@ func (h *HospitalizationHandler) UpdateHospitalization(c *gin.Context) {
 
 	svcInput, err := input.toServiceInput()
 	if err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(err.Error()))
+		respondToServiceInputError(c, err)
 		return
 	}
 

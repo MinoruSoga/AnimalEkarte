@@ -3,7 +3,13 @@ import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { MasterLink } from "@/components/shared/MasterLink";
@@ -34,6 +40,8 @@ interface ExaminationFormFieldsProps {
   isConfirmed: boolean;
   /** BUG-033: first-pass completed seal — results/delete lock; status transition save allowed. */
   isCompletedLocked?: boolean;
+  /** FE-RC-002: 死亡ペットは render 側でも SubmitButton を非表示にする（callback 側の拒否と二重防壁）。 */
+  isPetDeceased?: boolean;
   canEdit: boolean;
   canCreate: boolean;
   canDelete: boolean;
@@ -52,6 +60,7 @@ function ExaminationFormFieldsBase({
   isDeleting,
   isConfirmed,
   isCompletedLocked = false,
+  isPetDeceased = false,
   canEdit,
   canCreate,
   canDelete,
@@ -60,11 +69,10 @@ function ExaminationFormFieldsBase({
   onBack,
   onDeleteClick,
 }: ExaminationFormFieldsProps) {
-  const canSubmit = isEdit ? canEdit : canCreate && canEdit;
+  const canSubmit = !isPetDeceased && (isEdit ? canEdit : canCreate && canEdit);
   const fieldsLocked = isConfirmed || isCompletedLocked;
   // completed seal: hide save/delete while status remains 完了; allow save after status change (confirm/unlock).
-  const showActions =
-    !isConfirmed && !(isCompletedLocked && formData.status === "完了");
+  const showActions = !isConfirmed && !(isCompletedLocked && formData.status === "完了");
   const testTypeError = fieldErrors?.testTypeId;
   const doctorError = fieldErrors?.doctorId;
 
@@ -91,7 +99,9 @@ function ExaminationFormFieldsBase({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <Label htmlFor="testTypeId" className={`text-sm ${C.text60}`}>検査種別</Label>
+            <Label htmlFor="testTypeId" className={`text-sm ${C.text60}`}>
+              検査種別
+            </Label>
             <MasterLink category="examination" label="編集" className="text-2xs" />
           </div>
           {masterLoading ? (
@@ -116,7 +126,9 @@ function ExaminationFormFieldsBase({
         </div>
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <Label htmlFor="doctorId" className={`text-sm ${C.text60}`}>担当医</Label>
+            <Label htmlFor="doctorId" className={`text-sm ${C.text60}`}>
+              担当医
+            </Label>
             <MasterLink category="staff" label="編集" className="text-2xs" />
           </div>
           {masterLoading ? (
@@ -142,36 +154,47 @@ function ExaminationFormFieldsBase({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="examination-date" className={`text-sm ${C.text60}`}>検査日</Label>
+        <Label htmlFor="examination-date" className={`text-sm ${C.text60}`}>
+          検査日
+        </Label>
         <DatePicker
           id="examination-date"
           value={formData.date ? formData.date.split("T")[0] : ""}
           onChange={(value) => {
             if (fieldsLocked) return;
-            onSetFormData({ date: value ? jstDateStartISOString(value) : jstDateStartISOString(todayJSTISO()) });
+            onSetFormData({
+              date: value ? jstDateStartISOString(value) : jstDateStartISOString(todayJSTISO()),
+            });
           }}
           disabledDays={fieldsLocked ? () => true : { after: toJSTWallDate(new Date()) }}
         />
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="examination-status" className={`text-sm ${C.text60}`}>ステータス</Label>
+        <Label htmlFor="examination-status" className={`text-sm ${C.text60}`}>
+          ステータス
+        </Label>
         <Select
           value={formData.status}
           disabled={isConfirmed}
-          onValueChange={(value: "依頼中" | "検査中" | "結果入力済み" | "完了" | "確定") => onSetFormData({ status: value })}
+          onValueChange={(value: "依頼中" | "検査中" | "結果入力済み" | "完了" | "確定") =>
+            onSetFormData({ status: value })
+          }
         >
-          <SelectTrigger id="examination-status" className={`h-11 min-w-11 text-sm ${C.text} ${C.bgWhite} ${C.borderMedium}`}>
+          <SelectTrigger
+            id="examination-status"
+            className={`h-11 min-w-11 text-sm ${C.text} ${C.bgWhite} ${C.borderMedium}`}
+          >
             <SelectValue placeholder="選択してください" />
           </SelectTrigger>
-          <SelectContent>
-            {EXAM_STATUS_ITEMS}
-          </SelectContent>
+          <SelectContent>{EXAM_STATUS_ITEMS}</SelectContent>
         </Select>
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="examination-notes" className={`text-sm ${C.text60}`}>備考・所見</Label>
+        <Label htmlFor="examination-notes" className={`text-sm ${C.text60}`}>
+          備考・所見
+        </Label>
         <Textarea
           id="examination-notes"
           className={`h-24 text-sm ${C.text} ${C.bgWhite} ${C.borderMedium} resize-none`}
@@ -196,16 +219,16 @@ function ExaminationFormFieldsBase({
               {isDeleting ? "削除中..." : "削除"}
             </Button>
           ) : null}
-          <Button variant="outline" type="button" onClick={onBack} className="text-sm">キャンセル</Button>
-          {canSubmit ? (
-            <SubmitButton className="text-sm">
-              保存
-            </SubmitButton>
-          ) : null}
+          <Button variant="outline" type="button" onClick={onBack} className="text-sm">
+            キャンセル
+          </Button>
+          {canSubmit ? <SubmitButton className="text-sm">保存</SubmitButton> : null}
         </div>
       ) : isCompletedLocked ? (
         <div className="flex justify-end gap-2 pt-2">
-          <Button variant="outline" type="button" onClick={onBack} className="text-sm">戻る</Button>
+          <Button variant="outline" type="button" onClick={onBack} className="text-sm">
+            戻る
+          </Button>
         </div>
       ) : null}
     </div>

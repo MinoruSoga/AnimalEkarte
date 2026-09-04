@@ -1,27 +1,31 @@
 import { memo, useCallback, useState } from "react";
+import { useSearchParams } from "react-router";
 import { toast } from "sonner";
 
 import { C } from "@/lib/design-tokens";
+import { handleApiError } from "@/lib/handle-api-error";
 import { usePermission } from "@/hooks/use-permission";
 import { useGetStaffs } from "@/hooks/use-staffs";
 import { useGetAllCheckupTypes } from "@/hooks/use-treatment-master";
+import { replaceCheckupFieldResults, useGetCheckupTypeFields } from "@/hooks/use-checkup-fields";
+import {
+  buildCheckupResultsPayload,
+  type CheckupFieldValue,
+} from "@/components/shared/DynamicCheckupFields/DynamicCheckupFields";
 import {
   useCreateCheckup,
   useDeleteCheckup,
   useGetCheckups,
   useUpdateCheckup,
+  type Checkup,
   type CreateCheckupInput,
   type UpdateCheckupInput,
 } from "../../api/checkups";
-import {
-  CheckupsTable,
-  LstepStatusBadge,
-  type LstepStatus,
-} from "./CheckupsTabTable";
+import { CheckupsTable, LstepStatusBadge, type LstepStatus } from "./CheckupsTabTable";
 import {
   makeDefaultCheckupAddForm,
   type AddCheckupFormState,
-} from "./checkups-tab-table-model";
+} from "../../lib/checkups-tab-table-model";
 
 interface CheckupsTabProps {
   medicalRecordId: string;
@@ -41,20 +45,30 @@ export const CheckupsTab = memo(function CheckupsTab({
   const createMutation = useCreateCheckup(medicalRecordId);
   const updateMutation = useUpdateCheckup(medicalRecordId);
   const deleteMutation = useDeleteCheckup(medicalRecordId);
+  const { mutateAsync: createCheckupAsync } = createMutation;
+  const { mutate: updateCheckup } = updateMutation;
+  const { mutate: deleteCheckup } = deleteMutation;
 
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
+  const [editingId, setEditingId] = useState<string | null>(() => searchParams.get("checkupId"));
   const [isAdding, setIsAdding] = useState(false);
   const [addForm, setAddForm] = useState<AddCheckupFormState>(() => makeDefaultCheckupAddForm());
   const [addFormErrors, setAddFormErrors] = useState<Record<string, string>>({});
+  const [fieldValues, setFieldValues] = useState<Record<number, CheckupFieldValue>>({});
+  const { data: checkupFields = [] } = useGetCheckupTypeFields(addForm.checkup_type_id);
 
-  const handleAddFormChange = useCallback(
-    (field: keyof AddCheckupFormState, value: string) => {
-      setAddForm((prev) => ({ ...prev, [field]: value }));
-    },
-    [],
-  );
+  const handleAddFormChange = useCallback((field: keyof AddCheckupFormState, value: string) => {
+    setAddForm((prev) => ({ ...prev, [field]: value }));
+    if (field === "checkup_type_id") {
+      setFieldValues({});
+    }
+  }, []);
 
-  const handleAddSubmit = useCallback(() => {
+  const handleFieldValueChange = useCallback((fieldId: number, value: CheckupFieldValue) => {
+    setFieldValues((prev) => ({ ...prev, [fieldId]: value }));
+  }, []);
+
+  const handleAddSubmit = useCallback(async () => {
     if (!canCreate) return;
     const errors: Record<string, string> = {};
     if (!addForm.date) errors.date = "日付は必須です";
@@ -72,24 +86,40 @@ export const CheckupsTab = memo(function CheckupsTab({
       doctor_id: addForm.doctor_id ? Number(addForm.doctor_id) : null,
       result: addForm.result,
     };
-    createMutation.mutate(input, {
-      onSuccess: () => {
-        setAddForm(makeDefaultCheckupAddForm());
-        setIsAdding(false);
-        toast.success("健診記録を追加しました");
-      },
-    });
-  }, [addForm, canCreate, createMutation]);
+
+    let created: Checkup;
+    try {
+      created = await createCheckupAsync(input);
+    } catch {
+      return;
+    }
+
+    const resultsPayload = buildCheckupResultsPayload(checkupFields, fieldValues);
+    if (resultsPayload.length > 0) {
+      try {
+        await replaceCheckupFieldResults(medicalRecordId, created.id, resultsPayload);
+      } catch (error) {
+        handleApiError(error, "健診項目の保存");
+        return;
+      }
+    }
+
+    setAddForm(makeDefaultCheckupAddForm());
+    setFieldValues({});
+    setIsAdding(false);
+    toast.success("健診記録を追加しました");
+  }, [addForm, canCreate, checkupFields, createCheckupAsync, fieldValues, medicalRecordId]);
 
   const handleAddCancel = useCallback(() => {
     setAddForm(makeDefaultCheckupAddForm());
+    setFieldValues({});
     setIsAdding(false);
   }, []);
 
   const handleEditSave = useCallback(
     (checkupId: string, input: UpdateCheckupInput) => {
       if (!canEdit) return;
-      updateMutation.mutate(
+      updateCheckup(
         { checkupId, input },
         {
           onSuccess: () => {
@@ -99,19 +129,19 @@ export const CheckupsTab = memo(function CheckupsTab({
         },
       );
     },
-    [canEdit, updateMutation],
+    [canEdit, updateCheckup],
   );
 
   const handleDelete = useCallback(
     (checkupId: string) => {
       if (!canDelete) return;
-      deleteMutation.mutate(checkupId, {
+      deleteCheckup(checkupId, {
         onSuccess: () => {
           toast.success("健診記録を削除しました");
         },
       });
     },
-    [canDelete, deleteMutation],
+    [canDelete, deleteCheckup],
   );
 
   if (isLoading) {
@@ -147,8 +177,11 @@ export const CheckupsTab = memo(function CheckupsTab({
         createPending={createMutation.isPending}
         updatePending={updateMutation.isPending}
         deletePending={deleteMutation.isPending}
+        checkupFields={checkupFields}
+        fieldValues={fieldValues}
         onStartAdd={() => setIsAdding(true)}
         onAddFormChange={handleAddFormChange}
+        onFieldValueChange={handleFieldValueChange}
         onAddSubmit={handleAddSubmit}
         onAddCancel={handleAddCancel}
         onStartEdit={setEditingId}
@@ -159,9 +192,7 @@ export const CheckupsTab = memo(function CheckupsTab({
 
       {checkupList.length > 0 ? (
         <div className={`${C.bgWhite} border ${C.borderLight} rounded-xs px-4 py-3`}>
-          <span className={`text-sm ${C.text60}`}>
-            健診記録 {checkupList.length} 件
-          </span>
+          <span className={`text-sm ${C.text60}`}>健診記録 {checkupList.length} 件</span>
         </div>
       ) : null}
     </div>

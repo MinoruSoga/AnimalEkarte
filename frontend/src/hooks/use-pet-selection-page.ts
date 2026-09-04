@@ -40,14 +40,10 @@ const INITIAL_SEARCH_PARAMS: PetSelectionSearchParams = {
 export function usePetSelectionPage(config: PetSelectionPageConfig) {
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchParams, setSearchParams] =
-    useState<PetSelectionSearchParams>(INITIAL_SEARCH_PARAMS);
+  const [searchParams, setSearchParams] = useState<PetSelectionSearchParams>(INITIAL_SEARCH_PARAMS);
 
   // 入力停止後にだけ問い合わせる。「検索」ボタンは持たない（自動検索）。
-  const debouncedSearchParams = useDebouncedValue(
-    searchParams,
-    SEARCH_DEBOUNCE_MS,
-  );
+  const debouncedSearchParams = useDebouncedValue(searchParams, SEARCH_DEBOUNCE_MS);
 
   // 入力からデバウンス確定までの間、表示中の一覧は「まだ古い検索条件の結果」である。
   const isSearchPending = searchParams !== debouncedSearchParams;
@@ -84,12 +80,8 @@ export function usePetSelectionPage(config: PetSelectionPageConfig) {
       includeDeceased: true,
       page,
       limit: PAGE_SIZE,
-      ...(debouncedSearchParams.search
-        ? { search: debouncedSearchParams.search }
-        : {}),
-      ...(debouncedSearchParams.species
-        ? { species: debouncedSearchParams.species }
-        : {}),
+      ...(debouncedSearchParams.search ? { search: debouncedSearchParams.search } : {}),
+      ...(debouncedSearchParams.species ? { species: debouncedSearchParams.species } : {}),
     },
     { preservePreviousData: true },
   );
@@ -124,27 +116,23 @@ export function usePetSelectionPage(config: PetSelectionPageConfig) {
       endIndex,
       onPageChange: handlePageChange,
     };
-  }, [
-    handlePageChange,
-    pets,
-    responseLimit,
-    responsePage,
-    total,
-    totalPages,
-  ]);
+  }, [handlePageChange, pets, responseLimit, responsePage, total, totalPages]);
 
   const handleClear = useCallback(() => {
     setSearchParams(INITIAL_SEARCH_PARAMS);
     setPageBinding({ page: 1, params: INITIAL_SEARCH_PARAMS });
   }, []);
 
-  const handleSelect = useCallback((pet: Pet) => {
-    if (pet.status !== "生存") return;
+  const handleSelect = useCallback(
+    (pet: Pet) => {
+      if (pet.status !== "生存") return;
 
-    const nextParams = new URLSearchParams(location.search);
-    nextParams.set("petId", pet.id);
-    navigate(`${config.selectPath}?${nextParams.toString()}`, { state: location.state });
-  }, [navigate, config.selectPath, location.search, location.state]);
+      const nextParams = new URLSearchParams(location.search);
+      nextParams.set("petId", pet.id);
+      navigate(`${config.selectPath}?${nextParams.toString()}`, { state: location.state });
+    },
+    [navigate, config.selectPath, location.search, location.state],
+  );
 
   const handleBack = useCallback(() => {
     navigate(config.backPath);

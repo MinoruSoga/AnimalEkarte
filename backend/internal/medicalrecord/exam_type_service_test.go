@@ -18,7 +18,6 @@ func (passthroughExamTypeTransactor) WithTx(ctx context.Context, fn func(context
 	return fn(ctx)
 }
 
-
 // mockExamTypeRepository は ExamTypeRepository のテスト用モック実装
 type mockExamTypeRepository struct {
 	findAllFn                 func(ctx context.Context, clinicID uint64) ([]model.ExaminationType, error)
@@ -289,12 +288,22 @@ func TestExamTypeService_Create(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "returns validation error when price is negative",
+			input: &CreateExamTypeInput{
+				Name:  "Negative Price Exam Type",
+				Price: func(v int64) *int64 { return &v }(-100),
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			createCalled := false
 			repo := &mockExamTypeRepository{
 				createFn: func(_ context.Context, _ *model.ExaminationType) error {
+					createCalled = true
 					return tt.repoErr
 				},
 			}
@@ -305,6 +314,10 @@ func TestExamTypeService_Create(t *testing.T) {
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Nil(t, result)
+				if tt.name == "returns validation error when price is negative" {
+					assert.True(t, apperrors.IsInvalidInput(err))
+					assert.False(t, createCalled)
+				}
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, result)
@@ -363,10 +376,18 @@ func TestExamTypeService_Update(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "returns validation error when price is negative",
+			input: UpdateExamTypeInput{
+				Price: func(v int64) *int64 { return &v }(-500),
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			updateCalled := false
 			repo := &mockExamTypeRepository{
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.ExaminationType, error) {
 					if tt.findByIDErr != nil {
@@ -375,6 +396,7 @@ func TestExamTypeService_Update(t *testing.T) {
 					return &model.ExaminationType{ID: 1}, nil
 				},
 				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.ExaminationType, error) {
+					updateCalled = true
 					if tt.updateErr != nil {
 						return nil, tt.updateErr
 					}
@@ -390,6 +412,10 @@ func TestExamTypeService_Update(t *testing.T) {
 				assert.Nil(t, exType)
 				if tt.wantNF {
 					assert.True(t, apperrors.IsNotFound(err))
+				}
+				if tt.name == "returns validation error when price is negative" {
+					assert.True(t, apperrors.IsInvalidInput(err))
+					assert.False(t, updateCalled)
 				}
 			} else {
 				assert.NoError(t, err)
@@ -628,7 +654,6 @@ func TestBuildExamTypeUpdate(t *testing.T) {
 		assert.NotContains(t, fields, colExamTypeParentID)
 	})
 }
-
 
 func TestExamTypeService_WithTx_NilTransactorIsInternalError(t *testing.T) {
 	// MRB-07: nil transactor must map to 500 Internal, not 400 InvalidInput.

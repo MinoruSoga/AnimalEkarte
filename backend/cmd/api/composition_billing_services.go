@@ -60,6 +60,7 @@ func newBillingCoreServices(
 			d.ClosingSettings,
 			r.paymentMethods,
 			d.Clinics,
+			d.Transactor,
 		),
 	}
 }
@@ -96,6 +97,7 @@ func newBillingDocumentServices(
 			r.accounting,
 			auditTx,
 			d.Transactor,
+			billing.WithRefundCloseRepository(r.cashRegisterCloses),
 		),
 	}
 }

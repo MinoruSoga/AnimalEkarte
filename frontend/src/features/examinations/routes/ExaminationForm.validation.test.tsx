@@ -19,14 +19,9 @@ vi.mock("react-router", () => ({
   useNavigate: () => mocks.navigate,
   useLocation: () => ({ state: undefined }),
   useParams: () => ({ id: undefined }),
-  useSearchParams: () => [
-    new URLSearchParams(mocks.searchParams),
-    mocks.setSearchParams,
-  ],
+  useSearchParams: () => [new URLSearchParams(mocks.searchParams), mocks.setSearchParams],
   MemoryRouter: ({ children }: { children: ReactNode }) => children,
-  Link: ({ children, to }: { children: ReactNode; to: string }) => (
-    <a href={to}>{children}</a>
-  ),
+  Link: ({ children, to }: { children: ReactNode; to: string }) => <a href={to}>{children}</a>,
 }));
 
 vi.mock("@/hooks/use-permission", () => ({
@@ -39,7 +34,7 @@ vi.mock("@/hooks/use-permission", () => ({
 }));
 
 vi.mock("@/hooks/use-master-items", () => ({
-  useMasterItems: (category: string) => {
+  useGetMasterItems: (category: string) => {
     if (category === "examination") {
       return {
         data: [{ id: 5, name: "血液検査（院内）" }],
@@ -50,29 +45,31 @@ vi.mock("@/hooks/use-master-items", () => ({
   },
 }));
 
-vi.mock("@/features/master", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/features/master")>();
-  return {
-    ...actual,
-    useGetStaffs: () => ({
-      data: [
-        {
-          id: "3",
-          name: "林文明",
-          staffType: "doctor",
-          isActive: true,
-        },
-        {
-          id: "99",
-          name: "お手入れ・オゾン療法",
-          staffType: "resource",
-          isActive: true,
-        },
-      ],
-      isLoading: false,
-    }),
-  };
-});
+vi.mock("@/hooks/use-staffs", () => ({
+  useGetStaffs: () => ({
+    data: [
+      {
+        id: "3",
+        name: "林文明",
+        staffType: "doctor",
+        isActive: true,
+      },
+      {
+        id: "99",
+        name: "お手入れ・オゾン療法",
+        staffType: "resource",
+        isActive: true,
+      },
+    ],
+    isLoading: false,
+  }),
+}));
+
+// ExaminationForm は未紐付け受信バナーを描画する。バナーは useQuery を使うため
+// QueryClientProvider の無いフォーム単体テストでは null に差し替える。
+vi.mock("@/components/shared/LabDeviceUnlinkedBanner/LabDeviceUnlinkedBanner", () => ({
+  LabDeviceUnlinkedBanner: () => null,
+}));
 
 vi.mock("@/hooks/use-unsaved-changes", () => ({
   useUnsavedChanges: () => ({
@@ -248,9 +245,7 @@ describe("ExaminationForm — empty submit validation (BUG-017 Mode3)", () => {
     expect(document.getElementById("testTypeId-error")).toHaveTextContent(
       "検査種別を選択してください",
     );
-    expect(document.getElementById("doctorId-error")).toHaveTextContent(
-      "担当医を選択してください",
-    );
+    expect(document.getElementById("doctorId-error")).toHaveTextContent("担当医を選択してください");
 
     await waitFor(() => {
       expect(testType).toHaveFocus();

@@ -10,23 +10,40 @@ import (
 // If the request differs from the locked current value without DiscountEditAllowed → Forbidden.
 // If equal and not allowed, omit discount columns so a stale PATCH cannot race-write.
 func applyTreatmentDiscountGuard(locked *model.Treatment, input *UpdateTreatmentInput, fields map[string]any) error {
-	if input.DiscountRate != nil {
-		if !httpapi.FloatEquals(*input.DiscountRate, locked.DiscountRate) {
-			if !input.DiscountEditAllowed {
-				return apperrors.WrapForbidden("割引フィールドの編集権限がありません")
-			}
-		} else if !input.DiscountEditAllowed {
-			delete(fields, "discount_rate")
-		}
+	if err := applyTreatmentDiscountRateGuard(locked, input, fields); err != nil {
+		return err
 	}
-	if input.DiscountAmount != nil {
-		if *input.DiscountAmount != locked.DiscountAmount {
-			if !input.DiscountEditAllowed {
-				return apperrors.WrapForbidden("割引フィールドの編集権限がありません")
-			}
-		} else if !input.DiscountEditAllowed {
-			delete(fields, "discount_amount")
+	return applyTreatmentDiscountAmountGuard(locked, input, fields)
+}
+
+func applyTreatmentDiscountRateGuard(locked *model.Treatment, input *UpdateTreatmentInput, fields map[string]any) error {
+	if input.DiscountRate == nil {
+		return nil
+	}
+	if !httpapi.FloatEquals(*input.DiscountRate, locked.DiscountRate) {
+		if input.DiscountEditAllowed {
+			return nil
 		}
+		return apperrors.WrapForbidden("割引フィールドの編集権限がありません")
+	}
+	if !input.DiscountEditAllowed {
+		delete(fields, "discount_rate")
+	}
+	return nil
+}
+
+func applyTreatmentDiscountAmountGuard(locked *model.Treatment, input *UpdateTreatmentInput, fields map[string]any) error {
+	if input.DiscountAmount == nil {
+		return nil
+	}
+	if *input.DiscountAmount != locked.DiscountAmount {
+		if input.DiscountEditAllowed {
+			return nil
+		}
+		return apperrors.WrapForbidden("割引フィールドの編集権限がありません")
+	}
+	if !input.DiscountEditAllowed {
+		delete(fields, "discount_amount")
 	}
 	return nil
 }

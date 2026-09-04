@@ -45,31 +45,34 @@ func (noopTransactor) WithTx(ctx context.Context, fn func(context.Context) error
 }
 
 type mockRepo struct {
-	searchOwnersFn               func(ctx context.Context, clinicIDs []uint64, query string, limit int) ([]model.Owner, error)
-	searchPetsFn                 func(ctx context.Context, clinicIDs []uint64, query string, limit int) ([]model.Pet, error)
-	lockOwnersFn                 func(ctx context.Context, refs []OwnerMemberRef) ([]model.Owner, error)
-	lockPetsFn                   func(ctx context.Context, refs []PetMemberRef) ([]model.Pet, error)
-	findActiveOwnerMembershipFn  func(ctx context.Context, clinicID, ownerID uint64) (*model.OwnerIdentityGroupMember, error)
-	findActivePetMembershipFn    func(ctx context.Context, clinicID, petID uint64) (*model.PetIdentityGroupMember, error)
-	lockOwnerGroupByIDFn         func(ctx context.Context, groupID uint64) (*model.OwnerIdentityGroup, error)
-	lockPetGroupByIDFn           func(ctx context.Context, groupID uint64) (*model.PetIdentityGroup, error)
-	listActiveOwnerMembersFn     func(ctx context.Context, groupID uint64) ([]model.OwnerIdentityGroupMember, error)
-	listActivePetMembersFn       func(ctx context.Context, groupID uint64) ([]model.PetIdentityGroupMember, error)
-	listActiveOwnerByClinicsFn   func(ctx context.Context, groupID uint64, clinicIDs []uint64) ([]model.OwnerIdentityGroupMember, error)
-	listActivePetByClinicsFn     func(ctx context.Context, groupID uint64, clinicIDs []uint64) ([]model.PetIdentityGroupMember, error)
-	createOwnerGroupFn           func(ctx context.Context, group *model.OwnerIdentityGroup) error
-	createOwnerMembersFn         func(ctx context.Context, members []model.OwnerIdentityGroupMember) error
-	softDeleteOwnerMemberFn      func(ctx context.Context, memberID uint64) error
-	softDeleteOwnerGroupFn       func(ctx context.Context, groupID uint64) error
-	countActiveOwnerMembersFn    func(ctx context.Context, groupID uint64) (int64, error)
-	createPetGroupFn             func(ctx context.Context, group *model.PetIdentityGroup) error
-	createPetMembersFn           func(ctx context.Context, members []model.PetIdentityGroupMember) error
-	softDeletePetMemberFn        func(ctx context.Context, memberID uint64) error
-	softDeletePetGroupFn         func(ctx context.Context, groupID uint64) error
-	countActivePetMembersFn      func(ctx context.Context, groupID uint64) (int64, error)
-	isOwnerActiveInGroupFn       func(ctx context.Context, groupID, clinicID, ownerID uint64) (bool, error)
-	resolveLinkedPetPairsFn      func(ctx context.Context, seedClinicID, seedPetID uint64, actorClinicIDs []uint64) ([]ClinicPetPair, error)
-	listLinkedTreatmentHistoryFn func(ctx context.Context, pairs []ClinicPetPair, page, limit int) ([]LinkedTreatmentHistoryItem, int64, error)
+	searchOwnersFn                     func(ctx context.Context, clinicIDs []uint64, query string, limit int) ([]model.Owner, error)
+	searchPetsFn                       func(ctx context.Context, clinicIDs []uint64, query string, limit int) ([]model.Pet, error)
+	lockOwnersFn                       func(ctx context.Context, refs []OwnerMemberRef) ([]model.Owner, error)
+	lockPetsFn                         func(ctx context.Context, refs []PetMemberRef) ([]model.Pet, error)
+	findActiveOwnerMembershipFn        func(ctx context.Context, clinicID, ownerID uint64) (*model.OwnerIdentityGroupMember, error)
+	findActivePetMembershipFn          func(ctx context.Context, clinicID, petID uint64) (*model.PetIdentityGroupMember, error)
+	lockOwnerGroupByIDFn               func(ctx context.Context, groupID uint64) (*model.OwnerIdentityGroup, error)
+	lockPetGroupByIDFn                 func(ctx context.Context, groupID uint64) (*model.PetIdentityGroup, error)
+	findOwnerGroupByIDFn               func(ctx context.Context, groupID uint64) (*model.OwnerIdentityGroup, error)
+	findPetGroupByIDFn                 func(ctx context.Context, groupID uint64) (*model.PetIdentityGroup, error)
+	listActiveOwnerMembersFn           func(ctx context.Context, groupID uint64) ([]model.OwnerIdentityGroupMember, error)
+	listActivePetMembersFn             func(ctx context.Context, groupID uint64) ([]model.PetIdentityGroupMember, error)
+	listActiveOwnerByClinicsFn         func(ctx context.Context, groupID uint64, clinicIDs []uint64) ([]model.OwnerIdentityGroupMember, error)
+	listActivePetByClinicsFn           func(ctx context.Context, groupID uint64, clinicIDs []uint64) ([]model.PetIdentityGroupMember, error)
+	createOwnerGroupFn                 func(ctx context.Context, group *model.OwnerIdentityGroup) error
+	createOwnerMembersFn               func(ctx context.Context, members []model.OwnerIdentityGroupMember) error
+	softDeleteOwnerMemberFn            func(ctx context.Context, memberID uint64) error
+	softDeleteOwnerGroupFn             func(ctx context.Context, groupID uint64) error
+	countActiveOwnerMembersFn          func(ctx context.Context, groupID uint64) (int64, error)
+	createPetGroupFn                   func(ctx context.Context, group *model.PetIdentityGroup) error
+	createPetMembersFn                 func(ctx context.Context, members []model.PetIdentityGroupMember) error
+	softDeletePetMemberFn              func(ctx context.Context, memberID uint64) error
+	softDeletePetGroupFn               func(ctx context.Context, groupID uint64) error
+	countActivePetMembersFn            func(ctx context.Context, groupID uint64) (int64, error)
+	countActivePetGroupsByOwnerGroupFn func(ctx context.Context, ownerGroupID uint64) (int64, error)
+	isOwnerActiveInGroupFn             func(ctx context.Context, groupID, clinicID, ownerID uint64) (bool, error)
+	resolveLinkedPetPairsFn            func(ctx context.Context, seedClinicID, seedPetID uint64, actorClinicIDs []uint64) ([]ClinicPetPair, error)
+	listLinkedTreatmentHistoryFn       func(ctx context.Context, pairs []ClinicPetPair, page, limit int) ([]LinkedTreatmentHistoryItem, int64, error)
 
 	createOwnerGroupCalled   int
 	createOwnerMembersCalled int
@@ -124,6 +127,18 @@ func (m *mockRepo) LockOwnerGroupByID(ctx context.Context, groupID uint64) (*mod
 func (m *mockRepo) LockPetGroupByID(ctx context.Context, groupID uint64) (*model.PetIdentityGroup, error) {
 	if m.lockPetGroupByIDFn != nil {
 		return m.lockPetGroupByIDFn(ctx, groupID)
+	}
+	return nil, apperrors.WrapNotFound("pet_identity_group", "0")
+}
+func (m *mockRepo) FindOwnerGroupByID(ctx context.Context, groupID uint64) (*model.OwnerIdentityGroup, error) {
+	if m.findOwnerGroupByIDFn != nil {
+		return m.findOwnerGroupByIDFn(ctx, groupID)
+	}
+	return nil, apperrors.WrapNotFound("owner_identity_group", "0")
+}
+func (m *mockRepo) FindPetGroupByID(ctx context.Context, groupID uint64) (*model.PetIdentityGroup, error) {
+	if m.findPetGroupByIDFn != nil {
+		return m.findPetGroupByIDFn(ctx, groupID)
 	}
 	return nil, apperrors.WrapNotFound("pet_identity_group", "0")
 }
@@ -216,6 +231,12 @@ func (m *mockRepo) SoftDeletePetGroup(ctx context.Context, groupID uint64) error
 func (m *mockRepo) CountActivePetMembers(ctx context.Context, groupID uint64) (int64, error) {
 	if m.countActivePetMembersFn != nil {
 		return m.countActivePetMembersFn(ctx, groupID)
+	}
+	return 0, nil
+}
+func (m *mockRepo) CountActivePetGroupsByOwnerGroupID(ctx context.Context, ownerGroupID uint64) (int64, error) {
+	if m.countActivePetGroupsByOwnerGroupFn != nil {
+		return m.countActivePetGroupsByOwnerGroupFn(ctx, ownerGroupID)
 	}
 	return 0, nil
 }
@@ -444,6 +465,30 @@ func TestUnlinkOwnerMember_LastMemberSoftDeletesGroup(t *testing.T) {
 	require.Equal(t, 1, auditLog.called)
 }
 
+func TestUnlinkOwnerMember_RejectsWhenDependentPetGroupsExist(t *testing.T) {
+	repo := &mockRepo{
+		lockOwnerGroupByIDFn: func(_ context.Context, groupID uint64) (*model.OwnerIdentityGroup, error) {
+			return &model.OwnerIdentityGroup{ID: groupID, CreatedClinicID: 1, Version: 1}, nil
+		},
+		listActiveOwnerMembersFn: func(_ context.Context, _ uint64) ([]model.OwnerIdentityGroupMember, error) {
+			return []model.OwnerIdentityGroupMember{
+				{ID: 5, GroupID: 3, ClinicID: 1, OwnerID: 10, GroupCreatedClinicID: 1},
+			}, nil
+		},
+		countActivePetGroupsByOwnerGroupFn: func(_ context.Context, ownerGroupID uint64) (int64, error) {
+			assert.Equal(t, uint64(3), ownerGroupID)
+			return 1, nil
+		},
+	}
+	svc := NewService(repo, noopTransactor{}, &mockTxLogger{})
+
+	err := svc.UnlinkOwnerMember(context.Background(), testActor(1), 3, OwnerMemberRef{ClinicID: 1, OwnerID: 10})
+	require.Error(t, err)
+	assert.True(t, apperrors.IsConflict(err))
+	assert.Equal(t, 0, repo.softDeleteOwnerCalled)
+	assert.Equal(t, 0, repo.softDeleteGroupCalled)
+}
+
 func TestUnlinkOwnerMember_RejectsCrossClinicMember(t *testing.T) {
 	repo := &mockRepo{}
 	auditLog := &mockTxLogger{}
@@ -647,6 +692,60 @@ func TestGetOwnerGroup_HiddenOutsideScope_NotFound(t *testing.T) {
 	_, _, err := svc.GetOwnerGroup(context.Background(), testActor(1), 99)
 	require.Error(t, err)
 	assert.True(t, apperrors.IsNotFound(err))
+}
+
+func TestGetOwnerGroup_ReturnsPersistedVersion(t *testing.T) {
+	repo := &mockRepo{
+		listActiveOwnerByClinicsFn: func(_ context.Context, _ uint64, _ []uint64) ([]model.OwnerIdentityGroupMember, error) {
+			return []model.OwnerIdentityGroupMember{{
+				GroupID:              7,
+				GroupCreatedClinicID: 1,
+				ClinicID:             1,
+				OwnerID:              100,
+			}}, nil
+		},
+		findOwnerGroupByIDFn: func(_ context.Context, groupID uint64) (*model.OwnerIdentityGroup, error) {
+			return &model.OwnerIdentityGroup{ID: groupID, CreatedClinicID: 3, Version: 4}, nil
+		},
+	}
+	svc := NewService(repo, noopTransactor{}, &mockTxLogger{})
+	group, members, err := svc.GetOwnerGroup(context.Background(), testActor(1), 7)
+	require.NoError(t, err)
+	require.NotNil(t, group)
+	assert.Equal(t, uint64(7), group.ID)
+	assert.Equal(t, uint64(3), group.CreatedClinicID)
+	assert.Equal(t, int64(4), group.Version)
+	assert.Len(t, members, 1)
+}
+
+func TestGetPetGroup_ReturnsPersistedOwnerGroupAndVersion(t *testing.T) {
+	repo := &mockRepo{
+		listActivePetByClinicsFn: func(_ context.Context, _ uint64, _ []uint64) ([]model.PetIdentityGroupMember, error) {
+			return []model.PetIdentityGroupMember{{
+				GroupID:              9,
+				GroupCreatedClinicID: 1,
+				ClinicID:             1,
+				PetID:                200,
+			}}, nil
+		},
+		findPetGroupByIDFn: func(_ context.Context, groupID uint64) (*model.PetIdentityGroup, error) {
+			return &model.PetIdentityGroup{
+				ID:                        groupID,
+				CreatedClinicID:           1,
+				OwnerGroupCreatedClinicID: 2,
+				OwnerGroupID:              42,
+				Version:                   5,
+			}, nil
+		},
+	}
+	svc := NewService(repo, noopTransactor{}, &mockTxLogger{})
+	group, members, err := svc.GetPetGroup(context.Background(), testActor(1), 9)
+	require.NoError(t, err)
+	require.NotNil(t, group)
+	assert.Equal(t, uint64(42), group.OwnerGroupID)
+	assert.Equal(t, uint64(2), group.OwnerGroupCreatedClinicID)
+	assert.Equal(t, int64(5), group.Version)
+	assert.Len(t, members, 1)
 }
 
 func TestListLinkedTreatmentHistory_DefaultExcludesLinked(t *testing.T) {

@@ -146,7 +146,6 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	cr.POST("/closes", h.requirePermission(string(model.ResourceCashRegisterClose), "create"), h.cashRegister.CloseCashRegister)
 	cr.GET("/closes", h.requirePermission(string(model.ResourceCashRegisterClose), "view"), h.cashRegister.ListCashRegisterCloses)
 	cr.GET("/closes/:id", h.requirePermission(string(model.ResourceCashRegisterClose), "view"), h.cashRegister.GetCashRegisterClose)
-
 	reports := rg.Group("/reports")
 	reports.GET("/monthly", h.requirePermission(string(model.ResourceAccountingReports), "view"), h.accountingReport.GetMonthlyReport)
 	reports.GET("/monthly/csv", h.requirePermission(string(model.ResourceAccountingReports), "view"), h.accountingReport.ExportMonthlyCSV)

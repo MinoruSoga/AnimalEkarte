@@ -5,10 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { axios } from "@/lib/axios";
 import { queryKeys } from "@/lib/query-keys";
-import {
-  replacePetSubOwners,
-  useReplacePetSubOwners,
-} from "./replace-pet-sub-owners";
+import { replacePetSubOwners, useReplacePetSubOwners } from "./replace-pet-sub-owners";
 
 vi.mock("@/lib/axios", () => ({
   axios: {
@@ -49,9 +46,7 @@ describe("replace pet sub-owners", () => {
   it("成功後に pet・副飼主一覧・metadata の query key を invalidate する", async () => {
     mockedPut.mockResolvedValueOnce({ data: undefined });
     const queryClient = new QueryClient();
-    const invalidateSpy = vi
-      .spyOn(queryClient, "invalidateQueries")
-      .mockResolvedValue(undefined);
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries").mockResolvedValue(undefined);
     const wrapper = ({ children }: { children: ReactNode }) =>
       createElement(QueryClientProvider, { client: queryClient }, children);
     const { result } = renderHook(() => useReplacePetSubOwners(), { wrapper });

@@ -266,6 +266,7 @@ func TestReservationValidators_ValidateAndCreate_MissingTransactorFailsClosed(t 
 		okTrimmingCourseRepo(),
 		okTrimmingOptionRepo(),
 		&mockTrimmingDetailRepository{},
+		openDayHolidayFinder(),
 	)
 
 	result, err := validators.ValidateAndCreate(context.Background(), &CreateReservationInput{
@@ -315,6 +316,7 @@ func TestReservationValidators_ValidateAndCreate_RejectsHiddenStaffDirectPost(t 
 	validators := NewReservationValidators(
 		&mockTransactor{}, repo, typeRepo, staffRepo,
 		okTrimmingCourseRepo(), okTrimmingOptionRepo(), &mockTrimmingDetailRepository{},
+		openDayHolidayFinder(),
 	)
 
 	result, err := validators.ValidateAndCreate(context.Background(), &CreateReservationInput{
@@ -364,6 +366,7 @@ func TestReservationValidators_ValidateAndCreate_RejectsInactiveStaffDirectPost(
 	validators := NewReservationValidators(
 		&mockTransactor{}, repo, typeRepo, staffRepo,
 		okTrimmingCourseRepo(), okTrimmingOptionRepo(), &mockTrimmingDetailRepository{},
+		openDayHolidayFinder(),
 	)
 
 	result, err := validators.ValidateAndCreate(context.Background(), &CreateReservationInput{
@@ -419,7 +422,7 @@ func TestReservationValidators_ValidateAndCreate_MapsCapacityConflict(t *testing
 			}, nil
 		},
 	}
-	validators := NewReservationValidators(&mockTransactor{}, repo, typeRepo, &mockReservationStaffRepositoryForCapability{}, okTrimmingCourseRepo(), okTrimmingOptionRepo(), &mockTrimmingDetailRepository{})
+	validators := NewReservationValidators(&mockTransactor{}, repo, typeRepo, &mockReservationStaffRepositoryForCapability{}, okTrimmingCourseRepo(), okTrimmingOptionRepo(), &mockTrimmingDetailRepository{}, openDayHolidayFinder())
 
 	result, err := validators.ValidateAndCreate(context.Background(), &CreateReservationInput{
 		ClinicID:          1,
@@ -438,6 +441,59 @@ func TestReservationValidators_ValidateAndCreate_MapsCapacityConflict(t *testing
 	assert.Equal(t, 5, limitErr.RedirectStep)
 	assert.Nil(t, result)
 	assert.False(t, createCalled)
+}
+
+func TestReservationValidators_ValidateAndCreate_RejectsClinicHoliday(t *testing.T) {
+	date := dateInDays(3)
+	createCalled := false
+	repo := &mockReservationRepository{
+		countOnDutyDoctorsFn: func(_ context.Context, _ uint64, _ time.Time) (int64, error) {
+			return 1, nil
+		},
+		createFn: func(_ context.Context, _ *model.Reservation) error {
+			createCalled = true
+			return nil
+		},
+	}
+	typeRepo := mockReservationTypeFinder{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.ReservationType, error) {
+			return &model.ReservationType{
+				ID:                 id,
+				ClinicID:           clinicID,
+				IsActive:           true,
+				ReservationVisible: true,
+				Category:           model.ReservationTypeCategoryGeneral,
+			}, nil
+		},
+	}
+	holidayFinder := &mockClinicHolidayFinder{
+		findByDateFn: func(_ context.Context, clinicID uint64, gotDate time.Time) (*model.ClinicHoliday, error) {
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, date.In(config.JST).Format(time.DateOnly), gotDate.In(config.JST).Format(time.DateOnly))
+			return &model.ClinicHoliday{ID: 1, ClinicID: clinicID, Date: gotDate, Reason: "臨時休診"}, nil
+		},
+	}
+	validators := NewReservationValidators(
+		&mockTransactor{}, repo, typeRepo, &mockReservationStaffRepositoryForCapability{},
+		okTrimmingCourseRepo(), okTrimmingOptionRepo(), &mockTrimmingDetailRepository{},
+		holidayFinder,
+	)
+
+	result, err := validators.ValidateAndCreate(context.Background(), &CreateReservationInput{
+		ClinicID:          1,
+		CustomerID:        2,
+		ReservationTypeID: 9,
+		Date:              date,
+		StartTime:         "1000",
+		EndTime:           "1015",
+		Settings:          newSettingForValidation(),
+	})
+
+	require.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err), "expected invalid input but got: %v", err)
+	assert.Contains(t, err.Error(), "休診日")
+	assert.Nil(t, result)
+	assert.False(t, createCalled, "clinic holiday must not persist a LINE reservation")
 }
 
 // firstWeekday は今日から数えて最初に指定曜日になる日を返す（minDays=2 を満たすため最低 2 日は先にする）。

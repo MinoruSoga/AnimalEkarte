@@ -9,6 +9,108 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
+func TestResolveMedicalRecordImageStorageKey(t *testing.T) {
+	tests := []struct {
+		name       string
+		stored     string
+		wantKey    string
+		wantObject bool
+		wantErr    bool
+	}{
+		{
+			name:       "scheme-less medical-records key",
+			stored:     "medical-records/5/uuid.png",
+			wantKey:    "medical-records/5/uuid.png",
+			wantObject: true,
+		},
+		{
+			name:       "local /uploads prefix uses rest as key",
+			stored:     "/uploads/medical-records/5/uuid.png",
+			wantKey:    "medical-records/5/uuid.png",
+			wantObject: true,
+		},
+		{
+			name:       "https path containing medical-records/ extracts suffix",
+			stored:     "https://cdn.example/medical-records/5/uuid.png",
+			wantKey:    "medical-records/5/uuid.png",
+			wantObject: true,
+		},
+		{
+			name:       "http nested path extracts medical-records suffix",
+			stored:     "http://cdn.example/foo/medical-records/5/uuid.png",
+			wantKey:    "medical-records/5/uuid.png",
+			wantObject: true,
+		},
+		{
+			name:       "https query is stripped from extracted key",
+			stored:     "https://cdn.example/medical-records/5/uuid.png?X-Amz-Signature=abc",
+			wantKey:    "medical-records/5/uuid.png",
+			wantObject: true,
+		},
+		{
+			name:       "empty is not a storage object",
+			stored:     "",
+			wantKey:    "",
+			wantObject: false,
+		},
+		{
+			name:       "JSON-create https without medical-records suffix is not extracted",
+			stored:     "https://example.test/a.png",
+			wantKey:    "",
+			wantObject: false,
+		},
+		{
+			name:       "https path with medical-records as filename prefix is not a storage object",
+			stored:     "https://example.test/medical-records-policy.png",
+			wantKey:    "",
+			wantObject: false,
+		},
+		{
+			name:       "local /uploads without medical-records key is not a storage object",
+			stored:     "/uploads/image.png",
+			wantKey:    "",
+			wantObject: false,
+		},
+		{
+			name:       "ambiguous https medical-records path without object key is not extracted",
+			stored:     "https://cdn.example/medical-records",
+			wantKey:    "",
+			wantObject: false,
+		},
+		{
+			name:       "https medical-records/ with empty remainder is fail-closed",
+			stored:     "https://cdn.example/medical-records/",
+			wantKey:    "",
+			wantObject: false,
+			wantErr:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotKey, isObject, err := resolveMedicalRecordImageStorageKey(tt.stored)
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.False(t, isObject)
+				assert.Empty(t, gotKey)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Equal(t, tt.wantObject, isObject)
+			assert.Equal(t, tt.wantKey, gotKey)
+		})
+	}
+}
+
+func TestMedicalRecordImageKeyBelongsToRecord(t *testing.T) {
+	assert.True(t, medicalRecordImageKeyBelongsToRecord("medical-records/5/uuid.png", 5))
+	assert.False(t, medicalRecordImageKeyBelongsToRecord("medical-records/99/uuid.png", 5))
+	assert.False(t, medicalRecordImageKeyBelongsToRecord("medical-records/50/uuid.png", 5))
+	assert.False(t, medicalRecordImageKeyBelongsToRecord("medical-records/5/", 5))
+	assert.False(t, medicalRecordImageKeyBelongsToRecord("medical-records/5/../other.png", 5))
+	assert.False(t, medicalRecordImageKeyBelongsToRecord("other/5/uuid.png", 5))
+}
+
 func TestToMedicalRecordImageResponse(t *testing.T) {
 	takenAt := time.Date(2026, 5, 1, 10, 0, 0, 0, time.UTC)
 	timestamps := time.Date(2026, 5, 2, 11, 30, 0, 0, time.UTC)

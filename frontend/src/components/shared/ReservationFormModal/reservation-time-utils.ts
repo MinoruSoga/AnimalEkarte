@@ -40,12 +40,13 @@ export function getApplicableUnavailableTimes(
   );
   if (specific.length > 0) return specific;
   const dayOfWeek = date.getDay();
-  return times.filter(
-    (time) => time.unavailableType === "weekly" && time.dayOfWeek === dayOfWeek,
-  );
+  return times.filter((time) => time.unavailableType === "weekly" && time.dayOfWeek === dayOfWeek);
 }
 
-export function isStartTimeUnavailable(time: string, unavailableTimes: ReservationTypeUnavailableTime[]): boolean {
+export function isStartTimeUnavailable(
+  time: string,
+  unavailableTimes: ReservationTypeUnavailableTime[],
+): boolean {
   const minutes = timeToMinutes(time);
   return unavailableTimes.some(
     (unavailableTime) =>

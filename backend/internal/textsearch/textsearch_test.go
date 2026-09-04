@@ -1,6 +1,7 @@
 package textsearch
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -28,6 +29,12 @@ func TestNormalizeKana(t *testing.T) {
 	}
 }
 
+func TestNormalizeQuerySpaces(t *testing.T) {
+	assert.Equal(t, "山田 花子", NormalizeQuerySpaces("山田　花子"))
+	assert.Equal(t, "山田 花子", NormalizeQuerySpaces("  山田   花子  "))
+	assert.Equal(t, "", NormalizeQuerySpaces("　　"))
+}
+
 func TestEscapeLike(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -51,4 +58,24 @@ func TestKanaTranslationConstantsCoverExpectedRange(t *testing.T) {
 	assert.Equal(t, []rune(KanaSourceChars), []rune("ァアィイゥウェエォオカガキギクグケゲコゴサザシジスズセゼソゾタダチヂッツヅテデトドナニヌネノハバパヒビピフブプヘベペホボポマミムメモャヤュユョヨラリルレロヮワヰヱヲンヴヵヶ"))
 	assert.Equal(t, []rune(KanaTargetChars), []rune("ぁあぃいぅうぇえぉおかがきぎくぐけげこごさざしじすずせぜそぞただちぢっつづてでとどなにぬねのはばぱひびぴふぶぷへべぺほぼぽまみむめもゃやゅゆょよらりるれろゎわゐゑをんゔゕゖ"))
 	assert.Len(t, []rune(KanaSourceChars), len([]rune(KanaTargetChars)))
+	assert.NotContains(t, KanaSourceChars, "\u3000")
+	assert.NotContains(t, KanaTargetChars, "\u3000")
+}
+
+func TestSpaceTranslationConstantsFoldIdeographicSpace(t *testing.T) {
+	assert.Equal(t, "\u3000", SpaceSourceChars)
+	assert.Equal(t, " ", SpaceTargetChars)
+	assert.Len(t, []rune(SpaceSourceChars), len([]rune(SpaceTargetChars)))
+}
+
+func TestKanaAndSpaceTranslationConstantsComposeWithoutMutatingKana(t *testing.T) {
+	assert.Equal(t, KanaSourceChars+SpaceSourceChars, KanaAndSpaceSourceChars)
+	assert.Equal(t, KanaTargetChars+SpaceTargetChars, KanaAndSpaceTargetChars)
+	assert.Len(t, []rune(KanaAndSpaceSourceChars), len([]rune(KanaAndSpaceTargetChars)))
+	assert.True(t, strings.HasPrefix(KanaAndSpaceSourceChars, KanaSourceChars))
+	assert.True(t, strings.HasSuffix(KanaAndSpaceSourceChars, "\u3000"))
+	assert.True(t, strings.HasPrefix(KanaAndSpaceTargetChars, KanaTargetChars))
+	assert.True(t, strings.HasSuffix(KanaAndSpaceTargetChars, " "))
+	assert.Equal(t, []rune(KanaSourceChars), []rune("ァアィイゥウェエォオカガキギクグケゲコゴサザシジスズセゼソゾタダチヂッツヅテデトドナニヌネノハバパヒビピフブプヘベペホボポマミムメモャヤュユョヨラリルレロヮワヰヱヲンヴヵヶ"))
+	assert.Equal(t, []rune(KanaTargetChars), []rune("ぁあぃいぅうぇえぉおかがきぎくぐけげこごさざしじすずせぜそぞただちぢっつづてでとどなにぬねのはばぱひびぴふぶぷへべぺほぼぽまみむめもゃやゅゆょよらりるれろゎわゐゑをんゔゕゖ"))
 }

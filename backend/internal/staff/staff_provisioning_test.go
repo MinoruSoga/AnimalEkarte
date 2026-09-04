@@ -40,6 +40,7 @@ func TestStaffProvisioning_DecodeRejectsUnknownFields(t *testing.T) {
 	}`))
 	require.Error(t, err)
 	assert.True(t, apperrors.IsInvalidInput(err))
+	assertNoJSONDecoderLeak(t, err)
 
 	_, err = DecodeStaffProvisionSecrets(strings.NewReader(`{
 		"secrets":[{"secret_ref":"a","password":"Password1"}],
@@ -47,6 +48,28 @@ func TestStaffProvisioning_DecodeRejectsUnknownFields(t *testing.T) {
 	}`))
 	require.Error(t, err)
 	assert.True(t, apperrors.IsInvalidInput(err))
+	assertNoJSONDecoderLeak(t, err)
+}
+
+func TestStaffProvisioning_DecodeRejectsInvalidJSONWithoutDecoderLeak(t *testing.T) {
+	t.Parallel()
+	_, err := DecodeStaffProvisionManifest(strings.NewReader(`{`))
+	require.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+	assertNoJSONDecoderLeak(t, err)
+
+	_, err = DecodeStaffProvisionSecrets(strings.NewReader(`not-json`))
+	require.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+	assertNoJSONDecoderLeak(t, err)
+}
+
+func assertNoJSONDecoderLeak(t *testing.T, err error) {
+	t.Helper()
+	msg := err.Error()
+	assert.NotContains(t, msg, "json:")
+	assert.NotContains(t, msg, "invalid value")
+	assert.NotContains(t, msg, "unknown field")
 }
 
 func TestStaffProvisioning_DecodeRejectsTrailingJSON(t *testing.T) {
@@ -140,6 +163,11 @@ func TestStaffProvisioning_SecurePathRequires0600AbsoluteOutsideRepo(t *testing.
 	_, err := ValidateSecureInputPath(insidePath, []string{repoRoot})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "outside the repository")
+
+	missing := filepath.Join(outside, "missing.json")
+	_, err = ValidateSecureInputPath(missing, []string{repoRoot})
+	require.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
 
 	rel := "manifest.json"
 	_, err = ValidateSecureInputPath(rel, []string{repoRoot})

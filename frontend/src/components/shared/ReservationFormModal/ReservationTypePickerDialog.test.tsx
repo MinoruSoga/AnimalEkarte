@@ -21,7 +21,10 @@ const GROUPS: ReservationTypePickerGroup[] = [
   },
 ];
 
-function renderDialog(overrides?: { onSelect?: (id: string) => void; onOpenChange?: (o: boolean) => void }) {
+function renderDialog(overrides?: {
+  onSelect?: (id: string) => void;
+  onOpenChange?: (o: boolean) => void;
+}) {
   return render(
     <ReservationTypePickerDialog
       open

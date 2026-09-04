@@ -1,4 +1,4 @@
-package staff
+package staff_test
 
 import (
 	"context"
@@ -15,6 +15,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/reservation"
+	staffpkg "github.com/animal-ekarte/backend/internal/staff"
 	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
@@ -44,7 +45,7 @@ func (r *blockingAssignmentRaceReservationRepository) Create(
 }
 
 type observedAssignmentRaceStaffUpdateLocker struct {
-	StaffRepository
+	staffpkg.StaffRepository
 	started      chan struct{}
 	returned     chan struct{}
 	startedOnce  sync.Once
@@ -124,9 +125,9 @@ type assignmentRaceFixture struct {
 	targetClinic      *model.Clinic
 	staff             *model.Staff
 	reservationType   *model.ReservationType
-	staffRepo         StaffRepository
-	assignmentRepo    StaffClinicAssignmentRepository
-	shiftRepo         ShiftEntryRepository
+	staffRepo         staffpkg.StaffRepository
+	assignmentRepo    staffpkg.StaffClinicAssignmentRepository
+	shiftRepo         staffpkg.ShiftEntryRepository
 	clinicRepo        clinicdomain.ClinicRepository
 	reservationRepo   reservation.ReservationStore
 	reservationStaff  reservation.ReservationStaffRepository
@@ -180,8 +181,8 @@ func setupStaffAssignmentReservationRaceTest(t *testing.T) *assignmentRaceFixtur
 	}
 	require.NoError(t, db.Create(staff).Error)
 
-	staffRepo := NewStaffRepository(db)
-	assignmentRepo := NewStaffClinicAssignmentRepository(db)
+	staffRepo := staffpkg.NewStaffRepository(db)
+	assignmentRepo := staffpkg.NewStaffClinicAssignmentRepository(db)
 	require.NoError(t, assignmentRepo.Create(context.Background(), &model.StaffClinicAssignment{
 		StaffID:  staff.ID,
 		ClinicID: sourceClinic.ID,
@@ -213,7 +214,7 @@ func setupStaffAssignmentReservationRaceTest(t *testing.T) *assignmentRaceFixtur
 		reservationType:  reservationType,
 		staffRepo:        staffRepo,
 		assignmentRepo:   assignmentRepo,
-		shiftRepo:        NewShiftEntryRepository(db),
+		shiftRepo:        staffpkg.NewShiftEntryRepository(db),
 		clinicRepo:       clinicdomain.NewClinicRepository(db),
 		reservationRepo:  reservationRepo,
 		reservationStaff: reservationStaff,
@@ -234,10 +235,10 @@ func setupStaffAssignmentReservationRaceTest(t *testing.T) *assignmentRaceFixtur
 
 func newAssignmentRaceStaffService(
 	fixture *assignmentRaceFixture,
-	staffRepo StaffRepository,
-	clinicRepo StaffAssignmentClinicLookup,
-) StaffService {
-	return NewStaffService(
+	staffRepo staffpkg.StaffRepository,
+	clinicRepo staffpkg.StaffAssignmentClinicLookup,
+) staffpkg.StaffService {
+	return staffpkg.NewStaffService(
 		staffRepo,
 		nil,
 		fixture.assignmentRepo,
@@ -305,7 +306,7 @@ func TestStaffSetAssignmentsAndReservationCreate_ReservationWinnerPreservesAssig
 
 	assignmentDone := make(chan error, 1)
 	go func() {
-		assignmentDone <- staffSvc.SetClinicAssignments(ctx, &SetClinicAssignmentsInput{
+		assignmentDone <- staffSvc.SetClinicAssignments(ctx, &staffpkg.SetClinicAssignmentsInput{
 			StaffID: fixture.staff.ID,
 			ClinicIDs: []uint64{
 				fixture.targetClinic.ID,
@@ -375,7 +376,7 @@ func TestStaffSetAssignmentsAndReservationCreate_AssignmentWinnerPreventsUnassig
 	defer cancel()
 	assignmentDone := make(chan error, 1)
 	go func() {
-		assignmentDone <- staffSvc.SetClinicAssignments(ctx, &SetClinicAssignmentsInput{
+		assignmentDone <- staffSvc.SetClinicAssignments(ctx, &staffpkg.SetClinicAssignmentsInput{
 			StaffID: fixture.staff.ID,
 			ClinicIDs: []uint64{
 				fixture.targetClinic.ID,

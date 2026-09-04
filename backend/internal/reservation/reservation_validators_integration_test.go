@@ -108,6 +108,7 @@ func TestReservationValidators_RealDBRejectsForeignStaffAndRollsBackTrimmingGrap
 		validators := NewReservationValidators(
 			testNewTransactor(db), reservationRepo, typeRepo, staffRepo,
 			courseRepo, optionRepo, failingLiffTrimmingDetailRepository{db: db},
+			openDayHolidayFinder(),
 		)
 		out, err := validators.ValidateAndCreate(ctx, baseInput(foreignStaff.ID))
 		require.Error(t, err)
@@ -123,6 +124,7 @@ func TestReservationValidators_RealDBRejectsForeignStaffAndRollsBackTrimmingGrap
 		validators := NewReservationValidators(
 			testNewTransactor(db), reservationRepo, typeRepo, staffRepo,
 			courseRepo, optionRepo, failingLiffTrimmingDetailRepository{db: db, setOptionsErr: sentinel},
+			openDayHolidayFinder(),
 		)
 		input := baseInput(validStaff.ID)
 		input.Date = time.Now().In(input.Date.Location()).AddDate(0, 0, 3)
@@ -142,6 +144,7 @@ func TestReservationValidators_RealDBRejectsForeignStaffAndRollsBackTrimmingGrap
 		validators := NewReservationValidators(
 			testNewTransactor(db), reservationRepo, typeRepo, staffRepo,
 			courseRepo, optionRepo, failingLiffTrimmingDetailRepository{db: db},
+			openDayHolidayFinder(),
 		)
 		input := baseInput(validStaff.ID)
 		input.CustomerID = foreignCustomer.ID
@@ -193,6 +196,7 @@ func TestReservationValidators_RealDBRejectsInactiveReservationTypeWithoutPartia
 		nil,
 		nil,
 		nil,
+		openDayHolidayFinder(),
 	)
 	out, err := validators.ValidateAndCreate(ctx, &CreateReservationInput{
 		ClinicID:          clinicID,

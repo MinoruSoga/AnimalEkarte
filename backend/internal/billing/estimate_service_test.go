@@ -25,12 +25,14 @@ func estimateTestMembershipCounter() staffClinicMembershipCounter {
 type mockEstimateRepository struct {
 	findAllFn              func(ctx context.Context, clinicID uint64, ownerID, medicalRecordID *uint64, status *string, page, limit int) ([]model.Estimate, int64, error)
 	findByIDFn             func(ctx context.Context, clinicID, id uint64) (*model.Estimate, error)
+	lockEditableByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.Estimate, error)
 	createFn               func(ctx context.Context, estimate *model.Estimate) error
 	updateFn               func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	updateIfNotLockedFn    func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Estimate, error)
 	deleteIfNotLockedFn    func(ctx context.Context, clinicID, id uint64) error
 	countItemsByEstimateID func(ctx context.Context, estimateID uint64) (int64, error)
 	allocateNextEstimateNo func(ctx context.Context, clinicID uint64) (string, error)
+	replaceItemsFn         func(ctx context.Context, clinicID, estimateID uint64, items []model.EstimateItem) error
 }
 
 func (m *mockEstimateRepository) FindAll(ctx context.Context, clinicID uint64, ownerID, medicalRecordID *uint64, status *string, page, limit int) ([]model.Estimate, int64, error) {
@@ -42,6 +44,20 @@ func (m *mockEstimateRepository) FindByID(ctx context.Context, clinicID, id uint
 		return m.findByIDFn(ctx, clinicID, id)
 	}
 	return nil, nil
+}
+
+func (m *mockEstimateRepository) LockEditableByID(ctx context.Context, clinicID, id uint64) (*model.Estimate, error) {
+	if m.lockEditableByIDFn != nil {
+		return m.lockEditableByIDFn(ctx, clinicID, id)
+	}
+	estimate, err := m.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return nil, err
+	}
+	if estimate != nil && isEstimateLocked(estimate.Status) {
+		return nil, apperrors.WrapConflict("承認済みまたは却下済みの見積書は編集できません")
+	}
+	return estimate, nil
 }
 
 func (m *mockEstimateRepository) Create(ctx context.Context, estimate *model.Estimate) error {
@@ -74,6 +90,13 @@ func (m *mockEstimateRepository) CountItemsByEstimateID(ctx context.Context, _, 
 		return m.countItemsByEstimateID(ctx, estimateID)
 	}
 	return 0, nil
+}
+
+func (m *mockEstimateRepository) ReplaceItems(ctx context.Context, clinicID, estimateID uint64, items []model.EstimateItem) error {
+	if m.replaceItemsFn != nil {
+		return m.replaceItemsFn(ctx, clinicID, estimateID, items)
+	}
+	return nil
 }
 
 func (m *mockEstimateRepository) AllocateNextEstimateNo(ctx context.Context, clinicID uint64) (string, error) {
@@ -575,6 +598,54 @@ func TestEstimateService_Update(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestEstimateService_Update_TotalsOnlyPatchDerivesTotalsFromExistingItems(t *testing.T) {
+	requestedSubtotal := int64(1)
+	requestedTaxTotal := int64(2)
+	requestedTotalAmount := int64(3)
+	existing := &model.Estimate{
+		ID:              1,
+		ClinicID:        1,
+		Status:          model.EstimateStatusDraft,
+		InsuranceAmount: 700,
+		DiscountAmount:  300,
+		Items: []model.EstimateItem{
+			{
+				EstimateID:     1,
+				UnitPrice:      1000,
+				Quantity:       2,
+				TaxType:        model.TaxTypeExcluded,
+				TaxRate:        0.10,
+				DiscountAmount: 200,
+			},
+		},
+	}
+
+	var updatedFields map[string]any
+	repo := &mockEstimateRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Estimate, error) {
+			return existing, nil
+		},
+		updateIfNotLockedFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.Estimate, error) {
+			updatedFields = fields
+			return existing, nil
+		},
+	}
+	svc := NewEstimateService(repo, nil, nil, nil, nil, noopTransactor{})
+
+	_, err := svc.Update(context.Background(), 1, 1, &UpdateEstimateInput{
+		Subtotal:    &requestedSubtotal,
+		TaxTotal:    &requestedTaxTotal,
+		TotalAmount: &requestedTotalAmount,
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, int64(1800), updatedFields["subtotal"])
+	assert.Equal(t, int64(180), updatedFields["tax_total"])
+	assert.Equal(t, int64(1980), updatedFields["total_amount"])
+	assert.NotContains(t, updatedFields, "insurance_amount")
+	assert.NotContains(t, updatedFields, "discount_amount")
 }
 
 // TestEstimateService_Update_TOCTOU_LockedAfterFind は FindByID 時点では draft でも、
@@ -1403,4 +1474,257 @@ func TestEstimateService_Create_AssignsEstimateNo(t *testing.T) {
 	require.NotNil(t, saved)
 	assert.Equal(t, "EST-42", saved.EstimateNo)
 	assert.Equal(t, "EST-42", got.EstimateNo)
+}
+
+func TestEstimateService_Create_PersistsItemsInSameTx(t *testing.T) {
+	var replaced []model.EstimateItem
+	repo := &mockEstimateRepository{
+		createFn: func(_ context.Context, e *model.Estimate) error {
+			e.ID = 11
+			return nil
+		},
+		replaceItemsFn: func(_ context.Context, clinicID, estimateID uint64, items []model.EstimateItem) error {
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, uint64(11), estimateID)
+			replaced = items
+			return nil
+		},
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
+			return &model.Estimate{ID: id, Title: "明細付き", Items: replaced}, nil
+		},
+	}
+	svc := NewEstimateService(repo, nil, nil, estimateTestMembershipCounter(), nil, noopTransactor{})
+
+	got, err := svc.Create(context.Background(), 1, &CreateEstimateInput{
+		Title:     "明細付き",
+		CreatedBy: ptrU64(estimateTestCreatedByStaffID),
+		Items: []EstimateItemInput{{
+			Name:      "診察料",
+			UnitPrice: 1000,
+			Quantity:  1,
+		}},
+	})
+	require.NoError(t, err)
+	require.Len(t, replaced, 1)
+	assert.Equal(t, "診察料", replaced[0].Name)
+	require.Len(t, got.Items, 1)
+}
+
+func TestEstimateService_Create_DerivesHeaderTotalsFromItems(t *testing.T) {
+	var saved *model.Estimate
+	repo := &mockEstimateRepository{
+		createFn: func(_ context.Context, estimate *model.Estimate) error {
+			estimate.ID = 12
+			cp := *estimate
+			saved = &cp
+			return nil
+		},
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
+			cp := *saved
+			cp.ID = id
+			return &cp, nil
+		},
+	}
+	svc := NewEstimateService(repo, nil, nil, estimateTestMembershipCounter(), nil, noopTransactor{})
+
+	_, err := svc.Create(context.Background(), 1, &CreateEstimateInput{
+		Title:       "明細合計",
+		CreatedBy:   ptrU64(estimateTestCreatedByStaffID),
+		Subtotal:    999999,
+		TaxTotal:    999999,
+		TotalAmount: 999999,
+		Items: []EstimateItemInput{{
+			Name: "処置", Category: model.ItemCategoryProcedure,
+			UnitPrice: 1000, Quantity: 2, DiscountAmount: 100,
+		}},
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, saved)
+	assert.Equal(t, int64(1900), saved.Subtotal)
+	assert.Equal(t, int64(190), saved.TaxTotal)
+	assert.Equal(t, int64(2090), saved.TotalAmount)
+}
+
+func TestEstimateService_Create_RejectsInvalidItemValues(t *testing.T) {
+	tests := []struct {
+		name string
+		item EstimateItemInput
+	}{
+		{name: "invalid category", item: EstimateItemInput{Name: "x", Category: model.ItemCategory("invalid"), Quantity: 1}},
+		{name: "zero quantity", item: EstimateItemInput{Name: "x", Category: model.ItemCategoryOther, Quantity: 0}},
+		{name: "negative discount amount", item: EstimateItemInput{Name: "x", Category: model.ItemCategoryOther, Quantity: 1, DiscountAmount: -1}},
+		{name: "discount rate above 100", item: EstimateItemInput{Name: "x", Category: model.ItemCategoryOther, Quantity: 1, DiscountRate: 101}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			createCalled := false
+			repo := &mockEstimateRepository{createFn: func(_ context.Context, _ *model.Estimate) error { createCalled = true; return nil }}
+			svc := NewEstimateService(repo, nil, nil, estimateTestMembershipCounter(), nil, noopTransactor{})
+			got, err := svc.Create(context.Background(), 1, &CreateEstimateInput{Title: "invalid", CreatedBy: ptrU64(estimateTestCreatedByStaffID), Items: []EstimateItemInput{tt.item}})
+			require.Error(t, err)
+			assert.True(t, apperrors.IsInvalidInput(err), "expected invalid input, got %v", err)
+			assert.Nil(t, got)
+			assert.False(t, createCalled)
+		})
+	}
+}
+
+func TestEstimateService_Create_FindByIDFailureAbortsCreate(t *testing.T) {
+	repo := &mockEstimateRepository{
+		createFn: func(_ context.Context, e *model.Estimate) error {
+			e.ID = 12
+			return nil
+		},
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Estimate, error) {
+			return nil, apperrors.WrapInternalServerError("reload failed")
+		},
+	}
+	svc := NewEstimateService(repo, nil, nil, estimateTestMembershipCounter(), nil, noopTransactor{})
+
+	got, err := svc.Create(context.Background(), 1, &CreateEstimateInput{
+		Title:     "再取得失敗",
+		CreatedBy: ptrU64(estimateTestCreatedByStaffID),
+	})
+	require.Error(t, err)
+	assert.Nil(t, got)
+}
+
+func TestEstimateService_CreateSuccessor_CopiesItems(t *testing.T) {
+	const clinicID, originalID, actorID = uint64(1), uint64(10), uint64(7)
+	original := &model.Estimate{
+		ID:         originalID,
+		ClinicID:   clinicID,
+		EstimateNo: "EST-1",
+		Title:      "確定見積",
+		Status:     model.EstimateStatusApproved,
+		Items: []model.EstimateItem{{
+			ID: 3, EstimateID: originalID, Name: "処置料", UnitPrice: 2000, Quantity: 1,
+			Category: model.ItemCategoryOther, TaxType: model.TaxTypeExcluded, TaxRate: 0.10,
+		}},
+	}
+	var copied []model.EstimateItem
+	var created *model.Estimate
+	repo := &mockEstimateRepository{
+		findByIDFn: func(_ context.Context, _ uint64, id uint64) (*model.Estimate, error) {
+			if id == originalID {
+				return original, nil
+			}
+			if created != nil && id == created.ID {
+				cp := *created
+				cp.Items = copied
+				return &cp, nil
+			}
+			return nil, apperrors.WrapNotFound("estimate", fmt.Sprintf("%d", id))
+		},
+		createFn: func(_ context.Context, e *model.Estimate) error {
+			e.ID = 99
+			cp := *e
+			created = &cp
+			return nil
+		},
+		replaceItemsFn: func(_ context.Context, _, estimateID uint64, items []model.EstimateItem) error {
+			assert.Equal(t, uint64(99), estimateID)
+			copied = items
+			return nil
+		},
+	}
+	audit := &capturingAuditTxLogger{}
+	svc := NewEstimateService(repo, nil, nil, estimateTestMembershipCounter(), nil, noopTransactor{}, WithEstimateAuditTx(audit))
+
+	got, err := svc.CreateSuccessor(context.Background(), clinicID, originalID, &CreateSuccessorInput{
+		Reason:  "明細引き継ぎ",
+		ActorID: actorID,
+	})
+	require.NoError(t, err)
+	require.Len(t, copied, 1)
+	assert.Equal(t, "処置料", copied[0].Name)
+	assert.Zero(t, copied[0].ID)
+	require.Len(t, got.Items, 1)
+	assert.Equal(t, "処置料", got.Items[0].Name)
+}
+
+func TestEstimateService_Update_RejectsInvalidItemsBeforeWrite(t *testing.T) {
+	updateCalled := false
+	repo := &mockEstimateRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
+			return &model.Estimate{ID: id, Status: model.EstimateStatusDraft}, nil
+		},
+		updateIfNotLockedFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Estimate, error) {
+			updateCalled = true
+			return nil, nil
+		},
+	}
+	svc := NewEstimateService(repo, nil, nil, estimateTestMembershipCounter(), nil, noopTransactor{})
+	items := []EstimateItemInput{{Name: "薬", Category: model.ItemCategoryMedicine, Quantity: -1}}
+
+	got, err := svc.Update(context.Background(), 1, 3, &UpdateEstimateInput{Items: &items})
+
+	require.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err), "expected invalid input, got %v", err)
+	assert.Nil(t, got)
+	assert.False(t, updateCalled)
+}
+
+func TestEstimateService_Update_ItemsOnlyDerivesHeaderTotals(t *testing.T) {
+	var updatedFields map[string]any
+	repo := &mockEstimateRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
+			return &model.Estimate{ID: id, Status: model.EstimateStatusDraft}, nil
+		},
+		updateIfNotLockedFn: func(_ context.Context, _, id uint64, fields map[string]any) (*model.Estimate, error) {
+			updatedFields = fields
+			return &model.Estimate{ID: id, Status: model.EstimateStatusDraft}, nil
+		},
+	}
+	svc := NewEstimateService(repo, nil, nil, estimateTestMembershipCounter(), nil, noopTransactor{})
+	items := []EstimateItemInput{{Name: "薬", Category: model.ItemCategoryMedicine, UnitPrice: 500, Quantity: 3, DiscountAmount: 200}}
+
+	_, err := svc.Update(context.Background(), 1, 3, &UpdateEstimateInput{Items: &items})
+
+	require.NoError(t, err)
+	assert.Equal(t, int64(1300), updatedFields["subtotal"])
+	assert.Equal(t, int64(130), updatedFields["tax_total"])
+	assert.Equal(t, int64(1430), updatedFields["total_amount"])
+}
+
+func TestEstimateService_Update_PersistsItemsInSameTx(t *testing.T) {
+	title := "明細更新"
+	var replaced []model.EstimateItem
+	repo := &mockEstimateRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
+			return &model.Estimate{
+				ID:     id,
+				Title:  title,
+				Status: model.EstimateStatusDraft,
+				Items:  replaced,
+			}, nil
+		},
+		updateIfNotLockedFn: func(_ context.Context, _, id uint64, _ map[string]any) (*model.Estimate, error) {
+			return &model.Estimate{ID: id, Title: title, Status: model.EstimateStatusDraft}, nil
+		},
+		replaceItemsFn: func(_ context.Context, clinicID, estimateID uint64, items []model.EstimateItem) error {
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, uint64(3), estimateID)
+			replaced = items
+			return nil
+		},
+	}
+	svc := NewEstimateService(repo, nil, nil, estimateTestMembershipCounter(), nil, noopTransactor{})
+
+	items := []EstimateItemInput{{Name: "処置料", UnitPrice: 2000, Quantity: 1}}
+	got, err := svc.Update(context.Background(), 1, 3, &UpdateEstimateInput{
+		Title: &title,
+		Items: &items,
+	})
+	require.NoError(t, err)
+	require.Len(t, replaced, 1)
+	assert.Equal(t, "処置料", replaced[0].Name)
+	require.Len(t, got.Items, 1)
+
+	empty := []EstimateItemInput{}
+	got, err = svc.Update(context.Background(), 1, 3, &UpdateEstimateInput{Items: &empty})
+	require.NoError(t, err)
+	require.Empty(t, replaced)
+	require.Empty(t, got.Items)
 }

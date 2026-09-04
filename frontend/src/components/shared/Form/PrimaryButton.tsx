@@ -11,16 +11,15 @@ interface PrimaryButtonProps extends ButtonProps {
   colorVariant?: "default" | "primary" | "brand";
 }
 
-export function PrimaryButton({ className, colorVariant = "primary", ...props }: PrimaryButtonProps) {
+export function PrimaryButton({
+  className,
+  colorVariant = "primary",
+  ...props
+}: PrimaryButtonProps) {
   const baseClassName =
     colorVariant === "brand"
       ? `${C.bgBrandIdentity} ${C.textOnBrandIdentity} ${C.hoverBgBrandIdentity} ${C.hoverTextOnBrandIdentity} ${C.activeBgBrandIdentity} ${C.activeTextOnBrandIdentity} h-11 text-xl font-bold shadow-none rounded-full border-transparent`
       : `${C.bgActionPrimary} ${C.textOnActionPrimary} ${C.hoverBgActionPrimary} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimary} ${C.activeTextOnActionPrimary} h-11 text-base shadow-none rounded-full border-transparent`;
 
-  return (
-    <Button
-      className={`${baseClassName} ${className || ""}`}
-      {...props}
-    />
-  );
+  return <Button className={`${baseClassName} ${className || ""}`} {...props} />;
 }

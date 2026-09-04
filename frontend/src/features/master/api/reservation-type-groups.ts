@@ -96,7 +96,9 @@ export function useCreateReservationTypeGroup() {
   return useMutation({
     mutationFn: createReservationTypeGroup,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("reservation-type-groups") });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.masters.category("reservation-type-groups"),
+      });
     },
     onError: (error) => handleApiError(error, "作成"),
   });
@@ -108,7 +110,9 @@ export function useUpdateReservationTypeGroup() {
     mutationFn: ({ id, req }: { id: string; req: UpdateReservationTypeGroupRequest }) =>
       updateReservationTypeGroup(id, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("reservation-type-groups") });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.masters.category("reservation-type-groups"),
+      });
     },
     onError: (error) => handleApiError(error, "更新"),
   });
@@ -119,9 +123,10 @@ export function useDeleteReservationTypeGroup() {
   return useMutation({
     mutationFn: deleteReservationTypeGroup,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("reservation-type-groups") });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.masters.category("reservation-type-groups"),
+      });
     },
     onError: (error) => handleApiError(error, "削除"),
   });
 }
-

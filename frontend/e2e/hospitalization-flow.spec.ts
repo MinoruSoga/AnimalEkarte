@@ -1,7 +1,7 @@
-import { test, expect } from '@playwright/test';
-import type { BrowserContext } from '@playwright/test';
-import { createAuthedContext } from './helpers/context';
-import { HospitalizationPage } from './pages/hospitalization-page';
+import { test, expect } from "@playwright/test";
+import type { BrowserContext } from "@playwright/test";
+import { createAuthedContext } from "./helpers/context";
+import { HospitalizationPage } from "./pages/hospitalization-page";
 
 // E2E flow tests for hospitalization (/hospitalization) pages.
 // Seed data: 12+ hospitalization records at clinic_id=1.
@@ -10,7 +10,7 @@ import { HospitalizationPage } from './pages/hospitalization-page';
 // Note: the list page defaults to board view; tests that need rows switch to list view first.
 // Design: fresh page per test within shared context.
 
-test.describe('入院・ホテル管理 フロー E2E', () => {
+test.describe("入院・ホテル管理 フロー E2E", () => {
   let context: BrowserContext;
 
   test.beforeAll(async ({ browser }) => {
@@ -21,7 +21,7 @@ test.describe('入院・ホテル管理 フロー E2E', () => {
     await context.close();
   });
 
-  test('/hospitalization — 入院・ホテル管理一覧がリストビューで表示される', async () => {
+  test("/hospitalization — 入院・ホテル管理一覧がリストビューで表示される", async () => {
     const page = await context.newPage();
     const hospitalization = new HospitalizationPage(page);
     try {
@@ -37,7 +37,7 @@ test.describe('入院・ホテル管理 フロー E2E', () => {
     }
   });
 
-  test('/hospitalization — 新規入院登録ボタンでペット選択画面に遷移する', async () => {
+  test("/hospitalization — 新規入院登録ボタンでペット選択画面に遷移する", async () => {
     const page = await context.newPage();
     const hospitalization = new HospitalizationPage(page);
     try {
@@ -54,7 +54,7 @@ test.describe('入院・ホテル管理 フロー E2E', () => {
     }
   });
 
-  test('/hospitalization — ステータスタブ「予約」に切り替えると予約件数が表示される', async () => {
+  test("/hospitalization — ステータスタブ「予約」に切り替えると予約件数が表示される", async () => {
     const page = await context.newPage();
     const hospitalization = new HospitalizationPage(page);
     try {
@@ -62,14 +62,14 @@ test.describe('入院・ホテル管理 フロー E2E', () => {
       await expect(hospitalization.listHeading()).toBeVisible();
 
       // デフォルトは「入院中」タブ; 「予約」タブに切り替え
-      await hospitalization.statusTab('予約').click();
-      await expect(hospitalization.statusTab('予約')).toHaveAttribute('data-state', 'active');
+      await hospitalization.statusTab("予約").click();
+      await expect(hospitalization.statusTab("予約")).toHaveAttribute("data-state", "active");
     } finally {
       await page.close();
     }
   });
 
-  test('/hospitalization — ステータスタブ「すべて」に切り替えるとすべての件数が表示される', async () => {
+  test("/hospitalization — ステータスタブ「すべて」に切り替えるとすべての件数が表示される", async () => {
     const page = await context.newPage();
     const hospitalization = new HospitalizationPage(page);
     try {
@@ -77,8 +77,8 @@ test.describe('入院・ホテル管理 フロー E2E', () => {
       await expect(hospitalization.listHeading()).toBeVisible();
 
       // 「すべて」タブに切り替え
-      await hospitalization.statusTab('すべて').click();
-      await expect(hospitalization.statusTab('すべて')).toHaveAttribute('data-state', 'active');
+      await hospitalization.statusTab("すべて").click();
+      await expect(hospitalization.statusTab("すべて")).toHaveAttribute("data-state", "active");
 
       // リストビューに切り替えて全件表示を確認
       await hospitalization.listViewToggle().click();

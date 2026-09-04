@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
-import { createTestWrapper } from "@/testing/utils";
+import { createTestWrapper } from "@/testing/TestUtils";
 import { useMedicalRecordsList } from "./use-medical-records";
 import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 
@@ -24,7 +24,12 @@ describe("useMedicalRecordsList", () => {
   it("診療日フィルタを start_date/end_date に変換する", async () => {
     const getUrl = mockList();
     const activeFilters: ActiveFilter[] = [
-      { key: "date", condition: "is_between", value: { from: "2026-01-01", to: "2026-01-31" }, displayValue: "" },
+      {
+        key: "date",
+        condition: "is_between",
+        value: { from: "2026-01-01", to: "2026-01-31" },
+        displayValue: "",
+      },
     ];
 
     const { result } = renderHook(
@@ -92,7 +97,8 @@ describe("useMedicalRecordsList", () => {
     const getUrl = mockList();
 
     const { result } = renderHook(
-      () => useMedicalRecordsList({ searchTerm: "田中太郎", activeFilters: [], page: 3, limit: 20 }),
+      () =>
+        useMedicalRecordsList({ searchTerm: "田中太郎", activeFilters: [], page: 3, limit: 20 }),
       { wrapper: createWrapper() },
     );
 
@@ -107,7 +113,14 @@ describe("useMedicalRecordsList", () => {
     const getUrl = mockList();
 
     const { result } = renderHook(
-      () => useMedicalRecordsList({ searchTerm: "", activeFilters: [], page: 1, sort: "owner_name", order: "asc" }),
+      () =>
+        useMedicalRecordsList({
+          searchTerm: "",
+          activeFilters: [],
+          page: 1,
+          sort: "owner_name",
+          order: "asc",
+        }),
       { wrapper: createWrapper() },
     );
 

@@ -36,7 +36,7 @@ func setupPasswordResetTokenTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := testdb.SetupTestDB(t)
 	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.PasswordResetToken{}))
-	db.Exec("TRUNCATE TABLE password_reset_tokens CASCADE")
+	testdb.Truncate(t, db, "password_reset_tokens")
 	return db
 }
 

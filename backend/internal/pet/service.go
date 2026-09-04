@@ -111,7 +111,7 @@ func buildPetUpdate(input *UpdatePetInput) map[string]any {
 		fields[colPetName] = *input.Name
 	}
 	if input.PetNameKana != nil {
-		fields[colPetNameKana] = *input.PetNameKana
+		fields[colPetNameKana] = normalizeNameKana(*input.PetNameKana)
 	}
 	if input.Gender != nil {
 		fields[colPetGender] = *input.Gender

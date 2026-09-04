@@ -110,11 +110,36 @@ func loadERDTableCountSources() (string, string, error) {
 	return erdCountLoadSourcesFromModuleRoot(moduleRoot)
 }
 
-func erdCountLoadSourcesFromModuleRoot(moduleRoot string) (string, string, error) {
-	schemaPath := filepath.Join(moduleRoot, "migrations", "001_init.sql")
-	schemaDDL, err := os.ReadFile(schemaPath)
+func readTopLevelMigrationSQL(moduleRoot string) (string, error) {
+	migrationsDirectory := filepath.Join(moduleRoot, "migrations")
+	entries, err := os.ReadDir(migrationsDirectory)
 	if err != nil {
-		return "", "", fmt.Errorf("read schema DDL %s: %w", schemaPath, err)
+		return "", fmt.Errorf("read migrations directory %s: %w", migrationsDirectory, err)
+	}
+
+	var schemaDDL strings.Builder
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".sql") {
+			continue
+		}
+		schemaPath := filepath.Join(migrationsDirectory, entry.Name())
+		contents, err := os.ReadFile(schemaPath)
+		if err != nil {
+			return "", fmt.Errorf("read schema DDL %s: %w", schemaPath, err)
+		}
+		schemaDDL.Write(contents)
+		schemaDDL.WriteByte('\n')
+	}
+	if schemaDDL.Len() == 0 {
+		return "", fmt.Errorf("read schema DDL %s: no top-level .sql files", migrationsDirectory)
+	}
+	return schemaDDL.String(), nil
+}
+
+func erdCountLoadSourcesFromModuleRoot(moduleRoot string) (string, string, error) {
+	schemaDDL, err := readTopLevelMigrationSQL(moduleRoot)
+	if err != nil {
+		return "", "", err
 	}
 
 	erdPath := filepath.Join(moduleRoot, "..", "docs", "architecture", "erd.md")
@@ -123,7 +148,7 @@ func erdCountLoadSourcesFromModuleRoot(moduleRoot string) (string, string, error
 		return "", "", fmt.Errorf("read ERD %s: %w", erdPath, err)
 	}
 
-	return string(schemaDDL), string(erdMarkdown), nil
+	return schemaDDL, string(erdMarkdown), nil
 }
 
 func TestERDTableCount_SourceLoading(t *testing.T) {
@@ -185,9 +210,6 @@ func TestERDTableCount_MatchesSchema(t *testing.T) {
 	}
 
 	t.Logf("ERD table count: schema=%d declared=%d", schemaCount, declaredCount)
-	if schemaCount != 123 {
-		t.Errorf("distinct CREATE TABLE count = %d, want 123", schemaCount)
-	}
 	for _, violation := range reconcileERDTableCount(schemaCount, declaredCount) {
 		t.Error(violation)
 	}

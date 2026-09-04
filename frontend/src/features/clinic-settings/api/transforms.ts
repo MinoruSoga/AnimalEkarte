@@ -20,7 +20,8 @@ export function transformClinic(data: Clinic) {
     standardTaxRate: data.standard_tax_rate ?? DEFAULT_STANDARD_TAX_RATE,
     reducedTaxRate: data.reduced_tax_rate ?? DEFAULT_REDUCED_TAX_RATE,
     accountingDocumentShowLogo: data.accounting_document_show_logo ?? false,
-    accountingDocumentShowRegistrationWarning: data.accounting_document_show_registration_warning ?? true,
+    accountingDocumentShowRegistrationWarning:
+      data.accounting_document_show_registration_warning ?? true,
     accountingDocumentShowItemCategory: data.accounting_document_show_item_category ?? true,
     accountingDocumentFooterNote: data.accounting_document_footer_note ?? "",
     // #190: セクション表示/非表示トグルと表示順

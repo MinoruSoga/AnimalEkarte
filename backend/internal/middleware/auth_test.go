@@ -14,11 +14,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/jackc/pgx/v5/pgconn"
+
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/audit"
 	authdomain "github.com/animal-ekarte/backend/internal/auth"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/jackc/pgx/v5/pgconn"
 )
 
 const testSecret = "test-secret-key"

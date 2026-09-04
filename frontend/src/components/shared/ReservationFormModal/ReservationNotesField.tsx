@@ -1,11 +1,16 @@
 import { C } from "@/lib/design-tokens";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { Reservation } from "@/types";
 import { FieldLabel } from "./ReservationDateTimeFields";
 
-const TRIGGER_CLASS =
-  `h-9 text-sm bg-white ${C.borderMediumLight} ${C.text} ${C.hoverBgSubtle} transition-colors`;
+const TRIGGER_CLASS = `h-9 text-sm bg-white ${C.borderMediumLight} ${C.text} ${C.hoverBgSubtle} transition-colors`;
 
 interface ReservationNotesFieldProps {
   formData: Partial<Reservation>;

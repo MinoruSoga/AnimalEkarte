@@ -54,9 +54,10 @@ const migrationsDir = "../../migrations"
 //	  + 2026-07-27 に統合した exam_type_fields の clinic 複合FK置換由来の1件
 //	  （削除伝播の意味は変えず、テナント整合性を強化。新設 exam_reference_ranges は
 //	  RESTRICT のみ）。
-//	  合計 54（docs/architecture/erd.md §4.3 参照）。
+//	  + 2026-09-02: trimming details/options の (appointment_id, clinic_id) 複合 FK CASCADE 2 件。
+//	  合計 56。
 var migrationCascadeAllowlist = map[string]int{
-	"001_init.sql": 54,
+	"001_init.sql": 56,
 }
 
 // onDeleteCascadeRE matches PostgreSQL-equivalent ON DELETE CASCADE spellings:

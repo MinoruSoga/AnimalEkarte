@@ -25,12 +25,8 @@ export interface OwnerSharedPetsResponse {
   shared_pets: OwnerSharedPetApiResponse[];
 }
 
-export async function getOwnerSharedPets(
-  ownerId: string,
-): Promise<OwnerSharedPetsResponse> {
-  const { data } = await axios.get<OwnerSharedPetsResponse>(
-    `/v1/owners/${ownerId}/shared-pets`,
-  );
+export async function getOwnerSharedPets(ownerId: string): Promise<OwnerSharedPetsResponse> {
+  const { data } = await axios.get<OwnerSharedPetsResponse>(`/v1/owners/${ownerId}/shared-pets`);
   return data;
 }
 

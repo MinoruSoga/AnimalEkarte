@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import type { TreatmentMasterItem } from "@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog";
 
-import { buildMasterSelectionPayload, resolveItemTypeFromCategory } from "./treatments-tab-model";
+import {
+  buildMasterSelectionPayload,
+  resolveItemTypeFromCategory,
+} from "../../lib/treatments-tab-model";
 
 describe("resolveItemTypeFromCategory", () => {
   it.each([

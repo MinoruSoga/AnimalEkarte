@@ -4,6 +4,7 @@ import { usePermission } from "@/hooks/use-permission";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { TableCell } from "@/components/ui/table";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
+import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { C, ICON } from "@/lib/design-tokens";
@@ -13,7 +14,7 @@ import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
 import { MasterCRUDPage } from "../components/MasterCRUDPage";
 import { CampaignSidePanel } from "../components/CampaignSidePanel";
-import type { CampaignFormData } from "../components/campaign-side-panel-model";
+import type { CampaignFormData } from "../lib/campaign-side-panel-model";
 import {
   useGetCampaigns,
   useCreateCampaign,
@@ -70,38 +71,58 @@ export function CampaignSettings() {
   });
 
   return (
-    <MasterCRUDPage
-      title="割引キャンペーンマスタ"
-      icon={<Tag className={`${ICON.page} ${C.text}`} />}
-      resource={ResourceAccounting}
-      entityLabel="キャンペーン"
-      searchPlaceholder="キャンペーン名で検索..."
-      emptyMessage="キャンペーンが登録されていません"
-      crud={crud}
-      handleSave={handleSave}
-      columns={COLUMNS}
-      filterProperties={[MASTER_STATUS_FILTER]}
-      renderRow={(item, onEdit, canEdit) => (
-        <DataTableRow key={item.id}>
-          <TableCell className={`font-medium ${C.text}`}>{item.name}</TableCell>
-          <TableCell className={`text-sm ${C.text50}`}>{item.startDate} 〜 {item.endDate}</TableCell>
-          <TableCell className="text-right text-sm">
-            {item.discountType === "rate" ? `${item.discountValue}%` : formatCurrency(item.discountValue)}
-          </TableCell>
-          <TableCell className="text-center"><StatusPill isActive={item.isActive} /></TableCell>
-          <TableCell className="text-right">
-            {canEdit ? (
-              <RowActionButton
+    <>
+      <MasterCRUDPage
+        title="割引キャンペーンマスタ"
+        icon={<Tag className={`${ICON.page} ${C.text}`} />}
+        resource={ResourceAccounting}
+        entityLabel="キャンペーン"
+        searchPlaceholder="キャンペーン名で検索..."
+        emptyMessage="キャンペーンが登録されていません"
+        crud={crud}
+        handleSave={handleSave}
+        columns={COLUMNS}
+        filterProperties={[MASTER_STATUS_FILTER]}
+        renderRow={(item, onEdit, canEdit) => (
+          <DataTableRow key={item.id}>
+            <TableCell className={`font-medium ${C.text}`}>
+              <DataTableRowButton
+                aria-label={`詳細: キャンペーン ${item.name} (ID ${item.id})`}
                 onClick={() => onEdit(item)}
-                aria-label={`キャンペーン「${item.name}」(ID: ${item.id}) を編集`}
-              />
-            ) : null}
-          </TableCell>
-        </DataTableRow>
-      )}
-      renderSidePanel={(props) => (
-        <CampaignSidePanel key={props.item?.id ?? "new"} {...props} onDirtyChange={handleDirtyChange} />
-      )}
-    />
+              >
+                {item.name}
+              </DataTableRowButton>
+            </TableCell>
+            <TableCell className={`text-sm ${C.text50}`}>
+              {item.startDate} 〜 {item.endDate}
+            </TableCell>
+            <TableCell className="text-right text-sm">
+              {item.discountType === "rate"
+                ? `${item.discountValue}%`
+                : formatCurrency(item.discountValue)}
+            </TableCell>
+            <TableCell className="text-center">
+              <StatusPill isActive={item.isActive} />
+            </TableCell>
+            <TableCell className="text-right">
+              {canEdit ? (
+                <RowActionButton
+                  onClick={() => onEdit(item)}
+                  aria-label={`キャンペーン「${item.name}」(ID: ${item.id}) を編集`}
+                />
+              ) : null}
+            </TableCell>
+          </DataTableRow>
+        )}
+        renderSidePanel={(props) => (
+          <CampaignSidePanel
+            key={props.item?.id ?? "new"}
+            {...props}
+            onDirtyChange={handleDirtyChange}
+          />
+        )}
+      />
+      {dirty.discardDialog}
+    </>
   );
 }

@@ -1,23 +1,54 @@
+import { DndContext } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { ShiftTemplateToolbar } from "./ShiftTemplateSettingsParts";
+import { Table, TableBody } from "@/components/ui/table";
 
-describe("ShiftTemplateToolbar", () => {
-  it("新規登録はlabelとglyphを維持したまま44px以上の操作領域を持つ", async () => {
+import type { ShiftTemplate } from "../types";
+import { ShiftTemplateRow } from "./ShiftTemplateSettingsParts";
+
+function template(overrides: Partial<ShiftTemplate> = {}): ShiftTemplate {
+  return {
+    id: "1",
+    clinic_id: "10",
+    name: "午前勤務",
+    shift_type: "morning",
+    start_time: "09:00",
+    end_time: "13:00",
+    notes: "",
+    sort_order: 1,
+    is_active: true,
+    breaks: [],
+    created_at: "",
+    updated_at: "",
+    ...overrides,
+  };
+}
+
+describe("ShiftTemplateRow", () => {
+  it("名称クリックで編集を開く", async () => {
     const user = userEvent.setup();
-    const onCreate = vi.fn();
+    const onEdit = vi.fn();
+    const item = template();
 
-    render(<ShiftTemplateToolbar count={8} onCreate={onCreate} />);
+    render(
+      <DndContext>
+        <SortableContext items={[item.id]} strategy={verticalListSortingStrategy}>
+          <Table>
+            <TableBody>
+              <ShiftTemplateRow item={item} canEdit onEdit={onEdit} />
+            </TableBody>
+          </Table>
+        </SortableContext>
+      </DndContext>,
+    );
 
-    const createButton = screen.getByRole("button", { name: "新規登録" });
-    expect(createButton).toHaveClass("min-h-11", "min-w-11");
-    expect(createButton).toHaveTextContent("新規登録");
-    expect(createButton.querySelector("svg")).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "詳細: シフトテンプレート 午前勤務 (ID 1)" }),
+    );
 
-    await user.click(createButton);
-
-    expect(onCreate).toHaveBeenCalledTimes(1);
+    expect(onEdit).toHaveBeenCalledTimes(1);
   });
 });

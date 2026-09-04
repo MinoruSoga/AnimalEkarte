@@ -9,7 +9,7 @@
 
 ---
 
-> **注記 (2026-07-10 / 更新 2026-07-31)**: Lステップへの Write API（タグ付与・タグ解除・プロパティ更新）は **deploy gate `LSTEP_WRITE_API_ENABLED`（既定 OFF）+ clinic `is_sync_enabled` の二重 gate** で抑止される。gate OFF 時は外部 HTTP を送らず `ErrWriteDisabled` を返す（silent nil 成功ではない）。判定ロジック・アプリ内 DB 更新・監査は継続する。詳細: [`docs/ops/deploy/LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)
+> **注記 (2026-07-10 / 更新 2026-07-31)**: Lステップへの Write API（タグ付与・タグ解除・プロパティ更新）は **deploy gate `LSTEP_WRITE_API_ENABLED`（既定 OFF）+ clinic `is_sync_enabled` の二重 gate** で抑止される。gate OFF 時は外部 HTTP write を送らず `ErrWriteDisabled` を返す（silent nil 成功ではない）。その後のローカル DB / cache / audit / logging は呼び出し元ごとの失敗契約に従い、継続を一律には保証しない。詳細: [`docs/ops/deploy/LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)
 
 ---
 
@@ -50,7 +50,7 @@ Webhook（`POST /api/line/webhook`）の **executable SoT は code/tests**（`ba
 | 署名不成立 / setting 欠落 / DB failure | fail-closed（invalid input / 処理拒否） |
 | 新規 event / message reply | 本要約から発明しない。set 変更時は code・contract test・本要約を同時更新 |
 
-Provisioning・疎通・停止の手順は `docs/spec/line/setup.md`（ops）を参照。
+Provisioning・疎通・停止の gate checklist は [setup.md](./setup.md) を参照。そこでは Messaging API / LINE Login (LIFF) / webhook / destination routing / deploy・clinic gate / rollback を個別に確認する。
 
 ---
 
@@ -60,7 +60,7 @@ Provisioning・疎通・停止の手順は `docs/spec/line/setup.md`（ops）を
 
 - タグ同期失敗はログするだけで、会計など本処理の成功契約を反転させない。
 - 記録先は `slog` とタグキャッシュ（必要時は API 失敗カウンタ）。**`lstep_delivery_trigger_log` には書かない**（当該テーブルは自動配信トリガー専用。`audit_logs` もこの ordinary-sync 経路では書かない）。
-- Write dual-gate 無効時は外部 HTTP write を送らない（`ErrWriteDisabled`）。アプリ内判定・DB 更新は継続する。
+- Write dual-gate 無効時は外部 HTTP write を送らない（`ErrWriteDisabled`）。後続のローカル DB / cache / audit / logging は呼び出し元の失敗契約に従う。たとえば手動タグ追加は外部 AddTag 成功後に cache / audit を更新するため、`ErrWriteDisabled` 時には継続しない。
 
 ```mermaid
 sequenceDiagram
@@ -91,7 +91,7 @@ LSTEP 周辺の「best-effort」は一語で混同しない。経路ごとに契
 
 - 10:00 JST の配信トリガー等は契約 1。owner ループは continue-on-error、1 owner の失敗は契約 2 で伝播し上位が Failed に加算する。
 - 配信実行・除外・優先度抑制・API 失敗は `lstep_delivery_trigger_log` に残し、配信監視画面の観測源とする。
-- 候補 owner に対する owner / 当日 claim / 抑制 / tag-cache 読みは **clinic スコープの bulk-read を必須**とする（owner 数に比例した N+1 読みは不可。メモリは bounded。opt-out・suppression・daily-claim 意味論は維持）。
+- 候補 owner に対する owner / 当日 claim / 抑制 / tag-cache 読みは通常、clinic スコープの bulk-read を使う。production には bulk failure 時の per-owner day-log / owner / tag-cache read fallback が残る。この degraded mode は owner 数に比例する既知の性能 gap であり、実行上限・metrics を備えた bounded fallback への整理または source からの除去が必要。opt-out・suppression・daily-claim の意味論と bounded memory は維持する。
 
 ### 4.2 停止手段
 

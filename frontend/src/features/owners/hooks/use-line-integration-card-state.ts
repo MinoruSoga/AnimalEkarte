@@ -1,7 +1,7 @@
 import { useActionState, useRef, useState } from "react";
 
 import { LSTEP_EXCL_DELIVERY_STOP } from "@/constants/lstep-tag-names";
-import { handleApiError } from "@/lib/handle-api-error";
+import { getFormString } from "@/lib/form-data";
 import { usePermission } from "@/hooks/use-permission";
 import type { Owner } from "@/types/owner";
 
@@ -25,16 +25,12 @@ interface UseLineIntegrationCardStateArgs {
   owner?: Owner;
 }
 
-export function useLineIntegrationCardState({
-  ownerId,
-  owner,
-}: UseLineIntegrationCardStateArgs) {
+export function useLineIntegrationCardState({ ownerId, owner }: UseLineIntegrationCardStateArgs) {
   const { canEdit } = usePermission("owners");
   const { data, isLoading, isError } = useGetOwnerLineTags(ownerId);
   const { mutateAsync: updateLine } = useUpdateOwnerLine(ownerId);
   const { mutate: deleteLine, isPending: isDeletingLine } = useDeleteOwnerLine(ownerId);
-  const { mutate: confirmLineId, isPending: isConfirmingLineId } =
-    useConfirmOwnerLineId(ownerId);
+  const { mutate: confirmLineId, isPending: isConfirmingLineId } = useConfirmOwnerLineId(ownerId);
   const { mutate: updateDeliveryExclusion, isPending: isUpdatingDeliveryExclusion } =
     useUpdateOwnerDeliveryExclusion(ownerId);
   const { mutate: updateDeliveryCaution, isPending: isUpdatingDeliveryCaution } =
@@ -56,19 +52,16 @@ export function useLineIntegrationCardState({
   const deliveryCautionReasonInputRef = useRef<HTMLInputElement>(null);
 
   const [lineIdState, lineIdFormAction] = useActionState(
-    async (
-      _prevState: LineIdFormState,
-      formData: FormData,
-    ): Promise<LineIdFormState> => {
-      const lineUserId = (formData.get("line_user_id") as string).trim();
+    async (_prevState: LineIdFormState, formData: FormData): Promise<LineIdFormState> => {
+      const lineUserId = getFormString(formData, "line_user_id").trim();
       if (!lineUserId) {
         return { error: "LINE User IDを入力してください", success: false };
       }
       try {
         await updateLine({ line_user_id: lineUserId });
         return { error: null, success: true };
-      } catch (error) {
-        handleApiError(error, "LINE User ID 紐付け");
+      } catch {
+        // useUpdateOwnerLine の onError が handleApiError 済み。ここでは再通知しない。
         return { error: "LINE User ID の紐付けに失敗しました", success: false };
       }
     },
@@ -87,10 +80,11 @@ export function useLineIntegrationCardState({
     data?.lstep_opt_out ||
     hasExclusionTag,
   );
-  const deliveryStopReason = owner?.deliveryExcludedReason
-    ?? owner?.lstepOptOutReason
-    ?? (owner?.isTransferred || owner?.membershipType === "他診/準" ? "転院済み" : undefined)
-    ?? (hasExclusionTag ? LSTEP_EXCL_DELIVERY_STOP : undefined);
+  const deliveryStopReason =
+    owner?.deliveryExcludedReason ??
+    owner?.lstepOptOutReason ??
+    (owner?.isTransferred || owner?.membershipType === "他診/準" ? "転院済み" : undefined) ??
+    (hasExclusionTag ? LSTEP_EXCL_DELIVERY_STOP : undefined);
 
   const resumeDelivery = () => {
     updateDeliveryExclusion({ excluded: false, reason: null });

@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 import { server } from "@/testing/mocks/node";
-import { createTestWrapper } from "@/testing/utils";
+import { createTestWrapper } from "@/testing/TestUtils";
 
 import { useMedicalRecordsList } from "./use-medical-records";
 
@@ -25,12 +25,13 @@ describe("useMedicalRecordsList pet_id filter", () => {
   it("petId を MedicalRecordFilters.petId へ伝播する", async () => {
     const getUrl = captureListUrl();
     const { result } = renderHook(
-      () => useMedicalRecordsList({
-        searchTerm: "",
-        activeFilters,
-        petId: "22",
-        page: 1,
-      }),
+      () =>
+        useMedicalRecordsList({
+          searchTerm: "",
+          activeFilters,
+          petId: "22",
+          page: 1,
+        }),
       { wrapper: createTestWrapper() },
     );
 
@@ -42,11 +43,12 @@ describe("useMedicalRecordsList pet_id filter", () => {
   it("petId 未指定なら pet_id を送信しない", async () => {
     const getUrl = captureListUrl();
     const { result } = renderHook(
-      () => useMedicalRecordsList({
-        searchTerm: "",
-        activeFilters,
-        page: 1,
-      }),
+      () =>
+        useMedicalRecordsList({
+          searchTerm: "",
+          activeFilters,
+          page: 1,
+        }),
       { wrapper: createTestWrapper() },
     );
 

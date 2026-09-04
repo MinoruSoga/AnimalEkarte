@@ -56,7 +56,7 @@ COMMENT ON COLUMN billing_items.vaccination_id IS
     '予防接種イベント由来の会計明細を識別するprovenance';
 
 COMMENT ON COLUMN billing_items.clinic_id IS
-    '予防接種provenanceがある明細だけに保持する内部tenant scope';
+    'vaccination または exam provenance がある明細だけに保持する内部tenant scope';
 `
 
 type unbilledVaccinationFinder interface {
@@ -97,14 +97,33 @@ func makeBillingVaccination(
 		IsActive: true,
 	}
 	require.NoError(t, f.db.Create(vaccine).Error)
+	ensureConfirmedMedicalRecord(t, f)
 	vaccination := &model.Vaccination{
-		ClinicID:  f.clinicID,
-		PetID:     &f.pet.ID,
-		VaccineID: vaccine.ID,
-		Date:      time.Date(2026, 7, 27, 0, 0, 0, 0, time.UTC),
+		ClinicID:        f.clinicID,
+		MedicalRecordID: &f.medicalRecord.ID,
+		PetID:           &f.pet.ID,
+		VaccineID:       vaccine.ID,
+		Date:            time.Date(2026, 7, 27, 0, 0, 0, 0, time.UTC),
 	}
 	require.NoError(t, f.db.Create(vaccination).Error)
 	return vaccine, vaccination
+}
+
+func ensureConfirmedMedicalRecord(t *testing.T, f billingItemReferenceFixture) {
+	t.Helper()
+	require.NoError(t, testdb.EnsureAutoMigrated(f.db, &model.BillingConfirmation{}))
+	var existing model.BillingConfirmation
+	err := f.db.Where("medical_record_id = ?", f.medicalRecord.ID).First(&existing).Error
+	if err == nil {
+		if existing.Status != model.ConfirmationStatusConfirmed {
+			require.NoError(t, f.db.Model(&existing).Update("status", model.ConfirmationStatusConfirmed).Error)
+		}
+		return
+	}
+	require.NoError(t, f.db.Create(&model.BillingConfirmation{
+		MedicalRecordID: f.medicalRecord.ID,
+		Status:          model.ConfirmationStatusConfirmed,
+	}).Error)
 }
 
 func TestBillingItemVaccinationProvenance_UnbilledCandidates(t *testing.T) {
@@ -182,11 +201,13 @@ func TestBillingItemVaccinationProvenance_UnbilledCandidates(t *testing.T) {
 		price := int64(5000)
 		foreignVaccine := &model.Vaccine{ClinicID: 2, Name: "foreign vaccine", Price: &price, IsActive: true}
 		require.NoError(t, f.db.Create(foreignVaccine).Error)
+		ensureConfirmedMedicalRecord(t, f)
 		corruptVaccination := &model.Vaccination{
-			ClinicID:  f.clinicID,
-			PetID:     &f.pet.ID,
-			VaccineID: foreignVaccine.ID,
-			Date:      time.Date(2026, 7, 27, 0, 0, 0, 0, time.UTC),
+			ClinicID:        f.clinicID,
+			MedicalRecordID: &f.medicalRecord.ID,
+			PetID:           &f.pet.ID,
+			VaccineID:       foreignVaccine.ID,
+			Date:            time.Date(2026, 7, 27, 0, 0, 0, 0, time.UTC),
 		}
 		require.NoError(t, f.db.Create(corruptVaccination).Error)
 		finder := f.repo.(unbilledVaccinationFinder)
@@ -227,6 +248,26 @@ func TestBillingItemVaccinationProvenance_UnbilledCandidates(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Empty(t, items)
+	})
+
+	t.Run("chartless vaccination is excluded until attached to a confirmed chart", func(t *testing.T) {
+		f := setupBillingItemReferenceFixture(t)
+		price := int64(5500)
+		require.NoError(t, testdb.EnsureAutoMigrated(f.db, &model.Vaccine{}, &model.Vaccination{}, &model.BillingItem{}))
+		vaccine := &model.Vaccine{ClinicID: f.clinicID, Name: "カルテなし", Price: &price, IsActive: true}
+		require.NoError(t, f.db.Create(vaccine).Error)
+		vaccination := &model.Vaccination{
+			ClinicID:  f.clinicID,
+			PetID:     &f.pet.ID,
+			VaccineID: vaccine.ID,
+			Date:      time.Date(2026, 7, 27, 0, 0, 0, 0, time.UTC),
+		}
+		require.NoError(t, f.db.Create(vaccination).Error)
+		finder := f.repo.(unbilledVaccinationFinder)
+		items, unbillable, err := finder.FindUnbilledVaccinationItemsByPetID(context.Background(), f.clinicID, f.pet.ID)
+		require.NoError(t, err)
+		assert.Empty(t, items)
+		assert.Zero(t, unbillable)
 	})
 
 	// DEC-27: after pet transfer, MR.owner_id (snapshot) may differ from
@@ -975,7 +1016,7 @@ func TestBillingItemVaccinationProvenance_MatchesArchivedInitialMigration(t *tes
 	require.Greater(t, endOffset, 0, "archived billing vaccination migration must end at the 009 source marker")
 	block := initial[start : start+endOffset]
 
-	const sourceSHA = "daa676aed130da0ddefa30c4fd72e18b422dcc67ab919c7ea76dd0e40ac73d79"
+	const sourceSHA = "251ebb5b09edce09104c0b4da938175a088d57962efa9566bc222d3c13bc251f"
 	const shaHeader = "-- Source SHA-256: " + sourceSHA + "\n"
 	shaOffset := strings.Index(block, shaHeader)
 	require.GreaterOrEqual(t, shaOffset, 0, "archived billing vaccination migration must contain its exact SHA-256 header")

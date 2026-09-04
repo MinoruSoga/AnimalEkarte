@@ -1,4 +1,5 @@
 import { PrintPortal } from "@/components/shared/PrintPortal";
+import { C } from "@/lib/design-tokens";
 import { formatJSTTime } from "@/lib/jst-date";
 import { formatCurrency } from "@/lib/format/number";
 import type { PaymentMethodMaster } from "@/types/generated/models";
@@ -8,8 +9,8 @@ import {
   buildUnifiedClosingTotals,
   formatClosingCount,
   type UnclassifiedOtherCountInput,
-} from "../closing-summary";
-import { CATEGORY_LABELS, PERIOD_LABELS, type CashRegisterPeriod } from "../constants";
+} from "../lib/closing-summary";
+import { CATEGORY_LABELS, PERIOD_LABELS, type CashRegisterPeriod } from "../lib/constants";
 
 interface TaxEntry {
   taxableAmount: number;
@@ -79,47 +80,47 @@ export function ClosePrintArea({
       <p className="font-semibold text-[9pt] mb-1">部門別集計</p>
       <table className="w-full text-[9pt] border-collapse mb-3">
         <thead>
-          <tr className="bg-gray-100">
-            <th className="border border-gray-400 px-1 py-0.5 text-left">部門</th>
-            <th className="border border-gray-400 px-1 py-0.5 text-right">件数</th>
+          <tr className={`${C.bgGray100}`}>
+            <th className={`border ${C.borderGray300} px-1 py-0.5 text-left`}>部門</th>
+            <th className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>件数</th>
             {paymentMethods.map((pm) => (
-              <th key={pm.id} className="border border-gray-400 px-1 py-0.5 text-right">
+              <th key={pm.id} className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>
                 {pm.name}
               </th>
             ))}
-            <th className="border border-gray-400 px-1 py-0.5 text-right">合計</th>
+            <th className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>合計</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((row) => (
             <tr key={row.label}>
-              <td className="border border-gray-300 px-1 py-0.5">{row.label}</td>
-              <td className="border border-gray-300 px-1 py-0.5 text-right">
+              <td className={`border ${C.borderGray300} px-1 py-0.5`}>{row.label}</td>
+              <td className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>
                 {formatClosingCount(row.count)}
               </td>
               {paymentMethods.map((pm) => (
-                <td key={pm.id} className="border border-gray-300 px-1 py-0.5 text-right">
+                <td key={pm.id} className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>
                   {row.byMethod[pm.name] != null ? formatCurrency(row.byMethod[pm.name]) : "—"}
                 </td>
               ))}
-              <td className="border border-gray-300 px-1 py-0.5 text-right font-medium">
+              <td className={`border ${C.borderGray300} px-1 py-0.5 text-right font-medium`}>
                 {formatCurrency(row.rowTotal)}
               </td>
             </tr>
           ))}
         </tbody>
         <tfoot>
-          <tr className="bg-gray-50 font-semibold">
-            <td className="border border-gray-400 px-1 py-0.5">合計</td>
-            <td className="border border-gray-400 px-1 py-0.5 text-right">
+          <tr className={`${C.bgMuted} font-semibold`}>
+            <td className={`border ${C.borderGray300} px-1 py-0.5`}>合計</td>
+            <td className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>
               {formatClosingCount(totals.count)}
             </td>
             {paymentMethods.map((pm) => (
-              <td key={pm.id} className="border border-gray-400 px-1 py-0.5 text-right">
+              <td key={pm.id} className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>
                 {totals.byMethod[pm.name] != null ? formatCurrency(totals.byMethod[pm.name]) : "—"}
               </td>
             ))}
-            <td className="border border-gray-400 px-1 py-0.5 text-right font-bold">
+            <td className={`border ${C.borderGray300} px-1 py-0.5 text-right font-bold`}>
               {formatCurrency(totals.grandTotal)}
             </td>
           </tr>
@@ -132,22 +133,30 @@ export function ClosePrintArea({
           <p className="font-semibold mb-1">消費税内訳</p>
           <table className="w-full border-collapse">
             <thead>
-              <tr className="bg-gray-100">
-                <th className="border border-gray-400 px-1 py-0.5 text-left">区分</th>
-                <th className="border border-gray-400 px-1 py-0.5 text-right">課税対象額</th>
-                <th className="border border-gray-400 px-1 py-0.5 text-right">税額</th>
+              <tr className={`${C.bgGray100}`}>
+                <th className={`border ${C.borderGray300} px-1 py-0.5 text-left`}>区分</th>
+                <th className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>課税対象額</th>
+                <th className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>税額</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td className="border border-gray-300 px-1 py-0.5">標準税率（10%）</td>
-                <td className="border border-gray-300 px-1 py-0.5 text-right">{formatCurrency(standard.taxableAmount)}</td>
-                <td className="border border-gray-300 px-1 py-0.5 text-right">{formatCurrency(standard.taxAmount)}</td>
+                <td className={`border ${C.borderGray300} px-1 py-0.5`}>標準税率（10%）</td>
+                <td className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>
+                  {formatCurrency(standard.taxableAmount)}
+                </td>
+                <td className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>
+                  {formatCurrency(standard.taxAmount)}
+                </td>
               </tr>
               <tr>
-                <td className="border border-gray-300 px-1 py-0.5">軽減税率（8%）</td>
-                <td className="border border-gray-300 px-1 py-0.5 text-right">{formatCurrency(reduced.taxableAmount)}</td>
-                <td className="border border-gray-300 px-1 py-0.5 text-right">{formatCurrency(reduced.taxAmount)}</td>
+                <td className={`border ${C.borderGray300} px-1 py-0.5`}>軽減税率（8%）</td>
+                <td className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>
+                  {formatCurrency(reduced.taxableAmount)}
+                </td>
+                <td className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>
+                  {formatCurrency(reduced.taxAmount)}
+                </td>
               </tr>
             </tbody>
           </table>
@@ -157,19 +166,23 @@ export function ClosePrintArea({
           <table className="w-full border-collapse">
             <tbody>
               <tr>
-                <td className="border border-gray-300 px-1 py-0.5">理論現金</td>
-                <td className="border border-gray-300 px-1 py-0.5 text-right">{formatCurrency(theoreticalCash)}</td>
+                <td className={`border ${C.borderGray300} px-1 py-0.5`}>理論現金</td>
+                <td className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>
+                  {formatCurrency(theoreticalCash)}
+                </td>
               </tr>
-              {actualCash !== null ? (
+              {actualCash !== null && difference !== null ? (
                 <>
                   <tr>
-                    <td className="border border-gray-300 px-1 py-0.5">実際の現金</td>
-                    <td className="border border-gray-300 px-1 py-0.5 text-right">{formatCurrency(actualCash)}</td>
+                    <td className={`border ${C.borderGray300} px-1 py-0.5`}>実際の現金</td>
+                    <td className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>
+                      {formatCurrency(actualCash)}
+                    </td>
                   </tr>
                   <tr className="font-semibold">
-                    <td className="border border-gray-400 px-1 py-0.5">差額</td>
-                    <td className="border border-gray-400 px-1 py-0.5 text-right">
-                      {`${difference! >= 0 ? "+" : ""}${difference!.toLocaleString()}`}
+                    <td className={`border ${C.borderGray300} px-1 py-0.5`}>差額</td>
+                    <td className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>
+                      {`${difference >= 0 ? "+" : ""}${difference.toLocaleString()}`}
                     </td>
                   </tr>
                 </>
@@ -183,35 +196,39 @@ export function ClosePrintArea({
       <p className="font-semibold text-[9pt] mb-1">個別会計明細（{billingDetails.length}件）</p>
       <table className="w-full text-[8pt] border-collapse">
         <thead>
-          <tr className="bg-gray-100">
-            <th className="border border-gray-400 px-1 py-0.5 text-left">時刻</th>
-            <th className="border border-gray-400 px-1 py-0.5 text-left">飼主 / ペット</th>
-            <th className="border border-gray-400 px-1 py-0.5 text-left">部門</th>
-            <th className="border border-gray-400 px-1 py-0.5 text-left">支払方法</th>
-            <th className="border border-gray-400 px-1 py-0.5 text-right">請求額</th>
-            <th className="border border-gray-400 px-1 py-0.5 text-right">返金額</th>
-            <th className="border border-gray-400 px-1 py-0.5 text-right">純額</th>
+          <tr className={`${C.bgGray100}`}>
+            <th className={`border ${C.borderGray300} px-1 py-0.5 text-left`}>時刻</th>
+            <th className={`border ${C.borderGray300} px-1 py-0.5 text-left`}>飼主 / ペット</th>
+            <th className={`border ${C.borderGray300} px-1 py-0.5 text-left`}>部門</th>
+            <th className={`border ${C.borderGray300} px-1 py-0.5 text-left`}>支払方法</th>
+            <th className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>請求額</th>
+            <th className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>返金額</th>
+            <th className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>純額</th>
           </tr>
         </thead>
         <tbody>
           {billingDetails.map((d) => (
             <tr key={d.billingId}>
-              <td className="border border-gray-300 px-1 py-0.5">
+              <td className={`border ${C.borderGray300} px-1 py-0.5`}>
                 {d.paidAt ? formatJSTTime(d.paidAt) : "—"}
               </td>
-              <td className="border border-gray-300 px-1 py-0.5">
+              <td className={`border ${C.borderGray300} px-1 py-0.5`}>
                 {d.ownerName} / {d.petName}
                 {d.isHospitalization ? "（入院）" : ""}
               </td>
-              <td className="border border-gray-300 px-1 py-0.5">
+              <td className={`border ${C.borderGray300} px-1 py-0.5`}>
                 {CATEGORY_LABELS[d.category] ?? d.category}
               </td>
-              <td className="border border-gray-300 px-1 py-0.5">{d.paymentMethodName}</td>
-              <td className="border border-gray-300 px-1 py-0.5 text-right">{formatCurrency(d.billingAmount)}</td>
-              <td className="border border-gray-300 px-1 py-0.5 text-right">
+              <td className={`border ${C.borderGray300} px-1 py-0.5`}>{d.paymentMethodName}</td>
+              <td className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>
+                {formatCurrency(d.billingAmount)}
+              </td>
+              <td className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>
                 {d.refundAmount > 0 ? `-${formatCurrency(d.refundAmount)}` : "—"}
               </td>
-              <td className="border border-gray-300 px-1 py-0.5 text-right font-medium">{formatCurrency(d.netAmount)}</td>
+              <td className={`border ${C.borderGray300} px-1 py-0.5 text-right font-medium`}>
+                {formatCurrency(d.netAmount)}
+              </td>
             </tr>
           ))}
         </tbody>

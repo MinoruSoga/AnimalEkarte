@@ -18,7 +18,9 @@ const EMPTY_RESET_PARAMS: readonly string[] = [];
  * - clinicNameById    : clinicId → 医院名 のMapルックアップ
  * - handleToggleClinic: 拠点トグル（URL を更新する）
  */
-export function useClinicScope({ resetParamsOnToggle = EMPTY_RESET_PARAMS }: UseClinicScopeOptions = {}) {
+export function useClinicScope({
+  resetParamsOnToggle = EMPTY_RESET_PARAMS,
+}: UseClinicScopeOptions = {}) {
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, currentClinicId } = useAuth();
 

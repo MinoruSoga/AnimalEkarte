@@ -29,7 +29,7 @@ type mockClinicRepository struct {
 	lockForUpdateFn         func(ctx context.Context, id uint64) (*model.Clinic, error)
 	getCompanyFn            func(ctx context.Context) (*model.Company, error)
 	createFn                func(ctx context.Context, clinic *model.Clinic) error
-	updateFn                func(ctx context.Context, id uint64, fields map[string]any) error
+	updateFn                func(ctx context.Context, id uint64, input *UpdateClinicInput) error
 	deleteFn                func(ctx context.Context, id uint64) error
 	countOwnersByClinicIDFn func(ctx context.Context, clinicID uint64) (int64, error)
 	countStaffByClinicIDFn  func(ctx context.Context, clinicID uint64) (int64, error)
@@ -93,8 +93,11 @@ func (m *mockClinicRepository) Create(ctx context.Context, clinic *model.Clinic)
 	return m.createFn(ctx, clinic)
 }
 
-func (m *mockClinicRepository) Update(ctx context.Context, id uint64, fields map[string]any) error {
-	return m.updateFn(ctx, id, fields)
+func (m *mockClinicRepository) UpdateClinic(ctx context.Context, id uint64, input *UpdateClinicInput) error {
+	if m.updateFn == nil {
+		return nil
+	}
+	return m.updateFn(ctx, id, input)
 }
 
 func (m *mockClinicRepository) Delete(ctx context.Context, id uint64) error {
@@ -546,9 +549,8 @@ func TestDefaultPermissionRuleTable_CoversAllResources(t *testing.T) {
 	}
 }
 
-// demoPermissionSeedGroupProfiles maps 003_demo permission_groups IDs to the
-// default-creation profile they must mirror after BE-ACT-PERMISSION-SEED-PARITY.
-// 1/3/5/7 = 執行, 2/4/6/8 = 一般, 9 = 閲覧専用 (view-only; create/edit/delete 常に false)。
+// demoPermissionSeedGroupProfiles maps 002_master permission_groups IDs.
+// 1/3/5/7 = 執行, 2/4/6/8 = 一般, 9 = 閲覧専用 (view-only).
 var demoPermissionSeedGroupProfiles = map[uint64]string{
 	1: "executive",
 	2: "general",
@@ -561,14 +563,9 @@ var demoPermissionSeedGroupProfiles = map[uint64]string{
 	9: "view-only",
 }
 
-// TestDemoSeedGroupRules_Parity は 003_demo の 9 グループが既存 seed 管理リソースを持ち、
-// group 9 が view-only、
-// master-animal-species が全グループ view-only、執行/一般が
-// buildDefaultPermissionGroupRules と一致することを検証する。examination-unconfirm は
-// 新規クリニックでも default-deny で、既存 demo seed へ自動付与しない。
 func TestDemoSeedGroupRules_Parity(t *testing.T) {
 	require.Len(t, model.AllResources, 37)
-	require.Len(t, demoPermissionSeedGroupProfiles, 9, "demo seed は 9 権限グループを持つ契約")
+	require.Len(t, demoPermissionSeedGroupProfiles, 9, "002_master は 9 権限グループを持つ契約")
 	seedResources := make([]model.Resource, 0, len(model.AllResources)-1)
 	for _, resource := range model.AllResources {
 		if resource != model.ResourceExaminationUnconfirm {
@@ -576,7 +573,7 @@ func TestDemoSeedGroupRules_Parity(t *testing.T) {
 		}
 	}
 
-	rulesPath := filepath.Join("..", "..", "migrations", "seeds", "003_demo", "permission_group_rules.csv")
+	rulesPath := filepath.Join("..", "..", "migrations", "seeds", "002_master", "permission_group_rules.csv")
 	f, err := os.Open(rulesPath) //nolint:gosec // fixed seed path relative to backend module root
 	require.NoError(t, err, "seed CSV を読めること (cwd は backend/ 想定)")
 	defer f.Close() //nolint:errcheck // test cleanup
@@ -758,7 +755,10 @@ func TestClinicService_UpdateClinic(t *testing.T) {
 				findByIDFn: func(_ context.Context, _ uint64) (*model.Clinic, error) {
 					return tt.repoClinic, tt.repoFindErr
 				},
-				updateFn: func(_ context.Context, _ uint64, _ map[string]any) error {
+				updateFn: func(_ context.Context, _ uint64, input *UpdateClinicInput) error {
+					if tt.repoUpdateErr == nil && input != nil && input.Name != nil {
+						assert.Equal(t, "更新後院", *input.Name)
+					}
 					return tt.repoUpdateErr
 				},
 			}
@@ -810,7 +810,7 @@ func TestClinicService_UpdateClinic_NoFieldsProvided(t *testing.T) {
 		findByIDFn: func(_ context.Context, _ uint64) (*model.Clinic, error) {
 			return existing, nil
 		},
-		updateFn: func(_ context.Context, _ uint64, _ map[string]any) error {
+		updateFn: func(_ context.Context, _ uint64, _ *UpdateClinicInput) error {
 			updateCalled = true
 			return nil
 		},
@@ -822,7 +822,7 @@ func TestClinicService_UpdateClinic_NoFieldsProvided(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, existing, result)
-	assert.False(t, updateCalled, "更新フィールドが無い場合は repo.Update を呼ばない")
+	assert.False(t, updateCalled, "更新フィールドが無い場合は repo.UpdateClinic を呼ばない")
 }
 
 func TestClinicService_UpdateClinic_InvalidTaxRate(t *testing.T) {
@@ -831,7 +831,7 @@ func TestClinicService_UpdateClinic_InvalidTaxRate(t *testing.T) {
 		findByIDFn: func(_ context.Context, _ uint64) (*model.Clinic, error) {
 			return &model.Clinic{ID: 1, CompanyID: 5}, nil
 		},
-		updateFn: func(_ context.Context, _ uint64, _ map[string]any) error {
+		updateFn: func(_ context.Context, _ uint64, _ *UpdateClinicInput) error {
 			t.Fatal("clinic must not be updated when the input fails validation")
 			return nil
 		},
@@ -861,7 +861,7 @@ func TestClinicService_UpdateClinic_RefetchErrorAfterUpdate(t *testing.T) {
 			}
 			return nil, errors.New("db error")
 		},
-		updateFn: func(_ context.Context, _ uint64, _ map[string]any) error {
+		updateFn: func(_ context.Context, _ uint64, _ *UpdateClinicInput) error {
 			updateCalls++
 			return nil
 		},

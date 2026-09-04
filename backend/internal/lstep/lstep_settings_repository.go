@@ -22,7 +22,11 @@ type LstepSettingsRepository interface {
 	Upsert(ctx context.Context, integration *model.ClinicIntegration) error
 	// DeleteByClinicAndService は指定クリニック・サービスの全設定を削除する。
 	DeleteByClinicAndService(ctx context.Context, clinicID uint64, service string) error
+	// DeleteByClinicServiceAndKey は指定 key 1件だけ削除する（LIFF ID クリア用）。
+	DeleteByClinicServiceAndKey(ctx context.Context, clinicID uint64, service, keyName string) error
 }
+
+type lstepSettingsRepository struct{ db *gorm.DB }
 
 func (r *lstepSettingsRepository) FindCredentialByClinicServiceKey(
 	ctx context.Context,
@@ -43,8 +47,6 @@ func (r *lstepSettingsRepository) FindCredentialByClinicServiceKey(
 	}
 	return &record, nil
 }
-
-type lstepSettingsRepository struct{ db *gorm.DB }
 
 // NewLstepSettingsRepository は LstepSettingsRepository を初期化して返す。
 func NewLstepSettingsRepository(db *gorm.DB) LstepSettingsRepository {
@@ -84,6 +86,17 @@ func (r *lstepSettingsRepository) DeleteByClinicAndService(ctx context.Context, 
 		Delete(&model.ClinicIntegration{}).Error
 	if err != nil {
 		return apperrors.FromGORM(err, "clinic_integrations", fmt.Sprintf("clinic=%d service=%s", clinicID, service))
+	}
+	return nil
+}
+
+func (r *lstepSettingsRepository) DeleteByClinicServiceAndKey(ctx context.Context, clinicID uint64, service, keyName string) error {
+	err := persistence.DBOrTx(ctx, r.db).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("service = ? AND key_name = ?", service, keyName).
+		Delete(&model.ClinicIntegration{}).Error
+	if err != nil {
+		return apperrors.FromGORM(err, "clinic_integrations", fmt.Sprintf("clinic=%d service=%s key=%s", clinicID, service, keyName))
 	}
 	return nil
 }

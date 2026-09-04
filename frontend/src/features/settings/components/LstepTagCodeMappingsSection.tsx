@@ -16,9 +16,7 @@ const CONFIGURABLE_TAG_NAMES = [
   "LTV_フード購入あり",
 ] as const;
 
-function groupByTagName(
-  items: TagCodeMappingItem[],
-): Record<string, TagCodeMappingItem[]> {
+function groupByTagName(items: TagCodeMappingItem[]): Record<string, TagCodeMappingItem[]> {
   const map: Record<string, TagCodeMappingItem[]> = {};
   for (const item of items) {
     if (!map[item.tag_name]) map[item.tag_name] = [];
@@ -57,9 +55,7 @@ function ConfiguredBadge() {
 
 function MappingRow({ item }: { item: TagCodeMappingItem }) {
   return (
-    <div
-      className={`flex items-start gap-3 px-3 py-2 border-t ${C.borderLight}`}
-    >
+    <div className={`flex items-start gap-3 px-3 py-2 border-t ${C.borderLight}`}>
       <span
         className={`text-xs font-mono shrink-0 mt-0.5 px-1.5 py-0.5 rounded ${C.bgSubtle} ${C.text60}`}
       >
@@ -68,9 +64,7 @@ function MappingRow({ item }: { item: TagCodeMappingItem }) {
       {item.codes.length === 0 ? (
         <NotEnteredBadge />
       ) : (
-        <span className={`text-sm ${C.text60} break-all`}>
-          {item.codes.join(", ")}
-        </span>
+        <span className={`text-sm ${C.text60} break-all`}>{item.codes.join(", ")}</span>
       )}
     </div>
   );
@@ -110,25 +104,29 @@ function EntryEditRow({
   return (
     <div className="flex gap-2 items-end">
       <div className="flex flex-col gap-1 w-36 shrink-0">
-        <label htmlFor={`code-type-${entry.id}`} className={`text-xs ${C.text60}`}>コード種別</label>
+        <label htmlFor={`code-type-${entry.id}`} className={`text-xs ${C.text60}`}>
+          コード種別
+        </label>
         <input
           id={`code-type-${entry.id}`}
           type="text"
           value={entry.code_type}
           onChange={(e) => onChange({ ...entry, code_type: e.target.value })}
           placeholder="例: checkup_type"
-          className={`${STYLE.formInput} rounded-xs border px-2 py-1 text-sm outline-none`}
+          className={`${STYLE.formInput} rounded-xs border px-2 py-1 text-sm outline-none focus-visible:ring-2 ${C.focusRingAccent40}`}
         />
       </div>
       <div className="flex flex-col gap-1 flex-1">
-        <label htmlFor={`codes-text-${entry.id}`} className={`text-xs ${C.text60}`}>コード（カンマ区切り）</label>
+        <label htmlFor={`codes-text-${entry.id}`} className={`text-xs ${C.text60}`}>
+          コード（カンマ区切り）
+        </label>
         <input
           id={`codes-text-${entry.id}`}
           type="text"
           value={entry.codes_text}
           onChange={(e) => onChange({ ...entry, codes_text: e.target.value })}
           placeholder="例: CHK_A, CHK_B"
-          className={`${STYLE.formInput} rounded-xs border px-2 py-1 text-sm outline-none`}
+          className={`${STYLE.formInput} rounded-xs border px-2 py-1 text-sm outline-none focus-visible:ring-2 ${C.focusRingAccent40}`}
         />
       </div>
       <button
@@ -147,13 +145,7 @@ function EntryEditRow({
 // TagRow
 // ─────────────────────────────────────────────────
 
-function TagRow({
-  tagName,
-  mappings,
-}: {
-  tagName: string;
-  mappings: TagCodeMappingItem[];
-}) {
+function TagRow({ tagName, mappings }: { tagName: string; mappings: TagCodeMappingItem[] }) {
   const [editing, setEditing] = useState(false);
   const [entries, setEntries] = useState<EntryDraft[]>([]);
   const mutation = usePutTagCodeMappingsForTag();
@@ -187,9 +179,7 @@ function TagRow({
   return (
     <div className={`border ${C.borderLight} rounded-xs overflow-hidden`}>
       {/* Header */}
-      <div
-        className={`flex items-center justify-between px-3 py-2.5 ${C.bgSubtle}`}
-      >
+      <div className={`flex items-center justify-between px-3 py-2.5 ${C.bgSubtle}`}>
         <span className={`text-sm font-medium ${C.text}`}>{tagName}</span>
         <div className="flex items-center gap-2">
           {hasAnyCode ? <ConfiguredBadge /> : <NotEnteredBadge />}
@@ -210,9 +200,7 @@ function TagRow({
       {!editing ? (
         mappings.length === 0 ? (
           <div className={`px-3 py-2 border-t ${C.borderLight}`}>
-            <span className={`text-xs ${C.text50}`}>
-              コードが未設定です。
-            </span>
+            <span className={`text-xs ${C.text50}`}>コードが未設定です。</span>
           </div>
         ) : (
           mappings.map((m) => <MappingRow key={m.id} item={m} />)
@@ -225,13 +213,9 @@ function TagRow({
               key={entry.id}
               entry={entry}
               onChange={(updated) =>
-                setEntries((prev) =>
-                  prev.map((e) => (e.id === entry.id ? updated : e)),
-                )
+                setEntries((prev) => prev.map((e) => (e.id === entry.id ? updated : e)))
               }
-              onRemove={() =>
-                setEntries((prev) => prev.filter((e) => e.id !== entry.id))
-              }
+              onRemove={() => setEntries((prev) => prev.filter((e) => e.id !== entry.id))}
             />
           ))}
           <Button
@@ -278,9 +262,7 @@ export function LstepTagCodeMappingsSection() {
   if (isLoading) {
     return (
       <div className={`${STYLE.formCard} max-w-2xl mt-6`}>
-        <div
-          className={`flex items-center justify-center py-8 text-sm ${C.text50}`}
-        >
+        <div className={`flex items-center justify-center py-8 text-sm ${C.text50}`}>
           読み込み中...
         </div>
       </div>
@@ -290,9 +272,7 @@ export function LstepTagCodeMappingsSection() {
   if (isError) {
     return (
       <div className={`${STYLE.formCard} max-w-2xl mt-6`}>
-        <div
-          className={`flex items-center justify-center py-8 text-sm ${C.danger}`}
-        >
+        <div className={`flex items-center justify-center py-8 text-sm ${C.danger}`}>
           読み込みに失敗しました
         </div>
       </div>
@@ -303,20 +283,14 @@ export function LstepTagCodeMappingsSection() {
 
   return (
     <div className={`${STYLE.formCard} max-w-2xl mt-6`}>
-      <h2 className={`text-base font-semibold ${C.text} mb-1`}>
-        タグコードマッピング
-      </h2>
+      <h2 className={`text-base font-semibold ${C.text} mb-1`}>タグコードマッピング</h2>
       <p className={`text-sm ${C.text60} mb-4`}>
         健診・予防タグの判定に使用する診察種別・処方コードの設定。
       </p>
 
       <div className="flex flex-col gap-3">
         {CONFIGURABLE_TAG_NAMES.map((tagName) => (
-          <TagRow
-            key={tagName}
-            tagName={tagName}
-            mappings={grouped[tagName] ?? []}
-          />
+          <TagRow key={tagName} tagName={tagName} mappings={grouped[tagName] ?? []} />
         ))}
       </div>
     </div>

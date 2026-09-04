@@ -37,7 +37,10 @@ export const MedicalRecordImage = memo(function MedicalRecordImage({
 
   const resolvedId = isNewRecord ? undefined : medicalRecordId;
 
-  const { data: apiImageGroups = [], isLoading } = useGetMedicalRecordImages(resolvedId, recordClinicId);
+  const { data: apiImageGroups = [], isLoading } = useGetMedicalRecordImages(
+    resolvedId,
+    recordClinicId,
+  );
 
   const uploadMutation = useCreateMedicalRecordImages(resolvedId ?? "", recordClinicId);
   const deleteMutation = useDeleteImage(resolvedId ?? "", recordClinicId);
@@ -54,12 +57,13 @@ export const MedicalRecordImage = memo(function MedicalRecordImage({
 
   const canUpload = canCreate && !isPetDeceased;
 
+  const { mutate: uploadImagesFn } = uploadMutation;
   const handleFilesSelected = useCallback(
     (files: File[]) => {
       if (!canUpload || !resolvedId) return;
-      uploadMutation.mutate(files);
+      uploadImagesFn(files);
     },
-    [canUpload, resolvedId, uploadMutation],
+    [canUpload, resolvedId, uploadImagesFn],
   );
 
   const { mutate: deleteImageFn } = deleteMutation;
@@ -93,7 +97,7 @@ export const MedicalRecordImage = memo(function MedicalRecordImage({
 
       {/* Results Title */}
       <div>
-        <h2 className={`text-sm font-bold ${C.text} pl-1`}>検査結果</h2>
+        <h2 className={`text-sm font-bold ${C.text} pl-1`}>画像</h2>
       </div>
 
       {/* Image Groups */}

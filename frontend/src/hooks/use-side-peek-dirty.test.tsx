@@ -1,9 +1,10 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, render, renderHook, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { useSidePeekDirty } from "./use-side-peek-dirty";
 
-const CONFIRM_MESSAGE = "未保存の変更があります。破棄してよろしいですか?";
+const CONFIRM_TITLE = "未保存の変更があります";
 
 function requireEventListener(
   listener: EventListenerOrEventListenerObject | undefined,
@@ -12,6 +13,15 @@ function requireEventListener(
     throw new Error("beforeunload listener was not registered");
   }
   return listener;
+}
+
+function renderDiscardDialog(result: { current: ReturnType<typeof useSidePeekDirty> }) {
+  const view = render(<>{result.current.discardDialog}</>);
+  return {
+    sync() {
+      view.rerender(<>{result.current.discardDialog}</>);
+    },
+  };
 }
 
 afterEach(() => {
@@ -25,13 +35,16 @@ describe("useSidePeekDirty", () => {
     const initialMarkDirty = result.current.markDirty;
     const initialMarkClean = result.current.markClean;
     const initialConfirmDiscard = result.current.confirmDiscard;
+    const initialRunWithDiscardCheck = result.current.runWithDiscardCheck;
 
     expect(Object.keys(result.current).sort()).toEqual([
       "confirmDiscard",
+      "discardDialog",
       "isDirty",
       "isDirtyRef",
       "markClean",
       "markDirty",
+      "runWithDiscardCheck",
     ]);
     expect(result.current.isDirty).toBe(false);
     expect(result.current.isDirtyRef.current).toBe(false);
@@ -46,6 +59,7 @@ describe("useSidePeekDirty", () => {
     expect(result.current.markDirty).toBe(initialMarkDirty);
     expect(result.current.markClean).toBe(initialMarkClean);
     expect(result.current.confirmDiscard).toBe(initialConfirmDiscard);
+    expect(result.current.runWithDiscardCheck).toBe(initialRunWithDiscardCheck);
 
     act(() => {
       result.current.markClean();
@@ -56,6 +70,7 @@ describe("useSidePeekDirty", () => {
     expect(result.current.markDirty).toBe(initialMarkDirty);
     expect(result.current.markClean).toBe(initialMarkClean);
     expect(result.current.confirmDiscard).toBe(initialConfirmDiscard);
+    expect(result.current.runWithDiscardCheck).toBe(initialRunWithDiscardCheck);
   });
 
   it("dirty化でbeforeunloadを登録し、unmountで解除する", () => {
@@ -64,9 +79,7 @@ describe("useSidePeekDirty", () => {
     const { result, unmount } = renderHook(() => useSidePeekDirty());
 
     expect(
-      addEventListenerSpy.mock.calls.filter(
-        ([eventName]) => eventName === "beforeunload",
-      ),
+      addEventListenerSpy.mock.calls.filter(([eventName]) => eventName === "beforeunload"),
     ).toHaveLength(0);
 
     act(() => {
@@ -80,52 +93,94 @@ describe("useSidePeekDirty", () => {
 
     unmount();
 
-    expect(removeEventListenerSpy).toHaveBeenCalledWith(
-      "beforeunload",
-      listener,
-    );
+    expect(removeEventListenerSpy).toHaveBeenCalledWith("beforeunload", listener);
   });
 
   it("cleanなら確認なしで破棄を許可する", () => {
-    const confirmSpy = vi.spyOn(window, "confirm");
+    const pending = vi.fn();
     const { result } = renderHook(() => useSidePeekDirty());
+    const dialog = renderDiscardDialog(result);
 
     expect(result.current.confirmDiscard()).toBe(true);
-    expect(confirmSpy).not.toHaveBeenCalled();
+    act(() => {
+      result.current.runWithDiscardCheck(pending);
+    });
+    dialog.sync();
+
+    expect(pending).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(CONFIRM_TITLE)).not.toBeInTheDocument();
   });
 
-  it("dirtyで確認をキャンセルするとdirty状態を維持する", () => {
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+  it("dirtyで確認をキャンセルするとdirty状態を維持し継続処理を捨てる", async () => {
+    const user = userEvent.setup();
+    const pending = vi.fn();
     const { result } = renderHook(() => useSidePeekDirty());
-    const confirmDiscardBeforeDirty = result.current.confirmDiscard;
+    const dialog = renderDiscardDialog(result);
 
     act(() => {
       result.current.markDirty();
     });
+    act(() => {
+      result.current.runWithDiscardCheck(pending);
+    });
+    dialog.sync();
 
-    expect(confirmDiscardBeforeDirty()).toBe(false);
-    expect(confirmSpy).toHaveBeenCalledWith(CONFIRM_MESSAGE);
+    expect(screen.getByText(CONFIRM_TITLE)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "キャンセル" }));
+    dialog.sync();
+
+    expect(pending).not.toHaveBeenCalled();
     expect(result.current.isDirty).toBe(true);
     expect(result.current.isDirtyRef.current).toBe(true);
+    expect(screen.queryByText(CONFIRM_TITLE)).not.toBeInTheDocument();
   });
 
-  it("dirtyで確認を承認するとclean化して破棄を許可する", () => {
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+  it("dirtyで確認を承認するとclean化して継続処理を実行する", async () => {
+    const user = userEvent.setup();
+    const pending = vi.fn();
     const { result } = renderHook(() => useSidePeekDirty());
-    const confirmDiscardBeforeDirty = result.current.confirmDiscard;
-    let confirmed = false;
+    const dialog = renderDiscardDialog(result);
 
     act(() => {
       result.current.markDirty();
     });
+    act(() => {
+      result.current.runWithDiscardCheck(pending);
+    });
+    dialog.sync();
 
+    expect(screen.getByText(CONFIRM_TITLE)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "確認" }));
+    dialog.sync();
+
+    expect(pending).toHaveBeenCalledTimes(1);
+    expect(result.current.isDirty).toBe(false);
+    expect(result.current.isDirtyRef.current).toBe(false);
+  });
+
+  it("dirtyなconfirmDiscardはダイアログを開いてfalseを返し継続処理を走らせない", async () => {
+    const user = userEvent.setup();
+    const pending = vi.fn();
+    const { result } = renderHook(() => useSidePeekDirty());
+    const confirmDiscardBeforeDirty = result.current.confirmDiscard;
+    const dialog = renderDiscardDialog(result);
+    let confirmed = true;
+
+    act(() => {
+      result.current.markDirty();
+    });
     act(() => {
       confirmed = confirmDiscardBeforeDirty();
     });
+    dialog.sync();
 
-    expect(confirmed).toBe(true);
-    expect(confirmSpy).toHaveBeenCalledWith(CONFIRM_MESSAGE);
+    expect(confirmed).toBe(false);
+    expect(screen.getByText(CONFIRM_TITLE)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "確認" }));
+    dialog.sync();
+
+    expect(pending).not.toHaveBeenCalled();
     expect(result.current.isDirty).toBe(false);
-    expect(result.current.isDirtyRef.current).toBe(false);
   });
 });

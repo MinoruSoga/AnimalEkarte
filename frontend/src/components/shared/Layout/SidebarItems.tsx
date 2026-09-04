@@ -25,8 +25,7 @@ function isMenuItemVisible(
   item: MenuItem,
   hasPermission: AuthContextValue["hasPermission"],
 ): boolean {
-  const selfOk =
-    item.resource === undefined || hasPermission(item.resource, "view");
+  const selfOk = item.resource === undefined || hasPermission(item.resource, "view");
   if (item.subItems?.length) {
     const anyChild = item.subItems.some((sub) => isMenuItemVisible(sub, hasPermission));
     return selfOk || anyChild;
@@ -34,7 +33,11 @@ function isMenuItemVisible(
   return selfOk;
 }
 
-const SidebarItem = memo(function SidebarItem({ item, collapsed = false, level = 0 }: SidebarItemProps) {
+const SidebarItem = memo(function SidebarItem({
+  item,
+  collapsed = false,
+  level = 0,
+}: SidebarItemProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const [manualExpanded, setManualExpanded] = useState<boolean | null>(null);
@@ -46,7 +49,9 @@ const SidebarItem = memo(function SidebarItem({ item, collapsed = false, level =
     : false;
 
   const hasSubItems = !!item.subItems?.length;
-  const hasActiveChild = hasSubItems ? checkAnyChildActive(item.subItems ?? [], location.pathname) : false;
+  const hasActiveChild = hasSubItems
+    ? checkAnyChildActive(item.subItems ?? [], location.pathname)
+    : false;
   const isExpanded = manualExpanded ?? hasActiveChild;
 
   const handleClick = (event: MouseEvent) => {
@@ -73,10 +78,10 @@ const SidebarItem = memo(function SidebarItem({ item, collapsed = false, level =
   ].join(" ");
 
   const content = (
-    <div
-      className={contentBaseClassName}
-    >
-      <div className={`${ICON.navItem} flex items-center justify-center shrink-0${level > 0 && !item.icon ? " invisible" : ""}`}>
+    <div className={contentBaseClassName}>
+      <div
+        className={`${ICON.navItem} flex items-center justify-center shrink-0${level > 0 && !item.icon ? " invisible" : ""}`}
+      >
         {item.icon}
       </div>
       {!collapsed ? <span className="truncate flex-1 text-left">{item.label}</span> : null}
@@ -95,7 +100,9 @@ const SidebarItem = memo(function SidebarItem({ item, collapsed = false, level =
             aria-label={collapsed ? item.label : undefined}
             aria-expanded={collapsed ? undefined : isExpanded}
           >
-            <div className={`${ICON.navItem} flex items-center justify-center shrink-0${level > 0 && !item.icon ? " invisible" : ""}`}>
+            <div
+              className={`${ICON.navItem} flex items-center justify-center shrink-0${level > 0 && !item.icon ? " invisible" : ""}`}
+            >
               {item.icon}
             </div>
             {!collapsed ? <span className="truncate flex-1">{item.label}</span> : null}
@@ -107,7 +114,9 @@ const SidebarItem = memo(function SidebarItem({ item, collapsed = false, level =
               aria-label={isExpanded ? `${item.label}を折りたたむ` : `${item.label}を展開`}
               className={`min-h-11 min-w-11 flex items-center justify-center rounded ${C.hoverBgMedium} transition-colors`}
             >
-              <ChevronDown className={`${ICON.xs} transition-transform${isExpanded ? " rotate-180" : ""}`} />
+              <ChevronDown
+                className={`${ICON.xs} transition-transform${isExpanded ? " rotate-180" : ""}`}
+              />
             </button>
           ) : null}
         </div>
@@ -125,7 +134,12 @@ const SidebarItem = memo(function SidebarItem({ item, collapsed = false, level =
       {hasSubItems && isExpanded && !collapsed ? (
         <div className="space-y-0.5 mt-0.5 mb-1">
           {item.subItems?.map((sub) => (
-            <SidebarItemWithPermission key={sub.label} item={sub} collapsed={collapsed} level={level + 1} />
+            <SidebarItemWithPermission
+              key={sub.label}
+              item={sub}
+              collapsed={collapsed}
+              level={level + 1}
+            />
           ))}
         </div>
       ) : null}
@@ -150,13 +164,10 @@ export const SidebarItemWithPermission = memo(function SidebarItemWithPermission
     return null;
   }
 
-  const selfOk =
-    item.resource === undefined || hasPermission(item.resource, "view");
+  const selfOk = item.resource === undefined || hasPermission(item.resource, "view");
   // Parent failed its own resource but a child is visible: expand-only shell (no default navigate).
   const renderItem: MenuItem =
-    !selfOk && item.subItems?.length
-      ? { ...item, resource: undefined, path: undefined }
-      : item;
+    !selfOk && item.subItems?.length ? { ...item, resource: undefined, path: undefined } : item;
 
   return <SidebarItem item={renderItem} collapsed={collapsed} level={level} />;
 });

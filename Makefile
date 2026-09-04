@@ -1,4 +1,4 @@
-.PHONY: up down build logs logs-api logs-front ps db clean reset migrate seed csv-import-preflight csv-import csv-import-verify a4-csv-import-preflight a4-csv-import a4-csv-import-verify a4-rehearsal-contract-test a4-rehearsal-config-check a4-rehearsal-up a4-rehearsal-ps a4-rehearsal-runtime-report a4-rehearsal-down f8-g4-rehearsal-contract-test f8-g4-rehearsal-config-check f8-g4-rehearsal-run f8-g4-rehearsal-down restart-api restart-front build-prod lint lint-fix test test-cover lint-front test-front build-front e2e build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check setup-hooks ci check-reset-contract check-reset-contract-test shellcheck shellcheck-test codex-security-scan
+.PHONY: up down build logs logs-api logs-front ps db clean reset migrate seed docs-ui old-db-handoff-stage old-db-handoff-check csv-import-preflight csv-import csv-import-verify a4-csv-import-preflight a4-csv-import a4-csv-import-verify a4-rehearsal-contract-test a4-rehearsal-config-check a4-rehearsal-up a4-rehearsal-ps a4-rehearsal-runtime-report a4-rehearsal-down f8-g4-rehearsal-contract-test f8-g4-rehearsal-config-check f8-g4-rehearsal-run f8-g4-rehearsal-down restart-api restart-front build-prod lint lint-fix test test-cover lint-front test-front test-worker test-worker-makefile-test build-front e2e build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check setup-hooks ci check-reset-contract check-reset-contract-test shellcheck shellcheck-test codex-security-scan stg-uat-skeleton stg-uat-csv-import-preflight stg-uat-csv-import stg-uat-csv-import-verify stg-uat-import stg-uat-staff-attach-preflight stg-uat-staff-attach
 
 # デフォルトターゲット
 .DEFAULT_GOAL := help
@@ -33,6 +33,10 @@ build:
 down:
 	$(DC) down
 
+# OpenAPI 閲覧（Swagger UI :8081 / Redoc :8082）。db/backend/frontend は起動しない。
+docs-ui:
+	$(DC) --profile docs up -d swagger-ui redoc
+
 # ログ表示（全体）
 logs:
 	$(DC) logs -f
@@ -63,7 +67,7 @@ clean:
 #   1) project/volume を固定値と compose 実測で照合（他環境は拒否）
 #   2) umask 077 で .local-db-backups/<UTC>/ に pg_dumpall + sha256 + manifest
 #   3) サービス停止後 ekarte-postgres-data のみ削除（cache 3 volume は保持）
-#   4) 再起動 + missing=0 / DDL / 002_master,003_demo,004_staging /health を fail-closed 確認
+#   4) 再起動 + missing=0 / DDL / 002_master /health を fail-closed 確認
 # snapshot 失敗時は volume 削除へ進まない。compose の全 volume 一括削除は使わない。
 # --wait の wait-set（db backend frontend, codegen 除外）は contract スクリプト側。
 reset:
@@ -112,9 +116,51 @@ migrate:
 	@echo "✓ Migrations applied"
 
 # シーダー適用（migrate と同一処理。SQL seed も migration ファイルとして一括適用）
+# NOTE: old_db 21表 CSV（PHI）はここには載せない。医院別隔離は old-db-handoff-* を使う。
 seed:
 	$(DC) run --rm --entrypoint go backend run ./cmd/migrate
 	@echo "✓ Seed data applied"
+
+# STG UAT skeleton: clinics 1/2 and F6 bindings. Does not write the 21 cutover
+# tables (including staffs). Local DB_HOST default db / SSL disable.
+# Requires TARGET_DB_NAME and STG_UAT_SKELETON_CONFIRM_HOST as exact confirmations.
+# Remote STG also requires STG_UAT_SKELETON_ALLOW_REMOTE=YES_I_UNDERSTAND.
+stg-uat-skeleton:
+	@test -n "$${TARGET_DB_NAME}" || (echo "TARGET_DB_NAME is required" >&2; exit 1)
+	@test -n "$${STG_UAT_SKELETON_CONFIRM_HOST}" || (echo "STG_UAT_SKELETON_CONFIRM_HOST is required" >&2; exit 1)
+	$(DC) run --rm \
+		-e APP_ENV=staging \
+		-e STG_UAT_SKELETON_ALLOW_REMOTE="$${STG_UAT_SKELETON_ALLOW_REMOTE}" \
+		-e DB_HOST="$${DB_HOST:-db}" \
+		-e DB_PORT="$${DB_PORT:-5432}" \
+		-e DB_SSL_MODE="$${DB_SSL_MODE:-disable}" \
+		--entrypoint go backend \
+		run ./cmd/stg-uat-skeleton apply \
+		--confirm-target-host "$${STG_UAT_SKELETON_CONFIRM_HOST}" \
+		--confirm-target-database "$${TARGET_DB_NAME}"
+
+# ============================================================================
+# old_db 21表 CSV の医院別ローカル隔離（_old_db_handoff）
+# ============================================================================
+# Copies a producer bundle into:
+#   backend/migrations/seeds/_old_db_handoff/<CLINIC_CODE>/
+# Requires CLINIC_CODE, MIGRATION_RUN_ID, and CSV_IMPORT_SOURCE_DIR (absolute).
+# Does NOT feed cmd/migrate / make seed. Formal import still needs
+# TRUSTED_CANDIDATE + make csv-import-*.
+old-db-handoff-stage:
+	@test -n "$${CLINIC_CODE}" || (echo "CLINIC_CODE is required" >&2; exit 1)
+	@test -n "$${MIGRATION_RUN_ID}" || (echo "MIGRATION_RUN_ID is required" >&2; exit 1)
+	@test -n "$${CSV_IMPORT_SOURCE_DIR}" || (echo "CSV_IMPORT_SOURCE_DIR is required" >&2; exit 1)
+	@./scripts/stage-old-db-handoff.sh
+
+old-db-handoff-check:
+	@test -n "$${CLINIC_CODE}" || (echo "CLINIC_CODE is required" >&2; exit 1)
+	@test -n "$${MIGRATION_RUN_ID}" || (echo "MIGRATION_RUN_ID is required" >&2; exit 1)
+	@git check-ignore -q --no-index backend/migrations/seeds/_old_db_handoff/ \
+		|| (echo "backend/migrations/seeds/_old_db_handoff/ is not git-ignored" >&2; exit 1)
+	@test -f "backend/migrations/seeds/_old_db_handoff/$${CLINIC_CODE}/manifest.json" \
+		|| (echo "missing staged manifest for $${CLINIC_CODE}" >&2; exit 1)
+	@echo "old-db-handoff-check: PASS ($${CLINIC_CODE} present and ignored)"
 
 # ============================================================================
 # F6 CSV import: old_db's immutable 21-table CSV hand-off -> AnimalEkarte
@@ -129,11 +175,12 @@ seed:
 # .env.local. Reports contain aggregate counts and the six non-PHI seed IDs,
 # and are owner-only under sensitive-local/. The source volume is read-only and
 # no old_db network exists.
-CSV_IMPORT_DC = $(DC) -f docker-compose.yml -f docker-compose.csv-import.yml
+CSV_IMPORT_DC = $(DC) --profile csv-import
 export CSV_IMPORT_SOURCE_DIR CSV_MANIFEST_SHA256 CLINIC_CODE CLINIC_ORDINAL MIGRATION_RUN_ID
 export TARGET_CLINIC_ID FALLBACK_ANIMAL_SPECIES_ID FALLBACK_EXAM_TYPE_ID
 export TRIMMING_RESERVATION_TYPE_ID PAYMENT_METHOD_CASH_ID
 export PAYMENT_METHOD_CREDIT_CARD_ID TARGET_DB_NAME
+# Optional: CSV_IMPORT_EXTRA_ARGS='--allow-local-rehearsal' (local reset only)
 CSV_IMPORT_COMMON_ARGS = \
 	--source-dir /migration-input \
 	--expected-manifest-sha256 "$${CSV_MANIFEST_SHA256}" \
@@ -145,22 +192,172 @@ CSV_IMPORT_COMMON_ARGS = \
 	--fallback-exam-type-id "$${FALLBACK_EXAM_TYPE_ID}" \
 	--trimming-reservation-type-id "$${TRIMMING_RESERVATION_TYPE_ID}" \
 	--cash-payment-method-id "$${PAYMENT_METHOD_CASH_ID}" \
-	--credit-card-payment-method-id "$${PAYMENT_METHOD_CREDIT_CARD_ID}"
+	--credit-card-payment-method-id "$${PAYMENT_METHOD_CREDIT_CARD_ID}" \
+	$${CSV_IMPORT_EXTRA_ARGS}
 
 csv-import-preflight:
 	@install -d -m 700 sensitive-local/csv-import-reports
-	$(CSV_IMPORT_DC) run --rm --no-deps csv-import preflight $(CSV_IMPORT_COMMON_ARGS)
+	$(CSV_IMPORT_DC) run --rm -T --no-deps csv-import preflight $(CSV_IMPORT_COMMON_ARGS)
 
 csv-import:
 	@install -d -m 700 sensitive-local/csv-import-reports
-	$(CSV_IMPORT_DC) run --rm --no-deps csv-import apply $(CSV_IMPORT_COMMON_ARGS) \
+	$(CSV_IMPORT_DC) run --rm -T --no-deps csv-import apply $(CSV_IMPORT_COMMON_ARGS) \
 		--confirm-target-write --confirm-backup-ready \
 		--confirm-target-host db --confirm-target-database "$${TARGET_DB_NAME}" \
 		--report-path "/migration-reports/$${CLINIC_CODE}-$${MIGRATION_RUN_ID}-apply.json"
 
 csv-import-verify:
 	@install -d -m 700 sensitive-local/csv-import-reports
-	$(CSV_IMPORT_DC) run --rm --no-deps csv-import verify $(CSV_IMPORT_COMMON_ARGS)
+	$(CSV_IMPORT_DC) run --rm -T --no-deps csv-import verify $(CSV_IMPORT_COMMON_ARGS)
+
+# ============================================================================
+# STG UAT CSV import: verified producer bundle via cmd/csv-import-stg-uat
+# ============================================================================
+# Requires APP_ENV=staging (forced below) and
+# STG_UAT_CSV_IMPORT_ALLOW_REHEARSAL=YES_I_UNDERSTAND.
+# Does NOT pass --allow-local-rehearsal or CSV_IMPORT_EXTRA_ARGS.
+# Compose still hardcodes DB_HOST:db for normal up; run -e overrides below.
+# DB_HOST defaults to db locally; confirmation host and TARGET_DB_NAME remain explicit.
+# Remote STG: USER sets DB_HOST/DB_PORT/DB_SSL_MODE (require|verify-ca|verify-full),
+# matching STG_UAT_CSV_IMPORT_CONFIRM_HOST, and the rehearsal sentinel.
+STG_UAT_CSV_IMPORT_ARGS = \
+	--source-dir /migration-input \
+	--expected-manifest-sha256 "$${CSV_MANIFEST_SHA256}" \
+	--clinic-code "$${CLINIC_CODE}" \
+	--clinic-ordinal "$${CLINIC_ORDINAL}" \
+	--run-id "$${MIGRATION_RUN_ID}" \
+	--clinic-id "$${TARGET_CLINIC_ID}" \
+	--fallback-animal-species-id "$${FALLBACK_ANIMAL_SPECIES_ID}" \
+	--fallback-exam-type-id "$${FALLBACK_EXAM_TYPE_ID}" \
+	--trimming-reservation-type-id "$${TRIMMING_RESERVATION_TYPE_ID}" \
+	--cash-payment-method-id "$${PAYMENT_METHOD_CASH_ID}" \
+	--credit-card-payment-method-id "$${PAYMENT_METHOD_CREDIT_CARD_ID}" \
+	--confirm-target-host "$${STG_UAT_CSV_IMPORT_CONFIRM_HOST}" \
+	--confirm-target-database "$${TARGET_DB_NAME}"
+
+STG_UAT_IMPORT_ARGS = \
+	--source-dir /migration-input \
+	--expected-manifest-sha256 "$${CSV_MANIFEST_SHA256}" \
+	--clinic-code "$${CLINIC_CODE}" \
+	--clinic-ordinal "$${CLINIC_ORDINAL}" \
+	--run-id "$${MIGRATION_RUN_ID}" \
+	--clinic-id "$${TARGET_CLINIC_ID}" \
+	--fallback-animal-species-id "$${FALLBACK_ANIMAL_SPECIES_ID}" \
+	--fallback-exam-type-id "$${FALLBACK_EXAM_TYPE_ID}" \
+	--trimming-reservation-type-id "$${TRIMMING_RESERVATION_TYPE_ID}" \
+	--cash-payment-method-id "$${PAYMENT_METHOD_CASH_ID}" \
+	--credit-card-payment-method-id "$${PAYMENT_METHOD_CREDIT_CARD_ID}" \
+	--confirm-target-host "$${STG_UAT_CSV_IMPORT_CONFIRM_HOST}" \
+	--confirm-target-database "$${TARGET_DB_NAME}"
+
+stg-uat-csv-import-preflight:
+	@test -n "$${TARGET_DB_NAME}" || (echo "TARGET_DB_NAME is required" >&2; exit 1)
+	@test -n "$${STG_UAT_CSV_IMPORT_CONFIRM_HOST}" || (echo "STG_UAT_CSV_IMPORT_CONFIRM_HOST is required" >&2; exit 1)
+	@test -n "$${STG_UAT_CSV_IMPORT_ALLOW_REHEARSAL}" || (echo "STG_UAT_CSV_IMPORT_ALLOW_REHEARSAL is required" >&2; exit 1)
+	@install -d -m 700 sensitive-local/csv-import-reports
+	$(CSV_IMPORT_DC) run --rm --no-deps \
+		-e APP_ENV=staging \
+		-e STG_UAT_CSV_IMPORT_ALLOW_REHEARSAL="$${STG_UAT_CSV_IMPORT_ALLOW_REHEARSAL}" \
+		-e DB_HOST="$${DB_HOST:-db}" \
+		-e DB_PORT="$${DB_PORT:-5432}" \
+		-e DB_SSL_MODE="$${DB_SSL_MODE:-disable}" \
+		--entrypoint go csv-import \
+		run ./cmd/csv-import-stg-uat preflight $(STG_UAT_CSV_IMPORT_ARGS)
+
+stg-uat-csv-import:
+	@test -n "$${TARGET_DB_NAME}" || (echo "TARGET_DB_NAME is required" >&2; exit 1)
+	@test -n "$${STG_UAT_CSV_IMPORT_CONFIRM_HOST}" || (echo "STG_UAT_CSV_IMPORT_CONFIRM_HOST is required" >&2; exit 1)
+	@test -n "$${STG_UAT_CSV_IMPORT_ALLOW_REHEARSAL}" || (echo "STG_UAT_CSV_IMPORT_ALLOW_REHEARSAL is required" >&2; exit 1)
+	@install -d -m 700 sensitive-local/csv-import-reports
+	$(CSV_IMPORT_DC) run --rm --no-deps \
+		-e APP_ENV=staging \
+		-e STG_UAT_CSV_IMPORT_ALLOW_REHEARSAL="$${STG_UAT_CSV_IMPORT_ALLOW_REHEARSAL}" \
+		-e DB_HOST="$${DB_HOST:-db}" \
+		-e DB_PORT="$${DB_PORT:-5432}" \
+		-e DB_SSL_MODE="$${DB_SSL_MODE:-disable}" \
+		--entrypoint go csv-import \
+		run ./cmd/csv-import-stg-uat apply $(STG_UAT_CSV_IMPORT_ARGS) \
+		--confirm-target-write --confirm-backup-ready \
+		--report-path "/migration-reports/$${CLINIC_CODE}-$${MIGRATION_RUN_ID}-stg-uat-apply.json"
+
+stg-uat-csv-import-verify:
+	@test -n "$${TARGET_DB_NAME}" || (echo "TARGET_DB_NAME is required" >&2; exit 1)
+	@test -n "$${STG_UAT_CSV_IMPORT_CONFIRM_HOST}" || (echo "STG_UAT_CSV_IMPORT_CONFIRM_HOST is required" >&2; exit 1)
+	@test -n "$${STG_UAT_CSV_IMPORT_ALLOW_REHEARSAL}" || (echo "STG_UAT_CSV_IMPORT_ALLOW_REHEARSAL is required" >&2; exit 1)
+	@install -d -m 700 sensitive-local/csv-import-reports
+	$(CSV_IMPORT_DC) run --rm --no-deps \
+		-e APP_ENV=staging \
+		-e STG_UAT_CSV_IMPORT_ALLOW_REHEARSAL="$${STG_UAT_CSV_IMPORT_ALLOW_REHEARSAL}" \
+		-e DB_HOST="$${DB_HOST:-db}" \
+		-e DB_PORT="$${DB_PORT:-5432}" \
+		-e DB_SSL_MODE="$${DB_SSL_MODE:-disable}" \
+		--entrypoint go csv-import \
+		run ./cmd/csv-import-stg-uat verify $(STG_UAT_CSV_IMPORT_ARGS)
+
+# One-shot STG UAT import: target preflight → apply → verify.
+# Requires the explicit clinic-plus-five seed IDs from the approved run sheet.
+# Does not run skeleton or staff-attach. Manual fallback remains stg-uat-csv-import-*.
+stg-uat-import:
+	@test -n "$${TARGET_DB_NAME}" || (echo "TARGET_DB_NAME is required" >&2; exit 1)
+	@test -n "$${STG_UAT_CSV_IMPORT_CONFIRM_HOST}" || (echo "STG_UAT_CSV_IMPORT_CONFIRM_HOST is required" >&2; exit 1)
+	@test -n "$${STG_UAT_CSV_IMPORT_ALLOW_REHEARSAL}" || (echo "STG_UAT_CSV_IMPORT_ALLOW_REHEARSAL is required" >&2; exit 1)
+	@install -d -m 700 sensitive-local/csv-import-reports
+	$(CSV_IMPORT_DC) run --rm --no-deps \
+		-e APP_ENV=staging \
+		-e STG_UAT_CSV_IMPORT_ALLOW_REHEARSAL="$${STG_UAT_CSV_IMPORT_ALLOW_REHEARSAL}" \
+		-e DB_HOST="$${DB_HOST:-db}" \
+		-e DB_PORT="$${DB_PORT:-5432}" \
+		-e DB_SSL_MODE="$${DB_SSL_MODE:-disable}" \
+		--entrypoint go csv-import \
+		run ./cmd/csv-import-stg-uat import $(STG_UAT_IMPORT_ARGS) \
+		--confirm-target-write --confirm-backup-ready \
+		--report-path "/migration-reports/$${CLINIC_CODE}-$${MIGRATION_RUN_ID}-stg-uat-apply.json"
+
+# STG UAT staff attach: bind accounts onto imported staffs.id.
+# Does not create staff rows (that is cmd/staff-provision).
+# Roster+secrets live outside the repo (0600). APP_ENV is fixed to staging.
+# TARGET_DB_NAME and STG_UAT_STAFF_ATTACH_CONFIRM_HOST are required.
+# Remote STG: USER sets DB_HOST/DB_PORT/DB_SSL_MODE and
+# STG_UAT_STAFF_ATTACH_ALLOW_REMOTE=YES_I_UNDERSTAND (Make forwards both).
+stg-uat-staff-attach-preflight:
+	@test -n "$${TARGET_DB_NAME}" || (echo "TARGET_DB_NAME is required" >&2; exit 1)
+	@test -n "$${STG_UAT_STAFF_ATTACH_CONFIRM_HOST}" || (echo "STG_UAT_STAFF_ATTACH_CONFIRM_HOST is required" >&2; exit 1)
+	@test -n "$${STG_UAT_STAFF_ATTACH_ROSTER}" || (echo "STG_UAT_STAFF_ATTACH_ROSTER is required" >&2; exit 1)
+	@test -n "$${STG_UAT_STAFF_ATTACH_SECRETS}" || (echo "STG_UAT_STAFF_ATTACH_SECRETS is required" >&2; exit 1)
+	$(DC) run --rm \
+		-e APP_ENV=staging \
+		-e STG_UAT_STAFF_ATTACH_ALLOW_REMOTE="$${STG_UAT_STAFF_ATTACH_ALLOW_REMOTE}" \
+		-e DB_HOST="$${DB_HOST:-db}" \
+		-e DB_PORT="$${DB_PORT:-5432}" \
+		-e DB_SSL_MODE="$${DB_SSL_MODE:-disable}" \
+		-v "$${STG_UAT_STAFF_ATTACH_ROSTER}:/secure/roster.json:ro" \
+		-v "$${STG_UAT_STAFF_ATTACH_SECRETS}:/secure/secrets.json:ro" \
+		--entrypoint go backend \
+		run ./cmd/stg-uat-staff-attach preflight \
+		--roster=/secure/roster.json \
+		--secrets=/secure/secrets.json \
+		--confirm-target-host "$${STG_UAT_STAFF_ATTACH_CONFIRM_HOST}" \
+		--confirm-target-database "$${TARGET_DB_NAME}"
+
+stg-uat-staff-attach:
+	@test -n "$${TARGET_DB_NAME}" || (echo "TARGET_DB_NAME is required" >&2; exit 1)
+	@test -n "$${STG_UAT_STAFF_ATTACH_CONFIRM_HOST}" || (echo "STG_UAT_STAFF_ATTACH_CONFIRM_HOST is required" >&2; exit 1)
+	@test -n "$${STG_UAT_STAFF_ATTACH_ROSTER}" || (echo "STG_UAT_STAFF_ATTACH_ROSTER is required" >&2; exit 1)
+	@test -n "$${STG_UAT_STAFF_ATTACH_SECRETS}" || (echo "STG_UAT_STAFF_ATTACH_SECRETS is required" >&2; exit 1)
+	$(DC) run --rm \
+		-e APP_ENV=staging \
+		-e STG_UAT_STAFF_ATTACH_ALLOW_REMOTE="$${STG_UAT_STAFF_ATTACH_ALLOW_REMOTE}" \
+		-e DB_HOST="$${DB_HOST:-db}" \
+		-e DB_PORT="$${DB_PORT:-5432}" \
+		-e DB_SSL_MODE="$${DB_SSL_MODE:-disable}" \
+		-v "$${STG_UAT_STAFF_ATTACH_ROSTER}:/secure/roster.json:ro" \
+		-v "$${STG_UAT_STAFF_ATTACH_SECRETS}:/secure/secrets.json:ro" \
+		--entrypoint go backend \
+		run ./cmd/stg-uat-staff-attach apply \
+		--roster=/secure/roster.json \
+		--secrets=/secure/secrets.json \
+		--confirm-target-host "$${STG_UAT_STAFF_ATTACH_CONFIRM_HOST}" \
+		--confirm-target-database "$${TARGET_DB_NAME}"
 
 # ============================================================================
 # A4 UI rehearsal: isolated, disposable, localhost-only full stack
@@ -179,7 +376,7 @@ A4_CSV_IMPORT_DC = COMPOSE_PROJECT_NAME="$${A4_COMPOSE_PROJECT}" docker compose 
 	--env-file "$${A4_ENV_FILE}" \
 	-p "$${A4_COMPOSE_PROJECT}" \
 	-f docker-compose.yml -f docker-compose.a4-rehearsal.yml \
-	-f docker-compose.csv-import.yml
+	--profile csv-import
 export A4_COMPOSE_PROJECT A4_RUN_ID A4_TARGET_RELEASE_COMMIT A4_ENV_FILE
 
 a4-rehearsal-contract-test:
@@ -319,6 +516,26 @@ lint-front:
 test-front:
 	$(DC) exec frontend pnpm run test:run
 
+# Cloudflare Worker 単体テスト（root package.json / vitest-pool-workers / workerd）。
+# frontend コンテナは ./frontend しかマウントしないので使わない。ホスト pnpm 直叩きもしない。
+# 例: make test-worker
+#     make test-worker ARGS='backend/worker/migrate-exec.test.ts'
+PNPM_VERSION ?= 10.15.0
+NODE_WORKER_IMAGE ?= node:24-bookworm
+test-worker:
+	docker run --rm \
+		-v $(PWD):/app \
+		-v ekarte-root-node-modules:/app/node_modules \
+		-v ekarte-root-pnpm-store:/pnpm-store \
+		-e PNPM_STORE_DIR=/pnpm-store \
+		-w /app \
+		$(NODE_WORKER_IMAGE) \
+		bash -lc 'set -euo pipefail; corepack enable; corepack prepare pnpm@$(PNPM_VERSION) --activate; pnpm config set store-dir /pnpm-store; pnpm install --frozen-lockfile; pnpm exec vitest run --config backend/worker/vitest.config.mts $(if $(ARGS),$(ARGS),backend/worker)'
+
+# 上記 test-worker ターゲット自体の静的契約テスト（Docker 不要）
+test-worker-makefile-test:
+	@bash scripts/check-test-worker-makefile.test.sh
+
 # Playwright E2E（ローカルのみ・リモート自動 CI 対象外）
 # 前提: make up 済みで frontend が http://localhost:3003 で応答すること。
 # 実体: frontend/scripts/run-e2e.sh（公式 Playwright Docker イメージ）
@@ -364,10 +581,32 @@ ci:
 	@bash scripts/run-local-ci.sh
 
 # git hooks セットアップ（初回・新メンバーオンボーディング時に実行）
+# Source of truth: .githooks/* — wrappers installed into .git/hooks for readiness/tooling that
+# looks specifically at .git/hooks/pre-commit and .git/hooks/pre-push.
 setup-hooks:
-	git config core.hooksPath .githooks
-	chmod +x .githooks/pre-commit
-	@echo "Git hooks を .githooks に設定しました（pre-commit: lint + 型チェック）"
+	chmod +x .githooks/pre-commit .githooks/pre-push .githooks/lib/*.sh
+	@# Source of truth lives in .githooks/; install wrappers at .git/hooks and pin
+	@# local core.hooksPath to "hooks" (relative to .git/) so a global hooksPath
+	@# (e.g. ~/.codex/git-hooks) cannot bypass repo gates.
+	@printf '%s\n' '#!/bin/sh' 'set -e' 'ROOT=$$(git rev-parse --show-toplevel)' \
+		'# Optional code-review-graph (best-effort)' \
+		'if command -v code-review-graph >/dev/null 2>&1; then' \
+		'  code-review-graph update || true' \
+		'  code-review-graph detect-changes --brief || true' \
+		'fi' \
+		'exec "$$ROOT/.githooks/pre-commit"' > .git/hooks/pre-commit
+	@printf '%s\n' '#!/bin/sh' 'set -e' 'ROOT=$$(git rev-parse --show-toplevel)' \
+		'# Git LFS (if installed)' \
+		'if command -v git-lfs >/dev/null 2>&1; then' \
+		'  git lfs pre-push "$$@" || true' \
+		'fi' \
+		'exec "$$ROOT/.githooks/pre-push" "$$@"' > .git/hooks/pre-push
+	@chmod +x .git/hooks/pre-commit .git/hooks/pre-push
+	@# Absolute .githooks path overrides global hooksPath (e.g. ~/.codex/git-hooks).
+	@# Wrappers under .git/hooks remain for tooling that inspects that path.
+	@git config --local core.hooksPath "$(CURDIR)/.githooks"
+	@echo "Git hooks: core.hooksPath=$(CURDIR)/.githooks (pre-commit: secrets+size+lint; pre-push: cached tests)"
+	@echo "Discovery wrappers also at .git/hooks/pre-commit and .git/hooks/pre-push"
 
 # ヘルプ
 help:
@@ -380,6 +619,7 @@ help:
 	@echo "  up            コンテナ起動"
 	@echo "  build         コンテナ起動（ビルド付き）"
 	@echo "  down          コンテナ停止"
+	@echo "  docs-ui       Swagger UI (:8081) / Redoc (:8082) だけ起動"
 	@echo "  logs          全ログ表示"
 	@echo "  logs-api      APIログ表示"
 	@echo "  logs-front    フロントエンドログ表示"
@@ -388,12 +628,18 @@ help:
 	@echo "  clean         キャッシュクリア＆再ビルド"
 	@echo "  reset         local DB 再構築（snapshot→ekarte-postgres-data のみ削除→postflight。USER のみ）"
 	@echo "  migrate       差分マイグレーションのみ適用（DBは落とさない）"
-	@echo "  seed              シーダーのみ適用（差分のみ・べき等）"
+	@echo "  seed              シーダーのみ適用（差分のみ・べき等。old_db 21表は対象外）"
+	@echo "  old-db-handoff-stage  old_db 21表CSVを seeds/_old_db_handoff/<clinic>/ へ隔離配置"
+	@echo "  old-db-handoff-check  医院別handoffの存在と git-ignore を確認"
 	@echo ""
 	@echo "旧DB移行（正式経路: 21表CSV + manifest -> 本テーブル）:"
 	@echo "  csv-import-preflight      source/seed/schema/空band検査（read-only）"
 	@echo "  csv-import                21表CSVを単一transactionで投入（backup・target確認必須）"
 	@echo "  csv-import-verify         manifest件数/clinic/sequence検証（read-only）"
+	@echo "  stg-uat-csv-import-*     STG UAT verified import（専用cmd。weak rehearsal provenance は拒否）"
+	@echo "  stg-uat-import           STG UAT 1コマンド投入（preflight→apply→verify。6 seed IDを明示）"
+	@echo "  stg-uat-skeleton         clinics 1/2 + F6 bindings（21 cutover 表には書かない）"
+	@echo "  stg-uat-staff-attach-*   移行 staffs.id へ account 後付け（staff-provision ではない）"
 	@echo "  a4-rehearsal-contract-test A4隔離構成/runtime report契約テスト（Docker起動不要）"
 	@echo "  a4-rehearsal-config-check A4 Composeのlocalhost/network/volume契約検査"
 	@echo "  a4-rehearsal-up          A4専用disposable stackをbuild/start"
@@ -417,6 +663,8 @@ help:
 	@echo "  test-cover    Goテスト実行（カバレッジ付き）"
 	@echo "  lint-front    FE静的チェック（ESLint+type-check+knip・ローカル必須）"
 	@echo "  test-front    フロントエンドテスト実行"
+	@echo "  test-worker   Worker vitest（Docker / workerd。ARGS= でファイル指定可）"
+	@echo "  test-worker-makefile-test  test-worker ターゲットの静的契約テスト"
 	@echo "  e2e           Playwright E2E（要 make up・ARGS= で spec 指定可）"
 	@echo "  build-front   フロントエンドビルド"
 	@echo "  codegen       型定義生成（Go model → TypeScript型）"
@@ -430,6 +678,6 @@ help:
 	@echo "  mod-download  Goモジュールダウンロード"
 	@echo "  mod-tidy      Goモジュールtidy"
 	@echo "  sync-modules  node_modulesをホストにコピー（IDE補完用）"
-	@echo "  setup-hooks   git hooksをセットアップ（初回・新メンバー用）"
+	@echo "  setup-hooks   git hooksをセットアップ（pre-commit: secrets+size+lint / pre-push: cached tests）"
 	@echo ""
 	@echo "  help          このヘルプを表示"

@@ -1,8 +1,8 @@
 import { C } from "@/lib/design-tokens";
 import {
-  CPM_STAGE_OPTIONS,
-  CPM_STAGE_SHORT_LABELS,
-  type CPMStage,
+  AGGREGATION_CPM_STAGE_OPTIONS,
+  AGGREGATION_CPM_STAGE_SHORT_LABELS,
+  type AggregationCPMStage,
 } from "@/lib/cpm-stage";
 
 import type { CPMStageCounts } from "../api/get-cpm-stage-counts";
@@ -12,8 +12,8 @@ interface CPMStageSummaryProps {
   total: number;
   isLoading: boolean;
   isError: boolean;
-  selected?: CPMStage;
-  onSelect: (stage: CPMStage | undefined) => void;
+  selected?: AggregationCPMStage;
+  onSelect: (stage: AggregationCPMStage | undefined) => void;
 }
 
 // 人数表示: エラーは "—"、読み込み中は "…"（"読み込み中..." 文言はテーブルの空状態と
@@ -29,7 +29,7 @@ function chipClass(active: boolean): string {
     "inline-flex min-h-11 min-w-11 items-center gap-1.5 px-3 py-1 rounded-full text-sm border transition-colors";
   return active
     ? `${base} ${C.bgBrand10} ${C.textBrand} border-current`
-    : `${base} bg-white ${C.text} ${C.borderLight} ${C.hoverBgStatusGray}`;
+    : `${base} ${C.bgWhite} ${C.text} ${C.borderLight} ${C.hoverBgStatusGray}`;
 }
 
 // ISSUE-180: CPM セグメント別の人数サマリー。各チップはクリックで一覧を絞り込む。
@@ -56,12 +56,10 @@ export function CPMStageSummary({
         className={chipClass(!selected)}
       >
         すべて
-        <span className="font-mono">
-          {countLabel(total, isLoading, isError)}
-        </span>
+        <span className="font-mono">{countLabel(total, isLoading, isError)}</span>
       </button>
 
-      {CPM_STAGE_OPTIONS.map((opt) => {
+      {AGGREGATION_CPM_STAGE_OPTIONS.map((opt) => {
         const isActive = selected === opt.value;
         return (
           <button
@@ -72,10 +70,8 @@ export function CPMStageSummary({
             className={chipClass(isActive)}
             title={opt.label}
           >
-            {CPM_STAGE_SHORT_LABELS[opt.value]}
-            <span className="font-mono">
-              {countLabel(counts[opt.value], isLoading, isError)}
-            </span>
+            {AGGREGATION_CPM_STAGE_SHORT_LABELS[opt.value]}
+            <span className="font-mono">{countLabel(counts[opt.value], isLoading, isError)}</span>
           </button>
         );
       })}

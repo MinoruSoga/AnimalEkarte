@@ -1,10 +1,10 @@
-import { useQuery } from '@tanstack/react-query';
-import { axios } from '@/lib/axios';
-import { queryKeys } from '@/lib/query-keys';
-import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from '@/lib/react-query';
-import type { Estimate } from '../types';
-import { transformEstimate } from './transforms';
-import type { EstimateListResponse } from './types';
+import { useQuery } from "@tanstack/react-query";
+import { axios } from "@/lib/axios";
+import { queryKeys } from "@/lib/query-keys";
+import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import type { Estimate } from "../types";
+import { transformEstimate } from "./transforms";
+import type { EstimateListResponse } from "./types";
 
 interface GetEstimatesParams {
   page?: number;
@@ -22,7 +22,7 @@ interface EstimatesResult {
 }
 
 async function getEstimates(params?: GetEstimatesParams): Promise<EstimatesResult> {
-  const { data } = await axios.get<EstimateListResponse>('/v1/estimates', { params });
+  const { data } = await axios.get<EstimateListResponse>("/v1/estimates", { params });
   return {
     data: data.data.map(transformEstimate),
     total: data.total,

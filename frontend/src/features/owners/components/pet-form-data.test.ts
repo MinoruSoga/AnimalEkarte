@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createPetFormData } from "./pet-form-data";
+import { createPetFormData } from "../lib/pet-form-data";
 
 describe("createPetFormData", () => {
   it("血液型とマイクロチップ番号を初期値として保持する", () => {

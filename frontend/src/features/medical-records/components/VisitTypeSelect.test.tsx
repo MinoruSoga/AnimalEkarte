@@ -5,25 +5,19 @@ import { VisitTypeSelect } from "./VisitTypeSelect";
 
 describe("VisitTypeSelect", () => {
   it("SelectTrigger に現在の value が表示される", () => {
-    render(
-      <VisitTypeSelect value="初診" onChange={vi.fn()} />,
-    );
+    render(<VisitTypeSelect value="初診" onChange={vi.fn()} />);
     expect(screen.getByRole("combobox")).toBeInTheDocument();
     expect(screen.getByText("初診")).toBeInTheDocument();
   });
 
-  it("初診/再診/緊急/往診 の選択肢が含まれる", async () => {
+  it("初診/再診の選択肢のみ含まれる（緊急/往診は BE 非対応のため出さない）", async () => {
     const user = userEvent.setup();
-    render(
-      <VisitTypeSelect value="再診" onChange={vi.fn()} />,
-    );
+    render(<VisitTypeSelect value="再診" onChange={vi.fn()} />);
     await user.click(screen.getByRole("combobox"));
-    // Radix Select がオプションをレンダリングするのを確認
-    // "再診" は SelectTrigger の表示値とドロップダウンの両方に存在するため getAllByText で確認
     expect(screen.getByText("初診")).toBeInTheDocument();
     expect(screen.getAllByText("再診").length).toBeGreaterThan(0);
-    expect(screen.getByText("緊急")).toBeInTheDocument();
-    expect(screen.getByText("往診")).toBeInTheDocument();
+    expect(screen.queryByText("緊急")).not.toBeInTheDocument();
+    expect(screen.queryByText("往診")).not.toBeInTheDocument();
   });
 
   it("選択時 onChange が呼ばれる", async () => {
@@ -36,9 +30,7 @@ describe("VisitTypeSelect", () => {
   });
 
   it("disabled 時に SelectTrigger が disabled になる", () => {
-    render(
-      <VisitTypeSelect value="再診" onChange={vi.fn()} disabled />,
-    );
+    render(<VisitTypeSelect value="再診" onChange={vi.fn()} disabled />);
     expect(screen.getByRole("combobox")).toBeDisabled();
   });
 });

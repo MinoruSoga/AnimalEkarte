@@ -5,7 +5,7 @@ import { isPersistedPetId } from "@/lib/pet-id";
 import { queryKeys } from "@/lib/query-keys";
 import { QUERY_GC_TIMES, QUERY_STALE_TIMES } from "@/lib/react-query";
 
-export interface PetSubOwnerApiResponse {
+interface PetSubOwnerApiResponse {
   owner_id: number;
   name: string;
   name_kana: string;
@@ -37,30 +37,20 @@ interface OwnerCandidatesPageResponse {
   data: OwnerCandidateApiResponse[];
 }
 
-export async function getPetSubOwners(
-  petId: string,
-): Promise<PetSubOwnersResponse> {
-  const { data } = await axios.get<PetSubOwnersResponse>(
-    `/v1/pets/${petId}/sub-owners`,
-  );
+export async function getPetSubOwners(petId: string): Promise<PetSubOwnersResponse> {
+  const { data } = await axios.get<PetSubOwnersResponse>(`/v1/pets/${petId}/sub-owners`);
   return data;
 }
 
-export async function getPetSubOwnerMetadata(
-  petId: string,
-): Promise<PetSubOwnerMetadataResponse> {
-  const { data } = await axios.get<PetSubOwnerMetadataResponse>(
-    `/v1/pets/${petId}`,
-  );
+export async function getPetSubOwnerMetadata(petId: string): Promise<PetSubOwnerMetadataResponse> {
+  const { data } = await axios.get<PetSubOwnerMetadataResponse>(`/v1/pets/${petId}`);
   return {
     owner_id: data.owner_id,
     version: data.version,
   };
 }
 
-export async function getSubOwnerCandidates(
-  search: string,
-): Promise<SubOwnerCandidate[]> {
+export async function getSubOwnerCandidates(search: string): Promise<SubOwnerCandidate[]> {
   const normalizedSearch = search.trim();
   if (normalizedSearch === "") {
     return [];

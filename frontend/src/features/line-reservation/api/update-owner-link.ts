@@ -19,13 +19,8 @@ async function updateOwnerLink(
 export function useUpdateOwnerLink(clinicId: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({
-      customerId,
-      ownerID,
-    }: {
-      customerId: number;
-      ownerID: number | null;
-    }) => updateOwnerLink(clinicId!, customerId, ownerID),
+    mutationFn: ({ customerId, ownerID }: { customerId: number; ownerID: number | null }) =>
+      updateOwnerLink(clinicId!, customerId, ownerID),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.lineCustomers(clinicId!) });
     },

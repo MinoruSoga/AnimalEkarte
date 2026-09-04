@@ -45,29 +45,26 @@ func NewBillingConfirmationService(repo BillingConfirmationRepository, medRec bi
 
 func (s *billingConfirmationService) GetOrCreate(ctx context.Context, clinicID, medicalRecordID uint64) (*model.BillingConfirmation, error) {
 	review, err := s.repo.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
-	if err != nil {
-		if !apperrors.IsNotFound(err) {
-			slog.ErrorContext(ctx, "failed to get billing review", "error", err)
-			return nil, apperrors.Wrap(err, "failed to get billing review")
+	if err == nil {
+		return review, nil
+	}
+	if !apperrors.IsNotFound(err) {
+		slog.ErrorContext(ctx, "failed to get billing review", "error", err)
+		return nil, apperrors.Wrap(err, "failed to get billing review")
+	}
+	if _, ownerErr := s.medRec.FindByID(ctx, clinicID, medicalRecordID); ownerErr != nil {
+		if !apperrors.IsNotFound(ownerErr) {
+			slog.ErrorContext(ctx, "failed to verify parent medical record", "error", ownerErr)
 		}
-		// テナント所有権検証（クロステナント write 防止）。
-		// billing_confirmations は自前 clinic_id を持たず medical_records 経由で隔離するため、
-		// 自動作成前に親カルテの所有権を明示検証する（NotFound 分岐は越境ケースと重なる）。
-		if _, ownerErr := s.medRec.FindByID(ctx, clinicID, medicalRecordID); ownerErr != nil {
-			if !apperrors.IsNotFound(ownerErr) {
-				slog.ErrorContext(ctx, "failed to verify parent medical record", "error", ownerErr)
-			}
-			return nil, apperrors.Wrap(ownerErr, "failed to verify parent medical record")
-		}
-		// 存在しない場合はpendingで新規作成
-		review = &model.BillingConfirmation{
-			MedicalRecordID: medicalRecordID,
-			Status:          model.ConfirmationStatusPending,
-		}
-		if err := s.repo.Create(ctx, review); err != nil {
-			slog.ErrorContext(ctx, "failed to create billing review", "error", err)
-			return nil, apperrors.Wrap(err, "failed to create billing review")
-		}
+		return nil, apperrors.Wrap(ownerErr, "failed to verify parent medical record")
+	}
+	review = &model.BillingConfirmation{
+		MedicalRecordID: medicalRecordID,
+		Status:          model.ConfirmationStatusPending,
+	}
+	if err := s.repo.Create(ctx, review); err != nil {
+		slog.ErrorContext(ctx, "failed to create billing review", "error", err)
+		return nil, apperrors.Wrap(err, "failed to create billing review")
 	}
 	return review, nil
 }

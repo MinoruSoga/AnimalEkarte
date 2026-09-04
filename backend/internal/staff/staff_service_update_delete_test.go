@@ -297,7 +297,7 @@ func TestStaffService_Delete(t *testing.T) {
 			}
 			svc := NewStaffService(repo, &mockAccountForStaff{}, assignmentRepo, reservationRepo, shiftRepo, &mockPermissionGroupRepository{}, &mockResStaffForStaff{}, nil, nil, noopTransactor{})
 
-			err := svc.Delete(context.Background(), tt.clinicID, tt.id)
+			err := svc.Delete(context.Background(), tt.clinicID, tt.id, false)
 
 			if tt.wantErr {
 				assert.Error(t, err)

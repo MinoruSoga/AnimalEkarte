@@ -30,14 +30,26 @@ const IMAGE_GROUPS: ImageGalleryGroup[] = [
     id: 1,
     date: "2026/01/01 10:00:00",
     images: [
-      { id: 1, name: "レントゲン画像", src: "http://example.com/1.jpg", label: "レントゲン", mimeType: "image/jpeg" },
+      {
+        id: 1,
+        name: "レントゲン画像",
+        src: "http://example.com/1.jpg",
+        label: "レントゲン",
+        mimeType: "image/jpeg",
+      },
     ],
   },
   {
     id: 2,
     date: "2026/01/02 10:00:00",
     images: [
-      { id: 2, name: "エコー検査", src: "http://example.com/2.jpg", label: "エコー", mimeType: "image/jpeg" },
+      {
+        id: 2,
+        name: "エコー検査",
+        src: "http://example.com/2.jpg",
+        label: "エコー",
+        mimeType: "image/jpeg",
+      },
     ],
   },
 ];
@@ -109,5 +121,26 @@ describe("MedicalRecordImage — SEC-CS-F14 死亡ペット", () => {
     render(<MedicalRecordImage medicalRecordId="123" isPetDeceased={false} />);
 
     expect(screen.getByRole("button", { name: "画像アップロード" })).toBeInTheDocument();
+  });
+});
+
+describe("MedicalRecordImage — セクション見出し (BUG-018)", () => {
+  it("画像タブのセクション見出しは「画像」であり「検査結果」ではない", () => {
+    render(<MedicalRecordImage medicalRecordId="123" />);
+
+    expect(screen.getByRole("heading", { level: 2, name: "画像" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 2, name: "検査結果" })).not.toBeInTheDocument();
+  });
+
+  it("画像が空のとき empty-state は「画像がありません」のまま", () => {
+    vi.mocked(useGetMedicalRecordImages).mockReturnValue({
+      data: [],
+      isLoading: false,
+    } as unknown as ReturnType<typeof useGetMedicalRecordImages>);
+
+    render(<MedicalRecordImage medicalRecordId="123" />);
+
+    expect(screen.getByText("画像がありません")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 2, name: "画像" })).toBeInTheDocument();
   });
 });

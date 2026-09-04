@@ -1,19 +1,25 @@
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useState } from "react";
 import FolderTree from "lucide-react/dist/esm/icons/folder-tree";
 
-import { MasterSidePanel, PropertyInput, PropertyRow, StatusToggleButton } from "@/components/shared/SidePeek";
+import {
+  MasterSidePanel,
+  PropertyInput,
+  PropertyRow,
+  StatusToggleButton,
+} from "@/components/shared/SidePeek";
 import { LAYOUT } from "@/lib/design-tokens";
 
 import type { DiagnosisType } from "../api/diagnosis";
+import { useMasterSidePanelForm } from "../hooks/use-master-side-panel-form";
 import {
   diagnosisTypeToFormData,
   type DiagnosisTypeFormData,
-} from "./diagnosis-side-panel-model";
+} from "../lib/diagnosis-side-panel-model";
 
 interface DiagnosisTypeSidePanelProps {
   item: DiagnosisType | null;
   onClose: () => void;
-  onSave: (data: DiagnosisTypeFormData) => void;
+  onSave: (data: DiagnosisTypeFormData) => Promise<boolean> | boolean;
   onDeleteRequest?: (item: DiagnosisType) => void;
   readOnly?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
@@ -27,52 +33,51 @@ export const DiagnosisTypeSidePanel = memo(function DiagnosisTypeSidePanel({
   readOnly,
   onDirtyChange,
 }: DiagnosisTypeSidePanelProps) {
-  const [formData, setFormData] = useState<DiagnosisTypeFormData>(() => diagnosisTypeToFormData(item));
-  const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
 
-  useEffect(() => {
-    onDirtyChange?.(isDirty);
-  }, [isDirty, onDirtyChange]);
+  const {
+    formData,
+    setFormData: setFormDataDirty,
+    isDirty,
+    setIsDirty,
+    handleAction,
+  } = useMasterSidePanelForm<DiagnosisTypeFormData>({
+    initialFormData: diagnosisTypeToFormData(item),
+    onSave,
+    onDirtyChange,
+    validate: (data) => {
+      if (!data.name.trim()) {
+        setNameError("名称を入力してください");
+        return false;
+      }
+      setNameError("");
+      return true;
+    },
+  });
 
-  const setFormDataDirty = useCallback<typeof setFormData>((updater) => {
-    setFormData(updater);
-    setIsDirty(true);
-  }, []);
+  const handleTitleChange = useCallback(
+    (value: string) => {
+      setFormDataDirty((prev) => ({ ...prev, name: value }));
+      if (value.trim()) setNameError("");
+    },
+    [setFormDataDirty],
+  );
 
-  const formDataRef = useRef(formData);
-  useEffect(() => {
-    formDataRef.current = formData;
-  }, [formData]);
-
-  const handleTitleChange = useCallback((value: string) => {
-    setFormDataDirty((prev) => ({ ...prev, name: value }));
-    if (value.trim()) setNameError("");
-  }, [setFormDataDirty]);
-
-  const handleDescriptionChange = useCallback((value: string) => {
-    setFormDataDirty((prev) => ({ ...prev, description: value }));
-  }, [setFormDataDirty]);
+  const handleDescriptionChange = useCallback(
+    (value: string) => {
+      setFormDataDirty((prev) => ({ ...prev, description: value }));
+    },
+    [setFormDataDirty],
+  );
 
   const handleToggleActive = useCallback(() => {
     setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }));
   }, [setFormDataDirty]);
 
-  const handleAction = useCallback(() => {
-    const current = formDataRef.current;
-    if (!current.name.trim()) {
-      setNameError("名称を入力してください");
-      return;
-    }
-    setNameError("");
-    onSave(current);
-    setIsDirty(false);
-  }, [onSave]);
-
   const handleClose = useCallback(() => {
     setIsDirty(false);
     onClose();
-  }, [onClose]);
+  }, [onClose, setIsDirty]);
 
   return (
     <MasterSidePanel
@@ -88,10 +93,7 @@ export const DiagnosisTypeSidePanel = memo(function DiagnosisTypeSidePanel({
       titleMaxLength={100}
       readOnly={readOnly}
     >
-      <StatusToggleButton
-        isActive={formData.isActive}
-        onToggle={handleToggleActive}
-      />
+      <StatusToggleButton isActive={formData.isActive} onToggle={handleToggleActive} />
       <PropertyRow label="備考">
         <PropertyInput
           value={formData.description}

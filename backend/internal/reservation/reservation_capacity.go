@@ -61,3 +61,25 @@ func CheckReservationTypeCapacity(
 	}
 	return nil
 }
+
+// CheckReservationTypeCapacityForCount ensures a batch fits in the remaining type capacity.
+func CheckReservationTypeCapacityForCount(ctx context.Context, reservationRepo reservationTypeCapacityCounter, typeFinder reservationTypeFinder, clinicID, reservationTypeID uint64, startTime time.Time, requested int) error {
+	if reservationRepo == nil || typeFinder == nil {
+		return nil
+	}
+	reservationType, err := typeFinder.FindByID(ctx, clinicID, reservationTypeID)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to find reservation type for capacity")
+	}
+	if reservationType.MaxConcurrent == nil {
+		return nil
+	}
+	count, err := reservationRepo.CountByTypeAndStartTime(ctx, clinicID, reservationTypeID, startTime, nil)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to count reservations by type and start time")
+	}
+	if count+int64(requested) > int64(*reservationType.MaxConcurrent) {
+		return apperrors.WrapConflict("この時間帯の予約受入枠が満員です")
+	}
+	return nil
+}

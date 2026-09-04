@@ -22,7 +22,7 @@ function clinicHeaderConfig(clinicId?: string) {
 const getVitals = async (medicalRecordId: string, clinicId?: string): Promise<Vital[]> => {
   const { data } = await axios.get<Vital[]>(
     `/v1/medical-records/${medicalRecordId}/vitals`,
-    clinicHeaderConfig(clinicId)
+    clinicHeaderConfig(clinicId),
   );
   return data;
 };
@@ -48,7 +48,7 @@ export const useCreateVital = (medicalRecordId: string, clinicId?: string) => {
         .post<Vital>(
           `/v1/medical-records/${medicalRecordId}/vitals`,
           input,
-          clinicHeaderConfig(clinicId)
+          clinicHeaderConfig(clinicId),
         )
         .then((r) => r.data),
     onSuccess: () => {
@@ -71,7 +71,7 @@ export const useUpdateVital = (medicalRecordId: string, clinicId?: string) => {
         .patch<Vital>(
           `/v1/medical-records/${medicalRecordId}/vitals/${vitalId}`,
           input,
-          clinicHeaderConfig(clinicId)
+          clinicHeaderConfig(clinicId),
         )
         .then((r) => r.data),
     onSuccess: () => {
@@ -92,7 +92,7 @@ export const useDeleteVital = (medicalRecordId: string, clinicId?: string) => {
     mutationFn: (vitalId: string) =>
       axios.delete(
         `/v1/medical-records/${medicalRecordId}/vitals/${vitalId}`,
-        clinicHeaderConfig(clinicId)
+        clinicHeaderConfig(clinicId),
       ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.medicalRecords.vitals(medicalRecordId) });

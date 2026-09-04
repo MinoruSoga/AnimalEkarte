@@ -17,8 +17,7 @@ export function DataStatus({
   noPermission,
   emptyMessage = "記録なし",
 }: DataStatusProps) {
-  if (noPermission)
-    return <p className={`text-xs ${C.text50}`}>閲覧権限なし</p>;
+  if (noPermission) return <p className={`text-xs ${C.text50}`}>閲覧権限なし</p>;
   if (isLoading)
     return (
       <p className={`text-xs ${C.text50}`} role="status">
@@ -31,11 +30,7 @@ export function DataStatus({
         取得失敗
       </p>
     );
-  return children ? (
-    <>{children}</>
-  ) : (
-    <p className={`text-xs ${C.text50}`}>{emptyMessage}</p>
-  );
+  return children ? <>{children}</> : <p className={`text-xs ${C.text50}`}>{emptyMessage}</p>;
 }
 
 interface BriefingFieldProps {
@@ -44,18 +39,10 @@ interface BriefingFieldProps {
   alert?: boolean;
 }
 
-export function BriefingField({
-  label,
-  value,
-  alert = false,
-}: BriefingFieldProps) {
+export function BriefingField({ label, value, alert = false }: BriefingFieldProps) {
   return (
-    <div
-      className={`min-w-0 border-l-2 pl-1.5 ${alert ? C.borderDanger : C.borderBrand}`}
-    >
-      <span className={`block text-2xs leading-snug font-semibold ${C.text50}`}>
-        {label}
-      </span>
+    <div className={`min-w-0 border-l-2 pl-1.5 ${alert ? C.borderDanger : C.borderBrand}`}>
+      <span className={`block text-2xs leading-snug font-semibold ${C.text50}`}>{label}</span>
       <strong
         className={`mt-0.5 block break-words text-sm leading-snug font-medium ${alert ? C.danger : C.text}`}
       >
@@ -76,9 +63,7 @@ export function DetailField({ label, value }: DetailFieldProps) {
       className={`grid min-w-0 grid-cols-[6rem_minmax(0,1fr)] gap-1 border-b py-1 ${C.borderDivider}`}
     >
       <dt className={`text-xs ${C.text50}`}>{label}</dt>
-      <dd className={`min-w-0 break-words text-xs font-medium ${C.text}`}>
-        {value || "-"}
-      </dd>
+      <dd className={`min-w-0 break-words text-xs font-medium ${C.text}`}>{value || "-"}</dd>
     </div>
   );
 }

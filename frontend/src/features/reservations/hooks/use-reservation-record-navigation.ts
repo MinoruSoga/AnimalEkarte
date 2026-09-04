@@ -32,9 +32,7 @@ interface PetSelectNavigationState {
   visitDate: string;
 }
 
-export function useReservationRecordNavigation({
-  navigate,
-}: UseReservationRecordNavigationArgs) {
+export function useReservationRecordNavigation({ navigate }: UseReservationRecordNavigationArgs) {
   const [petSelectConfirmOpen, setPetSelectConfirmOpen] = useState(false);
   const [petSelectPath, setPetSelectPath] = useState("");
   const [petSelectState, setPetSelectState] = useState<PetSelectNavigationState | null>(null);

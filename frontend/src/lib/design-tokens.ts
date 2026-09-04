@@ -187,6 +187,7 @@ export const C = {
   bgBrand5:      "bg-[#038B94]/5",
   bgBrandDot:    "bg-[#038B94]",
   hoverBgBrand:  "hover:bg-[#027078]",
+  focusBgBrand:  "focus:bg-[#027078]",
   hoverBgBrand5: "hover:bg-[#038B94]/5",
   hoverTextBrand: "hover:text-[#025F66] dark:hover:text-[#079BA5]",
   textOnBrand: "text-white",
@@ -412,6 +413,13 @@ export const C = {
   hoverBgPrimaryDark: "hover:bg-[#000000]/90",
   hoverText:     "hover:text-[#000000]",
   hoverText60:   "hover:text-[#615D59]",
+  /** FE-RC-013: static hover/focus variants (no template `hover:${C.x}`) */
+  hoverText80:   "hover:text-[#31302E]",
+  hoverBgTint:   "hover:bg-[#E6E6E6]",
+  groupHoverBorderPrimary: "group-hover:border-[#000000]",
+  focusDanger:   "focus:text-[#C0392B]",
+  bgWhite60:     "bg-white/60",
+  hoverBgWhite80: "hover:bg-white/80",
   hoverBorderPrimary30: "hover:border-[#000000]/30",
   hoverBorderMedium40: "hover:border-[rgba(0,0,0,0.40)]",
   hoverBgSubtle: "hover:bg-[#F6F5F4]",
@@ -752,7 +760,7 @@ export const STYLE = {
 
   /* ── Search Filter Bar ── */
   searchInput:
-    `pl-8 h-11 w-full text-base ${C.text} ${C.textPlaceholder} ${C.bgPage} border border-transparent rounded-xs outline-none transition-colors ${C.hoverBgPageDark} focus:bg-white ${C.focusBorderLight}`,
+    `pl-8 h-11 w-full text-base ${C.text} ${C.textPlaceholder} ${C.bgPage} border border-transparent rounded-xs outline-none transition-colors ${C.hoverBgPageDark} focus:bg-white ${C.focusBorderLight} focus-visible:ring-2 ${C.focusRingAccent40}`,
   searchIcon:
     `absolute left-2.5 top-1/2 -translate-y-1/2 size-5 ${C.text30}`,
   searchCount:
@@ -782,7 +790,7 @@ export const STYLE = {
   propertyRow:
     `flex gap-2 py-2 px-2 -mx-2 rounded-xxs ${C.hoverBgLight} transition-colors min-h-[40px]`,
   propertyInput:
-    `w-full bg-transparent text-base ${C.text} outline-none border-none px-1.5 py-0.5 rounded-xxs ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`,
+    `w-full bg-transparent text-base ${C.text} outline-none border-none px-1.5 py-0.5 rounded-xxs ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder} focus-visible:ring-2 ${C.focusRingAccent40}`,
 
   /* ── Side Peek ── */
   sidePeekPanel:
@@ -841,7 +849,12 @@ export const STYLE = {
   formLabel:
     `text-base ${C.text70}`,
   formInput:
-    `h-11 text-base bg-white ${C.borderMedium} ${C.text}`,
+    `h-11 text-base bg-white ${C.borderMedium} ${C.text} outline-none ${C.focusBorderAccent} focus-visible:ring-2 ${C.focusRingAccent40}`,
+  /** SidePeek / property editors — focus-visible ring for WCAG 2.4.7 (FE-RC-040) */
+  sidePeekInput:
+    `w-full bg-transparent outline-none focus-visible:ring-2 ${C.focusRingAccent40}`,
+  /** Print document hairline (replaces raw border-black; FE-RC-052) */
+  printBorder: "border-black",
   /** Error ring for form inputs — use with conditional classnames */
   formInputError:
     `ring-2 ring-[#C0392B]/30 ${C.borderDanger}`,

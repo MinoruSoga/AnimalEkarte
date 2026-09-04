@@ -1,6 +1,16 @@
 // React/Framework
-import { LAYOUT } from "@/lib/design-tokens";
-import { useState, useEffect, useLayoutEffect, useCallback, useMemo, memo } from "react";
+import { C, LAYOUT } from "@/lib/design-tokens";
+import {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useCallback,
+  useMemo,
+  memo,
+  useActionState,
+  useRef,
+  type ReactNode,
+} from "react";
 import { format as dateFnsFormat } from "date-fns";
 
 // External
@@ -12,6 +22,8 @@ import { usePetSelection } from "@/hooks/use-pet-selection";
 import { useGetClinicHolidays } from "@/hooks/use-clinic-holidays";
 import { useGetOwnerLineTags } from "@/hooks/use-owner-line-tags";
 import { useGetReservation } from "@/hooks/use-get-reservation";
+import { isValidOwnerPhone } from "@/lib/phone";
+import { formatJSTWallDate, isPastJSTDate } from "@/lib/jst-date";
 import type { NewOwnerFormData } from "@/types/reservation-form";
 
 // Relative
@@ -35,16 +47,28 @@ const EMPTY_NEW_OWNER: NewOwnerFormData = {
   animalSpeciesId: 0,
 };
 const RESERVATION_FORM_DESCRIPTION_ID = "reservation-form-description";
-const OWNER_PHONE_PATTERN = /^0\d{1,4}-?\d{1,4}-?\d{4}$/;
+const PAST_DATE_ERROR_MESSAGE = "本日以降の日付を選択してください";
 
-function isValidOwnerPhone(phone: string): boolean {
-  return OWNER_PHONE_PATTERN.test(phone);
+/**
+ * FE-RC-003: 新規予約の日付は JST の暦日で判定する。
+ * `formData.start` は DatePicker のローカル正午 parse 契約（jst-date.ts 冒頭コメント参照）で
+ * 生成されるため、ローカル getter（`formatJSTWallDate`）でそのまま JST 暦日文字列化できる。
+ * ブラウザの実タイムゾーンに関わらず同じ判定結果になる。
+ */
+function isReservationStartPastJST(start: Date | undefined): boolean {
+  if (!start) return false;
+  return isPastJSTDate(formatJSTWallDate(start));
 }
 
 interface ReservationFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: Partial<Reservation>, selectedPets: Pet[], newOwnerData?: NewOwnerFormData) => void;
+  /** Returns an inline error message to keep the modal open; null/void closes via parent on success. */
+  onSave: (
+    data: Partial<Reservation>,
+    selectedPets: Pet[],
+    newOwnerData?: NewOwnerFormData,
+  ) => void | string | null | Promise<void | string | null>;
   initialData: Partial<Reservation> | null;
   canCreate?: boolean;
   canEdit?: boolean;
@@ -61,7 +85,11 @@ export const ReservationFormModal = memo(function ReservationFormModal({
   const [pendingPetId, setPendingPetId] = useState<string | null>(null);
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>("search");
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
-  const [calendarMonth, setCalendarMonth] = useState<string>(() => dateFnsFormat(new Date(), "yyyy-MM"));
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [saveFormKey, setSaveFormKey] = useState(0);
+  const [calendarMonth, setCalendarMonth] = useState<string>(() =>
+    dateFnsFormat(new Date(), "yyyy-MM"),
+  );
   const [ownerMode, setOwnerMode] = useState<OwnerMode>("existing");
   const [newOwnerData, setNewOwnerData] = useState<NewOwnerFormData>(EMPTY_NEW_OWNER);
   const [newOwnerErrors, setNewOwnerErrors] = useState<Record<string, string>>({});
@@ -69,42 +97,44 @@ export const ReservationFormModal = memo(function ReservationFormModal({
   // BUG-343: 定休日を取得して Calendar で disabled にする
   const { data: clinicHolidays = [] } = useGetClinicHolidays(calendarMonth);
 
-  const holidayDates = useMemo(
-    () => new Set(clinicHolidays.map((h) => h.date)),
-    [clinicHolidays]
-  );
+  const holidayDates = useMemo(() => new Set(clinicHolidays.map((h) => h.date)), [clinicHolidays]);
   const handleCalendarMonthChange = useCallback((yearMonth: string) => {
     setCalendarMonth(yearMonth);
   }, []);
 
-  const {
-    selectedPets,
-    setSelectedPets,
-    togglePetSelection,
-  } = usePetSelection([], "multiple-same-owner");
+  const { selectedPets, setSelectedPets, togglePetSelection } = usePetSelection(
+    [],
+    "multiple-same-owner",
+  );
 
   const { data: ownerLineData } = useGetOwnerLineTags(selectedPets[0]?.ownerId ?? "");
-  const lstepStatus = selectedPets.length === 0 || ownerLineData === undefined
-    ? undefined
-    : ownerLineData.lstep_opt_out
-      ? ("opt-out" as const)
-      : ownerLineData.is_linked
-        ? ("synced" as const)
-        : ("not-linked" as const);
+  const lstepStatus =
+    selectedPets.length === 0 || ownerLineData === undefined
+      ? undefined
+      : ownerLineData.lstep_opt_out
+        ? ("opt-out" as const)
+        : ownerLineData.is_linked
+          ? ("synced" as const)
+          : ("not-linked" as const);
 
   const { data: loadedPet } = useGetPet(pendingPetId ?? "");
 
+  /* eslint-disable react-hooks/set-state-in-effect -- pending petId を選択状態へ同期 */
   useEffect(() => {
     if (loadedPet && pendingPetId) {
       setSelectedPets([loadedPet]);
       setPendingPetId(null);
     }
   }, [loadedPet, pendingPetId, setSelectedPets]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // useLayoutEffect: ペイント前に同期実行し、クリックした日時がフォームに即反映されるようにする (Issue #52)
+  /* eslint-disable react-hooks/set-state-in-effect -- Issue #52: モーダル表示時にフォームをペイント前リセット */
   useLayoutEffect(() => {
     if (!isOpen) return;
     setValidationErrors({});
+    setSubmitError(null);
+    setSaveFormKey((key) => key + 1);
     setNewOwnerErrors({});
     setOwnerMode("existing");
     setNewOwnerData(EMPTY_NEW_OWNER);
@@ -135,6 +165,7 @@ export const ReservationFormModal = memo(function ReservationFormModal({
       setPendingPetId(null);
     }
   }, [isOpen, initialData, setSelectedPets]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const isEditMode = Boolean(initialData?.id);
   const canSave = isEditMode ? canEdit : canCreate;
@@ -151,9 +182,30 @@ export const ReservationFormModal = memo(function ReservationFormModal({
     });
   }, []);
 
+  const handleFormChange = useCallback((data: Partial<Reservation>) => {
+    setFormData(data);
+    setSubmitError(null);
+    setValidationErrors((prev) => {
+      const next = { ...prev };
+      if (data.start) delete next.date;
+      if (data.type) delete next.type;
+      if (data.start && data.end && data.end > data.start) delete next.time;
+      return next;
+    });
+  }, []);
+
+  const handleClearError = useCallback((field: string) => {
+    setValidationErrors((prev) => {
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  }, []);
+
   // edit mode: subscribe to single-reservation query and sync reservationRoute into formData
   const reservationQueryId = isEditMode ? String(initialData?.id) : "";
   const { data: latestReservation } = useGetReservation(reservationQueryId);
+  /* eslint-disable react-hooks/set-state-in-effect -- 編集中の予約ルートを query 結果へ同期 */
   useEffect(() => {
     if (!latestReservation) return;
     setFormData((prev) => ({
@@ -161,10 +213,12 @@ export const ReservationFormModal = memo(function ReservationFormModal({
       reservationRoute: latestReservation.reservationRoute ?? null,
     }));
   }, [latestReservation]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
-  const handleSave = useCallback(() => {
+  const saveReservation = useCallback(async (): Promise<string | null> => {
     const errors: Record<string, string> = {};
     const noErrors: Record<string, string> = {};
+    setSubmitError(null);
 
     if (ownerMode === "new") {
       // 新規飼主モードのバリデーション
@@ -173,7 +227,7 @@ export const ReservationFormModal = memo(function ReservationFormModal({
       if (!newOwnerData.phone.trim()) {
         noe.phone = "電話番号を入力してください";
       } else if (!isValidOwnerPhone(newOwnerData.phone)) {
-        noe.phone = "電話番号の形式が正しくありません（例：090-1234-5678 または 09012345678）";
+        noe.phone = "電話番号の形式が正しくありません（例：090-1234-5678 または +81 90 1234 5678）";
       }
       if (!newOwnerData.petName.trim()) noe.petName = "ペット名を入力してください";
       if (!newOwnerData.animalSpeciesId) noe.animalSpeciesId = "動物種を選択してください";
@@ -184,23 +238,23 @@ export const ReservationFormModal = memo(function ReservationFormModal({
       if (formData.start && formData.end && formData.end <= formData.start) {
         errors.time = "終了時刻は開始時刻より後に設定してください";
       }
-      if (!isEditMode && formData.start) {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const reservationDate = new Date(formData.start);
-        reservationDate.setHours(0, 0, 0, 0);
-        if (reservationDate < today) errors.date = "本日以降の日付を選択してください";
+      if (!isEditMode && isReservationStartPastJST(formData.start)) {
+        errors.date = PAST_DATE_ERROR_MESSAGE;
       }
 
       if (Object.keys(noe).length > 0 || Object.keys(errors).length > 0) {
         setNewOwnerErrors(noe);
         setValidationErrors(errors);
-        return;
+        return null;
       }
       setNewOwnerErrors(noErrors);
       setValidationErrors(noErrors);
-      onSave(formData, [], newOwnerData);
-      return;
+      const result = await onSave(formData, [], newOwnerData);
+      if (typeof result === "string" && result.trim()) {
+        setSubmitError(result);
+        return result;
+      }
+      return null;
     }
 
     // 既存飼主モードのバリデーション
@@ -217,24 +271,23 @@ export const ReservationFormModal = memo(function ReservationFormModal({
     if (formData.start && formData.end && formData.end <= formData.start) {
       errors.time = "終了時刻は開始時刻より後に設定してください";
     }
-    // BUG-098: 新規予約は過去日付不可
-    if (!isEditMode && formData.start) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const reservationDate = new Date(formData.start);
-      reservationDate.setHours(0, 0, 0, 0);
-      if (reservationDate < today) {
-        errors.date = "本日以降の日付を選択してください";
-      }
+    // BUG-098: 新規予約は過去日付不可（JST 暦日で判定。FE-RC-003）
+    if (!isEditMode && isReservationStartPastJST(formData.start)) {
+      errors.date = PAST_DATE_ERROR_MESSAGE;
     }
 
     if (Object.keys(errors).length > 0) {
       setValidationErrors(errors);
-      return;
+      return null;
     }
 
     setValidationErrors(noErrors);
-    onSave(formData, selectedPets);
+    const result = await onSave(formData, selectedPets);
+    if (typeof result === "string" && result.trim()) {
+      setSubmitError(result);
+      return result;
+    }
+    return null;
   }, [formData, selectedPets, onSave, isEditMode, ownerMode, newOwnerData]);
 
   return (
@@ -249,6 +302,15 @@ export const ReservationFormModal = memo(function ReservationFormModal({
           onMobilePanelChange={setMobilePanel}
           descriptionId={RESERVATION_FORM_DESCRIPTION_ID}
         />
+
+        {submitError ? (
+          <div
+            role="alert"
+            className={`mx-4 mt-3 rounded-md border ${C.borderRed300} ${C.bgRed50} px-3 py-2 text-sm ${C.textRed700}`}
+          >
+            {submitError}
+          </div>
+        ) : null}
 
         <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
           <ReservationPatientPanel
@@ -274,35 +336,49 @@ export const ReservationFormModal = memo(function ReservationFormModal({
             reservationId={reservationQueryId || undefined}
             canEdit={canEdit}
             onSelectedPetsChange={setSelectedPets}
-            onFormChange={(data) => {
-              setFormData(data);
-              setValidationErrors((prev) => {
-                const next = { ...prev };
-                if (data.start) delete next.date;
-                if (data.type) delete next.type;
-                return next;
-              });
-            }}
-            onClearError={(field) =>
-              setValidationErrors((prev) => {
-                const next = { ...prev };
-                delete next[field];
-                return next;
-              })
-            }
+            onFormChange={handleFormChange}
+            onClearError={handleClearError}
             onMonthChange={handleCalendarMonthChange}
           />
         </div>
 
-        <ReservationModalFooter
-          ownerMode={ownerMode}
-          selectedPetsCount={selectedPets.length}
-          isEditMode={isEditMode}
-          canSave={canSave}
-          onClose={onClose}
-          onSave={handleSave}
-        />
+        <ReservationSaveSession key={saveFormKey} save={saveReservation}>
+          {({ formAction, isPending }) => (
+            <form action={formAction} className="shrink-0">
+              <ReservationModalFooter
+                ownerMode={ownerMode}
+                selectedPetsCount={selectedPets.length}
+                isEditMode={isEditMode}
+                canSave={canSave}
+                isSubmitting={isPending}
+                onClose={onClose}
+              />
+            </form>
+          )}
+        </ReservationSaveSession>
       </DialogContent>
     </Dialog>
   );
 });
+
+function ReservationSaveSession({
+  save,
+  children,
+}: {
+  save: () => Promise<string | null>;
+  children: (args: { formAction: (payload: FormData) => void; isPending: boolean }) => ReactNode;
+}) {
+  const saveRef = useRef(save);
+  useLayoutEffect(() => {
+    saveRef.current = save;
+  }, [save]);
+
+  const [, formAction, isPending] = useActionState(
+    async (_prev: string | null, _formData: FormData): Promise<string | null> => {
+      return saveRef.current();
+    },
+    null,
+  );
+
+  return children({ formAction, isPending });
+}

@@ -8,7 +8,11 @@ interface SidePeekPanelProps {
   onKeyDown?: (e: React.KeyboardEvent<HTMLDivElement>) => void;
 }
 
-export const SidePeekPanel = memo(function SidePeekPanel({ children, className, onKeyDown }: SidePeekPanelProps) {
+export const SidePeekPanel = memo(function SidePeekPanel({
+  children,
+  className,
+  onKeyDown,
+}: SidePeekPanelProps) {
   return (
     <div
       className={`${STYLE.sidePeekPanel} ${LAYOUT.sidePeek.width} shrink-0 ${className ?? ""}`}

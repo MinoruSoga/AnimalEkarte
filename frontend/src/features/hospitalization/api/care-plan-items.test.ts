@@ -88,9 +88,7 @@ describe("care plan item API", () => {
     });
 
     expect(mockedGet).toHaveBeenCalledTimes(1);
-    expect(mockedGet).toHaveBeenCalledWith(
-      "/v1/hospitalizations/7/care-plan-items",
-    );
+    expect(mockedGet).toHaveBeenCalledWith("/v1/hospitalizations/7/care-plan-items");
     expect(result.current.data).toEqual([responseItem]);
   });
 
@@ -106,9 +104,7 @@ describe("care plan item API", () => {
   it("削除後に対象入院のケアプラン一覧を無効化する", async () => {
     mockedDelete.mockResolvedValueOnce({ data: undefined });
     const queryClient = createQueryClient();
-    const invalidateSpy = vi
-      .spyOn(queryClient, "invalidateQueries")
-      .mockResolvedValue(undefined);
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries").mockResolvedValue(undefined);
     const { result } = renderHook(() => useDeleteCarePlanItem("7"), {
       wrapper: createWrapper(queryClient),
     });
@@ -118,9 +114,7 @@ describe("care plan item API", () => {
     });
 
     expect(mockedDelete).toHaveBeenCalledTimes(1);
-    expect(mockedDelete).toHaveBeenCalledWith(
-      "/v1/hospitalizations/7/care-plan-items/9",
-    );
+    expect(mockedDelete).toHaveBeenCalledWith("/v1/hospitalizations/7/care-plan-items/9");
     expect(invalidateSpy).toHaveBeenCalledTimes(1);
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: queryKeys.hospitalizations.carePlanItems("7"),
@@ -196,10 +190,7 @@ describe("care plan item API", () => {
     });
 
     expect(mockedPost).toHaveBeenCalledTimes(1);
-    expect(mockedPost).toHaveBeenCalledWith(
-      "/v1/hospitalizations/7/care-plan-items",
-      expectedBody,
-    );
+    expect(mockedPost).toHaveBeenCalledWith("/v1/hospitalizations/7/care-plan-items", expectedBody);
   });
 
   const updateCases: Array<{
@@ -290,16 +281,13 @@ describe("care plan item API", () => {
       });
     });
 
-    expect(mockedPost).toHaveBeenCalledWith(
-      "/v1/hospitalizations/7/care-plan-items",
-      {
-        type: "instruction",
-        name: "安静",
-        medicine_id: null,
-        procedure_id: null,
-        hospitalization_plan_id: null,
-      },
-    );
+    expect(mockedPost).toHaveBeenCalledWith("/v1/hospitalizations/7/care-plan-items", {
+      type: "instruction",
+      name: "安静",
+      medicine_id: null,
+      procedure_id: null,
+      hospitalization_plan_id: null,
+    });
   });
 
   it("省略・undefined・空文字を 0 に変換しない", async () => {

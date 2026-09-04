@@ -26,7 +26,7 @@ argument-hint: "TASK-XXX | BUG-XXX | <タスク説明>"
 
 ## $ARGUMENTS の解釈
 
-- `TASK-XXX` / `BUG-XXX` のタスクID → repo 直下のローカル台帳（`TASK-XXX` = `STATUS.md`・`BUG-XXX` = `STATUS.md`）から `grep -n '<タスクID>' STATUS.md` で検索し、実装モードで対象化（旧 `3-session-agent.html#ledger` は 2026-07-31 廃止）
+- Linear Issue ID → Linearを実行SoTとして本文・状態・依存関係を確認して実装モードで対象化。`docs/work/phase2-deferred.md`は見送り索引であり実装台帳ではない。
 - テキスト → タスク説明として直接扱う
 - 省略 → `git status` で未コミット変更を対象として検証のみ実行
 

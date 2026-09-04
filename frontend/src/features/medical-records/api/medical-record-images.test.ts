@@ -61,7 +61,10 @@ describe("uploadMedicalRecordImages — SEC-CS-F08", () => {
       return { data: { id: maxInFlight } };
     });
 
-    const files = Array.from({ length: 6 }, (_, i) => new File([`x${i}`], `f${i}.jpg`, { type: "image/jpeg" }));
+    const files = Array.from(
+      { length: 6 },
+      (_, i) => new File([`x${i}`], `f${i}.jpg`, { type: "image/jpeg" }),
+    );
     const results = await uploadMedicalRecordImages("99", files);
 
     expect(results).toHaveLength(6);

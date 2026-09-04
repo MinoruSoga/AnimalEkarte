@@ -10,6 +10,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	staffpkg "github.com/animal-ekarte/backend/internal/staff"
 )
 
 // mockReservationStaffRepositoryForCapability is a minimal ReservationStaffRepository
@@ -37,7 +38,7 @@ func (m *mockReservationStaffRepositoryForCapability) LockForMutation(
 func (m *mockReservationStaffRepositoryForCapability) Create(_ context.Context, _ *model.Staff, _ uint64) error {
 	return nil
 }
-func (m *mockReservationStaffRepositoryForCapability) Update(_ context.Context, _, _ uint64, _ map[string]any) error {
+func (m *mockReservationStaffRepositoryForCapability) Update(_ context.Context, _, _ uint64, _ staffpkg.ReservationStaffUpdate) error {
 	return nil
 }
 func (m *mockReservationStaffRepositoryForCapability) Delete(_ context.Context, _, _ uint64) error {

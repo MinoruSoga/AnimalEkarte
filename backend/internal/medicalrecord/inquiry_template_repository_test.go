@@ -8,6 +8,7 @@ package medicalrecord
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
@@ -159,6 +161,30 @@ func TestInquiryTemplateRepository_Delete(t *testing.T) {
 		require.NoError(t, db.WithContext(ctx).Unscoped().Where("id = ?", tpl.ID).First(&raw).Error)
 		assert.True(t, raw.DeletedAt.Valid, "deleted_at が設定されているべき")
 	})
+}
+
+func TestInquiryTemplateRepository_Delete_JoinsAmbientTransaction(t *testing.T) {
+	db := setupInquiryTemplateTestDB(t)
+	repo := NewInquiryTemplateRepository(db)
+	ctx := context.Background()
+	const clinicA = uint64(1)
+	sentinel := errors.New("simulated downstream failure")
+
+	tpl := &model.InquiryTemplate{ClinicID: clinicA, Title: "原子削除ロールバック対象"}
+	require.NoError(t, db.WithContext(ctx).Create(tpl).Error)
+
+	txErr := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		txCtx := persistence.WithTxValue(ctx, tx)
+		if err := repo.Delete(txCtx, clinicA, tpl.ID); err != nil {
+			return err
+		}
+		return sentinel
+	})
+	require.ErrorIs(t, txErr, sentinel)
+
+	got, err := repo.FindByID(ctx, clinicA, tpl.ID)
+	require.NoError(t, err, "Delete must join ambient tx so rollback restores the row")
+	assert.Equal(t, tpl.ID, got.ID)
 }
 
 func TestInquiryTemplateRepository_Reorder(t *testing.T) {

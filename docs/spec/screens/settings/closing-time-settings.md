@@ -23,7 +23,7 @@
 年末年始、短縮営業などの例外的な集計境界時刻を日付範囲で登録します（`SpecialPeriodSection`）。
 
 ### 4. 個別休診日 (Holidays)
-特定の1日を休診日として登録します（日付＋理由メモ、`HolidaySection`）。定例休診日（曜日単位）や特別期間（境界時刻の上書き）とは独立した、日付単位の登録です。
+特定の1日を休診日として登録します（日付＋理由メモ、`HolidaySection`）。定例休診日（曜日単位）や特別期間（境界時刻の上書き）とは独立した、日付単位の登録です。`POST` は INSERT のみで同一日を UPSERT しない。既存日の再追加は 409（`uk_clinic_holidays_clinic_date`）。理由変更は削除してから再追加する。
 
 ---
 
@@ -56,6 +56,22 @@
 | GET | `/api/v1/closing-settings/holidays` | 休診日一覧の取得 | `closing-settings` | `view` |
 | POST | `/api/v1/closing-settings/holidays` | 休診日の登録 | `closing-settings` | `create` |
 | DELETE | `/api/v1/closing-settings/holidays/:date` | 休診日の削除 | `closing-settings` | `delete` |
+
+## 全院投入手順（#252 / BRT-43）
+
+PO 裁定（2026-07-15、#252 本文）: 全院を城東同値で投入。**本セッションでは本番投入しない。** 値は Issue 本文の転記であり、新規発明ではない。
+
+| フィールド | #252 裁定値 | 画面 |
+|---|---|---|
+| `closing_am_start` | 09:00 | **編集不可**。確認のみ |
+| `closing_am_pm_boundary` | 12:00 | `/settings/closing-time` |
+| `closing_weekday_end` | 18:30 | 同上 |
+| `closing_sunday_end` | 18:30 | 同上（資料 2 に曜日区別なし） |
+| `closed_weekdays` | 変更しない | #252 対象外 |
+
+**実行境界:** #252裁定値はhistorical decision inputであり、固定clinic/seedの現在値を前提にしない。S09は承認済みdisposable clinicへ合成設定を投入して検証する。共有STG/本番へのPATCHはnamed target・USER承認・dated receiptがある場合だけ行う。
+
+投入順（USER）: 対象 env 確定 → 各院で境界・終了を裁定値へ → プレビューで AM/PM/EMG 目視 → `closing_am_start`≠09:00 のみ事前承認後 DB → 過去締め非再計算（#215）→ 非機密 receipt。結果は **未記入**。
 
 ---
 

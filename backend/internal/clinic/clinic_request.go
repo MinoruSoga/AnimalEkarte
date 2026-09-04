@@ -44,15 +44,15 @@ func NewListClinicQuery(values url.Values) ListClinicQuery {
 
 // createClinicRequest はクリニック作成リクエスト。
 type CreateClinicRequest struct {
-	Name               string `json:"name"                binding:"required"`
+	Name               string `json:"name"                binding:"required,max=255"`
 	PostalCode         string `json:"postal_code"         binding:"omitempty,jp_postal"`
-	Address            string `json:"address"`
+	Address            string `json:"address"             binding:"omitempty,max=500"`
 	PhoneNumber        string `json:"phone_number"        binding:"omitempty,jp_phone"`
 	FaxNumber          string `json:"fax_number"          binding:"omitempty,jp_phone"`
-	RegistrationNumber string `json:"registration_number"`
-	DirectorName       string `json:"director_name"`
+	RegistrationNumber string `json:"registration_number" binding:"omitempty,max=100"`
+	DirectorName       string `json:"director_name"       binding:"omitempty,max=255"`
 	Email              string `json:"email"               binding:"omitempty,jp_email"`
-	Website            string `json:"website"`
+	Website            string `json:"website"             binding:"omitempty,max=500"`
 }
 
 func (r *CreateClinicRequest) ToServiceInput() *CreateClinicInput {
@@ -72,15 +72,15 @@ func (r *CreateClinicRequest) ToServiceInput() *CreateClinicInput {
 // updateClinicRequest はクリニック更新リクエスト。
 // PATCH セマンティクス: 未送信フィールドは nil → 既存値を保持する。
 type UpdateClinicRequest struct {
-	Name                                      *string  `json:"name"`
+	Name                                      *string  `json:"name" binding:"omitempty,max=255"`
 	PostalCode                                *string  `json:"postal_code" binding:"omitempty,jp_postal"`
-	Address                                   *string  `json:"address"`
+	Address                                   *string  `json:"address" binding:"omitempty,max=500"`
 	PhoneNumber                               *string  `json:"phone_number" binding:"omitempty,jp_phone"`
 	FaxNumber                                 *string  `json:"fax_number" binding:"omitempty,jp_phone"`
-	RegistrationNumber                        *string  `json:"registration_number"`
-	DirectorName                              *string  `json:"director_name"`
+	RegistrationNumber                        *string  `json:"registration_number" binding:"omitempty,max=100"`
+	DirectorName                              *string  `json:"director_name" binding:"omitempty,max=255"`
 	Email                                     *string  `json:"email" binding:"omitempty,jp_email"`
-	Website                                   *string  `json:"website"`
+	Website                                   *string  `json:"website" binding:"omitempty,max=500"`
 	LogoURL                                   *string  `json:"logo_url"`
 	IsActive                                  *bool    `json:"is_active"`
 	StandardTaxRate                           *float64 `json:"standard_tax_rate"`
@@ -88,7 +88,7 @@ type UpdateClinicRequest struct {
 	AccountingDocumentShowLogo                *bool    `json:"accounting_document_show_logo"`
 	AccountingDocumentShowRegistrationWarning *bool    `json:"accounting_document_show_registration_warning"`
 	AccountingDocumentShowItemCategory        *bool    `json:"accounting_document_show_item_category"`
-	AccountingDocumentFooterNote              *string  `json:"accounting_document_footer_note"`
+	AccountingDocumentFooterNote              *string  `json:"accounting_document_footer_note" binding:"omitempty,max=1000"`
 	// #190: セクション表示/非表示トグルと表示順 (migration 010)
 	AccountingDocumentShowClinicHeader   *bool     `json:"accounting_document_show_clinic_header"`
 	AccountingDocumentShowOwnerPetInfo   *bool     `json:"accounting_document_show_owner_pet_info"`

@@ -77,19 +77,17 @@ const mockLogsEmpty: DeliveryTriggerLogsPageResponse = {
 
 function setupSummaryHandler(data: DeliveryTriggerSummaryResponse) {
   server.use(
-    http.get(
-      `/api/v1/clinics/${CLINIC_ID}/lstep/delivery-monitor/summary`,
-      () => HttpResponse.json(data)
-    )
+    http.get(`/api/v1/clinics/${CLINIC_ID}/lstep/delivery-monitor/summary`, () =>
+      HttpResponse.json(data),
+    ),
   );
 }
 
 function setupLogsHandler(data: DeliveryTriggerLogsPageResponse) {
   server.use(
-    http.get(
-      `/api/v1/clinics/${CLINIC_ID}/lstep/delivery-monitor/logs`,
-      () => HttpResponse.json(data)
-    )
+    http.get(`/api/v1/clinics/${CLINIC_ID}/lstep/delivery-monitor/logs`, () =>
+      HttpResponse.json(data),
+    ),
   );
 }
 
@@ -108,7 +106,7 @@ function createWrapper() {
 
 async function renderAndWait(
   summary: DeliveryTriggerSummaryResponse = mockSummary,
-  logs: DeliveryTriggerLogsPageResponse = mockLogs
+  logs: DeliveryTriggerLogsPageResponse = mockLogs,
 ) {
   setupSummaryHandler(summary);
   setupLogsHandler(logs);
@@ -146,29 +144,19 @@ describe("LstepDeliveryMonitorPage — A: サマリーカード", () => {
     const failedCard = screen.getByTestId("summary-card-failed");
     expect(failedCard).toHaveTextContent("2");
 
-    const suppressedCard = screen.getByTestId(
-      "summary-card-suppressed_by_priority"
-    );
+    const suppressedCard = screen.getByTestId("summary-card-suppressed_by_priority");
     expect(suppressedCard).toHaveTextContent("4");
   });
 
   it("カードラベル「予定」「送信済」「除外」「失敗」「優先度抑制」が表示される", async () => {
     await renderAndWait();
-    expect(screen.getByTestId("summary-card-scheduled")).toHaveTextContent(
-      "予定"
+    expect(screen.getByTestId("summary-card-scheduled")).toHaveTextContent("予定");
+    expect(screen.getByTestId("summary-card-fired")).toHaveTextContent("送信済");
+    expect(screen.getByTestId("summary-card-excluded")).toHaveTextContent("除外");
+    expect(screen.getByTestId("summary-card-failed")).toHaveTextContent("失敗");
+    expect(screen.getByTestId("summary-card-suppressed_by_priority")).toHaveTextContent(
+      "優先度抑制",
     );
-    expect(screen.getByTestId("summary-card-fired")).toHaveTextContent(
-      "送信済"
-    );
-    expect(screen.getByTestId("summary-card-excluded")).toHaveTextContent(
-      "除外"
-    );
-    expect(screen.getByTestId("summary-card-failed")).toHaveTextContent(
-      "失敗"
-    );
-    expect(
-      screen.getByTestId("summary-card-suppressed_by_priority")
-    ).toHaveTextContent("優先度抑制");
   });
 });
 
@@ -180,16 +168,12 @@ describe("LstepDeliveryMonitorPage — B: 失敗件数バナー", () => {
   it("failed > 0 のとき警告バナーが表示される", async () => {
     await renderAndWait(mockSummary);
     expect(screen.getByTestId("failed-warning-banner")).toBeInTheDocument();
-    expect(screen.getByTestId("failed-warning-banner")).toHaveTextContent(
-      "2件"
-    );
+    expect(screen.getByTestId("failed-warning-banner")).toHaveTextContent("2件");
   });
 
   it("failed = 0 のとき警告バナーは表示されない", async () => {
     await renderAndWait(mockSummaryNoIssue);
-    expect(
-      screen.queryByTestId("failed-warning-banner")
-    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId("failed-warning-banner")).not.toBeInTheDocument();
   });
 });
 
@@ -208,9 +192,7 @@ describe("LstepDeliveryMonitorPage — C: 除外理由内訳", () => {
 
   it("excluded = 0 のとき内訳セクションは非表示", async () => {
     await renderAndWait(mockSummaryNoIssue);
-    expect(
-      screen.queryByTestId("excluded-reason-breakdown")
-    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId("excluded-reason-breakdown")).not.toBeInTheDocument();
   });
 });
 
@@ -330,10 +312,9 @@ describe("LstepDeliveryMonitorPage — F: ページネーション", () => {
     };
     // page=1 で 50件返す
     server.use(
-      http.get(
-        `/api/v1/clinics/${CLINIC_ID}/lstep/delivery-monitor/logs`,
-        () => HttpResponse.json({ ...mockLogs, total: 50 })
-      )
+      http.get(`/api/v1/clinics/${CLINIC_ID}/lstep/delivery-monitor/logs`, () =>
+        HttpResponse.json({ ...mockLogs, total: 50 }),
+      ),
     );
     render(<LstepDeliveryMonitorPage />, { wrapper: createWrapper() });
     await waitFor(() => {
@@ -342,10 +323,9 @@ describe("LstepDeliveryMonitorPage — F: ページネーション", () => {
 
     // page2 用ハンドラに切り替え
     server.use(
-      http.get(
-        `/api/v1/clinics/${CLINIC_ID}/lstep/delivery-monitor/logs`,
-        () => HttpResponse.json(page2Logs)
-      )
+      http.get(`/api/v1/clinics/${CLINIC_ID}/lstep/delivery-monitor/logs`, () =>
+        HttpResponse.json(page2Logs),
+      ),
     );
 
     const user = userEvent.setup();
@@ -366,13 +346,10 @@ describe("LstepDeliveryMonitorPage — G: ローディング状態", () => {
   it("ログ取得中は「読み込み中...」が表示される", () => {
     setupSummaryHandler(mockSummary);
     server.use(
-      http.get(
-        `/api/v1/clinics/${CLINIC_ID}/lstep/delivery-monitor/logs`,
-        async () => {
-          await delay("infinite");
-          return HttpResponse.json(mockLogs);
-        }
-      )
+      http.get(`/api/v1/clinics/${CLINIC_ID}/lstep/delivery-monitor/logs`, async () => {
+        await delay("infinite");
+        return HttpResponse.json(mockLogs);
+      }),
     );
     render(<LstepDeliveryMonitorPage />, { wrapper: createWrapper() });
     expect(screen.getByTestId("logs-loading")).toBeInTheDocument();
@@ -383,16 +360,8 @@ describe("LstepDeliveryMonitorPage — H: mobile-first layout", () => {
   it("固定幅フィルターとサマリーカードを mobile では全幅・単一列にする", async () => {
     await renderAndWait();
 
-    expect(screen.getByTestId("filter-trigger-type")).toHaveClass(
-      "w-full",
-      "h-11",
-      "sm:w-[220px]",
-    );
-    expect(screen.getByTestId("filter-status")).toHaveClass(
-      "w-full",
-      "h-11",
-      "sm:w-[140px]",
-    );
+    expect(screen.getByTestId("filter-trigger-type")).toHaveClass("w-full", "h-11", "sm:w-[220px]");
+    expect(screen.getByTestId("filter-status")).toHaveClass("w-full", "h-11", "sm:w-[140px]");
     expect(screen.getByRole("combobox", { name: "配信トリガー種別" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "配信ステータス" })).toBeInTheDocument();
     const dateRange = screen.getByTestId("filter-from").parentElement;

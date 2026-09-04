@@ -32,6 +32,7 @@ func setupReservationAdminTestDB(t *testing.T) *gorm.DB {
 	require.NoError(t, testdb.EnsureAutoMigrated(db,
 		&model.ReservationType{}, &model.Reservation{},
 		&model.AnimalSpecies{}, &model.Pet{}, &model.Staff{}, &model.LineCustomer{},
+		&model.Company{}, &model.Clinic{}, &model.StaffClinicAssignment{},
 	))
 	db.Exec("TRUNCATE TABLE reservation_types CASCADE") // appointments も連鎖クリア
 	db.Exec("TRUNCATE TABLE pets CASCADE")
@@ -97,7 +98,9 @@ func TestReservationAdminRepository_FindAllByDay(t *testing.T) {
 
 	owner := testdb.MakeTestOwner(t, db, clinicA, "飼主・管理者予約")
 	pet := testdb.MakeSpeciesAndPet(t, db, clinicA, owner.ID, "予約犬")
+	seedClinicsForFK(t, db, clinicA)
 	doctor := makeDoctor(t, db, clinicA, "予約医師")
+	makeStaffClinicAssignment(t, db, doctor.ID, clinicA)
 
 	targetDay := time.Date(2026, 6, 15, 3, 0, 0, 0, time.UTC) // JST 12:00 相当
 	onDay := makeAdminReservationAt(t, db, clinicA, targetDay, &owner.ID, &pet.ID, &doctor.ID, nil)
@@ -357,7 +360,9 @@ func TestReservationAdminRepository_FindByIDForNotify(t *testing.T) {
 
 	owner := testdb.MakeTestOwner(t, db, clinicA, "飼主・通知")
 	pet := testdb.MakeSpeciesAndPet(t, db, clinicA, owner.ID, "通知犬")
+	seedClinicsForFK(t, db, clinicA)
 	doctor := makeDoctor(t, db, clinicA, "通知医師")
+	makeStaffClinicAssignment(t, db, doctor.ID, clinicA)
 	res := makeAdminReservationAt(t, db, clinicA, time.Now().UTC(), &owner.ID, &pet.ID, &doctor.ID, nil)
 
 	t.Run("同一クリニックでは関連エンティティ込みで取得できる", func(t *testing.T) {
@@ -386,6 +391,107 @@ func TestReservationAdminRepository_FindByIDForNotify(t *testing.T) {
 		assert.Nil(t, got)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
+}
+
+func TestReservationAdminRepository_DoctorPreload_MultiClinicStaffIsolation(t *testing.T) {
+	db := setupReservationAdminTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.Company{}, &model.Clinic{}, &model.StaffClinicAssignment{}))
+	repo := NewReservationAdminRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	seedClinicsForFK(t, db, clinicA, clinicB)
+
+	staffShared := makeDoctor(t, db, clinicB, "共有医師")
+	makeStaffClinicAssignment(t, db, staffShared.ID, clinicA)
+	makeStaffClinicAssignment(t, db, staffShared.ID, clinicB)
+
+	staffBOnly := makeDoctor(t, db, clinicB, "B単独医師")
+	makeStaffClinicAssignment(t, db, staffBOnly.ID, clinicB)
+
+	creatorShared := makeDoctor(t, db, clinicB, "共有作成者")
+	makeStaffClinicAssignment(t, db, creatorShared.ID, clinicA)
+	makeStaffClinicAssignment(t, db, creatorShared.ID, clinicB)
+
+	creatorBOnly := makeDoctor(t, db, clinicB, "B単独作成者")
+	makeStaffClinicAssignment(t, db, creatorBOnly.ID, clinicB)
+
+	monthStart := time.Date(2026, 8, 10, 10, 0, 0, 0, time.UTC)
+	resShared := makeAdminReservationAt(t, db, clinicA, monthStart, nil, nil, &staffShared.ID, nil)
+	resBOnly := makeAdminReservationAt(t, db, clinicA, monthStart.Add(time.Hour), nil, nil, &staffBOnly.ID, nil)
+
+	require.NoError(t, db.WithContext(ctx).Model(resShared).Update("created_by", creatorShared.ID).Error)
+	require.NoError(t, db.WithContext(ctx).Model(resBOnly).Update("created_by", creatorBOnly.ID).Error)
+
+	customer := makeLineCustomerForAdmin(t, db, clinicA, "U-admin-staff-iso")
+	resSharedCust := makeAdminReservationAt(t, db, clinicA, monthStart.Add(2*time.Hour), nil, nil, &staffShared.ID, &customer.ID)
+	resBOnlyCust := makeAdminReservationAt(t, db, clinicA, monthStart.Add(3*time.Hour), nil, nil, &staffBOnly.ID, &customer.ID)
+
+	t.Run("FindAllByMonth: 当該clinic配属の共有医師はPreloadされ、未配属スタッフの予約は親行ごと除外", func(t *testing.T) {
+		got, err := repo.FindAllByMonth(ctx, clinicA, 2026, time.August)
+		require.NoError(t, err)
+		ids := adminReservationIDs(got)
+		assert.Contains(t, ids, resShared.ID)
+		assert.NotContains(t, ids, resBOnly.ID, "別クリニック単独所属スタッフを指す予約は一覧に出てはならない")
+		for i := range got {
+			if got[i].ID == resShared.ID {
+				require.NotNil(t, got[i].Doctor, "A配属の共有医師はDoctorとしてPreloadされるべき")
+				assert.Equal(t, staffShared.ID, got[i].Doctor.ID)
+			}
+		}
+	})
+
+	t.Run("FindAllByDay: Doctor/CreatedByStaff は当該clinic配属のみPreloadし、未配属は親行ごと除外", func(t *testing.T) {
+		got, err := repo.FindAllByDay(ctx, clinicA, monthStart)
+		require.NoError(t, err)
+		ids := adminReservationIDs(got)
+		assert.Contains(t, ids, resShared.ID)
+		assert.NotContains(t, ids, resBOnly.ID, "未配属スタッフを指す予約は親行ごと fail-closed")
+		for i := range got {
+			if got[i].ID != resShared.ID {
+				continue
+			}
+			require.NotNil(t, got[i].Doctor)
+			assert.Equal(t, staffShared.ID, got[i].Doctor.ID)
+			require.NotNil(t, got[i].CreatedByStaff, "A配属の共有作成者はCreatedByStaffとしてPreloadされるべき")
+			assert.Equal(t, creatorShared.ID, got[i].CreatedByStaff.ID)
+		}
+	})
+
+	t.Run("FindAllByCustomerID: 未配属スタッフの予約は返さず、配属済み医師はPreloadする", func(t *testing.T) {
+		got, err := repo.FindAllByCustomerID(ctx, clinicA, customer.ID)
+		require.NoError(t, err)
+		ids := adminReservationIDs(got)
+		assert.Contains(t, ids, resSharedCust.ID)
+		assert.NotContains(t, ids, resBOnlyCust.ID)
+		for i := range got {
+			if got[i].ID != resSharedCust.ID {
+				continue
+			}
+			require.NotNil(t, got[i].Doctor)
+			assert.Equal(t, staffShared.ID, got[i].Doctor.ID)
+		}
+	})
+
+	t.Run("FindByIDForNotify: 配属済みはDoctorをPreloadし、未配属はNotFound", func(t *testing.T) {
+		gotShared, err := repo.FindByIDForNotify(ctx, clinicA, resShared.ID)
+		require.NoError(t, err)
+		require.NotNil(t, gotShared.Doctor)
+		assert.Equal(t, staffShared.ID, gotShared.Doctor.ID)
+
+		gotBOnly, err := repo.FindByIDForNotify(ctx, clinicA, resBOnly.ID)
+		require.Error(t, err)
+		assert.Nil(t, gotBOnly)
+		assert.True(t, apperrors.IsNotFound(err), "clinic A に未配属のスタッフを指す予約は NotFound: %v", err)
+	})
+}
+
+func adminReservationIDs(items []model.Reservation) []uint64 {
+	ids := make([]uint64, 0, len(items))
+	for i := range items {
+		ids = append(ids, items[i].ID)
+	}
+	return ids
 }
 
 func TestReservationAdminRepository_ListSafetyCaps(t *testing.T) {

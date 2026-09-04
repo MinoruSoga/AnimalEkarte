@@ -19,6 +19,7 @@ type mockInventoryRepository struct {
 	createFn         func(ctx context.Context, clinicID uint64, item *model.InventoryItem) error
 	updateFieldsFn   func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InventoryItem, error)
 	deleteFn         func(ctx context.Context, clinicID, id uint64) error
+	deleteIfUnusedFn func(ctx context.Context, clinicID, id uint64) error
 	countUsageByIDFn func(ctx context.Context, clinicID, inventoryID uint64) (int64, error)
 	decreaseStockFn  func(ctx context.Context, clinicID, id uint64, quantity float64) error // INV-SEC P1 signature parity
 }
@@ -43,7 +44,17 @@ func (m *mockInventoryRepository) Update(ctx context.Context, clinicID, id uint6
 }
 
 func (m *mockInventoryRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	return m.deleteFn(ctx, clinicID, id)
+	if m.deleteFn != nil {
+		return m.deleteFn(ctx, clinicID, id)
+	}
+	return nil
+}
+
+func (m *mockInventoryRepository) DeleteIfUnused(ctx context.Context, clinicID, id uint64) error {
+	if m.deleteIfUnusedFn != nil {
+		return m.deleteIfUnusedFn(ctx, clinicID, id)
+	}
+	return nil
 }
 
 func (m *mockInventoryRepository) DecreaseStock(ctx context.Context, clinicID, id uint64, quantity float64) error {
@@ -521,31 +532,33 @@ func TestInventoryService_Update(t *testing.T) {
 
 func TestInventoryService_Delete(t *testing.T) {
 	tests := []struct {
-		name         string
-		clinicID     uint64
-		id           uint64
-		usageCount   int64
-		usageErr     error
-		repoErr      error
-		wantErr      bool
-		wantNF       bool
-		wantConflict bool
+		name               string
+		clinicID           uint64
+		id                 uint64
+		usageCount         int64
+		usageErr           error
+		findByIDErr        error
+		deleteIfUnusedErr  error
+		wantErr            bool
+		wantNF             bool
+		wantConflict       bool
+		wantDeleteIfUnused bool
 	}{
 		{
-			name:       "deletes inventory item successfully",
-			clinicID:   1,
-			id:         10,
-			usageCount: 0,
-			repoErr:    nil,
-			wantErr:    false,
+			name:               "deletes inventory item successfully via DeleteIfUnused",
+			clinicID:           1,
+			id:                 10,
+			usageCount:         0,
+			wantDeleteIfUnused: true,
 		},
 		{
-			name:         "returns conflict error when inventory item is in use",
-			clinicID:     1,
-			id:           10,
-			usageCount:   3,
-			wantErr:      true,
-			wantConflict: true,
+			name:               "returns conflict error when inventory item is in use",
+			clinicID:           1,
+			id:                 10,
+			usageCount:         3,
+			wantErr:            true,
+			wantConflict:       true,
+			wantDeleteIfUnused: false,
 		},
 		{
 			name:     "returns error when usage count check fails",
@@ -555,38 +568,75 @@ func TestInventoryService_Delete(t *testing.T) {
 			wantErr:  true,
 		},
 		{
-			name:       "returns not found error when item does not exist",
-			clinicID:   1,
-			id:         999,
-			usageCount: 0,
-			repoErr:    apperrors.WrapNotFound("inventory_item", "999"),
-			wantErr:    true,
-			wantNF:     true,
+			name:        "returns not found error when item does not exist",
+			clinicID:    1,
+			id:          999,
+			findByIDErr: apperrors.WrapNotFound("inventory_item", "999"),
+			wantErr:     true,
+			wantNF:      true,
 		},
 		{
-			name:       "returns error on repository failure",
-			clinicID:   1,
-			id:         10,
-			usageCount: 0,
-			repoErr:    errors.New("db error"),
-			wantErr:    true,
+			name:               "returns not found when DeleteIfUnused reports missing row",
+			clinicID:           1,
+			id:                 10,
+			usageCount:         0,
+			deleteIfUnusedErr:  apperrors.WrapNotFound("inventory_item", "10"),
+			wantErr:            true,
+			wantNF:             true,
+			wantDeleteIfUnused: true,
+		},
+		{
+			// BE-RC-003: Count==0 の直後に参照が挿入された TOCTOU は
+			// 無条件 Delete ではなく DeleteIfUnused の Conflict が安全境界。
+			name:               "returns conflict when DeleteIfUnused reports in-use after Count==0 (TOCTOU)",
+			clinicID:           1,
+			id:                 10,
+			usageCount:         0,
+			deleteIfUnusedErr:  apperrors.WrapConflict("この項目は使用中のため削除できません"),
+			wantErr:            true,
+			wantConflict:       true,
+			wantDeleteIfUnused: true,
+		},
+		{
+			name:               "returns error on repository failure",
+			clinicID:           1,
+			id:                 10,
+			usageCount:         0,
+			deleteIfUnusedErr:  errors.New("db error"),
+			wantErr:            true,
+			wantDeleteIfUnused: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			deleteIfUnusedCalled := false
+			unconditionalDeleteCalled := false
 			repo := &mockInventoryRepository{
+				findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.InventoryItem, error) {
+					if tt.findByIDErr != nil {
+						return nil, tt.findByIDErr
+					}
+					return &model.InventoryItem{ID: id, ClinicID: clinicID}, nil
+				},
 				countUsageByIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 					return tt.usageCount, tt.usageErr
 				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {
-					return tt.repoErr
+					unconditionalDeleteCalled = true
+					return nil
+				},
+				deleteIfUnusedFn: func(_ context.Context, _, _ uint64) error {
+					deleteIfUnusedCalled = true
+					return tt.deleteIfUnusedErr
 				},
 			}
 			svc := NewInventoryService(repo)
 
 			err := svc.Delete(context.Background(), tt.clinicID, tt.id)
 
+			assert.False(t, unconditionalDeleteCalled, "unconditional Delete must not be the safety boundary")
+			assert.Equal(t, tt.wantDeleteIfUnused, deleteIfUnusedCalled)
 			if tt.wantErr {
 				assert.Error(t, err)
 				if tt.wantNF {
@@ -594,6 +644,9 @@ func TestInventoryService_Delete(t *testing.T) {
 				}
 				if tt.wantConflict {
 					assert.True(t, apperrors.IsConflict(err))
+					if tt.deleteIfUnusedErr != nil || tt.usageCount > 0 {
+						assert.Contains(t, err.Error(), "この項目は使用中のため削除できません")
+					}
 				}
 			} else {
 				assert.NoError(t, err)

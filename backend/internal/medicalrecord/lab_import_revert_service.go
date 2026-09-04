@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sort"
@@ -36,6 +37,9 @@ type RevertLabImportInput struct {
 // LabImportRevertService owns the persisted → reverted terminal compensation state machine.
 type LabImportRevertService interface {
 	Revert(ctx context.Context, input RevertLabImportInput) (*model.LabImportRevertResponse, error)
+	// DetachDeviceJob retracts persisted device exams and returns the job to received.
+	// It does not write reverted. Confirmed / usage receipts / finalized charts are 409.
+	DetachDeviceJob(ctx context.Context, clinicID uint64, jobID uuid.UUID) error
 }
 
 type labImportRevertService struct {
@@ -97,85 +101,61 @@ func (s *labImportRevertService) Revert(ctx context.Context, input RevertLabImpo
 	var response *model.LabImportRevertResponse
 
 	err := s.tx.WithTx(ctx, func(txCtx context.Context) error {
-		// 1. Lock job status-independently.
-		job, err := s.jobs.LockByIDForUpdate(txCtx, input.ClinicID, input.JobID)
+		resp, err := s.revertLabImportInTx(txCtx, input, reason, requestHash)
 		if err != nil {
 			return err
 		}
+		response = resp
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return response, nil
+}
 
-		// 2. Idempotency lookup under job lock.
-		existing, findErr := s.reverts.LockByIdempotencyKey(txCtx, input.ClinicID, input.IdempotencyKey)
-		if findErr == nil && existing != nil {
-			if existing.JobID != input.JobID || existing.RequestHash != requestHash {
-				return apperrors.WrapConflict("idempotency key already used with a different payload")
-			}
-			// same payload replay — do not append event/audit
-			ids, parseErr := parseRetractedExamIDs(existing.RetractedExamIDs)
-			if parseErr != nil {
-				return apperrors.WrapInternalServerError("corrupt revert receipt")
-			}
-			response = &model.LabImportRevertResponse{
-				JobID:            existing.JobID,
-				Status:           existing.ResultStatus,
-				RetractedExamIDs: ids,
-				IdempotentReplay: true,
-			}
-			return nil
+func (s *labImportRevertService) DetachDeviceJob(ctx context.Context, clinicID uint64, jobID uuid.UUID) error {
+	if clinicID == 0 || jobID == uuid.Nil {
+		return apperrors.WrapInvalidInput("job_id is required")
+	}
+	run := func(txCtx context.Context) error {
+		job, err := s.jobs.LockByIDForUpdate(txCtx, clinicID, jobID)
+		if err != nil {
+			return err
 		}
-		if findErr != nil && !apperrors.IsNotFound(findErr) {
-			return findErr
-		}
-
-		// 3. Status gate: only persisted may revert. Already reverted without receipt is conflict.
-		if job.Status == model.LabImportJobStatusReverted {
-			return apperrors.WrapConflict("lab import job is already reverted")
+		if !isLabDeviceSourceType(string(job.SourceType)) {
+			return apperrors.WrapInvalidInput("job is not a lab device source")
 		}
 		if job.Status != model.LabImportJobStatusPersisted {
-			return apperrors.WrapConflict(
-				fmt.Sprintf("lab import job status %s cannot be reverted; only persisted jobs are eligible", job.Status),
-			)
+			return nil
 		}
-
-		// 4. usage_tracking_started marker required (legacy / unknown → 409, zero write).
-		hasTracking, err := s.events.HasEventType(txCtx, input.ClinicID, input.JobID, model.LabImportEventTypeUsageTrackingStarted)
+		hasTracking, err := s.events.HasEventType(txCtx, clinicID, jobID, model.LabImportEventTypeUsageTrackingStarted)
 		if err != nil {
 			return err
 		}
 		if !hasTracking {
 			return apperrors.WrapConflict("usage_unknown: lab import job has no usage_tracking_started marker; revert is refused")
 		}
-
-		// 5. Lock linked active exams in ID order.
-		exams, err := s.lockLinkedExamsByJob(txCtx, input.ClinicID, input.JobID)
+		exams, err := s.lockLinkedExamsByJob(txCtx, clinicID, jobID)
 		if err != nil {
 			return err
 		}
-
-		// 6. Lock usage receipts for the job.
-		receipts, err := s.usage.LockByJobForUpdate(txCtx, input.ClinicID, input.JobID)
+		receipts, err := s.usage.LockByJobForUpdate(txCtx, clinicID, jobID)
 		if err != nil {
 			return err
 		}
-
-		// 7. Conflict predicates — any hit is 409 with zero write (rollback).
-		if err := s.assertRevertSafe(txCtx, input.ClinicID, input.JobID, exams, receipts); err != nil {
+		if err := s.assertRevertSafe(txCtx, clinicID, jobID, exams, receipts); err != nil {
 			return err
 		}
-
-		// 8. Retraction snapshots + conditional soft delete (parent only; child results kept).
-		retractedIDs := make([]uint64, 0, len(exams))
+		input := RevertLabImportInput{ClinicID: clinicID, JobID: jobID}
 		for _, exam := range exams {
-			if err := s.retractExam(txCtx, input, reason, exam); err != nil {
+			if err := s.retractExam(txCtx, input, "検査受信の取り消し", exam); err != nil {
 				return err
 			}
-			retractedIDs = append(retractedIDs, exam.ID)
 		}
-
-		// 9. CAS job persisted → reverted.
-		now := time.Now()
 		affected, err := s.jobs.CompareAndSetStatus(
-			txCtx, input.ClinicID, input.JobID,
-			model.LabImportJobStatusPersisted, model.LabImportJobStatusReverted, &now,
+			txCtx, clinicID, jobID,
+			model.LabImportJobStatusPersisted, model.LabImportJobStatusReceived, nil,
 		)
 		if err != nil {
 			return err
@@ -183,52 +163,16 @@ func (s *labImportRevertService) Revert(ctx context.Context, input RevertLabImpo
 		if affected != 1 {
 			return apperrors.WrapConflict("lab import job status changed concurrently; revert refused")
 		}
-
-		// 10. Job event.
-		from := model.LabImportJobStatusPersisted
-		to := model.LabImportJobStatusReverted
-		if err := s.events.Create(txCtx, &model.LabImportEvent{
-			ClinicID:   input.ClinicID,
-			JobID:      input.JobID,
-			EventType:  model.LabImportEventTypeRevertRequested,
-			FromStatus: &from,
-			ToStatus:   &to,
-		}); err != nil {
-			return err
-		}
-
-		// 11. Revert receipt.
-		idsJSON := MustJSON(retractedIDs)
-		if err := s.reverts.Create(txCtx, &model.LabImportRevertReceipt{
-			ClinicID:         input.ClinicID,
-			JobID:            input.JobID,
-			IdempotencyKey:   input.IdempotencyKey,
-			RequestHash:      requestHash,
-			Reason:           reason,
-			ActorID:          input.ActorID,
-			ResultStatus:     string(model.LabImportJobStatusReverted),
-			RetractedExamIDs: idsJSON,
-		}); err != nil {
-			return err
-		}
-
-		// 12. Application audit — revert is not a commit success; record via dedicated path.
-		if s.audit != nil {
-			s.audit.LogRevertSucceeded(txCtx, input.ClinicID, input.ActorID, input.JobID, len(retractedIDs))
-		}
-
-		response = &model.LabImportRevertResponse{
-			JobID:            input.JobID,
-			Status:           string(model.LabImportJobStatusReverted),
-			RetractedExamIDs: retractedIDs,
-			IdempotentReplay: false,
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
+		job.Status = model.LabImportJobStatusReceived
+		job.PetID = nil
+		job.FinishedAt = nil
+		job.PersistedCount = 0
+		return s.jobs.Update(txCtx, job)
 	}
-	return response, nil
+	if persistence.TxFromContext(ctx) != nil {
+		return run(ctx)
+	}
+	return s.tx.WithTx(ctx, run)
 }
 
 func (s *labImportRevertService) lockLinkedExamsByJob(
@@ -303,7 +247,7 @@ func (s *labImportRevertService) assertRevertSafe(
 			if err == nil && mr.Status == model.MedicalRecordStatusFinalized {
 				return apperrors.WrapConflict("finalized medical record blocks lab import revert")
 			}
-			if err != nil && !apperrors.IsNotFound(err) && err != gorm.ErrRecordNotFound {
+			if err != nil && !apperrors.IsNotFound(err) && !errors.Is(err, gorm.ErrRecordNotFound) {
 				return apperrors.FromGORM(err, "medical_record", fmt.Sprintf("%d", *exam.MedicalRecordID))
 			}
 		}
@@ -326,37 +270,41 @@ func (s *labImportRevertService) assertRevertSafe(
 
 func (s *labImportRevertService) assertExamRelations(ctx context.Context, clinicID uint64, exam *model.Examination) error {
 	var examType model.ExaminationType
-	if err := persistence.DBOrTx(ctx, s.db).
+	err := persistence.DBOrTx(ctx, s.db).
 		Where("clinic_id = ? AND id = ? AND deleted_at IS NULL", clinicID, exam.ExamTypeID).
-		First(&examType).Error; err != nil {
-		if err == gorm.ErrRecordNotFound || apperrors.IsNotFound(err) {
-			return apperrors.WrapConflict("exam type relation invalid or cross-clinic; revert refused")
-		}
-		return apperrors.FromGORM(err, "exam_type", fmt.Sprintf("%d", exam.ExamTypeID))
+		First(&examType).Error
+	if err != nil {
+		return mapLabImportRevertMissingRelation(err, "exam_type", fmt.Sprintf("%d", exam.ExamTypeID),
+			"exam type relation invalid or cross-clinic; revert refused")
 	}
 	if exam.PetID != nil {
 		var pet model.Pet
-		if err := persistence.DBOrTx(ctx, s.db).
+		err := persistence.DBOrTx(ctx, s.db).
 			Where("clinic_id = ? AND id = ? AND deleted_at IS NULL", clinicID, *exam.PetID).
-			First(&pet).Error; err != nil {
-			if err == gorm.ErrRecordNotFound || apperrors.IsNotFound(err) {
-				return apperrors.WrapConflict("pet relation invalid or cross-clinic; revert refused")
-			}
-			return apperrors.FromGORM(err, "pet", fmt.Sprintf("%d", *exam.PetID))
+			First(&pet).Error
+		if err != nil {
+			return mapLabImportRevertMissingRelation(err, "pet", fmt.Sprintf("%d", *exam.PetID),
+				"pet relation invalid or cross-clinic; revert refused")
 		}
 	}
 	if exam.DoctorID != nil {
 		var staff model.Staff
-		if err := persistence.DBOrTx(ctx, s.db).
+		err := persistence.DBOrTx(ctx, s.db).
 			Where("clinic_id = ? AND id = ? AND deleted_at IS NULL AND is_active = TRUE", clinicID, *exam.DoctorID).
-			First(&staff).Error; err != nil {
-			if err == gorm.ErrRecordNotFound || apperrors.IsNotFound(err) {
-				return apperrors.WrapConflict("doctor assignment invalid or inactive; revert refused")
-			}
-			return apperrors.FromGORM(err, "staff", fmt.Sprintf("%d", *exam.DoctorID))
+			First(&staff).Error
+		if err != nil {
+			return mapLabImportRevertMissingRelation(err, "staff", fmt.Sprintf("%d", *exam.DoctorID),
+				"doctor assignment invalid or inactive; revert refused")
 		}
 	}
 	return nil
+}
+
+func mapLabImportRevertMissingRelation(err error, entity, id, conflictMsg string) error {
+	if errors.Is(err, gorm.ErrRecordNotFound) || apperrors.IsNotFound(err) {
+		return apperrors.WrapConflict(conflictMsg)
+	}
+	return apperrors.FromGORM(err, entity, id)
 }
 
 func (s *labImportRevertService) retractExam(

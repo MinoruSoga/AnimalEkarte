@@ -22,7 +22,12 @@ import { readFileSync } from "node:fs";
 const DEFAULT_TOLERANCE_PP = 0.5;
 
 function parseArgs(argv) {
-  const args = { summary: "coverage/coverage-summary.json", baseline: ".coverage-baseline", tolerance: DEFAULT_TOLERANCE_PP, warnOnly: false };
+  const args = {
+    summary: "coverage/coverage-summary.json",
+    baseline: ".coverage-baseline",
+    tolerance: DEFAULT_TOLERANCE_PP,
+    warnOnly: false,
+  };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--summary") args.summary = argv[++i];

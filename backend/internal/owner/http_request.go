@@ -106,13 +106,17 @@ func (f nullableDateRequestField) toServiceInput() **time.Time {
 	return &f.value
 }
 
-func newListOwnersQuery(values url.Values) listOwnersQuery {
-	return listOwnersQuery{Search: values.Get("search")}
+func newListOwnersQuery(values url.Values) (listOwnersQuery, error) {
+	search := values.Get("search")
+	if len(search) > 255 {
+		return listOwnersQuery{}, apperrors.WrapInvalidInput("search must be at most 255 characters")
+	}
+	return listOwnersQuery{Search: search}, nil
 }
 
 // createPetForOwnerRequest は飼主登録時のペット入力バインド struct
 type createPetForOwnerRequest struct {
-	Name            string    `json:"name"              binding:"required"`
+	Name            string    `json:"name"              binding:"required,max=255"`
 	AnimalSpeciesID uint64    `json:"animal_species_id" binding:"required"`
 	NameKana        string    `json:"name_kana"        binding:"omitempty,max=100"`
 	Breed           string    `json:"breed"            binding:"omitempty,max=100"`
@@ -163,14 +167,14 @@ type createOwnerRequest struct {
 	// 未指定時は JWT/X-Clinic-ID 由来の clinic_id を使用する。
 	// 指定時はハンドラで所属医院 (clinic_ids) との一致を必ず検証すること。
 	ClinicID       *uint64                    `json:"clinic_id"`
-	OwnerName      string                     `json:"owner_name"       binding:"required"`
+	OwnerName      string                     `json:"owner_name"       binding:"required,max=255"`
 	OwnerNameKana  string                     `json:"owner_name_kana"  binding:"omitempty,max=100"`
 	BirthDate      *jsonDate                  `json:"birth_date"`
 	Company        string                     `json:"company"          binding:"omitempty,max=200"`
 	PostalCode     string                     `json:"postal_code"`
 	Address1       string                     `json:"address1"         binding:"omitempty,max=200"`
 	Address2       string                     `json:"address2"         binding:"omitempty,max=200"`
-	HomePostalCode string                     `json:"home_postal_code"`
+	HomePostalCode string                     `json:"home_postal_code" binding:"omitempty,max=10"`
 	HomeAddress1   string                     `json:"home_address1"    binding:"omitempty,max=200"`
 	HomeAddress2   string                     `json:"home_address2"    binding:"omitempty,max=200"`
 	Phone          string                     `json:"phone"            binding:"omitempty,max=30"`
@@ -215,14 +219,14 @@ func (r *createOwnerRequest) toServiceInput() CreateOwnerInput {
 
 // updateOwnerRequest は飼主更新のバインド struct（全フィールドポインタ型）
 type updateOwnerRequest struct {
-	OwnerName      *string                  `json:"owner_name"`
+	OwnerName      *string                  `json:"owner_name"       binding:"omitempty,max=255"`
 	OwnerNameKana  *string                  `json:"owner_name_kana"  binding:"omitempty,max=100"`
 	BirthDate      nullableDateRequestField `json:"birth_date"`
 	Company        *string                  `json:"company"          binding:"omitempty,max=200"`
 	PostalCode     *string                  `json:"postal_code"`
 	Address1       *string                  `json:"address1"         binding:"omitempty,max=200"`
 	Address2       *string                  `json:"address2"         binding:"omitempty,max=200"`
-	HomePostalCode *string                  `json:"home_postal_code"`
+	HomePostalCode *string                  `json:"home_postal_code" binding:"omitempty,max=10"`
 	HomeAddress1   *string                  `json:"home_address1"    binding:"omitempty,max=200"`
 	HomeAddress2   *string                  `json:"home_address2"    binding:"omitempty,max=200"`
 	Phone          *string                  `json:"phone"            binding:"omitempty,max=30"`
@@ -277,10 +281,7 @@ type patchOwnerDeliveryExclusionRequest struct {
 }
 
 func (r patchOwnerDeliveryExclusionRequest) toServiceInput() UpdateDeliveryExclusionInput {
-	return UpdateDeliveryExclusionInput{
-		Excluded: r.Excluded,
-		Reason:   r.Reason,
-	}
+	return UpdateDeliveryExclusionInput(r)
 }
 
 // patchOwnerDeliveryCautionRequest は配信注意フラグ更新リクエスト（FEAT-381-2）。
@@ -290,10 +291,7 @@ type patchOwnerDeliveryCautionRequest struct {
 }
 
 func (r patchOwnerDeliveryCautionRequest) toServiceInput() UpdateDeliveryCautionInput {
-	return UpdateDeliveryCautionInput{
-		Caution: r.Caution,
-		Reason:  r.Reason,
-	}
+	return UpdateDeliveryCautionInput(r)
 }
 
 // patchOwnerTransferStatusRequest は転院フラグ更新リクエスト（FEAT-381）。
@@ -302,7 +300,5 @@ type patchOwnerTransferStatusRequest struct {
 }
 
 func (r patchOwnerTransferStatusRequest) toServiceInput() UpdateTransferStatusInput {
-	return UpdateTransferStatusInput{
-		IsTransferred: r.IsTransferred,
-	}
+	return UpdateTransferStatusInput(r)
 }

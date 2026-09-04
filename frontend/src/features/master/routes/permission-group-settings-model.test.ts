@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { PermissionGroup } from "../api/permission-groups";
-import { ALL_PERMISSION_RESOURCES } from "../components/permission-rule-table-model";
+import { ALL_PERMISSION_RESOURCES } from "../lib/permission-rule-table-model";
 import {
   assertSavedPermissionRulesMatch,
   buildPermissionGroupUpdateRequest,

@@ -8,5 +8,7 @@ for (let h = 0; h < 24; h++) {
 }
 
 export const TIME_SELECT_ITEMS = TIME_OPTIONS.map((time) => (
-  <SelectItem key={time} value={time}>{time}</SelectItem>
+  <SelectItem key={time} value={time}>
+    {time}
+  </SelectItem>
 ));

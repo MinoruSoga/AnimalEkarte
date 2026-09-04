@@ -9,10 +9,9 @@
 
 ## 画面構成
 
-### 1. プランとログの二画面構成 (Expanded View)
-デスクトップ環境では、計画と実績を一目で把握できる上下分割レイアウトを採用しています。
-- **上段（ケアプラン）**: 入院期間中に行うべき投薬、給餌、処置等のスケジュールを管理。
-- **下段（デイリーログ）**: 実際に実施したケアの内容やバイタル、スタッフ間の引き継ぎメモを日付単位で表示。
+### 1. プランとログの二画面構成
+- **デスクトップ (`lg` 以上、`HospitalizationExpandedView`)**: 上段ケアプラン、下段デイリーログ。
+- **モバイル (`lg:hidden`、`HospitalizationTabbedView`)**: 「デイリーカルテ」と「プラン管理・詳細」の 2 タブ。一覧画面の status タブ（予約/入院中/退院済）とは別物。
 
 ### 2. デイリーログのセクション構成
 日次の記録は、日付ナビゲーションで対象日を切り替えつつ、「バイタル」「ケアログ」「スタッフメモ」の3セクションに分類して表示・入力されます。
@@ -28,7 +27,7 @@
 ### 2. チェックイン（予約→入院中）
 - **表示条件**: `HospitalizationDetailActions` は status が予約（API: `reserved`）かつ `hospitalization` の `edit` 権限があるときのみ「チェックイン」を表示する。入院中・退院済では非表示。退院済からの再チェックインは不可。
 - **操作**: 確認ダイアログなし。押下で既存 `PATCH /api/v1/hospitalizations/:id`（`useUpdateHospitalization`）へ `status: admitted` を送信し、表示ステータスを入院中へ遷移させる。監査ログは当該 PATCH 経路の既存挙動に従う。
-- **タブ配置**: status enum の 1:1 タブマップ（date 判定なし）を維持する。チェックインしない限り予約タブに残るのが正しい挙動。
+- **死亡ペット**: チェックイン mutation を拒否する。チェックインチボタンは `colorVariant="primary"`。
 
 ### 3. 退院プロセスと会計連携
 - **表示条件**: 「退院処理」は status が入院中（API: `admitted`）かつ `edit` 権限があるときのみ表示する。予約（`reserved`）では表示しない（旧障害モードの是正）。退院は record を消さない状態遷移であるため `delete` ではなく `edit` を要求する（BUG-457・2026-07-28 の製品判断。従来は表示条件だけ `delete` を要求しており、下表の退院 route が要求する `edit` と食い違っていた）。
@@ -44,7 +43,8 @@
 - **`HospitalizationExpandedView`**: デスクトップ用レイアウトコンテナ。
 - **`DailyRecordsTab`**: 時系列ログの表示・管理モジュール。
 - **`DischargeAlertDialog`**: 安全な退院手続きのための最終確認ダイアログ。
-- **`PrimaryButton`**: チェックイン用（`colorVariant="brand"`）。
+- **`HospitalizationTabbedView`**: モバイル用 2 タブ。
+- **`PrimaryButton`**: チェックイン用（`colorVariant="primary"`）。
 
 ### API連携
 | メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |

@@ -14,17 +14,18 @@ import type { PermissionGroup } from "../api/permission-groups";
 import type { ReservationType } from "../api/reservation-types";
 import { StaffBasicInfoSection } from "./StaffBasicInfoSection";
 import { StaffLineReservationSection } from "./StaffLineReservationSection";
-import { StaffClinicsSection, StaffExcludedReservationTypesSection, StaffPermissionGroupsSection } from "./StaffSidePanelSections";
 import {
-  staffToFormData,
-  type StaffFormData,
-} from "./staff-side-panel-model";
+  StaffClinicsSection,
+  StaffExcludedReservationTypesSection,
+  StaffPermissionGroupsSection,
+} from "./StaffSidePanelSections";
+import { staffToFormData, type StaffFormData } from "../lib/staff-side-panel-model";
 import { useEditableIdSelection } from "../hooks/use-editable-id-selection";
 
 interface StaffSidePanelProps {
   item: Staff | null;
   onClose: () => void;
-  onSave: (data: StaffFormData) => void;
+  onSave: (data: StaffFormData) => Promise<boolean> | boolean;
   onDeleteRequest?: (item: Staff) => void;
   readOnly?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
@@ -64,10 +65,13 @@ export const StaffSidePanel = memo(function StaffSidePanel({
   }, [isDirty, onDirtyChange]);
 
   const markDirty = useCallback(() => setIsDirty(true), []);
-  const setFormDataDirty = useCallback<typeof setFormData>((updater) => {
-    setFormData(updater);
-    markDirty();
-  }, [markDirty]);
+  const setFormDataDirty = useCallback<typeof setFormData>(
+    (updater) => {
+      setFormData(updater);
+      markDirty();
+    },
+    [markDirty],
+  );
 
   const activeReservationTypes = useMemo(
     () => allReservationTypes.filter((reservationType) => reservationType.isActive),
@@ -95,25 +99,40 @@ export const StaffSidePanel = memo(function StaffSidePanel({
     handleToggle: handleCapabilityToggle,
   } = useEditableIdSelection({ serverIds: serverCapableIds, markDirty });
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
     if (!formData.name.trim()) {
       setNameError("氏名を入力してください");
       return;
     }
     setNameError("");
-    onSave(formData);
+    const saved = await onSave(formData);
+    if (!saved) return;
     if (!isNew && staffId) {
       onSaveGroups(staffId, groupIds);
       onSaveClinics(staffId, clinicIds);
       onSaveCapableReservationTypes(staffId, capableIds);
     }
     setIsDirty(false);
-  }, [formData, isNew, staffId, groupIds, clinicIds, capableIds, onSave, onSaveGroups, onSaveClinics, onSaveCapableReservationTypes]);
+  }, [
+    formData,
+    isNew,
+    staffId,
+    groupIds,
+    clinicIds,
+    capableIds,
+    onSave,
+    onSaveGroups,
+    onSaveClinics,
+    onSaveCapableReservationTypes,
+  ]);
 
-  const handleTitleChange = useCallback((value: string) => {
-    setFormDataDirty((prev) => ({ ...prev, name: value }));
-    if (value.trim()) setNameError("");
-  }, [setFormDataDirty]);
+  const handleTitleChange = useCallback(
+    (value: string) => {
+      setFormDataDirty((prev) => ({ ...prev, name: value }));
+      if (value.trim()) setNameError("");
+    },
+    [setFormDataDirty],
+  );
 
   const handleClose = useCallback(() => {
     setIsDirty(false);
@@ -126,7 +145,7 @@ export const StaffSidePanel = memo(function StaffSidePanel({
       title={formData.name}
       onTitleChange={handleTitleChange}
       onClose={handleClose}
-      action={handleSave}
+      onSave={handleSave}
       onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
       icon={<UserRound className={LAYOUT.pageIcon.innerIcon} />}
       isDirty={isDirty}
@@ -142,10 +161,7 @@ export const StaffSidePanel = memo(function StaffSidePanel({
         allOccupations={allOccupations}
       />
 
-      <StaffLineReservationSection
-        formData={formData}
-        setFormDataDirty={setFormDataDirty}
-      />
+      <StaffLineReservationSection formData={formData} setFormDataDirty={setFormDataDirty} />
 
       <StaffExcludedReservationTypesSection
         activeReservationTypes={activeReservationTypes}

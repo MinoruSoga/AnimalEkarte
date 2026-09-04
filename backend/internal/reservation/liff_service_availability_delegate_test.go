@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	staffpkg "github.com/animal-ekarte/backend/internal/staff"
 )
 
 // ---- local minimal ReservationStaffRepository / ReservationAdminRepository mocks ----
@@ -35,7 +36,7 @@ func (m *delegateMockReservationStaffRepository) LockForMutation(
 func (m *delegateMockReservationStaffRepository) Create(_ context.Context, _ *model.Staff, _ uint64) error {
 	return nil
 }
-func (m *delegateMockReservationStaffRepository) Update(_ context.Context, _, _ uint64, _ map[string]any) error {
+func (m *delegateMockReservationStaffRepository) Update(_ context.Context, _, _ uint64, _ staffpkg.ReservationStaffUpdate) error {
 	return nil
 }
 func (m *delegateMockReservationStaffRepository) Delete(_ context.Context, _, _ uint64) error {
@@ -142,7 +143,7 @@ func TestLiffService_DelegateStaff(t *testing.T) {
 		{
 			name: "top_priority mode returns the first staff by sort order",
 			findAllFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
-				return []model.Staff{{ID: 1, ReservationVisible: true}}, nil
+				return []model.Staff{{ID: 1, IsActive: true, ReservationVisible: true}}, nil
 			},
 			mode:   "top_priority",
 			wantID: 1,
@@ -150,7 +151,7 @@ func TestLiffService_DelegateStaff(t *testing.T) {
 		{
 			name: "first_available falls back to no-staff (0,nil) when FindAllByDay fails",
 			findAllFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
-				return []model.Staff{{ID: 1, ReservationVisible: true}}, nil
+				return []model.Staff{{ID: 1, IsActive: true, ReservationVisible: true}}, nil
 			},
 			findAllByDayFn: func(_ context.Context, _ uint64, _ time.Time) ([]model.Reservation, error) {
 				return nil, errors.New("db error")
@@ -161,7 +162,7 @@ func TestLiffService_DelegateStaff(t *testing.T) {
 		{
 			name: "first_available falls back to no-staff (0,nil) when startTime is malformed",
 			findAllFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
-				return []model.Staff{{ID: 1, ReservationVisible: true}}, nil
+				return []model.Staff{{ID: 1, IsActive: true, ReservationVisible: true}}, nil
 			},
 			mode:      "first_available",
 			startTime: "not-a-time",
@@ -171,7 +172,7 @@ func TestLiffService_DelegateStaff(t *testing.T) {
 		{
 			name: "first_available falls back to no-staff (0,nil) when endTime is malformed",
 			findAllFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
-				return []model.Staff{{ID: 1, ReservationVisible: true}}, nil
+				return []model.Staff{{ID: 1, IsActive: true, ReservationVisible: true}}, nil
 			},
 			mode:      "first_available",
 			startTime: "0900",
@@ -182,8 +183,8 @@ func TestLiffService_DelegateStaff(t *testing.T) {
 			name: "first_available picks the first staff with no conflicting reservation",
 			findAllFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
 				return []model.Staff{
-					{ID: 1, ReservationVisible: true},
-					{ID: 2, ReservationVisible: true},
+					{ID: 1, IsActive: true, ReservationVisible: true},
+					{ID: 2, IsActive: true, ReservationVisible: true},
 				}, nil
 			},
 			findAllByDayFn: func(_ context.Context, _ uint64, _ time.Time) ([]model.Reservation, error) {
@@ -201,7 +202,7 @@ func TestLiffService_DelegateStaff(t *testing.T) {
 		{
 			name: "first_available returns (0,nil) when every staff is busy",
 			findAllFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
-				return []model.Staff{{ID: 1, ReservationVisible: true}}, nil
+				return []model.Staff{{ID: 1, IsActive: true, ReservationVisible: true}}, nil
 			},
 			findAllByDayFn: func(_ context.Context, _ uint64, _ time.Time) ([]model.Reservation, error) {
 				start1 := time.Date(2026, 4, 15, 9, 0, 0, 0, time.UTC)
@@ -218,7 +219,7 @@ func TestLiffService_DelegateStaff(t *testing.T) {
 		{
 			name: "first_available ignores cancelled reservations when checking availability",
 			findAllFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
-				return []model.Staff{{ID: 1, ReservationVisible: true}}, nil
+				return []model.Staff{{ID: 1, IsActive: true, ReservationVisible: true}}, nil
 			},
 			findAllByDayFn: func(_ context.Context, _ uint64, _ time.Time) ([]model.Reservation, error) {
 				start1 := time.Date(2026, 4, 15, 9, 0, 0, 0, time.UTC)
@@ -235,7 +236,7 @@ func TestLiffService_DelegateStaff(t *testing.T) {
 		{
 			name: "default mode (empty string) behaves as first_available",
 			findAllFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
-				return []model.Staff{{ID: 1, ReservationVisible: true}}, nil
+				return []model.Staff{{ID: 1, IsActive: true, ReservationVisible: true}}, nil
 			},
 			findAllByDayFn: func(_ context.Context, _ uint64, _ time.Time) ([]model.Reservation, error) {
 				return nil, nil

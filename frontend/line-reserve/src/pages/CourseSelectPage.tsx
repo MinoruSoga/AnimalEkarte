@@ -1,24 +1,25 @@
-import { useCallback } from 'react';
-import { liffApi } from '../api/liff-api';
-import { ProgressDots } from '../components/ProgressDots';
-import { ListItem } from '../components/ListItem';
-import { BackButton } from '../components/BackButton';
-import { useFetchState } from '@/shared-liff/use-fetch-state';
+import { useCallback } from "react";
+import { liffApi } from "../api/liff-api";
+import { ProgressDots } from "../components/ProgressDots";
+import { ListItem } from "../components/ListItem";
+import { BackButton } from "../components/BackButton";
+import { AutoAdvanceHint } from "../components/AutoAdvanceHint";
+import { useFetchState } from "@/shared-liff/use-fetch-state";
 
 interface CourseSelectPageProps {
   clinicId: string;
   idToken: string;
-  onSelect: (courseId: number, courseName: string, category?: 'general' | 'trimming') => void;
+  onSelect: (courseId: number, courseName: string, category?: "general" | "trimming") => void;
   onBack: () => void;
 }
 
 export function CourseSelectPage({ clinicId, idToken, onSelect, onBack }: CourseSelectPageProps) {
   const fetcher = useCallback(() => liffApi.getCourses(clinicId, idToken), [clinicId, idToken]);
   // R-F22/R-F23: ステータス別メッセージ解決と再試行導線を共通フックに統合。
-  const { data: courses, loading, error, retry } = useFetchState(fetcher, 'コースの取得');
+  const { data: courses, loading, error, retry } = useFetchState(fetcher, "コースの取得");
 
   const formatDuration = (minutes: number | undefined): string => {
-    if (!minutes) return '';
+    if (!minutes) return "";
     if (minutes < 60) return `${minutes}分`;
     const h = Math.floor(minutes / 60);
     const m = minutes % 60;
@@ -32,7 +33,8 @@ export function CourseSelectPage({ clinicId, idToken, onSelect, onBack }: Course
 
         <div className="px-4">
           <BackButton onClick={onBack} />
-          <h2 className="text-lg font-bold text-noah-teal-dark mb-4">コースを選択</h2>
+          <h2 className="text-lg font-bold text-noah-teal-dark mb-2">コースを選択</h2>
+          <AutoAdvanceHint step="courseSelect" />
         </div>
 
         <div className="flex-1">
@@ -41,7 +43,7 @@ export function CourseSelectPage({ clinicId, idToken, onSelect, onBack }: Course
               <div className="text-noah-text-sub">読み込み中...</div>
             </div>
           ) : error ? (
-            <div className="px-4 py-8 text-center text-red-500">
+            <div className="px-4 py-8 text-center text-noah-danger">
               <p role="alert">{error.message}</p>
               {error.canRetry ? (
                 <button
@@ -54,8 +56,8 @@ export function CourseSelectPage({ clinicId, idToken, onSelect, onBack }: Course
               ) : null}
             </div>
           ) : (
-            <div className="bg-white border-t border-gray-200">
-              {(courses ?? []).map(course => (
+            <div className="bg-white border-t border-noah-border">
+              {(courses ?? []).map((course) => (
                 <ListItem
                   key={course.id}
                   onClick={() => onSelect(course.id, course.name, course.category)}

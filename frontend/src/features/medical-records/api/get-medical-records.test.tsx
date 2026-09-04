@@ -2,9 +2,20 @@ import { describe, it, expect } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
-import { createTestWrapper } from "@/testing/utils";
-import { useGetMedicalRecords } from "./get-medical-records";
+import { createTestWrapper } from "@/testing/TestUtils";
+import { useGetMedicalRecords, getMedicalRecords } from "./get-medical-records";
+import {
+  useGetMedicalRecords as hooksUseGetMedicalRecords,
+  getMedicalRecords as hooksGetMedicalRecords,
+} from "@/hooks/use-medical-records";
 import type { BackendMedicalRecord } from "./types";
+
+describe("get-medical-records re-export (FE-RC-015 followup2)", () => {
+  it("re-exports list API from @/hooks/use-medical-records (same references)", () => {
+    expect(useGetMedicalRecords).toBe(hooksUseGetMedicalRecords);
+    expect(getMedicalRecords).toBe(hooksGetMedicalRecords);
+  });
+});
 
 function makeBackendRecord(id: number): BackendMedicalRecord {
   return {
@@ -32,7 +43,12 @@ describe("useGetMedicalRecords", () => {
     server.use(
       http.get("/api/v1/medical-records", ({ request }) => {
         capturedUrl = new URL(request.url);
-        return HttpResponse.json({ data: [makeBackendRecord(1)], total: 425524, page: 1, limit: 20 });
+        return HttpResponse.json({
+          data: [makeBackendRecord(1)],
+          total: 425524,
+          page: 1,
+          limit: 20,
+        });
       }),
     );
 
@@ -52,7 +68,12 @@ describe("useGetMedicalRecords", () => {
     server.use(
       http.get("/api/v1/medical-records", ({ request }) => {
         capturedUrl = new URL(request.url);
-        return HttpResponse.json({ data: [makeBackendRecord(21)], total: 425524, page: 2, limit: 20 });
+        return HttpResponse.json({
+          data: [makeBackendRecord(21)],
+          total: 425524,
+          page: 2,
+          limit: 20,
+        });
       }),
     );
 

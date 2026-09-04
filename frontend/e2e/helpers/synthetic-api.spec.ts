@@ -56,9 +56,7 @@ interface InterceptorHarness {
 }
 
 function createInterceptorHarness(): InterceptorHarness {
-  let routeHandler:
-    | ((route: SyntheticInterceptorRoute) => Promise<void>)
-    | undefined;
+  let routeHandler: ((route: SyntheticInterceptorRoute) => Promise<void>) | undefined;
 
   const page: SyntheticInterceptorPage = {
     async route(
@@ -110,19 +108,15 @@ function createInterceptorHarness(): InterceptorHarness {
 
 test("pure fully synthetic mode blocks an unregistered same-origin API GET", async () => {
   const harness = createInterceptorHarness();
-  const interceptor = await installSyntheticApiInterceptor(
-    harness.page,
-    [],
-    { expectedOrigin: "http://frontend.test" },
-  );
+  const interceptor = await installSyntheticApiInterceptor(harness.page, [], {
+    expectedOrigin: "http://frontend.test",
+  });
 
   const actions = await harness.dispatch({
     url: "http://frontend.test/api/v1/unregistered",
   });
 
-  expect(actions).toEqual([
-    { type: "abort", errorCode: "blockedbyclient" },
-  ]);
+  expect(actions).toEqual([{ type: "abort", errorCode: "blockedbyclient" }]);
   expect(interceptor.ledger).toEqual({
     attempted: ["GET:/api/v1/unregistered"],
     locallyFulfilled: [],
@@ -134,45 +128,35 @@ test("pure fully synthetic mode blocks an unregistered same-origin API GET", asy
 
 test("pure fully synthetic mode blocks a cross-origin API GET and records its origin", async () => {
   const harness = createInterceptorHarness();
-  const interceptor = await installSyntheticApiInterceptor(
-    harness.page,
-    [],
-    { expectedOrigin: "http://frontend.test" },
-  );
+  const interceptor = await installSyntheticApiInterceptor(harness.page, [], {
+    expectedOrigin: "http://frontend.test",
+  });
 
   const actions = await harness.dispatch({
     url: "https://api.evil.test/api/v1/owners",
   });
 
-  expect(actions).toEqual([
-    { type: "abort", errorCode: "blockedbyclient" },
-  ]);
+  expect(actions).toEqual([{ type: "abort", errorCode: "blockedbyclient" }]);
   expect(interceptor.ledger).toEqual({
     attempted: ["GET:https://api.evil.test/api/v1/owners"],
     locallyFulfilled: [],
     blocked: ["GET:https://api.evil.test/api/v1/owners"],
     continuedToBackend: [],
-    validationFailures: [
-      "GET:https://api.evil.test/api/v1/owners:unexpected API origin",
-    ],
+    validationFailures: ["GET:https://api.evil.test/api/v1/owners:unexpected API origin"],
   });
 });
 
 test("pure fully synthetic mode fulfills an allowlisted external asset from the local stub", async () => {
   const harness = createInterceptorHarness();
-  const interceptor = await installSyntheticApiInterceptor(
-    harness.page,
-    [],
-    { expectedOrigin: "http://frontend.test" },
-  );
+  const interceptor = await installSyntheticApiInterceptor(harness.page, [], {
+    expectedOrigin: "http://frontend.test",
+  });
 
   const actions = await harness.dispatch({
     url: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap",
   });
 
-  expect(actions).toEqual([
-    { type: "fulfill", contentType: "text/css; charset=utf-8" },
-  ]);
+  expect(actions).toEqual([{ type: "fulfill", contentType: "text/css; charset=utf-8" }]);
   expect(interceptor.ledger).toEqual({
     attempted: ["GET:https://fonts.googleapis.com/css2"],
     locallyFulfilled: ["GET:https://fonts.googleapis.com/css2"],
@@ -184,19 +168,15 @@ test("pure fully synthetic mode fulfills an allowlisted external asset from the 
 
 test("pure fully synthetic mode blocks an unknown cross-origin asset GET", async () => {
   const harness = createInterceptorHarness();
-  const interceptor = await installSyntheticApiInterceptor(
-    harness.page,
-    [],
-    { expectedOrigin: "http://frontend.test" },
-  );
+  const interceptor = await installSyntheticApiInterceptor(harness.page, [], {
+    expectedOrigin: "http://frontend.test",
+  });
 
   const actions = await harness.dispatch({
     url: "https://cdn.example.test/assets/application.js",
   });
 
-  expect(actions).toEqual([
-    { type: "abort", errorCode: "blockedbyclient" },
-  ]);
+  expect(actions).toEqual([{ type: "abort", errorCode: "blockedbyclient" }]);
   expect(interceptor.ledger).toEqual({
     attempted: ["GET:https://cdn.example.test/assets/application.js"],
     locallyFulfilled: [],
@@ -210,11 +190,9 @@ test("pure fully synthetic mode blocks an unknown cross-origin asset GET", async
 
 test("pure fully synthetic mode continues a same-origin non-API asset GET outside the ledger", async () => {
   const harness = createInterceptorHarness();
-  const interceptor = await installSyntheticApiInterceptor(
-    harness.page,
-    [],
-    { expectedOrigin: "http://frontend.test" },
-  );
+  const interceptor = await installSyntheticApiInterceptor(harness.page, [], {
+    expectedOrigin: "http://frontend.test",
+  });
 
   const actions = await harness.dispatch({
     url: "http://frontend.test/src/main.tsx",
@@ -238,9 +216,7 @@ test("pure normal mode fulfills an allowlisted external asset from the local stu
     url: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap",
   });
 
-  expect(actions).toEqual([
-    { type: "fulfill", contentType: "text/css; charset=utf-8" },
-  ]);
+  expect(actions).toEqual([{ type: "fulfill", contentType: "text/css; charset=utf-8" }]);
   expect(interceptor.ledger).toEqual({
     attempted: ["GET:https://fonts.googleapis.com/css2"],
     locallyFulfilled: ["GET:https://fonts.googleapis.com/css2"],
@@ -259,9 +235,7 @@ test("pure normal mode blocks a non-API business write instead of continuing", a
     method: "POST",
   });
 
-  expect(actions).toEqual([
-    { type: "abort", errorCode: "blockedbyclient" },
-  ]);
+  expect(actions).toEqual([{ type: "abort", errorCode: "blockedbyclient" }]);
   expect(interceptor.ledger).toEqual({
     attempted: ["POST:/logout"],
     locallyFulfilled: [],
@@ -289,13 +263,17 @@ test("pure normal mode continues an unregistered API GET", async () => {
   });
 });
 
-test("synthetic API interceptor classifies every request and never continues a business write", async ({ page }) => {
+test("synthetic API interceptor classifies every request and never continues a business write", async ({
+  page,
+}) => {
   await page.goto("/@vite/client", { waitUntil: "domcontentloaded" });
   const interceptor = await installSyntheticApiInterceptor(page, ENDPOINTS);
 
   try {
     const results = await page.evaluate(async () => {
-      const syntheticRead = await fetch("/api/v1/synthetic-read?page=1").then((response) => response.json());
+      const syntheticRead = await fetch("/api/v1/synthetic-read?page=1").then((response) =>
+        response.json(),
+      );
       const redactedRead = await fetch("/api/v1/pets/123456").then((response) => response.json());
       const syntheticWrite = await fetch("/api/v1/synthetic-write", {
         method: "POST",
@@ -307,12 +285,18 @@ test("synthetic API interceptor classifies every request and never continues a b
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sentinel: true }),
-      }).then(() => false, () => true);
+      }).then(
+        () => false,
+        () => true,
+      );
       const blockedInvalidWrite = await fetch("/api/v1/synthetic-write", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sentinel: false }),
-      }).then(() => false, () => true);
+      }).then(
+        () => false,
+        () => true,
+      );
 
       return {
         syntheticRead,
@@ -346,14 +330,9 @@ test("synthetic API interceptor classifies every request and never continues a b
         "GET:/api/v1/pets/:id",
         "POST:/api/v1/synthetic-write",
       ],
-      blocked: [
-        "PATCH:/api/v1/unexpected-write",
-        "POST:/api/v1/synthetic-write",
-      ],
+      blocked: ["PATCH:/api/v1/unexpected-write", "POST:/api/v1/synthetic-write"],
       continuedToBackend: ["GET:/api/v1/me"],
-      validationFailures: [
-        "POST:/api/v1/synthetic-write:synthetic write body mismatch",
-      ],
+      validationFailures: ["POST:/api/v1/synthetic-write:synthetic write body mismatch"],
     });
     expect(interceptor.ledger.continuedToBackend.filter(isBusinessNonGet)).toEqual([]);
     expect(interceptor.ledger.attempted.length).toBe(
@@ -394,9 +373,14 @@ test("fully synthetic mode rejects cross-origin and wrong-clinic requests", asyn
       }).then((response) => response.ok);
       const wrongClinicBlocked = await fetch("/api/v1/synthetic-read", {
         headers: { "X-Clinic-ID": "990999" },
-      }).then(() => false, () => true);
-      const crossOriginBlocked = await fetch("https://example.invalid/api/v1/synthetic-read")
-        .then(() => false, () => true);
+      }).then(
+        () => false,
+        () => true,
+      );
+      const crossOriginBlocked = await fetch("https://example.invalid/api/v1/synthetic-read").then(
+        () => false,
+        () => true,
+      );
       return { validRead, validWrite, wrongClinicBlocked, crossOriginBlocked };
     });
 

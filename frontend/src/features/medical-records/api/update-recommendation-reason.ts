@@ -12,11 +12,11 @@ interface UpdateRecommendationReasonBody {
 
 const updateRecommendationReason = async (
   id: string,
-  body: UpdateRecommendationReasonBody
+  body: UpdateRecommendationReasonBody,
 ): Promise<MedicalRecord> => {
   const { data } = await axios.patch<BackendMedicalRecord>(
     `/v1/medical-records/${id}/recommendation-reason`,
-    body
+    body,
   );
   return transformMedicalRecord(data);
 };

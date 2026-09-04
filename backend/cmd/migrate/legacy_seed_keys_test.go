@@ -119,15 +119,13 @@ func TestLegacyKeysAmongPartialDetection(t *testing.T) {
 // translate-not-fail-fast path — the same DB-free boundary legacyKeysAmong
 // already established for this package.
 //
-// It intentionally takes no "which legacy keys were found" input and always
-// returns all three legacy-equivalent bundle keys (PR #186 security review,
-// HIGH). Bundles introduced after the stub-SQL era must not be translated:
-// they have no legacy applied-history equivalent and must remain eligible for
-// normal application.
+// It intentionally takes no "which legacy keys were found" input and returns
+// only the current bundle that still exists. Retired bundle directories must
+// not be checksummed during legacy migration-key translation.
 
 func TestLegacyTranslationTargetsCoversOnlyLegacyEquivalentBundles(t *testing.T) {
 	got := legacyTranslationTargets()
-	want := []string{"seeds/002_master", "seeds/003_demo", "seeds/004_staging"}
+	want := []string{"seeds/002_master"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("legacyTranslationTargets() = %v, want %v", got, want)
 	}

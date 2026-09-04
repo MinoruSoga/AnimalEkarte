@@ -22,11 +22,7 @@ describe("useUnsavedChanges", () => {
     const initialMarkDirty = result.current.markDirty;
     const initialMarkClean = result.current.markClean;
 
-    expect(Object.keys(result.current).sort()).toEqual([
-      "isDirty",
-      "markClean",
-      "markDirty",
-    ]);
+    expect(Object.keys(result.current).sort()).toEqual(["isDirty", "markClean", "markDirty"]);
     expect(result.current.isDirty).toBe(false);
 
     act(() => {
@@ -52,9 +48,7 @@ describe("useUnsavedChanges", () => {
     const { result } = renderHook(() => useUnsavedChanges());
 
     expect(
-      addEventListenerSpy.mock.calls.filter(
-        ([eventName]) => eventName === "beforeunload",
-      ),
+      addEventListenerSpy.mock.calls.filter(([eventName]) => eventName === "beforeunload"),
     ).toHaveLength(0);
 
     act(() => {
@@ -85,10 +79,7 @@ describe("useUnsavedChanges", () => {
       result.current.markClean();
     });
 
-    expect(removeEventListenerSpy).toHaveBeenCalledWith(
-      "beforeunload",
-      listener,
-    );
+    expect(removeEventListenerSpy).toHaveBeenCalledWith("beforeunload", listener);
   });
 
   it("dirtyのままunmountするとbeforeunloadを解除する", () => {
@@ -107,9 +98,6 @@ describe("useUnsavedChanges", () => {
 
     unmount();
 
-    expect(removeEventListenerSpy).toHaveBeenCalledWith(
-      "beforeunload",
-      listener,
-    );
+    expect(removeEventListenerSpy).toHaveBeenCalledWith("beforeunload", listener);
   });
 });

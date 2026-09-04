@@ -101,11 +101,11 @@ func TestSanitizeNullBytes(t *testing.T) {
 			wantBody:    "name\x00value",
 		},
 		{
-			name:        "DELETE リクエストはボディを変更しない",
+			name:        "DELETE リクエストのボディも NULL バイトを除去する",
 			method:      http.MethodDelete,
 			body:        []byte("name\x00value"),
 			contentType: "application/json",
-			wantBody:    "name\x00value",
+			wantBody:    "namevalue",
 		},
 		{
 			name:        "空ボディはエラーなしで通過する",
@@ -255,7 +255,7 @@ func TestSanitizeNullBytes_DoesNotPreReadNonBinaryBody(t *testing.T) {
 func TestSanitizeNullBytes_ControlOnlyBodyRespectsRawByteLimit(t *testing.T) {
 	// INF-02: filtered-byte-only bodies must still exhaust MaxBytesReader on raw reads.
 	gin.SetMode(gin.TestMode)
-	raw := bytes.Repeat([]byte{0x00}, int(DefaultJSONBodyMaxBytes)+1)
+	raw := make([]byte, int(DefaultJSONBodyMaxBytes)+1)
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	req, err := http.NewRequest(http.MethodPost, "/test", bytes.NewReader(raw))
@@ -301,6 +301,240 @@ func TestLimitRequestBody_RejectsOversizedDeclaredLength(t *testing.T) {
 	LimitRequestBody(DefaultJSONBodyMaxBytes)(c)
 	assert.Equal(t, http.StatusRequestEntityTooLarge, w.Code)
 	assert.True(t, c.IsAborted())
+}
+
+func TestSanitizeNullBytes_DeleteDeclaredLengthRespectsRawByteLimit(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	raw := make([]byte, int(DefaultJSONBodyMaxBytes)+1)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	req, err := http.NewRequest(http.MethodDelete, "/test", bytes.NewReader(raw))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+	req.ContentLength = int64(len(raw))
+	c.Request = req
+
+	SanitizeNullBytes()(c)
+	assert.Equal(t, http.StatusRequestEntityTooLarge, w.Code)
+	assert.True(t, c.IsAborted())
+}
+
+func TestSanitizeNullBytes_DeleteChunkedControlOnlyBodyHitsMaxBytesReader(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	raw := bytes.Repeat([]byte{0x01}, int(DefaultJSONBodyMaxBytes)+8)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	req, err := http.NewRequest(http.MethodDelete, "/test", bytes.NewReader(raw))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+	req.ContentLength = -1
+	c.Request = req
+
+	SanitizeNullBytes()(c)
+	require.Equal(t, http.StatusOK, w.Code)
+	_, readErr := io.ReadAll(c.Request.Body)
+	require.Error(t, readErr)
+	var maxBytesError *http.MaxBytesError
+	assert.ErrorAs(t, readErr, &maxBytesError)
+}
+
+func TestLimitRequestBody_RejectsOversizedDeclaredDeleteLength(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	req, err := http.NewRequest(http.MethodDelete, "/api/v1/pets", bytes.NewReader([]byte(`{}`)))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+	req.ContentLength = DefaultJSONBodyMaxBytes + 1
+	c.Request = req
+
+	LimitRequestBody(DefaultJSONBodyMaxBytes)(c)
+	assert.Equal(t, http.StatusRequestEntityTooLarge, w.Code)
+	assert.True(t, c.IsAborted())
+}
+
+func TestLimitRequestBody_DeleteChunkedOversizedBodyHitsMaxBytesReader(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	raw := bytes.Repeat([]byte{'a'}, int(DefaultJSONBodyMaxBytes)+8)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	req, err := http.NewRequest(http.MethodDelete, "/test", bytes.NewReader(raw))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+	req.ContentLength = -1
+	c.Request = req
+
+	LimitRequestBody(DefaultJSONBodyMaxBytes)(c)
+	require.Equal(t, http.StatusOK, w.Code)
+	assert.False(t, c.IsAborted())
+	_, readErr := io.ReadAll(c.Request.Body)
+	require.Error(t, readErr)
+	var maxBytesError *http.MaxBytesError
+	assert.ErrorAs(t, readErr, &maxBytesError)
+}
+
+func TestSanitizeNullBytes_GetHeadLargeBodyUnwrapped(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	raw := bytes.Repeat([]byte("x\x00"), int(DefaultJSONBodyMaxBytes/2)+1)
+
+	tests := []struct {
+		name   string
+		method string
+	}{
+		{name: "GET の大きなボディは制限も除去もしない", method: http.MethodGet},
+		{name: "HEAD の大きなボディは制限も除去もしない", method: http.MethodHead},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			req, err := http.NewRequest(tt.method, "/test", bytes.NewReader(raw))
+			require.NoError(t, err)
+			req.Header.Set("Content-Type", "application/json")
+			req.ContentLength = int64(len(raw))
+			originalBody := req.Body
+			c.Request = req
+
+			SanitizeNullBytes()(c)
+
+			assert.NotEqual(t, http.StatusRequestEntityTooLarge, w.Code)
+			assert.False(t, c.IsAborted())
+			assert.True(t, originalBody == c.Request.Body)
+			got, readErr := io.ReadAll(c.Request.Body)
+			require.NoError(t, readErr)
+			assert.Equal(t, raw, got)
+		})
+	}
+}
+
+func TestLimitRequestBody_GetHeadLargeBodyUnwrapped(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	raw := bytes.Repeat([]byte("x"), int(DefaultJSONBodyMaxBytes)+8)
+
+	tests := []struct {
+		name   string
+		method string
+	}{
+		{name: "GET の大きなボディは MaxBytesReader で包まない", method: http.MethodGet},
+		{name: "HEAD の大きなボディは MaxBytesReader で包まない", method: http.MethodHead},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			req, err := http.NewRequest(tt.method, "/test", bytes.NewReader(raw))
+			require.NoError(t, err)
+			req.Header.Set("Content-Type", "application/json")
+			req.ContentLength = int64(len(raw))
+			originalBody := req.Body
+			c.Request = req
+
+			LimitRequestBody(DefaultJSONBodyMaxBytes)(c)
+
+			assert.NotEqual(t, http.StatusRequestEntityTooLarge, w.Code)
+			assert.False(t, c.IsAborted())
+			assert.True(t, originalBody == c.Request.Body)
+			got, readErr := io.ReadAll(c.Request.Body)
+			require.NoError(t, readErr)
+			assert.Equal(t, raw, got)
+		})
+	}
+}
+
+func TestSanitizeNullBytes_EmptyDeleteUnwrapped(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name          string
+		body          io.Reader
+		contentLength int64
+	}{
+		{name: "NoBody", body: http.NoBody, contentLength: 0},
+		{name: "ContentLength 0", body: bytes.NewReader(nil), contentLength: 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			req, err := http.NewRequest(http.MethodDelete, "/test", tt.body)
+			require.NoError(t, err)
+			req.Header.Set("Content-Type", "application/json")
+			req.ContentLength = tt.contentLength
+			originalBody := req.Body
+			c.Request = req
+
+			SanitizeNullBytes()(c)
+
+			assert.NotEqual(t, http.StatusRequestEntityTooLarge, w.Code)
+			assert.False(t, c.IsAborted())
+			assert.True(t, originalBody == c.Request.Body)
+		})
+	}
+}
+
+func TestSanitizeNullBytes_DeleteOctetStreamDeclaredLengthRespectsRawByteLimit(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	req, err := http.NewRequest(http.MethodDelete, "/test", bytes.NewReader([]byte(`{}`)))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/octet-stream")
+	req.ContentLength = DefaultJSONBodyMaxBytes + 1
+	c.Request = req
+
+	SanitizeNullBytes()(c)
+	assert.Equal(t, http.StatusRequestEntityTooLarge, w.Code)
+	assert.True(t, c.IsAborted())
+}
+
+func TestLimitRequestBody_DeleteOctetStreamDeclaredLengthRespectsRawByteLimit(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	req, err := http.NewRequest(http.MethodDelete, "/test", bytes.NewReader([]byte(`{}`)))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/octet-stream")
+	req.ContentLength = DefaultJSONBodyMaxBytes + 1
+	c.Request = req
+
+	LimitRequestBody(DefaultJSONBodyMaxBytes)(c)
+	assert.Equal(t, http.StatusRequestEntityTooLarge, w.Code)
+	assert.True(t, c.IsAborted())
+}
+
+func TestLimitRequestBody_EmptyDeleteUnwrapped(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name          string
+		body          io.Reader
+		contentLength int64
+	}{
+		{name: "NoBody", body: http.NoBody, contentLength: 0},
+		{name: "ContentLength 0", body: bytes.NewReader(nil), contentLength: 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			req, err := http.NewRequest(http.MethodDelete, "/test", tt.body)
+			require.NoError(t, err)
+			req.Header.Set("Content-Type", "application/json")
+			req.ContentLength = tt.contentLength
+			originalBody := req.Body
+			c.Request = req
+
+			LimitRequestBody(DefaultJSONBodyMaxBytes)(c)
+
+			assert.NotEqual(t, http.StatusRequestEntityTooLarge, w.Code)
+			assert.False(t, c.IsAborted())
+			assert.True(t, originalBody == c.Request.Body)
+		})
+	}
 }
 
 type countingSanitizerReader struct {

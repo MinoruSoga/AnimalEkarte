@@ -12,7 +12,12 @@ import { getUnbilledItemDetails, type UnbilledWarning } from "../api/get-unbille
 import { useGetUngroupedSameDay } from "../api/get-ungrouped-items";
 import type { PaymentSplitDraft } from "../components/PaymentCard";
 import type { Accounting, AccountingItem, PaymentInfo } from "../types";
-import { createInitialPaymentSplits } from "../components/accounting-detail-model";
+import { createInitialPaymentSplits } from "../lib/accounting-detail-model";
+
+// FE-RC-048: 新規会計の未取得ペット種別に対する表示上の暫定既定値（実データ未確定時のみ使用）。
+const DEFAULT_PET_SPECIES_LABEL = "犬";
+// FE-RC-049: 保険適用比率の初期値（デフォルト5割負担）。
+const DEFAULT_INSURANCE_RATIO = "0.5";
 
 interface UseAccountingDetailStateArgs {
   accountingId?: string;
@@ -55,7 +60,7 @@ export function useAccountingDetailState({
       ownerName: newPetData?.ownerName ?? "飼い主様",
       petId: newPetId,
       petName: newPetData?.name ?? "ペット",
-      petSpecies: newPetData?.species ?? "犬",
+      petSpecies: newPetData?.species ?? DEFAULT_PET_SPECIES_LABEL,
       status: "waiting",
       scheduledDate: todayJSTISO(),
       items: stateItems,
@@ -73,12 +78,8 @@ export function useAccountingDetailState({
   );
   const blocksDeceasedOrUnconfirmedPet = Boolean(
     !accountingId &&
-      newPetId &&
-      (newPetPending ||
-        newPetError ||
-        !newPetSuccess ||
-        !newPetData ||
-        newPetData.status !== "生存"),
+    newPetId &&
+    (newPetPending || newPetError || !newPetSuccess || !newPetData || newPetData.status !== "生存"),
   );
   // 表示メッセージは settle 後のみ（pending 中は fieldset disabled のみ）。
   const deceasedPetBlockMessage = (() => {
@@ -158,7 +159,7 @@ export function useAccountingDetailState({
   }, [baseAccounting, completedPayment, displayItems]);
 
   const [hasInsurance, setHasInsurance] = useState(false);
-  const [insuranceRatio, setInsuranceRatio] = useState("0.5");
+  const [insuranceRatio, setInsuranceRatio] = useState(DEFAULT_INSURANCE_RATIO);
   const [paymentSplits, setPaymentSplits] = useState<PaymentSplitDraft[]>([]);
 
   const calculation = useMemo(() => {
@@ -194,7 +195,9 @@ export function useAccountingDetailState({
   useEffect(() => {
     if (!fetchedAccounting?.payment) return;
     setHasInsurance((fetchedAccounting.payment.insuranceAmount ?? 0) < 0);
-    setInsuranceRatio(fetchedAccounting.payment.insuranceRatio?.toString() ?? "0.5");
+    setInsuranceRatio(
+      fetchedAccounting.payment.insuranceRatio?.toString() ?? DEFAULT_INSURANCE_RATIO,
+    );
     setPaymentSplits(createInitialPaymentSplits(fetchedAccounting));
   }, [fetchedAccounting]);
   /* eslint-enable react-hooks/set-state-in-effect */

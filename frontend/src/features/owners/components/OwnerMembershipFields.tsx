@@ -1,12 +1,18 @@
 import { memo } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { C, STYLE } from "@/lib/design-tokens";
 import { MEMBERSHIP_TYPE_VALUES, type MembershipTypeLabel } from "../types";
-import type { OwnerFieldSectionProps } from "./owner-info-field-shared";
+import type { OwnerFieldSectionProps } from "../lib/owner-info-field-shared";
 
 interface MembershipTypeButtonsProps {
   value: MembershipTypeLabel;
@@ -61,7 +67,9 @@ export function OwnerMembershipFields({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="dmPreference" className={`text-sm ${C.text60}`}>DM</Label>
+        <Label htmlFor="dmPreference" className={`text-sm ${C.text60}`}>
+          DM
+        </Label>
         <Select
           value={
             ownerData.dmPreference == null
@@ -71,10 +79,7 @@ export function OwnerMembershipFields({
                 : "unneeded"
           }
           onValueChange={(value) => {
-            onChange(
-              "dmPreference",
-              value === "unset" ? null : value === "required",
-            );
+            onChange("dmPreference", value === "unset" ? null : value === "required");
           }}
         >
           <SelectTrigger id="dmPreference" className={STYLE.formInput}>
@@ -89,7 +94,9 @@ export function OwnerMembershipFields({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="discountRate" className={`text-sm ${C.text60}`}>値引率 (%)</Label>
+        <Label htmlFor="discountRate" className={`text-sm ${C.text60}`}>
+          値引率 (%)
+        </Label>
         <NumberInput
           id="discountRate"
           min={0}

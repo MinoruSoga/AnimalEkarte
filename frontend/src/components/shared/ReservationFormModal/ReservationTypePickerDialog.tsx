@@ -5,7 +5,13 @@ import { useState, useCallback, useMemo, useDeferredValue, memo, Fragment } from
 import { Check } from "lucide-react";
 
 // Internal
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { EmptyState } from "@/components/shared/DataStates";
 import { ClearableSearchInput } from "@/components/shared/ClearableSearchInput";
 import { CategoryChipsFilter } from "@/components/shared/CategoryChipsFilter";
@@ -76,7 +82,9 @@ export const ReservationTypePickerDialog = memo(function ReservationTypePickerDi
       .filter((g) => activeCategory === null || g.label === activeCategory)
       .map((g) => ({
         label: g.label,
-        items: term ? g.items.filter((it) => normalizeKana(it.name).toLowerCase().includes(term)) : g.items,
+        items: term
+          ? g.items.filter((it) => normalizeKana(it.name).toLowerCase().includes(term))
+          : g.items,
       }))
       .filter((g) => g.items.length > 0);
   }, [groups, activeCategory, deferredSearchTerm]);
@@ -115,12 +123,7 @@ export const ReservationTypePickerDialog = memo(function ReservationTypePickerDi
             filteredGroups.map((group) => (
               <Fragment key={group.label}>
                 {activeCategory === null ? (
-                  <div
-                    className={cn(
-                      "px-2 py-1.5 text-2xs font-semibold uppercase",
-                      C.text40,
-                    )}
-                  >
+                  <div className={cn("px-2 py-1.5 text-2xs font-semibold uppercase", C.text40)}>
                     {group.label}
                   </div>
                 ) : null}
@@ -137,7 +140,12 @@ export const ReservationTypePickerDialog = memo(function ReservationTypePickerDi
                           "group flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-all",
                           isSelected
                             ? cn(C.borderBrand, C.bgBrand8)
-                            : cn("bg-white", C.borderMedium, C.hoverBorderPrimary30, C.hoverBgPageHalf),
+                            : cn(
+                                "bg-white",
+                                C.borderMedium,
+                                C.hoverBorderPrimary30,
+                                C.hoverBgPageHalf,
+                              ),
                         )}
                       >
                         <span

@@ -1,4 +1,4 @@
-// Package service provides business logic implementations for Medicine entity.
+// Package medicalrecord provides medicine use cases.
 package medicalrecord
 
 import (
@@ -33,6 +33,12 @@ const (
 
 func buildMedicineUpdate(input *UpdateMedicineInput) map[string]any {
 	fields := make(map[string]any)
+	applyMedicineCoreUpdateFields(fields, input)
+	applyMedicineDoseUpdateFields(fields, input)
+	return fields
+}
+
+func applyMedicineCoreUpdateFields(fields map[string]any, input *UpdateMedicineInput) {
 	if input.Name != nil {
 		fields[colMedicineName] = *input.Name
 	}
@@ -78,7 +84,9 @@ func buildMedicineUpdate(input *UpdateMedicineInput) map[string]any {
 	if input.IsNonInsurance != nil {
 		fields[colMedicineIsNonInsurance] = *input.IsNonInsurance
 	}
-	// #201 投与量計算（製品軸）
+}
+
+func applyMedicineDoseUpdateFields(fields map[string]any, input *UpdateMedicineInput) {
 	if input.CalculationType != nil {
 		fields[colMedicineCalculationType] = *input.CalculationType
 	}
@@ -93,7 +101,6 @@ func buildMedicineUpdate(input *UpdateMedicineInput) map[string]any {
 	if input.DefaultDurationDays != nil {
 		fields[colMedicineDefaultDurationDays] = *input.DefaultDurationDays
 	}
-	return fields
 }
 
 // --- Input DTOs ---
@@ -253,6 +260,9 @@ func (s *medicineService) Create(ctx context.Context, clinicID uint64, input *Cr
 	if err := validateRequiredName(input.Name); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate required name")
 	}
+	if err := validateNonNegativePrice(input.Price); err != nil {
+		return nil, apperrors.Wrap(err, "failed to validate non negative price")
+	}
 	if err := s.validateParentOwnership(ctx, clinicID, input.ParentID); err != nil {
 		return nil, err
 	}
@@ -274,73 +284,16 @@ func (s *medicineService) Create(ctx context.Context, clinicID uint64, input *Cr
 	if input.TaxRate != nil {
 		taxRate = *input.TaxRate
 	}
-	medicine := &model.Medicine{
-		ClinicID:            clinicID,
-		Name:                input.Name,
-		ParentID:            input.ParentID,
-		Price:               input.Price,
-		IsActive:            input.IsActive,
-		Description:         input.Description,
-		InventoryID:         input.InventoryID,
-		DefaultQuantity:     input.DefaultQuantity,
-		SortOrder:           input.SortOrder,
-		TaxType:             taxType,
-		TaxRate:             taxRate,
-		IsNonInsurance:      input.IsNonInsurance,
-		CalculationType:     calcType,
-		Strength:            input.Strength,
-		FrequencyPerDay:     input.FrequencyPerDay,
-		DefaultDurationDays: input.DefaultDurationDays,
-	}
-	if input.DosageForm != nil && *input.DosageForm != "" {
-		df := model.DosageForm(*input.DosageForm)
-		medicine.DosageForm = &df
-	}
-	if input.MedicineUnit != nil && *input.MedicineUnit != "" {
-		mu := model.MedicineUnit(*input.MedicineUnit)
-		medicine.MedicineUnit = &mu
-	}
+	medicine := medicineFromCreateInput(clinicID, input, calcType, taxType, taxRate)
 
 	// BUG-429: 薬剤作成と在庫アイテム自動作成をトランザクションでアトミックに実行
 	// BE-refactor.md R1-2 (D1): per_weight 有効化監査も同一 tx に統合する（fail-closed）。
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		if err := s.repo.Create(txCtx, medicine); err != nil {
-			slog.ErrorContext(txCtx, "failed to create medicine", "error", err, "clinic_id", clinicID)
-			return apperrors.Wrap(err, "failed to create medicine")
-		}
-		// BUG-320: 薬品作成時に在庫アイテムを自動作成
-		inventoryItem := &model.InventoryItem{
-			ClinicID:      clinicID,
-			Name:          medicine.Name,
-			Category:      model.InventoryCategoryMedicine,
-			Quantity:      0,
-			Unit:          "錠", // デフォルト
-			MinStockLevel: 0,
-			Status:        model.InventoryStatusSufficient,
-		}
-		if err := s.inventoryRepo.Create(txCtx, clinicID, inventoryItem); err != nil {
-			slog.ErrorContext(txCtx, "failed to create inventory item for medicine", "error", err, "clinic_id", clinicID)
-			return apperrors.Wrap(err, "failed to create inventory item for medicine")
-		}
-		// MRC-02: persist inventory_id so delete/rename use id not fragile name matching.
-		if inventoryItem.ID != 0 {
-			invID := inventoryItem.ID
-			medicine.InventoryID = &invID
-			if _, err := s.repo.Update(txCtx, clinicID, medicine.ID, map[string]any{colMedicineInventoryID: invID}); err != nil {
-				slog.ErrorContext(txCtx, "failed to link inventory item to medicine", "error", err, "clinic_id", clinicID, "medicine_id", medicine.ID)
-				return apperrors.Wrap(err, "failed to link inventory item to medicine")
-			}
-		}
-		// #201 B-2: per_weight 有効化は安全クリティカル設定変更 → 監査（fail-closed）。
-		if calcType == model.MedicineCalculationTypePerWeight {
-			if err := s.auditPerWeightEnableTx(txCtx, clinicID, input.ActorID, medicine.ID, nil, medicine); err != nil {
-				return err
-			}
-		}
-		return nil
+		return s.createMedicineInTx(txCtx, clinicID, input, medicine, calcType)
 	}); err != nil {
-		slog.ErrorContext(ctx, "failed to create medicine", "error", err)
-		return nil, apperrors.Wrap(err, "failed to create medicine")
+		// Preserve domain name-conflict (and other AppError) without double-wrap,
+		// matching exam_type / peer masters (BUG-011).
+		return nil, err
 	}
 
 	slog.InfoContext(ctx, "medicine created",
@@ -395,6 +348,9 @@ func (s *medicineService) Update(ctx context.Context, clinicID, id uint64, input
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate optional name")
 	}
+	if err := validateNonNegativePrice(input.Price); err != nil {
+		return nil, apperrors.Wrap(err, "failed to validate non negative price")
+	}
 
 	if err := validateDoseConfigAfterUpdate(existing, input); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate dose config")
@@ -430,9 +386,12 @@ func (s *medicineService) Update(ctx context.Context, clinicID, id uint64, input
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		var txErr error
 		result, txErr = s.repo.Update(txCtx, clinicID, id, fields)
+		nameForConflict := ""
+		if input.Name != nil {
+			nameForConflict = *input.Name
+		}
 		if txErr != nil {
-			slog.ErrorContext(txCtx, "failed to update medicine", "error", txErr, "id", id, "clinic_id", clinicID)
-			return apperrors.Wrap(txErr, "failed to update medicine")
+			return wrapMedicineNameConflict(txCtx, txErr, nameForConflict, clinicID, id, "failed to update medicine")
 		}
 		if nameChanged {
 			if txErr = s.inventoryRepo.UpdateNameByMedicineCategory(txCtx, clinicID, oldName, newName); txErr != nil {
@@ -447,8 +406,8 @@ func (s *medicineService) Update(ctx context.Context, clinicID, id uint64, input
 		}
 		return nil
 	}); err != nil {
-		slog.ErrorContext(ctx, "failed to update medicine", "error", err)
-		return nil, apperrors.Wrap(err, "failed to update medicine")
+		// Preserve domain name-conflict without double-wrap (BUG-011 peer parity).
+		return nil, err
 	}
 	slog.InfoContext(ctx, "medicine updated",
 		slog.Uint64("clinic_id", clinicID),
@@ -506,58 +465,7 @@ func (s *medicineService) Delete(ctx context.Context, clinicID, id uint64) error
 		return apperrors.WrapInternalServerError("medicine delete audit dependency is required")
 	}
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		// Re-check usage inside tx to shrink MRC-07 TOCTOU window for medicine deletes.
-		if m.ParentID != nil {
-			usageCount, err := s.repo.CountUsageByMedicineID(txCtx, clinicID, id)
-			if err != nil {
-				return apperrors.Wrap(err, "failed to re-check medicine usage")
-			}
-			if usageCount > 0 {
-				return apperrors.WrapConflict("この薬剤は診療記録で使用中のため削除できません")
-			}
-		} else {
-			count, err := s.repo.CountChildrenByParentID(txCtx, clinicID, id)
-			if err != nil {
-				return apperrors.Wrap(err, "failed to re-count medicine children")
-			}
-			if count > 0 {
-				return apperrors.WrapConflict(
-					fmt.Sprintf("このカテゴリには%d件の薬剤が含まれています。先に薬剤を移動または削除してください", count),
-				)
-			}
-		}
-		if err := s.repo.Delete(txCtx, clinicID, id); err != nil {
-			slog.ErrorContext(txCtx, "failed to delete medicine", "error", err, "id", id, "clinic_id", clinicID)
-			return apperrors.Wrap(err, "failed to delete medicine")
-		}
-		if m.InventoryID != nil && *m.InventoryID != 0 {
-			if err := s.inventoryRepo.Delete(txCtx, clinicID, *m.InventoryID); err != nil {
-				// NotFound is acceptable for already-orphaned inventory; other errors fail closed.
-				if !apperrors.IsNotFound(err) {
-					slog.ErrorContext(txCtx, "failed to delete linked inventory for medicine", "error", err, "clinic_id", clinicID, "inventory_id", *m.InventoryID)
-					return apperrors.Wrap(err, "failed to delete linked inventory for medicine")
-				}
-			}
-		} else if err := s.inventoryRepo.DeleteByNameAndMedicineCategory(txCtx, clinicID, m.Name); err != nil {
-			slog.ErrorContext(txCtx, "failed to delete linked inventory for medicine by name", "error", err, "clinic_id", clinicID)
-			return apperrors.Wrap(err, "failed to delete linked inventory for medicine")
-		}
-		resourceID := id
-		if err := s.auditTx.LogEntryTx(txCtx, &AuditEntry{
-			ClinicID:   &clinicID,
-			ActorType:  auditActorTypeFor(nil),
-			Action:     "medicine.delete",
-			Resource:   model.AuditResourceMedicine,
-			ResourceID: &resourceID,
-			OldValue: map[string]any{
-				"id":           m.ID,
-				"name":         m.Name,
-				"inventory_id": m.InventoryID,
-			},
-		}); err != nil {
-			return apperrors.Wrap(err, "failed to audit medicine delete")
-		}
-		return nil
+		return s.deleteMedicineInTx(txCtx, clinicID, id, m)
 	}); err != nil {
 		slog.ErrorContext(ctx, "failed to delete medicine", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete medicine")
@@ -587,4 +495,21 @@ func (s *medicineService) validateInventoryOwnership(ctx context.Context, clinic
 			_, err := s.inventoryRepo.FindByID(actx, cid, mid)
 			return err
 		})
+}
+
+func wrapMedicineNameConflict(ctx context.Context, err error, name string, clinicID, id uint64, wrapMsg string) error {
+	if conflict := apperrors.AsNameUniqueConflict(
+		err,
+		name,
+		apperrors.ConstraintMedicineName,
+		apperrors.CodeMedicineNameConflict,
+	); conflict != nil {
+		return conflict
+	}
+	if id == 0 {
+		slog.ErrorContext(ctx, wrapMsg, "error", err, "clinic_id", clinicID)
+	} else {
+		slog.ErrorContext(ctx, wrapMsg, "error", err, "id", id, "clinic_id", clinicID)
+	}
+	return apperrors.Wrap(err, wrapMsg)
 }

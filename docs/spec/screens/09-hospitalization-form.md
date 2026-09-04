@@ -29,10 +29,13 @@
 ## 画面構成
 
 ### 1. 入院基本情報
+- **患者ヘッダー**: `PatientInfoCard` + `formatPatientPetDetails` に `species` を渡す。動物種は実データを表示する（固定の「不明」にしない）。
+
 Notionスタイルのプロパティ編集UIで、入院の根幹となる条件を設定します。
 - **入院タイプ**: 「入院」または「ホテル」を選択。
 - **予定期間**: 入院予定日と退院予定日の期間指定（新規 create body に含む。編集 UI に日付があっても update payload に start/end が無い場合は永続化されない点に注意）。
 - **ケージ割り当て**: マスタに登録済みのケージ・個室から検索選択（空き状況によるフィルタリングはなし）。
+- **担当医**: ヘッダー「担当医」ボタンで `staffType=doctor` かつ active のスタッフを選ぶ（`doctor_id`）。未選択可。一覧の担当医列と同じフィールド。
 - **保険適用**: チェックONで保険会社名・保険番号の入力欄が表示される。
 - **メモ**: 自由記述メモ。
 
@@ -41,7 +44,8 @@ Notionスタイルのプロパティ編集UIで、入院の根幹となる条件
   - **新規作成時**: 治療内容が空でない行だけを、親 `POST /v1/hospitalizations` の `treatment_plans` に同梱して作成する。空行はスキップ。
   - **編集時**: `GET /v1/hospitalizations/:id/treatment-plans` で hydrate し **読み取り専用**。本画面の更新では治療プランを変更しない（親フィールドのみ）。
   - **BE**: 入院ネストの `PATCH` / `DELETE .../treatment-plans/:planId` はサービス層で **Conflict**（登録時スナップショットのため変更・削除不可）。ルートは fail-closed のまま残す。
-- **連絡事項**: 「飼主からのリクエスト」「スタッフへの連絡事項」の2枚のメモカード。
+- **主訴**: `owner_request` を入力するメモカード。一覧の主訴列と同じフィールド（新規列は無い）。
+- **スタッフへの連絡事項**: `staff_notes`。
 - **継続ケア**: 投薬・給餌などの**ケアプラン**は入院詳細画面で管理する（本画面の対象外）。
 
 ### 3. 金額概算
@@ -70,8 +74,8 @@ Notionスタイルのプロパティ編集UIで、入院の根幹となる条件
 | メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
 |:---|:---|:---|:---|:---|
 | GET | `/api/v1/hospitalizations/:id` | 編集時の既存レコード取得 | `hospitalization` | `view` |
-| POST | `/api/v1/hospitalizations` | 入院レコードの新規保存（`treatment_plans` 同梱可） | `hospitalization` | `create` |
-| PATCH | `/api/v1/hospitalizations/:id` | 登録情報の更新（治療プランは含まない） | `hospitalization` | `edit` |
+| POST | `/api/v1/hospitalizations` | 入院レコードの新規保存（`treatment_plans` 同梱可。任意で `doctor_id` / `owner_request`） | `hospitalization` | `create` |
+| PATCH | `/api/v1/hospitalizations/:id` | 登録情報の更新（治療プランは含まない。任意で `doctor_id` / `owner_request`） | `hospitalization` | `edit` |
 | DELETE | `/api/v1/hospitalizations/:id` | 入院レコードの削除（子治療プランありは 409） | `hospitalization` | `delete` |
 | GET | `/api/v1/hospitalizations/:id/treatment-plans` | 編集時の治療プラン hydrate | `hospitalization` | `view` |
 | PATCH | `/api/v1/hospitalizations/:id/treatment-plans/:planId` | **常に Conflict**（スナップショット） | `hospitalization` | `edit` |

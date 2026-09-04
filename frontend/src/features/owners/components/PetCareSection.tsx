@@ -4,14 +4,20 @@ import { MasterLink } from "@/components/shared/MasterLink";
 import { PetDeceasedRecordButton } from "@/components/shared/PetDeceasedRecordButton/PetDeceasedRecordButton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { C } from "@/lib/design-tokens";
 
 import { isPersistedPetId } from "@/lib/pet-id";
 
 import type { PetFormData } from "../types";
-import { LABEL_CLS, INPUT_CLS } from "./pet-edit-field-shared";
+import { LABEL_CLS, INPUT_CLS } from "./PetEditFieldShared";
 
 export interface InsuranceOption {
   id: string | number;
@@ -46,14 +52,14 @@ export function PetCareSection({
 }: PetCareSectionProps) {
   // BUG-022: pending ペットはサーバ未登録のため死亡記録 API を出さない
   const targetPetId =
-    formData.isPending === true || !isPersistedPetId(formData.id)
-      ? undefined
-      : formData.id;
+    formData.isPending === true || !isPersistedPetId(formData.id) ? undefined : formData.id;
 
   return (
     <div className="space-y-2">
       <div className="space-y-1">
-        <Label htmlFor="food" className={LABEL_CLS}>食べ物</Label>
+        <Label htmlFor="food" className={LABEL_CLS}>
+          食べ物
+        </Label>
         <Input
           id="food"
           value={formData.food || ""}
@@ -63,7 +69,9 @@ export function PetCareSection({
       </div>
 
       <div className="space-y-1">
-        <Label htmlFor="environment" className={LABEL_CLS}>飼育環境</Label>
+        <Label htmlFor="environment" className={LABEL_CLS}>
+          飼育環境
+        </Label>
         <Input
           id="environment"
           value={formData.environment || ""}
@@ -74,7 +82,9 @@ export function PetCareSection({
 
       <div className="space-y-1">
         <div className="flex items-center justify-between">
-          <Label htmlFor="insuranceId" className={LABEL_CLS}>保険</Label>
+          <Label htmlFor="insuranceId" className={LABEL_CLS}>
+            保険
+          </Label>
           <MasterLink category="insurance" label="編集" className="text-2xs" />
         </div>
         <Select
@@ -121,9 +131,7 @@ export function PetCareSection({
             死亡
           </label>
         </div>
-        <p className={`text-xs ${C.textMuted}`}>
-          生死の変更は下記のボタンから行ってください
-        </p>
+        <p className={`text-xs ${C.textMuted}`}>生死の変更は下記のボタンから行ってください</p>
         {targetPetId ? (
           <div className="pt-1">
             <PetDeceasedRecordButton
@@ -174,7 +182,9 @@ export function PetCareSection({
       </div>
 
       <div className="space-y-1">
-        <Label htmlFor="remarks" className={LABEL_CLS}>備考・特記事項</Label>
+        <Label htmlFor="remarks" className={LABEL_CLS}>
+          備考・特記事項
+        </Label>
         <Textarea
           id="remarks"
           rows={3}

@@ -2,7 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createTestWrapper } from "@/testing/utils";
+import { createTestWrapper } from "@/testing/TestUtils";
 import { useGetOwnerSharedPets } from "../api/get-owner-shared-pets";
 import type { PetFormData } from "../types";
 import { OwnerPetsSection } from "./OwnerPetsSection";
@@ -219,50 +219,23 @@ describe("OwnerPetsSection shared pets", () => {
       throw new Error("expected pet rows");
     }
     expect(
-      ownRow.compareDocumentPosition(sharedRow) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
+      ownRow.compareDocumentPosition(sharedRow) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-    expect(within(sharedRow).getByText("ハナ")).not.toHaveAttribute(
-      "data-slot",
-      "badge",
-    );
-    expect(within(sharedRow).getByText("副飼主")).toHaveAttribute(
-      "data-slot",
-      "badge",
-    );
+    expect(within(sharedRow).getByText("ハナ")).not.toHaveAttribute("data-slot", "badge");
+    expect(within(sharedRow).getByText("副飼主")).toHaveAttribute("data-slot", "badge");
     expect(within(sharedRow).getByText("妻")).toBeInTheDocument();
     expect(within(sharedRow).getByText("死亡")).toBeInTheDocument();
     expect(within(sharedRow).getByText("雄")).toBeInTheDocument();
-    expect(within(fallbackRow).getByText("ミケ")).not.toHaveAttribute(
-      "data-slot",
-      "badge",
-    );
-    expect(within(fallbackRow).getByText("副飼主")).toHaveAttribute(
-      "data-slot",
-      "badge",
-    );
-    expect(within(fallbackRow).getAllByRole("cell")[1]).toHaveTextContent(
-      /^ミケ副飼主$/,
-    );
+    expect(within(fallbackRow).getByText("ミケ")).not.toHaveAttribute("data-slot", "badge");
+    expect(within(fallbackRow).getByText("副飼主")).toHaveAttribute("data-slot", "badge");
+    expect(within(fallbackRow).getAllByRole("cell")[1]).toHaveTextContent(/^ミケ副飼主$/);
     expect(within(fallbackRow).getByText("不明")).toBeInTheDocument();
     expect(within(fallbackRow).getByText("other")).toBeInTheDocument();
     expect(
       within(fallbackRow)
         .getAllByRole("cell")
         .map((cell) => cell.textContent),
-    ).toEqual([
-      "P003",
-      "ミケ副飼主",
-      "不明",
-      "猫",
-      "other",
-      "",
-      "三毛",
-      "",
-      "室内",
-      "",
-      "",
-    ]);
+    ).toEqual(["P003", "ミケ副飼主", "不明", "猫", "other", "", "三毛", "", "室内", "", ""]);
   });
 
   it("shared行は読み取り専用で操作とown callbackを持たない", async () => {
@@ -342,9 +315,7 @@ describe("OwnerPetsSection shared pets", () => {
 
     expect(screen.getByText("ハナ")).toBeInTheDocument();
     expect(
-      screen.queryByText(
-        "ペット情報がありません。「ペット追加」ボタンから追加してください。",
-      ),
+      screen.queryByText("ペット情報がありません。「ペット追加」ボタンから追加してください。"),
     ).not.toBeInTheDocument();
   });
 
@@ -352,9 +323,7 @@ describe("OwnerPetsSection shared pets", () => {
     renderSection({ pets: [] });
 
     expect(
-      screen.getByText(
-        "ペット情報がありません。「ペット追加」ボタンから追加してください。",
-      ),
+      screen.getByText("ペット情報がありません。「ペット追加」ボタンから追加してください。"),
     ).toBeInTheDocument();
   });
 
@@ -368,13 +337,9 @@ describe("OwnerPetsSection shared pets", () => {
     renderSection();
 
     expect(screen.getByText("ポチ")).toBeInTheDocument();
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      "共有ペット情報の取得に失敗しました。",
-    );
+    expect(screen.getByRole("alert")).toHaveTextContent("共有ペット情報の取得に失敗しました。");
     expect(
-      screen.queryByText(
-        "ペット情報がありません。「ペット追加」ボタンから追加してください。",
-      ),
+      screen.queryByText("ペット情報がありません。「ペット追加」ボタンから追加してください。"),
     ).not.toBeInTheDocument();
   });
 });

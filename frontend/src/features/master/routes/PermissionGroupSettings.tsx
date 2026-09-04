@@ -11,7 +11,7 @@ import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
 import { MasterCRUDPage } from "../components/MasterCRUDPage";
 import { PermissionGroupSidePanel } from "../components/PermissionGroupSidePanel";
-import type { PermissionGroupFormData } from "../components/permission-group-side-panel-model";
+import type { PermissionGroupFormData } from "../lib/permission-group-side-panel-model";
 import {
   PERMISSION_GROUP_COLUMNS,
   PermissionGroupSortableTable,
@@ -37,9 +37,7 @@ import { ResourceMasterPermission } from "@/types/generated/models";
 // Constants
 // ─────────────────────────────────────────────────
 
-const PERMISSION_GROUP_FILTER_PROPERTIES: FilterProperty[] = [
-  MASTER_STATUS_FILTER,
-];
+const PERMISSION_GROUP_FILTER_PROPERTIES: FilterProperty[] = [MASTER_STATUS_FILTER];
 
 export function PermissionGroupSettings() {
   const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterPermission);
@@ -81,7 +79,13 @@ export function PermissionGroupSettings() {
     dirtyGuard: dirty,
     permissions: { canDelete },
   });
-  const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
+  const handleDirtyChange = useCallback(
+    (d: boolean) => {
+      if (d) dirty.markDirty();
+      else dirty.markClean();
+    },
+    [dirty],
+  );
 
   const { orderedItems, sensors, handleDragEnd } = useSortableList({
     items: crud.filteredItems,
@@ -109,47 +113,47 @@ export function PermissionGroupSettings() {
     toUpdateRequest: buildPermissionGroupUpdateRequest,
     // BUG-024: do not toast success when parent updated_at moves but rules lag.
     onSuccess: (saved, formData) => {
-      assertSavedPermissionRulesMatch(
-        buildPermissionGroupUpdateRequest(formData).rules,
-        saved,
-      );
+      assertSavedPermissionRulesMatch(buildPermissionGroupUpdateRequest(formData).rules, saved);
     },
     closeOnSuccess: false,
   });
 
   return (
-    <MasterCRUDPage
-      title="権限グループマスタ"
-      icon={<Lock className={`${ICON.page} ${C.text}`} />}
-      resource={ResourceMasterPermission}
-      entityLabel="グループ"
-      searchPlaceholder="グループ名、説明で検索..."
-      emptyMessage="権限グループが登録されていません"
-      crud={crud}
-      handleSave={handleSave}
-      columns={PERMISSION_GROUP_COLUMNS}
-      filterProperties={PERMISSION_GROUP_FILTER_PROPERTIES}
-      renderRow={() => null}
-      renderSidePanel={({ item, onClose, onDeleteRequest, readOnly }) => (
-        <PermissionGroupSidePanel
-          key={item?.id ?? "new"}
-          item={item}
-          onClose={onClose}
-          onSave={handleSave}
-          onSaveSuccess={() => crud.setEditTarget(null)}
-          onDeleteRequest={onDeleteRequest}
-          readOnly={readOnly}
-          onDirtyChange={handleDirtyChange}
+    <>
+      <MasterCRUDPage
+        title="権限グループマスタ"
+        icon={<Lock className={`${ICON.page} ${C.text}`} />}
+        resource={ResourceMasterPermission}
+        entityLabel="グループ"
+        searchPlaceholder="グループ名、説明で検索..."
+        emptyMessage="権限グループが登録されていません"
+        crud={crud}
+        handleSave={handleSave}
+        columns={PERMISSION_GROUP_COLUMNS}
+        filterProperties={PERMISSION_GROUP_FILTER_PROPERTIES}
+        renderRow={() => null}
+        renderSidePanel={({ item, onClose, onDeleteRequest, readOnly }) => (
+          <PermissionGroupSidePanel
+            key={item?.id ?? "new"}
+            item={item}
+            onClose={onClose}
+            onSave={handleSave}
+            onSaveSuccess={() => crud.setEditTarget(null)}
+            onDeleteRequest={onDeleteRequest}
+            readOnly={readOnly}
+            onDirtyChange={handleDirtyChange}
+          />
+        )}
+      >
+        <PermissionGroupSortableTable
+          items={orderedItems}
+          sensors={sensors}
+          onDragEnd={handleDragEnd}
+          canEdit={canEdit}
+          onEdit={crud.handleEdit}
         />
-      )}
-    >
-      <PermissionGroupSortableTable
-        items={orderedItems}
-        sensors={sensors}
-        onDragEnd={handleDragEnd}
-        canEdit={canEdit}
-        onEdit={crud.handleEdit}
-      />
-    </MasterCRUDPage>
+      </MasterCRUDPage>
+      {dirty.discardDialog}
+    </>
   );
 }

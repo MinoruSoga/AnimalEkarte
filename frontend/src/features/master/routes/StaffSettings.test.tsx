@@ -3,7 +3,7 @@ import { render, act } from "@testing-library/react";
 import { toast } from "sonner";
 import { StaffSettings } from "./StaffSettings";
 import type { Staff } from "../api/staffs";
-import type { StaffFormData } from "../components/staff-side-panel-model";
+import type { StaffFormData } from "../lib/staff-side-panel-model";
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
@@ -17,14 +17,12 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 // 呼ばずに toast.error(error) でユーザーに通知して return する。
 // ──────────────────────────────────────────────────────────
 
-const { mockCreateMutate, mockUpdateMutate, mockSetGroups, mockSetClinics } = vi.hoisted(
-  () => ({
-    mockCreateMutate: vi.fn(),
-    mockUpdateMutate: vi.fn(),
-    mockSetGroups: vi.fn(),
-    mockSetClinics: vi.fn(),
-  }),
-);
+const { mockCreateMutate, mockUpdateMutate, mockSetGroups, mockSetClinics } = vi.hoisted(() => ({
+  mockCreateMutate: vi.fn(),
+  mockUpdateMutate: vi.fn(),
+  mockSetGroups: vi.fn(),
+  mockSetClinics: vi.fn(),
+}));
 
 const ALL_ALLOWED = { canView: true, canCreate: true, canEdit: true, canDelete: true };
 // resource 別に差し替えられるようにする（権限グループ割当は master-permission:edit も要る）。

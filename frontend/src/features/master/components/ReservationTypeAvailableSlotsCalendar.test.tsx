@@ -5,7 +5,7 @@ import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
-import { createTestWrapper } from "@/testing/utils";
+import { createTestWrapper } from "@/testing/TestUtils";
 import { toJSTWallDate } from "@/lib/jst-date";
 import { ReservationTypeAvailableSlotsCalendar } from "./ReservationTypeAvailableSlotsCalendar";
 
@@ -56,9 +56,7 @@ function renderCalendar() {
 describe("ReservationTypeAvailableSlotsCalendar", () => {
   it("狭幅でも7日の日付buttonを44px以上に保ちcalendar内だけ横scrollできる", async () => {
     server.use(
-      http.get("/api/v1/masters/reservation-types/5/available-slots", () =>
-        HttpResponse.json([]),
-      ),
+      http.get("/api/v1/masters/reservation-types/5/available-slots", () => HttpResponse.json([])),
     );
 
     const { container } = renderCalendar();
@@ -118,13 +116,10 @@ describe("ReservationTypeAvailableSlotsCalendar", () => {
       http.get("/api/v1/masters/reservation-types/5/available-slots", () =>
         HttpResponse.json(SLOTS),
       ),
-      http.delete(
-        "/api/v1/masters/reservation-types/5/available-slots/:id",
-        ({ params }) => {
-          deletedId = String(params.id);
-          return new HttpResponse(null, { status: 204 });
-        },
-      ),
+      http.delete("/api/v1/masters/reservation-types/5/available-slots/:id", ({ params }) => {
+        deletedId = String(params.id);
+        return new HttpResponse(null, { status: 204 });
+      }),
     );
 
     const user = userEvent.setup();
@@ -151,13 +146,10 @@ describe("ReservationTypeAvailableSlotsCalendar", () => {
       http.get("/api/v1/masters/reservation-types/5/available-slots", () =>
         HttpResponse.json(SLOTS),
       ),
-      http.post(
-        "/api/v1/masters/reservation-types/5/available-slots",
-        async ({ request }) => {
-          posted = await request.json();
-          return HttpResponse.json({}, { status: 201 });
-        },
-      ),
+      http.post("/api/v1/masters/reservation-types/5/available-slots", async ({ request }) => {
+        posted = await request.json();
+        return HttpResponse.json({}, { status: 201 });
+      }),
     );
 
     const user = userEvent.setup();
@@ -183,9 +175,7 @@ describe("ReservationTypeAvailableSlotsCalendar", () => {
 
   it("前の週・次の週ナビで表示週が切り替わり、今日ボタンで当週に戻る", async () => {
     server.use(
-      http.get("/api/v1/masters/reservation-types/5/available-slots", () =>
-        HttpResponse.json([]),
-      ),
+      http.get("/api/v1/masters/reservation-types/5/available-slots", () => HttpResponse.json([])),
     );
 
     const user = userEvent.setup();

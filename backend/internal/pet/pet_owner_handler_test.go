@@ -108,7 +108,7 @@ func TestPetOwnerHandler_ListReturnsExplicitResponseAndScopesOwnerLookup(t *test
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodGet, "/", nil)
+	c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	c.Params = gin.Params{{Key: "id", Value: "7"}}
 	setClinicID(c)
 
@@ -165,7 +165,7 @@ func TestPetOwnerHandler_ListSharedPetsReturnsExplicitResponse(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodGet, "/", nil)
+	c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	c.Params = gin.Params{{Key: "id", Value: "12"}}
 	setClinicID(c)
 
@@ -219,7 +219,7 @@ func TestPetOwnerHandler_ListSharedPetsReturnsEmptyArray(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodGet, "/", nil)
+	c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	c.Params = gin.Params{{Key: "id", Value: "12"}}
 	setClinicID(c)
 
@@ -241,7 +241,7 @@ func TestPetOwnerHandler_ListSharedPetsRejectsInvalidOwnerIDBeforeService(t *tes
 	}
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodGet, "/", nil)
+	c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	c.Params = gin.Params{{Key: "id", Value: "invalid"}}
 	setClinicID(c)
 
@@ -263,7 +263,7 @@ func TestPetOwnerHandler_ListSharedPetsRequiresClinicContext(t *testing.T) {
 	}
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodGet, "/", nil)
+	c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	c.Params = gin.Params{{Key: "id", Value: "12"}}
 
 	newPetOwnerHandlerForTest(service, &petOwnerDetailsFinderDouble{}).ListOwnerSharedPets(c)
@@ -300,7 +300,7 @@ func TestPetOwnerHandler_ListSharedPetsMapsServiceErrors(t *testing.T) {
 			}
 			w := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(w)
-			c.Request = httptest.NewRequest(http.MethodGet, "/", nil)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 			c.Params = gin.Params{{Key: "id", Value: "12"}}
 			setClinicID(c)
 
@@ -330,7 +330,7 @@ func TestPetOwnerHandler_ListMapsCrossClinicPetToNotFound(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodGet, "/", nil)
+	c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	c.Params = gin.Params{{Key: "id", Value: "7"}}
 	setClinicID(c)
 
@@ -356,7 +356,7 @@ func TestPetOwnerHandler_ListFailsClosedWhenOwnerDetailsAreOutsideClinic(t *test
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodGet, "/", nil)
+	c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	c.Params = gin.Params{{Key: "id", Value: "7"}}
 	setClinicID(c)
 

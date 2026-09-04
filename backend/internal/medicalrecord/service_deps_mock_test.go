@@ -19,6 +19,7 @@ type mockMedicalRecordRepository struct {
 	findAllFn                         func(ctx context.Context, clinicIDs []uint64, filters MedicalRecordListFilters, page, limit int) ([]model.MedicalRecord, int64, error)
 	findByIDFn                        func(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
 	lockByIDForUpdateFn               func(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
+	lockLinkedAppointmentForUpdateFn  func(ctx context.Context, clinicID, medicalRecordID uint64) (*linkedAppointmentLock, error)
 	findByAppointmentIDFn             func(ctx context.Context, clinicID, appointmentID uint64) (*model.MedicalRecord, error)
 	createFn                          func(ctx context.Context, record *model.MedicalRecord) error
 	updateFieldsFn                    func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicalRecord, error)
@@ -153,6 +154,13 @@ func (m *mockMedicalRecordRepository) CountByOwnerID(ctx context.Context, clinic
 	return 0, nil
 }
 
+func (m *mockMedicalRecordRepository) LockLinkedAppointmentForUpdate(ctx context.Context, clinicID, medicalRecordID uint64) (*linkedAppointmentLock, error) {
+	if m.lockLinkedAppointmentForUpdateFn != nil {
+		return m.lockLinkedAppointmentForUpdateFn(ctx, clinicID, medicalRecordID)
+	}
+	return &linkedAppointmentLock{}, nil
+}
+
 func (m *mockMedicalRecordRepository) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
 	if m.lockByIDForUpdateFn != nil {
 		return m.lockByIDForUpdateFn(ctx, clinicID, id)
@@ -191,7 +199,6 @@ func (m *mockMedicalRecordRepository) FindPetOwnerInClinic(ctx context.Context, 
 func (m *mockMedicalRecordRepository) FindPetByIDInClinic(_ context.Context, _, petID uint64) (*model.Pet, error) {
 	return &model.Pet{ID: petID, Status: model.PetStatusAlive}, nil
 }
-
 
 func (m *mockMedicalRecordRepository) AssertMedicalRecordDoctorInClinic(ctx context.Context, clinicID, doctorID uint64) error {
 	if m.assertDoctorInClinicFn != nil {

@@ -10,11 +10,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DatePicker } from "@/components/shared/DatePicker/DatePicker";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { C, ICON } from "@/lib/design-tokens";
 
 /** 1ファイルあたりの上限（MB） */
-export const MAX_FILE_SIZE_MB = 10;
+const MAX_FILE_SIZE_MB = 10;
 export const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 /** SEC-CS-F08: 1回の選択で受け付ける最大ファイル数 */
 export const MAX_UPLOAD_FILES = 10;
@@ -80,7 +86,7 @@ export const ImageGalleryFilter = memo(function ImageGalleryFilter({
     const oversized = allFiles.filter((f) => f.size > MAX_FILE_SIZE_BYTES);
     if (oversized.length > 0) {
       toast.error(
-        `ファイルサイズが上限（${MAX_FILE_SIZE_MB}MB）を超えています: ${oversized.map((f) => f.name).join(", ")}`
+        `ファイルサイズが上限（${MAX_FILE_SIZE_MB}MB）を超えています: ${oversized.map((f) => f.name).join(", ")}`,
       );
       e.target.value = "";
       return;
@@ -118,7 +124,9 @@ export const ImageGalleryFilter = memo(function ImageGalleryFilter({
       ) : null}
 
       {/* Filters */}
-      <div className={`flex items-end gap-4 flex-wrap ${C.bgWhite} p-4 rounded-lg border ${C.borderMedium}`}>
+      <div
+        className={`flex items-end gap-4 flex-wrap ${C.bgWhite} p-4 rounded-lg border ${C.borderMedium}`}
+      >
         <div className="flex flex-col gap-1.5 w-[300px]">
           <Label htmlFor="image-gallery-search" className={`text-sm font-medium ${C.text60}`}>
             検索単語
@@ -132,9 +140,7 @@ export const ImageGalleryFilter = memo(function ImageGalleryFilter({
         </div>
 
         <div className="flex flex-col gap-1.5 w-[400px]">
-          <Label className={`text-sm font-medium ${C.text60}`}>
-            期間
-          </Label>
+          <Label className={`text-sm font-medium ${C.text60}`}>期間</Label>
           <div className="flex items-center gap-2">
             <DatePicker
               value={dateStart}

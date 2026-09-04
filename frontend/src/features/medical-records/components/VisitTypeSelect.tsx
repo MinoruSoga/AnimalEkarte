@@ -14,11 +14,7 @@ interface VisitTypeSelectProps {
   disabled?: boolean;
 }
 
-export function VisitTypeSelect({
-  value,
-  onChange,
-  disabled = false,
-}: VisitTypeSelectProps) {
+export function VisitTypeSelect({ value, onChange, disabled = false }: VisitTypeSelectProps) {
   return (
     <div className="flex flex-col gap-0 min-w-[72px] shrink-0">
       <span className={`text-xs ${C.text50}`}>来院種別</span>

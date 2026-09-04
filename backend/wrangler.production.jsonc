@@ -1,7 +1,7 @@
 // Cloudflare Workers + Containers 設定 — Production。
 // 正本は backend/wrangler.jsonc（STG）。本ファイルはその production 版ドラフトであり、
 // PO 決定（2026-07-15）「納品はCloudflare経路。本番もCF構成で新設」/ 追跡Issue #253 に基づく。
-// 参照: docs/ops/infra/_archive/migration-cloudflare.md「現況サマリ」2026-07-15/16 ブロック。
+// 現行構成: docs/ops/infra/architecture.md。本番手順: docs/ops/infra/production/setup.md。
 //
 // 【重要】本ファイルは新規ドラフトであり、STG のように実測・apply 済みの値は含まない。
 // 適用前に必ず以下の PLACEHOLDER をすべて実値へ置換すること（詳細手順は
@@ -32,8 +32,8 @@
 // も除去済み。
 //
 // S3_ENDPOINT のアカウントID（776ddc3e975e8fe5773d5300522e2404）は STG と同一 Cloudflare
-// アカウントを production でも使う前提（docs/ops/infra/_archive/migration-cloudflare.md「すべて Cloudflare」＝課金・
-// 管理の一元化の方針）で、backend/wrangler.jsonc:74 に既に公開値として存在するものを再利用
+// アカウントを production でも使う前提（課金・管理の一元化）で、backend/wrangler.jsonc
+// に既に公開値として存在するものを再利用
 // している。新しい ID を書き起こしたものではない。もし production を別アカウントに分離する
 // 判断がなされた場合はここを差し替えること。
 //

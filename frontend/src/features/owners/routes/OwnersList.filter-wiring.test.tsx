@@ -28,8 +28,14 @@ vi.mock("@/features/owners/components/PetEditModal", () => ({
 
 vi.mock("@/hooks/use-animal-species", () => ({
   useAnimalSpecies: vi.fn(() => ({
-    activeSpecies: [{ id: 1, name: "犬" }, { id: 2, name: "猫" }],
-    allSpecies: [{ id: 1, name: "犬" }, { id: 2, name: "猫" }],
+    activeSpecies: [
+      { id: 1, name: "犬" },
+      { id: 2, name: "猫" },
+    ],
+    allSpecies: [
+      { id: 1, name: "犬" },
+      { id: 2, name: "猫" },
+    ],
   })),
 }));
 
@@ -86,9 +92,12 @@ function makePet(): Pet {
 
 describe("OwnersList — #266 フィルタ選択→URL反映の配線", () => {
   it("フィルタ選択で species パラメータへ反映され、page がリセットされる", async () => {
-    const loaderFn = vi.fn(
-      (): OwnersLoaderData => ({ pets: [makePet()], page: 1, limit: 20, total: 1 })
-    );
+    const loaderFn = vi.fn((): OwnersLoaderData => ({
+      pets: [makePet()],
+      page: 1,
+      limit: 20,
+      total: 1,
+    }));
 
     const router = createMemoryRouter(
       [
@@ -98,12 +107,12 @@ describe("OwnersList — #266 フィルタ選択→URL反映の配線", () => {
           loader: () => loaderFn(),
         },
       ],
-      { initialEntries: ["/owners?page=2"] }
+      { initialEntries: ["/owners?page=2"] },
     );
     render(
       <AuthContext.Provider value={makeAuthCtx()}>
         <RouterProvider router={router} />
-      </AuthContext.Provider>
+      </AuthContext.Provider>,
     );
     await screen.findByText("山田太郎");
 

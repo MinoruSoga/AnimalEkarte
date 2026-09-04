@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 
 import type { Hospitalization, MasterItem } from "@/types";
+import { KeyboardSensor, PointerSensor, useSensor } from "@dnd-kit/core";
 import { HospitalizationBoard } from "./HospitalizationBoard";
 
 const dndHarness = vi.hoisted(() => ({
@@ -28,6 +29,8 @@ vi.mock("@dnd-kit/core", () => ({
     return children;
   },
   PointerSensor: function PointerSensor() {},
+  KeyboardSensor: function KeyboardSensor() {},
+  closestCorners: vi.fn(),
   useSensor: vi.fn(() => ({})),
   useSensors: vi.fn(() => []),
   useDraggable: dndHarness.useDraggable,
@@ -118,14 +121,17 @@ describe("HospitalizationBoard empty cage actions", () => {
     expect(dndHarness.useDraggable).toHaveBeenCalledWith(
       expect.objectContaining({ id: occupied.id, disabled: true }),
     );
-    expect(screen.getByText("ポチ").closest("[data-slot='card']")).not.toHaveAttribute(
+    expect(screen.getByText("犬 ポチ").closest("[data-slot='card']")).not.toHaveAttribute(
       "data-drag-listener",
     );
-    expect(screen.getByText("ポチ").closest("[data-slot='card']")).not.toHaveAttribute(
+    expect(screen.getByText("犬 ポチ").closest("[data-slot='card']")).not.toHaveAttribute(
       "data-drag-attributes",
     );
     expect(
-      screen.getByText("ポチ").closest("[data-slot='card']")?.querySelector(".lucide-grip-vertical"),
+      screen
+        .getByText("犬 ポチ")
+        .closest("[data-slot='card']")
+        ?.querySelector(".lucide-grip-vertical"),
     ).not.toBeInTheDocument();
 
     act(() => {
@@ -155,11 +161,11 @@ describe("HospitalizationBoard empty cage actions", () => {
     expect(dndHarness.useDraggable).toHaveBeenCalledWith(
       expect.objectContaining({ id: occupied.id, disabled: false }),
     );
-    expect(screen.getByText("ポチ").closest("[data-slot='card']")).toHaveAttribute(
+    expect(screen.getByText("犬 ポチ").closest("[data-slot='card']")).toHaveAttribute(
       "data-drag-listener",
       "enabled",
     );
-    expect(screen.getByText("ポチ").closest("[data-slot='card']")).toHaveAttribute(
+    expect(screen.getByText("犬 ポチ").closest("[data-slot='card']")).toHaveAttribute(
       "data-drag-attributes",
       "enabled",
     );
@@ -172,6 +178,37 @@ describe("HospitalizationBoard empty cage actions", () => {
     });
 
     expect(onMovePet).toHaveBeenCalledWith(occupied.id, "cage-a-2");
+    expect(useSensor).toHaveBeenCalledWith(PointerSensor, expect.anything());
+    expect(useSensor).toHaveBeenCalledWith(
+      KeyboardSensor,
+      expect.objectContaining({ coordinateGetter: expect.any(Function) }),
+    );
+  });
+
+  // FE-RC-044: Card 自体の onClick は非フォーカス可能・キーボード操作不可のため削除し、
+  // 詳細への遷移は aria-label 付き button に一本化する（冗長な操作導線の排除）。
+  it("occupied cardの本体クリックでは遷移せず、詳細buttonのクリックでのみ遷移する", async () => {
+    const user = userEvent.setup();
+    const onNavigateToForm = vi.fn();
+
+    render(
+      <HospitalizationBoard
+        cages={cages}
+        hospitalizations={[occupied]}
+        onNavigateToForm={onNavigateToForm}
+        onMovePet={vi.fn()}
+        canCreate
+        canEdit
+      />,
+    );
+
+    const card = screen.getByText("犬 ポチ").closest("[data-slot='card']") as HTMLElement;
+    await user.click(card);
+    expect(onNavigateToForm).not.toHaveBeenCalled();
+
+    const detailButton = screen.getByRole("button", { name: "ポチの詳細" });
+    await user.click(detailButton);
+    expect(onNavigateToForm).toHaveBeenCalledWith(occupied.id);
   });
 
   it("死亡ペットのoccupied cardは色に依存しない死亡文言を表示する", () => {
@@ -207,7 +244,9 @@ describe("HospitalizationBoard empty cage actions", () => {
     await user.click(screen.getByText("空き").closest("[data-slot='card']") as HTMLElement);
 
     expect(onNavigateToForm).not.toHaveBeenCalled();
-    expect(screen.queryByRole("button", { name: /空き枠に入院・ホテルを登録/ })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /空き枠に入院・ホテルを登録/ }),
+    ).not.toBeInTheDocument();
   });
 
   it("canCreate=trueなら空カード自体は非interactiveのまま、追加buttonをkeyboard操作できる", async () => {

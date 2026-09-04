@@ -18,7 +18,7 @@ export type AccountingSelectFilterOp = "is" | "is_not" | "is_empty" | "is_not_em
 
 export interface AccountingFilters {
   startDate?: string; // YYYY-MM-DD
-  endDate?: string;   // YYYY-MM-DD
+  endDate?: string; // YYYY-MM-DD
   /**
    * 飼主 ID で会計履歴を絞り込む（飼主詳細の会計履歴セクションで使用）。
    * 数値文字列を想定。空文字は無視される。
@@ -72,9 +72,7 @@ function buildAccountingParams(filters?: AccountingFilters): Record<string, stri
   return params;
 }
 
-const getAccountings = async (
-  filters?: AccountingFilters,
-): Promise<Accounting[]> => {
+const getAccountings = async (filters?: AccountingFilters): Promise<Accounting[]> => {
   const { data } = await axios.get<AccountingsListResponse>("/v1/accountings", {
     params: buildAccountingParams(filters),
   });
@@ -104,9 +102,7 @@ export interface AccountingPageFilters extends AccountingFilters {
   limit: number;
 }
 
-const getAccountingsPage = async (
-  filters: AccountingPageFilters,
-): Promise<AccountingsPage> => {
+const getAccountingsPage = async (filters: AccountingPageFilters): Promise<AccountingsPage> => {
   const params = buildAccountingParams(filters);
   params.page = String(filters.page);
   params.limit = String(filters.limit);

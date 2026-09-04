@@ -5,6 +5,17 @@ import { handleApiError } from "@/lib/handle-api-error";
 import { queryKeys } from "@/lib/query-keys";
 import type { Estimate } from "@/types/generated/models";
 
+interface SaveEstimateItemPayload {
+  name: string;
+  category?: string;
+  unit_price: number;
+  quantity: number;
+  discount_rate: number;
+  discount_amount: number;
+  is_insurance_applicable: boolean;
+  sort_order: number;
+}
+
 export interface SaveEstimatePayload {
   title: string;
   subtotal: number;
@@ -14,6 +25,7 @@ export interface SaveEstimatePayload {
   comment: string;
   notes: string;
   medical_record_id?: number;
+  items?: SaveEstimateItemPayload[];
 }
 
 export interface UpdateEstimateRecordVariables {
@@ -22,9 +34,7 @@ export interface UpdateEstimateRecordVariables {
   payload: Partial<SaveEstimatePayload>;
 }
 
-const getEstimatesByRecord = async (
-  medicalRecordId: string,
-): Promise<Estimate | null> => {
+const getEstimatesByRecord = async (medicalRecordId: string): Promise<Estimate | null> => {
   const { data } = await axios.get<{ data: Estimate[] }>("/v1/estimates", {
     params: { medical_record_id: Number(medicalRecordId), limit: 1 },
   });
@@ -62,10 +72,7 @@ export const useCreateEstimateRecord = (medicalRecordId: string) => {
 export const useUpdateEstimateRecord = (medicalRecordId: string) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({
-      id,
-      payload,
-    }: UpdateEstimateRecordVariables): Promise<Estimate> => {
+    mutationFn: async ({ id, payload }: UpdateEstimateRecordVariables): Promise<Estimate> => {
       const { data } = await axios.patch<Estimate>(`/v1/estimates/${id}`, payload);
       return data;
     },

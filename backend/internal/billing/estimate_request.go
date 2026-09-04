@@ -45,18 +45,48 @@ func (q listEstimateQuery) toServiceFilters() (listEstimateFilters, error) {
 
 // createEstimateRequest は見積書作成リクエスト
 type createEstimateRequest struct {
-	MedicalRecordID *uint64    `json:"medical_record_id"`
-	Title           string     `json:"title" binding:"required,min=1,max=255"`
-	OwnerID         *uint64    `json:"owner_id"`
-	Status          string     `json:"status"  binding:"omitempty,oneof=draft sent"`
-	Subtotal        int64      `json:"subtotal"      binding:"min=0"`
-	TaxTotal        int64      `json:"tax_total"     binding:"min=0"`
-	TotalAmount     int64      `json:"total_amount"  binding:"min=0"`
-	InsuranceAmount int64      `json:"insurance_amount"`
-	DiscountAmount  int64      `json:"discount_amount"`
-	ValidUntil      *time.Time `json:"valid_until"`
-	Comment         string     `json:"comment"`
-	Notes           string     `json:"notes"`
+	MedicalRecordID *uint64                     `json:"medical_record_id"`
+	Title           string                      `json:"title" binding:"required,min=1,max=255"`
+	OwnerID         *uint64                     `json:"owner_id"`
+	PetID           *uint64                     `json:"pet_id"`
+	Status          string                      `json:"status"  binding:"omitempty,oneof=draft sent"`
+	Subtotal        int64                       `json:"subtotal"      binding:"min=0"`
+	TaxTotal        int64                       `json:"tax_total"     binding:"min=0"`
+	TotalAmount     int64                       `json:"total_amount"  binding:"min=0"`
+	InsuranceAmount int64                       `json:"insurance_amount"`
+	DiscountAmount  int64                       `json:"discount_amount"`
+	ValidUntil      *time.Time                  `json:"valid_until"`
+	Comment         string                      `json:"comment" binding:"max=1000"`
+	Notes           string                      `json:"notes" binding:"max=1000"`
+	Items           []createEstimateItemRequest `json:"items" binding:"omitempty,dive"`
+}
+
+type createEstimateItemRequest struct {
+	Name                  string  `json:"name" binding:"required,min=1,max=255"`
+	Category              string  `json:"category"`
+	UnitPrice             int64   `json:"unit_price" binding:"min=0"`
+	Quantity              float64 `json:"quantity"`
+	DiscountRate          float64 `json:"discount_rate"`
+	DiscountAmount        int64   `json:"discount_amount"`
+	IsInsuranceApplicable bool    `json:"is_insurance_applicable"`
+	SortOrder             int     `json:"sort_order"`
+}
+
+func estimateItemInputsFromRequest(items []createEstimateItemRequest) []EstimateItemInput {
+	out := make([]EstimateItemInput, 0, len(items))
+	for _, item := range items {
+		out = append(out, EstimateItemInput{
+			Name:                  item.Name,
+			Category:              model.ItemCategory(item.Category),
+			UnitPrice:             item.UnitPrice,
+			Quantity:              item.Quantity,
+			DiscountRate:          item.DiscountRate,
+			DiscountAmount:        item.DiscountAmount,
+			IsInsuranceApplicable: item.IsInsuranceApplicable,
+			SortOrder:             item.SortOrder,
+		})
+	}
+	return out
 }
 
 // toServiceInput は認証済み staffID を created_by に設定する（body の created_by は受け取らない・AUD-005）。
@@ -65,6 +95,7 @@ func (r *createEstimateRequest) toServiceInput(staffID uint64) *CreateEstimateIn
 		MedicalRecordID: r.MedicalRecordID,
 		Title:           r.Title,
 		OwnerID:         r.OwnerID,
+		PetID:           r.PetID,
 		Subtotal:        r.Subtotal,
 		TaxTotal:        r.TaxTotal,
 		TotalAmount:     r.TotalAmount,
@@ -74,6 +105,7 @@ func (r *createEstimateRequest) toServiceInput(staffID uint64) *CreateEstimateIn
 		Comment:         r.Comment,
 		Notes:           r.Notes,
 		CreatedBy:       &staffID,
+		Items:           estimateItemInputsFromRequest(r.Items),
 	}
 	if r.Status != "" {
 		input.Status = model.EstimateStatus(r.Status)
@@ -83,17 +115,18 @@ func (r *createEstimateRequest) toServiceInput(staffID uint64) *CreateEstimateIn
 
 // updateEstimateRequest は見積書更新リクエスト（PATCH: nil = 未送信）
 type updateEstimateRequest struct {
-	Title           *string    `json:"title"`
-	Status          *string    `json:"status"  binding:"omitempty,oneof=draft sent approved rejected"`
-	Subtotal        *int64     `json:"subtotal"`
-	TaxTotal        *int64     `json:"tax_total"`
-	TotalAmount     *int64     `json:"total_amount"`
-	InsuranceAmount *int64     `json:"insurance_amount"`
-	DiscountAmount  *int64     `json:"discount_amount"`
-	ValidUntil      *time.Time `json:"valid_until"`
-	ClearValidUntil bool       `json:"clear_valid_until"`
-	Comment         *string    `json:"comment"`
-	Notes           *string    `json:"notes"`
+	Title           *string                      `json:"title" binding:"omitempty,max=255"`
+	Status          *string                      `json:"status"  binding:"omitempty,oneof=draft sent approved rejected"`
+	Subtotal        *int64                       `json:"subtotal"`
+	TaxTotal        *int64                       `json:"tax_total"`
+	TotalAmount     *int64                       `json:"total_amount"`
+	InsuranceAmount *int64                       `json:"insurance_amount"`
+	DiscountAmount  *int64                       `json:"discount_amount"`
+	ValidUntil      *time.Time                   `json:"valid_until"`
+	ClearValidUntil bool                         `json:"clear_valid_until"`
+	Comment         *string                      `json:"comment" binding:"omitempty,max=1000"`
+	Notes           *string                      `json:"notes" binding:"omitempty,max=1000"`
+	Items           *[]createEstimateItemRequest `json:"items" binding:"omitempty,dive"`
 }
 
 func (r *updateEstimateRequest) toServiceInput(actorID uint64) *UpdateEstimateInput {
@@ -110,6 +143,10 @@ func (r *updateEstimateRequest) toServiceInput(actorID uint64) *UpdateEstimateIn
 		Notes:           r.Notes,
 		ActorID:         &actorID,
 	}
+	if r.Items != nil {
+		items := estimateItemInputsFromRequest(*r.Items)
+		input.Items = &items
+	}
 	if r.Status != nil {
 		status := model.EstimateStatus(*r.Status)
 		input.Status = &status
@@ -122,8 +159,8 @@ func (r *updateEstimateRequest) toServiceInput(actorID uint64) *UpdateEstimateIn
 type createEstimateSuccessorRequest struct {
 	Reason  string  `json:"reason" binding:"required,min=1,max=500"`
 	Title   *string `json:"title" binding:"omitempty,min=1,max=255"`
-	Comment *string `json:"comment"`
-	Notes   *string `json:"notes"`
+	Comment *string `json:"comment" binding:"omitempty,max=1000"`
+	Notes   *string `json:"notes" binding:"omitempty,max=1000"`
 }
 
 func (r *createEstimateSuccessorRequest) toServiceInput(actorID uint64) *CreateSuccessorInput {

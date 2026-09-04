@@ -20,7 +20,7 @@
 | **Frontend** | React 19.2 / TypeScript 6.0 / Vite 8.0 / Tailwind CSS 4 / shadcn/ui |
 | **Backend** | Go 1.25.0 / Gin / GORM / Air (Hot Reload) |
 | **Database** | PostgreSQL 18 (Docker: `postgres:18-alpine`) |
-| **Infrastructure** | Docker Compose / AWS (ECS Fargate, RDS, S3) / Vercel |
+| **Infrastructure** | Docker Compose（ローカル） / Cloudflare Workers + Containers / PlanetScale Postgres / R2 / Vercel |
 | **Testing** | MSW (Mock Service Worker), Vitest, testify |
 
 ---
@@ -41,7 +41,8 @@ cp .env.example .env.local
 
 ```bash
 # db / backend / frontend を起動し、ヘルスチェック完了まで待機
-# DB マイグレーションは backend の起動時に自動適用
+# local Compose: backend entrypoint が migrate を適用し得る（開発者の make up）
+# エージェントは migrate を自動実行しない。pull 後に要る場合は人間が `make migrate`（AGENTS.md）
 make up
 ```
 
@@ -61,15 +62,26 @@ make codegen
 
 ---
 
+## 🐳 Compose ファイル
+
+日常起動は **`docker-compose.yml` 1本**。Swagger / CSV import は同ファイルの Compose profile で、`make up` では起動しない。
+
+| ファイル | 用途 |
+|:---|:---|
+| `docker-compose.yml` | 本体（`make up`）+ profile `docs`（`make docs-ui`）+ profile `csv-import`（`make csv-import-*`） |
+| `docker-compose.a4-rehearsal.yml` | 旧カルテ移行の画面リハーサル用 overlay。共有 DB 禁止。正式 bundle 待ちのため残置 |
+| `docker-compose.f8-g4-rehearsal.yml` | 移行失敗系の隔離リハーサル。本体に混ぜると共有 DB を壊し得るため別ファイル |
+| `pnpm-lock.yaml` | ルート pnpm lock（Compose ではない） |
+
 ## 📖 ドキュメント体系 (詳細は [docs/README.md](docs/README.md) 参照)
 
 | カテゴリ | 主要ドキュメント |
 |:---|:---|
-| **作業台帳（進行中）** | **Linear**（hub [BRT-4](https://linear.app/baritechllc/issue/BRT-4)）· 入口 [todo.md](todo.md) / [todo-po.md](todo-po.md)（ポインタのみ）· マップ [todo-docs-linear-map](reports/todo-walk-2026-08-14/todo-docs-linear-map.md) · [docs/work/](docs/work/README.md) |
+| **作業台帳（進行中）** | **Linear**（hub [BRT-4](https://linear.app/baritechllc/issue/BRT-4)）· 入口 [todo.md](todo.md) / [todo-po.md](todo-po.md)（ポインタのみ）· [docs/work/](docs/work/README.md) |
 | **業務仕様** | [SPECIFICATION.md](docs/spec/specification.md) / [screens/](docs/spec/screens/) |
 | **機能詳細** | [Lステップ連携](docs/spec/line/lstep-integration.md) / [会計・集計](docs/spec/cash-register.md) / [顧客分析](docs/spec/customer-aggregation.md) |
 | **技術設計** | [Architecture](docs/architecture/overview.md) / [ER図](docs/architecture/erd.md)（テーブル数の正本） / [認証・認可](docs/architecture/auth.md)（RBACリソース数の正本） |
-| **API** | [backend/docs/api.yaml](backend/docs/api.yaml)（contract 正本。Swagger UI 表示は `docker compose -f docker-compose.swagger.yml up`） |
+| **API** | [backend/docs/api.yaml](backend/docs/api.yaml)（contract 正本。Swagger UI 表示は `make docs-ui`） |
 | **運用・テスト** | [Deployment Hub](docs/ops/deploy/README.md) / [Manual Test Guide](docs/ops/testing/SECTION_14_MANUAL_TEST_GUIDE.md) |
 ---
 
@@ -78,8 +90,8 @@ make codegen
 Swagger UI および Redoc をローカルで起動して、対話的な API 検証が可能です。
 
 ```bash
-# ドキュメントツールの起動
-docker compose -f docker-compose.swagger.yml up
+# ドキュメントツールの起動（Swagger UI / Redoc のみ）
+make docs-ui
 ```
 - **Swagger UI**: [http://localhost:8081](http://localhost:8081)
 - **Redoc**: [http://localhost:8082](http://localhost:8082)

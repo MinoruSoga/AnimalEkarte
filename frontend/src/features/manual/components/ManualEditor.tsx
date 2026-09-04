@@ -11,9 +11,11 @@
  * 詳細は業務フロー「マニュアルの編集依頼方法」(workflows/27-manual-edit-request.md) を参照。
  */
 
-import { useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Copy, Download, X, FileText, Eye, Columns2, Save, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { C } from "@/lib/design-tokens";
 
 import { useUpsertManualArticle } from "../api/upsert-manual-article";
@@ -22,12 +24,17 @@ import { ManualContent } from "./ManualContent";
 
 /** コピー完了表示を戻すまでの待ち時間 (FE5-6) */
 const COPY_FEEDBACK_RESET_MS = 2000;
+const DISCARD_TITLE = "編集内容が保存されていません";
+const DISCARD_DESCRIPTION = "破棄して閉じますか？";
 
 type EditorMode = "edit" | "preview" | "split";
+
+const PERMISSION_DENIED_MESSAGE = "この操作を行う権限がありません";
 
 interface ManualEditorProps {
   article: ManualArticle;
   onClose: () => void;
+  canEdit?: boolean;
 }
 
 /** frontmatter + 本文を結合した完全な MD 文字列を返す */
@@ -35,13 +42,22 @@ function buildFullMarkdown(article: ManualArticle, body: string): string {
   return `---\ntitle: ${article.title}\norder: ${article.order}\nsection: ${article.section}\n---\n\n${body}`;
 }
 
-export function ManualEditor({ article, onClose }: ManualEditorProps) {
+export function ManualEditor({ article, onClose, canEdit = false }: ManualEditorProps) {
   const [mode, setMode] = useState<EditorMode>("split");
   const [content, setContent] = useState(article.content);
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied">("idle");
+  const [discardOpen, setDiscardOpen] = useState(false);
   const upsertMutation = useUpsertManualArticle();
+  const canEditRef = useRef(canEdit);
+  useLayoutEffect(() => {
+    canEditRef.current = canEdit;
+  }, [canEdit]);
 
   const handleSave = () => {
+    if (canEditRef.current !== true) {
+      toast.error(PERMISSION_DENIED_MESSAGE);
+      return;
+    }
     upsertMutation.mutate(
       {
         category: article.category,
@@ -83,23 +99,27 @@ export function ManualEditor({ article, onClose }: ManualEditorProps) {
     URL.revokeObjectURL(url);
   };
 
-  // プレビュー用に編集中 content を反映した一時 article を組み立てる
-  const previewArticle: ManualArticle = {
-    ...article,
-    content,
-    searchText: content,
-  };
+  // プレビュー用に編集中 content を反映した一時 article を組み立てる。
+  // rerender-memo: ManualContent は memo。毎レンダー新規オブジェクトを渡すと
+  // 無効化されるため content/article が変化した時のみ再生成する。
+  const previewArticle: ManualArticle = useMemo(
+    () => ({ ...article, content, searchText: content }),
+    [article, content],
+  );
 
   const isDirty = content !== article.content;
 
   // 編集中（dirty）でエディタを閉じようとする時は離脱確認
   const handleCloseRequest = () => {
     if (isDirty) {
-      const ok = window.confirm(
-        "編集内容が保存されていません。破棄して閉じますか？",
-      );
-      if (!ok) return;
+      setDiscardOpen(true);
+      return;
     }
+    onClose();
+  };
+
+  const handleDiscardConfirm = () => {
+    setDiscardOpen(false);
     onClose();
   };
 
@@ -112,9 +132,7 @@ export function ManualEditor({ article, onClose }: ManualEditorProps) {
         <span className={`text-sm font-semibold ${C.text}`}>編集中</span>
         <span className={`text-xs ${C.text50} truncate`}>{article.title}</span>
         {isDirty ? (
-          <span
-            className={`text-2xs px-1.5 py-0.5 rounded-xxs ${C.bgWarning50} ${C.textWarning}`}
-          >
+          <span className={`text-2xs px-1.5 py-0.5 rounded-xxs ${C.bgWarning50} ${C.textWarning}`}>
             未保存
           </span>
         ) : null}
@@ -209,8 +227,9 @@ export function ManualEditor({ article, onClose }: ManualEditorProps) {
       <div
         className={`px-4 py-2 text-xs border-b ${C.borderDivider} ${C.bgWarning50} ${C.textWarning}`}
       >
-        💡 「<strong>保存</strong>」ボタン: 変更を <strong>DB に保存</strong>（管理者権限が必要、全スタッフに即時反映）／
-        「<strong>コピー</strong>」「<strong>ダウンロード</strong>」: 編集案を IT 担当者に手動で渡す場合に使用。
+        💡 「<strong>保存</strong>」ボタン: 変更を <strong>DB に保存</strong>
+        （管理者権限が必要、全スタッフに即時反映）／ 「<strong>コピー</strong>」「
+        <strong>ダウンロード</strong>」: 編集案を IT 担当者に手動で渡す場合に使用。
         詳細は業務フロー「<strong>マニュアルの編集依頼方法</strong>」を参照。
       </div>
 
@@ -220,7 +239,7 @@ export function ManualEditor({ article, onClose }: ManualEditorProps) {
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            className={`flex-1 p-4 font-mono text-sm resize-none outline-none ${C.bgSubtle} ${mode === "split" ? `border-r ${C.borderDivider}` : ""}`}
+            className={`flex-1 p-4 font-mono text-sm resize-none outline-none focus-visible:ring-2 focus-visible:ring-inset ${C.focusRingAccent40} ${C.bgSubtle} ${mode === "split" ? `border-r ${C.borderDivider}` : ""}`}
             spellCheck={false}
             aria-label="マニュアル本文編集"
           />
@@ -231,6 +250,14 @@ export function ManualEditor({ article, onClose }: ManualEditorProps) {
           </div>
         ) : null}
       </div>
+
+      <ConfirmDialog
+        open={discardOpen}
+        onClose={() => setDiscardOpen(false)}
+        onConfirm={handleDiscardConfirm}
+        title={DISCARD_TITLE}
+        description={DISCARD_DESCRIPTION}
+      />
     </div>
   );
 }

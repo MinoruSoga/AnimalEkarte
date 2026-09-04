@@ -15,6 +15,7 @@ export type BackendAccounting = Billing & {
 // BillingItem のレスポンス型（BE handler が計算して返す追加フィールドを含む）
 export interface BackendAccountingItem extends BillingItem {
   vaccination_id?: number;
+  exam_id?: number;
   other_reason?: string;
   tax_amount?: number;
   subtotal?: number;
@@ -40,24 +41,6 @@ export interface DeleteBillingItemRequest {
   post_close_reason?: string;
 }
 
-// API リクエスト型（models.ts から導出）
-export interface CreateAccountingRequest {
-  pet_id: number;
-  owner_id: number;
-  medical_record_id?: number | null;
-  scheduled_date: string;
-  subtotal?: number | null;
-  tax_total?: number | null;
-  total_amount?: number | null;
-  insurance_name?: string;
-  insurance_ratio?: number | null;
-  insurance_amount?: number | null;
-  discount_amount?: number | null;
-  billing_amount?: number | null;
-  payment_method?: PaymentMethod;
-  memo?: string;
-}
-
 /** BUG-018: POST /v1/accountings/complete の明細1行 */
 export interface CompleteAccountingItemRequest {
   category: string;
@@ -73,6 +56,7 @@ export interface CompleteAccountingItemRequest {
   other_reason?: string;
   merchandise_item_id?: number;
   vaccination_id?: number;
+  exam_id?: number;
   treatment_id?: number;
   appointment_id?: number;
   trimming_course_id?: number;

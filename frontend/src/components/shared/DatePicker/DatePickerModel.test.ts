@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { parseLocalDate, formatIso, formatDisplay, formatShort } from "./DatePickerModel";
+import {
+  parseLocalDate,
+  formatIso,
+  formatDisplay,
+  formatShort,
+  SINGLE_CALENDAR_CLASSES,
+  RANGE_CALENDAR_CLASSES,
+} from "./DatePickerModel";
 
 // FE4-8 特性テスト（RED→GREEN 先行）: DatePickerModel を formatJapaneseDate /
 // formatJSTWallDate へ委譲化する前に、現実装の入出力を固定する。
@@ -49,4 +56,22 @@ describe("DatePickerModel (FE4-8 特性テスト)", () => {
       expect(formatShort(new Date(2026, 0, 5, 12, 0, 0))).toBe("2026/1/5");
     });
   });
+});
+
+// FE-RC-106: selected は完成形静的トークンのみ。runtime 合成（hover: + ${）は Tailwind v4 が拾えない。
+// 禁止部分文字列は結合して書く（このファイル自体が監査 / rg の対象になるため）。
+const RUNTIME_HOVER_SYNTHESIS = ["hover:", "${"].join("");
+
+describe("DatePickerModel calendar selected tokens (FE-RC-106)", () => {
+  it.each([
+    ["SINGLE_CALENDAR_CLASSES", SINGLE_CALENDAR_CLASSES.selected],
+    ["RANGE_CALENDAR_CLASSES", RANGE_CALENDAR_CLASSES.selected],
+  ] as const)(
+    "%s.selected は完成形 hover/focus brand トークンを使い runtime 合成しない",
+    (_name, selected) => {
+      expect(selected).toContain("hover:bg-[#027078]");
+      expect(selected).toContain("focus:bg-[#027078]");
+      expect(selected).not.toContain(RUNTIME_HOVER_SYNTHESIS);
+    },
+  );
 });

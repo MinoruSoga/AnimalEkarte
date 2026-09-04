@@ -9,10 +9,7 @@ import type { Insurance as ModelInsurance } from "@/types/generated/models";
 // Request types (derived from models.ts)
 // ─────────────────────────────────────────────────
 
-type InsuranceRequestBase = Omit<
-  ModelInsurance,
-  "id" | "clinic_id" | "created_at" | "updated_at"
->;
+type InsuranceRequestBase = Omit<ModelInsurance, "id" | "clinic_id" | "created_at" | "updated_at">;
 
 export type CreateInsuranceRequest = Pick<InsuranceRequestBase, "name"> &
   Partial<Omit<InsuranceRequestBase, "name">>;
@@ -108,6 +105,3 @@ export const useDeleteInsurance = () => {
     onError: (error) => handleApiError(error, "削除"),
   });
 };
-
-
-

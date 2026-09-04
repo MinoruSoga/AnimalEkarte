@@ -1,11 +1,14 @@
-import { useActionState, useState, useCallback } from "react";
-import { Calculator, Printer } from "lucide-react";
+import { useActionState, useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router";
+import { Calculator } from "lucide-react";
 import { toast } from "sonner";
-import { C, ICON, LAYOUT, STYLE } from "@/lib/design-tokens";
-import { SubmitButton } from "@/components/shared/Form/SubmitButton";
+import { C, ICON, LAYOUT } from "@/lib/design-tokens";
+import { FormHeaderActions } from "@/components/shared/Form/FormHeaderActions";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { handleApiError } from "@/lib/handle-api-error";
+import { paths } from "@/config/paths";
+import { getFormString, getFormEnum } from "@/lib/form-data";
 import { useCurrentClinicName } from "@/hooks/use-current-clinic-name";
+import { usePermission } from "@/hooks/use-permission";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,18 +21,32 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useGetCashRegisterPreview } from "../api/get-cash-register-preview";
 import { useCreateCashRegisterClose } from "../api/create-cash-register-close";
-import { PERIOD_OPTIONS, PERIOD_LABELS, type CashRegisterPeriod } from "../constants";
-import { UnifiedClosingSummaryTable } from "../components/UnifiedClosingSummaryTable";
-import { CashReconciliationCard } from "../components/CashReconciliationCard";
-import { BillingDetailTable } from "../components/BillingDetailTable";
-import { ClosePrintArea } from "../components/ClosePrintArea";
+import { PERIOD_LABELS, PERIOD_OPTIONS, type CashRegisterPeriod } from "../lib/constants";
+import {
+  CashRegisterClosePreview,
+  CashRegisterCloseTargetSection,
+} from "../components/CashRegisterClosePanels";
 import { useCashRegisterCloseForm } from "../hooks/use-cash-register-close-form";
 import { ResourceCashRegisterClose } from "@/types/generated/models";
-import { formatCurrency } from "@/lib/format/number";
+
+const PERMISSION_DENIED_MESSAGE = "この操作を行う権限がありません";
+
+// FE-RC-036: FormData の未検証キャストを避けるための enum ガード。
+function isCashRegisterPeriod(value: string): value is CashRegisterPeriod {
+  return (PERIOD_OPTIONS as readonly string[]).includes(value);
+}
 
 export function CashRegisterClosePage() {
-  const { date, period, previewEnabled, handleDateChange, handlePeriodChange, enablePreview } =
-    useCashRegisterCloseForm();
+  const navigate = useNavigate();
+  const {
+    date,
+    period,
+    previewEnabled,
+    previewNonce,
+    handleDateChange,
+    handlePeriodChange,
+    enablePreview,
+  } = useCashRegisterCloseForm();
   const clinicName = useCurrentClinicName();
   const [actualCash, setActualCash] = useState<string>("");
   const [showConfirm, setShowConfirm] = useState(false);
@@ -39,37 +56,61 @@ export function CashRegisterClosePage() {
     date,
     period,
     previewEnabled,
+    previewNonce,
   );
   const createMutation = useCreateCashRegisterClose();
+  const { mutateAsync, isPending } = createMutation;
+  const { canCreate } = usePermission(ResourceCashRegisterClose);
+  const permissionsRef = useRef({ canCreate });
+  useLayoutEffect(() => {
+    permissionsRef.current = { canCreate };
+  }, [canCreate]);
 
   const handleActualCashChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setActualCash(e.target.value);
   }, []);
 
   const [, formAction] = useActionState(async (_prev: null, formData: FormData) => {
+    const cash = Number(formData.get("actual_cash"));
+    if (!Number.isFinite(cash) || cash < 0) {
+      toast.error("実際のレジ現金は0以上の金額を入力してください");
+      return null;
+    }
     setPendingFormData(formData);
     setShowConfirm(true);
     return null;
   }, null);
 
   const handleConfirmClose = useCallback(async () => {
+    if (permissionsRef.current.canCreate !== true) {
+      toast.error(PERMISSION_DENIED_MESSAGE);
+      setShowConfirm(false);
+      return;
+    }
     if (!pendingFormData) return;
+    const closeDate = getFormString(pendingFormData, "close_date");
+    const closePeriod = getFormEnum(pendingFormData, "period", isCashRegisterPeriod);
+    if (!closeDate || !closePeriod) {
+      toast.error("締め対象の日付・区分が不正です");
+      setShowConfirm(false);
+      return;
+    }
     try {
-      await createMutation.mutateAsync({
-        date: pendingFormData.get("close_date") as string,
-        period: pendingFormData.get("period") as CashRegisterPeriod,
-        actual_cash: Number(pendingFormData.get("actual_cash")),
-        memo: (pendingFormData.get("memo") as string) || undefined,
+      await mutateAsync({
+        date: closeDate,
+        period: closePeriod,
+        actual_cash: Number(getFormString(pendingFormData, "actual_cash")),
+        memo: getFormString(pendingFormData, "memo") || undefined,
       });
       toast.success("締めを実行しました");
       setShowConfirm(false);
       setPendingFormData(null);
       setActualCash("");
-    } catch (error) {
-      handleApiError(error, "締め実行");
+    } catch {
+      // FE-RC-005: useCreateCashRegisterClose.onError が既に handleApiError で通知済み。
       setShowConfirm(false);
     }
-  }, [pendingFormData, createMutation]);
+  }, [pendingFormData, mutateAsync]);
 
   const handleCancelConfirm = useCallback(() => {
     setShowConfirm(false);
@@ -77,6 +118,9 @@ export function CashRegisterClosePage() {
   }, []);
 
   const periodLabel = PERIOD_LABELS[period];
+  const goHistory = useCallback(() => {
+    navigate(paths.accounting.closeHistory.getHref());
+  }, [navigate]);
 
   return (
     <PageLayout
@@ -84,52 +128,23 @@ export function CashRegisterClosePage() {
       resource={ResourceCashRegisterClose}
       icon={<Calculator className={`${ICON.page} ${C.text}`} />}
       maxWidth={LAYOUT.pageContentMaxWidth.full}
+      headerAction={
+        <FormHeaderActions
+          onCancel={goHistory}
+          submitLabel="締める"
+          submitFormId="cash-register-close-form"
+          submitDisabled={actualCash === "" || Number(actualCash) < 0}
+        />
+      }
     >
       <div className="space-y-6">
-        {/* 対象日・区分選択 */}
-        <section className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
-          <h2 className={`text-base font-semibold ${C.text} mb-4`}>対象日時の選択</h2>
-          <div className="flex flex-wrap items-end gap-4">
-            <div>
-              <label htmlFor="target_date" className={STYLE.formLabel}>
-                対象日
-              </label>
-              <input
-                id="target_date"
-                type="date"
-                value={date}
-                onChange={(e) => handleDateChange(e.target.value)}
-                className={`${STYLE.formInput} mt-1 rounded-xs border px-3 block`}
-              />
-            </div>
-            <div>
-              <p className={`${STYLE.formLabel} mb-1`}>区分</p>
-              <div className="flex gap-2">
-                {PERIOD_OPTIONS.map((p) => (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() => handlePeriodChange(p)}
-                    className={`px-4 h-11 text-base rounded-xs border transition-colors ${
-                      period === p
-                        ? `${C.bgBrand} ${C.textOnBrand} border-transparent`
-                        : `${C.bgWhite} ${C.borderMedium} ${C.text} ${C.hoverBgLight}`
-                    }`}
-                  >
-                    {PERIOD_LABELS[p]}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={enablePreview}
-              className={`h-11 px-4 text-base rounded-full ${C.bgBrand} ${C.textOnBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} transition-colors`}
-            >
-              プレビュー
-            </button>
-          </div>
-        </section>
+        <CashRegisterCloseTargetSection
+          date={date}
+          period={period}
+          onDateChange={handleDateChange}
+          onPeriodChange={handlePeriodChange}
+          onEnablePreview={enablePreview}
+        />
 
         {previewLoading ? (
           <div className="flex items-center justify-center py-8">
@@ -138,163 +153,16 @@ export function CashRegisterClosePage() {
         ) : null}
 
         {preview !== undefined && !previewLoading ? (
-          <>
-            {preview.isHoliday ? (
-              <div className={`p-4 rounded-lg ${C.bgNotice} border ${C.borderNotice}`}>
-                <p className={`text-base ${C.textNotice}`}>この日は休診日として設定されています</p>
-              </div>
-            ) : null}
-
-            {preview.isAlreadyClosed ? (
-              <div className={`p-4 rounded-lg ${C.bgStatusGreen} border ${C.borderStatusGreen}`}>
-                <p className={`text-base font-medium ${C.textStatusGreen}`}>
-                  {date} {periodLabel} はすでに締め済みです
-                </p>
-              </div>
-            ) : (
-              <>
-                {/* 印刷 / PDF 出力導線（#153: #184 と同じ印刷基盤を再利用）*/}
-                <div className="flex justify-end print:hidden" data-testid="close-actions">
-                  <button
-                    type="button"
-                    onClick={() => window.print()}
-                    data-testid="close-print-button"
-                    className={`flex min-h-11 items-center gap-2 px-4 text-base rounded-xs ${C.bgWhite} border ${C.borderMedium} ${C.text} ${C.hoverBgLight} transition-colors`}
-                  >
-                    <Printer className="size-4" />
-                    印刷 / PDF出力
-                  </button>
-                </div>
-
-                {/* 統合テーブル: 部門別集計（件数＋支払方法別金額＋合計）*/}
-                <section className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
-                  <h2 className={`text-base font-semibold ${C.text} mb-4`}>部門別集計</h2>
-                  <UnifiedClosingSummaryTable
-                    categories={preview.aggregate.categories}
-                    paymentMethods={preview.aggregate.paymentMethods}
-                    billingDetails={preview.billingDetails}
-                    unclassifiedOtherCount={preview.aggregate.unclassifiedOtherCount}
-                    categoryCounts={preview.aggregate.categoryCounts}
-                  />
-                </section>
-
-                {/* 印刷 / PDF 出力ビュー（印刷時のみ表示）*/}
-                <ClosePrintArea
-                  date={preview.date}
-                  period={period}
-                  clinicName={clinicName}
-                  categories={preview.aggregate.categories}
-                  paymentMethods={preview.aggregate.paymentMethods}
-                  billingDetails={preview.billingDetails}
-                  taxBreakdown={preview.aggregate.taxBreakdown}
-                  theoreticalCash={preview.aggregate.theoreticalCash}
-                  actualCash={actualCash !== "" ? Number(actualCash) : null}
-                  unclassifiedOtherCount={preview.aggregate.unclassifiedOtherCount}
-                  categoryCounts={preview.aggregate.categoryCounts}
-                />
-
-                {/* 消費税内訳 */}
-                <section className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
-                  <h2 className={`text-base font-semibold ${C.text} mb-4`}>消費税内訳</h2>
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 max-w-lg">
-                    <div>
-                      <p className={`text-xs ${C.text40} mb-1`}>標準税率（10%）</p>
-                      <div className="flex justify-between text-sm py-1">
-                        <span className={C.text60}>課税対象額</span>
-                        <span className={C.text}>
-                          {formatCurrency(preview.aggregate.taxBreakdown.standard.taxableAmount)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-sm py-1">
-                        <span className={C.text60}>消費税額</span>
-                        <span className={C.text}>
-                          {formatCurrency(preview.aggregate.taxBreakdown.standard.taxAmount)}
-                        </span>
-                      </div>
-                    </div>
-                    <div>
-                      <p className={`text-xs ${C.text40} mb-1`}>軽減税率（8%）</p>
-                      <div className="flex justify-between text-sm py-1">
-                        <span className={C.text60}>課税対象額</span>
-                        <span className={C.text}>
-                          {formatCurrency(preview.aggregate.taxBreakdown.reduced.taxableAmount)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-sm py-1">
-                        <span className={C.text60}>消費税額</span>
-                        <span className={C.text}>
-                          {formatCurrency(preview.aggregate.taxBreakdown.reduced.taxAmount)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className={`mt-3 pt-3 border-t ${C.borderLight} flex justify-between text-sm font-medium max-w-lg`}>
-                    <span className={C.text70}>消費税合計</span>
-                    <span className={C.text}>
-                      {formatCurrency(
-                        preview.aggregate.taxBreakdown.standard.taxAmount +
-                          preview.aggregate.taxBreakdown.reduced.taxAmount,
-                      )}
-                    </span>
-                  </div>
-                </section>
-
-                {/* 締めフォーム */}
-                <section className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
-                  <h2 className={`text-base font-semibold ${C.text} mb-4`}>レジ締め実行</h2>
-                  <form action={formAction} className="space-y-4">
-                    <input type="hidden" name="close_date" value={date} />
-                    <input type="hidden" name="period" value={period} />
-                    <div className="max-w-sm">
-                      <label htmlFor="actual_cash" className={STYLE.formLabel}>
-                        実際のレジ現金（円）
-                      </label>
-                      <input
-                        id="actual_cash"
-                        name="actual_cash"
-                        type="number"
-                        min="0"
-                        value={actualCash}
-                        onChange={handleActualCashChange}
-                        className={`${STYLE.formInput} mt-1 w-full rounded-xs border px-3`}
-                        placeholder="0"
-                        required
-                      />
-                    </div>
-                    {actualCash !== "" ? (
-                      <CashReconciliationCard
-                        theoreticalCash={preview.aggregate.theoreticalCash}
-                        actualCash={Number(actualCash)}
-                      />
-                    ) : null}
-                    <div>
-                      <label htmlFor="close_memo" className={STYLE.formLabel}>
-                        メモ（任意）
-                      </label>
-                      <input
-                        id="close_memo"
-                        name="memo"
-                        type="text"
-                        className={`${STYLE.formInput} mt-1 w-full rounded-xs border px-3`}
-                        placeholder="特記事項があれば入力"
-                      />
-                    </div>
-                    <div className="flex justify-end">
-                      <SubmitButton colorVariant="primary" loadingText="締め中...">締める</SubmitButton>
-                    </div>
-                  </form>
-                </section>
-
-                {/* 個別会計明細 */}
-                <section className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
-                  <h2 className={`text-base font-semibold ${C.text} mb-4`}>
-                    個別会計明細（{preview.billingDetails.length}件）
-                  </h2>
-                  <BillingDetailTable details={preview.billingDetails} />
-                </section>
-              </>
-            )}
-          </>
+          <CashRegisterClosePreview
+            preview={preview}
+            period={period}
+            periodLabel={periodLabel}
+            clinicName={clinicName}
+            actualCash={actualCash}
+            formAction={formAction}
+            onActualCashChange={handleActualCashChange}
+            onCancel={goHistory}
+          />
         ) : null}
 
         <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
@@ -306,12 +174,15 @@ export function CashRegisterClosePage() {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel onClick={handleCancelConfirm}>キャンセル</AlertDialogCancel>
+              <AlertDialogCancel onClick={handleCancelConfirm} disabled={isPending}>
+                キャンセル
+              </AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleConfirmClose}
+                disabled={isPending}
                 className={`${C.bgBrand} ${C.textOnBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} rounded-full`}
               >
-                締める
+                {isPending ? "処理中..." : "締める"}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

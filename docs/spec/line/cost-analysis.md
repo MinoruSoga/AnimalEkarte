@@ -46,28 +46,27 @@
 
 ---
 
-## 3. コスト最適化機能 (Cost Controls)
+## 3. 現行の配信抑制と safety gap
 
-システム側で無駄な配信を抑制し、ROI を最大化するためのロジックを実装しています。
+- **同日重複抑制**: 同日に複数 trigger が競合する場合は priority と daily claim で 1 件を選ぶ。
+- **opt-out の ownership**: カルテ側は `owners.lstep_opt_out` を所有する。webhook は follow / unfollow のみを処理し、Lステップ側 opt-out property とこの flag を同期する契約はない。
+- **現行の最終除外確認**: owner opt-out、`delivery_excluded`、LINE ID、cached EXCL tag を確認する。
 
-- **重複配信の自動選別**: 同日に複数のトリガーが発火する場合、優先順位（医療案内優先）に基づき、配信を 1 通に統合。
-- **配信除外 (Opt-out) の徹底**: Lステップ側の配信停止設定とカルテ側の「配信除外」フラグを物理的に同期し、未達（エラー）による無駄な API 呼び出しを防止。
-- **生存ペット判定**: 死亡済みのペットに関する自動リマインドを 100% 遮断し、感情的リスクとコストの両面をカバー。
+**既知の source gap**: 最終 claim / write 前の除外確認は pet death を直接読まない。全 pet 死亡時の tag cleanup は best-effort であり、durable exclusion flag を確立しない。一部候補 query も死亡 pet を除外しない。そのため死亡 pet 関連配信の絶対遮断や「物理同期」は主張しない。
 
----
+必要な是正契約は、候補取得時と最終 claim / write transaction の両方で durable な owner/pet exclusion evidence を fail-closed に確認し、failure alert、reconciliation、手動停止 fallback を持つこと。この source defect は本 docs-only 変更では未修正。
 
-## 4. 投資対効果 (ROI) の可視化
+## 4. 実装済みの効果測定
 
-管理画面の「Lステップ分析レポート」にて、以下の指標を算出し、コストを上回る収益性を検証します。
+`/lstep/analytics` が提供するのは trigger 別の delivery count / status と、配信後 30 日以内の `delivered_count`, `visited_count`, `visit_rate` である。売上額、診療費、message 単位 revenue、明示的な dormant-return KPI は計算しない。
 
-- **配信後 30 日来院率**: メッセージ 1 通あたり、どれだけの売上（診療費）に結びついたか。
-- **休眠復帰数**: 長期未来院者へのアプローチによる再来院数。
+### 計画中の ROI 指標（未実装）
 
----
+- **revenue attribution**: 対象 delivery と 30 日以内の completed accounting を clinic / owner 単位で重複なく結び、売上額と attribution rule を返す。timezone、refund、複数 delivery の帰属 rule を acceptance criteria に含める。
+- **dormant return**: dormant trigger 配信時の stage と、その後の qualified visit を記録し、期間・重複排除 rule とともに復帰数を返す。
 
-## 5. 推奨プランニング
+これらを API、UI、test、計測定義が備わる前に ROI の実装済み指標として扱わない。
 
-- **小規模院 (登録数 < 500)**: LINE コミュニケーションプラン ＋ Lステップ スタートプラン。
-- **中〜大規模院 (登録数 > 1,000)**: LINE スタンダードプラン ＋ Lステップ プロプラン。
+## 5. 料金 worksheet
 
----
+外部 provider の plan 名、価格、無料枠、超過単価は repository 外で変更され得るため、本仕様は特定 plan を推奨しない。検討時は LINE / Lステップの公式 pricing URL を運用記録に添付し、**確認日、契約地域、通貨、税区分、登録数、月間配信数、超過単価**を記録して比較する。provider の最新条件を確認せず、この simulation だけで契約を決めない。

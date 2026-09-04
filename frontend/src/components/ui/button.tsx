@@ -8,25 +8,17 @@ import { buttonVariants, type ButtonVariantsProps } from "./button-variants";
 // eslint-disable-next-line react-refresh/only-export-components
 export { buttonVariants };
 
-interface ButtonProps
-  extends React.ComponentProps<"button">,
-    ButtonVariantsProps {
+interface ButtonProps extends React.ComponentProps<"button">, ButtonVariantsProps {
   asChild?: boolean;
   ref?: React.Ref<HTMLButtonElement>;
 }
 
-function Button({
-  className,
-  variant,
-  size,
-  asChild = false,
-  ref,
-  type,
-  ...props
-}: ButtonProps) {
+function Button({ className, variant, size, asChild = false, ref, type, ...props }: ButtonProps) {
   const Comp = asChild ? Slot : "button";
   const typeProps: Pick<React.ComponentProps<"button">, "type"> = asChild
-    ? (type ? { type } : {})
+    ? type
+      ? { type }
+      : {}
     : { type: type ?? "button" };
 
   return (

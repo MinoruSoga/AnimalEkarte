@@ -171,7 +171,7 @@ INSERT INTO payment_splits (
 	seeds := CutoverSeedIDs{
 		ClinicID: clinicID, CashPaymentMethodID: cashID, CreditCardPaymentMethodID: cardID,
 	}
-	if err := verifyCutoverPaymentGraph(ctx, tx, &manifest, seeds); err != nil {
+	if err := verifyCutoverPaymentGraph(ctx, tx, &manifest, seeds, CutoverProvenanceContract{Mode: CutoverProvenanceFormal}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -187,7 +187,7 @@ INSERT INTO payment_splits (
 			if _, err := tx.Exec(ctx, mutateSQL, mutateArgs...); err != nil {
 				t.Fatalf("mutate fixture: %v", err)
 			}
-			if err := verifyCutoverPaymentGraph(ctx, tx, &manifest, seeds); err == nil {
+			if err := verifyCutoverPaymentGraph(ctx, tx, &manifest, seeds, CutoverProvenanceContract{Mode: CutoverProvenanceFormal}); err == nil {
 				t.Fatal("payment graph violation was accepted")
 			}
 			if _, err := tx.Exec(ctx, restoreSQL, restoreArgs...); err != nil {

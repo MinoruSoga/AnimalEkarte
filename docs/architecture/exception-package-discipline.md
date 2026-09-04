@@ -9,6 +9,7 @@
 | Kind | Examples | Default stance |
 |------|----------|----------------|
 | Cutover / tooling | `csvimport` | **cmd-only** consumers; not a general app write API |
+| Local serial-port agent | `labdeviceagent` | **cmd-only** (`cmd/lab-device-agent`); not a domain; no `internal/<domain>` import |
 | Narrow capability domain | `identitylink` | Allowed as domain; **no** owner/pet Go import |
 | HTTP/shared kernel | `httpapi`, `sharedkernel`, `persistence`, `apperrors` | Prefer existing; do not invent parallel helpers |
 | Cross-cutting runtime | `audit`, `middleware`, `authjwt`, `timeutil` | Expand only with real multi-consumer need |
@@ -43,11 +44,18 @@
 - Second real production consumer + shared change risk → then name and extract.
 - Single-consumer helpers stay in the owner domain (or `cmd`).
 
+### A8-6 — `labdeviceagent` stays cmd-only local agent
+
+- Independent local serial-port agent for Mac workstations ([ADR-008](adr/008-local-lab-device-agent.md)). Not a 15th domain and not a `medicalrecord` implementation detail.
+- Allowed production consumer is **`cmd/lab-device-agent` only**. Do **not** import `labdeviceagent` from `internal/<domain>` or from `cmd/api`.
+- A8-5 still forbids extracting single-consumer helpers from a domain. This keep-tier exception exists because serial/platform files and tests form a cohesive local agent, not hospital workflow. Need for an in-process API consumer → new ADR, not “import the agent from a domain”.
+- Pinned as keep-tier in `acceptedTopLevelPackages` (count 34). **Not** in `domainPackages` (stay 14) and **not** on `domainImportAllowlist`.
+
 ## Adding a new top-level `internal/` package
 
-1. Prefer an existing domain or keep-tier package.  
-2. If new top-level is required: update `acceptedTopLevelPackages` in `package_boundary_gate_test.go` **and** ADR/boundary map in the same PR.  
-3. If it is a domain: add `domainPackages` + `domainImportAllowlist` edges.  
+1. Prefer an existing domain or keep-tier package.
+2. If new top-level is required: update `acceptedTopLevelPackages` in `package_boundary_gate_test.go` **and** ADR/boundary map in the same PR.
+3. If it is a domain: add `domainPackages` + `domainImportAllowlist` edges.
 4. If it is an exception: document here why it is not a domain and what consumers are allowed.
 
 ## Machine gates
@@ -57,13 +65,15 @@
 | A8-1 csvimport cmd-only | `lintscan/exception_package_discipline_lint_test.go` |
 | A8-3 identitylink ↛ owner/pet | same + `domain_import_allowlist_lint_test.go` |
 | A8-4 no bucket packages | `lintscan/package_boundary_gate_test.go` C4 |
+| A8-6 labdeviceagent keep-tier / not a domain | `lintscan/package_boundary_gate_test.go` C1 (`acceptedTopLevelPackages`, not `domainPackages`) |
 | Unapproved top-level package | package boundary C1 |
 | Retired layer resurrection | package boundary C2 |
 
 ## PR checklist
 
-- [ ] No new `common`/`util` package  
-- [ ] No domain import of `csvimport`  
-- [ ] No identitylink → owner/pet import  
-- [ ] Cross-domain write catalog/ADR updated if exception claimed  
+- [ ] No new `common`/`util` package
+- [ ] No domain import of `csvimport`
+- [ ] No domain import of `labdeviceagent` (cmd/lab-device-agent only)
+- [ ] No identitylink → owner/pet import
+- [ ] Cross-domain write catalog/ADR updated if exception claimed
 - [ ] `go test ./internal/lintscan/ -run 'ExceptionPackage|PackageBoundary|DomainImport' -count=1` (Docker)

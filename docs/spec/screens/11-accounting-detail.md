@@ -1,7 +1,7 @@
 # 会計精算 詳細仕様書 (Accounting Detail)
 
 ## 概要
-- **画面の目的**: 診療・サービス費用の精緻な計算、保険適用処理、支払い決済、およびインボイス制度に完全準拠した帳票発行。
+- **画面の目的**: 診療・サービス費用の精緻な計算、保険適用処理、支払い決済、およびインボイス制度で必要となる登録番号・税率別内訳等の帳票項目の出力。
 - **URLパターン**: 
   - 新規作成: `/accounting/new?petId=xxx`
   - 編集・精算: `/accounting/:id`
@@ -30,7 +30,7 @@
 
 ### 2.1 精算済みデータの保護と修正
 - **修正確認モーダル**: すでに「精算済」となった会計を修正・再保存しようとする際、「精算済みの会計を修正します」という確認ダイアログを強制表示。
-- **レジ締め済み期間の編集**: 対象日がレジ締め確定済みの場合、修正理由の入力（必須）を求める。
+- **レジ締め済み期間の編集**: 対象日（新規は JST 当日）がレジ締め確定済みの場合、修正理由（`post_close_reason`）を必須とする。理由が空、または `accounting-post-close-edit:edit` が無いときは確定ボタンを物理ブロックする。BE の `POST /accountings/complete` も FK 解決より先に理由を検証する。
 - **会計キャンセル**: 誤請求等の場合、論理削除 (`status=cancelled`) を行うことで、監査証跡を残しつつ請求を無効化。
 
 ### 2.2 インボイス制度への対応
@@ -45,7 +45,7 @@
 ## 3. 技術仕様
 
 ### 3.1 集中計算エンジン (`calculations.ts`)
-臨床（カルテ会計確認・入院）と会計で同一のロジック (`calculateBillingTotals`) を使用。印刷帳票 (`AccountingDocument`) はこのロジックで算出済みの金額を props で受け取って表示するのみで再計算しないため、レイヤー間で 1 円の誤差も生じない構造を保証しています。帳票に印字するインボイス用の税率別内訳（8%/10%）のみ、丸め規則を固定した純関数 `calcTaxBreakdown`（`tax-breakdown.ts`）で算出しています。
+臨床（カルテ会計確認・入院）と会計で同一のロジック (`calculateBillingTotals`) を使用。印刷帳票 (`AccountingDocument`) は共通計算結果を props で受け取って再計算を避け、レイヤー間の丸め差を抑制します。帳票に印字するインボイス用の税率別内訳（8%/10%）は、丸め規則を固定した純関数 `calcTaxBreakdown`（`tax-breakdown.ts`）で算出します。
 
 ### 3.2 フロントエンド状態管理
 - **`useActionState`**: 保存処理中の重複クリックを無効化（React 19）。
@@ -55,8 +55,9 @@
 | メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
 |:---|:---|:---|:---|:---|
 | GET | `/api/v1/accountings/:id` | 会計詳細および関連明細の取得 | `accounting` | `view` |
-| POST | `/api/v1/accountings` | 新規会計レコードの作成 | `accounting` | `create` |
-| PATCH | `/api/v1/accountings/:id` | 決済情報の確定、または精算済データの修正 | `accounting` | `edit` |
+| POST | `/api/v1/accountings/complete` | 新規会計の原子確定（明細・支払・監査。`Idempotency-Key` 必須） | `accounting` | `create` |
+| POST | `/api/v1/accountings` | レガシー新規作成（本画面の確定経路では使わない） | `accounting` | `create` |
+| PATCH | `/api/v1/accountings/:id` | 既存会計の決済確定、または精算済データの修正 | `accounting` | `edit` |
 | POST | `/api/v1/accountings/:id/refunds` | 理由を伴う部分返金の記録 | `accounting` | `create` |
 | POST | `/api/v1/accountings/:id/credit-correction` | 確定済みカード金額の確定後訂正 | `accounting-post-close-edit` | `edit` |
 | POST | `/api/v1/accountings/:id/cancel` | 会計のキャンセル（論理削除） | `accounting-cancel` | `edit` |

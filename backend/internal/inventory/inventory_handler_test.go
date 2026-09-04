@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -303,6 +304,40 @@ func TestCreateInventory(t *testing.T) {
 			},
 			wantStatus: http.StatusInternalServerError,
 		},
+		{
+			// BE-RC-006: toServiceInput は既に AppError を返す。WrapInvalidInput(err.Error())
+			// すると Message に ": invalid input" が二重に載る。
+			name: "returns 400 for invalid expiry_date without wrapping AppError.Error",
+			body: map[string]any{
+				"name": "日付不正", "category": "consumable", "unit": "本", "quantity": 1,
+				"expiry_date": "not-a-date",
+			},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockInventoryService{
+				createFn: func(_ context.Context, _ uint64, _ *CreateInventoryInput) (*model.InventoryItem, error) {
+					t.Fatal("Create must not be called when toServiceInput fails")
+					return nil, nil
+				},
+			},
+			wantStatus: http.StatusBadRequest,
+			wantBody:   httpapi.FlexibleDateInvalidInputMsg,
+		},
+		{
+			name: "returns 400 for invalid last_restocked without wrapping AppError.Error",
+			body: map[string]any{
+				"name": "入荷日不正", "category": "consumable", "unit": "本", "quantity": 1,
+				"last_restocked": "not-a-date",
+			},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockInventoryService{
+				createFn: func(_ context.Context, _ uint64, _ *CreateInventoryInput) (*model.InventoryItem, error) {
+					t.Fatal("Create must not be called when toServiceInput fails")
+					return nil, nil
+				},
+			},
+			wantStatus: http.StatusBadRequest,
+			wantBody:   httpapi.FlexibleDateInvalidInputMsg,
+		},
 	}
 
 	for _, tt := range tests {
@@ -324,6 +359,10 @@ func TestCreateInventory(t *testing.T) {
 			if tt.wantBody != "" {
 				assert.Contains(t, w.Body.String(), tt.wantBody)
 			}
+			if tt.wantStatus == http.StatusBadRequest && tt.wantBody == httpapi.FlexibleDateInvalidInputMsg {
+				assert.NotContains(t, w.Body.String(), "invalid input")
+				assert.NotContains(t, w.Body.String(), "not-a-date")
+			}
 		})
 	}
 }
@@ -340,6 +379,7 @@ func TestUpdateInventory(t *testing.T) {
 		setupCtx   func(c *gin.Context)
 		svc        *mockInventoryService
 		wantStatus int
+		wantBody   string
 	}{
 		{
 			name:     "updates inventory item successfully",
@@ -394,6 +434,35 @@ func TestUpdateInventory(t *testing.T) {
 			svc:        &mockInventoryService{},
 			wantStatus: http.StatusBadRequest,
 		},
+		{
+			// BE-RC-006: toServiceInput は既に AppError を返す。
+			name:     "returns 400 for invalid expiry_date without wrapping AppError.Error",
+			paramID:  "1",
+			body:     map[string]any{"expiry_date": "not-a-date"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockInventoryService{
+				updateFn: func(_ context.Context, _, _ uint64, _ *UpdateInventoryInput) (*model.InventoryItem, error) {
+					t.Fatal("Update must not be called when toServiceInput fails")
+					return nil, nil
+				},
+			},
+			wantStatus: http.StatusBadRequest,
+			wantBody:   httpapi.FlexibleDateInvalidInputMsg,
+		},
+		{
+			name:     "returns 400 for invalid last_restocked without wrapping AppError.Error",
+			paramID:  "1",
+			body:     map[string]any{"last_restocked": "not-a-date"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockInventoryService{
+				updateFn: func(_ context.Context, _, _ uint64, _ *UpdateInventoryInput) (*model.InventoryItem, error) {
+					t.Fatal("Update must not be called when toServiceInput fails")
+					return nil, nil
+				},
+			},
+			wantStatus: http.StatusBadRequest,
+			wantBody:   httpapi.FlexibleDateInvalidInputMsg,
+		},
 	}
 
 	for _, tt := range tests {
@@ -413,6 +482,13 @@ func TestUpdateInventory(t *testing.T) {
 			h.UpdateInventory(c)
 
 			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+			if tt.wantStatus == http.StatusBadRequest && tt.wantBody == httpapi.FlexibleDateInvalidInputMsg {
+				assert.NotContains(t, w.Body.String(), "invalid input")
+				assert.NotContains(t, w.Body.String(), "not-a-date")
+			}
 		})
 	}
 }

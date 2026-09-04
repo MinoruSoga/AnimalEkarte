@@ -3,7 +3,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
-import { createTestWrapper } from "@/testing/utils";
+import { createTestWrapper } from "@/testing/TestUtils";
 import type { CashRegisterClose } from "@/types/generated/models";
 import { CashRegisterHistoryPage } from "./CashRegisterHistoryPage";
 
@@ -296,9 +296,7 @@ describe("CashRegisterHistoryPage detail dialog", () => {
       expect(screen.queryByText("読み込み中...")).not.toBeInTheDocument();
     });
 
-    await user.click(
-      screen.getByRole("button", { name: "締め詳細: 2026-06-15 午前 (ID 1)" }),
-    );
+    await user.click(screen.getByRole("button", { name: "締め詳細: 2026-06-15 午前 (ID 1)" }));
 
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText("内訳データなし")).toBeInTheDocument();
@@ -319,9 +317,7 @@ describe("CashRegisterHistoryPage detail dialog", () => {
     await waitFor(() => {
       expect(screen.queryByText("読み込み中...")).not.toBeInTheDocument();
     });
-    await user.click(
-      screen.getByRole("button", { name: "締め詳細: 2026-06-15 午前 (ID 1)" }),
-    );
+    await user.click(screen.getByRole("button", { name: "締め詳細: 2026-06-15 午前 (ID 1)" }));
 
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText("未分類・要確認")).toBeInTheDocument();
@@ -344,9 +340,7 @@ describe("CashRegisterHistoryPage detail dialog", () => {
     await waitFor(() => {
       expect(screen.queryByText("読み込み中...")).not.toBeInTheDocument();
     });
-    await user.click(
-      screen.getByRole("button", { name: "締め詳細: 2026-06-15 午前 (ID 1)" }),
-    );
+    await user.click(screen.getByRole("button", { name: "締め詳細: 2026-06-15 午前 (ID 1)" }));
 
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText("未分類・要確認")).toBeInTheDocument();

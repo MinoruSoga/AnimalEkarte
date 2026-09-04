@@ -82,14 +82,26 @@ func (r *animalSpeciesRepository) Update(ctx context.Context, id uint64, fields 
 func (r *animalSpeciesRepository) Delete(ctx context.Context, id uint64) error {
 	result := persistence.DBOrTx(ctx, r.db).
 		Where("id = ?", id).
+		Where(`NOT EXISTS (
+			SELECT 1 FROM pets
+			WHERE pets.animal_species_id = animal_species.id
+			  AND pets.deleted_at IS NULL
+		)`).
 		Delete(&model.AnimalSpecies{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "animal_species", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("animal_species", fmt.Sprintf("%d", id))
+		return r.normalizeAnimalSpeciesDeleteMiss(ctx, id)
 	}
 	return nil
+}
+
+func (r *animalSpeciesRepository) normalizeAnimalSpeciesDeleteMiss(ctx context.Context, id uint64) error {
+	if _, err := r.FindByID(ctx, id); err != nil {
+		return err
+	}
+	return apperrors.WrapConflict("この動物種はペット情報で使用中のため削除できません")
 }
 
 func (r *animalSpeciesRepository) Reorder(ctx context.Context, ids []uint64) error {

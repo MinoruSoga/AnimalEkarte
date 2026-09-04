@@ -34,7 +34,7 @@ LIFF SDK 初期化中に表示される全画面スピナー（`Spinner` + 「�
 | status | 表示 | 発生条件 |
 |:---|:---|:---|
 | loading / linking | スピナー + 「LINEアカウントを連携中...」 | LIFF 初期化中 / API 呼び出し中 |
-| success | 「連携が完了しました」+ 閉じるボタン | 紐付け成功（200） |
+| success | 「連携が完了しました」+ 閉じるボタン | 紐付け成功（204 No Content） |
 | conflict | 「連携済みです」+ 閉じるボタン | 409: 対象の飼い主に既に LINE User ID が設定済み |
 | expired | 「リンクが無効です」（再試行ボタンなし） | 400: トークン無効・期限切れ・クリニック不一致 |
 | error | 「エラーが発生しました」+ 再試行ボタン | 401（LINE 認証失敗）・その他のエラー・`clinic_id`/`token` 欠落 |
@@ -54,7 +54,7 @@ LIFF SDK 初期化中に表示される全画面スピナー（`Spinner` + 「�
 ### 2. LINE アカウント紐付けフロー
 1. スタッフ側 API（POST `/api/v1/owners/:id/line/link-token`、`owners` の edit 権限）が 24 時間有効の単回使用トークンを発行し、`https://liff.line.me/{LIFF ID}?token={token}&clinic_id={clinicID}` 形式の URL を返す（`GenerateLineLinkToken` → `line_link_service.go`）。`LiffLinkPage` は `token` と `clinic_id` の両方をクエリから読むため、`clinic_id` 欠落時は「無効なURLです」で即エラーになる（SD-14 で修正・旧実装は `clinic_id` 欠落のまま発行していた）。飼い主情報画面（[04-owners-form.md](./04-owners-form.md)）の LINE/Lステップ連携セクション（`LineIntegrationCard`）の未連携時分岐に、この発行 API を呼ぶ `LineLinkTokenSection`（「連携用URLを発行」ボタン → 発行後は読み取り専用入力欄に URL 表示 + コピー ボタン、`useGenerateLineLinkToken` mutation 経由）を SD-14 で追加した。
 2. 飼い主が URL を開くと `useLiffLink`（`use-liff-link.ts`）が LIFF 認証完了後に POST `/api/liff/:clinicId/link` へ link_token と LINE ID Token を送信。
-3. サーバ側（`LinkLiffAccount`）は ①LINE ID Token 検証 → ②トークンの実在・期限・クリニック一致検証 → ③飼い主の既存 LINE User ID 有無チェック（既設定なら 409。force フラグで上書き可能だが LIFF アプリは送信しない）→ ④LINE User ID 更新 → ⑤トークン使用済みマーク（失敗時は二重使用防止のため紐付け自体を失敗させる）→ ⑥監査ログ記録、の順で処理する。
+3. サーバ側（`LinkLiffAccount`）は ①LINE ID Token 検証 → ②トークンの実在・期限・クリニック一致検証 → ③飼い主の既存 LINE User ID 有無チェック（既設定なら 409）→ ④LINE User ID 更新 → ⑤トークンの単回 CAS 消費 → ⑥監査ログ記録と更新結果の再取得、の順で処理する。④〜⑥は同一 transaction で実行し、いずれかが失敗した場合は飼い主更新・トークン消費・監査を全て rollback する。上書き・再リンクはこの endpoint では未対応で、strict JSON decode により `force` などの未知フィールドも拒否する。
 
 ### 3. 未紐付け時の挙動
 health-card API は LINE 顧客が飼い主未紐付けでも 200 を返し、owner_name = LINE 表示名 + pets 空配列にフォールバックする（`liff_service_health_card.go`）。画面上は「ペット情報はありません」となり、紐付け前でもエラーにはならない。
@@ -63,7 +63,7 @@ health-card API は LINE 顧客が飼い主未紐付けでも 200 を返し、ow
 - **死亡ペットの除外**: 死亡日（deceased_at）が設定されたペットは健康手帳に表示しない。
 - **レスポンス形状検証**: zod による実行時検証で、想定外データの誤表示を防ぐ。
 - **テナント分離**: ID Token の client_id 照合をクリニックごとの LINE チャネル ID で行い、トークンにはクリニック一致検証がある。
-- **トークン保護**: 紐付けトークンは 64 桁 hex の乱数・24 時間期限・単回使用。紐付け操作は監査ログに記録される。
+- **トークン保護**: 新規 raw token は 32 random bytes の unpadded base64url（43文字）で、DB には SHA-256 digest のみを保存する。24 時間期限・単回使用。64桁 hex raw token は、発行済み legacy 行の期限内検索だけに対応する。紐付け操作は監査ログに記録される。
 - **レートリミット**: `/link` は 10回/分、読み取り系は 30回/分（IP ベース）。
 
 ### 5. アクセシビリティ
@@ -73,6 +73,9 @@ health-card API は LINE 顧客が飼い主未紐付けでも 200 を返し、ow
 ---
 
 ## 技術仕様
+
+### 開発サーバー（`frontend/vite.config.ts`）
+ローカル dev では `/liff/{clinicId}/src/*` を実ファイルへ rewrite する（`line-reserve` と同型）。rewrite が無いと `GET /liff/{clinicId}/src/main.tsx` が 503 になり画面が白紙になる。
 
 ### 使用コンポーネント
 - **`PetHealthPage`** / **`LiffLinkPage`** / **`LoadingPage`**: `frontend/liff/src/pages` の 3 画面。

@@ -3,15 +3,18 @@ import { render, screen } from "@testing-library/react";
 
 import { PatientInfoCard } from "./PatientInfoCard";
 
-vi.mock(
-  "@/assets/231a870df600a37e011a0e1140e7608b1f4c3340.png",
-  () => ({ default: "/pet.png" }),
-);
+vi.mock("@/assets/231a870df600a37e011a0e1140e7608b1f4c3340.png", () => ({ default: "/pet.png" }));
 
 vi.mock("@/components/shared/Feedback", () => ({
-  ImageWithFallback: ({ src, alt, className }: { src: string; alt: string; className?: string }) => (
-    <img src={src} alt={alt} className={className} />
-  ),
+  ImageWithFallback: ({
+    src,
+    alt,
+    className,
+  }: {
+    src: string;
+    alt: string;
+    className?: string;
+  }) => <img src={src} alt={alt} className={className} />,
 }));
 
 const baseProps = {
@@ -29,18 +32,13 @@ describe("PatientInfoCard petDetails (BUG-006)", () => {
   it("未指定時は固定の「9才5ヶ月 / メス / 避妊済」を出さず不明を表示する", () => {
     render(<PatientInfoCard {...baseProps} />);
     expect(screen.getByText("不明")).toBeInTheDocument();
-    expect(screen.queryByText("9才5ヶ月 / メス / 避妊済")).not.toBeInTheDocument();
+    expect(screen.queryByText("9歳5ヶ月 / メス / 避妊済")).not.toBeInTheDocument();
   });
 
   it("渡した petDetails をそのまま表示する", () => {
-    render(
-      <PatientInfoCard
-        {...baseProps}
-        petDetails="13才7ヶ月 / 雄 / 不明"
-      />,
-    );
-    expect(screen.getByText("13才7ヶ月 / 雄 / 不明")).toBeInTheDocument();
-    expect(screen.queryByText("9才5ヶ月 / メス / 避妊済")).not.toBeInTheDocument();
+    render(<PatientInfoCard {...baseProps} petDetails="13歳7ヶ月 / 雄 / 不明" />);
+    expect(screen.getByText("13歳7ヶ月 / 雄 / 不明")).toBeInTheDocument();
+    expect(screen.queryByText("9歳5ヶ月 / メス / 避妊済")).not.toBeInTheDocument();
   });
 });
 
@@ -68,7 +66,7 @@ describe("PatientInfoCard next visit alert", () => {
   it("次回予定日を渡さない画面では仮の日付や期限アラートを表示しない", () => {
     render(<PatientInfoCard {...baseProps} />);
 
-    expect(screen.getByText("次回 -")).toBeInTheDocument();
+    expect(screen.queryByText("次回 -")).not.toBeInTheDocument();
     expect(screen.queryByText("次回 2025/10/10")).not.toBeInTheDocument();
     expect(screen.queryByText("期限切れ")).not.toBeInTheDocument();
     expect(screen.queryByText("期限間近")).not.toBeInTheDocument();
@@ -87,9 +85,7 @@ describe("PatientInfoCard next visit alert", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-07-21T12:00:00+09:00"));
 
-    const { rerender } = render(
-      <PatientInfoCard {...baseProps} nextVisitDate="2025/02/31" />,
-    );
+    const { rerender } = render(<PatientInfoCard {...baseProps} nextVisitDate="2025/02/31" />);
     expect(screen.queryByText("期限切れ")).not.toBeInTheDocument();
 
     rerender(<PatientInfoCard {...baseProps} nextVisitDate="2025/02-01" />);

@@ -2,8 +2,9 @@ package medicalrecord
 
 import (
 	"fmt"
-	"github.com/animal-ekarte/backend/internal/httpapi"
 	"net/http"
+
+	"github.com/animal-ekarte/backend/internal/httpapi"
 
 	"github.com/gin-gonic/gin"
 
@@ -28,13 +29,13 @@ func NewTreatmentPlanHandler(service TreatmentPlanService, hospitalization Hospi
 
 // verifyMedicalRecordOwnership は internal/handler/medical_record_ownership.go の同名の
 // ローカル移植（vital handler の verifyOwnership 先例・medicalRecordGetter view 経由）。
-func (h *TreatmentPlanHandler) verifyMedicalRecordOwnership(c *gin.Context, clinicID, medicalRecordID uint64) (*model.MedicalRecord, bool) {
-	mr, err := h.medicalRecord.GetByID(c.Request.Context(), clinicID, medicalRecordID)
+func (h *TreatmentPlanHandler) verifyMedicalRecordOwnership(c *gin.Context, clinicID, medicalRecordID uint64) bool {
+	_, err := h.medicalRecord.GetByID(c.Request.Context(), clinicID, medicalRecordID)
 	if err != nil {
 		httpapi.RespondError(c, err)
-		return nil, false
+		return false
 	}
-	return mr, true
+	return true
 }
 
 func (h *TreatmentPlanHandler) ListTreatmentPlansByMedicalRecord(c *gin.Context) {
@@ -42,11 +43,14 @@ func (h *TreatmentPlanHandler) ListTreatmentPlansByMedicalRecord(c *gin.Context)
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMedicalRecords), "view") {
+		return
+	}
 	id, ok := httpapi.ParseIDParam(c, "id")
 	if !ok {
 		return
 	}
-	if _, ok := h.verifyMedicalRecordOwnership(c, clinicID, id); !ok {
+	if !h.verifyMedicalRecordOwnership(c, clinicID, id) {
 		return
 	}
 	plans, err := h.service.ListByMedicalRecord(c.Request.Context(), clinicID, id)
@@ -67,7 +71,7 @@ func (h *TreatmentPlanHandler) CreateTreatmentPlanForMedicalRecord(c *gin.Contex
 	if !ok {
 		return
 	}
-	if _, ok := h.verifyMedicalRecordOwnership(c, clinicID, id); !ok {
+	if !h.verifyMedicalRecordOwnership(c, clinicID, id) {
 		return
 	}
 	var req createTreatmentPlanRequest
@@ -96,6 +100,9 @@ func (h *TreatmentPlanHandler) CreateTreatmentPlanForMedicalRecord(c *gin.Contex
 func (h *TreatmentPlanHandler) ListTreatmentPlansByHospitalization(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceHospitalization), "view") {
 		return
 	}
 	id, ok := httpapi.ParseIDParam(c, "id")
@@ -178,7 +185,7 @@ func (h *TreatmentPlanHandler) UpdateTreatmentPlanInMedicalRecord(c *gin.Context
 	if !ok {
 		return
 	}
-	if _, ok := h.verifyMedicalRecordOwnership(c, clinicID, mrID); !ok {
+	if !h.verifyMedicalRecordOwnership(c, clinicID, mrID) {
 		return
 	}
 	planID, ok := httpapi.ParseIDParam(c, "planId")
@@ -219,7 +226,7 @@ func (h *TreatmentPlanHandler) DeleteTreatmentPlanInMedicalRecord(c *gin.Context
 	if !ok {
 		return
 	}
-	if _, ok := h.verifyMedicalRecordOwnership(c, clinicID, mrID); !ok {
+	if !h.verifyMedicalRecordOwnership(c, clinicID, mrID) {
 		return
 	}
 	planID, ok := httpapi.ParseIDParam(c, "planId")

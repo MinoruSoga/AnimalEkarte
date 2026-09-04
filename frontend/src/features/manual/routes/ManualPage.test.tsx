@@ -14,9 +14,9 @@ const { manualPermissions, overridesHookMock } = vi.hoisted(() => ({
     canEdit: true,
     canDelete: true,
   },
-  overridesHookMock: vi.fn<
-    (enabled: boolean) => { data: ManualArticleOverride[] }
-  >(() => ({ data: [] })),
+  overridesHookMock: vi.fn<(enabled: boolean) => { data: ManualArticleOverride[] }>(() => ({
+    data: [],
+  })),
 }));
 
 vi.mock("@/hooks/use-permission", () => ({
@@ -49,11 +49,9 @@ function mockDesktopBreakpoint(initialMatches = false) {
     },
     media,
     onchange: null,
-    addEventListener: vi.fn(
-      (_type: "change", listener: (event: MediaQueryListEvent) => void) => {
-        listeners.add(listener);
-      },
-    ),
+    addEventListener: vi.fn((_type: "change", listener: (event: MediaQueryListEvent) => void) => {
+      listeners.add(listener);
+    }),
     removeEventListener: vi.fn(
       (_type: "change", listener: (event: MediaQueryListEvent) => void) => {
         listeners.delete(listener);
@@ -61,7 +59,10 @@ function mockDesktopBreakpoint(initialMatches = false) {
     ),
   } as unknown as MediaQueryList;
 
-  vi.stubGlobal("matchMedia", vi.fn(() => mediaQueryList));
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn(() => mediaQueryList),
+  );
 
   return {
     enterDesktop() {
@@ -77,17 +78,19 @@ describe("ManualPage touch targets", () => {
     manualPermissions.canView = false;
     manualPermissions.canEdit = false;
     overridesHookMock.mockReturnValueOnce({
-      data: [{
-        id: 1,
-        category: "screens",
-        slug: "00-overview",
-        title: "権限外のoverride",
-        order_value: 0,
-        section: "基本",
-        body_markdown: "# 権限外のoverride",
-        created_at: "2026-07-21T00:00:00Z",
-        updated_at: "2026-07-21T00:00:00Z",
-      }],
+      data: [
+        {
+          id: 1,
+          category: "screens",
+          slug: "00-overview",
+          title: "権限外のoverride",
+          order_value: 0,
+          section: "基本",
+          body_markdown: "# 権限外のoverride",
+          created_at: "2026-07-21T00:00:00Z",
+          updated_at: "2026-07-21T00:00:00Z",
+        },
+      ],
     });
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
@@ -173,9 +176,13 @@ describe("ManualPage touch targets", () => {
     expect(backgroundEditButton).not.toHaveFocus();
 
     await user.keyboard("{Escape}");
-    await waitFor(() => expect(screen.queryByRole("dialog", { name: "マニュアル目次" })).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "マニュアル目次" })).not.toBeInTheDocument(),
+    );
     expect(trigger).toHaveFocus();
-    expect(within(document.body).getByRole("button", { name: "マニュアル目次を開く" })).toBe(trigger);
+    expect(within(document.body).getByRole("button", { name: "マニュアル目次を開く" })).toBe(
+      trigger,
+    );
   });
 
   it("open中にdesktopへ変化するとmodalを閉じ、可視目次へfocusを移す", async () => {

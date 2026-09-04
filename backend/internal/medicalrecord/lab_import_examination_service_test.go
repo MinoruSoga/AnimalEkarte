@@ -108,7 +108,7 @@ func (r *stubExamRepo) ReplaceItemsByExamID(_ context.Context, clinicID, examID 
 	return saved, deleted, nil
 }
 
-func (r *stubExamRepo) FindAll(_ context.Context, _ uint64, _, _ *uint64, _, _, _ *string, _, _ int) ([]model.Examination, int64, error) {
+func (r *stubExamRepo) FindAll(_ context.Context, _ uint64, _, _, _ *uint64, _, _, _ *string, _, _ int) ([]model.Examination, int64, error) {
 	return nil, 0, nil
 }
 
@@ -175,7 +175,6 @@ type stubDupChecker struct {
 func (c *stubDupChecker) IsDuplicate(_ context.Context, _ LabExamPersistInput) (bool, error) {
 	return c.isDup, c.checkErr
 }
-
 
 // passthroughLabImportTransactor は unit test 用の WithTx 素通し（ambient tx 不要な stub repo 経路）。
 type passthroughLabImportTransactor struct{}

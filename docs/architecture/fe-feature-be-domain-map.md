@@ -49,21 +49,21 @@ RBAC strings match `model.Resource*` / generated FE constants (kebab-case values
 | FE feature | Primary BE domain(s) | Primary RBAC resource(s) | Notes |
 |---|---|---|---|
 | `auth` | `auth` | (login / session; permission groups via master) | Login, me, password flows |
-| `reception` | `reservation`, `owner`, `pet` | `reception`, `owners`, `reservations` | Front desk board; multi-read |
-| `owners` | `owner` | `owners` | |
+| `reception` | `reservation`, `owner`, `pet`, `medicalrecord`, `billing` | `reception`, `owners`, `reservations`, `medical-records`, `accounting`, `hospitalization` | Front desk board; multi-read/action permissions |
+| `owners` | `owner` (+ medicalrecord reads/actions) | `owners`, `medical-records` | |
 | `pets` | `pet` | `owners` (pet under owner UX) | Pet APIs; permission often owner-scoped UI |
 | `reservations` | `reservation` | `reservations` | Admin booking |
 | `line-reservation` | `reservation` | `hospital-settings` / reservation masters as used by settings UI | Staff settings for LIFF |
 | *(shared-liff)* | `reservation` | public LIFF (clinic-scoped token / open routes) | Not under `features/`; see A7-4 |
-| `medical-records` | `medicalrecord` | `medical-records` | |
+| `medical-records` | `medicalrecord` (+ billing actions) | `medical-records`, `accounting` | |
 | `examinations` | `medicalrecord` | `examinations`, `examination-unconfirm` | |
-| `checkups` | `medicalrecord` | `checkups`, `checkup-package-import` | |
+| `checkups` | `medicalrecord` | `checkups`, `checkup-package-import`, `medical-records` | |
 | `vaccinations` | `medicalrecord` | `vaccinations` | |
 | `hospitalization` | `medicalrecord` (+ `billing` on discharge) | `hospitalization` | Cross-domain discharge: orchestration catalog |
-| `accounting` | `billing` | `accounting`, `accounting-cancel`, `accounting-post-close-edit`, `discount` | |
+| `accounting` | `billing` | `accounting`, `accounting-cancel`, `accounting-post-close-edit`, `cash-register-close`, `discount` | |
 | `estimates` | `billing` | `estimates` | |
 | `cash-register` | `billing` | `cash-register-close` | |
-| `accounting-reports` | `billing` | `accounting-reports` | |
+| `accounting-reports` | `billing` (+ clinic settings) | `accounting-reports`, `cash-register-close`, `hospital-settings` | |
 | `closing-settings` | `clinic` / billing close config | `closing-settings` | |
 | `inventory` | `inventory` | `inventory`, `master-merchandise` | |
 | `trimming` | `trimming` (+ `reservation` intents) | `trimming`, `master-trimming` | |
@@ -71,9 +71,10 @@ RBAC strings match `model.Resource*` / generated FE constants (kebab-case values
 | `master` | various masters | `master-*` (species, medical, reservation-type, staff, insurance, payment-method, …) | Split UI by master resource |
 | `clinic-settings` | `clinic` | `hospital-settings` | |
 | `settings` | `lstep`, `clinic`, … | `hospital-settings`, `lstep-*` as pages require | Hospital admin hub pages |
-| `lstep` | `lstep` | `lstep-csv-import`, `lstep-analytics` | Staff LSTEP ops |
+| `lstep` | `lstep` (+ clinic/owner reads) | `lstep-csv-import`, `lstep-analytics`, `hospital-settings`, `owners` | Staff LSTEP ops |
 | `manual` | `manualarticle` | `manual-edit` | |
 | `identity-links` | `identitylink` | `identity-links` | No FE assumption of owner/pet package coupling |
+| `lab-device` | `medicalrecord` | `lab-import` | `/lab-device` board · ADR-007 · routes under medicalrecord lab-device APIs; FE `features/lab-device` |
 | `aggregation` | `lstep` / reporting reads | (feature-specific; often analytics-adjacent) | Keep reads fail-closed to clinic |
 | `owner-report` | multi clinical read | `examinations`, `vaccinations`, `checkups`, `trimming`, `reservations`, … | Composite read UI; permission per section |
 

@@ -11,9 +11,7 @@
 （アプリ書込みの非現金会計が `payment_method_id=NULL` で保存され、レジ締め・月次集計で全て「現金」に倒れる）を解消した。
 **Option C**（ENUM を真実の源泉として維持 + 書込み時に当該 clinic の master id を同期）を採用済み。
 
-残る4論点は恒久的アーキテクチャ判断であり、**#128 クローズ時に PO 決裁へ預けられた**。#185 がその単一追跡先である。
-本 ADR は各論点に対し **技術案・トレードオフ・推奨** を提示し、PO 決裁の材料とする。
-**実装は本 ADR では行わない。** 決裁確定後、論点ごとに個別の実装 Issue を起票して着手する。
+残る4論点は #128 クローズ時に PO 決裁へ預けられ、#185 を単一追跡先として検討された。以下の案・トレードオフ・DoD は **決定前の historical proposal** である。現行 outcome は Status、各「決定」節、末尾の実装メモを正とする。
 
 ### マイグレーション安全性（全論点共通の前提）
 
@@ -35,7 +33,7 @@
 - `payments.clinic_id` と clinic 軸複合 FK（TASK-445 / 旧005相当）により payment 行のテナント境界を DB でも harden 済み。
 - 残差: レガシー `payment_method_id IS NULL` 行は許容し得る。TRIGGER は soft-deleted master を拒否しない。確定後訂正経路は保存済 method/payment_method_id 組合せを再検証しない。
 
-### 設計案
+### Historical proposal（決定前）
 `payment_method_id` は per-clinic master を参照するため、**単純 CHECK では表現不可**（クロステーブル参照が必要）。
 - **案 1A**: `payments` / `payment_splits` の `BEFORE INSERT/UPDATE` トリガーで `NEW.payment_method_id` の行を引き、
   `clinic_id` 一致 + `name = expected(NEW.method)` を検証。レガシー NULL 行は後方互換で許容。
@@ -46,7 +44,7 @@
 - 書込み毎に追加クエリ1回（軽微）。アプリ層検証との二重防御で堅牢性は上がるが保守対象が増える。
 - レガシー `payment_method_id=NULL` 行（旧 seed・hotfix 前データ）の扱いを決める必要がある。
 
-### DoD（PO 判断条件）
+### Historical DoD（satisfied）
 「DB制約を追加する／しない」を決定。追加する場合は 1A/1B のいずれか・NULL 行の扱い・検証範囲を実装 Issue で定義。
 
 ### 推奨
@@ -56,16 +54,10 @@
 
 ## Decision Point 2: 安定識別子 `system_key` / `code` 列の導入
 
-### 現状
-- `payment_methods` は **per-clinic id + 自由文字列 `name`** のみ
-  （`001_init.sql:1885-1894`、`UNIQUE(clinic_id, name)`）。`PaymentMethodMaster` に安定列なし。
-- 現金判定はマスタ `name="現金"` の文字列一致
-  （`accounting_service_builders.go:15-20` `paymentMethodMasterNames` / `cash_register_service.go:414` `findCashMethodID`）。
-- **rename 脆弱性**: クリニックが既定 name を改名すると、
-  - 書込み側 `resolvePaymentMethodMasterID` は **明示エラーで安全に倒れる**（データ破損なし、ただし会計確定不能）。
-  - 集計側 `findCashMethodID` は既存現金 master を**見失い、現金を過少計上**しうる（`name` ベースのため）。
+### 決定前の現状（historical, before #197）
+当時は `payment_methods` が per-clinic id と自由文字列 `name` だけを持ち、書込み・現金集計が name 一致に依存していた。この rename 脆弱性は #197 の `system_key` 導入と key-based lookup への切替で解消済み。現行定義は `001_init.sql` の `CREATE TABLE payment_methods`、`create_default_payment_methods`、および billing の `paymentMethodSystemKeys` / `findCashMethodID` を参照する。
 
-### 設計案
+### Historical proposal（決定前）
 `payment_methods` に `system_key varchar(50) NULL` を追加。予約体系 = `cash` / `credit_card` / `electronic_money` / `bank_transfer`。
 新規の additive マイグレーション（当時の増分ファイルとして提案、現在は `001_init.sql` に統合済み）で：
 1. `ALTER TABLE payment_methods ADD COLUMN system_key varchar(50);`
@@ -81,7 +73,7 @@
 - 追加列 + backfill。クリニック独自追加の非標準 method は `system_key=NULL`（標準4種のみ予約 key）。
 - 技術リスクは低い（additive・db_reset 不要）。本質コストは「予約 code 体系・列名の確定」という設計判断。
 
-### DoD（PO 判断条件）
+### Historical DoD（satisfied）
 「列追加 する／しない」+ 列名（`system_key` vs `code`）+ 予約体系を決定。
 
 ### 推奨
@@ -108,11 +100,11 @@
 ## Decision Point 3: 代表支払方法 `representativeMethod` の優先順位
 
 ### 現状（実装前）
-- `accounting_service_builders.go:60-72`。優先順位 `cash > credit_card > else(electronic_money)`（PO判断B 2026-05-25 確定）。
+- `accounting_service_builders.go` の `representativeMethod` は、当時 `cash > credit_card > else(electronic_money)` だった（PO判断B 2026-05-25 確定）。
 - **既知バグ**: `bank_transfer`（#127 で ENUM 追加済）は最終 `else` に落ち、
   **bank_transfer 単独 split でも `electronic_money` と表示される**。`accounting_service_test.go:1155` が旧仕様を固定していた。
 
-### 設計案
+### Historical proposal（決定前）
 - **案 3A**: 優先チェーンに bank_transfer を追加（`cash > credit_card > bank_transfer > electronic_money`、最終 fallback を見直し）。最小変更。
 - **案 3B（推奨）**: 「代表 = 金額最大の split の method」へ意味論を変更。混在会計で業務的に妥当。同額時の tiebreak を固定優先順位で解決。
 
@@ -120,7 +112,7 @@
 - 3A は最小差分だが「代表」の意味が曖昧なまま。
 - 3B は意味が明確だが既存表示・test 更新が必要、`payments.method` の歴史的値とずれる可能性。
 
-### DoD（PO 判断条件）
+### Historical DoD（satisfied）
 bank_transfer を含む優先順位ルール、または金額最大方式への変更を確定。
 
 ### 推奨
@@ -156,24 +148,23 @@ bank_transfer を含む優先順位ルール、または金額最大方式への
 
 ---
 
-## Consequences
+## Consequences（live outcome）
 
-**ポジティブ:**
-- 残4論点が技術案・トレードオフ・db_reset 影響付きで可視化され、PO が判断材料込みで決裁できる。
-- 実装は決裁後に論点ごとの最小差分 Issue へ分離でき、schema-wide rewrite を回避できる。
-- 論点2→1/3 の依存順序が明確（system_key を先に入れると後続が簡潔化）。
+**実装済み:**
+- `system_key` と部分 unique indexにより、標準支払方法の識別を表示名から分離した。
+- application lookup と DB trigger は `method` と `system_key` の不一致を拒否する。
+- `payments.clinic_id` と clinic 軸複合 FK が支払 graph の tenant 整合性を補強する。
+- `representativeMethod` は `cash > credit_card > bank_transfer > electronic_money` を明示的に扱う。
+- Option C（ENUM 維持）を継続し、ENUM DROP は WONTFIX とした。
 
-**ネガティブ:**
-- 決裁が滞ると #185 は OPEN 維持となり、rename 脆弱性（集計側の現金過少計上）が残存する。
-  ただし書込み側は安全 fail のため**データ破損は発生しない**（運用上の脆さに留まる）。
+**残差:**
+- legacy の `payment_method_id IS NULL` は許容される。
+- trigger は soft-deleted master を拒否しない。
+- 確定後訂正経路は保存済み `method` / `payment_method_id` の組合せを再検証しない。
 
-## 実装順序（PO 決裁後）
+## Historical implementation order（完了済み）
 
-```
-論点2 (system_key 導入) ──▶ 論点1 (整合 TRIGGER, 1B で簡潔化)
-                        └─▶ 論点3 (representativeMethod 再設計) ※独立だが system_key と同時が効率的
-論点4 (Option B) ── WONTFIX / 将来の独立大型 Issue
-```
+決定前は `system_key` →整合 trigger、並行して `representativeMethod`、ENUM DROP は WONTFIX の順序を想定した。#197、#198、TASK-445、TASK-ADR003 で選択項目は実装済みであり、これは active work list ではない。
 
 ## References
 
@@ -181,7 +172,7 @@ bank_transfer を含む優先順位ルール、または金額最大方式への
 - hotfix `d9bcd387` / `007_add_bank_transfer_payment_method.sql`（additive migration の実証・2026-06-26 統合により `001_init.sql` に取り込み済み）
 - `backend/internal/billing/accounting_service_builders.go`（`resolvePaymentMethodMasterID` / `representativeMethod`；BE9 以前は `internal/service`）
 - `backend/internal/billing/cash_register_service.go`（`findCashMethodID` / `calcTheoreticalCash`；BE9 以前は `internal/service`）
-- `backend/migrations/001_init.sql:1885`（payment_methods スキーマ）/ `:2722`（create_default_payment_methods）
+- `backend/migrations/001_init.sql` の `CREATE TABLE payment_methods` / `create_default_payment_methods`
 - [ADR-002: マルチテナント設計](002-multitenancy-clinic-id-isolation.md)
 
 ## 実装メモ（2026-07-25・TASK-ADR003）

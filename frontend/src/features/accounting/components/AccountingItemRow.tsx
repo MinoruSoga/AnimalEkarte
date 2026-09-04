@@ -34,9 +34,7 @@ function DiscountCell({ item, canEdit, accountingId, onUpdateItemDiscount }: Dis
 
   if (accountingId === undefined || onUpdateItemDiscount === undefined || !canEdit) {
     return (
-      <span className={`text-sm ${C.text50}`}>
-        {formatCurrencyOrDash(item.discountAmount)}
-      </span>
+      <span className={`text-sm ${C.text50}`}>{formatCurrencyOrDash(item.discountAmount)}</span>
     );
   }
 
@@ -48,7 +46,9 @@ function DiscountCell({ item, canEdit, accountingId, onUpdateItemDiscount }: Dis
         type="number"
         min={0}
         defaultValue={item.discountAmount}
-        onBlur={(e) => onUpdateItemDiscount(item.id, Math.max(0, parseInt(e.target.value, 10) || 0))}
+        onBlur={(e) =>
+          onUpdateItemDiscount(item.id, Math.max(0, parseInt(e.target.value, 10) || 0))
+        }
         className="w-20 min-h-11 text-right"
       />
       <Popover open={open} onOpenChange={setOpen}>
@@ -121,11 +121,11 @@ export function AccountingItemRow({
   return (
     <TableRow className="h-12">
       <TableCell>
-        <Badge variant="outline" className="font-normal text-xs">
+        <Badge variant="outline" className="font-normal text-xs whitespace-nowrap">
           {CATEGORY_LABELS[item.category as ItemCategory] ?? "その他"}
         </Badge>
       </TableCell>
-      <TableCell className="font-medium">
+      <TableCell className="font-medium whitespace-nowrap">
         {item.name}
         {item.source === "medical_record" ? (
           <span className={`ml-2 text-2xs ${C.textBrand} ${C.bgBrand5} px-1.5 py-0.5 rounded`}>
@@ -138,13 +138,9 @@ export function AccountingItemRow({
           </span>
         ) : null}
       </TableCell>
-      <TableCell className="text-right">
-        {formatCurrency(item.unitPrice)}
-      </TableCell>
+      <TableCell className="text-right">{formatCurrency(item.unitPrice)}</TableCell>
       <TableCell className="text-center">
-        <div className="flex items-center justify-center gap-2">
-          {item.quantity}
-        </div>
+        <div className="flex items-center justify-center gap-2">{item.quantity}</div>
       </TableCell>
       <TableCell className="text-center">
         <DiscountCell
@@ -180,7 +176,7 @@ export function AccountingItemRow({
           <span className={`text-sm ${C.text50}`}>{Math.round(item.taxRate * 100)}%</span>
         )}
       </TableCell>
-      <TableCell className="text-right font-mono text-sm">
+      <TableCell className="text-right font-mono text-sm whitespace-nowrap">
         {formatCurrency(item.taxAmount)}
       </TableCell>
       <TableCell className="text-center">

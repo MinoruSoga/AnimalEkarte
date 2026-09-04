@@ -1,8 +1,4 @@
-import type {
-  PetGender,
-  AcquisitionType,
-  DangerLevel,
-} from "@/types/generated/models";
+import type { PetGender, AcquisitionType, DangerLevel } from "@/types/generated/models";
 import type { PetResponse } from "@/types/generated/pet-responses";
 import { jstDateStartISOString } from "@/lib/jst-date";
 import type { CreatePetRequest, UpdatePetRequest } from "@/types/pet";
@@ -18,13 +14,6 @@ type UpdatePetRequestWithDangerReason = Omit<UpdatePetRequest, "danger_reason"> 
   danger_reason?: string | null;
 };
 
-// #266: pets 一覧のペット行粒度化 (features/owners/loaders.ts) が同じ status マッピングを
-// 必要とするため export する（挙動変更なし）。
-export const PET_STATUS_MAP: Partial<Record<string, "生存" | "死亡">> = {
-  alive: "生存",
-  deceased: "死亡",
-};
-
 export type PetStatusLabel = "生存" | "死亡" | "不明";
 
 /** API境界の未知・欠損statusを生存へ推測せず、臨床操作をfail-closedにする。 */
@@ -36,8 +25,8 @@ export function mapPetStatusLabel(status: string | null | undefined): PetStatusL
 
 // 外部公開: useOwnerForm で使用
 export const PET_STATUS_REVERSE_MAP: Record<string, "alive" | "deceased"> = {
-  "生存": "alive",
-  "死亡": "deceased",
+  生存: "alive",
+  死亡: "deceased",
 };
 
 export const PET_GENDER_MAP: Record<string, string> = {
@@ -48,16 +37,16 @@ export const PET_GENDER_MAP: Record<string, string> = {
 
 // FE6-2: REVERSE_MAP の値は生成型の値域に収まる文字列のみ（PET_GENDER_MAP のキー = 逆写像元）。
 const PET_GENDER_REVERSE_MAP: Record<string, PetGender> = {
-  "雄": "male",
-  "雌": "female",
-  "不明": "unknown",
+  雄: "male",
+  雌: "female",
+  不明: "unknown",
 };
 
 const ACQUISITION_TYPE_REVERSE_MAP: Record<string, AcquisitionType> = {
-  "購入": "purchased",
-  "譲渡": "transferred",
-  "保護": "rescued",
-  "その他": "other",
+  購入: "purchased",
+  譲渡: "transferred",
+  保護: "rescued",
+  その他: "other",
 };
 
 export const ACQUISITION_TYPE_MAP: Record<string, string> = {
@@ -68,9 +57,9 @@ export const ACQUISITION_TYPE_MAP: Record<string, string> = {
 };
 
 const DANGER_LEVEL_REVERSE_MAP: Record<string, DangerLevel> = {
-  "低": "low",
-  "中": "medium",
-  "高": "high",
+  低: "low",
+  中: "medium",
+  高: "high",
 };
 
 export const DANGER_LEVEL_MAP: Record<string, string> = {
@@ -112,7 +101,9 @@ export const transformBackendPetToFrontend = (p: PetResponse) => ({
   weight: p.weight?.toString(),
   food: p.food,
   environment: p.environment,
-  acquisitionType: p.acquisition_type ? (ACQUISITION_TYPE_MAP[p.acquisition_type] ?? p.acquisition_type) : undefined,
+  acquisitionType: p.acquisition_type
+    ? (ACQUISITION_TYPE_MAP[p.acquisition_type] ?? p.acquisition_type)
+    : undefined,
   dangerLevel: p.danger_level ? (DANGER_LEVEL_MAP[p.danger_level] ?? p.danger_level) : undefined,
   dangerReason: p.danger_reason,
   // last_visit は birth_date / neutered_date と同じ date 型。兄弟フィールドと同様に
@@ -121,9 +112,7 @@ export const transformBackendPetToFrontend = (p: PetResponse) => ({
   insuranceId: p.insurance_id != null ? String(p.insurance_id) : undefined,
   insuranceName: p.insurance?.name,
   insuranceDetails:
-    p.insurance?.coverage_rate != null
-      ? `${p.insurance.coverage_rate}%補償`
-      : undefined,
+    p.insurance?.coverage_rate != null ? `${p.insurance.coverage_rate}%補償` : undefined,
   remarks: p.remarks,
   // PR#186 P2-2 Bug#1: 死亡記録日時。null許容 (未死亡 = undefined)。
   // BUG-003: staff GET /pets/{id} の deceased_reason を deceasedReason へ（owner/LIFF は別契約）。
@@ -169,11 +158,13 @@ type PetFormInput = {
 /**
  * フロントエンドフォームデータからバックエンド CreatePetRequest に変換
  */
-export const transformCreatePetRequest = (data: PetFormInput & {
-  ownerId: string;
-  name: string;
-  animalSpeciesId: string;
-}): CreatePetRequestWithDangerReason => ({
+export const transformCreatePetRequest = (
+  data: PetFormInput & {
+    ownerId: string;
+    name: string;
+    animalSpeciesId: string;
+  },
+): CreatePetRequestWithDangerReason => ({
   owner_id: Number(data.ownerId),
   name: data.name,
   animal_species_id: Number(data.animalSpeciesId),
@@ -189,11 +180,13 @@ export const transformCreatePetRequest = (data: PetFormInput & {
   food: data.food,
   environment: data.environment,
   neutered_date: data.neuteredDate ? jstDateStartISOString(data.neuteredDate) : undefined,
-  acquisition_type: data.acquisitionType ? (ACQUISITION_TYPE_REVERSE_MAP[data.acquisitionType] ?? data.acquisitionType) : undefined,
-  danger_level: data.dangerLevel ? (DANGER_LEVEL_REVERSE_MAP[data.dangerLevel] ?? data.dangerLevel) : undefined,
-  ...(data.dangerReason?.trim()
-    ? { danger_reason: data.dangerReason.trim() }
-    : {}),
+  acquisition_type: data.acquisitionType
+    ? (ACQUISITION_TYPE_REVERSE_MAP[data.acquisitionType] ?? data.acquisitionType)
+    : undefined,
+  danger_level: data.dangerLevel
+    ? (DANGER_LEVEL_REVERSE_MAP[data.dangerLevel] ?? data.dangerLevel)
+    : undefined,
+  ...(data.dangerReason?.trim() ? { danger_reason: data.dangerReason.trim() } : {}),
   status: data.status,
   insurance_id: data.insuranceId ? Number(data.insuranceId) : undefined,
   remarks: data.remarks,
@@ -206,10 +199,7 @@ function transformDangerReasonUpdate(
 ): Pick<UpdatePetRequestWithDangerReason, "danger_reason"> {
   if (
     dangerReason === undefined ||
-    (
-      hasOriginalDangerReason &&
-      dangerReason.trim() === (originalDangerReason ?? "").trim()
-    )
+    (hasOriginalDangerReason && dangerReason.trim() === (originalDangerReason ?? "").trim())
   ) {
     return {};
   }
@@ -223,7 +213,9 @@ function transformDangerReasonUpdate(
  * 死亡登録/取消エンドポイント(PetDeceasedRecordButton → /:id/death)に一本化されており、
  * generic PATCH 経由での status 書込は backend 側でも除去済み(buildPetUpdate)。
  */
-export const transformUpdatePetRequest = (data: PetFormInput): UpdatePetRequestWithDangerReason => ({
+export const transformUpdatePetRequest = (
+  data: PetFormInput,
+): UpdatePetRequestWithDangerReason => ({
   owner_id: data.ownerId ? Number(data.ownerId) : undefined,
   name: data.name,
   animal_species_id: data.animalSpeciesId ? Number(data.animalSpeciesId) : undefined,
@@ -239,8 +231,12 @@ export const transformUpdatePetRequest = (data: PetFormInput): UpdatePetRequestW
   food: data.food,
   environment: data.environment,
   neutered_date: data.neuteredDate ? jstDateStartISOString(data.neuteredDate) : undefined,
-  acquisition_type: data.acquisitionType ? (ACQUISITION_TYPE_REVERSE_MAP[data.acquisitionType] ?? data.acquisitionType) : undefined,
-  danger_level: data.dangerLevel ? (DANGER_LEVEL_REVERSE_MAP[data.dangerLevel] ?? data.dangerLevel) : undefined,
+  acquisition_type: data.acquisitionType
+    ? (ACQUISITION_TYPE_REVERSE_MAP[data.acquisitionType] ?? data.acquisitionType)
+    : undefined,
+  danger_level: data.dangerLevel
+    ? (DANGER_LEVEL_REVERSE_MAP[data.dangerLevel] ?? data.dangerLevel)
+    : undefined,
   ...transformDangerReasonUpdate(
     data.dangerReason,
     data.originalDangerReason,

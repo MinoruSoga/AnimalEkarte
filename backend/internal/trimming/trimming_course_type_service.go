@@ -64,7 +64,6 @@ func NewTrimmingCourseTypeService(repo TrimmingCourseTypeRepository, transactor 
 func (s *trimmingCourseTypeService) List(ctx context.Context, clinicID uint64) ([]model.TrimmingCourseType, error) {
 	items, err := s.repo.FindAll(ctx, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list trimming course types", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to list trimming course types")
 	}
 	return items, nil
@@ -73,7 +72,6 @@ func (s *trimmingCourseTypeService) List(ctx context.Context, clinicID uint64) (
 func (s *trimmingCourseTypeService) GetByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingCourseType, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get trimming course type", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get trimming course type")
 	}
 	return result, nil
@@ -90,7 +88,6 @@ func (s *trimmingCourseTypeService) Create(ctx context.Context, clinicID uint64,
 	}
 	result, err := s.repo.Create(ctx, m)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to create trimming course type", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to create trimming course type")
 	}
 	slog.InfoContext(ctx, "trimming course type created",
@@ -104,7 +101,6 @@ func (s *trimmingCourseTypeService) Update(ctx context.Context, clinicID, id uin
 		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
 	}
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to get trimming course type", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get trimming course type")
 	}
 	if err := validateOptionalName(input.Name); err != nil {
@@ -116,7 +112,6 @@ func (s *trimmingCourseTypeService) Update(ctx context.Context, clinicID, id uin
 	}
 	result, err := s.repo.Update(ctx, clinicID, id, fields)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to update trimming course type", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to update trimming course type")
 	}
 	slog.InfoContext(ctx, "trimming course type updated",
@@ -130,9 +125,6 @@ func (s *trimmingCourseTypeService) Delete(ctx context.Context, clinicID, id uin
 		return apperrors.WrapInternalServerError("trimming course type transaction dependency is required")
 	}
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		if err := s.repo.Delete(txCtx, clinicID, id); err != nil {
-			return apperrors.Wrap(err, "failed to delete trimming course type")
-		}
 		count, err := s.repo.CountUsageByCourseTypeID(txCtx, clinicID, id)
 		if err != nil {
 			return apperrors.Wrap(err, "failed to check trimming course type usage")
@@ -140,9 +132,11 @@ func (s *trimmingCourseTypeService) Delete(ctx context.Context, clinicID, id uin
 		if count > 0 {
 			return apperrors.WrapConflict("この種別は使用中のため削除できません")
 		}
+		if err := s.repo.Delete(txCtx, clinicID, id); err != nil {
+			return apperrors.Wrap(err, "failed to delete trimming course type")
+		}
 		return nil
 	}); err != nil {
-		slog.ErrorContext(ctx, "failed to delete trimming course type", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete trimming course type")
 	}
 	slog.InfoContext(ctx, "trimming course type deleted",
@@ -156,7 +150,6 @@ func (s *trimmingCourseTypeService) Reorder(ctx context.Context, clinicID uint64
 		return apperrors.WrapInvalidInput(ErrMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
-		slog.ErrorContext(ctx, "failed to reorder trimming course types", "error", err, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to reorder trimming course types")
 	}
 	slog.InfoContext(ctx, "trimming course types reordered",

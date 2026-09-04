@@ -1,5 +1,5 @@
-// date.go — HTTP 境界の柔軟な日付パース（BE9-2C R①: internal/handler/date.go から昇格。
-// owner/pet/lstep/inventory/reservation の恒久ドメイン跨ぎ。handler 側は互換 delegate 残置）。
+// date.go — HTTP 境界の柔軟な日付パース（YYYY-MM-DD / RFC3339）。
+// owner/pet/lstep/inventory/reservation/medicalrecord から共有する。
 package httpapi
 
 import (
