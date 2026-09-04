@@ -127,17 +127,6 @@ function resolveManualChunk(id: string): string | undefined {
   return undefined;
 }
 
-function previewDemoLoginPassword(): string {
-  if (process.env.VERCEL_ENV !== "preview") {
-    return "";
-  }
-  const explicit = process.env.VITE_DEMO_LOGIN_PASSWORD?.trim() ?? "";
-  if (explicit !== "") {
-    return explicit;
-  }
-  return process.env.STG_DEMO_PASSWORD?.trim() ?? "";
-}
-
 export default defineConfig({
   // M-10: Vercel が自動注入する VERCEL_ENV をビルド時定数として埋め込む。
   // frontend/src/features/auth/lib/show-demo-accounts.ts 参照。
@@ -145,9 +134,6 @@ export default defineConfig({
     // GitHub Actions の prebuilt では Vercel が VERCEL_ENV を注入しない。
     // frontend-deploy.yml が STG=preview / 本番=production を渡す。
     __VERCEL_ENV__: JSON.stringify(process.env.VERCEL_ENV ?? ""),
-    // Vite loadEnv は空の process.env.VITE_* で .env を上書きする。
-    // 未設定 secret の空文字を避け、preview だけ STG_DEMO_PASSWORD を焼く。
-    "import.meta.env.VITE_DEMO_LOGIN_PASSWORD": JSON.stringify(previewDemoLoginPassword()),
   },
   plugins: [react(), tailwindcss(), lineReserveDevPlugin(), liffDevPlugin()],
   resolve: {
