@@ -102,20 +102,27 @@ jobs:
 
           # Vite define の __VERCEL_ENV__ は process.env.VERCEL_ENV。
           # prebuilt では Vercel が注入しないため、STG=preview / 本番=production を明示する。
-          # 未設定の VITE_DEMO_LOGIN_PASSWORD="" は loadEnv が空で上書きするので消す。
-          # preview のパスワードは vite.config が STG_DEMO_PASSWORD から焼く。
+          # pnpm/Vite は GHA の STG_DEMO_PASSWORD をクライアント env に渡さない。
+          # 空の VITE_DEMO_LOGIN_PASSWORD は loadEnv が .env を上書きするので消す。
           if [ "$ENV" = "preview" ]; then
-            if [ -z "${VITE_DEMO_LOGIN_PASSWORD:-}" ]; then
-              unset VITE_DEMO_LOGIN_PASSWORD
+            DEMO_PW="${VITE_DEMO_LOGIN_PASSWORD:-}"
+            if [ -z "$DEMO_PW" ]; then
+              DEMO_PW="${STG_DEMO_PASSWORD:-}"
             fi
-            if [ -z "${VITE_DEMO_LOGIN_PASSWORD:-}" ] && [ -z "${STG_DEMO_PASSWORD:-}" ]; then
+            if [ -z "$DEMO_PW" ]; then
               echo "::warning::preview demo password unset; login picker will not fill password"
+              printf 'VITE_DEMO_LOGIN_PASSWORD=\n' > frontend/.env.production.local
+            else
+              DEMO_PW="$DEMO_PW" node --input-type=module -e "import { writeFileSync } from 'node:fs'; writeFileSync('frontend/.env.production.local', 'VITE_DEMO_LOGIN_PASSWORD=' + JSON.stringify(process.env.DEMO_PW ?? '') + '\\n');"
             fi
+            unset VITE_DEMO_LOGIN_PASSWORD
           else
             unset STG_DEMO_PASSWORD
+            printf 'VITE_DEMO_LOGIN_PASSWORD=\n' > frontend/.env.production.local
             export VITE_DEMO_LOGIN_PASSWORD=""
           fi
           VERCEL_ENV="$ENV" VITE_VERCEL_ENV="$ENV" pnpm --dir frontend build
+          rm -f frontend/.env.production.local
           test -f frontend/dist/index.html
 
           rm -rf .vercel/output
