@@ -22,10 +22,7 @@ async function gotoTreatmentItems(treatment: TreatmentItemsPage, page: Page, tab
 test.describe("Master CRUD E2E Tests", () => {
   let context: BrowserContext;
 
-  // arm64 環境では describe 全体をスキップする
-  if (isArm64Runtime) {
-    test.describe.configure({ skip: true });
-  }
+  test.skip(isArm64Runtime, "linux arm64");
 
   test.beforeAll(async ({ browser }) => {
     context = await createAuthedContext(browser);
@@ -116,7 +113,7 @@ test.describe("Master CRUD E2E Tests", () => {
 
       for (const tabName of tabs) {
         const tab = treatment.tab(tabName);
-        await expect(tab).toBeVisible(`Tab ${tabName} should be visible`);
+        await expect(tab, `Tab ${tabName} should be visible`).toBeVisible();
 
         await tab.click();
         await expect(tab).toHaveAttribute("data-state", "active");

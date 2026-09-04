@@ -9,7 +9,7 @@ import { useGetOwnerLineTags } from "@/hooks/use-owner-line-tags";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { ResourceMedicalRecords } from "@/types/generated/models";
 import type { Pet } from "@/types";
-import { MedicalRecordAddenda } from "../components/MedicalRecordAddenda";
+import { MedicalRecordAddenda } from "../components/MedicalRecordAddenda/MedicalRecordAddenda";
 import { MedicalRecordAutoCreateFailure } from "../components/MedicalRecordAutoCreateFailure";
 import {
   MedicalRecordStickyHeader,

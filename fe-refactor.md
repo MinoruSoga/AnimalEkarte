@@ -1,7 +1,7 @@
 # frontend コード規約チェック結果（第3期・全ファイル監査）
 
 **監査日**: 2026-09-04（レーン 1–4 join 後更新）  
-**実装**: FE-RC-W3-IMPL（2026-09-04）。FE-RC-201〜228 を FIXED。  
+**実装**: FE-RC-W3-IMPL（2026-09-04）。FE-RC-201〜228 を FIXED。FE-RC-W3-LEAVE（2026-09-04）で §7 leftover を閉鎖。  
 **対象**: `git ls-files 'frontend/'` 全 2017 tracked パス  
 **方法**: ファイル単位分類 + 13 調査レーン + 機械検出 + 構成監査 + DRY（実在重複のみ）+ 臨床安全精読  
 **規約正本**: `frontend/CLAUDE.md`、`frontend/src/features/CLAUDE.md`、`frontend/src/hooks/CLAUDE.md`、`frontend/src/components/shared/CLAUDE.md`、`frontend/CODING_RULES.md`、`.claude/refs/typescript-react.md`、`.claude/refs/accessibility-rules.md`、`.claude/refs/error-handling.md`
@@ -15,9 +15,9 @@
 | CRITICAL | 0 | — |
 | HIGH | 0 | FE-RC-204 / 219 / 220 は FE-RC-W3-IMPL で FIXED |
 | MEDIUM | 0 | FE-RC-201, 205–214, 221–222 は FE-RC-W3-IMPL で FIXED |
-| LOW | 0 | FE-RC-202, 203, 215–218, 223–228 は FE-RC-W3-IMPL で FIXED。§7 に barrel 除外 1 件 |
+| LOW | 0 | FE-RC-202, 203, 215–218, 223–228 は FE-RC-W3-IMPL で FIXED。§7 leftover は FE-RC-W3-LEAVE で閉鎖 |
 
-**カバレッジ**: tracked 2017 = §8 分類 2017（PASS 1786 + EXCLUDE 125 + FINDING 106 は監査時点。W3 実装後 FINDING:FE-RC-201〜228 は PASS。残 FINDING は `MedicalRecordAddenda/index.ts` のみ）。未分類 0。
+**カバレッジ**: 監査時点 tracked 2017 = §8 分類 2017（PASS 1786 + EXCLUDE 125 + FINDING 106）。W3 実装後 FINDING:FE-RC-201〜228 は PASS。FE-RC-W3-LEAVE で `MedicalRecordAddenda/index.ts` を削除し §8 FINDING 行を除去。残 FINDING は 0。未分類 0。
 
 **統合**: [Audit src shared layers](0841e176-1182-469d-a958-10b2ceccc38b) · [Audit features lane 5-8](70bbcee7-20f2-4ac8-a102-c168018b9b7b) · [Audit liff line-reserve e2e](5e4d8f71-15a6-4f11-b226-2ab8dc2dac62) · [Audit features lane 1-4](c17099dd-80c5-4bc7-aa48-619821505c12)
 
@@ -158,7 +158,7 @@
 - **path**: `frontend/src/features/vaccinations/routes/VaccinationList.tsx:85-91`
 
 #### FE-RC-216 [LOW] FIXED e2e/tsconfig.json: 31 spec のうち 2 のみ tsc 対象
-- **実装**: `include` を fixtures/helpers/pages/`*.spec.ts` に拡大。コンパイルできる 28 spec を対象にし、`tsc -p e2e/tsconfig.json --noEmit` exit 0。残り 3 spec は既存型エラーのため exclude（§7 BLOCKED）
+- **実装**: `include` を fixtures/helpers/pages/`*.spec.ts` に拡大。FE-RC-W3-LEAVE で named re-export / `Pet.version` / Playwright 型を直し `exclude` を空にした。`tsc -p e2e/tsconfig.json --noEmit` exit 0
 - **path**: `frontend/e2e/tsconfig.json:6-19`
 
 #### FE-RC-217 [LOW] FIXED `src/hooks/use-update-reservation-route.ts` が単一 consumer 専用
@@ -201,7 +201,7 @@
 - **改善案**: `features/<name>/types/index.ts` へ移し api から再 export
 
 #### FE-RC-227 [LOW] FIXED `components/` 内の kebab-case 非コンポーネント `.ts`
-- **実装**: 56 件を各 feature `lib/` へ git mv。`MedicalRecordAddenda/index.ts` barrel は未移動（キャンペーン除外）。filename ratchet 0<=0
+- **実装**: 56 件を各 feature `lib/` へ git mv。FE-RC-W3-LEAVE で `MedicalRecordAddenda/index.ts` barrel を削除し同一 feature 内でコンポーネントへ直結。filename ratchet 0<=0
 - **path**（57 件。代表）:
   - `frontend/src/features/accounting/components/accounting-detail-model.ts`
   - `frontend/src/features/accounting/components/accounting-list-table-model.ts`
@@ -248,11 +248,20 @@
 
 ## 7. 残件（W3 意図的除外 / BLOCKED）
 
-- `frontend/src/features/medical-records/components/MedicalRecordAddenda/index.ts` — FE-RC-227 の barrel `index.ts` は動かさない。kebab model 56 件は FIXED。
-- FE-RC-216 BLOCKED（既存型エラーのため exclude。W3 では 31 spec 全件 green にしない）:
-  - `frontend/e2e/ui-design-compliance-readonly.spec.ts`（`fixtures/ui-design-clinical.ts` 経由。`CreateMedicalRecordRequest` / `ApiDailyRecord` / `BackendHospitalization` / `CarePlanItem` / `BackendMedicalRecord` / `BackendVaccination` 未 export、`Pet.version` 欠落）
-  - `frontend/e2e/medical-records-create.spec.ts`（同上 fixture）
-  - `frontend/e2e/master-crud.spec.ts`（TS2353 `skip` 不在、TS2559 `string` vs `{ timeout?, visible? }`）
+残件なし。
+
+### FE-RC-W3-LEAVE（2026-09-04）閉鎖記録
+
+- status: CLOSED
+- changed files: `MedicalRecordAddenda/index.ts` 削除、Addenda 3 importer 直結、hospitalization / medical-records / vaccinations `index.ts` named re-export、`e2e/tsconfig.json` exclude 空、`master-crud.spec.ts` Playwright 型、`ui-design-clinical.ts`（`Pet.version` + `HospitalizationResponse` extra keys 除去）、`fe-refactor.md`
+- Assumption 逸脱: `SYNTHETIC_HOSPITALIZATION` から `cage` / `care_plan_items` / `daily_records` / `treatment_plans` を除去（generated `HospitalizationResponse` に無い extra key。codegen せず fixture 側で解消）
+- gates:
+  - `git ls-files -- 'frontend/src/features/medical-records/components/MedicalRecordAddenda/index.ts'` → empty
+  - `rg -n "from ['\"]\\.\\./components/MedicalRecordAddenda['\"]" frontend/src/features/medical-records` → 0 matches
+  - `docker compose exec frontend npx vitest run src/features/medical-records/routes/MedicalRecordForm.not-found.test.tsx src/features/medical-records/routes/MedicalRecordForm.permissions.test.tsx src/features/medical-records/components/MedicalRecordAddenda --maxWorkers=1` → exit 0, `Test Files 4 passed (4)` / `Tests 27 passed (27)`
+  - `docker compose exec frontend npx tsc -p e2e/tsconfig.json --noEmit` → exit 0, `error TS` 0
+  - `docker compose exec frontend node scripts/check-feature-filename-convention.mjs --baseline .filename-baseline` → `check-filenames: OK — violation count 0 <= baseline 0.`
+  - unit path count vs allowlist: 11 ≤ 14。外国 WIP は未 revert
 
 ---
 
@@ -260,7 +269,7 @@
 
 1 行 1 tracked パス。形式: `path<TAB>PASS|FINDING:FE-RC-2xx|EXCLUDE:reason`
 
-W3: FE-RC-201〜228 の FINDING 行は PASS に更新（移動後の実パスは working tree の `lib/` を正とする）。残 FINDING は `MedicalRecordAddenda/index.ts` のみ。
+W3: FE-RC-201〜228 の FINDING 行は PASS に更新（移動後の実パスは working tree の `lib/` を正とする）。FE-RC-W3-LEAVE で `MedicalRecordAddenda/index.ts` を削除。残 FINDING は 0。
 
 frontend/.coverage-baseline	EXCLUDE:baseline-artifact
 frontend/.dockerignore	PASS
@@ -1612,7 +1621,6 @@ frontend/src/features/medical-records/components/MedicalRecordAddenda/AddendumMo
 frontend/src/features/medical-records/components/MedicalRecordAddenda/AddendumModal.tsx	PASS
 frontend/src/features/medical-records/components/MedicalRecordAddenda/MedicalRecordAddenda.test.tsx	PASS
 frontend/src/features/medical-records/components/MedicalRecordAddenda/MedicalRecordAddenda.tsx	PASS
-frontend/src/features/medical-records/components/MedicalRecordAddenda/index.ts	FINDING:FE-RC-227
 frontend/src/features/medical-records/components/MedicalRecordAutoCreateFailure.test.tsx	PASS
 frontend/src/features/medical-records/components/MedicalRecordAutoCreateFailure.tsx	PASS
 frontend/src/features/medical-records/components/MedicalRecordBillCheck.test.tsx	PASS

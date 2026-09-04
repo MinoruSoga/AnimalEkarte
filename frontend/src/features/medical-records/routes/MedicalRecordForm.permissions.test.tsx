@@ -196,7 +196,9 @@ vi.mock("../components/MedicalRecordFormModals", () => ({
     );
   },
 }));
-vi.mock("../components/MedicalRecordAddenda", () => ({ MedicalRecordAddenda: () => null }));
+vi.mock("../components/MedicalRecordAddenda/MedicalRecordAddenda", () => ({
+  MedicalRecordAddenda: () => null,
+}));
 vi.mock("@/components/shared/NavigationBlocker", () => ({ NavigationBlocker: () => null }));
 vi.mock("@/components/shared/DataStates", () => ({
   LoadingFallback: () => null,

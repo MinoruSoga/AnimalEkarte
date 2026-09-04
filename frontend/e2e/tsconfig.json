@@ -10,11 +10,5 @@
     "./*.spec.ts",
     "../src/vite-env.d.ts"
   ],
-  "exclude": [
-    "./fixtures/ui-design-clinical.ts",
-    "./fixtures/ui-design-clinical-request-contracts.ts",
-    "./ui-design-compliance-readonly.spec.ts",
-    "./medical-records-create.spec.ts",
-    "./master-crud.spec.ts"
-  ]
+  "exclude": []
 }

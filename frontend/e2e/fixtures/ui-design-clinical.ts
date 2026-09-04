@@ -173,6 +173,7 @@ export const SYNTHETIC_PET = {
   environment: "",
   phone: "",
   remarks: "synthetic fixture only",
+  version: 1,
   created_at: CREATED_AT,
   updated_at: CREATED_AT,
   owner: SYNTHETIC_OWNER,
@@ -272,11 +273,7 @@ const SYNTHETIC_HOSPITALIZATION = {
   updated_at: CREATED_AT,
   owner: SYNTHETIC_OWNER,
   pet: SYNTHETIC_PET,
-  cage: SYNTHETIC_CAGE,
   doctor: SYNTHETIC_STAFF,
-  care_plan_items: [],
-  daily_records: [],
-  treatment_plans: [SYNTHETIC_TREATMENT_PLAN],
 } satisfies BackendHospitalization;
 
 const SYNTHETIC_DAILY_RECORD = {

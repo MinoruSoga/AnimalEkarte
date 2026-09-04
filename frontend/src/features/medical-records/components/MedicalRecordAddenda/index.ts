@@ -1,1 +1,0 @@
-export { MedicalRecordAddenda } from "./MedicalRecordAddenda";

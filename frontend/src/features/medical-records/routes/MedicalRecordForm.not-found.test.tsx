@@ -196,7 +196,7 @@ vi.mock("../api/delete-medical-record", () => ({
   useDeleteMedicalRecord: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
-vi.mock("../components/MedicalRecordAddenda", () => ({
+vi.mock("../components/MedicalRecordAddenda/MedicalRecordAddenda", () => ({
   MedicalRecordAddenda: () => null,
 }));
 
