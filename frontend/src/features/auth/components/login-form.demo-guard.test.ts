@@ -62,7 +62,7 @@ describe("LoginForm SHOW_DEMO — DEV or Vercel preview (#91 / SEC-CS2-F01)", ()
     expect(mod.SHOW_DEMO).toBe(true);
   });
 
-  it("VITE_DEMO_LOGIN_PASSWORD は import.meta.env.DEV の真分岐内でのみ読む", () => {
+  it("VITE_DEMO_LOGIN_PASSWORD は SHOW_DEMO が真のときだけ読む", () => {
     const src = readFileSync(
       join(dirname(fileURLToPath(import.meta.url)), "LoginForm.tsx"),
       "utf8",
@@ -84,7 +84,7 @@ describe("LoginForm SHOW_DEMO — DEV or Vercel preview (#91 / SEC-CS2-F01)", ()
     }
     expect(fnEnd).toBeGreaterThan(fnStart);
     const fn = src.slice(fnStart, fnEnd + 1);
-    expect(fn).toMatch(/if\s*\(\s*import\.meta\.env\.DEV\s*\)/);
+    expect(fn).toMatch(/if\s*\(\s*!SHOW_DEMO\s*\)/);
     const envRefs = [...src.matchAll(/import\.meta\.env\.VITE_DEMO_LOGIN_PASSWORD/g)];
     expect(envRefs.length).toBeGreaterThan(0);
     for (const match of envRefs) {

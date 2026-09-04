@@ -65,6 +65,9 @@ test("Docker, packageManager declarations, and CI use pnpm 10.15.0", () => {
 test("frontend deploy bakes VERCEL_ENV into the prebuilt Vite bundle", () => {
   const workflow = read(".github/workflows/frontend-deploy.yml");
   assert.match(workflow, /VERCEL_ENV="\$ENV" VITE_VERCEL_ENV="\$ENV" pnpm --dir frontend build/);
+  assert.match(workflow, /STG_DEMO_PASSWORD: \$\{\{ secrets\.STG_DEMO_PASSWORD \}\}/);
+  assert.match(workflow, /if \[ "\$ENV" = "preview" \]/);
+  assert.match(workflow, /export VITE_DEMO_LOGIN_PASSWORD=""/);
 });
 
 test("frontend audit treats registry audit endpoint timeouts as unavailable", () => {

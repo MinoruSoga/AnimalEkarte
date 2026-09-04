@@ -68,6 +68,8 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          STG_DEMO_PASSWORD: ${{ secrets.STG_DEMO_PASSWORD }}
+          VITE_DEMO_LOGIN_PASSWORD: ${{ secrets.VITE_DEMO_LOGIN_PASSWORD }}
         run: |
           set -euo pipefail
           ENV=preview
@@ -100,6 +102,18 @@ jobs:
 
           # Vite define の __VERCEL_ENV__ は process.env.VERCEL_ENV。
           # prebuilt では Vercel が注入しないため、STG=preview / 本番=production を明示する。
+          if [ "$ENV" = "preview" ]; then
+            if [ -z "${VITE_DEMO_LOGIN_PASSWORD:-}" ] && [ -n "${STG_DEMO_PASSWORD:-}" ]; then
+              VITE_DEMO_LOGIN_PASSWORD="$STG_DEMO_PASSWORD"
+            fi
+            if [ -z "${VITE_DEMO_LOGIN_PASSWORD:-}" ]; then
+              echo "::warning::preview demo password unset; login picker will not fill password"
+            fi
+            export VITE_DEMO_LOGIN_PASSWORD
+          else
+            # 空文字を process env に残し、vercel pull が書いた .env* より優先させる。
+            export VITE_DEMO_LOGIN_PASSWORD=""
+          fi
           VERCEL_ENV="$ENV" VITE_VERCEL_ENV="$ENV" pnpm --dir frontend build
           test -f frontend/dist/index.html
 
