@@ -1,9 +1,11 @@
 // Command csv-import-stg-uat is the fail-closed STG UAT rehearsal consumer for
-// the twenty-one-table CSV hand-off. It does not relax cmd/csv-import local
-// guards. Staging APP_ENV plus STG_UAT_CSV_IMPORT_ALLOW_REHEARSAL is required
-// before source preflight or opening a target. The import command sequences
-// target preflight, apply, and verify in one process. Individual commands
-// remain the manual fallback.
+// the twenty-one-table CSV hand-off. It does not pass cmd/csv-import
+// --allow-local-rehearsal. Staging APP_ENV plus STG_UAT_CSV_IMPORT_ALLOW_REHEARSAL
+// is required before source preflight or opening a target. REHEARSAL_ONLY
+// _old_db_handoff bundles are accepted after that sentinel and an explicit
+// staging target binding. Formal csv-import still requires TRUSTED_CANDIDATE.
+// The import command sequences target preflight, apply, and verify in one
+// process. Individual commands remain the manual fallback.
 package main
 
 import (
@@ -13,9 +15,9 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"net"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -92,7 +94,7 @@ func (t *pgxCutoverTarget) Close() {
 }
 
 func (t *pgxCutoverTarget) Preflight(ctx context.Context, manifest csvimport.CutoverManifest, seeds csvimport.CutoverSeedIDs) error {
-	return csvimport.PreflightCutoverTarget(ctx, t.pool, manifest, seeds)
+	return csvimport.PreflightCutoverTargetAllowingResume(ctx, t.pool, manifest, seeds)
 }
 
 func (t *pgxCutoverTarget) Verify(ctx context.Context, manifest csvimport.CutoverManifest, seeds csvimport.CutoverSeedIDs) error {
@@ -103,11 +105,14 @@ func (t *pgxCutoverTarget) Verify(ctx context.Context, manifest csvimport.Cutove
 		return fmt.Errorf("begin repeatable-read cutover verification: %w", err)
 	}
 	defer func() { _ = tx.Rollback(context.WithoutCancel(ctx)) }()
+	if _, err := tx.Exec(ctx, `SELECT set_config('app.bypass_rls', 'on', true)`); err != nil {
+		return fmt.Errorf("enable verification RLS bypass: %w", err)
+	}
 	return csvimport.VerifyCutoverWithProvenance(ctx, tx, manifest, seeds, csvimport.CutoverProvenanceContract{Mode: csvimport.CutoverProvenanceFormal})
 }
 
 func (t *pgxCutoverTarget) Apply(ctx context.Context, bundle csvimport.CutoverBundle, seeds csvimport.CutoverSeedIDs) (csvimport.CutoverResult, error) {
-	return csvimport.ApplyCutoverWithIsolation(ctx, t.pool, bundle, seeds, applyIsolationLevel())
+	return csvimport.ApplyCutoverCommittingEachTable(ctx, t.pool, bundle, seeds, applyIsolationLevel())
 }
 
 type runDependencies struct {
@@ -275,34 +280,44 @@ func buildTargetPoolConfig(conn dbconn.ConnParams, database string) (*pgxpool.Co
 	if err := validateSSLMode(conn.SSLMode, dbconn.IsLocalHost(conn.Host)); err != nil {
 		return nil, err
 	}
-	port, err := strconv.ParseUint(conn.Port, 10, 16)
-	if err != nil || port == 0 {
-		return nil, fmt.Errorf("DB_PORT must be an integer between 1 and 65535")
-	}
-	sslDSN, err := sslModeParseDSN(conn.SSLMode)
+	pgxConfig, err := conn.PGXConfig(database)
 	if err != nil {
 		return nil, err
 	}
-	poolConfig, err := pgxpool.ParseConfig(sslDSN)
+	// ParseConfig must see a TCP host while TLS is configured. A keyword-only
+	// DSN such as "sslmode=verify-full" defaults to a unix socket, which pgx
+	// treats as TLS-off; overwriting Host afterwards would speak plaintext to
+	// PlanetScale and fail with FATAL: SSL/TLS required.
+	poolConfig, err := pgxpool.ParseConfig("postgres://placeholder.invalid/placeholder")
 	if err != nil {
 		return nil, fmt.Errorf("initialize target database configuration: %w", err)
 	}
-	// Assign fields structurally. Interpolating environment values into a
-	// libpq keyword DSN would let whitespace in a password/database inject a
-	// second host option after the host guard.
-	poolConfig.ConnConfig.Host = conn.Host
-	poolConfig.ConnConfig.Port = uint16(port)
-	poolConfig.ConnConfig.User = conn.User
-	poolConfig.ConnConfig.Password = conn.Password
-	poolConfig.ConnConfig.Database = database
-	poolConfig.ConnConfig.Fallbacks = nil
-	poolConfig.ConnConfig.RuntimeParams = map[string]string{"TimeZone": dbconn.JapanTimeZone}
+	poolConfig.ConnConfig = pgxConfig
 	if poolConfig.ConnConfig.Host != conn.Host ||
 		poolConfig.ConnConfig.Database != database ||
 		len(poolConfig.ConnConfig.Fallbacks) != 0 {
 		return nil, fmt.Errorf("effective target database identity failed validation")
 	}
+	// PlanetScale user-defined roles are not the table owner. RLS is ENABLE
+	// without FORCE, so non-owner connections see zero clinic rows unless
+	// app.bypass_rls is on (001_init.sql). AfterConnect applies to every pool
+	// connection, including preflight QueryRow on the pool.
+	poolConfig.AfterConnect = enableTargetRLSBypass
+	if !dbconn.IsLocalHost(conn.Host) {
+		keepAlive := 30 * time.Second
+		poolConfig.ConnConfig.DialFunc = func(ctx context.Context, network, addr string) (net.Conn, error) {
+			d := net.Dialer{KeepAlive: keepAlive}
+			return d.DialContext(ctx, network, addr)
+		}
+	}
 	return poolConfig, nil
+}
+
+func enableTargetRLSBypass(ctx context.Context, conn *pgx.Conn) error {
+	if _, err := conn.Exec(ctx, `SELECT set_config('app.bypass_rls', 'on', false)`); err != nil {
+		return fmt.Errorf("enable app.bypass_rls for non-owner STG role: %w", err)
+	}
+	return nil
 }
 
 func validateSSLMode(mode string, local bool) error {
@@ -317,21 +332,6 @@ func validateSSLMode(mode string, local bool) error {
 		return nil
 	default:
 		return fmt.Errorf("csv-import-stg-uat remote DB_SSL_MODE must be require, verify-ca, or verify-full")
-	}
-}
-
-func sslModeParseDSN(mode string) (string, error) {
-	switch mode {
-	case "disable":
-		return "sslmode=disable", nil
-	case "require":
-		return "sslmode=require", nil
-	case "verify-ca":
-		return "sslmode=verify-ca", nil
-	case "verify-full":
-		return "sslmode=verify-full", nil
-	default:
-		return "", fmt.Errorf("csv-import-stg-uat remote DB_SSL_MODE must be disable, require, verify-ca, or verify-full")
 	}
 }
 
@@ -424,8 +424,10 @@ func validateImportSeedIDs(opt options) error {
 }
 
 const (
-	stgUATClinicHachiojiID int64 = 1
-	stgUATClinicJoutoID    int64 = 2
+	stgUATClinicHachiojiID   int64 = 1
+	stgUATClinicJoutoID      int64 = 2
+	stgUATClinicShikishimaID int64 = 3
+	stgUATClinicHakobunecoID int64 = 4
 )
 
 func expectedSTGUATClinic(code string, ordinal int64) (int64, error) {
@@ -434,6 +436,10 @@ func expectedSTGUATClinic(code string, ordinal int64) (int64, error) {
 		return stgUATClinicHachiojiID, nil
 	case code == "jouto" && ordinal == 2:
 		return stgUATClinicJoutoID, nil
+	case code == "shikishima" && ordinal == 3:
+		return stgUATClinicShikishimaID, nil
+	case code == "hakobuneco" && ordinal == 4:
+		return stgUATClinicHakobunecoID, nil
 	default:
 		return 0, fmt.Errorf("import clinic-code/ordinal is not a STG UAT clinic binding")
 	}
@@ -559,7 +565,7 @@ func applyWithAuditFinalizer(
 	}
 	defer func() { _ = reportFile.Close() }()
 
-	logger.Info("csv-import-stg-uat apply using RepeatableRead isolation to avoid SSI lock exhaustion", "lane", auditLane)
+	logger.Info("csv-import-stg-uat apply committing each table to bound PlanetScale transaction size", "lane", auditLane)
 	result, err := target.Apply(ctx, bundle, seeds)
 	if err != nil {
 		report.Status, report.FailureStage = cutoverApplyFailureClassification(err)
@@ -572,7 +578,7 @@ func applyWithAuditFinalizer(
 		if errors.Is(err, csvimport.ErrCutoverTransactionNotStarted) {
 			return fmt.Errorf("cutover apply failed before transaction began: %w", err)
 		}
-		return fmt.Errorf("cutover apply failed; transaction rolled back: %w", err)
+		return fmt.Errorf("cutover apply failed; uncommitted table rolled back: %w", err)
 	}
 	return finalize(reportFile, &report, result)
 }
@@ -584,7 +590,7 @@ func cutoverApplyFailureClassification(err error) (status string, stage string) 
 	if errors.Is(err, csvimport.ErrCutoverTransactionNotStarted) {
 		return "FAILED_BEFORE_TRANSACTION", "begin"
 	}
-	return "FAILED_DATA_ROLLED_BACK", "transaction"
+	return "FAILED_TABLE_ROLLED_BACK", "table"
 }
 
 func createAuditReport(path string, root string, report auditReport) (*os.File, error) {

@@ -203,7 +203,7 @@ func verifyCutoverPaymentGraph(
 	seeds CutoverSeedIDs,
 	provenance CutoverProvenanceContract,
 ) error {
-	requireExactPaymentSnapshot := provenance.Mode != CutoverProvenanceLocalRehearsal
+	requireExactPaymentSnapshot := !relaxesCutoverPaymentSnapshot(*manifest, provenance.Mode)
 	var violations int64
 	if err := q.QueryRow(
 		ctx,

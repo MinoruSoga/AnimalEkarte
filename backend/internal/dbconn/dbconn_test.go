@@ -141,6 +141,36 @@ func TestConnParams_PGXConfigDoesNotInterpretKeywordInjection(t *testing.T) {
 	}
 }
 
+func TestConnParams_PGXConfigEnablesTLSAndRealServerName(t *testing.T) {
+	remoteHost := "example.pg.psdb.cloud"
+	for _, mode := range []string{"require", "verify-ca", "verify-full"} {
+		t.Run(mode, func(t *testing.T) {
+			cfg, err := (ConnParams{
+				Host: remoteHost, Port: "5432", User: "u", Password: "p", SSLMode: mode, SSLRootCert: "system",
+			}).PGXConfig("postgres")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if cfg.TLSConfig == nil {
+				t.Fatal("remote TLSConfig is nil; PlanetScale would reject plaintext with SSL/TLS required")
+			}
+			if cfg.TLSConfig.ServerName != remoteHost {
+				t.Fatalf("TLSConfig.ServerName = %q, want %q", cfg.TLSConfig.ServerName, remoteHost)
+			}
+		})
+	}
+
+	local, err := (ConnParams{
+		Host: "db", Port: "5432", User: "u", Password: "p", SSLMode: "disable",
+	}).PGXConfig("animalekarte")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if local.TLSConfig != nil {
+		t.Fatal("local disable must not enable TLS")
+	}
+}
+
 func TestConnParams_PGXConfigRejectsInvalidPortAndSSLMode(t *testing.T) {
 	base := ConnParams{Host: "db", Port: "5432", User: "u", Password: "p", SSLMode: "disable"}
 	badPort := base

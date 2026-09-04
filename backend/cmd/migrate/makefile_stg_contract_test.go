@@ -132,3 +132,41 @@ func TestMakefileSTGUATImportIsOneShotPreflightApplyVerify(t *testing.T) {
 		}
 	}
 }
+
+func TestMakefileSTGUATHandoffWrapperUsesScript(t *testing.T) {
+	makefile := readRepositoryMakefile(t)
+	for _, target := range []string{"stg-uat-handoff-preflight:", "stg-uat-handoff:", "stg-uat-handoff-verify:"} {
+		if !strings.Contains(makefile, target) {
+			t.Errorf("missing target %s", target)
+		}
+	}
+	if strings.Contains(makefile, "stg-uat-handoff-all:") {
+		t.Error("stg-uat-handoff-all must not exist; stg-uat-handoff always imports every clinic")
+	}
+	for _, want := range []string{
+		`bash scripts/stg-uat-old-db-handoff.sh preflight`,
+		`bash scripts/stg-uat-old-db-handoff.sh import`,
+		`bash scripts/stg-uat-old-db-handoff.sh verify`,
+		`DB_SSL_ROOT_CERT="$${DB_SSL_ROOT_CERT}"`,
+	} {
+		if !strings.Contains(makefile, want) {
+			t.Errorf("Makefile missing %q", want)
+		}
+	}
+	if strings.Contains(makefile, `stg-uat-old-db-handoff.sh import "$(CLINIC_CODE)"`) {
+		t.Error("stg-uat-handoff must not take CLINIC_CODE")
+	}
+	start := strings.Index(makefile, "stg-uat-handoff:")
+	if start < 0 {
+		t.Fatal("missing target stg-uat-handoff:")
+	}
+	recipe := makefile[start:]
+	if next := strings.Index(recipe, "\n\n"); next >= 0 {
+		recipe = recipe[:next]
+	}
+	for _, forbidden := range []string{"--allow-local-rehearsal", "CSV_IMPORT_EXTRA_ARGS", "stg-uat-skeleton", "CLINIC_CODE"} {
+		if strings.Contains(recipe, forbidden) {
+			t.Errorf("stg-uat-handoff recipe must not contain %q", forbidden)
+		}
+	}
+}

@@ -404,20 +404,45 @@ func TestRunWithDependenciesImportRejectsMixedSeedFlags(t *testing.T) {
 }
 
 func TestValidateImportClinicIdentity(t *testing.T) {
-	valid := options{command: "import", clinicCode: "hachioji", clinicOrdinal: 1, clinicID: 1}
-	if err := validateImportClinicIdentity(valid); err != nil {
-		t.Fatalf("valid identity rejected: %v", err)
+	tests := []struct {
+		name    string
+		opt     options
+		wantErr string
+	}{
+		{name: "hachioji", opt: options{command: "import", clinicCode: "hachioji", clinicOrdinal: 1, clinicID: 1}},
+		{name: "jouto", opt: options{command: "import", clinicCode: "jouto", clinicOrdinal: 2, clinicID: 2}},
+		{name: "shikishima", opt: options{command: "import", clinicCode: "shikishima", clinicOrdinal: 3, clinicID: 3}},
+		{name: "hakobuneco", opt: options{command: "import", clinicCode: "hakobuneco", clinicOrdinal: 4, clinicID: 4}},
+		{name: "preflight skips identity", opt: options{command: "preflight", clinicCode: "other", clinicOrdinal: 9, clinicID: 9}},
+		{
+			name:    "clinic-id mismatch",
+			opt:     options{command: "import", clinicCode: "hachioji", clinicOrdinal: 1, clinicID: 2},
+			wantErr: "clinic-id must match",
+		},
+		{
+			name:    "jouto ordinal mismatch",
+			opt:     options{command: "import", clinicCode: "jouto", clinicOrdinal: 1, clinicID: 2},
+			wantErr: "clinic-code/ordinal",
+		},
+		{
+			name:    "unknown clinic",
+			opt:     options{command: "import", clinicCode: "other", clinicOrdinal: 9, clinicID: 9},
+			wantErr: "clinic-code/ordinal",
+		},
 	}
-	if err := validateImportClinicIdentity(options{command: "preflight", clinicCode: "other", clinicOrdinal: 9, clinicID: 9}); err != nil {
-		t.Fatalf("non-import command must skip identity gate: %v", err)
-	}
-	err := validateImportClinicIdentity(options{command: "import", clinicCode: "hachioji", clinicOrdinal: 1, clinicID: 2})
-	if err == nil || !strings.Contains(err.Error(), "clinic-id must match") {
-		t.Fatalf("error = %v, want clinic-id binding rejection", err)
-	}
-	err = validateImportClinicIdentity(options{command: "import", clinicCode: "jouto", clinicOrdinal: 1, clinicID: 2})
-	if err == nil || !strings.Contains(err.Error(), "clinic-code/ordinal") {
-		t.Fatalf("error = %v, want code/ordinal rejection", err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateImportClinicIdentity(tt.opt)
+			if tt.wantErr == "" {
+				if err != nil {
+					t.Fatalf("valid identity rejected: %v", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+				t.Fatalf("error = %v, want %s", err, tt.wantErr)
+			}
+		})
 	}
 }
 
@@ -576,8 +601,8 @@ func TestRunWithDependenciesApplyReportHasLane(t *testing.T) {
 	if target.applyCalls != 1 {
 		t.Fatalf("apply calls=%d", target.applyCalls)
 	}
-	if !strings.Contains(logs.String(), "RepeatableRead") {
-		t.Fatalf("apply logs must record RepeatableRead isolation: %q", logs.String())
+	if !strings.Contains(logs.String(), "committing each table") {
+		t.Fatalf("apply logs must record per-table commits: %q", logs.String())
 	}
 
 	raw, err := os.ReadFile(reportPath)
@@ -896,16 +921,32 @@ func TestBuildTargetPoolConfig(t *testing.T) {
 		})
 	}
 
+	if config.ConnConfig.TLSConfig != nil {
+		t.Fatal("local disable must not enable TLS")
+	}
+	if config.AfterConnect == nil {
+		t.Fatal("AfterConnect must enable app.bypass_rls so PlanetScale user-defined roles can see clinic seeds")
+	}
+
 	for _, mode := range []string{"require", "verify-ca", "verify-full"} {
 		t.Run("remote ssl "+mode, func(t *testing.T) {
 			cfg, err := buildTargetPoolConfig(dbconn.ConnParams{
-				Host: "example.invalid", Port: "5432", User: "user", Password: "secret", SSLMode: mode,
+				Host: "example.invalid", Port: "5432", User: "user", Password: "secret", SSLMode: mode, SSLRootCert: "system",
 			}, "animalekarte")
 			if err != nil {
 				t.Fatal(err)
 			}
 			if cfg.ConnConfig.Host != "example.invalid" {
 				t.Fatalf("host = %q", cfg.ConnConfig.Host)
+			}
+			if cfg.ConnConfig.TLSConfig == nil {
+				t.Fatal("remote TLSConfig is nil; PlanetScale would reject plaintext with SSL/TLS required")
+			}
+			if cfg.ConnConfig.TLSConfig.ServerName != "example.invalid" {
+				t.Fatalf("TLSConfig.ServerName = %q", cfg.ConnConfig.TLSConfig.ServerName)
+			}
+			if cfg.ConnConfig.DialFunc == nil {
+				t.Fatal("remote DialFunc must set TCP keepalives for long STG UAT imports")
 			}
 		})
 	}
@@ -922,7 +963,7 @@ func TestApplyIsolationLevelIsRepeatableRead(t *testing.T) {
 
 func TestCutoverApplyFailureClassification(t *testing.T) {
 	status, stage := cutoverApplyFailureClassification(errors.New("pre-commit failure"))
-	if status != "FAILED_DATA_ROLLED_BACK" || stage != "transaction" {
+	if status != "FAILED_TABLE_ROLLED_BACK" || stage != "table" {
 		t.Fatalf("ordinary failure = (%q, %q)", status, stage)
 	}
 
@@ -947,7 +988,7 @@ func TestRunWithDependenciesRecordsApplyFailures(t *testing.T) {
 		wantStatus string
 		wantError  string
 	}{
-		{"rolled back", errors.New("copy failed"), "FAILED_DATA_ROLLED_BACK", "transaction rolled back"},
+		{"rolled back", errors.New("copy failed"), "FAILED_TABLE_ROLLED_BACK", "uncommitted table rolled back"},
 		{"before transaction", fmt.Errorf("wrapped: %w", csvimport.ErrCutoverTransactionNotStarted), "FAILED_BEFORE_TRANSACTION", "before transaction began"},
 		{"unknown commit", fmt.Errorf("wrapped: %w", csvimport.ErrCutoverCommitOutcomeUnknown), "COMMIT_OUTCOME_UNKNOWN", "run read-only verify"},
 	} {

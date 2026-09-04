@@ -1,4 +1,4 @@
-.PHONY: up down build logs logs-api logs-front ps db clean reset migrate seed docs-ui old-db-handoff-stage old-db-handoff-check csv-import-preflight csv-import csv-import-verify a4-csv-import-preflight a4-csv-import a4-csv-import-verify a4-rehearsal-contract-test a4-rehearsal-config-check a4-rehearsal-up a4-rehearsal-ps a4-rehearsal-runtime-report a4-rehearsal-down f8-g4-rehearsal-contract-test f8-g4-rehearsal-config-check f8-g4-rehearsal-run f8-g4-rehearsal-down restart-api restart-front build-prod lint lint-fix test test-cover lint-front test-front test-worker test-worker-makefile-test build-front e2e build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check setup-hooks ci check-reset-contract check-reset-contract-test shellcheck shellcheck-test codex-security-scan stg-uat-skeleton stg-uat-csv-import-preflight stg-uat-csv-import stg-uat-csv-import-verify stg-uat-import stg-uat-staff-attach-preflight stg-uat-staff-attach
+.PHONY: up down build logs logs-api logs-front ps db clean reset migrate seed docs-ui old-db-handoff-stage old-db-handoff-check csv-import-preflight csv-import csv-import-verify a4-csv-import-preflight a4-csv-import a4-csv-import-verify a4-rehearsal-contract-test a4-rehearsal-config-check a4-rehearsal-up a4-rehearsal-ps a4-rehearsal-runtime-report a4-rehearsal-down f8-g4-rehearsal-contract-test f8-g4-rehearsal-config-check f8-g4-rehearsal-run f8-g4-rehearsal-down restart-api restart-front build-prod lint lint-fix test test-cover lint-front test-front test-worker test-worker-makefile-test build-front e2e build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check setup-hooks ci check-reset-contract check-reset-contract-test shellcheck shellcheck-test codex-security-scan stg-uat-skeleton stg-uat-csv-import-preflight stg-uat-csv-import stg-uat-csv-import-verify stg-uat-import stg-uat-handoff-preflight stg-uat-handoff stg-uat-handoff-verify stg-uat-staff-attach-preflight stg-uat-staff-attach
 
 # デフォルトターゲット
 .DEFAULT_GOAL := help
@@ -211,10 +211,12 @@ csv-import-verify:
 	$(CSV_IMPORT_DC) run --rm -T --no-deps csv-import verify $(CSV_IMPORT_COMMON_ARGS)
 
 # ============================================================================
-# STG UAT CSV import: verified producer bundle via cmd/csv-import-stg-uat
+# STG UAT CSV import: cmd/csv-import-stg-uat
 # ============================================================================
 # Requires APP_ENV=staging (forced below) and
 # STG_UAT_CSV_IMPORT_ALLOW_REHEARSAL=YES_I_UNDERSTAND.
+# Accepts TRUSTED_CANDIDATE/PASS bundles and REHEARSAL_ONLY _old_db_handoff
+# bundles. Formal make csv-import still requires PASS / TRUSTED_CANDIDATE.
 # Does NOT pass --allow-local-rehearsal or CSV_IMPORT_EXTRA_ARGS.
 # Compose still hardcodes DB_HOST:db for normal up; run -e overrides below.
 # DB_HOST defaults to db locally; confirmation host and TARGET_DB_NAME remain explicit.
@@ -261,6 +263,7 @@ stg-uat-csv-import-preflight:
 		-e DB_HOST="$${DB_HOST:-db}" \
 		-e DB_PORT="$${DB_PORT:-5432}" \
 		-e DB_SSL_MODE="$${DB_SSL_MODE:-disable}" \
+		-e DB_SSL_ROOT_CERT="$${DB_SSL_ROOT_CERT}" \
 		--entrypoint go csv-import \
 		run ./cmd/csv-import-stg-uat preflight $(STG_UAT_CSV_IMPORT_ARGS)
 
@@ -275,6 +278,7 @@ stg-uat-csv-import:
 		-e DB_HOST="$${DB_HOST:-db}" \
 		-e DB_PORT="$${DB_PORT:-5432}" \
 		-e DB_SSL_MODE="$${DB_SSL_MODE:-disable}" \
+		-e DB_SSL_ROOT_CERT="$${DB_SSL_ROOT_CERT}" \
 		--entrypoint go csv-import \
 		run ./cmd/csv-import-stg-uat apply $(STG_UAT_CSV_IMPORT_ARGS) \
 		--confirm-target-write --confirm-backup-ready \
@@ -291,6 +295,7 @@ stg-uat-csv-import-verify:
 		-e DB_HOST="$${DB_HOST:-db}" \
 		-e DB_PORT="$${DB_PORT:-5432}" \
 		-e DB_SSL_MODE="$${DB_SSL_MODE:-disable}" \
+		-e DB_SSL_ROOT_CERT="$${DB_SSL_ROOT_CERT}" \
 		--entrypoint go csv-import \
 		run ./cmd/csv-import-stg-uat verify $(STG_UAT_CSV_IMPORT_ARGS)
 
@@ -308,10 +313,23 @@ stg-uat-import:
 		-e DB_HOST="$${DB_HOST:-db}" \
 		-e DB_PORT="$${DB_PORT:-5432}" \
 		-e DB_SSL_MODE="$${DB_SSL_MODE:-disable}" \
+		-e DB_SSL_ROOT_CERT="$${DB_SSL_ROOT_CERT}" \
 		--entrypoint go csv-import \
 		run ./cmd/csv-import-stg-uat import $(STG_UAT_IMPORT_ARGS) \
 		--confirm-target-write --confirm-backup-ready \
 		--report-path "/migration-reports/$${CLINIC_CODE}-$${MIGRATION_RUN_ID}-stg-uat-apply.json"
+
+# STG UAT old_db handoff: every staged clinic (jouto, shikishima, hakobuneco).
+# Credentials live in gitignored scripts/stg-uat-old-db-handoff.local.env.
+# Never passes --allow-local-rehearsal. Long-running; operator executes.
+stg-uat-handoff-preflight:
+	@bash scripts/stg-uat-old-db-handoff.sh preflight
+
+stg-uat-handoff:
+	@bash scripts/stg-uat-old-db-handoff.sh import
+
+stg-uat-handoff-verify:
+	@bash scripts/stg-uat-old-db-handoff.sh verify
 
 # STG UAT staff attach: bind accounts onto imported staffs.id.
 # Does not create staff rows (that is cmd/staff-provision).
@@ -636,8 +654,9 @@ help:
 	@echo "  csv-import-preflight      source/seed/schema/空band検査（read-only）"
 	@echo "  csv-import                21表CSVを単一transactionで投入（backup・target確認必須）"
 	@echo "  csv-import-verify         manifest件数/clinic/sequence検証（read-only）"
-	@echo "  stg-uat-csv-import-*     STG UAT verified import（専用cmd。weak rehearsal provenance は拒否）"
+	@echo "  stg-uat-csv-import-*     STG UAT import（専用cmd。sentinel 付きなら REHEARSAL_ONLY handoff 可）"
 	@echo "  stg-uat-import           STG UAT 1コマンド投入（preflight→apply→verify。6 seed IDを明示）"
+	@echo "  stg-uat-handoff         _old_db_handoff 全医院を STG へ投入（local.env の接続情報を使用）"
 	@echo "  stg-uat-skeleton         clinics 1/2 + F6 bindings（21 cutover 表には書かない）"
 	@echo "  stg-uat-staff-attach-*   移行 staffs.id へ account 後付け（staff-provision ではない）"
 	@echo "  a4-rehearsal-contract-test A4隔離構成/runtime report契約テスト（Docker起動不要）"

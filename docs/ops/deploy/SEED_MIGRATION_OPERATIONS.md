@@ -44,7 +44,7 @@ PHIを含み得るinput/outputはGit、chat、artifactへ出さない。manifest
 | input | path | seed result |
 |---|---|---|
 | formal 21-table `PASS` / `TRUSTED_CANDIDATE` | [CLINIC_CSV_IMPORT.md](./CLINIC_CSV_IMPORT.md) | target DB cutover。seed filesは変更しない |
-| `REHEARSAL_ONLY` / `PARTIAL` | [OLD_DB_HANDOFF_LOCAL.md](./OLD_DB_HANDOFF_LOCAL.md) | gitignored local isolation。`cmd/migrate`は読まない |
+| `REHEARSAL_ONLY` / `PARTIAL` | [OLD_DB_HANDOFF_LOCAL.md](./OLD_DB_HANDOFF_LOCAL.md)、STG は `make stg-uat-handoff` | gitignored isolation。`cmd/migrate`は読まない。共有 STG は sentinel 付き STG UAT importer |
 | executable clinical/demo seed | **未実装** | 生成・適用しない |
 
 21-table cutover bundleとseed manifestは別contractである。handoff CSVを`002_master`へcopyしない。

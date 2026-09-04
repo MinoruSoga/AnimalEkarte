@@ -154,10 +154,11 @@ func validateCutoverManifest(manifest CutoverManifest, expected ExpectedCutoverS
 	}
 	wantOutputDir := filepath.Join("sensitive-local", "animalekarte-csv-export", expected.ClinicCode, expected.RunID)
 	outputDirMatches := manifest.OutputDir == wantOutputDir
-	// Old DB local rehearsal exports append a controlled suffix (for example
-	// "-rehearsal-current") while retaining the clinic/run binding. Formal and
-	// staging imports remain exact-path only.
-	if expected.Provenance.Mode == CutoverProvenanceLocalRehearsal {
+	// Old DB rehearsal exports append a controlled suffix (for example
+	// "-rehearsal-current") while retaining the clinic/run binding. Formal
+	// cutover and verified staging PASS bundles remain exact-path only.
+	if expected.Provenance.Mode == CutoverProvenanceLocalRehearsal ||
+		(expected.Provenance.Mode == CutoverProvenanceStagingRehearsal && isRehearsalOnlyProducer(manifest)) {
 		outputDirMatches = outputDirMatches || strings.HasPrefix(manifest.OutputDir, wantOutputDir+"-rehearsal-")
 	}
 	if !outputDirMatches || filepath.IsAbs(manifest.OutputDir) || filepath.Clean(manifest.OutputDir) != manifest.OutputDir {
@@ -213,6 +214,12 @@ func validateCutoverProducerProvenance(manifest CutoverManifest, contract Cutove
 			contract.Target.Database == "" || contract.Target.ClinicID <= 0 {
 			return fmt.Errorf("staging rehearsal provenance requires an explicit staging target binding")
 		}
+		// Shared STG can load _old_db_handoff rehearsal bundles after the
+		// cmd/csv-import-stg-uat env sentinel and target binding. Formal
+		// csv-import still requires TRUSTED_CANDIDATE.
+		if isRehearsalOnlyProducer(manifest) {
+			return validateLocalRehearsalProducerProvenance(manifest)
+		}
 		return validateStagingRehearsalProducerProvenance(manifest)
 	default:
 		return fmt.Errorf("unknown cutover provenance mode %q", contract.Mode)
@@ -252,9 +259,10 @@ func validateCutoverProducerProvenance(manifest CutoverManifest, contract Cutove
 }
 
 func validateStagingRehearsalProducerProvenance(manifest CutoverManifest) error {
-	// Shared staging is not a disposable local reset. It requires the same
-	// complete producer evidence as a formal handoff, in addition to the exact
-	// runtime target binding checked by validateCutoverProducerProvenance.
+	// Verified PASS / TRUSTED_CANDIDATE staging imports keep the same producer
+	// evidence as formal cutover, plus the runtime target binding checked by
+	// validateCutoverProducerProvenance. REHEARSAL_ONLY handoff uses
+	// validateLocalRehearsalProducerProvenance instead.
 	if manifest.Status != "PASS" {
 		return fmt.Errorf("staging rehearsal manifest status must be PASS")
 	}
