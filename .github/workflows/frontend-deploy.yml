@@ -69,7 +69,7 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           STG_DEMO_PASSWORD: ${{ secrets.STG_DEMO_PASSWORD }}
-          VITE_DEMO_LOGIN_PASSWORD: ${{ secrets.VITE_DEMO_LOGIN_PASSWORD }}
+          DEMO_LOGIN_PASSWORD_SECRET: ${{ secrets.VITE_DEMO_LOGIN_PASSWORD }}
         run: |
           set -euo pipefail
           ENV=preview
@@ -100,29 +100,22 @@ jobs:
           console.log('projectSettings', JSON.stringify(j.projectSettings));
           NODE
 
-          # Vite define の __VERCEL_ENV__ は process.env.VERCEL_ENV。
-          # prebuilt では Vercel が注入しないため、STG=preview / 本番=production を明示する。
-          # pnpm/Vite は GHA の STG_DEMO_PASSWORD をクライアント env に渡さない。
-          # 空の VITE_DEMO_LOGIN_PASSWORD は loadEnv が .env を上書きするので消す。
+          # Vite はコマンドラインの VERCEL_ENV を読む（GHA env の STG_* は vite.config に届かない）。
+          # デモパスワードも同じ行で VITE_DEMO_LOGIN_PASSWORD として渡す。
+          DEMO_PW=""
           if [ "$ENV" = "preview" ]; then
-            DEMO_PW="${VITE_DEMO_LOGIN_PASSWORD:-}"
+            DEMO_PW="${DEMO_LOGIN_PASSWORD_SECRET:-}"
             if [ -z "$DEMO_PW" ]; then
               DEMO_PW="${STG_DEMO_PASSWORD:-}"
             fi
             if [ -z "$DEMO_PW" ]; then
               echo "::warning::preview demo password unset; login picker will not fill password"
-              printf 'VITE_DEMO_LOGIN_PASSWORD=\n' > frontend/.env.production.local
-            else
-              DEMO_PW="$DEMO_PW" node --input-type=module -e "import { writeFileSync } from 'node:fs'; writeFileSync('frontend/.env.production.local', 'VITE_DEMO_LOGIN_PASSWORD=' + JSON.stringify(process.env.DEMO_PW ?? '') + '\\n');"
             fi
-            unset VITE_DEMO_LOGIN_PASSWORD
           else
             unset STG_DEMO_PASSWORD
-            printf 'VITE_DEMO_LOGIN_PASSWORD=\n' > frontend/.env.production.local
-            export VITE_DEMO_LOGIN_PASSWORD=""
+            unset DEMO_LOGIN_PASSWORD_SECRET
           fi
-          VERCEL_ENV="$ENV" VITE_VERCEL_ENV="$ENV" pnpm --dir frontend build
-          rm -f frontend/.env.production.local
+          VERCEL_ENV="$ENV" VITE_VERCEL_ENV="$ENV" VITE_DEMO_LOGIN_PASSWORD="$DEMO_PW" pnpm --dir frontend build
           test -f frontend/dist/index.html
 
           rm -rf .vercel/output
