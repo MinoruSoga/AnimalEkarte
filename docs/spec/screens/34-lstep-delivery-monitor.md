@@ -12,7 +12,7 @@
 
 ## 1. 画面構成
 
-### 1.1 配信実行ログテーブル (`DeliveryLogsTable`)
+### 1.1 配信実行ログテーブル (`LstepDeliveryMonitorLogsTable`)
 指定期間（既定は当日）の配信（および配信予定）が予定日時の降順で表示されます（サーバ側ページネーション付き）。
 
 | カラム | 説明 |
@@ -68,7 +68,7 @@ Deploy gate（`LSTEP_WRITE_API_ENABLED`）OFF 時は外部タグ write が HTTP 
 ### 構成コンポーネント
 - **`LstepDeliveryMonitorPage`**: メイン監視ページ。
 - **`DeliveryMonitorFilters`**: 期間・トリガー種別・ステータスの検索フィルタ。
-- **`LstepDeliveryMonitorLogsTable`**: 配信ログの一覧テーブル `DeliveryLogsTable`（ステータスは `BADGE` デザイントークンで色分け表示。`Pagination` によるページ送り）。
+- **`LstepDeliveryMonitorLogsTable`**: 配信ログの一覧テーブル（ステータスは `BADGE` デザイントークンで色分け表示。`Pagination` によるページ送り）。
 - **`LstepDeliveryMonitorPageParts`**: サマリカード（`DeliverySummaryCards`）・失敗警告（`DeliveryFailedWarning`）・除外理由内訳（`DeliveryExcludedReasonBreakdown`）の部品群。
 
 ### API連携

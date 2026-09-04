@@ -1,6 +1,11 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  "entry": ["liff/src/main.tsx", "line-reserve/src/main.tsx"],
+  "entry": [
+    "liff/src/main.tsx",
+    "line-reserve/src/main.tsx",
+    "e2e/fixtures/ui-design-clinical.ts",
+    "e2e/fixtures/ui-design-clinical-request-contracts.ts"
+  ],
   "project": ["src/**/*.{ts,tsx}", "liff/src/**/*.{ts,tsx}", "line-reserve/src/**/*.{ts,tsx}"],
   "ignore": ["src/types/generated/**", "src/components/ui/**"],
   "ignoreDependencies": ["tailwindcss", "chrome-launcher", "lighthouse", "vercel"]

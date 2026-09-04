@@ -56,8 +56,9 @@ if [ -n "$STAGED_FE" ]; then
     echo "Pre-commit: frontendコンテナが未起動のため FE チェックをスキップ（make up で起動してください）"
   else
     FE_REL=$(echo "$STAGED_FE" | sed 's|^frontend/||')
-    FE_LINT=$(echo "$FE_REL" | grep -E '\.(ts|tsx|js|jsx|mjs|cjs)$' || true)
-    FE_PRETTIER=$(echo "$FE_REL" | grep -E '\.(ts|tsx|js|jsx|mjs|cjs|json|css|md)$' || true)
+    # Explicit paths bypass ESLint/Prettier ignore; skip codegen output.
+    FE_LINT=$(echo "$FE_REL" | grep -E '\.(ts|tsx|js|jsx|mjs|cjs)$' | grep -vE '(^|/)types/generated/' || true)
+    FE_PRETTIER=$(echo "$FE_REL" | grep -E '\.(ts|tsx|js|jsx|mjs|cjs|json|css|md)$' | grep -vE '(^|/)types/generated/' || true)
 
     if [ -n "$FE_LINT" ]; then
       echo "  [Frontend] eslint (staged)..."

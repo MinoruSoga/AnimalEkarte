@@ -31,10 +31,10 @@ package lintscan
 //     are added): medicineDoseParamService.Upsert, staffService.Set{Excluded,Capable}ReservationTypeIDs,
 //     staffService.SetPermissionGroupIDs (PermissionGroup; mitigated — repo UpdateStaffGroups
 //     does a clinic-scoped IN-check), reservationTypeService.LinkOccupation (mitigated — FindByID).
-//  3. A master FK propagated through a non-`model.` cross-package struct parameter. The sole
-//     reviewed occurrence is owner.PetRegistrationIntent at the pet owner-registration adapter;
-//     knownSafeParamQualifiers plus knownReviewedExternalParamOccurrences pin both its exact
-//     type and call site so any new external command fails closed and is forced into review.
+//  3. A master FK propagated through a non-`model.` cross-package struct parameter.
+//     Reviewed occurrences are pinned in knownReviewedExternalParamOccurrences (exact type +
+//     write entrypoint). knownSafeParamQualifiers plus that map keep any new external command
+//     fail-closed.
 //  4. (field-name/shape matching limits, independent of role scope) A master-FK-bearing DTO reached only via an UNREGISTERED
 //     field name (not a key of clinicScopedMasterFKField) is invisible by design — this gate
 //     detects by field-name matching, not exhaustive type inspection. A struct type reachable
@@ -210,6 +210,12 @@ var knownSafeParamQualifiers = map[string]struct{}{
 var knownReviewedExternalParamOccurrences = map[string]map[string]struct{}{
 	"owner.PetRegistrationIntent": {
 		"pet.OwnerRegistrationAdapter.CreateForOwnerRegistration": {},
+	},
+	// ReservationStaffUpdate is the staff-owned column patch (name/staff_type/visibility/
+	// comment/sort_order/is_active). It does not carry a clinic-scoped master FK. Pin the
+	// exact reservation-staff Update occurrence so a new staff command still fails closed.
+	"staffpkg.ReservationStaffUpdate": {
+		"reservation.reservationStaffRepository.Update": {},
 	},
 }
 
@@ -979,17 +985,20 @@ func TestMasterFKWriteInventory_ExternalParamExceptionIsExactAndLive(t *testing.
 	}
 
 	_, stats := analyzeRealServiceSource(t)
-	observed := false
+	live := map[string]map[string]struct{}{}
 	for _, param := range stats.externalParams {
-		if param.qualifiedType() == reviewed.qualifiedType() &&
-			param.occurrence() == reviewed.occurrence() {
-			observed = true
-			break
+		if live[param.qualifiedType()] == nil {
+			live[param.qualifiedType()] = map[string]struct{}{}
 		}
+		live[param.qualifiedType()][param.occurrence()] = struct{}{}
 	}
-	if !observed {
-		t.Fatalf("reviewed external-param exception is stale: %s at %s was not observed",
-			reviewed.qualifiedType(), reviewed.occurrence())
+	for qualifiedType, occurrences := range knownReviewedExternalParamOccurrences {
+		for occurrence := range occurrences {
+			if _, ok := live[qualifiedType][occurrence]; !ok {
+				t.Errorf("reviewed external-param exception is stale: %s at %s was not observed",
+					qualifiedType, occurrence)
+			}
+		}
 	}
 }
 

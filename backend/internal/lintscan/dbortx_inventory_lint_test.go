@@ -175,6 +175,19 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"billing/campaign_repository.go|campaignRepository.FindAll":  {},
 	"billing/campaign_repository.go|campaignRepository.FindByID": {},
 	"billing/campaign_repository.go|campaignRepository.Update":   {},
+	// Insurance master unused-delete is atomic (clinic_id+id+pets.insurance_id NOT EXISTS)
+	// and joins ambient tx. FindByID/CountUsage/Update share that tx for reload and
+	// usage re-check. Runtime: insurance_repository_tx_atomicity_test.go
+	"billing/insurance_repository.go|insuranceRepository.CountUsageByInsuranceID": {},
+	"billing/insurance_repository.go|insuranceRepository.Delete":                  {},
+	"billing/insurance_repository.go|insuranceRepository.FindByID":                {},
+	"billing/insurance_repository.go|insuranceRepository.Update":                  {},
+	// Payment-method unused-delete and post-update reload join ambient tx.
+	// Runtime: payment_method_master_repository_tx_atomicity_test.go
+	"billing/payment_method_master_repository.go|paymentMethodMasterRepository.CountUsageByPaymentMethodID": {},
+	"billing/payment_method_master_repository.go|paymentMethodMasterRepository.Delete":                      {},
+	"billing/payment_method_master_repository.go|paymentMethodMasterRepository.FindByID":                    {},
+	"billing/payment_method_master_repository.go|paymentMethodMasterRepository.Update":                      {},
 	// BE-X06-LSTEP-SETTINGS-01 / LSA-06: settings write graph joins ambient tx.
 	// Runtime: lstep_settings_tx_atomicity_test.go
 	"lstep/lstep_settings_repository.go|lstepSettingsRepository.FindByClinicAndService":   {},
@@ -410,6 +423,17 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/vaccination_repository.go|vaccinationRepository.LockByIDForUpdate":           {},
 	"medicalrecord/vaccination_repository.go|vaccinationRepository.Update":                      {},
 	"medicalrecord/vaccine_repository.go|vaccineRepository.FindByID":                            {},
+	"medicalrecord/vaccine_repository.go|vaccineRepository.Delete":                              {}, // Runtime: TestVaccineRepository_Delete_RollsBackWhenAmbientTxFails
+	// Clinical master unused-delete joins ambient tx (NOT EXISTS usage/child predicates).
+	// Runtime: clinical_master_delete_tx_atomicity_test.go
+	"medicalrecord/consultation_repository.go|consultationRepositoryImpl.Delete":            {},
+	"medicalrecord/checkup_type_repository.go|checkupTypeRepository.Delete":                 {},
+	"medicalrecord/hospitalization_plan_repository.go|hospitalizationPlanRepository.Delete": {},
+	"medicalrecord/chief_complaint_repository.go|chiefComplaintTypeRepository.Delete":       {},
+	"medicalrecord/diagnosis_name_repository.go|diagnosisNameRepository.Delete":             {},
+	"medicalrecord/diagnosis_type_repository.go|diagnosisTypeRepository.Delete":             {},
+	// Runtime: TestInquiryTemplateRepository_Delete_JoinsAmbientTransaction
+	"medicalrecord/inquiry_template_repository.go|inquiryTemplateRepository.Delete": {},
 	// BUG-425: tag-code replacement is one transaction; every replacement write must use DBOrTx.
 	"lstep/lstep_tag_code_mapping_repository.go|lstepTagCodeMappingRepository.Create":                         {},
 	"lstep/lstep_tag_code_mapping_repository.go|lstepTagCodeMappingRepository.SoftDelete":                     {},
@@ -570,8 +594,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"trimming/trimming_option_repository.go|trimmingOptionRepository.FindAll":                           {},
 	"trimming/trimming_option_repository.go|trimmingOptionRepository.FindByID":                          {},
 	"trimming/trimming_option_repository.go|trimmingOptionRepository.Update":                            {},
-	// reservationtype domain package (methods that previously used dbOrTx; Update/Delete remain
-	// r.db.WithContext by design — behavior preserved from flat file; facade keeps service imports)
+	// reservationtype domain package (methods that previously used dbOrTx).
 	"reservation/reservation_type_repository.go|reservationTypeRepository.CountChildrenByParentID":       {},
 	"reservation/reservation_type_repository.go|reservationTypeRepository.CountUsageByReservationTypeID": {},
 	"reservation/reservation_type_repository.go|reservationTypeRepository.Create":                        {},
@@ -580,6 +603,10 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"reservation/reservation_type_repository.go|reservationTypeRepository.FindByID":                      {},
 	"reservation/reservation_type_repository.go|reservationTypeRepository.FindByIDWithChildren":          {},
 	"reservation/reservation_type_repository.go|reservationTypeRepository.Update":                        {},
+	// Unused-delete (no children / no appointments) joins ambient tx.
+	// Runtime: reservation_type_delete_tx_atomicity_test.go
+	"reservation/reservation_type_repository.go|reservationTypeRepository.Delete":            {},
+	"reservation/reservation_type_group_repository.go|reservationTypeGroupRepository.Delete": {},
 	// staff_clinic_assignment (moved into internal/staff). Runtime lock/replace proofs live in
 	// staff_clinic_assignment_*_test.go and staff_assignment_concurrency_test.go.
 	"staff/staff_clinic_assignment_repository.go|staffClinicAssignmentRepository.CountByStaffAndClinic":      {},
@@ -724,6 +751,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"inventory/repository.go|repository.CountUsageByInventoryID":                      {}, // BE8-4 batch18: moved from inventory_repository.go
 	"inventory/repository.go|repository.UpdateNameByMedicineCategory":                 {}, // BE8-4 batch18: moved from inventory_repository.go
 	"inventory/repository.go|repository.DeleteByNameAndMedicineCategory":              {}, // BE8-4 batch18: moved from inventory_repository.go
+	"inventory/repository.go|repository.DeleteIfUnused":                               {}, // Runtime: TestInventoryRepository_DeleteIfUnused_AmbientTxRollback
 	// BUG-465 landed DBOrTx on merchandise Create/Update without allowlist (main red).
 	// Runtime: merchandise_item_repository_test.go AmbientTxRollback cases.
 	"inventory/merchandise_item_repository.go|merchandiseItemRepository.Create": {},

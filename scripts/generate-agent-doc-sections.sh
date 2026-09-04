@@ -3,7 +3,6 @@
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 CLAUDE="$ROOT/.claude/CLAUDE.md"
-TMP=$(mktemp)
 
 # architecture-dirs: keep curated rows; verify listed CLAUDE.md paths exist.
 python3 - "$CLAUDE" <<'PY'

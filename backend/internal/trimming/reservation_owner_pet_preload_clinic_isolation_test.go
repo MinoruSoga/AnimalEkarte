@@ -4,8 +4,8 @@ package trimming
 // production の依存方向に合わせて trimming package で検証する。
 
 // reservation_owner_pet_preload_clinic_isolation_test.go — AUD-001
-// ReservationRepository は汚染された Owner/Pet FK を持つ予約を親行ごと fail-closed にし、
-// ReservationAdminRepository は別 clinic の Owner/Pet/LineCustomer を Preload しないことを検証する。
+// ReservationRepository と ReservationAdminRepository は汚染された Owner/Pet/LineCustomer
+// FK を持つ予約を親行ごと fail-closed にする（Preload しない・一覧から除外・単件は NotFound）。
 
 import (
 	"context"
@@ -132,7 +132,7 @@ func TestReservationRepository_FindAll_FindByID_FailClosedForForeignOwnerPet(t *
 	})
 }
 
-func TestReservationAdminRepository_DoesNotPreloadForeignOwnerPetLineCustomer(t *testing.T) {
+func TestReservationAdminRepository_FailClosedForForeignOwnerPetLineCustomer(t *testing.T) {
 	db := setupReservationAdminTestDB(t)
 	repo := reservation.NewReservationAdminRepository(db)
 	ctx := context.Background()
@@ -147,41 +147,27 @@ func TestReservationAdminRepository_DoesNotPreloadForeignOwnerPetLineCustomer(t 
 	ownerBID, petBID, lcBID := ownerB.ID, petB.ID, lcB.ID
 	contaminated := makeAdminReservationAt(t, db, clinicA, day, &ownerBID, &petBID, nil, &lcBID)
 
-	t.Run("FindAllByDay does not preload foreign links", func(t *testing.T) {
+	t.Run("FindAllByDay excludes contaminated parent rows", func(t *testing.T) {
 		items, err := repo.FindAllByDay(ctx, clinicA, day)
 		require.NoError(t, err)
-		var found *model.Reservation
 		for i := range items {
-			if items[i].ID == contaminated.ID {
-				found = &items[i]
-				break
-			}
+			assert.NotEqual(t, contaminated.ID, items[i].ID, "cross-clinic owner/pet/line customer must fail closed")
 		}
-		require.NotNil(t, found)
-		assert.Nil(t, found.Owner)
-		assert.Nil(t, found.Pet)
-		assert.Nil(t, found.LineCustomer)
 	})
 
-	t.Run("FindAllByMonth does not preload foreign line customer", func(t *testing.T) {
+	t.Run("FindAllByMonth excludes contaminated parent rows", func(t *testing.T) {
 		items, err := repo.FindAllByMonth(ctx, clinicA, 2026, time.July)
 		require.NoError(t, err)
-		var found *model.Reservation
 		for i := range items {
-			if items[i].ID == contaminated.ID {
-				found = &items[i]
-				break
-			}
+			assert.NotEqual(t, contaminated.ID, items[i].ID, "cross-clinic owner/pet/line customer must fail closed")
 		}
-		require.NotNil(t, found)
-		assert.Nil(t, found.LineCustomer)
 	})
 
-	t.Run("FindByIDForNotify does not preload foreign owner/pet", func(t *testing.T) {
+	t.Run("FindByIDForNotify returns NotFound for contaminated parent", func(t *testing.T) {
 		got, err := repo.FindByIDForNotify(ctx, clinicA, contaminated.ID)
-		require.NoError(t, err)
-		assert.Nil(t, got.Owner)
-		assert.Nil(t, got.Pet)
+		require.Error(t, err)
+		assert.Nil(t, got)
+		assert.True(t, apperrors.IsNotFound(err), "contaminated reservation must fail closed as NotFound: %v", err)
 	})
 }
 

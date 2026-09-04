@@ -2172,7 +2172,6 @@ export interface LineLinkToken {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
   owner_id: number /* uint64 */;
-  token: string;
   expires_at: string;
   used_at?: string;
   created_at: string;

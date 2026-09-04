@@ -106,16 +106,16 @@ func (r *examTypeRepository) Delete(ctx context.Context, clinicID, id uint64) er
 		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id = ?", id).
 		Where(`NOT EXISTS (
-			SELECT 1 FROM examination_types children
-			WHERE children.parent_id = examination_types.id
+			SELECT 1 FROM exam_types children
+			WHERE children.parent_id = exam_types.id
 			  AND children.clinic_id = ?
 			  AND children.deleted_at IS NULL
 		)`, clinicID).
 		Where(`NOT EXISTS (
-			SELECT 1 FROM examinations
-			WHERE examinations.exam_type_id = examination_types.id
-			  AND examinations.clinic_id = ?
-			  AND examinations.deleted_at IS NULL
+			SELECT 1 FROM exams
+			WHERE exams.exam_type_id = exam_types.id
+			  AND exams.clinic_id = ?
+			  AND exams.deleted_at IS NULL
 		)`, clinicID).
 		Delete(&model.ExaminationType{})
 	if result.Error != nil {

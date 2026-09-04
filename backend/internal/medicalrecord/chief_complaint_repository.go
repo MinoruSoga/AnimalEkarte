@@ -97,7 +97,6 @@ func (r *chiefComplaintTypeRepository) Delete(ctx context.Context, clinicID, id 
 			  AND medical_records.clinic_id = ?
 			  AND medical_records.deleted_at IS NULL
 			WHERE inquiries.chief_complaint_type_id = chief_complaint_types.id
-			  AND inquiries.deleted_at IS NULL
 		)`, clinicID).
 		Delete(&model.ChiefComplaintType{})
 	if result.Error != nil {

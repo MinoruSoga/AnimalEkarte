@@ -104,7 +104,8 @@ func TestRunDeliveryTriggersForClinic_NilTrigger(t *testing.T) {
 	svc := &lstepBatchService{lstepDeliveryTrigger: nil}
 	count, errs := svc.runDeliveryTriggersForClinic(context.Background(), 1)
 	assert.Equal(t, 0, count)
-	assert.Nil(t, errs)
+	require.Len(t, errs, 1)
+	assert.Contains(t, errs[0].Error(), "lstep delivery trigger dependency is required")
 }
 
 func TestRunDeliveryTriggersForClinic_AggregatesCountsAndErrors(t *testing.T) {

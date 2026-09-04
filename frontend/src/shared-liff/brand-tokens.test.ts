@@ -26,11 +26,11 @@ describe("shared brand tokens (BUG-026)", () => {
   it("brand-tokens.css defines the same hex values for noah and liff aliases", () => {
     const cssPath = resolve(import.meta.dirname, "brand-tokens.css");
     const css = readFileSync(cssPath, "utf8");
-    expect(css).toContain("--color-noah-teal: #038B94");
+    expect(css).toContain("--color-noah-teal: #038b94");
     expect(css).toContain("--color-noah-teal-dark: #027078");
-    expect(css).toContain("--color-noah-teal-light: #EDF3F5");
-    expect(css).toContain("--color-liff-brand: #038B94");
-    expect(css).toContain("--color-liff-brand-bg: #EDF3F5");
+    expect(css).toContain("--color-noah-teal-light: #edf3f5");
+    expect(css).toContain("--color-liff-brand: #038b94");
+    expect(css).toContain("--color-liff-brand-bg: #edf3f5");
     expect(css).not.toMatch(/green-50|155\.826/);
     expect(css).not.toMatch(/#008B94|#007079/);
   });
