@@ -67,6 +67,8 @@ test("frontend deploy bakes VERCEL_ENV into the prebuilt Vite bundle", () => {
   assert.match(workflow, /VERCEL_ENV="\$ENV" VITE_VERCEL_ENV="\$ENV" pnpm --dir frontend build/);
   assert.match(workflow, /STG_DEMO_PASSWORD: \$\{\{ secrets\.STG_DEMO_PASSWORD \}\}/);
   assert.match(workflow, /if \[ "\$ENV" = "preview" \]/);
+  assert.match(workflow, /unset VITE_DEMO_LOGIN_PASSWORD/);
+  assert.match(workflow, /unset STG_DEMO_PASSWORD/);
   assert.match(workflow, /export VITE_DEMO_LOGIN_PASSWORD=""/);
 });
 
