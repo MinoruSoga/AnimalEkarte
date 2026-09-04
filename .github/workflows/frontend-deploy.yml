@@ -138,4 +138,8 @@ jobs:
           if [ "$ENV" = "production" ]; then
             EXTRA+=(--prod)
           fi
-          ./frontend/node_modules/.bin/vercel deploy --prebuilt --yes "${EXTRA[@]}" --token="$VERCEL_TOKEN"
+          DEPLOY_URL=$(./frontend/node_modules/.bin/vercel deploy --prebuilt --yes "${EXTRA[@]}" --token="$VERCEL_TOKEN" | tail -n1)
+          echo "deployed ${DEPLOY_URL}"
+          if [ "$ENV" = "preview" ]; then
+            ./frontend/node_modules/.bin/vercel alias set "$DEPLOY_URL" stg.noah-karte.com --token="$VERCEL_TOKEN" --yes
+          fi
