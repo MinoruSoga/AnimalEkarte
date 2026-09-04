@@ -44,6 +44,6 @@ docker compose exec backend go test -v ./internal/lstep/ -run 'TestPERF|TestH1' 
 - `load-tests/k6-spike-test.js`: 100 spike VUs、`p(95)<2000`
 - `load-tests/k6-cf-stg-sustained.js`: approved STG sustained run only
 
-k6 scripts は `STG_DEMO_EMAIL` / `STG_DEMO_PASSWORD` と実在 account を要求し、login failure で fail-closed する。現行 scheduled workflow は fresh `002_master` DB に account を provision しないため **BLOCKED**。secret names が設定されていても DB account は作られない。
+k6 scripts は `STG_DEMO_EMAIL` / `STG_DEMO_PASSWORD` と実在 account を要求し、login failure で fail-closed する。migrate フェーズ3 が合成 `stg-staff-*` を upsert した後は、カタログ email と共通デモパスワードで login できる。scheduled workflow の email secret がカタログ外のままなら **BLOCKED**。
 
 現状は未固定の local k6 installation を推奨しない。approved route は、ephemeral fixture/account provisioning と version-pinned k6 runtime を workflow または Docker runner に追加した後のその経路とする。修正前に load run を実行しない。特に production/共有 STG は禁止し、approved isolated UAT target、rate window、stop condition、owner を先に決める。

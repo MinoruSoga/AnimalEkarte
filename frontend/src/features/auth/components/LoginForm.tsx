@@ -313,8 +313,7 @@ function readDemoLoginPassword(): string {
   if (!SHOW_DEMO) {
     return "";
   }
-  const raw = import.meta.env.VITE_DEMO_LOGIN_PASSWORD;
-  return typeof raw === "string" ? raw.trim() : "";
+  return "password";
 }
 
 const DemoAccount = memo(function DemoAccount({
@@ -450,8 +449,8 @@ export const LoginForm = memo(function LoginForm() {
           </div>
           <p className={`text-sm text-center mb-2 ${C.text40}`}>
             {readDemoLoginPassword() !== ""
-              ? "パスワードは自動入力されます（staff-attach と同一）"
-              : "デモ用パスワード未設定 — ローカルは .env.local、STG は GitHub secret を staff-attach と揃えてください"}
+              ? "パスワードは自動入力されます（全デモ共通）"
+              : "デモ用パスワード未設定"}
           </p>
           <div className="max-h-[min(40vh,320px)] overflow-y-auto space-y-px">
             {DEMO_ACCOUNTS.map((cred) => (

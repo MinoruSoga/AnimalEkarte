@@ -99,7 +99,7 @@ func loadRecordedMigrationKeys(db *sql.DB) ([]string, error) {
 	return keys, nil
 }
 
-// verifyMigrationKeyCoverage runs after both migrate phases. It fails closed
+// verifyMigrationKeyCoverage runs after all migrate phases. It fails closed
 // when any expected on-disk DDL or seed key is absent from schema_migrations.
 // Extra recorded keys (consolidated/deleted files) are logged only.
 //
@@ -116,10 +116,9 @@ func verifyMigrationKeyCoverage(db *sql.DB, logger *slog.Logger) error {
 		return err
 	}
 
-	// Expected seed keys must match the same APP_ENV gate as runSeedBundles.
-	// Production plans exclude demo/staging; previously-applied demo keys on a
-	// production DB surface as informational "extra", not as missing failures.
-	seedBundles := seedBundlesForCurrentEnv()
+	// Expected seed keys must match the same APP_ENV gate as runSeedBundles,
+	// plus seeds/003_login when the login seed phase applied in this process.
+	seedBundles := expectedSeedBundleDirs()
 	missing, extra := reconcileMigrationKeys(recorded, ddlFiles, seedBundles)
 	expectedCount := len(ddlFiles) + len(seedBundles)
 

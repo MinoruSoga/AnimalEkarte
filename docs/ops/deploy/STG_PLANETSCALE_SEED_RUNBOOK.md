@@ -6,12 +6,13 @@
 ## 1. Current state
 
 - `cmd/migrate`はtop-level `backend/migrations/*.sql`を昇順適用した後、`BundleOrderForEnv(APP_ENV)`を適用する。
-- current bundle orderは**全environmentで`002_master`だけ**。`003_demo` / `004_staging`は削除済みで復元対象ではない。
+- current CSV bundle orderは**全environmentで`002_master`だけ**。`003_demo` / `004_staging`は削除済みで復元対象ではない。
+- フェーズ3 が LoginForm と同じ合成デモログインを upsert する。パスワードはコード定数（全デモ共通）。production の API は受け付けない。
 - `002_master/manifest.json`がtable inventory/load orderのSSOT（現在12 table）。固定checksum、固定row count、固定table countをrunbookへ複製しない。
-- fresh DBのexpected historyはcurrent DDL filename keys + `seeds/002_master`。`Migration key coverage missing=0`を一次判定にする。
+- fresh DBのexpected historyはcurrent DDL filename keys + `seeds/002_master` + ログイン seed 適用時の `seeds/003_login`。`Migration key coverage missing=0`を一次判定にする。
 - Cloudflare backend workflowはdeploy、`POST /_internal/migrate`、post-migrate healthの順。path filterによりbackend対象変更だけが自動起動する。
 
-STGにdemo accountやclinical rowsはseedされない。accountはapproved provisioning、21表 clinical dataはapproved `make stg-uat-handoff`（`_old_db_handoff` の REHEARSAL_ONLY を含む）または formal cutover を使う。`cmd/migrate` は 21 CSV を読まない。PlanetScale の user-defined role は table owner / `BYPASSRLS` ではないため、RLS 付き 21 表への直接 `COPY FROM` は `0A000` で拒否される。handoff importer が TEMP COPY + バッチ `INSERT SELECT` で回避し、STG UAT は表ごとに commit する（長時間の単一 transaction は backend 切断になる）。`pscale role reset-default` で app `postgres` role のパスワードを回さない。
+STGの画面デモログインは migrate フェーズ3が合成 `stg-staff-*@example.test`（権限「一般」）を upsert する。CSV に account は載せない。操作用の個別 account は approved provisioning、21表 clinical dataはapproved `make stg-uat-handoff`（`_old_db_handoff` の REHEARSAL_ONLY を含む）または formal cutover を使う。`cmd/migrate` は 21 CSV を読まない。PlanetScale の user-defined role は table owner / `BYPASSRLS` ではないため、RLS 付き 21 表への直接 `COPY FROM` は `0A000` で拒否される。handoff importer が TEMP COPY + バッチ `INSERT SELECT` で回避し、STG UAT は表ごとに commit する（長時間の単一 transaction は backend 切断になる）。`pscale role reset-default` で app `postgres` role のパスワードを回さない。
 
 ## 2. Pre-deploy stop gates
 

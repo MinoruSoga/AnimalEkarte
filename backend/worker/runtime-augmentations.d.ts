@@ -6,6 +6,7 @@ interface Env {
   DB_MAX_IDLE_CONNS: string;
   S3_PUBLIC_BASE_URL: string;
   SCHEDULER_ENVIRONMENT: string;
+  APP_ENV: string;
   SCHEDULER_OPS_SECRET: string;
   SCHEDULER_ACCESS_TEAM_DOMAIN: string;
   SCHEDULER_ACCESS_AUDIENCE: string;
@@ -23,6 +24,7 @@ declare namespace Cloudflare {
     DB_MAX_IDLE_CONNS: string;
     S3_PUBLIC_BASE_URL: string;
     SCHEDULER_ENVIRONMENT: string;
+    APP_ENV: string;
     SCHEDULER_OPS_SECRET: string;
     SCHEDULER_ACCESS_TEAM_DOMAIN: string;
     SCHEDULER_ACCESS_AUDIENCE: string;

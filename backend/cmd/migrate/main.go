@@ -127,7 +127,13 @@ func run(logger *slog.Logger) error {
 		return fmt.Errorf("seed bundle load failed: %w", err)
 	}
 
-	// 両フェーズ完了後: ディスク上の期待キーと schema_migrations を突合する。
+	// フェーズ3: LoginForm と同じ合成デモログインを upsert する。CSV ではない。
+	// 共通パスワードはコード定数。production と unknown APP_ENV はスキップ。
+	if err := runLoginSeed(context.Background(), db, logger); err != nil {
+		return fmt.Errorf("login seed failed: %w", err)
+	}
+
+	// 全フェーズ完了後: ディスク上の期待キーと schema_migrations を突合する。
 	// 欠落のみ fail-closed。余剰（統合・削除済みファイルの履歴）は情報ログのみ。
 	if err := verifyMigrationKeyCoverage(db, logger); err != nil {
 		return err
@@ -483,9 +489,8 @@ func seedBundlesForCurrentEnv() []string {
 }
 
 // runSeedBundles はフェーズ2: CSV シードバンドルを APP_ENV ゲート付き順でロードする。
-// local development/test allowlist（development/local/dev/test）では
-// 002_master のみ（医院骨格 + 参照マスタ。003_demo / 004_staging は退役。
-// SEC-CS2-F01: accounts / 臨床デモを migrate で載せない）。
+// 全環境で 002_master のみ（医院骨格 + 参照マスタ。003_demo / 004_staging は退役。
+// SEC-CS2-F01: CSV に accounts を載せない。合成デモログインはフェーズ3）。
 // フェーズ1が全て commit した後にのみ実行される。各バンドルは applyCSVBundle が
 // 単一トランザクションで完走した後にのみ schema_migrations へ
 // seedbundle.BundleMigrationKey で記録されるため、CSVロードが失敗した場合は何も
