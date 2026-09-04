@@ -310,11 +310,11 @@ const DEMO_ACCOUNTS: readonly DemoCredential[] = SHOW_DEMO
   : [];
 
 function readDemoLoginPassword(): string {
-  if (import.meta.env.DEV) {
-    const raw = import.meta.env.VITE_DEMO_LOGIN_PASSWORD;
-    return typeof raw === "string" ? raw.trim() : "";
+  if (!SHOW_DEMO) {
+    return "";
   }
-  return "";
+  const raw = import.meta.env.VITE_DEMO_LOGIN_PASSWORD;
+  return typeof raw === "string" ? raw.trim() : "";
 }
 
 const DemoAccount = memo(function DemoAccount({
@@ -449,11 +449,9 @@ export const LoginForm = memo(function LoginForm() {
             <div className={`h-px flex-1 ${C.bgLight}`} />
           </div>
           <p className={`text-sm text-center mb-2 ${C.text40}`}>
-            {import.meta.env.DEV
-              ? readDemoLoginPassword() !== ""
-                ? "パスワードは自動入力されます（staff-attach と同一）"
-                : "VITE_DEMO_LOGIN_PASSWORD 未設定 — .env.local を staff-attach secrets と揃えてください"
-              : "メールは選択できます。パスワードは手入力してください"}
+            {readDemoLoginPassword() !== ""
+              ? "パスワードは自動入力されます（staff-attach と同一）"
+              : "デモ用パスワード未設定 — ローカルは .env.local、STG は GitHub secret を staff-attach と揃えてください"}
           </p>
           <div className="max-h-[min(40vh,320px)] overflow-y-auto space-y-px">
             {DEMO_ACCOUNTS.map((cred) => (
