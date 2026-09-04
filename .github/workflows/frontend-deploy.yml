@@ -102,16 +102,17 @@ jobs:
 
           # Vite define の __VERCEL_ENV__ は process.env.VERCEL_ENV。
           # prebuilt では Vercel が注入しないため、STG=preview / 本番=production を明示する。
+          # 未設定の VITE_DEMO_LOGIN_PASSWORD="" は loadEnv が空で上書きするので消す。
+          # preview のパスワードは vite.config が STG_DEMO_PASSWORD から焼く。
           if [ "$ENV" = "preview" ]; then
-            if [ -z "${VITE_DEMO_LOGIN_PASSWORD:-}" ] && [ -n "${STG_DEMO_PASSWORD:-}" ]; then
-              VITE_DEMO_LOGIN_PASSWORD="$STG_DEMO_PASSWORD"
-            fi
             if [ -z "${VITE_DEMO_LOGIN_PASSWORD:-}" ]; then
+              unset VITE_DEMO_LOGIN_PASSWORD
+            fi
+            if [ -z "${VITE_DEMO_LOGIN_PASSWORD:-}" ] && [ -z "${STG_DEMO_PASSWORD:-}" ]; then
               echo "::warning::preview demo password unset; login picker will not fill password"
             fi
-            export VITE_DEMO_LOGIN_PASSWORD
           else
-            # 空文字を process env に残し、vercel pull が書いた .env* より優先させる。
+            unset STG_DEMO_PASSWORD
             export VITE_DEMO_LOGIN_PASSWORD=""
           fi
           VERCEL_ENV="$ENV" VITE_VERCEL_ENV="$ENV" pnpm --dir frontend build

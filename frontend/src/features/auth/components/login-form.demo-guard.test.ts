@@ -62,6 +62,16 @@ describe("LoginForm SHOW_DEMO — DEV or Vercel preview (#91 / SEC-CS2-F01)", ()
     expect(mod.SHOW_DEMO).toBe(true);
   });
 
+  it("vite.config は preview だけ STG_DEMO_PASSWORD を VITE_DEMO_LOGIN_PASSWORD に焼く", () => {
+    const src = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), "../../../../vite.config.ts"),
+      "utf8",
+    );
+    expect(src).toContain("import.meta.env.VITE_DEMO_LOGIN_PASSWORD");
+    expect(src).toContain("process.env.STG_DEMO_PASSWORD");
+    expect(src).toMatch(/VERCEL_ENV\s*!==\s*["']preview["']/);
+  });
+
   it("VITE_DEMO_LOGIN_PASSWORD は SHOW_DEMO が真のときだけ読む", () => {
     const src = readFileSync(
       join(dirname(fileURLToPath(import.meta.url)), "LoginForm.tsx"),
