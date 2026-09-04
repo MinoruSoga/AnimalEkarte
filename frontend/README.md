@@ -203,11 +203,16 @@ import type { Owner } from "@/types/owner";
 
 ---
 
-## ローカル DEV デモアカウント
+## ローカル DEV / STG デモアカウント
 
-ログイン画面のデモアカウント（`import.meta.env.DEV` のみ）は staff-attach 後の
-`stg-staff-{id}@example.test` を一覧する。ワンクリック入力のパスワードは
-`VITE_DEMO_LOGIN_PASSWORD`（`frontend/.env.local`、gitignored）から読む。
+ログイン画面のデモアカウント一覧は次だけで表示する。
+
+- ローカル Vite DEV（`import.meta.env.DEV`）
+- Vercel preview（STG。`frontend-deploy.yml` が `VERCEL_ENV=preview` を焼き込む）
+
+本番（`VERCEL_ENV=production`）では出さない。ワンクリック入力のパスワードは
+ローカル DEV の `VITE_DEMO_LOGIN_PASSWORD`（`frontend/.env.local`、gitignored）だけ。
+STG ではメール選択のみで、パスワードは手入力する（バンドルに secret を焼かない）。
 
 - staff-attach 共有 secret と同一値にする（リテラル `password` は不可）
 - 値をコミットしない。同期: `python3 scripts/sync-vite-demo-login-password.py`

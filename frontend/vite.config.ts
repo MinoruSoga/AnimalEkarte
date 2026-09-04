@@ -131,6 +131,8 @@ export default defineConfig({
   // M-10: Vercel が自動注入する VERCEL_ENV をビルド時定数として埋め込む。
   // frontend/src/features/auth/lib/show-demo-accounts.ts 参照。
   define: {
+    // GitHub Actions の prebuilt では Vercel が VERCEL_ENV を注入しない。
+    // frontend-deploy.yml が STG=preview / 本番=production を渡す。
     __VERCEL_ENV__: JSON.stringify(process.env.VERCEL_ENV ?? ""),
   },
   plugins: [react(), tailwindcss(), lineReserveDevPlugin(), liffDevPlugin()],

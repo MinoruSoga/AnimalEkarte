@@ -106,7 +106,7 @@ Vercel の native Git 連携 hook は使用しない。
 
 1. `staging` / `production` への対象 path push、または `workflow_dispatch` を検知
 2. `vercel pull` で対象 environment の情報を取得
-3. `vercel build` で artifact を生成
+3. `VERCEL_ENV=preview|production` を付けて `pnpm --dir frontend build` し artifact を生成（prebuilt。Vercel native `vercel build` ではない）
 4. `vercel deploy --prebuilt` で配布
 
 手動実行時は workflow の `environment` input で `preview` または `production` を選ぶ。

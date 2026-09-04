@@ -3,6 +3,8 @@
 interface ImportMetaEnv {
   readonly VITE_API_URL: string;
   readonly VITE_SHOW_DEMO_ACCOUNTS?: string;
+  /** Build-time Vercel environment: "preview" (STG) or "production". Unset is fail-closed. */
+  readonly VITE_VERCEL_ENV?: string;
   /** Local Vite DEV only: shared staff-attach password for demo one-click login. Never commit real value. */
   readonly VITE_DEMO_LOGIN_PASSWORD?: string;
 }
@@ -12,8 +14,7 @@ interface ImportMeta {
 }
 
 // M-10: vite.config.ts の `define` で埋め込む build-time 定数。
-// Vercel がビルド時に自動注入する VERCEL_ENV（"production"/"preview"/"development"）を
-// クライアントバンドルへ焼き込み、本番判定を Dashboard の環境変数設定ミスから守る。
+// frontend-deploy.yml が STG=preview / 本番=production を渡す。未設定は ""（fail-closed）。
 declare const __VERCEL_ENV__: string;
 
 // Ambient declarations for lucide-react direct ESM subpath imports.

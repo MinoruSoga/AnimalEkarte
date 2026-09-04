@@ -98,7 +98,9 @@ jobs:
           console.log('projectSettings', JSON.stringify(j.projectSettings));
           NODE
 
-          pnpm --dir frontend build
+          # Vite define の __VERCEL_ENV__ は process.env.VERCEL_ENV。
+          # prebuilt では Vercel が注入しないため、STG=preview / 本番=production を明示する。
+          VERCEL_ENV="$ENV" VITE_VERCEL_ENV="$ENV" pnpm --dir frontend build
           test -f frontend/dist/index.html
 
           rm -rf .vercel/output
