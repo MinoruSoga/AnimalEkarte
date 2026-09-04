@@ -52,7 +52,7 @@ func loadCutoverPaymentParents(
 	spec CutoverTableSpec,
 	table CutoverManifestTable,
 	billings map[int64]cutoverBillingFact,
-	provenance CutoverProvenanceContract,
+	relaxPaymentSnapshot bool,
 ) (map[int64]cutoverPaymentParent, error) {
 	parents := make(map[int64]cutoverPaymentParent)
 	path := filepath.Join(sourceDir, table.File)
@@ -96,7 +96,7 @@ func loadCutoverPaymentParents(
 				totalAmount = amount
 			}
 		}
-		if totalAmount != billing.totalAmount && provenance.Mode != CutoverProvenanceLocalRehearsal {
+		if totalAmount != billing.totalAmount && !relaxPaymentSnapshot {
 			return fmt.Errorf("table payments column total_amount row %d: payment snapshot does not match billing", line)
 		}
 		if _, err := parsePaymentGraphRatio(row[indexes["insurance_ratio"]], line); err != nil {

@@ -190,6 +190,7 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_NAME}
       DB_SSL_MODE: ${DB_SSL_MODE:-disable}
+      DB_SSL_ROOT_CERT: ${DB_SSL_ROOT_CERT:-}
       # Local reset rehearsal import only (must stay empty for formal cutover).
       APP_ENV: ${APP_ENV:-development}
       CSV_IMPORT_ALLOW_LOCAL_REHEARSAL: ${CSV_IMPORT_ALLOW_LOCAL_REHEARSAL:-}

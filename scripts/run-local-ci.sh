@@ -60,6 +60,9 @@ begin_step "ShellCheck scripts"
 bash scripts/shellcheck-scripts.sh
 bash scripts/shellcheck-scripts.test.sh
 
+begin_step "STG UAT old_db handoff wrapper"
+bash scripts/stg-uat-old-db-handoff.test.sh
+
 begin_step "eslint-disable rationale ratchet"
 node frontend/scripts/check-eslint-disable-rationale.mjs
 node --test frontend/scripts/check-eslint-disable-rationale.test.mjs

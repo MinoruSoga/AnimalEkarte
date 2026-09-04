@@ -131,6 +131,8 @@ trash/
 *.import.tsv.header
 sensitive-local/
 .secret
+# STG UAT PlanetScale credentials for make stg-uat-handoff (0600). Never commit.
+scripts/stg-uat-old-db-handoff.local.env
 
 # 監査レポート（秘密の抜粋を含みうるローカル作業ファイル。git外に保つ）
 improvement.html

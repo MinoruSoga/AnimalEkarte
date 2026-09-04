@@ -92,6 +92,11 @@ func (c ConnParams) PGXConfig(dbname string) (*pgx.ConnConfig, error) {
 	cfg.Database = dbname
 	cfg.Fallbacks = nil
 	cfg.RuntimeParams = map[string]string{"TimeZone": JapanTimeZone}
+	// ParseConfig builds TLS against placeholder.invalid. After the structural
+	// Host assignment, verify-full must present the real hostname in ServerName.
+	if cfg.TLSConfig != nil {
+		cfg.TLSConfig.ServerName = c.Host
+	}
 	return cfg, nil
 }
 
