@@ -418,8 +418,8 @@ jobs:
           set -e
           echo "$audit_output"
           if [[ $audit_exit -ne 0 ]]; then
-            if grep -q "ERR_PNPM_AUDIT_BAD_RESPONSE" <<< "$audit_output"; then
-              echo "::warning::pnpm audit unavailable because the registry audit endpoint rejected the request."
+            if grep -qE "ERR_PNPM_AUDIT_BAD_RESPONSE|ERR_SOCKET_TIMEOUT" <<< "$audit_output"; then
+              echo "::warning::pnpm audit unavailable because the registry audit endpoint rejected the request or timed out."
             else
               exit "$audit_exit"
             fi

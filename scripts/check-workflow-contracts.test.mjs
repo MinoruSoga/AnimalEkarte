@@ -62,6 +62,14 @@ test("Docker, packageManager declarations, and CI use pnpm 10.15.0", () => {
   assert.equal(setupCount, 7, "expected every pnpm/action-setup use to be covered");
 });
 
+test("frontend audit treats registry audit endpoint timeouts as unavailable", () => {
+  const workflow = read(".github/workflows/ci.yml");
+  assert.match(
+    workflow,
+    /ERR_PNPM_AUDIT_BAD_RESPONSE\|ERR_SOCKET_TIMEOUT/,
+  );
+});
+
 test("frontend pnpm install policy remains explicit", () => {
   const manifest = JSON.parse(read("frontend/package.json"));
   assert.deepEqual(manifest.pnpm?.onlyBuiltDependencies, ["@swc/core", "esbuild", "msw"]);

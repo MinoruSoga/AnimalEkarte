@@ -568,6 +568,7 @@ func setupStaffRemovedRequestClinicDB(
 		&model.Staff{},
 		&model.StaffClinicAssignment{},
 		&model.ShiftEntry{},
+		&model.Reservation{},
 		&model.Hospitalization{},
 		&model.Examination{},
 		&model.MedicalRecordAddendum{},
