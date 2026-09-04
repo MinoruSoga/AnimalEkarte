@@ -62,6 +62,11 @@ test("Docker, packageManager declarations, and CI use pnpm 10.15.0", () => {
   assert.equal(setupCount, 7, "expected every pnpm/action-setup use to be covered");
 });
 
+test("frontend deploy bakes VERCEL_ENV into the prebuilt Vite bundle", () => {
+  const workflow = read(".github/workflows/frontend-deploy.yml");
+  assert.match(workflow, /VERCEL_ENV="\$ENV" VITE_VERCEL_ENV="\$ENV" pnpm --dir frontend build/);
+});
+
 test("frontend audit treats registry audit endpoint timeouts as unavailable", () => {
   const workflow = read(".github/workflows/ci.yml");
   assert.match(

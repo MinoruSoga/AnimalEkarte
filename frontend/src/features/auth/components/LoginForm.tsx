@@ -19,7 +19,10 @@ interface DemoCredential {
   isSystemAdmin?: boolean;
 }
 
-export const SHOW_DEMO = import.meta.env.DEV;
+export const SHOW_DEMO =
+  import.meta.env.DEV ||
+  __VERCEL_ENV__ === "preview" ||
+  import.meta.env.VITE_VERCEL_ENV === "preview";
 
 const DEMO_ACCOUNTS: readonly DemoCredential[] = SHOW_DEMO
   ? [
@@ -446,9 +449,11 @@ export const LoginForm = memo(function LoginForm() {
             <div className={`h-px flex-1 ${C.bgLight}`} />
           </div>
           <p className={`text-sm text-center mb-2 ${C.text40}`}>
-            {readDemoLoginPassword() !== ""
-              ? "パスワードは自動入力されます（staff-attach と同一）"
-              : "VITE_DEMO_LOGIN_PASSWORD 未設定 — .env.local を staff-attach secrets と揃えてください"}
+            {import.meta.env.DEV
+              ? readDemoLoginPassword() !== ""
+                ? "パスワードは自動入力されます（staff-attach と同一）"
+                : "VITE_DEMO_LOGIN_PASSWORD 未設定 — .env.local を staff-attach secrets と揃えてください"
+              : "メールは選択できます。パスワードは手入力してください"}
           </p>
           <div className="max-h-[min(40vh,320px)] overflow-y-auto space-y-px">
             {DEMO_ACCOUNTS.map((cred) => (

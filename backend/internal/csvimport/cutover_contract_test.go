@@ -152,26 +152,61 @@ func TestStagingRehearsalProvenanceAcceptsFullyVerifiedProducer(t *testing.T) {
 	}
 }
 
+func mutateRehearsalOnlyHandoff(f *fixtureBundle) {
+	f.manifest.Status = "REHEARSAL_ONLY"
+	f.manifest.HandoffEligibility = "REHEARSAL_ONLY"
+	f.manifest.SourceCompletenessStatus = "UNVERIFIED"
+	f.manifest.SourceComplete = false
+	f.manifest.SourceProvenanceVerified = false
+	f.manifest.StageMappingSHA256 = strings.Repeat("a", 64)
+	empty := []string{}
+	f.manifest.IncompleteSourceTables = &empty
+}
+
+func TestStagingRehearsalAcceptsRehearsalOnlyHandoff(t *testing.T) {
+	dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
+		mutateRehearsalOnlyHandoff(f)
+		f.manifest.OutputDir += "-rehearsal-hos01-local-ae-v2"
+	})
+
+	bundle, err := PreflightCutoverBundle(dir, stagingExpectedCutoverSource(digest))
+	if err != nil {
+		t.Fatalf("PreflightCutoverBundle(staging rehearsal-only handoff) error = %v", err)
+	}
+	if bundle.Manifest.Status != "REHEARSAL_ONLY" {
+		t.Fatalf("status = %q, want REHEARSAL_ONLY", bundle.Manifest.Status)
+	}
+	if bundle.Manifest.HandoffEligibility != "REHEARSAL_ONLY" {
+		t.Fatalf("handoff eligibility = %q, want REHEARSAL_ONLY", bundle.Manifest.HandoffEligibility)
+	}
+}
+
+func TestStagingRehearsalAllowsRehearsalOutputDirSuffix(t *testing.T) {
+	dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
+		mutateRehearsalOnlyHandoff(f)
+		f.manifest.OutputDir += "-rehearsal-current"
+	})
+	if _, err := PreflightCutoverBundle(dir, stagingExpectedCutoverSource(digest)); err != nil {
+		t.Fatalf("PreflightCutoverBundle(staging rehearsal output suffix) error = %v", err)
+	}
+}
+
+func TestStagingRehearsalRejectsRehearsalOutputDirSuffixOnVerifiedBundle(t *testing.T) {
+	dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
+		f.manifest.OutputDir += "-rehearsal-current"
+	})
+	_, err := PreflightCutoverBundle(dir, stagingExpectedCutoverSource(digest))
+	if err == nil || !strings.Contains(strings.ToLower(err.Error()), "output directory") {
+		t.Fatalf("error = %v, want output directory rejection", err)
+	}
+}
+
 func TestStagingRehearsalProvenanceRejectsWeakProducerEvidence(t *testing.T) {
 	tests := []struct {
 		name    string
 		mutate  func(*fixtureBundle)
 		wantErr string
 	}{
-		{
-			name: "rehearsal-only status",
-			mutate: func(f *fixtureBundle) {
-				f.manifest.Status = "REHEARSAL_ONLY"
-			},
-			wantErr: "status",
-		},
-		{
-			name: "rehearsal-only handoff",
-			mutate: func(f *fixtureBundle) {
-				f.manifest.HandoffEligibility = "REHEARSAL_ONLY"
-			},
-			wantErr: "handoff eligibility",
-		},
 		{
 			name: "partial source completeness",
 			mutate: func(f *fixtureBundle) {
@@ -847,18 +882,30 @@ func TestPreflightCutoverBundleRejectsPaymentContractViolations(t *testing.T) {
 	}
 }
 
-func TestPreflightCutoverBundleAllowsHistoricalPaymentSnapshotOnlyForLocalRehearsal(t *testing.T) {
-	dir, manifestDigest := writeCutoverFixture(t, func(f *fixtureBundle) {
+func TestPreflightCutoverBundleAllowsHistoricalPaymentSnapshotOnlyForRehearsal(t *testing.T) {
+	mismatchBillingTotal := func(f *fixtureBundle) {
 		billingColumns := CutoverTableSpecs()[11].Columns
 		f.rows["billings"][0][columnIndex(billingColumns, "total_amount")] = "1"
-	})
+	}
+	dir, manifestDigest := writeCutoverFixture(t, mismatchBillingTotal)
 	expected := ExpectedCutoverSource{ManifestSHA256: manifestDigest, ClinicCode: "hachioji", ClinicOrdinal: 1, RunID: "run-1"}
 	if _, err := PreflightCutoverBundle(dir, expected); err == nil || !strings.Contains(err.Error(), "payment snapshot does not match billing") {
 		t.Fatalf("formal preflight error = %v, want payment snapshot rejection", err)
 	}
+	if _, err := PreflightCutoverBundle(dir, stagingExpectedCutoverSource(manifestDigest)); err == nil || !strings.Contains(err.Error(), "payment snapshot does not match billing") {
+		t.Fatalf("verified staging preflight error = %v, want payment snapshot rejection", err)
+	}
 	expected.Provenance.Mode = CutoverProvenanceLocalRehearsal
 	if _, err := PreflightCutoverBundle(dir, expected); err != nil {
 		t.Fatalf("local rehearsal preflight error = %v", err)
+	}
+
+	rehearsalDir, rehearsalDigest := writeCutoverFixture(t, func(f *fixtureBundle) {
+		mutateRehearsalOnlyHandoff(f)
+		mismatchBillingTotal(f)
+	})
+	if _, err := PreflightCutoverBundle(rehearsalDir, stagingExpectedCutoverSource(rehearsalDigest)); err != nil {
+		t.Fatalf("staging rehearsal-only preflight error = %v", err)
 	}
 }
 

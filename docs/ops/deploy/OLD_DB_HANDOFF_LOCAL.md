@@ -33,8 +33,11 @@ backend/migrations/seeds/_old_db_handoff/jouto-local/  # 任意。電話 unique 
 | `seeds/_old_db_handoff/<clinic>/` | old_db 21表のローカル隔離 | **読まない** |
 | `make csv-import-*` | 正式 cutover（F6） | seed を生成しない |
 
-- `REHEARSAL_ONLY` / `PARTIAL` bundle はここに置けるが、**正式 preflight は拒否**する。
+- `REHEARSAL_ONLY` / `PARTIAL` bundle はここに置けるが、**正式 `make csv-import` preflight は拒否**する。
 - 正式 DB 投入は manifest が `status=PASS` かつ `handoffEligibility=TRUSTED_CANDIDATE` のときだけ。
+- 共有 STG への rehearsal 投入は `make stg-uat-handoff`（全医院。接続は
+  `scripts/stg-uat-old-db-handoff.sh` の export と gitignored
+  `scripts/stg-uat-old-db-handoff.local.env`）。
 - 21 CSV を `003_demo` へ直接コピーして seed 扱いしてはいけない。
 
 詳細境界: [SEED_MIGRATION_OPERATIONS.md](./SEED_MIGRATION_OPERATIONS.md) /
@@ -102,4 +105,4 @@ make old-db-handoff-check
 
 run ID、producer status、formal eligibility は変動するため、この安定手順には固定しません。リポジトリ直下 `todo.md` の現行 handoff table を正本として確認します。
 
-`_old_db_handoff/<clinic>/` にファイルが存在するだけでは formal eligibility を示しません。`REHEARSAL_ONLY` / `UNVERIFIED` / `PARTIAL` はローカル検証に限定し、正式 F6 preflight へ渡しません。formal cutover には current manifest が `TRUSTED_CANDIDATE` / `PASS` であることを改めて確認します。
+`_old_db_handoff/<clinic>/` にファイルが存在するだけでは formal eligibility を示しません。`REHEARSAL_ONLY` / `UNVERIFIED` / `PARTIAL` は正式 F6 preflight へ渡しません。共有 STG へ載せる場合は `make stg-uat-handoff`（全医院）を使い、formal cutover には current manifest が `TRUSTED_CANDIDATE` / `PASS` であることを改めて確認します。

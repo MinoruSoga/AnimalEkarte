@@ -47,6 +47,182 @@ func TestApplyCutoverWithBeginImportsAndVerifiesAllTables(t *testing.T) {
 	}
 }
 
+func TestCutoverCopyFromBlockedByRLSQueryPinsCatalogContract(t *testing.T) {
+	for _, fragment := range []string{
+		"c.relrowsecurity",
+		"role.rolbypassrls OR role.rolsuper",
+		"pg_catalog.pg_get_userbyid(c.relowner) IS DISTINCT FROM current_user",
+		"c.relforcerowsecurity",
+		"n.nspname = 'public' AND c.relname = $1",
+	} {
+		if !strings.Contains(cutoverCopyFromBlockedByRLSQuery, fragment) {
+			t.Errorf("RLS COPY detector query is missing %q", fragment)
+		}
+	}
+}
+
+func TestCutoverCopySQLTargetsDestinationAndKeepsForceNotNull(t *testing.T) {
+	spec := CutoverTableSpecs()[0]
+	if spec.Name != "staffs" {
+		t.Fatalf("first cutover table = %s, want staffs", spec.Name)
+	}
+	direct := cutoverCopySQL(spec, pgx.Identifier{spec.Name})
+	if !strings.HasPrefix(direct, `COPY "staffs" (`) {
+		t.Fatalf("direct COPY SQL = %s", direct)
+	}
+	if !strings.Contains(direct, `FORCE_NOT_NULL ("name", "license_number")`) {
+		t.Fatalf("direct COPY does not preserve required empty text: %s", direct)
+	}
+	staging := cutoverCopySQL(spec, pgx.Identifier{cutoverCopyStagingRelation(spec.Name)})
+	if !strings.HasPrefix(staging, `COPY "cutover_copy_staffs" (`) {
+		t.Fatalf("staging COPY SQL = %s", staging)
+	}
+	if !strings.Contains(staging, `FORCE_NOT_NULL ("name", "license_number")`) {
+		t.Fatalf("staging COPY does not preserve required empty text: %s", staging)
+	}
+}
+
+func TestCutoverCopyStagingSQLUsesTempLikeAndBatchedInsert(t *testing.T) {
+	spec := CutoverTableSpecs()[0]
+	createSQL := cutoverCopyStagingCreateSQL(spec.Name)
+	if !strings.Contains(createSQL, `CREATE TEMP TABLE "cutover_copy_staffs"`) {
+		t.Fatalf("create SQL = %s", createSQL)
+	}
+	if !strings.Contains(createSQL, `LIKE "public"."staffs" INCLUDING DEFAULTS`) {
+		t.Fatalf("create SQL missing LIKE defaults: %s", createSQL)
+	}
+	insertSQL := cutoverStagingInsertSQL(spec)
+	for _, fragment := range []string{
+		"WITH pick AS MATERIALIZED (SELECT ctid FROM \"cutover_copy_staffs\" LIMIT $1)",
+		`DELETE FROM "cutover_copy_staffs" AS staged USING pick WHERE staged.ctid = pick.ctid`,
+		`INSERT INTO "staffs" (`,
+		"OVERRIDING SYSTEM VALUE SELECT",
+		"FROM moved",
+	} {
+		if !strings.Contains(insertSQL, fragment) {
+			t.Fatalf("insert SQL missing %q: %s", fragment, insertSQL)
+		}
+	}
+	dropSQL := cutoverCopyStagingDropSQL(spec.Name)
+	if dropSQL != `DROP TABLE "cutover_copy_staffs"` {
+		t.Fatalf("drop SQL = %s", dropSQL)
+	}
+}
+
+func TestInsertCutoverStagingIssuesMultipleBatchesUntilPartial(t *testing.T) {
+	spec := CutoverTableSpecs()[0]
+	tx := &fakeCutoverTransaction{
+		insertBatchRowCounts: []int64{cutoverStagingInsertBatchRows, cutoverStagingInsertBatchRows, 12},
+	}
+	want := cutoverStagingInsertBatchRows*2 + 12
+	got, err := insertCutoverStaging(context.Background(), tx, spec, want)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != want {
+		t.Fatalf("inserted = %d, want %d", got, want)
+	}
+	inserts := 0
+	for _, query := range tx.execQueries {
+		if strings.Contains(query, "INSERT INTO") {
+			inserts++
+		}
+	}
+	if inserts != 3 {
+		t.Fatalf("INSERT batches = %d, want 3", inserts)
+	}
+}
+
+func TestInsertCutoverStagingRejectsManifestCountMismatch(t *testing.T) {
+	spec := CutoverTableSpecs()[0]
+	tx := &fakeCutoverTransaction{insertBatchRowCounts: []int64{7}}
+	_, err := insertCutoverStaging(context.Background(), tx, spec, 8)
+	if err == nil || !strings.Contains(err.Error(), "imported row count does not match manifest") {
+		t.Fatalf("error = %v, want row count mismatch", err)
+	}
+}
+
+func TestApplyCutoverCopiesThroughTempTableWhenRLSBlocksCOPY(t *testing.T) {
+	bundle := validCutoverBundleForApply(t)
+	tx := &fakeCutoverTransaction{copyBlockedByRLS: true}
+
+	_, err := applyCutoverWithBegin(
+		context.Background(),
+		func(context.Context) (cutoverTransaction, error) { return tx, nil },
+		bundle,
+		validCutoverSeeds(),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !tx.committed {
+		t.Fatal("transaction was not committed")
+	}
+	if len(tx.copySQLs) != len(CutoverTableSpecs()) {
+		t.Fatalf("copy SQL count = %d, want %d", len(tx.copySQLs), len(CutoverTableSpecs()))
+	}
+	if strings.Contains(strings.Join(tx.copySQLs, "\n"), `COPY "staffs"`) {
+		t.Fatal("RLS-blocked apply still COPY'd directly into staffs")
+	}
+	if !strings.HasPrefix(tx.copySQLs[0], `COPY "cutover_copy_staffs" (`) {
+		t.Fatalf("staffs staging COPY SQL = %s", tx.copySQLs[0])
+	}
+	if !strings.Contains(tx.copySQLs[0], `FORCE_NOT_NULL ("name", "license_number")`) {
+		t.Fatalf("staffs staging COPY does not preserve required empty text: %s", tx.copySQLs[0])
+	}
+	var paymentsCopySQL string
+	for _, copySQL := range tx.copySQLs {
+		if strings.Contains(copySQL, `COPY "cutover_copy_payments"`) {
+			paymentsCopySQL = copySQL
+			break
+		}
+	}
+	if !strings.Contains(paymentsCopySQL, `FORCE_NOT_NULL ("insurance_name")`) {
+		t.Fatalf("payments staging COPY does not preserve required empty text: %s", paymentsCopySQL)
+	}
+	creates := 0
+	inserts := 0
+	drops := 0
+	for _, query := range tx.execQueries {
+		switch {
+		case strings.Contains(query, "CREATE TEMP TABLE"):
+			creates++
+		case strings.Contains(query, "INSERT INTO"):
+			inserts++
+		case strings.HasPrefix(query, "DROP TABLE "):
+			drops++
+		}
+	}
+	if creates != len(CutoverTableSpecs()) || inserts != len(CutoverTableSpecs()) || drops != len(CutoverTableSpecs()) {
+		t.Fatalf("staging exec counts create=%d insert=%d drop=%d, want %d each", creates, inserts, drops, len(CutoverTableSpecs()))
+	}
+}
+
+func TestApplyCutoverRollsBackWhenStagingInsertFails(t *testing.T) {
+	bundle := validCutoverBundleForApply(t)
+	tx := &fakeCutoverTransaction{
+		copyBlockedByRLS:  true,
+		execErrorContains: "INSERT INTO",
+		copyError:         nil,
+	}
+
+	_, err := applyCutoverWithBegin(
+		context.Background(),
+		func(context.Context) (cutoverTransaction, error) { return tx, nil },
+		bundle,
+		validCutoverSeeds(),
+	)
+	if err == nil || !strings.Contains(err.Error(), "staffs") || !strings.Contains(err.Error(), "rejected the CSV INSERT") {
+		t.Fatalf("error = %v, want sanitized staging INSERT rejection", err)
+	}
+	if strings.Contains(err.Error(), "forced execution failure") {
+		t.Fatalf("error leaked driver text: %v", err)
+	}
+	if tx.committed || !tx.rolledBack {
+		t.Fatalf("transaction state committed=%v rolledBack=%v", tx.committed, tx.rolledBack)
+	}
+}
+
 func TestApplyCutoverUsesForceNotNullForDeclaredTextColumns(t *testing.T) {
 	bundle := validCutoverBundleForApply(t)
 	tx := &fakeCutoverTransaction{}
@@ -94,6 +270,7 @@ func TestApplyCutoverWithBeginFailsClosedAcrossTransactionStages(t *testing.T) {
 	}{
 		{name: "begin", tx: &fakeCutoverTransaction{}, seeds: seeds, beginErr: errors.New("begin failed"), want: "begin cutover"},
 		{name: "lock timeout setup", tx: &fakeCutoverTransaction{execErrorContains: "SET LOCAL"}, seeds: seeds, want: "lock timeout"},
+		{name: "rls bypass setup", tx: &fakeCutoverTransaction{execErrorContains: "bypass_rls"}, seeds: seeds, want: "RLS bypass"},
 		{name: "advisory lock", tx: &fakeCutoverTransaction{execErrorContains: "pg_advisory"}, seeds: seeds, want: "acquire cutover lock"},
 		{name: "table lock", tx: &fakeCutoverTransaction{execErrorContains: "LOCK TABLE"}, seeds: seeds, want: "lock cutover tables"},
 		{name: "target seed", tx: &fakeCutoverTransaction{}, seeds: CutoverSeedIDs{}, want: "explicit target seed"},
@@ -178,6 +355,7 @@ type fakeCutoverTransaction struct {
 	rolledBack           bool
 	copyCalls            int
 	copySQLs             []string
+	execQueries          []string
 	setvalCalls          int
 	execErrorContains    string
 	copyErrorContains    string
@@ -186,10 +364,15 @@ type fakeCutoverTransaction struct {
 	countMismatch        bool
 	sequenceBelowFloor   bool
 	paymentGraphMismatch bool
+	copyBlockedByRLS     bool
+	insertBatchRowCounts []int64
+	insertBatchIndex     int
 }
 
 func (tx *fakeCutoverTransaction) QueryRow(ctx context.Context, query string, args ...any) pgx.Row {
 	switch {
+	case strings.Contains(query, "relrowsecurity"):
+		return staticRow{values: []any{tx.copyBlockedByRLS}}
 	case strings.Contains(query, "required animal_species master"):
 		return staticRow{values: []any{int64(0), int64(0), int64(0), int64(6)}}
 	case strings.Contains(query, "clinic_seed AS MATERIALIZED"):
@@ -217,11 +400,24 @@ func (tx *fakeCutoverTransaction) QueryRow(ctx context.Context, query string, ar
 }
 
 func (tx *fakeCutoverTransaction) Exec(_ context.Context, query string, _ ...any) (pgconn.CommandTag, error) {
+	tx.execQueries = append(tx.execQueries, query)
 	if tx.execErrorContains != "" && strings.Contains(query, tx.execErrorContains) {
 		return pgconn.CommandTag{}, errors.New("forced execution failure")
 	}
 	if strings.Contains(query, "setval") {
 		tx.setvalCalls++
+	}
+	if strings.Contains(query, "INSERT INTO") {
+		rows := int64(1)
+		if tx.insertBatchRowCounts != nil {
+			if tx.insertBatchIndex >= len(tx.insertBatchRowCounts) {
+				rows = 0
+			} else {
+				rows = tx.insertBatchRowCounts[tx.insertBatchIndex]
+				tx.insertBatchIndex++
+			}
+		}
+		return pgconn.NewCommandTag(fmt.Sprintf("INSERT 0 %d", rows)), nil
 	}
 	return pgconn.NewCommandTag("SELECT 1"), nil
 }
@@ -935,6 +1131,8 @@ func (validTargetQuerier) QueryRow(_ context.Context, query string, _ ...any) pg
 	switch {
 	case strings.Contains(query, "required animal_species master"):
 		return staticRow{values: []any{int64(0), int64(0), int64(0), int64(6)}}
+	case strings.Contains(query, "relrowsecurity"):
+		return staticRow{values: []any{false}}
 	case strings.Contains(query, "clinic_seed AS MATERIALIZED"):
 		return staticRow{values: []any{
 			true, true, int64(1), "検査", true, int64(1), "trimming", true,

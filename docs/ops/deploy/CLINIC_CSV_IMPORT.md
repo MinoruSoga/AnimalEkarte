@@ -52,12 +52,21 @@
 
 `REHEARSAL_ONLY` / `PARTIAL` bundleを
 `backend/migrations/seeds/_old_db_handoff/<clinic>/` に置くことは、
-ローカル保管にすぎません。正式preflightはこれを拒否し、`cmd/migrate` / `make seed` も読みません。
-医院別の配置コマンドは `make old-db-handoff-stage`（手順:
+保管場所であり `cmd/migrate` / `make seed` は読みません。正式 `make csv-import`
+preflight はこれを拒否します。共有 STG へ載せる場合は
+`STG_UAT_CSV_IMPORT_ALLOW_REHEARSAL=YES_I_UNDERSTAND` と target 確認付きの
+`make stg-uat-handoff`（全医院。seed ID / manifest SHA は
+`scripts/stg-uat-old-db-handoff.sh` が `_old_db_handoff` と `002_master` から埋め、
+接続は同スクリプトの export と gitignored `scripts/stg-uat-old-db-handoff.local.env`）
+を使います。importer が受理する code/ordinal/clinic_id は
+hachioji=1、jouto=2、shikishima=3、hakobuneco=4 だけです。
+apply report が既に `PASS` の医院は wrapper が skip し、残りへ進みます。
+低レベル fallback は `make stg-uat-import`。医院別の配置コマンドは
+`make old-db-handoff-stage`（手順:
 [OLD_DB_HANDOFF_LOCAL.md](./OLD_DB_HANDOFF_LOCAL.md)）。
 21 CSVを `003_demo` へ直接コピーしてseedとして扱うことは禁止します。実行可能seedへの
 変換は現行コードでは未実装です。[SEED_MIGRATION_OPERATIONS.md](./SEED_MIGRATION_OPERATIONS.md)
-のBLOCKED境界に従い、21表専用adapterを実装・検証するまでは隔離保管に留めます。
+のBLOCKED境界に従い、21表専用adapterを実装・検証するまでは migrate seed にはしません。
 
 ## 安全境界
 
@@ -69,7 +78,7 @@
 - parserのメモリ/時間上限としてmanifestは4MiB、各CSVは512MiB、payment親は100万件、splitは親あたり最大2件を上限とし、超過時はfail-closedする。
 - target seed ID は6つとも明示する。予約種別・支払方法を表示名や先頭行から暗黙解決しない。
 - apply は対象 band が21表すべて空の場合だけ実行し、既存行を削除・置換しない。
-- apply は単一 transaction、advisory lock、table lockを使う。CSV が preflight 後に変わった場合は再 SHA-256 検証で全 rollback する。
+- apply は単一 transaction、advisory lock、table lockを使う。CSV が preflight 後に変わった場合は再 SHA-256 検証で全 rollback する。`make stg-uat-handoff` だけは PlanetScale が長時間の未コミット INSERT で接続を切るため、表ごとに commit する。成功済み prefix（件数・clinic isolation が manifest と一致）は再実行で skip し、一致しない非空 band は fail-closed のまま上書きしない。医院単位では apply report が `PASS` なら wrapper がその医院の `make stg-uat-import` を skip する。`STARTED` / 失敗 report は no-clobber のため、再実行前に失敗日時付きへリネームする。
 - CSV/manifest は PHI を含み得る。行値をログ・report・Git・チャットへ出さない。report は status/timestamp、manifest digest、clinic/run/target metadata、ID band、aggregate count、再検証に必要な非PHIの6 seed ID、failure stage を記録し、CSV cell値は記録せず、固定mount `/migration-reports` 直下へ0600/no-clobberで作成する。
 
 ## 事前準備
@@ -130,6 +139,8 @@ run sheet上でbackup取得・復元手順・担当者を再確認したoperator
 
 apply 後、各 table の件数・clinic isolation・会計親子/支払方法/分割金額の整合・completed timestamp・sequence floor/max ID を transaction 内で検証してから commit します。21 sequence は既存値を下げず、次回 application ID が `1,000,000,000` 以上かつ現行`max(id)`超になるよう進めます。
 
+PostgreSQL は RLS 有効テーブルへの `COPY FROM` を、superuser / `BYPASSRLS` / （FORCE RLS なしの）table owner 以外に拒否します（SQLSTATE `0A000`）。`app.bypass_rls` は `has_clinic_access()` 用 GUC であり、この COPY 制限は解除しません。importer は RLS で COPY が拒否される role では、transaction 内 TEMP テーブルへ COPY したあと `INSERT ... SELECT` を ctid バッチで本表へ載せます。STG UAT はさらに表ごとに commit し、PlanetScale が数百万行の未コミット transaction で backend を切断するのを避けます。table owner による正式 cutover（ローカル docker）は従来どおり本表へ直接 COPY し、21 表を単一 transaction で commit します。
+
 ## Verify（read-only）
 
 ```sh
@@ -141,7 +152,7 @@ make csv-import-verify
 ## 失敗・rollback
 
 - transaction を開始できなかった場合、target data は未変更でreportは `FAILED_BEFORE_TRANSACTION` になります。接続・DB状態を確認し、原因を解消して新しい作業確認を取るまで再実行しません。
-- transaction 内の失敗はデータ行を自動 rollback し、report は `FAILED_DATA_ROLLED_BACK` になります。同じ source digest でも、原因を解消して新しい作業確認を取るまで再実行しません。PostgreSQL sequence はtransaction rollback対象外ですが、処理は値を下げずapplication予約域へ進めるだけなので、失敗時に残り得るのは安全な番号飛びだけです。
+- 正式 `make csv-import` の transaction 内失敗はデータ行を自動 rollback し、report は `FAILED_DATA_ROLLED_BACK` になります。`make stg-uat-handoff` は表ごと commit するため、失敗した表だけ rollback し report は `FAILED_TABLE_ROLLED_BACK` です。成功済みの表は残るので、原因解消後に同じ command を再実行すると一致した prefix を skip します。一致しない非空 band は上書きしません。PostgreSQL sequence は transaction rollback 対象外ですが、処理は値を下げず application 予約域へ進めるだけなので、失敗時に残り得るのは安全な番号飛びだけです。report は no-clobber のため、失敗後の再実行前に `sensitive-local/csv-import-reports/<clinic>-<run>-stg-uat-apply.json`（または formal の `*-apply.json`）を失敗日時付きへリネームします。
 - commit応答が失われた場合は、commit済みかrollback済みかを断定せずreportを `COMMIT_OUTCOME_UNKNOWN` とします。再実行・backup restore・運用開始をすべて止め、同じmanifest/seedでread-onlyの `make csv-import-verify` を実行してDB管理者が結果を照合するまで状態変更を行いません。
 - process crashや強制終了後にapply reportがmissing、malformed、または `STARTED` のままの場合もcommit結果を証明できないため、`COMMIT_OUTCOME_UNKNOWN` と同じ未確定状態として扱います。reportを作り直す再実行やbackup restoreへ進まず、targetを隔離してread-only verifyとDB照合を先に行います。
 - one-shot STG UAT importのreportが `PASS` になるのは、apply後の最終verify成功時だけです。commit済みapplyの最終verifyが失敗した場合は `FAILED_POST_COMMIT_VERIFY` / failure stage `verify` とし、targetを隔離して原因を照合します。

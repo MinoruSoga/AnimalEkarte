@@ -61,7 +61,13 @@ func validateCutoverPaymentGraph(sourceDir string, manifest *CutoverManifest, pr
 	if err != nil {
 		return err
 	}
-	parents, err := loadCutoverPaymentParents(sourceDir, paymentsSpec, paymentsTable, billings, provenance)
+	parents, err := loadCutoverPaymentParents(
+		sourceDir,
+		paymentsSpec,
+		paymentsTable,
+		billings,
+		relaxesCutoverPaymentSnapshot(*manifest, provenance.Mode),
+	)
 	if err != nil {
 		return err
 	}

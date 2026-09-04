@@ -11,7 +11,7 @@
 - fresh DBのexpected historyはcurrent DDL filename keys + `seeds/002_master`。`Migration key coverage missing=0`を一次判定にする。
 - Cloudflare backend workflowはdeploy、`POST /_internal/migrate`、post-migrate healthの順。path filterによりbackend対象変更だけが自動起動する。
 
-STGにdemo accountやclinical rowsはseedされない。accountはapproved provisioning、formal clinical dataはapproved cutover/UAT pathを使う。
+STGにdemo accountやclinical rowsはseedされない。accountはapproved provisioning、21表 clinical dataはapproved `make stg-uat-handoff`（`_old_db_handoff` の REHEARSAL_ONLY を含む）または formal cutover を使う。`cmd/migrate` は 21 CSV を読まない。PlanetScale の user-defined role は table owner / `BYPASSRLS` ではないため、RLS 付き 21 表への直接 `COPY FROM` は `0A000` で拒否される。handoff importer が TEMP COPY + バッチ `INSERT SELECT` で回避し、STG UAT は表ごとに commit する（長時間の単一 transaction は backend 切断になる）。`pscale role reset-default` で app `postgres` role のパスワードを回さない。
 
 ## 2. Pre-deploy stop gates
 

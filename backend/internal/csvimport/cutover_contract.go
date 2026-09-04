@@ -34,6 +34,17 @@ const (
 	CutoverProvenanceStagingRehearsal CutoverProvenanceMode = "staging-rehearsal"
 )
 
+func isRehearsalOnlyProducer(manifest CutoverManifest) bool {
+	return manifest.Status == "REHEARSAL_ONLY" || manifest.HandoffEligibility == "REHEARSAL_ONLY"
+}
+
+func relaxesCutoverPaymentSnapshot(manifest CutoverManifest, mode CutoverProvenanceMode) bool {
+	if mode == CutoverProvenanceLocalRehearsal {
+		return true
+	}
+	return mode == CutoverProvenanceStagingRehearsal && isRehearsalOnlyProducer(manifest)
+}
+
 type CutoverTargetBinding struct {
 	Environment string
 	Host        string

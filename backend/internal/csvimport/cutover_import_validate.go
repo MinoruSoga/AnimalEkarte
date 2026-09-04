@@ -64,6 +64,9 @@ func applyCutoverWithBegin(
 	if _, err := tx.Exec(ctx, `SET LOCAL lock_timeout = '10s'`); err != nil {
 		return CutoverResult{}, fmt.Errorf("configure cutover lock timeout: %w", err)
 	}
+	if _, err := tx.Exec(ctx, `SELECT set_config('app.bypass_rls', 'on', true)`); err != nil {
+		return CutoverResult{}, fmt.Errorf("configure cutover RLS bypass: %w", err)
+	}
 	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock($1)`, cutoverAdvisoryLockKey); err != nil {
 		return CutoverResult{}, fmt.Errorf("acquire cutover lock: %w", err)
 	}

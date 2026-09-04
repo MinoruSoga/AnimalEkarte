@@ -3,9 +3,10 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-// #91 / DEC-7 / SEC-CS2-F01: SHOW_DEMO is local Vite DEV only.
-// Vercel preview + VITE_SHOW_DEMO_ACCOUNTS no longer enables the demo UI.
-describe("LoginForm SHOW_DEMO — local DEV only (#91 / SEC-CS2-F01)", () => {
+// #91 / DEC-7 / SEC-CS2-F01: SHOW_DEMO is local Vite DEV or Vercel preview (STG).
+// Production and unknown VERCEL_ENV stay fail-closed. VITE_SHOW_DEMO_ACCOUNTS
+// must not enable production (.env.production currently sets the flag true).
+describe("LoginForm SHOW_DEMO — DEV or Vercel preview (#91 / SEC-CS2-F01)", () => {
   beforeEach(() => {
     vi.resetModules();
   });
@@ -20,21 +21,22 @@ describe("LoginForm SHOW_DEMO — local DEV only (#91 / SEC-CS2-F01)", () => {
     // vitest 実行時は import.meta.env.DEV が true のため、本番ビルド相当にする
     vi.stubEnv("DEV", false);
     vi.stubEnv("VITE_SHOW_DEMO_ACCOUNTS", "true");
+    vi.stubEnv("VITE_VERCEL_ENV", "production");
 
     const mod = await import("./LoginForm");
 
     expect(mod.SHOW_DEMO).toBe(false);
   });
 
-  // SEC-CS2-F01: preview でも demo UI は出さない（local DEV only）。
-  it("__VERCEL_ENV__=preview では VITE_SHOW_DEMO_ACCOUNTS=true でも SHOW_DEMO=false", async () => {
+  it("__VERCEL_ENV__=preview かつ非 DEV では SHOW_DEMO=true（STG）", async () => {
     vi.stubGlobal("__VERCEL_ENV__", "preview");
     vi.stubEnv("DEV", false);
-    vi.stubEnv("VITE_SHOW_DEMO_ACCOUNTS", "true");
+    vi.stubEnv("VITE_SHOW_DEMO_ACCOUNTS", "false");
+    vi.stubEnv("VITE_VERCEL_ENV", "preview");
 
     const mod = await import("./LoginForm");
 
-    expect(mod.SHOW_DEMO).toBe(false);
+    expect(mod.SHOW_DEMO).toBe(true);
   });
 
   // DEC-7: 非 Vercel ビルド（__VERCEL_ENV__=""）は fail-closed。DEV=false の production ビルド相当。
@@ -42,6 +44,7 @@ describe("LoginForm SHOW_DEMO — local DEV only (#91 / SEC-CS2-F01)", () => {
     vi.stubGlobal("__VERCEL_ENV__", "");
     vi.stubEnv("DEV", false);
     vi.stubEnv("VITE_SHOW_DEMO_ACCOUNTS", "true");
+    vi.stubEnv("VITE_VERCEL_ENV", "");
 
     const mod = await import("./LoginForm");
 
@@ -52,6 +55,7 @@ describe("LoginForm SHOW_DEMO — local DEV only (#91 / SEC-CS2-F01)", () => {
     vi.stubGlobal("__VERCEL_ENV__", "");
     vi.stubEnv("DEV", true);
     vi.stubEnv("VITE_SHOW_DEMO_ACCOUNTS", "false");
+    vi.stubEnv("VITE_VERCEL_ENV", "");
 
     const mod = await import("./LoginForm");
 
