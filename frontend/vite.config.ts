@@ -133,7 +133,7 @@ const define: Record<string, string> = {
 };
 if (vercelEnv === "preview" || vercelEnv === "production") {
   define["import.meta.env.VITE_DEMO_LOGIN_PASSWORD"] = JSON.stringify(
-    vercelEnv === "preview" ? (process.env.VITE_DEMO_LOGIN_PASSWORD ?? "") : "",
+    vercelEnv === "preview" ? (process.env.DEMO_LOGIN_PASSWORD ?? "") : "",
   );
 }
 

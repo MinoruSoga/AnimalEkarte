@@ -67,7 +67,7 @@ describe("LoginForm SHOW_DEMO — DEV or Vercel preview (#91 / SEC-CS2-F01)", ()
       join(dirname(fileURLToPath(import.meta.url)), "../../../../vite.config.ts"),
       "utf8",
     );
-    expect(src).toContain('define["import.meta.env.VITE_DEMO_LOGIN_PASSWORD"]');
+    expect(src).toContain("process.env.DEMO_LOGIN_PASSWORD");
     expect(src).toContain('vercelEnv === "preview" || vercelEnv === "production"');
   });
 

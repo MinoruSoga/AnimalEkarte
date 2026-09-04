@@ -100,8 +100,8 @@ jobs:
           console.log('projectSettings', JSON.stringify(j.projectSettings));
           NODE
 
-          # Vite はコマンドラインの VERCEL_ENV を読む（GHA env の STG_* は vite.config に届かない）。
-          # デモパスワードも同じ行で VITE_DEMO_LOGIN_PASSWORD として渡す。
+          # Vite はコマンドラインの VERCEL_ENV を読む。VITE_* は loadEnv がファイルで上書きし得るので
+          # 非 VITE_ の DEMO_LOGIN_PASSWORD を同じ行で渡し、vite.config が define する。
           DEMO_PW=""
           if [ "$ENV" = "preview" ]; then
             DEMO_PW="${DEMO_LOGIN_PASSWORD_SECRET:-}"
@@ -115,7 +115,7 @@ jobs:
             unset STG_DEMO_PASSWORD
             unset DEMO_LOGIN_PASSWORD_SECRET
           fi
-          VERCEL_ENV="$ENV" VITE_VERCEL_ENV="$ENV" VITE_DEMO_LOGIN_PASSWORD="$DEMO_PW" pnpm --dir frontend build
+          VERCEL_ENV="$ENV" VITE_VERCEL_ENV="$ENV" DEMO_LOGIN_PASSWORD="$DEMO_PW" pnpm --dir frontend build
           test -f frontend/dist/index.html
 
           rm -rf .vercel/output
