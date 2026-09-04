@@ -215,6 +215,10 @@ import type { Owner } from "@/types/owner";
 STG preview ビルドは GitHub secret（`VITE_DEMO_LOGIN_PASSWORD` または
 `STG_DEMO_PASSWORD`）を焼き込む。本番ビルドでは空文字を process env に残し、バンドルへ載せない。
 
+STG の API は `https://api.stg.noah-karte.com/api`（CSP `connect-src` と一致）。
+`vite.config.ts` が `VERCEL_ENV=preview` のとき `VITE_API_URL` を define する。
+本番ビルドは `https://api.noah-karte.com/api`。ローカルは `VITE_API_URL=/api`。
+
 - staff-attach 共有 secret と同一値にする（リテラル `password` は不可）
 - 値をコミットしない。同期: `python3 scripts/sync-vite-demo-login-password.py`
 - Vite は起動時に env を読むため、変更後は frontend コンテナの再起動が必要
