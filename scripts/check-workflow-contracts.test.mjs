@@ -71,6 +71,7 @@ test("frontend deploy bakes VERCEL_ENV into the prebuilt Vite bundle", () => {
   assert.match(workflow, /STG_DEMO_PASSWORD: \$\{\{ secrets\.STG_DEMO_PASSWORD \}\}/);
   assert.match(workflow, /if \[ "\$ENV" = "preview" \]/);
   assert.match(workflow, /unset STG_DEMO_PASSWORD/);
+  assert.match(workflow, /vercel alias set "\$DEPLOY_URL" stg\.noah-karte\.com/);
 });
 
 test("frontend audit treats registry audit endpoint timeouts as unavailable", () => {
