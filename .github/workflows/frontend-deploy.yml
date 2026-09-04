@@ -113,11 +113,7 @@ jobs:
               echo "::warning::preview demo password unset; login picker will not fill password"
               printf 'VITE_DEMO_LOGIN_PASSWORD=\n' > frontend/.env.production.local
             else
-              DEMO_PW="$DEMO_PW" node --input-type=module -e '
-                import { writeFileSync } from "node:fs";
-                const v = process.env.DEMO_PW ?? "";
-                writeFileSync("frontend/.env.production.local", `VITE_DEMO_LOGIN_PASSWORD=${JSON.stringify(v)}\n`);
-              '
+              DEMO_PW="$DEMO_PW" node --input-type=module -e "import { writeFileSync } from 'node:fs'; writeFileSync('frontend/.env.production.local', 'VITE_DEMO_LOGIN_PASSWORD=' + JSON.stringify(process.env.DEMO_PW ?? '') + '\\n');"
             fi
             unset VITE_DEMO_LOGIN_PASSWORD
           else
