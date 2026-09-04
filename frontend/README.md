@@ -211,8 +211,9 @@ import type { Owner } from "@/types/owner";
 - Vercel preview（STG。`frontend-deploy.yml` が `VERCEL_ENV=preview` を焼き込む）
 
 本番（`VERCEL_ENV=production`）では出さない。ワンクリック入力のパスワードは
-ローカル DEV の `VITE_DEMO_LOGIN_PASSWORD`（`frontend/.env.local`、gitignored）だけ。
-STG ではメール選択のみで、パスワードは手入力する（バンドルに secret を焼かない）。
+`VITE_DEMO_LOGIN_PASSWORD`。ローカルは `frontend/.env.local`（gitignored）、
+STG preview ビルドは GitHub secret（`VITE_DEMO_LOGIN_PASSWORD` または
+`STG_DEMO_PASSWORD`）を焼き込む。本番ビルドでは空文字を process env に残し、バンドルへ載せない。
 
 - staff-attach 共有 secret と同一値にする（リテラル `password` は不可）
 - 値をコミットしない。同期: `python3 scripts/sync-vite-demo-login-password.py`

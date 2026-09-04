@@ -147,7 +147,7 @@ describe("LoginForm demo accounts (staff-attach)", () => {
 
     expect(
       screen.getByText(
-        "VITE_DEMO_LOGIN_PASSWORD 未設定 — .env.local を staff-attach secrets と揃えてください",
+        "デモ用パスワード未設定 — ローカルは .env.local、STG は GitHub secret を staff-attach と揃えてください",
       ),
     ).toBeInTheDocument();
 
