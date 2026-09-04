@@ -120,17 +120,17 @@ func setupPermissionAuditRollbackDB(t *testing.T) (*gorm.DB, uint64) {
 		&model.StaffPermissionGroup{},
 		&model.AuditLog{},
 	))
-	require.NoError(t, db.Exec(`
-		TRUNCATE TABLE
-			audit_logs,
-			staff_permission_groups,
-			permission_group_rules,
-			permission_groups,
-			staffs,
-			clinics,
-			companies
-		CASCADE
-	`).Error)
+	testdb.Truncate(
+		t,
+		db,
+		"audit_logs",
+		"staff_permission_groups",
+		"permission_group_rules",
+		"permission_groups",
+		"staffs",
+		"clinics",
+		"companies",
+	)
 	company := &model.Company{Name: "permission audit rollback company"}
 	require.NoError(t, db.Create(company).Error)
 	clinic := &model.Clinic{

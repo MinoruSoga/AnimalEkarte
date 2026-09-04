@@ -32,7 +32,9 @@ import (
 // TRUNCATE のみ SetupTestDB 内で呼び出し毎に実行し、テスト間データ分離を維持する。
 //
 // ドメインテーブルの AutoMigrate も EnsureAutoMigrated 経由でモデル型ごとに一度だけに抑える。
-// テスト間データ分離は各ヘルパーの TRUNCATE に依存する。呼び出し側パッケージに t.Parallel() は無い。
+// テスト間データ分離は truncateCoreTestTables（単一接続・単一 TRUNCATE・
+// idle-in-transaction 切断）に依存する。同一プロセスの t.Parallel() や
+// 先行テストのリーク tx が ACCESS EXCLUSIVE と組んで 40P01 を起こさないようにする。
 //
 // AutoMigrate does not apply 001_init.sql. Composite FKs, EXCLUDE gist, and trigger-copied
 // clinic_id columns exist only on a migrate-built database. testdb remains a GORM double;
@@ -143,12 +145,7 @@ func SetupTestDB(t *testing.T) *gorm.DB {
 		t.Fatalf("failed to set up shared test schema: %v", sharedTestSchemaErr)
 	}
 
-	// Truncate tables to ensure clean state (data isolation between tests)
-	db.Exec("TRUNCATE TABLE billing_refunds CASCADE")
-	db.Exec("TRUNCATE TABLE payments CASCADE")
-	db.Exec("TRUNCATE TABLE billings CASCADE")
-	db.Exec("TRUNCATE TABLE medical_records CASCADE")
-	db.Exec("TRUNCATE TABLE owners CASCADE")
+	truncateCoreTestTables(t, db)
 
 	return db
 }
@@ -255,11 +252,7 @@ func SetupIsolatedTestDB(t *testing.T) *gorm.DB {
 		t.Fatalf("failed to set up shared test schema (isolated): %v", err)
 	}
 
-	db.Exec("TRUNCATE TABLE billing_refunds CASCADE")
-	db.Exec("TRUNCATE TABLE payments CASCADE")
-	db.Exec("TRUNCATE TABLE billings CASCADE")
-	db.Exec("TRUNCATE TABLE medical_records CASCADE")
-	db.Exec("TRUNCATE TABLE owners CASCADE")
+	truncateCoreTestTables(t, db)
 
 	return db
 }

@@ -54,6 +54,115 @@ func TestQuotePostgresIdentifier(t *testing.T) {
 	}
 }
 
+func TestIsDedicatedTestDatabaseName(t *testing.T) {
+	tests := []struct {
+		name string
+		db   string
+		want bool
+	}{
+		{name: "ekarte_db_test is dedicated", db: "ekarte_db_test", want: true},
+		{name: "suffix _test is dedicated", db: "anything_test", want: true},
+		{name: "live ekarte_db is refused", db: "ekarte_db", want: false},
+		{name: "empty is refused", db: "", want: false},
+		{name: "testdb without suffix is refused", db: "testdb", want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, isDedicatedTestDatabaseName(tt.db))
+		})
+	}
+}
+
+func TestIsDeadlockError(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{
+			name: "40P01 is deadlock",
+			err:  &pgconn.PgError{Code: "40P01"},
+			want: true,
+		},
+		{
+			name: "wrapped 40P01 is deadlock",
+			err:  fmt.Errorf("truncate: %w", &pgconn.PgError{Code: "40P01"}),
+			want: true,
+		},
+		{
+			name: "lock timeout is not deadlock",
+			err:  &pgconn.PgError{Code: "55P03"},
+			want: false,
+		},
+		{
+			name: "other pg error is not deadlock",
+			err:  &pgconn.PgError{Code: "23503"},
+			want: false,
+		},
+		{
+			name: "plain error is not deadlock",
+			err:  errors.New("plain"),
+			want: false,
+		},
+		{
+			name: "nil is not deadlock",
+			err:  nil,
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, isDeadlockError(tt.err))
+		})
+	}
+}
+
+func TestIsLockTimeoutError(t *testing.T) {
+	assert.True(t, isLockTimeoutError(&pgconn.PgError{Code: "55P03"}))
+	assert.True(t, isLockTimeoutError(fmt.Errorf("lock: %w", &pgconn.PgError{Code: "55P03"})))
+	assert.False(t, isLockTimeoutError(&pgconn.PgError{Code: "40P01"}))
+	assert.False(t, isLockTimeoutError(errors.New("plain")))
+}
+
+func TestIsSafeTruncateTableName(t *testing.T) {
+	tests := []struct {
+		name  string
+		table string
+		want  bool
+	}{
+		{name: "owners", table: "owners", want: true},
+		{name: "snake_case", table: "permission_groups", want: true},
+		{name: "empty", table: "", want: false},
+		{name: "space", table: "owners CASCADE", want: false},
+		{name: "semicolon", table: "owners;drop", want: false},
+		{name: "uppercase", table: "Owners", want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, isSafeTruncateTableName(tt.table))
+		})
+	}
+}
+
+func TestCoreTruncateUsesSingleStatement(t *testing.T) {
+	assert.Equal(
+		t,
+		"TRUNCATE TABLE billing_refunds, payments, billings, medical_records, owners CASCADE",
+		coreTruncateSQL,
+	)
+
+	_, thisFile, _, ok := runtime.Caller(0)
+	require.True(t, ok)
+	raw, err := os.ReadFile(filepath.Join(filepath.Dir(thisFile), "testdb.go"))
+	require.NoError(t, err)
+	source := string(raw)
+	require.NotContains(t, source, `db.Exec("TRUNCATE TABLE billing_refunds CASCADE")`)
+	require.NotContains(t, source, `db.Exec("TRUNCATE TABLE payments CASCADE")`)
+	require.NotContains(t, source, `db.Exec("TRUNCATE TABLE billings CASCADE")`)
+	require.NotContains(t, source, `db.Exec("TRUNCATE TABLE medical_records CASCADE")`)
+	require.NotContains(t, source, `db.Exec("TRUNCATE TABLE owners CASCADE")`)
+}
+
 func TestIsDuplicateDatabaseError(t *testing.T) {
 	tests := []struct {
 		name string

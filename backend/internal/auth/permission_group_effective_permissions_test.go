@@ -36,7 +36,7 @@ func setupEffectivePermissionsTestDB(t *testing.T) *gorm.DB {
 		&model.Staff{}, &model.PermissionGroup{}, &model.StaffPermissionGroup{}, &model.PermissionGroupRule{},
 	))
 	ensureStaffPermissionGroupsCreatedAt(t, db)
-	db.Exec("TRUNCATE TABLE staff_permission_groups, permission_group_rules, permission_groups, staffs CASCADE")
+	testdb.Truncate(t, db, "staff_permission_groups", "permission_group_rules", "permission_groups", "staffs")
 	return db
 }
 
