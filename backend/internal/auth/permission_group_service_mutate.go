@@ -92,8 +92,7 @@ func (s *permissionGroupService) create(
 	}
 	if input.Rules == nil {
 		if err := s.repo.Create(ctx, group); err != nil {
-			return nil, mapPermissionGroupNameConflict(ctx, err, clinicID, 0, input.Name,
-				"failed to create permission group", "failed to create permission group")
+			return nil, mapPermissionGroupNameConflict(err, input.Name, "failed to create permission group")
 		}
 	} else {
 		rules := permissionRuleModels(input.Rules)
@@ -109,8 +108,7 @@ func (s *permissionGroupService) create(
 		var err error
 		group, err = writer.CreateWithRules(ctx, group, rules)
 		if err != nil {
-			return nil, mapPermissionGroupNameConflict(ctx, err, clinicID, 0, input.Name,
-				"failed to create permission group with rules", "failed to create permission group with rules")
+			return nil, mapPermissionGroupNameConflict(err, input.Name, "failed to create permission group with rules")
 		}
 	}
 	slog.InfoContext(ctx, "permission group created",
@@ -235,8 +233,7 @@ func (s *permissionGroupService) update(
 		if input.Name != nil {
 			nameForConflict = *input.Name
 		}
-		return nil, mapPermissionGroupNameConflict(ctx, err, clinicID, id, nameForConflict,
-			"failed to update permission group", "failed to update permission group")
+		return nil, mapPermissionGroupNameConflict(err, nameForConflict, "failed to update permission group")
 	}
 	if result == nil {
 		return nil, apperrors.WrapInternalServerError(
@@ -309,12 +306,7 @@ func (s *permissionGroupService) delete(
 	return nil
 }
 
-func mapPermissionGroupNameConflict(
-	ctx context.Context,
-	err error,
-	clinicID, id uint64,
-	name, logMsg, wrapMsg string,
-) error {
+func mapPermissionGroupNameConflict(err error, name, wrapMsg string) error {
 	if conflict := apperrors.AsNameUniqueConflict(
 		err,
 		name,

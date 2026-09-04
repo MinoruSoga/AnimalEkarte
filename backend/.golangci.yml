@@ -87,10 +87,11 @@ linters:
         - .Errorf(
         - errors.New(
         - errors.Unwrap(
-        # 閉包内は apperrors で wrap 済み。Transaction/Join 自体の戻りは begin/commit
+        # 閉包内は apperrors で wrap 済み。Transaction/WithTx/Join 自体の戻りは begin/commit
         # 失敗か複数 error の合成であり、機械分割で薄い helper がそのまま返す。
         - errors.Join(
         - .Transaction(
+        - .WithTx(
         # インフラ境界。error の動的型（net.Error / bcrypt.ErrMismatched /
         # context.Canceled / http.ErrBodyNotAllowed）を保つため wrap しない。
         - bcrypt.CompareHashAndPassword(
@@ -107,6 +108,19 @@ linters:
         - (*net/http.Client).Do(
         - (net/http.ResponseWriter).Write(
         - (context.Context).Err(
+        # 予約バリデータは既に AppError を返す。呼び出し側での %w は同義の二重ラップになる。
+        - .ValidateReservationOwnerPetLinksWithRepo(
+        - .ValidateReservationStaffCapability(
+        - .ValidateReservationTypeAvailableTime(
+        - .ValidateReservationPetNotDeceased(
+        - .ValidateTrimmingAppointmentMutable(
+        - .CheckSlotConflict(
+        - .CheckReservationTypeCapacity(
+      # wrapcheck はインターフェースの短名（Transactor, XxxRepository）にマッチする。
+      # Domain 内の repository/transactor は apperrors を返すため、素通し return err
+      # に機械 wrap を足すと AppError を二重ラップするだけなので全インターフェースを除外する。
+      ignore-interface-regexps:
+        - .+
       ignore-package-globs:
         # Campaign-touched packages stay on wrapcheck: staff, reservation, billing,
         # inventory, lstep, medicalrecord, owner, pet, clinic, auth.
@@ -237,6 +251,11 @@ linters:
           - wrapcheck
           - prealloc
           - gosec
+
+      # testdb は ignore-package-globs 済み（呼び出し側）。パッケージ内の sql.Conn 素通しも対象外。
+      - path: internal/testdb/
+        linters:
+          - wrapcheck
 
 issues:
   # 2026-06-30: max-same-issues:10 により11件目以降の同種issueがCI上で隠蔽される事故を経験した

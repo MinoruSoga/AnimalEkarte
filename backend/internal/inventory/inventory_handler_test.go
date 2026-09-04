@@ -436,9 +436,9 @@ func TestUpdateInventory(t *testing.T) {
 		},
 		{
 			// BE-RC-006: toServiceInput は既に AppError を返す。
-			name:    "returns 400 for invalid expiry_date without wrapping AppError.Error",
-			paramID: "1",
-			body:    map[string]any{"expiry_date": "not-a-date"},
+			name:     "returns 400 for invalid expiry_date without wrapping AppError.Error",
+			paramID:  "1",
+			body:     map[string]any{"expiry_date": "not-a-date"},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockInventoryService{
 				updateFn: func(_ context.Context, _, _ uint64, _ *UpdateInventoryInput) (*model.InventoryItem, error) {
@@ -450,9 +450,9 @@ func TestUpdateInventory(t *testing.T) {
 			wantBody:   httpapi.FlexibleDateInvalidInputMsg,
 		},
 		{
-			name:    "returns 400 for invalid last_restocked without wrapping AppError.Error",
-			paramID: "1",
-			body:    map[string]any{"last_restocked": "not-a-date"},
+			name:     "returns 400 for invalid last_restocked without wrapping AppError.Error",
+			paramID:  "1",
+			body:     map[string]any{"last_restocked": "not-a-date"},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockInventoryService{
 				updateFn: func(_ context.Context, _, _ uint64, _ *UpdateInventoryInput) (*model.InventoryItem, error) {
