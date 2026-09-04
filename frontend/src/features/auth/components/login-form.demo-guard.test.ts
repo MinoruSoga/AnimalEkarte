@@ -71,6 +71,19 @@ describe("LoginForm SHOW_DEMO — DEV or Vercel preview (#91 / SEC-CS2-F01)", ()
     expect(src).toContain('vercelEnv === "preview" || vercelEnv === "production"');
   });
 
+  it("vite.config は preview/production の API を Cloudflare ホストに define する", () => {
+    const frontendRoot = join(dirname(fileURLToPath(import.meta.url)), "../../../..");
+    const src = readFileSync(join(frontendRoot, "vite.config.ts"), "utf8");
+    expect(src).toContain('define["import.meta.env.VITE_API_URL"]');
+    expect(src).toContain("https://api.stg.noah-karte.com/api");
+    expect(src).toContain("https://api.noah-karte.com/api");
+    expect(src).not.toContain("elb.amazonaws.com");
+
+    const envProduction = readFileSync(join(frontendRoot, ".env.production"), "utf8");
+    expect(envProduction).toContain("https://api.stg.noah-karte.com/api");
+    expect(envProduction).not.toContain("elb.amazonaws.com");
+  });
+
   it("VITE_DEMO_LOGIN_PASSWORD は SHOW_DEMO が真のときだけ読む", () => {
     const src = readFileSync(
       join(dirname(fileURLToPath(import.meta.url)), "LoginForm.tsx"),
