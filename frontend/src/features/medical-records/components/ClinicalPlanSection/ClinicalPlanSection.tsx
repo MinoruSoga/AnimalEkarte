@@ -69,8 +69,11 @@ export const ClinicalPlanSection = memo(function ClinicalPlanSection({
 
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">
-          <label className={STYLE.formLabel}>身体検査所見</label>
+          <label className={STYLE.formLabel} htmlFor="clinical-plan-physical-exam">
+            身体検査所見
+          </label>
           <CharCountTextarea
+            id="clinical-plan-physical-exam"
             value={physicalExam}
             onChange={onPhysicalExamChange}
             placeholder="身体検査所見を入力してください"
@@ -119,8 +122,11 @@ export const ClinicalPlanSection = memo(function ClinicalPlanSection({
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className={STYLE.formLabel}>診断詳細</label>
+          <label className={STYLE.formLabel} htmlFor="clinical-plan-diagnosis-details">
+            診断詳細
+          </label>
           <CharCountTextarea
+            id="clinical-plan-diagnosis-details"
             value={diagnosisDetails}
             onChange={onDiagnosisDetailsChange}
             placeholder="診断詳細を入力してください"
@@ -130,8 +136,11 @@ export const ClinicalPlanSection = memo(function ClinicalPlanSection({
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className={STYLE.formLabel}>治療方針</label>
+          <label className={STYLE.formLabel} htmlFor="clinical-plan-treatment-policy">
+            治療方針
+          </label>
           <CharCountTextarea
+            id="clinical-plan-treatment-policy"
             value={treatmentPolicy}
             onChange={onTreatmentPolicyChange}
             placeholder="治療方針を入力してください"
