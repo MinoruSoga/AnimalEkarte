@@ -446,6 +446,7 @@ func TestClinicalPlanService_Delete_FinalizedDoesNotAudit(t *testing.T) {
 func TestClinicalPlanService_Delete_NotFoundDoesNotAudit(t *testing.T) {
 	auditCalled := false
 	deleteCalled := false
+	parentLockCalled := false
 	repo := &mockClinicalPlanRepository{
 		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
 			return nil, apperrors.WrapNotFound("clinical_plan", "1")
@@ -459,11 +460,17 @@ func TestClinicalPlanService_Delete_NotFoundDoesNotAudit(t *testing.T) {
 		auditCalled = true
 		return nil
 	}}
-	svc := NewClinicalPlanService(repo, okMedRecForPlan(), okDiagnosisTypeRepo(), okDiagnosisNameRepo(), &mockCheckupTransactor{}, audit)
+	svc := NewClinicalPlanService(repo, &mockMedicalRecordRepository{
+		lockByIDForUpdateFn: func(context.Context, uint64, uint64) (*model.MedicalRecord, error) {
+			parentLockCalled = true
+			return &model.MedicalRecord{Status: model.MedicalRecordStatusFinalized}, nil
+		},
+	}, okDiagnosisTypeRepo(), okDiagnosisNameRepo(), &mockCheckupTransactor{}, audit)
 
 	err := svc.Delete(context.Background(), 1, 1, clinicalPlanTestActorID())
 	assert.Error(t, err)
 	assert.True(t, apperrors.IsNotFound(err))
+	assert.False(t, parentLockCalled)
 	assert.False(t, deleteCalled)
 	assert.False(t, auditCalled)
 }

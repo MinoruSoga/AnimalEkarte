@@ -68,11 +68,19 @@ type ClinicalPlanService interface {
 
 type clinicalPlanService struct {
 	repo         ClinicalPlanRepository
-	medRec       medicalRecordFinder
+	medRec       clinicalPlanMedicalRecordRepository
 	diagTypeRepo DiagnosisTypeRepository
 	diagNameRepo DiagnosisNameRepository
 	transactor   Transactor
 	auditTx      AuditTxLogger
+}
+
+// clinicalPlanMedicalRecordRepository keeps the clinical-plan mutation path on the
+// same parent-row locking contract as the other clinical child writers without
+// widening the shared medicalRecordFinder dependency view.
+type clinicalPlanMedicalRecordRepository interface {
+	medicalRecordFinder
+	medicalRecordLocker
 }
 
 // NewClinicalPlanService はClinicalPlanServiceを初期化して返す。
@@ -80,7 +88,7 @@ type clinicalPlanService struct {
 // （MRA-01 / care_plan_item と同型の fail-closed）。nil の場合 Update は拒否する。
 func NewClinicalPlanService(
 	repo ClinicalPlanRepository,
-	medRec medicalRecordFinder,
+	medRec clinicalPlanMedicalRecordRepository,
 	diagTypeRepo DiagnosisTypeRepository,
 	diagNameRepo DiagnosisNameRepository,
 	transactor Transactor,
@@ -207,23 +215,6 @@ func (s *clinicalPlanService) GetOrCreate(ctx context.Context, clinicID, medical
 	return plan, nil
 }
 
-// assertParentDraft は親カルテが draft であることを検証する（SD-2 系ガード監査で発見された欠落）。
-// examination/vital 等の子エンティティが使う lockDraftMedicalRecord とは異なり
-// LockByIDForUpdate による行ロックは取らない。単純な存在確認+ステータス確認であり、
-// このチェックと後続の書込の間のレースは clinical_plan_repository.go の Update/Delete が
-// medical_records.status='draft' を WHERE に含めることで原子的に閉じる。
-func (s *clinicalPlanService) assertParentDraft(ctx context.Context, clinicID, medicalRecordID uint64, conflictMsg string) error {
-	parent, err := s.medRec.FindByID(ctx, clinicID, medicalRecordID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to find medical record", "error", err)
-		return apperrors.Wrap(err, "failed to find medical record")
-	}
-	if parent.Status == model.MedicalRecordStatusFinalized {
-		return apperrors.WrapConflict(conflictMsg)
-	}
-	return nil
-}
-
 func clinicalPlanAuditValue(p *model.ClinicalPlan) map[string]any {
 	if p == nil {
 		return nil
@@ -333,42 +324,50 @@ func (s *clinicalPlanService) Update(ctx context.Context, clinicID, medicalRecor
 		return nil, apperrors.WrapInternalServerError("clinical plan transaction dependency is required")
 	}
 
-	plan, err := s.GetOrCreate(ctx, clinicID, medicalRecordID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get or create clinical plan", "error", err)
-		return nil, apperrors.Wrap(err, "failed to get or create clinical plan")
-	}
-	if err := s.assertParentDraft(ctx, clinicID, medicalRecordID, "確定済みカルテの所見・診断を編集できません"); err != nil {
-		return nil, err
-	}
 	if input.ActorID == nil || *input.ActorID == 0 {
 		return nil, apperrors.WrapInvalidInput("authenticated staff actor is required for clinical plan mutation")
 	}
-	if err := s.validateDiagnosisFKs(ctx, clinicID, input); err != nil {
-		return nil, err
-	}
-	if err := s.validateDiagnosisTypeNameConsistency(ctx, clinicID, plan, input); err != nil {
-		return nil, err
-	}
-
-	fields := buildClinicalPlanUpdate(input)
-	if len(fields) == 0 {
-		return plan, nil
-	}
-	// バージョンをインクリメント（input.Version 指定時はそれを起点にする。version 一致確認は
-	// repo.Update の WHERE 述語に一本化したため、ここでの事前チェックは行わない。
-	// medical_record_crud.go の Update と同型）
-	nextVersion := plan.Version + 1
-	if input.Version != nil {
-		nextVersion = *input.Version + 1
-	}
-	fields["version"] = nextVersion
-
-	// Snapshot before mutation for audit OldValue (do not mutate plan pointer fields after).
-	before := *plan
 
 	var updated *model.ClinicalPlan
 	if err := s.withTx(ctx, func(txCtx context.Context) error {
+		if err := lockDraftMedicalRecord(
+			txCtx,
+			s.medRec,
+			clinicID,
+			medicalRecordID,
+			"failed to find medical record",
+			"確定済みカルテの所見・診断を編集できません",
+		); err != nil {
+			return err
+		}
+		plan, err := s.GetOrCreate(txCtx, clinicID, medicalRecordID)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to get or create clinical plan", "error", err)
+			return apperrors.Wrap(err, "failed to get or create clinical plan")
+		}
+		if err := s.validateDiagnosisFKs(txCtx, clinicID, input); err != nil {
+			return err
+		}
+		if err := s.validateDiagnosisTypeNameConsistency(txCtx, clinicID, plan, input); err != nil {
+			return err
+		}
+
+		fields := buildClinicalPlanUpdate(input)
+		if len(fields) == 0 {
+			updated = plan
+			return nil
+		}
+		// バージョンをインクリメント（input.Version 指定時はそれを起点にする。version 一致確認は
+		// repo.Update の WHERE 述語に一本化したため、ここでの事前チェックは行わない。
+		// medical_record_crud.go の Update と同型）
+		nextVersion := plan.Version + 1
+		if input.Version != nil {
+			nextVersion = *input.Version + 1
+		}
+		fields["version"] = nextVersion
+
+		// Snapshot before mutation for audit OldValue (do not mutate plan pointer fields after).
+		before := *plan
 		if err := s.repo.Update(txCtx, clinicID, plan.ID, fields, input.Version); err != nil {
 			slog.ErrorContext(txCtx, "failed to update clinical plan", "error", err)
 			return apperrors.Wrap(err, "failed to update clinical plan")
@@ -389,7 +388,7 @@ func (s *clinicalPlanService) Update(ctx context.Context, clinicID, medicalRecor
 
 	slog.InfoContext(ctx, "clinical_plan updated",
 		slog.Uint64("clinic_id", clinicID),
-		slog.Uint64("clinical_plan_id", plan.ID),
+		slog.Uint64("clinical_plan_id", updated.ID),
 		slog.Uint64("medical_record_id", medicalRecordID))
 	return updated, nil
 }
@@ -402,22 +401,37 @@ func (s *clinicalPlanService) Delete(ctx context.Context, clinicID, medicalRecor
 	if s.transactor == nil {
 		return apperrors.WrapInternalServerError("clinical plan transaction dependency is required")
 	}
-
-	plan, err := s.repo.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
-	if err != nil {
+	// Preserve the established clinical_plan NotFound contract before checking the
+	// parent lifecycle. The transaction below re-reads the row after locking the
+	// parent, so this preflight does not authorize the subsequent mutation.
+	if _, err := s.repo.FindByMedicalRecordID(ctx, clinicID, medicalRecordID); err != nil {
 		return apperrors.Wrap(err, "failed to get clinical plan")
 	}
-	if err := s.assertParentDraft(ctx, clinicID, medicalRecordID, "確定済みカルテの所見・診断は削除できません"); err != nil {
-		return err
-	}
+
 	if actorID == nil || *actorID == 0 {
 		return apperrors.WrapInvalidInput("authenticated staff actor is required for clinical plan mutation")
 	}
 
-	// Snapshot pre-delete values for audit OldValue (GORM soft-delete; durable recovery of
-	// clinical field content for legal audit is this OldValue, not the tombstoned row alone).
-	before := *plan
+	var plan *model.ClinicalPlan
 	if err := s.withTx(ctx, func(txCtx context.Context) error {
+		if err := lockDraftMedicalRecord(
+			txCtx,
+			s.medRec,
+			clinicID,
+			medicalRecordID,
+			"failed to find medical record",
+			"確定済みカルテの所見・診断は削除できません",
+		); err != nil {
+			return err
+		}
+		currentPlan, err := s.repo.FindByMedicalRecordID(txCtx, clinicID, medicalRecordID)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to get clinical plan")
+		}
+		plan = currentPlan
+		// Snapshot pre-delete values for audit OldValue (GORM soft-delete; durable recovery of
+		// clinical field content for legal audit is this OldValue, not the tombstoned row alone).
+		before := *plan
 		if err := s.repo.Delete(txCtx, clinicID, plan.ID); err != nil {
 			slog.ErrorContext(txCtx, "failed to delete clinical plan", "error", err, "clinic_id", clinicID, "clinical_plan_id", plan.ID)
 			return apperrors.Wrap(err, "failed to delete clinical plan")
