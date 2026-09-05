@@ -13,14 +13,14 @@
 
 ## 2. L0–L5 正本マップ
 
-| 層 | 証明対象 | 正本・実装 | 現在の実行経路 |
-|:--|:--|:--|:--|
-| L0 | 正しい仕様 | `docs/spec/`、product philosophy、ADR | review |
-| L1 | 関数・component | code 隣の `*test.go` / `*.test.ts` | scoped test、CI |
-| L2 | HTTP、DB、認可、FK、clinic isolation | domain HTTP tests、inventory/guardrail | path-filtered backend build/test shards + aggregate coverage ratchet。local `make ci` は inventory/guardrail checks |
-| L3 | 実装済み画面回帰 | `frontend/e2e/`、[E2E guide](E2E_TESTING_GUIDE.md) | local `make e2e` / `frontend/scripts/run-e2e.sh`。manual GitHub workflow は non-gating かつ provisioning 不足で BLOCKED |
-| L4 | 業務・フォーム受入 | [scenarios/](scenarios/README.md) | Chrome DevTools、scripted browser、人手 |
-| L5 | focused exploratory / post-deploy | [SECTION_14](SECTION_14_MANUAL_TEST_GUIDE.md) | AI または人手 |
+| 層  | 証明対象                             | 正本・実装                                         | 現在の実行経路                                                                                                                                                                    |
+| :-- | :----------------------------------- | :------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| L0  | 正しい仕様                           | `docs/spec/`、product philosophy、ADR              | review                                                                                                                                                                            |
+| L1  | 関数・component                      | code 隣の `*test.go` / `*.test.ts`                 | scoped test、CI                                                                                                                                                                   |
+| L2  | HTTP、DB、認可、FK、clinic isolation | domain HTTP tests、inventory/guardrail             | path-filtered backend build/test shards + aggregate coverage ratchet。local `make ci` は inventory/guardrail checks                                                               |
+| L3  | 実装済み画面回帰                     | `frontend/e2e/`、[E2E guide](E2E_TESTING_GUIDE.md) | local `make e2e` / `frontend/scripts/run-e2e.sh`。manual GitHub workflow は non-gating の auth smoke を実装済み。full clinical/data-dependent suite は fixture 不足で別途 BLOCKED |
+| L4  | 業務・フォーム受入                   | [scenarios/](scenarios/README.md)                  | Chrome DevTools、scripted browser、人手                                                                                                                                           |
+| L5  | focused exploratory / post-deploy    | [SECTION_14](SECTION_14_MANUAL_TEST_GUIDE.md)      | AI または人手                                                                                                                                                                     |
 
 ## 3. L4 の範囲
 
@@ -43,22 +43,23 @@ Mutating run の前に、対象 clinic ID、fixture owner、pre-count、期待 p
 
 ## 5. 環境プロファイル
 
-| profile | migration seed | account / clinical fixture | LIFF | 判定 |
-|:--|:--|:--|:--|:--|
-| local UAT | `002_master` のみ | [local handoff](../deploy/OLD_DB_HANDOFF_LOCAL.md) / approved import と [account provisioning](../deploy/STAFF_ACCOUNT_PROVISIONING.md) を明示実施 | local compose effective config で mock | disposable/local-only |
-| STG UAT | `002_master` のみ | [STG lifecycle](../deploy/STG-DEMO-DATA-LIFECYCLE.md) の承認済み skeleton/import/staff-account lane | mock 禁止。実機は人間レーン | dedicated UAT tenant only |
-| CI E2E | `002_master` のみ | ephemeral fixture/account provisioning が必要だが workflow に未実装 | mock intent | authenticated suite BLOCKED |
+| profile           | migration seed                           | account / clinical fixture                                                                                                                         | LIFF                                   | 判定                                                                                                  |
+| :---------------- | :--------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------- | :---------------------------------------------------------------------------------------------------- |
+| local UAT         | `002_master` のみ                        | [local handoff](../deploy/OLD_DB_HANDOFF_LOCAL.md) / approved import と [account provisioning](../deploy/STAFF_ACCOUNT_PROVISIONING.md) を明示実施 | local compose effective config で mock | disposable/local-only                                                                                 |
+| STG UAT           | `002_master` のみ                        | [STG lifecycle](../deploy/STG-DEMO-DATA-LIFECYCLE.md) の承認済み skeleton/import/staff-account lane                                                | mock 禁止。実機は人間レーン            | dedicated UAT tenant only                                                                             |
+| CI E2E auth smoke | `002_master` + `APP_ENV=test` login seed | public synthetic login fixture                                                                                                                     | mock intent                            | manual/non-gating `auth-flows.spec.ts` の配線を実装。Actions 実行・fresh DB 結果は UNREPORTED/UNKNOWN |
+| CI E2E full suite | `002_master` のみ                        | clinical/data-dependent fixture は未準備                                                                                                           | mock intent                            | BLOCKED。auth smoke の実装を full suite coverage と扱わない                                           |
 
 `make migrate`、`make seed`、通常の startup は退役済み `003_demo` / `004_staging` を復元しない。backend startup は migrate を実行してから healthy になる。一方、migration 変更を pull した後は project policy に従い、**ユーザーが** `make migrate` を実行する。
 
 ## 6. 記録と defect intake
 
-| 判定 | 意味 | 記録 |
-|:--|:--|:--|
-| PASS | 期待どおり | report |
-| PARTIAL | 一部未確認 | report。完了と呼ばない |
+| 判定    | 意味                          | 記録                                                  |
+| :------ | :---------------------------- | :---------------------------------------------------- |
+| PASS    | 期待どおり                    | report                                                |
+| PARTIAL | 一部未確認                    | report。完了と呼ばない                                |
 | BLOCKED | environment/spec/fixture 不足 | report または Linear Needs Human。`bug.md` へ書かない |
-| FAIL | 確認済み製品欠陥 | `bug.md` で dedupe/記録後、Linear で追跡 |
+| FAIL    | 確認済み製品欠陥              | `bug.md` で dedupe/記録後、Linear で追跡              |
 
 その他の新規製品 defect は通常の Linear intake に従う。証跡に credential、token、cookie、idToken、個人情報を含めない。
 
