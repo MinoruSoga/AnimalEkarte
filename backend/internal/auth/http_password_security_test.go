@@ -114,6 +114,7 @@ func TestHTTPHandler_ForgotPassword_RejectsMissingOrInvalidEmailBeforeService(
 	}{
 		{name: "missing email", body: `{}`},
 		{name: "invalid email", body: `{"email":"not-an-email"}`},
+		{name: "incomplete domain email", body: `{"email":"a@"}`},
 	}
 
 	for _, test := range tests {

@@ -146,6 +146,74 @@ func TestLineReservationSettingService_Save(t *testing.T) {
 		}
 	})
 
+	t.Run("omitted additional_fields defaults to empty JSON array on create", func(t *testing.T) {
+		var persisted *model.LineReservationSetting
+		repo := &mockLineReservationSettingRepository{
+			findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+				return nil, apperrors.WrapNotFound("setting", "")
+			},
+			saveFn: func(_ context.Context, _ uint64, setting *model.LineReservationSetting) error {
+				persisted = setting
+				return nil
+			},
+		}
+		svc := NewLineReservationSettingService(repo, testPlainEncrypt, testPlainDecrypt)
+		_, isNew, err := svc.Save(ctx, 1, &UpsertLineReservationSettingInput{
+			Status:         "running",
+			ClosedWeekdays: []byte("[]"),
+		})
+		assert.NoError(t, err)
+		assert.True(t, isNew)
+		if assert.NotNil(t, persisted) {
+			assert.JSONEq(t, "[]", string(persisted.AdditionalFields))
+		}
+	})
+
+	t.Run("json null additional_fields defaults to empty JSON array", func(t *testing.T) {
+		var persisted *model.LineReservationSetting
+		repo := &mockLineReservationSettingRepository{
+			findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+				return nil, apperrors.WrapNotFound("setting", "")
+			},
+			saveFn: func(_ context.Context, _ uint64, setting *model.LineReservationSetting) error {
+				persisted = setting
+				return nil
+			},
+		}
+		svc := NewLineReservationSettingService(repo, testPlainEncrypt, testPlainDecrypt)
+		_, _, err := svc.Save(ctx, 1, &UpsertLineReservationSettingInput{
+			Status:           "running",
+			AdditionalFields: []byte("null"),
+		})
+		assert.NoError(t, err)
+		if assert.NotNil(t, persisted) {
+			assert.JSONEq(t, "[]", string(persisted.AdditionalFields))
+		}
+	})
+
+	t.Run("explicit additional_fields array is preserved", func(t *testing.T) {
+		var persisted *model.LineReservationSetting
+		repo := &mockLineReservationSettingRepository{
+			findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+				return nil, apperrors.WrapNotFound("setting", "")
+			},
+			saveFn: func(_ context.Context, _ uint64, setting *model.LineReservationSetting) error {
+				persisted = setting
+				return nil
+			},
+		}
+		svc := NewLineReservationSettingService(repo, testPlainEncrypt, testPlainDecrypt)
+		raw := []byte(`[{"key":"phone"}]`)
+		_, _, err := svc.Save(ctx, 1, &UpsertLineReservationSettingInput{
+			Status:           "running",
+			AdditionalFields: raw,
+		})
+		assert.NoError(t, err)
+		if assert.NotNil(t, persisted) {
+			assert.JSONEq(t, `[{"key":"phone"}]`, string(persisted.AdditionalFields))
+		}
+	})
+
 	t.Run("invalid json fields", func(t *testing.T) {
 		svc := NewLineReservationSettingService(nil, testPlainEncrypt, testPlainDecrypt)
 		input := &UpsertLineReservationSettingInput{

@@ -1,6 +1,7 @@
 package reservation
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"log/slog"
@@ -86,6 +87,16 @@ func validateJSONFields(fields map[string][]byte) error {
 		}
 	}
 	return nil
+}
+
+// defaultAdditionalFieldsJSON maps omitted or JSON null additional_fields to [].
+// Empty []byte is sent as SQL ” and becomes jsonb null, which violates NOT NULL.
+func defaultAdditionalFieldsJSON(data []byte) []byte {
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) {
+		return []byte("[]")
+	}
+	return data
 }
 
 // validateBreakHoursShape は break_hours が []BreakPeriod{start,end} 形式に unmarshal でき、
@@ -182,7 +193,7 @@ func (s *lineReservationSettingService) Save(ctx context.Context, clinicID uint6
 		TimeSlotIntervalMinutes: input.TimeSlotIntervalMinutes,
 		NoStaffMode:             input.NoStaffMode,
 		ShowNoStaffOption:       input.ShowNoStaffOption,
-		AdditionalFields:        input.AdditionalFields,
+		AdditionalFields:        defaultAdditionalFieldsJSON(input.AdditionalFields),
 		LineChannelID:           input.LineChannelID,
 		// LineChannelSecret: intentionally unset (zero). Create inserts empty;
 		// update OnConflict excludes the column so existing values stay intact.
