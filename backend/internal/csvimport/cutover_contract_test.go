@@ -69,6 +69,7 @@ func TestPreflightCutoverBundleAcceptsWindowZeroCompletedBillingWithoutPayment(t
 		zero := append([]string(nil), f.rows["billings"][0]...)
 		zero[columnIndex(billingColumns, "id")] = "1000002"
 		zero[columnIndex(billingColumns, "total_amount")] = "0"
+		zero[columnIndex(billingColumns, "medical_record_id")] = ""
 		f.rows["billings"] = append(f.rows["billings"], zero)
 		f.manifest.Tables[11].RowCount++
 	})
@@ -802,6 +803,20 @@ func TestPreflightCutoverBundleRejectsPaymentContractViolations(t *testing.T) {
 				f.rows["payment_splits"][0][columnIndex(CutoverTableSpecs()[14].Columns, "amount")] = "0"
 			},
 			wantErr: "must not be zero",
+		},
+		{
+			name: "duplicate non-null billing medical_record_id",
+			mutate: func(f *fixtureBundle) {
+				billingColumns := CutoverTableSpecs()[11].Columns
+				dup := append([]string(nil), f.rows["billings"][0]...)
+				dup[columnIndex(billingColumns, "id")] = "1000002"
+				dup[columnIndex(billingColumns, "status")] = "waiting"
+				dup[columnIndex(billingColumns, "completed_at")] = ""
+				dup[columnIndex(billingColumns, "total_amount")] = "0"
+				f.rows["billings"] = append(f.rows["billings"], dup)
+				f.manifest.Tables[11].RowCount++
+			},
+			wantErr: "duplicate non-null medical_record_id",
 		},
 		{
 			name: "completed billing timestamp is missing",

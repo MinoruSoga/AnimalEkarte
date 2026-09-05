@@ -154,13 +154,7 @@ old-db-handoff-stage:
 	@./scripts/stage-old-db-handoff.sh
 
 old-db-handoff-check:
-	@test -n "$${CLINIC_CODE}" || (echo "CLINIC_CODE is required" >&2; exit 1)
-	@test -n "$${MIGRATION_RUN_ID}" || (echo "MIGRATION_RUN_ID is required" >&2; exit 1)
-	@git check-ignore -q --no-index backend/migrations/seeds/_old_db_handoff/ \
-		|| (echo "backend/migrations/seeds/_old_db_handoff/ is not git-ignored" >&2; exit 1)
-	@test -f "backend/migrations/seeds/_old_db_handoff/$${CLINIC_CODE}/manifest.json" \
-		|| (echo "missing staged manifest for $${CLINIC_CODE}" >&2; exit 1)
-	@echo "old-db-handoff-check: PASS ($${CLINIC_CODE} present and ignored)"
+	@./scripts/check-old-db-handoff.sh
 
 # ============================================================================
 # F6 CSV import: old_db's immutable 21-table CSV hand-off -> AnimalEkarte
@@ -648,7 +642,7 @@ help:
 	@echo "  migrate       差分マイグレーションのみ適用（DBは落とさない）"
 	@echo "  seed              シーダーのみ適用（差分のみ・べき等。old_db 21表は対象外）"
 	@echo "  old-db-handoff-stage  old_db 21表CSVを seeds/_old_db_handoff/<clinic>/ へ隔離配置"
-	@echo "  old-db-handoff-check  医院別handoffの存在と git-ignore を確認"
+	@echo "  old-db-handoff-check  医院別handoffの21 CSV + manifest と git-ignore を確認"
 	@echo ""
 	@echo "旧DB移行（正式経路: 21表CSV + manifest -> 本テーブル）:"
 	@echo "  csv-import-preflight      source/seed/schema/空band検査（read-only）"
