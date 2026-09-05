@@ -17,6 +17,12 @@ const (
 	// PermissionGroupName is the 002_master group assigned to demo logins.
 	PermissionGroupName = "一般"
 	emailPattern        = "stg-staff-%d@example.test"
+	// demoStaffBandSize must equal csvimport clinicBandSize. Synthetic login
+	// staffs use clinicID * demoStaffBandSize as their ID base (that clinic's
+	// cutover EndExclusive). Imported staffs occupy
+	// [base+1_000_000, endExclusive), so these IDs cannot trip
+	// CUTOVER_REF_BAND_OCCUPIED during make reset / csv-import-preflight.
+	demoStaffBandSize = uint64(10_000_000)
 )
 
 // AccountSpec is one curated demo login row matching LoginForm DEMO_ACCOUNTS.
@@ -56,10 +62,10 @@ var personTemplates = []personTemplate{
 }
 
 var clinicBands = []clinicBand{
-	{1, 10_000_000, "八王子病院"},
-	{2, 11_000_000, "城東センター病院"},
-	{3, 21_000_000, "ノア動物病院　敷島病院"},
-	{4, 31_000_000, "ノア動物病院　Hako bu neco"},
+	{1, 1 * demoStaffBandSize, "八王子病院"},
+	{2, 2 * demoStaffBandSize, "城東センター病院"},
+	{3, 3 * demoStaffBandSize, "ノア動物病院　敷島病院"},
+	{4, 4 * demoStaffBandSize, "ノア動物病院　Hako bu neco"},
 }
 
 // Catalog returns the curated demo login set (LoginForm DEMO_ACCOUNTS).
