@@ -199,6 +199,18 @@ test("local load job and both k6 scripts use the dedicated fail-closed login var
   }
 });
 
+test("API endpoint k6 load script uses the canonical permission-groups route", () => {
+  const script = read("load-tests/k6-api-endpoints.js");
+  assert.match(
+    script,
+    /const permRes = http\.get\(\s*`\$\{BASE_URL\}\/api\/v1\/masters\/permission-groups`,\s*params,\s*\);/,
+  );
+  assert.doesNotMatch(
+    script,
+    /const permRes = http\.get\(\s*`\$\{BASE_URL\}\/api\/v1\/permission-groups`,\s*params,\s*\);/,
+  );
+});
+
 test("E2E and local load jobs each own always-run volume cleanup", () => {
   const e2e = workflowJob(read(".github/workflows/e2e.yml"), "e2e");
   const performanceWorkflow = read(".github/workflows/performance-tests.yml");

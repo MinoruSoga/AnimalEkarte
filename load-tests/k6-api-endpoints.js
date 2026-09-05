@@ -139,7 +139,10 @@ export default function (data) {
   sleep(1);
 
   group("Permission Groups", () => {
-    const permRes = http.get(`${BASE_URL}/api/v1/permission-groups`, params);
+    const permRes = http.get(
+      `${BASE_URL}/api/v1/masters/permission-groups`,
+      params,
+    );
     permissionGroupDuration.add(permRes.timings.duration);
     const permOk = check(permRes, {
       "permission groups status 200": (r) => r.status === 200,
