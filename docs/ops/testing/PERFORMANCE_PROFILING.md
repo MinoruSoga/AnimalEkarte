@@ -3,7 +3,7 @@
 > **目的**: 現在利用できる測定手段、その安全境界、未実装部分を明示する。
 > **最新更新**: 2026-09-05
 
-STG 一覧の実測値と改善順序は [STG-performance.md](STG-performance.md) を正とする。本ファイルは測定手段の安全境界だけを持つ。
+本ファイルは測定手段の安全境界だけを持つ。STG 一覧の 2026-09-05 改善（auth / COUNT / preload）は `main` の実装に吸収済み。
 
 ## 1. proposed targets と measurement state
 
