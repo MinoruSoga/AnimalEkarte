@@ -34,7 +34,8 @@ var BundleOrder = []string{"002_master"}
 // Allowed full-order values (case-insensitive, trimmed):
 // development, local, dev, test.
 //
-// SEC-CS2-F01: staging is intentionally master-only (not full-order).
+// SEC-CS2-F01: staging CSV plan is master-only (not full-order). Synthetic
+// 一般 logins are cmd/migrate phase 3 (internal/seedlogin), not this slice.
 func BundleOrderForEnv(env string) []string {
 	_ = env
 	out := make([]string, len(BundleOrder))

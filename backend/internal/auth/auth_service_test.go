@@ -13,6 +13,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/seedlogin"
 )
 
 type mockStaffAccountFinder struct {
@@ -81,6 +82,91 @@ func TestAuthService_Authenticate(t *testing.T) {
 		require.NotNil(t, staff)
 		assert.Equal(t, uint64(1), account.ID)
 		assert.Equal(t, uint64(10), staff.ID)
+	})
+
+	t.Run("staging catalog email accepts shared demo password when hash differs", func(t *testing.T) {
+		t.Setenv("APP_ENV", "staging")
+		svc := newAuthServiceForAuthenticateTest(
+			&mockAccountRepository{
+				findByEmailFn: func(_ context.Context, email string) (*model.Account, error) {
+					assert.Equal(t, seedlogin.Catalog()[0].Email, email)
+					return &model.Account{
+						ID:           1,
+						Email:        email,
+						IsActive:     true,
+						PasswordHash: passwordHash,
+					}, nil
+				},
+			},
+			&mockStaffAccountFinder{
+				findByAccountIDFn: func(_ context.Context, _ uint64) (*model.Staff, error) {
+					return &model.Staff{ID: 10, IsActive: true}, nil
+				},
+			},
+		)
+
+		account, staff, err := svc.AuthenticateUser(
+			ctx,
+			seedlogin.Catalog()[0].Email,
+			seedlogin.SharedPassword,
+		)
+		require.NoError(t, err)
+		require.NotNil(t, account)
+		require.NotNil(t, staff)
+	})
+
+	t.Run("production rejects shared demo password when hash differs", func(t *testing.T) {
+		t.Setenv("APP_ENV", "production")
+		svc := newAuthServiceForAuthenticateTest(
+			&mockAccountRepository{
+				findByEmailFn: func(_ context.Context, email string) (*model.Account, error) {
+					return &model.Account{
+						ID:           1,
+						Email:        email,
+						IsActive:     true,
+						PasswordHash: passwordHash,
+					}, nil
+				},
+			},
+			&mockStaffAccountFinder{},
+		)
+
+		account, staff, err := svc.AuthenticateUser(
+			ctx,
+			seedlogin.Catalog()[0].Email,
+			seedlogin.SharedPassword,
+		)
+		assert.Nil(t, account)
+		assert.Nil(t, staff)
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, apperrors.ErrUnauthorized))
+	})
+
+	t.Run("staging does not accept shared password for non-catalog email", func(t *testing.T) {
+		t.Setenv("APP_ENV", "staging")
+		svc := newAuthServiceForAuthenticateTest(
+			&mockAccountRepository{
+				findByEmailFn: func(_ context.Context, _ string) (*model.Account, error) {
+					return &model.Account{
+						ID:           1,
+						Email:        "stg-operator@example.test",
+						IsActive:     true,
+						PasswordHash: passwordHash,
+					}, nil
+				},
+			},
+			&mockStaffAccountFinder{},
+		)
+
+		account, staff, err := svc.AuthenticateUser(
+			ctx,
+			"stg-operator@example.test",
+			seedlogin.SharedPassword,
+		)
+		assert.Nil(t, account)
+		assert.Nil(t, staff)
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, apperrors.ErrUnauthorized))
 	})
 
 	t.Run("wrong password returns unauthorized with wrong-password sentinel", func(t *testing.T) {

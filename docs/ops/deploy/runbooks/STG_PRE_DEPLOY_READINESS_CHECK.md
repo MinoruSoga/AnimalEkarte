@@ -16,7 +16,8 @@
 Normal backend deliveryは`wrangler deploy -> POST /_internal/migrate -> /health`の順。
 
 - [ ] current `backend/migrations/*.sql`を全てplanへ含めた。
-- [ ] exactly `BundleOrderForEnv(APP_ENV)`を適用した。現在は`002_master`のみ。
+- [ ] exactly `BundleOrderForEnv(APP_ENV)`を適用した。現在 CSV は`002_master`のみ。
+- [ ] staging では migrate log に `Login seed applied` と `seeds/003_login` の coverage を確認した。
 - [ ] `002_master/manifest.json`から12-table inventory/load orderを導出し、listed filesが揃う。
 - [ ] migrate logの`Migration key coverage missing=0`を確認した。固定row/key/table countを使っていない。
 - [ ] checksum mismatchがない。

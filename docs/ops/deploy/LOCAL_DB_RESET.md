@@ -76,7 +76,7 @@ Migration key coverage missing=0 extra=X expected=E recorded=R
 
 **成否の一次判定は `Migration key coverage` の 1 行**とする。`missing=0` なら、ディスク上の直下 DDL と seed バンドルの期待キーがすべて `schema_migrations` に記録されている。`extra` は統合・削除でディスクから消えた履歴キーの件数であり、0 でなくても失敗ではない。固定の行数期待で照合しない。
 
-`schema_migrations` の行数も固定値ではない。**行数 = 直下 `*.sql` の本数 + seed 1**（キーは各 DDL ファイル名と `seeds/002_master`）。検算は上記 `ls` の件数に 1 を足したものと、DB の `SELECT COUNT(*) FROM schema_migrations` を照合する（余剰履歴がある環境では `recorded` がこの導出より大きくなり得る）。
+`schema_migrations` の行数も固定値ではない。**行数 = 直下 `*.sql` の本数 + CSV seed 1**（キーは各 DDL ファイル名と `seeds/002_master`）。development/staging でログイン seed が走った場合は `seeds/003_login` がもう 1 行増える。検算は上記 `ls` の件数に CSV seed 1（+ ログイン seed を適用したなら 1）を足したものと、DB の `SELECT COUNT(*) FROM schema_migrations` を照合する（余剰履歴がある環境では `recorded` がこの導出より大きくなり得る）。
 
 `/health` の HTTP 200 と `make reset` postflight は backend の liveness と migration postflight の成功だけを示します。臨床入力の準備完了には、スタッフアカウントの払い出し、handoff/import、ログイン、必要権限を別に確認します。
 

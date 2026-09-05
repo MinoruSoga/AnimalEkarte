@@ -68,8 +68,6 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          STG_DEMO_PASSWORD: ${{ secrets.STG_DEMO_PASSWORD }}
-          DEMO_LOGIN_PASSWORD_SECRET: ${{ secrets.VITE_DEMO_LOGIN_PASSWORD }}
         run: |
           set -euo pipefail
           ENV=preview
@@ -100,22 +98,8 @@ jobs:
           console.log('projectSettings', JSON.stringify(j.projectSettings));
           NODE
 
-          # Vite はコマンドラインの VERCEL_ENV を読む。VITE_* は loadEnv がファイルで上書きし得るので
-          # 非 VITE_ の DEMO_LOGIN_PASSWORD を同じ行で渡し、vite.config が define する。
-          DEMO_PW=""
-          if [ "$ENV" = "preview" ]; then
-            DEMO_PW="${DEMO_LOGIN_PASSWORD_SECRET:-}"
-            if [ -z "$DEMO_PW" ]; then
-              DEMO_PW="${STG_DEMO_PASSWORD:-}"
-            fi
-            if [ -z "$DEMO_PW" ]; then
-              echo "::warning::preview demo password unset; login picker will not fill password"
-            fi
-          else
-            unset STG_DEMO_PASSWORD
-            unset DEMO_LOGIN_PASSWORD_SECRET
-          fi
-          VERCEL_ENV="$ENV" VITE_VERCEL_ENV="$ENV" DEMO_LOGIN_PASSWORD="$DEMO_PW" pnpm --dir frontend build
+          # Vite はコマンドラインの VERCEL_ENV を読む。デモパスワードは LoginForm の固定値。
+          VERCEL_ENV="$ENV" VITE_VERCEL_ENV="$ENV" pnpm --dir frontend build
           test -f frontend/dist/index.html
 
           rm -rf .vercel/output

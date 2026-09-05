@@ -5,13 +5,13 @@
 ## Deploy
 
 - 自動: `staging` pushで`backend/**`、`.github/workflows/backend-deploy.yml`、root `package.json`、root `pnpm-lock.yaml`のいずれかが変わった場合。`infra/cloudflare/**`単独ではtriggerされず、Terraformは別の承認済みplan/apply手順で扱う。
-- 順序: **deploy → migrate → `/health` → optional smoke**。
+- 順序: **deploy → migrate → `/health` → optional smoke**。optional smoke は `STG_DEMO_*` の CRUD 確認であり、失敗してもジョブは落とさない。
 - 手動 dispatch も存在する。実行は人が対象 ref、approval、secret scope を確認して行う。
 
 ## DB and seed
 
 - migrate は `POST /_internal/migrate` と `MIGRATE_RUN_SECRET` を使う workflow contract。
-- 現行 `BundleOrderForEnv` は全環境で `002_master` のみ。`003_demo` / `004_staging` や full-demo 再投入を前提にしない。UAT/synthetic data は承認済みの明示 import と lifecycle owner を別途定義する。
+- 現行 `BundleOrderForEnv` は全環境で `002_master` のみ。`003_demo` / `004_staging` や full-demo CSV 再投入を前提にしない。画面デモログインは migrate フェーズ3で合成 `一般` アカウントを upsert し、開発/STG は共通デモパスワードで認証する。UAT/clinical data は承認済みの明示 import と lifecycle owner を別途定義する。
 - 過去の「public schema 109 objects」「REASSIGN が唯一解」は dated incident observation であり current fact ではない。schema owner と provider-supported remediation を PlanetScale/runtime で再検証してから ALTER migration を行う。
 - credential rotation、DB access、shared STG operation は人による明示承認が必要。
 

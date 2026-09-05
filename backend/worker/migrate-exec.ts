@@ -50,3 +50,18 @@ export function toMigrateResponse(result: MigrateExecResult): Response {
     headers: { "Content-Type": "application/json" },
   });
 }
+
+/**
+ * migrate exec は Container 起動 env を継承しない。DB_* に加え、ログイン seed が
+ * 読む APP_ENV だけを足す。JWT/SMTP は渡さない。
+ */
+export function attachLoginSeedMigrateEnv(
+  dbEnv: Record<string, string>,
+  appEnv: string | undefined,
+): Record<string, string> {
+  const migrateEnv: Record<string, string> = { ...dbEnv };
+  if (appEnv !== undefined && appEnv !== "") {
+    migrateEnv.APP_ENV = appEnv;
+  }
+  return migrateEnv;
+}

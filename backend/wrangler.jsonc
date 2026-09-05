@@ -45,6 +45,8 @@
     "GIN_MODE": "release",
     "LOG_LEVEL": "info",
     "SCHEDULER_ENVIRONMENT": "staging",
+    // cmd/migrate フェーズ3（seedlogin）の APP_ENV ゲート。この wrangler は STG Worker。
+    "APP_ENV": "staging",
     "DB_PORT": "5432",
     "DB_NAME": "postgres",
     // PlanetScale Postgres はTLSとserver identity検証を必須化する。

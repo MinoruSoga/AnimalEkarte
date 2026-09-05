@@ -81,6 +81,14 @@ func write(db DB) { db.Model(&model.Staff{}).Where("id = ?", 1).Update("name", "
 			wantViolation: false,
 		},
 		{
+			name: "seedlogin migrate upsert may write staffs",
+			path: "seedlogin/apply.go",
+			source: `package seedlogin
+func write(tx Tx) { _, _ = tx.Exec("INSERT INTO staffs (id) VALUES (1)") }
+`,
+			wantViolation: false,
+		},
+		{
 			name: "find and joins on shift entries outside owner are allowed",
 			path: "reservation/reservation_schedule_repository.go",
 			source: `package reservation
@@ -155,7 +163,7 @@ func scanStaffTableWriteOwner(path string, src []byte) []string {
 	staticStrings := collectStaffStaticStrings(file)
 	ownedVars := collectStaffOwnedVariables(file, modelAliases)
 	queryVars := collectStaffQueryVariables(file, modelAliases, ownedVars, staticStrings)
-	isOwnerPath := strings.HasPrefix(path, "staff/")
+	isOwnerPath := strings.HasPrefix(path, "staff/") || strings.HasPrefix(path, "seedlogin/")
 	seen := make(map[string]struct{})
 	add := func(pos token.Pos, reason string) {
 		seen[fmt.Sprintf("%s:%d: %s", path, fset.Position(pos).Line, reason)] = struct{}{}
