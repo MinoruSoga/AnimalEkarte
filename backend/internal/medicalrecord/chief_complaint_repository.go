@@ -73,14 +73,14 @@ func (r *chiefComplaintTypeRepository) Reorder(ctx context.Context, clinicID uin
 	return persistence.ReorderByClinicID(ctx, r.db, &model.ChiefComplaintType{}, "chief_complaint_type", clinicID, ids, "sort_order")
 }
 
-// CountUsageByChiefComplaintTypeID returns inquiry references.
-// inquiries lack clinic_id; tenant isolation is via medical_records JOIN.
+// CountUsageByChiefComplaintTypeID returns inquiry references on live medical records.
+// inquiries have no deleted_at; tenant isolation is the medical_records JOIN.
 func (r *chiefComplaintTypeRepository) CountUsageByChiefComplaintTypeID(ctx context.Context, clinicID, id uint64) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.Inquiry{}).
 		Scopes(persistence.MedicalRecordTenantScope("inquiries", clinicID)).
-		Where("inquiries.chief_complaint_type_id = ? AND inquiries.deleted_at IS NULL", id).
+		Where("inquiries.chief_complaint_type_id = ?", id).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "inquiry", "")
 	}
