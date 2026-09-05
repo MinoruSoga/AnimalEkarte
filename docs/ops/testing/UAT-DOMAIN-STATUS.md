@@ -146,9 +146,10 @@
 | S13 | PASS |
 | V03 | PASS |
 
-- **未解消ギャップ**: view-only / 非カバーアクターの異常系は本レーンにアカウントなし（soft）。staff create UI は執行ロールで BLOCKED soft。
+- **未解消ギャップ**: view-only / 非カバーアクター異常系はアカウントなし（soft）。staff create は r10 で `/settings/staff` 経由 PASS（旧 soft-BLOCK は誤パス `/settings/staffs`）。
 - **関連 bug IDs**: （なし）
-- **証跡**: `reports/uat-2026-09-05-r3/fixup-s08-s11-s13-v05.json`
+- **証跡**: [`reports/uat-2026-09-05-r10/FINAL-soft-gaps.md`](../../../reports/uat-2026-09-05-r10/FINAL-soft-gaps.md)
+
 
 ---
 
