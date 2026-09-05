@@ -213,3 +213,118 @@ test("E2E and local load jobs each own always-run volume cleanup", () => {
 
   assert.doesNotMatch(summaryJob, /docker compose down -v/);
 });
+
+test("clinical-plan inventory matches the bounded current PATCH contract", () => {
+  const inventory = read("docs/ops/testing/scenarios/FORM-FIELD-INVENTORY.md");
+  const heading =
+    "### medical-record-clinical-plan PATCH — `/api/v1/medical-records/:id/clinical-plan`";
+  const start = inventory.indexOf(heading);
+  assert.notEqual(start, -1, "missing bounded clinical-plan inventory heading");
+  const nextHeading = inventory.indexOf("\n### ", start + heading.length);
+  const section = inventory.slice(
+    start,
+    nextHeading === -1 ? undefined : nextHeading,
+  );
+
+  const saveAction = read(
+    "frontend/src/features/medical-records/hooks/use-medical-record-save-action.ts",
+  );
+  const clinicalPlanApi = read(
+    "frontend/src/features/medical-records/api/clinical-plan.ts",
+  );
+  const clinicalPlanRequest = read(
+    "backend/internal/medicalrecord/clinical_plan_request.go",
+  );
+  const routes = read("backend/internal/medicalrecord/routes_records.go");
+  const treatmentPlanPayload = saveAction.match(
+    /const treatmentPlanPayload = \{[\s\S]*?\n\s*\};/,
+  );
+  assert.notEqual(treatmentPlanPayload, null, "missing treatmentPlanPayload");
+
+  const mappings = [
+    [
+      "physicalExam",
+      "physical_exam",
+      /physical_exam:\s*snapshot\.physicalExam/,
+    ],
+    [
+      "diagnosis1CategoryId",
+      "diagnosis_type_id",
+      /diagnosis_type_id:\s*snapshot\.diagnosis1CategoryId \?\? undefined/,
+    ],
+    [
+      "diagnosis1NameId",
+      "diagnosis_name_id",
+      /diagnosis_name_id:\s*snapshot\.diagnosis1NameId \?\? undefined/,
+    ],
+    [
+      "diagnosis2CategoryId",
+      "diagnosis_2_type_id",
+      /diagnosis_2_type_id:\s*snapshot\.diagnosis2CategoryId/,
+    ],
+    [
+      "diagnosis2NameId",
+      "diagnosis_2_name_id",
+      /diagnosis_2_name_id:\s*snapshot\.diagnosis2NameId/,
+    ],
+    [
+      "assessment",
+      "diagnosis_details",
+      /diagnosis_details:\s*snapshot\.assessment/,
+    ],
+    ["plan", "treatment_policy", /treatment_policy:\s*snapshot\.plan/],
+    [
+      "existingClinicalPlanVersion",
+      "version",
+      /version:\s*snapshot\.existingClinicalPlanVersion/,
+    ],
+  ];
+
+  for (const [uiState, wireKey, savePayload] of mappings) {
+    const inventoryRow = new RegExp(
+      `\\|\\s*${uiState}\\s*\\|\\s*${wireKey}\\s*\\|`,
+    );
+    assert.match(section, inventoryRow, `${uiState} inventory mapping`);
+    assert.match(
+      treatmentPlanPayload[0],
+      savePayload,
+      `${uiState} save payload mapping`,
+    );
+    assert.match(
+      clinicalPlanApi,
+      new RegExp(`\\b${wireKey}\\?:`),
+      `${wireKey} frontend API input`,
+    );
+    assert.match(
+      clinicalPlanRequest,
+      new RegExp(`json:"${wireKey}"`),
+      `${wireKey} Go request tag`,
+    );
+  }
+
+  assert.match(section, /version.*S.*CAS.*user-entered/i);
+  assert.match(section, /Owner: clinical_plan PATCH child resource\./);
+  for (const staleKey of [
+    "soap_s",
+    "soap_o",
+    "soap_a",
+    "soap_p",
+    "diagnosis3_type",
+    "diagnosis3_name",
+  ]) {
+    assert.doesNotMatch(section, new RegExp(`\\b${staleKey}\\b`));
+  }
+
+  assert.match(
+    clinicalPlanApi,
+    /\.patch[\s\S]*`\/v1\/medical-records\/\$\{medicalRecordId\}\/clinical-plan`/,
+  );
+  assert.match(
+    routes,
+    /records\.PATCH\("\/:id\/clinical-plan",[^\n]*h\.clinicalPlan\.UpdateClinicalPlan\)/,
+  );
+  assert.match(
+    saveAction,
+    /updateTreatmentPlanMutation\.mutateAsync\(treatmentPlanPayload\)/,
+  );
+});
