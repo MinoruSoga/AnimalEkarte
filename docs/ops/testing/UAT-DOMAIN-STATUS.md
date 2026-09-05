@@ -2,24 +2,24 @@
 
 > **目的**: 受け入れ結果をシナリオ ID だけでなく業務ドメイン単位で俯瞰する。
 > **正本リンク**: [scenarios/README.md](./scenarios/README.md) · [TEST_ARCHITECTURE.md](./TEST_ARCHITECTURE.md)
-> **最新ラン**: `reports/uat-2026-09-05-r3/`（r3 / BUG-004/005 修正後フル再実行）
+> **最新ラン**: `reports/uat-2026-09-05-r4/`（r4 / PARTIAL S01・S09・S12 前進）
 > **更新日**: 2026-09-05
 
 ## サマリ（シナリオ S01–S13 + V01–V05）
 
 | Status | Count |
 |:---|---:|
-| PASS | 15 |
+| PASS | 16 |
 | FAIL | 0 |
-| PARTIAL | 3 |
+| PARTIAL | 2 |
 | BLOCKED | 0 |
 
 | 項目 | 値 |
 |:---|:---|
 | 実施日 | 2026-09-05 |
-| ブランチ | `uat/20260905` @ `15796fff7` |
+| ブランチ | `uat/20260905` @ `b8a6b26e0` |
 | 環境 | local（FE :3003 / BE :8080） |
-| 証跡 | [`reports/uat-2026-09-05-r3/`](../../../reports/uat-2026-09-05-r3/) |
+| 証跡 | [`reports/uat-2026-09-05-r4/`](../../../reports/uat-2026-09-05-r4/) |
 
 ---
 
@@ -40,9 +40,9 @@
 | S06 | PASS |
 | V01 | PASS |
 
-- **未解消ギャップ**: S01 の外部 LSTEP タグ削除/再同期は local で `is_configured=false` のため未検証（env）。
+- **未解消ギャップ**: S01 の LSTEP タグ削除/再同期は、mock API キー + `line_user_id` + sync 一時 ON でもローカル観測不可（runtime に recording/mock LSTEP HTTP クライアントなし。実送信は `is_sync_enabled=false` のまま）。死亡ガード自体は PASS。
 - **関連 bug IDs**: （なし）
-- **証跡**: `reports/uat-2026-09-05-r3/`（deepen-partials / deepen-remaining / field-results）
+- **証跡**: `reports/uat-2026-09-05-r4/partials-exec.json`
 
 ---
 
@@ -61,7 +61,7 @@
 
 - **未解消ギャップ**: ボード UI トグルは soft（API 入院サイクルは PASS）。
 - **関連 bug IDs**: （なし）
-- **証跡**: `reports/uat-2026-09-05-r3/deepen-partials.json`
+- **証跡**: `reports/uat-2026-09-05-r3/deepen-partials.json`（r3 継承）
 
 ---
 
@@ -82,9 +82,9 @@
 | S11 | PASS |
 | V02 | PASS |
 
-- **未解消ギャップ**: S09 の timed `completed_at` 5-fixture 帰属は承認済み helper 待ち（SQL/clock 禁止）。
+- **未解消ギャップ**: S09 の timed `completed_at` 5-fixture 帰属は承認済み helper 不在のため BLOCKED（SQL/clock 禁止）。settings/preview/history は PASS。
 - **関連 bug IDs**: （なし）
-- **証跡**: `reports/uat-2026-09-05-r3/`（resume-exec / fixup / field-results）
+- **証跡**: `reports/uat-2026-09-05-r4/partials-exec.json` / `s09-helper-search.json`
 
 ---
 
@@ -95,17 +95,17 @@
 | 実施日 | 2026-09-05 |
 | ブランチ | `uat/20260905` |
 | 環境 | local |
-| ドメイン総合判定 | **PARTIAL** |
+| ドメイン総合判定 | **PASS** |
 
 | シナリオ | status |
 |:---|:---|
 | S04 | PASS |
-| S12 | PARTIAL |
+| S12 | **PASS**（r4 mock lane） |
 | V05（LIFF 部分） | PASS（empty-token） |
 
-- **未解消ギャップ**: 実 LINE 連携レーンなし。no-token は mock LIFF で飼主画面（設計上 HealthCardApp）。
-- **関連 bug IDs**: （BUG-002 は復活せず。empty-token は修正確認済）
-- **証跡**: `reports/uat-2026-09-05-r3/unblock-s04-s09-s13.json` / screenshots `S12-*` `BUG002-*`
+- **未解消ギャップ**: 実 LINE idToken 検証による BE link / 409 再連携 / 期限切れ 400 は mock 外。FE `VITE_LIFF_MOCK` は success-only（仕様どおり病院側 `line_user_id` は未連携のまま）。隔離は staff `link-owner` + LIFF_MOCK health-card で証明。
+- **関連 bug IDs**: （BUG-002 は復活せず）
+- **証跡**: `reports/uat-2026-09-05-r4/s12-fix.json` / screenshots `S12-*`
 
 ---
 
@@ -122,7 +122,7 @@
 |:---|:---|
 | S10 | PASS |
 
-- **未解消ギャップ**: CSV ダウンロードが 1 回 timeout（コア LTV 整合は PASS）。
+- **未解消ギャップ**: CSV ダウンロードが 1 回 timeout（コア LTV 整合は PASS）— r3 継承。
 - **関連 bug IDs**: （なし）
 - **証跡**: `reports/uat-2026-09-05-r3/deepen-remaining.json`
 
@@ -144,7 +144,7 @@
 
 - **未解消ギャップ**: view-only / 非カバーアクターの異常系は本レーンにアカウントなし（soft）。staff create UI は執行ロールで BLOCKED soft。
 - **関連 bug IDs**: （なし）
-- **証跡**: `reports/uat-2026-09-05-r3/fixup-s08-s11-s13-v05.json` / field-results
+- **証跡**: `reports/uat-2026-09-05-r3/fixup-s08-s11-s13-v05.json`
 
 ---
 
@@ -160,13 +160,11 @@
 | シナリオ | status |
 |:---|:---|
 | V04 | PASS |
-| closing-settings（S09 前提） | PASS（GET/PATCH） |
+| closing-settings（S09 前提） | PASS（GET/PATCH; r4 で GET 再確認） |
 
-- **未解消ギャップ**: （なし。旧 BUG-004/005 は `15796fff7` で解消確認）
-  - LINE予約設定 PUT で `closed_weekdays` 省略 → **200** `closed_weekdays=[]`
-  - URL `:clinic_id` 未割当（clinics/3）→ **403** `not assigned to this clinic`
+- **未解消ギャップ**: （なし。旧 BUG-004/005 は解消確認済）
 - **関連 bug IDs**: （旧 BUG-20260905-004 / 005 解消 — bug.md 空）
-- **証跡**: `reports/uat-2026-09-05-r3/precheck.json` / `precheck-bug003.json`
+- **証跡**: r3 precheck + r4 `s12-fix.json`（S09-1-settings）
 
 ---
 
@@ -185,7 +183,7 @@
 
 - **未解消ギャップ**: （なし。BUG-001 修正確認済）
 - **関連 bug IDs**: （旧 BUG-001 解消）
-- **証跡**: `reports/uat-2026-09-05-r3/precheck.json` / screenshots `BUG001-*` `V05-*`
+- **証跡**: `reports/uat-2026-09-05-r3/precheck.json`
 
 ---
 
