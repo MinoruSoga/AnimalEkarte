@@ -2,24 +2,24 @@
 
 > **目的**: 受け入れ結果をシナリオ ID だけでなく業務ドメイン単位で俯瞰する。
 > **正本リンク**: [scenarios/README.md](./scenarios/README.md) · [TEST_ARCHITECTURE.md](./TEST_ARCHITECTURE.md)
-> **最新ラン**: `reports/uat-2026-09-05-r5/`（r5 / S09 PARTIAL→**BLOCKED**、S01 PARTIAL 据え置き）
+> **最新ラン**: `reports/uat-2026-09-05-r6/`（r6 V04 master CRUD）· シナリオ総合は r5 継承＋V04 FAIL
 > **更新日**: 2026-09-05
 
 ## サマリ（シナリオ S01–S13 + V01–V05）
 
 | Status | Count |
 |:---|---:|
-| PASS | 16 |
-| FAIL | 0 |
+| PASS | 15 |
+| FAIL | 1 |
 | PARTIAL | 1 |
 | BLOCKED | 1 |
 
 | 項目 | 値 |
 |:---|:---|
 | 実施日 | 2026-09-05 |
-| ブランチ | `uat/20260905` @ `230915ac1` |
+| ブランチ | `uat/20260905` @ `7a216ee66` |
 | 環境 | local（FE :3003 / BE :8080） |
-| 証跡 | [`reports/uat-2026-09-05-r5/`](../../../reports/uat-2026-09-05-r5/) |
+| 証跡 | [`reports/uat-2026-09-05-r6/`](../../../reports/uat-2026-09-05-r6/) · r5 シナリオ |
 
 ---
 
@@ -159,16 +159,20 @@
 | 実施日 | 2026-09-05 |
 | ブランチ | `uat/20260905` |
 | 環境 | local |
-| ドメイン総合判定 | **PASS** |
+| ドメイン総合判定 | **FAIL**（主訴 DELETE） |
 
 | シナリオ | status |
 |:---|:---|
-| V04 | PASS |
-| closing-settings（S09 前提） | PASS（GET/PATCH; r4 で GET 再確認） |
+| V04 | **FAIL**（r6 master CRUD: 主訴 DELETE 500） |
+| closing-settings（S09 前提） | PASS（r6 GET/PATCH roundtrip） |
 
-- **未解消ギャップ**: （なし。旧 BUG-004/005 は解消確認済）
-- **関連 bug IDs**: （旧 BUG-20260905-004 / 005 解消 — bug.md 空）
-- **証跡**: r3 precheck + r4 `s12-fix.json`（S09-1-settings）
+- **r6 Master CRUD**: PASS 24 / PARTIAL 1 / BLOCKED 1 / FAIL 1（27 行）
+  - **FAIL**: `master-chief-complaint` DELETE 常時 500（`inquiries.deleted_at` 欠落）→ **BUG-20260905-001**
+  - **BLOCKED**: `master-animal-species`（system admin 403）
+  - **PARTIAL**: `lab-device-item-masters`（create 403。既存 PATCH OK）
+  - 診断・診療項目5タブ・薬剤・トリミング一式・支払方法・締め・請求書欄など他は CRUD PASS
+- **関連 bug IDs**: BUG-20260905-001（open）
+- **証跡**: [`reports/uat-2026-09-05-r6/FINAL-master-crud.md`](../../../reports/uat-2026-09-05-r6/FINAL-master-crud.md)
 
 ---
 
