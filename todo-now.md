@@ -18,14 +18,14 @@
 
 全件、受領報告では未修正。現在のLinear上の重複・対応状況は未照会。
 
-| 優先 | ID | 指摘 | 分類 | Severity / Confidence | この記録上の状態 | 次の一手 | Linear |
-|---|---|---|---|---|---|---|---|
-| 1 | F1 | 診察プラン更新・削除とカルテ確定の未直列化 | 製品defect指摘 | High / High | 静的指摘・実DB再現未確認 | 2transactionの競合REDテスト | 未照会 |
-| 2 | F2 | 編集内容と保存versionの不一致 | 製品defect指摘 | High / High | 静的指摘・結合再現未確認 | 同一recordのv1→v2再取得テスト | 未照会 |
-| 3 | F3 | CI E2E・負荷テストの認証fixture不足 | verification gap | Medium / High | 準備経路不足の指摘・最新CI未確認 | 合成tenant/accountの準備経路を設計 | 未照会 |
-| 4 | F4 | カルテ受入項目表とpayloadの不一致 | docs drift / verification gap | Medium / High | 静的指摘 | 1フォームのUI→request→API照合 | 未照会 |
-| 5 | F5 | 診察所見3欄のlabel/id未接続 | a11y defect指摘 | Low / High | 静的指摘・操作再現未確認 | label取得・focusテスト | 未照会 |
-| 6 | F6 | 検証skillに廃止packageの例示 | harness drift | Low / High | 静的指摘 | canonical側の確認・修正と同期 | 未照会 |
+| 優先 | ID  | 指摘                                       | 分類                          | Severity / Confidence | この記録上の状態                 | 次の一手                           | Linear |
+| ---- | --- | ------------------------------------------ | ----------------------------- | --------------------- | -------------------------------- | ---------------------------------- | ------ |
+| 1    | F1  | 診察プラン更新・削除とカルテ確定の未直列化 | 製品defect指摘                | High / High           | 静的指摘・実DB再現未確認         | 2transactionの競合REDテスト        | 未照会 |
+| 2    | F2  | 編集内容と保存versionの不一致              | 製品defect指摘                | High / High           | 静的指摘・結合再現未確認         | 同一recordのv1→v2再取得テスト      | 未照会 |
+| 3    | F3  | CI E2E・負荷テストの認証fixture不足        | verification gap              | Medium / High         | 準備経路不足の指摘・最新CI未確認 | 合成tenant/accountの準備経路を設計 | 未照会 |
+| 4    | F4  | カルテ受入項目表とpayloadの不一致          | docs drift / verification gap | Medium / High         | 静的指摘                         | 1フォームのUI→request→API照合      | 未照会 |
+| 5    | F5  | 診察所見3欄のlabel/id未接続                | a11y defect指摘               | Low / High            | 静的指摘・操作再現未確認         | label取得・focusテスト             | 未照会 |
+| 6    | F6  | 検証skillに廃止packageの例示               | harness drift                 | Low / High            | 静的指摘                         | canonical側の確認・修正と同期      | 未照会 |
 
 ## 実施体制
 
@@ -154,6 +154,12 @@ fresh CI DBの通常seedにはaccountがなく、E2E/負荷テストが認証で
 - [ ] 認証、対象画面/API、再実行、後始末を専用環境で検証する。
 - [ ] 実STG account・実患者データを流用しない。workflowの変更と外部CI実行の権限を区別する。
 
+### F3 candidate result — 2026-09-05
+
+- 範囲履歴: 元の契約は10パスだった。ユーザーは実行後に `load-tests/README.md` を第11パスとして将来向けに承認し、local API／spike手順の stale `STG_DEMO_*` 指示を `LOAD_TEST_LOGIN_*` へ修正した。
+- 状態: local candidate implementation only（未commit・未merge、`claim/AE-QA-CI-AUTH-FIXTURE` は保持）。`APP_ENV=test` の synthetic login seed を E2E auth smoke と local k6 job に明示し、E2E は `auth-flows.spec.ts` のみを実行する。
+- 証拠境界: rerun outcome は実際に完了した named gate 後にのみ記録する。full clinical/data-dependent E2E fixture は未準備で別途 BLOCKED。GitHub Actions、fresh DB、Playwright、k6 の実行結果は UNREPORTED/UNKNOWN。外部実行、commit、merge、push、claim release は含まない。
+
 ## F4 — カルテ受入項目表のdrift
 
 - `docs/ops/testing/scenarios/FORM-FIELD-INVENTORY.md:18`: `soap_s/o/a/p`、`diagnosis3_type/name`等を列挙。
@@ -189,16 +195,16 @@ fresh CI DBの通常seedにはaccountがなく、E2E/負荷テストが認証で
 
 ## 監査で確認した防御と検証限界
 
-| 品質軸 | 報告された防御・確認範囲 | gap / 限界 |
-|---|---|---|
-| 分離・認可 | JWT後の現在所属・権限再評価、owner/pet/record/billing scope、Preload・破損FK確認 | 調査経路で新規越境なし。全経路の安全認定ではない |
-| 臨床・会計 | 更新監査rollback、締め後会計の監査欠落rollback、カルテ削除と見積作成の親行lock | F1 |
-| Go/Gin | route権限、Context、binding、error mapping、5xx記録、commit前再取得 | F1以外の独立findingなし |
-| React/TypeScript | 編集state・Action・PATCH、権限ref、死亡/確定guard、失敗toast、fieldset | F2、F5 |
-| PostgreSQL/GORM | 親scope、診断master Preload、FK、unique/index、migration checksum拒否 | F1。実DB isolation・query plan・index利用はUNKNOWN |
-| テスト・CI | backend DB shards、race、coverage集約、FE shards、L0–L5分離 | F3、F4 |
-| 性能・観測・回復 | 集計clinic条件、N+1静的gate、k6 API、timeout、request ID、shutdown | F3。latency・通知到達・復旧実績はUNKNOWN |
-| 文書・harness | 仕様/payload/項目表、coverage/workflow、AGENTS/skill照合 | F4、F6 |
+| 品質軸           | 報告された防御・確認範囲                                                         | gap / 限界                                         |
+| ---------------- | -------------------------------------------------------------------------------- | -------------------------------------------------- |
+| 分離・認可       | JWT後の現在所属・権限再評価、owner/pet/record/billing scope、Preload・破損FK確認 | 調査経路で新規越境なし。全経路の安全認定ではない   |
+| 臨床・会計       | 更新監査rollback、締め後会計の監査欠落rollback、カルテ削除と見積作成の親行lock   | F1                                                 |
+| Go/Gin           | route権限、Context、binding、error mapping、5xx記録、commit前再取得              | F1以外の独立findingなし                            |
+| React/TypeScript | 編集state・Action・PATCH、権限ref、死亡/確定guard、失敗toast、fieldset           | F2、F5                                             |
+| PostgreSQL/GORM  | 親scope、診断master Preload、FK、unique/index、migration checksum拒否            | F1。実DB isolation・query plan・index利用はUNKNOWN |
+| テスト・CI       | backend DB shards、race、coverage集約、FE shards、L0–L5分離                      | F3、F4                                             |
+| 性能・観測・回復 | 集計clinic条件、N+1静的gate、k6 API、timeout、request ID、shutdown               | F3。latency・通知到達・復旧実績はUNKNOWN           |
+| 文書・harness    | 仕様/payload/項目表、coverage/workflow、AGENTS/skill照合                         | F4、F6                                             |
 
 代表証拠（監査報告の参照）:
 

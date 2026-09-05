@@ -29,6 +29,43 @@ function setupPnpmBlocks(workflow) {
   return blocks;
 }
 
+function yamlBlock(source, key, indent) {
+  const lines = source.split("\n");
+  const start = lines.findIndex(
+    (line) => line === `${" ".repeat(indent)}${key}:`,
+  );
+  assert.notEqual(start, -1, `missing ${key} block`);
+
+  const block = [lines[start]];
+  for (let index = start + 1; index < lines.length; index += 1) {
+    const line = lines[index];
+    const contentIndent = line.search(/\S/);
+    if (contentIndent !== -1 && contentIndent <= indent) break;
+    block.push(line);
+  }
+  return block.join("\n");
+}
+
+function workflowJob(workflow, name) {
+  const jobs = yamlBlock(workflow, "jobs", 0);
+  return yamlBlock(jobs, name, 2);
+}
+
+function namedStep(job, name) {
+  const lines = job.split("\n");
+  const start = lines.findIndex((line) => line === `      - name: ${name}`);
+  assert.notEqual(start, -1, `missing ${name} step`);
+
+  const block = [lines[start]];
+  for (let index = start + 1; index < lines.length; index += 1) {
+    const line = lines[index];
+    const indent = line.search(/\S/);
+    if (indent === 6 && line.startsWith("      - ")) break;
+    block.push(line);
+  }
+  return block.join("\n");
+}
+
 test("AgentShield fail gate treats every AGENTS.md as agent configuration", () => {
   const workflow = read(".github/workflows/security-scan.yml");
   assert.match(workflow, /^\s+- ['"]\*\*\/AGENTS\.md['"]\s*$/m);
@@ -37,7 +74,9 @@ test("AgentShield fail gate treats every AGENTS.md as agent configuration", () =
 test("Docker, packageManager declarations, and CI use pnpm 10.15.0", () => {
   assert.match(
     read("frontend/Dockerfile.dev"),
-    new RegExp(`npm install -g pnpm@${PNPM_VERSION.replaceAll(".", "\\.")}(?:\\s|$)`),
+    new RegExp(
+      `npm install -g pnpm@${PNPM_VERSION.replaceAll(".", "\\.")}(?:\\s|$)`,
+    ),
   );
 
   for (const packageJson of ["package.json", "frontend/package.json"]) {
@@ -59,7 +98,11 @@ test("Docker, packageManager declarations, and CI use pnpm 10.15.0", () => {
       assert.match(block, /^\s+version: 10\.15\.0\s*$/m, workflowPath);
     }
   }
-  assert.equal(setupCount, 7, "expected every pnpm/action-setup use to be covered");
+  assert.equal(
+    setupCount,
+    7,
+    "expected every pnpm/action-setup use to be covered",
+  );
 });
 
 test("frontend deploy bakes VERCEL_ENV into the prebuilt Vite bundle", () => {
@@ -69,18 +112,104 @@ test("frontend deploy bakes VERCEL_ENV into the prebuilt Vite bundle", () => {
     /VERCEL_ENV="\$ENV" VITE_VERCEL_ENV="\$ENV" pnpm --dir frontend build/,
   );
   assert.match(workflow, /if \[ "\$ENV" = "preview" \]/);
-  assert.match(workflow, /vercel alias set "\$DEPLOY_URL" stg\.noah-karte\.com/);
+  assert.match(
+    workflow,
+    /vercel alias set "\$DEPLOY_URL" stg\.noah-karte\.com/,
+  );
 });
 
 test("frontend audit treats registry audit endpoint timeouts as unavailable", () => {
   const workflow = read(".github/workflows/ci.yml");
-  assert.match(
-    workflow,
-    /ERR_PNPM_AUDIT_BAD_RESPONSE\|ERR_SOCKET_TIMEOUT/,
-  );
+  assert.match(workflow, /ERR_PNPM_AUDIT_BAD_RESPONSE\|ERR_SOCKET_TIMEOUT/);
 });
 
 test("frontend pnpm install policy remains explicit", () => {
   const manifest = JSON.parse(read("frontend/package.json"));
-  assert.deepEqual(manifest.pnpm?.onlyBuiltDependencies, ["@swc/core", "esbuild", "msw"]);
+  assert.deepEqual(manifest.pnpm?.onlyBuiltDependencies, [
+    "@swc/core",
+    "esbuild",
+    "msw",
+  ]);
+});
+
+test("backend Compose receives APP_ENV with the development default", () => {
+  const backend = yamlBlock(read("docker-compose.yml"), "backend", 2);
+  assert.match(backend, /^\s+APP_ENV: \$\{APP_ENV:-development\}\s*$/m);
+});
+
+test("E2E job uses the test-only synthetic login and runs only the auth smoke spec", () => {
+  const e2e = workflowJob(read(".github/workflows/e2e.yml"), "e2e");
+  assert.match(e2e, /^\s+APP_ENV: test\s*$/m);
+  assert.match(
+    e2e,
+    /^\s+E2E_LOGIN_EMAIL: stg-staff-10000021@example\.test\s*$/m,
+  );
+  assert.match(e2e, /^\s+E2E_LOGIN_PASSWORD: password\s*$/m);
+
+  const run = namedStep(e2e, "Run Playwright E2E");
+  assert.match(
+    run,
+    /^\s+run: \.\/scripts\/run-e2e\.sh e2e\/auth-flows\.spec\.ts\s*$/m,
+  );
+  assert.doesNotMatch(
+    e2e,
+    /(?:echo|printf).*E2E_LOGIN|E2E_LOGIN.*(?:echo|printf)/,
+  );
+});
+
+test("auth smoke keeps the successful-login response and authenticated-home assertions", () => {
+  const authSpec = read("frontend/e2e/auth-flows.spec.ts");
+  assert.match(authSpec, /test\("\/login — 有効な認証情報でログインできる"/);
+  assert.match(authSpec, /expect\(loginResponse\.status\(\)\)\.toBe\(200\)/);
+  assert.match(authSpec, /expect\(loginPage\.homeHeading\(\)\)\.toBeVisible/);
+});
+
+test("local load job and both k6 scripts use the dedicated fail-closed login variables", () => {
+  const loadJob = workflowJob(
+    read(".github/workflows/performance-tests.yml"),
+    "load-test",
+  );
+  assert.match(loadJob, /^\s+APP_ENV: test\s*$/m);
+  assert.doesNotMatch(loadJob, /STG_DEMO/);
+
+  for (const stepName of [
+    "Run k6 API endpoints load test",
+    "Run k6 spike test",
+  ]) {
+    const step = namedStep(loadJob, stepName);
+    assert.match(step, /^\s+LOAD_TEST_LOGIN_EMAIL:/m, stepName);
+    assert.match(step, /^\s+LOAD_TEST_LOGIN_PASSWORD:/m, stepName);
+  }
+
+  for (const scriptPath of [
+    "load-tests/k6-api-endpoints.js",
+    "load-tests/k6-spike-test.js",
+  ]) {
+    const script = read(scriptPath);
+    assert.match(script, /__ENV\.LOAD_TEST_LOGIN_EMAIL/);
+    assert.match(script, /__ENV\.LOAD_TEST_LOGIN_PASSWORD/);
+    assert.match(
+      script,
+      /if \(!LOAD_TEST_LOGIN_EMAIL \|\| !LOAD_TEST_LOGIN_PASSWORD\)/,
+    );
+    assert.doesNotMatch(script, /STG_DEMO/);
+    assert.match(script, /loginRes\.status !== 200/);
+    assert.match(script, /Set-Cookie/);
+    assert.match(script, /handleSummary/);
+  }
+});
+
+test("E2E and local load jobs each own always-run volume cleanup", () => {
+  const e2e = workflowJob(read(".github/workflows/e2e.yml"), "e2e");
+  const performanceWorkflow = read(".github/workflows/performance-tests.yml");
+  const loadJob = workflowJob(performanceWorkflow, "load-test");
+  const summaryJob = workflowJob(performanceWorkflow, "summary");
+
+  for (const job of [e2e, loadJob]) {
+    const cleanup = namedStep(job, "Stop app stack");
+    assert.match(cleanup, /^\s+if: always\(\)\s*$/m);
+    assert.match(cleanup, /^\s+run: docker compose down -v\s*$/m);
+  }
+
+  assert.doesNotMatch(summaryJob, /docker compose down -v/);
 });

@@ -5,7 +5,7 @@ on:
     # GitHub Actions の cron は UTC。0 3 UTC = 12:00 JST（正午）に実行。
     # ⚠️ STG は毎日 22:00-8:00 JST に自動停止する（enable_off_hours_schedule）。
     #    この cron は必ず稼働窓 8:00-22:00 JST 内に置くこと（停止窓に動かすと STG ダウンで失敗）。
-    - cron: '0 3 * * *'
+    - cron: "0 3 * * *"
   # push トリガは外す（毎 push の負荷・時間を削る）。手動は workflow_dispatch。
   workflow_dispatch:
 
@@ -23,6 +23,9 @@ jobs:
       DB_USER: postgres
       DB_PASSWORD: postgres
       DB_NAME: animal_ekarte
+      APP_ENV: test
+      LOAD_TEST_LOGIN_EMAIL: stg-staff-10000021@example.test
+      LOAD_TEST_LOGIN_PASSWORD: password
 
     steps:
       - name: Checkout code
@@ -74,18 +77,15 @@ jobs:
           echo "=== db logs ==="
           docker compose logs --no-color db | tail -50
 
-      # #109 / TASK-606: 認証は STG_DEMO_* のみ。fallback / continue-on-error 禁止。
-      # secret 値は env 経由で k6 に渡すだけで、step log / summary には出さない。
-      - name: Require STG_DEMO credentials
-        env:
-          STG_DEMO_EMAIL: ${{ secrets.STG_DEMO_EMAIL }}
-          STG_DEMO_PASSWORD: ${{ secrets.STG_DEMO_PASSWORD }}
+      # Local CI uses the public synthetic test account only; no STG secret fallback.
+      # Credentials are inherited by k6 and never written to logs or summaries.
+      - name: Require LOAD_TEST_LOGIN credentials
         run: |
-          if [ -z "${STG_DEMO_EMAIL}" ] || [ -z "${STG_DEMO_PASSWORD}" ]; then
-            echo "STG_DEMO_EMAIL and STG_DEMO_PASSWORD secrets are required (no fallback)"
+          if [ -z "${LOAD_TEST_LOGIN_EMAIL}" ] || [ -z "${LOAD_TEST_LOGIN_PASSWORD}" ]; then
+            echo "LOAD_TEST_LOGIN_EMAIL and LOAD_TEST_LOGIN_PASSWORD are required (no fallback)"
             exit 1
           fi
-          echo "STG_DEMO credentials present (values not logged)"
+          echo "LOAD_TEST_LOGIN credentials present (values not logged)"
 
       - name: Run k6 API endpoints load test
         run: |
@@ -94,8 +94,8 @@ jobs:
             --summary-export load-tests/results-endpoints-summary.json
         env:
           BASE_URL: http://localhost:8080
-          STG_DEMO_EMAIL: ${{ secrets.STG_DEMO_EMAIL }}
-          STG_DEMO_PASSWORD: ${{ secrets.STG_DEMO_PASSWORD }}
+          LOAD_TEST_LOGIN_EMAIL: ${{ env.LOAD_TEST_LOGIN_EMAIL }}
+          LOAD_TEST_LOGIN_PASSWORD: ${{ env.LOAD_TEST_LOGIN_PASSWORD }}
 
       - name: Run k6 spike test
         run: |
@@ -104,8 +104,8 @@ jobs:
             --summary-export load-tests/results-spike-summary.json
         env:
           BASE_URL: http://localhost:8080
-          STG_DEMO_EMAIL: ${{ secrets.STG_DEMO_EMAIL }}
-          STG_DEMO_PASSWORD: ${{ secrets.STG_DEMO_PASSWORD }}
+          LOAD_TEST_LOGIN_EMAIL: ${{ env.LOAD_TEST_LOGIN_EMAIL }}
+          LOAD_TEST_LOGIN_PASSWORD: ${{ env.LOAD_TEST_LOGIN_PASSWORD }}
 
       - name: Upload load test results
         uses: actions/upload-artifact@v7
@@ -179,6 +179,10 @@ jobs:
             echo "Validated fail-closed metrics: http_reqs, iterations, checks, successful_logins (counts only; secrets not logged)."
           } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Stop app stack
+        if: always()
+        run: docker compose down -v
+
   lighthouse:
     timeout-minutes: 30
     runs-on: ubuntu-latest
@@ -202,7 +206,7 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
+          cache: "pnpm"
           cache-dependency-path: frontend/pnpm-lock.yaml
 
       - name: Install frontend dependencies (lighthouse + chrome-launcher)
@@ -305,7 +309,3 @@ jobs:
             echo ""
             echo "Results available in Artifacts"
           } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Stop Docker services
-        if: always()
-        run: docker compose down -v 2>/dev/null || true

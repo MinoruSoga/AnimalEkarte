@@ -96,11 +96,14 @@ Credentials are **env-injected only** (SEC-CS2-F01). There is no in-repository p
 
 | Variable              | Required                      | Description                                                                            |
 | --------------------- | ----------------------------- | -------------------------------------------------------------------------------------- |
-| `E2E_LOGIN_EMAIL`     | yes (for authenticated specs) | Admin account email present in the target DB (local demo seed)                         |
-| `E2E_LOGIN_PASSWORD`  | yes (for authenticated specs) | Matching password (never commit; inject via shell/CI secrets)                          |
+| `E2E_LOGIN_EMAIL`     | yes (for authenticated specs) | Synthetic non-production account present through the `APP_ENV=test` login seed         |
+| `E2E_LOGIN_PASSWORD`  | yes (for authenticated specs) | Matching public synthetic fixture password; never print it in logs or reports          |
 | `E2E_AUTH_STATE_PATH` | no                            | Cached storage-state path (default `/tmp/animal-ekarte-demo-admin-storage-state.json`) |
 
 Login is handled automatically via `helpers/auth.ts`; no manual pre-auth step is needed once the env vars are set.
+The manual E2E workflow runs only `auth-flows.spec.ts` with `APP_ENV=test` and the public
+synthetic fixture. It is an auth-smoke path, not evidence that the full clinical/data-dependent
+suite can run against a fresh database.
 
 ## Running Tests
 
