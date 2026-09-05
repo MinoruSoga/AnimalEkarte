@@ -7,9 +7,6 @@ import { LoginForm } from "./LoginForm";
 
 const { loginMock } = vi.hoisted(() => ({ loginMock: vi.fn() }));
 
-/** Test-only fake — must never equal production staff-attach secrets. */
-const TEST_DEMO_LOGIN_PASSWORD = "test-demo-pass";
-
 vi.mock("@/hooks/use-auth", () => ({
   useAuth: () => ({
     login: loginMock,
@@ -25,7 +22,6 @@ function CurrentLocation() {
 describe("LoginForm touch targets", () => {
   beforeEach(() => {
     loginMock.mockReset().mockResolvedValue(undefined);
-    vi.stubEnv("VITE_DEMO_LOGIN_PASSWORD", TEST_DEMO_LOGIN_PASSWORD);
   });
 
   afterEach(() => {
@@ -83,7 +79,6 @@ describe("LoginForm touch targets", () => {
 describe("LoginForm demo accounts (staff-attach)", () => {
   beforeEach(() => {
     loginMock.mockReset().mockResolvedValue(undefined);
-    vi.stubEnv("VITE_DEMO_LOGIN_PASSWORD", TEST_DEMO_LOGIN_PASSWORD);
   });
 
   afterEach(() => {
@@ -107,16 +102,13 @@ describe("LoginForm demo accounts (staff-attach)", () => {
     expect(screen.getAllByText(/敷島病院/).length).toBeGreaterThanOrEqual(9);
     expect(screen.getAllByText(/Hako bu neco/).length).toBeGreaterThanOrEqual(9);
     expect(screen.getByTestId("demo-accounts")).toHaveClass("max-w-[760px]");
-    expect(
-      screen.getByText("パスワードは自動入力されます（staff-attach と同一）"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("パスワードは自動入力されます（全デモ共通）")).toBeInTheDocument();
     expect(screen.queryByText(/パスワード:\s*password/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(TEST_DEMO_LOGIN_PASSWORD)).not.toBeInTheDocument();
     expect(screen.queryByText("hayashi@noah-vet.co.jp")).not.toBeInTheDocument();
     expect(screen.queryByText("admin@example.com")).not.toBeInTheDocument();
   });
 
-  it("デモアカウント行のクリックは email と VITE_DEMO_LOGIN_PASSWORD を注入する", async () => {
+  it("デモアカウント行のクリックは email と共通デモパスワードを注入する", async () => {
     const user = userEvent.setup();
     render(
       <MemoryRouter>
@@ -132,31 +124,7 @@ describe("LoginForm demo accounts (staff-attach)", () => {
     await user.click(rowButton as HTMLButtonElement);
 
     expect(screen.getByLabelText("メールアドレス")).toHaveValue(emailText);
-    expect(screen.getByLabelText("パスワード")).toHaveValue(TEST_DEMO_LOGIN_PASSWORD);
-    expect(screen.getByLabelText("パスワード")).not.toHaveValue("password");
-  });
-
-  it("VITE_DEMO_LOGIN_PASSWORD 未設定時は password を入れずヘルパーで案内する", async () => {
-    vi.stubEnv("VITE_DEMO_LOGIN_PASSWORD", "");
-    const user = userEvent.setup();
-    render(
-      <MemoryRouter>
-        <LoginForm />
-      </MemoryRouter>,
-    );
-
-    expect(
-      screen.getByText(
-        "デモ用パスワード未設定 — ローカルは .env.local、STG は GitHub secret を staff-attach と揃えてください",
-      ),
-    ).toBeInTheDocument();
-
-    const firstDemoEmail = screen.getAllByText(/stg-staff-\d+@example\.test/)[0];
-    const rowButton = firstDemoEmail.closest("button");
-    expect(rowButton).not.toBeNull();
-    await user.click(rowButton as HTMLButtonElement);
-
-    expect(screen.getByLabelText("パスワード")).toHaveValue("");
+    expect(screen.getByLabelText("パスワード")).toHaveValue("password");
   });
 
   it("デモアカウント一覧は縦スクロール可能な領域に収める", () => {

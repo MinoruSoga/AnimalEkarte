@@ -9,6 +9,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/animal-ekarte/backend/internal/seedlogin"
 )
 
 const (
@@ -101,6 +103,38 @@ func TestDemoAccountLoginFormMatchesStaffAttachContract(t *testing.T) {
 
 	for _, violation := range demoAccountStaffAttachContractViolations(uiAccounts, tables) {
 		t.Errorf("%s", violation)
+	}
+}
+
+func TestDemoAccountLoginFormMatchesSeedloginCatalog(t *testing.T) {
+	moduleRoot := mustFindSeedCSVModuleRoot(t)
+	source, err := os.ReadFile(mustFindDemoAccountLoginFormPath(t, moduleRoot))
+	if err != nil {
+		t.Fatalf("read LoginForm.tsx: %v", err)
+	}
+
+	uiAccounts := parseDemoAccountObjectLines(string(source))
+	catalog := seedlogin.Catalog()
+	if len(uiAccounts) != len(catalog) {
+		t.Fatalf("DEMO_ACCOUNTS count = %d, seedlogin catalog = %d", len(uiAccounts), len(catalog))
+	}
+	for i, spec := range catalog {
+		ui := uiAccounts[i]
+		if ui.email != spec.Email {
+			t.Errorf("index %d email: ui=%s catalog=%s", i, ui.email, spec.Email)
+		}
+		if ui.occupationLabel != spec.OccupationLabel {
+			t.Errorf("%s occupationLabel: ui=%q catalog=%q", spec.Email, ui.occupationLabel, spec.OccupationLabel)
+		}
+		if ui.permissionLabel != seedlogin.PermissionGroupName {
+			t.Errorf("%s permissionLabel: ui=%q want %q", spec.Email, ui.permissionLabel, seedlogin.PermissionGroupName)
+		}
+		if ui.clinicLabel != spec.ClinicLabel {
+			t.Errorf("%s clinicLabel: ui=%q catalog=%q", spec.Email, ui.clinicLabel, spec.ClinicLabel)
+		}
+		if ui.isSystemAdmin {
+			t.Errorf("%s must not be system admin", spec.Email)
+		}
 	}
 }
 

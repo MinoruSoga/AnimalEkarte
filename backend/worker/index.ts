@@ -12,7 +12,7 @@
 // 触るユースケースが増えた場合のために wrangler.jsonc の binding 自体は残す)。
 import { Container, getContainer } from "@cloudflare/containers";
 import { env } from "cloudflare:workers";
-import { isAuthorizedMigrateRequest, toMigrateResponse, type MigrateExecResult } from "./migrate-exec";
+import { isAuthorizedMigrateRequest, toMigrateResponse, attachLoginSeedMigrateEnv, type MigrateExecResult } from "./migrate-exec";
 import { dispatchScheduledEvent } from "./scheduled-handler";
 import {
   SchedulerCoordinator,
@@ -50,6 +50,7 @@ export class AnimalEkarteApiContainer extends Container<Env> {
     PORT: "8080",
     GIN_MODE: env.GIN_MODE,
     LOG_LEVEL: env.LOG_LEVEL,
+    APP_ENV: env.APP_ENV,
 
     // DB — PlanetScale 直結(Hyperdrive 非経由。上記コメント参照)
     DB_HOST: env.DB_HOST,
@@ -122,18 +123,20 @@ export class AnimalEkarteApiContainer extends Container<Env> {
     }
 
     // 実測判明(試行10): 低レベル exec() は起動時 envVars を継承しない(docker exec と異なり
-    // 新規プロセスは素の環境で起動される)。migrate バイナリが読む DB_* のみを明示的に渡す
-    // (code-reviewer指摘 LOW — this.envVars 全体ではなく最小権限の subset に絞る。
-    // JWT_SECRET/SMTP等の非DB値をmigrateプロセスに渡す必要はない)。
-    const migrateEnv: Record<string, string> = {
-      DB_HOST: this.envVars.DB_HOST,
-      DB_PORT: this.envVars.DB_PORT,
-      DB_USER: this.envVars.DB_USER,
-      DB_PASSWORD: this.envVars.DB_PASSWORD,
-      DB_NAME: this.envVars.DB_NAME,
-      DB_SSL_MODE: this.envVars.DB_SSL_MODE,
-      DB_SSL_ROOT_CERT: this.envVars.DB_SSL_ROOT_CERT,
-    };
+    // 新規プロセスは素の環境で起動される)。migrate バイナリが読む DB_* とログイン seed 用の
+    // APP_ENV のみを渡す。JWT_SECRET/SMTP は渡さない。
+    const migrateEnv = attachLoginSeedMigrateEnv(
+      {
+        DB_HOST: this.envVars.DB_HOST,
+        DB_PORT: this.envVars.DB_PORT,
+        DB_USER: this.envVars.DB_USER,
+        DB_PASSWORD: this.envVars.DB_PASSWORD,
+        DB_NAME: this.envVars.DB_NAME,
+        DB_SSL_MODE: this.envVars.DB_SSL_MODE,
+        DB_SSL_ROOT_CERT: this.envVars.DB_SSL_ROOT_CERT,
+      },
+      env.APP_ENV,
+    );
 
     const proc = await rawContainer.exec(["/app/migrate"], {
       env: migrateEnv,

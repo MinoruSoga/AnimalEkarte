@@ -62,15 +62,6 @@ describe("LoginForm SHOW_DEMO — DEV or Vercel preview (#91 / SEC-CS2-F01)", ()
     expect(mod.SHOW_DEMO).toBe(true);
   });
 
-  it("vite.config は CI preview/production だけ VITE_DEMO_LOGIN_PASSWORD を define する", () => {
-    const src = readFileSync(
-      join(dirname(fileURLToPath(import.meta.url)), "../../../../vite.config.ts"),
-      "utf8",
-    );
-    expect(src).toContain("process.env.DEMO_LOGIN_PASSWORD");
-    expect(src).toContain('vercelEnv === "preview" || vercelEnv === "production"');
-  });
-
   it("vite.config は preview/production の API を Cloudflare ホストに define する", () => {
     const frontendRoot = join(dirname(fileURLToPath(import.meta.url)), "../../../..");
     const src = readFileSync(join(frontendRoot, "vite.config.ts"), "utf8");
@@ -84,7 +75,7 @@ describe("LoginForm SHOW_DEMO — DEV or Vercel preview (#91 / SEC-CS2-F01)", ()
     expect(envProduction).not.toContain("elb.amazonaws.com");
   });
 
-  it("VITE_DEMO_LOGIN_PASSWORD は SHOW_DEMO が真のときだけ読む", () => {
+  it("デモパスワードは SHOW_DEMO が真のときだけ返す", () => {
     const src = readFileSync(
       join(dirname(fileURLToPath(import.meta.url)), "LoginForm.tsx"),
       "utf8",
@@ -107,11 +98,7 @@ describe("LoginForm SHOW_DEMO — DEV or Vercel preview (#91 / SEC-CS2-F01)", ()
     expect(fnEnd).toBeGreaterThan(fnStart);
     const fn = src.slice(fnStart, fnEnd + 1);
     expect(fn).toMatch(/if\s*\(\s*!SHOW_DEMO\s*\)/);
-    const envRefs = [...src.matchAll(/import\.meta\.env\.VITE_DEMO_LOGIN_PASSWORD/g)];
-    expect(envRefs.length).toBeGreaterThan(0);
-    for (const match of envRefs) {
-      expect(match.index).toBeGreaterThan(fnStart);
-      expect(match.index).toBeLessThan(fnEnd);
-    }
+    expect(fn).toContain('"password"');
+    expect(src).not.toContain("VITE_DEMO_LOGIN_PASSWORD");
   });
 });

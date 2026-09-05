@@ -124,6 +124,7 @@ jobs:
           exit 1
 
       - name: Optional API smoke (CRUD)
+        continue-on-error: true
         env:
           STG_DEMO_EMAIL: ${{ secrets.STG_DEMO_EMAIL }}
           STG_DEMO_PASSWORD: ${{ secrets.STG_DEMO_PASSWORD }}

@@ -8,11 +8,12 @@
 | category | source | retention |
 |---|---|---|
 | Master seed | `backend/migrations/seeds/002_master/` | environment lifetime。通常cleanupしない |
+| Synthetic demo login | migrate フェーズ3 `internal/seedlogin`（LoginForm と同じ `stg-staff-*@example.test`）。共通パスワードはコード定数 | environment lifetime |
 | Operation-provisioned account | [STAFF_ACCOUNT_PROVISIONING.md](./STAFF_ACCOUNT_PROVISIONING.md) | owner/expiryをrun sheetに記録 |
 | Smoke data | [CRUD-SMOKE-TEST.md](./CRUD-SMOKE-TEST.md) | 同じrunでcleanup |
 | Investigation data | approved task/run sheet | ownerと期限を固定し、終了時cleanup |
 
-`002_master` は医院骨格と参照masterを提供する。現在のclinic CSVにはID 1/2があり、clinic-scoped permission groupsが含まれる。ID 1やgroup名を「system adminとして削除不可」と扱わない。privileged demo accountはseedされない。
+`002_master` は医院骨格と参照masterを提供する。現在のclinic CSVにはID 1–4があり、clinic-scoped permission groupsが含まれる。ID 1やgroup名を「system adminとして削除不可」と扱わない。CSV に privileged demo accountは載せない。STG/local の画面デモログインはフェーズ3が `一般` 権限の合成アカウントを upsert する。
 
 ローカルを含む全environmentで `BundleOrderForEnv(APP_ENV)` は現在 `002_master` だけを返す。臨床/demo dataはseed bundleへ復元せず、ローカルは `_old_db_handoff`、STG cutover/UATは承認済みF6経路を使う。
 
@@ -59,7 +60,7 @@ Smoke dataは原則残置しない。investigation dataを一時保持する場�
 - local disposable DB: [LOCAL_DB_RESET.md](./LOCAL_DB_RESET.md) のuser-owned destructive stepだけを使う。
 - shared STG/production: data owner、backup/restore、downtime、target、approvalが確定するまで実行しない。
 - current Cloudflare workflowに`db_reset` inputはない。AWSは退役済みでrollback/reset先ではない。
-- 再構築後も適用するseedは `BundleOrderForEnv(APP_ENV)`、現在は `002_master` のみ。
+- 再構築後も適用する CSV seedは `BundleOrderForEnv(APP_ENV)`、現在は `002_master` のみ。デモログインは development/staging の migrate フェーズ3で upsert する。
 
 health `200` はlivenessだけを示す。運用account、permissions、必要なhandoff/import、corrected CRUD casesを別に確認する。
 

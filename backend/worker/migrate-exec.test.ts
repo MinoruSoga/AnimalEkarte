@@ -6,7 +6,7 @@
 // WebCrypto implementation — a Node-run test would either fail to resolve the
 // call or silently exercise a different code path than production.
 import { describe, expect, it } from "vitest";
-import { isAuthorizedMigrateRequest, timingSafeEqual, toMigrateResponse } from "./migrate-exec";
+import { isAuthorizedMigrateRequest, timingSafeEqual, toMigrateResponse, attachLoginSeedMigrateEnv } from "./migrate-exec";
 
 function utf8ByteLength(value: string): number {
   return new TextEncoder().encode(value).length;
@@ -126,5 +126,27 @@ describe("toMigrateResponse", () => {
   it("sets Content-Type: application/json", () => {
     const res = toMigrateResponse({ exitCode: 0, stdout: "", stderr: "" });
     expect(res.headers.get("Content-Type")).toBe("application/json");
+  });
+});
+
+describe("attachLoginSeedMigrateEnv", () => {
+  const dbEnv = {
+    DB_HOST: "db.example.test",
+    DB_PORT: "5432",
+  };
+
+  it("adds APP_ENV when set", () => {
+    expect(attachLoginSeedMigrateEnv(dbEnv, "staging")).toEqual({
+      DB_HOST: "db.example.test",
+      DB_PORT: "5432",
+      APP_ENV: "staging",
+    });
+  });
+
+  it("omits APP_ENV when empty so Go fail-closes", () => {
+    expect(attachLoginSeedMigrateEnv(dbEnv, "")).toEqual({
+      DB_HOST: "db.example.test",
+      DB_PORT: "5432",
+    });
   });
 });

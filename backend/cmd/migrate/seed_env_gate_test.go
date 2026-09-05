@@ -26,7 +26,8 @@ func TestSeedBundlesForEnv_ProductionPlanExcludesDemo(t *testing.T) {
 	}
 }
 
-// SEC-CS2-F01: staging must not receive privileged demo credentials via migrate.
+// SEC-CS2-F01: staging CSV plan stays master-only (no accounts.csv / 003_demo).
+// Synthetic 一般 logins are phase 3 (seedlogin), not BundleOrderForEnv.
 func TestSeedBundlesForEnv_StagingIsMasterOnly(t *testing.T) {
 	t.Parallel()
 

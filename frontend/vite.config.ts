@@ -134,9 +134,6 @@ const define: Record<string, string> = {
   __VERCEL_ENV__: JSON.stringify(vercelEnv),
 };
 if (vercelEnv === "preview" || vercelEnv === "production") {
-  define["import.meta.env.VITE_DEMO_LOGIN_PASSWORD"] = JSON.stringify(
-    vercelEnv === "preview" ? (process.env.DEMO_LOGIN_PASSWORD ?? "") : "",
-  );
   // loadEnv は frontend/.env.production を読む。AWS ALB が入っていると CSP
   // connect-src（api.stg.noah-karte.com / api.noah-karte.com）と食い違い、
   // ログインが「接続できません」になる。preview/production はホストを define で固定する。

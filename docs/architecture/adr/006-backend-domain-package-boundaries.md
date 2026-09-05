@@ -38,7 +38,7 @@ backend/internal/
   clinic/ manualarticle/ httpapi/ identitylink/
   # 現状維持（既存の凝集cross-cutting package）:
   config/ dbconn/ middleware/ infra/ model/
-  timeutil/ seedbundle/ logger/ csvimport/
+  timeutil/ seedbundle/ seedlogin/ logger/ csvimport/
   labdeviceagent/  # cmd/lab-device-agent 専用のローカル検査機器 agent。domain ではない
   authjwt/ apperrors/ apicontract/ lintscan/
   audit/ persistence/ scheduler/ sharedkernel/
@@ -48,6 +48,8 @@ backend/internal/
 > 2026-07-30 amendment: `identitylink/` を #239 Phase 1 の vertical slice として target domain に追加（cross-clinic owner/pet identity 連結）。依存は `apperrors` / `audit` / `httpapi` / `model` / `persistence` / `textsearch` のみ（owner/pet package への Go import は無し）。
 
 > 2026-08-22 amendment: `labdeviceagent/` を keep-tier に追加する。Mac ローカル検査機器の serial-port agent（ADR-008）であり、consumer は `cmd/lab-device-agent` のみ。14 target domain には含めない。
+
+> 2026-09-05 amendment: `seedlogin/` を keep-tier に追加する。migrate フェーズ3の合成デモログイン upsert。runtime の `staffs` write owner は `staff` のまま。14 target domain には含めない。
 
 ### Product philosophyに基づく運用境界（project decision）
 
