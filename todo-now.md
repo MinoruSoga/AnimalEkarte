@@ -3,7 +3,7 @@
 ## このファイルの位置付け
 
 ユーザーの明示依頼により作成した、今回の監査6件に限定した作業用記録。以下は会話で受領した報告の要約・着手用整理であり、監査全文の逐語転載ではない。
-実行状態の正本は引き続きLinear（[作業台帳ルール](docs/work/README.md)）。Issueを確認・登録した際はこの表にIDを紐付け、二重管理を避ける。今回、Linear照会・登録・実装は行っていない。
+実行状態の正本は引き続きLinear（[作業台帳ルール](docs/work/README.md)）。Issueを確認・登録した際はこの表にIDを紐付け、二重管理を避ける。Linear照会・登録は未実施。F1〜F6はローカル検証後に`main`へ統合済み。F1〜F3はローカル追跡ref `origin/main`にも含まれ、F4〜F6はこのセッションでは未push。fetchは実施していないため、remoteの最新状態はUNKNOWNである。
 
 - 受領報告: `Completion Report` / Run status `COMPLETE`（静的監査の完了）
 - 監査日時: 2026-09-05 06:07–06:13 JST
@@ -16,16 +16,16 @@
 
 ## 着手一覧
 
-全件、受領報告では未修正。現在のLinear上の重複・対応状況は未照会。
+現在のLinear上の重複・対応状況は未照会。実装・統合状態は2026-09-05時点のGit履歴で更新した。
 
-| 優先 | ID  | 指摘                                       | 分類                          | Severity / Confidence | この記録上の状態                 | 次の一手                           | Linear |
-| ---- | --- | ------------------------------------------ | ----------------------------- | --------------------- | -------------------------------- | ---------------------------------- | ------ |
-| 1    | F1  | 診察プラン更新・削除とカルテ確定の未直列化 | 製品defect指摘                | High / High           | 静的指摘・実DB再現未確認         | 2transactionの競合REDテスト        | 未照会 |
-| 2    | F2  | 編集内容と保存versionの不一致              | 製品defect指摘                | High / High           | 静的指摘・結合再現未確認         | 同一recordのv1→v2再取得テスト      | 未照会 |
-| 3    | F3  | CI E2E・負荷テストの認証fixture不足        | verification gap              | Medium / High         | 準備経路不足の指摘・最新CI未確認 | 合成tenant/accountの準備経路を設計 | 未照会 |
-| 4    | F4  | カルテ受入項目表とpayloadの不一致          | docs drift / verification gap | Medium / High         | 静的指摘                         | 1フォームのUI→request→API照合      | 未照会 |
-| 5    | F5  | 診察所見3欄のlabel/id未接続                | a11y defect指摘               | Low / High            | 静的指摘・操作再現未確認         | label取得・focusテスト             | 未照会 |
-| 6    | F6  | 検証skillに廃止packageの例示               | harness drift                 | Low / High            | 静的指摘                         | canonical側の確認・修正と同期      | 未照会 |
+| 優先 | ID  | 指摘                                       | 分類                          | Severity / Confidence | この記録上の状態              | 次の一手                      | Linear |
+| ---- | --- | ------------------------------------------ | ----------------------------- | --------------------- | ----------------------------- | ----------------------------- | ------ |
+| 1    | F1  | 診察プラン更新・削除とカルテ確定の未直列化 | 製品defect指摘                | High / High           | COMPLETE・main/origin統合済み | 実ランタイム境界は別途確認    | 未照会 |
+| 2    | F2  | 編集内容と保存versionの不一致              | 製品defect指摘                | High / High           | COMPLETE・main/origin統合済み | full E2E等は別途確認          | 未照会 |
+| 3    | F3  | CI E2E・負荷テストの認証fixture不足        | verification gap              | Medium / High         | COMPLETE・main/origin統合済み | Actions/Playwright/k6は未実行 | 未照会 |
+| 4    | F4  | カルテ受入項目表とpayloadの不一致          | docs drift / verification gap | Medium / High         | COMPLETE・main統合済み        | push・外部受入は別途          | 未照会 |
+| 5    | F5  | 診察所見3欄のlabel/id未接続                | a11y defect指摘               | Low / High            | COMPLETE・main統合済み        | push・実読み上げは別途        | 未照会 |
+| 6    | F6  | 検証skillに廃止packageの例示               | harness drift                 | Low / High            | COMPLETE・main統合済み        | pushは別途                    | 未照会 |
 
 ## 実施体制
 
@@ -94,7 +94,7 @@ git diff --check
 
 ### F1 実行結果（2026-09-05）
 
-- 状態: COMPLETE（ローカル `main` へ統合済み。push・release判定は未実施）。claim はユーザー解放待ちの `claim/AE-QA-CLINICAL-PLAN-FINALIZE-SERIALIZATION`、実装基底は `fb04c3ab7b501b404e3e0d8e320086a2de9062aa`。
+- 状態: COMPLETE。実装commit `9f80acbed`（`fix: serialize clinical plan finalization`）は`main`およびローカル追跡ref `origin/main`へ統合済み。専用worktree・work branch・`claim/AE-QA-CLINICAL-PLAN-FINALIZE-SERIALIZATION`は削除済み。実装基底は `fb04c3ab7b501b404e3e0d8e320086a2de9062aa`。release readinessは別判定。
 - 根本原因と修正: Update/Delete が親 `medical_records` を transaction 内で `FOR UPDATE` せずに child DML と監査へ進んでいた。両 mutation は transaction 先頭で clinic-scoped draft parent を lock し、child DML・reload・fail-closed audit・commit/rollback まで lock を保持する。Delete は既存 clinical_plan NotFound 契約を保つ read-only preflight 後に、lock 後の tx 内再読込を行う。
 - RED/GREEN: 修正前の実 PostgreSQL 競合試験は child-first Update/Delete で「finalize completed before waiting for the parent row lock」と失敗し、parent-first だけが通過した。修正後は Update/Delete × child-first/finalize-first の4経路が PASS、`-count=5 -race` でも PASS。finalizer の PostgreSQL backend PID を固定して `pg_stat_activity` の actual `Lock` wait を観測し、goroutine順序だけで判定していない。
 - 変更パス: `backend/internal/medicalrecord/clinical_plan_service.go`、`backend/internal/medicalrecord/clinical_plan_audit_tx_test.go`、新規 `backend/internal/medicalrecord/clinical_plan_finalize_concurrency_test.go`、この F1 結果節のみ。
@@ -123,19 +123,19 @@ version未取得時の拒否、409表示、backend CASは既存防御。window f
 
 ### F2 execution result — 2026-09-05
 
-- 状態: COMPLETE（専用worktreeでのローカル実装・未commit・未merge）。BASE_SHA: `9f80acbed67e980adaeba22013f764335d2e4c2d`、branch: `work/ae-qa-clinical-plan-edit-snapshot-20260905`。claim `claim/AE-QA-CLINICAL-PLAN-EDIT-SNAPSHOT` は保持し、ユーザーのみが解放する。
+- 状態: COMPLETE。実装commit `30a0bac89`（`fix: keep clinical plan edit snapshot consistent`）は`main`およびローカル追跡ref `origin/main`へ統合済み。専用worktree・work branch・`claim/AE-QA-CLINICAL-PLAN-EDIT-SNAPSHOT`は削除済み。実装基底は `9f80acbed67e980adaeba22013f764335d2e4c2d`。
 - 根本原因と修正: queryの最新versionをフォームの旧入力へ直接結合していた。clinical-planの3欄・診断1/2 ID・baseline versionを一つのsnapshotにし、dirtyなremote更新は採用しない。clean更新と完全なown PATCH応答だけをbaselineへ採用し、古いinvalidate refetch、in-flight入力、record切替後の遅延応答を拒否する。
 - 変更パス: `use-apply-clinical-plan.ts`、新規`use-apply-clinical-plan.test.ts`、`use-medical-record-form-helpers.ts`、`use-medical-record-form.ts`、`use-medical-record-save-action.ts`、`use-medical-record-save-action.test.ts`、`use-medical-record-form.action.test.ts`、このF2結果節のみ。
 - RED/GREEN: v1→編集→同一record v2 rerenderで旧実装は`A の編集値`にversion `2`を送信してRED。修正後、one-off candidate mountで4 Vitest files・80 tests PASS、scoped ESLint PASS、Prettier PASS。
 - 独立review: React reviewとTypeScript/state-machine reviewの各HIGH（完全応答、in-flight入力、record switch）を修正し、対応回帰を追加して再検証済み。CRITICALなし、MEDIUMは古いrefetch回帰を追加して解消。Astraはnot invoked: tests/reviewsで未解決のsnapshot/React concurrency判断は残らない。
-- 境界: local testsのみ。full type-check/build/E2E、commit、main統合、push、release readinessは未実施・未証明。
+- 境界: 実装時の証拠はlocal scoped testsのみ。full type-check/build/E2Eとrelease readinessは未実施・未証明。commit・main/origin統合は後続作業で完了した。
 
 ### F2 scope closeout — 2026-09-05
 
 - 承認履歴: 元のF2保存promptは7パスのみをallowlistし、`use-medical-record-save-action.test.ts` は当初範囲外だった。後続のユーザー明示承認でこの1パスを8番目として事後承認した。これは元から許可されていたとの遡及的な記載ではない。
 - 再照合: 8パスのcandidate union、empty index、retained claim/worktree、candidate-mount SHA-256を確認した。4 Vitest files・80 tests、追加testを含むscoped ESLint、Prettier、diff/new-file whitespaceはPASS。
 - fresh closeout review: CRITICAL/HIGHなし。MEDIUMの「不完全な成功応答を直接test化」は、完全応答のみ通知する現行guardの追加防御候補として記録するが、今回のcloseout修正条件ではなく変更しない。Astraはnot invoked。
-- closeout境界: candidateは未commit・未merge、claimは保持。main統合、push、claim解放、full type-check/build/E2E、release readinessは未実施・未証明。
+- closeout後の更新: candidateはcommit `30a0bac89`としてmain/originへ統合済みで、worktree・work branch・claimも削除済み。full type-check/build/E2Eとrelease readinessは引き続き未実施・未証明。
 
 ## F3 — CI認証fixtureの準備経路
 
@@ -149,16 +149,18 @@ fresh CI DBの通常seedにはaccountがなく、E2E/負荷テストが認証で
 
 認証失敗を成功扱いしない防御はある。最新Actions結果はUNKNOWN。工数概算1–2日。
 
-- [ ] 既知gapの既存Issueを確認し、E2Eと負荷テストの必要データ・認可範囲を確定する。
-- [ ] fresh CI専用の合成tenant/accountと必要最小限のfixtureを準備する経路を設計する。
-- [ ] 認証、対象画面/API、再実行、後始末を専用環境で検証する。
-- [ ] 実STG account・実患者データを流用しない。workflowの変更と外部CI実行の権限を区別する。
+- [ ] Linear上の既知gap・重複Issueを確認する。
+- [x] E2Eと負荷テストの必要データ・認可範囲を確定する。
+- [x] fresh CI専用の合成tenant/accountと必要最小限のfixtureを準備する経路を実装する。
+- [x] 認証smoke・対象API・再実行・同一runner cleanupの配線とfail-closed契約をscoped contractで検証する。
+- [x] 実STG account・実患者データを流用せず、workflow変更と外部CI実行の証拠を区別する。
 
 ### F3 candidate result — 2026-09-05
 
 - 範囲履歴: 元の契約は10パスだった。ユーザーは実行後に `load-tests/README.md` を第11パスとして将来向けに承認し、local API／spike手順の stale `STG_DEMO_*` 指示を `LOAD_TEST_LOGIN_*` へ修正した。
-- 状態: local candidate implementation only（未commit・未merge、`claim/AE-QA-CI-AUTH-FIXTURE` は保持）。`APP_ENV=test` の synthetic login seed を E2E auth smoke と local k6 job に明示し、E2E は `auth-flows.spec.ts` のみを実行する。
-- 証拠境界: rerun outcome は実際に完了した named gate 後にのみ記録する。full clinical/data-dependent E2E fixture は未準備で別途 BLOCKED。GitHub Actions、fresh DB、Playwright、k6 の実行結果は UNREPORTED/UNKNOWN。外部実行、commit、merge、push、claim release は含まない。
+- 状態: COMPLETE。実装commit `861192357`（`ci: provision synthetic auth fixtures`）をmerge commit `67f63da03`で`main`へ統合済みで、ローカル追跡ref `origin/main`にも含まれる。専用worktree・work branch・`claim/AE-QA-CI-AUTH-FIXTURE`は削除済み。`APP_ENV=test` のsynthetic login seedをE2E auth smokeとlocal k6 jobに明示し、E2Eは`auth-flows.spec.ts`のみを実行する。
+- 検証: workflow contract 10/10、candidate mount SHA-256一致、Compose renderと非secret APP_ENV assertion、scoped seedlogin/migrate Go tests、4 MarkdownのPrettier、`git diff --check`をPASS。fresh CI/security reviewはCRITICAL/HIGH/MEDIUMなし。Astraは未使用。
+- 証拠境界: full clinical/data-dependent E2E fixtureは未準備で別途BLOCKED。GitHub Actions、fresh CI DB、Playwright、k6の実行結果はUNREPORTED/UNKNOWNであり、main/origin統合はそれらの実行成功やrelease readinessを証明しない。
 
 ## F4 — カルテ受入項目表のdrift
 
@@ -167,9 +169,15 @@ fresh CI DBの通常seedにはaccountがなく、E2E/負荷テストが認証で
 
 存在しない欄・wire keyを受入対象にし、実際の保存契約との対応を誤る懸念。inventoryは再構築中と明示され、inventory-to-source gateは未実装との報告。工数概算2–4h。
 
-- [ ] カルテ1フォームのUI state→request key→APIを照合する。
-- [ ] 列挙済み項目を正し、未確認範囲を明示する。診断3の新規実装へ拡張しない。
-- [ ] 対応表の検査を追加する場合も当該フォームに限定する。
+- [x] カルテ1フォームのUI state→request key→APIを照合する。
+- [x] 列挙済み項目を正し、未確認範囲を明示する。診断3の新規実装へ拡張しない。
+- [x] 対応表の検査を当該フォームに限定して追加する。
+
+### F4 execution result — 2026-09-05
+
+- 状態: COMPLETE。commit `52d26ecdc`（`test: guard clinical plan field inventory`）をローカル`main`へ統合済み。専用worktree・work branch・`claim/AE-QA-FORM-FIELD-INVENTORY`は削除済み。`origin/main`へのpushとrelease readinessは未実施・未証明。
+- 変更: `FORM-FIELD-INVENTORY.md`でclinical-planの8項目をUI state→PATCH key→API contractへ対応付け、`check-workflow-contracts.test.mjs`へ当該section限定のdrift gateを追加した。診断3の新規実装には拡張していない。
+- 検証: contract test 11/11、candidate mount SHA-256一致、Prettier 3.9.6、`git diff --check`をPASS。独立docs/CI/security reviewで未解消CRITICAL/HIGHなし。Actions・Playwright/UATはUNREPORTED。
 
 ## F5 — 診察所見3欄のlabel/id
 
@@ -179,17 +187,30 @@ fresh CI DBの通常seedにはaccountがなく、E2E/負荷テストが認証で
 
 ラベルクリックによるfocusとプログラム上の関連付けが成立しないとの指摘。読み上げ実挙動は未確認。工数概算1–2h。
 
-- [ ] 3欄をgetByLabelTextで取得できることを確認するテストを書く。
-- [ ] 一意なidとhtmlForを接続し、ラベルクリックのfocusを検証する。
-- [ ] 値表示・disabledの既存挙動を維持する。
+- [x] 3欄をgetByLabelTextで取得できることを確認するテストを書く。
+- [x] 一意なidとhtmlForを接続し、ラベルクリックのfocusを検証する。
+- [x] 値表示・disabledの既存挙動を維持する。
+
+### F5 execution result — 2026-09-05
+
+- 状態: COMPLETE。commit `134d294ef`（`fix: associate clinical plan textarea labels`）をローカル`main`へ統合済み。専用worktree・work branch・`claim/AE-QA-CLINICAL-PLAN-TEXTAREA-LABELS`は削除済み。`origin/main`へのpushとrelease readinessは未実施・未証明。
+- 変更: 身体検査所見・診断詳細・治療方針の3 textareaへ安定した`id`を設定し、可視labelの`htmlFor`と接続した。
+- 検証: deterministic RED後、対象Vitest 3/3、scoped ESLint、Prettier、candidate mount hash、`git diff --check`をPASS。独立React/a11y reviewでCRITICAL/HIGHなし。スクリーンリーダー実機確認は未実施。
+- 後続候補（未起票・未着手）: 同componentの「診断カテゴリ」「診断病名」labelも`SearchableSelect` triggerと未接続。F5のtextarea限定scopeには含めず、別タスクとして現HEADで再確認してからID・claimを割り当てる。
 
 ## F6 — 検証skillの廃止package例示
 
 `.claude/skills/scoped-verification-gates/SKILL.md:19`に存在しない`./internal/service/...`のlint/vet/test例が残るとの指摘。監査時点では`.agents`側とcanonical側はcmp一致し、単なる同期遅れではない。工数概算1h程度。
 
-- [ ] 現時点のcanonical所有元と同期手順を確認する。
-- [ ] 例示を存在するdomain packageへ修正し、既存同期手順で反映する。
-- [ ] 参照先存在と差分・同期結果を確認する。製品runtime testは不要。
+- [x] 現時点のcanonical所有元と同期手順を確認する。
+- [x] 例示を存在するdomain packageへ修正し、既存同期手順で反映する。
+- [x] 参照先存在と差分・同期結果を確認する。製品runtime testは不要。
+
+### F6 execution result — 2026-09-05
+
+- 状態: COMPLETE。commit `d6f2e8ec1`（`docs: align scoped verification examples`）をローカル`main`へfast-forward統合済み。専用worktree・work branch・`claim/AE-QA-SCOPED-VERIFICATION-SKILL-DRIFT`は削除済み。`origin/main`へのpushとrelease readinessは未実施・未証明。
+- 変更: canonical `.claude/skills/scoped-verification-gates/SKILL.md`から廃止済み`internal/service`例を除去し、Makefileと同じ`golangci/golangci-lint:v2.11.4`および実在するdomain例へ更新した。検証対象を`VERIFY_GO_PACKAGE` / `VERIFY_GO_FILE`として一度確定し、lint/build/vet/test/gofmtで同じ対象を使うfail-closed手順にした。
+- 検証: 旧参照0件、対象package/file存在、canonical/generated mirrorの`cmp`・SHA-256一致、sync script、`git diff --check`をPASS。独立pre-commit reviewのMEDIUMを上記target変数方式で解消後、CRITICAL/HIGH/MEDIUMなし。製品runtime testはdocs/instruction-only変更のため不要。
 
 補足: `docs/CODEX-NAVIGATION-GUIDE.md`は監査時に存在しなかったが、実AGENTS.mdには参照もなかった。会話に入力されたECC補足との違いであり、repoの壊れたリンクとして起票しない。
 
@@ -220,9 +241,9 @@ coverage ratchetは実装・配線ありとの報告（`.github/workflows/ci.yml
 
 ## 次回開始時の確認
 
-- [ ] 現HEADに対する指摘の残存と既存修正を確認する。
-- [ ] Linearで重複Issue・進行中作業を確認し、IDを対応付ける。
-- [ ] F1の使い捨てtest DBの準備状況・安全な実行手順を確定する。
-- [ ] SolでF1単位のTerra向け着手プロンプトを作成する。
+- [ ] LinearでF1〜F6の重複Issue・進行中作業を確認し、必要なIDだけ対応付ける。
+- [ ] F3のGitHub Actions、fresh CI DB、Playwright auth smoke、k6を外部実行し、UNREPORTED境界を更新する。
+- [ ] 「診断カテゴリ」「診断病名」labelと`SearchableSelect` triggerの未接続を現HEADで再確認し、別タスクとしてscope・ID・claimを確定する。
+- [ ] F4〜F6を含むローカル`main`の3 commitsをreview後にpushし、CI結果とrelease readinessを別判定する。
 
-このファイルの作成は6件の実装修正、Astra呼出し、DB準備、外部投稿、commit/push/mergeの実施を意味しない。完了更新には対象commit、実行した検証と結果、独立レビュー、未確認事項を添える。
+F1〜F6のCOMPLETEは上記commit、ローカル検証、`main`統合の範囲に限る。F4〜F6のpush、Linear照会、外部ランタイム検証、release readinessを意味しない。今後の更新にも対象commit、実行した検証と結果、独立レビュー、未確認事項を添える。
