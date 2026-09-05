@@ -2,7 +2,7 @@
 
 > **目的**: 受け入れ結果をシナリオ ID だけでなく業務ドメイン単位で俯瞰する。
 > **正本リンク**: [scenarios/README.md](./scenarios/README.md) · [TEST_ARCHITECTURE.md](./TEST_ARCHITECTURE.md)
-> **最新ラン**: `reports/uat-2026-09-05-r7/`（r7 gap-clear: lab-device・動物種類 PASS）· V04 は主訴 DELETE FAIL 継続
+> **最新ラン**: `reports/uat-2026-09-05-r8/`（r8 S01 deepen）· r7 master · V04 FAIL/S09 BLOCKED 継続
 > **更新日**: 2026-09-05
 
 ## サマリ（シナリオ S01–S13 + V01–V05）
@@ -40,9 +40,9 @@
 | S06 | PASS |
 | V01 | PASS |
 
-- **未解消ギャップ**: S01 の LSTEP タグ削除/再同期はローカルで観測不可。`ValidateLstepBaseURL` が `api.lstep.jp` 以外（loopback 含む）を拒否するため recording mock を base URL に向けられない。runtime に recording/mock LSTEP HTTP クライアントなし。`audit_logs` の DB 確認はシナリオ上 USER 実施。死亡/復活/会計ガードは PASS。
+- **未解消ギャップ**: S01 死亡/復活/会計ガードは PASS。r8 で sync ON + mock key + line_user_id 時に BE ログで `lstep: write API disabled by deploy gate`（`LSTEP_WRITE_API_ENABLED` unset）と sync 失敗を観測。タグ配列は変化なし。staff audit API なし（DB audit は USER 実施）。PASS には recording mock または write 有効な同期レーンが必要。
 - **関連 bug IDs**: （なし）
-- **証跡**: `reports/uat-2026-09-05-r4/partials-exec.json` · r5 `FINAL.md`
+- **証跡**: [`reports/uat-2026-09-05-r8/FINAL-s01.md`](../../../reports/uat-2026-09-05-r8/FINAL-s01.md)
 
 ---
 
