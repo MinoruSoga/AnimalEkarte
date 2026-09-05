@@ -2,7 +2,7 @@
 
 > **目的**: 受け入れ結果をシナリオ ID だけでなく業務ドメイン単位で俯瞰する。
 > **正本リンク**: [scenarios/README.md](./scenarios/README.md) · [TEST_ARCHITECTURE.md](./TEST_ARCHITECTURE.md)
-> **最新ラン**: `reports/uat-2026-09-05-r10/`（r10 soft gaps PASS）· r9 V05 · r8 S01
+> **最新ラン**: `reports/uat-2026-09-05-r11/`（r11 V05 subforms PASS）· r10 soft · r9
 > **更新日**: 2026-09-05
 
 ## サマリ（シナリオ S01–S13 + V01–V05）
@@ -184,12 +184,13 @@
 
 | シナリオ | status |
 |:---|:---|
-| V05 | **PASS**（r9 deepen） |
+| V05 | **PASS**（r9 + r11 deepen） |
 
-- **r9 深掘り**: auth smoke（空/不正/`a@`/短パスワード・session restore・forgot/reset・change-password API）; LINE 予約設定 GET/PUT+zero validation+restore; ページ編集非破壊+10k header 400; LSTEP GET/PATCH dummy + connection-test fail-closed（`lstep_ok:false`、500 なし）。sync OFF 維持
-- **未解消ギャップ（BLOCKED/N/A・製品 FAIL ではない）**: 実 LINE token lane; owner line-reserve create/cancel; slots/owner-link; LSTEP サブフォーム（trigger/tag/CSV/checkup-sync 等）
-- **関連 bug IDs**: （なし。本ラウンド新規 FAIL なし）
-- **証跡**: [`reports/uat-2026-09-05-r9/FINAL-v05.md`](../../../reports/uat-2026-09-05-r9/FINAL-v05.md)
+- **r9**: auth / LINE settings+page editor / LSTEP settings+connection-test fail-closed
+- **r11**: V05-13 trigger priority PASS; V05-14 tag-code mappings PASS; V05-16 CSV PASS; V05-18 checkup-sync PASS; V05-6/7 LIFF_MOCK reserve create/cancel PASS; V05-10 slots PASS; V05-11 owner⇄LINE link PASS
+- **未解消ギャップ（BLOCKED・製品 FAIL ではない）**: V05-15 tag-config mutate（system_admin 403）; V05-17 bulk remove（LSTEP API unset）; 実 LINE token / UAT-254 close（USER 実機）
+- **関連 bug IDs**: （なし。r11 新規 FAIL なし）
+- **証跡**: [`reports/uat-2026-09-05-r11/FINAL-v05-subforms.md`](../../../reports/uat-2026-09-05-r11/FINAL-v05-subforms.md) · [`reports/uat-2026-09-05-r9/FINAL-v05.md`](../../../reports/uat-2026-09-05-r9/FINAL-v05.md)
 
 ---
 
