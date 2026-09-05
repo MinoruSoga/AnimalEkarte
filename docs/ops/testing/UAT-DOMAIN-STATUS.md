@@ -2,7 +2,7 @@
 
 > **目的**: 受け入れ結果をシナリオ ID だけでなく業務ドメイン単位で俯瞰する。
 > **正本リンク**: [scenarios/README.md](./scenarios/README.md) · [TEST_ARCHITECTURE.md](./TEST_ARCHITECTURE.md)
-> **最新ラン**: `reports/uat-2026-09-05-r12/`（r12 V05-15 tag-config PASS）· r11 subforms
+> **最新ラン**: `reports/uat-2026-09-05-r13/`（r13 V05-17/field inventory）· r12
 > **更新日**: 2026-09-05
 
 ## サマリ（シナリオ S01–S13 + V01–V05）
@@ -188,9 +188,9 @@
 
 - **r9**: auth / LINE settings+page editor / LSTEP settings+connection-test fail-closed
 - **r11**: V05-13 trigger priority PASS; V05-14 tag-code mappings PASS; V05-16 CSV PASS; V05-18 checkup-sync PASS; V05-6/7 LIFF_MOCK reserve create/cancel PASS; V05-10 slots PASS; V05-11 owner⇄LINE link PASS
-- **未解消ギャップ（BLOCKED・製品 FAIL ではない）**: V05-17 bulk remove（LSTEP API unset）; 実 LINE token / UAT-254 close（USER 実機）。V05-15 は r12 で system_admin 一時付与→CRUD PASS→復元
+- **未解消ギャップ（BLOCKED・製品 FAIL ではない）**: V05-17 の LSTEP 実送信 remove（要 sync ON + `LSTEP_WRITE_API_ENABLED` + 到達可能 LSTEP）。ローカル経路（空選択/unlinked 404/validation/idempotent DELETE）は r13 PASS。実 LINE / UAT-254 close は USER。V05-15 は r12 PASS（elevate 復元済）
 - **関連 bug IDs**: （なし。r11 新規 FAIL なし）
-- **証跡**: [`reports/uat-2026-09-05-r12/FINAL-v05-15.md`](../../../reports/uat-2026-09-05-r12/FINAL-v05-15.md) · [`reports/uat-2026-09-05-r11/FINAL-v05-subforms.md`](../../../reports/uat-2026-09-05-r11/FINAL-v05-subforms.md) · [`reports/uat-2026-09-05-r9/FINAL-v05.md`](../../../reports/uat-2026-09-05-r9/FINAL-v05.md)
+- **証跡**: [`reports/uat-2026-09-05-r13/FINAL.md`](../../../reports/uat-2026-09-05-r13/FINAL.md) · [`reports/uat-2026-09-05-r12/FINAL-v05-15.md`](../../../reports/uat-2026-09-05-r12/FINAL-v05-15.md) · [`reports/uat-2026-09-05-r11/FINAL-v05-subforms.md`](../../../reports/uat-2026-09-05-r11/FINAL-v05-subforms.md) · [`reports/uat-2026-09-05-r9/FINAL-v05.md`](../../../reports/uat-2026-09-05-r9/FINAL-v05.md)
 
 ---
 
