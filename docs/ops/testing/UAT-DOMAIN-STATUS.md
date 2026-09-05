@@ -2,7 +2,7 @@
 
 > **目的**: 受け入れ結果をシナリオ ID だけでなく業務ドメイン単位で俯瞰する。
 > **正本リンク**: [scenarios/README.md](./scenarios/README.md) · [TEST_ARCHITECTURE.md](./TEST_ARCHITECTURE.md)
-> **最新ラン**: `reports/uat-2026-09-05-r9/`（r9 V05 deepen PASS）· r8 S01 · r7 master
+> **最新ラン**: `reports/uat-2026-09-05-r10/`（r10 soft gaps PASS）· r9 V05 · r8 S01
 > **更新日**: 2026-09-05
 
 ## サマリ（シナリオ S01–S13 + V01–V05）
@@ -59,9 +59,9 @@
 |:---|:---|
 | S05 | PASS |
 
-- **未解消ギャップ**: ボード UI トグルは soft（API 入院サイクルは PASS）。
+- **未解消ギャップ**: （なし。r10 で Board/List UI トグル + admit/discharge API 再確認 PASS）
 - **関連 bug IDs**: （なし）
-- **証跡**: `reports/uat-2026-09-05-r3/deepen-partials.json`（r3 継承）
+- **証跡**: [`reports/uat-2026-09-05-r10/FINAL-soft-gaps.md`](../../../reports/uat-2026-09-05-r10/FINAL-soft-gaps.md)
 
 ---
 
@@ -126,9 +126,9 @@
 |:---|:---|
 | S10 | PASS |
 
-- **未解消ギャップ**: CSV ダウンロードが 1 回 timeout（コア LTV 整合は PASS）— r3 継承。
+- **未解消ギャップ**: （なし。r10 で CSV ダウンロード PASS — 旧 flake は行未選択でボタン disabled）
 - **関連 bug IDs**: （なし）
-- **証跡**: `reports/uat-2026-09-05-r3/deepen-remaining.json`
+- **証跡**: [`reports/uat-2026-09-05-r10/FINAL-soft-gaps.md`](../../../reports/uat-2026-09-05-r10/FINAL-soft-gaps.md)
 
 ---
 
