@@ -2,7 +2,7 @@
 
 > **目的**: 受け入れ結果をシナリオ ID だけでなく業務ドメイン単位で俯瞰する。
 > **正本リンク**: [scenarios/README.md](./scenarios/README.md) · [TEST_ARCHITECTURE.md](./TEST_ARCHITECTURE.md)
-> **最新ラン**: `reports/uat-2026-09-05-r4/`（r4 / PARTIAL S01・S09・S12 前進）
+> **最新ラン**: `reports/uat-2026-09-05-r5/`（r5 / S09 PARTIAL→**BLOCKED**、S01 PARTIAL 据え置き）
 > **更新日**: 2026-09-05
 
 ## サマリ（シナリオ S01–S13 + V01–V05）
@@ -11,15 +11,15 @@
 |:---|---:|
 | PASS | 16 |
 | FAIL | 0 |
-| PARTIAL | 2 |
-| BLOCKED | 0 |
+| PARTIAL | 1 |
+| BLOCKED | 1 |
 
 | 項目 | 値 |
 |:---|:---|
 | 実施日 | 2026-09-05 |
-| ブランチ | `uat/20260905` @ `b8a6b26e0` |
+| ブランチ | `uat/20260905` @ `230915ac1` |
 | 環境 | local（FE :3003 / BE :8080） |
-| 証跡 | [`reports/uat-2026-09-05-r4/`](../../../reports/uat-2026-09-05-r4/) |
+| 証跡 | [`reports/uat-2026-09-05-r5/`](../../../reports/uat-2026-09-05-r5/) |
 
 ---
 
@@ -40,9 +40,9 @@
 | S06 | PASS |
 | V01 | PASS |
 
-- **未解消ギャップ**: S01 の LSTEP タグ削除/再同期は、mock API キー + `line_user_id` + sync 一時 ON でもローカル観測不可（runtime に recording/mock LSTEP HTTP クライアントなし。実送信は `is_sync_enabled=false` のまま）。死亡ガード自体は PASS。
+- **未解消ギャップ**: S01 の LSTEP タグ削除/再同期はローカルで観測不可。`ValidateLstepBaseURL` が `api.lstep.jp` 以外（loopback 含む）を拒否するため recording mock を base URL に向けられない。runtime に recording/mock LSTEP HTTP クライアントなし。`audit_logs` の DB 確認はシナリオ上 USER 実施。死亡/復活/会計ガードは PASS。
 - **関連 bug IDs**: （なし）
-- **証跡**: `reports/uat-2026-09-05-r4/partials-exec.json`
+- **証跡**: `reports/uat-2026-09-05-r4/partials-exec.json` · r5 `FINAL.md`
 
 ---
 
@@ -72,19 +72,23 @@
 | 実施日 | 2026-09-05 |
 | ブランチ | `uat/20260905` |
 | 環境 | local |
-| ドメイン総合判定 | **PARTIAL** |
+| ドメイン総合判定 | **BLOCKED** |
 
 | シナリオ | status |
 |:---|:---|
 | S07 | PASS |
 | S08 | PASS |
-| S09 | PARTIAL |
+| S09 | **BLOCKED** |
 | S11 | PASS |
 | V02 | PASS |
 
-- **未解消ギャップ**: S09 の timed `completed_at` 5-fixture 帰属は承認済み helper 不在のため BLOCKED（SQL/clock 禁止）。settings/preview/history は PASS。
-- **関連 bug IDs**: （なし）
-- **証跡**: `reports/uat-2026-09-05-r4/partials-exec.json` / `s09-helper-search.json`
+- **未解消ギャップ（S09 BLOCKED 要件）**:
+  1. 承認済み **fixture API** または **scoped UAT test helper** が必要（`completed_at` を 10:00 / 13:30 / 14:00 / 20:00 / 翌 02:00 に設定した合成会計 5 件）。
+  2. **禁止**: 直接 DB 更新、システム時計変更、既存会計の改変（シナリオ hard rule）。
+  3. helper 不在のため帰属証明ステップ #2–#6 は実施不可 → シナリオ総合 **BLOCKED**（settings/preview/history の先行 PASS では解除しない）。
+  4. 詳細: [`reports/uat-2026-09-05-r5/S09-BLOCKED.md`](../../../reports/uat-2026-09-05-r5/S09-BLOCKED.md)
+- **関連 bug IDs**: （なし — helper 欠如は製品 FAIL ではない）
+- **証跡**: `reports/uat-2026-09-05-r5/S09-BLOCKED.md` · `reports/uat-2026-09-05-r4/s09-helper-search.json`
 
 ---
 
@@ -192,3 +196,4 @@
 1. 受け入れ再実行後、本ファイルの実施日・ブランチ・各ドメイン表の status / ギャップ / bug ID を更新する。
 2. 製品 FAIL のみルート `bug.md` へ（PARTIAL/BLOCKED は書かない）。
 3. 証跡は `reports/uat-YYYY-MM-DD(-postfix|-rN)/` に置き、シナリオ md は編集しない。
+4. S09 解除時は承認済み helper マージ後に #2–#6 を再実行し、本ファイルの会計ドメインとサマリを更新する。
