@@ -2,7 +2,7 @@
 
 > **目的**: 受け入れ結果をシナリオ ID だけでなく業務ドメイン単位で俯瞰する。
 > **正本リンク**: [scenarios/README.md](./scenarios/README.md) · [TEST_ARCHITECTURE.md](./TEST_ARCHITECTURE.md)
-> **最新ラン**: `reports/uat-2026-09-05-r13/`（r13 V05-17/field inventory）· r12
+> **最新ラン**: `reports/uat-2026-09-05-r14/`（r14 regression smoke）· PASS 16 / PARTIAL 1 / BLOCKED 1 / FAIL 0
 > **更新日**: 2026-09-05
 
 ## サマリ（シナリオ S01–S13 + V01–V05）
@@ -17,7 +17,7 @@
 | 項目 | 値 |
 |:---|:---|
 | 実施日 | 2026-09-05 |
-| ブランチ | `uat/20260905` @ `7a216ee66` |
+| ブランチ | `uat/20260905` @ `2cbd8d9ad` |
 | 環境 | local（FE :3003 / BE :8080） |
 | 証跡 | [`reports/uat-2026-09-05-r7/`](../../../reports/uat-2026-09-05-r7/) · r6 CRUD · r5 シナリオ |
 
