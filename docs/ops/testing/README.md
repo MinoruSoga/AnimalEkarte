@@ -17,6 +17,7 @@
 | [E2E_TESTING_GUIDE.md](E2E_TESTING_GUIDE.md) | 実装済み Playwright coverage と runner | L3 回帰 |
 | [liff-verification.md](liff-verification.md) | LIFF の mock/実 LINE と秘密管理境界 | LIFF/LINE 検証 |
 | [SECTION_14_MANUAL_TEST_GUIDE.md](SECTION_14_MANUAL_TEST_GUIDE.md) | L5 の focused exploratory supplement | 補完確認 |
+| [UAT-DOMAIN-STATUS.md](UAT-DOMAIN-STATUS.md) | ドメイン別受け入れステータス（最新 UAT 集約） | 納品前・進捗確認 |
 | [PERFORMANCE_PROFILING.md](PERFORMANCE_PROFILING.md) | Lighthouse、k6、SQL 分析、現行 profiler の制約 | 性能調査 |
 
 ## 重要な現状
