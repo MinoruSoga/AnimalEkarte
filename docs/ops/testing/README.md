@@ -18,6 +18,7 @@
 | [liff-verification.md](liff-verification.md) | LIFF の mock/実 LINE と秘密管理境界 | LIFF/LINE 検証 |
 | [SECTION_14_MANUAL_TEST_GUIDE.md](SECTION_14_MANUAL_TEST_GUIDE.md) | L5 の focused exploratory supplement | 補完確認 |
 | [PERFORMANCE_PROFILING.md](PERFORMANCE_PROFILING.md) | Lighthouse、k6、SQL 分析、現行 profiler の制約 | 性能調査 |
+| [STG-performance.md](STG-performance.md) | 2026-09-05 の STG 一覧実測、温冷切り分け、改善順序 | STG が遅いとき・一覧最適化の前 |
 
 ## 重要な現状
 
