@@ -3,7 +3,36 @@
 > **目的**: 共有 STG の一覧画面が遅い理由を、フルリロード実測と温回 API 再測で切り分け、改善の順序を決める。
 > **対象環境**: `https://stg.noah-karte.com` / `https://api.stg.noah-karte.com`
 > **測定日**: 2026-09-05 JST
+> **実装日**: 2026-09-05（本ファイル §0 のチケット）
 > **承認済み SLO ではない**。比較用の提案目標は [PERFORMANCE_PROFILING.md](PERFORMANCE_PROFILING.md) の initial display 1.5 s。
+
+## 0. 実装チケット
+
+測定で決めた順（削除 → 認証フロア → COUNT 分離 → インフラ）。`total` の JSON 形は維持し、COUNT から汚染行用 `EXISTS` だけ外す。fail-closed の行フィルタは Find に残す。
+
+| ID | 内容 | 状態 |
+|:---|:---|:---|
+| P0-1 | 起動・ログインの `/me` を 1 本にし `ME_QUERY_KEY` を hydrate | 検証済み |
+| P0-2 | `/me` の 10s stale・focus 再取得・30s poll を止める（SESSION=5min） | 検証済み |
+| P0-3 | `GET /masters/staffs` を raw 同一 queryKey + `select` で 1 fetch。`useStaffValidation` も同じ cache | 検証済み |
+| P1-1 | 一般スタッフの `Resolve` は所属 ID の active 確認のみ。全件 `ListClinics` しない | 検証済み |
+| P1-2 | `CurrentAccess` を gin context へ。`GetMe` は assignments を再取得しない | 検証済み |
+| P1-3 | `Resolve` 結果を staffID キーで 2s キャッシュ。失敗時は消す | 検証済み |
+| P1-4 | staff+account+assignments を 1 クエリで読む（本番 reader） | 検証済み |
+| P2-1/2 | 会計・カルテ・検査・飼主の COUNT から汚染 `EXISTS` を外す。Find には残す | 検証済み |
+| P2-3 | 会計一覧 Preload から Staff ネストを外す。Items/Splits は日次集計が使うので残す | 検証済み |
+| P2-4 | 検査 `Preload("Items")` は `include_items=true` のときだけ | 検証済み |
+| P2-staff | 担当者一覧の無意味な `COUNT` をやめる | 検証済み |
+| P3-1 | `instance_type` 引き上げ | **HOLD**（課金。P0–P2 再測後に owner 判断） |
+| P3-2 | `sleepAfter` 延長 / 常時 1 台 | **HOLD**（コスト方針 AC-5。owner 判断） |
+| P3-3 | 許可 Origin に `Timing-Allow-Origin` | 検証済み |
+| P3-4 | `GET /api/v1/health` を公開（既存 `/health` のエイリアス） | 検証済み |
+
+権限グループ変更の反映は最大 2s（P1-3）+ `/me` stale 5min（P0-2）。パスワード変更は JWT epoch で無効になるが、同一プロセスの Resolve キャッシュが残っている最大 2s は古い epoch が残る。タブ間の権限同期が業務要件なら `refreshPermissions` を明示呼び出しする。
+
+P2 の `total` は医院スコープの概算になり得る（汚染行を含む）。行そのものは Find 側の fail-closed `EXISTS` で返さない。ページャの最終ページ番号が 1 ページ分ずれる可能性は、正確 COUNT をクリティカルパスから外したトレードオフである。
+
+受け入れ再測（§8）は共有 STG で USER が行う。k6 と `psql` 直叩きはしない。
 
 PHI（飼主名・ペット名）・パスワード・トークンは書かない。ログインは migrate フェーズ3 の合成 `stg-staff-*@example.test`。
 
@@ -186,7 +215,7 @@ Worker は Container へプロキシするだけ（`backend/worker/index.ts`）�
 |:---|:---|:---|:---|
 | P0-1 | 起動時 `/me` を 1 本にする。`refreshToken()` の結果を `queryClient.setQueryData(ME_QUERY_KEY, user)` し、`useGetMe` はそのキャッシュを使う | フルリロードから約 2.6 s 消える。会計温回 7.7 s → 理論上 4.5 s 台 | 実測ウォーターフォール。権限マップの正本は 1 回で足りる |
 | P0-2 | `/me` の `staleTime` を SESSION 10 s から、権限変更の業務要件に合わせて延長。`refetchOnWindowFocus` を既定 off。30 s ポーリングを止めるか 数分へ | 操作中の 3 s スパイクが消える | 10 s stale × 2.6 s 取得は、権限変更の検知より画面停止の方が大きい。パスワード変更は JWT epoch で既にセッションが落ちる |
-| P0-3 | カルテ画面の `GET /masters/staffs` を 1 本に。同一 URL に `["masters","staffs"]` と `["masters","staffs","selector-list"]` など別 queryKey がある | 並列キューが 1 本減る | 冷回で二重を観測。単一コンポーネントの二重マウントかは未確定。別 key なら RQ は共有しない |
+| P0-3 | カルテ画面の `GET /masters/staffs` を 1 本に。`useGetStaffs` と `useStaffValidation` は raw `["masters","staffs"]` を共有する。`useGetMasterItems("staff")` は別キーなのでマージしない | 並列キューが 1 本減る | 冷回で二重を観測。原因は validation が `["masters","staff"]` を別に撃っていたこと |
 
 P0-2 の「権限を何秒で他タブへ反映するか」は個人名のついた要件が必要。名前がないなら 10 s は疑う。JWT epoch とログアウトで足りるならポーリングは削除対象。
 
@@ -207,7 +236,7 @@ P0-2 の「権限を何秒で他タブへ反映するか」は個人名のつい
 |:---|:---|:---|
 | P2-1 | 最初の応答は `items` + `hasMore`（limit+1 または seek）だけ。総数は遅延 `GET …/count` か、ページャを「次へ」だけにする | 会計 4.3 s のうち COUNT 分が消える。検査の入れ子 `EXISTS` が COUNT に乗っているのが最優先 |
 | P2-2 | 汚染行除外の `EXISTS` は **ページの 20 件側だけ**に残し、COUNT には載せないか、`clinic_id` 単独の概算にする | fail-closed は行の実体に残る。総数だけが汚染行を数本含む概算なら、ページ番号の誤差として許容できるか要件確認 |
-| P2-3 | 会計 Preload（Payments / Splits / Items / Staff assignments）を一覧 DTO に必要な列だけにする | 43 KB / 20 行は過大。一覧に金額・ステータス・名前以外が要るか疑う |
+| P2-3 | 会計一覧 Preload から Staff ネストを外す。Items/Splits は日次集計が使うので残す | 43 KB / 20 行のうち Staff assignments を落とす。日次タブは Items/Splits 必須 |
 | P2-4 | 検査一覧の `Preload("Items")` を `include_items=true` のときだけにする | 一覧が捨てている exam_results を読まなくなる。城東 9.4 s の候補 |
 
 `EXISTS` 自体は他院データ混入を防ぐので削除しない。削除するのは「76 万行の正確カウントを、20 行を出すのと同じ同期リクエストでやる」こと。

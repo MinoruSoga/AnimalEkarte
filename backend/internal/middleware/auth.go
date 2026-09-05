@@ -146,6 +146,7 @@ func auth(
 			"clinic_ids",
 			append([]uint64(nil), requestClaims.ClinicIDs...),
 		)
+		c.Set(authdomain.CurrentAccessGinKey, currentAccess)
 
 		c.Next()
 	}

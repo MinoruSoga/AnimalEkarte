@@ -183,7 +183,42 @@ type mockClinicService struct {
 }
 
 func (m *mockClinicService) ListClinics(ctx context.Context) ([]model.Clinic, error) {
+	if m.listClinicsFn == nil {
+		return nil, nil
+	}
 	return m.listClinicsFn(ctx)
+}
+
+func (m *mockClinicService) ListClinicsByIDs(ctx context.Context, ids []uint64) ([]model.Clinic, error) {
+	all, err := m.ListClinics(ctx)
+	if err != nil {
+		return nil, err
+	}
+	wanted := make(map[uint64]struct{}, len(ids))
+	for _, id := range ids {
+		wanted[id] = struct{}{}
+	}
+	out := make([]model.Clinic, 0, len(ids))
+	for i := range all {
+		if _, ok := wanted[all[i].ID]; ok {
+			out = append(out, all[i])
+		}
+	}
+	return out, nil
+}
+
+func (m *mockClinicService) ListActiveClinicIDs(ctx context.Context, ids []uint64) ([]uint64, error) {
+	clinics, err := m.ListClinicsByIDs(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]uint64, 0, len(clinics))
+	for i := range clinics {
+		if clinics[i].IsActive {
+			out = append(out, clinics[i].ID)
+		}
+	}
+	return out, nil
 }
 
 func (m *mockClinicService) ListClinicsByStaffID(ctx context.Context, staffID uint64) ([]model.Clinic, error) {

@@ -27,6 +27,7 @@ func TestCORS_DefaultOrigins(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, w.Code)
 		assert.Equal(t, "http://localhost:3000", w.Header().Get("Access-Control-Allow-Origin"))
+		assert.Equal(t, "http://localhost:3000", w.Header().Get("Timing-Allow-Origin"))
 		assert.Equal(t, "Origin", w.Header().Get("Vary"))
 	})
 
@@ -39,6 +40,7 @@ func TestCORS_DefaultOrigins(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, w.Code)
 		assert.Empty(t, w.Header().Get("Access-Control-Allow-Origin"))
+		assert.Empty(t, w.Header().Get("Timing-Allow-Origin"))
 	})
 
 	t.Run("handles OPTIONS request with 204", func(t *testing.T) {

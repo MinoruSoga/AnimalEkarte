@@ -15,6 +15,9 @@ import (
 	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
+// staffListCountSkipMinLimit matches HTTP ListStaffs (limit 1000, total unused).
+const staffListCountSkipMinLimit = 1000
+
 // ---- Staff ----
 
 type StaffRepository interface {
@@ -76,9 +79,6 @@ func (r *staffRepository) FindAll(ctx context.Context, clinicID uint64, page, li
 		return q
 	}
 
-	if err := buildBase().Count(&total).Error; err != nil {
-		return nil, 0, apperrors.FromGORM(err, "staff", "")
-	}
 	if err := buildBase().
 		Preload("Account", "deleted_at IS NULL").
 		Preload("Occupation", "clinic_id = ? AND deleted_at IS NULL", clinicID).
@@ -86,6 +86,12 @@ func (r *staffRepository) FindAll(ctx context.Context, clinicID uint64, page, li
 		Order("staffs.sort_order ASC, staffs.name ASC").
 		Distinct("staffs.*").
 		Find(&staffs).Error; err != nil {
+		return nil, 0, apperrors.FromGORM(err, "staff", "")
+	}
+	if limit >= staffListCountSkipMinLimit {
+		return staffs, int64(len(staffs)), nil
+	}
+	if err := buildBase().Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "staff", "")
 	}
 	return staffs, total, nil

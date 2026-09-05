@@ -17,6 +17,7 @@ import (
 // mockExaminationRepository は ExaminationRepository のテスト用モック実装
 type mockExaminationRepository struct {
 	findAllFn                func(ctx context.Context, clinicID uint64, petID, ownerID, medicalRecordID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error)
+	lastIncludeItems         bool
 	findByIDFn               func(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
 	lockByIDForUpdateFn      func(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
 	createFn                 func(ctx context.Context, exam *model.Examination) error
@@ -31,7 +32,11 @@ type mockExaminationRepository struct {
 	findPrintSnapshotFn      func(ctx context.Context, clinicID, examinationID uint64, version *uint64) (*ExaminationPrintSnapshot, error)
 }
 
-func (m *mockExaminationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID, medicalRecordID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error) {
+func (m *mockExaminationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID, medicalRecordID *uint64, status, startDate, endDate *string, page, limit int, includeItems bool) ([]model.Examination, int64, error) {
+	m.lastIncludeItems = includeItems
+	if m.findAllFn == nil {
+		return nil, 0, nil
+	}
 	return m.findAllFn(ctx, clinicID, petID, ownerID, medicalRecordID, status, startDate, endDate, page, limit)
 }
 
@@ -269,7 +274,7 @@ func TestExaminationService_List(t *testing.T) {
 			}
 			svc := NewExaminationService(repo, &mockMedicalRecordRepository{}, okExamTypeRepo(), nil, nil)
 
-			items, total, err := svc.List(context.Background(), tt.clinicID, tt.petID, tt.ownerID, nil, tt.status, nil, nil, tt.page, tt.limit)
+			items, total, err := svc.List(context.Background(), tt.clinicID, tt.petID, tt.ownerID, nil, tt.status, nil, nil, tt.page, tt.limit, false)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -278,8 +283,23 @@ func TestExaminationService_List(t *testing.T) {
 				assert.Len(t, items, tt.wantLen)
 				assert.Equal(t, tt.wantTotal, total)
 			}
+			assert.False(t, repo.lastIncludeItems)
 		})
 	}
+}
+
+func TestExaminationService_List_ForwardsIncludeItems(t *testing.T) {
+	repo := &mockExaminationRepository{
+		findAllFn: func(_ context.Context, _ uint64, _ *uint64, _ *uint64, _ *uint64, _, _, _ *string, _, _ int) ([]model.Examination, int64, error) {
+			return nil, 0, nil
+		},
+	}
+	svc := NewExaminationService(repo, &mockMedicalRecordRepository{}, okExamTypeRepo(), nil, nil)
+
+	_, _, err := svc.List(context.Background(), 1, nil, nil, nil, nil, nil, nil, 1, 20, true)
+
+	require.NoError(t, err)
+	assert.True(t, repo.lastIncludeItems)
 }
 
 func TestExaminationService_GetByID(t *testing.T) {

@@ -57,6 +57,9 @@ func (m *mockClinicPermissionGroupWriter) DeleteSoftDeletedByClinicID(ctx contex
 }
 
 func (m *mockClinicRepository) FindAll(ctx context.Context) ([]model.Clinic, error) {
+	if m.findAllFn == nil {
+		return nil, nil
+	}
 	return m.findAllFn(ctx)
 }
 
@@ -65,6 +68,38 @@ func (m *mockClinicRepository) FindByStaffID(ctx context.Context, staffID uint64
 		return nil, nil
 	}
 	return m.findByStaffIDFn(ctx, staffID)
+}
+
+func (m *mockClinicRepository) FindByIDs(ctx context.Context, ids []uint64) ([]model.Clinic, error) {
+	all, err := m.FindAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+	wanted := make(map[uint64]struct{}, len(ids))
+	for _, id := range ids {
+		wanted[id] = struct{}{}
+	}
+	out := make([]model.Clinic, 0, len(ids))
+	for i := range all {
+		if _, ok := wanted[all[i].ID]; ok {
+			out = append(out, all[i])
+		}
+	}
+	return out, nil
+}
+
+func (m *mockClinicRepository) FindActiveIDs(ctx context.Context, ids []uint64) ([]uint64, error) {
+	clinics, err := m.FindByIDs(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]uint64, 0, len(clinics))
+	for i := range clinics {
+		if clinics[i].IsActive {
+			out = append(out, clinics[i].ID)
+		}
+	}
+	return out, nil
 }
 
 func (m *mockClinicRepository) FindByID(ctx context.Context, id uint64) (*model.Clinic, error) {
@@ -181,6 +216,27 @@ func TestClinicService_ListClinics(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestClinicService_ListClinicsByIDsAndActiveIDs(t *testing.T) {
+	repo := &mockClinicRepository{
+		findAllFn: func(_ context.Context) ([]model.Clinic, error) {
+			return []model.Clinic{
+				{ID: 1, Name: "active", IsActive: true},
+				{ID: 2, Name: "inactive", IsActive: false},
+				{ID: 3, Name: "other", IsActive: true},
+			}, nil
+		},
+	}
+	svc := NewClinicService(repo, &mockPermissionGroupRepository{}, &clinicServiceTransactorDouble{})
+
+	byIDs, err := svc.ListClinicsByIDs(context.Background(), []uint64{1, 2})
+	require.NoError(t, err)
+	require.Len(t, byIDs, 2)
+
+	active, err := svc.ListActiveClinicIDs(context.Background(), []uint64{1, 2, 3})
+	require.NoError(t, err)
+	assert.Equal(t, []uint64{1, 3}, active)
 }
 
 func TestClinicService_ListClinicsByStaffID(t *testing.T) {

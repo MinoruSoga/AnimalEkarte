@@ -17,7 +17,7 @@ import (
 )
 
 type ExaminationRepository interface {
-	FindAll(ctx context.Context, clinicID uint64, petID, ownerID, medicalRecordID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error)
+	FindAll(ctx context.Context, clinicID uint64, petID, ownerID, medicalRecordID *uint64, status, startDate, endDate *string, page, limit int, includeItems bool) ([]model.Examination, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
 	LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
 	// FindByJobID は clinic_id + job_id で絞り込んだ exams を日付降順で返す（Phase 4B.2）。
@@ -41,11 +41,13 @@ func NewExaminationRepository(db *gorm.DB) ExaminationRepository {
 	return &examinationRepository{db: db}
 }
 
-func (r *examinationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID, medicalRecordID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error) {
-	buildBase := func() *gorm.DB {
+func (r *examinationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID, medicalRecordID *uint64, status, startDate, endDate *string, page, limit int, includeItems bool) ([]model.Examination, int64, error) {
+	buildBase := func(withIsolation bool) *gorm.DB {
 		q := persistence.DBOrTx(ctx, r.db).Model(&model.Examination{}).
-			Where("exams.clinic_id = ?", clinicID).
-			Scopes(examinationPatientRelationsScope(clinicID))
+			Where("exams.clinic_id = ?", clinicID)
+		if withIsolation {
+			q = q.Scopes(examinationPatientRelationsScope(clinicID))
+		}
 		switch {
 		case petID != nil && medicalRecordID != nil:
 			// カルテ検査タブの契約: そのカルテへ取り込んだ検査に加え、同じペットの
@@ -77,12 +79,12 @@ func (r *examinationRepository) FindAll(ctx context.Context, clinicID uint64, pe
 	}
 
 	var total int64
-	if err := buildBase().Count(&total).Error; err != nil {
+	if err := buildBase(false).Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "exam", "")
 	}
 
 	exams := make([]model.Examination, 0)
-	if err := buildBase().Scopes(examinationReadPreloads(clinicID)).
+	if err := buildBase(true).Scopes(examinationReadPreloads(clinicID, includeItems)).
 		Scopes(paginate(page, limit)).Order("exams.date DESC, exams.created_at DESC").
 		Find(&exams).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "exam", "")
@@ -96,7 +98,7 @@ func (r *examinationRepository) FindByID(ctx context.Context, clinicID, id uint6
 		Where("exams.id = ? AND exams.clinic_id = ?", id, clinicID).
 		Scopes(
 			examinationPatientRelationsScope(clinicID),
-			examinationReadPreloads(clinicID),
+			examinationReadPreloads(clinicID, true),
 		).
 		First(&exam).Error
 	if err != nil {
@@ -175,14 +177,17 @@ func (r *examinationRepository) Delete(ctx context.Context, clinicID, id uint64)
 	return nil
 }
 
-func examinationReadPreloads(clinicID uint64) func(*gorm.DB) *gorm.DB {
+func examinationReadPreloads(clinicID uint64, includeItems bool) func(*gorm.DB) *gorm.DB {
 	return func(db *gorm.DB) *gorm.DB {
-		return db.
+		q := db.
 			Preload("ExaminationType", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 			Preload("Pet", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 			Preload("Pet.Owner", "clinic_id = ? AND deleted_at IS NULL", clinicID).
-			Preload("Doctor", "deleted_at IS NULL AND is_active = TRUE AND staff_type = ?", model.StaffTypeDoctor).
-			Preload("Items")
+			Preload("Doctor", "deleted_at IS NULL AND is_active = TRUE AND staff_type = ?", model.StaffTypeDoctor)
+		if includeItems {
+			q = q.Preload("Items")
+		}
+		return q
 	}
 }
 

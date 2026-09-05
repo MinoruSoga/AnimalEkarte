@@ -34,6 +34,14 @@ func (r *atomicClinicStore) FindByStaffID(context.Context, uint64) ([]model.Clin
 	return nil, nil
 }
 
+func (r *atomicClinicStore) FindByIDs(context.Context, []uint64) ([]model.Clinic, error) {
+	return nil, nil
+}
+
+func (r *atomicClinicStore) FindActiveIDs(context.Context, []uint64) ([]uint64, error) {
+	return nil, nil
+}
+
 func (r *atomicClinicStore) FindByID(context.Context, uint64) (*model.Clinic, error) {
 	return nil, nil
 }

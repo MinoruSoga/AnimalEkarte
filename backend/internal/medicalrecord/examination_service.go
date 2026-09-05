@@ -115,7 +115,7 @@ func effectiveExaminationRelations(existing *model.Examination, input UpdateExam
 }
 
 type ExaminationService interface {
-	List(ctx context.Context, clinicID uint64, petID, ownerID, medicalRecordID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error)
+	List(ctx context.Context, clinicID uint64, petID, ownerID, medicalRecordID *uint64, status, startDate, endDate *string, page, limit int, includeItems bool) ([]model.Examination, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
 	// GetPrintSnapshot returns a clinic-scoped atomic revision print DTO.
 	// version nil uses the parent's current_revision_version (fail-closed if unset).
@@ -195,8 +195,8 @@ func NewExaminationService(
 	}
 }
 
-func (s *examinationService) List(ctx context.Context, clinicID uint64, petID, ownerID, medicalRecordID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error) {
-	items, total, err := s.repo.FindAll(ctx, clinicID, petID, ownerID, medicalRecordID, status, startDate, endDate, page, limit)
+func (s *examinationService) List(ctx context.Context, clinicID uint64, petID, ownerID, medicalRecordID *uint64, status, startDate, endDate *string, page, limit int, includeItems bool) ([]model.Examination, int64, error) {
+	items, total, err := s.repo.FindAll(ctx, clinicID, petID, ownerID, medicalRecordID, status, startDate, endDate, page, limit, includeItems)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list examinations", "error", err)
 		return nil, 0, apperrors.Wrap(err, "failed to list examinations")

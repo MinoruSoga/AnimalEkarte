@@ -1,8 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
-import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { queryKeys } from "@/lib/query-keys";
+import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { Staff as ModelStaff } from "@/types/generated/models";
+
+/** Raw `/v1/masters/staffs` cache. Selector and master CRUD share this key. */
+export const STAFFS_RAW_QUERY_KEY = queryKeys.masters.category("staffs");
+
+export async function fetchStaffsRaw(): Promise<ModelStaff[]> {
+  const { data } = await axios.get<ModelStaff[]>("/v1/masters/staffs");
+  return data;
+}
 
 // ─────────────────────────────────────────────────
 // Type
@@ -41,16 +49,13 @@ export function transformStaffSelectorItem(data: ModelStaff): StaffItem {
 
 /**
  * Read-only staff list hook for cross-feature consumption.
- * Returns minimal staff data needed for selection UIs.
- * Uses a distinct query key from master CRUD staff list (full Staff shape).
+ * Shares the raw `/v1/masters/staffs` cache with master CRUD; select keeps the thin shape.
  */
 export function useGetStaffs() {
   return useQuery({
-    queryKey: queryKeys.masters.staffSelectorList(),
-    queryFn: async (): Promise<StaffItem[]> => {
-      const { data } = await axios.get<ModelStaff[]>("/v1/masters/staffs");
-      return data.map(transformStaffSelectorItem);
-    },
+    queryKey: STAFFS_RAW_QUERY_KEY,
+    queryFn: fetchStaffsRaw,
+    select: (rows) => rows.map(transformStaffSelectorItem),
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
   });

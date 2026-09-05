@@ -5,6 +5,7 @@ import { recordedLineNet } from "./tax-breakdown";
 
 export function calculateAccountingTotal(accounting: AccountingType) {
   if (accounting.payment) return accounting.payment.totalAmount;
+  if (accounting.items.length === 0) return accounting.totalAmount ?? 0;
 
   return accounting.items.reduce((sum: number, item) => {
     const base = recordedLineNet(item);

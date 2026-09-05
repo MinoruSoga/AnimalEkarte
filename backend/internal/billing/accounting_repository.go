@@ -326,7 +326,6 @@ func (r *accountingRepository) findBillingsWithFilters(ctx context.Context, q *g
 	billings := make([]model.Billing, 0)
 	var total int64
 
-	q = q.Where("(billings.pet_id IS NULL OR EXISTS (SELECT 1 FROM pets p WHERE p.id = billings.pet_id AND p.clinic_id = billings.clinic_id))")
 	if filters.PetID != nil {
 		q = q.Where("pet_id = ?", *filters.PetID)
 	}
@@ -351,10 +350,18 @@ func (r *accountingRepository) findBillingsWithFilters(ctx context.Context, q *g
 		q = applyBillingOwnerPetSearch(q, filters.Search)
 	}
 	q = applyBillingPaymentMethodFilter(q, filters.PaymentMethod, filters.PaymentMethodOp)
-	if err := q.Count(&total).Error; err != nil {
+	countQuery := q
+	if err := countQuery.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "billing", "")
 	}
-	if err := q.Preload("Owner", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).Preload("Pet", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).Preload("Payments", "deleted_at IS NULL").Preload("Payments.PaidByStaff", scopedBillingStaffPreload(clinicIDs)).Preload("Payments.PaidByStaff.ClinicAssignments", scopedStaffAssignmentsPreload(clinicIDs)).Preload("Items", "deleted_at IS NULL").Preload("PaymentSplits", scopedPaymentSplitsPreload(clinicIDs)).
+	// 一覧は日次集計が Items/Splits を使う。PaidByStaff ネストは一覧非表示なので載せない。
+	findQuery := q.Where("(billings.pet_id IS NULL OR EXISTS (SELECT 1 FROM pets p WHERE p.id = billings.pet_id AND p.clinic_id = billings.clinic_id))")
+	if err := findQuery.
+		Preload("Owner", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
+		Preload("Pet", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
+		Preload("Payments", "deleted_at IS NULL").
+		Preload("Items", "deleted_at IS NULL").
+		Preload("PaymentSplits", scopedPaymentSplitsPreload(clinicIDs)).
 		Scopes(persistence.Paginate(page, limit)).Order("scheduled_date DESC, created_at DESC").Find(&billings).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "billing", "")
 	}

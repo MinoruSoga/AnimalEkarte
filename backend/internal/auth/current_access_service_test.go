@@ -119,6 +119,55 @@ func TestCurrentAccessResolver_UsesCurrentAccountAndActiveAssignments(t *testing
 	assert.Equal(t, "24", access.MainClinicID)
 }
 
+func TestCurrentAccessResolver_RegularStaffUsesScopedActiveIDsWithoutListClinics(
+	t *testing.T,
+) {
+	accountID := uint64(41)
+	scoped := &scopedCurrentAccessClinicReader{activeIDs: []uint64{24}}
+	resolver := NewCurrentAccessResolverWithClinics(
+		fakeCurrentAccessStaffReader{staff: &CurrentAccessStaffIdentity{
+			ID:        17,
+			AccountID: &accountID,
+			IsActive:  true,
+		}},
+		currentAccessAccountService{account: &model.Account{
+			ID:        accountID,
+			IsActive:  true,
+			UpdatedAt: time.Unix(1_721_000_000, 0),
+		}},
+		currentAccessAssignmentReader{assignments: []model.StaffClinicAssignment{
+			{StaffID: 17, ClinicID: 23, IsMain: true},
+			{StaffID: 17, ClinicID: 24},
+		}},
+		scoped,
+	)
+
+	access, err := resolver.Resolve(context.Background(), 17)
+
+	require.NoError(t, err)
+	assert.Equal(t, []uint64{24}, access.ClinicIDs)
+	assert.Equal(t, 0, scoped.listAllCalls)
+}
+
+type scopedCurrentAccessClinicReader struct {
+	activeIDs    []uint64
+	listAllCalls int
+}
+
+func (r *scopedCurrentAccessClinicReader) ListClinics(
+	context.Context,
+) ([]model.Clinic, error) {
+	r.listAllCalls++
+	return nil, errors.New("ListClinics must not run for non-admin staff")
+}
+
+func (r *scopedCurrentAccessClinicReader) ListActiveClinicIDs(
+	_ context.Context,
+	_ []uint64,
+) ([]uint64, error) {
+	return append([]uint64(nil), r.activeIDs...), nil
+}
+
 func TestCurrentAccessResolver_RegularStaffUsesOnlyActiveClinicInventory(
 	t *testing.T,
 ) {

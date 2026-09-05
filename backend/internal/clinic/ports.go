@@ -37,6 +37,8 @@ type ClinicDependencyCount struct {
 type ClinicRepository interface {
 	FindAll(ctx context.Context) ([]model.Clinic, error)
 	FindByStaffID(ctx context.Context, staffID uint64) ([]model.Clinic, error)
+	FindByIDs(ctx context.Context, ids []uint64) ([]model.Clinic, error)
+	FindActiveIDs(ctx context.Context, ids []uint64) ([]uint64, error)
 	FindByID(ctx context.Context, id uint64) (*model.Clinic, error)
 	LockActiveByID(ctx context.Context, id uint64) (*model.Clinic, error)
 	LockByIDForUpdate(ctx context.Context, id uint64) (*model.Clinic, error)
@@ -52,6 +54,8 @@ type ClinicRepository interface {
 type clinicServiceRepository interface {
 	FindAll(ctx context.Context) ([]model.Clinic, error)
 	FindByStaffID(ctx context.Context, staffID uint64) ([]model.Clinic, error)
+	FindByIDs(ctx context.Context, ids []uint64) ([]model.Clinic, error)
+	FindActiveIDs(ctx context.Context, ids []uint64) ([]uint64, error)
 	FindByID(ctx context.Context, id uint64) (*model.Clinic, error)
 	LockByIDForUpdate(ctx context.Context, id uint64) (*model.Clinic, error)
 	FindCompany(ctx context.Context) (*model.Company, error)

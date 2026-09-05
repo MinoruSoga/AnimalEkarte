@@ -85,7 +85,7 @@ func TestExaminationRepository_FindAll_ClinicIsolationAndFilters(t *testing.T) {
 	examB := makeExaminationRec(t, db, &model.Examination{ClinicID: clinicB, ExamTypeID: etB.ID, Date: jul01, Status: model.ExaminationStatusPending})
 
 	t.Run("clinic_id 隔離: 他院の exam は含まれない", func(t *testing.T) {
-		got, total, err := repo.FindAll(ctx, clinicA, nil, nil, nil, nil, nil, nil, 1, 10)
+		got, total, err := repo.FindAll(ctx, clinicA, nil, nil, nil, nil, nil, nil, 1, 10, false)
 		require.NoError(t, err)
 		assert.EqualValues(t, 2, total)
 		require.Len(t, got, 2)
@@ -97,7 +97,7 @@ func TestExaminationRepository_FindAll_ClinicIsolationAndFilters(t *testing.T) {
 	})
 
 	t.Run("petID フィルタ", func(t *testing.T) {
-		got, total, err := repo.FindAll(ctx, clinicA, &petA1.ID, nil, nil, nil, nil, nil, 1, 10)
+		got, total, err := repo.FindAll(ctx, clinicA, &petA1.ID, nil, nil, nil, nil, nil, 1, 10, false)
 		require.NoError(t, err)
 		assert.EqualValues(t, 1, total)
 		require.Len(t, got, 1)
@@ -105,7 +105,7 @@ func TestExaminationRepository_FindAll_ClinicIsolationAndFilters(t *testing.T) {
 	})
 
 	t.Run("ownerID フィルタ（pets を JOIN）", func(t *testing.T) {
-		got, total, err := repo.FindAll(ctx, clinicA, nil, &ownerA.ID, nil, nil, nil, nil, 1, 10)
+		got, total, err := repo.FindAll(ctx, clinicA, nil, &ownerA.ID, nil, nil, nil, nil, 1, 10, false)
 		require.NoError(t, err)
 		assert.EqualValues(t, 2, total)
 		assert.Len(t, got, 2)
@@ -113,7 +113,7 @@ func TestExaminationRepository_FindAll_ClinicIsolationAndFilters(t *testing.T) {
 
 	t.Run("status フィルタ", func(t *testing.T) {
 		status := string(model.ExaminationStatusCompleted)
-		got, total, err := repo.FindAll(ctx, clinicA, nil, nil, nil, &status, nil, nil, 1, 10)
+		got, total, err := repo.FindAll(ctx, clinicA, nil, nil, nil, &status, nil, nil, 1, 10, false)
 		require.NoError(t, err)
 		assert.EqualValues(t, 1, total)
 		require.Len(t, got, 1)
@@ -123,7 +123,7 @@ func TestExaminationRepository_FindAll_ClinicIsolationAndFilters(t *testing.T) {
 	t.Run("日付範囲フィルタ", func(t *testing.T) {
 		start := "2026-06-15"
 		end := "2026-06-30"
-		got, total, err := repo.FindAll(ctx, clinicA, nil, nil, nil, nil, &start, &end, 1, 10)
+		got, total, err := repo.FindAll(ctx, clinicA, nil, nil, nil, nil, &start, &end, 1, 10, false)
 		require.NoError(t, err)
 		assert.EqualValues(t, 1, total)
 		require.Len(t, got, 1)
@@ -131,19 +131,19 @@ func TestExaminationRepository_FindAll_ClinicIsolationAndFilters(t *testing.T) {
 	})
 
 	t.Run("ページネーション", func(t *testing.T) {
-		got, total, err := repo.FindAll(ctx, clinicA, nil, nil, nil, nil, nil, nil, 1, 1)
+		got, total, err := repo.FindAll(ctx, clinicA, nil, nil, nil, nil, nil, nil, 1, 1, false)
 		require.NoError(t, err)
 		assert.EqualValues(t, 2, total, "total は limit に依存せず全件数")
 		require.Len(t, got, 1, "limit=1 で1件のみ返る")
 
-		got2, _, err := repo.FindAll(ctx, clinicA, nil, nil, nil, nil, nil, nil, 2, 1)
+		got2, _, err := repo.FindAll(ctx, clinicA, nil, nil, nil, nil, nil, nil, 2, 1, false)
 		require.NoError(t, err)
 		require.Len(t, got2, 1)
 		assert.NotEqual(t, got[0].ID, got2[0].ID, "2ページ目は異なるレコード")
 	})
 
 	t.Run("Preload されたリレーションが取得できる", func(t *testing.T) {
-		got, _, err := repo.FindAll(ctx, clinicA, &petA1.ID, nil, nil, nil, nil, nil, 1, 10)
+		got, _, err := repo.FindAll(ctx, clinicA, &petA1.ID, nil, nil, nil, nil, nil, 1, 10, false)
 		require.NoError(t, err)
 		require.Len(t, got, 1)
 		require.NotNil(t, got[0].ExaminationType)
@@ -162,7 +162,7 @@ func TestExaminationRepository_FindAll_ClinicIsolationAndFilters(t *testing.T) {
 			Date:            jun10,
 			Status:          model.ExaminationStatusPending,
 		})
-		got, total, err := repo.FindAll(ctx, clinicA, nil, nil, &record.ID, nil, nil, nil, 1, 10)
+		got, total, err := repo.FindAll(ctx, clinicA, nil, nil, &record.ID, nil, nil, nil, 1, 10, false)
 		require.NoError(t, err)
 		assert.EqualValues(t, 1, total)
 		require.Len(t, got, 1)
@@ -179,7 +179,7 @@ func TestExaminationRepository_FindAll_ClinicIsolationAndFilters(t *testing.T) {
 			Date:            jun10,
 			Status:          model.ExaminationStatusPending,
 		})
-		merged, mergedTotal, err := repo.FindAll(ctx, clinicA, &petA1.ID, nil, &record.ID, nil, nil, nil, 1, 10)
+		merged, mergedTotal, err := repo.FindAll(ctx, clinicA, &petA1.ID, nil, &record.ID, nil, nil, nil, 1, 10, false)
 		require.NoError(t, err)
 		assert.EqualValues(t, 2, mergedTotal)
 		mergedIDs := make([]uint64, 0, len(merged))
@@ -323,10 +323,11 @@ func TestExaminationRepository_PatientRelationsAreClinicScoped(t *testing.T) {
 		assert.Nil(t, got)
 	}
 
-	listed, total, err := repo.FindAll(ctx, clinicA, nil, nil, nil, nil, nil, nil, 1, 100)
+	listed, total, err := repo.FindAll(ctx, clinicA, nil, nil, nil, nil, nil, nil, 1, 100, false)
 	require.NoError(t, err)
-	require.EqualValues(t, 1, total)
+	require.EqualValues(t, 1+len(polluted), total, "COUNT is clinic-scoped; isolation stays on Find")
 	require.Len(t, listed, 1)
+	assert.Empty(t, listed[0].Items)
 	assert.Equal(t, valid.ID, listed[0].ID)
 	require.NotNil(t, listed[0].Pet)
 	require.NotNil(t, listed[0].Pet.Owner)

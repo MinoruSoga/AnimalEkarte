@@ -10,6 +10,10 @@ import (
 
 const uploadsDirectory = "/app/uploads"
 
+func healthOK(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
 // registerBaseRoutes installs the non-domain HTTP surface. Domain routes are
 // registered separately after auth creates the protected API group.
 //
@@ -27,9 +31,8 @@ func registerBaseRoutes(
 		return fmt.Errorf("base route engine is required")
 	}
 
-	router.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "ok"})
-	})
+	router.GET("/health", healthOK)
+	router.GET("/api/v1/health", healthOK)
 	// CMD-05: do not expose local upload PHI via StaticFS when object storage is configured.
 	if os.Getenv("STORAGE_TYPE") != "s3" {
 		router.StaticFS("/uploads", gin.Dir(uploadsDirectory, false))

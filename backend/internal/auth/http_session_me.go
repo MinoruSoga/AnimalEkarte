@@ -51,19 +51,24 @@ func (h *HTTPHandler) GetMe(c *gin.Context) {
 		}
 	}
 
-	assignments, err := h.deps.StaffAssignments.FindAllByStaffID(ctx, staff.ID)
-	if err != nil {
-		slog.ErrorContext(
-			ctx,
-			"failed to find clinic assignments",
-			"error", err,
-			"staff_id", staff.ID,
-		)
+	currentAccess := currentAccessFromGin(c)
+	if currentAccess != nil && currentAccess.StaffID == staff.ID {
+		staff = withClinicAssignments(staff, assignmentsFromCurrentAccess(currentAccess))
 	} else {
-		staff = withClinicAssignments(staff, assignments)
+		assignments, assignErr := h.deps.StaffAssignments.FindAllByStaffID(ctx, staff.ID)
+		if assignErr != nil {
+			slog.ErrorContext(
+				ctx,
+				"failed to find clinic assignments",
+				"error", assignErr,
+				"staff_id", staff.ID,
+			)
+		} else {
+			staff = withClinicAssignments(staff, assignments)
+		}
 	}
 
-	allClinics, err := h.deps.Clinics.ListClinics(ctx)
+	allClinics, err := listClinicsForMe(ctx, h.deps.Clinics, currentAccess)
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return
@@ -114,6 +119,48 @@ func withClinicAssignments(
 		assignments...,
 	)
 	return &result
+}
+
+func currentAccessFromGin(c *gin.Context) *CurrentAccess {
+	raw, ok := c.Get(CurrentAccessGinKey)
+	if !ok {
+		return nil
+	}
+	access, _ := raw.(*CurrentAccess)
+	return access
+}
+
+func assignmentsFromCurrentAccess(access *CurrentAccess) []model.StaffClinicAssignment {
+	if access == nil {
+		return nil
+	}
+	mainID, _ := strconv.ParseUint(access.MainClinicID, 10, 64)
+	out := make([]model.StaffClinicAssignment, 0, len(access.ClinicIDs))
+	for _, clinicID := range access.ClinicIDs {
+		out = append(out, model.StaffClinicAssignment{
+			StaffID:  access.StaffID,
+			ClinicID: clinicID,
+			IsMain:   clinicID == mainID,
+		})
+	}
+	return out
+}
+
+type clinicByIDsLister interface {
+	ListClinicsByIDs(ctx context.Context, ids []uint64) ([]model.Clinic, error)
+}
+
+func listClinicsForMe(
+	ctx context.Context,
+	lister ClinicLister,
+	access *CurrentAccess,
+) ([]model.Clinic, error) {
+	if access != nil && !access.IsSystemAdmin {
+		if byIDs, ok := lister.(clinicByIDsLister); ok {
+			return byIDs.ListClinicsByIDs(ctx, access.ClinicIDs)
+		}
+	}
+	return lister.ListClinics(ctx)
 }
 
 // AuditKnownAccountLoginFailure writes an attributable wrong-password audit event.

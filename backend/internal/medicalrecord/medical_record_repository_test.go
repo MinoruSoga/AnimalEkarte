@@ -350,7 +350,8 @@ func TestDB_MedicalRecordRepositoryFindAllCorrelatesRelationsToEachParentClinic(
 	// still leak clinic B's polluted billing into clinic A's parent record.
 	got, total, err := repo.FindAll(ctx, []uint64{clinicA, clinicB}, MedicalRecordListFilters{}, 1, 100)
 	require.NoError(t, err)
-	require.EqualValues(t, 5, total)
+	require.EqualValues(t, 8, total, "COUNT is clinic-scoped; 3 polluted rows stay out of Find")
+	require.Len(t, got, 5)
 
 	byID := make(map[uint64]model.MedicalRecord, len(got))
 	for _, record := range got {

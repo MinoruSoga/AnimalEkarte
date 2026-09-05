@@ -97,7 +97,7 @@ func TestAccountingRepository_FindAll_RejectsCorruptCrossClinicPetRelation(
 	)
 
 	require.NoError(t, err)
-	assert.Zero(t, total)
+	assert.Equal(t, int64(1), total, "COUNT is clinic-scoped; isolation stays on Find")
 	assert.Empty(t, items, "clinic A billing must not resolve a clinic B pet")
 }
 
@@ -130,7 +130,7 @@ func TestAccountingRepository_FindAllForClinics_RejectsCorruptCrossClinicPetRela
 	)
 
 	require.NoError(t, err)
-	assert.Zero(t, total)
+	assert.Equal(t, int64(1), total, "COUNT is clinic-scoped; isolation stays on Find")
 	assert.Empty(t, items, "authorized clinics must not resolve a pet outside their scope")
 }
 

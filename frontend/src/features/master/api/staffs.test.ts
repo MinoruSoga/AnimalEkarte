@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { axios } from "@/lib/axios";
 import { queryKeys } from "@/lib/query-keys";
+import { useGetStaffs as useGetSelectorStaffs } from "@/hooks/use-staffs";
 import { transformStaff, useGetStaffs } from "./staffs";
 
 vi.mock("@/lib/axios", () => ({
@@ -68,38 +69,33 @@ describe("master staff transform (fail-closed staff_type)", () => {
     });
   });
 
-  it("uses category(staffs) key distinct from selector-list", () => {
+  it("uses category(staffs) as the raw cache key (selector shares it via select)", () => {
     expect(queryKeys.masters.category("staffs")).toEqual(["masters", "staffs"]);
     expect(queryKeys.masters.staffSelectorList()).toEqual(["masters", "staffs", "selector-list"]);
   });
 
-  it("master full shape cache is independent of selector-list key", () => {
+  it("master full shape is produced by select, not stored as the raw cache value", () => {
     const client = new QueryClient();
-    const masterRows = [
-      transformStaff({
+    const rawRows = [
+      {
         id: 1,
         name: "Doc",
         is_active: true,
         staff_type: "doctor",
         email: "a@example.invalid",
-      } as never),
+      },
     ];
-    client.setQueryData(queryKeys.masters.category("staffs"), masterRows);
-    client.setQueryData(queryKeys.masters.staffSelectorList(), [
-      { id: "1", name: "Doc", isActive: true, staffType: "doctor", occupationName: null },
-    ]);
+    client.setQueryData(queryKeys.masters.category("staffs"), rawRows);
 
-    const master = client.getQueryData(queryKeys.masters.category("staffs")) as {
+    const cached = client.getQueryData(queryKeys.masters.category("staffs")) as {
       email?: string;
+      is_active?: boolean;
     }[];
-    const selector = client.getQueryData(queryKeys.masters.staffSelectorList()) as {
-      email?: string;
-    }[];
-    expect(master[0].email).toBe("a@example.invalid");
-    expect(selector[0].email).toBeUndefined();
+    expect(cached[0].email).toBe("a@example.invalid");
+    expect(cached[0].is_active).toBe(true);
   });
 
-  it("useGetStaffs fetches into category(staffs) with full shape, not selector-list", async () => {
+  it("useGetStaffs fetches raw ModelStaff into category(staffs) and selects full shape", async () => {
     vi.mocked(axios.get).mockResolvedValue({
       data: [
         {
@@ -115,10 +111,6 @@ describe("master staff transform (fail-closed staff_type)", () => {
     const client = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
-    // Seed selector-list with poison so shared-key bug would leak it
-    client.setQueryData(queryKeys.masters.staffSelectorList(), [
-      { id: "poison", name: "Poison", isActive: true, staffType: "doctor", occupationName: null },
-    ]);
 
     const { result } = renderHook(() => useGetStaffs(), {
       wrapper: createWrapper(client),
@@ -131,10 +123,46 @@ describe("master staff transform (fail-closed staff_type)", () => {
       staffType: "doctor",
       email: "doc@example.invalid",
     });
-    expect(client.getQueryData(queryKeys.masters.category("staffs"))).toEqual(result.current.data);
-    expect(
-      (client.getQueryData(queryKeys.masters.staffSelectorList()) as { id: string }[])[0].id,
-    ).toBe("poison");
+    expect(client.getQueryData(queryKeys.masters.category("staffs"))).toEqual([
+      {
+        id: 1,
+        name: "Doc",
+        is_active: true,
+        staff_type: "doctor",
+        email: "doc@example.invalid",
+        clinic_id: 2,
+      },
+    ]);
+  });
+
+  it("selector and master CRUD share one HTTP fetch", async () => {
+    vi.mocked(axios.get).mockResolvedValue({
+      data: [
+        { id: 1, name: "Doc", is_active: true, staff_type: "doctor", email: "d@example.invalid" },
+      ],
+    });
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const wrapper = createWrapper(client);
+
+    const selector = renderHook(() => useGetSelectorStaffs(), { wrapper });
+    const master = renderHook(() => useGetStaffs(), { wrapper });
+
+    await waitFor(() => {
+      expect(selector.result.current.isSuccess).toBe(true);
+      expect(master.result.current.isSuccess).toBe(true);
+    });
+
+    expect(axios.get).toHaveBeenCalledTimes(1);
+    expect(selector.result.current.data?.[0]).toMatchObject({ id: "1", staffType: "doctor" });
+    expect(Object.prototype.hasOwnProperty.call(selector.result.current.data?.[0], "email")).toBe(
+      false,
+    );
+    expect(master.result.current.data?.[0]).toMatchObject({
+      id: "1",
+      email: "d@example.invalid",
+    });
   });
 });
 

@@ -21,6 +21,7 @@ func CORS(allowedOrigin string) gin.HandlerFunc {
 		for allowed := range strings.SplitSeq(allowedOrigin, ",") {
 			if strings.TrimSpace(allowed) == origin {
 				c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+				c.Writer.Header().Set("Timing-Allow-Origin", origin)
 				// SEC-601: キャッシュポイズニング対策（Origin別に異なるレスポンス）
 				c.Writer.Header().Set("Vary", "Origin")
 				break

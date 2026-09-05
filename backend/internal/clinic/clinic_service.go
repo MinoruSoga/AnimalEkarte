@@ -184,6 +184,8 @@ func buildDefaultPermissionGroupRules(isExecutive bool) []model.PermissionGroupR
 
 type ClinicService interface {
 	ListClinics(ctx context.Context) ([]model.Clinic, error)
+	ListClinicsByIDs(ctx context.Context, ids []uint64) ([]model.Clinic, error)
+	ListActiveClinicIDs(ctx context.Context, ids []uint64) ([]uint64, error)
 	ListClinicsByStaffID(ctx context.Context, staffID uint64) ([]model.Clinic, error)
 	GetClinicByID(ctx context.Context, id uint64) (*model.Clinic, error)
 	CreateClinic(ctx context.Context, input *CreateClinicInput) (*model.Clinic, error)
@@ -209,6 +211,22 @@ func (s *clinicService) ListClinics(ctx context.Context) ([]model.Clinic, error)
 		return nil, apperrors.Wrap(err, "failed to list clinics")
 	}
 	return clinics, nil
+}
+
+func (s *clinicService) ListClinicsByIDs(ctx context.Context, ids []uint64) ([]model.Clinic, error) {
+	clinics, err := s.repo.FindByIDs(ctx, ids)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to list clinics by id")
+	}
+	return clinics, nil
+}
+
+func (s *clinicService) ListActiveClinicIDs(ctx context.Context, ids []uint64) ([]uint64, error) {
+	active, err := s.repo.FindActiveIDs(ctx, ids)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to list active clinic ids")
+	}
+	return active, nil
 }
 
 func (s *clinicService) ListClinicsByStaffID(ctx context.Context, staffID uint64) ([]model.Clinic, error) {

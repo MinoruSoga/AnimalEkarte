@@ -32,6 +32,36 @@ func (r *clinicRepository) FindAll(ctx context.Context) ([]model.Clinic, error) 
 	return clinics, nil
 }
 
+func (r *clinicRepository) FindByIDs(ctx context.Context, ids []uint64) ([]model.Clinic, error) {
+	clinics := make([]model.Clinic, 0)
+	if len(ids) == 0 {
+		return clinics, nil
+	}
+	err := persistence.DBOrTx(ctx, r.db).
+		Where("id IN ?", ids).
+		Order("name ASC").
+		Find(&clinics).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "clinic", "")
+	}
+	return clinics, nil
+}
+
+func (r *clinicRepository) FindActiveIDs(ctx context.Context, ids []uint64) ([]uint64, error) {
+	out := make([]uint64, 0, len(ids))
+	if len(ids) == 0 {
+		return out, nil
+	}
+	err := persistence.DBOrTx(ctx, r.db).
+		Model(&model.Clinic{}).
+		Where("id IN ? AND is_active = ?", ids, true).
+		Pluck("id", &out).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "clinic", "")
+	}
+	return out, nil
+}
+
 func (r *clinicRepository) FindByStaffID(ctx context.Context, staffID uint64) ([]model.Clinic, error) {
 	clinics := make([]model.Clinic, 0)
 	err := r.db.WithContext(ctx).

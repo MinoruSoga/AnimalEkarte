@@ -106,7 +106,7 @@ func (r *repository) FindAll(ctx context.Context, clinicIDs []uint64, filters Pe
 		return pets, 0, nil
 	}
 
-	if err := r.petListQuery(ctx, clinicIDs, filters).Count(&total).Error; err != nil {
+	if err := r.petCountQuery(ctx, clinicIDs, filters).Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "pet", "")
 	}
 	// BRT-70: JOIN 時の owners 列混入 scan を避けるため Find だけ pets.* を明示する。
@@ -128,6 +128,26 @@ func (r *repository) FindAll(ctx context.Context, clinicIDs []uint64, filters Pe
 		sanitizePetOwnerRelation(&pets[i])
 	}
 	return pets, total, nil
+}
+
+func (r *repository) petCountQuery(ctx context.Context, clinicIDs []uint64, filters PetListFilters) *gorm.DB {
+	q := r.db.WithContext(ctx).Model(&model.Pet{}).
+		Where("pets.clinic_id IN ?", clinicIDs).
+		Where("pets.deleted_at IS NULL")
+	if filters.OwnerID != nil {
+		q = q.Where("pets.owner_id = ?", *filters.OwnerID)
+	}
+	if filters.AnimalSpeciesID != nil {
+		q = q.Where("pets.animal_species_id = ?", *filters.AnimalSpeciesID)
+	}
+	if !filters.IncludeDeceased {
+		q = q.Where("pets.deceased_at IS NULL AND pets.status <> ?", model.PetStatusDeceased)
+	}
+	if filters.Search == "" {
+		return q
+	}
+	q = q.Joins("LEFT JOIN owners ON owners.id = pets.owner_id AND owners.clinic_id = pets.clinic_id AND owners.clinic_id IN ? AND owners.deleted_at IS NULL", clinicIDs)
+	return applyPetListSearch(q, filters.Search)
 }
 
 func (r *repository) petListQuery(ctx context.Context, clinicIDs []uint64, filters PetListFilters) *gorm.DB {

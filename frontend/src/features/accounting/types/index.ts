@@ -94,6 +94,8 @@ export interface Accounting {
   items: AccountingItem[];
   payment?: PaymentInfo;
   paymentSplits?: PaymentSplitInfo[];
+  /** サーバ billings.total_amount。一覧で items を省略したときの合計フォールバック */
+  totalAmount?: number;
   totalRefundedAmount: number; // 返金合計（0の場合はバッジ非表示）
   /** BUG-007: 未収残高（waiting 全額 or クレジット訂正後の patient_due−支払額） */
   outstandingAmount?: number;

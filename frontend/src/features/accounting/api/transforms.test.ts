@@ -203,6 +203,10 @@ describe("transformToAccounting", () => {
     expect(transformToAccounting({ ...minimal, memo: "注意事項" }).memo).toBe("注意事項");
   });
 
+  it("total_amount を totalAmount にマップする", () => {
+    expect(transformToAccounting({ ...minimal, total_amount: 4400 }).totalAmount).toBe(4400);
+  });
+
   it("total_refunded_amount を totalRefundedAmount にマップする", () => {
     expect(
       transformToAccounting({ ...minimal, total_refunded_amount: 3000 }).totalRefundedAmount,

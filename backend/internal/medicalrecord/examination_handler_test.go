@@ -35,7 +35,7 @@ func TestExaminationSelectedClinicGrant(t *testing.T) {
 				h.ListExaminations(c)
 			},
 			svc: &mockExaminationService{
-				listFn: func(_ context.Context, _ uint64, _, _, _ *uint64, _, _, _ *string, _, _ int) ([]model.Examination, int64, error) {
+				listFn: func(_ context.Context, _ uint64, _, _, _ *uint64, _, _, _ *string, _, _ int, _ bool) ([]model.Examination, int64, error) {
 					t.Fatal("examination service must not be reached")
 					return nil, 0, nil
 				},
@@ -196,10 +196,11 @@ func TestListExaminations(t *testing.T) {
 			query:    "",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockExaminationService{
-				listFn: func(_ context.Context, clinicID uint64, petID, ownerID, medicalRecordID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error) {
+				listFn: func(_ context.Context, clinicID uint64, petID, ownerID, medicalRecordID *uint64, status, startDate, endDate *string, page, limit int, includeItems bool) ([]model.Examination, int64, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, 1, page)
 					assert.Equal(t, 20, limit)
+					assert.False(t, includeItems)
 					return []model.Examination{{ID: 1, ClinicID: 1, ExamTypeID: 2, Status: model.ExaminationStatusPending}}, 1, nil
 				},
 			},
@@ -211,7 +212,7 @@ func TestListExaminations(t *testing.T) {
 			query:    "pet_id=5&status=completed&start_date=2026-05-01&end_date=2026-05-31&page=2&limit=10",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockExaminationService{
-				listFn: func(_ context.Context, _ uint64, petID, ownerID, medicalRecordID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error) {
+				listFn: func(_ context.Context, _ uint64, petID, ownerID, medicalRecordID *uint64, status, startDate, endDate *string, page, limit int, includeItems bool) ([]model.Examination, int64, error) {
 					assert.NotNil(t, petID)
 					assert.Equal(t, uint64(5), *petID)
 					assert.NotNil(t, status)
@@ -222,6 +223,19 @@ func TestListExaminations(t *testing.T) {
 					assert.Equal(t, "2026-05-31", *endDate)
 					assert.Equal(t, 2, page)
 					assert.Equal(t, 10, limit)
+					return []model.Examination{}, 0, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"total":0`,
+		},
+		{
+			name:     "forwards include_items=true",
+			query:    "include_items=true",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockExaminationService{
+				listFn: func(_ context.Context, _ uint64, _, _, _ *uint64, _, _, _ *string, _, _ int, includeItems bool) ([]model.Examination, int64, error) {
+					assert.True(t, includeItems)
 					return []model.Examination{}, 0, nil
 				},
 			},
@@ -254,7 +268,7 @@ func TestListExaminations(t *testing.T) {
 			query:    "medical_record_id=9",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockExaminationService{
-				listFn: func(_ context.Context, _ uint64, _, _, medicalRecordID *uint64, _, _, _ *string, _, _ int) ([]model.Examination, int64, error) {
+				listFn: func(_ context.Context, _ uint64, _, _, medicalRecordID *uint64, _, _, _ *string, _, _ int, _ bool) ([]model.Examination, int64, error) {
 					if medicalRecordID == nil || *medicalRecordID != 9 {
 						return nil, 0, fmt.Errorf("expected medicalRecordID=9")
 					}
@@ -276,7 +290,7 @@ func TestListExaminations(t *testing.T) {
 			query:    "",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockExaminationService{
-				listFn: func(_ context.Context, _ uint64, _, _, _ *uint64, _, _, _ *string, _, _ int) ([]model.Examination, int64, error) {
+				listFn: func(_ context.Context, _ uint64, _, _, _ *uint64, _, _, _ *string, _, _ int, _ bool) ([]model.Examination, int64, error) {
 					return nil, 0, fmt.Errorf("db failure")
 				},
 			},

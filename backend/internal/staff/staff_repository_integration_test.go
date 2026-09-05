@@ -303,6 +303,22 @@ func TestStaffRepository_FindAll_Pagination(t *testing.T) {
 	assert.Len(t, got, 2, "page1 limit2 → 2件")
 }
 
+func TestStaffRepository_FindAll_SkipsCountWhenLimitIsLarge(t *testing.T) {
+	db := setupStaffRepositoryTestDB(t)
+	repo := NewStaffRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+	seedClinicsForFK(t, db, clinicID)
+
+	staff := makeDoctor(t, db, clinicID, "件数省略スタッフ")
+	makeStaffClinicAssignment(t, db, staff.ID, clinicID)
+
+	got, total, err := repo.FindAll(ctx, clinicID, 1, 1000)
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	assert.Equal(t, int64(1), total)
+}
+
 // ---- Update ----
 
 func TestStaffRepository_Update_HappyPathWithAssignment(t *testing.T) {
