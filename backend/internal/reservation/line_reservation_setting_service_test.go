@@ -214,6 +214,74 @@ func TestLineReservationSettingService_Save(t *testing.T) {
 		}
 	})
 
+	t.Run("omitted not-null jsonb columns default instead of SQL null", func(t *testing.T) {
+		var persisted *model.LineReservationSetting
+		repo := &mockLineReservationSettingRepository{
+			findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+				return nil, apperrors.WrapNotFound("setting", "")
+			},
+			saveFn: func(_ context.Context, _ uint64, setting *model.LineReservationSetting) error {
+				persisted = setting
+				return nil
+			},
+		}
+		svc := NewLineReservationSettingService(repo, testPlainEncrypt, testPlainDecrypt)
+		_, _, err := svc.Save(ctx, 1, &UpsertLineReservationSettingInput{Status: "running"})
+		assert.NoError(t, err)
+		if assert.NotNil(t, persisted) {
+			assert.JSONEq(t, "[]", string(persisted.ClosedWeekdays))
+			assert.JSONEq(t, "[]", string(persisted.ClosedDates))
+			assert.JSONEq(t, "[]", string(persisted.BreakHours))
+			assert.JSONEq(t, "[]", string(persisted.AdditionalFields))
+			assert.JSONEq(t, `{"start":"0900","end":"1900"}`, string(persisted.BusinessHours))
+			assert.Empty(t, persisted.BusinessHoursByWeekday)
+		}
+	})
+
+	t.Run("json null closed_weekdays defaults to empty JSON array", func(t *testing.T) {
+		var persisted *model.LineReservationSetting
+		repo := &mockLineReservationSettingRepository{
+			findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+				return nil, apperrors.WrapNotFound("setting", "")
+			},
+			saveFn: func(_ context.Context, _ uint64, setting *model.LineReservationSetting) error {
+				persisted = setting
+				return nil
+			},
+		}
+		svc := NewLineReservationSettingService(repo, testPlainEncrypt, testPlainDecrypt)
+		_, _, err := svc.Save(ctx, 1, &UpsertLineReservationSettingInput{
+			Status:         "running",
+			ClosedWeekdays: []byte("null"),
+		})
+		assert.NoError(t, err)
+		if assert.NotNil(t, persisted) {
+			assert.JSONEq(t, "[]", string(persisted.ClosedWeekdays))
+		}
+	})
+
+	t.Run("explicit closed_weekdays array is preserved", func(t *testing.T) {
+		var persisted *model.LineReservationSetting
+		repo := &mockLineReservationSettingRepository{
+			findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+				return nil, apperrors.WrapNotFound("setting", "")
+			},
+			saveFn: func(_ context.Context, _ uint64, setting *model.LineReservationSetting) error {
+				persisted = setting
+				return nil
+			},
+		}
+		svc := NewLineReservationSettingService(repo, testPlainEncrypt, testPlainDecrypt)
+		_, _, err := svc.Save(ctx, 1, &UpsertLineReservationSettingInput{
+			Status:         "running",
+			ClosedWeekdays: []byte("[0,6]"),
+		})
+		assert.NoError(t, err)
+		if assert.NotNil(t, persisted) {
+			assert.JSONEq(t, "[0,6]", string(persisted.ClosedWeekdays))
+		}
+	})
+
 	t.Run("invalid json fields", func(t *testing.T) {
 		svc := NewLineReservationSettingService(nil, testPlainEncrypt, testPlainDecrypt)
 		input := &UpsertLineReservationSettingInput{

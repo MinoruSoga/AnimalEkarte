@@ -21,9 +21,20 @@ func NewLineReservationSettingHandler(svc LineReservationSettingService) *LineRe
 	return &LineReservationSettingHandler{svc: svc}
 }
 
+func pathAuthorizedClinicID(c *gin.Context) (uint64, bool) {
+	clinicID, ok := httpapi.ParseIDParam(c, "clinic_id")
+	if !ok {
+		return 0, false
+	}
+	if !httpapi.AuthorizeClinicIDs(c, []uint64{clinicID}) {
+		return 0, false
+	}
+	return clinicID, true
+}
+
 // GetLineReservationSetting godoc
 func (h *LineReservationSettingHandler) GetLineReservationSetting(c *gin.Context) {
-	clinicID, ok := httpapi.ExtractClinicID(c)
+	clinicID, ok := pathAuthorizedClinicID(c)
 	if !ok {
 		return
 	}
@@ -41,7 +52,7 @@ func (h *LineReservationSettingHandler) GetLineReservationSetting(c *gin.Context
 
 // SaveLineReservationSetting godoc
 func (h *LineReservationSettingHandler) SaveLineReservationSetting(c *gin.Context) {
-	clinicID, ok := httpapi.ExtractClinicID(c)
+	clinicID, ok := pathAuthorizedClinicID(c)
 	if !ok {
 		return
 	}

@@ -89,12 +89,17 @@ func validateJSONFields(fields map[string][]byte) error {
 	return nil
 }
 
-// defaultAdditionalFieldsJSON maps omitted or JSON null additional_fields to [].
-// Empty []byte is sent as SQL ” and becomes jsonb null, which violates NOT NULL.
-func defaultAdditionalFieldsJSON(data []byte) []byte {
+var (
+	emptyJSONArray           = []byte("[]")
+	defaultBusinessHoursJSON = []byte(`{"start":"0900","end":"1900"}`)
+)
+
+// defaultJSONIfEmptyOrNull maps omitted or JSON null bytes to fallback.
+// Empty []byte is persisted as an empty SQL string and becomes jsonb null, which violates NOT NULL.
+func defaultJSONIfEmptyOrNull(data, fallback []byte) []byte {
 	trimmed := bytes.TrimSpace(data)
 	if len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) {
-		return []byte("[]")
+		return fallback
 	}
 	return data
 }
@@ -136,7 +141,13 @@ func (s *lineReservationSettingService) Save(ctx context.Context, clinicID uint6
 	}); err != nil {
 		return nil, false, err
 	}
-	if err := validateBreakHoursShape(input.BreakHours); err != nil {
+
+	closedWeekdays := defaultJSONIfEmptyOrNull(input.ClosedWeekdays, emptyJSONArray)
+	closedDates := defaultJSONIfEmptyOrNull(input.ClosedDates, emptyJSONArray)
+	businessHours := defaultJSONIfEmptyOrNull(input.BusinessHours, defaultBusinessHoursJSON)
+	breakHours := defaultJSONIfEmptyOrNull(input.BreakHours, emptyJSONArray)
+	additionalFields := defaultJSONIfEmptyOrNull(input.AdditionalFields, emptyJSONArray)
+	if err := validateBreakHoursShape(breakHours); err != nil {
 		return nil, false, err
 	}
 
@@ -175,12 +186,12 @@ func (s *lineReservationSettingService) Save(ctx context.Context, clinicID uint6
 		ReservationNotice:       input.ReservationNotice,
 		CancelNotice:            input.CancelNotice,
 		PrivacyPolicy:           input.PrivacyPolicy,
-		ClosedWeekdays:          input.ClosedWeekdays,
-		ClosedDates:             input.ClosedDates,
+		ClosedWeekdays:          closedWeekdays,
+		ClosedDates:             closedDates,
 		NationalHolidayClosed:   input.NationalHolidayClosed,
-		BusinessHours:           input.BusinessHours,
+		BusinessHours:           businessHours,
 		BusinessHoursByWeekday:  input.BusinessHoursByWeekday,
-		BreakHours:              input.BreakHours,
+		BreakHours:              breakHours,
 		DailyLimit:              input.DailyLimit,
 		MonthlyLimit:            input.MonthlyLimit,
 		BookingWindowMaxDays:    input.BookingWindowMaxDays,
@@ -193,7 +204,7 @@ func (s *lineReservationSettingService) Save(ctx context.Context, clinicID uint6
 		TimeSlotIntervalMinutes: input.TimeSlotIntervalMinutes,
 		NoStaffMode:             input.NoStaffMode,
 		ShowNoStaffOption:       input.ShowNoStaffOption,
-		AdditionalFields:        defaultAdditionalFieldsJSON(input.AdditionalFields),
+		AdditionalFields:        additionalFields,
 		LineChannelID:           input.LineChannelID,
 		// LineChannelSecret: intentionally unset (zero). Create inserts empty;
 		// update OnConflict excludes the column so existing values stay intact.
