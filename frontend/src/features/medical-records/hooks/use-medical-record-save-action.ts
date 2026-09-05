@@ -4,6 +4,8 @@ import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 import { queryKeys } from "@/lib/query-keys";
 import type { UpdateMedicalRecordRequest } from "../api/types";
+import type { ClinicalPlan } from "../api/clinical-plan";
+import type { ClinicalPlanDraft } from "./use-apply-clinical-plan";
 import type { ActionState } from "@/types/form";
 import { INITIAL_ACTION_STATE } from "@/types/form";
 
@@ -12,6 +14,60 @@ const DECEASED_SAVE_MESSAGE = "死亡したペットのカルテは保存でき�
 
 function deniedState(error: string): ActionState {
   return { success: false, error, timestamp: Date.now() };
+}
+
+function isOptionalClinicalPlanId(value: unknown): boolean {
+  return value == null || typeof value === "string";
+}
+
+function isDiagnosisReference(value: unknown): boolean {
+  return (
+    value == null ||
+    (typeof value === "object" &&
+      "id" in value &&
+      (typeof value.id === "string" || typeof value.id === "number") &&
+      "name" in value &&
+      typeof value.name === "string")
+  );
+}
+
+function isClinicalPlan(value: unknown): value is ClinicalPlan {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "id" in value &&
+    typeof value.id === "string" &&
+    "medical_record_id" in value &&
+    typeof value.medical_record_id === "string" &&
+    "version" in value &&
+    typeof value.version === "number" &&
+    "physical_exam" in value &&
+    typeof value.physical_exam === "string" &&
+    "treatment_policy" in value &&
+    typeof value.treatment_policy === "string" &&
+    "diagnosis_details" in value &&
+    typeof value.diagnosis_details === "string" &&
+    "created_at" in value &&
+    typeof value.created_at === "string" &&
+    "updated_at" in value &&
+    typeof value.updated_at === "string" &&
+    "diagnosis_type_id" in value &&
+    isOptionalClinicalPlanId(value.diagnosis_type_id) &&
+    "diagnosis_name_id" in value &&
+    isOptionalClinicalPlanId(value.diagnosis_name_id) &&
+    "diagnosis_2_type_id" in value &&
+    isOptionalClinicalPlanId(value.diagnosis_2_type_id) &&
+    "diagnosis_2_name_id" in value &&
+    isOptionalClinicalPlanId(value.diagnosis_2_name_id) &&
+    "diagnosis_type" in value &&
+    isDiagnosisReference(value.diagnosis_type) &&
+    "diagnosis_name" in value &&
+    isDiagnosisReference(value.diagnosis_name) &&
+    "diagnosis_2_type" in value &&
+    isDiagnosisReference(value.diagnosis_2_type) &&
+    "diagnosis_2_name" in value &&
+    isDiagnosisReference(value.diagnosis_2_name)
+  );
 }
 
 interface UseMedicalRecordSaveActionArgs {
@@ -39,6 +95,7 @@ interface UseMedicalRecordSaveActionArgs {
   nextVisitDate: string;
   existingRecordVersion?: number;
   existingClinicalPlanVersion?: number;
+  onClinicalPlanSaved?: (clinicalPlan: ClinicalPlan, submittedDraft: ClinicalPlanDraft) => void;
   setManualErrors: (errors: Record<string, string>) => void;
   queryClient: QueryClient;
   updateInquiryMutation: {
@@ -87,6 +144,7 @@ export function useMedicalRecordSaveAction({
   nextVisitDate,
   existingRecordVersion,
   existingClinicalPlanVersion,
+  onClinicalPlanSaved,
   setManualErrors,
   queryClient,
   updateInquiryMutation,
@@ -223,13 +281,26 @@ export function useMedicalRecordSaveAction({
               // バージョンチェックをスキップする（後方互換）ため常に送信する。
               version: snapshot.existingClinicalPlanVersion,
             };
+            const submittedClinicalPlanDraft: ClinicalPlanDraft = {
+              physicalExam: snapshot.physicalExam,
+              plan: snapshot.plan,
+              assessment: snapshot.assessment,
+              diagnosis1CategoryId: snapshot.diagnosis1CategoryId,
+              diagnosis1NameId: snapshot.diagnosis1NameId,
+              diagnosis2CategoryId: snapshot.diagnosis2CategoryId,
+              diagnosis2NameId: snapshot.diagnosis2NameId,
+            };
             if (isSelectedPetDeceasedRef.current) {
               return deniedState(DECEASED_SAVE_MESSAGE);
             }
             if (canEditRef.current !== true) {
               return deniedState(PERMISSION_DENIED_MESSAGE);
             }
-            await updateTreatmentPlanMutation.mutateAsync(treatmentPlanPayload);
+            const savedClinicalPlan =
+              await updateTreatmentPlanMutation.mutateAsync(treatmentPlanPayload);
+            if (isClinicalPlan(savedClinicalPlan)) {
+              onClinicalPlanSaved?.(savedClinicalPlan, submittedClinicalPlanDraft);
+            }
             // 次回来院推奨日を更新（空欄 = クリア、値あり = 設定）
             if (isSelectedPetDeceasedRef.current) {
               return deniedState(DECEASED_SAVE_MESSAGE);

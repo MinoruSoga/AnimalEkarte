@@ -115,11 +115,27 @@ Aがv1を表示し、Bが所見を変更してv2にした後、Aの同一record�
 
 version未取得時の拒否、409表示、backend CASは既存防御。window focus再取得は無効であり、focusだけを再現条件にしない。工数概算4–8h。
 
-- [ ] 同一record IDのqueryをv1→v2へ差し替え、編集中のpayloadと基準versionを確認するREDテストを書く。
-- [ ] 編集内容と基準versionを同じsnapshotとして管理し、他者更新でversionだけ進めない。
-- [ ] 409または明示的な競合状態を維持し、他者の所見を古い内容で黙って上書きしない。
-- [ ] 自身の保存成功、再取得、record切替をhook結合テストで確認する。
-- [ ] scoped Vitestと独立レビューを実施する。具体的な編集allowlistはSolが現コードから定義する。
+- [x] 同一record IDのqueryをv1→v2へ差し替え、編集中のpayloadと基準versionを確認するREDテストを書く。
+- [x] 編集内容と基準versionを同じsnapshotとして管理し、他者更新でversionだけ進めない。
+- [x] 409または明示的な競合状態を維持し、他者の所見を古い内容で黙って上書きしない。
+- [x] 自身の保存成功、再取得、record切替をhook結合テストで確認する。
+- [x] scoped Vitestと独立レビューを実施する。具体的な編集allowlistはSolが現コードから定義する。
+
+### F2 execution result — 2026-09-05
+
+- 状態: COMPLETE（専用worktreeでのローカル実装・未commit・未merge）。BASE_SHA: `9f80acbed67e980adaeba22013f764335d2e4c2d`、branch: `work/ae-qa-clinical-plan-edit-snapshot-20260905`。claim `claim/AE-QA-CLINICAL-PLAN-EDIT-SNAPSHOT` は保持し、ユーザーのみが解放する。
+- 根本原因と修正: queryの最新versionをフォームの旧入力へ直接結合していた。clinical-planの3欄・診断1/2 ID・baseline versionを一つのsnapshotにし、dirtyなremote更新は採用しない。clean更新と完全なown PATCH応答だけをbaselineへ採用し、古いinvalidate refetch、in-flight入力、record切替後の遅延応答を拒否する。
+- 変更パス: `use-apply-clinical-plan.ts`、新規`use-apply-clinical-plan.test.ts`、`use-medical-record-form-helpers.ts`、`use-medical-record-form.ts`、`use-medical-record-save-action.ts`、`use-medical-record-save-action.test.ts`、`use-medical-record-form.action.test.ts`、このF2結果節のみ。
+- RED/GREEN: v1→編集→同一record v2 rerenderで旧実装は`A の編集値`にversion `2`を送信してRED。修正後、one-off candidate mountで4 Vitest files・80 tests PASS、scoped ESLint PASS、Prettier PASS。
+- 独立review: React reviewとTypeScript/state-machine reviewの各HIGH（完全応答、in-flight入力、record switch）を修正し、対応回帰を追加して再検証済み。CRITICALなし、MEDIUMは古いrefetch回帰を追加して解消。Astraはnot invoked: tests/reviewsで未解決のsnapshot/React concurrency判断は残らない。
+- 境界: local testsのみ。full type-check/build/E2E、commit、main統合、push、release readinessは未実施・未証明。
+
+### F2 scope closeout — 2026-09-05
+
+- 承認履歴: 元のF2保存promptは7パスのみをallowlistし、`use-medical-record-save-action.test.ts` は当初範囲外だった。後続のユーザー明示承認でこの1パスを8番目として事後承認した。これは元から許可されていたとの遡及的な記載ではない。
+- 再照合: 8パスのcandidate union、empty index、retained claim/worktree、candidate-mount SHA-256を確認した。4 Vitest files・80 tests、追加testを含むscoped ESLint、Prettier、diff/new-file whitespaceはPASS。
+- fresh closeout review: CRITICAL/HIGHなし。MEDIUMの「不完全な成功応答を直接test化」は、完全応答のみ通知する現行guardの追加防御候補として記録するが、今回のcloseout修正条件ではなく変更しない。Astraはnot invoked。
+- closeout境界: candidateは未commit・未merge、claimは保持。main統合、push、claim解放、full type-check/build/E2E、release readinessは未実施・未証明。
 
 ## F3 — CI認証fixtureの準備経路
 

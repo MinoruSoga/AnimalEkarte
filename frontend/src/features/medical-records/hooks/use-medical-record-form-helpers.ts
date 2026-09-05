@@ -183,8 +183,16 @@ export function useMedicalRecordFormRead(input: {
   const recordClinicId = existingRecord?.clinicId;
   const { data: clinicalPlan } = useGetClinicalPlan(recordId ?? "", recordClinicId);
 
-  useApplyClinicalPlan({
+  const { clinicalPlanVersion, onClinicalPlanSaved } = useApplyClinicalPlan({
+    recordId,
     clinicalPlan,
+    physicalExam: diagnosis.physicalExam,
+    plan: diagnosis.plan,
+    assessment: diagnosis.assessment,
+    diagnosis1CategoryId: diagnosis.diagnosis1CategoryId,
+    diagnosis1NameId: diagnosis.diagnosis1NameId,
+    diagnosis2CategoryId: diagnosis.diagnosis2CategoryId,
+    diagnosis2NameId: diagnosis.diagnosis2NameId,
     setPhysicalExam: diagnosis.setPhysicalExam,
     setPlan: diagnosis.setPlan,
     setAssessment: diagnosis.setAssessment,
@@ -216,6 +224,8 @@ export function useMedicalRecordFormRead(input: {
     reusableAppointment,
     recordClinicId,
     clinicalPlan,
+    clinicalPlanVersion,
+    onClinicalPlanSaved,
     resolvedPetId,
   };
 }
