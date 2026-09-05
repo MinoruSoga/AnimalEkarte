@@ -2,7 +2,7 @@
 
 > **目的**: 受け入れ結果をシナリオ ID だけでなく業務ドメイン単位で俯瞰する。
 > **正本リンク**: [scenarios/README.md](./scenarios/README.md) · [TEST_ARCHITECTURE.md](./TEST_ARCHITECTURE.md)
-> **最新ラン**: `reports/uat-2026-09-05-r8/`（r8 S01 deepen）· r7 master · V04 FAIL/S09 BLOCKED 継続
+> **最新ラン**: `reports/uat-2026-09-05-r9/`（r9 V05 deepen PASS）· r8 S01 · r7 master
 > **更新日**: 2026-09-05
 
 ## サマリ（シナリオ S01–S13 + V01–V05）
@@ -172,7 +172,7 @@
   - 診断・診療項目5タブ・薬剤・トリミング一式・支払方法・締め・請求書欄など他は CRUD PASS
 - **関連 bug IDs**: BUG-20260905-001（open）
 - **証跡**: [`reports/uat-2026-09-05-r7/FINAL-gap-clear.md`](../../../reports/uat-2026-09-05-r7/FINAL-gap-clear.md) · [`reports/uat-2026-09-05-r6/FINAL-master-crud.md`](../../../reports/uat-2026-09-05-r6/FINAL-master-crud.md)
-## 認証（V05 auth）
+## 認証・LINE / LSTEP（V05）
 
 | 項目 | 値 |
 |:---|:---|
@@ -183,11 +183,12 @@
 
 | シナリオ | status |
 |:---|:---|
-| V05 | PASS |
+| V05 | **PASS**（r9 deepen） |
 
-- **未解消ギャップ**: （なし。BUG-001 修正確認済）
-- **関連 bug IDs**: （旧 BUG-001 解消）
-- **証跡**: `reports/uat-2026-09-05-r3/precheck.json`
+- **r9 深掘り**: auth smoke（空/不正/`a@`/短パスワード・session restore・forgot/reset・change-password API）; LINE 予約設定 GET/PUT+zero validation+restore; ページ編集非破壊+10k header 400; LSTEP GET/PATCH dummy + connection-test fail-closed（`lstep_ok:false`、500 なし）。sync OFF 維持
+- **未解消ギャップ（BLOCKED/N/A・製品 FAIL ではない）**: 実 LINE token lane; owner line-reserve create/cancel; slots/owner-link; LSTEP サブフォーム（trigger/tag/CSV/checkup-sync 等）
+- **関連 bug IDs**: （なし。本ラウンド新規 FAIL なし）
+- **証跡**: [`reports/uat-2026-09-05-r9/FINAL-v05.md`](../../../reports/uat-2026-09-05-r9/FINAL-v05.md)
 
 ---
 
