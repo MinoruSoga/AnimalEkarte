@@ -2,7 +2,7 @@
 
 > **目的**: 受け入れ結果をシナリオ ID だけでなく業務ドメイン単位で俯瞰する。
 > **正本リンク**: [scenarios/README.md](./scenarios/README.md) · [TEST_ARCHITECTURE.md](./TEST_ARCHITECTURE.md)
-> **最新ラン**: `reports/uat-2026-09-05-r6/`（r6 V04 master CRUD）· シナリオ総合は r5 継承＋V04 FAIL
+> **最新ラン**: `reports/uat-2026-09-05-r7/`（r7 gap-clear: lab-device・動物種類 PASS）· V04 は主訴 DELETE FAIL 継続
 > **更新日**: 2026-09-05
 
 ## サマリ（シナリオ S01–S13 + V01–V05）
@@ -19,7 +19,7 @@
 | 実施日 | 2026-09-05 |
 | ブランチ | `uat/20260905` @ `7a216ee66` |
 | 環境 | local（FE :3003 / BE :8080） |
-| 証跡 | [`reports/uat-2026-09-05-r6/`](../../../reports/uat-2026-09-05-r6/) · r5 シナリオ |
+| 証跡 | [`reports/uat-2026-09-05-r7/`](../../../reports/uat-2026-09-05-r7/) · r6 CRUD · r5 シナリオ |
 
 ---
 
@@ -159,23 +159,19 @@
 | 実施日 | 2026-09-05 |
 | ブランチ | `uat/20260905` |
 | 環境 | local |
-| ドメイン総合判定 | **FAIL**（主訴 DELETE） |
+| ドメイン総合判定 | **FAIL**（主訴 DELETE のみ） |
 
 | シナリオ | status |
 |:---|:---|
-| V04 | **FAIL**（r6 master CRUD: 主訴 DELETE 500） |
+| V04 | **FAIL**（主訴 DELETE 500 = BUG-20260905-001。他マスタ CRUD は r6+r7 で PASS） |
 | closing-settings（S09 前提） | PASS（r6 GET/PATCH roundtrip） |
 
-- **r6 Master CRUD**: PASS 24 / PARTIAL 1 / BLOCKED 1 / FAIL 1（27 行）
-  - **FAIL**: `master-chief-complaint` DELETE 常時 500（`inquiries.deleted_at` 欠落）→ **BUG-20260905-001**
-  - **BLOCKED**: `master-animal-species`（system admin 403）
-  - **PARTIAL**: `lab-device-item-masters`（create 403。既存 PATCH OK）
+- **Master CRUD 総合（r6+r7）**: PASS **26** / PARTIAL **0** / BLOCKED **0** / FAIL **1**（27 行）
+  - **FAIL**: `master-chief-complaint` DELETE 常時 500（`inquiries.deleted_at` 欠落）→ **BUG-20260905-001**（r7 再確認済）
+  - **r7 前進**: `lab-device-item-masters` PARTIAL→**PASS**（`lab-import:create` 一時付与）。`master-animal-species` BLOCKED→**PASS**（`is_system_admin` 一時付与）。権限は試験後に復元済
   - 診断・診療項目5タブ・薬剤・トリミング一式・支払方法・締め・請求書欄など他は CRUD PASS
 - **関連 bug IDs**: BUG-20260905-001（open）
-- **証跡**: [`reports/uat-2026-09-05-r6/FINAL-master-crud.md`](../../../reports/uat-2026-09-05-r6/FINAL-master-crud.md)
-
----
-
+- **証跡**: [`reports/uat-2026-09-05-r7/FINAL-gap-clear.md`](../../../reports/uat-2026-09-05-r7/FINAL-gap-clear.md) · [`reports/uat-2026-09-05-r6/FINAL-master-crud.md`](../../../reports/uat-2026-09-05-r6/FINAL-master-crud.md)
 ## 認証（V05 auth）
 
 | 項目 | 値 |
