@@ -339,8 +339,10 @@ func FromGORM(err error, resource, id string) error {
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return WrapNotFound(resource, id)
 	}
-	// BUG-138: pgx ドライバのエンコードエラー（pgconn.PgError ではない）をキャッチ。
-	// int32 範囲超過などで "unable to encode" が発生した場合。
+	// BUG-138 / DEC-34: client-side pgx encode/range is not *pgconn.PgError.
+	// jackc/pgx v5.10.0 and master (2026-09-07) still use fmt.Errorf in
+	// pgtype.newEncodeError and Int2/Int4 range checks — no typed EncodeError.
+	// Do not add needles. Resume with errors.As when pgx exports one.
 	if isPgxEncodeRangeMessage(err.Error()) {
 		return WrapInvalidInput("数値が範囲外です")
 	}
@@ -369,7 +371,8 @@ func FromGORM(err error, resource, id string) error {
 }
 
 // pgxEncodeRangeNeedles are the only message fragments FromGORM may use for
-// encode/range classification (DEC-34 exception; no typed pgx encode error).
+// encode/range classification (DEC-34). Closed as BE-RC-014 residual: pgx has
+// no typed encode error as of v5.10.0 / master 2026-09-07.
 var pgxEncodeRangeNeedles = []string{
 	"unable to encode",
 	"greater than maximum value",

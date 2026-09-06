@@ -1,17 +1,17 @@
 # backend コード規約チェック結果（2026-09-04 HEAD re-audit）
 
-`backend/` の production `.go` を規約正本に照合し、改善すべき開いた所見だけを残す。コードは修正していない。
+`backend/` の production `.go` を規約正本に照合し、改善すべき開いた所見だけを残す。
 
-- HEAD: `6739b64021607f219f5159f4090f23d1fd6747bb`
+- 現行 HEAD: `fd4e97809f2b6beba9290796263565ad8dcec788`（014/019 の残差調査はこの tip。初回精読の行番号は `6739b6402`）
 - 母集団: `git ls-files 'backend/**/*.go' | grep -v '_test.go$' | grep -v '/_archive/' | sort` → **982**（欠番 0）。`_test.go` と `cmd/_archive` は本番 invariant の母集団外
 - 規約正本: `AGENTS.md`、`CLAUDE.md`、`.claude/CLAUDE.md`、`.claude/rules/go-gin-backend-guidelines.md`、`.claude/rules/tdd.md`、`.claude/rules/git-worktree-safety.md`、`.claude/refs/go-gin-backend-review.md`、`.claude/refs/backend-application-invariants.md`、`.claude/refs/error-handling.md`、`.claude/refs/naming-conventions.md`、`.claude/refs/go-language.md`、`.claude/refs/api.md`、`backend/CLAUDE.md`、`backend/CODING_RULES.md`、`backend/migrations/CLAUDE.md`、`backend/.golangci.yml`、`docs/product-philosophy.md`、ADR-001〜008、`docs/architecture/be9-2a-boundary-map.md`、project `.agents/skills` の backend 系（clinic-id-isolation / go-gin-backend / go-security / golang-testing / golang-refactoring / golang-gin-api / gin-api-design / postgres-patterns / database-indexing / security-checklist / scoped-verification-gates / migration-seed-safety）
 - 方法: 現行 HEAD で母集団を取り直し、production `.go` をバッチ精読。機械検出で BindJSON / MustBind、`slog.ErrorContext` in `*service*.go`、`err.Error()` Contains、exported `Update(..., map[string]any)`、800 行超を再走査。旧台帳 HEAD `321fe2b8d` / 981 は stale とし正本にしない。旧 DONE は未修正として再掲しない
-- 各所見の `path` は `backend/` 起点。行番号は `6739b6402` 時点
+- 各所見の `path` は `backend/` 起点。初回精読の行番号は `6739b6402` 時点
 - Handler → Service → Repository / Clean Architecture は Go/Gin 公式要件ではない。再導入しない
-- カバレッジ行: OK 976 / FINDING 3 / SKIP 3
-- 開いた所見: HIGH 0 / MEDIUM 1 / LOW 1
+- カバレッジ行: OK 979 / FINDING 0 / SKIP 3
+- 開いた所見: HIGH 0 / MEDIUM 0 / LOW 0
 - 2026-09-06 に閉じた: BE-RC-021 / 023 / 034 / 035 / 036
-- 2026-09-07 に閉じた: BE-RC-009 / 015 / 005 / 017
+- 2026-09-07 に閉じた: BE-RC-009 / 015 / 005 / 017 / **014** / **019**
 
 規約矛盾は Truth Source Priority で解決した（キャンペーン BLOCKED にしない）: gosec は `.golangci.yml` enable が正。旧 3 layer は ADR / 現行 tree が正。seed バンドルは ADR-004 / `backend/migrations/CLAUDE.md` の `002_master` が正。
 
@@ -54,21 +54,13 @@
 
 ## 4. MEDIUM（開いた所見のみ）
 
-#### BE-RC-014 [MEDIUM][residual] pgx encode 判定が `err.Error()` 文字列 Contains
-- 対象: `internal/apperrors/errors.go:344` — `isPgxEncodeRangeMessage(err.Error())`（定義 `:371-385`、DEC-34 / BUG-138）
-- 規約: `errors.Is` / `As`。pgx v5.10.0 は encode を `fmt.Errorf("unable to encode ...")` のまま出し、typed EncodeError は無い
-- 改善案: 新規に同パターンを増やさない。pgx が typed error を出したら `errors.As` へ。LSTEP の同型は BE-RC-033（§6）
+なし。
 
 ---
 
 ## 5. LOW（開いた所見のみ）
 
-#### BE-RC-019 [LOW][residual] `medicalrecord` 本番 239 file の凝集圧
-- layer サブパッケージ化は禁止方針どおり避けている。800 行超ファイルなし（package 内最大 `lab_device_receive_service.go` **672** 行。backend 全体最大は `staff/staff_repository.go` **718** 行）
-- 800 行超 0 は別の §6 項目であり、019 を閉じる根拠にしない
-- カバレッジ代表: `medical_record_repository.go`、`lab_device_receive_service.go:1-672`。239 ファイルすべてには付けない
-- 改善案: 分割するなら業務能力（lab / hospitalization）単位。急がない。`handler/service/repository` サブパッケージ化はしない
-- 2026-09-06: lab / hospitalization の独立 consumer・変更周期は未成立。019 は BLOCKED のまま。層分割では閉じない
+なし。
 
 ---
 
@@ -108,6 +100,8 @@
 | BE-RC-018 staffs/shift_entries AST gate | `staff/staff_table_write_owner_lint_test.go` 存在 |
 | BE-RC-022 `replace_audit_tail` | `internal/service` を正本扱いしない |
 | BE-RC-011 見積通常 CRUD 監査 | 意図的 post-commit best-effort。CreateSuccessor のみ fail-closed。再提案しない |
+| BE-RC-014 pgx encode Contains | DEC-34 / BUG-138。`FromGORM` は閉集合 3 needle（`unable to encode` / `greater than maximum value` / `less than minimum value`）。依存 `github.com/jackc/pgx/v5 v5.10.0` と upstream master（2026-09-07）の `pgtype.newEncodeError` は `fmt.Errorf(...)` のまま。Int2/Int4 範囲も `fmt.Errorf`。typed EncodeError は無いので `errors.As` 不能。Contains は増やさない。再開条件は §8 |
+| BE-RC-019 medicalrecord 凝集圧 | 本番 239 file・800 行超 0（package 内最大 `lab_device_receive_service.go` 672）。ADR-006 / boundary map §3.7 の A+B 同一 package は呼び出し密度と「1回の受診/入院の臨床記録」一体性。14 domain からの Lab* import は 0（配線は `cmd/api` composition のみ。`labdeviceagent` は medicalrecord を import せず、consumer は `cmd/lab-device-agent`）。hospitalization の外部は billing の `billingHospitalizationFinder.FindByID`（FK 検証の consumer-side 最小 view）と discharge+billing 同一 tx（PATH-HOSP-DISCHARGE-BILL）。lstep は `OwnerVisitSummary` / `DormantOwnerEntry`、inventory は medicine。独立 consumer・変更周期は未成立。層分割も lab/hospitalization 抽出もしない。再開条件は §8 |
 | BE-RC-020 `nested_summary_response.go` | billing / medicalrecord / reservation の意図的コピー。統合しない |
 | 旧 3 layer directory | 不存在 |
 | ADR-006 DAG / appointments write owner | AST gate 維持。trimming は typed intent |
@@ -141,6 +135,8 @@
 - auto-create に clock seam を導入しない（2026-07-27）。予約日基準が正
 - Count→Delete の**一括** retrofit を本監査の実装スコープにしない（CODING_RULES。触る Delete では直す）
 - medicalrecord を `handler/service/repository` サブパッケージへ層分割しない
+- pgx encode 判定の Contains needle を増やさない（BE-RC-014）。再開条件 = `jackc/pgx` が typed EncodeError（または同等の `errors.As` 可能な型）を export したとき、`FromGORM` を `errors.As` へ切り替える。依存 bump はその時点で別判断
+- medicalrecord から lab / hospitalization を独立 package へ抽出しない（BE-RC-019）。再開条件 = lab または hospitalization に `cmd/api` composition 以外の独立 consumer と、互いに独立した変更周期が実測できたとき。層分割では再開しない。billing の `FindByID` FK view や discharge+billing 同一 tx だけでは成立しない
 - `map[string]any` の監査 metadata / テスト fixture を禁止しない
 - wrapcheck を host の full `golangci-lint run ./...` でエージェントが回さない
 - stutter 一括 rename、GoDoc 一括、同一 package map Update 一括 unexport、testdb.Truncate 一括移行
@@ -152,7 +148,7 @@
 
 ## 9. カバレッジ表（production `.go` 全 982）
 
-各行は `OK` / `FINDING(IDs)` / `SKIP(理由)`。FINDING の ID は開いた所見のみ（DONE 済み ID を未修正として付けない）。015/019/021 は系統的残差のため代表ファイルのみタグ。035 は test-only のため本表に無い。
+各行は `OK` / `FINDING(IDs)` / `SKIP(理由)`。FINDING の ID は開いた所見のみ（DONE 済み ID を未修正として付けない）。015 の stutter は系統的残差のため代表のみ（§6）。035 は test-only のため本表に無い。
 
 ### `backend/cmd/api` (22)
 
@@ -269,7 +265,7 @@
 
 | path | status |
 |---|---|
-| `backend/internal/apperrors/errors.go` | FINDING(BE-RC-014) |
+| `backend/internal/apperrors/errors.go` | OK |
 
 ### `backend/internal/audit` (2)
 
@@ -880,7 +876,7 @@
 | `backend/internal/medicalrecord/lab_device_item_master_service.go` | OK |
 | `backend/internal/medicalrecord/lab_device_receive.go` | OK |
 | `backend/internal/medicalrecord/lab_device_receive_repository.go` | OK |
-| `backend/internal/medicalrecord/lab_device_receive_service.go` | FINDING(BE-RC-019) |
+| `backend/internal/medicalrecord/lab_device_receive_service.go` | OK |
 | `backend/internal/medicalrecord/lab_device_today_visit.go` | OK |
 | `backend/internal/medicalrecord/lab_device_urine.go` | OK |
 | `backend/internal/medicalrecord/lab_import_examination_service.go` | OK |
@@ -919,7 +915,7 @@
 | `backend/internal/medicalrecord/medical_record_lock.go` | OK |
 | `backend/internal/medicalrecord/medical_record_lstep_sync.go` | OK |
 | `backend/internal/medicalrecord/medical_record_owner_visit_repository.go` | OK |
-| `backend/internal/medicalrecord/medical_record_repository.go` | FINDING(BE-RC-019) |
+| `backend/internal/medicalrecord/medical_record_repository.go` | OK |
 | `backend/internal/medicalrecord/medical_record_repository_list.go` | OK |
 | `backend/internal/medicalrecord/medical_record_repository_list_search.go` | OK |
 | `backend/internal/medicalrecord/medical_record_request.go` | OK |
