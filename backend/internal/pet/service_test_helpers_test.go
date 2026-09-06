@@ -95,9 +95,12 @@ func (m *mockPetRepository) Create(ctx context.Context, pet *model.Pet) error {
 func (m *mockPetRepository) Update(
 	ctx context.Context,
 	clinicID, id uint64,
-	fields map[string]any,
+	cmd UpdatePetInput,
 ) error {
-	return m.updateFn(ctx, clinicID, id, fields)
+	if m.updateFn != nil {
+		return m.updateFn(ctx, clinicID, id, buildPetUpdate(&cmd))
+	}
+	return nil
 }
 
 func (m *mockPetRepository) Delete(ctx context.Context, clinicID, id uint64) error {

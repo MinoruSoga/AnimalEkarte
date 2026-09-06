@@ -20,7 +20,7 @@ type ShiftTemplateRepository interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.ShiftTemplate, error)
 	LockActiveByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.ShiftTemplate, error)
 	Create(ctx context.Context, tpl *model.ShiftTemplate) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ShiftTemplate, error)
+	Update(ctx context.Context, clinicID, id uint64, cmd UpdateShiftTemplateInput) (*model.ShiftTemplate, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	UpdateBreaks(ctx context.Context, templateID uint64, breaks []model.ShiftTemplateBreak) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
@@ -110,18 +110,25 @@ func (r *shiftTemplateRepository) Create(ctx context.Context, tpl *model.ShiftTe
 	return nil
 }
 
-func (r *shiftTemplateRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ShiftTemplate, error) {
+func (r *shiftTemplateRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateShiftTemplateInput) (*model.ShiftTemplate, error) {
+	if err := r.update(ctx, clinicID, id, buildShiftTemplateUpdate(&cmd)); err != nil {
+		return nil, err
+	}
+	return r.FindByID(ctx, clinicID, id)
+}
+
+func (r *shiftTemplateRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	result := persistence.DBOrTx(ctx, r.db).
 		Model(&model.ShiftTemplate{}).
 		Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
-		return nil, apperrors.FromGORM(result.Error, "shift_template", strconv.FormatUint(id, 10))
+		return apperrors.FromGORM(result.Error, "shift_template", strconv.FormatUint(id, 10))
 	}
 	if result.RowsAffected == 0 {
-		return nil, apperrors.WrapNotFound("shift_template", strconv.FormatUint(id, 10))
+		return apperrors.WrapNotFound("shift_template", strconv.FormatUint(id, 10))
 	}
-	return r.FindByID(ctx, clinicID, id)
+	return nil
 }
 
 func (r *shiftTemplateRepository) Delete(ctx context.Context, clinicID, id uint64) error {

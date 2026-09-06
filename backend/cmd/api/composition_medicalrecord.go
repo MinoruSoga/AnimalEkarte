@@ -27,7 +27,7 @@ type medicalRecordCompositionDependencies struct {
 	LineCustomers    lstep.LineCustomerRepository
 	Reservations     reservation.ReservationStore
 	Pets             pet.CompleteRepository
-	Staff            staff.StaffRepository
+	Staff            staff.Repository
 	StaffAssignments staff.StaffClinicAssignmentRepository
 	Inventory        inventory.Repository
 	Accounting       billing.AccountingRepository

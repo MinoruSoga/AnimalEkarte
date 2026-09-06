@@ -49,7 +49,7 @@ func TestAnimalSpeciesService_Update_NameConflictMapsDomainCode(t *testing.T) {
 		findByIDFn: func(_ context.Context, id uint64) (*model.AnimalSpecies, error) {
 			return &model.AnimalSpecies{ID: id, Name: "旧"}, nil
 		},
-		updateFieldsFn: func(_ context.Context, _ uint64, _ map[string]any) (*model.AnimalSpecies, error) {
+		updateFieldsFn: func(_ context.Context, _ uint64, _ UpdateAnimalSpeciesInput) (*model.AnimalSpecies, error) {
 			return nil, uniqueAnimalSpeciesNameErr()
 		},
 	}

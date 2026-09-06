@@ -2,7 +2,6 @@ package medicalrecord
 
 import (
 	"context"
-	"log/slog"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/sharedkernel"
@@ -37,7 +36,6 @@ func logReplaceDeletionTx(txCtx context.Context, auditTx AuditTxLogger, clinicID
 		NewValue:   newVal,
 		Metadata:   metadata,
 	}); err != nil {
-		slog.ErrorContext(txCtx, logMsg, "error", err, idFieldName, resourceID, "clinic_id", clinicID)
 		return apperrors.Wrap(err, wrapMsg)
 	}
 	return nil

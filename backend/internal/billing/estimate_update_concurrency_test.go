@@ -41,11 +41,11 @@ func (r *estimateUpdateRaceRepository) LockEditableByID(ctx context.Context, cli
 	return estimate, err
 }
 
-func (r *estimateUpdateRaceRepository) UpdateIfNotLocked(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Estimate, error) {
+func (r *estimateUpdateRaceRepository) UpdateIfNotLocked(ctx context.Context, clinicID, id uint64, cmd UpdateEstimateInput) (*model.Estimate, error) {
 	if r.beforeWrite != nil {
 		r.beforeWrite()
 	}
-	return r.EstimateRepository.UpdateIfNotLocked(ctx, clinicID, id, fields)
+	return r.EstimateRepository.UpdateIfNotLocked(ctx, clinicID, id, cmd)
 }
 
 func TestEstimateService_Update_ConcurrentHeaderAndItemReplacementStayConsistent(t *testing.T) {

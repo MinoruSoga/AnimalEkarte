@@ -169,7 +169,7 @@ type mockAccountingRepository struct {
 	findAllFn           func(ctx context.Context, clinicID uint64, filters AccountingListFilters, page, limit int) ([]model.Billing, int64, error)
 	findByIDFn          func(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
 	createFn            func(ctx context.Context, clinicID uint64, accounting *model.Billing) error
-	updateFieldsFn      func(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error)
+	updateFieldsFn      func(ctx context.Context, clinicID, billingID uint64, cmd AccountingUpdate) (*model.Billing, error)
 	savePaymentFn       func(ctx context.Context, payment *model.Payment) error
 	savePaymentSplitsFn func(ctx context.Context, splits []model.PaymentSplit) error
 	getDailySummaryFn   func(ctx context.Context, clinicID uint64, date time.Time) (*DailySummaryResult, error)
@@ -227,9 +227,9 @@ func (m *mockAccountingRepository) Create(ctx context.Context, clinicID uint64, 
 	return nil
 }
 
-func (m *mockAccountingRepository) Update(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error) {
+func (m *mockAccountingRepository) Update(ctx context.Context, clinicID, billingID uint64, cmd AccountingUpdate) (*model.Billing, error) {
 	if m.updateFieldsFn != nil {
-		return m.updateFieldsFn(ctx, clinicID, billingID, fields)
+		return m.updateFieldsFn(ctx, clinicID, billingID, cmd)
 	}
 	return nil, nil
 }

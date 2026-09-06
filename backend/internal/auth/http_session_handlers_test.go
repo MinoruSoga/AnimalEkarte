@@ -193,12 +193,12 @@ func (s *countingSessionClinicLister) ListClinicsByIDs(_ context.Context, ids []
 	return out, nil
 }
 
-type sessionLoginAuthService struct {
+type sessionLoginService struct {
 	account *model.Account
 	staff   *model.Staff
 }
 
-func (s sessionLoginAuthService) AuthenticateUser(
+func (s sessionLoginService) AuthenticateUser(
 	context.Context,
 	string,
 	string,
@@ -206,13 +206,13 @@ func (s sessionLoginAuthService) AuthenticateUser(
 	return s.account, s.staff, nil
 }
 
-func (sessionLoginAuthService) ResolveClinicInfo(
+func (sessionLoginService) ResolveClinicInfo(
 	assignments []model.StaffClinicAssignment,
 ) (string, []uint64) {
 	return ResolveClinicInfo(assignments)
 }
 
-func (sessionLoginAuthService) ResolveSystemAdminMainClinicID(
+func (sessionLoginService) ResolveSystemAdminMainClinicID(
 	mainClinicID string,
 	isSystemAdmin bool,
 	allClinics []model.Clinic,
@@ -220,7 +220,7 @@ func (sessionLoginAuthService) ResolveSystemAdminMainClinicID(
 	return ResolveSystemAdminMainClinicID(mainClinicID, isSystemAdmin, allClinics)
 }
 
-func (sessionLoginAuthService) CalculateEffectivePermissions(
+func (sessionLoginService) CalculateEffectivePermissions(
 	context.Context,
 	bool,
 	uint64,
@@ -234,7 +234,7 @@ func TestHTTPHandler_Login_AuditsResolvedMainClinic(t *testing.T) {
 	accountID := uint64(41)
 	audit := &sessionAuditLogger{}
 	handler := NewHTTPHandler(HTTPDependencies{
-		Auth: sessionLoginAuthService{
+		Auth: sessionLoginService{
 			account: &model.Account{
 				ID:        accountID,
 				Email:     "staff@example.test",
@@ -290,7 +290,7 @@ func TestHTTPHandler_LoginAuditsFallbackClinicForUnassignedSystemAdmin(
 	accountID := uint64(41)
 	audit := &sessionAuditLogger{}
 	handler := NewHTTPHandler(HTTPDependencies{
-		Auth: sessionLoginAuthService{
+		Auth: sessionLoginService{
 			account: &model.Account{
 				ID:            accountID,
 				IsActive:      true,
@@ -862,7 +862,7 @@ func TestAuthPermissionMappingAndAuditHelpers(t *testing.T) {
 		CanView:   true,
 		CanCreate: true,
 	}}}
-	service := NewAuthService(nil, nil, effective)
+	service := NewService(nil, nil, effective)
 	admin := service.CalculateEffectivePermissions(context.Background(), true, 17, 0)
 	assert.Len(t, admin, len(model.AllResources))
 	assert.True(t, admin[string(model.ResourceOwners)].Delete)
@@ -872,7 +872,7 @@ func TestAuthPermissionMappingAndAuditHelpers(t *testing.T) {
 	assert.True(t, regular["owners"].Create)
 	assert.False(t, regular["owners"].Delete)
 
-	failed := NewAuthService(
+	failed := NewService(
 		nil,
 		nil,
 		permissionHTTPEffectiveService{err: errors.New("unavailable")},

@@ -129,19 +129,22 @@ func TestCheckupTypeRepository_Update(t *testing.T) {
 	require.NoError(t, db.WithContext(ctx).Create(ct).Error)
 
 	t.Run("同一クリニックで更新できる", func(t *testing.T) {
-		got, err := repo.Update(ctx, clinicA, ct.ID, map[string]any{"name": "新名称"})
+		name := "新名称"
+		got, err := repo.Update(ctx, clinicA, ct.ID, UpdateCheckupTypeInput{Name: &name})
 		require.NoError(t, err)
 		assert.Equal(t, "新名称", got.Name)
 	})
 
 	t.Run("別クリニックからの更新は NotFound", func(t *testing.T) {
-		_, err := repo.Update(ctx, clinicB, ct.ID, map[string]any{"name": "乗っ取り"})
+		name := "乗っ取り"
+		_, err := repo.Update(ctx, clinicB, ct.ID, UpdateCheckupTypeInput{Name: &name})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
 	t.Run("存在しない ID の更新は NotFound", func(t *testing.T) {
-		_, err := repo.Update(ctx, clinicA, 999999, map[string]any{"name": "x"})
+		name := "x"
+		_, err := repo.Update(ctx, clinicA, 999999, UpdateCheckupTypeInput{Name: &name})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})

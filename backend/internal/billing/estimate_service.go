@@ -366,7 +366,6 @@ func (s *estimateService) verifyCreatedByClinicMembership(ctx context.Context, c
 	}
 	count, err := s.staffClinicRepo.CountByStaffAndClinic(ctx, staffID, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to verify staff clinic membership", "error", err, "id", staffID, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to verify staff clinic membership")
 	}
 	if count == 0 {
@@ -378,7 +377,6 @@ func (s *estimateService) verifyCreatedByClinicMembership(ctx context.Context, c
 func (s *estimateService) List(ctx context.Context, clinicID uint64, ownerID, medicalRecordID *uint64, status *string, page, limit int) ([]model.Estimate, int64, error) {
 	result, total, err := s.repo.FindAll(ctx, clinicID, ownerID, medicalRecordID, status, page, limit)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list estimate", "error", err)
 		return nil, 0, apperrors.Wrap(err, "failed to list estimate")
 	}
 	return result, total, nil
@@ -387,7 +385,6 @@ func (s *estimateService) List(ctx context.Context, clinicID uint64, ownerID, me
 func (s *estimateService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Estimate, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get estimate", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get estimate")
 	}
 	return result, nil
@@ -528,16 +525,12 @@ func (s *estimateService) Delete(ctx context.Context, clinicID, id uint64, actor
 		// 早期 Count は UX 用。防御の本体は DeleteIfNotLocked の原子条件（status + active items=0）。
 		count, err := s.repo.CountItemsByEstimateID(txCtx, clinicID, id)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to check estimate item dependencies", "error", err, "clinic_id", clinicID, "estimate_id", id)
 			return apperrors.Wrap(err, "failed to check estimate item dependencies")
 		}
 		if count > 0 {
 			return apperrors.WrapConflict("この見積書には明細が登録されているため削除できません")
 		}
 		if err := s.repo.DeleteIfNotLocked(txCtx, clinicID, id); err != nil {
-			if !apperrors.IsConflict(err) && !apperrors.IsNotFound(err) {
-				slog.ErrorContext(txCtx, "failed to delete estimate", "error", err, "clinic_id", clinicID, "estimate_id", id)
-			}
 			return apperrors.Wrap(err, "failed to delete estimate")
 		}
 		return nil

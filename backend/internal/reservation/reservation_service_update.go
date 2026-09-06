@@ -84,7 +84,6 @@ func (s *reservationService) updateWithConflictCheck(ctx context.Context, clinic
 		result = updated
 		return nil
 	}); err != nil {
-		slog.ErrorContext(ctx, "failed to update reservation with conflict check", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update reservation with conflict check")
 	}
 	return result, nil
@@ -96,7 +95,6 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 	}
 	current, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to find reservation", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find reservation")
 	}
 	if current == nil {
@@ -148,13 +146,11 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 				return err
 			}
 			if err := s.repo.Delete(txCtx, clinicID, id); err != nil {
-				slog.ErrorContext(txCtx, "failed to soft-delete cancelled reservation", "error", err)
 				return apperrors.Wrap(err, "failed to soft-delete cancelled reservation")
 			}
 			updated = u
 			return nil
 		}); err != nil {
-			slog.ErrorContext(ctx, "failed to cancel reservation", "error", err)
 			return nil, apperrors.Wrap(err, "failed to cancel reservation")
 		}
 		slog.InfoContext(ctx, "reservation updated",
@@ -165,7 +161,6 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 
 	updated, err := s.applyReservationUpdate(ctx, clinicID, id, fields, input, needsConflictCheck, needsLinkValidation, needsCapabilityCheck, needsKarteCheck)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to update reservation", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update reservation")
 	}
 
@@ -253,7 +248,6 @@ func (s *reservationService) UpdateReservationRoute(ctx context.Context, clinicI
 	}
 	reservation, err := s.repo.update(ctx, clinicID, id, map[string]any{colReservationRoute: routeValue})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to update reservation_route", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to update reservation_route")
 	}
 	slog.InfoContext(ctx, "reservation_route updated",
@@ -269,14 +263,12 @@ func (s *reservationService) Delete(ctx context.Context, clinicID, id uint64) er
 	}
 	count, err := s.repo.CountMedicalRecordsByReservationID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check reservation dependencies", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to check reservation dependencies")
 	}
 	if count > 0 {
 		return apperrors.WrapConflict("この予約にはカルテが紐付いているため削除できません")
 	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to delete reservation", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete reservation")
 	}
 	slog.InfoContext(ctx, "reservation deleted",

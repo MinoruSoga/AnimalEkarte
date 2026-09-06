@@ -14,7 +14,6 @@ import (
 func (s *billingItemService) validateBillingItemOwnership(ctx context.Context, input *CreateBillingItemInput) error {
 	// テナント所有権確認: billing が同一クリニックに属することを確認
 	if _, err := s.billingRepo.FindByID(ctx, input.ClinicID, input.BillingID); err != nil {
-		slog.ErrorContext(ctx, "billing not found or belongs to different clinic", "error", err)
 		return apperrors.Wrap(err, "billing not found or belongs to different clinic")
 	}
 
@@ -22,13 +21,11 @@ func (s *billingItemService) validateBillingItemOwnership(ctx context.Context, i
 	// caller の clinic に属することを検証する(#124/#125 と同型の master FK 所有権チェック)。
 	if input.TrimmingCourseID != nil {
 		if _, err := s.trimmingCourseRepo.FindByID(ctx, input.ClinicID, *input.TrimmingCourseID); err != nil {
-			slog.ErrorContext(ctx, "trimming course not found or belongs to different clinic", "error", err)
 			return apperrors.Wrap(err, "failed to verify trimming course ownership")
 		}
 	}
 	if input.TrimmingOptionID != nil {
 		if _, err := s.trimmingOptionRepo.FindByID(ctx, input.ClinicID, *input.TrimmingOptionID); err != nil {
-			slog.ErrorContext(ctx, "trimming option not found or belongs to different clinic", "error", err)
 			return apperrors.Wrap(err, "failed to verify trimming option ownership")
 		}
 	}
@@ -190,16 +187,11 @@ func (s *billingItemService) createItemInAmbientTx(ctx context.Context, input *C
 	}
 
 	if err := s.repo.Create(ctx, item); err != nil {
-		slog.ErrorContext(ctx, "failed to create billing item", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create billing item")
 	}
 
 	if opts.recalculate {
 		if err := s.recalculateTotals(ctx, input.ClinicID, input.BillingID, false); err != nil {
-			slog.ErrorContext(ctx, "failed to recalculate billing totals after create",
-				slog.Uint64("billing_id", input.BillingID),
-				slog.String("error", err.Error()),
-			)
 			return nil, apperrors.Wrap(err, "failed to recalculate billing totals")
 		}
 	}

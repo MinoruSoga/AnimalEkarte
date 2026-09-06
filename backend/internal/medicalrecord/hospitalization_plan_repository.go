@@ -21,7 +21,7 @@ type HospitalizationPlanRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.HospitalizationPlan, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.HospitalizationPlan, error)
 	Create(ctx context.Context, plan *model.HospitalizationPlan) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.HospitalizationPlan, error)
+	Update(ctx context.Context, clinicID, id uint64, cmd UpdateHospitalizationPlanInput) (*model.HospitalizationPlan, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	CountUsageByHospitalizationPlanID(ctx context.Context, clinicID, planID uint64) (int64, error)
@@ -61,11 +61,15 @@ func (r *hospitalizationPlanRepository) Create(ctx context.Context, plan *model.
 	return nil
 }
 
-func (r *hospitalizationPlanRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.HospitalizationPlan, error) {
-	if err := persistence.UpdateScopedByID(ctx, r.db, &model.HospitalizationPlan{}, "hospitalization_plan", clinicID, id, fields); err != nil {
+func (r *hospitalizationPlanRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateHospitalizationPlanInput) (*model.HospitalizationPlan, error) {
+	if err := r.update(ctx, clinicID, id, buildHospitalizationPlanUpdate(cmd)); err != nil {
 		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
+}
+
+func (r *hospitalizationPlanRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+	return persistence.UpdateScopedByID(ctx, r.db, &model.HospitalizationPlan{}, "hospitalization_plan", clinicID, id, fields)
 }
 
 func (r *hospitalizationPlanRepository) Delete(ctx context.Context, clinicID, id uint64) error {

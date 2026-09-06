@@ -59,9 +59,6 @@ func (s *inquiryService) Save(ctx context.Context, input UpsertInquiryInput) (*m
 
 	result, err := s.repo.SaveByMedicalRecordID(ctx, input.ClinicID, inquiry)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to upsert inquiry",
-			slog.Uint64("medical_record_id", input.MedicalRecordID),
-			slog.String("error", err.Error()))
 		return nil, apperrors.Wrap(err, "failed to upsert inquiry")
 	}
 	slog.InfoContext(ctx, "inquiry upserted", slog.Uint64("clinic_id", input.ClinicID), slog.Uint64("medical_record_id", input.MedicalRecordID))

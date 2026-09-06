@@ -83,7 +83,6 @@ func NewCheckupFieldResultService(
 func (s *checkupFieldResultService) ListFields(ctx context.Context, clinicID, checkupTypeID uint64) ([]model.CheckupTypeField, error) {
 	fields, err := s.fieldRepo.FindByCheckupTypeID(ctx, clinicID, checkupTypeID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list checkup type fields", "error", err, "checkup_type_id", checkupTypeID, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to list checkup type fields")
 	}
 	return fields, nil
@@ -95,7 +94,6 @@ func (s *checkupFieldResultService) ListByCheckup(ctx context.Context, clinicID,
 	}
 	results, err := s.resultRepo.FindByCheckupID(ctx, clinicID, checkupID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list checkup field results", "error", err, "checkup_id", checkupID, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to list checkup field results")
 	}
 	return results, nil
@@ -104,7 +102,6 @@ func (s *checkupFieldResultService) ListByCheckup(ctx context.Context, clinicID,
 func (s *checkupFieldResultService) ListByPet(ctx context.Context, clinicID, petID uint64) ([]model.CheckupFieldResult, error) {
 	results, err := s.resultRepo.FindByPetID(ctx, clinicID, petID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list pet checkup field results", "error", err, "pet_id", petID, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to list pet checkup field results")
 	}
 	return results, nil
@@ -186,7 +183,6 @@ func (s *checkupFieldResultService) ReplaceForCheckup(ctx context.Context, clini
 	// ため意図的に許容した順序変更である。
 	fields, err := s.fieldRepo.FindByCheckupTypeID(ctx, clinicID, checkup.CheckupTypeID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to load checkup type fields", "error", err, "checkup_type_id", checkup.CheckupTypeID, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to load checkup type fields")
 	}
 	results, err := buildCheckupFieldResults(clinicID, checkupID, fields, inputs)
@@ -212,13 +208,11 @@ func (s *checkupFieldResultService) ReplaceForCheckup(ctx context.Context, clini
 
 		existing, err := s.resultRepo.FindByCheckupID(txCtx, clinicID, checkupID)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to snapshot existing checkup field results before replace", "error", err, "checkup_id", checkupID, "clinic_id", clinicID)
 			return apperrors.Wrap(err, "failed to load existing checkup field results")
 		}
 
 		replaced, deletedCount, err := s.resultRepo.ReplaceForCheckup(txCtx, clinicID, checkupID, results)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to replace checkup field results", "error", err, "checkup_id", checkupID, "clinic_id", clinicID)
 			return apperrors.Wrap(err, "failed to persist replaced checkup field results")
 		}
 		saved = replaced
@@ -254,10 +248,6 @@ func (s *checkupFieldResultService) ReplaceForCheckup(ctx context.Context, clini
 func (s *checkupFieldResultService) verifyCheckup(ctx context.Context, clinicID, medicalRecordID, checkupID uint64) (*model.Checkup, error) {
 	checkup, err := s.checkupRepo.FindByID(ctx, clinicID, checkupID)
 	if err != nil {
-		// NotFound は 404 正常系のためログ不要（P11）。DB 障害等のみ記録する。
-		if !apperrors.IsNotFound(err) {
-			slog.ErrorContext(ctx, "failed to find checkup", "error", err, "checkup_id", checkupID, "clinic_id", clinicID)
-		}
 		return nil, apperrors.Wrap(err, "failed to find checkup")
 	}
 	if checkup.MedicalRecordID != medicalRecordID {

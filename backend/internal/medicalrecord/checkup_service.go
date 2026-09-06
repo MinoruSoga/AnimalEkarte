@@ -161,7 +161,6 @@ func NewCheckupService(
 func (s *checkupService) List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Checkup, error) {
 	result, err := s.repo.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list checkups", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list checkups")
 	}
 	return result, nil
@@ -177,7 +176,6 @@ func (s *checkupService) ListByClinic(ctx context.Context, input ListCheckupsByC
 		NextEndDate:   input.NextEndDate,
 	}, input.Page, input.Limit)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list checkups by clinic", "error", err)
 		return nil, 0, apperrors.Wrap(err, "failed to list checkups by clinic")
 	}
 	return result, total, nil
@@ -192,7 +190,6 @@ func (s *checkupService) Create(ctx context.Context, medicalRecordID uint64, inp
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		parent, err := lockClinicalMedicalRecord(txCtx, s.medicalRecordRepo, input.ClinicID, medicalRecordID)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to find medical record", "error", err)
 			return apperrors.Wrap(err, "failed to find medical record")
 		}
 		if parent.Status == model.MedicalRecordStatusFinalized {
@@ -219,12 +216,10 @@ func (s *checkupService) Create(ctx context.Context, medicalRecordID uint64, inp
 			Result:          input.Result,
 		}
 		if err := s.repo.Create(txCtx, checkup); err != nil {
-			slog.ErrorContext(txCtx, "failed to create checkup", "error", err)
 			return apperrors.Wrap(err, "failed to create checkup")
 		}
 		created, err = s.repo.FindByID(txCtx, input.ClinicID, checkup.ID)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to get checkup after create", "error", err)
 			return apperrors.Wrap(err, "failed to get checkup after create")
 		}
 		return nil
@@ -270,7 +265,6 @@ func (s *checkupService) Update(ctx context.Context, clinicID, medicalRecordID, 
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		existing, err := s.repo.FindByID(txCtx, clinicID, checkupID)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to get checkup", "error", err)
 			return apperrors.Wrap(err, "failed to get checkup")
 		}
 		if existing.MedicalRecordID != medicalRecordID {
@@ -278,7 +272,6 @@ func (s *checkupService) Update(ctx context.Context, clinicID, medicalRecordID, 
 		}
 		parent, err := lockClinicalMedicalRecord(txCtx, s.medicalRecordRepo, clinicID, medicalRecordID)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to find medical record", "error", err)
 			return apperrors.Wrap(err, "failed to find medical record")
 		}
 		if parent.Status == model.MedicalRecordStatusFinalized {
@@ -301,13 +294,11 @@ func (s *checkupService) Update(ctx context.Context, clinicID, medicalRecordID, 
 		if len(fields) == 0 {
 			return apperrors.WrapInvalidInput("at least one field must be provided")
 		}
-		if err := s.repo.Update(txCtx, clinicID, checkupID, fields); err != nil {
-			slog.ErrorContext(txCtx, "failed to update checkup", "error", err)
+		if err := s.repo.Update(txCtx, clinicID, checkupID, *input); err != nil {
 			return apperrors.Wrap(err, "failed to update checkup")
 		}
 		updated, err = s.repo.FindByID(txCtx, clinicID, checkupID)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to get checkup after update", "error", err)
 			return apperrors.Wrap(err, "failed to get checkup after update")
 		}
 		return nil
@@ -334,7 +325,6 @@ func (s *checkupService) Delete(ctx context.Context, clinicID, medicalRecordID, 
 		// checkup writes cannot deadlock while the parent status guard remains stable.
 		parent, err := lockClinicalMedicalRecord(txCtx, s.medicalRecordRepo, clinicID, medicalRecordID)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to find medical record", "error", err)
 			return apperrors.Wrap(err, "failed to find medical record")
 		}
 		if parent.Status == model.MedicalRecordStatusFinalized {
@@ -349,7 +339,6 @@ func (s *checkupService) Delete(ctx context.Context, clinicID, medicalRecordID, 
 			return apperrors.WrapNotFound("checkup", fmt.Sprintf("%d", checkupID))
 		}
 		if err := s.repo.Delete(txCtx, clinicID, checkupID); err != nil {
-			slog.ErrorContext(txCtx, "failed to delete checkup", "error", err, "clinic_id", clinicID, "checkup_id", checkupID)
 			return apperrors.Wrap(err, "failed to delete checkup")
 		}
 		existing = locked

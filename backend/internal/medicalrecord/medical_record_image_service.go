@@ -84,7 +84,6 @@ func NewMedicalRecordImageServiceWithRelationValidation(
 func (s *medicalRecordImageService) List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.MedicalRecordImage, error) {
 	result, err := s.repo.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list record images", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list record images")
 	}
 	return result, nil
@@ -133,7 +132,6 @@ func (s *medicalRecordImageService) Create(ctx context.Context, clinicID, medica
 		// 死亡ペット検証のため親行を保持する（lockDraftMedicalRecord は親を破棄するため直接 lock）。
 		parent, err := s.medRec.LockByIDForUpdate(txCtx, clinicID, medicalRecordID)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to find medical record", "error", err)
 			return apperrors.Wrap(err, "failed to find medical record")
 		}
 		if parent == nil {
@@ -160,7 +158,6 @@ func (s *medicalRecordImageService) Create(ctx context.Context, clinicID, medica
 		}
 
 		if err := s.repo.Create(txCtx, image); err != nil {
-			slog.ErrorContext(txCtx, "failed to create record image", "error", err)
 			return apperrors.Wrap(err, "failed to create record image")
 		}
 		return nil
@@ -278,7 +275,6 @@ func (s *medicalRecordImageService) Delete(ctx context.Context, clinicID, medica
 		}
 
 		if err := s.repo.Delete(txCtx, clinicID, imageID); err != nil {
-			slog.ErrorContext(txCtx, "failed to delete record image", "error", err, "clinic_id", clinicID, "image_id", imageID)
 			return apperrors.Wrap(err, "failed to delete record image")
 		}
 		return nil

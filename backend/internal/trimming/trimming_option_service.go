@@ -139,7 +139,7 @@ func (s *trimmingOptionService) Update(ctx context.Context, clinicID, id uint64,
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
-	option, err := s.repo.Update(ctx, clinicID, id, fields)
+	option, err := s.repo.Update(ctx, clinicID, id, *input)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to update trimming option")
 	}

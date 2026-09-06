@@ -412,7 +412,7 @@ func TestCheckupRepository_FindByOwnerIDs(t *testing.T) {
 // TestMedicalRecordRepository_FindOwnerVisitSummariesByOwnerIDs は page bulk visit-summary を検証する。
 func TestMedicalRecordRepository_FindOwnerVisitSummariesByOwnerIDs(t *testing.T) {
 	db := setupCheckupRepoTestDB(t)
-	repo := NewMedicalRecordRepository(db).(*medicalRecordRepository)
+	repo := NewMedicalRecordRepository(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -509,20 +509,23 @@ func TestCheckupRepository_Update(t *testing.T) {
 	c := makeCheckupWithDates(t, db, clinicA, mr.ID, pet.ID, ct.ID, time.Now(), nil)
 
 	t.Run("同一クリニックで更新できる", func(t *testing.T) {
-		require.NoError(t, repo.Update(ctx, clinicA, c.ID, map[string]any{"result": "異常なし"}))
+		result := "異常なし"
+		require.NoError(t, repo.Update(ctx, clinicA, c.ID, UpdateCheckupInput{Result: &result}))
 		got, err := repo.FindByID(ctx, clinicA, c.ID)
 		require.NoError(t, err)
 		assert.Equal(t, "異常なし", got.Result)
 	})
 
 	t.Run("別クリニックからの更新は NotFound", func(t *testing.T) {
-		err := repo.Update(ctx, clinicB, c.ID, map[string]any{"result": "乗っ取り"})
+		result := "乗っ取り"
+		err := repo.Update(ctx, clinicB, c.ID, UpdateCheckupInput{Result: &result})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
 	t.Run("存在しない ID の更新は NotFound", func(t *testing.T) {
-		err := repo.Update(ctx, clinicA, 999999, map[string]any{"result": "x"})
+		result := "x"
+		err := repo.Update(ctx, clinicA, 999999, UpdateCheckupInput{Result: &result})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})

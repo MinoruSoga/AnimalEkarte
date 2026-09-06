@@ -12,7 +12,7 @@ func (s *accountingService) updateAccountingInTx(
 	txCtx context.Context,
 	input *UpdateAccountingInput,
 	existing *model.Billing,
-	fields map[string]any,
+	cmd AccountingUpdate,
 	finalMRID, finalHospID, finalOwnerID, finalPetID *uint64,
 	payment *model.Payment,
 	splits []model.PaymentSplit,
@@ -35,20 +35,17 @@ func (s *accountingService) updateAccountingInTx(
 	if err := s.validateAccountingRelatedFKs(txCtx, input.ClinicID, finalMRID, finalHospID, finalOwnerID, finalPetID); err != nil {
 		return nil, err
 	}
-	if len(fields) > 0 {
-		if _, err := s.repo.Update(txCtx, input.ClinicID, input.ID, fields); err != nil {
-			slog.ErrorContext(txCtx, "failed to update accounting", "error", err)
+	if len(cmd.toFields()) > 0 {
+		if _, err := s.repo.Update(txCtx, input.ClinicID, input.ID, cmd); err != nil {
 			return nil, apperrors.Wrap(err, "failed to update accounting")
 		}
 	}
 
 	if hasPaymentFields(input) {
 		if err := s.repo.SavePayment(txCtx, payment); err != nil {
-			slog.ErrorContext(txCtx, "failed to upsert payment", "error", err)
 			return nil, apperrors.Wrap(err, "failed to upsert payment")
 		}
 		if err := s.repo.SavePaymentSplits(txCtx, splits); err != nil {
-			slog.ErrorContext(txCtx, "failed to save payment splits", "error", err)
 			return nil, apperrors.Wrap(err, "failed to save payment splits")
 		}
 		slog.InfoContext(txCtx, "payment upserted",
@@ -69,7 +66,6 @@ func (s *accountingService) updateAccountingInTx(
 
 	accounting, err := s.repo.FindByID(txCtx, input.ClinicID, input.ID)
 	if err != nil {
-		slog.ErrorContext(txCtx, "failed to reload accounting after update", "error", err)
 		return nil, apperrors.Wrap(err, "failed to reload accounting after update")
 	}
 	return accounting, nil

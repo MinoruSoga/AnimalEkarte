@@ -29,7 +29,6 @@ func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clini
 	// 入院レコード取得
 	hosp, err := s.hospRepo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get hospitalization", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get hospitalization")
 	}
 	if hosp.Status == model.HospitalizationStatusDischarged {
@@ -52,7 +51,6 @@ func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clini
 	})
 
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to discharge hospitalization with billing", "error", err)
 		return nil, apperrors.Wrap(err, "failed to discharge hospitalization with billing")
 	}
 

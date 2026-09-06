@@ -20,38 +20,6 @@ const staffListCountSkipMinLimit = 1000
 
 // ---- Staff ----
 
-type StaffRepository interface {
-	FindAll(ctx context.Context, clinicID uint64, page, limit int) ([]model.Staff, int64, error)
-	FindByID(ctx context.Context, id uint64) (*model.Staff, error)
-	FindByIDInClinic(ctx context.Context, clinicID, id uint64) (*model.Staff, error)
-	LockActiveByIDForUpdate(ctx context.Context, id uint64) (*model.Staff, error)
-	LockActiveByIDForUpdateInClinic(ctx context.Context, clinicID, id uint64) (*model.Staff, error)
-	LockActiveByIDForShare(ctx context.Context, id uint64) (*model.Staff, error)
-	FindByAccountID(ctx context.Context, accountID uint64) (*model.Staff, error)
-	// IsActiveSystemAdminStaff reports whether the staff can currently authenticate
-	// as a system administrator (active staff + active system-admin account).
-	IsActiveSystemAdminStaff(ctx context.Context, staffID uint64) (bool, error)
-	// CountActiveSystemAdminStaff counts staff who can currently authenticate as
-	// system administrators. Callers must hold the mutation transaction so the
-	// count is consistent with concurrent deactivation attempts.
-	CountActiveSystemAdminStaff(ctx context.Context) (int64, error)
-	// Create はスタッフを作成する。
-	Create(ctx context.Context, staff *model.Staff) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
-	UpdatePrimaryClinicID(ctx context.Context, id, clinicID uint64) error
-	Delete(ctx context.Context, clinicID, id uint64) error
-	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
-	CountBlockingReferencesByStaffID(ctx context.Context, clinicID, staffID uint64) ([]StaffDependencyCount, error)
-	// --- 予約用途の staffs 書き込み（ADR-006 論点#1 案A: staffs テーブルの書き込みは
-	// staff domain の exported メソッドへ一本化し、reservation 側は delegate 経由で呼ぶ）。
-	// 既存 Create/Update/Reorder と意図的に別メソッド: エラーリソース名
-	// ("reservation_staff")・スコープ機構（primary clinic_id vs assignment EXISTS）・
-	// tx 構成（main assignment 同時作成 / 隣接 swap）が異なり、統合は挙動変更になる。
-	CreateForReservation(ctx context.Context, staff *model.Staff, clinicID uint64) error
-	UpdateForReservation(ctx context.Context, clinicID, id uint64, cmd ReservationStaffUpdate) error
-	SwapSortOrderForReservation(ctx context.Context, clinicID, id uint64, direction string) error
-}
-
 type StaffDependencyCount struct {
 	Label string
 	Count int64
@@ -59,7 +27,7 @@ type StaffDependencyCount struct {
 
 type staffRepository struct{ db *gorm.DB }
 
-func NewStaffRepository(db *gorm.DB) StaffRepository { return &staffRepository{db: db} }
+func NewRepository(db *gorm.DB) *staffRepository { return &staffRepository{db: db} }
 
 func paginate(page, limit int) func(*gorm.DB) *gorm.DB {
 	return func(db *gorm.DB) *gorm.DB {
@@ -290,7 +258,11 @@ func (r *staffRepository) Create(ctx context.Context, staff *model.Staff) error 
 	return nil
 }
 
-func (r *staffRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+func (r *staffRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateStaffInput) error {
+	return r.update(ctx, clinicID, id, buildStaffUpdate(&cmd))
+}
+
+func (r *staffRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	result := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Staff{}).
 		Where("staffs.id = ?", id).

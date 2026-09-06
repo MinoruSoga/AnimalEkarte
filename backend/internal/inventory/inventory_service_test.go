@@ -17,7 +17,7 @@ type mockInventoryRepository struct {
 	findAllFn        func(ctx context.Context, clinicID uint64, category, status *string, page, limit int) ([]model.InventoryItem, int64, error)
 	findByIDFn       func(ctx context.Context, clinicID, id uint64) (*model.InventoryItem, error)
 	createFn         func(ctx context.Context, clinicID uint64, item *model.InventoryItem) error
-	updateFieldsFn   func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InventoryItem, error)
+	updateFieldsFn   func(ctx context.Context, clinicID, id uint64, cmd UpdateInventoryInput) (*model.InventoryItem, error)
 	deleteFn         func(ctx context.Context, clinicID, id uint64) error
 	deleteIfUnusedFn func(ctx context.Context, clinicID, id uint64) error
 	countUsageByIDFn func(ctx context.Context, clinicID, inventoryID uint64) (int64, error)
@@ -39,8 +39,8 @@ func (m *mockInventoryRepository) Create(ctx context.Context, clinicID uint64, i
 	return m.createFn(ctx, clinicID, item)
 }
 
-func (m *mockInventoryRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InventoryItem, error) {
-	return m.updateFieldsFn(ctx, clinicID, id, fields)
+func (m *mockInventoryRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateInventoryInput) (*model.InventoryItem, error) {
+	return m.updateFieldsFn(ctx, clinicID, id, cmd)
 }
 
 func (m *mockInventoryRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -505,7 +505,7 @@ func TestInventoryService_Update(t *testing.T) {
 					}
 					return &model.InventoryItem{ID: id, ClinicID: clinicID}, nil
 				},
-				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.InventoryItem, error) {
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateInventoryInput) (*model.InventoryItem, error) {
 					if tt.repoErr != nil {
 						return nil, tt.repoErr
 					}

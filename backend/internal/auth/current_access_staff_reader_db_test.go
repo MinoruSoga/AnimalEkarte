@@ -46,15 +46,15 @@ func TestCurrentAccessResolverDB_RegularStaffUsesOnlyActiveClinicInventory(
 		&model.Account{},
 		&model.StaffClinicAssignment{},
 	))
-	require.NoError(t, db.Exec(`
-		TRUNCATE TABLE
-			staff_clinic_assignments,
-			staffs,
-			accounts,
-			clinics,
-			companies
-		CASCADE
-	`).Error)
+	testdb.Truncate(
+		t,
+		db,
+		"staff_clinic_assignments",
+		"staffs",
+		"accounts",
+		"clinics",
+		"companies",
+	)
 
 	company := &model.Company{Name: "current access inventory company"}
 	require.NoError(t, db.Create(company).Error)
@@ -105,7 +105,7 @@ func TestCurrentAccessResolverDB_RegularStaffUsesOnlyActiveClinicInventory(
 		staff.NewStaffClinicAssignmentService(
 			staff.NewStaffClinicAssignmentRepository(db),
 		),
-		clinic.NewClinicService(
+		clinic.NewService(
 			clinic.NewClinicRepository(db),
 			nil,
 			nil,

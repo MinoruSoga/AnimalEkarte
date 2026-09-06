@@ -42,7 +42,7 @@ func (a *staffCredentialAuditTxCapture) LogEntryTx(
 	return a.err
 }
 
-func TestStaffService_UpdatePassword_AuditFailureRollsBackCredential(t *testing.T) {
+func TestService_UpdatePassword_AuditFailureRollsBackCredential(t *testing.T) {
 	const (
 		accountID = uint64(41)
 		staffID   = uint64(29)
@@ -130,7 +130,7 @@ func TestStaffService_UpdatePassword_AuditFailureRollsBackCredential(t *testing.
 			}, nil
 		},
 	}
-	service := NewStaffServiceWithCredentialAudit(
+	service := NewServiceWithCredentialAudit(
 		repo,
 		accountRepo,
 		assignments,
@@ -187,12 +187,12 @@ func TestStaffService_UpdatePassword_AuditFailureRollsBackCredential(t *testing.
 	}
 }
 
-func TestStaffService_UpdatePasswordFailsClosedWithoutAuditBeforeTransaction(
+func TestService_UpdatePasswordFailsClosedWithoutAuditBeforeTransaction(
 	t *testing.T,
 ) {
 	password := "newPassw0rd"
 	tx := &coreFakeTransactor{}
-	service := NewStaffService(
+	service := NewService(
 		&coreMockStaffRepository{},
 		&coreMockAccountRepository{},
 		&coreMockStaffClinicAssignmentRepository{},

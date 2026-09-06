@@ -60,7 +60,7 @@ func makeStaffReservationCapability(t *testing.T, db *gorm.DB, clinicID, staffID
 // 述語が「効いている」かつ「正規データを壊していない」ことを同時に示す（anti-vacuous）。
 func TestReservationStaffRepository_Capabilities_CrossClinicReservationTypePreloadIsolation(t *testing.T) {
 	db := setupReservationStaffCapabilityPreloadTestDB(t)
-	repo := NewReservationStaffRepository(db, staffpkg.NewStaffRepository(db))
+	repo := NewReservationStaffRepository(db, staffpkg.NewRepository(db))
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 

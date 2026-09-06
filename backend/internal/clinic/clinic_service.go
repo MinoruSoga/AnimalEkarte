@@ -182,7 +182,25 @@ func buildDefaultPermissionGroupRules(isExecutive bool) []model.PermissionGroupR
 	return rules
 }
 
-type ClinicService interface {
+// DefaultPermissionBits returns CreateClinic attach-receiver bits for one
+// resource. Unknown resources stay deny-all.
+func DefaultPermissionBits(
+	resource model.Resource,
+	executive bool,
+) (canView, canCreate, canEdit, canDelete bool) {
+	for _, r := range defaultPermissionRuleTable {
+		if r.resource != resource {
+			continue
+		}
+		if executive {
+			return r.execView, r.execCreate, r.execEdit, r.execDelete
+		}
+		return r.genView, r.genCreate, r.genEdit, r.genDelete
+	}
+	return false, false, false, false
+}
+
+type Service interface {
 	ListClinics(ctx context.Context) ([]model.Clinic, error)
 	ListClinicsByIDs(ctx context.Context, ids []uint64) ([]model.Clinic, error)
 	ListActiveClinicIDs(ctx context.Context, ids []uint64) ([]uint64, error)
@@ -199,7 +217,7 @@ type clinicService struct {
 	transactor          Transactor
 }
 
-func NewClinicService(repo clinicServiceRepository, permissionGroupRepo PermissionGroupWriter, transactor Transactor) ClinicService {
+func NewService(repo clinicServiceRepository, permissionGroupRepo PermissionGroupWriter, transactor Transactor) Service {
 	return &clinicService{repo: repo, permissionGroupRepo: permissionGroupRepo, transactor: transactor}
 }
 

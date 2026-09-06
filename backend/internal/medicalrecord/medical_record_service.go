@@ -21,6 +21,10 @@ type UpdateMedicalRecordInput struct {
 	ClearNextVisitRecommendedDate bool // true の場合 DB を NULL にクリアする
 	VisitType                     *model.VisitType
 	ActorID                       *uint64 // 監査ログ用: 操作スタッフ ID（nil = システム）
+	// persistVersion is set only by service after next-version calculation. HTTP/client must not set it.
+	persistVersion *int
+	// persistFields is set only by service/tests for columns outside the HTTP command. HTTP/client must not set it.
+	persistFields map[string]any
 }
 
 // CreateMedicalRecordInput はカルテ作成のサービス入力 DTO
@@ -52,6 +56,33 @@ const colRecommendationReason = "recommendation_reason"
 // Reason は revisit / checkup / prevention / exam のいずれか、または "" (未設定 → NULL)。
 type UpdateRecommendationReasonInput struct {
 	Reason string
+}
+
+// MedicalRecordRepository is the medical-record use-case view of persistence.
+// The GORM store is concrete.
+type MedicalRecordRepository interface {
+	FindAll(ctx context.Context, clinicIDs []uint64, filters MedicalRecordListFilters, page, limit int) ([]model.MedicalRecord, int64, error)
+	AcquireAutoCreateLock(ctx context.Context, clinicID, petID uint64, date string) (bool, error)
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
+	FindByAppointmentID(ctx context.Context, clinicID, appointmentID uint64) (*model.MedicalRecord, error)
+	FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.MedicalRecord, error)
+	Create(ctx context.Context, record *model.MedicalRecord) error
+	Update(ctx context.Context, clinicID, id uint64, input UpdateMedicalRecordInput, expectedVersion *int) (*model.MedicalRecord, error)
+	Delete(ctx context.Context, clinicID, id uint64) error
+	CountByPetID(ctx context.Context, clinicID, petID uint64) (int64, error)
+	CountByPetAndDate(ctx context.Context, clinicID, petID uint64, date string) (int64, error)
+	FindFirstVisitDateByPetID(ctx context.Context, clinicID, petID uint64) (*time.Time, error)
+	CountEstimatesByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) (int64, error)
+	FindOwnerVisitSummary(ctx context.Context, clinicID, ownerID uint64) (*OwnerVisitSummary, error)
+	FindLatestByOwner(ctx context.Context, clinicID, ownerID uint64) (*model.MedicalRecord, error)
+	FindDormantOwnerEntries(ctx context.Context, clinicID uint64, minDaysSince int) ([]DormantOwnerEntry, error)
+	FindDormantOwnerEntriesCursor(ctx context.Context, clinicID uint64, minDaysSince int, afterOwnerID uint64, limit int) ([]DormantOwnerEntry, error)
+	FindOwnersByFirstVisitDate(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error)
+	FindOwnersByLastVisitDays(ctx context.Context, clinicID uint64, exactDays int, asOf time.Time) ([]uint64, error)
+	FindOwnersByNextVisitRecommended(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error)
+	CountByOwnerID(ctx context.Context, clinicID, ownerID uint64) (int64, error)
+	LockLinkedAppointmentForUpdate(ctx context.Context, clinicID, medicalRecordID uint64) (*linkedAppointmentLock, error)
+	LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
 }
 
 type MedicalRecordService interface {

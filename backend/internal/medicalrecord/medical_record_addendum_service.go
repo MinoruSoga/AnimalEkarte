@@ -3,7 +3,6 @@ package medicalrecord
 import (
 	"context"
 	"fmt"
-	"log/slog"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -114,7 +113,6 @@ func (s *medicalRecordAddendumService) Create(ctx context.Context, clinicID uint
 		}
 		return nil
 	}); err != nil {
-		slog.ErrorContext(ctx, "failed to create medical record addendum", "error", err)
 		return nil, err
 	}
 
@@ -129,7 +127,6 @@ func (s *medicalRecordAddendumService) FindByMedicalRecordID(ctx context.Context
 
 	addenda, err := s.repo.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to find medical record addenda", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find medical record addenda")
 	}
 

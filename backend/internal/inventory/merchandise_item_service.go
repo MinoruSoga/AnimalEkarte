@@ -97,7 +97,7 @@ type merchandiseItemStore interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.MerchandiseItem, error)
 	CountUsageByMerchandiseItemID(ctx context.Context, clinicID, merchandiseItemID uint64) (int64, error)
 	Create(ctx context.Context, item *model.MerchandiseItem) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MerchandiseItem, error)
+	Update(ctx context.Context, clinicID, id uint64, cmd UpdateMerchandiseItemInput) (*model.MerchandiseItem, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -186,7 +186,7 @@ func (s *merchandiseItemService) Update(ctx context.Context, clinicID, id uint64
 		return nil, apperrors.WrapInvalidInput(sharedkernel.ErrMsgAtLeastOneField)
 	}
 
-	result, err := s.repo.Update(ctx, clinicID, id, fields)
+	result, err := s.repo.Update(ctx, clinicID, id, *input)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to update merchandise item")
 	}

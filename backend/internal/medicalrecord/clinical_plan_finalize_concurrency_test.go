@@ -182,7 +182,7 @@ func TestClinicalPlanFinalizeConcurrency(t *testing.T) {
 						context.Background(),
 						clinicID,
 						record.ID,
-						map[string]any{"status": model.MedicalRecordStatusFinalized},
+						medicalRecordUpdateStatus(model.MedicalRecordStatusFinalized),
 						nil,
 					)
 					return err
@@ -230,7 +230,7 @@ func TestClinicalPlanFinalizeConcurrency(t *testing.T) {
 				context.Background(),
 				clinicID,
 				record.ID,
-				map[string]any{"status": model.MedicalRecordStatusFinalized},
+				medicalRecordUpdateStatus(model.MedicalRecordStatusFinalized),
 				nil,
 			)
 			require.NoError(t, err)

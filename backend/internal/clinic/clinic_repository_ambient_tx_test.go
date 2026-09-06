@@ -191,7 +191,7 @@ func containsUint64(ids []uint64, want uint64) bool {
 
 func setupClinicInventoryAmbientTxProbe(t *testing.T) (
 	*gorm.DB,
-	ClinicRepository,
+	*Repository,
 	persistence.Transactor,
 	context.Context,
 ) {
@@ -215,7 +215,7 @@ func setupClinicInventoryAmbientTxProbe(t *testing.T) (
 func createClinicInventoryAmbientTxClinic(
 	txCtx context.Context,
 	db *gorm.DB,
-	repository ClinicRepository,
+	repository *Repository,
 	name string,
 ) (*model.Clinic, error) {
 	company := &model.Company{

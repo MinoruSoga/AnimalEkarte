@@ -127,7 +127,7 @@ func setupDailyRecordStaffRelationDBFixture(t *testing.T) *dailyRecordStaffRelat
 		NewDailyRecordRepository(db),
 		NewHospitalizationRepository(db),
 		reservation.NewReservationRepository(db),
-		staffdomain.NewStaffRepository(db),
+		staffdomain.NewRepository(db),
 		staffdomain.NewStaffClinicAssignmentRepository(db),
 		persistence.NewTransactor(db),
 	)

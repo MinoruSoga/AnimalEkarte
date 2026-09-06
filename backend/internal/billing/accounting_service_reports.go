@@ -22,7 +22,6 @@ func (s *accountingService) GetMonthlyUnpaidCarryover(ctx context.Context, clini
 
 	items, total, summary, err := s.repo.FindMonthlyUnpaidCarryover(ctx, clinicID, firstDay, lastDay, page, limit)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get monthly unpaid carryover", "error", err)
 		return nil, 0, summary, apperrors.Wrap(err, "failed to get monthly unpaid carryover")
 	}
 	return items, total, summary, nil
@@ -32,7 +31,6 @@ func (s *accountingService) GetMonthlyUnpaidCarryover(ctx context.Context, clini
 func (s *accountingService) ListUnpaidByBilling(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]model.Billing, int64, error) {
 	result, total, err := s.repo.FindUnpaidByBilling(ctx, clinicID, startDate, endDate, page, limit)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list unpaid billings", "error", err)
 		return nil, 0, apperrors.Wrap(err, "failed to list unpaid billings")
 	}
 	return result, total, nil
@@ -42,7 +40,6 @@ func (s *accountingService) ListUnpaidByBilling(ctx context.Context, clinicID ui
 func (s *accountingService) ListUnpaidByOwner(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]UnpaidOwnerAggregate, int64, UnpaidSummary, error) {
 	result, total, summary, err := s.repo.FindUnpaidByOwner(ctx, clinicID, startDate, endDate, page, limit)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list unpaid by owner", "error", err)
 		return nil, 0, summary, apperrors.Wrap(err, "failed to list unpaid by owner")
 	}
 	return result, total, summary, nil
@@ -55,7 +52,6 @@ func (s *accountingService) GetOwnerUnpaidBalance(ctx context.Context, clinicID,
 	}
 	result, err := s.repo.SumUnpaidByOwner(ctx, clinicID, ownerID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get owner unpaid balance", "clinic_id", clinicID, "owner_id", ownerID, "error", err)
 		return OwnerUnpaidBalance{}, apperrors.Wrap(err, "failed to get owner unpaid balance")
 	}
 	return result, nil
@@ -85,9 +81,8 @@ func (s *accountingService) Cancel(ctx context.Context, clinicID, id uint64, act
 		if err := s.lockCloseBoundaries(txCtx, clinicID, existing.ScheduledDate); err != nil {
 			return err
 		}
-		fields := map[string]any{"status": model.BillingStatusCancelled}
-		if _, err := s.repo.Update(txCtx, clinicID, id, fields); err != nil {
-			slog.ErrorContext(txCtx, "failed to cancel accounting", "error", err, "billing_id", id, "clinic_id", clinicID)
+		cancelled := model.BillingStatusCancelled
+		if _, err := s.repo.Update(txCtx, clinicID, id, AccountingUpdate{Status: &cancelled}); err != nil {
 			return apperrors.Wrap(err, "failed to cancel accounting")
 		}
 
@@ -138,7 +133,6 @@ func (s *accountingService) GetDailySummary(ctx context.Context, clinicID uint64
 	}
 	result, err := s.repo.GetDailySummary(ctx, clinicID, date)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get daily summary", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get daily summary")
 	}
 	return result, nil
@@ -154,7 +148,6 @@ func (s *accountingService) GetDailySummaryForClinics(ctx context.Context, clini
 	for _, clinicID := range clinicIDs {
 		r, rerr := s.repo.GetDailySummary(ctx, clinicID, date)
 		if rerr != nil {
-			slog.ErrorContext(ctx, "failed to get daily summary for clinic", "clinic_id", clinicID, "error", rerr)
 			return nil, apperrors.Wrap(rerr, "failed to get daily summary for clinics")
 		}
 		results = append(results, ClinicDailySummary{ClinicID: clinicID, Summary: r})

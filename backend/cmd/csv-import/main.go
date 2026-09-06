@@ -5,7 +5,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -18,14 +17,13 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"golang.org/x/sys/unix"
 
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/csvimport"
 	"github.com/animal-ekarte/backend/internal/dbconn"
 )
 
-const auditReportRoot = "/migration-reports"
+const auditReportRoot = csvimport.AuditReportRoot
 
 type options struct {
 	command                   string
@@ -411,70 +409,17 @@ func applyWithAudit(
 }
 
 func cutoverApplyFailureClassification(err error) (status string, stage string) {
-	if errors.Is(err, csvimport.ErrCutoverCommitOutcomeUnknown) {
-		return "COMMIT_OUTCOME_UNKNOWN", "commit"
-	}
-	if errors.Is(err, csvimport.ErrCutoverTransactionNotStarted) {
-		return "FAILED_BEFORE_TRANSACTION", "begin"
-	}
-	return "FAILED_DATA_ROLLED_BACK", "transaction"
+	return csvimport.ClassifyCutoverApplyFailure(err)
 }
 
 func createAuditReport(path string, root string, report auditReport) (*os.File, error) {
-	if !pathWithinRoot(root, path) {
-		return nil, fmt.Errorf("audit report path must stay under %s", root)
-	}
-	cleanRoot := filepath.Clean(root)
-	resolvedRoot, err := filepath.EvalSymlinks(cleanRoot)
-	if err != nil || resolvedRoot != cleanRoot {
-		return nil, fmt.Errorf("audit report directory must not contain symbolic links")
-	}
-	info, err := os.Lstat(cleanRoot)
-	if err != nil {
-		return nil, fmt.Errorf("inspect audit report directory: %w", err)
-	}
-	if !info.IsDir() || info.Mode().Perm()&0o077 != 0 {
-		return nil, fmt.Errorf("audit report directory must be owner-only")
-	}
-	fd, err := unix.Open(path, unix.O_CREAT|unix.O_EXCL|unix.O_RDWR|unix.O_CLOEXEC|unix.O_NOFOLLOW, 0o600) //nolint:gosec // fixed-root operator path, no-follow and exclusive owner-only creation
-	if err != nil {
-		return nil, fmt.Errorf("create audit report without overwrite: %w", err)
-	}
-	file := os.NewFile(uintptr(fd), filepath.Base(path))
-	if file == nil {
-		_ = unix.Close(fd)
-		return nil, fmt.Errorf("create audit report: invalid file descriptor")
-	}
-	if err := replaceAuditReport(file, report); err != nil {
-		_ = file.Close()
-		return nil, err
-	}
-	return file, nil
+	return csvimport.CreateAuditReport(path, root, report)
 }
 
 func pathWithinRoot(root string, candidate string) bool {
-	if !filepath.IsAbs(root) || !filepath.IsAbs(candidate) {
-		return false
-	}
-	cleanRoot := filepath.Clean(root)
-	cleanCandidate := filepath.Clean(candidate)
-	return cleanCandidate != cleanRoot && filepath.Dir(cleanCandidate) == cleanRoot
+	return csvimport.PathWithinRoot(root, candidate)
 }
 
 func replaceAuditReport(file *os.File, report auditReport) error {
-	if _, err := file.Seek(0, 0); err != nil {
-		return fmt.Errorf("seek audit report: %w", err)
-	}
-	if err := file.Truncate(0); err != nil {
-		return fmt.Errorf("truncate audit report: %w", err)
-	}
-	encoder := json.NewEncoder(file)
-	encoder.SetIndent("", "  ")
-	if err := encoder.Encode(report); err != nil {
-		return fmt.Errorf("write audit report: %w", err)
-	}
-	if err := file.Sync(); err != nil {
-		return fmt.Errorf("sync audit report: %w", err)
-	}
-	return nil
+	return csvimport.ReplaceAuditReport(file, report)
 }

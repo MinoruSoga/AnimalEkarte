@@ -47,7 +47,8 @@ func TestInsuranceRepository_UpdateAndFindByID_JoinAmbientTx(t *testing.T) {
 	ins := testdb.MakeInsurance(t, db, clinicA, "更新前保険名")
 	tx := testNewTransactor(db)
 	txErr := tx.WithTx(ctx, func(txCtx context.Context) error {
-		updated, err := repo.Update(txCtx, clinicA, ins.ID, map[string]any{"name": "未コミット保険名"})
+		name := "未コミット保険名"
+		updated, err := repo.Update(txCtx, clinicA, ins.ID, UpdateInsuranceInput{Name: &name})
 		if err != nil {
 			return err
 		}

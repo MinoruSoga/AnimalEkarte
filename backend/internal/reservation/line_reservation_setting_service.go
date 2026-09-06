@@ -73,7 +73,6 @@ func (s *lineReservationSettingService) Get(ctx context.Context, clinicID uint64
 		if apperrors.IsNotFound(err) {
 			return nil, nil
 		}
-		slog.ErrorContext(ctx, "failed to get reservation setting", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get reservation setting")
 	}
 	return setting, nil
@@ -154,7 +153,6 @@ func (s *lineReservationSettingService) Save(ctx context.Context, clinicID uint6
 	// 既存レコードの有無を確認し、新規作成かどうかを判定する
 	existing, err := s.repo.FindByClinicID(ctx, clinicID)
 	if err != nil && !apperrors.IsNotFound(err) {
-		slog.ErrorContext(ctx, "failed to get existing reservation setting", "error", err, "clinic_id", clinicID)
 		return nil, false, apperrors.Wrap(err, "failed to get existing reservation setting")
 	}
 	isNew := existing == nil
@@ -175,7 +173,6 @@ func (s *lineReservationSettingService) Save(ctx context.Context, clinicID uint6
 	// （次回保存）で自然に暗号化される（機会的再暗号化）。一括 migration は行わない。
 	encryptedToken, err := s.encryptCredential(accessToken)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to encrypt line access token", "error", err, "clinic_id", clinicID)
 		return nil, false, apperrors.Wrap(err, "failed to encrypt line access token")
 	}
 
@@ -212,7 +209,6 @@ func (s *lineReservationSettingService) Save(ctx context.Context, clinicID uint6
 		LineAccessToken: encryptedToken,
 	}
 	if err := s.repo.Save(ctx, clinicID, setting); err != nil {
-		slog.ErrorContext(ctx, "failed to upsert reservation setting", "error", err, "clinic_id", clinicID)
 		return nil, false, apperrors.Wrap(err, "failed to upsert reservation setting")
 	}
 	// RSV-03: return the write result; do not re-fetch after commit (CODING_RULES.md:78).

@@ -52,7 +52,7 @@ func (h *Handler) CreateStaff(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	// BUG-145: email が指定されている場合は重複チェックを行い、Account を作成してスタッフに紐づける。
-	// Account 作成・bcrypt ハッシュ化・パスワードバリデーションはすべて StaffService に委譲する。
+	// Account 作成・bcrypt ハッシュ化・パスワードバリデーションはすべて Service に委譲する。
 	var staff *model.Staff
 	var err error
 

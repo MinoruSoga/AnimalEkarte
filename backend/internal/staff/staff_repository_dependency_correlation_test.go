@@ -87,7 +87,7 @@ func makeCorrelationPet(t *testing.T, db *gorm.DB, clinicID, ownerID, speciesID 
 // 修復後は親 medical_records.clinic_id 相関により破損行を除外する。
 func TestStaffRepository_CountBlockingReferencesByStaffID_Addenda_CorrelatesMedicalRecordClinic(t *testing.T) {
 	db := setupStaffDependencyCorrelationTestDB(t)
-	repo := NewStaffRepository(db)
+	repo := NewRepository(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 	seedClinicsForFK(t, db, clinicA, clinicB)
@@ -137,7 +137,7 @@ func TestStaffRepository_CountBlockingReferencesByStaffID_Addenda_CorrelatesMedi
 // 破損: vital.clinic_id = A だが medical_record_id が clinic B の親を指す。
 func TestStaffRepository_CountBlockingReferencesByStaffID_Vitals_CorrelatesMedicalRecordClinic(t *testing.T) {
 	db := setupStaffDependencyCorrelationTestDB(t)
-	repo := NewStaffRepository(db)
+	repo := NewRepository(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 	seedClinicsForFK(t, db, clinicA, clinicB)
@@ -189,7 +189,7 @@ func TestStaffRepository_CountBlockingReferencesByStaffID_Vitals_CorrelatesMedic
 // billing が他院なら対象 clinic では 0、billing の医院では 1 を実測する。
 func TestStaffRepository_CountBlockingReferencesByStaffID_Payments_ScopesViaBillingClinic(t *testing.T) {
 	db := setupStaffDependencyCorrelationTestDB(t)
-	repo := NewStaffRepository(db)
+	repo := NewRepository(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 	seedClinicsForFK(t, db, clinicA, clinicB)
@@ -220,7 +220,7 @@ func TestStaffRepository_CountBlockingReferencesByStaffID_Payments_ScopesViaBill
 // 実測: 対象 clinic の行のみ数え、別 clinic の行は見えない。
 func TestStaffRepository_CountBlockingReferencesByStaffID_MedicalRecordsDoctor_DirectClinicFK(t *testing.T) {
 	db := setupStaffDependencyCorrelationTestDB(t)
-	repo := NewStaffRepository(db)
+	repo := NewRepository(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 	seedClinicsForFK(t, db, clinicA, clinicB)

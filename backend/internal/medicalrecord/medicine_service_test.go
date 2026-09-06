@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -17,7 +18,7 @@ type mockMedicineRepository struct {
 	findByIDFn                func(ctx context.Context, clinicID, id uint64) (*model.Medicine, error)
 	countChildrenByParentIDFn func(ctx context.Context, clinicID, parentID uint64) (int64, error)
 	createFn                  func(ctx context.Context, medicine *model.Medicine) error
-	updateFieldsFn            func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Medicine, error)
+	updateFieldsFn            func(ctx context.Context, clinicID, id uint64, cmd UpdateMedicineInput) (*model.Medicine, error)
 	deleteFn                  func(ctx context.Context, clinicID, id uint64) error
 	reorderFn                 func(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -45,8 +46,8 @@ func (m *mockMedicineRepository) Create(ctx context.Context, medicine *model.Med
 	return m.createFn(ctx, medicine)
 }
 
-func (m *mockMedicineRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Medicine, error) {
-	return m.updateFieldsFn(ctx, clinicID, id, fields)
+func (m *mockMedicineRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateMedicineInput) (*model.Medicine, error) {
+	return m.updateFieldsFn(ctx, clinicID, id, cmd)
 }
 
 func (m *mockMedicineRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -262,13 +263,11 @@ func TestMedicineService_Create(t *testing.T) {
 					}
 					return tt.repoErr
 				},
-				updateFieldsFn: func(_ context.Context, _, id uint64, fields map[string]any) (*model.Medicine, error) {
+				updateFieldsFn: func(_ context.Context, _, id uint64, cmd UpdateMedicineInput) (*model.Medicine, error) {
 					// MRC-02 inventory_id link writeback after auto-create.
 					med := &model.Medicine{ID: id, Name: tt.input.Name, ClinicID: 1}
-					if inv, ok := fields[colMedicineInventoryID]; ok {
-						if invID, ok := inv.(uint64); ok {
-							med.InventoryID = &invID
-						}
+					if cmd.InventoryID != nil {
+						med.InventoryID = cmd.InventoryID
 					}
 					return med, nil
 				},
@@ -366,7 +365,7 @@ func TestMedicineService_Update(t *testing.T) {
 					}
 					return existingMedicine, nil
 				},
-				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Medicine, error) {
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateMedicineInput) (*model.Medicine, error) {
 					updateCalled = true
 					if tt.updateErr != nil {
 						return nil, tt.updateErr
@@ -403,14 +402,14 @@ func TestMedicineService_Update_NilInput(t *testing.T) {
 
 func TestMedicineService_Update_IsNonInsurance(t *testing.T) {
 	nonIns := true
-	var capturedFields map[string]any
+	var captured UpdateMedicineInput
 	existing := &model.Medicine{ID: 1, ClinicID: 1, IsNonInsurance: false}
 	repo := &mockMedicineRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Medicine, error) {
 			return existing, nil
 		},
-		updateFieldsFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.Medicine, error) {
-			capturedFields = fields
+		updateFieldsFn: func(_ context.Context, _, _ uint64, cmd UpdateMedicineInput) (*model.Medicine, error) {
+			captured = cmd
 			return &model.Medicine{ID: 1, ClinicID: 1, IsNonInsurance: true}, nil
 		},
 	}
@@ -419,7 +418,8 @@ func TestMedicineService_Update_IsNonInsurance(t *testing.T) {
 	result, err := svc.Update(context.Background(), 1, 1, input)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	assert.Equal(t, true, capturedFields[colMedicineIsNonInsurance])
+	require.NotNil(t, captured.IsNonInsurance)
+	assert.Equal(t, true, *captured.IsNonInsurance)
 }
 
 func TestMedicineService_Delete(t *testing.T) {

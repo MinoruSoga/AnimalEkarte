@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -96,7 +97,7 @@ func TestCreateSubRecords(t *testing.T) {
 				createCalled = true
 				return nil
 			},
-			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			updateFn: func(_ context.Context, _, _ uint64, _ UpdateClinicalPlanInput) error {
 				updateCalled = true
 				return nil
 			},
@@ -140,7 +141,7 @@ func TestCreateSubRecords(t *testing.T) {
 			createFn: func(_ context.Context, _ *model.ClinicalPlan) error {
 				return errors.New("create failed")
 			},
-			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			updateFn: func(_ context.Context, _, _ uint64, _ UpdateClinicalPlanInput) error {
 				updateCalled = true
 				return nil
 			},
@@ -159,7 +160,7 @@ func TestCreateSubRecords(t *testing.T) {
 			findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
 				return &model.ClinicalPlan{ID: 1}, nil
 			},
-			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			updateFn: func(_ context.Context, _, _ uint64, _ UpdateClinicalPlanInput) error {
 				updateCalled = true
 				return nil
 			},
@@ -172,13 +173,13 @@ func TestCreateSubRecords(t *testing.T) {
 	})
 
 	t.Run("plan-related fields present: Update is called with mapped fields", func(t *testing.T) {
-		var updatedFields map[string]any
+		var updated UpdateClinicalPlanInput
 		clinicalPlanRepo := &mockClinicalPlanRepository{
 			findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
 				return &model.ClinicalPlan{ID: 7}, nil
 			},
-			updateFn: func(_ context.Context, _, _ uint64, fields map[string]any) error {
-				updatedFields = fields
+			updateFn: func(_ context.Context, _, _ uint64, cmd UpdateClinicalPlanInput) error {
+				updated = cmd
 				return nil
 			},
 		}
@@ -210,14 +211,20 @@ func TestCreateSubRecords(t *testing.T) {
 			Diagnosis2NameID:     uint64Ptr(4),
 		})
 
-		if assert.NotNil(t, updatedFields) {
-			assert.Equal(t, "policy", updatedFields["treatment_policy"])
-			assert.Equal(t, "assessment", updatedFields["diagnosis_details"])
-			assert.Equal(t, uint64(1), updatedFields["diagnosis_type_id"])
-			assert.Equal(t, uint64(2), updatedFields["diagnosis_name_id"])
-			assert.Equal(t, uint64(3), updatedFields["diagnosis_2_type_id"])
-			assert.Equal(t, uint64(4), updatedFields["diagnosis_2_name_id"])
-		}
+		require.NotNil(t, updated.TreatmentPolicy)
+		require.NotNil(t, updated.DiagnosisDetails)
+		require.NotNil(t, updated.DiagnosisTypeID)
+		require.NotNil(t, updated.DiagnosisNameID)
+		require.NotNil(t, updated.Diagnosis2TypeID)
+		require.NotNil(t, *updated.Diagnosis2TypeID)
+		require.NotNil(t, updated.Diagnosis2NameID)
+		require.NotNil(t, *updated.Diagnosis2NameID)
+		assert.Equal(t, "policy", *updated.TreatmentPolicy)
+		assert.Equal(t, "assessment", *updated.DiagnosisDetails)
+		assert.Equal(t, uint64(1), *updated.DiagnosisTypeID)
+		assert.Equal(t, uint64(2), *updated.DiagnosisNameID)
+		assert.Equal(t, uint64(3), **updated.Diagnosis2TypeID)
+		assert.Equal(t, uint64(4), **updated.Diagnosis2NameID)
 	})
 
 	t.Run("clinical plan update failure is logged and swallowed (best-effort)", func(t *testing.T) {
@@ -225,7 +232,7 @@ func TestCreateSubRecords(t *testing.T) {
 			findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
 				return &model.ClinicalPlan{ID: 7}, nil
 			},
-			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			updateFn: func(_ context.Context, _, _ uint64, _ UpdateClinicalPlanInput) error {
 				return errors.New("update failed")
 			},
 		}
@@ -243,7 +250,7 @@ func TestCreateSubRecords(t *testing.T) {
 			findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
 				return &model.ClinicalPlan{ID: 7}, nil
 			},
-			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			updateFn: func(_ context.Context, _, _ uint64, _ UpdateClinicalPlanInput) error {
 				updateCalled = true
 				return nil
 			},

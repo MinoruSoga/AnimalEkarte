@@ -30,7 +30,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		return func(c *gin.Context) {}
 	}
 	h := NewHandler(
-		NewLstepSettingsHandler(nil, noopPermission),
+		NewSettingsHandler(nil, noopPermission),
 		NewLineSendHandler(nil, noopPermission),
 		NewLineLinkHandler(nil, noopPermission),
 		NewLineCustomerHandler(nil, noopPermission),

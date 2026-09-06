@@ -134,7 +134,8 @@ func TestMedicineRepository_Update_ReadsOwnWriteWithinAmbientTx(t *testing.T) {
 	var updated *model.Medicine
 	require.NoError(t, tx.WithTx(ctx, func(txCtx context.Context) error {
 		var err error
-		updated, err = medicineRepo.Update(txCtx, clinicA, medicine.ID, map[string]any{"name": "更新後"})
+		name := "更新後"
+		updated, err = medicineRepo.Update(txCtx, clinicA, medicine.ID, medicalrecord.UpdateMedicineInput{Name: &name})
 		return err
 	}))
 

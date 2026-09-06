@@ -164,7 +164,6 @@ func (s *lstepTagService) GetOwnerTags(ctx context.Context, clinicID, ownerID ui
 		cached, cacheErr := s.tagCacheRepo.FindByOwner(ctx, clinicID, ownerID)
 		if cacheErr != nil {
 			// LSA-10: do not disguise cache DB failure as "zero tags".
-			slog.ErrorContext(ctx, "failed to find tag cache", "error", cacheErr, "owner_id", ownerID)
 			return nil, apperrors.Wrap(cacheErr, "failed to load lstep tag cache")
 		}
 		for _, c := range cached {
@@ -178,7 +177,6 @@ func (s *lstepTagService) GetOwnerTags(ctx context.Context, clinicID, ownerID ui
 		if lstep.IsUserNotFound(err) {
 			return result, nil
 		}
-		slog.ErrorContext(ctx, "failed to get lstep tags", "error", err, "clinic_id", clinicID, "owner_id", ownerID)
 		return nil, apperrors.WrapInternalServerError("Lステップ API からタグ取得に失敗しました")
 	}
 
@@ -191,7 +189,6 @@ func (s *lstepTagService) GetOwnerTags(ctx context.Context, clinicID, ownerID ui
 func (s *lstepTagService) AddOwnerTag(ctx context.Context, clinicID, ownerID uint64, tagName string, actorID *uint64) error {
 	managed, err := s.isAutoManagedTag(ctx, tagName)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check auto managed tag", "error", err, "tag", tagName)
 		return apperrors.Wrap(err, "failed to check auto managed tag")
 	}
 	if managed {
@@ -218,7 +215,6 @@ func (s *lstepTagService) AddOwnerTag(ctx context.Context, clinicID, ownerID uin
 	}
 
 	if err := client.AddTag(ctx, *owner.LineUserID, tagName); err != nil {
-		slog.ErrorContext(ctx, "failed to add lstep tag", "error", err, "clinic_id", clinicID, "owner_id", ownerID, "tag", tagName)
 		return apperrors.Wrap(err, "failed to add tag")
 	}
 
@@ -236,7 +232,6 @@ func (s *lstepTagService) AddOwnerTag(ctx context.Context, clinicID, ownerID uin
 func (s *lstepTagService) RemoveOwnerTag(ctx context.Context, clinicID, ownerID uint64, tagName string, actorID *uint64) error {
 	managed, err := s.isAutoManagedTag(ctx, tagName)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check auto managed tag", "error", err, "tag", tagName)
 		return apperrors.Wrap(err, "failed to check auto managed tag")
 	}
 	if managed {
@@ -265,7 +260,6 @@ func (s *lstepTagService) RemoveOwnerTag(ctx context.Context, clinicID, ownerID 
 		if lstep.IsUserNotFound(err) {
 			return nil
 		}
-		slog.ErrorContext(ctx, "failed to remove lstep tag", "error", err, "clinic_id", clinicID, "owner_id", ownerID, "tag", tagName)
 		return apperrors.Wrap(err, "failed to remove tag")
 	}
 

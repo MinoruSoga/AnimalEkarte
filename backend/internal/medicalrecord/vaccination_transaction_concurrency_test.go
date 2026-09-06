@@ -29,7 +29,7 @@ type pauseFirstVaccinationUpdateRepository struct {
 	once    sync.Once
 }
 
-func (r *pauseFirstVaccinationUpdateRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccination, error) {
+func (r *pauseFirstVaccinationUpdateRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateVaccinationInput) (*model.Vaccination, error) {
 	shouldPause := false
 	r.once.Do(func() {
 		shouldPause = true
@@ -42,7 +42,7 @@ func (r *pauseFirstVaccinationUpdateRepository) Update(ctx context.Context, clin
 			return nil, ctx.Err()
 		}
 	}
-	return r.VaccinationRepository.Update(ctx, clinicID, id, fields)
+	return r.VaccinationRepository.Update(ctx, clinicID, id, cmd)
 }
 
 func TestVaccinationService_CreateReadbackFailureRollsBack(t *testing.T) {

@@ -174,8 +174,8 @@ func TestMedicineDoseParamService_Upsert_UpdatesWhenPresent(t *testing.T) {
 		findByMedicineAndSpeciesFn: func(_ context.Context, _, _ uint64, _ model.MedicineDoseSpecies) (*model.MedicineDoseParam, error) {
 			return &model.MedicineDoseParam{ID: 200, ClinicID: doseClinicID, MedicineID: 50, Species: model.MedicineDoseSpeciesDog, DosePerKg: 3, MaxMgPerKg: fptr(8)}, nil
 		},
-		updateFn: func(_ context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicineDoseParam, error) {
-			capturedFields = fields
+		updateFn: func(_ context.Context, clinicID, id uint64, cmd MedicineDoseParamInput) (*model.MedicineDoseParam, error) {
+			capturedFields = buildDoseParamReplaceFields(&cmd)
 			assert.Equal(t, doseClinicID, clinicID)
 			assert.Equal(t, uint64(200), id)
 			return &model.MedicineDoseParam{ID: 200, ClinicID: doseClinicID, MedicineID: 50, Species: model.MedicineDoseSpeciesDog, DosePerKg: 5, MaxMgPerKg: fptr(10)}, nil
@@ -224,7 +224,7 @@ func TestMedicineDoseParamService_Upsert_AuditFailureRollsBack(t *testing.T) {
 			findByMedicineAndSpeciesFn: func(_ context.Context, _, _ uint64, _ model.MedicineDoseSpecies) (*model.MedicineDoseParam, error) {
 				return &model.MedicineDoseParam{ID: 401, ClinicID: doseClinicID, MedicineID: 50, Species: model.MedicineDoseSpeciesDog, DosePerKg: 3, MaxMgPerKg: fptr(8)}, nil
 			},
-			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.MedicineDoseParam, error) {
+			updateFn: func(_ context.Context, _, _ uint64, _ MedicineDoseParamInput) (*model.MedicineDoseParam, error) {
 				return &model.MedicineDoseParam{ID: 401, ClinicID: doseClinicID, MedicineID: 50, Species: model.MedicineDoseSpeciesDog, DosePerKg: 5, MaxMgPerKg: fptr(10)}, nil
 			},
 		}

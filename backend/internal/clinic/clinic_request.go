@@ -15,7 +15,9 @@ var (
 	clinicPostalCodePattern = regexp.MustCompile(`^\d{3}-?\d{4}$`)
 )
 
-func init() {
+// RegisterContactBindingValidators registers jp_email / jp_phone / jp_postal
+// on Gin's validator. Call from the composition root; do not rely on init().
+func RegisterContactBindingValidators() {
 	engine, ok := binding.Validator.Engine().(*validator.Validate)
 	if !ok {
 		return

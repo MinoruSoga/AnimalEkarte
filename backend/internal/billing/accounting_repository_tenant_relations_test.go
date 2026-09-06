@@ -230,7 +230,7 @@ func TestAccountingRepository_ReadsExcludeForeignSplitAndRefundRows(t *testing.T
 			ctx,
 			clinicA,
 			billing.ID,
-			map[string]any{"memo": "tenant child scope"},
+			AccountingUpdate{Memo: strPtr("tenant child scope")},
 		)
 		require.NoError(t, err)
 		assertBillingTenantChildren(
@@ -904,7 +904,7 @@ func TestAccountingRepository_NestedStaffPreloadsRequireExactBillingClinic(
 			ctx,
 			clinicA,
 			contaminatedBilling.ID,
-			map[string]any{"memo": "staff preload scope"},
+			AccountingUpdate{Memo: strPtr("staff preload scope")},
 		)
 		require.NoError(t, err)
 		require.Len(t, got.Payments, 1)

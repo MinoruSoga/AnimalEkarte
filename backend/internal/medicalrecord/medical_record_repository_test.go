@@ -858,9 +858,7 @@ func TestMedicalRecordRepository_Delete(t *testing.T) {
 		require.NoError(t, tx.Error)
 		defer tx.Rollback()
 		txCtx := persistence.WithTxValue(ctx, tx)
-		_, err := repo.Update(txCtx, clinicA, rec.ID, map[string]any{
-			"status": model.MedicalRecordStatusFinalized,
-		}, nil)
+		_, err := repo.Update(txCtx, clinicA, rec.ID, medicalRecordUpdateStatus(model.MedicalRecordStatusFinalized), nil)
 		require.NoError(t, err)
 
 		deleteDone := make(chan error, 1)

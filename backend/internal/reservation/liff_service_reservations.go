@@ -14,7 +14,6 @@ import (
 func (s *liffService) CreateReservation(ctx context.Context, clinicID, customerID uint64, input *CreateReservationInput) (*model.Reservation, error) {
 	setting, err := s.settingRepo.FindByClinicID(ctx, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get reservation setting", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get reservation setting")
 	}
 	input.ClinicID = clinicID
@@ -29,7 +28,6 @@ func (s *liffService) CreateReservation(ctx context.Context, clinicID, customerI
 
 	appt, err := s.validators.ValidateAndCreate(ctx, input)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to validate and create appointment", "error", err)
 		return nil, apperrors.Wrap(err, "failed to validate and create appointment")
 	}
 
@@ -87,7 +85,6 @@ func (s *liffService) tryAutoDelegateStaff(
 func (s *liffService) GetMyReservations(ctx context.Context, clinicID, customerID uint64) ([]model.Reservation, error) {
 	items, err := s.adminRepo.FindAllByCustomerID(ctx, clinicID, customerID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get my reservations", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get my reservations")
 	}
 	return items, nil
@@ -106,7 +103,6 @@ func (s *liffService) CancelReservation(ctx context.Context, clinicID, customerI
 	}
 
 	if err := s.adminRepo.CancelByID(ctx, clinicID, customerID, reservationID); err != nil {
-		slog.ErrorContext(ctx, "failed to cancel reservation", "error", err, "clinic_id", clinicID, "reservation_id", reservationID)
 		return apperrors.Wrap(err, "failed to cancel reservation")
 	}
 

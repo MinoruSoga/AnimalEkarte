@@ -154,13 +154,15 @@ func TestAnimalSpeciesRepository_Update(t *testing.T) {
 	require.NoError(t, db.WithContext(ctx).Create(species).Error)
 
 	t.Run("updates successfully", func(t *testing.T) {
-		got, err := repo.Update(ctx, species.ID, map[string]any{"name": "更新後"})
+		name := "更新後"
+		got, err := repo.Update(ctx, species.ID, UpdateAnimalSpeciesInput{Name: &name})
 		require.NoError(t, err)
 		assert.Equal(t, "更新後", got.Name)
 	})
 
 	t.Run("not found for nonexistent id", func(t *testing.T) {
-		got, err := repo.Update(ctx, 999999, map[string]any{"name": "x"})
+		name := "x"
+		got, err := repo.Update(ctx, 999999, UpdateAnimalSpeciesInput{Name: &name})
 		assert.Error(t, err)
 		assert.Nil(t, got)
 		assert.True(t, apperrors.IsNotFound(err))
@@ -307,7 +309,8 @@ func TestAnimalSpeciesRepository_Update_RollsBackWhenAmbientTxFails(t *testing.T
 
 	tx := persistence.NewTransactor(db)
 	err := tx.WithTx(ctx, func(txCtx context.Context) error {
-		got, err := repo.Update(txCtx, species.ID, map[string]any{"name": "ambient-update-after"})
+		name := "ambient-update-after"
+		got, err := repo.Update(txCtx, species.ID, UpdateAnimalSpeciesInput{Name: &name})
 		if err != nil {
 			return err
 		}

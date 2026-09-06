@@ -13,15 +13,16 @@ import (
 	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
-type clinicRepository struct {
+// Repository is the clinic persistence store. Consumers keep their own ports.
+type Repository struct {
 	db *gorm.DB
 }
 
-func NewClinicRepository(db *gorm.DB) ClinicRepository {
-	return &clinicRepository{db: db}
+func NewClinicRepository(db *gorm.DB) *Repository {
+	return &Repository{db: db}
 }
 
-func (r *clinicRepository) FindAll(ctx context.Context) ([]model.Clinic, error) {
+func (r *Repository) FindAll(ctx context.Context) ([]model.Clinic, error) {
 	clinics := make([]model.Clinic, 0)
 	err := persistence.DBOrTx(ctx, r.db).
 		Order("name ASC").
@@ -32,7 +33,7 @@ func (r *clinicRepository) FindAll(ctx context.Context) ([]model.Clinic, error) 
 	return clinics, nil
 }
 
-func (r *clinicRepository) FindByIDs(ctx context.Context, ids []uint64) ([]model.Clinic, error) {
+func (r *Repository) FindByIDs(ctx context.Context, ids []uint64) ([]model.Clinic, error) {
 	clinics := make([]model.Clinic, 0)
 	if len(ids) == 0 {
 		return clinics, nil
@@ -47,7 +48,7 @@ func (r *clinicRepository) FindByIDs(ctx context.Context, ids []uint64) ([]model
 	return clinics, nil
 }
 
-func (r *clinicRepository) FindActiveIDs(ctx context.Context, ids []uint64) ([]uint64, error) {
+func (r *Repository) FindActiveIDs(ctx context.Context, ids []uint64) ([]uint64, error) {
 	out := make([]uint64, 0, len(ids))
 	if len(ids) == 0 {
 		return out, nil
@@ -62,7 +63,7 @@ func (r *clinicRepository) FindActiveIDs(ctx context.Context, ids []uint64) ([]u
 	return out, nil
 }
 
-func (r *clinicRepository) FindByStaffID(ctx context.Context, staffID uint64) ([]model.Clinic, error) {
+func (r *Repository) FindByStaffID(ctx context.Context, staffID uint64) ([]model.Clinic, error) {
 	clinics := make([]model.Clinic, 0)
 	err := r.db.WithContext(ctx).
 		Joins("INNER JOIN staff_clinic_assignments ON staff_clinic_assignments.clinic_id = clinics.id"+
@@ -78,7 +79,7 @@ func (r *clinicRepository) FindByStaffID(ctx context.Context, staffID uint64) ([
 
 // LockActiveByID holds a SHARE lock on an active clinic until the caller's
 // transaction ends. It fails closed without an ambient transaction.
-func (r *clinicRepository) LockActiveByID(ctx context.Context, id uint64) (*model.Clinic, error) {
+func (r *Repository) LockActiveByID(ctx context.Context, id uint64) (*model.Clinic, error) {
 	if persistence.TxFromContext(ctx) == nil {
 		return nil, apperrors.WrapInternalServerError("clinic lock requires an active transaction")
 	}
@@ -96,7 +97,7 @@ func (r *clinicRepository) LockActiveByID(ctx context.Context, id uint64) (*mode
 // LockByIDForUpdate holds an UPDATE lock on a clinic until the caller's
 // transaction ends. It intentionally includes inactive clinics because
 // deactivation followed by physical deletion is an existing supported flow.
-func (r *clinicRepository) LockByIDForUpdate(ctx context.Context, id uint64) (*model.Clinic, error) {
+func (r *Repository) LockByIDForUpdate(ctx context.Context, id uint64) (*model.Clinic, error) {
 	if persistence.TxFromContext(ctx) == nil {
 		return nil, apperrors.WrapInternalServerError("clinic update lock requires an active transaction")
 	}
@@ -111,7 +112,7 @@ func (r *clinicRepository) LockByIDForUpdate(ctx context.Context, id uint64) (*m
 	return &clinic, nil
 }
 
-func (r *clinicRepository) FindByID(ctx context.Context, id uint64) (*model.Clinic, error) {
+func (r *Repository) FindByID(ctx context.Context, id uint64) (*model.Clinic, error) {
 	var clinic model.Clinic
 	err := persistence.DBOrTx(ctx, r.db).First(&clinic, "id = ?", id).Error
 	if err != nil {
@@ -120,7 +121,7 @@ func (r *clinicRepository) FindByID(ctx context.Context, id uint64) (*model.Clin
 	return &clinic, nil
 }
 
-func (r *clinicRepository) FindCompany(ctx context.Context) (*model.Company, error) {
+func (r *Repository) FindCompany(ctx context.Context) (*model.Company, error) {
 	var company model.Company
 	err := persistence.DBOrTx(ctx, r.db).First(&company).Error
 	if err != nil {
@@ -133,7 +134,7 @@ func (r *clinicRepository) FindCompany(ctx context.Context) (*model.Company, err
 // デフォルト権限グループ2件の作成を transactor.WithTx で包むが、Create が r.db.WithContext(ctx)
 // のまま tx 非参加だと、途中で失敗しても既にオートコミット済みの行は WithTx のロールバックで
 // 巻き戻らず、デフォルト権限グループなしの孤児クリニックが生成しうるバグがあった。
-func (r *clinicRepository) Create(ctx context.Context, clinic *model.Clinic) error {
+func (r *Repository) Create(ctx context.Context, clinic *model.Clinic) error {
 	err := persistence.DBOrTx(ctx, r.db).Create(clinic).Error
 	if err != nil {
 		if persistence.IsUniqueConstraintErr(err) {
@@ -144,7 +145,7 @@ func (r *clinicRepository) Create(ctx context.Context, clinic *model.Clinic) err
 	return nil
 }
 
-func (r *clinicRepository) UpdateClinic(ctx context.Context, id uint64, input *UpdateClinicInput) error {
+func (r *Repository) UpdateClinic(ctx context.Context, id uint64, input *UpdateClinicInput) error {
 	if input == nil {
 		return apperrors.WrapInvalidInput(sharedkernel.ErrMsgInputNotNil)
 	}
@@ -155,12 +156,12 @@ func (r *clinicRepository) UpdateClinic(ctx context.Context, id uint64, input *U
 	if len(fields) == 0 {
 		return nil
 	}
-	return r.Update(ctx, id, fields)
+	return r.update(ctx, id, fields)
 }
 
-// Update applies a BuildClinicUpdate map inside the caller's ambient transaction.
+// update applies a BuildClinicUpdate map inside the caller's ambient transaction.
 // Consumers must call UpdateClinic; this method stays for the DBOrTx inventory key.
-func (r *clinicRepository) Update(ctx context.Context, id uint64, fields map[string]any) error {
+func (r *Repository) update(ctx context.Context, id uint64, fields map[string]any) error {
 	result := persistence.DBOrTx(ctx, r.db).Model(&model.Clinic{}).Where("id = ?", id).Updates(fields)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "clinic", fmt.Sprintf("%d", id))
@@ -174,7 +175,7 @@ func (r *clinicRepository) Update(ctx context.Context, id uint64, fields map[str
 // Delete participates in the caller's ambient transaction. Permission-group cleanup
 // is owned by PermissionGroupRepository and must be orchestrated by the service in
 // the same Transactor.WithTx callback before this delete.
-func (r *clinicRepository) Delete(ctx context.Context, id uint64) error {
+func (r *Repository) Delete(ctx context.Context, id uint64) error {
 	result := persistence.DBOrTx(ctx, r.db).
 		Where("id = ?", id).
 		Where(`NOT EXISTS (
@@ -208,7 +209,7 @@ func (r *clinicRepository) Delete(ctx context.Context, id uint64) error {
 	return nil
 }
 
-func (r *clinicRepository) normalizeClinicDeleteMiss(ctx context.Context, id uint64) error {
+func (r *Repository) normalizeClinicDeleteMiss(ctx context.Context, id uint64) error {
 	if _, err := r.FindByID(ctx, id); err != nil {
 		return err
 	}
@@ -236,7 +237,7 @@ func (r *clinicRepository) normalizeClinicDeleteMiss(ctx context.Context, id uin
 	return apperrors.WrapConflict("関連データが紐付いているため削除できません。関連データを先に整理してください")
 }
 
-func (r *clinicRepository) CountOwnersByClinicID(ctx context.Context, clinicID uint64) (int64, error) {
+func (r *Repository) CountOwnersByClinicID(ctx context.Context, clinicID uint64) (int64, error) {
 	var count int64
 	err := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Owner{}).
@@ -248,7 +249,7 @@ func (r *clinicRepository) CountOwnersByClinicID(ctx context.Context, clinicID u
 	return count, nil
 }
 
-func (r *clinicRepository) CountStaffByClinicID(ctx context.Context, clinicID uint64) (int64, error) {
+func (r *Repository) CountStaffByClinicID(ctx context.Context, clinicID uint64) (int64, error) {
 	var count int64
 	err := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Staff{}).
@@ -261,7 +262,7 @@ func (r *clinicRepository) CountStaffByClinicID(ctx context.Context, clinicID ui
 	return count, nil
 }
 
-func (r *clinicRepository) CountBlockingReferencesByClinicID(ctx context.Context, clinicID uint64) ([]ClinicDependencyCount, error) {
+func (r *Repository) CountBlockingReferencesByClinicID(ctx context.Context, clinicID uint64) ([]ClinicDependencyCount, error) {
 	checks := []struct {
 		table   string
 		label   string

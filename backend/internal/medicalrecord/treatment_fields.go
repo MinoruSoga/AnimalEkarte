@@ -1,6 +1,8 @@
 package medicalrecord
 
 import (
+	"maps"
+
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -9,14 +11,14 @@ import (
 // applyTreatmentDiscountGuard rechecks discount fields against the FOR UPDATE locked row.
 // If the request differs from the locked current value without DiscountEditAllowed → Forbidden.
 // If equal and not allowed, omit discount columns so a stale PATCH cannot race-write.
-func applyTreatmentDiscountGuard(locked *model.Treatment, input *UpdateTreatmentInput, fields map[string]any) error {
-	if err := applyTreatmentDiscountRateGuard(locked, input, fields); err != nil {
+func applyTreatmentDiscountGuard(locked *model.Treatment, input *UpdateTreatmentInput) error {
+	if err := applyTreatmentDiscountRateGuard(locked, input); err != nil {
 		return err
 	}
-	return applyTreatmentDiscountAmountGuard(locked, input, fields)
+	return applyTreatmentDiscountAmountGuard(locked, input)
 }
 
-func applyTreatmentDiscountRateGuard(locked *model.Treatment, input *UpdateTreatmentInput, fields map[string]any) error {
+func applyTreatmentDiscountRateGuard(locked *model.Treatment, input *UpdateTreatmentInput) error {
 	if input.DiscountRate == nil {
 		return nil
 	}
@@ -27,12 +29,12 @@ func applyTreatmentDiscountRateGuard(locked *model.Treatment, input *UpdateTreat
 		return apperrors.WrapForbidden("割引フィールドの編集権限がありません")
 	}
 	if !input.DiscountEditAllowed {
-		delete(fields, "discount_rate")
+		input.DiscountRate = nil
 	}
 	return nil
 }
 
-func applyTreatmentDiscountAmountGuard(locked *model.Treatment, input *UpdateTreatmentInput, fields map[string]any) error {
+func applyTreatmentDiscountAmountGuard(locked *model.Treatment, input *UpdateTreatmentInput) error {
 	if input.DiscountAmount == nil {
 		return nil
 	}
@@ -43,7 +45,7 @@ func applyTreatmentDiscountAmountGuard(locked *model.Treatment, input *UpdateTre
 		return apperrors.WrapForbidden("割引フィールドの編集権限がありません")
 	}
 	if !input.DiscountEditAllowed {
-		delete(fields, "discount_amount")
+		input.DiscountAmount = nil
 	}
 	return nil
 }
@@ -98,6 +100,9 @@ func buildTreatmentUpdate(input *UpdateTreatmentInput) map[string]any {
 	}
 	if input.SortOrder != nil {
 		fields["sort_order"] = *input.SortOrder
+	}
+	if len(input.persistDose) > 0 {
+		maps.Copy(fields, input.persistDose)
 	}
 	return fields
 }

@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"strconv"
 	"time"
 
@@ -262,7 +261,6 @@ func (s *tokenService) VerifyRefreshToken(
 		return nil, apperrors.WrapUnauthorized("invalid refresh token claims")
 	}
 	if s.tokenBlacklist == nil {
-		slog.ErrorContext(ctx, "refresh token validation unavailable: token blacklist is not configured")
 		return nil, apperrors.WrapInternalServerError("token validation unavailable")
 	}
 
@@ -271,7 +269,6 @@ func (s *tokenService) VerifyRefreshToken(
 		refreshFamilyBlacklistKey(familyID),
 	)
 	if err != nil {
-		slog.ErrorContext(ctx, "refresh token family blacklist check failed")
 		return nil, apperrors.Wrap(err, "token validation failed")
 	}
 	if familyRevoked {
@@ -280,7 +277,6 @@ func (s *tokenService) VerifyRefreshToken(
 
 	revoked, err := s.tokenBlacklist.IsRevoked(ctx, claims.ID)
 	if err != nil {
-		slog.ErrorContext(ctx, "token blacklist check failed")
 		return nil, apperrors.Wrap(err, "token validation failed")
 	}
 	if revoked {
@@ -289,7 +285,6 @@ func (s *tokenService) VerifyRefreshToken(
 			s.tokenBlacklist,
 			familyID,
 		); familyErr != nil {
-			slog.ErrorContext(ctx, "refresh token reuse family revocation failed")
 			return nil, familyErr
 		}
 		return nil, apperrors.WrapUnauthorized("token has been revoked")

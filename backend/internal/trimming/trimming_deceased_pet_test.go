@@ -41,12 +41,12 @@ func newDeceasedGuardTestService(
 	reserv *mockTrimmingReservationRepository,
 	detail *mockTrimmingDetailRepository,
 	audit *trimmingAuditRecorder,
-) TrimmingService {
+) Service {
 	return withTrimmingTestActor(newTrimmingAuditTestService(reserv, detail, &mockTransactor{}, audit))
 }
 
 // ① detail 作成: input.PetID == nil かつ予約由来ペットが死亡 → 拒否・write/audit 0
-func TestTrimmingService_CreateExistingDetail_RejectsDeceasedPetWhenPetIDOmitted(t *testing.T) {
+func TestService_CreateExistingDetail_RejectsDeceasedPetWhenPetIDOmitted(t *testing.T) {
 	appointmentID := uint64(77)
 	petID := uint64(501)
 	deceasedAt := deceasedPetAt()
@@ -96,7 +96,7 @@ func TestTrimmingService_CreateExistingDetail_RejectsDeceasedPetWhenPetIDOmitted
 }
 
 // ② Update: input.PetID == nil かつ予約由来ペットが死亡 → 拒否・write/audit 0
-func TestTrimmingService_Update_RejectsDeceasedPetWhenPetIDOmitted(t *testing.T) {
+func TestService_Update_RejectsDeceasedPetWhenPetIDOmitted(t *testing.T) {
 	appointmentID := uint64(77)
 	petID := uint64(501)
 	deceasedAt := deceasedPetAt()
@@ -148,7 +148,7 @@ func TestTrimmingService_Update_RejectsDeceasedPetWhenPetIDOmitted(t *testing.T)
 }
 
 // ③ 明示的な pet 差し替え先が死亡 → 拒否・write/audit 0
-func TestTrimmingService_Update_RejectsDeceasedPetReplacement(t *testing.T) {
+func TestService_Update_RejectsDeceasedPetReplacement(t *testing.T) {
 	appointmentID := uint64(77)
 	alivePetID := uint64(501)
 	deceasedPetID := uint64(999)
@@ -202,7 +202,7 @@ func TestTrimmingService_Update_RejectsDeceasedPetReplacement(t *testing.T) {
 }
 
 // ④ 通常 create のペットが死亡 → 拒否・write/audit 0
-func TestTrimmingService_Create_RejectsDeceasedPet(t *testing.T) {
+func TestService_Create_RejectsDeceasedPet(t *testing.T) {
 	petID := uint64(501)
 	deceasedAt := deceasedPetAt()
 	createCalls := 0

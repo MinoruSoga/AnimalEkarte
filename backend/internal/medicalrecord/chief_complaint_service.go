@@ -71,7 +71,6 @@ func NewChiefComplaintTypeService(repo ChiefComplaintTypeRepository) ChiefCompla
 func (s *chiefComplaintTypeService) List(ctx context.Context, clinicID uint64) ([]model.ChiefComplaintType, error) {
 	items, err := s.repo.FindAll(ctx, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list chief complaint types", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to list chief complaint types")
 	}
 	return items, nil
@@ -80,7 +79,6 @@ func (s *chiefComplaintTypeService) List(ctx context.Context, clinicID uint64) (
 func (s *chiefComplaintTypeService) GetByID(ctx context.Context, clinicID, id uint64) (*model.ChiefComplaintType, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get chief complaint type", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get chief complaint type")
 	}
 	return result, nil
@@ -98,7 +96,6 @@ func (s *chiefComplaintTypeService) Create(ctx context.Context, clinicID uint64,
 		SortOrder:   input.SortOrder,
 	}
 	if err := s.repo.Create(ctx, category); err != nil {
-		slog.ErrorContext(ctx, "failed to create chief complaint type", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to create chief complaint type")
 	}
 	slog.InfoContext(ctx, "chief complaint type created",
@@ -112,7 +109,6 @@ func (s *chiefComplaintTypeService) Update(ctx context.Context, clinicID, id uin
 		return nil, apperrors.WrapInvalidInput(errMsgInputNotNil)
 	}
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to get chief complaint type", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get chief complaint type")
 	}
 	if err := validateOptionalName(input.Name); err != nil {
@@ -122,9 +118,8 @@ func (s *chiefComplaintTypeService) Update(ctx context.Context, clinicID, id uin
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput(errMsgAtLeastOneField)
 	}
-	result, err := s.repo.Update(ctx, clinicID, id, fields)
+	result, err := s.repo.Update(ctx, clinicID, id, *input)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to update chief complaint type", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to update chief complaint type")
 	}
 	slog.InfoContext(ctx, "chief complaint type updated",
@@ -139,14 +134,12 @@ func (s *chiefComplaintTypeService) Delete(ctx context.Context, clinicID, id uin
 	}
 	count, err := s.repo.CountUsageByChiefComplaintTypeID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check chief complaint type usage", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to check chief complaint type usage")
 	}
 	if count > 0 {
 		return apperrors.WrapConflict("この主訴カテゴリは問診記録で使用中のため削除できません")
 	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to delete chief complaint type", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete chief complaint type")
 	}
 	slog.InfoContext(ctx, "chief complaint type deleted",
@@ -160,7 +153,6 @@ func (s *chiefComplaintTypeService) Reorder(ctx context.Context, clinicID uint64
 		return apperrors.WrapInvalidInput(errMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
-		slog.ErrorContext(ctx, "failed to reorder chief complaint types", "error", err, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to reorder chief complaint types")
 	}
 	slog.InfoContext(ctx, "chief complaint type reordered",

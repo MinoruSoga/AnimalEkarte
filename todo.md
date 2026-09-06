@@ -102,10 +102,6 @@ STG 実行ゲート: 対象環境、data owner、operator、maintenance window�
 | **BE-RC-015** | 新規・変更面から package.Type stutter を避ける |
 | **BE-RC-017** | 対象 repository 変更時に unexported update + typed command |
 | **BE-RC-019** | lab / hospitalization 等の境界が成立する変更時だけ |
-| **BE-RC-021** | 新規 export へ GoDoc を追加 |
-| **BE-RC-023** | clinic validator の `init()` 副作用が出たら constructor 登録へ |
-| **BE-RC-034** | 対象 command 変更時に helper へ寄せる |
-| **BE-RC-035** | 当該 auth test 変更時に `testdb.Truncate` へ |
 
 ---
 

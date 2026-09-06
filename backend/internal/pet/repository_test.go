@@ -587,7 +587,8 @@ func TestPetRepository_Update(t *testing.T) {
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "更新前ペット名")
 
 	t.Run("成功", func(t *testing.T) {
-		err := repo.Update(ctx, clinicA, pet.ID, map[string]any{"name": "更新後ペット名"})
+		name := "更新後ペット名"
+		err := repo.Update(ctx, clinicA, pet.ID, UpdatePetInput{Name: &name})
 		require.NoError(t, err)
 
 		got, err := repo.FindByID(ctx, clinicA, pet.ID)
@@ -596,7 +597,8 @@ func TestPetRepository_Update(t *testing.T) {
 	})
 
 	t.Run("存在しないIDはNotFound", func(t *testing.T) {
-		err := repo.Update(ctx, clinicA, 999888004, map[string]any{"name": "x"})
+		name := "x"
+		err := repo.Update(ctx, clinicA, 999888004, UpdatePetInput{Name: &name})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})

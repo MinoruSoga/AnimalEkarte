@@ -24,8 +24,8 @@ type HospitalizationRepository interface {
 	// Repositories.Transaction（repo-swap）内の txRepos 経由でのみ呼ぶこと。
 	LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error)
 	Create(ctx context.Context, hospitalization *model.Hospitalization) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Hospitalization, error)
-	UpdateIfNotDischarged(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Hospitalization, error)
+	Update(ctx context.Context, clinicID, id uint64, cmd UpdateHospitalizationInput) (*model.Hospitalization, error)
+	UpdateIfNotDischarged(ctx context.Context, clinicID, id uint64, cmd UpdateHospitalizationInput) (*model.Hospitalization, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	CountCarePlanItemsByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) (int64, error)
 	CountDailyRecordsByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) (int64, error)
@@ -139,21 +139,32 @@ func (r *hospitalizationRepository) Create(ctx context.Context, hospitalization 
 	return nil
 }
 
-func (r *hospitalizationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Hospitalization, error) {
+func (r *hospitalizationRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateHospitalizationInput) (*model.Hospitalization, error) {
+	if err := r.update(ctx, clinicID, id, buildHospitalizationUpdate(&cmd)); err != nil {
+		return nil, err
+	}
+	return r.FindByID(ctx, clinicID, id)
+}
+
+func (r *hospitalizationRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	result := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Hospitalization{}).
 		Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
-		return nil, apperrors.FromGORM(result.Error, "hospitalization", fmt.Sprintf("%d", id))
+		return apperrors.FromGORM(result.Error, "hospitalization", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
-		return nil, apperrors.WrapNotFound("hospitalization", fmt.Sprintf("%d", id))
+		return apperrors.WrapNotFound("hospitalization", fmt.Sprintf("%d", id))
 	}
-	return r.FindByID(ctx, clinicID, id)
+	return nil
 }
 
-func (r *hospitalizationRepository) UpdateIfNotDischarged(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Hospitalization, error) {
+func (r *hospitalizationRepository) UpdateIfNotDischarged(ctx context.Context, clinicID, id uint64, cmd UpdateHospitalizationInput) (*model.Hospitalization, error) {
+	return r.updateIfNotDischarged(ctx, clinicID, id, buildHospitalizationUpdate(&cmd))
+}
+
+func (r *hospitalizationRepository) updateIfNotDischarged(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Hospitalization, error) {
 	result := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Hospitalization{}).
 		Scopes(persistence.ClinicScope(clinicID)).

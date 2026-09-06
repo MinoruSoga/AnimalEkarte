@@ -19,7 +19,7 @@ type ReservationTypeLiffRepository interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error)
 	CountChildrenByParentID(ctx context.Context, clinicID, parentID uint64) (int64, error)
 	Create(ctx context.Context, st *model.ReservationType) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationType, error)
+	Update(ctx context.Context, clinicID, id uint64, cmd UpdateReservationTypeLiffInput) (*model.ReservationType, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	// DeleteWithDependencyChecks locks the master row, re-evaluates children/appointment
 	// usage, then soft-deletes in one transaction (RSV-07).
@@ -80,12 +80,12 @@ func (r *reservationTypeLiffRepository) Create(ctx context.Context, st *model.Re
 	return nil
 }
 
-func (r *reservationTypeLiffRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationType, error) {
+func (r *reservationTypeLiffRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateReservationTypeLiffInput) (*model.ReservationType, error) {
 	// RSV-03: write + reload in one transaction.
 	var loaded *model.ReservationType
 	err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		txCtx := persistence.WithTxValue(ctx, tx)
-		if err := persistence.UpdateScopedByID(txCtx, tx, &model.ReservationType{}, "reservation_type_liff", clinicID, id, fields); err != nil {
+		if err := r.update(txCtx, clinicID, id, buildReservationTypeLiffUpdate(&cmd)); err != nil {
 			return err
 		}
 		var findErr error
@@ -96,6 +96,10 @@ func (r *reservationTypeLiffRepository) Update(ctx context.Context, clinicID, id
 		return nil, err
 	}
 	return loaded, nil
+}
+
+func (r *reservationTypeLiffRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+	return persistence.UpdateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.ReservationType{}, "reservation_type_liff", clinicID, id, fields)
 }
 
 func (r *reservationTypeLiffRepository) Delete(ctx context.Context, clinicID, id uint64) error {

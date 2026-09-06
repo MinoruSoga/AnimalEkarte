@@ -55,7 +55,7 @@ func (m *mockStaffClinicAssignmentServiceErr) Create(_ context.Context, _ *model
 // newHandlerWithStaffSvcAndAssignmentErr builds a handler whose
 // StaffClinicAssignment dependency always errors, for GetStaffClinicAssignments
 // 500 coverage.
-func newHandlerWithStaffSvcAndAssignmentErr(staffSvc staffdomain.StaffService) *staffdomain.Handler {
+func newHandlerWithStaffSvcAndAssignmentErr(staffSvc staffdomain.Service) *staffdomain.Handler {
 	return staffdomain.NewHandler(
 		staffSvc,
 		&mockStaffClinicAssignmentServiceErr{},
@@ -115,7 +115,7 @@ func TestSetStaffPermissionGroups_RoutedCompositeAuthorization(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			mutationCalls := 0
-			svc := &mockStaffService{
+			svc := &mockService{
 				setPermissionGroupIDsFn: func(_ context.Context, staffID uint64, ids []uint64) error {
 					mutationCalls++
 					assert.Equal(t, uint64(10), staffID)
@@ -165,7 +165,7 @@ func TestGetStaffPermissionGroups_Characterization(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	t.Run("200 returns group_ids", func(t *testing.T) {
-		svc := &mockStaffService{
+		svc := &mockService{
 			getPermissionGroupIDsFn: func(_ context.Context, clinicID, staffID uint64) ([]uint64, error) {
 				assert.Equal(t, uint64(1), clinicID)
 				assert.Equal(t, uint64(10), staffID)
@@ -179,7 +179,7 @@ func TestGetStaffPermissionGroups_Characterization(t *testing.T) {
 	})
 
 	t.Run("404 when not clinic member; downstream not called", func(t *testing.T) {
-		svc := &mockStaffService{
+		svc := &mockService{
 			verifyClinicMembershipFn: func(_ context.Context, _, _ uint64) error { return notMemberErr() },
 			getPermissionGroupIDsFn: func(_ context.Context, _, _ uint64) ([]uint64, error) {
 				t.Fatal("downstream GetPermissionGroupIDs must not run when membership fails")
@@ -192,7 +192,7 @@ func TestGetStaffPermissionGroups_Characterization(t *testing.T) {
 	})
 
 	t.Run("500 on service error", func(t *testing.T) {
-		svc := &mockStaffService{
+		svc := &mockService{
 			getPermissionGroupIDsFn: func(_ context.Context, _, _ uint64) ([]uint64, error) {
 				return nil, fmt.Errorf("db failure")
 			},
@@ -209,7 +209,7 @@ func TestSetStaffPermissionGroups_Characterization(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	t.Run("200 echoes group_ids", func(t *testing.T) {
-		svc := &mockStaffService{
+		svc := &mockService{
 			setPermissionGroupIDsFn: func(_ context.Context, staffID uint64, ids []uint64) error {
 				assert.Equal(t, uint64(10), staffID)
 				assert.Equal(t, []uint64{2, 5}, ids)
@@ -223,7 +223,7 @@ func TestSetStaffPermissionGroups_Characterization(t *testing.T) {
 	})
 
 	t.Run("200 normalizes null to empty array", func(t *testing.T) {
-		svc := &mockStaffService{
+		svc := &mockService{
 			setPermissionGroupIDsFn: func(_ context.Context, _ uint64, ids []uint64) error {
 				assert.Equal(t, []uint64{}, ids)
 				return nil
@@ -236,7 +236,7 @@ func TestSetStaffPermissionGroups_Characterization(t *testing.T) {
 	})
 
 	t.Run("404 when not clinic member; downstream not called", func(t *testing.T) {
-		svc := &mockStaffService{
+		svc := &mockService{
 			verifyClinicMembershipFn: func(_ context.Context, _, _ uint64) error { return notMemberErr() },
 			setPermissionGroupIDsFn: func(_ context.Context, _ uint64, _ []uint64) error {
 				t.Fatal("downstream SetPermissionGroupIDs must not run when membership fails")
@@ -255,18 +255,18 @@ func TestSetStaffPermissionGroups_Characterization(t *testing.T) {
 		c.Request.Header.Set("Content-Type", "application/json")
 		c.Params = gin.Params{{Key: "id", Value: "10"}}
 		// clinic_id intentionally NOT set.
-		newHandlerWithStaffSvc(&mockStaffService{}).SetStaffPermissionGroups(c)
+		newHandlerWithStaffSvc(&mockService{}).SetStaffPermissionGroups(c)
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
 
 	t.Run("400 for invalid JSON body", func(t *testing.T) {
 		w := httptest.NewRecorder()
-		newHandlerWithStaffSvc(&mockStaffService{}).SetStaffPermissionGroups(staffAssocCtx(w, http.MethodPut, []byte(`not-json`)))
+		newHandlerWithStaffSvc(&mockService{}).SetStaffPermissionGroups(staffAssocCtx(w, http.MethodPut, []byte(`not-json`)))
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
 	t.Run("500 on service error", func(t *testing.T) {
-		svc := &mockStaffService{
+		svc := &mockService{
 			setPermissionGroupIDsFn: func(_ context.Context, _ uint64, _ []uint64) error {
 				return fmt.Errorf("db failure")
 			},
@@ -284,13 +284,13 @@ func TestGetStaffClinicAssignments_Characterization(t *testing.T) {
 
 	t.Run("200 returns clinic_ids from assignment service", func(t *testing.T) {
 		w := httptest.NewRecorder()
-		newHandlerWithStaffSvc(&mockStaffService{}).GetStaffClinicAssignments(staffAssocCtx(w, http.MethodGet, nil))
+		newHandlerWithStaffSvc(&mockService{}).GetStaffClinicAssignments(staffAssocCtx(w, http.MethodGet, nil))
 		require.Equal(t, http.StatusOK, w.Code)
 		assert.JSONEq(t, `{"clinic_ids":[1]}`, w.Body.String())
 	})
 
 	t.Run("404 when not clinic member", func(t *testing.T) {
-		svc := &mockStaffService{
+		svc := &mockService{
 			verifyClinicMembershipFn: func(_ context.Context, _, _ uint64) error { return notMemberErr() },
 		}
 		w := httptest.NewRecorder()
@@ -304,13 +304,13 @@ func TestGetStaffClinicAssignments_Characterization(t *testing.T) {
 		c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 		c.Params = gin.Params{{Key: "id", Value: "10"}}
 		// clinic_id intentionally NOT set.
-		newHandlerWithStaffSvc(&mockStaffService{}).GetStaffClinicAssignments(c)
+		newHandlerWithStaffSvc(&mockService{}).GetStaffClinicAssignments(c)
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
 
 	t.Run("500 on assignment service error", func(t *testing.T) {
 		w := httptest.NewRecorder()
-		newHandlerWithStaffSvcAndAssignmentErr(&mockStaffService{}).GetStaffClinicAssignments(staffAssocCtx(w, http.MethodGet, nil))
+		newHandlerWithStaffSvcAndAssignmentErr(&mockService{}).GetStaffClinicAssignments(staffAssocCtx(w, http.MethodGet, nil))
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 }
@@ -319,7 +319,7 @@ func TestSetStaffClinicAssignments_Characterization(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	t.Run("200 echoes clinic_ids", func(t *testing.T) {
-		svc := &mockStaffService{
+		svc := &mockService{
 			setClinicAssignmentsFn: func(_ context.Context, input *staffdomain.SetClinicAssignmentsInput) error {
 				assert.Equal(t, uint64(10), input.StaffID)
 				assert.Equal(t, []uint64{1, 3}, input.ClinicIDs)
@@ -335,7 +335,7 @@ func TestSetStaffClinicAssignments_Characterization(t *testing.T) {
 	})
 
 	t.Run("403 when adding a clinic that lacks master-staff:edit", func(t *testing.T) {
-		svc := &mockStaffService{
+		svc := &mockService{
 			setClinicAssignmentsFn: func(_ context.Context, _ *staffdomain.SetClinicAssignmentsInput) error {
 				t.Fatal("service must not assign a clinic that lacks master-staff:edit")
 				return nil
@@ -355,7 +355,7 @@ func TestSetStaffClinicAssignments_Characterization(t *testing.T) {
 	})
 
 	t.Run("200 deduplicates clinic_ids while preserving order", func(t *testing.T) {
-		svc := &mockStaffService{
+		svc := &mockService{
 			setClinicAssignmentsFn: func(_ context.Context, input *staffdomain.SetClinicAssignmentsInput) error {
 				assert.Equal(t, []uint64{2, 4}, input.ClinicIDs)
 				return nil
@@ -372,7 +372,7 @@ func TestSetStaffClinicAssignments_Characterization(t *testing.T) {
 	})
 
 	t.Run("system admin scope carries trusted active clinic authority", func(t *testing.T) {
-		svc := &mockStaffService{
+		svc := &mockService{
 			setClinicAssignmentsFn: func(_ context.Context, input *staffdomain.SetClinicAssignmentsInput) error {
 				assert.Equal(t, uint64(10), input.StaffID)
 				assert.Equal(t, []uint64{2}, input.ClinicIDs)
@@ -393,7 +393,7 @@ func TestSetStaffClinicAssignments_Characterization(t *testing.T) {
 	})
 
 	t.Run("401 when non-admin clinic assignments are missing", func(t *testing.T) {
-		svc := &mockStaffService{
+		svc := &mockService{
 			setClinicAssignmentsFn: func(_ context.Context, _ *staffdomain.SetClinicAssignmentsInput) error {
 				t.Fatal("service must not run without authenticated clinic ids")
 				return nil
@@ -413,7 +413,7 @@ func TestSetStaffClinicAssignments_Characterization(t *testing.T) {
 	})
 
 	t.Run("401 when system admin context is missing", func(t *testing.T) {
-		svc := &mockStaffService{
+		svc := &mockService{
 			setClinicAssignmentsFn: func(_ context.Context, _ *staffdomain.SetClinicAssignmentsInput) error {
 				t.Fatal("service must not run without authenticated admin status")
 				return nil
@@ -439,7 +439,7 @@ func TestSetStaffClinicAssignments_Characterization(t *testing.T) {
 		}
 		body, err := json.Marshal(map[string][]uint64{"clinic_ids": clinicIDs})
 		require.NoError(t, err)
-		svc := &mockStaffService{
+		svc := &mockService{
 			setClinicAssignmentsFn: func(_ context.Context, _ *staffdomain.SetClinicAssignmentsInput) error {
 				t.Fatal("service must not run when request binding rejects too many clinic ids")
 				return nil
@@ -453,7 +453,7 @@ func TestSetStaffClinicAssignments_Characterization(t *testing.T) {
 	})
 
 	t.Run("200 normalizes null to empty array", func(t *testing.T) {
-		svc := &mockStaffService{
+		svc := &mockService{
 			setClinicAssignmentsFn: func(_ context.Context, input *staffdomain.SetClinicAssignmentsInput) error {
 				assert.Equal(t, []uint64{}, input.ClinicIDs)
 				return nil
@@ -466,7 +466,7 @@ func TestSetStaffClinicAssignments_Characterization(t *testing.T) {
 	})
 
 	t.Run("404 when not clinic member; downstream not called", func(t *testing.T) {
-		svc := &mockStaffService{
+		svc := &mockService{
 			verifyClinicMembershipFn: func(_ context.Context, _, _ uint64) error { return notMemberErr() },
 			setClinicAssignmentsFn: func(_ context.Context, _ *staffdomain.SetClinicAssignmentsInput) error {
 				t.Fatal("downstream SetClinicAssignments must not run when membership fails")
@@ -485,18 +485,18 @@ func TestSetStaffClinicAssignments_Characterization(t *testing.T) {
 		c.Request.Header.Set("Content-Type", "application/json")
 		c.Params = gin.Params{{Key: "id", Value: "10"}}
 		// clinic_id intentionally NOT set.
-		newHandlerWithStaffSvc(&mockStaffService{}).SetStaffClinicAssignments(c)
+		newHandlerWithStaffSvc(&mockService{}).SetStaffClinicAssignments(c)
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
 
 	t.Run("400 for invalid JSON body", func(t *testing.T) {
 		w := httptest.NewRecorder()
-		newHandlerWithStaffSvc(&mockStaffService{}).SetStaffClinicAssignments(staffAssocCtx(w, http.MethodPut, []byte(`not-json`)))
+		newHandlerWithStaffSvc(&mockService{}).SetStaffClinicAssignments(staffAssocCtx(w, http.MethodPut, []byte(`not-json`)))
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
 	t.Run("500 on service error", func(t *testing.T) {
-		svc := &mockStaffService{
+		svc := &mockService{
 			setClinicAssignmentsFn: func(_ context.Context, _ *staffdomain.SetClinicAssignmentsInput) error {
 				return fmt.Errorf("db failure")
 			},
@@ -513,7 +513,7 @@ func TestGetStaffExcludedReservationTypes_Characterization(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	t.Run("200 returns reservation_type_ids", func(t *testing.T) {
-		svc := &mockStaffService{
+		svc := &mockService{
 			getExcludedReservationTypesFn: func(_ context.Context, clinicID, staffID uint64) ([]uint64, error) {
 				assert.Equal(t, uint64(1), clinicID)
 				assert.Equal(t, uint64(10), staffID)
@@ -527,7 +527,7 @@ func TestGetStaffExcludedReservationTypes_Characterization(t *testing.T) {
 	})
 
 	t.Run("404 when not clinic member", func(t *testing.T) {
-		svc := &mockStaffService{
+		svc := &mockService{
 			verifyClinicMembershipFn: func(_ context.Context, _, _ uint64) error { return notMemberErr() },
 			getExcludedReservationTypesFn: func(_ context.Context, _, _ uint64) ([]uint64, error) {
 				t.Fatal("downstream must not run when membership fails")
@@ -545,12 +545,12 @@ func TestGetStaffExcludedReservationTypes_Characterization(t *testing.T) {
 		c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 		c.Params = gin.Params{{Key: "id", Value: "10"}}
 		// clinic_id intentionally NOT set.
-		newHandlerWithStaffSvc(&mockStaffService{}).GetStaffExcludedReservationTypes(c)
+		newHandlerWithStaffSvc(&mockService{}).GetStaffExcludedReservationTypes(c)
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
 
 	t.Run("500 on service error", func(t *testing.T) {
-		svc := &mockStaffService{
+		svc := &mockService{
 			getExcludedReservationTypesFn: func(_ context.Context, _, _ uint64) ([]uint64, error) {
 				return nil, fmt.Errorf("db failure")
 			},
@@ -565,7 +565,7 @@ func TestSetStaffExcludedReservationTypes_Characterization(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	t.Run("200 echoes reservation_type_ids", func(t *testing.T) {
-		svc := &mockStaffService{
+		svc := &mockService{
 			setExcludedReservationTypesFn: func(_ context.Context, staffID uint64, ids []uint64) error {
 				assert.Equal(t, uint64(10), staffID)
 				assert.Equal(t, []uint64{7, 9}, ids)
@@ -579,7 +579,7 @@ func TestSetStaffExcludedReservationTypes_Characterization(t *testing.T) {
 	})
 
 	t.Run("200 normalizes null to empty array", func(t *testing.T) {
-		svc := &mockStaffService{
+		svc := &mockService{
 			setExcludedReservationTypesFn: func(_ context.Context, _ uint64, ids []uint64) error {
 				assert.Equal(t, []uint64{}, ids)
 				return nil
@@ -592,7 +592,7 @@ func TestSetStaffExcludedReservationTypes_Characterization(t *testing.T) {
 	})
 
 	t.Run("404 when not clinic member", func(t *testing.T) {
-		svc := &mockStaffService{
+		svc := &mockService{
 			verifyClinicMembershipFn: func(_ context.Context, _, _ uint64) error { return notMemberErr() },
 		}
 		w := httptest.NewRecorder()
@@ -607,18 +607,18 @@ func TestSetStaffExcludedReservationTypes_Characterization(t *testing.T) {
 		c.Request.Header.Set("Content-Type", "application/json")
 		c.Params = gin.Params{{Key: "id", Value: "10"}}
 		// clinic_id intentionally NOT set.
-		newHandlerWithStaffSvc(&mockStaffService{}).SetStaffExcludedReservationTypes(c)
+		newHandlerWithStaffSvc(&mockService{}).SetStaffExcludedReservationTypes(c)
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
 
 	t.Run("400 for invalid JSON body", func(t *testing.T) {
 		w := httptest.NewRecorder()
-		newHandlerWithStaffSvc(&mockStaffService{}).SetStaffExcludedReservationTypes(staffAssocCtx(w, http.MethodPut, []byte(`not-json`)))
+		newHandlerWithStaffSvc(&mockService{}).SetStaffExcludedReservationTypes(staffAssocCtx(w, http.MethodPut, []byte(`not-json`)))
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
 	t.Run("500 on service error", func(t *testing.T) {
-		svc := &mockStaffService{
+		svc := &mockService{
 			setExcludedReservationTypesFn: func(_ context.Context, _ uint64, _ []uint64) error {
 				return fmt.Errorf("db failure")
 			},
@@ -635,7 +635,7 @@ func TestGetStaffCapableReservationTypes_Characterization(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	t.Run("200 returns reservation_type_ids", func(t *testing.T) {
-		svc := &mockStaffService{
+		svc := &mockService{
 			getCapableReservationTypesFn: func(_ context.Context, clinicID, staffID uint64) ([]uint64, error) {
 				assert.Equal(t, uint64(1), clinicID)
 				assert.Equal(t, uint64(10), staffID)
@@ -649,7 +649,7 @@ func TestGetStaffCapableReservationTypes_Characterization(t *testing.T) {
 	})
 
 	t.Run("404 when not clinic member", func(t *testing.T) {
-		svc := &mockStaffService{
+		svc := &mockService{
 			verifyClinicMembershipFn: func(_ context.Context, _, _ uint64) error { return notMemberErr() },
 		}
 		w := httptest.NewRecorder()
@@ -663,12 +663,12 @@ func TestGetStaffCapableReservationTypes_Characterization(t *testing.T) {
 		c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 		c.Params = gin.Params{{Key: "id", Value: "10"}}
 		// clinic_id intentionally NOT set.
-		newHandlerWithStaffSvc(&mockStaffService{}).GetStaffCapableReservationTypes(c)
+		newHandlerWithStaffSvc(&mockService{}).GetStaffCapableReservationTypes(c)
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
 
 	t.Run("500 on service error", func(t *testing.T) {
-		svc := &mockStaffService{
+		svc := &mockService{
 			getCapableReservationTypesFn: func(_ context.Context, _, _ uint64) ([]uint64, error) {
 				return nil, fmt.Errorf("db failure")
 			},
@@ -683,7 +683,7 @@ func TestSetStaffCapableReservationTypes_Characterization(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	t.Run("200 echoes reservation_type_ids", func(t *testing.T) {
-		svc := &mockStaffService{
+		svc := &mockService{
 			setCapableReservationTypesFn: func(_ context.Context, clinicID, staffID uint64, ids []uint64) error {
 				assert.Equal(t, uint64(1), clinicID)
 				assert.Equal(t, uint64(10), staffID)
@@ -698,7 +698,7 @@ func TestSetStaffCapableReservationTypes_Characterization(t *testing.T) {
 	})
 
 	t.Run("404 when not clinic member", func(t *testing.T) {
-		svc := &mockStaffService{
+		svc := &mockService{
 			verifyClinicMembershipFn: func(_ context.Context, _, _ uint64) error { return notMemberErr() },
 		}
 		w := httptest.NewRecorder()
@@ -707,7 +707,7 @@ func TestSetStaffCapableReservationTypes_Characterization(t *testing.T) {
 	})
 
 	t.Run("200 normalizes null to empty array", func(t *testing.T) {
-		svc := &mockStaffService{
+		svc := &mockService{
 			setCapableReservationTypesFn: func(_ context.Context, _, _ uint64, ids []uint64) error {
 				assert.Equal(t, []uint64{}, ids)
 				return nil
@@ -726,18 +726,18 @@ func TestSetStaffCapableReservationTypes_Characterization(t *testing.T) {
 		c.Request.Header.Set("Content-Type", "application/json")
 		c.Params = gin.Params{{Key: "id", Value: "10"}}
 		// clinic_id intentionally NOT set.
-		newHandlerWithStaffSvc(&mockStaffService{}).SetStaffCapableReservationTypes(c)
+		newHandlerWithStaffSvc(&mockService{}).SetStaffCapableReservationTypes(c)
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
 
 	t.Run("400 for invalid JSON body", func(t *testing.T) {
 		w := httptest.NewRecorder()
-		newHandlerWithStaffSvc(&mockStaffService{}).SetStaffCapableReservationTypes(staffAssocCtx(w, http.MethodPut, []byte(`not-json`)))
+		newHandlerWithStaffSvc(&mockService{}).SetStaffCapableReservationTypes(staffAssocCtx(w, http.MethodPut, []byte(`not-json`)))
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
 	t.Run("500 on service error", func(t *testing.T) {
-		svc := &mockStaffService{
+		svc := &mockService{
 			setCapableReservationTypesFn: func(_ context.Context, _, _ uint64, _ []uint64) error {
 				return fmt.Errorf("db failure")
 			},
@@ -753,7 +753,7 @@ func TestSetStaffCapableReservationTypes_Characterization(t *testing.T) {
 func TestStaffAssociation_MissingClinicID_Returns401(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	svc := &mockStaffService{
+	svc := &mockService{
 		getPermissionGroupIDsFn: func(_ context.Context, _, _ uint64) ([]uint64, error) {
 			t.Fatal("downstream must not run when clinic_id is missing")
 			return nil, nil
@@ -778,7 +778,7 @@ func TestGetStaff_Characterization(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	t.Run("200 returns staff", func(t *testing.T) {
-		svc := &mockStaffService{
+		svc := &mockService{
 			getByIDFn: func(_ context.Context, id uint64) (*model.Staff, error) {
 				assert.Equal(t, uint64(10), id)
 				return &model.Staff{ID: 10, Name: "田中太郎", StaffType: model.StaffTypeDoctor}, nil
@@ -792,7 +792,7 @@ func TestGetStaff_Characterization(t *testing.T) {
 	})
 
 	t.Run("404 when not clinic member; membership checked with correct tenant args; downstream not called", func(t *testing.T) {
-		svc := &mockStaffService{
+		svc := &mockService{
 			// Locks the tenant arguments: membership must be checked for the URL
 			// staff id (10) against the authenticated clinic (1). Catches an
 			// accidental clinicID/staffID transposition in the preamble helper.
@@ -812,7 +812,7 @@ func TestGetStaff_Characterization(t *testing.T) {
 	})
 
 	t.Run("401 when clinic_id missing; membership and downstream not called", func(t *testing.T) {
-		svc := &mockStaffService{
+		svc := &mockService{
 			verifyClinicMembershipFn: func(_ context.Context, _, _ uint64) error {
 				t.Fatal("membership must not run when clinic_id is missing")
 				return nil
@@ -832,7 +832,7 @@ func TestGetStaff_Characterization(t *testing.T) {
 	})
 
 	t.Run("400 when id is not numeric; membership and downstream not called", func(t *testing.T) {
-		svc := &mockStaffService{
+		svc := &mockService{
 			verifyClinicMembershipFn: func(_ context.Context, _, _ uint64) error {
 				t.Fatal("membership must not run when id is invalid")
 				return nil
@@ -852,7 +852,7 @@ func TestGetStaff_Characterization(t *testing.T) {
 	})
 
 	t.Run("500 on service error", func(t *testing.T) {
-		svc := &mockStaffService{
+		svc := &mockService{
 			getByIDFn: func(_ context.Context, _ uint64) (*model.Staff, error) {
 				return nil, fmt.Errorf("db failure")
 			},

@@ -71,16 +71,16 @@ func (m *mockReservationService) UpdateReservationRoute(ctx context.Context, cli
 	return nil, nil
 }
 
-func newHandlerWithReservationSvc(svc ReservationService) *ReservationHandler {
-	return NewReservationHandler(svc, nil, nil, &mockStaffClinicAssignmentService{})
+func newHandlerWithReservationSvc(svc ReservationService) *CRUDHandler {
+	return NewCRUDHandler(svc, nil, nil, &mockStaffClinicAssignmentService{})
 }
 
-func newHandlerWithReservationAndMedicalRecordSvc(reservationSvc ReservationService, medicalRecordSvc medicalRecordAutoCreator) *ReservationHandler {
-	return NewReservationHandler(reservationSvc, medicalRecordSvc, nil, &mockStaffClinicAssignmentService{})
+func newHandlerWithReservationAndMedicalRecordSvc(reservationSvc ReservationService, medicalRecordSvc medicalRecordAutoCreator) *CRUDHandler {
+	return NewCRUDHandler(reservationSvc, medicalRecordSvc, nil, &mockStaffClinicAssignmentService{})
 }
 
-func newHandlerWithLiffSvc(liffSvc liffAvailability) *ReservationHandler {
-	return NewReservationHandler(nil, nil, liffSvc, &mockStaffClinicAssignmentService{})
+func newHandlerWithLiffSvc(liffSvc liffAvailability) *CRUDHandler {
+	return NewCRUDHandler(nil, nil, liffSvc, &mockStaffClinicAssignmentService{})
 }
 
 // mockStaffClinicAssignmentService はテスト用モック。テストで使われるクリニックID（1, 3）すべてに所属を返す。

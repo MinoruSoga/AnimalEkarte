@@ -19,7 +19,7 @@ type ChiefComplaintTypeRepository interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.ChiefComplaintType, error)
 	CountUsageByChiefComplaintTypeID(ctx context.Context, clinicID, id uint64) (int64, error)
 	Create(ctx context.Context, category *model.ChiefComplaintType) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ChiefComplaintType, error)
+	Update(ctx context.Context, clinicID, id uint64, cmd UpdateChiefComplaintTypeInput) (*model.ChiefComplaintType, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -62,11 +62,15 @@ func (r *chiefComplaintTypeRepository) Create(ctx context.Context, category *mod
 	return nil
 }
 
-func (r *chiefComplaintTypeRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ChiefComplaintType, error) {
-	if err := persistence.UpdateScopedByID(ctx, r.db, &model.ChiefComplaintType{}, "chief_complaint_type", clinicID, id, fields); err != nil {
+func (r *chiefComplaintTypeRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateChiefComplaintTypeInput) (*model.ChiefComplaintType, error) {
+	if err := r.update(ctx, clinicID, id, buildChiefComplaintTypeUpdate(&cmd)); err != nil {
 		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
+}
+
+func (r *chiefComplaintTypeRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+	return persistence.UpdateScopedByID(ctx, r.db, &model.ChiefComplaintType{}, "chief_complaint_type", clinicID, id, fields)
 }
 
 func (r *chiefComplaintTypeRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {

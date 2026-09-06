@@ -18,6 +18,21 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
+func medicalRecordUpdateRecordNo(recordNo string) UpdateMedicalRecordInput {
+	return UpdateMedicalRecordInput{persistFields: map[string]any{"record_no": recordNo}}
+}
+
+func medicalRecordUpdateRecordNoAndVersion(recordNo string, nextVersion int) UpdateMedicalRecordInput {
+	return UpdateMedicalRecordInput{
+		persistFields:  map[string]any{"record_no": recordNo},
+		persistVersion: &nextVersion,
+	}
+}
+
+func medicalRecordUpdateStatus(status model.MedicalRecordStatus) UpdateMedicalRecordInput {
+	return UpdateMedicalRecordInput{Status: &status}
+}
+
 // TestMedicalRecordRepository_LockByIDForUpdate は X-11 finalize-child-write-race fix の
 // LockByIDForUpdate の基本挙動（clinic_id 隔離・存在確認・status に関わらずロック取得できること）を
 // 検証する（並行ロック挙動そのものの実証は medical_record_finalize_lock_concurrency_test.go）。
@@ -80,7 +95,7 @@ func TestMedicalRecordRepository_Update(t *testing.T) {
 
 	t.Run("draft カルテは更新できる", func(t *testing.T) {
 		rec := makeFullMedicalRecord(t, db, &model.MedicalRecord{ClinicID: clinicA, RecordNo: "UP-DRAFT", Date: time.Now(), OwnerID: &owner.ID, PetID: &pet.ID})
-		updated, err := repo.Update(ctx, clinicA, rec.ID, map[string]any{"record_no": "UP-DRAFT-EDITED"}, nil)
+		updated, err := repo.Update(ctx, clinicA, rec.ID, medicalRecordUpdateRecordNo("UP-DRAFT-EDITED"), nil)
 		require.NoError(t, err)
 		assert.Equal(t, "UP-DRAFT-EDITED", updated.RecordNo)
 	})
@@ -90,14 +105,14 @@ func TestMedicalRecordRepository_Update(t *testing.T) {
 			ClinicID: clinicA, RecordNo: "UP-FIN", Date: time.Now(), OwnerID: &owner.ID, PetID: &pet.ID,
 			Status: model.MedicalRecordStatusFinalized,
 		})
-		_, err := repo.Update(ctx, clinicA, rec.ID, map[string]any{"record_no": "UP-FIN-EDITED"}, nil)
+		_, err := repo.Update(ctx, clinicA, rec.ID, medicalRecordUpdateRecordNo("UP-FIN-EDITED"), nil)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsConflict(err), "確定済みカルテの更新は Conflict であるべき: %v", err)
 	})
 
 	t.Run("他院からの更新は対象0件で Conflict（越境更新の拒否）", func(t *testing.T) {
 		rec := makeFullMedicalRecord(t, db, &model.MedicalRecord{ClinicID: clinicA, RecordNo: "UP-XCLINIC", Date: time.Now(), OwnerID: &owner.ID, PetID: &pet.ID})
-		_, err := repo.Update(ctx, clinicB, rec.ID, map[string]any{"record_no": "HACKED"}, nil)
+		_, err := repo.Update(ctx, clinicB, rec.ID, medicalRecordUpdateRecordNo("HACKED"), nil)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsConflict(err))
 
@@ -113,7 +128,7 @@ func TestMedicalRecordRepository_Update(t *testing.T) {
 		rec := makeFullMedicalRecord(t, db, &model.MedicalRecord{ClinicID: clinicA, RecordNo: "UP-VER-OK", Date: time.Now(), OwnerID: &owner.ID, PetID: &pet.ID})
 		require.Equal(t, 1, rec.Version, "makeFullMedicalRecord 直後の既定 version は 1 のはず")
 		expected := rec.Version
-		updated, err := repo.Update(ctx, clinicA, rec.ID, map[string]any{"record_no": "UP-VER-OK-EDITED", "version": rec.Version + 1}, &expected)
+		updated, err := repo.Update(ctx, clinicA, rec.ID, medicalRecordUpdateRecordNoAndVersion("UP-VER-OK-EDITED", rec.Version+1), &expected)
 		require.NoError(t, err)
 		assert.Equal(t, "UP-VER-OK-EDITED", updated.RecordNo)
 		assert.Equal(t, rec.Version+1, updated.Version)
@@ -122,7 +137,7 @@ func TestMedicalRecordRepository_Update(t *testing.T) {
 	t.Run("expectedVersion 不一致時は「他のユーザーが変更した」Conflict になり書き込まれない", func(t *testing.T) {
 		rec := makeFullMedicalRecord(t, db, &model.MedicalRecord{ClinicID: clinicA, RecordNo: "UP-VER-STALE", Date: time.Now(), OwnerID: &owner.ID, PetID: &pet.ID})
 		staleVersion := rec.Version - 1 // 既に他ユーザーが version を進めた状態を模す
-		_, err := repo.Update(ctx, clinicA, rec.ID, map[string]any{"record_no": "SHOULD-NOT-APPLY", "version": rec.Version + 1}, &staleVersion)
+		_, err := repo.Update(ctx, clinicA, rec.ID, medicalRecordUpdateRecordNoAndVersion("SHOULD-NOT-APPLY", rec.Version+1), &staleVersion)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsConflict(err))
 		assert.Contains(t, err.Error(), "他のユーザーがこのカルテを変更しました", "version不一致は not-draft とは異なる文言で区別されるべき")
@@ -138,7 +153,7 @@ func TestMedicalRecordRepository_Update(t *testing.T) {
 			Status: model.MedicalRecordStatusFinalized,
 		})
 		expected := rec.Version
-		_, err := repo.Update(ctx, clinicA, rec.ID, map[string]any{"record_no": "SHOULD-NOT-APPLY"}, &expected)
+		_, err := repo.Update(ctx, clinicA, rec.ID, medicalRecordUpdateRecordNo("SHOULD-NOT-APPLY"), &expected)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsConflict(err))
 		assert.Contains(t, err.Error(), "not in draft status", "確定済みは version不一致ではなく従来の not-draft 文言を維持するべき")
@@ -169,10 +184,7 @@ func TestMedicalRecordRepository_Update_VersionPredicate_ConcurrentUpdates_OnlyO
 		go func(idx int) {
 			defer wg.Done()
 			expected := startVersion
-			_, err := repo.Update(ctx, clinicID, rec.ID, map[string]any{
-				"record_no": notes[idx],
-				"version":   startVersion + 1,
-			}, &expected)
+			_, err := repo.Update(ctx, clinicID, rec.ID, medicalRecordUpdateRecordNoAndVersion(notes[idx], startVersion+1), &expected)
 			results[idx] = err
 		}(i)
 	}

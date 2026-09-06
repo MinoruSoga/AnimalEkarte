@@ -19,7 +19,7 @@ type MerchandiseItemRepository interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.MerchandiseItem, error)
 	CountUsageByMerchandiseItemID(ctx context.Context, clinicID, merchandiseItemID uint64) (int64, error)
 	Create(ctx context.Context, item *model.MerchandiseItem) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MerchandiseItem, error)
+	Update(ctx context.Context, clinicID, id uint64, cmd UpdateMerchandiseItemInput) (*model.MerchandiseItem, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -78,11 +78,19 @@ func (r *merchandiseItemRepository) Create(ctx context.Context, item *model.Merc
 
 // Update updates fields and reloads the row in one transaction so a reload
 // failure cannot invert a committed write into a failure response (BUG-465).
-func (r *merchandiseItemRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MerchandiseItem, error) {
+func (r *merchandiseItemRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateMerchandiseItemInput) (*model.MerchandiseItem, error) {
+	return r.updateAndReload(ctx, clinicID, id, buildMerchandiseItemUpdate(&cmd))
+}
+
+func (r *merchandiseItemRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+	return persistence.UpdateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.MerchandiseItem{}, "merchandise_item", clinicID, id, fields)
+}
+
+func (r *merchandiseItemRepository) updateAndReload(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MerchandiseItem, error) {
 	var loaded *model.MerchandiseItem
 	err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		txCtx := persistence.WithTxValue(ctx, tx)
-		if err := persistence.UpdateScopedByID(txCtx, tx, &model.MerchandiseItem{}, "merchandise_item", clinicID, id, fields); err != nil {
+		if err := r.update(txCtx, clinicID, id, fields); err != nil {
 			return err
 		}
 		var err error

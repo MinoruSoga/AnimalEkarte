@@ -58,7 +58,7 @@ func TestAccountingRepository_FindByID_Update_DoesNotPreloadForeignOwnerPet(t *t
 
 	t.Run("Update refetch does not preload foreign owner/pet", func(t *testing.T) {
 		memo := "aud-002-preload"
-		got, err := repo.Update(ctx, clinicA, contaminated.ID, map[string]any{"memo": memo})
+		got, err := repo.Update(ctx, clinicA, contaminated.ID, AccountingUpdate{Memo: &memo})
 		require.NoError(t, err)
 		require.NotNil(t, got)
 		assert.Equal(t, ownerBID, *got.OwnerID)
@@ -253,7 +253,7 @@ func TestAccountingRepository_CoreReadsEnforceExactOwnerPetCorrelation(
 			ctx,
 			clinicA,
 			sameClinicMismatch.ID,
-			map[string]any{"memo": "exact owner pet correlation"},
+			AccountingUpdate{Memo: strPtr("exact owner pet correlation")},
 		)
 		require.NoError(t, err)
 		require.NotNil(t, updated.Owner)

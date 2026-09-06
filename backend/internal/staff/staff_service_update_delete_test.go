@@ -11,7 +11,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-func TestStaffService_Update(t *testing.T) {
+func TestService_Update(t *testing.T) {
 	name := "更新後 スタッフ"
 	tests := []struct {
 		name     string
@@ -60,7 +60,7 @@ func TestStaffService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockStaffRepository{
-				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+				updateFn: func(_ context.Context, _, _ uint64, _ UpdateStaffInput) error {
 					return tt.repoErr
 				},
 				findByIDFn: func(_ context.Context, id uint64) (*model.Staff, error) {
@@ -79,7 +79,7 @@ func TestStaffService_Update(t *testing.T) {
 					}}, nil
 				},
 			}
-			svc := newTestStaffServiceWithAssignmentRepo(repo, assignmentRepo)
+			svc := newTestServiceWithAssignmentRepo(repo, assignmentRepo)
 
 			staff, err := svc.Update(
 				context.Background(),
@@ -102,7 +102,7 @@ func TestStaffService_Update(t *testing.T) {
 	}
 }
 
-func TestStaffService_Reorder(t *testing.T) {
+func TestService_Reorder(t *testing.T) {
 	tests := []struct {
 		name             string
 		ids              []uint64
@@ -133,7 +133,7 @@ func TestStaffService_Reorder(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockStaffRepository{reorderErr: tt.repoErr}
-			svc := newTestStaffService(repo)
+			svc := newTestService(repo)
 
 			err := svc.Reorder(context.Background(), 1, tt.ids)
 
@@ -149,7 +149,7 @@ func TestStaffService_Reorder(t *testing.T) {
 	}
 }
 
-func TestStaffService_Delete(t *testing.T) {
+func TestService_Delete(t *testing.T) {
 	tests := []struct {
 		name                string
 		clinicID            uint64
@@ -295,7 +295,7 @@ func TestStaffService_Delete(t *testing.T) {
 					}}, nil
 				},
 			}
-			svc := NewStaffService(repo, &mockAccountForStaff{}, assignmentRepo, reservationRepo, shiftRepo, &mockPermissionGroupRepository{}, &mockResStaffForStaff{}, nil, nil, noopTransactor{})
+			svc := NewService(repo, &mockAccountForStaff{}, assignmentRepo, reservationRepo, shiftRepo, &mockPermissionGroupRepository{}, &mockResStaffForStaff{}, nil, nil, noopTransactor{})
 
 			err := svc.Delete(context.Background(), tt.clinicID, tt.id, false)
 

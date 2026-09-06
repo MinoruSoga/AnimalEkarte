@@ -63,7 +63,7 @@ func TestHospitalizationRepository_FindByID_Update_DoesNotPreloadForeignOwnerPet
 
 	t.Run("Update refetch does not preload foreign owner/pet", func(t *testing.T) {
 		memo := "aud-004-preload"
-		got, err := repo.Update(ctx, clinicA, contaminated.ID, map[string]any{"memo": memo})
+		got, err := repo.Update(ctx, clinicA, contaminated.ID, UpdateHospitalizationInput{Memo: &memo})
 		require.NoError(t, err)
 		require.NotNil(t, got)
 		assert.Equal(t, ownerB.ID, got.OwnerID)

@@ -217,31 +217,36 @@ func TestTreatmentPlanRepository_Update(t *testing.T) {
 	plan := makeTreatmentPlan(t, db, clinicA, &mrA.ID, nil, "更新前", 1)
 
 	t.Run("updates successfully", func(t *testing.T) {
-		require.NoError(t, repo.Update(ctx, clinicA, plan.ID, nil, nil, map[string]any{"treatment_content": "更新後"}))
+		content := "更新後"
+		require.NoError(t, repo.Update(ctx, clinicA, plan.ID, nil, nil, UpdateTreatmentPlanInput{TreatmentContent: &content}))
 		got, err := repo.FindByID(ctx, clinicA, plan.ID)
 		require.NoError(t, err)
 		assert.Equal(t, "更新後", got.TreatmentContent)
 	})
 
 	t.Run("not found for nonexistent id", func(t *testing.T) {
-		err := repo.Update(ctx, clinicA, uint64(999999), nil, nil, map[string]any{"treatment_content": "x"})
+		content := "x"
+		err := repo.Update(ctx, clinicA, uint64(999999), nil, nil, UpdateTreatmentPlanInput{TreatmentContent: &content})
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
 	t.Run("clinic isolation: wrong clinic returns NotFound", func(t *testing.T) {
-		err := repo.Update(ctx, clinicB, plan.ID, nil, nil, map[string]any{"treatment_content": "乗っ取り"})
+		content := "乗っ取り"
+		err := repo.Update(ctx, clinicB, plan.ID, nil, nil, UpdateTreatmentPlanInput{TreatmentContent: &content})
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
 	t.Run("parent bind mismatch returns NotFound (MRD-03)", func(t *testing.T) {
 		wrongMR := uint64(999999)
-		err := repo.Update(ctx, clinicA, plan.ID, &wrongMR, nil, map[string]any{"treatment_content": "parent mismatch"})
+		content := "parent mismatch"
+		err := repo.Update(ctx, clinicA, plan.ID, &wrongMR, nil, UpdateTreatmentPlanInput{TreatmentContent: &content})
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
 	t.Run("parent bind match updates successfully (MRD-03)", func(t *testing.T) {
 		mrID := mrA.ID
-		require.NoError(t, repo.Update(ctx, clinicA, plan.ID, &mrID, nil, map[string]any{"treatment_content": "parent ok"}))
+		content := "parent ok"
+		require.NoError(t, repo.Update(ctx, clinicA, plan.ID, &mrID, nil, UpdateTreatmentPlanInput{TreatmentContent: &content}))
 		got, err := repo.FindByID(ctx, clinicA, plan.ID)
 		require.NoError(t, err)
 		assert.Equal(t, "parent ok", got.TreatmentContent)

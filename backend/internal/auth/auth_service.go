@@ -24,9 +24,9 @@ type AuthResourcePermission struct {
 	Delete bool
 }
 
-// AuthService provides login authentication and effective-permission
+// Service provides login authentication and effective-permission
 // calculation.
-type AuthService interface {
+type Service interface {
 	AuthenticateUser(ctx context.Context, email, password string) (*model.Account, *model.Staff, error)
 	ResolveClinicInfo(assignments []model.StaffClinicAssignment) (mainClinicID string, clinicIDs []uint64)
 	ResolveSystemAdminMainClinicID(mainClinicID string, isSystemAdmin bool, allClinics []model.Clinic) string
@@ -74,12 +74,12 @@ func IsAuthenticateWrongPassword(err error) (uint64, bool) {
 	return 0, false
 }
 
-// NewAuthService constructs the login and permission use case.
-func NewAuthService(
+// NewService constructs the login and permission use case.
+func NewService(
 	account AccountService,
 	staff StaffAccountFinder,
 	effectivePermission EffectivePermissionService,
-) AuthService {
+) Service {
 	return &authService{
 		account:             account,
 		staff:               staff,

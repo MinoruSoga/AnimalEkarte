@@ -16,7 +16,7 @@ type InsuranceRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.Insurance, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Insurance, error)
 	Create(ctx context.Context, insurance *model.Insurance) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Insurance, error)
+	Update(ctx context.Context, clinicID, id uint64, cmd UpdateInsuranceInput) (*model.Insurance, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	CountUsageByInsuranceID(ctx context.Context, clinicID, insuranceID uint64) (int64, error)
@@ -58,11 +58,11 @@ func (r *insuranceRepository) Create(ctx context.Context, insurance *model.Insur
 	return nil
 }
 
-func (r *insuranceRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Insurance, error) {
+func (r *insuranceRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateInsuranceInput) (*model.Insurance, error) {
 	var loaded *model.Insurance
 	err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		txCtx := persistence.WithTxValue(ctx, tx)
-		if err := persistence.UpdateScopedByID(txCtx, tx, &model.Insurance{}, "insurance", clinicID, id, fields); err != nil {
+		if err := r.update(txCtx, clinicID, id, buildInsuranceUpdate(&cmd)); err != nil {
 			return err
 		}
 		reloaded, err := r.FindByID(txCtx, clinicID, id)
@@ -76,6 +76,10 @@ func (r *insuranceRepository) Update(ctx context.Context, clinicID, id uint64, f
 		return nil, err
 	}
 	return loaded, nil
+}
+
+func (r *insuranceRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+	return persistence.UpdateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.Insurance{}, "insurance", clinicID, id, fields)
 }
 
 func (r *insuranceRepository) Delete(ctx context.Context, clinicID, id uint64) error {

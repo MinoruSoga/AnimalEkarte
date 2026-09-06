@@ -171,9 +171,9 @@ import (
 //    - Verify is_active flag behavior in soft delete scenarios
 //
 
-// ---- mock ClinicService ----
+// ---- mock Service ----
 
-type mockClinicService struct {
+type mockService struct {
 	listClinicsFn   func(ctx context.Context) ([]model.Clinic, error)
 	listByStaffIDFn func(ctx context.Context, staffID uint64) ([]model.Clinic, error)
 	getClinicByIDFn func(ctx context.Context, id uint64) (*model.Clinic, error)
@@ -182,14 +182,14 @@ type mockClinicService struct {
 	deleteClinicFn  func(ctx context.Context, id uint64) error
 }
 
-func (m *mockClinicService) ListClinics(ctx context.Context) ([]model.Clinic, error) {
+func (m *mockService) ListClinics(ctx context.Context) ([]model.Clinic, error) {
 	if m.listClinicsFn == nil {
 		return nil, nil
 	}
 	return m.listClinicsFn(ctx)
 }
 
-func (m *mockClinicService) ListClinicsByIDs(ctx context.Context, ids []uint64) ([]model.Clinic, error) {
+func (m *mockService) ListClinicsByIDs(ctx context.Context, ids []uint64) ([]model.Clinic, error) {
 	all, err := m.ListClinics(ctx)
 	if err != nil {
 		return nil, err
@@ -207,7 +207,7 @@ func (m *mockClinicService) ListClinicsByIDs(ctx context.Context, ids []uint64) 
 	return out, nil
 }
 
-func (m *mockClinicService) ListActiveClinicIDs(ctx context.Context, ids []uint64) ([]uint64, error) {
+func (m *mockService) ListActiveClinicIDs(ctx context.Context, ids []uint64) ([]uint64, error) {
 	clinics, err := m.ListClinicsByIDs(ctx, ids)
 	if err != nil {
 		return nil, err
@@ -221,23 +221,23 @@ func (m *mockClinicService) ListActiveClinicIDs(ctx context.Context, ids []uint6
 	return out, nil
 }
 
-func (m *mockClinicService) ListClinicsByStaffID(ctx context.Context, staffID uint64) ([]model.Clinic, error) {
+func (m *mockService) ListClinicsByStaffID(ctx context.Context, staffID uint64) ([]model.Clinic, error) {
 	return m.listByStaffIDFn(ctx, staffID)
 }
 
-func (m *mockClinicService) GetClinicByID(ctx context.Context, id uint64) (*model.Clinic, error) {
+func (m *mockService) GetClinicByID(ctx context.Context, id uint64) (*model.Clinic, error) {
 	return m.getClinicByIDFn(ctx, id)
 }
 
-func (m *mockClinicService) CreateClinic(ctx context.Context, input *CreateClinicInput) (*model.Clinic, error) {
+func (m *mockService) CreateClinic(ctx context.Context, input *CreateClinicInput) (*model.Clinic, error) {
 	return m.createClinicFn(ctx, input)
 }
 
-func (m *mockClinicService) UpdateClinic(ctx context.Context, id uint64, input *UpdateClinicInput) (*model.Clinic, error) {
+func (m *mockService) UpdateClinic(ctx context.Context, id uint64, input *UpdateClinicInput) (*model.Clinic, error) {
 	return m.updateClinicFn(ctx, id, input)
 }
 
-func (m *mockClinicService) DeleteClinic(ctx context.Context, id uint64) error {
+func (m *mockService) DeleteClinic(ctx context.Context, id uint64) error {
 	return m.deleteClinicFn(ctx, id)
 }
 
@@ -247,12 +247,13 @@ type mockEffectivePermissionService struct {
 
 // ---- test helpers ----
 
-func newHandlerWithClinicSvc(svc ClinicService) *Handler {
+func newHandlerWithClinicSvc(svc Service) *Handler {
+	RegisterContactBindingValidators()
 	return &Handler{clinicSvc: svc}
 }
 
 func newHandlerWithClinicAndPermSvc(
-	clinicSvc ClinicService,
+	clinicSvc Service,
 	_ *mockEffectivePermissionService,
 ) *Handler {
 	return newHandlerWithClinicSvc(clinicSvc)
@@ -285,7 +286,7 @@ func setNonSystemAdmin(c *gin.Context) {
 func TestListClinics_ReturnsOK(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	svc := &mockClinicService{
+	svc := &mockService{
 		listByStaffIDFn: func(_ context.Context, staffID uint64) ([]model.Clinic, error) {
 			assert.Equal(t, uint64(1), staffID)
 			return []model.Clinic{
@@ -311,7 +312,7 @@ func TestListClinics_ReturnsOK(t *testing.T) {
 func TestListClinics_ServiceError_Returns500(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	svc := &mockClinicService{
+	svc := &mockService{
 		listByStaffIDFn: func(_ context.Context, _ uint64) ([]model.Clinic, error) {
 			return nil, fmt.Errorf("db failure")
 		},
@@ -331,7 +332,7 @@ func TestListClinics_ServiceError_Returns500(t *testing.T) {
 func TestListClinics_MissingStaffID_Returns401(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	h := newHandlerWithClinicSvc(&mockClinicService{})
+	h := newHandlerWithClinicSvc(&mockService{})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -346,7 +347,7 @@ func TestListClinics_MissingStaffID_Returns401(t *testing.T) {
 func TestListClinics_ScopeAll_SystemAdmin_ReturnsAllClinics(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	svc := &mockClinicService{
+	svc := &mockService{
 		listClinicsFn: func(_ context.Context) ([]model.Clinic, error) {
 			return []model.Clinic{
 				{ID: 1, Name: "ノア動物病院 本院"},
@@ -376,7 +377,7 @@ func TestListClinics_ScopeAll_NonAdmin_ReturnsAllClinics(t *testing.T) {
 
 	// scope=all の認可はルート middleware（hospital-settings.view）。handler は system_admin を要求しない。
 	clinicServiceCalled := false
-	clinicSvc := &mockClinicService{
+	clinicSvc := &mockService{
 		listClinicsFn: func(_ context.Context) ([]model.Clinic, error) {
 			clinicServiceCalled = true
 			return []model.Clinic{
@@ -406,7 +407,7 @@ func TestListClinics_ScopeAll_WithoutSystemAdminFlag_StillLists(t *testing.T) {
 
 	// is_system_admin コンテキスト欠落でも scope=all は一覧可能（認可は middleware 側）。
 	clinicServiceCalled := false
-	clinicSvc := &mockClinicService{
+	clinicSvc := &mockService{
 		listClinicsFn: func(_ context.Context) ([]model.Clinic, error) {
 			clinicServiceCalled = true
 			return []model.Clinic{{ID: 1, Name: "ノア動物病院 本院"}}, nil
@@ -430,7 +431,7 @@ func TestListClinics_ScopeAll_WithoutSystemAdminFlag_StillLists(t *testing.T) {
 func TestGetClinic_SystemAdmin_ReturnsOK(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	svc := &mockClinicService{
+	svc := &mockService{
 		getClinicByIDFn: func(_ context.Context, id uint64) (*model.Clinic, error) {
 			assert.Equal(t, uint64(5), id)
 			return &model.Clinic{
@@ -459,7 +460,7 @@ func TestGetClinic_SystemAdmin_ReturnsOK(t *testing.T) {
 func TestGetClinic_NotFound_Returns404(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	svc := &mockClinicService{
+	svc := &mockService{
 		getClinicByIDFn: func(_ context.Context, id uint64) (*model.Clinic, error) {
 			return nil, apperrors.WrapNotFound("clinic", fmt.Sprintf("%d", id))
 		},
@@ -480,7 +481,7 @@ func TestGetClinic_NotFound_Returns404(t *testing.T) {
 func TestGetClinic_InvalidID_Returns400(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	h := newHandlerWithClinicSvc(&mockClinicService{})
+	h := newHandlerWithClinicSvc(&mockService{})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -496,7 +497,7 @@ func TestGetClinic_InvalidID_Returns400(t *testing.T) {
 func TestGetClinic_NonAdmin_OwnClinic_ReturnsOK(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	svc := &mockClinicService{
+	svc := &mockService{
 		getClinicByIDFn: func(_ context.Context, id uint64) (*model.Clinic, error) {
 			assert.Equal(t, uint64(1), id)
 			return &model.Clinic{ID: 1, Name: "ノア動物病院 本院"}, nil
@@ -521,7 +522,7 @@ func TestGetClinic_NonAdmin_OwnClinic_ReturnsOK(t *testing.T) {
 func TestGetClinic_NonAdmin_OtherClinic_Returns403(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	h := newHandlerWithClinicSvc(&mockClinicService{})
+	h := newHandlerWithClinicSvc(&mockService{})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -539,7 +540,7 @@ func TestGetClinic_NonAdmin_OtherClinic_Returns403(t *testing.T) {
 func TestGetClinic_ServiceError_Returns500(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	svc := &mockClinicService{
+	svc := &mockService{
 		getClinicByIDFn: func(_ context.Context, _ uint64) (*model.Clinic, error) {
 			return nil, fmt.Errorf("unexpected db error")
 		},
@@ -562,7 +563,7 @@ func TestGetClinic_ServiceError_Returns500(t *testing.T) {
 func TestGetClinic_MissingIsSystemAdmin_Returns401(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	h := newHandlerWithClinicSvc(&mockClinicService{})
+	h := newHandlerWithClinicSvc(&mockService{})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -580,7 +581,7 @@ func TestGetClinic_MissingIsSystemAdmin_Returns401(t *testing.T) {
 func TestListClinics_ScopeAll_ServiceError_Returns500(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	svc := &mockClinicService{
+	svc := &mockService{
 		listClinicsFn: func(_ context.Context) ([]model.Clinic, error) {
 			return nil, fmt.Errorf("db failure")
 		},
@@ -616,7 +617,7 @@ func TestUpdateClinic(t *testing.T) {
 		body       any
 		malformed  bool
 		setupCtx   func(c *gin.Context)
-		svc        *mockClinicService
+		svc        *mockService
 		wantStatus int
 		wantBody   string
 	}{
@@ -625,7 +626,7 @@ func TestUpdateClinic(t *testing.T) {
 			paramID:  "5",
 			body:     validBody,
 			setupCtx: func(c *gin.Context) { setSystemAdmin(c) },
-			svc: &mockClinicService{
+			svc: &mockService{
 				updateClinicFn: func(_ context.Context, id uint64, input *UpdateClinicInput) (*model.Clinic, error) {
 					assert.Equal(t, uint64(5), id)
 					require.NotNil(t, input.Name)
@@ -641,7 +642,7 @@ func TestUpdateClinic(t *testing.T) {
 			paramID:    "abc",
 			body:       validBody,
 			setupCtx:   func(c *gin.Context) { setSystemAdmin(c) },
-			svc:        &mockClinicService{},
+			svc:        &mockService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
@@ -649,7 +650,7 @@ func TestUpdateClinic(t *testing.T) {
 			paramID:    "1",
 			body:       validBody,
 			setupCtx:   func(_ *gin.Context) {},
-			svc:        &mockClinicService{},
+			svc:        &mockService{},
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
@@ -657,7 +658,7 @@ func TestUpdateClinic(t *testing.T) {
 			paramID:    "2",
 			body:       validBody,
 			setupCtx:   func(c *gin.Context) { setNonSystemAdmin(c) },
-			svc:        &mockClinicService{},
+			svc:        &mockService{},
 			wantStatus: http.StatusForbidden,
 		},
 		{
@@ -665,7 +666,7 @@ func TestUpdateClinic(t *testing.T) {
 			paramID:  "1",
 			body:     validBody,
 			setupCtx: func(c *gin.Context) { setNonSystemAdmin(c) },
-			svc: &mockClinicService{
+			svc: &mockService{
 				updateClinicFn: func(_ context.Context, id uint64, _ *UpdateClinicInput) (*model.Clinic, error) {
 					assert.Equal(t, uint64(1), id)
 					return &model.Clinic{ID: 1, Name: newName}, nil
@@ -678,7 +679,7 @@ func TestUpdateClinic(t *testing.T) {
 			paramID:    "1",
 			malformed:  true,
 			setupCtx:   func(c *gin.Context) { setSystemAdmin(c) },
-			svc:        &mockClinicService{},
+			svc:        &mockService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
@@ -686,7 +687,7 @@ func TestUpdateClinic(t *testing.T) {
 			paramID:  "9",
 			body:     validBody,
 			setupCtx: func(c *gin.Context) { setSystemAdmin(c) },
-			svc: &mockClinicService{
+			svc: &mockService{
 				updateClinicFn: func(_ context.Context, id uint64, _ *UpdateClinicInput) (*model.Clinic, error) {
 					return nil, apperrors.WrapNotFound("clinic", fmt.Sprintf("%d", id))
 				},
@@ -734,7 +735,7 @@ func TestCreateClinic(t *testing.T) {
 		name       string
 		body       any
 		malformed  bool
-		svc        *mockClinicService
+		svc        *mockService
 		wantStatus int
 		wantHeader string
 		wantBody   string
@@ -742,7 +743,7 @@ func TestCreateClinic(t *testing.T) {
 		{
 			name: "returns 201 with Location header on success",
 			body: validBody,
-			svc: &mockClinicService{
+			svc: &mockService{
 				createClinicFn: func(_ context.Context, input *CreateClinicInput) (*model.Clinic, error) {
 					assert.Equal(t, "新規クリニック", input.Name)
 					return &model.Clinic{ID: 7, Name: "新規クリニック"}, nil
@@ -755,19 +756,19 @@ func TestCreateClinic(t *testing.T) {
 		{
 			name:       "returns 400 when body is malformed",
 			malformed:  true,
-			svc:        &mockClinicService{},
+			svc:        &mockService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:       "returns 400 when required name is missing",
 			body:       CreateClinicRequest{},
-			svc:        &mockClinicService{},
+			svc:        &mockService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name: "returns 500 on service error",
 			body: validBody,
-			svc: &mockClinicService{
+			svc: &mockService{
 				createClinicFn: func(_ context.Context, _ *CreateClinicInput) (*model.Clinic, error) {
 					return nil, fmt.Errorf("db failure")
 				},
@@ -832,7 +833,7 @@ func TestCreateClinic_RequiresSystemAdminWithoutCallingService(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			serviceCalled := false
-			svc := &mockClinicService{
+			svc := &mockService{
 				createClinicFn: func(_ context.Context, _ *CreateClinicInput) (*model.Clinic, error) {
 					serviceCalled = true
 					return &model.Clinic{ID: 7, Name: "新規クリニック"}, nil
@@ -865,13 +866,13 @@ func TestDeleteClinic(t *testing.T) {
 	tests := []struct {
 		name       string
 		paramID    string
-		svc        *mockClinicService
+		svc        *mockService
 		wantStatus int
 	}{
 		{
 			name:    "returns 204 when deleted successfully",
 			paramID: "3",
-			svc: &mockClinicService{
+			svc: &mockService{
 				deleteClinicFn: func(_ context.Context, id uint64) error {
 					assert.Equal(t, uint64(3), id)
 					return nil
@@ -882,13 +883,13 @@ func TestDeleteClinic(t *testing.T) {
 		{
 			name:       "returns 400 when clinic_id param is invalid",
 			paramID:    "abc",
-			svc:        &mockClinicService{},
+			svc:        &mockService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:    "returns 404 when clinic does not exist",
 			paramID: "999",
-			svc: &mockClinicService{
+			svc: &mockService{
 				deleteClinicFn: func(_ context.Context, id uint64) error {
 					return apperrors.WrapNotFound("clinic", fmt.Sprintf("%d", id))
 				},
@@ -898,7 +899,7 @@ func TestDeleteClinic(t *testing.T) {
 		{
 			name:    "returns 409 when clinic still in use",
 			paramID: "4",
-			svc: &mockClinicService{
+			svc: &mockService{
 				deleteClinicFn: func(_ context.Context, _ uint64) error {
 					return apperrors.WrapConflict("clinic is still in use")
 				},
@@ -951,7 +952,7 @@ func TestDeleteClinic_RequiresSystemAdminWithoutCallingService(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			serviceCalled := false
-			svc := &mockClinicService{
+			svc := &mockService{
 				deleteClinicFn: func(_ context.Context, _ uint64) error {
 					serviceCalled = true
 					return nil

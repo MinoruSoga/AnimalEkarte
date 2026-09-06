@@ -111,9 +111,11 @@ func TestHospitalizationRepository_LockByIDForUpdate_SerializesConcurrentDischar
 			lockedPetID = locked.PetID
 			close(lockAcquired)
 			<-proceed
-			_, err = hospRepo.UpdateIfNotDischarged(txCtx, clinicID, hosp.ID, map[string]any{
-				"status":   model.HospitalizationStatusDischarged,
-				"end_date": time.Now().UTC().Truncate(time.Second),
+			discharged := model.HospitalizationStatusDischarged
+			endDate := time.Now().UTC().Truncate(time.Second)
+			_, err = hospRepo.UpdateIfNotDischarged(txCtx, clinicID, hosp.ID, UpdateHospitalizationInput{
+				Status:  &discharged,
+				EndDate: &endDate,
 			})
 			return err
 		})
@@ -131,9 +133,11 @@ func TestHospitalizationRepository_LockByIDForUpdate_SerializesConcurrentDischar
 	go func() {
 		defer close(updateDone)
 		close(updateStarted)
-		_, updateErr = hospRepo.UpdateIfNotDischarged(context.Background(), clinicID, hosp.ID, map[string]any{
-			"status":   model.HospitalizationStatusDischarged,
-			"end_date": time.Now().UTC().Truncate(time.Second),
+		discharged := model.HospitalizationStatusDischarged
+		endDate := time.Now().UTC().Truncate(time.Second)
+		_, updateErr = hospRepo.UpdateIfNotDischarged(context.Background(), clinicID, hosp.ID, UpdateHospitalizationInput{
+			Status:  &discharged,
+			EndDate: &endDate,
 		})
 	}()
 	<-updateStarted
@@ -191,9 +195,11 @@ func TestHospitalizationRepository_LockByIDForUpdate_SerializesOwnerPetContamina
 			lockedPetID = locked.PetID
 			close(lockAcquired)
 			<-proceed
-			_, err = hospRepo.UpdateIfNotDischarged(txCtx, clinicID, hosp.ID, map[string]any{
-				"status":   model.HospitalizationStatusDischarged,
-				"end_date": time.Now().UTC().Truncate(time.Second),
+			discharged := model.HospitalizationStatusDischarged
+			endDate := time.Now().UTC().Truncate(time.Second)
+			_, err = hospRepo.UpdateIfNotDischarged(txCtx, clinicID, hosp.ID, UpdateHospitalizationInput{
+				Status:  &discharged,
+				EndDate: &endDate,
 			})
 			return err
 		})
@@ -209,9 +215,9 @@ func TestHospitalizationRepository_LockByIDForUpdate_SerializesOwnerPetContamina
 	go func() {
 		defer close(contamDone)
 		close(contamStarted)
-		_, contamErr = hospRepo.Update(context.Background(), clinicID, hosp.ID, map[string]any{
-			"owner_id": foreignOwner.ID,
-			"pet_id":   foreignPet.ID,
+		_, contamErr = hospRepo.Update(context.Background(), clinicID, hosp.ID, UpdateHospitalizationInput{
+			OwnerID: &foreignOwner.ID,
+			PetID:   &foreignPet.ID,
 		})
 	}()
 	<-contamStarted

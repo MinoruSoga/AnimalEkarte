@@ -46,7 +46,6 @@ func (s *checkupSyncService) CreateCheckupSync(ctx context.Context, clinicID uin
 	// 全件失敗した場合はリトライで安全に再試行できる（AddTag は冪等）。
 	owners, findErr := s.ownerRepo.FindByIDs(ctx, clinicID, input.OwnerIDs)
 	if findErr != nil {
-		slog.ErrorContext(ctx, "checkup sync: failed to fetch owners", "error", findErr)
 		return nil, apperrors.Wrap(findErr, "failed to fetch owners")
 	}
 
@@ -67,7 +66,6 @@ func (s *checkupSyncService) CreateCheckupSync(ctx context.Context, clinicID uin
 		var countErr error
 		livingPetCounts, countErr = s.petRepo.CountLivingByOwnerIDs(ctx, clinicID, candidateIDs)
 		if countErr != nil {
-			slog.ErrorContext(ctx, "checkup sync: failed to count living pets", "error", countErr)
 			return nil, apperrors.Wrap(countErr, "failed to count living pets")
 		}
 	}

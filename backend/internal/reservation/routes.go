@@ -21,7 +21,7 @@ type Handler struct {
 	reservationTypeLiff    *ReservationTypeLiffHandler
 	reservationStaff       *ReservationStaffHandler
 	reservationSchedule    *ReservationScheduleHandler
-	reservationCRUD        *ReservationHandler
+	reservationCRUD        *CRUDHandler
 	reservationAdmin       *ReservationAdminHandler
 	lineReservationSetting *LineReservationSettingHandler
 	liff                   *LiffHandler
@@ -42,7 +42,7 @@ func NewHandler(
 	reservationTypeLiff *ReservationTypeLiffHandler,
 	reservationStaff *ReservationStaffHandler,
 	reservationSchedule *ReservationScheduleHandler,
-	reservationCRUD *ReservationHandler,
+	reservationCRUD *CRUDHandler,
 	reservationAdmin *ReservationAdminHandler,
 	lineReservationSetting *LineReservationSettingHandler,
 	liff *LiffHandler,

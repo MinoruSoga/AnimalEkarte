@@ -137,7 +137,7 @@ func TestVaccinationService_Update_RejectsCrossClinicVaccine(t *testing.T) {
 			findByIDFn: func(_ context.Context, _, id uint64) (*model.Vaccination, error) {
 				return &model.Vaccination{ID: id, ClinicID: clinicID}, nil
 			},
-			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Vaccination, error) {
+			updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateVaccinationInput) (*model.Vaccination, error) {
 				*updated = true
 				return &model.Vaccination{ID: 1}, nil
 			},
@@ -250,7 +250,7 @@ func TestCheckupTypeService_Update_RejectsCrossClinicParentFK(t *testing.T) {
 				}
 				return nil, apperrors.WrapNotFound("checkup_type", "foreign")
 			},
-			updateFieldsFn: func(_ context.Context, _, id uint64, _ map[string]any) (*model.CheckupType, error) {
+			updateFieldsFn: func(_ context.Context, _, id uint64, _ UpdateCheckupTypeInput) (*model.CheckupType, error) {
 				*updated = true
 				return &model.CheckupType{ID: id}, nil
 			},
@@ -334,7 +334,7 @@ func TestVaccineService_Update_RejectsCrossClinicParentFK(t *testing.T) {
 				}
 				return nil, apperrors.WrapNotFound("vaccine", "foreign")
 			},
-			updateFieldsFn: func(_ context.Context, _, id uint64, _ map[string]any) (*model.Vaccine, error) {
+			updateFieldsFn: func(_ context.Context, _, id uint64, _ UpdateVaccineInput) (*model.Vaccine, error) {
 				*updated = true
 				return &model.Vaccine{ID: id}, nil
 			},
@@ -831,7 +831,7 @@ func TestClinicalPlanService_Update_RejectsCrossClinicDiagnosisFK(t *testing.T) 
 			findByMedicalRecordIDFn: func(_ context.Context, _, mrID uint64) (*model.ClinicalPlan, error) {
 				return &model.ClinicalPlan{ID: 1, MedicalRecordID: mrID}, nil
 			},
-			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error { *updated = true; return nil },
+			updateFn: func(_ context.Context, _, _ uint64, _ UpdateClinicalPlanInput) error { *updated = true; return nil },
 		}
 		return NewClinicalPlanService(repo, okMedRecForPlan(), rejectDiagnosisTypeRepo(ownedTypeID), okDiagnosisNameRepo(), &mockCheckupTransactor{}, &mockAuditTxLogger{})
 	}
@@ -884,7 +884,7 @@ func TestClinicalPlanService_Update_RejectsCrossClinicDiagnosisName(t *testing.T
 			findByMedicalRecordIDFn: func(_ context.Context, _, mrID uint64) (*model.ClinicalPlan, error) {
 				return &model.ClinicalPlan{ID: 1, MedicalRecordID: mrID}, nil
 			},
-			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error { *updated = true; return nil },
+			updateFn: func(_ context.Context, _, _ uint64, _ UpdateClinicalPlanInput) error { *updated = true; return nil },
 		}
 		return NewClinicalPlanService(repo, okMedRecForPlan(), okDiagnosisTypeRepo(), rejectDiagnosisNameRepo(ownedNameID), &mockCheckupTransactor{}, &mockAuditTxLogger{})
 	}

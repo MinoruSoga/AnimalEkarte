@@ -216,7 +216,7 @@ func TestHospitalizationService_Update_RejectsCrossClinicOwnerPetAndMismatch(t *
 					assert.Equal(t, uint64(1), id)
 					return existing, nil
 				},
-				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Hospitalization, error) {
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateHospitalizationInput) (*model.Hospitalization, error) {
 					updated = true
 					t.Fatal("hospitalization must not be updated with invalid Owner/Pet links")
 					return nil, nil
@@ -251,9 +251,10 @@ func TestHospitalizationService_Update_AcceptsSameClinicFinalOwnerPet(t *testing
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Hospitalization, error) {
 			return existing, nil
 		},
-		updateFieldsFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.Hospitalization, error) {
+		updateFieldsFn: func(_ context.Context, _, _ uint64, cmd UpdateHospitalizationInput) (*model.Hospitalization, error) {
 			updated = true
-			assert.Equal(t, newPetID, fields["pet_id"])
+			require.NotNil(t, cmd.PetID)
+			assert.Equal(t, newPetID, *cmd.PetID)
 			return &model.Hospitalization{ID: 1, ClinicID: clinicID, OwnerID: ownedOwnerID, PetID: newPetID}, nil
 		},
 	}
@@ -283,7 +284,7 @@ func TestHospitalizationService_DischargeWithBilling_DoesNotPropagateForeignOwne
 				Status: model.HospitalizationStatusAdmitted,
 			}, nil
 		},
-		updateIfNotDischargedFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Hospitalization, error) {
+		updateIfNotDischargedFn: func(_ context.Context, _, _ uint64, _ UpdateHospitalizationInput) (*model.Hospitalization, error) {
 			updated = true
 			return &model.Hospitalization{ID: 10}, nil
 		},
@@ -345,7 +346,7 @@ func TestHospitalizationService_DischargeWithBilling_RejectsContaminatedOwnerPet
 				Status: model.HospitalizationStatusAdmitted,
 			}, nil
 		},
-		updateIfNotDischargedFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Hospitalization, error) {
+		updateIfNotDischargedFn: func(_ context.Context, _, _ uint64, _ UpdateHospitalizationInput) (*model.Hospitalization, error) {
 			updated = true
 			return &model.Hospitalization{ID: 10}, nil
 		},
@@ -399,7 +400,7 @@ func TestHospitalizationService_DischargeWithBilling_WithoutAccounting_RejectsFo
 				Status: model.HospitalizationStatusAdmitted,
 			}, nil
 		},
-		updateIfNotDischargedFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Hospitalization, error) {
+		updateIfNotDischargedFn: func(_ context.Context, _, _ uint64, _ UpdateHospitalizationInput) (*model.Hospitalization, error) {
 			updated = true
 			return &model.Hospitalization{ID: 10}, nil
 		},
@@ -486,7 +487,7 @@ func TestHospitalizationService_DischargeWithBilling_RejectsInvalidOwnerPetLinks
 						Status: model.HospitalizationStatusAdmitted,
 					}, nil
 				},
-				updateIfNotDischargedFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Hospitalization, error) {
+				updateIfNotDischargedFn: func(_ context.Context, _, _ uint64, _ UpdateHospitalizationInput) (*model.Hospitalization, error) {
 					updated = true
 					t.Fatal("hospitalization must not be updated with invalid Owner/Pet links")
 					return nil, nil

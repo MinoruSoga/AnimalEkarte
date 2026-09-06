@@ -106,7 +106,8 @@ func TestHospitalizationRepository_CRUDParticipatesInAmbientTransaction(t *testi
 			t.Errorf("FindByID() ID = %d, want %d", created.ID, hospitalizationID)
 		}
 
-		updated, err := repo.Update(txCtx, clinicID, hospitalizationID, map[string]any{"memo": "tx update"})
+		memo := "tx update"
+		updated, err := repo.Update(txCtx, clinicID, hospitalizationID, UpdateHospitalizationInput{Memo: &memo})
 		if err != nil {
 			return err
 		}
@@ -362,14 +363,16 @@ func TestHospitalizationRepository_Update_NotFoundAndIsolation(t *testing.T) {
 	hospA := makeHospitalizationFixture(t, db, clinicA, ownerA.ID, petA.ID, nil)
 
 	t.Run("別クリニックからの更新はNotFound", func(t *testing.T) {
-		got, err := repo.Update(ctx, clinicB, hospA.ID, map[string]any{"memo": "不正更新"})
+		memo := "不正更新"
+		got, err := repo.Update(ctx, clinicB, hospA.ID, UpdateHospitalizationInput{Memo: &memo})
 		assert.Nil(t, got)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
 	t.Run("存在しないIDの更新はNotFound", func(t *testing.T) {
-		got, err := repo.Update(ctx, clinicA, 99999999, map[string]any{"memo": "x"})
+		memo := "x"
+		got, err := repo.Update(ctx, clinicA, 99999999, UpdateHospitalizationInput{Memo: &memo})
 		assert.Nil(t, got)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
@@ -387,7 +390,8 @@ func TestHospitalizationRepository_Update_Success(t *testing.T) {
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "Update成功ポチ")
 	hospA := makeHospitalizationFixture(t, db, clinicA, ownerA.ID, petA.ID, nil)
 
-	got, err := repo.Update(ctx, clinicA, hospA.ID, map[string]any{"memo": "更新後メモ"})
+	memo := "更新後メモ"
+	got, err := repo.Update(ctx, clinicA, hospA.ID, UpdateHospitalizationInput{Memo: &memo})
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	assert.Equal(t, "更新後メモ", got.Memo)
@@ -538,9 +542,10 @@ func TestHospitalizationRepository_UpdateIfNotDischarged(t *testing.T) {
 		})
 		dischargeDate := time.Now().UTC().Truncate(time.Second)
 
-		got, err := repo.UpdateIfNotDischarged(ctx, clinicA, hosp.ID, map[string]any{
-			"status":   model.HospitalizationStatusDischarged,
-			"end_date": dischargeDate,
+		discharged := model.HospitalizationStatusDischarged
+		got, err := repo.UpdateIfNotDischarged(ctx, clinicA, hosp.ID, UpdateHospitalizationInput{
+			Status:  &discharged,
+			EndDate: &dischargeDate,
 		})
 		require.NoError(t, err)
 		require.NotNil(t, got)
@@ -554,9 +559,10 @@ func TestHospitalizationRepository_UpdateIfNotDischarged(t *testing.T) {
 		})
 		dischargeDate := time.Now().UTC().Truncate(time.Second)
 
-		got, err := repo.UpdateIfNotDischarged(ctx, clinicA, hosp.ID, map[string]any{
-			"status":   model.HospitalizationStatusDischarged,
-			"end_date": dischargeDate,
+		discharged := model.HospitalizationStatusDischarged
+		got, err := repo.UpdateIfNotDischarged(ctx, clinicA, hosp.ID, UpdateHospitalizationInput{
+			Status:  &discharged,
+			EndDate: &dischargeDate,
 		})
 		require.NoError(t, err)
 		require.NotNil(t, got)
@@ -569,8 +575,9 @@ func TestHospitalizationRepository_UpdateIfNotDischarged(t *testing.T) {
 			h.Status = model.HospitalizationStatusDischarged
 		})
 
-		got, err := repo.UpdateIfNotDischarged(ctx, clinicA, hosp.ID, map[string]any{
-			"status": model.HospitalizationStatusDischarged,
+		discharged := model.HospitalizationStatusDischarged
+		got, err := repo.UpdateIfNotDischarged(ctx, clinicA, hosp.ID, UpdateHospitalizationInput{
+			Status: &discharged,
 		})
 		assert.Nil(t, got)
 		require.Error(t, err)

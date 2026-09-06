@@ -52,7 +52,7 @@ func TestAccountingService_Cancel_NilAuditFailsClosed(t *testing.T) {
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) {
 			return &model.Billing{ID: 10, ClinicID: 1, Status: model.BillingStatusWaiting}, nil
 		},
-		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Billing, error) {
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ AccountingUpdate) (*model.Billing, error) {
 			return &model.Billing{ID: 10, ClinicID: 1, Status: model.BillingStatusCancelled}, nil
 		},
 	}

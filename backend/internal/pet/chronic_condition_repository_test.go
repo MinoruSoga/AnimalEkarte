@@ -208,7 +208,8 @@ func TestPetChronicConditionRepository_Update(t *testing.T) {
 	cond := makeChronicCondition(t, db, clinicA, pet.ID, "ALG", "アレルギー", time.Date(2026, 1, 10, 0, 0, 0, 0, time.UTC), true)
 
 	t.Run("成功", func(t *testing.T) {
-		err := repo.Update(ctx, clinicA, pet.ID, cond.ID, map[string]any{"condition_name": "食物アレルギー"})
+		name := "食物アレルギー"
+		err := repo.Update(ctx, clinicA, pet.ID, cond.ID, UpdateChronicConditionInput{ConditionName: &name})
 		require.NoError(t, err)
 
 		got, err := repo.FindByID(ctx, clinicA, pet.ID, cond.ID)
@@ -217,7 +218,8 @@ func TestPetChronicConditionRepository_Update(t *testing.T) {
 	})
 
 	t.Run("別クリニックからのUpdateはNotFoundになり行を変更しない", func(t *testing.T) {
-		err := repo.Update(ctx, clinicB, pet.ID, cond.ID, map[string]any{"condition_name": "不正書き換え"})
+		name := "不正書き換え"
+		err := repo.Update(ctx, clinicB, pet.ID, cond.ID, UpdateChronicConditionInput{ConditionName: &name})
 		assert.True(t, apperrors.IsNotFound(err), "別クリニックからの Update は RowsAffected==0 で NotFound になるべき")
 
 		got, err := repo.FindByID(ctx, clinicA, pet.ID, cond.ID)
@@ -226,7 +228,8 @@ func TestPetChronicConditionRepository_Update(t *testing.T) {
 	})
 
 	t.Run("同一クリニックの別ペットからのUpdateはNotFoundになり行を変更しない", func(t *testing.T) {
-		err := repo.Update(ctx, clinicA, otherPet.ID, cond.ID, map[string]any{"condition_name": "不正書き換え"})
+		name := "不正書き換え"
+		err := repo.Update(ctx, clinicA, otherPet.ID, cond.ID, UpdateChronicConditionInput{ConditionName: &name})
 		assert.True(t, apperrors.IsNotFound(err))
 
 		got, err := repo.FindByID(ctx, clinicA, pet.ID, cond.ID)

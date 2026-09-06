@@ -133,7 +133,7 @@ func requireStaffSecurityTxContext(t *testing.T, ctx context.Context) {
 
 // ---- FindByAccountID ----
 
-func TestStaffService_FindByAccountID(t *testing.T) {
+func TestService_FindByAccountID(t *testing.T) {
 	tests := []struct {
 		name              string
 		findByAccountIDFn func(ctx context.Context, accountID uint64) (*model.Staff, error)
@@ -166,7 +166,7 @@ func TestStaffService_FindByAccountID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockStaffRepository{findByAccountIDFn: tt.findByAccountIDFn}
-			svc := newTestStaffService(repo)
+			svc := newTestService(repo)
 
 			staff, err := svc.FindByAccountID(context.Background(), 1)
 
@@ -186,7 +186,7 @@ func TestStaffService_FindByAccountID(t *testing.T) {
 
 // ---- CreateWithAccount ----
 
-func TestStaffService_CreateWithAccount_ValidationErrors(t *testing.T) {
+func TestService_CreateWithAccount_ValidationErrors(t *testing.T) {
 	tests := []struct {
 		name  string
 		input *CreateStaffWithAccountInput
@@ -205,7 +205,7 @@ func TestStaffService_CreateWithAccount_ValidationErrors(t *testing.T) {
 					return nil
 				},
 			}
-			svc := newTestStaffService(repo)
+			svc := newTestService(repo)
 
 			staff, err := svc.CreateWithAccount(context.Background(), tt.input)
 
@@ -216,13 +216,13 @@ func TestStaffService_CreateWithAccount_ValidationErrors(t *testing.T) {
 	}
 }
 
-func TestStaffService_CreateWithAccount_EmailUniquenessCheckError(t *testing.T) {
+func TestService_CreateWithAccount_EmailUniquenessCheckError(t *testing.T) {
 	accountRepo := &mockAccountForStaff{
 		findByEmailFn: func(_ context.Context, _ string) (*model.Account, error) {
 			return nil, errors.New("db error")
 		},
 	}
-	svc := NewStaffService(&mockStaffRepository{}, accountRepo, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupRepository{}, &mockResStaffForStaff{}, nil, nil, noopTransactor{})
+	svc := NewService(&mockStaffRepository{}, accountRepo, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupRepository{}, &mockResStaffForStaff{}, nil, nil, noopTransactor{})
 
 	staff, err := svc.CreateWithAccount(context.Background(), &CreateStaffWithAccountInput{
 		ClinicID: 1, Name: "スタッフ", Email: "a@example.com", Password: "Passw0rd1",
@@ -232,13 +232,13 @@ func TestStaffService_CreateWithAccount_EmailUniquenessCheckError(t *testing.T) 
 	assert.Nil(t, staff)
 }
 
-func TestStaffService_CreateWithAccount_EmailAlreadyExists(t *testing.T) {
+func TestService_CreateWithAccount_EmailAlreadyExists(t *testing.T) {
 	accountRepo := &mockAccountForStaff{
 		findByEmailFn: func(_ context.Context, email string) (*model.Account, error) {
 			return &model.Account{ID: 99, Email: email}, nil
 		},
 	}
-	svc := NewStaffService(&mockStaffRepository{}, accountRepo, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupRepository{}, &mockResStaffForStaff{}, nil, nil, noopTransactor{})
+	svc := NewService(&mockStaffRepository{}, accountRepo, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupRepository{}, &mockResStaffForStaff{}, nil, nil, noopTransactor{})
 
 	staff, err := svc.CreateWithAccount(context.Background(), &CreateStaffWithAccountInput{
 		ClinicID: 1, Name: "スタッフ", Email: "dup@example.com", Password: "Passw0rd1",
@@ -249,11 +249,11 @@ func TestStaffService_CreateWithAccount_EmailAlreadyExists(t *testing.T) {
 	assert.True(t, apperrors.IsAlreadyExists(err))
 }
 
-func TestStaffService_CreateWithAccount_PasswordTooLongForBcrypt(t *testing.T) {
+func TestService_CreateWithAccount_PasswordTooLongForBcrypt(t *testing.T) {
 	// bcrypt rejects passwords over 72 bytes; this is >90 bytes and still satisfies
 	// validatePassword (contains letters and digits, length >= 8).
 	longPassword := strings.Repeat("Aa1", 30)
-	svc := newTestStaffService(&mockStaffRepository{})
+	svc := newTestService(&mockStaffRepository{})
 
 	staff, err := svc.CreateWithAccount(context.Background(), &CreateStaffWithAccountInput{
 		ClinicID: 1, Name: "スタッフ", Email: "a@example.com", Password: longPassword,
@@ -263,7 +263,7 @@ func TestStaffService_CreateWithAccount_PasswordTooLongForBcrypt(t *testing.T) {
 	assert.Nil(t, staff)
 }
 
-func TestStaffService_CreateWithAccount_Success(t *testing.T) {
+func TestService_CreateWithAccount_Success(t *testing.T) {
 	var createdAccount *model.Account
 	var createdStaff *model.Staff
 	var createdAssignment *model.StaffClinicAssignment
@@ -288,7 +288,7 @@ func TestStaffService_CreateWithAccount_Success(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewStaffService(staffRepo, accountRepo, assignmentRepo, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupRepository{}, &mockResStaffForStaff{}, nil, nil, noopTransactor{})
+	svc := NewService(staffRepo, accountRepo, assignmentRepo, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupRepository{}, &mockResStaffForStaff{}, nil, nil, noopTransactor{})
 
 	staff, err := svc.CreateWithAccount(context.Background(), &CreateStaffWithAccountInput{
 		ClinicID: 1,
@@ -315,7 +315,7 @@ func TestStaffService_CreateWithAccount_Success(t *testing.T) {
 	}
 }
 
-func TestStaffService_CreateWithAccount_CustomStaffTypeAndReservationVisible(t *testing.T) {
+func TestService_CreateWithAccount_CustomStaffTypeAndReservationVisible(t *testing.T) {
 	visible := false
 	staffRepo := &mockStaffRepository{
 		createFn: func(_ context.Context, s *model.Staff) error {
@@ -323,7 +323,7 @@ func TestStaffService_CreateWithAccount_CustomStaffTypeAndReservationVisible(t *
 			return nil
 		},
 	}
-	svc := newTestStaffService(staffRepo)
+	svc := newTestService(staffRepo)
 
 	staff, err := svc.CreateWithAccount(context.Background(), &CreateStaffWithAccountInput{
 		ClinicID:           1,
@@ -339,14 +339,14 @@ func TestStaffService_CreateWithAccount_CustomStaffTypeAndReservationVisible(t *
 	}
 }
 
-func TestStaffService_CreateWithAccount_TxFailures(t *testing.T) {
+func TestService_CreateWithAccount_TxFailures(t *testing.T) {
 	baseInput := &CreateStaffWithAccountInput{ClinicID: 1, Name: "スタッフ", Email: "a@example.com", Password: "Passw0rd1"}
 
 	t.Run("account create fails", func(t *testing.T) {
 		accountRepo := &mockAccountForStaff{
 			createFn: func(_ context.Context, _ *model.Account) error { return errors.New("db error") },
 		}
-		svc := NewStaffService(&mockStaffRepository{}, accountRepo, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupRepository{}, &mockResStaffForStaff{}, nil, nil, noopTransactor{})
+		svc := NewService(&mockStaffRepository{}, accountRepo, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupRepository{}, &mockResStaffForStaff{}, nil, nil, noopTransactor{})
 
 		staff, err := svc.CreateWithAccount(context.Background(), baseInput)
 
@@ -358,7 +358,7 @@ func TestStaffService_CreateWithAccount_TxFailures(t *testing.T) {
 		staffRepo := &mockStaffRepository{
 			createFn: func(_ context.Context, _ *model.Staff) error { return errors.New("db error") },
 		}
-		svc := NewStaffService(staffRepo, &mockAccountForStaff{}, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupRepository{}, &mockResStaffForStaff{}, nil, nil, noopTransactor{})
+		svc := NewService(staffRepo, &mockAccountForStaff{}, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupRepository{}, &mockResStaffForStaff{}, nil, nil, noopTransactor{})
 
 		staff, err := svc.CreateWithAccount(context.Background(), baseInput)
 
@@ -376,7 +376,7 @@ func TestStaffService_CreateWithAccount_TxFailures(t *testing.T) {
 		assignmentRepo := &mockAssignmentForStaff{
 			createFn: func(_ context.Context, _ *model.StaffClinicAssignment) error { return errors.New("db error") },
 		}
-		svc := NewStaffService(staffRepo, &mockAccountForStaff{}, assignmentRepo, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupRepository{}, &mockResStaffForStaff{}, nil, nil, noopTransactor{})
+		svc := NewService(staffRepo, &mockAccountForStaff{}, assignmentRepo, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupRepository{}, &mockResStaffForStaff{}, nil, nil, noopTransactor{})
 
 		staff, err := svc.CreateWithAccount(context.Background(), baseInput)
 

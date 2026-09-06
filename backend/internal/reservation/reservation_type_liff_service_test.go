@@ -19,7 +19,7 @@ type mockReservationTypeLiffRepository struct {
 	findByIDFn      func(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error)
 	countChildrenFn func(ctx context.Context, clinicID, parentID uint64) (int64, error)
 	createFn        func(ctx context.Context, st *model.ReservationType) error
-	updateFieldsFn  func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationType, error)
+	updateFieldsFn  func(ctx context.Context, clinicID, id uint64, cmd UpdateReservationTypeLiffInput) (*model.ReservationType, error)
 	deleteFn        func(ctx context.Context, clinicID, id uint64) error
 	updateSortOrder func(ctx context.Context, clinicID, id uint64, direction string) error
 }
@@ -43,9 +43,9 @@ func (m *mockReservationTypeLiffRepository) Create(ctx context.Context, st *mode
 	return m.createFn(ctx, st)
 }
 
-func (m *mockReservationTypeLiffRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationType, error) {
+func (m *mockReservationTypeLiffRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateReservationTypeLiffInput) (*model.ReservationType, error) {
 	if m.updateFieldsFn != nil {
-		return m.updateFieldsFn(ctx, clinicID, id, fields)
+		return m.updateFieldsFn(ctx, clinicID, id, cmd)
 	}
 	return nil, nil
 }
@@ -225,7 +225,7 @@ func TestReservationTypeLiffService_GetByID_Found(t *testing.T) {
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.ReservationType, error) {
 			return expected, nil
 		},
-		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.ReservationType, error) {
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateReservationTypeLiffInput) (*model.ReservationType, error) {
 			return &model.ReservationType{ID: 1, ClinicID: 1, Name: name, IsActive: true}, nil
 		},
 	}
@@ -478,8 +478,9 @@ func TestReservationTypeLiffService_Update_Success(t *testing.T) {
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.ReservationType, error) {
 			return existing, nil
 		},
-		updateFieldsFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.ReservationType, error) {
-			assert.Equal(t, "更新後コース", fields[colReservationTypeLiffName])
+		updateFieldsFn: func(_ context.Context, _, _ uint64, cmd UpdateReservationTypeLiffInput) (*model.ReservationType, error) {
+			require.NotNil(t, cmd.Name)
+			assert.Equal(t, "更新後コース", *cmd.Name)
 			return updated, nil
 		},
 	}
@@ -556,7 +557,7 @@ func TestReservationTypeLiffService_Update_RepoError(t *testing.T) {
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.ReservationType, error) {
 			return existing, nil
 		},
-		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.ReservationType, error) {
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateReservationTypeLiffInput) (*model.ReservationType, error) {
 			return nil, errors.New("db error")
 		},
 	}
@@ -652,8 +653,9 @@ func TestReservationTypeLiffService_PatchStatus_Success(t *testing.T) {
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.ReservationType, error) {
 			return existing, nil
 		},
-		updateFieldsFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.ReservationType, error) {
-			assert.Equal(t, false, fields["is_active"])
+		updateFieldsFn: func(_ context.Context, _, _ uint64, cmd UpdateReservationTypeLiffInput) (*model.ReservationType, error) {
+			require.NotNil(t, cmd.IsActive)
+			assert.Equal(t, false, *cmd.IsActive)
 			return updated, nil
 		},
 	}
@@ -688,7 +690,7 @@ func TestReservationTypeLiffService_PatchStatus_RepoError(t *testing.T) {
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.ReservationType, error) {
 			return existing, nil
 		},
-		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.ReservationType, error) {
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateReservationTypeLiffInput) (*model.ReservationType, error) {
 			return nil, errors.New("db error")
 		},
 	}

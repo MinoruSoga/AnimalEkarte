@@ -111,11 +111,11 @@ func (w *atomicPermissionGroupWriter) DeleteSoftDeletedByClinicID(context.Contex
 	return nil
 }
 
-func TestClinicService_CreateClinic_UsesOneTransactionForClinicAndDefaultPermissions(t *testing.T) {
+func TestService_CreateClinic_UsesOneTransactionForClinicAndDefaultPermissions(t *testing.T) {
 	store := &atomicClinicStore{}
 	writer := &atomicPermissionGroupWriter{}
 	tx := &recordingClinicTransactor{}
-	svc := NewClinicService(store, writer, tx)
+	svc := NewService(store, writer, tx)
 
 	created, err := svc.CreateClinic(context.Background(), &CreateClinicInput{Name: "新医院"})
 
@@ -128,12 +128,12 @@ func TestClinicService_CreateClinic_UsesOneTransactionForClinicAndDefaultPermiss
 	assert.Equal(t, []bool{true, true}, writer.updateRulesInTx)
 }
 
-func TestClinicService_CreateClinic_PropagatesPermissionRuleFailure(t *testing.T) {
+func TestService_CreateClinic_PropagatesPermissionRuleFailure(t *testing.T) {
 	ruleErr := errors.New("rule write failed")
 	store := &atomicClinicStore{}
 	writer := &atomicPermissionGroupWriter{ruleErr: ruleErr}
 	tx := &recordingClinicTransactor{}
-	svc := NewClinicService(store, writer, tx)
+	svc := NewService(store, writer, tx)
 
 	created, err := svc.CreateClinic(context.Background(), &CreateClinicInput{Name: "新医院"})
 

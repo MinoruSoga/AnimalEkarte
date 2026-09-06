@@ -46,7 +46,7 @@ type Repository interface {
 	CountLivingByOwnerIDs(ctx context.Context, clinicID uint64, ownerIDs []uint64) (map[uint64]int64, error)
 	CountUsageByAnimalSpeciesID(ctx context.Context, speciesID uint64) (int64, error)
 	Create(ctx context.Context, pet *model.Pet) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	Update(ctx context.Context, clinicID, id uint64, cmd UpdatePetInput) error
 	UpdateAndFind(ctx context.Context, clinicID, id uint64, update PetUpdate) (*model.Pet, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	// FindOwnersByPetBirthday は指定月日と一致する誕生日の生存ペットを持つ飼い主IDリストを返す（FEAT-383）。
@@ -408,7 +408,11 @@ func (r *repository) Create(ctx context.Context, pet *model.Pet) error {
 // Update は BUG-407 の fail-closed 化（lstepLifecycleService.HandlePetDeath/HandlePetRevival が
 // status/deceased_at 更新と監査書込を同一 tx で原子化する）のため dbOrTx(ctx, r.db) を使う。
 // ambient tx が無い呼び出し（大多数の既存経路）では r.db.WithContext(ctx) と等価（後方互換）。
-func (r *repository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+func (r *repository) Update(ctx context.Context, clinicID, id uint64, cmd UpdatePetInput) error {
+	return r.update(ctx, clinicID, id, buildPetUpdate(&cmd))
+}
+
+func (r *repository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	for key := range fields {
 		if isDangerFieldKey(key) || isStructuralPetFieldKey(key) {
 			return apperrors.WrapInvalidInput("protected pet fields require the typed pet update capability")

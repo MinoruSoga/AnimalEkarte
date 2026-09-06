@@ -38,7 +38,6 @@ func NewStaffClinicAssignmentService(repo StaffClinicAssignmentRepository) Staff
 func (s *staffClinicAssignmentService) FindAllByStaffID(ctx context.Context, staffID uint64) ([]model.StaffClinicAssignment, error) {
 	assignments, err := s.repo.FindByStaffID(ctx, staffID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to find clinic assignments for staff", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find clinic assignments for staff")
 	}
 	return assignments, nil
@@ -50,13 +49,6 @@ func (s *staffClinicAssignmentService) FindByStaffAndClinic(
 ) (*model.StaffClinicAssignment, error) {
 	assignment, err := s.repo.FindByStaffAndClinic(ctx, staffID, clinicID)
 	if err != nil {
-		slog.ErrorContext(
-			ctx,
-			"failed to find clinic-scoped assignment for staff",
-			"error", err,
-			"staff_id", staffID,
-			"clinic_id", clinicID,
-		)
 		return nil, apperrors.Wrap(err, "failed to find clinic-scoped assignment for staff")
 	}
 	return assignment, nil
@@ -64,7 +56,6 @@ func (s *staffClinicAssignmentService) FindByStaffAndClinic(
 
 func (s *staffClinicAssignmentService) Create(ctx context.Context, assignment *model.StaffClinicAssignment) error {
 	if err := s.repo.Create(ctx, assignment); err != nil {
-		slog.ErrorContext(ctx, "failed to create staff clinic assignment", "error", err, "staff_id", assignment.StaffID, "clinic_id", assignment.ClinicID)
 		return apperrors.Wrap(err, "failed to create staff clinic assignment")
 	}
 	slog.InfoContext(ctx, "staff clinic assignment created",
@@ -296,13 +287,6 @@ func (s *staffService) ensureRemovedClinicAssignmentsUnused(
 		staffID,
 	)
 	if dependencyErr != nil {
-		slog.ErrorContext(
-			ctx,
-			"failed to check reservation dependency before removing clinic assignment",
-			"error", dependencyErr,
-			"staff_id", staffID,
-			"clinic_ids", clinicIDs,
-		)
 		return apperrors.Wrap(
 			dependencyErr,
 			"failed to check reservation dependency before removing clinic assignment",
@@ -314,13 +298,6 @@ func (s *staffService) ensureRemovedClinicAssignmentsUnused(
 
 	shiftClinicIDs, dependencyErr := s.shiftEntryRepo.FindClinicIDsByStaffID(ctx, clinicIDs, staffID)
 	if dependencyErr != nil {
-		slog.ErrorContext(
-			ctx,
-			"failed to check shift dependency before removing clinic assignment",
-			"error", dependencyErr,
-			"staff_id", staffID,
-			"clinic_ids", clinicIDs,
-		)
 		return apperrors.Wrap(
 			dependencyErr,
 			"failed to check shift dependency before removing clinic assignment",
@@ -430,7 +407,6 @@ func (s *staffService) setClinicAssignmentsInTx(
 	}
 
 	if err := s.assignmentRepo.DeleteByStaffAndClinicIDs(ctx, input.StaffID, removedClinicIDs); err != nil {
-		slog.ErrorContext(ctx, "failed to delete existing clinic assignments", "error", err, "staff_id", input.StaffID)
 		return apperrors.Wrap(err, "failed to delete existing clinic assignments")
 	}
 
@@ -453,12 +429,10 @@ func (s *staffService) setClinicAssignmentsInTx(
 			IsMain:   clinicID == primaryClinicID,
 		}
 		if err := s.assignmentRepo.RestoreOrCreate(ctx, assignment); err != nil {
-			slog.ErrorContext(ctx, "failed to restore or create clinic assignment", "error", err, "staff_id", input.StaffID, "clinic_id", clinicID)
 			return apperrors.Wrap(err, "failed to restore or create clinic assignment")
 		}
 	}
 	if err := s.repo.UpdatePrimaryClinicID(ctx, input.StaffID, primaryClinicID); err != nil {
-		slog.ErrorContext(ctx, "failed to update staff primary clinic", "error", err, "staff_id", input.StaffID, "clinic_id", primaryClinicID)
 		return apperrors.Wrap(err, "failed to update staff primary clinic")
 	}
 	if s.permissionAudit != nil && auditMeta != nil {

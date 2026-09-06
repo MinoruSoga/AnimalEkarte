@@ -18,7 +18,7 @@ type CampaignRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.Campaign, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Campaign, error)
 	Create(ctx context.Context, m *model.Campaign) (*model.Campaign, error)
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Campaign, error)
+	Update(ctx context.Context, clinicID, id uint64, cmd UpdateCampaignInput) (*model.Campaign, error)
 	ReplaceTargets(ctx context.Context, campaignID uint64, categories []model.ItemCategory, itemIDs []uint64) error
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
@@ -82,7 +82,11 @@ func (r *campaignRepository) Create(ctx context.Context, m *model.Campaign) (*mo
 	return r.FindByID(ctx, m.ClinicID, m.ID)
 }
 
-func (r *campaignRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Campaign, error) {
+func (r *campaignRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateCampaignInput) (*model.Campaign, error) {
+	return r.update(ctx, clinicID, id, buildCampaignUpdate(&cmd))
+}
+
+func (r *campaignRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Campaign, error) {
 	result := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Campaign{}).
 		Scopes(persistence.ClinicScope(clinicID)).

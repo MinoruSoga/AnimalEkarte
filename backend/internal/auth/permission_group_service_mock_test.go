@@ -29,7 +29,7 @@ type mockPermissionGroupRepository struct {
 	findByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.PermissionGroup, error)
 	lockByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.PermissionGroup, error)
 	createFn       func(ctx context.Context, group *model.PermissionGroup) error
-	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.PermissionGroup, error)
+	updateFieldsFn func(ctx context.Context, clinicID, id uint64, cmd UpdatePermissionGroupInput) (*model.PermissionGroup, error)
 	deleteFn       func(ctx context.Context, clinicID, id uint64) error
 	setRulesFn     func(ctx context.Context, clinicID, groupID uint64, rules []model.PermissionGroupRule) error
 
@@ -102,10 +102,10 @@ func (m *mockPermissionGroupRepository) Create(
 func (m *mockPermissionGroupRepository) Update(
 	ctx context.Context,
 	clinicID, id uint64,
-	fields map[string]any,
+	cmd UpdatePermissionGroupInput,
 ) (*model.PermissionGroup, error) {
 	if m.updateFieldsFn != nil {
-		return m.updateFieldsFn(ctx, clinicID, id, fields)
+		return m.updateFieldsFn(ctx, clinicID, id, cmd)
 	}
 	return &model.PermissionGroup{}, nil
 }

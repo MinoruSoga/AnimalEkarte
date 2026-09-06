@@ -16,7 +16,7 @@ type mockInsuranceRepository struct {
 	findAllFn                 func(ctx context.Context, clinicID uint64) ([]model.Insurance, error)
 	findByIDFn                func(ctx context.Context, clinicID, id uint64) (*model.Insurance, error)
 	createFn                  func(ctx context.Context, insurance *model.Insurance) error
-	updateFn                  func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Insurance, error)
+	updateFn                  func(ctx context.Context, clinicID, id uint64, cmd UpdateInsuranceInput) (*model.Insurance, error)
 	deleteFn                  func(ctx context.Context, clinicID, id uint64) error
 	reorderErr                error
 	countUsageByInsuranceIDFn func(ctx context.Context, clinicID, insuranceID uint64) (int64, error)
@@ -34,8 +34,11 @@ func (m *mockInsuranceRepository) Create(ctx context.Context, insurance *model.I
 	return m.createFn(ctx, insurance)
 }
 
-func (m *mockInsuranceRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Insurance, error) {
-	return m.updateFn(ctx, clinicID, id, fields)
+func (m *mockInsuranceRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateInsuranceInput) (*model.Insurance, error) {
+	if m.updateFn != nil {
+		return m.updateFn(ctx, clinicID, id, cmd)
+	}
+	return nil, nil
 }
 
 func (m *mockInsuranceRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -336,7 +339,7 @@ func TestInsuranceService_Update(t *testing.T) {
 					}
 					return &model.Insurance{ID: 1, ClinicID: 1}, nil
 				},
-				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Insurance, error) {
+				updateFn: func(_ context.Context, _, _ uint64, _ UpdateInsuranceInput) (*model.Insurance, error) {
 					if tt.repoErr != nil {
 						return nil, tt.repoErr
 					}

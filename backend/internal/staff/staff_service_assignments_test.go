@@ -13,7 +13,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-func TestStaffService_SetClinicAssignments_ErrorBranches(t *testing.T) {
+func TestService_SetClinicAssignments_ErrorBranches(t *testing.T) {
 	t.Run("delete existing assignments fails", func(t *testing.T) {
 		assignmentRepo := &mockAssignmentForStaff{
 			lockActiveFn: func(_ context.Context, staffID uint64) ([]model.StaffClinicAssignment, error) {
@@ -24,7 +24,7 @@ func TestStaffService_SetClinicAssignments_ErrorBranches(t *testing.T) {
 				return errors.New("db error")
 			},
 		}
-		svc := NewStaffService(&mockStaffRepository{}, &mockAccountForStaff{}, assignmentRepo, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupRepository{}, &mockResStaffForStaff{}, nil, existingClinicLookupForStaffAssignments(), noopTransactor{})
+		svc := NewService(&mockStaffRepository{}, &mockAccountForStaff{}, assignmentRepo, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupRepository{}, &mockResStaffForStaff{}, nil, existingClinicLookupForStaffAssignments(), noopTransactor{})
 
 		err := svc.SetClinicAssignments(context.Background(), &SetClinicAssignmentsInput{
 			StaffID:             10,
@@ -39,7 +39,7 @@ func TestStaffService_SetClinicAssignments_ErrorBranches(t *testing.T) {
 		assignmentRepo := &mockAssignmentForStaff{
 			createFn: func(_ context.Context, _ *model.StaffClinicAssignment) error { return errors.New("db error") },
 		}
-		svc := NewStaffService(&mockStaffRepository{}, &mockAccountForStaff{}, assignmentRepo, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupRepository{}, &mockResStaffForStaff{}, nil, existingClinicLookupForStaffAssignments(), noopTransactor{})
+		svc := NewService(&mockStaffRepository{}, &mockAccountForStaff{}, assignmentRepo, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupRepository{}, &mockResStaffForStaff{}, nil, existingClinicLookupForStaffAssignments(), noopTransactor{})
 
 		err := svc.SetClinicAssignments(context.Background(), &SetClinicAssignmentsInput{
 			StaffID:             10,
@@ -54,7 +54,7 @@ func TestStaffService_SetClinicAssignments_ErrorBranches(t *testing.T) {
 		staffRepo := &mockStaffRepository{
 			updatePrimaryFn: func(_ context.Context, _, _ uint64) error { return errors.New("db error") },
 		}
-		svc := NewStaffService(staffRepo, &mockAccountForStaff{}, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupRepository{}, &mockResStaffForStaff{}, nil, existingClinicLookupForStaffAssignments(), noopTransactor{})
+		svc := NewService(staffRepo, &mockAccountForStaff{}, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupRepository{}, &mockResStaffForStaff{}, nil, existingClinicLookupForStaffAssignments(), noopTransactor{})
 
 		err := svc.SetClinicAssignments(context.Background(), &SetClinicAssignmentsInput{
 			StaffID:             10,
@@ -66,13 +66,13 @@ func TestStaffService_SetClinicAssignments_ErrorBranches(t *testing.T) {
 	})
 }
 
-func TestStaffService_SetClinicAssignments_AuthorizationAndValidationBeforeWrites(t *testing.T) {
+func TestService_SetClinicAssignments_AuthorizationAndValidationBeforeWrites(t *testing.T) {
 	t.Run("more than 50 requested clinics fails before dependencies", func(t *testing.T) {
 		clinicIDs := make([]uint64, maxStaffClinicAssignments+1)
 		for i := range clinicIDs {
 			clinicIDs[i] = uint64(i + 1)
 		}
-		svc := NewStaffService(
+		svc := NewService(
 			&mockStaffRepository{},
 			&mockAccountForStaff{},
 			&mockAssignmentForStaff{},
@@ -108,7 +108,7 @@ func TestStaffService_SetClinicAssignments_AuthorizationAndValidationBeforeWrite
 				return nil
 			},
 		}
-		svc := NewStaffService(
+		svc := NewService(
 			&mockStaffRepository{},
 			&mockAccountForStaff{},
 			assignmentRepo,
@@ -145,7 +145,7 @@ func TestStaffService_SetClinicAssignments_AuthorizationAndValidationBeforeWrite
 				return nil
 			},
 		}
-		svc := NewStaffService(
+		svc := NewService(
 			&mockStaffRepository{},
 			&mockAccountForStaff{},
 			assignmentRepo,
@@ -198,7 +198,7 @@ func TestStaffService_SetClinicAssignments_AuthorizationAndValidationBeforeWrite
 				return nil
 			},
 		}
-		svc := NewStaffService(
+		svc := NewService(
 			staffRepo,
 			&mockAccountForStaff{},
 			assignmentRepo,
@@ -240,7 +240,7 @@ func TestStaffService_SetClinicAssignments_AuthorizationAndValidationBeforeWrite
 				return nil
 			},
 		}
-		svc := NewStaffService(
+		svc := NewService(
 			&mockStaffRepository{},
 			&mockAccountForStaff{},
 			assignmentRepo,
@@ -277,7 +277,7 @@ func TestStaffService_SetClinicAssignments_AuthorizationAndValidationBeforeWrite
 				return nil
 			},
 		}
-		svc := NewStaffService(
+		svc := NewService(
 			&mockStaffRepository{},
 			&mockAccountForStaff{},
 			assignmentRepo,
@@ -301,7 +301,7 @@ func TestStaffService_SetClinicAssignments_AuthorizationAndValidationBeforeWrite
 	})
 }
 
-func TestStaffService_SetClinicAssignments_RollsBackReplacementOnWriteError(t *testing.T) {
+func TestService_SetClinicAssignments_RollsBackReplacementOnWriteError(t *testing.T) {
 	state := &staffAssignmentTxState{
 		assignments: []model.StaffClinicAssignment{
 			{StaffID: 10, ClinicID: 1, IsMain: true},
@@ -332,7 +332,7 @@ func TestStaffService_SetClinicAssignments_RollsBackReplacementOnWriteError(t *t
 			return nil
 		},
 	}
-	svc := NewStaffService(
+	svc := NewService(
 		staffRepo,
 		&mockAccountForStaff{},
 		assignmentRepo,
@@ -357,7 +357,7 @@ func TestStaffService_SetClinicAssignments_RollsBackReplacementOnWriteError(t *t
 	assert.Equal(t, uint64(1), state.primaryClinicID)
 }
 
-func TestStaffService_SetClinicAssignments_RejectsNonAdminWhenExistingAssignmentOutsideAuthorizedClinics(t *testing.T) {
+func TestService_SetClinicAssignments_RejectsNonAdminWhenExistingAssignmentOutsideAuthorizedClinics(t *testing.T) {
 	t.Run("non-admin PUT fails closed when existing assignment is outside authorized clinics", func(t *testing.T) {
 		events := make([]string, 0, 2)
 		staffRepo := &mockStaffRepository{
@@ -405,7 +405,7 @@ func TestStaffService_SetClinicAssignments_RejectsNonAdminWhenExistingAssignment
 				return nil, nil
 			},
 		}
-		svc := NewStaffService(
+		svc := NewService(
 			staffRepo,
 			&mockAccountForStaff{},
 			assignmentRepo,
@@ -431,7 +431,7 @@ func TestStaffService_SetClinicAssignments_RejectsNonAdminWhenExistingAssignment
 	})
 }
 
-func TestStaffService_SetClinicAssignments_AdminInactiveClinicDelta(t *testing.T) {
+func TestService_SetClinicAssignments_AdminInactiveClinicDelta(t *testing.T) {
 	inactiveNotFound := apperrors.WrapNotFound("clinic", "30")
 
 	t.Run("admin PUT that includes inactive GET ids keeps them without LockActiveByID", func(t *testing.T) {
@@ -471,7 +471,7 @@ func TestStaffService_SetClinicAssignments_AdminInactiveClinicDelta(t *testing.T
 				return &model.Clinic{ID: id, IsActive: true}, nil
 			},
 		}
-		svc := NewStaffService(
+		svc := NewService(
 			staffRepo,
 			&mockAccountForStaff{},
 			assignmentRepo,
@@ -543,7 +543,7 @@ func TestStaffService_SetClinicAssignments_AdminInactiveClinicDelta(t *testing.T
 				return &model.Clinic{ID: id, IsActive: true}, nil
 			},
 		}
-		svc := NewStaffService(
+		svc := NewService(
 			staffRepo,
 			&mockAccountForStaff{},
 			assignmentRepo,
@@ -573,7 +573,7 @@ func TestStaffService_SetClinicAssignments_AdminInactiveClinicDelta(t *testing.T
 	})
 }
 
-func TestStaffService_SetClinicAssignments_RejectsRemovingClinicWithExistingShiftBeforeMutation(t *testing.T) {
+func TestService_SetClinicAssignments_RejectsRemovingClinicWithExistingShiftBeforeMutation(t *testing.T) {
 	events := make([]string, 0, 4)
 	staffRepo := &mockStaffRepository{
 		lockForUpdateFn: func(ctx context.Context, id uint64) (*model.Staff, error) {
@@ -616,7 +616,7 @@ func TestStaffService_SetClinicAssignments_RejectsRemovingClinicWithExistingShif
 			return true, nil
 		},
 	}
-	svc := NewStaffService(
+	svc := NewService(
 		staffRepo,
 		&mockAccountForStaff{},
 		assignmentRepo,
@@ -644,7 +644,7 @@ func TestStaffService_SetClinicAssignments_RejectsRemovingClinicWithExistingShif
 	}, events)
 }
 
-func TestStaffService_SetClinicAssignments_PropagatesRemovedClinicShiftCheckError(t *testing.T) {
+func TestService_SetClinicAssignments_PropagatesRemovedClinicShiftCheckError(t *testing.T) {
 	dependencyErr := errors.New("shift dependency failed")
 	assignmentRepo := &mockAssignmentForStaff{
 		lockActiveFn: func(_ context.Context, staffID uint64) ([]model.StaffClinicAssignment, error) {
@@ -662,7 +662,7 @@ func TestStaffService_SetClinicAssignments_PropagatesRemovedClinicShiftCheckErro
 			return false, dependencyErr
 		},
 	}
-	svc := NewStaffService(
+	svc := NewService(
 		&mockStaffRepository{},
 		&mockAccountForStaff{},
 		assignmentRepo,
@@ -685,7 +685,7 @@ func TestStaffService_SetClinicAssignments_PropagatesRemovedClinicShiftCheckErro
 	assert.ErrorIs(t, err, dependencyErr)
 }
 
-func TestStaffService_SetClinicAssignments_UsesCanonicalLockOrderAndTransactionContext(t *testing.T) {
+func TestService_SetClinicAssignments_UsesCanonicalLockOrderAndTransactionContext(t *testing.T) {
 	events := make([]string, 0, 8)
 	input := &SetClinicAssignmentsInput{
 		StaffID:             10,
@@ -732,7 +732,7 @@ func TestStaffService_SetClinicAssignments_UsesCanonicalLockOrderAndTransactionC
 			return &model.Clinic{ID: id, IsActive: true}, nil
 		},
 	}
-	svc := NewStaffService(
+	svc := NewService(
 		staffRepo,
 		&mockAccountForStaff{},
 		assignmentRepo,
@@ -762,7 +762,7 @@ func TestStaffService_SetClinicAssignments_UsesCanonicalLockOrderAndTransactionC
 
 // ---- VerifyClinicMembership ----
 
-func TestStaffService_VerifyClinicMembership(t *testing.T) {
+func TestService_VerifyClinicMembership(t *testing.T) {
 	tests := []struct {
 		name         string
 		count        int64
@@ -782,7 +782,7 @@ func TestStaffService_VerifyClinicMembership(t *testing.T) {
 					return tt.count, tt.countErr
 				},
 			}
-			svc := NewStaffService(&mockStaffRepository{}, &mockAccountForStaff{}, assignmentRepo, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupRepository{}, &mockResStaffForStaff{}, nil, nil, noopTransactor{})
+			svc := NewService(&mockStaffRepository{}, &mockAccountForStaff{}, assignmentRepo, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupRepository{}, &mockResStaffForStaff{}, nil, nil, noopTransactor{})
 
 			err := svc.VerifyClinicMembership(context.Background(), 10, 1)
 

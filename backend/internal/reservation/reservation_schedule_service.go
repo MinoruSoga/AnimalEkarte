@@ -48,7 +48,6 @@ func NewReservationScheduleService(repo ReservationScheduleRepository) Reservati
 func (s *reservationScheduleService) ListByMonth(ctx context.Context, clinicID, staffID uint64, month string) ([]ScheduleEntry, error) {
 	entries, err := s.repo.FindAllByMonth(ctx, clinicID, staffID, month)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list schedules", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to list schedules")
 	}
 	if len(entries) == 0 {
@@ -60,7 +59,6 @@ func (s *reservationScheduleService) ListByMonth(ctx context.Context, clinicID, 
 	}
 	breaksMap, err := s.repo.FindAllBreaksByEntryIDs(ctx, clinicID, entryIDs)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list schedule breaks", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to list schedule breaks")
 	}
 	result := make([]ScheduleEntry, 0, len(entries))
@@ -103,7 +101,6 @@ func (s *reservationScheduleService) Save(ctx context.Context, clinicID, staffID
 
 	savedEntry, savedBreaks, created, err := s.repo.Save(ctx, clinicID, entry, breaks)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to upsert schedule", "error", err, "clinic_id", clinicID)
 		return nil, false, apperrors.Wrap(err, "failed to upsert schedule")
 	}
 	if savedEntry == nil {
@@ -121,12 +118,10 @@ func (s *reservationScheduleService) Save(ctx context.Context, clinicID, staffID
 func (s *reservationScheduleService) Delete(ctx context.Context, clinicID, staffID uint64, date time.Time) error {
 	// 存在確認（NotFound は FromGORM 経由で伝播）
 	if _, err := s.repo.FindAllByDate(ctx, clinicID, staffID, date); err != nil {
-		slog.ErrorContext(ctx, "failed to find schedule before delete", "error", err, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to find schedule before delete")
 	}
 
 	if err := s.repo.Delete(ctx, clinicID, staffID, date); err != nil {
-		slog.ErrorContext(ctx, "failed to delete schedule", "error", err, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete schedule")
 	}
 	slog.InfoContext(ctx, "schedule deleted",

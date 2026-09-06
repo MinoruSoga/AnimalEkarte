@@ -2,7 +2,6 @@ package billing
 
 import (
 	"context"
-	"log/slog"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -22,7 +21,6 @@ func (s *estimateService) createSuccessorInTx(
 	}
 	estimateNo, err := s.repo.AllocateNextEstimateNo(txCtx, clinicID)
 	if err != nil {
-		slog.ErrorContext(txCtx, "failed to allocate estimate number for successor", "error", err)
 		return nil, apperrors.Wrap(err, "failed to allocate estimate number")
 	}
 
@@ -47,7 +45,6 @@ func (s *estimateService) createSuccessorInTx(
 		SupersedesEstimateID: &originalIDCopy,
 	}
 	if err := s.repo.Create(txCtx, successor); err != nil {
-		slog.ErrorContext(txCtx, "failed to create successor estimate", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create successor estimate")
 	}
 	if len(original.Items) > 0 {
@@ -71,12 +68,10 @@ func (s *estimateService) createSuccessorInTx(
 			"estimate_no":  successor.EstimateNo,
 		},
 	}); err != nil {
-		slog.ErrorContext(txCtx, "audit log failed for estimate supersede", "error", err, "successor_id", successor.ID)
 		return nil, apperrors.Wrap(err, "failed to write estimate supersede audit log")
 	}
 	got, err := s.repo.FindByID(txCtx, clinicID, successor.ID)
 	if err != nil {
-		slog.ErrorContext(txCtx, "failed to get successor estimate after create", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get successor estimate after create")
 	}
 	return got, nil

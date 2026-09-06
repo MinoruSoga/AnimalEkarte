@@ -147,6 +147,7 @@ func (m *mockCompanyService) Update(ctx context.Context, input *UpdateCompanyInp
 // ---- test helper ----
 
 func newHandlerWithCompanySvc(svc CompanyService) *Handler {
+	RegisterContactBindingValidators()
 	return &Handler{companySvc: svc}
 }
 

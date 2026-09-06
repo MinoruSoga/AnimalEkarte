@@ -24,20 +24,20 @@ func attachAllowAllClinicPermission(c *gin.Context) {
 	})
 }
 
-type scopedHandlerStaffService struct {
-	StaffService
+type scopedHandlerService struct {
+	Service
 	verifyFn func(context.Context, uint64, uint64) error
 	getFn    func(context.Context, uint64, uint64) (*model.Staff, error)
 }
 
-func (s *scopedHandlerStaffService) VerifyClinicMembership(
+func (s *scopedHandlerService) VerifyClinicMembership(
 	ctx context.Context,
 	staffID, clinicID uint64,
 ) error {
 	return s.verifyFn(ctx, staffID, clinicID)
 }
 
-func (s *scopedHandlerStaffService) GetByIDInClinic(
+func (s *scopedHandlerService) GetByIDInClinic(
 	ctx context.Context,
 	clinicID, staffID uint64,
 ) (*model.Staff, error) {
@@ -67,7 +67,7 @@ func newScopedStaffHandlerRouter(handler *Handler, route string, endpoint gin.Ha
 }
 
 func TestHandler_GetStaffUsesClinicScopedRepresentation(t *testing.T) {
-	service := &scopedHandlerStaffService{
+	service := &scopedHandlerService{
 		verifyFn: func(_ context.Context, staffID, clinicID uint64) error {
 			assert.Equal(t, uint64(7), staffID)
 			assert.Equal(t, uint64(20), clinicID)
@@ -97,7 +97,7 @@ func TestHandler_GetStaffUsesClinicScopedRepresentation(t *testing.T) {
 }
 
 func TestHandler_GetStaffClinicAssignmentsIntersectsSystemAdminActiveClinics(t *testing.T) {
-	staffService := &scopedHandlerStaffService{
+	staffService := &scopedHandlerService{
 		verifyFn: func(_ context.Context, _, _ uint64) error { return nil },
 		getFn: func(_ context.Context, _, _ uint64) (*model.Staff, error) {
 			return nil, nil
@@ -147,7 +147,7 @@ func TestHandler_GetStaffClinicAssignmentsIntersectsSystemAdminActiveClinics(t *
 }
 
 func TestHandler_GetStaffClinicAssignmentsIntersectsNonAdminAuthorizedClinics(t *testing.T) {
-	staffService := &scopedHandlerStaffService{
+	staffService := &scopedHandlerService{
 		verifyFn: func(_ context.Context, staffID, clinicID uint64) error {
 			assert.Equal(t, uint64(7), staffID)
 			assert.Equal(t, uint64(20), clinicID)
@@ -197,7 +197,7 @@ func TestHandler_GetStaffClinicAssignmentsIntersectsNonAdminAuthorizedClinics(t 
 }
 
 func TestHandler_GetStaffClinicAssignmentsRejectsMissingAssignmentService(t *testing.T) {
-	staffService := &scopedHandlerStaffService{
+	staffService := &scopedHandlerService{
 		verifyFn: func(_ context.Context, _, _ uint64) error { return nil },
 		getFn: func(_ context.Context, _, _ uint64) (*model.Staff, error) {
 			return nil, nil
@@ -222,7 +222,7 @@ func TestHandler_GetStaffClinicAssignmentsRejectsMissingAssignmentService(t *tes
 }
 
 func TestHandler_GetStaffClinicAssignmentsRejectsMissingSystemAdminClinicAuthority(t *testing.T) {
-	staffService := &scopedHandlerStaffService{
+	staffService := &scopedHandlerService{
 		verifyFn: func(_ context.Context, _, _ uint64) error { return nil },
 		getFn: func(_ context.Context, _, _ uint64) (*model.Staff, error) {
 			return nil, nil
@@ -280,7 +280,7 @@ func TestHandler_UpdateStaffRejectsPasswordOnlyCrossClinicTarget(t *testing.T) {
 			}, nil
 		},
 	}
-	service := NewStaffServiceWithCredentialAudit(
+	service := NewServiceWithCredentialAudit(
 		staffRepo,
 		accountRepo,
 		assignmentRepo,

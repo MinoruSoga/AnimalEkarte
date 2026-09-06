@@ -28,29 +28,6 @@ type ClinicDependencyCount struct {
 	Count int64
 }
 
-// ClinicRepository is the compatibility provider API used by clinic and current
-// staff/auth consumers. Clinic use cases depend on the narrower clinicServiceRepository.
-//
-// Consumer updates are typed UpdateClinic(*UpdateClinicInput). Map conversion
-// stays in BuildClinicUpdate; clinicRepository.Update applies that map through
-// DBOrTx and is not part of the consumer interface.
-type ClinicRepository interface {
-	FindAll(ctx context.Context) ([]model.Clinic, error)
-	FindByStaffID(ctx context.Context, staffID uint64) ([]model.Clinic, error)
-	FindByIDs(ctx context.Context, ids []uint64) ([]model.Clinic, error)
-	FindActiveIDs(ctx context.Context, ids []uint64) ([]uint64, error)
-	FindByID(ctx context.Context, id uint64) (*model.Clinic, error)
-	LockActiveByID(ctx context.Context, id uint64) (*model.Clinic, error)
-	LockByIDForUpdate(ctx context.Context, id uint64) (*model.Clinic, error)
-	FindCompany(ctx context.Context) (*model.Company, error)
-	Create(ctx context.Context, clinic *model.Clinic) error
-	UpdateClinic(ctx context.Context, id uint64, input *UpdateClinicInput) error
-	Delete(ctx context.Context, id uint64) error
-	CountOwnersByClinicID(ctx context.Context, clinicID uint64) (int64, error)
-	CountStaffByClinicID(ctx context.Context, clinicID uint64) (int64, error)
-	CountBlockingReferencesByClinicID(ctx context.Context, clinicID uint64) ([]ClinicDependencyCount, error)
-}
-
 type clinicServiceRepository interface {
 	FindAll(ctx context.Context) ([]model.Clinic, error)
 	FindByStaffID(ctx context.Context, staffID uint64) ([]model.Clinic, error)
@@ -94,9 +71,9 @@ type ClosingSpecialPeriodRepository interface {
 	Create(ctx context.Context, period *model.ClosingSpecialPeriod) (*model.ClosingSpecialPeriod, error)
 	// CreateCheckingOverlap serializes overlap check + insert under a clinic advisory lock (POC-05 / X-05).
 	CreateCheckingOverlap(ctx context.Context, period *model.ClosingSpecialPeriod) (*model.ClosingSpecialPeriod, error)
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ClosingSpecialPeriod, error)
+	Update(ctx context.Context, clinicID, id uint64, cmd UpdateSpecialPeriodInput) (*model.ClosingSpecialPeriod, error)
 	// UpdateCheckingOverlap serializes overlap check + update+reload under a clinic advisory lock (POC-05 / X-05).
-	UpdateCheckingOverlap(ctx context.Context, clinicID, id uint64, startDate, endDate time.Time, fields map[string]any) (*model.ClosingSpecialPeriod, error)
+	UpdateCheckingOverlap(ctx context.Context, clinicID, id uint64, startDate, endDate time.Time, cmd UpdateSpecialPeriodInput) (*model.ClosingSpecialPeriod, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	CheckOverlap(ctx context.Context, clinicID uint64, startDate, endDate time.Time, excludeID *uint64) (bool, error)
 }
@@ -104,5 +81,5 @@ type ClosingSpecialPeriodRepository interface {
 // CompanyRepository is the global company-singleton data port.
 type CompanyRepository interface {
 	FindSingleton(ctx context.Context) (*model.Company, error)
-	Update(ctx context.Context, fields map[string]any) error
+	Update(ctx context.Context, cmd UpdateCompanyInput) error
 }

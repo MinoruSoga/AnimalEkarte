@@ -384,7 +384,9 @@ func TestMerchandiseItemRepository_Update(t *testing.T) {
 
 	t.Run("同一クリニックの更新は反映される", func(t *testing.T) {
 		item := makeMerchItem(t, db, clinicA, "更新前品目", model.ItemCategoryGoods)
-		got, err := repo.Update(ctx, clinicA, item.ID, map[string]any{"name": "更新後品目", "unit_price": int64(3000)})
+		name := "更新後品目"
+		price := int64(3000)
+		got, err := repo.Update(ctx, clinicA, item.ID, UpdateMerchandiseItemInput{Name: &name, UnitPrice: &price})
 		require.NoError(t, err)
 		assert.Equal(t, "更新後品目", got.Name)
 		assert.Equal(t, int64(3000), got.UnitPrice)
@@ -392,13 +394,15 @@ func TestMerchandiseItemRepository_Update(t *testing.T) {
 
 	t.Run("別クリニックの更新はNotFound", func(t *testing.T) {
 		item := makeMerchItem(t, db, clinicA, "越境更新対象品目", model.ItemCategoryGoods)
-		_, err := repo.Update(ctx, clinicB, item.ID, map[string]any{"name": "越境更新"})
+		name := "越境更新"
+		_, err := repo.Update(ctx, clinicB, item.ID, UpdateMerchandiseItemInput{Name: &name})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
 	t.Run("存在しないIDの更新はNotFound", func(t *testing.T) {
-		_, err := repo.Update(ctx, clinicA, 999999, map[string]any{"name": "存在しない"})
+		name := "存在しない"
+		_, err := repo.Update(ctx, clinicA, 999999, UpdateMerchandiseItemInput{Name: &name})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
@@ -418,7 +422,9 @@ func TestMerchandiseItemRepository_Update_AmbientTxRollback(t *testing.T) {
 
 	err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		txCtx := persistence.WithTxValue(ctx, tx)
-		got, err := repo.Update(txCtx, clinicA, item.ID, map[string]any{"name": "更新後品目", "unit_price": int64(3000)})
+		name := "更新後品目"
+		price := int64(3000)
+		got, err := repo.Update(txCtx, clinicA, item.ID, UpdateMerchandiseItemInput{Name: &name, UnitPrice: &price})
 		if err != nil {
 			return err
 		}
@@ -458,7 +464,8 @@ func TestMerchandiseItemRepository_Update_ReloadFailureRollsBackUpdate(t *testin
 		}
 	})
 
-	got, err := repo.Update(ctx, clinicA, item.ID, map[string]any{"name": "更新後品目"})
+	name := "更新後品目"
+	got, err := repo.Update(ctx, clinicA, item.ID, UpdateMerchandiseItemInput{Name: &name})
 
 	assert.Nil(t, got)
 	require.Error(t, err)

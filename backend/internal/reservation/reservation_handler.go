@@ -15,21 +15,21 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// ReservationHandler は予約 CRUD の HTTP handler。
-type ReservationHandler struct {
+// CRUDHandler は予約 CRUD の HTTP handler。
+type CRUDHandler struct {
 	svc              ReservationService
 	medicalRecord    medicalRecordAutoCreator
 	liff             liffAvailability
 	staffAssignments staffAssignmentFinder
 }
 
-// NewReservationHandler は ReservationHandler を構築する。
-func NewReservationHandler(svc ReservationService, medicalRecord medicalRecordAutoCreator, liff liffAvailability, staffAssignments staffAssignmentFinder) *ReservationHandler {
-	return &ReservationHandler{svc: svc, medicalRecord: medicalRecord, liff: liff, staffAssignments: staffAssignments}
+// NewCRUDHandler は CRUDHandler を構築する。
+func NewCRUDHandler(svc ReservationService, medicalRecord medicalRecordAutoCreator, liff liffAvailability, staffAssignments staffAssignmentFinder) *CRUDHandler {
+	return &CRUDHandler{svc: svc, medicalRecord: medicalRecord, liff: liff, staffAssignments: staffAssignments}
 }
 
 // checkDoctorClinicAssignment は医師が指定クリニックに所属しているかを確認する。
-func (h *ReservationHandler) checkDoctorClinicAssignment(ctx context.Context, clinicID, doctorID uint64) error {
+func (h *CRUDHandler) checkDoctorClinicAssignment(ctx context.Context, clinicID, doctorID uint64) error {
 	if doctorID == 0 {
 		return nil
 	}
@@ -52,7 +52,7 @@ func toReservationAvailableTimeResponse(slot *TimeSlot) liffTimeSlotResponse {
 }
 
 // ListReservations godoc
-func (h *ReservationHandler) ListReservations(c *gin.Context) {
+func (h *CRUDHandler) ListReservations(c *gin.Context) {
 	// #86: 拠点横断一覧 — 所属かつ reservations:view を持つ医院だけをスコープにする
 	clinicIDs, ok := httpapi.ResolveListClinicIDsForPermission(
 		c,
@@ -84,7 +84,7 @@ func (h *ReservationHandler) ListReservations(c *gin.Context) {
 }
 
 // GetReservation godoc
-func (h *ReservationHandler) GetReservation(c *gin.Context) {
+func (h *CRUDHandler) GetReservation(c *gin.Context) {
 	// #86: 詳細画面の拠点横断閲覧 — 所属かつ reservations:view を持つ医院だけをスコープにする
 	clinicIDs, ok := httpapi.ResolveAllClinicIDsForPermission(
 		c,
@@ -108,7 +108,7 @@ func (h *ReservationHandler) GetReservation(c *gin.Context) {
 
 // GetReservationAvailableTimes godoc
 // GET /reservations/available-times?reservation_type_id=:id&staff_id=:id&date=YYYY-MM-DD
-func (h *ReservationHandler) GetReservationAvailableTimes(c *gin.Context) {
+func (h *CRUDHandler) GetReservationAvailableTimes(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
 		return
@@ -140,7 +140,7 @@ func (h *ReservationHandler) GetReservationAvailableTimes(c *gin.Context) {
 }
 
 // CreateReservation godoc
-func (h *ReservationHandler) CreateReservation(c *gin.Context) {
+func (h *CRUDHandler) CreateReservation(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
 		return
@@ -185,7 +185,7 @@ func (h *ReservationHandler) CreateReservation(c *gin.Context) {
 }
 
 // CreateReservationBatch creates a single atomic shared doctor/time booking for selected pets.
-func (h *ReservationHandler) CreateReservationBatch(c *gin.Context) {
+func (h *CRUDHandler) CreateReservationBatch(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
 		return
@@ -227,7 +227,7 @@ func (h *ReservationHandler) CreateReservationBatch(c *gin.Context) {
 }
 
 // UpdateReservation godoc
-func (h *ReservationHandler) UpdateReservation(c *gin.Context) {
+func (h *CRUDHandler) UpdateReservation(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
 		return
@@ -300,7 +300,7 @@ func shouldAutoCreateMedicalRecordForReservation(reservation *model.Reservation)
 }
 
 // DeleteReservation godoc
-func (h *ReservationHandler) DeleteReservation(c *gin.Context) {
+func (h *CRUDHandler) DeleteReservation(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
 		return
@@ -318,7 +318,7 @@ func (h *ReservationHandler) DeleteReservation(c *gin.Context) {
 
 // UpdateReservationReservationRoute godoc
 // PATCH /reservations/:id/reservation-route — 予約経路を更新する（FEAT-381-2）。
-func (h *ReservationHandler) UpdateReservationReservationRoute(c *gin.Context) {
+func (h *CRUDHandler) UpdateReservationReservationRoute(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
 		return

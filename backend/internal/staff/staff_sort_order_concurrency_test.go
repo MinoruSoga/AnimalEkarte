@@ -70,7 +70,7 @@ func TestStaffRepository_SwapSortOrderForReservation_SerializesOverlappingSwaps(
 		_ = db.Callback().Update().Remove(callbackName)
 	})
 
-	repo := NewStaffRepository(db)
+	repo := NewRepository(db)
 	results := make(chan error, 2)
 	start := make(chan struct{})
 	for token, request := range map[string]struct {

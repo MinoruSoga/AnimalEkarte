@@ -124,7 +124,7 @@ func (s *reservationTypeGroupService) Update(ctx context.Context, clinicID, id u
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput(sharedkernel.ErrMsgAtLeastOneField)
 	}
-	g, err := s.repo.Update(ctx, clinicID, id, fields)
+	g, err := s.repo.Update(ctx, clinicID, id, *input)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to update reservation_type_group")
 	}

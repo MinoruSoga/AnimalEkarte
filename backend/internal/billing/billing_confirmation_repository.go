@@ -17,7 +17,7 @@ import (
 type BillingConfirmationRepository interface {
 	FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) (*model.BillingConfirmation, error)
 	Create(ctx context.Context, review *model.BillingConfirmation) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	Update(ctx context.Context, clinicID, id uint64, cmd UpdateBillingConfirmationInput) error
 	LockActiveStaffAssignment(ctx context.Context, clinicID, staffID uint64) error
 }
 
@@ -51,7 +51,11 @@ func (r *billingConfirmationRepository) Create(ctx context.Context, review *mode
 
 // Update は persistence.DBOrTx(ctx, r.db) で ambient tx に参加する（billingConfirmationService.Confirm/Return が
 // SD-2/X-11 と同種の確定済みカルテガードのため LockByIDForUpdate の行ロックと同一 tx に束ねる）。
-func (r *billingConfirmationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+func (r *billingConfirmationRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateBillingConfirmationInput) error {
+	return r.update(ctx, clinicID, id, buildBillingConfirmationUpdate(cmd))
+}
+
+func (r *billingConfirmationRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	// Restrict update to rows belonging to this clinic via subquery on medical_records
 	result := persistence.DBOrTx(ctx, r.db).
 		Model(&model.BillingConfirmation{}).

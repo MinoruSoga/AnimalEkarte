@@ -16,7 +16,7 @@ type PaymentMethodMasterRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.PaymentMethodMaster, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.PaymentMethodMaster, error)
 	Create(ctx context.Context, m *model.PaymentMethodMaster) (*model.PaymentMethodMaster, error)
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.PaymentMethodMaster, error)
+	Update(ctx context.Context, clinicID, id uint64, cmd UpdatePaymentMethodMasterInput) (*model.PaymentMethodMaster, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	CountUsageByPaymentMethodID(ctx context.Context, clinicID, id uint64) (int64, error)
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
@@ -59,11 +59,11 @@ func (r *paymentMethodMasterRepository) Create(ctx context.Context, m *model.Pay
 	return m, nil
 }
 
-func (r *paymentMethodMasterRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.PaymentMethodMaster, error) {
+func (r *paymentMethodMasterRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdatePaymentMethodMasterInput) (*model.PaymentMethodMaster, error) {
 	var loaded *model.PaymentMethodMaster
 	err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		txCtx := persistence.WithTxValue(ctx, tx)
-		if err := updateScopedByID(txCtx, tx, &model.PaymentMethodMaster{}, "payment_method", clinicID, id, fields); err != nil {
+		if err := r.update(txCtx, clinicID, id, buildPaymentMethodUpdate(&cmd)); err != nil {
 			return err
 		}
 		reloaded, err := r.FindByID(txCtx, clinicID, id)
@@ -77,6 +77,10 @@ func (r *paymentMethodMasterRepository) Update(ctx context.Context, clinicID, id
 		return nil, err
 	}
 	return loaded, nil
+}
+
+func (r *paymentMethodMasterRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+	return updateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.PaymentMethodMaster{}, "payment_method", clinicID, id, fields)
 }
 
 func (r *paymentMethodMasterRepository) Delete(ctx context.Context, clinicID, id uint64) error {

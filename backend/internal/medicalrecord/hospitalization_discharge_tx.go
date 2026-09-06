@@ -40,11 +40,10 @@ func (s *hospitalizationService) dischargeWithBillingInTx(
 	}
 
 	dischargedStatus := model.HospitalizationStatusDischarged
-	dischargeFields := map[string]any{
-		"status":   dischargedStatus,
-		"end_date": input.DischargeDate,
-	}
-	if _, err := s.hospRepo.UpdateIfNotDischarged(txCtx, clinicID, id, dischargeFields); err != nil {
+	if _, err := s.hospRepo.UpdateIfNotDischarged(txCtx, clinicID, id, UpdateHospitalizationInput{
+		Status:  &dischargedStatus,
+		EndDate: &input.DischargeDate,
+	}); err != nil {
 		return apperrors.Wrap(err, "failed to discharge hospitalization")
 	}
 	if !input.CreateAccounting {

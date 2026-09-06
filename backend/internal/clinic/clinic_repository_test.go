@@ -151,8 +151,8 @@ func TestClinicRepository_LockActiveByID_SourceContract(t *testing.T) {
 	source, err := os.ReadFile("../clinic/clinic_repository.go")
 	require.NoError(t, err)
 
-	const methodSignature = "func (r *clinicRepository) LockActiveByID("
-	const nextMethodSignature = "func (r *clinicRepository) FindByID("
+	const methodSignature = "func (r *Repository) LockActiveByID("
+	const nextMethodSignature = "func (r *Repository) FindByID("
 	methodStart := bytes.Index(source, []byte(methodSignature))
 	require.NotEqual(t, -1, methodStart)
 	methodEndOffset := bytes.Index(source[methodStart:], []byte(nextMethodSignature))
@@ -305,8 +305,8 @@ func TestClinicRepository_LockByIDForUpdate_SourceContract(t *testing.T) {
 	source, err := os.ReadFile("../clinic/clinic_repository.go")
 	require.NoError(t, err)
 
-	const methodSignature = "func (r *clinicRepository) LockByIDForUpdate("
-	const nextMethodSignature = "func (r *clinicRepository) FindByID("
+	const methodSignature = "func (r *Repository) LockByIDForUpdate("
+	const nextMethodSignature = "func (r *Repository) FindByID("
 	methodStart := bytes.Index(source, []byte(methodSignature))
 	require.NotEqual(t, -1, methodStart)
 	methodEndOffset := bytes.Index(source[methodStart:], []byte(nextMethodSignature))

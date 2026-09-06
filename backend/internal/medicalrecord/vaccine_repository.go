@@ -21,7 +21,7 @@ type VaccineRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, species *string) ([]model.Vaccine, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Vaccine, error)
 	Create(ctx context.Context, vaccine *model.Vaccine) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccine, error)
+	Update(ctx context.Context, clinicID, id uint64, cmd UpdateVaccineInput) (*model.Vaccine, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	CountUsageByVaccineID(ctx context.Context, clinicID, vaccineID uint64) (int64, error)
@@ -74,11 +74,15 @@ func (r *vaccineRepository) Create(ctx context.Context, vaccine *model.Vaccine) 
 	return nil
 }
 
-func (r *vaccineRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccine, error) {
-	if err := persistence.UpdateScopedByID(ctx, r.db, &model.Vaccine{}, "vaccine", clinicID, id, fields); err != nil {
+func (r *vaccineRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateVaccineInput) (*model.Vaccine, error) {
+	if err := r.update(ctx, clinicID, id, buildVaccineUpdate(&cmd)); err != nil {
 		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
+}
+
+func (r *vaccineRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+	return persistence.UpdateScopedByID(ctx, r.db, &model.Vaccine{}, "vaccine", clinicID, id, fields)
 }
 
 func (r *vaccineRepository) Delete(ctx context.Context, clinicID, id uint64) error {

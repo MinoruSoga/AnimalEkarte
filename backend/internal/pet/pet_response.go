@@ -22,7 +22,7 @@ type PetInsuranceNested struct {
 }
 
 // PetOwnerNested はペット行に埋め込む飼主サマリ（#266: pets 一覧のペット行粒度化）。
-// petListResponse / PetResponse の両方で共有する（detail 側は追加フィールドを無視すれば足りるため
+// petListResponse / Response の両方で共有する（detail 側は追加フィールドを無視すれば足りるため
 // 型を分けない）。OwnerNumber は独立した採番カラムではなく Owner.ID のエイリアス
 // （FE 既存実装が ownerNumber: owner.id として扱っていた表示上の呼称に合わせる）。
 type PetOwnerNested struct {
@@ -48,7 +48,7 @@ func toPetOwnerNested(o *model.Owner) *PetOwnerNested {
 	}
 }
 
-type PetResponse struct {
+type Response struct {
 	ID              uint64     `json:"id"`
 	Version         int        `json:"version"`
 	ClinicID        uint64     `json:"clinic_id"`
@@ -104,7 +104,7 @@ func toPetFirstVisitResponse(date *time.Time) petFirstVisitResponse {
 type petListResponse struct {
 	ID uint64 `json:"id"`
 	// ClinicID: #266/#86 拠点横断一覧で FE (OwnersList.tsx) が「別医院の行は編集・削除を抑止」
-	// 判定に使う。PetResponse(詳細) には既にあるが petListResponse は最小限フィールド構成のため
+	// 判定に使う。Response(詳細) には既にあるが petListResponse は最小限フィールド構成のため
 	// 欠けていた（#266 pets 一覧のペット行粒度化で FE がこの一覧に依存するようになり露見）。
 	ClinicID        uint64                  `json:"clinic_id"`
 	OwnerID         uint64                  `json:"owner_id"`
@@ -212,13 +212,13 @@ type AnimalSpeciesSummaryResponse struct {
 	Name string `json:"name"`
 }
 
-func toPetResponse(p *model.Pet) PetResponse {
+func toResponse(p *model.Pet) Response {
 	var acquisitionType *string
 	if p.AcquisitionType != nil {
 		s := string(*p.AcquisitionType)
 		acquisitionType = &s
 	}
-	resp := PetResponse{
+	resp := Response{
 		ID:              p.ID,
 		Version:         p.Version,
 		ClinicID:        p.ClinicID,

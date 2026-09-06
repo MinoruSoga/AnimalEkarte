@@ -21,7 +21,7 @@ type mockCampaignRepository struct {
 	findAllFn                  func(ctx context.Context, clinicID uint64) ([]model.Campaign, error)
 	findByIDFn                 func(ctx context.Context, clinicID, id uint64) (*model.Campaign, error)
 	createFn                   func(ctx context.Context, m *model.Campaign) (*model.Campaign, error)
-	updateFn                   func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Campaign, error)
+	updateFn                   func(ctx context.Context, clinicID, id uint64, cmd UpdateCampaignInput) (*model.Campaign, error)
 	replaceTargetsFn           func(ctx context.Context, campaignID uint64, categories []model.ItemCategory, itemIDs []uint64) error
 	deleteFn                   func(ctx context.Context, clinicID, id uint64) error
 	reorderFn                  func(ctx context.Context, clinicID uint64, ids []uint64) error
@@ -50,9 +50,9 @@ func (m *mockCampaignRepository) Create(ctx context.Context, campaign *model.Cam
 	return campaign, nil
 }
 
-func (m *mockCampaignRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Campaign, error) {
+func (m *mockCampaignRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateCampaignInput) (*model.Campaign, error) {
 	if m.updateFn != nil {
-		return m.updateFn(ctx, clinicID, id, fields)
+		return m.updateFn(ctx, clinicID, id, cmd)
 	}
 	return &model.Campaign{ID: id, ClinicID: clinicID}, nil
 }
@@ -263,8 +263,9 @@ func TestCampaignService_Update(t *testing.T) {
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Campaign, error) {
 				return current, nil
 			},
-			updateFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.Campaign, error) {
-				assert.Equal(t, "Updated", fields["name"])
+			updateFn: func(_ context.Context, _, _ uint64, cmd UpdateCampaignInput) (*model.Campaign, error) {
+				require.NotNil(t, cmd.Name)
+				assert.Equal(t, "Updated", *cmd.Name)
 				return current, nil
 			},
 		}
@@ -810,7 +811,7 @@ func TestCampaignService_Update_AdditionalBranches(t *testing.T) {
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Campaign, error) {
 				return current, nil
 			},
-			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Campaign, error) {
+			updateFn: func(_ context.Context, _, _ uint64, _ UpdateCampaignInput) (*model.Campaign, error) {
 				return nil, errors.New("db error")
 			},
 		}
@@ -831,7 +832,7 @@ func TestCampaignService_Update_AdditionalBranches(t *testing.T) {
 				}
 				return nil, errors.New("reload error")
 			},
-			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Campaign, error) {
+			updateFn: func(_ context.Context, _, _ uint64, _ UpdateCampaignInput) (*model.Campaign, error) {
 				return current, nil
 			},
 		}

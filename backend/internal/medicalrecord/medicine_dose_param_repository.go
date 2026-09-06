@@ -21,7 +21,7 @@ type MedicineDoseParamRepository interface {
 	FindByMedicineID(ctx context.Context, clinicID, medicineID uint64) ([]model.MedicineDoseParam, error)
 	FindByMedicineAndSpecies(ctx context.Context, clinicID, medicineID uint64, species model.MedicineDoseSpecies) (*model.MedicineDoseParam, error)
 	Create(ctx context.Context, clinicID uint64, param *model.MedicineDoseParam) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicineDoseParam, error)
+	Update(ctx context.Context, clinicID, id uint64, cmd MedicineDoseParamInput) (*model.MedicineDoseParam, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
@@ -67,7 +67,11 @@ func (r *medicineDoseParamRepository) Create(ctx context.Context, clinicID uint6
 	return nil
 }
 
-func (r *medicineDoseParamRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicineDoseParam, error) {
+func (r *medicineDoseParamRepository) Update(ctx context.Context, clinicID, id uint64, cmd MedicineDoseParamInput) (*model.MedicineDoseParam, error) {
+	return r.update(ctx, clinicID, id, buildDoseParamReplaceFields(&cmd))
+}
+
+func (r *medicineDoseParamRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicineDoseParam, error) {
 	result := persistence.DBOrTx(ctx, r.db).
 		Model(&model.MedicineDoseParam{}).
 		Scopes(persistence.ClinicScope(clinicID)).

@@ -30,6 +30,8 @@ type UpdateClinicalPlanInput struct {
 	// ActorID は監査用の認証済み staff（JSON 非公開。handler が JWT から注入）。
 	// examination parent mutation と同型に必須（nil/0 は fail-closed）。
 	ActorID *uint64
+	// persistVersion is set only by service after next-version calculation. HTTP/client must not set it.
+	persistVersion *int
 }
 
 func buildClinicalPlanUpdate(input *UpdateClinicalPlanInput) map[string]any {
@@ -54,6 +56,9 @@ func buildClinicalPlanUpdate(input *UpdateClinicalPlanInput) map[string]any {
 	}
 	if input.TreatmentPolicy != nil {
 		fields["treatment_policy"] = *input.TreatmentPolicy
+	}
+	if input.persistVersion != nil {
+		fields["version"] = *input.persistVersion
 	}
 	return fields
 }
@@ -364,11 +369,12 @@ func (s *clinicalPlanService) Update(ctx context.Context, clinicID, medicalRecor
 		if input.Version != nil {
 			nextVersion = *input.Version + 1
 		}
-		fields["version"] = nextVersion
+		effective := *input
+		effective.persistVersion = &nextVersion
 
 		// Snapshot before mutation for audit OldValue (do not mutate plan pointer fields after).
 		before := *plan
-		if err := s.repo.Update(txCtx, clinicID, plan.ID, fields, input.Version); err != nil {
+		if err := s.repo.Update(txCtx, clinicID, plan.ID, effective, input.Version); err != nil {
 			slog.ErrorContext(txCtx, "failed to update clinical plan", "error", err)
 			return apperrors.Wrap(err, "failed to update clinical plan")
 		}

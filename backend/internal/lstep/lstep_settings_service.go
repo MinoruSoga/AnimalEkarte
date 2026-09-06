@@ -183,7 +183,6 @@ func (passthroughSettingsTransactor) WithTx(ctx context.Context, fn func(context
 func (s *lstepSettingsService) GetSettings(ctx context.Context, clinicID uint64) (*LstepSettingsResponse, error) {
 	records, err := s.repo.FindByClinicAndService(ctx, clinicID, model.IntegrationServiceLstep)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to find lstep settings", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to find lstep settings")
 	}
 
@@ -193,7 +192,6 @@ func (s *lstepSettingsService) GetSettings(ctx context.Context, clinicID uint64)
 		val, decErr := s.decrypt(r.KeyName, r.KeyValue)
 		if decErr != nil {
 			// LSB-04 / DEC-35: 復号失敗を空文字へ置換して握り潰さない（サイレント停止を防ぐ）
-			slog.ErrorContext(ctx, "failed to decrypt integration value", "key_name", r.KeyName, "error", decErr)
 			return nil, apperrors.Wrap(decErr, "failed to decrypt integration value")
 		}
 		kvMap[r.KeyName] = val
@@ -208,7 +206,6 @@ func (s *lstepSettingsService) GetSettings(ctx context.Context, clinicID uint64)
 	if s.syncSettingsRepo != nil {
 		syncSettings, syncErr := s.syncSettingsRepo.FindByClinicID(ctx, clinicID)
 		if syncErr != nil && !apperrors.IsNotFound(syncErr) {
-			slog.ErrorContext(ctx, "failed to find lstep sync settings", "error", syncErr, "clinic_id", clinicID)
 			return nil, apperrors.Wrap(syncErr, "failed to find lstep sync settings")
 		}
 		if syncSettings != nil {
@@ -220,7 +217,6 @@ func (s *lstepSettingsService) GetSettings(ctx context.Context, clinicID uint64)
 	if s.clinicSettingsRepo != nil {
 		cs, csErr := s.clinicSettingsRepo.FindByClinicID(ctx, clinicID)
 		if csErr != nil {
-			slog.ErrorContext(ctx, "failed to find clinic settings", "error", csErr, "clinic_id", clinicID)
 			return nil, apperrors.Wrap(csErr, "failed to find clinic settings")
 		}
 		applyClinicSettingsToLstepResponse(resp, cs)
@@ -339,7 +335,6 @@ func (s *lstepSettingsService) UpdateSettings(ctx context.Context, clinicID uint
 
 func (s *lstepSettingsService) DeleteSettings(ctx context.Context, clinicID uint64, actorID *uint64) error {
 	if err := s.repo.DeleteByClinicAndService(ctx, clinicID, model.IntegrationServiceLstep); err != nil {
-		slog.ErrorContext(ctx, "failed to delete lstep settings", "error", err, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete lstep settings")
 	}
 	if s.auditSvc != nil {

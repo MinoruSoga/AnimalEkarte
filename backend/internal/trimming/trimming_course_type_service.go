@@ -110,7 +110,7 @@ func (s *trimmingCourseTypeService) Update(ctx context.Context, clinicID, id uin
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
-	result, err := s.repo.Update(ctx, clinicID, id, fields)
+	result, err := s.repo.Update(ctx, clinicID, id, *input)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to update trimming course type")
 	}

@@ -23,7 +23,7 @@ type mockExamTypeRepository struct {
 	findAllFn                 func(ctx context.Context, clinicID uint64) ([]model.ExaminationType, error)
 	findByIDFn                func(ctx context.Context, clinicID, id uint64) (*model.ExaminationType, error)
 	createFn                  func(ctx context.Context, exType *model.ExaminationType) error
-	updateFieldsFn            func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ExaminationType, error)
+	updateFieldsFn            func(ctx context.Context, clinicID, id uint64, cmd UpdateExamTypeInput) (*model.ExaminationType, error)
 	deleteFn                  func(ctx context.Context, clinicID, id uint64) error
 	reorderFn                 func(ctx context.Context, clinicID uint64, ids []uint64) error
 	countUsageByExamTypeIDFn  func(ctx context.Context, clinicID, examTypeID uint64) (int64, error)
@@ -42,8 +42,8 @@ func (m *mockExamTypeRepository) Create(ctx context.Context, exType *model.Exami
 	return m.createFn(ctx, exType)
 }
 
-func (m *mockExamTypeRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ExaminationType, error) {
-	return m.updateFieldsFn(ctx, clinicID, id, fields)
+func (m *mockExamTypeRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateExamTypeInput) (*model.ExaminationType, error) {
+	return m.updateFieldsFn(ctx, clinicID, id, cmd)
 }
 
 func (m *mockExamTypeRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -395,7 +395,7 @@ func TestExamTypeService_Update(t *testing.T) {
 					}
 					return &model.ExaminationType{ID: 1}, nil
 				},
-				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.ExaminationType, error) {
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateExamTypeInput) (*model.ExaminationType, error) {
 					updateCalled = true
 					if tt.updateErr != nil {
 						return nil, tt.updateErr
@@ -434,13 +434,13 @@ func TestExamTypeService_Update(t *testing.T) {
 
 	t.Run("is_non_insurance をトグル (false→true) できる", func(t *testing.T) {
 		nonIns := true
-		var capturedFields map[string]any
+		var captured UpdateExamTypeInput
 		repo := &mockExamTypeRepository{
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.ExaminationType, error) {
 				return &model.ExaminationType{ID: 1, IsNonInsurance: false}, nil
 			},
-			updateFieldsFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.ExaminationType, error) {
-				capturedFields = fields
+			updateFieldsFn: func(_ context.Context, _, _ uint64, cmd UpdateExamTypeInput) (*model.ExaminationType, error) {
+				captured = cmd
 				return &model.ExaminationType{ID: 1, IsNonInsurance: true}, nil
 			},
 		}
@@ -449,7 +449,9 @@ func TestExamTypeService_Update(t *testing.T) {
 		result, err := svc.Update(context.Background(), 1, 1, input)
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
-		assert.Equal(t, true, capturedFields[colExamTypeIsNonInsurance])
+		if assert.NotNil(t, captured.IsNonInsurance) {
+			assert.Equal(t, true, *captured.IsNonInsurance)
+		}
 	})
 }
 

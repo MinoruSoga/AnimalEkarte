@@ -25,7 +25,7 @@ func TestClinicalPlanService_Update_NilAuditOrTransactorRejected(t *testing.T) {
 		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
 			return &model.ClinicalPlan{ID: 1, MedicalRecordID: 1, PhysicalExam: "旧", Version: 1}, nil
 		},
-		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+		updateFn: func(_ context.Context, _, _ uint64, _ UpdateClinicalPlanInput) error {
 			t.Fatal("update must not run without audit/tx deps")
 			return nil
 		},
@@ -69,8 +69,9 @@ func TestClinicalPlanService_Update_WritesAuditOnSuccess(t *testing.T) {
 				DiagnosisDetails: "旧診断", TreatmentPolicy: "旧方針",
 			}, nil
 		},
-		updateWithVersionFn: func(_ context.Context, _, _ uint64, fields map[string]any, _ *int) error {
-			assert.Equal(t, physicalExam, fields["physical_exam"])
+		updateWithVersionFn: func(_ context.Context, _, _ uint64, cmd UpdateClinicalPlanInput, _ *int) error {
+			require.NotNil(t, cmd.PhysicalExam)
+			assert.Equal(t, physicalExam, *cmd.PhysicalExam)
 			return nil
 		},
 	}
@@ -108,7 +109,7 @@ func TestClinicalPlanService_Update_AuditFailureReturnsError(t *testing.T) {
 		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
 			return &model.ClinicalPlan{ID: 1, MedicalRecordID: 1, PhysicalExam: "旧", Version: 1}, nil
 		},
-		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+		updateFn: func(_ context.Context, _, _ uint64, _ UpdateClinicalPlanInput) error {
 			updateCalled = true
 			return nil
 		},
@@ -137,7 +138,7 @@ func TestClinicalPlanService_Update_FinalizedDoesNotAudit(t *testing.T) {
 		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
 			return &model.ClinicalPlan{ID: 1, MedicalRecordID: 1, PhysicalExam: "確定前"}, nil
 		},
-		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+		updateFn: func(_ context.Context, _, _ uint64, _ UpdateClinicalPlanInput) error {
 			updateCalled = true
 			return nil
 		},
@@ -172,7 +173,7 @@ func TestClinicalPlanService_Update_StaleVersionDoesNotAudit(t *testing.T) {
 		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
 			return &model.ClinicalPlan{ID: 1, MedicalRecordID: 1, PhysicalExam: "現行", Version: 2}, nil
 		},
-		updateWithVersionFn: func(_ context.Context, _, _ uint64, _ map[string]any, expectedVersion *int) error {
+		updateWithVersionFn: func(_ context.Context, _, _ uint64, _ UpdateClinicalPlanInput, expectedVersion *int) error {
 			require.NotNil(t, expectedVersion)
 			assert.Equal(t, 1, *expectedVersion)
 			return apperrors.WrapConflict("他のユーザーがこの所見・診断を変更しました。再読み込みしてください")

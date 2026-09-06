@@ -2,7 +2,6 @@ package billing
 
 import (
 	"context"
-	"log/slog"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -30,12 +29,10 @@ func (s *estimateService) createEstimateInTx(
 	// TASK-012: clinic スコープの EST-{N} を原子採番してから INSERT する。
 	estimateNo, err := s.repo.AllocateNextEstimateNo(txCtx, clinicID)
 	if err != nil {
-		slog.ErrorContext(txCtx, "failed to allocate estimate number", "error", err)
 		return nil, apperrors.Wrap(err, "failed to allocate estimate number")
 	}
 	estimate.EstimateNo = estimateNo
 	if err := s.repo.Create(txCtx, estimate); err != nil {
-		slog.ErrorContext(txCtx, "failed to create estimate", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create estimate")
 	}
 	if len(preparedItems) > 0 {
@@ -46,7 +43,6 @@ func (s *estimateService) createEstimateInTx(
 	// 再取得は commit 前。失敗したら INSERT ごと rollback し、成功を失敗応答へ反転させない。
 	got, err := s.repo.FindByID(txCtx, clinicID, estimate.ID)
 	if err != nil {
-		slog.ErrorContext(txCtx, "failed to get estimate after create", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get estimate after create")
 	}
 	return got, nil
@@ -68,7 +64,6 @@ func (s *estimateService) updateEstimateInTx(
 	// one authoritative snapshot and serialization point.
 	locked, err := s.repo.LockEditableByID(txCtx, clinicID, id)
 	if err != nil && !apperrors.IsConflict(err) {
-		slog.ErrorContext(txCtx, "failed to lock estimate for update", "error", err)
 		return result, apperrors.Wrap(err, "failed to find estimate")
 	}
 	if err != nil {
@@ -97,6 +92,7 @@ func (s *estimateService) updateEstimateInTx(
 	if len(fields) == 0 && input.Items == nil {
 		return result, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
+	cmd := *input
 	var preparedItems []model.EstimateItem
 	if input.Items != nil {
 		if err := validateEstimateItemInputs(*input.Items); err != nil {
@@ -104,18 +100,18 @@ func (s *estimateService) updateEstimateInTx(
 		}
 		preparedItems = estimateItemsFromInput(id, *input.Items)
 		subtotal, taxTotal, totalAmount := calculateEstimateTotals(preparedItems)
-		fields["subtotal"] = subtotal
-		fields["tax_total"] = taxTotal
-		fields["total_amount"] = totalAmount
+		cmd.Subtotal = &subtotal
+		cmd.TaxTotal = &taxTotal
+		cmd.TotalAmount = &totalAmount
 	}
 
 	if input.Items == nil && len(result.existing.Items) > 0 {
 		// Active persisted items are the source of truth for estimate totals. Header-only
 		// PATCHes must not allow client-supplied totals to drift from those items.
 		subtotal, taxTotal, totalAmount := calculateEstimateTotals(result.existing.Items)
-		fields["subtotal"] = subtotal
-		fields["tax_total"] = taxTotal
-		fields["total_amount"] = totalAmount
+		cmd.Subtotal = &subtotal
+		cmd.TaxTotal = &taxTotal
+		cmd.TotalAmount = &totalAmount
 	}
 	result.isBecomingApproved = input.Status != nil && *input.Status == model.EstimateStatusApproved &&
 		result.existing.Status != model.EstimateStatusApproved
@@ -129,11 +125,8 @@ func (s *estimateService) updateEstimateInTx(
 	}
 	// UpdateIfNotLocked retains the status predicate as defense in depth. The parent
 	// is already locked, so it cannot change between the authoritative read and write.
-	got, err := s.repo.UpdateIfNotLocked(txCtx, clinicID, id, fields)
+	got, err := s.repo.UpdateIfNotLocked(txCtx, clinicID, id, cmd)
 	if err != nil {
-		if !apperrors.IsConflict(err) {
-			slog.ErrorContext(txCtx, "failed to update estimate", "error", err)
-		}
 		return result, apperrors.Wrap(err, "failed to update estimate")
 	}
 	if input.Items != nil {

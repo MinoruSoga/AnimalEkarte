@@ -12,7 +12,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// mockStaffRepository は StaffRepository のテスト用モック実装
+// mockStaffRepository は Repository のテスト用モック実装
 type mockStaffRepository struct {
 	findAllFn           func(ctx context.Context, clinicID uint64, page, limit int) ([]model.Staff, int64, error)
 	findByIDFn          func(ctx context.Context, id uint64) (*model.Staff, error)
@@ -21,7 +21,7 @@ type mockStaffRepository struct {
 	lockForShareFn      func(ctx context.Context, id uint64) (*model.Staff, error)
 	findByAccountIDFn   func(ctx context.Context, accountID uint64) (*model.Staff, error)
 	createFn            func(ctx context.Context, staff *model.Staff) error
-	updateFn            func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	updateFn            func(ctx context.Context, clinicID, id uint64, cmd UpdateStaffInput) error
 	updatePrimaryFn     func(ctx context.Context, id, clinicID uint64) error
 	deleteFn            func(ctx context.Context, clinicID, id uint64) error
 	reorderErr          error
@@ -84,8 +84,8 @@ func (m *mockStaffRepository) Create(ctx context.Context, staff *model.Staff) er
 	return m.createFn(ctx, staff)
 }
 
-func (m *mockStaffRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	return m.updateFn(ctx, clinicID, id, fields)
+func (m *mockStaffRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateStaffInput) error {
+	return m.updateFn(ctx, clinicID, id, cmd)
 }
 
 func (m *mockStaffRepository) UpdatePrimaryClinicID(ctx context.Context, id, clinicID uint64) error {
@@ -224,7 +224,7 @@ func (m *mockShiftEntryForStaff) LockActiveByIDForUpdate(
 func (m *mockShiftEntryForStaff) Create(_ context.Context, _ *model.ShiftEntry) error {
 	return nil
 }
-func (m *mockShiftEntryForStaff) Update(_ context.Context, _, _ uint64, _ map[string]any) error {
+func (m *mockShiftEntryForStaff) Update(_ context.Context, _, _ uint64, _ UpdateShiftEntryInput) error {
 	return nil
 }
 func (m *mockShiftEntryForStaff) Delete(_ context.Context, _, _ uint64) error {
@@ -458,18 +458,18 @@ func (noopTransactor) WithTx(ctx context.Context, fn func(context.Context) error
 	return fn(ctx) //nolint:contextcheck // テスト用: 親 context をそのまま伝播
 }
 
-func newTestStaffService(repo *mockStaffRepository) StaffService {
-	return newTestStaffServiceWithAssignmentRepo(repo, &mockAssignmentForStaff{})
+func newTestService(repo *mockStaffRepository) Service {
+	return newTestServiceWithAssignmentRepo(repo, &mockAssignmentForStaff{})
 }
 
-func newTestStaffServiceWithAssignmentRepo(
+func newTestServiceWithAssignmentRepo(
 	repo *mockStaffRepository,
 	assignmentRepo StaffClinicAssignmentRepository,
-) StaffService {
-	return NewStaffService(repo, &mockAccountForStaff{}, assignmentRepo, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupRepository{}, &mockResStaffForStaff{}, nil, nil, noopTransactor{})
+) Service {
+	return NewService(repo, &mockAccountForStaff{}, assignmentRepo, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupRepository{}, &mockResStaffForStaff{}, nil, nil, noopTransactor{})
 }
 
-func TestStaffService_List(t *testing.T) {
+func TestService_List(t *testing.T) {
 	tests := []struct {
 		name       string
 		clinicID   uint64
@@ -526,7 +526,7 @@ func TestStaffService_List(t *testing.T) {
 					return tt.repoStaffs, tt.repoTotal, tt.repoErr
 				},
 			}
-			svc := newTestStaffService(repo)
+			svc := newTestService(repo)
 
 			staffs, total, err := svc.List(context.Background(), tt.clinicID, 1, 20)
 
@@ -544,7 +544,7 @@ func TestStaffService_List(t *testing.T) {
 	}
 }
 
-func TestStaffService_GetByID(t *testing.T) {
+func TestService_GetByID(t *testing.T) {
 	tests := []struct {
 		name      string
 		id        uint64
@@ -586,7 +586,7 @@ func TestStaffService_GetByID(t *testing.T) {
 					return tt.repoStaff, tt.repoErr
 				},
 			}
-			svc := newTestStaffService(repo)
+			svc := newTestService(repo)
 
 			staff, err := svc.GetByID(context.Background(), tt.id)
 
@@ -603,13 +603,13 @@ func TestStaffService_GetByID(t *testing.T) {
 	}
 }
 
-func TestStaffService_GetByID_NotFound(t *testing.T) {
+func TestService_GetByID_NotFound(t *testing.T) {
 	repo := &mockStaffRepository{
 		findByIDFn: func(_ context.Context, _ uint64) (*model.Staff, error) {
 			return nil, apperrors.WrapNotFound("staff", "999")
 		},
 	}
-	svc := newTestStaffService(repo)
+	svc := newTestService(repo)
 
 	staff, err := svc.GetByID(context.Background(), 999)
 
@@ -618,8 +618,8 @@ func TestStaffService_GetByID_NotFound(t *testing.T) {
 	assert.True(t, apperrors.IsNotFound(err))
 }
 
-// TestStaffService_Create_Success はスタッフ作成の正常ケースをテストする。
-func TestStaffService_Create_Success(t *testing.T) {
+// TestService_Create_Success はスタッフ作成の正常ケースをテストする。
+func TestService_Create_Success(t *testing.T) {
 	repo := &mockStaffRepository{
 		createFn: func(_ context.Context, staff *model.Staff) error {
 			// IDをシミュレート
@@ -627,7 +627,7 @@ func TestStaffService_Create_Success(t *testing.T) {
 			return nil
 		},
 	}
-	svc := newTestStaffService(repo)
+	svc := newTestService(repo)
 
 	input := &CreateStaffInput{
 		ClinicID: 1,
@@ -643,13 +643,13 @@ func TestStaffService_Create_Success(t *testing.T) {
 	assert.True(t, staff.IsActive)
 }
 
-func TestStaffService_Create_RepositoryError(t *testing.T) {
+func TestService_Create_RepositoryError(t *testing.T) {
 	repo := &mockStaffRepository{
 		createFn: func(_ context.Context, _ *model.Staff) error {
 			return errors.New("db connection error")
 		},
 	}
-	svc := newTestStaffService(repo)
+	svc := newTestService(repo)
 
 	input := &CreateStaffInput{
 		ClinicID: 1,
@@ -662,14 +662,14 @@ func TestStaffService_Create_RepositoryError(t *testing.T) {
 	assert.Nil(t, staff)
 }
 
-func TestStaffService_Create_RequiresClinicID(t *testing.T) {
+func TestService_Create_RequiresClinicID(t *testing.T) {
 	repo := &mockStaffRepository{
 		createFn: func(_ context.Context, _ *model.Staff) error {
 			t.Fatal("repository must not be called when clinic_id is missing")
 			return nil
 		},
 	}
-	svc := newTestStaffService(repo)
+	svc := newTestService(repo)
 
 	staff, err := svc.Create(context.Background(), &CreateStaffInput{Name: "clinic なし"})
 
@@ -678,13 +678,13 @@ func TestStaffService_Create_RequiresClinicID(t *testing.T) {
 	assert.True(t, apperrors.IsInvalidInput(err))
 }
 
-func TestStaffService_Create_DuplicateName(t *testing.T) {
+func TestService_Create_DuplicateName(t *testing.T) {
 	repo := &mockStaffRepository{
 		createFn: func(_ context.Context, _ *model.Staff) error {
 			return apperrors.WrapAlreadyExists("staff", "existing@example.com")
 		},
 	}
-	svc := newTestStaffService(repo)
+	svc := newTestService(repo)
 
 	input := &CreateStaffInput{
 		ClinicID: 1,
@@ -698,7 +698,7 @@ func TestStaffService_Create_DuplicateName(t *testing.T) {
 	assert.True(t, apperrors.IsAlreadyExists(err))
 }
 
-func TestStaffService_SetClinicAssignments_UpdatesPrimaryClinicID(t *testing.T) {
+func TestService_SetClinicAssignments_UpdatesPrimaryClinicID(t *testing.T) {
 	var created []model.StaffClinicAssignment
 	var primaryClinicID uint64
 	repo := &mockStaffRepository{
@@ -714,7 +714,7 @@ func TestStaffService_SetClinicAssignments_UpdatesPrimaryClinicID(t *testing.T) 
 			return nil
 		},
 	}
-	svc := NewStaffService(repo, &mockAccountForStaff{}, assignmentRepo, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupRepository{}, &mockResStaffForStaff{}, nil, existingClinicLookupForStaffAssignments(), noopTransactor{})
+	svc := NewService(repo, &mockAccountForStaff{}, assignmentRepo, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupRepository{}, &mockResStaffForStaff{}, nil, existingClinicLookupForStaffAssignments(), noopTransactor{})
 
 	err := svc.SetClinicAssignments(context.Background(), &SetClinicAssignmentsInput{
 		StaffID:             10,
@@ -730,14 +730,14 @@ func TestStaffService_SetClinicAssignments_UpdatesPrimaryClinicID(t *testing.T) 
 	assert.Equal(t, uint64(2), primaryClinicID)
 }
 
-func TestStaffService_SetClinicAssignments_RequiresClinicIDs(t *testing.T) {
+func TestService_SetClinicAssignments_RequiresClinicIDs(t *testing.T) {
 	repo := &mockStaffRepository{
 		updatePrimaryFn: func(_ context.Context, _, _ uint64) error {
 			t.Fatal("repository must not be called when clinic_ids is empty")
 			return nil
 		},
 	}
-	svc := NewStaffService(repo, &mockAccountForStaff{}, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupRepository{}, &mockResStaffForStaff{}, nil, nil, noopTransactor{})
+	svc := NewService(repo, &mockAccountForStaff{}, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupRepository{}, &mockResStaffForStaff{}, nil, nil, noopTransactor{})
 
 	err := svc.SetClinicAssignments(context.Background(), &SetClinicAssignmentsInput{
 		StaffID:             10,
