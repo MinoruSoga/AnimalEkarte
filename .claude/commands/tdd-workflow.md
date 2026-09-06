@@ -19,8 +19,8 @@ docker compose exec backend go test -run TestCreateOwner -v
 ### 2️⃣ Green（最小限の実装）
 ```bash
 # テストを通す最小限の実装
-# service/owner_service.go に CreateOwner() を実装
-docker compose exec backend go test -run TestCreateOwner -v
+# 対象 domain package（例: internal/owner）に最小実装を置く
+docker compose exec backend go test ./internal/owner/... -run TestCreateOwner -v
 # → PASS
 ```
 

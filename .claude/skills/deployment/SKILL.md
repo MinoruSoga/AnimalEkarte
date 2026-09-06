@@ -26,17 +26,19 @@ Frontend: git push → frontend-deploy.yml → vercel pull → vercel build → 
 デプロイは **GitHub Actions で自動実行**（`scripts/deploy.sh` は存在しない）。
 
 ```bash
-# ステージング: staging ブランチへの push で自動デプロイ（backend/** / frontend/** 変更時。frontend は production push でも発火）
-git push origin staging
+# 参照のみ。push / workflow_dispatch は USER の明示承認後。エージェントは自動実行しない
+# ステージング: staging ブランチへの push で自動デプロイ（backend/** / frontend/** 変更時）
+# git push origin staging
 
-# 手動トリガー (workflow_dispatch)
-# GitHub Actions → backend-deploy.yml / frontend-deploy.yml → Run workflow
+# 手動トリガー (workflow_dispatch) も USER 承認後
+# gh workflow run backend-deploy.yml
 
-# CI ステータス確認
+# CI ステータス確認（読み取り）
 gh run list --workflow=backend-deploy.yml
 gh run list --workflow=frontend-deploy.yml
-gh run watch
 ```
+
+ジョブ構成の正本は `ci-cd-automation`。デプロイ手順の正本はこのスキル。二重にジョブ一覧を増やさない。
 
 ## CI パイプライン（ci.yml）
 

@@ -23,10 +23,12 @@ REPEAT  → 次の要件に進む
 ### テストファイル配置
 テストファイルはテスト対象と同じパッケージに配置:
 ```
-backend/internal/service/
-├── owner_service.go
-└── owner_service_test.go  ← 同じディレクトリ
+backend/internal/reservation/
+├── liff_service.go
+└── liff_service_test.go  ← 同じ domain package
 ```
+
+`internal/service` / `internal/handler` / `internal/repository` は新規テストの置き場にしない。
 
 ### 必須: Table-Driven Tests
 ```go

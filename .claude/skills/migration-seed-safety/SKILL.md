@@ -1,6 +1,6 @@
 ---
 name: migration-seed-safety
-description: backend/migrations/ の新規作成・編集、およびseedバンドル（backend/migrations/seeds/{002_master,003_demo,004_staging}/*.csv + manifest.json）の差し替え作業における安全ガードレール。CASCADE DELETE禁止・clinic_idスコープ・checksum mismatch回避・クロステナントID衝突チェックを網羅。migration/seedファイルに触れる際に使用。
+description: backend/migrations/ と seed バンドルを触るときの安全ガード。発火は migration/seed 編集時だけ。CASCADE・clinic_id・checksum の詳細は本文を読む。
 ---
 
 # Migration / Seed Safety

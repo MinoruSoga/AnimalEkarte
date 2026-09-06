@@ -2,24 +2,29 @@
 
 > **目的**: 受け入れ結果をシナリオ ID だけでなく業務ドメイン単位で俯瞰する。
 > **正本リンク**: [scenarios/README.md](./scenarios/README.md) · [TEST_ARCHITECTURE.md](./TEST_ARCHITECTURE.md)
-> **最新ラン**: `reports/uat-2026-09-05-r14/`（r14 regression smoke）· PASS 16 / PARTIAL 1 / BLOCKED 1 / FAIL 0
-> **更新日**: 2026-09-05
+> **更新日**: 2026-09-06
+> **照合**: `QA-UAT-EVIDENCE-SYNC`。`reports/` は gitignore。コミット済み正本は本ファイルと [`bug.md`](../../../bug.md)。Linear は未照会（UNKNOWN）。
 
-## サマリ（シナリオ S01–S13 + V01–V05）
+最終実行スナップショット（2026-09-05 / `uat/20260905` @ `2cbd8d9ad` / local FE :3003 · BE :8080）:
 
-| Status | Count |
-|:---|---:|
-| PASS | 15 |
-| FAIL | 1 |
-| PARTIAL | 1 |
-| BLOCKED | 1 |
+| Status | Count | 内訳 |
+|:---|---:|:---|
+| PASS | 15 | S02 S03 S04 S05 S06 S07 S08 S10 S11 S12 S13 · V01 V02 V03 V05 |
+| FAIL | 1 | V04（最終実行時。主訴 DELETE。下記「現行」を見よ） |
+| PARTIAL | 1 | S01 |
+| BLOCKED | 1 | S09 |
+
+現行（2026-09-06 照合。再実行していない判定は推定で動かさない）:
 
 | 項目 | 値 |
 |:---|:---|
-| 実施日 | 2026-09-05 |
-| ブランチ | `uat/20260905` @ `2cbd8d9ad` |
-| 環境 | local（FE :3003 / BE :8080） |
-| 証跡 | [`reports/uat-2026-09-05-r7/`](../../../reports/uat-2026-09-05-r7/) · r6 CRUD · r5 シナリオ |
+| 開いている製品 FAIL（`bug.md`） | **0** |
+| V04 受入 | **UNKNOWN**（最終実行は FAIL。`b93008236` 以降に `inquiries.deleted_at` 非参照へ修正。再実行なし） |
+| S09 | **BLOCKED**（helper 不在。製品 FAIL ではない） |
+| S01 | **PARTIAL**（LSTEP 実送信は E1） |
+| r14 | ヘッダだけ「FAIL 0 / PASS 16」と書いてあった regression smoke。V04 再実行の証跡は本ファイルに無く、PASS 翻転ではない。ディレクトリは gitignore のため再読不可 |
+
+冒頭の FAIL 0 は「開いている製品 FAIL が 0」であり、最終実行の V04 FAIL を消したものではない。PASS 16 は V04 を PASS にした数え方なので使わない。
 
 ---
 
@@ -160,19 +165,20 @@
 | 実施日 | 2026-09-05 |
 | ブランチ | `uat/20260905` |
 | 環境 | local |
-| ドメイン総合判定 | **FAIL**（主訴 DELETE のみ） |
+| ドメイン総合判定 | **UNKNOWN**（最終実行 FAIL。現行 `bug.md` に未対応 FAIL なし。再実行なし） |
 
 | シナリオ | status |
 |:---|:---|
-| V04 | **FAIL**（主訴 DELETE 500 = BUG-20260905-001。他マスタ CRUD は r6+r7 で PASS） |
+| V04 | **UNKNOWN**（2026-09-05 最終実行は FAIL。主訴 DELETE 500 = 当時 BUG-20260905-001。他マスタ CRUD は r6+r7 PASS。2026-09-06 以降の再実行なし） |
 | closing-settings（S09 前提） | PASS（r6 GET/PATCH roundtrip） |
 
-- **Master CRUD 総合（r6+r7）**: PASS **26** / PARTIAL **0** / BLOCKED **0** / FAIL **1**（27 行）
-  - **FAIL**: `master-chief-complaint` DELETE 常時 500（`inquiries.deleted_at` 欠落）→ **BUG-20260905-001**（r7 再確認済）
+- **Master CRUD 総合（r6+r7・最終実行）**: PASS **26** / PARTIAL **0** / BLOCKED **0** / FAIL **1**（27 行）
+  - **最終実行 FAIL**: `master-chief-complaint` DELETE が `inquiries.deleted_at` 参照で 500 → 当時 BUG-20260905-001
+  - **コード側**: `b93008236` で usage count / DELETE が `inquiries.deleted_at` を見ない。`bug.md` は 2026-09-06 時点で未対応なし。これは V04 受入 PASS ではない
   - **r7 前進**: `lab-device-item-masters` PARTIAL→**PASS**（`lab-import:create` 一時付与）。`master-animal-species` BLOCKED→**PASS**（`is_system_admin` 一時付与）。権限は試験後に復元済
   - 診断・診療項目5タブ・薬剤・トリミング一式・支払方法・締め・請求書欄など他は CRUD PASS
-- **関連 bug IDs**: BUG-20260905-001（open）
-- **証跡**: [`reports/uat-2026-09-05-r7/FINAL-gap-clear.md`](../../../reports/uat-2026-09-05-r7/FINAL-gap-clear.md) · [`reports/uat-2026-09-05-r6/FINAL-master-crud.md`](../../../reports/uat-2026-09-05-r6/FINAL-master-crud.md)
+- **関連 bug IDs**: 現行 open なし。当時 ID は履歴のみ
+- **証跡**: 最終実行は r6/r7（`reports/` は gitignore）。再実行するまで V04 を PASS/FAIL にしない
 ## 認証・LINE / LSTEP（V05）
 
 | 項目 | 値 |
@@ -200,3 +206,4 @@
 2. 製品 FAIL のみルート `bug.md` へ（PARTIAL/BLOCKED は書かない）。
 3. 証跡は `reports/uat-YYYY-MM-DD(-postfix|-rN)/` に置き、シナリオ md は編集しない。
 4. S09 解除時は承認済み helper マージ後に #2–#6 を再実行し、本ファイルの会計ドメインとサマリを更新する。
+5. V04 は主訴 DELETE を disposable clinic で再実行してから UNKNOWN を外す。コード修正だけで PASS にしない。

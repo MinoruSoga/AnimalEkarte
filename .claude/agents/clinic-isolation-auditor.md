@@ -30,7 +30,7 @@ Preload("Vaccine", "deleted_at IS NULL")
 
 - 対象マスタの機械可読な正本は `preload_clinic_scope_lint_test.go` のallowlist（`Vaccine`/`Medicine`/`Procedure`/`Consultation`/`ReservationType`/`ExaminationType`/`CheckupType`/`DiagnosisType`等）
 - **例外: Staff関連**（`Doctor`/`CreatedByStaff`/`PaidByStaff`等）は多医院所属のため単純clinic_idスコープが禁止。`staff_clinic_assignments` へのEXISTS条件で判定する。歴史系Preloadの例外は実装allowlistと関連testを正本とし、推測で変更しない
-- **機械強制済み**: `go test ./internal/repository/ -run TestPreloadClinicScope` がread側を全走査している。CIが緑でも、新規マスタ追加時の allowlist 登録漏れは人間が確認する必要がある
+- **機械強制済み**: `go test ./internal/lintscan/ -run TestPreloadClinicScope` がread側を全走査している。CIが緑でも、新規マスタ追加時の allowlist 登録漏れは人間が確認する必要がある
 
 ### CRITICAL — request由来master FKの未検証永続化（write漏洩）
 
@@ -47,7 +47,7 @@ vaccination := &model.Vaccination{VaccineID: input.VaccineID, ...}
 
 - **ネストしたDTOのFK漏れに特に注意**（#124の再発パターン）: 親フィールド（`ExamTypeID`）は検証済みでも、ネストしたスライス内の子フィールド（`ExamTypeFieldID`）が未検証というケースが実際に発生している。DTOをネストごと辿って全master FKフィールドを洗い出すこと
 - 静的解析では正しさを保証できない（taint解析が必要）。**正本は各サイトのruntime isolation test**（`*_clinic_isolation_test.go`、`cross_tenant_master_fk_write_test.go`）。新規write経路には対応するisolation testが追加されているか確認する
-- **現行packageの網羅性チェック**: `go test ./internal/service/ -run TestMasterFKWriteInventory` は現在のservice packageでmaster FKを受け取るexported methodを検出する。ただし新しい凝集package、裸scalar、background/raw SQLはcoverage外になり得る。このlintだけで承認せず、全変更pathとruntime isolation testを確認する
+- **現行packageの網羅性チェック**: `go test ./internal/lintscan/ -run TestMasterFKWriteInventory` が domain package の write 入口を走査する。裸scalar、background/raw SQLはcoverage外になり得る。このlintだけで承認せず、全変更pathとruntime isolation testを確認する
 
 ### HIGH — Count/Existsクエリのスコープ漏れ
 
@@ -86,11 +86,12 @@ audit書き込み（`AuditService`/`auditRepository.Create`）が本体の更新
 ## 診断コマンド
 
 ```bash
-docker compose exec backend go test ./internal/repository/ -run TestPreloadClinicScope -v
-docker compose exec backend go test ./internal/service/ -run TestMasterFKWriteInventory -v
-docker compose exec backend go test ./internal/repository/... -run ClinicIsolation -v
-docker compose exec backend go test ./internal/service/... -run ClinicIsolation -v
+docker compose exec backend go test ./internal/lintscan/ -run TestPreloadClinicScope -v
+docker compose exec backend go test ./internal/lintscan/ -run TestMasterFKWriteInventory -v
+docker compose exec backend go test ./internal/billing/... -run ClinicIsolation -v
 ```
+
+ClinicIsolation の package は変更した domain に置き換える。存在しない `internal/repository` / `internal/service` を必須にしない。
 
 ## 承認基準
 

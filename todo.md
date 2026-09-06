@@ -1,6 +1,6 @@
 # タスク台帳 — Linear が正本
 
-更新日: 2026-09-06
+更新日: 2026-09-06（調査・設計・スキル正本）
 
 | 項目 | 値 |
 |------|-----|
@@ -34,22 +34,22 @@
 
 claim は作業 ID ごとに初回編集前に確認・取得し、既存 claim があれば BLOCKED。エージェントは claim ブランチを削除しない。main 統合または明示中止のあと USER が解放する。同じファイルを扱う ID は直列実行する。
 
-この更新の claim: `claim/LEDGER-TODO-EXECUTION-GATES`（本ファイルのレビュー指摘反映のみ）。過去の claim の解放状況は着手時に Git で確認する。
+この更新の claim: `claim/META-LINEAR-F1-F6` · `claim/QA-UAT-EVIDENCE-SYNC` · `claim/QA-UAT-S09-FIXTURE` · `claim/QA-FULL-CLINICAL-E2E` · `claim/SKILL-GO-REFS` · `claim/SKILL-API-EXAMPLES` · `claim/SKILL-REVIEW-EVIDENCE` · `claim/SKILL-ENTRY-SLIM` · `claim/SKILL-DEDUP` · `claim/SKILL-CODEX-MIRROR` · `claim/SKILL-REEVAL`。解放は USER。
 
 ---
 
-## 1. いま進める（agent / 直後の USER）
+## 1. 設計済み・実装は承認待ち
 
-| 優先 | ID | 実行者 | 状態 | 次の一手 | 完了条件 |
-|------|----|--------|------|----------|----------|
-| 1 | **META-LINEAR-F1-F6** | agent → USER | 未照会 | 読み取りで F1〜F6 と本ファイル ID を照合し、重複・対応先・変更案を作る | 調査完了: 対応案を提示。外部反映: 明示承認後に必要な ID だけ紐付ける。Done は USER |
-| 2 | **QA-UAT-EVIDENCE-SYNC** | agent → USER | 集計不整合・未照合 | `UAT-DOMAIN-STATUS.md` の冒頭 FAIL 0 / サマリ FAIL 1、最新報告、`bug.md`、Linear の対応を照合する | ローカル整理完了: 実施日・SHA・環境・scenario ごとの証跡と集計が一致、不明は UNKNOWN。Linear 更新は別承認。製品 FAIL を推測で追加・解消しない |
-| 3 | **QA-UAT-S09-FIXTURE** | agent → USER | 設計未完・再実行 BLOCKED | `completed_at` を指定できる fixture API / scoped UAT helper の設計案を作る | 設計完了: 下記の設計成果物を提示。実装・利用範囲の承認後に実装と局所検証。承認済み helper の統合後、S09 #2〜#6 の再実行証跡と UAT 集計を更新して解除 |
-| 4 | **QA-FULL-CLINICAL-E2E** | agent → USER | 設計未完・実行承認待ち | auth smoke と区別し、clinical/data-dependent E2E の fixture・allowlist・cleanup を設計する | 設計完了: 下記の設計成果物を提示。実装範囲確定後にローカル実装・局所検証。full suite 実行は別承認、成功・cleanup・秘密非出力を証拠化 |
+エージェントが閉じられる調査・設計・スキル正本修正は完了。実装・UAT 再実行・Linear Done・push は残さない（USER ゲートへ）。
 
-fixture / E2E の設計成果物は、対象 scenario、使い捨て環境・clinic、合成データ、変更ファイル、許可操作、環境誤指定時の停止、cleanup / 失敗時回収、局所検証コマンド、承認が必要な実行操作を含む。S09 は既存会計の改変・直接 DB 更新・システム時計変更を禁止する（[シナリオ正本](docs/ops/testing/scenarios/S09-closing-time-boundaries.md)）。設計完了・実装検証済み・承認待ち・実行 PASS は別々に Linear へ記録し、設計だけで UAT / E2E を PASS にしない。集計の正本は [UAT-DOMAIN-STATUS.md](docs/ops/testing/UAT-DOMAIN-STATUS.md)、E2E の範囲は [TEST_ARCHITECTURE.md](docs/ops/testing/TEST_ARCHITECTURE.md)。
+| ID | 成果物 | 次の USER 操作 |
+|----|--------|----------------|
+| **META-LINEAR-F1-F6** | [linear-f1-f6-mapping.md](docs/work/linear-f1-f6-mapping.md)。Linear 本体は UNKNOWN | 明示承認後に必要な ID だけ紐付け。Done は USER |
+| **QA-UAT-EVIDENCE-SYNC** | [UAT-DOMAIN-STATUS.md](docs/ops/testing/UAT-DOMAIN-STATUS.md) を最終実行と現行 open FAIL で分離。V04 は UNKNOWN。製品 FAIL は追加していない | V04 再実行と Linear 更新は別承認 |
+| **QA-UAT-S09-FIXTURE** | [S09-FIXTURE-DESIGN.md](docs/ops/testing/S09-FIXTURE-DESIGN.md)。S09 は BLOCKED のまま | helper 実装の承認 |
+| **QA-FULL-CLINICAL-E2E** | [CLINICAL-E2E-DESIGN.md](docs/ops/testing/CLINICAL-E2E-DESIGN.md)。auth smoke と混同しない | fixture 実装と full suite 実行は別承認 |
 
-閉じた項目（履歴は git）: `CI-BE-DBORTX-INVENTORY`、`CI-K6-SUMMARY-SCHEMA`、`CI-K6-RUNTIME-CLOSEOUT`、`LEDGER-CI-EVIDENCE-SYNC`、`FE-CLINICAL-PLAN-SELECT-LABELS`、`DOC-MANUAL-SOURCE-SYNC`、`CLINICAL-IRREVERSIBLE-GUARD`（確認のみ）、`FE-TRIMMING-GUARDS`（現 HEAD で充足）、`BE-RC-036`、`LEDGER-TODO-NOW-POINTER`。
+閉じた項目（履歴は git）: 上記 4 ID の調査/設計、スキル監査一式（GO-REFS〜REEVAL）、`CI-BE-DBORTX-INVENTORY`、`CI-K6-SUMMARY-SCHEMA`、`CI-K6-RUNTIME-CLOSEOUT`、`LEDGER-CI-EVIDENCE-SYNC`、`FE-CLINICAL-PLAN-SELECT-LABELS`、`DOC-MANUAL-SOURCE-SYNC`、`CLINICAL-IRREVERSIBLE-GUARD`（確認のみ）、`FE-TRIMMING-GUARDS`、`BE-RC-036`、`LEDGER-TODO-NOW-POINTER`。
 
 ### 記録済み証拠と現在の確認範囲
 
@@ -173,36 +173,20 @@ H3-3 TTL 資格情報は前回観測で gitignored `scripts/stg-uat-old-db-hando
 
 ---
 
-## 5. スキル・AGENTS.md 監査の残
+## 5. スキル監査
 
-監査基準: [Rethinking skills and prompts for GPT-6 Astra](https://x.com/pvncher/status/2095991462416490862)。依存パッケージ内の Redux/Playwright/Recharts は対象外。
+正本修正は完了。再評価: [skill-reeval-2026-09-06.md](docs/work/skill-reeval-2026-09-06.md)。Linear 反映は USER。
 
-このセッションで閉じたもの: Docker 復旧の破壊例、フロント秘密/ログ例、DB 診断の秘密表示、一時改変の HEAD 巻き戻し、fresh-DB の共有 DROP、YAML 引用符、旧台帳書込み、モデル固定の手動差戻し、AGENTS.md の作業別案内、task-create / implement / browser-test の記録先。
-
-残るのは現行実装との例合わせと、長い教材の入口整理。各 ID を個別に claim する。実行者は agent（ローカル修正・局所検証）、外部反映は USER 承認後。全 ID の着手・完了状況は Linear 未照会のため、以下は残件候補として重複と現行差分を確認してから進める。
-
-実行順は GO-REFS → API-EXAMPLES → REVIEW-EVIDENCE → ENTRY-SLIM → DEDUP → CODEX-MIRROR → REEVAL。`test-generation` / `go-security` などの共通ファイルは直列で引き継ぐ。各 ID の着手時に編集対象を列挙し、ミラー同期は作業ブランチ上で正本の修正差分を揃えた後、再評価は同期後に行う。同期先は repo 内に限定し、ユーザーのグローバル設定変更は含めない。
-
-| ID | 優先 | 対象 | 完了条件 |
-|----|------|------|----------|
-| **SKILL-CODEX-MIRROR** | 2 | sync 後の Codex ミラー、`pre-bash-commit-quality.js`、`scoped-verification-gates` ミラー | 正本修正後に同期し、生成物差分を読み取りで検出できる |
-| **SKILL-GO-REFS** | 2 | golang-testing / golang-refactoring / test-generation / clinic-isolation-auditor / tdd-workflow | 現行 domain package・実在 mock へ案内。Session A/B と存在しない go-linting を必須にしない |
-| **SKILL-API-EXAMPLES** | 2 | go-security / react-security / api-documentation / test-generation / performance-profiling / postgres-patterns | Wrap、Gin handler、CookieAuth/CSRF、応答、コンテナ内ポートを正本と一致 |
-| **SKILL-REVIEW-EVIDENCE** | 2 | review / harness / implement-issue / go-security | 未測定 coverage や未実行テストを PASS と表示しない |
-| **SKILL-ENTRY-SLIM** | 3 | 長い description のスキル群 | 発火条件を狭くし、手法列挙は必要時だけ読む |
-| **SKILL-DEDUP** | 3 | react-security×security-checklist、deployment×ci-cd、implement×implement-issue 等 | 正本へ案内し二重管理を減らす |
-| **SKILL-REEVAL** | 3 | 代表タスクでの再評価 | docs 誤字・局所 Go・FE テスト・migration・STG 準備で必要資料と停止判断が整合 |
-
-個別確認の残: `refactor.md` の export 機械削除は Feature Indexing の公開契約確認へ。`deployment` の push/dispatch は承認境界をその場で明記。
+閉じた ID: `SKILL-GO-REFS`、`SKILL-API-EXAMPLES`、`SKILL-REVIEW-EVIDENCE`、`SKILL-ENTRY-SLIM`、`SKILL-DEDUP`、`SKILL-CODEX-MIRROR`（正本修正済み。ミラーは `.agents/` gitignore。commit hook / `sync-agents-skills.sh`）、`SKILL-REEVAL`。
 
 ---
 
 ## 次の一手
 
-1. agent: **META-LINEAR-F1-F6** を読み取り照合し、対応案を提示する。Linear への反映は明示承認後。
-2. agent: **QA-UAT-EVIDENCE-SYNC** で集計の整合を確認し、S09 / full E2E の設計成果物を準備する。実行承認待ちと設計完了を分ける。
-3. USER / old_db: **HAC-CSV-1** の現行証跡を確認し、必要な producer 出力と handoff を進める。agent はこの repo から出力しない。
-4. USER: STG 実行ゲートと **H3-9** の現行成否を確認し、必要な場合だけ承認済み apply、その後 **H3-11** の画面確認を行う（行値は残さない）。
+1. USER: [linear-f1-f6-mapping.md](docs/work/linear-f1-f6-mapping.md) を見て、必要な Linear 紐付けだけ承認する。Done は USER。
+2. USER: S09 helper / clinical E2E fixture の実装を承認するまで、UAT/E2E を PASS にしない。
+3. USER / old_db: **HAC-CSV-1** の現行証跡を確認する。agent はこの repo から八王子 CSV を出さない。
+4. USER: STG 実行ゲートと **H3-9** の現行成否を確認する。
 
 ---
 
@@ -211,6 +195,9 @@ H3-3 TTL 資格情報は前回観測で gitignored `scripts/stg-uat-old-db-hando
 | 文書 | 役割 |
 |------|------|
 | [`todo-now.md`](todo-now.md) | Astra F1〜F6 の完了履歴と本ファイルへの入口 |
+| [docs/work/linear-f1-f6-mapping.md](docs/work/linear-f1-f6-mapping.md) | F1〜F6 と ledger ID の対応案。Linear は UNKNOWN |
+| [docs/ops/testing/S09-FIXTURE-DESIGN.md](docs/ops/testing/S09-FIXTURE-DESIGN.md) | S09 `completed_at` helper 設計。実装は承認後 |
+| [docs/ops/testing/CLINICAL-E2E-DESIGN.md](docs/ops/testing/CLINICAL-E2E-DESIGN.md) | clinical E2E 設計。auth smoke と分離 |
 | [`todo-po.md`](todo-po.md) | 入口ポインタ |
 | [`bug.md`](bug.md) | 確認済み製品 FAIL |
 | [docs/ops/deploy/CLINIC_CSV_IMPORT.md](docs/ops/deploy/CLINIC_CSV_IMPORT.md) | F6 21表 cutover |

@@ -1,6 +1,6 @@
 ---
 name: go-gin-backend
-description: "Go/Gin backendを公式一次資料に基づいて設計・実装・レビューする。package境界、consumer-side interface、Context伝播、Gin route/binding/DI/error/security、goroutine、graceful shutdown、httptestを扱う。固定layerやClean Architectureは強制しない。"
+description: "Go/Gin backend の設計・実装・レビュー。発火は backend の新規実装やレビュー時。固定 layer は強制しない。詳細は本文と go-gin-backend-guidelines。"
 license: MIT
 metadata:
   version: 2.0.0-animal-ekarte

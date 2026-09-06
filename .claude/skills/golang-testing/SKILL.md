@@ -17,22 +17,24 @@ origin: ECC (adapted for AnimalEkarte)
 
 ## テスト配置（このプロジェクト）
 
+新規 production 実装は ADR-006 の domain package へ置く。`internal/handler` / `internal/service` / `internal/repository` は移行済みで、新規テストの置き場にしない。
+
 ```
 backend/internal/
-├── service/
-│   ├── owner_service.go
-│   └── owner_service_test.go   ← 同パッケージ
-├── repository/
-│   ├── owner_repository.go
-│   └── owner_repository_test.go
-└── handler/
-    ├── owner_handler.go
-    └── owner_handler_test.go
+├── reservation/
+│   ├── liff_service.go
+│   ├── liff_service_mock_test.go   ← 手書き fn-field モック
+│   └── liff_service_test.go
+├── billing/
+│   └── service_mocks_test.go
+├── testdb/
+│   └── testdb.go                   ← SetupTestDB / Truncate
+└── lintscan/                       ← inventory lint（go/ast）
 ```
 
 ## Table-Driven Tests（必須パターン）
 
-モックは**手書き fn-field 差し替え型**（実例: `backend/internal/service/liff_service_mock_test.go`）。testify/mock の `m.On(...)` / `mock.Anything` / `AssertExpectations` は使わない。
+モックは**手書き fn-field 差し替え型**（実例: `backend/internal/reservation/liff_service_mock_test.go`）。testify/mock の `m.On(...)` / `mock.Anything` / `AssertExpectations` は使わない。
 
 ```go
 package service
@@ -113,7 +115,7 @@ func TestOwnerService_GetOwner(t *testing.T) {
 ```go
 func TestOwnerRepository_GetByID(t *testing.T) {
     // テスト DB を使用（Docker の test DB）
-    db := setupTestDB(t)  // 各 repository テスト共通ヘルパ（testutil パッケージは存在しない）
+    db := testdb.SetupTestDB(t)
 
     tests := []struct {
         name      string
@@ -211,28 +213,23 @@ func TestOwnerHandler_GetOwner(t *testing.T) {
 
 ## テスト実行コマンド
 
-> ⚠️ `go test ./...` の全体実行は CLAUDE.md の自動実行禁止コマンド。スコープ限定版
-> （例: `go test ./internal/service/...`）を使うか、ユーザーに手動実行を依頼する。
+> ⚠️ `go test ./...` の全体実行は CLAUDE.md の自動実行禁止コマンド。変更した domain package に絞る。
+> 例: `go test ./internal/reservation/...`。存在しない `internal/service` を必須にしない。
 
 ```bash
 # 全テスト実行（⚠️ 自動実行禁止。ユーザー手動実行を依頼）
 docker compose exec backend go test ./...
 
-# カバレッジ付き（⚠️ 自動実行禁止。ユーザー手動実行を依頼）
-docker compose exec backend go test ./... -cover
-
 # 特定パッケージ（✅ スコープ限定・自動実行可）
-docker compose exec backend go test ./internal/service/... -v
+docker compose exec backend go test ./internal/reservation/... -v
+docker compose exec backend go test ./internal/lintscan/... -run TestPreloadClinicScope -v
 
-# レースコンディション検出（⚠️ 全体実行は自動実行禁止。スコープ限定版を使う）
-docker compose exec backend go test ./... -race
-docker compose exec backend go test ./internal/service/... -race
-
-# カバレッジレポート（⚠️ 全体実行は自動実行禁止。スコープ限定版を使う）
-docker compose exec backend go test ./... -coverprofile=coverage.out
-docker compose exec backend go test ./internal/service/... -coverprofile=coverage.out
-docker compose exec backend go tool cover -html=coverage.out
+# レース / カバレッジも同じ package に絞る
+docker compose exec backend go test ./internal/reservation/... -race
+docker compose exec backend go test ./internal/reservation/... -coverprofile=coverage.out
 ```
+
+未実行のテストや未測定の coverage を PASS / 80% として書かない。実行したコマンドと結果だけを記録する。
 
 ## テストの命名規則
 

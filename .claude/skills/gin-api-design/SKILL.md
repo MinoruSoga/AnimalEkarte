@@ -1,6 +1,6 @@
 ---
 name: gin-api-design
-description: "Gin公式のAPI design patternを基に、resource routing、versioning、binding、validation、response/error、pagination、authentication/authorizationを設計する。folder/layer構成は規定しない。"
+description: "Gin の resource routing / binding / error を設計する。発火は API 契約を決めるとき。folder/layer は規定しない。"
 origin: ECC (adapted for AnimalEkarte)
 ---
 

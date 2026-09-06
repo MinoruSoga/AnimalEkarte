@@ -12,7 +12,7 @@ origin: ECC (adapted for AnimalEkarte)
 
 - **本スキル**: 認証・入力検証・シークレット管理・OWASP Top10 全般の統合チェックリスト
 - **go-security**: Go/Gin/GORM 固有の実装詳細（gosec, SQLi のパラメータ化, bcrypt/JWT の Go 実装）
-- **react-security**: React/TSX 固有の実装詳細（dangerouslySetInnerHTML, CSRF token 管理, localStorage）
+- **react-security**: React/TSX 固有（dangerouslySetInnerHTML、`X-Requested-With` CSRF、CookieAuth）。CSRF 一般論は本スキル、実装差分は react-security
 
 3スキルとも参照してよいが、本文の重複を避けるため OWASP 一般論は本スキルに集約し、go-security/react-security は言語固有の diff のみを持つ。
 

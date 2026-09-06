@@ -13,4 +13,4 @@ Astra監査 F1〜F6 の実装は `origin/main` へ統合済み。未完了の後
 - F3 k6 aggregate の原因は `metric.values.*` のみ参照。修正本体は `todo.md` の `CI-K6-SUMMARY-SCHEMA`
 - 「診断カテゴリ」「診断病名」label 接続は `FE-CLINICAL-PLAN-SELECT-LABELS`
 
-Linear の F1〜F6 重複確認は `todo.md` の `META-LINEAR-F1-F6`。
+Linear の F1〜F6 対応案は [docs/work/linear-f1-f6-mapping.md](docs/work/linear-f1-f6-mapping.md)。Linear 本体は UNKNOWN。Done は USER。

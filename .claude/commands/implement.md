@@ -13,7 +13,7 @@ argument-hint: "TASK-XXX | BUG-XXX"
 
 タスクが GitHub Issue（`#NNN`）を参照する場合、仕様・受け入れ条件の正本は該当 Issue 本文とコメント。`3-session-agent.html` は Issue 分類ビューであり台帳ではない（旧 `#ledger` は 2026-07-31 廃止・経緯は git 履歴）。
 
-スキル `implement-issue` を使用して、以下の5フェーズを実行:
+手順の正本はスキル `implement-issue`。このコマンドは起動入口だけを持つ。以下の5フェーズを実行:
 1. タスク読み込み・claim 確認（AGENTS.md packet claim protocol）・依存関係チェック
 2. コンテキスト収集（対象ファイル・参照実装・コーディングルール）
 3. コード規約準拠の実装
