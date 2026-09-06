@@ -21,7 +21,7 @@ type mockExaminationRepository struct {
 	findByIDFn               func(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
 	lockByIDForUpdateFn      func(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
 	createFn                 func(ctx context.Context, exam *model.Examination) error
-	updateFieldsFn           func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Examination, error)
+	updateFieldsFn           func(ctx context.Context, clinicID, id uint64, cmd UpdateExaminationInput) (*model.Examination, error)
 	deleteFn                 func(ctx context.Context, clinicID, id uint64) error
 	countItemsByExamIDFn     func(ctx context.Context, clinicID, examID uint64) (int64, error)
 	findAllItemsByExamIDFn   func(ctx context.Context, clinicID, examID uint64) ([]model.ExamResult, error)
@@ -59,8 +59,8 @@ func (m *mockExaminationRepository) Create(ctx context.Context, exam *model.Exam
 	return m.createFn(ctx, exam)
 }
 
-func (m *mockExaminationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Examination, error) {
-	return m.updateFieldsFn(ctx, clinicID, id, fields)
+func (m *mockExaminationRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateExaminationInput) (*model.Examination, error) {
+	return m.updateFieldsFn(ctx, clinicID, id, cmd)
 }
 
 func (m *mockExaminationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -112,8 +112,8 @@ func (m *mockExaminationRepository) ConfirmWithRevisionCAS(
 	if m.confirmWithRevisionCASFn != nil {
 		return m.confirmWithRevisionCASFn(ctx, clinicID, examinationID, expectedStatus, version)
 	}
-	updated, err := m.Update(ctx, clinicID, examinationID, map[string]any{
-		"status": model.ExaminationStatusConfirmed,
+	updated, err := m.Update(ctx, clinicID, examinationID, UpdateExaminationInput{
+		Status: ptr(model.ExaminationStatusConfirmed),
 	})
 	if updated != nil {
 		updated.CurrentRevisionVersion = cloneUint64(version)
@@ -598,7 +598,7 @@ func TestExaminationService_Update(t *testing.T) {
 					}
 					return &model.Examination{ID: 1, Status: status, MedicalRecordID: tt.existingMedRecID}, nil
 				},
-				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Examination, error) {
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateExaminationInput) (*model.Examination, error) {
 					if tt.repoErr != nil {
 						return nil, tt.repoErr
 					}
@@ -654,7 +654,7 @@ func TestExaminationService_UpdateUsesLockedExamStatus(t *testing.T) {
 		lockByIDForUpdateFn: func(_ context.Context, _, id uint64) (*model.Examination, error) {
 			return &model.Examination{ID: id, Status: model.ExaminationStatusConfirmed}, nil
 		},
-		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Examination, error) {
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateExaminationInput) (*model.Examination, error) {
 			updateCalled = true
 			return &model.Examination{ID: 1}, nil
 		},
@@ -682,7 +682,7 @@ func TestExaminationService_UpdateLocksExamThenMedicalRecordsInStableOrder(t *te
 				ExamTypeID: 1, Status: model.ExaminationStatusPending,
 			}, nil
 		},
-		updateFieldsFn: func(_ context.Context, clinicID, id uint64, _ map[string]any) (*model.Examination, error) {
+		updateFieldsFn: func(_ context.Context, clinicID, id uint64, _ UpdateExaminationInput) (*model.Examination, error) {
 			order = append(order, "update")
 			return &model.Examination{ID: id, ClinicID: clinicID, MedicalRecordID: &destinationMedicalRecordID}, nil
 		},
@@ -1279,7 +1279,7 @@ func TestExaminationService_UpdateRejectsItemsOnCompletedSeal(t *testing.T) {
 		lockByIDForUpdateFn: func(_ context.Context, _, id uint64) (*model.Examination, error) {
 			return &model.Examination{ID: id, ExamTypeID: 1, Status: model.ExaminationStatusCompleted}, nil
 		},
-		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Examination, error) {
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateExaminationInput) (*model.Examination, error) {
 			updateCalled = true
 			return nil, nil
 		},
@@ -1657,7 +1657,7 @@ func TestExaminationService_Update_RevalidatesEffectivePatient(t *testing.T) {
 				PetID: ptrUint64(recordPetID), ExamTypeID: 1, Status: model.ExaminationStatusPending,
 			}, nil
 		},
-		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Examination, error) {
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateExaminationInput) (*model.Examination, error) {
 			updateCalls++
 			return &model.Examination{ID: examID}, nil
 		},
@@ -1706,7 +1706,7 @@ func testExaminationUpdateRejectsDeceasedPetBeforeWrites(t *testing.T) {
 				ExamTypeID: 1, Status: model.ExaminationStatusPending,
 			}, nil
 		},
-		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Examination, error) {
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateExaminationInput) (*model.Examination, error) {
 			updateCalls++
 			return &model.Examination{
 				ID: examID, ClinicID: clinicID, PetID: ptrUint64(newPetID),
@@ -1772,7 +1772,7 @@ func testExaminationUpdateRecordRejectsDeceasedPetBeforeWrites(t *testing.T) {
 				Status: model.ExaminationStatusPending,
 			}, nil
 		},
-		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Examination, error) {
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateExaminationInput) (*model.Examination, error) {
 			updateCalls++
 			return &model.Examination{
 				ID: examID, ClinicID: clinicID, MedicalRecordID: ptrUint64(medicalRecordID),
@@ -1845,9 +1845,10 @@ func testExaminationUpdateAllowsExistingDeceasedPet(t *testing.T) {
 				ExamTypeID: 1, Status: model.ExaminationStatusPending,
 			}, nil
 		},
-		updateFieldsFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.Examination, error) {
+		updateFieldsFn: func(_ context.Context, _, _ uint64, cmd UpdateExaminationInput) (*model.Examination, error) {
 			updateCalls++
-			assert.Equal(t, summary, fields["result_summary"])
+			require.NotNil(t, cmd.ResultSummary)
+			assert.Equal(t, summary, *cmd.ResultSummary)
 			return &model.Examination{
 				ID: examID, ClinicID: clinicID, PetID: ptrUint64(petID),
 				ExamTypeID: 1, Status: model.ExaminationStatusPending, ResultSummary: summary,
@@ -1898,7 +1899,7 @@ func TestExaminationService_Update_RejectsPetChangeAfterRevisionHistory(t *testi
 				Status: model.ExaminationStatusCompleted, CurrentRevisionVersion: ptrUint64(version),
 			}, nil
 		},
-		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Examination, error) {
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateExaminationInput) (*model.Examination, error) {
 			updateCalls++
 			return nil, nil
 		},
@@ -1948,9 +1949,10 @@ func TestExaminationService_Update_AllowsHistoricalOwnerAfterPetTransfer(t *test
 			copy := *baseExam
 			return &copy, nil
 		},
-		updateFieldsFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.Examination, error) {
+		updateFieldsFn: func(_ context.Context, _, _ uint64, cmd UpdateExaminationInput) (*model.Examination, error) {
 			updateCalls++
-			assert.Equal(t, summary, fields["result_summary"])
+			require.NotNil(t, cmd.ResultSummary)
+			assert.Equal(t, summary, *cmd.ResultSummary)
 			return &model.Examination{ID: examID, ClinicID: clinicID, ResultSummary: summary}, nil
 		},
 	}
@@ -2043,7 +2045,7 @@ func TestExaminationService_Update_AllowsHistoricalOwnerAfterPetTransfer(t *test
 				copy := foreignExam
 				return &copy, nil
 			},
-			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Examination, error) {
+			updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateExaminationInput) (*model.Examination, error) {
 				updateCalls++
 				return &model.Examination{ID: examID}, nil
 			},

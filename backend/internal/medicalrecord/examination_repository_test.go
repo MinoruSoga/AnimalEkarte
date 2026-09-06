@@ -434,19 +434,19 @@ func TestExaminationRepository_Update(t *testing.T) {
 	exam := makeExaminationRec(t, db, &model.Examination{ClinicID: clinicA, ExamTypeID: et.ID, Date: time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC)})
 
 	t.Run("同一クリニックで更新できる", func(t *testing.T) {
-		got, err := repo.Update(ctx, clinicA, exam.ID, map[string]any{"status": string(model.ExaminationStatusCompleted)})
+		got, err := repo.Update(ctx, clinicA, exam.ID, UpdateExaminationInput{Status: ptr(model.ExaminationStatusCompleted)})
 		require.NoError(t, err)
 		assert.Equal(t, model.ExaminationStatusCompleted, got.Status)
 	})
 
 	t.Run("別クリニックからの更新は NotFound", func(t *testing.T) {
-		_, err := repo.Update(ctx, clinicB, exam.ID, map[string]any{"status": string(model.ExaminationStatusConfirmed)})
+		_, err := repo.Update(ctx, clinicB, exam.ID, UpdateExaminationInput{Status: ptr(model.ExaminationStatusConfirmed)})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
 	t.Run("存在しない ID の更新は NotFound", func(t *testing.T) {
-		_, err := repo.Update(ctx, clinicA, 999999, map[string]any{"status": string(model.ExaminationStatusConfirmed)})
+		_, err := repo.Update(ctx, clinicA, 999999, UpdateExaminationInput{Status: ptr(model.ExaminationStatusConfirmed)})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})

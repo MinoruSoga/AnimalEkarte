@@ -199,18 +199,13 @@ func (s *clinicalPlanService) GetOrCreate(ctx context.Context, clinicID, medical
 		return plan, nil
 	}
 	if !apperrors.IsNotFound(err) {
-		slog.ErrorContext(ctx, "failed to get clinical plan", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get clinical plan")
 	}
 	if _, ownerErr := s.medRec.FindByID(ctx, clinicID, medicalRecordID); ownerErr != nil {
-		if !apperrors.IsNotFound(ownerErr) {
-			slog.ErrorContext(ctx, "failed to verify parent medical record", "error", ownerErr)
-		}
 		return nil, apperrors.Wrap(ownerErr, "failed to verify parent medical record")
 	}
 	plan = &model.ClinicalPlan{MedicalRecordID: medicalRecordID}
 	if err := s.repo.Create(ctx, plan); err != nil {
-		slog.ErrorContext(ctx, "failed to create clinical plan", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create clinical plan")
 	}
 	slog.InfoContext(ctx, "clinical_plan created",
@@ -347,7 +342,6 @@ func (s *clinicalPlanService) Update(ctx context.Context, clinicID, medicalRecor
 		}
 		plan, err := s.GetOrCreate(txCtx, clinicID, medicalRecordID)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to get or create clinical plan", "error", err)
 			return apperrors.Wrap(err, "failed to get or create clinical plan")
 		}
 		if err := s.validateDiagnosisFKs(txCtx, clinicID, input); err != nil {
@@ -375,12 +369,10 @@ func (s *clinicalPlanService) Update(ctx context.Context, clinicID, medicalRecor
 		// Snapshot before mutation for audit OldValue (do not mutate plan pointer fields after).
 		before := *plan
 		if err := s.repo.Update(txCtx, clinicID, plan.ID, effective, input.Version); err != nil {
-			slog.ErrorContext(txCtx, "failed to update clinical plan", "error", err)
 			return apperrors.Wrap(err, "failed to update clinical plan")
 		}
 		reloaded, err := s.repo.FindByMedicalRecordID(txCtx, clinicID, medicalRecordID)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to get updated clinical plan", "error", err)
 			return apperrors.Wrap(err, "failed to get updated clinical plan")
 		}
 		if err := s.auditUpdateTx(txCtx, clinicID, input.ActorID, &before, reloaded); err != nil {
@@ -439,7 +431,6 @@ func (s *clinicalPlanService) Delete(ctx context.Context, clinicID, medicalRecor
 		// clinical field content for legal audit is this OldValue, not the tombstoned row alone).
 		before := *plan
 		if err := s.repo.Delete(txCtx, clinicID, plan.ID); err != nil {
-			slog.ErrorContext(txCtx, "failed to delete clinical plan", "error", err, "clinic_id", clinicID, "clinical_plan_id", plan.ID)
 			return apperrors.Wrap(err, "failed to delete clinical plan")
 		}
 		return s.auditDeleteTx(txCtx, clinicID, actorID, &before)

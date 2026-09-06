@@ -64,7 +64,7 @@ func (r *stubReportExamRepo) FindByJobID(_ context.Context, clinicID uint64, job
 }
 
 func (r *stubReportExamRepo) Create(_ context.Context, _ *model.Examination) error { return nil }
-func (r *stubReportExamRepo) Update(_ context.Context, _, _ uint64, _ map[string]any) (*model.Examination, error) {
+func (r *stubReportExamRepo) Update(_ context.Context, _, _ uint64, _ UpdateExaminationInput) (*model.Examination, error) {
 	return nil, nil
 }
 func (r *stubReportExamRepo) Delete(_ context.Context, _, _ uint64) error { return nil }

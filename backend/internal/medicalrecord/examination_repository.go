@@ -23,7 +23,7 @@ type ExaminationRepository interface {
 	// FindByJobID は clinic_id + job_id で絞り込んだ exams を日付降順で返す（Phase 4B.2）。
 	FindByJobID(ctx context.Context, clinicID uint64, jobID uuid.UUID) ([]*model.Examination, error)
 	Create(ctx context.Context, exam *model.Examination) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Examination, error)
+	Update(ctx context.Context, clinicID, id uint64, cmd UpdateExaminationInput) (*model.Examination, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	CountItemsByExamID(ctx context.Context, clinicID, examID uint64) (int64, error)
 	FindAllItemsByExamID(ctx context.Context, clinicID, examID uint64) ([]model.ExamResult, error)
@@ -156,7 +156,11 @@ func (r *examinationRepository) Create(ctx context.Context, exam *model.Examinat
 }
 
 // Update は persistence.DBOrTx(ctx, r.db) で ambient tx に参加する（Create と同じ理由、BE-refactor.md X-11）。
-func (r *examinationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Examination, error) {
+func (r *examinationRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateExaminationInput) (*model.Examination, error) {
+	return r.update(ctx, clinicID, id, buildExaminationUpdate(cmd))
+}
+
+func (r *examinationRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Examination, error) {
 	if err := persistence.UpdateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.Examination{}, "exam", clinicID, id, fields); err != nil {
 		return nil, err
 	}

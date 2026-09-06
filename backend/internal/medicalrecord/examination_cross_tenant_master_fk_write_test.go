@@ -56,7 +56,7 @@ func TestExaminationService_Update_RejectsCrossClinicExamType(t *testing.T) {
 			findByIDFn: func(_ context.Context, _, id uint64) (*model.Examination, error) {
 				return &model.Examination{ID: id, ClinicID: clinicID, Status: model.ExaminationStatusPending}, nil
 			},
-			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Examination, error) {
+			updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateExaminationInput) (*model.Examination, error) {
 				*updated = true
 				return &model.Examination{ID: 1}, nil
 			},

@@ -2,7 +2,6 @@ package medicalrecord
 
 import (
 	"context"
-	"log/slog"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -36,7 +35,6 @@ func (s *examinationService) createExaminationInTx(
 	}
 
 	if err := s.repo.Create(txCtx, exam); err != nil {
-		slog.ErrorContext(txCtx, "failed to create examination", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create examination")
 	}
 	if input.Items != nil {

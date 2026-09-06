@@ -8,10 +8,10 @@
 - 方法: 現行 HEAD で母集団を取り直し、production `.go` をバッチ精読。機械検出で BindJSON / MustBind、`slog.ErrorContext` in `*service*.go`、`err.Error()` Contains、exported `Update(..., map[string]any)`、800 行超を再走査。旧台帳 HEAD `321fe2b8d` / 981 は stale とし正本にしない。旧 DONE は未修正として再掲しない
 - 各所見の `path` は `backend/` 起点。行番号は `6739b6402` 時点
 - Handler → Service → Repository / Clean Architecture は Go/Gin 公式要件ではない。再導入しない
-- カバレッジ行: OK 965 / FINDING 14 / SKIP 3
-- 開いた所見: HIGH 0 / MEDIUM 2 / LOW 2
+- カバレッジ行: OK 976 / FINDING 3 / SKIP 3
+- 開いた所見: HIGH 0 / MEDIUM 1 / LOW 1
 - 2026-09-06 に閉じた: BE-RC-021 / 023 / 034 / 035 / 036
-- 2026-09-07 に閉じた: BE-RC-009 / 015
+- 2026-09-07 に閉じた: BE-RC-009 / 015 / 005 / 017
 
 規約矛盾は Truth Source Priority で解決した（キャンペーン BLOCKED にしない）: gosec は `.golangci.yml` enable が正。旧 3 layer は ADR / 現行 tree が正。seed バンドルは ADR-004 / `backend/migrations/CLAUDE.md` の `002_master` が正。
 
@@ -54,16 +54,6 @@
 
 ## 4. MEDIUM（開いた所見のみ）
 
-#### BE-RC-005 [MEDIUM][residual] service の `slog.ErrorContext` と handler `RespondError` が 5xx を二重ログする
-- 規約: 同じ error を複数層で重複ログしない。未知 pg だけ request 境界の `c.Error` 重複を例外許容
-- 現状: `*service*.go` は **117 files / 722 hits**。5xx は `httpapi/response.go:15-19` が `c.Error` → `middleware/logging.go:50-57` が再記録
-- 代表: `billing/insurance_service.go:87,95,122,133,148,160,167,179` → insurance handler `RespondError`、`inventory/inventory_service.go:103,112,138,150,159,173,181`、`audit/service.go:151`、`manualarticle/service.go:46`
-- 除外（005 を付けない）: 運用ログ・バッチ best-effort・stream 後（例: `cmd/api/composition_auth_routes.go`、`lstep` tag summary handler、`reservation` appointment notification、`lstep_batch_*.go` / `lstep_delivery_trigger_*.go` / `lstep_health_tag_sync_*.go` / `lstep_tag_sync_*.go`）。`*service.go` ではない handler / middleware / validators
-- 改善案: 既知 4xx は service でログしない。5xx は middleware 一本化。新規から増やさない。未触 service の一括削除はしない
-- 返却 5xx の `slog.ErrorContext` を外した面に、このスライスで `exam_type` / `hospitalization_plan` / `inquiry_template` / `vaccine` / `procedure` / `diagnosis` / `medicine_dose_param` / `estimate_service_tx` / `checkup` / `prescription` / `vaccination` / `vital_service_update` を追加した
-- 運用ログとして残す: `audit_write_failed`、company post-update reload、password_reset mail ops、billing_item campaign suggestion、checkup / prescription / vaccination の tag sync best-effort。`clinic_service.ListClinics` は login 非 admin が失敗を捨てるため診断ログを残す
-- 2026-09-07: 返却 5xx の dirty 面は尽きた。残りは examination 系（再開禁止）と `lstep/shared_file_service.go` / `clinical_plan_service.go` / `dose_revalidation.go`（同一 abort バッチ）。運用ログ残置は台帳 OK
-
 #### BE-RC-014 [MEDIUM][residual] pgx encode 判定が `err.Error()` 文字列 Contains
 - 対象: `internal/apperrors/errors.go:344` — `isPgxEncodeRangeMessage(err.Error())`（定義 `:371-385`、DEC-34 / BUG-138）
 - 規約: `errors.Is` / `As`。pgx v5.10.0 は encode を `fmt.Errorf("unable to encode ...")` のまま出し、typed EncodeError は無い
@@ -72,13 +62,6 @@
 ---
 
 ## 5. LOW（開いた所見のみ）
-
-#### BE-RC-017 [LOW][residual] 同一 package の exported `Update(..., map[string]any)` が常態
-- 機械検出 **51 production files**。カバレッジは exported `Update(..., map[string]any)` シグネチャのあるファイルのみ。builder / GORM `Updates` 呼び出し側には付けない
-- 先行台帳の偽陰性 2 件（chronic_condition / lab_device_item_master）と cage / care_plan_item / checkup / checkup_type / chief_complaint / consultation / diagnosis_* / exam_type / hospitalization_plan / inquiry_template / vaccine / procedure / medicine_dose_param / occupation / trimming_course_type / trimming_option / trimming_course / payment_method_master / insurance / reservation_type_group / reservation_type / animal_species / reservation_type_liff / shift_template / campaign / closing_special_period / merchandise_item / inventory / company / estimate / billing_item / billing_confirmation / shift_entry / clinic / permission_group / pet / vital / prescription / vaccination / accounting / staff / medicine / hospitalization / treatment_plan / clinical_plan / treatment / medical_record は typed command へ閉じた
-- 001/008 の境界（reservation 向け staff、consumer `ClinicRepository`）は typed 済み。回帰なし
-- 改善案: 触る repository から unexported `update` にし、外には typed command だけ出す。一括 unexport はしない
-- 2026-09-07: exported map Update の閉じた列は medical_record まで。残りは `examination_repository.go`（再開禁止）
 
 #### BE-RC-019 [LOW][residual] `medicalrecord` 本番 239 file の凝集圧
 - layer サブパッケージ化は禁止方針どおり避けている。800 行超ファイルなし（package 内最大 `lab_device_receive_service.go` **672** 行。backend 全体最大は `staff/staff_repository.go` **718** 行）
@@ -113,7 +96,9 @@
 | BE-RC-012 wrapcheck `internal/*` wildcard | 廃止済み。残るのは明示 package 列挙（§7） |
 | BE-RC-013 vaccination `t.Setenv` | `os.Setenv` 0 |
 | BE-RC-016 stale `// Package handler\|service\|repository` | production 0 |
-| BE-RC-009 実装側の広い Repository | use-case port + concrete ctor。`permission_group` / provisioning / identitylink / clinic ports / accounting / medical_record / staff。017 map Update は残置。既存の一括分割はしない |
+| BE-RC-009 実装側の広い Repository | use-case port + concrete ctor。`permission_group` / provisioning / identitylink / clinic ports / accounting / medical_record / staff。017 map Update は閉じた。既存の一括分割はしない |
+| BE-RC-005 返却 5xx 二重ログ | examination / shared_file / clinical_plan の返却 5xx `ErrorContext` を外した。KEEP: audit fail-closed、shared_file 期限切れバッチ、storage cleanup、dose snapshot best-effort |
+| BE-RC-017 exported map Update | `examination_repository.Update` は `UpdateExaminationInput`。unexported `update` が GORM map を維持 |
 | BE-RC-015 package.Type stutter 代表 | `clinic.Service` / `auth.Service` / `trimming.Service` / `staff.Service` / `staff.Repository` / `pet.Response` / `lstep.SettingsHandler` / `reservation.CRUDHandler`。カバレッジは代表のみ。一括 rename しない |
 | BE-RC-021 Config/Load GoDoc | `config/config.go` の exported 代表に GoDoc |
 | BE-RC-023 clinic binding `init()` | `RegisterContactBindingValidators` を `NewHandler` / `RegisterClinicRoutes` から呼ぶ。production `init()` なし |
@@ -754,7 +739,7 @@
 | `backend/internal/lstep/shared_file_repository.go` | OK |
 | `backend/internal/lstep/shared_file_request.go` | OK |
 | `backend/internal/lstep/shared_file_response.go` | OK |
-| `backend/internal/lstep/shared_file_service.go` | FINDING(BE-RC-005) |
+| `backend/internal/lstep/shared_file_service.go` | OK |
 
 ### `backend/internal/manualarticle` (6)
 
@@ -811,7 +796,7 @@
 | `backend/internal/medicalrecord/clinical_plan_repository.go` | OK |
 | `backend/internal/medicalrecord/clinical_plan_request.go` | OK |
 | `backend/internal/medicalrecord/clinical_plan_response.go` | OK |
-| `backend/internal/medicalrecord/clinical_plan_service.go` | FINDING(BE-RC-005) |
+| `backend/internal/medicalrecord/clinical_plan_service.go` | OK |
 | `backend/internal/medicalrecord/clinical_relation_validation.go` | OK |
 | `backend/internal/medicalrecord/consultation_handler.go` | OK |
 | `backend/internal/medicalrecord/consultation_repository.go` | OK |
@@ -831,7 +816,7 @@
 | `backend/internal/medicalrecord/diagnosis_type_repository.go` | OK |
 | `backend/internal/medicalrecord/discount_permission.go` | OK |
 | `backend/internal/medicalrecord/dose_calc.go` | OK |
-| `backend/internal/medicalrecord/dose_revalidation.go` | FINDING(BE-RC-005) |
+| `backend/internal/medicalrecord/dose_revalidation.go` | OK |
 | `backend/internal/medicalrecord/dose_validators.go` | OK |
 | `backend/internal/medicalrecord/exam_reference_range_repository.go` | OK |
 | `backend/internal/medicalrecord/exam_result_assessment.go` | OK |
@@ -841,21 +826,21 @@
 | `backend/internal/medicalrecord/exam_type_request.go` | OK |
 | `backend/internal/medicalrecord/exam_type_response.go` | OK |
 | `backend/internal/medicalrecord/exam_type_service.go` | OK |
-| `backend/internal/medicalrecord/examination_audit.go` | FINDING(BE-RC-005) |
+| `backend/internal/medicalrecord/examination_audit.go` | OK |
 | `backend/internal/medicalrecord/examination_handler.go` | OK |
-| `backend/internal/medicalrecord/examination_items.go` | FINDING(BE-RC-005) |
+| `backend/internal/medicalrecord/examination_items.go` | OK |
 | `backend/internal/medicalrecord/examination_lock.go` | OK |
 | `backend/internal/medicalrecord/examination_pet_safety.go` | OK |
-| `backend/internal/medicalrecord/examination_print_snapshot.go` | FINDING(BE-RC-005) |
-| `backend/internal/medicalrecord/examination_repository.go` | FINDING(BE-RC-017) |
+| `backend/internal/medicalrecord/examination_print_snapshot.go` | OK |
+| `backend/internal/medicalrecord/examination_repository.go` | OK |
 | `backend/internal/medicalrecord/examination_request.go` | OK |
 | `backend/internal/medicalrecord/examination_response.go` | OK |
 | `backend/internal/medicalrecord/examination_revision_repository.go` | OK |
-| `backend/internal/medicalrecord/examination_revision_service.go` | FINDING(BE-RC-005) |
+| `backend/internal/medicalrecord/examination_revision_service.go` | OK |
 | `backend/internal/medicalrecord/examination_revision_workflow_repository.go` | OK |
-| `backend/internal/medicalrecord/examination_service.go` | FINDING(BE-RC-005) |
-| `backend/internal/medicalrecord/examination_service_create.go` | FINDING(BE-RC-005) |
-| `backend/internal/medicalrecord/examination_service_update.go` | FINDING(BE-RC-005) |
+| `backend/internal/medicalrecord/examination_service.go` | OK |
+| `backend/internal/medicalrecord/examination_service_create.go` | OK |
+| `backend/internal/medicalrecord/examination_service_update.go` | OK |
 | `backend/internal/medicalrecord/handler_deps.go` | OK |
 | `backend/internal/medicalrecord/hospitalization_discharge.go` | OK |
 | `backend/internal/medicalrecord/hospitalization_discharge_tx.go` | OK |
