@@ -102,7 +102,10 @@ function ExaminationFormContent({ id }: { id: string | undefined }) {
   );
 
   // Print uses saved revision snapshot only — never formItems / unsaved edits.
-  const { data: printSnapshot } = useGetExaminationPrintSnapshot(isEdit ? id : undefined);
+  // Legacy rows without current_revision_version have no snapshot; do not GET 404 on view.
+  const { data: printSnapshot } = useGetExaminationPrintSnapshot(isEdit ? id : undefined, {
+    enabled: formData.currentRevisionVersion != null,
+  });
   const printModel = useMemo(
     () => (printSnapshot ? buildExaminationPrintModel(printSnapshot) : null),
     [printSnapshot],

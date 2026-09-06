@@ -16,3 +16,6 @@
 現在、未対応の製品 FAIL はありません。
 
 新しい製品 FAIL は [`docs/ops/testing/TEST_ARCHITECTURE.md`](docs/ops/testing/TEST_ARCHITECTURE.md) の規則に従って追記します。env・seed・権限不足による BLOCKED は記録しません。対応済み項目は本ファイルから削除し、履歴は Git と `reports/uat-YYYY-MM-DD/` を参照します。
+
+<!-- S06 UAT 2026-09-06 auto-draft FAIL cleared after V01 recheck PASS with general reservation type id=5. Evidence: reports/uat-2026-09-06/v01/ -->
+<!-- console-full-sweep 2026-09-06 BUG-20260906-001..004 は実装対応済み。履歴は Git。Linear 照会は未実施。 -->
