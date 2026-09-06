@@ -1,8 +1,8 @@
 # QA-FULL-CLINICAL-E2E — clinical / data-dependent E2E 設計
 
-状態: **設計完了 / 実装範囲未確定 / full suite 実行は別承認**  
+状態: **helper + allowlist 置換済み / `--clinical` 未実行 / full suite は別承認**  
 範囲の正本: [TEST_ARCHITECTURE.md](./TEST_ARCHITECTURE.md) L3  
-設計だけでは E2E を PASS にしない。auth smoke 成功を full suite coverage と扱わない。
+設計・局所 GREEN だけでは E2E を PASS にしない。auth smoke 成功を full suite coverage と扱わない。
 
 ## 対象 scenario / spec
 
@@ -78,30 +78,39 @@ runner 先頭で fail-closed:
 - ローカルは clinic sweep。共有 DB の手削除はしない
 - teardown 失敗は UNREPORTED/BLOCKED。部分 PASS を full suite PASS にしない
 
-## 局所検証コマンド（実装後）
+## 実装検証（2026-09-06）
 
-auth smoke と混ぜない。
+入れたもの:
+
+- `backend/internal/clinicale2e` — APP_ENV=`test` + ローカル DB host のみ。clinic 1/2 拒否。合成 clinic / staff / owner / pet / 確定カルテ 21 件と allowlist 用の検査・予防接種・健診・入院・下書き見積を INSERT
+- `backend/cmd/clinical-e2e-fixture` — `setup` / `teardown --clinic-id`。パスワードは `E2E_LOGIN_PASSWORD` からハッシュ。stdout は JSON のみ（秘密なし）
+- `frontend/e2e/helpers/clinical-*.ts` — fail-closed（APP_ENV / base URL / teardown / fixture）
+- allowlist spec の 003_demo 氏名（林 文明 / Iris）を fixture 参照へ置換
+- `frontend/scripts/run-e2e.sh --clinical` / `--auth-smoke`
+- `.github/workflows/e2e.yml` は未変更
+
+未実施（このスライスでは PASS にしない）:
+
+- ローカル `--clinical` 1 回
+- `e2e.yml` への full suite job
+- Linear Done
+
+局所ユニット:
 
 ```bash
-cd frontend && ./scripts/run-e2e.sh e2e/auth-flows.spec.ts
-cd frontend && ./scripts/run-e2e.sh --clinical
+docker compose exec backend go test ./internal/clinicale2e/ -count=1
+cd frontend && ./scripts/run-e2e.sh e2e/helpers/clinical-env.spec.ts e2e/helpers/clinical-fixture.spec.ts
 ```
 
-`--clinical` の中身は allowlist のみ。`make e2e` 全件は別承認。
-
-実装時の局所ユニット（fixture helper を触った場合）:
-
-```bash
-docker compose exec frontend npx vitest run e2e/helpers/synthetic-api.spec.ts
-```
+`--clinical` の中身は allowlist のみ。`make e2e` 全件は別承認。`--clinical` は backend `APP_ENV=test` が無いと fail-closed。
 
 ## 承認が必要な実行操作
 
 | 操作 | 承認 |
 |------|------|
 | 本設計 | この文書で完了 |
-| fixture helper と allowlist 置換 | 明示承認後 |
-| ローカル `--clinical` 1 回 | 実装検証の一部として別承認 |
+| fixture helper と allowlist 置換 | このスライスで完了。E2E PASS ではない |
+| ローカル `--clinical` 1 回 | 別承認 |
 | `e2e.yml` への full suite job 追加 | USER。non-gating のまま |
 | workflow_dispatch / push | USER |
 | Linear Done / UAT PASS 転記 | USER。設計・局所 GREEN だけではしない |

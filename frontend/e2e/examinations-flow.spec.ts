@@ -1,18 +1,15 @@
 import { test, expect } from "@playwright/test";
 import type { BrowserContext } from "@playwright/test";
-import { createAuthedContext } from "./helpers/context";
-import { DEMO_IRIS_PET } from "./helpers/demo-seed";
+import { createClinicalContext } from "./helpers/clinical-suite";
+import type { ClinicalFixture } from "./helpers/clinical-fixture";
 import { ExaminationsPage } from "./pages/examinations-page";
-
-// E2E flow tests for examinations (/examinations) pages.
-// Covers: list page, pet selection, new form, detail form.
-// Demo seed: Iris pet id=1000099 (not petId=1).
 
 test.describe("検査管理 フロー E2E", () => {
   let context: BrowserContext;
+  let fixture: ClinicalFixture;
 
   test.beforeAll(async ({ browser }) => {
-    context = await createAuthedContext(browser);
+    ({ context, fixture } = await createClinicalContext(browser));
   });
 
   test.afterAll(async () => {
@@ -24,9 +21,7 @@ test.describe("検査管理 フロー E2E", () => {
     const examinations = new ExaminationsPage(page);
     try {
       await examinations.gotoList();
-      // Use level:1 to avoid strict locator violation with multiple headings
       await expect(examinations.listHeadingPattern()).toBeVisible({ timeout: 15000 });
-      // Verify page loaded even if list is empty
       await expect(page).toHaveURL(/\/examinations/);
     } finally {
       await page.close();
@@ -41,8 +36,8 @@ test.describe("検査管理 フロー E2E", () => {
       await expect(examinations.selectPetHeading()).toBeVisible({
         timeout: 15000,
       });
-      await examinations.patientSearchInput().fill(DEMO_IRIS_PET.name);
-      await expect(examinations.irisText()).toBeVisible({ timeout: 15000 });
+      await examinations.patientSearchInput().fill(fixture.petName);
+      await expect(examinations.petText(fixture.petName)).toBeVisible({ timeout: 15000 });
     } finally {
       await page.close();
     }
@@ -52,14 +47,12 @@ test.describe("検査管理 フロー E2E", () => {
     const page = await context.newPage();
     const examinations = new ExaminationsPage(page);
     try {
-      // Navigate to list first to find an examination ID
       await examinations.gotoList();
       await expect(examinations.listHeading()).toBeVisible({
         timeout: 15000,
       });
       await expect(examinations.firstRow()).toBeVisible({ timeout: 15000 });
 
-      // DataTableRow is non-interactive; open via DataTableRowLink.
       await examinations.firstDetailLink().click();
 
       await expect(examinations.detailHeading()).toBeVisible({ timeout: 15000 });

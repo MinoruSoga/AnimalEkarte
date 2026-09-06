@@ -1,17 +1,15 @@
 import { test, expect } from "@playwright/test";
 import type { BrowserContext } from "@playwright/test";
-import { createAuthedContext } from "./helpers/context";
+import { createClinicalContext } from "./helpers/clinical-suite";
+import type { ClinicalFixture } from "./helpers/clinical-fixture";
 import { EstimatesPage } from "./pages/estimates-page";
-
-// E2E flow tests for estimates (/estimates) pages.
-// Covers: list page, new form, detail, edit form.
-// Seed data: admin@noavet.jp is system_admin with full access.
 
 test.describe("見積書管理 フロー E2E", () => {
   let context: BrowserContext;
+  let fixture: ClinicalFixture;
 
   test.beforeAll(async ({ browser }) => {
-    context = await createAuthedContext(browser);
+    ({ context, fixture } = await createClinicalContext(browser));
   });
 
   test.afterAll(async () => {
@@ -110,17 +108,14 @@ test.describe("見積書管理 フロー E2E", () => {
       await estimates.searchToggle().click();
       const searchInput = estimates.searchInput();
       await expect(searchInput).toBeVisible();
-      await searchInput.fill("Mass");
+      await searchInput.fill(fixture.estimateTitle);
 
-      // Wait for search to apply (debounce/API response)
       await page.waitForLoadState("networkidle", { timeout: 10000 }).catch(() => null);
 
-      // Verify filtered results are narrower or search input is retained
       const filteredRows = await estimates.rows().count();
       expect(filteredRows).toBeLessThanOrEqual(initialRowCount);
 
-      // Verify the search term is still in the input
-      await expect(searchInput).toHaveValue("Mass");
+      await expect(searchInput).toHaveValue(fixture.estimateTitle);
     } finally {
       await page.close();
     }

@@ -29,8 +29,8 @@ export class ExaminationsPage extends BasePage {
     return this.heading("検査詳細・編集", 1);
   }
 
-  irisText(): Locator {
-    return this.page.getByText("Iris").first();
+  petText(name: string): Locator {
+    return this.page.getByText(name, { exact: false }).first();
   }
 
   patientSearchInput(): Locator {

@@ -71,18 +71,15 @@ docker compose up -d   # if not already running
 
 ### Seed data assumed by E2E tests
 
-| Spec                                      | Required data                                                                                                                                             | Source                                                  |
-| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
-| `owners-search.spec.ts`                   | pet name `ピーター` (name_kana=`ぴーたー`), owner 5 (佐藤 花子), clinic 1                                                                                 | `003_seed_demo.sql`                                     |
-| `accounting-smoke.spec.ts`                | owner 1 (林 文明, はやし ふみあき) with completed billing for pet 1 (`Iris(イリス)`, name_kana=`いりす`)                                                  | `003_seed_demo.sql`                                     |
-| `accounting-flow.spec.ts`                 | same as `accounting-smoke.spec.ts`                                                                                                                        | `003_seed_demo.sql`                                     |
-| `reservations-smoke.spec.ts`              | admin user at clinic 1 with reservations permission                                                                                                       | `003_seed_demo.sql`                                     |
-| `reservation-patient-search.spec.ts`      | ローカル handoff 実データ上の検索。003_demo 退役後は固定 pet id を前提にしない                                                                            |
-| `medical-records-patient-search.spec.ts`  | 同上                                                                                                                                                      |
-| `master-crud.spec.ts`                     | treatment procedure items incl. `注射` (root with children)                                                                                               | `003_seed_demo.sql`                                     |
-| `hospitalization-flow.spec.ts`            | 1+ active hospitalization records at clinic 1                                                                                                             | `003_seed_demo.sql`                                     |
-| `vaccinations-flow.spec.ts`               | 1+ vaccination records; owner `林 文明` with pet `林 文明`                                                                                                | `003_seed_demo.sql`                                     |
-| `medical-records-pagination-sort.spec.ts` | clinic 1 に PAGE_SIZE(20) 超（開発環境では20,000件超）の medical_records が必要（page=2 到達用）。件数が少ない環境ではページ2ボタンが表示されず fail する | 開発DBの既存データ量に依存（seed 追加不要な環境が大半） |
+| Spec                                                                                                                                                         | Required data                                                                                            | Source              |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- | ------------------- |
+| `owners-search.spec.ts`                                                                                                                                      | pet name `ピーター` (name_kana=`ぴーたー`), owner 5 (佐藤 花子), clinic 1                                | `003_seed_demo.sql` |
+| `accounting-smoke.spec.ts`                                                                                                                                   | owner 1 (林 文明, はやし ふみあき) with completed billing for pet 1 (`Iris(イリス)`, name_kana=`いりす`) | `003_seed_demo.sql` |
+| `accounting-flow.spec.ts`                                                                                                                                    | same as `accounting-smoke.spec.ts`                                                                       | `003_seed_demo.sql` |
+| `reservations-smoke.spec.ts`                                                                                                                                 | admin user at clinic 1 with reservations permission                                                      | `003_seed_demo.sql` |
+| `reservation-patient-search.spec.ts`                                                                                                                         | ローカル handoff 実データ上の検索。003_demo 退役後は固定 pet id を前提にしない                           |
+| `clinical-*.spec.ts` / `medical-records-*.spec.ts` / `examinations-flow` / `vaccinations-flow` / `checkups-flow` / `hospitalization-flow` / `estimates-flow` | disposable clinic。`./scripts/run-e2e.sh --clinical`（backend `APP_ENV=test`）。003_demo 氏名は使わない  |
+| `master-crud.spec.ts`                                                                                                                                        | treatment procedure items incl. `注射` (root with children)                                              | `003_seed_demo.sql` |
 
 If seed data is missing, run:
 
@@ -115,6 +112,12 @@ suite can run against a fresh database.
 
 # Specific file
 ./scripts/run-e2e.sh e2e/owners-search.spec.ts
+
+# Auth smoke（CI workflow と同じ）
+./scripts/run-e2e.sh --auth-smoke
+
+# Clinical allowlist（backend APP_ENV=test と E2E_LOGIN_PASSWORD が必要。別承認）
+./scripts/run-e2e.sh --clinical
 ```
 
 This script mounts only spec/config files and installs a fresh `@playwright/test@1.60.0`

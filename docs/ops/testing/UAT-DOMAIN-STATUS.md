@@ -19,8 +19,8 @@
 | 項目 | 値 |
 |:---|:---|
 | 開いている製品 FAIL（`bug.md`） | **0** |
-| V04 受入 | **UNKNOWN**（最終実行は FAIL。`b93008236` 以降に `inquiries.deleted_at` 非参照へ修正。再実行なし） |
-| S09 | **BLOCKED**（helper 不在。製品 FAIL ではない） |
+| V04 受入 | **UNKNOWN**（全体 PASS ではない。下記 2026-09-06 再実行） |
+| S09 | **BLOCKED**（package helper あり。HTTP/CLI とブラウザ再実行は未。製品 FAIL ではない） |
 | S01 | **PARTIAL**（LSTEP 実送信は E1） |
 | r14 | ヘッダだけ「FAIL 0 / PASS 16」と書いてあった regression smoke。V04 再実行の証跡は本ファイルに無く、PASS 翻転ではない。ディレクトリは gitignore のため再読不可 |
 
@@ -165,20 +165,21 @@
 | 実施日 | 2026-09-05 |
 | ブランチ | `uat/20260905` |
 | 環境 | local |
-| ドメイン総合判定 | **UNKNOWN**（最終実行 FAIL。現行 `bug.md` に未対応 FAIL なし。再実行なし） |
+| ドメイン総合判定 | **UNKNOWN**（V04 全体は未再実行。主訴 DELETE の 500 回帰は testdb で非再現） |
 
 | シナリオ | status |
 |:---|:---|
-| V04 | **UNKNOWN**（2026-09-05 最終実行は FAIL。主訴 DELETE 500 = 当時 BUG-20260905-001。他マスタ CRUD は r6+r7 PASS。2026-09-06 以降の再実行なし） |
+| V04 | **UNKNOWN**（2026-09-05 最終実行は FAIL。2026-09-06 は DELETE 回帰のみ再実行） |
 | closing-settings（S09 前提） | PASS（r6 GET/PATCH roundtrip） |
 
 - **Master CRUD 総合（r6+r7・最終実行）**: PASS **26** / PARTIAL **0** / BLOCKED **0** / FAIL **1**（27 行）
   - **最終実行 FAIL**: `master-chief-complaint` DELETE が `inquiries.deleted_at` 参照で 500 → 当時 BUG-20260905-001
-  - **コード側**: `b93008236` で usage count / DELETE が `inquiries.deleted_at` を見ない。`bug.md` は 2026-09-06 時点で未対応なし。これは V04 受入 PASS ではない
-  - **r7 前進**: `lab-device-item-masters` PARTIAL→**PASS**（`lab-import:create` 一時付与）。`master-animal-species` BLOCKED→**PASS**（`is_system_admin` 一時付与）。権限は試験後に復元済
-  - 診断・診療項目5タブ・薬剤・トリミング一式・支払方法・締め・請求書欄など他は CRUD PASS
-- **関連 bug IDs**: 現行 open なし。当時 ID は履歴のみ
-- **証跡**: 最終実行は r6/r7（`reports/` は gitignore）。再実行するまで V04 を PASS/FAIL にしない
+  - **2026-09-06 testdb**: `TestChiefComplaintTypeRepository_Delete` と `CountUsage` が GREEN。未使用区分は削除できる。参照中は Conflict。`inquiries.deleted_at` を見ない。500 回帰は非再現
+  - **2026-09-06 live HTTP**: 合成 catalog login は 200。`master-medical` create は 403（一般グループ）。権限を上げて clinic 1/2 を触っていない。HTTP DELETE の受入は **BLOCKED**
+  - **判定**: 当時の製品 FAIL を bug.md に戻さない。V04 全体は PASS にしない
+  - 診断・診療項目5タブ・薬剤・トリミング一式・支払方法・締め・請求書欄など他は r6+r7 CRUD PASS
+- **関連 bug IDs**: 現行 open なし
+- **証跡**: testdb コマンドは `todo.md` 順 2。live は status code のみ（credential・行値なし）
 ## 認証・LINE / LSTEP（V05）
 
 | 項目 | 値 |

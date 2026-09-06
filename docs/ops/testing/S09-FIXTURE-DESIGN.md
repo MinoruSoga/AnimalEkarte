@@ -1,6 +1,6 @@
 # QA-UAT-S09-FIXTURE — `completed_at` fixture 設計
 
-状態: **設計完了 / 実装未承認 / UAT 再実行 BLOCKED**  
+状態: **設計完了 / package helper 実装済み / HTTP・CLI・ブラウザ再実行は未 / UAT は BLOCKED**  
 正本シナリオ: [S09-closing-time-boundaries.md](./scenarios/S09-closing-time-boundaries.md)  
 設計だけでは S09 を PASS にしない。
 

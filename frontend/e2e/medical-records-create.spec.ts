@@ -1,6 +1,7 @@
 import { expect, test, type BrowserContext } from "@playwright/test";
 
 import { SYNTHETIC_CLINICAL_SCENARIOS, SYNTHETIC_PET } from "./fixtures/ui-design-clinical";
+import { assertClinicalSuiteReady } from "./helpers/clinical-suite";
 import { createAuthedContext } from "./helpers/context";
 import { installSyntheticApiInterceptor, isBusinessNonGet } from "./helpers/synthetic-api";
 
@@ -10,6 +11,7 @@ test.describe("カルテ新規作成フォーム E2E", () => {
   let context: BrowserContext;
 
   test.beforeAll(async ({ browser }) => {
+    assertClinicalSuiteReady();
     context = await createAuthedContext(browser);
   });
 
