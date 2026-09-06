@@ -78,7 +78,7 @@ k6 run load-tests/k6-spike-test.js \
 - POST `/api/v1/login` — setup で 1 回（`successful_logins` 計上）
 - GET `/api/v1/reservations` — 診察一覧（status 200 必須）
 - GET `/api/v1/medical-records` — 医療記録（status 200 必須）
-- GET `/api/v1/masters/permission-groups` — 権限グループ（status 200 必須）
+- GET `/api/v1/masters/animal-species` — 動物種類（status 200 必須）
 
 **パフォーマンス閾値**:
 

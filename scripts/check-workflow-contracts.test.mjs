@@ -213,16 +213,58 @@ test("both k6 scripts use the canonical reservations route", () => {
   }
 });
 
-test("API endpoint k6 load script uses the canonical permission-groups route", () => {
+test("API endpoint k6 load script binds Animal Species authorization for 一般", () => {
   const script = read("load-tests/k6-api-endpoints.js");
+  const readme = read("load-tests/README.md");
+  const catalog = read("backend/internal/seedlogin/catalog.go");
+  const groupsCsv = read(
+    "backend/migrations/seeds/002_master/permission_groups.csv",
+  );
+  const rulesCsv = read(
+    "backend/migrations/seeds/002_master/permission_group_rules.csv",
+  );
+  const petRoutes = read("backend/internal/pet/routes.go");
+
+  assert.match(catalog, /PermissionGroupName\s*=\s*"一般"/);
+
+  assert.match(
+    groupsCsv,
+    /^2,1,一般,一般スタッフ権限,#10B981,t,2,2026-07-06 14:59:40\.511971\+09,2026-07-06 14:59:40\.511971\+09,$/m,
+  );
+  assert.match(
+    rulesCsv,
+    /^39,2,master-animal-species,t,f,f,f,2026-07-06 14:59:40\.511971\+09,2026-07-06 14:59:40\.511971\+09,$/m,
+  );
+  assert.match(
+    rulesCsv,
+    /^44,2,master-permission,f,f,f,f,2026-07-06 14:59:40\.511971\+09,2026-07-06 14:59:40\.511971\+09,$/m,
+  );
+
+  assert.match(
+    petRoutes,
+    /masters\.GET\("\/animal-species",\s*h\.requirePermission\(string\(model\.ResourceMasterAnimalSpecies\),\s*"view"\)/,
+  );
+
+  assert.match(script, /new Trend\("animal_species_duration"\)/);
+  assert.match(script, /group\("Animal Species"/);
   assert.match(
     script,
-    /const permRes = http\.get\(\s*`\$\{BASE_URL\}\/api\/v1\/masters\/permission-groups`,\s*params,\s*\);/,
+    /http\.get\(\s*`\$\{BASE_URL\}\/api\/v1\/masters\/animal-species`,\s*params,\s*\)/,
   );
-  assert.doesNotMatch(
-    script,
-    /const permRes = http\.get\(\s*`\$\{BASE_URL\}\/api\/v1\/permission-groups`,\s*params,\s*\);/,
+  assert.match(script, /"animal species status 200"/);
+  assert.match(script, /"animal species response time < 1000ms"/);
+  assert.doesNotMatch(script, /\/api\/v1\/animal-species/);
+  assert.doesNotMatch(script, /permission_group_duration/);
+  assert.doesNotMatch(script, /group\("Permission Groups"/);
+  assert.doesNotMatch(script, /masters\/permission-groups/);
+  assert.doesNotMatch(script, /"permission groups status 200"/);
+
+  assert.match(
+    readme,
+    /GET `\/api\/v1\/masters\/animal-species` — 動物種類（status 200 必須）/,
   );
+  assert.doesNotMatch(readme, /masters\/permission-groups/);
+  assert.doesNotMatch(readme, /権限グループ（status 200 必須）/);
 });
 
 test("E2E and local load jobs each own always-run volume cleanup", () => {

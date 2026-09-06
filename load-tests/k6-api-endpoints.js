@@ -20,7 +20,7 @@ const errorRate = new Rate("errors");
 const loginDuration = new Trend("login_duration");
 const appointmentListDuration = new Trend("appointment_list_duration");
 const medicalRecordDuration = new Trend("medical_record_duration");
-const permissionGroupDuration = new Trend("permission_group_duration");
+const animalSpeciesDuration = new Trend("animal_species_duration");
 const successfulLogins = new Counter("successful_logins");
 const apiErrors = new Counter("api_errors");
 
@@ -138,18 +138,17 @@ export default function (data) {
 
   sleep(1);
 
-  group("Permission Groups", () => {
-    const permRes = http.get(
-      `${BASE_URL}/api/v1/masters/permission-groups`,
+  group("Animal Species", () => {
+    const speciesRes = http.get(
+      `${BASE_URL}/api/v1/masters/animal-species`,
       params,
     );
-    permissionGroupDuration.add(permRes.timings.duration);
-    const permOk = check(permRes, {
-      "permission groups status 200": (r) => r.status === 200,
-      "permission groups response time < 1000ms": (r) =>
-        r.timings.duration < 1000,
+    animalSpeciesDuration.add(speciesRes.timings.duration);
+    const speciesOk = check(speciesRes, {
+      "animal species status 200": (r) => r.status === 200,
+      "animal species response time < 1000ms": (r) => r.timings.duration < 1000,
     });
-    if (!permOk) {
+    if (!speciesOk) {
       errorRate.add(1);
       apiErrors.add(1);
     }
