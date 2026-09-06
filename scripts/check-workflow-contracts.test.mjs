@@ -213,6 +213,39 @@ test("both k6 scripts use the canonical reservations route", () => {
   }
 });
 
+test("k6 errorRate samples success and failure for each check result", () => {
+  const cases = [
+    {
+      scriptPath: "load-tests/k6-api-endpoints.js",
+      checkVars: ["appointmentOk", "medicalOk", "speciesOk"],
+    },
+    {
+      scriptPath: "load-tests/k6-spike-test.js",
+      checkVars: ["ok"],
+    },
+  ];
+
+  for (const { scriptPath, checkVars } of cases) {
+    const script = read(scriptPath);
+    for (const checkVar of checkVars) {
+      assert.match(
+        script,
+        new RegExp(
+          `errorRate\\.add\\(\\s*${checkVar}\\s*\\?\\s*0\\s*:\\s*1\\s*\\)`,
+        ),
+        `${scriptPath}: ${checkVar} must sample errorRate.add(${checkVar} ? 0 : 1)`,
+      );
+      assert.doesNotMatch(
+        script,
+        new RegExp(
+          `if\\s*\\(\\s*!${checkVar}\\s*\\)\\s*\\{\\s*errorRate\\.add\\(\\s*1\\s*\\)`,
+        ),
+        `${scriptPath}: ${checkVar} must not use failure-branch-only errorRate.add(1)`,
+      );
+    }
+  }
+});
+
 test("API endpoint k6 load script binds Animal Species authorization for 一般", () => {
   const script = read("load-tests/k6-api-endpoints.js");
   const readme = read("load-tests/README.md");

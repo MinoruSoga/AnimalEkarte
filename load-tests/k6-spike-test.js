@@ -102,9 +102,9 @@ export default function (data) {
       "status is 200": (r) => r.status === 200,
       "response time < 3000ms": (r) => r.timings.duration < 3000,
     });
+    errorRate.add(ok ? 0 : 1);
 
     if (!ok) {
-      errorRate.add(1);
       failedRequests.add(1);
     }
   });

@@ -114,8 +114,8 @@ export default function (data) {
       "appointment list status 200": (r) => r.status === 200,
       "appointment response time < 1000ms": (r) => r.timings.duration < 1000,
     });
+    errorRate.add(appointmentOk ? 0 : 1);
     if (!appointmentOk) {
-      errorRate.add(1);
       apiErrors.add(1);
     }
   });
@@ -130,8 +130,8 @@ export default function (data) {
       "medical records response time < 1500ms": (r) =>
         r.timings.duration < 1500,
     });
+    errorRate.add(medicalOk ? 0 : 1);
     if (!medicalOk) {
-      errorRate.add(1);
       apiErrors.add(1);
     }
   });
@@ -148,8 +148,8 @@ export default function (data) {
       "animal species status 200": (r) => r.status === 200,
       "animal species response time < 1000ms": (r) => r.timings.duration < 1000,
     });
+    errorRate.add(speciesOk ? 0 : 1);
     if (!speciesOk) {
-      errorRate.add(1);
       apiErrors.add(1);
     }
   });
