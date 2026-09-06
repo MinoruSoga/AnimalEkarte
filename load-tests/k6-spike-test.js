@@ -95,7 +95,7 @@ export default function (data) {
   };
 
   group("Spike Test - Appointment List", () => {
-    const res = http.get(`${BASE_URL}/api/v1/appointments`, params);
+    const res = http.get(`${BASE_URL}/api/v1/reservations`, params);
     responseDuration.add(res.timings.duration);
 
     const ok = check(res, {

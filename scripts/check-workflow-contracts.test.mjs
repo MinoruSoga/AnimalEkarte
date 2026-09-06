@@ -199,6 +199,20 @@ test("local load job and both k6 scripts use the dedicated fail-closed login var
   }
 });
 
+test("both k6 scripts use the canonical reservations route", () => {
+  for (const scriptPath of [
+    "load-tests/k6-api-endpoints.js",
+    "load-tests/k6-spike-test.js",
+  ]) {
+    const script = read(scriptPath);
+    assert.match(
+      script,
+      /http\.get\(\s*`\$\{BASE_URL\}\/api\/v1\/reservations`,\s*params,?\s*\)/,
+    );
+    assert.doesNotMatch(script, /\/api\/v1\/appointments/);
+  }
+});
+
 test("API endpoint k6 load script uses the canonical permission-groups route", () => {
   const script = read("load-tests/k6-api-endpoints.js");
   assert.match(

@@ -108,7 +108,7 @@ export default function (data) {
   const params = authHeaders(data.cookie);
 
   group("Appointment List", () => {
-    const appointmentRes = http.get(`${BASE_URL}/api/v1/appointments`, params);
+    const appointmentRes = http.get(`${BASE_URL}/api/v1/reservations`, params);
     appointmentListDuration.add(appointmentRes.timings.duration);
     const appointmentOk = check(appointmentRes, {
       "appointment list status 200": (r) => r.status === 200,
