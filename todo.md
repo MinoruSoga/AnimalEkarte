@@ -32,7 +32,7 @@
 
 claim は実装単位ごと。エージェントは claim ブランチを削除しない。main 統合または明示中止のあと USER が解放する。
 
-今回の台帳再構成 claim: `claim/TODO-NEXT-ACTIONS`。
+この更新の claim: `claim/CI-K6-RUNTIME-CLOSEOUT`、`claim/LEDGER-CI-EVIDENCE-SYNC`。
 
 ---
 
@@ -40,20 +40,19 @@ claim は実装単位ごと。エージェントは claim ブランチを削除�
 
 | 優先 | ID | 実行者 | 状態 | 次の一手 | 完了条件 |
 |------|----|--------|------|----------|----------|
-| 1 | **CI-K6-RUNTIME-CLOSEOUT** | USER | 修正済み・dispatch 待ち | 明示承認のうえで Performance Tests を 1 回 dispatch する | 同一 run で endpoint k6、spike k6、aggregate validation、always-run cleanup が success。run ID と head SHA を記録 |
-| 2 | **LEDGER-CI-EVIDENCE-SYNC** | agent | 優先1待ち | dispatch 後の成功・失敗・未確認を分離して本節を更新する | 対象 SHA、run ID、job/step 結論、STG/PROD・release 未証明が一致 |
-| 3 | **META-LINEAR-F1-F6** | USER / agent | 未照会 | Linear で F1〜F6 と本ファイル ID の重複を確認し、必要な ID だけ紐付ける | Linear 上の対応が残作業と一致。repo 記録だけで Done にしない |
-| 4 | **QA-UAT-S09-FIXTURE** | agent | BLOCKED | `completed_at` を指定できる承認済み fixture API または scoped UAT helper を設計する | 既存会計・DB・システム時計を直接変えず S09 #2〜#6 を再実行できる |
-| 5 | **QA-FULL-CLINICAL-E2E** | agent / USER | 未準備 | auth smoke とは別に clinical/data-dependent E2E の fixture・allowlist・cleanup を設計する | 実行は別承認。full E2E 成功と秘密非出力を証拠化 |
+| 1 | **META-LINEAR-F1-F6** | USER / agent | 未照会 | Linear で F1〜F6 と本ファイル ID の重複を確認し、必要な ID だけ紐付ける | Linear 上の対応が残作業と一致。repo 記録だけで Done にしない |
+| 2 | **QA-UAT-S09-FIXTURE** | agent | BLOCKED | `completed_at` を指定できる承認済み fixture API または scoped UAT helper を設計する | 既存会計・DB・システム時計を直接変えず S09 #2〜#6 を再実行できる |
+| 3 | **QA-FULL-CLINICAL-E2E** | agent / USER | 未準備 | auth smoke とは別に clinical/data-dependent E2E の fixture・allowlist・cleanup を設計する | 実行は別承認。full E2E 成功と秘密非出力を証拠化 |
 
-このセッションで閉じた項目（履歴は git）: `CI-BE-DBORTX-INVENTORY`、`CI-K6-SUMMARY-SCHEMA`、`FE-CLINICAL-PLAN-SELECT-LABELS`、`DOC-MANUAL-SOURCE-SYNC`、`CLINICAL-IRREVERSIBLE-GUARD`（確認のみ）、`FE-TRIMMING-GUARDS`（現 HEAD で充足）、`BE-RC-036`、`LEDGER-TODO-NOW-POINTER`。
+閉じた項目（履歴は git）: `CI-BE-DBORTX-INVENTORY`、`CI-K6-SUMMARY-SCHEMA`、`CI-K6-RUNTIME-CLOSEOUT`、`LEDGER-CI-EVIDENCE-SYNC`、`FE-CLINICAL-PLAN-SELECT-LABELS`、`DOC-MANUAL-SOURCE-SYNC`、`CLINICAL-IRREVERSIBLE-GUARD`（確認のみ）、`FE-TRIMMING-GUARDS`（現 HEAD で充足）、`BE-RC-036`、`LEDGER-TODO-NOW-POINTER`。
 
 ### 現在の証拠境界
 
-- HEAD `b987729fd` からの未 push 差分に、clinic `FindByIDs` / `FindActiveIDs` の ambient tx テストと DBOrTx inventory 登録がある。PR #369 の `Backend Test (remaining)` は push 前の run では未証明。
-- k6 validator は `scripts/validate-k6-summary.mjs` が flat `metric.count` / `passes` / `fails` と旧 `metric.values.*` を読む。workflow contract test は local GREEN。runtime は未 dispatch。
-- 最新 Performance Tests run `34020760108`（head `9ed814fc0`）は旧 validator で aggregate のみ failure。endpoint / spike / upload / cleanup は success。
-- 同 artifact の活動量: endpoints `http_reqs=5755`、`iterations=1918`、`successful_logins=1`。spike `http_reqs=825`、`iterations=824`、`successful_logins=1`。credential・body・cookie・token は記録しない。
+- HEAD / `origin/main`: `bc5626960399b720292bbea2a0d9b9f902d61dad`
+- Performance Tests / run `34025435577`（`workflow_dispatch`）: workflow success。endpoint k6、spike k6、aggregate validation、always-run cleanup、Lighthouse、summary が同一 run で success。
+- 同 run の活動量: endpoints `http_reqs=5755`、`iterations=1918`、`checks=11508`、`successful_logins=1`。spike `http_reqs=825`、`iterations=824`、`checks=1648`、`successful_logins=1`。credential・body・cookie・token は記録しない。
+- 旧 run `34020760108`（head `9ed814fc0`）は旧 validator による aggregate failure。現行 closeout の正本は `34025435577`。
+- PR #369 / run `34025435907`: `Backend Test (remaining)` と集約 `Backend` が success。push 側 CI `34025433324` は paths-filter で Backend shards を skip したため、inventory の証明は PR run を正とする。
 - 上記は CI/負荷経路の証拠であり、共有 STG、PROD、full clinical E2E、release readiness の証明ではない。
 
 ---
@@ -190,10 +189,9 @@ H3-3 TTL 資格情報は gitignored `scripts/stg-uat-old-db-handoff.local.env` �
 
 ## 次の一手
 
-1. USER が Performance Tests を 1 回 dispatch する（`CI-K6-RUNTIME-CLOSEOUT`）。
+1. Linear で F1〜F6 と本ファイル ID を照合する。
 2. old_db で **HAC-CSV-1** を出す。両院 Lane 4 のブロッカー。
 3. 城東で STG ログインするなら **H3-9 apply** の成否を残し、**H3-11** で飼主検索だけ確認する（行値は残さない）。
-4. Linear で F1〜F6 と本ファイル ID を照合する。
 
 ---
 
