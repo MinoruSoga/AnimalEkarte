@@ -190,3 +190,13 @@ BE9-2B完了時点では後続phaseの着手前ゲートとして残していた
 - [ADR-002: マルチテナント設計 — clinic_id完全隔離](002-multitenancy-clinic-id-isolation.md)
 - [go-gin-backend-guidelines.md](../../../.claude/rules/go-gin-backend-guidelines.md)
 - 旧BE-refactor.md BE9-2A（2026-07-24退役・経緯はgit履歴）
+
+## 現行実装への補足（2026-09-06）
+
+本文の BE9 measurement・file 数・移行時の tenant 分類は履歴として保持する。現行 contract は以下の source と照合する。
+
+- `internal/lintscan/package_boundary_gate_test.go` は **35 top-level package / 14 domain** を pin する。`seedlogin` は `cmd/migrate` の非本番デモ upsert に加え、`auth/auth_service.go` の catalog 限定非本番認証補助からも使われる。cmd-only とは分類しない（[例外 package 規律](../exception-package-discipline.md)）。
+- §(c) の「`Payment` / `BillingItem` / `ExamTypeField` は自前 clinic なし」は採用時の記録である。現行 model では `Payment.ClinicID` / `BillingItem.ClinicID` / `ExamTypeField.ClinicID` が存在し、DDL では `billing_items` / `treatments` / `appointment_trimming_options` の clinic が親から複製される。GORM field の有無と DDL 列の有無は別指標。現行の複合 FK / RLS は [ERD](../erd.md) と `001_init.sql` を参照する。
+- [GitHub #249](https://github.com/MinoruSoga/AnimalEkarte/issues/249) の Phase 2 には `exam_type_fields` の direct clinic scope への移行要求がある。現行の同表、`exam_types` / `exam_reference_ranges` の複合 FK は DDL に実装されている。Issue は取得時点で OPEN であり、臨床 range 承認などの受入まで完了したとは扱わない。
+- nested owner/pet 登録は `owner.PetRegistrar` → `pet.CreateForOwnerRegistration` が同じ ambient transaction に参加する。owner 外の独立した pet insert 経路を作らない（[cross-domain catalog](../cross-domain-orchestration-catalog.md) の `PATH-OWNER-PET-REGISTER`）。
+- 上記は HEAD `7c6592f9f` のコードと DDL の静的照合であり、実 DB 適用、STG/PROD の release gate の判定ではない。

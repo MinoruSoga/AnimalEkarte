@@ -5,7 +5,7 @@
 > **更新規則**: 画面に入力項目を追加したら、本表と該当 V を同 PR で更新する。
 > **ステータス**: inventory は再構築中。下表は検証済み exact field key の部分一覧であり、一意フォーム総数や「全フォーム/全項目完了」はまだ主張しない。route inventory は 86 product pages だが page 数と form 数は別。
 
-凡例: **R**=必須 / **O**=任意 / **C**=条件付き必須 / **S**=システム（入力不可→F は N/A）。fieldKeyは原則として永続化wire keyを使い、UI-only helper/contextは特記する。
+凡例: **R**=必須 / **O**=任意 / **C**=条件付き必須 / **S**=システム（入力不可→F は N/A）。fieldKey は保存 request の wire key を使う。response 名や UI state 名が異なる場合は表直前の対応表を参照する。未検証の UI-only helper/context は永続 field と数えない。
 
 ---
 
@@ -24,7 +24,7 @@ Owner: clinical_plan PATCH child resource. The parent medical-record and inquiry
 | diagnosis2NameId            | diagnosis_2_name_id | O   | select FK | 診断2名称。区分連動                  | F0 F4  |
 | assessment                  | diagnosis_details   | O   | text      | 診断詳細                             | F0 F4  |
 | plan                        | treatment_policy    | O   | text      | 治療方針                             | F0 F4  |
-| existingClinicalPlanVersion | version             | S   | number    | CAS system version; not user-entered | F0 F4  |
+| existingClinicalPlanVersion | version             | S   | number    | CAS system version; not user-entered（返却 version を次の PATCH へ送る。省略 legacy path は CAS 対象外） | F0 F4  |
 
 ### medical-record-form — parent record / inquiry (not clinical-plan PATCH) — `/medical-records/new|/:id` — [V01 §1](V01-clinical-forms.md)
 
@@ -80,7 +80,7 @@ Owner: clinical_plan PATCH child resource. The parent medical-record and inquiry
 | lot3               | O   | text       | F4 F5                      |
 | lot4               | O   | text       | F4 F5                      |
 | next_date          | O   | date       | F4 F5（接種日以下を拒否）  |
-| supplemental       | O   | bool       | F4                         |
+| supplemental       | O   | text       | F4 F5（補助説明）           |
 | next_schedule_type | O   | enum/radio | F4                         |
 | remarks            | O   | text       | F4 F5                      |
 
@@ -145,17 +145,28 @@ Owner: clinical_plan PATCH child resource. The parent medical-record and inquiry
 
 ### trimming-form — [V01 §12](V01-clinical-forms.md)
 
-| fieldKey              | R/O | F 重点                                           |
-| :-------------------- | :-- | :----------------------------------------------- |
-| pet_id                | R   | F1                                               |
-| staff_id              | R   | F1 F4                                            |
-| course_id             | R   | F1 F4 C3-1・無効マスタ #228                      |
-| option_ids            | O   | multi F4                                         |
-| record_shortcut times | R   | 一意な JST 現在時刻（固定 10:00 ではない） F1 F4 |
-| note                  | O   | F4 F5                                            |
-| style                 | O   | F4 F5                                            |
-| weight                | O   | F3 F4 F5                                         |
-| images                | O   | F2 F3 F4                                         |
+保存 request は `frontend/src/features/trimming/hooks/trimming-form-utils.ts`。`record_shortcut` の時刻は現在時刻の秒・ミリ秒から生成される。画像の UI preview は存在するが、下記 create/update builder に画像キーは含まれないため、画像の永続化経路は coverage gap として別に追跡する。
+
+| fieldKey | R/O | F 重点 |
+|:--|:--|:--|
+| pet_id | R | F0 F1（create context） |
+| appointment_id | S | 既存予約との紐付け（create context） |
+| reservation_type_id | S | 予約区分（create context） |
+| staff_id | R | F1 F4 |
+| course_id | R | F1 F4 C3-1・無効マスタ #228 |
+| option_ids | O | multi F4 |
+| start_time | C | record_shortcut 時は既定生成、指定時 F4 |
+| end_time | C | start_time と組。既定は90分後 F4 |
+| status | C | 新規・既存予約なし時の initialStatus（pending/in_consultation） F4 |
+| reservation_route | S | record_shortcut。新規経路の識別 |
+| style_request | O | スタイル要望 F4 F5 |
+| bw | O | 体重 F3 F4 F5 |
+| bw_unit | O | 体重単位 F4 |
+| bt | O | 体温 F3 F4 F5 |
+| used_shampoo | O | 使用シャンプー F4 F5 |
+| used_ribbon | O | 使用リボン F4 F5 |
+| remarks | O | 備考 F4 F5 |
+| （画像保存経路） | — | exact wire key 未確定。永続化 PASS には数えない |
 
 ---
 
@@ -187,7 +198,9 @@ Owner: clinical_plan PATCH child resource. The parent medical-record and inquiry
 
 | fieldKey         | R/O | F 重点       |
 | :--------------- | :-- | :----------- |
-| corrected_amount | R   | F1 F3(≥1) F4 |
+| amount           | R   | F1 F3(≥1) F4 |
+| method           | R   | card/electronic_money F0 F4 |
+| memo             | O   | F4 F5 |
 | reason           | R   | F1 F4        |
 
 ### refund-dialog — [V02 §4](V02-accounting-reservation-forms.md)
@@ -208,33 +221,37 @@ Owner: clinical_plan PATCH child resource. The parent medical-record and inquiry
 
 ### estimate-form — [V02 §6](V02-accounting-reservation-forms.md)
 
+保存 request は `frontend/src/features/estimates/api/types.ts`。UI の camelCase と区別する。`owner_id` / `pet_id` / `medical_record_id` は create の紐付けで、通常 update DTO は受け取らない。期限クリアは update の `clear_valid_until` 契約を確認する。
+
 | fieldKey        | R/O | F 重点                 |
 | :-------------- | :-- | :--------------------- |
 | title           | R   | F1 F4                  |
 | status          | R   | 作成時 draft/sent のみ |
-| ownerId         | O   | F4                     |
-| petId           | O   | F4                     |
-| medicalRecordId | O   | F4                     |
+| owner_id         | O   | F4                     |
+| pet_id           | O   | F4                     |
+| medical_record_id | O   | F4                     |
 | subtotal        | O   | ≥0 F3 F4               |
-| taxTotal        | O   | ≥0 F3 F4               |
-| totalAmount     | O   | ≥0 F3 F4               |
-| insuranceAmount | O   | ≥0 F3 F4               |
-| discountAmount  | O   | ≥0 F3 F4・権限で F6    |
-| validUntil      | O   | F4 F5                  |
+| tax_total        | O   | ≥0 F3 F4               |
+| total_amount     | O   | ≥0 F3 F4               |
+| insurance_amount | O   | ≥0 F3 F4               |
+| discount_amount  | O   | ≥0 F3 F4・権限で F6    |
+| valid_until      | O   | F4 F5                  |
 | comment         | O   | F4 F5                  |
 | notes           | O   | F4 F5                  |
 
 ### reservation-form-modal / reception-walkin / reception-status — [V02 §7–9](V02-accounting-reservation-forms.md)
+
+wire key は `frontend/src/features/reservations/api/transforms.ts`。UI の start/end/doctor とは別名。受付 status は同じ予約 API の更新値。
 
 | fieldKey            | R/O | F 重点         |
 | :------------------ | :-- | :------------- |
 | pet_id              | R   | F1 F4          |
 | owner_id            | R   | F1 F4          |
 | reservation_type_id | R   | F1 F4 C3-1     |
-| start_at            | R   | F1 F4・枠衝突  |
-| end_at              | R   | F1 F4・枠衝突  |
-| staff_id            | O   | F4             |
-| memo                | O   | F4 F5          |
+| start_time            | R   | F1 F4・枠衝突  |
+| end_time              | R   | F1 F4・枠衝突  |
+| doctor_id            | O   | F4             |
+| notes                | O   | F4 F5          |
 | status（受付）      | R   | 遷移のみ F0 F4 |
 
 ### shift-form-dialog — [V02 §10](V02-accounting-reservation-forms.md)
@@ -261,17 +278,19 @@ Owner: clinical_plan PATCH child resource. The parent medical-record and inquiry
 
 ### inventory-form — `/inventory/new|/:id` — **[V02 §12 新設](V02-accounting-reservation-forms.md)**
 
+UI form 名は `minStockLevel` / `expiryDate` / `lastRestocked`。保存時は `use-inventory-form-model.ts` が以下の snake_case へ変換する。
+
 | fieldKey      | ラベル     | R/O | 型   | 制約                                | F 重点   |
 | :------------ | :--------- | :-- | :--- | :---------------------------------- | :------- |
 | name          | 品名       | R   | text | 非空                                | F0 F1 F4 |
 | category      | カテゴリ   | R   | enum | medicine/consumable/food/other      | F0 F1 F4 |
 | unit          | 単位       | R   | text | 非空（HTML required + BE required） | F0 F1 F4 |
 | quantity      | 現在庫数   | R   | int  | ≥0                                  | F1 F3 F4 |
-| minStockLevel | 最低在庫数 | R   | int  | ≥0                                  | F1 F3 F4 |
+| min_stock_level | 最低在庫数 | R   | int  | ≥0                                  | F1 F3 F4 |
 | location      | 保管場所   | O   | text |                                     | F4 F5    |
-| expiryDate    | 使用期限   | O   | date |                                     | F4 F5    |
+| expiry_date    | 使用期限   | O   | date |                                     | F4 F5    |
 | supplier      | 仕入先     | O   | text |                                     | F4 F5    |
-| lastRestocked | 最終入庫日 | O   | date |                                     | F4 F5    |
+| last_restocked | 最終入庫日 | O   | date |                                     | F4 F5    |
 
 ---
 
@@ -303,19 +322,21 @@ Owner: clinical_plan PATCH child resource. The parent medical-record and inquiry
 
 ### pet-edit-modal / pet-add-pending — [V03 §2–3](V03-owner-pet-staff-forms.md)
 
+保存 request は `frontend/src/lib/transforms/pet.ts`（pending nested create は `frontend/src/types/owner.ts`）。`name_kana` の response 側名称は `pet_name_kana`。性別は `gender`、マイクロチップは `microchip_number`、去勢避妊日は `neutered_date`。
+
 | fieldKey          | R/O   | F 重点            |
 | :---------------- | :---- | :---------------- |
 | name              | R     | F1 F4             |
-| pet_name_kana     | O     | F4 F5             |
+| name_kana     | O     | F4 F5             |
 | animal_species_id | R     | F1 F4 C3-1        |
-| sex               | R(FE) | F1 F4             |
+| gender               | R(FE) | F1 F4             |
 | breed             | O     | F4 F5             |
 | birth_date        | O     | F4 F5             |
 | weight            | O     | 0–200 FE F3 F4    |
 | color             | O     | F4 F5             |
-| microchip         | O     | F4 F5             |
+| microchip_number         | O     | F4 F5             |
 | blood_type        | O     | F4 F5             |
-| neutered_on       | O     | F4 F5             |
+| neutered_date       | O     | F4 F5             |
 | food              | O     | F4 F5             |
 | environment       | O     | F4 F5             |
 | insurance_id      | O     | F4 C3-1           |

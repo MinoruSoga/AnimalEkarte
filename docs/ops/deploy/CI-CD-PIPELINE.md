@@ -1,185 +1,73 @@
 # CI/CD パイプライン構成書
 
-> **目的**: 自動デプロイ、手動トリガー、障害時の確認経路、本番承認ゲートを定義する。
-> **読者**: 運用者・新規参加者。
-> **最新更新**: 2026-07-31（#253 production delivery contract）
->
-> Backend の正系統は Cloudflare Workers + Containers、Frontend は Vercel。
-> 旧 AWS ECS/RDS 経路と関連 workflow は 2026-07-20 に廃止済み。**ロールバック先は Cloudflare のみ**（#99 residual: ECS へ戻さない）。
+> **目的**: checked-in workflow の実行契約と、実環境で必要な承認・検証を区別する。
+> **照合**: 2026-09-06、`7c6592f9f`。GitHub [#253](https://github.com/MinoruSoga/AnimalEkarte/issues/253) は OPEN。Issue 本文・2026-08-20 コメントは当時の判断であり、現在の workflow 実装や billing/reviewers の実測を代替しない。
 
-## 0. Deployment contract（#253 正本）
+## 1. 現行のデプロイ経路
 
-| 経路 | トリガー | 承認 | 到達先 |
-|---|---|---|---|
-| **STG backend 自動** | `staging` push で backend workflow の対象 path が変わった場合 | 不要（自動） | STG Cloudflare Worker/Container |
-| **STG frontend 自動** | `staging` push で frontend workflow の対象 path が変わった場合 | 不要（自動） | Vercel preview |
-| **Production** | `production` ブランチへの対象 path push、または `workflow_dispatch` で production を指定 | **GitHub Environment `production` の Required reviewers 必須** | 本番 Cloudflare (`api.noah-karte.com`) + Vercel production |
-| **main 単独 push** | CI（`ci.yml` 等）のみ | n/a | **本番へはデプロイしない**（acceptance 禁止） |
-
-### 0.1 契約の不変条件
-
-1. **STG は `main` 由来のコードが `staging` に載った時点で自動デプロイされる**（人間の deploy 承認は不要）。日常開発は `main`、検証は `staging`（project branch 規約）。
-2. **production は Required reviewers 無しでは開始できない**。main push から無承認 production deployment を acceptance にしない。
-3. **rollback は last known good の Cloudflare 再デプロイ + migration 互換確認**のみ。AWS/ECS への切り戻し・hot standby は存在しない（#99）。
-4. **secret / credential / PHI を log・artifact・Issue に出さない**。値の生成・登録は人間のみ（#89 依存）。
-5. **CI green は GitHub Actions billing/spending 復旧が前提**。agent は支払い・上限変更を実行しない（§7）。
-
-### 0.2 Checked-in config と dated external observation（実行前に再検証）
-
-| 項目 | 現状 | 契約上の次アクション |
+| 経路 | トリガー・設定 | 承認境界 |
 |---|---|---|
-| STG backend auto-deploy | ✅ `backend-deploy.yml` が `staging` push で稼働 | 維持 |
-| STG frontend auto-deploy | ✅ `frontend-deploy.yml` が `staging` push で稼働 | 維持 |
-| Production backend workflow | ⚠ 未適用（`setup.md` §8 提案 diff）。`environment:` ジョブキー無し | USER が §7 ゲート確定後に適用。**agent は適用しない** |
-| Production Environment + Required reviewers | **外部観測 2026-08-20（現在値ではない）**: `Production`（大文字）、reviewers空。observer/receiptを実行時に再取得し、未確認はUNKNOWN/HOLD | USER が名前一致と Required reviewers を設定。agent は reviewer 追加しない |
-| Production frontend | ⚠ `production` push で Vercel デプロイ可能だが GitHub Environment ゲート無し（`inputs.environment` は Vercel 入力） | Environment 保護を backend と揃える |
-| ECS workflow | ✅ repository に残存なし | 再導入禁止 |
-| CI green on latest main | **外部観測（期限切れ）**: 過去にbilling/spending failure。現在値はUNKNOWN | USERが実行時run URL/ID・headSha・確認時刻を記録 |
+| STG backend | `staging` push の `backend/**`、backend workflow、root package/lockfile 変更。または manual dispatch | `backend-deploy.yml` に GitHub Environment job binding はない。共有環境への dispatch / branch 更新は承認済み operator が行う |
+| STG frontend | `staging` push の `frontend/**` または frontend workflow 変更。または preview dispatch | job は `Preview` Environment に bind。外部 protection の現在値は別途確認 |
+| Production backend | **未実装**。backend workflow は STG Worker URL / `wrangler.jsonc` 固定 | production trigger・config 選択・protected Environment binding の実装と検証が済むまで実行不可 |
+| Production frontend | `production` push の対象 path 変更。または `environment=production` dispatch | job は **`Production`** Environment に bind。production dispatch は `refs/heads/production` 以外を拒否。Required reviewers と branch protection の現在値は外部確認が必要 |
+| main push | CI。STG deploy workflow の直接 trigger ではない | review 済み `main -> staging` PR で昇格する |
 
-本番構築の人間手順は [`../infra/production/setup.md`](../infra/production/setup.md)、稼働後の日常運用は [`../infra/production/runbook.md`](../infra/production/runbook.md) を正本とする。
+正本は `.github/workflows/backend-deploy.yml` と `frontend-deploy.yml`。
+[#253](https://github.com/MinoruSoga/AnimalEkarte/issues/253) 本文の「main push → STG」は delivery 方針であり、現行の直接 trigger は `staging`。日常開発 `main` と昇格 `main -> staging` のプロジェクト規約を使う。
 
----
+2026-08-20 の「frontend に Environment gate 無し」は後続実装で解消している。一方、binding の存在だけでは Required reviewers が有効とは証明できない。**大文字小文字を含む名前一致・reviewers・対象 ref・secret scope を実行時に再確認する。**
 
-## 1. 全体フロー
+本番構築は [setup.md](../infra/production/setup.md)、稼働後の契約は [production runbook](../infra/production/runbook.md)。backend/frontend 両方の acceptance が満たされるまで本番リリース成功としない。
 
-| コンポーネント | 実行環境 | デプロイ方式 | 自動トリガー | Workflow |
-|---|---|---|---|---|
-| Backend API (STG) | Cloudflare Workers + Containers | `wrangler deploy` + migrate one-shot + `/health` polling | `staging` への対象 path push | `.github/workflows/backend-deploy.yml` |
-| Backend API (PROD) | Cloudflare Workers + Containers | `wrangler deploy -c wrangler.production.jsonc` + migrate + `/health` | `production` push（**Environment 承認後**・workflow 適用後） | 同上（`setup.md` §8） |
-| Frontend (STG/PROD) | Vercel | Vercel CLI | `staging` / `production` への対象 path push | `.github/workflows/frontend-deploy.yml` |
+## 2. Backend pipeline
 
-現在のインフラ構成と運用手順は [`../infra/README.md`](../infra/README.md) を正本とする。STG 移行の実施記録は git 履歴。
+1. Checkout、pnpm/Node setup、frozen lockfile install。
+2. `CLOUDFLARE_API_TOKEN` の存在確認と `wrangler whoami`。
+3. `backend/` から `npx wrangler deploy`。
+4. `infra/scripts/cf-run-migrate.sh` で `POST /_internal/migrate`（`MIGRATE_RUN_SECRET`）。
+5. `/health` が HTTP 200 / `status: ok` になるまで最大12回、30秒間隔で確認。
+6. `STG_DEMO_EMAIL` / `STG_DEMO_PASSWORD` がある場合だけ `cf-crud-smoke.sh`。**continue-on-error の optional step** なので workflow green だけでは CRUD PASS を証明しない。
 
----
+順序は **deploy → migrate → health → optional smoke**。新 binary が旧 schema に到達し得る deploy 完了〜migration 完了（`MIGRATE_TIMEOUT=150s`）の区間は workflow コメントに記録された既知の制約。schema compatibility を release 前に確認する。
 
-## 2. Backend パイプライン
+CSV seed は全環境で `002_master` のみ。STG は `APP_ENV=staging` を Worker/Container/migrate に渡し、フェーズ3で合成ログインを upsert する。詳細は [seed operations](SEED_MIGRATION_OPERATIONS.md)。health は process liveness であり DB access の証明ではない。
 
-### 2.1 実行ステップ（STG / 将来 PROD 共通）
+### 手動 dispatch
 
-1. Checkout
-2. pnpm / Node.js setup と依存関係の取得
-3. `CLOUDFLARE_API_TOKEN` の存在確認と `wrangler whoami`
-4. `backend/` を working directory として `npx wrangler deploy`（PROD は `-c wrangler.production.jsonc`）
-5. `MIGRATE_RUN_SECRET` を使った `infra/scripts/cf-run-migrate.sh`
-6. `/health` が HTTP 200 かつ `status: ok` になるまで polling
-7. 認証情報が設定されている場合だけ `infra/scripts/cf-crud-smoke.sh`
-
-deploy 直後から migration 完了まで（最大 `MIGRATE_TIMEOUT=150s`）新 binary が旧 schema へ到達し得る制約は、
-現行 Cloudflare 構成の既知・受容済み制約である。workflow は migration を health check より前へ置き、
-この区間を最小化する。詳細は `.github/workflows/backend-deploy.yml` の契約コメントを正本とする。
-
-### 2.2 手動実行と障害対応
-
-**HARD STOP:** named human approval、review済みimmutable commit/ref、target Worker/config、secret scope、共有環境の利用可否を先に記録する。PRODはworkflow実装とEnvironment protectionを外部receiptで確認できるまで実行禁止。
+named owner/approval、review 済み commit、target Worker/config、secret scope、共有環境の利用可否を先に記録する。
 
 ```bash
 REVIEWED_SHA='<reviewed-commit>'
-TARGET_REF='staging' # production は現在 HOLD
+TARGET_REF='staging'
 REMOTE_SHA="$(gh api "repos/{owner}/{repo}/git/ref/heads/${TARGET_REF}" --jq '.object.sha')"
 test "$REMOTE_SHA" = "$(git rev-parse "${REVIEWED_SHA}^{commit}")" || exit 1
 gh workflow run backend-deploy.yml --ref "$TARGET_REF"
 ```
 
-dispatch後はrun metadataの`headSha == REVIEWED_SHA`を確認し、不一致なら停止する。
+dispatch 後も run の `headSha == REVIEWED_SHA` を確認する。不一致、migration/health failure、target 不一致は停止条件。production branch で現行 backend workflow を dispatch しても production config の選択にはならない。
 
-- 失敗した job を成功扱いにせず、deploy / migration / health / smoke のどこで失敗したかを切り分ける
-- DB reset、credential 変更、production 操作は別途明示承認を得る
-- STG の停止・復旧は [`../infra/staging/runbook.md`](../infra/staging/runbook.md)
-- PROD の停止・復旧・rollback は [`../infra/production/runbook.md`](../infra/production/runbook.md)（**CF-only**）
+## 3. Frontend pipeline
 
-### 2.3 Production 承認ゲート（GitHub Environment）
+1. GitHub Environment `Preview` / `Production` を選び、production ref を検証。
+2. Vercel CLI `pull` で対象 environment の project 設定を取得。
+3. `VERCEL_ENV` / `VITE_VERCEL_ENV` を付けて `pnpm --dir frontend build`。
+4. `.vercel/output` を生成し `vercel deploy --prebuilt`。preview は STG domain へ alias。
 
-1. Repository → Settings → Environments → `production` を作成（名前一致必須）
-2. **Required reviewers** を 1 名以上設定する（production-impacting action の物理ゲート）
-3. Environment secrets に production 専用値のみ登録する（STG の Repository secrets を流用しない）
-4. `backend-deploy.yml` の job に `environment: ${{ github.ref_name }}` を付与する（`setup.md` §8）
+`frontend/vite.config.ts` が `VERCEL_ENV=preview` なら STG API、`production` なら production API の絶対 URL をビルド時に固定する。`frontend/.env.production` の STG 値はこの経路では override される。prebuilt config に `/api` rewrite はないため、same-origin `/api` を使う別の build path では API JSON/status を別途検証する。
 
-Environment 未作成のまま production トリガーだけを足すと、保護ルール無しの自動生成 Environment になり得る。
-**workflow 適用順序は setup.md §7 → §8 を厳守**する。
+実デプロイの SHA、API 接続先、cookie/CORS、assets の検証は [Vercel runbook](VERCEL-FRONTEND-STAGING-TEST.md)。設定を読んだだけで稼働済みにしない。
 
----
+## 4. Rollback / monitoring / backup
 
-## 3. Frontend パイプライン
+- rollback は last-known-good Cloudflare artifact/ref と migration 互換性を確認して行う。[#99](https://github.com/MinoruSoga/AnimalEkarte/issues/99) は旧 ECS 経路不在の確認として CLOSED。AWS/ECS は切り戻し先ではない。
+- DB 非互換の場合は forward fix または承認済み restore plan。復旧手順は [STG](../infra/staging/runbook.md) / [PROD](../infra/production/runbook.md)。
+- health、5xx、Workers/Container logs、Actions failure、Vercel deployment を監視する。Cloudflare Notification Policy の存在、通知先、実配送は外部検証が必要。Terraform tombstone を有効な通知ポリシーとして数えない。
+- backup は owner、target、取得方式、保護された保存先、取得時刻、サイズ、checksum、retention、receipt、隔離 restore rehearsal を記録する。[production runbook §4](../infra/production/runbook.md#4-backuprestore-rehearsal) が正本。RPO/RTO は承認済み目標と rehearsal 実測を用い、推測しない。
+- secret/PHI を log、artifact、Issue に出さない。資格情報の投入・rotation は [外部資格情報 runbook](runbooks/BUG_MD_EXTERNAL_OPS_PENDING_APPROVAL.md) の USER 作業。
 
-`.github/workflows/frontend-deploy.yml` が Vercel CLI を GitHub Actions 上で実行する。
-Vercel の native Git 連携 hook は使用しない。
+## 5. #253 の未検証境界
 
-1. `staging` / `production` への対象 path push、または `workflow_dispatch` を検知
-2. `vercel pull` で対象 environment の情報を取得
-3. `VERCEL_ENV=preview|production` を付けて `pnpm --dir frontend build` し artifact を生成（prebuilt。Vercel native `vercel build` ではない）
-4. `vercel deploy --prebuilt` で配布
+#253 は latest main required CI、STG deploy/health/failure notification、production reviewers、rollback時間、隔離 restore の実証を要求する。2026-07 の billing failure や 2026-08-20 の reviewers 空という記録は履歴であり、現在の failure と断定しない。
 
-手動実行時は workflow の `environment` input で `preview` または `production` を選ぶ。
-production 実行は外部変更として明示承認を必要とする（backend の Required reviewers と運用を揃えること）。
-
----
-
-## 4. Rollback（CF-only・#99 一本化）
-
-| やってよい | やってはいけない |
-|---|---|
-| 直前 green commit を特定し、schema 互換を確認したうえで Cloudflare へ再 `wrangler deploy` | AWS ECS/RDS への切り戻し・旧 workflow の復活 |
-| migration 非互換なら expand 済み前提で forward-fix、または承認済みスナップショットから再建 | DNS/NS を「旧インフラ」へ戻して復旧したとみなす |
-| Terraform 差分は `plan` レビュー後に明示承認して `apply` | secret を log / artifact に出しての緊急再投入 |
-| 現場を Access 等の旧業務へ一時退避（業務継続）し、CF 正系統を復旧 | 「ECS hot standby がある」前提の判定 |
-
-手順の詳細は:
-
-- STG: [`../infra/staging/runbook.md`](../infra/staging/runbook.md)
-- PROD: [`../infra/production/runbook.md`](../infra/production/runbook.md)
-- Go-live 当日の切り戻し判断: [`../../delivery/GOLIVE_RUNBOOK.md`](../../delivery/GOLIVE_RUNBOOK.md) §4
-
----
-
-## 5. Monitoring / failure notification（秘密値なし）
-
-| 監視対象 | 手段 | 備考 |
-|---|---|---|
-| API 生存 | `GET /health` → 200 `{"status":"ok"}` | STG: `api.stg.noah-karte.com` / PROD: `api.noah-karte.com` |
-| 5xx 率 | Cloudflare Notification Policy（ゾーン全体） | STG 側ポリシーが `noah-karte.com` をカバー。PROD 専用ポリシーは二重通知になるため追加しない（`setup.md` §10.2） |
-| Deploy 失敗 | GitHub Actions run failure | 失敗 step（deploy / migrate / health / smoke）を切り分け |
-| Workers / Containers | Cloudflare Observability / Workers Logs | PHI・credential をログに出さない |
-| Frontend | Vercel deployment status | production は承認後のみ |
-
-通知先メール等の実値は文書に書かない。登録・検証は人間がダッシュボードで行う。
-
----
-
-## 6. Backup / restore gate（秘密値なし）
-
-本番受け入れ（#253）に必要な backup 契約。**値・接続文字列は書かない**。
-
-| 項目 | 契約 | 検証方法（非 PHI） |
-|---|---|---|
-| RPO 目標 | 当日 Go-live 前スナップショット + 以降の運用ポリシー（確定待ち） | スナップショット取得時刻の記録 |
-| RTO 目標 | Go-live 当日の rollback rehearsal で実測して記録 | 復旧開始〜`/health` ok までの分 |
-| 取得 | PlanetScale 側バックアップ / 明示 `pg_dump`（当日ランブック） | ファイル存在・サイズ・取得時刻のみ記録 |
-| 復元 rehearsal | **隔離環境**へ restore（本番上書き禁止） | テーブル件数・clinic_id 別件数など非 PHI 指標 |
-| 失敗時 | restore 失敗を成功扱いにせず、原因をインシデント記録 | credential は記録しない |
-
-詳細チェックリストは [`../infra/production/runbook.md`](../infra/production/runbook.md) §監視・バックアップ。
-
----
-
-## 7. Security
-
-- Cloudflare の credential、DB 接続情報、migration secret は Cloudflare Secrets または GitHub Encrypted Secrets / Environment secrets で管理する
-- Vercel token、org ID、project ID は GitHub Encrypted Secrets で管理する
-- secret を workflow YAML、repository、log へ直接記載しない
-- workflow の権限は job に必要な最小権限へ限定する
-- production 用 `JWT_SECRET` / `MIGRATE_RUN_SECRET` / `INTEGRATION_ENCRYPTION_KEY` は STG と共有しない（`wrangler.production.jsonc` / `setup.md` §5）
-
----
-
-## 8. BLOCKED residual — GitHub Actions billing（USER only）
-
-#253 受け入れ条件「latest main の required CI が green」は、**コード修正だけでは達成できない**。
-
-| 観測 | 内容 |
-|---|---|
-| 現象 | 最新 main の CI / Security Scan が job 開始直後に failure（steps 空） |
-| 原因区分 | GitHub account の payment failure または spending limit（#253 本文 P0） |
-| agent がやらないこと | 支払い手段変更、spending limit 変更、課金操作 |
-| USER 復旧手順 | 1. GitHub Billing / Spending limits を安全に確認・復旧 2. 最新 `main` で Backend / Frontend / Migration / Security を含む必須 job green を確認 3. その後 STG deploy・health・failure notification を実地確認 |
-
-本ドキュメントと production runbook の整備は **delivery surface prep** であり、billing 復旧後の green CI と実地 rehearsal が残る。status は **PARTIAL**（docs prep COMPLETE + CI green BLOCKED）として扱う。
+実行時に Actions run URL/ID・headSha・required jobs、billing、Environment protection、secret scope、backup/restore を確認する。未確認は **UNKNOWN / HOLD**。本書の静的同期は課金復旧、release acceptance、Issue close を意味しない。

@@ -42,7 +42,7 @@ DB は PlanetScale Postgres を使用します。AWS ECS/RDS は廃止済みで�
 ## 3. リリース実行手順
 
 1. **ブランチ管理**: 日常開発は `main`。STGはreview済みの `main -> staging` PRを使う。
-   - **Production stop**: backendとfrontendのproduction approval gateが両方実装・検証されるまで、`production` へmerge/pushしない。現行frontend workflowはproduction branchのfrontend変更をEnvironment approvalなしで自動deployする。
+   - **Production stop**: backendとfrontendのproduction approval gateが両方実装・検証されるまで、`production` へmerge/pushしない。現行 frontend workflow は `Production` Environment に bind し、production dispatch を production ref に限定する。ただし Required reviewers の有効性と backend production gate は別途確認が必要。
 2.  **デプロイ監視**: 
     - GitHub Actions `backend-deploy.yml`（Cloudflare Workers + Containers デプロイ）の進捗監視。
     - Vercel ダッシュボードにて、フロントエンドのビルド成功とエッジ配信を確認。

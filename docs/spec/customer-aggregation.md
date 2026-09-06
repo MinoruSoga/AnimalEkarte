@@ -5,7 +5,7 @@
 > **タイミング**: CPM集計ロジックの実装・仕様確認時。
 
 > **Animal Ekarte**: 経営判断を支援するデータ分析基盤
-> **最新更新**: 2026-07-10 | **ステータス**: 実装完了
+> **最新更新**: 2026-09-06 | **ステータス**: repo の集計・API・画面契約を照合。実環境の受入結果とは別。
 
 ---
 
@@ -34,7 +34,7 @@
 - **1年以上**: 365 日以上。
 - **来院なし**: 来院記録なし。
 
-> **境界の出典**: 境界日数(90/180/365)は `backend/internal/owner/ltv_repository.go` の `FindOwnerLTV` SQL に固定値として実装されており、clinic 単位の設定変更はできない。CPM ステージ（V1 の 6 区分 + ダッシュボード残余 `cpm_unclassified`。clinic 単位で設定変更可能な `CPMV1Thresholds`（`DormantDays` 既定240・`SpotInactiveDays` 既定90、`backend/internal/model/cpm_v1_thresholds.go`）を用いる）は Lステップ連携・CPMステージ絞り込み用の別軸の判定であり、本項の最終来院日分類とは別の仕組み。ダッシュボードの人数チップは [36-aggregation-dashboard.md](./screens/36-aggregation-dashboard.md) を正本とする。
+> **境界の出典**: 境界日数(90/180/365)は `backend/internal/owner/ltv_repository_query.go` の `ownerLTVSelectSQL` に固定値として実装されており、clinic 単位の設定変更はできない。CPM ステージ（V1 の 6 区分 + ダッシュボード残余 `cpm_unclassified`。clinic 単位で設定変更可能な `CPMV1Thresholds`（`DormantDays` 既定240・`SpotInactiveDays` 既定90、`backend/internal/model/cpm_v1_thresholds.go`）を用いる）は Lステップ連携・CPMステージ絞り込み用の別軸の判定であり、本項の最終来院日分類とは別の仕組み。ダッシュボードの人数チップは [36-aggregation-dashboard.md](./screens/36-aggregation-dashboard.md) を正本とする。
 
 ---
 
@@ -53,7 +53,7 @@
 ## 4. 技術仕様
 
 ### 4.1 パフォーマンス設計
-集計は `owners`/`medical_records`/`billings`/`payments` を対象にリクエスト時の生SQL(`ltv_repository.go` の `FindOwnerLTV`)で JOIN・集計しており、マテリアライズド・ビューや専用集計テーブルは使用していない。表示速度の数値目標(500ms等)を裏付ける実装・計測はコード上確認できなかった。
+集計は `owners`/`medical_records`/`billings`/`payments` を対象にリクエスト時の生 SQL で JOIN・集計する。入口は `backend/internal/owner/ltv_repository.go` の `FindOwnerLTV`、SELECT と最終来院日分類の境界は `ltv_repository_query.go`、期間・金額条件は同 package の query builder に分かれている。マテリアライズド・ビューや専用集計テーブルは使用していない。本書は表示速度の実測値を保証しない。
 
 ### 4.2 API エンドポイント
 - `GET /api/v1/clinics/:clinic_id/owners/aggregations`: 期間とソート軸を指定した集計データの取得。

@@ -1,6 +1,6 @@
 # 納品ドキュメント — システム構成・管理者設定・運用手順
 
-> **対象 Issue**: #258 ／ **リポジトリ由来 slice 同期日**: 2026-07-31 ／ **U 表棚卸し日**: 2026-08-20
+> **対象 Issue**: #258 ／ **リポジトリ由来 slice 同期日**: 2026-09-06（`7c6592f9f`） ／ **U 表棚卸し日**: 2026-08-20
 > **読者**: 先方の管理者（院長・システム担当者）
 > **目的**: 納品後に先方側で日常の運用・管理（スタッフ追加・権限変更・マスタ更新・障害時の一次対応）が自走できる状態にする。
 > **検証境界**: 以下の環境・契約・疎通状態は、明記した日付の **repo 内最終記録**であり、現在の provider 状態を保証しない。Go-live 判断には provider / GitHub の実行時 receipt が必要。
@@ -14,7 +14,7 @@
 | 管理者向け初期設定手順 | §2 | path / 権限 / 順序は実装と突合済み。本番 LINE/L ステップ秘密は **USER（U5–U6）** |
 | 運用手順（バックアップ・障害連絡・ログ） | §3 | STG 実績ベース。本番実測・窓口・通知先は **USER（U7–U11）** |
 
-現場スタッフ向け操作ナビは [OPERATION_MANUAL.md](OPERATION_MANUAL.md)（#256）。本番切替当日のオーケストレーションは [GOLIVE_RUNBOOK.md](GOLIVE_RUNBOOK.md)（#257・LANE-2 所有）。
+現場スタッフ向け操作ナビは [OPERATION_MANUAL.md](OPERATION_MANUAL.md)（#256）。本番切替当日の手順は [GOLIVE_RUNBOOK.md](GOLIVE_RUNBOOK.md)（#257）。
 
 ---
 
@@ -79,7 +79,7 @@ flowchart TB
 | | STG | PROD（予定・未構築） |
 |---|---|---|
 | Worker | `animalekarte-stg-api` | `animalekarte-prod-api` |
-| DB | PlanetScale `animalekarte-stg`（2026-08-20の外部観測ではdemo dataあり。現在値はUNKNOWN。現行migrateは`002_master`のみ） | repo内最終記録では未作成。現在値はUNKNOWN |
+| DB | PlanetScale `animalekarte-stg`（2026-08-20の外部観測ではdemo dataあり。現在値はUNKNOWN。CSV bundle は `002_master` のみ。別 phase の `seedlogin.ShouldApply` は staging を含み、合成デモログイン・staff/権限割当を投入する。現在 DB に適用済みかは未確認） | repo内最終記録では未作成。現在値はUNKNOWN |
 | R2 | `animalekarte-stg-images` | `animalekarte-prod-images` |
 | デプロイ | staging pushのうちbackend workflow対象pathのみ自動。`infra/cloudflare/**`は別IaC承認 | 未整備 |
 
@@ -93,7 +93,7 @@ flowchart TB
 |---|---|---|
 | **医院（`clinic_id`）分離** | 診療・会計・予約等の業務データは共有 DB 内で `clinic_id` により論理分離され、API / Repository でテナントスコープを強制する。医院マスタで定義した拠点がスタッフ所属とデータの源泉になる | [`/settings/clinic`](../spec/screens/19-clinic-settings.md) |
 | **スタッフ所属医院** | スタッフは複数医院に所属可。操作可能な医院は所属割当で決まる | [`/settings/staff`](../spec/screens/settings/master-staff.md) |
-| **権限グループ（RBAC）** | リソース × 操作（view / create / edit / delete）のマトリクス。API は毎リクエスト評価、画面は `/v1/me` ポーリングで同期 | [`/settings/permission-groups`](../spec/screens/settings/master-permission-group.md) |
+| **権限グループ（RBAC）** | リソース × 操作（view / create / edit / delete）のマトリクス。API は毎リクエスト評価。画面は定期ポーリングを行わず、別端末の変更がメニューへ即時反映される保証はない | [`/settings/permission-groups`](../spec/screens/settings/master-permission-group.md) |
 | **最小権限** | 会計取消・締め後修正・マスタ編集・権限変更は管理者系グループに限定する | 同上・#255 役割方針 |
 | **新規医院の既定グループ** | 医院開設時に「執行」「一般」がデフォルトルール付きで自動作成される | [master-permission-group.md](../spec/screens/settings/master-permission-group.md) |
 | **監査** | 業務上重要な変更は DB の `audit_logs` に操作者・時刻付きで記録（全テーブル自動監査ではない。経路ごとに明示実装） | [specification.md §2.1](../spec/specification.md) |
@@ -120,10 +120,11 @@ flowchart TB
 - 画面 path: **`/settings/closing-time`** — [締め時間設定仕様](../spec/screens/settings/closing-time-settings.md)
 - 権限: `closing-settings`（`ResourceClosingSettings`）
 - 設定内容:
-  - **AM/PM 境界**（既定 14:00）
-  - **終了時刻**（平日 / 日曜。これを過ぎた会計は当日 EMG＝緊急レンジ）
+  - **AM/PM 境界**: #252 の投入裁定は **12:00**（実装の未設定時既定値・demo seed と区別する）
+  - **終了時刻**: #252 の投入裁定は **平日・日曜とも 18:30**（以降は EMG＝緊急レンジ）
   - 定例休診日（曜日）・特別期間・個別休診日
   - AM 開始時刻は **固定 09:00（編集不可）**
+- [#252](https://github.com/MinoruSoga/AnimalEkarte/issues/252) は 2026-09-06 取得時 OPEN。全院で AM 開始 09:00・上記 3 フィールド・EMG 日跨ぎを確認し、認可済み投入 receipt を残す。設定画面の存在や demo seed は全院投入の証拠ではない。
 - レジ締めの AM / PM / EMG 区分の境界を決める。**売上集計専用**であり、LINE 予約の休診設定とは連動しない（LINE 側は別画面で設定）。
 - 変更は将来の集計に影響する。過去の締めレコードは境界変更でも再計算されない（[29-closing-aggregation.md](../spec/screens/29-closing-aggregation.md)）。
 
@@ -142,12 +143,13 @@ flowchart TB
 - 手順:
   1. 氏名・職種・有効/無効を入力。
   2. **ログイン用メールアドレス**（= ログイン ID。**新規作成時のみ入力可**・以後は表示のみ）。
-  3. **パスワードは管理者が入力する**（新規: 8 文字以上必須。既存: 変更する場合のみ入力。プレースホルダ「変更する場合のみ入力」）。システムが初期パスワードを自動生成して一度だけ表示する方式ではない。
+  3. ログインを利用する場合は、メールとともに**管理者がパスワードを入力する**（8文字以上・72バイト以下、文字と数字をそれぞれ含む）。新規は両方空欄ならログインアカウントなしで登録可能。既存のパスワードは変更する場合のみ入力する。初期パスワードの自動生成は行わない。
   4. **既存スタッフのパスワード変更には `master-staff:edit` に加えて `master-permission:edit` が必要**。
   5. 権限グループ・所属医院（複数可）・LINE 予約公開設定（表示名・対応可能予約区分等）を割り当て。所属医院・対応可能区分は新規作成後にも設定可能。
 - 退職・休職時は原則 **無効化（有効/無効ステータス）** を使う（過去カルテ・会計の担当者参照を維持するため）。削除 API は存在するが、参照整合が必要な場合は無効化を優先する。
-- 権限グループ変更は API 側は即時反映。画面メニュー等は `/v1/me` のポーリングで同期される。
+- 権限グループ変更は次の API リクエストから評価される。画面メニューは定期同期されないため、別端末の変更を確認するときは再ログインする。更新契機の詳細は[スタッフ管理仕様](../spec/screens/settings/master-staff.md#31-認可の波及)を参照する。
 - **ロック解除操作は存在しない**（ログイン保護は IP レート制限のみ。Q&A No.25 / [OPERATION_MANUAL.md §1](OPERATION_MANUAL.md)）。ログインできないスタッフには「1〜2 分待機 → パスワード再設定 → 有効/無効確認」を案内する。
+- 運用開始前に、ログインする全スタッフの**個人アカウント・所属院・役割別権限**を確認する。部署共有アカウントは使わない。権限外操作が拒否されることと、発行・権限変更の監査記録を確認して受け入れる（[#255](https://github.com/MinoruSoga/AnimalEkarte/issues/255)）。ログインアカウントなしのスタッフ登録だけでは、この受入条件を満たさない。
 
 ### Step 5: マスタ管理（診療・会計の基礎データ）
 
@@ -161,6 +163,8 @@ flowchart TB
 - LINE 予約設定: サイドバー「LINE予約管理」— [28-line-reservation.md](../spec/screens/28-line-reservation.md)
 - Lステップ連携: [31-lstep-integration.md](../spec/screens/31-lstep-integration.md)（設定 path 例: `/settings/integrations/lstep`）
 - 設定内容: 受付枠・受付条件・予約ページ表示・Lステップ API 接続（接続テストあり）。
+- 設定順序と接続テストの検証範囲は [LINE セットアップ](../spec/line/setup.md) を参照。接続テストの success だけでは webhook / LIFF / 外部 write の成立を証明しない。
+- Lステップ外部 write の再開は [#259](https://github.com/MinoruSoga/AnimalEkarte/issues/259) の納品後対応。先方 enable・STG 少数実送信・cron/stop 証跡が必要で、API キー保存だけで再開しない。
 - 本番用チャネル・API キー投入は各医院の契約情報受領後（**USER 入力待ち（U5 / U6）**。秘密値は本書に書かない。secret 管理へ投入する）。
 
 ---
@@ -196,7 +200,7 @@ flowchart TB
 | ログ | 場所 | 用途 | 保持 |
 |---|---|---|---|
 | 業務操作監査（`audit_logs`） | DB 内。カルテ確定・会計取消・権限変更等を経路ごとに記録 | 「誰が・いつ・何を」の追跡。臨床・会計の真正性 | 永続（DB 内）。保存期間ポリシーの最終合意は **USER 入力待ち（U11）** |
-| 画面上の履歴断片 | カルテの追記/確定者表示、会計の取消理由表示など | 現場での個別レコード確認 | レコードに紐づく |
+| 画面上の履歴断片 | カルテの追記/確定者表示など。会計取消理由の入力・表示機能はない | 現場での個別レコード確認 | レコードに紐づく |
 | API / インフラログ | Cloudflare ダッシュボード → Workers Logs / Containers | 障害調査（エラー・レイテンシ）。**業務監査の正本ではない** | プラットフォーム準拠（開発側運用） |
 | デプロイ履歴 | GitHub Actions 実行履歴 | いつ・どのバージョンが反映されたか | GitHub 準拠 |
 
@@ -218,7 +222,7 @@ flowchart TB
 
 ## USER 入力待ち（委任外・repo では確定不能）
 
-本表は repo 由来の SSOT だけでは埋められない項目を集約する。**値・秘密・契約内容・本番証跡は発明しない。** **U1–U12** の供給後に #258 最終承認・本ドキュメント追記を行う。U13（操作説明会）は #256 / OPERATION_MANUAL の残差であり、**#258 close 条件ではない**。
+本表は repo 由来の SSOT だけでは埋められない項目を集約する。2026-09-06 の GitHub 取得でも [#258](https://github.com/MinoruSoga/AnimalEkarte/issues/258#issuecomment-5352951236) は OPEN、最新コメントは U1–U8/10/11 の契約記入と #253 後の U9/U12 を残件とする。Linear の現在値・契約台帳・provider の新しい証跡は今回取得していない。**値・秘密・契約内容・本番証跡は発明しない。** **U1–U12** の供給後に #258 最終承認・本ドキュメント追記を行う。U13（操作説明会）は #256 / OPERATION_MANUAL の残差であり、**#258 close 条件ではない**。
 
 **記入ルール（2026-08-20 棚卸し）**: 「repo 確定」列はリポジトリ内の非機密事実だけを書く。「契約記入」列に名義・請求先・秘密・本番証跡が無い行は **未記入** のまま残す。推測で埋めない。
 
@@ -264,7 +268,7 @@ flowchart TB
 |---|---|---|
 | [OPERATION_MANUAL.md](OPERATION_MANUAL.md) | 現場スタッフ向け操作マニュアル（ナビゲーション） | 現場スタッフ |
 | システム内マニュアル（`/manual`） | 全画面・全業務フローの詳細手順（検索可能） | 現場スタッフ・管理者 |
-| [GOLIVE_RUNBOOK.md](GOLIVE_RUNBOOK.md) | 本番切替準備・障害時判断（LANE-2 所有） | 開発側・先方管理者 |
+| [GOLIVE_RUNBOOK.md](GOLIVE_RUNBOOK.md) | 本番切替準備・障害時判断 | 開発側・先方管理者 |
 | 本書（DELIVERY_PACKAGE.md） | システム構成・管理者設定・運用手順 | 先方管理者 |
 | [docs/spec/screens/](../spec/screens/README.md) | 画面別 詳細仕様書 | 管理者・開発側 |
 | [docs/ops/deploy/README.md](../ops/deploy/README.md) | デプロイ・運用ハブ（環境一覧・障害時判断） | 開発側 |

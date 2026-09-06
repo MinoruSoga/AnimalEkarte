@@ -211,8 +211,8 @@
 ## 確認観点
 
 - 既存の機械テストとの分担: FE component test（`PaymentCard`・`CreditCorrectionDialog`・`RefundSection`・`EstimateForm`・`ReservationFormModal`・受付 hooks/`ReceptionDialogActionButtons`・`ShiftCalendar`・inventory form hooks）と BE validator/service test（validatePaymentSplits・billing_item・refund・cash_register・estimate・appointment/checkSlotConflict・shift_entry の各 service test）が単体レベルの検証を網羅済み。**本シナリオはブラウザ → API → DB を通した受け入れ時の実機フォーム検証**である。
-- テスト空白地帯: `CashRegisterClosePage`・`ShiftFormDialog`・`ClinicHolidayModal` は component test が存在せず、E2E も全対象フォームで表示確認どまり（保存実行なし）— §5・§10・§11 は本シナリオが唯一の保存実行検証。`ItemListCard` には component test がある。在庫は unit/hook test があるが **E2E 保存通しは本 §12 + 項目単位 F が受入正本**。
-- 監査 fail-closed（クレジット訂正・返金は監査ログと同一トランザクション、監査失敗で操作ごとロールバック #211）は BE テスト正本 — 画面側では検証しない。
+- `CashRegisterClosePage.test.tsx` は締め mutation の権限、`ShiftFormDialog.test.tsx` は時刻検証、`ClinicHolidayModal.test.tsx` は保存/削除・権限・入力状態を検証する component test がある。これらは mock mutation の局所証明であり、実 API/DB 永続化は §5・§10・§11 で確認する。`ItemListCard`・在庫にも component/unit/hook test がある。**項目単位の受入正本は本シナリオ + F プロトコル**。
+- 監査 fail-closed（クレジット訂正・返金は監査ログと同一トランザクション、監査失敗で操作ごとロールバック。`refund_service.go` / `accounting_service_correction.go` が実装根拠）は BE テスト正本 — 画面側では検証しない。
 - クロステナント隔離はスコープ外（BE isolation テスト正本）。NG 項目は [`bug.md` の確認済み製品不具合](../../../../bug.md) へ `### BUG-XXX` 節として起票する（ローカル連番 最大+1・[README.md](README.md) のルールに従う）。
 
 ## 実装突合

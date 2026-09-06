@@ -11,7 +11,7 @@
 トリミング・定期健診・検査・入院・予防接種の各フォーム画面上部に常駐する「単一の真実」（`features/trimming`, `features/checkups`, `features/examinations`, `features/hospitalization`, `features/vaccinations`）。
 - **臨床アラート**: 死亡 (`deceased`) ステータスを【死亡】バッジで強調。
 - **属性表示**: 名前、年齢、性別、最新体重、担当医、保険、次回来院予定。`petDetails` は `formatPatientPetDetails` が組み立てる。`species` があるときは先頭に実データを出す。欠損の年齢・性別・去勢避妊だけ「不明」。独立登録（予防接種・定期健診・入院新規）も同じ関数を使う。
-- **クイックアクション**: `onOwnerClick` / `onStaffClick` 等のクリックコールバックを任意で受け取る。現状 `onOwnerClick` を渡す利用画面はなく、担当医クリックでの変更はトリミングフォームのみが使用（`MasterSelectModal` の担当スタッフ選択が開く）。飼主付け替えの `OwnerSearchModal` 起動はカルテ画面側（下記例外）の導線であり、本カード経由の実装は存在しない。
+- **クイックアクション**: `onOwnerClick` / `onStaffClick` 等のクリックコールバックを任意で受け取る。現状 `onOwnerClick` を渡す利用画面はない。担当者変更はトリミングフォームの担当スタッフ選択と、入院登録・編集フォームの担当医選択で使用する（入院は `canSubmit` 時のみ）。飼主付け替えの `OwnerSearchModal` 起動はカルテ画面側（下記例外）の導線であり、本カード経由の実装は存在しない。
 - **例外**: カルテ画面（06-medical-records-form.md）は `PatientInfoCard` を使わず、専用の `MedicalRecordStickyHeader` が共有 `PatientContextHeader` を組み込んで同等の飼主（`OwnerSearchModal` 起動）/担当医クリック導線を実装している。
 
 ### 1.2 離脱防止ガード (`NavigationBlocker`)

@@ -2,7 +2,15 @@
 
 状態: **設計完了 / package helper 実装済み / HTTP・CLI・ブラウザ再実行は未 / UAT は BLOCKED**  
 正本シナリオ: [S09-closing-time-boundaries.md](./scenarios/S09-closing-time-boundaries.md)  
-設計だけでは S09 を PASS にしない。
+設計・package test だけでは S09 を PASS にしない。以下の「推奨実装」「cleanup」は到達目標であり、現行 package がすべて実装しているという意味ではない。
+
+## 現行 package と残る接続（2026-09-06 ソース照合）
+
+- `backend/internal/billing/synthetic_closing_fixture.go` の `CreateSyntheticClosingFixture` は、新規 company/clinic/settings/owner/species/pet と指定 5 時刻の completed billing **ヘッダ**を作る。既存 billing ID の指定を拒否し、既存会計の UPDATE はしない。
+- `synthetic_closing_env.go` は `APP_ENV=test/development/local/dev` と DB host `db/localhost/127.0.0.1` の入力値を検証する。HTTP hostname の検証や接続済み DB の同一性検証は未実装。呼び出し側から渡す値だけで実接続の安全を証明しない。
+- 現行 helper は staff/account、支払方法、明細、payment splits、cleanup token を作らず、transaction wrapper・teardown も持たない。途中失敗時の原子性と回収は未確立。
+- HTTP route/CLI はなく、`POST /api/v1/uat/synthetic-closings` は下記の提案名のまま。ブラウザ用 identity と支払方法別の理論売上 fixture も未接続のため、S09 #2–#6 は **BLOCKED を維持**する。
+- `synthetic_closing_fixture_test.go` は unsafe request 拒否と 5 ヘッダの時刻/settings を検証する。HTTP/CLI・締めプレビュー集計・ブラウザ UAT・cleanup の成功証拠ではない。
 
 ## 対象 scenario
 
@@ -16,7 +24,7 @@ S09 #2〜#6（帰属プレビュー）。#1・#7〜#10 は既存会計を改変�
 |------|-----|
 | 環境 | ローカル Docker のみ。hostname が compose の `backend` / `localhost` 以外なら拒否 |
 | `APP_ENV` | `test` または `development` / `local` / `dev` のみ。`staging` / `production` / 空 / 不明は拒否 |
-| DB | compose の `db` / `ekarte_db`。PlanetScale・共有 STG DSN は拒否 |
+| DB | compose の DB。package が受理する host は `db` / `localhost` / `127.0.0.1`。`ekarte_db` は DB/container 名であり host allowlist の値ではない |
 | clinic | 新規合成 clinic。八王子 `1`・城東 `2`・既存 UAT clinic は使わない |
 | アカウント | その clinic に attach した合成 staff（cash-register-close） |
 | 締め設定 | AM 開始 09:00、境界 13:30、平日終了 19:00 |
@@ -89,7 +97,7 @@ helper が **新規** に作るものだけを使う。
 ## 局所検証コマンド（実装後）
 
 ```bash
-docker compose exec backend go test ./internal/billing/... -count=1 -run 'TestUATSyntheticClosing|TestCompleteRejectsClientCompletedAt'
+docker compose exec backend go test ./internal/billing/... -count=1 -run 'TestCreateSyntheticClosingFixture|TestAllowUATSyntheticClosing|TestRejectExistingBillingIDs|TestRejectReservedClinicID'
 ```
 
 フロントを触った場合のみ:
@@ -104,9 +112,10 @@ docker compose exec frontend npx vitest run <変更spec>
 
 | 操作 | 承認 |
 |------|------|
-| 本設計 | この文書で完了 |
-| helper 実装と局所テスト | 明示承認後 |
-| helper の main 統合 | USER |
+| 本設計 | source 定義済み。受入 sign-off とは別 |
+| package helper と局所テスト | 実装済み。HTTP/CLI・原子性・支払明細・cleanup は残る |
+| ブラウザ接続と回収経路の追加 | 残る仕様と scope を確定した後 |
+| 追加 HTTP/CLI・回収経路の main 統合 | USER（既存 package helper は `d4c870f9e` で source に収録済み） |
 | S09 #2〜#6 の UAT 再実行 | 統合後の別承認 |
 | UAT 集計の PASS 更新 | 再実行証跡後。設計だけでは更新しない |
 | Linear Done | USER |

@@ -1,7 +1,7 @@
 # テストアーキテクチャ (Test Architecture)
 
 > **目的**: 検証層、正本、実行手段、証跡、環境境界を一か所で定義する。
-> **最新更新**: 2026-09-01
+> **最新更新**: 2026-09-06
 
 ## 1. 原則
 
@@ -43,12 +43,14 @@ Mutating run の前に、対象 clinic ID、fixture owner、pre-count、期待 p
 
 ## 5. 環境プロファイル
 
-| profile           | migration seed                           | account / clinical fixture                                                                                                                         | LIFF                                   | 判定                                                                                                  |
+| profile           | CSV seed / login phase                           | account / clinical fixture                                                                                                                         | LIFF                                   | 判定                                                                                                  |
 | :---------------- | :--------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------- | :---------------------------------------------------------------------------------------------------- |
-| local UAT         | `002_master` のみ                        | [local handoff](../deploy/OLD_DB_HANDOFF_LOCAL.md) / approved import と [account provisioning](../deploy/STAFF_ACCOUNT_PROVISIONING.md) を明示実施 | local compose effective config で mock | disposable/local-only                                                                                 |
-| STG UAT           | `002_master` のみ                        | [STG lifecycle](../deploy/STG-DEMO-DATA-LIFECYCLE.md) の承認済み skeleton/import/staff-account lane                                                | mock 禁止。実機は人間レーン            | dedicated UAT tenant only                                                                             |
+| local UAT         | CSV `002_master` + 許可環境の login seed                        | [local handoff](../deploy/OLD_DB_HANDOFF_LOCAL.md) / approved import と [account provisioning](../deploy/STAFF_ACCOUNT_PROVISIONING.md) を明示実施 | local compose effective config で mock | disposable/local-only                                                                                 |
+| STG UAT           | CSV `002_master` + staging login seed                        | [STG lifecycle](../deploy/STG-DEMO-DATA-LIFECYCLE.md) の承認済み skeleton/import/staff-account lane                                                | mock 禁止。実機は人間レーン            | dedicated UAT tenant only                                                                             |
 | CI E2E auth smoke | `002_master` + `APP_ENV=test` login seed | public synthetic login fixture                                                                                                                     | mock intent                            | manual/non-gating `auth-flows.spec.ts` の配線を実装。Actions 実行・fresh DB 結果は UNREPORTED/UNKNOWN |
-| CI E2E full suite | `002_master` のみ                        | `--clinical` helper は repo にある。実行と e2e.yml job は未                                                                                          | mock intent                            | BLOCKED。auth smoke の実装を full suite coverage と扱わない                                           |
+| CI E2E full suite | CSV `002_master` + 許可環境の login seed                        | `--clinical` helper は repo にある。実行と e2e.yml job は未                                                                                          | mock intent                            | BLOCKED。auth smoke の実装を full suite coverage と扱わない                                           |
+
+CSV `002_master` は account/clinical rows を含まない。一方、migrate の別 phase `003_login` は `development/local/dev/test/staging` で catalog account/staff を upsert する（`backend/internal/seedlogin/env.go`、`backend/cmd/migrate/login_seed.go`）。「CSV に account がない」と「startup が account を作らない」を混同しない。production・空・未知の環境は login seed 対象外。
 
 `make migrate`、`make seed`、通常の startup は退役済み `003_demo` / `004_staging` を復元しない。backend startup は migrate を実行してから healthy になる。一方、migration 変更を pull した後は project policy に従い、**ユーザーが** `make migrate` を実行する。
 

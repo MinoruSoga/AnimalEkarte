@@ -11,7 +11,7 @@ auth smoke と **別 allowlist** にする。
 | 区分 | ファイル | 今回の対象 |
 |------|----------|------------|
 | CI / 手動 workflow 既存 | `frontend/e2e/auth-flows.spec.ts` | 対象外。現行 `.github/workflows/e2e.yml` のまま |
-| clinical / data-dependent | `clinical-flows.spec.ts`、`clinical-smoke.spec.ts`、`medical-records-*.spec.ts`、`examinations-flow.spec.ts`、`vaccinations-flow.spec.ts`、`checkups-flow.spec.ts`、`hospitalization-flow.spec.ts`、`estimates-flow.spec.ts` | 対象。退役 `003_demo` の固定氏名（林 文明 / Iris）に依存する |
+| clinical / data-dependent | `clinical-flows.spec.ts`、`clinical-smoke.spec.ts`、`medical-records-*.spec.ts`、`examinations-flow.spec.ts`、`vaccinations-flow.spec.ts`、`checkups-flow.spec.ts`、`hospitalization-flow.spec.ts`、`estimates-flow.spec.ts` | 対象。退役 `003_demo` の固定氏名依存は合成 fixture 参照へ置換済み |
 | 会計・予約・マスタ | `accounting-*.spec.ts`、`reservations-*.spec.ts`、`master-crud.spec.ts` 等 | 同一 fixture 契約が必要なら第 2 allowlist。初回実装には入れない |
 | UI 監査 / LIFF | `ui-design-compliance-readonly.spec.ts`、`line-reservation-flow.spec.ts` | 対象外 |
 
@@ -35,9 +35,9 @@ L4（S01–S13 / V01–V05）の代替ではない。
 - owner / pet / 確定済みカルテ 1 件以上（一覧・検索・行遷移）
 - 予約種別・入院ケージ等、allowlist が触るマスタは `002_master` または clinic スコープの合成行
 - 会計完了時刻の操作は [S09-FIXTURE-DESIGN.md](./S09-FIXTURE-DESIGN.md) に任せ、本 suite では要求しない
-- 外部通信は `synthetic-api.ts` の allowlist 外を遮断する（現行どおり）
+- `medical-records-create.spec.ts` の synthetic interceptor は allowlist 外を遮断し、mount 時 POST をローカル fulfill する。この spec は DB への作成/永続化を証明しない。他の clinical spec 全体へ同じ interceptor が自動適用されるわけではない。
 
-## 変更ファイル（実装承認後）
+## 実装済みファイルと残る実行
 
 - `frontend/e2e/helpers/` — disposable clinic の setup/teardown（合成 API または承認済み UAT helper）
 - `frontend/e2e/clinical-*.spec.ts` / `medical-records-*.spec.ts` — デモ氏名ハードコードを fixture 参照へ置換
@@ -74,7 +74,8 @@ runner 先頭で fail-closed:
 
 ## cleanup / 失敗時回収
 
-- `afterAll` で合成 clinic を削除。失敗時も `docker compose down` は CI auth smoke と同じ（full suite 用 job を作る場合）
+- 通常の Playwright 終了時（spec 失敗を含む）は `run-e2e.sh` が fixture CLI の teardown を呼び、teardown 失敗ならその非ゼロ exit を返す。spec の `afterAll` は browser context を閉じる。clinic 削除は runner の責任。
+- runner に EXIT/INT/TERM trap はなく、setup 後の中断・プロセス異常時の自動回収は保証しない。使い捨て DB と人手の回収手順を実行前に用意する。full suite 用 CI job / `down -v` の回収は未配線。
 - ローカルは clinic sweep。共有 DB の手削除はしない
 - teardown 失敗は UNREPORTED/BLOCKED。部分 PASS を full suite PASS にしない
 
@@ -108,7 +109,7 @@ cd frontend && ./scripts/run-e2e.sh e2e/helpers/clinical-env.spec.ts e2e/helpers
 
 | 操作 | 承認 |
 |------|------|
-| 本設計 | この文書で完了 |
+| 本設計 | source 定義済み。受入 sign-off とは別 |
 | fixture helper と allowlist 置換 | このスライスで完了。E2E PASS ではない |
 | ローカル `--clinical` 1 回 | 別承認 |
 | `e2e.yml` への full suite job 追加 | USER。non-gating のまま |

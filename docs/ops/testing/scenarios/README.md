@@ -69,7 +69,7 @@
 - **製品 FAIL は `bug.md` 必須**（確認済みのみ · 見出し重複禁止 · env/権限 BLOCKED は書かない）。PARTIAL は bug.md にしない。Linear Issue 化は後続レーン。
 - **S シリーズは core 受入**: local では S01→S13 を実施し FINAL を書く。V シリーズは項目単位の別軸（inventory 全 fieldKey）。「全て実施」は少なくとも core S の実行完了を指し、FAIL/PARTIAL/BLOCKED が残る場合は「全て PASS」と言わない。
 - **AI 実行**: browser-test + Chrome DevTools MCP、または Playwright MCP / 再現スクリプト。
-- **【要実測】**: 初回実測後、正しければ期待結果へ昇格。
+- **【要実測】**: 観測結果を実装/テスト/承認済み仕様と照合する。観測だけで期待結果へ昇格せず、仕様判断が残る場合は PARTIAL/BLOCKED。
 - **クレデンシャル禁止**: パスワード・トークンを本ディレクトリに書かない。アカウントはロール名。認証は `E2E_LOGIN_*`。
 
 ## シナリオの構造（S テンプレート）

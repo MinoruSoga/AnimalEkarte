@@ -27,7 +27,7 @@
 ### 2. チェックイン（予約→入院中）
 - **表示条件**: `HospitalizationDetailActions` は status が予約（API: `reserved`）かつ `hospitalization` の `edit` 権限があるときのみ「チェックイン」を表示する。入院中・退院済では非表示。退院済からの再チェックインは不可。
 - **操作**: 確認ダイアログなし。押下で既存 `PATCH /api/v1/hospitalizations/:id`（`useUpdateHospitalization`）へ `status: admitted` を送信し、表示ステータスを入院中へ遷移させる。監査ログは当該 PATCH 経路の既存挙動に従う。
-- **死亡ペット**: チェックイン mutation を拒否する。チェックインチボタンは `colorVariant="primary"`。
+- **死亡ペット**: チェックイン mutation を拒否する。チェックインボタンは `colorVariant="primary"`。
 
 ### 3. 退院プロセスと会計連携
 - **表示条件**: 「退院処理」は status が入院中（API: `admitted`）かつ `edit` 権限があるときのみ表示する。予約（`reserved`）では表示しない（旧障害モードの是正）。退院は record を消さない状態遷移であるため `delete` ではなく `edit` を要求する（BUG-457・2026-07-28 の製品判断。従来は表示条件だけ `delete` を要求しており、下表の退院 route が要求する `edit` と食い違っていた）。

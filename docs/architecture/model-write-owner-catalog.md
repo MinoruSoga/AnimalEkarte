@@ -40,7 +40,7 @@
 | `Occupation` | `occupations` | `staff` | Staff-related master |
 | `Account`, `TokenBlacklist`, `PasswordResetToken` | `accounts`, `token_blacklist`, … | `auth` | Identity / session |
 | `PermissionGroup`, `PermissionGroupRule`, `StaffPermissionGroup` | permission tables | `auth` | Clinic-scoped RBAC definitions |
-| `Owner` | `owners` | `owner` | |
+| `Owner` | `owners` | `owner` | Nested pet registration delegates to `pet.CreateForOwnerRegistration` through `owner.PetRegistrar` in the same transaction; see orchestration catalog |
 | `Pet`, `PetOwner`, `PetChronicCondition` | `pets`, `pet_owners`, `pet_chronic_conditions` | `pet` | |
 | `AnimalSpecies` | `animal_species` | `pet` | Global shared species master; current writes are exclusively owned by `pet` |
 | `MedicalRecord`, addenda, images | `medical_records`, … | `medicalrecord` | Clinical record aggregate |

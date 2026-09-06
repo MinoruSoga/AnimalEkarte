@@ -24,6 +24,10 @@
 | S01 | **PARTIAL**（LSTEP 実送信は E1） |
 | r14 | ヘッダだけ「FAIL 0 / PASS 16」と書いてあった regression smoke。V04 再実行の証跡は本ファイルに無く、PASS 翻転ではない。ディレクトリは gitignore のため再読不可 |
 
+下記 `reports/uat-*` は gitignore 対象で fresh clone には配布されない参照である。今回の文書更新では原証跡を再確認できていない。不在から未実施/完了を推定せず、再検証には管理者が保持する原証跡を使う。
+
+各 PASS は下記の過去実行スナップショットの転記であり、今回のソース照合による再認定ではない。特に V 系の scenario-level PASS と、未収録 field/wildcard を含む inventory 全体の完了は別（[FORM-FIELD-INVENTORY.md](scenarios/FORM-FIELD-INVENTORY.md)）。
+
 冒頭の FAIL 0 は「開いている製品 FAIL が 0」であり、最終実行の V04 FAIL を消したものではない。PASS 16 は V04 を PASS にした数え方なので使わない。
 
 ---
@@ -90,9 +94,9 @@
 - **未解消ギャップ（S09 BLOCKED 要件）**:
   1. 承認済み **fixture API** または **scoped UAT test helper** が必要（`completed_at` を 10:00 / 13:30 / 14:00 / 20:00 / 翌 02:00 に設定した合成会計 5 件）。
   2. **禁止**: 直接 DB 更新、システム時計変更、既存会計の改変（シナリオ hard rule）。
-  3. helper 不在のため帰属証明ステップ #2–#6 は実施不可 → シナリオ総合 **BLOCKED**（settings/preview/history の先行 PASS では解除しない）。
+  3. 現行 package helper は 5 会計ヘッダを作るが、HTTP/CLI・UAT identity・支払内訳・cleanup が未接続（[設計と実装境界](S09-FIXTURE-DESIGN.md)）。帰属証明ステップ #2–#6 は未再実行 → シナリオ総合 **BLOCKED**（settings/preview/history の先行 PASS では解除しない）。
   4. 詳細: [`reports/uat-2026-09-05-r5/S09-BLOCKED.md`](../../../reports/uat-2026-09-05-r5/S09-BLOCKED.md)
-- **関連 bug IDs**: （なし — helper 欠如は製品 FAIL ではない）
+- **関連 bug IDs**: （なし — UAT 接続の不足は製品 FAIL ではない）
 - **証跡**: `reports/uat-2026-09-05-r5/S09-BLOCKED.md` · `reports/uat-2026-09-05-r4/s09-helper-search.json`
 
 ---

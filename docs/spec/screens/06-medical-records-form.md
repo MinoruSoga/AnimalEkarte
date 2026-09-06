@@ -21,7 +21,7 @@
 | 4 | **予防接種** | 左ペインに当該ペットの接種記録一覧（`GET /vaccinations?pet_id=` + `page`/`limit`）。空なら EmptyState、「記録を追加」で入力フォーム。右カラムは `VaccinationHistory`。カルテネストの `/medical-records/:id/vaccinations` は存在せず使わない。次回予定ラジオは `calculateNextDate` に配線済み（既定 `4weeks`。独立画面の既定は `1year`）。 |
 | 5 | **定期健診** | 健康診断の結果記録。`/checkups` の編集は `?tab=定期健診&checkupId=` で本タブを開き、該当行を編集状態にする。 |
 | 6 | **検査** | 検査結果の一覧表示と既存検査の取込（カルテへの紐付け）、基準値との比較（HIGH/LOW判定ハイライト）。 |
-| 7 | **画像** | 患部写真、レントゲン、エコー画像、PDF資料のアップロード・管理。 |
+| 7 | **画像** | 患部写真、レントゲン、エコー画像、PDF資料のファイル選択によるアップロード・管理。ドラッグ&ドロップ追加は #235 の価値実測・判断待ち。 |
 | 8 | **見積書** | 提示した概算費用の管理。 |
 | 9 | **会計(医師確認)** | 診療費の最終確認と会計ステータスの送信。 |
 
@@ -45,8 +45,13 @@
 ### 2.3 臨床安全ガード
 - **確定ロック**: `finalized`（確定済）ステータスのカルテはバックエンドが更新を拒否し（409）、訂正は追記（addendum）のみ許可することで真正性を担保。確定への遷移は `PATCH /medical-records/:id` の `status` 指定によるもの。画面右下のフローティングアクション（`MedicalRecordFloatingActions`）に「確定する」ボタンが表示され（編集権限あり・保存済み・未確定の場合のみ）、会計(医師確認)が `confirmed` の場合だけ有効になる。未確認・差戻し・取得中・取得失敗・確認状態なしでは「会計確認が未完了です」として確定を物理ブロックする。有効時は `MedicalRecordFinalizeDialog` で不可逆であることを確認した上で確定する。確定取り消し（unfinalize）API は存在しないため、確定後の修正経路は訂正追記（addendum）のみ。会計完了時の自動確定は現状存在しない。確定済みカルテはサイドヘッダーに「確定済」バッジ（`StatusBadge`）を常時表示する。
 - **訂正追記モーダル**: `AddendumModal` の修正内容・修正理由は controlled input。バリデーション失敗後も入力済みの値を保持する（React 19 `useActionState` の remount で消えない）。修正理由は 500 文字以内。
-- **薬量自動計算と絶対上限ゲート（#201）**: 「治療」タブの処方明細（`TreatmentRow`）は、対象ペットの species と当日 vital 体重から数量を自動プリフィルする（`calculateDose`）。保存値がマスタ上限（体重連動上限 weight×max_mg/kg と体重非依存の絶対上限 absolute_max_dose の小さい方）を超える場合、フロントエンドは理由をインライン表示して追加・更新を送信せず、バックエンドも Create/Update の永続化前に 400 で拒否する。`ConfirmDialog` による解除経路は設けない。下限未満または推奨値からの著しい乖離は保存を許可して audit に記録する。体重未記録・species 正規化不能・投与量パラメータ未設定時は評価をスキップして従来どおり保存を継続する。パラメータ取得の非 NotFound エラーと species 不一致は既存どおり fail-closed とする。権限付き例外フロー（Design B）は実装しない。
+- **薬量自動計算と絶対上限ゲート（#201）**: 「治療」タブの処方明細（`TreatmentRow`）は、対象ペットの species と当日 vital 体重から数量を自動プリフィルする（`calculateDose`）。保存値がマスタ上限（体重連動上限 weight×max_mg/kg と体重非依存の絶対上限 absolute_max_dose の小さい方）を超える場合、フロントエンドは理由をインライン表示して追加・更新を送信せず、バックエンドも Create/Update の永続化前に 400 で拒否する。`ConfirmDialog` による解除経路は設けない。上限内でも下限未満または推奨値からの著しい乖離は、インラインの逸脱理由（`dose_deviation_reason`、空白のみ不可・500文字以内）が必須。理由を snapshot と同一 transaction の監査へ保存し、actor・監査依存の欠落や監査失敗時は保存しない（`computeDoseGate` / `ensureDoseDeviationAuditReady` / `auditDoseDeviationTx`）。体重未記録・species 正規化不能・投与量パラメータ未設定時は評価をスキップして従来どおり保存を継続する。パラメータ取得の非 NotFound エラーと species 不一致は既存どおり fail-closed とする。権限付き例外フロー（Design B）は実装しない。
+- **臨床承認の境界**: コード上のゲートと、対象薬・値・範囲・単位・出典を含む臨床承認は別。#201 の Closed は #261 への承認作業の集約であり、臨床 bundle の承認完了を意味しない（[承認作業 #261](https://github.com/MinoruSoga/AnimalEkarte/issues/261)）。
 - **未保存警告**: 変更がある状態でページを離れようとすると `NavigationBlocker` が警告を表示。
+
+### 2.4 画像・資料の選択制限
+
+ファイル選択欄の対象はJPEG/PNG/GIF/PDF。一度の選択は10件まで、1ファイル10MiB以下・合計50MiB以下とする。件数・合計サイズの超過、または1件でも個別サイズ超過がある場合、その選択分全体を受け付けずエラーを表示する（`ImageGalleryFilter`）。拡張子・形式の選択補助はファイル内容の安全性検証を保証しない。
 
 ---
 

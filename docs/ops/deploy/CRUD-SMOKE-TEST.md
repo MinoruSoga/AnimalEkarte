@@ -17,6 +17,7 @@ trap 'rm -f "$RESPONSE_FILE"' EXIT
 ```
 
 - `hospital-settings:view` を持つ承認済みアカウントと、持たないアカウントを用意する。
+- POST/PATCH/DELETE は `X-Requested-With: XMLHttpRequest` を必須とする（`RequireXRequestedWith`）。対象医院は認可済み session の `X-Clinic-ID` 契約に従い、他院へ流用しない。
 - browser/curlのHttpOnly cookie認証を使う。cookie/token/password値を文書、shell history、artifactへ残さない。
 - 既存医院を編集する場合は、変更前の値を安全なrun sheetへ記録し、同じAPIで必ず復元する。
 
@@ -50,7 +51,8 @@ curl -sS -o ${RESPONSE_FILE} -w '%{http_code}
 
 ```bash
 curl -sS -X POST "${API_V1}/masters/permission-groups" \
-  -b "$COOKIE_JAR" -H 'Content-Type: application/json' \
+  -b "$COOKIE_JAR" -H 'X-Requested-With: XMLHttpRequest' \
+  -H 'Content-Type: application/json' \
   -d '{
     "name":"TEST-GROUP-<run-id>",
     "description":"Smoke test temporary group",
@@ -58,7 +60,7 @@ curl -sS -X POST "${API_V1}/masters/permission-groups" \
     "is_active":true,
     "sort_order":9999,
     "rules":[{
-      "resource":"medical_records",
+      "resource":"medical-records",
       "can_view":true,
       "can_create":false,
       "can_edit":false,
@@ -85,7 +87,8 @@ curl -sS -X POST "${API_V1}/masters/permission-groups" \
 
 ```bash
 curl -sS -X POST "${API_V1}/masters/staffs" \
-  -b "$COOKIE_JAR" -H 'Content-Type: application/json' \
+  -b "$COOKIE_JAR" -H 'X-Requested-With: XMLHttpRequest' \
+  -H 'Content-Type: application/json' \
   -d '{"name":"TEST-STAFF-<run-id>","sort_order":9999}'
 ```
 

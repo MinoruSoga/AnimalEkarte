@@ -12,7 +12,7 @@ A human owner must record dated evidence for all items before deployment:
 - production database, role, backup/restore owner, R2, DNS, and certificate are verified;
 - a GitHub Environment with required reviewers exists and its exact case-sensitive name matches the workflow;
 - production secrets are environment-scoped and staging values are not reused unless explicitly approved;
-- frontend production settings are verified. Checked-in `frontend/vercel.json` and `.env.production` contain STG/AWS-era assumptions, so “Vercel auto-deployed” is not proof that `VITE_API_URL` targets production;
+- frontend production settings are verified. `frontend-deploy.yml` binds `Production` and rejects production dispatch from non-production refs. `VERCEL_ENV=production` makes `frontend/vite.config.ts` select the production API; `.env.production` remains STG-valued outside that override. Verify the deployed target and the external Environment reviewers;
 - workflow/config tests and `actionlint` are green on the reviewed change;
 - current Linear delivery state and go-live date are confirmed externally.
 
@@ -45,9 +45,9 @@ The old generic-token API and “SHA-256 of `result.value`” recipe is removed.
 
 ## 4. Seed contract
 
-At reviewed baseline `70dc7405`, only `backend/migrations/seeds/002_master` exists. `seedbundle.BundleOrderForEnv` returns master-only for every environment. `003_demo`, `004_staging`, “seed +3”, and environment-specific demo cleanup are historical behavior and must not be used.
+In the current checkout, only `backend/migrations/seeds/002_master` exists. `seedbundle.BundleOrderForEnv` returns master-only for every environment. `003_demo`, `004_staging`, “seed +3”, and environment-specific demo cleanup are historical behavior and must not be used.
 
-`APP_ENV` is not passed through current Wrangler/Container source and is not a production prerequisite. The master-only behavior does not depend on it. Production UAT/synthetic users require a separate approved import, owner, expiry, and cleanup path.
+`APP_ENV` is passed through the Worker to the Container and migrate runner. STG config sets `staging`; the production draft currently omits it, so login seeding and the shared demo-password shortcut remain disabled by the empty-value gate. Production configuration must not set a development/test/staging value. CSV master-only selection is independent of this login gate. Production synthetic users require separate approved provisioning with owner, expiry, and cleanup.
 
 ## 5. IaC and resource verification
 
@@ -65,7 +65,7 @@ Do not copy an embedded patch from docs. Modify and review the workflow against 
 6. workflow tests and `actionlint` pass;
 7. execution order is **deploy → migrate → `/health` → optional smoke**.
 
-At reviewed baseline `70dc7405`, `backend-deploy.yml` lacks the production trigger/Environment gate. Therefore a production workflow invocation is **not runnable** until the implementation is merged and verified.
+At the 2026-09-06 source review (`7c6592f9f`), `backend-deploy.yml` lacks the production trigger/Environment gate. Therefore a production workflow invocation is **not runnable** until the implementation is merged and verified.
 
 ## 7. Go-live verification
 

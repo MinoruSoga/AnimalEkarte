@@ -1,5 +1,6 @@
 # Go-live 手順書 — 本番切替（相対 timeline / gate-driven HOLD）
 
+> **仕様照合**: 2026-09-06、repo `7c6592f9f` と [#257 最新コメント](https://github.com/MinoruSoga/AnimalEkarte/issues/257#issuecomment-5353016753)。GitHub は OPEN。外部稼働・Linear の現在値は未取得。
 > **対象 Issue**: #257 ／ **状態**: ドラフト — **実行 HOLD**（全 **pre-window prerequisite** green かつ USER が新 window を記入するまで fail-closed。day-of gate は当日タイムライン内で別判定）
 > **次回切替日（新 window）**: （確定待ち — 下記「新 window 記入欄」に USER が一箇所記入する。本 runbook は日付を発明しない）
 > **履歴（historical No-Go）**: 予定 window **2026-08-03** は期限超過・未実施。当該 window は **historical No-Go** であり、**実行可能な current window ではない**。延期履歴: 7/18 → 7/25 → 7/27 → 8/3（当初 PO 裁定 2026-07-15 は 7/18。8/3 は 2026-08-01 の USER 決定）。旧 timeline 表記 `2026-07-18` は失効済みの絶対日であり、当日手順として実行しない。
@@ -22,19 +23,24 @@
 
 ## 1. Pre-window 前提チェックリスト（切替日前に全項目 ✅ であること）
 
+**研修順序の未解決な正本間差異**: [#256](https://github.com/MinoruSoga/AnimalEkarte/issues/256) は操作説明会を納品後とする一方、現行 [`todo.md`](../../todo.md) は P7（U13 研修）を P8（Go-live）の前提に含める。切替前に USER が Linear 上で採用する順序を確定する。本書の同期では既存ゲートを解除せず、U13 を完了扱いにしない。
+
+**UAT の延期不可条件**: 臨床安全・会計金額・clinic / owner / pet / staff 分離・認証権限・データ消失の FAIL は Go-live 前に解消する。下表の「納品後対応合意」はその他の FAIL に限り、Linear の受容条件と USER の明示受容を必要とする（`todo.md` P4）。
+
 未完了・未確定の項目が 1 つでも残る間は **Go 判定不可（HOLD）**。
 
 | # | 前提 | 対応 Issue / 正本 | 完了条件 | 状態 |
 |---|---|---|---|---|
 | 1 | STG Cloudflare 移行 Phase 7（NS 切替・並行稼働）完遂 | [現行構成](../ops/infra/architecture.md) | staging デプロイ 2 回連続 green → 画像移行 → データ投入 → NS 切替 → フルスモーク | ✅ 2026-07-17 完了 |
 | 2 | credential / provider residual（secret manager 状態・実値は repo 外） | #89 ／ #97 ／ #98 ／ #99 | 非機密 evidence で residual 解消または明示的 HOLD 解除条件が揃っていること。**実 credential 値は本書に書かない** | （確定待ち） |
-| 3 | 本番 Cloudflare 環境・配信契約・CI/backup/restore/rollback | #253 ／ [production/setup.md](../ops/infra/production/setup.md) ／ [production/runbook.md](../ops/infra/production/runbook.md) ／ [CI-CD-PIPELINE.md](../ops/deploy/CI-CD-PIPELINE.md) §0 | (a) 本番 CF 基盤構築 (b) `production` Environment + **Required reviewers** (c) production workflow 適用 (d) STG は main→staging 自動・本番は無承認開始不可 (e) **CF-only** rollback 手順 (f) backup/restore rehearsal 記録 (g) latest main CI green（当日確認した GitHub run URL / ID・commit・確認時刻を記録） | （確定待ち: 実行時 receipt 未記入。過去の CI / billing 状態を流用しない） |
+| 3 | 本番 Cloudflare 環境・配信契約・CI/backup/restore/rollback | #253 ／ [production/setup.md](../ops/infra/production/setup.md) ／ [production/runbook.md](../ops/infra/production/runbook.md) ／ [CI-CD-PIPELINE.md](../ops/deploy/CI-CD-PIPELINE.md) §1 | (a) 本番 CF 基盤構築 (b) workflow の `environment:` 指定と同名の GitHub Environment + **Required reviewers**（2026-08-20 の観測名は `Production`。当日に再確認） (c) production workflow 適用 (d) STG は main→staging 自動・本番は無承認開始不可 (e) **CF-only** rollback 手順 (f) backup/restore rehearsal 記録 (g) latest main CI green（当日確認した GitHub run URL / ID・commit・確認時刻を記録） | （確定待ち: 実行時 receipt 未記入。過去の CI / billing 状態を流用しない） |
 | 4 | Access データ移行の事前準備 | #250 | リハーサル PASS、最終 import 手順・担当・入力停止・backup/rollback・突合方法が承認済み。**最終 production import と突合 PASS は day-of gate** | （確定待ち: 当日実行前の準備 evidence） |
-| 5 | 全業務シナリオ通し確認済み（authenticated UAT） | #254 | 全シナリオ PASS、または FAIL 項目が「納品後対応合意済みリスト」に隔離済み | （確定待ち） |
+| 5 | 開発側デモ環境で全業務シナリオ通し確認済み（認証付き。現場 UAT は納品後） | #254 | 全シナリオ PASS、または FAIL 項目が「納品後対応合意済みリスト」に隔離済み。[#254 close checklist](../ops/testing/scenarios/UAT-254-CLOSE-CHECKLIST.md) の実 LINE・token・audit・別 sign-off 等も満たす | （確定待ち） |
 | 6 | スタッフアカウント発行・権限設定済み | #255 | 全スタッフに個人アカウント発行・所属院スコープ・役割別権限設定済み | （確定待ち: スタッフ一覧の先方提供がブロッカー） |
 | 7 | フロントエンド CSP の最終確認 | [architecture.md](../ops/infra/architecture.md) | `frontend/index.html` の CSP `connect-src` に本番 API オリジンが含まれている | （確定待ち） |
 | 8 | 監視・通知の有効化 | #253 ／ [production/runbook.md](../ops/infra/production/runbook.md) §5 ／ `infra/cloudflare/notifications.tf` | ゾーン 5xx 通知が有効・送信先メール検証済み（PROD 専用ポリシーは二重通知のため追加しない） | （確定待ち: 通知先供給・アドレス事前検証） |
 | 9 | 切り戻し体制・authority / support / rollback owner の合意 | 本書 §4・冒頭「新 window 記入欄」 ／ [production/runbook.md](../ops/infra/production/runbook.md) §3 | 判断者・判断基準・連絡経路が先方と合意済み。**ECS 切り戻しは選択肢に含めない**（#99） | （確定待ち） |
+| 10 | 全院の締め時間設定 | [#252](https://github.com/MinoruSoga/AnimalEkarte/issues/252) ／ [締め時間設定](../spec/screens/settings/closing-time-settings.md) | AM 開始 09:00 を確認、AM/PM 境界 12:00・平日/日曜終了 18:30 を全院投入。プレビュー・EMG 日跨ぎ・過去締め非再計算の非機密 receipt | （確定待ち: 投入完了証跡なし） |
 
 ---
 
@@ -54,7 +60,7 @@
 | T+1:15 | 10:15 | **Day-of gate**: 突合検証（テーブル別件数・clinic_id 別件数・金額合計・サンプル目視） | 開発側 | 最終 import と検証レポートが PASS。未達なら T+3:00 は No-Go |
 | T+1:45 | 10:45 | 本番 DNS レコードの最終確認（§3。**zone-wide NS 変更禁止**） | 開発側 | 実行時の registrar / `dig NS` / 本番レコード確認結果・時刻・receipt を記録 |
 | T+2:00 | 11:00 | 疎通確認: `curl -fsS https://api.noah-karte.com/health` → 200 `{"status":"ok"}`、フロント `https://noah-karte.com` 表示 | 開発側 | ヘルスチェック PASS |
-| T+2:15 | 11:15 | スモーク: ログイン → 受付 → カルテ → 会計 → 締め（テストデータ）＋ LINE 予約疎通 | 開発側 | 全操作正常・テストデータ削除記録 |
+| T+2:15 | 11:15 | スモーク: ログイン → 受付 → カルテ → 会計 → 締め（テストデータ）＋ LINE 予約疎通 | 開発側 | 全操作正常・承認済み検証データの識別/処理記録（締めは append-only。削除を成功条件にしない） |
 | T+3:00 | 12:00 | **Go/No-Go 最終判定**（§4 の基準） | 判断者（§4・冒頭記入欄） | Go 判定を記録 |
 | T+3:15 | 12:15 | 先方へ利用開始を宣言・新システムでの業務開始 | 先方管理者 | — |
 | T+日中〜終業 | 〜終業 | 集中監視（§5）。初回レジ締めの立ち会い（リモート可） | 開発側 | 締め完了確認 |
@@ -157,7 +163,7 @@ repo 履歴では、Cloudflare zone-wide NS 切替は 2026-07-17 に完了した
 - [現行インフラ構成](../ops/infra/architecture.md) — Cloudflare構成の正本
 - [infra/cloudflare/README.md](../../infra/cloudflare/README.md) — Cloudflare Terraform / CI デプロイ手順
 - [docs/ops/deploy/README.md](../ops/deploy/README.md) — 環境一覧・ロールバック判定フレームワーク
-- [docs/ops/deploy/CI-CD-PIPELINE.md](../ops/deploy/CI-CD-PIPELINE.md) — デプロイ契約・パイプライン（#253 §0）
+- [docs/ops/deploy/CI-CD-PIPELINE.md](../ops/deploy/CI-CD-PIPELINE.md) — デプロイ契約・パイプライン（#253 / §1 現行のデプロイ経路）
 - [docs/ops/infra/production/runbook.md](../ops/infra/production/runbook.md) — 本番運用・CF-only rollback・監視/backup
 - [docs/ops/infra/production/setup.md](../ops/infra/production/setup.md) — 本番 CF 事前構築手順
 - [DELIVERY_PACKAGE.md](DELIVERY_PACKAGE.md) — 納品ドキュメント（システム構成・運用手順）

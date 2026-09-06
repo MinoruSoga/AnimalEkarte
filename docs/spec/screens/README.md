@@ -6,6 +6,8 @@
 
 本ディレクトリ直下の番号付き仕様（`[0-9]*.md`）は **41 ファイル**（フロー文書 `99-medical-record-flow` を含む）。製品ルートの product leaf 数（`route-inventory` の 86）とは数え方が異なる。各ファイルに画面の機能、レイアウト、API 連携の詳細を定義する。
 
+画面の実装参照は `frontend/src/app/routes/` と各 feature、API の契約参照は `backend/docs/api.yaml` と各 domain の route 登録。GitHub Issue は本文に加えて後続の仕様訂正・集約先を確認する。Closed だけでは臨床承認・UAT・本番稼働の証明にならない。実行状態と残ゲートは [作業入口](../../work/README.md) を参照する。
+
 ---
 
 ## 🩺 臨床・診療コア (Clinical Core)
@@ -23,9 +25,9 @@
 | 14 | **予防接種一覧** | [14-vaccinations-list.md](./14-vaccinations-list.md) | 接種実績と次回予定の時系列リスト。 |
 | 15 | **予防接種登録** | [15-vaccinations-form.md](./15-vaccinations-form.md) | ワクチン履歴記録と次回予定自動計算。 |
 | 16 | **トリミング一覧** | [16-trimming-list.md](./16-trimming-list.md) | 施術予約と完了ステータスの管理。 |
-| 17 | **トリミング登録** | [17-trimming-form.md](./17-trimming-form.md) | 施術内容と仕上がり画像の記録。 |
+| 17 | **トリミング登録** | [17-trimming-form.md](./17-trimming-form.md) | 施術内容の記録。画像はプレビューまでで、選択ファイルの保存は未配線。 |
 | 25 | **定期健診一覧** | [25-checkups-list.md](./25-checkups-list.md) | 健診履歴の参照と当日カルテ自動生成。 |
-| 39 | **飼主カルテレポート** | [39-owner-report.md](./39-owner-report.md) | 飼主単位の全ペット診療サマリーを別ウィンドウで俯瞰。 |
+| 39 | **飼主カルテレポート** | [39-owner-report.md](./39-owner-report.md) | 同居ペットを選択し、1頭分の診療前確認・来院・履歴を別ウィンドウで俯瞰。 |
 
 ---
 
@@ -88,4 +90,4 @@
 
 ---
 
-**最新更新**: 2026-08-30 | **ステータス**: Static/Code Sync (128 Tables / 37 Resources); release state は Linear hub [BRT-4](https://linear.app/baritechllc/issue/BRT-4) を参照。作業入口は [`todo.md`](../../../todo.md)。
+**静的照合**: 2026-09-06、基準コード `7c6592f9f`。本索引と配下仕様をコード・GitHub Issue の本文／コメントへ照合した。稼働環境・実機・UAT の再実行は含まない。release state は Linear hub [BRT-4](https://linear.app/baritechllc/issue/BRT-4)、作業入口は [docs/work/README.md](../../work/README.md) を参照。

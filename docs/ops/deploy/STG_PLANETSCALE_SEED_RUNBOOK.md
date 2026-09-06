@@ -22,7 +22,7 @@ STGの画面デモログインは migrate フェーズ3が合成 `stg-staff-*@ex
 - 保存対象、verified backup/restore、rollback decisionを確認した。
 - target Wranglerの`secrets.required` namesとvarsを値を表示せず確認した。
 - current artifactにtop-level DDLと`002_master/manifest.json`/全listed CSVが揃う。
-- legacy-only seed keysがない、またはreviewed code fix/recovery planがある。
+- legacy keys がある場合は、現行 master-only translation と対象 DB の master 完全性を照合し、不整合時の reviewed recovery plan がある。
 - backend production/STG gateとbilling状態など、該当release gateがgreen。
 
 ### `public` schema prerequisite
@@ -66,7 +66,7 @@ Repository artifactsからexpected inventoryを導出する。
 - `public` missing: deployを止め、§2のapproved prerequisite procedureへ戻る。
 - checksum mismatch: file/historyを手修正せず、artifact/target取り違えとapproved recovery planを調査する。
 - migration coverage `missing>0`: release stop。healthだけを成功証跡にしない。
-- legacy key translation failure: [SEED_MIGRATION_OPERATIONS.md](./SEED_MIGRATION_OPERATIONS.md)のknown source blocker。manual baselineやreset不要宣言をしない。
+- legacy key translation failure: [SEED_MIGRATION_OPERATIONS.md](./SEED_MIGRATION_OPERATIONS.md#2-legacy-seed-keys) の現行 translation 契約と対象 DB を照合する。削除済み bundle 参照の旧不具合とは切り分け、manual baseline や reset 不要宣言をしない。
 - partial/unknown outcome: rerunやschema dropを重ねず、run ID、commit、target、last completed phaseを記録し、approved read-only verificationで状態を確定する。
 
 ### Manual seed fallback is prohibited
@@ -83,6 +83,6 @@ Approved rebuildでは`DROP SCHEMA`と`CREATE SCHEMA`を対で扱い、`public` 
 
 ## 7. Deferred blockers
 
-- Legacy seed-key translationは削除済みbundle checksumを参照するsource defectがある。code fix/recovery plan待ち。
+- Legacy seed-key translation は現行 `002_master` の記録だけを扱う。対象 DB の既存 master が満たされることは別途確認が必要。
 - STG/productionのlive state、backup restore readiness、secret values、PlanetScale CLI behaviorはrepository docsだけでは検証済みとしない。
 - Demo/clinical dataはmaster seedとは別のapproved provisioning/cutoverが必要。

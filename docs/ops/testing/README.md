@@ -18,12 +18,14 @@
 | [liff-verification.md](liff-verification.md) | LIFF の mock/実 LINE と秘密管理境界 | LIFF/LINE 検証 |
 | [SECTION_14_MANUAL_TEST_GUIDE.md](SECTION_14_MANUAL_TEST_GUIDE.md) | L5 の focused exploratory supplement | 補完確認 |
 | [UAT-DOMAIN-STATUS.md](UAT-DOMAIN-STATUS.md) | ドメイン別受け入れステータス（最新 UAT 集約） | 納品前・進捗確認 |
+| [CLINICAL-E2E-DESIGN.md](CLINICAL-E2E-DESIGN.md) | `--clinical` fixture/allowlist と未実施境界 | clinical 自動回帰の準備 |
+| [S09-FIXTURE-DESIGN.md](S09-FIXTURE-DESIGN.md) | 完了時刻 fixture の package 実装と未実装の UAT 接続 | S09 BLOCKED の解消設計 |
 | [PERFORMANCE_PROFILING.md](PERFORMANCE_PROFILING.md) | Lighthouse、k6、SQL 分析、現行 profiler の制約 | 性能調査 |
 
 ## 重要な現状
 
-- migration は `002_master` だけをロードし、UAT account/clinical fixture は作らない。準備は [UAT-ENV-SETUP.md](UAT-ENV-SETUP.md) に従う。
-- E2E の GitHub workflow は manual・non-gating で、account/fixture provisioning がないため authenticated suite は現在 BLOCKED。
-- performance workflow の k6 job も fresh master-only DB に account provisioning がなく、現在 BLOCKED。
+- CSV seed bundle は `002_master` のみ。migrate の別 phase `003_login` は non-production の許可環境で合成ログインを upsert する。臨床 fixture と受入用権限は別途準備する（[UAT-ENV-SETUP.md](UAT-ENV-SETUP.md)）。
+- E2E workflow は manual・non-gating の auth smoke に合成ログインを配線済み。`--clinical` helper/allowlist も実装済みだが、実行成功・全 suite coverage は未確認。
+- performance workflow は `APP_ENV=test` と `LOAD_TEST_LOGIN_*` を配線済み。実 Actions/fresh DB/k6 の結果は UNREPORTED/UNKNOWN。
 - unique form総数はinventory再構築完了まで算定保留。exact key未収録や動的定義が残る間は「全fieldを網羅」と言わない。
 - カバレッジ基準は [../coverage-policy.md](../coverage-policy.md)。確認済み UAT FAIL は `bug.md` で重複確認・記録後に Linear で追跡する。その他の新規 defect は通常の Linear intake に従う。

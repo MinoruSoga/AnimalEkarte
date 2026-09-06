@@ -3,23 +3,19 @@
 > **目的**: Vite frontendのdeployment、assets、cookie-auth API、settings routesを確認する。
 > **対象**: `https://stg.noah-karte.com`。credential/cookie値を記録しない。
 
-## 0. Release stop: prebuilt `/api` route
+## 0. Build-time API target
 
-`.github/workflows/frontend-deploy.yml`は`.vercel/output/config.json`を手動生成し、現状は`frontend/vercel.json`のAPI rewriteを含めない。したがってprebuilt deployでは`/api/...`がSPA fallbackの`index.html`へ入る可能性がある。
+現行 `frontend-deploy.yml` は `VERCEL_ENV=preview|production` を渡してビルドする。`frontend/vite.config.ts` はその値で `VITE_API_URL` を STG / production の絶対 API URL に固定し、`frontend/src/lib/axios.ts` が baseURL に使う。STG の通常 request は `https://api.stg.noah-karte.com/api/...` へ直接向かう。
 
-API smokeの前にworkflowを修正し、filesystem/SPA fallbackより前に次のrouteをoutput configへencodeしてdeploymentで検証する。
+prebuilt `.vercel/output/config.json` に `/api` rewrite はないが、上記の絶対 URL 経路に rewrite は不要。過去の「rewrite 欠落だけで login 全体 BLOCKED」という判定はこの build contract と一致しない。別の build path で same-origin `/api` を使う場合は、API JSON/status を返す rewrite が必要であり、SPA HTML への fallback は失敗とする。
 
-```json
-{"src":"/api/(.*)","dest":"https://api.stg.noah-karte.com/api/$1"}
-```
-
-`https://stg.noah-karte.com/api/...`がAPIのJSON/statusを返し、`index.html`を返さないことがrelease gate。source defectが直るまではこのrunbookのlogin/API smokeは **BLOCKED**。docsだけで解消済みにしない。
+設定の存在だけで疎通は証明しない。deployed artifact の API target と cookie/CORS を以下で確認する。
 
 ## 1. Deployment evidence
 
 - reviewed `main -> staging` PRとfrontend path-filtered workflow runを確認する。
 - Vercel deployment status、commit SHA、target domainを一致させる。
-- frontend production workflowにはEnvironment approval gateが無い。gate実装・検証前に`production`へmerge/pushしない。
+- frontend production job は `Production` Environment に bind し、production dispatch は production ref 以外を拒否する。外部 Required reviewers / branch protection と backend production gate が検証されるまで production delivery を進めない。
 - backend healthだけをfrontend/API integrationの成功証跡にしない。
 
 ## 2. Public page and assets
@@ -35,10 +31,10 @@ API smokeの前にworkflowを修正し、filesystem/SPA fallbackより前に次�
 
 Approved provisioned accountでbrowser loginする。frontendはHttpOnly cookieと`withCredentials`を使う。`Authorization: Bearer` headerを期待しない。
 
-DevTools Networkで、例えば次のsame-origin requestを確認する。
+DevTools Networkで、例えば次のcross-origin requestを確認する。
 
 ```http
-GET https://stg.noah-karte.com/api/v1/clinics?scope=all
+GET https://api.stg.noah-karte.com/api/v1/clinics?scope=all
 X-Requested-With: XMLHttpRequest
 Cookie: <browser-managed HttpOnly cookies; value must not be copied>
 ```
@@ -46,6 +42,12 @@ Cookie: <browser-managed HttpOnly cookies; value must not be copied>
 - required permissionがあるsessionなら`200`、無ければcontractどおり`403`。
 - response content-type/bodyがAPI JSONで、SPA HTMLでない。
 - cookie/token/header valueをscreenshot、document、artifactへ残さない。
+
+### 会計新規確定のCORS確認
+
+新規会計確定は `Idempotency-Key` を付けてAPIへPOSTする。一方、現行 `backend/internal/middleware/cors.go` の許可ヘッダーにはこれが含まれず、Workerも補完しない。Vercelから別originのAPIへ向かう経路には、ブラウザのpreflightを満たせない静的な不整合がある。実環境での再現は未確認。
+
+OPTIONSの204やログイン成功だけで会計確定をPASSにしない。許可ヘッダーと実POST到達の修正・検証が済むまで該当caseはBLOCKEDとする。localのsame-origin proxy経由での成功は代用にならない。承認済み検証時はorigin・credentials・要求したヘッダーの許可と、後続の会計POSTの到達を確認する（[会計精算仕様](../../spec/screens/11-accounting-detail.md#33-新規会計確定の再試行)）。
 
 ## 4. Exact settings routes
 
@@ -68,7 +70,7 @@ Cookie: <browser-managed HttpOnly cookies; value must not be copied>
 ### API
 
 1. custom-domain `/health`とapproved workers.dev `/health`を比較する。
-2. frontend same-origin `/api/...`がJSONかHTMLか確認する。
+2. Network の実 API 接続先と JSON/status を確認する。same-origin build なら `/api/...` が SPA HTML でないことも確認する。
 3. Cloudflare Workers Logs、Container、PlanetScale connectionを切り分ける。
 4. CORS/cookie/`X-Requested-With` contractを確認する。
 5. causeを修正後、Cloudflare/Vercel current artifactをrebuild/redeployする。
@@ -85,9 +87,9 @@ PASSには次が全て必要。
 
 - deployment SHA/domain一致
 - hashed Vite assets success
-- prebuilt configに`/api` rewriteがあり、API JSON/statusを確認
+- build-time API target が環境と一致し、cookie/CORS と API JSON/status を確認（same-origin build の場合は rewrite も確認）
 - approved accountのHttpOnly cookie login
 - exact settings routes success
 - no unexpected console/network errors
 
-source rewrite defect、account provisioning、external deployment state、approval gateのいずれかが未確認なら、該当項目を`BLOCKED`/`UNVERIFIED`と記録する。
+API target / rewrite / CORS、account provisioning、external deployment state、approval gateのいずれかが未確認なら、該当項目を`BLOCKED`/`UNVERIFIED`と記録する。

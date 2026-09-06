@@ -5,7 +5,7 @@
 > **タイミング**: デプロイ運用開始時。
 
 > **Animal Ekarte**: ステージング・本番環境へのデプロイと安定稼働のためのガイド
-> **最新更新**: 2026-08-31 | **checked-in config**: STG workflow/configあり。Production workflowは未実装。**live provider状態はUNKNOWNで、実行前にdated receiptが必要**
+> **最新更新**: 2026-08-31 | **checked-in config**: STG workflow/configあり。Backend production workflowは未実装。FrontendはProduction Environment binding実装済み（外部reviewersは要検証）。**live provider状態はUNKNOWNで、実行前にdated receiptが必要**
 
 ---
 
@@ -14,7 +14,7 @@
 | 環境 | Frontend URL | API Base URL | インフラ管理 |
 |:---|:---|:---|:---|
 | **Staging（設定値）** | [stg.noah-karte.com](https://stg.noah-karte.com) | [api.stg.noah-karte.com/api](https://api.stg.noah-karte.com/api) | checked-in target。稼働状態は実行時確認 |
-| **Production（draft設定）** | noah-karte.com（予定） | api.noah-karte.com/api（予定） | workflow未実装。provider実体はUNKNOWN（#253・[`../infra/production/runbook.md`](../infra/production/runbook.md)） |
+| **Production（draft設定）** | noah-karte.com（予定） | api.noah-karte.com/api（予定） | backend workflow未実装。frontendはEnvironment bindingあり。provider実体はUNKNOWN（#253・[`../infra/production/runbook.md`](../infra/production/runbook.md)） |
 
 ---
 
@@ -36,7 +36,7 @@
 - **[休憩時間データ形状監査 (BREAK-HOURS-SHAPE-AUDIT.md)](./BREAK-HOURS-SHAPE-AUDIT.md)**: R1-3 デプロイ前の STG/本番 break_hours 形状監査手順。
 - **[本番 Cloudflare 基盤 事前構築手順 (../infra/production/setup.md)](./../infra/production/setup.md)**: 本番環境（noah-karte.com）を CF Workers + Containers + PlanetScale で新設する実施手順（billing recovery と production approval gate の実装・検証後に USER が日程を決定）。
 - **[PlanetScale STG シード投入 Runbook (STG_PLANETSCALE_SEED_RUNBOOK.md)](./STG_PLANETSCALE_SEED_RUNBOOK.md)**: PlanetScale STG スキーマ初期化後の seed 復元・検証手順。
-- **[CSV seed運用 (SEED_MIGRATION_OPERATIONS.md)](./SEED_MIGRATION_OPERATIONS.md)**: `APP_ENV` 別のseed適用範囲、再生成手順、old_db 21表CSVとの境界。
+- **[CSV seed運用 (SEED_MIGRATION_OPERATIONS.md)](./SEED_MIGRATION_OPERATIONS.md)**: 全環境master-only CSVと `APP_ENV` 別ログインseed、再生成手順、old_db 21表CSVとの境界。
 - **[old_db 医院別ローカル隔離 (OLD_DB_HANDOFF_LOCAL.md)](./OLD_DB_HANDOFF_LOCAL.md)**: 21表CSVを `seeds/_old_db_handoff/<clinic>/` へ置く手順（`make seed` 非対象）。
 - **[医院 CSV カットオーバー投入 (CLINIC_CSV_IMPORT.md)](./CLINIC_CSV_IMPORT.md)**: old_db の21表CSVをmanifest digestに固定し、preflight/apply/verifyするF6手順。
 - **[A4 UI rehearsal isolated stack (A4_UI_REHEARSAL.md)](./A4_UI_REHEARSAL.md)**: 正式21表CSVの画面確認専用localhost-only disposable Compose環境とruntime証跡手順。
@@ -147,7 +147,7 @@ gh workflow run stg-smoke.yml
 | **CRUD スモークテスト PASS** | [CRUD-SMOKE-TEST.md](./CRUD-SMOKE-TEST.md) の A-1〜A-3、B-1〜B-3、C-1〜C-3 を実行し、HTTP/resource state と明示された監査契約を確認 | ✅ |
 | **テストデータ削除完了・記録済み** | 同手順の cleanup で、その run が作成した ID だけを削除し、resource state と実装済みの監査だけを記録 | ✅ |
 
-**3 つすべて ✅ の場合**: STG デプロイ成功。Production は未構築のため、別途 production readiness が必要。
+**3 つすべて ✅ の場合**: STG デプロイ成功。Production は別途 workflow / Environment protection / 実環境の production readiness 証拠が必要。
 
 ---
 
