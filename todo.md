@@ -26,13 +26,15 @@
 |--------|------|
 | **old_db** | sibling producer。この repo からは CSV を生成できない |
 | **USER** | 共有 STG、PlanetScale、医院調整、本番 cutover、workflow dispatch、Linear Done |
-| **agent** | この repo のローカル専用。共有 STG には触れない |
+| **agent** | この repo のローカル作業と、許可された Linear / GitHub の読み取り照合。共有 STG には触れない |
 
 エージェントは PlanetScale、共有 STG への apply、schema 再作成、`DROP SCHEMA`、本番 cutover、`make reset`、八王子 CSV の producer 出力を実行しません。
 
-claim は実装単位ごと。エージェントは claim ブランチを削除しない。main 統合または明示中止のあと USER が解放する。
+着手依頼の範囲内では、ローカル調査・設計・可逆な修正・許可された局所検証に追加承認は不要。本ファイルへの掲載だけでは全件の実行承認にならない。Linear 更新、外部投稿、push / merge / dispatch、秘密変更、共有環境操作は明示承認が必要。migration 適用、codegen、全体検証などの自動実行禁止は [プロジェクトルール](.claude/CLAUDE.md) に従う。
 
-この更新の claim: `claim/CI-K6-RUNTIME-CLOSEOUT`、`claim/LEDGER-CI-EVIDENCE-SYNC`。
+claim は作業 ID ごとに初回編集前に確認・取得し、既存 claim があれば BLOCKED。エージェントは claim ブランチを削除しない。main 統合または明示中止のあと USER が解放する。同じファイルを扱う ID は直列実行する。
+
+この更新の claim: `claim/LEDGER-TODO-EXECUTION-GATES`（本ファイルのレビュー指摘反映のみ）。過去の claim の解放状況は着手時に Git で確認する。
 
 ---
 
@@ -40,15 +42,19 @@ claim は実装単位ごと。エージェントは claim ブランチを削除�
 
 | 優先 | ID | 実行者 | 状態 | 次の一手 | 完了条件 |
 |------|----|--------|------|----------|----------|
-| 1 | **META-LINEAR-F1-F6** | USER / agent | 未照会 | Linear で F1〜F6 と本ファイル ID の重複を確認し、必要な ID だけ紐付ける | Linear 上の対応が残作業と一致。repo 記録だけで Done にしない |
-| 2 | **QA-UAT-S09-FIXTURE** | agent | BLOCKED | `completed_at` を指定できる承認済み fixture API または scoped UAT helper を設計する | 既存会計・DB・システム時計を直接変えず S09 #2〜#6 を再実行できる |
-| 3 | **QA-FULL-CLINICAL-E2E** | agent / USER | 未準備 | auth smoke とは別に clinical/data-dependent E2E の fixture・allowlist・cleanup を設計する | 実行は別承認。full E2E 成功と秘密非出力を証拠化 |
+| 1 | **META-LINEAR-F1-F6** | agent → USER | 未照会 | 読み取りで F1〜F6 と本ファイル ID を照合し、重複・対応先・変更案を作る | 調査完了: 対応案を提示。外部反映: 明示承認後に必要な ID だけ紐付ける。Done は USER |
+| 2 | **QA-UAT-EVIDENCE-SYNC** | agent → USER | 集計不整合・未照合 | `UAT-DOMAIN-STATUS.md` の冒頭 FAIL 0 / サマリ FAIL 1、最新報告、`bug.md`、Linear の対応を照合する | ローカル整理完了: 実施日・SHA・環境・scenario ごとの証跡と集計が一致、不明は UNKNOWN。Linear 更新は別承認。製品 FAIL を推測で追加・解消しない |
+| 3 | **QA-UAT-S09-FIXTURE** | agent → USER | 設計未完・再実行 BLOCKED | `completed_at` を指定できる fixture API / scoped UAT helper の設計案を作る | 設計完了: 下記の設計成果物を提示。実装・利用範囲の承認後に実装と局所検証。承認済み helper の統合後、S09 #2〜#6 の再実行証跡と UAT 集計を更新して解除 |
+| 4 | **QA-FULL-CLINICAL-E2E** | agent → USER | 設計未完・実行承認待ち | auth smoke と区別し、clinical/data-dependent E2E の fixture・allowlist・cleanup を設計する | 設計完了: 下記の設計成果物を提示。実装範囲確定後にローカル実装・局所検証。full suite 実行は別承認、成功・cleanup・秘密非出力を証拠化 |
+
+fixture / E2E の設計成果物は、対象 scenario、使い捨て環境・clinic、合成データ、変更ファイル、許可操作、環境誤指定時の停止、cleanup / 失敗時回収、局所検証コマンド、承認が必要な実行操作を含む。S09 は既存会計の改変・直接 DB 更新・システム時計変更を禁止する（[シナリオ正本](docs/ops/testing/scenarios/S09-closing-time-boundaries.md)）。設計完了・実装検証済み・承認待ち・実行 PASS は別々に Linear へ記録し、設計だけで UAT / E2E を PASS にしない。集計の正本は [UAT-DOMAIN-STATUS.md](docs/ops/testing/UAT-DOMAIN-STATUS.md)、E2E の範囲は [TEST_ARCHITECTURE.md](docs/ops/testing/TEST_ARCHITECTURE.md)。
 
 閉じた項目（履歴は git）: `CI-BE-DBORTX-INVENTORY`、`CI-K6-SUMMARY-SCHEMA`、`CI-K6-RUNTIME-CLOSEOUT`、`LEDGER-CI-EVIDENCE-SYNC`、`FE-CLINICAL-PLAN-SELECT-LABELS`、`DOC-MANUAL-SOURCE-SYNC`、`CLINICAL-IRREVERSIBLE-GUARD`（確認のみ）、`FE-TRIMMING-GUARDS`（現 HEAD で充足）、`BE-RC-036`、`LEDGER-TODO-NOW-POINTER`。
 
-### 現在の証拠境界
+### 記録済み証拠と現在の確認範囲
 
-- HEAD / `origin/main`: `bc5626960399b720292bbea2a0d9b9f902d61dad`
+- 前回 CI closeout 記録時の HEAD / `origin/main`: `bc5626960399b720292bbea2a0d9b9f902d61dad`。下記 run は前回記録の転記で、今回 GitHub へ再照会していない。各 run の対象 SHA と現行差分への適用可否は利用時に確認する。
+- 今回の編集前観測（2026-09-06）: ローカル HEAD `b4bbd71f93e86c7c331fd07df8e4c2375379d119`、ローカル remote-tracking ref `origin/main` は `fb49393b7bad71c67794ac871c0afd0b1b1ae442`。fetch 未実施で、リモート最新状態の証明ではない。
 - Performance Tests / run `34025435577`（`workflow_dispatch`）: workflow success。endpoint k6、spike k6、aggregate validation、always-run cleanup、Lighthouse、summary が同一 run で success。
 - 同 run の活動量: endpoints `http_reqs=5755`、`iterations=1918`、`checks=11508`、`successful_logins=1`。spike `http_reqs=825`、`iterations=824`、`checks=1648`、`successful_logins=1`。credential・body・cookie・token は記録しない。
 - 旧 run `34020760108`（head `9ed814fc0`）は旧 validator による aggregate failure。現行 closeout の正本は `34025435577`。
@@ -66,30 +72,32 @@ claim は実装単位ごと。エージェントは claim ブランチを削除�
 | P1 | **SEC-SECRETS-5 / #89 / #97** | USER | 4系統 rotation receipt 未記入 | 新発行→投入→再 deploy→health→旧値 revoke→旧値拒否。値は記録しない |
 | P2 | **#253 / U12 PROD-SETUP** | USER / 開発 | Production 未構築 | Cloudflare 本番、Required reviewers、workflow、rollback、backup rehearsal、URL/CI receipt |
 | P3 | **#250 PROD-DATA-MIGRATION** | USER / 開発 | 事前準備待ち | rehearsal、最終 import、入力停止、backup/rollback、件数・clinic_id・金額突合 |
-| P4 | **#254 AUTHENTICATED-UAT** | USER / agent | full UAT 未証明 | 全業務 scenario 完走、または残 FAIL を納品後対応へ隔離。A4 と混同しない |
+| P4 | **#254 AUTHENTICATED-UAT** | USER / agent | full UAT 未証明 | `QA-UAT-EVIDENCE-SYNC` で証跡を照合し、全業務 scenario の受入結果を確定。残 FAIL の延期は下記例外条件を満たす場合のみ。PARTIAL / BLOCKED / UNKNOWN を PASS にしない。A4 と混同しない |
 | P5 | **#255 STAFF-PROVISION** | USER | 入力未記入 | roster、email 方針、clinic、role、actor、環境承認。PII-free receipt |
 | P6 | **#258 / U1〜U12 DELIVERY** | USER | 最終承認待ち | P1・P2 と契約責任者の非機密事実を `DELIVERY_PACKAGE.md` へ反映 |
 | P7 | **#256 / U13 TRAINING** | USER | 操作説明会未完 | 日程・形式・範囲・結果・opaque receipt |
-| P8 | **#257 GOLIVE** | USER | HOLD | P1〜P7 が green のあと切替日。当日最終 import 未達なら No-Go |
+| P8 | **#257 GOLIVE** | USER | HOLD | P1〜P7 の受入と第2段階の条件を USER が確認後に切替日。未解消の重大 FAIL、必要証跡不足、当日最終 import 未達なら No-Go |
 | E1 | **QA-UAT-LSTEP-REAL** | USER | 外部環境待ち | write 有効な LSTEP で S01 同期と V05-17 remove。行値・credential は残さない |
 | E2 | **QA-UAT-LINE-IDTOKEN** | USER | mock 外・未証明 | 実 LINE idToken で link / 409 / 期限切れ 400。token と個人情報は残さない |
+
+P4 の延期例外: 臨床安全、会計金額の整合、clinic / owner / pet / staff のデータ分離、認証・権限、データ消失に関わる未解消 FAIL は go-live 前の解消対象とする。それ以外も、重大度・業務影響・回避策・受容責任者・対応担当・期限・再検証条件を Linear に残し、USER の明示受容がある場合だけ延期できる。延期は PASS と区別し、E1 / E2 を含む必須範囲の未検証を自動的に受容済みにしない。
 
 ---
 
 ## 3. STG 実データ（USER / old_db）
 
-推測で「未」にしていた項目は観測で見直した。ここに残すのは **今も未完了と証明できるもの** だけ。
+ここには未完了作業と、完了判定に必要な証跡確認を残す。ローカル配置の不在と外部での未実施は区別する。report / 履歴が無いだけなら **UNKNOWN（実施有無未確認）** とし、再 apply の前に USER が既存証跡と対象状態を確認する。
 
 対象は八王子 `clinic_id=1` と城東 `clinic_id=2`。`shikishima` / `hakobuneco` は UAT 対象外だが STG には載っている。
 
 | 優先 | ID | 実行者 | 状態 | blocked-by | 根拠 |
 |------|----|--------|------|------------|------|
-| 1 | **H0-2 / HAC-CSV-1** | old_db / USER | 未 | なし | AE `hachioji/` 空。old_db csv-export に八王子 run なし |
+| 1 | **H0-2 / HAC-CSV-1** | old_db / USER | ローカル未配置・producer 実施有無 UNKNOWN | USER が producer の現行証跡を確認 | 前回観測では AE `hachioji/` 空、old_db csv-export に八王子 run なし |
 | 2 | **H0-3b / H1-2** | USER | 待ち | H0-2 | 八王子 bundle が無い |
-| 3 | **AE-STG-UAT-LANE3-HAC** | USER | 待ち | H0-2、H0-3b / H1-2 | 八王子の STG apply report なし |
-| 4 | **H3-9 staff attach apply** | USER | 入力あり・apply 証跡なし | なし | roster / secrets は 0600 で存在。apply stdout も zsh 履歴もなし |
-| 5 | **H3-11 画面確認** | USER | 証跡なし | H3-9 が未ならログイン不能の可能性 | 飼主検索の確認ログなし。行値は残さない |
-| 6 | **Lane 4** | 医院スタッフ / USER | 待ち | 両院の Lane 3。八王子が未 | 2026-09-05 の local UAT は Lane 4 ではない |
+| 3 | **AE-STG-UAT-LANE3-HAC** | USER | UNKNOWN・投入判断待ち | 現行状態確認、H0-2、H0-3b / H1-2、下記 STG 実行ゲート | 八王子の STG apply report なし |
+| 4 | **H3-9 staff attach apply** | USER | 入力あり・apply 実施有無 UNKNOWN | 現行 attach 状態確認、下記 STG 実行ゲート | 前回観測では roster / secrets は 0600、apply stdout / zsh 履歴なし。値は読まない |
+| 5 | **H3-11 画面確認** | USER | UNKNOWN・証跡未取得 | H3-9 の成否と対象スタッフの自医院ログインを確認 | 飼主検索の確認ログなし。行値は残さない |
+| 6 | **Lane 4** | 医院スタッフ / USER | 完了未証明 | 両院の Lane 3 verify、H3-11、医院調整 | 2026-09-05 の local UAT は Lane 4 ではない |
 
 索引から外したもの:
 
@@ -110,11 +118,11 @@ claim は実装単位ごと。エージェントは claim ブランチを削除�
 | H3-11 | 飼主検索 | 対象医院へ切り替え、実データ表示。行値は残さない |
 | Lane 4 | 並行運用 | 必須4業務を両院で連続5営業日。上限8週。local UAT を完了としない |
 
-作業票が repo に無いもの（未実施とは限らない）: H3-1 他エンジニア確認と医院連絡、H3-2 検証済み full backup と復元担当。
+STG 実行ゲート（USER が実行直前に確認）: H3-1 他エンジニア確認・医院連絡と、H3-2 検証済み full backup・復元担当は repo に作業票がなく UNKNOWN。対象環境、data owner、operator、maintenance window、backup / restore 証跡、rollback 判断、対象操作の承認を確認できるまで新たな apply を実行しない。証跡不在を理由に再投入しない。正本は [STG 手順の停止ゲート](docs/ops/deploy/STG_PLANETSCALE_SEED_RUNBOOK.md#2-pre-deploy-stop-gates)。
 
 ### STG 観測（2026-09-06）
 
-行値は書かない。live STG の残存は未照会。
+以下は前回のローカル資料による観測記録。今回の台帳修正では handoff 配置・秘密ファイル・live STG を再照会していない。過去の apply PASS は現行残存を証明しない。行値は書かない。
 
 | レーン | 状態 | 根拠 |
 |--------|------|------|
@@ -125,17 +133,17 @@ claim は実装単位ごと。エージェントは claim ブランチを削除�
 | Lane 2 コード | **完了** | STG UAT importer / Make 経路は main 済み |
 | Lane 3 城東 CSV | **投入済み** | `stg-uat-apply` `PASS`、2026-09-05 00:19 JST、PlanetScale STG |
 | Lane 3 敷島 / Hako | **投入済み（対象外）** | 同日の STG apply `PASS` |
-| Lane 3 八王子 | **未** | apply report なし |
-| Lane 4 | **未** | 5営業日の STG 現場証跡なし。[`bug.md`](bug.md) の未対応 FAIL はなし |
+| Lane 3 八王子 | **UNKNOWN** | apply report なし。live 未照会 |
+| Lane 4 | **完了未証明** | 5営業日の STG 現場証跡なし。[`bug.md`](bug.md) の未対応 FAIL なしだけでは完了しない |
 
 | clinic | 配置 | layout | STG apply | ローカル apply |
 |--------|------|--------|-----------|----------------|
 | jouto | 21 CSV + manifest | PASS | PASS（2026-09-05 00:19 JST） | PASS（`db` / `ekarte_db`） |
-| hachioji | なし | FAIL | なし | なし |
+| hachioji | なし | FAIL | UNKNOWN（証跡なし） | 証跡なし |
 | shikishima | 21 CSV + manifest | PASS | PASS | PASS |
 | hakobuneco | 21 CSV + manifest | PASS | PASS | PASS |
 
-H3-3 TTL 資格情報は gitignored `scripts/stg-uat-old-db-handoff.local.env` が 0600 で存在（TTL そのものは未証明）。H3-4〜H3-6 は城東 PASS から充足とみなす。2026-07-22 の八王子 F6 disposable apply `PASS` は現行 H0-2 ではない。
+H3-3 TTL 資格情報は前回観測で gitignored `scripts/stg-uat-old-db-handoff.local.env` が 0600（TTL そのものは未証明）。H3-4〜H3-6 は城東の過去 PASS を参考証拠とし、次回実行や別医院への充足を推定しない。USER が対象ごとに現行条件を再確認する。2026-07-22 の八王子 F6 disposable apply `PASS` は現行 H0-2 ではない。
 
 契約: `make stg-uat-import` / `make stg-uat-handoff`。接続値は repo へ書かない。破壊境界は [STG_PLANETSCALE_SEED_RUNBOOK.md](docs/ops/deploy/STG_PLANETSCALE_SEED_RUNBOOK.md)。
 
@@ -171,7 +179,9 @@ H3-3 TTL 資格情報は gitignored `scripts/stg-uat-old-db-handoff.local.env` �
 
 このセッションで閉じたもの: Docker 復旧の破壊例、フロント秘密/ログ例、DB 診断の秘密表示、一時改変の HEAD 巻き戻し、fresh-DB の共有 DROP、YAML 引用符、旧台帳書込み、モデル固定の手動差戻し、AGENTS.md の作業別案内、task-create / implement / browser-test の記録先。
 
-残るのは現行実装との例合わせと、長い教材の入口整理。各 ID を個別に claim する。
+残るのは現行実装との例合わせと、長い教材の入口整理。各 ID を個別に claim する。実行者は agent（ローカル修正・局所検証）、外部反映は USER 承認後。全 ID の着手・完了状況は Linear 未照会のため、以下は残件候補として重複と現行差分を確認してから進める。
+
+実行順は GO-REFS → API-EXAMPLES → REVIEW-EVIDENCE → ENTRY-SLIM → DEDUP → CODEX-MIRROR → REEVAL。`test-generation` / `go-security` などの共通ファイルは直列で引き継ぐ。各 ID の着手時に編集対象を列挙し、ミラー同期は作業ブランチ上で正本の修正差分を揃えた後、再評価は同期後に行う。同期先は repo 内に限定し、ユーザーのグローバル設定変更は含めない。
 
 | ID | 優先 | 対象 | 完了条件 |
 |----|------|------|----------|
@@ -189,9 +199,10 @@ H3-3 TTL 資格情報は gitignored `scripts/stg-uat-old-db-handoff.local.env` �
 
 ## 次の一手
 
-1. Linear で F1〜F6 と本ファイル ID を照合する。
-2. old_db で **HAC-CSV-1** を出す。両院 Lane 4 のブロッカー。
-3. 城東で STG ログインするなら **H3-9 apply** の成否を残し、**H3-11** で飼主検索だけ確認する（行値は残さない）。
+1. agent: **META-LINEAR-F1-F6** を読み取り照合し、対応案を提示する。Linear への反映は明示承認後。
+2. agent: **QA-UAT-EVIDENCE-SYNC** で集計の整合を確認し、S09 / full E2E の設計成果物を準備する。実行承認待ちと設計完了を分ける。
+3. USER / old_db: **HAC-CSV-1** の現行証跡を確認し、必要な producer 出力と handoff を進める。agent はこの repo から出力しない。
+4. USER: STG 実行ゲートと **H3-9** の現行成否を確認し、必要な場合だけ承認済み apply、その後 **H3-11** の画面確認を行う（行値は残さない）。
 
 ---
 
