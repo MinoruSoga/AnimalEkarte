@@ -5,7 +5,6 @@
 | 項目 | 値 |
 |------|-----|
 | **実行 SoT** | Linear Team **Baritech** · Project **ノア動物病院電子カルテ** · hub **[BRT-4](https://linear.app/baritechllc/issue/BRT-4)** |
-| **直下整理** | **[BRT-105](https://linear.app/baritechllc/issue/BRT-105)**（Done） |
 | **セキュリティ修正** | **[BRT-226](https://linear.app/baritechllc/issue/BRT-226)**（Review · `origin/main` 済み · Done は人間） |
 | **本ファイルの範囲** | repo と強く結び付く **未完了作業の入口** |
 
@@ -15,7 +14,7 @@
 
 claim は ID ごとに初回編集前に取得する。エージェントは claim を削除しない。
 
-この更新の claim: `claim/LEDGER-TODO-QUEUE` · `claim/QA-UAT-S09-FIXTURE` · `claim/QA-UAT-V04-RETEST` · `claim/QA-FULL-CLINICAL-E2E`。
+この更新の claim: `claim/LEDGER-TODO-PRUNE`。
 
 ---
 
@@ -25,29 +24,26 @@ claim は ID ごとに初回編集前に取得する。エージェントは cla
 
 | 順 | ID | 実行者 | なぜこの順 | 状態 |
 |----|----|--------|------------|------|
-| 1 | **QA-UAT-S09-FIXTURE** | agent | S09 が BLOCKED の唯一の製品側ブロッカー。設計済み。新 API より先に fail-closed な合成 helper | **helper GREEN**（HTTP/CLI とブラウザ再実行は未。S09 は BLOCKED のまま） |
-| 2 | **QA-UAT-V04-RETEST** | agent | 主訴 DELETE の受入が UNKNOWN。ログイン済み local で未使用区分を作って消す。秘密は残さない | **再実行済み**（testdb DELETE GREEN。live HTTP は 403 で BLOCKED。V04 は PASS にしない） |
-| 3 | **QA-FULL-CLINICAL-E2E** | agent | auth smoke と分離した fixture。S09 より変更面が大きい | **helper + allowlist 置換済み**（`--clinical` 未実行。E2E は PASS にしない） |
-| 4 | **META-LINEAR-APPLY** | USER | repo の対応案は [linear-f1-f6-mapping.md](docs/work/linear-f1-f6-mapping.md)。書き込みと Done は USER | 待ち |
-| 5 | **H0-2 / HAC-CSV-1** | old_db / USER | STG 八王子の先頭。これより前の STG 行は進めない | 待ち |
-| 6 | **H0-3b → Lane3 HAC → H3-9 → H3-11 → Lane 4** | USER | 5 の依存どおり | 待ち |
-| 7 | **P1 → P2 → P3 → P4 → P5 → P6 → P7 → P8** | USER | go-live 依存。E1 / E2 は P4 の一部 | 待ち |
+| 1 | **META-LINEAR-APPLY** | USER | repo の対応案は [linear-f1-f6-mapping.md](docs/work/linear-f1-f6-mapping.md)。書き込みと Done は USER | **BLOCKED**（Linear MCP / `LINEAR_API_KEY` なし。公開ページはログイン壁。エージェントは書かない） |
+| 2 | **H0-2 / HAC-CSV-1** | old_db / USER | STG 八王子の先頭。これより前の STG 行は進めない | **BLOCKED**（HAC-INPUT-2。完全 KNJO 未受領。同一 BAK 再実行と producer は禁止） |
+| 3 | **H0-3b → Lane3 HAC → H3-9 → H3-11 → Lane 4** | USER | 2 の依存どおり | 待ち |
+| 4 | **P1 → P2 → P3 → P4 → P5 → P6 → P7 → P8** | USER | go-live 依存。E1 / E2 は P4 の一部 | 待ち |
 
-設計成果物: [S09-FIXTURE-DESIGN.md](docs/ops/testing/S09-FIXTURE-DESIGN.md) · [CLINICAL-E2E-DESIGN.md](docs/ops/testing/CLINICAL-E2E-DESIGN.md) · [UAT-DOMAIN-STATUS.md](docs/ops/testing/UAT-DOMAIN-STATUS.md)。設計だけで UAT / E2E を PASS にしない。
-
-閉じた agent 作業（履歴は git）: F1〜F6 実装、CI-K6、ClinicalPlan labels、スキル監査、UAT 集計の不整合整理、S09 / E2E の設計。
+次は医院/ベンダーからの完全 KNJO 再取得、または城東主経路（JOU-G2-2 の Azure 承認）。H0-3b には入らない。Linear 書き込みと Done は USER。
 
 ---
 
-## 1. 閉じたスライス / 次
+## 1. 受入残（PASS にしていない）
 
-順 1 S09 helper: `synthetic_closing_*.go`。局所テスト GREEN。HTTP/CLI とブラウザ再実行は未。
+helper / 再実行スライスは済。UAT / E2E を PASS にしない。正本は [UAT-DOMAIN-STATUS.md](docs/ops/testing/UAT-DOMAIN-STATUS.md)。
 
-順 2 V04: testdb DELETE / CountUsage GREEN。live HTTP は catalog login 200・create 403（一般）。clinic 1/2 の権限昇格なし。V04 は PASS にしない。
+| ID | 残 | 状態 |
+|----|----|------|
+| **QA-UAT-S09-FIXTURE** | HTTP/CLI とブラウザ再実行 | S09 は BLOCKED |
+| **QA-UAT-V04-RETEST** | live HTTP は 403。clinic 1/2 の権限昇格なし | V04 は UNKNOWN |
+| **QA-FULL-CLINICAL-E2E** | `--clinical` 未実行。e2e.yml job は未 | E2E は未証明 |
 
-順 3 clinical E2E: `clinicale2e` helper と allowlist 置換。`--clinical` と e2e.yml job は未。E2E は PASS にしない。
-
-次は順 4 `META-LINEAR-APPLY`（USER）。
+設計: [S09-FIXTURE-DESIGN.md](docs/ops/testing/S09-FIXTURE-DESIGN.md) · [CLINICAL-E2E-DESIGN.md](docs/ops/testing/CLINICAL-E2E-DESIGN.md)。
 
 ---
 
@@ -78,7 +74,7 @@ P4 の延期例外: 臨床安全、会計金額、clinic / owner / pet / staff �
 
 | 優先 | ID | 実行者 | 状態 | blocked-by |
 |------|----|--------|------|------------|
-| 1 | **H0-2 / HAC-CSV-1** | old_db / USER | ローカル未配置・producer 実施有無 UNKNOWN | USER が producer の現行証跡を確認 |
+| 1 | **H0-2 / HAC-CSV-1** | old_db / USER | HAC-CSV-1 は C1 `HAC-INPUT-2` 待ち。AE `hachioji/` 空。export なし | CHECKDB clean な新規 BAK、または全32列完全 KNJO。同一/既知破損 BAK の再復元は禁止。城東 live を上書きする load も禁止 |
 | 2 | **H0-3b / H1-2** | USER | 待ち | H0-2 |
 | 3 | **AE-STG-UAT-LANE3-HAC** | USER | UNKNOWN・投入判断待ち | 現行状態、H0-2、H0-3b |
 | 4 | **H3-9 staff attach apply** | USER | 入力あり・apply 実施有無 UNKNOWN | 現行 attach と STG 実行ゲート |
@@ -89,7 +85,7 @@ P4 の延期例外: 臨床安全、会計金額、clinic / owner / pet / staff �
 
 STG 実行ゲート: 対象環境、data owner、operator、maintenance window、backup / restore、rollback、承認。正本は [STG 手順の停止ゲート](docs/ops/deploy/STG_PLANETSCALE_SEED_RUNBOOK.md#2-pre-deploy-stop-gates)。
 
-観測（2026-09-06・再照会なし）: 城東は配置・STG apply PASS。八王子は AE `hachioji/` 空。Lane 4 は 5営業日証跡なし。
+観測（2026-09-06）: 城東・敷島・箱は AE handoff に bundle あり。八王子ディレクトリは空。old_db export も八王子 run なし。producer は未実行。Lane 4 は 5営業日証跡なし。
 
 ---
 
