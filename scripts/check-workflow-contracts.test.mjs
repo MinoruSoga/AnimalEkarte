@@ -223,6 +223,10 @@ test("k6 errorRate samples success and failure for each check result", () => {
       scriptPath: "load-tests/k6-spike-test.js",
       checkVars: ["ok"],
     },
+    {
+      scriptPath: "load-tests/k6-cf-stg-sustained.js",
+      checkVars: ["healthOk", "clinicsOk"],
+    },
   ];
 
   for (const { scriptPath, checkVars } of cases) {

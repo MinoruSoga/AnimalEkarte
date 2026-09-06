@@ -29,30 +29,31 @@
  *     grafana/k6 run k6-cf-stg-sustained.js
  */
 
-import http from 'k6/http';
-import { check, sleep, group } from 'k6';
-import { Rate, Trend } from 'k6/metrics';
+import http from "k6/http";
+import { check, sleep, group } from "k6";
+import { Rate, Trend } from "k6/metrics";
 
-const errorRate = new Rate('errors');
-const healthDuration = new Trend('health_duration');
-const clinicsDuration = new Trend('clinics_duration');
+const errorRate = new Rate("errors");
+const healthDuration = new Trend("health_duration");
+const clinicsDuration = new Trend("clinics_duration");
 
 // Container のコールドスタート（インスタンス0→1起動）を許容するため、
 // 通常APIのp95閾値（500ms級）よりゆるめに設定する。
 export const options = {
   stages: [
-    { duration: '30s', target: 3 }, // ramp-up
-    { duration: '9m', target: 3 }, // sustained（低VU・10分弱の主要区間）
-    { duration: '30s', target: 0 }, // ramp-down
+    { duration: "30s", target: 3 }, // ramp-up
+    { duration: "9m", target: 3 }, // sustained（低VU・10分弱の主要区間）
+    { duration: "30s", target: 0 }, // ramp-down
   ],
   thresholds: {
-    'http_req_duration': ['p(95)<3000'],
-    'http_req_failed': ['rate<0.05'],
-    'errors': ['rate<0.05'],
+    http_req_duration: ["p(95)<3000"],
+    http_req_failed: ["rate<0.05"],
+    errors: ["rate<0.05"],
   },
 };
 
-const BASE_URL = __ENV.BASE_URL || 'https://animalekarte-stg-api.baritech-soga.workers.dev';
+const BASE_URL =
+  __ENV.BASE_URL || "https://animalekarte-stg-api.baritech-soga.workers.dev";
 const STG_DEMO_EMAIL = __ENV.STG_DEMO_EMAIL;
 const STG_DEMO_PASSWORD = __ENV.STG_DEMO_PASSWORD;
 
@@ -60,44 +61,48 @@ const STG_DEMO_PASSWORD = __ENV.STG_DEMO_PASSWORD;
 // 発行された Cookie を全VU・全イテレーションで再利用する(実際のユーザー挙動に近い)。
 export function setup() {
   if (!STG_DEMO_EMAIL || !STG_DEMO_PASSWORD) {
-    throw new Error('STG_DEMO_EMAIL / STG_DEMO_PASSWORD must be set via env (not hardcoded)');
+    throw new Error(
+      "STG_DEMO_EMAIL / STG_DEMO_PASSWORD must be set via env (not hardcoded)",
+    );
   }
   const res = http.post(
     `${BASE_URL}/api/v1/login`,
     JSON.stringify({ email: STG_DEMO_EMAIL, password: STG_DEMO_PASSWORD }),
     {
       headers: {
-        'Content-Type': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest',
+        "Content-Type": "application/json",
+        "X-Requested-With": "XMLHttpRequest",
       },
-    }
+    },
   );
-  if (res.status !== 200 || !res.headers['Set-Cookie']) {
+  if (res.status !== 200 || !res.headers["Set-Cookie"]) {
     throw new Error(`setup login failed: status=${res.status}`);
   }
-  return { cookie: res.headers['Set-Cookie'] };
+  return { cookie: res.headers["Set-Cookie"] };
 }
 
 export default function (data) {
-  group('Health', () => {
+  group("Health", () => {
     const res = http.get(`${BASE_URL}/health`);
     healthDuration.add(res.timings.duration);
-    const ok = check(res, { 'health status 200': (r) => r.status === 200 });
-    if (!ok) errorRate.add(1);
+    const healthOk = check(res, {
+      "health status 200": (r) => r.status === 200,
+    });
+    errorRate.add(healthOk ? 0 : 1);
   });
 
   sleep(1);
 
-  group('Clinics', () => {
+  group("Clinics", () => {
     const res = http.get(`${BASE_URL}/api/v1/clinics`, {
-      headers: { 'Cookie': data.cookie, 'X-Requested-With': 'XMLHttpRequest' },
+      headers: { Cookie: data.cookie, "X-Requested-With": "XMLHttpRequest" },
     });
     clinicsDuration.add(res.timings.duration);
-    const ok = check(res, {
-      'clinics status 200': (r) => r.status === 200,
-      'clinics response < 3000ms': (r) => r.timings.duration < 3000,
+    const clinicsOk = check(res, {
+      "clinics status 200": (r) => r.status === 200,
+      "clinics response < 3000ms": (r) => r.timings.duration < 3000,
     });
-    if (!ok) errorRate.add(1);
+    errorRate.add(clinicsOk ? 0 : 1);
   });
 
   sleep(2);
@@ -105,18 +110,19 @@ export default function (data) {
 
 export function handleSummary(data) {
   return {
-    'stdout': textSummary(data),
-    'results-cf-stg-sustained.json': JSON.stringify(data),
+    stdout: textSummary(data),
+    "results-cf-stg-sustained.json": JSON.stringify(data),
   };
 }
 
 function textSummary(data) {
   const m = data.metrics || {};
-  let s = '\n=== Cloudflare STG Sustained Load Summary (P4-9) ===\n';
+  let s = "\n=== Cloudflare STG Sustained Load Summary (P4-9) ===\n";
   if (m.http_reqs) s += `Total requests: ${m.http_reqs.values.count}\n`;
-  if (m.http_req_failed) s += `Failed rate: ${(m.http_req_failed.values.rate * 100).toFixed(2)}%\n`;
+  if (m.http_req_failed)
+    s += `Failed rate: ${(m.http_req_failed.values.rate * 100).toFixed(2)}%\n`;
   if (m.http_req_duration) {
-    s += `p95 duration: ${m.http_req_duration.values['p(95)']?.toFixed(0)}ms\n`;
+    s += `p95 duration: ${m.http_req_duration.values["p(95)"]?.toFixed(0)}ms\n`;
     s += `avg duration: ${m.http_req_duration.values.avg?.toFixed(0)}ms\n`;
   }
   return s;
