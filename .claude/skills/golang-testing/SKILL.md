@@ -291,7 +291,7 @@ CPM/タグ/ステージ判定系のテストケースでは、判定に関与し
 「あるべき集合」と「実コードの集合」を go/ast で双方向突合し、追加漏れを CI で fail させる。実例: preload_clinic_scope_lint_test.go / master_fk_write_inventory_lint_test.go / audit_taxonomy_exhaustiveness_test.go。
 - 実装: go:embed *.go + go/parser + go/ast（trimpath 耐性）、_test.go は runtime skip
 - **anti-vacuous 保証必須**: 検出件数の floor / occurrence-count pin / 例外リストが生きていることの検証。無いと対象ゼロでも GREEN になる空虚テスト
-- **非空虚性は temp-revert で実証**: 述語を一時的に外して RED を確認 → 戻して GREEN。tracked ファイルは HEAD と byte-identical に復元
+- **非空虚性は隔離コピーで実証**: 述語を一時的に外して RED を確認 → 戻して GREEN。変更前に対象ファイルの byte baseline を明示的に取得し、その baseline と完全一致することを確認して復元する。dirty worktree では HEAD や whole-file checkout/restore を復元手段にしない
 （出典: memory preload_clinic_scope_lint_p0_20260630 / issue211_audit_tx_inventory_lint_20260630、commit 8a51c2eb / d67469aa）
 
 ## CASCADE 挙動テストは実 DDL で（実績パターン）
@@ -301,7 +301,7 @@ GORM の AutoMigrate は ON DELETE 句を再現しない。CASCADE / SET NULL �
 
 ## repository テスト3つの罠（実績由来）
 
-1. **warm-DB が fresh-DB 失敗をマスク**: 前 run のテーブル残存で PASS しても CI の fresh DB で FAIL する。`DROP DATABASE ekarte_db_test` 後に1回走らせて確認
+1. **warm-DB が fresh-DB 失敗をマスク**: 前 run のテーブル残存で PASS しても CI の fresh DB で FAIL する。migration・seed・起動依存を変更した時だけ、既存/shared DB を reset せず、disposable な隔離 test DB/environment を用意して1回確認する。作成・破棄は対象と影響を示したユーザーの明示承認後に行う。docs-only 変更には不要
 2. **setupTestDB の手書き ENUM リストは migration とドリフトする**: ENUM 追加 migration のたびに欠落し、カスケード失敗を起こす（migration009 の4 ENUM 欠落で25テスト失敗の実例）
 3. **コネクション枯渇**: 接続を閉じないと full suite で too many clients (53300)。SetMaxOpenConns + t.Cleanup(Close)
 （出典: memory ops_golangci_lint_cap_and_reconcile_20260630 / issue196_clinic_isolation_tests_complete_20260626）

@@ -41,9 +41,11 @@ if apiKey == "" {
 // ❌ 絶対に禁止
 const API_KEY = "sk-xxx-hardcoded"
 
-// ✅ 環境変数
-const API_KEY = import.meta.env.VITE_API_KEY
+// ✅ VITE_* はブラウザへ公開される設定値だけに使う
+const apiBaseURL = import.meta.env.VITE_API_BASE_URL
 ```
+
+`VITE_*` はビルド時にクライアントへ埋め込まれる公開設定であり、API キー・トークン・パスワードなどのシークレット保管場所ではない。シークレットはサーバー側の環境変数またはシークレットマネージャーでのみ扱う。
 
 **チェック:**
 - [ ] シークレットが `.env` に格納（`.gitignore` に追加済み）
@@ -138,9 +140,11 @@ import DOMPurify from 'dompurify'
 // ❌ パスワード・トークンをログに含めない
 slog.InfoContext(ctx, "user login", "password", req.Password)  // 禁止
 
-// ✅ センシティブ情報を除外
-slog.InfoContext(ctx, "user login", "email", req.Email)
+// ✅ 最小限の非PII識別子だけを記録
+slog.InfoContext(ctx, "user login", "staff_id", staffID)
 ```
+
+パスワード・トークンだけでなく、メールアドレス、氏名、電話番号、住所、カルテ内容などの PII をログへ記録しない。調査には最小限の非 PII 識別子とリクエスト相関 ID を用いる。
 
 ## 7. エラーメッセージの情報漏洩
 
@@ -174,8 +178,9 @@ docker compose exec backend gosec ./...  # 未導入 — 導入後のみ実行�
 # TypeScript: 依存関係の脆弱性
 docker compose exec frontend pnpm audit --audit-level=high
 
-# シークレット検出（コミット前）
-grep -rn "sk-\|api_key\|password\s*=" backend/ frontend/src/ --include="*.go" --include="*.ts" --include="*.tsx"
+# シークレット検出（コミット前）: 一致行や値は表示せず、ファイル名と件数だけを出力
+rg -l --glob='*.go' --glob='*.ts' --glob='*.tsx' 'sk-|api_key|password\s*=' backend/ frontend/src/ \
+  | awk 'BEGIN { count = 0 } { print "match_file=" $0; count++ } END { print "match_file_count=" count }'
 ```
 
 ## セキュリティチェックリスト

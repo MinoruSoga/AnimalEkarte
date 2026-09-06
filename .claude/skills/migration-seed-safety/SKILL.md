@@ -31,12 +31,12 @@ description: backend/migrations/ の新規作成・編集、およびseedバン�
 
 1. **クロステナントID衝突**: seedの主キー/外部キーを採番し直す場合、他クリニックのIDレンジと衝突しないか確認する。「静的検証がパスした」は安全の証明にならない——過去に静的検証を通過した後、実DBへの適用で初めてクロステナント破綻が発覚した実例がある
 2. **UNIQUE制約**: seed内で重複しうる値（email、コード値等）が無いか事前に確認する。起動時seed投入でUNIQUE違反が起きるとコンテナがクラッシュループする
-3. **fresh DB apply必須**: seedの差し替えは静的確認だけで完了とせず、**fresh DBへの実適用**で検証する。既存DBへの追記適用では検出できない不整合がある
+3. **fresh DB apply（条件付き）**: seed/migration または起動依存を変更した場合は、静的確認だけで完了とせず、**disposable な隔離 DB/environment への fresh apply**で検証する。既存・共有 DB への追記、drop、reset を検証手段にしない。DB を使わない docs-only 変更にはこの gate は不要
 4. **DB非依存の最低検証**: `python3 scripts/verify_seed.py` を実行する（DB起動不要）
-5. **実DB適用はユーザー承認必須**: `make db` / `docker compose exec db psql ...` は自動実行禁止コマンド（`.claude/CLAUDE.md`）。migration適用・DBリセットはユーザーが手動で実施する
+5. **実DB適用はユーザー承認必須**: `make db` / `docker compose exec db psql ...` は自動実行禁止コマンド（`.claude/CLAUDE.md`）。隔離 DB の作成・migration 適用・破棄も、対象・データ消失影響・隔離性を確認したユーザーの明示承認後にだけ実施する。既存・共有 DB の reset は指示しない
 6. **テーブル定義外の CREATE UNIQUE INDEX との突合**: seed 差し替え時、PK/FK/CHECK/NOT NULL だけでなく 001_init.sql 末尾の `CREATE UNIQUE INDEX`（例: idx_procedures_clinic_name (clinic_id, name) WHERE deleted_at IS NULL）に対する重複も検証する。過去 revert（PR#78）の唯一の原因はこの見逃し（(1,'輸血') / (1,'お手入れ') の同名2ペア）
    （出典: memory seed_lowid_remap_xtenant_regression / seed_master_update_startup_crash_revert）
-7. **CI を通っても migrate の実走を仮定しない — ローカル fresh-DB 実適用が正本**: 現行 ci.yml は main 向け PR も対象だが、paths-filter で migration ジョブが skip され得るうえ、通常 CI は fresh DB への全 migration 適用を保証しない（過去には main 向け PR が Backend CI 対象外で未検証のまま merge された実例あり）。seed/migration 変更は merge 前に `docker compose down -v && up -d db && run --rm backend go run ./cmd/migrate` で ERROR ゼロを確認（ユーザー承認の上で）
+7. **CI を通っても migrate の実走を仮定しない — 隔離 fresh-DB 実適用が正本**: 現行 ci.yml は main 向け PR も対象だが、paths-filter で migration ジョブが skip され得るうえ、通常 CI は fresh DB への全 migration 適用を保証しない（過去には main 向け PR が Backend CI 対象外で未検証のまま merge された実例あり）。seed/migration 変更は merge 前に、既存 Compose project・volume・DB を触らない disposable な隔離環境で migration を実行し ERROR ゼロを確認する。実施前に対象・破棄範囲・隔離性を示してユーザーの明示承認を得る。docs-only 変更にこの実適用を要求しない
    （出典: memory seed_lowid_remap_xtenant_regression。CI 対象ブランチは .github/workflows/ci.yml を正とする）
 8. **CSV は実 DB の COPY dump が正本** — INSERT 文の静的レビューという概念は廃止済み。verify_seed.py は CSV を直接検証する
 9. **seed のフォーマット移送（SQL→CSV 等）はテーブル単位の全数突合が必須**: 旧ソースの INSERT 対象テーブル一覧と新ソースのファイル一覧を diff で機械突合する。目視移送では欠落する（SQL→CSV 移行で checkup_type_fields が丸ごと欠落した実例）。復元は `git show <旧commit>:<旧ファイル>` を正本にする。（出典: memory closed_issue_reaudit_20260707 修正 3e9c449f / seed_csv_migration_20260706）
@@ -45,7 +45,7 @@ description: backend/migrations/ の新規作成・編集、およびseedバン�
 ## checksum mismatchからの復旧
 
 適用済みmigrationやseedを誤って編集してしまった場合:
-- ローカル: `docs/ops/deploy/LOCAL_DB_RESET.md` の手順でDB volumeを再構築する
+- ローカル: 既存の DB volume を再構築しない。診断・復旧計画を作成し、隔離環境で再現できるかを確認した上で、対象・データ消失影響を含む明示承認を得た手順だけを実施する
 - STG: 現行Cloudflare workflowにDB reset経路はない。診断・復旧計画を作成し、DB変更の明示承認を得てから隔離環境または承認済み手順で実施する
 - 運用メモ全般: `docs/ops/deploy/SEED_MIGRATION_OPERATIONS.md`
 

@@ -43,7 +43,7 @@ description: commit/push 前のスコープ限定ローカル検証ゲート。�
    ```bash
    docker compose exec backend gofmt -l "$VERIFY_GO_FILE"
    ```
-6. **DB依存テストは fresh-DB gate**: warm DBでの成功はCIのfresh DB失敗をマスクしうる。DB stateに関わる変更は一度 `DROP DATABASE ekarte_db_test` 相当のリセット後に走らせる（ユーザー承認の上で実施可否を確認する）
+6. **DB依存テストは条件付き fresh-DB gate**: warm DBでの成功はCIのfresh DB失敗をマスクしうる。migration・seed・起動依存など DB state に関わる変更では、既存/shared DB を reset せず disposable な隔離 test DB/environment で走らせる。作成・破棄は対象とデータ消失影響を示したユーザーの明示承認後にだけ行う。docs-only 変更には不要
 7. **codegen影響の確認**: modelやAPIスキーマを変更した場合は `make codegen` 実行後 `git diff` で差分をユーザーに確認依頼する（`make codegen` 自体は自動実行禁止コマンド）
 8. **frontend（スコープ限定）**:
    ```bash

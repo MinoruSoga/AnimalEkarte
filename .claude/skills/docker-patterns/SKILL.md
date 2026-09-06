@@ -87,13 +87,10 @@ docker volume ls
 ## よくある問題と解決方法
 
 ### node_modules がコンテナにない
-```bash
-# ボリュームを再作成
-docker compose down -v
-# ⚠️ CLAUDE.md の自動実行禁止コマンド。ユーザーに手動実行を依頼するか、スコープ限定版を使う
-docker compose up -d
-# ⚠️ CLAUDE.md の自動実行禁止コマンド。ユーザーに手動実行を依頼する
-```
+
+まず `docker compose ps` と frontend の mount 設定を確認し、依存定義と lockfile が整合しているかを調べる。通常の調査・復旧で volume を削除したり、stack を停止したりしない。依存の再取得が必要なら、CLAUDE.md の自動実行禁止に従い、ユーザーに対象コンテナでの手動実行を依頼する。
+
+volume を消す操作は node_modules だけでなく DB を含む永続データも失わせ得る。どうしても再現検証が必要な場合は、既存・共有環境ではなく disposable な隔離 Compose project / volume を用意し、対象とデータ消失影響を示したユーザーの明示承認後にだけ実施する。
 
 ### ポート競合
 ```bash
@@ -124,10 +121,12 @@ docker compose exec db pg_isready -U "$DB_USER"
 # フロントエンドは Hot Reload が有効なはず
 # バックエンドは Air で自動リロード
 
-# キャッシュクリア・再ビルド
-make clean  # または docker compose build --no-cache
-make up
+# まず対象サービスの設定・mount・build context を確認する
+docker compose config --services
+# build cache が原因と特定できた場合だけ、隔離環境で no-cache build を検討する
 ```
+
+`make clean` は Compose の volume を含む環境を削除してから再ビルドする破壊的な target であり、通常の cache/node_modules 復旧には使わない。実施するなら disposable な隔離環境に限定し、削除対象とデータ消失影響を説明したうえでユーザーの明示承認を得る。
 
 ## Dockerfile ベストプラクティス
 
@@ -208,7 +207,7 @@ make down     # 全サービス停止
 make logs     # ログ表示（follow）
 make db       # DB接続（psql）。マイグレーションは make migrate
 make codegen  # Go モデル → TS 型生成
-make clean    # キャッシュクリア + 再ビルド
+make clean    # ⚠️ volume を含む環境を削除する破壊的 target。通常復旧には使わず、隔離環境・影響説明・ユーザー明示承認が必要
 make test-front  # フロントエンドテスト
 make lint-front  # フロントエンド lint
 ```
