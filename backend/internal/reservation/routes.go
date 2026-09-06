@@ -21,7 +21,7 @@ type Handler struct {
 	reservationTypeLiff    *ReservationTypeLiffHandler
 	reservationStaff       *ReservationStaffHandler
 	reservationSchedule    *ReservationScheduleHandler
-	reservationCRUD        *ReservationHandler
+	reservationCRUD        *CRUDHandler
 	reservationAdmin       *ReservationAdminHandler
 	lineReservationSetting *LineReservationSettingHandler
 	liff                   *LiffHandler
@@ -42,7 +42,7 @@ func NewHandler(
 	reservationTypeLiff *ReservationTypeLiffHandler,
 	reservationStaff *ReservationStaffHandler,
 	reservationSchedule *ReservationScheduleHandler,
-	reservationCRUD *ReservationHandler,
+	reservationCRUD *CRUDHandler,
 	reservationAdmin *ReservationAdminHandler,
 	lineReservationSetting *LineReservationSettingHandler,
 	liff *LiffHandler,
@@ -132,7 +132,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	schedules.PUT("/:date", h.requirePermission(string(model.ResourceMasterStaff), "edit"), h.reservationSchedule.UpsertReservationSchedule)
 	schedules.DELETE("/:date", h.requirePermission(string(model.ResourceMasterStaff), "delete"), h.reservationSchedule.DeleteReservationSchedule)
 
-	// LINE 予約基本設定（旧 reservation_line_routes.go 逐語）
+	// LINE 予約基本設定。対象医院は URL :clinic_id を所属集合で認可する（JWT 選択医院ではない）。
 	clinics.GET("/line-reservation-settings", h.requirePermission(string(model.ResourceHospitalSettings), "view"), h.lineReservationSetting.GetLineReservationSetting)
 	clinics.PUT("/line-reservation-settings", h.requirePermission(string(model.ResourceHospitalSettings), "edit"), h.lineReservationSetting.SaveLineReservationSetting)
 

@@ -46,13 +46,14 @@ func TestBillingItemRepository_Update_ClinicIsolation(t *testing.T) {
 
 	_, itemB := makeBillingWithItem(t, db, 2)
 
-	err := repo.Update(ctx, 1, itemB.ID, map[string]any{"name": "改ざん"})
+	price := int64(9999)
+	err := repo.Update(ctx, 1, itemB.ID, UpdateBillingItemInput{UnitPrice: &price})
 	require.Error(t, err)
 	assert.True(t, apperrors.IsNotFound(err))
 
 	var reloaded model.BillingItem
 	require.NoError(t, db.First(&reloaded, itemB.ID).Error)
-	assert.Equal(t, "検査A", reloaded.Name)
+	assert.Equal(t, int64(1000), reloaded.UnitPrice)
 }
 
 // TestBillingItemRepository_Update_SameClinic は同一クリニックの更新が成功する
@@ -64,10 +65,11 @@ func TestBillingItemRepository_Update_SameClinic(t *testing.T) {
 
 	_, item := makeBillingWithItem(t, db, 1)
 
-	require.NoError(t, repo.Update(ctx, 1, item.ID, map[string]any{"name": "更新後"}))
+	price := int64(2500)
+	require.NoError(t, repo.Update(ctx, 1, item.ID, UpdateBillingItemInput{UnitPrice: &price}))
 	var reloaded model.BillingItem
 	require.NoError(t, db.First(&reloaded, item.ID).Error)
-	assert.Equal(t, "更新後", reloaded.Name)
+	assert.Equal(t, int64(2500), reloaded.UnitPrice)
 }
 
 // TestBillingItemRepository_Delete_ClinicIsolation は clinic A から clinic B の

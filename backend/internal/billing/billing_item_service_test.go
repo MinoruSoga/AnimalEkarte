@@ -18,7 +18,7 @@ type mockBillingItemRepository struct {
 	findByIDFn                    func(ctx context.Context, clinicID, id uint64) (*model.BillingItem, error)
 	findByBillingIDFn             func(ctx context.Context, clinicID, billingID uint64) ([]model.BillingItem, error)
 	createFn                      func(ctx context.Context, item *model.BillingItem) error
-	updateFieldsFn                func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	updateFieldsFn                func(ctx context.Context, clinicID, id uint64, cmd UpdateBillingItemInput) error
 	deleteFn                      func(ctx context.Context, clinicID, id uint64) error
 	updateBillingTotals           func(ctx context.Context, clinicID, billingID uint64, subtotal, taxTotal, totalAmount int64) error
 	hasItemByOwnerSinceFn         func(ctx context.Context, clinicID, ownerID uint64, since time.Time, names []string) (bool, error)
@@ -35,8 +35,8 @@ func (m *mockBillingItemRepository) FindByBillingID(ctx context.Context, clinicI
 func (m *mockBillingItemRepository) Create(ctx context.Context, item *model.BillingItem) error {
 	return m.createFn(ctx, item)
 }
-func (m *mockBillingItemRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	return m.updateFieldsFn(ctx, clinicID, id, fields)
+func (m *mockBillingItemRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateBillingItemInput) error {
+	return m.updateFieldsFn(ctx, clinicID, id, cmd)
 }
 func (m *mockBillingItemRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	return m.deleteFn(ctx, clinicID, id)
@@ -462,7 +462,7 @@ func TestBillingItemService_UpdateItem(t *testing.T) {
 				}
 				return existingItem, nil
 			}
-			repo.updateFieldsFn = func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			repo.updateFieldsFn = func(_ context.Context, _, _ uint64, _ UpdateBillingItemInput) error {
 				return tt.updateErr
 			}
 			svc := NewBillingItemServiceWithCampaign(repo, defaultMockBillingRepo(), defaultMockTreatmentRepo(), &mockTransactor{}, okTrimmingCourseRepo(), okTrimmingOptionRepo(), nil, nil)
@@ -1129,7 +1129,7 @@ func TestBillingItemService_UpdateItem_TransactionErrors(t *testing.T) {
 		repo.findByIDFn = func(_ context.Context, _, _ uint64) (*model.BillingItem, error) {
 			return existingItem, nil
 		}
-		repo.updateFieldsFn = func(_ context.Context, _, _ uint64, _ map[string]any) error { return nil }
+		repo.updateFieldsFn = func(_ context.Context, _, _ uint64, _ UpdateBillingItemInput) error { return nil }
 		repo.findByBillingIDFn = func(_ context.Context, _, _ uint64) ([]model.BillingItem, error) {
 			return nil, errors.New("find failed")
 		}
@@ -1149,7 +1149,7 @@ func TestBillingItemService_UpdateItem_TransactionErrors(t *testing.T) {
 			}
 			return nil, errors.New("find after update failed")
 		}
-		repo.updateFieldsFn = func(_ context.Context, _, _ uint64, _ map[string]any) error { return nil }
+		repo.updateFieldsFn = func(_ context.Context, _, _ uint64, _ UpdateBillingItemInput) error { return nil }
 		svc := NewBillingItemServiceWithCampaign(repo, defaultMockBillingRepo(), defaultMockTreatmentRepo(), &mockTransactor{}, okTrimmingCourseRepo(), okTrimmingOptionRepo(), nil, nil)
 		result, err := svc.UpdateItem(context.Background(), 1, 1, &UpdateBillingItemInput{UnitPrice: &newPrice})
 		assert.Error(t, err)

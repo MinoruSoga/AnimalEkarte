@@ -2,7 +2,6 @@ package reservation
 
 import (
 	"context"
-	"log/slog"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -39,7 +38,6 @@ func (s *reservationService) validateCreateClosedDays(ctx context.Context, clini
 		if apperrors.IsNotFound(err) {
 			return nil
 		}
-		slog.ErrorContext(ctx, "failed to load LINE reservation settings for closed-day check", "error", err, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to load LINE reservation settings")
 	}
 	if settings == nil {
@@ -291,7 +289,6 @@ func validateInConsultationHasMedicalRecord(
 	}
 	count, err := repo.CountMedicalRecordsByReservationID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to count medical records for in_consultation transition", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to check medical records for consultation")
 	}
 	if count <= 0 {

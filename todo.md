@@ -1,158 +1,107 @@
 # タスク台帳 — Linear が正本
 
-更新日: 2026-09-02
+更新日: 2026-09-06
 
 | 項目 | 値 |
 |------|-----|
 | **実行 SoT** | Linear Team **Baritech** · Project **ノア動物病院電子カルテ** · hub **[BRT-4](https://linear.app/baritechllc/issue/BRT-4)** |
-| **直下整理** | **[BRT-105](https://linear.app/baritechllc/issue/BRT-105)**（Done） |
 | **セキュリティ修正** | **[BRT-226](https://linear.app/baritechllc/issue/BRT-226)**（Review · `origin/main` 済み · Done は人間） |
-| **会社側ログ** | CorpVault `50_Projects/ノア動物病院電子カルテ/` |
-| **完了履歴** | Git 履歴と Linear の完了 Issue。完了項目は本ファイルへ残さない |
+| **本ファイルの範囲** | repo と強く結び付く **未完了作業の入口** |
 
-## 使い方
+状態・Done は Linear を正本とする。行値・秘密は書かない。完了項目は削除する。
 
-- 状態・担当・次の一手は Linear を正本とする。
-- 確認済みの製品 FAIL は [`bug.md`](bug.md) に記録し、その後 Linear Issue 化する。
-- 本ファイルには、repo と強く結び付く **未完了のSTG実データ運用作業だけ**を残す。
-- 行値、患者情報、飼主情報、パスワード、接続資格情報は書かない。
-- 完了した項目は削除する。経緯が必要な場合は Git 履歴を参照する。
+エージェントは PlanetScale、共有 STG apply、`DROP SCHEMA`、本番 cutover、`make reset`、八王子 CSV の producer 出力を実行しない。push / dispatch / Linear Done / 秘密変更は明示承認が必要。
 
----
+claim は ID ごとに初回編集前に取得する。エージェントは claim を削除しない。
 
-## 現在の残作業
-
-| 優先 | ID | 担当 | 状態 | 次の一手 |
-|------|----|------|------|------------|
-| 1 | **AE-OLD-DB-MR-UNIQ** | old_db | 未完了 | 非NULL `medical_record_id` を1カルテ1billingにし、余剰billingのリンクを外す |
-| 2 | **H0-2 / HAC-CSV-1** | old_db / USER | 未完了 | 八王子の医院identity付き21 CSVとmanifestを出力する。旧7 CSVは使わない |
-| 3 | **H0-3b / H1-2** | USER | H0-2待ち | 八王子bundleのhandoff check、preflight、ローカルrehearsalを行う |
-| 4 | **AE-STG-UAT-LANE3-JOU** | USER | 未着手 | 城東bundleを共有STGへ投入し、第1段階を開始する |
-| 5 | **AE-STG-UAT-LANE3-HAC** | USER | H0-2待ち | maintenance windowで八王子bundleを共有STGへ投入する |
-| 6 | **Lane 4** | 医院スタッフ / USER | Lane 3待ち | 必須4業務をSTGで連続5営業日再現する |
-
-エージェントは PlanetScale、共有STGへのapply、schema再作成、`DROP SCHEMA`、本番cutoverを実行しません。
+この更新の claim: `claim/LEDGER-TODO-PRUNE`。
 
 ---
 
-## STG実データ運用テスト
+## 対応順（実行キュー）
 
-### 目的
+上から 1 件だけ着手する。USER / old_db に当たったら止めて提示する。deferred はキューに入れない。
 
-共有STGに旧システムの医院別データを投入し、医院スタッフが現行業務と並行して新システムを検証します。
+| 順 | ID | 実行者 | なぜこの順 | 状態 |
+|----|----|--------|------------|------|
+| 1 | **META-LINEAR-APPLY** | USER | repo の対応案は [linear-f1-f6-mapping.md](docs/work/linear-f1-f6-mapping.md)。書き込みと Done は USER | **BLOCKED**（Linear MCP / `LINEAR_API_KEY` なし。公開ページはログイン壁。エージェントは書かない） |
+| 2 | **H0-2 / HAC-CSV-1** | old_db / USER | STG 八王子の先頭。これより前の STG 行は進めない | **BLOCKED**（HAC-INPUT-2。完全 KNJO 未受領。同一 BAK 再実行と producer は禁止） |
+| 3 | **H0-3b → Lane3 HAC → H3-9 → H3-11 → Lane 4** | USER | 2 の依存どおり | 待ち |
+| 4 | **P1 → P2 → P3 → P4 → P5 → P6 → P7 → P8** | USER | go-live 依存。E1 / E2 は P4 の一部 | 待ち |
 
-- 現行業務の正本は旧システム。
-- STGへの入力は検証用であり、本番へ移しません。
-- 対象は八王子 `clinic_id=1` と城東 `clinic_id=2`。
-- 必須業務は検索、受付、カルテ、会計。
-- 両院投入後、必須4業務を連続5営業日再現し、現場が切替可と判断したら第2段階へ進みます。上限は8週です。
-- 本番cutoverは別工程です。入力は移行日の旧システム出力とし、`PASS` / `TRUSTED_CANDIDATE` 契約を緩めません。
-
-### データ境界
-
-- `002_master`: 医院骨格と参照マスタのみ。accountsや臨床行を含めない。
-- `003_demo` / `004_staging`: 退役済み。STG実データ運用には使わない。
-- 業務データ: old_dbの医院別21 CSVとmanifestを正本とする。
-- `_old_db_handoff/`: ローカル隔離専用。Git、CI、イメージ、通常migrationへ載せない。
-- 同一STG DBで医院ごとに10M ID bandを分ける。
-- STGの並行登録データを本番へコピー、昇格、差分追加しない。
-
-### 禁止事項
-
-- デモ臨床と実データを混在させない。
-- `pscale connect`でremote DBをlocalhostに見せかけない。
-- 本番用F6へ`--allow-local-rehearsal`を流用しない。
-- 医院間でband、staff、account、患者、飼主、カルテ、会計を越境させない。
-- 共有STGへの投入中に同じSTGで業務入力を続けない。
-- PHIや資格情報を標準ログ、Git、Issue、チャットへ出さない。
+次は医院/ベンダーからの完全 KNJO 再取得、または城東主経路（JOU-G2-2 の Azure 承認）。H0-3b には入らない。Linear 書き込みと Done は USER。
 
 ---
 
-## Lane 0 — 八王子入力
+## 1. 受入残（PASS にしていない）
 
-- [ ] **H0-2 / HAC-CSV-1**: 医院identity付き21 CSVとmanifestをold_dbから出す。各CSVが512MiB未満であることを確認する。
-- [ ] **H0-3b**: `old-db-handoff-check`を通す。manifestなしの旧`hachioji/`や旧7 CSVは使わない。
+helper / 再実行スライスは済。UAT / E2E を PASS にしない。正本は [UAT-DOMAIN-STATUS.md](docs/ops/testing/UAT-DOMAIN-STATUS.md)。
 
-配置先はrepo外またはgitignoredの次の領域です。
+| ID | 残 | 状態 |
+|----|----|------|
+| **QA-UAT-S09-FIXTURE** | HTTP/CLI とブラウザ再実行 | S09 は BLOCKED |
+| **QA-UAT-V04-RETEST** | live HTTP は 403。clinic 1/2 の権限昇格なし | V04 は UNKNOWN |
+| **QA-FULL-CLINICAL-E2E** | `--clinical` 未実行。e2e.yml job は未 | E2E は未証明 |
 
-```text
-backend/migrations/seeds/_old_db_handoff/hachioji/
-```
-
----
-
-## Lane 1 — 未完了のローカル証明
-
-- [ ] **H1-2**: 八王子bundleでpreflight、apply、verifyをローカルrehearsalする。
-- [ ] **H1-5**: ローカルで失敗するbundleを共有STGへ送らない。
-
-必要な場合だけ実施します。
-
-- [ ] **H1-3**: [A4_UI_REHEARSAL.md](docs/ops/deploy/A4_UI_REHEARSAL.md)で隔離画面確認を行う。
-- [ ] **H1-4**: [F8_G4_FAILURE_REHEARSAL.md](docs/ops/deploy/F8_G4_FAILURE_REHEARSAL.md)で失敗側を確認する。本番CSVは渡さない。
+設計: [S09-FIXTURE-DESIGN.md](docs/ops/testing/S09-FIXTURE-DESIGN.md) · [CLINICAL-E2E-DESIGN.md](docs/ops/testing/CLINICAL-E2E-DESIGN.md)。
 
 ---
 
-## Lane 3 — 共有STG投入（USERのみ）
+## 2. USER ゲート（秘密・本番・外部環境）
 
-[STG_PLANETSCALE_SEED_RUNBOOK.md](docs/ops/deploy/STG_PLANETSCALE_SEED_RUNBOOK.md)の破壊境界に従います。城東を先に投入し、八王子はbundle到着後のmaintenance windowで投入します。
+外部状態は実行直前に再確認する。エージェントは秘密値の作成・表示・投入、共有 STG/PROD apply、production 構築、go-live を自動実行しない。
 
-- [ ] **H3-1**: 他エンジニアがSTGを使用していないことを確認し、医院へ開始範囲を伝える。
-- [ ] **H3-2**: 検証済みfull backupと復元担当を作業票へ記録する。
-- [ ] **H3-3**: TTL付き接続資格情報を用意する。schema再作成が必要な場合はUSER承認下で実施する。
-- [ ] **H3-4**: `backend-deploy.yml`を`staging`で実行し、migration成功を確認する。
-- [ ] **H3-5**: `make stg-uat-skeleton`で医院骨格を作る。21表のID bandを占有しないことを確認する。
-- [ ] **H3-6**: 各医院の10M ID bandが21表すべてで空であることを確認する。
-- [ ] **H3-7**: 医院ごとに `make stg-uat-import` を実行する。城東を先に行う。失敗時は手動 fallback の preflight / apply / verify を使う。
-- [ ] **H3-8**: 一方が失敗した場合は成功側を残し、失敗側だけを修正する。
-- [ ] **H3-9**: staff attachのpreflight → applyを実行する。名簿とsecretsはrepo外のmode 0600を使う。
-- [ ] **H3-11**: 対象医院へ切り替え、飼主検索が実データで表示されることを確認する。行値はログへ残さない。
+| 順 | ID | 実行者 | 状態 | 完了条件 |
+|----|----|--------|------|----------|
+| P1 | **SEC-SECRETS-5 / #89 / #97** | USER | 4系統 rotation receipt 未記入 | 新発行→投入→再 deploy→health→旧値 revoke→旧値拒否。値は記録しない |
+| P2 | **#253 / U12 PROD-SETUP** | USER / 開発 | Production 未構築 | Cloudflare 本番、Required reviewers、workflow、rollback、backup rehearsal、URL/CI receipt |
+| P3 | **#250 PROD-DATA-MIGRATION** | USER / 開発 | 事前準備待ち | rehearsal、最終 import、入力停止、backup/rollback、件数・clinic_id・金額突合 |
+| P4 | **#254 AUTHENTICATED-UAT** | USER / agent | full UAT 未証明 | 全業務 scenario の受入結果を確定。PARTIAL / BLOCKED / UNKNOWN を PASS にしない |
+| P5 | **#255 STAFF-PROVISION** | USER | 入力未記入 | roster、email 方針、clinic、role、actor、環境承認。PII-free receipt |
+| P6 | **#258 / U1〜U12 DELIVERY** | USER | 最終承認待ち | P1・P2 と契約責任者の非機密事実を `DELIVERY_PACKAGE.md` へ反映 |
+| P7 | **#256 / U13 TRAINING** | USER | 操作説明会未完 | 日程・形式・範囲・結果・opaque receipt |
+| P8 | **#257 GOLIVE** | USER | HOLD | P1〜P7 の受入と第2段階条件。重大 FAIL や当日 import 未達なら No-Go |
+| E1 | **QA-UAT-LSTEP-REAL** | USER | 外部環境待ち | write 有効な LSTEP で S01 同期と V05-17 remove |
+| E2 | **QA-UAT-LINE-IDTOKEN** | USER | mock 外・未証明 | 実 LINE idToken で link / 409 / 期限切れ 400 |
 
-予約も検証する場合だけ実施します。
-
-- [ ] **H3-10 / AE-STG-UAT-SHIFT**: 未来日のshiftを用意する。古い絶対日付をコピーしない。
-
-### 実行契約
-
-- `make stg-uat-import`（21表の preflight → apply → verify。run sheetで確認した6 seed IDを明示）
-- 手動 fallback: `make stg-uat-csv-import-preflight` / `make stg-uat-csv-import` / `make stg-uat-csv-import-verify`
-- `make stg-uat-staff-attach-preflight`
-- `make stg-uat-staff-attach`
-
-remote実行では、対象hostと一致する確認値、SSL設定、各コマンドの明示sentinelが必要です。具体値はrepoへ記録しません。
+P4 の延期例外: 臨床安全、会計金額、clinic / owner / pet / staff 分離、認証・権限、データ消失の未解消 FAIL は go-live 前に解消する。それ以外は Linear に受容条件を残し、USER の明示受容がある場合だけ延期できる。
 
 ---
 
-## Lane 4 — 第1段階の並行運用
+## 3. STG 実データ（USER / old_db）
 
-- [ ] 期間中はSTG DBをresetしない。
-- [ ] backendデプロイ前に医院へ日時を知らせる。適用済みmigration編集やseed差替えを行わない。
-- [ ] STGで新規作成した予約、カルテ、会計を本番へ移さない。
-- [ ] STG障害時も旧システムで現行業務を継続する。
-- [ ] ログへPHIが出た場合は検証を止めて修正する。業務監査の正本は`audit_logs`とする。
-- [ ] 製品不具合は`bug.md`へ記録し、Linear Issue化する。本ファイルへバグ本文を複製しない。
-- [ ] 必須4業務を両院で連続5営業日再現し、現場の切替判断を記録する。
+対象は八王子 `clinic_id=1` と城東 `clinic_id=2`。証跡が無いだけなら **UNKNOWN**。再 apply の前に USER が現行状態を確認する。
 
----
+| 優先 | ID | 実行者 | 状態 | blocked-by |
+|------|----|--------|------|------------|
+| 1 | **H0-2 / HAC-CSV-1** | old_db / USER | HAC-CSV-1 は C1 `HAC-INPUT-2` 待ち。AE `hachioji/` 空。export なし | CHECKDB clean な新規 BAK、または全32列完全 KNJO。同一/既知破損 BAK の再復元は禁止。城東 live を上書きする load も禁止 |
+| 2 | **H0-3b / H1-2** | USER | 待ち | H0-2 |
+| 3 | **AE-STG-UAT-LANE3-HAC** | USER | UNKNOWN・投入判断待ち | 現行状態、H0-2、H0-3b |
+| 4 | **H3-9 staff attach apply** | USER | 入力あり・apply 実施有無 UNKNOWN | 現行 attach と STG 実行ゲート |
+| 5 | **H3-11 画面確認** | USER | UNKNOWN・証跡未取得 | H3-9 と自医院ログイン |
+| 6 | **Lane 4** | 医院スタッフ / USER | 完了未証明 | 両院 Lane 3 verify、H3-11 |
 
-## 第2段階へ進む条件
+索引から外したもの: AE-OLD-DB-MR-UNIQ、Lane3 城東 21表、H3-7 敷島 / Hako。
 
-- 両院のbundle投入とverifyが完了している。
-- 対象スタッフが自医院へログインできる。
-- 必須4業務を連続5営業日再現している。
-- ブロッキングな製品バグが残っていない。
-- STG入力を本番へ移さないことを医院が理解している。
-- 本番F6の`PASS` / `TRUSTED_CANDIDATE`契約が維持されている。
-- 移行日、当日の旧データ出力、本番run sheetが決まっている。
+STG 実行ゲート: 対象環境、data owner、operator、maintenance window、backup / restore、rollback、承認。正本は [STG 手順の停止ゲート](docs/ops/deploy/STG_PLANETSCALE_SEED_RUNBOOK.md#2-pre-deploy-stop-gates)。
+
+観測（2026-09-06）: 城東・敷島・箱は AE handoff に bundle あり。八王子ディレクトリは空。old_db export も八王子 run なし。producer は未実行。Lane 4 は 5営業日証跡なし。
 
 ---
 
-## 次の一手
+## 4. 触ったときだけ / deferred
 
-1. old_dbで **AE-OLD-DB-MR-UNIQ** を完了する。
-2. USERが城東の **Lane 3** を実施する。
-3. old_dbが **HAC-CSV-1** を作成し、八王子のLane 0 / 1 / 3を進める。
-4. 両院でLane 4を実施し、第2段階の移行日を決める。
+横断キャンペーンにしない。
+
+| ID | 再開条件 |
+|----|----------|
+| **TASK-444** | generated/models の公開契約・codegen・consumer 移行計画が揃ってから |
+| **BE-RC-005** | 新規・変更 service から 5xx 二重ログを解消 |
+| **BE-RC-009** | 新規 consumer または対象機能変更時に利用側最小 port へ分割 |
+| **BE-RC-014** | typed error が使えるようになったら `errors.As` へ |
+| **BE-RC-015** | 新規・変更面から package.Type stutter を避ける |
+| **BE-RC-017** | 対象 repository 変更時に unexported update + typed command |
+| **BE-RC-019** | lab / hospitalization 等の境界が成立する変更時だけ |
 
 ---
 
@@ -160,12 +109,11 @@ remote実行では、対象hostと一致する確認値、SSL設定、各コマ�
 
 | 文書 | 役割 |
 |------|------|
-| [docs/ops/deploy/CLINIC_CSV_IMPORT.md](docs/ops/deploy/CLINIC_CSV_IMPORT.md) | F6 21表cutover |
-| [docs/ops/deploy/OLD_DB_HANDOFF_LOCAL.md](docs/ops/deploy/OLD_DB_HANDOFF_LOCAL.md) | `_old_db_handoff`のローカル隔離 |
-| [docs/ops/deploy/SEED_MIGRATION_OPERATIONS.md](docs/ops/deploy/SEED_MIGRATION_OPERATIONS.md) | seedと21表の境界 |
-| [docs/ops/deploy/STG_PLANETSCALE_SEED_RUNBOOK.md](docs/ops/deploy/STG_PLANETSCALE_SEED_RUNBOOK.md) | STG再作成、直結、破壊境界 |
-| [docs/ops/deploy/STG-DEMO-DATA-LIFECYCLE.md](docs/ops/deploy/STG-DEMO-DATA-LIFECYCLE.md) | STGデータのライフサイクル |
-| [docs/ops/deploy/STAFF_ACCOUNT_PROVISIONING.md](docs/ops/deploy/STAFF_ACCOUNT_PROVISIONING.md) | staff account運用 |
-| [docs/ops/deploy/A4_UI_REHEARSAL.md](docs/ops/deploy/A4_UI_REHEARSAL.md) | 隔離画面確認 |
-| [docs/ops/deploy/LOCAL_DB_RESET.md](docs/ops/deploy/LOCAL_DB_RESET.md) | ローカルreset |
-| [docs/ops/infra/staging/runbook.md](docs/ops/infra/staging/runbook.md) | STG障害初動 |
+| [`todo-now.md`](todo-now.md) | Astra F1〜F6 の完了履歴 |
+| [docs/work/linear-f1-f6-mapping.md](docs/work/linear-f1-f6-mapping.md) | F1〜F6 対応案。Linear は UNKNOWN |
+| [docs/ops/testing/S09-FIXTURE-DESIGN.md](docs/ops/testing/S09-FIXTURE-DESIGN.md) | S09 helper 設計 |
+| [docs/ops/testing/CLINICAL-E2E-DESIGN.md](docs/ops/testing/CLINICAL-E2E-DESIGN.md) | clinical E2E 設計 |
+| [docs/ops/testing/UAT-DOMAIN-STATUS.md](docs/ops/testing/UAT-DOMAIN-STATUS.md) | UAT 集計の正本 |
+| [`bug.md`](bug.md) | 確認済み製品 FAIL |
+| [docs/ops/deploy/OLD_DB_HANDOFF_LOCAL.md](docs/ops/deploy/OLD_DB_HANDOFF_LOCAL.md) | ローカル handoff |
+| [docs/ops/deploy/STG_PLANETSCALE_SEED_RUNBOOK.md](docs/ops/deploy/STG_PLANETSCALE_SEED_RUNBOOK.md) | STG 破壊境界 |

@@ -234,7 +234,7 @@ func TestPermissionGroupRepository_AmbientTransactionReadYourWritesAndRollback(t
 
 func TestPermissionGroupRepository_CreateWithRules_RollsBackWithAmbientTransaction(t *testing.T) {
 	db := setupPermissionGroupRepositoryTestDB(t)
-	repo := NewPermissionGroupRepository(db).(*permissionGroupRepository)
+	repo := NewPermissionGroupRepository(db)
 	ctx := context.Background()
 	const clinicID = uint64(1)
 	group := &model.PermissionGroup{ClinicID: clinicID, Name: "ambient create-with-rules"}
@@ -260,7 +260,7 @@ func TestPermissionGroupRepository_CreateWithRules_RollsBackWithAmbientTransacti
 
 func TestPermissionGroupRepository_UpdateWithRules_RollsBackWithAmbientTransaction(t *testing.T) {
 	db := setupPermissionGroupRepositoryTestDB(t)
-	repo := NewPermissionGroupRepository(db).(*permissionGroupRepository)
+	repo := NewPermissionGroupRepository(db)
 	ctx := context.Background()
 	const clinicID = uint64(1)
 	group := makePermissionGroup(t, db, clinicID, "ambient update original")
@@ -269,11 +269,12 @@ func TestPermissionGroupRepository_UpdateWithRules_RollsBackWithAmbientTransacti
 
 	err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		txCtx := persistence.WithTxValue(ctx, tx)
+		replacement := "ambient update replacement"
 		updated, updateErr := repo.UpdateWithRules(
 			txCtx,
 			clinicID,
 			group.ID,
-			map[string]any{"name": "ambient update replacement"},
+			UpdatePermissionGroupInput{Name: &replacement},
 			[]model.PermissionGroupRule{{Resource: "billing", CanView: true}},
 		)
 		require.NoError(t, updateErr)

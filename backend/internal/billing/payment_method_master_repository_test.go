@@ -159,20 +159,23 @@ func TestPaymentMethodMasterRepository_Update(t *testing.T) {
 
 	t.Run("同一クリニックの更新は反映される", func(t *testing.T) {
 		m := makePaymentMethodMaster(t, db, clinicA, "更新前支払方法")
-		got, err := repo.Update(ctx, clinicA, m.ID, map[string]any{"name": "更新後支払方法"})
+		name := "更新後支払方法"
+		got, err := repo.Update(ctx, clinicA, m.ID, UpdatePaymentMethodMasterInput{Name: &name})
 		require.NoError(t, err)
 		assert.Equal(t, "更新後支払方法", got.Name)
 	})
 
 	t.Run("別クリニックの更新はNotFound", func(t *testing.T) {
 		m := makePaymentMethodMaster(t, db, clinicA, "越境更新対象")
-		_, err := repo.Update(ctx, clinicB, m.ID, map[string]any{"name": "越境更新"})
+		name := "越境更新"
+		_, err := repo.Update(ctx, clinicB, m.ID, UpdatePaymentMethodMasterInput{Name: &name})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
 	t.Run("存在しないIDの更新はNotFound", func(t *testing.T) {
-		_, err := repo.Update(ctx, clinicA, 999999, map[string]any{"name": "存在しない"})
+		name := "存在しない"
+		_, err := repo.Update(ctx, clinicA, 999999, UpdatePaymentMethodMasterInput{Name: &name})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
@@ -206,7 +209,8 @@ func TestPaymentMethodMasterRepository_Update_ReloadFailureRollsBackUpdate(t *te
 		}
 	})
 
-	got, err := repo.Update(ctx, clinicID, record.ID, map[string]any{"name": "更新後支払方法"})
+	name := "更新後支払方法"
+	got, err := repo.Update(ctx, clinicID, record.ID, UpdatePaymentMethodMasterInput{Name: &name})
 
 	assert.Nil(t, got)
 	require.Error(t, err)

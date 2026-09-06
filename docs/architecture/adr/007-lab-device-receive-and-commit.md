@@ -190,6 +190,8 @@ device ［取り消す］は **detach**:
 
 ### 9. 権限・隔離
 
+以下は採用時案。現行の認証・権限契約は[現行 HTTP 境界の補足](#current-http-boundary)を参照する。
+
 - 受信・待機・board: `lab-import:create` または既存 lab-import 相当。clinic は JWT のみ
 - attach/detach: `lab-import:edit`
 - `pet_id` は request 由来 FK。同 clinic の生存ペット以外は 400
@@ -224,3 +226,20 @@ device ［取り消す］は **detach**:
 ## Historical implementation gate（BRT-95 着手前に充足済み）
 
 BRT-95 着手前は BRT-100 の人間決定を gate とした。現行 header のとおり BRT-95〜98 の code path は完了しており、この節は active prohibition ではない。物理機器 UAT、agent 運用、医院 rollout は引き続き人間 gate である。
+
+<a id="current-http-boundary"></a>
+
+## 現行 HTTP 境界の補足（2026-09-06）
+
+上記の採用時案のうち、§3 の API 名と §9 の認証・権限は現在の `backend/internal/medicalrecord/routes_lab.go` / `backend/docs/api.yaml` を優先する。共通 prefix は `/api/v1`。
+
+| Endpoint 群 | 現行 `lab-import` action |
+| --- | --- |
+| `POST /lab-device/frames`、`PUT/DELETE /lab-device/wait`、`GET /lab-device/board`、`GET /lab-device/agent-consumer` | `create` |
+| `GET /lab-device/unlinked`、`GET /lab-device/station`、device / item-master 一覧 | `view` |
+| station 更新、device / item-master 更新、item-master ensure、job attach/detach/revert | `edit` |
+| `POST /lab-devices` | `create` |
+
+§9 の「clinic は JWT のみ」は client body を authority にしないという採用時の要約であり、JWT snapshot を最終 authority とする契約ではない。現行 staff route は認証 middleware が `current_access_service` で再解決した clinic 集合と `X-Clinic-ID` を検証し、その trusted clinic scope を handler へ渡す（[auth.md](../auth.md)）。
+
+§8 のブラウザ `getPorts` は Web Serial 経路の説明である。ADR-008 の local agent 経路は Mac の許可済みポートを agent が監視し、Frontend が consumer lease/token でキューを読み出す。機器対応コード、医院での配線確認、UAT、公開判断は別々に確認する。

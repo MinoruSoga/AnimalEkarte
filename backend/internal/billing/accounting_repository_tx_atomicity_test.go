@@ -66,7 +66,8 @@ func TestAccountingRepository_Update_RollsBackWhenAmbientTxFails(t *testing.T) {
 	tx := testNewTransactor(db)
 
 	txErr := tx.WithTx(ctx, func(txCtx context.Context) error {
-		if _, err := repo.Update(txCtx, clinicA, billing.ID, map[string]any{"status": model.BillingStatusCancelled}); err != nil {
+		cancelled := model.BillingStatusCancelled
+		if _, err := repo.Update(txCtx, clinicA, billing.ID, AccountingUpdate{Status: &cancelled}); err != nil {
 			return err
 		}
 		return errSentinelAccountingTx
@@ -90,7 +91,8 @@ func TestAccountingRepository_Update_CommitsWithinAmbientTx(t *testing.T) {
 	tx := testNewTransactor(db)
 
 	require.NoError(t, tx.WithTx(ctx, func(txCtx context.Context) error {
-		_, err := repo.Update(txCtx, clinicA, billing.ID, map[string]any{"status": model.BillingStatusCancelled})
+		cancelled := model.BillingStatusCancelled
+		_, err := repo.Update(txCtx, clinicA, billing.ID, AccountingUpdate{Status: &cancelled})
 		return err
 	}))
 
@@ -135,7 +137,7 @@ func TestAccountingRepository_FindByID_SeesAmbientTransactionState(t *testing.T)
 			}
 
 			require.NoError(t, testNewTransactor(db).WithTx(ctx, func(txCtx context.Context) error {
-				if _, err := repo.Update(txCtx, clinicID, billing.ID, map[string]any{"memo": memo}); err != nil {
+				if _, err := repo.Update(txCtx, clinicID, billing.ID, AccountingUpdate{Memo: &memo}); err != nil {
 					return err
 				}
 				if err := repo.SavePayment(txCtx, payment); err != nil {
@@ -378,7 +380,8 @@ func TestReservationRepository_CompleteForAccounting_RollsBackWhenAmbientTxFails
 	tx := testNewTransactor(db)
 
 	txErr := tx.WithTx(ctx, func(txCtx context.Context) error {
-		if _, err := repo.Update(txCtx, clinicA, billing.ID, map[string]any{"status": model.BillingStatusCompleted}); err != nil {
+		completed := model.BillingStatusCompleted
+		if _, err := repo.Update(txCtx, clinicA, billing.ID, AccountingUpdate{Status: &completed}); err != nil {
 			return err
 		}
 		if _, err := appointmentRepo.CompleteForAccounting(txCtx, clinicA, &mr.ID, nil, nil, time.Time{}); err != nil {
@@ -424,7 +427,8 @@ func TestReservationRepository_CompleteForAccounting_CommitsWithinAmbientTx(t *t
 	tx := testNewTransactor(db)
 
 	require.NoError(t, tx.WithTx(ctx, func(txCtx context.Context) error {
-		if _, err := repo.Update(txCtx, clinicA, billing.ID, map[string]any{"status": model.BillingStatusCompleted}); err != nil {
+		completed := model.BillingStatusCompleted
+		if _, err := repo.Update(txCtx, clinicA, billing.ID, AccountingUpdate{Status: &completed}); err != nil {
 			return err
 		}
 		_, err := appointmentRepo.CompleteForAccounting(txCtx, clinicA, &mr.ID, nil, nil, time.Time{})

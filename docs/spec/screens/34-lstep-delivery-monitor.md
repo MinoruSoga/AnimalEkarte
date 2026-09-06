@@ -1,7 +1,7 @@
 # Lステップ配信監視 仕様書 (L-Step Delivery Monitor)
 
 ## 概要
-- **画面の目的**: システムが自動生成した Lステップ **配信トリガー** の実行状況、除外判定、および API 通信の成否をリアルタイムに監視する。
+- **画面の目的**: システムが自動生成した Lステップ **配信トリガー** の実行状況、除外判定、および API 通信の成否を取得時点のログで監視する。
 - **観測範囲**: `lstep_delivery_trigger_log` のみ。会計確定後の CPM 同期など **ordinary タグ同期（request-local secondary）は本画面の対象外**であり、当該経路は trigger log に書かない。
 - **URLパターン**: `/lstep/delivery-monitor`
 - **アクセス権限**: FE/BE とも `ResourceLstepAnalytics:view`。親 `/lstep` は権限を加算しない。
@@ -33,7 +33,7 @@
 - **ステータス別サマリカード**: 予定（`scheduled`）・送信済（`fired`）・除外（`excluded`）・失敗（`failed`）・優先度抑制（`suppressed_by_priority`）の 5 枚の件数カード。
 - **失敗警告バナー (`DeliveryFailedWarning`)**: 期間内に `failed` が 1 件以上ある場合のみ表示される警告。
 - **除外理由内訳 (`DeliveryExcludedReasonBreakdown`)**: `excluded` がある場合に理由別件数をバッジ表示。
-- ヘッダの「更新」ボタンでサマリ・ログの両方を再取得する。
+- ヘッダの「更新」ボタンでサマリ・ログの両方を再取得する。両クエリの `staleTime` は1分で、専用の定期ポーリングは設定していない。常時プッシュされるリアルタイム画面ではない。
 
 ---
 

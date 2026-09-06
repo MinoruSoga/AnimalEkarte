@@ -94,7 +94,7 @@ func TestCarePlanItemService_Update_RejectsCrossClinicMasterFK(t *testing.T) {
 			findByIDFn: func(_ context.Context, _, itemID uint64) (*model.CarePlanItem, error) {
 				return &model.CarePlanItem{ID: itemID, HospitalizationID: 1}, nil
 			},
-			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error { *updated = true; return nil },
+			updateFn: func(_ context.Context, _, _ uint64, _ UpdateCarePlanItemInput) error { *updated = true; return nil },
 		}
 		return NewCarePlanItemService(repo, okHospRepoForCarePlan(), rejectMedicineRepo(ownedMedicineID), okProcedureRepo(), okHospitalizationPlanRepo(), passthroughCarePlanTransactor{}, okCarePlanAuditTx{})
 	}
@@ -162,7 +162,7 @@ func TestCarePlanItemService_Update_RejectsCrossClinicHospitalizationPlanFK(t *t
 			findByIDFn: func(_ context.Context, _, itemID uint64) (*model.CarePlanItem, error) {
 				return &model.CarePlanItem{ID: itemID, HospitalizationID: 1}, nil
 			},
-			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error { *updated = true; return nil },
+			updateFn: func(_ context.Context, _, _ uint64, _ UpdateCarePlanItemInput) error { *updated = true; return nil },
 		}
 		return NewCarePlanItemService(repo, okHospRepoForCarePlan(), okMedicineRepo(), okProcedureRepo(), rejectHospitalizationPlanRepo(ownedPlanID), passthroughCarePlanTransactor{}, okCarePlanAuditTx{})
 	}
@@ -246,7 +246,7 @@ func TestHospitalizationService_Update_RejectsCrossClinicCageFK(t *testing.T) {
 			findByIDFn: func(_ context.Context, _, id uint64) (*model.Hospitalization, error) {
 				return &model.Hospitalization{ID: id, ClinicID: clinicID}, nil
 			},
-			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Hospitalization, error) {
+			updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateHospitalizationInput) (*model.Hospitalization, error) {
 				*updated = true
 				return &model.Hospitalization{ID: 1, ClinicID: clinicID}, nil
 			},
@@ -357,7 +357,7 @@ func TestHospitalizationService_Update_ValidatesDoctorInWriteTransaction(t *test
 			findByIDFn: func(_ context.Context, _, id uint64) (*model.Hospitalization, error) {
 				return &model.Hospitalization{ID: id, ClinicID: clinicID}, nil
 			},
-			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Hospitalization, error) {
+			updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateHospitalizationInput) (*model.Hospitalization, error) {
 				*updated = true
 				return &model.Hospitalization{ID: 1, ClinicID: clinicID}, nil
 			},

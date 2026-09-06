@@ -97,7 +97,6 @@ func NewCompanyService(repo CompanyRepository) CompanyService {
 func (s *companyService) Get(ctx context.Context) (*model.Company, error) {
 	result, err := s.repo.FindSingleton(ctx)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get company", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get company")
 	}
 	return result, nil
@@ -113,11 +112,9 @@ func (s *companyService) Update(ctx context.Context, input *UpdateCompanyInput) 
 	// (same-tx UpdateAndFind would be preferred once companyRepository joins DBOrTx).
 	pre, preErr := s.repo.FindSingleton(ctx)
 	if preErr != nil {
-		slog.ErrorContext(ctx, "failed to get company before update", "error", preErr)
 		return nil, apperrors.Wrap(preErr, "failed to get company before update")
 	}
-	if err := s.repo.Update(ctx, fields); err != nil {
-		slog.ErrorContext(ctx, "failed to update company", "error", err)
+	if err := s.repo.Update(ctx, *input); err != nil {
 		return nil, apperrors.Wrap(err, "failed to update company")
 	}
 	result, err := s.repo.FindSingleton(ctx)

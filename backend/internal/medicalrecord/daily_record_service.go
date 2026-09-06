@@ -102,7 +102,6 @@ func (s *dailyRecordService) loadHospitalization(ctx context.Context, clinicID, 
 	}
 	hosp, err := s.hospRepo.FindByID(ctx, clinicID, hospitalizationID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to verify hospitalization ownership", "error", err)
 		return nil, apperrors.Wrap(err, "failed to verify hospitalization ownership")
 	}
 	if err := validateDailyRecordHospitalization(hosp, clinicID, hospitalizationID); err != nil {
@@ -133,7 +132,6 @@ func (s *dailyRecordService) List(ctx context.Context, clinicID, hospitalization
 		}
 		result, err = s.repo.FindByHospitalizationID(txCtx, clinicID, hospitalizationID)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to list daily record", "error", err)
 			return apperrors.Wrap(err, "failed to list daily record")
 		}
 		for i := range result {
@@ -168,7 +166,6 @@ func (s *dailyRecordService) GetByDate(ctx context.Context, clinicID, hospitaliz
 		}
 		result, err = s.repo.FindByHospitalizationIDAndDate(txCtx, clinicID, hospitalizationID, date)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to get daily record", "error", err)
 			return apperrors.Wrap(err, "failed to get daily record")
 		}
 		return s.validateDailyRecordRead(txCtx, clinicID, hospitalization, result, &date)
@@ -196,7 +193,6 @@ func (s *dailyRecordService) FindOrCreateByDate(ctx context.Context, clinicID, h
 		var err error
 		result, err = s.repo.FindOrCreateByDate(txCtx, clinicID, hospitalizationID, date)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to get or create daily record", "error", err)
 			return apperrors.Wrap(err, "failed to get or create daily record")
 		}
 		return validateDailyRecordRelation(result, clinicID, hospitalizationID, date)
@@ -239,7 +235,6 @@ func (s *dailyRecordService) AddVitalRecord(ctx context.Context, clinicID, hospi
 		}
 		daily, err := s.repo.FindOrCreateByDate(txCtx, clinicID, hospitalizationID, date)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to get or create daily record", "error", err)
 			return apperrors.Wrap(err, "failed to get or create daily record")
 		}
 		if err := validateDailyRecordRelation(daily, clinicID, hospitalizationID, date); err != nil {
@@ -259,13 +254,11 @@ func (s *dailyRecordService) AddVitalRecord(ctx context.Context, clinicID, hospi
 			StaffID:         input.StaffID,
 		}
 		if err := s.repo.CreateVitalRecord(txCtx, vr); err != nil {
-			slog.ErrorContext(txCtx, "failed to create vital record", "error", err)
 			return apperrors.Wrap(err, "failed to create vital record")
 		}
 		vitalID = vr.ID
 		result, err = s.repo.FindByHospitalizationIDAndDate(txCtx, clinicID, hospitalizationID, date)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to get daily record after adding vital", "error", err)
 			return apperrors.Wrap(err, "failed to get daily record after adding vital")
 		}
 		return s.validateDailyRecordRead(txCtx, clinicID, hosp, result, &date)
@@ -335,7 +328,6 @@ func (s *dailyRecordService) AddCareLog(ctx context.Context, clinicID, hospitali
 		}
 		daily, err := s.repo.FindOrCreateByDate(txCtx, clinicID, hospitalizationID, date)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to get or create daily record", "error", err)
 			return apperrors.Wrap(err, "failed to get or create daily record")
 		}
 		if err := validateDailyRecordRelation(daily, clinicID, hospitalizationID, date); err != nil {
@@ -353,13 +345,11 @@ func (s *dailyRecordService) AddCareLog(ctx context.Context, clinicID, hospitali
 			Notes:         input.Notes,
 		}
 		if err := s.repo.CreateCareLog(txCtx, cr); err != nil {
-			slog.ErrorContext(txCtx, "failed to create care log record", "error", err)
 			return apperrors.Wrap(err, "failed to create care log record")
 		}
 		careLogID = cr.ID
 		result, err = s.repo.FindByHospitalizationIDAndDate(txCtx, clinicID, hospitalizationID, date)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to get daily record after adding care log", "error", err)
 			return apperrors.Wrap(err, "failed to get daily record after adding care log")
 		}
 		return s.validateDailyRecordRead(txCtx, clinicID, hospitalization, result, &date)
@@ -409,7 +399,6 @@ func (s *dailyRecordService) AddStaffNote(ctx context.Context, clinicID, hospita
 		}
 		daily, err := s.repo.FindOrCreateByDate(txCtx, clinicID, hospitalizationID, date)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to get or create daily record", "error", err)
 			return apperrors.Wrap(err, "failed to get or create daily record")
 		}
 		if err := validateDailyRecordRelation(daily, clinicID, hospitalizationID, date); err != nil {
@@ -423,13 +412,11 @@ func (s *dailyRecordService) AddStaffNote(ctx context.Context, clinicID, hospita
 			StaffID:       input.StaffID,
 		}
 		if err := s.repo.CreateStaffNote(txCtx, sn); err != nil {
-			slog.ErrorContext(txCtx, "failed to create staff note record", "error", err)
 			return apperrors.Wrap(err, "failed to create staff note record")
 		}
 		staffNoteID = sn.ID
 		result, err = s.repo.FindByHospitalizationIDAndDate(txCtx, clinicID, hospitalizationID, date)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to get daily record after adding staff note", "error", err)
 			return apperrors.Wrap(err, "failed to get daily record after adding staff note")
 		}
 		return s.validateDailyRecordRead(txCtx, clinicID, hospitalization, result, &date)
@@ -475,7 +462,6 @@ func (s *dailyRecordService) lockHospitalizationForWrite(
 	}
 	hospitalization, err := s.hospRepo.LockByIDForUpdate(ctx, clinicID, hospitalizationID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to lock hospitalization for daily record write", "error", err)
 		return nil, apperrors.Wrap(err, "failed to verify hospitalization ownership")
 	}
 	if err := validateDailyRecordHospitalization(hospitalization, clinicID, hospitalizationID); err != nil {

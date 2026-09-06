@@ -2,7 +2,6 @@ package billing
 
 import (
 	"context"
-	"log/slog"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -76,12 +75,10 @@ func (s *refundService) Create(ctx context.Context, clinicID, billingID uint64, 
 func (s *refundService) ListByBillingID(ctx context.Context, clinicID, billingID uint64) ([]model.BillingRefund, error) {
 	// マルチテナント保護
 	if _, err := s.accountRepo.FindByID(ctx, clinicID, billingID); err != nil {
-		slog.ErrorContext(ctx, "failed to get billing", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get billing")
 	}
 	items, err := s.repo.FindByBillingID(ctx, clinicID, billingID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list refunds", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list refunds")
 	}
 	return items, nil

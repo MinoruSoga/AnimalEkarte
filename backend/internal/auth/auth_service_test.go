@@ -41,18 +41,18 @@ func (m *mockStaffAccountFinder) FindByAccountID(
 	return &model.Staff{ID: accountID, IsActive: true}, nil
 }
 
-func newAuthServiceForAuthenticateTest(
+func newServiceForAuthenticateTest(
 	accountRepo *mockAccountRepository,
 	staff *mockStaffAccountFinder,
-) AuthService {
-	return NewAuthService(
+) Service {
+	return NewService(
 		NewAccountService(accountRepo),
 		staff,
 		nil,
 	)
 }
 
-func TestAuthService_Authenticate(t *testing.T) {
+func TestService_Authenticate(t *testing.T) {
 	ctx := context.Background()
 
 	hash, err := bcrypt.GenerateFromPassword([]byte("correct-password"), bcrypt.MinCost)
@@ -60,7 +60,7 @@ func TestAuthService_Authenticate(t *testing.T) {
 	passwordHash := string(hash)
 
 	t.Run("correct password returns account and staff", func(t *testing.T) {
-		svc := newAuthServiceForAuthenticateTest(
+		svc := newServiceForAuthenticateTest(
 			&mockAccountRepository{
 				findByEmailFn: func(_ context.Context, email string) (*model.Account, error) {
 					assert.Equal(t, "user@test.com", email)
@@ -86,7 +86,7 @@ func TestAuthService_Authenticate(t *testing.T) {
 
 	t.Run("staging catalog email accepts shared demo password when hash differs", func(t *testing.T) {
 		t.Setenv("APP_ENV", "staging")
-		svc := newAuthServiceForAuthenticateTest(
+		svc := newServiceForAuthenticateTest(
 			&mockAccountRepository{
 				findByEmailFn: func(_ context.Context, email string) (*model.Account, error) {
 					assert.Equal(t, seedlogin.Catalog()[0].Email, email)
@@ -117,7 +117,7 @@ func TestAuthService_Authenticate(t *testing.T) {
 
 	t.Run("production rejects shared demo password when hash differs", func(t *testing.T) {
 		t.Setenv("APP_ENV", "production")
-		svc := newAuthServiceForAuthenticateTest(
+		svc := newServiceForAuthenticateTest(
 			&mockAccountRepository{
 				findByEmailFn: func(_ context.Context, email string) (*model.Account, error) {
 					return &model.Account{
@@ -144,7 +144,7 @@ func TestAuthService_Authenticate(t *testing.T) {
 
 	t.Run("staging does not accept shared password for non-catalog email", func(t *testing.T) {
 		t.Setenv("APP_ENV", "staging")
-		svc := newAuthServiceForAuthenticateTest(
+		svc := newServiceForAuthenticateTest(
 			&mockAccountRepository{
 				findByEmailFn: func(_ context.Context, _ string) (*model.Account, error) {
 					return &model.Account{
@@ -170,7 +170,7 @@ func TestAuthService_Authenticate(t *testing.T) {
 	})
 
 	t.Run("wrong password returns unauthorized with wrong-password sentinel", func(t *testing.T) {
-		svc := newAuthServiceForAuthenticateTest(
+		svc := newServiceForAuthenticateTest(
 			&mockAccountRepository{
 				findByEmailFn: func(_ context.Context, _ string) (*model.Account, error) {
 					return &model.Account{ID: 1, IsActive: true, PasswordHash: passwordHash}, nil
@@ -191,7 +191,7 @@ func TestAuthService_Authenticate(t *testing.T) {
 	})
 
 	t.Run("inactive staff returns unauthorized", func(t *testing.T) {
-		svc := newAuthServiceForAuthenticateTest(
+		svc := newServiceForAuthenticateTest(
 			&mockAccountRepository{
 				findByEmailFn: func(_ context.Context, _ string) (*model.Account, error) {
 					return &model.Account{ID: 1, IsActive: true, PasswordHash: passwordHash}, nil
@@ -215,7 +215,7 @@ func TestAuthService_Authenticate(t *testing.T) {
 	})
 }
 
-func TestAuthService_Authenticate_InvalidCredentialResponsesAreUniform(t *testing.T) {
+func TestService_Authenticate_InvalidCredentialResponsesAreUniform(t *testing.T) {
 	ctx := context.Background()
 	hash, err := bcrypt.GenerateFromPassword([]byte("correct-password"), bcrypt.MinCost)
 	require.NoError(t, err)
@@ -268,7 +268,7 @@ func TestAuthService_Authenticate_InvalidCredentialResponsesAreUniform(t *testin
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			svc := newAuthServiceForAuthenticateTest(
+			svc := newServiceForAuthenticateTest(
 				&mockAccountRepository{
 					findByEmailFn: func(context.Context, string) (*model.Account, error) {
 						return test.account, test.accountErr
@@ -300,7 +300,7 @@ func TestAuthService_Authenticate_InvalidCredentialResponsesAreUniform(t *testin
 	}
 }
 
-func TestAuthService_Authenticate_UnknownAndInactiveAccountsPerformOneCost12Comparison(
+func TestService_Authenticate_UnknownAndInactiveAccountsPerformOneCost12Comparison(
 	t *testing.T,
 ) {
 	const submittedPassword = "probe-password-123"
@@ -357,7 +357,7 @@ func TestAuthService_Authenticate_UnknownAndInactiveAccountsPerformOneCost12Comp
 
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {
-			service := newAuthServiceForAuthenticateTest(
+			service := newServiceForAuthenticateTest(
 				&mockAccountRepository{
 					findByEmailFn: func(context.Context, string) (*model.Account, error) {
 						return test.account, test.accountError
@@ -388,8 +388,8 @@ func TestAuthService_Authenticate_UnknownAndInactiveAccountsPerformOneCost12Comp
 	}
 }
 
-func TestAuthService_CalculateEffectivePermissions_ErrorReturnsEmptyMap(t *testing.T) {
-	svc := NewAuthService(nil, nil, authServiceEffectivePermissionStub{
+func TestService_CalculateEffectivePermissions_ErrorReturnsEmptyMap(t *testing.T) {
+	svc := NewService(nil, nil, authServiceEffectivePermissionStub{
 		getFn: func(_ context.Context, staffID, clinicID uint64) ([]model.PermissionGroupRule, error) {
 			assert.Equal(t, uint64(11), staffID)
 			assert.Equal(t, uint64(22), clinicID)
@@ -408,8 +408,8 @@ func TestAuthService_CalculateEffectivePermissions_ErrorReturnsEmptyMap(t *testi
 	assert.Empty(t, permissions)
 }
 
-func TestAuthService_ClinicResolutionHelpers(t *testing.T) {
-	svc := NewAuthService(nil, nil, nil)
+func TestService_ClinicResolutionHelpers(t *testing.T) {
+	svc := NewService(nil, nil, nil)
 
 	t.Run("main assignment wins while every clinic remains in token scope", func(t *testing.T) {
 		mainClinicID, clinicIDs := svc.ResolveClinicInfo([]model.StaffClinicAssignment{

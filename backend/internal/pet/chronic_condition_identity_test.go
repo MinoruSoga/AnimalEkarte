@@ -24,7 +24,7 @@ func TestChronicConditionService_UpdateRejectsConditionOwnedByAnotherPet(t *test
 			assert.Equal(t, uint64(10), id)
 			return nil, apperrors.WrapNotFound("pet_chronic_condition", "10")
 		},
-		updateFn: func(_ context.Context, _, _, _ uint64, _ map[string]any) error {
+		updateFn: func(_ context.Context, _, _, _ uint64, _ UpdateChronicConditionInput) error {
 			updateCalled = true
 			return nil
 		},

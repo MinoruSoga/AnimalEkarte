@@ -28,7 +28,6 @@ func NewClinicHolidayService(repo ClinicHolidayRepository) ClinicHolidayService 
 func (s *clinicHolidayService) List(ctx context.Context, clinicID uint64, yearMonth string) ([]model.ClinicHoliday, error) {
 	holidays, err := s.repo.FindAllByYearMonth(ctx, clinicID, yearMonth)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list clinic holidays", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to list clinic holidays")
 	}
 	return holidays, nil
@@ -42,7 +41,6 @@ func (s *clinicHolidayService) Set(ctx context.Context, clinicID uint64, date ti
 	}
 	result, err := s.repo.Save(ctx, clinicID, holiday)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to set clinic holiday", "error", err, "clinic_id", clinicID)
 		if apperrors.IsAlreadyExists(err) {
 			return nil, apperrors.WrapAlreadyExists("clinic_holiday", date.Format("2006-01-02"))
 		}
@@ -59,14 +57,12 @@ func (s *clinicHolidayService) Remove(ctx context.Context, clinicID uint64, date
 		if apperrors.IsNotFound(err) {
 			return nil // 冪等: 存在しない場合も成功
 		}
-		slog.ErrorContext(ctx, "failed to find clinic holiday", "error", err, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to find clinic holiday")
 	}
 	if err := s.repo.Delete(ctx, clinicID, date); err != nil {
 		if apperrors.IsNotFound(err) {
 			return nil // 冪等: Delete タイミングで削除済みの場合も成功
 		}
-		slog.ErrorContext(ctx, "failed to remove clinic holiday", "error", err, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to remove clinic holiday")
 	}
 	slog.InfoContext(ctx, "clinic holiday removed",

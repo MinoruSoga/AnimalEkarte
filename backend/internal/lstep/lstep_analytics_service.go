@@ -3,7 +3,6 @@ package lstep
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -89,7 +88,6 @@ func (s *lstepAnalyticsService) GetMonthlyDeliveryStats(ctx context.Context, cli
 
 	rows, err := s.triggerLogRepo.CountByTypeAndStatus(ctx, clinicID, from, until)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to count monthly delivery stats", "error", err, "year_month", yearMonth)
 		return nil, apperrors.Wrap(err, "failed to get monthly delivery stats")
 	}
 	return &MonthlyDeliveryStats{YearMonth: yearMonth, Rows: rows}, nil
@@ -108,7 +106,6 @@ func (s *lstepAnalyticsService) GetVisitConversionSummary(ctx context.Context, c
 
 	rows, err := s.triggerLogRepo.CountVisitConversionsByType(ctx, clinicID, from, until, days)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to count monthly visit conversion summary", "error", err, "year_month", yearMonth, "days", days)
 		return nil, apperrors.Wrap(err, "failed to get visit conversion summary")
 	}
 

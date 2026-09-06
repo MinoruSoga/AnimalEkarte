@@ -96,11 +96,11 @@ func (r *closingSpecialPeriodRepository) CreateCheckingOverlap(ctx context.Conte
 
 // Update は update+reload を同一 transaction に収める（POC-02 / X-01）。
 // reload 失敗時は write をロールバックし、commit 済み成功を 5xx へ反転しない。
-func (r *closingSpecialPeriodRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ClosingSpecialPeriod, error) {
+func (r *closingSpecialPeriodRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateSpecialPeriodInput) (*model.ClosingSpecialPeriod, error) {
 	var loaded *model.ClosingSpecialPeriod
 	err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		txCtx := persistence.WithTxValue(ctx, tx)
-		if err := persistence.UpdateScopedByID(txCtx, tx, &model.ClosingSpecialPeriod{}, "closing_special_period", clinicID, id, fields); err != nil {
+		if err := r.update(txCtx, clinicID, id, specialPeriodUpdateFields(cmd)); err != nil {
 			return err
 		}
 		var p model.ClosingSpecialPeriod
@@ -119,8 +119,12 @@ func (r *closingSpecialPeriodRepository) Update(ctx context.Context, clinicID, i
 	return loaded, nil
 }
 
+func (r *closingSpecialPeriodRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+	return persistence.UpdateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.ClosingSpecialPeriod{}, "closing_special_period", clinicID, id, fields)
+}
+
 // UpdateCheckingOverlap serializes CheckOverlap + update+reload under a clinic advisory lock (POC-05 / X-05).
-func (r *closingSpecialPeriodRepository) UpdateCheckingOverlap(ctx context.Context, clinicID, id uint64, startDate, endDate time.Time, fields map[string]any) (*model.ClosingSpecialPeriod, error) {
+func (r *closingSpecialPeriodRepository) UpdateCheckingOverlap(ctx context.Context, clinicID, id uint64, startDate, endDate time.Time, cmd UpdateSpecialPeriodInput) (*model.ClosingSpecialPeriod, error) {
 	var loaded *model.ClosingSpecialPeriod
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		txCtx := persistence.WithTxValue(ctx, tx)
@@ -135,7 +139,7 @@ func (r *closingSpecialPeriodRepository) UpdateCheckingOverlap(ctx context.Conte
 		if overlap {
 			return apperrors.WrapConflict("期間が他の特別期間と重複しています")
 		}
-		if err := persistence.UpdateScopedByID(txCtx, tx, &model.ClosingSpecialPeriod{}, "closing_special_period", clinicID, id, fields); err != nil {
+		if err := r.update(txCtx, clinicID, id, specialPeriodUpdateFields(cmd)); err != nil {
 			return err
 		}
 		var p model.ClosingSpecialPeriod

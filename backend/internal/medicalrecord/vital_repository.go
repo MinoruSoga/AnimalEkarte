@@ -20,7 +20,7 @@ type VitalRepository interface {
 	FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.VitalRecord, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.VitalRecord, error)
 	Create(ctx context.Context, vital *model.VitalRecord) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	Update(ctx context.Context, clinicID, id uint64, cmd UpdateVitalInput) error
 	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
@@ -79,7 +79,11 @@ func (r *vitalRepository) Create(ctx context.Context, vital *model.VitalRecord) 
 }
 
 // Update は persistence.DBOrTx(ctx, r.db) で ambient tx に参加する（Create と同じ理由、BE-refactor.md X-11）。
-func (r *vitalRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+func (r *vitalRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateVitalInput) error {
+	return r.update(ctx, clinicID, id, buildVitalUpdate(&cmd))
+}
+
+func (r *vitalRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	result := persistence.DBOrTx(ctx, r.db).
 		Model(&model.VitalRecord{}).
 		Scopes(persistence.ClinicScope(clinicID)).

@@ -57,6 +57,9 @@ func (m *mockClinicPermissionGroupWriter) DeleteSoftDeletedByClinicID(ctx contex
 }
 
 func (m *mockClinicRepository) FindAll(ctx context.Context) ([]model.Clinic, error) {
+	if m.findAllFn == nil {
+		return nil, nil
+	}
 	return m.findAllFn(ctx)
 }
 
@@ -65,6 +68,38 @@ func (m *mockClinicRepository) FindByStaffID(ctx context.Context, staffID uint64
 		return nil, nil
 	}
 	return m.findByStaffIDFn(ctx, staffID)
+}
+
+func (m *mockClinicRepository) FindByIDs(ctx context.Context, ids []uint64) ([]model.Clinic, error) {
+	all, err := m.FindAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+	wanted := make(map[uint64]struct{}, len(ids))
+	for _, id := range ids {
+		wanted[id] = struct{}{}
+	}
+	out := make([]model.Clinic, 0, len(ids))
+	for i := range all {
+		if _, ok := wanted[all[i].ID]; ok {
+			out = append(out, all[i])
+		}
+	}
+	return out, nil
+}
+
+func (m *mockClinicRepository) FindActiveIDs(ctx context.Context, ids []uint64) ([]uint64, error) {
+	clinics, err := m.FindByIDs(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]uint64, 0, len(clinics))
+	for i := range clinics {
+		if clinics[i].IsActive {
+			out = append(out, clinics[i].ID)
+		}
+	}
+	return out, nil
 }
 
 func (m *mockClinicRepository) FindByID(ctx context.Context, id uint64) (*model.Clinic, error) {
@@ -125,7 +160,7 @@ func (m *mockClinicRepository) CountBlockingReferencesByClinicID(ctx context.Con
 	return m.countBlockingRefsFn(ctx, clinicID)
 }
 
-func TestClinicService_ListClinics(t *testing.T) {
+func TestService_ListClinics(t *testing.T) {
 	tests := []struct {
 		name        string
 		repoClinics []model.Clinic
@@ -169,7 +204,7 @@ func TestClinicService_ListClinics(t *testing.T) {
 			pgRepo := &mockPermissionGroupRepository{
 				createFn: func(_ context.Context, _ *model.PermissionGroup) error { return nil },
 			}
-			svc := NewClinicService(repo, pgRepo, &clinicServiceTransactorDouble{})
+			svc := NewService(repo, pgRepo, &clinicServiceTransactorDouble{})
 
 			clinics, err := svc.ListClinics(context.Background())
 
@@ -183,7 +218,28 @@ func TestClinicService_ListClinics(t *testing.T) {
 	}
 }
 
-func TestClinicService_ListClinicsByStaffID(t *testing.T) {
+func TestService_ListClinicsByIDsAndActiveIDs(t *testing.T) {
+	repo := &mockClinicRepository{
+		findAllFn: func(_ context.Context) ([]model.Clinic, error) {
+			return []model.Clinic{
+				{ID: 1, Name: "active", IsActive: true},
+				{ID: 2, Name: "inactive", IsActive: false},
+				{ID: 3, Name: "other", IsActive: true},
+			}, nil
+		},
+	}
+	svc := NewService(repo, &mockPermissionGroupRepository{}, &clinicServiceTransactorDouble{})
+
+	byIDs, err := svc.ListClinicsByIDs(context.Background(), []uint64{1, 2})
+	require.NoError(t, err)
+	require.Len(t, byIDs, 2)
+
+	active, err := svc.ListActiveClinicIDs(context.Background(), []uint64{1, 2, 3})
+	require.NoError(t, err)
+	assert.Equal(t, []uint64{1, 3}, active)
+}
+
+func TestService_ListClinicsByStaffID(t *testing.T) {
 	tests := []struct {
 		name        string
 		staffID     uint64
@@ -224,7 +280,7 @@ func TestClinicService_ListClinicsByStaffID(t *testing.T) {
 				},
 			}
 			pgRepo := &mockPermissionGroupRepository{}
-			svc := NewClinicService(repo, pgRepo, &clinicServiceTransactorDouble{})
+			svc := NewService(repo, pgRepo, &clinicServiceTransactorDouble{})
 
 			clinics, err := svc.ListClinicsByStaffID(context.Background(), tt.staffID)
 
@@ -238,7 +294,7 @@ func TestClinicService_ListClinicsByStaffID(t *testing.T) {
 	}
 }
 
-func TestClinicService_GetClinicByID(t *testing.T) {
+func TestService_GetClinicByID(t *testing.T) {
 	tests := []struct {
 		name       string
 		id         uint64
@@ -285,7 +341,7 @@ func TestClinicService_GetClinicByID(t *testing.T) {
 			pgRepo := &mockPermissionGroupRepository{
 				createFn: func(_ context.Context, _ *model.PermissionGroup) error { return nil },
 			}
-			svc := NewClinicService(repo, pgRepo, &clinicServiceTransactorDouble{})
+			svc := NewService(repo, pgRepo, &clinicServiceTransactorDouble{})
 
 			clinic, err := svc.GetClinicByID(context.Background(), tt.id)
 
@@ -302,7 +358,7 @@ func TestClinicService_GetClinicByID(t *testing.T) {
 	}
 }
 
-func TestClinicService_CreateClinic(t *testing.T) {
+func TestService_CreateClinic(t *testing.T) {
 	tests := []struct {
 		name           string
 		input          *CreateClinicInput
@@ -354,7 +410,7 @@ func TestClinicService_CreateClinic(t *testing.T) {
 			pgRepo := &mockPermissionGroupRepository{
 				createFn: func(_ context.Context, _ *model.PermissionGroup) error { return nil },
 			}
-			svc := NewClinicService(repo, pgRepo, &clinicServiceTransactorDouble{})
+			svc := NewService(repo, pgRepo, &clinicServiceTransactorDouble{})
 
 			result, err := svc.CreateClinic(context.Background(), tt.input)
 
@@ -374,7 +430,7 @@ func TestClinicService_CreateClinic(t *testing.T) {
 // (permission_group_rules) を1件も作らず、is_system_admin 以外の全スタッフが
 // 新規クリニックで全リソースへアクセス不能になるバグがあった。
 // 修正後は defaultPermissionRuleTable 由来のルールが両グループへ流し込まれることを検証する。
-func TestClinicService_CreateClinic_DefaultPermissionGroupRules(t *testing.T) {
+func TestService_CreateClinic_DefaultPermissionGroupRules(t *testing.T) {
 	repo := &mockClinicRepository{
 		getCompanyFn: func(_ context.Context) (*model.Company, error) {
 			return &model.Company{ID: 1, Name: "グループ本社"}, nil
@@ -411,7 +467,7 @@ func TestClinicService_CreateClinic_DefaultPermissionGroupRules(t *testing.T) {
 		},
 	}
 
-	svc := NewClinicService(repo, pgRepo, &clinicServiceTransactorDouble{})
+	svc := NewService(repo, pgRepo, &clinicServiceTransactorDouble{})
 
 	result, err := svc.CreateClinic(context.Background(), &CreateClinicInput{Name: "新規院"})
 
@@ -497,6 +553,12 @@ func TestDefaultPermissionRuleTable_CoversAllResources(t *testing.T) {
 	for res, n := range seen {
 		assert.Equalf(t, 1, n, "defaultPermissionRuleTable の %s が重複していないこと", res)
 	}
+
+	view, create, edit, del := DefaultPermissionBits(model.ResourceMasterAnimalSpecies, true)
+	assert.True(t, view)
+	assert.False(t, create)
+	assert.False(t, edit)
+	assert.False(t, del)
 
 	for _, isExecutive := range []bool{true, false} {
 		rules := buildDefaultPermissionGroupRules(isExecutive)
@@ -696,7 +758,7 @@ func TestDemoSeedGroupRules_Parity(t *testing.T) {
 	}
 }
 
-func TestClinicService_UpdateClinic(t *testing.T) {
+func TestService_UpdateClinic(t *testing.T) {
 	tests := []struct {
 		name          string
 		id            uint64
@@ -765,7 +827,7 @@ func TestClinicService_UpdateClinic(t *testing.T) {
 			pgRepo := &mockPermissionGroupRepository{
 				createFn: func(_ context.Context, _ *model.PermissionGroup) error { return nil },
 			}
-			svc := NewClinicService(repo, pgRepo, &clinicServiceTransactorDouble{})
+			svc := NewService(repo, pgRepo, &clinicServiceTransactorDouble{})
 
 			result, err := svc.UpdateClinic(context.Background(), tt.id, tt.input)
 
@@ -786,7 +848,7 @@ func TestClinicService_UpdateClinic(t *testing.T) {
 	}
 }
 
-func TestClinicService_UpdateClinic_InputNil(t *testing.T) {
+func TestService_UpdateClinic_InputNil(t *testing.T) {
 	repo := &mockClinicRepository{
 		findByIDFn: func(_ context.Context, _ uint64) (*model.Clinic, error) {
 			t.Fatal("clinic must not be looked up when input is nil")
@@ -794,7 +856,7 @@ func TestClinicService_UpdateClinic_InputNil(t *testing.T) {
 		},
 	}
 	pgRepo := &mockPermissionGroupRepository{}
-	svc := NewClinicService(repo, pgRepo, &clinicServiceTransactorDouble{})
+	svc := NewService(repo, pgRepo, &clinicServiceTransactorDouble{})
 
 	result, err := svc.UpdateClinic(context.Background(), 1, nil)
 
@@ -803,7 +865,7 @@ func TestClinicService_UpdateClinic_InputNil(t *testing.T) {
 	assert.Nil(t, result)
 }
 
-func TestClinicService_UpdateClinic_NoFieldsProvided(t *testing.T) {
+func TestService_UpdateClinic_NoFieldsProvided(t *testing.T) {
 	existing := &model.Clinic{ID: 1, CompanyID: 5, Name: "既存院"}
 	updateCalled := false
 	repo := &mockClinicRepository{
@@ -816,7 +878,7 @@ func TestClinicService_UpdateClinic_NoFieldsProvided(t *testing.T) {
 		},
 	}
 	pgRepo := &mockPermissionGroupRepository{}
-	svc := NewClinicService(repo, pgRepo, &clinicServiceTransactorDouble{})
+	svc := NewService(repo, pgRepo, &clinicServiceTransactorDouble{})
 
 	result, err := svc.UpdateClinic(context.Background(), 1, &UpdateClinicInput{})
 
@@ -825,7 +887,7 @@ func TestClinicService_UpdateClinic_NoFieldsProvided(t *testing.T) {
 	assert.False(t, updateCalled, "更新フィールドが無い場合は repo.UpdateClinic を呼ばない")
 }
 
-func TestClinicService_UpdateClinic_InvalidTaxRate(t *testing.T) {
+func TestService_UpdateClinic_InvalidTaxRate(t *testing.T) {
 	invalidRate := 1.5
 	repo := &mockClinicRepository{
 		findByIDFn: func(_ context.Context, _ uint64) (*model.Clinic, error) {
@@ -837,7 +899,7 @@ func TestClinicService_UpdateClinic_InvalidTaxRate(t *testing.T) {
 		},
 	}
 	pgRepo := &mockPermissionGroupRepository{}
-	svc := NewClinicService(repo, pgRepo, &clinicServiceTransactorDouble{})
+	svc := NewService(repo, pgRepo, &clinicServiceTransactorDouble{})
 
 	result, err := svc.UpdateClinic(context.Background(), 1, &UpdateClinicInput{StandardTaxRate: &invalidRate})
 
@@ -846,7 +908,7 @@ func TestClinicService_UpdateClinic_InvalidTaxRate(t *testing.T) {
 	assert.Nil(t, result)
 }
 
-func TestClinicService_UpdateClinic_RefetchErrorAfterUpdate(t *testing.T) {
+func TestService_UpdateClinic_RefetchErrorAfterUpdate(t *testing.T) {
 	// POC-02 / X-01: update+reload share one WithTx callback. With a real Transactor the
 	// failed reload rolls the update back; with the passthrough double we still must not
 	// return a success envelope after reload error.
@@ -873,7 +935,7 @@ func TestClinicService_UpdateClinic_RefetchErrorAfterUpdate(t *testing.T) {
 			return fn(ctx)
 		},
 	}
-	svc := NewClinicService(repo, pgRepo, tx)
+	svc := NewService(repo, pgRepo, tx)
 
 	result, err := svc.UpdateClinic(context.Background(), 1, &UpdateClinicInput{Name: clinicStringPtr("新院名")})
 
@@ -1057,7 +1119,7 @@ func TestBuildClinicUpdate_TaxRateValidation(t *testing.T) {
 	}
 }
 
-func TestClinicService_DeleteClinic(t *testing.T) {
+func TestService_DeleteClinic(t *testing.T) {
 	tests := []struct {
 		name          string
 		id            uint64
@@ -1227,7 +1289,7 @@ func TestClinicService_DeleteClinic(t *testing.T) {
 			pgRepo := &mockPermissionGroupRepository{
 				createFn: func(_ context.Context, _ *model.PermissionGroup) error { return nil },
 			}
-			svc := NewClinicService(repo, pgRepo, &clinicServiceTransactorDouble{})
+			svc := NewService(repo, pgRepo, &clinicServiceTransactorDouble{})
 
 			err := svc.DeleteClinic(context.Background(), tt.id)
 
@@ -1248,7 +1310,7 @@ func TestClinicService_DeleteClinic(t *testing.T) {
 
 type clinicDeleteTxMarkerKey struct{}
 
-func TestClinicService_DeleteClinic_CleanupAndDeleteTransaction(t *testing.T) {
+func TestService_DeleteClinic_CleanupAndDeleteTransaction(t *testing.T) {
 	const clinicID = uint64(41)
 
 	newRepository := func(deleteFn func(context.Context, uint64) error) *mockClinicRepository {
@@ -1309,7 +1371,7 @@ func TestClinicService_DeleteClinic_CleanupAndDeleteTransaction(t *testing.T) {
 			},
 		}
 
-		err := NewClinicService(repo, pgRepo, tx).DeleteClinic(context.Background(), clinicID)
+		err := NewService(repo, pgRepo, tx).DeleteClinic(context.Background(), clinicID)
 
 		require.NoError(t, err)
 		assert.Equal(t, []string{
@@ -1337,7 +1399,7 @@ func TestClinicService_DeleteClinic_CleanupAndDeleteTransaction(t *testing.T) {
 			},
 		}
 
-		err := NewClinicService(repo, pgRepo, &clinicServiceTransactorDouble{}).
+		err := NewService(repo, pgRepo, &clinicServiceTransactorDouble{}).
 			DeleteClinic(context.Background(), clinicID)
 
 		require.ErrorIs(t, err, cleanupErr)
@@ -1358,7 +1420,7 @@ func TestClinicService_DeleteClinic_CleanupAndDeleteTransaction(t *testing.T) {
 			},
 		}
 
-		err := NewClinicService(repo, pgRepo, &clinicServiceTransactorDouble{}).
+		err := NewService(repo, pgRepo, &clinicServiceTransactorDouble{}).
 			DeleteClinic(context.Background(), clinicID)
 
 		require.ErrorIs(t, err, deleteErr)
@@ -1381,7 +1443,7 @@ func TestClinicService_DeleteClinic_CleanupAndDeleteTransaction(t *testing.T) {
 			},
 		}
 
-		err := NewClinicService(repo, pgRepo, &clinicServiceTransactorDouble{withTxErr: txErr}).
+		err := NewService(repo, pgRepo, &clinicServiceTransactorDouble{withTxErr: txErr}).
 			DeleteClinic(context.Background(), clinicID)
 
 		require.ErrorIs(t, err, txErr)
@@ -1410,7 +1472,7 @@ func TestClinicService_DeleteClinic_CleanupAndDeleteTransaction(t *testing.T) {
 			return fn(ctx)
 		}}
 
-		err := NewClinicService(repo, pgRepo, tx).DeleteClinic(context.Background(), clinicID)
+		err := NewService(repo, pgRepo, tx).DeleteClinic(context.Background(), clinicID)
 
 		require.Error(t, err)
 		assert.True(t, apperrors.IsConflict(err))

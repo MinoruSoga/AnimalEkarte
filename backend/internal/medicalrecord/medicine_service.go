@@ -187,7 +187,6 @@ func NewMedicineServiceWithAudit(repo MedicineRepository, inventoryRepo medicine
 func (s *medicineService) List(ctx context.Context, clinicID uint64, page, limit int) ([]model.Medicine, int64, error) {
 	result, total, err := s.repo.FindAll(ctx, clinicID, page, limit)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list medicines", "error", err, "clinic_id", clinicID)
 		return nil, 0, apperrors.Wrap(err, "failed to list medicines")
 	}
 	return result, total, nil
@@ -196,7 +195,6 @@ func (s *medicineService) List(ctx context.Context, clinicID uint64, page, limit
 func (s *medicineService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Medicine, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get medicine", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get medicine")
 	}
 	return result, nil
@@ -342,7 +340,6 @@ func (s *medicineService) Update(ctx context.Context, clinicID, id uint64, input
 	}
 	existing, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "medicine not found", "error", err)
 		return nil, apperrors.Wrap(err, "medicine not found")
 	}
 	if err := validateOptionalName(input.Name); err != nil {
@@ -385,7 +382,7 @@ func (s *medicineService) Update(ctx context.Context, clinicID, id uint64, input
 	var result *model.Medicine
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		var txErr error
-		result, txErr = s.repo.Update(txCtx, clinicID, id, fields)
+		result, txErr = s.repo.Update(txCtx, clinicID, id, *input)
 		nameForConflict := ""
 		if input.Name != nil {
 			nameForConflict = *input.Name
@@ -395,7 +392,6 @@ func (s *medicineService) Update(ctx context.Context, clinicID, id uint64, input
 		}
 		if nameChanged {
 			if txErr = s.inventoryRepo.UpdateNameByMedicineCategory(txCtx, clinicID, oldName, newName); txErr != nil {
-				slog.ErrorContext(txCtx, "failed to sync inventory item name", "error", txErr, "clinic_id", clinicID)
 				return apperrors.Wrap(txErr, "failed to sync inventory item name")
 			}
 		}
@@ -421,7 +417,6 @@ func (s *medicineService) Reorder(ctx context.Context, clinicID uint64, ids []ui
 		return apperrors.WrapInvalidInput(errMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
-		slog.ErrorContext(ctx, "failed to reorder medicines", "error", err, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to reorder medicines")
 	}
 	slog.InfoContext(ctx, "medicines reordered", slog.Uint64("clinic_id", clinicID), slog.Int("count", len(ids)))
@@ -438,7 +433,6 @@ func (s *medicineService) Delete(ctx context.Context, clinicID, id uint64) error
 	if m.ParentID == nil {
 		count, err := s.repo.CountChildrenByParentID(ctx, clinicID, id)
 		if err != nil {
-			slog.ErrorContext(ctx, "failed to count medicine children", "error", err, "id", id, "clinic_id", clinicID)
 			return apperrors.Wrap(err, "failed to count medicine children")
 		}
 		if count > 0 {
@@ -450,7 +444,6 @@ func (s *medicineService) Delete(ctx context.Context, clinicID, id uint64) error
 		// 薬剤アイテムの場合、治療や入院ケアプランで使用中であれば削除を拒否する（BUG-108）
 		usageCount, err := s.repo.CountUsageByMedicineID(ctx, clinicID, id)
 		if err != nil {
-			slog.ErrorContext(ctx, "failed to check medicine usage", "error", err, "id", id, "clinic_id", clinicID)
 			return apperrors.Wrap(err, "failed to check medicine usage")
 		}
 		if usageCount > 0 {
@@ -467,7 +460,6 @@ func (s *medicineService) Delete(ctx context.Context, clinicID, id uint64) error
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		return s.deleteMedicineInTx(txCtx, clinicID, id, m)
 	}); err != nil {
-		slog.ErrorContext(ctx, "failed to delete medicine", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete medicine")
 	}
 	slog.InfoContext(ctx, "medicine deleted",
@@ -505,11 +497,6 @@ func wrapMedicineNameConflict(ctx context.Context, err error, name string, clini
 		apperrors.CodeMedicineNameConflict,
 	); conflict != nil {
 		return conflict
-	}
-	if id == 0 {
-		slog.ErrorContext(ctx, wrapMsg, "error", err, "clinic_id", clinicID)
-	} else {
-		slog.ErrorContext(ctx, wrapMsg, "error", err, "id", id, "clinic_id", clinicID)
 	}
 	return apperrors.Wrap(err, wrapMsg)
 }

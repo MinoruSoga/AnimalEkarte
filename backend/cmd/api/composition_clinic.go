@@ -11,7 +11,7 @@ import (
 )
 
 type clinicRepositories struct {
-	Clinics               clinic.ClinicRepository
+	Clinics               *clinic.Repository
 	Holidays              clinic.ClinicHolidayRepository
 	Settings              clinic.ClinicSettingsRepository
 	ClosingSpecialPeriods clinic.ClosingSpecialPeriodRepository
@@ -20,7 +20,7 @@ type clinicRepositories struct {
 
 type clinicComposition struct {
 	Repositories    clinicRepositories
-	Clinic          clinic.ClinicService
+	Clinic          clinic.Service
 	ClosingSettings clinic.ClosingSettingsService
 	holidays        clinic.ClinicHolidayService
 	company         clinic.CompanyService
@@ -55,7 +55,7 @@ func newClinicComposition(
 
 	return clinicComposition{
 		Repositories: repositories,
-		Clinic: clinic.NewClinicService(
+		Clinic: clinic.NewService(
 			repositories.Clinics,
 			permissionGroups,
 			transactor,

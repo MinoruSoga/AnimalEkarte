@@ -14,7 +14,7 @@
 
 ## エージェント向け必須事項
 
-- migration seed は全環境で `002_master` のみ。アカウントと臨床 fixture は含まれない。local は承認済み handoff/import、STG は承認済み UAT provisioning lane を使う。手順は [UAT-ENV-SETUP.md](UAT-ENV-SETUP.md) を参照する。
+- CSV seed bundle は全環境で `002_master` のみ。migrate の別 phase `003_login` は `development/local/dev/test/staging` で合成アカウントを upsert するが、臨床 fixture と専用 UAT 権限の保証ではない。local は承認済み handoff/import、STG は承認済み UAT provisioning lane を使う。手順は [UAT-ENV-SETUP.md](UAT-ENV-SETUP.md) を参照する。
 - L4 受入を E2E で代替しない。inventory には wildcard・`要実測` が残るため、列挙済み項目だけを機械的に網羅済みと扱う。
 - production または未承認の共有 clinic で、作成・更新・削除・外部送信を行わない。
 - 実行結果は gitignore 対象の `reports/uat-YYYY-MM-DD/` に置き、scenario 本文へ書かない。

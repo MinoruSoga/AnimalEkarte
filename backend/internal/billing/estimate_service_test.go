@@ -27,8 +27,8 @@ type mockEstimateRepository struct {
 	findByIDFn             func(ctx context.Context, clinicID, id uint64) (*model.Estimate, error)
 	lockEditableByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.Estimate, error)
 	createFn               func(ctx context.Context, estimate *model.Estimate) error
-	updateFn               func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
-	updateIfNotLockedFn    func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Estimate, error)
+	updateFn               func(ctx context.Context, clinicID, id uint64, cmd UpdateEstimateInput) error
+	updateIfNotLockedFn    func(ctx context.Context, clinicID, id uint64, cmd UpdateEstimateInput) (*model.Estimate, error)
 	deleteIfNotLockedFn    func(ctx context.Context, clinicID, id uint64) error
 	countItemsByEstimateID func(ctx context.Context, estimateID uint64) (int64, error)
 	allocateNextEstimateNo func(ctx context.Context, clinicID uint64) (string, error)
@@ -64,16 +64,16 @@ func (m *mockEstimateRepository) Create(ctx context.Context, estimate *model.Est
 	return m.createFn(ctx, estimate)
 }
 
-func (m *mockEstimateRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+func (m *mockEstimateRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateEstimateInput) error {
 	if m.updateFn != nil {
-		return m.updateFn(ctx, clinicID, id, fields)
+		return m.updateFn(ctx, clinicID, id, cmd)
 	}
 	return nil
 }
 
-func (m *mockEstimateRepository) UpdateIfNotLocked(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Estimate, error) {
+func (m *mockEstimateRepository) UpdateIfNotLocked(ctx context.Context, clinicID, id uint64, cmd UpdateEstimateInput) (*model.Estimate, error) {
 	if m.updateIfNotLockedFn != nil {
-		return m.updateIfNotLockedFn(ctx, clinicID, id, fields)
+		return m.updateIfNotLockedFn(ctx, clinicID, id, cmd)
 	}
 	return nil, nil
 }
@@ -562,7 +562,7 @@ func TestEstimateService_Update(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			updateCalled := false
 			repo := &mockEstimateRepository{
-				updateIfNotLockedFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Estimate, error) {
+				updateIfNotLockedFn: func(_ context.Context, _, _ uint64, _ UpdateEstimateInput) (*model.Estimate, error) {
 					updateCalled = true
 					if tt.repoErr != nil {
 						return nil, tt.repoErr
@@ -622,13 +622,13 @@ func TestEstimateService_Update_TotalsOnlyPatchDerivesTotalsFromExistingItems(t 
 		},
 	}
 
-	var updatedFields map[string]any
+	var updatedCmd UpdateEstimateInput
 	repo := &mockEstimateRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Estimate, error) {
 			return existing, nil
 		},
-		updateIfNotLockedFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.Estimate, error) {
-			updatedFields = fields
+		updateIfNotLockedFn: func(_ context.Context, _, _ uint64, cmd UpdateEstimateInput) (*model.Estimate, error) {
+			updatedCmd = cmd
 			return existing, nil
 		},
 	}
@@ -641,11 +641,14 @@ func TestEstimateService_Update_TotalsOnlyPatchDerivesTotalsFromExistingItems(t 
 	})
 
 	require.NoError(t, err)
-	assert.Equal(t, int64(1800), updatedFields["subtotal"])
-	assert.Equal(t, int64(180), updatedFields["tax_total"])
-	assert.Equal(t, int64(1980), updatedFields["total_amount"])
-	assert.NotContains(t, updatedFields, "insurance_amount")
-	assert.NotContains(t, updatedFields, "discount_amount")
+	require.NotNil(t, updatedCmd.Subtotal)
+	require.NotNil(t, updatedCmd.TaxTotal)
+	require.NotNil(t, updatedCmd.TotalAmount)
+	assert.Equal(t, int64(1800), *updatedCmd.Subtotal)
+	assert.Equal(t, int64(180), *updatedCmd.TaxTotal)
+	assert.Equal(t, int64(1980), *updatedCmd.TotalAmount)
+	assert.Nil(t, updatedCmd.InsuranceAmount)
+	assert.Nil(t, updatedCmd.DiscountAmount)
 }
 
 // TestEstimateService_Update_TOCTOU_LockedAfterFind は FindByID 時点では draft でも、
@@ -660,7 +663,7 @@ func TestEstimateService_Update_TOCTOU_LockedAfterFind(t *testing.T) {
 				Title:  "旧タイトル",
 			}, nil
 		},
-		updateIfNotLockedFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Estimate, error) {
+		updateIfNotLockedFn: func(_ context.Context, _, _ uint64, _ UpdateEstimateInput) (*model.Estimate, error) {
 			return nil, apperrors.WrapConflict("承認済みまたは却下済みの見積書は編集できません")
 		},
 	}
@@ -912,7 +915,7 @@ func TestEstimateService_Update_AuditLog(t *testing.T) {
 				Title:    "旧タイトル",
 			}, nil
 		},
-		updateIfNotLockedFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Estimate, error) {
+		updateIfNotLockedFn: func(_ context.Context, _, _ uint64, _ UpdateEstimateInput) (*model.Estimate, error) {
 			return &model.Estimate{
 				ID:       10,
 				ClinicID: 1,
@@ -963,7 +966,7 @@ func TestEstimateService_Update_ApproveAuditLog(t *testing.T) {
 						Status:   tt.initialStatus,
 					}, nil
 				},
-				updateIfNotLockedFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Estimate, error) {
+				updateIfNotLockedFn: func(_ context.Context, _, _ uint64, _ UpdateEstimateInput) (*model.Estimate, error) {
 					return &model.Estimate{
 						ID:       10,
 						ClinicID: 1,
@@ -999,7 +1002,7 @@ func TestEstimateService_Update_RejectAuditLog(t *testing.T) {
 				Status:   model.EstimateStatusSent,
 			}, nil
 		},
-		updateIfNotLockedFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Estimate, error) {
+		updateIfNotLockedFn: func(_ context.Context, _, _ uint64, _ UpdateEstimateInput) (*model.Estimate, error) {
 			return &model.Estimate{
 				ID:       10,
 				ClinicID: 1,
@@ -1224,7 +1227,7 @@ func TestEstimateService_Update_RejectsFinalizedParentMedicalRecord(t *testing.T
 		findByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
 			return &model.Estimate{ID: id, Status: model.EstimateStatusDraft, MedicalRecordID: &mrID}, nil
 		},
-		updateIfNotLockedFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Estimate, error) {
+		updateIfNotLockedFn: func(_ context.Context, _, _ uint64, _ UpdateEstimateInput) (*model.Estimate, error) {
 			updateCalled = true
 			return nil, nil
 		},
@@ -1650,7 +1653,7 @@ func TestEstimateService_Update_RejectsInvalidItemsBeforeWrite(t *testing.T) {
 		findByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
 			return &model.Estimate{ID: id, Status: model.EstimateStatusDraft}, nil
 		},
-		updateIfNotLockedFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Estimate, error) {
+		updateIfNotLockedFn: func(_ context.Context, _, _ uint64, _ UpdateEstimateInput) (*model.Estimate, error) {
 			updateCalled = true
 			return nil, nil
 		},
@@ -1667,13 +1670,13 @@ func TestEstimateService_Update_RejectsInvalidItemsBeforeWrite(t *testing.T) {
 }
 
 func TestEstimateService_Update_ItemsOnlyDerivesHeaderTotals(t *testing.T) {
-	var updatedFields map[string]any
+	var updatedCmd UpdateEstimateInput
 	repo := &mockEstimateRepository{
 		findByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
 			return &model.Estimate{ID: id, Status: model.EstimateStatusDraft}, nil
 		},
-		updateIfNotLockedFn: func(_ context.Context, _, id uint64, fields map[string]any) (*model.Estimate, error) {
-			updatedFields = fields
+		updateIfNotLockedFn: func(_ context.Context, _, id uint64, cmd UpdateEstimateInput) (*model.Estimate, error) {
+			updatedCmd = cmd
 			return &model.Estimate{ID: id, Status: model.EstimateStatusDraft}, nil
 		},
 	}
@@ -1683,9 +1686,12 @@ func TestEstimateService_Update_ItemsOnlyDerivesHeaderTotals(t *testing.T) {
 	_, err := svc.Update(context.Background(), 1, 3, &UpdateEstimateInput{Items: &items})
 
 	require.NoError(t, err)
-	assert.Equal(t, int64(1300), updatedFields["subtotal"])
-	assert.Equal(t, int64(130), updatedFields["tax_total"])
-	assert.Equal(t, int64(1430), updatedFields["total_amount"])
+	require.NotNil(t, updatedCmd.Subtotal)
+	require.NotNil(t, updatedCmd.TaxTotal)
+	require.NotNil(t, updatedCmd.TotalAmount)
+	assert.Equal(t, int64(1300), *updatedCmd.Subtotal)
+	assert.Equal(t, int64(130), *updatedCmd.TaxTotal)
+	assert.Equal(t, int64(1430), *updatedCmd.TotalAmount)
 }
 
 func TestEstimateService_Update_PersistsItemsInSameTx(t *testing.T) {
@@ -1700,7 +1706,7 @@ func TestEstimateService_Update_PersistsItemsInSameTx(t *testing.T) {
 				Items:  replaced,
 			}, nil
 		},
-		updateIfNotLockedFn: func(_ context.Context, _, id uint64, _ map[string]any) (*model.Estimate, error) {
+		updateIfNotLockedFn: func(_ context.Context, _, id uint64, _ UpdateEstimateInput) (*model.Estimate, error) {
 			return &model.Estimate{ID: id, Title: title, Status: model.EstimateStatusDraft}, nil
 		},
 		replaceItemsFn: func(_ context.Context, clinicID, estimateID uint64, items []model.EstimateItem) error {

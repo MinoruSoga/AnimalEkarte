@@ -31,7 +31,6 @@ func (s *liffService) buildCapacityFilterFn(ctx context.Context, clinicID, typeI
 func (s *liffService) GetAvailableDates(ctx context.Context, clinicID, typeID, staffID uint64) ([]AvailableDateResult, BookingWindow, error) {
 	setting, err := s.settingRepo.FindByClinicID(ctx, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get reservation setting", "error", err)
 		return nil, BookingWindow{}, apperrors.Wrap(err, "failed to get reservation setting")
 	}
 	course, err := s.findActiveLiffCourse(ctx, clinicID, typeID)
@@ -119,7 +118,6 @@ func (s *liffService) availableDateSlotFilter(
 	if s.availableSlotRepo != nil {
 		availableSlots, err := s.availableSlotRepo.FindAll(ctx, clinicID, typeID)
 		if err != nil {
-			slog.ErrorContext(ctx, "failed to get available slots", "error", err)
 			return nil, apperrors.Wrap(err, "failed to get available slots")
 		}
 		if HasActiveAvailableSlots(availableSlots) || course.MaxConcurrent != nil {
@@ -145,7 +143,6 @@ func (s *liffService) availableDateSlotFilter(
 func (s *liffService) applyOccupationGuard(ctx context.Context, clinicID, typeID uint64, results []AvailableDateResult) error {
 	occupations, err := s.occupationRepo.FindAll(ctx, clinicID, typeID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get occupation guard", "error", err)
 		return apperrors.Wrap(err, "failed to get occupation guard")
 	}
 	if len(occupations) == 0 {
@@ -159,7 +156,6 @@ func (s *liffService) applyOccupationGuard(ctx context.Context, clinicID, typeID
 		}
 		date, err := time.ParseInLocation(time.DateOnly, r.Date, config.JST)
 		if err != nil {
-			slog.ErrorContext(ctx, "failed to parse date", "error", err)
 			return apperrors.Wrap(err, "failed to parse date")
 		}
 		availableDates = append(availableDates, date)
@@ -167,7 +163,6 @@ func (s *liffService) applyOccupationGuard(ctx context.Context, clinicID, typeID
 
 	workingCounts, err := s.occupationRepo.CountWorkingStaffByReservationTypeIDs(ctx, clinicID, typeID, availableDates)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to count working staff", "error", err)
 		return apperrors.Wrap(err, "failed to count working staff")
 	}
 	for i, r := range results {
@@ -227,7 +222,6 @@ func (s *liffService) getAvailableTimes(
 ) ([]TimeSlot, error) {
 	setting, err := s.settingRepo.FindByClinicID(ctx, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get reservation setting", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get reservation setting")
 	}
 	var course *model.ReservationType
@@ -260,13 +254,11 @@ func (s *liffService) getAvailableTimes(
 
 	visibleStaffs, err := s.resolveTargetStaffs(ctx, clinicID, typeID, staffID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to resolve target staffs", "error", err)
 		return nil, apperrors.Wrap(err, "failed to resolve target staffs")
 	}
 
 	staffInputs, err := s.buildStaffSlotInputsForDate(ctx, clinicID, visibleStaffs, date)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to build staff slot inputs", "error", err)
 		return nil, apperrors.Wrap(err, "failed to build staff slot inputs")
 	}
 
@@ -288,7 +280,6 @@ func (s *liffService) getAvailableTimes(
 
 	result, err := GenerateTimeSlots(input)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to generate time slots", "error", err)
 		return nil, apperrors.Wrap(err, "failed to generate time slots")
 	}
 	return s.mergeAndFilterGeneratedSlots(ctx, clinicID, typeID, date, course, result)
@@ -303,7 +294,6 @@ func (s *liffService) appendDateUnavailableBreaks(
 	// BE-117: 予約不可時間を DefaultBreaks に追加
 	unavailableTimes, err := s.unavailableTimeRepo.FindAll(ctx, clinicID, typeID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get unavailable times", "error", err)
 		return apperrors.Wrap(err, "failed to get unavailable times")
 	}
 	applicable := filterApplicableUnavailableTimes(unavailableTimes, date)
@@ -327,7 +317,6 @@ func (s *liffService) mergeAndFilterGeneratedSlots(
 	if s.availableSlotRepo != nil {
 		availableSlots, err := s.availableSlotRepo.FindAll(ctx, clinicID, typeID)
 		if err != nil {
-			slog.ErrorContext(ctx, "failed to get available slots", "error", err)
 			return nil, apperrors.Wrap(err, "failed to get available slots")
 		}
 		if HasActiveAvailableSlots(availableSlots) {
@@ -337,7 +326,6 @@ func (s *liffService) mergeAndFilterGeneratedSlots(
 	if course.MaxConcurrent != nil {
 		filtered, err := FilterSlotsByCapacity(ctx, result, s.reservationRepo, clinicID, typeID, date, *course.MaxConcurrent)
 		if err != nil {
-			slog.ErrorContext(ctx, "failed to filter slots by capacity", "error", err)
 			return nil, apperrors.Wrap(err, "failed to filter slots by capacity")
 		}
 		result = filtered

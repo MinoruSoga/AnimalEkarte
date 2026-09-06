@@ -81,7 +81,7 @@ func TestReservationStaffRepository_JunctionReplacement_RevocationWins(t *testin
 	} {
 		t.Run(string(kind), func(t *testing.T) {
 			db := setupReservationStaffTxAtomicityTestDB(t)
-			repo := NewReservationStaffRepository(db, staffpkg.NewStaffRepository(db))
+			repo := NewReservationStaffRepository(db, staffpkg.NewRepository(db))
 			const clinicID = uint64(1)
 			staff := makeDoctorAssignedToClinic(t, db, clinicID, "revocation wins "+string(kind))
 			reservationType := makeReservationType(t, db, clinicID)
@@ -130,7 +130,7 @@ func TestReservationStaffRepository_JunctionReplacement_WriteWins(t *testing.T) 
 	} {
 		t.Run(string(kind), func(t *testing.T) {
 			db := setupReservationStaffTxAtomicityTestDB(t)
-			repo := NewReservationStaffRepository(db, staffpkg.NewStaffRepository(db))
+			repo := NewReservationStaffRepository(db, staffpkg.NewRepository(db))
 			const clinicID = uint64(1)
 			staff := makeDoctorAssignedToClinic(t, db, clinicID, "write wins "+string(kind))
 			reservationType := makeReservationType(t, db, clinicID)

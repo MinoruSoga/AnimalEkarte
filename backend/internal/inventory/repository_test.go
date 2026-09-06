@@ -199,19 +199,22 @@ func TestInventoryRepository_Update(t *testing.T) {
 	item := makeInventoryItem(t, db, clinicA, "旧在庫名", model.InventoryCategoryOther, model.InventoryStatusSufficient, 1)
 
 	t.Run("同一クリニックで更新できる", func(t *testing.T) {
-		got, err := repo.Update(ctx, clinicA, item.ID, map[string]any{"name": "新在庫名"})
+		name := "新在庫名"
+		got, err := repo.Update(ctx, clinicA, item.ID, UpdateInventoryInput{Name: &name})
 		require.NoError(t, err)
 		assert.Equal(t, "新在庫名", got.Name)
 	})
 
 	t.Run("別クリニックからの更新は NotFound", func(t *testing.T) {
-		_, err := repo.Update(ctx, clinicB, item.ID, map[string]any{"name": "乗っ取り"})
+		name := "乗っ取り"
+		_, err := repo.Update(ctx, clinicB, item.ID, UpdateInventoryInput{Name: &name})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
 	t.Run("存在しない ID の更新は NotFound", func(t *testing.T) {
-		_, err := repo.Update(ctx, clinicA, 999999, map[string]any{"name": "x"})
+		name := "x"
+		_, err := repo.Update(ctx, clinicA, 999999, UpdateInventoryInput{Name: &name})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
@@ -357,7 +360,8 @@ func TestInventoryRepository_Update_AmbientTxRollback(t *testing.T) {
 
 	err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		txCtx := persistence.WithTxValue(ctx, tx)
-		got, err := repo.Update(txCtx, clinicA, item.ID, map[string]any{"name": "更新後在庫名"})
+		name := "更新後在庫名"
+		got, err := repo.Update(txCtx, clinicA, item.ID, UpdateInventoryInput{Name: &name})
 		if err != nil {
 			return err
 		}
@@ -395,7 +399,8 @@ func TestInventoryRepository_Update_ReloadFailureRollsBackUpdate(t *testing.T) {
 		}
 	})
 
-	got, err := repo.Update(ctx, clinicA, item.ID, map[string]any{"name": "更新後"})
+	name := "更新後"
+	got, err := repo.Update(ctx, clinicA, item.ID, UpdateInventoryInput{Name: &name})
 
 	assert.Nil(t, got)
 	require.Error(t, err)

@@ -157,6 +157,7 @@ func (h *Handler) DeleteClinic(c *gin.Context) {
 
 // RegisterClinicRoutes はクリニック設定関連のルートを登録する
 func (h *Handler) RegisterClinicRoutes(rg *gin.RouterGroup) {
+	RegisterContactBindingValidators()
 	clinics := rg.Group("/clinics")
 	clinics.GET("", h.requirePermission(string(model.ResourceHospitalSettings), "view"), h.ListClinics)
 	clinics.GET("/:clinic_id", h.requirePermission(string(model.ResourceHospitalSettings), "view"), h.GetClinic)

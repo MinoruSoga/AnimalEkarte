@@ -14,9 +14,9 @@ import (
 	"github.com/animal-ekarte/backend/internal/reservation"
 )
 
-// TestTrimmingService_DeleteAuditFailureRollsBackDatabase is intentionally DB-backed.
+// TestService_DeleteAuditFailureRollsBackDatabase is intentionally DB-backed.
 // Run only while holding the repository-wide global DB test lease.
-func TestTrimmingService_DeleteAuditFailureRollsBackDatabase(t *testing.T) {
+func TestService_DeleteAuditFailureRollsBackDatabase(t *testing.T) {
 	db := setupIsolatedTestDB(t)
 	require.NoError(t, db.Exec("TRUNCATE TABLE appointment_trimming_options CASCADE").Error)
 	require.NoError(t, db.Exec("TRUNCATE TABLE appointment_trimming_details CASCADE").Error)
@@ -51,7 +51,7 @@ func TestTrimmingService_DeleteAuditFailureRollsBackDatabase(t *testing.T) {
 	require.NoError(t, db.Create(detail).Error)
 
 	sentinel := errors.New("forced durable audit failure")
-	svc := NewTrimmingServiceWithAudit(
+	svc := NewServiceWithAudit(
 		reservation.NewReservationRepository(db),
 		nil,
 		nil,

@@ -44,7 +44,6 @@ func (s *ownerService) LinkLineUserID(ctx context.Context, clinicID, id uint64, 
 		}
 		existing, err := s.repo.FindByLineUserID(ctx, clinicID, *lineUserID)
 		if err != nil && !apperrors.IsNotFound(err) {
-			slog.ErrorContext(ctx, "failed to check line user id uniqueness", "error", err, "id", id, "clinic_id", clinicID)
 			return apperrors.Wrap(err, "failed to check line user id uniqueness")
 		}
 		if err == nil && existing != nil && existing.ID != id {
@@ -52,7 +51,6 @@ func (s *ownerService) LinkLineUserID(ctx context.Context, clinicID, id uint64, 
 		}
 	}
 	if err := s.repo.UpdateLineUserID(ctx, clinicID, id, lineUserID); err != nil {
-		slog.ErrorContext(ctx, "failed to link line user id", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to link line user id")
 	}
 	// Q22 Guard 3: 監査ログ（best-effort — 失敗してもリンク操作は続行）。

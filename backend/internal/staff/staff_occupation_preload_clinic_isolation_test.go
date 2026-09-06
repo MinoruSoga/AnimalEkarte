@@ -47,7 +47,7 @@ func setupStaffOccupationPreloadTestDB(t *testing.T) *gorm.DB {
 // 「正規データを壊していない」ことを同時に示す（anti-vacuous）。
 func TestStaffRepository_FindAll_CrossClinicOccupationPreloadIsolation(t *testing.T) {
 	db := setupStaffOccupationPreloadTestDB(t)
-	repo := NewStaffRepository(db)
+	repo := NewRepository(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 

@@ -15,12 +15,10 @@ import (
 func (s *reservationTypeService) ListUnavailableTimes(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeUnavailableTime, error) {
 	// 予約区分の存在確認
 	if _, err := s.repo.FindByID(ctx, clinicID, reservationTypeID); err != nil {
-		slog.ErrorContext(ctx, "failed to get reservation type", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get reservation type")
 	}
 	items, err := s.unavailableTimeRepo.FindAll(ctx, clinicID, reservationTypeID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list unavailable times", "error", err, "id", reservationTypeID, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to list unavailable times")
 	}
 	return items, nil
@@ -29,7 +27,6 @@ func (s *reservationTypeService) ListUnavailableTimes(ctx context.Context, clini
 func (s *reservationTypeService) CreateUnavailableTime(ctx context.Context, clinicID, reservationTypeID uint64, input CreateUnavailableTimeInput) (*model.ReservationTypeUnavailableTime, error) {
 	// 予約区分の存在確認
 	if _, err := s.repo.FindByID(ctx, clinicID, reservationTypeID); err != nil {
-		slog.ErrorContext(ctx, "failed to get reservation type", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get reservation type")
 	}
 	// 種別バリデーション
@@ -39,7 +36,6 @@ func (s *reservationTypeService) CreateUnavailableTime(ctx context.Context, clin
 	// 重複チェック
 	existing, err := s.unavailableTimeRepo.FindAll(ctx, clinicID, reservationTypeID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check existing unavailable times", "error", err, "id", reservationTypeID, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to check existing unavailable times")
 	}
 	if err := validateUnavailableTimeNotOverlaps(existing, input); err != nil {
@@ -56,7 +52,6 @@ func (s *reservationTypeService) CreateUnavailableTime(ctx context.Context, clin
 		EndTime:           input.EndTime,
 	}
 	if err := s.unavailableTimeRepo.Create(ctx, t); err != nil {
-		slog.ErrorContext(ctx, "failed to create unavailable time", "error", err, "id", reservationTypeID, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to create unavailable time")
 	}
 	slog.InfoContext(ctx, "unavailable time created",
@@ -73,7 +68,6 @@ func (s *reservationTypeService) DeleteUnavailableTime(ctx context.Context, clin
 		return apperrors.Wrap(err, "unavailable time not found")
 	}
 	if err := s.unavailableTimeRepo.Delete(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to delete unavailable time", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete unavailable time")
 	}
 	slog.InfoContext(ctx, "unavailable time deleted",

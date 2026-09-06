@@ -56,6 +56,7 @@ func (h *ExaminationHandler) ListExaminations(c *gin.Context) {
 		filters.EndDate,
 		page,
 		limit,
+		filters.IncludeItems,
 	)
 	if err != nil {
 		httpapi.RespondError(c, err)

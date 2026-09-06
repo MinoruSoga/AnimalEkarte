@@ -77,7 +77,6 @@ func isForbiddenProbeIP(ip net.IP) bool {
 func (s *lstepSettingsService) TestConnection(ctx context.Context, clinicID uint64) (*LstepConnectionTestResult, error) {
 	records, err := s.repo.FindByClinicAndService(ctx, clinicID, model.IntegrationServiceLstep)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to find lstep settings for test", "error", err)
 		return nil, apperrors.Wrap(err, "failed to load settings for connection test")
 	}
 
@@ -86,7 +85,6 @@ func (s *lstepSettingsService) TestConnection(ctx context.Context, clinicID uint
 		val, decErr := s.decrypt(r.KeyName, r.KeyValue)
 		if decErr != nil {
 			// LSB-04 / DEC-35: 復号失敗を空文字へ置換して握り潰さない（サイレント停止を防ぐ）
-			slog.ErrorContext(ctx, "failed to decrypt integration value", "key_name", r.KeyName, "error", decErr)
 			return nil, apperrors.Wrap(decErr, "failed to decrypt integration value")
 		}
 		kvMap[r.KeyName] = val

@@ -147,8 +147,8 @@ func TestStaffOccupationWrites_SerializeAgainstOccupationDeleteDatabase(t *testi
 				releaseShare:         make(chan struct{}),
 				updateAttempted:      make(chan struct{}),
 			}
-			staffService := NewStaffService(
-				NewStaffRepository(db),
+			staffService := NewService(
+				NewRepository(db),
 				newStaffOccupationRaceAccountStore(db),
 				NewStaffClinicAssignmentRepository(db),
 				nil, nil, nil, nil,

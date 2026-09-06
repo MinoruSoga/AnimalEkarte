@@ -79,14 +79,14 @@ func (m *mockResStaffRepoForStaffPermissions) SupportsReservationType(_ context.
 	return true, nil
 }
 
-// newTestStaffServiceForPermissions は StaffPermissionService のテストに必要な最小構成で
-// StaffService を組み立てる。権限グループ／予約種別リポジトリ以外は staff_service_test.go 内の
+// newTestServiceForPermissions は StaffPermissionService のテストに必要な最小構成で
+// Service を組み立てる。権限グループ／予約種別リポジトリ以外は staff_service_test.go 内の
 // 共有スタブ（mockStaffRepository 等）を再利用する。
-func newTestStaffServiceForPermissions(
+func newTestServiceForPermissions(
 	permRepo *mockPermissionGroupRepository,
 	resRepo *mockResStaffRepoForStaffPermissions,
-) StaffService {
-	return NewStaffService(
+) Service {
+	return NewService(
 		&mockStaffRepository{},
 		&mockAccountForStaff{},
 		&mockAssignmentForStaff{},
@@ -102,7 +102,7 @@ func newTestStaffServiceForPermissions(
 
 // ---- テスト ----
 
-func TestStaffService_GetPermissionGroupIDs(t *testing.T) {
+func TestService_GetPermissionGroupIDs(t *testing.T) {
 	tests := []struct {
 		name    string
 		ids     []uint64
@@ -132,7 +132,7 @@ func TestStaffService_GetPermissionGroupIDs(t *testing.T) {
 					return tt.ids, tt.repoErr
 				},
 			}
-			svc := newTestStaffServiceForPermissions(permRepo, &mockResStaffRepoForStaffPermissions{})
+			svc := newTestServiceForPermissions(permRepo, &mockResStaffRepoForStaffPermissions{})
 
 			got, err := svc.GetPermissionGroupIDs(context.Background(), 1, 10)
 
@@ -147,7 +147,7 @@ func TestStaffService_GetPermissionGroupIDs(t *testing.T) {
 	}
 }
 
-func TestStaffService_SetPermissionGroupIDs(t *testing.T) {
+func TestService_SetPermissionGroupIDs(t *testing.T) {
 	tests := []struct {
 		name    string
 		repoErr error
@@ -166,7 +166,7 @@ func TestStaffService_SetPermissionGroupIDs(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewStaffServiceWithAudits(
+			svc := NewServiceWithAudits(
 				&mockStaffRepository{},
 				&mockAccountForStaff{},
 				&mockAssignmentForStaff{},
@@ -239,7 +239,7 @@ func permissionAssignmentAuditContext() context.Context {
 	})
 }
 
-func TestStaffService_SetPermissionGroupIDs_AuditsInTransaction(t *testing.T) {
+func TestService_SetPermissionGroupIDs_AuditsInTransaction(t *testing.T) {
 	state := &permissionAssignmentTxState{groupIDs: []uint64{9, 3}}
 	permRepo := &mockPermissionGroupRepository{
 		findAllGroupIDsByStaffIDFn: func(ctx context.Context, clinicID, staffID uint64) ([]uint64, error) {
@@ -263,7 +263,7 @@ func TestStaffService_SetPermissionGroupIDs_AuditsInTransaction(t *testing.T) {
 		},
 	}
 	var entries []*PermissionAssignmentAuditEntry
-	svc := NewStaffServiceWithAudits(
+	svc := NewServiceWithAudits(
 		repo,
 		&mockAccountForStaff{},
 		&mockAssignmentForStaff{},
@@ -296,7 +296,7 @@ func TestStaffService_SetPermissionGroupIDs_AuditsInTransaction(t *testing.T) {
 	assert.Equal(t, map[string]any{"staff_id": uint64(10), "group_ids": []uint64{2, 8}}, entry.NewValue)
 }
 
-func TestStaffService_SetPermissionGroupIDs_AuditFailureRollsBack(t *testing.T) {
+func TestService_SetPermissionGroupIDs_AuditFailureRollsBack(t *testing.T) {
 	state := &permissionAssignmentTxState{groupIDs: []uint64{3, 9}}
 	permRepo := &mockPermissionGroupRepository{
 		findAllGroupIDsByStaffIDFn: func(context.Context, uint64, uint64) ([]uint64, error) {
@@ -307,7 +307,7 @@ func TestStaffService_SetPermissionGroupIDs_AuditFailureRollsBack(t *testing.T) 
 			return nil
 		},
 	}
-	svc := NewStaffServiceWithAudits(
+	svc := NewServiceWithAudits(
 		&mockStaffRepository{},
 		&mockAccountForStaff{},
 		&mockAssignmentForStaff{},
@@ -342,7 +342,7 @@ func clinicAssignmentAuditContext(staffID uint64) context.Context {
 }
 
 // AUS-01: SetClinicAssignments writes fail-closed audit when production audit is wired.
-func TestStaffService_SetClinicAssignments_AuditsInTransaction(t *testing.T) {
+func TestService_SetClinicAssignments_AuditsInTransaction(t *testing.T) {
 	var created []model.StaffClinicAssignment
 	var entries []*PermissionAssignmentAuditEntry
 	repo := &mockStaffRepository{
@@ -361,7 +361,7 @@ func TestStaffService_SetClinicAssignments_AuditsInTransaction(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewStaffServiceWithAudits(
+	svc := NewServiceWithAudits(
 		repo,
 		&mockAccountForStaff{},
 		assignmentRepo,
@@ -392,7 +392,7 @@ func TestStaffService_SetClinicAssignments_AuditsInTransaction(t *testing.T) {
 	assert.Equal(t, map[string]any{"staff_id": uint64(10), "clinic_ids": []uint64{2, 4}}, entries[0].NewValue)
 }
 
-func TestStaffService_SetClinicAssignments_AuditFailureRollsBack(t *testing.T) {
+func TestService_SetClinicAssignments_AuditFailureRollsBack(t *testing.T) {
 	state := &permissionAssignmentTxState{}
 	assignmentRepo := &mockAssignmentForStaff{
 		restoreOrCreateFn: func(_ context.Context, _ *model.StaffClinicAssignment) error {
@@ -400,7 +400,7 @@ func TestStaffService_SetClinicAssignments_AuditFailureRollsBack(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewStaffServiceWithAudits(
+	svc := NewServiceWithAudits(
 		&mockStaffRepository{},
 		&mockAccountForStaff{},
 		assignmentRepo,
@@ -426,8 +426,8 @@ func TestStaffService_SetClinicAssignments_AuditFailureRollsBack(t *testing.T) {
 	assert.Empty(t, state.groupIDs)
 }
 
-func TestStaffService_SetClinicAssignments_FailsClosedWithoutAuditMetadataWhenLoggerConfigured(t *testing.T) {
-	svc := NewStaffServiceWithAudits(
+func TestService_SetClinicAssignments_FailsClosedWithoutAuditMetadataWhenLoggerConfigured(t *testing.T) {
+	svc := NewServiceWithAudits(
 		&mockStaffRepository{},
 		&mockAccountForStaff{},
 		&mockAssignmentForStaff{},
@@ -452,7 +452,7 @@ func TestStaffService_SetClinicAssignments_FailsClosedWithoutAuditMetadataWhenLo
 	assert.Contains(t, err.Error(), "audit metadata")
 }
 
-func TestStaffService_GetExcludedReservationTypeIDs(t *testing.T) {
+func TestService_GetExcludedReservationTypeIDs(t *testing.T) {
 	tests := []struct {
 		name    string
 		items   []model.StaffReservationExclusion
@@ -486,7 +486,7 @@ func TestStaffService_GetExcludedReservationTypeIDs(t *testing.T) {
 					return tt.items, tt.repoErr
 				},
 			}
-			svc := newTestStaffServiceForPermissions(&mockPermissionGroupRepository{}, resRepo)
+			svc := newTestServiceForPermissions(&mockPermissionGroupRepository{}, resRepo)
 
 			got, err := svc.GetExcludedReservationTypeIDs(context.Background(), 1, 1)
 
@@ -501,7 +501,7 @@ func TestStaffService_GetExcludedReservationTypeIDs(t *testing.T) {
 	}
 }
 
-func TestStaffService_GetExcludedReservationTypeIDs_UsesAuthenticatedClinicScope(t *testing.T) {
+func TestService_GetExcludedReservationTypeIDs_UsesAuthenticatedClinicScope(t *testing.T) {
 	resRepo := &mockResStaffRepoForStaffPermissions{
 		findAllExcludedFn: func(_ context.Context, clinicID, staffID uint64) ([]model.StaffReservationExclusion, error) {
 			assert.Equal(t, uint64(20), clinicID)
@@ -511,7 +511,7 @@ func TestStaffService_GetExcludedReservationTypeIDs_UsesAuthenticatedClinicScope
 			}, nil
 		},
 	}
-	svc := newTestStaffServiceForPermissions(&mockPermissionGroupRepository{}, resRepo)
+	svc := newTestServiceForPermissions(&mockPermissionGroupRepository{}, resRepo)
 	scoped, ok := any(svc).(interface {
 		GetExcludedReservationTypeIDs(context.Context, uint64, uint64) ([]uint64, error)
 	})
@@ -523,7 +523,7 @@ func TestStaffService_GetExcludedReservationTypeIDs_UsesAuthenticatedClinicScope
 	assert.Equal(t, []uint64{200}, ids)
 }
 
-func TestStaffService_SetExcludedReservationTypeIDs(t *testing.T) {
+func TestService_SetExcludedReservationTypeIDs(t *testing.T) {
 	tests := []struct {
 		name    string
 		repoErr error
@@ -539,7 +539,7 @@ func TestStaffService_SetExcludedReservationTypeIDs(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := newTestStaffServiceForPermissions(&mockPermissionGroupRepository{}, resRepo)
+			svc := newTestServiceForPermissions(&mockPermissionGroupRepository{}, resRepo)
 
 			err := svc.SetExcludedReservationTypeIDs(context.Background(), 1, 10, []uint64{7})
 
@@ -552,7 +552,7 @@ func TestStaffService_SetExcludedReservationTypeIDs(t *testing.T) {
 	}
 }
 
-func TestStaffService_GetCapableReservationTypeIDs(t *testing.T) {
+func TestService_GetCapableReservationTypeIDs(t *testing.T) {
 	tests := []struct {
 		name    string
 		items   []model.StaffReservationCapability
@@ -585,7 +585,7 @@ func TestStaffService_GetCapableReservationTypeIDs(t *testing.T) {
 					return tt.items, tt.repoErr
 				},
 			}
-			svc := newTestStaffServiceForPermissions(&mockPermissionGroupRepository{}, resRepo)
+			svc := newTestServiceForPermissions(&mockPermissionGroupRepository{}, resRepo)
 
 			got, err := svc.GetCapableReservationTypeIDs(context.Background(), 1, 1)
 
@@ -600,7 +600,7 @@ func TestStaffService_GetCapableReservationTypeIDs(t *testing.T) {
 	}
 }
 
-func TestStaffService_SetCapableReservationTypeIDs(t *testing.T) {
+func TestService_SetCapableReservationTypeIDs(t *testing.T) {
 	tests := []struct {
 		name    string
 		repoErr error
@@ -616,7 +616,7 @@ func TestStaffService_SetCapableReservationTypeIDs(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := newTestStaffServiceForPermissions(&mockPermissionGroupRepository{}, resRepo)
+			svc := newTestServiceForPermissions(&mockPermissionGroupRepository{}, resRepo)
 
 			err := svc.SetCapableReservationTypeIDs(context.Background(), 1, 10, []uint64{9})
 

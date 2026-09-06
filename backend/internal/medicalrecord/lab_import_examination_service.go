@@ -165,12 +165,6 @@ func (s *labImportExaminationService) persistExam(ctx context.Context, input Lab
 
 	dup, err := s.dupChecker.IsDuplicate(ctx, input)
 	if err != nil {
-		slog.ErrorContext(ctx, "lab import duplicate check failed",
-			"error", err,
-			"clinic_id", input.ClinicID,
-			"exam_type_id", input.ExamTypeID,
-			"job_id", input.JobID.String(),
-		)
 		return nil, apperrors.Wrap(err, "failed to check duplicate exam")
 	}
 	if dup {

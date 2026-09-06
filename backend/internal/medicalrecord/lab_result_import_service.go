@@ -159,8 +159,6 @@ func (s *labResultImportService) Commit(ctx context.Context, clinicID uint64, ba
 	// job 作成 (received)
 	job, err := s.jobSvc.CreateJob(ctx, clinicID, batch)
 	if err != nil {
-		slog.ErrorContext(ctx, "lab result import: failed to create job",
-			"error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to create lab import job")
 	}
 	jobID := job.ID
@@ -168,16 +166,12 @@ func (s *labResultImportService) Commit(ctx context.Context, clinicID uint64, ba
 	// received → validated
 	if _, err := s.jobSvc.TransitionStatus(ctx, clinicID, jobID, model.LabImportJobStatusValidated,
 		TransitionCounts{RowCount: len(inputs)}); err != nil {
-		slog.ErrorContext(ctx, "lab result import: failed to transition to validated",
-			"error", err, "job_id", jobID)
 		return nil, apperrors.Wrap(err, "failed to transition job to validated")
 	}
 
 	// validated → mapped (fixture: mapping is trivial, no blocking warnings)
 	if _, err := s.jobSvc.TransitionStatus(ctx, clinicID, jobID, model.LabImportJobStatusMapped,
 		TransitionCounts{RowCount: len(inputs)}); err != nil {
-		slog.ErrorContext(ctx, "lab result import: failed to transition to mapped",
-			"error", err, "job_id", jobID)
 		return nil, apperrors.Wrap(err, "failed to transition job to mapped")
 	}
 
@@ -240,8 +234,6 @@ func (s *labResultImportService) transitionTerminalWithUsageMarker(
 ) error {
 	run := func(txCtx context.Context) error {
 		if _, err := s.jobSvc.TransitionStatus(txCtx, clinicID, jobID, termStatus, finalCounts); err != nil {
-			slog.ErrorContext(txCtx, "lab result import: failed to transition to terminal status",
-				"error", err, "job_id", jobID, "status", termStatus)
 			return apperrors.Wrap(err, "failed to transition job to terminal status")
 		}
 		if termStatus != model.LabImportJobStatusPersisted {
@@ -260,8 +252,6 @@ func (s *labResultImportService) transitionTerminalWithUsageMarker(
 			EventType: model.LabImportEventTypeUsageTrackingStarted,
 			RowCount:  finalCounts.PersistedCount,
 		}); err != nil {
-			slog.ErrorContext(txCtx, "lab result import: failed to record usage_tracking_started",
-				"error", err, "job_id", jobID)
 			return apperrors.Wrap(err, "failed to record usage_tracking_started")
 		}
 		return nil

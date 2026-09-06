@@ -53,29 +53,16 @@ const toSafeUrl = (userInput: string): string => {
 ### 2. CSRF（クロスサイト要求偽造）対策
 
 ```typescript
-// ✅ 実装例: axios に自動CSRF token付与
-const api = axios.create({
-  withCredentials: true,
-  headers: {
-    'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content
-  }
+// ✅ 現行: HttpOnly Cookie + X-Requested-With（frontend/src/lib/axios.ts）
+// meta csrf-token / X-CSRF-Token は使わない
+api.interceptors.request.use((config) => {
+  config.headers["X-Requested-With"] = "XMLHttpRequest"
+  return config
 })
-
-// または React Query + Cookie-based
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: { retry: false },
-    mutations: {
-      onError: (error) => {
-        if (error.response?.status === 403) {
-          // CSRF token expired
-          location.reload()
-        }
-      }
-    }
-  }
-})
+const api = axios.create({ withCredentials: true })
 ```
+
+OWASP 一般論とチェックリストは `security-checklist` を正本にする。ここには React 差分だけを置く。
 
 ### 3. Token / 認証情報管理
 
@@ -207,7 +194,7 @@ const isAllowed = ALLOWED_SCRIPTS.includes(scriptUrl)
 
 ### 🟠 High Issues
 - **Token Management** - localStorageから削除
-- **CSRF Token** - X-CSRF-Tokenヘッダーを追加
+- **CSRF** - `X-Requested-With: XMLHttpRequest` が欠ける mutation を拒否（meta csrf-token は使わない）
 
 ### 🟡 Medium Issues
 - Missing CSP headers

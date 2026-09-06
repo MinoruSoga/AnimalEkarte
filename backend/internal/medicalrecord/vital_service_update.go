@@ -2,7 +2,6 @@ package medicalrecord
 
 import (
 	"context"
-	"log/slog"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -53,13 +52,11 @@ func (s *vitalService) updateVitalInTx(
 	); err != nil {
 		return nil, err
 	}
-	if err := s.repo.Update(txCtx, clinicID, vitalID, fields); err != nil {
-		slog.ErrorContext(txCtx, "failed to update vital record", "error", err)
+	if err := s.repo.Update(txCtx, clinicID, vitalID, *input); err != nil {
 		return nil, apperrors.Wrap(err, "failed to update vital record")
 	}
 	result, err := s.repo.FindByID(txCtx, clinicID, vitalID)
 	if err != nil {
-		slog.ErrorContext(txCtx, "failed to get vital record after update", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get vital record after update")
 	}
 	if err := validateUpdatedVitalRelation(

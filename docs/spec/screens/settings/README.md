@@ -48,7 +48,7 @@
 |:---|:---|:---|
 | **締め時間** | [closing-time-settings.md](./closing-time-settings.md) | AM/PM 境界、日界、休診日の管理。 |
 | **支払方法** | [payment-methods.md](./payment-methods.md) | 現金、カード、QR 等の決済手段。 |
-| **保険** | [master-insurance.md](./master-insurance.md) | ペット保険名称・補償率の管理（会計計算への連動は未実装）。 |
+| **保険** | [master-insurance.md](./master-insurance.md) | ペット保険名称・補償率の管理（マスタ補償率の会計への自動設定は未実装。会計画面で選択した割合による控除計算は実装済み）。 |
 | **割引キャンペーン** | [master-campaigns.md](./master-campaigns.md) | 会計割引ルールの期間・対象カテゴリ/商品設定。 |
 | **販売商品** | [master-merchandise.md](./master-merchandise.md) | 療法食、ケア用品等の販売品。 |
 | **LINE ページ** | [28-line-reservation.md §2](../28-line-reservation.md) | 飼い主向け予約画面の案内文言カスタマイズ（LINE 予約設定仕様書へ統合）。 |

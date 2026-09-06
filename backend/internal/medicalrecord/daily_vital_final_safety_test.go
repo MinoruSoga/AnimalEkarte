@@ -407,7 +407,7 @@ func TestVitalServiceUpdateRefetchFailureIsInsideTransaction(t *testing.T) {
 			}
 			return nil, refetchErr
 		},
-		updateFn: func(context.Context, uint64, uint64, map[string]any) error {
+		updateFn: func(context.Context, uint64, uint64, UpdateVitalInput) error {
 			updateCalls++
 			return nil
 		},

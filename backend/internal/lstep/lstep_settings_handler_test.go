@@ -94,8 +94,8 @@ func (m *mockLstepSettingsService) GetHealthPreventionThresholds(ctx context.Con
 
 // ---- helpers ----
 
-func newHandlerWithLstepSettingsSvc(svc LstepSettingsService) *LstepSettingsHandler {
-	return NewLstepSettingsHandler(svc, func(_, _ string) gin.HandlerFunc { return func(_ *gin.Context) {} })
+func newHandlerWithLstepSettingsSvc(svc LstepSettingsService) *SettingsHandler {
+	return NewSettingsHandler(svc, func(_, _ string) gin.HandlerFunc { return func(_ *gin.Context) {} })
 }
 
 func newGetLstepSettingsRouter(svc LstepSettingsService, withClinicID bool) *gin.Engine {

@@ -149,13 +149,15 @@ func TestClosingSpecialPeriodRepository_Update(t *testing.T) {
 	p := makeClosingSpecialPeriod(t, db, clinicA, time.Date(2026, 8, 10, 0, 0, 0, 0, time.UTC), time.Date(2026, 8, 15, 0, 0, 0, 0, time.UTC))
 
 	t.Run("同一クリニックでは Update が反映される", func(t *testing.T) {
-		got, err := repo.Update(ctx, clinicA, p.ID, map[string]any{"note": "更新後メモ"})
+		note := "更新後メモ"
+		got, err := repo.Update(ctx, clinicA, p.ID, UpdateSpecialPeriodInput{Note: &note})
 		require.NoError(t, err)
 		assert.Equal(t, "更新後メモ", got.Note)
 	})
 
 	t.Run("別クリニックからの Update は NotFound", func(t *testing.T) {
-		_, err := repo.Update(ctx, clinicB, p.ID, map[string]any{"note": "改ざん試行"})
+		note := "改ざん試行"
+		_, err := repo.Update(ctx, clinicB, p.ID, UpdateSpecialPeriodInput{Note: &note})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 
@@ -165,7 +167,8 @@ func TestClosingSpecialPeriodRepository_Update(t *testing.T) {
 	})
 
 	t.Run("存在しない ID の Update は NotFound", func(t *testing.T) {
-		_, err := repo.Update(ctx, clinicA, 999999, map[string]any{"note": "x"})
+		note := "x"
+		_, err := repo.Update(ctx, clinicA, 999999, UpdateSpecialPeriodInput{Note: &note})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})

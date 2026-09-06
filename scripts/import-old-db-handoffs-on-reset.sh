@@ -157,8 +157,10 @@ DELETE FROM lstep_sync_error_counters WHERE clinic_id = ${seed_clinic};
 DELETE FROM owners WHERE clinic_id = ${seed_clinic};
 DELETE FROM procedures WHERE clinic_id = ${seed_clinic};
 DELETE FROM merchandise_items WHERE clinic_id = ${seed_clinic};
--- Keep existing demo staffs (RESTRICT FKs from audit/shift tables). Producer
--- staff IDs are in the clinic band and do not collide on name for jouto.
+-- Keep seedlogin demo staffs. Their IDs sit at clinic-band EndExclusive
+-- (10M/20M/30M/40M), outside the csv-import non-owner band, so they do not
+-- trip CUTOVER_REF_BAND_OCCUPIED. RESTRICT FKs from audit/shift also make
+-- deleting them unnecessary for local rehearsal.
 --
 -- The delete list above must stay closed under RESTRICT foreign keys: every
 -- table that references a deleted table with ON DELETE RESTRICT has to be
@@ -265,8 +267,9 @@ attach_staff_if_roster_present() {
 # bulk UAT; activate only this curated local-login set after attach so one-click
 # login works without reactivating all imported staffs.
 # Keep in sync with frontend/src/features/auth/components/LoginForm.tsx DEMO_ACCOUNTS.
-# Band: clinic1=1xxxxxx, clinic2=11xxxxxx, clinic3=21xxxxxx, clinic4=31xxxxxx.
-CURATED_DEMO_STAFF_IDS="10000021,10000003,10000007,10000008,10000025,10000031,10000034,10000005,10000006,10000009,11000021,11000003,11000007,11000008,11000025,11000031,11000034,11000005,11000006,11000009,21000021,21000003,21000007,21000008,21000025,21000031,21000034,21000005,21000006,21000009,31000021,31000003,31000007,31000008,31000025,31000031,31000034,31000005,31000006,31000009"
+# Band: clinic1=10xxxxxx, clinic2=20xxxxxx, clinic3=30xxxxxx, clinic4=40xxxxxx
+# (cutover EndExclusive; outside each clinic's csv-import non-owner band).
+CURATED_DEMO_STAFF_IDS="10000021,10000003,10000007,10000008,10000025,10000031,10000034,10000005,10000006,10000009,20000021,20000003,20000007,20000008,20000025,20000031,20000034,20000005,20000006,20000009,30000021,30000003,30000007,30000008,30000025,30000031,30000034,30000005,30000006,30000009,40000021,40000003,40000007,40000008,40000025,40000031,40000034,40000005,40000006,40000009"
 
 # Clinic 1 (八王子) has no old_db handoff CSV in local AE yet. Upsert the curated
 # login staffs so staff-attach + one-click demo accounts work after reset.

@@ -28,7 +28,11 @@ func TestMedicineDoseParamRepository_Update_HappyPathReturnsUpdatedFields(t *tes
 	med := makeDoseTestMedicine(t, db, clinicID, "更新対象薬剤")
 	param := makeDoseParam(t, db, clinicID, med.ID, model.MedicineDoseSpeciesDog)
 
-	got, err := repo.Update(ctx, clinicID, param.ID, map[string]any{"dose_per_kg": 12.5, "notes": "更新済み"})
+	got, err := repo.Update(ctx, clinicID, param.ID, MedicineDoseParamInput{
+		DoseBasis: param.DoseBasis,
+		DosePerKg: 12.5,
+		Notes:     "更新済み",
+	})
 	require.NoError(t, err)
 	assert.Equal(t, 12.5, got.DosePerKg)
 	assert.Equal(t, "更新済み", got.Notes)
@@ -41,7 +45,10 @@ func TestMedicineDoseParamRepository_Update_NotFoundForNonexistentID(t *testing.
 	ctx := context.Background()
 	const clinicID = uint64(1)
 
-	_, err := repo.Update(ctx, clinicID, 999999, map[string]any{"dose_per_kg": 1.0})
+	_, err := repo.Update(ctx, clinicID, 999999, MedicineDoseParamInput{
+		DoseBasis: model.MedicineDoseBasisPerAdministration,
+		DosePerKg: 1.0,
+	})
 	require.Error(t, err)
 	assert.True(t, apperrors.IsNotFound(err), "エラーは NotFound であるべき: %v", err)
 }

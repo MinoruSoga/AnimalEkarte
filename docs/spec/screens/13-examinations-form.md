@@ -33,7 +33,7 @@
 画面は 2 カラム構成（左 3/5 = フォーム・右 2/5 = 履歴）で、右カラムに**同一ペットの過去の検査履歴**を常時表示します。過去の数値と見比べながら入力できるため、別画面への往復が不要です。
 - **絞り込み**: 期間（開始日・終了日）、キーワード（検査種別・結果サマリーをかな正規化で部分一致）、日付の昇順/降順切替、一括クリア。
 - **編集中レコードの除外**: 編集モードでは、開いている検査自身は履歴から除外されます。
-- **データ源**: `useGetExaminations`（page/limit 未指定 → BE 既定 20 件）をクライアント側でペット ID フィルタする。同一ペットの履歴は最大 20 件。`?historyView=pivot` でピボット表示。
+- **データ源**: `useExaminationHistoryFilters` が `useGetExaminations` へ `petId` / `startDate` / `endDate` を渡し、サーバ側でペットと期間を絞る（wire は `pet_id` / `start_date` / `end_date`）。page/limit は未指定のため BE 既定の先頭20件。取得後に同一ペットの再確認、キーワード検索、編集中レコード除外、ソートを行う。`?historyView=pivot` でピボット表示。
 
 ---
 
@@ -81,4 +81,3 @@
 | GET | `/api/v1/masters/examination-types/:id` | 検査種別詳細（項目テンプレ `exam_type_fields`）の取得 | `master-medical` | `view` |
 
 ---
-

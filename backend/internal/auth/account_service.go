@@ -79,7 +79,6 @@ func NewAccountServiceWithCredentialAudit(
 func (s *accountService) FindByEmail(ctx context.Context, email string) (*model.Account, error) {
 	account, err := s.repo.FindByEmail(ctx, email)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to find account by email", "error_type", fmt.Sprintf("%T", err))
 		return nil, apperrors.Wrap(err, "failed to find account by email")
 	}
 	return account, nil
@@ -174,12 +173,6 @@ func (s *accountService) ChangePassword(
 		return nil
 	})
 	if err != nil {
-		slog.ErrorContext(
-			ctx,
-			"password change transaction failed",
-			"error_type", fmt.Sprintf("%T", err),
-			"account_id", accountID,
-		)
 		return apperrors.Wrap(err, "failed to change password")
 	}
 

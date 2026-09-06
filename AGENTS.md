@@ -6,7 +6,9 @@ This repository uses Claude Code and Codex-style agent workflows. The source of 
 
 Before making changes, read [.claude/CLAUDE.md](.claude/CLAUDE.md), then load only the referenced files relevant to the task. Do not bulk-read unrelated docs.
 
-Also load the project-wide rules in [.claude/rules/](.claude/rules/) (including the Go/Gin backend guidelines — mirrored at `.agents/rules/`). Claude Code auto-loads these; other agents must read them explicitly.
+Load `.claude/rules/` by path and task type. Frontend or docs-only work does not need the Go/Gin backend guidelines. Backend Go work must read [.claude/rules/go-gin-backend-guidelines.md](.claude/rules/go-gin-backend-guidelines.md) (mirrored at `.agents/rules/`). Claude Code auto-loads project rules; other agents must read the relevant files explicitly.
+
+If a specification unknown blocks the current unit, ask before executing that unit. Independent, already-allowed work can continue.
 
 ## Core Rules
 

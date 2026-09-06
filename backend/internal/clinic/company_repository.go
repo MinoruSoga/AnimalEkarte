@@ -23,9 +23,13 @@ func (r *companyRepository) FindSingleton(ctx context.Context) (*model.Company, 
 	return &company, nil
 }
 
-// Update は先頭レコード（id = 1）を map[string]any で部分更新する。
+// Update は先頭レコード（id = 1）を typed command で部分更新する。
 // RowsAffected == 0 の場合は WrapNotFound を返す。
-func (r *companyRepository) Update(ctx context.Context, fields map[string]any) error {
+func (r *companyRepository) Update(ctx context.Context, cmd UpdateCompanyInput) error {
+	return r.update(ctx, BuildCompanyUpdate(&cmd))
+}
+
+func (r *companyRepository) update(ctx context.Context, fields map[string]any) error {
 	result := r.db.WithContext(ctx).
 		Model(&model.Company{}).
 		Where("id = ?", 1).

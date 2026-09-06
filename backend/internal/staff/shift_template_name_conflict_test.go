@@ -59,7 +59,7 @@ func TestShiftTemplateService_Update_NameConflictMapsDomainCode(t *testing.T) {
 				EndTime:   strPtr("13:00:00"),
 			}, nil
 		},
-		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.ShiftTemplate, error) {
+		updateFn: func(_ context.Context, _, _ uint64, _ UpdateShiftTemplateInput) (*model.ShiftTemplate, error) {
 			return nil, uniqueShiftTemplateNameErr()
 		},
 	}

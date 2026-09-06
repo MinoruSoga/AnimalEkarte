@@ -59,7 +59,6 @@ func NewPrescriptionService(repo PrescriptionRepository, medRecordRepo medicalRe
 func (s *prescriptionService) List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Prescription, error) {
 	result, err := s.repo.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list prescriptions", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list prescriptions")
 	}
 	return result, nil
@@ -86,7 +85,6 @@ func (s *prescriptionService) Create(ctx context.Context, clinicID, medicalRecor
 		// 処方追加が確定済みカルテに混入する競合を防ぐ。
 		mr, err := s.medRecordRepo.LockByIDForUpdate(txCtx, clinicID, medicalRecordID)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to get medical record", "error", err)
 			return apperrors.Wrap(err, "failed to get medical record")
 		}
 		if mr.OwnerID == nil {
@@ -100,7 +98,6 @@ func (s *prescriptionService) Create(ctx context.Context, clinicID, medicalRecor
 		p.PetID = mr.PetID
 
 		if err := s.repo.Create(txCtx, p); err != nil {
-			slog.ErrorContext(txCtx, "failed to create prescription", "error", err)
 			return apperrors.Wrap(err, "failed to create prescription")
 		}
 		return nil
@@ -119,7 +116,6 @@ func (s *prescriptionService) Create(ctx context.Context, clinicID, medicalRecor
 func (s *prescriptionService) Update(ctx context.Context, clinicID, medicalRecordID, prescriptionID uint64, input *UpdatePrescriptionInput) (*model.Prescription, error) {
 	existing, err := s.repo.FindByID(ctx, clinicID, prescriptionID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get prescription", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get prescription")
 	}
 	if existing.MedicalRecordID == nil || *existing.MedicalRecordID != medicalRecordID {
@@ -142,13 +138,11 @@ func (s *prescriptionService) Update(ctx context.Context, clinicID, medicalRecor
 		if len(fields) == 0 {
 			return apperrors.WrapInvalidInput("at least one field must be provided")
 		}
-		if err := s.repo.Update(txCtx, clinicID, prescriptionID, fields); err != nil {
-			slog.ErrorContext(txCtx, "failed to update prescription", "error", err)
+		if err := s.repo.Update(txCtx, clinicID, prescriptionID, *input); err != nil {
 			return apperrors.Wrap(err, "failed to update prescription")
 		}
 		reloaded, err := s.repo.FindByID(txCtx, clinicID, prescriptionID)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to get prescription after update", "error", err)
 			return apperrors.Wrap(err, "failed to get prescription after update")
 		}
 		updated = reloaded
@@ -182,7 +176,6 @@ func (s *prescriptionService) Delete(ctx context.Context, clinicID, medicalRecor
 			return err
 		}
 		if err := s.repo.Delete(txCtx, clinicID, prescriptionID); err != nil {
-			slog.ErrorContext(txCtx, "failed to delete prescription", "error", err, "clinic_id", clinicID, "prescription_id", prescriptionID)
 			return apperrors.Wrap(err, "failed to delete prescription")
 		}
 		return nil

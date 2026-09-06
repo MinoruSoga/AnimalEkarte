@@ -222,40 +222,65 @@ func buildPaymentSplits(input *UpdateAccountingInput) []model.PaymentSplit {
 	}
 }
 
-// buildAccountingUpdate は UpdateAccountingInput から nil でないフィールドのみ抽出する。
-func buildAccountingUpdate(input *UpdateAccountingInput) map[string]any {
+func accountingUpdateFromInput(input *UpdateAccountingInput) AccountingUpdate {
+	return AccountingUpdate{
+		MedicalRecordID:   input.MedicalRecordID,
+		HospitalizationID: input.HospitalizationID,
+		OwnerID:           input.OwnerID,
+		PetID:             input.PetID,
+		Subtotal:          input.Subtotal,
+		TaxTotal:          input.TaxTotal,
+		TotalAmount:       input.TotalAmount,
+		HasInsurance:      input.HasInsurance,
+		ScheduledDate:     input.ScheduledDate,
+		Memo:              input.Memo,
+	}
+}
+
+func (cmd AccountingUpdate) toFields() map[string]any {
 	fields := make(map[string]any)
-	if input.MedicalRecordID != nil {
-		fields["medical_record_id"] = *input.MedicalRecordID
+	if cmd.MedicalRecordID != nil {
+		fields["medical_record_id"] = *cmd.MedicalRecordID
 	}
-	if input.HospitalizationID != nil {
-		fields["hospitalization_id"] = *input.HospitalizationID
+	if cmd.HospitalizationID != nil {
+		fields["hospitalization_id"] = *cmd.HospitalizationID
 	}
-	if input.OwnerID != nil {
-		fields["owner_id"] = *input.OwnerID
+	if cmd.OwnerID != nil {
+		fields["owner_id"] = *cmd.OwnerID
 	}
-	if input.PetID != nil {
-		fields["pet_id"] = *input.PetID
+	if cmd.PetID != nil {
+		fields["pet_id"] = *cmd.PetID
 	}
-	if input.Subtotal != nil {
-		fields["subtotal"] = *input.Subtotal
+	if cmd.Subtotal != nil {
+		fields["subtotal"] = *cmd.Subtotal
 	}
-	if input.TaxTotal != nil {
-		fields["tax_total"] = *input.TaxTotal
+	if cmd.TaxTotal != nil {
+		fields["tax_total"] = *cmd.TaxTotal
 	}
-	if input.TotalAmount != nil {
-		fields["total_amount"] = *input.TotalAmount
+	if cmd.TotalAmount != nil {
+		fields["total_amount"] = *cmd.TotalAmount
 	}
-	if input.HasInsurance != nil {
-		fields["has_insurance"] = *input.HasInsurance
+	if cmd.HasInsurance != nil {
+		fields["has_insurance"] = *cmd.HasInsurance
 	}
-	if input.ScheduledDate != nil {
-		fields["scheduled_date"] = *input.ScheduledDate
+	if cmd.ScheduledDate != nil {
+		fields["scheduled_date"] = *cmd.ScheduledDate
 	}
-	if input.Memo != nil {
-		fields["memo"] = *input.Memo
+	if cmd.Memo != nil {
+		fields["memo"] = *cmd.Memo
+	}
+	if cmd.Status != nil {
+		fields["status"] = *cmd.Status
+	}
+	if cmd.CompletedAt != nil {
+		fields["completed_at"] = *cmd.CompletedAt
 	}
 	return fields
+}
+
+// buildAccountingUpdate は汎用 PATCH 用。status / completed_at は出さない。
+func buildAccountingUpdate(input *UpdateAccountingInput) map[string]any {
+	return accountingUpdateFromInput(input).toFields()
 }
 
 // validateAccountingRelatedFKs は会計の関連 FK（medical_record / hospitalization / owner / pet）の

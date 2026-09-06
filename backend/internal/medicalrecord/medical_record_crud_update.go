@@ -2,7 +2,6 @@ package medicalrecord
 
 import (
 	"context"
-	"log/slog"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -14,7 +13,6 @@ func (s *medicalRecordService) updateMedicalRecordInTx(
 	clinicID, id uint64,
 	existing *model.MedicalRecord,
 	input UpdateMedicalRecordInput,
-	fields map[string]any,
 	finalOwnerID, finalPetID, finalDoctorID *uint64,
 	needsLinkValidation, needsContextValidation, isBecomingFinalized bool,
 ) (*model.MedicalRecord, error) {
@@ -52,9 +50,8 @@ func (s *medicalRecordService) updateMedicalRecordInTx(
 	if isBecomingFinalized && s.auditTx == nil {
 		return nil, apperrors.WrapInternalServerError("medical record finalize audit dependency is required")
 	}
-	updated, err := s.repo.Update(txCtx, clinicID, id, fields, input.Version)
+	updated, err := s.repo.Update(txCtx, clinicID, id, input, input.Version)
 	if err != nil {
-		slog.ErrorContext(txCtx, "failed to update medical record", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update medical record")
 	}
 	if isBecomingFinalized {

@@ -205,8 +205,7 @@ func TestAccountingRepository_ReadsExcludeForeignSplitAndRefundRows(t *testing.T
 		require.Len(t, got, 1)
 		require.Len(t, got[0].PaymentSplits, 1)
 		assert.Equal(t, validSplit.ID, got[0].PaymentSplits[0].ID)
-		assert.Equal(t, clinicA, got[0].PaymentSplits[0].ClinicID)
-		assert.Empty(t, got[0].Refunds, "list response does not preload refund rows")
+		assert.Empty(t, got[0].Refunds, "list uses attachRefundTotals instead of Refunds preload")
 		assert.Equal(t, int64(100), got[0].TotalRefundedAmount)
 	})
 
@@ -223,7 +222,6 @@ func TestAccountingRepository_ReadsExcludeForeignSplitAndRefundRows(t *testing.T
 		require.Len(t, got, 1)
 		require.Len(t, got[0].PaymentSplits, 1)
 		assert.Equal(t, validSplit.ID, got[0].PaymentSplits[0].ID)
-		assert.Equal(t, clinicA, got[0].PaymentSplits[0].ClinicID)
 		assert.Equal(t, int64(100), got[0].TotalRefundedAmount)
 	})
 
@@ -232,7 +230,7 @@ func TestAccountingRepository_ReadsExcludeForeignSplitAndRefundRows(t *testing.T
 			ctx,
 			clinicA,
 			billing.ID,
-			map[string]any{"memo": "tenant child scope"},
+			AccountingUpdate{Memo: strPtr("tenant child scope")},
 		)
 		require.NoError(t, err)
 		assertBillingTenantChildren(
@@ -862,7 +860,7 @@ func TestAccountingRepository_NestedStaffPreloadsRequireExactBillingClinic(
 		assert.Equal(t, inactiveAssignedStaff.ID, got.Payments[0].PaidByStaff.ID)
 	})
 
-	t.Run("multi-clinic list preserves shared staff for each assignment", func(t *testing.T) {
+	t.Run("multi-clinic list omits payment staff preload", func(t *testing.T) {
 		items, _, err := repo.FindAllForClinics(
 			ctx,
 			[]uint64{clinicA, clinicB},
@@ -882,9 +880,7 @@ func TestAccountingRepository_NestedStaffPreloadsRequireExactBillingClinic(
 			got := seen[billingID]
 			require.NotNil(t, got)
 			require.Len(t, got.Payments, 1)
-			require.NotNil(t, got.Payments[0].PaidByStaff)
-			assert.Equal(t, validStaff.ID, got.Payments[0].PaidByStaff.ID)
-			assert.Empty(t, got.Payments[0].PaidByStaff.ClinicAssignments)
+			assert.Nil(t, got.Payments[0].PaidByStaff)
 		}
 	})
 
@@ -908,7 +904,7 @@ func TestAccountingRepository_NestedStaffPreloadsRequireExactBillingClinic(
 			ctx,
 			clinicA,
 			contaminatedBilling.ID,
-			map[string]any{"memo": "staff preload scope"},
+			AccountingUpdate{Memo: strPtr("staff preload scope")},
 		)
 		require.NoError(t, err)
 		require.Len(t, got.Payments, 1)

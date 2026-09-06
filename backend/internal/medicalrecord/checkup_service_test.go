@@ -21,7 +21,7 @@ type mockCheckupRepository struct {
 	findByIDFn              func(ctx context.Context, clinicID, checkupID uint64) (*model.Checkup, error)
 	lockByIDForUpdateFn     func(ctx context.Context, clinicID, checkupID uint64) (*model.Checkup, error)
 	createFn                func(ctx context.Context, checkup *model.Checkup) error
-	updateFn                func(ctx context.Context, clinicID, checkupID uint64, fields map[string]any) error
+	updateFn                func(ctx context.Context, clinicID, checkupID uint64, cmd UpdateCheckupInput) error
 	deleteFn                func(ctx context.Context, clinicID, checkupID uint64) error
 }
 
@@ -61,8 +61,8 @@ func (m *mockCheckupRepository) Create(ctx context.Context, checkup *model.Check
 	return m.createFn(ctx, checkup)
 }
 
-func (m *mockCheckupRepository) Update(ctx context.Context, clinicID, checkupID uint64, fields map[string]any) error {
-	return m.updateFn(ctx, clinicID, checkupID, fields)
+func (m *mockCheckupRepository) Update(ctx context.Context, clinicID, checkupID uint64, cmd UpdateCheckupInput) error {
+	return m.updateFn(ctx, clinicID, checkupID, cmd)
 }
 
 func (m *mockCheckupRepository) Delete(ctx context.Context, clinicID, checkupID uint64) error {
@@ -395,7 +395,7 @@ func TestCheckupService_Update(t *testing.T) {
 						MedicalRecordID: tt.repoCheckupMedicalRecordID,
 					}, nil
 				},
-				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+				updateFn: func(_ context.Context, _, _ uint64, _ UpdateCheckupInput) error {
 					return tt.repoUpdateErr
 				},
 			}
@@ -613,7 +613,7 @@ func TestCheckupService_Update_ResyncsOwnerCheckupTags(t *testing.T) {
 				MedicalRecord:   &model.MedicalRecord{OwnerID: &ownerID},
 			}, nil
 		},
-		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+		updateFn: func(_ context.Context, _, _ uint64, _ UpdateCheckupInput) error {
 			return nil
 		},
 	}
@@ -1079,7 +1079,7 @@ func TestCheckupService_Update_FindByIDAfterUpdateError(t *testing.T) {
 			}
 			return nil, errors.New("db error")
 		},
-		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+		updateFn: func(_ context.Context, _, _ uint64, _ UpdateCheckupInput) error {
 			return nil
 		},
 	}
@@ -1249,7 +1249,7 @@ func TestCheckupService_Update_RevalidatesEffectiveRelations(t *testing.T) {
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Checkup, error) {
 			return &model.Checkup{ID: 1, MedicalRecordID: medicalRecord, PetID: ptrUint64(recordPetID)}, nil
 		},
-		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+		updateFn: func(_ context.Context, _, _ uint64, _ UpdateCheckupInput) error {
 			updateCalls++
 			return nil
 		},

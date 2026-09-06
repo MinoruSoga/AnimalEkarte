@@ -136,13 +136,15 @@ func TestVaccineRepository_Update(t *testing.T) {
 	v := makeVaccineMaster(t, db, clinicA, "更新前ワクチン")
 
 	t.Run("同一クリニックでは Update が反映される", func(t *testing.T) {
-		got, err := repo.Update(ctx, clinicA, v.ID, map[string]any{"name": "更新後ワクチン"})
+		name := "更新後ワクチン"
+		got, err := repo.Update(ctx, clinicA, v.ID, UpdateVaccineInput{Name: &name})
 		require.NoError(t, err)
 		assert.Equal(t, "更新後ワクチン", got.Name)
 	})
 
 	t.Run("別クリニックからの Update は NotFound", func(t *testing.T) {
-		_, err := repo.Update(ctx, clinicB, v.ID, map[string]any{"name": "改ざん試行"})
+		name := "改ざん試行"
+		_, err := repo.Update(ctx, clinicB, v.ID, UpdateVaccineInput{Name: &name})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 
@@ -152,7 +154,8 @@ func TestVaccineRepository_Update(t *testing.T) {
 	})
 
 	t.Run("存在しない ID の Update は NotFound", func(t *testing.T) {
-		_, err := repo.Update(ctx, clinicA, 999999, map[string]any{"name": "x"})
+		name := "x"
+		_, err := repo.Update(ctx, clinicA, 999999, UpdateVaccineInput{Name: &name})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})

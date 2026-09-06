@@ -61,7 +61,7 @@ type mockVaccinationRepository struct {
 	lockByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.Vaccination, error)
 	findByOwnerFn  func(ctx context.Context, clinicID, ownerID uint64) ([]model.Vaccination, error)
 	createFn       func(ctx context.Context, vaccination *model.Vaccination) error
-	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccination, error)
+	updateFieldsFn func(ctx context.Context, clinicID, id uint64, cmd UpdateVaccinationInput) (*model.Vaccination, error)
 	deleteFn       func(ctx context.Context, clinicID, id uint64) error
 }
 
@@ -97,8 +97,11 @@ func (m *mockVaccinationRepository) Create(ctx context.Context, vaccination *mod
 	return m.createFn(ctx, vaccination)
 }
 
-func (m *mockVaccinationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccination, error) {
-	return m.updateFieldsFn(ctx, clinicID, id, fields)
+func (m *mockVaccinationRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateVaccinationInput) (*model.Vaccination, error) {
+	if m.updateFieldsFn != nil {
+		return m.updateFieldsFn(ctx, clinicID, id, cmd)
+	}
+	return &model.Vaccination{ID: id, ClinicID: clinicID}, nil
 }
 
 func (m *mockVaccinationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -437,7 +440,7 @@ func TestVaccinationService_Update_LocksRelationsBeforeVaccination(t *testing.T)
 			events = append(events, "vaccination_lock")
 			return record, nil
 		},
-		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Vaccination, error) {
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateVaccinationInput) (*model.Vaccination, error) {
 			events = append(events, "update")
 			return record, nil
 		},
@@ -474,7 +477,7 @@ func TestVaccinationService_Update_RejectsConcurrentRelationChangeAfterValidatio
 		lockByIDFn: func(_ context.Context, _, id uint64) (*model.Vaccination, error) {
 			return &model.Vaccination{ID: id, ClinicID: 1, VaccineID: 21}, nil
 		},
-		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Vaccination, error) {
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateVaccinationInput) (*model.Vaccination, error) {
 			updated = true
 			return &model.Vaccination{}, nil
 		},
@@ -771,7 +774,7 @@ func TestVaccinationService_Update_RejectsFutureVaccinationDate(t *testing.T) {
 						NextDate:  tt.storedNextDate,
 					}, nil
 				},
-				updateFieldsFn: func(_ context.Context, _, id uint64, _ map[string]any) (*model.Vaccination, error) {
+				updateFieldsFn: func(_ context.Context, _, id uint64, _ UpdateVaccinationInput) (*model.Vaccination, error) {
 					updateCalled = true
 					return &model.Vaccination{ID: id, Date: stored}, nil
 				},
@@ -930,7 +933,7 @@ func TestVaccinationService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockVaccinationRepository{
-				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Vaccination, error) {
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateVaccinationInput) (*model.Vaccination, error) {
 					if tt.repoErr != nil {
 						return nil, tt.repoErr
 					}
@@ -1052,7 +1055,7 @@ func TestVaccinationService_Update_ResyncsOwnerVaccineTags(t *testing.T) {
 		findByIDFn: func(_ context.Context, _, id uint64) (*model.Vaccination, error) {
 			return &model.Vaccination{ID: id}, nil
 		},
-		updateFieldsFn: func(_ context.Context, _, id uint64, _ map[string]any) (*model.Vaccination, error) {
+		updateFieldsFn: func(_ context.Context, _, id uint64, _ UpdateVaccinationInput) (*model.Vaccination, error) {
 			return &model.Vaccination{
 				ID:    id,
 				PetID: ptrUint64(20),
@@ -1134,12 +1137,16 @@ func TestVaccinationService_Update_AllowsHistoricalOwnerAfterPetTransfer(t *test
 				MedicalRecordID: ptrUint64(recordID), VaccineID: 1,
 			}, nil
 		},
-		updateFieldsFn: func(_ context.Context, _, id uint64, fields map[string]any) (*model.Vaccination, error) {
+		updateFieldsFn: func(_ context.Context, _, id uint64, cmd UpdateVaccinationInput) (*model.Vaccination, error) {
 			updateCalls++
+			remarks := ""
+			if cmd.Remarks != nil {
+				remarks = *cmd.Remarks
+			}
 			return &model.Vaccination{
 				ID: id, ClinicID: clinicID, PetID: ptrUint64(petID),
 				MedicalRecordID: ptrUint64(recordID), VaccineID: 1,
-				Remarks: fields["remarks"].(string),
+				Remarks: remarks,
 			}, nil
 		},
 	}

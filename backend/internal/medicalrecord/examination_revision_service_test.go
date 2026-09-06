@@ -96,7 +96,7 @@ func TestExaminationRevision_FirstConfirmAppendsBeforeAuditAndCAS(t *testing.T) 
 				Status: model.ExaminationStatusCompleted,
 			}, nil
 		},
-		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Examination, error) {
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateExaminationInput) (*model.Examination, error) {
 			legacyStatusWrites++
 			events = append(events, "legacy-status-update")
 			return &model.Examination{
@@ -186,7 +186,7 @@ func TestExaminationRevision_ConfirmRejectsCrossClinicActorWithoutWrites(t *test
 						Status: model.ExaminationStatusCompleted,
 					}, nil
 				},
-				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Examination, error) {
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateExaminationInput) (*model.Examination, error) {
 					legacyStatusWrites++
 					return &model.Examination{ID: examinationID, ClinicID: clinicID, Status: model.ExaminationStatusConfirmed}, nil
 				},

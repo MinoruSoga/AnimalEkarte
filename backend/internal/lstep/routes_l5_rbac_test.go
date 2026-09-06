@@ -23,7 +23,7 @@ func TestRegisterRoutes_L5RBACTuples(t *testing.T) {
 	}
 
 	h := NewHandler(
-		&LstepSettingsHandler{},
+		&SettingsHandler{},
 		&LineSendHandler{},
 		&LineLinkHandler{},
 		&LineCustomerHandler{},

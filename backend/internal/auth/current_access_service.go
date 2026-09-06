@@ -50,6 +50,15 @@ type CurrentAccessClinicReader interface {
 	ListClinics(ctx context.Context) ([]model.Clinic, error)
 }
 
+// CurrentAccessActiveClinicIDReader optionally replaces ListClinics for
+// non-admin staff. It returns which of the assigned clinic IDs are currently active.
+type CurrentAccessActiveClinicIDReader interface {
+	ListActiveClinicIDs(ctx context.Context, ids []uint64) ([]uint64, error)
+}
+
+// CurrentAccessGinKey is the gin context key for the request's CurrentAccess.
+const CurrentAccessGinKey = "current_access"
+
 // CurrentAccess is the current authority snapshot used for one authenticated
 // request. Its slices are newly allocated and safe for request-local use.
 type CurrentAccess struct {
@@ -132,17 +141,33 @@ func (r *currentAccessResolver) Resolve(
 		)
 	}
 
-	_, account, accountEpoch, err := r.loadCurrentAccessIdentity(ctx, staffID)
-	if err != nil {
-		return nil, err
-	}
-
-	assignments, err := r.assignments.FindAllByStaffID(ctx, staffID)
-	if err != nil {
-		return nil, apperrors.Wrap(
-			err,
-			"failed to resolve current clinic assignments",
-		)
+	var account *model.Account
+	var accountEpoch int64
+	var assignments []model.StaffClinicAssignment
+	if loader, ok := r.staff.(currentAccessGraphLoader); ok {
+		graph, err := loader.loadCurrentAccessGraph(ctx, staffID)
+		if err != nil {
+			return nil, &StaffLookupError{cause: err}
+		}
+		_, account, accountEpoch, err = r.validateCurrentAccessIdentity(staffID, &graph.Staff, graph.Account)
+		if err != nil {
+			return nil, err
+		}
+		assignments = graph.Assignments
+	} else {
+		_, loadedAccount, epoch, err := r.loadCurrentAccessIdentity(ctx, staffID)
+		if err != nil {
+			return nil, err
+		}
+		account = loadedAccount
+		accountEpoch = epoch
+		assignments, err = r.assignments.FindAllByStaffID(ctx, staffID)
+		if err != nil {
+			return nil, apperrors.Wrap(
+				err,
+				"failed to resolve current clinic assignments",
+			)
+		}
 	}
 	clinicIDs, mainClinicID, err := currentClinicAccess(staffID, assignments)
 	if err != nil {
@@ -197,6 +222,27 @@ func (r *currentAccessResolver) loadCurrentAccessIdentity(
 		}
 		return nil, nil, 0, apperrors.Wrap(err, "failed to resolve linked account")
 	}
+	return r.validateCurrentAccessIdentity(staffID, staff, account)
+}
+
+func (r *currentAccessResolver) validateCurrentAccessIdentity(
+	staffID uint64,
+	staff *CurrentAccessStaffIdentity,
+	account *model.Account,
+) (*CurrentAccessStaffIdentity, *model.Account, int64, error) {
+	if staff == nil || staff.ID != staffID || !staff.IsActive ||
+		staff.IsDeleted {
+		return nil, nil, 0, apperrors.WrapForbidden(
+			"staff account is no longer active",
+		)
+	}
+	if staff.AccountID == nil || *staff.AccountID == 0 {
+		return nil, nil, 0, apperrors.WrapUnauthorized(
+			"staff account link is unavailable",
+		)
+	}
+
+	accountID := *staff.AccountID
 	if account == nil || account.ID != accountID || !account.IsActive ||
 		account.DeletedAt.Valid {
 		return nil, nil, 0, apperrors.WrapUnauthorized(
@@ -222,6 +268,22 @@ func (r *currentAccessResolver) resolveCurrentAccessClinics(
 		return nil, "", apperrors.WrapInternalServerError(
 			"current clinic authority is not configured",
 		)
+	}
+	if account != nil && !account.IsSystemAdmin {
+		if scoped, ok := r.clinics.(CurrentAccessActiveClinicIDReader); ok {
+			activeIDs, clinicErr := scoped.ListActiveClinicIDs(ctx, clinicIDs)
+			if clinicErr != nil {
+				return nil, "", apperrors.Wrap(
+					clinicErr,
+					"failed to resolve active clinic authority",
+				)
+			}
+			return currentStaffClinicAccessFromActiveIDs(
+				mainClinicID,
+				clinicIDs,
+				activeIDs,
+			)
+		}
 	}
 	clinics, clinicErr := r.clinics.ListClinics(ctx)
 	if clinicErr != nil {
@@ -300,9 +362,23 @@ func currentStaffClinicAccess(
 	assignedClinicIDs []uint64,
 	clinics []model.Clinic,
 ) ([]uint64, string, error) {
-	activeClinicIDs := activeSystemAdminClinicIDs(clinics)
+	return currentStaffClinicAccessFromActiveIDs(
+		preferredMainClinicID,
+		assignedClinicIDs,
+		activeSystemAdminClinicIDs(clinics),
+	)
+}
+
+func currentStaffClinicAccessFromActiveIDs(
+	preferredMainClinicID string,
+	assignedClinicIDs []uint64,
+	activeClinicIDs []uint64,
+) ([]uint64, string, error) {
 	activeClinics := make(map[uint64]struct{}, len(activeClinicIDs))
 	for _, clinicID := range activeClinicIDs {
+		if clinicID == 0 {
+			continue
+		}
 		activeClinics[clinicID] = struct{}{}
 	}
 

@@ -28,7 +28,7 @@ type BillingItemRepository interface {
 	FindUnbilledVaccinationItemsByPetID(ctx context.Context, clinicID, petID uint64) (items []model.BillingItem, unbillableCount int, err error)
 	FindUnbilledExamItemsByPetID(ctx context.Context, clinicID, petID uint64) (items []model.BillingItem, unbillableCount int, err error)
 	Create(ctx context.Context, item *model.BillingItem) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	Update(ctx context.Context, clinicID, id uint64, cmd UpdateBillingItemInput) error
 	Delete(ctx context.Context, clinicID, id uint64) error
 	UpdateBillingTotals(ctx context.Context, clinicID, billingID uint64, subtotal, taxTotal, totalAmount int64) error
 	// UpdateBillingTotalsForCompletedCorrection は確定済み会計の明細訂正時のみ totals 再計算を許可する（BUG-009）。
@@ -293,7 +293,11 @@ func (r *billingItemRepository) Create(ctx context.Context, item *model.BillingI
 // Update は clinic 述語を EXISTS subquery で強制する（BUG-417: GORM の Joins() は
 // UPDATE/DELETE SQL へ伝播せず実質 no-op だった——service 層の事前 FindByID gate に
 // 依存しない repository 層 defense-in-depth を回復）。
-func (r *billingItemRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+func (r *billingItemRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateBillingItemInput) error {
+	return r.update(ctx, clinicID, id, buildBillingItemUpdate(&cmd))
+}
+
+func (r *billingItemRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	result := persistence.DBOrTx(ctx, r.db).
 		Model(&model.BillingItem{}).
 		Where("billing_items.id = ?", id).

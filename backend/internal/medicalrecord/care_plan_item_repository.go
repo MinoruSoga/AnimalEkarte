@@ -19,7 +19,7 @@ type CarePlanItemRepository interface {
 	FindByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.CarePlanItem, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.CarePlanItem, error)
 	Create(ctx context.Context, item *model.CarePlanItem) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	Update(ctx context.Context, clinicID, id uint64, cmd UpdateCarePlanItemInput) error
 	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
@@ -73,7 +73,11 @@ func (r *carePlanItemRepository) Create(ctx context.Context, item *model.CarePla
 	return nil
 }
 
-func (r *carePlanItemRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+func (r *carePlanItemRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateCarePlanItemInput) error {
+	return r.update(ctx, clinicID, id, buildCarePlanItemUpdate(&cmd))
+}
+
+func (r *carePlanItemRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	// NOTE: GORM does not propagate Joins() into the generated UPDATE statement's SQL
 	// (it is a SELECT-only clause), so a WHERE referencing the joined table fails with
 	// "missing FROM-clause entry". clinic_id isolation must be expressed as a subquery instead.

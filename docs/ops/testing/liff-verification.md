@@ -8,7 +8,7 @@
 | route | guarantees | does not guarantee |
 |:--|:--|:--|
 | local mock | shared LIFF hooks、mock-token API/UI paths | real SDK、idToken signature、LINE app、channel settings |
-| remote CI intent | mock-only token scope | manual E2E workflow の成功。account/fixture 不足で authenticated suite は現在 BLOCKED |
+| remote CI intent | mock-only token scope | manual E2E auth smoke の実行成功、実 LINE、clinical/full suite の保証。合成 login 配線はあるが実行証跡とは別 |
 | STG real LINE | approved dedicated UAT clinic での real SDK/idToken/in-client behavior | local gate の代替ではない。human lane only |
 
 Local mock PASS を real LINE PASS とみなさない。STG prerequisite が欠けた場合は BLOCKED/Needs Human とする。

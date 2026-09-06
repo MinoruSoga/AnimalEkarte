@@ -202,9 +202,9 @@ GitHub Actions の `backend-deploy.yml` 実行履歴を確認する。
 
 `backend/migrations/seeds/002_master/manifest.json` と同directoryのCSVを当該HEADの期待値とする。固定の「demo 3件以上」を使わない。
 
-承認済みsessionでclinic listを取得し、現在の `002_master/clinics.csv` が要求する行（現在は ID 1/2、八王子病院/城東センター病院）が存在し、各 `is_active == true` であることを確認する。response contractは `is_active` であり `is_deleted` ではない。
+承認済みsessionでclinic listを取得し、現在の `002_master/clinics.csv` が要求する全行（現行 CSV は4医院）が存在し、各 `is_active == true` であることを確認する。response contractは `is_active` であり `is_deleted` ではない。
 
-Demo login accountは `002_master` には含まれない。[STAFF_ACCOUNT_PROVISIONING.md](./STAFF_ACCOUNT_PROVISIONING.md) の別の承認済み運用で払い出す。
+Demo login account は `002_master` には含まれず、許可された `APP_ENV` の migrate フェーズ3（`internal/seedlogin`）で合成の一般アカウントを upsert する。設定操作用アカウントは [STAFF_ACCOUNT_PROVISIONING.md](./STAFF_ACCOUNT_PROVISIONING.md) の承認済み運用で別途払い出す。
 
 ---
 
@@ -215,18 +215,19 @@ Demo login accountは `002_master` には含まれない。[STAFF_ACCOUNT_PROVIS
 **各検査実施時に記録すべき項目**:
 
 ```markdown
-## 2026-05-27 週次検査実行ログ
+## <実施日> 週次検査実行ログ
 
-- **実施者**: MinoruSoga
-- **実施時刻**: 2026-05-27 09:00 JST
-- **ヘルスチェック**: ✅ PASS
-- **Cloudflare 経路**: ✅ PASS（実 URL / workers.dev）
-- **Workers / Containers Logs**: ✅ 異常なし
-- **Vercel フロントエンド**: ✅ PASS
-- **運用アカウントログイン**: ✅ PASS
-- **CRUD スモークテスト**: ✅ PASS（全 11 項目）
-- **テストデータ削除**: ✅ PASS（4 レコード削除確認）
-- **所見**: 異常なし
+- **実施者**: <担当者>
+- **実施時刻**: <日時・timezone>
+- **対象**: <commit / deploy run / environment>
+- **ヘルスチェック**: <PASS / FAIL / UNKNOWN と証拠>
+- **Cloudflare 経路**: <実 URL / workers.dev の観測>
+- **Workers / Containers Logs**: <観測期間・結果>
+- **Vercel / API 接続先**: <結果>
+- **運用アカウントログイン**: <結果。credential は記録しない>
+- **CRUD スモークテスト**: <case ごとの PASS / FAIL / BLOCKED>
+- **cleanup / 復元**: <今回作成した resource のみ。結果・件数>
+- **未解決事項**: <owner / 次アクション>
 ```
 
 ### 5.2 ログ保存先

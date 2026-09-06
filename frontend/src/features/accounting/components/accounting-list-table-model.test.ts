@@ -34,4 +34,21 @@ describe("calculateAccountingTotal recorded negatives", () => {
     } as Accounting;
     expect(calculateAccountingTotal(accounting)).toBe(-3300);
   });
+
+  it("一覧で items が空なら billings.total_amount を使う", () => {
+    const accounting = {
+      id: "1",
+      clinicId: "1",
+      ownerId: "1",
+      ownerName: "a",
+      petId: "1",
+      petName: "b",
+      status: "waiting",
+      scheduledDate: "2026-08-24",
+      items: [],
+      totalAmount: 4400,
+      totalRefundedAmount: 0,
+    } as Accounting;
+    expect(calculateAccountingTotal(accounting)).toBe(4400);
+  });
 });

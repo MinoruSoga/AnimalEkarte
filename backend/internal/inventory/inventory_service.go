@@ -84,7 +84,7 @@ type inventoryStore interface {
 	FindAll(ctx context.Context, clinicID uint64, category, status *string, page, limit int) ([]model.InventoryItem, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.InventoryItem, error)
 	Create(ctx context.Context, clinicID uint64, item *model.InventoryItem) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InventoryItem, error)
+	Update(ctx context.Context, clinicID, id uint64, cmd UpdateInventoryInput) (*model.InventoryItem, error)
 	DeleteIfUnused(ctx context.Context, clinicID, id uint64) error
 	CountUsageByInventoryID(ctx context.Context, clinicID, inventoryID uint64) (int64, error)
 }
@@ -100,7 +100,6 @@ func NewInventoryService(repo inventoryStore) InventoryService {
 func (s *inventoryService) List(ctx context.Context, clinicID uint64, category, status *string, page, limit int) ([]model.InventoryItem, int64, error) {
 	items, total, err := s.repo.FindAll(ctx, clinicID, category, status, page, limit)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list inventory items", "error", err)
 		return nil, 0, apperrors.Wrap(err, "failed to list inventory items")
 	}
 	return items, total, nil
@@ -109,7 +108,6 @@ func (s *inventoryService) List(ctx context.Context, clinicID uint64, category, 
 func (s *inventoryService) GetByID(ctx context.Context, clinicID, id uint64) (*model.InventoryItem, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get inventory item", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get inventory item")
 	}
 	return result, nil
@@ -135,7 +133,6 @@ func (s *inventoryService) Create(ctx context.Context, clinicID uint64, input *C
 	}
 
 	if err := s.repo.Create(ctx, clinicID, item); err != nil {
-		slog.ErrorContext(ctx, "failed to create inventory item", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create inventory item")
 	}
 	slog.InfoContext(ctx, "inventory item created", slog.Uint64("inventory_id", item.ID), slog.Uint64("clinic_id", clinicID))
@@ -147,16 +144,14 @@ func (s *inventoryService) Update(ctx context.Context, clinicID, id uint64, inpu
 		return nil, apperrors.WrapInvalidInput("input must not be nil")
 	}
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to find inventory item", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find inventory item")
 	}
 	fields := buildInventoryUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
-	item, err := s.repo.Update(ctx, clinicID, id, fields)
+	item, err := s.repo.Update(ctx, clinicID, id, *input)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to update inventory item", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update inventory item")
 	}
 	slog.InfoContext(ctx, "inventory item updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("inventory_id", id))
@@ -170,16 +165,12 @@ func (s *inventoryService) Delete(ctx context.Context, clinicID, id uint64) erro
 	// 早期 Count は UX 用。防御の本体は DeleteIfUnused の原子条件。
 	count, err := s.repo.CountUsageByInventoryID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check inventory item dependencies", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to check inventory item dependencies")
 	}
 	if count > 0 {
 		return apperrors.WrapConflict(inventoryInUseConflictMessage)
 	}
 	if err := s.repo.DeleteIfUnused(ctx, clinicID, id); err != nil {
-		if !apperrors.IsConflict(err) && !apperrors.IsNotFound(err) {
-			slog.ErrorContext(ctx, "failed to delete inventory item", "error", err, "id", id, "clinic_id", clinicID)
-		}
 		return apperrors.Wrap(err, "failed to delete inventory item")
 	}
 	slog.InfoContext(ctx, "inventory item deleted", slog.Uint64("inventory_id", id), slog.Uint64("clinic_id", clinicID))

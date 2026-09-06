@@ -159,9 +159,13 @@ func TestVaccinationService_UpdateRejectsCrossClinicRelations(t *testing.T) {
 		findByIDFn: func(_ context.Context, _, id uint64) (*model.Vaccination, error) {
 			return &model.Vaccination{ID: id, ClinicID: clinicID, PetID: ptrUint64(petID), MedicalRecordID: ptrUint64(recordID), VaccineID: 1}, nil
 		},
-		updateFieldsFn: func(_ context.Context, _, id uint64, fields map[string]any) (*model.Vaccination, error) {
+		updateFieldsFn: func(_ context.Context, _, id uint64, cmd UpdateVaccinationInput) (*model.Vaccination, error) {
 			updateCalls++
-			return &model.Vaccination{ID: id, ClinicID: clinicID, PetID: ptrUint64(petID), MedicalRecordID: ptrUint64(recordID), VaccineID: 1, Remarks: fields["remarks"].(string)}, nil
+			remarks := ""
+			if cmd.Remarks != nil {
+				remarks = *cmd.Remarks
+			}
+			return &model.Vaccination{ID: id, ClinicID: clinicID, PetID: ptrUint64(petID), MedicalRecordID: ptrUint64(recordID), VaccineID: 1, Remarks: remarks}, nil
 		},
 	}
 	verifier := &vaccinationRelationVerifierStub{petOwners: map[uint64]uint64{petID: ownerID}}

@@ -2,7 +2,6 @@ package medicalrecord
 
 import (
 	"context"
-	"log/slog"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -44,9 +43,6 @@ func (s *medicalRecordService) upsertInquirySubRecord(
 		inquiry.Notes = *input.Notes
 	}
 	if _, err := s.inquiryRepo.SaveByMedicalRecordID(ctx, clinicID, inquiry); err != nil {
-		slog.ErrorContext(ctx, "createSubRecords: failed to upsert inquiry",
-			slog.Uint64("medical_record_id", recordID),
-			slog.String("error", err.Error()))
 		return apperrors.Wrap(err, "failed to upsert medical record inquiry")
 	}
 	return nil
@@ -61,16 +57,10 @@ func (s *medicalRecordService) ensureClinicalPlanSubRecord(
 	plan, err := s.clinicalPlanRepo.FindByMedicalRecordID(ctx, clinicID, recordID)
 	if err != nil {
 		if !apperrors.IsNotFound(err) {
-			slog.ErrorContext(ctx, "createSubRecords: failed to find clinical plan",
-				slog.Uint64("medical_record_id", recordID),
-				slog.String("error", err.Error()))
 			return apperrors.Wrap(err, "failed to find medical record clinical plan")
 		}
 		plan = &model.ClinicalPlan{MedicalRecordID: recordID}
 		if err := s.clinicalPlanRepo.Create(ctx, plan); err != nil {
-			slog.ErrorContext(ctx, "createSubRecords: failed to create clinical plan",
-				slog.Uint64("medical_record_id", recordID),
-				slog.String("error", err.Error()))
 			return apperrors.Wrap(err, "failed to create medical record clinical plan")
 		}
 	}
@@ -87,44 +77,17 @@ func (s *medicalRecordService) ensureClinicalPlanSubRecord(
 		s.diagTypeRepo,
 		s.diagNameRepo,
 	); err != nil {
-		slog.ErrorContext(ctx, "createSubRecords: failed to verify diagnosis FK ownership",
-			slog.Uint64("medical_record_id", recordID),
-			slog.String("error", err.Error()))
 		return apperrors.Wrap(err, "failed to verify diagnosis masters for medical record subrecords")
 	}
 	// AUD-007: 第2診断 type↔name 整合（clinical plan Update と同契約）
 	if err := assertDiagnosisNameBelongsToType(
 		ctx, clinicID, input.Diagnosis2TypeID, input.Diagnosis2NameID, "diagnosis_2", s.diagNameRepo,
 	); err != nil {
-		slog.ErrorContext(ctx, "createSubRecords: diagnosis_2 type/name mismatch",
-			slog.Uint64("medical_record_id", recordID),
-			slog.String("error", err.Error()))
 		return err
 	}
 
-	fields := map[string]any{}
-	if input.Plan != nil {
-		fields["treatment_policy"] = *input.Plan
-	}
-	if input.Assessment != nil {
-		fields["diagnosis_details"] = *input.Assessment
-	}
-	if input.Diagnosis1CategoryID != nil {
-		fields["diagnosis_type_id"] = *input.Diagnosis1CategoryID
-	}
-	if input.Diagnosis1NameID != nil {
-		fields["diagnosis_name_id"] = *input.Diagnosis1NameID
-	}
-	if input.Diagnosis2TypeID != nil {
-		fields["diagnosis_2_type_id"] = *input.Diagnosis2TypeID
-	}
-	if input.Diagnosis2NameID != nil {
-		fields["diagnosis_2_name_id"] = *input.Diagnosis2NameID
-	}
-	if err := s.clinicalPlanRepo.Update(ctx, clinicID, plan.ID, fields, nil); err != nil {
-		slog.ErrorContext(ctx, "createSubRecords: failed to update clinical plan",
-			slog.Uint64("medical_record_id", recordID),
-			slog.String("error", err.Error()))
+	cmd := clinicalPlanUpdateFromSubRecords(input)
+	if err := s.clinicalPlanRepo.Update(ctx, clinicID, plan.ID, cmd, nil); err != nil {
 		return apperrors.Wrap(err, "failed to update medical record clinical plan")
 	}
 	return nil
@@ -139,13 +102,27 @@ func (s *medicalRecordService) assertChiefComplaintTypeForSubRecords(
 		return nil
 	}
 	if _, err := s.chiefComplaintTypeRepo.FindByID(ctx, clinicID, *typeID); err != nil {
-		slog.ErrorContext(ctx, "createSubRecords: failed to verify chief complaint type ownership",
-			slog.Uint64("medical_record_id", recordID),
-			slog.Uint64("chief_complaint_type_id", *typeID),
-			slog.String("error", err.Error()))
 		return apperrors.Wrap(err, "failed to verify chief complaint type for medical record subrecords")
 	}
 	return nil
+}
+
+func clinicalPlanUpdateFromSubRecords(input CreateSubRecordsInput) UpdateClinicalPlanInput {
+	cmd := UpdateClinicalPlanInput{
+		TreatmentPolicy:  input.Plan,
+		DiagnosisDetails: input.Assessment,
+		DiagnosisTypeID:  input.Diagnosis1CategoryID,
+		DiagnosisNameID:  input.Diagnosis1NameID,
+	}
+	if input.Diagnosis2TypeID != nil {
+		id := input.Diagnosis2TypeID
+		cmd.Diagnosis2TypeID = &id
+	}
+	if input.Diagnosis2NameID != nil {
+		id := input.Diagnosis2NameID
+		cmd.Diagnosis2NameID = &id
+	}
+	return cmd
 }
 
 func hasInquirySubRecordInput(input CreateSubRecordsInput) bool {

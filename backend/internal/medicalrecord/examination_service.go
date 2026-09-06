@@ -115,7 +115,7 @@ func effectiveExaminationRelations(existing *model.Examination, input UpdateExam
 }
 
 type ExaminationService interface {
-	List(ctx context.Context, clinicID uint64, petID, ownerID, medicalRecordID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error)
+	List(ctx context.Context, clinicID uint64, petID, ownerID, medicalRecordID *uint64, status, startDate, endDate *string, page, limit int, includeItems bool) ([]model.Examination, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
 	// GetPrintSnapshot returns a clinic-scoped atomic revision print DTO.
 	// version nil uses the parent's current_revision_version (fail-closed if unset).
@@ -195,10 +195,9 @@ func NewExaminationService(
 	}
 }
 
-func (s *examinationService) List(ctx context.Context, clinicID uint64, petID, ownerID, medicalRecordID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error) {
-	items, total, err := s.repo.FindAll(ctx, clinicID, petID, ownerID, medicalRecordID, status, startDate, endDate, page, limit)
+func (s *examinationService) List(ctx context.Context, clinicID uint64, petID, ownerID, medicalRecordID *uint64, status, startDate, endDate *string, page, limit int, includeItems bool) ([]model.Examination, int64, error) {
+	items, total, err := s.repo.FindAll(ctx, clinicID, petID, ownerID, medicalRecordID, status, startDate, endDate, page, limit, includeItems)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list examinations", "error", err)
 		return nil, 0, apperrors.Wrap(err, "failed to list examinations")
 	}
 	return items, total, nil
@@ -207,7 +206,6 @@ func (s *examinationService) List(ctx context.Context, clinicID uint64, petID, o
 func (s *examinationService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Examination, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get examination", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get examination")
 	}
 	// TASK-032: record usage receipt before returning clinical payload.
@@ -359,7 +357,6 @@ func (s *examinationService) Delete(ctx context.Context, clinicID, id uint64, ac
 		// FK依存チェック: 検査に紐付く検査明細が存在する場合は削除を拒否
 		itemCount, err := s.repo.CountItemsByExamID(txCtx, clinicID, id)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to check examination item dependencies", "error", err, "id", id, "clinic_id", clinicID)
 			return apperrors.Wrap(err, "failed to check examination item dependencies")
 		}
 		if itemCount > 0 {
@@ -367,7 +364,6 @@ func (s *examinationService) Delete(ctx context.Context, clinicID, id uint64, ac
 		}
 
 		if err := s.repo.Delete(txCtx, clinicID, id); err != nil {
-			slog.ErrorContext(txCtx, "failed to delete examination", "error", err, "id", id, "clinic_id", clinicID)
 			return apperrors.Wrap(err, "failed to delete examination")
 		}
 		return s.logParentMutationTx(

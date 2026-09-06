@@ -74,7 +74,6 @@ func NewChronicConditionService(
 func (s *chronicConditionService) List(ctx context.Context, clinicID, petID uint64) ([]model.PetChronicCondition, error) {
 	records, err := s.repo.FindByPetID(ctx, clinicID, petID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list chronic conditions", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list chronic conditions")
 	}
 	return records, nil
@@ -96,7 +95,6 @@ func (s *chronicConditionService) Create(ctx context.Context, clinicID, petID ui
 		IsActive:      input.IsActive,
 	}
 	if err := s.repo.Create(ctx, record); err != nil {
-		slog.ErrorContext(ctx, "failed to create chronic condition", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create chronic condition")
 	}
 
@@ -118,14 +116,12 @@ func (s *chronicConditionService) Update(ctx context.Context, clinicID, petID, i
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput(sharedkernel.ErrMsgAtLeastOneField)
 	}
-	if err := s.repo.Update(ctx, clinicID, petID, id, fields); err != nil {
-		slog.ErrorContext(ctx, "failed to update chronic condition", "error", err)
+	if err := s.repo.Update(ctx, clinicID, petID, id, input); err != nil {
 		return nil, apperrors.Wrap(err, "failed to update chronic condition")
 	}
 
 	updated, err := s.repo.FindByID(ctx, clinicID, petID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to reload chronic condition", "error", err)
 		return nil, apperrors.Wrap(err, "failed to reload chronic condition")
 	}
 
@@ -144,7 +140,6 @@ func (s *chronicConditionService) Delete(ctx context.Context, clinicID, petID, i
 	}
 
 	if err := s.repo.Delete(ctx, clinicID, petID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to delete chronic condition", "error", err)
 		return apperrors.Wrap(err, "failed to delete chronic condition")
 	}
 
@@ -155,7 +150,7 @@ func (s *chronicConditionService) Delete(ctx context.Context, clinicID, petID, i
 func (s *chronicConditionService) syncTags(ctx context.Context, clinicID, ownerID uint64) {
 	codes, err := s.repo.FindActiveConditionCodesByOwner(ctx, clinicID, ownerID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get active condition codes", "error", err)
+		slog.WarnContext(ctx, "failed to get active condition codes (non-fatal)", "error", err)
 		return
 	}
 	if err := s.tagSyncSvc.SyncChronicConditionTags(ctx, clinicID, ownerID, codes); err != nil {

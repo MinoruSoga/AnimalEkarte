@@ -22,8 +22,8 @@ func (trimmingTxMarker) WithTx(ctx context.Context, fn func(context.Context) err
 func newTrimmingClinicIsolationTestService(
 	reserv *mockTrimmingReservationRepository,
 	detail *mockTrimmingDetailRepository,
-) TrimmingService {
-	return withTrimmingTestActor(NewTrimmingServiceWithAudit(
+) Service {
+	return withTrimmingTestActor(NewServiceWithAudit(
 		reserv,
 		&mockTrimmingReservationTypeRepository{},
 		nil,
@@ -41,7 +41,7 @@ func assertTrimmingTxContext(ctx context.Context, t *testing.T) {
 	assert.Equal(t, true, ctx.Value(trimmingTxContextKey{}), "Pet ownership checks and writes must share the transaction context")
 }
 
-func TestTrimmingService_Create_RejectsPetFromAnotherClinic(t *testing.T) {
+func TestService_Create_RejectsPetFromAnotherClinic(t *testing.T) {
 	petID := uint64(202)
 	reserv := &mockTrimmingReservationRepository{
 		findPetOwnerFn: func(ctx context.Context, clinicID, actualPetID uint64) (uint64, error) {
@@ -75,7 +75,7 @@ func TestTrimmingService_Create_RejectsPetFromAnotherClinic(t *testing.T) {
 	assert.Nil(t, got)
 }
 
-func TestTrimmingService_CreateExistingDetail_RejectsPetFromAnotherClinic(t *testing.T) {
+func TestService_CreateExistingDetail_RejectsPetFromAnotherClinic(t *testing.T) {
 	appointmentID := uint64(77)
 	petID := uint64(202)
 	category := model.ReservationTypeCategoryTrimming
@@ -120,7 +120,7 @@ func TestTrimmingService_CreateExistingDetail_RejectsPetFromAnotherClinic(t *tes
 	assert.Nil(t, got)
 }
 
-func TestTrimmingService_Update_RejectsPetFromAnotherClinic(t *testing.T) {
+func TestService_Update_RejectsPetFromAnotherClinic(t *testing.T) {
 	appointmentID := uint64(77)
 	petID := uint64(202)
 	reserv := &mockTrimmingReservationRepository{
@@ -153,7 +153,7 @@ func TestTrimmingService_Update_RejectsPetFromAnotherClinic(t *testing.T) {
 	assert.Nil(t, got)
 }
 
-func TestTrimmingService_Create_AcceptsPetFromSameClinicBeforeWrites(t *testing.T) {
+func TestService_Create_AcceptsPetFromSameClinicBeforeWrites(t *testing.T) {
 	petID := uint64(101)
 	events := make([]string, 0, 3)
 	reserv := &mockTrimmingReservationRepository{
@@ -196,7 +196,7 @@ func TestTrimmingService_Create_AcceptsPetFromSameClinicBeforeWrites(t *testing.
 	assert.Equal(t, []string{"validate-pet", "create-appointment", "create-detail"}, events)
 }
 
-func TestTrimmingService_Update_AcceptsPetFromSameClinicAfterLock(t *testing.T) {
+func TestService_Update_AcceptsPetFromSameClinicAfterLock(t *testing.T) {
 	appointmentID := uint64(77)
 	ownerID := uint64(501)
 	petID := uint64(101)
@@ -258,7 +258,7 @@ func TestTrimmingService_Update_AcceptsPetFromSameClinicAfterLock(t *testing.T) 
 	}, events)
 }
 
-func TestTrimmingService_Update_RejectsPetBelongingToDifferentOwner(t *testing.T) {
+func TestService_Update_RejectsPetBelongingToDifferentOwner(t *testing.T) {
 	appointmentID := uint64(77)
 	ownerID := uint64(501)
 	petOwnerID := uint64(502)

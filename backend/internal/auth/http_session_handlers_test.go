@@ -145,6 +145,19 @@ func (s sessionAssignmentReader) FindAllByStaffID(
 	return append([]model.StaffClinicAssignment(nil), s.assignments...), s.err
 }
 
+type countingSessionAssignments struct {
+	sessionAssignmentReader
+	calls int
+}
+
+func (s *countingSessionAssignments) FindAllByStaffID(
+	ctx context.Context,
+	staffID uint64,
+) ([]model.StaffClinicAssignment, error) {
+	s.calls++
+	return s.sessionAssignmentReader.FindAllByStaffID(ctx, staffID)
+}
+
 type sessionClinicLister struct {
 	clinics []model.Clinic
 	err     error
@@ -154,12 +167,38 @@ func (s sessionClinicLister) ListClinics(context.Context) ([]model.Clinic, error
 	return append([]model.Clinic(nil), s.clinics...), s.err
 }
 
-type sessionLoginAuthService struct {
+type countingSessionClinicLister struct {
+	clinics      []model.Clinic
+	listAllCalls int
+	byIDsCalls   int
+}
+
+func (s *countingSessionClinicLister) ListClinics(context.Context) ([]model.Clinic, error) {
+	s.listAllCalls++
+	return append([]model.Clinic(nil), s.clinics...), nil
+}
+
+func (s *countingSessionClinicLister) ListClinicsByIDs(_ context.Context, ids []uint64) ([]model.Clinic, error) {
+	s.byIDsCalls++
+	wanted := make(map[uint64]struct{}, len(ids))
+	for _, id := range ids {
+		wanted[id] = struct{}{}
+	}
+	out := make([]model.Clinic, 0, len(ids))
+	for i := range s.clinics {
+		if _, ok := wanted[s.clinics[i].ID]; ok {
+			out = append(out, s.clinics[i])
+		}
+	}
+	return out, nil
+}
+
+type sessionLoginService struct {
 	account *model.Account
 	staff   *model.Staff
 }
 
-func (s sessionLoginAuthService) AuthenticateUser(
+func (s sessionLoginService) AuthenticateUser(
 	context.Context,
 	string,
 	string,
@@ -167,13 +206,13 @@ func (s sessionLoginAuthService) AuthenticateUser(
 	return s.account, s.staff, nil
 }
 
-func (sessionLoginAuthService) ResolveClinicInfo(
+func (sessionLoginService) ResolveClinicInfo(
 	assignments []model.StaffClinicAssignment,
 ) (string, []uint64) {
 	return ResolveClinicInfo(assignments)
 }
 
-func (sessionLoginAuthService) ResolveSystemAdminMainClinicID(
+func (sessionLoginService) ResolveSystemAdminMainClinicID(
 	mainClinicID string,
 	isSystemAdmin bool,
 	allClinics []model.Clinic,
@@ -181,7 +220,7 @@ func (sessionLoginAuthService) ResolveSystemAdminMainClinicID(
 	return ResolveSystemAdminMainClinicID(mainClinicID, isSystemAdmin, allClinics)
 }
 
-func (sessionLoginAuthService) CalculateEffectivePermissions(
+func (sessionLoginService) CalculateEffectivePermissions(
 	context.Context,
 	bool,
 	uint64,
@@ -195,7 +234,7 @@ func TestHTTPHandler_Login_AuditsResolvedMainClinic(t *testing.T) {
 	accountID := uint64(41)
 	audit := &sessionAuditLogger{}
 	handler := NewHTTPHandler(HTTPDependencies{
-		Auth: sessionLoginAuthService{
+		Auth: sessionLoginService{
 			account: &model.Account{
 				ID:        accountID,
 				Email:     "staff@example.test",
@@ -251,7 +290,7 @@ func TestHTTPHandler_LoginAuditsFallbackClinicForUnassignedSystemAdmin(
 	accountID := uint64(41)
 	audit := &sessionAuditLogger{}
 	handler := NewHTTPHandler(HTTPDependencies{
-		Auth: sessionLoginAuthService{
+		Auth: sessionLoginService{
 			account: &model.Account{
 				ID:            accountID,
 				IsActive:      true,
@@ -718,13 +757,112 @@ func TestHTTPHandler_GetMe(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, missingResponse.Code)
 }
 
+func TestHTTPHandler_GetMe_ReusesCurrentAccessAssignments(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	accountID := uint64(41)
+	assignments := &countingSessionAssignments{sessionAssignmentReader: sessionAssignmentReader{
+		assignments: []model.StaffClinicAssignment{{
+			StaffID:  17,
+			ClinicID: 23,
+			IsMain:   true,
+		}},
+	}}
+	handler := NewHTTPHandler(HTTPDependencies{
+		Staff: sessionStaffReader{
+			getByIDFn: func(_ context.Context, id uint64) (*model.Staff, error) {
+				return &model.Staff{ID: id, Name: "Session Staff", AccountID: &accountID}, nil
+			},
+		},
+		Accounts: sessionAccountService{
+			getByIDFn: func(_ context.Context, id uint64) (*model.Account, error) {
+				return &model.Account{ID: id, Email: "staff@example.test"}, nil
+			},
+		},
+		StaffAssignments: assignments,
+		Clinics: sessionClinicLister{
+			clinics: []model.Clinic{{ID: 23, Name: "Main Clinic"}},
+		},
+		EffectivePermissions: permissionHTTPEffectiveService{
+			rules: []model.PermissionGroupRule{{
+				Resource: "owners",
+				CanView:  true,
+			}},
+		},
+	}, CookieConfigForProduction(false))
+
+	response := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(response)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/me", http.NoBody)
+	c.Set("user_id", "17")
+	c.Set("clinic_id", "23")
+	c.Set(CurrentAccessGinKey, &CurrentAccess{
+		StaffID:      17,
+		AccountEpoch: 1,
+		MainClinicID: "23",
+		ClinicIDs:    []uint64{23},
+	})
+	handler.GetMe(c)
+
+	assert.Equal(t, http.StatusOK, response.Code, response.Body.String())
+	assert.Equal(t, 0, assignments.calls)
+}
+
+func TestHTTPHandler_GetMe_ListsAssignedClinicsWithoutCatalog(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	accountID := uint64(41)
+	clinics := &countingSessionClinicLister{
+		clinics: []model.Clinic{
+			{ID: 23, Name: "Main Clinic"},
+			{ID: 99, Name: "Other Clinic"},
+		},
+	}
+	handler := NewHTTPHandler(HTTPDependencies{
+		Staff: sessionStaffReader{
+			getByIDFn: func(_ context.Context, id uint64) (*model.Staff, error) {
+				return &model.Staff{ID: id, Name: "Session Staff", AccountID: &accountID}, nil
+			},
+		},
+		Accounts: sessionAccountService{
+			getByIDFn: func(_ context.Context, id uint64) (*model.Account, error) {
+				return &model.Account{ID: id, Email: "staff@example.test"}, nil
+			},
+		},
+		Clinics: clinics,
+		EffectivePermissions: permissionHTTPEffectiveService{
+			rules: []model.PermissionGroupRule{{
+				Resource: "owners",
+				CanView:  true,
+			}},
+		},
+	}, CookieConfigForProduction(false))
+
+	response := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(response)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/me", http.NoBody)
+	c.Set("user_id", "17")
+	c.Set("clinic_id", "23")
+	c.Set(CurrentAccessGinKey, &CurrentAccess{
+		StaffID:      17,
+		AccountEpoch: 1,
+		MainClinicID: "23",
+		ClinicIDs:    []uint64{23},
+	})
+	handler.GetMe(c)
+
+	assert.Equal(t, http.StatusOK, response.Code, response.Body.String())
+	assert.Equal(t, 0, clinics.listAllCalls)
+	assert.Equal(t, 1, clinics.byIDsCalls)
+	assert.Contains(t, response.Body.String(), `"clinic_id":"23"`)
+	assert.NotContains(t, response.Body.String(), `"clinic_id":"99"`)
+}
+
 func TestAuthPermissionMappingAndAuditHelpers(t *testing.T) {
 	effective := permissionHTTPEffectiveService{rules: []model.PermissionGroupRule{{
 		Resource:  "owners",
 		CanView:   true,
 		CanCreate: true,
 	}}}
-	service := NewAuthService(nil, nil, effective)
+	service := NewService(nil, nil, effective)
 	admin := service.CalculateEffectivePermissions(context.Background(), true, 17, 0)
 	assert.Len(t, admin, len(model.AllResources))
 	assert.True(t, admin[string(model.ResourceOwners)].Delete)
@@ -734,7 +872,7 @@ func TestAuthPermissionMappingAndAuditHelpers(t *testing.T) {
 	assert.True(t, regular["owners"].Create)
 	assert.False(t, regular["owners"].Delete)
 
-	failed := NewAuthService(
+	failed := NewService(
 		nil,
 		nil,
 		permissionHTTPEffectiveService{err: errors.New("unavailable")},

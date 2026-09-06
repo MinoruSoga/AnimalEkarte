@@ -158,12 +158,17 @@ const getExaminationPrintSnapshot = async (
   return transformExaminationPrintSnapshot(data);
 };
 
-export const useGetExaminationPrintSnapshot = (id: string | undefined, version?: number) => {
+export const useGetExaminationPrintSnapshot = (
+  id: string | undefined,
+  options?: { version?: number; enabled?: boolean },
+) => {
   const examinationId = id ?? "";
+  const version = options?.version;
+  const enabled = (options?.enabled ?? true) && examinationId.length > 0;
   return useQuery({
     queryKey: queryKeys.examinations.printSnapshot(examinationId, version),
     queryFn: () => getExaminationPrintSnapshot(examinationId, version),
-    enabled: examinationId.length > 0,
+    enabled,
     staleTime: QUERY_STALE_TIMES.MEDIUM,
     gcTime: QUERY_GC_TIMES.STANDARD,
   });

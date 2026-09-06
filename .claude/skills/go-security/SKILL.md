@@ -68,13 +68,13 @@ hashedPassword, err := bcrypt.GenerateFromPassword(
   []byte(password), bcrypt.DefaultCost,
 )
 if err != nil {
-  return apperrors.Wrap(err)
+  return apperrors.Wrap(err, "hash password")
 }
 
 // 検証
 err = bcrypt.CompareHashAndPassword(hashedPassword, []byte(inputPassword))
 if err != nil {
-  return apperrors.WrapUnauthorized(err) // fail-closed: 検証失敗は必ず拒否
+  return apperrors.WrapUnauthorized("invalid password") // fail-closed: 検証失敗は必ず拒否
 }
 ```
 
@@ -92,7 +92,7 @@ type Claims struct {
 token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 tokenString, err := token.SignedString([]byte(secretKey))
 if err != nil {
-  return apperrors.Wrap(err)
+  return apperrors.Wrap(err, "sign jwt")
 }
 
 // 検証（middleware で実装）— エラーを無視すると偽トークンを通過させる致命的脆弱性になる
@@ -100,7 +100,7 @@ parsed, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token
   return []byte(secretKey), nil
 })
 if err != nil || !parsed.Valid {
-  return apperrors.WrapUnauthorized(err) // fail-closed: パース/検証失敗は必ず拒否
+  return apperrors.WrapUnauthorized("invalid token") // fail-closed: パース/検証失敗は必ず拒否
 }
 ```
 
@@ -118,9 +118,13 @@ validate := validator.New()
 err := validate.Struct(req)
 ```
 
+### CookieAuth / CSRF（現行）
+
+認証は HttpOnly Cookie。CSRF は meta `csrf-token` ではなく、`middleware.RequireXRequestedWith` が POST/PATCH/DELETE に `X-Requested-With` を強制する。FE は `frontend/src/lib/axios.ts` で全リクエストに付与する。forgot-password など明示除外以外で CSRF middleware を外さない。
+
 SQLインジェクション対策の詳細は上記 A1 のパラメータ化例を参照。LIKE 検索も同様に安全化する:
 ```go
-db.Where("name LIKE ?", "%"+escapeLike(name)+"%").Find(&users)  // escapeLike（owner_repository.go）で % / _ をエスケープ（プロジェクト標準）
+db.Where("name LIKE ?", "%"+escapeLike(name)+"%").Find(&users)  // escapeLike で % / _ をエスケープ
 ```
 
 ## 出力形式
@@ -129,21 +133,21 @@ db.Where("name LIKE ?", "%"+escapeLike(name)+"%").Find(&users)  // escapeLike（
 ## Go Security Analysis Report
 
 ### 🔴 Critical Issues
-- **SQL Injection** at handler/owner_handler.go:45
+- **SQL Injection** at internal/owner/handler.go:45
   - Line: `db.Raw(query).Scan()`
   - Fix: Use parameterized queries
 
 ### 🟠 High Issues
 - **Hardcoded Secret** at config/db.go:10
-- **Missing Input Validation** at service/owner_service.go
+- **Missing Input Validation** at internal/owner/service.go
 
 ### 🟡 Medium Issues
 - Weak Password Hashing Algorithm
 - Missing CORS Headers
 
 ### ✅ Passed
-- gosec: 未導入のため実行なし（手動レビューでの検出結果のみ記載。導入済みなら `gosec warnings: N`）
-- OWASP Coverage: 90%
+- gosec: 未導入のため実行なし（手動レビューでの検出結果のみ記載）
+- OWASP Coverage: 未測定。割合を捏造しない
 
 ### 推奨修正リスト
 1. [Critical] SQLインジェクション修正 (1時間)

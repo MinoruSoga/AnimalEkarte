@@ -23,7 +23,7 @@ type MedicineRepository interface {
 	CountChildrenByParentID(ctx context.Context, clinicID, parentID uint64) (int64, error)
 	CountUsageByMedicineID(ctx context.Context, clinicID, medicineID uint64) (int64, error)
 	Create(ctx context.Context, medicine *model.Medicine) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Medicine, error)
+	Update(ctx context.Context, clinicID, id uint64, cmd UpdateMedicineInput) (*model.Medicine, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -106,11 +106,15 @@ func (r *medicineRepository) Create(ctx context.Context, medicine *model.Medicin
 	return nil
 }
 
-func (r *medicineRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Medicine, error) {
-	if err := persistence.UpdateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.Medicine{}, "medicine", clinicID, id, fields); err != nil {
+func (r *medicineRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateMedicineInput) (*model.Medicine, error) {
+	if err := r.update(ctx, clinicID, id, buildMedicineUpdate(&cmd)); err != nil {
 		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
+}
+
+func (r *medicineRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+	return persistence.UpdateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.Medicine{}, "medicine", clinicID, id, fields)
 }
 
 func (r *medicineRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {

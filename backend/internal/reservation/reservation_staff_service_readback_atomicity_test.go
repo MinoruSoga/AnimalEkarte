@@ -53,7 +53,7 @@ func (r *failingReservationStaffReadbackRepository) FindAllExcludedReservationTy
 
 func TestReservationStaffService_Create_ReadbackFailureRollsBack(t *testing.T) {
 	db := setupReservationStaffTxAtomicityTestDB(t)
-	base := NewReservationStaffRepository(db, staffpkg.NewStaffRepository(db))
+	base := NewReservationStaffRepository(db, staffpkg.NewRepository(db))
 	repo := &failingReservationStaffReadbackRepository{
 		ReservationStaffRepository: base,
 		failExcluded:               true,
@@ -82,7 +82,7 @@ func TestReservationStaffService_Create_ReadbackFailureRollsBack(t *testing.T) {
 func TestReservationStaffService_Update_StaffReadbackFailureRollsBack(t *testing.T) {
 	db := setupReservationStaffTxAtomicityTestDB(t)
 	const clinicID = uint64(1)
-	base := NewReservationStaffRepository(db, staffpkg.NewStaffRepository(db))
+	base := NewReservationStaffRepository(db, staffpkg.NewRepository(db))
 	target := makeDoctorAssignedToClinic(t, db, clinicID, "readback rollback update before")
 	repo := &failingReservationStaffReadbackRepository{
 		ReservationStaffRepository: base,
@@ -111,7 +111,7 @@ func TestReservationStaffService_Update_StaffReadbackFailureRollsBack(t *testing
 func TestReservationStaffService_PatchStatus_ExclusionReadbackFailureRollsBack(t *testing.T) {
 	db := setupReservationStaffTxAtomicityTestDB(t)
 	const clinicID = uint64(1)
-	base := NewReservationStaffRepository(db, staffpkg.NewStaffRepository(db))
+	base := NewReservationStaffRepository(db, staffpkg.NewRepository(db))
 	target := makeDoctorAssignedToClinic(t, db, clinicID, "readback rollback patch")
 	require.NoError(t, db.Model(&model.Staff{}).
 		Where("id = ?", target.ID).

@@ -3,7 +3,6 @@ package lstep
 import (
 	"context"
 	"fmt"
-	"log/slog"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -42,7 +41,6 @@ func NewLstepTriggerPriorityService(repo LstepTriggerPriorityRepository) LstepTr
 func (s *lstepTriggerPriorityService) GetByClinicID(ctx context.Context, clinicID uint64) ([]model.LstepTriggerPriority, error) {
 	items, err := s.repo.FindByClinicID(ctx, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to find trigger priorities", "clinic_id", clinicID, "error", err)
 		return nil, apperrors.Wrap(err, "failed to find trigger priorities")
 	}
 
@@ -94,7 +92,6 @@ func (s *lstepTriggerPriorityService) UpdatePriorities(ctx context.Context, clin
 		})
 	}
 	if err := s.repo.UpsertBatch(ctx, clinicID, items); err != nil {
-		slog.ErrorContext(ctx, "failed to upsert trigger priorities", "clinic_id", clinicID, "error", err)
 		return apperrors.Wrap(err, "failed to upsert trigger priorities")
 	}
 	return nil
@@ -106,7 +103,6 @@ func (s *lstepTriggerPriorityService) GetPriorityFor(ctx context.Context, clinic
 		return p, nil
 	}
 	if !apperrors.IsNotFound(err) {
-		slog.ErrorContext(ctx, "failed to get trigger priority", "clinic_id", clinicID, "trigger_type", triggerType, "error", err)
 		return 0, apperrors.Wrap(err, "failed to get trigger priority")
 	}
 	// DB 未設定: DefaultTriggerPriorities → DefaultPriorityFallback

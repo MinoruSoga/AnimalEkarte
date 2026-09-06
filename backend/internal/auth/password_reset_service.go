@@ -198,11 +198,9 @@ func (s *passwordResetService) ForgotPassword(
 			slog.InfoContext(ctx, "forgot password: account not found, silently returning")
 			return nil
 		}
-		slog.ErrorContext(ctx, "failed to find account", "error_type", fmt.Sprintf("%T", err))
 		return apperrors.Wrap(err, "failed to find account")
 	}
 	if account == nil {
-		slog.ErrorContext(ctx, "forgot password account lookup returned no account")
 		return apperrors.WrapInternalServerError("password reset account lookup failed")
 	}
 
@@ -223,7 +221,6 @@ func (s *passwordResetService) ForgotPassword(
 
 	rawToken, tokenHash, err := generateToken()
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to generate token", "error_type", fmt.Sprintf("%T", err))
 		return apperrors.Wrap(err, "failed to generate token")
 	}
 
@@ -242,12 +239,6 @@ func (s *passwordResetService) ForgotPassword(
 		issueSuppressed = suppressed
 		return nil
 	}); err != nil {
-		slog.ErrorContext(
-			ctx,
-			"failed to issue password reset token",
-			"error_type", fmt.Sprintf("%T", err),
-			"account_id", account.ID,
-		)
 		return apperrors.Wrap(err, "password reset token transaction failed")
 	}
 	if issueSuppressed {
@@ -454,7 +445,6 @@ func (s *passwordResetService) ResetPasswordWithResult(
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), config.BcryptCost)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to hash password", "error_type", fmt.Sprintf("%T", err))
 		return nil, apperrors.Wrap(err, "failed to hash password")
 	}
 
@@ -499,7 +489,7 @@ func (s *passwordResetService) consumeResetToken(
 }
 
 func (s *passwordResetService) consumeResetTokenInTx(
-	txCtx, logCtx context.Context,
+	txCtx, _ context.Context,
 	accountID uint64,
 	tokenHash string,
 	hashedPassword []byte,
@@ -560,12 +550,6 @@ func (s *passwordResetService) consumeResetTokenInTx(
 		string(hashedPassword),
 		updatedAt,
 	); err != nil {
-		slog.ErrorContext(
-			logCtx,
-			"failed to update password",
-			"error_type", fmt.Sprintf("%T", err),
-			"account_id", resetToken.AccountID,
-		)
 		return false, apperrors.Wrap(err, "failed to update password")
 	}
 	if err := s.tokenRepo.ConsumeByID(txCtx, resetToken.ID); err != nil {

@@ -2,7 +2,6 @@ package medicalrecord
 
 import (
 	"context"
-	"log/slog"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -50,7 +49,6 @@ func (s *vitalService) createVitalInTx(
 		return err
 	}
 	if err := s.repo.Create(txCtx, vital); err != nil {
-		slog.ErrorContext(txCtx, "failed to create vital record", "error", err)
 		return apperrors.Wrap(err, "failed to create vital record")
 	}
 	// BUG-015: vital create audit は ambient tx 参加の LogEntryTx で fail-closed。

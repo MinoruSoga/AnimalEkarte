@@ -250,7 +250,6 @@ func validatePeriod(period string) error {
 func (s *cashRegisterService) fetchAggregate(ctx context.Context, clinicID uint64, date time.Time, period string) (*periodAggregate, error) {
 	schedule, err := s.closingsSvc.ResolveSchedule(ctx, clinicID, date)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to resolve schedule", "error", err)
 		return nil, apperrors.Wrap(err, "failed to resolve schedule")
 	}
 
@@ -258,7 +257,6 @@ func (s *cashRegisterService) fetchAggregate(ctx context.Context, clinicID uint6
 
 	periodStart, periodEnd, err := resolvePeriodRange(dateJST, period, schedule)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to fetch aggregate cash register", "error", err)
 		return nil, apperrors.Wrap(err, "failed to fetch aggregate cash register")
 	}
 
@@ -268,33 +266,28 @@ func (s *cashRegisterService) fetchAggregate(ctx context.Context, clinicID uint6
 		PeriodEnd:   periodEnd,
 	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to aggregate billings", "error", err)
 		return nil, apperrors.Wrap(err, "failed to aggregate billings")
 	}
 
 	// #128: 現金マスタ id を解決し、payment_method_id=現金id の split を理論現金に含める。
 	payMethods, err := s.payMethodRepo.FindAll(ctx, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to load payment methods for aggregate", "error", err)
 		return nil, apperrors.Wrap(err, "failed to load payment methods for aggregate")
 	}
 	cashMethodID, err := findCashMethodID(payMethods)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to find cash payment method", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find cash payment method")
 	}
 
 	// M-7(#191): 税率分類は固定閾値ではなく病院マスタ税率（exact-match）で行う（月次レポート経路と統一）。
 	clinic, err := s.clinicRepo.FindByID(ctx, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to load clinic for tax rates", "error", err)
 		return nil, apperrors.Wrap(err, "failed to load clinic for tax rates")
 	}
 
 	// #247 DEC-16⑥: per-billing 配賦（期間全体 payment 比率の擬似按分は禁止）
 	allocData, err := s.accountingRepo.GetCategoryPaymentAllocationData(ctx, clinicID, periodStart, periodEnd)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to load category payment allocation data", "error", err)
 		return nil, apperrors.Wrap(err, "failed to load category payment allocation data")
 	}
 	sysKeyFn, sysRefundFn := BuildSystemKeyMethodResolvers(payMethods)
@@ -342,14 +335,12 @@ func (s *cashRegisterService) GetPreview(ctx context.Context, clinicID uint64, d
 
 	agg, err := s.fetchAggregate(ctx, clinicID, date, period)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to fetch aggregate cash register", "error", err)
 		return nil, apperrors.Wrap(err, "failed to fetch aggregate cash register")
 	}
 
 	// 二重締め確認
 	existing, err := s.closeRepo.FindByDateAndPeriod(ctx, clinicID, date, period)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check existing close", "error", err)
 		return nil, apperrors.Wrap(err, "failed to check existing close")
 	}
 	isAlreadyClosed := existing != nil
@@ -442,7 +433,6 @@ func (s *cashRegisterService) closeInTx(ctx context.Context, clinicID uint64, in
 
 	existing, err := s.closeRepo.FindByDateAndPeriod(ctx, clinicID, input.Date, input.Period)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check existing close", "error", err)
 		return nil, apperrors.Wrap(err, "failed to check existing close")
 	}
 	if existing != nil {
@@ -451,7 +441,6 @@ func (s *cashRegisterService) closeInTx(ctx context.Context, clinicID uint64, in
 
 	agg, err := s.fetchAggregate(ctx, clinicID, input.Date, input.Period)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to fetch aggregate cash register", "error", err)
 		return nil, apperrors.Wrap(err, "failed to fetch aggregate cash register")
 	}
 
@@ -465,7 +454,6 @@ func (s *cashRegisterService) closeInTx(ctx context.Context, clinicID uint64, in
 	breakdownSchema := buildCategoryBreakdown(agg.CategoryPaymentMatrixSystemKey, agg.TaxBreakdown, agg.TaxRates, agg.UnclassifiedOtherCount)
 	breakdownJSON, err := json.Marshal(breakdownSchema)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to marshal category breakdown", "error", err)
 		return nil, apperrors.Wrap(err, "failed to marshal category breakdown")
 	}
 
@@ -482,7 +470,6 @@ func (s *cashRegisterService) closeInTx(ctx context.Context, clinicID uint64, in
 		ClosedAt:          time.Now(),
 	}
 	if err := s.closeRepo.Create(ctx, record); err != nil {
-		slog.ErrorContext(ctx, "failed to create cash register close", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create cash register close")
 	}
 	return record, nil
@@ -491,7 +478,6 @@ func (s *cashRegisterService) closeInTx(ctx context.Context, clinicID uint64, in
 func (s *cashRegisterService) List(ctx context.Context, clinicID uint64, startDate, endDate *time.Time, page, limit int) ([]model.CashRegisterClose, int64, error) {
 	records, total, err := s.closeRepo.FindAll(ctx, clinicID, startDate, endDate, page, limit)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list cash register closes", "error", err)
 		return nil, 0, apperrors.Wrap(err, "failed to list cash register closes")
 	}
 	return records, total, nil
@@ -504,7 +490,6 @@ func (s *cashRegisterService) GetByID(ctx context.Context, clinicID, id uint64) 
 func (s *cashRegisterService) IsDateClosed(ctx context.Context, clinicID uint64, date time.Time) (bool, error) {
 	closed, err := s.closeRepo.HasCloseOnDate(ctx, clinicID, date)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check if date is closed", "error", err, "clinic_id", clinicID)
 		return false, apperrors.Wrap(err, "failed to check if date is closed")
 	}
 	return closed, nil

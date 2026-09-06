@@ -20,7 +20,7 @@ main→staging へのPR作成やデプロイ前に、「ローカルの静的検
    git diff origin/staging -- backend/migrations/
    ```
    既存ファイルへの変更（新規追加ではなく既存行の変更）があれば checksum mismatch でSTGが即死する。migration-seed-safety skill の「既存ファイルを絶対に編集しない」原則を再確認する
-2. **seed変更のfresh-DB実適用 + UNIQUE突合**: seedを差し替えた場合、静的検証だけで完了とせず fresh DBへの実適用で検証する。(clinic_id, name) 等のUNIQUE制約突合を実施する（詳細は `migration-seed-safety` skill参照）
+2. **seed変更の条件付き fresh-DB実適用 + UNIQUE突合**: seed/migration または起動依存を変更した場合、静的検証だけで完了とせず disposable な隔離 DB/environment への fresh apply で検証する。既存/shared DB を drop/reset しない。(clinic_id, name) 等のUNIQUE制約突合を実施する（詳細は `migration-seed-safety` skill参照）。docs-only 変更にはこの gate は不要
 3. **起動条件(env)変更のCI波及確認**: 本番/STG起動条件のenvを変更した場合、`.github/workflows/` 内の同名envが同期更新されているか確認する（出典: memory feedback_config_change_ci_propagation）。ワークフローのdriftチェックは `env`/`with`/`working-directory` すべてを対象にする（出典: feedback_workflow_with_param_drift）
 4. **DB再作成要否をユーザーに確認**: STGはデモ環境だが、破棄可否は必ずユーザーに確認する。無断で決めない。現行 `backend-deploy.yml` に `db_reset` 入力はない
 5. **復旧手順の提示**（ユーザー承認の上で実行）: 通常の STG デプロイは Cloudflare Workers 版 `backend-deploy.yml`（staging push または `workflow_dispatch`）。共有 DB の再作成が必要な場合は workflow の入力を捏造せず、`docs/ops/deploy/STG_PLANETSCALE_SEED_RUNBOOK.md` の破壊的操作境界に従う。AWS は廃止済みで切り戻し先ではない
@@ -29,8 +29,7 @@ main→staging へのPR作成やデプロイ前に、「ローカルの静的検
 
 ✅ 良い例（STG実機証跡とローカル検証を区別して報告）:
 ```
-ローカルでは fresh DB (`docker compose down -v && up -d db && run --rm backend go run ./cmd/migrate`、ユーザー承認済みで実行) で
-001→最新まで（番号を文書へ固定せず、`ls backend/migrations/*.sql` でlive確認）ERROR ゼロを確認した。ただしこれはローカル検証であり、STG実機での適用結果ではない。
+ローカルでは既存 Compose project・volume・DB から分離した disposable DB/environment で、対象・破棄範囲・隔離性を示したユーザー承認後に fresh apply を実行し、001→最新まで（番号を文書へ固定せず、`ls backend/migrations/*.sql` でlive確認）ERROR ゼロを確認した。ただしこれはローカル検証であり、STG実機での適用結果ではない。
 db_reset要否についてはユーザー確認が必要——STGはデモ環境だが、破棄可否は事前承認事項とする。
 ```
 
@@ -42,7 +41,7 @@ CIがgreenなのでSTGへのマージは安全。
 
 ## 完了条件
 
-- fresh DBで 001→最新migrationがERRORゼロで適用されることを確認した
+- migration/seed/起動依存を変更した場合のみ、disposable な隔離 DB/environment で 001→最新migration が ERROR ゼロで適用されることを確認した（既存/shared DB の reset はしない）
 - CIの対象jobが実success（skipでない）であることを確認した
 - STG実機証跡の有無を明示した（ローカル機構検証 ≠ STG証跡である旨を報告に明記する）
 

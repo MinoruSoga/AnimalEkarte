@@ -1351,3 +1351,22 @@ func (row staticRow) Scan(destinations ...any) error {
 	}
 	return nil
 }
+
+func TestClassifyCutoverFailure(t *testing.T) {
+	status, stage := ClassifyCutoverApplyFailure(fmt.Errorf("wrapped: %w", ErrCutoverCommitOutcomeUnknown))
+	if status != "COMMIT_OUTCOME_UNKNOWN" || stage != "commit" {
+		t.Fatalf("apply unknown = %s %s", status, stage)
+	}
+	status, stage = ClassifyCutoverApplyFailure(fmt.Errorf("wrapped: %w", ErrCutoverTransactionNotStarted))
+	if status != "FAILED_BEFORE_TRANSACTION" || stage != "begin" {
+		t.Fatalf("apply begin = %s %s", status, stage)
+	}
+	status, stage = ClassifyCutoverApplyFailure(errors.New("pre-commit failure"))
+	if status != "FAILED_DATA_ROLLED_BACK" || stage != "transaction" {
+		t.Fatalf("apply rollback = %s %s", status, stage)
+	}
+	status, stage = ClassifyCutoverTableFailure(errors.New("pre-commit failure"))
+	if status != "FAILED_TABLE_ROLLED_BACK" || stage != "table" {
+		t.Fatalf("table rollback = %s %s", status, stage)
+	}
+}

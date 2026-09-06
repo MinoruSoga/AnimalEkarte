@@ -425,7 +425,7 @@ func TestDangerReason_GenericUpdateCannotBypassInvariant(t *testing.T) {
 					"danger_reason": tt.initialReason,
 				}).Error)
 
-			err := NewRepository(db).Update(ctx, clinicID, petModel.ID, map[string]any{
+			err := NewRepository(db).(*repository).update(ctx, clinicID, petModel.ID, map[string]any{
 				tt.key: tt.value,
 			})
 
@@ -467,7 +467,7 @@ func TestDangerReason_GenericUpdateRejectsStructuralAliases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.key, func(t *testing.T) {
-			err := NewRepository(db).Update(ctx, clinicA, petModel.ID, map[string]any{
+			err := NewRepository(db).(*repository).update(ctx, clinicA, petModel.ID, map[string]any{
 				tt.key: tt.value,
 			})
 
@@ -716,7 +716,7 @@ func TestDangerReason_OwnerRepositoryAdapterWriterIntegration(t *testing.T) {
 	})
 }
 
-func TestDangerReason_StaffPetResponsesIncludeField(t *testing.T) {
+func TestDangerReason_StaffResponsesIncludeField(t *testing.T) {
 	reason := "保定時注意"
 	petModel := &model.Pet{
 		ID:           9,
@@ -725,7 +725,7 @@ func TestDangerReason_StaffPetResponsesIncludeField(t *testing.T) {
 	}
 
 	for name, response := range map[string]any{
-		"detail": toPetResponse(petModel),
+		"detail": toResponse(petModel),
 		"list":   toPetListResponse(petModel),
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -740,7 +740,7 @@ func TestDangerReason_StaffPetResponsesIncludeField(t *testing.T) {
 
 func TestDangerReason_OwnerReportResponseOmitsField(t *testing.T) {
 	reason := "staff only"
-	body, err := json.Marshal(toOwnerReportPetResponse(&model.Pet{
+	body, err := json.Marshal(toOwnerReportResponse(&model.Pet{
 		ID:           9,
 		DangerLevel:  model.DangerLevelHigh,
 		DangerReason: &reason,

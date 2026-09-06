@@ -7,7 +7,7 @@ type PermissionMiddleware func(resource, action string) gin.HandlerFunc
 
 // handlerServices is the domain-local, typed handler dependency set.
 type handlerServices struct {
-	Trimming           TrimmingService
+	Trimming           Service
 	TrimmingCourse     TrimmingCourseService
 	TrimmingCourseType TrimmingCourseTypeService
 	TrimmingOption     TrimmingOptionService
@@ -22,7 +22,7 @@ type Handler struct {
 // NewHandler constructs the compatibility HTTP handler. Direct route composition uses
 // NewHandlerWithPermission.
 func NewHandler(
-	trimmingService TrimmingService,
+	trimmingService Service,
 	courseService TrimmingCourseService,
 	courseTypeService TrimmingCourseTypeService,
 	optionService TrimmingOptionService,
@@ -38,7 +38,7 @@ func NewHandler(
 
 // NewHandlerWithPermission constructs the domain-owned HTTP boundary.
 func NewHandlerWithPermission(
-	trimmingService TrimmingService,
+	trimmingService Service,
 	courseService TrimmingCourseService,
 	courseTypeService TrimmingCourseTypeService,
 	optionService TrimmingOptionService,

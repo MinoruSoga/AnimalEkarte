@@ -20,7 +20,7 @@ Notion スタイルの 4 カラムグリッドを採用し、臨床現場での�
     - **個別値引率**: 特定の事情に基づくデフォルトの値引設定（会計時に自動適用）。
     - **DM**: 未設定／必要／不要。
 - **住所管理**: 会社・自宅それぞれの郵便番号と住所1/2。地図連携は未実装。
-- **飼主生年月日とサイグラム**: `OwnerAddressFields` で生年月日 DatePicker の下にサイグラムを縦積みする（`flex-col`）。空・不正時は視覚表示なし（読み上げは「サイグラム分類なし」）。横並びで入力欄幅を潰さない。値は `birth_date` として保存する。
+- **飼主生年月日とサイグラム**: `OwnerAddressFields` で生年月日 DatePicker の下にサイグラムを縦積みする（`flex-col`）。空・不正時は視覚表示なし（読み上げは「サイグラム分類なし」）。横並びで入力欄幅を潰さない。生年月日は `birth_date` として保存し、編集時の消去は JSON null を送信する。サイグラムは生年月日からの派生表示で DB へ保存しない（#262）。
 - **保存 form**: `noValidate`。HTML5 email/max が Action 前に黙って止めない。重複メール／電話は BE 409。
 
 ### 1.2 ペット管理セクション (Pet Management)
@@ -36,7 +36,7 @@ Notion スタイルの 4 カラムグリッドを採用し、臨床現場での�
 
 - **動物取扱注意 (`pets.danger_level` / `danger_reason`)**: `danger_reason` は動物を安全に取り扱うための理由です。理由の入力は危険度「高」の場合のみ必須で、「中」では任意です。スタッフ内部情報として扱い、Owner Report・LIFF・line-reserve の owner-facing 応答にはフィールド自体を含めません。
 - **飼主変更 (BUG-373)**: `PetEditModal` からペットの紐付け先飼主を変更可能（`PATCH /api/v1/pets/:id` の `owner_id`）。変更先飼主の値引率/会員区分が現飼主と異なる場合、会計金額への影響を警告する確認モーダルを挟んでから確定する。
-- **副飼主**: 永続済みペットに `PetSubOwnersSection`。409 時は再読込を求める。
+- **副飼主**: 永続済みペットに `PetSubOwnersSection`。続柄は trim 後1〜50文字。取得した version を添えて全置換 PUT し、409 時は再読込を求める。飼主詳細では主飼主としてのペットとは別に「共同飼育ペット」を表示する。会計・LINE・割引判定の主飼主をこの追加リンクで置き換えない（#262）。
 
 ### 1.3 LINE/Lステップ連携セクション (編集時のみ、`LineIntegrationCard`)
 - **紐付け状況**: LINE User ID の取得状態をリアルタイム表示。
@@ -80,6 +80,9 @@ Notion スタイルの 4 カラムグリッドを採用し、臨床現場での�
 | POST | `/api/v1/owners` | 新規登録（ペット一括登録含む） | `owners` | `create` |
 | PATCH | `/api/v1/owners/:id` | 飼主基本情報の更新 | `owners` | `edit` |
 | PATCH | `/api/v1/pets/:id` | ペット単体の属性変更 | `owners` | `edit` |
+| GET | `/api/v1/pets/:id/sub-owners` | ペットの副飼主と version の取得 | `owners` | `view` |
+| PUT | `/api/v1/pets/:id/sub-owners` | version を伴う副飼主の全置換 | `owners` | `edit` |
+| GET | `/api/v1/owners/:id/shared-pets` | 副飼主として共同飼育するペットの取得 | `owners` | `view` |
 | POST | `/api/v1/shared-files` | LINE 共有用ファイルのアップロード | `owners` or `medical-records` | `edit` (or `create`/`edit`) |
 | POST | `/api/v1/clinics/:clinicId/owners/:id/line/send` | LINE個別メッセージ送信 | `owners` | `edit` |
 | GET | `/api/v1/clinics/:clinicId/owners/:id/line/send-logs` | LINEメッセージ送信履歴取得（`pending` 行がある間は5秒間隔でポーリング） | `owners` | `view` |

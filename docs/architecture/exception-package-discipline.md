@@ -9,6 +9,7 @@
 | Kind | Examples | Default stance |
 |------|----------|----------------|
 | Cutover / tooling | `csvimport` | **cmd-only** consumers; not a general app write API |
+| Synthetic demo login capability | `seedlogin` | `cmd/migrate` の非本番 upsert と `auth` の限定された非本番認証補助。通常の staff/account write API にしない |
 | Local serial-port agent | `labdeviceagent` | **cmd-only** (`cmd/lab-device-agent`); not a domain; no `internal/<domain>` import |
 | Narrow capability domain | `identitylink` | Allowed as domain; **no** owner/pet Go import |
 | HTTP/shared kernel | `httpapi`, `sharedkernel`, `persistence`, `apperrors` | Prefer existing; do not invent parallel helpers |
@@ -49,7 +50,14 @@
 - Independent local serial-port agent for Mac workstations ([ADR-008](adr/008-local-lab-device-agent.md)). Not a 15th domain and not a `medicalrecord` implementation detail.
 - Allowed production consumer is **`cmd/lab-device-agent` only**. Do **not** import `labdeviceagent` from `internal/<domain>` or from `cmd/api`.
 - A8-5 still forbids extracting single-consumer helpers from a domain. This keep-tier exception exists because serial/platform files and tests form a cohesive local agent, not hospital workflow. Need for an in-process API consumer → new ADR, not “import the agent from a domain”.
-- Pinned as keep-tier in `acceptedTopLevelPackages` (count 34). **Not** in `domainPackages` (stay 14) and **not** on `domainImportAllowlist`.
+- Pinned as keep-tier in `acceptedTopLevelPackages` (count 35). **Not** in `domainPackages` (stay 14) and **not** on `domainImportAllowlist`.
+
+### A8-7 — `seedlogin` is an explicit non-production exception
+
+- `backend/cmd/migrate/login_seed.go` が合成デモログインの upsert を呼び、`backend/internal/auth/auth_service.go` が catalog 対象の非本番ログイン判定を呼ぶ。cmd-only package とは分類しない。
+- `seedlogin.ShouldApply` は `APP_ENV` を trim/lowercase した `development` / `local` / `dev` / `test` / `staging` のみ許可し、production・未設定・未知値は拒否する。`AcceptSharedPassword` は catalog 対象と入力照合も要求する。
+- デモアカウントの適用と認証補助を一般の資格情報管理へ拡張しない。runtime の staff write owner は `staff`、account/session owner は `auth` のまま。
+- `seedlogin/env_test.go`、`auth/auth_service_test.go` と package roster が参照点。今回の docs 照合では実環境の `APP_ENV` や資格情報を検査・変更していない。
 
 ## Adding a new top-level `internal/` package
 

@@ -125,7 +125,7 @@ func (s *reservationTypeService) Update(ctx context.Context, clinicID, id uint64
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput(sharedkernel.ErrMsgAtLeastOneField)
 	}
-	if _, err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
+	if _, err := s.repo.Update(ctx, clinicID, id, *input); err != nil {
 		return nil, apperrors.Wrap(err, "failed to update reservation type")
 	}
 	result, err := s.repo.FindByIDWithChildren(ctx, clinicID, id)

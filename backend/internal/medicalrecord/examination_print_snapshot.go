@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -184,7 +183,6 @@ func (s *examinationService) GetPrintSnapshot(
 	}
 	snapshot, err := s.revisions.FindPrintSnapshot(ctx, clinicID, examinationID, version)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to read examination print snapshot", "error", err)
 		return nil, apperrors.Wrap(err, "failed to read examination print snapshot")
 	}
 	return snapshot, nil

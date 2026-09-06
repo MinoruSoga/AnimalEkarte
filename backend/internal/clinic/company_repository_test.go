@@ -61,7 +61,8 @@ func TestCompanyRepository_Update(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("レコードが無ければ NotFound を返す", func(t *testing.T) {
-		err := repo.Update(ctx, map[string]any{"name": "存在しない法人"})
+		name := "存在しない法人"
+		err := repo.Update(ctx, UpdateCompanyInput{Name: &name})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
@@ -69,10 +70,9 @@ func TestCompanyRepository_Update(t *testing.T) {
 	t.Run("正常系: name/phone_number が更新される", func(t *testing.T) {
 		require.NoError(t, db.WithContext(ctx).Create(&model.Company{ID: 1, Name: "更新前法人"}).Error)
 
-		require.NoError(t, repo.Update(ctx, map[string]any{
-			"name":         "更新後法人",
-			"phone_number": "03-1234-5678",
-		}))
+		name := "更新後法人"
+		phone := "03-1234-5678"
+		require.NoError(t, repo.Update(ctx, UpdateCompanyInput{Name: &name, PhoneNumber: &phone}))
 
 		got, err := repo.FindSingleton(ctx)
 		require.NoError(t, err)

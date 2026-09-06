@@ -5,7 +5,7 @@
 > **タイミング**: 認可ロジックの実装時・レビュー時。
 
 > **Animal Ekarte**: マルチクリニック対応の堅牢なセキュリティ基盤
-> **バージョン**: v9.1 | **最新更新**: 2026-08-14
+> **バージョン**: v9.1 | **最新更新**: 2026-09-06
 
 ---
 
@@ -75,7 +75,19 @@
 - 監査入力は actor、clinic、対象 staff、IP address、User-Agent のみに限定し、平文パスワード、hash、reset token、JWT、メールアドレスを記録しません。
 - transaction の所有権は `backend/internal/auth/account_service.go`、`backend/internal/auth/password_reset_service.go`、`backend/internal/staff/staff_service_core.go` に置き、監査 writer は ambient transaction を必須とします。
 
-### 4.4 実装サーフェス
+### 4.4 非本番デモログインの例外
+
+`auth_service.go` は通常の password hash 照合に加え、`seedlogin.AcceptSharedPassword` による合成デモ catalog 限定の認証補助を持つ。`APP_ENV` の許可集合は `development` / `local` / `dev` / `test` / `staging`（trim/lowercase 後）で、production・未設定・未知値および catalog 外アカウントは対象外である。認証補助が成立しても account の active/deleted 判定と後続の staff/clinic authority 解決を通る。資格情報の値は本書へ複製しない。
+
+適用責務と境界は [exception-package-discipline.md](exception-package-discipline.md#a8-7--seedlogin-is-an-explicit-non-production-exception) を参照する。環境設定の実測や本番受入の記録ではない。
+
+### 4.5 Cookie認証とCSRF対策
+
+Cookie認証を使う保護routeとlogin/refresh/logoutには `RequireXRequestedWith` を適用する。適用routeのGET/HEAD/OPTIONSを除くリクエストは、非空の `X-Requested-With` ヘッダーがなければ403となる。publicな `/auth/forgot-password`・`/auth/reset-password` はこのmiddlewareの対象外で、専用のrate limitを使う。Frontendの共通axiosは通常 `XMLHttpRequest` を付けるが、testモードでは省略する。手動HTTP検証でも必要なヘッダーを付け、403をすべて権限不足と判断しない。
+
+別originのブラウザアクセスはCORSによるorigin・credentials・送信ヘッダーの許可も必要。OPTIONSの成功ステータスだけでは確認できない。会計確定の `Idempotency-Key` を含む確認手順は [Vercel STG検証](../ops/deploy/VERCEL-FRONTEND-STAGING-TEST.md) を参照する。
+
+### 4.6 実装サーフェス
 
 | 責務 | 実装 |
 |:---|:---|
@@ -89,3 +101,7 @@
 | production composition | `backend/cmd/api/composition_auth.go`, `composition_staff_account.go` |
 
 ---
+
+## 5. Issue 仕様との読み分け
+
+[GitHub #1](https://github.com/MinoruSoga/AnimalEkarte/issues/1) は CLOSED だが、本文の `UserRole` / `users` / `user_clinics` は当初案である。現行の認可契約は本書の `Account`・`Staff`・`staff_clinic_assignments` と permission-group grant、`backend/internal/model/permission.go` / `auth` / `middleware` を参照する。Issue の固定職種ロールを現在の authority mode として再導入しない。

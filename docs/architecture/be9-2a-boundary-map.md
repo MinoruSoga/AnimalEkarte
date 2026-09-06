@@ -6,6 +6,10 @@
 > **本docは BE9-2A 分類と boundary inventory の historical source record**。target設計の現行裁定は[ADR-006](adr/006-backend-domain-package-boundaries.md)。BE9移行は2026-07-24にcode complete（release pending）となり、release gate の作業入口は Linear hub [BRT-4](https://linear.app/baritechllc/issue/BRT-4) と [`todo.md`](../../todo.md)（旧 OPS-13〜17 節は死リンク）。
 > **2026-07-24 final recensus**: 本文のcall-site、fan-in/out、file pathは明示がない限りBE9-2A開始時snapshotであり、現行作業listではない。13 target packageは全て移行済みで、BE9はcode complete / release pending。
 
+## 現行コードへの参照（2026-09-06）
+
+下記の歴史的な「ギャップあり」「tx なし」「ClinicID なし」は 2026-07 の分類時点の観測であり、現在の不具合一覧として使わない。現行の隔離・transaction・owner 境界は [ADR-006 の現行補足](adr/006-backend-domain-package-boundaries.md#現行実装への補足2026-09-06)、[ERD](erd.md)、[cross-domain catalog](cross-domain-orchestration-catalog.md) と各 domain の実装・回帰テストを参照する。`acceptedTopLevelPackages` は `seedlogin` を含む 35 package、domain 集合は 14 のまま（`internal/lintscan/package_boundary_gate_test.go`）。分類 CSV の 761 source row は変更しない。
+
 ## 0. 結論（Success Criteria 対応）
 
 - 全 761 production Go source row（BE9-2A時点の移行元、`_test.go`・`cmd/_archive` 除外）が target package(13) / 現状維持 / 削除 のいずれかに分類され、未分類 0 件。`削除` は 0 件。移行時のfile分割・統合・composition追加により、現行filesystemの物理file数との一致は要求しない。

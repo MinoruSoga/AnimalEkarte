@@ -12,7 +12,6 @@ import (
 func (s *ownerService) List(ctx context.Context, clinicIDs []uint64, page, limit int, search string) ([]model.Owner, int64, error) {
 	owners, total, err := s.repo.FindAll(ctx, clinicIDs, page, limit, search)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list owners", "error", err)
 		return nil, 0, apperrors.Wrap(err, "failed to list owners")
 	}
 	return owners, total, nil
@@ -21,7 +20,6 @@ func (s *ownerService) List(ctx context.Context, clinicIDs []uint64, page, limit
 func (s *ownerService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error) {
 	owner, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get owner", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get owner")
 	}
 	return owner, nil
@@ -30,7 +28,6 @@ func (s *ownerService) GetByID(ctx context.Context, clinicID, id uint64) (*model
 func (s *ownerService) GetByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Owner, error) {
 	owner, err := s.repo.FindByIDForClinics(ctx, clinicIDs, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get owner for clinics", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get owner for clinics")
 	}
 	return owner, nil
@@ -83,7 +80,6 @@ func (s *ownerService) CreateWithPets(ctx context.Context, clinicID uint64, inpu
 	pets := buildOwnerPetModels(input.Pets)
 
 	if err := s.repo.CreateWithPets(ctx, owner, pets); err != nil {
-		slog.ErrorContext(ctx, "failed to create owner with pets", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create owner with pets")
 	}
 
@@ -102,7 +98,6 @@ func (s *ownerService) CreateWithPets(ctx context.Context, clinicID uint64, inpu
 
 func (s *ownerService) Update(ctx context.Context, clinicID, id uint64, input *UpdateOwnerInput) (*model.Owner, error) {
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to find owner", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find owner")
 	}
 
@@ -166,7 +161,6 @@ func (s *ownerService) ensureOwnerEmailUnique(ctx context.Context, clinicID, cur
 	}
 	existing, err := s.repo.FindByEmail(ctx, clinicID, email)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check email uniqueness", "error", err)
 		return apperrors.Wrap(err, "failed to check email uniqueness")
 	}
 	if existing != nil && existing.ID != currentOwnerID {
@@ -182,7 +176,6 @@ func (s *ownerService) ensureOwnerPhoneUnique(ctx context.Context, clinicID, cur
 	}
 	existing, err := s.repo.FindByPhone(ctx, clinicID, phone)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check phone uniqueness", "error", err)
 		return apperrors.Wrap(err, "failed to check phone uniqueness")
 	}
 	if existing != nil && existing.ID != currentOwnerID {
@@ -206,7 +199,6 @@ func (s *ownerService) updateOwnerAndFind(
 }
 
 func (s *ownerService) wrapOwnerUpdateError(ctx context.Context, clinicID, id uint64, err error, logMessage, wrapMessage string) error {
-	slog.ErrorContext(ctx, logMessage, "error", err, "id", id, "clinic_id", clinicID)
 	return apperrors.Wrap(err, wrapMessage)
 }
 
@@ -249,7 +241,6 @@ func (s *ownerService) Delete(ctx context.Context, clinicID, id uint64) error {
 		return nil
 	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to delete owner", "error", err, "id", id, "clinic_id", clinicID)
 		return err
 	}
 	slog.InfoContext(ctx, "owner deleted",
@@ -267,7 +258,6 @@ func (s *ownerService) deleteWithoutPetOwnerGuard(ctx context.Context, clinicID,
 	// FK依存チェック: ペットが紐付いている場合は削除を拒否
 	petCount, err := s.repo.CountPetsByOwnerID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check pet dependencies", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to check pet dependencies")
 	}
 	if petCount > 0 {
@@ -275,7 +265,6 @@ func (s *ownerService) deleteWithoutPetOwnerGuard(ctx context.Context, clinicID,
 	}
 
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to delete owner", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete owner")
 	}
 	slog.InfoContext(ctx, "owner deleted",

@@ -21,7 +21,7 @@ type ownerReportInsuranceResponse struct {
 	CoverageRate int    `json:"coverage_rate"`
 }
 
-type ownerReportPetResponse struct {
+type ownerReportResponse struct {
 	ID              uint64                            `json:"id"`
 	Name            string                            `json:"name"`
 	PetNameKana     string                            `json:"pet_name_kana"`
@@ -44,17 +44,17 @@ type ownerReportPetResponse struct {
 }
 
 type ownerReportPetsResponse struct {
-	Data []ownerReportPetResponse `json:"data"`
+	Data []ownerReportResponse `json:"data"`
 }
 
-func toOwnerReportPetResponse(p *model.Pet) ownerReportPetResponse {
+func toOwnerReportResponse(p *model.Pet) ownerReportResponse {
 	var acquisitionType *string
 	if p.AcquisitionType != nil {
 		value := string(*p.AcquisitionType)
 		acquisitionType = &value
 	}
 
-	response := ownerReportPetResponse{
+	response := ownerReportResponse{
 		ID:              p.ID,
 		Name:            p.Name,
 		PetNameKana:     p.NameKana,
@@ -137,7 +137,7 @@ func (h *Handler) ListOwnerReportPets(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, ownerReportPetsResponse{
-		Data: httpapi.MapSlice(pets, toOwnerReportPetResponse),
+		Data: httpapi.MapSlice(pets, toOwnerReportResponse),
 	})
 }
 
@@ -161,7 +161,7 @@ func (h *Handler) GetPet(c *gin.Context) {
 		httpapi.RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toPetResponse(pet))
+	c.JSON(http.StatusOK, toResponse(pet))
 }
 
 // GetPetFirstVisit godoc
@@ -204,7 +204,7 @@ func (h *Handler) CreatePet(c *gin.Context) {
 		return
 	}
 	c.Header("Location", fmt.Sprintf("/api/v1/pets/%d", pet.ID))
-	c.JSON(http.StatusCreated, toPetResponse(pet))
+	c.JSON(http.StatusCreated, toResponse(pet))
 }
 
 // UpdatePet godoc
@@ -229,7 +229,7 @@ func (h *Handler) UpdatePet(c *gin.Context) {
 		httpapi.RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toPetResponse(pet))
+	c.JSON(http.StatusOK, toResponse(pet))
 }
 
 // DeletePet godoc

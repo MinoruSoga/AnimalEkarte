@@ -235,16 +235,16 @@ func TestDB_ExaminationRepository_LockByIDForUpdateSerializesConcurrentStatusUpd
 		require.NoError(t, competingTx.Exec("SET LOCAL lock_timeout = '200ms'").Error)
 
 		competingCtx := persistence.WithTxValue(ctx, competingTx)
-		_, updateErr := repo.Update(competingCtx, clinicID, exam.ID, map[string]any{
-			"status": model.ExaminationStatusConfirmed,
+		_, updateErr := repo.Update(competingCtx, clinicID, exam.ID, UpdateExaminationInput{
+			Status: ptr(model.ExaminationStatusConfirmed),
 		})
 		require.Error(t, updateErr, "a concurrent status update must wait on the locked exam row")
 		return nil
 	})
 	require.NoError(t, err)
 
-	_, err = repo.Update(ctx, clinicID, exam.ID, map[string]any{
-		"status": model.ExaminationStatusConfirmed,
+	_, err = repo.Update(ctx, clinicID, exam.ID, UpdateExaminationInput{
+		Status: ptr(model.ExaminationStatusConfirmed),
 	})
 	require.NoError(t, err, "the status update must succeed after the lock transaction commits")
 }
@@ -274,16 +274,16 @@ func TestDB_ExaminationRepository_ReplaceItemsLocksParentAgainstConcurrentStatus
 		require.NoError(t, competingTx.Exec("SET LOCAL lock_timeout = '200ms'").Error)
 
 		competingCtx := persistence.WithTxValue(ctx, competingTx)
-		_, updateErr := repo.Update(competingCtx, clinicID, exam.ID, map[string]any{
-			"status": model.ExaminationStatusConfirmed,
+		_, updateErr := repo.Update(competingCtx, clinicID, exam.ID, UpdateExaminationInput{
+			Status: ptr(model.ExaminationStatusConfirmed),
 		})
 		require.Error(t, updateErr, "direct result replacement must keep the parent exam row locked")
 		return nil
 	})
 	require.NoError(t, err)
 
-	_, err = repo.Update(ctx, clinicID, exam.ID, map[string]any{
-		"status": model.ExaminationStatusConfirmed,
+	_, err = repo.Update(ctx, clinicID, exam.ID, UpdateExaminationInput{
+		Status: ptr(model.ExaminationStatusConfirmed),
 	})
 	require.NoError(t, err, "the status update must succeed after result replacement commits")
 }
@@ -305,8 +305,8 @@ func TestDB_ExaminationRepository_ReplaceItemsRejectsConfirmedParentAndPreserves
 	}})
 	require.NoError(t, err)
 
-	_, err = repo.Update(ctx, clinicID, exam.ID, map[string]any{
-		"status": model.ExaminationStatusConfirmed,
+	_, err = repo.Update(ctx, clinicID, exam.ID, UpdateExaminationInput{
+		Status: ptr(model.ExaminationStatusConfirmed),
 	})
 	require.NoError(t, err)
 

@@ -194,13 +194,15 @@ func TestReservationTypeGroupRepository_Update(t *testing.T) {
 	g := makeReservationTypeGroup(t, db, clinicA, "更新前グループ")
 
 	t.Run("正しいクリニックIDで更新できる", func(t *testing.T) {
-		updated, err := repo.Update(ctx, clinicA, g.ID, map[string]any{"name": "更新後グループ"})
+		name := "更新後グループ"
+		updated, err := repo.Update(ctx, clinicA, g.ID, UpdateReservationTypeGroupInput{Name: &name})
 		require.NoError(t, err)
 		assert.Equal(t, "更新後グループ", updated.Name)
 	})
 
 	t.Run("別クリニックIDでは NotFound", func(t *testing.T) {
-		updated, err := repo.Update(ctx, clinicB, g.ID, map[string]any{"name": "不正更新"})
+		name := "不正更新"
+		updated, err := repo.Update(ctx, clinicB, g.ID, UpdateReservationTypeGroupInput{Name: &name})
 		assert.Error(t, err)
 		assert.Nil(t, updated)
 		assert.True(t, apperrors.IsNotFound(err))

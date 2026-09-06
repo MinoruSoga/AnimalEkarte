@@ -20,7 +20,7 @@ type ConsultationRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.Consultation, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Consultation, error)
 	Create(ctx context.Context, consultation *model.Consultation) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Consultation, error)
+	Update(ctx context.Context, clinicID, id uint64, cmd UpdateConsultationInput) (*model.Consultation, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	CountUsageByConsultationID(ctx context.Context, clinicID, consultationID uint64) (int64, error)
@@ -67,11 +67,15 @@ func (r *consultationRepositoryImpl) Create(ctx context.Context, consultation *m
 	return nil
 }
 
-func (r *consultationRepositoryImpl) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Consultation, error) {
-	if err := persistence.UpdateScopedByID(ctx, r.db, &model.Consultation{}, "consultation", clinicID, id, fields); err != nil {
+func (r *consultationRepositoryImpl) Update(ctx context.Context, clinicID, id uint64, cmd UpdateConsultationInput) (*model.Consultation, error) {
+	if err := r.update(ctx, clinicID, id, buildConsultationUpdate(&cmd)); err != nil {
 		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
+}
+
+func (r *consultationRepositoryImpl) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+	return persistence.UpdateScopedByID(ctx, r.db, &model.Consultation{}, "consultation", clinicID, id, fields)
 }
 
 func (r *consultationRepositoryImpl) Delete(ctx context.Context, clinicID, id uint64) error {

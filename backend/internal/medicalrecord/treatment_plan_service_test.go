@@ -25,7 +25,7 @@ type mockTreatmentPlanRepository struct {
 	findByIDFn                func(ctx context.Context, clinicID, id uint64) (*model.TreatmentPlan, error)
 	lockByIDForUpdateFn       func(ctx context.Context, clinicID, id uint64) (*model.TreatmentPlan, error)
 	createFn                  func(ctx context.Context, plan *model.TreatmentPlan) error
-	updateFn                  func(ctx context.Context, clinicID, id uint64, medicalRecordID, hospitalizationID *uint64, fields map[string]any) error
+	updateFn                  func(ctx context.Context, clinicID, id uint64, medicalRecordID, hospitalizationID *uint64, cmd UpdateTreatmentPlanInput) error
 	deleteFn                  func(ctx context.Context, clinicID, id uint64, medicalRecordID, hospitalizationID *uint64) error
 }
 
@@ -56,8 +56,8 @@ func (m *mockTreatmentPlanRepository) Create(ctx context.Context, plan *model.Tr
 	return m.createFn(ctx, plan)
 }
 
-func (m *mockTreatmentPlanRepository) Update(ctx context.Context, clinicID, id uint64, medicalRecordID, hospitalizationID *uint64, fields map[string]any) error {
-	return m.updateFn(ctx, clinicID, id, medicalRecordID, hospitalizationID, fields)
+func (m *mockTreatmentPlanRepository) Update(ctx context.Context, clinicID, id uint64, medicalRecordID, hospitalizationID *uint64, cmd UpdateTreatmentPlanInput) error {
+	return m.updateFn(ctx, clinicID, id, medicalRecordID, hospitalizationID, cmd)
 }
 
 func (m *mockTreatmentPlanRepository) Delete(ctx context.Context, clinicID, id uint64, medicalRecordID, hospitalizationID *uint64) error {
@@ -518,7 +518,7 @@ func TestTreatmentPlanService_Update(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			callCount := 0
 			repo := &mockTreatmentPlanRepository{
-				updateFn: func(_ context.Context, _, _ uint64, _, _ *uint64, _ map[string]any) error {
+				updateFn: func(_ context.Context, _, _ uint64, _, _ *uint64, _ UpdateTreatmentPlanInput) error {
 					return tt.repoUpdateErr
 				},
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.TreatmentPlan, error) {
@@ -552,7 +552,7 @@ func TestTreatmentPlanService_Update(t *testing.T) {
 			findByIDFn: func(_ context.Context, _, id uint64) (*model.TreatmentPlan, error) {
 				return &model.TreatmentPlan{ID: id, MedicalRecordID: &mrOwned, Quantity: 1}, nil
 			},
-			updateFn: func(_ context.Context, _, _ uint64, _, _ *uint64, _ map[string]any) error {
+			updateFn: func(_ context.Context, _, _ uint64, _, _ *uint64, _ UpdateTreatmentPlanInput) error {
 				t.Fatal("update must not run on parent mismatch")
 				return nil
 			},
@@ -568,15 +568,15 @@ func TestTreatmentPlanService_Update(t *testing.T) {
 		price := int64(500)
 		qty := float64(3)
 		clientSub := int64(-1)
-		var captured map[string]any
+		var captured UpdateTreatmentPlanInput
 		repo := &mockTreatmentPlanRepository{
 			findByIDFn: func(_ context.Context, _, id uint64) (*model.TreatmentPlan, error) {
 				return &model.TreatmentPlan{
 					ID: id, UnitPrice: 100, Quantity: 1, DiscountRate: 0, DiscountAmount: 0, Subtotal: 100,
 				}, nil
 			},
-			updateFn: func(_ context.Context, _, _ uint64, _, _ *uint64, fields map[string]any) error {
-				captured = fields
+			updateFn: func(_ context.Context, _, _ uint64, _, _ *uint64, cmd UpdateTreatmentPlanInput) error {
+				captured = cmd
 				return nil
 			},
 		}
@@ -587,7 +587,10 @@ func TestTreatmentPlanService_Update(t *testing.T) {
 			Subtotal:  &clientSub,
 		})
 		assert.NoError(t, err)
-		assert.Equal(t, int64(1500), captured["subtotal"])
+		assert.Nil(t, captured.Subtotal)
+		if assert.NotNil(t, captured.persistSubtotal) {
+			assert.Equal(t, int64(1500), *captured.persistSubtotal)
+		}
 	})
 }
 
@@ -600,7 +603,7 @@ func TestTreatmentPlanService_Update_HospitalizationNestedRejected(t *testing.T)
 			t.Fatal("repo must not be called for hospitalization-nested update")
 			return nil, nil
 		},
-		updateFn: func(_ context.Context, _, _ uint64, _, _ *uint64, _ map[string]any) error {
+		updateFn: func(_ context.Context, _, _ uint64, _, _ *uint64, _ UpdateTreatmentPlanInput) error {
 			t.Fatal("update must not run for hospitalization-nested plan")
 			return nil
 		},

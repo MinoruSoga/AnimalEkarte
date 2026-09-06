@@ -85,7 +85,6 @@ func (s *lstepCsvImportService) createFriendAttributeImport(
 			slog.ErrorContext(ctx, "failed to create failed csv import record", "error", err, "clinic_id", clinicID)
 			return nil, nil
 		}
-		slog.ErrorContext(ctx, "failed to create csv import record", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to create csv import record")
 	}
 	return imp, nil
@@ -119,7 +118,6 @@ func (s *lstepCsvImportService) commitFriendAttributeRows(
 		return updateCsvImportRecordTx(tx, clinicID, imp)
 	}, &sql.TxOptions{Isolation: sql.LevelRepeatableRead})
 	if txErr != nil {
-		slog.ErrorContext(ctx, "failed to commit csv import transaction", "error", txErr, "import_id", imp.ID)
 		s.markImportFailed(ctx, imp)
 		if apperrors.IsInvalidInput(txErr) {
 			return fmt.Errorf("failed to process CSV rows: %w", txErr)

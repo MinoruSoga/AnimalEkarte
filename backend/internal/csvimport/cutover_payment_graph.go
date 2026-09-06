@@ -4,10 +4,12 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"path/filepath"
+	"strings"
 )
 
 func loadCutoverBillingFacts(sourceDir string, spec CutoverTableSpec, table CutoverManifestTable) (map[int64]cutoverBillingFact, error) {
 	billings := make(map[int64]cutoverBillingFact)
+	seenMedicalRecordIDs := make(map[int64]int64)
 	path := filepath.Join(sourceDir, table.File)
 	err := streamCutoverCSV(path, spec, table.SHA256, func(row []string, indexes map[string]int, line int64) error {
 		billingID, err := parsePaymentGraphInt("billings", "id", row[indexes["id"]], line)
@@ -16,6 +18,17 @@ func loadCutoverBillingFacts(sourceDir string, spec CutoverTableSpec, table Cuto
 		}
 		if _, duplicate := billings[billingID]; duplicate {
 			return fmt.Errorf("table billings column id row %d: duplicate billing id", line)
+		}
+		rawMedicalRecordID := strings.TrimSpace(row[indexes["medical_record_id"]])
+		if rawMedicalRecordID != "" {
+			medicalRecordID, err := parsePaymentGraphInt("billings", "medical_record_id", rawMedicalRecordID, line)
+			if err != nil {
+				return err
+			}
+			if firstLine, duplicate := seenMedicalRecordIDs[medicalRecordID]; duplicate {
+				return fmt.Errorf("table billings column medical_record_id row %d: duplicate non-null medical_record_id (also row %d)", line, firstLine)
+			}
+			seenMedicalRecordIDs[medicalRecordID] = line
 		}
 		totalAmount, err := parsePaymentGraphInt("billings", "total_amount", row[indexes["total_amount"]], line)
 		if err != nil {

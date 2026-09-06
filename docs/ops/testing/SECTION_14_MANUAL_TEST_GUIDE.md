@@ -47,4 +47,4 @@ Product account model は `admin/doctor/staff` role enum ではない。
 | clinic staff | explicit account/staff attached to target clinic with approved permission group/capabilities | clinical/accounting/master operations permitted by capabilities |
 | restricted clinic staff | least-privilege permission group | negative authorization checks |
 
-`002_master` は permission groups/rules を含むが、UAT identities を作らない。[UAT setup](UAT-ENV-SETUP.md) と [staff provisioning](../deploy/STAFF_ACCOUNT_PROVISIONING.md) に従う。credential 値を文書・report・chat に書かない。
+CSV `002_master` は permission groups/rules を含むが account を含まない。別 phase `003_login` は non-production の許可環境で合成 account を作るが、上表の専用 UAT identities/capabilities を満たすとは限らない。[UAT setup](UAT-ENV-SETUP.md) と [staff provisioning](../deploy/STAFF_ACCOUNT_PROVISIONING.md) に従う。credential 値を文書・report・chat に書かない。

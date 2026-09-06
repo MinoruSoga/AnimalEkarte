@@ -19,7 +19,7 @@ type mockVitalRepository struct {
 	listByMedicalRecordIDFn func(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.VitalRecord, error)
 	findByIDFn              func(ctx context.Context, clinicID, vitalID uint64) (*model.VitalRecord, error)
 	createFn                func(ctx context.Context, vital *model.VitalRecord) error
-	updateFn                func(ctx context.Context, clinicID, vitalID uint64, fields map[string]any) error
+	updateFn                func(ctx context.Context, clinicID, vitalID uint64, cmd UpdateVitalInput) error
 	deleteFn                func(ctx context.Context, clinicID, vitalID uint64) error
 }
 
@@ -38,8 +38,11 @@ func (m *mockVitalRepository) Create(ctx context.Context, vital *model.VitalReco
 	return m.createFn(ctx, vital)
 }
 
-func (m *mockVitalRepository) Update(ctx context.Context, clinicID, vitalID uint64, fields map[string]any) error {
-	return m.updateFn(ctx, clinicID, vitalID, fields)
+func (m *mockVitalRepository) Update(ctx context.Context, clinicID, vitalID uint64, cmd UpdateVitalInput) error {
+	if m.updateFn != nil {
+		return m.updateFn(ctx, clinicID, vitalID, cmd)
+	}
+	return nil
 }
 
 func (m *mockVitalRepository) Delete(ctx context.Context, clinicID, vitalID uint64) error {
@@ -511,7 +514,7 @@ func TestVitalService_Update(t *testing.T) {
 				findByIDFn: func(_ context.Context, _ uint64, _ uint64) (*model.VitalRecord, error) {
 					return tt.repoVital, tt.findByIDErr
 				},
-				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+				updateFn: func(_ context.Context, _, _ uint64, _ UpdateVitalInput) error {
 					return tt.updateErr
 				},
 			}
@@ -742,7 +745,7 @@ func TestVitalService_Update_AuditLog(t *testing.T) {
 			}
 			return updatedVital, nil
 		},
-		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+		updateFn: func(_ context.Context, _, _ uint64, _ UpdateVitalInput) error {
 			return nil
 		},
 	}
@@ -885,7 +888,7 @@ func TestVitalService_Update_AuditFailureRollsBack(t *testing.T) {
 			}
 			return updatedVital, nil
 		},
-		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+		updateFn: func(_ context.Context, _, _ uint64, _ UpdateVitalInput) error {
 			updateCalled = true
 			return nil
 		},
@@ -1240,7 +1243,7 @@ func TestVitalService_StaffReferenceValidation(t *testing.T) {
 					ID: id, ClinicID: clinicID, PetID: petID, MedicalRecordID: ptrUint64(medicalRecord),
 				}, nil
 			},
-			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			updateFn: func(_ context.Context, _, _ uint64, _ UpdateVitalInput) error {
 				updateCalls++
 				return nil
 			},

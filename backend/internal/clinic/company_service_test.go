@@ -14,15 +14,15 @@ import (
 
 type mockCompanyRepository struct {
 	getFn    func(ctx context.Context) (*model.Company, error)
-	updateFn func(ctx context.Context, fields map[string]any) error
+	updateFn func(ctx context.Context, cmd UpdateCompanyInput) error
 }
 
 func (m *mockCompanyRepository) FindSingleton(ctx context.Context) (*model.Company, error) {
 	return m.getFn(ctx)
 }
 
-func (m *mockCompanyRepository) Update(ctx context.Context, fields map[string]any) error {
-	return m.updateFn(ctx, fields)
+func (m *mockCompanyRepository) Update(ctx context.Context, cmd UpdateCompanyInput) error {
+	return m.updateFn(ctx, cmd)
 }
 
 // ---- Tests ----
@@ -241,7 +241,7 @@ func TestCompanyService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockCompanyRepository{
-				updateFn: func(_ context.Context, _ map[string]any) error {
+				updateFn: func(_ context.Context, _ UpdateCompanyInput) error {
 					return tt.repoErr
 				},
 				getFn: func(_ context.Context) (*model.Company, error) {
@@ -271,7 +271,7 @@ func TestCompanyService_Update_PostUpdateFindSingletonError(t *testing.T) {
 	newName := "更新動物病院"
 	findCalls := 0
 	repo := &mockCompanyRepository{
-		updateFn: func(_ context.Context, _ map[string]any) error {
+		updateFn: func(_ context.Context, _ UpdateCompanyInput) error {
 			return nil
 		},
 		getFn: func(_ context.Context) (*model.Company, error) {

@@ -321,20 +321,23 @@ func TestVaccinationRepository_Update(t *testing.T) {
 
 	t.Run("同一クリニックの更新は反映される", func(t *testing.T) {
 		rec := makeVaccinationRecord(t, db, clinicA, pet.ID, vaccine.ID)
-		got, err := repo.Update(ctx, clinicA, rec.ID, map[string]any{"remarks": "更新後の備考"})
+		remarks := "更新後の備考"
+		got, err := repo.Update(ctx, clinicA, rec.ID, UpdateVaccinationInput{Remarks: &remarks})
 		require.NoError(t, err)
 		assert.Equal(t, "更新後の備考", got.Remarks)
 	})
 
 	t.Run("別クリニックの更新はNotFound", func(t *testing.T) {
 		rec := makeVaccinationRecord(t, db, clinicA, pet.ID, vaccine.ID)
-		_, err := repo.Update(ctx, clinicB, rec.ID, map[string]any{"remarks": "越境更新"})
+		remarks := "越境更新"
+		_, err := repo.Update(ctx, clinicB, rec.ID, UpdateVaccinationInput{Remarks: &remarks})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
 	t.Run("存在しないIDの更新はNotFound", func(t *testing.T) {
-		_, err := repo.Update(ctx, clinicA, 999999, map[string]any{"remarks": "存在しない"})
+		remarks := "存在しない"
+		_, err := repo.Update(ctx, clinicA, 999999, UpdateVaccinationInput{Remarks: &remarks})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})

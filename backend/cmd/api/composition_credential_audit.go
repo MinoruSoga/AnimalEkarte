@@ -116,8 +116,8 @@ func (r authCredentialAuditSubjectResolver) ResolveCredentialAuditSubject(
 		)
 	}
 
-	activeClinicIDs, activeClinics := activeCredentialAuditClinics(clinics)
-	assignedClinicID, err := pickCredentialAuditClinicID(account, staffRecord.ID, assignments, activeClinicIDs, activeClinics)
+	activeClinicIDs, activeClinics := auth.ActiveCredentialAuditClinics(clinics)
+	assignedClinicID, err := auth.PickCredentialAuditClinicID(account, staffRecord.ID, assignments, activeClinicIDs, activeClinics)
 	if err != nil {
 		return auth.CredentialAuditSubject{}, err
 	}
@@ -126,64 +126,4 @@ func (r authCredentialAuditSubjectResolver) ResolveCredentialAuditSubject(
 		ClinicID: assignedClinicID,
 		StaffID:  staffRecord.ID,
 	}, nil
-}
-
-func activeCredentialAuditClinics(clinics []model.Clinic) ([]uint64, map[uint64]struct{}) {
-	activeClinicIDs := make([]uint64, 0, len(clinics))
-	activeClinics := make(map[uint64]struct{}, len(clinics))
-	for i := range clinics {
-		clinic := &clinics[i]
-		if clinic.ID == 0 || !clinic.IsActive {
-			continue
-		}
-		if _, duplicate := activeClinics[clinic.ID]; duplicate {
-			continue
-		}
-		activeClinics[clinic.ID] = struct{}{}
-		activeClinicIDs = append(activeClinicIDs, clinic.ID)
-	}
-	return activeClinicIDs, activeClinics
-}
-
-func pickCredentialAuditClinicID(
-	account *model.Account,
-	staffID uint64,
-	assignments []model.StaffClinicAssignment,
-	activeClinicIDs []uint64,
-	activeClinics map[uint64]struct{},
-) (uint64, error) {
-	var assignedClinicID uint64
-	for i := range assignments {
-		assignment := &assignments[i]
-		if assignment.DeletedAt.Valid {
-			continue
-		}
-		if assignment.StaffID != staffID ||
-			assignment.ClinicID == 0 {
-			return 0, apperrors.WrapInternalServerError(
-				"credential audit clinic assignment is invalid",
-			)
-		}
-		if _, active := activeClinics[assignment.ClinicID]; !active {
-			continue
-		}
-		if assignedClinicID == 0 {
-			assignedClinicID = assignment.ClinicID
-		}
-		if assignment.IsMain {
-			assignedClinicID = assignment.ClinicID
-			break
-		}
-	}
-	if assignedClinicID == 0 &&
-		account.IsSystemAdmin &&
-		len(activeClinicIDs) > 0 {
-		assignedClinicID = activeClinicIDs[0]
-	}
-	if assignedClinicID == 0 {
-		return 0, apperrors.WrapForbidden(
-			"no active credential audit clinic is available",
-		)
-	}
-	return assignedClinicID, nil
 }

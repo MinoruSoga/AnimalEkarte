@@ -24,7 +24,7 @@ type TreatmentPlanRepository interface {
 	LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.TreatmentPlan, error)
 	Create(ctx context.Context, plan *model.TreatmentPlan) error
 	// medicalRecordID / hospitalizationID optionally bind write to URL parent (MRD-03).
-	Update(ctx context.Context, clinicID, id uint64, medicalRecordID, hospitalizationID *uint64, fields map[string]any) error
+	Update(ctx context.Context, clinicID, id uint64, medicalRecordID, hospitalizationID *uint64, cmd UpdateTreatmentPlanInput) error
 	Delete(ctx context.Context, clinicID, id uint64, medicalRecordID, hospitalizationID *uint64) error
 }
 
@@ -131,7 +131,11 @@ func (r *treatmentPlanRepository) Create(ctx context.Context, plan *model.Treatm
 	return nil
 }
 
-func (r *treatmentPlanRepository) Update(ctx context.Context, clinicID, id uint64, medicalRecordID, hospitalizationID *uint64, fields map[string]any) error {
+func (r *treatmentPlanRepository) Update(ctx context.Context, clinicID, id uint64, medicalRecordID, hospitalizationID *uint64, cmd UpdateTreatmentPlanInput) error {
+	return r.update(ctx, clinicID, id, medicalRecordID, hospitalizationID, buildTreatmentPlanUpdate(&cmd))
+}
+
+func (r *treatmentPlanRepository) update(ctx context.Context, clinicID, id uint64, medicalRecordID, hospitalizationID *uint64, fields map[string]any) error {
 	q := r.clinicScopeQuery(ctx, clinicID).
 		Model(&model.TreatmentPlan{}).
 		Where("treatment_plans.id = ?", id)

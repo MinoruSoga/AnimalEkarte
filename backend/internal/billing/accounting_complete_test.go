@@ -185,10 +185,10 @@ func TestAccountingService_CompleteAccounting_OpenPeriodAtomicSuccess(t *testing
 			created = b
 			return nil
 		},
-		updateFieldsFn: func(_ context.Context, _, id uint64, fields map[string]any) (*model.Billing, error) {
+		updateFieldsFn: func(_ context.Context, _, id uint64, cmd AccountingUpdate) (*model.Billing, error) {
 			b := &model.Billing{ID: id, ClinicID: 1, Status: model.BillingStatusCompleted, TotalAmount: 1100, Subtotal: 1000, TaxTotal: 100}
-			if v, ok := fields["total_amount"].(int64); ok {
-				b.TotalAmount = v
+			if cmd.TotalAmount != nil {
+				b.TotalAmount = *cmd.TotalAmount
 			}
 			return b, nil
 		},
@@ -338,7 +338,7 @@ func TestAccountingService_CompleteAccounting_AuditFailure_FullRollback(t *testi
 			b.ClinicID = clinicID
 			return nil
 		},
-		updateFieldsFn: func(_ context.Context, _, id uint64, _ map[string]any) (*model.Billing, error) {
+		updateFieldsFn: func(_ context.Context, _, id uint64, _ AccountingUpdate) (*model.Billing, error) {
 			return &model.Billing{ID: id, ClinicID: 1, Status: model.BillingStatusCompleted, TotalAmount: 1100}, nil
 		},
 		savePaymentFn: func(_ context.Context, _ *model.Payment) error {
@@ -564,7 +564,7 @@ func TestAccountingService_CompleteAccounting_ManualOtherSetsCreatedBy(t *testin
 			b.ClinicID = clinicID
 			return nil
 		},
-		updateFieldsFn: func(_ context.Context, _, id uint64, _ map[string]any) (*model.Billing, error) {
+		updateFieldsFn: func(_ context.Context, _, id uint64, _ AccountingUpdate) (*model.Billing, error) {
 			return &model.Billing{ID: id, ClinicID: 1, Status: model.BillingStatusCompleted, TotalAmount: 1100, Subtotal: 1000, TaxTotal: 100}, nil
 		},
 		savePaymentFn:       func(_ context.Context, _ *model.Payment) error { return nil },

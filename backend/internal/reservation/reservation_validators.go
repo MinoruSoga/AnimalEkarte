@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"time"
 
 	holiday "github.com/holiday-jp/holiday_jp-go"
@@ -145,7 +144,6 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 		result = created
 		return nil
 	}); err != nil {
-		slog.ErrorContext(ctx, "failed to create line reservation", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create line reservation")
 	}
 	return result, nil
@@ -161,7 +159,6 @@ func (v *reservationValidators) validateReservationMasterOwnership(ctx context.C
 	}
 	reservationType, err := v.typeRepo.FindByID(ctx, input.ClinicID, input.ReservationTypeID)
 	if err != nil {
-		slog.ErrorContext(ctx, "reservation type not found or belongs to different clinic", "error", err)
 		return nil, apperrors.Wrap(err, "failed to verify reservation type ownership")
 	}
 	if !reservationType.IsActive || !reservationType.ReservationVisible || reservationType.IsInternal {
@@ -173,7 +170,6 @@ func (v *reservationValidators) validateReservationMasterOwnership(ctx context.C
 	if v.trimmingCourseRepo != nil && input.TrimmingCourseID != nil {
 		course, err := v.trimmingCourseRepo.FindByID(ctx, input.ClinicID, *input.TrimmingCourseID)
 		if err != nil {
-			slog.ErrorContext(ctx, "trimming course not found or belongs to different clinic", "error", err)
 			return nil, apperrors.Wrap(err, "failed to verify trimming course ownership")
 		}
 		if !course.IsActive {
@@ -187,7 +183,6 @@ func (v *reservationValidators) validateReservationMasterOwnership(ctx context.C
 		for _, optionID := range input.TrimmingOptionIDs {
 			option, err := v.trimmingOptionRepo.FindByID(ctx, input.ClinicID, optionID)
 			if err != nil {
-				slog.ErrorContext(ctx, "trimming option not found or belongs to different clinic", "error", err)
 				return nil, apperrors.Wrap(err, "failed to verify trimming option ownership")
 			}
 			if !option.IsActive {
@@ -402,7 +397,6 @@ func ToDateTime(date time.Time, hhmm string) (time.Time, error) {
 func generateConfirmationNumber(ctx context.Context, repo ReservationRepository, clinicID uint64, date time.Time) (string, error) {
 	count, err := repo.CountByDateAndSource(ctx, clinicID, date, model.ReservationSourceLine)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to count reservations by date and source", "error", err)
 		return "", apperrors.Wrap(err, "failed to count reservations by date and source")
 	}
 	seq := int(count) + 1

@@ -6,6 +6,7 @@
 
 ## 前提データ
 
+- 承認済みの合成テスト用データと、対象医院に必要な会計権限を持つ session を使用する。共有環境の書込みは operator 承認後のみ。実施日・対象 commit・結果・cleanup を記録する
 - 動物病院クリニックがログイン済み
 - テスト用ペット・飼主が登録済み
 - カルテ → 会計作成済み (status: waiting)
@@ -148,7 +149,7 @@
 | payments[0] の内容で表示される | method, billing_amount が正しく表示 |
 | paymentSplits は undefined | FE で payment フォールバック表示 |
 | 再保存時 (単一支払い) | backward compat: 1行 split が自動生成される |
-| 月次レポートに含まれる | payment_splits JOIN で集計される (seed backfill 済み) |
+| 月次レポートの支払集計 | `payment_splits` JOIN が前提。split 無しの既存会計は支払集計に含まれると保証せず、不足を記録する（現行 master seed は clinical payment を backfill しない） |
 
 ---
 

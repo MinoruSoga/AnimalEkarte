@@ -24,9 +24,9 @@ func TestStaffHandlerCompiles(t *testing.T) {
 	_ = t
 }
 
-// ---- mock StaffService ----
+// ---- mock Service ----
 
-type mockStaffService struct {
+type mockService struct {
 	listFn                        func(ctx context.Context, clinicID uint64, page, limit int) ([]model.Staff, int64, error)
 	getByIDFn                     func(ctx context.Context, id uint64) (*model.Staff, error)
 	getByIDInClinicFn             func(ctx context.Context, clinicID, id uint64) (*model.Staff, error)
@@ -47,21 +47,21 @@ type mockStaffService struct {
 	verifyClinicMembershipFn      func(ctx context.Context, staffID, clinicID uint64) error
 }
 
-func (m *mockStaffService) List(ctx context.Context, clinicID uint64, page, limit int) ([]model.Staff, int64, error) {
+func (m *mockService) List(ctx context.Context, clinicID uint64, page, limit int) ([]model.Staff, int64, error) {
 	if m.listFn != nil {
 		return m.listFn(ctx, clinicID, page, limit)
 	}
 	return nil, 0, nil
 }
 
-func (m *mockStaffService) GetByID(ctx context.Context, id uint64) (*model.Staff, error) {
+func (m *mockService) GetByID(ctx context.Context, id uint64) (*model.Staff, error) {
 	if m.getByIDFn != nil {
 		return m.getByIDFn(ctx, id)
 	}
 	return nil, nil
 }
 
-func (m *mockStaffService) GetByIDInClinic(
+func (m *mockService) GetByIDInClinic(
 	ctx context.Context,
 	clinicID, id uint64,
 ) (*model.Staff, error) {
@@ -74,77 +74,77 @@ func (m *mockStaffService) GetByIDInClinic(
 	return nil, nil
 }
 
-func (m *mockStaffService) FindByAccountID(ctx context.Context, accountID uint64) (*model.Staff, error) {
+func (m *mockService) FindByAccountID(ctx context.Context, accountID uint64) (*model.Staff, error) {
 	if m.findByAccountIDFn != nil {
 		return m.findByAccountIDFn(ctx, accountID)
 	}
 	return nil, nil
 }
 
-func (m *mockStaffService) Create(ctx context.Context, input *staffdomain.CreateStaffInput) (*model.Staff, error) {
+func (m *mockService) Create(ctx context.Context, input *staffdomain.CreateStaffInput) (*model.Staff, error) {
 	if m.createFn != nil {
 		return m.createFn(ctx, input)
 	}
 	return nil, nil
 }
 
-func (m *mockStaffService) CreateWithAccount(ctx context.Context, input *staffdomain.CreateStaffWithAccountInput) (*model.Staff, error) {
+func (m *mockService) CreateWithAccount(ctx context.Context, input *staffdomain.CreateStaffWithAccountInput) (*model.Staff, error) {
 	if m.createWithAccountFn != nil {
 		return m.createWithAccountFn(ctx, input)
 	}
 	return nil, nil
 }
 
-func (m *mockStaffService) UpdatePassword(ctx context.Context, accountID uint64, newPassword string) error {
+func (m *mockService) UpdatePassword(ctx context.Context, accountID uint64, newPassword string) error {
 	if m.updatePasswordFn != nil {
 		return m.updatePasswordFn(ctx, accountID, newPassword)
 	}
 	return nil
 }
 
-func (m *mockStaffService) SetClinicAssignments(ctx context.Context, input *staffdomain.SetClinicAssignmentsInput) error {
+func (m *mockService) SetClinicAssignments(ctx context.Context, input *staffdomain.SetClinicAssignmentsInput) error {
 	if m.setClinicAssignmentsFn != nil {
 		return m.setClinicAssignmentsFn(ctx, input)
 	}
 	return nil
 }
 
-func (m *mockStaffService) Update(ctx context.Context, clinicID, id uint64, input *staffdomain.UpdateStaffInput) (*model.Staff, error) {
+func (m *mockService) Update(ctx context.Context, clinicID, id uint64, input *staffdomain.UpdateStaffInput) (*model.Staff, error) {
 	if m.updateFn != nil {
 		return m.updateFn(ctx, clinicID, id, input)
 	}
 	return nil, nil
 }
 
-func (m *mockStaffService) Delete(ctx context.Context, clinicID, id uint64, _ bool) error {
+func (m *mockService) Delete(ctx context.Context, clinicID, id uint64, _ bool) error {
 	if m.deleteFn != nil {
 		return m.deleteFn(ctx, clinicID, id)
 	}
 	return nil
 }
 
-func (m *mockStaffService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+func (m *mockService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	if m.reorderFn != nil {
 		return m.reorderFn(ctx, clinicID, ids)
 	}
 	return nil
 }
 
-func (m *mockStaffService) GetPermissionGroupIDs(ctx context.Context, clinicID, staffID uint64) ([]uint64, error) {
+func (m *mockService) GetPermissionGroupIDs(ctx context.Context, clinicID, staffID uint64) ([]uint64, error) {
 	if m.getPermissionGroupIDsFn != nil {
 		return m.getPermissionGroupIDsFn(ctx, clinicID, staffID)
 	}
 	return nil, nil
 }
 
-func (m *mockStaffService) SetPermissionGroupIDs(ctx context.Context, _, staffID uint64, groupIDs []uint64) error {
+func (m *mockService) SetPermissionGroupIDs(ctx context.Context, _, staffID uint64, groupIDs []uint64) error {
 	if m.setPermissionGroupIDsFn != nil {
 		return m.setPermissionGroupIDsFn(ctx, staffID, groupIDs)
 	}
 	return nil
 }
 
-func (m *mockStaffService) GetExcludedReservationTypeIDs(
+func (m *mockService) GetExcludedReservationTypeIDs(
 	ctx context.Context,
 	clinicID, staffID uint64,
 ) ([]uint64, error) {
@@ -154,28 +154,28 @@ func (m *mockStaffService) GetExcludedReservationTypeIDs(
 	return nil, nil
 }
 
-func (m *mockStaffService) SetExcludedReservationTypeIDs(ctx context.Context, _, staffID uint64, typeIDs []uint64) error {
+func (m *mockService) SetExcludedReservationTypeIDs(ctx context.Context, _, staffID uint64, typeIDs []uint64) error {
 	if m.setExcludedReservationTypesFn != nil {
 		return m.setExcludedReservationTypesFn(ctx, staffID, typeIDs)
 	}
 	return nil
 }
 
-func (m *mockStaffService) GetCapableReservationTypeIDs(ctx context.Context, clinicID, staffID uint64) ([]uint64, error) {
+func (m *mockService) GetCapableReservationTypeIDs(ctx context.Context, clinicID, staffID uint64) ([]uint64, error) {
 	if m.getCapableReservationTypesFn != nil {
 		return m.getCapableReservationTypesFn(ctx, clinicID, staffID)
 	}
 	return nil, nil
 }
 
-func (m *mockStaffService) SetCapableReservationTypeIDs(ctx context.Context, clinicID, staffID uint64, typeIDs []uint64) error {
+func (m *mockService) SetCapableReservationTypeIDs(ctx context.Context, clinicID, staffID uint64, typeIDs []uint64) error {
 	if m.setCapableReservationTypesFn != nil {
 		return m.setCapableReservationTypesFn(ctx, clinicID, staffID, typeIDs)
 	}
 	return nil
 }
 
-func (m *mockStaffService) VerifyClinicMembership(ctx context.Context, staffID, clinicID uint64) error {
+func (m *mockService) VerifyClinicMembership(ctx context.Context, staffID, clinicID uint64) error {
 	if m.verifyClinicMembershipFn != nil {
 		return m.verifyClinicMembershipFn(ctx, staffID, clinicID)
 	}
@@ -186,7 +186,7 @@ func (m *mockStaffService) VerifyClinicMembership(ctx context.Context, staffID, 
 
 // ---- test helper ----
 
-func newHandlerWithStaffSvc(staffSvc staffdomain.StaffService) *staffdomain.Handler {
+func newHandlerWithStaffSvc(staffSvc staffdomain.Service) *staffdomain.Handler {
 	return staffdomain.NewHandler(
 		staffSvc,
 		&mockStaffClinicAssignmentService{},
@@ -205,14 +205,14 @@ func TestListStaffs_ReturnsOK(t *testing.T) {
 	tests := []struct {
 		name       string
 		setupCtx   func(c *gin.Context)
-		svc        *mockStaffService
+		svc        *mockService
 		wantStatus int
 		wantBody   string
 	}{
 		{
 			name:     "returns 200 with staff list",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
-			svc: &mockStaffService{
+			svc: &mockService{
 				listFn: func(_ context.Context, clinicID uint64, _, _ int) ([]model.Staff, int64, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					return []model.Staff{{ID: 10, Name: "田中太郎", StaffType: model.StaffTypeDoctor}}, 1, nil
@@ -224,7 +224,7 @@ func TestListStaffs_ReturnsOK(t *testing.T) {
 		{
 			name:     "returns 200 with empty list when no staff",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
-			svc: &mockStaffService{
+			svc: &mockService{
 				listFn: func(_ context.Context, _ uint64, _, _ int) ([]model.Staff, int64, error) {
 					return []model.Staff{}, 0, nil
 				},
@@ -235,13 +235,13 @@ func TestListStaffs_ReturnsOK(t *testing.T) {
 		{
 			name:       "returns 401 when clinic_id is missing",
 			setupCtx:   func(_ *gin.Context) {},
-			svc:        &mockStaffService{},
+			svc:        &mockService{},
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
 			name:     "returns 500 on service error",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
-			svc: &mockStaffService{
+			svc: &mockService{
 				listFn: func(_ context.Context, _ uint64, _, _ int) ([]model.Staff, int64, error) {
 					return nil, 0, fmt.Errorf("db error")
 				},
@@ -277,7 +277,7 @@ func TestCreateStaff_Valid_Returns201(t *testing.T) {
 		name       string
 		body       any
 		setupCtx   func(c *gin.Context)
-		svc        *mockStaffService
+		svc        *mockService
 		wantStatus int
 		wantBody   string
 	}{
@@ -288,7 +288,7 @@ func TestCreateStaff_Valid_Returns201(t *testing.T) {
 				"staff_type": "nurse",
 			},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
-			svc: &mockStaffService{
+			svc: &mockService{
 				createFn: func(_ context.Context, input *staffdomain.CreateStaffInput) (*model.Staff, error) {
 					assert.Equal(t, "山田花子", input.Name)
 					assert.Equal(t, uint64(1), input.ClinicID)
@@ -305,28 +305,28 @@ func TestCreateStaff_Valid_Returns201(t *testing.T) {
 			name:       "returns 400 when name is missing",
 			body:       map[string]any{"staff_type": "doctor"},
 			setupCtx:   func(c *gin.Context) { setClinicID(c) },
-			svc:        &mockStaffService{},
+			svc:        &mockService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:       "returns 401 when clinic_id is missing",
 			body:       map[string]any{"name": "テスト"},
 			setupCtx:   func(_ *gin.Context) {},
-			svc:        &mockStaffService{},
+			svc:        &mockService{},
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
 			name:       "returns 400 for invalid JSON",
 			body:       "not-json",
 			setupCtx:   func(c *gin.Context) { setClinicID(c) },
-			svc:        &mockStaffService{},
+			svc:        &mockService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:     "returns 500 on service error",
 			body:     map[string]any{"name": "エラースタッフ"},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
-			svc: &mockStaffService{
+			svc: &mockService{
 				createFn: func(_ context.Context, _ *staffdomain.CreateStaffInput) (*model.Staff, error) {
 					return nil, fmt.Errorf("db failure")
 				},
@@ -359,7 +359,7 @@ func TestCreateStaff_Valid_Returns201(t *testing.T) {
 
 // ---- DeleteStaff ----
 
-func newDeleteStaffRouter(staffSvc staffdomain.StaffService) *gin.Engine {
+func newDeleteStaffRouter(staffSvc staffdomain.Service) *gin.Engine {
 	r := gin.New()
 	h := newHandlerWithStaffSvc(staffSvc)
 	r.DELETE("/staffs/:id", func(c *gin.Context) {
@@ -368,7 +368,7 @@ func newDeleteStaffRouter(staffSvc staffdomain.StaffService) *gin.Engine {
 	return r
 }
 
-func newDeleteStaffRouterWithActor(staffSvc staffdomain.StaffService) *gin.Engine {
+func newDeleteStaffRouterWithActor(staffSvc staffdomain.Service) *gin.Engine {
 	r := gin.New()
 	h := newHandlerWithStaffSvc(staffSvc)
 	r.DELETE("/staffs/:id", func(c *gin.Context) {
@@ -384,13 +384,13 @@ func TestDeleteStaff_NotFound_Returns404(t *testing.T) {
 	tests := []struct {
 		name       string
 		paramID    string
-		svc        *mockStaffService
+		svc        *mockService
 		wantStatus int
 	}{
 		{
 			name:    "deletes staff successfully returns 204",
 			paramID: "1",
-			svc: &mockStaffService{
+			svc: &mockService{
 				deleteFn: func(_ context.Context, clinicID, id uint64) error {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(1), id)
@@ -402,7 +402,7 @@ func TestDeleteStaff_NotFound_Returns404(t *testing.T) {
 		{
 			name:    "returns 404 when staff not found",
 			paramID: "999",
-			svc: &mockStaffService{
+			svc: &mockService{
 				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return apperrors.WrapNotFound("staff", "999")
 				},
@@ -412,7 +412,7 @@ func TestDeleteStaff_NotFound_Returns404(t *testing.T) {
 		{
 			name:    "returns 409 when staff is in use",
 			paramID: "2",
-			svc: &mockStaffService{
+			svc: &mockService{
 				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return apperrors.WrapConflict("このスタッフはシフト・予約データで使用中のため削除できません")
 				},
@@ -422,7 +422,7 @@ func TestDeleteStaff_NotFound_Returns404(t *testing.T) {
 		{
 			name:       "returns 400 for non-numeric id",
 			paramID:    "abc",
-			svc:        &mockStaffService{},
+			svc:        &mockService{},
 			wantStatus: http.StatusBadRequest,
 		},
 	}
@@ -438,7 +438,7 @@ func TestDeleteStaff_NotFound_Returns404(t *testing.T) {
 	}
 
 	t.Run("returns 401 when clinic_id is missing", func(t *testing.T) {
-		h := newHandlerWithStaffSvc(&mockStaffService{})
+		h := newHandlerWithStaffSvc(&mockService{})
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
 		c.Request = httptest.NewRequest(http.MethodDelete, "/", http.NoBody)
@@ -448,7 +448,7 @@ func TestDeleteStaff_NotFound_Returns404(t *testing.T) {
 	})
 
 	t.Run("returns 400 when deleting current staff", func(t *testing.T) {
-		router := newDeleteStaffRouterWithActor(&mockStaffService{})
+		router := newDeleteStaffRouterWithActor(&mockService{})
 		w := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodDelete, "/staffs/1", http.NoBody)
 		router.ServeHTTP(w, req)
@@ -466,7 +466,7 @@ func TestUpdateStaff(t *testing.T) {
 		paramID    string
 		body       any
 		setupCtx   func(c *gin.Context)
-		svc        *mockStaffService
+		svc        *mockService
 		wantStatus int
 	}{
 		{
@@ -474,7 +474,7 @@ func TestUpdateStaff(t *testing.T) {
 			paramID:  "5",
 			body:     map[string]any{"name": "更新スタッフ"},
 			setupCtx: setStaffEditorContext,
-			svc: &mockStaffService{
+			svc: &mockService{
 				updateFn: func(_ context.Context, clinicID, id uint64, input *staffdomain.UpdateStaffInput) (*model.Staff, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(5), id)
@@ -492,7 +492,7 @@ func TestUpdateStaff(t *testing.T) {
 			paramID:    "5",
 			body:       map[string]any{"name": "テスト"},
 			setupCtx:   func(_ *gin.Context) {},
-			svc:        &mockStaffService{},
+			svc:        &mockService{},
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
@@ -500,7 +500,7 @@ func TestUpdateStaff(t *testing.T) {
 			paramID:  "999",
 			body:     map[string]any{"name": "テスト"},
 			setupCtx: setStaffEditorContext,
-			svc: &mockStaffService{
+			svc: &mockService{
 				updateFn: func(_ context.Context, _, _ uint64, _ *staffdomain.UpdateStaffInput) (*model.Staff, error) {
 					return nil, apperrors.WrapNotFound("staff", "999")
 				},
@@ -515,7 +515,7 @@ func TestUpdateStaff(t *testing.T) {
 				setClinicID(c)
 				c.Set("clinic_ids", []uint64{1})
 			},
-			svc:        &mockStaffService{},
+			svc:        &mockService{},
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
@@ -526,7 +526,7 @@ func TestUpdateStaff(t *testing.T) {
 				setClinicID(c)
 				c.Set("is_system_admin", false)
 			},
-			svc:        &mockStaffService{},
+			svc:        &mockService{},
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
@@ -538,7 +538,7 @@ func TestUpdateStaff(t *testing.T) {
 				c.Set("is_system_admin", true)
 				c.Set("clinic_ids", []uint64{1, 2})
 			},
-			svc: &mockStaffService{
+			svc: &mockService{
 				updateFn: func(_ context.Context, _, _ uint64, input *staffdomain.UpdateStaffInput) (*model.Staff, error) {
 					assert.True(t, input.IsSystemAdmin)
 					assert.Equal(t, []uint64{1, 2}, input.AuthorizedClinicIDs)
@@ -552,7 +552,7 @@ func TestUpdateStaff(t *testing.T) {
 			paramID:    "abc",
 			body:       map[string]any{"name": "テスト"},
 			setupCtx:   func(c *gin.Context) { setClinicID(c) },
-			svc:        &mockStaffService{},
+			svc:        &mockService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
@@ -560,7 +560,7 @@ func TestUpdateStaff(t *testing.T) {
 			paramID:    "5",
 			body:       "not-json",
 			setupCtx:   func(c *gin.Context) { setClinicID(c) },
-			svc:        &mockStaffService{},
+			svc:        &mockService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
@@ -568,7 +568,7 @@ func TestUpdateStaff(t *testing.T) {
 			paramID:  "5",
 			body:     map[string]any{"name": "エラースタッフ"},
 			setupCtx: setStaffEditorContext,
-			svc: &mockStaffService{
+			svc: &mockService{
 				updateFn: func(_ context.Context, _, _ uint64, _ *staffdomain.UpdateStaffInput) (*model.Staff, error) {
 					return nil, fmt.Errorf("db failure")
 				},
@@ -606,14 +606,14 @@ func TestReorderStaffs(t *testing.T) {
 		name       string
 		body       any
 		setupCtx   func(c *gin.Context)
-		svc        *mockStaffService
+		svc        *mockService
 		wantStatus int
 	}{
 		{
 			name:     "reorders successfully and returns 204",
 			body:     map[string]any{"ids": []uint64{3, 1, 2}},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
-			svc: &mockStaffService{
+			svc: &mockService{
 				reorderFn: func(_ context.Context, clinicID uint64, ids []uint64) error {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, []uint64{3, 1, 2}, ids)
@@ -626,28 +626,28 @@ func TestReorderStaffs(t *testing.T) {
 			name:       "returns 401 when clinic_id is missing",
 			body:       map[string]any{"ids": []uint64{1}},
 			setupCtx:   func(_ *gin.Context) {},
-			svc:        &mockStaffService{},
+			svc:        &mockService{},
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
 			name:       "returns 400 when ids is empty",
 			body:       map[string]any{"ids": []uint64{}},
 			setupCtx:   func(c *gin.Context) { setClinicID(c) },
-			svc:        &mockStaffService{},
+			svc:        &mockService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:       "returns 400 for invalid JSON body",
 			body:       "not-json",
 			setupCtx:   func(c *gin.Context) { setClinicID(c) },
-			svc:        &mockStaffService{},
+			svc:        &mockService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:     "returns 500 on service error",
 			body:     map[string]any{"ids": []uint64{1, 2}},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
-			svc: &mockStaffService{
+			svc: &mockService{
 				reorderFn: func(_ context.Context, _ uint64, _ []uint64) error {
 					return fmt.Errorf("db failure")
 				},

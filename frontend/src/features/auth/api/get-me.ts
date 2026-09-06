@@ -1,4 +1,3 @@
-import Axios from "axios";
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { ME_QUERY_KEY } from "@/lib/query-keys";
@@ -11,12 +10,17 @@ async function getMe(): Promise<AuthUser> {
   return mapMeToAuthUser(data);
 }
 
+/** Shared so AuthProvider hydrate and tests pin the same cache policy. */
+export const ME_QUERY_CACHE = {
+  staleTime: QUERY_STALE_TIMES.SESSION,
+  refetchOnWindowFocus: false as const,
+  refetchInterval: false as const,
+};
+
 /**
- * /me を定期ポーリングして認証ユーザー情報を最新に保つ。
- * - staleTime は QUERY_STALE_TIMES.SESSION（別セッションからの権限変更を素早く反映）
- * - refetchInterval: 30秒（バックグラウンドでは停止）
- * - refetchOnWindowFocus: true（タブアクティブ時に即座に再取得）
- * - 401 時はポーリング停止（ログインページへの無限リダイレクト防止）
+ * /me は起動・ログイン・refreshToken の結果を ME_QUERY_KEY へ載せる。
+ * 10s stale + focus 再取得 + 30s poll は STG でウォーターフォールを作るため止める。
+ * 権限変更の反映は refreshPermissions / invalidate(ME_QUERY_KEY)。パスワード変更は JWT epoch。
  *
  * @param enabled - 認証済みの場合のみ true を渡す（デフォルト: true）
  */
@@ -25,18 +29,9 @@ export function useGetMe(enabled = true) {
     queryKey: ME_QUERY_KEY,
     queryFn: getMe,
     enabled,
-    staleTime: QUERY_STALE_TIMES.SESSION,
-    refetchInterval: (query) => {
-      if (
-        query.state.error !== null &&
-        Axios.isAxiosError(query.state.error) &&
-        query.state.error.response?.status === 401
-      ) {
-        return false;
-      }
-      return 30 * 1000;
-    },
-    refetchOnWindowFocus: true,
+    staleTime: ME_QUERY_CACHE.staleTime,
+    refetchInterval: ME_QUERY_CACHE.refetchInterval,
+    refetchOnWindowFocus: ME_QUERY_CACHE.refetchOnWindowFocus,
     refetchIntervalInBackground: false,
   });
 }

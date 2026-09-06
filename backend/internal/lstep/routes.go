@@ -26,7 +26,7 @@ type PermissionAnyMiddleware func(...PermissionRequirement) gin.HandlerFunc
 // Handler composes this slice's per-entity handlers and registers their routes under a
 // single, package-unique RegisterRoutes entry point（openapi_route_drift_test.go 規約）。
 type Handler struct {
-	lstepSettings        *LstepSettingsHandler
+	lstepSettings        *SettingsHandler
 	lineSend             *LineSendHandler
 	lineLink             *LineLinkHandler
 	lineCustomer         *LineCustomerHandler
@@ -71,7 +71,7 @@ type OwnerLineLinker interface {
 
 // NewHandler は lstep domain の routing composition を構築する。
 func NewHandler(
-	lstepSettings *LstepSettingsHandler,
+	lstepSettings *SettingsHandler,
 	lineSend *LineSendHandler,
 	lineLink *LineLinkHandler,
 	lineCustomer *LineCustomerHandler,

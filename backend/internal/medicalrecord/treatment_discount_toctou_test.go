@@ -238,7 +238,7 @@ func TestTreatmentService_Update_DiscountTOCTOU_LockedDiffWithoutPermission(t *t
 				ItemType: model.TreatmentItemTypeConsultation, Status: model.TreatmentStatusPending,
 			}, nil
 		},
-		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+		updateFn: func(_ context.Context, _, _ uint64, _ UpdateTreatmentInput) error {
 			t.Fatal("Update must not run when discount recheck forbids the write")
 			return nil
 		},

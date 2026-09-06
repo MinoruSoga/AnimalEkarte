@@ -86,7 +86,6 @@ func NewVitalServiceWithRelationValidation(
 func (s *vitalService) List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.VitalRecord, error) {
 	items, err := s.repo.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list vital records", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list vital records")
 	}
 	return items, nil
@@ -171,7 +170,6 @@ func (s *vitalService) Update(ctx context.Context, clinicID, medicalRecordID, vi
 	// 所属確認: このvitalIDがclinicID・medicalRecordIDに属しているか検証
 	existing, err := s.repo.FindByID(ctx, clinicID, vitalID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get vital record", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get vital record")
 	}
 	if existing == nil || existing.MedicalRecordID == nil || *existing.MedicalRecordID != medicalRecordID {
@@ -208,7 +206,6 @@ func (s *vitalService) lockDraftParent(
 	}
 	parent, err := s.medicalRecordRepo.LockByIDForUpdate(ctx, clinicID, medicalRecordID)
 	if err != nil {
-		slog.ErrorContext(ctx, findErrMsg, "error", err)
 		return nil, apperrors.Wrap(err, findErrMsg)
 	}
 	if parent == nil ||
@@ -251,7 +248,6 @@ func (s *vitalService) Delete(ctx context.Context, clinicID, medicalRecordID, vi
 		// pre-delete 値は delete 前に確定し、同一 ambient tx で fail-closed audit に渡す。
 		oldValue := extractVitalImportantFields(existing)
 		if err := s.repo.Delete(txCtx, clinicID, vitalID); err != nil {
-			slog.ErrorContext(txCtx, "failed to delete vital record", "error", err, "clinic_id", clinicID, "vital_id", vitalID)
 			return apperrors.Wrap(err, "failed to delete vital record")
 		}
 		// BUG-015: vital delete audit は ambient tx 参加の LogEntryTx で fail-closed。

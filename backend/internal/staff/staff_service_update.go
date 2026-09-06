@@ -51,7 +51,7 @@ func (s *staffService) applyStaffUpdateInTx(
 		}
 	}
 	if hasProfileUpdate {
-		if err := s.repo.Update(txCtx, writeClinicID, id, buildStaffUpdate(input)); err != nil {
+		if err := s.repo.Update(txCtx, writeClinicID, id, *input); err != nil {
 			return nil, apperrors.Wrap(err, "failed to update staff")
 		}
 	}

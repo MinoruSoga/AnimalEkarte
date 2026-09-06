@@ -82,6 +82,7 @@ func TestRegisterBaseRoutesOwnsNonDomainHTTPRoutes(t *testing.T) {
 		routes[route.Method+" "+route.Path] = struct{}{}
 	}
 	assert.Contains(t, routes, http.MethodGet+" /health")
+	assert.Contains(t, routes, http.MethodGet+" /api/v1/health")
 	assert.Contains(t, routes, http.MethodGet+" /uploads/*filepath")
 	assert.Contains(t, routes, http.MethodPost+" /_internal/scheduled-jobs/:jobAction")
 }

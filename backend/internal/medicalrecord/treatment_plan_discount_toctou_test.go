@@ -180,7 +180,7 @@ func TestTreatmentPlanService_Update_DiscountTOCTOU_LockedDiffWithoutPermission(
 				UnitPrice: 100, Quantity: 1, DiscountAmount: 10,
 			}, nil
 		},
-		updateFn: func(_ context.Context, _, _ uint64, _, _ *uint64, _ map[string]any) error {
+		updateFn: func(_ context.Context, _, _ uint64, _, _ *uint64, _ UpdateTreatmentPlanInput) error {
 			t.Fatal("Update must not run when discount recheck forbids the write")
 			return nil
 		},

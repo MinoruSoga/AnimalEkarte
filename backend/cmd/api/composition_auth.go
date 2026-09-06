@@ -3,19 +3,30 @@ package main
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/audit"
 	"github.com/animal-ekarte/backend/internal/auth"
+	"github.com/animal-ekarte/backend/internal/clinic"
+	"github.com/animal-ekarte/backend/internal/staff"
 )
 
 // authRepositories are auth-owned persistence capabilities. Keeping this
 // bundle domain-local lets staff consume narrow ports without recreating the
 // former cross-domain Repositories container.
+// permissionGroupPersistence is the composition-root view of auth-owned
+// permission-group storage. Domain packages keep their own narrower ports.
+type permissionGroupPersistence interface {
+	auth.PermissionGroupRepository
+	clinic.PermissionGroupWriter
+	staff.PermissionGroupRepository
+}
+
 type authRepositories struct {
 	Accounts            auth.AccountRepository
-	PermissionGroups    auth.PermissionGroupRepository
+	PermissionGroups    permissionGroupPersistence
 	TokenBlacklist      auth.TokenBlacklistRepository
 	PasswordResetTokens auth.PasswordResetTokenRepository
 	CurrentAccessStaff  auth.CurrentAccessStaffReader
@@ -67,7 +78,7 @@ type authServices struct {
 	tokenBlacklist   auth.TokenBlacklistService
 	passwordReset    auth.PasswordResetService
 	currentAccess    auth.CurrentAccessResolver
-	login            auth.AuthService
+	login            auth.Service
 }
 
 func newAuthComposition(
@@ -131,7 +142,7 @@ func newAuthServices(
 		},
 		credentialAudit,
 	)
-	authService := auth.NewAuthService(
+	authService := auth.NewService(
 		accounts,
 		dependencies.Staff,
 		permissionGroups,
@@ -142,11 +153,14 @@ func newAuthServices(
 		tokens:           tokens,
 		tokenBlacklist:   tokenBlacklist,
 		passwordReset:    passwordReset,
-		currentAccess: auth.NewCurrentAccessResolverWithClinics(
-			repositories.CurrentAccessStaff,
-			accounts,
-			dependencies.StaffAssignments,
-			dependencies.Clinics,
+		currentAccess: auth.NewCachedCurrentAccessResolver(
+			auth.NewCurrentAccessResolverWithClinics(
+				repositories.CurrentAccessStaff,
+				accounts,
+				dependencies.StaffAssignments,
+				dependencies.Clinics,
+			),
+			2*time.Second,
 		),
 		login: authService,
 	}

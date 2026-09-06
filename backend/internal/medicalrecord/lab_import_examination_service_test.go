@@ -108,7 +108,7 @@ func (r *stubExamRepo) ReplaceItemsByExamID(_ context.Context, clinicID, examID 
 	return saved, deleted, nil
 }
 
-func (r *stubExamRepo) FindAll(_ context.Context, _ uint64, _, _, _ *uint64, _, _, _ *string, _, _ int) ([]model.Examination, int64, error) {
+func (r *stubExamRepo) FindAll(_ context.Context, _ uint64, _, _, _ *uint64, _, _, _ *string, _, _ int, _ bool) ([]model.Examination, int64, error) {
 	return nil, 0, nil
 }
 
@@ -121,7 +121,7 @@ func (r *stubExamRepo) FindByID(_ context.Context, clinicID, id uint64) (*model.
 	return &cp, nil
 }
 
-func (r *stubExamRepo) Update(_ context.Context, _, _ uint64, _ map[string]any) (*model.Examination, error) {
+func (r *stubExamRepo) Update(_ context.Context, _, _ uint64, _ UpdateExaminationInput) (*model.Examination, error) {
 	return nil, nil
 }
 

@@ -33,7 +33,7 @@ func marshalJSONField(t *testing.T, v *time.Time) string {
 }
 
 // TestPetDateFieldsSerializeIdenticallyAcrossEndpoints は、同一 pet の
-// birth_date / neutered_date / last_visit が pet詳細 (toPetResponse)・
+// birth_date / neutered_date / last_visit が pet詳細 (toResponse)・
 // pet一覧 (toPetListResponse) の両経路で byte 一致のシリアライズを返すことを保証する (SC1)。
 //
 // 規約 (canonical): *time.Time 日付フィールドは localTimePtr で time.Local へ
@@ -61,7 +61,7 @@ func TestPetDateFieldsSerializeIdenticallyAcrossEndpoints(t *testing.T) {
 		LastVisit:       &lastVisit,
 	}
 
-	detail := toPetResponse(pet)
+	detail := toResponse(pet)
 	list := toPetListResponse(pet)
 
 	// canonical の期待 byte をハードコードで固定する (循環参照回避)。
@@ -77,7 +77,7 @@ func TestPetDateFieldsSerializeIdenticallyAcrossEndpoints(t *testing.T) {
 		label                      string
 		birth, neutered, lastVisit *time.Time
 	}{
-		{"pet詳細(toPetResponse)", detail.BirthDate, detail.NeuteredDate, detail.LastVisit},
+		{"pet詳細(toResponse)", detail.BirthDate, detail.NeuteredDate, detail.LastVisit},
 		{"pet一覧(toPetListResponse)", list.BirthDate, list.NeuteredDate, list.LastVisit},
 	} {
 		assert.Equal(t, wantBirth, marshalJSONField(t, p.birth),
@@ -113,7 +113,7 @@ func TestPetBirthDateCalendarDateNeverRolls(t *testing.T) {
 			bd := tc.in
 			pet := &model.Pet{BirthDate: &bd}
 
-			detail := toPetResponse(pet)
+			detail := toResponse(pet)
 			list := toPetListResponse(pet)
 
 			require.NotNil(t, detail.BirthDate)

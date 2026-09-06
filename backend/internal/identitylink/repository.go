@@ -15,57 +15,12 @@ import (
 	"github.com/animal-ekarte/backend/internal/textsearch"
 )
 
-// Repository owns identity-link persistence. All mutating methods require an ambient tx.
-type Repository interface {
-	SearchOwners(ctx context.Context, clinicIDs []uint64, query string, limit int) ([]model.Owner, error)
-	SearchPets(ctx context.Context, clinicIDs []uint64, query string, limit int) ([]model.Pet, error)
-
-	LockOwners(ctx context.Context, refs []OwnerMemberRef) ([]model.Owner, error)
-	LockPets(ctx context.Context, refs []PetMemberRef) ([]model.Pet, error)
-
-	FindActiveOwnerMembership(ctx context.Context, clinicID, ownerID uint64) (*model.OwnerIdentityGroupMember, error)
-	FindActivePetMembership(ctx context.Context, clinicID, petID uint64) (*model.PetIdentityGroupMember, error)
-
-	LockOwnerGroupByID(ctx context.Context, groupID uint64) (*model.OwnerIdentityGroup, error)
-	LockPetGroupByID(ctx context.Context, groupID uint64) (*model.PetIdentityGroup, error)
-	FindOwnerGroupByID(ctx context.Context, groupID uint64) (*model.OwnerIdentityGroup, error)
-	FindPetGroupByID(ctx context.Context, groupID uint64) (*model.PetIdentityGroup, error)
-
-	ListActiveOwnerMembers(ctx context.Context, groupID uint64) ([]model.OwnerIdentityGroupMember, error)
-	ListActivePetMembers(ctx context.Context, groupID uint64) ([]model.PetIdentityGroupMember, error)
-	ListActiveOwnerMembersByClinicIDs(ctx context.Context, groupID uint64, clinicIDs []uint64) ([]model.OwnerIdentityGroupMember, error)
-	ListActivePetMembersByClinicIDs(ctx context.Context, groupID uint64, clinicIDs []uint64) ([]model.PetIdentityGroupMember, error)
-
-	CreateOwnerGroup(ctx context.Context, group *model.OwnerIdentityGroup) error
-	CreateOwnerMembers(ctx context.Context, members []model.OwnerIdentityGroupMember) error
-	SoftDeleteOwnerMember(ctx context.Context, memberID uint64) error
-	SoftDeleteOwnerGroup(ctx context.Context, groupID uint64) error
-	CountActiveOwnerMembers(ctx context.Context, groupID uint64) (int64, error)
-
-	CreatePetGroup(ctx context.Context, group *model.PetIdentityGroup) error
-	CreatePetMembers(ctx context.Context, members []model.PetIdentityGroupMember) error
-	SoftDeletePetMember(ctx context.Context, memberID uint64) error
-	SoftDeletePetGroup(ctx context.Context, groupID uint64) error
-	CountActivePetMembers(ctx context.Context, groupID uint64) (int64, error)
-	CountActivePetGroupsByOwnerGroupID(ctx context.Context, ownerGroupID uint64) (int64, error)
-
-	// IsOwnerActiveInGroup reports whether (clinicID, ownerID) is an active member of groupID.
-	IsOwnerActiveInGroup(ctx context.Context, groupID, clinicID, ownerID uint64) (bool, error)
-
-	// ResolveLinkedPetPairs returns correlated (clinic_id, pet_id) pairs for a seed pet,
-	// including the seed itself, scoped to actorClinicIDs. Bare IN expansion is forbidden.
-	ResolveLinkedPetPairs(ctx context.Context, seedClinicID, seedPetID uint64, actorClinicIDs []uint64) ([]ClinicPetPair, error)
-
-	// ListLinkedTreatmentHistory loads treatments for correlated pet pairs only.
-	ListLinkedTreatmentHistory(ctx context.Context, pairs []ClinicPetPair, page, limit int) ([]LinkedTreatmentHistoryItem, int64, error)
-}
-
 type repository struct {
 	db *gorm.DB
 }
 
-// NewRepository constructs the identity-link repository.
-func NewRepository(db *gorm.DB) Repository {
+// NewRepository constructs the identity-link store. Consumers use Repository.
+func NewRepository(db *gorm.DB) *repository {
 	return &repository{db: db}
 }
 

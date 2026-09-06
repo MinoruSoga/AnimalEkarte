@@ -190,7 +190,7 @@ func (s *permissionGroupService) update(
 	var result *model.PermissionGroup
 	var err error
 	if input.Rules == nil {
-		result, err = s.repo.Update(ctx, clinicID, id, fields)
+		result, err = s.repo.Update(ctx, clinicID, id, *input)
 	} else {
 		rules := permissionRuleModels(input.Rules)
 		if validationErr := validateNoDuplicateRules(rules); validationErr != nil {
@@ -224,7 +224,7 @@ func (s *permissionGroupService) update(
 			ctx,
 			clinicID,
 			id,
-			fields,
+			*input,
 			rules,
 		)
 	}

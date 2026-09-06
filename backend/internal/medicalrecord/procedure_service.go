@@ -108,7 +108,6 @@ func NewProcedureService(repo ProcedureRepository, transactor Transactor) Proced
 func (s *procedureService) List(ctx context.Context, clinicID uint64) ([]model.Procedure, error) {
 	items, err := s.repo.FindAll(ctx, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list procedures", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to list procedures")
 	}
 	return items, nil
@@ -116,7 +115,6 @@ func (s *procedureService) List(ctx context.Context, clinicID uint64) ([]model.P
 func (s *procedureService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Procedure, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get procedure", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get procedure")
 	}
 	return result, nil
@@ -174,7 +172,6 @@ func (s *procedureService) Create(ctx context.Context, clinicID uint64, input *C
 		); conflict != nil {
 			return nil, conflict
 		}
-		slog.ErrorContext(ctx, "failed to create procedure", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to create procedure")
 	}
 	slog.InfoContext(ctx, "procedure created", slog.Uint64("clinic_id", clinicID), slog.Uint64("procedure_id", procedure.ID))
@@ -185,7 +182,6 @@ func (s *procedureService) Update(ctx context.Context, clinicID, id uint64, inpu
 		return nil, apperrors.WrapInvalidInput(errMsgInputNotNil)
 	}
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to get procedure", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get procedure")
 	}
 	if err := s.validateParentOwnership(ctx, clinicID, input.ParentID); err != nil {
@@ -211,7 +207,7 @@ func (s *procedureService) Update(ctx context.Context, clinicID, id uint64, inpu
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput(errMsgAtLeastOneField)
 	}
-	procedure, err := s.repo.Update(ctx, clinicID, id, fields)
+	procedure, err := s.repo.Update(ctx, clinicID, id, *input)
 	if err != nil {
 		nameForConflict := ""
 		if input.Name != nil {
@@ -225,7 +221,6 @@ func (s *procedureService) Update(ctx context.Context, clinicID, id uint64, inpu
 		); conflict != nil {
 			return nil, conflict
 		}
-		slog.ErrorContext(ctx, "failed to update procedure", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to update procedure")
 	}
 	slog.InfoContext(ctx, "procedure updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("procedure_id", id))
@@ -242,7 +237,6 @@ func (s *procedureService) Delete(ctx context.Context, clinicID, id uint64) erro
 		}
 		childCount, err := s.repo.CountChildrenByParentID(txCtx, clinicID, id)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to count procedure children", "error", err, "id", id, "clinic_id", clinicID)
 			return apperrors.Wrap(err, "failed to count procedure children")
 		}
 		if childCount > 0 {
@@ -250,14 +244,12 @@ func (s *procedureService) Delete(ctx context.Context, clinicID, id uint64) erro
 		}
 		count, err := s.repo.CountUsageByProcedureID(txCtx, clinicID, id)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to check procedure dependencies", "error", err, "id", id, "clinic_id", clinicID)
 			return apperrors.Wrap(err, "failed to check procedure dependencies")
 		}
 		if count > 0 {
 			return apperrors.WrapConflict("この診療項目は診療記録で使用中のため削除できません")
 		}
 		if err := s.repo.Delete(txCtx, clinicID, id); err != nil {
-			slog.ErrorContext(txCtx, "failed to delete procedure", "error", err, "id", id, "clinic_id", clinicID)
 			return apperrors.Wrap(err, "failed to delete procedure")
 		}
 		return nil
@@ -273,7 +265,6 @@ func (s *procedureService) Reorder(ctx context.Context, clinicID uint64, ids []u
 		return apperrors.WrapInvalidInput(errMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
-		slog.ErrorContext(ctx, "failed to reorder procedures", "error", err, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to reorder procedures")
 	}
 	slog.InfoContext(ctx, "procedures reordered", slog.Uint64("clinic_id", clinicID), slog.Int("count", len(ids)))

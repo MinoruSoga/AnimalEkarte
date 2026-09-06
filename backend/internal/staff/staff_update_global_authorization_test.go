@@ -14,7 +14,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-func TestStaffService_UpdateRequiresAuthorityOverEveryActiveAssignment(t *testing.T) {
+func TestService_UpdateRequiresAuthorityOverEveryActiveAssignment(t *testing.T) {
 	const (
 		targetStaffID = uint64(7)
 		clinicA       = uint64(10)
@@ -68,7 +68,7 @@ func TestStaffService_UpdateRequiresAuthorityOverEveryActiveAssignment(t *testin
 				updateFn: func(
 					_ context.Context,
 					clinicID, staffID uint64,
-					_ map[string]any,
+					_ UpdateStaffInput,
 				) error {
 					assert.Equal(t, clinicA, clinicID)
 					assert.Equal(t, targetStaffID, staffID)
@@ -107,7 +107,7 @@ func TestStaffService_UpdateRequiresAuthorityOverEveryActiveAssignment(t *testin
 					return nil, nil
 				},
 			}
-			service := newCoreStaffService(
+			service := newCoreService(
 				repo,
 				&coreMockAccountRepository{},
 				assignments,
@@ -141,7 +141,7 @@ func TestStaffService_UpdateRequiresAuthorityOverEveryActiveAssignment(t *testin
 	}
 }
 
-func TestStaffService_UpdateLocksAssignmentsInsideMutationTransaction(t *testing.T) {
+func TestService_UpdateLocksAssignmentsInsideMutationTransaction(t *testing.T) {
 	type transactionMarker struct{}
 
 	const (
@@ -165,7 +165,7 @@ func TestStaffService_UpdateLocksAssignmentsInsideMutationTransaction(t *testing
 			}, nil
 		},
 	}
-	service := newCoreStaffService(
+	service := newCoreService(
 		&coreMockStaffRepository{},
 		&coreMockAccountRepository{},
 		assignments,
@@ -187,12 +187,12 @@ func TestStaffService_UpdateLocksAssignmentsInsideMutationTransaction(t *testing
 	require.NoError(t, err)
 }
 
-func TestStaffService_UpdateAssignmentLockFailurePreventsMutation(t *testing.T) {
+func TestService_UpdateAssignmentLockFailurePreventsMutation(t *testing.T) {
 	lockError := errors.New("assignment lock failed")
 	updated := false
-	service := newCoreStaffService(
+	service := newCoreService(
 		&coreMockStaffRepository{
-			updateFn: func(context.Context, uint64, uint64, map[string]any) error {
+			updateFn: func(context.Context, uint64, uint64, UpdateStaffInput) error {
 				updated = true
 				return nil
 			},

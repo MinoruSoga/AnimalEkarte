@@ -5,7 +5,6 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
-	"log/slog"
 	"strings"
 	"time"
 
@@ -95,7 +94,6 @@ func sanitizeCSVCell(cell string) string {
 func (s *lstepTagSummaryService) GetTagSummary(ctx context.Context, clinicID uint64) (TagSummaryResponse, error) {
 	rows, total, err := s.tagCache.TagSummary(ctx, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get tag summary", "clinic_id", clinicID, "error", err)
 		return TagSummaryResponse{}, apperrors.Wrap(err, "failed to get tag summary")
 	}
 	items := make([]TagSummaryItem, len(rows))
@@ -110,7 +108,6 @@ func (s *lstepTagSummaryService) ListOwnersByTag(ctx context.Context, clinicID u
 
 	rows, total, err := s.tagCache.FindOwnersByTag(ctx, clinicID, input.TagName, input.NameQuery, offset, perPage)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list owners by tag", "clinic_id", clinicID, "tag", input.TagName, "error", err)
 		return TagOwnerListResponse{}, apperrors.Wrap(err, "failed to list owners by tag")
 	}
 
@@ -136,7 +133,6 @@ func (s *lstepTagSummaryService) ExportOwnersByTagCSV(ctx context.Context, clini
 	// Fetch one page at the hard cap and require total to fit — never drop rows silently.
 	rows, total, err := s.tagCache.FindOwnersByTag(ctx, clinicID, tagName, nameQuery, 0, exportOwnersByTagCSVMaxRows)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to export owners by tag csv", "clinic_id", clinicID, "tag", tagName, "error", err)
 		return apperrors.Wrap(err, "failed to export owners by tag csv")
 	}
 	if total > int64(exportOwnersByTagCSVMaxRows) {

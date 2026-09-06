@@ -61,7 +61,7 @@
 ### 4. マイ予約のキャンセル可否ルール
 - 一覧は本人（LINE 顧客 ID）の予約のみ。ステータスバッジ（確定/確認中/受付済/診察中/会計中/完了/未来院/キャンセル済）を色分け表示。
 - **キャンセルボタンはステータスが「確定」（confirmed）の予約にのみ表示**。来院後ステータス（受付済以降）はこの画面からキャンセル不可。日時による締切はなく、当日でもキャンセル可能。
-- 押下するとカード内インラインで「本当にキャンセルしますか？」の確認を挟み、確定するとバックエンドの `CancelByID` が本人・医院スコープで `status=cancelled` のみに更新する。`deleted_at` は設定せず、マイ予約とスタッフ側予約カレンダーの両方にキャンセル済として残る。成功時は一覧上のバッジを即時「キャンセル済」に更新し、失敗時は `role="alert"` のエラーを表示する。
+- 押下するとカード内インラインで「本当にキャンセルしますか？」の確認を挟み、確定するとバックエンドの `CancelByID` が本人・医院スコープで `status=cancelled` のみに更新する。`deleted_at` は設定せず、マイ予約にはキャンセル済として残る。スタッフ側予約カレンダーは `filterCalendarAppointments` で `cancelled` を非表示にする（#116、[02-reservations.md](./02-reservations.md)）。成功時はマイ予約のバッジを即時「キャンセル済」に更新し、失敗時は `role="alert"` のエラーを表示する。
 
 ### 5. メンテナンス・エラー時の挙動
 - 起動時に取得した設定の status が running 以外なら `MaintenancePage` を表示（フロー開始不可）。フロー途中に停止された場合は確定時に 409 MAINTENANCE で検出される。
@@ -73,6 +73,8 @@
 ## 技術仕様
 
 ### 使用コンポーネント・状態管理
+
+- **フォント確認の境界**: Noto Sans JP の webfont 宣言（`frontend/line-reserve/index.html`）と CSS 適用は実装済み。iPhone / Android / iPad の cold・warm・offline 実機確認は [#284](https://github.com/MinoruSoga/AnimalEkarte/issues/284) に残る。コードの存在を実機確認完了として扱わない。
 - **`App.tsx`（line-reserve）**: ページ状態機械。設定取得 → LIFF 初期化（`useLiff`・liff/line-reserve 共有）→ プロフィール取得 → トップ表示の 2 段初期化。
 - **`useReservationFlow`**（`use-reservation-flow.ts`）: 予約フロー横断の入力状態（顧客情報・コース・スタッフ・日時・要望・トリミング選択）を単一オブジェクトで保持。完了後・新規予約開始時にリセット。URL やストレージには永続化しない。
 - **`liffApi`**（`liff-api.ts`）: axios クライアント。全レスポンスを Zod 検証、書込系ボディを NULL バイトサニタイズ。

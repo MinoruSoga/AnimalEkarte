@@ -29,11 +29,11 @@ func inactiveTrimmingOptionRepo() TrimmingOptionRepository {
 	}}
 }
 
-func TestTrimmingService_Create_RejectsInactiveCourseFK(t *testing.T) {
+func TestService_Create_RejectsInactiveCourseFK(t *testing.T) {
 	const clinicID = uint64(1)
 	const inactiveCourseID = uint64(10)
 
-	newSvc := func(created *bool) TrimmingService {
+	newSvc := func(created *bool) Service {
 		reserv := &mockTrimmingReservationRepository{
 			createFn: func(_ context.Context, a *model.Reservation) error {
 				*created = true
@@ -44,7 +44,7 @@ func TestTrimmingService_Create_RejectsInactiveCourseFK(t *testing.T) {
 				return &model.Reservation{ID: id, ClinicID: clinicID}, nil
 			},
 		}
-		return withTrimmingTestActor(NewTrimmingServiceWithAudit(reserv, &mockTrimmingReservationTypeRepository{}, nil, &mockTrimmingUnavailableTimeRepository{},
+		return withTrimmingTestActor(NewServiceWithAudit(reserv, &mockTrimmingReservationTypeRepository{}, nil, &mockTrimmingUnavailableTimeRepository{},
 			&mockTrimmingDetailRepository{}, inactiveTrimmingCourseRepo(), okTrimmingOptionRepo(), &mockTransactor{}, noopTrimmingAuditTxLogger{}))
 	}
 
@@ -64,11 +64,11 @@ func TestTrimmingService_Create_RejectsInactiveCourseFK(t *testing.T) {
 	})
 }
 
-func TestTrimmingService_Create_RejectsInactiveOptionFK(t *testing.T) {
+func TestService_Create_RejectsInactiveOptionFK(t *testing.T) {
 	const clinicID = uint64(1)
 	const inactiveOptionID = uint64(20)
 
-	newSvc := func(created *bool) TrimmingService {
+	newSvc := func(created *bool) Service {
 		reserv := &mockTrimmingReservationRepository{
 			createFn: func(_ context.Context, a *model.Reservation) error {
 				*created = true
@@ -79,7 +79,7 @@ func TestTrimmingService_Create_RejectsInactiveOptionFK(t *testing.T) {
 				return &model.Reservation{ID: id, ClinicID: clinicID}, nil
 			},
 		}
-		return withTrimmingTestActor(NewTrimmingServiceWithAudit(reserv, &mockTrimmingReservationTypeRepository{}, nil, &mockTrimmingUnavailableTimeRepository{},
+		return withTrimmingTestActor(NewServiceWithAudit(reserv, &mockTrimmingReservationTypeRepository{}, nil, &mockTrimmingUnavailableTimeRepository{},
 			&mockTrimmingDetailRepository{}, okTrimmingCourseRepo(), inactiveTrimmingOptionRepo(), &mockTransactor{}, noopTrimmingAuditTxLogger{}))
 	}
 
@@ -98,7 +98,7 @@ func TestTrimmingService_Create_RejectsInactiveOptionFK(t *testing.T) {
 	})
 }
 
-func TestTrimmingService_Update_InactiveCourseFKGuard(t *testing.T) {
+func TestService_Update_InactiveCourseFKGuard(t *testing.T) {
 	const clinicID = uint64(1)
 	const appointmentID = uint64(1)
 	const inactiveCourseID = uint64(10)
@@ -118,7 +118,7 @@ func TestTrimmingService_Update_InactiveCourseFKGuard(t *testing.T) {
 				return nil
 			},
 		}
-		svc := withTrimmingTestActor(NewTrimmingServiceWithAudit(reserv, &mockTrimmingReservationTypeRepository{}, nil, nil,
+		svc := withTrimmingTestActor(NewServiceWithAudit(reserv, &mockTrimmingReservationTypeRepository{}, nil, nil,
 			detail, inactiveTrimmingCourseRepo(), okTrimmingOptionRepo(), &mockTransactor{}, noopTrimmingAuditTxLogger{}))
 
 		course := inactiveCourseID
@@ -140,7 +140,7 @@ func TestTrimmingService_Update_InactiveCourseFKGuard(t *testing.T) {
 				return nil
 			},
 		}
-		svc := withTrimmingTestActor(NewTrimmingServiceWithAudit(reserv, &mockTrimmingReservationTypeRepository{}, nil, nil,
+		svc := withTrimmingTestActor(NewServiceWithAudit(reserv, &mockTrimmingReservationTypeRepository{}, nil, nil,
 			detail, inactiveTrimmingCourseRepo(), okTrimmingOptionRepo(), &mockTransactor{}, noopTrimmingAuditTxLogger{}))
 
 		// クライアントが既存カルテと同じ無効化済み course_id を再送（維持）するケース。
@@ -152,7 +152,7 @@ func TestTrimmingService_Update_InactiveCourseFKGuard(t *testing.T) {
 	})
 }
 
-func TestTrimmingService_Update_InactiveOptionFKGuard(t *testing.T) {
+func TestService_Update_InactiveOptionFKGuard(t *testing.T) {
 	const clinicID = uint64(1)
 	const appointmentID = uint64(1)
 	const inactiveOptionID = uint64(20)
@@ -172,7 +172,7 @@ func TestTrimmingService_Update_InactiveOptionFKGuard(t *testing.T) {
 				return nil
 			},
 		}
-		svc := withTrimmingTestActor(NewTrimmingServiceWithAudit(reserv, &mockTrimmingReservationTypeRepository{}, nil, nil,
+		svc := withTrimmingTestActor(NewServiceWithAudit(reserv, &mockTrimmingReservationTypeRepository{}, nil, nil,
 			detail, okTrimmingCourseRepo(), inactiveTrimmingOptionRepo(), &mockTransactor{}, noopTrimmingAuditTxLogger{}))
 
 		newOptions := []uint64{inactiveOptionID}
@@ -196,7 +196,7 @@ func TestTrimmingService_Update_InactiveOptionFKGuard(t *testing.T) {
 				return nil
 			},
 		}
-		svc := withTrimmingTestActor(NewTrimmingServiceWithAudit(reserv, &mockTrimmingReservationTypeRepository{}, nil, nil,
+		svc := withTrimmingTestActor(NewServiceWithAudit(reserv, &mockTrimmingReservationTypeRepository{}, nil, nil,
 			detail, okTrimmingCourseRepo(), inactiveTrimmingOptionRepo(), &mockTransactor{}, noopTrimmingAuditTxLogger{}))
 
 		// クライアントが既存カルテと同じ無効化済み option_id 集合を再送（維持）するケース。

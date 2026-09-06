@@ -46,6 +46,29 @@ describe("FE6-6: ForgotPasswordPage anti-enumeration", () => {
     expect(toast.error).not.toHaveBeenCalled();
   });
 
+  it("不正なメール形式 a@ は形式エラーにし API を呼ばない", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <MemoryRouter>
+        <ForgotPasswordPage />
+      </MemoryRouter>,
+    );
+
+    await user.type(screen.getByLabelText("メールアドレス"), "a@");
+    await act(async () => {
+      await user.click(screen.getByRole("button", { name: /送信/ }));
+    });
+
+    expect(screen.getByText("メールアドレスの形式が正しくありません")).toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        "パスワードリセットのリンクをメールに送信しました。メールをご確認ください。",
+      ),
+    ).not.toBeInTheDocument();
+    expect(forgotPassword).not.toHaveBeenCalled();
+  });
+
   it("forgotPassword が成功した場合も同じ成功表示になる", async () => {
     vi.mocked(forgotPassword).mockResolvedValue(undefined);
     const user = userEvent.setup();

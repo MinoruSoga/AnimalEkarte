@@ -18,7 +18,7 @@ import (
 // ---- mock ExaminationService ----
 
 type mockExaminationService struct {
-	listFn             func(ctx context.Context, clinicID uint64, petID, ownerID, medicalRecordID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error)
+	listFn             func(ctx context.Context, clinicID uint64, petID, ownerID, medicalRecordID *uint64, status, startDate, endDate *string, page, limit int, includeItems bool) ([]model.Examination, int64, error)
 	getByIDFn          func(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
 	getPrintSnapshotFn func(ctx context.Context, clinicID, examinationID uint64, version *uint64) (*ExaminationPrintSnapshot, error)
 	createFn           func(ctx context.Context, clinicID uint64, input *CreateExaminationInput) (*model.Examination, error)
@@ -29,8 +29,8 @@ type mockExaminationService struct {
 	replaceItemsFn     func(ctx context.Context, clinicID, examID uint64, actorID *uint64, inputs []UpsertExamItemInput) ([]model.ExamResult, error)
 }
 
-func (m *mockExaminationService) List(ctx context.Context, clinicID uint64, petID, ownerID, medicalRecordID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error) {
-	return m.listFn(ctx, clinicID, petID, ownerID, medicalRecordID, status, startDate, endDate, page, limit)
+func (m *mockExaminationService) List(ctx context.Context, clinicID uint64, petID, ownerID, medicalRecordID *uint64, status, startDate, endDate *string, page, limit int, includeItems bool) ([]model.Examination, int64, error) {
+	return m.listFn(ctx, clinicID, petID, ownerID, medicalRecordID, status, startDate, endDate, page, limit, includeItems)
 }
 
 func (m *mockExaminationService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Examination, error) {

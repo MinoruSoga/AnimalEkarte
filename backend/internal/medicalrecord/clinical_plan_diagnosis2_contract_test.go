@@ -30,9 +30,13 @@ func TestClinicalPlanRepository_Diagnosis2_SetChangeClearAndPreload(t *testing.T
 	require.NoError(t, repo.Create(ctx, plan))
 
 	t.Run("設定", func(t *testing.T) {
-		require.NoError(t, repo.Update(ctx, clinicA, plan.ID, map[string]any{
-			"diagnosis_2_type_id": typeA.ID,
-			"diagnosis_2_name_id": nameA.ID,
+		typeID := typeA.ID
+		nameID := nameA.ID
+		typePtr := &typeID
+		namePtr := &nameID
+		require.NoError(t, repo.Update(ctx, clinicA, plan.ID, UpdateClinicalPlanInput{
+			Diagnosis2TypeID: &typePtr,
+			Diagnosis2NameID: &namePtr,
 		}, nil))
 		got, err := repo.FindByMedicalRecordID(ctx, clinicA, mr.ID)
 		require.NoError(t, err)
@@ -45,9 +49,13 @@ func TestClinicalPlanRepository_Diagnosis2_SetChangeClearAndPreload(t *testing.T
 	})
 
 	t.Run("変更", func(t *testing.T) {
-		require.NoError(t, repo.Update(ctx, clinicA, plan.ID, map[string]any{
-			"diagnosis_2_type_id": typeB.ID,
-			"diagnosis_2_name_id": nameB.ID,
+		typeID := typeB.ID
+		nameID := nameB.ID
+		typePtr := &typeID
+		namePtr := &nameID
+		require.NoError(t, repo.Update(ctx, clinicA, plan.ID, UpdateClinicalPlanInput{
+			Diagnosis2TypeID: &typePtr,
+			Diagnosis2NameID: &namePtr,
 		}, nil))
 		got, err := repo.FindByMedicalRecordID(ctx, clinicA, mr.ID)
 		require.NoError(t, err)
@@ -57,9 +65,11 @@ func TestClinicalPlanRepository_Diagnosis2_SetChangeClearAndPreload(t *testing.T
 	})
 
 	t.Run("クリア", func(t *testing.T) {
-		require.NoError(t, repo.Update(ctx, clinicA, plan.ID, map[string]any{
-			"diagnosis_2_type_id": nil,
-			"diagnosis_2_name_id": nil,
+		var nilType *uint64
+		var nilName *uint64
+		require.NoError(t, repo.Update(ctx, clinicA, plan.ID, UpdateClinicalPlanInput{
+			Diagnosis2TypeID: &nilType,
+			Diagnosis2NameID: &nilName,
 		}, nil))
 		got, err := repo.FindByMedicalRecordID(ctx, clinicA, mr.ID)
 		require.NoError(t, err)

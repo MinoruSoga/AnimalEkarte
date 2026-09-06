@@ -182,8 +182,28 @@ func buildDefaultPermissionGroupRules(isExecutive bool) []model.PermissionGroupR
 	return rules
 }
 
-type ClinicService interface {
+// DefaultPermissionBits returns CreateClinic attach-receiver bits for one
+// resource. Unknown resources stay deny-all.
+func DefaultPermissionBits(
+	resource model.Resource,
+	executive bool,
+) (canView, canCreate, canEdit, canDelete bool) {
+	for _, r := range defaultPermissionRuleTable {
+		if r.resource != resource {
+			continue
+		}
+		if executive {
+			return r.execView, r.execCreate, r.execEdit, r.execDelete
+		}
+		return r.genView, r.genCreate, r.genEdit, r.genDelete
+	}
+	return false, false, false, false
+}
+
+type Service interface {
 	ListClinics(ctx context.Context) ([]model.Clinic, error)
+	ListClinicsByIDs(ctx context.Context, ids []uint64) ([]model.Clinic, error)
+	ListActiveClinicIDs(ctx context.Context, ids []uint64) ([]uint64, error)
 	ListClinicsByStaffID(ctx context.Context, staffID uint64) ([]model.Clinic, error)
 	GetClinicByID(ctx context.Context, id uint64) (*model.Clinic, error)
 	CreateClinic(ctx context.Context, input *CreateClinicInput) (*model.Clinic, error)
@@ -197,7 +217,7 @@ type clinicService struct {
 	transactor          Transactor
 }
 
-func NewClinicService(repo clinicServiceRepository, permissionGroupRepo PermissionGroupWriter, transactor Transactor) ClinicService {
+func NewService(repo clinicServiceRepository, permissionGroupRepo PermissionGroupWriter, transactor Transactor) Service {
 	return &clinicService{repo: repo, permissionGroupRepo: permissionGroupRepo, transactor: transactor}
 }
 
@@ -209,6 +229,22 @@ func (s *clinicService) ListClinics(ctx context.Context) ([]model.Clinic, error)
 		return nil, apperrors.Wrap(err, "failed to list clinics")
 	}
 	return clinics, nil
+}
+
+func (s *clinicService) ListClinicsByIDs(ctx context.Context, ids []uint64) ([]model.Clinic, error) {
+	clinics, err := s.repo.FindByIDs(ctx, ids)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to list clinics by id")
+	}
+	return clinics, nil
+}
+
+func (s *clinicService) ListActiveClinicIDs(ctx context.Context, ids []uint64) ([]uint64, error) {
+	active, err := s.repo.FindActiveIDs(ctx, ids)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to list active clinic ids")
+	}
+	return active, nil
 }
 
 func (s *clinicService) ListClinicsByStaffID(ctx context.Context, staffID uint64) ([]model.Clinic, error) {

@@ -274,19 +274,22 @@ func TestShiftEntryRepository_Update(t *testing.T) {
 	entry := makeShiftEntryWithType(t, db, clinicA, staff.ID, time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC), model.ShiftTypeFull)
 
 	t.Run("updates successfully", func(t *testing.T) {
-		require.NoError(t, repo.Update(ctx, clinicA, entry.ID, map[string]any{"notes": "更新済み"}))
+		notes := "更新済み"
+		require.NoError(t, repo.Update(ctx, clinicA, entry.ID, UpdateShiftEntryInput{Notes: &notes}))
 		got, err := repo.FindByID(ctx, clinicA, entry.ID)
 		require.NoError(t, err)
 		assert.Equal(t, "更新済み", got.Notes)
 	})
 
 	t.Run("not found for nonexistent id", func(t *testing.T) {
-		err := repo.Update(ctx, clinicA, uint64(999999), map[string]any{"notes": "x"})
+		notes := "x"
+		err := repo.Update(ctx, clinicA, uint64(999999), UpdateShiftEntryInput{Notes: &notes})
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
 	t.Run("clinic isolation: wrong clinic returns NotFound", func(t *testing.T) {
-		err := repo.Update(ctx, clinicB, entry.ID, map[string]any{"notes": "hacked"})
+		notes := "hacked"
+		err := repo.Update(ctx, clinicB, entry.ID, UpdateShiftEntryInput{Notes: &notes})
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 }

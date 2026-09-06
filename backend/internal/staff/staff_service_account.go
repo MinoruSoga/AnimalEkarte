@@ -16,7 +16,6 @@ import (
 func (s *staffService) FindByAccountID(ctx context.Context, accountID uint64) (*model.Staff, error) {
 	staff, err := s.repo.FindByAccountID(ctx, accountID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to find staff by account id", "error", err, "id", accountID)
 		return nil, apperrors.Wrap(err, "failed to find staff by account id")
 	}
 	return staff, nil
@@ -43,7 +42,6 @@ func (s *staffService) CreateWithAccount(ctx context.Context, input *CreateStaff
 	// email 重複チェック: FindByEmail が NotFound 以外のエラーを返した場合は伝播する
 	existing, err := s.accountRepo.FindByEmail(ctx, input.Email)
 	if err != nil && !apperrors.IsNotFound(err) {
-		slog.ErrorContext(ctx, "failed to check email uniqueness", "error", err, "clinic_id", input.ClinicID)
 		return nil, apperrors.Wrap(err, "failed to check email uniqueness")
 	}
 	if existing != nil {
@@ -74,7 +72,6 @@ func (s *staffService) CreateWithAccount(ctx context.Context, input *CreateStaff
 		staff = created
 		return err
 	}); err != nil {
-		slog.ErrorContext(ctx, "failed to create staff", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create staff")
 	}
 
@@ -99,7 +96,6 @@ func (s *staffService) createStaffWithAccountInTx(
 		IsActive:     true,
 	}
 	if createErr := s.accountRepo.Create(ctx, account); createErr != nil {
-		slog.ErrorContext(ctx, "failed to create account", "error", createErr)
 		return nil, apperrors.Wrap(createErr, "failed to create account")
 	}
 	staff := &model.Staff{
@@ -117,7 +113,6 @@ func (s *staffService) createStaffWithAccountInTx(
 		ReservationImageURL:    input.ReservationImageURL,
 	}
 	if err := s.repo.Create(ctx, staff); err != nil {
-		slog.ErrorContext(ctx, "failed to create staff", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create staff")
 	}
 	if input.ClinicID != 0 {
@@ -126,7 +121,6 @@ func (s *staffService) createStaffWithAccountInTx(
 			ClinicID: input.ClinicID,
 			IsMain:   true,
 		}); err != nil {
-			slog.ErrorContext(ctx, "failed to assign staff to clinic", "error", err, "clinic_id", input.ClinicID)
 			return nil, apperrors.Wrap(err, "failed to assign staff to clinic")
 		}
 	}
@@ -136,7 +130,6 @@ func (s *staffService) createStaffWithAccountInTx(
 func (s *staffService) VerifyClinicMembership(ctx context.Context, staffID, clinicID uint64) error {
 	count, err := s.assignmentRepo.CountByStaffAndClinic(ctx, staffID, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to verify staff clinic membership", "error", err, "id", staffID, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to verify staff clinic membership")
 	}
 	if count == 0 {

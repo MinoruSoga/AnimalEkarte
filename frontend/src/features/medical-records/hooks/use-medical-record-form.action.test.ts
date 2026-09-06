@@ -470,4 +470,72 @@ describe("useMedicalRecordForm — formAction（useActionState）", () => {
 
     expect(noMutation.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ version: 5 }));
   });
+
+  it("F2: 編集中に同一カルテの診察プランが v2 へ再取得されても、v1 由来の入力は v1 の CAS version で保存する", async () => {
+    mockUseGetMedicalRecord.mockReturnValue({
+      data: { id: "10", visitType: "再診", version: 1 },
+      isLoading: false,
+      isError: false,
+    } as never);
+    mockUseGetClinicalPlan.mockReturnValue({
+      data: {
+        id: "cp-10",
+        medical_record_id: "10",
+        version: 1,
+        physical_exam: "v1 身体所見",
+        diagnosis_details: "v1 診断詳細",
+        treatment_policy: "v1 治療方針",
+        diagnosis_type_id: "3",
+        diagnosis_name_id: "7",
+        diagnosis_2_type_id: "4",
+        diagnosis_2_name_id: "9",
+        updated_at: "v1",
+      },
+      isLoading: false,
+      isError: false,
+    });
+    const { result, rerender } = renderHook(() => useMedicalRecordForm("10"));
+
+    await waitFor(() => {
+      expect(result.current.plan).toBe("v1 治療方針");
+    });
+    act(() => {
+      result.current.setPlan("A の編集値");
+      result.current.setActiveTab("診察/治療プラン");
+    });
+
+    mockUseGetClinicalPlan.mockReturnValue({
+      data: {
+        id: "cp-10",
+        medical_record_id: "10",
+        version: 2,
+        physical_exam: "B の身体所見",
+        diagnosis_details: "B の診断詳細",
+        treatment_policy: "B の治療方針",
+        diagnosis_type_id: "11",
+        diagnosis_name_id: "12",
+        diagnosis_2_type_id: "13",
+        diagnosis_2_name_id: "14",
+        updated_at: "v2",
+      },
+      isLoading: false,
+      isError: false,
+    });
+    rerender();
+
+    await waitFor(() => {
+      expect(result.current.plan).toBe("A の編集値");
+    });
+    runFormAction(result.current.formAction);
+
+    await waitFor(() => {
+      expect(result.current.formState.success).toBe(true);
+    });
+    expect(noMutation.mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        treatment_policy: "A の編集値",
+        version: 1,
+      }),
+    );
+  });
 });

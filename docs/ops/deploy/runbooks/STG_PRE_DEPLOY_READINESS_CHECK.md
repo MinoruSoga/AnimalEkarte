@@ -21,7 +21,7 @@ Normal backend deliveryは`wrangler deploy -> POST /_internal/migrate -> /health
 - [ ] `002_master/manifest.json`から12-table inventory/load orderを導出し、listed filesが揃う。
 - [ ] migrate logの`Migration key coverage missing=0`を確認した。固定row/key/table countを使っていない。
 - [ ] checksum mismatchがない。
-- [ ] legacy seed keyを検出していない。検出時はrelease stopとし、[known source blocker](../SEED_MIGRATION_OPERATIONS.md#2-known-blocker-legacy-seed-keys)のreviewed code fix/recovery planを待つ。
+- [ ] legacy seed key がある場合は [現行 translation 契約](../SEED_MIGRATION_OPERATIONS.md#2-legacy-seed-keys) と対象 DB の master 完全性を確認した。不整合時は release stop とし、reviewed recovery plan を待つ。
 
 `verify_seed_matches_stg_dump_full.sh`はmandatory gateではない。approved non-repository `STG_DUMP=/absolute/path`、data handling approval、master-only contractが揃う別rehearsalでのみ使える。通常checkoutにdumpが無いことをfailureにしない。
 
@@ -35,7 +35,7 @@ Shared DB rebuildはworkflow optionではない。[STG_PLANETSCALE_SEED_RUNBOOK.
 - [ ] failure時はapproved workers.dev endpointと比較し、DNS/routeとWorker/Container/DBを分離した。
 - [ ] backend workflowのdeploy/migrate/post-migrate healthが全てsuccess。
 - [ ] image更新を伴う場合はdocumented rolling window後にも確認した。
-- [ ] frontend API rewrite blocker（[Vercel runbook](../VERCEL-FRONTEND-STAGING-TEST.md)）が解消・検証済み。未解消ならfrontend/API smokeはBLOCKED。
+- [ ] frontend の build-time API target、cookie/CORS、API JSON/status を [Vercel runbook](../VERCEL-FRONTEND-STAGING-TEST.md) で確認した。same-origin `/api` を使う build は rewrite も検証した。
 
 ### 3.2 Corrected CRUD cases
 
@@ -57,9 +57,9 @@ Clinic/staffはHTTP/resource state、permission-group成功mutationだけexplici
 
 1つでも該当すればrelease successにしない。
 
-- migration coverage missing、checksum mismatch、legacy translation blocker
+- migration coverage missing、checksum mismatch、legacy translation後のmaster不整合
 - health failure、unexpected 4xx/5xx、tenant isolation failure
-- frontend `/api`がAPIではなくSPA `index.html`へfallback
+- frontend が実際に使う API 接続先が誤っている、または API request が SPA `index.html` へ fallback
 - restore/cleanup failure
 - required approval gate、backup/rollback、account/provisioningが未確認
 

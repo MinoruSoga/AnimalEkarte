@@ -3,7 +3,6 @@ package manualarticle
 import (
 	"context"
 	"fmt"
-	"log/slog"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -43,7 +42,6 @@ func NewManualArticleService(repo Repository) ManualArticleService {
 func (s *manualArticleService) FindAll(ctx context.Context) ([]model.ManualArticle, error) {
 	articles, err := s.repo.FindAll(ctx)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to find manual articles", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find manual articles")
 	}
 	return articles, nil
@@ -85,7 +83,6 @@ func (s *manualArticleService) Upsert(ctx context.Context, input *UpsertManualAr
 		case apperrors.IsNotFound(err):
 			order = 9999
 		default:
-			slog.ErrorContext(ctx, "failed to fetch existing manual article for order fallback", "error", err, "category", input.Category, "slug", input.Slug)
 			return nil, apperrors.Wrap(err, "failed to fetch existing manual article")
 		}
 	}
@@ -101,7 +98,6 @@ func (s *manualArticleService) Upsert(ctx context.Context, input *UpsertManualAr
 
 	saved, err := s.repo.Upsert(ctx, article, editorStaffID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to upsert manual article", "error", err, "category", input.Category, "slug", input.Slug)
 		return nil, apperrors.Wrap(err, "failed to upsert manual article")
 	}
 	return saved, nil
@@ -116,7 +112,6 @@ func (s *manualArticleService) Delete(ctx context.Context, category model.Manual
 		return apperrors.Wrap(err, "failed to find manual article")
 	}
 	if err := s.repo.Delete(ctx, category, slug); err != nil {
-		slog.ErrorContext(ctx, "failed to delete manual article", "error", err, "category", category, "slug", slug)
 		return apperrors.Wrap(err, "failed to delete manual article")
 	}
 	return nil
@@ -125,7 +120,6 @@ func (s *manualArticleService) Delete(ctx context.Context, category model.Manual
 func (s *manualArticleService) FindVersionsByArticleID(ctx context.Context, articleID uint64) ([]model.ManualArticleVersion, error) {
 	versions, err := s.repo.FindVersionsByArticleID(ctx, articleID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to find manual article versions", "error", err, "article_id", articleID)
 		return nil, apperrors.Wrap(err, "failed to find manual article versions")
 	}
 	return versions, nil

@@ -5,7 +5,7 @@
 > **タイミング**: CPM判定・配信トリガー仕様の確認時。
 
 > **Animal Ekarte**: カルテデータに基づいた自動マーケティングの実現
-> **最新更新**: 2026-08-31 | **ステータス**: 実装済みだが既知の安全・性能gapあり。deployment / credential / external scenario / monitoring readiness は [release readiness runbook](../../ops/deploy/runbooks/STG_PRE_DEPLOY_READINESS_CHECK.md) 等のrelease evidenceで別管理
+> **最新更新**: 2026-09-06（repo `7c6592f9f`） | **ステータス**: 実装済みだが既知の安全・性能gapあり。deployment / credential / external scenario / monitoring readiness は [release readiness runbook](../../ops/deploy/runbooks/STG_PRE_DEPLOY_READINESS_CHECK.md) 等のrelease evidenceで別管理
 
 ---
 
@@ -97,6 +97,8 @@ LSTEP の失敗時挙動は経路ごとに 1 契約だけを持つ。詳細ア�
 ---
 
 ## 6. 運用と効果測定
+
+外部 write 再開の承認・受入は [#259 の再開条件](README.md#3-再開条件259) を参照。全 15 種は実装契約であり、先方 API 有効化や本番配信完了の証拠ではない。scheduler 配線の正本と実環境証跡の区別は [architecture.md §4.2](architecture.md#42-checked-in-scheduler-と運用証跡) に示す。
 
 - **配信監視 (`/lstep/delivery-monitor`)**: **自動配信トリガー**の実行ログ、除外理由、API 失敗を監視（ordinary タグ同期の request-local 経路は対象外）。
 - **来院転換分析**: メッセージ配信から 30 日以内の来院率を自動集計。

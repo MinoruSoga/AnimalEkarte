@@ -46,7 +46,7 @@ func (*compileStaffAccountStore) DeletePasswordResetTokens(
 
 var _ StaffAccountStore = (*compileStaffAccountStore)(nil)
 
-func TestStaffService_AccountStoreSourceContract(t *testing.T) {
+func TestService_AccountStoreSourceContract(t *testing.T) {
 	productionFiles, err := filepath.Glob("staff_service*.go")
 	require.NoError(t, err)
 	require.NotEmpty(t, productionFiles)

@@ -79,7 +79,7 @@ func (s staffResetInvalidationAccountStore) DeletePasswordResetTokens(
 	return s.resetTokens.DeleteByAccountID(ctx, accountID)
 }
 
-func TestStaffService_UpdateAuthorizedPassword_InvalidatesOutstandingResetToken(
+func TestService_UpdateAuthorizedPassword_InvalidatesOutstandingResetToken(
 	t *testing.T,
 ) {
 	db := testdb.SetupTestDB(t)
@@ -117,7 +117,7 @@ func TestStaffService_UpdateAuthorizedPassword_InvalidatesOutstandingResetToken(
 		ClinicID:  clinicA,
 		AccountID: &account.ID,
 	}
-	service := NewStaffServiceWithCredentialAudit(
+	service := NewServiceWithCredentialAudit(
 		&coreMockStaffRepository{
 			lockInClinicFn: func(
 				context.Context,

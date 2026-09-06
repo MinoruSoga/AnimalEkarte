@@ -22,8 +22,8 @@
 
 ## 主要な機能
 
-### 1. 会計との連動（未実装）
-`coverage_rate` は保険マスタ・飼主/ペット編集画面（`frontend/src/features/owners/`）でのみ参照され、会計・請求計算のバックエンドサービス（`backend/internal/service/accounting*.go`, `billing*.go`）からは参照されていない。会計詳細画面で保険を選択すると自動的に「保険負担分」を差し引く機能は現時点で実装されていない。
+### 1. 会計への補償率自動設定（未実装）
+保険マスタの `coverage_rate` を会計の割合へ自動設定する連携はない。会計詳細の `InsuranceCard` では、スタッフが保険利用と「保険会社が支払う割合」を選び、その選択値で保険負担額を計算する（[11-accounting-detail.md](../11-accounting-detail.md)）。保険控除計算自体は実装済みであり、本マスタ連携の未実装と混同しない。会計・請求の実装は `backend/internal/billing/`。
 
 ---
 
@@ -44,4 +44,3 @@
 | PATCH | `/api/v1/masters/insurances/reorder` | 表示順序の一括保存（BE実装済みだが本画面からは未呼出） | `master-insurance` | `edit` |
 
 ---
-

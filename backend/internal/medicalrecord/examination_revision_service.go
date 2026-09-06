@@ -343,7 +343,6 @@ func (s *examinationService) GetOfficialByID(
 	}
 	exam, err := s.revisions.FindOfficialByID(ctx, clinicID, examinationID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to read official examination revision", "error", err)
 		return nil, apperrors.Wrap(err, "failed to read official examination revision")
 	}
 	return exam, nil

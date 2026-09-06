@@ -15,26 +15,37 @@ description: commit/push 前のスコープ限定ローカル検証ゲート。�
 
 ## 手順
 
-1. **frontend 実行可否の判定**: 現在のモデルが Haiku かを確認する。Haiku限定で `pnpm` コマンドの自動実行が許可されている。Opus/Sonnetはユーザーに手動実行を依頼する（出典: memory feedback_pnpm_haiku）
-2. **backend lint（スコープ限定）**:
+1. **実行可否はモデル名ではなく範囲と副作用で決める**: 変更に直結するスコープ限定の Docker 検証は自律的に完了する。禁止なのは全件 lint/test/build、DB reset、migration apply、依存インストール、streaming logs。ホストの `npm` / `go` は使わず、コンテナが対象 worktree を見ていることを確認する。
+2. **backend 検証対象の確定**: 変更した既存package/fileを指定し、以降の全コマンドで同じ値を使う。次は `medicalrecord` を変更した場合の例。別domainでは実在する対象へ置き換え、`test -d` / `test -f` で存在を確認してから実行する:
    ```bash
-   docker compose run --rm --no-deps -T -e GOLANGCI_LINT_CACHE=/tmp/glc-$RANDOM \
-     --entrypoint golangci-lint backend run ./internal/service/...
+   VERIFY_GO_PACKAGE='./internal/medicalrecord/...'
+   VERIFY_GO_FILE='internal/medicalrecord/clinical_plan_service.go'
+   test -d backend/internal/medicalrecord
+   test -f "backend/$VERIFY_GO_FILE"
    ```
-   `--entrypoint` での上書きが必須（`entrypoint.sh` は渡されたコマンドを無視する。出典: ops_backend_scoped_lint_entrypoint_override）。キャッシュは毎回フレッシュ化する（stale cacheは偽の0件を返す。出典: ops_golangci_lint_stale_cache_false_zero）
-3. **backend build/vet/test（スコープ限定）**:
+3. **backend lint（スコープ限定）**:
    ```bash
-   docker compose exec backend go build ./internal/<対象パッケージ>/...
-   docker compose exec backend go vet ./internal/service/...
-   docker compose exec backend go test ./internal/service/...
+   docker run --rm --tmpfs /root/.cache \
+     -v "$PWD/backend:/app" \
+     -v ekarte-go-mod-cache:/go/pkg/mod \
+     -w /app \
+     golangci/golangci-lint:v2.11.4 \
+     golangci-lint run "$VERIFY_GO_PACKAGE" --max-same-issues 0 --max-issues-per-linter 0
    ```
-4. **gofmt**: 秒単位で完了するためスキップ理由が無い。対象ファイルを明示して必ず実行する:
+   backend イメージには golangci-lint を入れないため、Makefile と同じ公式 pin イメージを使う。キャッシュは毎回フレッシュ化する（stale cacheは偽の0件を返す。出典: ops_golangci_lint_stale_cache_false_zero）。
+4. **backend build/vet/test（スコープ限定）**:
    ```bash
-   docker compose exec backend gofmt -l internal/service/foo_service.go
+   docker compose exec backend go build "$VERIFY_GO_PACKAGE"
+   docker compose exec backend go vet "$VERIFY_GO_PACKAGE"
+   docker compose exec backend go test "$VERIFY_GO_PACKAGE"
    ```
-5. **DB依存テストは fresh-DB gate**: warm DBでの成功はCIのfresh DB失敗をマスクしうる。DB stateに関わる変更は一度 `DROP DATABASE ekarte_db_test` 相当のリセット後に走らせる（ユーザー承認の上で実施可否を確認する）
-6. **codegen影響の確認**: modelやAPIスキーマを変更した場合は `make codegen` 実行後 `git diff` で差分をユーザーに確認依頼する（`make codegen` 自体は自動実行禁止コマンド）
-7. **frontend（スコープ限定）**:
+5. **gofmt**: 秒単位で完了するためスキップ理由が無い。対象ファイルを明示して必ず実行する:
+   ```bash
+   docker compose exec backend gofmt -l "$VERIFY_GO_FILE"
+   ```
+6. **DB依存テストは条件付き fresh-DB gate**: warm DBでの成功はCIのfresh DB失敗をマスクしうる。migration・seed・起動依存など DB state に関わる変更では、既存/shared DB を reset せず disposable な隔離 test DB/environment で走らせる。作成・破棄は対象とデータ消失影響を示したユーザーの明示承認後にだけ行う。docs-only 変更には不要
+7. **codegen影響の確認**: modelやAPIスキーマを変更した場合は `make codegen` 実行後 `git diff` で差分をユーザーに確認依頼する（`make codegen` 自体は自動実行禁止コマンド）
+8. **frontend（スコープ限定）**:
    ```bash
    docker compose exec frontend npx vitest run src/features/xxx
    ```
@@ -53,11 +64,11 @@ description: commit/push 前のスコープ限定ローカル検証ゲート。�
 
 ✅ 良い例（スコープ限定・実行結果を報告）:
 ```
-backend/internal/service/billing_service.go を変更したので検証した:
-$ docker compose exec backend go build ./internal/service/... → OK
-$ docker compose exec backend go vet ./internal/service/...  → OK
-$ docker compose exec backend go test ./internal/service/... → PASS (12 tests)
-$ docker compose exec backend gofmt -l internal/service/billing_service.go → (差分なし)
+backend/internal/medicalrecord/clinical_plan_service.go を変更したので検証した:
+$ docker compose exec backend go build ./internal/medicalrecord/... → OK
+$ docker compose exec backend go vet ./internal/medicalrecord/...  → OK
+$ docker compose exec backend go test ./internal/medicalrecord/... → PASS (12 tests)
+$ docker compose exec backend gofmt -l internal/medicalrecord/clinical_plan_service.go → (差分なし)
 ```
 
 ❌ 悪い例(1) — 全体コマンドに逃げる:
