@@ -76,9 +76,9 @@ k6 run load-tests/k6-spike-test.js \
 **テスト対象 API**:
 
 - POST `/api/v1/login` — setup で 1 回（`successful_logins` 計上）
-- GET `/api/v1/appointments` — 診察一覧（status 200 必須）
+- GET `/api/v1/reservations` — 診察一覧（status 200 必須）
 - GET `/api/v1/medical-records` — 医療記録（status 200 必須）
-- GET `/api/v1/permission-groups` — 権限グループ（status 200 必須）
+- GET `/api/v1/masters/permission-groups` — 権限グループ（status 200 必須）
 
 **パフォーマンス閾値**:
 
@@ -95,7 +95,7 @@ k6 run load-tests/k6-spike-test.js \
 3. **Sustained** (15-25s): 100ユーザーで保持
 4. **Recovery** (25-30s): 5ユーザーに復帰
 
-**認証**: setup で `LOAD_TEST_LOGIN_*` ログイン → Cookie 付き GET `/api/v1/appointments`（status 200 必須）
+**認証**: setup で `LOAD_TEST_LOGIN_*` ログイン → Cookie 付き GET `/api/v1/reservations`（status 200 必須）
 
 **パフォーマンス閾値**:
 
