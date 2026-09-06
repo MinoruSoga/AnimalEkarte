@@ -323,7 +323,6 @@ export function useAccountingCompletionAction({
             change_amount: totalChange,
             payment_method: repMethod,
             payment_splits: builtSplits,
-            completed_at: jstNowISOString(),
             post_close_reason: postCloseReason || undefined,
           });
           setCompletedPayment(paymentInfo);

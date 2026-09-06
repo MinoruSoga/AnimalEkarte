@@ -29,7 +29,7 @@ func CORS(allowedOrigin string) gin.HandlerFunc {
 		}
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 		// SEC-601: X-Requested-With (CSRF対策ヘッダ)を許可
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Request-ID, X-Clinic-ID, X-Requested-With")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Request-ID, X-Clinic-ID, X-Requested-With, Idempotency-Key")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 		c.Writer.Header().Set("Access-Control-Max-Age", "86400")
 
