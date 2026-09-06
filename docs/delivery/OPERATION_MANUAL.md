@@ -259,7 +259,6 @@ repo と既存コメントから読める事実だけを書く。署名・承認
 
 本書は現在の実装契約に合わせて訂正した。次の source / 埋め込みマニュアルは本タスクの編集範囲外であり、別変更で整合させる。
 
-- `frontend/src/features/manual/content/screens/01-login.md`: 初回ログイン時の強制変更記載を削除する。
-- `frontend/src/features/manual/content/screens/25-master-staff.md` と `workflows/09-staff-onboarding.md`: 自動生成・一時パスワード再発行の記載を、権限者が新しいパスワードを設定する契約へ直す。
-- `.claude/CLAUDE.md`: product-philosophy の圧縮要約に残る `audit_logs` / 確認ダイアログの絶対表現を、更新後の例外付き契約へ同期する。
-- `MedicalRecordFormActions.tsx`: 不可逆操作を UI の確認ダイアログだけで守らず、サーバー側の状態検証・ロックまたは補償経路を確認する。
+- 埋め込みマニュアルのパスワード契約は 2026-09-06 に現行実装へ同期済み（自動生成・初回強制変更を削除）。
+- `.claude/CLAUDE.md` の確認ダイアログ / 監査 sink 表現は例外付き契約へ同期済み。
+- `MedicalRecordFormActions.tsx`: UI は ConfirmDialog。削除は draft 以外をサーバーが Conflict、確定は unfinalize API なし＋確定後編集をサーバー拒否。追加の補償経路は SPEC-GAP（別タスク化しない）。

@@ -1,4 +1,4 @@
-// Package occupation owns occupations master data access.
+// Package staff owns occupations master data access.
 package staff
 
 import (

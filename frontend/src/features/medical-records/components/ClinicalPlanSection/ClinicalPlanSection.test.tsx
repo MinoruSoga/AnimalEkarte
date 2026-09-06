@@ -15,15 +15,17 @@ vi.mock("@/components/shared/MasterLink", () => ({
 
 vi.mock("@/components/ui/searchable-select", () => ({
   SearchableSelect: ({
+    id,
     value,
     disabled,
     placeholder,
   }: {
+    id?: string;
     value: string;
     disabled?: boolean;
     placeholder?: string;
   }) => (
-    <select aria-label={placeholder ?? "select"} value={value} disabled={disabled} readOnly>
+    <select id={id} aria-label={placeholder ?? "select"} value={value} disabled={disabled} readOnly>
       <option value={value}>{value}</option>
     </select>
   ),
@@ -56,6 +58,35 @@ describe("ClinicalPlanSection BUG-010 controlled inputs", () => {
       await user.click(screen.getByText(label, { selector: "label" }));
 
       expect(textarea).toHaveFocus();
+    }
+  });
+
+  it("診断カテゴリと診断病名のvisible labelからSearchableSelect triggerへ到達・focusできる", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <ClinicalPlanSection
+        medicalRecordId="42"
+        canEdit
+        physicalExam=""
+        onPhysicalExamChange={vi.fn()}
+        diagnosisDetails=""
+        onDiagnosisDetailsChange={vi.fn()}
+        treatmentPolicy=""
+        onTreatmentPolicyChange={vi.fn()}
+        diagnosisTypeId={1}
+        onDiagnosisTypeIdChange={vi.fn()}
+        diagnosisNameId={null}
+        onDiagnosisNameIdChange={vi.fn()}
+      />,
+    );
+
+    for (const label of ["診断カテゴリ", "診断病名"]) {
+      const trigger = screen.getByLabelText(label);
+
+      await user.click(screen.getByText(label, { selector: "label" }));
+
+      expect(trigger).toHaveFocus();
     }
   });
 

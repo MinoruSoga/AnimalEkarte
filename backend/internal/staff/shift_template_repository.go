@@ -1,5 +1,4 @@
-// Package shifttemplate owns shift_templates / shift_template_breaks data access
-// (BE8-4 batch12 — leaf domain).
+// Package staff owns shift_templates / shift_template_breaks data access.
 package staff
 
 import (

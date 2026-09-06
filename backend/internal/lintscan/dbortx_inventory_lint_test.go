@@ -774,6 +774,8 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"clinic/clinic_repository.go|clinicRepository.Delete":                            {},
 	"clinic/clinic_repository.go|clinicRepository.FindAll":                           {},
 	"clinic/clinic_repository.go|clinicRepository.FindByID":                          {},
+	"clinic/clinic_repository.go|clinicRepository.FindByIDs":                         {},
+	"clinic/clinic_repository.go|clinicRepository.FindActiveIDs":                     {},
 	"clinic/clinic_repository.go|clinicRepository.FindCompany":                       {},
 	"clinic/clinic_repository.go|clinicRepository.LockActiveByID":                    {},
 	"clinic/clinic_repository.go|clinicRepository.LockByIDForUpdate":                 {},

@@ -319,6 +319,26 @@ test("E2E and local load jobs each own always-run volume cleanup", () => {
   assert.doesNotMatch(summaryJob, /docker compose down -v/);
 });
 
+test("k6 aggregate validator reads flat and nested summary-export schemas", () => {
+  const performanceWorkflow = read(".github/workflows/performance-tests.yml");
+  const loadJob = workflowJob(performanceWorkflow, "load-test");
+  const validate = namedStep(loadJob, "Validate k6 summary aggregates");
+
+  assert.match(validate, /^\s+if: always\(\)\s*$/m);
+  assert.match(
+    validate,
+    /node scripts\/validate-k6-summary\.mjs/,
+    "validator must live in a testable script, not an inline values-only reader",
+  );
+  assert.match(validate, /load-tests\/results-endpoints-summary\.json/);
+  assert.match(validate, /load-tests\/results-spike-summary\.json/);
+  assert.doesNotMatch(
+    validate,
+    /if \(!metric \|\| !metric\.values\) return 0;/,
+    "do not keep the values-only inline reader that zeroed flat k6 artifacts",
+  );
+});
+
 test("clinical-plan inventory matches the bounded current PATCH contract", () => {
   const inventory = read("docs/ops/testing/scenarios/FORM-FIELD-INVENTORY.md");
   const heading =

@@ -5,10 +5,11 @@ argument-hint: "TASK-XXX | BUG-XXX"
 
 # タスク実装
 
-指定されたタスクIDを実装する。台帳は repo 直下の 2 ファイル（いずれも git 追跡・ローカル連番）:
+指定されたタスクIDを実装する。実行状態の正本は Linear。repo 入口は `todo.md`。確認済み製品 FAIL は `bug.md`。
 
 - 実行タスク、仕様、受け入れ条件、状態、依存関係のSoTはLinear Issue。
 - `docs/work/phase2-deferred.md`は今期外・見送りの索引であり実装台帳ではない。
+- `STATUS.md` と旧二台帳は復活させない。
 
 タスクが GitHub Issue（`#NNN`）を参照する場合、仕様・受け入れ条件の正本は該当 Issue 本文とコメント。`3-session-agent.html` は Issue 分類ビューであり台帳ではない（旧 `#ledger` は 2026-07-31 廃止・経緯は git 履歴）。
 
@@ -23,7 +24,7 @@ argument-hint: "TASK-XXX | BUG-XXX"
 
 ```
 /implement BRT-123   # Linear Issueを実装
-/implement            # 両台帳の open ID 一覧を表示して選択
+/implement            # Linear の対象 Issue を確認してから選ぶ
 
 # タスクlookup / ID一覧
 LinearでIssue本文・コメント・依存関係を確認する

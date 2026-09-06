@@ -84,10 +84,13 @@ export const ClinicalPlanSection = memo(function ClinicalPlanSection({
 
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between">
-            <label className={STYLE.formLabel}>診断カテゴリ</label>
+            <label className={STYLE.formLabel} htmlFor="clinical-plan-diagnosis-category">
+              診断カテゴリ
+            </label>
             <MasterLink category="diagnosis_type" label="編集" className="text-2xs" />
           </div>
           <SearchableSelect
+            id="clinical-plan-diagnosis-category"
             value={diagnosisTypeId ? String(diagnosisTypeId) : ""}
             onValueChange={(value) => {
               onDiagnosisTypeIdChange(value ? Number(value) : null);
@@ -102,10 +105,13 @@ export const ClinicalPlanSection = memo(function ClinicalPlanSection({
 
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between">
-            <label className={STYLE.formLabel}>診断病名</label>
+            <label className={STYLE.formLabel} htmlFor="clinical-plan-diagnosis-name">
+              診断病名
+            </label>
             <MasterLink category="diagnosis_name" label="編集" className="text-2xs" />
           </div>
           <SearchableSelect
+            id="clinical-plan-diagnosis-name"
             value={diagnosisNameId ? String(diagnosisNameId) : ""}
             onValueChange={(value) => onDiagnosisNameIdChange(value ? Number(value) : null)}
             options={nameOptions}

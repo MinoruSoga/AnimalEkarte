@@ -15,7 +15,7 @@ description: commit/push 前のスコープ限定ローカル検証ゲート。�
 
 ## 手順
 
-1. **frontend 実行可否の判定**: 現在のモデルが Haiku かを確認する。Haiku限定で `pnpm` コマンドの自動実行が許可されている。Opus/Sonnetはユーザーに手動実行を依頼する（出典: memory feedback_pnpm_haiku）
+1. **実行可否はモデル名ではなく範囲と副作用で決める**: 変更に直結するスコープ限定の Docker 検証は自律的に完了する。禁止なのは全件 lint/test/build、DB reset、migration apply、依存インストール、streaming logs。ホストの `npm` / `go` は使わず、コンテナが対象 worktree を見ていることを確認する。
 2. **backend 検証対象の確定**: 変更した既存package/fileを指定し、以降の全コマンドで同じ値を使う。次は `medicalrecord` を変更した場合の例。別domainでは実在する対象へ置き換え、`test -d` / `test -f` で存在を確認してから実行する:
    ```bash
    VERIFY_GO_PACKAGE='./internal/medicalrecord/...'

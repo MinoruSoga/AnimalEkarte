@@ -1,5 +1,4 @@
-// Package staffclinicassignment owns staff_clinic_assignments data access
-// (BE8-4 batch19 — leaf domain: staff-clinic junction table).
+// Package staff owns staff_clinic_assignments data access.
 package staff
 
 import (

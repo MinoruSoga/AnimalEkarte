@@ -124,54 +124,9 @@ jobs:
       - name: Validate k6 summary aggregates
         if: always()
         run: |
-          node <<'NODE'
-          const fs = require('fs');
-
-          function metricActivity(metric) {
-            if (!metric || !metric.values) return 0;
-            if (typeof metric.values.count === 'number') return metric.values.count;
-            const passes = metric.values.passes;
-            const fails = metric.values.fails;
-            if (typeof passes === 'number' || typeof fails === 'number') {
-              return (passes || 0) + (fails || 0);
-            }
-            return 0;
-          }
-
-          function validate(path) {
-            if (!fs.existsSync(path)) {
-              console.error(`missing summary export: ${path}`);
-              process.exit(1);
-            }
-            let data;
-            try {
-              data = JSON.parse(fs.readFileSync(path, 'utf8'));
-            } catch (err) {
-              console.error(`invalid JSON summary: ${path}`);
-              process.exit(1);
-            }
-            const metrics = data.metrics || {};
-            const required = ['http_reqs', 'iterations', 'checks', 'successful_logins'];
-            const report = [];
-            let failed = false;
-            for (const name of required) {
-              const activity = metricActivity(metrics[name]);
-              report.push(`${name}=${activity}`);
-              if (activity <= 0) {
-                failed = true;
-              }
-            }
-            console.log(`${path}: ${report.join(', ')}`);
-            if (failed) {
-              console.error(`fail-closed: zero or missing aggregate metrics in ${path}`);
-              process.exit(1);
-            }
-          }
-
-          validate('load-tests/results-endpoints-summary.json');
-          validate('load-tests/results-spike-summary.json');
-          console.log('k6 summary aggregates validated');
-          NODE
+          node scripts/validate-k6-summary.mjs \
+            load-tests/results-endpoints-summary.json \
+            load-tests/results-spike-summary.json
 
           {
             echo "### Load Test Summary Aggregates"

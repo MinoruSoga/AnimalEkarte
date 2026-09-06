@@ -1,4 +1,4 @@
-// Package shiftentry owns shift_entries / shift_entry_breaks data access (BE8-4 batch13 — leaf domain).
+// Package staff owns shift_entries / shift_entry_breaks data access.
 package staff
 
 import (

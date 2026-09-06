@@ -1,17 +1,17 @@
 ---
 name: task-create
-description: "抽象的なタスク依頼から repo 直下 STATUS.md（残タスク台帳）に、AIが実装可能な粒度のタスク節（索引表の行 + `## 個別タスク詳細` の `### TASK-XXX:` 節）を自動追記する。「タスク分解」「イシュー作成」「チケット作成」時に使用。受入テストのバグは STATUS.md へ。旧 3-session-agent.html#ledger・docs/tasks/・backend/issues/・frontend/issues/ 体系は廃止済み。"
+description: "抽象的なタスク依頼を Linear 起票用の実装粒度に分解する。repo 入口は todo.md。確認済み製品 FAIL は bug.md。STATUS.md と旧二台帳は復活させない。"
 ---
 
 # Task Decompose — タスク分解・イシュー自動生成
 
 抽象的なタスク依頼を受け取り、コードベースを調査した上で:
-1. repo 直下 `STATUS.md` の索引/サマリー表に行を追加し、`## 個別タスク詳細` の末尾へ `### TASK-XXX: タイトル` 節を追記する（1タスク = 1節）
-2. BE/FE 分割が必要な場合は `TASK-XXX-BE` / `TASK-XXX-FE` の2節に分ける
+1. 実行状態・担当・Done は Linear を正本とする。repo 入口は [`todo.md`](../../../todo.md)
+2. 確認済み製品 FAIL は [`bug.md`](../../../bug.md) に記録し、その後 Linear Issue 化する
+3. BE/FE 分割が必要な場合は同一 Linear Issue を BE/FE の受け入れ条件で分けるか、依存 Issue を対にする
 
-> **パス正本の注意**: 旧 `3-session-agent.html#ledger` 台帳は **2026-07-31 廃止**（同ファイルは GitHub Issue 分類ビューへ転換）。旧 `backend/issues/` / `frontend/issues/`・docs/tasks 体系も廃止済み（経緯は git 履歴参照）。
-> 現行のローカル台帳は `STATUS.md`（残タスク・TASK-XXX）と `STATUS.md`（受入テストバグ・BUG-XXX）。いずれも git 追跡ファイルであり、追記はコミット対象。
-> GitHub Issues は gh が正本 — 台帳と二重掲出せず、台帳節から `#NNN` で参照する。GitHub Issue の新規作成は外部書き込みのため明示承認後のみ。
+> **パス正本の注意**: `STATUS.md`、旧 `3-session-agent.html#ledger`、`backend/issues/` / `frontend/issues/`・docs/tasks 体系は廃止済み。復活させない。
+> GitHub Issue の新規作成と Linear への外部投稿は明示承認後のみ。許可がなければレビュー可能な下書きを完成させる。
 
 ## 起動トリガー
 
@@ -40,11 +40,11 @@ description: "抽象的なタスク依頼から repo 直下 STATUS.md（残タ�
 ### 1.1 タスク番号の決定
 
 ```bash
-# STATUS.md の TASK ID から最大の数値識別子を取得し、その値 + 1
-grep -oE 'TASK-[0-9]+' STATUS.md | grep -oE '[0-9]+' | sort -n | tail -1
+# Linear / todo.md の既存 ID と重複しない実装単位 ID を使う
+# 例: CI-K6-SUMMARY-SCHEMA / FE-CLINICAL-PLAN-SELECT-LABELS
 ```
 
-形式: `TASK-XXX`（3桁ゼロ埋め・STATUS.md ローカル連番）。STATUS.md 内の最大の数値識別子 +1 で単純採番する（git 履歴の走査は不要。完了済みタスクは台帳から削除されているが、番号の再利用より単純さを優先する）。claim ブランチ（`claim/TASK-XXX`・AGENTS.md packet claim protocol）も同じ番号を使う。
+形式: 台帳の既存 ID 規則に合わせる。claim ブランチ（`claim/<TASK-ID>`・AGENTS.md packet claim protocol）も同じ ID を使う。STATUS.md 連番は使わない。
 
 ### 1.2 BE/FE 分割時のID
 
@@ -164,7 +164,7 @@ grep -n "関連キーワード" frontend/src/types/generated/models.ts
 
 ## Phase 3: タスクセクション生成
 
-### 出力先: repo 直下 `STATUS.md` — 索引/サマリー表に1行追加し、`## 個別タスク詳細` の末尾へ `###` 節を追記
+### 出力先: Linear 下書き + 必要なら `todo.md` の該当節へ入口行を追加。`STATUS.md` は作らない
 
 旧テンプレート（概要/仕様確認ログ/サブタスク分解/受入条件/技術的判断/影響範囲/参照実装/リスク/未解決事項/実装順序）の構造を、以下の5項目に**圧縮**して記載する。**1タスク15行程度を上限の目安**とし、長くなる場合は BE/FE 分割するか、詳細を根拠ファイルパスへのポインタに落とす。
 
@@ -192,7 +192,7 @@ grep -n "関連キーワード" frontend/src/types/generated/models.ts
 
 ## Phase 4: Backend セクション生成（BE/FE 分割時のみ）
 
-### 出力先: `STATUS.md` の `## 個別タスク詳細` 末尾に `### TASK-XXX-BE:` 節を追記（索引表にも1行）
+### 出力先: Linear 下書きの BE 受け入れ条件。必要なら `todo.md` に入口行
 
 上記テンプレートと同構造。観点の抜け確認に `templates/be-issue.md` を参照してよいが、出力は圧縮セクション形式（15行目安）とする。
 
@@ -200,7 +200,7 @@ grep -n "関連キーワード" frontend/src/types/generated/models.ts
 
 ## Phase 5: Frontend セクション生成（BE/FE 分割時のみ）
 
-### 出力先: `STATUS.md` の `## 個別タスク詳細` 末尾に `### TASK-XXX-FE:` 節を追記（索引表にも1行）
+### 出力先: Linear 下書きの FE 受け入れ条件。必要なら `todo.md` に入口行
 
 上記テンプレートと同構造。観点の抜け確認に `templates/fe-issue.md` を参照してよいが、出力は圧縮セクション形式（15行目安）とする。FE セクションの「状態」に BE 依存（`TASK-XXX-BE` 完了後に着手可能）を明記する。
 
@@ -208,21 +208,19 @@ grep -n "関連キーワード" frontend/src/types/generated/models.ts
 
 ## Phase 6: ユーザーへの報告
 
-`STATUS.md` への追記後、以下のサマリーを出力:
+台帳入口と Linear 下書きの準備後、以下のサマリーを出力:
 
 ```
 ## タスク分解完了
 
-### STATUS.md に追記（N件）
-- TASK-XXX: タイトル — 概要
-- TASK-XXX-BE: タイトル — 概要
-- TASK-XXX-FE: タイトル — 概要
+### 入口（N件）
+- ID: タイトル — 概要
 
 ### 実装順序
-1. TASK-XXX-BE（DB + API）
-2. TASK-XXX-FE（UI）— TASK-XXX-BE 完了後に着手可能
+1. BE（DB + API）
+2. FE（UI）— BE 完了後に着手可能
 
-STATUS.md は git 追跡ファイルのため、追記分はコミット対象。
+実行状態は Linear。repo 記録だけで Done にしない。
 ```
 
 ---

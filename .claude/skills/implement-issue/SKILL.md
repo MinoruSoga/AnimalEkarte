@@ -140,7 +140,7 @@ git log --all --oneline -- 'docs/archive/**' | head
 
 ### 3.3 実装実行
 
-- `implementer` エージェント（Sonnet）を使って実装を並列実行してよい
+- 独立した実装単位は、worktree 隔離できる場合だけ並列実行してよい。モデル名で可否を決めない
 - DB マイグレーションがある場合: **適用済み migration の編集は禁止**（checksum mismatch → STG db_reset が必要になる。出典: memory ops_applied_migration_edit_requires_db_reset）。`backend/migrations/` の最終番号 +1 で新規ファイルを追加し、`migration-seed-safety` スキルのチェックリストに従う
 - モデル変更がある場合: `make codegen` を実行して `models.ts` を更新（※ CLAUDE.md の自動実行禁止コマンド。ユーザーに実行を依頼する）
 
@@ -155,7 +155,7 @@ make codegen
 
 ### 4.1 reviewer エージェント起動
 
-`reviewer` エージェント（Haiku）を起動し、以下を検証させる。
+変更の所有範囲でセルフレビューする。モデル名で reviewer を固定しない。
 
 ### 4.2 完了条件チェック
 

@@ -82,10 +82,15 @@ gh run view <run-id> --json jobs
 
 ```bash
 # lint: entrypoint.sh がコマンドを無視するため --entrypoint 上書き必須
-docker compose run --rm --no-deps -T --entrypoint golangci-lint backend run ./internal/repository/...
+docker run --rm --tmpfs /root/.cache \
+  -v "$PWD/backend:/app" \
+  -v ekarte-go-mod-cache:/go/pkg/mod \
+  -w /app \
+  golangci/golangci-lint:v2.11.4 \
+  golangci-lint run ./internal/clinic/... --max-same-issues 0 --max-issues-per-linter 0
 
-# キャッシュ偽0件の回避（stale cache で 0 issues に見える）
-docker compose exec -T backend sh -c 'GOLANGCI_LINT_CACHE=/tmp/glc-$RANDOM golangci-lint run ./internal/handler/...'
+# 対象は変更した現行 domain package。削除済みの handler/repository 配置や
+# backend イメージ内の golangci-lint を実行先にしない。
 ```
 （出典: memory ops_backend_scoped_lint_entrypoint_override / ops_golangci_lint_stale_cache_false_zero）
 
