@@ -88,7 +88,7 @@
 ### 使い方
 
 ```
-/harness FEAT-123        # タスクIDを指定してハーネスで実装（FEAT-/PERF-/BUG-/SEED- 等。旧 BE-XXX/FE-XXX は docs/archive/ 移設済みで使用しない）
+/harness BRT-123         # Linear Issue ID を指定。本文・状態・依存関係は Linear を正本とする
 /harness                 # 未コミット変更を規約チェックのみ実行
 ```
 

@@ -7,8 +7,8 @@
 | 技術           | バージョン    |
 | -------------- | ------------- |
 | React          | 19            |
-| TypeScript     | 5.7           |
-| Vite           | 6             |
+| TypeScript     | 6.0           |
+| Vite           | 8             |
 | Tailwind CSS   | 4             |
 | shadcn/ui      | Radix UI      |
 | React Router   | 7 (Data Mode) |
@@ -63,7 +63,7 @@ frontend/src/
 │   ├── errors/             # RouteErrorBoundary, RootErrorBoundary
 │   └── shared/             # アプリ固有共有UI（Layout含む）
 │
-├── features/               # 機能別モジュール（16 features）
+├── features/               # 機能別モジュール（一覧は `src/features/` 参照）
 │   ├── auth/               # ★ 認証（ログイン・セッション管理）
 │   ├── reception/          # 当日の受付（カンバンボード）
 │   ├── owners/             # ★ ベストプラクティス参照実装
@@ -79,7 +79,7 @@ frontend/src/
 │   ├── estimates/          # 見積
 │   ├── shifts/             # シフト管理
 │   ├── master/             # マスタ設定（PATTERNS.md 参照）
-│   └── hospital-settings/  # 病院設定（クリニックマスタ）
+│   └── clinic-settings/  # 病院設定（クリニックマスタ）
 │
 │   └── [feature-name]/     # 各featureの構造
 │       ├── api/            # フェッチ関数 + React Query hooks
@@ -103,7 +103,7 @@ frontend/src/
 │   ├── generated/          # ★ 自動生成（直接編集禁止）
 │   │   └── models.ts       # make codegen（tygo）で生成
 │   └── ...                 # 共有ドメイン型
-├── utils/                  # 純粋ユーティリティ（format/, constants/ 等）
+├── constants/              # 共有定数（共有ヘルパは lib/）
 └── testing/                # テスト設定（MSW）
 ```
 
@@ -192,10 +192,10 @@ import { toast } from "sonner";
 
 // 3. 共有モジュール (@/)
 import { Button } from "@/components/ui/button";
-import { formatDate } from "@/utils/format/date"; // barrel 経由不可、直接 import
+import { formatDate } from "@/lib/format/date"; // barrel 経由不可、直接 import
 
 // 4. feature 内部（相対パス）
-import { useOwnerForm } from "../hooks/useOwnerForm";
+import { useOwnerForm } from "../hooks/use-owner-form";
 
 // 5. 型（type keyword 付き）
 import type { Owner } from "@/types/owner";
@@ -235,10 +235,8 @@ docker compose ps
 
 ### ビルドエラー
 
-```bash
-# キャッシュクリア＆再ビルド
-make clean
-```
+エラーメッセージと対象ファイルを確認し、必要な依存関係・設定を修正する。
+`make clean` は DB を含む Docker volume を削除するため、通常のビルドエラー対処には使わない。
 
 ---
 

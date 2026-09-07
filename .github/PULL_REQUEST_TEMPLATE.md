@@ -18,7 +18,8 @@
 ## テスト計画
 
 - [ ] ローカルで動作確認済み
-- [ ] 既存テストが通過 (`docker compose exec backend go test ./...` / `docker compose exec frontend pnpm test:run`)
+- [ ] 変更範囲のテストが通過（実行コマンドと結果を記載。例: `docker compose exec backend go test ./internal/<package>/...` / `docker compose exec frontend npx vitest run <path>`）
+- [ ] 文書のみの場合、リンク・参照を確認し runtime 検証不要と記載（該当時）
 - [ ] 新規テストを追加 (機能追加・バグ修正の場合)
 - [ ] clinic_id 隔離に影響なし (DB 変更の場合)
 

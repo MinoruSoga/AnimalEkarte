@@ -12,7 +12,7 @@ argument-hint: "<feature> (e.g. FEAT-123, BUG-456)"
 ### 1️⃣ Red（テスト作成）
 ```bash
 # 失敗するテストを作成
-docker compose exec backend go test -run TestCreateOwner -v
+docker compose exec backend go test ./internal/owner/... -run TestCreateOwner -v
 # → FAIL
 ```
 
@@ -29,7 +29,7 @@ docker compose exec backend go test ./internal/owner/... -run TestCreateOwner -v
 # コードをクリーンアップ
 # エッジケース追加
 # 重複削除
-docker compose exec backend go test -run TestOwner -v
+docker compose exec backend go test ./internal/owner/... -run TestOwner -v
 # → PASS + カバレッジ向上
 ```
 

@@ -8,7 +8,7 @@
 
 | 層 | 管理対象 | 場所 |
 |---|---|---|
-| Terraform | ゾーン・DNS・R2・Hyperdrive・通知 | `infra/cloudflare/`（現行=STG）/ `infra/cloudflare/production/`（ドラフト） |
+| Terraform | ゾーン・DNS・R2・通知 | `infra/cloudflare/`（現行=STG）/ `infra/cloudflare/production/`（ドラフト） |
 | Wrangler | Worker・Container・ルート・secrets | `backend/wrangler.jsonc`（STG）/ `backend/wrangler.production.jsonc`（ドラフト） |
 
 - Workers/ContainersをTerraformで管理しない（デプロイパイプラインと競合する）

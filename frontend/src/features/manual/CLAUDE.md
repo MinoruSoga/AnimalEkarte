@@ -68,7 +68,7 @@ DB が空の場合・取得失敗時は MD バンドル版が常に表示され�
 
 ### frontmatter (MANDATORY)
 
-すべての MD ファイルは以下の frontmatter を含むこと。
+`content/screens/` と `content/workflows/` の記事 MD は以下の frontmatter を含むこと。
 
 ```markdown
 ---
@@ -112,8 +112,8 @@ section: セクション名
 NN-kebab-case.md     例: 01-login.md, 03-hospitalization-flow.md
 ```
 
-- `NN` は 2 桁の表示順 (frontmatter の `order` と整合)
-- 拡張子は `.md` のみ。frontmatter の `title` がスラグではなくファイル名のスラグ部分が URL になる
+- `NN` はファイル名の 2 桁の識別番号。表示順は frontmatter の `order` が決める。既存ファイル名は URL に使うため、並び替えのために変更しない。
+- 拡張子は `.md` のみ。frontmatter の `title` がスラグではなく拡張子を除くファイル名全体（`NN-` を含む）が URL のスラグになる
 
 ## 新規マニュアル項目の追加手順
 
@@ -156,7 +156,7 @@ NN-kebab-case.md     例: 01-login.md, 03-hospitalization-flow.md
 ## 禁止事項
 
 - ❌ MD 内で生 HTML を多用しない（react-markdown でレンダリングできない要素は避ける）
-- ❌ frontmatter なしの MD を追加しない（目次に表示されない）
+- ❌ frontmatter なしの MD を追加しない（タイトル・順序・セクションが既定値にフォールバックする）
 - ❌ `images/` 以外のディレクトリに画像を置かない（自動解決されない）
 - ❌ 動的な MD 読み込み（fetch 等）を実装しない。ビルド時静的解決を維持
 
@@ -175,15 +175,14 @@ NN-kebab-case.md     例: 01-login.md, 03-hospitalization-flow.md
 - **多言語対応**: `content/ja/`, `content/en/` 構造への切替（現在は日本語固定）
 - **PDF 一括エクスポート**: 全項目を結合した PDF 生成（要件確定後）
 - **動画埋め込み**: 操作デモ動画の embed 対応
-- **編集者ロール**: 管理者が UI 上で MD 編集できる機能（要件確定後）
 - **検索ハイライト**: 検索結果のヒット箇所をハイライト表示
 
 ## トラブルシューティング
 
-| 症状                     | 原因と対処                                                                              |
-| ------------------------ | --------------------------------------------------------------------------------------- |
-| 新規 MD が目次に出ない   | frontmatter 欠落 → 必須キー (`title`/`order`/`section`) を確認                          |
-| 画像が表示されない       | 配置場所が `content/images/` 直下になっているか、参照パスが `images/xxx.png` 形式か確認 |
-| 検索ヒットしない         | `searchText` は markdown 記号除去後の文字列。記号のみのクエリは無視される               |
-| HMR で更新が反映されない | Vite 開発サーバを再起動 (`docker compose restart frontend`)                             |
-| 印刷時にサイドバーが残る | `no-print` クラスが適切に付与されているか、印刷対象が `.manual-root` 配下か確認         |
+| 症状                                     | 原因と対処                                                                              |
+| ---------------------------------------- | --------------------------------------------------------------------------------------- |
+| 記事のタイトル・分類・順序が意図と異なる | frontmatter の必須キー (`title`/`order`/`section`) を確認（欠落時は既定値を使用）       |
+| 画像が表示されない                       | 配置場所が `content/images/` 直下になっているか、参照パスが `images/xxx.png` 形式か確認 |
+| 検索ヒットしない                         | `searchText` は markdown 記号除去後の文字列。記号のみのクエリは無視される               |
+| HMR で更新が反映されない                 | Vite 開発サーバを再起動 (`docker compose restart frontend`)                             |
+| 印刷時にサイドバーが残る                 | `no-print` クラスが適切に付与されているか、印刷対象が `.manual-root` 配下か確認         |

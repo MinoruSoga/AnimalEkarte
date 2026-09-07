@@ -52,15 +52,11 @@ PageLayout
 
 ## 2. テーブル仕様
 
-### 行の高さ
+### 行・セルの共通スタイル
 
-| 要素                         | クラス   | 高さ     |
-| ---------------------------- | -------- | -------- |
-| テーブル行（`DataTableRow`） | `h-12`   | 48px     |
-| ヘッダ行                     | `h-11`   | 44px     |
-| セル垂直パディング           | `py-2.5` | 上下10px |
-
-**すべての TableCell に `py-2.5` を付与すること。**
+`DataTableRow` / `TableCell` と `TABLE_STYLES` を使う。寸法・タイポグラフィ・
+セルの上下余白は共有実装が管理し、ページ側で再指定しない。
+並べ替え用の先頭セルと 44px の native button は `SortableDataTableRow` が生成する。
 
 ### カラム定義パターン
 
@@ -70,7 +66,7 @@ PageLayout
 // ─────────────────────────────────────────────────
 
 const COLUMNS = [
-  { header: "", className: "w-[32px]" }, // D&Dハンドル（必須・先頭）
+  { header: "", className: "w-11" }, // D&Dハンドル（必須・先頭）
   { header: "名称" }, // メイン名称（flex-1）
   { header: "備考", className: "w-[240px]" }, // 補足（固定幅）
   { header: "ステータス", className: "w-[100px]", align: "center" as const },
@@ -82,7 +78,7 @@ const COLUMNS = [
 
 | カラム用途   | 推奨幅                                      |
 | ------------ | ------------------------------------------- |
-| D&Dハンドル  | `w-[32px]`                                  |
+| D&Dハンドル  | `w-11`                                      |
 | 主要名称     | 幅なし（flex-1）                            |
 | 所属カテゴリ | `w-[160px]`                                 |
 | 備考・説明   | `w-[240px]`（`truncate` + `max-w-[240px]`） |
@@ -92,28 +88,25 @@ const COLUMNS = [
 ### セルのスタイル
 
 ```tsx
-// ハンドルセル
-<TableCell className={`w-[32px] py-2.5 ${C.text20} cursor-grab`} {...listeners}>
-  <GripVertical className="size-4" />
-</TableCell>
+// ハンドルセルは SortableDataTableRow が生成するため、children に追加しない。
 
-// 主要名称セル（太字）
-<TableCell className={`font-medium text-sm ${C.text} py-2.5`}>
+// 主要名称セル
+<TableCell>
   {item.name}
 </TableCell>
 
 // 補足テキストセル（薄色・省略あり）
-<TableCell className={`text-sm ${C.text70} py-2.5 truncate max-w-[240px]`}>
+<TableCell className="truncate max-w-[240px]">
   {item.description || "-"}
 </TableCell>
 
 // ステータスセル
-<TableCell className="text-center py-2.5">
+<TableCell className="text-center">
   <StatusPill isActive={item.isActive} />
 </TableCell>
 
 // 操作ボタンセル
-<TableCell className="text-right py-2.5">
+<TableCell className="text-right">
   <RowActionButton onClick={onEdit} />
 </TableCell>
 ```
@@ -301,7 +294,6 @@ function XxxSidePanel({ item, onClose, onSave, onDeleteRequest }) {
 
   return (
     <div className={`${STYLE.sidePeekPanel} ${LAYOUT.sidePeek.width} shrink-0`}>
-
       {/* ── Toolbar ── */}
       <div className={STYLE.sidePeekToolbar}>
         <span className={`text-xs ${C.text35} pl-1 select-none`}>
@@ -331,7 +323,6 @@ function XxxSidePanel({ item, onClose, onSave, onDeleteRequest }) {
       {/* ── Body ── */}
       <div className={STYLE.sidePeekBody}>
         <div className="px-16 pb-8">
-
           {/* ページアイコン */}
           <div className="pt-4 pb-2">
             <div className={STYLE.pageIcon}>
@@ -343,9 +334,9 @@ function XxxSidePanel({ item, onClose, onSave, onDeleteRequest }) {
           <div className="pb-1 mb-4">
             <input
               type="text"
-              className={`w-full bg-transparent ${C.text} placeholder:text-[rgba(55,53,47,0.15)] outline-none border-none p-0`} focus-visible:ring-2 ${C.focusRingAccent40}
+              className={`w-full bg-transparent ${C.text} placeholder:text-[rgba(55,53,47,0.15)] outline-none border-none p-0 focus-visible:ring-2 ${C.focusRingAccent40}`}
               style={{
-                fontSize: LAYOUT.pageTitle.fontSize,    // "30px"
+                fontSize: LAYOUT.pageTitle.fontSize, // "30px"
                 fontWeight: LAYOUT.pageTitle.fontWeight, // 700
                 lineHeight: LAYOUT.pageTitle.lineHeight, // "1.2"
               }}
@@ -424,7 +415,11 @@ function PropertyRow({ label, children }: { label: string; children: ReactNode }
 ### PropInput（プロパティ行用インライン入力）
 
 ```tsx
-function PropInput({ value, onChange, placeholder }: {
+function PropInput({
+  value,
+  onChange,
+  placeholder,
+}: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
@@ -432,7 +427,7 @@ function PropInput({ value, onChange, placeholder }: {
   return (
     <input
       type="text"
-      className={`w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`} focus-visible:ring-2 ${C.focusRingAccent40}
+      className={`w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder} focus-visible:ring-2 ${C.focusRingAccent40}`}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder ?? "空"}
@@ -489,35 +484,12 @@ const panelDuration = useReducedMotion() ? 0 : 0.2;
 マスタページのステータスは **StatusPill** を使う。`StatusBadge` は使わない。
 
 ```tsx
-const STATUS_CONFIG = {
-  active: {
-    dot: C.bgBrandDot, // ブランドteal ドット
-    label: "有効",
-    bg: C.bgBrandLight, // 薄teal背景
-    text: C.textBrandDark, // 濃teal テキスト
-  },
-  inactive: {
-    dot: C.bgPrimary10, // グレードット
-    label: "無効",
-    bg: C.bgInactive, // グレー背景
-    text: C.text60,
-  },
-} as const;
+import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 
-function StatusPill({ isActive }: { isActive: boolean }) {
-  const cfg = STATUS_CONFIG[isActive ? "active" : "inactive"];
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm text-xs ${cfg.bg} ${cfg.text}`}
-    >
-      <span className={`size-[7px] rounded-full ${cfg.dot}`} />
-      {cfg.label}
-    </span>
-  );
-}
+<StatusPill isActive={item.isActive} />;
 ```
 
-**各ファイルにコピーして定義する**（共通コンポーネント化しない理由: マスタページ固有のデザイントークンを直書きしているため）。
+共有 `StatusPill` を再利用し、各マスタに同じ定義をコピーしない。
 
 ---
 
@@ -647,9 +619,9 @@ export function XxxSettings() {
 
 - [ ] ページタイトルは `「○○マスタ」` 形式
 - [ ] カラム定義はモジュールレベル定数（`const COLUMNS = [...]`）
-- [ ] D&Dハンドルは先頭カラム `w-[32px]`、`GripVertical`、`{...listeners}` をセルに
+- [ ] D&Dハンドルは `SortableDataTableRow` の 44px native button を使用
 - [ ] `orderedItems`（`useSortableList` 戻り値）をレンダリング（`items` 直接不可）
-- [ ] テーブルセルに `py-2.5` を付与
+- [ ] テーブルセルの寸法・タイポグラフィ・上下余白は共有実装に委ねる
 - [ ] ステータスは `StatusPill`（`StatusBadge` 禁止）
 - [ ] 新規登録ボタンはテキストリンクスタイル（`PrimaryButton` 禁止）
 - [ ] サイドピーク幅は `LAYOUT.sidePeek.width`（`w-[520px]`）
