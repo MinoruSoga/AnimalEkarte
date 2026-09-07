@@ -69,6 +69,7 @@ services:
       TZ: Asia/Tokyo
       DB_HOST: db
       DB_PORT: 5432
+      APP_ENV: ${APP_ENV:-development}
       GOFLAGS: "-p=4"
       GOMAXPROCS: "4"
       # BUG-008/014: ローカル LIFF モックを compose で明示固定（release では config が拒否）

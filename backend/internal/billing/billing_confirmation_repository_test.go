@@ -108,9 +108,10 @@ func TestBillingConfirmationRepository_Update(t *testing.T) {
 	confirmer := makeDoctor(t, db, clinicA, "確定担当医")
 
 	t.Run("正常系: status/confirmed_by が更新される", func(t *testing.T) {
-		require.NoError(t, repo.Update(ctx, clinicA, review.ID, map[string]any{
-			"status":       model.ConfirmationStatusConfirmed,
-			"confirmed_by": confirmer.ID,
+		status := model.ConfirmationStatusConfirmed
+		require.NoError(t, repo.Update(ctx, clinicA, review.ID, UpdateBillingConfirmationInput{
+			Status:      &status,
+			ConfirmedBy: &confirmer.ID,
 		}))
 
 		got, err := repo.FindByMedicalRecordID(ctx, clinicA, mrA.ID)
@@ -121,13 +122,15 @@ func TestBillingConfirmationRepository_Update(t *testing.T) {
 	})
 
 	t.Run("別クリニックからの更新は NotFound", func(t *testing.T) {
-		err := repo.Update(ctx, clinicB, review.ID, map[string]any{"memo": "乗っ取り"})
+		memo := "乗っ取り"
+		err := repo.Update(ctx, clinicB, review.ID, UpdateBillingConfirmationInput{Memo: &memo})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
 	t.Run("存在しないIDの更新は NotFound", func(t *testing.T) {
-		err := repo.Update(ctx, clinicA, 9999999, map[string]any{"memo": "存在しない"})
+		memo := "存在しない"
+		err := repo.Update(ctx, clinicA, 9999999, UpdateBillingConfirmationInput{Memo: &memo})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})

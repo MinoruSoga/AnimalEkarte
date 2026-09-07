@@ -40,7 +40,7 @@ func setupExclusionIsolationTestDB(t *testing.T) *gorm.DB {
 // clinic A のスタッフに clinic B の予約区分を affinity 設定できないことを検証する。
 func TestReservationStaffRepository_UpdateExcludedReservationTypes_ClinicIsolation(t *testing.T) {
 	db := setupExclusionIsolationTestDB(t)
-	repo := NewReservationStaffRepository(db, staffpkg.NewStaffRepository(db))
+	repo := NewReservationStaffRepository(db, staffpkg.NewRepository(db))
 	ctx := context.Background()
 
 	const (
@@ -106,7 +106,7 @@ func TestReservationStaffRepository_UpdateExcludedReservationTypes_ClinicIsolati
 // Stage B で clinic A の capability facade write が clinic B の capabilities を消さないことを検証する。
 func TestReservationStaffRepository_UpdateExcludedReservationTypes_DeleteScopedToClinic(t *testing.T) {
 	db := setupExclusionIsolationTestDB(t)
-	repo := NewReservationStaffRepository(db, staffpkg.NewStaffRepository(db))
+	repo := NewReservationStaffRepository(db, staffpkg.NewRepository(db))
 	ctx := context.Background()
 
 	const (

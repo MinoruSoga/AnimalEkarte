@@ -16,7 +16,7 @@ type mockVaccineRepository struct {
 	findAllFn                 func(ctx context.Context, clinicID uint64, species *string) ([]model.Vaccine, error)
 	findByIDFn                func(ctx context.Context, clinicID, id uint64) (*model.Vaccine, error)
 	createFn                  func(ctx context.Context, vaccine *model.Vaccine) error
-	updateFieldsFn            func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccine, error)
+	updateFieldsFn            func(ctx context.Context, clinicID, id uint64, cmd UpdateVaccineInput) (*model.Vaccine, error)
 	deleteFn                  func(ctx context.Context, clinicID, id uint64) error
 	reorderFn                 func(ctx context.Context, clinicID uint64, ids []uint64) error
 	countUsageByVaccineIDFn   func(ctx context.Context, clinicID, vaccineID uint64) (int64, error)
@@ -35,8 +35,8 @@ func (m *mockVaccineRepository) Create(ctx context.Context, vaccine *model.Vacci
 	return m.createFn(ctx, vaccine)
 }
 
-func (m *mockVaccineRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccine, error) {
-	return m.updateFieldsFn(ctx, clinicID, id, fields)
+func (m *mockVaccineRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateVaccineInput) (*model.Vaccine, error) {
+	return m.updateFieldsFn(ctx, clinicID, id, cmd)
 }
 
 func (m *mockVaccineRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -318,7 +318,7 @@ func TestVaccineService_Update(t *testing.T) {
 					}
 					return &model.Vaccine{ID: 1, ClinicID: 1}, nil
 				},
-				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Vaccine, error) {
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateVaccineInput) (*model.Vaccine, error) {
 					if tt.repoErr != nil {
 						return nil, tt.repoErr
 					}

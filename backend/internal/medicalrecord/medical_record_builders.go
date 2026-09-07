@@ -3,6 +3,7 @@ package medicalrecord
 import (
 	"crypto/rand"
 	"fmt"
+	"maps"
 	"math/big"
 	"time"
 
@@ -57,6 +58,12 @@ func buildMedicalRecordUpdate(input UpdateMedicalRecordInput) map[string]any {
 	}
 	if input.VisitType != nil {
 		fields["visit_type"] = *input.VisitType
+	}
+	if input.persistVersion != nil {
+		fields["version"] = *input.persistVersion
+	}
+	if len(input.persistFields) > 0 {
+		maps.Copy(fields, input.persistFields)
 	}
 	return fields
 }

@@ -24,15 +24,17 @@ func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicIDs []uint6
 	needsOwnerJoin := filters.Search != "" || filters.Sort == "owner_name"
 	needsInquiryJoin := filters.Search != ""
 
-	buildBase := func() *gorm.DB {
+	buildBase := func(withIsolation bool) *gorm.DB {
 		// clinicScopeIn は "clinic_id" を無修飾で参照するため、pets/owners
 		// （いずれも clinic_id 列を持つ）を LEFT JOIN すると曖昧になる。
 		// search/animal_species_id フィルタで JOIN が入るケースがあるため、
 		// ここでは常に medical_records.clinic_id を明示指定する。
 		q := r.db.WithContext(ctx).
 			Model(&model.MedicalRecord{}).
-			Where("medical_records.clinic_id IN ?", clinicIDs).
-			Scopes(medicalRecordDetailRelationsScope())
+			Where("medical_records.clinic_id IN ?", clinicIDs)
+		if withIsolation {
+			q = q.Scopes(medicalRecordDetailRelationsScope())
+		}
 		if needsPetJoin {
 			q = q.Joins("LEFT JOIN pets ON pets.id = medical_records.pet_id AND pets.clinic_id = medical_records.clinic_id AND pets.deleted_at IS NULL")
 		}
@@ -80,10 +82,10 @@ func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicIDs []uint6
 		return q
 	}
 
-	if err := buildBase().Count(&total).Error; err != nil {
+	if err := buildBase(false).Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "medical_record", "")
 	}
-	if err := buildBase().
+	if err := buildBase(true).
 		Scopes(paginate(page, limit)).Order(medicalRecordOrderClause(filters.Sort, filters.Order)).
 		Preload("Owner", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
 		Preload("Pet", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).

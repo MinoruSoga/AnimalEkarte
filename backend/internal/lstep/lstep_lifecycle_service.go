@@ -121,7 +121,6 @@ func (s *lstepLifecycleService) HandlePetDeath(ctx context.Context, clinicID, pe
 			Resource:   "pet",
 			ResourceID: &petID,
 		}); auditErr != nil {
-			slog.ErrorContext(txCtx, "audit log failed for pet death", "error", auditErr, "pet_id", petID)
 			return apperrors.Wrap(auditErr, "failed to write pet death audit log")
 		}
 		return nil
@@ -214,7 +213,6 @@ func (s *lstepLifecycleService) HandlePetRevival(ctx context.Context, clinicID, 
 			Resource:   "pet",
 			ResourceID: &petID,
 		}); auditErr != nil {
-			slog.ErrorContext(txCtx, "audit log failed for pet revival", "error", auditErr, "pet_id", petID)
 			return apperrors.Wrap(auditErr, "failed to write pet revival audit log")
 		}
 		return nil

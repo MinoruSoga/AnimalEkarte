@@ -2,7 +2,6 @@ package medicalrecord
 
 import (
 	"context"
-	"log/slog"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -12,7 +11,6 @@ func (s *vitalService) updateVitalInTx(
 	txCtx context.Context,
 	clinicID, medicalRecordID, vitalID uint64,
 	input *UpdateVitalInput,
-	fields map[string]any,
 	existing *model.VitalRecord,
 ) (*model.VitalRecord, error) {
 	// BE-refactor.md X-11: LockByIDForUpdate の行ロックで finalize と直列化し、確定と同時の
@@ -53,13 +51,11 @@ func (s *vitalService) updateVitalInTx(
 	); err != nil {
 		return nil, err
 	}
-	if err := s.repo.Update(txCtx, clinicID, vitalID, fields); err != nil {
-		slog.ErrorContext(txCtx, "failed to update vital record", "error", err)
+	if err := s.repo.Update(txCtx, clinicID, vitalID, *input); err != nil {
 		return nil, apperrors.Wrap(err, "failed to update vital record")
 	}
 	result, err := s.repo.FindByID(txCtx, clinicID, vitalID)
 	if err != nil {
-		slog.ErrorContext(txCtx, "failed to get vital record after update", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get vital record after update")
 	}
 	if err := validateUpdatedVitalRelation(

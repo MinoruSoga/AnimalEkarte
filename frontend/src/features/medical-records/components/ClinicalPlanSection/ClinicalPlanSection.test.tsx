@@ -15,21 +15,81 @@ vi.mock("@/components/shared/MasterLink", () => ({
 
 vi.mock("@/components/ui/searchable-select", () => ({
   SearchableSelect: ({
+    id,
     value,
     disabled,
     placeholder,
   }: {
+    id?: string;
     value: string;
     disabled?: boolean;
     placeholder?: string;
   }) => (
-    <select aria-label={placeholder ?? "select"} value={value} disabled={disabled} readOnly>
+    <select id={id} aria-label={placeholder ?? "select"} value={value} disabled={disabled} readOnly>
       <option value={value}>{value}</option>
     </select>
   ),
 }));
 
 describe("ClinicalPlanSection BUG-010 controlled inputs", () => {
+  it("3つのtextareaは表示ラベルで取得でき、ラベルをクリックすると対応するtextareaにフォーカスする", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <ClinicalPlanSection
+        medicalRecordId="42"
+        canEdit
+        physicalExam="身体検査の初期値"
+        onPhysicalExamChange={vi.fn()}
+        diagnosisDetails="診断詳細の初期値"
+        onDiagnosisDetailsChange={vi.fn()}
+        treatmentPolicy="治療方針の初期値"
+        onTreatmentPolicyChange={vi.fn()}
+        diagnosisTypeId={null}
+        onDiagnosisTypeIdChange={vi.fn()}
+        diagnosisNameId={null}
+        onDiagnosisNameIdChange={vi.fn()}
+      />,
+    );
+
+    for (const label of ["身体検査所見", "診断詳細", "治療方針"]) {
+      const textarea = screen.getByLabelText(label);
+
+      await user.click(screen.getByText(label, { selector: "label" }));
+
+      expect(textarea).toHaveFocus();
+    }
+  });
+
+  it("診断カテゴリと診断病名のvisible labelからSearchableSelect triggerへ到達・focusできる", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <ClinicalPlanSection
+        medicalRecordId="42"
+        canEdit
+        physicalExam=""
+        onPhysicalExamChange={vi.fn()}
+        diagnosisDetails=""
+        onDiagnosisDetailsChange={vi.fn()}
+        treatmentPolicy=""
+        onTreatmentPolicyChange={vi.fn()}
+        diagnosisTypeId={1}
+        onDiagnosisTypeIdChange={vi.fn()}
+        diagnosisNameId={null}
+        onDiagnosisNameIdChange={vi.fn()}
+      />,
+    );
+
+    for (const label of ["診断カテゴリ", "診断病名"]) {
+      const trigger = screen.getByLabelText(label);
+
+      await user.click(screen.getByText(label, { selector: "label" }));
+
+      expect(trigger).toHaveFocus();
+    }
+  });
+
   it("親から渡された3欄の値を表示し、入力変更は親 setter のみを呼ぶ（独自保存 mutation を持たない）", async () => {
     const user = userEvent.setup();
     const onPhysicalExamChange = vi.fn();

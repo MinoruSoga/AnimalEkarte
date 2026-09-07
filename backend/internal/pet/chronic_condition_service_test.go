@@ -17,7 +17,7 @@ type mockPetChronicConditionRepository struct {
 	findByPetIDFn                    func(ctx context.Context, clinicID, petID uint64) ([]model.PetChronicCondition, error)
 	findByIDFn                       func(ctx context.Context, clinicID, petID, id uint64) (*model.PetChronicCondition, error)
 	createFn                         func(ctx context.Context, record *model.PetChronicCondition) error
-	updateFn                         func(ctx context.Context, clinicID, petID, id uint64, fields map[string]any) error
+	updateFn                         func(ctx context.Context, clinicID, petID, id uint64, cmd UpdateChronicConditionInput) error
 	deleteFn                         func(ctx context.Context, clinicID, petID, id uint64) error
 	getActiveConditionCodesByOwnerFn func(ctx context.Context, clinicID, ownerID uint64) ([]string, error)
 }
@@ -49,10 +49,10 @@ func (m *mockPetChronicConditionRepository) Create(ctx context.Context, record *
 func (m *mockPetChronicConditionRepository) Update(
 	ctx context.Context,
 	clinicID, petID, id uint64,
-	fields map[string]any,
+	cmd UpdateChronicConditionInput,
 ) error {
 	if m.updateFn != nil {
-		return m.updateFn(ctx, clinicID, petID, id, fields)
+		return m.updateFn(ctx, clinicID, petID, id, cmd)
 	}
 	return nil
 }
@@ -251,8 +251,8 @@ func TestChronicConditionService_Update(t *testing.T) {
 			findByIDFn: func(_ context.Context, clinicID, petID, id uint64) (*model.PetChronicCondition, error) {
 				return &model.PetChronicCondition{ID: id, ClinicID: clinicID}, nil
 			},
-			updateFn: func(_ context.Context, clinicID, petID, id uint64, fields map[string]any) error {
-				assert.Equal(t, "C02", fields["condition_code"])
+			updateFn: func(_ context.Context, clinicID, petID, id uint64, cmd UpdateChronicConditionInput) error {
+				assert.Equal(t, "C02", *cmd.ConditionCode)
 				return nil
 			},
 		}
@@ -304,7 +304,7 @@ func TestChronicConditionService_Update(t *testing.T) {
 			findByIDFn: func(_ context.Context, clinicID, petID, id uint64) (*model.PetChronicCondition, error) {
 				return &model.PetChronicCondition{ID: id, ClinicID: clinicID}, nil
 			},
-			updateFn: func(_ context.Context, _, _, _ uint64, _ map[string]any) error {
+			updateFn: func(_ context.Context, _, _, _ uint64, _ UpdateChronicConditionInput) error {
 				return errors.New("update error")
 			},
 		}
@@ -325,7 +325,7 @@ func TestChronicConditionService_Update(t *testing.T) {
 			findByIDFn: func(_ context.Context, clinicID, petID, id uint64) (*model.PetChronicCondition, error) {
 				return &model.PetChronicCondition{ID: id, ClinicID: clinicID, PetID: petID}, nil
 			},
-			updateFn: func(_ context.Context, _, _, _ uint64, _ map[string]any) error {
+			updateFn: func(_ context.Context, _, _, _ uint64, _ UpdateChronicConditionInput) error {
 				updateCalled = true
 				return nil
 			},
@@ -358,7 +358,7 @@ func TestChronicConditionService_Update_ReloadError(t *testing.T) {
 			}
 			return nil, errors.New("db error on reload")
 		},
-		updateFn: func(_ context.Context, _, _, _ uint64, _ map[string]any) error {
+		updateFn: func(_ context.Context, _, _, _ uint64, _ UpdateChronicConditionInput) error {
 			return nil
 		},
 	}

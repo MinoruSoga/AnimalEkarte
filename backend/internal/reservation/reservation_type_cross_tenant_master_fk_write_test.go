@@ -82,7 +82,7 @@ func TestReservationTypeService_Update_RejectsCrossClinicGroupID(t *testing.T) {
 			findByIDFn: func(_ context.Context, gotClinicID, id uint64) (*model.ReservationType, error) {
 				return &model.ReservationType{ID: id, ClinicID: gotClinicID}, nil
 			},
-			updateFn: func(_ context.Context, gotClinicID, id uint64, _ map[string]any) (*model.ReservationType, error) {
+			updateFn: func(_ context.Context, gotClinicID, id uint64, _ UpdateReservationTypeInput) (*model.ReservationType, error) {
 				*updated = true
 				return &model.ReservationType{ID: id, ClinicID: gotClinicID}, nil
 			},
@@ -131,7 +131,7 @@ func TestReservationTypeService_Update_RejectsCrossClinicParentID(t *testing.T) 
 				}
 				return &model.ReservationType{ID: id, ClinicID: clinicID}, nil
 			},
-			updateFn: func(_ context.Context, gotClinicID, id uint64, _ map[string]any) (*model.ReservationType, error) {
+			updateFn: func(_ context.Context, gotClinicID, id uint64, _ UpdateReservationTypeInput) (*model.ReservationType, error) {
 				*updated = true
 				return &model.ReservationType{ID: id, ClinicID: gotClinicID}, nil
 			},
@@ -166,4 +166,4 @@ func TestReservationTypeService_Update_RejectsCrossClinicParentID(t *testing.T) 
 // without verifying it belongs to the caller's clinic. Guard: occupationRepo.FindByID
 // (ctx, clinicID, OccupationID) before persist, mirroring medicineService's
 // validateInventoryOwnership (X-14 batch U2). occupationRepo is now a mandatory
-// NewStaffService dependency (see staff_service_core.go validateOccupationOwnership).
+// NewService dependency (see staff_service_core.go validateOccupationOwnership).

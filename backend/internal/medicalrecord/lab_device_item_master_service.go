@@ -191,11 +191,11 @@ func (s *labDeviceItemMasterService) UpdateDevice(
 	if err := s.validateExamType(ctx, clinicID, examTypeID); err != nil {
 		return nil, err
 	}
-	return s.repo.UpdateDevice(ctx, clinicID, id, map[string]any{
-		"name":         name,
-		"exam_type_id": examTypeID,
-		"is_active":    input.IsActive,
-		"sort_order":   input.SortOrder,
+	return s.repo.UpdateDevice(ctx, clinicID, id, UpdateLabDeviceInput{
+		Name:       name,
+		ExamTypeID: examTypeID,
+		IsActive:   input.IsActive,
+		SortOrder:  input.SortOrder,
 	})
 }
 
@@ -289,12 +289,8 @@ func (s *labDeviceItemMasterService) Update(
 			return nil, err
 		}
 	}
-	fields := map[string]any{
-		"unit":               unit,
-		"is_active":          input.IsActive,
-		"exam_type_field_id": input.ExamTypeFieldID,
-	}
-	return s.repo.Update(ctx, clinicID, id, fields)
+	input.Unit = unit
+	return s.repo.Update(ctx, clinicID, id, input)
 }
 
 func (s *labDeviceItemMasterService) assertExamTypeFieldInClinic(ctx context.Context, clinicID, fieldID uint64) error {

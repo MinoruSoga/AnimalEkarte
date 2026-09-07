@@ -150,7 +150,7 @@ docker compose run --rm --no-deps --entrypoint '' -T \
 
 | ID | 不足入力 | なぜ必要か | 供給者 | 状態 |
 |---|---|---|---|---|
-| I-ROSTER | 実スタッフ一覧（氏名・所属院・役割） | #255 本文のブロッカー。manifest `staff[]` の源泉 | 先方 | **未記入**（受領記録なし） |
+| I-ROSTER | 実スタッフ一覧（氏名・所属院・役割） | manifest `staff[]` の源泉。受領履歴と適用可能な現在版を区別する | 先方 / PO | **現在版・適用可否は未確認**。過去の受領記録は [#255 の本文訂正](https://github.com/MinoruSoga/AnimalEkarte/issues/255#issuecomment-5141215224)、現在版・方針・認可 apply の残件は [最新整理](https://github.com/MinoruSoga/AnimalEkarte/issues/255#issuecomment-5352950935) を参照。氏名等を本書へ転記しない |
 | I-EMAIL | email 方針（個人必須 / 共有禁止は Q&A No.30） | manifest `email` を埋められるか | PO | **未記入** |
 | I-CLINIC | 院 → `clinic_id` 対応表 | `clinic_scope` / `main_clinic_id` | 運用 | **未記入** |
 | I-ROLE | 役割 → **明示** `permission_group_ids`（推論禁止） | 権限グループ割当 | PO | **未記入** |

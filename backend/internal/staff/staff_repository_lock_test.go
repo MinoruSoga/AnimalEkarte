@@ -58,7 +58,7 @@ func TestStaffRepository_ActiveRowLocks_SourceContract(t *testing.T) {
 }
 
 func TestStaffRepository_ActiveRowLocks_RequireAmbientTransaction(t *testing.T) {
-	repo := NewStaffRepository(nil)
+	repo := NewRepository(nil)
 
 	for _, lock := range []struct {
 		name string
@@ -99,7 +99,7 @@ func TestStaffRepository_ActiveRowLocks_RequireAmbientTransaction(t *testing.T) 
 
 func TestStaffRepository_ActiveRowLocks_DatabaseContract(t *testing.T) {
 	db := setupStaffRepositoryTestDB(t)
-	repo := NewStaffRepository(db)
+	repo := NewRepository(db)
 	transactor := persistence.NewTransactor(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
@@ -193,23 +193,23 @@ func TestStaffRepository_ActiveRowLocks_DatabaseContract(t *testing.T) {
 func TestStaffRepository_ActiveRowLocks_HoldUntilTransactionEndsDatabase(t *testing.T) {
 	tests := []struct {
 		name string
-		lock func(StaffRepository, context.Context, uint64, uint64) (*model.Staff, error)
+		lock func(Repository, context.Context, uint64, uint64) (*model.Staff, error)
 	}{
 		{
 			name: "update",
-			lock: func(repo StaffRepository, ctx context.Context, _, staffID uint64) (*model.Staff, error) {
+			lock: func(repo Repository, ctx context.Context, _, staffID uint64) (*model.Staff, error) {
 				return repo.LockActiveByIDForUpdate(ctx, staffID)
 			},
 		},
 		{
 			name: "share",
-			lock: func(repo StaffRepository, ctx context.Context, _, staffID uint64) (*model.Staff, error) {
+			lock: func(repo Repository, ctx context.Context, _, staffID uint64) (*model.Staff, error) {
 				return repo.LockActiveByIDForShare(ctx, staffID)
 			},
 		},
 		{
 			name: "clinic scoped update",
-			lock: func(repo StaffRepository, ctx context.Context, clinicID, staffID uint64) (*model.Staff, error) {
+			lock: func(repo Repository, ctx context.Context, clinicID, staffID uint64) (*model.Staff, error) {
 				return repo.LockActiveByIDForUpdateInClinic(ctx, clinicID, staffID)
 			},
 		},
@@ -218,7 +218,7 @@ func TestStaffRepository_ActiveRowLocks_HoldUntilTransactionEndsDatabase(t *test
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			db := setupStaffRepositoryTestDB(t)
-			repo := NewStaffRepository(db)
+			repo := NewRepository(db)
 			transactor := persistence.NewTransactor(db)
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()

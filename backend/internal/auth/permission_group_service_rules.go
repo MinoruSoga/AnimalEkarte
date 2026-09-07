@@ -88,15 +88,12 @@ func (s *permissionGroupService) updateRules(
 	}
 	staffGroupIDs, err := s.repo.FindAllGroupIDsByStaffID(ctx, clinicID, actorStaffID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to find staff group IDs for self-reference check",
-			"error", err, "clinic_id", clinicID, "actor_staff_id", actorStaffID)
 		return apperrors.Wrap(err, "failed to find staff group IDs")
 	}
 	if err := validateNotSelfReference(groupID, rules, staffGroupIDs); err != nil {
 		return err
 	}
 	if err := s.repo.UpdateRules(ctx, clinicID, groupID, rules); err != nil {
-		slog.ErrorContext(ctx, "failed to set permission group rules", "error", err, "id", groupID)
 		return apperrors.Wrap(err, "failed to set permission group rules")
 	}
 	slog.InfoContext(ctx, "permission group rules set",
@@ -178,7 +175,6 @@ func (s *permissionGroupService) Reorder(
 		return apperrors.WrapInvalidInput(sharedkernel.ErrMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
-		slog.ErrorContext(ctx, "failed to reorder permission groups", "error", err, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to reorder permission groups")
 	}
 	slog.InfoContext(ctx, "permission groups reordered",
@@ -193,7 +189,6 @@ func (s *permissionGroupService) GetEffectivePermissions(
 ) ([]model.PermissionGroupRule, error) {
 	rules, err := s.repo.FindAllEffectivePermissionsByStaffID(ctx, staffID, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get effective permissions", "error", err, "staff_id", staffID, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get effective permissions")
 	}
 	return rules, nil

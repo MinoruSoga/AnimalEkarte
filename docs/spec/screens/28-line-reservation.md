@@ -37,7 +37,7 @@ LINE アプリ内で飼い主が見る画面の文言を編集します。`LineR
 
 ### 3. 連携クレデンシャル
 - **LINE連携**: チャネルID（Channel ID）および LIFF ID の登録（`LineReservationSettingsForm`）。
-- チャネルシークレット・アクセストークンはこの画面では**扱わない**（意図的な設計判断）。LINE credential を平文入力可能な画面 UI に置かないという方針（SD-3 決裁A・q&a.html 参照）により、対応する input・送信コードを設けていない。予約通知用 access token は `line_reservation_settings` に暗号化して保持する。Webhook 検証に使う正本の channel secret は `clinic_integrations` の `line_channel_secret` として暗号化して保持する。設定経路は該当する運用 runbook／seed 契約に従い、legacy の `line_reservation_settings.line_channel_secret` を設定先として使わない。
+- チャネルシークレット・アクセストークンはこの画面では**扱わない**（旧 SD-3 決裁A。削除済み q&a.html を現在の設定手順として参照しない）。対応する input・送信コードは設けていない。予約通知用 access token は `line_reservation_settings` に暗号化して保持する。Webhook 検証に使う正本の channel secret は `clinic_integrations` の `line_channel_secret` として暗号化して保持する。設定経路は該当する運用 runbook／seed 契約に従い、legacy の `line_reservation_settings.line_channel_secret` を設定先として使わない。
 
 ### 4. 予約枠カレンダー (`/slots`)
 予約区分ごとの「予約可能な開始時刻（予約可能枠）」を週カレンダー形式で日別に管理します。

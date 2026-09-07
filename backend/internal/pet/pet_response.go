@@ -212,7 +212,7 @@ type AnimalSpeciesSummaryResponse struct {
 	Name string `json:"name"`
 }
 
-func toPetResponse(p *model.Pet) PetResponse {
+func toResponse(p *model.Pet) PetResponse {
 	var acquisitionType *string
 	if p.AcquisitionType != nil {
 		s := string(*p.AcquisitionType)

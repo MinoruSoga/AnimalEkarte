@@ -12,15 +12,15 @@ argument-hint: "<feature> (e.g. FEAT-123, BUG-456)"
 ### 1️⃣ Red（テスト作成）
 ```bash
 # 失敗するテストを作成
-docker compose exec backend go test -run TestCreateOwner -v
+docker compose exec backend go test ./internal/owner/... -run TestCreateOwner -v
 # → FAIL
 ```
 
 ### 2️⃣ Green（最小限の実装）
 ```bash
 # テストを通す最小限の実装
-# service/owner_service.go に CreateOwner() を実装
-docker compose exec backend go test -run TestCreateOwner -v
+# 対象 domain package（例: internal/owner）に最小実装を置く
+docker compose exec backend go test ./internal/owner/... -run TestCreateOwner -v
 # → PASS
 ```
 
@@ -29,7 +29,7 @@ docker compose exec backend go test -run TestCreateOwner -v
 # コードをクリーンアップ
 # エッジケース追加
 # 重複削除
-docker compose exec backend go test -run TestOwner -v
+docker compose exec backend go test ./internal/owner/... -run TestOwner -v
 # → PASS + カバレッジ向上
 ```
 

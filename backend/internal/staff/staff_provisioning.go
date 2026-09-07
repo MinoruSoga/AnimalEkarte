@@ -94,8 +94,8 @@ type StaffProvisionActor struct {
 	StaffID       *uint64
 }
 
-// StaffProvisioningRepository is the persistence boundary for batch provisioning.
-// Implementations must honor ambient transaction participation.
+// StaffProvisioningRepository is StaffProvisioner's persistence port.
+// The GORM store is concrete; this interface stays on the use-case side.
 type StaffProvisioningRepository interface {
 	WithTx(ctx context.Context, fn func(ctx context.Context) error) error
 	AcquireBatchLock(ctx context.Context, batchID string) error

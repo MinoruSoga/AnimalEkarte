@@ -31,7 +31,7 @@ type billingCompositionDependencies struct {
 	Owners           owner.Repository
 	MerchandiseItems inventory.MerchandiseItemRepository
 	ClosingSettings  clinic.ClosingSettingsService
-	Clinics          clinic.ClinicRepository
+	Clinics          *clinic.Repository
 	ClinicHolidays   clinic.ClinicHolidayRepository
 }
 

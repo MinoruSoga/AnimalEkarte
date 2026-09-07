@@ -35,7 +35,7 @@ func (r *reservationStaffDeleteRecorder) Delete(
 	return r.err
 }
 
-func TestReservationStaffService_Delete_DelegatesToCanonicalStaffService(t *testing.T) {
+func TestReservationStaffService_Delete_DelegatesToCanonicalService(t *testing.T) {
 	repo := &mockReservationStaffRepository{
 		findByIDFn: func(context.Context, uint64, uint64) (*model.Staff, error) {
 			t.Fatal("reservation repository ownership lookup must not run during canonical delete")

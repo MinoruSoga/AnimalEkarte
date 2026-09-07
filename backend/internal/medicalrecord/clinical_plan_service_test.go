@@ -20,8 +20,8 @@ import (
 type mockClinicalPlanRepository struct {
 	findByMedicalRecordIDFn func(ctx context.Context, clinicID, medicalRecordID uint64) (*model.ClinicalPlan, error)
 	createFn                func(ctx context.Context, plan *model.ClinicalPlan) error
-	updateFn                func(ctx context.Context, clinicID, planID uint64, fields map[string]any) error
-	updateWithVersionFn     func(ctx context.Context, clinicID, planID uint64, fields map[string]any, expectedVersion *int) error
+	updateFn                func(ctx context.Context, clinicID, planID uint64, cmd UpdateClinicalPlanInput) error
+	updateWithVersionFn     func(ctx context.Context, clinicID, planID uint64, cmd UpdateClinicalPlanInput, expectedVersion *int) error
 	deleteFn                func(ctx context.Context, clinicID, planID uint64) error
 }
 
@@ -33,11 +33,11 @@ func (m *mockClinicalPlanRepository) Create(ctx context.Context, plan *model.Cli
 	return m.createFn(ctx, plan)
 }
 
-func (m *mockClinicalPlanRepository) Update(ctx context.Context, clinicID, planID uint64, fields map[string]any, expectedVersion *int) error {
+func (m *mockClinicalPlanRepository) Update(ctx context.Context, clinicID, planID uint64, cmd UpdateClinicalPlanInput, expectedVersion *int) error {
 	if m.updateWithVersionFn != nil {
-		return m.updateWithVersionFn(ctx, clinicID, planID, fields, expectedVersion)
+		return m.updateWithVersionFn(ctx, clinicID, planID, cmd, expectedVersion)
 	}
-	return m.updateFn(ctx, clinicID, planID, fields)
+	return m.updateFn(ctx, clinicID, planID, cmd)
 }
 
 func (m *mockClinicalPlanRepository) Delete(ctx context.Context, clinicID, planID uint64) error {
@@ -321,7 +321,7 @@ func TestClinicalPlanService_Update(t *testing.T) {
 				createFn: func(_ context.Context, _ *model.ClinicalPlan) error {
 					return nil
 				},
-				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+				updateFn: func(_ context.Context, _, _ uint64, _ UpdateClinicalPlanInput) error {
 					return tt.repoUpdateErr
 				},
 			}
@@ -342,7 +342,7 @@ func TestClinicalPlanService_Update(t *testing.T) {
 // BUG-010: 空文字ポインタは明示クリアとして repo.Update に渡り、未送信 nil は no-op になる。
 func TestClinicalPlanService_Update_EmptyStringClearsFields(t *testing.T) {
 	empty := ""
-	var gotFields map[string]any
+	var got UpdateClinicalPlanInput
 	repo := &mockClinicalPlanRepository{
 		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
 			return &model.ClinicalPlan{
@@ -354,8 +354,8 @@ func TestClinicalPlanService_Update_EmptyStringClearsFields(t *testing.T) {
 				Version:          2,
 			}, nil
 		},
-		updateWithVersionFn: func(_ context.Context, _, _ uint64, fields map[string]any, expectedVersion *int) error {
-			gotFields = fields
+		updateWithVersionFn: func(_ context.Context, _, _ uint64, cmd UpdateClinicalPlanInput, expectedVersion *int) error {
+			got = cmd
 			if expectedVersion == nil || *expectedVersion != 2 {
 				t.Fatalf("expectedVersion = %v, want 2", expectedVersion)
 			}
@@ -372,11 +372,14 @@ func TestClinicalPlanService_Update_EmptyStringClearsFields(t *testing.T) {
 		ActorID:          clinicalPlanTestActorID(),
 	})
 	require.NoError(t, err)
-	require.NotNil(t, gotFields)
-	assert.Equal(t, "", gotFields["physical_exam"])
-	assert.Equal(t, "", gotFields["diagnosis_details"])
-	assert.Equal(t, "", gotFields["treatment_policy"])
-	assert.Equal(t, 3, gotFields["version"])
+	require.NotNil(t, got.PhysicalExam)
+	require.NotNil(t, got.DiagnosisDetails)
+	require.NotNil(t, got.TreatmentPolicy)
+	require.NotNil(t, got.persistVersion)
+	assert.Equal(t, "", *got.PhysicalExam)
+	assert.Equal(t, "", *got.DiagnosisDetails)
+	assert.Equal(t, "", *got.TreatmentPolicy)
+	assert.Equal(t, 3, *got.persistVersion)
 }
 
 // BUG-010: 確定済み親カルテへの clinical plan 更新は Conflict で拒否し repo.Update を呼ばない。
@@ -387,7 +390,7 @@ func TestClinicalPlanService_Update_FinalizedParentRejected(t *testing.T) {
 		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
 			return &model.ClinicalPlan{ID: 1, MedicalRecordID: 1, PhysicalExam: "確定前"}, nil
 		},
-		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+		updateFn: func(_ context.Context, _, _ uint64, _ UpdateClinicalPlanInput) error {
 			updateCalled = true
 			return nil
 		},
@@ -418,7 +421,7 @@ func TestClinicalPlanService_Update_ValidateDiagnosisFKsError(t *testing.T) {
 		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
 			return &model.ClinicalPlan{ID: 1, MedicalRecordID: 1}, nil
 		},
-		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+		updateFn: func(_ context.Context, _, _ uint64, _ UpdateClinicalPlanInput) error {
 			t.Fatal("clinical plan must not be updated when diagnosis FK ownership check fails")
 			return nil
 		},
@@ -476,7 +479,7 @@ func TestClinicalPlanService_Update_RefetchError(t *testing.T) {
 			}
 			return nil, errors.New("db error")
 		},
-		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+		updateFn: func(_ context.Context, _, _ uint64, _ UpdateClinicalPlanInput) error {
 			return nil
 		},
 	}
@@ -600,7 +603,7 @@ func TestClinicalPlanService_Update_RejectsFinalizedParent(t *testing.T) {
 		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
 			return &model.ClinicalPlan{ID: 1, MedicalRecordID: 1}, nil
 		},
-		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+		updateFn: func(_ context.Context, _, _ uint64, _ UpdateClinicalPlanInput) error {
 			updateCalled = true
 			return nil
 		},
@@ -659,7 +662,7 @@ func TestClinicalPlanService_Update_RejectsMismatchedDiagnosis2TypeName(t *testi
 		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
 			return &model.ClinicalPlan{ID: 1, MedicalRecordID: 1}, nil
 		},
-		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+		updateFn: func(_ context.Context, _, _ uint64, _ UpdateClinicalPlanInput) error {
 			t.Fatal("must not update when diagnosis_2 type/name mismatch")
 			return nil
 		},
@@ -694,15 +697,15 @@ func TestClinicalPlanService_Update_VersionPassthrough(t *testing.T) {
 	t.Run("input.Version が nil のとき plan.Version+1 を使い、expectedVersion は nil のまま渡る", func(t *testing.T) {
 		var gotExpectedVersion *int
 		var gotVersionCaptured bool
-		var gotFields map[string]any
+		var got UpdateClinicalPlanInput
 		repo := &mockClinicalPlanRepository{
 			findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
 				return &model.ClinicalPlan{ID: 1, MedicalRecordID: 1, Version: 3}, nil
 			},
-			updateWithVersionFn: func(_ context.Context, _, _ uint64, fields map[string]any, expectedVersion *int) error {
+			updateWithVersionFn: func(_ context.Context, _, _ uint64, cmd UpdateClinicalPlanInput, expectedVersion *int) error {
 				gotExpectedVersion = expectedVersion
 				gotVersionCaptured = true
-				gotFields = fields
+				got = cmd
 				return nil
 			},
 		}
@@ -716,22 +719,23 @@ func TestClinicalPlanService_Update_VersionPassthrough(t *testing.T) {
 		assert.NotNil(t, plan)
 		require.True(t, gotVersionCaptured, "repo.Update must be called")
 		assert.Nil(t, gotExpectedVersion, "expectedVersion must be nil when input.Version is nil")
-		assert.Equal(t, 4, gotFields["version"], "fields[version] must be plan.Version+1")
+		require.NotNil(t, got.persistVersion)
+		assert.Equal(t, 4, *got.persistVersion, "persistVersion must be plan.Version+1")
 	})
 
 	t.Run("input.Version が非nilのとき、その値が expectedVersion にそのまま渡り fields[version] は *input.Version+1", func(t *testing.T) {
 		claimedVersion := 5
 		var gotExpectedVersion *int
-		var gotFields map[string]any
+		var got UpdateClinicalPlanInput
 		repo := &mockClinicalPlanRepository{
 			findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
 				// plan.Version はサーバ側の実際の値（claimedVersion と異なっていても
 				// nextVersion 計算は input.Version 起点になることを示すため意図的にずらす）。
 				return &model.ClinicalPlan{ID: 1, MedicalRecordID: 1, Version: 99}, nil
 			},
-			updateWithVersionFn: func(_ context.Context, _, _ uint64, fields map[string]any, expectedVersion *int) error {
+			updateWithVersionFn: func(_ context.Context, _, _ uint64, cmd UpdateClinicalPlanInput, expectedVersion *int) error {
 				gotExpectedVersion = expectedVersion
-				gotFields = fields
+				got = cmd
 				return nil
 			},
 		}
@@ -747,6 +751,7 @@ func TestClinicalPlanService_Update_VersionPassthrough(t *testing.T) {
 		assert.NotNil(t, plan)
 		require.NotNil(t, gotExpectedVersion)
 		assert.Equal(t, claimedVersion, *gotExpectedVersion, "expectedVersion must be input.Version itself, not nextVersion")
-		assert.Equal(t, claimedVersion+1, gotFields["version"], "fields[version] must be *input.Version+1")
+		require.NotNil(t, got.persistVersion)
+		assert.Equal(t, claimedVersion+1, *got.persistVersion, "persistVersion must be *input.Version+1")
 	})
 }

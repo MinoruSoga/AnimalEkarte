@@ -42,7 +42,7 @@ type TreatmentRepository interface {
 	// finalized だが billing_confirmation 未confirmed かつ未会計のカルテ = 取り残し候補。
 	CountFinalizedUnconfirmedByPetAndDate(ctx context.Context, clinicID, petID uint64, date time.Time) (int64, error)
 	Create(ctx context.Context, treatment *model.Treatment) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	Update(ctx context.Context, clinicID, id uint64, cmd UpdateTreatmentInput) error
 	Delete(ctx context.Context, clinicID, id uint64) error
 	BulkUpdateSortOrder(ctx context.Context, updates []TreatmentSortUpdate) error
 }
@@ -247,7 +247,11 @@ func (r *treatmentRepository) Create(ctx context.Context, treatment *model.Treat
 }
 
 // Update は dbOrTx で ambient tx に参加する（Create と同じ理由、BE9-2D ④b）。
-func (r *treatmentRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+func (r *treatmentRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateTreatmentInput) error {
+	return r.update(ctx, clinicID, id, buildTreatmentUpdate(&cmd))
+}
+
+func (r *treatmentRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	// NOTE: GORM does not propagate Joins() into the generated UPDATE statement's SQL
 	// (it is a SELECT-only clause), so a WHERE referencing the joined table fails with
 	// "missing FROM-clause entry". clinic_id isolation must be expressed as a subquery instead.

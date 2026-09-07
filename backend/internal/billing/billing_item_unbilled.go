@@ -2,7 +2,6 @@ package billing
 
 import (
 	"context"
-	"log/slog"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -21,7 +20,6 @@ const (
 func (s *billingItemService) aggregateUnbilled(ctx context.Context, clinicID, petID uint64) (*UnbilledDetails, error) {
 	treatments, err := s.treatmentRepo.FindUnbilledByPetID(ctx, clinicID, petID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to find unbilled treatments", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find unbilled treatments")
 	}
 	items := make([]model.BillingItem, 0, len(treatments))
@@ -32,7 +30,6 @@ func (s *billingItemService) aggregateUnbilled(ctx context.Context, clinicID, pe
 	if trimmingFinder, ok := s.repo.(unbilledTrimmingItemFinder); ok {
 		trimmingItems, err := trimmingFinder.FindUnbilledTrimmingItemsByPetID(ctx, clinicID, petID)
 		if err != nil {
-			slog.ErrorContext(ctx, "failed to find unbilled trimming items", "error", err)
 			return nil, apperrors.Wrap(err, "failed to find unbilled trimming items")
 		}
 		items = append(items, trimmingItems...)
@@ -41,7 +38,6 @@ func (s *billingItemService) aggregateUnbilled(ctx context.Context, clinicID, pe
 	vaccinationItems, unbillableCount, err := s.repo.FindUnbilledVaccinationItemsByPetID(ctx, clinicID, petID)
 	if err != nil {
 		// infra / unexpected: keep 500 fail-closed (do not convert to warning)
-		slog.ErrorContext(ctx, "failed to find unbilled vaccination items", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find unbilled vaccination items")
 	}
 	items = append(items, vaccinationItems...)
@@ -58,7 +54,6 @@ func (s *billingItemService) aggregateUnbilled(ctx context.Context, clinicID, pe
 
 	examItems, examUnbillable, examErr := s.repo.FindUnbilledExamItemsByPetID(ctx, clinicID, petID)
 	if examErr != nil {
-		slog.ErrorContext(ctx, "failed to find unbilled exam items", "error", examErr)
 		return nil, apperrors.Wrap(examErr, "failed to find unbilled exam items")
 	}
 	items = append(items, examItems...)
@@ -114,14 +109,12 @@ func (s *billingItemService) AssertNoBlockingUnbilled(ctx context.Context, clini
 func (s *billingItemService) GetUngroupedSameDaySummary(ctx context.Context, clinicID, petID uint64, date time.Time) (UngroupedSameDaySummary, error) {
 	mrCount, err := s.treatmentRepo.CountFinalizedUnconfirmedByPetAndDate(ctx, clinicID, petID, date)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to count ungrouped medical records", "error", err)
 		return UngroupedSameDaySummary{}, apperrors.Wrap(err, "failed to count ungrouped medical records")
 	}
 	var trimmingCount int64
 	if counter, ok := s.repo.(ungroupedTrimmingCounter); ok {
 		trimmingCount, err = counter.CountNonAccountingTrimmingByPetAndDate(ctx, clinicID, petID, date)
 		if err != nil {
-			slog.ErrorContext(ctx, "failed to count ungrouped trimming", "error", err)
 			return UngroupedSameDaySummary{}, apperrors.Wrap(err, "failed to count ungrouped trimming")
 		}
 	}

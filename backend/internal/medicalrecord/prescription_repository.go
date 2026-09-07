@@ -21,7 +21,7 @@ type PrescriptionRepository interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Prescription, error)
 	FindActiveByOwner(ctx context.Context, clinicID, ownerID uint64) ([]model.Prescription, error)
 	Create(ctx context.Context, prescription *model.Prescription) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	Update(ctx context.Context, clinicID, id uint64, cmd UpdatePrescriptionInput) error
 	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
@@ -127,7 +127,11 @@ func (r *prescriptionRepository) Create(ctx context.Context, prescription *model
 }
 
 // Update は dbOrTx(ctx, r.db) で ambient tx に参加する（Create と同じ理由、BE-refactor.md X-11）。
-func (r *prescriptionRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+func (r *prescriptionRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdatePrescriptionInput) error {
+	return r.update(ctx, clinicID, id, buildPrescriptionUpdate(&cmd))
+}
+
+func (r *prescriptionRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	result := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Prescription{}).
 		Scopes(persistence.ClinicScope(clinicID)).

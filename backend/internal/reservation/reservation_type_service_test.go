@@ -21,7 +21,7 @@ type mockReservationTypeRepository struct {
 	countUsageByReservationTypeFn func(ctx context.Context, clinicID, id uint64) (int64, error)
 	countChildrenByParentIDFn     func(ctx context.Context, clinicID, parentID uint64) (int64, error)
 	createFn                      func(ctx context.Context, st *model.ReservationType) error
-	updateFn                      func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationType, error)
+	updateFn                      func(ctx context.Context, clinicID, id uint64, cmd UpdateReservationTypeInput) (*model.ReservationType, error)
 	deleteFn                      func(ctx context.Context, clinicID, id uint64) error
 	reorderFn                     func(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -61,9 +61,9 @@ func (m *mockReservationTypeRepository) Create(ctx context.Context, st *model.Re
 	return nil
 }
 
-func (m *mockReservationTypeRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationType, error) {
+func (m *mockReservationTypeRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateReservationTypeInput) (*model.ReservationType, error) {
 	if m.updateFn != nil {
-		return m.updateFn(ctx, clinicID, id, fields)
+		return m.updateFn(ctx, clinicID, id, cmd)
 	}
 	return &model.ReservationType{ID: id, ClinicID: clinicID}, nil
 }
@@ -409,12 +409,12 @@ func TestReservationTypeService_Update(t *testing.T) {
 			},
 		}
 
-		var capturedFields map[string]any
+		var captured UpdateReservationTypeInput
 		repo := &mockReservationTypeRepository{
-			updateFn: func(_ context.Context, cid, rid uint64, fields map[string]any) (*model.ReservationType, error) {
+			updateFn: func(_ context.Context, cid, rid uint64, cmd UpdateReservationTypeInput) (*model.ReservationType, error) {
 				assert.Equal(t, clinicID, cid)
 				assert.Equal(t, id, rid)
-				capturedFields = fields
+				captured = cmd
 				return updated, nil
 			},
 			findByIDWithChildrenFn: func(_ context.Context, cid, rid uint64) (*model.ReservationType, error) {
@@ -432,9 +432,11 @@ func TestReservationTypeService_Update(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, updated, got)
-		assert.Equal(t, newName, capturedFields[colReservationTypeName])
-		assert.Equal(t, newActive, capturedFields[colReservationTypeIsActive])
-		assert.NotContains(t, capturedFields, colReservationTypeColor)
+		require.NotNil(t, captured.Name)
+		require.NotNil(t, captured.IsActive)
+		assert.Equal(t, newName, *captured.Name)
+		assert.Equal(t, newActive, *captured.IsActive)
+		assert.Nil(t, captured.Color)
 	})
 
 	t.Run("rejects clear_parent_id and parent_id together", func(t *testing.T) {
@@ -453,7 +455,7 @@ func TestReservationTypeService_Update(t *testing.T) {
 	t.Run("returns not found when record does not exist", func(t *testing.T) {
 		name := "test"
 		repo := &mockReservationTypeRepository{
-			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.ReservationType, error) {
+			updateFn: func(_ context.Context, _, _ uint64, _ UpdateReservationTypeInput) (*model.ReservationType, error) {
 				return nil, apperrors.WrapNotFound("reservation_type", "5")
 			},
 		}

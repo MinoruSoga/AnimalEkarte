@@ -180,3 +180,9 @@ bank_transfer を含む優先順位ルール、または金額最大方式への
 Decision Point 1 のうち、`payment_splits.payment_method_id` の clinic 一致は、ADR 作成後に導入された既存の複合 FK パターンを使って宣言的に実装した。旧 `backend/migrations/006_payment_splits_payment_method_clinic_fk.sql`（`c434c4e66`、2026-07-27に001へ統合。現行所在は `001_init.sql` 末尾の旧006アーカイブブロック）は `payment_methods` に述語なしの `UNIQUE (id, clinic_id)` を追加し、`payment_splits (payment_method_id, clinic_id)` から `payment_methods (id, clinic_id)` への複合 FK を追加する。既定の `MATCH SIMPLE` により legacy の `payment_method_id IS NULL` 行は許容し、削除動作は `ON DELETE RESTRICT` とした。soft-delete 済み master への既存参照を許す挙動は変えない。
 
 続報（2026-07-29 統合 / live）: `method` ⇔ `system_key` 一致は `app_private.enforce_payment_method_system_key_match` と `payments`/`payment_splits` トリガーで実装済み。`payments.clinic_id` と複合 FK（billing / payment_methods との clinic 軸）も TASK-445 相当として `001_init.sql` に統合済み。通常の会計作成・更新経路は引き続き `backend/internal/billing/accounting_service_builders.go` の `resolvePaymentMethodMasterID` が不一致を拒否する。確定後訂正経路は `method` / `payment_method_id` 自体を変更しないが、保存済みの組合せは再検証しない。レガシー `payment_method_id IS NULL` 行と soft-deleted master 参照の扱いは Status の残差を参照。
+
+## GitHub 決定記録との照合（2026-09-06）
+
+[GitHub #185](https://github.com/MinoruSoga/AnimalEkarte/issues/185) の CLOSED は 2026-06-26 の設計判断の完了を示し、同本文には当時の TRIGGER 不採用が残る。その後の `001_init.sql` と本 ADR の TASK-ADR003 実装メモでは整合 trigger が存在する。Issue の当初判断を現在の「trigger 未実装」の根拠にしない。[#197](https://github.com/MinoruSoga/AnimalEkarte/issues/197) / [#198](https://github.com/MinoruSoga/AnimalEkarte/issues/198) の system_key / bank_transfer 対応も実装済みだが、Issue にある旧 `internal/service` や削除済み incremental migration は historical path として読む。
+
+通常 Create/Update から `completed` へ遷移する旧会計経路は現在拒否される。新規確定は `accounting_complete.go` の `Complete` に集約され、現行支払検証はこの entry と `accounting_service_builders.go` を合わせて確認する。ここで過去の意思決定や実 DB 適用状態を変更・認定していない。

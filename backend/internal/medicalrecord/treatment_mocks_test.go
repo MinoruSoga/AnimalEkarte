@@ -22,7 +22,7 @@ type mockTreatmentRepository struct {
 	findByIDFn              func(ctx context.Context, clinicID, treatmentID uint64) (*model.Treatment, error)
 	lockByIDForUpdateFn     func(ctx context.Context, clinicID, treatmentID uint64) (*model.Treatment, error)
 	createFn                func(ctx context.Context, treatment *model.Treatment) error
-	updateFn                func(ctx context.Context, clinicID, treatmentID uint64, fields map[string]any) error
+	updateFn                func(ctx context.Context, clinicID, treatmentID uint64, cmd UpdateTreatmentInput) error
 	deleteFn                func(ctx context.Context, clinicID, treatmentID uint64) error
 	bulkUpdateSortOrderFn   func(ctx context.Context, updates []TreatmentSortUpdate) error
 	findHistoryByPetIDFn    func(ctx context.Context, clinicID, petID uint64, filter model.PetTreatmentHistoryFilter, page, limit int) ([]model.Treatment, int64, error)
@@ -51,8 +51,8 @@ func (m *mockTreatmentRepository) Create(ctx context.Context, treatment *model.T
 	return m.createFn(ctx, treatment)
 }
 
-func (m *mockTreatmentRepository) Update(ctx context.Context, clinicID, treatmentID uint64, fields map[string]any) error {
-	return m.updateFn(ctx, clinicID, treatmentID, fields)
+func (m *mockTreatmentRepository) Update(ctx context.Context, clinicID, treatmentID uint64, cmd UpdateTreatmentInput) error {
+	return m.updateFn(ctx, clinicID, treatmentID, cmd)
 }
 
 func (m *mockTreatmentRepository) Delete(ctx context.Context, clinicID, treatmentID uint64) error {
@@ -163,7 +163,7 @@ type mockMedicineDoseParamRepository struct {
 	findByMedicineIDFn         func(ctx context.Context, clinicID, medicineID uint64) ([]model.MedicineDoseParam, error)
 	findByMedicineAndSpeciesFn func(ctx context.Context, clinicID, medicineID uint64, species model.MedicineDoseSpecies) (*model.MedicineDoseParam, error)
 	createFn                   func(ctx context.Context, clinicID uint64, param *model.MedicineDoseParam) error
-	updateFn                   func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicineDoseParam, error)
+	updateFn                   func(ctx context.Context, clinicID, id uint64, cmd MedicineDoseParamInput) (*model.MedicineDoseParam, error)
 	deleteFn                   func(ctx context.Context, clinicID, id uint64) error
 }
 
@@ -188,11 +188,11 @@ func (m *mockMedicineDoseParamRepository) Create(ctx context.Context, clinicID u
 	return m.createFn(ctx, clinicID, param)
 }
 
-func (m *mockMedicineDoseParamRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicineDoseParam, error) {
+func (m *mockMedicineDoseParamRepository) Update(ctx context.Context, clinicID, id uint64, cmd MedicineDoseParamInput) (*model.MedicineDoseParam, error) {
 	if m.updateFn == nil {
 		return nil, nil
 	}
-	return m.updateFn(ctx, clinicID, id, fields)
+	return m.updateFn(ctx, clinicID, id, cmd)
 }
 
 func (m *mockMedicineDoseParamRepository) Delete(ctx context.Context, clinicID, id uint64) error {

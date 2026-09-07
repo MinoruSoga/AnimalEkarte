@@ -76,7 +76,6 @@ func (s *sharedFileService) Upload(ctx context.Context, clinicID, uploadedBy uin
 	// owner_id が指定された場合、同一クリニックに存在することを検証
 	if input.OwnerID != nil {
 		if _, err := s.ownerRepo.FindByID(ctx, clinicID, *input.OwnerID); err != nil {
-			slog.ErrorContext(ctx, "owner not found or different clinic", "error", err, "clinic_id", clinicID, "owner_id", *input.OwnerID)
 			return nil, apperrors.Wrap(err, "owner not found")
 		}
 	}
@@ -87,7 +86,6 @@ func (s *sharedFileService) Upload(ctx context.Context, clinicID, uploadedBy uin
 	}
 
 	if err := s.storage.Upload(ctx, key, input.Content, input.ContentType); err != nil {
-		slog.ErrorContext(ctx, "failed to upload shared file to storage", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to upload file")
 	}
 
@@ -102,7 +100,6 @@ func (s *sharedFileService) Upload(ctx context.Context, clinicID, uploadedBy uin
 		Purpose:    input.Purpose,
 	}
 	if err := s.repo.Create(ctx, record); err != nil {
-		slog.ErrorContext(ctx, "failed to create shared_file record", "error", err, "key", key)
 		// ストレージをロールバック
 		if delErr := s.storage.Delete(ctx, key); delErr != nil {
 			slog.ErrorContext(ctx, "failed to cleanup uploaded file after DB error", "error", delErr, "key", key)
@@ -116,12 +113,10 @@ func (s *sharedFileService) Upload(ctx context.Context, clinicID, uploadedBy uin
 func (s *sharedFileService) GetSignedURL(ctx context.Context, clinicID, id uint64) (string, error) {
 	record, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to find shared file", "error", err, "id", id)
 		return "", apperrors.Wrap(err, "failed to find shared file")
 	}
 	url, err := s.storage.GetSignedURL(ctx, record.FileKey, 24*time.Hour)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to generate signed URL", "error", err, "key", record.FileKey)
 		return "", apperrors.Wrap(err, "failed to generate signed URL")
 	}
 	return url, nil
@@ -130,7 +125,6 @@ func (s *sharedFileService) GetSignedURL(ctx context.Context, clinicID, id uint6
 func (s *sharedFileService) FindAll(ctx context.Context, clinicID uint64) ([]*SharedFileResponse, error) {
 	records, err := s.repo.FindAll(ctx, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to find shared files", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to find shared files")
 	}
 	result := make([]*SharedFileResponse, 0, len(records))
@@ -143,15 +137,12 @@ func (s *sharedFileService) FindAll(ctx context.Context, clinicID uint64) ([]*Sh
 func (s *sharedFileService) Delete(ctx context.Context, clinicID, id uint64) error {
 	record, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to find shared file for delete", "error", err, "id", id)
 		return apperrors.Wrap(err, "failed to find shared file")
 	}
 	if err := s.storage.Delete(ctx, record.FileKey); err != nil {
-		slog.ErrorContext(ctx, "failed to delete file from storage", "error", err, "key", record.FileKey)
 		return apperrors.Wrap(err, "failed to delete file from storage")
 	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to soft-delete shared file", "error", err, "id", id)
 		return apperrors.Wrap(err, "failed to delete shared file record")
 	}
 	return nil

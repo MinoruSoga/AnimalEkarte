@@ -33,8 +33,8 @@ export const queryClient = new QueryClient({
 
 // リソース別キャッシング戦略
 export const QUERY_STALE_TIMES = {
-  // セッション: 認証 me 等（FE-RC-082）
-  SESSION: 10 * 1000, // 10秒
+  // セッション: 認証 me。STG 実測で 10s + poll が /me 二重取得の主因だったため 5 分。
+  SESSION: 5 * 60 * 1000,
 
   // 常に再取得: preview 系（FE-RC-082）
   NONE: 0,

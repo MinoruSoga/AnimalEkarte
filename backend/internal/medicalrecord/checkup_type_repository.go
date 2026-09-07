@@ -20,7 +20,7 @@ type CheckupTypeRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.CheckupType, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.CheckupType, error)
 	Create(ctx context.Context, checkupType *model.CheckupType) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.CheckupType, error)
+	Update(ctx context.Context, clinicID, id uint64, cmd UpdateCheckupTypeInput) (*model.CheckupType, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	CountUsageByCheckupTypeID(ctx context.Context, clinicID, checkupTypeID uint64) (int64, error)
@@ -62,11 +62,15 @@ func (r *checkupTypeRepository) Create(ctx context.Context, checkupType *model.C
 	return nil
 }
 
-func (r *checkupTypeRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.CheckupType, error) {
-	if err := persistence.UpdateScopedByID(ctx, r.db, &model.CheckupType{}, "checkup_type", clinicID, id, fields); err != nil {
+func (r *checkupTypeRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateCheckupTypeInput) (*model.CheckupType, error) {
+	if err := r.update(ctx, clinicID, id, buildCheckupTypeUpdate(&cmd)); err != nil {
 		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
+}
+
+func (r *checkupTypeRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+	return persistence.UpdateScopedByID(ctx, r.db, &model.CheckupType{}, "checkup_type", clinicID, id, fields)
 }
 
 func (r *checkupTypeRepository) Delete(ctx context.Context, clinicID, id uint64) error {

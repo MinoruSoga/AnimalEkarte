@@ -32,21 +32,26 @@ updates:
     open-pull-requests-limit: 5
     groups:
       # Radix primitives share focus/portal internals. Update and validate them as one unit.
+      # Keep react-select out of the group: 2.3.6/2.3.7 fail the Dialog × Select FocusScope smoke test.
       radix-ui:
         patterns:
           - "@radix-ui/*"
+        exclude-patterns:
+          - "@radix-ui/react-select"
         update-types:
           - minor
           - patch
     ignore:
-      # 2.3.7 causes a Dialog × Select FocusScope loop under React 19/jsdom.
-      # A later release may be proposed through the radix-ui group and must pass the smoke test.
+      # 2.3.6/2.3.7 cause a Dialog × Select FocusScope loop under React 19/jsdom.
+      # Pin stays at 2.3.0 until a later release passes select.test.tsx.
       - dependency-name: "@radix-ui/react-select"
-        versions: ["2.3.7"]
+        versions: ["2.3.6", "2.3.7"]
       # メジャーバージョンアップは手動対応
       - dependency-name: "react"
         update-types: ["version-update:semver-major"]
       - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-router"
         update-types: ["version-update:semver-major"]
       - dependency-name: "typescript"
         update-types: ["version-update:semver-major"]
@@ -65,3 +70,7 @@ updates:
       - dependencies
       - backend
     open-pull-requests-limit: 5
+    ignore:
+      # 0.56.0 raises the go directive to 1.26. Hold until CI/Docker leave Go 1.25.
+      - dependency-name: "golang.org/x/crypto"
+        versions: ["0.56.0"]

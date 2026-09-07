@@ -213,19 +213,22 @@ func TestDiagnosisNameRepository_Update(t *testing.T) {
 	nameA := makeDiagnosisNameRec(t, db, clinicA, typeA.ID, "更新前")
 
 	t.Run("同一クリニックからの更新は成功する", func(t *testing.T) {
-		got, err := repo.Update(ctx, clinicA, nameA.ID, map[string]any{"name": "更新後"})
+		name := "更新後"
+		got, err := repo.Update(ctx, clinicA, nameA.ID, UpdateDiagnosisNameInput{Name: &name})
 		require.NoError(t, err)
 		assert.Equal(t, "更新後", got.Name)
 	})
 
 	t.Run("別クリニックからの更新はNotFound", func(t *testing.T) {
-		got, err := repo.Update(ctx, clinicB, nameA.ID, map[string]any{"name": "不正"})
+		name := "不正"
+		got, err := repo.Update(ctx, clinicB, nameA.ID, UpdateDiagnosisNameInput{Name: &name})
 		assert.Nil(t, got)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
 	t.Run("存在しないIDの更新はNotFound", func(t *testing.T) {
-		got, err := repo.Update(ctx, clinicA, 99999999, map[string]any{"name": "x"})
+		name := "x"
+		got, err := repo.Update(ctx, clinicA, 99999999, UpdateDiagnosisNameInput{Name: &name})
 		assert.Nil(t, got)
 		assert.True(t, apperrors.IsNotFound(err))
 	})

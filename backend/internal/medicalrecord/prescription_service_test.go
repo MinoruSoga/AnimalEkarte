@@ -18,7 +18,7 @@ type mockPrescriptionRepository struct {
 	findByIDFn              func(ctx context.Context, clinicID, id uint64) (*model.Prescription, error)
 	findActiveByOwnerFn     func(ctx context.Context, clinicID, ownerID uint64) ([]model.Prescription, error)
 	createFn                func(ctx context.Context, prescription *model.Prescription) error
-	updateFn                func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	updateFn                func(ctx context.Context, clinicID, id uint64, cmd UpdatePrescriptionInput) error
 	deleteFn                func(ctx context.Context, clinicID, id uint64) error
 }
 
@@ -50,9 +50,9 @@ func (m *mockPrescriptionRepository) Create(ctx context.Context, prescription *m
 	return nil
 }
 
-func (m *mockPrescriptionRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+func (m *mockPrescriptionRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdatePrescriptionInput) error {
 	if m.updateFn != nil {
-		return m.updateFn(ctx, clinicID, id, fields)
+		return m.updateFn(ctx, clinicID, id, cmd)
 	}
 	return nil
 }
@@ -369,7 +369,7 @@ func TestPrescriptionService_Update_RepositoryUpdateError(t *testing.T) {
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Prescription, error) {
 			return &model.Prescription{ID: 3, MedicalRecordID: &medicalRecordID}, nil
 		},
-		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+		updateFn: func(_ context.Context, _, _ uint64, _ UpdatePrescriptionInput) error {
 			return errors.New("db error")
 		},
 	}
@@ -400,7 +400,7 @@ func TestPrescriptionService_Update_FindByIDAfterUpdateError(t *testing.T) {
 			}
 			return nil, errors.New("db error")
 		},
-		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+		updateFn: func(_ context.Context, _, _ uint64, _ UpdatePrescriptionInput) error {
 			updateCalled = true
 			return nil
 		},

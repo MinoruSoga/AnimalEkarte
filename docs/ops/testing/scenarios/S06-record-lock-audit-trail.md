@@ -28,6 +28,7 @@
 ## 確認観点
 
 - 確定ロックは DB 制約ではなくサービス層のガード（`backend/internal/medicalrecord/medical_record_crud.go` — [05 §3.1](../../../spec/screens/05-medical-records-list.md)）。UI ステータス: 作成中=`draft` / 確定済=`finalized`。
+- 所見・診断（clinical-plan）の Update/Delete は確定と同じ親行ロックを使い、監査失敗時は同じ transaction で rollback する。`clinical_plan_finalize_concurrency_test.go` は独立 PostgreSQL transaction の child-first / finalize-first を検証する。ブラウザの逐次操作だけで競合を再現済みとはしない。
 - 子エンティティ（治療・検査・バイタル等）の書込と確定処理は行ロックで直列化される（`LockByIDForUpdate`。確定と同時書込のレースで確定済みカルテに子データが混入しないこと）。
 - カルテ確定（finalize）・訂正追記（addendum）の監査は本体操作と同一トランザクションで fail-closed に記録され、監査失敗時は本体操作もロールバックされる。カルテ作成（create）・通常更新（update）の監査は臨床継続性のため best-effort を維持する（`medical_record_crud.go`・`medical_record_addendum_service.go`）。削除監査も best-effort。
 - 会計完了によるカルテの自動確定は存在しない（[06 §2.3](../../../spec/screens/06-medical-records-form.md)）— 確定は明示操作のみ。

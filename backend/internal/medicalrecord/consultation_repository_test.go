@@ -140,20 +140,23 @@ func TestConsultationRepository_Update(t *testing.T) {
 
 	t.Run("同一クリニックの更新は成功する", func(t *testing.T) {
 		c := makeConsultation(t, db, clinicA, "更新前", nil)
-		got, err := repo.Update(ctx, clinicA, c.ID, map[string]any{"name": "更新後"})
+		name := "更新後"
+		got, err := repo.Update(ctx, clinicA, c.ID, UpdateConsultationInput{Name: &name})
 		require.NoError(t, err)
 		assert.Equal(t, "更新後", got.Name)
 	})
 
 	t.Run("存在しないIDはNotFoundを返す", func(t *testing.T) {
-		_, err := repo.Update(ctx, clinicA, uint64(9999999), map[string]any{"name": "無効"})
+		name := "無効"
+		_, err := repo.Update(ctx, clinicA, uint64(9999999), UpdateConsultationInput{Name: &name})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
 	t.Run("別クリニックIDからの更新はNotFoundを返し値は変わらない", func(t *testing.T) {
 		c := makeConsultation(t, db, clinicA, "越境前", nil)
-		_, err := repo.Update(ctx, clinicB, c.ID, map[string]any{"name": "越境後"})
+		name := "越境後"
+		_, err := repo.Update(ctx, clinicB, c.ID, UpdateConsultationInput{Name: &name})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 

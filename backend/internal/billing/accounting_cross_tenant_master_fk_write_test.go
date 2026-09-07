@@ -39,7 +39,7 @@ func TestAccountingService_Update_RejectsForeignPaymentMethodID(t *testing.T) {
 			findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Billing, error) {
 				return &model.Billing{ID: id, ClinicID: clinicID, Status: model.BillingStatusCompleted}, nil
 			},
-			updateFieldsFn: func(_ context.Context, clinicID, id uint64, _ map[string]any) (*model.Billing, error) {
+			updateFieldsFn: func(_ context.Context, clinicID, id uint64, _ AccountingUpdate) (*model.Billing, error) {
 				return &model.Billing{ID: id, ClinicID: clinicID}, nil
 			},
 			savePaymentSplitsFn: func(_ context.Context, _ []model.PaymentSplit) error {

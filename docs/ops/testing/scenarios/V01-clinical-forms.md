@@ -73,7 +73,7 @@
 | 1 | (C1-2/C1-3) 行追加で quantity に 0 → 保存、1 → 保存。別行で unit_price に -1 → 保存 | quantity 0 は拒否、1 は受理。unit_price -1 は拒否、0 円は受理 |
 | 2 | (C3-1) 薬剤マスタに用量パラメータ（dose_per_kg 等）付きの「V01薬剤」を追加 → 行の項目選択肢を確認 | 追加した薬剤が選択肢に現れる |
 | 3 | 「V01薬剤」を体重登録済みの犬/猫のカルテで選択 | quantity に自動計算値がプリフィルされる（#201 薬量自動計算: 種別+体重+マスタ dose params） |
-| 4 | 数量を安全域外へ変更して保存 | 絶対上限超過は理由がインライン表示され、確認ダイアログによる解除経路なしで保存をブロックする。下限未満または推奨値からの大幅乖離は警告・監査対象だが保存は継続できる（[06 §2.3](../../../spec/screens/06-medical-records-form.md)） |
+| 4 | 数量を安全域外へ変更して保存 | 絶対上限超過は理由がインライン表示され、確認ダイアログによる解除経路なしで保存をブロックする。下限未満または推奨値からの大幅乖離はインラインの逸脱理由が必須。理由なしは送信せず、理由付きなら保存できる（`TreatmentRow.test.tsx` の TASK-377 回帰）（[06 §2.3](../../../spec/screens/06-medical-records-form.md)） |
 | 5 | (C2) 既存行の数量・単価を編集して保存 → 再読込 | 行単位で即時保存され永続する |
 
 ### 3. カルテ バイタル (medical-record-vitals)
@@ -135,7 +135,7 @@
 
 ### 8. 予防接種 独立画面 (vaccination-form)
 
-- ルート: `/vaccinations/:id`（編集のみ）。新規作成はカルテ「予防接種」タブから行う（`/vaccinations/new` は `/vaccinations/select-pet` へリダイレクト）。次回予定日の自動算出（3週/4週/1年）・再計算は S03 正本。
+- ルート: `/vaccinations/new?petId=xxx`（独立新規）・`/vaccinations/:id`（編集）。`petId` なしの新規だけフォーム側で `/vaccinations/select-pet` へ誘導する（`clinical-care-routes.vaccinations.test.tsx` / BUG-501）。独立新規は `vaccinations:create`、カルテタブは親カルテの権限を使う別経路。次回予定日の自動算出（3週/4週/1年）・再計算は S03 正本。
 
 | # | 操作 | 期待結果 |
 |:--|:--|:--|
@@ -199,14 +199,15 @@
 |:--|:--|:--|
 | 1 | (C1-1) 担当者・コース未選択で保存 | 「担当者を選択してください」「コースを選択してください」のインラインエラー+トーストで保存されない（実装ガード: `use-trimming-form-validation.ts` 参照） |
 | 2 | (C3-1) トリミングコースマスタに「V01コース」（価格付き）・オプションマスタに「V01オプション」を追加 → フォームの選択肢確認 | いずれも選択肢に現れ、コースには価格が表示される |
-| 3 | 新規登録: 登録時ステータス「予約」（#233）+ コース + オプション複数 + スタイル要望 + 体重（Kg/g 切替）+ 画像 2 種（希望スタイル/仕上がり、image/*）を入力して保存 | 予約として登録される（ステータス選択は新規のみ表示で編集画面には出ない）。(C2) 一覧反映・再読込・再オープンで永続・初期表示される |
+| 3 | 新規登録: 登録時ステータス「予約」（#233）+ コース + オプション複数 + スタイル要望 + 体重（Kg/g 切替）を入力して保存 | 予約として登録される（ステータス選択は新規のみ表示で編集画面には出ない）。(C2) 一覧反映・再読込・再オープンで永続・初期表示される |
+| 3b | 希望スタイル/仕上がり画像（image/*）を選択し、preview と保存 request/再読込を比較する | preview は `useTrimmingFormImages` のローカル状態。現行 create/update builder は画像を送信しないため、preview だけで画像永続化 PASS にしない。画像保存の受入要件は [17-trimming-form.md](../../../spec/screens/17-trimming-form.md) と照合し、この未接続差分を run report に残す |
 | 4 | 【代表・無効化マスタ】手順 3 のレコードに紐づく「V01コース」をマスタで無効化 → (a) 新規フォーム (b) 当該レコードの編集を開く | (a) 選択肢から除外される。(b) 「（無効）」表記で選択が維持される（#228） |
 | 5 | (C3-3) `/trimming/<存在しない ID>` 直叩き | エラー画面が表示される |
 | 6 | 同一担当スタッフで同日に別ペットの record_shortcut 新規を続けて登録 | 固定 10:00 ではなく一意な JST 時刻が付く。`uk_appointment_staff_time` の 409 で無関係な 2 件目がブロックされない |
 
 ## 確認観点
 
-- 既存の機械テストとの分担: FE component/hook test（use-medical-record-form・TreatmentsTab/dose gate・CheckupsTab・use-examination-form・use-vaccination-form・use-hospitalization-form・use-trimming-form-validation 等）と BE service/validator test（treatment/dose_validators・vital・checkup・vaccination・clinical_plan・hospitalization・trimming 各 service）が単体レベルの入力検証を網羅済み。**E2E は全臨床フローで表示・遷移スモークのみで、フォーム送信〜永続化を検証する E2E は存在しない — 本シナリオはブラウザ → API → DB を貫く受け入れ時の実機フォーム検証である。**
+- 既存の機械テストとの分担: FE component/hook test（use-medical-record-form・TreatmentsTab/dose gate・CheckupsTab・use-examination-form・use-vaccination-form・use-hospitalization-form・use-trimming-form-validation 等）と BE service/validator test（treatment/dose_validators・vital・checkup・vaccination・clinical_plan・hospitalization・trimming 各 service）が単体レベルの入力検証を網羅済み。clinical allowlist は主に表示・検索・遷移であり、`medical-records-create.spec.ts` は mount 時 POST をローカル fulfill して検証する。これを実 DB へのフォーム永続化とは扱わない。**本シナリオはブラウザ → API → DB を貫く項目単位の受入である。** 実行配線と未実施範囲は [CLINICAL-E2E-DESIGN.md](../CLINICAL-E2E-DESIGN.md)。
 - FE 側にしかガードが無い（または有無が未確定の）項目（バイタルの体温範囲・未来日時、健診/ワクチンの未来日、トリミング必須）はブラウザ経由確認が必須。逆に治療明細の quantity/price・追記 500 字・カルテタブのワクチン必須は BE 拒否が期待線で、FE 側のエラー提示の有無を観察する。
 - クロステナント隔離はスコープ外（BE isolation テスト正本）。finalized ロック・監査証跡は S06、異常値ハイライトは S02、次回予定自動計算は S03、入院サイクルは S05 へ委譲。NG 項目は [`bug.md` の確認済み製品不具合](../../../../bug.md) へ `### BUG-XXX` 節として起票する（ローカル連番 最大+1・[README.md](README.md) のルール）。
 - 本文中の具体的なエラー文言・プリフィル挙動のうち画面仕様書に記載のないもの（薬量プリフィル+dose gate・追記/健診/トリミングの必須文言・入院差分表の必須断定・トリミングの予約区分前提）は、FE hook / BE バリデータの実装を確認済み。文言はリファクタで変わりうるため、合格基準は「該当エラーが表示され保存されないこと」であり文言の完全一致ではない。
@@ -217,7 +218,7 @@
 
 | 参照 | 内容 |
 |:--|:--|
-| §2 治療明細 | 薬量 dose hard gate — 自動計算値と乖離した手入力が確認ステップなしで保存されないこと |
+| §2 治療明細 | 薬量 dose hard gate — 絶対上限超過は理由付きでも保存不可。上限内の大幅乖離/下限割れは理由なしでは保存不可、理由付きなら保存可能 |
 | §6 追記 | 確定後カルテへの変更が追記（addendum）経由のみで、修正内容・理由が必須であること |
 | §8 ワクチン（独立画面） | 未来日接種の拒否・次回予定日の境界（接種日と同日は拒否） |
 | §11 入院デイリー | `(hospitalization_id, date)` 一意 — 同一日の重複親レコードが作られないこと |

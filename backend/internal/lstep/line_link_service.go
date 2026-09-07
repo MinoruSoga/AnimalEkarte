@@ -172,7 +172,6 @@ func (s *lineLinkService) GenerateLinkToken(ctx context.Context, clinicID, owner
 	// 所有者の存在確認
 	owner, err := s.ownerRepo.FindByID(ctx, clinicID, ownerID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to find owner for link token", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find owner")
 	}
 
@@ -198,7 +197,6 @@ func (s *lineLinkService) GenerateLinkToken(ctx context.Context, clinicID, owner
 		ExpiresAt: expiresAt,
 	}
 	if err := s.lineLinkTokenRepo.Create(ctx, t); err != nil {
-		slog.ErrorContext(ctx, "failed to create link token", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create link token")
 	}
 
@@ -228,7 +226,6 @@ func (s *lineLinkService) resolveLinkTokenLiffID(ctx context.Context, clinicID u
 	if s.lineSettingRepo != nil {
 		setting, err := s.lineSettingRepo.FindByClinicID(ctx, clinicID)
 		if err != nil && !apperrors.IsNotFound(err) {
-			slog.ErrorContext(ctx, "failed to find line setting for liff url", "error", err)
 			return "", apperrors.Wrap(err, "failed to find line reservation setting")
 		}
 		if setting != nil && setting.LiffID != "" {
@@ -249,7 +246,6 @@ func (s *lineLinkService) resolveLinkTokenLiffID(ctx context.Context, clinicID u
 		if apperrors.IsNotFound(err) {
 			return "", nil
 		}
-		slog.ErrorContext(ctx, "failed to find lstep liff id for link token", "error", err)
 		return "", apperrors.Wrap(err, "failed to find lstep liff id")
 	}
 	if credential == nil || credential.KeyValue == "" {
@@ -279,7 +275,6 @@ func (s *lineLinkService) LinkAccount(ctx context.Context, clinicID uint64, inpu
 		if errors.Is(err, apperrors.ErrUnauthorized) || errors.Is(err, apperrors.ErrBadGateway) {
 			return nil, err
 		}
-		slog.ErrorContext(ctx, "LINE ID token verification failed", "error", err)
 		return nil, apperrors.WrapInternalServerError("LINE ID token verification unavailable")
 	}
 

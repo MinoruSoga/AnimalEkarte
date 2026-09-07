@@ -20,7 +20,7 @@ type DiagnosisTypeRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisType, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisType, error)
 	Create(ctx context.Context, category *model.DiagnosisType) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.DiagnosisType, error)
+	Update(ctx context.Context, clinicID, id uint64, cmd UpdateDiagnosisTypeInput) (*model.DiagnosisType, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	CountChildrenByParentID(ctx context.Context, clinicID, categoryID uint64) (int64, error)
@@ -78,11 +78,15 @@ func (r *diagnosisTypeRepository) Create(ctx context.Context, category *model.Di
 	return nil
 }
 
-func (r *diagnosisTypeRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.DiagnosisType, error) {
-	if err := persistence.UpdateScopedByID(ctx, r.db, &model.DiagnosisType{}, "diagnosis_type", clinicID, id, fields); err != nil {
+func (r *diagnosisTypeRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateDiagnosisTypeInput) (*model.DiagnosisType, error) {
+	if err := r.update(ctx, clinicID, id, buildDiagnosisTypeUpdate(&cmd)); err != nil {
 		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
+}
+
+func (r *diagnosisTypeRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+	return persistence.UpdateScopedByID(ctx, r.db, &model.DiagnosisType{}, "diagnosis_type", clinicID, id, fields)
 }
 
 func (r *diagnosisTypeRepository) Delete(ctx context.Context, clinicID, id uint64) error {

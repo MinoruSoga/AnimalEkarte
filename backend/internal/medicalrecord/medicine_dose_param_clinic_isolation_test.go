@@ -225,7 +225,10 @@ func TestMedicineDoseParamRepository_Update_ClinicIsolation(t *testing.T) {
 	paramA := makeDoseParam(t, db, clinicA, medA.ID, model.MedicineDoseSpeciesDog)
 
 	t.Run("別クリニックからの Update は NotFound", func(t *testing.T) {
-		_, err := repo.Update(ctx, clinicB, paramA.ID, map[string]any{"dose_per_kg": 999})
+		_, err := repo.Update(ctx, clinicB, paramA.ID, MedicineDoseParamInput{
+			DoseBasis: model.MedicineDoseBasisPerAdministration,
+			DosePerKg: 999,
+		})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err), "エラーは NotFound であるべき: %v", err)
 	})

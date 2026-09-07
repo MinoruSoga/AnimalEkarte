@@ -21,7 +21,7 @@ type InquiryTemplateRepository interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.InquiryTemplate, error)
 	CountUsageByInquiryTemplateID(ctx context.Context, clinicID, id uint64) (int64, error)
 	Create(ctx context.Context, template *model.InquiryTemplate) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InquiryTemplate, error)
+	Update(ctx context.Context, clinicID, id uint64, cmd UpdateInquiryTemplateInput) (*model.InquiryTemplate, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -64,11 +64,15 @@ func (r *inquiryTemplateRepository) Create(ctx context.Context, template *model.
 	return nil
 }
 
-func (r *inquiryTemplateRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InquiryTemplate, error) {
-	if err := persistence.UpdateScopedByID(ctx, r.db, &model.InquiryTemplate{}, "inquiry_template", clinicID, id, fields); err != nil {
+func (r *inquiryTemplateRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateInquiryTemplateInput) (*model.InquiryTemplate, error) {
+	if err := r.update(ctx, clinicID, id, buildInquiryTemplateUpdate(&cmd)); err != nil {
 		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
+}
+
+func (r *inquiryTemplateRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+	return persistence.UpdateScopedByID(ctx, r.db, &model.InquiryTemplate{}, "inquiry_template", clinicID, id, fields)
 }
 
 func (r *inquiryTemplateRepository) Delete(ctx context.Context, clinicID, id uint64) error {

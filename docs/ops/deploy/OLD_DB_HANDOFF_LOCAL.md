@@ -29,13 +29,13 @@ backend/migrations/seeds/_old_db_handoff/jouto-local/  # 任意。電話 unique 
 
 | 経路 | 用途 | `make seed` / `cmd/migrate` |
 | --- | --- | --- |
-| `seeds/002_master` 等 | 通常デモ/マスタ seed | **読む** |
+| `seeds/002_master` | 医院骨格・参照マスタのみ | **読む** |
 | `seeds/_old_db_handoff/<clinic>/` | old_db 21表のローカル隔離 | **読まない** |
 | `make csv-import-*` | 正式 cutover（F6） | seed を生成しない |
 
 - `REHEARSAL_ONLY` / `PARTIAL` bundle はここに置けるが、**正式 `make csv-import` preflight は拒否**する。
 - 正式 DB 投入は manifest が `status=PASS` かつ `handoffEligibility=TRUSTED_CANDIDATE` のときだけ。
-- 共有 STG への rehearsal 投入は `make stg-uat-handoff`（全医院。接続は
+- 共有 STG への rehearsal 投入は `make stg-uat-handoff`（城東・敷島・箱。八王子は対象外。接続は
   `scripts/stg-uat-old-db-handoff.sh` の export と gitignored
   `scripts/stg-uat-old-db-handoff.local.env`）。
 - 21 CSV を `003_demo` へ直接コピーして seed 扱いしてはいけない。
@@ -64,7 +64,7 @@ producer 側（例: sibling `old_db`）の export 絶対パスを渡す。
 
 ```sh
 export CLINIC_CODE=<clinic-code>
-export MIGRATION_RUN_ID=<current-run-id-from-todo-handoff-table>
+export MIGRATION_RUN_ID=<current-run-id-from-approved-producer-report>
 export CSV_IMPORT_SOURCE_DIR=/absolute/path/to/animalekarte-csv-export/<clinic-code>/<run-id>
 
 make old-db-handoff-stage
@@ -103,6 +103,6 @@ make old-db-handoff-check
 
 ## 現行 bundle の状態確認
 
-run ID、producer status、formal eligibility は変動するため、この安定手順には固定しません。リポジトリ直下 `todo.md` の現行 handoff table を正本として確認します。
+run ID、producer status、formal eligibility は変動するため、この安定手順には固定しません。実行状態は Linear、未完了作業の入口はリポジトリ直下 `todo.md` を確認します。run ID・digest・eligibility の実値は受領した current manifest と producer report を照合します。
 
-`_old_db_handoff/<clinic>/` にファイルが存在するだけでは formal eligibility を示しません。`REHEARSAL_ONLY` / `UNVERIFIED` / `PARTIAL` は正式 F6 preflight へ渡しません。共有 STG へ載せる場合は `make stg-uat-handoff`（全医院）を使い、formal cutover には current manifest が `TRUSTED_CANDIDATE` / `PASS` であることを改めて確認します。
+`_old_db_handoff/<clinic>/` にファイルが存在するだけでは formal eligibility を示しません。`REHEARSAL_ONLY` / `UNVERIFIED` / `PARTIAL` は正式 F6 preflight へ渡しません。共有 STG へ載せる場合は `make stg-uat-handoff`（城東・敷島・箱。八王子は対象外）を使い、formal cutover には current manifest が `TRUSTED_CANDIDATE` / `PASS` であることを改めて確認します。

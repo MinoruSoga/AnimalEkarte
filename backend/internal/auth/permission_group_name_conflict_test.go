@@ -60,7 +60,7 @@ func TestPermissionGroupService_Update_RenameNameConflictMapsDomainCode(t *testi
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.PermissionGroup, error) {
 			return existing, nil
 		},
-		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.PermissionGroup, error) {
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdatePermissionGroupInput) (*model.PermissionGroup, error) {
 			return nil, uniquePermissionGroupNameErr()
 		},
 	}

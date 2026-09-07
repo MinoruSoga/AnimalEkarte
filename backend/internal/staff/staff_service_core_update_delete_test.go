@@ -13,7 +13,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-func TestStaffServiceCore_Update(t *testing.T) {
+func TestServiceCore_Update(t *testing.T) {
 	name := "更新太郎"
 	emptyName := ""
 	password := "newpassword1"
@@ -23,7 +23,7 @@ func TestStaffServiceCore_Update(t *testing.T) {
 		name           string
 		input          *UpdateStaffInput
 		findByIDFn     func(ctx context.Context, id uint64) (*model.Staff, error)
-		updateFn       func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+		updateFn       func(ctx context.Context, clinicID, id uint64, cmd UpdateStaffInput) error
 		accountUpdate  func(ctx context.Context, id uint64, newHash string, updatedAt time.Time) error
 		tokenDelete    func(ctx context.Context, id uint64) error
 		wantDelete     bool
@@ -57,7 +57,7 @@ func TestStaffServiceCore_Update(t *testing.T) {
 		{
 			name:  "returns wrapped error when repo.Update fails",
 			input: &UpdateStaffInput{Name: &name},
-			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			updateFn: func(_ context.Context, _, _ uint64, _ UpdateStaffInput) error {
 				return errors.New("db error")
 			},
 			wantErr: true,
@@ -120,7 +120,7 @@ func TestStaffServiceCore_Update(t *testing.T) {
 				},
 			}
 			tx := &coreFakeTransactor{}
-			svc := newCoreStaffService(repo, accountRepo, &coreMockStaffClinicAssignmentRepository{}, &coreMockReservationQueryRepository{}, &coreMockShiftEntryRepository{}, tx)
+			svc := newCoreService(repo, accountRepo, &coreMockStaffClinicAssignmentRepository{}, &coreMockReservationQueryRepository{}, &coreMockShiftEntryRepository{}, tx)
 
 			input := authorizedStaffUpdate(tt.input, 1)
 			if input != nil && input.Password != nil && *input.Password != "" {
@@ -143,7 +143,7 @@ func TestStaffServiceCore_Update(t *testing.T) {
 	}
 }
 
-func TestStaffServiceCore_Update_FindByIDErrorAfterProfileUpdate(t *testing.T) {
+func TestServiceCore_Update_FindByIDErrorAfterProfileUpdate(t *testing.T) {
 	// covers the clinic-scoped reload inside the update transaction failing.
 	name := "更新太郎"
 	repo := &coreMockStaffRepository{
@@ -155,7 +155,7 @@ func TestStaffServiceCore_Update_FindByIDErrorAfterProfileUpdate(t *testing.T) {
 		},
 	}
 	tx := &coreFakeTransactor{}
-	svc := newCoreStaffService(repo, &coreMockAccountRepository{}, &coreMockStaffClinicAssignmentRepository{}, &coreMockReservationQueryRepository{}, &coreMockShiftEntryRepository{}, tx)
+	svc := newCoreService(repo, &coreMockAccountRepository{}, &coreMockStaffClinicAssignmentRepository{}, &coreMockReservationQueryRepository{}, &coreMockShiftEntryRepository{}, tx)
 
 	staff, err := svc.Update(
 		context.Background(),
@@ -167,7 +167,7 @@ func TestStaffServiceCore_Update_FindByIDErrorAfterProfileUpdate(t *testing.T) {
 	assert.Nil(t, staff)
 }
 
-func TestStaffServiceCore_Update_RequiresScopedLockBeforePasswordMutation(t *testing.T) {
+func TestServiceCore_Update_RequiresScopedLockBeforePasswordMutation(t *testing.T) {
 	accountID := uint64(5)
 	password := "newpassword1"
 	accountUpdated := false
@@ -186,7 +186,7 @@ func TestStaffServiceCore_Update_RequiresScopedLockBeforePasswordMutation(t *tes
 		},
 	}
 	tx := &coreFakeTransactor{}
-	svc := newCoreStaffService(
+	svc := newCoreService(
 		repo,
 		accountRepo,
 		&coreMockStaffClinicAssignmentRepository{},
@@ -212,14 +212,14 @@ func TestStaffServiceCore_Update_RequiresScopedLockBeforePasswordMutation(t *tes
 	assert.Equal(t, 1, tx.calls)
 }
 
-func TestStaffServiceCore_Update_RejectsPasswordForStaffWithoutAccount(t *testing.T) {
+func TestServiceCore_Update_RejectsPasswordForStaffWithoutAccount(t *testing.T) {
 	password := "newpassword1"
 	repo := &coreMockStaffRepository{
 		findByIDFn: func(_ context.Context, id uint64) (*model.Staff, error) {
 			return &model.Staff{ID: id, ClinicID: 1}, nil
 		},
 	}
-	svc := newCoreStaffService(
+	svc := newCoreService(
 		repo,
 		&coreMockAccountRepository{},
 		&coreMockStaffClinicAssignmentRepository{},
@@ -243,7 +243,7 @@ func TestStaffServiceCore_Update_RejectsPasswordForStaffWithoutAccount(t *testin
 	assert.Nil(t, updated)
 }
 
-func TestStaffServiceCore_Update_ValidatesPasswordBeforeProfileWrite(t *testing.T) {
+func TestServiceCore_Update_ValidatesPasswordBeforeProfileWrite(t *testing.T) {
 	name := "更新太郎"
 	weakPassword := "password"
 	profileUpdated := false
@@ -252,12 +252,12 @@ func TestStaffServiceCore_Update_ValidatesPasswordBeforeProfileWrite(t *testing.
 		findByIDFn: func(_ context.Context, id uint64) (*model.Staff, error) {
 			return &model.Staff{ID: id, ClinicID: 1, AccountID: &accountID}, nil
 		},
-		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+		updateFn: func(_ context.Context, _, _ uint64, _ UpdateStaffInput) error {
 			profileUpdated = true
 			return nil
 		},
 	}
-	svc := newCoreStaffService(
+	svc := newCoreService(
 		repo,
 		&coreMockAccountRepository{},
 		&coreMockStaffClinicAssignmentRepository{},
@@ -283,7 +283,7 @@ func TestStaffServiceCore_Update_ValidatesPasswordBeforeProfileWrite(t *testing.
 	assert.False(t, profileUpdated)
 }
 
-func TestStaffServiceCore_Update_ProfileAndPasswordRunInsideOneTransaction(t *testing.T) {
+func TestServiceCore_Update_ProfileAndPasswordRunInsideOneTransaction(t *testing.T) {
 	name := "更新太郎"
 	password := "newpassword1"
 	accountID := uint64(5)
@@ -293,7 +293,7 @@ func TestStaffServiceCore_Update_ProfileAndPasswordRunInsideOneTransaction(t *te
 		},
 	}
 	tx := &coreFakeTransactor{}
-	svc := newCoreStaffService(
+	svc := newCoreService(
 		repo,
 		&coreMockAccountRepository{},
 		&coreMockStaffClinicAssignmentRepository{},
@@ -318,7 +318,7 @@ func TestStaffServiceCore_Update_ProfileAndPasswordRunInsideOneTransaction(t *te
 	assert.Equal(t, 1, tx.calls)
 }
 
-func TestStaffServiceCore_Update_UsesStaffAssignmentOccupationLockOrder(t *testing.T) {
+func TestServiceCore_Update_UsesStaffAssignmentOccupationLockOrder(t *testing.T) {
 	occupationID := uint64(30)
 	events := make([]string, 0, 3)
 	repo := &coreMockStaffRepository{
@@ -346,7 +346,7 @@ func TestStaffServiceCore_Update_UsesStaffAssignmentOccupationLockOrder(t *testi
 			return &model.Occupation{ID: id, ClinicID: clinicID}, nil
 		},
 	}
-	svc := NewStaffService(
+	svc := NewService(
 		repo,
 		&coreMockAccountRepository{},
 		assignments,
@@ -373,7 +373,7 @@ func TestStaffServiceCore_Update_UsesStaffAssignmentOccupationLockOrder(t *testi
 
 // ---- Delete ----
 
-func TestStaffServiceCore_Delete(t *testing.T) {
+func TestServiceCore_Delete(t *testing.T) {
 	tests := []struct {
 		name                    string
 		findByIDFn              func(ctx context.Context, id uint64) (*model.Staff, error)
@@ -458,7 +458,7 @@ func TestStaffServiceCore_Delete(t *testing.T) {
 			}
 			reservationRepo := &coreMockReservationQueryRepository{existsByStaffIDFn: tt.existsByStaffIDFn}
 			shiftRepo := &coreMockShiftEntryRepository{existsByStaffIDFn: tt.shiftExistsByStaffIDFn}
-			svc := newCoreStaffService(repo, &coreMockAccountRepository{}, &coreMockStaffClinicAssignmentRepository{}, reservationRepo, shiftRepo, &coreFakeTransactor{})
+			svc := newCoreService(repo, &coreMockAccountRepository{}, &coreMockStaffClinicAssignmentRepository{}, reservationRepo, shiftRepo, &coreFakeTransactor{})
 
 			err := svc.Delete(context.Background(), 1, 1, false)
 			if tt.wantErr {
@@ -473,7 +473,7 @@ func TestStaffServiceCore_Delete(t *testing.T) {
 	}
 }
 
-func TestStaffService_Delete_RejectsLastActiveSystemAdministrator(t *testing.T) {
+func TestService_Delete_RejectsLastActiveSystemAdministrator(t *testing.T) {
 	deleteCalled := false
 	repo := &coreMockStaffRepository{
 		isActiveSystemAdminStaffFn: func(_ context.Context, staffID uint64) (bool, error) {
@@ -488,7 +488,7 @@ func TestStaffService_Delete_RejectsLastActiveSystemAdministrator(t *testing.T) 
 			return nil
 		},
 	}
-	svc := newCoreStaffService(
+	svc := newCoreService(
 		repo,
 		&coreMockAccountRepository{},
 		&coreMockStaffClinicAssignmentRepository{},
@@ -505,14 +505,14 @@ func TestStaffService_Delete_RejectsLastActiveSystemAdministrator(t *testing.T) 
 	assert.False(t, deleteCalled)
 }
 
-func TestStaffService_Delete_AllowsSystemAdministratorWhenAnotherRemains(t *testing.T) {
+func TestService_Delete_AllowsSystemAdministratorWhenAnotherRemains(t *testing.T) {
 	deleteCalled := false
 	repo := &coreMockStaffRepository{
 		isActiveSystemAdminStaffFn:    func(_ context.Context, _ uint64) (bool, error) { return true, nil },
 		countActiveSystemAdminStaffFn: func(_ context.Context) (int64, error) { return 2, nil },
 		deleteFn:                      func(_ context.Context, _, _ uint64) error { deleteCalled = true; return nil },
 	}
-	svc := newCoreStaffService(repo, &coreMockAccountRepository{}, &coreMockStaffClinicAssignmentRepository{}, &coreMockReservationQueryRepository{}, &coreMockShiftEntryRepository{}, &coreFakeTransactor{})
+	svc := newCoreService(repo, &coreMockAccountRepository{}, &coreMockStaffClinicAssignmentRepository{}, &coreMockReservationQueryRepository{}, &coreMockShiftEntryRepository{}, &coreFakeTransactor{})
 
 	err := svc.Delete(context.Background(), 1, 1, true)
 
@@ -520,7 +520,7 @@ func TestStaffService_Delete_AllowsSystemAdministratorWhenAnotherRemains(t *test
 	assert.True(t, deleteCalled)
 }
 
-func TestStaffService_Delete_UsesCanonicalLockOrderAndTransactionContext(t *testing.T) {
+func TestService_Delete_UsesCanonicalLockOrderAndTransactionContext(t *testing.T) {
 	events := make([]string, 0, 7)
 	repo := &coreMockStaffRepository{
 		lockInClinicFn: func(ctx context.Context, clinicID, id uint64) (*model.Staff, error) {
@@ -562,7 +562,7 @@ func TestStaffService_Delete_UsesCanonicalLockOrderAndTransactionContext(t *test
 			return false, nil
 		},
 	}
-	svc := newCoreStaffService(
+	svc := newCoreService(
 		repo,
 		&coreMockAccountRepository{},
 		assignmentRepo,
@@ -584,7 +584,7 @@ func TestStaffService_Delete_UsesCanonicalLockOrderAndTransactionContext(t *test
 	}, events)
 }
 
-func TestStaffService_Delete_RejectsInvalidOrMultiClinicAssignmentStateBeforeDependencies(t *testing.T) {
+func TestService_Delete_RejectsInvalidOrMultiClinicAssignmentStateBeforeDependencies(t *testing.T) {
 	tests := []struct {
 		name         string
 		assignments  []model.StaffClinicAssignment
@@ -645,7 +645,7 @@ func TestStaffService_Delete_RejectsInvalidOrMultiClinicAssignmentStateBeforeDep
 					return false, nil
 				},
 			}
-			svc := newCoreStaffService(
+			svc := newCoreService(
 				repo,
 				&coreMockAccountRepository{},
 				assignmentRepo,
@@ -667,7 +667,7 @@ func TestStaffService_Delete_RejectsInvalidOrMultiClinicAssignmentStateBeforeDep
 	}
 }
 
-func TestStaffServiceCore_Update_DeactivationGuards(t *testing.T) {
+func TestServiceCore_Update_DeactivationGuards(t *testing.T) {
 	inactive := false
 	active := true
 
@@ -677,12 +677,12 @@ func TestStaffServiceCore_Update_DeactivationGuards(t *testing.T) {
 			findByIDFn: func(_ context.Context, id uint64) (*model.Staff, error) {
 				return &model.Staff{ID: id, ClinicID: 1, IsActive: true}, nil
 			},
-			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			updateFn: func(_ context.Context, _, _ uint64, _ UpdateStaffInput) error {
 				updateCalled = true
 				return nil
 			},
 		}
-		svc := newCoreStaffService(
+		svc := newCoreService(
 			repo,
 			&coreMockAccountRepository{},
 			&coreMockStaffClinicAssignmentRepository{},
@@ -710,7 +710,7 @@ func TestStaffServiceCore_Update_DeactivationGuards(t *testing.T) {
 			findByIDFn: func(_ context.Context, id uint64) (*model.Staff, error) {
 				return &model.Staff{ID: id, ClinicID: 1, IsActive: true}, nil
 			},
-			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			updateFn: func(_ context.Context, _, _ uint64, _ UpdateStaffInput) error {
 				updateCalled = true
 				return nil
 			},
@@ -722,7 +722,7 @@ func TestStaffServiceCore_Update_DeactivationGuards(t *testing.T) {
 				return 1, nil
 			},
 		}
-		svc := newCoreStaffService(
+		svc := newCoreService(
 			repo,
 			&coreMockAccountRepository{},
 			&coreMockStaffClinicAssignmentRepository{},
@@ -750,17 +750,18 @@ func TestStaffServiceCore_Update_DeactivationGuards(t *testing.T) {
 			findByIDFn: func(_ context.Context, id uint64) (*model.Staff, error) {
 				return &model.Staff{ID: id, ClinicID: 1, IsActive: true}, nil
 			},
-			updateFn: func(_ context.Context, _, id uint64, fields map[string]any) error {
+			updateFn: func(_ context.Context, _, id uint64, cmd UpdateStaffInput) error {
 				updateCalled = true
 				assert.Equal(t, uint64(2), id)
-				assert.Equal(t, false, fields[colStaffIsActive])
+				require.NotNil(t, cmd.IsActive)
+				assert.Equal(t, false, *cmd.IsActive)
 				return nil
 			},
 			isActiveSystemAdminStaffFn: func(_ context.Context, _ uint64) (bool, error) {
 				return false, nil
 			},
 		}
-		svc := newCoreStaffService(
+		svc := newCoreService(
 			repo,
 			&coreMockAccountRepository{},
 			&coreMockStaffClinicAssignmentRepository{},
@@ -789,7 +790,7 @@ func TestStaffServiceCore_Update_DeactivationGuards(t *testing.T) {
 			findByIDFn: func(_ context.Context, id uint64) (*model.Staff, error) {
 				return &model.Staff{ID: id, ClinicID: 1, IsActive: true}, nil
 			},
-			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			updateFn: func(_ context.Context, _, _ uint64, _ UpdateStaffInput) error {
 				updateCalled = true
 				return nil
 			},
@@ -800,7 +801,7 @@ func TestStaffServiceCore_Update_DeactivationGuards(t *testing.T) {
 				return 2, nil
 			},
 		}
-		svc := newCoreStaffService(
+		svc := newCoreService(
 			repo,
 			&coreMockAccountRepository{},
 			&coreMockStaffClinicAssignmentRepository{},
@@ -827,13 +828,14 @@ func TestStaffServiceCore_Update_DeactivationGuards(t *testing.T) {
 			findByIDFn: func(_ context.Context, id uint64) (*model.Staff, error) {
 				return &model.Staff{ID: id, ClinicID: 1, IsActive: false}, nil
 			},
-			updateFn: func(_ context.Context, _, _ uint64, fields map[string]any) error {
+			updateFn: func(_ context.Context, _, _ uint64, cmd UpdateStaffInput) error {
 				updateCalled = true
-				assert.Equal(t, true, fields[colStaffIsActive])
+				require.NotNil(t, cmd.IsActive)
+				assert.Equal(t, true, *cmd.IsActive)
 				return nil
 			},
 		}
-		svc := newCoreStaffService(
+		svc := newCoreService(
 			repo,
 			&coreMockAccountRepository{},
 			&coreMockStaffClinicAssignmentRepository{},
@@ -856,13 +858,13 @@ func TestStaffServiceCore_Update_DeactivationGuards(t *testing.T) {
 
 // ---- List / GetByID / Reorder (already high coverage elsewhere — smoke tests only) ----
 
-func TestStaffServiceCore_List(t *testing.T) {
+func TestServiceCore_List(t *testing.T) {
 	repo := &coreMockStaffRepository{
 		findAllFn: func(_ context.Context, _ uint64, _, _ int) ([]model.Staff, int64, error) {
 			return []model.Staff{{ID: 1}}, 1, nil
 		},
 	}
-	svc := newCoreStaffService(repo, &coreMockAccountRepository{}, &coreMockStaffClinicAssignmentRepository{}, &coreMockReservationQueryRepository{}, &coreMockShiftEntryRepository{}, &coreFakeTransactor{})
+	svc := newCoreService(repo, &coreMockAccountRepository{}, &coreMockStaffClinicAssignmentRepository{}, &coreMockReservationQueryRepository{}, &coreMockShiftEntryRepository{}, &coreFakeTransactor{})
 	staffs, total, err := svc.List(context.Background(), 1, 1, 20)
 	assert.NoError(t, err)
 	assert.Len(t, staffs, 1)
@@ -875,13 +877,13 @@ func TestStaffServiceCore_List(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestStaffServiceCore_GetByID(t *testing.T) {
+func TestServiceCore_GetByID(t *testing.T) {
 	repo := &coreMockStaffRepository{
 		findByIDFn: func(_ context.Context, id uint64) (*model.Staff, error) {
 			return &model.Staff{ID: id}, nil
 		},
 	}
-	svc := newCoreStaffService(repo, &coreMockAccountRepository{}, &coreMockStaffClinicAssignmentRepository{}, &coreMockReservationQueryRepository{}, &coreMockShiftEntryRepository{}, &coreFakeTransactor{})
+	svc := newCoreService(repo, &coreMockAccountRepository{}, &coreMockStaffClinicAssignmentRepository{}, &coreMockReservationQueryRepository{}, &coreMockShiftEntryRepository{}, &coreFakeTransactor{})
 	staff, err := svc.GetByID(context.Background(), 1)
 	assert.NoError(t, err)
 	assert.NotNil(t, staff)
@@ -893,11 +895,11 @@ func TestStaffServiceCore_GetByID(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestStaffServiceCore_Reorder(t *testing.T) {
+func TestServiceCore_Reorder(t *testing.T) {
 	repo := &coreMockStaffRepository{
 		reorderFn: func(_ context.Context, _ uint64, _ []uint64) error { return nil },
 	}
-	svc := newCoreStaffService(repo, &coreMockAccountRepository{}, &coreMockStaffClinicAssignmentRepository{}, &coreMockReservationQueryRepository{}, &coreMockShiftEntryRepository{}, &coreFakeTransactor{})
+	svc := newCoreService(repo, &coreMockAccountRepository{}, &coreMockStaffClinicAssignmentRepository{}, &coreMockReservationQueryRepository{}, &coreMockShiftEntryRepository{}, &coreFakeTransactor{})
 
 	assert.NoError(t, svc.Reorder(context.Background(), 1, []uint64{2, 1}))
 	assert.Error(t, svc.Reorder(context.Background(), 1, []uint64{}))

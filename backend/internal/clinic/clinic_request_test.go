@@ -66,6 +66,7 @@ func TestUpdateClinicRequest_ToServiceInput_NilFields(t *testing.T) {
 }
 
 func TestClinicContactBinding_RejectsInvalidFormats(t *testing.T) {
+	RegisterContactBindingValidators()
 	// POC-17: email/phone/postal must match owner contact formats at bind time.
 	badEmail := "not-an-email"
 	badPhone := "12345"

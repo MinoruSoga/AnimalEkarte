@@ -2,8 +2,8 @@ package medicalrecord
 
 // chief_complaint_repository_test.go — ChiefComplaintTypeRepository の統合テスト（実 Postgres テスト DB）。
 // happy path・not-found・clinic_id 隔離・ソフトデリート除外・Update/Delete/Reorder を対象とする。
-// CountUsageByChiefComplaintTypeID は既知の不具合（inquiries に deleted_at 列が存在しない）に
-// より常にエラーを返すため、その実挙動を明示的に検証する。
+// CountUsageByChiefComplaintTypeID は inquiries を medical_records 経由でテナント隔離する。
+// inquiries に deleted_at は無い（001_init.sql / model.Inquiry）。
 //
 // 移動元: internal/repository/chief_complaint_repository_test.go — BE9-2C roll-up。
 //
@@ -128,13 +128,15 @@ func TestChiefComplaintTypeRepository_Update(t *testing.T) {
 	c := makeChiefComplaintType(t, db, clinicA, "更新前区分")
 
 	t.Run("同一クリニックでは Update が反映される", func(t *testing.T) {
-		got, err := repo.Update(ctx, clinicA, c.ID, map[string]any{"name": "更新後区分"})
+		name := "更新後区分"
+		got, err := repo.Update(ctx, clinicA, c.ID, UpdateChiefComplaintTypeInput{Name: &name})
 		require.NoError(t, err)
 		assert.Equal(t, "更新後区分", got.Name)
 	})
 
 	t.Run("別クリニックからの Update は NotFound", func(t *testing.T) {
-		_, err := repo.Update(ctx, clinicB, c.ID, map[string]any{"name": "改ざん試行"})
+		name := "改ざん試行"
+		_, err := repo.Update(ctx, clinicB, c.ID, UpdateChiefComplaintTypeInput{Name: &name})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 
@@ -144,7 +146,8 @@ func TestChiefComplaintTypeRepository_Update(t *testing.T) {
 	})
 
 	t.Run("存在しない ID の Update は NotFound", func(t *testing.T) {
-		_, err := repo.Update(ctx, clinicA, 999999, map[string]any{"name": "x"})
+		name := "x"
+		_, err := repo.Update(ctx, clinicA, 999999, UpdateChiefComplaintTypeInput{Name: &name})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
@@ -179,6 +182,21 @@ func TestChiefComplaintTypeRepository_Delete(t *testing.T) {
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
+
+	t.Run("問診から参照中の Delete は Conflict", func(t *testing.T) {
+		inUse := makeChiefComplaintType(t, db, clinicA, "参照中区分")
+		mr := &model.MedicalRecord{ClinicID: clinicA, RecordNo: "CC-DEL-INUSE", Date: time.Date(2026, 6, 3, 0, 0, 0, 0, time.UTC)}
+		require.NoError(t, db.WithContext(ctx).Create(mr).Error)
+		require.NoError(t, db.WithContext(ctx).Create(&model.Inquiry{MedicalRecordID: mr.ID, ChiefComplaintTypeID: &inUse.ID}).Error)
+
+		err := repo.Delete(ctx, clinicA, inUse.ID)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsConflict(err), "expected conflict, got: %v", err)
+
+		got, err := repo.FindByID(ctx, clinicA, inUse.ID)
+		require.NoError(t, err)
+		assert.Equal(t, inUse.ID, got.ID)
+	})
 }
 
 func TestChiefComplaintTypeRepository_Reorder(t *testing.T) {
@@ -209,30 +227,46 @@ func TestChiefComplaintTypeRepository_Reorder(t *testing.T) {
 	})
 }
 
-// TestChiefComplaintTypeRepository_CountUsageByChiefComplaintTypeID_KnownInquiriesColumnBug は
-// CountUsageByChiefComplaintTypeID の既知の不具合（本テストで顕在化）を検証する。
-//
-// 既知の不具合: chief_complaint_repository.go のクエリが `inquiries.deleted_at IS NULL` を
-// 参照するが、inquiries テーブルには deleted_at 列が存在しない（migrations/001_init.sql の
-// CREATE TABLE inquiries 定義・model.Inquiry 構造体のいずれにも soft-delete 列がない）。
-// medicine_repository.go / procedure_repository.go の care_plan_items.deleted_at と同型の不具合
-// （medicine_repository_test.go の TestMedicineRepository_CountUsageByMedicineID_TreatmentUsage
-// を参照）。そのため使用件数の有無に関わらず、本メソッドは呼び出す度にエラーを返す。この既知の
-// 不具合は move-not-modify の対象外（挙動保存のため意図的に未修正のまま移動）。
-func TestChiefComplaintTypeRepository_CountUsageByChiefComplaintTypeID_KnownInquiriesColumnBug(t *testing.T) {
+func TestChiefComplaintTypeRepository_CountUsageByChiefComplaintTypeID(t *testing.T) {
 	db := setupChiefComplaintTypeRepositoryTestDB(t)
 	repo := NewChiefComplaintTypeRepository(db)
 	ctx := context.Background()
-	const clinicA = uint64(1)
+	const clinicA, clinicB = uint64(1), uint64(2)
 
-	cc := makeChiefComplaintType(t, db, clinicA, "使用中区分")
+	unused := makeChiefComplaintType(t, db, clinicA, "未使用区分")
+	used := makeChiefComplaintType(t, db, clinicA, "使用中区分")
 
-	mr := &model.MedicalRecord{ClinicID: clinicA, RecordNo: "CC-0001", Date: time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)}
+	mr := &model.MedicalRecord{ClinicID: clinicA, RecordNo: "CC-USAGE-0001", Date: time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)}
 	require.NoError(t, db.WithContext(ctx).Create(mr).Error)
+	require.NoError(t, db.WithContext(ctx).Create(&model.Inquiry{MedicalRecordID: mr.ID, ChiefComplaintTypeID: &used.ID}).Error)
 
-	inquiry := &model.Inquiry{MedicalRecordID: mr.ID, ChiefComplaintTypeID: &cc.ID}
-	require.NoError(t, db.WithContext(ctx).Create(inquiry).Error)
+	t.Run("unused type counts zero without referencing inquiries.deleted_at", func(t *testing.T) {
+		count, err := repo.CountUsageByChiefComplaintTypeID(ctx, clinicA, unused.ID)
+		require.NoError(t, err)
+		assert.Equal(t, int64(0), count)
+	})
 
-	_, err := repo.CountUsageByChiefComplaintTypeID(ctx, clinicA, cc.ID)
-	require.Error(t, err, "inquiries.deleted_at 列が存在しないため既知の不具合でエラーになる")
+	t.Run("live inquiry on same clinic counts as usage", func(t *testing.T) {
+		count, err := repo.CountUsageByChiefComplaintTypeID(ctx, clinicA, used.ID)
+		require.NoError(t, err)
+		assert.Equal(t, int64(1), count)
+	})
+
+	t.Run("other clinic does not see this clinic's inquiries", func(t *testing.T) {
+		count, err := repo.CountUsageByChiefComplaintTypeID(ctx, clinicB, used.ID)
+		require.NoError(t, err)
+		assert.Equal(t, int64(0), count)
+	})
+
+	t.Run("soft-deleted medical record is not counted", func(t *testing.T) {
+		deletedMR := &model.MedicalRecord{ClinicID: clinicA, RecordNo: "CC-USAGE-DELETED", Date: time.Date(2026, 6, 2, 0, 0, 0, 0, time.UTC)}
+		require.NoError(t, db.WithContext(ctx).Create(deletedMR).Error)
+		orphanType := makeChiefComplaintType(t, db, clinicA, "削除カルテのみ参照")
+		require.NoError(t, db.WithContext(ctx).Create(&model.Inquiry{MedicalRecordID: deletedMR.ID, ChiefComplaintTypeID: &orphanType.ID}).Error)
+		require.NoError(t, db.WithContext(ctx).Delete(deletedMR).Error)
+
+		count, err := repo.CountUsageByChiefComplaintTypeID(ctx, clinicA, orphanType.ID)
+		require.NoError(t, err)
+		assert.Equal(t, int64(0), count)
+	})
 }

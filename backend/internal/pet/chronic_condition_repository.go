@@ -15,7 +15,7 @@ type ChronicConditionRepository interface {
 	FindByPetID(ctx context.Context, clinicID, petID uint64) ([]model.PetChronicCondition, error)
 	FindByID(ctx context.Context, clinicID, petID, id uint64) (*model.PetChronicCondition, error)
 	Create(ctx context.Context, record *model.PetChronicCondition) error
-	Update(ctx context.Context, clinicID, petID, id uint64, fields map[string]any) error
+	Update(ctx context.Context, clinicID, petID, id uint64, cmd UpdateChronicConditionInput) error
 	Delete(ctx context.Context, clinicID, petID, id uint64) error
 	// FindActiveConditionCodesByOwner は飼い主の全生存ペットのアクティブ疾患コードを返す。
 	FindActiveConditionCodesByOwner(ctx context.Context, clinicID, ownerID uint64) ([]string, error)
@@ -64,6 +64,14 @@ func (r *chronicConditionRepository) Create(ctx context.Context, record *model.P
 }
 
 func (r *chronicConditionRepository) Update(
+	ctx context.Context,
+	clinicID, petID, id uint64,
+	cmd UpdateChronicConditionInput,
+) error {
+	return r.update(ctx, clinicID, petID, id, buildChronicConditionUpdateFields(cmd))
+}
+
+func (r *chronicConditionRepository) update(
 	ctx context.Context,
 	clinicID, petID, id uint64,
 	fields map[string]any,

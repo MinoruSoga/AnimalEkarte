@@ -21,6 +21,29 @@ var ErrCutoverCommitOutcomeUnknown = errors.New("cutover commit outcome unknown"
 // It lets the CLI report a precise audit state without exposing driver details.
 var ErrCutoverTransactionNotStarted = errors.New("begin cutover transaction failed")
 
+// AuditReportRoot is the operator-owned directory for cutover audit JSON.
+const AuditReportRoot = "/migration-reports"
+
+// ClassifyCutoverApplyFailure maps apply errors to audit status/stage.
+func ClassifyCutoverApplyFailure(err error) (status string, stage string) {
+	return classifyCutoverFailure(err, "FAILED_DATA_ROLLED_BACK", "transaction")
+}
+
+// ClassifyCutoverTableFailure maps table-rehearsal apply errors to audit status/stage.
+func ClassifyCutoverTableFailure(err error) (status string, stage string) {
+	return classifyCutoverFailure(err, "FAILED_TABLE_ROLLED_BACK", "table")
+}
+
+func classifyCutoverFailure(err error, rolledBackStatus, rolledBackStage string) (status string, stage string) {
+	if errors.Is(err, ErrCutoverCommitOutcomeUnknown) {
+		return "COMMIT_OUTCOME_UNKNOWN", "commit"
+	}
+	if errors.Is(err, ErrCutoverTransactionNotStarted) {
+		return "FAILED_BEFORE_TRANSACTION", "begin"
+	}
+	return rolledBackStatus, rolledBackStage
+}
+
 type CutoverSeedIDs struct {
 	ClinicID                  int64 `json:"clinicId"`
 	AnimalSpeciesID           int64 `json:"animalSpeciesId"`

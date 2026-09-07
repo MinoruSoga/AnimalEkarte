@@ -15,15 +15,15 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-type credentialAuditStaffService struct {
-	StaffService
+type credentialAuditService struct {
+	Service
 	result    *model.Staff
 	err       error
 	calls     *int
 	lastInput *UpdateStaffInput
 }
 
-func (s *credentialAuditStaffService) Update(
+func (s *credentialAuditService) Update(
 	_ context.Context,
 	_, _ uint64,
 	input *UpdateStaffInput,
@@ -72,7 +72,7 @@ func TestHandler_UpdateStaffPasswordPassesExplicitCredentialAuditMetadata(
 ) {
 	gin.SetMode(gin.TestMode)
 	accountID := uint64(41)
-	service := &credentialAuditStaffService{
+	service := &credentialAuditService{
 		result: &model.Staff{
 			ID:        29,
 			ClinicID:  23,
@@ -112,7 +112,7 @@ func TestHandler_UpdateStaffWithoutPasswordOmitsCredentialAuditMetadata(
 	t *testing.T,
 ) {
 	gin.SetMode(gin.TestMode)
-	service := &credentialAuditStaffService{
+	service := &credentialAuditService{
 		result: &model.Staff{ID: 29, ClinicID: 23, Name: "Updated Staff"},
 	}
 	handler := NewHandler(service, nil, nil, nil, nil, nil)
@@ -131,7 +131,7 @@ func TestHandler_UpdateStaffWithoutPasswordOmitsCredentialAuditMetadata(
 func TestHandler_UpdateStaffPasswordRejectsMissingActorBeforeMutation(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	updateCalls := 0
-	service := &credentialAuditStaffService{
+	service := &credentialAuditService{
 		result: &model.Staff{ID: 29},
 		calls:  &updateCalls,
 	}

@@ -350,7 +350,8 @@ func TestDB_MedicalRecordRepositoryFindAllCorrelatesRelationsToEachParentClinic(
 	// still leak clinic B's polluted billing into clinic A's parent record.
 	got, total, err := repo.FindAll(ctx, []uint64{clinicA, clinicB}, MedicalRecordListFilters{}, 1, 100)
 	require.NoError(t, err)
-	require.EqualValues(t, 5, total)
+	require.EqualValues(t, 8, total, "COUNT is clinic-scoped; 3 polluted rows stay out of Find")
+	require.Len(t, got, 5)
 
 	byID := make(map[uint64]model.MedicalRecord, len(got))
 	for _, record := range got {
@@ -857,9 +858,7 @@ func TestMedicalRecordRepository_Delete(t *testing.T) {
 		require.NoError(t, tx.Error)
 		defer tx.Rollback()
 		txCtx := persistence.WithTxValue(ctx, tx)
-		_, err := repo.Update(txCtx, clinicA, rec.ID, map[string]any{
-			"status": model.MedicalRecordStatusFinalized,
-		}, nil)
+		_, err := repo.Update(txCtx, clinicA, rec.ID, medicalRecordUpdateStatus(model.MedicalRecordStatusFinalized), nil)
 		require.NoError(t, err)
 
 		deleteDone := make(chan error, 1)

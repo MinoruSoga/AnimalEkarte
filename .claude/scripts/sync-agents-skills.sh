@@ -26,12 +26,12 @@ done
 # 2. commands を source-command-* スキルラッパーに変換
 for f in "$SRC_COMMANDS"/*.md; do
     cmd="$(basename "$f" .md)"
-    desc="$(awk -F': ' '/^description:/{print $2; exit}' "$f")"
+    desc="$(node "$ROOT/scripts/yaml-frontmatter-description.mjs" "$f")"
     mkdir -p "$TMP/source-command-$cmd"
     {
         echo '---'
         echo "name: \"source-command-$cmd\""
-        echo "description: \"$desc\""
+        echo "description: $desc"
         echo '---'
         echo
         echo "# source-command-$cmd"

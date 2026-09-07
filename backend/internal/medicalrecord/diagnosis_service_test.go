@@ -19,7 +19,7 @@ type mockDiagnosisTypeRepository struct {
 	findAllFn                 func(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisType, int64, error)
 	findByIDFn                func(ctx context.Context, clinicID, id uint64) (*model.DiagnosisType, error)
 	createFn                  func(ctx context.Context, category *model.DiagnosisType) error
-	updateFieldsFn            func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.DiagnosisType, error)
+	updateFieldsFn            func(ctx context.Context, clinicID, id uint64, cmd UpdateDiagnosisTypeInput) (*model.DiagnosisType, error)
 	deleteFn                  func(ctx context.Context, clinicID, id uint64) error
 	reorderFn                 func(ctx context.Context, clinicID uint64, ids []uint64) error
 	countChildrenByParentIDFn func(ctx context.Context, clinicID, categoryID uint64) (int64, error)
@@ -40,9 +40,9 @@ func (m *mockDiagnosisTypeRepository) Create(ctx context.Context, category *mode
 	return m.createFn(ctx, category)
 }
 
-func (m *mockDiagnosisTypeRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.DiagnosisType, error) {
+func (m *mockDiagnosisTypeRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateDiagnosisTypeInput) (*model.DiagnosisType, error) {
 	if m.updateFieldsFn != nil {
-		return m.updateFieldsFn(ctx, clinicID, id, fields)
+		return m.updateFieldsFn(ctx, clinicID, id, cmd)
 	}
 	return &model.DiagnosisType{ID: id, ClinicID: clinicID}, nil
 }
@@ -70,7 +70,7 @@ type mockDiagnosisNameRepository struct {
 	findAllByFilterFn                     func(ctx context.Context, clinicID uint64, typeID *uint64) ([]model.DiagnosisName, error)
 	findByIDFn                            func(ctx context.Context, clinicID, id uint64) (*model.DiagnosisName, error)
 	createFn                              func(ctx context.Context, name *model.DiagnosisName) error
-	updateFieldsFn                        func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.DiagnosisName, error)
+	updateFieldsFn                        func(ctx context.Context, clinicID, id uint64, cmd UpdateDiagnosisNameInput) (*model.DiagnosisName, error)
 	deleteFn                              func(ctx context.Context, clinicID, id uint64) error
 	reorderFn                             func(ctx context.Context, clinicID uint64, ids []uint64) error
 	countClinicalPlansByDiagnosisNameIDFn func(ctx context.Context, clinicID, diagnosisNameID uint64) (int64, error)
@@ -102,9 +102,9 @@ func (m *mockDiagnosisNameRepository) Create(ctx context.Context, name *model.Di
 	return m.createFn(ctx, name)
 }
 
-func (m *mockDiagnosisNameRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.DiagnosisName, error) {
+func (m *mockDiagnosisNameRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateDiagnosisNameInput) (*model.DiagnosisName, error) {
 	if m.updateFieldsFn != nil {
-		return m.updateFieldsFn(ctx, clinicID, id, fields)
+		return m.updateFieldsFn(ctx, clinicID, id, cmd)
 	}
 	return &model.DiagnosisName{ID: id, ClinicID: clinicID}, nil
 }
@@ -391,7 +391,7 @@ func TestDiagnosisTypeService_Update(t *testing.T) {
 					}
 					return &model.DiagnosisType{ID: id, ClinicID: testClinicID}, nil
 				},
-				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.DiagnosisType, error) {
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateDiagnosisTypeInput) (*model.DiagnosisType, error) {
 					return tt.fetchRes, tt.updateFieldsErr
 				},
 			}
@@ -904,7 +904,7 @@ func TestDiagnosisNameService_Update(t *testing.T) {
 					}
 					return &model.DiagnosisName{ID: id, ClinicID: testClinicID}, nil
 				},
-				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.DiagnosisName, error) {
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateDiagnosisNameInput) (*model.DiagnosisName, error) {
 					return tt.fetchRes, tt.updateFieldsErr
 				},
 			}

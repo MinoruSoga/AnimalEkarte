@@ -5,7 +5,6 @@ package lstep
 
 import (
 	"context"
-	slog "log/slog"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -62,7 +61,6 @@ func NewLstepTagConfigService(repo LstepTagConfigRepository) LstepTagConfigServi
 func (s *lstepTagConfigService) ListAutoManagedPrefixes(ctx context.Context) ([]*model.LstepAutoManagedPrefix, error) {
 	items, err := s.repo.FindAllAutoManagedPrefixes(ctx)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list auto managed prefixes", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list auto managed prefixes")
 	}
 	return items, nil
@@ -90,7 +88,6 @@ func (s *lstepTagConfigService) CreateAutoManagedPrefix(ctx context.Context, inp
 		); conflict != nil {
 			return nil, conflict
 		}
-		slog.ErrorContext(ctx, "failed to create auto managed prefix", "prefix", input.Prefix, "error", err)
 		return nil, apperrors.Wrap(err, "failed to create auto managed prefix")
 	}
 	return m, nil
@@ -98,7 +95,6 @@ func (s *lstepTagConfigService) CreateAutoManagedPrefix(ctx context.Context, inp
 
 func (s *lstepTagConfigService) DeleteAutoManagedPrefix(ctx context.Context, id uint64) error {
 	if err := s.repo.DeleteAutoManagedPrefix(ctx, id); err != nil {
-		slog.ErrorContext(ctx, "failed to delete auto managed prefix", "id", id, "error", err)
 		return apperrors.Wrap(err, "failed to delete auto managed prefix")
 	}
 	return nil
@@ -107,7 +103,6 @@ func (s *lstepTagConfigService) DeleteAutoManagedPrefix(ctx context.Context, id 
 func (s *lstepTagConfigService) ListConditionTagMappings(ctx context.Context) ([]*model.LstepConditionTagMapping, error) {
 	items, err := s.repo.FindAllConditionTagMappings(ctx)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list condition tag mappings", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list condition tag mappings")
 	}
 	return items, nil
@@ -120,7 +115,6 @@ func (s *lstepTagConfigService) CreateConditionTagMapping(ctx context.Context, i
 		Description:   input.Description,
 	}
 	if err := s.repo.CreateConditionTagMapping(ctx, m); err != nil {
-		slog.ErrorContext(ctx, "failed to create condition tag mapping", "condition_code", input.ConditionCode, "error", err)
 		if apperrors.IsAlreadyExists(err) {
 			return nil, apperrors.WrapAlreadyExists("lstep_condition_tag_mapping", input.ConditionCode)
 		}
@@ -131,7 +125,6 @@ func (s *lstepTagConfigService) CreateConditionTagMapping(ctx context.Context, i
 
 func (s *lstepTagConfigService) DeleteConditionTagMapping(ctx context.Context, id uint64) error {
 	if err := s.repo.DeleteConditionTagMapping(ctx, id); err != nil {
-		slog.ErrorContext(ctx, "failed to delete condition tag mapping", "id", id, "error", err)
 		return apperrors.Wrap(err, "failed to delete condition tag mapping")
 	}
 	return nil
@@ -140,7 +133,6 @@ func (s *lstepTagConfigService) DeleteConditionTagMapping(ctx context.Context, i
 func (s *lstepTagConfigService) ListSendPurposeTagPrefixes(ctx context.Context) ([]*model.LstepSendPurposeTagPrefix, error) {
 	items, err := s.repo.FindAllSendPurposeTagPrefixes(ctx)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list send purpose tag prefixes", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list send purpose tag prefixes")
 	}
 	return items, nil
@@ -153,7 +145,6 @@ func (s *lstepTagConfigService) CreateSendPurposeTagPrefix(ctx context.Context, 
 		Description: input.Description,
 	}
 	if err := s.repo.CreateSendPurposeTagPrefix(ctx, m); err != nil {
-		slog.ErrorContext(ctx, "failed to create send purpose tag prefix", "purpose", input.Purpose, "error", err)
 		return nil, apperrors.Wrap(err, "failed to create send purpose tag prefix")
 	}
 	return m, nil
@@ -161,7 +152,6 @@ func (s *lstepTagConfigService) CreateSendPurposeTagPrefix(ctx context.Context, 
 
 func (s *lstepTagConfigService) DeleteSendPurposeTagPrefix(ctx context.Context, id uint64) error {
 	if err := s.repo.DeleteSendPurposeTagPrefix(ctx, id); err != nil {
-		slog.ErrorContext(ctx, "failed to delete send purpose tag prefix", "id", id, "error", err)
 		return apperrors.Wrap(err, "failed to delete send purpose tag prefix")
 	}
 	return nil

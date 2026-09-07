@@ -15,7 +15,7 @@ func TestRegisterWebhookRoutes_AppliesInjectedRateLimitBeforeHandler(t *testing.
 		return func(c *gin.Context) { c.Next() }
 	}
 	h := NewHandler(
-		NewLstepSettingsHandler(nil, noopPermission),
+		NewSettingsHandler(nil, noopPermission),
 		NewLineSendHandler(nil, noopPermission),
 		NewLineLinkHandler(nil, noopPermission),
 		NewLineCustomerHandler(nil, noopPermission),

@@ -30,7 +30,6 @@ func (s *treatmentService) evaluateDoseForSave(
 	}
 	medicine, err := s.medicineRepo.FindByID(ctx, clinicID, *medicineID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to load medicine for dose revalidation", "error", err)
 		return nil, apperrors.Wrap(err, "failed to load medicine for dose revalidation")
 	}
 	if medicine.CalculationType != model.MedicineCalculationTypePerWeight {
@@ -40,7 +39,6 @@ func (s *treatmentService) evaluateDoseForSave(
 	// pet species を解決（medical_record → pet → animal_species）。マップ不能は fail-closed（手動）。
 	mr, err := s.medicalRecordRepo.FindByID(ctx, clinicID, medicalRecordID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to load medical record for dose revalidation", "error", err)
 		return nil, apperrors.Wrap(err, "failed to load medical record for dose revalidation")
 	}
 	if mr.Pet == nil || mr.Pet.AnimalSpecies == nil {
@@ -70,12 +68,10 @@ func (s *treatmentService) evaluateDoseForSave(
 		if apperrors.IsNotFound(err) {
 			return nil, nil // この種の param 無し → 手動（fail-closed）
 		}
-		slog.ErrorContext(ctx, "failed to load dose param for revalidation", "error", err)
 		return nil, apperrors.Wrap(err, "failed to load dose param")
 	}
 	// 防御アサート（HIGH-4）: 引いた species と param.Species は一致するはず。不一致＝安全のため保存中止。
 	if param.Species != species {
-		slog.ErrorContext(ctx, "dose param species mismatch (fail-closed)", "expected", string(species), "got", string(param.Species))
 		return nil, apperrors.WrapConflict("投与量パラメータの種別が患者種と一致しません（安全のため保存を中止しました）")
 	}
 
@@ -98,7 +94,6 @@ func (s *treatmentService) evaluateDoseForSave(
 func (s *treatmentService) resolveDoseWeight(ctx context.Context, clinicID, medicalRecordID uint64) (weightKg float64, source string, ok bool, err error) {
 	vitals, err := s.vitalRepo.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to load vitals for dose weight", "error", err)
 		return 0, "", false, apperrors.Wrap(err, "failed to load vitals for dose weight")
 	}
 	var chosen *model.VitalRecord

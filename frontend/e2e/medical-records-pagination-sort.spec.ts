@@ -1,23 +1,13 @@
 import { test, expect } from "@playwright/test";
 import type { BrowserContext } from "@playwright/test";
-import { createAuthedContext } from "./helpers/context";
+import { createClinicalContext } from "./helpers/clinical-suite";
 import { MedicalRecordsPage } from "./pages/medical-records-page";
-
-// B-1 follow-up (bug.md AC-3): server-side pagination / column sort / status filter E2E.
-// Seed data: clinic 1 has 20,000+ medical_records rows (far beyond PAGE_SIZE=20), so
-// page 2 is always reachable without per-test data setup. admin@noavet.jp is
-// system_admin with full multi-clinic access.
-//
-// Design: interaction + URL-state assertions only (no writes). Row-content assertions
-// are intentionally avoided where data volume/ordering could make them flaky; instead
-// we assert on the URL query params that MedicalRecords.tsx derives sort/pagination
-// state from, and on the PropertyFilter active-filter pill for the status filter.
 
 test.describe("カルテ一覧 ページネーション/ソート/フィルタ E2E", () => {
   let context: BrowserContext;
 
   test.beforeAll(async ({ browser }) => {
-    context = await createAuthedContext(browser);
+    ({ context } = await createClinicalContext(browser));
   });
 
   test.afterAll(async () => {

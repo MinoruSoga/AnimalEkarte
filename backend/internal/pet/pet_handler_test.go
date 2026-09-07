@@ -668,7 +668,7 @@ func TestUpdateChronicCondition_InvalidDiagnosedAtUsesFixedJapanese(t *testing.T
 //    ✓ Returns 400 when pet_id is non-numeric
 //    ✓ Returns 404 when pet doesn't exist
 //    ✓ Returns 403 when pet belongs to different clinic (tenant isolation)
-//    ✓ Response includes complete pet data (PetResponse, full details view)
+//    ✓ Response includes complete pet data (Response, full details view)
 //    ✓ Response includes nested owner object (if preloaded)
 //    ✓ Response includes nested animal_species object (if preloaded)
 //    ✓ Response includes all pet fields: id, owner_id, pet_number, breed, color, etc.
@@ -801,7 +801,7 @@ func TestUpdateChronicCondition_InvalidDiagnosedAtUsesFixedJapanese(t *testing.T
 // RESPONSE TYPES:
 //    - ListPets uses petListResponse (summary view): id, owner_id, pet_number, name, name_kana,
 //      animal_species_id, status, breed, color, gender, birth_date, weight, last_visit
-//    - GetPet/CreatePet/UpdatePet use PetResponse (full details view): all fields above + phone,
+//    - GetPet/CreatePet/UpdatePet use Response (full details view): all fields above + phone,
 //      acquisition_type, danger_level, food, environment, insurance_id, remarks, timestamps
 //
 // IMPLEMENTATION NOTES:

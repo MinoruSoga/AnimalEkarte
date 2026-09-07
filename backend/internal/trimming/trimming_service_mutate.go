@@ -19,7 +19,6 @@ func (s *trimmingService) createDetailForExistingAppointment(
 ) (*model.Reservation, error) {
 	appt, err := s.reservation.FindTrimmingByID(ctx, clinicID, appointmentID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get existing trimming appointment", "error", err, "appointment_id", appointmentID, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get existing trimming appointment")
 	}
 	if appt.ReservationType == nil || appt.ReservationType.Category != model.ReservationTypeCategoryTrimming {
@@ -41,7 +40,6 @@ func (s *trimmingService) createDetailForExistingAppointment(
 		result = created
 		return nil
 	}); err != nil {
-		slog.ErrorContext(ctx, "failed to create trimming detail for existing appointment", "error", err, "appointment_id", appointmentID, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to create trimming detail for existing appointment")
 	}
 
@@ -69,7 +67,6 @@ func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input
 		return nil, apperrors.WrapInternalServerError("trimming option repository is required")
 	}
 	if _, err := s.reservation.FindTrimmingByID(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to get trimming appointment", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get trimming appointment")
 	}
 
@@ -95,7 +92,6 @@ func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input
 		result = updated
 		return nil
 	}); err != nil {
-		slog.ErrorContext(ctx, "failed to update trimming appointment", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update trimming appointment")
 	}
 
@@ -141,7 +137,6 @@ func (s *trimmingService) Delete(ctx context.Context, clinicID, id uint64, actor
 			nil,
 		)
 	}); err != nil {
-		slog.ErrorContext(ctx, "failed to delete trimming appointment", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete trimming appointment")
 	}
 	slog.InfoContext(ctx, "trimming appointment deleted",

@@ -40,7 +40,7 @@ func TestTrimmingCourseService_Update_RejectsCrossClinicCourseTypeFK(t *testing.
 			findByIDFn: func(_ context.Context, _, id uint64) (*model.TrimmingCourse, error) {
 				return &model.TrimmingCourse{ID: id}, nil
 			},
-			updateFieldsFn: func(_ context.Context, _, id uint64, _ map[string]any) (*model.TrimmingCourse, error) {
+			updateFieldsFn: func(_ context.Context, _, id uint64, _ UpdateTrimmingCourseInput) (*model.TrimmingCourse, error) {
 				*updated = true
 				return &model.TrimmingCourse{ID: id}, nil
 			},
@@ -75,12 +75,12 @@ func TestTrimmingCourseService_Update_RejectsCrossClinicCourseTypeFK(t *testing.
 	})
 }
 
-func TestTrimmingService_Create_RejectsCrossClinicCourseFK(t *testing.T) {
+func TestService_Create_RejectsCrossClinicCourseFK(t *testing.T) {
 	const clinicID = uint64(1)
 	const ownedID = uint64(10)
 	const foreignID = uint64(999)
 
-	newService := func(created *bool, courseRepo TrimmingCourseRepository) TrimmingService {
+	newService := func(created *bool, courseRepo TrimmingCourseRepository) Service {
 		reservationRepo := &mockTrimmingReservationRepository{
 			createFn: func(_ context.Context, appointment *model.Reservation) error {
 				*created = true
@@ -91,7 +91,7 @@ func TestTrimmingService_Create_RejectsCrossClinicCourseFK(t *testing.T) {
 				return &model.Reservation{ID: id, ClinicID: clinicID}, nil
 			},
 		}
-		return withTrimmingTestActor(NewTrimmingServiceWithAudit(reservationRepo, &mockTrimmingReservationTypeRepository{}, nil, &mockTrimmingUnavailableTimeRepository{},
+		return withTrimmingTestActor(NewServiceWithAudit(reservationRepo, &mockTrimmingReservationTypeRepository{}, nil, &mockTrimmingUnavailableTimeRepository{},
 			&mockTrimmingDetailRepository{}, courseRepo, okTrimmingOptionRepo(), &mockTransactor{}, noopTrimmingAuditTxLogger{}))
 	}
 
@@ -118,12 +118,12 @@ func TestTrimmingService_Create_RejectsCrossClinicCourseFK(t *testing.T) {
 	})
 }
 
-func TestTrimmingService_Create_RejectsCrossClinicOptionFK(t *testing.T) {
+func TestService_Create_RejectsCrossClinicOptionFK(t *testing.T) {
 	const clinicID = uint64(1)
 	const ownedID = uint64(20)
 	const foreignID = uint64(998)
 
-	newService := func(created *bool, optionRepo TrimmingOptionRepository) TrimmingService {
+	newService := func(created *bool, optionRepo TrimmingOptionRepository) Service {
 		reservationRepo := &mockTrimmingReservationRepository{
 			createFn: func(_ context.Context, appointment *model.Reservation) error {
 				*created = true
@@ -134,7 +134,7 @@ func TestTrimmingService_Create_RejectsCrossClinicOptionFK(t *testing.T) {
 				return &model.Reservation{ID: id, ClinicID: clinicID}, nil
 			},
 		}
-		return withTrimmingTestActor(NewTrimmingServiceWithAudit(reservationRepo, &mockTrimmingReservationTypeRepository{}, nil, &mockTrimmingUnavailableTimeRepository{},
+		return withTrimmingTestActor(NewServiceWithAudit(reservationRepo, &mockTrimmingReservationTypeRepository{}, nil, &mockTrimmingUnavailableTimeRepository{},
 			&mockTrimmingDetailRepository{}, okTrimmingCourseRepo(), optionRepo, &mockTransactor{}, noopTrimmingAuditTxLogger{}))
 	}
 
@@ -159,13 +159,13 @@ func TestTrimmingService_Create_RejectsCrossClinicOptionFK(t *testing.T) {
 	})
 }
 
-func TestTrimmingService_Update_RejectsCrossClinicCourseFK(t *testing.T) {
+func TestService_Update_RejectsCrossClinicCourseFK(t *testing.T) {
 	const clinicID = uint64(1)
 	const appointmentID = uint64(1)
 	const ownedID = uint64(10)
 	const foreignID = uint64(999)
 
-	newService := func(updated *bool, courseRepo TrimmingCourseRepository) TrimmingService {
+	newService := func(updated *bool, courseRepo TrimmingCourseRepository) Service {
 		detail := &mockTrimmingDetailRepository{updateFn: func(_ context.Context, _ *model.AppointmentTrimmingDetail) error {
 			*updated = true
 			return nil
@@ -173,7 +173,7 @@ func TestTrimmingService_Update_RejectsCrossClinicCourseFK(t *testing.T) {
 		reservationRepo := &mockTrimmingReservationRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.Reservation, error) {
 			return &model.Reservation{ID: id, ClinicID: clinicID}, nil
 		}}
-		return withTrimmingTestActor(NewTrimmingServiceWithAudit(reservationRepo, &mockTrimmingReservationTypeRepository{}, nil, nil,
+		return withTrimmingTestActor(NewServiceWithAudit(reservationRepo, &mockTrimmingReservationTypeRepository{}, nil, nil,
 			detail, courseRepo, okTrimmingOptionRepo(), &mockTransactor{}, noopTrimmingAuditTxLogger{}))
 	}
 
@@ -196,13 +196,13 @@ func TestTrimmingService_Update_RejectsCrossClinicCourseFK(t *testing.T) {
 	})
 }
 
-func TestTrimmingService_Update_RejectsCrossClinicOptionFK(t *testing.T) {
+func TestService_Update_RejectsCrossClinicOptionFK(t *testing.T) {
 	const clinicID = uint64(1)
 	const appointmentID = uint64(1)
 	const ownedID = uint64(20)
 	const foreignID = uint64(998)
 
-	newService := func(updated *bool, optionRepo TrimmingOptionRepository) TrimmingService {
+	newService := func(updated *bool, optionRepo TrimmingOptionRepository) Service {
 		detail := &mockTrimmingDetailRepository{setOptionsFn: func(_ context.Context, _, _ uint64, _ []uint64) error {
 			*updated = true
 			return nil
@@ -210,7 +210,7 @@ func TestTrimmingService_Update_RejectsCrossClinicOptionFK(t *testing.T) {
 		reservationRepo := &mockTrimmingReservationRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.Reservation, error) {
 			return &model.Reservation{ID: id, ClinicID: clinicID}, nil
 		}}
-		return withTrimmingTestActor(NewTrimmingServiceWithAudit(reservationRepo, &mockTrimmingReservationTypeRepository{}, nil, nil,
+		return withTrimmingTestActor(NewServiceWithAudit(reservationRepo, &mockTrimmingReservationTypeRepository{}, nil, nil,
 			detail, okTrimmingCourseRepo(), optionRepo, &mockTransactor{}, noopTrimmingAuditTxLogger{}))
 	}
 

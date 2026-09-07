@@ -2,7 +2,6 @@ package medicalrecord
 
 import (
 	"context"
-	"log/slog"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -52,7 +51,7 @@ func (s *medicineService) createMedicineInTx(
 	calcType model.MedicineCalculationType,
 ) error {
 	if err := s.repo.Create(txCtx, medicine); err != nil {
-		return wrapMedicineNameConflict(txCtx, err, input.Name, clinicID, 0, "failed to create medicine")
+		return wrapMedicineNameConflict(err, input.Name, "failed to create medicine")
 	}
 	// BUG-320: 薬品作成時に在庫アイテムを自動作成
 	inventoryItem := &model.InventoryItem{
@@ -65,15 +64,13 @@ func (s *medicineService) createMedicineInTx(
 		Status:        model.InventoryStatusSufficient,
 	}
 	if err := s.inventoryRepo.Create(txCtx, clinicID, inventoryItem); err != nil {
-		slog.ErrorContext(txCtx, "failed to create inventory item for medicine", "error", err, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to create inventory item for medicine")
 	}
 	// MRC-02: persist inventory_id so delete/rename use id not fragile name matching.
 	if inventoryItem.ID != 0 {
 		invID := inventoryItem.ID
 		medicine.InventoryID = &invID
-		if _, err := s.repo.Update(txCtx, clinicID, medicine.ID, map[string]any{colMedicineInventoryID: invID}); err != nil {
-			slog.ErrorContext(txCtx, "failed to link inventory item to medicine", "error", err, "clinic_id", clinicID, "medicine_id", medicine.ID)
+		if _, err := s.repo.Update(txCtx, clinicID, medicine.ID, UpdateMedicineInput{InventoryID: &invID}); err != nil {
 			return apperrors.Wrap(err, "failed to link inventory item to medicine")
 		}
 	}

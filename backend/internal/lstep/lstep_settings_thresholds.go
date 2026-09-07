@@ -2,7 +2,6 @@ package lstep
 
 import (
 	"context"
-	"log/slog"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -31,7 +30,6 @@ func (s *lstepSettingsService) GetDormantThresholds(ctx context.Context, clinicI
 	}
 	settings, err := s.clinicSettingsRepo.FindByClinicID(ctx, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get clinic settings for dormant thresholds", "clinic_id", clinicID, "error", err)
 		return model.DormantThresholds{}, apperrors.Wrap(err, "failed to find clinic settings for dormant thresholds")
 	}
 	return model.DormantThresholds{
@@ -49,7 +47,6 @@ func (s *lstepSettingsService) GetCPMV2Thresholds(ctx context.Context, clinicID 
 	}
 	settings, err := s.clinicSettingsRepo.FindByClinicID(ctx, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get clinic settings for cpm v2 thresholds", "clinic_id", clinicID, "error", err)
 		return model.CPMV2Thresholds{}, apperrors.Wrap(err, "failed to find clinic settings for cpm v2 thresholds")
 	}
 	return model.CPMV2Thresholds{
@@ -67,7 +64,6 @@ func (s *lstepSettingsService) GetCPMV1Thresholds(ctx context.Context, clinicID 
 	}
 	settings, err := s.clinicSettingsRepo.FindByClinicID(ctx, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get clinic settings for cpm v1 thresholds", "clinic_id", clinicID, "error", err)
 		return model.CPMV1Thresholds{}, apperrors.Wrap(err, "failed to find clinic settings for cpm v1 thresholds")
 	}
 	return model.CPMV1Thresholds{
@@ -94,7 +90,6 @@ func (s *lstepSettingsService) GetHealthPreventionThresholds(ctx context.Context
 	}
 	settings, err := s.clinicSettingsRepo.FindByClinicID(ctx, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get clinic settings for health prevention thresholds", "clinic_id", clinicID, "error", err)
 		return model.HealthPreventionThresholds{}, apperrors.Wrap(err, "failed to find clinic settings for health prevention thresholds")
 	}
 	return model.HealthPreventionThresholds{
@@ -123,7 +118,6 @@ func (s *lstepSettingsService) IsSyncEnabled(ctx context.Context, clinicID uint6
 func (s *lstepSettingsService) updateSyncEnabled(ctx context.Context, clinicID uint64, newEnabled bool) error {
 	current, err := s.syncSettingsRepo.FindByClinicID(ctx, clinicID)
 	if err != nil && !apperrors.IsNotFound(err) {
-		slog.ErrorContext(ctx, "failed to find lstep sync settings", "error", err, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to find lstep sync settings")
 	}
 
@@ -144,7 +138,6 @@ func (s *lstepSettingsService) updateSyncEnabled(ctx context.Context, clinicID u
 	}
 
 	if _, err := s.syncSettingsRepo.Upsert(ctx, record); err != nil {
-		slog.ErrorContext(ctx, "failed to upsert lstep sync settings", "error", err, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to update lstep sync settings")
 	}
 	return nil

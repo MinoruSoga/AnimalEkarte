@@ -61,7 +61,6 @@ func (s *liffService) buildStaffSlotInputsForDate(ctx context.Context, clinicID 
 	// 当日の全予約を一括取得（N+1回避。旧 FindAllByDay の6 Preload を伴わない軽量版）
 	reservations, err := s.adminRepo.FindTimeRangesByDateRange(ctx, clinicID, dayStart, windowEnd)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get day reservations", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get day reservations")
 	}
 	reservationsByDate := map[string][]model.Reservation{}
@@ -124,7 +123,6 @@ func (s *liffService) buildAvailableDatesStaffInputsFn(
 
 	reservations, err := s.adminRepo.FindTimeRangesByDateRange(ctx, clinicID, minDate, windowEnd)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to prefetch day reservations for available dates", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get day reservations")
 	}
 	reservationsByDate := map[string][]model.Reservation{}

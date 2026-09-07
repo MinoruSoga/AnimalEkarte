@@ -11,7 +11,6 @@ import (
 func (s *medicalRecordService) List(ctx context.Context, clinicIDs []uint64, filters MedicalRecordListFilters, page, limit int) ([]model.MedicalRecord, int64, error) {
 	items, total, err := s.repo.FindAll(ctx, clinicIDs, filters, page, limit)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list medical records", "error", err)
 		return nil, 0, apperrors.Wrap(err, "failed to list medical records")
 	}
 	return items, total, nil
@@ -20,7 +19,6 @@ func (s *medicalRecordService) List(ctx context.Context, clinicIDs []uint64, fil
 func (s *medicalRecordService) GetByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get medical record", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get medical record")
 	}
 	return result, nil
@@ -29,7 +27,6 @@ func (s *medicalRecordService) GetByID(ctx context.Context, clinicID, id uint64)
 func (s *medicalRecordService) GetByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.MedicalRecord, error) {
 	result, err := s.repo.FindByIDForClinics(ctx, clinicIDs, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get medical record for clinics", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get medical record for clinics")
 	}
 	return result, nil
@@ -38,7 +35,6 @@ func (s *medicalRecordService) GetByIDForClinics(ctx context.Context, clinicIDs 
 func (s *medicalRecordService) CountByPetID(ctx context.Context, clinicID, petID uint64) (int64, error) {
 	count, err := s.repo.CountByPetID(ctx, clinicID, petID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to count medical records by pet", "error", err)
 		return 0, apperrors.Wrap(err, "failed to count medical records by pet")
 	}
 	return count, nil
@@ -132,7 +128,6 @@ func (s *medicalRecordService) createMedicalRecordInTx(
 	}
 
 	if err := s.repo.Create(ctx, built); err != nil {
-		slog.ErrorContext(ctx, "failed to create medical record", "error", err, "clinic_id", built.ClinicID)
 		return medicalRecordCreateTxResult{}, apperrors.Wrap(err, "failed to create medical record")
 	}
 
@@ -171,7 +166,6 @@ func (s *medicalRecordService) Update(ctx context.Context, clinicID, id uint64, 
 	// 楽観的ロックチェックのため現在のレコードを取得
 	existing, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get medical record", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get medical record")
 	}
 
@@ -195,8 +189,7 @@ func (s *medicalRecordService) Update(ctx context.Context, clinicID, id uint64, 
 	finalOwnerID, finalPetID := resolveFinalMedicalRecordOwnerPet(existing, input)
 	finalDoctorID := resolveFinalMedicalRecordDoctor(existing, input)
 
-	fields := buildMedicalRecordUpdate(input)
-	if len(fields) == 0 {
+	if len(buildMedicalRecordUpdate(input)) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
 	// バージョンをインクリメント（input.Version 指定時はそれを起点にする。BE-refactor.md X-10:
@@ -205,7 +198,8 @@ func (s *medicalRecordService) Update(ctx context.Context, clinicID, id uint64, 
 	if input.Version != nil {
 		nextVersion = *input.Version + 1
 	}
-	fields["version"] = nextVersion
+	effective := input
+	effective.persistVersion = &nextVersion
 
 	// 監査 diff は更新前に取得（finalize 検出のため）
 	wasFinalized := existing.Status == model.MedicalRecordStatusFinalized
@@ -218,8 +212,7 @@ func (s *medicalRecordService) Update(ctx context.Context, clinicID, id uint64, 
 			clinicID,
 			id,
 			existing,
-			input,
-			fields,
+			effective,
 			finalOwnerID,
 			finalPetID,
 			finalDoctorID,
@@ -276,7 +269,6 @@ func (s *medicalRecordService) Delete(ctx context.Context, clinicID, id uint64) 
 		}
 		estimateCount, err := s.repo.CountEstimatesByMedicalRecordID(txCtx, clinicID, id)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to check estimate dependencies", "error", err, "id", id, "clinic_id", clinicID)
 			return apperrors.Wrap(err, "failed to check estimate dependencies")
 		}
 		if estimateCount > 0 {
@@ -286,7 +278,6 @@ func (s *medicalRecordService) Delete(ctx context.Context, clinicID, id uint64) 
 			)
 		}
 		if err := s.repo.Delete(txCtx, clinicID, id); err != nil {
-			slog.ErrorContext(txCtx, "failed to delete medical record", "error", err, "id", id, "clinic_id", clinicID)
 			return apperrors.Wrap(err, "failed to delete medical record")
 		}
 		existing = locked
@@ -344,11 +335,10 @@ func (s *medicalRecordService) UpdateRecommendationReason(
 	}
 
 	// バージョン照合なし（このメソッドの入力に version が存在しないため従来どおり）
-	record, err := s.repo.Update(ctx, clinicID, id, map[string]any{
-		colRecommendationReason: reasonValue,
+	record, err := s.repo.Update(ctx, clinicID, id, UpdateMedicalRecordInput{
+		persistFields: map[string]any{colRecommendationReason: reasonValue},
 	}, nil)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to update recommendation_reason", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to update recommendation_reason")
 	}
 	slog.InfoContext(ctx, "recommendation_reason updated",

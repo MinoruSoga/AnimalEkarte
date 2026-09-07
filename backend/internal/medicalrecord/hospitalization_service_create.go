@@ -2,7 +2,6 @@ package medicalrecord
 
 import (
 	"context"
-	"log/slog"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -33,7 +32,6 @@ func (s *hospitalizationService) createHospitalizationInTx(
 		return err
 	}
 	if err := s.hospRepo.Create(txCtx, hospitalization); err != nil {
-		slog.ErrorContext(txCtx, "failed to create hospitalization", "error", err)
 		return apperrors.Wrap(err, "failed to create hospitalization")
 	}
 	return s.createNestedTreatmentPlansInTx(txCtx, clinicID, input, hospitalization.ID)
@@ -77,7 +75,6 @@ func (s *hospitalizationService) createNestedTreatmentPlansInTx(
 			SortOrder:         planInput.SortOrder,
 		}
 		if err := s.treatmentPlanRepo.Create(txCtx, plan); err != nil {
-			slog.ErrorContext(txCtx, "failed to create nested treatment plan", "error", err, "index", i)
 			return apperrors.Wrap(err, "failed to create nested treatment plan")
 		}
 		careItem := &model.CarePlanItem{
@@ -89,7 +86,6 @@ func (s *hospitalizationService) createNestedTreatmentPlansInTx(
 			SortOrder:         planInput.SortOrder,
 		}
 		if err := s.carePlanItemRepo.Create(txCtx, careItem); err != nil {
-			slog.ErrorContext(txCtx, "failed to create nested care plan item from treatment plan", "error", err, "index", i)
 			return apperrors.Wrap(err, "failed to create nested care plan item")
 		}
 	}

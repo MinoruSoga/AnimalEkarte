@@ -2,7 +2,6 @@ package lstep
 
 import (
 	"context"
-	"log/slog"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -76,17 +75,14 @@ func NewLstepDeliveryMonitorService(triggerLog LstepDeliveryTriggerLogRepository
 func (s *lstepDeliveryMonitorService) GetSummary(ctx context.Context, input GetDeliveryMonitorSummaryInput) (DeliveryTriggerSummary, error) {
 	statusCounts, err := s.triggerLog.CountByStatusAndDateRange(ctx, input.ClinicID, input.From, input.To, input.TriggerType)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to count delivery trigger log by status", "clinic_id", input.ClinicID, "error", err)
 		return DeliveryTriggerSummary{}, apperrors.Wrap(err, "failed to count delivery trigger log by status")
 	}
 	excludedReasons, err := s.triggerLog.CountExcludedReasonByDateRange(ctx, input.ClinicID, input.From, input.To, input.TriggerType)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to count delivery trigger excluded reasons", "clinic_id", input.ClinicID, "error", err)
 		return DeliveryTriggerSummary{}, apperrors.Wrap(err, "failed to count delivery trigger excluded reasons")
 	}
 	suppressedByPriority, err := s.triggerLog.CountSuppressedByPriorityDateRange(ctx, input.ClinicID, input.From, input.To, input.TriggerType)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to count priority-suppressed delivery trigger logs", "clinic_id", input.ClinicID, "error", err)
 		return DeliveryTriggerSummary{}, apperrors.Wrap(err, "failed to count priority-suppressed delivery trigger logs")
 	}
 	return DeliveryTriggerSummary{
@@ -107,7 +103,6 @@ func (s *lstepDeliveryMonitorService) GetLogs(ctx context.Context, input *GetDel
 
 	rows, total, err := s.triggerLog.FindByDateRangeWithFilters(ctx, input.ClinicID, input.From, input.To, input.TriggerType, input.Status, perPage, offset)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to find delivery trigger logs", "clinic_id", input.ClinicID, "error", err)
 		return DeliveryTriggerLogsPage{}, apperrors.Wrap(err, "failed to find delivery trigger logs")
 	}
 

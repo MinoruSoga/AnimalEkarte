@@ -20,7 +20,7 @@ type mockAnimalSpeciesRepository struct {
 	findAllFn      func(ctx context.Context) ([]model.AnimalSpecies, error)
 	findByIDFn     func(ctx context.Context, id uint64) (*model.AnimalSpecies, error)
 	createFn       func(ctx context.Context, species *model.AnimalSpecies) error
-	updateFieldsFn func(ctx context.Context, id uint64, fields map[string]any) (*model.AnimalSpecies, error)
+	updateFieldsFn func(ctx context.Context, id uint64, cmd UpdateAnimalSpeciesInput) (*model.AnimalSpecies, error)
 	deleteFn       func(ctx context.Context, id uint64) error
 	reorderFn      func(ctx context.Context, ids []uint64) error
 }
@@ -43,9 +43,9 @@ func (m *mockAnimalSpeciesRepository) Create(ctx context.Context, species *model
 	return nil
 }
 
-func (m *mockAnimalSpeciesRepository) Update(ctx context.Context, id uint64, fields map[string]any) (*model.AnimalSpecies, error) {
+func (m *mockAnimalSpeciesRepository) Update(ctx context.Context, id uint64, cmd UpdateAnimalSpeciesInput) (*model.AnimalSpecies, error) {
 	if m.updateFieldsFn != nil {
-		return m.updateFieldsFn(ctx, id, fields)
+		return m.updateFieldsFn(ctx, id, cmd)
 	}
 	return &model.AnimalSpecies{}, nil
 }
@@ -361,7 +361,7 @@ func TestAnimalSpeciesService_Update(t *testing.T) {
 					}
 					return &model.AnimalSpecies{ID: id}, nil
 				},
-				updateFieldsFn: func(_ context.Context, id uint64, _ map[string]any) (*model.AnimalSpecies, error) {
+				updateFieldsFn: func(_ context.Context, id uint64, _ UpdateAnimalSpeciesInput) (*model.AnimalSpecies, error) {
 					if tt.updateErr != nil {
 						return nil, tt.updateErr
 					}
@@ -591,7 +591,7 @@ func TestAnimalSpeciesService_Update_AuditFailureRollsBackPath(t *testing.T) {
 		findByIDFn: func(_ context.Context, id uint64) (*model.AnimalSpecies, error) {
 			return &model.AnimalSpecies{ID: id, Name: "旧"}, nil
 		},
-		updateFieldsFn: func(_ context.Context, id uint64, _ map[string]any) (*model.AnimalSpecies, error) {
+		updateFieldsFn: func(_ context.Context, id uint64, _ UpdateAnimalSpeciesInput) (*model.AnimalSpecies, error) {
 			return &model.AnimalSpecies{ID: id, Name: "新"}, nil
 		},
 	}

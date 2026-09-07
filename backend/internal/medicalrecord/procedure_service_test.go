@@ -17,7 +17,7 @@ type mockProcedureRepository struct {
 	findAllFn                 func(ctx context.Context, clinicID uint64) ([]model.Procedure, error)
 	findByIDFn                func(ctx context.Context, clinicID, id uint64) (*model.Procedure, error)
 	createFn                  func(ctx context.Context, procedure *model.Procedure) error
-	updateFieldsFn            func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Procedure, error)
+	updateFieldsFn            func(ctx context.Context, clinicID, id uint64, cmd UpdateProcedureInput) (*model.Procedure, error)
 	deleteFn                  func(ctx context.Context, clinicID, id uint64) error
 	countUsageByProcedureIDFn func(ctx context.Context, clinicID, procedureID uint64) (int64, error)
 	countChildrenByParentIDFn func(ctx context.Context, clinicID, parentID uint64) (int64, error)
@@ -36,9 +36,9 @@ func (m *mockProcedureRepository) Create(ctx context.Context, procedure *model.P
 	return m.createFn(ctx, procedure)
 }
 
-func (m *mockProcedureRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Procedure, error) {
+func (m *mockProcedureRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateProcedureInput) (*model.Procedure, error) {
 	if m.updateFieldsFn != nil {
-		return m.updateFieldsFn(ctx, clinicID, id, fields)
+		return m.updateFieldsFn(ctx, clinicID, id, cmd)
 	}
 	return &model.Procedure{ID: id}, nil
 }
@@ -440,7 +440,7 @@ func TestProcedureService_Update(t *testing.T) {
 					}
 					return &model.Procedure{ID: id}, nil
 				},
-				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Procedure, error) {
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateProcedureInput) (*model.Procedure, error) {
 					if tt.repoErr != nil {
 						return nil, tt.repoErr
 					}

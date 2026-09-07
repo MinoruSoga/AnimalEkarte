@@ -34,7 +34,7 @@
 - **精算済み再保存**: 詳細は「精算済みの会計を修正します」ConfirmDialog を出してから保存する。締め済み日の新規 `POST /accountings/complete` は `post_close_reason` を FK より先に見る。
 - **拠点横断時の訂正対象**: 訂正リクエストはグローバル選択クリニックではなく会計自体のクリニックに対して送られる（`frontend/src/features/accounting/api/correct-credit-payment.ts`、X-Clinic-ID 明示指定）。拠点横断で開いた会計でも誤テナントへ書き込まれないこと。
 - **原子 complete（BUG-018）**: 新規精算は `completeAccounting` → `POST /v1/accountings/complete`。明細・支払・監査を同一 TX で確定し、Idempotency-Key で再送を安全化する。#1 の成功時に一覧が「精算済」になること。
-- **回帰確認（#197）**: 現金入金額 NULL の非対称による集計ずれは修正済みだが、#6〜#9 の部分入金統合経路は現行 UI では実行できない。
+- **支払方法 rename 回帰（#197）**: 標準行は表示名を変更しても `system_key` で解決され、精算・現金集計から消えないこと（V04 支払方法マスタと連携）。#6〜#9 の部分入金統合経路は現行 UI では実行できない。
 
 ## 異常系
 

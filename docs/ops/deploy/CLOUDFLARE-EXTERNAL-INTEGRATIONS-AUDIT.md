@@ -29,7 +29,7 @@ Cloudflare のエッジ網を経由するため、**送信元 IP は固定され
 | LINE Messaging API | `backend/internal/infra/line/client.go` の bearer token。送信元 IP allowlist は外部 console の任意設定 | repository 上は対応可能。実 clinic の allowlist と live send は `UNVERIFIED` |
 | Lステップ | `backend/internal/infra/lstep/client.go`, `tag.go`, `user.go`。deploy gate `LSTEP_WRITE_API_ENABLED` が exact `true` かつ clinic `is_sync_enabled=true` の二重 gate を通ると4 write methodが実 HTTPを送る。repository defaultはOFF | deployed gate と vendor allowlist は `UNVERIFIED`。`[DISABLED]` grep を現行証跡に使わない |
 | SMTP | `backend/internal/infra/smtp/sender.go`。SMTP auth/TLSを使う。必要な名前の正本は target `backend/wrangler.jsonc` の `secrets.required` | names/value/provider-side IP restriction と controlled send は `UNVERIFIED` |
-| LIFF | ID token検証。`api.stg.noah-karte.com` は 2026-07-17 に Cloudflare へ cutover 済みという ops SSOT を前提とする | DNS prerequisiteは解消。test channel/accountを使う controlled STG rehearsal までは `UNVERIFIED` |
+| LIFF | ID token検証。`api.stg.noah-karte.com` は 2026-07-17 に Cloudflare へ cutover 済みという ops SSOT を前提とする | DNS cutover は履歴情報。現在の DNS / deployed endpoint と test channel/account の controlled STG rehearsal は `UNVERIFIED` |
 
 ### Lステップ release gate
 
@@ -73,7 +73,7 @@ Cloudflare のエッジ網を経由するため、**送信元 IP は固定され
 
 ## リスクレジスタへの反映（AC-P47-6）
 
-IP allowlist: LINEは任意設定を要確認。Lステップ/SMTPはprovider設定とdeployed stateが未検証。LIFFのDNS prerequisiteは解消済みだがcontrolled STG rehearsalは未実施。
+IP allowlist: LINEは任意設定を要確認。Lステップ/SMTPはprovider設定とdeployed stateが未検証。LIFF の過去の DNS cutover 記録は現在の到達性を証明せず、current DNS / controlled STG rehearsal は未検証。
 
 ---
 
@@ -81,7 +81,7 @@ IP allowlist: LINEは任意設定を要確認。Lステップ/SMTPはprovider設
 
 | 連携 | 判定 |
 |:---|:---|
-| LINE | PASS（IP allowlist inventory）／inbound redelivery: RELEASE PENDING（code deploy後のConsole有効化・error監視・rehearsal待ち）／live send: BLOCKED（誤配信リスク回避のためinventory only） |
+| LINE | 履歴上のIP allowlist inventoryのみ（現在の設定はUNVERIFIED）／inbound redelivery: RELEASE PENDING（code deploy後のConsole有効化・error監視・rehearsal待ち）／live send: BLOCKED（誤配信リスク回避のためinventory only） |
 | Lステップ | UNVERIFIED（repository default OFF。二重gate通過時は実HTTP） |
 | SMTP | UNVERIFIED（target Wrangler の必要名、deployed value、controlled sendを要確認） |
-| LIFF | UNVERIFIED（DNS prerequisiteは解消。controlled STG rehearsal待ち） |
+| LIFF | UNVERIFIED（current DNS と controlled STG rehearsal は外部検証待ち） |

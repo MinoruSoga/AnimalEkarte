@@ -6,6 +6,7 @@ import { paths } from "@/config/paths";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { getFormString } from "@/lib/form-data";
+import { validateOptionalEmail } from "@/lib/validate-credentials";
 import { forgotPassword } from "../api/forgot-password";
 
 const INPUT_BASE = `w-full h-[48px] text-base rounded-xxs ${C.bgInputLogin} border ${C.borderMedium} ${C.text} ${C.textPlaceholder} outline-none transition-all focus:ring-2 ${C.focusRingActionPrimary} focus:border-transparent disabled:opacity-60`;
@@ -21,6 +22,10 @@ export function ForgotPasswordPage() {
       const email = getFormString(formData, "forgot-email").trim();
       if (!email) {
         return { status: "error", error: "メールアドレスを入力してください" };
+      }
+      const formatError = validateOptionalEmail(email);
+      if (formatError !== null) {
+        return { status: "error", error: formatError };
       }
 
       try {

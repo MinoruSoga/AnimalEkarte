@@ -60,7 +60,7 @@ func makeDoctorAssignedToClinic(t *testing.T, db *gorm.DB, clinicID uint64, name
 // 型IDの clinic_id 検証を削除すると「別クリニックの区分IDは拒否される」が失敗する。
 func TestReservationStaffRepository_UpdateReservationCapabilities_ClinicIsolation(t *testing.T) {
 	db := setupCapabilityIsolationTestDB(t)
-	repo := NewReservationStaffRepository(db, staffpkg.NewStaffRepository(db))
+	repo := NewReservationStaffRepository(db, staffpkg.NewRepository(db))
 	ctx := context.Background()
 
 	const (
@@ -104,7 +104,7 @@ func TestReservationStaffRepository_UpdateReservationCapabilities_ClinicIsolatio
 // 対応可能判定の正/負ケースを固定する。
 func TestReservationStaffRepository_SupportsReservationType(t *testing.T) {
 	db := setupCapabilityIsolationTestDB(t)
-	repo := NewReservationStaffRepository(db, staffpkg.NewStaffRepository(db))
+	repo := NewReservationStaffRepository(db, staffpkg.NewRepository(db))
 	ctx := context.Background()
 	const clinicA = uint64(1)
 

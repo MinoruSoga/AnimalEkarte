@@ -31,7 +31,7 @@ func TestExaminationRepository_FindAllAndFindByJobIDJoinAmbientTx(t *testing.T) 
 		}
 		require.NoError(t, repo.Create(txCtx, examination))
 
-		listed, total, findErr := repo.FindAll(txCtx, fixture.clinicA, nil, nil, nil, nil, nil, nil, 1, 100)
+		listed, total, findErr := repo.FindAll(txCtx, fixture.clinicA, nil, nil, nil, nil, nil, nil, 1, 100, false)
 		require.NoError(t, findErr)
 		require.EqualValues(t, 1, total)
 		require.Len(t, listed, 1)
@@ -45,7 +45,7 @@ func TestExaminationRepository_FindAllAndFindByJobIDJoinAmbientTx(t *testing.T) 
 	})
 	require.ErrorIs(t, err, sentinel)
 
-	listed, total, err := repo.FindAll(ctx, fixture.clinicA, nil, nil, nil, nil, nil, nil, 1, 100)
+	listed, total, err := repo.FindAll(ctx, fixture.clinicA, nil, nil, nil, nil, nil, nil, 1, 100, false)
 	require.NoError(t, err)
 	assert.Zero(t, total)
 	assert.Empty(t, listed)

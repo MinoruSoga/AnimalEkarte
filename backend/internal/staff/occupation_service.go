@@ -129,7 +129,7 @@ func (s *occupationService) Update(ctx context.Context, clinicID, id uint64, inp
 		if _, err := s.repo.LockActiveByIDForUpdate(txCtx, clinicID, id); err != nil {
 			return apperrors.Wrap(err, "failed to lock occupation for update")
 		}
-		updated, err := s.repo.Update(txCtx, clinicID, id, fields)
+		updated, err := s.repo.Update(txCtx, clinicID, id, *input)
 		if err != nil {
 			nameForConflict := ""
 			if input.Name != nil {

@@ -32,7 +32,7 @@
 ## 2. 主要な機能
 
 ### 2.1 処方入力の自動化
-ここで設定された剤形と単位は、カルテ詳細の「処方」タブにおける入力補助（数量選択や単位表示）として反映されます。体重・species からの数量自動プリフィルはカルテ側 `TreatmentRow`（`calculateDose` / `computeDoseGate`）が担う。上限超過時はインライン表示して送信せず、`ConfirmDialog` による解除経路は無い（#201。挙動詳細は `06-medical-records-form.md` §2.3）。
+ここで設定された剤形と単位は、カルテ詳細の「治療」タブにおける処方明細の入力補助（数量選択や単位表示）として反映されます。体重・species からの数量自動プリフィルはカルテ側 `TreatmentRow`（`calculateDose` / `computeDoseGate`）が担う。上限超過時はインライン表示して送信せず、`ConfirmDialog` による解除経路は無い。上限内の下限割れ・推奨値からの著しい乖離には逸脱理由が必須（挙動詳細は [06-medical-records-form.md §2.3](../06-medical-records-form.md)）。対象薬や値の臨床承認は [#261](https://github.com/MinoruSoga/AnimalEkarte/issues/261) の別工程であり、マスタ入力 UI や #201 の Closed を承認証跡としない。
 
 ### 2.2 原価・在庫管理の統合（バックエンドのみ）
 `PATCH /api/v1/masters/medicines/:id` は `inventory_id` を受け付け、薬品と在庫アイテムを紐付け可能だが、本設定画面のサイドパネルには対応する入力UIが存在しない（他画面または今後の実装課題）。

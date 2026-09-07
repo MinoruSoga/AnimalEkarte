@@ -67,7 +67,7 @@ func TestConsultationService_Update_RejectsCrossClinicParentFK(t *testing.T) {
 				}
 				return nil, apperrors.WrapNotFound("consultation", "foreign")
 			},
-			updateFieldsFn: func(_ context.Context, _, id uint64, _ map[string]any) (*model.Consultation, error) {
+			updateFieldsFn: func(_ context.Context, _, id uint64, _ UpdateConsultationInput) (*model.Consultation, error) {
 				*updated = true
 				return &model.Consultation{ID: id}, nil
 			},
@@ -156,7 +156,7 @@ func TestProcedureService_Update_RejectsCrossClinicParentFK(t *testing.T) {
 				}
 				return nil, apperrors.WrapNotFound("procedure", "foreign")
 			},
-			updateFieldsFn: func(_ context.Context, _, id uint64, _ map[string]any) (*model.Procedure, error) {
+			updateFieldsFn: func(_ context.Context, _, id uint64, _ UpdateProcedureInput) (*model.Procedure, error) {
 				*updated = true
 				return &model.Procedure{ID: id}, nil
 			},
@@ -249,7 +249,7 @@ func TestMedicineService_Update_RejectsCrossClinicParentFK(t *testing.T) {
 				}
 				return nil, apperrors.WrapNotFound("medicine", "foreign")
 			},
-			updateFieldsFn: func(_ context.Context, _, id uint64, _ map[string]any) (*model.Medicine, error) {
+			updateFieldsFn: func(_ context.Context, _, id uint64, _ UpdateMedicineInput) (*model.Medicine, error) {
 				*updated = true
 				return &model.Medicine{ID: id}, nil
 			},
@@ -326,7 +326,7 @@ func TestMedicineService_Update_RejectsCrossClinicInventoryFK(t *testing.T) {
 			findByIDFn: func(_ context.Context, _, id uint64) (*model.Medicine, error) {
 				return &model.Medicine{ID: id}, nil
 			},
-			updateFieldsFn: func(_ context.Context, _, id uint64, _ map[string]any) (*model.Medicine, error) {
+			updateFieldsFn: func(_ context.Context, _, id uint64, _ UpdateMedicineInput) (*model.Medicine, error) {
 				*updated = true
 				return &model.Medicine{ID: id}, nil
 			},

@@ -17,7 +17,7 @@ type mockConsultationRepository struct {
 	findAllFn                    func(ctx context.Context, clinicID uint64) ([]model.Consultation, error)
 	findByIDFn                   func(ctx context.Context, clinicID, id uint64) (*model.Consultation, error)
 	createFn                     func(ctx context.Context, consultation *model.Consultation) error
-	updateFieldsFn               func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Consultation, error)
+	updateFieldsFn               func(ctx context.Context, clinicID, id uint64, cmd UpdateConsultationInput) (*model.Consultation, error)
 	deleteFn                     func(ctx context.Context, clinicID, id uint64) error
 	countUsageByConsultationIDFn func(ctx context.Context, clinicID, consultationID uint64) (int64, error)
 	countChildrenByParentIDFn    func(ctx context.Context, clinicID, parentID uint64) (int64, error)
@@ -36,8 +36,8 @@ func (m *mockConsultationRepository) Create(ctx context.Context, consultation *m
 	return m.createFn(ctx, consultation)
 }
 
-func (m *mockConsultationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Consultation, error) {
-	return m.updateFieldsFn(ctx, clinicID, id, fields)
+func (m *mockConsultationRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateConsultationInput) (*model.Consultation, error) {
+	return m.updateFieldsFn(ctx, clinicID, id, cmd)
 }
 
 func (m *mockConsultationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -478,7 +478,7 @@ func TestConsultationService_Update(t *testing.T) {
 					}
 					return &model.Consultation{ID: 1, ClinicID: 1}, nil
 				},
-				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Consultation, error) {
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateConsultationInput) (*model.Consultation, error) {
 					updateCalled = true
 					if tt.repoErr != nil {
 						return nil, tt.repoErr

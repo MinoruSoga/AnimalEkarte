@@ -3,7 +3,6 @@ package medicalrecord
 import (
 	"context"
 	"log/slog"
-	"maps"
 	"strconv"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -60,6 +59,8 @@ type UpdateTreatmentInput struct {
 	// DiscountEditAllowed is set by the HTTP boundary from discount:edit RBAC.
 	// Service rechecks discount fields against the FOR UPDATE locked row (SEC-CS-F09).
 	DiscountEditAllowed bool
+	// persistDose is set only by service after locked dose revalidation. HTTP/client must not set it.
+	persistDose map[string]any
 }
 
 // BulkUpdateTreatmentsInput は並び順一括更新の入力DTO
@@ -142,7 +143,6 @@ func NewTreatmentServiceWithAudit(
 func (s *treatmentService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Treatment, error) {
 	treatment, err := s.treatmentRepo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get treatment", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get treatment")
 	}
 	return treatment, nil
@@ -151,7 +151,6 @@ func (s *treatmentService) GetByID(ctx context.Context, clinicID, id uint64) (*m
 func (s *treatmentService) List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error) {
 	treatments, err := s.treatmentRepo.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list treatments", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list treatments")
 	}
 	return treatments, nil
@@ -165,7 +164,6 @@ func (s *treatmentService) ListPetHistory(ctx context.Context, clinicID, petID u
 	}
 	treatments, total, err := s.treatmentRepo.FindHistoryByPetID(ctx, clinicID, petID, filter, page, limit)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list pet treatment history", "error", err)
 		return nil, 0, apperrors.Wrap(err, "failed to list pet treatment history")
 	}
 	return treatments, total, nil
@@ -189,7 +187,6 @@ func (s *treatmentService) Create(ctx context.Context, clinicID, medicalRecordID
 	if input.Status != "" {
 		s, err := parseTreatmentStatus(input.Status)
 		if err != nil {
-			slog.ErrorContext(ctx, "failed to create treatment", "error", err)
 			return nil, apperrors.Wrap(err, "failed to create treatment")
 		}
 		status = s
@@ -217,7 +214,6 @@ func (s *treatmentService) Create(ctx context.Context, clinicID, medicalRecordID
 	})
 
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to create treatment", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create treatment")
 	}
 
@@ -233,7 +229,6 @@ func (s *treatmentService) Update(ctx context.Context, clinicID, medicalRecordID
 	// 所属確認（clinic_id + id で検索）
 	existing, err := s.treatmentRepo.FindByID(ctx, clinicID, treatmentID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get treatment", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get treatment")
 	}
 	if existing.MedicalRecordID != medicalRecordID {
@@ -243,7 +238,6 @@ func (s *treatmentService) Update(ctx context.Context, clinicID, medicalRecordID
 	// HC-004: 親カルテが確定済みの場合は編集拒否
 	parent, err := s.medicalRecordRepo.FindByID(ctx, clinicID, medicalRecordID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to find medical record", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find medical record")
 	}
 	if parent.Status == model.MedicalRecordStatusFinalized {
@@ -262,7 +256,6 @@ func (s *treatmentService) Update(ctx context.Context, clinicID, medicalRecordID
 	}
 	if input.Status != nil {
 		if _, err := parseTreatmentStatus(*input.Status); err != nil {
-			slog.ErrorContext(ctx, "failed to update treatment", "error", err)
 			return nil, apperrors.Wrap(err, "failed to update treatment")
 		}
 	}
@@ -289,9 +282,8 @@ func (s *treatmentService) Update(ctx context.Context, clinicID, medicalRecordID
 	// quantity/medicine/item_type のいずれかが変わると dose スナップショットの再評価対象になる。
 	doseRelevant := input.Quantity != nil || input.MedicineID != nil || input.ItemType != nil
 	if txErr := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		return s.updateTreatmentInTx(txCtx, clinicID, medicalRecordID, treatmentID, input, fields, doseRelevant)
+		return s.updateTreatmentInTx(txCtx, clinicID, medicalRecordID, treatmentID, input, doseRelevant)
 	}); txErr != nil {
-		slog.ErrorContext(ctx, "failed to update treatment", "error", txErr)
 		return nil, apperrors.Wrap(txErr, "failed to update treatment")
 	}
 
@@ -302,7 +294,6 @@ func (s *treatmentService) Update(ctx context.Context, clinicID, medicalRecordID
 
 	treatment, err := s.treatmentRepo.FindByID(ctx, clinicID, treatmentID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get updated treatment", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get updated treatment")
 	}
 	return treatment, nil
@@ -331,7 +322,6 @@ func (s *treatmentService) Delete(ctx context.Context, clinicID, medicalRecordID
 		}
 		return nil
 	}); err != nil {
-		slog.ErrorContext(ctx, "failed to delete treatment", "error", err, "id", treatmentID, "clinic_id", clinicID)
 		return err
 	}
 
@@ -390,14 +380,13 @@ func (s *treatmentService) applyLockedTreatmentDoseFields(
 	input *UpdateTreatmentInput,
 	eval *SavedDoseEvaluation,
 	effMedicineID *uint64,
-	fields map[string]any,
 ) (lockedTreatmentDoseApply, error) {
 	if eval != nil && eval.ExceedsCapSaved {
 		return lockedTreatmentDoseApply{}, apperrors.WrapInvalidInput("投与量がマスタで設定された絶対上限を超えているため保存できません")
 	}
 	if eval == nil {
 		if treatmentHasDoseSnapshot(current) {
-			maps.Copy(fields, clearedDoseColumns())
+			input.persistDose = clearedDoseColumns()
 		}
 		return lockedTreatmentDoseApply{}, nil
 	}
@@ -415,6 +404,6 @@ func (s *treatmentService) applyLockedTreatmentDoseFields(
 	if err != nil {
 		return lockedTreatmentDoseApply{}, err
 	}
-	maps.Copy(fields, snapCols)
+	input.persistDose = snapCols
 	return lockedTreatmentDoseApply{eval: eval, medicineID: *effMedicineID}, nil
 }

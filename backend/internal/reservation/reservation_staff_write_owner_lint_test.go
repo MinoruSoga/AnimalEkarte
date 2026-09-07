@@ -16,8 +16,8 @@ const updateForReservationName = "UpdateForReservation"
 
 func TestReservationStaffWriteOwnerLint(t *testing.T) {
 	files := reservationStaffWriteOwnerSources(t)
-	if _, ok := files["staff/staff_repository.go"]; !ok {
-		t.Fatal("staff/staff_repository.go was not discovered")
+	if _, ok := files["staff/staff_service.go"]; !ok {
+		t.Fatal("staff/staff_service.go was not discovered")
 	}
 	if _, ok := files["reservation/reservation_staff_repository.go"]; !ok {
 		t.Fatal("reservation/reservation_staff_repository.go was not discovered")
@@ -29,7 +29,7 @@ func TestReservationStaffWriteOwnerLint(t *testing.T) {
 	for _, path := range sortedKeys(files) {
 		hits, typed := scanUpdateForReservation(path, files[path])
 		violations = append(violations, hits...)
-		if path == "staff/staff_repository.go" && typed["StaffRepository"] {
+		if path == "staff/staff_service.go" && typed["Repository"] {
 			foundStaffRepo = true
 		}
 		if path == "reservation/reservation_staff_repository.go" && typed["staffsWriter"] {
@@ -40,7 +40,7 @@ func TestReservationStaffWriteOwnerLint(t *testing.T) {
 		t.Fatalf("reservation staffs write-owner violations:\n%s", strings.Join(violations, "\n"))
 	}
 	if !foundStaffRepo {
-		t.Fatal("exported staff.StaffRepository.UpdateForReservation must accept ReservationStaffUpdate")
+		t.Fatal("exported staff.Repository.UpdateForReservation must accept ReservationStaffUpdate")
 	}
 	if !foundStaffsWriter {
 		t.Fatal("staffsWriter.UpdateForReservation must accept ReservationStaffUpdate")
@@ -65,10 +65,10 @@ func (r *staffRepository) UpdateForReservation(ctx context.Context, clinicID, id
 			wantViolation: true,
 		},
 		{
-			name: "StaffRepository interface map typed UpdateForReservation is a violation",
+			name: "Repository interface map typed UpdateForReservation is a violation",
 			path: "staff/staff_repository.go",
 			source: `package staff
-type StaffRepository interface {
+type Repository interface {
 	UpdateForReservation(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 }
 `,

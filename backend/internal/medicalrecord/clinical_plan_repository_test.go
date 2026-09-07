@@ -126,7 +126,8 @@ func TestClinicalPlanRepository_Update(t *testing.T) {
 	require.NoError(t, repo.Create(ctx, plan))
 
 	t.Run("正常系: physical_exam が更新される", func(t *testing.T) {
-		require.NoError(t, repo.Update(ctx, clinicA, plan.ID, map[string]any{"physical_exam": "更新後"}, nil))
+		exam := "更新後"
+		require.NoError(t, repo.Update(ctx, clinicA, plan.ID, UpdateClinicalPlanInput{PhysicalExam: &exam}, nil))
 
 		got, err := repo.FindByMedicalRecordID(ctx, clinicA, mrA.ID)
 		require.NoError(t, err)
@@ -134,13 +135,15 @@ func TestClinicalPlanRepository_Update(t *testing.T) {
 	})
 
 	t.Run("別クリニックからの更新は NotFound", func(t *testing.T) {
-		err := repo.Update(ctx, clinicB, plan.ID, map[string]any{"physical_exam": "乗っ取り"}, nil)
+		exam := "乗っ取り"
+		err := repo.Update(ctx, clinicB, plan.ID, UpdateClinicalPlanInput{PhysicalExam: &exam}, nil)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
 	t.Run("存在しないIDの更新は NotFound", func(t *testing.T) {
-		err := repo.Update(ctx, clinicA, 9999999, map[string]any{"physical_exam": "存在しない"}, nil)
+		exam := "存在しない"
+		err := repo.Update(ctx, clinicA, 9999999, UpdateClinicalPlanInput{PhysicalExam: &exam}, nil)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
@@ -152,7 +155,8 @@ func TestClinicalPlanRepository_Update(t *testing.T) {
 		finalizedPlan := &model.ClinicalPlan{MedicalRecordID: mrFinalized.ID, PhysicalExam: "確定前"}
 		require.NoError(t, repo.Create(ctx, finalizedPlan))
 
-		err := repo.Update(ctx, clinicA, finalizedPlan.ID, map[string]any{"physical_exam": "確定後の書込"}, nil)
+		exam := "確定後の書込"
+		err := repo.Update(ctx, clinicA, finalizedPlan.ID, UpdateClinicalPlanInput{PhysicalExam: &exam}, nil)
 
 		require.Error(t, err)
 		assert.True(t, apperrors.IsConflict(err), "確定済みカルテの clinical_plan 更新は Conflict であるべき: %v", err)

@@ -83,7 +83,11 @@ func TestLabDeviceItemMasterRepository_WritersRollBackWhenAmbientTxFails(t *test
 				rows, err := repo.List(txCtx, clinicID, "")
 				require.NoError(t, err)
 				require.Len(t, rows, 1)
-				updated, err := repo.Update(txCtx, clinicID, rows[0].ID, map[string]any{"unit": "g/dl"})
+				updated, err := repo.Update(txCtx, clinicID, rows[0].ID, UpdateLabDeviceItemMasterInput{
+					Unit:            "g/dl",
+					ExamTypeFieldID: rows[0].ExamTypeFieldID,
+					IsActive:        rows[0].IsActive,
+				})
 				require.NoError(t, err)
 				assert.Equal(t, "g/dl", updated.Unit)
 			},
@@ -119,7 +123,12 @@ func TestLabDeviceItemMasterRepository_WritersRollBackWhenAmbientTxFails(t *test
 				devices, err := repo.ListDevices(txCtx, clinicID)
 				require.NoError(t, err)
 				require.Len(t, devices, 1)
-				updated, err := repo.UpdateDevice(txCtx, clinicID, devices[0].ID, map[string]any{"name": "changed"})
+				updated, err := repo.UpdateDevice(txCtx, clinicID, devices[0].ID, UpdateLabDeviceInput{
+					Name:       "changed",
+					ExamTypeID: devices[0].ExamTypeID,
+					IsActive:   devices[0].IsActive,
+					SortOrder:  devices[0].SortOrder,
+				})
 				require.NoError(t, err)
 				assert.Equal(t, "changed", updated.Name)
 			},

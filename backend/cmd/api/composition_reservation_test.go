@@ -50,7 +50,7 @@ func TestNewReservationCompositionBuildsTargetOwnedGraph(t *testing.T) {
 	occupations := staff.NewOccupationRepository(nil)
 	repositories := newReservationRepositories(
 		nil,
-		staff.NewStaffRepository(nil),
+		staff.NewRepository(nil),
 		staff.NewShiftEntryRepository(nil),
 		occupations,
 	)

@@ -2,7 +2,6 @@ package medicalrecord
 
 import (
 	"context"
-	"log/slog"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -17,7 +16,6 @@ func (s *examinationService) updateExaminationInTx(
 ) (*model.Examination, error) {
 	locked, err := s.repo.LockByIDForUpdate(txCtx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(txCtx, "failed to lock examination", "error", err)
 		return nil, apperrors.Wrap(err, "failed to lock examination")
 	}
 	if examinationFullyLocked(locked) {
@@ -83,9 +81,12 @@ func (s *examinationService) updateExaminationInTx(
 
 	exam := locked
 	if len(fields) > 0 {
-		updated, err := s.repo.Update(txCtx, clinicID, id, fields)
+		persist := input
+		if confirming {
+			persist.Status = nil
+		}
+		updated, err := s.repo.Update(txCtx, clinicID, id, persist)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to update examination", "error", err)
 			return nil, apperrors.Wrap(err, "failed to update examination")
 		}
 		exam = updated

@@ -2,7 +2,6 @@ package lstep
 
 import (
 	"context"
-	"log/slog"
 	"strings"
 	"time"
 
@@ -206,7 +205,6 @@ func (s *aggregationService) ListOwnerAggregation(ctx context.Context, clinicID 
 		Order:           input.Order,
 	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to find owner aggregation", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to find owner aggregation")
 	}
 
@@ -215,7 +213,6 @@ func (s *aggregationService) ListOwnerAggregation(ctx context.Context, clinicID 
 
 	thresholds, err := s.settingsSvc.GetCPMV1Thresholds(ctx, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get cpm v1 thresholds for aggregation", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get cpm v1 thresholds")
 	}
 

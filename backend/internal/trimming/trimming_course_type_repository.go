@@ -18,7 +18,7 @@ type TrimmingCourseTypeRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.TrimmingCourseType, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingCourseType, error)
 	Create(ctx context.Context, m *model.TrimmingCourseType) (*model.TrimmingCourseType, error)
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingCourseType, error)
+	Update(ctx context.Context, clinicID, id uint64, cmd UpdateTrimmingCourseTypeInput) (*model.TrimmingCourseType, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	CountUsageByCourseTypeID(ctx context.Context, clinicID, id uint64) (int64, error)
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
@@ -65,11 +65,15 @@ func (r *trimmingCourseTypeRepository) Create(ctx context.Context, m *model.Trim
 	return m, nil
 }
 
-func (r *trimmingCourseTypeRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingCourseType, error) {
-	if err := persistence.UpdateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.TrimmingCourseType{}, "trimming_course_type", clinicID, id, fields); err != nil {
+func (r *trimmingCourseTypeRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateTrimmingCourseTypeInput) (*model.TrimmingCourseType, error) {
+	if err := r.update(ctx, clinicID, id, buildTrimmingCourseTypeUpdate(&cmd)); err != nil {
 		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
+}
+
+func (r *trimmingCourseTypeRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+	return persistence.UpdateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.TrimmingCourseType{}, "trimming_course_type", clinicID, id, fields)
 }
 
 func (r *trimmingCourseTypeRepository) Delete(ctx context.Context, clinicID, id uint64) error {

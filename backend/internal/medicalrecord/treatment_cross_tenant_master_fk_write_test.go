@@ -73,7 +73,7 @@ func TestTreatmentService_Update_RejectsCrossClinicMasterFK(t *testing.T) {
 			findByIDFn: func(_ context.Context, _, treatmentID uint64) (*model.Treatment, error) {
 				return &model.Treatment{ID: treatmentID, MedicalRecordID: 1}, nil
 			},
-			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			updateFn: func(_ context.Context, _, _ uint64, _ UpdateTreatmentInput) error {
 				*updated = true
 				return nil
 			},
@@ -156,7 +156,7 @@ func TestTreatmentService_Update_RejectsCrossClinicInventoryFK(t *testing.T) {
 			findByIDFn: func(_ context.Context, _, treatmentID uint64) (*model.Treatment, error) {
 				return &model.Treatment{ID: treatmentID, MedicalRecordID: 1}, nil
 			},
-			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			updateFn: func(_ context.Context, _, _ uint64, _ UpdateTreatmentInput) error {
 				*updated = true
 				return nil
 			},

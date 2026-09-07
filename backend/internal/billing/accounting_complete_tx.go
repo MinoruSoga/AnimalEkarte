@@ -266,12 +266,12 @@ func (s *accountingService) persistCompletePayments(
 
 	now := time.Now()
 	completedStatus := model.BillingStatusCompleted
-	updated, err := s.repo.Update(txCtx, input.ClinicID, billing.ID, map[string]any{
-		"status":       completedStatus,
-		"completed_at": now,
-		"subtotal":     subtotal,
-		"tax_total":    taxTotal,
-		"total_amount": totalAmount,
+	updated, err := s.repo.Update(txCtx, input.ClinicID, billing.ID, AccountingUpdate{
+		Status:      &completedStatus,
+		CompletedAt: &now,
+		Subtotal:    &subtotal,
+		TaxTotal:    &taxTotal,
+		TotalAmount: &totalAmount,
 	})
 	if err != nil {
 		return apperrors.Wrap(err, "failed to mark accounting completed")

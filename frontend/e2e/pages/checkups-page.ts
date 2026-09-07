@@ -31,8 +31,8 @@ export class CheckupsPage extends BasePage {
     return this.page.getByRole("button", { name: "新規登録" });
   }
 
-  irisText(): Locator {
-    return this.page.getByText("Iris").first();
+  petText(name: string): Locator {
+    return this.page.getByText(name, { exact: false }).first();
   }
 
   patientSearchInput(): Locator {

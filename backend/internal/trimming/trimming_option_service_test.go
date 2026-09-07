@@ -17,7 +17,7 @@ type mockTrimmingOptionRepository struct {
 	findAllFn           func(ctx context.Context, clinicID uint64) ([]model.TrimmingOption, error)
 	findByIDFn          func(ctx context.Context, clinicID, id uint64) (*model.TrimmingOption, error)
 	createFn            func(ctx context.Context, option *model.TrimmingOption) error
-	updateFieldsFn      func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingOption, error)
+	updateFieldsFn      func(ctx context.Context, clinicID, id uint64, cmd UpdateTrimmingOptionInput) (*model.TrimmingOption, error)
 	deleteFn            func(ctx context.Context, clinicID, id uint64) error
 	reorderErr          error
 	countRecordsByOptFn func(ctx context.Context, clinicID, optionID uint64) (int64, error)
@@ -35,8 +35,8 @@ func (m *mockTrimmingOptionRepository) Create(ctx context.Context, option *model
 	return m.createFn(ctx, option)
 }
 
-func (m *mockTrimmingOptionRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingOption, error) {
-	return m.updateFieldsFn(ctx, clinicID, id, fields)
+func (m *mockTrimmingOptionRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateTrimmingOptionInput) (*model.TrimmingOption, error) {
+	return m.updateFieldsFn(ctx, clinicID, id, cmd)
 }
 
 func (m *mockTrimmingOptionRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -356,7 +356,7 @@ func TestTrimmingOptionService_Update(t *testing.T) {
 					}
 					return &model.TrimmingOption{ID: 1, Name: optName}, nil
 				},
-				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.TrimmingOption, error) {
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateTrimmingOptionInput) (*model.TrimmingOption, error) {
 					if tt.repoErr != nil {
 						return nil, tt.repoErr
 					}

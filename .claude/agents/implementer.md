@@ -33,7 +33,7 @@ model: sonnet
 - **Backend Errors**: Use `apperrors.FromGORM` in repositories and `apperrors.Wrap` in services.
 - **Flat Thinking**: Be direct, rational, and unfiltered.
 
-技術スタックは root `CLAUDE.md` Project Overview を参照（ここに複製しない）。Testing: Vitest + MSW (FE) / go test (BE)。
+技術スタックは root `CLAUDE.md` の「全体アーキテクチャ概要」を参照（ここに複製しない）。Testing: Vitest + MSW (FE) / go test (BE)。
 
 ## ワークフロー
 

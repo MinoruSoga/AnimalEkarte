@@ -122,7 +122,6 @@ func NewVaccinationService(
 func (s *vaccinationService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, search string, page, limit int) ([]model.Vaccination, int64, error) {
 	items, total, err := s.repo.FindAll(ctx, clinicID, petID, ownerID, startDate, endDate, search, page, limit)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list vaccinations", "error", err)
 		return nil, 0, apperrors.Wrap(err, "failed to list vaccinations")
 	}
 	return items, total, nil
@@ -131,7 +130,6 @@ func (s *vaccinationService) List(ctx context.Context, clinicID uint64, petID, o
 func (s *vaccinationService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Vaccination, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get vaccination", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get vaccination")
 	}
 	return result, nil
@@ -175,13 +173,11 @@ func (s *vaccinationService) Create(ctx context.Context, clinicID uint64, input 
 			return err
 		}
 		if err := s.repo.Create(txCtx, vaccination); err != nil {
-			slog.ErrorContext(txCtx, "failed to create vaccination", "error", err)
 			return apperrors.Wrap(err, "failed to create vaccination")
 		}
 		var err error
 		created, err = s.repo.FindByID(txCtx, clinicID, vaccination.ID)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to get vaccination after create", "error", err, "vaccination_id", vaccination.ID)
 			return apperrors.Wrap(err, "failed to read vaccination after create")
 		}
 		if created == nil {
@@ -220,7 +216,6 @@ func (s *vaccinationService) Update(ctx context.Context, clinicID, id uint64, in
 		// vaccination updates in the same parent-before-child order as create and master writes.
 		snapshot, err := s.repo.FindByID(txCtx, clinicID, id)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to find vaccination", "error", err)
 			return apperrors.Wrap(err, "failed to find vaccination")
 		}
 		if snapshot == nil {
@@ -233,7 +228,6 @@ func (s *vaccinationService) Update(ctx context.Context, clinicID, id uint64, in
 
 		locked, err := s.repo.LockByIDForUpdate(txCtx, clinicID, id)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to lock vaccination", "error", err)
 			return apperrors.Wrap(err, "failed to lock vaccination")
 		}
 		lockedMedicalRecordID, lockedPetID, lockedDoctorID, lockedVaccineID := effectiveVaccinationRelations(locked, input)
@@ -254,9 +248,8 @@ func (s *vaccinationService) Update(ctx context.Context, clinicID, id uint64, in
 		if err := errIfNextDateNotAfterVaccinationDate(effectiveDate, effectiveNextDate); err != nil {
 			return err
 		}
-		vaccination, err = s.repo.Update(txCtx, clinicID, id, fields)
+		vaccination, err = s.repo.Update(txCtx, clinicID, id, *input)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to update vaccination", "error", err)
 			return apperrors.Wrap(err, "failed to update vaccination")
 		}
 		return nil
@@ -275,7 +268,6 @@ func (s *vaccinationService) Delete(ctx context.Context, clinicID, id uint64) er
 		return apperrors.Wrap(err, "failed to find vaccination")
 	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to delete vaccination", "error", err, "clinic_id", clinicID, "vaccination_id", id)
 		return apperrors.Wrap(err, "failed to delete vaccination")
 	}
 	slog.InfoContext(ctx, "vaccination deleted",

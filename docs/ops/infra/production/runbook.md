@@ -62,7 +62,7 @@ The allowlisted host/database and disposable provider ID must come from the appr
 
 - Use `npx wrangler secret put <NAME> -c wrangler.production.jsonc` from `backend/`.
 - The required secret-name inventory is [setup.md](setup.md). Values never enter docs/logs.
-- `APP_ENV` is not currently injected and is not the seed gate. Current migrate is master-only.
+- Worker/Container/migrate pass through `APP_ENV`. Production draft omits it; empty and production values disable login seeding and the demo-password shortcut. CSV seed bundles remain master-only in every environment.
 - Notification policies, backup schedules, DNS, certificate, DB, and Environment reviewers are required contracts, not achieved facts. Verify each externally with a date and evidence owner.
 - Record Actions run URL/id, `headSha`, approver, health result, and rollback decision without secret/PHI.
 

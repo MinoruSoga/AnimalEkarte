@@ -65,7 +65,7 @@ func (m *mockLiffTypeRepository) Create(_ context.Context, _ *model.ReservationT
 	return nil
 }
 
-func (m *mockLiffTypeRepository) Update(_ context.Context, clinicID, id uint64, _ map[string]any) (*model.ReservationType, error) {
+func (m *mockLiffTypeRepository) Update(_ context.Context, clinicID, id uint64, _ UpdateReservationTypeLiffInput) (*model.ReservationType, error) {
 	return &model.ReservationType{ID: id, ClinicID: clinicID}, nil
 }
 

@@ -41,7 +41,7 @@ func TestMedicineService_Update_NameConflictMapsDomainCode(t *testing.T) {
 		findByIDFn: func(_ context.Context, _, id uint64) (*model.Medicine, error) {
 			return &model.Medicine{ID: id, ClinicID: 1, Name: "旧薬剤"}, nil
 		},
-		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Medicine, error) {
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateMedicineInput) (*model.Medicine, error) {
 			return nil, uniqueTreatmentNameErr("medicine", apperrors.ConstraintMedicineName)
 		},
 	}

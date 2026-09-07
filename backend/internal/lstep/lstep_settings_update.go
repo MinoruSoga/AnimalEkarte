@@ -3,7 +3,6 @@ package lstep
 import (
 	"context"
 	"fmt"
-	"log/slog"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -43,7 +42,6 @@ func (s *lstepSettingsService) updateIntegrationCredentials(ctx context.Context,
 			KeyValue: encrypted,
 		}
 		if err := s.repo.Upsert(ctx, record); err != nil {
-			slog.ErrorContext(ctx, "failed to upsert lstep setting", "error", err, "key_name", pair.keyName)
 			return apperrors.Wrap(err, "failed to update lstep setting")
 		}
 	}
@@ -78,7 +76,6 @@ func (s *lstepSettingsService) updateCPMVersion(ctx context.Context, clinicID ui
 		return apperrors.WrapInvalidInput(fmt.Sprintf("cpm_version must be 'v1' or 'v2', got %q", ver))
 	}
 	if err := s.clinicSettingsRepo.UpdateCPMVersion(ctx, clinicID, ver); err != nil {
-		slog.ErrorContext(ctx, "failed to update cpm_version", "error", err, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to update cpm_version")
 	}
 	return nil
@@ -91,7 +88,6 @@ func (s *lstepSettingsService) updateDormantThresholds(ctx context.Context, clin
 	}
 	current, err := s.clinicSettingsRepo.FindByClinicID(ctx, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to read clinic settings for dormant merge", "error", err, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to find clinic settings")
 	}
 	thresholds := model.DormantThresholds{
@@ -113,7 +109,6 @@ func (s *lstepSettingsService) updateDormantThresholds(ctx context.Context, clin
 		return err
 	}
 	if err := s.clinicSettingsRepo.UpdateDormantThresholds(ctx, clinicID, thresholds); err != nil {
-		slog.ErrorContext(ctx, "failed to update dormant thresholds", "error", err, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to update dormant thresholds")
 	}
 	return nil
@@ -126,7 +121,6 @@ func (s *lstepSettingsService) updateCPMV2Thresholds(ctx context.Context, clinic
 	}
 	current, err := s.clinicSettingsRepo.FindByClinicID(ctx, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to read clinic settings for cpm v2 merge", "error", err, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to find clinic settings")
 	}
 	thresholds := model.CPMV2Thresholds{
@@ -148,7 +142,6 @@ func (s *lstepSettingsService) updateCPMV2Thresholds(ctx context.Context, clinic
 		return err
 	}
 	if err := s.clinicSettingsRepo.UpdateCPMV2Thresholds(ctx, clinicID, thresholds); err != nil {
-		slog.ErrorContext(ctx, "failed to update cpm v2 thresholds", "error", err, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to update cpm v2 thresholds")
 	}
 	return nil
@@ -164,7 +157,6 @@ func (s *lstepSettingsService) updateCPMV1Thresholds(ctx context.Context, clinic
 	}
 	current, err := s.clinicSettingsRepo.FindByClinicID(ctx, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to read clinic settings for cpm v1 merge", "error", err, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to find clinic settings")
 	}
 	thresholds := model.CPMV1Thresholds{
@@ -222,7 +214,6 @@ func (s *lstepSettingsService) updateCPMV1Thresholds(ctx context.Context, clinic
 		return err
 	}
 	if err := s.clinicSettingsRepo.UpdateCPMV1Thresholds(ctx, clinicID, thresholds); err != nil {
-		slog.ErrorContext(ctx, "failed to update cpm v1 thresholds", "error", err, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to update cpm v1 thresholds")
 	}
 	return nil
@@ -234,7 +225,6 @@ func (s *lstepSettingsService) updateHealthPreventionThresholds(ctx context.Cont
 	}
 	current, err := s.clinicSettingsRepo.FindByClinicID(ctx, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to read clinic settings for health prevention merge", "error", err, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to find clinic settings")
 	}
 	thresholds := model.HealthPreventionThresholds{
@@ -248,7 +238,6 @@ func (s *lstepSettingsService) updateHealthPreventionThresholds(ctx context.Cont
 		return err
 	}
 	if err := s.clinicSettingsRepo.UpdateHealthPreventionThresholds(ctx, clinicID, thresholds); err != nil {
-		slog.ErrorContext(ctx, "failed to update health prevention thresholds", "error", err, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to update health prevention thresholds")
 	}
 	return nil

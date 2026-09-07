@@ -18,7 +18,6 @@ func (s *refundService) createRefundInTx(
 	// 請求が存在するか確認（マルチテナント保護）— FOR UPDATE でロック
 	billing, err := s.accountRepo.LockAndFindByID(txCtx, clinicID, billingID)
 	if err != nil {
-		slog.ErrorContext(txCtx, "failed to get billing", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get billing")
 	}
 
@@ -64,7 +63,6 @@ func (s *refundService) createRefundInTx(
 		RefundedAt:    refundedAt,
 	}
 	if err := s.repo.Create(txCtx, refund); err != nil {
-		slog.ErrorContext(txCtx, "failed to create refund", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create refund")
 	}
 
@@ -87,7 +85,6 @@ func (s *refundService) createRefundInTx(
 			"payment_method": refund.PaymentMethod,
 		},
 	}); err != nil {
-		slog.ErrorContext(txCtx, "audit log failed for refund create", "error", err, "refund_id", refund.ID)
 		return nil, apperrors.Wrap(err, "failed to write refund audit log")
 	}
 

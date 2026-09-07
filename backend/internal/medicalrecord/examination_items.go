@@ -21,7 +21,6 @@ func (s *examinationService) ListItems(ctx context.Context, clinicID, examID uin
 	}
 	items, err := s.repo.FindAllItemsByExamID(ctx, clinicID, examID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list examination items", "error", err, "exam_id", examID, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to list examination items")
 	}
 	return items, nil
@@ -131,13 +130,11 @@ func (s *examinationService) replaceItemsTx(
 
 	before, err := s.repo.FindAllItemsByExamID(ctx, clinicID, exam.ID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to snapshot existing examination items before replace", "error", err, "exam_id", exam.ID, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to load existing examination items")
 	}
 
 	saved, deletedCount, err := s.repo.ReplaceItemsByExamID(ctx, clinicID, exam.ID, items)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to replace examination items", "error", err, "exam_id", exam.ID, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to replace examination items")
 	}
 
@@ -152,8 +149,7 @@ func (s *examinationService) replaceItemsTx(
 			"deleted_count": deletedCount,
 			"new_count":     len(saved),
 		},
-		"audit log failed for examination items replace; rolling back deletion",
-		"failed to write examination items deletion audit", "exam_id"); err != nil {
+		"failed to write examination items deletion audit"); err != nil {
 		return nil, err
 	}
 	return saved, nil

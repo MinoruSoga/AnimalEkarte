@@ -3,7 +3,7 @@
 > **目的**: [DESIGN.md](../../DESIGN.md)（ルート — Notion Analysis / 意匠言語）を Animal Ekarte の実装に落とし込むための規約を定義する。
 > **読者**: フロントエンド実装者。
 > **タイミング**: UI 実装・レビュー時。
-> **最新更新**: 2026-07-27（brand と primary を Animal Ekarte teal に統一）
+> **最新更新**: 2026-09-06（現行 typography と C20 の静的クラス生成契約を同期。色の決定は維持）
 
 ### SSOT 優先順位 — **軸ごとに正本が異なる**（FE11 決裁・2026-07-21 曽我）
 
@@ -181,7 +181,7 @@ DESIGN.md `typography:` フロントマターに準拠。実装のフォント�
 
 ### 3.3 タブレットファースト拡大
 
-診察室 iPad 利用を想定し、Tailwind v4 `@theme inline` でクリックターゲット・フォントサイズを標準より約 **10% 拡大**（§7 参照）。
+診察室 iPad 利用を想定し、文字は §3.4 のロール別実サイズ、タッチターゲットは §4.4 の設計基準を使う。`@theme inline` は個別のサイズを定義しており、一律 10% の拡大係数はない。
 
 ### 3.4 採用範囲と実装マッピング（FE10 字義化・2026-07-21）
 
@@ -362,7 +362,7 @@ DESIGN.md `rounded:` フロントマターに準拠。**コンポーネント種
 
 ## 8. デバイス最適化 (タブレット・ファースト)
 
-診察室での iPad 利用を想定し、Tailwind v4 `@theme inline` により全体的なクリックターゲットとフォントサイズを標準より **10% 拡大** している。タッチ操作の精度を高めつつ、高い可読性を確保する。
+診察室での iPad 利用を想定し、`globals.css` の `@theme inline` で body-sm 15px、caption 14px、eyebrow 12px などのロール別サイズを定義する（§3.4）。クリックターゲットは §4.4 の 44×44px 基準で個別に確認する。フォント定義だけでは全コンポーネントのタッチ操作適合を証明できない。
 
 ---
 
@@ -398,6 +398,7 @@ TypeScriptから参照する共有デザイントークンは`design-tokens.ts`�
 
 - **`frontend/src/lib/design-tokens.ts`**: `PALETTE`（raw hex）、`C`（Tailwind クラス）、`STYLE`（複合クラスプリセット）、`LAYOUT`（寸法）、`BADGE`（バッジ配色コンボ）、`ICON`（アイコンサイズ）。
 - 新しい色を追加する場合は、必ず `design-tokens.ts` に追加した上でコンポーネントから参照する。**コンポーネント内での hex 直書きは禁止。**
+- **静的クラス生成**: Tailwind が検出できる完全なクラス文字列をトークンとして定義する。`hover:${C.x}`、`focus:${C.x}`、`text-[${value}]` のような実行時合成は CSS が生成されないため禁止する。[design audit の C20](../../frontend/scripts/design-system-audit.mjs) がこれらの形を検出する（コメントを除外）。
 - **規約 vs 実装**: 本書 §2.6 のとおり、brand と primary は tokens・`globals.css` で意味名を分けつつ、値は `#038B94`（active `#027078`）へ統一する。compatibility 用 `PALETTE.accent` は旧値 `#2383E2` を保持するが、存在しない `C.accent` の consumption は audit C1 が機械的に禁止する。
 
 ---

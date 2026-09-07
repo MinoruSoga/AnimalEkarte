@@ -1,0 +1,3 @@
+$ bash scripts/check-docs-symbol-drift.sh
+OK    docs-symbol-drift: ドリフトなし（検査トークン 565 件）
+exit=0

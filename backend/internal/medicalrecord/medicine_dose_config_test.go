@@ -109,7 +109,7 @@ func TestMedicineService_Update_DoseConfig(t *testing.T) {
 				unit := model.MedicineUnitPerTablet
 				return &model.Medicine{ID: 60, ClinicID: clinicID, Name: "薬", CalculationType: model.MedicineCalculationTypeNone, MedicineUnit: &unit}, nil
 			},
-			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Medicine, error) {
+			updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateMedicineInput) (*model.Medicine, error) {
 				return &model.Medicine{ID: 60, CalculationType: model.MedicineCalculationTypePerWeight, Strength: fptr(5)}, nil
 			},
 		}
@@ -145,7 +145,7 @@ func TestMedicineService_Update_DoseConfig(t *testing.T) {
 				unit := model.MedicineUnitPerTablet
 				return &model.Medicine{ID: 62, ClinicID: clinicID, Name: "薬", CalculationType: model.MedicineCalculationTypeNone, MedicineUnit: &unit}, nil
 			},
-			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Medicine, error) {
+			updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateMedicineInput) (*model.Medicine, error) {
 				return &model.Medicine{ID: 62, CalculationType: model.MedicineCalculationTypePerWeight, Strength: fptr(5)}, nil
 			},
 		}

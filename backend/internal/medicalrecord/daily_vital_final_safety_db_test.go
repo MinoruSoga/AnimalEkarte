@@ -148,7 +148,7 @@ func TestDB_DailyRecordServiceRefetchFailureRollsBackChildWrites(t *testing.T) {
 				repo,
 				NewHospitalizationRepository(fixture.db),
 				reservation.NewReservationRepository(fixture.db),
-				staffdomain.NewStaffRepository(fixture.db),
+				staffdomain.NewRepository(fixture.db),
 				staffdomain.NewStaffClinicAssignmentRepository(fixture.db),
 				persistence.NewTransactor(fixture.db),
 			)
@@ -183,9 +183,9 @@ type vitalUpdateRefetchFailureRepository struct {
 func (r *vitalUpdateRefetchFailureRepository) Update(
 	ctx context.Context,
 	clinicID, vitalID uint64,
-	fields map[string]any,
+	cmd UpdateVitalInput,
 ) error {
-	if err := r.VitalRepository.Update(ctx, clinicID, vitalID, fields); err != nil {
+	if err := r.VitalRepository.Update(ctx, clinicID, vitalID, cmd); err != nil {
 		return err
 	}
 	r.updated = true
@@ -225,7 +225,7 @@ func TestDB_VitalServiceUpdateRefetchFailureRollsBackMutation(t *testing.T) {
 		NewMedicalRecordRepository(fixture.db),
 		okVitalAudit(),
 		reservation.NewReservationRepository(fixture.db),
-		staffdomain.NewStaffRepository(fixture.db),
+		staffdomain.NewRepository(fixture.db),
 		staffdomain.NewStaffClinicAssignmentRepository(fixture.db),
 		persistence.NewTransactor(fixture.db),
 	)

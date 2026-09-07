@@ -17,7 +17,7 @@ type mockInquiryTemplateRepository struct {
 	findAllFn      func(ctx context.Context, clinicID uint64) ([]model.InquiryTemplate, error)
 	findByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.InquiryTemplate, error)
 	createFn       func(ctx context.Context, template *model.InquiryTemplate) error
-	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InquiryTemplate, error)
+	updateFieldsFn func(ctx context.Context, clinicID, id uint64, cmd UpdateInquiryTemplateInput) (*model.InquiryTemplate, error)
 	deleteFn       func(ctx context.Context, clinicID, id uint64) error
 	reorderErr     error
 	countUsageFn   func(ctx context.Context, clinicID, id uint64) (int64, error)
@@ -38,8 +38,8 @@ func (m *mockInquiryTemplateRepository) Create(ctx context.Context, template *mo
 	return m.createFn(ctx, template)
 }
 
-func (m *mockInquiryTemplateRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InquiryTemplate, error) {
-	return m.updateFieldsFn(ctx, clinicID, id, fields)
+func (m *mockInquiryTemplateRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateInquiryTemplateInput) (*model.InquiryTemplate, error) {
+	return m.updateFieldsFn(ctx, clinicID, id, cmd)
 }
 
 func (m *mockInquiryTemplateRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -361,7 +361,7 @@ func TestInquiryTemplateService_Update(t *testing.T) {
 					}
 					return &model.InquiryTemplate{ID: id, ClinicID: clinicID}, nil
 				},
-				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.InquiryTemplate, error) {
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateInquiryTemplateInput) (*model.InquiryTemplate, error) {
 					if tt.repoErr != nil {
 						return nil, tt.repoErr
 					}

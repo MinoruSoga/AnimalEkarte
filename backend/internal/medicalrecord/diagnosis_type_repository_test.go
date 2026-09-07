@@ -146,13 +146,15 @@ func TestDiagnosisTypeRepository_Update(t *testing.T) {
 	typeA := makeDiagnosisTypeMaster(t, db, clinicA, "更新前")
 
 	t.Run("同一クリニックからの更新は成功する", func(t *testing.T) {
-		got, err := repo.Update(ctx, clinicA, typeA.ID, map[string]any{"name": "更新後"})
+		name := "更新後"
+		got, err := repo.Update(ctx, clinicA, typeA.ID, UpdateDiagnosisTypeInput{Name: &name})
 		require.NoError(t, err)
 		assert.Equal(t, "更新後", got.Name)
 	})
 
 	t.Run("別クリニックからの更新はNotFoundで変更されない", func(t *testing.T) {
-		got, err := repo.Update(ctx, clinicB, typeA.ID, map[string]any{"name": "不正更新"})
+		name := "不正更新"
+		got, err := repo.Update(ctx, clinicB, typeA.ID, UpdateDiagnosisTypeInput{Name: &name})
 		assert.Nil(t, got)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
@@ -163,7 +165,8 @@ func TestDiagnosisTypeRepository_Update(t *testing.T) {
 	})
 
 	t.Run("存在しないIDの更新はNotFound", func(t *testing.T) {
-		got, err := repo.Update(ctx, clinicA, 99999999, map[string]any{"name": "x"})
+		name := "x"
+		got, err := repo.Update(ctx, clinicA, 99999999, UpdateDiagnosisTypeInput{Name: &name})
 		assert.Nil(t, got)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))

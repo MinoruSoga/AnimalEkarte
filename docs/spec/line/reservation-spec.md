@@ -5,7 +5,7 @@
 > **タイミング**: LIFF予約機能の仕様確認時。
 
 > **Animal Ekarte**: LIFF アプリによる快適な予約体験
-> **最新更新**: 2026-08-31 | **ステータス**: 実装済み（deployment / clinic 運用状況は repository 外）
+> **最新更新**: 2026-09-06（repo `7c6592f9f`） | **ステータス**: 実装済み（deployment / clinic 運用状況は repository 外）
 
 ---
 
@@ -57,6 +57,10 @@ LINE 予約の管理機能は、電子カルテの各標準メニューに完全
 3.  **Conflict (除外要素)**: 既に入っている「診察予約」「トリミング予約」等の既存予約（予約区分は general/trimming の2種）。
 
 ---
+
+### 作成時の再検証と限界
+
+空き枠表示後に状態が変わり得るため、LIFF の確定は `liff_service_reservations.go` から `ValidateAndCreate` を呼ぶ。予約種別・appointment conflict を transaction 内で再検証し、明示 staff の医院所属・capability・LINE 公開/active を検査する。ただし選択時刻の勤務 shift の再検証は未実装であり、空き枠表示を保存時の shift 保証と扱わない（[統合ハブ](README.md) の source gap）。
 
 ## 5. 通知のライフサイクル
 

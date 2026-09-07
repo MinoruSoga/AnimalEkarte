@@ -33,7 +33,7 @@
 
 ### V05-1 ログイン（`auth-login` / `/login`）
 
-セッションのみでドメインデータ非作成のため C2/C3 は対象外。手順 4 はレート制限がかかるため最後に実施する。
+セッションのみでドメインデータ非作成のため C2/C3 は対象外。手順 5 はレート制限がかかるため最後に実施する。
 
 | # | 操作 | 期待結果 |
 |:--|:--|:--|
@@ -75,11 +75,11 @@
 
 ### V05-5 LIFF LINEアカウント連携（`liff-account-link` / LIFF アプリ URL に `?token=`+`clinic_id` 付きアクセスで自動実行）
 
-入力欄なしの自動実行フォーム（ページ表示＝連携実行）。エラー分岐の網羅が本体。
+入力欄なしの自動実行フォーム（token 付きページ表示＝連携実行）。エラー分岐の網羅が本体。FE `VITE_LIFF_MOCK` の成功表示は backend の連携を行わないため、手順 2〜4 の実 API 結果は [S12](S12-liff-pet-health.md) と同じ実 LINE/承認済み API lane で確認し、mock 表示だけで PASS にしない。
 
 | # | 操作 | 期待結果 |
 |:--|:--|:--|
-| 1 | clinicId または linkToken を欠いた URL で起動 | 無効 URL 表示となり、連携は実行されない。`/liff/{clinicId}/` は Vite rewrite 必須。無いと `/liff/{clinicId}/src/main.tsx` が 503 で白紙（BUG-017） |
+| 1 | token 付き URL から `clinic_id` を外して起動。別に token なしで起動 | token あり・clinic_id なしは無効 URL。token なしは health-card 分岐となり連携を実行しない（`frontend/liff/src/App.tsx`）。`/liff/{clinicId}/` は Vite rewrite 必須。無いと `/liff/{clinicId}/src/main.tsx` が 503 で白紙（BUG-017） |
 | 2 | 有効な連携 URL で起動 | 連携成功表示。飼い主に LINE が紐づく（Identity Mapping — [line/architecture.md §2](../../../spec/line/architecture.md)）。院内 `/owners/:id` の LINE 連携セクション（V05-11）にも反映される |
 | 3 | 連携済みの状態で再度同じ連携を実行 | 409「すでに連携済み」の専用表示となり、二重紐付けされない（C3(b) 相当） |
 | 4 | 無効・期限切れの linkToken で起動 | 400 系のトークン無効/期限切れ表示となり、連携されない |
@@ -163,8 +163,8 @@ clinic 単位 1 レコードの PATCH（C3(b) は UI 上到達不能）。フィ
 |:--|:--|:--|
 | 1 | 閾値数値・LIFF ID・ベース URL を変更して C2 一式 | 永続し、再オープンで保存値が初期表示される。プレースホルダーは `https://api.lstep.jp`。`https://app.lstep.jp` は 400 |
 | 2 | CPM バージョンを切り替えて保存 | V1/V2 の選択式（[31-lstep-integration.md §1.2](../../../spec/screens/31-lstep-integration.md)）。保存後に自動管理タグ体系が選択バージョンに対応する（同 §2.1） |
-| 3 | 閾値へ 0 または負値を入力して保存 | FE `NumberInputField` は `min={1}`（ブラウザ制約で invalid になり得る）。すり抜け時も `setPositiveInteger`（>=1 のみ payload）により **送信されず既存値維持**（V04 §8 と同契約）。読み出し側 0 以下デフォルト補完は FE 通過後の防御層 |
-| 4 | シークレット 3 種を保存 → 再度開き空欄のまま別項目のみ変更して保存 | シークレットは「空欄=変更なし」として維持され、上書き消去されない（`setTrimmedString(..., skipEmpty=true)`）。`liff_id` のみ空文字でクリア可（V04 §8 手順 2） |
+| 3 | 閾値へ 0 または負値を入力して保存 | FE `NumberInputField` は `min={1}`（ブラウザ制約で invalid になり得る）。すり抜け時も `setPositiveInteger`（>=1 のみ payload）により **送信されず既存値維持**（本節の request builder 契約）。読み出し側 0 以下デフォルト補完は FE 通過後の防御層 |
+| 4 | シークレット 3 種を保存 → 再度開き空欄のまま別項目のみ変更して保存 | シークレットは「空欄=変更なし」として維持され、上書き消去されない（`setTrimmedString(..., skipEmpty=true)`）。`liff_id` のみ空文字でクリア可（`lstep-settings-form-request.ts`） |
 | 5 | Lステップ/LINE の接続テストボタンを実行 | 結果（成功/失敗）が表示される。ローカルの疑似クレデンシャルでは失敗表示で可（導線と表示の確認が目的） |
 
 ### V05-13〜17 同ページ・薄いフォーム群（共通手順参照 + フォーム別差分表）
@@ -203,5 +203,5 @@ clinic 単位 1 レコードの PATCH（C3(b) は UI 上到達不能）。フィ
 - 変更:
   - V05-1: BUG-031（`/login` での session restore）と `from` 戻り先リダイレクト、`noValidate` 下のパスワード長 FE/BE 乖離を実装に合わせて更新
   - V05-8: LINE 予約設定フィールド名（booking_window_* / calendar_months / time_slot_interval / line_channel_id / liff_id）と secret/token 非送信を明記
-  - V05-12: Lステップ設定のフィールド契約（secret3+text2+numeric23）と閾値 0/負値の二段ガードを V04 §8 と整合
+  - V05-12: Lステップ設定のフィールド契約（secret3+text2+numeric23）と閾値 0/負値の二段ガードを request builder と照合
   - 認証ルート（`/login`・`/forgot-password`・`/reset-password`）・LINE（`/line-reservation/settings|page-editor|slots`）・Lステップ（`/settings/integrations/lstep`・`/settings/lstep/tags`）を `paths.ts` と一致確認

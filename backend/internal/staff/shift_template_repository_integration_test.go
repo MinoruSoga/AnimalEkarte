@@ -163,20 +163,23 @@ func TestShiftTemplateRepository_Update(t *testing.T) {
 	tpl := makeShiftTemplate(t, db, clinicA, "早番", 1)
 
 	t.Run("updates and returns the refreshed entity", func(t *testing.T) {
-		got, err := repo.Update(ctx, clinicA, tpl.ID, map[string]any{"name": "改名後"})
+		name := "改名後"
+		got, err := repo.Update(ctx, clinicA, tpl.ID, UpdateShiftTemplateInput{Name: &name})
 		require.NoError(t, err)
 		assert.Equal(t, "改名後", got.Name)
 	})
 
 	t.Run("not found for nonexistent id", func(t *testing.T) {
-		got, err := repo.Update(ctx, clinicA, uint64(999999), map[string]any{"name": "x"})
+		name := "x"
+		got, err := repo.Update(ctx, clinicA, uint64(999999), UpdateShiftTemplateInput{Name: &name})
 		assert.Error(t, err)
 		assert.Nil(t, got)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
 	t.Run("clinic isolation", func(t *testing.T) {
-		got, err := repo.Update(ctx, clinicB, tpl.ID, map[string]any{"name": "乗っ取り"})
+		name := "乗っ取り"
+		got, err := repo.Update(ctx, clinicB, tpl.ID, UpdateShiftTemplateInput{Name: &name})
 		assert.Error(t, err)
 		assert.Nil(t, got)
 		assert.True(t, apperrors.IsNotFound(err))

@@ -251,7 +251,6 @@ func (s *hospitalizationService) validateDoctor(ctx context.Context, clinicID ui
 func (s *hospitalizationService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Hospitalization, int64, error) {
 	result, total, err := s.hospRepo.FindAll(ctx, clinicID, petID, ownerID, status, startDate, endDate, page, limit)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list hospitalizations", "error", err)
 		return nil, 0, apperrors.Wrap(err, "failed to list hospitalizations")
 	}
 	return result, total, nil
@@ -260,7 +259,6 @@ func (s *hospitalizationService) List(ctx context.Context, clinicID uint64, petI
 func (s *hospitalizationService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error) {
 	result, err := s.hospRepo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get hospitalization", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get hospitalization")
 	}
 	return result, nil
@@ -351,7 +349,6 @@ func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		existing, err := s.hospRepo.LockByIDForUpdate(txCtx, clinicID, id)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to lock hospitalization", "error", err)
 			return apperrors.Wrap(err, "failed to lock hospitalization")
 		}
 		if existing == nil {
@@ -389,9 +386,8 @@ func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64
 		if err := s.validateDoctor(txCtx, clinicID, input.DoctorID); err != nil {
 			return err
 		}
-		hosp, err = s.hospRepo.Update(txCtx, clinicID, id, fields)
+		hosp, err = s.hospRepo.Update(txCtx, clinicID, id, *input)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to update hospitalization", "error", err)
 			return apperrors.Wrap(err, "failed to update hospitalization")
 		}
 		// MRB-05: PATCH-driven discharge bypasses DischargeWithBilling; audit fail-closed.
@@ -453,7 +449,6 @@ func (s *hospitalizationService) Delete(ctx context.Context, clinicID, id uint64
 	// FK依存チェック: 入院に紐付く日次記録が存在する場合は削除を拒否
 	dailyCount, err := s.hospRepo.CountDailyRecordsByHospitalizationID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check daily record dependencies", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to check daily record dependencies")
 	}
 	if dailyCount > 0 {
@@ -463,7 +458,6 @@ func (s *hospitalizationService) Delete(ctx context.Context, clinicID, id uint64
 	// FK依存チェック: 入院に紐付く治療計画が存在する場合は削除を拒否
 	planCount, err := s.hospRepo.CountTreatmentPlansByHospitalizationID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check treatment plan dependencies", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to check treatment plan dependencies")
 	}
 	if planCount > 0 {
@@ -473,7 +467,6 @@ func (s *hospitalizationService) Delete(ctx context.Context, clinicID, id uint64
 	// FK依存チェック: 入院に紐付くケアプラン項目が存在する場合は削除を拒否
 	itemCount, err := s.hospRepo.CountCarePlanItemsByHospitalizationID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check care plan item dependencies", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to check care plan item dependencies")
 	}
 	if itemCount > 0 {
@@ -489,7 +482,6 @@ func (s *hospitalizationService) Delete(ctx context.Context, clinicID, id uint64
 	}
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		if err := s.hospRepo.Delete(txCtx, clinicID, id); err != nil {
-			slog.ErrorContext(txCtx, "failed to delete hospitalization", "error", err, "id", id, "clinic_id", clinicID)
 			return apperrors.Wrap(err, "failed to delete hospitalization")
 		}
 		resourceID := id

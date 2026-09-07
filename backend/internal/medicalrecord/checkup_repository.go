@@ -40,7 +40,7 @@ type CheckupRepository interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Checkup, error)
 	LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Checkup, error)
 	Create(ctx context.Context, checkup *model.Checkup) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	Update(ctx context.Context, clinicID, id uint64, cmd UpdateCheckupInput) error
 	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
@@ -317,7 +317,11 @@ func (r *checkupRepository) Create(ctx context.Context, checkup *model.Checkup) 
 	return nil
 }
 
-func (r *checkupRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+func (r *checkupRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateCheckupInput) error {
+	return r.update(ctx, clinicID, id, buildCheckupUpdate(&cmd))
+}
+
+func (r *checkupRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	return persistence.UpdateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.Checkup{}, "checkup", clinicID, id, fields)
 }
 

@@ -34,6 +34,8 @@ type UpdateTreatmentPlanInput struct {
 	// Subtotal is ignored on write; server always recomputes when price fields change (MRD-04).
 	Subtotal  *int64
 	SortOrder *int
+	// persistSubtotal is set only by service after server-side recompute. HTTP/client must not set it.
+	persistSubtotal *int64
 	// DiscountEditAllowed is set by the HTTP boundary from discount:edit RBAC.
 	// Service rechecks discount fields against the FOR UPDATE locked row (SEC-CS-F10).
 	DiscountEditAllowed bool
@@ -98,7 +100,10 @@ func buildTreatmentPlanUpdate(input *UpdateTreatmentPlanInput) map[string]any {
 	if input.DiscountAmount != nil {
 		fields["discount_amount"] = *input.DiscountAmount
 	}
-	// Subtotal is never taken from client input (MRD-04).
+	// Client Subtotal is ignored. Only service-computed persistSubtotal is written (MRD-04).
+	if input.persistSubtotal != nil {
+		fields["subtotal"] = *input.persistSubtotal
+	}
 	if input.SortOrder != nil {
 		fields["sort_order"] = *input.SortOrder
 	}
@@ -136,7 +141,6 @@ func (s *treatmentPlanService) withTx(ctx context.Context, fn func(context.Conte
 func (s *treatmentPlanService) GetByID(ctx context.Context, clinicID, id uint64) (*model.TreatmentPlan, error) {
 	plan, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get treatment plan", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get treatment plan")
 	}
 	return plan, nil
@@ -145,7 +149,6 @@ func (s *treatmentPlanService) GetByID(ctx context.Context, clinicID, id uint64)
 func (s *treatmentPlanService) ListByMedicalRecord(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.TreatmentPlan, error) {
 	plans, err := s.repo.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list treatment plans by medical record", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list treatment plans by medical record")
 	}
 	return plans, nil
@@ -154,7 +157,6 @@ func (s *treatmentPlanService) ListByMedicalRecord(ctx context.Context, clinicID
 func (s *treatmentPlanService) ListByHospitalization(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.TreatmentPlan, error) {
 	plans, err := s.repo.FindByHospitalizationID(ctx, clinicID, hospitalizationID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list treatment plans by hospitalization", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list treatment plans by hospitalization")
 	}
 	return plans, nil
@@ -200,12 +202,10 @@ func (s *treatmentPlanService) Create(ctx context.Context, clinicID uint64, medi
 	var result *model.TreatmentPlan
 	if err := s.withTx(ctx, func(txCtx context.Context) error {
 		if err := s.repo.Create(txCtx, plan); err != nil {
-			slog.ErrorContext(txCtx, "failed to create treatment plan", "error", err)
 			return apperrors.Wrap(err, "failed to create treatment plan")
 		}
 		reloaded, err := s.repo.FindByID(txCtx, clinicID, plan.ID)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to reload treatment plan after create", "error", err)
 			return apperrors.Wrap(err, "failed to reload treatment plan after create")
 		}
 		result = reloaded
@@ -229,7 +229,6 @@ func (s *treatmentPlanService) Update(ctx context.Context, clinicID, id uint64, 
 	if err := s.withTx(ctx, func(txCtx context.Context) error {
 		existing, err := s.repo.LockByIDForUpdate(txCtx, clinicID, id)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to lock treatment plan", "error", err)
 			return apperrors.Wrap(err, "failed to lock treatment plan")
 		}
 		if existing == nil {
@@ -245,6 +244,7 @@ func (s *treatmentPlanService) Update(ctx context.Context, clinicID, id uint64, 
 		// Unprivileged equal-to-locked discount is a no-op: drop it so money merge cannot
 		// race-write stale values. Differing values already failed the guard above.
 		effective := *input
+		effective.Subtotal = nil
 		if input.DiscountRate != nil && httpapi.FloatEquals(*input.DiscountRate, existing.DiscountRate) && !input.DiscountEditAllowed {
 			effective.DiscountRate = nil
 		}
@@ -280,24 +280,23 @@ func (s *treatmentPlanService) Update(ctx context.Context, clinicID, id uint64, 
 			}
 		}
 
-		fields := buildTreatmentPlanUpdate(&effective)
 		if moneyTouched {
-			fields["unit_price"] = unitPrice
-			fields["quantity"] = quantity
-			fields["discount_rate"] = discountRate
-			fields["discount_amount"] = discountAmount
-			fields["subtotal"] = computeTreatmentPlanSubtotal(unitPrice, quantity, discountRate, discountAmount)
+			effective.UnitPrice = &unitPrice
+			effective.Quantity = &quantity
+			effective.DiscountRate = &discountRate
+			effective.DiscountAmount = &discountAmount
+			subtotal := computeTreatmentPlanSubtotal(unitPrice, quantity, discountRate, discountAmount)
+			effective.persistSubtotal = &subtotal
 		}
+		fields := buildTreatmentPlanUpdate(&effective)
 		if len(fields) == 0 {
 			return apperrors.WrapInvalidInput("at least one field must be provided")
 		}
-		if err := s.repo.Update(txCtx, clinicID, id, medicalRecordID, hospitalizationID, fields); err != nil {
-			slog.ErrorContext(txCtx, "failed to update treatment plan", "error", err)
+		if err := s.repo.Update(txCtx, clinicID, id, medicalRecordID, hospitalizationID, effective); err != nil {
 			return apperrors.Wrap(err, "failed to update treatment plan")
 		}
 		reloaded, err := s.repo.FindByID(txCtx, clinicID, id)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to reload treatment plan after update", "error", err)
 			return apperrors.Wrap(err, "failed to reload treatment plan after update")
 		}
 		result = reloaded
@@ -324,7 +323,6 @@ func (s *treatmentPlanService) Delete(ctx context.Context, clinicID, id uint64, 
 			return err
 		}
 		if err := s.repo.Delete(txCtx, clinicID, id, medicalRecordID, hospitalizationID); err != nil {
-			slog.ErrorContext(txCtx, "failed to delete treatment plan", "error", err, "clinic_id", clinicID, "treatment_plan_id", id)
 			return apperrors.Wrap(err, "failed to delete treatment plan")
 		}
 		return nil

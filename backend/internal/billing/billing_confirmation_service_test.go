@@ -16,7 +16,7 @@ import (
 type mockBillingConfirmationRepository struct {
 	findByMedicalRecordIDFn func(ctx context.Context, clinicID, medicalRecordID uint64) (*model.BillingConfirmation, error)
 	createFn                func(ctx context.Context, review *model.BillingConfirmation) error
-	updateFn                func(ctx context.Context, clinicID, reviewID uint64, fields map[string]any) error
+	updateFn                func(ctx context.Context, clinicID, reviewID uint64, cmd UpdateBillingConfirmationInput) error
 	lockActiveActorFn       func(ctx context.Context, clinicID, staffID uint64) error
 }
 
@@ -28,8 +28,8 @@ func (m *mockBillingConfirmationRepository) Create(ctx context.Context, review *
 	return m.createFn(ctx, review)
 }
 
-func (m *mockBillingConfirmationRepository) Update(ctx context.Context, clinicID, reviewID uint64, fields map[string]any) error {
-	return m.updateFn(ctx, clinicID, reviewID, fields)
+func (m *mockBillingConfirmationRepository) Update(ctx context.Context, clinicID, reviewID uint64, cmd UpdateBillingConfirmationInput) error {
+	return m.updateFn(ctx, clinicID, reviewID, cmd)
 }
 
 func (m *mockBillingConfirmationRepository) LockActiveStaffAssignment(ctx context.Context, clinicID, staffID uint64) error {
@@ -211,7 +211,7 @@ func TestBillingConfirmationService_Confirm(t *testing.T) {
 				createFn: func(_ context.Context, _ *model.BillingConfirmation) error {
 					return nil
 				},
-				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+				updateFn: func(_ context.Context, _, _ uint64, _ UpdateBillingConfirmationInput) error {
 					return tt.repoUpdateErr
 				},
 			}
@@ -301,7 +301,7 @@ func TestBillingConfirmationService_Return(t *testing.T) {
 				createFn: func(_ context.Context, _ *model.BillingConfirmation) error {
 					return nil
 				},
-				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+				updateFn: func(_ context.Context, _, _ uint64, _ UpdateBillingConfirmationInput) error {
 					return tt.repoUpdateErr
 				},
 			}
@@ -410,7 +410,7 @@ func TestBillingConfirmationService_Confirm_FindAfterUpdateError(t *testing.T) {
 			}
 			return nil, errors.New("db error")
 		},
-		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+		updateFn: func(_ context.Context, _, _ uint64, _ UpdateBillingConfirmationInput) error {
 			return nil
 		},
 	}
@@ -467,7 +467,7 @@ func TestBillingConfirmationService_Return_FindAfterUpdateError(t *testing.T) {
 			}
 			return nil, errors.New("db error")
 		},
-		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+		updateFn: func(_ context.Context, _, _ uint64, _ UpdateBillingConfirmationInput) error {
 			return nil
 		},
 	}
@@ -487,7 +487,7 @@ func TestBillingConfirmationService_Confirm_RejectsFinalizedParent(t *testing.T)
 		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.BillingConfirmation, error) {
 			return &model.BillingConfirmation{ID: 1, MedicalRecordID: 1, Status: model.ConfirmationStatusPending}, nil
 		},
-		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+		updateFn: func(_ context.Context, _, _ uint64, _ UpdateBillingConfirmationInput) error {
 			updateCalled = true
 			return nil
 		},
@@ -515,7 +515,7 @@ func TestBillingConfirmationService_Return_RejectsFinalizedParent(t *testing.T) 
 		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.BillingConfirmation, error) {
 			return &model.BillingConfirmation{ID: 1, MedicalRecordID: 1, Status: model.ConfirmationStatusConfirmed}, nil
 		},
-		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+		updateFn: func(_ context.Context, _, _ uint64, _ UpdateBillingConfirmationInput) error {
 			updateCalled = true
 			return nil
 		},
@@ -542,7 +542,7 @@ func TestBillingConfirmationService_Confirm_RejectsActorWithoutActiveClinicAssig
 		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.BillingConfirmation, error) {
 			return &model.BillingConfirmation{ID: 1, MedicalRecordID: 1, Status: model.ConfirmationStatusPending}, nil
 		},
-		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+		updateFn: func(_ context.Context, _, _ uint64, _ UpdateBillingConfirmationInput) error {
 			updateCalled = true
 			return nil
 		},
@@ -570,7 +570,7 @@ func TestBillingConfirmationService_Return_RejectsActorWithoutActiveClinicAssign
 		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.BillingConfirmation, error) {
 			return &model.BillingConfirmation{ID: 1, MedicalRecordID: 1, Status: model.ConfirmationStatusConfirmed}, nil
 		},
-		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+		updateFn: func(_ context.Context, _, _ uint64, _ UpdateBillingConfirmationInput) error {
 			updateCalled = true
 			return nil
 		},

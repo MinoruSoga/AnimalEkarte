@@ -83,7 +83,7 @@ func TestShiftEntryService_Update(t *testing.T) {
 			}
 			callCount := 0
 			repo := &mockShiftEntryRepository{
-				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+				updateFn: func(_ context.Context, _, _ uint64, _ UpdateShiftEntryInput) error {
 					return tt.repoUpdateErr
 				},
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.ShiftEntry, error) {
@@ -591,7 +591,7 @@ func TestShiftEntryService_Update_AdditionalBranches(t *testing.T) {
 					StartTime: &existingStart, EndTime: &existingEnd,
 				}, nil
 			},
-			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			updateFn: func(_ context.Context, _, _ uint64, _ UpdateShiftEntryInput) error {
 				return nil
 			},
 			replaceBreaksFn: func(_ context.Context, _ uint64, breaks []model.ShiftEntryBreak) error {
@@ -621,7 +621,7 @@ func TestShiftEntryService_Update_AdditionalBranches(t *testing.T) {
 			findByIDFn: func(_ context.Context, _, id uint64) (*model.ShiftEntry, error) {
 				return &model.ShiftEntry{ID: id, ShiftType: model.ShiftTypeOff}, nil
 			},
-			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			updateFn: func(_ context.Context, _, _ uint64, _ UpdateShiftEntryInput) error {
 				updateCalled = true
 				return nil
 			},
@@ -648,8 +648,10 @@ func TestShiftEntryService_Update_AdditionalBranches(t *testing.T) {
 			findByIDFn: func(_ context.Context, _, id uint64) (*model.ShiftEntry, error) {
 				return &model.ShiftEntry{ID: id, ShiftType: model.ShiftTypeOff, Notes: state.notes}, nil
 			},
-			updateFn: func(_ context.Context, _, _ uint64, fields map[string]any) error {
-				state.notes = fields["notes"].(string)
+			updateFn: func(_ context.Context, _, _ uint64, cmd UpdateShiftEntryInput) error {
+				if cmd.Notes != nil {
+					state.notes = *cmd.Notes
+				}
 				return nil
 			},
 			replaceBreaksFn: func(_ context.Context, _ uint64, breaks []model.ShiftEntryBreak) error {
@@ -685,7 +687,7 @@ func TestShiftEntryService_Update_AdditionalBranches(t *testing.T) {
 					StartTime: &existingStart, EndTime: &existingEnd,
 				}, nil
 			},
-			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			updateFn: func(_ context.Context, _, _ uint64, _ UpdateShiftEntryInput) error {
 				return nil
 			},
 			replaceBreaksFn: func(_ context.Context, _ uint64, _ []model.ShiftEntryBreak) error {
@@ -717,7 +719,7 @@ func TestShiftEntryService_Update_AdditionalBranches(t *testing.T) {
 				}
 				return nil, errors.New("not found")
 			},
-			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			updateFn: func(_ context.Context, _, _ uint64, _ UpdateShiftEntryInput) error {
 				return nil
 			},
 		}

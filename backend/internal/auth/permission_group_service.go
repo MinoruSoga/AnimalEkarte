@@ -2,7 +2,6 @@ package auth
 
 import (
 	"context"
-	"log/slog"
 	"sort"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -122,6 +121,22 @@ type EffectivePermissionService interface {
 type PermissionGroupApplication interface {
 	PermissionGroupService
 	EffectivePermissionService
+}
+
+// PermissionGroupRepository is the auth use-case view of permission-group
+// persistence. Clinic delete cleanup and staff membership writes stay on
+// those packages' consumer ports, not this interface.
+type PermissionGroupRepository interface {
+	FindAll(ctx context.Context, clinicID uint64) ([]model.PermissionGroup, error)
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.PermissionGroup, error)
+	Create(ctx context.Context, group *model.PermissionGroup) error
+	Update(ctx context.Context, clinicID, id uint64, cmd UpdatePermissionGroupInput) (*model.PermissionGroup, error)
+	Delete(ctx context.Context, clinicID, id uint64) error
+	UpdateRules(ctx context.Context, clinicID, groupID uint64, rules []model.PermissionGroupRule) error
+	CountUsageByGroupID(ctx context.Context, clinicID, groupID uint64) (int64, error)
+	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
+	FindAllEffectivePermissionsByStaffID(ctx context.Context, staffID, clinicID uint64) ([]model.PermissionGroupRule, error)
+	FindAllGroupIDsByStaffID(ctx context.Context, clinicID, staffID uint64) ([]uint64, error)
 }
 
 type permissionGroupService struct {
@@ -254,7 +269,6 @@ func (s *permissionGroupService) List(
 ) ([]model.PermissionGroup, error) {
 	items, err := s.repo.FindAll(ctx, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list permission groups", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to list permission groups")
 	}
 	return items, nil
@@ -266,7 +280,6 @@ func (s *permissionGroupService) GetByID(
 ) (*model.PermissionGroup, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get permission group", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get permission group")
 	}
 	if result == nil {

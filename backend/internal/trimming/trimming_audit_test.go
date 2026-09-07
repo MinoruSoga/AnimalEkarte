@@ -47,8 +47,8 @@ func newTrimmingAuditTestService(
 	detailRepo AppointmentTrimmingDetailRepository,
 	transactor Transactor,
 	auditTx AuditTxLogger,
-) TrimmingService {
-	return NewTrimmingServiceWithAudit(
+) Service {
+	return NewServiceWithAudit(
 		reservationRepo,
 		&mockTrimmingReservationTypeRepository{},
 		newAcceptingTrimmingStaffRepository(),
@@ -118,7 +118,7 @@ func requireTrimmingAuditContract(
 	return entry
 }
 
-func TestTrimmingService_AuditContract_CreateAppointment(t *testing.T) {
+func TestService_AuditContract_CreateAppointment(t *testing.T) {
 	const clinicID, actorID, appointmentID = uint64(7), uint64(42), uint64(77)
 	appointment := newTrimmingAuditAppointment(appointmentID, clinicID)
 	journal := make([]string, 0, 3)
@@ -181,7 +181,7 @@ func TestTrimmingService_AuditContract_CreateAppointment(t *testing.T) {
 	assert.Equal(t, true, newValue["has_detail"])
 }
 
-func TestTrimmingService_AuditContract_CreateDetailForExistingAppointment(t *testing.T) {
+func TestService_AuditContract_CreateDetailForExistingAppointment(t *testing.T) {
 	const clinicID, actorID, appointmentID = uint64(7), uint64(43), uint64(78)
 	appointment := newTrimmingAuditAppointment(appointmentID, clinicID)
 	journal := make([]string, 0, 2)
@@ -238,7 +238,7 @@ func TestTrimmingService_AuditContract_CreateDetailForExistingAppointment(t *tes
 	assert.Equal(t, "既存予約へ詳細を追加", newValue["style_request"])
 }
 
-func TestTrimmingService_AuditContract_Update(t *testing.T) {
+func TestService_AuditContract_Update(t *testing.T) {
 	const clinicID, actorID, appointmentID = uint64(7), uint64(44), uint64(79)
 	appointment := newTrimmingAuditAppointment(appointmentID, clinicID)
 	detailState := &model.AppointmentTrimmingDetail{
@@ -303,7 +303,7 @@ func TestTrimmingService_AuditContract_Update(t *testing.T) {
 	assert.Equal(t, []uint64{3, 21}, newValue["option_ids"])
 }
 
-func TestTrimmingService_AuditContract_Delete(t *testing.T) {
+func TestService_AuditContract_Delete(t *testing.T) {
 	const clinicID, actorID, appointmentID = uint64(7), uint64(45), uint64(80)
 	appointment := newTrimmingAuditAppointment(appointmentID, clinicID)
 	detail := &model.AppointmentTrimmingDetail{
@@ -350,7 +350,7 @@ func TestTrimmingService_AuditContract_Delete(t *testing.T) {
 	assert.Nil(t, entry.NewValue)
 }
 
-func TestTrimmingService_AuditFailureRollsBackEachWritePath(t *testing.T) {
+func TestService_AuditFailureRollsBackEachWritePath(t *testing.T) {
 	sentinel := errors.New("audit persistence failed")
 
 	tests := []struct {
@@ -503,18 +503,18 @@ func TestTrimmingService_AuditFailureRollsBackEachWritePath(t *testing.T) {
 	}
 }
 
-func TestTrimmingService_MissingAuditDependencyFailsBeforeEachWritePath(t *testing.T) {
+func TestService_MissingAuditDependencyFailsBeforeEachWritePath(t *testing.T) {
 	appointmentID := uint64(91)
 	actorID := uint64(42)
 	start := time.Date(2026, time.July, 24, 10, 0, 0, 0, time.UTC)
 
 	tests := []struct {
 		name string
-		run  func(TrimmingService) error
+		run  func(Service) error
 	}{
 		{
 			name: "create appointment",
-			run: func(svc TrimmingService) error {
+			run: func(svc Service) error {
 				_, err := svc.Create(context.Background(), 7, &CreateTrimmingInput{
 					ActorID:           &actorID,
 					ReservationTypeID: 9,
@@ -526,7 +526,7 @@ func TestTrimmingService_MissingAuditDependencyFailsBeforeEachWritePath(t *testi
 		},
 		{
 			name: "create detail",
-			run: func(svc TrimmingService) error {
+			run: func(svc Service) error {
 				_, err := svc.Create(context.Background(), 7, &CreateTrimmingInput{
 					ActorID:       &actorID,
 					AppointmentID: &appointmentID,
@@ -536,7 +536,7 @@ func TestTrimmingService_MissingAuditDependencyFailsBeforeEachWritePath(t *testi
 		},
 		{
 			name: "update",
-			run: func(svc TrimmingService) error {
+			run: func(svc Service) error {
 				_, err := svc.Update(context.Background(), 7, appointmentID, &UpdateTrimmingInput{
 					ActorID: &actorID,
 				})
@@ -545,7 +545,7 @@ func TestTrimmingService_MissingAuditDependencyFailsBeforeEachWritePath(t *testi
 		},
 		{
 			name: "delete",
-			run: func(svc TrimmingService) error {
+			run: func(svc Service) error {
 				return svc.Delete(context.Background(), 7, appointmentID, &actorID)
 			},
 		},
@@ -554,7 +554,7 @@ func TestTrimmingService_MissingAuditDependencyFailsBeforeEachWritePath(t *testi
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			transactionOpened := false
-			svc := NewTrimmingService(
+			svc := NewService(
 				&mockTrimmingReservationRepository{},
 				&mockTrimmingReservationTypeRepository{},
 				newAcceptingTrimmingStaffRepository(),
@@ -576,17 +576,17 @@ func TestTrimmingService_MissingAuditDependencyFailsBeforeEachWritePath(t *testi
 	}
 }
 
-func TestTrimmingService_MissingOrZeroActorFailsBeforeEachWritePath(t *testing.T) {
+func TestService_MissingOrZeroActorFailsBeforeEachWritePath(t *testing.T) {
 	appointmentID := uint64(92)
 	start := time.Date(2026, time.July, 24, 10, 0, 0, 0, time.UTC)
 
 	operations := []struct {
 		name string
-		run  func(TrimmingService, *uint64) error
+		run  func(Service, *uint64) error
 	}{
 		{
 			name: "create appointment",
-			run: func(svc TrimmingService, actorID *uint64) error {
+			run: func(svc Service, actorID *uint64) error {
 				_, err := svc.Create(context.Background(), 7, &CreateTrimmingInput{
 					ActorID:           actorID,
 					ReservationTypeID: 9,
@@ -598,7 +598,7 @@ func TestTrimmingService_MissingOrZeroActorFailsBeforeEachWritePath(t *testing.T
 		},
 		{
 			name: "create detail",
-			run: func(svc TrimmingService, actorID *uint64) error {
+			run: func(svc Service, actorID *uint64) error {
 				_, err := svc.Create(context.Background(), 7, &CreateTrimmingInput{
 					ActorID:       actorID,
 					AppointmentID: &appointmentID,
@@ -608,7 +608,7 @@ func TestTrimmingService_MissingOrZeroActorFailsBeforeEachWritePath(t *testing.T
 		},
 		{
 			name: "update",
-			run: func(svc TrimmingService, actorID *uint64) error {
+			run: func(svc Service, actorID *uint64) error {
 				_, err := svc.Update(context.Background(), 7, appointmentID, &UpdateTrimmingInput{
 					ActorID: actorID,
 				})
@@ -617,7 +617,7 @@ func TestTrimmingService_MissingOrZeroActorFailsBeforeEachWritePath(t *testing.T
 		},
 		{
 			name: "delete",
-			run: func(svc TrimmingService, actorID *uint64) error {
+			run: func(svc Service, actorID *uint64) error {
 				return svc.Delete(context.Background(), 7, appointmentID, actorID)
 			},
 		},

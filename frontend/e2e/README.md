@@ -71,24 +71,20 @@ docker compose up -d   # if not already running
 
 ### Seed data assumed by E2E tests
 
-| Spec                                      | Required data                                                                                                                                             | Source                                                  |
-| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
-| `owners-search.spec.ts`                   | pet name `ピーター` (name_kana=`ぴーたー`), owner 5 (佐藤 花子), clinic 1                                                                                 | `003_seed_demo.sql`                                     |
-| `accounting-smoke.spec.ts`                | owner 1 (林 文明, はやし ふみあき) with completed billing for pet 1 (`Iris(イリス)`, name_kana=`いりす`)                                                  | `003_seed_demo.sql`                                     |
-| `accounting-flow.spec.ts`                 | same as `accounting-smoke.spec.ts`                                                                                                                        | `003_seed_demo.sql`                                     |
-| `reservations-smoke.spec.ts`              | admin user at clinic 1 with reservations permission                                                                                                       | `003_seed_demo.sql`                                     |
-| `reservation-patient-search.spec.ts`      | ローカル handoff 実データ上の検索。003_demo 退役後は固定 pet id を前提にしない                                                                            |
-| `medical-records-patient-search.spec.ts`  | 同上                                                                                                                                                      |
-| `master-crud.spec.ts`                     | treatment procedure items incl. `注射` (root with children)                                                                                               | `003_seed_demo.sql`                                     |
-| `hospitalization-flow.spec.ts`            | 1+ active hospitalization records at clinic 1                                                                                                             | `003_seed_demo.sql`                                     |
-| `vaccinations-flow.spec.ts`               | 1+ vaccination records; owner `林 文明` with pet `林 文明`                                                                                                | `003_seed_demo.sql`                                     |
-| `medical-records-pagination-sort.spec.ts` | clinic 1 に PAGE_SIZE(20) 超（開発環境では20,000件超）の medical_records が必要（page=2 到達用）。件数が少ない環境ではページ2ボタンが表示されず fail する | 開発DBの既存データ量に依存（seed 追加不要な環境が大半） |
+| Spec                                                                                                                                                         | Required data                                                                                            | Source              |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- | ------------------- |
+| `owners-search.spec.ts`                                                                                                                                      | pet name `ピーター` (name_kana=`ぴーたー`), owner 5 (佐藤 花子), clinic 1                                | `003_seed_demo.sql` |
+| `accounting-smoke.spec.ts`                                                                                                                                   | owner 1 (林 文明, はやし ふみあき) with completed billing for pet 1 (`Iris(イリス)`, name_kana=`いりす`) | `003_seed_demo.sql` |
+| `accounting-flow.spec.ts`                                                                                                                                    | same as `accounting-smoke.spec.ts`                                                                       | `003_seed_demo.sql` |
+| `reservations-smoke.spec.ts`                                                                                                                                 | admin user at clinic 1 with reservations permission                                                      | `003_seed_demo.sql` |
+| `reservation-patient-search.spec.ts`                                                                                                                         | ローカル handoff 実データ上の検索。003_demo 退役後は固定 pet id を前提にしない                           |
+| `clinical-*.spec.ts` / `medical-records-*.spec.ts` / `examinations-flow` / `vaccinations-flow` / `checkups-flow` / `hospitalization-flow` / `estimates-flow` | disposable clinic。`./scripts/run-e2e.sh --clinical`（backend `APP_ENV=test`）。003_demo 氏名は使わない  |
+| `master-crud.spec.ts`                                                                                                                                        | treatment procedure items incl. `注射` (root with children)                                              | `003_seed_demo.sql` |
 
-If seed data is missing, run:
-
-```bash
-make reset   # resets and re-applies all migrations + seeds
-```
+`003_seed_demo.sql` は退役済みで、`make reset` は上記の旧デモデータを復元しない。
+各 spec の現在の fixture 契約を確認し、認証 smoke は `--auth-smoke`、
+臨床 fixture は `--clinical` の対象に限定して実行する。
+ローカル DB のリセットはユーザー専用の操作であり、欠落したテストデータの自動補完には使わない。
 
 ### Auth
 
@@ -96,11 +92,14 @@ Credentials are **env-injected only** (SEC-CS2-F01). There is no in-repository p
 
 | Variable              | Required                      | Description                                                                            |
 | --------------------- | ----------------------------- | -------------------------------------------------------------------------------------- |
-| `E2E_LOGIN_EMAIL`     | yes (for authenticated specs) | Admin account email present in the target DB (local demo seed)                         |
-| `E2E_LOGIN_PASSWORD`  | yes (for authenticated specs) | Matching password (never commit; inject via shell/CI secrets)                          |
+| `E2E_LOGIN_EMAIL`     | yes (for authenticated specs) | Synthetic non-production account present through the `APP_ENV=test` login seed         |
+| `E2E_LOGIN_PASSWORD`  | yes (for authenticated specs) | Matching public synthetic fixture password; never print it in logs or reports          |
 | `E2E_AUTH_STATE_PATH` | no                            | Cached storage-state path (default `/tmp/animal-ekarte-demo-admin-storage-state.json`) |
 
 Login is handled automatically via `helpers/auth.ts`; no manual pre-auth step is needed once the env vars are set.
+The manual E2E workflow runs only `auth-flows.spec.ts` with `APP_ENV=test` and the public
+synthetic fixture. It is an auth-smoke path, not evidence that the full clinical/data-dependent
+suite can run against a fresh database.
 
 ## Running Tests
 
@@ -112,6 +111,12 @@ Login is handled automatically via `helpers/auth.ts`; no manual pre-auth step is
 
 # Specific file
 ./scripts/run-e2e.sh e2e/owners-search.spec.ts
+
+# Auth smoke（CI workflow と同じ）
+./scripts/run-e2e.sh --auth-smoke
+
+# Clinical allowlist（backend APP_ENV=test と E2E_LOGIN_PASSWORD が必要。別承認）
+./scripts/run-e2e.sh --clinical
 ```
 
 This script mounts only spec/config files and installs a fresh `@playwright/test@1.60.0`
@@ -121,23 +126,7 @@ Override the target with `PLAYWRIGHT_TEST_BASE_URL` when needed.
 When set on the host, `E2E_LOGIN_EMAIL`, `E2E_LOGIN_PASSWORD`, and `E2E_AUTH_STATE_PATH`
 are forwarded into the Playwright container (name-only `-e`; unset vars are not injected).
 
-### Alternative: macOS native (if pnpm and playwright browsers are installed on host)
-
-```bash
-cd frontend
-PLAYWRIGHT_TEST_BASE_URL=http://localhost:3003 pnpm test:e2e
-```
-
-**Note**: If you see `Executable doesn't exist at .../chromium_headless_shell-1217/...`,
-your local playwright-core (pnpm-lock) expects chromium-1217 but only 1223 is installed.
-Use the Docker script above instead.
-
-### UI mode (interactive)
-
-```bash
-cd frontend
-pnpm test:e2e:ui
-```
+ホストでの `pnpm` / Playwright 実行は禁止。上記の Docker スクリプトを使用する。
 
 ## Authentication
 
@@ -164,7 +153,7 @@ used in `owners-search.spec.ts`, `accounting-smoke.spec.ts`, and `reservations-s
 `filterCalendarAppointments` (filters out `cancelled`, keeps `no_show`) is unit-tested in:
 
 ```
-frontend/src/features/reservations/routes/__tests__/reservation-management.filter.test.ts
+frontend/src/features/reservations/routes/reservation-management.filter.test.ts
 ```
 
 E2E validation of this filter would require seeding appointments for the current calendar week —
@@ -186,7 +175,7 @@ for other list surfaces remains covered by their dedicated specs and the
 | ------------------------------------------ | ---------------------------------------------- |
 | Linux x86_64 (Docker script)               | ✅ Fully supported                             |
 | Linux arm64/aarch64 (Apple Silicon Docker) | ✅ Supported via the official Playwright image |
-| macOS arm64 (native pnpm)                  | ✅ Works if playwright browsers installed      |
+| macOS arm64                                | Docker script を使用（ホスト pnpm 実行は禁止） |
 
 ## Troubleshooting
 

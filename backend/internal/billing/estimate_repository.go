@@ -23,11 +23,11 @@ type EstimateRepository interface {
 	// then loads its active items from that same transaction.
 	LockEditableByID(ctx context.Context, clinicID, id uint64) (*model.Estimate, error)
 	Create(ctx context.Context, estimate *model.Estimate) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	Update(ctx context.Context, clinicID, id uint64, cmd UpdateEstimateInput) error
 	// UpdateIfNotLocked は status NOT IN (approved, rejected) のときだけ更新する。
 	// FindByID→isEstimateLocked→Update の TOCTOU を防ぐ（UpdateIfNotDischarged と同型）。
 	// RowsAffected==0（ロック済み・未存在・他院）は Conflict に正規化する。
-	UpdateIfNotLocked(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Estimate, error)
+	UpdateIfNotLocked(ctx context.Context, clinicID, id uint64, cmd UpdateEstimateInput) (*model.Estimate, error)
 	// DeleteIfNotLocked は status NOT IN (approved, rejected) かつ active 明細が 0 のときだけ削除する。
 	// FindByID→isEstimateLocked→CountItems→Delete の TOCTOU を防ぐ（UpdateIfNotLocked と同型）。
 	// RowsAffected==0 は再読取で locked / 明細あり / NotFound を可能な範囲で区別する。
@@ -138,13 +138,18 @@ func (r *estimateRepository) Create(ctx context.Context, estimate *model.Estimat
 	return nil
 }
 
-func (r *estimateRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+func (r *estimateRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateEstimateInput) error {
+	return r.update(ctx, clinicID, id, buildEstimateUpdate(&cmd))
+}
+
+func (r *estimateRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	return persistence.UpdateScopedByID(ctx, r.db, &model.Estimate{}, "estimate", clinicID, id, fields)
 }
 
 // UpdateIfNotLocked は persistence.DBOrTx(ctx, r.db) で ambient tx に参加する（SD-2 系ガード監査:
 // estimateService.Update が確定済みカルテガードのため LockByIDForUpdate と同一 tx に束ねる）。
-func (r *estimateRepository) UpdateIfNotLocked(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Estimate, error) {
+func (r *estimateRepository) UpdateIfNotLocked(ctx context.Context, clinicID, id uint64, cmd UpdateEstimateInput) (*model.Estimate, error) {
+	fields := buildEstimateUpdate(&cmd)
 	db := persistence.DBOrTx(ctx, r.db)
 	if len(fields) == 0 {
 		// An items-only PATCH still needs an atomic status guard. GORM Updates with an

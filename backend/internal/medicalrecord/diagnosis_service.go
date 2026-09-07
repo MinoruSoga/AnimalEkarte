@@ -125,7 +125,6 @@ func NewDiagnosisTypeService(
 func (s *diagnosisTypeService) List(ctx context.Context, clinicID uint64, page, limit int) ([]model.DiagnosisType, int64, error) {
 	items, total, err := s.repo.FindAll(ctx, clinicID, page, limit)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list diagnosis categories", "error", err, "clinic_id", clinicID)
 		return nil, 0, apperrors.Wrap(err, "failed to list diagnosis categories")
 	}
 	return items, total, nil
@@ -134,7 +133,6 @@ func (s *diagnosisTypeService) List(ctx context.Context, clinicID uint64, page, 
 func (s *diagnosisTypeService) GetByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisType, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get diagnosis type", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get diagnosis type")
 	}
 	return result, nil
@@ -152,7 +150,6 @@ func (s *diagnosisTypeService) Create(ctx context.Context, clinicID uint64, inpu
 		SortOrder:   input.SortOrder,
 	}
 	if err := s.repo.Create(ctx, diagType); err != nil {
-		slog.ErrorContext(ctx, "failed to create diagnosis type", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to create diagnosis type")
 	}
 	slog.InfoContext(ctx, "diagnosis type created",
@@ -166,7 +163,6 @@ func (s *diagnosisTypeService) Update(ctx context.Context, clinicID, id uint64, 
 		return nil, apperrors.WrapInvalidInput(errMsgInputNotNil)
 	}
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to get diagnosis type", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get diagnosis type")
 	}
 	if err := validateOptionalName(input.Name); err != nil {
@@ -176,9 +172,8 @@ func (s *diagnosisTypeService) Update(ctx context.Context, clinicID, id uint64, 
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput(errMsgAtLeastOneField)
 	}
-	result, err := s.repo.Update(ctx, clinicID, id, fields)
+	result, err := s.repo.Update(ctx, clinicID, id, *input)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to update diagnosis type", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to update diagnosis type")
 	}
 	slog.InfoContext(ctx, "diagnosis type updated",
@@ -193,14 +188,12 @@ func (s *diagnosisTypeService) Delete(ctx context.Context, clinicID, id uint64) 
 	}
 	count, err := s.repo.CountChildrenByParentID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check diagnosis type dependencies", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to check diagnosis type dependencies")
 	}
 	if count > 0 {
 		return apperrors.WrapConflict("この診断カテゴリには診断名が登録されているため削除できません")
 	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to delete diagnosis type", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete diagnosis type")
 	}
 	slog.InfoContext(ctx, "diagnosis type deleted",
@@ -214,7 +207,6 @@ func (s *diagnosisTypeService) Reorder(ctx context.Context, clinicID uint64, ids
 		return apperrors.WrapInvalidInput(errMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
-		slog.ErrorContext(ctx, "failed to reorder diagnosis categories", "error", err, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to reorder diagnosis categories")
 	}
 	slog.InfoContext(ctx, "diagnosis_types reordered",
@@ -252,14 +244,12 @@ func (s *diagnosisNameService) List(ctx context.Context, clinicID uint64, typeID
 	if typeID != nil {
 		items, total, err := s.repo.FindAllByCategoryID(ctx, clinicID, *typeID, page, limit)
 		if err != nil {
-			slog.ErrorContext(ctx, "failed to list diagnosis names by type", "error", err, "clinic_id", clinicID)
 			return nil, 0, apperrors.Wrap(err, "failed to list diagnosis names by type")
 		}
 		return items, total, nil
 	}
 	items, total, err := s.repo.FindAll(ctx, clinicID, page, limit)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list diagnosis names", "error", err, "clinic_id", clinicID)
 		return nil, 0, apperrors.Wrap(err, "failed to list diagnosis names")
 	}
 	return items, total, nil
@@ -270,7 +260,6 @@ func (s *diagnosisNameService) List(ctx context.Context, clinicID uint64, typeID
 func (s *diagnosisNameService) ListNames(ctx context.Context, clinicID uint64, typeID *uint64) ([]model.DiagnosisName, error) {
 	items, err := s.repo.FindAllByFilter(ctx, clinicID, typeID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list diagnosis names", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to list diagnosis names")
 	}
 	return items, nil
@@ -279,7 +268,6 @@ func (s *diagnosisNameService) ListNames(ctx context.Context, clinicID uint64, t
 func (s *diagnosisNameService) GetByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisName, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get diagnosis name", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get diagnosis name")
 	}
 	return result, nil
@@ -302,7 +290,6 @@ func (s *diagnosisNameService) Create(ctx context.Context, clinicID uint64, inpu
 		SortOrder:       input.SortOrder,
 	}
 	if err := s.repo.Create(ctx, name); err != nil {
-		slog.ErrorContext(ctx, "failed to create diagnosis name", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to create diagnosis name")
 	}
 	slog.InfoContext(ctx, "diagnosis name created",
@@ -316,7 +303,6 @@ func (s *diagnosisNameService) Update(ctx context.Context, clinicID, id uint64, 
 		return nil, apperrors.WrapInvalidInput(errMsgInputNotNil)
 	}
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to get diagnosis name", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get diagnosis name")
 	}
 	if err := validateOptionalName(input.Name); err != nil {
@@ -332,9 +318,8 @@ func (s *diagnosisNameService) Update(ctx context.Context, clinicID, id uint64, 
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput(errMsgAtLeastOneField)
 	}
-	result, err := s.repo.Update(ctx, clinicID, id, fields)
+	result, err := s.repo.Update(ctx, clinicID, id, *input)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to update diagnosis name", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to update diagnosis name")
 	}
 	slog.InfoContext(ctx, "diagnosis name updated",
@@ -349,14 +334,12 @@ func (s *diagnosisNameService) Delete(ctx context.Context, clinicID, id uint64) 
 	}
 	count, err := s.repo.CountUsageByDiagnosisNameID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check diagnosis name dependencies", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to check diagnosis name dependencies")
 	}
 	if count > 0 {
 		return apperrors.WrapConflict("この診断名は診療記録で使用中のため削除できません")
 	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to delete diagnosis name", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete diagnosis name")
 	}
 	slog.InfoContext(ctx, "diagnosis name deleted",
@@ -370,7 +353,6 @@ func (s *diagnosisNameService) Reorder(ctx context.Context, clinicID uint64, ids
 		return apperrors.WrapInvalidInput(errMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
-		slog.ErrorContext(ctx, "failed to reorder diagnosis names", "error", err, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to reorder diagnosis names")
 	}
 	slog.InfoContext(ctx, "diagnosis_names reordered",

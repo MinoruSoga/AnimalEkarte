@@ -6,13 +6,13 @@
 
 | 区分 | 契約 | 実装の正本 |
 |---|---|---|
-| Remote | path-filtered backend/frontend build・test・coverage、secret scan、worker、codegen、main PR の migration verify | `.github/workflows/ci.yml` |
+| Remote | workflow contract 静的検査、path-filtered backend/frontend build・test・coverage、secret scan、worker、codegen、main PR の migration verify | `.github/workflows/ci.yml` |
 | AgentShield | main 向け PR で agent config が変わった場合、または manual dispatch で `force_fail_on_findings` を有効にした場合だけ findings を fail 扱い。他の branch/trigger は report-only | `.github/workflows/security-scan.yml` |
 | Local process policy | push/PR 前に `make ci` を実行する。GitHub はこのローカル実行を強制も証明もしない | `scripts/run-local-ci.sh` |
 | E2E | `workflow_dispatch` のみ。自動 push/PR gate ではない | `.github/workflows/e2e.yml` |
 | Performance | schedule と manual dispatch。push trigger はない | `.github/workflows/performance-tests.yml` |
 
-`make ci` の正確な gate 一覧と順序は `scripts/run-local-ci.sh` の `begin_step` 呼び出しを参照する。現在は inventory/guardrail、A4 rehearsal isolation、design-system audit、lint/type/codegen、backend/frontend build/test などを含む。件数や列挙をこの文書へ複製しない。
+`make ci` の正確な gate 一覧と順序は `scripts/run-local-ci.sh` の `begin_step` 呼び出しを参照する。現在は inventory/guardrail、STG UAT handoff wrapper、A4 rehearsal isolation、design-system audit、lint/type/codegen、backend/frontend build/test などを含む。件数や列挙をこの文書へ複製しない。
 
 ## Remote CI の要点
 

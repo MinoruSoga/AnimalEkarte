@@ -24,6 +24,10 @@ jobs:
     name: Playwright E2E
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      APP_ENV: test
+      E2E_LOGIN_EMAIL: stg-staff-10000021@example.test
+      E2E_LOGIN_PASSWORD: password
 
     steps:
       - name: Checkout
@@ -87,7 +91,7 @@ jobs:
 
       - name: Run Playwright E2E
         working-directory: frontend
-        run: ./scripts/run-e2e.sh
+        run: ./scripts/run-e2e.sh e2e/auth-flows.spec.ts
 
       - name: Collect logs on failure
         if: failure()

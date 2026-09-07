@@ -21,7 +21,7 @@ type staffProvisioningRepository struct {
 }
 
 // NewStaffProvisioningRepository constructs the production provisioning store.
-func NewStaffProvisioningRepository(db *gorm.DB) StaffProvisioningRepository {
+func NewStaffProvisioningRepository(db *gorm.DB) *staffProvisioningRepository {
 	return &staffProvisioningRepository{db: db}
 }
 

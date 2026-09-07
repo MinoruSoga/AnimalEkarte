@@ -97,7 +97,6 @@ func NewExamTypeService(repo ExamTypeRepository, transactor Transactor) Examinat
 func (s *examTypeService) List(ctx context.Context, clinicID uint64) ([]model.ExaminationType, error) {
 	items, err := s.repo.FindAll(ctx, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list exam types", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to list exam types")
 	}
 	return items, nil
@@ -105,7 +104,6 @@ func (s *examTypeService) List(ctx context.Context, clinicID uint64) ([]model.Ex
 func (s *examTypeService) GetByID(ctx context.Context, clinicID, id uint64) (*model.ExaminationType, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get exam type", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get exam type")
 	}
 	return result, nil
@@ -141,7 +139,6 @@ func (s *examTypeService) Create(ctx context.Context, clinicID uint64, input *Cr
 			); conflict != nil {
 				return conflict
 			}
-			slog.ErrorContext(txCtx, "failed to create exam type", "error", err, "clinic_id", clinicID)
 			return apperrors.Wrap(err, "failed to create exam type")
 		}
 		return nil
@@ -171,13 +168,12 @@ func (s *examTypeService) Update(ctx context.Context, clinicID, id uint64, input
 	var exType *model.ExaminationType
 	if err := s.withTx(ctx, func(txCtx context.Context) error {
 		if _, err := s.repo.FindByID(txCtx, clinicID, id); err != nil {
-			slog.ErrorContext(txCtx, "failed to get exam type", "error", err)
 			return apperrors.Wrap(err, "failed to get exam type")
 		}
 		if err := s.validateParentOwnership(txCtx, clinicID, input.ParentID); err != nil {
 			return err
 		}
-		updated, err := s.repo.Update(txCtx, clinicID, id, fields)
+		updated, err := s.repo.Update(txCtx, clinicID, id, *input)
 		if err != nil {
 			nameForConflict := ""
 			if input.Name != nil {
@@ -191,7 +187,6 @@ func (s *examTypeService) Update(ctx context.Context, clinicID, id uint64, input
 			); conflict != nil {
 				return conflict
 			}
-			slog.ErrorContext(txCtx, "failed to update exam type", "error", err, "id", id, "clinic_id", clinicID)
 			return apperrors.Wrap(err, "failed to update exam type")
 		}
 		exType = updated
@@ -210,7 +205,6 @@ func (s *examTypeService) Delete(ctx context.Context, clinicID, id uint64) error
 		}
 		childCount, err := s.repo.CountChildrenByParentID(txCtx, clinicID, id)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to check exam type children", "error", err, "id", id, "clinic_id", clinicID)
 			return apperrors.Wrap(err, "failed to check exam type children")
 		}
 		if childCount > 0 {
@@ -218,14 +212,12 @@ func (s *examTypeService) Delete(ctx context.Context, clinicID, id uint64) error
 		}
 		count, err := s.repo.CountUsageByExamTypeID(txCtx, clinicID, id)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to check exam type dependencies", "error", err, "id", id, "clinic_id", clinicID)
 			return apperrors.Wrap(err, "failed to check exam type dependencies")
 		}
 		if count > 0 {
 			return apperrors.WrapConflict("この検査種別は検査記録で使用中のため削除できません")
 		}
 		if err := s.repo.Delete(txCtx, clinicID, id); err != nil {
-			slog.ErrorContext(txCtx, "failed to delete exam type", "error", err, "id", id, "clinic_id", clinicID)
 			return apperrors.Wrap(err, "failed to delete exam type")
 		}
 		return nil
@@ -241,7 +233,6 @@ func (s *examTypeService) Reorder(ctx context.Context, clinicID uint64, ids []ui
 		return apperrors.WrapInvalidInput(errMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
-		slog.ErrorContext(ctx, "failed to reorder exam types", "error", err, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to reorder exam types")
 	}
 	slog.InfoContext(ctx, "exam type reordered",

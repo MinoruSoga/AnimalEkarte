@@ -125,7 +125,6 @@ func (s *shiftEntryService) List(ctx context.Context, clinicID uint64, yearMonth
 	}
 	items, err := s.repo.FindAll(ctx, clinicID, filter)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list shift entries", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list shift entries")
 	}
 	return items, nil
@@ -207,19 +206,16 @@ func (s *shiftEntryService) Create(ctx context.Context, clinicID uint64, input *
 		}
 
 		if createErr := s.repo.Create(ctx, entry); createErr != nil {
-			slog.ErrorContext(ctx, "failed to create shift entry", "error", createErr)
 			return apperrors.Wrap(createErr, "failed to create shift entry")
 		}
 		if len(breaks) > 0 {
 			if replaceErr := s.repo.ReplaceBreaks(ctx, entry.ID, breaks); replaceErr != nil {
-				slog.ErrorContext(ctx, "failed to save shift breaks", "error", replaceErr)
 				return apperrors.Wrap(replaceErr, "failed to save shift breaks")
 			}
 		}
 
 		created, findErr := s.repo.FindByID(ctx, clinicID, entry.ID)
 		if findErr != nil {
-			slog.ErrorContext(ctx, "failed to get shift entry after create", "error", findErr)
 			return apperrors.Wrap(findErr, "failed to get shift entry after create")
 		}
 		result = created
@@ -274,7 +270,7 @@ func (s *shiftEntryService) Update(ctx context.Context, clinicID, id uint64, inp
 		}
 
 		if len(fields) > 0 {
-			if err := s.repo.Update(txCtx, clinicID, id, fields); err != nil {
+			if err := s.repo.Update(txCtx, clinicID, id, *input); err != nil {
 				return apperrors.Wrap(err, "failed to update shift entry")
 			}
 		}
@@ -297,7 +293,6 @@ func (s *shiftEntryService) Update(ctx context.Context, clinicID, id uint64, inp
 		result = updated
 		return nil
 	}); err != nil {
-		slog.ErrorContext(ctx, "failed to update shift entry", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update shift entry")
 	}
 
@@ -310,7 +305,6 @@ func (s *shiftEntryService) Delete(ctx context.Context, clinicID, id uint64) err
 		return apperrors.Wrap(err, "failed to find shift entry")
 	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to delete shift entry", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete shift entry")
 	}
 	slog.InfoContext(ctx, "shift entry deleted", slog.Uint64("clinic_id", clinicID), slog.Uint64("shift_entry_id", id))
@@ -334,7 +328,6 @@ func validateYearMonth(yearMonth string) error {
 func (s *shiftEntryService) GetOnDutyStaffs(ctx context.Context, clinicID uint64, date time.Time) ([]model.Staff, error) {
 	staffs, err := s.repo.FindOnDutyStaffs(ctx, clinicID, date)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get on-duty staffs", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get on-duty staffs")
 	}
 	return staffs, nil

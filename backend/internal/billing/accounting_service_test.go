@@ -472,7 +472,7 @@ func TestAccountingService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockAccountingRepository{
-				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Billing, error) {
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ AccountingUpdate) (*model.Billing, error) {
 					return tt.repoRet, tt.repoErr
 				},
 				findByIDFn: func(_ context.Context, _ uint64, _ uint64) (*model.Billing, error) {
@@ -513,7 +513,7 @@ func TestAccountingService_Update_ReloadFailureRollsBackTransaction(t *testing.T
 			reloadUsedTx = ctx.Value(txMarkerKey{}) == true
 			return nil, reloadErr
 		},
-		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Billing, error) {
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ AccountingUpdate) (*model.Billing, error) {
 			return &model.Billing{ID: 1, ClinicID: 1, Status: model.BillingStatusWaiting}, nil
 		},
 	}
@@ -544,7 +544,7 @@ func TestAccountingService_Update_RejectsCompletedStatusTransition(t *testing.T)
 		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Billing, error) {
 			return &model.Billing{ID: id, ClinicID: clinicID, Status: model.BillingStatusWaiting}, nil
 		},
-		updateFieldsFn: func(_ context.Context, clinicID, id uint64, _ map[string]any) (*model.Billing, error) {
+		updateFieldsFn: func(_ context.Context, clinicID, id uint64, _ AccountingUpdate) (*model.Billing, error) {
 			t.Fatal("update must not persist completed via generic PATCH")
 			return &model.Billing{ID: id, ClinicID: clinicID}, nil
 		},
@@ -575,7 +575,7 @@ func TestAccountingService_Update_RejectsCancelledStatusTransition(t *testing.T)
 		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Billing, error) {
 			return &model.Billing{ID: id, ClinicID: clinicID, Status: model.BillingStatusWaiting}, nil
 		},
-		updateFieldsFn: func(_ context.Context, clinicID, id uint64, _ map[string]any) (*model.Billing, error) {
+		updateFieldsFn: func(_ context.Context, clinicID, id uint64, _ AccountingUpdate) (*model.Billing, error) {
 			t.Fatal("update must not persist cancelled via generic PATCH")
 			return &model.Billing{ID: id, ClinicID: clinicID}, nil
 		},
@@ -600,7 +600,7 @@ func TestAccountingService_Update_RejectsCancelledResurrection(t *testing.T) {
 		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Billing, error) {
 			return &model.Billing{ID: id, ClinicID: clinicID, Status: model.BillingStatusCancelled}, nil
 		},
-		updateFieldsFn: func(_ context.Context, clinicID, id uint64, _ map[string]any) (*model.Billing, error) {
+		updateFieldsFn: func(_ context.Context, clinicID, id uint64, _ AccountingUpdate) (*model.Billing, error) {
 			t.Fatal("cancelled billing must not be updated")
 			return &model.Billing{ID: id, ClinicID: clinicID}, nil
 		},
@@ -700,7 +700,7 @@ func TestAccountingService_Cancel(t *testing.T) {
 					}
 					return tt.findByIDResult, nil
 				},
-				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Billing, error) {
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ AccountingUpdate) (*model.Billing, error) {
 					if tt.updateErr != nil {
 						return nil, tt.updateErr
 					}
@@ -998,7 +998,7 @@ func TestAccountingService_Update_MixedPayment(t *testing.T) {
 			}
 			return &model.Billing{ID: 1, ClinicID: 1, Status: model.BillingStatusCompleted}, nil
 		},
-		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Billing, error) {
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ AccountingUpdate) (*model.Billing, error) {
 			return &model.Billing{ID: 1, ClinicID: 1}, nil
 		},
 		savePaymentSplitsFn: func(_ context.Context, splits []model.PaymentSplit) error {
@@ -1100,7 +1100,7 @@ func TestAccountingService_Update_ResolvesPaymentMethodID(t *testing.T) {
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) {
 				return &model.Billing{ID: 1, ClinicID: 1, Status: model.BillingStatusCompleted}, nil
 			},
-			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Billing, error) {
+			updateFieldsFn: func(_ context.Context, _, _ uint64, _ AccountingUpdate) (*model.Billing, error) {
 				return &model.Billing{ID: 1, ClinicID: 1, Status: model.BillingStatusCompleted}, nil
 			},
 			savePaymentSplitsFn: func(_ context.Context, splits []model.PaymentSplit) error {
@@ -1220,7 +1220,7 @@ func TestAccountingService_Update_ResolvesPaymentMethodID_RenameResilient(t *tes
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) {
 				return &model.Billing{ID: 1, ClinicID: 1, Status: model.BillingStatusCompleted}, nil
 			},
-			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Billing, error) {
+			updateFieldsFn: func(_ context.Context, _, _ uint64, _ AccountingUpdate) (*model.Billing, error) {
 				return &model.Billing{ID: 1, ClinicID: 1, Status: model.BillingStatusCompleted}, nil
 			},
 			savePaymentSplitsFn: func(_ context.Context, splits []model.PaymentSplit) error {
@@ -1607,7 +1607,7 @@ func TestAccountingService_Update_PostCloseReevaluatedInTx(t *testing.T) {
 	closeRepo := postCloseCloseRepoForTests(scheduled)
 	repo := &mockAccountingRepository{
 		findByIDFn:     func(_ context.Context, _, _ uint64) (*model.Billing, error) { return billing, nil },
-		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Billing, error) { return billing, nil },
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ AccountingUpdate) (*model.Billing, error) { return billing, nil },
 	}
 	audit := &mockAuditService{}
 	svc := NewAccountingService(repo, nil, nil, nil, nil, &mockTransactor{}, audit, &mockPaymentMethodMasterRepository{},
@@ -1659,7 +1659,7 @@ func TestAccountingService_Update_PostCloseEmitsAudit(t *testing.T) {
 
 	repo := &mockAccountingRepository{
 		findByIDFn:     func(_ context.Context, _, _ uint64) (*model.Billing, error) { return billing, nil },
-		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Billing, error) { return billing, nil },
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ AccountingUpdate) (*model.Billing, error) { return billing, nil },
 	}
 	audit := &mockAuditService{}
 	svc := NewAccountingService(repo, nil, nil, nil, nil, &mockTransactor{}, audit, &mockPaymentMethodMasterRepository{},
@@ -1709,7 +1709,7 @@ func TestAccountingService_Update_PostCloseAdjustmentFailureRollsBack(t *testing
 	}
 	repo := &mockAccountingRepository{
 		findByIDFn:     func(_ context.Context, _, _ uint64) (*model.Billing, error) { return billing, nil },
-		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Billing, error) { return billing, nil },
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ AccountingUpdate) (*model.Billing, error) { return billing, nil },
 	}
 	audit := &mockAuditService{}
 	svc := NewAccountingService(repo, nil, nil, nil, nil, &mockTransactor{}, audit, &mockPaymentMethodMasterRepository{},
@@ -1737,7 +1737,7 @@ func TestAccountingService_Update_PostCloseMissingCloseRepoRollsBack(t *testing.
 
 	repo := &mockAccountingRepository{
 		findByIDFn:     func(_ context.Context, _, _ uint64) (*model.Billing, error) { return billing, nil },
-		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Billing, error) { return billing, nil },
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ AccountingUpdate) (*model.Billing, error) { return billing, nil },
 	}
 	audit := &mockAuditService{}
 	svc := NewAccountingService(repo, nil, nil, nil, nil, &mockTransactor{}, audit, &mockPaymentMethodMasterRepository{})
@@ -1768,7 +1768,7 @@ func TestAccountingService_Update_PostCloseAuditFailureRollsBack(t *testing.T) {
 
 	repo := &mockAccountingRepository{
 		findByIDFn:     func(_ context.Context, _, _ uint64) (*model.Billing, error) { return billing, nil },
-		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Billing, error) { return billing, nil },
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ AccountingUpdate) (*model.Billing, error) { return billing, nil },
 	}
 	audit := &mockAuditService{logEntryTxErr: errors.New("audit write failed")}
 	svc := NewAccountingService(repo, nil, nil, nil, nil, &mockTransactor{}, audit, &mockPaymentMethodMasterRepository{},

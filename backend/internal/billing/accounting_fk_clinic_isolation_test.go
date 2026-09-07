@@ -227,24 +227,20 @@ func TestAccountingService_Update_RejectsCrossClinicRelatedFKs(t *testing.T) {
 				c.ID, c.ClinicID = id, gotClinicID
 				return &c, nil
 			},
-			updateFieldsFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.Billing, error) {
+			updateFieldsFn: func(_ context.Context, _, _ uint64, cmd AccountingUpdate) (*model.Billing, error) {
 				*updated = true
 				c := **snapshot
-				if v, ok := fields["medical_record_id"]; ok {
-					id := v.(uint64)
-					c.MedicalRecordID = &id
+				if cmd.MedicalRecordID != nil {
+					c.MedicalRecordID = cmd.MedicalRecordID
 				}
-				if v, ok := fields["hospitalization_id"]; ok {
-					id := v.(uint64)
-					c.HospitalizationID = &id
+				if cmd.HospitalizationID != nil {
+					c.HospitalizationID = cmd.HospitalizationID
 				}
-				if v, ok := fields["owner_id"]; ok {
-					id := v.(uint64)
-					c.OwnerID = &id
+				if cmd.OwnerID != nil {
+					c.OwnerID = cmd.OwnerID
 				}
-				if v, ok := fields["pet_id"]; ok {
-					id := v.(uint64)
-					c.PetID = &id
+				if cmd.PetID != nil {
+					c.PetID = cmd.PetID
 				}
 				*snapshot = &c
 				return &c, nil

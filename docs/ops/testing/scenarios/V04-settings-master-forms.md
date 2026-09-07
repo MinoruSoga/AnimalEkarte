@@ -57,7 +57,7 @@
 | 動物種類 (master-animal-species) | /settings/animal-species | 動物種類名 | name **グローバル一意**（clinic_id なし・WHERE is_active=true） | 無効化すると一意から外れ同名を再登録できる（部分 Index）。D&D 並び順が再読込後も永続 |
 | 診断カテゴリ (master-diagnosis-type) | /settings/diagnosis?tab=diagnosis_type | name | (clinic_id,name) | 配下に診断病名が 1 件でもあるカテゴリの削除は「この診断カテゴリには診断名が登録されているため削除できません」の競合エラーで拒否される（service 層ガード。DDL の ON DELETE CASCADE は soft delete のため発火しない）。空カテゴリのみ削除可 |
 | 診断病名 (master-diagnosis-name) | /settings/diagnosis?tab=diagnosis_name | name・所属カテゴリ | —（migration 上一意制約なし） | (C3-1) 「V04カテゴリ」追加→カテゴリ選択肢に反映。カテゴリ未選択で保存→「カテゴリを選択してください」エラー（C1-1 の所属カテゴリ分） |
-| 主訴種別 (master-chief-complaint) | /settings/interview/chief-complaint | name | (clinic_id,name) | — |
+| 主訴種別 (master-chief-complaint) | /settings/interview/chief-complaint | name | (clinic_id,name) | 未使用区分の削除は成功し、問診から参照中なら Conflict。`inquiries.deleted_at` を参照して 500 にしない（`chief_complaint_repository_test.go`）。UAT 実行結果は別 report |
 | 問診・定型文テンプレート (master-interview-template) | /settings/inquiry-templates | title・category | —（一意制約なし） | content（本文）は任意 — 空のまま保存できる |
 | 予約区分グループ (master-reservation-type-group) | /settings/reservation-type | name | —（一意制約なし） | カラーはピッカー+テキスト両入力 — どちらで入れても保存値が一致。グループ未所属の区分は「未分類」集約表示 |
 | 入院・宿泊プラン (master-hospitalization-plan) | /settings/hospitalization | name | (clinic_id,name) | 体格 bodySize・課金単位 billingUnit は空許容 — 未選択のまま保存できる |
@@ -122,7 +122,7 @@
 
 ## 5. 予約可能枠設定 (reservation-type-available-slots)
 
-- ルート: `/line-reservation/slots`（+ §4 パネル内セクション）。画面固有の spec 文書なし — BE validator とコンポーネントテストが正本。
+- 本節は §4 予約区分マスタのパネル内セクション（毎週/特定日）を対象とする。専用ページ `/line-reservation/slots` の特定日編集・毎週枠の読取専用表示は [V05-10](V05-auth-line-forms.md) が所有し、[28-line-reservation.md §4](../../../spec/screens/28-line-reservation.md) を正本とする。同じ画面を二重集計しない。
 
 | # | 操作 | 期待結果 |
 |:--|:--|:--|
@@ -131,7 +131,7 @@
 | 3 | specific モードで特定日×時刻を追加/重複追加 | 追加は永続し、重複は拒否される（specific_date 側 partial index） |
 | 4 | スロットを削除して再読込 | 削除が永続する |
 | 5 | 区分セレクタを確認 | リーフ区分のみ選択可（親区分は選択肢に出ない）。選択肢は予約区分マスタ実データ由来（C3-1） |
-| 6 | (C3-3 相当) `?typeId=` に無効な値を付けて直叩き | フォールバックで既定区分が表示され、白画面・無限ロードにならない |
+| 6 | パネルを閉じて対象予約区分を開き直す | 毎週/特定日の保存済み枠が再表示される。専用ページの `?typeId=` 正規化は V05-10 で確認する |
 
 ## 6. 締め時間設定 3 フォーム (closing-standard-time / closing-holiday / closing-special-period)
 
@@ -202,5 +202,5 @@ Lステップ設定、タグ設定、コードマッピング、配信優先順�
 - 変更:
   - 保険補償率境界を 0/100/101/-1 と FE/BE 実装参照（BUG-026・`ValidateCoverageRate`）で明示
   - 支払方法: `(clinic_id,name)` 部分 UNIQUE と system_key 一意・標準行ポリシーを C3-2 手順として補強（DDL `idx_payment_methods_*`）
-  - Lステップ閾値 0/負値の挙動を V05-12 と整合（`min={1}` + request builder の silent skip）
+  - Lステップ閾値 0/負値の検証所有を V05-12 に集約（`min={1}` + request builder）
   - マスタ URL（`/settings/insurance`・`/settings/payment-methods`・`/settings/inquiry-templates`・`/settings/interview/*`・`/settings/shift-templates`・`/settings/treatment-items?tab=` 等）を `paths.ts` / `settings-routes.tsx` と一致確認。旧 dead route リダイレクト（job-title→occupations 等）は router 側で担保済み

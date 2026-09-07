@@ -80,7 +80,7 @@ func clinicRepositoryMapUpdateViolations(src string) []string {
 	var violations []string
 	ast.Inspect(file, func(n ast.Node) bool {
 		spec, ok := n.(*ast.TypeSpec)
-		if !ok || spec.Name == nil || spec.Name.Name != "ClinicRepository" {
+		if !ok || spec.Name == nil || (spec.Name.Name != "ClinicRepository" && spec.Name.Name != "clinicServiceRepository") {
 			return true
 		}
 		iface, ok := spec.Type.(*ast.InterfaceType)

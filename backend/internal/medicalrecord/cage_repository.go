@@ -23,7 +23,7 @@ type CageRepository interface {
 	LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Cage, error)
 	CountUsageByCageID(ctx context.Context, clinicID, id uint64) (int64, error)
 	Create(ctx context.Context, cage *model.Cage) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Cage, error)
+	Update(ctx context.Context, clinicID, id uint64, cmd UpdateCageInput) (*model.Cage, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -92,11 +92,15 @@ func (r *cageRepositoryImpl) Create(ctx context.Context, cage *model.Cage) error
 	return nil
 }
 
-func (r *cageRepositoryImpl) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Cage, error) {
-	if err := persistence.UpdateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.Cage{}, "cage", clinicID, id, fields); err != nil {
+func (r *cageRepositoryImpl) Update(ctx context.Context, clinicID, id uint64, cmd UpdateCageInput) (*model.Cage, error) {
+	if err := r.update(ctx, clinicID, id, buildCageUpdate(&cmd)); err != nil {
 		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
+}
+
+func (r *cageRepositoryImpl) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+	return persistence.UpdateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.Cage{}, "cage", clinicID, id, fields)
 }
 
 func (r *cageRepositoryImpl) Delete(ctx context.Context, clinicID, id uint64) error {

@@ -12,7 +12,7 @@ import (
 )
 
 type crossTenantStaffRepository struct {
-	StaffRepository
+	Repository
 	createCalled bool
 	updateCalled bool
 }
@@ -33,7 +33,7 @@ func (r *crossTenantStaffRepository) Update(
 	context.Context,
 	uint64,
 	uint64,
-	map[string]any,
+	UpdateStaffInput,
 ) error {
 	r.updateCalled = true
 	return nil
@@ -123,13 +123,13 @@ func (*stubReservationForStaff) FindClinicIDsByStaffID(
 	return nil, nil
 }
 
-func TestStaffService_Create_RejectsCrossClinicOccupationID(t *testing.T) {
+func TestService_Create_RejectsCrossClinicOccupationID(t *testing.T) {
 	occupationID := uint64(999)
 	staffRepo := &crossTenantStaffRepository{}
 	assignmentRepo := &crossTenantStaffAssignmentRepository{}
 	occupationRepo := &rejectingCrossTenantOccupationRepository{}
 
-	svc := NewStaffService(
+	svc := NewService(
 		staffRepo,
 		nil,
 		assignmentRepo,
@@ -155,14 +155,14 @@ func TestStaffService_Create_RejectsCrossClinicOccupationID(t *testing.T) {
 	assert.False(t, assignmentRepo.createCalled)
 }
 
-func TestStaffService_CreateWithAccount_RejectsCrossClinicOccupationID(t *testing.T) {
+func TestService_CreateWithAccount_RejectsCrossClinicOccupationID(t *testing.T) {
 	occupationID := uint64(999)
 	staffRepo := &crossTenantStaffRepository{}
 	accountRepo := &crossTenantStaffAccountStore{}
 	assignmentRepo := &crossTenantStaffAssignmentRepository{}
 	occupationRepo := &rejectingCrossTenantOccupationRepository{}
 
-	svc := NewStaffService(
+	svc := NewService(
 		staffRepo,
 		accountRepo,
 		assignmentRepo,
@@ -191,13 +191,13 @@ func TestStaffService_CreateWithAccount_RejectsCrossClinicOccupationID(t *testin
 	assert.False(t, assignmentRepo.createCalled)
 }
 
-func TestStaffService_Update_RejectsCrossClinicOccupationID(t *testing.T) {
+func TestService_Update_RejectsCrossClinicOccupationID(t *testing.T) {
 	occupationID := uint64(999)
 	staffRepo := &crossTenantStaffRepository{}
 	assignmentRepo := &crossTenantStaffAssignmentRepository{}
 	occupationRepo := &rejectingCrossTenantOccupationRepository{}
 
-	svc := NewStaffService(
+	svc := NewService(
 		staffRepo,
 		nil,
 		assignmentRepo,

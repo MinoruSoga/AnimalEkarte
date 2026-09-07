@@ -261,7 +261,7 @@ func TestOccupationService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockOccupationRepository{
-				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Occupation, error) {
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateOccupationInput) (*model.Occupation, error) {
 					if tt.repoErr != nil {
 						return nil, tt.repoErr
 					}

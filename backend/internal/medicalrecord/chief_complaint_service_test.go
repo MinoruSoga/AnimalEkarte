@@ -18,7 +18,7 @@ type mockChiefComplaintTypeRepository struct {
 	findByIDFn                       func(ctx context.Context, clinicID, id uint64) (*model.ChiefComplaintType, error)
 	countUsageByChiefComplaintTypeFn func(ctx context.Context, clinicID, id uint64) (int64, error)
 	createFn                         func(ctx context.Context, category *model.ChiefComplaintType) error
-	updateFieldsFn                   func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ChiefComplaintType, error)
+	updateFieldsFn                   func(ctx context.Context, clinicID, id uint64, cmd UpdateChiefComplaintTypeInput) (*model.ChiefComplaintType, error)
 	deleteFn                         func(ctx context.Context, clinicID, id uint64) error
 	reorderErr                       error
 }
@@ -45,9 +45,9 @@ func (m *mockChiefComplaintTypeRepository) Create(ctx context.Context, category 
 	return m.createFn(ctx, category)
 }
 
-func (m *mockChiefComplaintTypeRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ChiefComplaintType, error) {
+func (m *mockChiefComplaintTypeRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateChiefComplaintTypeInput) (*model.ChiefComplaintType, error) {
 	if m.updateFieldsFn != nil {
-		return m.updateFieldsFn(ctx, clinicID, id, fields)
+		return m.updateFieldsFn(ctx, clinicID, id, cmd)
 	}
 	return &model.ChiefComplaintType{ID: id, ClinicID: clinicID}, nil
 }
@@ -311,7 +311,7 @@ func TestChiefComplaintTypeService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockChiefComplaintTypeRepository{
-				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.ChiefComplaintType, error) {
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateChiefComplaintTypeInput) (*model.ChiefComplaintType, error) {
 					return tt.repoData, tt.repoErr
 				},
 			}
@@ -334,7 +334,7 @@ func TestChiefComplaintTypeService_Update_FindByIDError(t *testing.T) {
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.ChiefComplaintType, error) {
 			return nil, apperrors.WrapNotFound("chief_complaint_type", "999")
 		},
-		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.ChiefComplaintType, error) {
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateChiefComplaintTypeInput) (*model.ChiefComplaintType, error) {
 			t.Fatal("repository Update must not be called when the category is not found")
 			return nil, nil
 		},
@@ -351,7 +351,7 @@ func TestChiefComplaintTypeService_Update_FindByIDError(t *testing.T) {
 
 func TestChiefComplaintTypeService_Update_InvalidName(t *testing.T) {
 	repo := &mockChiefComplaintTypeRepository{
-		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.ChiefComplaintType, error) {
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateChiefComplaintTypeInput) (*model.ChiefComplaintType, error) {
 			t.Fatal("repository Update must not be called when name validation fails")
 			return nil, nil
 		},

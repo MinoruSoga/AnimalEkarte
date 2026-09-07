@@ -51,7 +51,7 @@ func setupReservationStaffRepoTestDB(t *testing.T) *gorm.DB {
 
 func TestReservationStaffRepository_FindAll(t *testing.T) {
 	db := setupReservationStaffRepoTestDB(t)
-	repo := NewReservationStaffRepository(db, staffpkg.NewStaffRepository(db))
+	repo := NewReservationStaffRepository(db, staffpkg.NewRepository(db))
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -121,7 +121,7 @@ func TestReservationStaffRepository_FindAll(t *testing.T) {
 
 func TestReservationStaffRepository_UpdateSortOrder(t *testing.T) {
 	db := setupReservationStaffRepoTestDB(t)
-	repo := NewReservationStaffRepository(db, staffpkg.NewStaffRepository(db))
+	repo := NewReservationStaffRepository(db, staffpkg.NewRepository(db))
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -190,7 +190,7 @@ func TestReservationStaffRepository_UpdateSortOrder(t *testing.T) {
 
 func TestReservationStaffRepository_FindAllExcludedReservationTypes(t *testing.T) {
 	db := setupReservationStaffRepoTestDB(t)
-	repo := NewReservationStaffRepository(db, staffpkg.NewStaffRepository(db))
+	repo := NewReservationStaffRepository(db, staffpkg.NewRepository(db))
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
@@ -239,7 +239,7 @@ func TestReservationStaffRepository_FindAllExcludedReservationTypes(t *testing.T
 
 func TestReservationStaffRepository_FindAllExcludedReservationTypes_DoesNotLeakSharedStaffData(t *testing.T) {
 	db := setupReservationStaffRepoTestDB(t)
-	repo := NewReservationStaffRepository(db, staffpkg.NewStaffRepository(db))
+	repo := NewReservationStaffRepository(db, staffpkg.NewRepository(db))
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -262,7 +262,7 @@ func TestReservationStaffRepository_FindAllExcludedReservationTypes_DoesNotLeakS
 
 func TestReservationStaffRepository_FindAllExcludedReservationTypesByStaffIDs(t *testing.T) {
 	db := setupReservationStaffRepoTestDB(t)
-	repo := NewReservationStaffRepository(db, staffpkg.NewStaffRepository(db))
+	repo := NewReservationStaffRepository(db, staffpkg.NewRepository(db))
 	ctx := context.Background()
 	const clinicA = uint64(1)
 

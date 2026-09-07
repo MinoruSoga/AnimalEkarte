@@ -12,25 +12,9 @@ import (
 	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
-// PermissionGroupRepository provides clinic-scoped permission-group persistence.
-type PermissionGroupRepository interface {
-	FindAll(ctx context.Context, clinicID uint64) ([]model.PermissionGroup, error)
-	FindByID(ctx context.Context, clinicID, id uint64) (*model.PermissionGroup, error)
-	Create(ctx context.Context, group *model.PermissionGroup) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.PermissionGroup, error)
-	Delete(ctx context.Context, clinicID, id uint64) error
-	DeleteSoftDeletedByClinicID(ctx context.Context, clinicID uint64) error
-	UpdateRules(ctx context.Context, clinicID, groupID uint64, rules []model.PermissionGroupRule) error
-	CountUsageByGroupID(ctx context.Context, clinicID, groupID uint64) (int64, error)
-	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
-	// FindAllEffectivePermissionsByStaffID はスタッフが所属する全権限グループのルールを
-	// UNION (bool_or) して実効権限を返す（clinicID スコープ付き）。
-	FindAllEffectivePermissionsByStaffID(ctx context.Context, staffID, clinicID uint64) ([]model.PermissionGroupRule, error)
-	// FindAllGroupIDsByStaffID は認証済みクリニック内でスタッフが所属する権限グループIDを返す。
-	FindAllGroupIDsByStaffID(ctx context.Context, clinicID, staffID uint64) ([]uint64, error)
-	// UpdateStaffGroups はスタッフの権限グループを全置換する（DELETE + INSERT）。
-	UpdateStaffGroups(ctx context.Context, clinicID, staffID uint64, groupIDs []uint64) error
-}
+// Permission-group persistence is concrete. Consumers keep their own ports:
+// PermissionGroupRepository (this package's use cases), clinic.PermissionGroupWriter,
+// and staff.PermissionGroupRepository.
 
 // PermissionGroupRulesAtomicWriter persists a permission-group parent and its
 // complete rule set as one atomic aggregate write.
@@ -43,7 +27,7 @@ type PermissionGroupRulesAtomicWriter interface {
 	UpdateWithRules(
 		ctx context.Context,
 		clinicID, id uint64,
-		fields map[string]any,
+		cmd UpdatePermissionGroupInput,
 		rules []model.PermissionGroupRule,
 	) (*model.PermissionGroup, error)
 }
@@ -51,7 +35,7 @@ type PermissionGroupRulesAtomicWriter interface {
 type permissionGroupRepository struct{ db *gorm.DB }
 
 // NewPermissionGroupRepository constructs clinic-scoped permission-group persistence.
-func NewPermissionGroupRepository(db *gorm.DB) PermissionGroupRepository {
+func NewPermissionGroupRepository(db *gorm.DB) *permissionGroupRepository {
 	return &permissionGroupRepository{db: db}
 }
 
@@ -156,8 +140,15 @@ func (r *permissionGroupRepository) CreateWithRules(
 	return result, nil
 }
 
-func (r *permissionGroupRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.PermissionGroup, error) {
-	if err := persistence.UpdateScopedByID(
+func (r *permissionGroupRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdatePermissionGroupInput) (*model.PermissionGroup, error) {
+	if err := r.update(ctx, clinicID, id, buildPermissionGroupUpdate(&cmd)); err != nil {
+		return nil, err
+	}
+	return r.FindByID(ctx, clinicID, id)
+}
+
+func (r *permissionGroupRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+	return persistence.UpdateScopedByID(
 		ctx,
 		persistence.DBOrTx(ctx, r.db),
 		&model.PermissionGroup{},
@@ -165,16 +156,13 @@ func (r *permissionGroupRepository) Update(ctx context.Context, clinicID, id uin
 		clinicID,
 		id,
 		fields,
-	); err != nil {
-		return nil, err
-	}
-	return r.FindByID(ctx, clinicID, id)
+	)
 }
 
 func (r *permissionGroupRepository) UpdateWithRules(
 	ctx context.Context,
 	clinicID, id uint64,
-	fields map[string]any,
+	cmd UpdatePermissionGroupInput,
 	rules []model.PermissionGroupRule,
 ) (*model.PermissionGroup, error) {
 	var result *model.PermissionGroup
@@ -196,16 +184,9 @@ func (r *permissionGroupRepository) UpdateWithRules(
 				fmt.Sprintf("%d", id),
 			)
 		}
+		fields := buildPermissionGroupUpdate(&cmd)
 		if len(fields) > 0 {
-			if err := persistence.UpdateScopedByID(
-				txCtx,
-				persistence.DBOrTx(txCtx, r.db),
-				&model.PermissionGroup{},
-				"permission_group",
-				clinicID,
-				id,
-				fields,
-			); err != nil {
+			if err := r.update(txCtx, clinicID, id, fields); err != nil {
 				return err
 			}
 		}

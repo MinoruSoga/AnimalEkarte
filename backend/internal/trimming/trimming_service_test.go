@@ -254,7 +254,7 @@ func (m *mockTransactor) WithTx(ctx context.Context, fn func(ctx context.Context
 
 // --- helpers ---
 
-func newTrimmingTestService(reserv *mockTrimmingReservationRepository, detail *mockTrimmingDetailRepository) TrimmingService {
+func newTrimmingTestService(reserv *mockTrimmingReservationRepository, detail *mockTrimmingDetailRepository) Service {
 	return newTrimmingTestServiceWithReservationType(reserv, detail, &mockTrimmingReservationTypeRepository{})
 }
 
@@ -262,8 +262,8 @@ func newTrimmingTestServiceWithReservationType(
 	reserv *mockTrimmingReservationRepository,
 	detail *mockTrimmingDetailRepository,
 	reservationType *mockTrimmingReservationTypeRepository,
-) TrimmingService {
-	return withTrimmingTestActor(NewTrimmingServiceWithAudit(
+) Service {
+	return withTrimmingTestActor(NewServiceWithAudit(
 		reserv,
 		reservationType,
 		newAcceptingTrimmingStaffRepository(),
@@ -282,8 +282,8 @@ func newTrimmingTestServiceWithAvailability(
 	reservationType *mockTrimmingReservationTypeRepository,
 	reservationStaff ReservationStaffRepository,
 	unavailableTime ReservationTypeUnavailableTimeRepository,
-) TrimmingService {
-	return withTrimmingTestActor(NewTrimmingServiceWithAudit(
+) Service {
+	return withTrimmingTestActor(NewServiceWithAudit(
 		reserv,
 		reservationType,
 		reservationStaff,
@@ -325,7 +325,7 @@ func newActiveTrimmingOptionRepository() TrimmingOptionRepository {
 
 // --- tests ---
 
-func TestTrimmingService_List(t *testing.T) {
+func TestService_List(t *testing.T) {
 	petID := uint64(10)
 	ownerID := uint64(5)
 
@@ -405,7 +405,7 @@ func TestTrimmingService_List(t *testing.T) {
 	}
 }
 
-func TestTrimmingService_GetByID(t *testing.T) {
+func TestService_GetByID(t *testing.T) {
 	tests := []struct {
 		name     string
 		clinicID uint64
@@ -457,7 +457,7 @@ func TestTrimmingService_GetByID(t *testing.T) {
 	}
 }
 
-func TestTrimmingService_GetByID_DetailFetchError(t *testing.T) {
+func TestService_GetByID_DetailFetchError(t *testing.T) {
 	reserv := &mockTrimmingReservationRepository{
 		findByIDFn: func(_ context.Context, _, id uint64) (*model.Reservation, error) {
 			return &model.Reservation{ID: id, ClinicID: 1}, nil
@@ -476,7 +476,7 @@ func TestTrimmingService_GetByID_DetailFetchError(t *testing.T) {
 	assert.Nil(t, appt)
 }
 
-func TestTrimmingService_Create_ValidationErrors(t *testing.T) {
+func TestService_Create_ValidationErrors(t *testing.T) {
 	tests := []struct {
 		name  string
 		input CreateTrimmingInput
@@ -525,7 +525,7 @@ func TestTrimmingService_Create_ValidationErrors(t *testing.T) {
 	}
 }
 
-func TestTrimmingService_ValidateTrimmingReservationType_NilRepository(t *testing.T) {
+func TestService_ValidateTrimmingReservationType_NilRepository(t *testing.T) {
 	reserv := &mockTrimmingReservationRepository{
 		createFn: func(_ context.Context, _ *model.Reservation) error {
 			t.Fatal("appointment must not be created when reservation type repository is nil")
@@ -533,7 +533,7 @@ func TestTrimmingService_ValidateTrimmingReservationType_NilRepository(t *testin
 		},
 	}
 	// reservationType repository を明示的に nil で渡し、interface が真に nil であることを検証する。
-	svc := withTrimmingTestActor(NewTrimmingServiceWithAudit(reserv, nil, nil, nil, &mockTrimmingDetailRepository{}, nil, nil, &mockTransactor{}, noopTrimmingAuditTxLogger{}))
+	svc := withTrimmingTestActor(NewServiceWithAudit(reserv, nil, nil, nil, &mockTrimmingDetailRepository{}, nil, nil, &mockTransactor{}, noopTrimmingAuditTxLogger{}))
 
 	appt, err := svc.Create(context.Background(), 1, &CreateTrimmingInput{
 		ReservationTypeID: 1,
@@ -548,7 +548,7 @@ func TestTrimmingService_ValidateTrimmingReservationType_NilRepository(t *testin
 	assert.Nil(t, appt)
 }
 
-func TestTrimmingService_Create_FailsClosedWithoutUnavailableTimeRepository(t *testing.T) {
+func TestService_Create_FailsClosedWithoutUnavailableTimeRepository(t *testing.T) {
 	createCalled := false
 	reserv := &mockTrimmingReservationRepository{
 		createFn: func(_ context.Context, _ *model.Reservation) error {
@@ -556,7 +556,7 @@ func TestTrimmingService_Create_FailsClosedWithoutUnavailableTimeRepository(t *t
 			return nil
 		},
 	}
-	svc := withTrimmingTestActor(NewTrimmingServiceWithAudit(
+	svc := withTrimmingTestActor(NewServiceWithAudit(
 		reserv,
 		&mockTrimmingReservationTypeRepository{},
 		newAcceptingTrimmingStaffRepository(),
@@ -582,7 +582,7 @@ func TestTrimmingService_Create_FailsClosedWithoutUnavailableTimeRepository(t *t
 	assert.False(t, createCalled)
 }
 
-func TestTrimmingService_ValidateTrimmingReservationType_FindByIDError(t *testing.T) {
+func TestService_ValidateTrimmingReservationType_FindByIDError(t *testing.T) {
 	reservationType := &mockTrimmingReservationTypeRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.ReservationType, error) {
 			return nil, errors.New("db error")
@@ -606,7 +606,7 @@ func TestTrimmingService_ValidateTrimmingReservationType_FindByIDError(t *testin
 	assert.Nil(t, appt)
 }
 
-func TestTrimmingService_Create(t *testing.T) {
+func TestService_Create(t *testing.T) {
 	tests := []struct {
 		name          string
 		clinicID      uint64
@@ -707,7 +707,7 @@ func TestTrimmingService_Create(t *testing.T) {
 	}
 }
 
-func TestTrimmingService_Create_RejectsNonTrimmingReservationType(t *testing.T) {
+func TestService_Create_RejectsNonTrimmingReservationType(t *testing.T) {
 	createCalled := false
 	reserv := &mockTrimmingReservationRepository{
 		createFn: func(_ context.Context, _ *model.Reservation) error {
@@ -738,7 +738,7 @@ func TestTrimmingService_Create_RejectsNonTrimmingReservationType(t *testing.T) 
 	assert.False(t, createCalled)
 }
 
-func TestTrimmingService_Create_RejectsInactiveReservationType(t *testing.T) {
+func TestService_Create_RejectsInactiveReservationType(t *testing.T) {
 	createCalled := false
 	reserv := &mockTrimmingReservationRepository{
 		createFn: func(_ context.Context, _ *model.Reservation) error {
@@ -770,7 +770,7 @@ func TestTrimmingService_Create_RejectsInactiveReservationType(t *testing.T) {
 	assert.False(t, createCalled)
 }
 
-func TestTrimmingService_Create_RechecksSlotAndCapacityInsideTransaction(t *testing.T) {
+func TestService_Create_RechecksSlotAndCapacityInsideTransaction(t *testing.T) {
 	staffID := uint64(33)
 	start := time.Now().UTC().Add(time.Hour)
 
@@ -844,7 +844,7 @@ func TestTrimmingService_Create_RechecksSlotAndCapacityInsideTransaction(t *test
 	})
 }
 
-func TestTrimmingService_Create_RejectsExcludedStaff(t *testing.T) {
+func TestService_Create_RejectsExcludedStaff(t *testing.T) {
 	staffID := uint64(33)
 	reserv := &mockTrimmingReservationRepository{
 		createFn: func(_ context.Context, _ *model.Reservation) error {
@@ -885,7 +885,7 @@ func TestTrimmingService_Create_RejectsExcludedStaff(t *testing.T) {
 	assert.Nil(t, appt)
 }
 
-func TestTrimmingService_Create_RevalidatesStaffCapabilityInsideTransaction(t *testing.T) {
+func TestService_Create_RevalidatesStaffCapabilityInsideTransaction(t *testing.T) {
 	type txContextKey struct{}
 	staffID := uint64(33)
 	var findInTx, capabilityInTx bool
@@ -918,7 +918,7 @@ func TestTrimmingService_Create_RevalidatesStaffCapabilityInsideTransaction(t *t
 			return &model.Reservation{ID: id, ClinicID: clinicID}, nil
 		},
 	}
-	svc := withTrimmingTestActor(NewTrimmingServiceWithAudit(
+	svc := withTrimmingTestActor(NewServiceWithAudit(
 		reservationRepo,
 		&mockTrimmingReservationTypeRepository{},
 		staffRepo,
@@ -943,7 +943,7 @@ func TestTrimmingService_Create_RevalidatesStaffCapabilityInsideTransaction(t *t
 	assert.True(t, capabilityInTx, "staff capability must be rechecked in the write transaction")
 }
 
-func TestTrimmingService_Create_AcquiresBookingLockBeforeTransactionalValidation(t *testing.T) {
+func TestService_Create_AcquiresBookingLockBeforeTransactionalValidation(t *testing.T) {
 	type txContextKey struct{}
 	staffID := uint64(33)
 	petID := uint64(44)
@@ -986,7 +986,7 @@ func TestTrimmingService_Create_AcquiresBookingLockBeforeTransactionalValidation
 			return fn(context.WithValue(ctx, txContextKey{}, true))
 		},
 	}
-	svc := withTrimmingTestActor(NewTrimmingServiceWithAudit(
+	svc := withTrimmingTestActor(NewServiceWithAudit(
 		reservationRepo,
 		&mockTrimmingReservationTypeRepository{},
 		staffRepo,
@@ -1012,7 +1012,7 @@ func TestTrimmingService_Create_AcquiresBookingLockBeforeTransactionalValidation
 	assert.Equal(t, []string{"booking_lock", "pet_validation", "staff_validation", "staff_capability"}, events)
 }
 
-func TestTrimmingService_Create_MissingCourseRepositoryFailsClosed(t *testing.T) {
+func TestService_Create_MissingCourseRepositoryFailsClosed(t *testing.T) {
 	courseID := uint64(41)
 	appointmentCreated := false
 	detailCreated := false
@@ -1028,7 +1028,7 @@ func TestTrimmingService_Create_MissingCourseRepositoryFailsClosed(t *testing.T)
 			return nil
 		},
 	}
-	svc := withTrimmingTestActor(NewTrimmingServiceWithAudit(
+	svc := withTrimmingTestActor(NewServiceWithAudit(
 		reservationRepo,
 		&mockTrimmingReservationTypeRepository{},
 		nil, &mockTrimmingUnavailableTimeRepository{},
@@ -1053,7 +1053,7 @@ func TestTrimmingService_Create_MissingCourseRepositoryFailsClosed(t *testing.T)
 	assert.False(t, detailCreated)
 }
 
-func TestTrimmingService_Update_MissingOptionRepositoryFailsClosed(t *testing.T) {
+func TestService_Update_MissingOptionRepositoryFailsClosed(t *testing.T) {
 	optionIDs := []uint64{52}
 	detailUpdated := false
 	optionsWritten := false
@@ -1079,7 +1079,7 @@ func TestTrimmingService_Update_MissingOptionRepositoryFailsClosed(t *testing.T)
 			return nil
 		},
 	}
-	svc := withTrimmingTestActor(NewTrimmingServiceWithAudit(
+	svc := withTrimmingTestActor(NewServiceWithAudit(
 		reservationRepo,
 		&mockTrimmingReservationTypeRepository{},
 		nil, nil,
@@ -1098,7 +1098,7 @@ func TestTrimmingService_Update_MissingOptionRepositoryFailsClosed(t *testing.T)
 	assert.False(t, optionsWritten)
 }
 
-func TestTrimmingService_Create_ExistingAppointment(t *testing.T) {
+func TestService_Create_ExistingAppointment(t *testing.T) {
 	appointmentID := uint64(77)
 	petID := uint64(10)
 	courseID := uint64(4)
@@ -1157,7 +1157,7 @@ func TestTrimmingService_Create_ExistingAppointment(t *testing.T) {
 	assert.True(t, appointmentUpdated, "detail追加writeでも既存appointmentの欠損ownerを補完する")
 }
 
-func TestTrimmingService_Create_ExistingAppointmentRechecksSlotBeforeMutation(t *testing.T) {
+func TestService_Create_ExistingAppointmentRechecksSlotBeforeMutation(t *testing.T) {
 	appointmentID := uint64(77)
 	staffID := uint64(33)
 	start := time.Now().UTC().Add(time.Hour)
@@ -1206,7 +1206,7 @@ func TestTrimmingService_Create_ExistingAppointmentRechecksSlotBeforeMutation(t 
 	assert.Nil(t, appointment)
 }
 
-func TestTrimmingService_Create_ExistingAppointmentRejectsPetMismatch(t *testing.T) {
+func TestService_Create_ExistingAppointmentRejectsPetMismatch(t *testing.T) {
 	appointmentID := uint64(77)
 	appointmentPetID := uint64(10)
 	requestPetID := uint64(99)
@@ -1246,7 +1246,7 @@ func TestTrimmingService_Create_ExistingAppointmentRejectsPetMismatch(t *testing
 	assert.Equal(t, 1, detailCalls)
 }
 
-func TestTrimmingService_Create_ExistingAppointmentFillsMissingPet(t *testing.T) {
+func TestService_Create_ExistingAppointmentFillsMissingPet(t *testing.T) {
 	appointmentID := uint64(77)
 	requestPetID := uint64(10)
 	category := model.ReservationTypeCategoryTrimming
@@ -1291,7 +1291,7 @@ func TestTrimmingService_Create_ExistingAppointmentFillsMissingPet(t *testing.T)
 	assert.Equal(t, map[string]any{"pet_id": requestPetID}, updatedFields)
 }
 
-func TestTrimmingService_Create_ExistingAppointment_NotTrimmingType(t *testing.T) {
+func TestService_Create_ExistingAppointment_NotTrimmingType(t *testing.T) {
 	appointmentID := uint64(77)
 	reserv := &mockTrimmingReservationRepository{
 		findByIDFn: func(_ context.Context, _, id uint64) (*model.Reservation, error) {
@@ -1319,7 +1319,7 @@ func TestTrimmingService_Create_ExistingAppointment_NotTrimmingType(t *testing.T
 	assert.Nil(t, appt)
 }
 
-func TestTrimmingService_Create_ExistingAppointment_NilReservationType(t *testing.T) {
+func TestService_Create_ExistingAppointment_NilReservationType(t *testing.T) {
 	appointmentID := uint64(77)
 	reserv := &mockTrimmingReservationRepository{
 		findByIDFn: func(_ context.Context, _, id uint64) (*model.Reservation, error) {
@@ -1343,7 +1343,7 @@ func TestTrimmingService_Create_ExistingAppointment_NilReservationType(t *testin
 	assert.Nil(t, appt)
 }
 
-func TestTrimmingService_Create_ExistingAppointment_AlreadyHasDetail(t *testing.T) {
+func TestService_Create_ExistingAppointment_AlreadyHasDetail(t *testing.T) {
 	appointmentID := uint64(77)
 	category := model.ReservationTypeCategoryTrimming
 	reserv := &mockTrimmingReservationRepository{
@@ -1378,7 +1378,7 @@ func TestTrimmingService_Create_ExistingAppointment_AlreadyHasDetail(t *testing.
 	assert.False(t, detailCreated, "既に detail が存在する場合は再作成しない")
 }
 
-func TestTrimmingService_Create_ExistingAppointment_DetailLookupError(t *testing.T) {
+func TestService_Create_ExistingAppointment_DetailLookupError(t *testing.T) {
 	appointmentID := uint64(77)
 	category := model.ReservationTypeCategoryTrimming
 	reserv := &mockTrimmingReservationRepository{
@@ -1409,7 +1409,7 @@ func TestTrimmingService_Create_ExistingAppointment_DetailLookupError(t *testing
 	assert.Nil(t, appt)
 }
 
-func TestTrimmingService_Create_ExistingAppointment_StaffCannotHandleReservationType(t *testing.T) {
+func TestService_Create_ExistingAppointment_StaffCannotHandleReservationType(t *testing.T) {
 	appointmentID := uint64(77)
 	staffID := uint64(33)
 	category := model.ReservationTypeCategoryTrimming
@@ -1458,7 +1458,7 @@ func TestTrimmingService_Create_ExistingAppointment_StaffCannotHandleReservation
 	assert.Nil(t, appt)
 }
 
-func TestTrimmingService_Create_ExistingAppointment_TimeRangeInvalid(t *testing.T) {
+func TestService_Create_ExistingAppointment_TimeRangeInvalid(t *testing.T) {
 	appointmentID := uint64(77)
 	category := model.ReservationTypeCategoryTrimming
 	reserv := &mockTrimmingReservationRepository{
@@ -1499,7 +1499,7 @@ func TestTrimmingService_Create_ExistingAppointment_TimeRangeInvalid(t *testing.
 	assert.Nil(t, appt)
 }
 
-func TestTrimmingService_Create_ExistingAppointment_ResolvesPartialTimeRange(t *testing.T) {
+func TestService_Create_ExistingAppointment_ResolvesPartialTimeRange(t *testing.T) {
 	appointmentID := uint64(77)
 	category := model.ReservationTypeCategoryTrimming
 	existingStart := time.Now()
@@ -1546,7 +1546,7 @@ func TestTrimmingService_Create_ExistingAppointment_ResolvesPartialTimeRange(t *
 	assert.NotNil(t, appt)
 }
 
-func TestTrimmingService_Update(t *testing.T) {
+func TestService_Update(t *testing.T) {
 	ptrStr := func(s string) *string { return &s }
 	optionIDs := []uint64{10, 20}
 	emptyIDs := []uint64{}
@@ -1665,7 +1665,7 @@ func TestTrimmingService_Update(t *testing.T) {
 	}
 }
 
-func TestTrimmingService_Update_DetailOnlyBackfillsMissingOwner(t *testing.T) {
+func TestService_Update_DetailOnlyBackfillsMissingOwner(t *testing.T) {
 	appointmentID := uint64(10)
 	petID := uint64(20)
 	styleRequest := "summer cut"
@@ -1707,7 +1707,7 @@ func TestTrimmingService_Update_DetailOnlyBackfillsMissingOwner(t *testing.T) {
 	assert.Equal(t, 1, appointmentUpdateCalls)
 }
 
-func TestTrimmingService_Update_RejectsTerminalDetailMutation(t *testing.T) {
+func TestService_Update_RejectsTerminalDetailMutation(t *testing.T) {
 	statuses := []model.ReservationStatus{
 		model.ReservationStatusCompleted,
 		model.ReservationStatusCancelled,
@@ -1755,7 +1755,7 @@ func TestTrimmingService_Update_RejectsTerminalDetailMutation(t *testing.T) {
 	}
 }
 
-func TestTrimmingService_Update_FindByIDError(t *testing.T) {
+func TestService_Update_FindByIDError(t *testing.T) {
 	ptrStr := func(s string) *string { return &s }
 	reserv := &mockTrimmingReservationRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Reservation, error) {
@@ -1775,7 +1775,7 @@ func TestTrimmingService_Update_FindByIDError(t *testing.T) {
 	assert.Nil(t, appt)
 }
 
-func TestTrimmingService_Update_RejectsSlotConflictBeforeWrite(t *testing.T) {
+func TestService_Update_RejectsSlotConflictBeforeWrite(t *testing.T) {
 	doctorID := uint64(31)
 	appointmentID := uint64(44)
 	start := time.Date(2026, 7, 22, 1, 0, 0, 0, time.UTC)
@@ -1835,7 +1835,7 @@ func TestTrimmingService_Update_RejectsSlotConflictBeforeWrite(t *testing.T) {
 	assert.True(t, conflictChecked)
 }
 
-func TestTrimmingService_Delete(t *testing.T) {
+func TestService_Delete(t *testing.T) {
 	tests := []struct {
 		name     string
 		clinicID uint64
@@ -1895,9 +1895,9 @@ func TestTrimmingService_Delete(t *testing.T) {
 	}
 }
 
-// TestTrimmingService_Delete_RepositoryFailureAfterFindSucceeds は typed delete operation の
+// TestService_Delete_RepositoryFailureAfterFindSucceeds は typed delete operation の
 // 非NotFoundエラーをNotFoundへ誤分類しないことを検証する（旧テスト名は履歴互換で維持）。
-func TestTrimmingService_Delete_RepositoryFailureAfterFindSucceeds(t *testing.T) {
+func TestService_Delete_RepositoryFailureAfterFindSucceeds(t *testing.T) {
 	reserv := &mockTrimmingReservationRepository{
 		findByIDFn: func(_ context.Context, _, id uint64) (*model.Reservation, error) {
 			return &model.Reservation{ID: id, ClinicID: 1}, nil
@@ -1914,7 +1914,7 @@ func TestTrimmingService_Delete_RepositoryFailureAfterFindSucceeds(t *testing.T)
 	assert.False(t, apperrors.IsNotFound(err))
 }
 
-func TestTrimmingService_Delete_RunsTypedDeleteInsideTransaction(t *testing.T) {
+func TestService_Delete_RunsTypedDeleteInsideTransaction(t *testing.T) {
 	type txMarkerKey struct{}
 	marker := &struct{}{}
 	lockCalled := false
@@ -1945,7 +1945,7 @@ func TestTrimmingService_Delete_RunsTypedDeleteInsideTransaction(t *testing.T) {
 			return fn(context.WithValue(ctx, txMarkerKey{}, marker))
 		},
 	}
-	svc := withTrimmingTestActor(NewTrimmingServiceWithAudit(
+	svc := withTrimmingTestActor(NewServiceWithAudit(
 		reserv,
 		&mockTrimmingReservationTypeRepository{},
 		nil,

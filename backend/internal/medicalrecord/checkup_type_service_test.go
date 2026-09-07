@@ -16,7 +16,7 @@ type mockCheckupTypeRepository struct {
 	findAllFn                   func(ctx context.Context, clinicID uint64) ([]model.CheckupType, error)
 	findByIDFn                  func(ctx context.Context, clinicID, id uint64) (*model.CheckupType, error)
 	createFn                    func(ctx context.Context, checkupType *model.CheckupType) error
-	updateFieldsFn              func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.CheckupType, error)
+	updateFieldsFn              func(ctx context.Context, clinicID, id uint64, cmd UpdateCheckupTypeInput) (*model.CheckupType, error)
 	deleteFn                    func(ctx context.Context, clinicID, id uint64) error
 	reorderFn                   func(ctx context.Context, clinicID uint64, ids []uint64) error
 	countUsageByCheckupTypeIDFn func(ctx context.Context, clinicID, checkupTypeID uint64) (int64, error)
@@ -35,8 +35,8 @@ func (m *mockCheckupTypeRepository) Create(ctx context.Context, checkupType *mod
 	return m.createFn(ctx, checkupType)
 }
 
-func (m *mockCheckupTypeRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.CheckupType, error) {
-	return m.updateFieldsFn(ctx, clinicID, id, fields)
+func (m *mockCheckupTypeRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateCheckupTypeInput) (*model.CheckupType, error) {
+	return m.updateFieldsFn(ctx, clinicID, id, cmd)
 }
 
 func (m *mockCheckupTypeRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -354,7 +354,7 @@ func TestCheckupTypeService_Update(t *testing.T) {
 					}
 					return &model.CheckupType{ID: tt.id}, nil
 				},
-				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.CheckupType, error) {
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateCheckupTypeInput) (*model.CheckupType, error) {
 					updateCalled = true
 					return tt.repoData, tt.updateErr
 				},

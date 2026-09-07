@@ -19,7 +19,7 @@ type mockCageRepository struct {
 	lockByIDForUpdateFn  func(ctx context.Context, clinicID, id uint64) (*model.Cage, error)
 	countUsageByCageIDFn func(ctx context.Context, clinicID, id uint64) (int64, error)
 	createFn             func(ctx context.Context, cage *model.Cage) error
-	updateFieldsFn       func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Cage, error)
+	updateFieldsFn       func(ctx context.Context, clinicID, id uint64, cmd UpdateCageInput) (*model.Cage, error)
 	deleteFn             func(ctx context.Context, clinicID, id uint64) error
 	reorderFn            func(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -47,8 +47,8 @@ func (m *mockCageRepository) Create(ctx context.Context, cage *model.Cage) error
 	return m.createFn(ctx, cage)
 }
 
-func (m *mockCageRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Cage, error) {
-	return m.updateFieldsFn(ctx, clinicID, id, fields)
+func (m *mockCageRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateCageInput) (*model.Cage, error) {
+	return m.updateFieldsFn(ctx, clinicID, id, cmd)
 }
 
 func (m *mockCageRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -366,7 +366,7 @@ func TestCageService_Update(t *testing.T) {
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Cage, error) {
 					return &model.Cage{ID: tt.id, ClinicID: tt.clinicID}, nil
 				},
-				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Cage, error) {
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateCageInput) (*model.Cage, error) {
 					return tt.repoCage, tt.repoErr
 				},
 			}

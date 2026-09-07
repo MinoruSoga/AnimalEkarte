@@ -45,7 +45,7 @@ const { mockQueryClient, MOCK_SYSTEM_ADMIN, MOCK_STAFF } = vi.hoisted(() => {
     permissions: {} as Record<string, never>,
   };
   return {
-    mockQueryClient: { clear: vi.fn() },
+    mockQueryClient: { clear: vi.fn(), setQueryData: vi.fn() },
     MOCK_SYSTEM_ADMIN: systemAdmin,
     MOCK_STAFF: staff,
   };

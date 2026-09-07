@@ -97,7 +97,6 @@ func (s *treatmentService) updateTreatmentInTx(
 	txCtx context.Context,
 	clinicID, medicalRecordID, treatmentID uint64,
 	input *UpdateTreatmentInput,
-	fields map[string]any,
 	doseRelevant bool,
 ) error {
 	// テナント所有権 + 確定ロック検証（Create と対称化・BE-refactor.md H-8a）。
@@ -118,10 +117,11 @@ func (s *treatmentService) updateTreatmentInTx(
 	if current.MedicalRecordID != medicalRecordID {
 		return apperrors.WrapNotFound("treatment", strconv.FormatUint(treatmentID, 10))
 	}
-	if err := applyTreatmentDiscountGuard(current, input, fields); err != nil {
+	effective := *input
+	if err := applyTreatmentDiscountGuard(current, &effective); err != nil {
 		return err
 	}
-	if len(fields) == 0 {
+	if len(buildTreatmentUpdate(&effective)) == 0 {
 		return apperrors.WrapInvalidInput(errMsgAtLeastOneField)
 	}
 
@@ -129,19 +129,19 @@ func (s *treatmentService) updateTreatmentInTx(
 	var doseMedicineID uint64
 	if doseRelevant {
 		// 親行 + treatment 行ロック取得後の locked snapshot で dose を評価する。
-		effItemType, effMedicineID, effQty := effectiveDoseInputs(current, input)
+		effItemType, effMedicineID, effQty := effectiveDoseInputs(current, &effective)
 		eval, derr := s.evaluateDoseForSave(txCtx, clinicID, medicalRecordID, effItemType, effMedicineID, effQty)
 		if derr != nil {
 			return derr // species 不一致など fail-closed
 		}
-		applied, err := s.applyLockedTreatmentDoseFields(txCtx, current, input, eval, effMedicineID, fields)
+		applied, err := s.applyLockedTreatmentDoseFields(txCtx, current, &effective, eval, effMedicineID)
 		if err != nil {
 			return err
 		}
 		doseEval = applied.eval
 		doseMedicineID = applied.medicineID
 	}
-	if err := s.treatmentRepo.Update(txCtx, clinicID, treatmentID, fields); err != nil {
+	if err := s.treatmentRepo.Update(txCtx, clinicID, treatmentID, effective); err != nil {
 		return err
 	}
 	// #201 B-2 / BE-refactor.md R1-2: 逸脱監査を fail-closed 化。失敗すると Update ごとロールバックする。

@@ -48,10 +48,11 @@ grep -r '"<ComponentName>"' frontend/src/
 ## Step 4: SAFE ティア安全削除ループ
 
 各アイテムに対して:
-1. ユーザーにテスト実行を依頼（ベースライン確認）
-2. Edit ツールで削除を適用
-3. ユーザーにテスト再実行を依頼
-4. テスト失敗 → `git checkout -- <file>` で即時リバート・スキップ
+1. export の機械削除の前に、Feature Indexing の公開契約（`features/<name>/index.ts` から公開しているか、deep import 禁止の入口か）を確認する。公開入口の再エクスポートを「未使用」とみなして消さない。動的 import・文字列参照・外部 consumer も記録する。
+2. 対象の既存テストを確認し、削除前に RED になる回帰条件を定義する。RED before GREEN の順序を崩さない。
+3. 隔離 worktree で最小の task-owned patch only を適用し、対象に直接結び付く scoped test を実行する。
+4. 失敗時は、開始時に記録した pre-edit byte baseline から task-owned patch only を逆適用する。共有 tree の whole-file restore、`git checkout -- <file>`、HEAD 基準の巻き戻しは他者 WIP を失わせるため使用しない。
+5. GREEN を確認してから次の SAFE 項目へ進む。未実行テストや未確認 consumer を PASS と報告しない。
 
 ## Step 5: 重複統合
 

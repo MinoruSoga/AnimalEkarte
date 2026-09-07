@@ -41,7 +41,7 @@ func TestAccountingService_Update_RejectsMoveToClosedDestinationWithoutReason(t 
 	updated := false
 	repo := &mockAccountingRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) { return billing, nil },
-		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Billing, error) {
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ AccountingUpdate) (*model.Billing, error) {
 			updated = true
 			return billing, nil
 		},
@@ -98,7 +98,7 @@ func TestAccountingService_Update_ChecksSourceAndDestinationClosePeriods(t *test
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) {
 				return billing, nil
 			},
-			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Billing, error) {
+			updateFieldsFn: func(_ context.Context, _, _ uint64, _ AccountingUpdate) (*model.Billing, error) {
 				copied := *billing
 				copied.ScheduledDate = dest
 				billing = &copied
@@ -145,13 +145,13 @@ func TestAccountingService_Update_ChecksSourceAndDestinationClosePeriods(t *test
 func TestAccountingService_Update_CompletedStatusNoOpAllowsMemoCorrection(t *testing.T) {
 	completed := model.BillingStatusCompleted
 	memo := "post-complete memo"
-	var captured map[string]any
+	var captured AccountingUpdate
 	repo := &mockAccountingRepository{
 		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Billing, error) {
 			return &model.Billing{ID: id, ClinicID: clinicID, Status: model.BillingStatusCompleted}, nil
 		},
-		updateFieldsFn: func(_ context.Context, clinicID, id uint64, fields map[string]any) (*model.Billing, error) {
-			captured = fields
+		updateFieldsFn: func(_ context.Context, clinicID, id uint64, cmd AccountingUpdate) (*model.Billing, error) {
+			captured = cmd
 			return &model.Billing{ID: id, ClinicID: clinicID, Status: model.BillingStatusCompleted, Memo: memo}, nil
 		},
 	}
@@ -162,8 +162,9 @@ func TestAccountingService_Update_CompletedStatusNoOpAllowsMemoCorrection(t *tes
 	})
 	assert.NoError(t, err)
 	require.NotNil(t, got)
-	assert.NotContains(t, captured, "status")
-	assert.Equal(t, memo, captured["memo"])
+	assert.Nil(t, captured.Status)
+	require.NotNil(t, captured.Memo)
+	assert.Equal(t, memo, *captured.Memo)
 }
 
 func TestAccountingService_Update_RejectsPaymentFinalizationOnOpenBilling(t *testing.T) {
@@ -197,7 +198,7 @@ func TestAccountingService_Update_RejectsClientCompletedAt(t *testing.T) {
 		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Billing, error) {
 			return &model.Billing{ID: id, ClinicID: clinicID, Status: model.BillingStatusCompleted}, nil
 		},
-		updateFieldsFn: func(_ context.Context, clinicID, id uint64, _ map[string]any) (*model.Billing, error) {
+		updateFieldsFn: func(_ context.Context, clinicID, id uint64, _ AccountingUpdate) (*model.Billing, error) {
 			t.Fatal("completed_at must not persist via generic PATCH")
 			return &model.Billing{ID: id, ClinicID: clinicID}, nil
 		},
@@ -219,7 +220,7 @@ func TestUpdateAccounting_PatchCancelledForbiddenWithoutCancelPermission(t *test
 		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Billing, error) {
 			return existing, nil
 		},
-		updateFieldsFn: func(_ context.Context, clinicID, id uint64, _ map[string]any) (*model.Billing, error) {
+		updateFieldsFn: func(_ context.Context, clinicID, id uint64, _ AccountingUpdate) (*model.Billing, error) {
 			t.Fatal("PATCH must not persist cancelled")
 			return existing, nil
 		},
@@ -253,7 +254,7 @@ func TestUpdateAccounting_PatchCompletedFromWaitingRejected(t *testing.T) {
 		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Billing, error) {
 			return existing, nil
 		},
-		updateFieldsFn: func(_ context.Context, clinicID, id uint64, _ map[string]any) (*model.Billing, error) {
+		updateFieldsFn: func(_ context.Context, clinicID, id uint64, _ AccountingUpdate) (*model.Billing, error) {
 			t.Fatal("PATCH must not persist completed")
 			return existing, nil
 		},
@@ -330,7 +331,7 @@ func TestAccountingService_CreateAndCancel_LockCloseBoundary(t *testing.T) {
 				ID: id, ClinicID: clinicID, Status: model.BillingStatusWaiting, ScheduledDate: scheduled,
 			}, nil
 		},
-		updateFieldsFn: func(_ context.Context, clinicID, id uint64, _ map[string]any) (*model.Billing, error) {
+		updateFieldsFn: func(_ context.Context, clinicID, id uint64, _ AccountingUpdate) (*model.Billing, error) {
 			return &model.Billing{ID: id, ClinicID: clinicID, Status: model.BillingStatusCancelled, ScheduledDate: scheduled}, nil
 		},
 	}

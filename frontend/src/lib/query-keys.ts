@@ -38,10 +38,8 @@ export const queryKeys = {
     /** 汎用マスタカテゴリキー。"masterItems" の代わりにこれを使う */
     category: (name: string) => ["masters", name] as const,
     /**
-     * 担当者セレクト用の薄い staff 一覧。
-     * masters.category("staffs") のフル master Staff shape とは別キー。
-     * 異なる transform 結果を同一 key に載せない（cache poison 防止）。
-     * invalidate は ["masters","staffs"] prefix で両方を無効化できる。
+     * 旧セレクト専用キー。hooks/use-staffs と master CRUD は raw `category("staffs")`
+     * を共有し、select で形を分ける。このキーは残すが新規 fetch には使わない。
      */
     staffSelectorList: () => ["masters", "staffs", "selector-list"] as const,
     /**

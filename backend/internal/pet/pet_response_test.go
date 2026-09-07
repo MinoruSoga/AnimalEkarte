@@ -11,8 +11,8 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-func TestPetResponseIncludesVersion(t *testing.T) {
-	body, err := json.Marshal(toPetResponse(&model.Pet{Version: 7}))
+func TestResponseIncludesVersion(t *testing.T) {
+	body, err := json.Marshal(toResponse(&model.Pet{Version: 7}))
 	require.NoError(t, err)
 
 	var response map[string]any
@@ -78,13 +78,13 @@ func TestToPetListResponseIncludesOwnerReportDetailFields(t *testing.T) {
 	assert.Equal(t, 70, resp.Insurance.CoverageRate)
 }
 
-// TestToPetResponseSerializesDeceasedAt は
+// TestToResponseSerializesDeceasedAt は
 // PR#186 P2-2 Bug#1 のリグレッションテスト。死亡記録された pet の
-// deceased_at が pet 詳細 (toPetResponse) で serialize されることを保証する。
+// deceased_at が pet 詳細 (toResponse) で serialize されることを保証する。
 // 修正前は両方の response DTO にフィールド自体が存在せず、フロントに値が
 // 一切渡らなかった。
-// BUG-003: staff 向け PetResponse には deceased_reason も載せる（owner/LIFF DTO は別契約）。
-func TestToPetResponseSerializesDeceasedAt(t *testing.T) {
+// BUG-003: staff 向け Response には deceased_reason も載せる（owner/LIFF DTO は別契約）。
+func TestToResponseSerializesDeceasedAt(t *testing.T) {
 	deceasedAt := time.Date(2026, 7, 10, 3, 0, 0, 0, time.UTC)
 	deceasedReason := "老衰"
 
@@ -97,7 +97,7 @@ func TestToPetResponseSerializesDeceasedAt(t *testing.T) {
 		DeceasedReason: &deceasedReason,
 	}
 
-	detail := toPetResponse(pet)
+	detail := toResponse(pet)
 	require.NotNil(t, detail.DeceasedAt)
 	assert.True(t, deceasedAt.Equal(*detail.DeceasedAt))
 	require.NotNil(t, detail.DeceasedReason)
@@ -108,11 +108,11 @@ func TestToPetResponseSerializesDeceasedAt(t *testing.T) {
 	assert.Contains(t, string(body), `"deceased_reason":"老衰"`)
 }
 
-// TestToPetResponseOmitsDeceasedAtWhenAlive は、
+// TestToResponseOmitsDeceasedAtWhenAlive は、
 // 生存中ペット（DeceasedAt が nil）で DeceasedAt が nil のままであることを
 // 保証する（誤って死亡日を捏造しない）。
 // BUG-003: 生存ペットでは deceased_reason も JSON から物理的に欠落する。
-func TestToPetResponseOmitsDeceasedAtWhenAlive(t *testing.T) {
+func TestToResponseOmitsDeceasedAtWhenAlive(t *testing.T) {
 	pet := &model.Pet{
 		ID:      7,
 		OwnerID: 42,
@@ -120,7 +120,7 @@ func TestToPetResponseOmitsDeceasedAtWhenAlive(t *testing.T) {
 		Status:  model.PetStatusAlive,
 	}
 
-	detail := toPetResponse(pet)
+	detail := toResponse(pet)
 	assert.Nil(t, detail.DeceasedAt)
 	assert.Nil(t, detail.DeceasedReason)
 

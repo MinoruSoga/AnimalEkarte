@@ -85,14 +85,14 @@ func TestBuildStaffUpdate(t *testing.T) {
 }
 
 // AUS-03: application-layer staff_type rejection on Create/CreateWithAccount/Update paths.
-func TestStaffService_CreateUpdate_RejectsInvalidStaffType(t *testing.T) {
-	svc := NewStaffService(
+func TestService_CreateUpdate_RejectsInvalidStaffType(t *testing.T) {
+	svc := NewService(
 		&mockStaffRepository{
 			createFn: func(context.Context, *model.Staff) error {
 				t.Fatal("repository Create must not run for invalid staff_type")
 				return nil
 			},
-			updateFn: func(context.Context, uint64, uint64, map[string]any) error {
+			updateFn: func(context.Context, uint64, uint64, UpdateStaffInput) error {
 				t.Fatal("repository Update must not run for invalid staff_type")
 				return nil
 			},

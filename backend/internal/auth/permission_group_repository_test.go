@@ -103,14 +103,16 @@ func TestPermissionGroupRepository_Update(t *testing.T) {
 
 	t.Run("同一クリニックからの更新は成功する", func(t *testing.T) {
 		g := makePermissionGroup(t, db, clinicA, "Update正常系グループ")
-		got, err := repo.Update(ctx, clinicA, g.ID, map[string]any{"name": "更新後の名前"})
+		name := "更新後の名前"
+		got, err := repo.Update(ctx, clinicA, g.ID, UpdatePermissionGroupInput{Name: &name})
 		require.NoError(t, err)
 		assert.Equal(t, "更新後の名前", got.Name)
 	})
 
 	t.Run("別クリニックからの更新はNotFound", func(t *testing.T) {
 		g := makePermissionGroup(t, db, clinicA, "別クリニック更新拒否対象")
-		_, err := repo.Update(ctx, clinicB, g.ID, map[string]any{"name": "改ざん後の名前"})
+		name := "改ざん後の名前"
+		_, err := repo.Update(ctx, clinicB, g.ID, UpdatePermissionGroupInput{Name: &name})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 
@@ -220,12 +222,12 @@ func TestPermissionGroupRepository_UpdateRules(t *testing.T) {
 		g := makePermissionGroup(t, db, clinicA, "UpdateRules false persist")
 		makeEffPermRule(t, db, g.ID, "reception", true, true, true, true)
 
-		atomicRepo := repo.(PermissionGroupRulesAtomicWriter)
-		updated, err := atomicRepo.UpdateWithRules(
+		name := "UpdateRules false persist"
+		updated, err := repo.UpdateWithRules(
 			ctx,
 			clinicA,
 			g.ID,
-			map[string]any{"name": "UpdateRules false persist"},
+			UpdatePermissionGroupInput{Name: &name},
 			[]model.PermissionGroupRule{{
 				Resource:  "reception",
 				CanView:   false,
@@ -343,7 +345,6 @@ func TestPermissionGroupRepository_CreateWithRules_RollsBackParentWhenRulesInser
 ) {
 	db := setupPermissionGroupRepositoryTestDB(t)
 	repo := NewPermissionGroupRepository(db)
-	atomicRepo := repo.(PermissionGroupRulesAtomicWriter)
 	ctx := context.Background()
 	const clinicID = uint64(1)
 
@@ -357,7 +358,7 @@ func TestPermissionGroupRepository_CreateWithRules_RollsBackParentWhenRulesInser
 		{Resource: strings.Repeat("x", 51), CanView: true},
 	}
 
-	_, err := atomicRepo.CreateWithRules(ctx, group, invalidRules)
+	_, err := repo.CreateWithRules(ctx, group, invalidRules)
 
 	require.Error(t, err)
 	var groupCount int64
@@ -372,7 +373,6 @@ func TestPermissionGroupRepository_UpdateWithRules_RollsBackParentAndPriorRules(
 ) {
 	db := setupPermissionGroupRepositoryTestDB(t)
 	repo := NewPermissionGroupRepository(db)
-	atomicRepo := repo.(PermissionGroupRulesAtomicWriter)
 	ctx := context.Background()
 	const clinicID = uint64(1)
 
@@ -391,11 +391,12 @@ func TestPermissionGroupRepository_UpdateWithRules_RollsBackParentAndPriorRules(
 		{Resource: strings.Repeat("x", 51), CanView: true},
 	}
 
-	_, err := atomicRepo.UpdateWithRules(
+	changed := "atomic update changed"
+	_, err := repo.UpdateWithRules(
 		ctx,
 		clinicID,
 		group.ID,
-		map[string]any{"name": "atomic update changed"},
+		UpdatePermissionGroupInput{Name: &changed},
 		invalidRules,
 	)
 
@@ -413,7 +414,6 @@ func TestPermissionGroupRepository_UpdateWithRules_RejectsOtherClinicWithoutChil
 ) {
 	db := setupPermissionGroupRepositoryTestDB(t)
 	repo := NewPermissionGroupRepository(db)
-	atomicRepo := repo.(PermissionGroupRulesAtomicWriter)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -429,11 +429,12 @@ func TestPermissionGroupRepository_UpdateWithRules_RejectsOtherClinicWithoutChil
 		false,
 	)
 
-	_, err := atomicRepo.UpdateWithRules(
+	changed := "atomic cross-clinic changed"
+	_, err := repo.UpdateWithRules(
 		ctx,
 		clinicB,
 		group.ID,
-		map[string]any{"name": "atomic cross-clinic changed"},
+		UpdatePermissionGroupInput{Name: &changed},
 		[]model.PermissionGroupRule{{Resource: "owners", CanView: true}},
 	)
 

@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/csv"
 	"fmt"
-	"log/slog"
 	"math"
 	"time"
 
@@ -333,7 +332,6 @@ func (s *accountingReportService) GetMonthly(ctx context.Context, clinicID uint6
 	endDate := startDate.AddDate(0, 1, -1)
 	raw, err := s.repo.GetMonthlyReport(ctx, clinicID, year, month)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get monthly report", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get monthly report")
 	}
 	return s.buildReportResponse(ctx, clinicID, year, month, startDate, endDate, raw)
@@ -347,7 +345,6 @@ func (s *accountingReportService) GetMonthlyByPeriod(ctx context.Context, clinic
 	periodEnd := endDate.AddDate(0, 0, 1)
 	raw, err := s.repo.GetMonthlyReportByPeriod(ctx, clinicID, startDate, periodEnd)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get monthly report by period", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get monthly report by period")
 	}
 	return s.buildReportResponse(ctx, clinicID, startDate.Year(), int(startDate.Month()), startDate, endDate, raw)
@@ -363,7 +360,6 @@ func (s *accountingReportService) buildReportResponse(
 	// 支払方法マスタを取得してID→名前マップを構築
 	payMethods, err := s.payMethodRepo.FindAll(ctx, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get payment methods", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get payment methods")
 	}
 	payMethodNames := make(map[uint64]string, len(payMethods))
@@ -379,7 +375,6 @@ func (s *accountingReportService) buildReportResponse(
 
 	clinic, err := s.clinicRepo.FindByID(ctx, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get clinic tax settings", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get clinic tax settings")
 	}
 
@@ -387,7 +382,6 @@ func (s *accountingReportService) buildReportResponse(
 	periodEnd := endDate.AddDate(0, 0, 1)
 	allocData, err := s.repo.GetCategoryPaymentAllocationData(ctx, clinicID, startDate, periodEnd)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to load category payment allocation data", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to load category payment allocation data")
 	}
 	nameFn, nameRefundFn := BuildNameMethodResolvers(payMethods)
@@ -418,7 +412,6 @@ func (s *accountingReportService) buildHolidaySet(ctx context.Context, clinicID 
 		yearMonth := fmt.Sprintf("%04d-%02d", cursor.Year(), cursor.Month())
 		holidays, err := s.holidayRepo.FindAllByYearMonth(ctx, clinicID, yearMonth)
 		if err != nil {
-			slog.ErrorContext(ctx, "failed to get clinic holidays", "error", err, "clinic_id", clinicID, "year_month", yearMonth)
 			return nil, apperrors.Wrap(err, "failed to get clinic holidays")
 		}
 		for _, h := range holidays {
@@ -435,7 +428,6 @@ func (s *accountingReportService) buildHolidaySet(ctx context.Context, clinicID 
 func (s *accountingReportService) ExportMonthlyCSV(ctx context.Context, clinicID uint64, year, month int) (*MonthlyCSVResult, error) {
 	result, err := s.GetMonthly(ctx, clinicID, year, month)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get monthly accounting report", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get monthly accounting report")
 	}
 	return buildMonthlyCSV(result, fmt.Sprintf("monthly_report_%04d%02d.csv", year, month))
@@ -444,7 +436,6 @@ func (s *accountingReportService) ExportMonthlyCSV(ctx context.Context, clinicID
 func (s *accountingReportService) ExportMonthlyCSVByPeriod(ctx context.Context, clinicID uint64, startDate, endDate time.Time) (*MonthlyCSVResult, error) {
 	result, err := s.GetMonthlyByPeriod(ctx, clinicID, startDate, endDate)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get accounting report by period", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get accounting report by period")
 	}
 	return buildMonthlyCSV(result, fmt.Sprintf("monthly_report_%s_%s.csv", startDate.Format("20060102"), endDate.Format("20060102")))

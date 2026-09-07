@@ -1,4 +1,4 @@
-import { memo, ReactNode } from "react";
+import { cloneElement, Fragment, isValidElement, memo, type ReactNode } from "react";
 import {
   Table,
   TableBody,
@@ -25,6 +25,8 @@ interface DataTableProps<T> {
   }[];
   data: T[];
   renderRow: (item: T) => ReactNode;
+  /** map 直下の list key。未指定時は item.id（string | number）または index。 */
+  getRowKey?: (item: T) => string | number;
   emptyMessage?: string;
   className?: string;
   /**
@@ -36,10 +38,41 @@ interface DataTableProps<T> {
   headerCellClassName?: string;
 }
 
+function resolveDataTableRowKey<T>(
+  item: T,
+  index: number,
+  getRowKey?: (item: T) => string | number,
+): string | number {
+  if (getRowKey) {
+    return getRowKey(item);
+  }
+  if (typeof item === "object" && item !== null && "id" in item) {
+    const id = item.id;
+    if (typeof id === "string" || typeof id === "number") {
+      return id;
+    }
+  }
+  return index;
+}
+
+function keyedRenderRow<T>(
+  item: T,
+  index: number,
+  row: ReactNode,
+  getRowKey?: (item: T) => string | number,
+): ReactNode {
+  const key = resolveDataTableRowKey(item, index, getRowKey);
+  if (isValidElement(row)) {
+    return cloneElement(row, { key });
+  }
+  return <Fragment key={key}>{row}</Fragment>;
+}
+
 export const DataTable = memo(function DataTable<T>({
   columns,
   data,
   renderRow,
+  getRowKey,
   emptyMessage = "データが見つかりません",
   className = "",
   headerRowClassName,
@@ -77,7 +110,7 @@ export const DataTable = memo(function DataTable<T>({
                 </TableCell>
               </TableRow>
             ) : (
-              data.map((item) => renderRow(item))
+              data.map((item, index) => keyedRenderRow(item, index, renderRow(item), getRowKey))
             )}
           </TableBody>
         </Table>

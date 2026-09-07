@@ -20,7 +20,7 @@ type mockShiftEntryRepository struct {
 	findAllFn          func(ctx context.Context, clinicID uint64, filter ShiftEntryFilter) ([]model.ShiftEntry, error)
 	findByIDFn         func(ctx context.Context, clinicID, id uint64) (*model.ShiftEntry, error)
 	createFn           func(ctx context.Context, entry *model.ShiftEntry) error
-	updateFn           func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	updateFn           func(ctx context.Context, clinicID, id uint64, cmd UpdateShiftEntryInput) error
 	deleteFn           func(ctx context.Context, clinicID, id uint64) error
 	replaceBreaksFn    func(ctx context.Context, entryID uint64, breaks []model.ShiftEntryBreak) error
 	findOnDutyStaffsFn func(ctx context.Context, clinicID uint64, date time.Time) ([]model.Staff, error)
@@ -48,8 +48,11 @@ func (m *mockShiftEntryRepository) Create(ctx context.Context, entry *model.Shif
 	return m.createFn(ctx, entry)
 }
 
-func (m *mockShiftEntryRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	return m.updateFn(ctx, clinicID, id, fields)
+func (m *mockShiftEntryRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateShiftEntryInput) error {
+	if m.updateFn != nil {
+		return m.updateFn(ctx, clinicID, id, cmd)
+	}
+	return nil
 }
 
 func (m *mockShiftEntryRepository) Delete(ctx context.Context, clinicID, id uint64) error {

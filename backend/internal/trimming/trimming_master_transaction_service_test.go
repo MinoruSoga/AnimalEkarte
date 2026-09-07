@@ -168,7 +168,7 @@ func TestTrimmingCourseService_Update_ValidatesCourseTypeAndWritesInTransaction(
 			operations = append(operations, "find-course")
 			return &model.TrimmingCourse{ID: id, ClinicID: clinicID}, nil
 		},
-		updateFieldsFn: func(ctx context.Context, clinicID, id uint64, _ map[string]any) (*model.TrimmingCourse, error) {
+		updateFieldsFn: func(ctx context.Context, clinicID, id uint64, _ UpdateTrimmingCourseInput) (*model.TrimmingCourse, error) {
 			requireTrimmingMasterTxContext(t, ctx)
 			operations = append(operations, "update")
 			return &model.TrimmingCourse{ID: id, ClinicID: clinicID, CourseTypeID: ptrUint64(courseTypeID)}, nil

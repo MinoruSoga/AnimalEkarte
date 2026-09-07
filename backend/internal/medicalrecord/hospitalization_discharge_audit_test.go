@@ -25,7 +25,7 @@ func (r *hospitalizationAuditRecorder) LogEntryTx(_ context.Context, entry *Audi
 	return r.err
 }
 
-func admittedHospitalizationRepo(updateFn func(context.Context, uint64, uint64, map[string]any) (*model.Hospitalization, error)) *mockHospitalizationRepository {
+func admittedHospitalizationRepo(updateFn func(context.Context, uint64, uint64, UpdateHospitalizationInput) (*model.Hospitalization, error)) *mockHospitalizationRepository {
 	return &mockHospitalizationRepository{
 		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Hospitalization, error) {
 			return &model.Hospitalization{
@@ -44,7 +44,7 @@ func TestHospitalizationService_DischargeWithBilling_AuditsBillingTotals(t *test
 	actorID := uint64(42)
 	order := make([]string, 0, 5)
 	audit := &hospitalizationAuditRecorder{}
-	hospRepo := admittedHospitalizationRepo(func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Hospitalization, error) {
+	hospRepo := admittedHospitalizationRepo(func(_ context.Context, _, _ uint64, _ UpdateHospitalizationInput) (*model.Hospitalization, error) {
 		order = append(order, "status")
 		return &model.Hospitalization{ID: 10}, nil
 	})
@@ -114,7 +114,7 @@ func TestHospitalizationService_DischargeWithBilling_AuditsBillingTotals(t *test
 func TestHospitalizationService_DischargeWithBilling_MissingAuditDependencyFailsBeforeStatusWrite(t *testing.T) {
 	actorID := uint64(42)
 	statusWritten := false
-	hospRepo := admittedHospitalizationRepo(func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Hospitalization, error) {
+	hospRepo := admittedHospitalizationRepo(func(_ context.Context, _, _ uint64, _ UpdateHospitalizationInput) (*model.Hospitalization, error) {
 		statusWritten = true
 		return &model.Hospitalization{ID: 10}, nil
 	})
@@ -142,7 +142,7 @@ func TestHospitalizationService_DischargeWithBilling_MissingOrZeroActorFailsBefo
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			statusWritten := false
-			hospRepo := admittedHospitalizationRepo(func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Hospitalization, error) {
+			hospRepo := admittedHospitalizationRepo(func(_ context.Context, _, _ uint64, _ UpdateHospitalizationInput) (*model.Hospitalization, error) {
 				statusWritten = true
 				return &model.Hospitalization{ID: 10}, nil
 			})
@@ -167,7 +167,7 @@ func TestHospitalizationService_DischargeWithBilling_MissingOrZeroActorFailsBefo
 
 func TestHospitalizationService_DischargeWithBilling_WithoutAccountingDoesNotAudit(t *testing.T) {
 	audit := &hospitalizationAuditRecorder{}
-	hospRepo := admittedHospitalizationRepo(func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Hospitalization, error) {
+	hospRepo := admittedHospitalizationRepo(func(_ context.Context, _, _ uint64, _ UpdateHospitalizationInput) (*model.Hospitalization, error) {
 		return &model.Hospitalization{ID: 10}, nil
 	})
 	deps := newDischargeTestDeps(hospRepo, nil, nil, nil)
@@ -188,7 +188,7 @@ func TestHospitalizationService_DischargeWithBilling_WithoutAccountingDoesNotAud
 func TestHospitalizationService_DischargeWithBilling_ZeroCarePlanCreatesZeroBillingAudit(t *testing.T) {
 	actorID := uint64(42)
 	audit := &hospitalizationAuditRecorder{}
-	hospRepo := admittedHospitalizationRepo(func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Hospitalization, error) {
+	hospRepo := admittedHospitalizationRepo(func(_ context.Context, _, _ uint64, _ UpdateHospitalizationInput) (*model.Hospitalization, error) {
 		return &model.Hospitalization{ID: 10}, nil
 	})
 	carePlanRepo := &mockCarePlanItemRepository{
@@ -272,7 +272,7 @@ func (r *statefulHospitalizationRepo) LockByIDForUpdate(ctx context.Context, cli
 	return r.FindByID(ctx, clinicID, id)
 }
 
-func (r *statefulHospitalizationRepo) UpdateIfNotDischarged(_ context.Context, _, id uint64, _ map[string]any) (*model.Hospitalization, error) {
+func (r *statefulHospitalizationRepo) UpdateIfNotDischarged(_ context.Context, _, id uint64, _ UpdateHospitalizationInput) (*model.Hospitalization, error) {
 	r.state.status = model.HospitalizationStatusDischarged
 	return &model.Hospitalization{ID: id}, nil
 }

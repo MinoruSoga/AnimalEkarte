@@ -35,12 +35,10 @@ func NewLineCustomerService(repo LineCustomerRepository, ownerRepo lstepOwnerRep
 func (s *lineCustomerService) List(ctx context.Context, clinicID uint64) (*LineCustomerListResult, error) {
 	items, err := s.repo.FindAll(ctx, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list reservation customers", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list reservation customers")
 	}
 	total, err := s.repo.CountAll(ctx, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to count reservation customers", "error", err)
 		return nil, apperrors.Wrap(err, "failed to count reservation customers")
 	}
 	return &LineCustomerListResult{
@@ -54,17 +52,14 @@ func (s *lineCustomerService) List(ctx context.Context, clinicID uint64) (*LineC
 func (s *lineCustomerService) LinkOwner(ctx context.Context, clinicID, id uint64, ownerID *uint64) (*model.LineCustomer, error) {
 	existing, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to find line customer", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find line customer")
 	}
 	if ownerID != nil {
 		if _, err := s.ownerRepo.FindByID(ctx, clinicID, *ownerID); err != nil {
-			slog.ErrorContext(ctx, "owner not found or different clinic", "error", err, "clinic_id", clinicID, "owner_id", *ownerID)
 			return nil, apperrors.Wrap(err, "owner not found")
 		}
 	}
 	if err := s.repo.UpdateOwnerLink(ctx, clinicID, id, ownerID); err != nil {
-		slog.ErrorContext(ctx, "failed to link owner to reservation customer", "error", err)
 		return nil, apperrors.Wrap(err, "failed to link owner to reservation customer")
 	}
 	slog.InfoContext(ctx, "line customer owner linked",

@@ -1,0 +1,8 @@
+2026-09-07 docs-only command execution record
+Static checks do not certify all prose, runtime, UAT, release, or human acceptance.
+$ bash scripts/check-docs-symbol-drift.sh
+OK    docs-symbol-drift: ドリフトなし（検査トークン 565 件）
+exit=0
+$ git diff --check -- docs
+exit=0
+Full acceptance uses the independently frozen verifier and semantic judge against the exact final output.

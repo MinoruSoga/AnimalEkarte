@@ -16,7 +16,7 @@ type mockTrimmingCourseTypeRepository struct {
 	findAllFn      func(ctx context.Context, clinicID uint64) ([]model.TrimmingCourseType, error)
 	findByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.TrimmingCourseType, error)
 	createFn       func(ctx context.Context, m *model.TrimmingCourseType) (*model.TrimmingCourseType, error)
-	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingCourseType, error)
+	updateFieldsFn func(ctx context.Context, clinicID, id uint64, cmd UpdateTrimmingCourseTypeInput) (*model.TrimmingCourseType, error)
 	deleteFn       func(ctx context.Context, clinicID, id uint64) error
 	countUsageFn   func(ctx context.Context, clinicID, id uint64) (int64, error)
 	reorderFn      func(ctx context.Context, clinicID uint64, ids []uint64) error
@@ -43,9 +43,9 @@ func (m *mockTrimmingCourseTypeRepository) Create(ctx context.Context, t *model.
 	return t, nil
 }
 
-func (m *mockTrimmingCourseTypeRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingCourseType, error) {
+func (m *mockTrimmingCourseTypeRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateTrimmingCourseTypeInput) (*model.TrimmingCourseType, error) {
 	if m.updateFieldsFn != nil {
-		return m.updateFieldsFn(ctx, clinicID, id, fields)
+		return m.updateFieldsFn(ctx, clinicID, id, cmd)
 	}
 	return nil, nil
 }
@@ -219,7 +219,7 @@ func TestTrimmingCourseTypeService_Update(t *testing.T) {
 			findByIDFn: func(_ context.Context, _, id uint64) (*model.TrimmingCourseType, error) {
 				return &model.TrimmingCourseType{ID: id}, nil
 			},
-			updateFieldsFn: func(_ context.Context, _, id uint64, _ map[string]any) (*model.TrimmingCourseType, error) {
+			updateFieldsFn: func(_ context.Context, _, id uint64, _ UpdateTrimmingCourseTypeInput) (*model.TrimmingCourseType, error) {
 				return &model.TrimmingCourseType{ID: id, Name: name}, nil
 			},
 		}
@@ -281,7 +281,7 @@ func TestTrimmingCourseTypeService_Update(t *testing.T) {
 			findByIDFn: func(_ context.Context, _, id uint64) (*model.TrimmingCourseType, error) {
 				return &model.TrimmingCourseType{ID: id}, nil
 			},
-			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.TrimmingCourseType, error) {
+			updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateTrimmingCourseTypeInput) (*model.TrimmingCourseType, error) {
 				return nil, errors.New("db error")
 			},
 		}

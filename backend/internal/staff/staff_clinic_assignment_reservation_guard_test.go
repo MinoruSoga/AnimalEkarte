@@ -13,7 +13,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-func TestStaffService_SetClinicAssignments_ChecksReservationDependencyBeforeRemoval(t *testing.T) {
+func TestService_SetClinicAssignments_ChecksReservationDependencyBeforeRemoval(t *testing.T) {
 	dependencyErr := errors.New("reservation dependency lookup failed")
 	tests := []struct {
 		name              string
@@ -127,7 +127,7 @@ func TestStaffService_SetClinicAssignments_ChecksReservationDependencyBeforeRemo
 					return &model.Clinic{ID: clinicID, IsActive: true}, nil
 				},
 			}
-			svc := NewStaffService(
+			svc := NewService(
 				staffRepo,
 				&mockAccountForStaff{},
 				assignmentRepo,
@@ -162,7 +162,7 @@ func TestStaffService_SetClinicAssignments_ChecksReservationDependencyBeforeRemo
 	}
 }
 
-func TestStaffService_SetClinicAssignments_MissingReservationUsageFailsClosed(t *testing.T) {
+func TestService_SetClinicAssignments_MissingReservationUsageFailsClosed(t *testing.T) {
 	mutated := false
 	assignmentRepo := &mockAssignmentForStaff{
 		lockActiveFn: func(_ context.Context, staffID uint64) ([]model.StaffClinicAssignment, error) {
@@ -173,7 +173,7 @@ func TestStaffService_SetClinicAssignments_MissingReservationUsageFailsClosed(t 
 			return nil
 		},
 	}
-	svc := NewStaffService(
+	svc := NewService(
 		&mockStaffRepository{},
 		&mockAccountForStaff{},
 		assignmentRepo,
@@ -196,7 +196,7 @@ func TestStaffService_SetClinicAssignments_MissingReservationUsageFailsClosed(t 
 	assert.False(t, mutated)
 }
 
-func TestStaffService_SetClinicAssignments_UsesDeterministicClinicAndDependencyOrder(t *testing.T) {
+func TestService_SetClinicAssignments_UsesDeterministicClinicAndDependencyOrder(t *testing.T) {
 	events := make([]string, 0, 16)
 	input := &SetClinicAssignmentsInput{
 		StaffID:             10,
@@ -248,7 +248,7 @@ func TestStaffService_SetClinicAssignments_UsesDeterministicClinicAndDependencyO
 			return &model.Clinic{ID: clinicID, IsActive: true}, nil
 		},
 	}
-	svc := NewStaffService(
+	svc := NewService(
 		staffRepo,
 		&mockAccountForStaff{},
 		assignmentRepo,
@@ -281,7 +281,7 @@ func TestStaffService_SetClinicAssignments_UsesDeterministicClinicAndDependencyO
 	assert.Equal(t, []uint64{3, 2}, input.ClinicIDs, "caller-owned order must remain unchanged")
 }
 
-func TestStaffService_SetClinicAssignments_BatchesRemovedClinicDependencyChecks(t *testing.T) {
+func TestService_SetClinicAssignments_BatchesRemovedClinicDependencyChecks(t *testing.T) {
 	events := make([]string, 0, 12)
 	staffRepo := &mockStaffRepository{
 		lockForUpdateFn: func(ctx context.Context, id uint64) (*model.Staff, error) {
@@ -348,7 +348,7 @@ func TestStaffService_SetClinicAssignments_BatchesRemovedClinicDependencyChecks(
 			return &model.Clinic{ID: clinicID, IsActive: true}, nil
 		},
 	}
-	svc := NewStaffService(
+	svc := NewService(
 		staffRepo,
 		&mockAccountForStaff{},
 		assignmentRepo,

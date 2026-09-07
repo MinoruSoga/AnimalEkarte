@@ -65,7 +65,7 @@ type AuthAuditLogger interface {
 
 // HTTPDependencies contains only capabilities directly consumed by auth HTTP behavior.
 type HTTPDependencies struct {
-	Auth                 AuthService
+	Auth                 Service
 	Tokens               TokenService
 	TokenBlacklist       TokenBlacklistService
 	PasswordReset        PasswordResetService

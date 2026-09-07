@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { fetchStaffsRaw, STAFFS_RAW_QUERY_KEY } from "@/hooks/use-staffs";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { queryKeys } from "@/lib/query-keys";
@@ -78,11 +79,6 @@ export type Staff = ReturnType<typeof transformStaff>;
 // API functions
 // ─────────────────────────────────────────────────
 
-async function listStaffs(): Promise<Staff[]> {
-  const { data } = await axios.get<ModelStaff[]>("/v1/masters/staffs");
-  return data.map(transformStaff);
-}
-
 async function createStaff(req: CreateStaffRequest): Promise<Staff> {
   const payload = {
     ...req,
@@ -111,8 +107,9 @@ async function deleteStaff(id: string): Promise<void> {
 
 export function useGetStaffs() {
   return useQuery({
-    queryKey: queryKeys.masters.category("staffs"),
-    queryFn: listStaffs,
+    queryKey: STAFFS_RAW_QUERY_KEY,
+    queryFn: fetchStaffsRaw,
+    select: (rows) => rows.map(transformStaff),
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
   });

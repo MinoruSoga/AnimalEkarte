@@ -60,11 +60,11 @@ func (noopTrimmingAuditTxLogger) LogEntryTx(context.Context, *AuditEntry) error 
 }
 
 type trimmingServiceWithTestActor struct {
-	TrimmingService
+	Service
 }
 
-func withTrimmingTestActor(svc TrimmingService) TrimmingService {
-	return &trimmingServiceWithTestActor{TrimmingService: svc}
+func withTrimmingTestActor(svc Service) Service {
+	return &trimmingServiceWithTestActor{Service: svc}
 }
 
 func (s *trimmingServiceWithTestActor) Create(
@@ -73,11 +73,11 @@ func (s *trimmingServiceWithTestActor) Create(
 	input *CreateTrimmingInput,
 ) (*model.Reservation, error) {
 	if input == nil || input.ActorID != nil {
-		return s.TrimmingService.Create(ctx, clinicID, input)
+		return s.Service.Create(ctx, clinicID, input)
 	}
 	cloned := *input
 	cloned.ActorID = ptrUint64(42)
-	return s.TrimmingService.Create(ctx, clinicID, &cloned)
+	return s.Service.Create(ctx, clinicID, &cloned)
 }
 
 func (s *trimmingServiceWithTestActor) Update(
@@ -86,11 +86,11 @@ func (s *trimmingServiceWithTestActor) Update(
 	input *UpdateTrimmingInput,
 ) (*model.Reservation, error) {
 	if input == nil || input.ActorID != nil {
-		return s.TrimmingService.Update(ctx, clinicID, id, input)
+		return s.Service.Update(ctx, clinicID, id, input)
 	}
 	cloned := *input
 	cloned.ActorID = ptrUint64(42)
-	return s.TrimmingService.Update(ctx, clinicID, id, &cloned)
+	return s.Service.Update(ctx, clinicID, id, &cloned)
 }
 
 func (s *trimmingServiceWithTestActor) Delete(
@@ -101,7 +101,7 @@ func (s *trimmingServiceWithTestActor) Delete(
 	if actorID == nil {
 		actorID = ptrUint64(42)
 	}
-	return s.TrimmingService.Delete(ctx, clinicID, id, actorID)
+	return s.Service.Delete(ctx, clinicID, id, actorID)
 }
 
 func newTestTransactor(db *gorm.DB) Transactor {

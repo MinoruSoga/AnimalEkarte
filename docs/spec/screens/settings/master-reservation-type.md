@@ -17,9 +17,9 @@
 - **基本属性**: 名称、ステータス（有効/無効）、グループ、備考。略称・標準所要時間は下記「LINE予約設定」セクション内にある（所要時間は `<input type="number">` min=5 / max=480 分。15 分刻みへの制約はない）。
 - **カレンダー色**: 予約区分自体には色編集 UI がない。一覧のカラーバッジは所属する区分グループの色（グループ側サイドパネルで編集、下記参照）を表示し、未分類の区分は固定のグレーになる（`ReservationTypeGroupedTableRows.tsx`）。
 - **LINE 予約連携**:
-    - **予約ページに表示**: オンにすると飼い主向け LIFF アプリの選択肢に出現（「内部サービス」がオンの区分も LIFF には表示されない）。
+    - **予約ページに表示**: 有効かつオンの区分を飼い主向け LIFF アプリの選択肢に出す。「内部サービス」がオン、または無効の区分は公開しない。無効化済み区分の新規予約もサーバ側で拒否する（#238）。
     - **所要時間**: 院内用・LINE 予約用で共通の単一フィールド（`duration_minutes`）。LINE 専用の別枠所要時間フィールドは存在しない。
-- **予約可能枠**: 予約可能な開始時刻（毎週／特定日）をリスト形式で追加・削除。「カレンダーで編集」リンクから [LINE予約枠カレンダーページ](../28-line-reservation.md)（`/line-reservation/slots?typeId=:id`）へ遷移し、月カレンダーで日別に編集できる。子予約区分を持つ親区分では非表示（「子予約区分ごとに予約枠を設定してください」の案内のみ表示）。
+- **予約可能枠**: 予約可能な開始時刻（毎週／特定日）をリスト形式で追加・削除。「カレンダーで編集」リンクから [LINE予約枠カレンダーページ](../28-line-reservation.md)（`/line-reservation/slots?typeId=:id`）へ遷移し、週カレンダーで日別に編集できる。子予約区分を持つ親区分では非表示（「子予約区分ごとに予約枠を設定してください」の案内のみ表示）。
 - **予約不可時間**: 予約を受け付けない時間帯（毎週／特定日）を時間範囲で登録。予約可能枠と同様、子予約区分を持つ親区分では非表示。
 - **対応職種**: この予約区分を担当できる職種を紐付け（1 件以上紐付けると、担当可能スタッフが勤務する日のみ予約可能になる）。
 
@@ -50,7 +50,7 @@
 | GET | `/api/v1/masters/reservation-types` | 有効な予約区分一覧の取得 | `master-reservation-type` | `view` |
 | GET | `/api/v1/masters/reservation-types/:id` | 特定の予約区分詳細の取得 | `master-reservation-type` | `view` |
 | POST | `/api/v1/masters/reservation-types` | 新規予約区分の登録 | `master-reservation-type` | `create` |
-| PATCH | `/api/v1/masters/reservation-types/:id` | 名称、時間、色の更新 | `master-reservation-type` | `edit` |
+| PATCH | `/api/v1/masters/reservation-types/:id` | 名称、時間、公開設定等の更新（画面の色編集は区分グループ側） | `master-reservation-type` | `edit` |
 | DELETE | `/api/v1/masters/reservation-types/:id` | 予約区分の削除 | `master-reservation-type` | `delete` |
 | PATCH | `/api/v1/masters/reservation-types/reorder` | 表示順序の一括保存 | `master-reservation-type` | `edit` |
 | GET | `/api/v1/masters/reservation-types/:id/available-slots` | 予約可能枠の取得 | `master-reservation-type` | `view` |

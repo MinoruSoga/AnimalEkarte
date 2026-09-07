@@ -10,20 +10,20 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 )
 
-// LstepSettingsHandler は LstepSettingsService の HTTP handler。
-type LstepSettingsHandler struct {
+// SettingsHandler は LstepSettingsService の HTTP handler。
+type SettingsHandler struct {
 	svc               LstepSettingsService
 	requirePermission PermissionMiddleware
 }
 
-// NewLstepSettingsHandler は LstepSettingsHandler を構築する。
-func NewLstepSettingsHandler(svc LstepSettingsService, requirePermission PermissionMiddleware) *LstepSettingsHandler {
-	return &LstepSettingsHandler{svc: svc, requirePermission: requirePermission}
+// NewSettingsHandler は SettingsHandler を構築する。
+func NewSettingsHandler(svc LstepSettingsService, requirePermission PermissionMiddleware) *SettingsHandler {
+	return &SettingsHandler{svc: svc, requirePermission: requirePermission}
 }
 
 // GetLstepSettings godoc
 // GET /api/v1/lstep-settings
-func (h *LstepSettingsHandler) GetLstepSettings(c *gin.Context) {
+func (h *SettingsHandler) GetLstepSettings(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
 		return
@@ -38,7 +38,7 @@ func (h *LstepSettingsHandler) GetLstepSettings(c *gin.Context) {
 
 // UpdateLstepSettings godoc
 // PATCH /api/v1/lstep-settings
-func (h *LstepSettingsHandler) UpdateLstepSettings(c *gin.Context) {
+func (h *SettingsHandler) UpdateLstepSettings(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
 		return
@@ -62,7 +62,7 @@ func (h *LstepSettingsHandler) UpdateLstepSettings(c *gin.Context) {
 
 // DeleteLstepSettings godoc
 // DELETE /api/v1/lstep-settings
-func (h *LstepSettingsHandler) DeleteLstepSettings(c *gin.Context) {
+func (h *SettingsHandler) DeleteLstepSettings(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
 		return
@@ -80,7 +80,7 @@ func (h *LstepSettingsHandler) DeleteLstepSettings(c *gin.Context) {
 
 // TestLstepConnection godoc
 // POST /api/v1/lstep-settings/test-connection
-func (h *LstepSettingsHandler) TestLstepConnection(c *gin.Context) {
+func (h *SettingsHandler) TestLstepConnection(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
 		return

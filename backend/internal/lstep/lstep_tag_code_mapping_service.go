@@ -7,8 +7,6 @@ import (
 	"context"
 	"fmt"
 
-	slog "log/slog"
-
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -60,7 +58,6 @@ func NewLstepTagCodeMappingService(
 func (s *lstepTagCodeMappingService) ListMappings(ctx context.Context, clinicID uint64) ([]*model.LstepTagCodeMapping, error) {
 	mappings, err := s.repo.FindAllByClinicID(ctx, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list lstep tag code mappings", "clinic_id", clinicID, "error", err)
 		return nil, apperrors.Wrap(err, "failed to list lstep tag code mappings")
 	}
 	return mappings, nil
@@ -111,7 +108,6 @@ func (s *lstepTagCodeMappingService) PutMappingsForTag(ctx context.Context, clin
 
 		return nil
 	}); err != nil {
-		slog.ErrorContext(ctx, "failed to replace lstep tag code mappings", "clinic_id", clinicID, "tag_name", tagName, "error", err)
 		return nil, apperrors.Wrap(err, "failed to replace lstep tag code mappings")
 	}
 

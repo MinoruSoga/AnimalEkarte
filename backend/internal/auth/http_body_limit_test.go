@@ -79,7 +79,7 @@ func (bodyLimitPermissionGroupService) Reorder(context.Context, uint64, []uint64
 }
 
 type bodyLimitAuthCallService struct {
-	AuthService
+	Service
 	calls int
 }
 

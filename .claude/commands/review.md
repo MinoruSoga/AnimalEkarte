@@ -64,6 +64,10 @@ git diff --staged --name-only
 ### 🟡 MEDIUM（推奨対応）
 - ファイル:行 — 改善提案
 
+### 検証（実行したコマンドだけを書く）
+- 未実行のテスト・未測定 coverage を PASS / 80% と書かない
+- 実行した scoped コマンドと結果。実行していない項目は UNKNOWN
+
 ### 承認ステータス
 [Approve / Warning / Block]
 ```

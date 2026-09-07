@@ -1,22 +1,12 @@
 import { test, expect } from "@playwright/test";
 import type { BrowserContext } from "@playwright/test";
-import { loginAsDemoAdmin } from "./helpers/auth";
-
-// Smoke coverage for clinical pages.
-// Each test: navigate → assert page-specific h1 heading is visible.
-// Seed prerequisites: admin@noavet.jp (system admin) has full access to all clinical resources.
-//
-// Design: fresh page per test within shared context to avoid Chromium
-// state accumulation across many navigations.
+import { createClinicalContext } from "./helpers/clinical-suite";
 
 test.describe("臨床ページ smoke E2E", () => {
   let context: BrowserContext;
 
   test.beforeAll(async ({ browser }) => {
-    context = await browser.newContext();
-    const loginPage = await context.newPage();
-    await loginAsDemoAdmin(loginPage);
-    await loginPage.close();
+    ({ context } = await createClinicalContext(browser));
   });
 
   test.afterAll(async () => {

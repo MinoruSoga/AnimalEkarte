@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/animal-ekarte/backend/internal/clinic"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -232,16 +233,7 @@ func permissionGroupSeeds() []permissionGroupSeed {
 }
 
 func permissionBits(resource model.Resource, executive bool) (canView, canCreate, canEdit, canDelete bool) {
-	for _, r := range skeletonPermissionRules {
-		if r.resource != resource {
-			continue
-		}
-		if executive {
-			return r.execView, r.execCreate, r.execEdit, r.execDelete
-		}
-		return r.genView, r.genCreate, r.genEdit, r.genDelete
-	}
-	return false, false, false, false
+	return clinic.DefaultPermissionBits(resource, executive)
 }
 
 func ensureDefaultPaymentMethods(ctx context.Context, e execer) error {

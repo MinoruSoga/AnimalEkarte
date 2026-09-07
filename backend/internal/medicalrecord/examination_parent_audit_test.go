@@ -40,10 +40,11 @@ func TestExaminationService_ConfirmWithItemsPersistsItemsBeforeStatusTransition(
 				ID: examID, ClinicID: clinicID, ExamTypeID: 7, Status: status,
 			}, nil
 		},
-		updateFieldsFn: func(_ context.Context, gotClinicID, gotExamID uint64, fields map[string]any) (*model.Examination, error) {
+		updateFieldsFn: func(_ context.Context, gotClinicID, gotExamID uint64, cmd UpdateExaminationInput) (*model.Examination, error) {
 			assert.Equal(t, clinicID, gotClinicID)
 			assert.Equal(t, examID, gotExamID)
-			assert.Equal(t, model.ExaminationStatusConfirmed, fields["status"])
+			require.NotNil(t, cmd.Status)
+			assert.Equal(t, model.ExaminationStatusConfirmed, *cmd.Status)
 			order = append(order, "status")
 			status = model.ExaminationStatusConfirmed
 			return &model.Examination{
@@ -111,10 +112,11 @@ func TestExaminationService_CreateConfirmedWithItemsPersistsItemsBeforeStatusTra
 			status = exam.Status
 			return nil
 		},
-		updateFieldsFn: func(_ context.Context, gotClinicID, gotExamID uint64, fields map[string]any) (*model.Examination, error) {
+		updateFieldsFn: func(_ context.Context, gotClinicID, gotExamID uint64, cmd UpdateExaminationInput) (*model.Examination, error) {
 			assert.Equal(t, clinicID, gotClinicID)
 			assert.Equal(t, examID, gotExamID)
-			assert.Equal(t, model.ExaminationStatusConfirmed, fields["status"])
+			require.NotNil(t, cmd.Status)
+			assert.Equal(t, model.ExaminationStatusConfirmed, *cmd.Status)
 			order = append(order, "status")
 			status = model.ExaminationStatusConfirmed
 			return &model.Examination{ID: examID, ClinicID: clinicID, ExamTypeID: 7, Status: status}, nil
@@ -161,7 +163,7 @@ func TestExaminationService_ConfirmedMutationsReturnConflict(t *testing.T) {
 			lockByIDForUpdateFn: func(_ context.Context, clinicID, id uint64) (*model.Examination, error) {
 				return &model.Examination{ID: id, ClinicID: clinicID, Status: model.ExaminationStatusConfirmed}, nil
 			},
-			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Examination, error) {
+			updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateExaminationInput) (*model.Examination, error) {
 				updated = true
 				return nil, nil
 			},
@@ -268,9 +270,11 @@ func TestExaminationService_ParentMutationsWriteActorAndBeforeAfterAudit(t *test
 			lockByIDForUpdateFn: func(_ context.Context, _, _ uint64) (*model.Examination, error) {
 				return before, nil
 			},
-			updateFieldsFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.Examination, error) {
+			updateFieldsFn: func(_ context.Context, _, _ uint64, cmd UpdateExaminationInput) (*model.Examination, error) {
 				after := *before
-				after.ResultSummary = fields["result_summary"].(string)
+				if cmd.ResultSummary != nil {
+					after.ResultSummary = *cmd.ResultSummary
+				}
 				return &after, nil
 			},
 		}
@@ -366,7 +370,7 @@ func TestExaminationService_ParentMutationRequiresActorAndAuditDependencyBeforeW
 					lockByIDForUpdateFn: func(_ context.Context, clinicID, id uint64) (*model.Examination, error) {
 						return &model.Examination{ID: id, ClinicID: clinicID, ExamTypeID: 7, Status: model.ExaminationStatusPending}, nil
 					},
-					updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Examination, error) {
+					updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateExaminationInput) (*model.Examination, error) {
 						mutationCalls++
 						return &model.Examination{ID: 10}, nil
 					},
@@ -515,12 +519,12 @@ func statefulExaminationRepository(state *examinationMutationState) *mockExamina
 				Status: state.status, ResultSummary: state.resultSummary,
 			}, nil
 		},
-		updateFieldsFn: func(_ context.Context, clinicID, id uint64, fields map[string]any) (*model.Examination, error) {
-			if status, ok := fields["status"].(model.ExaminationStatus); ok {
-				state.status = status
+		updateFieldsFn: func(_ context.Context, clinicID, id uint64, cmd UpdateExaminationInput) (*model.Examination, error) {
+			if cmd.Status != nil {
+				state.status = *cmd.Status
 			}
-			if summary, ok := fields["result_summary"].(string); ok {
-				state.resultSummary = summary
+			if cmd.ResultSummary != nil {
+				state.resultSummary = *cmd.ResultSummary
 			}
 			return &model.Examination{
 				ID: id, ClinicID: clinicID, ExamTypeID: 7,

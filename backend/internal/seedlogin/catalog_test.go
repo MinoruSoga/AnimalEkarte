@@ -36,7 +36,9 @@ func TestCatalogMatchesLoginFormContract(t *testing.T) {
 	assert.Equal(t, "stg-staff-10000021@example.test", catalog[0].Email)
 	assert.Equal(t, uint64(1), catalog[0].ClinicID)
 	assert.Equal(t, model.StaffTypeDoctor, catalog[0].StaffType)
-	assert.Equal(t, "stg-staff-31000009@example.test", catalog[len(catalog)-1].Email)
+	assert.Equal(t, uint64(20_000_021), catalog[10].StaffID)
+	assert.Equal(t, uint64(2), catalog[10].ClinicID)
+	assert.Equal(t, "stg-staff-40000009@example.test", catalog[len(catalog)-1].Email)
 	assert.Equal(t, uint64(4), catalog[len(catalog)-1].ClinicID)
 	assert.Equal(t, model.StaffTypeNurse, catalog[len(catalog)-1].StaffType)
 }

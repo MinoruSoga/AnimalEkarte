@@ -265,6 +265,10 @@ func TestBillingItemRepository_FindUnbilledTrimmingItemsByPetID(t *testing.T) {
 
 		apptOptZero := makeTrimmingAppointment(t, db, clinicA, pet.ID, rt.ID, model.ReservationStatusAccounting)
 		optZero := makeTrimmingOption(t, db, clinicA, "0円オプション", priceOf(0))
+		require.NoError(t, db.Create(&model.AppointmentTrimmingDetail{
+			ClinicID:      clinicA,
+			AppointmentID: apptOptZero.ID,
+		}).Error)
 		attachTrimmingOption(t, db, apptOptZero.ID, optZero.ID, 0)
 
 		// 対照群: 有効な価格を持つコース

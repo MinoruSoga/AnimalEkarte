@@ -16,7 +16,6 @@ import (
 func (s *staffService) List(ctx context.Context, clinicID uint64, page, limit int) ([]model.Staff, int64, error) {
 	staff, total, err := s.repo.FindAll(ctx, clinicID, page, limit)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list staff", "error", err, "clinic_id", clinicID)
 		return nil, 0, apperrors.Wrap(err, "failed to list staff")
 	}
 	return staff, total, nil
@@ -25,7 +24,6 @@ func (s *staffService) List(ctx context.Context, clinicID uint64, page, limit in
 func (s *staffService) GetByID(ctx context.Context, id uint64) (*model.Staff, error) {
 	staff, err := s.repo.FindByID(ctx, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get staff", "error", err, "id", id)
 		return nil, apperrors.Wrap(err, "failed to get staff")
 	}
 	return staff, nil
@@ -37,13 +35,6 @@ func (s *staffService) GetByIDInClinic(
 ) (*model.Staff, error) {
 	staff, err := s.repo.FindByIDInClinic(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(
-			ctx,
-			"failed to get clinic-scoped staff",
-			"error", err,
-			"id", id,
-			"clinic_id", clinicID,
-		)
 		return nil, apperrors.Wrap(err, "failed to get clinic-scoped staff")
 	}
 	return staff, nil
@@ -51,7 +42,7 @@ func (s *staffService) GetByIDInClinic(
 
 // validateOccupationOwnership verifies a request-supplied occupation_id belongs to the
 // caller's clinic before it is persisted (X-14 master FK guard batch U7). OccupationID
-// is an optional FK — nil is always allowed. occupationRepo is a mandatory NewStaffService
+// is an optional FK — nil is always allowed. occupationRepo is a mandatory NewService
 // dependency wired from repos.Occupation in production, so a nil repo here is fail-closed
 // (unlike validateReservationTypeGroup's nil-skip in reservation_type_service_core.go,
 // which predates occupationRepo being a required dependency).
@@ -64,11 +55,9 @@ func (s *staffService) lockOccupationOwnership(
 		return nil
 	}
 	if s.occupationRepo == nil {
-		slog.ErrorContext(ctx, "occupation repository not configured", "clinic_id", clinicID)
 		return apperrors.WrapInternalServerError("failed to verify occupation ownership: occupation repository not configured")
 	}
 	if _, err := s.occupationRepo.LockActiveByIDForShare(ctx, clinicID, *occupationID); err != nil {
-		slog.ErrorContext(ctx, "failed to verify occupation ownership", "error", err, "occupation_id", *occupationID, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to verify occupation ownership")
 	}
 	return nil
@@ -116,7 +105,6 @@ func (s *staffService) Create(ctx context.Context, input *CreateStaffInput) (*mo
 			ReservationImageURL:    input.ReservationImageURL,
 		}
 		if err := s.repo.Create(ctx, staff); err != nil {
-			slog.ErrorContext(ctx, "failed to create staff", "error", err)
 			return apperrors.Wrap(err, "failed to create staff")
 		}
 		if input.ClinicID != 0 {
@@ -125,13 +113,11 @@ func (s *staffService) Create(ctx context.Context, input *CreateStaffInput) (*mo
 				ClinicID: input.ClinicID,
 				IsMain:   true,
 			}); err != nil {
-				slog.ErrorContext(ctx, "failed to assign staff to clinic", "error", err, "clinic_id", input.ClinicID)
 				return apperrors.Wrap(err, "failed to assign staff to clinic")
 			}
 		}
 		return nil
 	}); err != nil {
-		slog.ErrorContext(ctx, "failed to create staff", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create staff")
 	}
 
@@ -210,13 +196,6 @@ func (s *staffService) Update(ctx context.Context, clinicID, id uint64, input *U
 		result = updated
 		return nil
 	}); err != nil {
-		slog.ErrorContext(
-			ctx,
-			"failed to update staff",
-			"error_type", fmt.Sprintf("%T", err),
-			"id", id,
-			"clinic_id", clinicID,
-		)
 		return nil, apperrors.Wrap(err, "failed to update staff")
 	}
 
@@ -394,7 +373,6 @@ func (s *staffService) Delete(ctx context.Context, clinicID, id uint64, isSystem
 
 		reservationExists, reservationErr := s.reservationRepo.ExistsByStaffID(txCtx, scopeClinicID, id)
 		if reservationErr != nil {
-			slog.ErrorContext(txCtx, "failed to check reservation dependency", "error", reservationErr, "id", id, "clinic_id", scopeClinicID)
 			return apperrors.Wrap(reservationErr, "failed to check reservation dependency")
 		}
 		if reservationExists {
@@ -402,7 +380,6 @@ func (s *staffService) Delete(ctx context.Context, clinicID, id uint64, isSystem
 		}
 		shiftExists, shiftErr := s.shiftEntryRepo.ExistsByStaffID(txCtx, scopeClinicID, id)
 		if shiftErr != nil {
-			slog.ErrorContext(txCtx, "failed to check shift dependency", "error", shiftErr, "id", id, "clinic_id", scopeClinicID)
 			return apperrors.Wrap(shiftErr, "failed to check shift dependency")
 		}
 		if shiftExists {
@@ -410,14 +387,12 @@ func (s *staffService) Delete(ctx context.Context, clinicID, id uint64, isSystem
 		}
 		dependencies, dependencyErr := s.repo.CountBlockingReferencesByStaffID(txCtx, scopeClinicID, id)
 		if dependencyErr != nil {
-			slog.ErrorContext(txCtx, "failed to check staff dependencies", "error", dependencyErr, "id", id, "clinic_id", scopeClinicID)
 			return apperrors.Wrap(dependencyErr, "failed to check staff dependencies")
 		}
 		if len(dependencies) > 0 {
 			return apperrors.WrapConflict(dependencies[0].Label + "を残しているため削除できません")
 		}
 		if deleteErr := s.repo.Delete(txCtx, scopeClinicID, id); deleteErr != nil {
-			slog.ErrorContext(txCtx, "failed to delete staff", "error", deleteErr, "id", id, "clinic_id", scopeClinicID)
 			return apperrors.Wrap(deleteErr, "failed to delete staff")
 		}
 		return nil
@@ -460,7 +435,6 @@ func (s *staffService) Reorder(ctx context.Context, clinicID uint64, ids []uint6
 		return apperrors.WrapInvalidInput(ErrMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
-		slog.ErrorContext(ctx, "failed to reorder staff", "error", err, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to reorder staff")
 	}
 	slog.InfoContext(ctx, "staff reordered", slog.Uint64("clinic_id", clinicID))

@@ -23,7 +23,7 @@ type coreMockStaffRepository struct {
 	lockInClinicFn                     func(ctx context.Context, clinicID, id uint64) (*model.Staff, error)
 	lockForShareFn                     func(ctx context.Context, id uint64) (*model.Staff, error)
 	createFn                           func(ctx context.Context, staff *model.Staff) error
-	updateFn                           func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	updateFn                           func(ctx context.Context, clinicID, id uint64, cmd UpdateStaffInput) error
 	deleteFn                           func(ctx context.Context, clinicID, id uint64) error
 	reorderFn                          func(ctx context.Context, clinicID uint64, ids []uint64) error
 	countBlockingReferencesByStaffIDFn func(ctx context.Context, clinicID, staffID uint64) ([]StaffDependencyCount, error)
@@ -85,9 +85,9 @@ func (m *coreMockStaffRepository) Create(ctx context.Context, staff *model.Staff
 	}
 	return nil
 }
-func (m *coreMockStaffRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+func (m *coreMockStaffRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateStaffInput) error {
 	if m.updateFn != nil {
-		return m.updateFn(ctx, clinicID, id, fields)
+		return m.updateFn(ctx, clinicID, id, cmd)
 	}
 	return nil
 }
@@ -326,7 +326,7 @@ func (m *coreMockShiftEntryRepository) LockActiveByIDForUpdate(
 func (m *coreMockShiftEntryRepository) Create(_ context.Context, _ *model.ShiftEntry) error {
 	return nil
 }
-func (m *coreMockShiftEntryRepository) Update(_ context.Context, _, _ uint64, _ map[string]any) error {
+func (m *coreMockShiftEntryRepository) Update(_ context.Context, _, _ uint64, _ UpdateShiftEntryInput) error {
 	return nil
 }
 func (m *coreMockShiftEntryRepository) Delete(_ context.Context, _, _ uint64) error { return nil }
@@ -390,15 +390,15 @@ func (t *coreFakeTransactor) WithTx(ctx context.Context, fn func(ctx context.Con
 	return fn(ctx)
 }
 
-func newCoreStaffService(
+func newCoreService(
 	repo *coreMockStaffRepository,
 	accountRepo *coreMockAccountRepository,
 	assignmentRepo *coreMockStaffClinicAssignmentRepository,
 	reservationRepo *coreMockReservationQueryRepository,
 	shiftEntryRepo *coreMockShiftEntryRepository,
 	tx Transactor,
-) StaffService {
-	return NewStaffServiceWithCredentialAudit(
+) Service {
+	return NewServiceWithCredentialAudit(
 		repo,
 		accountRepo,
 		assignmentRepo,
@@ -413,7 +413,7 @@ func newCoreStaffService(
 	)
 }
 
-func TestStaffServiceCore_GetByIDInClinicUsesScopedRepositoryRead(t *testing.T) {
+func TestServiceCore_GetByIDInClinicUsesScopedRepositoryRead(t *testing.T) {
 	repo := &coreMockStaffRepository{
 		findByIDFn: func(_ context.Context, _ uint64) (*model.Staff, error) {
 			t.Fatal("HTTP-scoped staff read must not use global FindByID")
@@ -429,7 +429,7 @@ func TestStaffServiceCore_GetByIDInClinicUsesScopedRepositoryRead(t *testing.T) 
 			}, nil
 		},
 	}
-	svc := newCoreStaffService(
+	svc := newCoreService(
 		repo,
 		&coreMockAccountRepository{},
 		&coreMockStaffClinicAssignmentRepository{},
@@ -451,7 +451,7 @@ func TestStaffServiceCore_GetByIDInClinicUsesScopedRepositoryRead(t *testing.T) 
 
 // ---- Create ----
 
-func TestStaffServiceCore_Create(t *testing.T) {
+func TestServiceCore_Create(t *testing.T) {
 	tests := []struct {
 		name      string
 		input     *CreateStaffInput
@@ -552,7 +552,7 @@ func TestStaffServiceCore_Create(t *testing.T) {
 			repo := &coreMockStaffRepository{createFn: tt.createFn}
 			assignRepo := &coreMockStaffClinicAssignmentRepository{createFn: tt.assignFn}
 			tx := &coreFakeTransactor{withTxErr: tt.withTxErr}
-			svc := newCoreStaffService(repo, &coreMockAccountRepository{}, assignRepo, &coreMockReservationQueryRepository{}, &coreMockShiftEntryRepository{}, tx)
+			svc := newCoreService(repo, &coreMockAccountRepository{}, assignRepo, &coreMockReservationQueryRepository{}, &coreMockShiftEntryRepository{}, tx)
 
 			staff, err := svc.Create(context.Background(), tt.input)
 			if tt.wantErr {
@@ -566,7 +566,7 @@ func TestStaffServiceCore_Create(t *testing.T) {
 	}
 }
 
-func TestStaffServiceCore_Create_LocksOccupationInsideWriteTransaction(t *testing.T) {
+func TestServiceCore_Create_LocksOccupationInsideWriteTransaction(t *testing.T) {
 	occupationID := uint64(30)
 	findCalled := false
 	lockCalled := false
@@ -586,7 +586,7 @@ func TestStaffServiceCore_Create_LocksOccupationInsideWriteTransaction(t *testin
 			return nil
 		},
 	}
-	svc := NewStaffService(
+	svc := NewService(
 		repo,
 		&coreMockAccountRepository{},
 		&coreMockStaffClinicAssignmentRepository{},

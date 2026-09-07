@@ -16,18 +16,18 @@ type refreshTokenRevocation struct {
 
 const maxRefreshTokenCookieAggregateBytes = 32 << 10
 
-func (h *HTTPHandler) authService() AuthService {
+func (h *HTTPHandler) authService() Service {
 	if h.deps.Auth != nil {
 		return h.deps.Auth
 	}
-	return NewAuthService(h.deps.Accounts, h.deps.Staff, h.deps.EffectivePermissions)
+	return NewService(h.deps.Accounts, h.deps.Staff, h.deps.EffectivePermissions)
 }
 
 // ResolveClinicInfo returns the main clinic and all assigned clinic IDs.
 func ResolveClinicInfo(
 	assignments []model.StaffClinicAssignment,
 ) (mainClinicID string, clinicIDs []uint64) {
-	return NewAuthService(nil, nil, nil).ResolveClinicInfo(assignments)
+	return NewService(nil, nil, nil).ResolveClinicInfo(assignments)
 }
 
 // ResolveSystemAdminMainClinicID keeps an active preferred clinic or falls
@@ -37,7 +37,7 @@ func ResolveSystemAdminMainClinicID(
 	isSystemAdmin bool,
 	allClinics []model.Clinic,
 ) string {
-	return NewAuthService(nil, nil, nil).
+	return NewService(nil, nil, nil).
 		ResolveSystemAdminMainClinicID(mainClinicID, isSystemAdmin, allClinics)
 }
 

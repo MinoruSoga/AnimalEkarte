@@ -39,6 +39,21 @@ func buildSpecialPeriodUpdate(input UpdateSpecialPeriodInput, parsedStart, parse
 	return fields
 }
 
+func specialPeriodUpdateFields(input UpdateSpecialPeriodInput) map[string]any {
+	var parsedStart, parsedEnd *time.Time
+	if input.StartDate != nil {
+		if t, err := time.ParseInLocation(time.DateOnly, *input.StartDate, time.Local); err == nil {
+			parsedStart = &t
+		}
+	}
+	if input.EndDate != nil {
+		if t, err := time.ParseInLocation(time.DateOnly, *input.EndDate, time.Local); err == nil {
+			parsedEnd = &t
+		}
+	}
+	return buildSpecialPeriodUpdate(input, parsedStart, parsedEnd)
+}
+
 // ClosingSettingsResponse は設定・特別期間をまとめたレスポンス
 type ClosingSettingsResponse struct {
 	Settings       *model.ClinicSettings        `json:"settings"`
@@ -97,7 +112,7 @@ type ClosingSettingsService interface {
 }
 
 // ClinicRowLocker serializes clinic-scoped writes via FOR UPDATE on the clinics row.
-// Implemented by ClinicRepository.LockByIDForUpdate; fail-closed without ambient tx.
+// Implemented by Repository.LockByIDForUpdate; fail-closed without ambient tx.
 type ClinicRowLocker interface {
 	LockByIDForUpdate(ctx context.Context, id uint64) (*model.Clinic, error)
 }
@@ -166,7 +181,6 @@ func NewClosingSettingsService(
 func (s *closingSettingsService) ListSpecialPeriods(ctx context.Context, clinicID uint64) ([]model.ClosingSpecialPeriod, error) {
 	periods, err := s.periodRepo.FindAll(ctx, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list special periods", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to list special periods")
 	}
 	return periods, nil
@@ -175,12 +189,10 @@ func (s *closingSettingsService) ListSpecialPeriods(ctx context.Context, clinicI
 func (s *closingSettingsService) Get(ctx context.Context, clinicID uint64) (*ClosingSettingsResponse, error) {
 	settings, err := s.settingsRepo.FindByClinicID(ctx, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get clinic settings", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get clinic settings")
 	}
 	periods, err := s.periodRepo.FindAll(ctx, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get special periods", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get special periods")
 	}
 	return &ClosingSettingsResponse{Settings: settings, SpecialPeriods: periods}, nil
@@ -214,7 +226,6 @@ func (s *closingSettingsService) UpdateStandard(ctx context.Context, clinicID, a
 
 		current, err := s.settingsRepo.FindByClinicID(txCtx, clinicID)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to get current settings", "error", err, "clinic_id", clinicID)
 			return apperrors.Wrap(err, "failed to get current settings")
 		}
 		beforeMeta := closingSettingsFieldPresence(current)
@@ -241,7 +252,6 @@ func (s *closingSettingsService) UpdateStandard(ctx context.Context, clinicID, a
 
 		saved, err := s.settingsRepo.Save(txCtx, clinicID, current)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to update clinic settings", "error", err, "clinic_id", clinicID)
 			return apperrors.Wrap(err, "failed to update clinic settings")
 		}
 		result = saved
@@ -305,7 +315,6 @@ func (s *closingSettingsService) CreateSpecialPeriod(ctx context.Context, clinic
 	// POC-05 / X-05: CheckOverlap + Create を同一 tx（clinic advisory lock）で直列化する。
 	created, err := s.periodRepo.CreateCheckingOverlap(ctx, p)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to create closing special period", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to create special period")
 	}
 	return created, nil
@@ -314,7 +323,6 @@ func (s *closingSettingsService) CreateSpecialPeriod(ctx context.Context, clinic
 func (s *closingSettingsService) UpdateSpecialPeriod(ctx context.Context, clinicID, id uint64, input UpdateSpecialPeriodInput) (*model.ClosingSpecialPeriod, error) {
 	current, err := s.periodRepo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get special period", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get special period")
 	}
 
@@ -360,13 +368,8 @@ func (s *closingSettingsService) UpdateSpecialPeriod(ctx context.Context, clinic
 		return current, nil
 	}
 	// POC-05 / X-05: CheckOverlap + Update を同一 tx（clinic advisory lock）で直列化する。
-	result, err := s.periodRepo.UpdateCheckingOverlap(ctx, clinicID, id, startDate, endDate, fields)
+	result, err := s.periodRepo.UpdateCheckingOverlap(ctx, clinicID, id, startDate, endDate, input)
 	if err != nil {
-		// POC-15: log once at the request boundary with clinic_id/id context.
-		slog.ErrorContext(ctx, "failed to update closing special period",
-			slog.Uint64("clinic_id", clinicID),
-			slog.Uint64("id", id),
-			slog.Any("error", err))
 		return nil, apperrors.Wrap(err, "failed to update special period")
 	}
 	slog.InfoContext(ctx, "closing special period updated",
@@ -383,7 +386,6 @@ func (s *closingSettingsService) DeleteSpecialPeriod(ctx context.Context, clinic
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("id", id))
 	if err := s.periodRepo.Delete(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to delete special period", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete special period")
 	}
 	return nil
@@ -393,14 +395,12 @@ func (s *closingSettingsService) ResolveSchedule(ctx context.Context, clinicID u
 	// 特別期間をチェック（優先）
 	special, err := s.periodRepo.FindByDate(ctx, clinicID, date)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to find special period", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to find special period")
 	}
 	if special != nil {
 		// #215: 特別期間は am_start を持たないため標準設定の値を継承する。
 		settings, err := s.settingsRepo.FindByClinicID(ctx, clinicID)
 		if err != nil {
-			slog.ErrorContext(ctx, "failed to get clinic settings for am_start", "error", err, "clinic_id", clinicID)
 			return nil, apperrors.Wrap(err, "failed to get clinic settings")
 		}
 		return &DaySchedule{
@@ -414,7 +414,6 @@ func (s *closingSettingsService) ResolveSchedule(ctx context.Context, clinicID u
 	// 標準設定を取得
 	settings, err := s.settingsRepo.FindByClinicID(ctx, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get clinic settings", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get clinic settings")
 	}
 	pmEnd := settings.ClosingWeekdayEnd
@@ -437,7 +436,6 @@ func (s *closingSettingsService) ResolveSchedule(ctx context.Context, clinicID u
 		yearMonth := date.Format("2006-01")
 		holidays, err := s.holidayRepo.FindAllByYearMonth(ctx, clinicID, yearMonth)
 		if err != nil {
-			slog.ErrorContext(ctx, "failed to find clinic holidays", "error", err, "clinic_id", clinicID)
 			return nil, apperrors.Wrap(err, "failed to find clinic holidays")
 		}
 		dateStr := date.Format(time.DateOnly)

@@ -66,7 +66,7 @@
 - **Deploy gate（`LSTEP_WRITE_API_ENABLED`）**: Write 系（AddTag / RemoveTag / AddTagBulk / SetProperty）は exact `"true"` のときだけ HTTP を送る。未設定・空・`"false"`・未知値は無効。無効時は **`ErrWriteDisabled` を返し HTTP を送らない（`nil` 成功にしない）**。内部タグキャッシュ・判定・監査のアプリ内更新は経路により継続し得るが、Lステップ側実タグは変わらない。enable / stop / rollback の手順正本は [`LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)（本 spec に手順・環境実値を複製しない）。
 - **Clinic gate（`is_sync_enabled` / API キー）**: `is_sync_enabled=false` または API キー未設定の clinic は `buildClient` がクライアントを構築せず `nil, nil` を返す（意図的スキップ）。deploy gate の `ErrWriteDisabled` とは**別契約**である。
 - **バッチ同期（scheduler/cron）**: Cloudflare scheduled event の式と job 対応は code/config へ配線済み（毎日 02:00 JST に `dormant`、10:00 JST に `no_show`→`delivery`、15:00/20:00 JST に `no_show`。durable coordinator、重複防止、pause/resume、missing-slot catch-up、失敗通知を含む）。**配線済みであることと、対象環境（STG/production）での自然発火・実送信・運用 rehearsal が完了していることは別事実である。** 後者は release gate として未実測（[Scheduler Operations](../../ops/deploy/runbooks/SCHEDULER_OPERATIONS.md)）。
-- **配信トリガー候補の読み取り**: clinic スコープ bulk-read を必須とし、owner ループ内の N+1 読み（owner / 当日 claim / 抑制 / tag-cache）を置かない。opt-out・suppression・daily-claim 意味論と bounded memory は維持する。
+- **配信トリガー候補の読み取り**: 通常経路は clinic スコープ bulk-read を必須とし、owner ループ内の N+1 読み（owner / 当日 claim / 抑制 / tag-cache）を置かない。opt-out・suppression・daily-claim 意味論と bounded memory は維持する。現行実装に残る bulk 失敗後の per-owner fallback と是正契約は [line/lstep-integration.md §5.2](../line/lstep-integration.md) を参照する。この劣化経路を含めた無条件の no-N+1 は未達である。
 - **流量**: Messaging API / Lステップ API のレート制限は固定のクライアント方針と監視で扱う。バッチとリアルタイムを動的に切り替える rate adjustment は持たない。
 
 ### API連携

@@ -126,8 +126,7 @@ func TestMedicalRecordRepository_OwnerVisitReads_CurrentOwnerAfterTransfer(t *te
 	require.NoError(t, err)
 	assert.Zero(t, previousSummary.TotalCount)
 
-	cursorRepo, ok := repo.(DormantOwnerEntriesAtRepository)
-	require.True(t, ok)
+	var cursorRepo DormantOwnerEntriesAtRepository = repo
 	entries, err := cursorRepo.FindDormantOwnerEntriesCursorAt(ctx, clinicID, 180, 0, 1, time.Now())
 	require.NoError(t, err)
 	require.Len(t, entries, 1)
@@ -188,8 +187,7 @@ func TestMedicalRecordRepository_FindDormantOwnerEntriesCursor_ClinicIsolation(t
 func TestMedicalRecordRepository_FindDormantOwnerEntriesCursorAt_UsesSuppliedEvaluationTime(t *testing.T) {
 	db := testdb.SetupTestDB(t)
 	store := NewMedicalRecordRepository(db)
-	repo, ok := store.(DormantOwnerEntriesAtRepository)
-	require.True(t, ok)
+	var repo DormantOwnerEntriesAtRepository = store
 	ctx := context.Background()
 	const clinicID = uint64(1)
 	const minDaysSince = 180

@@ -143,7 +143,8 @@ func TestEstimateRepository_Update(t *testing.T) {
 	t.Run("同一クリニックの更新は成功する", func(t *testing.T) {
 		e := makeEstimate(t, db, clinicA, owner.ID, model.EstimateStatusDraft)
 
-		err := repo.Update(ctx, clinicA, e.ID, map[string]any{"status": model.EstimateStatusSent})
+		status := model.EstimateStatusSent
+		err := repo.Update(ctx, clinicA, e.ID, UpdateEstimateInput{Status: &status})
 		require.NoError(t, err)
 
 		got, err := repo.FindByID(ctx, clinicA, e.ID)
@@ -154,13 +155,15 @@ func TestEstimateRepository_Update(t *testing.T) {
 	t.Run("他院からの更新はNotFound", func(t *testing.T) {
 		e := makeEstimate(t, db, clinicA, owner.ID, model.EstimateStatusDraft)
 
-		err := repo.Update(ctx, clinicB, e.ID, map[string]any{"status": model.EstimateStatusSent})
+		status := model.EstimateStatusSent
+		err := repo.Update(ctx, clinicB, e.ID, UpdateEstimateInput{Status: &status})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
 	t.Run("存在しないIDはNotFound", func(t *testing.T) {
-		err := repo.Update(ctx, clinicA, 999999, map[string]any{"status": model.EstimateStatusSent})
+		status := model.EstimateStatusSent
+		err := repo.Update(ctx, clinicA, 999999, UpdateEstimateInput{Status: &status})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
@@ -179,9 +182,8 @@ func TestEstimateRepository_UpdateIfNotLocked(t *testing.T) {
 	t.Run("draft status は更新に成功する", func(t *testing.T) {
 		e := makeEstimate(t, db, clinicA, owner.ID, model.EstimateStatusDraft)
 
-		got, err := repo.UpdateIfNotLocked(ctx, clinicA, e.ID, map[string]any{
-			"title": "更新後タイトル",
-		})
+		title := "更新後タイトル"
+		got, err := repo.UpdateIfNotLocked(ctx, clinicA, e.ID, UpdateEstimateInput{Title: &title})
 		require.NoError(t, err)
 		require.NotNil(t, got)
 		assert.Equal(t, "更新後タイトル", got.Title)
@@ -191,9 +193,8 @@ func TestEstimateRepository_UpdateIfNotLocked(t *testing.T) {
 	t.Run("sent status は更新に成功する", func(t *testing.T) {
 		e := makeEstimate(t, db, clinicA, owner.ID, model.EstimateStatusSent)
 
-		got, err := repo.UpdateIfNotLocked(ctx, clinicA, e.ID, map[string]any{
-			"title": "sent更新",
-		})
+		title := "sent更新"
+		got, err := repo.UpdateIfNotLocked(ctx, clinicA, e.ID, UpdateEstimateInput{Title: &title})
 		require.NoError(t, err)
 		require.NotNil(t, got)
 		assert.Equal(t, "sent更新", got.Title)
@@ -202,7 +203,7 @@ func TestEstimateRepository_UpdateIfNotLocked(t *testing.T) {
 	t.Run("draft status は空 fields でも行を取得できる", func(t *testing.T) {
 		e := makeEstimate(t, db, clinicA, owner.ID, model.EstimateStatusDraft)
 
-		got, err := repo.UpdateIfNotLocked(ctx, clinicA, e.ID, map[string]any{})
+		got, err := repo.UpdateIfNotLocked(ctx, clinicA, e.ID, UpdateEstimateInput{})
 		require.NoError(t, err)
 		require.NotNil(t, got)
 		assert.Equal(t, e.ID, got.ID)
@@ -211,7 +212,7 @@ func TestEstimateRepository_UpdateIfNotLocked(t *testing.T) {
 	t.Run("approved status は空 fields でも Conflict", func(t *testing.T) {
 		e := makeEstimate(t, db, clinicA, owner.ID, model.EstimateStatusApproved)
 
-		got, err := repo.UpdateIfNotLocked(ctx, clinicA, e.ID, map[string]any{})
+		got, err := repo.UpdateIfNotLocked(ctx, clinicA, e.ID, UpdateEstimateInput{})
 		assert.Nil(t, got)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsConflict(err), "expected Conflict, got %v", err)
@@ -221,9 +222,8 @@ func TestEstimateRepository_UpdateIfNotLocked(t *testing.T) {
 		e := makeEstimate(t, db, clinicA, owner.ID, model.EstimateStatusApproved)
 		originalTitle := e.Title
 
-		got, err := repo.UpdateIfNotLocked(ctx, clinicA, e.ID, map[string]any{
-			"title": "改ざん試行",
-		})
+		title := "改ざん試行"
+		got, err := repo.UpdateIfNotLocked(ctx, clinicA, e.ID, UpdateEstimateInput{Title: &title})
 		assert.Nil(t, got)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsConflict(err), "expected Conflict, got %v", err)
@@ -238,9 +238,8 @@ func TestEstimateRepository_UpdateIfNotLocked(t *testing.T) {
 		e := makeEstimate(t, db, clinicA, owner.ID, model.EstimateStatusRejected)
 		originalTitle := e.Title
 
-		got, err := repo.UpdateIfNotLocked(ctx, clinicA, e.ID, map[string]any{
-			"title": "改ざん試行",
-		})
+		title := "改ざん試行"
+		got, err := repo.UpdateIfNotLocked(ctx, clinicA, e.ID, UpdateEstimateInput{Title: &title})
 		assert.Nil(t, got)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsConflict(err), "expected Conflict, got %v", err)

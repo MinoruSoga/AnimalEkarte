@@ -167,7 +167,7 @@ func (s *animalSpeciesService) Update(ctx context.Context, id uint64, input *Upd
 		if err != nil {
 			return apperrors.Wrap(err, "failed to get animal species")
 		}
-		updated, err := s.repo.Update(txCtx, id, fields)
+		updated, err := s.repo.Update(txCtx, id, *input)
 		if err != nil {
 			nameForConflict := ""
 			if input.Name != nil {

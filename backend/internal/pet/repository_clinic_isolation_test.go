@@ -309,7 +309,8 @@ func TestPetRepository_Update_ClinicIsolation(t *testing.T) {
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "医院Aのポチ")
 
 	t.Run("別クリニックIDからの Update は NotFound を返す", func(t *testing.T) {
-		err := repo.Update(ctx, clinicB, petA.ID, map[string]any{"name": "改ざん"})
+		name := "改ざん"
+		err := repo.Update(ctx, clinicB, petA.ID, UpdatePetInput{Name: &name})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err), "別クリニックの Update は NotFound: %v", err)
 	})
@@ -321,7 +322,8 @@ func TestPetRepository_Update_ClinicIsolation(t *testing.T) {
 	})
 
 	t.Run("同一クリニックIDからの Update は成功する（false-reject なし）", func(t *testing.T) {
-		err := repo.Update(ctx, clinicA, petA.ID, map[string]any{"name": "正規更新"})
+		name := "正規更新"
+		err := repo.Update(ctx, clinicA, petA.ID, UpdatePetInput{Name: &name})
 		require.NoError(t, err)
 		got, err := repo.FindByID(ctx, clinicA, petA.ID)
 		require.NoError(t, err)

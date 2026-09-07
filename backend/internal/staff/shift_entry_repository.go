@@ -1,4 +1,4 @@
-// Package shiftentry owns shift_entries / shift_entry_breaks data access (BE8-4 batch13 — leaf domain).
+// Package staff owns shift_entries / shift_entry_breaks data access.
 package staff
 
 import (
@@ -33,7 +33,7 @@ type ShiftEntryRepository interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.ShiftEntry, error)
 	LockActiveByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.ShiftEntry, error)
 	Create(ctx context.Context, entry *model.ShiftEntry) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	Update(ctx context.Context, clinicID, id uint64, cmd UpdateShiftEntryInput) error
 	Delete(ctx context.Context, clinicID, id uint64) error
 	ExistsByStaffID(ctx context.Context, clinicID, staffID uint64) (bool, error)
 	FindClinicIDsByStaffID(ctx context.Context, clinicIDs []uint64, staffID uint64) ([]uint64, error)
@@ -140,7 +140,11 @@ func (r *shiftEntryRepository) Create(ctx context.Context, entry *model.ShiftEnt
 	return nil
 }
 
-func (r *shiftEntryRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+func (r *shiftEntryRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateShiftEntryInput) error {
+	return r.update(ctx, clinicID, id, buildShiftEntryUpdate(&cmd))
+}
+
+func (r *shiftEntryRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	return persistence.UpdateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.ShiftEntry{}, "shift_entry", clinicID, id, fields)
 }
 

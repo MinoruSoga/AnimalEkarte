@@ -247,7 +247,6 @@ func ValidateReservationPetNotDeceased(ctx context.Context, repo petByIDInClinic
 func (s *reservationService) List(ctx context.Context, clinicIDs []uint64, page, limit int, date, startDate, endDate *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error) {
 	items, total, err := s.repo.FindAll(ctx, clinicIDs, page, limit, date, startDate, endDate, status, source, petID, ownerID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list reservations", "error", err)
 		return nil, 0, apperrors.Wrap(err, "failed to list reservations")
 	}
 	return items, total, nil
@@ -256,7 +255,6 @@ func (s *reservationService) List(ctx context.Context, clinicIDs []uint64, page,
 func (s *reservationService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get reservation", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get reservation")
 	}
 	return result, nil
@@ -265,7 +263,6 @@ func (s *reservationService) GetByID(ctx context.Context, clinicID, id uint64) (
 func (s *reservationService) GetByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Reservation, error) {
 	result, err := s.repo.FindByIDForClinics(ctx, clinicIDs, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get reservation for clinics", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get reservation for clinics")
 	}
 	return result, nil
@@ -296,7 +293,6 @@ func (s *reservationService) Create(ctx context.Context, input *CreateManualRese
 	// (reservation_validators.go の typeRepo と同型の nil 許容パターン)。
 	if s.typeRepo != nil {
 		if _, err := s.typeRepo.FindByID(ctx, input.ClinicID, input.ReservationTypeID); err != nil {
-			slog.ErrorContext(ctx, "reservation type not found or belongs to different clinic", "error", err)
 			return nil, apperrors.Wrap(err, "failed to verify reservation type ownership")
 		}
 	}

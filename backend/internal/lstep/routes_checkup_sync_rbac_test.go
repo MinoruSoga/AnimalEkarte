@@ -23,7 +23,7 @@ func TestRegisterRoutes_CheckupSyncRBACTuples(t *testing.T) {
 	}
 
 	h := NewHandler(
-		&LstepSettingsHandler{},
+		&SettingsHandler{},
 		&LineSendHandler{},
 		&LineLinkHandler{},
 		&LineCustomerHandler{},

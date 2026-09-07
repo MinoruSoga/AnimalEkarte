@@ -43,7 +43,7 @@ func makeAssignedDoctor(t *testing.T, db *gorm.DB, clinicID uint64, name string,
 // 作成された StaffClinicAssignment が呼び出し元クリニックへ IsMain で紐づくことを検証する。
 func TestStaffRepository_CreateForReservation_BindsAssignmentToClinic(t *testing.T) {
 	db := setupStaffReservationWriteTestDB(t)
-	repo := NewStaffRepository(db)
+	repo := NewRepository(db)
 	ctx := context.Background()
 
 	staff := &model.Staff{ClinicID: 1, Name: "予約医師", StaffType: model.StaffTypeDoctor}
@@ -58,7 +58,7 @@ func TestStaffRepository_CreateForReservation_BindsAssignmentToClinic(t *testing
 // BUG-455-S7: reservation staff create path must persist explicit reservation_visible=false.
 func TestStaffRepository_CreateForReservation_ReservationVisibleFalsePersists(t *testing.T) {
 	db := setupStaffReservationWriteTestDB(t)
-	repo := NewStaffRepository(db)
+	repo := NewRepository(db)
 	ctx := context.Background()
 
 	staff := &model.Staff{
@@ -81,7 +81,7 @@ func TestStaffRepository_CreateForReservation_ReservationVisibleFalsePersists(t 
 
 func TestStaffRepository_CreateForReservation_RejectsClinicIDMismatchWithoutWrite(t *testing.T) {
 	db := setupStaffReservationWriteTestDB(t)
-	repo := NewStaffRepository(db)
+	repo := NewRepository(db)
 	ctx := context.Background()
 	staff := &model.Staff{ClinicID: 2, Name: "越境予約用医師", StaffType: model.StaffTypeDoctor}
 
@@ -103,7 +103,7 @@ func TestStaffRepository_CreateForReservation_RejectsClinicIDMismatchWithoutWrit
 // clinic B のスタッフを更新できない（NotFound・無変更）ことを検証する。
 func TestStaffRepository_UpdateForReservation_ClinicIsolation(t *testing.T) {
 	db := setupStaffReservationWriteTestDB(t)
-	repo := NewStaffRepository(db)
+	repo := NewRepository(db)
 	ctx := context.Background()
 
 	staffB := makeAssignedDoctor(t, db, 2, "クリニックB医師", 1)
@@ -119,7 +119,7 @@ func TestStaffRepository_UpdateForReservation_ClinicIsolation(t *testing.T) {
 
 func TestStaffRepository_UpdateForReservation_EmptyCommandNoop(t *testing.T) {
 	db := setupStaffReservationWriteTestDB(t)
-	repo := NewStaffRepository(db)
+	repo := NewRepository(db)
 	ctx := context.Background()
 	staff := makeAssignedDoctor(t, db, 1, "変更前", 1)
 
@@ -139,7 +139,7 @@ func ptr[T any](v T) *T {
 // clinic B のスタッフの並び順を操作できない（NotFound・sort_order 無変更）ことを検証する。
 func TestStaffRepository_SwapSortOrderForReservation_ClinicIsolation(t *testing.T) {
 	db := setupStaffReservationWriteTestDB(t)
-	repo := NewStaffRepository(db)
+	repo := NewRepository(db)
 	ctx := context.Background()
 
 	staffB1 := makeAssignedDoctor(t, db, 2, "B医師1", 1)
@@ -160,7 +160,7 @@ func TestStaffRepository_SwapSortOrderForReservation_ClinicIsolation(t *testing.
 // 隣接スタッフと sort_order が入れ替わる（delegate 移動後の挙動保持）ことを検証する。
 func TestStaffRepository_SwapSortOrderForReservation_SwapsWithinClinic(t *testing.T) {
 	db := setupStaffReservationWriteTestDB(t)
-	repo := NewStaffRepository(db)
+	repo := NewRepository(db)
 	ctx := context.Background()
 
 	staff1 := makeAssignedDoctor(t, db, 1, "医師1", 1)
@@ -180,7 +180,7 @@ func TestStaffRepository_SwapSortOrderForReservation_SwapsWithinClinic(t *testin
 // mutate the ordering observed by the primary clinic.
 func TestStaffRepository_SwapSortOrderForReservation_RejectsSecondaryClinicAssignment(t *testing.T) {
 	db := setupStaffReservationWriteTestDB(t)
-	repo := NewStaffRepository(db)
+	repo := NewRepository(db)
 	ctx := context.Background()
 
 	staff1 := makeAssignedDoctor(t, db, 2, "共有医師1", 1)

@@ -27,9 +27,8 @@ export class VaccinationsPage extends BasePage {
     return this.page.getByPlaceholder("飼主名、ペット名、予防接種名...");
   }
 
-  hayashiText(): Locator {
-    // Seed uses ideographic space (U+3000) between family/given name.
-    return this.page.getByText(/林[\s\u3000]*文明/).first();
+  ownerText(name: string): Locator {
+    return this.page.getByText(name, { exact: false }).first();
   }
 
   firstDetailLink(): Locator {

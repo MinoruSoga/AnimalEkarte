@@ -385,8 +385,6 @@ func TestPermissionGroupAuditDB_SerializesAuditOldSnapshot(
 	require.NoError(t, db.Create(group).Error)
 
 	baseRepo := authdomain.NewPermissionGroupRepository(db)
-	locker, ok := baseRepo.(authdomain.PermissionGroupMutationLocker)
-	require.True(t, ok)
 	auditKernel := domainaudit.NewService(domainaudit.NewRepository(db))
 	audit := committedPermissionAudit{inner: auditKernel}
 	transactor := persistence.NewTransactor(db)
@@ -396,7 +394,7 @@ func TestPermissionGroupAuditDB_SerializesAuditOldSnapshot(
 	first := authdomain.NewPermissionGroupService(
 		&pausingPermissionGroupRepository{
 			PermissionGroupRepository: baseRepo,
-			locker:                    locker,
+			locker:                    baseRepo,
 			locked:                    firstLocked,
 			release:                   releaseFirst,
 		},
@@ -406,7 +404,7 @@ func TestPermissionGroupAuditDB_SerializesAuditOldSnapshot(
 	second := authdomain.NewPermissionGroupService(
 		&observingPermissionGroupRepository{
 			PermissionGroupRepository: baseRepo,
-			locker:                    locker,
+			locker:                    baseRepo,
 			attempted:                 secondAttempted,
 		},
 		transactor,

@@ -8,7 +8,7 @@ import type { AuthUser } from "@/types/auth";
 const { loginMock, logoutMock, queryClientMock, refreshTokenMock } = vi.hoisted(() => ({
   loginMock: vi.fn(),
   logoutMock: vi.fn(),
-  queryClientMock: { clear: vi.fn() },
+  queryClientMock: { clear: vi.fn(), setQueryData: vi.fn() },
   refreshTokenMock: vi.fn().mockResolvedValue(null),
 }));
 
@@ -100,6 +100,7 @@ describe("AuthProvider initial session restoration", () => {
     logoutMock.mockReset().mockResolvedValue(undefined);
     refreshTokenMock.mockReset().mockResolvedValue(null);
     queryClientMock.clear.mockReset();
+    queryClientMock.setQueryData.mockReset();
   });
 
   afterAll(() => {
@@ -159,6 +160,7 @@ describe("AuthProvider initial session restoration", () => {
 
     await waitFor(() => expect(refreshTokenMock).toHaveBeenCalledOnce());
     expect(await screen.findByTestId("auth-state")).toHaveTextContent(AUTH_USER.id);
+    expect(queryClientMock.setQueryData).toHaveBeenCalledWith(["me"], AUTH_USER);
   });
 
   it("takes a fresh session snapshot after login when returning from recovery to a protected route", async () => {

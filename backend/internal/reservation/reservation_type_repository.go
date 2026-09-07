@@ -21,7 +21,7 @@ type ReservationTypeRepository interface {
 	CountUsageByReservationTypeID(ctx context.Context, clinicID, id uint64) (int64, error)
 	CountChildrenByParentID(ctx context.Context, clinicID, parentID uint64) (int64, error)
 	Create(ctx context.Context, reservationType *model.ReservationType) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationType, error)
+	Update(ctx context.Context, clinicID, id uint64, cmd UpdateReservationTypeInput) (*model.ReservationType, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -117,21 +117,13 @@ func (r *reservationTypeRepository) Create(ctx context.Context, reservationType 
 	return nil
 }
 
-func (r *reservationTypeRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationType, error) {
+func (r *reservationTypeRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateReservationTypeInput) (*model.ReservationType, error) {
 	// RSV-03: write + reload in one transaction.
 	var loaded *model.ReservationType
 	err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		txCtx := persistence.WithTxValue(ctx, tx)
-		result := tx.
-			Model(&model.ReservationType{}).
-			Scopes(persistence.ClinicScope(clinicID)).
-			Where("id = ?", id).
-			Updates(fields)
-		if result.Error != nil {
-			return apperrors.FromGORM(result.Error, "reservation_type", fmt.Sprintf("%d", id))
-		}
-		if result.RowsAffected == 0 {
-			return apperrors.WrapNotFound("reservation_type", fmt.Sprintf("%d", id))
+		if err := r.update(txCtx, clinicID, id, buildReservationTypeUpdate(&cmd)); err != nil {
+			return err
 		}
 		var findErr error
 		loaded, findErr = r.FindByID(txCtx, clinicID, id)
@@ -141,6 +133,21 @@ func (r *reservationTypeRepository) Update(ctx context.Context, clinicID, id uin
 		return nil, err
 	}
 	return loaded, nil
+}
+
+func (r *reservationTypeRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+	result := persistence.DBOrTx(ctx, r.db).
+		Model(&model.ReservationType{}).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ?", id).
+		Updates(fields)
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "reservation_type", fmt.Sprintf("%d", id))
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.WrapNotFound("reservation_type", fmt.Sprintf("%d", id))
+	}
+	return nil
 }
 
 func (r *reservationTypeRepository) Delete(ctx context.Context, clinicID, id uint64) error {

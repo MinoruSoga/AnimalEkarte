@@ -498,7 +498,7 @@ func TestTreatmentService_Update(t *testing.T) {
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Treatment, error) {
 					return tt.repoTreatment, tt.findByIDErr
 				},
-				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+				updateFn: func(_ context.Context, _, _ uint64, _ UpdateTreatmentInput) error {
 					return tt.updateErr
 				},
 			}

@@ -11,7 +11,7 @@ Backend (Go) と Frontend (React) のパフォーマンスを詳細に分析・�
 
 ### 1. Go Backend Profiling (pprof)
 
-**前提: backend には現在 net/http/pprof が未配線**。以下のコマンドは `import _ "net/http/pprof"` + :6060 リッスンを追加してから使う。未配線のまま実行しても接続失敗する
+**前提: backend には現在 net/http/pprof が未配線**。以下のコマンドは `import _ "net/http/pprof"` + :6060 リッスンを追加してから使う。未配線のまま実行しても接続失敗する。アプリ本体は backend :8080 / frontend :3003。pprof 未配線を「計測 PASS」と書かない。
 
 #### CPU プロファイル
 ```bash

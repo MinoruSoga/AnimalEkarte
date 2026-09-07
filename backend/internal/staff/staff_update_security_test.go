@@ -83,9 +83,9 @@ func makeAccountStaffForUpdate(
 func newStaffUpdateServiceForDB(
 	db *gorm.DB,
 	accounts StaffAccountStore,
-) StaffService {
-	return NewStaffServiceWithCredentialAudit(
-		NewStaffRepository(db),
+) Service {
+	return NewServiceWithCredentialAudit(
+		NewRepository(db),
 		accounts,
 		NewStaffClinicAssignmentRepository(db),
 		nil,
@@ -140,7 +140,7 @@ func (s failAfterStaffAccountUpdate) UpdatePasswordHash(
 	return s.err
 }
 
-func TestStaffServiceUpdatePasswordOnlyRejectsCrossClinicTargetDatabase(t *testing.T) {
+func TestServiceUpdatePasswordOnlyRejectsCrossClinicTargetDatabase(t *testing.T) {
 	db := setupStaffUpdateSecurityDB(t)
 	company := &model.Company{Name: "staff update tenant company"}
 	require.NoError(t, db.Create(company).Error)
@@ -175,7 +175,7 @@ func TestStaffServiceUpdatePasswordOnlyRejectsCrossClinicTargetDatabase(t *testi
 	assert.Equal(t, "unchanged-hash", reloaded.PasswordHash)
 }
 
-func TestStaffServiceUpdateRollsBackProfileAndPasswordTogetherDatabase(t *testing.T) {
+func TestServiceUpdateRollsBackProfileAndPasswordTogetherDatabase(t *testing.T) {
 	db := setupStaffUpdateSecurityDB(t)
 	company := &model.Company{Name: "staff update rollback company"}
 	require.NoError(t, db.Create(company).Error)
@@ -219,7 +219,7 @@ func TestStaffServiceUpdateRollsBackProfileAndPasswordTogetherDatabase(t *testin
 	assert.Equal(t, "old-hash", reloadedAccount.PasswordHash)
 }
 
-func TestStaffServiceUpdateCommitsProfileAndPasswordTogetherDatabase(t *testing.T) {
+func TestServiceUpdateCommitsProfileAndPasswordTogetherDatabase(t *testing.T) {
 	db := setupStaffUpdateSecurityDB(t)
 	company := &model.Company{Name: "staff update commit company"}
 	require.NoError(t, db.Create(company).Error)
@@ -305,7 +305,7 @@ func TestHandlerUpdateStaffPasswordReplacementPermission(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			updateCalls := 0
 			checkerCalls := 0
-			service := &credentialAuditStaffService{
+			service := &credentialAuditService{
 				result: &model.Staff{ID: 29, ClinicID: 23, Name: "Updated Staff"},
 				calls:  &updateCalls,
 			}

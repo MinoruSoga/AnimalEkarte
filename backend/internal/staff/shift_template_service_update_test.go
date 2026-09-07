@@ -49,8 +49,9 @@ func TestShiftTemplateService_Update(t *testing.T) {
 				Name: strPtr("新しい早番"),
 			},
 			setupFn: func(repo *mockShiftTemplateRepository) {
-				repo.updateFn = func(_ context.Context, clinicID, id uint64, fields map[string]any) (*model.ShiftTemplate, error) {
-					assert.Equal(t, "新しい早番", fields["name"])
+				repo.updateFn = func(_ context.Context, clinicID, id uint64, cmd UpdateShiftTemplateInput) (*model.ShiftTemplate, error) {
+					require.NotNil(t, cmd.Name)
+					assert.Equal(t, "新しい早番", *cmd.Name)
 					return sampleShiftTemplate(id, "新しい早番"), nil
 				}
 			},
@@ -74,7 +75,7 @@ func TestShiftTemplateService_Update(t *testing.T) {
 				Name: strPtr("新しい早番"),
 			},
 			setupFn: func(repo *mockShiftTemplateRepository) {
-				repo.updateFn = func(_ context.Context, _, _ uint64, _ map[string]any) (*model.ShiftTemplate, error) {
+				repo.updateFn = func(_ context.Context, _, _ uint64, _ UpdateShiftTemplateInput) (*model.ShiftTemplate, error) {
 					return nil, errors.New("update failed")
 				}
 			},
@@ -138,8 +139,9 @@ func TestShiftTemplateService_Update(t *testing.T) {
 				Breaks: &[]ShiftBreakTemplateInput{{BreakStart: "12:00", BreakEnd: "13:00:00"}},
 			},
 			setupFn: func(repo *mockShiftTemplateRepository) {
-				repo.updateFn = func(_ context.Context, _, id uint64, fields map[string]any) (*model.ShiftTemplate, error) {
-					assert.Equal(t, "複合更新", fields["name"])
+				repo.updateFn = func(_ context.Context, _, id uint64, cmd UpdateShiftTemplateInput) (*model.ShiftTemplate, error) {
+					require.NotNil(t, cmd.Name)
+					assert.Equal(t, "複合更新", *cmd.Name)
 					return sampleShiftTemplate(id, "複合更新"), nil
 				}
 				repo.updateBreaksFn = func(_ context.Context, _ uint64, breaks []model.ShiftTemplateBreak) error {
@@ -301,7 +303,7 @@ func TestShiftTemplateService_Update_ValidatesEffectiveTimesBeforeWrite(t *testi
 				EndTime:   strPtr("17:00:00"),
 			}, nil
 		},
-		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.ShiftTemplate, error) {
+		updateFn: func(_ context.Context, _, _ uint64, _ UpdateShiftTemplateInput) (*model.ShiftTemplate, error) {
 			updateCalled = true
 			return nil, nil
 		},
@@ -336,8 +338,10 @@ func TestShiftTemplateService_Update_RollsBackParentWhenBreakReplacementFails(t 
 				ShiftType: model.ShiftTypeOff,
 			}, nil
 		},
-		updateFn: func(_ context.Context, clinicID, id uint64, fields map[string]any) (*model.ShiftTemplate, error) {
-			storedName = fields[colShiftTemplateName].(string)
+		updateFn: func(_ context.Context, clinicID, id uint64, cmd UpdateShiftTemplateInput) (*model.ShiftTemplate, error) {
+			if cmd.Name != nil {
+				storedName = *cmd.Name
+			}
 			return &model.ShiftTemplate{ID: id, ClinicID: clinicID, Name: storedName, ShiftType: model.ShiftTypeOff}, nil
 		},
 		updateBreaksFn: func(_ context.Context, _ uint64, _ []model.ShiftTemplateBreak) error {

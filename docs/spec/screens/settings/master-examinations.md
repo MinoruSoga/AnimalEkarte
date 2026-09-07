@@ -50,17 +50,19 @@
 | メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
 |:---|:---|:---|:---|:---|
 | GET/POST/PATCH/DELETE | `/api/v1/masters/examination-types` 系 | 検査プラン CRUD | `master-medical` | view/create/edit/delete |
-| POST | `.../examination-types/:id/fields` | 測定項目作成 | `master-medical` | create |
-| PATCH | `.../fields/:id` | 測定項目更新 | `master-medical` | edit |
-| DELETE | `.../fields/:id` | 測定項目削除 | `master-medical` | delete |
-| PATCH | `.../fields/reorder` | 測定項目並び替え | `master-medical` | edit |
-| PUT | `.../fields/:id/reference-ranges` | 基準値更新 | `master-medical` | edit |
+| POST | `/api/v1/masters/examination-types/:id/fields` | 測定項目作成 | `master-medical` | create |
+| PATCH | `/api/v1/masters/examination-types/:id/fields/:fieldId` | 測定項目更新 | `master-medical` | edit |
+| DELETE | `/api/v1/masters/examination-types/:id/fields/:fieldId` | 測定項目削除 | `master-medical` | delete |
+| PATCH | `/api/v1/masters/examination-types/:id/fields/reorder` | 測定項目並び替え | `master-medical` | edit |
+| PUT | `/api/v1/masters/examination-types/:id/fields/:fieldId/reference-ranges` | 基準値更新 | `master-medical` | edit |
 
-（正確な path 接頭辞は `frontend/src/features/master/api/exam-types-master.ts` を正とする。）
+実装参照: `frontend/src/features/master/api/exam-types-master.ts`。
 
 ---
 
 ## Residual checklist (#249 · W3 LANE-3)
+
+以下は W3 時点の実装・残差記録。DONE はコード対応済みを意味し、臨床用基準値の承認、対象環境での機器受信・運用確認、#249 全体の受入完了ではない。試験件数は当時の scoped evidence であり、今回の文書更新で再実行した結果ではない。現在の実行状態は [検査機能 #249](https://github.com/MinoruSoga/AnimalEkarte/issues/249) と [作業入口](../../../work/README.md) から確認する。
 
 Phase 1 FE と Phase 2 composite FK（`001_init.sql` にアーカイブ済み）は実装済み。残差は次のとおり。
 

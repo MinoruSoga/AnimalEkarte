@@ -172,7 +172,8 @@ func TestVitalRepository_Update(t *testing.T) {
 	require.NoError(t, repo.Create(ctx, vital))
 
 	t.Run("正常系: notes が更新される", func(t *testing.T) {
-		require.NoError(t, repo.Update(ctx, clinicA, vital.ID, map[string]any{"notes": "更新後"}))
+		notes := "更新後"
+		require.NoError(t, repo.Update(ctx, clinicA, vital.ID, UpdateVitalInput{Notes: &notes}))
 
 		got, err := repo.FindByID(ctx, clinicA, vital.ID)
 		require.NoError(t, err)
@@ -180,13 +181,15 @@ func TestVitalRepository_Update(t *testing.T) {
 	})
 
 	t.Run("別クリニックからの更新は NotFound", func(t *testing.T) {
-		err := repo.Update(ctx, clinicB, vital.ID, map[string]any{"notes": "乗っ取り"})
+		notes := "乗っ取り"
+		err := repo.Update(ctx, clinicB, vital.ID, UpdateVitalInput{Notes: &notes})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
 	t.Run("存在しないIDの更新は NotFound", func(t *testing.T) {
-		err := repo.Update(ctx, clinicA, 9999999, map[string]any{"notes": "存在しない"})
+		notes := "存在しない"
+		err := repo.Update(ctx, clinicA, 9999999, UpdateVitalInput{Notes: &notes})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})

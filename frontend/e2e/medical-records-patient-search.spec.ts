@@ -1,30 +1,26 @@
 import { expect, test, type BrowserContext } from "@playwright/test";
 
-import { createAuthedContext } from "./helpers/context";
-import { OUTSIDE_FIRST_PAGE_PET, readRuntimePetReferences } from "./helpers/pet-search-regression";
+import { createClinicalContext } from "./helpers/clinical-suite";
+import type { ClinicalFixture } from "./helpers/clinical-fixture";
+import { readRuntimePetReferences } from "./helpers/pet-search-regression";
 import { MedicalRecordsPage } from "./pages/medical-records-page";
-
-// Representative E2E for the shared usePetSelectionPage flow.
-// The medical-record selector includes deceased pets in both its initial page
-// and debounced server-side search. Selection is asserted but not activated:
-// /medical-records/new performs auto-create work when mounted.
-//
-// Execution: ./scripts/run-e2e.sh e2e/medical-records-patient-search.spec.ts
 
 test.describe("カルテ作成 ペット選択 サーバー検索", () => {
   let context: BrowserContext;
+  let fixture: ClinicalFixture;
 
   test.beforeAll(async ({ browser }) => {
-    context = await createAuthedContext(browser);
+    ({ context, fixture } = await createClinicalContext(browser));
   });
 
   test.afterAll(async () => {
     await context.close();
   });
 
-  test("include_deceased=trueの先頭20件にいない患者1003298を検索し選択可能と表示する", async () => {
+  test("先頭20件にいない合成ペットを検索し選択可能と表示する", async () => {
     const page = await context.newPage();
     const medicalRecords = new MedicalRecordsPage(page);
+    const target = fixture.outsideFirstPagePet;
 
     try {
       const firstPageResponsePromise = page.waitForResponse((response) => {
@@ -47,7 +43,7 @@ test.describe("カルテ作成 ペット選択 サーバー検索", () => {
       const firstPagePayload: unknown = await firstPageResponse.json();
       const firstPagePets = readRuntimePetReferences(firstPagePayload);
       expect(firstPagePets).toHaveLength(20);
-      expect(firstPagePets).not.toContainEqual(OUTSIDE_FIRST_PAGE_PET);
+      expect(firstPagePets).not.toContainEqual(target);
 
       const searchResponsePromise = page.waitForResponse((response) => {
         const url = new URL(response.url());
@@ -57,22 +53,19 @@ test.describe("カルテ作成 ペット選択 サーバー検索", () => {
           url.searchParams.get("page") === "1" &&
           url.searchParams.get("limit") === "20" &&
           url.searchParams.get("include_deceased") === "true" &&
-          url.searchParams.get("search") === OUTSIDE_FIRST_PAGE_PET.name
+          url.searchParams.get("search") === target.name
         );
       });
 
-      await medicalRecords.patientSearchInput().fill(OUTSIDE_FIRST_PAGE_PET.name);
+      await medicalRecords.patientSearchInput().fill(target.name);
 
       const searchResponse = await searchResponsePromise;
       expect(searchResponse.status()).toBe(200);
       const searchPayload: unknown = await searchResponse.json();
-      expect(readRuntimePetReferences(searchPayload)).toContainEqual(OUTSIDE_FIRST_PAGE_PET);
+      expect(readRuntimePetReferences(searchPayload)).toContainEqual(target);
 
-      await expect(medicalRecords.patientRow(OUTSIDE_FIRST_PAGE_PET.name)).toBeVisible();
-      const selectButton = medicalRecords.selectPatientButton(
-        OUTSIDE_FIRST_PAGE_PET.id,
-        OUTSIDE_FIRST_PAGE_PET.name,
-      );
+      await expect(medicalRecords.patientRow(target.name)).toBeVisible();
+      const selectButton = medicalRecords.selectPatientButton(target.id, target.name);
       await expect(selectButton).toBeVisible();
       await expect(selectButton).toBeEnabled();
     } finally {

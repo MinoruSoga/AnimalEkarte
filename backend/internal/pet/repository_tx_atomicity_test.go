@@ -206,8 +206,8 @@ func TestPetRepository_Update_LegacyDeathMapConcurrentRequestsPreserveWinner(t *
 
 	errs := runConcurrentPetLifecycleMutations(
 		t,
-		func() error { return repo.Update(ctx, clinicA, pet.ID, requests[0].fields) },
-		func() error { return repo.Update(ctx, clinicA, pet.ID, requests[1].fields) },
+		func() error { return repo.(*repository).update(ctx, clinicA, pet.ID, requests[0].fields) },
+		func() error { return repo.(*repository).update(ctx, clinicA, pet.ID, requests[1].fields) },
 	)
 	winner := requireOneSuccessOneConflict(t, errs, deathAlreadyRecordedMessage)
 
@@ -242,8 +242,8 @@ func TestPetRepository_Update_LegacyRevivalMapConcurrentRequests(t *testing.T) {
 
 	errs := runConcurrentPetLifecycleMutations(
 		t,
-		func() error { return repo.Update(ctx, clinicA, pet.ID, requests[0]) },
-		func() error { return repo.Update(ctx, clinicA, pet.ID, requests[1]) },
+		func() error { return repo.(*repository).update(ctx, clinicA, pet.ID, requests[0]) },
+		func() error { return repo.(*repository).update(ctx, clinicA, pet.ID, requests[1]) },
 	)
 	requireOneSuccessOneConflict(t, errs, revivalNotRecordedMessage)
 

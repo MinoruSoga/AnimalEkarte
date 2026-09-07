@@ -9,7 +9,7 @@ import (
 func TestStaffVerticalSliceOwnsPersistenceAndUseCases(t *testing.T) {
 	t.Parallel()
 
-	if staff.NewStaffRepository(nil) == nil {
+	if staff.NewRepository(nil) == nil {
 		t.Fatal("staff repository constructor returned nil")
 	}
 	if staff.NewOccupationRepository(nil) == nil {

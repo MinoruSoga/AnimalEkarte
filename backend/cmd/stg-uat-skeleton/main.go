@@ -16,7 +16,6 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/animal-ekarte/backend/internal/dbconn"
-	"github.com/animal-ekarte/backend/internal/model"
 )
 
 const (
@@ -333,53 +332,4 @@ func bootstrapFromEnv() (bootstrapOpts, error) {
 		return bootstrapOpts{}, fmt.Errorf("bootstrap account requires both STG_UAT_SKELETON_BOOTSTRAP_EMAIL and STG_UAT_SKELETON_BOOTSTRAP_PASSWORD_HASH")
 	}
 	return bootstrapOpts{email: email, passwordHash: hash}, nil
-}
-
-// skeletonPermissionRule mirrors clinic.defaultPermissionRuleTable (CreateClinic
-// attach-receiver bits). Copied because that table is unexported; unknown
-// resources stay deny-all.
-type skeletonPermissionRule struct {
-	resource                                   model.Resource
-	execView, execCreate, execEdit, execDelete bool
-	genView, genCreate, genEdit, genDelete     bool
-}
-
-var skeletonPermissionRules = []skeletonPermissionRule{
-	{model.ResourceReception, true, true, true, true, true, false, false, false},
-	{model.ResourceOwners, true, true, true, true, true, true, true, false},
-	{model.ResourceReservations, true, true, true, true, true, true, true, false},
-	{model.ResourceMedicalRecords, true, true, true, true, true, true, true, false},
-	{model.ResourceHospitalization, true, true, true, true, true, true, true, false},
-	{model.ResourceTrimming, true, true, true, true, true, true, true, false},
-	{model.ResourceExaminations, true, true, true, true, true, true, true, false},
-	{model.ResourceExaminationUnconfirm, false, false, false, false, false, false, false, false},
-	{model.ResourceAccounting, true, true, true, true, true, false, false, false},
-	{model.ResourceVaccinations, true, true, true, true, true, true, true, false},
-	{model.ResourceCheckups, true, true, true, true, true, false, false, false},
-	{model.ResourceInventory, true, true, true, true, true, false, false, false},
-	{model.ResourceEstimates, true, true, true, true, true, false, false, false},
-	{model.ResourceShifts, true, true, true, true, true, true, true, false},
-	{model.ResourceHospitalSettings, true, false, true, false, true, false, false, false},
-	{model.ResourceMasterAnimalSpecies, true, false, false, false, true, false, false, false},
-	{model.ResourceMasterMedical, true, true, true, true, true, false, false, false},
-	{model.ResourceMasterReservationType, true, true, true, true, true, false, false, false},
-	{model.ResourceMasterHospitalization, true, true, true, true, true, false, false, false},
-	{model.ResourceMasterTrimming, true, true, true, true, true, false, false, false},
-	{model.ResourceMasterPermission, true, true, true, true, false, false, false, false},
-	{model.ResourceMasterStaff, true, true, true, true, true, false, false, false},
-	{model.ResourceMasterInsurance, true, true, true, true, true, false, false, false},
-	{model.ResourceMasterMerchandise, true, true, true, true, true, false, false, false},
-	{model.ResourceDiscount, true, true, true, true, false, false, false, false},
-	{model.ResourceAccountingCancel, true, false, true, false, true, false, false, false},
-	{model.ResourceAccountingPostCloseEdit, true, false, true, false, true, false, false, false},
-	{model.ResourceCashRegisterClose, true, false, true, false, true, false, false, false},
-	{model.ResourceAccountingReports, true, false, true, false, true, false, false, false},
-	{model.ResourceClosingSettings, true, true, true, true, true, false, false, false},
-	{model.ResourcePaymentMethod, true, false, true, false, true, false, false, false},
-	{model.ResourceLstepCsvImport, true, false, true, false, true, false, false, false},
-	{model.ResourceLstepAnalytics, true, false, true, false, true, false, false, false},
-	{model.ResourceManualEdit, true, false, true, false, true, false, false, false},
-	{model.ResourceLabImport, true, false, true, false, true, false, false, false},
-	{model.ResourceIdentityLinks, false, false, false, false, false, false, false, false},
-	{model.ResourceCheckupPackageImport, false, false, false, false, false, false, false, false},
 }

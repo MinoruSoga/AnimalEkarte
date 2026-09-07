@@ -280,7 +280,7 @@ func TestPermissionGroupAuditedMutations_RollBackWhenAuditFails(t *testing.T) {
 					ctx context.Context,
 					_ uint64,
 					_ uint64,
-					_ map[string]any,
+					_ UpdatePermissionGroupInput,
 				) (*model.PermissionGroup, error) {
 					assert.Equal(
 						t,
@@ -485,10 +485,8 @@ func TestPermissionGroupRepository_LockByIDForUpdateRequiresAmbientTransaction(
 	t *testing.T,
 ) {
 	repo := NewPermissionGroupRepository(nil)
-	locker, ok := repo.(PermissionGroupMutationLocker)
-	require.True(t, ok)
 
-	group, err := locker.LockByIDForUpdate(context.Background(), 23, 7)
+	group, err := repo.LockByIDForUpdate(context.Background(), 23, 7)
 
 	require.Error(t, err)
 	assert.Nil(t, group)

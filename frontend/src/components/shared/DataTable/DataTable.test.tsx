@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { C, STYLE } from "@/lib/design-tokens";
 import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "./DataTable";
@@ -108,5 +108,68 @@ describe("DataTable", () => {
     expect(headerCell.className).toContain("w-[100px]");
     expect(headerCell.className).toContain("min-w-[100px]");
     expect(headerCell.className).toContain("whitespace-nowrap");
+  });
+
+  describe("BUG-20260906-001 list keys", () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    function RowWithoutKey({ name }: { name: string }) {
+      return (
+        <tr>
+          <td>{name}</td>
+        </tr>
+      );
+    }
+
+    function keyWarnings(spy: ReturnType<typeof vi.spyOn>): unknown[][] {
+      return spy.mock.calls.filter((args) =>
+        args.some((arg) => typeof arg === "string" && arg.includes('unique "key" prop')),
+      );
+    }
+
+    it("renderRow が key なし要素を返しても item.id を list key にする", () => {
+      const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+      render(
+        <DataTable
+          columns={[{ header: "名前" }]}
+          data={[
+            { id: "row-a", name: "A" },
+            { id: "row-b", name: "B" },
+          ]}
+          renderRow={(row) => <RowWithoutKey name={row.name} />}
+        />,
+      );
+
+      expect(screen.getByText("A")).toBeInTheDocument();
+      expect(screen.getByText("B")).toBeInTheDocument();
+      expect(keyWarnings(spy)).toHaveLength(0);
+    });
+
+    it("getRowKey 指定時はその値を list key にする", () => {
+      const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+      function CodedRowWithoutKey({ name }: { name: string }) {
+        return (
+          <tr>
+            <td>{name}</td>
+          </tr>
+        );
+      }
+      render(
+        <DataTable
+          columns={[{ header: "名前" }]}
+          data={[
+            { code: "x", name: "X" },
+            { code: "y", name: "Y" },
+          ]}
+          getRowKey={(row) => row.code}
+          renderRow={(row) => <CodedRowWithoutKey name={row.name} />}
+        />,
+      );
+
+      expect(screen.getByText("X")).toBeInTheDocument();
+      expect(keyWarnings(spy)).toHaveLength(0);
+    });
   });
 });

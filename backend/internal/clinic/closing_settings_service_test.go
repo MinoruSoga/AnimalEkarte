@@ -39,7 +39,7 @@ type mockClosingSpecialPeriodRepository struct {
 	findByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.ClosingSpecialPeriod, error)
 	findByDateFn   func(ctx context.Context, clinicID uint64, date time.Time) (*model.ClosingSpecialPeriod, error)
 	createFn       func(ctx context.Context, p *model.ClosingSpecialPeriod) (*model.ClosingSpecialPeriod, error)
-	updateFn       func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ClosingSpecialPeriod, error)
+	updateFn       func(ctx context.Context, clinicID, id uint64, cmd UpdateSpecialPeriodInput) (*model.ClosingSpecialPeriod, error)
 	deleteFn       func(ctx context.Context, clinicID, id uint64) error
 	checkOverlapFn func(ctx context.Context, clinicID uint64, startDate, endDate time.Time, excludeID *uint64) (bool, error)
 }
@@ -86,14 +86,14 @@ func (m *mockClosingSpecialPeriodRepository) CreateCheckingOverlap(ctx context.C
 	return m.Create(ctx, p)
 }
 
-func (m *mockClosingSpecialPeriodRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ClosingSpecialPeriod, error) {
+func (m *mockClosingSpecialPeriodRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateSpecialPeriodInput) (*model.ClosingSpecialPeriod, error) {
 	if m.updateFn != nil {
-		return m.updateFn(ctx, clinicID, id, fields)
+		return m.updateFn(ctx, clinicID, id, cmd)
 	}
 	return &model.ClosingSpecialPeriod{ID: id, ClinicID: clinicID}, nil
 }
 
-func (m *mockClosingSpecialPeriodRepository) UpdateCheckingOverlap(ctx context.Context, clinicID, id uint64, startDate, endDate time.Time, fields map[string]any) (*model.ClosingSpecialPeriod, error) {
+func (m *mockClosingSpecialPeriodRepository) UpdateCheckingOverlap(ctx context.Context, clinicID, id uint64, startDate, endDate time.Time, cmd UpdateSpecialPeriodInput) (*model.ClosingSpecialPeriod, error) {
 	excludeID := id
 	overlap, err := m.CheckOverlap(ctx, clinicID, startDate, endDate, &excludeID)
 	if err != nil {
@@ -102,7 +102,7 @@ func (m *mockClosingSpecialPeriodRepository) UpdateCheckingOverlap(ctx context.C
 	if overlap {
 		return nil, apperrors.WrapConflict("期間が他の特別期間と重複しています")
 	}
-	return m.Update(ctx, clinicID, id, fields)
+	return m.Update(ctx, clinicID, id, cmd)
 }
 
 func (m *mockClosingSpecialPeriodRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -588,7 +588,7 @@ func TestClosingSettingsService_UpdateSpecialPeriod(t *testing.T) {
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.ClosingSpecialPeriod, error) {
 				return current, nil
 			},
-			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.ClosingSpecialPeriod, error) {
+			updateFn: func(_ context.Context, _, _ uint64, _ UpdateSpecialPeriodInput) (*model.ClosingSpecialPeriod, error) {
 				return nil, errors.New("db error")
 			},
 		}

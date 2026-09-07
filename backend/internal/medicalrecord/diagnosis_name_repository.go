@@ -20,7 +20,7 @@ type DiagnosisNameRepository interface {
 	FindAllByFilter(ctx context.Context, clinicID uint64, typeID *uint64) ([]model.DiagnosisName, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisName, error)
 	Create(ctx context.Context, name *model.DiagnosisName) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.DiagnosisName, error)
+	Update(ctx context.Context, clinicID, id uint64, cmd UpdateDiagnosisNameInput) (*model.DiagnosisName, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	CountUsageByDiagnosisNameID(ctx context.Context, clinicID, diagnosisNameID uint64) (int64, error)
@@ -106,11 +106,15 @@ func (r *diagnosisNameRepository) Create(ctx context.Context, name *model.Diagno
 	return nil
 }
 
-func (r *diagnosisNameRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.DiagnosisName, error) {
-	if err := persistence.UpdateScopedByID(ctx, r.db, &model.DiagnosisName{}, "diagnosis_name", clinicID, id, fields); err != nil {
+func (r *diagnosisNameRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateDiagnosisNameInput) (*model.DiagnosisName, error) {
+	if err := r.update(ctx, clinicID, id, buildDiagnosisNameUpdate(&cmd)); err != nil {
 		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
+}
+
+func (r *diagnosisNameRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+	return persistence.UpdateScopedByID(ctx, r.db, &model.DiagnosisName{}, "diagnosis_name", clinicID, id, fields)
 }
 
 func (r *diagnosisNameRepository) Delete(ctx context.Context, clinicID, id uint64) error {

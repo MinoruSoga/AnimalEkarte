@@ -44,68 +44,6 @@ var medicalRecordSortColumns = map[string]string{
 	"status":     "medical_records.status",
 }
 
-type MedicalRecordRepository interface {
-	// FindAll は指定した複数医院 (#86 拠点横断) のカルテを検索する。clinicIDs はハンドラ層で所属検証済みであること。
-	FindAll(ctx context.Context, clinicIDs []uint64, filters MedicalRecordListFilters, page, limit int) ([]model.MedicalRecord, int64, error)
-	// AcquireAutoCreateLock は予約由来の同日同ペット自動生成を clinic/pet/JST日単位で直列化する。
-	// 呼び出し元の ambient transaction が終了するまで PostgreSQL advisory lock を保持する。
-	AcquireAutoCreateLock(ctx context.Context, clinicID, petID uint64, date string) (bool, error)
-	FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
-	// FindByAppointmentID returns the one active medical record linked to an appointment.
-	// Not found is represented as (nil, nil); other read errors fail closed.
-	FindByAppointmentID(ctx context.Context, clinicID, appointmentID uint64) (*model.MedicalRecord, error)
-	// FindByIDForClinics は複数医院スコープでカルテを1件取得する (#86 詳細画面拠点横断)。clinicIDs はハンドラ層で所属検証済みであること。
-	FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.MedicalRecord, error)
-	Create(ctx context.Context, record *model.MedicalRecord) error
-	// Update は clinicID+id+status=draft でカルテを更新する。expectedVersion が非 nil の場合、
-	// WHERE に version 述語を追加し（BE-refactor.md X-10: 楽観ロックの原子化）、RowsAffected==0
-	// を「他のユーザーが変更した」（version不一致）と「確定済みで編集不可」（not draft）に区別する。
-	// expectedVersion が nil の場合は従来どおり version 述語なし（照合スキップ）。
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any, expectedVersion *int) (*model.MedicalRecord, error)
-	Delete(ctx context.Context, clinicID, id uint64) error
-	CountByPetID(ctx context.Context, clinicID, petID uint64) (int64, error)
-	CountByPetAndDate(ctx context.Context, clinicID, petID uint64, date string) (int64, error)
-	// FindFirstVisitDateByPetID は指定ペットの初診日（最古の有効カルテ date）を返す（#158 飼主レポート）。
-	// clinic スコープ + 論理削除除外。カルテが存在しない場合は nil, nil を返す。
-	FindFirstVisitDateByPetID(ctx context.Context, clinicID, petID uint64) (*time.Time, error)
-	// CountEstimatesByMedicalRecordID は親 medical_records.clinic_id でスコープした有効見積数を返す
-	// （estimates.clinic_id はフィルタしない — 参照が存在する限り削除ガードを fail-closed に保つ / SEC-SWEEP-02-BILL-B1b）。
-	// 表示用途の「自院見積件数」には使わないこと（子 clinic 非フィルタのため他院見積行が混入し得る）。
-	// Delete の親カルテ row lock と同じ ambient transaction へ参加し、並行する見積 Create との直列化を崩してはならない。
-	CountEstimatesByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) (int64, error)
-	// FindOwnerVisitSummary は飼い主の初回/最終診療日・年間来院数を集計して返す（Lステップ同期用）。
-	FindOwnerVisitSummary(ctx context.Context, clinicID, ownerID uint64) (*OwnerVisitSummary, error)
-	// FindLatestByOwner は飼い主の最新カルテを返す（Lステップ次回来院推奨日タグ同期用）。
-	// カルテが存在しない場合は nil, nil を返す。
-	FindLatestByOwner(ctx context.Context, clinicID, ownerID uint64) (*model.MedicalRecord, error)
-	// FindDormantOwnerEntries は最終来院から minDaysSince 日以上経過した飼い主一覧を返す（バッチ処理用）。
-	FindDormantOwnerEntries(ctx context.Context, clinicID uint64, minDaysSince int) ([]DormantOwnerEntry, error)
-	// FindDormantOwnerEntriesCursor は最終来院から minDaysSince 日以上経過した飼い主一覧を
-	// owner_id カーソルページネーションで返す（PERF-FOLLOWUP-02: 大規模クリニックでの無制限全件取得を
-	// 回避するバッチ処理用）。afterOwnerID より大きい owner_id を昇順で最大 limit 件返す。
-	FindDormantOwnerEntriesCursor(ctx context.Context, clinicID uint64, minDaysSince int, afterOwnerID uint64, limit int) ([]DormantOwnerEntry, error)
-	// FindOwnersByFirstVisitDate は初回来院日（MIN(date)）が targetDate と一致する飼い主IDリストを返す（FEAT-383）。
-	FindOwnersByFirstVisitDate(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error)
-	// FindOwnersByLastVisitDays は最終来院日が asOf から exactDays 日前の飼い主IDリストを返す（FEAT-383）。
-	FindOwnersByLastVisitDays(ctx context.Context, clinicID uint64, exactDays int, asOf time.Time) ([]uint64, error)
-	// FindOwnersByNextVisitRecommended は次回来院推奨日が targetDate の飼い主IDリストを返す（FEAT-383）。
-	FindOwnersByNextVisitRecommended(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error)
-	// CountByOwnerID は飼い主に紐付く有効カルテ数を返す（初診判定用: FEAT-383 Phase 2）。
-	CountByOwnerID(ctx context.Context, clinicID, ownerID uint64) (int64, error)
-	// LockLinkedAppointmentForUpdate は削除経路が appointments 行ロックを medical_records
-	// より先に取るための FOR UPDATE。予約の in_consultation 遷移（LockAndFindByID → COUNT）
-	// と同じロック順序にし、AB-BA を避ける。ambient tx 必須。appointment_id が無い、または
-	// 親 appointments 行が既に無い場合は Appointment==nil の result を返す（(nil,nil) は使わない）。
-	LockLinkedAppointmentForUpdate(ctx context.Context, clinicID, medicalRecordID uint64) (*linkedAppointmentLock, error)
-	// LockByIDForUpdate は FOR UPDATE でカルテを行ロック取得する（BE-refactor.md X-11:
-	// 確定(finalize)と子エンティティ書込の競合防止）。treatment/examination/vital/prescription/
-	// checkup_field_result の各サービスが子書込トランザクションの先頭で呼び出し、返却された
-	// record.Status を確認する。dbOrTx 経由で ambient tx（Transactor.WithTx / Repositories.Transaction）
-	// に参加する必要があり、参加しないと FOR UPDATE ロックが単一 SELECT 文の終了と同時に解放され、
-	// 確定との直列化が機能しない。
-	LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
-}
-
 // DormantOwnerEntriesAtRepository is the narrow durable-scheduler capability.
 // It remains separate from the broad legacy repository interface so unrelated
 // medical-record consumers and mocks do not acquire a scheduler-only method.
@@ -124,7 +62,7 @@ type medicalRecordRepository struct {
 	db *gorm.DB
 }
 
-func NewMedicalRecordRepository(db *gorm.DB) MedicalRecordRepository {
+func NewMedicalRecordRepository(db *gorm.DB) *medicalRecordRepository {
 	return &medicalRecordRepository{db: db}
 }
 
@@ -353,7 +291,11 @@ func (r *medicalRecordRepository) Create(ctx context.Context, record *model.Medi
 // version 述語を追加していたときだけ現在の status を再読して理由を区別する
 // （draft のまま = version不一致、draft でない = 従来どおり not-draft）。再読自体が
 // 失敗した場合は情報を出し過ぎないよう従来の not-draft Conflict にフォールバックする。
-func (r *medicalRecordRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any, expectedVersion *int) (*model.MedicalRecord, error) {
+func (r *medicalRecordRepository) Update(ctx context.Context, clinicID, id uint64, input UpdateMedicalRecordInput, expectedVersion *int) (*model.MedicalRecord, error) {
+	return r.update(ctx, clinicID, id, buildMedicalRecordUpdate(input), expectedVersion)
+}
+
+func (r *medicalRecordRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any, expectedVersion *int) (*model.MedicalRecord, error) {
 	q := persistence.DBOrTx(ctx, r.db).
 		Model(&model.MedicalRecord{}).
 		Scopes(persistence.ClinicScope(clinicID)).

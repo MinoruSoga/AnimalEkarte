@@ -24,7 +24,7 @@ func NewReservationAdminHandler(svc ReservationAdminService, staffAssignments st
 	return &ReservationAdminHandler{svc: svc, staffAssignments: staffAssignments}
 }
 
-// checkDoctorClinicAssignment は ReservationHandler 側と同一の忠実移植（旧 *Handler 共有メソッド）。
+// checkDoctorClinicAssignment は CRUDHandler 側と同一の忠実移植（旧 *Handler 共有メソッド）。
 func (h *ReservationAdminHandler) checkDoctorClinicAssignment(ctx context.Context, clinicID, doctorID uint64) error {
 	if doctorID == 0 {
 		return nil

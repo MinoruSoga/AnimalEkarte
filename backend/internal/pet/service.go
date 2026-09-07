@@ -246,7 +246,6 @@ func newService(
 func (s *petService) List(ctx context.Context, clinicIDs []uint64, filters PetListFilters, page, limit int) ([]model.Pet, int64, error) {
 	pets, total, err := s.repo.FindAll(ctx, clinicIDs, filters, page, limit)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list pets", "error", err)
 		return nil, 0, apperrors.Wrap(err, "failed to list pets")
 	}
 	return pets, total, nil
@@ -255,7 +254,6 @@ func (s *petService) List(ctx context.Context, clinicIDs []uint64, filters PetLi
 func (s *petService) ListOwnerReportPets(ctx context.Context, clinicIDs []uint64, ownerID uint64) ([]model.Pet, error) {
 	pets, err := s.repo.FindOwnerReportPets(ctx, clinicIDs, ownerID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list owner report pets", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list owner report pets")
 	}
 	return pets, nil
@@ -264,7 +262,6 @@ func (s *petService) ListOwnerReportPets(ctx context.Context, clinicIDs []uint64
 func (s *petService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error) {
 	pet, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get pet", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get pet")
 	}
 	return pet, nil
@@ -278,7 +275,6 @@ func (s *petService) GetFirstVisitDate(ctx context.Context, clinicID, petID uint
 	}
 	date, err := s.medicalRecordRepo.FindFirstVisitDateByPetID(ctx, clinicID, petID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get pet first visit date", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get pet first visit date")
 	}
 	return date, nil
@@ -287,7 +283,6 @@ func (s *petService) GetFirstVisitDate(ctx context.Context, clinicID, petID uint
 func (s *petService) GetByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Pet, error) {
 	pet, err := s.repo.FindByIDForClinics(ctx, clinicIDs, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get pet for clinics", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get pet for clinics")
 	}
 	return pet, nil
@@ -323,7 +318,6 @@ func (s *petService) Create(ctx context.Context, clinicID uint64, input *CreateP
 	pet := buildPetModel(clinicID, "", input)
 
 	if err := s.repo.Create(ctx, pet); err != nil {
-		slog.ErrorContext(ctx, "failed to create pet", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create pet")
 	}
 
@@ -339,7 +333,6 @@ func (s *petService) Create(ctx context.Context, clinicID uint64, input *CreateP
 func (s *petService) Update(ctx context.Context, clinicID, id uint64, input *UpdatePetInput) (*model.Pet, error) {
 	currentPet, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to find pet", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find pet")
 	}
 
@@ -416,7 +409,6 @@ func (s *petService) Update(ctx context.Context, clinicID, id uint64, input *Upd
 		err = updateAndVerify(ctx)
 	}
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to update pet", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update pet")
 	}
 
@@ -447,7 +439,6 @@ func (s *petService) Delete(ctx context.Context, clinicID, id uint64) error {
 	// FK依存チェック: カルテが紐付いている場合は削除を拒否
 	recordCount, err := s.medicalRecordRepo.CountByPetID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check medical record dependencies", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to check medical record dependencies")
 	}
 	if recordCount > 0 {
@@ -455,7 +446,6 @@ func (s *petService) Delete(ctx context.Context, clinicID, id uint64) error {
 	}
 
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to delete pet", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete pet")
 	}
 	slog.InfoContext(ctx, "pet deleted",

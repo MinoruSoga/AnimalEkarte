@@ -126,7 +126,7 @@ func newApplication(deps *Dependencies, repos *applicationRepositories) *Applica
 // NewHandler constructs the package-owned HTTP handler graph.
 func (a *Application) NewHandler(deps HandlerDependencies) *Handler {
 	return NewHandler(
-		NewLstepSettingsHandler(a.graph.settings, deps.RequirePermission),
+		NewSettingsHandler(a.graph.settings, deps.RequirePermission),
 		NewLineSendHandler(a.graph.lineSend, deps.RequirePermission),
 		NewLineLinkHandler(a.graph.lineLink, deps.RequirePermission),
 		NewLineCustomerHandler(a.graph.lineCustomer, deps.RequirePermission),

@@ -13,7 +13,7 @@ import (
 // staffRepositories are created before reservation composition so the
 // canonical staff writer can be injected into reservation-owned repositories.
 type staffRepositories struct {
-	Staff          staff.StaffRepository
+	Staff          staff.Repository
 	Assignments    staff.StaffClinicAssignmentRepository
 	Occupations    staff.OccupationRepository
 	ShiftEntries   staff.ShiftEntryRepository
@@ -22,7 +22,7 @@ type staffRepositories struct {
 
 func newStaffRepositories(db *gorm.DB) staffRepositories {
 	return staffRepositories{
-		Staff:          staff.NewStaffRepository(db),
+		Staff:          staff.NewRepository(db),
 		Assignments:    staff.NewStaffClinicAssignmentRepository(db),
 		Occupations:    staff.NewOccupationRepository(db),
 		ShiftEntries:   staff.NewShiftEntryRepository(db),
@@ -41,7 +41,7 @@ type staffCompositionDependencies struct {
 }
 
 type staffComposition struct {
-	Staff          staff.StaffService
+	Staff          staff.Service
 	Assignments    staff.StaffClinicAssignmentService
 	Occupations    staff.OccupationService
 	ShiftEntries   staff.ShiftEntryService
@@ -52,7 +52,7 @@ func newStaffComposition(
 	repositories staffRepositories,
 	dependencies staffCompositionDependencies,
 ) staffComposition {
-	staffService := staff.NewStaffServiceWithAudits(
+	staffService := staff.NewServiceWithAudits(
 		repositories.Staff,
 		dependencies.Accounts,
 		repositories.Assignments,

@@ -13,8 +13,10 @@
 
 すべてのテナント分割データテーブルに `clinic_id` を持たせ、認証済みidentityから決定したclinic scopeを、すべてのread/write/delete pathへ適用する。packageやlayerの名称には依存しない。
 
+以下は採用時の歴史的な擬似コードで、コピー可能な Go 実装ではない。現行の lookup は `backend/internal/owner/repository.go` を参照する。
+
 ```go
-// clinicScope は現在のGORM実装でWHERE clinic_id = ?を付与するhelperの一例
+// clinicScope で WHERE clinic_id = ? を付与するという設計意図の省略例
 func (r *ownerRepository) FindByID(ctx context.Context, clinicID, ownerID uint) (*model.Owner, error) {
     return r.db.WithContext(ctx).Scopes(r.clinicScope(clinicID)).First(&model.Owner{}, ownerID)
 }
@@ -36,3 +38,9 @@ GORM helperの使用有無だけで安全と判定しない。raw SQL、join、p
 
 - [Backend Application Invariants](../../../.claude/refs/backend-application-invariants.md)
 - [Go/Gin Backend Review](../../../.claude/refs/go-gin-backend-review.md)
+
+## 現行実装の補足（2026-09-06）
+
+採用時の「すべてに `clinic_id`」はテナント隔離の設計原則であり、すべての GORM 型に直接 `ClinicID` field があるという inventory ではない。global master、account/session、親経由の子レコード、DDL trigger で clinic を複製する列を区別する。現在の DDL 分類は [erd.md](../erd.md)、request-time authority は [auth.md](../auth.md) を参照する。
+
+現在の `ownerRepository.FindByID` は `findOwnerByID` / `persistence.DBOrTx` と clinic-scoped lookup を使う。

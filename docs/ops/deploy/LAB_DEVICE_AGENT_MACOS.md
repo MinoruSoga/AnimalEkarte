@@ -12,10 +12,14 @@
 
 UAT bundleは信頼済みの共有経路で渡し、build時に表示されたmanifest SHA-256を別経路でクライアントへ伝える。同梱`SHA256SUMS`だけでは配送物全体の差し替えを検出できないため、別経路照合なしでは実行しない。
 
-開発・サポート側でbundleを作成する。
+開発・サポート側で bundle を作成する。現行スクリプトは `LAB_DEVICE_AGENT_CONSUMER_TOKEN` が必須（未設定は終了）。配布先 backend が認可済みブラウザへ返す同名 token と一致させ、承認済み secret 経路で環境変数へ供給する。token の生成・登録・取得は USER 作業で、コマンド引数・履歴・ログ・Git に実値を残さない。bundle の mode 0600 設定ファイルにも token が入るため、配布物全体を保護して扱う。
+
+
+**Cloudflare 配布の停止条件:** 現行 Worker の `envVars` / Wrangler required secrets には `LAB_DEVICE_AGENT_CONSUMER_TOKEN` の供給経路がない。`GET /api/v1/lab-device/agent-consumer` は backend 値が空なら `503` を返す。STG/PROD 配布はこの供給経路を実装・承認・検証するまで接続成功と判定しない。local Compose は backend の `.env.local` 経由で供給できるが、現在の値や稼働は本書では確認していない。
 
 ```bash
 # allowed-origin は配布先frontendの正確な https origin（pathなし）
+# LAB_DEVICE_AGENT_CONSUMER_TOKEN は承認済み経路で設定済みであること
 ./scripts/build-lab-device-agent-bundle.sh <医院ID> <https://配布先origin> <新しい出力ディレクトリ>
 ```
 
@@ -31,7 +35,7 @@ UAT bundleは信頼済みの共有経路で渡し、build時に表示されたma
 ./scripts/install-lab-device-agent.sh <医院ID> <https://配布先origin>
 ```
 
-インストール後、`http://localhost:3003/lab-device`の「ローカル受信機」が「稼働中」になり、監視ポート数が表示される。USBを選択する操作はない。
+インストール後、配布時に指定した frontend origin の `/lab-device`（開発端末は `http://localhost:3003/lab-device`）の「ローカル受信機」が「稼働中」になり、監視ポート数が表示される。USBを選択する操作はない。
 
 インストール時に接続されている2本をNX600/AU10V用の許可リストとして固定する。PU-4010またはIDEXXを接続した状態では実行しない。医院IDが一致しない画面や、同時に開いた別タブはキューを取得できない。
 
@@ -39,7 +43,7 @@ UAT bundleは信頼済みの共有経路で渡し、build時に表示されたma
 
 ## 状態確認
 
-生電文やポート識別子を表示しない状態確認:
+bundle のディレクトリで、生電文やポート識別子を表示しない状態確認:
 
 ```bash
 ./diagnose.sh

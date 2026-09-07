@@ -16,7 +16,7 @@ type mockPaymentMethodMasterRepository struct {
 	findAllFn                     func(ctx context.Context, clinicID uint64) ([]model.PaymentMethodMaster, error)
 	findByIDFn                    func(ctx context.Context, clinicID, id uint64) (*model.PaymentMethodMaster, error)
 	createFn                      func(ctx context.Context, m *model.PaymentMethodMaster) (*model.PaymentMethodMaster, error)
-	updateFieldsFn                func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.PaymentMethodMaster, error)
+	updateFieldsFn                func(ctx context.Context, clinicID, id uint64, cmd UpdatePaymentMethodMasterInput) (*model.PaymentMethodMaster, error)
 	deleteFn                      func(ctx context.Context, clinicID, id uint64) error
 	countUsageByPaymentMethodIDFn func(ctx context.Context, clinicID, id uint64) (int64, error)
 	reorderFn                     func(ctx context.Context, clinicID uint64, ids []uint64) error
@@ -43,9 +43,9 @@ func (m *mockPaymentMethodMasterRepository) Create(ctx context.Context, pm *mode
 	return pm, nil
 }
 
-func (m *mockPaymentMethodMasterRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.PaymentMethodMaster, error) {
+func (m *mockPaymentMethodMasterRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdatePaymentMethodMasterInput) (*model.PaymentMethodMaster, error) {
 	if m.updateFieldsFn != nil {
-		return m.updateFieldsFn(ctx, clinicID, id, fields)
+		return m.updateFieldsFn(ctx, clinicID, id, cmd)
 	}
 	return nil, nil
 }
@@ -432,7 +432,7 @@ func TestPaymentMethodMasterService_Update(t *testing.T) {
 		name           string
 		input          *UpdatePaymentMethodMasterInput
 		findByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.PaymentMethodMaster, error)
-		updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.PaymentMethodMaster, error)
+		updateFieldsFn func(ctx context.Context, clinicID, id uint64, cmd UpdatePaymentMethodMasterInput) (*model.PaymentMethodMaster, error)
 		wantErr        bool
 		wantErrIs      error
 		wantErrMsg     string
@@ -441,7 +441,7 @@ func TestPaymentMethodMasterService_Update(t *testing.T) {
 		{
 			name:  "正常: 名前のみ更新が成功",
 			input: &UpdatePaymentMethodMasterInput{Name: ptrStr("現金")},
-			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.PaymentMethodMaster, error) {
+			updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdatePaymentMethodMasterInput) (*model.PaymentMethodMaster, error) {
 				return updated, nil
 			},
 			wantResult: updated,
@@ -452,8 +452,9 @@ func TestPaymentMethodMasterService_Update(t *testing.T) {
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.PaymentMethodMaster, error) {
 				return systemCash, nil
 			},
-			updateFieldsFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.PaymentMethodMaster, error) {
-				assert.Equal(t, "現金（店舗）", fields[colPaymentMethodName])
+			updateFieldsFn: func(_ context.Context, _, _ uint64, cmd UpdatePaymentMethodMasterInput) (*model.PaymentMethodMaster, error) {
+				assert.NotNil(t, cmd.Name)
+				assert.Equal(t, "現金（店舗）", *cmd.Name)
 				renamed := *systemCash
 				renamed.Name = "現金（店舗）"
 				return &renamed, nil
@@ -468,8 +469,9 @@ func TestPaymentMethodMasterService_Update(t *testing.T) {
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.PaymentMethodMaster, error) {
 				return customPM, nil
 			},
-			updateFieldsFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.PaymentMethodMaster, error) {
-				assert.Equal(t, false, fields[colPaymentMethodIsActive])
+			updateFieldsFn: func(_ context.Context, _, _ uint64, cmd UpdatePaymentMethodMasterInput) (*model.PaymentMethodMaster, error) {
+				assert.NotNil(t, cmd.IsActive)
+				assert.Equal(t, false, *cmd.IsActive)
 				deactivated := *customPM
 				deactivated.IsActive = false
 				return &deactivated, nil
@@ -507,7 +509,7 @@ func TestPaymentMethodMasterService_Update(t *testing.T) {
 			name:  "エラー: 存在しないIDはエラー",
 			input: &UpdatePaymentMethodMasterInput{Name: ptrStr("現金")},
 			// FindByID 成功後に Update が NotFound を返す経路
-			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.PaymentMethodMaster, error) {
+			updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdatePaymentMethodMasterInput) (*model.PaymentMethodMaster, error) {
 				return nil, apperrors.WrapNotFound("payment_method", "99")
 			},
 			wantErr: true,

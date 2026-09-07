@@ -71,9 +71,9 @@ func (m *mockMedicalRecordRepository) Create(ctx context.Context, record *model.
 	return m.createFn(ctx, record)
 }
 
-func (m *mockMedicalRecordRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any, _ *int) (*model.MedicalRecord, error) {
+func (m *mockMedicalRecordRepository) Update(ctx context.Context, clinicID, id uint64, input UpdateMedicalRecordInput, _ *int) (*model.MedicalRecord, error) {
 	if m.updateFieldsFn != nil {
-		return m.updateFieldsFn(ctx, clinicID, id, fields)
+		return m.updateFieldsFn(ctx, clinicID, id, buildMedicalRecordUpdate(input))
 	}
 	return &model.MedicalRecord{}, nil
 }

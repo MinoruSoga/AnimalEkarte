@@ -33,7 +33,7 @@ type reservationRepositories struct {
 
 func newReservationRepositories(
 	db *gorm.DB,
-	staffRepository staff.StaffRepository,
+	staffRepository staff.Repository,
 	shiftEntries staff.ShiftEntryRepository,
 	occupations staff.OccupationRepository,
 ) reservationRepositories {
@@ -306,7 +306,7 @@ func (c reservationComposition) newHandler(
 		reservation.NewReservationTypeLiffHandler(c.ReservationTypeLiff),
 		reservation.NewReservationStaffHandler(c.ReservationStaff),
 		reservation.NewReservationScheduleHandler(c.ReservationSchedules),
-		reservation.NewReservationHandler(
+		reservation.NewCRUDHandler(
 			c.Reservations,
 			c.medicalRecords,
 			c.Liff,

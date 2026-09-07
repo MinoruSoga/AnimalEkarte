@@ -204,7 +204,6 @@ func (s *carePlanItemService) validateMasterFKs(ctx context.Context, clinicID ui
 func (s *carePlanItemService) List(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.CarePlanItem, error) {
 	items, err := s.repo.FindByHospitalizationID(ctx, clinicID, hospitalizationID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list care plan items", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list care plan items")
 	}
 	return items, nil
@@ -229,7 +228,6 @@ func (s *carePlanItemService) Create(ctx context.Context, clinicID, hospitalizat
 	// care_plan_items は自前 clinic_id を持たず hospitalizations 経由で隔離するため、
 	// 親入院の所有権を Create でも明示検証する（repo.Create は clinicScope できない）。
 	if _, err := s.hospRepo.FindByID(ctx, clinicID, hospitalizationID); err != nil {
-		slog.ErrorContext(ctx, "failed to verify hospitalization ownership", "error", err)
 		return nil, apperrors.Wrap(err, "failed to verify hospitalization ownership")
 	}
 
@@ -257,12 +255,10 @@ func (s *carePlanItemService) Create(ctx context.Context, clinicID, hospitalizat
 	var created *model.CarePlanItem
 	if err := s.withTx(ctx, func(txCtx context.Context) error {
 		if err := s.repo.Create(txCtx, item); err != nil {
-			slog.ErrorContext(txCtx, "failed to create care plan item", "error", err)
 			return apperrors.Wrap(err, "failed to create care plan item")
 		}
 		reloaded, err := s.repo.FindByID(txCtx, clinicID, item.ID)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to get created care plan item", "error", err)
 			return apperrors.Wrap(err, "failed to get created care plan item")
 		}
 		created = reloaded
@@ -282,7 +278,6 @@ func (s *carePlanItemService) Update(ctx context.Context, clinicID, hospitalizat
 	// Verify item belongs to this clinic + hospitalization
 	existing, err := s.repo.FindByID(ctx, clinicID, itemID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get care plan item", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get care plan item")
 	}
 	if existing.HospitalizationID != hospitalizationID {
@@ -313,13 +308,11 @@ func (s *carePlanItemService) Update(ctx context.Context, clinicID, hospitalizat
 	// MRA-02: write + response re-fetch before commit.
 	var updated *model.CarePlanItem
 	if err := s.withTx(ctx, func(txCtx context.Context) error {
-		if err := s.repo.Update(txCtx, clinicID, itemID, fields); err != nil {
-			slog.ErrorContext(txCtx, "failed to update care plan item", "error", err)
+		if err := s.repo.Update(txCtx, clinicID, itemID, *input); err != nil {
 			return apperrors.Wrap(err, "failed to update care plan item")
 		}
 		reloaded, err := s.repo.FindByID(txCtx, clinicID, itemID)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to get updated care plan item", "error", err)
 			return apperrors.Wrap(err, "failed to get updated care plan item")
 		}
 		updated = reloaded
@@ -347,7 +340,6 @@ func (s *carePlanItemService) Delete(ctx context.Context, clinicID, hospitalizat
 	// MRA-01: hard-delete + fail-closed audit in one transaction.
 	if err := s.withTx(ctx, func(txCtx context.Context) error {
 		if err := s.repo.Delete(txCtx, clinicID, itemID); err != nil {
-			slog.ErrorContext(txCtx, "failed to delete care plan item", "error", err, "id", itemID, "clinic_id", clinicID)
 			return apperrors.Wrap(err, "failed to delete care plan item")
 		}
 		return s.auditDeleteTx(txCtx, clinicID, existing)

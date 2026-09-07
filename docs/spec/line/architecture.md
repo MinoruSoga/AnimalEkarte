@@ -5,7 +5,7 @@
 > **タイミング**: 同期フローの実装・確認時。
 
 > **Animal Ekarte**: LINE プラットフォームを活用した顧客体験の最大化
-> **最新更新**: 2026-07-30
+> **最新更新**: 2026-09-06（repo `7c6592f9f`）
 
 ---
 
@@ -93,7 +93,13 @@ LSTEP 周辺の「best-effort」は一語で混同しない。経路ごとに契
 - 配信実行・除外・優先度抑制・API 失敗は `lstep_delivery_trigger_log` に残し、配信監視画面の観測源とする。
 - 候補 owner に対する owner / 当日 claim / 抑制 / tag-cache 読みは通常、clinic スコープの bulk-read を使う。production には bulk failure 時の per-owner day-log / owner / tag-cache read fallback が残る。この degraded mode は owner 数に比例する既知の性能 gap であり、実行上限・metrics を備えた bounded fallback への整理または source からの除去が必要。opt-out・suppression・daily-claim の意味論と bounded memory は維持する。
 
-### 4.2 停止手段
+### 4.2 checked-in scheduler と運用証跡
+
+[`backend/worker/scheduled-jobs.ts`](../../../backend/worker/scheduled-jobs.ts) の cron plan は、10:00 JST に `no_show` → `delivery`、15:00/20:00 JST に `no_show`、02:00 JST に `dormant`。[`backend/wrangler.jsonc`](../../../backend/wrangler.jsonc) に cron 定義があり、Go 側は [`batch_scheduler.go`](../../../backend/cmd/api/batch_scheduler.go) の内部認証付き route へ接続する。これはリポジトリ上の配線であり、実環境の設定値・cron 発火・外部送信を検証した記録ではない。
+
+[#259 の再開条件](README.md#3-再開条件259) は Write と cron を同一リリースで扱い、少数実送信と停止確認を要求する。HTTP 成功だけで終了せず、scheduled outcome の件数整合と外部結果を照合する。
+
+### 4.3 停止手段
 
 - clinic 単位の `is_sync_enabled=false` で同期・配信バッチ対象から外す。
 - Write API は deploy kill switch `LSTEP_WRITE_API_ENABLED` と clinic flag の二重 gate（[`LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)）。再開後も `is_sync_enabled=false` の clinic はサービス層で抑止する。

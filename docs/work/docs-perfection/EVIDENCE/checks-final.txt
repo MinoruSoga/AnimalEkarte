@@ -1,0 +1,155 @@
+$ python3 docs/work/docs-perfection/EVIDENCE/verify.py --final
+PASS inventory=198 find=198 missing=0 extra=0 duplicate=0
+PASS inventory classification/freshness/reason all rows
+PASS baseline Markdown=187 scanned=187
+PASS four role headings
+PASS repair queue=11 Severity*Impact descending
+PASS repair actions valid
+PASS repair evidence references=32 exist with valid lines
+PASS child schema architecture.md
+PASS child repair refs architecture.md
+PASS child schema delivery.md
+PASS child repair refs delivery.md
+PASS child schema ops.md
+PASS child repair refs ops.md
+PASS child schema product-philosophy.md
+PASS child repair refs product-philosophy.md
+PASS child schema spec.md
+PASS child repair refs spec.md
+PASS child schema work.md
+PASS child repair refs work.md
+PASS six required categories
+PASS DAG dependency step
+PASS DAG dependency step
+PASS DAG dependency step
+PASS DAG dependency step
+PASS DAG dependency step
+PASS DAG dependency step
+PASS parent status active
+PASS goal durable fields
+PASS budget limits
+PASS existing docs changed only two allowed index READMEs
+PASS new docs only coordinator allowlist
+PASS outside docs tracked content unchanged from baseline
+PASS staging index diff unchanged
+PASS tracked/untracked status delta within allowlist
+PASS git diff --check -- docs
+PASS coordinator local link targets exist []
+PASS new artifact secret-pattern scan (manual PHI review also required)
+PASS saved prompt harness and receiver
+PASS drift command output and exit recorded
+PASS coordinator-complete checkpoint
+PASS independent review B
+PASS independent review C
+PASS AC1-AC9 completion audit PASS
+RESULT PASS phase=final
+exit=0
+
+$ rg -n '^\| docs/' docs/work/docs-perfection/INVENTORY.md | wc -l
+     198
+exit=0
+
+$ find docs -name '*.md' | wc -l
+     198
+exit=0
+
+$ git status --short
+ M docs/ops/deploy/README.md
+ M docs/work/README.md
+ M readiness-report.md
+?? .ecc/
+?? .prime/
+?? backend/migrations.zip
+?? docs/work/docs-perfection/
+exit=0
+
+$ git diff --name-only
+docs/ops/deploy/README.md
+docs/work/README.md
+readiness-report.md
+exit=0
+
+$ git diff --name-only -- docs/architecture docs/spec docs/ops docs/delivery
+docs/ops/deploy/README.md
+exit=0
+
+$ git diff --check -- docs
+exit=0
+
+$ git ls-files --others --exclude-standard -- docs/work/docs-perfection
+docs/work/docs-perfection/CHILD-GOALS/architecture.md
+docs/work/docs-perfection/CHILD-GOALS/delivery.md
+docs/work/docs-perfection/CHILD-GOALS/ops.md
+docs/work/docs-perfection/CHILD-GOALS/product-philosophy.md
+docs/work/docs-perfection/CHILD-GOALS/spec.md
+docs/work/docs-perfection/CHILD-GOALS/work.md
+docs/work/docs-perfection/EVIDENCE/BASELINE.json
+docs/work/docs-perfection/EVIDENCE/INVENTORY-SCAN.json
+docs/work/docs-perfection/EVIDENCE/checks-draft.txt
+docs/work/docs-perfection/EVIDENCE/checks-final.txt
+docs/work/docs-perfection/EVIDENCE/delivery-validation.json
+docs/work/docs-perfection/EVIDENCE/docs-symbol-drift.txt
+docs/work/docs-perfection/EVIDENCE/review-B-round1.json
+docs/work/docs-perfection/EVIDENCE/review-B.json
+docs/work/docs-perfection/EVIDENCE/review-C-round1.json
+docs/work/docs-perfection/EVIDENCE/review-C.json
+docs/work/docs-perfection/EVIDENCE/verify.py
+docs/work/docs-perfection/GOAL.yaml
+docs/work/docs-perfection/INVENTORY.md
+docs/work/docs-perfection/LEDGER.md
+docs/work/docs-perfection/PROGRESS.md
+docs/work/docs-perfection/REPAIR-QUEUE.md
+docs/work/docs-perfection/ROLE-MAP.md
+exit=0
+
+$ git branch --list 'claim/DOCS-PERFECT-COORDINATOR'
+  claim/DOCS-PERFECT-COORDINATOR
+exit=0
+
+
+$ python3 docs/work/docs-perfection/EVIDENCE/verify.py --final
+PASS inventory=198 find=198 missing=0 extra=0 duplicate=0
+PASS inventory classification/freshness/reason all rows
+PASS baseline Markdown=187 scanned=187
+PASS four role headings
+PASS repair queue=11 Severity*Impact descending
+PASS repair actions valid
+PASS repair evidence references=32 exist with valid lines
+PASS child schema architecture.md
+PASS child repair refs architecture.md
+PASS child schema delivery.md
+PASS child repair refs delivery.md
+PASS child schema ops.md
+PASS child repair refs ops.md
+PASS child schema product-philosophy.md
+PASS child repair refs product-philosophy.md
+PASS child schema spec.md
+PASS child repair refs spec.md
+PASS child schema work.md
+PASS child repair refs work.md
+PASS six required categories
+PASS DAG dependency step
+PASS DAG dependency step
+PASS DAG dependency step
+PASS DAG dependency step
+PASS DAG dependency step
+PASS DAG dependency step
+PASS parent status active
+PASS goal durable fields
+PASS budget limits
+PASS existing docs changed only two allowed index READMEs
+PASS new docs only coordinator allowlist
+PASS outside docs tracked content unchanged from baseline
+PASS staging index diff unchanged
+PASS tracked/untracked status delta within allowlist
+PASS git diff --check -- docs
+PASS coordinator local link targets exist []
+PASS new artifact secret-pattern scan (manual PHI review also required)
+PASS saved prompt harness and receiver
+PASS drift command output and exit recorded
+PASS coordinator-complete checkpoint
+PASS independent review B
+PASS independent review C
+PASS AC1-AC9 completion audit PASS
+RESULT PASS phase=final
+exit=0

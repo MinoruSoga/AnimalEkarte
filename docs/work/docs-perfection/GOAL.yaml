@@ -1,0 +1,89 @@
+id: DOCS-PERFECTION
+objective: >-
+  docs/ 全体の事実最新化、誤りの除去、正本一本化、読みやすさと構造の改善、
+  機械ゲート整合を段階的に達成し、既存カテゴリを生きた正本として維持する。
+status: completed
+scope:
+  parent: docs/**
+  current_unit: none (DOCS-PERFECT-ASTRA-LOOP complete; external follow-up pending)
+  current_allowlist:
+    - docs/work/docs-perfection/**
+    - CHILD-GOALS/*.md に定義された各子のallowlist（依存順に直列実行）
+done_condition: >-
+  全カテゴリ子 goal の受入項目を現在の正本と機械検証で確認し、未解決の仕様判断、
+  外部証跡待ち、修復待ちを完了扱いにせず、全ての親要求に直接の証拠が揃うこと。
+coordinator_done_condition: >-
+  ROLE-MAP、全 Markdown inventory、根拠付き修復キュー、最低6カテゴリの子 goal、
+  drift実行記録、範囲監査、独立2レビュー、要件別完了監査が揃うこと。
+budget:
+  max_steps: 24
+  max_wall_time: 1 session
+  unit: coordinator action (関連する読み取り・検証コマンドを一つの作業段階として集約)
+  spent_steps: 19
+checkpoints:
+  - id: preflight-passed
+    date: 2026-09-07
+  - id: coordinator-planned
+    date: 2026-09-07
+  - id: coordinator-artifacts-verified
+    date: 2026-09-07
+  - id: coordinator-complete
+    date: 2026-09-07
+    evidence: docs/work/docs-perfection/LEDGER.md
+  - id: astra-loop-complete
+    date: 2026-09-07
+    evidence: docs/work/docs-perfection/EVIDENCE/astra-loop-checks-final.txt
+validation_commands:
+  - bash scripts/check-docs-symbol-drift.sh
+  - git diff --check -- docs
+  - git status --short
+  - git diff --name-only
+  - find docs -name '*.md' | wc -l
+forbidden_actions:
+  - 認可された子allowlistと親調査パッケージ以外への編集
+  - 親 goal を coordinator 完了だけで completed にすること
+  - アプリコード・migration・seed の変更や適用
+  - フル test/lint/build、make codegen
+  - 他セッションの WIP の破棄・上書き・claim 削除
+  - 秘密・個人情報・本番接続情報の記録
+  - 未承認の製品仕様を発明すること
+approval_required_for:
+  - commit/push/PR/merge
+  - docs/ 外のファイル編集
+  - 新しい docs トップレベルカテゴリ
+  - credential変更、外部書き込み、有料処理、STG/PROD操作
+progress_log_ref: docs/work/docs-perfection/PROGRESS.md
+child_ledger_ref: docs/work/docs-perfection/LEDGER.md
+claim_branch: claim/DOCS-PERFECT-COORDINATOR
+parent_loop:
+  mode: continuous-agent-loop
+  remaining: []
+  blocked_external:
+    - D-254 FAQ/screenshot final sync (still external)
+    - Linear/UAT original evidence / STG-PROD live state (not re-fetched)
+  completed_children:
+    - DOCS-PERFECT-PRODUCT-PHILOSOPHY
+    - DOCS-PERFECT-ARCHITECTURE
+    - DOCS-PERFECT-SPEC
+    - DOCS-PERFECT-OPS
+    - DOCS-PERFECT-DELIVERY
+    - DOCS-PERFECT-WORK
+  limits:
+    max_category_units: 5
+    max_santa_fix_cycles: 2
+    same_failure_stop: 3
+  spent_category_units: 5
+  santa_fix_cycles: 0
+  note: 上位budgetはcoordinator当時の履歴。今回の実行予算は本parent_loop.limits。
+
+# この追加依頼の受入は先行 status と分離する。
+issue_refresh:
+  id: DOCS-REFRESH-ISSUE-RECONCILIATION
+  date: 2026-09-07
+  scope: docs/**
+  mode: bounded-manual-run
+  acceptance_state: awaiting-human-verification
+  report: docs/work/docs-perfection/ISSUE-RECONCILIATION.md
+  claim_branch: claim/DOCS-REFRESH-ISSUE-RECONCILIATION
+  runtime_verified: false
+  previous_status_provenance: inherited-at-start; not human acceptance of this refresh

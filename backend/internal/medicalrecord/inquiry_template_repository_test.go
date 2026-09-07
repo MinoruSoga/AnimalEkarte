@@ -106,19 +106,22 @@ func TestInquiryTemplateRepository_Update(t *testing.T) {
 	require.NoError(t, db.WithContext(ctx).Create(tpl).Error)
 
 	t.Run("同一クリニックで更新できる", func(t *testing.T) {
-		got, err := repo.Update(ctx, clinicA, tpl.ID, map[string]any{"title": "新タイトル"})
+		title := "新タイトル"
+		got, err := repo.Update(ctx, clinicA, tpl.ID, UpdateInquiryTemplateInput{Title: &title})
 		require.NoError(t, err)
 		assert.Equal(t, "新タイトル", got.Title)
 	})
 
 	t.Run("別クリニックからの更新は NotFound", func(t *testing.T) {
-		_, err := repo.Update(ctx, clinicB, tpl.ID, map[string]any{"title": "乗っ取り"})
+		title := "乗っ取り"
+		_, err := repo.Update(ctx, clinicB, tpl.ID, UpdateInquiryTemplateInput{Title: &title})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
 	t.Run("存在しない ID の更新は NotFound", func(t *testing.T) {
-		_, err := repo.Update(ctx, clinicA, 999999, map[string]any{"title": "x"})
+		title := "x"
+		_, err := repo.Update(ctx, clinicA, 999999, UpdateInquiryTemplateInput{Title: &title})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})

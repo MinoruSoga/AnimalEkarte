@@ -91,7 +91,6 @@ func NewVaccineService(repo VaccineRepository) VaccineService {
 func (s *vaccineService) List(ctx context.Context, clinicID uint64, species *string) ([]model.Vaccine, error) {
 	items, err := s.repo.FindAll(ctx, clinicID, species)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list vaccines", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to list vaccines")
 	}
 	return items, nil
@@ -99,7 +98,6 @@ func (s *vaccineService) List(ctx context.Context, clinicID uint64, species *str
 func (s *vaccineService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Vaccine, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get vaccine", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get vaccine")
 	}
 	return result, nil
@@ -144,7 +142,6 @@ func (s *vaccineService) Create(ctx context.Context, clinicID uint64, input *Cre
 		); conflict != nil {
 			return nil, conflict
 		}
-		slog.ErrorContext(ctx, "failed to create vaccine", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to create vaccine")
 	}
 	slog.InfoContext(ctx, "vaccine created", slog.Uint64("clinic_id", clinicID), slog.Uint64("vaccine_id", vaccine.ID))
@@ -155,7 +152,6 @@ func (s *vaccineService) Update(ctx context.Context, clinicID, id uint64, input 
 		return nil, apperrors.WrapInvalidInput(errMsgInputNotNil)
 	}
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to get vaccine", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get vaccine")
 	}
 	if err := s.validateParentOwnership(ctx, clinicID, input.ParentID); err != nil {
@@ -176,7 +172,7 @@ func (s *vaccineService) Update(ctx context.Context, clinicID, id uint64, input 
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput(errMsgAtLeastOneField)
 	}
-	vaccine, err := s.repo.Update(ctx, clinicID, id, fields)
+	vaccine, err := s.repo.Update(ctx, clinicID, id, *input)
 	if err != nil {
 		nameForConflict := ""
 		if input.Name != nil {
@@ -190,7 +186,6 @@ func (s *vaccineService) Update(ctx context.Context, clinicID, id uint64, input 
 		); conflict != nil {
 			return nil, conflict
 		}
-		slog.ErrorContext(ctx, "failed to update vaccine", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to update vaccine")
 	}
 	slog.InfoContext(ctx, "vaccine updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("vaccine_id", id))
@@ -203,7 +198,6 @@ func (s *vaccineService) Delete(ctx context.Context, clinicID, id uint64) error 
 	}
 	childCount, err := s.repo.CountChildrenByParentID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to count vaccine children", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to count vaccine children")
 	}
 	if childCount > 0 {
@@ -211,14 +205,12 @@ func (s *vaccineService) Delete(ctx context.Context, clinicID, id uint64) error 
 	}
 	count, err := s.repo.CountUsageByVaccineID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check vaccine dependencies", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to check vaccine dependencies")
 	}
 	if count > 0 {
 		return apperrors.WrapConflict("このワクチンはワクチン接種記録で使用中のため削除できません")
 	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to delete vaccine", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete vaccine")
 	}
 	slog.InfoContext(ctx, "vaccine deleted", slog.Uint64("clinic_id", clinicID), slog.Uint64("vaccine_id", id))
@@ -230,7 +222,6 @@ func (s *vaccineService) Reorder(ctx context.Context, clinicID uint64, ids []uin
 		return apperrors.WrapInvalidInput(errMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
-		slog.ErrorContext(ctx, "failed to reorder vaccines", "error", err, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to reorder vaccines")
 	}
 	slog.InfoContext(ctx, "vaccines reordered", slog.Uint64("clinic_id", clinicID), slog.Int("count", len(ids)))

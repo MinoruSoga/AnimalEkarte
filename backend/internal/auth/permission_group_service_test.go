@@ -23,7 +23,7 @@ type atomicPermissionGroupRepositoryStub struct {
 		context.Context,
 		uint64,
 		uint64,
-		map[string]any,
+		UpdatePermissionGroupInput,
 		[]model.PermissionGroupRule,
 	) (*model.PermissionGroup, error)
 }
@@ -39,10 +39,10 @@ func (s *atomicPermissionGroupRepositoryStub) CreateWithRules(
 func (s *atomicPermissionGroupRepositoryStub) UpdateWithRules(
 	ctx context.Context,
 	clinicID, id uint64,
-	fields map[string]any,
+	cmd UpdatePermissionGroupInput,
 	rules []model.PermissionGroupRule,
 ) (*model.PermissionGroup, error) {
-	return s.updateWithRulesFn(ctx, clinicID, id, fields, rules)
+	return s.updateWithRulesFn(ctx, clinicID, id, cmd, rules)
 }
 
 // ---- Tests ----
@@ -336,7 +336,7 @@ func TestPermissionGroupService_Update(t *testing.T) {
 			}
 			repo := &mockPermissionGroupRepository{
 				findByIDFn: findByIDFn,
-				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.PermissionGroup, error) {
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdatePermissionGroupInput) (*model.PermissionGroup, error) {
 					if tt.updateNil {
 						return nil, nil
 					}
@@ -401,13 +401,14 @@ func TestPermissionGroupService_UpdateWithRules_AuditsFinalAggregateInTransactio
 		updateWithRulesFn: func(
 			ctx context.Context,
 			clinicID, id uint64,
-			fields map[string]any,
+			cmd UpdatePermissionGroupInput,
 			rules []model.PermissionGroupRule,
 		) (*model.PermissionGroup, error) {
 			assert.True(t, ctx.Value(permissionAuditTxContextKey{}) == true)
 			assert.Equal(t, uint64(23), clinicID)
 			assert.Equal(t, uint64(7), id)
-			assert.Equal(t, "after", fields["name"])
+			require.NotNil(t, cmd.Name)
+			assert.Equal(t, "after", *cmd.Name)
 			require.Len(t, rules, 1)
 			return &model.PermissionGroup{
 				ID:       id,

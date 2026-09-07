@@ -103,7 +103,7 @@ func TestMedicalRecordRepository_LockByIDForUpdate_SerializesFinalizeAgainstChil
 	go func() {
 		defer close(finalizeDone)
 		close(finalizeStarted)
-		_, finalizeErr = medRecRepo.Update(context.Background(), clinicID, mr.ID, map[string]any{"status": model.MedicalRecordStatusFinalized}, nil)
+		_, finalizeErr = medRecRepo.Update(context.Background(), clinicID, mr.ID, medicalRecordUpdateStatus(model.MedicalRecordStatusFinalized), nil)
 	}()
 	<-finalizeStarted
 
@@ -164,7 +164,7 @@ func TestMedicalRecordRepository_LockByIDForUpdate_ChildWriteRejectedAfterFinali
 	}
 	require.NoError(t, medRecRepo.Create(ctx, mr))
 
-	_, err := medRecRepo.Update(ctx, clinicID, mr.ID, map[string]any{"status": model.MedicalRecordStatusFinalized}, nil)
+	_, err := medRecRepo.Update(ctx, clinicID, mr.ID, medicalRecordUpdateStatus(model.MedicalRecordStatusFinalized), nil)
 	require.NoError(t, err)
 
 	childErr := withTx(ctx, db, func(txCtx context.Context) error {
@@ -223,7 +223,7 @@ func TestMedicalRecordRepository_LockByIDForUpdate_TreatmentDeleteRejectedAfterF
 	treatment := &model.Treatment{MedicalRecordID: mr.ID}
 	require.NoError(t, treatmentRepo.Create(ctx, treatment))
 
-	_, err := medRecRepo.Update(ctx, clinicID, mr.ID, map[string]any{"status": model.MedicalRecordStatusFinalized}, nil)
+	_, err := medRecRepo.Update(ctx, clinicID, mr.ID, medicalRecordUpdateStatus(model.MedicalRecordStatusFinalized), nil)
 	require.NoError(t, err)
 
 	childErr := withTx(ctx, db, func(txCtx context.Context) error {
@@ -282,7 +282,7 @@ func TestMedicalRecordRepository_LockByIDForUpdate_TreatmentBulkSortOrderRejecte
 	treatment := &model.Treatment{MedicalRecordID: mr.ID, SortOrder: 0}
 	require.NoError(t, treatmentRepo.Create(ctx, treatment))
 
-	_, err := medRecRepo.Update(ctx, clinicID, mr.ID, map[string]any{"status": model.MedicalRecordStatusFinalized}, nil)
+	_, err := medRecRepo.Update(ctx, clinicID, mr.ID, medicalRecordUpdateStatus(model.MedicalRecordStatusFinalized), nil)
 	require.NoError(t, err)
 
 	updates := []TreatmentSortUpdate{{ID: treatment.ID, ClinicID: clinicID, SortOrder: 99}}

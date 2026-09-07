@@ -149,8 +149,6 @@ var knownMissingFromSpec = map[string]bool{
 }
 
 var knownPhantomInSpec = map[string]bool{
-	"GET /api/v1/health": true,
-
 	// pairs with the clinic_handler.go :clinic_id vs api.yaml {id} param-name drift above.
 	"DELETE /api/v1/clinics/{id}": true,
 	"GET /api/v1/clinics/{id}":    true,

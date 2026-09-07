@@ -80,7 +80,7 @@ func TestExamTypeService_Update_RejectsCrossClinicParentFK(t *testing.T) {
 				}
 				return nil, apperrors.WrapNotFound("exam_type", "foreign")
 			},
-			updateFieldsFn: func(_ context.Context, _, id uint64, _ map[string]any) (*model.ExaminationType, error) {
+			updateFieldsFn: func(_ context.Context, _, id uint64, _ UpdateExamTypeInput) (*model.ExaminationType, error) {
 				*updated = true
 				return &model.ExaminationType{ID: id}, nil
 			},

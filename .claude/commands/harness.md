@@ -106,10 +106,12 @@ git diff --staged --name-only
 
 ```
 ITERATION N RESULT:
-  Go:   PASS / FAIL（違反: X件）
-  TS:   PASS / FAIL（違反: X件）
-  DB:   PASS / FAIL（違反: X件）
-  総合: PASS / FAIL
+  Go:   PASS / FAIL / UNKNOWN（違反: X件。未実行なら UNKNOWN）
+  TS:   PASS / FAIL / UNKNOWN
+  DB:   PASS / FAIL / UNKNOWN
+  総合: PASS / FAIL / UNKNOWN
+
+未実行の reviewer・テスト・coverage を PASS と表示しない。カバレッジ数値は測定した場合だけ書く。
 ```
 
 ---

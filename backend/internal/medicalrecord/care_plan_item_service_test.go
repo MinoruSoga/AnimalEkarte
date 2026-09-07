@@ -18,7 +18,7 @@ type mockCarePlanItemRepository struct {
 	listByHospitalizationIDFn func(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.CarePlanItem, error)
 	findByIDFn                func(ctx context.Context, clinicID, itemID uint64) (*model.CarePlanItem, error)
 	createFn                  func(ctx context.Context, item *model.CarePlanItem) error
-	updateFn                  func(ctx context.Context, clinicID, itemID uint64, fields map[string]any) error
+	updateFn                  func(ctx context.Context, clinicID, itemID uint64, cmd UpdateCarePlanItemInput) error
 	deleteFn                  func(ctx context.Context, clinicID, itemID uint64) error
 }
 
@@ -34,8 +34,8 @@ func (m *mockCarePlanItemRepository) Create(ctx context.Context, item *model.Car
 	return m.createFn(ctx, item)
 }
 
-func (m *mockCarePlanItemRepository) Update(ctx context.Context, clinicID, itemID uint64, fields map[string]any) error {
-	return m.updateFn(ctx, clinicID, itemID, fields)
+func (m *mockCarePlanItemRepository) Update(ctx context.Context, clinicID, itemID uint64, cmd UpdateCarePlanItemInput) error {
+	return m.updateFn(ctx, clinicID, itemID, cmd)
 }
 
 func (m *mockCarePlanItemRepository) Delete(ctx context.Context, clinicID, itemID uint64) error {
@@ -448,7 +448,7 @@ func TestCarePlanItemService_Update(t *testing.T) {
 						HospitalizationID: tt.repoItemHospitalizationID,
 					}, nil
 				},
-				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+				updateFn: func(_ context.Context, _, _ uint64, _ UpdateCarePlanItemInput) error {
 					return tt.repoUpdateErr
 				},
 			}
@@ -509,7 +509,7 @@ func TestCarePlanItemService_Update_ReloadError(t *testing.T) {
 			}
 			return nil, errors.New("db error on reload")
 		},
-		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+		updateFn: func(_ context.Context, _, _ uint64, _ UpdateCarePlanItemInput) error {
 			return nil
 		},
 	}

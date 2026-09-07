@@ -3,7 +3,7 @@
 > **目的**: LINE Developers Console と Animal Ekarte の初期設定 gate を提供する。
 > **読者**: クリニック導入担当・運用者。
 > **タイミング**: 新規クリニックの LINE 連携初期設定時。
-> **最新更新**: 2026-08-31
+> **最新更新**: 2026-09-06（repo `7c6592f9f`）
 
 この手順は実値を記録する場所ではない。環境ごとの public host、clinic ID、credential owner、rollback owner は承認済みの環境台帳で確認する。
 
@@ -51,7 +51,7 @@ LIFF app は Messaging API channel 内ではなく **LINE Login channel** に作
 5. **LIFF verification**: clinic path から LIFF login、clinic 解決、予約設定取得までを別に確認する。connection-test button はこの確認を代替しない。
 6. **clinic gate**: clinic の `is_sync_enabled` は、上記と監視・rollback owner が揃うまで false にする。
 7. **deploy gate**: `LSTEP_WRITE_API_ENABLED` は既定 OFF。enable / stop / rollback は [LSTEP Write API pause runbook](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md) に従う。環境変数の実値は本書へ記載しない。
-8. **release evidence**: scoped external scenario、monitoring、alert、stop/rollback を記録する。generic staging gate は [STG_PRE_DEPLOY_READINESS_CHECK](../../ops/deploy/runbooks/STG_PRE_DEPLOY_READINESS_CHECK.md) を参照する。
+8. **release evidence**: [#259](https://github.com/MinoruSoga/AnimalEkarte/issues/259) は OPEN / 外部 enable 待ち。Write 再開と cron を同一リリースで扱い、scoped external scenario、少数 live-send、cron fire、monitoring、alert、stop/rollback を記録する。generic staging gate は [STG_PRE_DEPLOY_READINESS_CHECK](../../ops/deploy/runbooks/STG_PRE_DEPLOY_READINESS_CHECK.md) を参照する。
 
 ## 5. 現行 connection test の範囲と既知 gap
 
@@ -62,13 +62,17 @@ LIFF app は Messaging API channel 内ではなく **LINE Login channel** に作
 
 **検証しないもの**: Channel Secret、webhook signature/destination routing、LIFF ID、LIFF login、clinic path、deploy/clinic write gate。
 
-**既知の source/UI gap（本 docs-only 変更では未修正）**:
+**既知の source/UI gap（2026-09-06 source 照合、本 docs-only 変更では未修正）**:
 - probe helper は 401/403 以外を成功扱いし得るため、404 / 429 / 5xx を正しく失敗にできない。
 - backend は `{lstep_ok:false}` / `{line_ok:false}` を含んでも HTTP 200 を返し得る。
 - frontend は typed body を評価せず、2xx を toast success として扱う。
+
+照合先: [`lstep_settings_connection.go`](../../../backend/internal/lstep/lstep_settings_connection.go)、[`lstep-settings.ts`](../../../frontend/src/features/settings/api/lstep-settings.ts)。
 
 したがって button の success は設定全体の合格証明ではない。各 probe は 2xx のみを成功とし、frontend が component result を確認する source 修正が別途必要。現状は webhook signature test と LIFF login test を独立して実施し、結果を release evidence に残す。
 
 ## 6. 停止・rotation
 
 異常時は clinic gate を停止し、必要に応じて deploy kill switch を OFF にする。credential 漏えいまたは期限切れでは owner が provider 側で rotate し、masked save、個別 probe、webhook/LIFF verification の順で再確認する。外部 write の再開は pause runbook の gate を満たした後だけ行う。
+
+`LSTEP_WRITE_API_ENABLED` はLステップのタグ・プロパティ書き込みを制御する。飼主画面からのLINE手動送信はMessaging APIを使う別経路で、このgateをOFFにしても停止したことにはならない。手動送信は飼主の受信拒否状態を検証するため、停止時は対象の送信経路と飼主設定も確認する（`backend/internal/lstep/line_send_service.go`）。

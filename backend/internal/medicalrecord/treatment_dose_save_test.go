@@ -390,7 +390,7 @@ func TestTreatmentDoseSave_Update(t *testing.T) {
 		}
 		f.treatRepo = &mockTreatmentRepository{
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Treatment, error) { return existing, nil },
-			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			updateFn: func(_ context.Context, _, _ uint64, _ UpdateTreatmentInput) error {
 				f.updateCalls++
 				return nil
 			},

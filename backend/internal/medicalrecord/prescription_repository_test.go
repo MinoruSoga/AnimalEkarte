@@ -256,19 +256,22 @@ func TestPrescriptionRepository_Update(t *testing.T) {
 	p := makePrescription(t, db, clinicA, ownerA.ID, nil, time.Now())
 
 	t.Run("updates successfully", func(t *testing.T) {
-		require.NoError(t, repo.Update(ctx, clinicA, p.ID, map[string]any{"duration_days": 14}))
+		days := 14
+		require.NoError(t, repo.Update(ctx, clinicA, p.ID, UpdatePrescriptionInput{DurationDays: &days}))
 		got, err := repo.FindByID(ctx, clinicA, p.ID)
 		require.NoError(t, err)
 		assert.Equal(t, 14, got.DurationDays)
 	})
 
 	t.Run("not found for nonexistent id", func(t *testing.T) {
-		err := repo.Update(ctx, clinicA, uint64(999999), map[string]any{"duration_days": 1})
+		days := 1
+		err := repo.Update(ctx, clinicA, uint64(999999), UpdatePrescriptionInput{DurationDays: &days})
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
 	t.Run("clinic isolation: wrong clinic returns NotFound", func(t *testing.T) {
-		err := repo.Update(ctx, clinicB, p.ID, map[string]any{"duration_days": 99})
+		days := 99
+		err := repo.Update(ctx, clinicB, p.ID, UpdatePrescriptionInput{DurationDays: &days})
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 }

@@ -2,7 +2,6 @@ package reservation
 
 import (
 	"context"
-	"log/slog"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -14,7 +13,6 @@ import (
 func (s *liffService) delegateStaff(ctx context.Context, clinicID, typeID uint64, mode string, date time.Time, startTime, endTime string) (uint64, error) {
 	staffs, err := s.resolveTargetStaffs(ctx, clinicID, typeID, 0)
 	if err != nil || len(staffs) == 0 {
-		slog.ErrorContext(ctx, "failed to resolve target staffs liff", "error", err)
 		return 0, apperrors.Wrap(err, "failed to resolve target staffs liff")
 	}
 

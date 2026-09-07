@@ -46,7 +46,7 @@ type Repository interface {
 	CountLivingByOwnerIDs(ctx context.Context, clinicID uint64, ownerIDs []uint64) (map[uint64]int64, error)
 	CountUsageByAnimalSpeciesID(ctx context.Context, speciesID uint64) (int64, error)
 	Create(ctx context.Context, pet *model.Pet) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	Update(ctx context.Context, clinicID, id uint64, cmd UpdatePetInput) error
 	UpdateAndFind(ctx context.Context, clinicID, id uint64, update PetUpdate) (*model.Pet, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	// FindOwnersByPetBirthday は指定月日と一致する誕生日の生存ペットを持つ飼い主IDリストを返す（FEAT-383）。
@@ -106,7 +106,7 @@ func (r *repository) FindAll(ctx context.Context, clinicIDs []uint64, filters Pe
 		return pets, 0, nil
 	}
 
-	if err := r.petListQuery(ctx, clinicIDs, filters).Count(&total).Error; err != nil {
+	if err := r.petCountQuery(ctx, clinicIDs, filters).Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "pet", "")
 	}
 	// BRT-70: JOIN 時の owners 列混入 scan を避けるため Find だけ pets.* を明示する。
@@ -128,6 +128,26 @@ func (r *repository) FindAll(ctx context.Context, clinicIDs []uint64, filters Pe
 		sanitizePetOwnerRelation(&pets[i])
 	}
 	return pets, total, nil
+}
+
+func (r *repository) petCountQuery(ctx context.Context, clinicIDs []uint64, filters PetListFilters) *gorm.DB {
+	q := r.db.WithContext(ctx).Model(&model.Pet{}).
+		Where("pets.clinic_id IN ?", clinicIDs).
+		Where("pets.deleted_at IS NULL")
+	if filters.OwnerID != nil {
+		q = q.Where("pets.owner_id = ?", *filters.OwnerID)
+	}
+	if filters.AnimalSpeciesID != nil {
+		q = q.Where("pets.animal_species_id = ?", *filters.AnimalSpeciesID)
+	}
+	if !filters.IncludeDeceased {
+		q = q.Where("pets.deceased_at IS NULL AND pets.status <> ?", model.PetStatusDeceased)
+	}
+	if filters.Search == "" {
+		return q
+	}
+	q = q.Joins("LEFT JOIN owners ON owners.id = pets.owner_id AND owners.clinic_id = pets.clinic_id AND owners.clinic_id IN ? AND owners.deleted_at IS NULL", clinicIDs)
+	return applyPetListSearch(q, filters.Search)
 }
 
 func (r *repository) petListQuery(ctx context.Context, clinicIDs []uint64, filters PetListFilters) *gorm.DB {
@@ -388,7 +408,11 @@ func (r *repository) Create(ctx context.Context, pet *model.Pet) error {
 // Update は BUG-407 の fail-closed 化（lstepLifecycleService.HandlePetDeath/HandlePetRevival が
 // status/deceased_at 更新と監査書込を同一 tx で原子化する）のため dbOrTx(ctx, r.db) を使う。
 // ambient tx が無い呼び出し（大多数の既存経路）では r.db.WithContext(ctx) と等価（後方互換）。
-func (r *repository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+func (r *repository) Update(ctx context.Context, clinicID, id uint64, cmd UpdatePetInput) error {
+	return r.update(ctx, clinicID, id, buildPetUpdate(&cmd))
+}
+
+func (r *repository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	for key := range fields {
 		if isDangerFieldKey(key) || isStructuralPetFieldKey(key) {
 			return apperrors.WrapInvalidInput("protected pet fields require the typed pet update capability")

@@ -3,7 +3,6 @@ package medicalrecord
 import (
 	"context"
 	"fmt"
-	"log/slog"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -35,18 +34,15 @@ func (s *medicineService) deleteMedicineInTx(
 		}
 	}
 	if err := s.repo.Delete(txCtx, clinicID, id); err != nil {
-		slog.ErrorContext(txCtx, "failed to delete medicine", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete medicine")
 	}
 	if m.InventoryID != nil && *m.InventoryID != 0 {
 		err := s.inventoryRepo.Delete(txCtx, clinicID, *m.InventoryID)
 		// NotFound is acceptable for already-orphaned inventory; other errors fail closed.
 		if err != nil && !apperrors.IsNotFound(err) {
-			slog.ErrorContext(txCtx, "failed to delete linked inventory for medicine", "error", err, "clinic_id", clinicID, "inventory_id", *m.InventoryID)
 			return apperrors.Wrap(err, "failed to delete linked inventory for medicine")
 		}
 	} else if err := s.inventoryRepo.DeleteByNameAndMedicineCategory(txCtx, clinicID, m.Name); err != nil {
-		slog.ErrorContext(txCtx, "failed to delete linked inventory for medicine by name", "error", err, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete linked inventory for medicine")
 	}
 	resourceID := id

@@ -1,6 +1,6 @@
 # UI Design Compliance — 全ルートページ準拠監査
 
-> 正本。[DESIGN.md](../../DESIGN.md)（タイポ・形状・余白・エレベーション・寸法）と [docs/spec/design-system.md](design-system.md)（AE 製品色）への準拠を、本体 86 製品ルート（+ wildcard 404）とその実装コンポーネントに対して判定した結果。最終監査日 **2026-07-24**（§2 在庫は 2026-07-31 に `/identity-links` を追加し 86 製品ルートへ更新）。
+> 正本。[DESIGN.md](../../DESIGN.md)（タイポ・形状・余白・エレベーション・寸法）と [docs/spec/design-system.md](design-system.md)（AE 製品色）への準拠を、本体 86 製品ルート（+ wildcard 404）とその実装コンポーネントに対して判定した結果。最終 runtime 監査日 **2026-07-24**。2026-09-06 に静的な route 在庫・C8 allowlist・C20 検査定義を照合した（ブラウザ再実行ではない）。
 
 ## 1. 準拠チェック定義
 
@@ -14,7 +14,7 @@
 | C6a | 臨床安全 UI（危険/死亡/RBAC 非活性表示）はデザイン変更で退行させない | DESIGN_SYSTEM §2.4, §9 | 静的 grep では網羅不可 — **コードレビュー要**。danger/warning の hex 直書き逸脱は C3 と合わせて確認 |
 | C6b | rgba/rgb/hsla/hsl 直値禁止 | design-system-audit.mjs C6 | **機械化**（`pnpm design-audit` / make ci） |
 | C7 | PageLayout `maxWidth` 生値禁止（`max-w-full` / `max-w-[Npx]`） | LAYOUT.pageContentMaxWidth | **機械化**（C7） |
-| C8 | routes/*.tsx は PageLayout / Master*Page / allowlist | PageLayout | **機械化**（C8・相対パス完全一致 allowlist 44件 = 独自page 9 + helper 35。150行分割の薄い route / *Panels を含む） |
+| C8 | routes/*.tsx は PageLayout / Master*Page / allowlist | PageLayout | **機械化**（C8・相対パス完全一致 allowlist 43件 = 独自page 9 + helper 34。150行分割の薄い route / *Panels を含む） |
 | C9 | `rounded-[Npx]` 任意値禁止 | `--radius-xxs/xs/...` | **機械化**（C9） |
 | C10 | Tailwind 既定影（`shadow-2xs〜2xl`）と `shadow-[...]` 任意値禁止。`shadow-level1/level2/btn/panel/focus-brand` 等の elevation トークンのみ使用可 | design-system.md §5.1 | **機械化**（`pnpm design-audit` / make ci） |
 | C11 | `text-[Npx\|Nrem]` font-size 任意値禁止 | design-system.md §3.4 | **機械化**（C11） |
@@ -26,12 +26,13 @@
 | C17 | CSS の直接 `box-shadow:` / `filter: drop-shadow()` 禁止。elevation token経由必須 | design-system.md §5.1 | **機械化**（C17） |
 | C18 | `TableHead` / `TableCell` とraw `th` / `td` で header eyebrow・body-sm・12px vertical / 16px horizontal paddingを非仕様値へ上書きしない | DESIGN.md `ex-data-table-cell` | **機械化**（C18。test除外、空stateと`data-c18-structural-cell`付きself-closing構造セルは許可。raw は `C18_RAW_CELL_ALLOWLIST` / `*PrintArea*` / FE11除外のみ。件数ratchetなし・違反はstrict fail） |
 | C19 | `DataTableRow` / `SortableDataTableRow` / `TableRow` / raw `tr` に行全体の `onClick` を付けない。遷移はcell内のnative link、表示・編集はnative button、並べ替えは44px drag handleを使う | DESIGN.md §7.4, §8.2 | **機械化**（C19。production `.tsx` の4種のrow opening tagをmultiline対応で検査） |
+| C20 | Tailwind が走査できない実行時クラス合成（`hover:${C.x}` / `focus:${C.x}` / `text-[${value}]`）禁止 | design-system.md §10 | **機械化**（C20。非test TypeScript、コメント除外） |
 
 **FE11 正本分割（2026-07-21、色役割更新 2026-07-27）**: 色は DESIGN_SYSTEM の製品判断、タイポ・形状・余白・エレベーション・寸法は DESIGN.md 字義を正本とする。brand と primary は同じ teal 値を使い、製品識別と汎用操作・選択・focus の意味役割だけをトークン名で分ける。臨床 semantic 色・業務 status 色・nav canvas-soft も DESIGN_SYSTEM の判断を維持する。
 
 **監査範囲の限界**: `design-system-audit.mjs` は `src`・`liff/src`・`line-reserve/src` の非test TypeScriptを全数走査し、C17だけは CSS も走査する。FE11 の静的在庫対象は本体 86 製品ルートのため、C12/C14〜C17は LIFF・line-reserve・shared-liff を明示除外し、画面用規範と異なる `MedicalRecordPrintView` も除外する。C15 は本体 routes/pages、C18は `.tsx` の共通 Table primitive（`TableHead` / `TableCell`）とraw `th` / `td` opening tag、C19は4種のrow opening tagを対象にする。C18 は呼び出し側による非仕様 typography / vertical padding（raw は横padding・セル背景も含む）の再上書きを検出し、検出1件でも strict failする（件数ratchetなし。raw の正当な除外は `C18_RAW_CELL_ALLOWLIST`・`*PrintArea*` basename・FE11除外のみ）。ロール内での意味的誤選択、全viewport、C6a（臨床安全 UI）は静的判定できないためコードレビュー/ブラウザ確認を併用する。
 
-**機械化（FE11 更新）**: C1/C3/C5/C6b/C7〜C19 は `frontend/scripts/design-system-audit.mjs` で strict fail（C18 も件数ratchetなし。違反0件が合格条件）。C2/C4 は C8 により `routes/*.tsx` を機械化済み。§2 表と C8 allowlist は新規リーフ追加時に同一コミットで更新する。C6a（臨床安全 UI）は引き続きコードレビュー要。
+**機械化（FE11 更新）**: C1/C3/C5/C6b/C7〜C20 は `frontend/scripts/design-system-audit.mjs` で strict fail（C18 も件数ratchetなし。違反0件が合格条件）。C2/C4 は C8 により `routes/*.tsx` を機械化済み。§2 表と C8 allowlist は新規リーフ追加時に同一コミットで更新する。C6a（臨床安全 UI）は引き続きコードレビュー要。
 ```bash
 docker compose exec frontend pnpm design-audit
 ```
@@ -40,7 +41,7 @@ docker compose exec frontend pnpm design-audit
 
 **静的在庫: 86 製品ルート + wildcard 404 = 87 行。** この docs refresh では source / route inventory を静的に照合したが、runtime E2E は再実行していない。表の静的列は現行 source との対応だけを示し、runtime 合格を意味しない。
 
-**既知の E2E inventory gap**: `frontend/e2e/ui-design-compliance-readonly.spec.ts` は 85 製品 route しか持たず、実在する `/examinations/new` を欠く。`/identity-links` も追加後の route 単位 runtime 証跡が記録されていない。両 route の runtime は **pending**。E2E source と期待件数の修正・scoped rerun は別 task とし、本 docs-only 変更では行わない。2026-07-23 の 83 製品ページ aggregate run は履歴情報としてのみ残し、現在の 86 route へ拡張解釈しない。
+**既知の E2E inventory gap**: `frontend/e2e/ui-design-compliance-readonly.spec.ts` は 85 製品 route しか持たず、実在する `/examinations/new` を欠く。`/identity-links` は現行 E2E source に含まれるが、追加後の route 単位 runtime 証跡が本書に記録されていない。両 route の runtime は **pending**。欠落する `/examinations/new` の E2E source と期待件数の修正・scoped rerun は別 task とし、本 docs-only 変更では行わない。2026-07-23 の 83 製品ページ aggregate run は履歴情報としてのみ残し、現在の 86 route へ拡張解釈しない。
 
 | エリア | ページ名 | パス | コンポーネント | 静的監査 (2026-08-31) | runtime 監査 | 備考 |
 |---|---|---|---|---|---|---|
@@ -83,7 +84,7 @@ docker compose exec frontend pnpm design-audit
 | 検査 | 検査編集 | /examinations/:id | ExaminationForm | ✅ | 未記録（現行在庫） |  |
 | ワクチン | ワクチン一覧 | /vaccinations | VaccinationList | ✅ | 未記録（現行在庫） |  |
 | ワクチン | ワクチン接種 - ペット選択 | /vaccinations/select-pet | VaccinationPetSelection | ✅ | 未記録（現行在庫） |  |
-| ワクチン | ワクチン登録(新規) | /vaccinations/new | Navigate → /vaccinations/select-pet | ✅ | 未記録（現行在庫） | /vaccinations/new は select-pet へリダイレクト。新規作成はカルテ予防接種タブから |
+| ワクチン | ワクチン登録(新規) | /vaccinations/new | VaccinationForm | ✅ | 未記録（現行在庫） | BUG-501: create 権限で独立フォームを表示。petId 未指定時はペット選択へ誘導。カルテ予防接種タブは別の入力実装 |
 | ワクチン | ワクチン編集 | /vaccinations/:id | VaccinationForm | ✅ | 未記録（現行在庫） | typed `BackendVaccination` とpet/vaccine/doctor fixtureでedit state・担当医帰属を4 viewport確認 |
 | 定期健診 | 定期健診一覧 | /checkups | CheckupsList | ✅ | 未記録（現行在庫） |  |
 | 定期健診 | 定期健診登録 - ペット選択 | /checkups/select-pet | CheckupPetSelection | ✅ | 未記録（現行在庫） |  |
@@ -140,4 +141,4 @@ docker compose exec frontend pnpm design-audit
 - C1（legacy accent）・C3（route表面hex直書き）の現行静的結果は design-audit で再確認する。本 docs refresh は runtime / design-audit を再実行しておらず、86 route 全体の新しい合格値を記録しない。
 - C5（Primary CTA colorVariant）の現行分布は `primary` 16件、認証の明示的 `brand` 3件。`default` の明示使用と未定義 variant は0件。
 - C15〜C19 の 2026-07-24 の監査値は履歴であり、現行 86 route の再実行結果ではない。新規 route を含む静的 gate は `docker compose exec frontend pnpm design-audit` の scoped operational execution で別途確認する。
-- DESIGN_SYSTEM §10 の既知baseline「route表面accent 0件」は再現。2026-07-06時点で `AccountingReportsPage` / `CashRegisterClosePage` / `CashRegisterHistoryPage` を `PageLayout` 化し、非PageLayout例は解消済み（DESIGN_SYSTEM.md §10 側の旧baseline記述は本書のみ更新、DESIGN_SYSTEM.md本文は対象外のため未修正）。`ManualPage` は二ペインdocビューア構造のため引き続き `PageLayout` 非採用・独自 canvas-soft shell（`C.bgPage`）で C2 準拠。`IdentityLinksPage`（`/identity-links`）は PageLayout shell を採用する（C2/C4/C8）。
+- DESIGN_SYSTEM §10 の既知baseline「route表面accent 0件」は再現。2026-07-06時点で `AccountingReportsPage` / `CashRegisterClosePage` / `CashRegisterHistoryPage` を `PageLayout` 化し、非PageLayout例は解消済み。`ManualPage` は二ペインdocビューア構造のため引き続き `PageLayout` 非採用・独自 canvas-soft shell（`C.bgPage`）で C2 準拠。`IdentityLinksPage`（`/identity-links`）は PageLayout shell を採用する（C2/C4/C8）。

@@ -198,19 +198,22 @@ func TestCarePlanItemRepository_Update(t *testing.T) {
 	item := makeCarePlanItem(t, db, hospA.ID, "更新前", 1, nil, nil)
 
 	t.Run("updates successfully", func(t *testing.T) {
-		require.NoError(t, repo.Update(ctx, clinicA, item.ID, map[string]any{"name": "更新後"}))
+		name := "更新後"
+		require.NoError(t, repo.Update(ctx, clinicA, item.ID, UpdateCarePlanItemInput{Name: &name}))
 		got, err := repo.FindByID(ctx, clinicA, item.ID)
 		require.NoError(t, err)
 		assert.Equal(t, "更新後", got.Name)
 	})
 
 	t.Run("not found for nonexistent id", func(t *testing.T) {
-		err := repo.Update(ctx, clinicA, uint64(999999), map[string]any{"name": "x"})
+		name := "x"
+		err := repo.Update(ctx, clinicA, uint64(999999), UpdateCarePlanItemInput{Name: &name})
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
 	t.Run("clinic isolation: wrong clinic returns NotFound", func(t *testing.T) {
-		err := repo.Update(ctx, clinicB, item.ID, map[string]any{"name": "乗っ取り"})
+		name := "乗っ取り"
+		err := repo.Update(ctx, clinicB, item.ID, UpdateCarePlanItemInput{Name: &name})
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 }

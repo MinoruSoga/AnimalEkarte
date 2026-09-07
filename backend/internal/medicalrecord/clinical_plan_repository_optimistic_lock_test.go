@@ -37,9 +37,11 @@ func TestClinicalPlanRepository_Update_OptimisticLock(t *testing.T) {
 		require.Equal(t, 1, plan.Version, "新規作成時の初期バージョンは1であるべき")
 
 		expected := 1
-		err := repo.Update(ctx, clinicA, plan.ID, map[string]any{
-			"physical_exam": "更新後",
-			"version":       2,
+		exam := "更新後"
+		next := 2
+		err := repo.Update(ctx, clinicA, plan.ID, UpdateClinicalPlanInput{
+			PhysicalExam:   &exam,
+			persistVersion: &next,
 		}, &expected)
 		require.NoError(t, err)
 
@@ -56,16 +58,19 @@ func TestClinicalPlanRepository_Update_OptimisticLock(t *testing.T) {
 
 		// 先に一度更新してversionを2に進める（他ユーザーの書込みをシミュレート）
 		current := 1
-		require.NoError(t, repo.Update(ctx, clinicA, plan.ID, map[string]any{
-			"physical_exam": "他ユーザーによる更新",
-			"version":       2,
+		other := "他ユーザーによる更新"
+		next := 2
+		require.NoError(t, repo.Update(ctx, clinicA, plan.ID, UpdateClinicalPlanInput{
+			PhysicalExam:   &other,
+			persistVersion: &next,
 		}, &current))
 
 		// stale な expectedVersion（1のまま）で更新を試みる
 		stale := 1
-		err := repo.Update(ctx, clinicA, plan.ID, map[string]any{
-			"physical_exam": "競合更新",
-			"version":       2,
+		conflict := "競合更新"
+		err := repo.Update(ctx, clinicA, plan.ID, UpdateClinicalPlanInput{
+			PhysicalExam:   &conflict,
+			persistVersion: &next,
 		}, &stale)
 
 		require.Error(t, err)
@@ -86,16 +91,17 @@ func TestClinicalPlanRepository_Update_OptimisticLock(t *testing.T) {
 
 		// version を明示的に進めておく
 		v1 := 1
-		require.NoError(t, repo.Update(ctx, clinicA, plan.ID, map[string]any{
-			"physical_exam": "中間更新",
-			"version":       2,
+		mid := "中間更新"
+		next := 2
+		require.NoError(t, repo.Update(ctx, clinicA, plan.ID, UpdateClinicalPlanInput{
+			PhysicalExam:   &mid,
+			persistVersion: &next,
 		}, &v1))
 
 		// expectedVersion=nil（medical_record_subrecords.go の best-effort 呼び出し等）は
 		// 実際のversion(2)と無関係に成功するべき
-		err := repo.Update(ctx, clinicA, plan.ID, map[string]any{
-			"physical_exam": "照合スキップ更新",
-		}, nil)
+		skip := "照合スキップ更新"
+		err := repo.Update(ctx, clinicA, plan.ID, UpdateClinicalPlanInput{PhysicalExam: &skip}, nil)
 		require.NoError(t, err)
 
 		got, err := repo.FindByMedicalRecordID(ctx, clinicA, mr.ID)
@@ -112,9 +118,11 @@ func TestClinicalPlanRepository_Update_OptimisticLock(t *testing.T) {
 
 		// expectedVersion はDB上の実際の値と一致させる（バージョン不一致が理由でないことを担保）
 		matching := finalizedPlan.Version
-		err := repo.Update(ctx, clinicA, finalizedPlan.ID, map[string]any{
-			"physical_exam": "確定後の書込",
-			"version":       matching + 1,
+		exam := "確定後の書込"
+		next := matching + 1
+		err := repo.Update(ctx, clinicA, finalizedPlan.ID, UpdateClinicalPlanInput{
+			PhysicalExam:   &exam,
+			persistVersion: &next,
 		}, &matching)
 
 		require.Error(t, err)

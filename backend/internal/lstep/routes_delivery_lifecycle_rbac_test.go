@@ -23,7 +23,7 @@ func TestRegisterRoutes_DeliveryLifecycleRBACTuples(t *testing.T) {
 	}
 
 	h := NewHandler(
-		&LstepSettingsHandler{},
+		&SettingsHandler{},
 		&LineSendHandler{},
 		&LineLinkHandler{},
 		&LineCustomerHandler{},

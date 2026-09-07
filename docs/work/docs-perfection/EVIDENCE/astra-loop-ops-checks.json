@@ -1,0 +1,36 @@
+[
+  {
+    "command": [
+      "git",
+      "diff",
+      "--check",
+      "--",
+      "docs/ops"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "test",
+      "-f",
+      "docs/ops/testing/scripts/check-uat-env.sh"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "rg",
+      "-n",
+      "reports/uat-|gitignore|原証跡|保存先|デプロイ直後",
+      "docs/ops/testing/UAT-DOMAIN-STATUS.md",
+      "docs/ops/deploy/STG-CONTINUOUS-OPERATIONS.md"
+    ],
+    "exit": 0,
+    "stdout": "docs/ops/testing/UAT-DOMAIN-STATUS.md:6:> **照合**: `QA-UAT-EVIDENCE-SYNC`。`reports/` は gitignore。コミット済み正本は本ファイルと [`bug.md`](../../../bug.md)。Linear は未照会（UNKNOWN）。\ndocs/ops/testing/UAT-DOMAIN-STATUS.md:25:| r14 | ヘッダだけ「FAIL 0 / PASS 16」と書いてあった regression smoke。V04 再実行の証跡は本ファイルに無く、PASS 翻転ではない。ディレクトリは gitignore のため再読不可 |\ndocs/ops/testing/UAT-DOMAIN-STATUS.md:27:下記のコード表記 `reports/uat-*` は gitignore 対象の非配布原証跡の識別子であり、ローカルファイルへのリンクではない。今回の文書更新では原証跡の内容・現在の所在を再確認していない。不在から未実施/完了を推定せず、再検証時は管理者へ原証跡の所在と取得方法を確認する。\ndocs/ops/testing/UAT-DOMAIN-STATUS.md:54:- **証跡**: `reports/uat-2026-09-05-r8/FINAL-s01.md`\ndocs/ops/testing/UAT-DOMAIN-STATUS.md:73:- **証跡**: `reports/uat-2026-09-05-r10/FINAL-soft-gaps.md`\ndocs/ops/testing/UAT-DOMAIN-STATUS.md:98:  4. 詳細: `reports/uat-2026-09-05-r5/S09-BLOCKED.md`\ndocs/ops/testing/UAT-DOMAIN-STATUS.md:100:- **証跡**: `reports/uat-2026-09-05-r5/S09-BLOCKED.md` · `reports/uat-2026-09-05-r4/s09-helper-search.json`\ndocs/ops/testing/UAT-DOMAIN-STATUS.md:121:- **証跡**: `reports/uat-2026-09-05-r4/s12-fix.json` / screenshots `S12-*`\ndocs/ops/testing/UAT-DOMAIN-STATUS.md:140:- **証跡**: `reports/uat-2026-09-05-r10/FINAL-soft-gaps.md`\ndocs/ops/testing/UAT-DOMAIN-STATUS.md:160:- **証跡**: `reports/uat-2026-09-05-r10/FINAL-soft-gaps.md`\ndocs/ops/testing/UAT-DOMAIN-STATUS.md:204:- **証跡**: `reports/uat-2026-09-05-r13/FINAL.md` · `reports/uat-2026-09-05-r12/FINAL-v05-15.md` · `reports/uat-2026-09-05-r11/FINAL-v05-subforms.md` · `reports/uat-2026-09-05-r9/FINAL-v05.md`\ndocs/ops/testing/UAT-DOMAIN-STATUS.md:212:3. 証跡は `reports/uat-YYYY-MM-DD(-postfix|-rN)/` に置き、シナリオ md は編集しない。\ndocs/ops/deploy/STG-CONTINUOUS-OPERATIONS.md:23:- 日次: health check（デプロイ直後）\ndocs/ops/deploy/STG-CONTINUOUS-OPERATIONS.md:29:## 2. 日次オペレーション（デプロイ直後）\ndocs/ops/deploy/STG-CONTINUOUS-OPERATIONS.md:233:### 5.2 ログ保存先\ndocs/ops/deploy/STG-CONTINUOUS-OPERATIONS.md:235:- **デプロイ直後の一時採取**: `/tmp/stg-deploy-check-$(date +%Y%m%d).log`（ローカル作業用。これ単体を正式証跡としない）\ndocs/ops/deploy/STG-CONTINUOUS-OPERATIONS.md:236:- **正式な運用証跡（デプロイ直後・週次・月次）**: Actions run、変更チケット、または承認済み運用記録へ残す（[ops/CLAUDE.md](../CLAUDE.md) の証跡原則）。一時採取ログを使った場合は、正式記録からその内容を確認できるようにする\ndocs/ops/deploy/STG-CONTINUOUS-OPERATIONS.md:254:- デプロイ直後なら 15 分静置して旧イメージ残留を除外する\n",
+    "stderr": ""
+  }
+]

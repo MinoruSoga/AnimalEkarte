@@ -126,20 +126,23 @@ func TestOccupationRepository_Update(t *testing.T) {
 
 	t.Run("同一クリニックの更新は反映される", func(t *testing.T) {
 		occ := makeOccupation(t, db, clinicA, "更新前職種")
-		got, err := repo.Update(ctx, clinicA, occ.ID, map[string]any{"name": "更新後職種"})
+		name := "更新後職種"
+		got, err := repo.Update(ctx, clinicA, occ.ID, UpdateOccupationInput{Name: &name})
 		require.NoError(t, err)
 		assert.Equal(t, "更新後職種", got.Name)
 	})
 
 	t.Run("別クリニックの更新はNotFound", func(t *testing.T) {
 		occ := makeOccupation(t, db, clinicA, "他院からの更新対象")
-		_, err := repo.Update(ctx, clinicB, occ.ID, map[string]any{"name": "越境更新"})
+		name := "越境更新"
+		_, err := repo.Update(ctx, clinicB, occ.ID, UpdateOccupationInput{Name: &name})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
 	t.Run("存在しないIDの更新はNotFound", func(t *testing.T) {
-		_, err := repo.Update(ctx, clinicA, 999999, map[string]any{"name": "存在しない"})
+		name := "存在しない"
+		_, err := repo.Update(ctx, clinicA, 999999, UpdateOccupationInput{Name: &name})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})

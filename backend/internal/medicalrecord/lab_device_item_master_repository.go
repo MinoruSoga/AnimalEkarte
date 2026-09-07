@@ -18,14 +18,14 @@ type LabDeviceItemMasterRepository interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.LabDeviceItemMaster, error)
 	FindByClinicSourceCodes(ctx context.Context, clinicID uint64, sourceType string, codes []string) ([]model.LabDeviceItemMaster, error)
 	EnsureCatalog(ctx context.Context, rows []model.LabDeviceItemMaster) (int64, error)
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.LabDeviceItemMaster, error)
+	Update(ctx context.Context, clinicID, id uint64, cmd UpdateLabDeviceItemMasterInput) (*model.LabDeviceItemMaster, error)
 	FindExamTypeField(ctx context.Context, clinicID, fieldID uint64) (*model.ExamTypeField, error)
 	FindExamTypeFields(ctx context.Context, clinicID uint64, fieldIDs []uint64) (map[uint64]model.ExamTypeField, error)
 	FindExamType(ctx context.Context, clinicID, examTypeID uint64) (*model.ExaminationType, error)
 	ListDevices(ctx context.Context, clinicID uint64) ([]model.LabDevice, error)
 	FindDeviceByID(ctx context.Context, clinicID, id uint64) (*model.LabDevice, error)
 	CreateDevice(ctx context.Context, row *model.LabDevice) error
-	UpdateDevice(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.LabDevice, error)
+	UpdateDevice(ctx context.Context, clinicID, id uint64, cmd UpdateLabDeviceInput) (*model.LabDevice, error)
 	EnsureDevices(ctx context.Context, rows []model.LabDevice) (int64, error)
 }
 
@@ -111,12 +111,40 @@ func (r *labDeviceItemMasterRepository) EnsureCatalog(ctx context.Context, rows 
 	return result.RowsAffected, nil
 }
 
+func labDeviceItemMasterUpdateFields(cmd UpdateLabDeviceItemMasterInput) map[string]any {
+	return map[string]any{
+		"unit":               cmd.Unit,
+		"is_active":          cmd.IsActive,
+		"exam_type_field_id": cmd.ExamTypeFieldID,
+	}
+}
+
+func labDeviceUpdateFields(cmd UpdateLabDeviceInput) map[string]any {
+	return map[string]any{
+		"name":         cmd.Name,
+		"exam_type_id": cmd.ExamTypeID,
+		"is_active":    cmd.IsActive,
+		"sort_order":   cmd.SortOrder,
+	}
+}
+
 func (r *labDeviceItemMasterRepository) Update(
 	ctx context.Context,
 	clinicID, id uint64,
-	fields map[string]any,
+	cmd UpdateLabDeviceItemMasterInput,
 ) (*model.LabDeviceItemMaster, error) {
-	if err := persistence.UpdateScopedByID(
+	if err := r.update(ctx, clinicID, id, labDeviceItemMasterUpdateFields(cmd)); err != nil {
+		return nil, err
+	}
+	return r.FindByID(ctx, clinicID, id)
+}
+
+func (r *labDeviceItemMasterRepository) update(
+	ctx context.Context,
+	clinicID, id uint64,
+	fields map[string]any,
+) error {
+	return persistence.UpdateScopedByID(
 		ctx,
 		persistence.DBOrTx(ctx, r.db),
 		&model.LabDeviceItemMaster{},
@@ -124,10 +152,7 @@ func (r *labDeviceItemMasterRepository) Update(
 		clinicID,
 		id,
 		fields,
-	); err != nil {
-		return nil, err
-	}
-	return r.FindByID(ctx, clinicID, id)
+	)
 }
 
 func (r *labDeviceItemMasterRepository) FindExamTypeField(
@@ -218,9 +243,20 @@ func (r *labDeviceItemMasterRepository) CreateDevice(ctx context.Context, row *m
 func (r *labDeviceItemMasterRepository) UpdateDevice(
 	ctx context.Context,
 	clinicID, id uint64,
-	fields map[string]any,
+	cmd UpdateLabDeviceInput,
 ) (*model.LabDevice, error) {
-	if err := persistence.UpdateScopedByID(
+	if err := r.updateDevice(ctx, clinicID, id, labDeviceUpdateFields(cmd)); err != nil {
+		return nil, err
+	}
+	return r.FindDeviceByID(ctx, clinicID, id)
+}
+
+func (r *labDeviceItemMasterRepository) updateDevice(
+	ctx context.Context,
+	clinicID, id uint64,
+	fields map[string]any,
+) error {
+	return persistence.UpdateScopedByID(
 		ctx,
 		persistence.DBOrTx(ctx, r.db),
 		&model.LabDevice{},
@@ -228,10 +264,7 @@ func (r *labDeviceItemMasterRepository) UpdateDevice(
 		clinicID,
 		id,
 		fields,
-	); err != nil {
-		return nil, err
-	}
-	return r.FindDeviceByID(ctx, clinicID, id)
+	)
 }
 
 func (r *labDeviceItemMasterRepository) EnsureDevices(ctx context.Context, rows []model.LabDevice) (int64, error) {

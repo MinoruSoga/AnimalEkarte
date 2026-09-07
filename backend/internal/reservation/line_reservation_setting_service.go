@@ -1,6 +1,7 @@
 package reservation
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"log/slog"
@@ -72,7 +73,6 @@ func (s *lineReservationSettingService) Get(ctx context.Context, clinicID uint64
 		if apperrors.IsNotFound(err) {
 			return nil, nil
 		}
-		slog.ErrorContext(ctx, "failed to get reservation setting", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get reservation setting")
 	}
 	return setting, nil
@@ -86,6 +86,21 @@ func validateJSONFields(fields map[string][]byte) error {
 		}
 	}
 	return nil
+}
+
+var (
+	emptyJSONArray           = []byte("[]")
+	defaultBusinessHoursJSON = []byte(`{"start":"0900","end":"1900"}`)
+)
+
+// defaultJSONIfEmptyOrNull maps omitted or JSON null bytes to fallback.
+// Empty []byte is persisted as an empty SQL string and becomes jsonb null, which violates NOT NULL.
+func defaultJSONIfEmptyOrNull(data, fallback []byte) []byte {
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) {
+		return fallback
+	}
+	return data
 }
 
 // validateBreakHoursShape は break_hours が []BreakPeriod{start,end} 形式に unmarshal でき、
@@ -125,14 +140,19 @@ func (s *lineReservationSettingService) Save(ctx context.Context, clinicID uint6
 	}); err != nil {
 		return nil, false, err
 	}
-	if err := validateBreakHoursShape(input.BreakHours); err != nil {
+
+	closedWeekdays := defaultJSONIfEmptyOrNull(input.ClosedWeekdays, emptyJSONArray)
+	closedDates := defaultJSONIfEmptyOrNull(input.ClosedDates, emptyJSONArray)
+	businessHours := defaultJSONIfEmptyOrNull(input.BusinessHours, defaultBusinessHoursJSON)
+	breakHours := defaultJSONIfEmptyOrNull(input.BreakHours, emptyJSONArray)
+	additionalFields := defaultJSONIfEmptyOrNull(input.AdditionalFields, emptyJSONArray)
+	if err := validateBreakHoursShape(breakHours); err != nil {
 		return nil, false, err
 	}
 
 	// 既存レコードの有無を確認し、新規作成かどうかを判定する
 	existing, err := s.repo.FindByClinicID(ctx, clinicID)
 	if err != nil && !apperrors.IsNotFound(err) {
-		slog.ErrorContext(ctx, "failed to get existing reservation setting", "error", err, "clinic_id", clinicID)
 		return nil, false, apperrors.Wrap(err, "failed to get existing reservation setting")
 	}
 	isNew := existing == nil
@@ -153,7 +173,6 @@ func (s *lineReservationSettingService) Save(ctx context.Context, clinicID uint6
 	// （次回保存）で自然に暗号化される（機会的再暗号化）。一括 migration は行わない。
 	encryptedToken, err := s.encryptCredential(accessToken)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to encrypt line access token", "error", err, "clinic_id", clinicID)
 		return nil, false, apperrors.Wrap(err, "failed to encrypt line access token")
 	}
 
@@ -164,12 +183,12 @@ func (s *lineReservationSettingService) Save(ctx context.Context, clinicID uint6
 		ReservationNotice:       input.ReservationNotice,
 		CancelNotice:            input.CancelNotice,
 		PrivacyPolicy:           input.PrivacyPolicy,
-		ClosedWeekdays:          input.ClosedWeekdays,
-		ClosedDates:             input.ClosedDates,
+		ClosedWeekdays:          closedWeekdays,
+		ClosedDates:             closedDates,
 		NationalHolidayClosed:   input.NationalHolidayClosed,
-		BusinessHours:           input.BusinessHours,
+		BusinessHours:           businessHours,
 		BusinessHoursByWeekday:  input.BusinessHoursByWeekday,
-		BreakHours:              input.BreakHours,
+		BreakHours:              breakHours,
 		DailyLimit:              input.DailyLimit,
 		MonthlyLimit:            input.MonthlyLimit,
 		BookingWindowMaxDays:    input.BookingWindowMaxDays,
@@ -182,7 +201,7 @@ func (s *lineReservationSettingService) Save(ctx context.Context, clinicID uint6
 		TimeSlotIntervalMinutes: input.TimeSlotIntervalMinutes,
 		NoStaffMode:             input.NoStaffMode,
 		ShowNoStaffOption:       input.ShowNoStaffOption,
-		AdditionalFields:        input.AdditionalFields,
+		AdditionalFields:        additionalFields,
 		LineChannelID:           input.LineChannelID,
 		// LineChannelSecret: intentionally unset (zero). Create inserts empty;
 		// update OnConflict excludes the column so existing values stay intact.
@@ -190,7 +209,6 @@ func (s *lineReservationSettingService) Save(ctx context.Context, clinicID uint6
 		LineAccessToken: encryptedToken,
 	}
 	if err := s.repo.Save(ctx, clinicID, setting); err != nil {
-		slog.ErrorContext(ctx, "failed to upsert reservation setting", "error", err, "clinic_id", clinicID)
 		return nil, false, apperrors.Wrap(err, "failed to upsert reservation setting")
 	}
 	// RSV-03: return the write result; do not re-fetch after commit (CODING_RULES.md:78).

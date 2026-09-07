@@ -107,6 +107,75 @@ func credentialAuditEntry(
 	}
 }
 
+// ActiveCredentialAuditClinics returns stable active clinic IDs for password
+// reset / credential audit subject resolution.
+func ActiveCredentialAuditClinics(clinics []model.Clinic) ([]uint64, map[uint64]struct{}) {
+	activeClinicIDs := make([]uint64, 0, len(clinics))
+	activeClinics := make(map[uint64]struct{}, len(clinics))
+	for i := range clinics {
+		clinic := &clinics[i]
+		if clinic.ID == 0 || !clinic.IsActive {
+			continue
+		}
+		if _, duplicate := activeClinics[clinic.ID]; duplicate {
+			continue
+		}
+		activeClinics[clinic.ID] = struct{}{}
+		activeClinicIDs = append(activeClinicIDs, clinic.ID)
+	}
+	return activeClinicIDs, activeClinics
+}
+
+// PickCredentialAuditClinicID chooses the main (or first) active assignment,
+// or the first active clinic for a system administrator.
+func PickCredentialAuditClinicID(
+	account *model.Account,
+	staffID uint64,
+	assignments []model.StaffClinicAssignment,
+	activeClinicIDs []uint64,
+	activeClinics map[uint64]struct{},
+) (uint64, error) {
+	if account == nil {
+		return 0, apperrors.WrapInternalServerError(
+			"credential audit account is invalid",
+		)
+	}
+	var assignedClinicID uint64
+	for i := range assignments {
+		assignment := &assignments[i]
+		if assignment.DeletedAt.Valid {
+			continue
+		}
+		if assignment.StaffID != staffID ||
+			assignment.ClinicID == 0 {
+			return 0, apperrors.WrapInternalServerError(
+				"credential audit clinic assignment is invalid",
+			)
+		}
+		if _, active := activeClinics[assignment.ClinicID]; !active {
+			continue
+		}
+		if assignedClinicID == 0 {
+			assignedClinicID = assignment.ClinicID
+		}
+		if assignment.IsMain {
+			assignedClinicID = assignment.ClinicID
+			break
+		}
+	}
+	if assignedClinicID == 0 &&
+		account.IsSystemAdmin &&
+		len(activeClinicIDs) > 0 {
+		assignedClinicID = activeClinicIDs[0]
+	}
+	if assignedClinicID == 0 {
+		return 0, apperrors.WrapForbidden(
+			"no active credential audit clinic is available",
+		)
+	}
+	return assignedClinicID, nil
+}
+
 func auditClinicIDFromStaffAssignments(
 	staffID uint64,
 	assignments []model.StaffClinicAssignment,

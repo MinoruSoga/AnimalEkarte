@@ -12,7 +12,6 @@ package medicalrecord
 
 import (
 	"context"
-	"log/slog"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -89,7 +88,6 @@ func (s *medicineDoseParamService) List(ctx context.Context, clinicID, medicineI
 	}
 	params, err := s.repo.FindByMedicineID(ctx, clinicID, medicineID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list medicine dose params", "error", err, "medicine_id", medicineID, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to list medicine dose params")
 	}
 	return params, nil
@@ -118,10 +116,8 @@ func (s *medicineDoseParamService) Upsert(ctx context.Context, clinicID, medicin
 		existing, findErr := s.repo.FindByMedicineAndSpecies(txCtx, clinicID, medicineID, input.Species)
 		switch {
 		case findErr == nil:
-			fields := buildDoseParamReplaceFields(input)
-			updated, txErr := s.repo.Update(txCtx, clinicID, existing.ID, fields)
+			updated, txErr := s.repo.Update(txCtx, clinicID, existing.ID, *input)
 			if txErr != nil {
-				slog.ErrorContext(txCtx, "failed to update medicine dose param", "error", txErr, "id", existing.ID, "clinic_id", clinicID)
 				return apperrors.Wrap(txErr, "failed to update medicine dose param")
 			}
 			if err := s.auditChangeTx(txCtx, clinicID, actorID, model.AuditActionMedicineDoseParamUpsert, medicineID, updated.ID, existing, updated); err != nil {
@@ -144,7 +140,6 @@ func (s *medicineDoseParamService) Upsert(ctx context.Context, clinicID, medicin
 				Notes:           input.Notes,
 			}
 			if txErr := s.repo.Create(txCtx, clinicID, param); txErr != nil {
-				slog.ErrorContext(txCtx, "failed to create medicine dose param", "error", txErr, "medicine_id", medicineID, "clinic_id", clinicID)
 				return apperrors.Wrap(txErr, "failed to create medicine dose param")
 			}
 			if err := s.auditChangeTx(txCtx, clinicID, actorID, model.AuditActionMedicineDoseParamUpsert, medicineID, param.ID, nil, param); err != nil {
@@ -153,7 +148,6 @@ func (s *medicineDoseParamService) Upsert(ctx context.Context, clinicID, medicin
 			result = param
 			return nil
 		default:
-			slog.ErrorContext(txCtx, "failed to lookup medicine dose param", "error", findErr, "medicine_id", medicineID, "clinic_id", clinicID)
 			return apperrors.Wrap(findErr, "failed to lookup medicine dose param")
 		}
 	}); err != nil {
@@ -176,7 +170,6 @@ func (s *medicineDoseParamService) Delete(ctx context.Context, clinicID, medicin
 			return apperrors.Wrap(err, "failed to find medicine dose param")
 		}
 		if txErr := s.repo.Delete(txCtx, clinicID, existing.ID); txErr != nil {
-			slog.ErrorContext(txCtx, "failed to delete medicine dose param", "error", txErr, "id", existing.ID, "clinic_id", clinicID)
 			return apperrors.Wrap(txErr, "failed to delete medicine dose param")
 		}
 		return s.auditChangeTx(txCtx, clinicID, actorID, model.AuditActionMedicineDoseParamDelete, medicineID, existing.ID, existing, nil)

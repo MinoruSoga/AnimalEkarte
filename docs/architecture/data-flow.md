@@ -5,7 +5,7 @@
 > **タイミング**: リクエスト処理フローを具体的に理解したい時。
 
 > **Animal Ekarte**: リクエストからレスポンス、バックグラウンド処理までの追跡
-> **最新更新**: 2026-07-31
+> **最新更新**: 2026-09-06（一覧取得と会計確定の実装経路を照合）
 
 ---
 
@@ -39,7 +39,7 @@
     - 再解決済み clinic scope を使って一覧・件数を取得する（例: `clinic_id IN (?)`）。
 4.  **Persistence（同一 domain package 内）**:
     - **テナント隔離**: clinic 述語を強制適用。
-    - 総件数 (Total) とリストを一貫した状態で取得。
+    - `backend/internal/owner/repository.go` の `FindAll` は同じ clinic/search 条件で Count とページ取得を別クエリとして実行する。snapshot transaction は張らないため、同時更新時の総件数 (Total) とリストの完全一致は保証しない。
 
 ---
 
@@ -47,7 +47,7 @@
 
 ### 例：Lステップタグ自動付与 (会計完了時)
 
-1.  **Event Trigger**: `internal/billing` の `accountingService.Create/Update` が会計完了（billing 確定）を検知（`accounting_service_core.go`）。
+1.  **Event Trigger**: `POST /api/v1/accountings/complete` → `internal/billing` の `accountingService.Complete` が会計確定 transaction を完了する（`accounting_complete.go`）。`result.Created=true` のときだけタグ同期を呼ぶ。通常 Create/Update は確定への遷移を拒否し、既存確定結果を返す冪等な Complete 再実行もタグ同期を再試行しない。
 2.  **同期ディスパッチ**: レスポンス返却前に `syncCPMStageTag` → `tagSyncSvc.SyncCPMStageTag(ctx, clinicID, ownerID)` を**同期呼び出し**（goroutine ではない）。タグ同期が失敗してもエラーは記録のみで会計処理は継続（fail-open）。
 3.  **Condition Judge**:
     - 累計売上、来院頻度、最終来院日を再計算。
@@ -57,6 +57,8 @@
     - **Clinic setting**: `is_sync_enabled` 等の医院設定も満たす必要がある。
     - Read 系（`GetUserTags` 等）は deploy gate の対象外で稼働し得る。運用詳細は [`LSTEP_WRITE_API_PAUSE.md`](../ops/deploy/LSTEP_WRITE_API_PAUSE.md)。
 5.  **記録**: 処理結果は `slog` とタグキャッシュ（`lstep_tag_cache_repository.go` の UpsertTag/DeleteTag）に反映。API 失敗はエラーカウンターに記録し、閾値到達で `EXCL_カルテ連携エラー` タグを付与。タグ同期経路では `audit_logs` / `lstep_delivery_trigger_log` への記録は行わない（後者は自動配信トリガー専用ログ）。
+
+このコード配線は Lステップの運用再開の証明ではない。[GitHub #259](https://github.com/MinoruSoga/AnimalEkarte/issues/259) は 2026-09-06 取得時点で OPEN。先方 enable、STG 実配信、cron/停止手段の実測は別途必要で、再開条件の正本は同 Issue の後続コメントと運用 runbook を参照する。
 
 ---
 

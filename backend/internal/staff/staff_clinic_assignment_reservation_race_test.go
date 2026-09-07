@@ -45,7 +45,7 @@ func (r *blockingAssignmentRaceReservationRepository) Create(
 }
 
 type observedAssignmentRaceStaffUpdateLocker struct {
-	staffpkg.StaffRepository
+	staffpkg.Repository
 	started      chan struct{}
 	returned     chan struct{}
 	startedOnce  sync.Once
@@ -59,7 +59,7 @@ func (r *observedAssignmentRaceStaffUpdateLocker) LockActiveByIDForUpdate(
 	r.startedOnce.Do(func() {
 		close(r.started)
 	})
-	staff, err := r.StaffRepository.LockActiveByIDForUpdate(ctx, staffID)
+	staff, err := r.Repository.LockActiveByIDForUpdate(ctx, staffID)
 	r.returnedOnce.Do(func() {
 		close(r.returned)
 	})
@@ -67,7 +67,7 @@ func (r *observedAssignmentRaceStaffUpdateLocker) LockActiveByIDForUpdate(
 }
 
 type blockingAssignmentRaceClinicLookup struct {
-	clinicdomain.ClinicRepository
+	*clinicdomain.Repository
 	locked     chan struct{}
 	release    chan struct{}
 	lockedOnce sync.Once
@@ -77,7 +77,7 @@ func (r *blockingAssignmentRaceClinicLookup) LockActiveByID(
 	ctx context.Context,
 	clinicID uint64,
 ) (*model.Clinic, error) {
-	clinic, err := r.ClinicRepository.LockActiveByID(ctx, clinicID)
+	clinic, err := r.Repository.LockActiveByID(ctx, clinicID)
 	if err != nil {
 		return nil, err
 	}
@@ -125,10 +125,10 @@ type assignmentRaceFixture struct {
 	targetClinic      *model.Clinic
 	staff             *model.Staff
 	reservationType   *model.ReservationType
-	staffRepo         staffpkg.StaffRepository
+	staffRepo         staffpkg.Repository
 	assignmentRepo    staffpkg.StaffClinicAssignmentRepository
 	shiftRepo         staffpkg.ShiftEntryRepository
-	clinicRepo        clinicdomain.ClinicRepository
+	clinicRepo        *clinicdomain.Repository
 	reservationRepo   reservation.ReservationStore
 	reservationStaff  reservation.ReservationStaffRepository
 	transactor        persistence.Transactor
@@ -181,7 +181,7 @@ func setupStaffAssignmentReservationRaceTest(t *testing.T) *assignmentRaceFixtur
 	}
 	require.NoError(t, db.Create(staff).Error)
 
-	staffRepo := staffpkg.NewStaffRepository(db)
+	staffRepo := staffpkg.NewRepository(db)
 	assignmentRepo := staffpkg.NewStaffClinicAssignmentRepository(db)
 	require.NoError(t, assignmentRepo.Create(context.Background(), &model.StaffClinicAssignment{
 		StaffID:  staff.ID,
@@ -233,12 +233,12 @@ func setupStaffAssignmentReservationRaceTest(t *testing.T) *assignmentRaceFixtur
 	}
 }
 
-func newAssignmentRaceStaffService(
+func newAssignmentRaceService(
 	fixture *assignmentRaceFixture,
-	staffRepo staffpkg.StaffRepository,
+	staffRepo staffpkg.Repository,
 	clinicRepo staffpkg.StaffAssignmentClinicLookup,
-) staffpkg.StaffService {
-	return staffpkg.NewStaffService(
+) staffpkg.Service {
+	return staffpkg.NewService(
 		staffRepo,
 		nil,
 		fixture.assignmentRepo,
@@ -280,16 +280,16 @@ func TestStaffSetAssignmentsAndReservationCreate_ReservationWinnerPreservesAssig
 		})
 	})
 	observedStaffRepo := &observedAssignmentRaceStaffUpdateLocker{
-		StaffRepository: fixture.staffRepo,
-		started:         make(chan struct{}),
-		returned:        make(chan struct{}),
+		Repository: fixture.staffRepo,
+		started:    make(chan struct{}),
+		returned:   make(chan struct{}),
 	}
 	reservationSvc := newAssignmentRaceReservationService(
 		fixture,
 		blockingReservationRepo,
 		fixture.reservationStaff,
 	)
-	staffSvc := newAssignmentRaceStaffService(fixture, observedStaffRepo, fixture.clinicRepo)
+	staffSvc := newAssignmentRaceService(fixture, observedStaffRepo, fixture.clinicRepo)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -350,9 +350,9 @@ func TestStaffSetAssignmentsAndReservationCreate_ReservationWinnerPreservesAssig
 func TestStaffSetAssignmentsAndReservationCreate_AssignmentWinnerPreventsUnassignedReservationDatabase(t *testing.T) {
 	fixture := setupStaffAssignmentReservationRaceTest(t)
 	blockingClinicRepo := &blockingAssignmentRaceClinicLookup{
-		ClinicRepository: fixture.clinicRepo,
-		locked:           make(chan struct{}),
-		release:          make(chan struct{}),
+		Repository: fixture.clinicRepo,
+		locked:     make(chan struct{}),
+		release:    make(chan struct{}),
 	}
 	var releaseOnce sync.Once
 	t.Cleanup(func() {
@@ -365,7 +365,7 @@ func TestStaffSetAssignmentsAndReservationCreate_AssignmentWinnerPreventsUnassig
 		started:                    make(chan struct{}),
 		returned:                   make(chan struct{}),
 	}
-	staffSvc := newAssignmentRaceStaffService(fixture, fixture.staffRepo, blockingClinicRepo)
+	staffSvc := newAssignmentRaceService(fixture, fixture.staffRepo, blockingClinicRepo)
 	reservationSvc := newAssignmentRaceReservationService(
 		fixture,
 		fixture.reservationRepo,

@@ -30,7 +30,7 @@ type VaccinationRepository interface {
 	// 飼い主のペットがすべて削除済みの場合は空配列を返す。
 	FindByOwner(ctx context.Context, clinicID, ownerID uint64) ([]model.Vaccination, error)
 	Create(ctx context.Context, vaccination *model.Vaccination) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccination, error)
+	Update(ctx context.Context, clinicID, id uint64, cmd UpdateVaccinationInput) (*model.Vaccination, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	// FindOwnersByVaccineDeadline はワクチン次回接種日（next_date）が targetDate の飼い主IDリストを返す（FEAT-383）。
 	FindOwnersByVaccineDeadline(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error)
@@ -243,19 +243,26 @@ func (r *vaccinationRepository) Create(ctx context.Context, vaccination *model.V
 	return nil
 }
 
-func (r *vaccinationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccination, error) {
+func (r *vaccinationRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateVaccinationInput) (*model.Vaccination, error) {
+	if err := r.update(ctx, clinicID, id, buildVaccinationUpdate(&cmd)); err != nil {
+		return nil, err
+	}
+	return r.FindByID(ctx, clinicID, id)
+}
+
+func (r *vaccinationRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	result := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Vaccination{}).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id = ?", id).
 		Updates(fields)
 	if result.Error != nil {
-		return nil, apperrors.FromGORM(result.Error, "vaccination", fmt.Sprintf("%d", id))
+		return apperrors.FromGORM(result.Error, "vaccination", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
-		return nil, apperrors.WrapNotFound("vaccination", fmt.Sprintf("%d", id))
+		return apperrors.WrapNotFound("vaccination", fmt.Sprintf("%d", id))
 	}
-	return r.FindByID(ctx, clinicID, id)
+	return nil
 }
 
 func (r *vaccinationRepository) Delete(ctx context.Context, clinicID, id uint64) error {

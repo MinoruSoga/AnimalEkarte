@@ -1,19 +1,15 @@
 import { test, expect } from "@playwright/test";
 import type { BrowserContext } from "@playwright/test";
-import { createAuthedContext } from "./helpers/context";
-import { DEMO_IRIS_PET } from "./helpers/demo-seed";
+import { createClinicalContext } from "./helpers/clinical-suite";
+import type { ClinicalFixture } from "./helpers/clinical-fixture";
 import { CheckupsPage } from "./pages/checkups-page";
-
-// E2E flow tests for checkups (/checkups) pages.
-// Covers: list page, pet selection, new form.
-// Note: /checkups/:id detail route does not exist in router.
-// Demo seed: Iris pet id=1000099 (not petId=1).
 
 test.describe("定期健診 フロー E2E", () => {
   let context: BrowserContext;
+  let fixture: ClinicalFixture;
 
   test.beforeAll(async ({ browser }) => {
-    context = await createAuthedContext(browser);
+    ({ context, fixture } = await createClinicalContext(browser));
   });
 
   test.afterAll(async () => {
@@ -43,21 +39,20 @@ test.describe("定期健診 フロー E2E", () => {
       await expect(checkups.selectPetHeading()).toBeVisible({
         timeout: 15000,
       });
-      // Iris is outside the unfiltered first page — search via #search auto-debounce.
-      await checkups.patientSearchInput().fill(DEMO_IRIS_PET.name);
-      await expect(checkups.irisText()).toBeVisible({ timeout: 15000 });
+      await checkups.patientSearchInput().fill(fixture.petName);
+      await expect(checkups.petText(fixture.petName)).toBeVisible({ timeout: 15000 });
     } finally {
       await page.close();
     }
   });
 
-  test(`/checkups/new?petId=${DEMO_IRIS_PET.id} — 定期健診新規登録フォームが表示される`, async () => {
+  test("/checkups/new — 定期健診新規登録フォームが表示される", async () => {
     const page = await context.newPage();
     const checkups = new CheckupsPage(page);
     try {
-      await checkups.gotoNew(`?petId=${DEMO_IRIS_PET.id}`);
+      await checkups.gotoNew(`?petId=${fixture.petId}`);
       await expect(checkups.newFormHeading()).toBeVisible({ timeout: 15000 });
-      await expect(checkups.irisText()).toBeVisible({ timeout: 10000 });
+      await expect(checkups.petText(fixture.petName)).toBeVisible({ timeout: 10000 });
       await expect(checkups.saveButton()).toBeVisible({ timeout: 10000 });
     } finally {
       await page.close();
@@ -98,15 +93,13 @@ test.describe("定期健診 フロー E2E", () => {
       await page.getByLabel("検索").click();
       const searchInput = checkups.searchInput();
       await expect(searchInput).toBeVisible();
-      await searchInput.fill("Iris");
+      await searchInput.fill(fixture.petName);
 
-      // Wait for search to apply
       await page.waitForLoadState("networkidle", { timeout: 10000 }).catch(() => null);
 
-      // Verify filtered results or search input retained
       const filteredRows = await checkups.rows().count();
       expect(filteredRows).toBeLessThanOrEqual(initialRowCount);
-      await expect(searchInput).toHaveValue("Iris");
+      await expect(searchInput).toHaveValue(fixture.petName);
     } finally {
       await page.close();
     }

@@ -7,7 +7,7 @@ type PermissionMiddleware func(resource, action string) gin.HandlerFunc
 
 // Handler owns the clinic, company, holiday, and closing-settings HTTP surface.
 type Handler struct {
-	clinicSvc          ClinicService
+	clinicSvc          Service
 	holidaySvc         ClinicHolidayService
 	closingSettingsSvc ClosingSettingsService
 	companySvc         CompanyService
@@ -16,12 +16,13 @@ type Handler struct {
 
 // NewHandler constructs the clinic HTTP adapter from consumer-side interfaces.
 func NewHandler(
-	clinicSvc ClinicService,
+	clinicSvc Service,
 	holidaySvc ClinicHolidayService,
 	closingSettingsSvc ClosingSettingsService,
 	companySvc CompanyService,
 	requirePermission PermissionMiddleware,
 ) *Handler {
+	RegisterContactBindingValidators()
 	return &Handler{
 		clinicSvc:          clinicSvc,
 		holidaySvc:         holidaySvc,

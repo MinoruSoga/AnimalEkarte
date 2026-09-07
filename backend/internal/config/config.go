@@ -19,6 +19,7 @@ const (
 	maxReleaseDBIdleConns = 5
 )
 
+// Config holds process environment for the API and related commands.
 type Config struct {
 	Port      string
 	DBHost    string
@@ -94,6 +95,8 @@ type Config struct {
 	SchedulerInternalToken string
 }
 
+// Load reads process environment into Config. Release mode refuses
+// development database defaults when those variables are omitted.
 func Load() *Config {
 	ginMode := getEnv("GIN_MODE", "debug")
 	dbHost := getEnv("DB_HOST", "localhost")

@@ -17,7 +17,7 @@ type mockHospitalizationPlanRepository struct {
 	findAllFn                    func(ctx context.Context, clinicID uint64) ([]model.HospitalizationPlan, error)
 	findByIDFn                   func(ctx context.Context, clinicID, id uint64) (*model.HospitalizationPlan, error)
 	createFn                     func(ctx context.Context, plan *model.HospitalizationPlan) error
-	updateFn                     func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.HospitalizationPlan, error)
+	updateFn                     func(ctx context.Context, clinicID, id uint64, cmd UpdateHospitalizationPlanInput) (*model.HospitalizationPlan, error)
 	deleteFn                     func(ctx context.Context, clinicID, id uint64) error
 	reorderFn                    func(ctx context.Context, clinicID uint64, ids []uint64) error
 	countCarePlanItemsByPlanIDFn func(ctx context.Context, clinicID, planID uint64) (int64, error)
@@ -38,8 +38,8 @@ func (m *mockHospitalizationPlanRepository) Create(ctx context.Context, plan *mo
 	return m.createFn(ctx, plan)
 }
 
-func (m *mockHospitalizationPlanRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.HospitalizationPlan, error) {
-	return m.updateFn(ctx, clinicID, id, fields)
+func (m *mockHospitalizationPlanRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateHospitalizationPlanInput) (*model.HospitalizationPlan, error) {
+	return m.updateFn(ctx, clinicID, id, cmd)
 }
 
 func (m *mockHospitalizationPlanRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -355,7 +355,7 @@ func TestHospitalizationPlanService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockHospitalizationPlanRepository{
-				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.HospitalizationPlan, error) {
+				updateFn: func(_ context.Context, _, _ uint64, _ UpdateHospitalizationPlanInput) (*model.HospitalizationPlan, error) {
 					if tt.repoErr != nil {
 						return nil, tt.repoErr
 					}
@@ -412,7 +412,7 @@ func TestHospitalizationPlanService_Update_ParentNotFound(t *testing.T) {
 func TestHospitalizationPlanService_Update_InvalidName(t *testing.T) {
 	blank := "   "
 	repo := &mockHospitalizationPlanRepository{
-		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.HospitalizationPlan, error) {
+		updateFn: func(_ context.Context, _, _ uint64, _ UpdateHospitalizationPlanInput) (*model.HospitalizationPlan, error) {
 			t.Fatal("plan must not be updated when name fails validation")
 			return nil, nil
 		},

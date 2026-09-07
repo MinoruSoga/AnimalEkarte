@@ -25,7 +25,7 @@ info:
 
 servers:
   - url: http://localhost:8080/api/v1
-    description: Development
+    description: Development（compose backend。FE は :3003）
 
 paths:
   /owners:

@@ -15,7 +15,7 @@
 
 ### 1.2 詳細編集サイドパネル (`SidePeekPanel`)
 - **基本属性**: 氏名、職種（有効な職種マスタからの選択）、資格番号、有効/無効ステータス。
-- **システム連携**: ログイン用メールアドレス（新規作成時のみ入力可・以後は表示のみ）とパスワード（新規時は8文字以上必須、既存は変更する場合のみ入力）、および**権限グループ**の割り当て。
+- **システム連携**: ログイン用メールアドレス（新規作成時のみ入力可・以後は表示のみ）とパスワード、および**権限グループ**の割り当て。新規作成はメール・パスワードとも空欄ならログインアカウントなしで登録できる。メールを入力する場合はパスワードが必須（8文字以上・72バイト以下、文字と数字をそれぞれ含む）。既存のパスワードは変更する場合のみ入力する。
 - **マルチクリニック**: 所属医院をチェックボックスで割り当て（新規作成時はスタッフ登録後に設定可能）。
 
 ---
@@ -37,12 +37,12 @@
 ## 3. 技術仕様
 
 ### 3.1 認可の波及
-ここで割り当てられた「権限グループ」は、API 側では毎リクエスト permission_group_rules から実効権限が評価されるため即座に反映されます。画面側（メニュー表示等）の実効権限も `/v1/me` の定期ポーリングで同期されます。
+ここで割り当てられた「権限グループ」は、API 側では毎リクエスト permission_group_rules から実効権限が評価されます。画面側の `/v1/me` は定期ポーリング・フォーカス時再取得を無効にし、キャッシュの staleTime は5分です（`get-me.ts`）。起動・ログイン・トークン更新の結果、または `refreshPermissions` / `ME_QUERY_KEY` の明示的無効化で更新するため、別端末での権限変更がメニューへ即時反映される保証はありません。
 
 ### 使用コンポーネント
 - **`StaffSidePanel`**: `MasterSidePanel` ベースの統合編集パネル。
 - **`StaffBasicInfoSection`** / **`StaffLineReservationSection`**: 基本属性・LINE 予約公開設定の編集セクション。
-- **`StaffClinicsSection`** / **`StaffPermissionGroupsSection`** / **`StaffExcludedReservationTypesSection`**: 所属院・権限グループ・対応不可予約区分の割り当てセクション。
+- **`StaffClinicsSection`** / **`StaffPermissionGroupsSection`** / **`StaffExcludedReservationTypesSection`**: 所属院・権限グループ・対応可能コースの割り当てセクション（最後の部品名には旧 excluded 名が残るが、画面は capable 側の選択 UI）。
 
 ### API連携
 | メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
@@ -63,4 +63,3 @@
 | PUT | `/api/v1/masters/staffs/:id/capable-reservation-types` | スタッフの対応可能予約区分の更新 | `master-staff` | `edit` |
 
 ---
-

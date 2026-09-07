@@ -15,12 +15,10 @@ import (
 
 func (s *reservationTypeService) ListAvailableSlots(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeAvailableSlot, error) {
 	if _, err := s.repo.FindByID(ctx, clinicID, reservationTypeID); err != nil {
-		slog.ErrorContext(ctx, "failed to get reservation type", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get reservation type")
 	}
 	items, err := s.availableSlotRepo.FindAll(ctx, clinicID, reservationTypeID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list available slots", "error", err, "id", reservationTypeID, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to list available slots")
 	}
 	return items, nil
@@ -28,7 +26,6 @@ func (s *reservationTypeService) ListAvailableSlots(ctx context.Context, clinicI
 
 func (s *reservationTypeService) CreateAvailableSlot(ctx context.Context, clinicID, reservationTypeID uint64, input CreateAvailableSlotInput) (*model.ReservationTypeAvailableSlot, error) {
 	if _, err := s.repo.FindByID(ctx, clinicID, reservationTypeID); err != nil {
-		slog.ErrorContext(ctx, "failed to get reservation type", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get reservation type")
 	}
 	if err := validateAvailableSlotInput(input); err != nil {
@@ -36,7 +33,6 @@ func (s *reservationTypeService) CreateAvailableSlot(ctx context.Context, clinic
 	}
 	existing, err := s.availableSlotRepo.FindAll(ctx, clinicID, reservationTypeID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check existing available slots", "error", err, "id", reservationTypeID, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to check existing available slots")
 	}
 	if err := validateAvailableSlotNotDuplicated(existing, input); err != nil {
@@ -57,7 +53,6 @@ func (s *reservationTypeService) CreateAvailableSlot(ctx context.Context, clinic
 		IsActive:          isActive,
 	}
 	if err := s.availableSlotRepo.Create(ctx, slot); err != nil {
-		slog.ErrorContext(ctx, "failed to create available slot", "error", err, "id", reservationTypeID, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to create available slot")
 	}
 	slog.InfoContext(ctx, "available slot created",
@@ -74,7 +69,6 @@ func (s *reservationTypeService) DeleteAvailableSlot(ctx context.Context, clinic
 		return apperrors.Wrap(err, "available slot not found")
 	}
 	if err := s.availableSlotRepo.Delete(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to delete available slot", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete available slot")
 	}
 	slog.InfoContext(ctx, "available slot deleted",

@@ -19,7 +19,7 @@ type ExamTypeRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.ExaminationType, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.ExaminationType, error)
 	Create(ctx context.Context, exType *model.ExaminationType) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ExaminationType, error)
+	Update(ctx context.Context, clinicID, id uint64, cmd UpdateExamTypeInput) (*model.ExaminationType, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	CountUsageByExamTypeID(ctx context.Context, clinicID, examTypeID uint64) (int64, error)
@@ -94,11 +94,15 @@ func (r *examTypeRepository) Create(ctx context.Context, exType *model.Examinati
 	return nil
 }
 
-func (r *examTypeRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ExaminationType, error) {
-	if err := persistence.UpdateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.ExaminationType{}, "examination_type", clinicID, id, fields); err != nil {
+func (r *examTypeRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateExamTypeInput) (*model.ExaminationType, error) {
+	if err := r.update(ctx, clinicID, id, buildExamTypeUpdate(&cmd)); err != nil {
 		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
+}
+
+func (r *examTypeRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+	return persistence.UpdateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.ExaminationType{}, "examination_type", clinicID, id, fields)
 }
 
 func (r *examTypeRepository) Delete(ctx context.Context, clinicID, id uint64) error {

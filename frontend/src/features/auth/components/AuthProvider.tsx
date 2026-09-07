@@ -11,6 +11,7 @@ import {
   getStoredClinicId,
   setStoredClinicId,
 } from "@/lib/current-clinic";
+import { ME_QUERY_KEY } from "@/lib/query-keys";
 import { login as loginApi } from "../api/login";
 import { logout as logoutApi } from "../api/logout";
 import { refreshToken } from "../api/refresh-token";
@@ -61,10 +62,19 @@ interface AuthProviderSessionProps extends AuthProviderProps {
 }
 
 function AuthProviderSession({ children, restoreSession }: AuthProviderSessionProps) {
+  const queryClient = useQueryClient();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [currentClinicId, setCurrentClinicId] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState(!restoreSession);
   const initialAuthPromiseRef = useRef<ReturnType<typeof refreshToken> | null>(null);
+
+  const hydrateUser = useCallback(
+    (next: AuthUser) => {
+      queryClient.setQueryData(ME_QUERY_KEY, next);
+      setUser(next);
+    },
+    [queryClient],
+  );
 
   // recovery/session 境界をまたぐと key により remount され、最新の Cookie 状態を
   // 取得する。同一 mount では StrictMode の effect 再実行時も 1 回だけ呼び出す。
@@ -80,7 +90,7 @@ function AuthProviderSession({ children, restoreSession }: AuthProviderSessionPr
       if (result) {
         const storedClinic = getStoredClinicId();
         const validClinic = result.user.clinics.some((clinic) => clinic.clinicId === storedClinic);
-        setUser(result.user);
+        hydrateUser(result.user);
         setCurrentClinicId(validClinic ? storedClinic : result.user.mainClinicId);
       } else {
         setUser(null);
@@ -92,10 +102,10 @@ function AuthProviderSession({ children, restoreSession }: AuthProviderSessionPr
     return () => {
       active = false;
     };
-  }, [restoreSession]);
+  }, [hydrateUser, restoreSession]);
 
-  // /me の定期ポーリング結果でユーザー情報（権限含む）を同期
-  // 認証済みかつローディング完了後のみポーリングを有効化
+  // /me のキャッシュ（起動時 hydrate）でユーザー情報を同期する。
+  // 定期ポーリングはしない。権限変更は refreshPermissions。
   const { data: meData } = useGetMe(user !== null);
   const [prevMeData, setPrevMeData] = useState(meData);
   if (prevMeData !== meData) {
@@ -104,8 +114,6 @@ function AuthProviderSession({ children, restoreSession }: AuthProviderSessionPr
       setUser(meData);
     }
   }
-
-  const queryClient = useQueryClient();
 
   // FE5-2: マルチタブ穴 — 他タブでクリニックが切り替わった場合、
   // このタブは storage イベントを検知するまで旧クリニック画面のまま。
@@ -121,12 +129,15 @@ function AuthProviderSession({ children, restoreSession }: AuthProviderSessionPr
     return () => window.removeEventListener("storage", handleStorage);
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
-    const result = await loginApi(email, password);
-    setUser(result.user);
-    setCurrentClinicId(result.user.mainClinicId);
-    saveClinicToStorage(result.user.mainClinicId);
-  }, []);
+  const login = useCallback(
+    async (email: string, password: string) => {
+      const result = await loginApi(email, password);
+      hydrateUser(result.user);
+      setCurrentClinicId(result.user.mainClinicId);
+      saveClinicToStorage(result.user.mainClinicId);
+    },
+    [hydrateUser],
+  );
 
   const logout = useCallback(async () => {
     try {
@@ -184,9 +195,9 @@ function AuthProviderSession({ children, restoreSession }: AuthProviderSessionPr
   const refreshPermissions = useCallback(async () => {
     const result = await refreshToken();
     if (result) {
-      setUser(result.user);
+      hydrateUser(result.user);
     }
-  }, []);
+  }, [hydrateUser]);
 
   const value = useMemo<AuthContextValue>(
     () => ({

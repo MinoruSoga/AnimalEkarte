@@ -51,13 +51,12 @@ export class MedicalRecordsPage extends BasePage {
     return this.page.getByPlaceholder(/飼主名、ペット名、カルテNo/);
   }
 
-  hayashiText(): Locator {
-    // Seed uses ideographic space (U+3000) between family/given name.
-    return this.page.getByText(/林[\s\u3000]*文明/).first();
+  ownerText(name: string): Locator {
+    return this.page.getByText(name, { exact: false }).first();
   }
 
-  irisText(): Locator {
-    return this.page.getByText("Iris").first();
+  petText(name: string): Locator {
+    return this.page.getByText(name, { exact: false }).first();
   }
 
   /** DataTable rows are non-interactive; open detail via the pet-name link. */

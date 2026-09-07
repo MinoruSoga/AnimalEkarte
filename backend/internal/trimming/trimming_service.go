@@ -91,8 +91,8 @@ func needsTrimmingAppointmentUpdate(input reservation.UpdateTrimmingReservationI
 	return hasTrimmingAppointmentUpdate(input) || (locked.OwnerID == nil && locked.PetID != nil)
 }
 
-// TrimmingService はトリミング管理のビジネスロジックインターフェース（BE-119）
-type TrimmingService interface {
+// Service はトリミング管理のビジネスロジックインターフェース（BE-119）
+type Service interface {
 	List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Reservation, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
 	Create(ctx context.Context, clinicID uint64, input *CreateTrimmingInput) (*model.Reservation, error)
@@ -131,7 +131,7 @@ type TrimmingReservationRepository interface {
 	DeleteForTrimming(ctx context.Context, clinicID, id uint64) error
 }
 
-func NewTrimmingService(
+func NewService(
 	reservationRepo TrimmingReservationRepository,
 	reservationType ReservationTypeRepository,
 	reservationStaff ReservationStaffRepository,
@@ -140,8 +140,8 @@ func NewTrimmingService(
 	trimmingCourseRepo TrimmingCourseRepository,
 	trimmingOptionRepo TrimmingOptionRepository,
 	transactor Transactor,
-) TrimmingService {
-	return NewTrimmingServiceWithAudit(
+) Service {
+	return NewServiceWithAudit(
 		reservationRepo,
 		reservationType,
 		reservationStaff,
@@ -154,9 +154,9 @@ func NewTrimmingService(
 	)
 }
 
-// NewTrimmingServiceWithAudit wires the durable, transaction-local clinical audit sink.
+// NewServiceWithAudit wires the durable, transaction-local clinical audit sink.
 // A nil sink is retained only for composition compatibility and makes every mutation fail closed.
-func NewTrimmingServiceWithAudit(
+func NewServiceWithAudit(
 	reservationRepo TrimmingReservationRepository,
 	reservationType ReservationTypeRepository,
 	reservationStaff ReservationStaffRepository,
@@ -166,7 +166,7 @@ func NewTrimmingServiceWithAudit(
 	trimmingOptionRepo TrimmingOptionRepository,
 	transactor Transactor,
 	auditTx AuditTxLogger,
-) TrimmingService {
+) Service {
 	return &trimmingService{
 		reservation:        reservationRepo,
 		reservationType:    reservationType,
@@ -183,7 +183,6 @@ func NewTrimmingServiceWithAudit(
 func (s *trimmingService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Reservation, int64, error) {
 	items, total, err := s.reservation.FindAllByCategory(ctx, clinicID, model.ReservationTypeCategoryTrimming, petID, ownerID, startDate, endDate, page, limit)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list trimming appointments", "error", err)
 		return nil, 0, apperrors.Wrap(err, "failed to list trimming appointments")
 	}
 	return items, total, nil
@@ -192,7 +191,6 @@ func (s *trimmingService) List(ctx context.Context, clinicID uint64, petID, owne
 func (s *trimmingService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error) {
 	appt, err := s.reservation.FindTrimmingByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get trimming appointment", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get trimming appointment")
 	}
 	// FindTrimmingByID は TrimmingDetail をプリロードしない。
@@ -271,7 +269,6 @@ func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *Cr
 		apptID = created.ID
 		return nil
 	}); err != nil {
-		slog.ErrorContext(ctx, "failed to create trimming appointment", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create trimming appointment")
 	}
 

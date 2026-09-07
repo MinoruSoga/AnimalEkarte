@@ -2,7 +2,6 @@ package medicalrecord
 
 import (
 	"context"
-	"log/slog"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/sharedkernel"
@@ -36,12 +35,6 @@ func (s *vitalService) auditVitalTx(
 		},
 	}
 	if err := s.auditTx.LogEntryTx(ctx, entry); err != nil {
-		slog.ErrorContext(ctx, "failed to write vital audit",
-			"error", err,
-			"action", action,
-			"vital_id", vitalID,
-			"medical_record_id", medicalRecordID,
-		)
 		return apperrors.Wrap(err, "failed to write vital "+action+" audit")
 	}
 	return nil

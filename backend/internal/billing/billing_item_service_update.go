@@ -21,7 +21,6 @@ func (s *billingItemService) UpdateItem(ctx context.Context, clinicID, id uint64
 	}
 	item, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get billing item", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get billing item")
 	}
 	if input.UnitPrice != nil && *input.UnitPrice < 0 {
@@ -47,17 +46,12 @@ func (s *billingItemService) UpdateItem(ctx context.Context, clinicID, id uint64
 			return err
 		}
 
-		if err := s.repo.Update(txCtx, clinicID, id, fields); err != nil {
-			slog.ErrorContext(txCtx, "failed to update billing item", "error", err)
+		if err := s.repo.Update(txCtx, clinicID, id, *input); err != nil {
 			return apperrors.Wrap(err, "failed to update billing item")
 		}
 
 		completedCorrection := billing.Status == model.BillingStatusCompleted
 		if err := s.recalculateTotals(txCtx, clinicID, item.BillingID, completedCorrection); err != nil {
-			slog.ErrorContext(txCtx, "failed to recalculate billing totals after update",
-				slog.Uint64("billing_id", item.BillingID),
-				slog.String("error", err.Error()),
-			)
 			return apperrors.Wrap(err, "failed to recalculate billing totals")
 		}
 
@@ -78,7 +72,6 @@ func (s *billingItemService) UpdateItem(ctx context.Context, clinicID, id uint64
 		)
 		updated, err = s.repo.FindByID(txCtx, clinicID, id)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to get billing item after update", "error", err)
 			return apperrors.Wrap(err, "failed to get billing item after update")
 		}
 		return nil
@@ -116,15 +109,10 @@ func (s *billingItemService) DeleteItem(ctx context.Context, clinicID, id uint64
 		}
 
 		if err := s.repo.Delete(txCtx, clinicID, id); err != nil {
-			slog.ErrorContext(txCtx, "failed to delete billing item", "error", err, "id", id, "clinic_id", clinicID)
 			return apperrors.Wrap(err, "failed to delete billing item")
 		}
 
 		if err := s.recalculateTotals(txCtx, clinicID, billingID, false); err != nil {
-			slog.ErrorContext(txCtx, "failed to recalculate billing totals after delete",
-				slog.Uint64("billing_id", billingID),
-				slog.String("error", err.Error()),
-			)
 			return apperrors.Wrap(err, "failed to recalculate billing totals")
 		}
 

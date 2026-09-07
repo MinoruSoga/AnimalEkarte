@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -128,51 +127,11 @@ type AccountingListFilters struct {
 	PaymentMethodOp string
 }
 
-type AccountingRepository interface {
-	FindAll(ctx context.Context, clinicID uint64, filters AccountingListFilters, page, limit int) ([]model.Billing, int64, error)
-	// FindAllForClinics は複数医院の会計を横断検索する (#86 段階3)。clinicIDs はハンドラ層で所属検証済みであること。
-	FindAllForClinics(ctx context.Context, clinicIDs []uint64, filters AccountingListFilters, page, limit int) ([]model.Billing, int64, error)
-	FindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
-	// FindByIDForClinics は複数医院スコープで会計を1件取得する (#86 詳細画面拠点横断)。clinicIDs はハンドラ層で所属検証済みであること。
-	FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Billing, error)
-	// LockAndFindByID は FOR UPDATE で請求を行ロック取得する（TOCTOU 防止）。トランザクション内でのみ使用。
-	LockAndFindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
-	Create(ctx context.Context, clinicID uint64, accounting *model.Billing) error
-	Update(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error)
-	SavePayment(ctx context.Context, payment *model.Payment) error
-	// SavePaymentSplits は billing の payment_splits を delete-then-recreate で保存する。
-	SavePaymentSplits(ctx context.Context, splits []model.PaymentSplit) error
-	// BUG-370 / #120: 未納者一覧（startDate〜endDate の BETWEEN）
-	FindUnpaidByBilling(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]model.Billing, int64, error)
-	FindUnpaidByOwner(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]UnpaidOwnerAggregate, int64, UnpaidSummary, error)
-	// #182: 飼主単位の未納残高（会計画面表示用・status=waiting 合計）
-	SumUnpaidByOwner(ctx context.Context, clinicID, ownerID uint64) (OwnerUnpaidBalance, error)
-	// #114: 月次未納繰越集計（firstDay=YYYY-MM-01, lastDay=YYYY-MM-DD 月末）
-	FindMonthlyUnpaidCarryover(ctx context.Context, clinicID uint64, firstDay, lastDay string, page, limit int) ([]MonthlyUnpaidOwnerPet, int64, MonthlyUnpaidSummary, error)
-	// BUG-368: レジ締め日次集計
-	GetDailySummary(ctx context.Context, clinicID uint64, date time.Time) (*DailySummaryResult, error)
-	// FEAT-368: 集計・締め機能
-	GetCloseAggregate(ctx context.Context, input GetCloseAggregateInput) (*CloseAggregateResult, error)
-	GetMonthlyReport(ctx context.Context, clinicID uint64, year, month int) (*MonthlyReportResult, error)
-	GetMonthlyReportByPeriod(ctx context.Context, clinicID uint64, start, end time.Time) (*MonthlyReportResult, error)
-	// #247 DEC-16⑥: カテゴリ×支払 per-billing 配賦入力（締め・月次共通）
-	GetCategoryPaymentAllocationData(ctx context.Context, clinicID uint64, periodStart, periodEnd time.Time) (*CategoryPaymentAllocationData, error)
-	// SumPaidByOwner は飼い主の支払済み請求合計（LTV）を返す（Lステップタグ同期用）。
-	SumPaidByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error)
-	// MaxSingleVisitAmountByOwner は飼い主の1回来院最大支払額を返す（CPMスポット判定用）。
-	MaxSingleVisitAmountByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error)
-	// FindOwnersByAnnualRevenue は直近365日の完了済み請求額合計を飼い主ごとに集計し、降順で返す（LTV上位％判定用）。
-	FindOwnersByAnnualRevenue(ctx context.Context, clinicID uint64) ([]OwnerAnnualRevenue, error)
-	// FindByCompletionRequestID は BUG-018 冪等キーで会計を検索する（soft-deleted 含む）。
-	// 見つからない場合は (nil, nil)。
-	FindByCompletionRequestID(ctx context.Context, clinicID uint64, requestID string) (*model.Billing, error)
-}
-
 type accountingRepository struct {
 	db *gorm.DB
 }
 
-func NewAccountingRepository(db *gorm.DB) AccountingRepository {
+func NewAccountingRepository(db *gorm.DB) *accountingRepository {
 	return &accountingRepository{db: db}
 }
 
@@ -326,7 +285,6 @@ func (r *accountingRepository) findBillingsWithFilters(ctx context.Context, q *g
 	billings := make([]model.Billing, 0)
 	var total int64
 
-	q = q.Where("(billings.pet_id IS NULL OR EXISTS (SELECT 1 FROM pets p WHERE p.id = billings.pet_id AND p.clinic_id = billings.clinic_id))")
 	if filters.PetID != nil {
 		q = q.Where("pet_id = ?", *filters.PetID)
 	}
@@ -351,10 +309,18 @@ func (r *accountingRepository) findBillingsWithFilters(ctx context.Context, q *g
 		q = applyBillingOwnerPetSearch(q, filters.Search)
 	}
 	q = applyBillingPaymentMethodFilter(q, filters.PaymentMethod, filters.PaymentMethodOp)
-	if err := q.Count(&total).Error; err != nil {
+	countQuery := q
+	if err := countQuery.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "billing", "")
 	}
-	if err := q.Preload("Owner", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).Preload("Pet", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).Preload("Payments", "deleted_at IS NULL").Preload("Payments.PaidByStaff", scopedBillingStaffPreload(clinicIDs)).Preload("Payments.PaidByStaff.ClinicAssignments", scopedStaffAssignmentsPreload(clinicIDs)).Preload("Items", "deleted_at IS NULL").Preload("PaymentSplits", scopedPaymentSplitsPreload(clinicIDs)).
+	// 一覧は日次集計が Items/Splits を使う。PaidByStaff ネストは一覧非表示なので載せない。
+	findQuery := q.Where("(billings.pet_id IS NULL OR EXISTS (SELECT 1 FROM pets p WHERE p.id = billings.pet_id AND p.clinic_id = billings.clinic_id))")
+	if err := findQuery.
+		Preload("Owner", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
+		Preload("Pet", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
+		Preload("Payments", "deleted_at IS NULL").
+		Preload("Items", "deleted_at IS NULL").
+		Preload("PaymentSplits", scopedPaymentSplitsPreload(clinicIDs)).
 		Scopes(persistence.Paginate(page, limit)).Order("scheduled_date DESC, created_at DESC").Find(&billings).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "billing", "")
 	}
@@ -510,11 +476,15 @@ func (r *accountingRepository) Create(ctx context.Context, clinicID uint64, acco
 }
 
 // Update は指定フィールドのみを更新し、更新後のレコードを返す。
-// map[string]any を使うことで GORM のゼロ値スキップ問題を回避する。
+// GORM のゼロ値スキップは unexported update の map で回避する。
 // P2: service 層で逆遷移を拒否（修正 1）、repo は RowsAffected チェックで clinic scope/soft-delete を検証
 // BE-refactor.md R1-2: Cancel が本メソッドを ambient tx（監査と原子化）から呼ぶため dbOrTx で参加する。
 // ambient tx が無ければ従来どおり db.WithContext(ctx) と等価（挙動保存）。
-func (r *accountingRepository) Update(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error) {
+func (r *accountingRepository) Update(ctx context.Context, clinicID, billingID uint64, cmd AccountingUpdate) (*model.Billing, error) {
+	return r.update(ctx, clinicID, billingID, cmd.toFields())
+}
+
+func (r *accountingRepository) update(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error) {
 	result := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Billing{}).
 		Scopes(persistence.ClinicScope(clinicID)).

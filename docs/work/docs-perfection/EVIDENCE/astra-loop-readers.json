@@ -1,0 +1,2167 @@
+{
+  "record_type": "Integrated reader evidence with exact citations and verbatim reported check output; not final Santa reviews",
+  "architecture": {
+    "agent": "/root/loop_architecture",
+    "status": "completed",
+    "writer_owned_paths": [],
+    "decision": "adopt RQ-011",
+    "scope": "All22 role/temporal/reference review; no all-claim/runtime certification",
+    "file_receipts": [
+      {
+        "path": "docs/architecture/README.md",
+        "line": 13,
+        "role": "Map",
+        "verdict": "current in scoped doc review",
+        "basis": "overview/catalog/ADR入口。29行でdrift限界"
+      },
+      {
+        "path": "docs/architecture/adr/001-system-architecture.md",
+        "line": 15,
+        "role": "History",
+        "verdict": "current in scoped doc review",
+        "basis": "採用時snapshotとADR005部分supersession"
+      },
+      {
+        "path": "docs/architecture/adr/002-multitenancy-clinic-id-isolation.md",
+        "line": 16,
+        "role": "History",
+        "verdict": "current in scoped doc review",
+        "basis": "擬似コード履歴と42行の日付付き補足を分離"
+      },
+      {
+        "path": "docs/architecture/adr/003-payment-method-identity-and-consistency.md",
+        "line": 14,
+        "role": "History",
+        "verdict": "current in scoped doc review",
+        "basis": "歴史提案と決定/残差を区別、184行に日付付き照合"
+      },
+      {
+        "path": "docs/architecture/adr/004-checkup-canonical-system.md",
+        "line": 22,
+        "role": "History",
+        "verdict": "current in scoped doc review",
+        "basis": "Checkup採択理由と旧seed履歴を保持"
+      },
+      {
+        "path": "docs/architecture/adr/005-go-gin-backend-guidelines.md",
+        "line": 14,
+        "role": "History",
+        "verdict": "current in scoped doc review",
+        "basis": "公式とproject判断、ADR001の部分supersession"
+      },
+      {
+        "path": "docs/architecture/adr/006-backend-domain-package-boundaries.md",
+        "line": 194,
+        "role": "History",
+        "verdict": "current in scoped doc review",
+        "basis": "202行SHAは日付付き測定の出典"
+      },
+      {
+        "path": "docs/architecture/adr/007-lab-device-receive-and-commit.md",
+        "line": 3,
+        "role": "History",
+        "verdict": "current in scoped doc review",
+        "basis": "ADR008部分supersession、code completeと実機gateを分離"
+      },
+      {
+        "path": "docs/architecture/adr/008-local-lab-device-agent.md",
+        "line": 3,
+        "role": "History",
+        "verdict": "current in scoped doc review",
+        "basis": "Accepted/code complete/physical UAT pendingを区別"
+      },
+      {
+        "path": "docs/architecture/adr/README.md",
+        "line": 11,
+        "role": "Map",
+        "verdict": "current in scoped doc review",
+        "basis": "ADR001-008入口と追記原則"
+      },
+      {
+        "path": "docs/architecture/arch-a4-trigger-ledger.md",
+        "line": 3,
+        "role": "History",
+        "verdict": "current in scoped doc review",
+        "basis": "2026-08-07 snapshot、再利用時は再測定"
+      },
+      {
+        "path": "docs/architecture/auth.md",
+        "line": 40,
+        "role": "Map",
+        "verdict": "current in scoped doc review",
+        "basis": "37 resourceがpermission.go:69 AllResourcesと集合一致"
+      },
+      {
+        "path": "docs/architecture/be9-2a-boundary-map.md",
+        "line": 6,
+        "role": "History",
+        "verdict": "current in scoped doc review",
+        "basis": "履歴と現行lintscanを分離。35/14、14/46は定義に一致"
+      },
+      {
+        "path": "docs/architecture/composition-root-conventions.md",
+        "line": 13,
+        "role": "Map",
+        "verdict": "current in scoped doc review",
+        "basis": "8 core files pin一致。約600LOCは実測623"
+      },
+      {
+        "path": "docs/architecture/cross-domain-orchestration-catalog.md",
+        "line": 3,
+        "role": "Map",
+        "verdict": "current in scoped doc review",
+        "basis": "owner/transaction/recovery/test参照、28行best-effort"
+      },
+      {
+        "path": "docs/architecture/data-flow.md",
+        "line": 17,
+        "role": "Map",
+        "verdict": "current in scoped doc review",
+        "basis": "RequestIDのGin context、40行Count/list非snapshot、50行Complete後同期"
+      },
+      {
+        "path": "docs/architecture/delete-soft-delete-patterns.md",
+        "line": 24,
+        "role": "Map",
+        "verdict": "current in scoped doc review",
+        "basis": "STG001履歴を一般化せずclinic tx/cleanup実装を参照"
+      },
+      {
+        "path": "docs/architecture/erd.md",
+        "line": 22,
+        "role": "Map",
+        "verdict": "current in scoped doc review",
+        "basis": "128表が001DDLと集合一致。142行旧incremental履歴"
+      },
+      {
+        "path": "docs/architecture/exception-package-discipline.md",
+        "line": 53,
+        "role": "Map",
+        "verdict": "current in scoped doc review",
+        "basis": "35 top-level/14 domain、seedloginの例外を維持"
+      },
+      {
+        "path": "docs/architecture/fe-feature-be-domain-map.md",
+        "line": 3,
+        "role": "Map",
+        "verdict": "current in scoped doc review",
+        "basis": "FE/BE/RBACの参照表。32行LIFF境界"
+      },
+      {
+        "path": "docs/architecture/model-write-owner-catalog.md",
+        "line": 3,
+        "role": "Map",
+        "verdict": "current in scoped doc review",
+        "basis": "型配置とwrite-owner区別。32/37行はADR006に整合"
+      },
+      {
+        "path": "docs/architecture/overview.md",
+        "line": 112,
+        "role": "Map",
+        "verdict": "current in scoped doc review",
+        "basis": "型別catalogとADR採択理由を分離するリンクをadopt"
+      }
+    ],
+    "verbatim_checks": "CATEGORY_SET {\"files\":22,\"inventory\":22,\"missing\":[],\"extra\":[]}\nLOCAL_FILE_LINKS 132 missing=0\nERD_INVENTORY {\"ddl_tables\":128,\"listed_tables\":128,\"missing\":[],\"extra\":[]}\nRBAC_INVENTORY {\"AllResources\":37,\"listed_resources\":37,\"missing\":[],\"extra\":[]}\nPACKAGE_PIN acceptedTopLevelPackages 35\nPACKAGE_PIN domainPackages 14\nDOMAIN_ALLOWLIST keys=14 edges=46\nHISTORICAL_CLASSIFICATION_MANIFEST rows=761\nACTIVE_DDL ['001_init.sql']\nRETIRED_LAYER_DIRS [('handler',False),('service',False),('repository',False)]",
+    "checks_exit": 0
+  },
+  "spec_partial": {
+    "agent": "/root/loop_spec",
+    "status": "errored after partial evidence",
+    "error_signature": "usage limit",
+    "integration": "RQ003 mandatory bulk wording and RQ007 item-master correction adopted after main source checks; no complete80 claim from this lane"
+  },
+  "spec": {
+    "agent": "/root/inventory_spec",
+    "status": "completed after body-evidence supplement",
+    "writer_owned_paths": [],
+    "reported_checks": "files=80; inventory=80; missing=0; extra=0; relative Markdown link broken=0",
+    "source_citations": [
+      "docs/spec/screens/34-lstep-delivery-monitor.md:48",
+      "docs/spec/screens/31-lstep-integration.md:69",
+      "backend/internal/lstep/lstep_delivery_trigger_state.go:11",
+      "backend/internal/lstep/lstep_lifecycle_service.go:133",
+      "backend/internal/lstep/lstep_delivery_trigger_batch.go:87",
+      "backend/internal/lstep/lstep_delivery_trigger_batch.go:141",
+      "backend/internal/lstep/lstep_delivery_trigger_batch_test.go:569",
+      "frontend/src/app/routes/clinical-care-routes.tsx:221",
+      "frontend/src/app/routes/settings-routes.tsx:462"
+    ],
+    "file_receipts": [
+      {
+        "path": "docs/spec/README.md",
+        "basis_line": 3,
+        "body_excerpt": "> **目的**: システムが「何をするか」の仕様系ドキュメントの索引を提供する。",
+        "classification": "Map:仕様index、技術/運用/product gateを分離",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/cash-register.md",
+        "basis_line": 8,
+        "body_excerpt": "> **最新更新**: 2026-09-06 | **ステータス**: repo の集計・append-only 契約を照合。実環境の受入結果は [UAT 集計](../ops/testing/UAT-DOMAIN-STATUS.md) を参照する。",
+        "classification": "レジ締め仕様契約。repo照合と実環境受入は別",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/customer-aggregation.md",
+        "basis_line": 8,
+        "body_excerpt": "> **最新更新**: 2026-09-06 | **ステータス**: repo の集計・API・画面契約を照合。実環境の受入結果とは別。",
+        "classification": "CPM集計/API/画面契約。実環境受入とは別",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/design-system.md",
+        "basis_line": 6,
+        "body_excerpt": "> **最新更新**: 2026-09-06（現行 typography と C20 の静的クラス生成契約を同期。色の決定は維持）",
+        "classification": "静的design契約。正本と採択理由を維持",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/line/CLAUDE.md",
+        "basis_line": 18,
+        "body_excerpt": "2.  **安全な配信**: 誤送信（特に死亡ペット向けのリマインド）は、ブランドイメージに致命的な影響を与えるため、候補取得時と claim / 外部 write 直前に fail-closed で適格性を再検証する。除外証跡、監査、alert、reconciliation、手動 fallback を用意し、割合による絶対保証はしない。",
+        "classification": "配信安全とトークン保護のdirectory rule",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/line/README.md",
+        "basis_line": 14,
+        "body_excerpt": "本ディレクトリには、LINE プラットフォーム（LIFF, Messaging API）および Lステップを活用した、Animal Ekarte の外部連携機能に関する全ての仕様が集約されています。",
+        "classification": "LINE/LIFF/Messaging/LSTEP正本index",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/line/architecture.md",
+        "basis_line": 12,
+        "body_excerpt": "> **注記 (2026-07-10 / 更新 2026-07-31)**: Lステップへの Write API（タグ付与・タグ解除・プロパティ更新）は **deploy gate `LSTEP_WRITE_API_ENABLED`（既定 OFF）+ clinic `is_sync_enabled` の二重 gate** で抑止される。gate OFF 時は外部 HTTP write を送らず `ErrWriteDisabled` を返す（silent nil 成功ではない）。その後のローカル DB / cache / audit / logging は呼び出し元ごとの失敗契約に従い、継続を一律には保証しない。詳細: [`docs/ops/deploy/LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md)",
+        "classification": "同期設計契約とdeploy/clinic dual gate",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/line/cost-analysis.md",
+        "basis_line": 14,
+        "body_excerpt": "> - **Deploy gate（`LSTEP_WRITE_API_ENABLED`）**: Write API（タグ付与・タグ解除・プロパティ更新）が OFF のとき、クライアントは **`ErrWriteDisabled` を返し HTTP を送らない（`nil` 成功にしない）**。したがって deploy gate が OFF の環境では Lステップ側への実 write 呼び出しは契約上発生しない（実測データの主張ではない。環境変数の実値は記載しない）。",
+        "classification": "試算。gate OFFのHTTP writeなしを実測claimとしない",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/line/lstep-integration.md",
+        "basis_line": 70,
+        "body_excerpt": "現行の最終配信除外確認は owner opt-out、`delivery_excluded`、LINE ID、cached EXCL tag を確認する。同日 claim と優先度抑制により、同日に競合する trigger は高優先度を選ぶ。",
+        "classification": "安全/性能gapと是正契約。外部readyの証明なし",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/line/reservation-spec.md",
+        "basis_line": 8,
+        "body_excerpt": "> **最新更新**: 2026-09-06（repo `7c6592f9f`） | **ステータス**: 実装済み（deployment / clinic 運用状況は repository 外）",
+        "classification": "LIFF予約契約。運用はrepo外",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/line/setup.md",
+        "basis_line": 12,
+        "body_excerpt": "必要な権限:",
+        "classification": "外部consoleのsetup gate、必要権限",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/reservation-to-record-flow.md",
+        "basis_line": 9,
+        "body_excerpt": "受付カンバンと予約 lifecycle の source of truth / write owner は `appointments` / `internal/reservation` である。LINE 予約、院内予約、予約なし来院、一覧からの記録入力 shortcut は、受付に載せる業務であれば必ず appointment を持つ。",
+        "classification": "予約/受付/カルテ統合契約。appointment SoT",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/00-pet-selection.md",
+        "basis_line": 4,
+        "body_excerpt": "- **画面の目的**: 診療記録、入院、トリミング、会計等の各機能において、新規データ作成の対象となるペットを検索・特定するための中間ページ。",
+        "classification": "採択済み画面/業務契約として読む。全UI細部の実装達成認定ではない",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/01-reception.md",
+        "basis_line": 4,
+        "body_excerpt": "- **画面の目的**: 院内全体の稼働状況を30秒間隔の定期同期で把握・管理するためのカンバンボード型ホーム画面。",
+        "classification": "採択済み画面/業務契約として読む。全UI細部の実装達成認定ではない",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/02-reservations.md",
+        "basis_line": 4,
+        "body_excerpt": "- **画面の目的**: 診療、トリミング、手術等の全予約をカレンダー形式で統合管理する。",
+        "classification": "採択済み画面/業務契約として読む。全UI細部の実装達成認定ではない",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/03-owners-list.md",
+        "basis_line": 15,
+        "body_excerpt": "- **動的フィルタ**: 動物種別、生存/死亡ステータスによる絞り込み（`OWNER_FILTER_PROPERTIES`。来院期間フィルタは未実装）。",
+        "classification": "来院期間フィルタ未実装を明記",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/04-owners-form.md",
+        "basis_line": 22,
+        "body_excerpt": "- **住所管理**: 会社・自宅それぞれの郵便番号と住所1/2。地図連携は未実装。",
+        "classification": "地図連携未実装を明記",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/05-medical-records-list.md",
+        "basis_line": 4,
+        "body_excerpt": "- **画面の目的**: 院内で行われた全診療記録（電子カルテ）の時系列検索、および診察内容の参照。",
+        "classification": "採択済み画面/業務契約として読む。全UI細部の実装達成認定ではない",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/06-medical-records-form.md",
+        "basis_line": 4,
+        "body_excerpt": "- **画面の目的**: 臨床現場における電子診療録（SOAPS形式）の作成、検査、処置、処方、および会計連携の統合管理。",
+        "classification": "採択済み画面/業務契約として読む。全UI細部の実装達成認定ではない",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/07-hospitalization-list.md",
+        "basis_line": 4,
+        "body_excerpt": "- **画面の目的**: 入院・ホテル預かり中の患者（ペット）を管理し、ケージの稼働状況を可視化する。",
+        "classification": "採択済み画面/業務契約として読む。全UI細部の実装達成認定ではない",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/08-hospitalization-detail.md",
+        "basis_line": 4,
+        "body_excerpt": "- **画面の目的**: 入院患者のケアプラン（治療・給餌計画）の管理、および日々のバイタルや処置実施状況の時系列記録。",
+        "classification": "採択済み画面/業務契約として読む。全UI細部の実装達成認定ではない",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/09-hospitalization-form.md",
+        "basis_line": 36,
+        "body_excerpt": "- **予定期間**: 入院予定日と退院予定日の期間指定。新規では `start_date` / `end_date` を送信するが、現行の `buildUpdateHospitalizationRequest` は両フィールドを送らないため、編集フォームでの日付変更は永続化されない。",
+        "classification": "編集フォーム日付変更の非永続化を明記",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/10-accounting-list.md",
+        "basis_line": 4,
+        "body_excerpt": "- **画面の目的**: 院内で行われた全診療・サービスの請求レコードを一覧表示・管理し、未精算の把握や過去の会計参照を行う。",
+        "classification": "採択済み画面/業務契約として読む。全UI細部の実装達成認定ではない",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/11-accounting-detail.md",
+        "basis_line": 27,
+        "body_excerpt": "保険会社へのオンライン請求送信（レセプト連携）は未実装。[#240](https://github.com/MinoruSoga/AnimalEkarte/issues/240) は PO の「着手しない」判断で Closed となっており、上記の窓口精算機能と区別する。",
+        "classification": "online claim/receipt integration非目標を明記",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/12-examinations-list.md",
+        "basis_line": 4,
+        "body_excerpt": "- **画面の目的**: 院内および院外（外部委託）で実施される全検査のオーダー状況および、測定結果ステータスの一元管理。",
+        "classification": "採択済み画面/業務契約として読む。全UI細部の実装達成認定ではない",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/13-examinations-form.md",
+        "basis_line": 4,
+        "body_excerpt": "- **画面の目的**: 検査オーダーの作成、および臨床検査値（数値・判定）の精緻な記録。",
+        "classification": "採択済み画面/業務契約として読む。全UI細部の実装達成認定ではない",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/14-vaccinations-list.md",
+        "basis_line": 4,
+        "body_excerpt": "- **画面の目的**: 院内で行われた全予防接種（混合ワクチン、狂犬病ワクチン、フィラリア・ノミダニ予防等）の実績管理。",
+        "classification": "採択済み画面/業務契約として読む。全UI細部の実装達成認定ではない",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/15-vaccinations-form.md",
+        "basis_line": 4,
+        "body_excerpt": "- **画面の目的**: ワクチン接種等の詳細記録（ロット番号）の編集、および次回予定日の管理。",
+        "classification": "採択済み画面/業務契約として読む。全UI細部の実装達成認定ではない",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/16-trimming-list.md",
+        "basis_line": 4,
+        "body_excerpt": "- **画面の目的**: 院内で実施されるトリミング施術の予約・実績・進捗管理。",
+        "classification": "採択済み画面/業務契約として読む。全UI細部の実装達成認定ではない",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/17-trimming-form.md",
+        "basis_line": 10,
+        "body_excerpt": "診察カルテとの入力1画面化は未実装。[#242](https://github.com/MinoruSoga/AnimalEkarte/issues/242) は PO の「着手しない」判断で Closed。診察・トリミングの入力画面は分離したまま、同一ペットの未請求明細を会計側で集約する。",
+        "classification": "upload/integration未実装を区別",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/18-inventory-list.md",
+        "basis_line": 4,
+        "body_excerpt": "- **画面の目的**: 院内で使用・販売する医薬品、フード、備品等の在庫状況の監視と、適切な発注タイミングの把握。",
+        "classification": "採択済み画面/業務契約として読む。全UI細部の実装達成認定ではない",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/19-clinic-settings.md",
+        "basis_line": 4,
+        "body_excerpt": "- **画面の目的**: システムを利用する各拠点（本院・分院）の基本情報、連絡先、およびインボイス制度に対応した各種パラメータの一元管理。",
+        "classification": "採択済み画面/業務契約として読む。全UI細部の実装達成認定ではない",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/20-master-settings.md",
+        "basis_line": 18,
+        "body_excerpt": "| **カルテ** | [診療項目](./settings/master-treatment.md)、[検査マスタ](./settings/master-examinations.md)（診療項目の検査タブ。サイドバー「マスタ設定」→「カルテ関連」→「検査マスタ」。`/settings/treatment-items?tab=examination`）、[診断マスタ](./settings/master-diagnosis.md)、[問診テンプレート](./settings/master-interview.md)、[主訴種別](./settings/master-chief-complaint.md)、[薬剤マスタ](./settings/master-medicine.md)、検査機器マスタ（サイドバー「マスタ設定」→「カルテ関連」→「検査機器マスタ」。`/settings/lab-device-item-masters`。機器名と検査種別は `lab_devices`。登録は `lab-import:create`、編集は `lab-import:edit`。日常の送信画面には出さない） |",
+        "classification": "master portalのlab-device-item-masters案内",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/21-login.md",
+        "basis_line": 4,
+        "body_excerpt": "- **画面の目的**: システムを利用するスタッフの本人確認（認証）を行い、セキュアなセッションを開始する。",
+        "classification": "採択済み画面/業務契約として読む。全UI細部の実装達成認定ではない",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/22-estimate-list.md",
+        "basis_line": 4,
+        "body_excerpt": "- **画面の目的**: 作成済みの見積記録を時系列で一覧管理し、承認状況や有効期限を監視する。",
+        "classification": "採択済み画面/業務契約として読む。全UI細部の実装達成認定ではない",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/23-estimate-form.md",
+        "basis_line": 4,
+        "body_excerpt": "- **画面の目的**: 診療や処置に先立ち、飼い主へ提示する概算費用（小計・税・保険適用額・割引額・合計）の登録・編集。",
+        "classification": "採択済み画面/業務契約として読む。全UI細部の実装達成認定ではない",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/24-shift-calendar.md",
+        "basis_line": 27,
+        "body_excerpt": "### 1. シフト・休憩時間の編集 (`ShiftFormDialog`)",
+        "classification": "LINE空き枠は次回API計算参照、pushではない",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/25-checkups-list.md",
+        "basis_line": 48,
+        "body_excerpt": "- **全文検索**: 名前や所見内容でのキーワード検索（取得済みの現在ページ内でのクライアントサイド絞り込み）。",
+        "classification": "現在ページ内検索の制限",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/26-estimate-detail.md",
+        "basis_line": 4,
+        "body_excerpt": "- **画面の目的**: 作成済みの見積内容の最終確認、および承認ステータスの遷移。",
+        "classification": "採択済み画面/業務契約として読む。全UI細部の実装達成認定ではない",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/27-inventory-form.md",
+        "basis_line": 4,
+        "body_excerpt": "- **画面の目的**: 医薬品、フード、消耗品等の新規登録、および在庫数や最低在庫（発注点）の管理。",
+        "classification": "採択済み画面/業務契約として読む。全UI細部の実装達成認定ではない",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/28-line-reservation.md",
+        "basis_line": 29,
+        "body_excerpt": "LINE アプリ内で飼い主が見る画面の文言を編集します。`LineReservationPageEditor` はフェーズ別タブ切替ではなく、5 つのテキストエリアを縦に並べた単一フォームです（セクション選択 UI は存在しない）。",
+        "classification": "single form。未存在section UIを区別",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/29-closing-aggregation.md",
+        "basis_line": 4,
+        "body_excerpt": "- **画面の目的**: 日次の売上集計、レジ内の現金の突合、および過去の締め記録の管理。",
+        "classification": "採択済み画面/業務契約として読む。全UI細部の実装達成認定ではない",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/30-unpaid-list.md",
+        "basis_line": 4,
+        "body_excerpt": "- **画面の目的**: 指定した期間内に支払予定日がある未納の売掛金を把握し、督促や回収業務を支援するための管理ビュー。",
+        "classification": "採択済み画面/業務契約として読む。全UI細部の実装達成認定ではない",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/31-lstep-integration.md",
+        "basis_line": 69,
+        "body_excerpt": "- **配信トリガー候補の読み取り**: 通常経路は clinic スコープ bulk-read を必須とし、owner ループ内の N+1 読み（owner / 当日 claim / 抑制 / tag-cache）を置かない。opt-out・suppression・daily-claim 意味論と bounded memory は維持する。現行実装に残る bulk 失敗後の per-owner fallback と是正契約は [line/lstep-integration.md §5.2](../line/lstep-integration.md) を参照する。この劣化経路を含めた無条件の no-N+1 は未達である。",
+        "classification": "RQ003:通常bulk必須、observed fallback未達を分離",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/32-accounting-reports.md",
+        "basis_line": 4,
+        "body_excerpt": "- **画面の目的**: 月単位または任意期間の売上実績、支払方法内訳、消費税明細を把握し、経営分析や確定申告・会計処理の基礎データを提供する。",
+        "classification": "採択済み画面/業務契約として読む。全UI細部の実装達成認定ではない",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/34-lstep-delivery-monitor.md",
+        "basis_line": 48,
+        "body_excerpt": "なお、ペット死亡時はライフサイクル処理（`HandlePetDeath` によるタグ除去・全頭死亡時の Lステップ全タグ削除）が動く。ただし最終除外確認は pet status を直接読まず、全頭死亡時 cleanup は best-effort のため、死亡・転院関連の絶対遮断は保証しない。既知の gap と是正契約は [lstep-integration.md §4](../line/lstep-integration.md) を正本とする。",
+        "classification": "RQ001/003:ログ観測と安全/性能gapを区別",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/35-internal-manual.md",
+        "basis_line": 54,
+        "body_excerpt": "| GET | `/api/v1/manual/articles/:category/:slug/versions` | 特定の記事のバージョン履歴一覧取得（BE実装済みだがフロントエンドからは未呼出） | `manual-edit` | `view` |",
+        "classification": "FE未使用APIの境界",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/36-aggregation-dashboard.md",
+        "basis_line": 19,
+        "body_excerpt": "### 1.2 CPM セグメント別人数サマリー (`CPMStageSummary`)",
+        "classification": "CPM/LTV画面契約。V2設定と表示一覧を分離",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/37-line-reserve-owner-flow.md",
+        "basis_line": 24,
+        "body_excerpt": "ステップ画面には `ProgressDots`（現在位置ドット・`aria-label` 付き）と `BackButton` が付き、戻っても入力値は `useReservationFlow` の状態に保持される。トリミング分岐（step2b/step2c 経由）では総ステップ数が一般フローより 2 つ多くなるため、`getStepProgress`（`lib/step-progress.ts`）が分岐の有無に応じた一貫した `current`/`total` を算出する（step3 以降の共有ページも含め、分岐前後で番号が後退しない）。step3 スタッフ選択の「戻る」は分岐時のみ step2c（トリミングオプション選択）へ戻る。",
+        "classification": "LIFF状態保持/分岐の契約",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/38-liff-pet-health.md",
+        "basis_line": 29,
+        "body_excerpt": "- **エラー時**: ステータス別メッセージと再試行ボタン。401（ID Token 失効）は再試行では解消しないため再試行ボタンを出さない（`resolveFetchError` の canRetry 判定）。",
+        "classification": "401再試行の境界",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/39-owner-report.md",
+        "basis_line": 30,
+        "body_excerpt": "| ⑥ | 種類別履歴 | 縦を情報種類、横を新しい日付順とした履歴マトリクス |",
+        "classification": "読取専用overviewの画面契約",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/40-identity-links.md",
+        "basis_line": 33,
+        "body_excerpt": "- 選択ペットごとに「連携履歴」ボタン → `getLinkedTreatmentHistory`（view/edit どちらでも可）。結果は plain text /「（履歴なし）」。",
+        "classification": "Phase1手動紐付け/解除と最小履歴の契約",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/99-medical-record-flow.md",
+        "basis_line": 15,
+        "body_excerpt": "- **作成前の fail-closed 表示**: `/new` で作成済み ID がない間は保存ボタンを表示しない。一般診療の予約区分など必須前提が欠落・取得失敗した場合は空の draft を描画せず、appointment phase の警告と「カルテ作成を再試行する」を表示する。前提が有効になるまで appointment／カルテの write は行わない。",
+        "classification": "draft作成とfail-closed前提。会計は別リソース",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/CLAUDE.md",
+        "basis_line": 15,
+        "body_excerpt": "1.  **情報の鮮度**: 画面変更や新機能追加の際は、速やかに該当ドキュメントを更新し、ソースコードとの乖離を防ぐ。バッククォートで言及したコンポーネント名・フック名・ファイル名はローカル必須ゲート（`make ci` 内の `scripts/check-docs-symbol-drift.sh`）が実在を機械検査する。実在しない名前はローカルゲートを失敗させる。",
+        "classification": "symbol driftと臨床安全記述のdirectory rule",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/README.md",
+        "basis_line": 24,
+        "body_excerpt": "| — | **検査受信** | `/lab-device`（`LabDeviceBoard`）／契約 [ADR-007](../../architecture/adr/007-lab-device-receive-and-commit.md) | 医院に設定された検査機器の単一掲示板。機器カードで受信状況をリアルタイム表示。本日診療中カルテをカード選択。日別の受信一覧。未紐付け・［取り消す］。医院セットアップで機器接続を1回許可。詳細契約は ADR、運用は ops/deploy。 |",
+        "classification": "RQ007:番号付き41仕様とroute leafを区別、ADR案内",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/common-dialogs.md",
+        "basis_line": 11,
+        "body_excerpt": "トリミング・定期健診・検査・入院・予防接種の各フォーム画面上部に常駐する「単一の真実」（`features/trimming`, `features/checkups`, `features/examinations`, `features/hospitalization`, `features/vaccinations`）。",
+        "classification": "共通UI/clinical alertの仕様契約",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/settings/README.md",
+        "basis_line": 28,
+        "body_excerpt": "| **検査機器マスタ** | [マスタ設定のカルテ関連](../20-master-settings.md) / [ADR-007 §7 マスタ](../../../architecture/adr/007-lab-device-receive-and-commit.md) | `/settings/lab-device-item-masters`。機器項目と検査フィールドの対応を管理する。日常の受信操作は [検査受信ボード](../README.md)を参照。 |",
+        "classification": "RQ007:item-master設定を受信ボードと区別",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/settings/closing-time-settings.md",
+        "basis_line": 14,
+        "body_excerpt": "- **AM 開始時刻**: AM レンジの開始時刻（`closing_am_start`、固定 09:00）。**編集不可**（PATCH API・画面のいずれにも入力フィールドがなく、DB default から変更する経路が存在しない。レンジプレビューの算出にのみ使用）。",
+        "classification": "AM開始固定の契約",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/settings/master-animal-species.md",
+        "basis_line": 6,
+        "body_excerpt": "- **アクセス権限**:",
+        "classification": "global master変更はsystem-admin専用",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/settings/master-cage.md",
+        "basis_line": 13,
+        "body_excerpt": "- **表示**: ケージ名、エリア、サイズ、単価(税込)、有効/無効ステータス。",
+        "classification": "master statusとリアルタイム在室を区別",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/settings/master-campaigns.md",
+        "basis_line": 4,
+        "body_excerpt": "- **画面の目的**: 会計施策としてのキャンペーンを期間・割引条件付きで定義し、明細計算時に適用可能にする。",
+        "classification": "採択済み画面/業務契約として読む。全UI細部の実装達成認定ではない",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/settings/master-chief-complaint.md",
+        "basis_line": 4,
+        "body_excerpt": "- **画面の目的**: カルテ作成時に飼い主が訴える「主訴」を分類し、統計や入力補助に使用するための大分類（消化器、皮膚、眼科等）の管理。",
+        "classification": "採択済み画面/業務契約として読む。全UI細部の実装達成認定ではない",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/settings/master-diagnosis.md",
+        "basis_line": 4,
+        "body_excerpt": "- **画面の目的**: 臨床現場で使用される標準的な診断名、および疾患カテゴリの体系的管理。",
+        "classification": "採択済み画面/業務契約として読む。全UI細部の実装達成認定ではない",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/settings/master-examinations.md",
+        "basis_line": 6,
+        "body_excerpt": "- **導線**: サイドバー「マスタ設定」→「カルテ関連」→「検査マスタ」。新規画面は作らず、診療項目の検査タブへ直リンクする。",
+        "classification": "shared UIの管理実装訂正を明記",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/settings/master-hospitalization-plan.md",
+        "basis_line": 4,
+        "body_excerpt": "- **画面の目的**: 入院治療やペットホテルの基本料金体系の管理。",
+        "classification": "採択済み画面/業務契約として読む。全UI細部の実装達成認定ではない",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/settings/master-insurance.md",
+        "basis_line": 17,
+        "body_excerpt": "- **補償率(%)**: `coverage_rate`（0〜100 の整数。`validateInsuranceForm`）。UIラベルは「補償率」であり、保険が補償する側の割合を表す（飼主の窓口負担割合ではない）。入力に HTML `max` は付けない。101 以上はインラインエラーを出し、HTML5 制約で保存ボタンを無音ブロックしない。",
+        "classification": "coverage rateとowner copayを区別",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/settings/master-interview.md",
+        "basis_line": 13,
+        "body_excerpt": "- **カテゴリ分類**: `chief_complaint`(主訴)、`history`(既往歴)、`current_medications`(現在の投薬)、`notes`(メモ/備考) を日本語ラベルに変換して表示（`INQUIRY_CATEGORY_LABELS`、未知の値は生の文字列を表示）。カテゴリは自由入力のためこれ以外の値も登録可能。",
+        "classification": "dual route/free-input category境界",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/settings/master-medicine.md",
+        "basis_line": 4,
+        "body_excerpt": "- **画面の目的**: 院内で使用・処方される医薬品の定義、単価設定、および在庫システムとの紐付け。",
+        "classification": "採択済み画面/業務契約として読む。全UI細部の実装達成認定ではない",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/settings/master-merchandise.md",
+        "basis_line": 22,
+        "body_excerpt": "    - **税率**: 10%（通常課税）/8%（軽減税率）。フード等に軽減税率を個別設定可能だが、カテゴリに応じた自動判定はない（手動選択）。",
+        "classification": "inventory link/自動減算の未実装を明記",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/settings/master-occupation.md",
+        "basis_line": 26,
+        "body_excerpt": "スタッフ管理画面 (`/settings/staff`) において、ここで定義された職種を割り当てます。",
+        "classification": "sort_orderとDnD UI未実装を区別",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/settings/master-permission-group.md",
+        "basis_line": 4,
+        "body_excerpt": "- **画面の目的**: スタッフの役割（院長、獣医師、看護師、事務等）に応じたシステム操作権限の体系的定義。",
+        "classification": "採択済み画面/業務契約として読む。全UI細部の実装達成認定ではない",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/settings/master-reservation-type.md",
+        "basis_line": 4,
+        "body_excerpt": "- **画面の目的**: 診察、ワクチン、手術、トリミング等の予約枠（スロット）の定義と、LINE 予約への公開設定。",
+        "classification": "採択済み画面/業務契約として読む。全UI細部の実装達成認定ではない",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/settings/master-shift-template.md",
+        "basis_line": 4,
+        "body_excerpt": "- **画面の目的**: スタッフの標準的な勤務時間（例：フルタイム、早番、遅番等）をテンプレートとして定義し、シフト管理の入力を大幅に効率化する。",
+        "classification": "採択済み画面/業務契約として読む。全UI細部の実装達成認定ではない",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/settings/master-staff.md",
+        "basis_line": 4,
+        "body_excerpt": "- **画面の目的**: システムを利用する全スタッフの基本情報、職種、および LINE 予約用の公開プロフィールの統合管理。",
+        "classification": "採択済み画面/業務契約として読む。全UI細部の実装達成認定ではない",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/settings/master-treatment.md",
+        "basis_line": 4,
+        "body_excerpt": "- **画面の目的**: 診察、処置、手術、検査等の臨床行為の定義、および標準価格・税率の設定。",
+        "classification": "採択済み画面/業務契約として読む。全UI細部の実装達成認定ではない",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/settings/master-trimming-course-type.md",
+        "basis_line": 4,
+        "body_excerpt": "- **画面の目的**: トリミングコースの大分類（シャンプー、シャンプー+カットなど）を管理し、トリミングコース管理画面の分類基盤を整える。",
+        "classification": "採択済み画面/業務契約として読む。全UI細部の実装達成認定ではない",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/settings/master-trimming.md",
+        "basis_line": 28,
+        "body_excerpt": "ここで有効化されたコースとオプションは、LINE 予約 LIFF アプリおよび院内予約画面の選択肢として表示されます。",
+        "classification": "breed price matrixなし、sizeのみ",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/screens/settings/payment-methods.md",
+        "basis_line": 4,
+        "body_excerpt": "- **画面の目的**: 決済手段（現金、クレジットカード、電子マネー等）マスタの名称・有効/無効の管理。レジ締めや月次レポートの決済手段別集計の軸となる。",
+        "classification": "採択済み画面/業務契約として読む。全UI細部の実装達成認定ではない",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/specification.md",
+        "basis_line": 8,
+        "body_excerpt": "> **最新更新**: 2026-09-06 | **照合範囲**: repo 実装と GitHub Issue の仕様・決裁履歴。production 稼働・受入を意味しない。release gate の作業入口は Linear [BRT-4](https://linear.app/baritechllc/issue/BRT-4) / [todo.md](../../todo.md)。",
+        "classification": "repo/Issue scope。production/UATを含めない",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      },
+      {
+        "path": "docs/spec/ui-design-compliance.md",
+        "basis_line": 9,
+        "body_excerpt": "| C1 | brand と semantic primary は同じ teal `#038B94` / active `#027078` を使う。意味役割はトークン名で分け、legacy accent `#2383E2`・`C.accent` は禁止 | DESIGN_SYSTEM §2.1, §9, §10 | **機械化**（C1）＋意味役割はレビュー |",
+        "classification": "2026-07-24 runtimeと2026-09-06 static route inventoryを分離",
+        "boundary": "Reader reviewed body roles/current contract vs missing/dated/external; source-audited assigned RQ paths only, not every UI row/API/component."
+      }
+    ],
+    "integration": "RQ001/003/007 final text accepted. UI compliance historical runtime/pending maintained. First H1-only evidence was insufficient and replaced by body-based classification."
+  },
+  "ops": {
+    "agent": "/root/inventory_ops",
+    "status": "completed after body-evidence supplement",
+    "writer_owned_paths": [],
+    "reported_checks": "files=73; inventory=73; missing=0; extra=0; broken local Markdown links=0; bash -n helper exit=0",
+    "finding": "HIGH unverified keeper possession wording",
+    "integration": "UAT:27 location/content unverified and possession assertions removed; STG:235-236 deploy/weekly/monthly formal storage accepted",
+    "file_receipts": [
+      {
+        "path": "docs/ops/CLAUDE.md",
+        "classification": "directory rules; requirements, not execution proof",
+        "body_basis": [
+          {
+            "line": 10,
+            "text": "> **リポジトリ上の決定履歴**: AWS ECS/RDS は 2026-07-20 に廃止され、切り戻し先・ホットスタンバイとして使用しない。クラウド上の現在状態は別途人手で検証する。"
+          },
+          {
+            "line": 11,
+            "text": "> AWS 時代の文書は git 履歴のみ（2026-08-20 にリポジトリから削除。`git show e0260d32f^:docs/ops/infra/_archive/aws-legacy/` 配下）。実行手順として使用しない。"
+          },
+          {
+            "line": 17,
+            "text": "ファイル索引の正本は [README.md](README.md)（二重管理を避けるため本書には索引を置かない）。"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/README.md",
+        "classification": "index/map routing to requirement and execution owners",
+        "body_basis": [
+          {
+            "line": 15,
+            "text": "| [deploy/LAB_DEVICE_CONNECTIVITY.md](deploy/LAB_DEVICE_CONNECTIVITY.md) | 検査機器の実装契約。操作手順は old_db `docs/lab-go/hospital-field-pack/手元テスト手順.md` | 院内で機器を新カルテへ取り込むとき |"
+          },
+          {
+            "line": 21,
+            "text": "| [infra/](infra/README.md) | Cloudflare 基盤の現行リポジトリ契約と、AWS 廃止履歴への正本ポインタ | インフラ変更・履歴調査前 |"
+          },
+          {
+            "line": 25,
+            "text": "- タスク台帳の実行 SoT は **Linear**。hub・issue の現在状態は外部情報のため、操作前に Linear / GitHub で人手確認する。root [`todo.md`](../../todo.md) は repo と強く結び付く未完了作業の入口であり、[`todo-po.md`](../../todo-po.md) は入口ポインタ。運用で発見した課題は Linear に起票する。旧 `q&a.html` / `STATUS.md` / `PO-todo.md` は削除済。"
+          },
+          {
+            "line": 26,
+            "text": "- **外部 mapping（操作前に GitHub / Linear で検証必須。以下は履歴 pointer）:** #261 / BRT-51 の判定先として GitHub [#261](https://github.com/MinoruSoga/AnimalEkarte/issues/261) 本文（A/B/C）。`q&a.html` は repo に無い。B 薬量は [BRT-39](https://linear.app/baritechllc/issue/BRT-39)。C 健診 seed は [BRT-40](https://linear.app/baritechllc/issue/BRT-40)。検査 / #249 はスコープ外。"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/backlog-spreadsheet.md",
+        "classification": "checked-in procedure/design contract; provider/runtime execution not verified",
+        "body_basis": [
+          {
+            "line": 3,
+            "text": "> Q&A バックログの正本と更新境界を定義する。外部シートの名称、URL、tab ID、列、所有者はリポジトリから検証できない。操作前に、権限のある人が承認済みポータルまたは Vault の locator と現行構造を確認し、確認日を作業記録へ残す。"
+          },
+          {
+            "line": 5,
+            "text": "## 正本"
+          },
+          {
+            "line": 7,
+            "text": "- Q&A のデータ正本は、組織が承認した外部スプレッドシートとする。"
+          },
+          {
+            "line": 9,
+            "text": "- リポジトリ内に Q&A の複製ビューを置かない。旧 `q&a.html` は履歴資料であり、現行状態ではない。"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/ci-policy.md",
+        "classification": "checked-in procedure/design contract; provider/runtime execution not verified",
+        "body_basis": [
+          {
+            "line": 3,
+            "text": "> `.github/workflows/*.yml` と `scripts/run-local-ci.sh` が実装の正本。この文書は契約を要約し、手作業の action/step inventory は持たない。"
+          },
+          {
+            "line": 7,
+            "text": "| 区分 | 契約 | 実装の正本 |"
+          },
+          {
+            "line": 24,
+            "text": "- Frontend は `vitest-full.log` を削除する。Vitest blob を artifact にし、失敗時は bounded `vitest-tail.log` のみ追加 upload する。Backend と同じ full-log 契約ではない。"
+          },
+          {
+            "line": 36,
+            "text": "実際の action version は workflow の `uses:` が正本。`scripts/check-actions-version-drift.sh` が同一 action の混在を検出する。古い version inventory は保持しない。"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/coverage-policy.md",
+        "classification": "checked-in procedure/design contract; provider/runtime execution not verified",
+        "body_basis": [
+          {
+            "line": 3,
+            "text": "> Coverage 設定の実装正本は `.github/workflows/ci.yml`、`backend/.coverage-baseline`、`frontend/.coverage-baseline`、`frontend/vite.config.ts`。"
+          },
+          {
+            "line": 24,
+            "text": "baseline file のコメントが値、run、変更理由の正本である。Backend の 91.3% は 2026-07-13 の履歴値であり、現行 threshold ではない。2026-08-14 の 88.1% と 2026-08-23 の 87.3% を含む後続履歴も backend baseline file を参照する。推測値で更新しない。"
+          },
+          {
+            "line": 30,
+            "text": "- Frontend script の OK/FAIL/baseline 未記録/`--warn-only` の四ケースは一時的な履歴検証として記録されていたが、HEAD に保守される regression test/fixture はない。継続保証とは扱わない。"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/deploy/A4_UI_REHEARSAL.md",
+        "classification": "checked-in procedure/design contract; provider/runtime execution not verified",
+        "body_basis": [
+          {
+            "line": 3,
+            "text": "This runbook creates the disposable AnimalEkarte environment used by the"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/deploy/BREAK-HOURS-SHAPE-AUDIT.md",
+        "classification": "checked-in procedure/design contract; provider/runtime execution not verified",
+        "body_basis": [
+          {
+            "line": 3,
+            "text": "> **目的**: R1-3デプロイ前のbreak_hoursデータ形状監査手順を定義する。"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/deploy/CI-CD-PIPELINE.md",
+        "classification": "checked-in procedure/design contract; provider/runtime execution not verified",
+        "body_basis": [
+          {
+            "line": 3,
+            "text": "> **目的**: checked-in workflow の実行契約と、実環境で必要な承認・検証を区別する。"
+          },
+          {
+            "line": 4,
+            "text": "> **照合**: 2026-09-06、`7c6592f9f`。GitHub [#253](https://github.com/MinoruSoga/AnimalEkarte/issues/253) は OPEN。Issue 本文・2026-08-20 コメントは当時の判断であり、現在の workflow 実装や billing/reviewers の実測を代替しない。"
+          },
+          {
+            "line": 12,
+            "text": "| Production backend | **未実装**。backend workflow は STG Worker URL / `wrangler.jsonc` 固定 | production trigger・config 選択・protected Environment binding の実装と検証が済むまで実行不可 |"
+          },
+          {
+            "line": 16,
+            "text": "正本は `.github/workflows/backend-deploy.yml` と `frontend-deploy.yml`。"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/deploy/CLINIC_CSV_IMPORT.md",
+        "classification": "checked-in procedure/design contract; provider/runtime execution not verified",
+        "body_basis": [
+          {
+            "line": 7,
+            "text": "現行 KNJO source は未完全なため、`payments.csv` / `payment_splits.csv` は意図的にheader-onlyです。CSVの形状確認には使えますが、既知の未確定支払候補を持つbillingはproducer側で `needs_review` に隔離され、正式manifestは支払・分割支払がどちらも正件数でなければpreflightで拒否されます。producer契約は `billings.csv` の `completed_at` と completed billingごとのpayment graphに対応済みですが、完全かつ検証済みのKNJO sourceから新しいformal bundleを生成するまでapplyはBLOCKEDです。"
+          },
+          {
+            "line": 22,
+            "text": "正本は `backend/internal/csvimport.CutoverTableSpecs()`。以下は operator 向け要約（PHI 列値は載せない）。"
+          },
+          {
+            "line": 65,
+            "text": "wrapperのexit 0は対象3院すべての投入完了を意味しません。manifestがない医院はskipし、既存apply reportがPASSの医院も現在のDBを再検証せずskipします。実施記録には医院ごとの対象・実行・skip理由を残します。必要な医院のmanifest欠落は未完了とし、過去のPASSだけで現在の整合性を判定しません。運用開始前に、承認済み対象・同一manifestで `make stg-uat-handoff-verify` の結果を医院ごとに確認します。"
+          },
+          {
+            "line": 71,
+            "text": "変換は現行コードでは未実装です。[SEED_MIGRATION_OPERATIONS.md](./SEED_MIGRATION_OPERATIONS.md)"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/deploy/CLOUDFLARE-EXTERNAL-INTEGRATIONS-AUDIT.md",
+        "classification": "checked-in procedure/design contract; provider/runtime execution not verified",
+        "body_basis": [
+          {
+            "line": 31,
+            "text": "| SMTP | `backend/internal/infra/smtp/sender.go`。SMTP auth/TLSを使う。必要な名前の正本は target `backend/wrangler.jsonc` の `secrets.required` | names/value/provider-side IP restriction と controlled send は `UNVERIFIED` |"
+          },
+          {
+            "line": 32,
+            "text": "| LIFF | ID token検証。`api.stg.noah-karte.com` は 2026-07-17 に Cloudflare へ cutover 済みという ops SSOT を前提とする | DNS cutover は履歴情報。現在の DNS / deployed endpoint と test channel/account の controlled STG rehearsal は `UNVERIFIED` |"
+          },
+          {
+            "line": 68,
+            "text": "**Known LOW residual**: 同じLINE User IDへの再紐付け直後でownerの`line_followed_at` / `line_blocked_at`が両方nilの場合、そのIDに対する非常に古い正規署名済みredeliveryはtimestamp CASの初期比較を通り得る。expected LINE user ID CASにより別ID・別clinicへ波及せず、現時点ではこのwatermarkを業務判断に使うruntime decision consumerもないため、直ちにcode gateを再開するseverityではない。上記rehearsalの観測対象に含め、consumer追加または実害観測時にlink時watermark初期化やevent ID/last-event persistenceを再評価する。"
+          },
+          {
+            "line": 70,
+            "text": "**現在の判定**: code側は実装済みだが、Webhook redeliveryとError statistics aggregationのConsole有効化、non-2xx/error monitoring、duplicate/out-of-order/LOW residual rehearsalはrelease pending。この文書更新ではLINE Developers Consoleその他の外部設定を変更していない。"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/deploy/CRUD-SMOKE-TEST.md",
+        "classification": "checked-in procedure/design contract; provider/runtime execution not verified",
+        "body_basis": [
+          {
+            "line": 20,
+            "text": "- POST/PATCH/DELETE は `X-Requested-With: XMLHttpRequest` を必須とする（`RequireXRequestedWith`）。対象医院は認可済み session の `X-Clinic-ID` 契約に従い、他院へ流用しない。"
+          },
+          {
+            "line": 99,
+            "text": "CRUD作成とは分離する。[スタッフアカウント払い出し](./STAFF_ACCOUNT_PROVISIONING.md) の承認済み経路で、有効な `staff_type` と生成済み8〜72文字passwordを持つaccountを作る。login routeは `POST /api/v1/login`。credential値は記録しない。remote provisioning mechanismが未承認なら、このcaseは **BLOCKED** と記録し、CRUD staffへemailだけを追加して代替しない。"
+          },
+          {
+            "line": 127,
+            "text": "Workers Logsはruntime failureの調査用で、application auditの代替ではない。未実装のclinic/staff auditを手動INSERTして成功扱いにしない。"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/deploy/DEPLOYMENT_CHECKLIST.md",
+        "classification": "checked-in procedure/design contract; provider/runtime execution not verified",
+        "body_basis": [
+          {
+            "line": 8,
+            "text": "> **最新更新**: 2026-08-31 | **checked-in config**: STG target/workflowあり、Production workflow未実装。live provider状態はUNKNOWNで実行時receiptが必要"
+          },
+          {
+            "line": 30,
+            "text": "[`../infra/architecture.md`](../infra/architecture.md) を正本とし、バックエンドは Cloudflare Workers + Containers、"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/deploy/F8_G4_FAILURE_REHEARSAL.md",
+        "classification": "checked-in procedure/design contract; provider/runtime execution not verified",
+        "body_basis": [
+          {
+            "line": 3,
+            "text": "This runbook produces the failure-side evidence consumed by the `old_db` F8"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/deploy/LAB_DEVICE_AGENT_MACOS.md",
+        "classification": "checked-in procedure/design contract; provider/runtime execution not verified",
+        "body_basis": [
+          {
+            "line": 11,
+            "text": "現在のbundleはクライアントUAT用で、Developer ID署名・notarizationは未実施。本番配布前に署名済み成果物を作成し、`codesign --verify --deep --strict`と`spctl --assess`をrelease gateにする。Gatekeeperを無効化する手順は案内しない。"
+          },
+          {
+            "line": 15,
+            "text": "開発・サポート側で bundle を作成する。現行スクリプトは `LAB_DEVICE_AGENT_CONSUMER_TOKEN` が必須（未設定は終了）。配布先 backend が認可済みブラウザへ返す同名 token と一致させ、承認済み secret 経路で環境変数へ供給する。token の生成・登録・取得は USER 作業で、コマンド引数・履歴・ログ・Git に実値を残さない。bundle の mode 0600 設定ファイルにも token が入るため、配布物全体を保護して扱う。"
+          },
+          {
+            "line": 42,
+            "text": "登録後も、その2本のUSBシリアル変換器はNX600/AU10V専用とする。PU-4010、IDEXX、または未確認機器へ差し替えない。配線を変更する場合はagentを停止し、対象機器の通信条件を確認してから再設定する。"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/deploy/LAB_DEVICE_CONNECTIVITY.md",
+        "classification": "checked-in procedure/design contract; provider/runtime execution not verified",
+        "body_basis": [
+          {
+            "line": 3,
+            "text": "**この文書:** AnimalEkarte が院内検査機器の結果を受けて保持するときの実装契約。操作手順ではない。"
+          },
+          {
+            "line": 4,
+            "text": "**外部 sibling checkout 前提:** 操作手順と機器調査資料はこの repository には含まれない。checkout を `AnimalEkarte/` と `old_db/` が同じ親を持つ配置にした場合だけ、`../../../../old_db/docs/lab-go/hospital-field-pack/手元テスト手順.md` を参照できる。外部資料が無い場合も、本書の要約（Drワンを使わない、検査用 Mac 1台、4種の `source_type`、raw payload を残さない）を実装契約とする。"
+          },
+          {
+            "line": 8,
+            "text": "**日常経路（2026-08-31）:** ファイルアップロードしない。検査用 Mac のユーザー LaunchAgent `lab-device-agent` が有線シリアルを所有し、`127.0.0.1:17654` の loopback HTTP でフレームを公開する。ブラウザの `/lab-device` は認可済み API から取得する consumer token でその agent に接続し、フレームを API へ送るだけで、シリアルを直接読んだり開いたりしない。UI は1画面（待機 + 未紐付け欄）。実行状態の正本は Linear BRT-94〜100、未完了作業の入口は `todo.md`。城東3種（`fuji_nx600` / `fuji_au10v` / `arkray_pu4010`）は AE-LAB-0〜4 済み。"
+          },
+          {
+            "line": 45,
+            "text": "- `fixture` だけ commit 可。`drwan` は preview 200 + `blocked_reasons`、commit 400。`GetJob` は `drwan` を 400"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/deploy/LOCAL_DB_RESET.md",
+        "classification": "checked-in procedure/design contract; provider/runtime execution not verified",
+        "body_basis": [
+          {
+            "line": 33,
+            "text": "| 4. 再起動 + postflight | `db backend frontend` を `--wait` で起動。migration key coverage `missing=0`、直下 DDL 全件、seed `002_master`、`schema_migrations` 契約、backend healthy、`/health` HTTP 200 を確認。不足があれば非 0。 |"
+          },
+          {
+            "line": 42,
+            "text": "| local Postgres cluster 内の **全 DB / global role / schema / data / migration 履歴 / seed 適用結果 / 手入力行** | bind mount の source / docs / `.env*` |"
+          },
+          {
+            "line": 77,
+            "text": "**成否の一次判定は `Migration key coverage` の 1 行**とする。`missing=0` なら、ディスク上の直下 DDL と seed バンドルの期待キーがすべて `schema_migrations` に記録されている。`extra` は統合・削除でディスクから消えた履歴キーの件数であり、0 でなくても失敗ではない。固定の行数期待で照合しない。"
+          },
+          {
+            "line": 79,
+            "text": "`schema_migrations` の行数も固定値ではない。**行数 = 直下 `*.sql` の本数 + CSV seed 1**（キーは各 DDL ファイル名と `seeds/002_master`）。development/staging でログイン seed が走った場合は `seeds/003_login` がもう 1 行増える。検算は上記 `ls` の件数に CSV seed 1（+ ログイン seed を適用したなら 1）を足したものと、DB の `SELECT COUNT(*) FROM schema_migrations` を照合する（余剰履歴がある環境では `recorded` がこの導出より大きくなり得る）。"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/deploy/LSTEP_WRITE_API_PAUSE.md",
+        "classification": "checked-in procedure/design contract; provider/runtime execution not verified",
+        "body_basis": [
+          {
+            "line": 21,
+            "text": "### Deploy gate 無効時の契約"
+          },
+          {
+            "line": 27,
+            "text": "### Clinic flag 無効時の契約"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/deploy/MIXED-PAYMENT-SMOKE-TEST.md",
+        "classification": "checked-in procedure/design contract; provider/runtime execution not verified",
+        "body_basis": [
+          {
+            "line": 138,
+            "text": "> **既知のreporting制約:** close-report detailはbilling-levelの`refund_amount`と`net_amount = billing_amount - refund_amount`を計算する。method未指定返金をpayment splitsへ比例配分する表示ではない。この制約は返金作成・保存が未実装という意味ではない。"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/deploy/OLD_DB_HANDOFF_LOCAL.md",
+        "classification": "checked-in procedure/design contract; provider/runtime execution not verified",
+        "body_basis": [
+          {
+            "line": 106,
+            "text": "run ID、producer status、formal eligibility は変動するため、この安定手順には固定しません。実行状態は Linear、未完了作業の入口はリポジトリ直下 `todo.md` を確認します。run ID・digest・eligibility の実値は受領した current manifest と producer report を照合します。"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/deploy/README.md",
+        "classification": "index/map routing to requirement and execution owners",
+        "body_basis": [
+          {
+            "line": 8,
+            "text": "> **最新更新**: 2026-08-31 | **checked-in config**: STG workflow/configあり。Backend production workflowは未実装。FrontendはProduction Environment binding実装済み（外部reviewersは要検証）。**live provider状態はUNKNOWNで、実行前にdated receiptが必要**"
+          },
+          {
+            "line": 17,
+            "text": "| **Production（draft設定）** | noah-karte.com（予定） | api.noah-karte.com/api（予定） | backend workflow未実装。frontendはEnvironment bindingあり。provider実体はUNKNOWN（#253・[`../infra/production/runbook.md`](../infra/production/runbook.md)） |"
+          },
+          {
+            "line": 28,
+            "text": "- **[外部資格情報オペレーション (BUG_MD_EXTERNAL_OPS_PENDING_APPROVAL.md)](./runbooks/BUG_MD_EXTERNAL_OPS_PENDING_APPROVAL.md)**: Cloudflare / PlanetScale 資格情報ローテーションと、退役済み AWS 手順の実行禁止境界。"
+          },
+          {
+            "line": 34,
+            "text": "- **[Durable Scheduler運用 (runbooks/SCHEDULER_OPERATIONS.md)](./runbooks/SCHEDULER_OPERATIONS.md)**: 定期jobのstatus、pause/resume、missing-slot catch-up、通知、障害復旧。BE9のcode/configは実装済みだが、今回versionの実環境deploy/rehearsalはrelease gateとして未実施。"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/deploy/SEED_MIGRATION_OPERATIONS.md",
+        "classification": "checked-in procedure/design contract; provider/runtime execution not verified",
+        "body_basis": [
+          {
+            "line": 10,
+            "text": "- フェーズ3 のログイン upsert（`internal/seedlogin`）は CSV ではない。適用時だけ `seeds/003_login` を記録する。デモパスワードはコード定数（全カタログ共通）。production / empty / unknown はスキップ。開発/STG のログインは bcrypt に加え、カタログ email + 共通パスワードを許可する。"
+          },
+          {
+            "line": 26,
+            "text": "この翻訳は旧 stub key を残したまま、現行 master key を transaction 内で記録する **mark-applied** 処理であり、CSV の再ロードや既存データの完全性確認ではない。legacy key の存在だけで一律 BLOCKED とせず、対象 DB の DDL/checksum と必要 master rows を承認済み read-only 検証で照合する。"
+          },
+          {
+            "line": 53,
+            "text": "| executable clinical/demo seed | **未実装** | 生成・適用しない |"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/deploy/STAFF_ACCOUNT_PROVISIONING.md",
+        "classification": "checked-in procedure/design contract; provider/runtime execution not verified",
+        "body_basis": [
+          {
+            "line": 5,
+            "text": "> **境界**: 本ドキュメントは **repo 側の準備とコマンド契約** のみ。実スタッフ一覧・初期パスワード・PROD 適用は USER 作業。"
+          },
+          {
+            "line": 25,
+            "text": "## 入力契約"
+          },
+          {
+            "line": 27,
+            "text": "### Manifest（JSON, strict decode / unknown field 拒否）"
+          },
+          {
+            "line": 111,
+            "text": "2. strict JSON decode（unknown field 拒否）  "
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/deploy/STG-CONTINUOUS-OPERATIONS.md",
+        "classification": "checked-in procedure/design contract; provider/runtime execution not verified",
+        "body_basis": [
+          {
+            "line": 14,
+            "text": "> 構成と障害初動の正本は [`../infra/architecture.md`](../infra/architecture.md) と"
+          },
+          {
+            "line": 68,
+            "text": "DB の `audit_logs` が正本。"
+          },
+          {
+            "line": 157,
+            "text": "4. `audit_logs` は成功したpermission-group mutationだけ確認する。clinic/staffへ未実装のblanket audit contractを要求しない。"
+          },
+          {
+            "line": 165,
+            "text": "Cloudflare Observability で Workers / Containers の ERROR/FATAL、5xx 傾向、通知履歴を確認する。"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/deploy/STG-DEMO-DATA-LIFECYCLE.md",
+        "classification": "checked-in procedure/design contract; provider/runtime execution not verified",
+        "body_basis": [
+          {
+            "line": 3,
+            "text": "> **目的**: master seed、運用アカウント、smoke/investigation dataの作成・cleanup境界を定義する。"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/deploy/STG_PLANETSCALE_SEED_RUNBOOK.md",
+        "classification": "checked-in procedure/design contract; provider/runtime execution not verified",
+        "body_basis": [
+          {
+            "line": 69,
+            "text": "- legacy key translation failure: [SEED_MIGRATION_OPERATIONS.md](./SEED_MIGRATION_OPERATIONS.md#2-legacy-seed-keys) の現行 translation 契約と対象 DB を照合する。削除済み bundle 参照の旧不具合とは切り分け、manual baseline や reset 不要宣言をしない。"
+          },
+          {
+            "line": 70,
+            "text": "- partial/unknown outcome: rerunやschema dropを重ねず、run ID、commit、target、last completed phaseを記録し、approved read-only verificationで状態を確定する。"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/deploy/VERCEL-FRONTEND-STAGING-TEST.md",
+        "classification": "checked-in procedure/design contract; provider/runtime execution not verified",
+        "body_basis": [
+          {
+            "line": 10,
+            "text": "prebuilt `.vercel/output/config.json` に `/api` rewrite はないが、上記の絶対 URL 経路に rewrite は不要。過去の「rewrite 欠落だけで login 全体 BLOCKED」という判定はこの build contract と一致しない。別の build path で same-origin `/api` を使う場合は、API JSON/status を返す rewrite が必要であり、SPA HTML への fallback は失敗とする。"
+          },
+          {
+            "line": 95,
+            "text": "API target / rewrite / CORS、account provisioning、external deployment state、approval gateのいずれかが未確認なら、該当項目を`BLOCKED`/`UNVERIFIED`と記録する。"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/deploy/runbooks/BUG_MD_EXTERNAL_OPS_PENDING_APPROVAL.md",
+        "classification": "checked-in procedure/design contract; provider/runtime execution not verified",
+        "body_basis": [
+          {
+            "line": 9,
+            "text": "> 当時の証跡は git 履歴だけを参照する（2026-08-20 削除。`git show e0260d32f^:docs/ops/infra/_archive/aws-legacy/` 配下）。"
+          },
+          {
+            "line": 13,
+            "text": "## 0. 現状と正本"
+          },
+          {
+            "line": 20,
+            "text": "`backend/wrangler.jsonc` の `secrets.required` を正本とする。"
+          },
+          {
+            "line": 29,
+            "text": "> PUBLIC リポジトリ履歴および過去の seed/Issue 露出に対する正攻法は **ローテーション**（filter-repo 禁止）。"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/deploy/runbooks/README.md",
+        "classification": "index/map routing to requirement and execution owners",
+        "body_basis": [
+          {
+            "line": 13,
+            "text": "| [BUG_MD_EXTERNAL_OPS_PENDING_APPROVAL.md](BUG_MD_EXTERNAL_OPS_PENDING_APPROVAL.md) | Cloudflare / PlanetScale 資格情報ローテーションと、退役済み AWS 手順の実行禁止境界 | 資格情報ローテーションの計画時、または過去の AWS 運用を調査する時 |"
+          },
+          {
+            "line": 14,
+            "text": "| [SEC_SECRETS_5_GITLEAKS_HISTORY_INVENTORY.md](SEC_SECRETS_5_GITLEAKS_HISTORY_INVENTORY.md) | git 履歴上のシークレット露出棚卸しとローテーション手順 | シークレットローテーション作業時 |"
+          },
+          {
+            "line": 19,
+            "text": "- 使い切り（特定 PR・特定時点限り）のチェックリストはランブック化せず、完了後に削除して git 履歴に残す。"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/deploy/runbooks/SCHEDULER_OPERATIONS.md",
+        "classification": "checked-in procedure/design contract; provider/runtime execution not verified",
+        "body_basis": [
+          {
+            "line": 4,
+            "text": "> **対象**: `animalekarte-scheduler-v1`。実装の正本は`backend/worker/scheduled-*`、`scheduler-*`、操作CLIの正本は`infra/scripts/cf-scheduler-ops.sh`。"
+          },
+          {
+            "line": 28,
+            "text": "AccessのJWKSはWorker isolate内で10分cacheする。未検証JWTの任意`kid`、JWKS upstream failure、同時requestが外部取得を増幅しないよう、unknown-key/failure後の再取得はteam domainごとに60秒cooldownし、同時取得は1本へ集約する。鍵rotation後の新しい`kid`はcooldown後に再取得して検証するため、最後の取得直後にrotationした場合は最大60秒fail-closedになる。"
+          },
+          {
+            "line": 42,
+            "text": "変更操作の前後に必ずstatusを保存する。返却されるsecretやPIIはなく、control revision、active lease、直近run、操作履歴を確認できる。"
+          },
+          {
+            "line": 57,
+            "text": "run ledgerは35日、operator操作履歴は400日保持する。statusは最大50件を返すため、長期監査の唯一の保存先にはしない。"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/deploy/runbooks/SEC_SECRETS_5_GITLEAKS_HISTORY_INVENTORY.md",
+        "classification": "checked-in procedure/design contract; provider/runtime execution not verified",
+        "body_basis": [
+          {
+            "line": 1,
+            "text": "# SEC-SECRETS-5 — gitleaks 全履歴スキャン インベントリ（2026-07-15）"
+          },
+          {
+            "line": 3,
+            "text": "> 値は記載しない。パスと件数のみ。ローテーション（[外部資格情報オペレーション](./BUG_MD_EXTERNAL_OPS_PENDING_APPROVAL.md) §1）完了まで Issue #89/#97 はクローズしない。"
+          },
+          {
+            "line": 11,
+            "text": "## 履歴ヒット（パスのみ・値なし）"
+          },
+          {
+            "line": 13,
+            "text": "| パス（履歴上） | 備考 |"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/deploy/runbooks/STG_PRE_DEPLOY_READINESS_CHECK.md",
+        "classification": "checked-in procedure/design contract; provider/runtime execution not verified",
+        "body_basis": [
+          {
+            "line": 24,
+            "text": "- [ ] legacy seed key がある場合は [現行 translation 契約](../SEED_MIGRATION_OPERATIONS.md#2-legacy-seed-keys) と対象 DB の master 完全性を確認した。不整合時は release stop とし、reviewed recovery plan を待つ。"
+          },
+          {
+            "line": 51,
+            "text": "- C-2 loginが必要ならapproved provisioning + `POST /api/v1/login`。remote mechanism未承認ならBLOCKED"
+          },
+          {
+            "line": 64,
+            "text": "- required approval gate、backup/rollback、account/provisioningが未確認"
+          },
+          {
+            "line": 70,
+            "text": "commit、workflow/run ID、target、各gateのPASS/FAIL/BLOCKED、nonsecret evidence、cleanup IDs/count、deferred blockerを記録する。external deployed stateをrepository configだけで「確認済み」にしない。"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/infra/README.md",
+        "classification": "index/map routing to requirement and execution owners",
+        "body_basis": [
+          {
+            "line": 3,
+            "text": "> 現行の **checked-in configuration** と運用契約の入口。外部 runtime/account 状態は、実作業前に人が確認する。"
+          },
+          {
+            "line": 8,
+            "text": "| [iac-guidelines.md](iac-guidelines.md) | Terraform/Wrangler、state、token、drift の契約 |"
+          },
+          {
+            "line": 10,
+            "text": "| [production/setup.md](production/setup.md) | 本番構築前の契約。すべての runtime 項目は構築時に人手検証が必要 |"
+          },
+          {
+            "line": 11,
+            "text": "| [production/runbook.md](production/runbook.md) | 本番運用契約。setup 完了・検証前は実行不可 |"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/infra/architecture.md",
+        "classification": "checked-in procedure/design contract; provider/runtime execution not verified",
+        "body_basis": [
+          {
+            "line": 36,
+            "text": "2026-07 の certificate、connection-slot、schema-owner の記述は当時の observation だった。価格、certificate coverage、schema ownership、恒久解は現在の公式 provider documentation と runtime evidence を人が再確認するまで運用判断に使わない。"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/infra/iac-guidelines.md",
+        "classification": "checked-in procedure/design contract; provider/runtime execution not verified",
+        "body_basis": [
+          {
+            "line": 3,
+            "text": "## 境界"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/infra/production/runbook.md",
+        "classification": "checked-in procedure/design contract; provider/runtime execution not verified",
+        "body_basis": [
+          {
+            "line": 46,
+            "text": "Backup existence and restore success are external facts. Record dated evidence. **Acquisition is HOLD until a human-approved method is recorded.** The acquisition record must name the owner, method (managed backup or reviewed `pg_dump` procedure), exact target identity, protected repo-external destination, acquisition timestamp, size, SHA-256 checksum, retention/expiry, receipt ID, and restore-rehearsal link. Never invent commands, destinations, or credentials from this document. Missing any field means No-Go."
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/infra/production/setup.md",
+        "classification": "checked-in procedure/design contract; provider/runtime execution not verified",
+        "body_basis": [
+          {
+            "line": 19,
+            "text": "Stop if any item is unknown. Do not infer runtime state from this draft."
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/infra/reorg-plan.md",
+        "classification": "historical plan; not current operation",
+        "body_basis": [
+          {
+            "line": 3,
+            "text": "> 2026-07-20 に起案された履歴資料。現在の操作手順・architecture SSOT ではない。現行契約は [README.md](README.md)、[architecture.md](architecture.md)、[iac-guidelines.md](iac-guidelines.md)。外部 cloud/account 状態は未検証。"
+          },
+          {
+            "line": 10,
+            "text": "| B: modules/envs/remote state | **not implemented** | Terraform は flat STG + `production/`。remote state/locking も未実装 |"
+          },
+          {
+            "line": 12,
+            "text": "| D: drift CI/token split | **not implemented or external-verification-required** | drift workflow は未実装。token の外部状態は repo から確認不能 |"
+          },
+          {
+            "line": 17,
+            "text": "- `migration-cloudflare.md` と AWS archive は物理ファイルではない。履歴調査時のみ `git show e0260d32f^:docs/ops/infra/_archive/` を使い、実行手順にしない。"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/infra/staging/runbook.md",
+        "classification": "checked-in procedure/design contract; provider/runtime execution not verified",
+        "body_basis": [
+          {
+            "line": 3,
+            "text": "> External state is verification-required. この文書は HEAD の workflow/config contract のみを説明する。"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/testing/CLAUDE.md",
+        "classification": "directory rules; requirements, not execution proof",
+        "body_basis": [
+          {
+            "line": 13,
+            "text": "ファイル索引は [README.md](README.md) を正本とする。層、環境境界、記録方針は `TEST_ARCHITECTURE.md` を正本とし、ここへ複製しない。"
+          },
+          {
+            "line": 21,
+            "text": "- 確認済み UAT FAIL は `bug.md` で重複確認・記録してから Linear で追跡する。その他の新規製品欠陥は通常の Linear intake に従う。環境 BLOCKED は `bug.md` に書かない。"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/testing/CLINICAL-E2E-DESIGN.md",
+        "classification": "checked-in procedure/design contract; provider/runtime execution not verified",
+        "body_basis": [
+          {
+            "line": 3,
+            "text": "状態: **helper + allowlist 置換済み / `--clinical` 未実行 / full suite は別承認**  "
+          },
+          {
+            "line": 4,
+            "text": "範囲の正本: [TEST_ARCHITECTURE.md](./TEST_ARCHITECTURE.md) L3  "
+          },
+          {
+            "line": 15,
+            "text": "| 会計・予約・マスタ | `accounting-*.spec.ts`、`reservations-*.spec.ts`、`master-crud.spec.ts` 等 | 同一 fixture 契約が必要なら第 2 allowlist。初回実装には入れない |"
+          },
+          {
+            "line": 80,
+            "text": "- teardown 失敗は UNREPORTED/BLOCKED。部分 PASS を full suite PASS にしない"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/testing/E2E_TESTING_GUIDE.md",
+        "classification": "checked-in procedure/design contract; provider/runtime execution not verified",
+        "body_basis": [
+          {
+            "line": 16,
+            "text": "これは予約から会計まで、入院 daily care から請求まで、LIFF から calendar/L-step tag までの一連の journey を end-to-end で保証していない。これらは target/manual acceptance journey であり、L4 の [scenarios/](scenarios/README.md) を正本とする。"
+          },
+          {
+            "line": 64,
+            "text": "Playwright は実 LINE app 内 SDK を保証しない。mock と実機の security/config boundary は [liff-verification.md](liff-verification.md)、acceptance steps は [S04](scenarios/S04-liff-reservation-journey.md) と [S12](scenarios/S12-liff-pet-health.md) を正本とする。本書には手順を複製しない。"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/testing/INTEGRATION_TEST_PLAN.md",
+        "classification": "checked-in procedure/design contract; provider/runtime execution not verified",
+        "body_basis": [
+          {
+            "line": 3,
+            "text": "> **目的**: 自動テスト実装と性能試験の現状を定義する。層定義は [TEST_ARCHITECTURE.md](TEST_ARCHITECTURE.md) を正本とする。"
+          },
+          {
+            "line": 33,
+            "text": "| steady k6 | 50 VUs、`p(95)<500` | script に threshold あり。workflow は APP_ENV=test / LOAD_TEST_LOGIN_* を配線済み。fresh DB 実行結果は UNKNOWN |"
+          },
+          {
+            "line": 37,
+            "text": "| memory 500 MB | proposed/manual target | collector、duration、threshold enforcement、artifact が未実装 |"
+          },
+          {
+            "line": 39,
+            "text": "`.github/workflows/performance-tests.yml` は cron と `workflow_dispatch` が設定されているが、「configured」は「runnable/passing」を意味しない。k6 scripts は login failure・cookie/保護 endpoint 不成立で fail-closed に終了する。workflow の test 環境では migrate の login seed を使う配線があるが、Actions/fresh DB/k6 実測結果は UNREPORTED/UNKNOWN。"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/testing/PERFORMANCE_PROFILING.md",
+        "classification": "checked-in procedure/design contract; provider/runtime execution not verified",
+        "body_basis": [
+          {
+            "line": 3,
+            "text": "> **目的**: 現在利用できる測定手段、その安全境界、未実装部分を明示する。"
+          },
+          {
+            "line": 14,
+            "text": "checks. Actual Actions, fresh-DB, and k6 execution evidence is UNREPORTED/UNKNOWN. The STG"
+          },
+          {
+            "line": 27,
+            "text": "| process/container memory | 500 MB                | collector、duration、artifact、threshold enforcement が未実装 |"
+          },
+          {
+            "line": 37,
+            "text": "`backend/scripts/profile.go` は稼働中 backend を測っていなかったため削除済み。`/debug/pprof` と `net/http/pprof` も公開されていない。現時点で live backend profiler は **未実装**。Lighthouse や k6 を pprof の代替と呼ばない。"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/testing/README.md",
+        "classification": "index/map routing to requirement and execution owners",
+        "body_basis": [
+          {
+            "line": 21,
+            "text": "| [CLINICAL-E2E-DESIGN.md](CLINICAL-E2E-DESIGN.md) | `--clinical` fixture/allowlist と未実施境界 | clinical 自動回帰の準備 |"
+          },
+          {
+            "line": 22,
+            "text": "| [S09-FIXTURE-DESIGN.md](S09-FIXTURE-DESIGN.md) | 完了時刻 fixture の package 実装と未実装の UAT 接続 | S09 BLOCKED の解消設計 |"
+          },
+          {
+            "line": 28,
+            "text": "- E2E workflow は manual・non-gating の auth smoke に合成ログインを配線済み。`--clinical` helper/allowlist も実装済みだが、実行成功・全 suite coverage は未確認。"
+          },
+          {
+            "line": 29,
+            "text": "- performance workflow は `APP_ENV=test` と `LOAD_TEST_LOGIN_*` を配線済み。実 Actions/fresh DB/k6 の結果は UNREPORTED/UNKNOWN。"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/testing/S09-FIXTURE-DESIGN.md",
+        "classification": "checked-in procedure/design contract; provider/runtime execution not verified",
+        "body_basis": [
+          {
+            "line": 3,
+            "text": "状態: **設計完了 / package helper 実装済み / HTTP・CLI・ブラウザ再実行は未 / UAT は BLOCKED**  "
+          },
+          {
+            "line": 4,
+            "text": "正本シナリオ: [S09-closing-time-boundaries.md](./scenarios/S09-closing-time-boundaries.md)  "
+          },
+          {
+            "line": 10,
+            "text": "- `synthetic_closing_env.go` は `APP_ENV=test/development/local/dev` と DB host `db/localhost/127.0.0.1` の入力値を検証する。HTTP hostname の検証や接続済み DB の同一性検証は未実装。呼び出し側から渡す値だけで実接続の安全を証明しない。"
+          },
+          {
+            "line": 12,
+            "text": "- HTTP route/CLI はなく、`POST /api/v1/uat/synthetic-closings` は下記の提案名のまま。ブラウザ用 identity と支払方法別の理論売上 fixture も未接続のため、S09 #2–#6 は **BLOCKED を維持**する。"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/testing/SECTION_14_MANUAL_TEST_GUIDE.md",
+        "classification": "checked-in procedure/design contract; provider/runtime execution not verified",
+        "body_basis": [
+          {
+            "line": 3,
+            "text": "> **目的**: L4 [scenarios](scenarios/README.md) を補う focused exploratory checks を示す。網羅的受入の正本ではない。"
+          },
+          {
+            "line": 10,
+            "text": "- real LINE/L-step/file send は human STG lane が明示承認した場合だけ。未承認なら mock または BLOCKED。"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/testing/TEST_ARCHITECTURE.md",
+        "classification": "checked-in procedure/design contract; provider/runtime execution not verified",
+        "body_basis": [
+          {
+            "line": 3,
+            "text": "> **目的**: 検証層、正本、実行手段、証跡、環境境界を一か所で定義する。"
+          },
+          {
+            "line": 14,
+            "text": "## 2. L0–L5 正本マップ"
+          },
+          {
+            "line": 16,
+            "text": "| 層  | 証明対象                             | 正本・実装                                         | 現在の実行経路                                                                                                                                                                    |"
+          },
+          {
+            "line": 21,
+            "text": "| L3  | 実装済み画面回帰                     | `frontend/e2e/`、[E2E guide](E2E_TESTING_GUIDE.md) | local `make e2e` / `frontend/scripts/run-e2e.sh`。manual GitHub workflow は non-gating の auth smoke のまま。`--clinical` helper は実装済みだが未実行。auth smoke 成功を full suite coverage と扱わない |"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/testing/UAT-DOMAIN-STATUS.md",
+        "classification": "historical execution snapshot + current static reconciliation; original contents/location unverified",
+        "body_basis": [
+          {
+            "line": 4,
+            "text": "> **正本リンク**: [scenarios/README.md](./scenarios/README.md) · [TEST_ARCHITECTURE.md](./TEST_ARCHITECTURE.md)"
+          },
+          {
+            "line": 6,
+            "text": "> **照合**: `QA-UAT-EVIDENCE-SYNC`。`reports/` は gitignore。コミット済み正本は本ファイルと [`bug.md`](../../../bug.md)。Linear は未照会（UNKNOWN）。"
+          },
+          {
+            "line": 15,
+            "text": "| BLOCKED | 1 | S09 |"
+          },
+          {
+            "line": 22,
+            "text": "| V04 受入 | **UNKNOWN**（全体 PASS ではない。下記 2026-09-06 再実行） |"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/testing/UAT-ENV-SETUP.md",
+        "classification": "checked-in procedure/design contract; provider/runtime execution not verified",
+        "body_basis": [
+          {
+            "line": 13,
+            "text": "選択した一組について全項目が確認できない場合は **BLOCKED**。別 browser の INFO や frontend/backend HTTP 200 だけで ready としない。"
+          },
+          {
+            "line": 52,
+            "text": "- migrate は続いて `backend/cmd/migrate/login_seed.go` から `seedlogin` を実行する。`APP_ENV=development/local/dev/test/staging` では catalog の合成 account/staff/医院所属と「一般」権限を upsert し、`003_login` の履歴を記録する。production・空・未知の環境では skip する。これは CSV bundle でも、任意の UAT 操作が可能な専用 account でもない。"
+          },
+          {
+            "line": 83,
+            "text": "- real LINE、external send、fixture apply、cleanup は人間の STG lane。欠落時は BLOCKED であり local PASS を代替にしない。"
+          },
+          {
+            "line": 89,
+            "text": "確認済み UAT FAIL は `bug.md` で dedupe/記録してから Linear で追跡する。environment/fixture shortage は BLOCKED とする。"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/testing/liff-verification.md",
+        "classification": "checked-in procedure/design contract; provider/runtime execution not verified",
+        "body_basis": [
+          {
+            "line": 3,
+            "text": "> **目的**: mock と実 LINE の保証範囲、設定 source、秘密管理境界を定義する。acceptance steps は [S04](scenarios/S04-liff-reservation-journey.md) と [S12](scenarios/S12-liff-pet-health.md) を正本とする。"
+          },
+          {
+            "line": 14,
+            "text": "Local mock PASS を real LINE PASS とみなさない。STG prerequisite が欠けた場合は BLOCKED/Needs Human とする。"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/testing/scenarios/FIELD-LEVEL-PROTOCOL.md",
+        "classification": "acceptance protocol; executed results must come from external receipts",
+        "body_basis": [
+          {
+            "line": 5,
+            "text": "> **正本の位置**: 本ファイルは手順定義。項目一覧は [FORM-FIELD-INVENTORY.md](FORM-FIELD-INVENTORY.md)。フォーム手順は V01〜V05。"
+          },
+          {
+            "line": 14,
+            "text": "4. 仕様に期待がない項目は 【要実測】として観測する。実装/テスト/承認済み仕様の根拠を確認して inventory / V シナリオへ反映し、観測した挙動だけを正しい仕様と決めない。仕様判断が残る項目は PARTIAL/BLOCKED とする。"
+          },
+          {
+            "line": 30,
+            "text": "| **F5** | 任意の空クリア | 値あり → 空にして保存（nullable の場合） | null/空が永続。省略 PATCH で消えない契約がある場合はその仕様どおり | `required=no` かつクリア可 |"
+          },
+          {
+            "line": 71,
+            "text": "| BLOCKED | 環境・権限・fixture 不足 |"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/testing/scenarios/FORM-FIELD-INVENTORY.md",
+        "classification": "acceptance protocol; executed results must come from external receipts",
+        "body_basis": [
+          {
+            "line": 66,
+            "text": "| （fixture field keys） | C   | 定義依存  | 実行前に承認済み健診定義の exact key を run report inventory に列挙する。この source inventory が未完の間は V01 完了不可 |"
+          },
+          {
+            "line": 105,
+            "text": "| （fixture result field keys） | C   | number/text | 実行前に `exam_type_field_id` ごとの exact key を run report inventory に列挙する。この source inventory が未完の間は V01 完了不可 |"
+          },
+          {
+            "line": 109,
+            "text": "独立フォームも `pet_id`、`medical_record_id`（該当時）、`vaccine_id`、`date`、`lot1..lot4`、`next_date`、`supplemental`、`next_schedule_type`、`remarks` を個別に記録する。未来日接種拒否・次回予定境界（接種日と同日拒否）を含め、タブ表の適用可能な全Fを実施する。"
+          },
+          {
+            "line": 117,
+            "text": "| （fixture checkup field keys） | C   | 実行前に exact key を run report inventory に列挙。この source inventory が未完の間は完了不可 |"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/testing/scenarios/LAB_DEVICE_CLIENT_UAT.md",
+        "classification": "acceptance protocol; executed results must come from external receipts",
+        "body_basis": [
+          {
+            "line": 7,
+            "text": "各項目を`PASS` / `FAIL` / `BLOCKED` / `未実施`のいずれかで記録する。確認できていない項目を推測で`PASS`にしない。"
+          },
+          {
+            "line": 31,
+            "text": "| 1 | `/lab-device`を開く | 「稼働中・2ポート監視」。NX600/AU10Vは「自動監視中」 | 未実施 | |"
+          },
+          {
+            "line": 32,
+            "text": "| 2 | NX600から検査結果を1件送信 | NX600だけが「受信中」になり、画面の値・単位・フラグが機器表示と一致 | 未実施 | |"
+          },
+          {
+            "line": 33,
+            "text": "| 3 | AU10Vから検査結果を1件送信 | AU10Vだけが「受信中」になり、画面の値・単位・フラグが機器表示と一致 | 未実施 | |"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/testing/scenarios/README.md",
+        "classification": "acceptance protocol; executed results must come from external receipts",
+        "body_basis": [
+          {
+            "line": 6,
+            "text": "> **アーキテクチャ正本**: [../TEST_ARCHITECTURE.md](../TEST_ARCHITECTURE.md)（L4 受入層）"
+          },
+          {
+            "line": 10,
+            "text": "| 領域 | 正本 |"
+          },
+          {
+            "line": 67,
+            "text": "- **環境**: 自動投入されるのは `002_master` の参照マスタだけ。各シナリオに記載した合成 fixture を、承認済み UAT skeleton/import 手順でローカルの使い捨て clinic に作成する。手順の正本が `../UAT-ENV-SETUP.md` で修正済みであることを実行前に確認する。共有 STG、既存患者・飼主、固定 ID は使用しない。"
+          },
+          {
+            "line": 69,
+            "text": "- **製品 FAIL は `bug.md` 必須**（確認済みのみ · 見出し重複禁止 · env/権限 BLOCKED は書かない）。PARTIAL は bug.md にしない。Linear Issue 化は後続レーン。"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/testing/scenarios/S01-deceased-pet-guard.md",
+        "classification": "acceptance protocol; executed results must come from external receipts",
+        "body_basis": [
+          {
+            "line": 5,
+            "text": "> **仕様正本**: [specification.md §2.1](../../../spec/specification.md)・[screens/00-pet-selection.md](../../../spec/screens/00-pet-selection.md)・[screens/02-reservations.md](../../../spec/screens/02-reservations.md)・[screens/04-owners-form.md](../../../spec/screens/04-owners-form.md)・[screens/09-hospitalization-form.md](../../../spec/screens/09-hospitalization-form.md)・[line/lstep-integration.md §4](../../../spec/line/lstep-integration.md)"
+          },
+          {
+            "line": 43,
+            "text": "| A3 | 死亡登録済みペットの過去のカルテ・会計履歴を参照する | 死亡ペットを含む飼主の会計履歴から過去会計詳細をオープン可能（閲覧ブロックなし。ブロック対象は新規データ作成 — [00-pet-selection.md](../../../spec/screens/00-pet-selection.md)） |"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/testing/scenarios/S02-exam-abnormal-highlight-lock.md",
+        "classification": "acceptance protocol; executed results must come from external receipts",
+        "body_basis": [
+          {
+            "line": 5,
+            "text": "> **仕様正本**: [specification.md §2.1](../../../spec/specification.md)・[screens/12-examinations-list.md](../../../spec/screens/12-examinations-list.md)・[screens/13-examinations-form.md](../../../spec/screens/13-examinations-form.md)"
+          },
+          {
+            "line": 27,
+            "text": "| 8 | examinations view のみを持つ専用 attached accountでログインし、確定操作・結果入力を試行する | examinations の view は許可されるためフォームは見えるが、fieldset 無効・保存ボタンなし。第2アカウントが無い環境はBLOCKEDとして記録し、このscenarioを完了扱いにしない |"
+          },
+          {
+            "line": 35,
+            "text": "- 検査一覧の進捗フィルタ（依頼中/検査中/結果入力済み/完了/確定）の全 5 ステータスで、現在取得済みのページ内から対象検査が正しく抽出できること（BE enum: pending/in_progress/result_entered/completed/confirmed。フィルタはクライアント側適用 — [12 §1.1](../../../spec/screens/12-examinations-list.md)）。"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/testing/scenarios/S03-vaccination-next-due-autocalc.md",
+        "classification": "acceptance protocol; executed results must come from external receipts",
+        "body_basis": [
+          {
+            "line": 5,
+            "text": "> **仕様正本**: [specification.md §2.1](../../../spec/specification.md)・[screens/14-vaccinations-list.md](../../../spec/screens/14-vaccinations-list.md)・[screens/15-vaccinations-form.md](../../../spec/screens/15-vaccinations-form.md)"
+          },
+          {
+            "line": 30,
+            "text": "- 種によるマスタ絞り込みは未実装（BUG-408 残置）— 犬/猫製品が combobox に混在しうるのは現状仕様。"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/testing/scenarios/S04-liff-reservation-journey.md",
+        "classification": "acceptance protocol; executed results must come from external receipts",
+        "body_basis": [
+          {
+            "line": 5,
+            "text": "> **仕様正本**: [screens/37-line-reserve-owner-flow.md](../../../spec/screens/37-line-reserve-owner-flow.md)（画面・Vite rewrite・maintenance）。エンジン補助は [line/reservation-spec.md](../../../spec/line/reservation-spec.md)"
+          },
+          {
+            "line": 34,
+            "text": "- 予約の「変更」機能と前日リマインドは未実装 — 変更導線が無いことは欠陥ではない。"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/testing/scenarios/S05-hospitalization-cycle.md",
+        "classification": "acceptance protocol; executed results must come from external receipts",
+        "body_basis": [
+          {
+            "line": 5,
+            "text": "> **仕様正本**: [specification.md §3.1](../../../spec/specification.md)・[screens/07-hospitalization-list.md](../../../spec/screens/07-hospitalization-list.md)・[screens/08-hospitalization-detail.md](../../../spec/screens/08-hospitalization-detail.md)・[screens/09-hospitalization-form.md](../../../spec/screens/09-hospitalization-form.md)"
+          },
+          {
+            "line": 24,
+            "text": "| 6 | 入院一覧に戻り、タブとボードを確認する | 当該患者が「入院中」タブから消え「退院済」タブに表示される（[07 §2](../../../spec/screens/07-hospitalization-list.md)）。「入院中」タブのボードで当該ケージは空きに戻る。「退院済」タブのボードは退院患者を最終ケージ位置に表示し続ける（履歴表示） |"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/testing/scenarios/S06-record-lock-audit-trail.md",
+        "classification": "acceptance protocol; executed results must come from external receipts",
+        "body_basis": [
+          {
+            "line": 5,
+            "text": "> **仕様正本**: [specification.md §2.1](../../../spec/specification.md)・[screens/05-medical-records-list.md](../../../spec/screens/05-medical-records-list.md)・[screens/06-medical-records-form.md](../../../spec/screens/06-medical-records-form.md)"
+          },
+          {
+            "line": 21,
+            "text": "| 4 | 会計確認前に「確定する」を確認し、その後「会計(医師確認)」を完了してから確定（Lock）する | 会計確認の loading/error/未確認時は fail-closed で disabled、title は「会計確認が未完了です」。会計確認が `confirmed` になった後だけ確定ダイアログを開ける。確定後はステータスが `finalized`、確定済みバナーが表示され、ボタンは消える |"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/testing/scenarios/S07-estimate-status-control.md",
+        "classification": "acceptance protocol; executed results must come from external receipts",
+        "body_basis": [
+          {
+            "line": 5,
+            "text": "> **仕様正本**: [見積一覧](../../../spec/screens/22-estimate-list.md) / [見積作成・編集](../../../spec/screens/23-estimate-form.md) / [見積詳細](../../../spec/screens/26-estimate-detail.md)"
+          },
+          {
+            "line": 25,
+            "text": "| 8 | 一覧の状態フィルタで「承認済み」「却下」を順に絞り込む | それぞれ検証用A / 検証用B が含まれる（seed 既存 approved/rejected が無い場合は当該 2 件のみ。仕様正本 22 §1.1 状態フィルタ） |"
+          },
+          {
+            "line": 33,
+            "text": "- **削除の性質**: 見積の削除は論理削除（仕様正本 22 §2）。#9 の削除後、一覧に再表示されないこと。"
+          },
+          {
+            "line": 35,
+            "text": "- **割引権限**: 見積フォームの割引額欄は discount 権限を持たないユーザーには無効化される（仕様正本 23 §1.2）。「執行」ロールでは入力可能であること。"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/testing/scenarios/S08-accounting-corrections.md",
+        "classification": "acceptance protocol; executed results must come from external receipts",
+        "body_basis": [
+          {
+            "line": 5,
+            "text": "> **仕様正本**: [会計一覧](../../../spec/screens/10-accounting-list.md) / [会計精算](../../../spec/screens/11-accounting-detail.md) / [未納者一覧](../../../spec/screens/30-unpaid-list.md) / [レジ締め業務](../../../spec/cash-register.md)"
+          },
+          {
+            "line": 11,
+            "text": "- append-only 会計/締め記録を含むため、専用 clinic/date と cleanup/破棄手順が確認できない環境では BLOCKED とする。"
+          },
+          {
+            "line": 42,
+            "text": "- **締め済み期間の通常編集**: 締め済み期間の会計を通常の編集で再保存する場合も修正理由（`post_close_reason`）の入力（必須）が要求され、監査ログに記録される（仕様正本 11 §2.1・#115）。警告表示の検証は S09 #8 で行う。"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/testing/scenarios/S09-closing-time-boundaries.md",
+        "classification": "acceptance protocol; executed results must come from external receipts",
+        "body_basis": [
+          {
+            "line": 5,
+            "text": "> **仕様正本**: [レジ締め業務](../../../spec/cash-register.md) / [レジ締め・履歴](../../../spec/screens/29-closing-aggregation.md) / [締め時間設定](../../../spec/screens/settings/closing-time-settings.md) / [会計精算](../../../spec/screens/11-accounting-detail.md)"
+          },
+          {
+            "line": 11,
+            "text": "- 完了時刻 10:00 / 13:30 / 14:00 / 20:00 / 翌 02:00 の合成会計 5 件は、承認済み fixture API または scoped test helper で作成する。直接 DB 更新、システム時計変更、既存会計の改変は禁止。helper がなければ USER-only/BLOCKED とする。"
+          },
+          {
+            "line": 26,
+            "text": "| 9 | 締め履歴 `/accounting/close/history` を開く | 既定期間は JST 当月。#7 が当月なら一覧に出る。行クリックで当時の売上内訳を再確認できる。他月を見ると消えたように見えるのは仕様 |"
+          },
+          {
+            "line": 27,
+            "text": "| 10 | 締め履歴の区分フィルタで「AM」を選択 | #7 の記録を含む AM 区分の締めのみに絞り込まれる |"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/testing/scenarios/S10-customer-aggregation-consistency.md",
+        "classification": "acceptance protocol; executed results must come from external receipts",
+        "body_basis": [
+          {
+            "line": 5,
+            "text": "> **仕様正本**: [顧客分析・集計機能](../../../spec/customer-aggregation.md) / [顧客集計ダッシュボード](../../../spec/screens/36-aggregation-dashboard.md)"
+          },
+          {
+            "line": 28,
+            "text": "| 10 | 一覧で飼主 A の行をチェックし CSV 出力を実行 | 表示中のリスト内容が CSV としてダウンロードされる（仕様正本 36 §1.3） |"
+          },
+          {
+            "line": 29,
+            "text": "| 11 | 一覧の飼主名（飼主 A）をクリック | 飼主詳細 `/owners/:id` へ遷移し、会計履歴セクションで #5 と同じ会計が確認できる（ドリルダウン） |"
+          },
+          {
+            "line": 39,
+            "text": "- **CPM チップの固定**: 画面チップは V1 の 6 区分 + Unclassified。医院設定の CPM バージョンが V2 でもこの一覧は切り替わらない（仕様正本 36 §1.2）。"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/testing/scenarios/S11-trimming-combined-accounting.md",
+        "classification": "acceptance protocol; executed results must come from external receipts",
+        "body_basis": [
+          {
+            "line": 5,
+            "text": "> **仕様正本**: [screens/16-trimming-list.md](../../../spec/screens/16-trimming-list.md)・[screens/17-trimming-form.md](../../../spec/screens/17-trimming-form.md)・[screens/10-accounting-list.md](../../../spec/screens/10-accounting-list.md)・[screens/11-accounting-detail.md](../../../spec/screens/11-accounting-detail.md)・[reservation-to-record-flow.md §5.2-G/§8/§10](../../../spec/reservation-to-record-flow.md)"
+          },
+          {
+            "line": 43,
+            "text": "| A2 | 同じ飼主の別ペットに同日の未請求明細（処置またはトリミング）を作った上で、対象ペットの会計新規作成を開く | 別ペットの明細は混入しない。未請求 API は `pet_id` 単位（`GetUnbilledItemDetails`）。同日 multi-pet fixture が無い環境はBLOCKEDとして記録し、このscenarioを完了扱いにしない |"
+          },
+          {
+            "line": 44,
+            "text": "| A3 | 手順 5 の統合会計（未精算）から一方の明細を削除して精算する | 明細削除は `DeleteItem`（soft-delete）。未請求クエリは `deleted_at IS NULL` のため削除行は再候補になる。精算済み会計からの削除は `rejectIfBillingFinalized` で拒否。統合 fixture が無い環境はBLOCKEDとして記録し完了扱いにしない |"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/testing/scenarios/S12-liff-pet-health.md",
+        "classification": "acceptance protocol; executed results must come from external receipts",
+        "body_basis": [
+          {
+            "line": 5,
+            "text": "> **仕様正本**: [line/architecture.md §2 認証・紐付けロジック](../../../spec/line/architecture.md)・[screens/04-owners-form.md §1.3](../../../spec/screens/04-owners-form.md)・[screens/38-liff-pet-health.md](../../../spec/screens/38-liff-pet-health.md)。実装参照: `frontend/liff/src/pages/PetHealthPage.tsx`・`backend/internal/reservation/liff_service_health_card.go`。"
+          },
+          {
+            "line": 38,
+            "text": "- 本シナリオの LIFF アプリはペットヘルス・連携用（`frontend/liff`）であり、LINE 予約アプリ（line-reserve — [S04](S04-liff-reservation-journey.md)）とは別アプリ。予約機能の検証は S04 が正本。"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/testing/scenarios/S13-identity-links-manual-correction.md",
+        "classification": "acceptance protocol; executed results must come from external receipts",
+        "body_basis": [
+          {
+            "line": 3,
+            "text": "> **目的**: 2 医院にまたがる同一飼主・ペットを、権限のあるスタッフが手動で link し、連携治療履歴を確認し、誤リンクを unlink してから正しい組み合わせで relink できることを納品前に証明する。"
+          },
+          {
+            "line": 5,
+            "text": "> **仕様正本**: [screens/40-identity-links.md](../../../spec/screens/40-identity-links.md)。実装参照: `backend/internal/identitylink/`・`frontend/src/features/identity-links/`。"
+          },
+          {
+            "line": 10,
+            "text": "- clinic A/B、両 clinic に所属して `identity-links:view/edit` を持つ attached actor、各 clinic の合成 owner/pet/診療履歴を明示的に作成する。"
+          },
+          {
+            "line": 22,
+            "text": "| 4 | 選択ペットの「連携履歴」を押す | `include_linked` で相関ペットの治療履歴（または「（履歴なし）」）が表示される。他 clinic の非リンクペットは出ない |"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/testing/scenarios/UAT-254-CLOSE-CHECKLIST.md",
+        "classification": "acceptance protocol; executed results must come from external receipts",
+        "body_basis": [
+          {
+            "line": 10,
+            "text": "4. 証跡は `reports/uat-YYYY-MM-DD/` に保存する。確認済み製品 FAIL は root `bug.md` に記録する。環境・権限・fixture BLOCKED は bug にしない。"
+          },
+          {
+            "line": 17,
+            "text": "| Flow | Scenario / 正本 | Required boundary |"
+          },
+          {
+            "line": 42,
+            "text": "- ignored report が checkout にないことを未実施/完了の根拠にする"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/testing/scenarios/V01-clinical-forms.md",
+        "classification": "acceptance protocol; executed results must come from external receipts",
+        "body_basis": [
+          {
+            "line": 6,
+            "text": "> **項目単位**: [FIELD-LEVEL-PROTOCOL.md](FIELD-LEVEL-PROTOCOL.md) + [FORM-FIELD-INVENTORY.md](FORM-FIELD-INVENTORY.md) §V01。C1 は入口。**全 fieldKey に F0–F6 を適用**して完了とする（代表 1 項目のみでは未完了）。"
+          },
+          {
+            "line": 7,
+            "text": "> **仕様正本**: [screens/06-medical-records-form.md](../../../spec/screens/06-medical-records-form.md)・[screens/13-examinations-form.md](../../../spec/screens/13-examinations-form.md)・[screens/15-vaccinations-form.md](../../../spec/screens/15-vaccinations-form.md)・[screens/25-checkups-list.md](../../../spec/screens/25-checkups-list.md)・[screens/08-hospitalization-detail.md](../../../spec/screens/08-hospitalization-detail.md)・[screens/09-hospitalization-form.md](../../../spec/screens/09-hospitalization-form.md)・[screens/17-trimming-form.md](../../../spec/screens/17-trimming-form.md)"
+          },
+          {
+            "line": 13,
+            "text": "- finalized/audit は S06、異常値は S02、次回予定は S03、入院 cycle は S05 を正本とする。S06 用 finalized record は会計(医師確認)を confirmed にしてから作成する。"
+          },
+          {
+            "line": 46,
+            "text": "- 削除（無効化）済みマスタ参照の挙動 → §12 trimming-form でのみ確認（#228 が仕様正本）。"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/testing/scenarios/V02-accounting-reservation-forms.md",
+        "classification": "acceptance protocol; executed results must come from external receipts",
+        "body_basis": [
+          {
+            "line": 7,
+            "text": "> **仕様正本**: [screens/11-accounting-detail.md](../../../spec/screens/11-accounting-detail.md)・[screens/29-closing-aggregation.md](../../../spec/screens/29-closing-aggregation.md)・[screens/23-estimate-form.md](../../../spec/screens/23-estimate-form.md)・[screens/02-reservations.md](../../../spec/screens/02-reservations.md)・[screens/01-reception.md](../../../spec/screens/01-reception.md)・[screens/24-shift-calendar.md](../../../spec/screens/24-shift-calendar.md)・在庫は `frontend/src/features/inventory`"
+          },
+          {
+            "line": 12,
+            "text": "- 作成データは `V02` 接頭辞を使う。レジ締めは append-only のため、専用 clinic/date、hostname/environment fail-closed check、破棄手順が揃わなければ BLOCKED。共有 STG では実施しない。"
+          },
+          {
+            "line": 59,
+            "text": "| 6 | (C3-2) 既に会計が存在するカルテから 2 件目の会計を作成しようとする | DB partial UNIQUE → Create は HTTP **409**。FE 主 UI は `medical_record_id` 未送信のため UNIQUE に届かない。同一 medical_record 2 件目 fixture が無い環境は API 直のみ（BLOCKEDとして記録し完了扱いにしない） |"
+          },
+          {
+            "line": 80,
+            "text": "- 起動: `/accounting/:id`（確定済み会計 + accounting-post-close-edit 権限 + カード/電子マネー支払がある場合のみ導線表示）。業務フロー正本は [S08](S08-accounting-corrections.md)。"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/testing/scenarios/V03-owner-pet-staff-forms.md",
+        "classification": "acceptance protocol; executed results must come from external receipts",
+        "body_basis": [
+          {
+            "line": 7,
+            "text": "> **仕様正本**: [screens/04-owners-form.md](../../../spec/screens/04-owners-form.md)・[screens/settings/master-staff.md](../../../spec/screens/settings/master-staff.md)・[screens/settings/master-permission-group.md](../../../spec/screens/settings/master-permission-group.md)・[screens/19-clinic-settings.md](../../../spec/screens/19-clinic-settings.md)"
+          },
+          {
+            "line": 13,
+            "text": "- クロステナント隔離は automated isolation test、死亡登録の副作用は S01 を正本とする。"
+          },
+          {
+            "line": 80,
+            "text": "- pets に一意制約なし（C3-2 該当なし）・モーダルのため専用 URL なし（C3-3 該当なし）。品種はフリーテキストで FK ではない。飼主付け替え（BUG-373 警告モーダル）は component test 正本のため対象外。"
+          },
+          {
+            "line": 82,
+            "text": "## 3. ペット新規追加 — 新規飼主のペンディング一括登録（pet-add-pending-new-owner）"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/testing/scenarios/V04-settings-master-forms.md",
+        "classification": "acceptance protocol; executed results must come from external receipts",
+        "body_basis": [
+          {
+            "line": 8,
+            "text": "> **仕様正本**: [screens/settings/ 配下各文書](../../../spec/screens/settings/README.md)（差分表・各セクションに個別文書を明記）・[screens/31-lstep-integration.md](../../../spec/screens/31-lstep-integration.md)"
+          },
+          {
+            "line": 53,
+            "text": "実行方法: 各行で **C1-1（必須欄空→エラー）→ 新規「V04〇〇」作成 → C2-1〜C2-3 → 一意制約列が「—」以外なら C3-2** を実施し、特記チェック列の指示を追加実行する。画面正本は [screens/settings/](../../../spec/screens/settings/README.md) 配下の各文書 — 同名文書がある形（例: `master-cage.md`）のほか、診断カテゴリ/病名→`master-diagnosis.md`、問診テンプレート→`master-interview.md`、物販→`master-merchandise.md`、キャンペーン→`master-campaigns.md`、支払方法→`payment-methods.md`、トリミングコース/オプション→`master-trimming.md`、予約区分グループ→`master-reservation-type.md`。"
+          },
+          {
+            "line": 79,
+            "text": "- ルート: `/settings/treatment-items?tab=consultation|examination|procedure|vaccine|checkup`。正本: [master-treatment.md](../../../spec/screens/settings/master-treatment.md)（検査タブは [master-examinations.md](../../../spec/screens/settings/master-examinations.md)）。"
+          },
+          {
+            "line": 93,
+            "text": "- ルート: `/settings/medicine`。正本: [master-medicine.md](../../../spec/screens/settings/master-medicine.md)。"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      },
+      {
+        "path": "docs/ops/testing/scenarios/V05-auth-line-forms.md",
+        "classification": "acceptance protocol; executed results must come from external receipts",
+        "body_basis": [
+          {
+            "line": 7,
+            "text": "> **仕様正本**: [screens/21-login.md](../../../spec/screens/21-login.md)・[screens/28-line-reservation.md](../../../spec/screens/28-line-reservation.md)・[screens/31-lstep-integration.md](../../../spec/screens/31-lstep-integration.md)・[line/reservation-spec.md](../../../spec/line/reservation-spec.md)・[line/architecture.md](../../../spec/line/architecture.md)"
+          },
+          {
+            "line": 12,
+            "text": "- LIFF/line-reserve はローカル mock lane を使う。実 LINE token が必要な項目は USER 管理 lane がなければ BLOCKED。"
+          },
+          {
+            "line": 30,
+            "text": "- クロステナント隔離は本シナリオのスコープ外（BE isolation テスト群が正本）。"
+          },
+          {
+            "line": 72,
+            "text": "| 5 | 手順 4 で使用済みのトークンで再度確定 | 拒否される（ワンタイムトークン・有効期限 1 時間 — [21-login.md §2](../../../spec/screens/21-login.md)。期限切れを実行できない場合は BLOCKED として run report に理由を記録） |"
+          }
+        ],
+        "boundary": "Body-role classification + local links and static Make/script/workflow/config references; no operation performed."
+      }
+    ],
+    "reported_final_checks": "LINK_CHECK files=73 broken=0; Make refs=89 actual missing=0 after historical/wildcard review; script refs=42; workflow refs=38; current RQ004/005/006/008 PASS; CRITICAL/HIGH=0",
+    "static_exceptions": [
+      "OLD_DB_HANDOFF_LOCAL.md:34 make csv-import-* is wildcard; concrete Makefile targets:192,196,203",
+      "SEED_MIGRATION_OPERATIONS.md:68 make seed-old-db explicitly retired",
+      "CLINICAL-E2E-DESIGN.md:103 / E2E_TESTING_GUIDE.md:39 script after cd frontend resolves",
+      "STG-DEMO-DATA-LIFECYCLE.md:69 stg-smoke-cleanup.yml explicitly unimplemented proposal",
+      "infra/staging/runbook.md:7 pnpm-lock.yaml is path filter, not workflow"
+    ]
+  }
+}

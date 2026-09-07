@@ -190,8 +190,16 @@ ALTER TABLE owners ADD COLUMN IF NOT EXISTS middle_name TEXT;
 **接続エラー** (`failed to connect to postgres`):
 ```bash
 docker compose ps db                                              # コンテナ起動確認
-docker compose exec db psql -U "$DB_USER" -d "$DB_NAME" -c "\conninfo"
-docker compose exec backend env | grep DB                         # 環境変数確認
+# allowlist の有無だけを確認する。値、全環境、認証情報は出力しない
+docker compose exec backend sh -c '
+  for name in DB_HOST DB_PORT DB_USER DB_NAME; do
+    if printenv "$name" >/dev/null; then
+      printf "%s=set\n" "$name"
+    else
+      printf "%s=unset\n" "$name"
+    fi
+  done
+'
 ```
 
 **ロック待ち**（クエリがハング）:

@@ -1,6 +1,6 @@
 ---
 name: browser-test
-description: Chrome DevTools MCPを使ったブラウザ機能テスト。docs/ops/testing/SECTION_14_MANUAL_TEST_GUIDE.mdのシナリオを実行し、結果をテスト結果レポートとして出力する。Haikuモデルでコスト効率よく実行。
+description: Chrome DevTools MCPを使ったブラウザ機能テスト。docs/ops/testing/SECTION_14_MANUAL_TEST_GUIDE.mdのシナリオを実行し、結果をテスト結果レポートとして出力する。
 ---
 
 # ブラウザ機能テスト スキル
@@ -18,26 +18,23 @@ description: Chrome DevTools MCPを使ったブラウザ機能テスト。docs/o
 
 **受入正本**: `docs/ops/testing/scenarios/` · アーキテクチャ: `docs/ops/testing/TEST_ARCHITECTURE.md`  
 フォーム V は `FIELD-LEVEL-PROTOCOL.md` を全 fieldKey に適用。環境: `UAT-ENV-SETUP.md`。  
-FAIL 起票先: root `todo.md` 受入バグ節（旧 STATUS.md 記述は廃止）。
+FAIL 起票先: 確認済み製品 FAIL は root `bug.md` に記録し、その後 Linear Issue 化する。旧 STATUS.md は復活させない。外部投稿の許可がなければレビュー可能な下書きまでで止める。
 
 ---
 
-## ⚠️ 必須: Haiku Agent で実行せよ
+## 実行契約
 
-このスキルが呼ばれたら、**以下の手順を必ず守れ**：
+モデル名（Haiku / Sonnet 等）で可否を決めない。Chrome DevTools はプロジェクト共有 MCP として `http://127.0.0.1:9222` を対象にする。認証は指定環境の契約（`E2E_LOGIN_EMAIL` / `E2E_LOGIN_PASSWORD` 等）へ案内し、固定資格情報例や値をレポートに書かない。
 
 1. 対象が SECTION_14 なら同ガイド、**scenarios ID（Sxx/Vxx）なら `docs/ops/testing/scenarios/`** から手順を読む。V シリーズは `FIELD-LEVEL-PROTOCOL.md` + `FORM-FIELD-INVENTORY.md` も読む
-2. **`Agent` ツールを `model: "haiku"` で起動**し、ブラウザテストを委譲する
-3. Haiku Agent の結果を受け取り、テスト結果レポートとして出力する（シナリオ md / SECTION_14 本体は編集しない）
-
-メインセッション（Sonnet）は直接 Chrome DevTools MCP ツールを呼ばないこと。
-すべてのブラウザ操作は Haiku Agent に委譲する。
+2. ブラウザ操作は副作用範囲がテスト実行に閉じている場合、現セッションで完了してよい
+3. 結果をテスト結果レポートとして出力する（シナリオ md / SECTION_14 本体は編集しない）
 
 ---
 
-## Haiku Agent へ渡すプロンプトテンプレート
+## 実行プロンプトテンプレート
 
-以下を Haiku Agent のプロンプトとして使用せよ（対象セクション情報を埋めてから渡す）：
+対象セクション情報を埋めてから使う：
 
 ```
 あなたは Animal Ekarte（動物病院電子カルテシステム）のブラウザ機能テスト担当エージェントです。
@@ -108,19 +105,17 @@ Chrome DevTools MCP を使って指定されたテスト項目を実行し、結
 
 ---
 
-## メインセッション（Sonnet）の役割
-
-Haiku Agent の結果を受け取った後：
+## 結果の記録
 
 1. **テスト結果レポートを出力**する
    - 結果は scenarios / SECTION_14 本体ではなく `reports/uat-YYYY-MM-DD/` またはセッション報告
-   - NG 項目は root `todo.md` 受入バグ節へ `### BUG-XXX`（ローカル連番 最大+1）。環境・決裁は `todo-po.md`
+   - 確認済み製品 FAIL は `bug.md` に記録し、その後 Linear Issue 化する。STATUS.md や旧二台帳は復活させない
 
 2. **サマリを表示**する
    ```
    ## テスト完了: {対象}
    - OK: X件 / NG: Y件 / Partial: Z件
-   - 新規バグ: BUG-XXX（あれば）
+   - 新規バグ: Linear / bug.md（あれば）
    ```
 
 ---

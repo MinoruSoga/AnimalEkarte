@@ -8,7 +8,7 @@ func TestAuthUseCaseSurface(t *testing.T) {
 	t.Helper()
 
 	_ = NewAccountService
-	_ = NewAuthService
+	_ = NewService
 	_ = NewTokenService
 	_ = NewTokenBlacklistService
 	_ = NewPasswordResetService

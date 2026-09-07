@@ -1,0 +1,45 @@
+{
+  "verdict": "PASS",
+  "checks": [
+    {
+      "criterion": "Phase A優先・調査正本と役割",
+      "result": "PASS",
+      "detail": "LEDGER.md:169–194 が配置確認→本文採否の順序と全artifactの役割を記録。直接実行した verify-astra-loop.py は work入口3経路と全docsローカルリンク欠落0を確認。実行順序は記録された実行事実に依拠し、現在のファイルだけで時系列を独立証明したとはしない。"
+    },
+    {
+      "criterion": "先行12ファイルの採否・追加allowlist",
+      "result": "PASS",
+      "detail": "astra-loop-draft.patchの12パスを直接抽出し、LEDGER.md:215–226 のadopt7/amend5/revert0と一致。追加の docs/spec/screens/31-lstep-integration.md:69 は同じRQ003の参照補完で、LEDGER.md:240 に追加理由、CHILD-GOALS/spec.md:6 に docs/spec/** の認可がある。"
+    },
+    {
+      "criterion": "RQ処理・外部依存・親active",
+      "result": "PASS",
+      "detail": "REPAIR-QUEUE.md:9–19 はdocs-owned9件resolved、RQ005 index-resolved、RQ002 external-scopeを区別。manual workflow:111–112、manual screens/05-accounting.md:68、docs/spec/screens/99-medical-record-flow.md:41 の矛盾を直接再確認。OPERATION_MANUAL.md:34,257 は未修復依存を明示。直接検証でRQ002 manual hash不変、GOAL.yaml:5 active。"
+    },
+    {
+      "criterion": "安全・bulk契約・画面案内・証跡",
+      "result": "PASS",
+      "detail": "34-lstep-delivery-monitor.md:48,60 と31-lstep-integration.md:69 は安全gapとfallbackを既存是正ownerへ委譲し、通常bulk-read必須を維持。lstep_delivery_trigger_state.go:11–38 のpet status読取不在とbatch.go:106,143,153 のfallbackを直接照合。settings/README.md:28 はitem-masters設定と受信ボードを分離し、ADR-007:161–171と整合。UAT-DOMAIN-STATUS.md:27 は原証跡の内容・所在未確認、STG-CONTINUOUS-OPERATIONS.md:235–236 は一時採取と正式保存を区別し、ops/CLAUDE.md:25に整合。"
+    },
+    {
+      "criterion": "全件証拠・契約と達成状態の境界",
+      "result": "PASS",
+      "detail": "astra-loop-readers.jsonのarchitecture22/spec80/ops73件は実在集合と直接比較してmissing/extra/duplicate全0、spec/ops引用本文の行照合も不一致0。delivery4/work6/PP2はLEDGER.md:289–303で個別判定。readers.json:8と各boundary、LEDGER.md:270–273,308が全命題・全API/UI・runtime認定を明示的に除外。ERD/RBAC/package、Make/script/workflowの照合結果は記録された読者実測として扱い、私自身が全件source auditを再実行したとはしない。"
+    },
+    {
+      "criterion": "baseline-relative所有権・共有WIP",
+      "result": "PASS",
+      "detail": "直接検証でHEAD/index不変、tracked docs差分はowned6件＋別記foreign3件、docs外追加差分5件もownership.jsonの観測hashと一致。LEDGER.md:315–320は後発ADR等を今回の採用差分に吸収せず、35→36 package pinの観測時点を区別。親以外の書込なしという行為履歴は所有権receiptに依拠し、全tree不変とは認定しない。"
+    },
+    {
+      "criterion": "決定的gate・失敗回復・反復上限",
+      "result": "PASS",
+      "detail": "安全性を読んでから verify-astra-loop.py を直接実行しexit0、末尾 RESULT PASS phase=draft。199 Markdown集合、リンク、RQ、manual不変、所有権、diff --check、validation記録、secret patternの各gateがPASS。astra-loop-drift.txtはexit0/565トークンの記録済み実行証拠で、運用スクリプトは再実行していない。LEDGER.md:305–320に証拠深度・所在断定・共有差分誤判定の回復記録、GOAL.yamlのparent_loopに5units/2fixes/3回停止がある。A7 PENDINGと子IN_REVIEWは正しくレビュー未完を保持しており、両独立レビュー後の最終照合へ進める状態。"
+    }
+  ],
+  "critical_issues": [],
+  "suggestions": [
+    "最終化時にLEDGER.md:160の「Phase A完了、B/C待ち」とREADME.mdの「次アクション」を現在段階へ揃える。現在の詳しい本文とは進行表現がずれている。",
+    "最終Completion Reportでは、今回の直接検証、読者の記録済み実測、未実施runtimeを引き続き区別する。"
+  ]
+}

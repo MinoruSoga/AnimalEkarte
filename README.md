@@ -71,7 +71,6 @@ make codegen
 | `docker-compose.yml` | 本体（`make up`）+ profile `docs`（`make docs-ui`）+ profile `csv-import`（`make csv-import-*`） |
 | `docker-compose.a4-rehearsal.yml` | 旧カルテ移行の画面リハーサル用 overlay。共有 DB 禁止。正式 bundle 待ちのため残置 |
 | `docker-compose.f8-g4-rehearsal.yml` | 移行失敗系の隔離リハーサル。本体に混ぜると共有 DB を壊し得るため別ファイル |
-| `pnpm-lock.yaml` | ルート pnpm lock（Compose ではない） |
 
 ## 📖 ドキュメント体系 (詳細は [docs/README.md](docs/README.md) 参照)
 

@@ -2,7 +2,6 @@ package medicalrecord
 
 import (
 	"context"
-	"log/slog"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/sharedkernel"
@@ -17,11 +16,11 @@ import (
 
 // logReplaceDeletionTx は replace系操作（スナップショット→Replace→削除監査）の監査テールを
 // 一箇所に集約する（BE-refactor.md E-6）。deletedCount<=0（純粋な新規挿入のみで削除を伴わない置換）の
-// 場合は何もせず nil を返す。logMsg/wrapMsg/idFieldName は各呼び出し元の既存文言・ログキーをそのまま渡す
+// 場合は何もせず nil を返す。wrapMsg は各呼び出し元の既存文言をそのまま渡す
 // （テストが監査レコードの内容を field-for-field で assert しているため一字も変えない）。
 func logReplaceDeletionTx(txCtx context.Context, auditTx AuditTxLogger, clinicID uint64, actorID *uint64,
 	deletedCount int64, action, resource string, resourceID uint64,
-	oldVal, newVal any, metadata map[string]any, logMsg, wrapMsg, idFieldName string) error {
+	oldVal, newVal any, metadata map[string]any, wrapMsg string) error {
 	if deletedCount <= 0 {
 		return nil
 	}
@@ -37,7 +36,6 @@ func logReplaceDeletionTx(txCtx context.Context, auditTx AuditTxLogger, clinicID
 		NewValue:   newVal,
 		Metadata:   metadata,
 	}); err != nil {
-		slog.ErrorContext(txCtx, logMsg, "error", err, idFieldName, resourceID, "clinic_id", clinicID)
 		return apperrors.Wrap(err, wrapMsg)
 	}
 	return nil

@@ -18,7 +18,7 @@ type TrimmingOptionRepository interface {
 	FindAll(ctx context.Context, clinicID uint64) ([]model.TrimmingOption, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingOption, error)
 	Create(ctx context.Context, option *model.TrimmingOption) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingOption, error)
+	Update(ctx context.Context, clinicID, id uint64, cmd UpdateTrimmingOptionInput) (*model.TrimmingOption, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	CountUsageByTrimmingOptionID(ctx context.Context, clinicID, optionID uint64) (int64, error)
@@ -74,11 +74,15 @@ func (r *trimmingOptionRepository) Create(ctx context.Context, option *model.Tri
 	return nil
 }
 
-func (r *trimmingOptionRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingOption, error) {
-	if err := persistence.UpdateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.TrimmingOption{}, "trimming_option", clinicID, id, fields); err != nil {
+func (r *trimmingOptionRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateTrimmingOptionInput) (*model.TrimmingOption, error) {
+	if err := r.update(ctx, clinicID, id, buildTrimmingOptionUpdate(&cmd)); err != nil {
 		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
+}
+
+func (r *trimmingOptionRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+	return persistence.UpdateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.TrimmingOption{}, "trimming_option", clinicID, id, fields)
 }
 
 func (r *trimmingOptionRepository) Delete(ctx context.Context, clinicID, id uint64) error {

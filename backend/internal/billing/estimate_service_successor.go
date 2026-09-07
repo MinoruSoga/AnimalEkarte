@@ -40,7 +40,6 @@ func (s *estimateService) CreateSuccessor(
 
 	original, err := s.repo.FindByID(ctx, clinicID, originalID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to find estimate for successor", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find estimate")
 	}
 	if !isEstimateLocked(original.Status) {

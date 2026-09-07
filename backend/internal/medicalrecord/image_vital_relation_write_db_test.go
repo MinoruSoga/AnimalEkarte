@@ -188,7 +188,7 @@ func TestDB_MedicalRecordImageServiceRejectsPollutedExamAndStaffRelations(t *tes
 		NewMedicalRecordRepository(fixture.db),
 		petdomain.NewRepository(fixture.db),
 		NewExaminationRepository(fixture.db),
-		staffdomain.NewStaffRepository(fixture.db),
+		staffdomain.NewRepository(fixture.db),
 		staffdomain.NewStaffClinicAssignmentRepository(fixture.db),
 		persistence.NewTransactor(fixture.db),
 	)
@@ -280,7 +280,7 @@ func TestDB_VitalServiceRejectsPollutedPatientRecordAndStaffRelations(t *testing
 		NewMedicalRecordRepository(fixture.db),
 		okVitalAudit(),
 		reservation.NewReservationRepository(fixture.db),
-		staffdomain.NewStaffRepository(fixture.db),
+		staffdomain.NewRepository(fixture.db),
 		staffdomain.NewStaffClinicAssignmentRepository(fixture.db),
 		persistence.NewTransactor(fixture.db),
 	)

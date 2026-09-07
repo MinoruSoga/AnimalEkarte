@@ -2,7 +2,6 @@ package reservation
 
 import (
 	"context"
-	"log/slog"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -35,7 +34,6 @@ type VaccineRecord struct {
 func (s *liffService) GetHealthCard(ctx context.Context, clinicID, customerID uint64) (*HealthCardResult, error) {
 	customer, err := s.customerRepo.FindByID(ctx, clinicID, customerID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get customer for health card", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get health card")
 	}
 
@@ -51,7 +49,6 @@ func (s *liffService) GetHealthCard(ctx context.Context, clinicID, customerID ui
 
 	vaccinations, err := s.vaccinationRepo.FindByOwner(ctx, clinicID, *customer.OwnerID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get vaccinations for health card", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get health card")
 	}
 	vaccinesByPet := make(map[uint64][]model.Vaccination, len(vaccinations))

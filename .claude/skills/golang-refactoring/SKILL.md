@@ -1,6 +1,6 @@
 ---
 name: golang-refactoring
-description: "Golang refactoring — the safe, at-scale process for restructuring existing Go code: a coverage-adaptive safety net, tool-driven behavior-preserving transforms (gopls Rename/Inline/Extract, `gofmt -r`, `eg`, `gopatch`, `go/analysis` fixers), the Fowler catalog mapped to Go, breaking import cycles, moving types across packages, and small reversible landing units that defer to repository-specific execution rules. Apply when code is hard to maintain, a function/type has grown too large, a code smell needs fixing, adding a feature is blocked by the current structure, or the user asks to clean up, refactor, or improve Go code — also for renaming at scale, extracting functions/interfaces, moving code between packages, splitting packages, or planning a multi-step refactor. Target architecture, verification, and delivery always defer to repository-local rules; external skills may supply only compatible mechanics."
+description: "Go の振る舞いを変えずに構造を直す。大規模リネーム、関数/型の抽出、package 移動、import cycle、小さな landing unit。発火はユーザーが refactor を頼んだとき、または変更が構造に阻まれたときだけ。手法カタログは references を必要時だけ読む。"
 license: MIT
 metadata:
   author: samber
@@ -13,7 +13,7 @@ allowed-tools: Read Edit Write Glob Grep Bash(docker:*) Bash(git:*) Bash(gopls:*
 > ⚠️ **ANIMALEKARTE PROJECT OVERRIDE (BE9 — community defaults belowより優先)**
 >
 > - BE9移行は2026-07-24にcode complete（release pending）。境界の正本は[ADR-006](../../../docs/architecture/adr/006-backend-domain-package-boundaries.md)と[boundary map](../../../docs/architecture/be9-2a-boundary-map.md)、完遂経緯はgit履歴とする。旧BE8およびSession A/Bの履歴を実行手順として使わない。
-> - PR/push/`gh`等の外部操作は自動実行しない。Session Aはcleanかつquiescentなlocal `main`の唯一writer、Session Bは同じimmutable baseから作る専用branch/worktreeのwriterとする。既存のdirty差分を共有worktreeから変更・破棄せず、central surface、handoff、共有DB lease条件を満たす場合だけ並行化する。
+> - PR/push/`gh`等の外部操作は自動実行しない。並行作業は [git-worktree-safety](../../rules/git-worktree-safety.md) に従い、別 worktree を使う。共有 tree の dirty 差分を破棄しない。旧 BE9 Session A/B 手順は履歴であり必須ではない。
 > - bareなGo commandとfull-repository commandは、このskillとreferencesにあるcommunity例も含めて実行しない。[`.claude/CLAUDE.md`](../../CLAUDE.md)とBE9のbatchごとのgateに従い、変更package/fileだけをDocker経由で検証する。full test/lint等が必要ならユーザー手動gateとして提示する。
 > - DIは`main.go`だけに限定しない。closure/struct/constructorを使い、`cmd/api`または必要最小限のcomposition packageで型安全に組み立てる。package globalやuntyped context injectionを新設しない。
 > - 本skillから再利用するのはtool-driven transform、blast-radius safety net、structural/behavioral分離、依存実測に基づくcycle解消である。genericなstacked-PR/refactoring-branch、固定行数、毎stepの人手承認はAnimalEkarteへ適用しない。
@@ -22,12 +22,12 @@ allowed-tools: Read Edit Write Glob Grep Bash(docker:*) Bash(git:*) Bash(gopls:*
 
 **Thinking mode:** Apply the project's extended-reasoning criteria for architecture and large-refactor planning. Map blast radius, dependency order, ownership, and parallel-safety before editing; do not assume a particular harness command such as `ultrathink` exists.
 
-**Orchestration mode:** Use the BE9 session ownership and synchronization barriers for multi-step work. A single-pass automation is appropriate only for one bounded mechanical sweep whose files, symbols, dependencies, and verification do not overlap another active lane.
+**Orchestration mode:** One writer per worktree. A single-pass automation is appropriate only for one bounded mechanical sweep whose files, symbols, dependencies, and verification do not overlap another active lane.
 
 **Modes:**
 
 - **Plan mode** (mandatory gate before any edit) — use gopls or repository search to map structure and blast radius, build a refactoring inventory, and decide ordering. Ask before execution only when an unresolved choice materially changes scope; once scope is authorized, do not add mid-task approval gates. Use [workflow.md](references/workflow.md) only for inventory and ordering concepts.
-- **Execute mode** — follow BE9's Session A/B ownership, integration-tip, worktree, handoff, and shared-DB barriers. Session A writes directly to a clean local `main`; Session B writes only its disjoint domain-local candidate in one separate worktree from the same immutable base. Session A alone writes central/shared surfaces and integrates Session B's re-frozen candidate serially.
+- **Execute mode** — write in the current worktree only. Parallel agents use a separate worktree from the same base. Do not discard foreign WIP to unblock a landing unit.
 - **Simple-sweep mode** — apply one bounded mechanical, behavior-preserving transform with no overlapping writer or dependent step.
 - **Review mode** — verify structural/behavioral separation, behavior preservation, ownership, and scoped gate evidence before accepting a landing unit.
 
@@ -113,7 +113,7 @@ Refactoring is an investment that only pays off if a future change is coming to 
 
 ## Workflow: Plan → Stage → Land
 
-- AnimalEkarte refactors land as the ordered, independently verifiable units defined by active BE9. Session A uses a clean local `main` as lane A and the integration tip; Session B uses one separate branch/worktree from the same immutable base. They may implement two mutually non-conflicting domain-local candidates concurrently. After A lands lane A plus its required central gate sync to `main`, B reconstructs and re-freezes its candidate on the new main tip; A then lands that exact candidate and applies B's central change request separately. Ephemeral read-only fixed-tree reviewer agents ensure neither lane self-approves; they are not additional implementation sessions.
+- AnimalEkarte refactors land as independently verifiable units. Target packages follow ADR-006. Verification is Docker-scoped to the changed package via `scoped-verification-gates`. Neither the implementer nor a reviewer marks unrun tests as PASS.
 - [workflow.md](references/workflow.md) is community reference material. Read only its inventory and ordering concepts; its mandatory sign-off cadence, refactoring branch, per-change PR, marker, worktree, and bare/full Go command model do not apply here:
   - the planning gate and refactoring inventory
   - the three interacting orderings (structural-before-behavioral, conflict-avoidance, dependency order)
@@ -136,7 +136,7 @@ Refactoring is an investment that only pays off if a future change is coming to 
 - Use the project Go/Gin guideline and `coding-standards` for control-flow clarity and function shape.
 - Target DI and interface boundaries are owned by the project Go/Gin guideline and ADR-006; external design-pattern guidance is advisory only.
 - Use the project-local `golang-testing` skill for test-writing practices that make the safety net trustworthy.
-- Use the project-local `go-linting` skill for lint configuration; execute only Docker-scoped lint permitted by the project rules.
+- Lint は存在しない `go-linting` スキルを必須にしない。`scoped-verification-gates` の公式 pin イメージで、変更 package だけを `golangci-lint run` する。
 - Use the project-local `go-security` or `security-checklist` skill to review any step that changes code logic, not just its shape.
 
 If you encounter a bug or unexpected behavior in `gopls`, prepare a local issue draft with a minimal reproducer. Post it to <https://github.com/golang/go/issues> only after explicit user approval.

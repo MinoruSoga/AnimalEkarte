@@ -209,7 +209,8 @@ func TestAccountingRepository_Update_ClinicIsolation(t *testing.T) {
 	billingA := makeBillingRet(t, db, clinicA)
 
 	t.Run("別クリニックIDからの Update は NotFound を返す", func(t *testing.T) {
-		_, err := repo.Update(ctx, clinicB, billingA.ID, map[string]any{"total_amount": int64(9999)})
+		amt := int64(9999)
+		_, err := repo.Update(ctx, clinicB, billingA.ID, AccountingUpdate{TotalAmount: &amt})
 		require.Error(t, err, "clinic B から clinic A の会計を更新できてはならない")
 		assert.True(t, apperrors.IsNotFound(err), "エラーは NotFound であるべき: %v", err)
 	})
@@ -222,7 +223,8 @@ func TestAccountingRepository_Update_ClinicIsolation(t *testing.T) {
 	})
 
 	t.Run("正しいクリニックIDからの Update は成功する", func(t *testing.T) {
-		got, err := repo.Update(ctx, clinicA, billingA.ID, map[string]any{"total_amount": int64(2000)})
+		amt := int64(2000)
+		got, err := repo.Update(ctx, clinicA, billingA.ID, AccountingUpdate{TotalAmount: &amt})
 		require.NoError(t, err)
 		assert.Equal(t, int64(2000), got.TotalAmount)
 	})

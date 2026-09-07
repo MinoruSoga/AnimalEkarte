@@ -1366,7 +1366,7 @@ func (n *noopClinicalPlanRepo) FindByMedicalRecordID(_ context.Context, _, _ uin
 	return nil, apperrors.WrapNotFound("clinical_plan", "0")
 }
 func (n *noopClinicalPlanRepo) Create(_ context.Context, _ *model.ClinicalPlan) error { return nil }
-func (n *noopClinicalPlanRepo) Update(_ context.Context, _, _ uint64, _ map[string]any, _ *int) error {
+func (n *noopClinicalPlanRepo) Update(_ context.Context, _, _ uint64, _ UpdateClinicalPlanInput, _ *int) error {
 	return nil
 }
 func (n *noopClinicalPlanRepo) Delete(_ context.Context, _, _ uint64) error { return nil }

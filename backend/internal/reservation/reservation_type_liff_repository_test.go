@@ -188,13 +188,15 @@ func TestReservationTypeLiffRepository_Update(t *testing.T) {
 	rt := makeReservationTypeLinked(t, db, clinicA, "更新前コース", nil, nil)
 
 	t.Run("正しいクリニックIDで更新できる", func(t *testing.T) {
-		updated, err := repo.Update(ctx, clinicA, rt.ID, map[string]any{"name": "更新後コース"})
+		name := "更新後コース"
+		updated, err := repo.Update(ctx, clinicA, rt.ID, UpdateReservationTypeLiffInput{Name: &name})
 		require.NoError(t, err)
 		assert.Equal(t, "更新後コース", updated.Name)
 	})
 
 	t.Run("別クリニックIDでは NotFound", func(t *testing.T) {
-		updated, err := repo.Update(ctx, clinicB, rt.ID, map[string]any{"name": "不正更新"})
+		name := "不正更新"
+		updated, err := repo.Update(ctx, clinicB, rt.ID, UpdateReservationTypeLiffInput{Name: &name})
 		assert.Error(t, err)
 		assert.Nil(t, updated)
 		assert.True(t, apperrors.IsNotFound(err))

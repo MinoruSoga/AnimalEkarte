@@ -73,6 +73,23 @@ type UpdateAccountingInput struct {
 	IsPostClose     bool    // ハンドラがレジ締め済み判定を注入する
 }
 
+// AccountingUpdate is the persistence command for billing header writes.
+// Status and CompletedAt are for Complete/Cancel only; generic PATCH omits them.
+type AccountingUpdate struct {
+	MedicalRecordID   *uint64
+	HospitalizationID *uint64
+	OwnerID           *uint64
+	PetID             *uint64
+	Subtotal          *int64
+	TaxTotal          *int64
+	TotalAmount       *int64
+	HasInsurance      *bool
+	ScheduledDate     *time.Time
+	Memo              *string
+	Status            *model.BillingStatus
+	CompletedAt       *time.Time
+}
+
 // CorrectCreditPaymentInput は確定済み会計のクレジット（カード）金額を確定後に訂正する入力DTO（#189）。
 // レジ実機（カルテ非連動）でのカード打ち間違いを、理由・権限・監査付きで訂正する専用フロー。
 // 訂正対象は Method で指定したカード系内訳1件のみ。現金は #188（お釣り上書き）の管轄で本フロー対象外。
@@ -98,6 +115,33 @@ type CorrectCreditPaymentInput struct {
 type ClinicDailySummary struct {
 	ClinicID uint64
 	Summary  *DailySummaryResult
+}
+
+// AccountingRepository is the billing use-case view of accounting persistence.
+// The GORM store is concrete.
+type AccountingRepository interface {
+	FindAll(ctx context.Context, clinicID uint64, filters AccountingListFilters, page, limit int) ([]model.Billing, int64, error)
+	FindAllForClinics(ctx context.Context, clinicIDs []uint64, filters AccountingListFilters, page, limit int) ([]model.Billing, int64, error)
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
+	FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Billing, error)
+	LockAndFindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
+	Create(ctx context.Context, clinicID uint64, accounting *model.Billing) error
+	Update(ctx context.Context, clinicID, billingID uint64, cmd AccountingUpdate) (*model.Billing, error)
+	SavePayment(ctx context.Context, payment *model.Payment) error
+	SavePaymentSplits(ctx context.Context, splits []model.PaymentSplit) error
+	FindUnpaidByBilling(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]model.Billing, int64, error)
+	FindUnpaidByOwner(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]UnpaidOwnerAggregate, int64, UnpaidSummary, error)
+	SumUnpaidByOwner(ctx context.Context, clinicID, ownerID uint64) (OwnerUnpaidBalance, error)
+	FindMonthlyUnpaidCarryover(ctx context.Context, clinicID uint64, firstDay, lastDay string, page, limit int) ([]MonthlyUnpaidOwnerPet, int64, MonthlyUnpaidSummary, error)
+	GetDailySummary(ctx context.Context, clinicID uint64, date time.Time) (*DailySummaryResult, error)
+	GetCloseAggregate(ctx context.Context, input GetCloseAggregateInput) (*CloseAggregateResult, error)
+	GetMonthlyReport(ctx context.Context, clinicID uint64, year, month int) (*MonthlyReportResult, error)
+	GetMonthlyReportByPeriod(ctx context.Context, clinicID uint64, start, end time.Time) (*MonthlyReportResult, error)
+	GetCategoryPaymentAllocationData(ctx context.Context, clinicID uint64, periodStart, periodEnd time.Time) (*CategoryPaymentAllocationData, error)
+	SumPaidByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error)
+	MaxSingleVisitAmountByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error)
+	FindOwnersByAnnualRevenue(ctx context.Context, clinicID uint64) ([]OwnerAnnualRevenue, error)
+	FindByCompletionRequestID(ctx context.Context, clinicID uint64, requestID string) (*model.Billing, error)
 }
 
 type AccountingService interface {

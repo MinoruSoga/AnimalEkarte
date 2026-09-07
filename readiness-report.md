@@ -7,13 +7,9 @@ total: 36
 stack: go-gin-react-typescript-docker
 monorepo: true
 apps: [backend, frontend]
-previous:
-  generated: 2026-09-04
-  level: 2
-  score: 24
 caveats:
-  - setup skill plugin still not installed; scored from readiness Phase 3 criteria
-  - Pillar 6 300-line inventory deferred (project policy is soft 500 / hard 800); pre-commit enforces 800
+  - setup skill skipped by request; scored from readiness Phase 3 pillars only
+  - install not re-run; lockfiles + Docker/Make path treated as reproducible
 pillars:
   style-validation: { pass: 4, total: 4 }
   testing: { pass: 5, total: 5 }
@@ -34,10 +30,10 @@ per_app:
 
 # Harness Readiness Report
 
-**Project:** AnimalEkarte (Go/Gin + React 19/TypeScript, Docker Compose monorepo-like)
+**Project:** AnimalEkarte (Go/Gin + React 19/TypeScript, Docker Compose)
 **Level:** 4 / 5 (Automated)
 **Score:** 35 / 36 criteria passing
-**Delta:** +11 since last report (was Level 2 / 24)
+**Delta:** 0 since last report (still Level 4 / 35)
 
 ## Pillar Scores
 
@@ -54,45 +50,45 @@ Agentic Workflow      ██████ 2/2
 
 | Package | Testing | Code Quality | Notes |
 |---|---|---|---|
-| backend | 5/5 | 2/3 | apperrors scoped green; `.claude/rules/tdd.md` present; >300-line files remain under project 800 policy |
-| frontend | 5/5 | 2/3 | Full vitest: 529 files / 4195 tests passed (3 skipped); Prettier + ExportDefaultDeclaration eslint rule added |
+| backend | 5/5 | 2/3 | `go test ./internal/apperrors/...` green; 130 non-test `.go` files >300 lines |
+| frontend | 5/5 | 2/3 | TreatmentItemSidePanel vitest green; 46 non-generated `src` files >300 lines |
 
 ## Passing
 
-- ✓ Linter configured (golangci-lint + ESLint)
-- ✓ Formatter configured (gofmt/goimports + Prettier `frontend/.prettierrc.json`)
-- ✓ Lint-on-commit (`.githooks/pre-commit` + `.git/hooks` wrappers via `make setup-hooks`)
-- ✓ No default exports rule (`ExportDefaultDeclaration` in `frontend/eslint.config.js`; tooling configs exempt)
-- ✓ Test runners (go test / Vitest)
-- ✓ Test colocation
-- ✓ Coverage thresholds (coverage ratchets + CI)
-- ✓ Tests pass (frontend full suite green after TreatmentItemSidePanel flake fix; backend scoped green)
-- ✓ TDD rule file (`.claude/rules/tdd.md`, mirrored to `.agents/rules/`)
-- ✓ Pre-commit runs lint/format/secrets
-- ✓ Pre-push runs tests
-- ✓ Secret scanning in pre-commit (gitleaks / docker / pattern fallback)
-- ✓ File size limits in pre-commit (800 hard; matches project hooks)
-- ✓ Smart test caching (`.test-passed` SHA skip on pre-push)
+- ✓ Linter (`backend/.golangci.yml` + `make lint`; `frontend/eslint.config.js` + `make lint-front`)
+- ✓ Formatter (golangci gofmt/goimports; `frontend/.prettierrc.json` + `format`/`format:check`)
+- ✓ Lint-on-commit (`.githooks/pre-commit` via `make setup-hooks`; wrappers at `.git/hooks/pre-commit`)
+- ✓ No default exports (`ExportDefaultDeclaration` in eslint; vite/playwright/`*.d.ts` exempt)
+- ✓ Test runners (`make test` / Vitest `make test-front`)
+- ✓ Test colocation (`*_test.go`, `*.test.ts(x)`)
+- ✓ Coverage thresholds (`backend/.coverage-baseline`, `frontend/.coverage-baseline`)
+- ✓ Tests pass (scoped backend + frontend samples green this run)
+- ✓ TDD rule (`.claude/rules/tdd.md` with `paths:` frontmatter)
+- ✓ Pre-commit covers lint/format/secrets (`.git/hooks/pre-commit` → `.githooks/pre-commit`)
+- ✓ Pre-push runs tests (`.git/hooks/pre-push` → `.githooks/pre-push`)
+- ✓ Secret scanning wired (`gitleaks protect --staged` / docker / pattern fallback)
+- ✓ File size limits wired (`.githooks/lib/check-file-sizes.sh`, hard 800)
+- ✓ Smart test caching (`.test-passed` SHA skip)
 - ✓ CLAUDE.md / AGENTS.md
-- ✓ Commands section
-- ✓ Architecture section (`<!-- AUTO:architecture-dirs -->`)
+- ✓ Commands section (`.claude/CLAUDE.md`)
+- ✓ Architecture section + `<!-- AUTO:architecture-dirs -->`
 - ✓ Critical Gotchas section
-- ✓ Quality gates documented
-- ✓ Code review checklist
-- ✓ Auto-generated sections (`<!-- AUTO:* -->` + `scripts/generate-agent-doc-sections.sh`)
-- ✓ No drift (vitest scoped example + migrations P10 reference fixed)
-- ✓ Content quality
-- ✓ Agent settings / allow / deny / path-scoped rules / enforcement hierarchy
-- ✓ No obvious hardcoded secrets
-- ✓ Consistent style
-- ✓ `.env.example` / documented commands / lockfiles
-- ✓ Agentic workflow + SessionStart validation
+- ✓ Quality gates (800-line hard / soft 500 documented + hooks)
+- ✓ Code review checklist (`CODING_RULES` / review refs / review command)
+- ✓ Auto-generated sections (`scripts/generate-agent-doc-sections.sh`)
+- ✓ No drift (architecture dirs on disk; vitest scoped command corrected)
+- ✓ Content quality (project-specific, actionable)
+- ✓ `.claude/settings.json` with allow/deny; path-scoped rules; enforcement hierarchy
+- ✓ No obvious hardcoded secrets (pattern scan clean on backend + `frontend/src`)
+- ✓ Consistent style (domain packages + ESLint mechanical guards)
+- ✓ `.env.example`; documented Make/Docker commands; lockfiles present
+- ✓ Agentic workflow (skills/commands/agents) + SessionStart (`session-init.sh`)
 
 ## Failing
 
-- ✗ No source files over 300 lines — deferred by choice: project hard limit is 800 (soft 500). Pre-commit enforces 800. Mass split of ~130 backend + ~46 frontend files not done.
+- ✗ No source files over 300 lines — backend ~130 non-test `.go` and frontend ~46 non-generated `src` files exceed 300. Project policy intentionally uses soft 500 / hard 800 (pre-commit enforces 800).
 
 ## Changes Since Last Report
 
-- ↑ Now passing: formatter (Prettier), no-default-export rule, tests pass, TDD rule, all git-hook criteria, Commands, Critical Gotchas, AUTO markers, drift fixes
+- ↑ Now passing: none (already at 35/36)
 - ↓ Regressed: none

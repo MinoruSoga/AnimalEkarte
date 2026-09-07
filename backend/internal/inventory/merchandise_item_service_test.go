@@ -21,7 +21,7 @@ type mockMerchandiseItemRepository struct {
 	findByIDFn                    func(ctx context.Context, clinicID, id uint64) (*model.MerchandiseItem, error)
 	countUsageByMerchandiseItemFn func(ctx context.Context, clinicID, merchandiseItemID uint64) (int64, error)
 	createFn                      func(ctx context.Context, item *model.MerchandiseItem) error
-	updateFieldsFn                func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MerchandiseItem, error)
+	updateFieldsFn                func(ctx context.Context, clinicID, id uint64, cmd UpdateMerchandiseItemInput) (*model.MerchandiseItem, error)
 	deleteFn                      func(ctx context.Context, clinicID, id uint64) error
 	reorderFn                     func(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -51,9 +51,9 @@ func (m *mockMerchandiseItemRepository) Create(ctx context.Context, item *model.
 	return m.createFn(ctx, item)
 }
 
-func (m *mockMerchandiseItemRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MerchandiseItem, error) {
+func (m *mockMerchandiseItemRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateMerchandiseItemInput) (*model.MerchandiseItem, error) {
 	if m.updateFieldsFn != nil {
-		return m.updateFieldsFn(ctx, clinicID, id, fields)
+		return m.updateFieldsFn(ctx, clinicID, id, cmd)
 	}
 	return nil, nil
 }
@@ -417,7 +417,7 @@ func TestMerchandiseItemService_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockMerchandiseItemRepository{
-				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.MerchandiseItem, error) {
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateMerchandiseItemInput) (*model.MerchandiseItem, error) {
 					if tt.repoErr != nil {
 						return nil, tt.repoErr
 					}

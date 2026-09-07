@@ -214,7 +214,7 @@ func TestHandler_SystemAdminGetAndPutClinicsSkipRequestClinicMembership(t *testi
 	}
 }
 
-func TestStaffService_UpdateAndDeleteAfterRequestClinicRemoved(t *testing.T) {
+func TestService_UpdateAndDeleteAfterRequestClinicRemoved(t *testing.T) {
 	const (
 		staffID = uint64(7)
 		clinicA = uint64(10)
@@ -291,7 +291,7 @@ func TestStaffService_UpdateAndDeleteAfterRequestClinicRemoved(t *testing.T) {
 					}
 					return nil, apperrors.WrapNotFound("staff", fmt.Sprintf("%d", id))
 				},
-				updateFn: func(_ context.Context, _, id uint64, _ map[string]any) error {
+				updateFn: func(_ context.Context, _, id uint64, _ UpdateStaffInput) error {
 					assert.Equal(t, staffID, id)
 					updated = true
 					return nil
@@ -315,7 +315,7 @@ func TestStaffService_UpdateAndDeleteAfterRequestClinicRemoved(t *testing.T) {
 					return rows, nil
 				},
 			}
-			service := newCoreStaffService(
+			service := newCoreService(
 				repo,
 				&coreMockAccountRepository{},
 				assignments,
@@ -381,7 +381,7 @@ func TestAuthorizeGlobalStaffUpdateAllowsSystemAdminWithoutCurrentClinic(t *test
 	require.NoError(t, err)
 }
 
-func TestStaffService_UpdateOccupationLockedAgainstWriteClinicAfterRequestClinicRemoved(t *testing.T) {
+func TestService_UpdateOccupationLockedAgainstWriteClinicAfterRequestClinicRemoved(t *testing.T) {
 	const (
 		staffID = uint64(7)
 		clinicA = uint64(10)
@@ -404,7 +404,7 @@ func TestStaffService_UpdateOccupationLockedAgainstWriteClinicAfterRequestClinic
 			findByIDFn: func(_ context.Context, id uint64) (*model.Staff, error) {
 				return &model.Staff{ID: id, ClinicID: clinicB}, nil
 			},
-			updateFn: func(_ context.Context, _, id uint64, _ map[string]any) error {
+			updateFn: func(_ context.Context, _, id uint64, _ UpdateStaffInput) error {
 				updated = true
 				assert.Equal(t, staffID, id)
 				return nil
@@ -419,7 +419,7 @@ func TestStaffService_UpdateOccupationLockedAgainstWriteClinicAfterRequestClinic
 				return &model.Occupation{ID: id, ClinicID: clinicID}, nil
 			},
 		}
-		service := newStaffServiceWithOccupationRepo(repo, occupations, []uint64{clinicB})
+		service := newServiceWithOccupationRepo(repo, occupations, []uint64{clinicB})
 		occupationID := occA
 		result, err := service.Update(
 			context.Background(),
@@ -452,7 +452,7 @@ func TestStaffService_UpdateOccupationLockedAgainstWriteClinicAfterRequestClinic
 			findByIDFn: func(_ context.Context, id uint64) (*model.Staff, error) {
 				return &model.Staff{ID: id, ClinicID: clinicB}, nil
 			},
-			updateFn: func(_ context.Context, clinicID, id uint64, _ map[string]any) error {
+			updateFn: func(_ context.Context, clinicID, id uint64, _ UpdateStaffInput) error {
 				writeClinic = clinicID
 				assert.Equal(t, staffID, id)
 				return nil
@@ -467,7 +467,7 @@ func TestStaffService_UpdateOccupationLockedAgainstWriteClinicAfterRequestClinic
 				return &model.Occupation{ID: id, ClinicID: clinicID}, nil
 			},
 		}
-		service := newStaffServiceWithOccupationRepo(repo, occupations, []uint64{clinicB})
+		service := newServiceWithOccupationRepo(repo, occupations, []uint64{clinicB})
 		occupationID := occB
 		result, err := service.Update(
 			context.Background(),
@@ -486,11 +486,11 @@ func TestStaffService_UpdateOccupationLockedAgainstWriteClinicAfterRequestClinic
 	})
 }
 
-func newStaffServiceWithOccupationRepo(
+func newServiceWithOccupationRepo(
 	repo *coreMockStaffRepository,
 	occupations *mockOccupationRepository,
 	assignedClinics []uint64,
-) StaffService {
+) Service {
 	assignments := &coreMockStaffClinicAssignmentRepository{
 		lockActiveFn: func(_ context.Context, id uint64) ([]model.StaffClinicAssignment, error) {
 			rows := make([]model.StaffClinicAssignment, 0, len(assignedClinics))
@@ -504,7 +504,7 @@ func newStaffServiceWithOccupationRepo(
 			return rows, nil
 		},
 	}
-	return NewStaffService(
+	return NewService(
 		repo,
 		&coreMockAccountRepository{},
 		assignments,
@@ -519,7 +519,7 @@ func newStaffServiceWithOccupationRepo(
 }
 
 type removedRequestClinicHandlerService struct {
-	StaffService
+	Service
 	verifyFn      func(context.Context, uint64, uint64) error
 	getByIDFn     func(context.Context, uint64) (*model.Staff, error)
 	getInClinicFn func(context.Context, uint64, uint64) (*model.Staff, error)
@@ -608,8 +608,8 @@ func setupStaffRemovedRequestClinicDB(
 
 func newStaffRemovedRequestClinicHandler(db *gorm.DB) *Handler {
 	assignmentRepo := NewStaffClinicAssignmentRepository(db)
-	service := NewStaffService(
-		NewStaffRepository(db),
+	service := NewService(
+		NewRepository(db),
 		nil,
 		assignmentRepo,
 		&stubReservationForStaff{},

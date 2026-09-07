@@ -18,7 +18,7 @@ import (
 type ClinicalPlanRepository interface {
 	FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) (*model.ClinicalPlan, error)
 	Create(ctx context.Context, plan *model.ClinicalPlan) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any, expectedVersion *int) error
+	Update(ctx context.Context, clinicID, id uint64, cmd UpdateClinicalPlanInput, expectedVersion *int) error
 	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
@@ -126,7 +126,11 @@ func (r *clinicalPlanRepository) conflictAfterZeroClinicalPlanRows(
 // RowsAffected==0 は「存在しない」「親が確定済み」「バージョン不一致」のいずれかを意味しうるため
 // existsInClinic / parentStillDraft で再照会し正しいエラー種別に正規化する
 // （estimate_repository.go の normalizeDeleteIfNotLockedMiss と同型）。
-func (r *clinicalPlanRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any, expectedVersion *int) error {
+func (r *clinicalPlanRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateClinicalPlanInput, expectedVersion *int) error {
+	return r.update(ctx, clinicID, id, buildClinicalPlanUpdate(&cmd), expectedVersion)
+}
+
+func (r *clinicalPlanRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any, expectedVersion *int) error {
 	q := persistence.DBOrTx(ctx, r.db).
 		Model(&model.ClinicalPlan{}).
 		Where("clinical_plans.id = ? AND clinical_plans.medical_record_id IN (SELECT id FROM medical_records WHERE clinic_id = ? AND status = ? AND deleted_at IS NULL)",

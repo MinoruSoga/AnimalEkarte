@@ -9,7 +9,7 @@ import { handleApiError } from "@/lib/handle-api-error";
 import { toast } from "sonner";
 import { completeAccounting } from "../api/complete-accounting";
 import { updateAccounting } from "../api/update-accounting";
-import type { Accounting } from "../types";
+import type { Accounting } from "../api/transforms";
 import {
   focusAccountingCompletionError,
   resolveAccountingCompletionFocusTarget,
@@ -58,14 +58,22 @@ function waitingAccounting(): Accounting {
   return {
     id: "123",
     clinicId: "1",
+    medicalRecordId: undefined,
     ownerId: "10",
     ownerName: "テスト飼い主",
     petId: "20",
     petName: "ポチ",
+    petSpecies: undefined,
     status: "waiting",
     scheduledDate: "2026-05-01",
+    completedAt: undefined,
     items: [],
+    payment: undefined,
+    paymentSplits: undefined,
+    totalAmount: 0,
     totalRefundedAmount: 0,
+    outstandingAmount: 0,
+    memo: undefined,
   };
 }
 
@@ -266,6 +274,92 @@ describe("useAccountingCompletionAction post-close 400 focus (BUG-009)", () => {
     expect(document.activeElement).toBe(document.getElementById("postCloseReason"));
     expect(completeAccountingMock).toHaveBeenCalledTimes(1);
     expect(updateAccountingMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("useAccountingCompletionAction completed accounting updates", () => {
+  beforeEach(() => {
+    completeAccountingMock.mockReset();
+    updateAccountingMock.mockReset();
+    handleApiErrorMock.mockReset();
+    vi.mocked(toast.error).mockReset();
+    vi.mocked(toast.success).mockReset();
+  });
+
+  it.each(["", "締め後の支払金額訂正"])(
+    "確定済み会計は確認後に元の確定日時を変更せず保存する（理由: %s）",
+    async (postCloseReason) => {
+      const accounting: Accounting = {
+        ...waitingAccounting(),
+        status: "completed",
+        completedAt: "2026-05-01T09:00:00+09:00",
+      };
+      const args = { ...buildHookArgs(), accounting, postCloseReason };
+      updateAccountingMock.mockResolvedValue(accounting);
+      const { result } = renderHook(() => useAccountingCompletionAction(args));
+
+      await submitCompletionAction(result.current.formAction);
+      expect(result.current.editConfirmOpen).toBe(true);
+      expect(updateAccountingMock).not.toHaveBeenCalled();
+
+      act(() => result.current.confirmCompletedEdit());
+      await submitCompletionAction(result.current.formAction);
+
+      expect(updateAccountingMock).toHaveBeenCalledExactlyOnceWith(
+        accounting.id,
+        expect.objectContaining({
+          status: "completed",
+          post_close_reason: postCloseReason || undefined,
+          payment_splits: [
+            expect.objectContaining({ method: "cash", amount: 1100, received_amount: 1100 }),
+          ],
+        }),
+      );
+      expect(updateAccountingMock.mock.calls[0]?.[1]).not.toHaveProperty("completed_at");
+      expect(accounting.completedAt).toBe("2026-05-01T09:00:00+09:00");
+      expect(result.current.formState.success).toBe(true);
+      expect(args.setCompletedPayment).toHaveBeenCalledTimes(1);
+      expect(args.queryClient.invalidateQueries).toHaveBeenCalledTimes(1);
+      expect(toast.success).toHaveBeenCalledWith("会計を完了しました");
+      expect(completeAccountingMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("既存会計の保存失敗は成功表示・支払確定表示・再取得を行わない", async () => {
+    const args = {
+      ...buildHookArgs(),
+      accounting: { ...waitingAccounting(), status: "completed" as const },
+      postCloseReason: "訂正理由",
+    };
+    updateAccountingMock.mockRejectedValue(axiosError(403, { error: "forbidden" }));
+    const { result } = renderHook(() => useAccountingCompletionAction(args));
+
+    await submitCompletionAction(result.current.formAction);
+    act(() => result.current.confirmCompletedEdit());
+    await submitCompletionAction(result.current.formAction);
+
+    expect(result.current.formState.success).toBe(false);
+    expect(handleApiErrorMock).toHaveBeenCalledTimes(1);
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(args.setCompletedPayment).not.toHaveBeenCalled();
+    expect(args.queryClient.invalidateQueries).not.toHaveBeenCalled();
+    expect(completeAccountingMock).not.toHaveBeenCalled();
+  });
+
+  it("新規会計は専用確定APIを使い、確定結果へ遷移する", async () => {
+    const args = buildHookArgs({ accountingId: undefined });
+    completeAccountingMock.mockResolvedValue({ ...waitingAccounting(), status: "completed" });
+    const { result } = renderHook(() => useAccountingCompletionAction(args));
+
+    await submitCompletionAction(result.current.formAction);
+
+    expect(completeAccountingMock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ pet_id: 20, owner_id: 10 }),
+      "test-idempotency-key",
+    );
+    expect(updateAccountingMock).not.toHaveBeenCalled();
+    expect(result.current.formState.success).toBe(true);
+    expect(args.navigate).toHaveBeenCalledWith("/accounting/123");
   });
 });
 

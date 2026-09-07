@@ -46,7 +46,8 @@ func TestPaymentMethodMasterRepository_UpdateAndFindByID_JoinAmbientTx(t *testin
 	m := makeCustomPaymentMethodMaster(t, db, clinicA, "更新前支払方法名")
 	tx := testNewTransactor(db)
 	txErr := tx.WithTx(ctx, func(txCtx context.Context) error {
-		updated, err := repo.Update(txCtx, clinicA, m.ID, map[string]any{"name": "未コミット支払方法名"})
+		name := "未コミット支払方法名"
+		updated, err := repo.Update(txCtx, clinicA, m.ID, UpdatePaymentMethodMasterInput{Name: &name})
 		if err != nil {
 			return err
 		}

@@ -65,7 +65,7 @@ type inventoryRuntime struct {
 }
 
 type trimmingRuntime struct {
-	trimming    trimming.TrimmingService
+	trimming    trimming.Service
 	courses     trimming.TrimmingCourseService
 	options     trimming.TrimmingOptionService
 	courseTypes trimming.TrimmingCourseTypeService
@@ -441,7 +441,7 @@ func newRuntimeTrimming(
 	auditKernel audit.Kernel,
 ) trimmingRuntime {
 	return trimmingRuntime{
-		trimming: trimming.NewTrimmingServiceWithAudit(
+		trimming: trimming.NewServiceWithAudit(
 			repositories.reservation.Reservations,
 			repositories.reservation.ReservationTypes,
 			repositories.reservation.ReservationStaff,

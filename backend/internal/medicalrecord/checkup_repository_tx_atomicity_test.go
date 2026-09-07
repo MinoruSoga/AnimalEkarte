@@ -75,9 +75,8 @@ func TestCheckupRepository_UpdateAndDeleteRollbackWithAmbientTx(t *testing.T) {
 	sentinel := errors.New("rollback checkup update and delete")
 
 	err := fixture.writeTransactor.WithTx(ctx, func(txCtx context.Context) error {
-		require.NoError(t, repo.Update(txCtx, fixture.clinicA, seed.ID, map[string]any{
-			"result": "inside transaction",
-		}))
+		result := "inside transaction"
+		require.NoError(t, repo.Update(txCtx, fixture.clinicA, seed.ID, UpdateCheckupInput{Result: &result}))
 		updated, findErr := repo.FindByID(txCtx, fixture.clinicA, seed.ID)
 		require.NoError(t, findErr)
 		assert.Equal(t, "inside transaction", updated.Result)
@@ -146,17 +145,13 @@ func TestDB_CheckupRepository_ParentThenChildLocksSerializeMedicalRecordFinaliza
 		require.NoError(t, competingTx.Exec("SET LOCAL lock_timeout = '200ms'").Error)
 
 		competingCtx := persistence.WithTxValue(ctx, competingTx)
-		_, updateErr := records.Update(competingCtx, fixture.clinicA, fixture.recordA.ID, map[string]any{
-			"status": model.MedicalRecordStatusFinalized,
-		}, nil)
+		_, updateErr := records.Update(competingCtx, fixture.clinicA, fixture.recordA.ID, medicalRecordUpdateStatus(model.MedicalRecordStatusFinalized), nil)
 		require.Error(t, updateErr, "finalization must wait while checkup deletion holds the parent lock")
 		return nil
 	})
 	require.NoError(t, err)
 
-	finalized, err := records.Update(ctx, fixture.clinicA, fixture.recordA.ID, map[string]any{
-		"status": model.MedicalRecordStatusFinalized,
-	}, nil)
+	finalized, err := records.Update(ctx, fixture.clinicA, fixture.recordA.ID, medicalRecordUpdateStatus(model.MedicalRecordStatusFinalized), nil)
 	require.NoError(t, err)
 	assert.Equal(t, model.MedicalRecordStatusFinalized, finalized.Status)
 }

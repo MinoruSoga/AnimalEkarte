@@ -21,7 +21,7 @@ type Repository interface {
 	FindAll(ctx context.Context, clinicID uint64, category, status *string, page, limit int) ([]model.InventoryItem, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.InventoryItem, error)
 	Create(ctx context.Context, clinicID uint64, item *model.InventoryItem) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InventoryItem, error)
+	Update(ctx context.Context, clinicID, id uint64, cmd UpdateInventoryInput) (*model.InventoryItem, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	// DeleteIfUnused は clinic_id + id と treatments/vaccines/medicines 参照なしを同一 DELETE で要求する。
 	DeleteIfUnused(ctx context.Context, clinicID, id uint64) error
@@ -120,11 +120,19 @@ func (r *repository) Create(ctx context.Context, clinicID uint64, item *model.In
 
 // Update updates fields and reloads the row in one transaction so a reload
 // failure cannot invert a committed write into a failure response (BUG-465).
-func (r *repository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InventoryItem, error) {
+func (r *repository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateInventoryInput) (*model.InventoryItem, error) {
+	return r.updateAndReload(ctx, clinicID, id, buildInventoryUpdate(&cmd))
+}
+
+func (r *repository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+	return persistence.UpdateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.InventoryItem{}, "inventory_item", clinicID, id, fields)
+}
+
+func (r *repository) updateAndReload(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InventoryItem, error) {
 	var loaded *model.InventoryItem
 	err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		txCtx := persistence.WithTxValue(ctx, tx)
-		if err := persistence.UpdateScopedByID(txCtx, tx, &model.InventoryItem{}, "inventory_item", clinicID, id, fields); err != nil {
+		if err := r.update(txCtx, clinicID, id, fields); err != nil {
 			return err
 		}
 		var err error

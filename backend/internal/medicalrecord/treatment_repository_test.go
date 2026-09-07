@@ -332,19 +332,22 @@ func TestTreatmentRepository_Update(t *testing.T) {
 	require.NoError(t, db.Where("medical_record_id = ?", mr.ID).First(&tr).Error)
 
 	t.Run("updates successfully", func(t *testing.T) {
-		require.NoError(t, repo.Update(ctx, clinicA, tr.ID, map[string]any{"content": "更新後"}))
+		content := "更新後"
+		require.NoError(t, repo.Update(ctx, clinicA, tr.ID, UpdateTreatmentInput{Content: &content}))
 		got, err := repo.FindByID(ctx, clinicA, tr.ID)
 		require.NoError(t, err)
 		assert.Equal(t, "更新後", got.Content)
 	})
 
 	t.Run("not found for nonexistent id", func(t *testing.T) {
-		err := repo.Update(ctx, clinicA, uint64(999999), map[string]any{"content": "x"})
+		content := "x"
+		err := repo.Update(ctx, clinicA, uint64(999999), UpdateTreatmentInput{Content: &content})
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
 	t.Run("clinic isolation: wrong clinic returns NotFound", func(t *testing.T) {
-		err := repo.Update(ctx, clinicB, tr.ID, map[string]any{"content": "乗っ取り"})
+		content := "乗っ取り"
+		err := repo.Update(ctx, clinicB, tr.ID, UpdateTreatmentInput{Content: &content})
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 }

@@ -221,7 +221,6 @@ func (s *campaignService) validateOwnedMerchandiseItemIDs(ctx context.Context, c
 func (s *campaignService) List(ctx context.Context, clinicID uint64) ([]model.Campaign, error) {
 	items, err := s.repo.FindAll(ctx, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list campaigns", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to list campaigns")
 	}
 	return items, nil
@@ -230,7 +229,6 @@ func (s *campaignService) List(ctx context.Context, clinicID uint64) ([]model.Ca
 func (s *campaignService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Campaign, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get campaign", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get campaign")
 	}
 	return result, nil
@@ -268,7 +266,6 @@ func (s *campaignService) Create(ctx context.Context, clinicID uint64, input *Cr
 		}
 		created, err := s.repo.Create(txCtx, m)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to create campaign", "error", err, "clinic_id", clinicID)
 			return apperrors.Wrap(err, "failed to create campaign")
 		}
 		result = created
@@ -286,7 +283,6 @@ func (s *campaignService) Update(ctx context.Context, clinicID, id uint64, input
 	}
 	current, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get campaign", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get campaign")
 	}
 	if err := sharedkernel.ValidateOptionalName(input.Name); err != nil {
@@ -328,14 +324,12 @@ func (s *campaignService) Update(ctx context.Context, clinicID, id uint64, input
 			}
 		}
 		if len(fields) > 0 {
-			if _, err := s.repo.Update(txCtx, clinicID, id, fields); err != nil {
-				slog.ErrorContext(txCtx, "failed to update campaign", "error", err, "id", id, "clinic_id", clinicID)
+			if _, err := s.repo.Update(txCtx, clinicID, id, *input); err != nil {
 				return apperrors.Wrap(err, "failed to update campaign")
 			}
 		}
 		if hasTargets {
 			if err := s.repo.ReplaceTargets(txCtx, id, cats, itemIDs); err != nil {
-				slog.ErrorContext(txCtx, "failed to replace campaign targets", "error", err, "id", id, "clinic_id", clinicID)
 				return apperrors.Wrap(err, "failed to replace campaign targets")
 			}
 		}
@@ -343,7 +337,6 @@ func (s *campaignService) Update(ctx context.Context, clinicID, id uint64, input
 		var err error
 		updated, err = s.repo.FindByID(txCtx, clinicID, id)
 		if err != nil {
-			slog.ErrorContext(txCtx, "failed to get updated campaign", "error", err, "id", id, "clinic_id", clinicID)
 			return apperrors.Wrap(err, "failed to get updated campaign")
 		}
 		slog.InfoContext(txCtx, "campaign updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("id", id))
@@ -360,7 +353,6 @@ func (s *campaignService) Delete(ctx context.Context, clinicID, id uint64) error
 		return apperrors.Wrap(err, "failed to get campaign")
 	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to delete campaign", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete campaign")
 	}
 	slog.InfoContext(ctx, "campaign deleted", slog.Uint64("clinic_id", clinicID), slog.Uint64("id", id))
@@ -372,7 +364,6 @@ func (s *campaignService) Reorder(ctx context.Context, clinicID uint64, ids []ui
 		return apperrors.WrapInvalidInput(sharedkernel.ErrMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
-		slog.ErrorContext(ctx, "failed to reorder campaigns", "error", err, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to reorder campaigns")
 	}
 	slog.InfoContext(ctx, "campaigns reordered", slog.Uint64("clinic_id", clinicID), slog.Int("count", len(ids)))

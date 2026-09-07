@@ -1,4 +1,4 @@
-// Package occupation owns occupations master data access.
+// Package staff owns occupations master data access.
 package staff
 
 import (
@@ -21,7 +21,7 @@ type OccupationRepository interface {
 	LockActiveByIDForShare(ctx context.Context, clinicID, id uint64) (*model.Occupation, error)
 	LockActiveByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Occupation, error)
 	Create(ctx context.Context, occupation *model.Occupation) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Occupation, error)
+	Update(ctx context.Context, clinicID, id uint64, cmd UpdateOccupationInput) (*model.Occupation, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	CountUsageByOccupationID(ctx context.Context, clinicID, occupationID uint64) (int64, error)
@@ -118,8 +118,15 @@ func (r *occupationRepository) Create(ctx context.Context, occupation *model.Occ
 	return nil
 }
 
-func (r *occupationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Occupation, error) {
-	if err := persistence.UpdateScopedByID(
+func (r *occupationRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateOccupationInput) (*model.Occupation, error) {
+	if err := r.update(ctx, clinicID, id, buildOccupationUpdate(&cmd)); err != nil {
+		return nil, err
+	}
+	return r.FindByID(ctx, clinicID, id)
+}
+
+func (r *occupationRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+	return persistence.UpdateScopedByID(
 		ctx,
 		persistence.DBOrTx(ctx, r.db),
 		&model.Occupation{},
@@ -127,10 +134,7 @@ func (r *occupationRepository) Update(ctx context.Context, clinicID, id uint64, 
 		clinicID,
 		id,
 		fields,
-	); err != nil {
-		return nil, err
-	}
-	return r.FindByID(ctx, clinicID, id)
+	)
 }
 
 func (r *occupationRepository) Delete(ctx context.Context, clinicID, id uint64) error {

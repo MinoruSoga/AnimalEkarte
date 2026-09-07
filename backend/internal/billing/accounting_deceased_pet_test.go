@@ -170,7 +170,7 @@ func TestAccountingService_Complete_AllowsLivingPet(t *testing.T) {
 			b.ClinicID = clinicID
 			return nil
 		},
-		updateFieldsFn: func(_ context.Context, _, id uint64, _ map[string]any) (*model.Billing, error) {
+		updateFieldsFn: func(_ context.Context, _, id uint64, _ AccountingUpdate) (*model.Billing, error) {
 			return &model.Billing{
 				ID: id, ClinicID: 1, Status: model.BillingStatusCompleted,
 				Subtotal: 1000, TaxTotal: 100, TotalAmount: 1100,

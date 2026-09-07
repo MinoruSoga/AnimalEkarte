@@ -128,7 +128,9 @@ describe("useMedicalRecordSaveAction BUG-010 clinical plan payload", () => {
   });
 
   it("clinical-plan PATCH が 4xx/競合で失敗した場合は成功 toast を出さない", async () => {
-    const updateTreatmentPlan = vi.fn().mockRejectedValue(new Error("version conflict"));
+    const conflictError = { response: { status: 409 } };
+    const updateTreatmentPlan = vi.fn().mockRejectedValue(conflictError);
+    const onClinicalPlanSaved = vi.fn();
     const { result } = renderHook(() =>
       useMedicalRecordSaveAction(
         buildSaveArgs({
@@ -136,6 +138,7 @@ describe("useMedicalRecordSaveAction BUG-010 clinical plan payload", () => {
           assessment: "診断",
           plan: "方針",
           updateTreatmentPlanMutation: { mutateAsync: updateTreatmentPlan },
+          onClinicalPlanSaved,
         }),
       ),
     );
@@ -146,7 +149,49 @@ describe("useMedicalRecordSaveAction BUG-010 clinical plan payload", () => {
 
     await waitFor(() => expect(result.current.formState.success).toBe(false));
     expect(toast.success).not.toHaveBeenCalled();
-    expect(handleApiError).toHaveBeenCalled();
+    expect(handleApiError).toHaveBeenCalledWith(conflictError, "保存");
+    expect(onClinicalPlanSaved).not.toHaveBeenCalled();
+  });
+
+  it("clinical-plan PATCH の成功応答だけを次の baseline snapshot として通知する", async () => {
+    const savedClinicalPlan = {
+      id: "cp-1",
+      medical_record_id: "medical-record-1",
+      version: 2,
+      physical_exam: "保存済み所見",
+      treatment_policy: "保存済み治療方針",
+      diagnosis_details: "保存済み診断詳細",
+      diagnosis_type_id: "3",
+      diagnosis_name_id: "7",
+      diagnosis_2_type_id: "4",
+      diagnosis_2_name_id: "9",
+      created_at: "2026-09-05T00:00:00Z",
+      updated_at: "2026-09-05T00:00:00Z",
+      diagnosis_type: { id: "3", name: "診断種別" },
+      diagnosis_name: { id: "7", name: "診断名" },
+      diagnosis_2_type: { id: "4", name: "診断種別2" },
+      diagnosis_2_name: { id: "9", name: "診断名2" },
+    };
+    const updateTreatmentPlan = vi.fn().mockResolvedValue(savedClinicalPlan);
+    const onClinicalPlanSaved = vi.fn();
+    const { result } = renderHook(() =>
+      useMedicalRecordSaveAction(
+        buildSaveArgs({
+          updateTreatmentPlanMutation: { mutateAsync: updateTreatmentPlan },
+          onClinicalPlanSaved,
+        }),
+      ),
+    );
+
+    act(() => {
+      startTransition(() => result.current.formAction(new FormData()));
+    });
+
+    await waitFor(() => expect(result.current.formState.success).toBe(true));
+    expect(onClinicalPlanSaved).toHaveBeenCalledWith(
+      savedClinicalPlan,
+      expect.objectContaining({ diagnosis1CategoryId: null, diagnosis2NameId: null }),
+    );
   });
 
   it("clinical-plan version 未取得（hydrate 前）は PATCH せず既存所見を空クリアしない", async () => {

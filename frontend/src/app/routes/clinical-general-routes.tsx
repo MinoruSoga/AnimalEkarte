@@ -85,10 +85,15 @@ export const clinicalGeneralRoutes: RouteObject[] = [
       </RequirePermission>
     ),
     errorElement: <RouteErrorBoundary />,
-    lazy: async () => {
-      const { AggregationDashboardPage } = await import("@/features/aggregation");
-      return { Component: AggregationDashboardPage };
-    },
+    children: [
+      {
+        index: true,
+        lazy: async () => {
+          const { AggregationDashboardPage } = await import("@/features/aggregation");
+          return { Component: AggregationDashboardPage };
+        },
+      },
+    ],
   },
 
   // ── Reservations ─────────────────────────────────────────────

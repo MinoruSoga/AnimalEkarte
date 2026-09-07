@@ -96,7 +96,6 @@ func NewShiftTemplateService(repo ShiftTemplateRepository) ShiftTemplateService 
 func (s *shiftTemplateService) GetByID(ctx context.Context, clinicID, id uint64) (*model.ShiftTemplate, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get shift template", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get shift template")
 	}
 	return result, nil
@@ -105,7 +104,6 @@ func (s *shiftTemplateService) GetByID(ctx context.Context, clinicID, id uint64)
 func (s *shiftTemplateService) List(ctx context.Context, clinicID uint64) ([]model.ShiftTemplate, error) {
 	items, err := s.repo.FindAll(ctx, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list shift templates", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to list shift templates")
 	}
 	return items, nil
@@ -182,7 +180,6 @@ func (s *shiftTemplateService) Create(ctx context.Context, clinicID uint64, inpu
 		if apperrors.IsNameConflict(err, apperrors.CodeShiftTemplateNameConflict) {
 			return nil, err
 		}
-		slog.ErrorContext(ctx, "failed to create shift template", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to create shift template")
 	}
 	slog.InfoContext(ctx, "shift template created", slog.Uint64("clinic_id", clinicID), slog.Uint64("shift_template_id", template.ID))
@@ -197,7 +194,6 @@ func (s *shiftTemplateService) Update(ctx context.Context, clinicID, id uint64, 
 	if len(fields) == 0 && input.Breaks == nil {
 		existing, err := s.repo.FindByID(ctx, clinicID, id)
 		if err != nil {
-			slog.ErrorContext(ctx, "failed to find shift template", "error", err, "id", id, "clinic_id", clinicID)
 			return nil, apperrors.Wrap(err, "failed to find shift template")
 		}
 		return existing, nil
@@ -243,7 +239,7 @@ func (s *shiftTemplateService) Update(ctx context.Context, clinicID, id uint64, 
 		}
 
 		if len(fields) > 0 {
-			if err := s.applyShiftTemplateFieldUpdate(txCtx, clinicID, id, fields, input); err != nil {
+			if err := s.applyShiftTemplateFieldUpdate(txCtx, clinicID, id, input); err != nil {
 				return err
 			}
 		}
@@ -262,7 +258,6 @@ func (s *shiftTemplateService) Update(ctx context.Context, clinicID, id uint64, 
 		if apperrors.IsNameConflict(err, apperrors.CodeShiftTemplateNameConflict) {
 			return nil, err
 		}
-		slog.ErrorContext(ctx, "failed to update shift template", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to update shift template")
 	}
 	slog.InfoContext(ctx, "shift template updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("shift_template_id", id))
@@ -279,7 +274,6 @@ func (s *shiftTemplateService) Delete(ctx context.Context, clinicID, id uint64) 
 		}
 		return nil
 	}); err != nil {
-		slog.ErrorContext(ctx, "failed to delete shift template", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete shift template")
 	}
 	slog.InfoContext(ctx, "shift template deleted", slog.Uint64("clinic_id", clinicID), slog.Uint64("shift_template_id", id))
@@ -289,10 +283,9 @@ func (s *shiftTemplateService) Delete(ctx context.Context, clinicID, id uint64) 
 func (s *shiftTemplateService) applyShiftTemplateFieldUpdate(
 	ctx context.Context,
 	clinicID, id uint64,
-	fields map[string]any,
 	input *UpdateShiftTemplateInput,
 ) error {
-	if _, err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
+	if _, err := s.repo.Update(ctx, clinicID, id, *input); err != nil {
 		nameForConflict := ""
 		if input.Name != nil {
 			nameForConflict = *input.Name
@@ -315,7 +308,6 @@ func (s *shiftTemplateService) Reorder(ctx context.Context, clinicID uint64, ids
 		return apperrors.WrapInvalidInput(ErrMsgIDsNotEmpty)
 	}
 	if err := s.repo.Reorder(ctx, clinicID, ids); err != nil {
-		slog.ErrorContext(ctx, "failed to reorder shift templates", "error", err, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to reorder shift templates")
 	}
 	slog.InfoContext(ctx, "shift templates reordered", slog.Uint64("clinic_id", clinicID), slog.Int("count", len(ids)))

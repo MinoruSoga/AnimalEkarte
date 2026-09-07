@@ -42,7 +42,7 @@ type mockOccupationRepository struct {
 	lockForShareFn             func(context.Context, uint64, uint64) (*model.Occupation, error)
 	lockForUpdateFn            func(context.Context, uint64, uint64) (*model.Occupation, error)
 	createFn                   func(context.Context, *model.Occupation) error
-	updateFieldsFn             func(context.Context, uint64, uint64, map[string]any) (*model.Occupation, error)
+	updateFieldsFn             func(context.Context, uint64, uint64, UpdateOccupationInput) (*model.Occupation, error)
 	deleteFn                   func(context.Context, uint64, uint64) error
 	reorderErr                 error
 	countUsageByOccupationIDFn func(context.Context, uint64, uint64) (int64, error)
@@ -111,10 +111,10 @@ func (m *mockOccupationRepository) Create(ctx context.Context, occupation *model
 func (m *mockOccupationRepository) Update(
 	ctx context.Context,
 	clinicID, id uint64,
-	fields map[string]any,
+	cmd UpdateOccupationInput,
 ) (*model.Occupation, error) {
 	if m.updateFieldsFn != nil {
-		return m.updateFieldsFn(ctx, clinicID, id, fields)
+		return m.updateFieldsFn(ctx, clinicID, id, cmd)
 	}
 	return &model.Occupation{}, nil
 }

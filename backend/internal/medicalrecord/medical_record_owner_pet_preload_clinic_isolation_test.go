@@ -58,7 +58,7 @@ func TestMedicalRecordRepository_FindByIDAndFindAllRejectPollutedParent(t *testi
 	t.Run("FindAll rejects a parent with foreign owner/pet relations", func(t *testing.T) {
 		items, total, err := repo.FindAll(ctx, []uint64{clinicA}, MedicalRecordListFilters{}, 1, 50)
 		require.NoError(t, err)
-		assert.Zero(t, total)
+		assert.Equal(t, int64(1), total, "COUNT is clinic-scoped; isolation stays on Find")
 		assert.Empty(t, items, "polluted raw owner_id/pet_id must not reach the list response")
 	})
 

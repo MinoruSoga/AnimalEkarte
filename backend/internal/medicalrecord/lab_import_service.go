@@ -3,7 +3,6 @@ package medicalrecord
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -99,7 +98,6 @@ func (s *labImportJobService) CreateJob(ctx context.Context, clinicID uint64, ba
 		StartedAt:         &now,
 	}
 	if err := s.jobRepo.Create(ctx, job); err != nil {
-		slog.ErrorContext(ctx, "failed to create lab import job", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to create lab import job")
 	}
 	event := &model.LabImportEvent{
@@ -110,7 +108,6 @@ func (s *labImportJobService) CreateJob(ctx context.Context, clinicID uint64, ba
 		RowCount:  len(batch.ResultRows),
 	}
 	if err := s.eventRepo.Create(ctx, event); err != nil {
-		slog.ErrorContext(ctx, "failed to append lab import event", "error", err, "job_id", job.ID)
 		return nil, apperrors.Wrap(err, "failed to append lab import event")
 	}
 	return job, nil
@@ -172,11 +169,9 @@ func (s *labImportJobService) TransitionStatus(
 	}
 
 	if err := s.jobRepo.Update(ctx, job); err != nil {
-		slog.ErrorContext(ctx, "failed to update lab import job", "error", err, "job_id", job.ID)
 		return nil, apperrors.Wrap(err, "failed to update lab import job")
 	}
 	if err := s.eventRepo.Create(ctx, event); err != nil {
-		slog.ErrorContext(ctx, "failed to append lab import event", "error", err, "job_id", job.ID)
 		return nil, apperrors.Wrap(err, "failed to append lab import event")
 	}
 	return job, nil
@@ -234,7 +229,6 @@ func (s *labImportJobService) ListEvents(ctx context.Context, clinicID uint64, j
 	}
 	events, err := s.eventRepo.FindByJob(ctx, clinicID, jobID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list lab import events", "error", err, "job_id", jobID)
 		return nil, apperrors.Wrap(err, "failed to list lab import events")
 	}
 	return events, nil

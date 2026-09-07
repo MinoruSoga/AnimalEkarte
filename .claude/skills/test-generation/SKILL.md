@@ -40,7 +40,7 @@ it('should return expected result when given valid input', () => {
 
 全体コマンドは CLAUDE.md の自動実行禁止リスト — 生成後の全体確認はユーザーに実行を依頼する。
 
-E2Eは `e2e-design` コマンド / `docs/ops/testing/E2E_TESTING_GUIDE.md` を参照
+E2E は `docs/ops/testing/E2E_TESTING_GUIDE.md` を参照
 
 ### モック方針
 
@@ -54,7 +54,7 @@ E2Eは `e2e-design` コマンド / `docs/ops/testing/E2E_TESTING_GUIDE.md` を�
 
 #### テスト構造（手書き fn-field モック — 本プロジェクトの正本パターン。詳細は `golang-testing` スキル参照）
 
-testify/mock パッケージのマッチャー/期待値APIは使わない（本プロジェクトの実コードに1件も存在しない）。各テストケースで必要な fn だけ差し替える手書きモックが正本（実例: `backend/internal/service/liff_service_mock_test.go`）。
+testify/mock パッケージのマッチャー/期待値APIは使わない（本プロジェクトの実コードに1件も存在しない）。各テストケースで必要な fn だけ差し替える手書きモックが正本（実例: `backend/internal/reservation/liff_service_mock_test.go`）。詳細は `golang-testing`。
 
 ```go
 func TestCreateOwner(t *testing.T) {

@@ -17,7 +17,7 @@ func TestStageB_ExclusionFacade_ZeroDualWriteAndInverseRead(t *testing.T) {
 	db := setupCapabilityIsolationTestDB(t)
 	// also need exclusions table present for dual-write assertions
 	require.NoError(t, db.AutoMigrate(&model.StaffReservationExclusion{}))
-	repo := NewReservationStaffRepository(db, staffpkg.NewStaffRepository(db))
+	repo := NewReservationStaffRepository(db, staffpkg.NewRepository(db))
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
@@ -82,7 +82,7 @@ func TestStageB_ExclusionFacade_ZeroDualWriteAndInverseRead(t *testing.T) {
 
 func TestStageB_EmptyCapable_DerivesFullUniverseExcluded(t *testing.T) {
 	db := setupCapabilityIsolationTestDB(t)
-	repo := NewReservationStaffRepository(db, staffpkg.NewStaffRepository(db))
+	repo := NewReservationStaffRepository(db, staffpkg.NewRepository(db))
 	ctx := context.Background()
 	const clinicA = uint64(1)
 

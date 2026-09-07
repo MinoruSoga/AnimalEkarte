@@ -22,7 +22,7 @@ model: opus
 
 セキュリティ監査（OWASP Top 10 等）は `security-analyst` の責務。本エージェントとレーンを分ける。
 
-技術スタックは root `CLAUDE.md` Project Overview を参照（ここに複製しない）。
+技術スタックは root `CLAUDE.md` の「全体アーキテクチャ概要」を参照（ここに複製しない）。
 
 ## 出力形式
 

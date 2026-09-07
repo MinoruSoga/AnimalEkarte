@@ -34,7 +34,8 @@ func TestCampaignRepository_Update_RollsBackWhenAmbientTxFails(t *testing.T) {
 
 	tx := testNewTransactor(db)
 	txErr := tx.WithTx(ctx, func(txCtx context.Context) error {
-		if _, err := repo.Update(txCtx, clinicA, c.ID, map[string]any{"name": "書き換え後"}); err != nil {
+		name := "書き換え後"
+		if _, err := repo.Update(txCtx, clinicA, c.ID, UpdateCampaignInput{Name: &name}); err != nil {
 			return err
 		}
 		return errSentinelCampaignTx
@@ -64,10 +65,9 @@ func TestCampaignRepository_UpdateAndReplaceTargets_RollBackTogether(t *testing.
 
 	tx := testNewTransactor(db)
 	txErr := tx.WithTx(ctx, func(txCtx context.Context) error {
-		if _, err := repo.Update(txCtx, clinicA, c.ID, map[string]any{
-			"name":           "部分成功させない",
-			"discount_value": 99.0,
-		}); err != nil {
+		name := "部分成功させない"
+		discount := 99.0
+		if _, err := repo.Update(txCtx, clinicA, c.ID, UpdateCampaignInput{Name: &name, DiscountValue: &discount}); err != nil {
 			return err
 		}
 		if err := repo.ReplaceTargets(txCtx, c.ID, []model.ItemCategory{model.ItemCategoryGoods}, []uint64{42}); err != nil {
@@ -161,7 +161,8 @@ func TestCampaignRepository_FindByID_SeesUncommittedUpdateInAmbientTx(t *testing
 
 	tx := testNewTransactor(db)
 	require.NoError(t, tx.WithTx(ctx, func(txCtx context.Context) error {
-		if _, err := repo.Update(txCtx, clinicA, c.ID, map[string]any{"name": "tx内名称"}); err != nil {
+		name := "tx内名称"
+		if _, err := repo.Update(txCtx, clinicA, c.ID, UpdateCampaignInput{Name: &name}); err != nil {
 			return err
 		}
 		got, err := repo.FindByID(txCtx, clinicA, c.ID)

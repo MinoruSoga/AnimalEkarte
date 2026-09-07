@@ -2,7 +2,6 @@ package medicalrecord
 
 import (
 	"context"
-	"log/slog"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -97,8 +96,6 @@ func (t *labImportUsageTracker) insertReceipt(
 		ActorID:  actorID,
 	}
 	if err := t.receipts.Create(ctx, receipt); err != nil {
-		slog.ErrorContext(ctx, "failed to record lab import usage receipt",
-			"error", err, "clinic_id", clinicID, "exam_id", exam.ID, "use_kind", kind)
 		return apperrors.Wrap(err, "failed to record lab import usage receipt")
 	}
 	return nil

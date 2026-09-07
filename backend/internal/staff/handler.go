@@ -17,7 +17,7 @@ type PermissionMiddleware func(resource, action string) gin.HandlerFunc
 type PermissionChecker func(c *gin.Context, resource, action string) bool
 
 type handlerServices struct {
-	Staff                 StaffService
+	Staff                 Service
 	StaffClinicAssignment StaffClinicAssignmentService
 	Occupation            OccupationService
 	ShiftEntry            ShiftEntryService
@@ -33,7 +33,7 @@ type Handler struct {
 
 // NewHandler constructs the staff HTTP boundary.
 func NewHandler(
-	staffService StaffService,
+	staffService Service,
 	assignmentService StaffClinicAssignmentService,
 	occupationService OccupationService,
 	shiftEntryService ShiftEntryService,
@@ -54,7 +54,7 @@ func NewHandler(
 // NewHandlerWithPermissionChecker constructs the staff HTTP boundary with
 // conditional permission checks.
 func NewHandlerWithPermissionChecker(
-	staffService StaffService,
+	staffService Service,
 	assignmentService StaffClinicAssignmentService,
 	occupationService OccupationService,
 	shiftEntryService ShiftEntryService,

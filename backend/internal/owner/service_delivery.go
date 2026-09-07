@@ -40,7 +40,6 @@ func (s *ownerService) UpdateDeliveryExclusion(ctx context.Context, clinicID, id
 		id,
 		fields,
 		"failed to update delivery exclusion",
-		"failed to update delivery exclusion",
 	)
 	if err != nil {
 		return nil, err
@@ -81,7 +80,6 @@ func (s *ownerService) UpdateDeliveryCaution(ctx context.Context, clinicID, id u
 		clinicID,
 		id,
 		fields,
-		"failed to update delivery caution",
 		"failed to update delivery caution",
 	)
 	if err != nil {
@@ -124,7 +122,6 @@ func (s *ownerService) UpdateTransferStatus(ctx context.Context, clinicID, id ui
 		clinicID,
 		id,
 		fields,
-		"failed to update transfer status",
 		"failed to update transfer status",
 	)
 	if err != nil {

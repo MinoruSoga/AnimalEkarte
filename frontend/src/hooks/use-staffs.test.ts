@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { axios } from "@/lib/axios";
 import { queryKeys } from "@/lib/query-keys";
-import { transformStaffSelectorItem, useGetStaffs } from "./use-staffs";
+import { STAFFS_RAW_QUERY_KEY, transformStaffSelectorItem, useGetStaffs } from "./use-staffs";
 
 vi.mock("@/lib/axios", () => ({
   axios: {
@@ -74,34 +74,21 @@ describe("use-staffs selector transform (fail-closed staff_type)", () => {
   });
 });
 
-describe("staff selector query cache (BUG-005 Mode3)", () => {
+describe("staff selector shares raw masters.staffs cache (STG P0-3)", () => {
   beforeEach(() => {
     vi.mocked(axios.get).mockReset();
     vi.mocked(axios.get).mockResolvedValue({ data: rawStaffs });
   });
 
-  it("uses a distinct key from masters.category(staffs)", () => {
+  it("keeps the unused selector-list key distinct for prefix-invalidate docs", () => {
     expect(queryKeys.masters.staffSelectorList()).toEqual(["masters", "staffs", "selector-list"]);
-    expect(queryKeys.masters.category("staffs")).toEqual(["masters", "staffs"]);
-    expect(queryKeys.masters.staffSelectorList()).not.toEqual(queryKeys.masters.category("staffs"));
+    expect(STAFFS_RAW_QUERY_KEY).toEqual(["masters", "staffs"]);
   });
 
-  it("stores thin selector shape under selector-list and ignores master key contents", async () => {
+  it("stores raw ModelStaff under category(staffs) and selects the thin shape", async () => {
     const client = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
-
-    // Poison master key with an incompatible full-shape-looking object; selector must not read it
-    client.setQueryData(queryKeys.masters.category("staffs"), [
-      {
-        id: "poison",
-        name: "Poison Master",
-        staffType: "doctor",
-        isActive: true,
-        email: "poison@example.invalid",
-        clinicId: "9",
-      },
-    ]);
 
     const { result } = renderHook(() => useGetStaffs(), {
       wrapper: createWrapper(client),
@@ -116,38 +103,11 @@ describe("staff selector query cache (BUG-005 Mode3)", () => {
     });
     expect(Object.prototype.hasOwnProperty.call(result.current.data?.[0], "email")).toBe(false);
 
-    const selectorCached = client.getQueryData(queryKeys.masters.staffSelectorList());
-    const masterCached = client.getQueryData(queryKeys.masters.category("staffs"));
-    expect(selectorCached).not.toBe(masterCached);
-    expect((masterCached as { id: string }[])[0].id).toBe("poison");
-  });
-
-  it("master key population order cannot overwrite selector-list after fetch", async () => {
-    const client = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    });
-
-    const { result } = renderHook(() => useGetStaffs(), {
-      wrapper: createWrapper(client),
-    });
-    await waitFor(() => expect(result.current.isSuccess).toBe(true));
-
-    client.setQueryData(queryKeys.masters.category("staffs"), [
-      {
-        id: "m1",
-        name: "Master Only",
-        staffType: "doctor",
-        isActive: true,
-        email: "m@example.invalid",
-        clinicId: "1",
-      },
-    ]);
-
-    const selectorCached = client.getQueryData(queryKeys.masters.staffSelectorList()) as {
-      id: string;
-      email?: string;
+    const rawCached = client.getQueryData(STAFFS_RAW_QUERY_KEY) as {
+      id: number;
+      is_active?: boolean;
     }[];
-    expect(selectorCached[0].id).toBe("1");
-    expect(selectorCached[0].email).toBeUndefined();
+    expect(rawCached[0].id).toBe(1);
+    expect(rawCached[0].is_active).toBe(true);
   });
 });

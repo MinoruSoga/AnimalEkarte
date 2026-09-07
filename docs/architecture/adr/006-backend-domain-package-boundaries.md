@@ -43,6 +43,7 @@ backend/internal/
   authjwt/ apperrors/ apicontract/ lintscan/
   audit/ persistence/ scheduler/ sharedkernel/
   textsearch/ testdb/
+  clinicale2e/  # APP_ENV=test 専用の disposable clinical E2E fixture。domain ではない
 ```
 
 > 2026-07-30 amendment: `identitylink/` を #239 Phase 1 の vertical slice として target domain に追加（cross-clinic owner/pet identity 連結）。依存は `apperrors` / `audit` / `httpapi` / `model` / `persistence` / `textsearch` のみ（owner/pet package への Go import は無し）。
@@ -50,6 +51,8 @@ backend/internal/
 > 2026-08-22 amendment: `labdeviceagent/` を keep-tier に追加する。Mac ローカル検査機器の serial-port agent（ADR-008）であり、consumer は `cmd/lab-device-agent` のみ。14 target domain には含めない。
 
 > 2026-09-05 amendment: `seedlogin/` を keep-tier に追加する。migrate フェーズ3の合成デモログイン upsert。runtime の `staffs` write owner は `staff` のまま。14 target domain には含めない。
+
+> 2026-09-07 amendment: `clinicale2e/` を keep-tier に追加する。Playwright clinical E2E 用の disposable clinic fixture（`cmd/clinical-e2e-fixture` のみ）。APP_ENV=`test` + ローカル DB host 以外は拒否し、clinic 1/2 を使わない。14 target domain には含めない。
 
 ### Product philosophyに基づく運用境界（project decision）
 
@@ -190,3 +193,15 @@ BE9-2B完了時点では後続phaseの着手前ゲートとして残していた
 - [ADR-002: マルチテナント設計 — clinic_id完全隔離](002-multitenancy-clinic-id-isolation.md)
 - [go-gin-backend-guidelines.md](../../../.claude/rules/go-gin-backend-guidelines.md)
 - 旧BE-refactor.md BE9-2A（2026-07-24退役・経緯はgit履歴）
+
+## 現行実装への補足（2026-09-06）
+
+> **2026-09-07 追補**: 以下の35 top-levelは2026-09-06の照合値。今回の作業ツリー（HEAD `267a17e48` と既存の未コミット差分）では `clinicale2e` を含む **36 top-level package / 14 domain** が `backend/internal/lintscan/package_boundary_gate_test.go` の `accepted_and_bucket_sets_are_disjoint` に固定されている。本ADRの2026-09-07 amendmentと [例外package規律](../exception-package-discipline.md) を現行案内とし、当時の測定値・採択理由は書き換えない。機械ゲートの実行成功やmainへの統合を、この静的照合だけで認定しない。
+
+本文の BE9 measurement・file 数・移行時の tenant 分類は履歴として保持する。現行 contract は以下の source と照合する。
+
+- `internal/lintscan/package_boundary_gate_test.go` は **35 top-level package / 14 domain** を pin する。`seedlogin` は `cmd/migrate` の非本番デモ upsert に加え、`auth/auth_service.go` の catalog 限定非本番認証補助からも使われる。cmd-only とは分類しない（[例外 package 規律](../exception-package-discipline.md)）。
+- §(c) の「`Payment` / `BillingItem` / `ExamTypeField` は自前 clinic なし」は採用時の記録である。現行 model では `Payment.ClinicID` / `BillingItem.ClinicID` / `ExamTypeField.ClinicID` が存在し、DDL では `billing_items` / `treatments` / `appointment_trimming_options` の clinic が親から複製される。GORM field の有無と DDL 列の有無は別指標。現行の複合 FK / RLS は [ERD](../erd.md) と `001_init.sql` を参照する。
+- [GitHub #249](https://github.com/MinoruSoga/AnimalEkarte/issues/249) の Phase 2 には `exam_type_fields` の direct clinic scope への移行要求がある。現行の同表、`exam_types` / `exam_reference_ranges` の複合 FK は DDL に実装されている。Issue は取得時点で OPEN であり、臨床 range 承認などの受入まで完了したとは扱わない。
+- nested owner/pet 登録は `owner.PetRegistrar` → `pet.CreateForOwnerRegistration` が同じ ambient transaction に参加する。owner 外の独立した pet insert 経路を作らない（[cross-domain catalog](../cross-domain-orchestration-catalog.md) の `PATH-OWNER-PET-REGISTER`）。
+- 上記は HEAD `7c6592f9f` のコードと DDL の静的照合であり、実 DB 適用、STG/PROD の release gate の判定ではない。

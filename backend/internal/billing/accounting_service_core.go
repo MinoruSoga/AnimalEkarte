@@ -15,7 +15,6 @@ import (
 func (s *accountingService) List(ctx context.Context, clinicID uint64, filters AccountingListFilters, page, limit int) ([]model.Billing, int64, error) {
 	result, total, err := s.repo.FindAll(ctx, clinicID, filters, page, limit)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list accounting", "error", err)
 		return nil, 0, apperrors.Wrap(err, "failed to list accounting")
 	}
 	return result, total, nil
@@ -24,7 +23,6 @@ func (s *accountingService) List(ctx context.Context, clinicID uint64, filters A
 func (s *accountingService) ListForClinics(ctx context.Context, clinicIDs []uint64, filters AccountingListFilters, page, limit int) ([]model.Billing, int64, error) {
 	result, total, err := s.repo.FindAllForClinics(ctx, clinicIDs, filters, page, limit)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list accounting for clinics", "error", err)
 		return nil, 0, apperrors.Wrap(err, "failed to list accounting for clinics")
 	}
 	return result, total, nil
@@ -33,7 +31,6 @@ func (s *accountingService) ListForClinics(ctx context.Context, clinicIDs []uint
 func (s *accountingService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error) {
 	result, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get accounting", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get accounting")
 	}
 	return result, nil
@@ -42,7 +39,6 @@ func (s *accountingService) GetByID(ctx context.Context, clinicID, id uint64) (*
 func (s *accountingService) GetByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Billing, error) {
 	result, err := s.repo.FindByIDForClinics(ctx, clinicIDs, id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get accounting for clinics", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get accounting for clinics")
 	}
 	return result, nil
@@ -109,7 +105,6 @@ func (s *accountingService) Create(ctx context.Context, input *CreateAccountingI
 		err = createFn(ctx)
 	}
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to create accounting", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create accounting")
 	}
 	slog.InfoContext(ctx, "accounting created",
@@ -159,7 +154,6 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 
 	existing, err := s.repo.FindByID(ctx, input.ClinicID, input.ID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to find accounting", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find accounting")
 	}
 	if err := rejectPrivilegedGenericUpdate(existing, input); err != nil {
@@ -173,8 +167,8 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 	if err := validatePaymentSplits(input.PaymentSplits, input.BillingAmount); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate payment splits")
 	}
-	fields := buildAccountingUpdate(input)
-	if len(fields) == 0 && !hasPaymentFields(input) {
+	cmd := accountingUpdateFromInput(input)
+	if len(cmd.toFields()) == 0 && !hasPaymentFields(input) {
 		return nil, apperrors.WrapInvalidInput("no fields to update")
 	}
 
@@ -193,7 +187,7 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 	var accounting *model.Billing
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		reloaded, err := s.updateAccountingInTx(
-			txCtx, input, existing, fields, finalMRID, finalHospID, finalOwnerID, finalPetID, payment, splits,
+			txCtx, input, existing, cmd, finalMRID, finalHospID, finalOwnerID, finalPetID, payment, splits,
 		)
 		if err != nil {
 			return err
@@ -423,10 +417,6 @@ func createPostCloseAdjustment(
 		ExecutedAt:         time.Now(),
 	}
 	if err := closeRepo.CreateAdjustment(ctx, adj); err != nil {
-		slog.ErrorContext(ctx, "failed to write post-close adjustment", "error", err,
-			slog.Uint64("clinic_id", clinicID),
-			slog.Uint64("billing_id", billingID),
-			slog.Uint64("close_id", closeRec.ID))
 		return apperrors.Wrap(err, "failed to write post-close cash register adjustment")
 	}
 	return nil
@@ -480,7 +470,6 @@ func (s *accountingService) logPostCloseEdit(ctx context.Context, input *UpdateA
 func (s *accountingService) loadPaymentMethodSystemKeyToID(ctx context.Context, clinicID uint64) (map[string]uint64, error) {
 	methods, err := s.payMethodRepo.FindAll(ctx, clinicID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to load payment methods", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to load payment methods")
 	}
 	skToID := make(map[string]uint64, len(methods))
@@ -498,10 +487,6 @@ func (s *accountingService) completeAccountingAppointments(ctx context.Context, 
 	}
 	updated, err := s.reservationRepo.CompleteForAccounting(ctx, clinicID, billing.MedicalRecordID, billing.OwnerID, billing.PetID, billing.ScheduledDate)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to complete accounting appointments",
-			slog.Uint64("clinic_id", clinicID),
-			slog.Uint64("billing_id", billing.ID),
-			slog.String("error", err.Error()))
 		return apperrors.Wrap(err, "failed to complete accounting appointments")
 	}
 	if updated > 0 {

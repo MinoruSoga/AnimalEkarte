@@ -66,7 +66,7 @@ func TestMedicalRecordService_CreateSubRecords_RejectsCrossClinicDiagnosisFK(t *
 			findByMedicalRecordIDFn: func(_ context.Context, _, mrID uint64) (*model.ClinicalPlan, error) {
 				return &model.ClinicalPlan{ID: 1, MedicalRecordID: mrID}, nil
 			},
-			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			updateFn: func(_ context.Context, _, _ uint64, _ UpdateClinicalPlanInput) error {
 				*updated = true
 				return nil
 			},
@@ -107,7 +107,7 @@ func TestMedicalRecordService_CreateSubRecords_RejectsCrossClinicDiagnosisNameFK
 			findByMedicalRecordIDFn: func(_ context.Context, _, mrID uint64) (*model.ClinicalPlan, error) {
 				return &model.ClinicalPlan{ID: 1, MedicalRecordID: mrID}, nil
 			},
-			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			updateFn: func(_ context.Context, _, _ uint64, _ UpdateClinicalPlanInput) error {
 				*updated = true
 				return nil
 			},

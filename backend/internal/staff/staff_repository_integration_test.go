@@ -1,10 +1,10 @@
 package staff_test
 
-// staff_repository_test.go — StaffRepository の統合テスト（実 Postgres テスト DB）。
+// staff_repository_test.go — Repository の統合テスト（実 Postgres テスト DB）。
 //
 // staff_occupation_preload_clinic_isolation_test.go / staff_preload_clinic_isolation_test.go が
 // Staff.Occupation / Staff.Doctor(reservation) preload の clinic_id 隔離を既にカバーしているため、
-// 本ファイルは StaffRepository 自体の CRUD・多医院所属ゲート（Update/Delete/UpdatePrimaryClinicID/
+// 本ファイルは Repository 自体の CRUD・多医院所属ゲート（Update/Delete/UpdatePrimaryClinicID/
 // Reorder が staff_clinic_assignments EXISTS で許可判定する挙動）・CountBlockingReferencesByStaffID を
 // 対象とする。seedClinicsForFK / makeStaffClinicAssignment / makeDoctor は他ファイルで定義済みのため再利用する。
 
@@ -51,7 +51,7 @@ func makeStaffAccount(t *testing.T, db *gorm.DB, email string) *model.Account {
 
 func TestStaffRepository_FindByID_HappyPathPreloadsAccountAndOccupation(t *testing.T) {
 	db := setupStaffRepositoryTestDB(t)
-	repo := NewStaffRepository(db)
+	repo := NewRepository(db)
 	ctx := context.Background()
 	const clinicID = uint64(1)
 	seedClinicsForFK(t, db, clinicID)
@@ -72,7 +72,7 @@ func TestStaffRepository_FindByID_HappyPathPreloadsAccountAndOccupation(t *testi
 
 func TestStaffRepository_FindByID_HidesOccupationOutsideAuthoritativeClinic(t *testing.T) {
 	db := setupStaffRepositoryTestDB(t)
-	repo := NewStaffRepository(db)
+	repo := NewRepository(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 	seedClinicsForFK(t, db, clinicA, clinicB)
@@ -96,7 +96,7 @@ func TestStaffRepository_FindByID_HidesOccupationOutsideAuthoritativeClinic(t *t
 
 func TestStaffRepository_FindByID_NotFoundForNonexistentID(t *testing.T) {
 	db := setupStaffRepositoryTestDB(t)
-	repo := NewStaffRepository(db)
+	repo := NewRepository(db)
 	ctx := context.Background()
 
 	_, err := repo.FindByID(ctx, 999999)
@@ -106,7 +106,7 @@ func TestStaffRepository_FindByID_NotFoundForNonexistentID(t *testing.T) {
 
 func TestStaffRepository_FindByID_ExcludesSoftDeleted(t *testing.T) {
 	db := setupStaffRepositoryTestDB(t)
-	repo := NewStaffRepository(db)
+	repo := NewRepository(db)
 	ctx := context.Background()
 	const clinicID = uint64(1)
 	seedClinicsForFK(t, db, clinicID)
@@ -122,7 +122,7 @@ func TestStaffRepository_FindByID_ExcludesSoftDeleted(t *testing.T) {
 
 func TestStaffRepository_FindByIDInClinic_HidesForeignOccupationForSharedStaff(t *testing.T) {
 	db := setupStaffRepositoryTestDB(t)
-	repo := NewStaffRepository(db)
+	repo := NewRepository(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 	seedClinicsForFK(t, db, clinicA, clinicB)
@@ -138,12 +138,7 @@ func TestStaffRepository_FindByIDInClinic_HidesForeignOccupationForSharedStaff(t
 	makeStaffClinicAssignment(t, db, staff.ID, clinicA)
 	makeStaffClinicAssignment(t, db, staff.ID, clinicB)
 
-	scoped, ok := repo.(interface {
-		FindByIDInClinic(context.Context, uint64, uint64) (*model.Staff, error)
-	})
-	require.True(t, ok, "repository must expose a clinic-scoped staff detail read")
-
-	got, err := scoped.FindByIDInClinic(ctx, clinicA, staff.ID)
+	got, err := repo.FindByIDInClinic(ctx, clinicA, staff.ID)
 
 	require.NoError(t, err)
 	require.NotNil(t, got)
@@ -155,7 +150,7 @@ func TestStaffRepository_FindByIDInClinic_HidesForeignOccupationForSharedStaff(t
 
 func TestStaffRepository_FindByAccountID_HappyPath(t *testing.T) {
 	db := setupStaffRepositoryTestDB(t)
-	repo := NewStaffRepository(db)
+	repo := NewRepository(db)
 	ctx := context.Background()
 	const clinicID = uint64(1)
 	seedClinicsForFK(t, db, clinicID)
@@ -171,7 +166,7 @@ func TestStaffRepository_FindByAccountID_HappyPath(t *testing.T) {
 
 func TestStaffRepository_FindByAccountID_NotFoundForNonexistentAccountID(t *testing.T) {
 	db := setupStaffRepositoryTestDB(t)
-	repo := NewStaffRepository(db)
+	repo := NewRepository(db)
 	ctx := context.Background()
 
 	_, err := repo.FindByAccountID(ctx, 999999)
@@ -183,7 +178,7 @@ func TestStaffRepository_FindByAccountID_NotFoundForNonexistentAccountID(t *test
 
 func TestStaffRepository_Create_HappyPath(t *testing.T) {
 	db := setupStaffRepositoryTestDB(t)
-	repo := NewStaffRepository(db)
+	repo := NewRepository(db)
 	ctx := context.Background()
 	const clinicID = uint64(1)
 	seedClinicsForFK(t, db, clinicID)
@@ -200,7 +195,7 @@ func TestStaffRepository_Create_HappyPath(t *testing.T) {
 // BUG-455-S7: gorm default:true omits zero bools from INSERT.
 func TestStaffRepository_Create_ReservationVisibleFalsePersists(t *testing.T) {
 	db := setupStaffRepositoryTestDB(t)
-	repo := NewStaffRepository(db)
+	repo := NewRepository(db)
 	ctx := context.Background()
 	const clinicID = uint64(1)
 	seedClinicsForFK(t, db, clinicID)
@@ -231,7 +226,7 @@ func TestStaffRepository_Create_ReservationVisibleFalsePersists(t *testing.T) {
 
 func TestStaffRepository_FindAll_OnlyAssignedStaffVisible(t *testing.T) {
 	db := setupStaffRepositoryTestDB(t)
-	repo := NewStaffRepository(db)
+	repo := NewRepository(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 	seedClinicsForFK(t, db, clinicA, clinicB)
@@ -251,7 +246,7 @@ func TestStaffRepository_FindAll_OnlyAssignedStaffVisible(t *testing.T) {
 
 func TestStaffRepository_FindAll_ExcludesSoftDeletedAssignment(t *testing.T) {
 	db := setupStaffRepositoryTestDB(t)
-	repo := NewStaffRepository(db)
+	repo := NewRepository(db)
 	ctx := context.Background()
 	const clinicID = uint64(1)
 	seedClinicsForFK(t, db, clinicID)
@@ -269,7 +264,7 @@ func TestStaffRepository_FindAll_ExcludesSoftDeletedAssignment(t *testing.T) {
 
 func TestStaffRepository_FindAll_ExcludesSoftDeletedStaff(t *testing.T) {
 	db := setupStaffRepositoryTestDB(t)
-	repo := NewStaffRepository(db)
+	repo := NewRepository(db)
 	ctx := context.Background()
 	const clinicID = uint64(1)
 	seedClinicsForFK(t, db, clinicID)
@@ -286,7 +281,7 @@ func TestStaffRepository_FindAll_ExcludesSoftDeletedStaff(t *testing.T) {
 
 func TestStaffRepository_FindAll_Pagination(t *testing.T) {
 	db := setupStaffRepositoryTestDB(t)
-	repo := NewStaffRepository(db)
+	repo := NewRepository(db)
 	ctx := context.Background()
 	const clinicID = uint64(1)
 	seedClinicsForFK(t, db, clinicID)
@@ -303,11 +298,27 @@ func TestStaffRepository_FindAll_Pagination(t *testing.T) {
 	assert.Len(t, got, 2, "page1 limit2 → 2件")
 }
 
+func TestStaffRepository_FindAll_SkipsCountWhenLimitIsLarge(t *testing.T) {
+	db := setupStaffRepositoryTestDB(t)
+	repo := NewRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+	seedClinicsForFK(t, db, clinicID)
+
+	staff := makeDoctor(t, db, clinicID, "件数省略スタッフ")
+	makeStaffClinicAssignment(t, db, staff.ID, clinicID)
+
+	got, total, err := repo.FindAll(ctx, clinicID, 1, 1000)
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	assert.Equal(t, int64(1), total)
+}
+
 // ---- Update ----
 
 func TestStaffRepository_Update_HappyPathWithAssignment(t *testing.T) {
 	db := setupStaffRepositoryTestDB(t)
-	repo := NewStaffRepository(db)
+	repo := NewRepository(db)
 	ctx := context.Background()
 	const clinicID = uint64(1)
 	seedClinicsForFK(t, db, clinicID)
@@ -315,7 +326,8 @@ func TestStaffRepository_Update_HappyPathWithAssignment(t *testing.T) {
 	staff := makeDoctor(t, db, clinicID, "更新前スタッフ")
 	makeStaffClinicAssignment(t, db, staff.ID, clinicID)
 
-	require.NoError(t, repo.Update(ctx, clinicID, staff.ID, map[string]any{"name": "更新後スタッフ"}))
+	name := "更新後スタッフ"
+	require.NoError(t, repo.Update(ctx, clinicID, staff.ID, UpdateStaffInput{Name: &name}))
 
 	got, err := repo.FindByID(ctx, staff.ID)
 	require.NoError(t, err)
@@ -324,7 +336,7 @@ func TestStaffRepository_Update_HappyPathWithAssignment(t *testing.T) {
 
 func TestStaffRepository_Update_NotFoundWithoutAssignment(t *testing.T) {
 	db := setupStaffRepositoryTestDB(t)
-	repo := NewStaffRepository(db)
+	repo := NewRepository(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 	seedClinicsForFK(t, db, clinicA, clinicB)
@@ -333,7 +345,8 @@ func TestStaffRepository_Update_NotFoundWithoutAssignment(t *testing.T) {
 	staff := makeDoctor(t, db, clinicA, "無関係スタッフ")
 	makeStaffClinicAssignment(t, db, staff.ID, clinicA)
 
-	err := repo.Update(ctx, clinicB, staff.ID, map[string]any{"name": "改ざん試行"})
+	name := "改ざん試行"
+	err := repo.Update(ctx, clinicB, staff.ID, UpdateStaffInput{Name: &name})
 	require.Error(t, err)
 	assert.True(t, apperrors.IsNotFound(err), "配属のないクリニックからの更新は NotFound: %v", err)
 
@@ -346,7 +359,7 @@ func TestStaffRepository_Update_NotFoundWithoutAssignment(t *testing.T) {
 
 func TestStaffRepository_UpdatePrimaryClinicID_HappyPath(t *testing.T) {
 	db := setupStaffRepositoryTestDB(t)
-	repo := NewStaffRepository(db)
+	repo := NewRepository(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 	seedClinicsForFK(t, db, clinicA, clinicB)
@@ -364,7 +377,7 @@ func TestStaffRepository_UpdatePrimaryClinicID_HappyPath(t *testing.T) {
 
 func TestStaffRepository_UpdatePrimaryClinicID_NotFoundWithoutAssignment(t *testing.T) {
 	db := setupStaffRepositoryTestDB(t)
-	repo := NewStaffRepository(db)
+	repo := NewRepository(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 	seedClinicsForFK(t, db, clinicA, clinicB)
@@ -381,7 +394,7 @@ func TestStaffRepository_UpdatePrimaryClinicID_NotFoundWithoutAssignment(t *test
 
 func TestStaffRepository_Delete_ConflictWhenShiftEntryExists(t *testing.T) {
 	db := setupStaffRepositoryTestDB(t)
-	repo := NewStaffRepository(db)
+	repo := NewRepository(db)
 	ctx := context.Background()
 	const clinicID = uint64(1)
 	seedClinicsForFK(t, db, clinicID)
@@ -407,7 +420,7 @@ func TestStaffRepository_Delete_ConflictWhenShiftEntryExists(t *testing.T) {
 
 func TestStaffRepository_Delete_HappyPathSoftDeletes(t *testing.T) {
 	db := setupStaffRepositoryTestDB(t)
-	repo := NewStaffRepository(db)
+	repo := NewRepository(db)
 	ctx := context.Background()
 	const clinicID = uint64(1)
 	seedClinicsForFK(t, db, clinicID)
@@ -428,7 +441,7 @@ func TestStaffRepository_Delete_HappyPathSoftDeletes(t *testing.T) {
 
 func TestStaffRepository_Delete_NotFoundWithoutAssignment(t *testing.T) {
 	db := setupStaffRepositoryTestDB(t)
-	repo := NewStaffRepository(db)
+	repo := NewRepository(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 	seedClinicsForFK(t, db, clinicA, clinicB)
@@ -447,7 +460,7 @@ func TestStaffRepository_Delete_NotFoundWithoutAssignment(t *testing.T) {
 
 func TestStaffRepository_Delete_ConflictForMultipleActiveAssignmentsPreservesIdentityAndAssignments(t *testing.T) {
 	db := setupStaffRepositoryTestDB(t)
-	repo := NewStaffRepository(db)
+	repo := NewRepository(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 	seedClinicsForFK(t, db, clinicA, clinicB)
@@ -484,7 +497,7 @@ func TestStaffRepository_Delete_ConflictForMultipleActiveAssignmentsPreservesIde
 
 func TestStaffRepository_Delete_SoftDeletedOtherAssignmentDoesNotConflict(t *testing.T) {
 	db := setupStaffRepositoryTestDB(t)
-	repo := NewStaffRepository(db)
+	repo := NewRepository(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 	seedClinicsForFK(t, db, clinicA, clinicB)
@@ -515,7 +528,7 @@ func TestStaffRepository_Delete_SoftDeletedOtherAssignmentDoesNotConflict(t *tes
 
 func TestStaffRepository_Reorder_HappyPath(t *testing.T) {
 	db := setupStaffRepositoryTestDB(t)
-	repo := NewStaffRepository(db)
+	repo := NewRepository(db)
 	ctx := context.Background()
 	const clinicID = uint64(1)
 	seedClinicsForFK(t, db, clinicID)
@@ -539,7 +552,7 @@ func TestStaffRepository_Reorder_HappyPath(t *testing.T) {
 
 func TestStaffRepository_Reorder_FailsForIDOutsideClinic(t *testing.T) {
 	db := setupStaffRepositoryTestDB(t)
-	repo := NewStaffRepository(db)
+	repo := NewRepository(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 	seedClinicsForFK(t, db, clinicA, clinicB)
@@ -555,7 +568,7 @@ func TestStaffRepository_Reorder_FailsForIDOutsideClinic(t *testing.T) {
 
 func TestStaffRepository_Reorder_RejectsSecondaryClinicAssignment(t *testing.T) {
 	db := setupStaffRepositoryTestDB(t)
-	repo := NewStaffRepository(db)
+	repo := NewRepository(db)
 	ctx := context.Background()
 	const primaryClinic, secondaryClinic = uint64(2), uint64(1)
 	seedClinicsForFK(t, db, primaryClinic, secondaryClinic)
@@ -576,7 +589,7 @@ func TestStaffRepository_Reorder_RejectsSecondaryClinicAssignment(t *testing.T) 
 
 func TestStaffRepository_CountBlockingReferencesByStaffID_ZeroWhenNoReferences(t *testing.T) {
 	db := setupStaffRepositoryTestDB(t)
-	repo := NewStaffRepository(db)
+	repo := NewRepository(db)
 	ctx := context.Background()
 	const clinicID = uint64(1)
 	seedClinicsForFK(t, db, clinicID)
@@ -590,7 +603,7 @@ func TestStaffRepository_CountBlockingReferencesByStaffID_ZeroWhenNoReferences(t
 
 func TestStaffRepository_CountBlockingReferencesByStaffID_CountsMedicalRecordsExcludingSoftDeleted(t *testing.T) {
 	db := setupStaffRepositoryTestDB(t)
-	repo := NewStaffRepository(db)
+	repo := NewRepository(db)
 	ctx := context.Background()
 	const clinicID = uint64(1)
 	seedClinicsForFK(t, db, clinicID)
@@ -612,7 +625,7 @@ func TestStaffRepository_CountBlockingReferencesByStaffID_CountsMedicalRecordsEx
 
 func TestStaffRepository_CountBlockingReferencesByStaffID_CountsShiftEntries(t *testing.T) {
 	db := setupStaffRepositoryTestDB(t)
-	repo := NewStaffRepository(db)
+	repo := NewRepository(db)
 	ctx := context.Background()
 	const clinicID = uint64(1)
 	seedClinicsForFK(t, db, clinicID)
@@ -630,7 +643,7 @@ func TestStaffRepository_CountBlockingReferencesByStaffID_CountsShiftEntries(t *
 
 func TestStaffRepository_CountBlockingReferencesByStaffID_CountsPaymentsViaBillingsJoin(t *testing.T) {
 	db := setupStaffRepositoryTestDB(t)
-	repo := NewStaffRepository(db)
+	repo := NewRepository(db)
 	ctx := context.Background()
 	const clinicID = uint64(1)
 	seedClinicsForFK(t, db, clinicID)
@@ -650,7 +663,7 @@ func TestStaffRepository_CountBlockingReferencesByStaffID_CountsPaymentsViaBilli
 
 func TestStaffRepository_CountBlockingReferencesByStaffID_ClinicIsolation(t *testing.T) {
 	db := setupStaffRepositoryTestDB(t)
-	repo := NewStaffRepository(db)
+	repo := NewRepository(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 	seedClinicsForFK(t, db, clinicA, clinicB)

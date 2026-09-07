@@ -7,14 +7,25 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
+
+func setLineSettingClinic(c *gin.Context, pathID, selected uint64, assigned []uint64) {
+	c.Params = append(c.Params, gin.Param{Key: "clinic_id", Value: strconv.FormatUint(pathID, 10)})
+	c.Set("clinic_id", strconv.FormatUint(selected, 10))
+	c.Set("clinic_ids", assigned)
+	httpapi.SetClinicPermissionChecker(c, func(_ *gin.Context, _ uint64, _, _ string) bool {
+		return true
+	})
+}
 
 // TestLineReservationSettingHandlerCompiles verifies line_reservation_setting_handler.go compiles
 func TestLineReservationSettingHandlerCompiles(t *testing.T) {
@@ -62,7 +73,7 @@ func TestGetLineReservationSetting(t *testing.T) {
 	}{
 		{
 			name:     "returns existing setting",
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setLineSettingClinic(c, 1, 1, []uint64{1}) },
 			svc: &mockLineReservationSettingService{
 				getFn: func(_ context.Context, clinicID uint64) (*model.LineReservationSetting, error) {
 					assert.Equal(t, uint64(1), clinicID)
@@ -73,14 +84,51 @@ func TestGetLineReservationSetting(t *testing.T) {
 			wantBody:   `"status":"running"`,
 		},
 		{
-			name:       "returns 401 when clinic_id missing",
-			setupCtx:   func(_ *gin.Context) {},
+			name: "returns 401 when clinic_ids context missing",
+			setupCtx: func(c *gin.Context) {
+				c.Params = gin.Params{{Key: "clinic_id", Value: "1"}}
+			},
 			svc:        &mockLineReservationSettingService{},
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
+			name: "returns 400 when path clinic_id is invalid",
+			setupCtx: func(c *gin.Context) {
+				c.Params = gin.Params{{Key: "clinic_id", Value: "abc"}}
+				c.Set("clinic_ids", []uint64{1})
+			},
+			svc:        &mockLineReservationSettingService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name: "reads URL clinic_id not selected clinic",
+			setupCtx: func(c *gin.Context) {
+				setLineSettingClinic(c, 3, 1, []uint64{1, 3})
+			},
+			svc: &mockLineReservationSettingService{
+				getFn: func(_ context.Context, clinicID uint64) (*model.LineReservationSetting, error) {
+					assert.Equal(t, uint64(3), clinicID)
+					return &model.LineReservationSetting{ID: 1, ClinicID: 3, Status: "running"}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"clinic_id":3`,
+		},
+		{
+			name: "returns 403 when path clinic is not assigned",
+			setupCtx: func(c *gin.Context) {
+				setLineSettingClinic(c, 3, 1, []uint64{1})
+			},
+			svc: &mockLineReservationSettingService{
+				getFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+					return nil, fmt.Errorf("Get must not run for an unassigned clinic")
+				},
+			},
+			wantStatus: http.StatusForbidden,
+		},
+		{
 			name:     "returns 500 on service error",
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setLineSettingClinic(c, 1, 1, []uint64{1}) },
 			svc: &mockLineReservationSettingService{
 				getFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
 					return nil, fmt.Errorf("db error")
@@ -116,9 +164,12 @@ func TestGetLineReservationSetting(t *testing.T) {
 		}
 		h := newHandlerWithLineReservationSettingSvc(svc)
 		r := gin.New()
-		r.GET("/line-reservation-settings", func(c *gin.Context) { setClinicID(c) }, h.GetLineReservationSetting)
+		r.GET("/clinics/:clinic_id/line-reservation-settings", func(c *gin.Context) {
+			c.Set("clinic_id", "1")
+			c.Set("clinic_ids", []uint64{1})
+		}, h.GetLineReservationSetting)
 		w := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, "/line-reservation-settings", http.NoBody)
+		req := httptest.NewRequest(http.MethodGet, "/clinics/1/line-reservation-settings", http.NoBody)
 		r.ServeHTTP(w, req)
 		assert.Equal(t, http.StatusNoContent, w.Code)
 	})
@@ -152,7 +203,7 @@ func TestSaveLineReservationSetting(t *testing.T) {
 		{
 			name:     "creates new setting returns 201 with Location",
 			body:     validBody(),
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setLineSettingClinic(c, 1, 1, []uint64{1}) },
 			svc: &mockLineReservationSettingService{
 				saveFn: func(_ context.Context, clinicID uint64, input *UpsertLineReservationSettingInput) (*model.LineReservationSetting, bool, error) {
 					assert.Equal(t, uint64(1), clinicID)
@@ -167,7 +218,7 @@ func TestSaveLineReservationSetting(t *testing.T) {
 		{
 			name:     "updates existing setting returns 200",
 			body:     validBody(),
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setLineSettingClinic(c, 1, 1, []uint64{1}) },
 			svc: &mockLineReservationSettingService{
 				saveFn: func(_ context.Context, clinicID uint64, input *UpsertLineReservationSettingInput) (*model.LineReservationSetting, bool, error) {
 					return &model.LineReservationSetting{ID: 1, ClinicID: clinicID, Status: input.Status}, false, nil
@@ -177,23 +228,25 @@ func TestSaveLineReservationSetting(t *testing.T) {
 			wantBody:   `"status":"running"`,
 		},
 		{
-			name:       "returns 401 when clinic_id missing",
-			body:       validBody(),
-			setupCtx:   func(_ *gin.Context) {},
+			name: "returns 401 when clinic_ids context missing",
+			body: validBody(),
+			setupCtx: func(c *gin.Context) {
+				c.Params = gin.Params{{Key: "clinic_id", Value: "1"}}
+			},
 			svc:        &mockLineReservationSettingService{},
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
 			name:       "returns 400 on malformed body",
 			body:       "not-json",
-			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			setupCtx:   func(c *gin.Context) { setLineSettingClinic(c, 1, 1, []uint64{1}) },
 			svc:        &mockLineReservationSettingService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:     "returns 500 on service error",
 			body:     validBody(),
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setLineSettingClinic(c, 1, 1, []uint64{1}) },
 			svc: &mockLineReservationSettingService{
 				saveFn: func(_ context.Context, _ uint64, _ *UpsertLineReservationSettingInput) (*model.LineReservationSetting, bool, error) {
 					return nil, false, fmt.Errorf("db error")
@@ -223,6 +276,71 @@ func TestSaveLineReservationSetting(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("saves to URL clinic_id not selected clinic", func(t *testing.T) {
+		var saved uint64
+		svc := &mockLineReservationSettingService{
+			saveFn: func(_ context.Context, clinicID uint64, input *UpsertLineReservationSettingInput) (*model.LineReservationSetting, bool, error) {
+				saved = clinicID
+				return &model.LineReservationSetting{ID: 1, ClinicID: clinicID, Status: input.Status}, false, nil
+			},
+		}
+		h := newHandlerWithLineReservationSettingSvc(svc)
+		b, err := json.Marshal(validBody())
+		require.NoError(t, err)
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPut, "/clinics/3/line-reservation-settings", bytes.NewReader(b))
+		c.Request.Header.Set("Content-Type", "application/json")
+		setLineSettingClinic(c, 3, 1, []uint64{1, 3})
+		h.SaveLineReservationSetting(c)
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, uint64(3), saved)
+		assert.Contains(t, w.Body.String(), `"clinic_id":3`)
+	})
+
+	t.Run("returns 403 when path clinic is not assigned", func(t *testing.T) {
+		saveCalled := false
+		svc := &mockLineReservationSettingService{
+			saveFn: func(_ context.Context, _ uint64, _ *UpsertLineReservationSettingInput) (*model.LineReservationSetting, bool, error) {
+				saveCalled = true
+				return nil, false, nil
+			},
+		}
+		h := newHandlerWithLineReservationSettingSvc(svc)
+		b, err := json.Marshal(validBody())
+		require.NoError(t, err)
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPut, "/clinics/3/line-reservation-settings", bytes.NewReader(b))
+		c.Request.Header.Set("Content-Type", "application/json")
+		setLineSettingClinic(c, 3, 1, []uint64{1})
+		h.SaveLineReservationSetting(c)
+		assert.Equal(t, http.StatusForbidden, w.Code)
+		assert.False(t, saveCalled)
+	})
+
+	t.Run("returns 400 when path clinic_id is invalid", func(t *testing.T) {
+		saveCalled := false
+		svc := &mockLineReservationSettingService{
+			saveFn: func(_ context.Context, _ uint64, _ *UpsertLineReservationSettingInput) (*model.LineReservationSetting, bool, error) {
+				saveCalled = true
+				return nil, false, nil
+			},
+		}
+		h := newHandlerWithLineReservationSettingSvc(svc)
+		b, err := json.Marshal(validBody())
+		require.NoError(t, err)
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPut, "/clinics/abc/line-reservation-settings", bytes.NewReader(b))
+		c.Request.Header.Set("Content-Type", "application/json")
+		c.Params = gin.Params{{Key: "clinic_id", Value: "abc"}}
+		c.Set("clinic_ids", []uint64{1})
+		h.SaveLineReservationSetting(c)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+		assert.False(t, saveCalled)
+	})
 }
 
 // ---- Comprehensive Test Coverage Documentation ----
