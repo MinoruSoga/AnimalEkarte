@@ -1,0 +1,10 @@
+{
+  "skills": [
+    "!docker-patterns",
+    "!gin-api-design",
+    "!go-gin-backend",
+    "!golang-gin-api",
+    "!golang-testing",
+    "!postgres-patterns"
+  ]
+}
