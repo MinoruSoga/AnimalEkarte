@@ -36,6 +36,8 @@
 
 全テーブルは §1 の inventory に含むが、下図は主要関係だけを示す。全 FK / association を網羅する図ではない。
 
+図の親側 `||` は参照先が設定されている場合の関係を示す。nullable FK の未設定は省略し、列の NULL 可否は DDL を正とする。`billings ||--|| payments` は支払いが存在する場合の1対1を表し、全会計に支払い行の存在を強制する制約ではない。予約とカルテは削除済み行を含めると1対多で、active カルテだけが予約ごとに最大1件となる。
+
 ```mermaid
 erDiagram
     clinics ||--o{ owners : "clinic_id"
@@ -57,15 +59,15 @@ erDiagram
     trimming_courses ||--o{ billing_items : "trimming_course_id"
     trimming_options ||--o{ billing_items : "trimming_option_id"
     merchandise_items ||--o{ billing_items : "merchandise_item_id"
-    vaccinations ||--o{ billing_items : "vaccination_id"
-    exams ||--o{ billing_items : "(exam_id, clinic_id)"
-    billings ||--o{ payments : "billing_id"
+    vaccinations ||--o| billing_items : "vaccination_id"
+    exams ||--o| billing_items : "(exam_id, clinic_id)"
+    billings ||--|| payments : "billing_id"
     billings ||--o{ payment_splits : "billing_id"
 
     %% 入院
     clinics ||--o{ cages : "clinic_id"
     hospitalizations ||--o{ daily_records : "hospitalization_id"
-    cages ||--o| hospitalizations : "cage_id"
+    cages ||--o{ hospitalizations : "cage_id"
 
     %% Lステップ連携 (拡張)
     clinics ||--o| lstep_settings : "clinic_id"
@@ -112,7 +114,7 @@ erDiagram
     pets ||--o{ lab_device_waits : "(pet_id, clinic_id)"
     staffs ||--o{ lab_device_waits : "(staff_id, clinic_id)"
     pets ||--o{ lab_import_jobs : "(pet_id, clinic_id)"
-    clinics ||--o{ lab_device_station_settings : "clinic_id"
+    clinics ||--o| lab_device_station_settings : "clinic_id"
 ```
 
 ---
