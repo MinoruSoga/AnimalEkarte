@@ -124,7 +124,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"billing/accounting_repository.go|accountingRepository.LockAndFindByID":    {},
 	"billing/accounting_repository.go|accountingRepository.SavePayment":        {},
 	"billing/accounting_repository.go|accountingRepository.SavePaymentSplits":  {},
-	"billing/accounting_repository.go|accountingRepository.Update":             {},
+	"billing/accounting_repository.go|accountingRepository.update":             {},
 	// BUG-018 idempotency probe: the completion-request key must be looked up inside the
 	// caller's ambient transaction so a replay cannot observe a pre-commit gap and create a
 	// second billing for the same key. Unscoped + ClinicScope keeps soft-deleted keys reserved.
@@ -245,8 +245,8 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/hospitalization_repository.go|hospitalizationRepository.Create":                {},
 	"medicalrecord/hospitalization_repository.go|hospitalizationRepository.FindByID":              {},
 	"medicalrecord/hospitalization_repository.go|hospitalizationRepository.LockByIDForUpdate":     {},
-	"medicalrecord/hospitalization_repository.go|hospitalizationRepository.Update":                {},
-	"medicalrecord/hospitalization_repository.go|hospitalizationRepository.UpdateIfNotDischarged": {},
+	"medicalrecord/hospitalization_repository.go|hospitalizationRepository.update":                {},
+	"medicalrecord/hospitalization_repository.go|hospitalizationRepository.updateIfNotDischarged": {},
 	"medicalrecord/hospitalization_repository.go|hospitalizationRepository.Delete":                {}, // MRB-05: delete + audit same ambient tx
 	// checkup_field (#211 tx-internal replace)
 	"medicalrecord/checkup_field_repository.go|checkupFieldResultRepository.FindByCheckupID":   {},
@@ -275,7 +275,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/clinical_plan_repository.go|clinicalPlanRepository.Create":                {},
 	"medicalrecord/clinical_plan_repository.go|clinicalPlanRepository.Delete":                {},
 	"medicalrecord/clinical_plan_repository.go|clinicalPlanRepository.FindByMedicalRecordID": {},
-	"medicalrecord/clinical_plan_repository.go|clinicalPlanRepository.Update":                {},
+	"medicalrecord/clinical_plan_repository.go|clinicalPlanRepository.update":                {},
 	"medicalrecord/clinical_plan_repository.go|clinicalPlanRepository.existsInClinic":        {},
 	"medicalrecord/clinical_plan_repository.go|clinicalPlanRepository.parentStillDraft":      {},
 	// estimate (SD-2 系ガード監査: 見積書 Create/Update/Delete が確定済みカルテ書込ガード対象と判明。
@@ -320,7 +320,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// Runtime: TestDB_ExaminationRepository_LockByIDForUpdateSerializesConcurrentStatusUpdate.
 	"medicalrecord/examination_repository.go|examinationRepository.LockByIDForUpdate":    {},
 	"medicalrecord/examination_repository.go|examinationRepository.ReplaceItemsByExamID": {},
-	"medicalrecord/examination_repository.go|examinationRepository.Update":               {},
+	"medicalrecord/examination_repository.go|examinationRepository.update":               {},
 
 	// TASK-032: lab import job/event/receipt/retraction repos participate in ambient tx.
 	// Lock/CAS methods require ambient tx (no base DB fallback).
@@ -411,7 +411,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// TestMedicalRecordService_DeleteWaitsOnAppointmentRowLockBeforeInConsultationCommit
 	// TestMedicalRecordRepository_LockLinkedAppointmentForUpdate_WaitsOnAppointmentRowLock
 	"medicalrecord/medical_record_repository.go|medicalRecordRepository.LockLinkedAppointmentForUpdate":     {},
-	"medicalrecord/medical_record_repository.go|medicalRecordRepository.Update":                             {},
+	"medicalrecord/medical_record_repository.go|medicalRecordRepository.update":                             {},
 	"medicalrecord/medical_record_repository.go|medicalRecordRepository.conflictAfterZeroMedicalRecordRows": {},
 	"medicalrecord/medical_record_repository.go|medicalRecordRepository.findMedicalRecordByID":              {},
 	// vaccination (BE9-2E-0: patient/master validation, readback, and writes must share the
@@ -634,7 +634,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"staff/staff_repository.go|staffRepository.LockActiveByIDForUpdate":          {},
 	"staff/staff_repository.go|staffRepository.LockActiveByIDForUpdateInClinic":  {},
 	"staff/staff_repository.go|staffRepository.Reorder":                          {},
-	"staff/staff_repository.go|staffRepository.Update":                           {},
+	"staff/staff_repository.go|staffRepository.update":                           {},
 	"staff/staff_repository.go|staffRepository.UpdatePrimaryClinicID":            {},
 	"staff/staff_repository.go|staffRepository.activeSystemAdminStaffQuery":      {},
 	// ADR-006 論点#1 案A: reservation_staff_repository.go から移動した予約用途 write
@@ -731,7 +731,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// lockDraftMedicalRecord 行ロック・在庫減算・逸脱監査と同一 ambient tx へ参加させる)
 	"medicalrecord/treatment_repository.go|treatmentRepository.Create":              {},
 	"medicalrecord/treatment_repository.go|treatmentRepository.Delete":              {},
-	"medicalrecord/treatment_repository.go|treatmentRepository.Update":              {},
+	"medicalrecord/treatment_repository.go|treatmentRepository.update":              {},
 	"medicalrecord/treatment_repository.go|treatmentRepository.BulkUpdateSortOrder": {},
 	// SEC-CS-F09/F10: treatment / treatment-plan discount recheck under FOR UPDATE in write TX.
 	// Runtime: treatment_discount_toctou_test.go, treatment_plan_discount_toctou_test.go.
@@ -741,7 +741,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// r.db.WithContext(ctx).Transaction → dbOrTx(ctx, r.db).Transaction. Allowlist backfill
 	// discovered during G6-2 (X-6 landed without registering these).
 	"medicalrecord/medicine_repository.go|medicineRepository.Create":                  {},
-	"medicalrecord/medicine_repository.go|medicineRepository.Update":                  {},
+	"medicalrecord/medicine_repository.go|medicineRepository.update":                  {},
 	"medicalrecord/medicine_repository.go|medicineRepository.Delete":                  {},
 	"medicalrecord/medicine_repository.go|medicineRepository.FindAll":                 {},
 	"medicalrecord/medicine_repository.go|medicineRepository.FindByID":                {},

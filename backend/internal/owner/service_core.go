@@ -129,7 +129,7 @@ func (s *ownerService) Update(ctx context.Context, clinicID, id uint64, input *U
 		return fields, nil
 	})
 	if err != nil {
-		return nil, s.wrapOwnerUpdateError(ctx, clinicID, id, err, "failed to update owner", "failed to update owner")
+		return nil, apperrors.Wrap(err, "failed to update owner")
 	}
 
 	slog.InfoContext(ctx, "owner updated",
@@ -189,17 +189,13 @@ func (s *ownerService) updateOwnerAndFind(
 	ctx context.Context,
 	clinicID, id uint64,
 	fields map[string]any,
-	logMessage, wrapMessage string,
+	wrapMessage string,
 ) (*model.Owner, error) {
 	owner, err := s.repo.UpdateAndFind(ctx, clinicID, id, fields)
 	if err != nil {
-		return nil, s.wrapOwnerUpdateError(ctx, clinicID, id, err, logMessage, wrapMessage)
+		return nil, apperrors.Wrap(err, wrapMessage)
 	}
 	return owner, nil
-}
-
-func (s *ownerService) wrapOwnerUpdateError(ctx context.Context, clinicID, id uint64, err error, logMessage, wrapMessage string) error {
-	return apperrors.Wrap(err, wrapMessage)
 }
 
 func (s *ownerService) Delete(ctx context.Context, clinicID, id uint64) error {

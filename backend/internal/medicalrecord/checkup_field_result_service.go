@@ -230,8 +230,7 @@ func (s *checkupFieldResultService) ReplaceForCheckup(ctx context.Context, clini
 				"deleted_count":     deletedCount,
 				"new_count":         len(saved),
 			},
-			"audit log failed for checkup field results replace; rolling back deletion",
-			"failed to write checkup field results deletion audit", "checkup_id")
+			"failed to write checkup field results deletion audit")
 	}); err != nil {
 		return nil, apperrors.Wrap(err, "failed to replace checkup field results in transaction")
 	}

@@ -50,7 +50,7 @@
 - Independent local serial-port agent for Mac workstations ([ADR-008](adr/008-local-lab-device-agent.md)). Not a 15th domain and not a `medicalrecord` implementation detail.
 - Allowed production consumer is **`cmd/lab-device-agent` only**. Do **not** import `labdeviceagent` from `internal/<domain>` or from `cmd/api`.
 - A8-5 still forbids extracting single-consumer helpers from a domain. This keep-tier exception exists because serial/platform files and tests form a cohesive local agent, not hospital workflow. Need for an in-process API consumer → new ADR, not “import the agent from a domain”.
-- Pinned as keep-tier in `acceptedTopLevelPackages` (count 35). **Not** in `domainPackages` (stay 14) and **not** on `domainImportAllowlist`.
+- Pinned as keep-tier in `acceptedTopLevelPackages` (count 36). **Not** in `domainPackages` (stay 14) and **not** on `domainImportAllowlist`.
 
 ### A8-7 — `seedlogin` is an explicit non-production exception
 
@@ -58,6 +58,12 @@
 - `seedlogin.ShouldApply` は `APP_ENV` を trim/lowercase した `development` / `local` / `dev` / `test` / `staging` のみ許可し、production・未設定・未知値は拒否する。`AcceptSharedPassword` は catalog 対象と入力照合も要求する。
 - デモアカウントの適用と認証補助を一般の資格情報管理へ拡張しない。runtime の staff write owner は `staff`、account/session owner は `auth` のまま。
 - `seedlogin/env_test.go`、`auth/auth_service_test.go` と package roster が参照点。今回の docs 照合では実環境の `APP_ENV` や資格情報を検査・変更していない。
+
+### A8-8 — `clinicale2e` is a disposable clinical E2E fixture kernel
+
+- Allowed production consumer is **`cmd/clinical-e2e-fixture` only**. Do **not** import `clinicale2e` from `internal/<domain>` or from `cmd/api`.
+- `APP_ENV=test` and a local DB host are required; clinic IDs 1 and 2 are refused. This is not a 15th domain and not a general write API.
+- Runtime `staffs` write owner remains `staff`. Fixture inserts are the same class of non-production kernel as `testdb`.
 
 ## Adding a new top-level `internal/` package
 
@@ -74,6 +80,7 @@
 | A8-3 identitylink ↛ owner/pet | same + `domain_import_allowlist_lint_test.go` |
 | A8-4 no bucket packages | `lintscan/package_boundary_gate_test.go` C4 |
 | A8-6 labdeviceagent keep-tier / not a domain | `lintscan/package_boundary_gate_test.go` C1 (`acceptedTopLevelPackages`, not `domainPackages`) |
+| A8-8 clinicale2e keep-tier / not a domain | same C1 pin; consumer is `cmd/clinical-e2e-fixture` |
 | Unapproved top-level package | package boundary C1 |
 | Retired layer resurrection | package boundary C2 |
 

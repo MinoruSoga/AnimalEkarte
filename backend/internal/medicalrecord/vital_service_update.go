@@ -11,7 +11,6 @@ func (s *vitalService) updateVitalInTx(
 	txCtx context.Context,
 	clinicID, medicalRecordID, vitalID uint64,
 	input *UpdateVitalInput,
-	fields map[string]any,
 	existing *model.VitalRecord,
 ) (*model.VitalRecord, error) {
 	// BE-refactor.md X-11: LockByIDForUpdate の行ロックで finalize と直列化し、確定と同時の

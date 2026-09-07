@@ -85,7 +85,6 @@ func (s *ownerService) ConfirmLineID(ctx context.Context, clinicID, id uint64, a
 		id,
 		fields,
 		"failed to confirm line id",
-		"failed to confirm line id",
 	)
 	if err != nil {
 		return nil, err

@@ -43,6 +43,7 @@ backend/internal/
   authjwt/ apperrors/ apicontract/ lintscan/
   audit/ persistence/ scheduler/ sharedkernel/
   textsearch/ testdb/
+  clinicale2e/  # APP_ENV=test 専用の disposable clinical E2E fixture。domain ではない
 ```
 
 > 2026-07-30 amendment: `identitylink/` を #239 Phase 1 の vertical slice として target domain に追加（cross-clinic owner/pet identity 連結）。依存は `apperrors` / `audit` / `httpapi` / `model` / `persistence` / `textsearch` のみ（owner/pet package への Go import は無し）。
@@ -50,6 +51,8 @@ backend/internal/
 > 2026-08-22 amendment: `labdeviceagent/` を keep-tier に追加する。Mac ローカル検査機器の serial-port agent（ADR-008）であり、consumer は `cmd/lab-device-agent` のみ。14 target domain には含めない。
 
 > 2026-09-05 amendment: `seedlogin/` を keep-tier に追加する。migrate フェーズ3の合成デモログイン upsert。runtime の `staffs` write owner は `staff` のまま。14 target domain には含めない。
+
+> 2026-09-07 amendment: `clinicale2e/` を keep-tier に追加する。Playwright clinical E2E 用の disposable clinic fixture（`cmd/clinical-e2e-fixture` のみ）。APP_ENV=`test` + ローカル DB host 以外は拒否し、clinic 1/2 を使わない。14 target domain には含めない。
 
 ### Product philosophyに基づく運用境界（project decision）
 

@@ -141,8 +141,9 @@ func TestStaffTableWriteOwnerLint(t *testing.T) {
 
 	violations := make([]string, 0)
 	for _, path := range paths {
-		// testdb is the importable test kernel (WalkInternalTree already drops *_test.go).
-		if strings.HasPrefix(path, "testdb/") {
+		// testdb is the importable test kernel; clinicale2e is the disposable
+		// clinical E2E fixture kernel (WalkInternalTree already drops *_test.go).
+		if strings.HasPrefix(path, "testdb/") || strings.HasPrefix(path, "clinicale2e/") {
 			continue
 		}
 		violations = append(violations, scanStaffTableWriteOwner(path, files[path])...)

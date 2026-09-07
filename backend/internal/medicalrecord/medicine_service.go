@@ -388,7 +388,7 @@ func (s *medicineService) Update(ctx context.Context, clinicID, id uint64, input
 			nameForConflict = *input.Name
 		}
 		if txErr != nil {
-			return wrapMedicineNameConflict(txCtx, txErr, nameForConflict, clinicID, id, "failed to update medicine")
+			return wrapMedicineNameConflict(txErr, nameForConflict, "failed to update medicine")
 		}
 		if nameChanged {
 			if txErr = s.inventoryRepo.UpdateNameByMedicineCategory(txCtx, clinicID, oldName, newName); txErr != nil {
@@ -489,7 +489,7 @@ func (s *medicineService) validateInventoryOwnership(ctx context.Context, clinic
 		})
 }
 
-func wrapMedicineNameConflict(ctx context.Context, err error, name string, clinicID, id uint64, wrapMsg string) error {
+func wrapMedicineNameConflict(err error, name, wrapMsg string) error {
 	if conflict := apperrors.AsNameUniqueConflict(
 		err,
 		name,

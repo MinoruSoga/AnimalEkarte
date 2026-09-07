@@ -8,7 +8,7 @@
 
 ## 現行コードへの参照（2026-09-06）
 
-下記の歴史的な「ギャップあり」「tx なし」「ClinicID なし」は 2026-07 の分類時点の観測であり、現在の不具合一覧として使わない。現行の隔離・transaction・owner 境界は [ADR-006 の現行補足](adr/006-backend-domain-package-boundaries.md#現行実装への補足2026-09-06)、[ERD](erd.md)、[cross-domain catalog](cross-domain-orchestration-catalog.md) と各 domain の実装・回帰テストを参照する。`acceptedTopLevelPackages` は `seedlogin` を含む 35 package、domain 集合は 14 のまま（`internal/lintscan/package_boundary_gate_test.go`）。分類 CSV の 761 source row は変更しない。
+下記の歴史的な「ギャップあり」「tx なし」「ClinicID なし」は 2026-07 の分類時点の観測であり、現在の不具合一覧として使わない。現行の隔離・transaction・owner 境界は [ADR-006 の現行補足](adr/006-backend-domain-package-boundaries.md#現行実装への補足2026-09-06)、[ERD](erd.md)、[cross-domain catalog](cross-domain-orchestration-catalog.md) と各 domain の実装・回帰テストを参照する。`acceptedTopLevelPackages` は `seedlogin` と `clinicale2e` を含む 36 package、domain 集合は 14 のまま（`internal/lintscan/package_boundary_gate_test.go`）。分類 CSV の 761 source row は変更しない。
 
 ## 0. 結論（Success Criteria 対応）
 

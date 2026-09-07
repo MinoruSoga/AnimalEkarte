@@ -149,8 +149,7 @@ func (s *examinationService) replaceItemsTx(
 			"deleted_count": deletedCount,
 			"new_count":     len(saved),
 		},
-		"audit log failed for examination items replace; rolling back deletion",
-		"failed to write examination items deletion audit", "exam_id"); err != nil {
+		"failed to write examination items deletion audit"); err != nil {
 		return nil, err
 	}
 	return saved, nil

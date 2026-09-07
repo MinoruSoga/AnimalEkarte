@@ -27,7 +27,7 @@ func (s *medicalRecordService) upsertInquirySubRecord(
 	if !hasInquirySubRecordInput(input) {
 		return nil
 	}
-	if err := s.assertChiefComplaintTypeForSubRecords(ctx, clinicID, recordID, input.ChiefComplaintTypeID); err != nil {
+	if err := s.assertChiefComplaintTypeForSubRecords(ctx, clinicID, input.ChiefComplaintTypeID); err != nil {
 		return err
 	}
 	inquiry := &model.Inquiry{
@@ -95,7 +95,7 @@ func (s *medicalRecordService) ensureClinicalPlanSubRecord(
 
 func (s *medicalRecordService) assertChiefComplaintTypeForSubRecords(
 	ctx context.Context,
-	clinicID, recordID uint64,
+	clinicID uint64,
 	typeID *uint64,
 ) error {
 	if typeID == nil {

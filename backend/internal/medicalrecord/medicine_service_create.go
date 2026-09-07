@@ -51,7 +51,7 @@ func (s *medicineService) createMedicineInTx(
 	calcType model.MedicineCalculationType,
 ) error {
 	if err := s.repo.Create(txCtx, medicine); err != nil {
-		return wrapMedicineNameConflict(txCtx, err, input.Name, clinicID, 0, "failed to create medicine")
+		return wrapMedicineNameConflict(err, input.Name, "failed to create medicine")
 	}
 	// BUG-320: 薬品作成時に在庫アイテムを自動作成
 	inventoryItem := &model.InventoryItem{

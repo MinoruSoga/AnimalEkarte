@@ -178,7 +178,7 @@ func (s *vitalService) Update(ctx context.Context, clinicID, medicalRecordID, vi
 
 	var result *model.VitalRecord
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		updated, err := s.updateVitalInTx(txCtx, clinicID, medicalRecordID, vitalID, input, fields, existing)
+		updated, err := s.updateVitalInTx(txCtx, clinicID, medicalRecordID, vitalID, input, existing)
 		if err != nil {
 			return err
 		}
