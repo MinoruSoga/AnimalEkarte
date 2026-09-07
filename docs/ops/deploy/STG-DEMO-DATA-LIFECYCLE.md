@@ -59,8 +59,8 @@ Smoke dataは原則残置しない。investigation dataを一時保持する場�
 
 - local disposable DB: [LOCAL_DB_RESET.md](./LOCAL_DB_RESET.md) のuser-owned destructive stepだけを使う。
 - shared STG/production: data owner、backup/restore、downtime、target、approvalが確定するまで実行しない。
-- current Cloudflare workflowに`db_reset` inputはない。AWSは退役済みでrollback/reset先ではない。
-- 再構築後も適用する CSV seedは `BundleOrderForEnv(APP_ENV)`、現在は `002_master` のみ。デモログインは development/staging の migrate フェーズ3で upsert する。
+- current Cloudflare workflowに`db_reset` inputはない。AWSは退役済みでrollback/reset先ではない。承認済みSTG再構築の実行順は[STG_PLANETSCALE_SEED_RUNBOOK.md](./STG_PLANETSCALE_SEED_RUNBOOK.md) §6。
+- 再構築後も適用する CSV seedは `BundleOrderForEnv(APP_ENV)`、現在は `002_master` のみ。デモログインは development/staging の migrate フェーズ3で upsert する。臨床21表は `cmd/migrate` の外の `make stg-uat-handoff`。
 
 health `200` はlivenessだけを示す。運用account、permissions、必要なhandoff/import、corrected CRUD casesを別に確認する。
 

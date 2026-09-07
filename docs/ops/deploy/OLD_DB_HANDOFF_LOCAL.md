@@ -38,6 +38,8 @@ backend/migrations/seeds/_old_db_handoff/jouto-local/  # 任意。電話 unique 
 - 共有 STG への rehearsal 投入は `make stg-uat-handoff`（城東・敷島・箱。八王子は対象外。接続は
   `scripts/stg-uat-old-db-handoff.sh` の export と gitignored
   `scripts/stg-uat-old-db-handoff.local.env`）。
+  schema reset のあとに載せる順序・stale PASS report の退避は
+  [STG_PLANETSCALE_SEED_RUNBOOK.md](./STG_PLANETSCALE_SEED_RUNBOOK.md) §6。
 - 21 CSV を `003_demo` へ直接コピーして seed 扱いしてはいけない。
 
 詳細境界: [SEED_MIGRATION_OPERATIONS.md](./SEED_MIGRATION_OPERATIONS.md) /

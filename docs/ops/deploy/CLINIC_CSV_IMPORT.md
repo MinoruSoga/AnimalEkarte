@@ -61,6 +61,9 @@ preflight はこれを拒否します。共有 STG へ載せる場合は
 を使います。importer が受理する code/ordinal/clinic_id は
 hachioji=1、jouto=2、shikishima=3、hakobuneco=4 だけです。
 apply report が既に `PASS` の医院は wrapper が skip し、残りへ進みます。
+STG を `DB_RESET` 相当で再構築した直後は、その PASS が旧DBの証跡になるため
+[STG_PLANETSCALE_SEED_RUNBOOK.md](./STG_PLANETSCALE_SEED_RUNBOOK.md) §6.1 の順で
+report をリネームしてから `make stg-uat-handoff` する。
 
 wrapperのexit 0は対象3院すべての投入完了を意味しません。manifestがない医院はskipし、既存apply reportがPASSの医院も現在のDBを再検証せずskipします。実施記録には医院ごとの対象・実行・skip理由を残します。必要な医院のmanifest欠落は未完了とし、過去のPASSだけで現在の整合性を判定しません。運用開始前に、承認済み対象・同一manifestで `make stg-uat-handoff-verify` の結果を医院ごとに確認します。
 
@@ -87,7 +90,7 @@ wrapperのexit 0は対象3院すべての投入完了を意味しません。man
 ## 事前準備
 
 1. target DB の検証済み full backup を取得し、復元手順と担当者を確定する。
-2. 対象を、この HEAD の現行 `backend/migrations/*.sql`（現在は統合済み `001_init.sql`）で再構築済みであることを確認する。異なる内容の001が適用済みのDBはchecksum mismatchになるため `DB_RESET=true` 相当の承認済み再構築が必須で、手書きSQLによる差分適用は使わない。001内の通常の `CREATE INDEX` は対象テーブルへの書き込みを待たせ得るため、事前リハーサルで所要時間を測り、maintenance window内で適用する。
+2. 対象を、この HEAD の現行 `backend/migrations/*.sql`（現在は統合済み `001_init.sql`）で再構築済みであることを確認する。異なる内容の001が適用済みのDBはchecksum mismatchになるため `DB_RESET=true` 相当の承認済み再構築が必須で、手書きSQLによる差分適用は使わない。STG PlanetScaleの実行順は[STG_PLANETSCALE_SEED_RUNBOOK.md](./STG_PLANETSCALE_SEED_RUNBOOK.md) §6。001内の通常の `CREATE INDEX` は対象テーブルへの書き込みを待たせ得るため、事前リハーサルで所要時間を測り、maintenance window内で適用する。
 3. target DB を既存の運用経路で起動・疎通確認する。CSV Make targets は `--no-deps` で実行し、target container/service を作成・再作成しない。
 4. 次の target seed ID を対象医院で確認する。
    - active clinic

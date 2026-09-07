@@ -1,6 +1,6 @@
 # PlanetScale STG migration / master-seed runbook
 
-> **目的**: fresh/rebuilt STGでcurrent DDLと`002_master`を同じ`cmd/migrate` pathから適用し、検証する。
+> **目的**: fresh/rebuilt STGでcurrent DDLと`002_master`を同じ`cmd/migrate` pathから適用し、検証する。承認済み再構築のオペレータ手順（reset → migrate → 21表 handoff）は§6。
 > **安全境界**: 本書を根拠にagentがDBをquery/write/resetしたりdeployしたりしない。shared STG操作はdata ownerとapproved operatorの明示承認が必要。
 
 ## 1. Current state
@@ -77,9 +77,27 @@ Repository artifactsからexpected inventoryを導出する。
 
 ## 6. Rebuild / rollback boundary
 
-Schema rebuildは通常deployやcleanupではない。target、data loss、backup/restore、downtime、operator、approvalが揃うまで実行しない。AWS/RDSは退役済みでrollback先ではない。
+Schema rebuildは通常deployやcleanupではない。target、data loss、backup/restore、downtime、operator、approvalが揃うまで実行しない。AWS/RDSは退役済みでrollback先ではない。ルートの`.env.staging`は旧ECS/RDS向けであり、PlanetScale STGの接続先ではない。
 
 Approved rebuildでは`DROP SCHEMA`と`CREATE SCHEMA`を対で扱い、`public` missing stateを残さない。その後は§3のnormal `cmd/migrate` pathへ戻る。partial table repair、retired demo bundle restore、old checksum insertionは行わない。
+
+`backend-deploy.yml`に`db_reset`入力はない。`POST /_internal/migrate`は`DB_RESET`をContainer execへ渡さない（`backend/worker/index.ts`）。したがってGitHub workflow dispatchやWorker migrateは**reset経路ではない**。通常deployのskip migrateと混同しない。
+
+### 6.1 承認済み STG 再構築の実行順
+
+対象はPlanetScale Postgres `animalekarte-stg` / branch `main`（org `noah-animalekarte`）。advisory lockのため直結する。Hyperdriveと`pscale connect`は使わない。`pscale role reset-default`でapp `postgres`ロールのパスワードを回さない。credentialをlog/file/chatへ残さない。
+
+1. **短命ロールを発行する。** `pscale role create animalekarte-stg main <name> --org noah-animalekarte --inherited-roles postgres --ttl 4h -f json` の出力を権限0600の一時ファイルへリダイレクトする。JSONの`access_host_url` / `username` / `password`を使う。passwordは作成時だけ返る。
+2. **`cmd/migrate`を`DB_RESET=true`で実行する。** ローカルComposeのbackendへ、一時ファイルをsourceした同一シェルから`docker compose exec -T`で`DB_*`と`DB_RESET=true`と`APP_ENV=staging`を渡す。ホストで`go run`しない。composeサービスは`DB_HOST=db`をハードコードしているため、execの`-e`でPlanetScaleへ上書きする。`go run ./cmd/migrate`のmigrations rootは`/app/migrations`（backend volume）。
+3. **reset後のmigrateログを判定する。** `Schema reset completed`、直下SQLの`applied>=1`（freshではskip-allではない）、`Seed bundle loaded bundle=002_master`、ログインseed適用時は`Login seed applied`、`Migration key coverage missing=0`。healthだけを成功にしない。
+4. **所有権をapp `postgres`へ戻す。** migrate成功後に`pscale role delete animalekarte-stg main <role-id> --org noah-animalekarte --successor postgres --force`。削除しないとWorkerの`DB_USER`が新テーブルを読めない。migrate失敗でも、作成したロールがobject ownerのまま残らないようsuccessor付き削除を優先する。
+5. **stale apply reportを退避する。** reset後のDBは空の臨床bandになる。`sensitive-local/csv-import-reports/<clinic>-<run>-stg-uat-apply.json`が`PASS`のままだと[CLINIC_CSV_IMPORT.md](./CLINIC_CSV_IMPORT.md)のwrapperが医院をskipする。再実行前に失敗日時または`STALE-AFTER-RESET-<UTC>`付きへリネームする。
+6. **21表を`cmd/migrate`の外で入れる。** 接続はgitignored `scripts/stg-uat-old-db-handoff.local.env`（0600、PlanetScale。exampleは同名`.example`）。`make stg-uat-handoff-preflight` → `make stg-uat-handoff` → `make stg-uat-handoff-verify`。対象は城東・敷島・箱。八王子はmanifest無しならskip。PHIのCSVセルをログへ出さない。詳細とskip契約は[OLD_DB_HANDOFF_LOCAL.md](./OLD_DB_HANDOFF_LOCAL.md)と[CLINIC_CSV_IMPORT.md](./CLINIC_CSV_IMPORT.md)。
+7. **livenessとhandoffを分ける。** `/health` `200`は生存確認だけ。staff attachと個別provisioningは[STAFF_ACCOUNT_PROVISIONING.md](./STAFF_ACCOUNT_PROVISIONING.md)の別gate。
+
+### 6.2 再構築後にWorker migrateが赤でもschema失敗としない場合
+
+本番Containerの`CMD`は`/app/migrate && exec /app/api`（`backend/Dockerfile.production`）。起動のたびにlogin seed upsert（bcrypt）が走る。basic instanceでは8080 listenが`POST /_internal/migrate`の待ち時間を超え、`migrate_exec_failed`やhealth timeoutになり得る。これは§6.1のcoverage `missing=0`とhandoff verify PASSを打ち消さない。reset目的で`gh workflow run backend-deploy.yml --ref staging`しない。dispatchはContainerを再起動し、同じコールドスタートを起こす。
 
 ## 7. Deferred blockers
 

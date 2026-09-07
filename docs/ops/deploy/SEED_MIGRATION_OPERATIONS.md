@@ -61,7 +61,7 @@ PHIを含み得るinput/outputはGit、chat、artifactへ出さない。manifest
 3. current DDL keys + `BundleOrderForEnv(APP_ENV)`（+ ログイン seed を適用したなら `seeds/003_login`）についてmigration coverage `missing=0`を確認する。
 4. checksum mismatch、legacy translation後のmaster完全性、rebuild要否をrelease前に記録する。
 
-local checksum mismatchは[LOCAL_DB_RESET.md](./LOCAL_DB_RESET.md)へ進む。shared STGは[STG_PLANETSCALE_SEED_RUNBOOK.md](./STG_PLANETSCALE_SEED_RUNBOOK.md)の承認境界に従う。direct SQLでschema/historyを修正しない。
+local checksum mismatchは[LOCAL_DB_RESET.md](./LOCAL_DB_RESET.md)へ進む。shared STGは[STG_PLANETSCALE_SEED_RUNBOOK.md](./STG_PLANETSCALE_SEED_RUNBOOK.md)の承認境界と§6の再構築手順に従う。direct SQLでschema/historyを修正しない。
 
 ## Historical procedures
 
