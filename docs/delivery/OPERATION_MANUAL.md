@@ -30,6 +30,8 @@
 | 8 | 集計 | §8 | 業務フロー「月次締め・レポート」 | [32-accounting-reports](../spec/screens/32-accounting-reports.md)／[36-aggregation-dashboard](../spec/screens/36-aggregation-dashboard.md) |
 
 > **残作業（repo 外 / 依存）**: システム内マニュアルのスクリーンショットと文言の最終突合は #254 デモ UAT 結果に依存。紛らわしい操作の FAQ 追記も同依存。操作説明会の日程は **USER 入力待ち（U13）**。
+>
+> **会計フロー（RQ-002）**: システム内マニュアルを実装整合済みです。カルテ確定だけでは会計は自動作成されず、会計画面で作成して未請求明細を pull します（[99-medical-record-flow.md](../spec/screens/99-medical-record-flow.md)）。退院時の会計は `create_accounting` 選択時のみ同時作成。D-254 の FAQ・スクショ最終突合は別依存のままです（[REPAIR-QUEUE](../work/docs-perfection/REPAIR-QUEUE.md)）。
 
 ---
 
@@ -252,7 +254,7 @@ repo と既存コメントから読める事実だけを書く。署名・承認
 | ID | 項目 | 理由 | 反映先 |
 |---|---|---|---|
 | U13 | 操作説明会の実施日程・形式・参加者・実施 receipt | **未完**（2026-08-20 棚卸し。COMPLETED 宣言なし）。**#258 とは分離** | §10 |
-| D-254 | デモ UAT 由来 FAQ・スクショ最終突合 | #254 完了後にシステム内マニュアルへ反映 | `/manual`・§0.1 |
+| D-254 | デモ UAT 由来 FAQ・スクショ最終突合 | FAQ・スクショは #254 結果に依存。会計フロー説明の RQ-002 はマニュアル本文を実装整合済み | `/manual`・§0.1 |
 | — | 本番URLでの操作確認証跡 | 本番の構築完了・操作確認の証跡が未取得（#253 / U12）。構築手順とworkflowの状態は [production/setup.md](../ops/infra/production/setup.md) を参照 | 本書はSTG/実装正本ベース |
 
 値・秘密・本番証跡は発明しない。管理者設定・契約・バックアップは [DELIVERY_PACKAGE.md](DELIVERY_PACKAGE.md) の **USER 入力待ち（U1–U12）** を正とする。

@@ -14,7 +14,7 @@ const (
 	maxCutoverManifestBytes    = int64(4 << 20)
 	maxCutoverCSVBytes         = int64(512 << 20)
 	cutoverManifestSchema      = "animalekarte-cutover-v1"
-	cutoverStageMappingSHA256  = "42d6917b9dab9e979aff3b23fee6f42af2302d5b76b89c54e0265ceadaa9801d"
+	cutoverStageMappingSHA256  = "888dac89e9b262320cd3afb0c6d223ba5f9c5b943be43f9a56367e81bcad8131"
 	cutoverCSVContractSHA256   = "11cbd62696507efc2f7886046598b67f0f8b5762bdf158e6ef120b206f63b794"
 )
 
