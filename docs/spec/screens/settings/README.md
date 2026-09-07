@@ -25,6 +25,7 @@
 | **薬剤** | [master-medicine.md](./master-medicine.md) | 薬品名、剤形、単価の定義（在庫紐付けは API のみで設定画面に UI 未実装）。 |
 | **診断・病名** | [master-diagnosis.md](./master-diagnosis.md) | 疾患カテゴリと正式病名の体系的定義。 |
 | **検査項目** | [master-examinations.md](./master-examinations.md) | 検査プランの名称・価格の定義（診療項目マスタと同一UIを共有。課税区分は保存されない）。 |
+| **検査機器マスタ** | [マスタ設定のカルテ関連](../20-master-settings.md) / [ADR-007 §7 マスタ](../../../architecture/adr/007-lab-device-receive-and-commit.md) | `/settings/lab-device-item-masters`。機器項目と検査フィールドの対応を管理する。日常の受信操作は [検査受信ボード](../README.md)を参照。 |
 | **問診/定型文**| [master-interview.md](./master-interview.md) | カルテ入力を効率化する各種テンプレート。 |
 | **ケージ** | [master-cage.md](./master-cage.md) | 入院室の番号、サイズ、収容タイプ。 |
 | **入院プラン** | [master-hospitalization-plan.md](./master-hospitalization-plan.md) | 入院・宿泊の単価・対象体格・料金単位の定義。 |

@@ -196,6 +196,8 @@ BE9-2B完了時点では後続phaseの着手前ゲートとして残していた
 
 ## 現行実装への補足（2026-09-06）
 
+> **2026-09-07 追補**: 以下の35 top-levelは2026-09-06の照合値。今回の作業ツリー（HEAD `267a17e48` と既存の未コミット差分）では `clinicale2e` を含む **36 top-level package / 14 domain** が `backend/internal/lintscan/package_boundary_gate_test.go` の `accepted_and_bucket_sets_are_disjoint` に固定されている。本ADRの2026-09-07 amendmentと [例外package規律](../exception-package-discipline.md) を現行案内とし、当時の測定値・採択理由は書き換えない。機械ゲートの実行成功やmainへの統合を、この静的照合だけで認定しない。
+
 本文の BE9 measurement・file 数・移行時の tenant 分類は履歴として保持する。現行 contract は以下の source と照合する。
 
 - `internal/lintscan/package_boundary_gate_test.go` は **35 top-level package / 14 domain** を pin する。`seedlogin` は `cmd/migrate` の非本番デモ upsert に加え、`auth/auth_service.go` の catalog 限定非本番認証補助からも使われる。cmd-only とは分類しない（[例外 package 規律](../exception-package-discipline.md)）。

@@ -1,0 +1,250 @@
+{
+  "ok": true,
+  "harness": {
+    "ok": true,
+    "deterministic": true,
+    "validator": "prompt-craft-harness-validate",
+    "profile": "standard",
+    "profileSource": "declared-risk-tier",
+    "target": "agent",
+    "targetSource": "override",
+    "qualityMode": "standard",
+    "executionContract": "standard",
+    "failedChecks": [],
+    "failedCheckDetails": [],
+    "blockingFailedChecks": [],
+    "warningFailedChecks": [],
+    "checks": [
+      {
+        "id": "risk-tier-declared",
+        "description": "Declares the Risk Tier of the task in a Risk Tier section (Declared: <tier>).",
+        "semantic": false,
+        "pass": true
+      },
+      {
+        "id": "stale-claude-skill-library-path",
+        "description": "Does not cite the retired ~/.claude/skill-library/ directory.",
+        "semantic": false,
+        "pass": true
+      },
+      {
+        "id": "agent-no-claude-exclusive-tools",
+        "description": "Agent-targeted prompts do not name Claude-only Task/Skill/AskUserQuestion tools as callable.",
+        "semantic": false,
+        "pass": true
+      },
+      {
+        "id": "agent-target-marker",
+        "description": "Agent-targeted validation requires the external agent CLI marker in Risk Tier.",
+        "semantic": false,
+        "pass": true
+      },
+      {
+        "id": "harness-validator-command",
+        "description": "Mentions the prompt-craft harness validator command for saved prompts.",
+        "semantic": false,
+        "pass": true
+      },
+      {
+        "id": "saved-prompt-validation-gate",
+        "description": "Requires saved prompt validation and treats chat-only prompt output as unvalidated.",
+        "semantic": false,
+        "pass": true
+      },
+      {
+        "id": "acceptance-checklist",
+        "description": "Includes an explicit Acceptance Checklist section.",
+        "semantic": false,
+        "pass": true
+      },
+      {
+        "id": "acceptance-checklist-fields",
+        "description": "Acceptance Checklist requires expected behavior, target surface, verification method, and PASS evidence.",
+        "semantic": false,
+        "pass": true
+      },
+      {
+        "id": "named-gate-equivalence-execution",
+        "description": "A named umbrella command claimed as equivalent is itself included in executable verification evidence.",
+        "semantic": true,
+        "pass": true
+      },
+      {
+        "id": "generated-artifact-commit-trackability",
+        "description": "Generated artifacts destined for commit require a tracked/ignored-state probe and exact staged-path evidence.",
+        "semantic": true,
+        "pass": true
+      },
+      {
+        "id": "harness-selection",
+        "description": "Includes a Harness Selection section that picks one harness type matched to the task shape.",
+        "semantic": false,
+        "pass": true
+      },
+      {
+        "id": "harness-selection-reason",
+        "description": "Harness Selection states the chosen harness type and the reason for it.",
+        "semantic": false,
+        "pass": true
+      },
+      {
+        "id": "execution-loop-selection",
+        "description": "Includes an Execution Loop Selection section that picks one of the six loop patterns and keeps reconciliation inside it.",
+        "semantic": false,
+        "pass": true
+      },
+      {
+        "id": "execution-loop-stop-condition",
+        "description": "Execution Loop Selection states the chosen pattern, the reason, and an explicit stop condition.",
+        "semantic": false,
+        "pass": true
+      },
+      {
+        "id": "spec-reconciliation-loop",
+        "description": "Includes the Spec-Implementation Reconciliation Loop section.",
+        "semantic": false,
+        "pass": true
+      },
+      {
+        "id": "pass-fail-blocked-status",
+        "description": "Requires checklist-level PASS, FAIL, and BLOCKED status.",
+        "semantic": false,
+        "pass": true
+      },
+      {
+        "id": "failure-signature-log",
+        "description": "Requires a structured Failure Signature log for failed checklist items.",
+        "semantic": false,
+        "pass": true
+      },
+      {
+        "id": "failure-signature-fields",
+        "description": "Failure Signature contains expected, actual, verification, error, attempt, fix, and result fields.",
+        "semantic": false,
+        "pass": true
+      },
+      {
+        "id": "same-failure-twice-scope-reduction",
+        "description": "Second occurrence of the same failure signature triggers smallest-unit scope reduction.",
+        "semantic": false,
+        "pass": true
+      },
+      {
+        "id": "same-failure-three-blocked",
+        "description": "Third occurrence of the same failure signature becomes BLOCKED with required input.",
+        "semantic": false,
+        "pass": true
+      },
+      {
+        "id": "de-sloppify-pass",
+        "description": "Includes the De-Sloppify Pass cleanup gate.",
+        "semantic": false,
+        "pass": true
+      },
+      {
+        "id": "loop-monitoring-evidence",
+        "description": "Prompts choosing a long-lived loop (nanoclaw, infinite, continuous-pr, rfc-dag) or the gan harness must reference loop-status evidence.",
+        "semantic": false,
+        "pass": true
+      },
+      {
+        "id": "completion-report-format",
+        "description": "Deliverables require the unified Completion Report format (Run status, Checklist Results, Run Summary, UNREPORTED rule).",
+        "semantic": false,
+        "pass": true
+      },
+      {
+        "id": "no-final-while-fail",
+        "description": "Forbids final reporting while any checklist item remains FAIL.",
+        "semantic": false,
+        "pass": true
+      },
+      {
+        "id": "loop-start-delegation",
+        "description": "Does not delegate reconciliation to /loop-start unless it performs checklist-level reconciliation itself.",
+        "semantic": false,
+        "pass": true
+      },
+      {
+        "id": "dynamic-workflow-required",
+        "description": "Fast prompts carry the versioned execution marker and one top-level Dynamic Workflow Execution section.",
+        "semantic": false,
+        "pass": true
+      },
+      {
+        "id": "dynamic-workflow-structure",
+        "description": "The single Dynamic Workflow Execution section immediately follows the profile-specific anchor section.",
+        "semantic": false,
+        "pass": true
+      },
+      {
+        "id": "dynamic-workflow-contract",
+        "description": "Dynamic workflow prompts retain parallel investigation and implementation safety, verification, reconciliation, fallback, and repair-budget clauses.",
+        "semantic": false,
+        "pass": true
+      },
+      {
+        "id": "agent-grok-receiving-model-profile",
+        "description": "Non-parity Grok receivers require a valid strict profile; strict writes require a concrete allowlist and baseline-aware tracked/staged/untracked scope audit.",
+        "semantic": false,
+        "pass": true
+      },
+      {
+        "id": "dynamic-workflow-orchestration-item",
+        "description": "The target-specific orchestration item appears exactly once as the last Acceptance Checklist item.",
+        "semantic": false,
+        "pass": true
+      },
+      {
+        "id": "dynamic-workflow-deliverables-evidence",
+        "description": "The target-specific orchestration evidence item appears exactly once inside Deliverables.",
+        "semantic": false,
+        "pass": true
+      }
+    ]
+  },
+  "receiver": {
+    "ok": true,
+    "failedChecks": [],
+    "errors": [],
+    "manifest": {
+      "schema": "prompt-craft-receiver/v1",
+      "cli": "codex",
+      "cwd": "/Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte",
+      "skills": [
+        {
+          "name": "ecc:living-docs-governance",
+          "mode": "native",
+          "path": "/Users/minoru/.codex/plugins/cache/ecc/ecc/2.2.1/skills/living-docs-governance/SKILL.md",
+          "sha256": "e8c22a1f69743e256c6d6df138d99e49d22e29effbf008dfe2328b7fdc76247e"
+        },
+        {
+          "name": "ecc:continuous-agent-loop",
+          "mode": "native",
+          "path": "/Users/minoru/.codex/plugins/cache/ecc/ecc/2.2.1/skills/continuous-agent-loop/SKILL.md",
+          "sha256": "f228cd383a9063b3a0116c5aea02565e859992f63fae5e799adf9c9e44e2454d"
+        },
+        {
+          "name": "ecc:verification-loop",
+          "mode": "native",
+          "path": "/Users/minoru/.codex/plugins/cache/ecc/ecc/2.2.1/skills/verification-loop/SKILL.md",
+          "sha256": "f0d56107f79e607d4de6c5543b8edfb1b58ab9ae4019b39831689cd91116543e"
+        },
+        {
+          "name": "ecc:santa-method",
+          "mode": "native",
+          "path": "/Users/minoru/.codex/plugins/cache/ecc/ecc/2.2.1/skills/santa-method/SKILL.md",
+          "sha256": "190176ee80a72c1642f255a4dfdeb3bb12799212d5c04b05c9be914764749f6b"
+        },
+        {
+          "name": "goal",
+          "mode": "inline",
+          "procedure": "Treat docs-perfection as one durable parent goal. Persist checkpoints in docs/work/docs-perfection/PROGRESS.md and unit outcomes in LEDGER.md. Keep the full objective intact: investigation package is the SoT for findings; repairs follow CHILD-GOALS only after investigation placement is confirmed. Do not mark parent GOAL completed while RQ-002 frontend manual remains external-unfixed or while any assigned RQ lacks evidence. Before COMPLETE, audit every Acceptance Checklist item against current files and command output."
+        }
+      ]
+    }
+  },
+  "promptSha256": "aa7383f95b6770c08e97c6a14cb82ab34b69d0346852e24340095c72694a8ed1",
+  "profile": "standard",
+  "target": "agent"
+}

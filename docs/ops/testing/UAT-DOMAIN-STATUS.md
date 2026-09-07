@@ -24,7 +24,7 @@
 | S01 | **PARTIAL**（LSTEP 実送信は E1） |
 | r14 | ヘッダだけ「FAIL 0 / PASS 16」と書いてあった regression smoke。V04 再実行の証跡は本ファイルに無く、PASS 翻転ではない。ディレクトリは gitignore のため再読不可 |
 
-下記 `reports/uat-*` は gitignore 対象で fresh clone には配布されない参照である。今回の文書更新では原証跡を再確認できていない。不在から未実施/完了を推定せず、再検証には管理者が保持する原証跡を使う。
+下記のコード表記 `reports/uat-*` は gitignore 対象の非配布原証跡の識別子であり、ローカルファイルへのリンクではない。今回の文書更新では原証跡の内容・現在の所在を再確認していない。不在から未実施/完了を推定せず、再検証時は管理者へ原証跡の所在と取得方法を確認する。
 
 各 PASS は下記の過去実行スナップショットの転記であり、今回のソース照合による再認定ではない。特に V 系の scenario-level PASS と、未収録 field/wildcard を含む inventory 全体の完了は別（[FORM-FIELD-INVENTORY.md](scenarios/FORM-FIELD-INVENTORY.md)）。
 
@@ -51,7 +51,7 @@
 
 - **未解消ギャップ**: S01 死亡/復活/会計ガードは PASS。r8 で sync ON + mock key + line_user_id 時に BE ログで `lstep: write API disabled by deploy gate`（`LSTEP_WRITE_API_ENABLED` unset）と sync 失敗を観測。タグ配列は変化なし。staff audit API なし（DB audit は USER 実施）。PASS には recording mock または write 有効な同期レーンが必要。
 - **関連 bug IDs**: （なし）
-- **証跡**: [`reports/uat-2026-09-05-r8/FINAL-s01.md`](../../../reports/uat-2026-09-05-r8/FINAL-s01.md)
+- **証跡**: `reports/uat-2026-09-05-r8/FINAL-s01.md`
 
 ---
 
@@ -70,7 +70,7 @@
 
 - **未解消ギャップ**: （なし。r10 で Board/List UI トグル + admit/discharge API 再確認 PASS）
 - **関連 bug IDs**: （なし）
-- **証跡**: [`reports/uat-2026-09-05-r10/FINAL-soft-gaps.md`](../../../reports/uat-2026-09-05-r10/FINAL-soft-gaps.md)
+- **証跡**: `reports/uat-2026-09-05-r10/FINAL-soft-gaps.md`
 
 ---
 
@@ -95,7 +95,7 @@
   1. 承認済み **fixture API** または **scoped UAT test helper** が必要（`completed_at` を 10:00 / 13:30 / 14:00 / 20:00 / 翌 02:00 に設定した合成会計 5 件）。
   2. **禁止**: 直接 DB 更新、システム時計変更、既存会計の改変（シナリオ hard rule）。
   3. 現行 package helper は 5 会計ヘッダを作るが、HTTP/CLI・UAT identity・支払内訳・cleanup が未接続（[設計と実装境界](S09-FIXTURE-DESIGN.md)）。帰属証明ステップ #2–#6 は未再実行 → シナリオ総合 **BLOCKED**（settings/preview/history の先行 PASS では解除しない）。
-  4. 詳細: [`reports/uat-2026-09-05-r5/S09-BLOCKED.md`](../../../reports/uat-2026-09-05-r5/S09-BLOCKED.md)
+  4. 詳細: `reports/uat-2026-09-05-r5/S09-BLOCKED.md`
 - **関連 bug IDs**: （なし — UAT 接続の不足は製品 FAIL ではない）
 - **証跡**: `reports/uat-2026-09-05-r5/S09-BLOCKED.md` · `reports/uat-2026-09-05-r4/s09-helper-search.json`
 
@@ -137,7 +137,7 @@
 
 - **未解消ギャップ**: （なし。r10 で CSV ダウンロード PASS — 旧 flake は行未選択でボタン disabled）
 - **関連 bug IDs**: （なし）
-- **証跡**: [`reports/uat-2026-09-05-r10/FINAL-soft-gaps.md`](../../../reports/uat-2026-09-05-r10/FINAL-soft-gaps.md)
+- **証跡**: `reports/uat-2026-09-05-r10/FINAL-soft-gaps.md`
 
 ---
 
@@ -157,7 +157,7 @@
 
 - **未解消ギャップ**: view-only / 非カバーアクター異常系はアカウントなし（soft）。staff create は r10 で `/settings/staff` 経由 PASS（旧 soft-BLOCK は誤パス `/settings/staffs`）。
 - **関連 bug IDs**: （なし）
-- **証跡**: [`reports/uat-2026-09-05-r10/FINAL-soft-gaps.md`](../../../reports/uat-2026-09-05-r10/FINAL-soft-gaps.md)
+- **証跡**: `reports/uat-2026-09-05-r10/FINAL-soft-gaps.md`
 
 
 ---
@@ -201,7 +201,7 @@
 - **r11**: V05-13 trigger priority PASS; V05-14 tag-code mappings PASS; V05-16 CSV PASS; V05-18 checkup-sync PASS; V05-6/7 LIFF_MOCK reserve create/cancel PASS; V05-10 slots PASS; V05-11 owner⇄LINE link PASS
 - **未解消ギャップ（BLOCKED・製品 FAIL ではない）**: V05-17 の LSTEP 実送信 remove（要 sync ON + `LSTEP_WRITE_API_ENABLED` + 到達可能 LSTEP）。ローカル経路（空選択/unlinked 404/validation/idempotent DELETE）は r13 PASS。実 LINE / UAT-254 close は USER。V05-15 は r12 PASS（elevate 復元済）
 - **関連 bug IDs**: （なし。r11 新規 FAIL なし）
-- **証跡**: [`reports/uat-2026-09-05-r13/FINAL.md`](../../../reports/uat-2026-09-05-r13/FINAL.md) · [`reports/uat-2026-09-05-r12/FINAL-v05-15.md`](../../../reports/uat-2026-09-05-r12/FINAL-v05-15.md) · [`reports/uat-2026-09-05-r11/FINAL-v05-subforms.md`](../../../reports/uat-2026-09-05-r11/FINAL-v05-subforms.md) · [`reports/uat-2026-09-05-r9/FINAL-v05.md`](../../../reports/uat-2026-09-05-r9/FINAL-v05.md)
+- **証跡**: `reports/uat-2026-09-05-r13/FINAL.md` · `reports/uat-2026-09-05-r12/FINAL-v05-15.md` · `reports/uat-2026-09-05-r11/FINAL-v05-subforms.md` · `reports/uat-2026-09-05-r9/FINAL-v05.md`
 
 ---
 

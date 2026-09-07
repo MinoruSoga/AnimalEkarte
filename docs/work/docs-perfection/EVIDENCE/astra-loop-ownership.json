@@ -1,0 +1,35 @@
+{
+  "recorded_at": "2026-09-07T04:54:58.749787+00:00",
+  "owned_tracked_edits": [
+    "docs/spec/screens/31-lstep-integration.md",
+    "docs/spec/screens/34-lstep-delivery-monitor.md",
+    "docs/spec/screens/settings/README.md",
+    "docs/ops/deploy/STG-CONTINUOUS-OPERATIONS.md",
+    "docs/ops/testing/UAT-DOMAIN-STATUS.md",
+    "docs/delivery/OPERATION_MANUAL.md"
+  ],
+  "owned_untracked_prefix": "docs/work/docs-perfection/",
+  "outside_docs_observed_changes": {
+    "backend/internal/billing/billing_item_trimming_test.go": "00f85b51a46837f1059a8d755b095f32c551b190f9006043ce97fcf16144b9b3",
+    "backend/internal/lintscan/dbortx_inventory_lint_test.go": "7a51bd8afdb57e7413694fe17ec84569f17dff5302bf3f84a7f0139d5fbc8223",
+    "backend/internal/lintscan/master_fk_write_inventory_lint_test.go": "975640b03d04e3968b798faa5b44fdde4e8cb064d5717d0100e950b992e3767a",
+    "backend/internal/lintscan/package_boundary_gate_test.go": "6891ca1cb61c7f146205c67a4324cdcaa0f19f28f386fbea37a00f03d0ed90ef",
+    "backend/internal/staff/staff_table_write_owner_lint_test.go": "9f1c220f390aa066c5b3c46ae9841bfd373a7905cb02ba42d20dfdf7d20e5c3f"
+  },
+  "outside_docs_note": "Observed after loop baseline; main agent executed no writes to these paths and did not restore them. Producer identity unverified. This is not a whole-tree unchanged assertion.",
+  "prior_observations": [
+    {
+      "recorded_at": "2026-09-07T04:46:51.616068+00:00",
+      "outside_docs_observed_changes": {
+        "backend/internal/lintscan/dbortx_inventory_lint_test.go": "7a51bd8afdb57e7413694fe17ec84569f17dff5302bf3f84a7f0139d5fbc8223",
+        "backend/internal/lintscan/master_fk_write_inventory_lint_test.go": "975640b03d04e3968b798faa5b44fdde4e8cb064d5717d0100e950b992e3767a"
+      }
+    }
+  ],
+  "foreign_docs_observed_changes": {
+    "docs/architecture/adr/006-backend-domain-package-boundaries.md": "a0ecab7db5cef35916cd651f9f676dd4f12b5790b73b9f06c1ba8a08cc736f62",
+    "docs/architecture/be9-2a-boundary-map.md": "41d9681b958272fa70f9dbd0ed3a640664da572184fe4ac9239918374ed65d09",
+    "docs/architecture/exception-package-discipline.md": "2ffee95325926a17e1073ca9418cde2f64f3132ca9157a53b655af1e00abee2c"
+  },
+  "foreign_docs_note": "Post-baseline concurrent changes, not adopted/amended/reverted by this loop. Read-only delta inspection observed dated ADR amendment and 36/14 package pins aligned to changed lintscan; code feature not reviewed or claimed complete."
+}

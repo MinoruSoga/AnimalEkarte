@@ -1,0 +1,44 @@
+{
+  "verdict": "PASS",
+  "checks": [
+    {
+      "criterion": "1. investigation-first / artifact roles",
+      "result": "PASS",
+      "detail": "直接確認: docs/work/README.md:21–23 から調査入口・RQ・ROLE-MAPへ到達。ROLE-MAP.md:5,17,32,44 に4役割。実行順の記録: LEDGER.md:170–193 の配置確認・読了表後に Phase B/C。時系列は記録上の事実として評価。"
+    },
+    {
+      "criterion": "2. 初期12差分の採否 / RQ003追加",
+      "result": "PASS",
+      "detail": "独立抽出: astra-loop-draft.patch の12パスすべてが LEDGER Phase B表に存在、未分類0。adopt7/amend5/revert0と実diffが整合。追加 docs/spec/screens/31-lstep-integration.md:69 は CHILD-GOALS/spec.md:6 の docs/spec/** 内。同じRQ003の未達境界を補完している。"
+    },
+    {
+      "criterion": "3. RQ処理 / 外部依存",
+      "result": "PASS",
+      "detail": "REPAIR-QUEUE.md:9–19 の9件resolved・RQ005 index-resolved・RQ002 external-scopeを確認。OPERATION_MANUAL.md:34,257 は未修復を明示。manual workflows:111–112 と screens/05-accounting.md:68 の矛盾は実在し、verifierでmanualのbaseline hash不変を直接確認。GOAL.yaml:5 はactive。"
+    },
+    {
+      "criterion": "4. 安全・bulk・案内・証跡",
+      "result": "PASS",
+      "detail": "34-lstep-delivery-monitor.md:48 はstate.go:11とlifecycle_service.go:133以降の既知制約に整合。:60と31-lstep-integration.md:69は通常bulk必須を維持し、batch.go:106,143,153のfallbackを達成済みにしない。settings/README.md:28はitem-master、screens/README.md:24は受信ボードを案内。UAT-DOMAIN-STATUS.md:27は内容・所在未確認、STG-CONTINUOUS-OPERATIONS.md:235–236は一時採取と正式保存を区別。"
+    },
+    {
+      "criterion": "5. 全ファイル根拠 / 検証境界",
+      "result": "PASS",
+      "detail": "独立集合検査: readers.json のarchitecture22/spec80/ops73件は各実ファイル集合と一致、missing/extra/duplicate=0。spec/opsの引用本文・行も現物と一致。readers.json:8,179,2158–2164にsource確認範囲・例外、LEDGER.md:293–303にdelivery4/work6/PP2の個別根拠。全UI/APIやruntimeの網羅検証とは主張していない。"
+    },
+    {
+      "criterion": "6. 所有範囲 / 並行WIP",
+      "result": "PASS",
+      "detail": "直接実行のverifierでHEAD/index不変、tracked docs delta=自己6件＋記録済みforeign3件、foreign docs/hash一致、docs外5件の観測hash一致を確認。所有者のwrite履歴はownership.json:3–34の記録に依拠し、hash一致だけで作者を証明したとはしない。LEDGER.md:315–320は後発ADR変更を今回の採用成果から除外。"
+    },
+    {
+      "criterion": "7. 決定的gate / 回復 / 上限",
+      "result": "PASS",
+      "detail": "独立実行: python3 docs/work/docs-perfection/EVIDENCE/verify-astra-loop.py はexit0、RESULT PASS phase=draft。199件集合一致、全docsローカルリンク欠落0、diff-check PASS。driftは再実行せずastra-loop-drift.txt:1–3の実行記録（565件、exit0）を確認。LEDGER.md:307–319 / PROGRESS.md:123–133に5/5 units、0/2 Santa fixes、失敗原因と限定回復を記録。A7 PENDING・子IN_REVIEWは最終化前の状態として妥当。"
+    }
+  ],
+  "critical_issues": [],
+  "suggestions": [
+    "LOW: 最終化時に README.md:48–52 の『これから修復unitを実行』という次アクションと LEDGER.md:160 のB/C待ち表現を現在状態へ合わせる。最終metadata更新後に --final を実行し、独立2レビュー成立と親active維持を確認する。"
+  ]
+}

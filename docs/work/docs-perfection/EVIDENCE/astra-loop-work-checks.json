@@ -1,0 +1,31 @@
+[
+  {
+    "command": [
+      "git",
+      "diff",
+      "--check",
+      "--",
+      "docs/work/README.md",
+      "docs/work/phase2-deferred.md",
+      "docs/work/linear-f1-f6-mapping.md",
+      "docs/work/skill-reeval-2026-09-06.md",
+      "docs/work/decisions"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "rg",
+      "-n",
+      "Needs Human|当時|UNKNOWN|Linear|削除済み",
+      "docs/work/README.md",
+      "docs/work/decisions/fable-po-recommendation.md",
+      "docs/work/linear-f1-f6-mapping.md"
+    ],
+    "exit": 0,
+    "stdout": "docs/work/decisions/fable-po-recommendation.md:6:- **証跡識別子**: 下記 CorpVault path（内容・現在の Linear 状態は本タスクでは外部確認していない）\ndocs/work/decisions/fable-po-recommendation.md:9:- **実行 SoT**: Linear hub [BRT-4](https://linear.app/baritechllc/issue/BRT-4)\ndocs/work/decisions/fable-po-recommendation.md:11:上記 **最終 repo 照合日（2026-08-20）時点**で HOLD / 臨床専権として残っていたものは Linear の Needs Human（例: [BRT-39](https://linear.app/baritechllc/issue/BRT-39) 薬量、[BRT-41](https://linear.app/baritechllc/issue/BRT-41) 検査 range、[BRT-50](https://linear.app/baritechllc/issue/BRT-50) Lステップ、[BRT-37](https://linear.app/baritechllc/issue/BRT-37) credential）。**現在の Linear 状態は本ファイルでは外部確認していない**（証跡識別子のみ）。\ndocs/work/README.md:7:| **Linear** hub [BRT-4](https://linear.app/baritechllc/issue/BRT-4) | **実行 SoT**（状態・担当・ゲート） |\ndocs/work/README.md:13:**競合・終了ルール:** 状態・担当・Done は Linear を正とする。`todo.md` は未完了作業だけを保持し、完了行を除く。STG Lane 4 の終了条件・記録方法は [STG 手順書](../ops/deploy/STG_PLANETSCALE_SEED_RUNBOOK.md) を参照する。`bug.md` の確認済み製品 FAIL は Linear と対応付け、受入未実施や環境 BLOCKED を製品 FAIL に混ぜない。\ndocs/work/README.md:19:| [linear-f1-f6-mapping.md](./linear-f1-f6-mapping.md) | repo の実装履歴と Linear の対応案（Linear 現在状態は UNKNOWN） |\ndocs/work/README.md:21:| [docs-perfection/README.md](./docs-perfection/README.md) | **Astra 調査パッケージ入口**（棚卸し・RQ・子 goal・証拠）。製品の実行 SoT は上記 Linear |\ndocs/work/README.md:25:## 削除済み docs（復活防止）\ndocs/work/README.md:31:| `STATUS.md`・`PO-todo.md`・2026-08-20 時点の旧フル `todo.md` / `todo-po.md` | 実行台帳の統合・縮小 | Linear。現在の root 台帳の役割は上記入口を参照 |\ndocs/work/README.md:32:| root `phase2.html` / `research-cloudflare.html` / `codex-security-output/` | 作業・調査資料の整理 | 当時の内容は git 履歴。今期外項目は `phase2-deferred.md` |\ndocs/work/README.md:34:| `docs/work/residual-closeout-ledger.md` | U0–U6 完了ログ | 同 vault `decisions/` · 残ゲートは Linear |\ndocs/work/README.md:40:**正本:** Linear · 製品 docs · 会社側索引は CorpVault\ndocs/work/linear-f1-f6-mapping.md:4:照会手段: Linear MCP なし · `LINEAR_API_KEY` 未設定 · 公開ページはログイン壁  \ndocs/work/linear-f1-f6-mapping.md:5:Linear 上の現行状態: **UNKNOWN**（未照会。repo 記録から Done を推定しない）  \ndocs/work/linear-f1-f6-mapping.md:12:| Linear Team Baritech / Project ノア動物病院電子カルテ / hub [BRT-4](https://linear.app/baritechllc/issue/BRT-4) | URL は repo に存在する。本文・子 Issue・状態は未取得 |\ndocs/work/linear-f1-f6-mapping.md:13:| [BRT-105](https://linear.app/baritechllc/issue/BRT-105) | repo 表記は Done。Linear 再確認は未実施 |\ndocs/work/linear-f1-f6-mapping.md:14:| [BRT-226](https://linear.app/baritechllc/issue/BRT-226) | repo 表記は Review。Linear 再確認は未実施 |\ndocs/work/linear-f1-f6-mapping.md:15:| Astra F1〜F6 の Linear ID | **UNKNOWN**。タイトル検索・親子リンクを実行できていない |\ndocs/work/linear-f1-f6-mapping.md:17:エージェントはこの項目で Linear 書き込みと Done をしない。\ndocs/work/linear-f1-f6-mapping.md:21:`todo-now.md` と git 履歴からの対応。Linear の同名 Issue と 1:1 であることは未証明。\ndocs/work/linear-f1-f6-mapping.md:34:## 2026-09-06 以降の repo 残（Linear と 1:1 ではない）\ndocs/work/linear-f1-f6-mapping.md:36:| ledger ID | repo 状態 | Linear に書いてよいこと | 書いてはいけないこと |\ndocs/work/linear-f1-f6-mapping.md:39:| `QA-UAT-V04-RETEST` | testdb DELETE GREEN。live HTTP 403 | 500 回帰は testdb 非再現。V04 は UNKNOWN | V04 PASS |\ndocs/work/linear-f1-f6-mapping.md:46:2. **F3 の k6 失敗を Linear 上で未完了のまま残している可能性**がある。repo では validator + run `34025435577` まで閉じている。\ndocs/work/linear-f1-f6-mapping.md:51:## USER が Linear で行う手順\ndocs/work/linear-f1-f6-mapping.md:53:見つからない Issue は UNKNOWN のまま。推測で新規 Issue を量産しない。Done は USER だけが遷移する。\n",
+    "stderr": ""
+  }
+]

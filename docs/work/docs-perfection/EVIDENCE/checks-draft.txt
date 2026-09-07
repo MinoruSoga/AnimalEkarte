@@ -1,0 +1,122 @@
+$ python3 docs/work/docs-perfection/EVIDENCE/verify.py
+PASS inventory=198 find=198 missing=0 extra=0 duplicate=0
+PASS inventory classification/freshness/reason all rows
+PASS baseline Markdown=187 scanned=187
+PASS four role headings
+PASS repair queue=11 Severity*Impact descending
+PASS repair actions valid
+PASS repair evidence references=32 exist with valid lines
+PASS child schema architecture.md
+PASS child repair refs architecture.md
+PASS child schema delivery.md
+PASS child repair refs delivery.md
+PASS child schema ops.md
+PASS child repair refs ops.md
+PASS child schema product-philosophy.md
+PASS child repair refs product-philosophy.md
+PASS child schema spec.md
+PASS child repair refs spec.md
+PASS child schema work.md
+PASS child repair refs work.md
+PASS six required categories
+PASS DAG dependency step
+PASS DAG dependency step
+PASS DAG dependency step
+PASS DAG dependency step
+PASS DAG dependency step
+PASS DAG dependency step
+PASS parent status active
+PASS goal durable fields
+PASS budget limits
+PASS existing docs changed only two allowed index READMEs
+PASS new docs only coordinator allowlist
+PASS outside docs tracked content unchanged from baseline
+PASS staging index diff unchanged
+PASS tracked/untracked status delta within allowlist
+PASS git diff --check -- docs
+PASS coordinator local link targets exist []
+PASS new artifact secret-pattern scan (manual PHI review also required)
+PASS saved prompt harness and receiver
+PASS drift command output and exit recorded
+RESULT PASS phase=draft
+exit=0
+
+$ test -f docs/work/docs-perfection/ROLE-MAP.md && rg -n 'Constitution|Map|Status|History' docs/work/docs-perfection/ROLE-MAP.md
+5:## Constitution
+13:| UIの形状・寸法と製品色 | [DESIGN.md](../../../DESIGN.md) ／ [spec/design-system.md](../../spec/design-system.md) | DESIGNは形状・寸法等、design-systemは製品色。別々のfact owner。準拠結果はStatus |
+17:## Map
+27:| 運用手順の入口 | [ops/README.md](../../ops/README.md) → [deploy/README.md](../../ops/deploy/README.md) | 構築/運用はops、納品当日はdelivery。未確認のprovider状態をMapへ混ぜない |
+32:## Status
+44:## History
+exit=0
+
+$ rg -n '^\| docs/' docs/work/docs-perfection/INVENTORY.md | wc -l
+     198
+exit=0
+
+$ find docs -name '*.md' | wc -l
+     198
+exit=0
+
+$ rg -n 'Severity|update|delete|merge-link|adr-correction' docs/work/docs-perfection/REPAIR-QUEUE.md
+3:coordinatorは本文を修復せず、後続ユニットへ渡す。Severity は S3=利用判断を誤らせる説明、S2=運用/性能/証拠の誤読、S1=案内・表現改善（S4は緊急の漏えい等、本調査では該当なし）。Impact は4=現場/安全に広く影響、3=複数経路、2=限定読者、1=局所。Score = Severity × Impact の降順、同点はID順。これは文書修復の優先度であり、製品障害の深刻度判定ではない。
+5:`queued` は子の修復待ち、`external-scope` は docs 外の別承認依存、`index-resolved` はこのcoordinatorで入口だけ修正済み。全件の本文・runtime修復完了を意味しない。action は update / delete / merge-link / rewrite-structure / adr-correction のいずれか。delete と adr-correction は今回確定対象なし。
+7:| ID | Severity | Impact | Score | 子 / 状態 | 推奨処置 | 根拠と実施すべき修復 |
+9:| RQ-001 | S3 | 4 | 12 | spec / queued | merge-link | `docs/spec/screens/34-lstep-delivery-monitor.md:48` は死亡後に配信対象から外れると説明するが、`docs/spec/line/lstep-integration.md:72` はbest-effortと既知のgapを明記。`backend/internal/lstep/lstep_delivery_trigger_state.go:11` の最終除外確認にはpet status読取りがない。画面文書を既存の安全制約ownerへリンクし、保証範囲を揃える。コードの安全欠陥が解消したとは書かない |
+10:| RQ-002 | S3 | 4 | 12 | delivery / external-scope | update | `docs/delivery/OPERATION_MANUAL.md:9` が委ねるmanual内で、`frontend/src/features/manual/content/workflows/01-new-owner-first-visit.md:111` は確定で会計自動作成、`:112` は会計待ち自動遷移と説明。他方 `frontend/src/features/manual/content/screens/05-accounting.md:68` は会計作成時pull、`docs/spec/screens/99-medical-record-flow.md:41` は会計別作成。まず参照先の説明矛盾として登録。docs外manual修復には別の承認済みunitが必要。delivery子はD-254へ依存を明示できるが、manual本体を修正した扱いにしない |
+11:| RQ-003 | S2 | 3 | 6 | spec / queued | update | `docs/spec/screens/34-lstep-delivery-monitor.md:60` の無条件no-N+1と `docs/spec/line/lstep-integration.md:95` のdegraded fallback説明が相違。`backend/internal/lstep/lstep_delivery_trigger_batch.go:106`、`:143`、`:153` にbulk失敗後の個別読取りfallback。通常経路のbulk要件と現存する劣化経路を分け、既存要件を撤回する仕様変更にしない |
+12:| RQ-004 | S2 | 3 | 6 | ops / queued | merge-link | `docs/ops/testing/UAT-DOMAIN-STATUS.md:54`、`:73`、`:98`、`:140`、`:160`、`:204` の9リンク先がローカルに不在。`:27` はgitignored原証跡の非配布を既に明記。リンク表示を「保管者から取得する証跡識別子」と区別するか、承認済み保管先への参照へ変更する。原証跡の不在をUAT未実施/完了に読み替えない。全対象は `EVIDENCE/INVENTORY-SCAN.json` |
+13:| RQ-005 | S2 | 3 | 6 | ops / index-resolved | merge-link | 開始時の `docs/ops/deploy/README.md:46` は実装契約だけを案内し、`docs/ops/deploy/LAB_DEVICE_AGENT_MACOS.md:11`、`:15`、`:18` の配布前提への入口がない。本ユニットでREADMEに同文書への1リンクを追加。署名・token供給・STG/PROD配布の解決や検証はしていない |
+15:| RQ-007 | S1 | 3 | 3 | spec / queued | merge-link | `docs/spec/screens/README.md:24` の検査機器は独立仕様へのリンクがなく、`docs/spec/screens/settings/README.md:23` 以降の表にも検査機器マスタの案内がない。実在routeは `frontend/src/app/routes/clinical-care-routes.tsx:221`、`frontend/src/app/routes/settings-routes.tsx:462`。既存ADR/実装契約を案内する最小リンクを優先し、重複本文を増やさない |
+16:| RQ-008 | S1 | 2 | 2 | ops / queued | update | `docs/ops/testing/UAT-ENV-SETUP.md:15` の `scripts/check-uat-env.sh` は文書相対なら実在する（`docs/ops/testing/scripts/check-uat-env.sh:1`）。repo-root相対と誤解されないリンク/表記へ整える。helperが不存在という指摘は棄却。advisoryの境界を維持し、helperを実行しない |
+17:| RQ-009 | S1 | 2 | 2 | work / queued | update | `docs/work/decisions/fable-po-recommendation.md:11` のNeeds Human表現を、`:5` の2026-08-20照合と `:6` の外部未確認に明示的に結び付ける。「当時」の意味を強める表現修正であり、Linear現在状態の誤りを確認したものではない |
+18:| RQ-010 | S1 | 2 | 2 | product-philosophy / queued | update | `docs/product-philosophy.md:41` の「誤操作を防がない」という説明例が、`:160` の補助的な明示同意の位置付けより強く読める可能性。既存の安全原則に沿って例の限定を検討する。対話確認を一律禁止する新要件や、臨床安全の削減を発明しない |
+19:| RQ-011 | S1 | 2 | 2 | architecture / queued | merge-link | `docs/architecture/overview.md:111` はwrite ownershipをADR-006へ案内し、`docs/architecture/model-write-owner-catalog.md:3`、`:14` は型別owner表を担う。役割を明示する必要が残ればoverview/indexに型別catalogへのリンクを補う。ADRの採択理由・BE9履歴を現行表へ書き換えない |
+23:- ADR-006の旧HEAD（`docs/architecture/adr/006-backend-domain-package-boundaries.md:202`）は `:194` の日付付き静的照合の出典。SHAが現在HEADと異なるだけでは誤りでない。adr-correctionは不要と判定した。
+28:- `docs/work/README.md` の削除zoneに対するadr-correction提案は棄却（ADRではなく、既にCorpVaultとrepoを区別）。新たな削除確定対象はない。将来のdelete提案には理由・後継リンク・再作成条件が必須。
+exit=0
+
+$ ls docs/work/docs-perfection/CHILD-GOALS | rg -n 'architecture|spec|ops|delivery|work|product-philosophy'
+1:architecture.md
+2:delivery.md
+3:ops.md
+4:product-philosophy.md
+5:spec.md
+6:work.md
+exit=0
+
+$ rg -n 'status:|done_condition:|checkpoints:' docs/work/docs-perfection/GOAL.yaml
+5:status: active
+14:done_condition: >-
+17:coordinator_done_condition: >-
+25:checkpoints:
+exit=0
+
+$ git status --short
+ M docs/ops/deploy/README.md
+ M docs/work/README.md
+ M readiness-report.md
+?? .ecc/
+?? .prime/
+?? backend/migrations.zip
+?? docs/work/docs-perfection/
+exit=0
+
+$ git diff --name-only
+docs/ops/deploy/README.md
+docs/work/README.md
+readiness-report.md
+exit=0
+
+$ git diff --name-only -- docs/architecture docs/spec docs/ops docs/delivery
+docs/ops/deploy/README.md
+exit=0
+
+$ git diff --check -- docs
+exit=0
+
+$ git diff --stat -- docs
+ docs/ops/deploy/README.md | 1 +
+ docs/work/README.md       | 1 +
+ 2 files changed, 2 insertions(+)
+exit=0

@@ -232,8 +232,8 @@ Demo login account は `002_master` には含まれず、許可された `APP_EN
 
 ### 5.2 ログ保存先
 
-- **デプロイ直後ログ**: `/tmp/stg-deploy-check-$(date +%Y%m%d).log`
-- **週次・月次ログ**: チーム内 wiki / Confluence など
+- **デプロイ直後の一時採取**: `/tmp/stg-deploy-check-$(date +%Y%m%d).log`（ローカル作業用。これ単体を正式証跡としない）
+- **正式な運用証跡（デプロイ直後・週次・月次）**: Actions run、変更チケット、または承認済み運用記録へ残す（[ops/CLAUDE.md](../CLAUDE.md) の証跡原則）。一時採取ログを使った場合は、正式記録からその内容を確認できるようにする
 
 ---
 

@@ -1,0 +1,40 @@
+[
+  {
+    "command": [
+      "git",
+      "diff",
+      "--check",
+      "--",
+      "docs/spec"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "rg",
+      "-n",
+      "HandlePetDeath|N\\+1|best-effort|safety gap|fallback",
+      "docs/spec/screens/34-lstep-delivery-monitor.md",
+      "docs/spec/screens/31-lstep-integration.md",
+      "docs/spec/line/lstep-integration.md",
+      "docs/spec/line/architecture.md"
+    ],
+    "exit": 0,
+    "stdout": "docs/spec/screens/31-lstep-integration.md:37:- 旧versionが発行済みの64桁hex raw tokenだけは期限内互換のため限定検索する。新規tokenを平文保存するfallbackは持たない。\ndocs/spec/screens/31-lstep-integration.md:69:- **配信トリガー候補の読み取り**: 通常経路は clinic スコープ bulk-read を必須とし、owner ループ内の N+1 読み（owner / 当日 claim / 抑制 / tag-cache）を置かない。opt-out・suppression・daily-claim 意味論と bounded memory は維持する。現行実装に残る bulk 失敗後の per-owner fallback と是正契約は [line/lstep-integration.md §5.2](../line/lstep-integration.md) を参照する。この劣化経路を含めた無条件の no-N+1 は未達である。\ndocs/spec/screens/34-lstep-delivery-monitor.md:48:なお、ペット死亡時はライフサイクル処理（`HandlePetDeath` によるタグ除去・全頭死亡時の Lステップ全タグ削除）が動く。ただし最終除外確認は pet status を直接読まず、全頭死亡時 cleanup は best-effort のため、死亡・転院関連の絶対遮断は保証しない。既知の gap と是正契約は [lstep-integration.md §4](../line/lstep-integration.md) を正本とする。\ndocs/spec/screens/34-lstep-delivery-monitor.md:60:- 通常経路の候補 owner 読み（owner / 当日 claim / 抑制 / tag-cache）は clinic スコープ bulk-read を必須とし、owner 数線形の N+1 を置かない（opt-out・suppression・daily-claim 意味論と bounded memory は維持）。現行実装には bulk 失敗後の per-owner fallback という既知の劣化経路が残り、全経路で no-N+1 を達成したとは主張しない。制約と是正契約は [lstep-integration.md §5.2](../line/lstep-integration.md) を参照する。\ndocs/spec/line/lstep-integration.md:72:**既知の safety gap**: `PetStatus` は `alive` / `deceased` であり、`transferred` status はこの契約にない。最終 claim / write 前の確認は pet status を直接読まない。全 pet 死亡時の tag cleanup は best-effort で、durable exclusion flag を確立しない。また一部候補 query は死亡 pet を除外しない。したがって死亡・転院関連配信の絶対遮断は保証しない。\ndocs/spec/line/lstep-integration.md:74:必要な是正契約は、候補取得時と最終 claim / 外部 write 直前の両方で durable な owner/pet 除外証跡を fail-closed に確認し、cache / external write failure の alert、reconciliation、手動停止 fallback を持つことである。この source defect は本 docs-only 変更では修正しない。\ndocs/spec/line/lstep-integration.md:95:通常経路は clinic スコープの bulk-read を使う。ただし production には bulk failure 後の per-owner day-log / owner / tag-cache read fallback があり、owner 数線形となる既知の degraded-mode gap がある。実行上限・metrics を備えた bounded fallback にするか、source fallback を除去するまで unconditional な no-N+1 invariant は主張しない。opt-out・suppression・daily-claim の意味論と bounded memory は維持する。\ndocs/spec/line/architecture.md:82:LSTEP 周辺の「best-effort」は一語で混同しない。経路ごとに契約を固定する（正本: `backend/CODING_RULES.md` の LSTEP バッチ条項）。\ndocs/spec/line/architecture.md:86:| **1. scheduled multi-resource best effort** | 定時バッチ（delivery / dormant / LTV / health-prevention 等）。multi-clinic・multi-owner・multi-trigger | 必須 dependency 欠落・clinic 一覧取得失敗は fail-closed。1 件失敗後も他 resource は続行 | 必須。`(processed, errs)` と durable 向け `BatchRunResult`（`Processed = Succeeded + Failed`）。error ログ、`processed_count`/`error_count` 監査、Partial/Failed 時の手動 fallback・再実行/idempotency |\ndocs/spec/line/architecture.md:94:- 候補 owner に対する owner / 当日 claim / 抑制 / tag-cache 読みは通常、clinic スコープの bulk-read を使う。production には bulk failure 時の per-owner day-log / owner / tag-cache read fallback が残る。この degraded mode は owner 数に比例する既知の性能 gap であり、実行上限・metrics を備えた bounded fallback への整理または source からの除去が必要。opt-out・suppression・daily-claim の意味論と bounded memory は維持する。\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "rg",
+      "-n",
+      "lab-device|LabDeviceItemMasterSettings",
+      "frontend/src/app/routes/clinical-care-routes.tsx",
+      "frontend/src/app/routes/settings-routes.tsx"
+    ],
+    "exit": 0,
+    "stdout": "frontend/src/app/routes/settings-routes.tsx:462:      path: \"lab-device-item-masters\",\nfrontend/src/app/routes/settings-routes.tsx:472:            const { LabDeviceItemMasterSettings } = await import(\"@/features/master\");\nfrontend/src/app/routes/settings-routes.tsx:473:            return { Component: LabDeviceItemMasterSettings };\nfrontend/src/app/routes/clinical-care-routes.tsx:221:    path: \"/lab-device\",\nfrontend/src/app/routes/clinical-care-routes.tsx:232:          const { LabDeviceBoard } = await import(\"@/features/lab-device\");\n",
+    "stderr": ""
+  }
+]

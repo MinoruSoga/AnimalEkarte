@@ -1,0 +1,62 @@
+$ python3 docs/work/docs-perfection/EVIDENCE/verify-astra-loop.py
+PASS HEAD unchanged
+PASS staging index unchanged
+PASS inventory=199 actual=199 missing=0 extra=0 duplicate=0
+PASS inventory roles/classifications/evidence present
+PASS all docs local file links missing=0 []
+PASS work entry README.md
+PASS work entry REPAIR-QUEUE.md
+PASS work entry ROLE-MAP.md
+PASS child contract architecture
+PASS child contract delivery
+PASS child contract ops
+PASS child contract product-philosophy
+PASS child contract spec
+PASS child contract work
+PASS six child contracts retained
+PASS child DAG step
+PASS child DAG step
+PASS child DAG step
+PASS child DAG step
+PASS child DAG step
+PASS child DAG step
+PASS eleven RQ entries retained
+PASS RQ-001 docs repair resolved
+PASS RQ-003 docs repair resolved
+PASS RQ-004 docs repair resolved
+PASS RQ-006 docs repair resolved
+PASS RQ-007 docs repair resolved
+PASS RQ-008 docs repair resolved
+PASS RQ-009 docs repair resolved
+PASS RQ-010 docs repair resolved
+PASS RQ-011 docs repair resolved
+PASS RQ-002 external-scope retained
+PASS RQ-005 index-only boundary retained
+PASS parent status active
+PASS UAT unavailable report identifiers are not local links
+PASS UAT original evidence remains unverified
+PASS 31-lstep-integration.md normative bulk and observed fallback separated
+PASS 34-lstep-delivery-monitor.md normative bulk and observed fallback separated
+PASS RQ-002 manual source unchanged
+PASS new tracked docs changes within authorized allowlists
+PASS tracked docs delta matches owned writes plus separately observed foreign docs
+PASS foreign docs match observed hashes; no loop overwrite
+PASS owned ADR edits zero (shared-tree ADR changes recorded separately)
+OBSERVED outside-docs concurrent deltas=["backend/internal/billing/billing_item_trimming_test.go", "backend/internal/lintscan/dbortx_inventory_lint_test.go", "backend/internal/lintscan/master_fk_write_inventory_lint_test.go", "backend/internal/lintscan/package_boundary_gate_test.go", "backend/internal/staff/staff_table_write_owner_lint_test.go"]
+PASS outside-docs deltas match separately recorded observation
+NOTE outside-docs deltas are not counted as loop edits; inspect owned-write receipt, never restore foreign WIP
+PASS new untracked docs only authorized paths
+OBSERVED new outside-docs untracked=[]
+PASS no unclassified new outside-docs untracked paths
+PASS git diff --check -- docs
+PASS saved prompt harness/receiver PASS
+PASS changed docs secret-pattern scan (manual review also required)
+RESULT PASS phase=draft
+exit=0
+
+$ git diff --check -- docs
+exit=0
+
+$ rg -n ^status: docs/work/docs-perfection/GOAL.yaml
+5:status: active
+exit=0

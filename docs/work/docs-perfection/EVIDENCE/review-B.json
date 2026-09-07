@@ -1,0 +1,44 @@
+{
+  "verdict": "PASS",
+  "checks": [
+    {
+      "criterion": "1. SC/AC coverage",
+      "result": "PASS",
+      "detail": "docs/work/docs-perfection/PROGRESS.md:17–25 が全SCとACの検証方法を対応付け、LEDGER.md:74–82 が要件別判定を保持。AC5/AC9はPENDINGのままで、完了metadataをレビュー後に確定できる状態。"
+    },
+    {
+      "criterion": "2. Complete inventory and evidence limits",
+      "result": "PASS",
+      "detail": "verify.py再実行 exit=0: 「PASS inventory=198 find=198 missing=0 extra=0 duplicate=0」「PASS baseline Markdown=187 scanned=187」。INVENTORY.md:5–13 はcurrentを一次トリアージに限定し、runtime・外部状態・全anchor未検証を明記。新規11文書も理由付きで列挙。"
+    },
+    {
+      "criterion": "3. Real prioritized findings",
+      "result": "PASS",
+      "detail": "「PASS repair queue=11 Severity*Impact descending」。RQ-001/003は docs/spec/screens/34-lstep-delivery-monitor.md:48,60 と docs/spec/line/lstep-integration.md:72,95、対応する実装を直接照合。RQ-002のmanual:111とscreens/05-accounting.md:68の矛盾も実在。残る引用対象も確認し、弱い表現改善はS1に限定されている。"
+    },
+    {
+      "criterion": "4. Canonical roles, Linear and ADR history",
+      "result": "PASS",
+      "detail": "docs/work/docs-perfection/ROLE-MAP.md:5,17,32,44 に4役割。:36 はLinear現在状態の未照会、:48–50 はADR訂正方針と歴史資料の境界、:54–59 はownerへの一度の更新とリンク方針を明示。"
+    },
+    {
+      "criterion": "5. Six measurable child goals and safe DAG",
+      "result": "PASS",
+      "detail": "「PASS six required categories」と全6子schema/DAG検査が成功。各CHILD-GOALS/*.md:6–10 のallowlist・全件根拠照合・CRITICAL/HIGH=0・検証条件を確認。workの明示allowlistはcoordinatorを除外。delivery.md:26 はfrontend manualの別承認依存を維持。LEDGER.md:22–29 の順序と一致。"
+    },
+    {
+      "criterion": "6. Scope, category bodies and sensitive data",
+      "result": "PASS",
+      "detail": "README差分は docs/work/README.md:21 と docs/ops/deploy/README.md:47 のリンク各1行。再検証で「PASS existing docs changed only two allowed index READMEs」「PASS outside docs tracked content unchanged from baseline」「PASS staging index diff unchanged」。確認した新規本文に秘密値・患者実データなし。"
+    },
+    {
+      "criterion": "7. Reproducibility and honest completion state",
+      "result": "PASS",
+      "detail": "python3 docs/work/docs-perfection/EVIDENCE/verify.py は「RESULT PASS phase=draft」、exit=0。LEDGER.md:57–66 はdrift出力とruntime N/Aを分離。GOAL.yaml:5 はactive。最終checkpointと独立2レビューreceiptの統合後にfinal検査を行う前提であり、現時点のCOMPLETEは認定していない。"
+    }
+  ],
+  "critical_issues": [],
+  "suggestions": [
+    "非blocking: LEDGER.md:80 の「baseline外WIP不変」は、検証できた「docs外tracked内容とindex不変、既存untrackedのstatus維持」に限定すると厳密。verify.pyは開始時untrackedファイルの内容hashまでは比較していない。"
+  ]
+}

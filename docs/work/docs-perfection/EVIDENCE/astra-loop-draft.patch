@@ -1,0 +1,207 @@
+diff --git a/docs/architecture/overview.md b/docs/architecture/overview.md
+index d273c884c..1f5fe44b4 100644
+--- a/docs/architecture/overview.md
++++ b/docs/architecture/overview.md
+@@ -109,6 +109,7 @@ BE9の構造移行後、production実装は`internal/<domain>`へ収束した。
+ | Go/Gin general guidance | [go-gin-backend-guidelines.md](../../.claude/rules/go-gin-backend-guidelines.md) |
+ | Product and workflow principles | [product-philosophy.md](../product-philosophy.md) |
+ | Backend domain/package and write ownership | [ADR-006](adr/006-backend-domain-package-boundaries.md) |
++| Model type → write owner catalog (ARCH-A2) | [model-write-owner-catalog.md](model-write-owner-catalog.md)（型別表。採択理由の正本は ADR-006） |
+ | Appointment workflow and source of truth | [reservation-to-record-flow.md](../spec/reservation-to-record-flow.md) |
+ | API contract | [`backend/docs/api.yaml`](../../backend/docs/api.yaml) |
+ | Tenant isolation | [ADR-002](adr/002-multitenancy-clinic-id-isolation.md) |
+diff --git a/docs/delivery/OPERATION_MANUAL.md b/docs/delivery/OPERATION_MANUAL.md
+index 654dc00f8..9536980b2 100644
+--- a/docs/delivery/OPERATION_MANUAL.md
++++ b/docs/delivery/OPERATION_MANUAL.md
+@@ -30,6 +30,8 @@
+ | 8 | 集計 | §8 | 業務フロー「月次締め・レポート」 | [32-accounting-reports](../spec/screens/32-accounting-reports.md)／[36-aggregation-dashboard](../spec/screens/36-aggregation-dashboard.md) |
+ 
+ > **残作業（repo 外 / 依存）**: システム内マニュアルのスクリーンショットと文言の最終突合は #254 デモ UAT 結果に依存。紛らわしい操作の FAQ 追記も同依存。操作説明会の日程は **USER 入力待ち（U13）**。
++>
++> **既知の外部依存（RQ-002 / docs 外）**: システム内マニュアルの会計フロー説明（例: `frontend/src/features/manual/content/workflows/01-new-owner-first-visit.md` の確定→会計自動作成表現）と会計画面説明（`.../screens/05-accounting.md`）および [99-medical-record-flow.md](../spec/screens/99-medical-record-flow.md) の間に説明差がある。**本納品ドキュメントは整合完了を主張しない**。frontend manual 本体の修復は別承認 unit（D-254 等）の範囲であり、本 docs/delivery allowlist では扱わない。
+ 
+ ---
+ 
+diff --git a/docs/ops/deploy/README.md b/docs/ops/deploy/README.md
+index e088ef079..5f1ea1e9e 100644
+--- a/docs/ops/deploy/README.md
++++ b/docs/ops/deploy/README.md
+@@ -44,6 +44,7 @@
+ - **[ローカル DB リセット (LOCAL_DB_RESET.md)](./LOCAL_DB_RESET.md)**: ローカル開発 DB の再作成・migration 再適用・seed 復元手順。
+ - **[スタッフアカウント払い出し (STAFF_ACCOUNT_PROVISIONING.md)](./STAFF_ACCOUNT_PROVISIONING.md)**: 医院スタッフの初期アカウント作成・権限グループ割当・引き渡し手順。
+ - **[検査機器 有線疎通 (LAB_DEVICE_CONNECTIVITY.md)](./LAB_DEVICE_CONNECTIVITY.md)**: 実装契約。手元・医院の操作手順は old_db `docs/lab-go/hospital-field-pack/手元テスト手順.md`。
++- **[Mac 検査機器受信機 (LAB_DEVICE_AGENT_MACOS.md)](./LAB_DEVICE_AGENT_MACOS.md)**: bundle 配布・インストールの前提と未完了の配布ゲート。
+ - **[外部連携棚卸し (CLOUDFLARE-EXTERNAL-INTEGRATIONS-AUDIT.md)](./CLOUDFLARE-EXTERNAL-INTEGRATIONS-AUDIT.md)**: LINE / Lステップ / SMTP / LIFF の egress 依存棚卸しと、LINE webhook redelivery・error 統計の release pending 項目。
+ - **[Delete / Soft Delete 設計パターン](../../architecture/delete-soft-delete-patterns.md)**: Hard Delete と Soft Delete の使い分け、FK 制約との関係、実装パターン、STG-001 教訓。
+ 
+diff --git a/docs/ops/deploy/STG-CONTINUOUS-OPERATIONS.md b/docs/ops/deploy/STG-CONTINUOUS-OPERATIONS.md
+index a6c6d563f..c54907c9a 100644
+--- a/docs/ops/deploy/STG-CONTINUOUS-OPERATIONS.md
++++ b/docs/ops/deploy/STG-CONTINUOUS-OPERATIONS.md
+@@ -232,8 +232,8 @@ Demo login account は `002_master` には含まれず、許可された `APP_EN
+ 
+ ### 5.2 ログ保存先
+ 
+-- **デプロイ直後ログ**: `/tmp/stg-deploy-check-$(date +%Y%m%d).log`
+-- **週次・月次ログ**: チーム内 wiki / Confluence など
++- **デプロイ直後の一時採取**: `/tmp/stg-deploy-check-$(date +%Y%m%d).log`（ローカル作業用。これ単体を正式証跡としない）
++- **正式な運用証跡**: Actions run、変更チケット、または承認済み運用記録へ残す（[ops/CLAUDE.md](../CLAUDE.md) の証跡原則）。新しい wiki サービスを必須化しない
+ 
+ ---
+ 
+diff --git a/docs/ops/testing/UAT-DOMAIN-STATUS.md b/docs/ops/testing/UAT-DOMAIN-STATUS.md
+index 50bf5e8b4..c19f5d437 100644
+--- a/docs/ops/testing/UAT-DOMAIN-STATUS.md
++++ b/docs/ops/testing/UAT-DOMAIN-STATUS.md
+@@ -51,7 +51,7 @@
+ 
+ - **未解消ギャップ**: S01 死亡/復活/会計ガードは PASS。r8 で sync ON + mock key + line_user_id 時に BE ログで `lstep: write API disabled by deploy gate`（`LSTEP_WRITE_API_ENABLED` unset）と sync 失敗を観測。タグ配列は変化なし。staff audit API なし（DB audit は USER 実施）。PASS には recording mock または write 有効な同期レーンが必要。
+ - **関連 bug IDs**: （なし）
+-- **証跡**: [`reports/uat-2026-09-05-r8/FINAL-s01.md`](../../../reports/uat-2026-09-05-r8/FINAL-s01.md)
++- **証跡**: `reports/uat-2026-09-05-r8/FINAL-s01.md`（gitignore・非配布。保管者が持つ原証跡識別子。ローカル欠落から未実施/完了を推定しない）
+ 
+ ---
+ 
+@@ -70,7 +70,7 @@
+ 
+ - **未解消ギャップ**: （なし。r10 で Board/List UI トグル + admit/discharge API 再確認 PASS）
+ - **関連 bug IDs**: （なし）
+-- **証跡**: [`reports/uat-2026-09-05-r10/FINAL-soft-gaps.md`](../../../reports/uat-2026-09-05-r10/FINAL-soft-gaps.md)
++- **証跡**: `reports/uat-2026-09-05-r10/FINAL-soft-gaps.md`（gitignore・非配布。保管者が持つ原証跡識別子。ローカル欠落から未実施/完了を推定しない）
+ 
+ ---
+ 
+@@ -95,7 +95,7 @@
+   1. 承認済み **fixture API** または **scoped UAT test helper** が必要（`completed_at` を 10:00 / 13:30 / 14:00 / 20:00 / 翌 02:00 に設定した合成会計 5 件）。
+   2. **禁止**: 直接 DB 更新、システム時計変更、既存会計の改変（シナリオ hard rule）。
+   3. 現行 package helper は 5 会計ヘッダを作るが、HTTP/CLI・UAT identity・支払内訳・cleanup が未接続（[設計と実装境界](S09-FIXTURE-DESIGN.md)）。帰属証明ステップ #2–#6 は未再実行 → シナリオ総合 **BLOCKED**（settings/preview/history の先行 PASS では解除しない）。
+-  4. 詳細: [`reports/uat-2026-09-05-r5/S09-BLOCKED.md`](../../../reports/uat-2026-09-05-r5/S09-BLOCKED.md)
++  4. 詳細: `reports/uat-2026-09-05-r5/S09-BLOCKED.md`（gitignore・非配布。保管者が持つ原証跡識別子。ローカル欠落から未実施/完了を推定しない）
+ - **関連 bug IDs**: （なし — UAT 接続の不足は製品 FAIL ではない）
+ - **証跡**: `reports/uat-2026-09-05-r5/S09-BLOCKED.md` · `reports/uat-2026-09-05-r4/s09-helper-search.json`
+ 
+@@ -137,7 +137,7 @@
+ 
+ - **未解消ギャップ**: （なし。r10 で CSV ダウンロード PASS — 旧 flake は行未選択でボタン disabled）
+ - **関連 bug IDs**: （なし）
+-- **証跡**: [`reports/uat-2026-09-05-r10/FINAL-soft-gaps.md`](../../../reports/uat-2026-09-05-r10/FINAL-soft-gaps.md)
++- **証跡**: `reports/uat-2026-09-05-r10/FINAL-soft-gaps.md`（gitignore・非配布。保管者が持つ原証跡識別子。ローカル欠落から未実施/完了を推定しない）
+ 
+ ---
+ 
+@@ -157,7 +157,7 @@
+ 
+ - **未解消ギャップ**: view-only / 非カバーアクター異常系はアカウントなし（soft）。staff create は r10 で `/settings/staff` 経由 PASS（旧 soft-BLOCK は誤パス `/settings/staffs`）。
+ - **関連 bug IDs**: （なし）
+-- **証跡**: [`reports/uat-2026-09-05-r10/FINAL-soft-gaps.md`](../../../reports/uat-2026-09-05-r10/FINAL-soft-gaps.md)
++- **証跡**: `reports/uat-2026-09-05-r10/FINAL-soft-gaps.md`（gitignore・非配布。保管者が持つ原証跡識別子。ローカル欠落から未実施/完了を推定しない）
+ 
+ 
+ ---
+@@ -201,7 +201,7 @@
+ - **r11**: V05-13 trigger priority PASS; V05-14 tag-code mappings PASS; V05-16 CSV PASS; V05-18 checkup-sync PASS; V05-6/7 LIFF_MOCK reserve create/cancel PASS; V05-10 slots PASS; V05-11 owner⇄LINE link PASS
+ - **未解消ギャップ（BLOCKED・製品 FAIL ではない）**: V05-17 の LSTEP 実送信 remove（要 sync ON + `LSTEP_WRITE_API_ENABLED` + 到達可能 LSTEP）。ローカル経路（空選択/unlinked 404/validation/idempotent DELETE）は r13 PASS。実 LINE / UAT-254 close は USER。V05-15 は r12 PASS（elevate 復元済）
+ - **関連 bug IDs**: （なし。r11 新規 FAIL なし）
+-- **証跡**: [`reports/uat-2026-09-05-r13/FINAL.md`](../../../reports/uat-2026-09-05-r13/FINAL.md) · [`reports/uat-2026-09-05-r12/FINAL-v05-15.md`](../../../reports/uat-2026-09-05-r12/FINAL-v05-15.md) · [`reports/uat-2026-09-05-r11/FINAL-v05-subforms.md`](../../../reports/uat-2026-09-05-r11/FINAL-v05-subforms.md) · [`reports/uat-2026-09-05-r9/FINAL-v05.md`](../../../reports/uat-2026-09-05-r9/FINAL-v05.md)
++- **証跡**: `reports/uat-2026-09-05-r13/FINAL.md`（gitignore・非配布。保管者が持つ原証跡識別子。ローカル欠落から未実施/完了を推定しない） · `reports/uat-2026-09-05-r12/FINAL-v05-15.md`（gitignore・非配布。保管者が持つ原証跡識別子。ローカル欠落から未実施/完了を推定しない） · `reports/uat-2026-09-05-r11/FINAL-v05-subforms.md`（gitignore・非配布。保管者が持つ原証跡識別子。ローカル欠落から未実施/完了を推定しない） · `reports/uat-2026-09-05-r9/FINAL-v05.md`（gitignore・非配布。保管者が持つ原証跡識別子。ローカル欠落から未実施/完了を推定しない）
+ 
+ ---
+ 
+diff --git a/docs/ops/testing/UAT-ENV-SETUP.md b/docs/ops/testing/UAT-ENV-SETUP.md
+index b16222642..b9a59aae3 100644
+--- a/docs/ops/testing/UAT-ENV-SETUP.md
++++ b/docs/ops/testing/UAT-ENV-SETUP.md
+@@ -12,7 +12,7 @@
+ 
+ 選択した一組について全項目が確認できない場合は **BLOCKED**。別 browser の INFO や frontend/backend HTTP 200 だけで ready としない。
+ 
+-> `scripts/check-uat-env.sh` はJSON encoding、stdin送信、mode 0600の一時ファイル、container health、browser routeを安全に確認する。ただしprofile/fixture/mutation/cleanup receiptをfail-closedに検証しないため、出力は **advisoryのみ**であり正式readiness gateではない。
++> 文書相対の [`scripts/check-uat-env.sh`](./scripts/check-uat-env.sh)（repo ルートから見る場合は `docs/ops/testing/scripts/check-uat-env.sh`）はJSON encoding、stdin送信、mode 0600の一時ファイル、container health、browser routeを安全に確認する。ただしprofile/fixture/mutation/cleanup receiptをfail-closedに検証しないため、出力は **advisoryのみ**であり正式readiness gateではない。
+ 
+ ## 2. 共通 readiness checklist
+ 
+diff --git a/docs/product-philosophy.md b/docs/product-philosophy.md
+index 641658af7..fdfb84e5e 100644
+--- a/docs/product-philosophy.md
++++ b/docs/product-philosophy.md
+@@ -38,7 +38,7 @@
+ | 来た要望 | 疑うべき問い |
+ |---|---|
+ | 「この帳票を印刷したい」 | その紙は誰が何のために見るのか。画面・通知で代替できないか。 |
+-| 「確認ダイアログを追加してほしい」 | 誤操作の真因は何か。ダイアログは操作を遅くするだけで誤操作を防がない（形骸化する）。Undo・確定ロックで代替できないか。 |
++| 「確認ダイアログを追加してほしい」 | 誤操作の真因は何か。確認ダイアログだけに安全性を頼らず、サーバー側の状態検証・ロック・Undo/補償経路で守れているか。ダイアログは補助的な明示同意に限定できるか。 |
+ | 「Excel に出して集計したい」 | 集計結果そのものを画面に出せば Excel 工程ごと消せるのではないか。 |
+ | 「入力項目を増やしてほしい」 | その項目は誰がいつ読むのか。読まれないデータの入力は現場の時間の純損失である。 |
+ 
+diff --git a/docs/spec/screens/34-lstep-delivery-monitor.md b/docs/spec/screens/34-lstep-delivery-monitor.md
+index 5d2b721da..3eeb6540d 100644
+--- a/docs/spec/screens/34-lstep-delivery-monitor.md
++++ b/docs/spec/screens/34-lstep-delivery-monitor.md
+@@ -45,7 +45,7 @@
+ 2.  **LINE 未連携**: 飼主に LINE ユーザー ID が紐付いていない場合（`no_line_user_id`）。
+ 3.  **配信停止タグ**: 飼主に配信停止タグが付与されている場合（`excl_tag_delivery_stop`）。
+ 
+-なお、ペットの死亡はこの直前チェックではなくライフサイクル処理（`HandlePetDeath` によるタグ除去・全頭死亡時の Lステップ全タグ削除）を通じて配信対象から外れる仕組みです。
++なお、ペット死亡時はライフサイクル処理（`HandlePetDeath` によるタグ除去・全頭死亡時の Lステップ全タグ削除）が動く。ただし最終除外確認は pet status を直接読まず、全頭死亡時 cleanup は best-effort のため、死亡・転院関連の絶対遮断は保証しない。既知の gap と是正契約は [lstep-integration.md §4](../line/lstep-integration.md) を正本とする。
+ 
+ ### 2.2 優先順位制御 (Priority Suppression)
+ `lstep_trigger_priorities` マスタの設定に基づき、同日に優先度の高い別トリガーがある場合、低優先度のトリガーはログの `suppressed_by_priority` フラグ（+`suppression_reason`）が立てられ配信されません（`excluded_reason` とは別カラムで管理）。
+@@ -57,7 +57,7 @@
+ - 1 飼主処理の失敗は **single-owner propagation** で上位へ伝播し、`BatchRunResult`（`Processed = Succeeded + Failed`）と監査 metadata の `processed_count`/`error_count` に **必ず計上**する（silent swallow 禁止）。
+ - 必須 dependency 欠落（settings 未構成・clinic 一覧取得失敗等）は fail-closed。
+ - 画面上の `failed` 行・失敗サマリは、上記 durable 計上のうち **配信トリガーログに落ちた owner 単位の結果**を観測する UI である。バッチ全体の `BatchRunResult` は scheduler / 監査側の観測点であり、本画面 API のレスポンス envelope ではない。
+-- 候補 owner に対する owner / 当日 claim / 抑制 / tag-cache 読みは clinic スコープ bulk-read を必須とし、owner 数線形の N+1 を置かない（opt-out・suppression・daily-claim 意味論と bounded memory は維持）。
++- 通常経路の候補 owner 読み（owner / 当日 claim / 抑制 / tag-cache）は clinic スコープ bulk-read を使う（opt-out・suppression・daily-claim 意味論と bounded memory は維持）。production には bulk 失敗後の per-owner fallback があり、無条件の no-N+1 は主張しない。詳細は [lstep-integration.md §5.2](../line/lstep-integration.md)。
+ 
+ Deploy gate（`LSTEP_WRITE_API_ENABLED`）OFF 時は外部タグ write が HTTP 未送信かつ `ErrWriteDisabled` でも、除外・抑制・ログ作成と本監視 UI は動作する。Clinic gate（`is_sync_enabled=false` 等）のクライアント未構築スキップとは別契約である。再有効化の enable / stop / rollback は [`LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md) を正とし、本 spec に手順を複製しない。
+ 
+diff --git a/docs/spec/screens/README.md b/docs/spec/screens/README.md
+index af99e778c..97bf8c159 100644
+--- a/docs/spec/screens/README.md
++++ b/docs/spec/screens/README.md
+@@ -21,7 +21,7 @@
+ | 06 | **カルテ詳細・入力** | [06-medical-records-form.md](./06-medical-records-form.md) | SOAPS 形式の診療録作成（9 タブ構成）。 |
+ | 12 | **検査一覧** | [12-examinations-list.md](./12-examinations-list.md) | 検査オーダー状況と結果の進捗管理。 |
+ | 13 | **検査登録・結果** | [13-examinations-form.md](./13-examinations-form.md) | 数値検査の入力と基準値判定。未紐付け受信は1クリックで後付け。 |
+-| — | **検査受信** | `/lab-device`（`LabDeviceBoard`） | 医院に設定された検査機器の単一掲示板。機器カードで受信状況をリアルタイム表示。本日診療中カルテをカード選択。日別の受信一覧。未紐付け・［取り消す］。医院セットアップで機器接続を1回許可。 |
++| — | **検査受信** | `/lab-device`（`LabDeviceBoard`）／契約 [ADR-007](../../architecture/adr/007-lab-device-receive-and-commit.md) | 医院に設定された検査機器の単一掲示板。機器カードで受信状況をリアルタイム表示。本日診療中カルテをカード選択。日別の受信一覧。未紐付け・［取り消す］。医院セットアップで機器接続を1回許可。詳細契約は ADR、運用は ops/deploy。 |
+ | 14 | **予防接種一覧** | [14-vaccinations-list.md](./14-vaccinations-list.md) | 接種実績と次回予定の時系列リスト。 |
+ | 15 | **予防接種登録** | [15-vaccinations-form.md](./15-vaccinations-form.md) | ワクチン履歴記録と次回予定自動計算。 |
+ | 16 | **トリミング一覧** | [16-trimming-list.md](./16-trimming-list.md) | 施術予約と完了ステータスの管理。 |
+diff --git a/docs/spec/screens/settings/README.md b/docs/spec/screens/settings/README.md
+index 37f1fb938..0fc9d9c0f 100644
+--- a/docs/spec/screens/settings/README.md
++++ b/docs/spec/screens/settings/README.md
+@@ -25,6 +25,7 @@
+ | **薬剤** | [master-medicine.md](./master-medicine.md) | 薬品名、剤形、単価の定義（在庫紐付けは API のみで設定画面に UI 未実装）。 |
+ | **診断・病名** | [master-diagnosis.md](./master-diagnosis.md) | 疾患カテゴリと正式病名の体系的定義。 |
+ | **検査項目** | [master-examinations.md](./master-examinations.md) | 検査プランの名称・価格の定義（診療項目マスタと同一UIを共有。課税区分は保存されない）。 |
++| **検査機器（受信）** | 個別 settings 仕様書は未分割。契約は [ADR-007](../../../architecture/adr/007-lab-device-receive-and-commit.md) / [ADR-008](../../../architecture/adr/008-local-lab-device-agent.md)、運用は [LAB_DEVICE_AGENT_MACOS.md](../../../ops/deploy/LAB_DEVICE_AGENT_MACOS.md)、画面入口は [screens/README 検査受信](../README.md) | 機器マスタ・受信ボードの正本案内。重複本文を増やさない。 |
+ | **問診/定型文**| [master-interview.md](./master-interview.md) | カルテ入力を効率化する各種テンプレート。 |
+ | **ケージ** | [master-cage.md](./master-cage.md) | 入院室の番号、サイズ、収容タイプ。 |
+ | **入院プラン** | [master-hospitalization-plan.md](./master-hospitalization-plan.md) | 入院・宿泊の単価・対象体格・料金単位の定義。 |
+diff --git a/docs/work/README.md b/docs/work/README.md
+index 55dac4c3b..6030001d4 100644
+--- a/docs/work/README.md
++++ b/docs/work/README.md
+@@ -18,6 +18,9 @@
+ | [phase2-deferred.md](./phase2-deferred.md) | 今期外の短い索引 |
+ | [linear-f1-f6-mapping.md](./linear-f1-f6-mapping.md) | repo の実装履歴と Linear の対応案（Linear 現在状態は UNKNOWN） |
+ | [skill-reeval-2026-09-06.md](./skill-reeval-2026-09-06.md) | 代表タスクごとの資料選択・停止判断 |
++| [docs-perfection/README.md](./docs-perfection/README.md) | **Astra 調査パッケージ入口**（棚卸し・RQ・子 goal・証拠）。製品の実行 SoT は上記 Linear |
++| [docs-perfection/REPAIR-QUEUE.md](./docs-perfection/REPAIR-QUEUE.md) | 調査時点の優先修復キュー（RQ-001〜） |
++| [docs-perfection/ROLE-MAP.md](./docs-perfection/ROLE-MAP.md) | docs 保守の Living Docs 役割割当 |
+ 
+ ## 削除済み docs（復活防止）
+ 
+diff --git a/docs/work/decisions/fable-po-recommendation.md b/docs/work/decisions/fable-po-recommendation.md
+index 6f5e045ee..12f8e193e 100644
+--- a/docs/work/decisions/fable-po-recommendation.md
++++ b/docs/work/decisions/fable-po-recommendation.md
+@@ -8,4 +8,4 @@ USER が Fable 推奨 pack を最終決定として採択した。作業結果
+ - **全文**: CorpVault `50_Projects/ノア動物病院電子カルテ/evidence/2026-08-20-docs-cleanup/decisions/fable-po-recommendation.md`
+ - **実行 SoT**: Linear hub [BRT-4](https://linear.app/baritechllc/issue/BRT-4)
+ 
+-当時 HOLD / 臨床専権で残っているものは Linear の Needs Human（例: [BRT-39](https://linear.app/baritechllc/issue/BRT-39) 薬量、[BRT-41](https://linear.app/baritechllc/issue/BRT-41) 検査 range、[BRT-50](https://linear.app/baritechllc/issue/BRT-50) Lステップ、[BRT-37](https://linear.app/baritechllc/issue/BRT-37) credential）。
++上記 **最終 repo 照合日（2026-08-20）時点**で HOLD / 臨床専権として残っていたものは Linear の Needs Human（例: [BRT-39](https://linear.app/baritechllc/issue/BRT-39) 薬量、[BRT-41](https://linear.app/baritechllc/issue/BRT-41) 検査 range、[BRT-50](https://linear.app/baritechllc/issue/BRT-50) Lステップ、[BRT-37](https://linear.app/baritechllc/issue/BRT-37) credential）。**現在の Linear 状態は本ファイルでは外部確認していない**（証跡識別子のみ）。

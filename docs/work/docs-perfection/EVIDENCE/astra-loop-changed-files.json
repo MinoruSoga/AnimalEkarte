@@ -1,0 +1,49 @@
+{
+  "basis": "Compared to astra-loop-baseline.json; foreign tracked docs are observations, not authored changes. Final evidence paths include this manifest and the final check log.",
+  "owned_tracked_edits": [
+    "docs/spec/screens/31-lstep-integration.md",
+    "docs/spec/screens/34-lstep-delivery-monitor.md",
+    "docs/spec/screens/settings/README.md",
+    "docs/ops/deploy/STG-CONTINUOUS-OPERATIONS.md",
+    "docs/ops/testing/UAT-DOMAIN-STATUS.md",
+    "docs/delivery/OPERATION_MANUAL.md"
+  ],
+  "modified_existing_package_files": [
+    "docs/work/docs-perfection/GOAL.yaml",
+    "docs/work/docs-perfection/INVENTORY.md",
+    "docs/work/docs-perfection/LEDGER.md",
+    "docs/work/docs-perfection/PROGRESS.md",
+    "docs/work/docs-perfection/README.md"
+  ],
+  "new_package_files": [
+    "docs/work/docs-perfection/EVIDENCE/astra-loop-architecture-checks.json",
+    "docs/work/docs-perfection/EVIDENCE/astra-loop-baseline.json",
+    "docs/work/docs-perfection/EVIDENCE/astra-loop-changed-files.json",
+    "docs/work/docs-perfection/EVIDENCE/astra-loop-checks-draft.txt",
+    "docs/work/docs-perfection/EVIDENCE/astra-loop-checks-final.txt",
+    "docs/work/docs-perfection/EVIDENCE/astra-loop-delivery-checks.json",
+    "docs/work/docs-perfection/EVIDENCE/astra-loop-draft.patch",
+    "docs/work/docs-perfection/EVIDENCE/astra-loop-drift.txt",
+    "docs/work/docs-perfection/EVIDENCE/astra-loop-ops-checks.json",
+    "docs/work/docs-perfection/EVIDENCE/astra-loop-ownership.json",
+    "docs/work/docs-perfection/EVIDENCE/astra-loop-readers.json",
+    "docs/work/docs-perfection/EVIDENCE/astra-loop-review-B.json",
+    "docs/work/docs-perfection/EVIDENCE/astra-loop-review-C.json",
+    "docs/work/docs-perfection/EVIDENCE/astra-loop-scan.json",
+    "docs/work/docs-perfection/EVIDENCE/astra-loop-spec-checks.json",
+    "docs/work/docs-perfection/EVIDENCE/astra-loop-validation.json",
+    "docs/work/docs-perfection/EVIDENCE/astra-loop-work-checks.json",
+    "docs/work/docs-perfection/EVIDENCE/verify-astra-loop.py"
+  ],
+  "observed_tracked_docs_delta": [
+    "docs/architecture/adr/006-backend-domain-package-boundaries.md",
+    "docs/architecture/be9-2a-boundary-map.md",
+    "docs/architecture/exception-package-discipline.md",
+    "docs/delivery/OPERATION_MANUAL.md",
+    "docs/ops/deploy/STG-CONTINUOUS-OPERATIONS.md",
+    "docs/ops/testing/UAT-DOMAIN-STATUS.md",
+    "docs/spec/screens/31-lstep-integration.md",
+    "docs/spec/screens/34-lstep-delivery-monitor.md",
+    "docs/spec/screens/settings/README.md"
+  ]
+}

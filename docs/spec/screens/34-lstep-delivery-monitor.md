@@ -45,7 +45,7 @@
 2.  **LINE 未連携**: 飼主に LINE ユーザー ID が紐付いていない場合（`no_line_user_id`）。
 3.  **配信停止タグ**: 飼主に配信停止タグが付与されている場合（`excl_tag_delivery_stop`）。
 
-なお、ペットの死亡はこの直前チェックではなくライフサイクル処理（`HandlePetDeath` によるタグ除去・全頭死亡時の Lステップ全タグ削除）を通じて配信対象から外れる仕組みです。
+なお、ペット死亡時はライフサイクル処理（`HandlePetDeath` によるタグ除去・全頭死亡時の Lステップ全タグ削除）が動く。ただし最終除外確認は pet status を直接読まず、全頭死亡時 cleanup は best-effort のため、死亡・転院関連の絶対遮断は保証しない。既知の gap と是正契約は [lstep-integration.md §4](../line/lstep-integration.md) を正本とする。
 
 ### 2.2 優先順位制御 (Priority Suppression)
 `lstep_trigger_priorities` マスタの設定に基づき、同日に優先度の高い別トリガーがある場合、低優先度のトリガーはログの `suppressed_by_priority` フラグ（+`suppression_reason`）が立てられ配信されません（`excluded_reason` とは別カラムで管理）。
@@ -57,7 +57,7 @@
 - 1 飼主処理の失敗は **single-owner propagation** で上位へ伝播し、`BatchRunResult`（`Processed = Succeeded + Failed`）と監査 metadata の `processed_count`/`error_count` に **必ず計上**する（silent swallow 禁止）。
 - 必須 dependency 欠落（settings 未構成・clinic 一覧取得失敗等）は fail-closed。
 - 画面上の `failed` 行・失敗サマリは、上記 durable 計上のうち **配信トリガーログに落ちた owner 単位の結果**を観測する UI である。バッチ全体の `BatchRunResult` は scheduler / 監査側の観測点であり、本画面 API のレスポンス envelope ではない。
-- 候補 owner に対する owner / 当日 claim / 抑制 / tag-cache 読みは clinic スコープ bulk-read を必須とし、owner 数線形の N+1 を置かない（opt-out・suppression・daily-claim 意味論と bounded memory は維持）。
+- 通常経路の候補 owner 読み（owner / 当日 claim / 抑制 / tag-cache）は clinic スコープ bulk-read を必須とし、owner 数線形の N+1 を置かない（opt-out・suppression・daily-claim 意味論と bounded memory は維持）。現行実装には bulk 失敗後の per-owner fallback という既知の劣化経路が残り、全経路で no-N+1 を達成したとは主張しない。制約と是正契約は [lstep-integration.md §5.2](../line/lstep-integration.md) を参照する。
 
 Deploy gate（`LSTEP_WRITE_API_ENABLED`）OFF 時は外部タグ write が HTTP 未送信かつ `ErrWriteDisabled` でも、除外・抑制・ログ作成と本監視 UI は動作する。Clinic gate（`is_sync_enabled=false` 等）のクライアント未構築スキップとは別契約である。再有効化の enable / stop / rollback は [`LSTEP_WRITE_API_PAUSE.md`](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md) を正とし、本 spec に手順を複製しない。
 

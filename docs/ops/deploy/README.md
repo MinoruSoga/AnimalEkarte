@@ -44,6 +44,7 @@
 - **[ローカル DB リセット (LOCAL_DB_RESET.md)](./LOCAL_DB_RESET.md)**: ローカル開発 DB の再作成・migration 再適用・seed 復元手順。
 - **[スタッフアカウント払い出し (STAFF_ACCOUNT_PROVISIONING.md)](./STAFF_ACCOUNT_PROVISIONING.md)**: 医院スタッフの初期アカウント作成・権限グループ割当・引き渡し手順。
 - **[検査機器 有線疎通 (LAB_DEVICE_CONNECTIVITY.md)](./LAB_DEVICE_CONNECTIVITY.md)**: 実装契約。手元・医院の操作手順は old_db `docs/lab-go/hospital-field-pack/手元テスト手順.md`。
+- **[Mac 検査機器受信機 (LAB_DEVICE_AGENT_MACOS.md)](./LAB_DEVICE_AGENT_MACOS.md)**: bundle 配布・インストールの前提と未完了の配布ゲート。
 - **[外部連携棚卸し (CLOUDFLARE-EXTERNAL-INTEGRATIONS-AUDIT.md)](./CLOUDFLARE-EXTERNAL-INTEGRATIONS-AUDIT.md)**: LINE / Lステップ / SMTP / LIFF の egress 依存棚卸しと、LINE webhook redelivery・error 統計の release pending 項目。
 - **[Delete / Soft Delete 設計パターン](../../architecture/delete-soft-delete-patterns.md)**: Hard Delete と Soft Delete の使い分け、FK 制約との関係、実装パターン、STG-001 教訓。
 
