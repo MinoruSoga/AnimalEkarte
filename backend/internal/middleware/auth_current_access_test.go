@@ -323,8 +323,9 @@ func TestAuth_RegularStaffRejectsInactiveCurrentClinic(t *testing.T) {
 		wantDownstream bool
 	}{
 		{
-			name:       "inactive signed default is rejected",
-			wantStatus: http.StatusForbidden,
+			name:           "stale signed default falls back to live main clinic",
+			wantStatus:     http.StatusOK,
+			wantDownstream: true,
 		},
 		{
 			name:           "inactive header clinic is rejected",
@@ -348,6 +349,9 @@ func TestAuth_RegularStaffRejectsInactiveCurrentClinic(t *testing.T) {
 
 			assert.Equal(t, test.wantStatus, result.response.Code)
 			assert.Equal(t, test.wantDownstream, result.downstreamCalled)
+			if test.headerClinicID == "" && test.wantDownstream {
+				assert.Equal(t, "2", result.clinicID)
+			}
 		})
 	}
 }

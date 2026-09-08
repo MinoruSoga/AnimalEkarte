@@ -1,5 +1,14 @@
-import { useCallback, useMemo, type ChangeEvent, type Dispatch, type SetStateAction } from "react";
+import {
+  useCallback,
+  useMemo,
+  useState,
+  type ChangeEvent,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
+import { toast } from "sonner";
 
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -8,9 +17,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PropertyRow, StatusToggleButton } from "@/components/shared/SidePeek";
+import { useAuth } from "@/hooks/use-auth";
 import { C, STYLE } from "@/lib/design-tokens";
 
-import type { Staff } from "../api/staffs";
+import { useAttachStaffAccount, type Staff } from "../api/staffs";
 import type { Occupation } from "../api/occupations";
 import { MASTER_INPUT_CLASS } from "../constants/styles";
 import type { StaffFormData } from "../lib/staff-side-panel-model";
@@ -30,6 +40,11 @@ export function StaffBasicInfoSection({
   setFormDataDirty,
   allOccupations,
 }: StaffBasicInfoSectionProps) {
+  const { user } = useAuth();
+  const attachAccount = useAttachStaffAccount();
+  const [attachEmail, setAttachEmail] = useState("");
+  const canAttachAccount = user?.isSystemAdmin === true && !isNew && Boolean(item) && !item?.email;
+
   const occupationSelectItems = useMemo(
     () =>
       allOccupations
@@ -73,6 +88,19 @@ export function StaffBasicInfoSection({
     },
     [setFormDataDirty],
   );
+
+  const handleAttachEmailChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    setAttachEmail(event.target.value);
+  }, []);
+
+  const handleAttachAccount = useCallback(async () => {
+    if (item === null) {
+      return;
+    }
+    const result = await attachAccount.mutateAsync({ id: item.id, email: attachEmail });
+    toast.success(result.message);
+    setAttachEmail("");
+  }, [attachAccount, attachEmail, item]);
 
   return (
     <>
@@ -126,16 +154,41 @@ export function StaffBasicInfoSection({
           <PropertyRow label="メールアドレス">
             <span className={`text-sm ${C.text65}`}>{item?.email || "未設定"}</span>
           </PropertyRow>
-          <PropertyRow label="パスワード">
-            <input
-              type="password"
-              aria-label="パスワード"
-              className={MASTER_INPUT_CLASS}
-              value={formData.password}
-              onChange={handlePasswordChange}
-              placeholder="変更する場合のみ入力"
-            />
-          </PropertyRow>
+          {canAttachAccount ? (
+            <>
+              <PropertyRow label="ログインアカウント">
+                <input
+                  type="email"
+                  aria-label="追加するメールアドレス"
+                  className={MASTER_INPUT_CLASS}
+                  value={attachEmail}
+                  onChange={handleAttachEmailChange}
+                  placeholder="本人専用のメールアドレス"
+                />
+              </PropertyRow>
+              <Button
+                type="button"
+                size="sm"
+                disabled={attachAccount.isPending || attachEmail.trim() === ""}
+                onClick={() => {
+                  void handleAttachAccount();
+                }}
+              >
+                ログインアカウントを追加
+              </Button>
+            </>
+          ) : item?.email ? (
+            <PropertyRow label="パスワード">
+              <input
+                type="password"
+                aria-label="パスワード"
+                className={MASTER_INPUT_CLASS}
+                value={formData.password}
+                onChange={handlePasswordChange}
+                placeholder="変更する場合のみ入力"
+              />
+            </PropertyRow>
+          ) : null}
         </>
       )}
     </>

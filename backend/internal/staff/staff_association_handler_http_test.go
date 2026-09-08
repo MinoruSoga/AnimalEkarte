@@ -139,6 +139,7 @@ func TestSetStaffPermissionGroups_RoutedCompositeAuthorization(t *testing.T) {
 			protected.Use(func(c *gin.Context) {
 				c.Set("clinic_id", "1")
 				c.Set("user_id", "7")
+				c.Set("is_system_admin", false)
 				c.Next()
 			})
 			handler.RegisterRoutes(protected)

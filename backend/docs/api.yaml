@@ -4155,7 +4155,7 @@ components:
           description: スタッフの職種名（occupationsマスタから取得）
         main_clinic_id:
           type: string
-          description: "メインクリニックID（string）"
+          description: "この応答時点の選択医院ID（login/refresh では解決した既定医院）。DB の主所属ではない"
         clinics:
           type: array
           items:
@@ -4167,10 +4167,11 @@ components:
                 type: string
               is_main:
                 type: boolean
+                description: main_clinic_id との一致。永続化された主所属ではない
         clinic:
           type: object
           nullable: true
-          description: メイン医院の詳細情報
+          description: 選択中医院の詳細情報
           properties:
             id:
               type: string
@@ -14729,6 +14730,65 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/staffs/{id}/account:
+    post:
+      operationId: attachStaffAccount
+      summary: 既存スタッフにログインアカウントを追加する
+      description: |
+        システム管理者のみ。既存 staff ID と診療履歴は維持する。
+        初期パスワードは返さない。本人はログイン画面のパスワード再設定から設定する。
+        メール自動送信は行わない。
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  maxLength: 254
+      responses:
+        '201':
+          description: アカウント追加成功
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [staff_id, account_id, email, message]
+                properties:
+                  staff_id:
+                    type: integer
+                    format: int64
+                  account_id:
+                    type: integer
+                    format: int64
+                  email:
+                    type: string
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/staffs/{id}/clinics:

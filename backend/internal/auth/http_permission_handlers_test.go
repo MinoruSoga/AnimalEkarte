@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -224,6 +225,9 @@ func setPermissionHTTPIdentity(c *gin.Context) {
 	c.Set("clinic_id", "23")
 	c.Set("user_id", "17")
 	c.Set("is_system_admin", false)
+	httpapi.SetClinicPermissionChecker(c, func(_ *gin.Context, clinicID uint64, _, _ string) bool {
+		return clinicID == 23
+	})
 }
 
 func setPermissionHTTPID(c *gin.Context, id string) {
@@ -560,6 +564,32 @@ func TestHTTPHandler_ListAndGetPermissionGroups(t *testing.T) {
 	)
 	errorHandler.GetPermissionGroup(getError)
 	assert.Equal(t, http.StatusNotFound, getErrorResponse.Code)
+}
+
+func TestHTTPHandler_ListPermissionGroups_RejectsSelectedClinicWithoutGrant(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	handler := permissionHTTPHandler(&permissionHTTPService{
+		listFn: func(context.Context, uint64) ([]model.PermissionGroup, error) {
+			t.Fatal("list must not run without selected-clinic view")
+			return nil, nil
+		},
+	}, nil, nil)
+	listContext, listResponse := permissionHTTPContext(
+		t,
+		http.MethodGet,
+		"/permission-groups",
+		nil,
+		func(c *gin.Context) {
+			c.Set("clinic_id", "23")
+			c.Set("user_id", "17")
+			c.Set("is_system_admin", false)
+			httpapi.SetClinicPermissionChecker(c, func(_ *gin.Context, clinicID uint64, _, _ string) bool {
+				return clinicID == 99
+			})
+		},
+	)
+	handler.ListPermissionGroups(listContext)
+	assert.Equal(t, http.StatusForbidden, listResponse.Code)
 }
 
 func TestHTTPHandler_CreateAndUpdatePermissionGroup(t *testing.T) {

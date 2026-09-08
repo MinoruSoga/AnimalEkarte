@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/animal-ekarte/backend/internal/httpapi"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // ---- Occupation ----
@@ -16,6 +17,9 @@ import (
 func (h *Handler) ListOccupations(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMasterStaff), "view") {
 		return
 	}
 	occupations, err := h.svc.Occupation.List(c.Request.Context(), clinicID)
@@ -30,6 +34,9 @@ func (h *Handler) ListOccupations(c *gin.Context) {
 func (h *Handler) GetOccupation(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMasterStaff), "view") {
 		return
 	}
 	id, ok := parseIDParam(c, "id")

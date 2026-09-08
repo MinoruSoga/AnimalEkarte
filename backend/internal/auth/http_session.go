@@ -1,6 +1,10 @@
 package auth
 
 import (
+	"github.com/gin-gonic/gin"
+
+	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -53,4 +57,14 @@ func AuditClinicIDFromAssignments(assignments []model.StaffClinicAssignment) (ui
 		}
 	}
 	return fallback, true
+}
+
+func respondAuthError(c *gin.Context, err error) {
+	if apperrors.IsClinicSelectionUnavailable(err) {
+		httpapi.RespondErrorWithExtras(c, err, map[string]any{
+			"error_code": apperrors.CodeClinicSelectionUnavailable,
+		})
+		return
+	}
+	httpapi.RespondError(c, err)
 }

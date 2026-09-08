@@ -78,11 +78,13 @@ func TestRouteCompositionSmoke_TargetGraphRegistersEverySurface(t *testing.T) {
 	// (lab-device consumer token for the local agent). Documented in
 	// backend/docs/api.yaml and covered by the OpenAPI drift test.
 	// 2026-09-05: 523 — GET /api/v1/health alias of /health (STG P3-4).
-	// 2026-09-08: 525 — QA-UAT-S09-FIXTURE local synthetic closing helpers.
+	// 2026-09-09: 524 — origin/main POST /api/v1/masters/staffs/:id/account
+	// (todo-fix-auth attach-account). Documented in backend/docs/api.yaml.
+	// 2026-09-08: 526 — QA-UAT-S09-FIXTURE local synthetic closing helpers.
 	// Handlers 404 outside allowed local HTTP hosts; they still register:
 	//   POST   /api/v1/uat/synthetic-closings
 	//   DELETE /api/v1/uat/synthetic-closings/:clinic_id
-	require.Len(t, routes, 525)
+	require.Len(t, routes, 526)
 	for _, expected := range []string{
 		"GET /health",
 		"GET /api/v1/health",
@@ -99,6 +101,7 @@ func TestRouteCompositionSmoke_TargetGraphRegistersEverySurface(t *testing.T) {
 		"DELETE /api/v1/uat/synthetic-closings/:clinic_id",
 
 		"GET /api/v1/masters/staffs",
+		"POST /api/v1/masters/staffs/:id/account",
 		"GET /api/v1/clinics",
 		"GET /api/v1/medical-records",
 		"GET /api/v1/reservations",

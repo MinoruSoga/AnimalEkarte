@@ -178,7 +178,7 @@ func executeRefresh(
 			},
 		},
 		StaffAssignments: refreshHTTPAssignmentReaderStub{assignments: assignments},
-		Clinics:          refreshHTTPClinicListerStub{clinics: []model.Clinic{{ID: 2}, {ID: 3}}},
+		Clinics:          refreshHTTPClinicListerStub{clinics: []model.Clinic{{ID: 2, IsActive: true}, {ID: 3, IsActive: true}}},
 	}, CookieConfigForProduction(false))
 
 	recorder := httptest.NewRecorder()
@@ -242,7 +242,7 @@ func TestHTTPHandler_Login_IssuesCurrentAccountEpoch(t *testing.T) {
 				{StaffID: staff.ID, ClinicID: 2, IsMain: true},
 			},
 		},
-		Clinics: refreshHTTPClinicListerStub{clinics: []model.Clinic{{ID: 2}}},
+		Clinics: refreshHTTPClinicListerStub{clinics: []model.Clinic{{ID: 2, IsActive: true}}},
 	}, CookieConfigForProduction(false))
 
 	recorder := httptest.NewRecorder()
@@ -708,7 +708,9 @@ func TestHTTPHandler_RefreshToken_RotatesBoundedLegacySession(t *testing.T) {
 						IsMain:   true,
 					}},
 				},
-				Clinics: refreshHTTPClinicListerStub{},
+				Clinics: refreshHTTPClinicListerStub{
+					clinics: []model.Clinic{{ID: 7, Name: "Legacy Clinic", IsActive: true}},
+				},
 			}, CookieConfigForProduction(false))
 
 			recorder := httptest.NewRecorder()
@@ -865,4 +867,126 @@ func TestHTTPHandler_RefreshToken_RejectsStaleOrInactiveIdentity(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestHTTPHandler_Login_RegularStaffUsesActiveAssignedClinicWhenPreferredInactive(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	accountID := uint64(41)
+	updatedAt := time.Now().Add(-time.Hour)
+	account := &model.Account{
+		ID:        accountID,
+		Email:     "staff@example.test",
+		IsActive:  true,
+		UpdatedAt: updatedAt,
+	}
+	staff := &model.Staff{ID: 17, AccountID: &accountID, IsActive: true}
+	blacklist := NewTokenBlacklistService(&mockTokenBlacklistRepository{})
+	tokens := NewTokenService(refreshSecurityJWTSecret, blacklist)
+	handler := NewHTTPHandler(HTTPDependencies{
+		Auth:           loginHTTPAuthServiceStub{account: account, staff: staff},
+		Tokens:         tokens,
+		TokenBlacklist: blacklist,
+		StaffAssignments: refreshHTTPAssignmentReaderStub{
+			assignments: []model.StaffClinicAssignment{
+				{StaffID: staff.ID, ClinicID: 1, IsMain: true},
+				{StaffID: staff.ID, ClinicID: 2, IsMain: false},
+			},
+		},
+		Clinics: refreshHTTPClinicListerStub{clinics: []model.Clinic{
+			{ID: 1, Name: "Inactive", IsActive: false},
+			{ID: 2, Name: "Active", IsActive: true},
+		}},
+	}, CookieConfigForProduction(false))
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(
+		http.MethodPost,
+		"/api/v1/login",
+		strings.NewReader(`{"email":"staff@example.test","password":"irrelevant-password"}`),
+	)
+	c.Request.Header.Set("Content-Type", "application/json")
+	handler.Login(c)
+
+	require.Equal(t, http.StatusOK, recorder.Code, recorder.Body.String())
+	assert.NotEmpty(t, recorder.Header().Values("Set-Cookie"))
+	var response LoginResponse
+	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &response))
+	require.NotNil(t, response.User)
+	assert.Equal(t, "2", response.User.MainClinicID)
+}
+
+func TestHTTPHandler_Login_RegularStaffRejectsWhenAllAssignedClinicsInactive(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	accountID := uint64(41)
+	handler := NewHTTPHandler(HTTPDependencies{
+		Auth: loginHTTPAuthServiceStub{
+			account: &model.Account{
+				ID:        accountID,
+				Email:     "staff@example.test",
+				IsActive:  true,
+				UpdatedAt: time.Now().Add(-time.Hour),
+			},
+			staff: &model.Staff{ID: 17, AccountID: &accountID, IsActive: true},
+		},
+		Tokens: NewTokenService(refreshSecurityJWTSecret, nil),
+		StaffAssignments: refreshHTTPAssignmentReaderStub{
+			assignments: []model.StaffClinicAssignment{
+				{StaffID: 17, ClinicID: 1, IsMain: true},
+			},
+		},
+		Clinics: refreshHTTPClinicListerStub{clinics: []model.Clinic{
+			{ID: 1, Name: "Inactive", IsActive: false},
+		}},
+	}, CookieConfigForProduction(false))
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(
+		http.MethodPost,
+		"/api/v1/login",
+		strings.NewReader(`{"email":"staff@example.test","password":"irrelevant-password"}`),
+	)
+	c.Request.Header.Set("Content-Type", "application/json")
+	handler.Login(c)
+
+	require.Equal(t, http.StatusForbidden, recorder.Code, recorder.Body.String())
+	assert.Empty(t, recorder.Header().Values("Set-Cookie"))
+	assert.Contains(t, recorder.Body.String(), apperrors.CodeClinicSelectionUnavailable)
+}
+
+func TestHTTPHandler_Login_RejectsWhenClinicListFails(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	accountID := uint64(41)
+	handler := NewHTTPHandler(HTTPDependencies{
+		Auth: loginHTTPAuthServiceStub{
+			account: &model.Account{
+				ID:        accountID,
+				Email:     "staff@example.test",
+				IsActive:  true,
+				UpdatedAt: time.Now().Add(-time.Hour),
+			},
+			staff: &model.Staff{ID: 17, AccountID: &accountID, IsActive: true},
+		},
+		Tokens: NewTokenService(refreshSecurityJWTSecret, nil),
+		StaffAssignments: refreshHTTPAssignmentReaderStub{
+			assignments: []model.StaffClinicAssignment{
+				{StaffID: 17, ClinicID: 1, IsMain: true},
+			},
+		},
+		Clinics: refreshHTTPClinicListerStub{err: errors.New("clinic list unavailable")},
+	}, CookieConfigForProduction(false))
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(
+		http.MethodPost,
+		"/api/v1/login",
+		strings.NewReader(`{"email":"staff@example.test","password":"irrelevant-password"}`),
+	)
+	c.Request.Header.Set("Content-Type", "application/json")
+	handler.Login(c)
+
+	require.Equal(t, http.StatusInternalServerError, recorder.Code, recorder.Body.String())
+	assert.Empty(t, recorder.Header().Values("Set-Cookie"))
 }

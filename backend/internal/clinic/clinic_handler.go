@@ -12,20 +12,36 @@ import (
 )
 
 // ListClinics godoc
-// scope=all: 全クリニック一覧を返す（ルートの hospital-settings.view で認可。system_admin 不要）
+// scope=all: システム管理者は全クリニック。非システム管理者は所属医院のみ。
+// 認可はルートの hospital-settings.view。所属判定はサーバ側の staff assignment。
 // scope なし: staff_clinic_assignments に紐づくクリニック一覧を返す
 func (h *Handler) ListClinics(c *gin.Context) {
 	query := NewListClinicQuery(c.Request.URL.Query())
 
 	if query.Scope == "all" {
-		// hospital-settings 画面の医院マスタは割当外拠点も含む全件が必要（docs/spec/screens/19-clinic-settings.md）。
-		// 認可は RegisterClinicRoutes の requirePermission(view) に委ねる。
-		clinics, err := h.clinicSvc.ListClinics(c.Request.Context())
+		isSystemAdmin, ok := httpapi.ExtractIsSystemAdmin(c)
+		if !ok {
+			return
+		}
+		if isSystemAdmin {
+			clinics, err := h.clinicSvc.ListClinics(c.Request.Context())
+			if err != nil {
+				httpapi.RespondError(c, err)
+				return
+			}
+			c.JSON(http.StatusOK, httpapi.MapSlice(clinics, ToClinicResponse))
+			return
+		}
+		staffID, ok := httpapi.ExtractStaffID(c)
+		if !ok {
+			return
+		}
+		clinics, err := h.clinicSvc.ListClinicsByStaffID(c.Request.Context(), staffID)
 		if err != nil {
 			httpapi.RespondError(c, err)
 			return
 		}
-		c.JSON(http.StatusOK, httpapi.MapSlice(clinics, ToClinicResponse))
+		c.JSON(http.StatusOK, httpapi.MapSlice(keepActiveClinics(clinics), ToClinicResponse))
 		return
 	}
 
@@ -39,7 +55,17 @@ func (h *Handler) ListClinics(c *gin.Context) {
 		httpapi.RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, httpapi.MapSlice(clinics, ToClinicResponse))
+	c.JSON(http.StatusOK, httpapi.MapSlice(keepActiveClinics(clinics), ToClinicResponse))
+}
+
+func keepActiveClinics(clinics []model.Clinic) []model.Clinic {
+	active := make([]model.Clinic, 0, len(clinics))
+	for _, clinic := range clinics {
+		if clinic.IsActive {
+			active = append(active, clinic)
+		}
+	}
+	return active
 }
 
 func requireSystemAdmin(c *gin.Context) bool {

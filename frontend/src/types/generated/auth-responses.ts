@@ -28,6 +28,10 @@ export interface MeResponse {
   display_name: string;
   is_system_admin: boolean;
   occupation?: string;
+  /**
+   * MainClinicID is the selected clinic for this response, not a persisted
+   * primary assignment. Login/refresh use the resolved default clinic.
+   */
   main_clinic_id: string;
   clinic?: MeClinicInfo;
   clinics?: MeClinicMembership[];

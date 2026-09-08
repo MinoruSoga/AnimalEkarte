@@ -41,15 +41,16 @@ type SetPermissionGroupRulesInput struct {
 // authorization-policy mutation. The use case validates clinic/action/resource
 // and fills ResourceID/OldValue/NewValue from transaction-local state.
 type PermissionMutationAudit struct {
-	ClinicID     uint64
-	ActorStaffID uint64
-	Action       string
-	Resource     string
-	ResourceID   *uint64
-	OldValue     any
-	NewValue     any
-	IPAddress    string
-	UserAgent    string
+	ClinicID           uint64
+	ActorStaffID       uint64
+	ActorIsSystemAdmin bool
+	Action             string
+	Resource           string
+	ResourceID         *uint64
+	OldValue           any
+	NewValue           any
+	IPAddress          string
+	UserAgent          string
 }
 
 // PermissionAuditTxLogger persists an authorization mutation audit entry in

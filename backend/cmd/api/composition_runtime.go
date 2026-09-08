@@ -509,7 +509,7 @@ func (c runtimeComposition) registerDomainRoutes(
 ) error {
 	ownerPetHandlers := c.ownerPet.newHandlers(
 		c.lstep,
-		c.auth.Handler.RequirePermission,
+		c.auth.Handler.RequirePermissionAllowingAssignedClinicGrant,
 		c.auth.Handler.HasPermission,
 	)
 	ownerPetHandlers.Owner.RegisterRoutes(protected)
@@ -526,7 +526,7 @@ func (c runtimeComposition) registerDomainRoutes(
 	reservationHandler.RegisterRoutes(protected)
 	reservationHandler.RegisterLiffRoutes(router)
 	c.billing.newHandler(
-		c.auth.Handler.RequirePermission,
+		c.auth.Handler.RequirePermissionAllowingAssignedClinicGrant,
 		c.auth.Handler.HasPermission,
 	).RegisterRoutes(protected)
 	billing.RegisterUATRoutes(router.Group("/api/v1"), &billing.SyntheticClosingHandler{DB: c.db})
@@ -559,7 +559,7 @@ func (c runtimeComposition) registerExistingDomainRoutes(
 	manualarticle.NewHandler(
 		manualarticle.NewManualArticleService(manualarticle.New(c.db)),
 		manualArticleAuditAdapter{logger: c.audit},
-		c.auth.Handler.RequirePermission,
+		c.auth.Handler.RequirePermissionAllowingAssignedClinicGrant,
 	).RegisterRoutes(protected)
 	identitylink.NewHandler(
 		identitylink.NewService(
@@ -567,7 +567,7 @@ func (c runtimeComposition) registerExistingDomainRoutes(
 			persistence.NewTransactor(c.db),
 			c.audit,
 		),
-		c.auth.Handler.RequirePermission,
+		c.auth.Handler.RequirePermissionAllowingAssignedClinicGrant,
 	).RegisterRoutes(protected)
 	inventory.NewHandler(
 		c.inventory.inventory,
@@ -586,7 +586,7 @@ func (c runtimeComposition) registerExistingDomainRoutes(
 			Uploader:          uploader,
 			DB:                c.db,
 			HasPermission:     c.auth.Handler.HasPermission,
-			RequirePermission: c.auth.Handler.RequirePermission,
+			RequirePermission: c.auth.Handler.RequirePermissionAllowingAssignedClinicGrant,
 		},
 	).RegisterRoutes(protected)
 }
@@ -615,7 +615,7 @@ func (c runtimeComposition) newReservationHandler(
 				return middleware.LiffRateLimit(liffRateLimitStore, limit)
 			},
 			LinkLiffAccount:   lstepHandler.LinkLiffAccount,
-			RequirePermission: c.auth.Handler.RequirePermission,
+			RequirePermission: c.auth.Handler.RequirePermissionAllowingAssignedClinicGrant,
 		},
 	)
 }

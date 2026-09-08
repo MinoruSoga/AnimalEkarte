@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 	staffdomain "github.com/animal-ekarte/backend/internal/staff"
 )
@@ -95,6 +96,25 @@ func TestListOccupations(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
+			name: "returns 403 when selected clinic grant is missing",
+			setupCtx: func(c *gin.Context) {
+				c.Set("clinic_id", "1")
+			},
+			svc:        &mockOccupationService{},
+			wantStatus: http.StatusForbidden,
+		},
+		{
+			name: "returns 403 when selected clinic grant is denied",
+			setupCtx: func(c *gin.Context) {
+				c.Set("clinic_id", "1")
+				httpapi.SetClinicPermissionChecker(c, func(_ *gin.Context, _ uint64, _, _ string) bool {
+					return false
+				})
+			},
+			svc:        &mockOccupationService{},
+			wantStatus: http.StatusForbidden,
+		},
+		{
 			name:     "returns 500 on service error",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockOccupationService{
@@ -158,6 +178,15 @@ func TestGetOccupation(t *testing.T) {
 			setupCtx:   func(_ *gin.Context) {},
 			svc:        &mockOccupationService{},
 			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:    "returns 403 when selected clinic grant is missing",
+			paramID: "1",
+			setupCtx: func(c *gin.Context) {
+				c.Set("clinic_id", "1")
+			},
+			svc:        &mockOccupationService{},
+			wantStatus: http.StatusForbidden,
 		},
 		{
 			name:       "returns 400 for non-numeric id",

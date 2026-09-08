@@ -61,6 +61,7 @@ func newScopedStaffHandlerRouter(handler *Handler, route string, endpoint gin.Ha
 	router := gin.New()
 	router.GET(route, func(c *gin.Context) {
 		c.Set("clinic_id", "20")
+		attachAllowAllClinicPermission(c)
 		c.Next()
 	}, endpoint)
 	return router
@@ -128,6 +129,7 @@ func TestHandler_GetStaffClinicAssignmentsIntersectsSystemAdminActiveClinics(t *
 		c.Set("clinic_id", "20")
 		c.Set("is_system_admin", true)
 		c.Set("clinic_ids", []uint64{20})
+		attachAllowAllClinicPermission(c)
 		c.Next()
 	}, handler.GetStaffClinicAssignments)
 	recorder := httptest.NewRecorder()
@@ -209,6 +211,7 @@ func TestHandler_GetStaffClinicAssignmentsRejectsMissingAssignmentService(t *tes
 		c.Set("clinic_id", "20")
 		c.Set("is_system_admin", true)
 		c.Set("clinic_ids", []uint64{20})
+		attachAllowAllClinicPermission(c)
 		c.Next()
 	}, handler.GetStaffClinicAssignments)
 	recorder := httptest.NewRecorder()
@@ -239,6 +242,7 @@ func TestHandler_GetStaffClinicAssignmentsRejectsMissingSystemAdminClinicAuthori
 	router.GET("/staffs/:id/clinics", func(c *gin.Context) {
 		c.Set("clinic_id", "20")
 		c.Set("is_system_admin", true)
+		attachAllowAllClinicPermission(c)
 		c.Next()
 	}, handler.GetStaffClinicAssignments)
 	recorder := httptest.NewRecorder()

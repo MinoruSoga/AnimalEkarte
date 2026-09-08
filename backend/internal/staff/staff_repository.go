@@ -262,6 +262,27 @@ func (r *staffRepository) Update(ctx context.Context, clinicID, id uint64, cmd U
 	return r.update(ctx, clinicID, id, buildStaffUpdate(&cmd))
 }
 
+func (r *staffRepository) AttachAccountID(ctx context.Context, clinicID, staffID, accountID uint64) error {
+	if persistence.TxFromContext(ctx) == nil {
+		return apperrors.WrapInternalServerError("staff account attach requires an active transaction")
+	}
+	if clinicID == 0 || staffID == 0 || accountID == 0 {
+		return apperrors.WrapInvalidInput("staff account attach ids are invalid")
+	}
+	result := persistence.DBOrTx(ctx, r.db).
+		Model(&model.Staff{}).
+		Where("staffs.id = ? AND staffs.deleted_at IS NULL AND staffs.account_id IS NULL AND staffs.is_active = ?", staffID, true).
+		Where("EXISTS (SELECT 1 FROM staff_clinic_assignments WHERE staff_clinic_assignments.staff_id = staffs.id AND staff_clinic_assignments.clinic_id = ? AND staff_clinic_assignments.deleted_at IS NULL)", clinicID).
+		Update("account_id", accountID)
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "staff", fmt.Sprintf("%d", staffID))
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.WrapConflict("staff account could not be attached")
+	}
+	return nil
+}
+
 func (r *staffRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	result := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Staff{}).

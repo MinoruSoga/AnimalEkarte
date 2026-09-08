@@ -19,8 +19,10 @@ export const ME_QUERY_CACHE = {
 
 /**
  * /me は起動・ログイン・refreshToken の結果を ME_QUERY_KEY へ載せる。
- * 10s stale + focus 再取得 + 30s poll は STG でウォーターフォールを作るため止める。
- * 権限変更の反映は refreshPermissions / invalidate(ME_QUERY_KEY)。パスワード変更は JWT epoch。
+ * staleTime 5分はキャッシュを fresh とみなす期間であり、5分後の自動再取得ではない。
+ * 定期取得と window focus 再取得は無効。再取得はログイン、token refresh、
+ * refreshPermissions、ME_QUERY_KEY 無効化、再マウント。自動ポーリングは追加しない。
+ * UI の古い権限表示と BE の最終認可は別。パスワード変更は JWT epoch。
  *
  * @param enabled - 認証済みの場合のみ true を渡す（デフォルト: true）
  */

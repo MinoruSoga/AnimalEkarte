@@ -50,6 +50,13 @@ func (*crossTenantStaffAccountStore) FindByEmail(
 	return nil, apperrors.WrapNotFound("account", "email")
 }
 
+func (*crossTenantStaffAccountStore) FindByIDForUpdate(
+	context.Context,
+	uint64,
+) (*model.Account, error) {
+	return nil, apperrors.WrapNotFound("account", "id")
+}
+
 func (s *crossTenantStaffAccountStore) Create(context.Context, *model.Account) error {
 	s.createCalled = true
 	return nil

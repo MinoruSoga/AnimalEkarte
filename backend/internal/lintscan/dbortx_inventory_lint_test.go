@@ -633,6 +633,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"staff/staff_repository.go|staffRepository.LockActiveByIDForShare":           {},
 	"staff/staff_repository.go|staffRepository.LockActiveByIDForUpdate":          {},
 	"staff/staff_repository.go|staffRepository.LockActiveByIDForUpdateInClinic":  {},
+	"staff/staff_repository.go|staffRepository.AttachAccountID":                  {},
 	"staff/staff_repository.go|staffRepository.Reorder":                          {},
 	"staff/staff_repository.go|staffRepository.update":                           {},
 	"staff/staff_repository.go|staffRepository.UpdatePrimaryClinicID":            {},

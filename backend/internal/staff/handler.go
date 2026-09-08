@@ -85,6 +85,22 @@ func (h *Handler) RequirePermission(resource, action string) gin.HandlerFunc {
 	}
 }
 
+func requireActorIsSystemAdmin() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		isSystemAdmin, ok := extractIsSystemAdmin(c)
+		if !ok {
+			c.Abort()
+			return
+		}
+		if !isSystemAdmin {
+			RespondError(c, apperrors.WrapForbidden("forbidden"))
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
+
 func extractClinicID(c *gin.Context) (uint64, bool) {
 	return httpapi.ExtractClinicID(c)
 }
@@ -165,12 +181,18 @@ func attachPermissionAssignmentAudit(c *gin.Context) {
 		c.Abort()
 		return
 	}
+	isSystemAdmin, ok := extractIsSystemAdmin(c)
+	if !ok {
+		c.Abort()
+		return
+	}
 	ctx := withPermissionAssignmentAudit(c.Request.Context(), PermissionAssignmentAudit{
-		ClinicID:      clinicID,
-		ActorStaffID:  actorStaffID,
-		TargetStaffID: targetStaffID,
-		IPAddress:     c.ClientIP(),
-		UserAgent:     c.Request.Header.Get("User-Agent"),
+		ClinicID:           clinicID,
+		ActorStaffID:       actorStaffID,
+		ActorIsSystemAdmin: isSystemAdmin,
+		TargetStaffID:      targetStaffID,
+		IPAddress:          c.ClientIP(),
+		UserAgent:          c.Request.Header.Get("User-Agent"),
 	})
 	c.Request = c.Request.WithContext(ctx)
 	c.Next()
@@ -189,6 +211,7 @@ func (h *Handler) registerMasterRoutes(protected *gin.RouterGroup) {
 
 	masters.GET("/staffs", perm(string(model.ResourceMasterStaff), "view"), h.ListStaffs)
 	masters.POST("/staffs", perm(string(model.ResourceMasterStaff), "create"), h.CreateStaff)
+	masters.POST("/staffs/:id/account", perm(string(model.ResourceMasterStaff), "edit"), requireActorIsSystemAdmin(), h.AttachStaffAccount)
 	masters.PATCH("/staffs/reorder", perm(string(model.ResourceMasterStaff), "edit"), h.ReorderStaffs)
 	masters.GET("/staffs/:id", perm(string(model.ResourceMasterStaff), "view"), h.GetStaff)
 	masters.PATCH("/staffs/:id", perm(string(model.ResourceMasterStaff), "edit"), h.UpdateStaff)

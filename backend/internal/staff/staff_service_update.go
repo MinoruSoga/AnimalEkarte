@@ -45,6 +45,18 @@ func (s *staffService) applyStaffUpdateInTx(
 	if hasPasswordUpdate && lockedStaff.AccountID == nil {
 		return nil, apperrors.WrapInvalidInput("staff does not have an account")
 	}
+	if hasPasswordUpdate {
+		account, lockErr := s.accountRepo.FindByIDForUpdate(txCtx, *lockedStaff.AccountID)
+		if lockErr != nil {
+			return nil, apperrors.Wrap(lockErr, "failed to lock staff account for password update")
+		}
+		if account == nil || account.ID != *lockedStaff.AccountID {
+			return nil, apperrors.WrapInternalServerError("staff account lock returned an invalid record")
+		}
+		if account.IsSystemAdmin && !input.IsSystemAdmin {
+			return nil, apperrors.WrapForbidden("forbidden")
+		}
+	}
 	if input.IsActive != nil && !*input.IsActive {
 		if err := s.guardStaffDeactivation(txCtx, id, lockedStaff, input.ActorStaffID); err != nil {
 			return nil, err

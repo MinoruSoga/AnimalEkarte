@@ -127,6 +127,21 @@ func TestGetLineReservationSetting(t *testing.T) {
 			wantStatus: http.StatusForbidden,
 		},
 		{
+			name: "returns 403 when path clinic lacks grant",
+			setupCtx: func(c *gin.Context) {
+				setLineSettingClinic(c, 3, 1, []uint64{1, 3})
+				httpapi.SetClinicPermissionChecker(c, func(_ *gin.Context, clinicID uint64, _, _ string) bool {
+					return clinicID == 1
+				})
+			},
+			svc: &mockLineReservationSettingService{
+				getFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+					return nil, fmt.Errorf("Get must not run without a path clinic grant")
+				},
+			},
+			wantStatus: http.StatusForbidden,
+		},
+		{
 			name:     "returns 500 on service error",
 			setupCtx: func(c *gin.Context) { setLineSettingClinic(c, 1, 1, []uint64{1}) },
 			svc: &mockLineReservationSettingService{
@@ -167,6 +182,9 @@ func TestGetLineReservationSetting(t *testing.T) {
 		r.GET("/clinics/:clinic_id/line-reservation-settings", func(c *gin.Context) {
 			c.Set("clinic_id", "1")
 			c.Set("clinic_ids", []uint64{1})
+			httpapi.SetClinicPermissionChecker(c, func(_ *gin.Context, _ uint64, _, _ string) bool {
+				return true
+			})
 		}, h.GetLineReservationSetting)
 		w := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodGet, "/clinics/1/line-reservation-settings", http.NoBody)
@@ -315,6 +333,30 @@ func TestSaveLineReservationSetting(t *testing.T) {
 		c.Request = httptest.NewRequest(http.MethodPut, "/clinics/3/line-reservation-settings", bytes.NewReader(b))
 		c.Request.Header.Set("Content-Type", "application/json")
 		setLineSettingClinic(c, 3, 1, []uint64{1})
+		h.SaveLineReservationSetting(c)
+		assert.Equal(t, http.StatusForbidden, w.Code)
+		assert.False(t, saveCalled)
+	})
+
+	t.Run("returns 403 when path clinic lacks grant", func(t *testing.T) {
+		saveCalled := false
+		svc := &mockLineReservationSettingService{
+			saveFn: func(_ context.Context, _ uint64, _ *UpsertLineReservationSettingInput) (*model.LineReservationSetting, bool, error) {
+				saveCalled = true
+				return nil, false, nil
+			},
+		}
+		h := newHandlerWithLineReservationSettingSvc(svc)
+		b, err := json.Marshal(validBody())
+		require.NoError(t, err)
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPut, "/clinics/3/line-reservation-settings", bytes.NewReader(b))
+		c.Request.Header.Set("Content-Type", "application/json")
+		setLineSettingClinic(c, 3, 1, []uint64{1, 3})
+		httpapi.SetClinicPermissionChecker(c, func(_ *gin.Context, clinicID uint64, _, _ string) bool {
+			return clinicID == 1
+		})
 		h.SaveLineReservationSetting(c)
 		assert.Equal(t, http.StatusForbidden, w.Code)
 		assert.False(t, saveCalled)

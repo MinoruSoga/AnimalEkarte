@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 	staffpkg "github.com/animal-ekarte/backend/internal/staff"
 	"github.com/animal-ekarte/backend/internal/testdb"
@@ -103,6 +104,9 @@ func TestListReservationStaffs_DoesNotExposeOtherClinicExclusionIDOrName(t *test
 	c, _ := gin.CreateTestContext(recorder)
 	c.Request = httptest.NewRequest(http.MethodGet, "/v1/reservation-staffs", http.NoBody)
 	c.Set("clinic_id", strconv.FormatUint(clinicA.ID, 10))
+	httpapi.SetClinicPermissionChecker(c, func(_ *gin.Context, _ uint64, _, _ string) bool {
+		return true
+	})
 
 	handler.ListReservationStaffs(c)
 

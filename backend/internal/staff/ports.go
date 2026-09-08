@@ -15,6 +15,7 @@ type Transactor interface {
 // group membership persistence.
 type PermissionGroupRepository interface {
 	FindAllGroupIDsByStaffID(ctx context.Context, clinicID, staffID uint64) ([]uint64, error)
+	FindAllEffectivePermissionsByStaffID(ctx context.Context, staffID, clinicID uint64) ([]model.PermissionGroupRule, error)
 	UpdateStaffGroups(ctx context.Context, clinicID, staffID uint64, groupIDs []uint64) error
 }
 
