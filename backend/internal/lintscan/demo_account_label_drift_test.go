@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/animal-ekarte/backend/internal/seedbundle"
 	"github.com/animal-ekarte/backend/internal/seedlogin"
 )
 
@@ -526,6 +527,36 @@ func TestReadComparedDemoSeedCSV_RealHeaderIsAccepted(t *testing.T) {
 	}
 }
 
+func TestLoadDemoAccountComparedSeedTables_UsesAccountDirectory(t *testing.T) {
+	root := t.TempDir()
+	bundle := filepath.Join(root, "migrations", "seeds", demoAccountLabelDriftBundle)
+	if err := os.MkdirAll(filepath.Join(bundle, "accounts"), 0o700); err != nil {
+		t.Fatalf("mkdir accounts layout: %v", err)
+	}
+	manifest := `{"bundle":"002_master","tables":[{"table":"permission_groups","csvFile":"permission_groups.csv"},{"table":"clinics","csvFile":"clinics.csv"}]}`
+	if err := os.WriteFile(filepath.Join(bundle, "manifest.json"), []byte(manifest), 0o600); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(bundle, "accounts", "permission_groups.csv"), []byte("id,name\n1,一般\n"), 0o600); err != nil {
+		t.Fatalf("write account permission_groups.csv: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(bundle, "permission_groups.csv"), []byte("id,name\n1,stale-flat\n"), 0o600); err != nil {
+		t.Fatalf("write stale flat permission_groups.csv: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(bundle, "clinics.csv"), []byte("id,name\n1,八王子病院\n"), 0o600); err != nil {
+		t.Fatalf("write clinics.csv: %v", err)
+	}
+
+	tables, err := loadDemoAccountComparedSeedTables(root)
+	if err != nil {
+		t.Fatalf("load compared seed tables: %v", err)
+	}
+	groups := tables["permission_groups"]
+	if len(groups.rows) != 1 || groups.rows[0][1] != "一般" {
+		t.Fatalf("permission_groups rows = %#v, want account-directory 一般", groups.rows)
+	}
+}
+
 func parseDemoAccountObjectLines(source string) []demoAccountUILabels {
 	matches := demoAccountObjectLinePattern.FindAllStringSubmatch(source, -1)
 	if len(matches) == 0 {
@@ -712,7 +743,7 @@ func loadDemoAccountComparedSeedTables(moduleRoot string) (map[string]demoAccoun
 				table,
 			)
 		}
-		csvPath := filepath.Join(bundleDir, entry.CSVFile)
+		csvPath := seedbundle.CSVPath(bundleDir, entry.CSVFile)
 		parsed, err := readComparedDemoSeedCSV(demoAccountLabelDriftBundle, entry.CSVFile, csvPath)
 		if err != nil {
 			return nil, err
