@@ -18,5 +18,5 @@
 - L4 受入を E2E で代替しない。inventory には wildcard・`要実測` が残るため、列挙済み項目だけを機械的に網羅済みと扱う。
 - production または未承認の共有 clinic で、作成・更新・削除・外部送信を行わない。
 - 実行結果は gitignore 対象の `reports/uat-YYYY-MM-DD/` に置き、scenario 本文へ書かない。
-- 確認済み UAT FAIL は `todo.md#product-bugs` で重複確認・記録してから Linear で追跡する。その他の新規製品欠陥は通常の Linear intake に従う。環境 BLOCKED は `todo.md#product-bugs` に書かない。
+- 確認済み UAT FAIL は `bug.md` で重複確認・記録してから Linear で追跡する。その他の新規製品欠陥は通常の Linear intake に従う。環境 BLOCKED は `bug.md` に書かない。
 - secret、password、token、cookie、idToken をリポジトリ、文書、chat、ログへ書かない。秘密の保管方法は [liff-verification.md](liff-verification.md) の境界に従う。
