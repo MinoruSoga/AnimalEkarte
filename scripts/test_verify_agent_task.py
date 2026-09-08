@@ -68,6 +68,12 @@ class VerificationTests(unittest.TestCase):
         self.assertFalse(blocked)
         self.assertEqual(jobs[0]['command'][-2:], ['-short', './internal/apperrors'])
 
+    def test_openapi_yaml_uses_apicontract_package(self):
+        jobs, blocked = verify.plan(['backend/docs/api.yaml'])
+        self.assertFalse(blocked)
+        self.assertEqual(jobs[0]['command'][-2:], ['-short', './internal/apicontract'])
+        self.assertTrue(jobs[0]['require_completed_test'])
+
     def test_cmd_package_uses_package_tests(self):
         jobs, blocked = verify.plan(['backend/cmd/migrate/csvbundle.go'])
         self.assertFalse(blocked)

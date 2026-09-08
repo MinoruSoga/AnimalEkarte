@@ -111,6 +111,8 @@ def plan(paths):
             jobs.append({'service': 'host', 'command': ['bash', 'scripts/check-test-worker-makefile.test.sh']})
         elif path.startswith('.claude/skills/') and path.endswith('.md'):
             jobs.append({'service': 'host', 'command': ['python3', '-B', '.claude/scripts/test_instruction_safety_contracts.py'], 'requires_mirrors': True})
+        elif path == 'backend/docs/api.yaml':
+            jobs.append({'service': 'backend', 'command': ['go', 'test', '-json', '-p=2', '-count=1', '-short', './internal/apicontract'], 'require_completed_test': True})
         elif path.endswith('.md') and (path.startswith(('docs/', '.claude/', '.codex/', '.agents/', 'frontend/src/features/manual/'))
                                       or '/' not in path or pathlib.PurePosixPath(path).name in ('CLAUDE.md', 'AGENTS.md', 'README.md')):
             continue
