@@ -16,6 +16,11 @@ interface Env {
   // Shared secret for Worker→Container scheduled-jobs (X-Scheduler-Token).
   // Declare in wrangler secrets.required; value via `wrangler secret put` only.
   SCHEDULER_INTERNAL_TOKEN: string;
+  // Optional STG/local operator bootstrap. Omit from secrets.required so deploy
+  // does not fail-closed when unset; Go seedlogin skips the upsert.
+  SEEDLOGIN_OPERATOR_EMAIL?: string;
+  SEEDLOGIN_OPERATOR_NAME?: string;
+  SEEDLOGIN_OPERATOR_PASSWORD?: string;
 }
 
 declare namespace Cloudflare {
@@ -32,6 +37,9 @@ declare namespace Cloudflare {
     SCHEDULER_ALERT_WEBHOOK_URL: string;
     SCHEDULER_ALERT_WEBHOOK_SECRET: string;
     SCHEDULER_INTERNAL_TOKEN: string;
+    SEEDLOGIN_OPERATOR_EMAIL?: string;
+    SEEDLOGIN_OPERATOR_NAME?: string;
+    SEEDLOGIN_OPERATOR_PASSWORD?: string;
   }
 }
 

@@ -101,6 +101,8 @@ describe("LoginForm demo accounts (staff-attach)", () => {
     expect(screen.getAllByText(/城東センター病院/).length).toBeGreaterThanOrEqual(9);
     expect(screen.getAllByText(/敷島病院/).length).toBeGreaterThanOrEqual(9);
     expect(screen.getAllByText(/Hako bu neco/).length).toBeGreaterThanOrEqual(9);
+    expect(screen.getAllByText("執行")).toHaveLength(4);
+    expect(screen.getAllByText("一般").length).toBeGreaterThanOrEqual(36);
     expect(screen.getByTestId("demo-accounts")).toHaveClass("max-w-[760px]");
     expect(screen.getByText("パスワードは自動入力されます（全デモ共通）")).toBeInTheDocument();
     expect(screen.queryByText(/パスワード:\s*password/i)).not.toBeInTheDocument();

@@ -11,9 +11,11 @@ import (
 	"github.com/animal-ekarte/backend/internal/seedlogin"
 )
 
-// runLoginSeed is phase 3: upsert synthetic demo logins matching LoginForm.
-// It is not a CSV bundle. The shared password is seedlogin.SharedPassword.
-// Production / empty / unknown APP_ENV skip. Re-runs always upsert.
+// runLoginSeed is phase 3: upsert synthetic demo logins matching LoginForm,
+// then optionally one operator system-admin from SEEDLOGIN_OPERATOR_* env.
+// It is not a CSV bundle. The shared password is seedlogin.SharedPassword
+// and applies only to catalog emails. Production / empty / unknown APP_ENV skip.
+// Re-runs always upsert.
 func runLoginSeed(ctx context.Context, db *sql.DB, logger *slog.Logger) error {
 	appEnv := os.Getenv("APP_ENV")
 	if !seedlogin.ShouldApply(appEnv) {

@@ -36,6 +36,9 @@ func Apply(ctx context.Context, db *sql.DB) (int, error) {
 		}
 		applied++
 	}
+	if err := upsertOperatorFromEnv(ctx, tx); err != nil {
+		return 0, err
+	}
 	if err := advanceLoginSequences(ctx, tx); err != nil {
 		return 0, err
 	}
@@ -52,6 +55,14 @@ func CatalogChecksum() string {
 		b.WriteString(strconv.FormatUint(spec.StaffID, 10))
 		b.WriteByte(',')
 		b.WriteString(spec.Email)
+		b.WriteByte(',')
+		b.WriteString(spec.PermissionGroupName)
+		b.WriteByte(',')
+		if spec.AssignAllCatalogClinics {
+			b.WriteString("all")
+		} else {
+			b.WriteString("home")
+		}
 		b.WriteByte('\n')
 	}
 	sum := sha256.Sum256([]byte(b.String()))
@@ -107,33 +118,100 @@ func upsertSpec(ctx context.Context, tx *sql.Tx, spec AccountSpec, passwordHash 
 		return fmt.Errorf("staff %d is linked to a different account", spec.StaffID)
 	}
 
-	_, err = tx.ExecContext(ctx, `
-		INSERT INTO staff_clinic_assignments (staff_id, clinic_id, is_main)
-		VALUES ($1, $2, TRUE)
-		ON CONFLICT (staff_id, clinic_id) DO UPDATE
-			SET deleted_at = NULL, is_main = TRUE
-	`, spec.StaffID, spec.ClinicID)
-	if err != nil {
-		return fmt.Errorf("assign clinic for staff %d: %w", spec.StaffID, err)
+	if err := replaceClinicAssignments(ctx, tx, spec); err != nil {
+		return err
+	}
+	if err := replacePermissionGroups(ctx, tx, spec); err != nil {
+		return err
+	}
+	return nil
+}
+
+func replaceClinicAssignments(ctx context.Context, tx *sql.Tx, spec AccountSpec) error {
+	keep := assignmentClinicIDs(spec)
+	if len(keep) == 0 {
+		return fmt.Errorf("login seed clinic assignments empty for staff %d", spec.StaffID)
+	}
+	for _, clinicID := range keep {
+		var found uint64
+		err := tx.QueryRowContext(ctx, `SELECT id FROM clinics WHERE id = $1`, clinicID).Scan(&found)
+		if err != nil {
+			return fmt.Errorf("login seed clinic %d missing (002_master required): %w", clinicID, err)
+		}
 	}
 
-	var groupID uint64
-	err = tx.QueryRowContext(ctx, `
-		SELECT id FROM permission_groups
-		 WHERE clinic_id = $1 AND name = $2 AND deleted_at IS NULL
-		 ORDER BY id
-		 LIMIT 1
-	`, spec.ClinicID, PermissionGroupName).Scan(&groupID)
-	if err != nil {
-		return fmt.Errorf("permission group %q missing for clinic %d: %w", PermissionGroupName, spec.ClinicID, err)
+	placeholders := make([]string, len(keep))
+	args := make([]any, 0, 1+len(keep))
+	args = append(args, spec.StaffID)
+	for i, clinicID := range keep {
+		placeholders[i] = fmt.Sprintf("$%d", i+2)
+		args = append(args, clinicID)
 	}
-	_, err = tx.ExecContext(ctx, `
-		INSERT INTO staff_permission_groups (staff_id, group_id)
-		VALUES ($1, $2)
-		ON CONFLICT (staff_id, group_id) DO NOTHING
-	`, spec.StaffID, groupID)
+	_, err := tx.ExecContext(ctx, fmt.Sprintf(`
+		UPDATE staff_clinic_assignments
+		   SET deleted_at = NOW(), is_main = FALSE
+		 WHERE staff_id = $1
+		   AND deleted_at IS NULL
+		   AND clinic_id NOT IN (%s)
+	`, strings.Join(placeholders, ", ")), args...)
 	if err != nil {
-		return fmt.Errorf("assign permission group for staff %d: %w", spec.StaffID, err)
+		return fmt.Errorf("retire extra clinic assignments for staff %d: %w", spec.StaffID, err)
+	}
+
+	for _, clinicID := range keep {
+		isMain := clinicID == spec.ClinicID
+		_, err := tx.ExecContext(ctx, `
+			INSERT INTO staff_clinic_assignments (staff_id, clinic_id, is_main)
+			VALUES ($1, $2, $3)
+			ON CONFLICT (staff_id, clinic_id) DO UPDATE
+				SET deleted_at = NULL, is_main = EXCLUDED.is_main
+		`, spec.StaffID, clinicID, isMain)
+		if err != nil {
+			return fmt.Errorf("assign clinic %d for staff %d: %w", clinicID, spec.StaffID, err)
+		}
+	}
+	return nil
+}
+
+func replacePermissionGroups(ctx context.Context, tx *sql.Tx, spec AccountSpec) error {
+	if spec.PermissionGroupName != PermissionGroupExecutive && spec.PermissionGroupName != PermissionGroupGeneral {
+		return fmt.Errorf("login seed permission group %q is not allowed for staff %d", spec.PermissionGroupName, spec.StaffID)
+	}
+	if spec.AssignAllCatalogClinics && spec.PermissionGroupName != PermissionGroupExecutive {
+		return fmt.Errorf("login seed all-clinic assignment requires %q for staff %d", PermissionGroupExecutive, spec.StaffID)
+	}
+
+	keep := assignmentClinicIDs(spec)
+	groupIDs := make([]uint64, 0, len(keep))
+	for _, clinicID := range keep {
+		var groupID uint64
+		err := tx.QueryRowContext(ctx, `
+			SELECT id FROM permission_groups
+			 WHERE clinic_id = $1 AND name = $2 AND deleted_at IS NULL
+			 ORDER BY id
+			 LIMIT 1
+		`, clinicID, spec.PermissionGroupName).Scan(&groupID)
+		if err != nil {
+			return fmt.Errorf("permission group %q missing for clinic %d: %w", spec.PermissionGroupName, clinicID, err)
+		}
+		groupIDs = append(groupIDs, groupID)
+	}
+
+	_, err := tx.ExecContext(ctx, `
+		DELETE FROM staff_permission_groups WHERE staff_id = $1
+	`, spec.StaffID)
+	if err != nil {
+		return fmt.Errorf("replace permission groups for staff %d: %w", spec.StaffID, err)
+	}
+	for _, groupID := range groupIDs {
+		_, err := tx.ExecContext(ctx, `
+			INSERT INTO staff_permission_groups (staff_id, group_id)
+			VALUES ($1, $2)
+			ON CONFLICT (staff_id, group_id) DO NOTHING
+		`, spec.StaffID, groupID)
+		if err != nil {
+			return fmt.Errorf("assign permission group for staff %d: %w", spec.StaffID, err)
+		}
 	}
 	return nil
 }
