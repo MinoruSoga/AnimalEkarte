@@ -126,8 +126,8 @@ func TestDemoAccountLoginFormMatchesSeedloginCatalog(t *testing.T) {
 		if ui.occupationLabel != spec.OccupationLabel {
 			t.Errorf("%s occupationLabel: ui=%q catalog=%q", spec.Email, ui.occupationLabel, spec.OccupationLabel)
 		}
-		if ui.permissionLabel != seedlogin.PermissionGroupName {
-			t.Errorf("%s permissionLabel: ui=%q want %q", spec.Email, ui.permissionLabel, seedlogin.PermissionGroupName)
+		if ui.permissionLabel != spec.PermissionGroupName {
+			t.Errorf("%s permissionLabel: ui=%q catalog=%q", spec.Email, ui.permissionLabel, spec.PermissionGroupName)
 		}
 		if ui.clinicLabel != spec.ClinicLabel {
 			t.Errorf("%s clinicLabel: ui=%q catalog=%q", spec.Email, ui.clinicLabel, spec.ClinicLabel)

@@ -30,7 +30,7 @@ const DEMO_ACCOUNTS: readonly DemoCredential[] = SHOW_DEMO
         email: "stg-staff-10000021@example.test",
         displayName: "林 文明",
         occupationLabel: "獣医師",
-        permissionLabel: "一般",
+        permissionLabel: "執行",
         clinicLabel: "八王子病院",
       },
       {
@@ -100,7 +100,7 @@ const DEMO_ACCOUNTS: readonly DemoCredential[] = SHOW_DEMO
         email: "stg-staff-20000021@example.test",
         displayName: "林 文明",
         occupationLabel: "獣医師",
-        permissionLabel: "一般",
+        permissionLabel: "執行",
         clinicLabel: "城東センター病院",
       },
       {
@@ -170,7 +170,7 @@ const DEMO_ACCOUNTS: readonly DemoCredential[] = SHOW_DEMO
         email: "stg-staff-30000021@example.test",
         displayName: "林 文明",
         occupationLabel: "獣医師",
-        permissionLabel: "一般",
+        permissionLabel: "執行",
         clinicLabel: "ノア動物病院　敷島病院",
       },
       {
@@ -240,7 +240,7 @@ const DEMO_ACCOUNTS: readonly DemoCredential[] = SHOW_DEMO
         email: "stg-staff-40000021@example.test",
         displayName: "林 文明",
         occupationLabel: "獣医師",
-        permissionLabel: "一般",
+        permissionLabel: "執行",
         clinicLabel: "ノア動物病院　Hako bu neco",
       },
       {

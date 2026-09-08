@@ -51,17 +51,38 @@ export function toMigrateResponse(result: MigrateExecResult): Response {
   });
 }
 
+export interface LoginSeedOperatorEnv {
+  email?: string;
+  name?: string;
+  password?: string;
+}
+
+function copyNonEmptyEnv(
+  target: Record<string, string>,
+  key: string,
+  value: string | undefined,
+): void {
+  if (value !== undefined && value !== "") {
+    target[key] = value;
+  }
+}
+
 /**
  * migrate exec は Container 起動 env を継承しない。DB_* に加え、ログイン seed が
- * 読む APP_ENV だけを足す。JWT/SMTP は渡さない。
+ * 読む APP_ENV と任意の SEEDLOGIN_OPERATOR_* だけを足す。JWT/SMTP は渡さない。
+ * オペレータ変数が空なら載せない（Go 側は未設定としてスキップする）。
  */
 export function attachLoginSeedMigrateEnv(
   dbEnv: Record<string, string>,
   appEnv: string | undefined,
+  operatorEnv: LoginSeedOperatorEnv = {},
 ): Record<string, string> {
   const migrateEnv: Record<string, string> = { ...dbEnv };
   if (appEnv !== undefined && appEnv !== "") {
     migrateEnv.APP_ENV = appEnv;
   }
+  copyNonEmptyEnv(migrateEnv, "SEEDLOGIN_OPERATOR_EMAIL", operatorEnv.email);
+  copyNonEmptyEnv(migrateEnv, "SEEDLOGIN_OPERATOR_NAME", operatorEnv.name);
+  copyNonEmptyEnv(migrateEnv, "SEEDLOGIN_OPERATOR_PASSWORD", operatorEnv.password);
   return migrateEnv;
 }

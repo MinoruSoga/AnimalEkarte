@@ -21,6 +21,7 @@
 3. **role → permission 推論はしない。** `permission_group_ids` は manifest の明示値のみ（main clinic 所属の group）。
 4. **PROD / 共有 STG への apply は USER 承認後。** 開発者 laptop から非 local `DB_HOST` への apply は `STAFF_PROVISION_ALLOW_REMOTE=YES_I_UNDERSTAND` が無いと拒否される。対象環境のコンテナ内実行を正とする。
 5. **本 repo の synthetic fixture は架空 ID / `@example.test` のみ。** 外部入力を fixture として commit しない。
+6. **最初のシステム管理者** は CSV / LoginForm に載せない。local/STG は migrate の `SEEDLOGIN_OPERATOR_*`（値は repo 外）。STG Worker は `wrangler secret put` で投入し `secrets.required` には入れない。未設定なら upsert をスキップする。本コマンドは既存の認可済み actor が前提なので、ゼロから作る経路ではない。
 
 ## 入力契約
 

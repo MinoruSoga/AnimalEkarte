@@ -204,7 +204,7 @@ GitHub Actions の `backend-deploy.yml` 実行履歴を確認する。
 
 承認済みsessionでclinic listを取得し、現在の `002_master/clinics.csv` が要求する全行（現行 CSV は4医院）が存在し、各 `is_active == true` であることを確認する。response contractは `is_active` であり `is_deleted` ではない。
 
-Demo login account は `002_master` には含まれず、許可された `APP_ENV` の migrate フェーズ3（`internal/seedlogin`）で合成の一般アカウントを upsert する。設定操作用アカウントは [STAFF_ACCOUNT_PROVISIONING.md](./STAFF_ACCOUNT_PROVISIONING.md) の承認済み運用で別途払い出す。
+Demo login account は `002_master` には含まれず、許可された `APP_ENV` の migrate フェーズ3（`internal/seedlogin`）で合成アカウントを upsert する（医院ごとに執行1・一般9。林 文明は catalog 4医院すべてに執行所属）。設定操作用アカウントは [STAFF_ACCOUNT_PROVISIONING.md](./STAFF_ACCOUNT_PROVISIONING.md) の承認済み運用で別途払い出す。
 
 ---
 
