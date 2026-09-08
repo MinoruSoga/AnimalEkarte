@@ -1,19 +1,19 @@
 # 認証・認可レビューの修正TODO
 
 > 作成日: 2026-09-08  
-> 実施日: 2026-09-08  
+> 実施日: 2026-09-08〜2026-09-09  
 > 対象: [todo-check-auth.md](todo-check-auth.md) とレビュー時の作業ツリー。  
 > 正規設計書: [docs/architecture/auth.md](docs/architecture/auth.md)。  
-> 作業ブランチ: `fix/todo-fix-auth`（local `main` から切る）。claim: `claim/TODO-FIX-AUTH`（解放はユーザー）。  
-> 本書はレビュー指摘のローカル整理と、このブランチでの対応記録である。Linear は更新していない。
+> 実装は [PR #390](https://github.com/MinoruSoga/AnimalEkarte/pull/390) で `main` へマージ済み（`2dc3a2d51`、2026-09-09）。claim: `claim/TODO-FIX-AUTH`（解放はユーザー。マージ後もエージェントは削除しない）。  
+> 本書はレビュー指摘のローカル整理と対応記録である。Linear は更新していない。
 
 ## 対応サマリー
 
 | ID | 項目 | 判定 | 証拠 |
 | --- | --- | --- | --- |
 | 1 | 非管理者によるシステム管理者パスワード変更の拒否 | 対応 | `staff_service_update.go` の TX 内 `FindByIDForUpdate`。`staff_admin_password_guard_test.go` |
-| 2 | GET/HEAD 他院 grant fallback を閉じる | 対応 | `RequirePermission` は選択医院のみ。横断は Allowing。分類テスト `get_head_permission_classification_test.go` |
-| 3 | login/refresh で無効医院を選ばない | 対応 | `currentStaffClinicAccess` 共有。ListClinics 失敗は失敗。医院失効 `error_code`。FE 復旧は自動再送なし |
+| 2 | GET/HEAD 他院 grant fallback を閉じる | 対応 | `RequirePermission` は選択医院のみ。横断は Allowing。医院固定 GET は handler で `RequireSelectedClinicGrant`（pet/reservation 含む、2026-09-09）。分類テスト `get_head_permission_classification_test.go` |
+| 3 | login/refresh で無効医院を選ばない | 対応 | `currentStaffClinicAccess` 共有。ListClinics 失敗は失敗。医院失効 `error_code`。FE 復旧は自動再送なし。失敗 login は医院復旧に入らない（2026-09-09） |
 | 4 | 権限グループ無効化の自己ロックアウト防止 | 対応 | 変更後の view+edit。admin 免除。lookup 失敗 fail-closed |
 | 5 | 旧権限・旧セッションの即時失効 | 部分対応 | production から current-access キャッシュ除去。**SKIP**: 同一 DB・独立 2 サーバープロセスのライブ検証（`make up` 禁止） |
 | 6 | `/me.main_clinic_id` と `is_main` の文書訂正 | 対応 | API 改名なし。`docs/architecture/auth.md` §4.8、OpenAPI 説明 |
@@ -78,7 +78,7 @@
 
 ### 2. GET/HEADの他院権限fallbackによる選択医院の閲覧認可漏れ（高・最優先）
 
-- 対応状況: [x] 対応（2026-09-08）
+- 対応状況: [x] 対応（2026-09-08。医院固定 GET の pet/reservation 再確認は 2026-09-09）
 - 該当: 元文書 §4.5・§6.2・§8.4。
 - 問題: `RequirePermission` は選択医院でdenyでも、他の所属医院に同じgrantがあればGET/HEADを通す。スタッフ一覧・詳細などでは後段に選択医院の権限再確認がなく、選択医院のデータが返る。権限グループの一覧・詳細にも同型の経路がある。
 - 再現条件: A・B両医院に所属し、対象リソースのviewはAだけに付与した利用者が、Bを選択してBの一覧・詳細を要求する。所属内のリソース認可漏れであり、所属外の任意医院へアクセスできると主張しているわけではない。
@@ -89,10 +89,11 @@
 - [x] 正当な横断APIでは、許可された医院だけが返り、結果0件・権限取得障害は契約どおり拒否される。
 - [x] 共通middlewareと実handlerを組み合わせたHTTP回帰テストを追加する。
 - [x] 元文書の「一覧・詳細は絞る」を実装済み経路に限定し、§8.4の現象を正常仕様として残さない。
+- [x] pet / reservation の医院固定 GET は選択医院 grant を handler で再確認する。LINE 予約基本設定はパス医院の所属と `hospital_settings` grant。横断の List/Get（pets / owners / reservations）は Allowing のまま。
 
 ### 3. 一般スタッフのlogin/refreshが無効化済み医院を選ぶ（中）
 
-- 対応状況: [x] 対応（2026-09-08）
+- 対応状況: [x] 対応（2026-09-08。失敗 login の医院復旧除外は 2026-09-09）
 - 該当: 元文書 §2.2・§6.1。
 - 問題: 通常リクエストはactiveな医院に限定するが、一般スタッフのlogin/refreshは所属から無効医院を除外しない。主医院が無効だと、ログイン成功後に通常APIが403になり得る。他の有効な所属医院が残る場合も不整合が生じる。
 - 根拠: `backend/internal/auth/http_session_login.go:95-110`、`http_session_refresh.go:127-143`、`current_access_service.go`（後二者も同ディレクトリ）。所属repositoryは所属のsoft-deleteを除外するが、医院のactive判定は行わない。
@@ -101,6 +102,7 @@
 - [x] 全所属医院が無効なら、login/refreshで利用可能なセッションを発行しない。
 - [x] 医院一覧の取得障害を、医院情報なしのログイン成功へ読み替えない。
 - [x] login/refreshのHTTPテストと、旧医院をlocalStorageに保持した画面の復旧テストを追加する。
+- [x] `POST /v1/login` の `clinic_selection_unavailable` では医院復旧に入らず、書き込み停止もしない。停止中でも login / logout は通す。
 
 ### 4. 権限グループ無効化による自己ロックアウト（中）
 
@@ -192,13 +194,13 @@
 
 - D1: 画面・API は実装。メール自動送信なし。本人設定は既存 forgot-password。対象環境のメール実送信は SKIP。
 - D2: view+edit の自己喪失を拒否。admin 免除。
-- D3: 登録 GET/HEAD の未分類 0 を `get_head_permission_classification_test.go` で強制。catch-all は使わない。
-- D4: `clinic_selection_unavailable` のみ復旧。書き込み停止。失敗 mutation の自動再送なし。
+- D3: 登録 GET/HEAD の未分類 0 を `get_head_permission_classification_test.go` で強制。残る `/api/v1/masters/*` は shared-master の明示残余クラスであり、他院 grant fallback ではない。医院固定の pet/reservation GET は 2026-09-09 に clinic-fixed へ再分類。
+- D4: `clinic_selection_unavailable` のみ復旧。書き込み停止。失敗 mutation の自動再送なし。セッション未発行の login は復旧対象外。
 - D5: production は uncached resolver。2 インスタンス検証は SKIP。
 
 ## 詳細仕様の確定（2026-09-08・ユーザーによる判断委任）
 
-以下は「それらも確定させてください。あなたが判断して」という依頼に基づく設計決定。上記各項目の曖昧な箇所を補完し、実装・検証では本節を採用する。現行実装の説明ではなく、これから実現する仕様である。
+以下は「それらも確定させてください。あなたが判断して」という依頼に基づく設計決定。実装時の採用仕様である。残件はサマリーの SKIP（本番操作・メール現地・2プロセスライブ検証・Linear）のみ。
 
 ### D1. アカウント追加画面と初回パスワード（項目8）
 
