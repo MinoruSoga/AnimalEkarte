@@ -1,33 +1,36 @@
 # META-LINEAR-F1-F6 — 読み取り照合と対応案
 
-更新日: 2026-09-06  
-照会手段: Linear MCP なし · `LINEAR_API_KEY` 未設定 · 公開ページはログイン壁  
-Linear 上の現行状態: **UNKNOWN**（未照会。repo 記録から Done を推定しない）  
-repo 証跡 SHA: `d4c870f9e`（`origin/main`）
+更新日: 2026-09-09
 
-## 照会結果（2026-09-06 再確認）
+照会手段: Linear MCP（BRT-226 の読み取り成功）
+
+Linear 上の現行状態: BRT-226 は **Review**。F1〜F6 の対応 ID と状態は **UNKNOWN**（未照合。repo 記録から Done を推定しない）
+
+repo 実装履歴の証跡 SHA: `d4c870f9e`。監査 ID の定義は `75aa2b64c:todo-now.md`（現在の検証結果ではない）
+
+## 照会結果（2026-09-09、BRT-226 のみ再確認）
 
 | 確認対象 | 結果 |
 |----------|------|
 | Linear Team Baritech / Project ノア動物病院電子カルテ / hub [BRT-4](https://linear.app/baritechllc/issue/BRT-4) | URL は repo に存在する。本文・子 Issue・状態は未取得 |
 | [BRT-105](https://linear.app/baritechllc/issue/BRT-105) | repo 表記は Done。Linear 再確認は未実施 |
-| [BRT-226](https://linear.app/baritechllc/issue/BRT-226) | repo 表記は Review。Linear 再確認は未実施 |
-| Astra F1〜F6 の Linear ID | **UNKNOWN**。タイトル検索・親子リンクを実行できていない |
+| [BRT-226](https://linear.app/baritechllc/issue/BRT-226) | MCP で Review を確認。所属 Team / Project と親 BRT-4 も確認。Done は未実施 |
+| Astra F1〜F6 の Linear ID | **UNKNOWN**。タイトル検索・親子リンク照合は未実施 |
 
 エージェントはこの項目で Linear 書き込みと Done をしない。
 
 ## repo 側の F1〜F6（実装履歴）
 
-`todo.md#astra-history` と git 履歴からの対応。Linear の同名 Issue と 1:1 であることは未証明。
+`todo.md#astra-history` と git 履歴からの対応。指摘の定義は `git show 75aa2b64c:todo-now.md` の着手一覧に従う。Linear の同名 Issue と 1:1 であることは未証明。下表は実装履歴であり、現在の受入・release 判定ではない。
 
 | 監査 ID | repo での意味 | 実装状態 | 後続 ledger ID |
 |---------|---------------|----------|----------------|
-| F1 | Astra 品質監査の実装一式（入口は `todo.md#astra-history`） | `origin/main` へ統合済み（監査対象 SHA `c41ba8b1c`） | なし（履歴ポインタのみ） |
-| F2 | 同上 | 同上 | なし |
-| F3 | E2E auth smoke 配線 + k6 summary 契約 | auth smoke 実装済み。manual run `33972458396`。k6 は `CI-K6-SUMMARY-SCHEMA` / `CI-K6-RUNTIME-CLOSEOUT` で閉じた | 閉じ済み。full clinical E2E は別 ID |
-| F4 | push 後通常 CI | 実装済み。現行 CI は paths-filter のため Backend 証明は PR run を正とする | なし |
-| F5 | 同上 | 同上 | なし |
-| F6 | 21表 cutover / 品質監査残 | 実装済み。STG 八王子 F6 disposable apply（2026-07-22）は現行 H0-2 ではない | STG は `H0-2` 等。製品 FAIL ではない |
+| F1 | 診察プラン更新・削除とカルテ確定の未直列化 | 実装・統合済み（履歴入口は `todo.md#astra-history`） | なし（履歴ポインタのみ） |
+| F2 | 編集内容と保存 version の不一致 | 実装・統合済み | なし |
+| F3 | CI E2E・負荷テストの認証 fixture 不足 | auth smoke 実装済み。manual run `33972458396`。後続の k6 は `CI-K6-SUMMARY-SCHEMA` / `CI-K6-RUNTIME-CLOSEOUT` で閉じた | 閉じ済み。full clinical E2E は別 ID |
+| F4 | カルテ受入項目表と payload の不一致 | 実装・統合済み | なし |
+| F5 | 診察所見3欄の label/id 未接続 | 実装・統合済み | なし（診断セレクトの後続は `FE-CLINICAL-PLAN-SELECT-LABELS` で閉じた） |
+| F6 | 検証 skill に廃止 package の例示 | 実装・統合済み | なし。八王子 cutover の F6 とは別 ID |
 
 閉じた後続（履歴は git）: `CI-BE-DBORTX-INVENTORY`、`CI-K6-SUMMARY-SCHEMA`、`CI-K6-RUNTIME-CLOSEOUT`、`FE-CLINICAL-PLAN-SELECT-LABELS`。
 

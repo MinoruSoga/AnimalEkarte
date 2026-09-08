@@ -67,16 +67,16 @@ S09 局所検証（2026-09-08）: fail-closed / CLI / OpenAPI drift GREEN。fixt
 
 ## 対応順（実行キュー）
 
-上から 1 件だけ着手する。USER / old_db に当たったら止めて提示する。deferred はキューに入れない。
+依存関係と実行権限を満たす項目から 1 件ずつ着手する。USER / old_db の入力・承認待ちはその項目と依存先を停止し、独立した読み取り照合・受入準備は継続できる。deferred はキューに入れない。
 
 | 順 | ID | 実行者 | なぜこの順 | 状態 |
 |----|----|--------|------------|------|
-| 1 | **META-LINEAR-APPLY** | USER | repo の対応案は [linear-f1-f6-mapping.md](docs/work/linear-f1-f6-mapping.md)。書き込みと Done は USER | **BLOCKED**（Linear MCP / `LINEAR_API_KEY` なし。公開ページはログイン壁。エージェントは書かない） |
+| 1 | **META-LINEAR-APPLY** | agent（読み取り） / USER（反映） | repo の対応案は [linear-f1-f6-mapping.md](docs/work/linear-f1-f6-mapping.md)。F1〜F6 の ID 照合後に反映 | 2026-09-09: Linear MCP 読み取り成功（BRT-226 は Review）。F1〜F6 の対応付けは未完了。書き込み・Done は USER 待ち |
 | 2 | **H0-2 / HAC-CSV-1** | old_db / USER | STG 八王子の先頭。これより前の STG 行は進めない | **BLOCKED**（HAC-INPUT-2。完全 KNJO 未受領。同一 BAK 再実行と producer は禁止） |
 | 3 | **H0-3b → Lane3 HAC → H3-9 → H3-11 → Lane 4** | USER | 2 の依存どおり | 待ち |
 | 4 | **P1 → P2 → P3 → P4 → P5 → P6 → P7 → P8** | USER | go-live 依存。E1 / E2 は P4 の一部 | 待ち |
 
-次は医院/ベンダーからの完全 KNJO 再取得、または城東主経路（JOU-G2-2 の Azure 承認）。H0-3b には入らない。Linear 書き込みと Done は USER。
+STG レーンの次は医院/ベンダーからの完全 KNJO 再取得、または城東主経路（JOU-G2-2 の Azure 承認）。H0-3b には入らない。独立して F1〜F6 の Linear 読み取り照合と、下記受入残の実行前提・証跡の確認を進められる。S09 / V04 / clinical E2E の実行は各設計の環境・承認条件を満たしてから行う。Linear 書き込みと Done は USER。
 
 ---
 

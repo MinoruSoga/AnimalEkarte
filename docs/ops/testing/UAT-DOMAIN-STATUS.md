@@ -14,13 +14,13 @@
 | PARTIAL | 1 | S01 |
 | BLOCKED | 1 | S09 |
 
-現行（2026-09-06 照合。再実行していない判定は推定で動かさない）:
+現行（2026-09-06 照合、S09 の実装範囲は 2026-09-08 の記録に同期。再実行していない判定は推定で動かさない）:
 
 | 項目 | 値 |
 |:---|:---|
 | 開いている製品 FAIL（`todo.md#product-bugs`） | **0** |
 | V04 受入 | **UNKNOWN**（全体 PASS ではない。下記 2026-09-06 再実行） |
-| S09 | **BLOCKED**（package helper あり。HTTP/CLI とブラウザ再実行は未。製品 FAIL ではない） |
+| S09 | **BLOCKED**（package helper・HTTP/CLI・cleanup は実装済み。ブラウザ #2–#6 は未再実行。製品 FAIL ではない） |
 | S01 | **PARTIAL**（LSTEP 実送信は E1） |
 | r14 | ヘッダだけ「FAIL 0 / PASS 16」と書いてあった regression smoke。V04 再実行の証跡は本ファイルに無く、PASS 翻転ではない。ディレクトリは gitignore のため再読不可 |
 
