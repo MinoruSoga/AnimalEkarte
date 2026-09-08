@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -195,6 +196,43 @@ func TestService_SetPermissionGroupIDs(t *testing.T) {
 			assert.Equal(t, []uint64{4, 5}, gotGroupIDs)
 		})
 	}
+}
+
+func TestService_SetPermissionGroupIDs_RejectsSelfLockout(t *testing.T) {
+	updated := false
+	permRepo := &mockPermissionGroupRepository{
+		updateStaffGroupsFn: func(_ context.Context, _, _ uint64, _ []uint64) error {
+			updated = true
+			return nil
+		},
+		findAllEffectivePermissionsByStaffIDFn: func(_ context.Context, _, _ uint64) ([]model.PermissionGroupRule, error) {
+			return []model.PermissionGroupRule{{
+				Resource: string(model.ResourceMasterPermission),
+				CanView:  true,
+			}}, nil
+		},
+	}
+	svc := NewServiceWithAudits(
+		&mockStaffRepository{},
+		&mockAccountForStaff{},
+		&mockAssignmentForStaff{},
+		&mockReservationForStaff{},
+		&mockShiftEntryForStaff{},
+		permRepo,
+		&mockResStaffRepoForStaffPermissions{},
+		nil,
+		nil,
+		noopTransactor{},
+		nil,
+		permissionAssignmentAuditLoggerFunc(func(context.Context, *PermissionAssignmentAuditEntry) error {
+			t.Fatal("audit must not run after self-lockout")
+			return nil
+		}),
+	)
+	err := svc.SetPermissionGroupIDs(permissionAssignmentAuditContext(), 1, 10, []uint64{})
+	require.Error(t, err)
+	assert.ErrorIs(t, err, apperrors.ErrForbidden)
+	assert.True(t, updated)
 }
 
 type permissionAssignmentAuditLoggerFunc func(context.Context, *PermissionAssignmentAuditEntry) error

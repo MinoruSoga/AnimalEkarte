@@ -257,8 +257,8 @@ func TestHTTPHandler_Login_AuditsResolvedMainClinic(t *testing.T) {
 		},
 		Clinics: sessionClinicLister{
 			clinics: []model.Clinic{
-				{ID: 10, Name: "First Clinic"},
-				{ID: 20, Name: "Main Clinic"},
+				{ID: 10, Name: "First Clinic", IsActive: true},
+				{ID: 20, Name: "Main Clinic", IsActive: true},
 			},
 		},
 		Audit: audit,
@@ -729,7 +729,7 @@ func TestHTTPHandler_GetMe(t *testing.T) {
 			}},
 		},
 		Clinics: sessionClinicLister{
-			clinics: []model.Clinic{{ID: 23, Name: "Main Clinic"}},
+			clinics: []model.Clinic{{ID: 23, Name: "Main Clinic", IsActive: true}},
 		},
 		EffectivePermissions: permissionHTTPEffectiveService{
 			rules: []model.PermissionGroupRule{{
@@ -780,7 +780,7 @@ func TestHTTPHandler_GetMe_ReusesCurrentAccessAssignments(t *testing.T) {
 		},
 		StaffAssignments: assignments,
 		Clinics: sessionClinicLister{
-			clinics: []model.Clinic{{ID: 23, Name: "Main Clinic"}},
+			clinics: []model.Clinic{{ID: 23, Name: "Main Clinic", IsActive: true}},
 		},
 		EffectivePermissions: permissionHTTPEffectiveService{
 			rules: []model.PermissionGroupRule{{
@@ -812,8 +812,8 @@ func TestHTTPHandler_GetMe_ListsAssignedClinicsWithoutCatalog(t *testing.T) {
 	accountID := uint64(41)
 	clinics := &countingSessionClinicLister{
 		clinics: []model.Clinic{
-			{ID: 23, Name: "Main Clinic"},
-			{ID: 99, Name: "Other Clinic"},
+			{ID: 23, Name: "Main Clinic", IsActive: true},
+			{ID: 99, Name: "Other Clinic", IsActive: true},
 		},
 	}
 	handler := NewHTTPHandler(HTTPDependencies{

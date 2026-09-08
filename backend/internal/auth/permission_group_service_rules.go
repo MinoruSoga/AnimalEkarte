@@ -53,6 +53,14 @@ func (s *permissionGroupService) UpdateRules(
 		if readErr != nil {
 			return readErr
 		}
+		if guardErr := s.guardActorKeepsPermissionAdministration(
+			txCtx,
+			clinicID,
+			actorStaffID,
+			audit.ActorIsSystemAdmin,
+		); guardErr != nil {
+			return guardErr
+		}
 		entry := permissionAuditEntry(
 			audit,
 			groupID,

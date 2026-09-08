@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"gorm.io/gorm"
 
@@ -147,22 +146,20 @@ func newAuthServices(
 		dependencies.Staff,
 		permissionGroups,
 	)
+	currentAccess := auth.NewCurrentAccessResolverWithClinics(
+		repositories.CurrentAccessStaff,
+		accounts,
+		dependencies.StaffAssignments,
+		dependencies.Clinics,
+	)
 	return authServices{
 		accounts:         accounts,
 		permissionGroups: permissionGroups,
 		tokens:           tokens,
 		tokenBlacklist:   tokenBlacklist,
 		passwordReset:    passwordReset,
-		currentAccess: auth.NewCachedCurrentAccessResolver(
-			auth.NewCurrentAccessResolverWithClinics(
-				repositories.CurrentAccessStaff,
-				accounts,
-				dependencies.StaffAssignments,
-				dependencies.Clinics,
-			),
-			2*time.Second,
-		),
-		login: authService,
+		currentAccess:    currentAccess,
+		login:            authService,
 	}
 }
 

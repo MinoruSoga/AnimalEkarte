@@ -78,7 +78,7 @@ func TestRouteCompositionSmoke_TargetGraphRegistersEverySurface(t *testing.T) {
 	// (lab-device consumer token for the local agent). Documented in
 	// backend/docs/api.yaml and covered by the OpenAPI drift test.
 	// 2026-09-05: 523 — GET /api/v1/health alias of /health (STG P3-4).
-	require.Len(t, routes, 523)
+	require.Len(t, routes, 524)
 	for _, expected := range []string{
 		"GET /health",
 		"GET /api/v1/health",
@@ -93,6 +93,7 @@ func TestRouteCompositionSmoke_TargetGraphRegistersEverySurface(t *testing.T) {
 		"GET /api/v1/lab-device/agent-consumer",
 
 		"GET /api/v1/masters/staffs",
+		"POST /api/v1/masters/staffs/:id/account",
 		"GET /api/v1/clinics",
 		"GET /api/v1/medical-records",
 		"GET /api/v1/reservations",

@@ -109,6 +109,7 @@ func auth(
 			currentAccess.ClinicIDs...,
 		)
 		if requestClaims.IsSystemAdmin {
+			requestClaims.ClinicID = currentAccess.MainClinicID
 			currentMainID, parseErr := strconv.ParseUint(
 				currentAccess.MainClinicID,
 				10,
@@ -126,13 +127,13 @@ func auth(
 				respondError(c, http.StatusServiceUnavailable, "access validation unavailable")
 				return
 			}
-			requestClaims.ClinicID = currentAccess.MainClinicID
 		}
 
 		// クリニック切替: X-Clinic-ID ヘッダーが送信された場合、所属チェック後に上書き（BUG-128）
 		clinicID, ok := resolveClinicID(
 			c,
 			requestClaims,
+			currentAccess.MainClinicID,
 			isProduction,
 			auditSvc,
 		)
@@ -256,6 +257,15 @@ func rejectResolveCurrentAccessError(
 	}
 
 	if errors.Is(resolveErr, apperrors.ErrForbidden) {
+		if apperrors.IsClinicSelectionUnavailable(resolveErr) {
+			respondErrorWithCode(
+				c,
+				http.StatusForbidden,
+				"current access is no longer available",
+				apperrors.CodeClinicSelectionUnavailable,
+			)
+			return
+		}
 		respondError(c, http.StatusForbidden, "current access is no longer available")
 		return
 	}
@@ -315,6 +325,7 @@ func isTemporaryStaffValidationError(err error) bool {
 func resolveClinicID(
 	c *gin.Context,
 	claims *JWTClaims,
+	liveMainClinicID string,
 	isProduction bool,
 	auditSvc audit.Service,
 ) (string, bool) {
@@ -322,15 +333,26 @@ func resolveClinicID(
 	headerClinicID := c.GetHeader("X-Clinic-ID")
 	if headerClinicID == "" {
 		defaultID, err := strconv.ParseUint(clinicID, 10, 64)
-		if err != nil || defaultID == 0 {
+		if err == nil && defaultID != 0 && slices.Contains(claims.ClinicIDs, defaultID) {
+			return clinicID, true
+		}
+		fallbackID, fallbackErr := strconv.ParseUint(liveMainClinicID, 10, 64)
+		if fallbackErr == nil &&
+			fallbackID != 0 &&
+			slices.Contains(claims.ClinicIDs, fallbackID) {
+			return liveMainClinicID, true
+		}
+		if (err != nil || defaultID == 0) && (fallbackErr != nil || fallbackID == 0) {
 			respondError(c, http.StatusUnauthorized, "invalid clinic identity")
 			return "", false
 		}
-		if !slices.Contains(claims.ClinicIDs, defaultID) {
-			respondError(c, http.StatusForbidden, "not assigned to this clinic")
-			return "", false
-		}
-		return clinicID, true
+		respondErrorWithCode(
+			c,
+			http.StatusForbidden,
+			"not assigned to this clinic",
+			apperrors.CodeClinicSelectionUnavailable,
+		)
+		return "", false
 	}
 
 	headerID, err := strconv.ParseUint(headerClinicID, 10, 64)
@@ -339,7 +361,12 @@ func resolveClinicID(
 		return "", false
 	}
 	if !slices.Contains(claims.ClinicIDs, headerID) {
-		respondError(c, http.StatusForbidden, "not assigned to this clinic")
+		respondErrorWithCode(
+			c,
+			http.StatusForbidden,
+			"not assigned to this clinic",
+			apperrors.CodeClinicSelectionUnavailable,
+		)
 		return "", false
 	}
 	clinicID = headerClinicID

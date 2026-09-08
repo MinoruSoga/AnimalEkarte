@@ -111,12 +111,12 @@ staff_permission_groups
 | `email` / `display_name` | account / staff |
 | `is_system_admin` | account フラグ |
 | `occupation` | `staff.Occupation.Name`。`occupation_id` 未設定なら omit |
-| `main_clinic_id` | 主医院 |
+| `main_clinic_id` | この応答の選択医院（login/refresh では解決した既定医院）。DB の主所属ではない |
 | `clinic` | **選択中医院**の詳細（帳票設定など） |
-| `clinics[]` | 切替候補 `{clinic_id, clinic_name, is_main}` |
+| `clinics[]` | 切替候補 `{clinic_id, clinic_name, is_main}`。`is_main` は上記選択医院との一致 |
 | `permissions` | 選択中医院の実効マップ。admin は全リソース V/C/E/D すべて true。clinic 解決失敗時は **空 map = deny** |
 
-フロントのボタンは `/me.permissions`（選択医院のみ）。staleTime 5 分。他院の執行はここには出ない。
+フロントのボタンは `/me.permissions`（選択医院のみ）。`staleTime` 5 分はキャッシュを fresh とみなす期間であり、5 分後の自動再取得ではない。定期取得と window focus 再取得は無効。再取得はログイン、token refresh、`refreshPermissions`、query 無効化、再マウント。UI の古い権限表示と BE の最終認可は別。自動ポーリングは追加しない。他院の執行はここには出ない。
 
 ### 2.4 医院切替（フロント）
 
@@ -262,9 +262,11 @@ staff_permission_groups
 | メソッド | 判定 |
 |:---|:---|
 | 書き込み | **選択中医院**にその resource/action |
-| GET/HEAD | 選択中医院に無くても、**所属する別医院**に grant があれば一旦通す。一覧・詳細は `FilterClinicIDsForPermission` 等で絞る |
+| GET/HEAD | **選択中医院**の grant。所属する他院の grant だけでは通さない。横断 API だけ `RequirePermissionAllowingAssignedClinicGrant` を composition で明示し、handler が宛先医院を Filter/Authorize する |
 
-フロントは `/me` の現医院だけなので、BE の GET 緩和より狭い。他院に執行があっても、今の医院が一般ならスタッフ編集 UI は出ない。
+フロントは `/me` の現医院だけなので、医院固定 GET は選択医院の grant と一致する。横断 GET は許可された医院だけ返す。0 件一覧と認可医院 0 件の 403 は別。
+
+「一覧・詳細は絞る」は実装済みの横断経路に限る。スタッフ・権限グループの医院固定 GET は選択医院 grant 必須であり、§8.4 の旧「他院 view で GET 通過」は正常仕様ではない。
 
 ### 4.6 医院 ID 集合の二つの関数
 
@@ -491,7 +493,7 @@ UI からスタッフ+アカウントを新規作成すると、所属は選択�
 | やりたいこと | 他院の執行で足りるか |
 |:---|:---|
 | 城東選択のままスタッフ更新 | 足りない。城東で staff:edit |
-| 城東選択のままスタッフ一覧 GET | 八王子に view があれば GET は通ることがある。返却は医院2所属者 |
+| 城東選択のままスタッフ一覧 GET | 足りない。城東で staff:view |
 | 林として切替 → 各院で編集 | 各院執行なので可 |
 | 高橋（八王子一般）が城東を選ぶ | 所属無し。`X-Clinic-ID` 拒否 |
 | 飼主を他所属医院へ作成 | 宛先医院で `owners:create` が必要（林は可、一般の単一所属は自院のみ） |
@@ -519,7 +521,7 @@ query/body の医院集合は trusted 所属の部分集合。admin でも inact
 
 - 自院のみ
 - スタッフ一覧は見られる。編集・作成・削除・グループ・所属変更は不可
-- 医院マスタ `scope=all` は `hospital-settings:view` があるので、その画面を開けば他院名も見える
+- 医院マスタ `scope=all` は非システム管理者には所属医院だけ返す。他院名は出ない
 - 他院の林・他院の高橋は、スタッフ一覧 JOIN では出ない
 
 ### 9.3 執行を 1 医院だけ付けた実スタッフ

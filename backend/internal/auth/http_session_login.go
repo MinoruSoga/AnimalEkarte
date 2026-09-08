@@ -33,13 +33,13 @@ func (h *HTTPHandler) Login(c *gin.Context) {
 		c.Request.Header.Get("User-Agent"),
 	)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondAuthError(c, err)
 		return
 	}
 
 	scope, err := h.resolveLoginClinicScope(ctx, account, staff)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondAuthError(c, err)
 		return
 	}
 
@@ -92,22 +92,29 @@ func (h *HTTPHandler) resolveLoginClinicScope(
 	}
 	scope.staff = withClinicAssignments(staff, assignments)
 
-	scope.mainClinicID, scope.clinicIDs = h.authService().ResolveClinicInfo(assignments)
+	preferredMainClinicID, assignedClinicIDs := h.authService().ResolveClinicInfo(assignments)
 	allClinics, err := h.deps.Clinics.ListClinics(ctx)
 	if err != nil {
-		if account.IsSystemAdmin {
-			return scope, apperrors.Wrap(err, "failed to resolve system administrator clinic")
-		}
-		allClinics = nil
+		return scope, apperrors.Wrap(err, "failed to resolve clinic access")
 	}
 	scope.allClinics = allClinics
-	scope.mainClinicID = h.authService().
-		ResolveSystemAdminMainClinicID(scope.mainClinicID, account.IsSystemAdmin, allClinics)
 	if account.IsSystemAdmin {
-		scope.clinicIDs = activeSystemAdminClinicIDs(allClinics)
+		scope.clinicIDs, scope.mainClinicID, err = currentSystemAdminClinicAccess(
+			preferredMainClinicID,
+			allClinics,
+		)
+	} else {
+		scope.clinicIDs, scope.mainClinicID, err = currentStaffClinicAccess(
+			preferredMainClinicID,
+			assignedClinicIDs,
+			allClinics,
+		)
+	}
+	if err != nil {
+		return scope, err
 	}
 	if scope.mainClinicID == "" {
-		return scope, apperrors.WrapForbidden("no clinic access is available")
+		return scope, apperrors.WrapClinicSelectionUnavailable("no clinic access is available")
 	}
 	return scope, nil
 }

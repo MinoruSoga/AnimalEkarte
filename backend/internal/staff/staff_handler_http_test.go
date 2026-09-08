@@ -37,6 +37,7 @@ type mockService struct {
 	updatePasswordFn              func(ctx context.Context, accountID uint64, newPassword string) error
 	setClinicAssignmentsFn        func(ctx context.Context, input *staffdomain.SetClinicAssignmentsInput) error
 	updateFn                      func(ctx context.Context, clinicID, id uint64, input *staffdomain.UpdateStaffInput) (*model.Staff, error)
+	attachAccountFn               func(ctx context.Context, clinicID, staffID uint64, input *staffdomain.AttachStaffAccountInput) (*model.Staff, error)
 	deleteFn                      func(ctx context.Context, clinicID, id uint64) error
 	reorderFn                     func(ctx context.Context, clinicID uint64, ids []uint64) error
 	getPermissionGroupIDsFn       func(ctx context.Context, clinicID, staffID uint64) ([]uint64, error)
@@ -113,6 +114,17 @@ func (m *mockService) SetClinicAssignments(ctx context.Context, input *staffdoma
 func (m *mockService) Update(ctx context.Context, clinicID, id uint64, input *staffdomain.UpdateStaffInput) (*model.Staff, error) {
 	if m.updateFn != nil {
 		return m.updateFn(ctx, clinicID, id, input)
+	}
+	return nil, nil
+}
+
+func (m *mockService) AttachAccount(
+	ctx context.Context,
+	clinicID, staffID uint64,
+	input *staffdomain.AttachStaffAccountInput,
+) (*model.Staff, error) {
+	if m.attachAccountFn != nil {
+		return m.attachAccountFn(ctx, clinicID, staffID, input)
 	}
 	return nil, nil
 }
@@ -697,4 +709,86 @@ func TestReorderStaffs(t *testing.T) {
 			assert.Equal(t, tt.wantStatus, w.Code)
 		})
 	}
+}
+
+func TestListStaffs_RejectsWhenSelectedClinicLacksViewGrant(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	h := newHandlerWithStaffSvc(&mockService{
+		listFn: func(context.Context, uint64, int, int) ([]model.Staff, int64, error) {
+			t.Fatal("list must not run without selected-clinic view grant")
+			return nil, 0, nil
+		},
+	})
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	c.Set("clinic_id", "1")
+	httpapi.SetClinicPermissionChecker(c, func(_ *gin.Context, clinicID uint64, _, _ string) bool {
+		return clinicID == 99
+	})
+	h.ListStaffs(c)
+	assert.Equal(t, http.StatusForbidden, w.Code)
+}
+
+func TestAttachStaffAccount_SystemAdminCreatesAccount(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	accountID := uint64(44)
+	h := newHandlerWithStaffSvc(&mockService{
+		attachAccountFn: func(
+			_ context.Context,
+			clinicID, staffID uint64,
+			input *staffdomain.AttachStaffAccountInput,
+		) (*model.Staff, error) {
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, uint64(10), staffID)
+			assert.Equal(t, "staff@example.test", input.Email)
+			assert.True(t, input.IsSystemAdmin)
+			return &model.Staff{
+				ID:        staffID,
+				AccountID: &accountID,
+				Account:   &model.Account{ID: accountID, Email: input.Email},
+			}, nil
+		},
+	})
+	body, err := json.Marshal(map[string]string{"email": "staff@example.test"})
+	require.NoError(t, err)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/staffs/10/account", bytes.NewReader(body))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Params = gin.Params{{Key: "id", Value: "10"}}
+	setClinicID(c)
+	c.Set("is_system_admin", true)
+	c.Set("user_id", "7")
+	h.AttachStaffAccount(c)
+	assert.Equal(t, http.StatusCreated, w.Code)
+	assert.Contains(t, w.Body.String(), "本人がログイン画面のパスワード再設定から設定してください")
+	assert.NotContains(t, w.Body.String(), `"password"`)
+}
+
+func TestAttachStaffAccount_NonAdminForbidden(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	h := newHandlerWithStaffSvc(&mockService{
+		attachAccountFn: func(
+			context.Context,
+			uint64,
+			uint64,
+			*staffdomain.AttachStaffAccountInput,
+		) (*model.Staff, error) {
+			t.Fatal("service must not attach for a non-admin")
+			return nil, nil
+		},
+	})
+	body, err := json.Marshal(map[string]string{"email": "staff@example.test"})
+	require.NoError(t, err)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/staffs/10/account", bytes.NewReader(body))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Params = gin.Params{{Key: "id", Value: "10"}}
+	setClinicID(c)
+	c.Set("is_system_admin", false)
+	c.Set("user_id", "7")
+	h.AttachStaffAccount(c)
+	assert.Equal(t, http.StatusForbidden, w.Code)
 }

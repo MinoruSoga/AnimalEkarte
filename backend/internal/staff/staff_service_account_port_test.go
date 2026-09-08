@@ -24,6 +24,13 @@ func (*compileStaffAccountStore) FindByEmail(
 	return nil, nil
 }
 
+func (*compileStaffAccountStore) FindByIDForUpdate(
+	context.Context,
+	uint64,
+) (*model.Account, error) {
+	return nil, nil
+}
+
 func (*compileStaffAccountStore) Create(context.Context, *model.Account) error {
 	return nil
 }
@@ -60,7 +67,7 @@ func TestService_AccountStoreSourceContract(t *testing.T) {
 	}
 
 	portType := reflect.TypeOf((*StaffAccountStore)(nil)).Elem()
-	assert.Equal(t, 4, portType.NumMethod(), "staff account port must remain consumer-minimal")
+	assert.Equal(t, 5, portType.NumMethod(), "staff account port must remain consumer-minimal")
 	methodNames := make([]string, 0, portType.NumMethod())
 	for i := 0; i < portType.NumMethod(); i++ {
 		methodNames = append(methodNames, portType.Method(i).Name)
@@ -69,6 +76,7 @@ func TestService_AccountStoreSourceContract(t *testing.T) {
 		t,
 		[]string{
 			"FindByEmail",
+			"FindByIDForUpdate",
 			"Create",
 			"UpdatePasswordHash",
 			"DeletePasswordResetTokens",

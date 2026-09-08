@@ -75,3 +75,25 @@ func staffCredentialAuditEntry(
 		UserAgent: audit.UserAgent,
 	}
 }
+
+func staffAccountAttachAuditEntry(
+	audit CredentialMutationAudit,
+	accountID uint64,
+) CredentialAuditEntry {
+	clinicID := audit.ClinicID
+	actorID := audit.ActorStaffID
+	resourceID := accountID
+	return CredentialAuditEntry{
+		ClinicID:   &clinicID,
+		ActorID:    &actorID,
+		ActorType:  model.AuditActorTypeStaff,
+		Action:     model.AuditActionStaffAccountAttach,
+		Resource:   model.AuditResourceAccount,
+		ResourceID: &resourceID,
+		NewValue: map[string]any{
+			"staff_id": audit.TargetStaffID,
+		},
+		IPAddress: audit.IPAddress,
+		UserAgent: audit.UserAgent,
+	}
+}
