@@ -36,6 +36,9 @@ func Apply(ctx context.Context, db *sql.DB) (int, error) {
 		}
 		applied++
 	}
+	if err := retireDuplicateHayashiLogins(ctx, tx); err != nil {
+		return 0, err
+	}
 	if err := upsertOperatorFromEnv(ctx, tx); err != nil {
 		return 0, err
 	}
@@ -211,6 +214,42 @@ func replacePermissionGroups(ctx context.Context, tx *sql.Tx, spec AccountSpec) 
 		`, spec.StaffID, groupID)
 		if err != nil {
 			return fmt.Errorf("assign permission group for staff %d: %w", spec.StaffID, err)
+		}
+	}
+	return nil
+}
+
+func retireDuplicateHayashiLogins(ctx context.Context, tx *sql.Tx) error {
+	for _, staffID := range retiredDuplicateHayashiStaffIDs() {
+		email := EmailForStaffID(staffID)
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE accounts
+			   SET is_active = FALSE, deleted_at = NOW()
+			 WHERE email = $1
+			   AND deleted_at IS NULL
+		`, email); err != nil {
+			return fmt.Errorf("retire duplicate hayashi account %d: %w", staffID, err)
+		}
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE staffs
+			   SET is_active = FALSE, deleted_at = NOW()
+			 WHERE id = $1
+			   AND deleted_at IS NULL
+		`, staffID); err != nil {
+			return fmt.Errorf("retire duplicate hayashi staff %d: %w", staffID, err)
+		}
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE staff_clinic_assignments
+			   SET deleted_at = NOW(), is_main = FALSE
+			 WHERE staff_id = $1
+			   AND deleted_at IS NULL
+		`, staffID); err != nil {
+			return fmt.Errorf("retire duplicate hayashi assignments %d: %w", staffID, err)
+		}
+		if _, err := tx.ExecContext(ctx, `
+			DELETE FROM staff_permission_groups WHERE staff_id = $1
+		`, staffID); err != nil {
+			return fmt.Errorf("retire duplicate hayashi groups %d: %w", staffID, err)
 		}
 	}
 	return nil

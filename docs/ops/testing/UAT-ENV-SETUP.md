@@ -49,7 +49,7 @@ Backend startup 自体も migrate を先に実行する。ただし migration �
 ### 3.2 fixture と account
 
 - CSV loader が読むのは `002_master` の医院骨格・参照 master だけ。臨床 demo は含まない。
-- migrate は続いて `backend/cmd/migrate/login_seed.go` から `seedlogin` を実行する。`APP_ENV=development/local/dev/test/staging` では catalog の合成 account/staff/医院所属と権限グループ（医院ごとに執行1・一般9。林 文明は catalog 4医院すべてに執行所属）を upsert し、`003_login` の履歴を記録する。production・空・未知の環境では skip する。これは CSV bundle でも、任意の UAT 操作が可能な専用 account でもない。
+- migrate は続いて `backend/cmd/migrate/login_seed.go` から `seedlogin` を実行する。`APP_ENV=development/local/dev/test/staging` では catalog の合成 account/staff/医院所属と権限グループ（医院ごとに一般9。執行の林 文明は1人（catalog 4医院所属））を upsert し、`003_login` の履歴を記録する。production・空・未知の環境では skip する。これは CSV bundle でも、任意の UAT 操作が可能な専用 account でもない。
 - login seed は再実行時も upsert する。catalog account の変更を恒久的な provisioning とせず、受入の許可 clinic・capability・cleanup は専用 fixture の receipt で確認する。
 - local clinical data は [OLD_DB_HANDOFF_LOCAL.md](../deploy/OLD_DB_HANDOFF_LOCAL.md) と approved import contract に従う。データをこの文書へコピーしない。
 - account/staff/permission は [STAFF_ACCOUNT_PROVISIONING.md](../deploy/STAFF_ACCOUNT_PROVISIONING.md) に従い、人間承認の receipt を確認する。
