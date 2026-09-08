@@ -15,6 +15,7 @@
 | [deploy/LAB_DEVICE_CONNECTIVITY.md](deploy/LAB_DEVICE_CONNECTIVITY.md) | 検査機器の実装契約。操作手順は old_db `docs/lab-go/hospital-field-pack/手元テスト手順.md` | 院内で機器を新カルテへ取り込むとき |
 | [testing/](testing/README.md) | テストアーキテクチャ・受入 scenarios（項目単位）・E2E・環境セットアップ | テスト実施・品質検証時 |
 | [ci-policy.md](ci-policy.md) | CI ワークフローの決定事項記録（Actions バージョンピン方針等） | .github/workflows/ 変更前 |
+| [agent-harness.md](agent-harness.md) | AI設定のスコープ、作業完了条件、検証と失敗の還元 | AI設定変更・自律タスク実行前 |
 | [coverage-policy.md](coverage-policy.md) | テストカバレッジ ratchet 方式の運用ポリシー | カバレッジゲート調整時 |
 | [backlog-spreadsheet.md](backlog-spreadsheet.md) | Q&A バックログスプレッドシートの運用ルール | クライアント Q&A シート操作前 |
 | [infra/architecture.md](infra/architecture.md) | インフラ構成図・ネットワーク・セキュリティ設計（`../architecture/overview.md` のレイヤード構造とは別物） | インフラ構成の調査・変更前 |

@@ -20,7 +20,7 @@ cd "$ROOT"
 GOLANGCI_LINT_VERSION="${GOLANGCI_LINT_VERSION:-v2.11.4}"
 
 step=0
-total=19
+total=21
 
 begin_step() {
   step=$((step + 1))
@@ -39,6 +39,13 @@ require_compose_service() {
     exit 1
   fi
 }
+
+begin_step "Agent instruction and scoped verification contracts"
+python3 -B .claude/scripts/sync-codex-mirror.py "$ROOT"
+python3 -B .claude/scripts/sync-agents-skills.py "$ROOT"
+python3 -B .claude/scripts/test_instruction_safety_contracts.py
+python3 -B scripts/test_verify_agent_task.py
+python3 -B scripts/test_agent_scope_contracts.py
 
 # ── 1–9: Docker 不要のメタゲート（最速 fail-fast）────────────────
 begin_step "Reset wait-set contract"

@@ -156,6 +156,7 @@ func cutoverRequiredForeignKeys() []cutoverForeignKeySpec {
 		{"estimates", "clinic_id", "clinics", "id"},
 		{"estimates", "medical_record_id", "medical_records", "id"},
 		{"estimates", "owner_id", "owners", "id"},
+		// pet_id is enforced by the clinic-scoped composite, not a single-column FK.
 		{"estimates", "created_by", "staffs", "id"},
 		{"estimate_items", "estimate_id", "estimates", "id"},
 		{"estimate_items", "consultation_id", "consultations", "id"},
@@ -183,6 +184,12 @@ func cutoverRequiredForeignKeys() []cutoverForeignKeySpec {
 // against pg_constraint.conkey/confkey ordinals.
 func cutoverRequiredCompositeForeignKeys() []cutoverCompositeForeignKeySpec {
 	return []cutoverCompositeForeignKeySpec{
+		{
+			childTable:    "estimates",
+			childColumns:  []string{"clinic_id", "pet_id"},
+			parentTable:   "pets",
+			parentColumns: []string{"clinic_id", "id"},
+		},
 		{
 			childTable:    "medical_records",
 			childColumns:  []string{"doctor_id", "clinic_id"},

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -80,7 +79,7 @@ func applyCutoverWithBegin(
 	counts := make(map[string]int64, len(bundle.Manifest.Tables))
 	for i, spec := range CutoverTableSpecs() {
 		manifestTable := bundle.Manifest.Tables[i]
-		path := filepath.Join(bundle.SourceDir, manifestTable.File)
+		path := cutoverCSVPath(bundle.SourceDir, manifestTable)
 		count, err := copyCutoverTable(ctx, tx, path, spec, manifestTable, seeds)
 		if err != nil {
 			return CutoverResult{}, err

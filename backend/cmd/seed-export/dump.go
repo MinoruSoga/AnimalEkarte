@@ -44,7 +44,11 @@ func dumpBundle(ctx context.Context, pool *pgxpool.Pool, logger *slog.Logger, bu
 	manifest := seedbundle.Manifest{Bundle: bundle}
 	for _, table := range tables {
 		csvFile := table + ".csv"
-		rows, err := dumpTable(ctx, pool, filepath.Join(dir, csvFile), table)
+		csvPath := filepath.Join(dir, seedbundle.CSVRelativePath(csvFile))
+		if err := os.MkdirAll(filepath.Dir(csvPath), 0o750); err != nil {
+			return fmt.Errorf("create CSV directory: %w", err)
+		}
+		rows, err := dumpTable(ctx, pool, csvPath, table)
 		if err != nil {
 			return fmt.Errorf("table %s: %w", table, err)
 		}

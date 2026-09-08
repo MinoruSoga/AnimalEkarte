@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -837,7 +838,7 @@ func TestPreflightRejectsMissingValidatedCompositeForeignKey(t *testing.T) {
 		t.Fatalf("PreflightCutoverTarget() error = %v, want composite foreign-key rejection", err)
 	}
 	if !strings.Contains(err.Error(), "medical_records(") && !strings.Contains(err.Error(), "payments(") &&
-		!strings.Contains(err.Error(), "appointments(") {
+		!strings.Contains(err.Error(), "appointments(") && !strings.Contains(err.Error(), "estimates(") {
 		t.Fatalf("PreflightCutoverTarget() error = %v, want required composite naming", err)
 	}
 }
@@ -1012,7 +1013,6 @@ func TestPaymentGraphVerificationQueryFailsClosedForNullsAndOutsideBandSplits(t 
 		"payment.insurance_amount < 0",
 		"payment.discount_amount IS NULL",
 		"payment.billing_amount IS NULL",
-		"payment.billing_amount = 0",
 		"payment.received_amount IS NULL",
 		"payment.change_amount IS NULL",
 		"payment.created_at IS NULL",
@@ -1125,9 +1125,13 @@ func validCutoverSeeds() CutoverSeedIDs {
 	}
 }
 
-type validTargetQuerier struct{}
+type validTargetQuerier struct {
+	missingEstimatePetComposite bool
+	estimatePetChildColumns     []string
+	estimatePetParentColumns    []string
+}
 
-func (validTargetQuerier) QueryRow(_ context.Context, query string, _ ...any) pgx.Row {
+func (q validTargetQuerier) QueryRow(_ context.Context, query string, args ...any) pgx.Row {
 	switch {
 	case strings.Contains(query, "required animal_species master"):
 		return staticRow{values: []any{int64(0), int64(0), int64(0), int64(6)}}
@@ -1147,7 +1151,19 @@ func (validTargetQuerier) QueryRow(_ context.Context, query string, _ ...any) pg
 	case strings.Contains(query, "information_schema.columns"):
 		return staticRow{values: []any{"bigint"}}
 	case strings.Contains(query, "FROM pg_constraint"):
-		return staticRow{values: []any{true}}
+		valid := true
+		if len(args) == 4 && args[0] == "estimates" {
+			if strings.Contains(query, "array_agg") && args[1] == "pets" {
+				valid = !q.missingEstimatePetComposite
+				if q.estimatePetChildColumns != nil {
+					valid = valid && reflect.DeepEqual(args[2], q.estimatePetChildColumns)
+				}
+				if q.estimatePetParentColumns != nil {
+					valid = valid && reflect.DeepEqual(args[3], q.estimatePetParentColumns)
+				}
+			}
+		}
+		return staticRow{values: []any{valid}}
 	case strings.Contains(query, "FROM pg_index"):
 		return staticRow{values: []any{true}}
 	case strings.Contains(query, "pg_get_serial_sequence"):

@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 	staffdomain "github.com/animal-ekarte/backend/internal/staff"
 )
@@ -542,6 +543,28 @@ func TestUpdateStaff(t *testing.T) {
 				updateFn: func(_ context.Context, _, _ uint64, input *staffdomain.UpdateStaffInput) (*model.Staff, error) {
 					assert.True(t, input.IsSystemAdmin)
 					assert.Equal(t, []uint64{1, 2}, input.AuthorizedClinicIDs)
+					return &model.Staff{ID: 5, Name: *input.Name}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:    "filters authorized clinic ids to those with master-staff:edit",
+			paramID: "5",
+			body:    map[string]any{"name": "更新スタッフ"},
+			setupCtx: func(c *gin.Context) {
+				setStaffEditorContext(c)
+				c.Set("clinic_ids", []uint64{1, 2})
+				httpapi.SetClinicPermissionChecker(c, func(_ *gin.Context, clinicID uint64, resource, action string) bool {
+					return clinicID == 1 &&
+						resource == string(model.ResourceMasterStaff) &&
+						action == "edit"
+				})
+			},
+			svc: &mockService{
+				updateFn: func(_ context.Context, _, _ uint64, input *staffdomain.UpdateStaffInput) (*model.Staff, error) {
+					assert.Equal(t, []uint64{1}, input.AuthorizedClinicIDs)
+					assert.False(t, input.IsSystemAdmin)
 					return &model.Staff{ID: 5, Name: *input.Name}, nil
 				},
 			},

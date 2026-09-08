@@ -170,6 +170,12 @@ old-db-handoff-check:
 # and are owner-only under sensitive-local/. The source volume is read-only and
 # no old_db network exists.
 CSV_IMPORT_DC = $(DC) --profile csv-import
+# Split local handoffs keep staff data under the central account directory.
+# External/self-contained bundles can leave this empty, or set it explicitly.
+CSV_IMPORT_SOURCE_PATH = $(abspath $(CSV_IMPORT_SOURCE_DIR))
+CSV_IMPORT_ACCOUNT_SOURCE_DIR ?= $(if $(filter $(CURDIR)/backend/migrations/seeds/_old_db_handoff/%,$(CSV_IMPORT_SOURCE_PATH)),$(wildcard $(CURDIR)/backend/migrations/seeds/002_master/accounts/_old_db_handoff/$(notdir $(CSV_IMPORT_SOURCE_PATH))))
+export CSV_IMPORT_ACCOUNT_SOURCE_DIR
+CSV_IMPORT_ACCOUNT_ARGS = $(if $(CSV_IMPORT_ACCOUNT_SOURCE_DIR),--account-source-dir /migration-accounts)
 export CSV_IMPORT_SOURCE_DIR CSV_MANIFEST_SHA256 CLINIC_CODE CLINIC_ORDINAL MIGRATION_RUN_ID
 export TARGET_CLINIC_ID FALLBACK_ANIMAL_SPECIES_ID FALLBACK_EXAM_TYPE_ID
 export TRIMMING_RESERVATION_TYPE_ID PAYMENT_METHOD_CASH_ID
@@ -177,6 +183,7 @@ export PAYMENT_METHOD_CREDIT_CARD_ID TARGET_DB_NAME
 # Optional: CSV_IMPORT_EXTRA_ARGS='--allow-local-rehearsal' (local reset only)
 CSV_IMPORT_COMMON_ARGS = \
 	--source-dir /migration-input \
+	$(CSV_IMPORT_ACCOUNT_ARGS) \
 	--expected-manifest-sha256 "$${CSV_MANIFEST_SHA256}" \
 	--clinic-code "$${CLINIC_CODE}" \
 	--clinic-ordinal "$${CLINIC_ORDINAL}" \
@@ -218,6 +225,7 @@ csv-import-verify:
 # matching STG_UAT_CSV_IMPORT_CONFIRM_HOST, and the rehearsal sentinel.
 STG_UAT_CSV_IMPORT_ARGS = \
 	--source-dir /migration-input \
+	$(CSV_IMPORT_ACCOUNT_ARGS) \
 	--expected-manifest-sha256 "$${CSV_MANIFEST_SHA256}" \
 	--clinic-code "$${CLINIC_CODE}" \
 	--clinic-ordinal "$${CLINIC_ORDINAL}" \
@@ -233,6 +241,7 @@ STG_UAT_CSV_IMPORT_ARGS = \
 
 STG_UAT_IMPORT_ARGS = \
 	--source-dir /migration-input \
+	$(CSV_IMPORT_ACCOUNT_ARGS) \
 	--expected-manifest-sha256 "$${CSV_MANIFEST_SHA256}" \
 	--clinic-code "$${CLINIC_CODE}" \
 	--clinic-ordinal "$${CLINIC_ORDINAL}" \

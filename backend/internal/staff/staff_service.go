@@ -64,8 +64,8 @@ type UpdateStaffInput struct {
 
 	// AuthorizedClinicIDs and IsSystemAdmin are derived from the authenticated
 	// identity, never from the request body. Staff profile and account fields are
-	// global across assignments, so non-admin callers must be authorized for
-	// every active assignment observed under the mutation transaction.
+	// global across assignments, so non-admin callers must hold master-staff:edit
+	// for every active assignment observed under the mutation transaction.
 	AuthorizedClinicIDs []uint64
 	IsSystemAdmin       bool
 	// ActorStaffID is the authenticated staff performing the update when known.

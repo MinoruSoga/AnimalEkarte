@@ -45,6 +45,9 @@ func PreflightCutoverBundle(sourceDir string, expected ExpectedCutoverSource) (C
 	if err := validateCutoverManifest(manifest, expected); err != nil {
 		return CutoverBundle{}, err
 	}
+	if err := bindCutoverAccountSource(cleanDir, expected.AccountSourceDir, &manifest); err != nil {
+		return CutoverBundle{}, err
+	}
 	if err := validateCutoverFiles(cleanDir, manifest, expected.Provenance); err != nil {
 		return CutoverBundle{}, err
 	}
@@ -127,6 +130,9 @@ func validateCutoverManifest(manifest CutoverManifest, expected ExpectedCutoverS
 	if err := validateCutoverProducerProvenance(manifest, expected.Provenance); err != nil {
 		return err
 	}
+	if err := validateWindowZeroEvidence(manifest, expected.Provenance); err != nil {
+		return err
+	}
 	if manifest.SourceLayer != "animalekarte_stage" {
 		return fmt.Errorf("manifest source layer must be animalekarte_stage")
 	}
@@ -154,9 +160,14 @@ func validateCutoverManifest(manifest CutoverManifest, expected ExpectedCutoverS
 	}
 	wantOutputDir := filepath.Join("sensitive-local", "animalekarte-csv-export", expected.ClinicCode, expected.RunID)
 	outputDirMatches := manifest.OutputDir == wantOutputDir
+	// Reviewed rebuilds retain the source run and publish a new immutable revision.
+	revisionPrefix := wantOutputDir + "-revisions/"
+	if strings.HasPrefix(manifest.OutputDir, revisionPrefix) {
+		outputDirMatches = runIDPattern.MatchString(strings.TrimPrefix(manifest.OutputDir, revisionPrefix))
+	}
 	// Old DB rehearsal exports append a controlled suffix (for example
 	// "-rehearsal-current") while retaining the clinic/run binding. Formal
-	// cutover and verified staging PASS bundles remain exact-path only.
+	// cutover and verified staging PASS bundles allow only the bound revision above.
 	if expected.Provenance.Mode == CutoverProvenanceLocalRehearsal ||
 		(expected.Provenance.Mode == CutoverProvenanceStagingRehearsal && isRehearsalOnlyProducer(manifest)) {
 		outputDirMatches = outputDirMatches || strings.HasPrefix(manifest.OutputDir, wantOutputDir+"-rehearsal-")
@@ -249,7 +260,7 @@ func validateCutoverProducerProvenance(manifest CutoverManifest, contract Cutove
 	if !validLayerDigests(manifest.SourceSummarySHA256) {
 		return fmt.Errorf("manifest summary digest set is invalid")
 	}
-	if !validEvidenceDigests(manifest.SourceEvidenceSHA256) {
+	if !validEvidenceDigests(manifest.SourceEvidenceSHA256, manifest.SourceIdentity) {
 		return fmt.Errorf("manifest evidence digest set is invalid")
 	}
 	if !validOrderedLayerTimestamps(manifest.SourceSummaryGeneratedAt, manifest.GeneratedAt) {
@@ -291,7 +302,7 @@ func validateStagingRehearsalProducerProvenance(manifest CutoverManifest) error 
 	if !validLayerDigests(manifest.SourceSummarySHA256) {
 		return fmt.Errorf("staging rehearsal manifest summary digest set is invalid")
 	}
-	if !validEvidenceDigests(manifest.SourceEvidenceSHA256) {
+	if !validEvidenceDigests(manifest.SourceEvidenceSHA256, manifest.SourceIdentity) {
 		return fmt.Errorf("staging rehearsal manifest evidence digest set is invalid")
 	}
 	if !validOrderedLayerTimestamps(manifest.SourceSummaryGeneratedAt, manifest.GeneratedAt) {
@@ -333,15 +344,24 @@ func validateLocalRehearsalProducerProvenance(manifest CutoverManifest) error {
 }
 
 func validVerifiedSourceIdentity(identity CutoverSourceIdentity) bool {
-	return identity.Verified &&
+	baseValid := identity.Verified &&
 		identity.SourceBackupSHA256 != nil &&
 		validSHA256(*identity.SourceBackupSHA256) &&
 		identity.SourceBackupSizeBytes != nil &&
 		*identity.SourceBackupSizeBytes > 0 &&
 		identity.BaseArchiveSHA256 != nil &&
-		validSHA256(*identity.BaseArchiveSHA256) &&
-		identity.KNJOArchiveSHA256 != nil &&
-		validSHA256(*identity.KNJOArchiveSHA256)
+		validSHA256(*identity.BaseArchiveSHA256)
+	if !baseValid || identity.KnjoProvenanceRoute == nil {
+		return false
+	}
+	switch *identity.KnjoProvenanceRoute {
+	case "complete_base":
+		return identity.KNJOArchiveSHA256 == nil
+	case "reacquire":
+		return identity.KNJOArchiveSHA256 != nil && validSHA256(*identity.KNJOArchiveSHA256)
+	default:
+		return false
+	}
 }
 
 func validLayerDigests(digests CutoverLayerDigests) bool {
@@ -350,8 +370,18 @@ func validLayerDigests(digests CutoverLayerDigests) bool {
 		validSHA256(digests.Stage)
 }
 
-func validEvidenceDigests(digests CutoverEvidenceDigests) bool {
-	return validSHA256(digests.BaseLoad) && validSHA256(digests.KNJORecovery)
+func validEvidenceDigests(digests CutoverEvidenceDigests, identity CutoverSourceIdentity) bool {
+	if !validSHA256(digests.BaseLoad) || identity.KnjoProvenanceRoute == nil {
+		return false
+	}
+	switch *identity.KnjoProvenanceRoute {
+	case "complete_base":
+		return digests.KNJORecovery == ""
+	case "reacquire":
+		return validSHA256(digests.KNJORecovery)
+	default:
+		return false
+	}
 }
 
 func validOrderedLayerTimestamps(timestamps CutoverLayerTimestamps, manifestGeneratedAt string) bool {
@@ -370,12 +400,15 @@ func validOrderedLayerTimestamps(timestamps CutoverLayerTimestamps, manifestGene
 
 func validateCutoverFiles(sourceDir string, manifest CutoverManifest, provenance CutoverProvenanceContract) error {
 	for i, spec := range CutoverTableSpecs() {
-		path := filepath.Join(sourceDir, manifest.Tables[i].File)
+		path := cutoverCSVPath(sourceDir, manifest.Tables[i])
 		if err := validateCutoverCSV(path, spec, manifest.Tables[i], manifest.IDBand); err != nil {
 			return err
 		}
 	}
 	allowed := map[string]struct{}{cutoverManifestName: {}}
+	if _, err := os.Lstat(filepath.Join(sourceDir, "accounts")); !os.IsNotExist(err) {
+		allowed["accounts"] = struct{}{}
+	}
 	for _, table := range manifest.Tables {
 		allowed[table.File] = struct{}{}
 	}
@@ -388,10 +421,17 @@ func validateCutoverFiles(sourceDir string, manifest CutoverManifest, provenance
 			return fmt.Errorf("unexpected file or directory in cutover source")
 		}
 	}
-	return validateCutoverPaymentGraph(sourceDir, &manifest, provenance)
+	if err := validateCutoverPaymentGraph(sourceDir, &manifest, provenance); err != nil {
+		return err
+	}
+	return validateCutoverReferenceGraph(sourceDir, manifest)
 }
 
 func validateCutoverCSV(path string, spec CutoverTableSpec, table CutoverManifestTable, band CutoverIDBand) error {
+	path, err := resolveCutoverAccountCSV(path)
+	if err != nil {
+		return err
+	}
 	info, err := os.Lstat(path)
 	if err != nil {
 		return fmt.Errorf("table %s: inspect CSV: %w", spec.Name, err)

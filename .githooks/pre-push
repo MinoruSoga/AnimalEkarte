@@ -1,52 +1,39 @@
 #!/bin/sh
-# Pre-push: run scoped backend + frontend tests with SHA cache (.test-passed).
-# Skips re-running when HEAD SHA matches the last successful push-gate run.
-
-set -e
-
+# Verify the actual outgoing HEAD against the remote base, without a SHA cache.
+# Offline image settings are explicit user-local AGENT_VERIFY_{BACKEND,FRONTEND}_IMAGE
+# and optional *_DEPENDENCY_VOLUME environment variables; no implicit provisioning.
+set -eu
 ROOT=$(git rev-parse --show-toplevel)
 cd "$ROOT"
-
-CACHE_FILE="$ROOT/.test-passed"
+if [ -n "$(git status --porcelain)" ]; then
+  echo 'BLOCKED: outgoing verification requires a clean worktree matching HEAD.' >&2
+  exit 1
+fi
+# Preserve stdin for both LFS and the verification loop; propagate LFS failures.
+REFS_FILE=$(mktemp "${TMPDIR:-/tmp}/ae-pre-push.XXXXXXXX")
+trap 'rm -f "$REFS_FILE"' EXIT HUP INT TERM
+cat > "$REFS_FILE"
 HEAD_SHA=$(git rev-parse HEAD)
-
-if [ -f "$CACHE_FILE" ]; then
-  CACHED_SHA=$(tr -d '[:space:]' < "$CACHE_FILE" || true)
-  if [ "$CACHED_SHA" = "$HEAD_SHA" ]; then
-    echo "Pre-push: .test-passed matches HEAD ($HEAD_SHA) — skipping tests"
-    exit 0
+while read -r local_ref local_sha remote_ref remote_sha; do
+  case "$local_sha" in
+    0000000000000000000000000000000000000000) continue ;;
+  esac
+  if [ "$local_sha" != "$HEAD_SHA" ]; then
+    echo 'BLOCKED: verify each outgoing ref in its matching worktree.' >&2
+    exit 1
   fi
-fi
-
-# Git LFS (if installed; also chained from .git/hooks wrapper)
+  case "$remote_sha" in
+    0000000000000000000000000000000000000000)
+      if [ -z "${VERIFY_BASE:-}" ]; then
+        echo 'BLOCKED: new remote branch needs VERIFY_BASE set to a reviewed local base commit.' >&2
+        exit 1
+      fi
+      base=$VERIFY_BASE ;;
+    *) base=$remote_sha ;;
+  esac
+  python3 -B "$ROOT/scripts/verify-agent-task.py" --base "$base"
+done < "$REFS_FILE"
 if command -v git-lfs >/dev/null 2>&1; then
-  git lfs pre-push "$@" || true
+  git lfs pre-push "$@" < "$REFS_FILE"
 fi
-
-echo "Pre-push: running scoped verification for $HEAD_SHA ..."
-
-if ! docker compose exec -T backend true 2>/dev/null; then
-  echo "ERROR: backend container is not running. Start with: make up"
-  exit 1
-fi
-
-echo "  [backend] go test ./internal/apperrors/..."
-docker compose exec -T backend go test ./internal/apperrors/...
-
-if ! docker compose exec -T frontend true 2>/dev/null; then
-  echo "ERROR: frontend container is not running. Start with: make up"
-  exit 1
-fi
-
-# Prefer a fast smoke path; full suite remains CI / make test-front.
-SMOKE="src/features/master/components/TreatmentItemSidePanel.test.tsx"
-if [ -f "$ROOT/frontend/$SMOKE" ]; then
-  echo "  [frontend] vitest run $SMOKE"
-  docker compose exec -T frontend pnpm exec vitest run "$SMOKE"
-else
-  echo "  [frontend] vitest run src/lib --passWithNoTests"
-  docker compose exec -T frontend pnpm exec vitest run src/lib --passWithNoTests
-fi
-
-printf '%s\n' "$HEAD_SHA" > "$CACHE_FILE"
-echo "Pre-push: tests passed — wrote $CACHE_FILE"
+printf '%s\n' 'Pre-push: selected outgoing checks finished; see evidence above.'

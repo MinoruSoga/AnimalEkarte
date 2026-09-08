@@ -171,6 +171,9 @@
       "SMTP_HOST",
       "SMTP_USER",
       "SMTP_PASS",
+      // SEEDLOGIN_OPERATOR_EMAIL/NAME/PASSWORD は STG/local の任意 bootstrap。
+      // required に入れない（未設定のままデプロイでき、Go はオペレータ upsert をスキップする）。
+      // 値は `wrangler secret put` のみ。git / LoginForm / CSV には置かない。
       // LINE_CHANNEL_ACCESS_TOKEN/LINE_CHANNEL_SECRET/LSTEP_API_KEY は将来のグローバルfallback用に
       // 予約されているが(冒頭コメント参照)、現状 Go 側の env 読み込みパスが無いため required から
       // 除外する(未使用シークレット不足で `wrangler deploy` が失敗するため)。実装され次第ここへ追加する。

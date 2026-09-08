@@ -131,7 +131,6 @@ payment_violations AS (
     OR payment.insurance_amount < 0
     OR payment.discount_amount IS NULL
     OR payment.billing_amount IS NULL
-    OR payment.billing_amount = 0
     OR payment.received_amount IS NULL
     OR payment.change_amount IS NULL
     OR payment.created_at IS NULL
@@ -174,6 +173,9 @@ completed_billing_violations AS (
           OR (
             payment.id IS NULL
             AND COALESCE(billing.total_amount, 0) <> 0
+            AND NOT ($7::boolean
+              AND NOT EXISTS (SELECT 1 FROM payments attached WHERE attached.billing_id = billing.id)
+              AND NOT EXISTS (SELECT 1 FROM payment_splits attached WHERE attached.billing_id = billing.id))
           )
         )
       )
@@ -203,6 +205,9 @@ func verifyCutoverPaymentGraph(
 	seeds CutoverSeedIDs,
 	provenance CutoverProvenanceContract,
 ) error {
+	if err := verifyWindowZeroTarget(ctx, q, manifest, seeds, provenance); err != nil {
+		return err
+	}
 	requireExactPaymentSnapshot := !relaxesCutoverPaymentSnapshot(*manifest, provenance.Mode)
 	var violations int64
 	if err := q.QueryRow(
@@ -214,6 +219,7 @@ func verifyCutoverPaymentGraph(
 		seeds.CashPaymentMethodID,
 		seeds.CreditCardPaymentMethodID,
 		requireExactPaymentSnapshot,
+		manifest.WindowZeroSettlementEvidence != nil,
 	).Scan(&violations); err != nil {
 		return fmt.Errorf("verify payment graph: %w", err)
 	}

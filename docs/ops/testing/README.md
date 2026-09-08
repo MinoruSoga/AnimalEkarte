@@ -21,6 +21,7 @@
 | [CLINICAL-E2E-DESIGN.md](CLINICAL-E2E-DESIGN.md) | `--clinical` fixture/allowlist と未実施境界 | clinical 自動回帰の準備 |
 | [S09-FIXTURE-DESIGN.md](S09-FIXTURE-DESIGN.md) | 完了時刻 fixture の package 実装と未実装の UAT 接続 | S09 BLOCKED の解消設計 |
 | [PERFORMANCE_PROFILING.md](PERFORMANCE_PROFILING.md) | Lighthouse、k6、SQL 分析、現行 profiler の制約 | 性能調査 |
+| [STG-PERFORMANCE-CHECKLIST.md](STG-PERFORMANCE-CHECKLIST.md) | STG性能測定の準備・承認・画面/API計測・中止条件・比較記録 | STG性能測定の計画・実施時 |
 
 ## 重要な現状
 

@@ -255,14 +255,14 @@ test("API endpoint k6 load script binds Animal Species authorization for 一般"
   const readme = read("load-tests/README.md");
   const catalog = read("backend/internal/seedlogin/catalog.go");
   const groupsCsv = read(
-    "backend/migrations/seeds/002_master/permission_groups.csv",
+    "backend/migrations/seeds/002_master/accounts/permission_groups.csv",
   );
   const rulesCsv = read(
-    "backend/migrations/seeds/002_master/permission_group_rules.csv",
+    "backend/migrations/seeds/002_master/accounts/permission_group_rules.csv",
   );
   const petRoutes = read("backend/internal/pet/routes.go");
 
-  assert.match(catalog, /PermissionGroupName\s*=\s*"一般"/);
+  assert.match(catalog, /PermissionGroupGeneral\s*=\s*"一般"/);
 
   assert.match(
     groupsCsv,

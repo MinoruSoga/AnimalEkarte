@@ -115,6 +115,15 @@ func (h *Handler) UpdateStaff(c *gin.Context) {
 	if !ok {
 		return
 	}
+	authorizedClinicIDs, ok = httpapi.FilterClinicIDsForPermission(
+		c,
+		authorizedClinicIDs,
+		string(model.ResourceMasterStaff),
+		"edit",
+	)
+	if !ok {
+		return
+	}
 	input := req.toServiceInput()
 	input.AuthorizedClinicIDs = authorizedClinicIDs
 	input.IsSystemAdmin = isSystemAdmin

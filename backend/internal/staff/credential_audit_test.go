@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -60,6 +61,11 @@ func executeCredentialUpdate(
 	c.Set("clinic_ids", []uint64{23})
 	c.Set("is_system_admin", false)
 	c.Set("user_id", "17")
+	httpapi.SetClinicPermissionChecker(c, func(_ *gin.Context, clinicID uint64, resource, action string) bool {
+		return clinicID == 23 &&
+			resource == string(model.ResourceMasterStaff) &&
+			action == "edit"
+	})
 	for _, configureContext := range configure {
 		configureContext(c)
 	}

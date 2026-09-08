@@ -182,6 +182,7 @@ services:
       - go_mod_cache:/go/pkg/mod
       - go_build_cache:/root/.cache/go-build
       - ${CSV_IMPORT_SOURCE_DIR:-./sensitive-local/csv-import-reports}:/migration-input:ro
+      - ${CSV_IMPORT_ACCOUNT_SOURCE_DIR:-./sensitive-local/csv-import-reports}:/migration-accounts:ro
       - ./sensitive-local/csv-import-reports:/migration-reports
     environment:
       TZ: Asia/Tokyo

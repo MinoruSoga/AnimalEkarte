@@ -2,6 +2,10 @@
 
 > Coverage 設定の実装正本は `.github/workflows/ci.yml`、`backend/.coverage-baseline`、`frontend/.coverage-baseline`、`frontend/vite.config.ts`。
 
+## 目標と現在のゲート
+
+共通ガイダンスの80%以上は品質向上の目標であり、現行リポジトリ全体が達成済みという意味ではない。現在のCIゲートは下記の実測に基づくratchet。新規・変更箇所には受入条件と失敗ケースを検証するテストを追加し、既存baselineを推測で引き上げたり引き下げたりしない。限定テストの成功から全体coverageを推定しない。
+
 ## 計測と除外
 
 ### Backend

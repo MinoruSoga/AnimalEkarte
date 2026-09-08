@@ -58,7 +58,7 @@ git diff --name-only HEAD
 ## Phase 2: 実装（Generator）
 
 イテレーション1の場合：
-- `implementer` エージェントに委譲して実装
+- Claudeでは `implementer`、Codexでは `animalekarte-implementer` に委譲して実装。利用できない場合は現在の実装役割にプロジェクト正本の指示を渡す
 - Docker必須ルール遵守（`npm`/`go`直接実行禁止）
 
 イテレーション2以降の場合：

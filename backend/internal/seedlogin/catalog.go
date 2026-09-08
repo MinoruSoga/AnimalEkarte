@@ -14,9 +14,13 @@ const (
 	// BundleDir is the schema_migrations key suffix (seeds/003_login).
 	// Not a CSV bundle; cmd/migrate records it after the SQL upsert phase.
 	BundleDir = "003_login"
-	// PermissionGroupName is the 002_master group assigned to demo logins.
-	PermissionGroupName = "一般"
-	emailPattern        = "stg-staff-%d@example.test"
+	// PermissionGroupGeneral and PermissionGroupExecutive are 002_master
+	// names assigned to catalog demo logins. One 林 文明 is executive on every
+	// catalog clinic; the other people stay general on their home clinic.
+	PermissionGroupGeneral   = "一般"
+	PermissionGroupExecutive = "執行"
+	hayashiSuffix            = uint64(21)
+	emailPattern             = "stg-staff-%d@example.test"
 	// demoStaffBandSize must equal csvimport clinicBandSize. Synthetic login
 	// staffs use clinicID * demoStaffBandSize as their ID base (that clinic's
 	// cutover EndExclusive). Imported staffs occupy
@@ -27,19 +31,23 @@ const (
 
 // AccountSpec is one curated demo login row matching LoginForm DEMO_ACCOUNTS.
 type AccountSpec struct {
-	StaffID         uint64
-	ClinicID        uint64
-	Name            string
-	StaffType       model.StaffType
-	Email           string
-	ClinicLabel     string
-	OccupationLabel string
+	StaffID                 uint64
+	ClinicID                uint64
+	Name                    string
+	StaffType               model.StaffType
+	Email                   string
+	ClinicLabel             string
+	OccupationLabel         string
+	PermissionGroupName     string
+	AssignAllCatalogClinics bool
 }
 
 type personTemplate struct {
-	suffix          uint64
-	name            string
-	occupationLabel string
+	suffix                  uint64
+	name                    string
+	occupationLabel         string
+	permissionGroupName     string
+	assignAllCatalogClinics bool
 }
 
 type clinicBand struct {
@@ -48,17 +56,18 @@ type clinicBand struct {
 	label    string
 }
 
-var personTemplates = []personTemplate{
-	{21, "林 文明", "獣医師"},
-	{3, "高橋 純子", "獣医師"},
-	{7, "鈴木 諒平", "獣医師"},
-	{8, "加藤 茉里", "獣医師"},
-	{25, "チャン ハン", "看護師"},
-	{31, "近喰 千瞳", "動物看護師"},
-	{34, "川野 称希", "動物看護師"},
-	{5, "冨田 美佳", "VT"},
-	{6, "井冨 和美", "VT"},
-	{9, "原 梨吏華", "スタッフ"},
+// clinicLocalPeople are cloned per catalog clinic. 林 文明 is not in this
+// list: one executive login with all-clinic assignment is enough.
+var clinicLocalPeople = []personTemplate{
+	{3, "高橋 純子", "獣医師", PermissionGroupGeneral, false},
+	{7, "鈴木 諒平", "獣医師", PermissionGroupGeneral, false},
+	{8, "加藤 茉里", "獣医師", PermissionGroupGeneral, false},
+	{25, "チャン ハン", "看護師", PermissionGroupGeneral, false},
+	{31, "近喰 千瞳", "動物看護師", PermissionGroupGeneral, false},
+	{34, "川野 称希", "動物看護師", PermissionGroupGeneral, false},
+	{5, "冨田 美佳", "VT", PermissionGroupGeneral, false},
+	{6, "井冨 和美", "VT", PermissionGroupGeneral, false},
+	{9, "原 梨吏華", "スタッフ", PermissionGroupGeneral, false},
 }
 
 var clinicBands = []clinicBand{
@@ -70,20 +79,58 @@ var clinicBands = []clinicBand{
 
 // Catalog returns the curated demo login set (LoginForm DEMO_ACCOUNTS).
 func Catalog() []AccountSpec {
-	out := make([]AccountSpec, 0, len(personTemplates)*len(clinicBands))
+	if len(clinicBands) == 0 {
+		return nil
+	}
+	out := make([]AccountSpec, 0, 1+len(clinicLocalPeople)*len(clinicBands))
+	out = append(out, hayashiSpec(clinicBands[0]))
 	for _, clinic := range clinicBands {
-		for _, person := range personTemplates {
-			staffID := clinic.band + person.suffix
-			out = append(out, AccountSpec{
-				StaffID:         staffID,
-				ClinicID:        clinic.clinicID,
-				Name:            person.name,
-				StaffType:       staffTypeForOccupation(person.occupationLabel),
-				Email:           EmailForStaffID(staffID),
-				ClinicLabel:     clinic.label,
-				OccupationLabel: person.occupationLabel,
-			})
+		for _, person := range clinicLocalPeople {
+			out = append(out, specForPerson(clinic, person))
 		}
+	}
+	return out
+}
+
+func hayashiSpec(home clinicBand) AccountSpec {
+	return specForPerson(home, personTemplate{
+		suffix:                  hayashiSuffix,
+		name:                    "林 文明",
+		occupationLabel:         "獣医師",
+		permissionGroupName:     PermissionGroupExecutive,
+		assignAllCatalogClinics: true,
+	})
+}
+
+func specForPerson(clinic clinicBand, person personTemplate) AccountSpec {
+	staffID := clinic.band + person.suffix
+	return AccountSpec{
+		StaffID:                 staffID,
+		ClinicID:                clinic.clinicID,
+		Name:                    person.name,
+		StaffType:               staffTypeForOccupation(person.occupationLabel),
+		Email:                   EmailForStaffID(staffID),
+		ClinicLabel:             clinic.label,
+		OccupationLabel:         person.occupationLabel,
+		PermissionGroupName:     person.permissionGroupName,
+		AssignAllCatalogClinics: person.assignAllCatalogClinics,
+	}
+}
+
+// retiredDuplicateHayashiStaffIDs are per-clinic 林 clones from the previous
+// catalog. Apply deactivates them so STG does not keep four equivalent 執行 logins.
+func retiredDuplicateHayashiStaffIDs() []uint64 {
+	keep := make(map[uint64]struct{}, len(clinicBands))
+	for _, spec := range Catalog() {
+		keep[spec.StaffID] = struct{}{}
+	}
+	out := make([]uint64, 0, len(clinicBands))
+	for _, clinic := range clinicBands {
+		staffID := clinic.band + hayashiSuffix
+		if _, ok := keep[staffID]; ok {
+			continue
+		}
+		out = append(out, staffID)
 	}
 	return out
 }
@@ -108,4 +155,19 @@ func staffTypeForOccupation(label string) model.StaffType {
 		return model.StaffTypeDoctor
 	}
 	return model.StaffTypeNurse
+}
+
+func catalogClinicIDs() []uint64 {
+	out := make([]uint64, 0, len(clinicBands))
+	for _, clinic := range clinicBands {
+		out = append(out, clinic.clinicID)
+	}
+	return out
+}
+
+func assignmentClinicIDs(spec AccountSpec) []uint64 {
+	if spec.AssignAllCatalogClinics {
+		return catalogClinicIDs()
+	}
+	return []uint64{spec.ClinicID}
 }

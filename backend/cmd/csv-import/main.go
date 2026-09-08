@@ -28,6 +28,7 @@ const auditReportRoot = csvimport.AuditReportRoot
 type options struct {
 	command                   string
 	sourceDir                 string
+	accountSourceDir          string
 	manifestSHA256            string
 	clinicCode                string
 	clinicOrdinal             int64
@@ -177,11 +178,12 @@ func runWithDependencies(ctx context.Context, args []string, logger *slog.Logger
 	}
 
 	bundle, err := deps.preflightBundle(opt.sourceDir, csvimport.ExpectedCutoverSource{
-		ManifestSHA256: opt.manifestSHA256,
-		ClinicCode:     opt.clinicCode,
-		ClinicOrdinal:  opt.clinicOrdinal,
-		RunID:          opt.runID,
-		Provenance:     csvimport.CutoverProvenanceContract{Mode: cutoverProvenanceMode(opt.allowLocalRehearsal)},
+		AccountSourceDir: opt.accountSourceDir,
+		ManifestSHA256:   opt.manifestSHA256,
+		ClinicCode:       opt.clinicCode,
+		ClinicOrdinal:    opt.clinicOrdinal,
+		RunID:            opt.runID,
+		Provenance:       csvimport.CutoverProvenanceContract{Mode: cutoverProvenanceMode(opt.allowLocalRehearsal)},
 	})
 	if err != nil {
 		return fmt.Errorf("source preflight failed: %w", err)
@@ -297,6 +299,7 @@ func parseOptions(args []string) (options, error) {
 	flags := flag.NewFlagSet("csv-import "+opt.command, flag.ContinueOnError)
 	flags.SetOutput(os.Stderr)
 	flags.StringVar(&opt.sourceDir, "source-dir", "", "absolute directory containing manifest.json and twenty-one CSV files")
+	flags.StringVar(&opt.accountSourceDir, "account-source-dir", "", "optional owner-only directory containing the separate staffs.csv")
 	flags.StringVar(&opt.manifestSHA256, "expected-manifest-sha256", "", "trusted producer manifest SHA-256")
 	flags.StringVar(&opt.clinicCode, "clinic-code", "", "expected producer clinic code")
 	flags.Int64Var(&opt.clinicOrdinal, "clinic-ordinal", 0, "expected producer clinic ordinal (1..50)")

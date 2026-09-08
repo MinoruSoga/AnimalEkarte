@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/animal-ekarte/backend/internal/seedbundle"
 )
 
 // seedCSVColumnMeta is the NOT NULL / type slice of migration DDL used by the
@@ -174,7 +176,7 @@ func findSeedCSVNotNullNonTextUnquotedEmpties(moduleRoot string) ([]seedCSVNotNu
 			for _, c := range cols {
 				byName[c.Name] = c
 			}
-			csvPath := filepath.Join(bundleDir, entry.CSVFile)
+			csvPath := seedbundle.CSVPath(bundleDir, entry.CSVFile)
 			counts, err := countUnquotedEmptyFieldsByColumn(csvPath)
 			if err != nil {
 				return nil, fmt.Errorf("scan %s/%s: %w", bundle, entry.CSVFile, err)

@@ -49,6 +49,9 @@ node_modules/
 
 # Runtime/local artifacts not needed for image build
 uploads/
+# Private handoff data is local-only, including centrally stored staff CSVs.
+migrations/seeds/_old_db_handoff/
+migrations/seeds/002_master/accounts/_old_db_handoff/
 
 # Docker files
 Dockerfile*

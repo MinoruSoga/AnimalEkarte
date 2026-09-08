@@ -25,9 +25,9 @@ If a specification unknown blocks the current unit, ask before executing that un
 
 Full policy: [.claude/rules/git-worktree-safety.md](.claude/rules/git-worktree-safety.md).
 
-- **Never** run `git reset --hard`, `git clean -fd(x)`, `git checkout -- .`, `git restore .`, or force-push. These are permission-deny + PreToolUse hook blocked.
+- **Never** run `git reset --hard`, `git clean -fd(x)`, `git checkout -- .`, `git restore .`, or force-push. Do not assume Claude Hook enforcement applies to Codex; verify the effective runtime controls.
 - To sync with remote: `git fetch` + `git merge` / `git pull --ff-only` (after checking `git status` for foreign WIP).
-- **Parallel Grok/Claude tasks must use separate git worktrees** (or isolation worktree). Do not share one working tree across concurrent agents.
+- **Parallel Grok/Claude/Codex tasks must use separate git worktrees** (or isolation worktree). Do not share one working tree across concurrent agents.
 - Prefer WIP commits over discarding work. Do not “clean the tree” to unblock yourself.
 
 ### Packet claim protocol (Mandatory)
@@ -42,9 +42,20 @@ Mutual exclusion on a ledger task ID / packet ID. Convention over existing `git 
 
 ## Execution Autonomy
 
-- Ask specification questions only before execution starts, such as during /grill-me or an equivalent clarification phase.
+- Resolve specification blockers before the dependent unit; continue independent authorized work.
 - Once scope is clear, proceed through the in-scope work without asking mid-task confirmation questions.
 - Stop only for explicit safety boundaries: destructive operations (including any working-tree wipe), credential or secret changes, external posting/publishing/pushing/merging, paid actions, production-impacting actions, or irreversible third-party changes.
+
+## Configuration scope
+
+Generic AI workflow, model preferences, sandbox, Hooks and external connectors belong in user settings. Keep this repository's clinical invariants, Docker verification, worktree/claim policy and domain Skills here. Prefer project Skills for these project adaptations; use user Skills for generic tasks. See [agent harness operations](docs/ops/agent-harness.md).
+
+## Completion contract
+
+- Complete the accepted scope, review the owned diff, fix findings, and run applicable scoped checks.
+- Report changed behavior, checked worktree/diff, commands and results, unresolved items and external state separately.
+- Missing tools, skipped checks and untested behavior are BLOCKED, SKIP or UNKNOWN, never PASS. Static/candidate checks do not establish runtime or release readiness.
+- Keep Linear as execution SoT. When unavailable, prepare a local draft and report its current state UNKNOWN; external posting needs authorization.
 
 ## Verification
 

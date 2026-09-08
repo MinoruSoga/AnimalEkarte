@@ -80,6 +80,12 @@ export class AnimalEkarteApiContainer extends Container<Env> {
     CORS_ALLOWED_ORIGIN: env.CORS_ALLOWED_ORIGIN,
     FRONTEND_URL: env.FRONTEND_URL,
 
+    // Optional operator system-admin bootstrap (local/STG migrate only).
+    // Not in secrets.required — unset means seedlogin skips the operator upsert.
+    SEEDLOGIN_OPERATOR_EMAIL: env.SEEDLOGIN_OPERATOR_EMAIL ?? "",
+    SEEDLOGIN_OPERATOR_NAME: env.SEEDLOGIN_OPERATOR_NAME ?? "",
+    SEEDLOGIN_OPERATOR_PASSWORD: env.SEEDLOGIN_OPERATOR_PASSWORD ?? "",
+
     // SMTP(releaseではaccount recoveryを成立させるため全項目必須)
     SMTP_HOST: env.SMTP_HOST,
     SMTP_PORT: env.SMTP_PORT,
@@ -124,7 +130,7 @@ export class AnimalEkarteApiContainer extends Container<Env> {
 
     // 実測判明(試行10): 低レベル exec() は起動時 envVars を継承しない(docker exec と異なり
     // 新規プロセスは素の環境で起動される)。migrate バイナリが読む DB_* とログイン seed 用の
-    // APP_ENV のみを渡す。JWT_SECRET/SMTP は渡さない。
+    // APP_ENV / 任意の SEEDLOGIN_OPERATOR_* のみを渡す。JWT_SECRET/SMTP は渡さない。
     const migrateEnv = attachLoginSeedMigrateEnv(
       {
         DB_HOST: this.envVars.DB_HOST,
@@ -136,6 +142,11 @@ export class AnimalEkarteApiContainer extends Container<Env> {
         DB_SSL_ROOT_CERT: this.envVars.DB_SSL_ROOT_CERT,
       },
       env.APP_ENV,
+      {
+        email: this.envVars.SEEDLOGIN_OPERATOR_EMAIL,
+        name: this.envVars.SEEDLOGIN_OPERATOR_NAME,
+        password: this.envVars.SEEDLOGIN_OPERATOR_PASSWORD,
+      },
     );
 
     const proc = await rawContainer.exec(["/app/migrate"], {

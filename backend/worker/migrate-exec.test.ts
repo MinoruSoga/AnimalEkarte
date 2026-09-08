@@ -149,4 +149,35 @@ describe("attachLoginSeedMigrateEnv", () => {
       DB_PORT: "5432",
     });
   });
+
+  it("adds operator bootstrap env when all values are set", () => {
+    expect(
+      attachLoginSeedMigrateEnv(dbEnv, "staging", {
+        email: "stg-operator@example.test",
+        name: "オペレータ",
+        password: "OperatorPass1",
+      }),
+    ).toEqual({
+      DB_HOST: "db.example.test",
+      DB_PORT: "5432",
+      APP_ENV: "staging",
+      SEEDLOGIN_OPERATOR_EMAIL: "stg-operator@example.test",
+      SEEDLOGIN_OPERATOR_NAME: "オペレータ",
+      SEEDLOGIN_OPERATOR_PASSWORD: "OperatorPass1",
+    });
+  });
+
+  it("omits empty operator keys so Go skips the upsert", () => {
+    expect(
+      attachLoginSeedMigrateEnv(dbEnv, "staging", {
+        email: "",
+        name: "",
+        password: "",
+      }),
+    ).toEqual({
+      DB_HOST: "db.example.test",
+      DB_PORT: "5432",
+      APP_ENV: "staging",
+    });
+  });
 });

@@ -15,8 +15,8 @@ import (
 
 const (
 	demoAccountLabelDriftBundle        = "002_master"
-	demoAccountExpectedMinCount        = 39
-	demoAccountExpectedMaxCount        = 42
+	demoAccountExpectedMinCount        = 37
+	demoAccountExpectedMaxCount        = 37
 	gitLFSPointerPrefix                = "version https://git-lfs.github.com/spec/v1"
 	demoAccountSystemAdminClinicLabel  = "全医院"
 	demoAccountLoginFormRelativePath   = "frontend/src/features/auth/components/LoginForm.tsx"
@@ -126,8 +126,8 @@ func TestDemoAccountLoginFormMatchesSeedloginCatalog(t *testing.T) {
 		if ui.occupationLabel != spec.OccupationLabel {
 			t.Errorf("%s occupationLabel: ui=%q catalog=%q", spec.Email, ui.occupationLabel, spec.OccupationLabel)
 		}
-		if ui.permissionLabel != seedlogin.PermissionGroupName {
-			t.Errorf("%s permissionLabel: ui=%q want %q", spec.Email, ui.permissionLabel, seedlogin.PermissionGroupName)
+		if ui.permissionLabel != spec.PermissionGroupName {
+			t.Errorf("%s permissionLabel: ui=%q catalog=%q", spec.Email, ui.permissionLabel, spec.PermissionGroupName)
 		}
 		if ui.clinicLabel != spec.ClinicLabel {
 			t.Errorf("%s clinicLabel: ui=%q catalog=%q", spec.Email, ui.clinicLabel, spec.ClinicLabel)

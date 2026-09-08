@@ -14,10 +14,11 @@ func TestCatalogMatchesLoginFormContract(t *testing.T) {
 	t.Parallel()
 
 	catalog := Catalog()
-	require.Len(t, catalog, 40)
+	require.Len(t, catalog, 37)
 
 	seen := make(map[uint64]struct{}, len(catalog))
 	emails := make(map[string]struct{}, len(catalog))
+	execCount := 0
 	for _, row := range catalog {
 		_, dupID := seen[row.StaffID]
 		assert.False(t, dupID, "duplicate staff id %d", row.StaffID)
@@ -31,16 +32,38 @@ func TestCatalogMatchesLoginFormContract(t *testing.T) {
 		assert.Contains(t, []model.StaffType{model.StaffTypeDoctor, model.StaffTypeNurse}, row.StaffType)
 		assert.NotEmpty(t, row.OccupationLabel)
 		assert.NotEmpty(t, row.ClinicLabel)
+		assert.Contains(t, []string{PermissionGroupExecutive, PermissionGroupGeneral}, row.PermissionGroupName)
+		if row.PermissionGroupName == PermissionGroupExecutive {
+			execCount++
+			assert.Equal(t, "林 文明", row.Name)
+			assert.Equal(t, model.StaffTypeDoctor, row.StaffType)
+			assert.True(t, row.AssignAllCatalogClinics)
+			assert.Equal(t, catalogClinicIDs(), assignmentClinicIDs(row))
+		} else {
+			assert.NotEqual(t, "林 文明", row.Name)
+			assert.False(t, row.AssignAllCatalogClinics)
+			assert.Equal(t, []uint64{row.ClinicID}, assignmentClinicIDs(row))
+		}
 	}
+	assert.Equal(t, 1, execCount)
 
 	assert.Equal(t, "stg-staff-10000021@example.test", catalog[0].Email)
 	assert.Equal(t, uint64(1), catalog[0].ClinicID)
 	assert.Equal(t, model.StaffTypeDoctor, catalog[0].StaffType)
-	assert.Equal(t, uint64(20_000_021), catalog[10].StaffID)
+	assert.Equal(t, PermissionGroupExecutive, catalog[0].PermissionGroupName)
+	assert.Equal(t, PermissionGroupGeneral, catalog[1].PermissionGroupName)
+	assert.Equal(t, uint64(20_000_003), catalog[10].StaffID)
 	assert.Equal(t, uint64(2), catalog[10].ClinicID)
+	assert.Equal(t, PermissionGroupGeneral, catalog[10].PermissionGroupName)
+	assert.Equal(t, "高橋 純子", catalog[10].Name)
 	assert.Equal(t, "stg-staff-40000009@example.test", catalog[len(catalog)-1].Email)
 	assert.Equal(t, uint64(4), catalog[len(catalog)-1].ClinicID)
 	assert.Equal(t, model.StaffTypeNurse, catalog[len(catalog)-1].StaffType)
+}
+
+func TestRetiredDuplicateHayashiStaffIDs(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, []uint64{20_000_021, 30_000_021, 40_000_021}, retiredDuplicateHayashiStaffIDs())
 }
 
 func TestMigrationKey(t *testing.T) {

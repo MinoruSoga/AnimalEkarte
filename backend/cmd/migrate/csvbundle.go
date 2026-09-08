@@ -35,7 +35,7 @@ func bundleChecksum(migrationsDir, bundleDir string) (string, error) {
 	h.Write(manifestBytes)
 
 	for _, entry := range manifest.Tables {
-		csvPath := filepath.Join(migrationsDir, "seeds", bundleDir, entry.CSVFile)
+		csvPath := seedbundle.CSVPath(filepath.Join(migrationsDir, "seeds", bundleDir), entry.CSVFile)
 		csvBytes, err := os.ReadFile(csvPath) //nolint:gosec // path built from our own manifest, under the fixed migrations dir
 		if err != nil {
 			return "", fmt.Errorf("checksum for bundle %s: failed to read %s: %w", bundleDir, csvPath, err)
@@ -142,7 +142,7 @@ func applyCSVBundle(ctx context.Context, connStr, migrationsDir, bundleDir strin
 			}
 		}
 
-		csvPath := filepath.Join(migrationsDir, "seeds", bundleDir, entry.CSVFile)
+		csvPath := seedbundle.CSVPath(filepath.Join(migrationsDir, "seeds", bundleDir), entry.CSVFile)
 		rows, err := copyTableFromCSV(ctx, tx.Conn(), csvPath, entry.Table)
 		if err != nil {
 			return fmt.Errorf("failed to load %s from %s: %w", entry.Table, csvPath, err)

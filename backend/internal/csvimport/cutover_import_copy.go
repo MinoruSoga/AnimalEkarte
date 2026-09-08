@@ -408,6 +408,15 @@ func transformCutoverCSV(ctx context.Context, path string, output io.Writer, see
 }
 
 func openStableOwnerOnlyFile(path string) (*os.File, error) {
+	path, err := resolveCutoverAccountCSV(path)
+	if err != nil {
+		return nil, err
+	}
+	if filepath.Base(path) == "staffs.csv" {
+		if _, err := validateCutoverDirectory(filepath.Dir(path)); err != nil {
+			return nil, err
+		}
+	}
 	before, err := os.Lstat(path)
 	if err != nil {
 		return nil, fmt.Errorf("inspect source CSV: %w", err)

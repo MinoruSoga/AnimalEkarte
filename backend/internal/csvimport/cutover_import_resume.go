@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -203,7 +202,7 @@ func importOneCutoverTable(
 	if occupied {
 		return 0, fmt.Errorf("%s: target clinic band is already occupied in table %s", CutoverRefBandOccupied, spec.Name)
 	}
-	path := filepath.Join(bundle.SourceDir, manifestTable.File)
+	path := cutoverCSVPath(bundle.SourceDir, manifestTable)
 	count, err := copyCutoverTable(ctx, tx, path, spec, manifestTable, seeds)
 	if err != nil {
 		return 0, err

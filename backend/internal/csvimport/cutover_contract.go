@@ -14,8 +14,8 @@ const (
 	maxCutoverManifestBytes    = int64(4 << 20)
 	maxCutoverCSVBytes         = int64(512 << 20)
 	cutoverManifestSchema      = "animalekarte-cutover-v1"
-	cutoverStageMappingSHA256  = "888dac89e9b262320cd3afb0c6d223ba5f9c5b943be43f9a56367e81bcad8131"
-	cutoverCSVContractSHA256   = "11cbd62696507efc2f7886046598b67f0f8b5762bdf158e6ef120b206f63b794"
+	cutoverStageMappingSHA256  = "0d7f089990079af28c2ba454ee48188d55a67beab19a9f16a86dee93fec80597"
+	cutoverCSVContractSHA256   = "19b2c5c270058b20c1fa816679c0430f236a0a181165ae1ed2257c64c83f6671"
 )
 
 var placeholderPattern = regexp.MustCompile(`\{\{[A-Z0-9_]+\}\}`)
@@ -58,10 +58,12 @@ type CutoverProvenanceContract struct {
 }
 
 type ExpectedCutoverSource struct {
-	ManifestSHA256 string
-	ClinicCode     string
-	ClinicOrdinal  int64
-	RunID          string
+	// AccountSourceDir optionally selects the separate owner-only staff CSV directory.
+	AccountSourceDir string
+	ManifestSHA256   string
+	ClinicCode       string
+	ClinicOrdinal    int64
+	RunID            string
 	// Provenance selects the exact accepted producer evidence. Staging
 	// rehearsal is separate from local disposable rehearsal and must carry an
 	// explicit target binding constructed only after operator confirmations.
@@ -77,10 +79,12 @@ type CutoverIDBand struct {
 }
 
 type CutoverManifestTable struct {
-	Table    string `json:"table"`
-	File     string `json:"file"`
-	RowCount int64  `json:"rowCount"`
-	SHA256   string `json:"sha256"`
+	// sourcePath is bound locally by preflight, never decoded from producer JSON.
+	sourcePath string
+	Table      string `json:"table"`
+	File       string `json:"file"`
+	RowCount   int64  `json:"rowCount"`
+	SHA256     string `json:"sha256"`
 }
 
 type CutoverSourceIdentity struct {
@@ -88,8 +92,8 @@ type CutoverSourceIdentity struct {
 	SourceBackupSizeBytes *int64  `json:"sourceBackupSizeBytes"`
 	BaseArchiveSHA256     *string `json:"baseArchiveSha256"`
 	KNJOArchiveSHA256     *string `json:"knjoArchiveSha256"`
-	// KnjoProvenanceRoute is optional producer metadata (complete_base|reacquire).
-	// Present on current old_db REHEARSAL/TRUSTED manifests; ignored by apply.
+	// KnjoProvenanceRoute binds verified manifests to their required evidence.
+	// Missing routes are tolerated only by the separate local-rehearsal policy.
 	KnjoProvenanceRoute *string `json:"knjoProvenanceRoute,omitempty"`
 	Verified            bool    `json:"verified"`
 }
@@ -112,35 +116,36 @@ type CutoverEvidenceDigests struct {
 }
 
 type CutoverManifest struct {
-	GeneratedAt               string                 `json:"generatedAt"`
-	Status                    string                 `json:"status"`
-	SourceLayer               string                 `json:"sourceLayer"`
-	SourceRunID               string                 `json:"sourceRunId"`
-	ClinicCode                string                 `json:"clinicCode"`
-	ClinicOrdinal             int64                  `json:"clinicOrdinal"`
-	ClinicBandBase            int64                  `json:"clinicBandBase"`
-	ClinicBandEndExclusive    int64                  `json:"clinicBandEndExclusive"`
-	StageIDOffset             int64                  `json:"stageIdOffset"`
-	IDBand                    CutoverIDBand          `json:"idBand"`
-	OutputDir                 string                 `json:"outputDir"`
-	Format                    string                 `json:"format"`
-	ImportablePredicate       string                 `json:"importablePredicate"`
-	PlaceholderColumns        map[string]string      `json:"placeholderColumns"`
-	PlaceholderResolutionNote string                 `json:"placeholderResolutionNote"`
-	ManifestSchemaVersion     string                 `json:"manifestSchemaVersion"`
-	StageMappingSHA256        string                 `json:"stageMappingSha256"`
-	CSVContractSHA256         string                 `json:"csvContractSha256"`
-	SourceCompletenessStatus  string                 `json:"sourceCompletenessStatus"`
-	SourceComplete            bool                   `json:"sourceComplete"`
-	SourceProvenanceVerified  bool                   `json:"sourceProvenanceVerified"`
-	SourceIdentity            CutoverSourceIdentity  `json:"sourceIdentity"`
-	StageBuildID              string                 `json:"stageBuildId"`
-	IncompleteSourceTables    *[]string              `json:"incompleteSourceTables"`
-	HandoffEligibility        string                 `json:"handoffEligibility"`
-	SourceSummarySHA256       CutoverLayerDigests    `json:"sourceSummarySha256"`
-	SourceSummaryGeneratedAt  CutoverLayerTimestamps `json:"sourceSummaryGeneratedAt"`
-	SourceEvidenceSHA256      CutoverEvidenceDigests `json:"sourceEvidenceSha256"`
-	Tables                    []CutoverManifestTable `json:"tables"`
+	GeneratedAt                  string                     `json:"generatedAt"`
+	Status                       string                     `json:"status"`
+	SourceLayer                  string                     `json:"sourceLayer"`
+	SourceRunID                  string                     `json:"sourceRunId"`
+	ClinicCode                   string                     `json:"clinicCode"`
+	ClinicOrdinal                int64                      `json:"clinicOrdinal"`
+	ClinicBandBase               int64                      `json:"clinicBandBase"`
+	ClinicBandEndExclusive       int64                      `json:"clinicBandEndExclusive"`
+	StageIDOffset                int64                      `json:"stageIdOffset"`
+	IDBand                       CutoverIDBand              `json:"idBand"`
+	OutputDir                    string                     `json:"outputDir"`
+	Format                       string                     `json:"format"`
+	ImportablePredicate          string                     `json:"importablePredicate"`
+	PlaceholderColumns           map[string]string          `json:"placeholderColumns"`
+	PlaceholderResolutionNote    string                     `json:"placeholderResolutionNote"`
+	ManifestSchemaVersion        string                     `json:"manifestSchemaVersion"`
+	StageMappingSHA256           string                     `json:"stageMappingSha256"`
+	CSVContractSHA256            string                     `json:"csvContractSha256"`
+	SourceCompletenessStatus     string                     `json:"sourceCompletenessStatus"`
+	SourceComplete               bool                       `json:"sourceComplete"`
+	SourceProvenanceVerified     bool                       `json:"sourceProvenanceVerified"`
+	SourceIdentity               CutoverSourceIdentity      `json:"sourceIdentity"`
+	StageBuildID                 string                     `json:"stageBuildId"`
+	IncompleteSourceTables       *[]string                  `json:"incompleteSourceTables"`
+	HandoffEligibility           string                     `json:"handoffEligibility"`
+	SourceSummarySHA256          CutoverLayerDigests        `json:"sourceSummarySha256"`
+	SourceSummaryGeneratedAt     CutoverLayerTimestamps     `json:"sourceSummaryGeneratedAt"`
+	SourceEvidenceSHA256         CutoverEvidenceDigests     `json:"sourceEvidenceSha256"`
+	Tables                       []CutoverManifestTable     `json:"tables"`
+	WindowZeroSettlementEvidence *CutoverWindowZeroEvidence `json:"windowZeroSettlementEvidence,omitempty"`
 	// Local handoff package metadata. These fields are emitted by the old_db
 	// handoff producer and remain subject to strict decoding so unknown fields fail closed.
 	PackagingMode               string `json:"packagingMode"`

@@ -7,11 +7,20 @@
 - `backend/migrations/` 直下の `*.sql` はDDL。顔ぶれと本数はcurrent checkoutから導出する。
 - `cmd/migrate` はDDLを昇順適用後、`seedbundle.BundleOrderForEnv(APP_ENV)`を適用する。
 - **全 `APP_ENV` で CSV order は `002_master` のみ。** `003_demo` / `004_staging` は退役済み。accounts.csv は置かない。
-- フェーズ3 のログイン upsert（`internal/seedlogin`）は CSV ではない。適用時だけ `seeds/003_login` を記録する。デモパスワードはコード定数（全カタログ共通）。production / empty / unknown はスキップ。開発/STG のログインは bcrypt に加え、カタログ email + 共通パスワードを許可する。
+- フェーズ3 のログイン upsert（`internal/seedlogin`）は CSV ではない。適用時だけ `seeds/003_login` を記録する。デモパスワードはコード定数（全カタログ共通）。任意のシステム管理者は `SEEDLOGIN_OPERATOR_*` 環境変数からの upsert（値は git に置かない）。production / empty / unknown はスキップ。開発/STG のログインは bcrypt に加え、カタログ email + 共通パスワードを許可する。オペレータ email は共通パスワード対象外。
 - migration keyはDDL filenameと`seeds/002_master`、およびログイン seed を適用した環境では `seeds/003_login`。fresh DBのexpected historyはcurrent DDL keys + current bundle order + 適用したログイン seedから導出し、固定行数を文書へ複製しない。
 - bundle checksumは`manifest.json`と全CSVから導出される。CSV手編集や適用済みbundleの変更はchecksum mismatchの対象になる。
 - `002_master/manifest.json` がtable inventoryとload orderのSSOT。現在は12 tableだが、runbookはmanifestから導出する。
 - COPY後のsequence advanceも`cmd/migrate`の同じpathに任せる。
+
+### アカウント関連CSVの配置
+
+- 権限グループ・権限ルールは `002_master/accounts/` に置く。
+- 旧DBのスタッフも `002_master/accounts/_old_db_handoff/<医院コード>/staffs.csv` に集約し、Git管理外・Docker image対象外・所有者限定の権限を維持する。臨床CSVとmanifestは従来の `_old_db_handoff/<医院コード>/` に残す。
+- manifestは従来の論理ファイル名（例: `staffs.csv`）を保持する。readerが物理配置を解決するため、移動だけではmanifest・CSVの内容、bundle checksum、handoffのmanifest SHAは変わらない。
+- スタッフの別置きディレクトリは実ディレクトリ・所有者限定で、中身は `staffs.csv` のみ。臨床CSV側との二重配置やシンボリックリンクは拒否する。旧来の自己完結した直下配置も入力として読み込める。
+- リポジトリ内のhandoffはGo readerとMakeが中央の医院別ディレクトリを解決する。別の配置を使う場合は `CSV_IMPORT_ACCOUNT_SOURCE_DIR`（Make）または `--account-source-dir`（CLI）で明示する。Composeは対象を `/migration-accounts:ro` にmountする。通常のmaster manifestにはスタッフを追加せず、cutoverとしての検証・取り込みを維持する。
+- `cmd/seed-export` と `stage-old-db-handoff.sh` は新しい配置を出力する。職種・ログイン情報の専用CSVは現時点では存在せず、ログイン生成は引き続き `internal/seedlogin` が担当する。
 
 空のmigration historyに既存`clinics` tableがある場合はfail-closedする。checksumを手でbaselineしない。異なる内容の統合前`001_init.sql`が記録済みの場合も、reviewed recovery/rebuild planが必要になる。
 
