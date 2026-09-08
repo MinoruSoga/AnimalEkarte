@@ -46,7 +46,7 @@ func (h *HTTPHandler) RefreshToken(c *gin.Context) {
 
 	mainClinicID, clinicIDs, err := h.resolveRefreshClinicScope(ctx, staff, account)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondAuthError(c, err)
 		return
 	}
 
@@ -124,21 +124,30 @@ func (h *HTTPHandler) resolveRefreshClinicScope(
 	if err != nil {
 		return "", nil, apperrors.Wrap(err, "failed to get clinic assignments")
 	}
-	mainClinicID, clinicIDs := h.authService().ResolveClinicInfo(assignments)
+	preferredMainClinicID, assignedClinicIDs := h.authService().ResolveClinicInfo(assignments)
+	allClinics, listErr := h.deps.Clinics.ListClinics(ctx)
+	if listErr != nil {
+		return "", nil, apperrors.Wrap(listErr, "failed to get clinics")
+	}
+	var clinicIDs []uint64
+	var mainClinicID string
 	if account.IsSystemAdmin {
-		allClinics, listErr := h.deps.Clinics.ListClinics(ctx)
-		if listErr != nil {
-			return "", nil, apperrors.Wrap(listErr, "failed to get clinics")
-		}
-		mainClinicID = h.authService().ResolveSystemAdminMainClinicID(
-			mainClinicID,
-			account.IsSystemAdmin,
+		clinicIDs, mainClinicID, err = currentSystemAdminClinicAccess(
+			preferredMainClinicID,
 			allClinics,
 		)
-		clinicIDs = activeSystemAdminClinicIDs(allClinics)
+	} else {
+		clinicIDs, mainClinicID, err = currentStaffClinicAccess(
+			preferredMainClinicID,
+			assignedClinicIDs,
+			allClinics,
+		)
+	}
+	if err != nil {
+		return "", nil, err
 	}
 	if mainClinicID == "" {
-		return "", nil, apperrors.WrapForbidden("no clinic access is available")
+		return "", nil, apperrors.WrapClinicSelectionUnavailable("no clinic access is available")
 	}
 	return mainClinicID, clinicIDs, nil
 }

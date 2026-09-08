@@ -29,4 +29,4 @@
 - E2E workflow は manual・non-gating の auth smoke に合成ログインを配線済み。`--clinical` helper/allowlist も実装済みだが、実行成功・全 suite coverage は未確認。
 - performance workflow は `APP_ENV=test` と `LOAD_TEST_LOGIN_*` を配線済み。実 Actions/fresh DB/k6 の結果は UNREPORTED/UNKNOWN。
 - unique form総数はinventory再構築完了まで算定保留。exact key未収録や動的定義が残る間は「全fieldを網羅」と言わない。
-- カバレッジ基準は [../coverage-policy.md](../coverage-policy.md)。確認済み UAT FAIL は `bug.md` で重複確認・記録後に Linear で追跡する。その他の新規 defect は通常の Linear intake に従う。
+- カバレッジ基準は [../coverage-policy.md](../coverage-policy.md)。確認済み UAT FAIL は `todo.md#product-bugs` で重複確認・記録後に Linear で追跡する。その他の新規 defect は通常の Linear intake に従う。

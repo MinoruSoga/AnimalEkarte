@@ -76,6 +76,13 @@ type UpdateStaffInput struct {
 	CredentialAudit *CredentialMutationAudit
 }
 
+// AttachStaffAccountInput adds a login account to an existing staff row.
+type AttachStaffAccountInput struct {
+	Email           string
+	IsSystemAdmin   bool
+	CredentialAudit *CredentialMutationAudit
+}
+
 // SetClinicAssignmentsInput はスタッフのクリニック割当を実行者の mutable scope で
 // 差分更新するための入力である。ClinicIDs と AuthorizedClinicIDs は変更しない。
 type SetClinicAssignmentsInput struct {
@@ -96,6 +103,7 @@ type StaffAssignmentClinicLookup interface {
 // ambient transaction に参加する。
 type StaffAccountStore interface {
 	FindByEmail(ctx context.Context, email string) (*model.Account, error)
+	FindByIDForUpdate(ctx context.Context, id uint64) (*model.Account, error)
 	Create(ctx context.Context, account *model.Account) error
 	UpdatePasswordHash(
 		ctx context.Context,
@@ -117,6 +125,7 @@ type StaffCoreService interface {
 	// email 重複チェック・bcrypt ハッシュ化・Account 作成・Staff 作成を一括で行う。
 	CreateWithAccount(ctx context.Context, input *CreateStaffWithAccountInput) (*model.Staff, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateStaffInput) (*model.Staff, error)
+	AttachAccount(ctx context.Context, clinicID, staffID uint64, input *AttachStaffAccountInput) (*model.Staff, error)
 	Delete(ctx context.Context, clinicID, id uint64, isSystemAdmin bool) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
@@ -178,6 +187,7 @@ type Repository interface {
 	// Create はスタッフを作成する。
 	Create(ctx context.Context, staff *model.Staff) error
 	Update(ctx context.Context, clinicID, id uint64, cmd UpdateStaffInput) error
+	AttachAccountID(ctx context.Context, clinicID, staffID, accountID uint64) error
 	UpdatePrimaryClinicID(ctx context.Context, id, clinicID uint64) error
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error

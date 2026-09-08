@@ -172,7 +172,11 @@ func (m *mockPermissionGroupRepository) FindAllEffectivePermissionsByStaffID(
 	if m.getEffectivePermissionsFn != nil {
 		return m.getEffectivePermissionsFn(ctx, staffID, clinicID)
 	}
-	return nil, nil
+	return []model.PermissionGroupRule{{
+		Resource: string(model.ResourceMasterPermission),
+		CanView:  true,
+		CanEdit:  true,
+	}}, nil
 }
 
 func (m *mockPermissionGroupRepository) FindAllGroupIDsByStaffID(

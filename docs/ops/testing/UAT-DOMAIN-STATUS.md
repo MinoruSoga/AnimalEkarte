@@ -3,7 +3,7 @@
 > **目的**: 受け入れ結果をシナリオ ID だけでなく業務ドメイン単位で俯瞰する。
 > **正本リンク**: [scenarios/README.md](./scenarios/README.md) · [TEST_ARCHITECTURE.md](./TEST_ARCHITECTURE.md)
 > **更新日**: 2026-09-06
-> **照合**: `QA-UAT-EVIDENCE-SYNC`。`reports/` は gitignore。コミット済み正本は本ファイルと [`bug.md`](../../../bug.md)。Linear は未照会（UNKNOWN）。
+> **照合**: `QA-UAT-EVIDENCE-SYNC`。`reports/` は gitignore。コミット済み正本は本ファイルと [`todo.md#product-bugs`](../../../todo.md#product-bugs)。Linear は未照会（UNKNOWN）。
 
 最終実行スナップショット（2026-09-05 / `uat/20260905` @ `2cbd8d9ad` / local FE :3003 · BE :8080）:
 
@@ -18,7 +18,7 @@
 
 | 項目 | 値 |
 |:---|:---|
-| 開いている製品 FAIL（`bug.md`） | **0** |
+| 開いている製品 FAIL（`todo.md#product-bugs`） | **0** |
 | V04 受入 | **UNKNOWN**（全体 PASS ではない。下記 2026-09-06 再実行） |
 | S09 | **BLOCKED**（package helper あり。HTTP/CLI とブラウザ再実行は未。製品 FAIL ではない） |
 | S01 | **PARTIAL**（LSTEP 実送信は E1） |
@@ -180,7 +180,7 @@
   - **最終実行 FAIL**: `master-chief-complaint` DELETE が `inquiries.deleted_at` 参照で 500 → 当時 BUG-20260905-001
   - **2026-09-06 testdb**: `TestChiefComplaintTypeRepository_Delete` と `CountUsage` が GREEN。未使用区分は削除できる。参照中は Conflict。`inquiries.deleted_at` を見ない。500 回帰は非再現
   - **2026-09-06 live HTTP**: 合成 catalog login は 200。`master-medical` create は 403（一般グループ）。権限を上げて clinic 1/2 を触っていない。HTTP DELETE の受入は **BLOCKED**
-  - **判定**: 当時の製品 FAIL を bug.md に戻さない。V04 全体は PASS にしない
+  - **判定**: 当時の製品 FAIL を todo.md#product-bugs に戻さない。V04 全体は PASS にしない
   - 診断・診療項目5タブ・薬剤・トリミング一式・支払方法・締め・請求書欄など他は r6+r7 CRUD PASS
 - **関連 bug IDs**: 現行 open なし
 - **証跡**: testdb コマンドは `todo.md` 順 2。live は status code のみ（credential・行値なし）
@@ -208,7 +208,7 @@
 ## メンテ手順（短）
 
 1. 受け入れ再実行後、本ファイルの実施日・ブランチ・各ドメイン表の status / ギャップ / bug ID を更新する。
-2. 製品 FAIL のみルート `bug.md` へ（PARTIAL/BLOCKED は書かない）。
+2. 製品 FAIL のみルート `todo.md#product-bugs` へ（PARTIAL/BLOCKED は書かない）。
 3. 証跡は `reports/uat-YYYY-MM-DD(-postfix|-rN)/` に置き、シナリオ md は編集しない。
 4. S09 解除時は承認済み helper マージ後に #2–#6 を再実行し、本ファイルの会計ドメインとサマリを更新する。
 5. V04 は主訴 DELETE を disposable clinic で再実行してから UNKNOWN を外す。コード修正だけで PASS にしない。

@@ -346,7 +346,7 @@ func currentSystemAdminClinicAccess(
 ) ([]uint64, string, error) {
 	clinicIDs := activeSystemAdminClinicIDs(clinics)
 	if len(clinicIDs) == 0 {
-		return nil, "", apperrors.WrapForbidden(
+		return nil, "", apperrors.WrapClinicSelectionUnavailable(
 			"no active clinic access is available",
 		)
 	}
@@ -389,7 +389,7 @@ func currentStaffClinicAccessFromActiveIDs(
 		}
 	}
 	if len(clinicIDs) == 0 {
-		return nil, "", apperrors.WrapForbidden(
+		return nil, "", apperrors.WrapClinicSelectionUnavailable(
 			"no active clinic assignment is available",
 		)
 	}

@@ -29,10 +29,10 @@ import (
 //    Test Cases (10 scenarios):
 //    ✓ Returns 200 OK with empty list when no clinics exist
 //    ✓ Default (no scope param): Returns clinics where staff is assigned (staff_clinic_assignments)
-//    ✓ scope=all: Returns ALL system clinics (hospital-settings.view; system_admin 不要)
+//    ✓ scope=all: system_admin は全院、非管理者は所属医院のみ
 //    ✓ Returns 401 when staff_id missing from context (default behavior)
 //    ✓ scope=all with system_admin: returns full clinic list
-//    ✓ scope=all with non-admin (permission already enforced by middleware): returns full clinic list
+//    ✓ scope=all with non-admin: returns assigned clinics only; missing is_system_admin is 401
 //    ✓ Default list respects staff_clinic_assignments (staff sees only assigned clinics)
 //    ✓ Response includes all clinic fields after list response mapping
 //    ✓ Returns 500 on database error
@@ -222,6 +222,9 @@ func (m *mockService) ListActiveClinicIDs(ctx context.Context, ids []uint64) ([]
 }
 
 func (m *mockService) ListClinicsByStaffID(ctx context.Context, staffID uint64) ([]model.Clinic, error) {
+	if m.listByStaffIDFn == nil {
+		return nil, nil
+	}
 	return m.listByStaffIDFn(ctx, staffID)
 }
 
@@ -372,17 +375,24 @@ func TestListClinics_ScopeAll_SystemAdmin_ReturnsAllClinics(t *testing.T) {
 	assert.Contains(t, w.Body.String(), "ノア動物病院 大阪")
 }
 
-func TestListClinics_ScopeAll_NonAdmin_ReturnsAllClinics(t *testing.T) {
+func TestListClinics_ScopeAll_NonAdmin_ReturnsAssignedClinicsOnly(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	// scope=all の認可はルート middleware（hospital-settings.view）。handler は system_admin を要求しない。
 	clinicServiceCalled := false
+	listAllCalled := false
 	clinicSvc := &mockService{
 		listClinicsFn: func(_ context.Context) ([]model.Clinic, error) {
-			clinicServiceCalled = true
+			listAllCalled = true
 			return []model.Clinic{
 				{ID: 1, Name: "ノア動物病院 本院"},
 				{ID: 2, Name: "ノア動物病院 東京"},
+			}, nil
+		},
+		listByStaffIDFn: func(_ context.Context, staffID uint64) ([]model.Clinic, error) {
+			clinicServiceCalled = true
+			assert.Equal(t, uint64(1), staffID)
+			return []model.Clinic{
+				{ID: 1, Name: "ノア動物病院 本院", IsActive: true},
 			}, nil
 		},
 	}
@@ -398,22 +408,46 @@ func TestListClinics_ScopeAll_NonAdmin_ReturnsAllClinics(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.True(t, clinicServiceCalled)
+	assert.False(t, listAllCalled)
 	assert.Contains(t, w.Body.String(), "ノア動物病院 本院")
-	assert.Contains(t, w.Body.String(), "ノア動物病院 東京")
+	assert.NotContains(t, w.Body.String(), "ノア動物病院 東京")
 }
 
-func TestListClinics_ScopeAll_WithoutSystemAdminFlag_StillLists(t *testing.T) {
+func TestListClinics_AssignedList_OmitsInactiveClinics(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	// is_system_admin コンテキスト欠落でも scope=all は一覧可能（認可は middleware 側）。
-	clinicServiceCalled := false
-	clinicSvc := &mockService{
-		listClinicsFn: func(_ context.Context) ([]model.Clinic, error) {
-			clinicServiceCalled = true
-			return []model.Clinic{{ID: 1, Name: "ノア動物病院 本院"}}, nil
+	svc := &mockService{
+		listByStaffIDFn: func(_ context.Context, staffID uint64) ([]model.Clinic, error) {
+			assert.Equal(t, uint64(1), staffID)
+			return []model.Clinic{
+				{ID: 1, Name: "ノア動物病院 本院", IsActive: true},
+				{ID: 2, Name: "ノア動物病院 旧院", IsActive: false},
+			}, nil
 		},
 	}
-	h := newHandlerWithClinicAndPermSvc(clinicSvc, &mockEffectivePermissionService{})
+	h := newHandlerWithClinicSvc(svc)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/clinics", http.NoBody)
+	setStaffID(c)
+
+	h.ListClinics(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), "ノア動物病院 本院")
+	assert.NotContains(t, w.Body.String(), "ノア動物病院 旧院")
+}
+
+func TestListClinics_ScopeAll_WithoutSystemAdminFlag_FailsClosed(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	h := newHandlerWithClinicAndPermSvc(&mockService{
+		listClinicsFn: func(_ context.Context) ([]model.Clinic, error) {
+			t.Fatal("must not list all clinics without system admin context")
+			return nil, nil
+		},
+	}, &mockEffectivePermissionService{})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -421,9 +455,7 @@ func TestListClinics_ScopeAll_WithoutSystemAdminFlag_StillLists(t *testing.T) {
 
 	h.ListClinics(c)
 
-	assert.Equal(t, http.StatusOK, w.Code)
-	assert.True(t, clinicServiceCalled)
-	assert.Contains(t, w.Body.String(), "ノア動物病院 本院")
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
 }
 
 // ---- GetClinic ----

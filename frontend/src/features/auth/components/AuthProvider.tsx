@@ -12,10 +12,16 @@ import {
   setStoredClinicId,
 } from "@/lib/current-clinic";
 import { ME_QUERY_KEY } from "@/lib/query-keys";
+import { axios } from "@/lib/axios";
+import { attachClinicSelectionInterceptors } from "@/lib/clinic-selection-axios";
+import { clearClinicSelectionRecovery } from "@/lib/clinic-selection-recovery";
 import { login as loginApi } from "../api/login";
 import { logout as logoutApi } from "../api/logout";
 import { refreshToken } from "../api/refresh-token";
 import { useGetMe } from "../api/get-me";
+import { ClinicSelectionBlockedScreen } from "./ClinicSelectionBlockedScreen";
+
+attachClinicSelectionInterceptors(axios);
 
 /* セッション情報は httpOnly Cookie で管理するため localStorage への保存は不要。
  * 選択中のクリニック ID のみ localStorage に残す（権限情報ではないためリスク低） */
@@ -105,7 +111,8 @@ function AuthProviderSession({ children, restoreSession }: AuthProviderSessionPr
   }, [hydrateUser, restoreSession]);
 
   // /me のキャッシュ（起動時 hydrate）でユーザー情報を同期する。
-  // 定期ポーリングはしない。権限変更は refreshPermissions。
+  // staleTime 経過だけでは再取得しない。定期ポーリングはしない。
+  // 権限変更の反映は refreshPermissions / ME_QUERY_KEY 無効化。
   const { data: meData } = useGetMe(user !== null);
   const [prevMeData, setPrevMeData] = useState(meData);
   if (prevMeData !== meData) {
@@ -152,6 +159,7 @@ function AuthProviderSession({ children, restoreSession }: AuthProviderSessionPr
       setUser(null);
       setCurrentClinicId(null);
       removeClinicFromStorage();
+      clearClinicSelectionRecovery();
       queryClient.clear();
     }
   }, [queryClient]);
@@ -226,5 +234,10 @@ function AuthProviderSession({ children, restoreSession }: AuthProviderSessionPr
   // セッション復元中は子を描画せず、復元前の一瞬だけ匿名 UI が見えることを防ぐ。
   if (!isInitialized) return null;
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      <ClinicSelectionBlockedScreen onLogout={logout} />
+      {children}
+    </AuthContext.Provider>
+  );
 }

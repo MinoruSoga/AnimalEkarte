@@ -28,6 +28,7 @@ class VerificationTests(unittest.TestCase):
     def test_docs_skip_and_unknown_script_blocks(self):
         self.assertEqual(verify.plan(['docs/ops/example.md']), ([], []))
         self.assertEqual(verify.plan(['frontend/src/features/manual/content/screens/01-login.md']), ([], []))
+        self.assertEqual(verify.plan(['backend/docs/api.yaml']), ([], []))
         self.assertTrue(verify.plan(['scripts/new-script.sh'])[1])
         self.assertTrue(verify.plan(['frontend/src/content/manual.md'])[1])
 

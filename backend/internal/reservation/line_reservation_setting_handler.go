@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/animal-ekarte/backend/internal/httpapi"
+	"github.com/animal-ekarte/backend/internal/model"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 )
@@ -21,12 +22,12 @@ func NewLineReservationSettingHandler(svc LineReservationSettingService) *LineRe
 	return &LineReservationSettingHandler{svc: svc}
 }
 
-func pathAuthorizedClinicID(c *gin.Context) (uint64, bool) {
+func pathAuthorizedClinicID(c *gin.Context, resource, action string) (uint64, bool) {
 	clinicID, ok := httpapi.ParseIDParam(c, "clinic_id")
 	if !ok {
 		return 0, false
 	}
-	if !httpapi.AuthorizeClinicIDs(c, []uint64{clinicID}) {
+	if !httpapi.AuthorizeClinicIDsForPermission(c, []uint64{clinicID}, resource, action) {
 		return 0, false
 	}
 	return clinicID, true
@@ -34,7 +35,7 @@ func pathAuthorizedClinicID(c *gin.Context) (uint64, bool) {
 
 // GetLineReservationSetting godoc
 func (h *LineReservationSettingHandler) GetLineReservationSetting(c *gin.Context) {
-	clinicID, ok := pathAuthorizedClinicID(c)
+	clinicID, ok := pathAuthorizedClinicID(c, string(model.ResourceHospitalSettings), "view")
 	if !ok {
 		return
 	}
@@ -52,7 +53,7 @@ func (h *LineReservationSettingHandler) GetLineReservationSetting(c *gin.Context
 
 // SaveLineReservationSetting godoc
 func (h *LineReservationSettingHandler) SaveLineReservationSetting(c *gin.Context) {
-	clinicID, ok := pathAuthorizedClinicID(c)
+	clinicID, ok := pathAuthorizedClinicID(c, string(model.ResourceHospitalSettings), "edit")
 	if !ok {
 		return
 	}

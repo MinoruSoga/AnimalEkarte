@@ -88,6 +88,10 @@ func (m *mockStaffRepository) Update(ctx context.Context, clinicID, id uint64, c
 	return m.updateFn(ctx, clinicID, id, cmd)
 }
 
+func (m *mockStaffRepository) AttachAccountID(context.Context, uint64, uint64, uint64) error {
+	return nil
+}
+
 func (m *mockStaffRepository) UpdatePrimaryClinicID(ctx context.Context, id, clinicID uint64) error {
 	if m.updatePrimaryFn != nil {
 		return m.updatePrimaryFn(ctx, id, clinicID)
@@ -302,6 +306,13 @@ func (m *mockAccountForStaff) FindByEmail(ctx context.Context, email string) (*m
 		return m.findByEmailFn(ctx, email)
 	}
 	return nil, apperrors.WrapNotFound("account", email)
+}
+
+func (m *mockAccountForStaff) FindByIDForUpdate(ctx context.Context, id uint64) (*model.Account, error) {
+	if m.getByIDFn != nil {
+		return m.getByIDFn(ctx, id)
+	}
+	return &model.Account{ID: id}, nil
 }
 func (m *mockAccountForStaff) Create(ctx context.Context, account *model.Account) error {
 	if m.createFn != nil {

@@ -159,7 +159,9 @@ func newRefreshFamilyHandler(
 				IsMain:   true,
 			}},
 		},
-		Clinics: refreshHTTPClinicListerStub{},
+		Clinics: refreshHTTPClinicListerStub{
+			clinics: []model.Clinic{{ID: 2, Name: "Active Clinic", IsActive: true}},
+		},
 	}, CookieConfigForProduction(false))
 	return handler, tokens, account, staff
 }

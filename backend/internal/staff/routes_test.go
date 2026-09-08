@@ -36,6 +36,7 @@ func TestHandler_RegisterRoutesPinsAllLegacyRoutesAndPermissions(t *testing.T) {
 	expectedPermissions := []routePermissionTuple{
 		{Method: "GET", Path: "/api/v1/masters/staffs", Resource: string(model.ResourceMasterStaff), Action: "view"},
 		{Method: "POST", Path: "/api/v1/masters/staffs", Resource: string(model.ResourceMasterStaff), Action: "create"},
+		{Method: "POST", Path: "/api/v1/masters/staffs/:id/account", Resource: string(model.ResourceMasterStaff), Action: "edit"},
 		{Method: "PATCH", Path: "/api/v1/masters/staffs/reorder", Resource: string(model.ResourceMasterStaff), Action: "edit"},
 		{Method: "GET", Path: "/api/v1/masters/staffs/:id", Resource: string(model.ResourceMasterStaff), Action: "view"},
 		{Method: "PATCH", Path: "/api/v1/masters/staffs/:id", Resource: string(model.ResourceMasterStaff), Action: "edit"},

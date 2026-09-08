@@ -173,6 +173,9 @@ func (h *Handler) GetPetFirstVisit(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMedicalRecords), "view") {
+		return
+	}
 	petID, ok := httpapi.ParseIDParam(c, "id")
 	if !ok {
 		return

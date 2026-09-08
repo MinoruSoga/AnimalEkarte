@@ -114,6 +114,8 @@ def plan(paths):
         elif path.endswith('.md') and (path.startswith(('docs/', '.claude/', '.codex/', '.agents/', 'frontend/src/features/manual/'))
                                       or '/' not in path or pathlib.PurePosixPath(path).name in ('CLAUDE.md', 'AGENTS.md', 'README.md')):
             continue
+        elif path == 'backend/docs/api.yaml':
+            continue
         else:
             blocked.append(path)
     for path in paths:

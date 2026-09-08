@@ -149,6 +149,14 @@ func (s *permissionGroupService) Update(
 		if updateErr != nil {
 			return updateErr
 		}
+		if guardErr := s.guardActorKeepsPermissionAdministration(
+			txCtx,
+			clinicID,
+			audit.ActorStaffID,
+			audit.ActorIsSystemAdmin,
+		); guardErr != nil {
+			return guardErr
+		}
 		entry := permissionAuditEntry(
 			audit,
 			id,
@@ -266,6 +274,14 @@ func (s *permissionGroupService) Delete(
 		}
 		if deleteErr := s.delete(txCtx, clinicID, id); deleteErr != nil {
 			return deleteErr
+		}
+		if guardErr := s.guardActorKeepsPermissionAdministration(
+			txCtx,
+			clinicID,
+			audit.ActorStaffID,
+			audit.ActorIsSystemAdmin,
+		); guardErr != nil {
+			return guardErr
 		}
 		entry := permissionAuditEntry(
 			audit,

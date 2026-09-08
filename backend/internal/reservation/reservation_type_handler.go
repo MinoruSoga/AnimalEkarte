@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/animal-ekarte/backend/internal/httpapi"
+	"github.com/animal-ekarte/backend/internal/model"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 )
@@ -28,7 +29,7 @@ func NewReservationTypeHandler(core ReservationTypeCoreService, unavailableTime 
 
 // ListReservationTypes godoc
 func (h *ReservationTypeHandler) ListReservationTypes(c *gin.Context) {
-	clinicID, ok := httpapi.ExtractClinicID(c)
+	clinicID, ok := extractSelectedClinicGrant(c, string(model.ResourceMasterReservationType))
 	if !ok {
 		return
 	}
@@ -42,7 +43,7 @@ func (h *ReservationTypeHandler) ListReservationTypes(c *gin.Context) {
 
 // GetReservationType godoc
 func (h *ReservationTypeHandler) GetReservationType(c *gin.Context) {
-	clinicID, ok := httpapi.ExtractClinicID(c)
+	clinicID, ok := extractSelectedClinicGrant(c, string(model.ResourceMasterReservationType))
 	if !ok {
 		return
 	}
@@ -120,7 +121,7 @@ func (h *ReservationTypeHandler) DeleteReservationType(c *gin.Context) {
 
 // ListUnavailableTimes godoc
 func (h *ReservationTypeHandler) ListUnavailableTimes(c *gin.Context) {
-	clinicID, ok := httpapi.ExtractClinicID(c)
+	clinicID, ok := extractSelectedClinicGrant(c, string(model.ResourceMasterReservationType))
 	if !ok {
 		return
 	}
@@ -204,7 +205,7 @@ func (h *ReservationTypeHandler) DeleteUnavailableTime(c *gin.Context) {
 
 // ListAvailableSlots godoc
 func (h *ReservationTypeHandler) ListAvailableSlots(c *gin.Context) {
-	clinicID, ok := httpapi.ExtractClinicID(c)
+	clinicID, ok := extractSelectedClinicGrant(c, string(model.ResourceMasterReservationType))
 	if !ok {
 		return
 	}
@@ -285,7 +286,7 @@ func (h *ReservationTypeHandler) DeleteAvailableSlot(c *gin.Context) {
 
 // ListReservationTypeOccupations godoc
 func (h *ReservationTypeHandler) ListReservationTypeOccupations(c *gin.Context) {
-	clinicID, ok := httpapi.ExtractClinicID(c)
+	clinicID, ok := extractSelectedClinicGrant(c, string(model.ResourceMasterReservationType))
 	if !ok {
 		return
 	}

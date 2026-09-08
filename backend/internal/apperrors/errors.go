@@ -59,6 +59,9 @@ const (
 	// CodeMedicineNameConflict is returned when a clinic-scoped medicine name
 	// collides (constraint idx_medicines_clinic_name). BUG-011.
 	CodeMedicineNameConflict = "medicine_name_conflict"
+	// CodeClinicSelectionUnavailable is returned when the selected or default
+	// clinic is no longer an active assignment. HTTP status remains 403.
+	CodeClinicSelectionUnavailable = "clinic_selection_unavailable"
 )
 
 // Measured PostgreSQL unique constraint names used for fail-closed mapping.
@@ -290,6 +293,24 @@ func WrapForbidden(message string) error {
 		Message: message,
 		Err:     ErrForbidden,
 	}
+}
+
+// WrapClinicSelectionUnavailable refuses a request because the selected or
+// default clinic is no longer usable. Callers must keep this distinct from
+// ordinary resource 403s.
+func WrapClinicSelectionUnavailable(message string) error {
+	return &AppError{
+		Code:    CodeClinicSelectionUnavailable,
+		Message: message,
+		Err:     ErrForbidden,
+	}
+}
+
+// IsClinicSelectionUnavailable reports a clinic-selection 403, not a
+// generic forbidden.
+func IsClinicSelectionUnavailable(err error) bool {
+	var appErr *AppError
+	return errors.As(err, &appErr) && appErr != nil && appErr.Code == CodeClinicSelectionUnavailable
 }
 
 // WrapUnauthorized は認証エラーを生成する

@@ -10,9 +10,17 @@ import (
 // （code/message/timestamp）。handler 層の RespondError（`{"error": msg}`）とは
 // スキーマが異なる — 統一判断は BE-refactor.md §4 参照（X-17）。
 func respondError(c *gin.Context, status int, msg string) {
-	c.AbortWithStatusJSON(status, gin.H{
+	respondErrorWithCode(c, status, msg, "")
+}
+
+func respondErrorWithCode(c *gin.Context, status int, msg, errorCode string) {
+	body := gin.H{
 		"code":      status,
 		"message":   msg,
 		"timestamp": time.Now(),
-	})
+	}
+	if errorCode != "" {
+		body["error_code"] = errorCode
+	}
+	c.AbortWithStatusJSON(status, body)
 }

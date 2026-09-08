@@ -17,6 +17,9 @@ func (h *Handler) ListOwnerSharedPets(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceOwners), "view") {
+		return
+	}
 	ownerID, ok := httpapi.ParseIDParam(c, "id")
 	if !ok {
 		return
@@ -42,6 +45,9 @@ func (h *Handler) ListOwnerSharedPets(c *gin.Context) {
 func (h *Handler) ListPetOwners(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceOwners), "view") {
 		return
 	}
 	petID, ok := httpapi.ParseIDParam(c, "id")

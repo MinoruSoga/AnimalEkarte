@@ -24,15 +24,17 @@ type LoginResponse struct {
 
 // MeResponse is the authenticated staff profile.
 type MeResponse struct {
-	ID            string               `json:"id"`
-	Email         string               `json:"email"`
-	DisplayName   string               `json:"display_name"`
-	IsSystemAdmin bool                 `json:"is_system_admin"`
-	Occupation    *string              `json:"occupation,omitempty"`
-	MainClinicID  string               `json:"main_clinic_id"`
-	Clinic        *MeClinicInfo        `json:"clinic,omitempty"`
-	Clinics       []MeClinicMembership `json:"clinics,omitempty"`
-	Permissions   EffectivePermissions `json:"permissions"`
+	ID            string  `json:"id"`
+	Email         string  `json:"email"`
+	DisplayName   string  `json:"display_name"`
+	IsSystemAdmin bool    `json:"is_system_admin"`
+	Occupation    *string `json:"occupation,omitempty"`
+	// MainClinicID is the selected clinic for this response, not a persisted
+	// primary assignment. Login/refresh use the resolved default clinic.
+	MainClinicID string               `json:"main_clinic_id"`
+	Clinic       *MeClinicInfo        `json:"clinic,omitempty"`
+	Clinics      []MeClinicMembership `json:"clinics,omitempty"`
+	Permissions  EffectivePermissions `json:"permissions"`
 }
 
 // MeClinicInfo is the selected clinic embedded in /me.
@@ -152,8 +154,19 @@ func meClinicMemberships(
 	if staff == nil {
 		return meClinicList
 	}
+	activeClinicIDs := make(map[uint64]struct{}, len(allClinics))
+	for i := range allClinics {
+		clinic := &allClinics[i]
+		if clinic.ID == 0 || !clinic.IsActive {
+			continue
+		}
+		activeClinicIDs[clinic.ID] = struct{}{}
+	}
 	for i := range staff.ClinicAssignments {
 		assignment := &staff.ClinicAssignments[i]
+		if _, active := activeClinicIDs[assignment.ClinicID]; !active {
+			continue
+		}
 		clinicID := strconv.FormatUint(assignment.ClinicID, 10)
 		meClinicList = append(meClinicList, MeClinicMembership{
 			ClinicID:   clinicID,

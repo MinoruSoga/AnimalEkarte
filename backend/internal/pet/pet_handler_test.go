@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -360,6 +361,27 @@ func TestGetPetFirstVisit(t *testing.T) {
 			setupCtx:   func(_ *gin.Context) {},
 			svc:        &mockPetServiceHandler{},
 			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:    "returns 403 when selected clinic grant is missing",
+			paramID: "1",
+			setupCtx: func(c *gin.Context) {
+				c.Set("clinic_id", "1")
+			},
+			svc:        &mockPetServiceHandler{},
+			wantStatus: http.StatusForbidden,
+		},
+		{
+			name:    "returns 403 when selected clinic grant is denied",
+			paramID: "1",
+			setupCtx: func(c *gin.Context) {
+				c.Set("clinic_id", "1")
+				httpapi.SetClinicPermissionChecker(c, func(_ *gin.Context, _ uint64, _, _ string) bool {
+					return false
+				})
+			},
+			svc:        &mockPetServiceHandler{},
+			wantStatus: http.StatusForbidden,
 		},
 		{
 			name:       "returns 400 for non-numeric id",
