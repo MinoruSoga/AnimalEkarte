@@ -29,6 +29,11 @@ func (s *staffService) SetPermissionGroupIDs(ctx context.Context, clinicID, staf
 	requestedGroupIDs := append([]uint64(nil), groupIDs...)
 
 	if err := s.tx.WithTx(ctx, func(txCtx context.Context) error {
+		// All policy writers take the clinic lock before staff/assignment/group
+		// row locks, and retain it through the effective-permission guard/audit.
+		if lockErr := s.permissionGroupRepo.LockPermissionPolicy(txCtx, clinicID); lockErr != nil {
+			return apperrors.Wrap(lockErr, "failed to lock permission policy")
+		}
 		lockedStaff, lockErr := s.repo.LockActiveByIDForUpdateInClinic(
 			txCtx,
 			clinicID,

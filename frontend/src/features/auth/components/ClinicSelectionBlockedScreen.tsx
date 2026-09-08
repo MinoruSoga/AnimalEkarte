@@ -1,9 +1,9 @@
-import { useState, useSyncExternalStore } from "react";
+import { useTransition, useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 import { C } from "@/lib/design-tokens";
 import {
   getClinicSelectionBlockReason,
-  recoverClinicSelectionOnce,
+  retryClinicSelectionRecovery,
   subscribeClinicSelectionBlock,
 } from "@/lib/clinic-selection-recovery";
 
@@ -17,7 +17,8 @@ export function ClinicSelectionBlockedScreen({ onLogout }: ClinicSelectionBlocke
     getClinicSelectionBlockReason,
     getClinicSelectionBlockReason,
   );
-  const [isBusy, setIsBusy] = useState(false);
+  const [isRetrying, startRetry] = useTransition();
+  const [isLoggingOut, startLogout] = useTransition();
 
   if (reason === "none") {
     return null;
@@ -49,9 +50,11 @@ export function ClinicSelectionBlockedScreen({ onLogout }: ClinicSelectionBlocke
         <div className="mt-6 flex flex-col gap-2">
           {reason === "recovery-failed" ? (
             <Button
-              disabled={isBusy}
+              disabled={isRetrying || isLoggingOut}
               onClick={() => {
-                void recoverClinicSelectionOnce();
+                startRetry(async () => {
+                  await retryClinicSelectionRecovery();
+                });
               }}
             >
               再試行
@@ -59,11 +62,10 @@ export function ClinicSelectionBlockedScreen({ onLogout }: ClinicSelectionBlocke
           ) : null}
           <Button
             variant={reason === "recovery-failed" ? "outline" : "default"}
-            disabled={isBusy}
+            disabled={isLoggingOut}
             onClick={() => {
-              setIsBusy(true);
-              void onLogout().finally(() => {
-                setIsBusy(false);
+              startLogout(async () => {
+                await onLogout();
               });
             }}
           >

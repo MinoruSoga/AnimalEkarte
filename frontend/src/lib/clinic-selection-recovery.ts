@@ -8,6 +8,9 @@ export type ClinicSelectionBlockReason = "none" | "no-clinic" | "recovery-failed
 
 let writesPaused = false;
 let recoveryPromise: Promise<void> | null = null;
+let automaticRecoveryAttempted = false;
+let recoveryGeneration = 0;
+let recoveryController: AbortController | null = null;
 let blockReason: ClinicSelectionBlockReason = "none";
 const listeners = new Set<() => void>();
 
@@ -45,9 +48,25 @@ export function subscribeClinicSelectionBlock(listener: () => void): () => void 
 }
 
 export function clearClinicSelectionRecovery(): void {
+  cancelPendingRecovery();
+  automaticRecoveryAttempted = false;
   writesPaused = false;
-  recoveryPromise = null;
   setBlockReason("none");
+}
+
+// Logout must cancel recovery before the network request, while keeping writes
+// and automatic recovery stopped until the local session has been cleared.
+export function beginClinicSelectionLogout(): void {
+  cancelPendingRecovery();
+  automaticRecoveryAttempted = true;
+  pauseClinicWrites();
+}
+
+function cancelPendingRecovery(): void {
+  recoveryGeneration += 1;
+  recoveryController?.abort();
+  recoveryController = null;
+  recoveryPromise = null;
 }
 
 export function resetClinicSelectionRecoveryForTests(): void {
@@ -62,36 +81,66 @@ export function isClinicSelectionUnavailable(data: unknown): boolean {
 }
 
 export function recoverClinicSelectionOnce(): Promise<void> {
+  if (automaticRecoveryAttempted) {
+    return recoveryPromise ?? Promise.resolve();
+  }
+  automaticRecoveryAttempted = true;
+  return startClinicSelectionRecovery();
+}
+
+// Only an explicit user action may retry after the automatic attempt finishes.
+export function retryClinicSelectionRecovery(): Promise<void> {
+  automaticRecoveryAttempted = true;
+  return startClinicSelectionRecovery();
+}
+
+function startClinicSelectionRecovery(): Promise<void> {
   if (recoveryPromise !== null) {
     return recoveryPromise;
   }
   pauseClinicWrites();
-  recoveryPromise = recoverClinicSelection().finally(() => {
-    recoveryPromise = null;
+  const generation = recoveryGeneration;
+  const controller = new AbortController();
+  recoveryController = controller;
+  recoveryPromise = recoverClinicSelection(generation, controller.signal).finally(() => {
+    if (generation === recoveryGeneration) {
+      recoveryPromise = null;
+      recoveryController = null;
+    }
   });
   return recoveryPromise;
 }
 
-async function recoverClinicSelection(): Promise<void> {
+async function recoverClinicSelection(generation: number, signal: AbortSignal): Promise<void> {
   const apiBase = import.meta.env.VITE_API_URL || "/api";
   try {
     // Omit X-Clinic-ID so Auth can use the live main clinic instead of the stale JWT default.
     const response = await fetch(`${apiBase}/v1/me`, {
       method: "GET",
       credentials: "include",
+      signal,
       headers: {
         Accept: "application/json",
         "X-Requested-With": "XMLHttpRequest",
       },
     });
+    if (generation !== recoveryGeneration) return;
     if (!response.ok) {
-      setBlockReason("recovery-failed");
+      const error: unknown = await response.json();
+      if (generation !== recoveryGeneration) return;
+      // With no selection header, this code means no active default remains.
+      setBlockReason(
+        response.status === 403 && isClinicSelectionUnavailable(error)
+          ? "no-clinic"
+          : "recovery-failed",
+      );
       return;
     }
     const data: {
       main_clinic_id?: string;
       clinics?: Array<{ clinic_id?: string; clinic_name?: string; is_main?: boolean }>;
     } = await response.json();
+    if (generation !== recoveryGeneration) return;
     const clinics = Array.isArray(data.clinics) ? data.clinics : [];
     if (clinics.length === 0) {
       setBlockReason("no-clinic");
@@ -118,6 +167,8 @@ async function recoverClinicSelection(): Promise<void> {
     queryClient.clear();
     window.location.reload();
   } catch {
-    setBlockReason("recovery-failed");
+    if (generation === recoveryGeneration) {
+      setBlockReason("recovery-failed");
+    }
   }
 }

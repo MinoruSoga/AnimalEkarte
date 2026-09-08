@@ -7,18 +7,22 @@
 > 実装は [PR #390](https://github.com/MinoruSoga/AnimalEkarte/pull/390) で `main` へマージ済み（`2dc3a2d51`、2026-09-09）。claim: `claim/TODO-FIX-AUTH`（解放はユーザー。マージ後もエージェントは削除しない）。  
 > 本書はレビュー指摘のローカル整理と対応記録である。Linear は更新していない。
 
+> 2026-09-09 再レビュー追補: 上記マージ後の5指摘をローカル修正。下記の「未コミット」「claim再取得」は修正・検証時点の記録であり、現在のGit状態は別途確認する。実装・静的検査と、実DB・本番での未検証事項を下記で区別する。
+>
+> Cursor引継ぎ: ユーザーは前回修正のローカルコミット、今回限りのエージェントによる `claim/TODO-FIX-AUTH` 解除、専用worktree準備を明示承認した。一般のclaim解除規則は変更しない。残件の開始前にCursorがclaim不在を確認して取得する。GET/HEAD台帳JSONには既存の分類テストを実行する限定検証契約を追加した。push・実DB検証・本番操作の承認ではない。
+
 ## 対応サマリー
 
 | ID | 項目 | 判定 | 証拠 |
 | --- | --- | --- | --- |
 | 1 | 非管理者によるシステム管理者パスワード変更の拒否 | 対応 | `staff_service_update.go` の TX 内 `FindByIDForUpdate`。`staff_admin_password_guard_test.go` |
-| 2 | GET/HEAD 他院 grant fallback を閉じる | 対応 | `RequirePermission` は選択医院のみ。横断は Allowing。医院固定 GET は handler で `RequireSelectedClinicGrant`（pet/reservation 含む、2026-09-09）。分類テスト `get_head_permission_classification_test.go` |
-| 3 | login/refresh で無効医院を選ばない | 対応 | `currentStaffClinicAccess` 共有。ListClinics 失敗は失敗。医院失効 `error_code`。FE 復旧は自動再送なし。失敗 login は医院復旧に入らない（2026-09-09） |
-| 4 | 権限グループ無効化の自己ロックアウト防止 | 対応 | 変更後の view+edit。admin 免除。lookup 失敗 fail-closed |
+| 2 | GET/HEAD 他院 grant fallback を閉じる | 部分対応 | 選択医院 grant の実装と203経路の完全一致台帳。D3 の全経路の実データ分離検証は未完了。前方一致の分類を完了根拠にしない |
+| 3 | login/refresh で無効医院を選ばない | 対応（限定テスト） | active 医院解決共有。全医院失効時の403をFEで判別。自動復旧は一度、以後は手動再試行。失敗書き込みの再送なし。ログアウト開始時に復旧を中止 |
+| 4 | 権限グループ無効化の自己ロックアウト防止 | 対応（実装・単体） | 医院単位の共通policy lockをcommitまで保持し、変更後のview+editを確認。実DB並行テストは追加済み・実行BLOCKED（DB未接続） |
 | 5 | 旧権限・旧セッションの即時失効 | 部分対応 | production から current-access キャッシュ除去。**SKIP**: 同一 DB・独立 2 サーバープロセスのライブ検証（`make up` 禁止） |
 | 6 | `/me.main_clinic_id` と `is_main` の文書訂正 | 対応 | API 改名なし。`docs/architecture/auth.md` §4.8、OpenAPI 説明 |
 | 7 | `staleTime=5分` の文書訂正 | 対応 | 自動ポーリング追加なし。`get-me.ts` / AuthProvider / auth.md §4.8 |
-| 8 | 既存スタッフへのアカウント付与と初回管理者手順 | 部分対応 | 画面 API 実装。**SKIP**: 本番実付与、メール基盤の本番検証、Linear |
+| 8 | 既存スタッフへのアカウント付与と初回管理者手順 | 部分対応 | 画面APIと初回管理者の人間用SQL手順を整備。SQLの実DB検証、本番実付与、メール基盤の本番検証は未実施 |
 | 9 | 非システム管理者の医院一覧を所属に限定 | 対応 | `scope=all` でも所属のみ。フラグ欠落は 401 |
 
 ### 全体スキップ（原因）
@@ -78,7 +82,7 @@
 
 ### 2. GET/HEADの他院権限fallbackによる選択医院の閲覧認可漏れ（高・最優先）
 
-- 対応状況: [x] 対応（2026-09-08。医院固定 GET の pet/reservation 再確認は 2026-09-09）
+- 対応状況: [x] 認可実装修正・静的台帳整備（2026-09-09）。D3 の全経路の実データ分離検証は未完了。
 - 該当: 元文書 §4.5・§6.2・§8.4。
 - 問題: `RequirePermission` は選択医院でdenyでも、他の所属医院に同じgrantがあればGET/HEADを通す。スタッフ一覧・詳細などでは後段に選択医院の権限再確認がなく、選択医院のデータが返る。権限グループの一覧・詳細にも同型の経路がある。
 - 再現条件: A・B両医院に所属し、対象リソースのviewはAだけに付与した利用者が、Bを選択してBの一覧・詳細を要求する。所属内のリソース認可漏れであり、所属外の任意医院へアクセスできると主張しているわけではない。
@@ -115,7 +119,8 @@
 - [x] 別の有効グループに本人の管理権限が残る場合は許可する。他の管理担当者が存在するだけでは自己喪失を許可しない。
 - [x] システム管理者による他スタッフの権限解除を許可し、最後のシステム管理者の削除・利用停止の既存保護は維持する。
 - [x] 自分のグループ全解除やルール変更から同じ保護を迂回できないことを確認する。
-- [x] 判定用lookup失敗・並行変更時にも、保護が空集合判定等で素通りしない。
+- [x] 判定用lookup失敗は拒否する。グループ更新・ルール変更・削除・スタッフ割当置換は同じ医院policy lockをrow lockより前に取得し、実効権限確認・監査・commitまで保持する。
+- [ ] 異なる2グループの同時無効化を実DBで確認する。`TestPermissionPolicyDB_ConcurrentGroupDeactivation` を追加・コンパイル済み。実行はDB未接続でBLOCKED。
 
 ## B. 文書訂正・失効仕様の明確化
 
@@ -164,8 +169,9 @@
 - [x] 非システム管理者からの付与をAPIで拒否する。既存staff ID・診療履歴を維持し、新しいstaff行を作らない。
 - [x] 既存手順で満たせる範囲と、実装が不足する範囲を分ける。
 - [x] 対象staff/clinicの認可・既存accountとの衝突・競合・再実行・監査・失敗時の原子性をテストする。
-- [x] 初回専用手順は既存管理者がいる場合や重複実行で追加作成しない条件を持ち、通常のログイン画面から管理者を作成できない。
-- [ ] 手順にログイン用staffの重複作成を回避することを明記し、合成データで検証する。本番への実付与は別承認。 **SKIP**: 本番実付与と対象環境メール実送信は別承認。
+- [x] 初回専用手順に、実行するSQL・接続先確認・既存管理者/メール重複拒否・既存staffへの付与・テーブルロック・同一transactionの監査・commit後receiptを記載した。公開の管理者登録経路は追加しない。
+- [x] 初回手順にstaffを複製しないことと、有効な既存staff/主所属を前提とすることを明記した。
+- [ ] 初回SQLを合成データの実DBで検証する。構文・競合・監査rollback・本人ログインは未実測。手順の静的照合を実行成功と扱わない。本番への実付与と対象環境メール実送信は別承認。
 
 ### 9. 非システム管理者の医院一覧を所属医院に限定する（仕様確定）
 
@@ -184,23 +190,41 @@
 候補コードの修正証明は worktree をマウントした scoped Docker テストである。共有 `animalekarte-backend-1`（main マウント）では検証しない。
 
 - [x] 指摘に対応する失敗テストを追加し、scoped `go test` / vitest で確認する（結果は PR に記載）。
-- [ ] DB 競合・ロックの隔離 DB 検証 — **SKIP**: 新規 test DB 起動と migration apply は別承認。今回 mock + 既存 TX 契約でガードする。
+- [ ] DB競合・ロックの隔離DB検証 — **BLOCKED**: 実行可能な対象DBなし。ネットワークなしDockerでのauth/staffパッケージ全体テストはDB接続不可でFAIL。その後の`-short`による両パッケージのオフラインテストはPASS（DBテストは明示SKIP）。共有DB・migration applyは実施しない。
 - [x] 認可漏れは UI 非表示のみにしない（BE 403 / selected-clinic grant）。
 - [x] `todo-check-auth.md` と `docs/architecture/auth.md` を同期。候補コードと実環境を区別する。
 - [x] 独立レビューの HIGH（復旧 GET が stale JWT で詰まる）を反映。未実施を PASS にしない。
 - [ ] Linear 反映 — **SKIP**: 外部チケット未承認。
 
+### 2026-09-09 再レビュー修正の検証
+
+対象は `main` の基点 `db7b6fa24` に対する今回の未コミット差分。全runnerに現在の作業ツリーをread-only mountし、`--network none`、entrypoint上書きで実行した。
+
+| 検査 | 結果 |
+| --- | --- |
+| FE 回帰のRED | 全医院失効403、自動復旧再発、ログアウト後応答の3件が修正前にFAIL。追加の「手動再試行中のログアウト」「AuthProviderのlogout待機前キャンセル」も各修正前にFAIL |
+| FE GREEN | `clinic-selection-recovery.test.ts`、`clinic-selection-axios.test.ts`、`ClinicSelectionBlockedScreen.test.tsx`、`use-auth-initial-session.test.tsx` の25件PASS |
+| FE 静的検査 | 変更6ファイルのESLint（`--max-warnings 0`）とPrettier整形を確認 |
+| BE 回帰のRED | policy lock前のstaff row取得・lock取得失敗の無視を検出。既知owners prefix内の未確認経路も旧分類でFAIL |
+| BE GREEN | `go test -short ./internal/auth ./internal/staff -count=1` PASS。`go test ./cmd/api -run '^TestGETHEAD' -count=1` PASS。前者はDBケースSKIP |
+| BE 静的検査 | `go vet ./internal/auth ./internal/staff ./cmd/api` PASS。実DB並行テストはコンパイル済み・実行BLOCKED |
+| 初回管理者手順 | schemaと監査フィールドを静的照合。実SQL・本番付与・本人ログインは未実施 |
+| 独立レビュー | logout開始時の復旧中止と、初回SQLの必要権限明示を反映後、今回のロック・復旧・手順書の範囲でBlockなし。DB/runtimeの成立証明ではない |
+| 作業差分 | `git diff --check` PASS。commit/push/merge/Linear更新なし |
+
+runner image: FE `animalekarte-frontend:latest`（`sha256:532501622cd024ab786a32eb9798db1cd1a0e4d47cddb3dbd56ae107f95d9cb4`）、BE `animalekarte-backend:latest`（`sha256:6c5b455bf14e3f0ec7bece9ae9a4be2e8ad1441adfb33fdf2ce53d9eaaa22ed4`）。BEは`ekarte-go-mod-cache` / `ekarte-go-build-cache`と`GOPROXY=off`、FEテストは`vitest run <上記4ファイル> --configLoader native`を使用した。
+
 ### D1–D5 の実施メモ
 
 - D1: 画面・API は実装。メール自動送信なし。本人設定は既存 forgot-password。対象環境のメール実送信は SKIP。
-- D2: view+edit の自己喪失を拒否。admin 免除。
-- D3: 登録 GET/HEAD の未分類 0 を `get_head_permission_classification_test.go` で強制。残る `/api/v1/masters/*` は shared-master の明示残余クラスであり、他院 grant fallback ではない。医院固定の pet/reservation GET は 2026-09-09 に clinic-fixed へ再分類。
-- D4: `clinic_selection_unavailable` のみ復旧。書き込み停止。失敗 mutation の自動再送なし。セッション未発行の login は復旧対象外。
+- D2: 医院policy lockで権限変更を直列化し、view+editの自己喪失を拒否。admin免除。実DB並行検証は上記BLOCKED。
+- D3: `get_head_permissions.json` の完全一致台帳と登録集合を照合（local 203件、S3 201件）。追加・削除・method/handler変更を検出。LIFFと医院固定マスタを再分類。テスト参照の存在と実データ分離の実行証拠を区別し、未検証0件とはしない。
+- D4: `clinic_selection_unavailable` のみ自動復旧を一度実行。ヘッダーなし`/me`も同コードの403なら全医院失効として案内。障害後は手動再試行、再試行中もログアウト可能。ログアウト開始時に復旧を中止。失敗mutationの自動再送なし。セッション未発行loginは復旧対象外。
 - D5: production は uncached resolver。2 インスタンス検証は SKIP。
 
 ## 詳細仕様の確定（2026-09-08・ユーザーによる判断委任）
 
-以下は「それらも確定させてください。あなたが判断して」という依頼に基づく設計決定。実装時の採用仕様である。残件はサマリーの SKIP（本番操作・メール現地・2プロセスライブ検証・Linear）のみ。
+以下は「それらも確定させてください。あなたが判断して」という依頼に基づく採用仕様である。残件には本番操作・メール現地・2プロセス検証・Linearに加え、D2の実DB並行検証、D3の全経路の実データ分離検証、初回管理者SQLの実DB検証がある。ローカル修正・限定テストの完了と区別する。
 
 ### D1. アカウント追加画面と初回パスワード（項目8）
 
@@ -220,13 +244,15 @@
 - 「権限管理を続けられる」は、選択医院で変更後も `master-permission:view` と `master-permission:edit` の両方を実効権限として持つこととする。別の有効グループからのOR付与も含める。
 - 非システム管理者による、自分が所属するグループの変更・無効化・自己割当解除では、両方を満たさなくなる操作を403で拒否する。他の担当者が残ることは例外理由にしない。create/deleteまで追加で要求しない。
 - システム管理者はグループに依存しないためこの自己喪失判定を免除する。システム管理者アカウントの削除・無効化に関する既存保護は別途維持する。
-- [x] viewだけ喪失、editだけ喪失、両方喪失を拒否し、別グループで両方残る場合を許可する。各mutation経路と並行変更で同じ結果を保証する。
+- [x] viewだけ喪失、editだけ喪失、両方喪失の拒否を単体テストで確認する。グループ間の並行変更も共通policy lockへ参加させる実装に修正した。
+- [ ] 並行変更後も同じ結果となることを実DBテストで確認する（項目4のBLOCKED参照）。
 
 ### D3. GET認可の確認対象を閉じる（項目2）
 
 - 実装の最初の成果物として、`RequirePermission` と `RequirePermissionAny` が適用される登録済みGET/HEADを全件抽出する。列は「method/path、resource/action、handler、医院固定/横断/共有マスタ、認可箇所、返却範囲、回帰テスト」とする。
 - 医院固定は選択医院のgrantを必須、横断は返却対象医院ごとのgrantを必須にする。共有マスタは既存の明示的契約だけを採用し、分類不能を許可扱いにしない。HEAD未登録はその旨記録し、新たに追加する必要はない。
-- [x] 登録ルートと表の件数・集合が一致し、未分類・未検証の経路が0件である。スタッフ・権限グループの代表例だけで完了しない。
+- [x] 登録ルートと完全一致台帳の件数・集合・handlerが一致する。既知prefix配下の未登録経路も拒否する。
+- [ ] 全経路について認可実行・返却対象医院の実データ分離を検証し、未検証0件とする。現在のgateは静的対応と参照の存在を検査するものであり、この条件の達成証拠ではない。
 - [x] 表とテストを既存の認可設計・テスト領域へ集約し、別の実行台帳を増やさない。正常に0行の一覧と、認可可能な医院が0件の拒否を区別する。
 
 ### D4. 旧医院選択からの画面復旧（項目3）

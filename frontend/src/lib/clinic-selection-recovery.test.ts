@@ -3,6 +3,8 @@ import {
   CLINIC_SELECTION_UNAVAILABLE,
   isClinicSelectionUnavailable,
   recoverClinicSelectionOnce,
+  retryClinicSelectionRecovery,
+  clearClinicSelectionRecovery,
   resetClinicSelectionRecoveryForTests,
   areClinicWritesPaused,
   getClinicSelectionBlockReason,
@@ -77,8 +79,9 @@ describe("clinic-selection-recovery", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({ main_clinic_id: "", clinics: [] }),
+        ok: false,
+        status: 403,
+        json: async () => ({ error_code: CLINIC_SELECTION_UNAVAILABLE }),
       }),
     );
 
@@ -120,5 +123,55 @@ describe("clinic-selection-recovery", () => {
     expect(areClinicWritesPaused()).toBe(true);
     expect(getClinicSelectionBlockReason()).toBe("recovery-failed");
     expect(reload).not.toHaveBeenCalled();
+  });
+
+  it("does not restart automatic recovery for later polling errors", async () => {
+    const request = vi.fn().mockRejectedValue(new Error("network"));
+    vi.stubGlobal("fetch", request);
+    await recoverClinicSelectionOnce();
+    await recoverClinicSelectionOnce();
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(areClinicWritesPaused()).toBe(true);
+
+    await retryClinicSelectionRecovery();
+    expect(request).toHaveBeenCalledTimes(2);
+    await recoverClinicSelectionOnce();
+    expect(request).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([401, 403, 503])("does not mistake an ordinary %s for no clinic", async (status) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status,
+        json: async () => ({ error: "unavailable" }),
+      }),
+    );
+    await recoverClinicSelectionOnce();
+    expect(getClinicSelectionBlockReason()).toBe("recovery-failed");
+  });
+
+  it("ignores a recovery response that arrives after logout", async () => {
+    const reload = vi.fn();
+    vi.stubGlobal("window", { location: { reload } });
+    let finish: (response: Response) => void = () => undefined;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        () =>
+          new Promise<Response>((resolve) => {
+            finish = resolve;
+          }),
+      ),
+    );
+    const pending = recoverClinicSelectionOnce();
+    clearClinicSelectionRecovery();
+    finish(new Response(JSON.stringify({ main_clinic_id: "2", clinics: [{ clinic_id: "2" }] })));
+    await pending;
+    expect(mocks.setStoredClinicId).not.toHaveBeenCalled();
+    expect(reload).not.toHaveBeenCalled();
+    expect(getClinicSelectionBlockReason()).toBe("none");
+    expect(areClinicWritesPaused()).toBe(false);
   });
 });

@@ -14,6 +14,7 @@ type Transactor interface {
 // PermissionGroupRepository is the staff-owned consumer view of permission
 // group membership persistence.
 type PermissionGroupRepository interface {
+	LockPermissionPolicy(ctx context.Context, clinicID uint64) error
 	FindAllGroupIDsByStaffID(ctx context.Context, clinicID, staffID uint64) ([]uint64, error)
 	FindAllEffectivePermissionsByStaffID(ctx context.Context, staffID, clinicID uint64) ([]model.PermissionGroupRule, error)
 	UpdateStaffGroups(ctx context.Context, clinicID, staffID uint64, groupIDs []uint64) error

@@ -1,9 +1,15 @@
 import { Suspense } from "react";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, useLocation, useNavigate } from "react-router";
-import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAuth } from "@/hooks/use-auth";
 import type { AuthUser } from "@/types/auth";
+import { CURRENT_CLINIC_STORAGE_KEY } from "@/lib/current-clinic";
+import {
+  areClinicWritesPaused,
+  clearClinicSelectionRecovery,
+  recoverClinicSelectionOnce,
+} from "@/lib/clinic-selection-recovery";
 
 const { loginMock, logoutMock, queryClientMock, refreshTokenMock } = vi.hoisted(() => ({
   loginMock: vi.fn(),
@@ -96,11 +102,18 @@ function RouteControls() {
 
 describe("AuthProvider initial session restoration", () => {
   beforeEach(() => {
+    clearClinicSelectionRecovery();
     loginMock.mockReset().mockResolvedValue({ user: AUTH_USER });
     logoutMock.mockReset().mockResolvedValue(undefined);
     refreshTokenMock.mockReset().mockResolvedValue(null);
     queryClientMock.clear.mockReset();
     queryClientMock.setQueryData.mockReset();
+  });
+
+  afterEach(() => {
+    cleanup();
+    clearClinicSelectionRecovery();
+    vi.unstubAllGlobals();
   });
 
   afterAll(() => {
@@ -222,5 +235,57 @@ describe("AuthProvider initial session restoration", () => {
 
     await waitFor(() => expect(refreshTokenMock).toHaveBeenCalledTimes(2));
     expect(await screen.findByTestId("auth-state")).toHaveTextContent("anonymous");
+  });
+
+  it("cancels clinic recovery before awaiting the logout response", async () => {
+    setWindowLocation("/");
+    const reload = vi.fn();
+    Object.defineProperty(window.location, "reload", { configurable: true, value: reload });
+    localStorage.setItem(CURRENT_CLINIC_STORAGE_KEY, "1");
+    refreshTokenMock.mockResolvedValueOnce({ user: AUTH_USER });
+    let finishLogout: () => void = () => undefined;
+    logoutMock.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finishLogout = resolve;
+        }),
+    );
+    let finishRecovery: (response: Response) => void = () => undefined;
+    const request = vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          finishRecovery = resolve;
+        }),
+    );
+    vi.stubGlobal("fetch", request);
+    const { AuthProvider } = await import("../components/AuthProvider");
+    render(
+      <MemoryRouter>
+        <AuthProvider>
+          <RouteControls />
+        </AuthProvider>
+      </MemoryRouter>,
+    );
+    await screen.findByTestId("auth-state");
+
+    const recovery = recoverClinicSelectionOnce();
+    fireEvent.click(screen.getByRole("button", { name: "sign-out" }));
+    expect(logoutMock).toHaveBeenCalledOnce();
+    await act(async () => {
+      finishRecovery(
+        new Response(JSON.stringify({ main_clinic_id: "2", clinics: [{ clinic_id: "2" }] })),
+      );
+      await recovery;
+    });
+    expect(reload).not.toHaveBeenCalled();
+    expect(localStorage.getItem(CURRENT_CLINIC_STORAGE_KEY)).toBe("1");
+    expect(areClinicWritesPaused()).toBe(true);
+    await recoverClinicSelectionOnce();
+    expect(request).toHaveBeenCalledOnce();
+    await act(async () => {
+      finishLogout();
+    });
+    expect(screen.getByTestId("auth-state")).toHaveTextContent("anonymous");
+    expect(areClinicWritesPaused()).toBe(false);
   });
 });

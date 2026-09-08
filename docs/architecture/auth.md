@@ -104,17 +104,22 @@ Cookie認証を使う保護routeとlogin/refresh/logoutには `RequireXRequested
 
 ### 4.7 GET/HEAD の選択医院 grant
 
-`RequirePermission` / `RequirePermissionAny` の既定は **選択医院の grant のみ** です。GET/HEAD でも所属する他院の grant では通りません。横断一覧・詳細は `RequirePermissionAllowingAssignedClinicGrant`（または Any 版）を composition で明示し、handler が宛先医院ごとに Filter/Authorize します。医院固定の一覧・詳細は handler 側の `RequireSelectedClinicGrant` で選択医院を再確認します。分類不能な GET を許可扱いしません。登録済み GET/HEAD の分類は `backend/cmd/api/get_head_permission_classification_test.go` が件数 0 の未分類を拒否します。
+`RequirePermission` / `RequirePermissionAny` の既定は **選択医院の grant のみ** です。GET/HEAD でも所属する他院の grant では通りません。横断一覧・詳細は `RequirePermissionAllowingAssignedClinicGrant`（または Any 版）を composition で明示し、handler が宛先医院ごとに Filter/Authorize します。同じ composition の医院固定 handler は `RequireSelectedClinicGrant` または `extractSelectedClinicGrant` で選択医院を再確認します。
+
+全件の静的対応表は [`get_head_permissions.json`](../../backend/cmd/api/testdata/get_head_permissions.json) です。各行に method/path、handler、resource/action、登録式、認可位置、返却範囲、回帰テスト参照、検証の限界を記録します。[分類テスト](../../backend/cmd/api/get_head_permission_classification_test.go) は登録集合と台帳を双方向照合し、既知 prefix 内の追加も含め、追加・削除・method/handler 変更を拒否します。登録式の変更と参照先の欠落も検出します。local storage は 203 件、S3 設定では uploads の GET/HEAD を除く 201 件です。
 
 | 分類 | 認可 | 代表経路 |
 |:---|:---|:---|
-| public | 認証なし | `/health`, `/api/v1/login`, `/api/v1/auth/*`, LIFF, LINE webhook, uploads |
-| internal | 内部 token | `/_internal/*` |
-| cross-clinic | Allowing middleware + 宛先医院ごとの grant | owners / pets / reservations の横断一覧・詳細、identity-links, billing/accounting, medical-records, `/me` |
-| clinic-fixed | 選択医院 grant（パス医院 GET は対象医院の grant） | staffs, occupations, permission-groups, shifts, inventory, trimming, lstep, clinics, reservation-types, 医院固定の pet/reservation GET |
-| shared-master | 既存の明示契約 | `/api/v1/masters/*` の残り |
+| public | 認証なし | health、LIFF settings、local uploads |
+| liff | LIFF 認証 + path clinic/customer | LIFF profile、予約一覧、予約可能枠など（settings を除く） |
+| self | 認証済み本人 | `/me` の本人情報・所属医院 |
+| cross-clinic | 宛先医院ごとの grant または明示した所属/admin 判定 | owners / pets / reservations / medical-records / accountings の横断一覧・詳細、identity-links、医院一覧、path clinic の LINE 予約設定 |
+| clinic-fixed | 選択医院 grant + 選択医院の query scope | 診療子リソース、検査、入院、見積、未収、医院別マスタ、staffs、shifts、inventory、trimming、LSTEP 医院データ |
+| shared-master | 明示した grant + 医院非依存データ | animal-species、manual articles、company、LSTEP tag config |
 
-HEAD 未登録は追加しません。正常に 0 行の一覧と、認可可能な医院が 0 件の 403 は別です。
+login、password reset、LINE webhook、scheduled jobs は GET/HEAD ではないため、この表の対象外です。HEAD 未登録は追加しません。正常に 0 行の一覧と、認可可能な医院が 0 件の 403 は別です。
+
+この gate が証明するのは **登録済み経路の静的対応表が欠落・陳腐化していないこと** です。参照テストの存在は実行 PASS を意味せず、登録式の照合だけでは middleware の実行、間接 helper の変更、実 DB の返却範囲は証明できません。台帳の `verification` に示す handler grant の回帰参照と、未確認の実データ分離を区別し、「未検証 0 件」や D3 の全面完了の根拠にはしません。
 
 ### 4.8 `/me` と login の医院フィールド
 
@@ -125,6 +130,8 @@ Frontend の `/me` は `staleTime` 5 分・window focus 再取得なし・定期
 ### 4.9 医院選択失効
 
 選択医院または既定医院が利用できないとき、BE は通常の 403 と区別して `error_code: clinic_selection_unavailable` を返します。Frontend は書き込みを停止し、`X-Clinic-ID` なしの `/me` を 1 回取得して active な既定医院へ戻します。失敗した POST/PUT/PATCH/DELETE は新しい医院へ自動再送しません。
+
+ヘッダーなしの復旧 `/me` も同コードの403なら有効医院が0件のため、管理者への確認とログアウトを案内します。401・通常403・通信障害は「医院なし」と混同しません。自動復旧終了後は後続GETやポーリングで再開せず、復旧障害時の再試行ボタンからだけ実行します。ログアウト開始時に進行中の復旧を中止し、遅延応答が医院保存やreloadを起こすことを防ぎます。
 
 ### 4.10 医院一覧 `scope=all`
 

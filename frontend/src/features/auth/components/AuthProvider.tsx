@@ -14,7 +14,10 @@ import {
 import { ME_QUERY_KEY } from "@/lib/query-keys";
 import { axios } from "@/lib/axios";
 import { attachClinicSelectionInterceptors } from "@/lib/clinic-selection-axios";
-import { clearClinicSelectionRecovery } from "@/lib/clinic-selection-recovery";
+import {
+  beginClinicSelectionLogout,
+  clearClinicSelectionRecovery,
+} from "@/lib/clinic-selection-recovery";
 import { login as loginApi } from "../api/login";
 import { logout as logoutApi } from "../api/logout";
 import { refreshToken } from "../api/refresh-token";
@@ -147,6 +150,7 @@ function AuthProviderSession({ children, restoreSession }: AuthProviderSessionPr
   );
 
   const logout = useCallback(async () => {
+    beginClinicSelectionLogout();
     try {
       await logoutApi();
     } catch {

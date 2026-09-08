@@ -11,9 +11,17 @@ func strPtr(value string) *string {
 }
 
 type mockPermissionGroupRepository struct {
+	lockPermissionPolicyFn                 func(context.Context, uint64) error
 	findAllGroupIDsByStaffIDFn             func(context.Context, uint64, uint64) ([]uint64, error)
 	findAllEffectivePermissionsByStaffIDFn func(context.Context, uint64, uint64) ([]model.PermissionGroupRule, error)
 	updateStaffGroupsFn                    func(context.Context, uint64, uint64, []uint64) error
+}
+
+func (m *mockPermissionGroupRepository) LockPermissionPolicy(ctx context.Context, clinicID uint64) error {
+	if m.lockPermissionPolicyFn != nil {
+		return m.lockPermissionPolicyFn(ctx, clinicID)
+	}
+	return nil
 }
 
 func (m *mockPermissionGroupRepository) FindAllEffectivePermissionsByStaffID(

@@ -74,6 +74,21 @@ class VerificationTests(unittest.TestCase):
         self.assertEqual(jobs[0]['command'][-2:], ['-short', './internal/apicontract'])
         self.assertTrue(jobs[0]['require_completed_test'])
 
+    def test_get_head_inventory_runs_classification_tests(self):
+        jobs, blocked = verify.plan(['backend/cmd/api/testdata/get_head_permissions.json'])
+        self.assertFalse(blocked)
+        self.assertEqual(len(jobs), 1)
+        self.assertEqual(jobs[0]['service'], 'backend')
+        self.assertEqual(jobs[0]['command'], [
+            'go', 'test', '-json', '-p=2', '-count=1', '-short',
+            './cmd/api', '-run=^TestGETHEAD',
+        ])
+        self.assertTrue(jobs[0]['require_completed_test'])
+
+    def test_other_api_testdata_stays_blocked(self):
+        path = 'backend/cmd/api/testdata/unreviewed.json'
+        self.assertEqual(verify.plan([path]), ([], [path]))
+
     def test_cmd_package_uses_package_tests(self):
         jobs, blocked = verify.plan(['backend/cmd/migrate/csvbundle.go'])
         self.assertFalse(blocked)
