@@ -94,15 +94,15 @@ describe("LoginForm demo accounts (staff-attach)", () => {
 
     expect(screen.getByText("デモアカウント")).toBeInTheDocument();
     const demoEmails = screen.getAllByText(/stg-staff-\d+@example\.test/);
-    expect(demoEmails.length).toBeGreaterThanOrEqual(39);
-    expect(demoEmails.length).toBeLessThanOrEqual(42);
+    expect(demoEmails.length).toBe(37);
     // Clinic seed names use U+3000; Testing Library string matchers collapse it.
     expect(screen.getAllByText("八王子病院").length).toBeGreaterThanOrEqual(9);
     expect(screen.getAllByText(/城東センター病院/).length).toBeGreaterThanOrEqual(9);
     expect(screen.getAllByText(/敷島病院/).length).toBeGreaterThanOrEqual(9);
     expect(screen.getAllByText(/Hako bu neco/).length).toBeGreaterThanOrEqual(9);
-    expect(screen.getAllByText("執行")).toHaveLength(4);
-    expect(screen.getAllByText("一般").length).toBeGreaterThanOrEqual(36);
+    expect(screen.getAllByText("執行")).toHaveLength(1);
+    expect(screen.getAllByText("林 文明")).toHaveLength(1);
+    expect(screen.getAllByText("一般").length).toBe(36);
     expect(screen.getByTestId("demo-accounts")).toHaveClass("max-w-[760px]");
     expect(screen.getByText("パスワードは自動入力されます（全デモ共通）")).toBeInTheDocument();
     expect(screen.queryByText(/パスワード:\s*password/i)).not.toBeInTheDocument();

@@ -22,13 +22,13 @@ func TestApplyUpsertsAccountsAndIsIdempotent(t *testing.T) {
 
 	applied, err := Apply(ctx, sqlDB)
 	require.NoError(t, err)
-	require.Equal(t, 40, applied)
+	require.Equal(t, len(Catalog()), applied)
 
 	assertLoginCatalog(t, db, SharedPassword)
 
 	applied, err = Apply(ctx, sqlDB)
 	require.NoError(t, err)
-	require.Equal(t, 40, applied)
+	require.Equal(t, len(Catalog()), applied)
 	assertLoginCatalog(t, db, SharedPassword)
 }
 
@@ -175,6 +175,52 @@ func TestApplyRetiresExtraClinicAssignment(t *testing.T) {
 	assertAssignedClinics(t, db, hayashi)
 }
 
+func TestApplyRetiresDuplicateHayashiLogins(t *testing.T) {
+	db := setupLoginSeedDB(t)
+	sqlDB, err := db.DB()
+	require.NoError(t, err)
+	ctx := context.Background()
+
+	ids := retiredDuplicateHayashiStaffIDs()
+	require.Equal(t, []uint64{20_000_021, 30_000_021, 40_000_021}, ids)
+	cloneID := ids[0]
+
+	account := model.Account{
+		Email:        EmailForStaffID(cloneID),
+		PasswordHash: "not-a-real-hash-value",
+		IsActive:     true,
+	}
+	require.NoError(t, db.Create(&account).Error)
+	staff := model.Staff{
+		ID:        cloneID,
+		ClinicID:  2,
+		Name:      "林 文明",
+		IsActive:  true,
+		StaffType: model.StaffTypeDoctor,
+		AccountID: &account.ID,
+	}
+	require.NoError(t, db.Create(&staff).Error)
+
+	_, err = Apply(ctx, sqlDB)
+	require.NoError(t, err)
+
+	var retiredStaff model.Staff
+	require.NoError(t, db.Unscoped().First(&retiredStaff, cloneID).Error)
+	assert.False(t, retiredStaff.IsActive)
+	assert.True(t, retiredStaff.DeletedAt.Valid)
+
+	var retiredAccount model.Account
+	require.NoError(t, db.Unscoped().Where("email = ?", EmailForStaffID(cloneID)).First(&retiredAccount).Error)
+	assert.False(t, retiredAccount.IsActive)
+	assert.True(t, retiredAccount.DeletedAt.Valid)
+
+	hayashi := Catalog()[0]
+	var kept model.Staff
+	require.NoError(t, db.First(&kept, hayashi.StaffID).Error)
+	assert.True(t, kept.IsActive)
+	assert.False(t, kept.DeletedAt.Valid)
+}
+
 func TestApplyUpsertsOperatorSystemAdminFromEnv(t *testing.T) {
 	db := setupLoginSeedDB(t)
 	t.Setenv(operatorEnvEmail, "stg-operator@example.test")
@@ -186,7 +232,7 @@ func TestApplyUpsertsOperatorSystemAdminFromEnv(t *testing.T) {
 
 	applied, err := Apply(ctx, sqlDB)
 	require.NoError(t, err)
-	require.Equal(t, 40, applied)
+	require.Equal(t, len(Catalog()), applied)
 
 	var account model.Account
 	require.NoError(t, db.Where("email = ?", "stg-operator@example.test").First(&account).Error)
@@ -208,7 +254,7 @@ func TestApplyUpsertsOperatorSystemAdminFromEnv(t *testing.T) {
 
 	applied, err = Apply(ctx, sqlDB)
 	require.NoError(t, err)
-	require.Equal(t, 40, applied)
+	require.Equal(t, len(Catalog()), applied)
 	var again model.Account
 	require.NoError(t, db.Where("email = ?", "stg-operator@example.test").First(&again).Error)
 	assert.Equal(t, account.ID, again.ID)
