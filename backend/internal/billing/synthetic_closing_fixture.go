@@ -10,6 +10,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/staff"
 )
 
 const (
@@ -109,17 +110,17 @@ func CreateSyntheticClosingFixture(ctx context.Context, db *gorm.DB, req Synthet
 		if err := tx.Create(account).Error; err != nil {
 			return apperrors.Wrap(err, "create synthetic account")
 		}
-		staff := &model.Staff{
+		staffRow := &model.Staff{
 			ClinicID:  clinicID,
 			AccountID: &account.ID,
 			Name:      fmt.Sprintf("s09-staff-%d", clinicID),
 			IsActive:  true,
 			StaffType: model.StaffTypeDoctor,
 		}
-		if err := tx.Create(staff).Error; err != nil {
+		if err := staff.CreateSyntheticClosingStaff(ctx, tx, staffRow); err != nil {
 			return apperrors.Wrap(err, "create synthetic staff")
 		}
-		assignment := &model.StaffClinicAssignment{StaffID: staff.ID, ClinicID: clinicID, IsMain: true}
+		assignment := &model.StaffClinicAssignment{StaffID: staffRow.ID, ClinicID: clinicID, IsMain: true}
 		if err := tx.Create(assignment).Error; err != nil {
 			return apperrors.Wrap(err, "assign synthetic staff clinic")
 		}
@@ -192,7 +193,7 @@ func CreateSyntheticClosingFixture(ctx context.Context, db *gorm.DB, req Synthet
 				ReceivedAmount:  syntheticClosingTotal,
 				Method:          model.PaymentMethodCash,
 				PaymentMethodID: &paymentMethod.ID,
-				PaidBy:          &staff.ID,
+				PaidBy:          &staffRow.ID,
 			}
 			if err := tx.Create(payment).Error; err != nil {
 				return apperrors.Wrap(err, "create synthetic payment")
@@ -204,7 +205,7 @@ func CreateSyntheticClosingFixture(ctx context.Context, db *gorm.DB, req Synthet
 				PaymentMethodID: &paymentMethod.ID,
 				Amount:          syntheticClosingTotal,
 				ReceivedAmount:  syntheticClosingTotal,
-				PaidBy:          &staff.ID,
+				PaidBy:          &staffRow.ID,
 			}
 			if err := tx.Create(split).Error; err != nil {
 				return apperrors.Wrap(err, "create synthetic payment split")
@@ -272,12 +273,14 @@ func DeleteSyntheticClosingFixture(ctx context.Context, db *gorm.DB, appEnv, dbH
 			&model.Pet{},
 			&model.Owner{},
 			&model.StaffClinicAssignment{},
-			&model.Staff{},
 		}
 		for _, modelPtr := range scoped {
 			if err := tx.Unscoped().Where("clinic_id = ?", clinicID).Delete(modelPtr).Error; err != nil {
 				return apperrors.Wrap(err, "delete synthetic clinic-scoped row")
 			}
+		}
+		if err := staff.UnscopedDeleteSyntheticClosingStaffs(ctx, tx, clinicID); err != nil {
+			return apperrors.Wrap(err, "delete synthetic staff")
 		}
 		if len(accountIDs) > 0 {
 			if err := tx.Unscoped().Where("id IN ?", accountIDs).Delete(&model.Account{}).Error; err != nil {
