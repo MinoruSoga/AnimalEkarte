@@ -6,7 +6,7 @@
 
 ## 現行 package と残る接続（2026-09-08 ソース照合）
 
-- `CreateSyntheticClosingFixture` は transaction 内で新規 company/clinic/settings/staff(account, system admin)/owner/species/pet/支払方法/会計ヘッダ/明細/payment/payment_splits と指定 5 時刻の completed billing を作る。既存 billing ID の指定を拒否し、既存会計の UPDATE はしない。平日以外の対象日は拒否する。
+- `CreateSyntheticClosingFixture` は transaction 内で新規 company/clinic/settings/staff(account, system admin)/owner/species/pet/会計ヘッダ/明細/payment/payment_splits と指定 5 時刻の completed billing を作る。支払方法は clinic INSERT の `trg_create_default_payment_methods` が入れた `cash` を再利用し、testdb のように trigger が無いときだけ INSERT する。既存 billing ID の指定を拒否し、既存会計の UPDATE はしない。平日以外の対象日は拒否する。
 - `synthetic_closing_env.go` は `APP_ENV=test/development/local/dev`、DB host `db/localhost/127.0.0.1`、HTTP host `backend/localhost/127.0.0.1` を fail-closed で判定する。接続済み DB の hostname 同一性検証は呼び出し側が渡す `DB_HOST` に依存する。
 - HTTP: `POST /api/v1/uat/synthetic-closings` と `DELETE /api/v1/uat/synthetic-closings/:clinic_id`（`X-UAT-Cleanup-Token`）。staging/production と許可外 HTTP host は 404。ログインパスワードは応答に出さず `UAT_SYNTHETIC_CLOSING_PASSWORD` からハッシュする。
 - CLI: `backend/cmd/synthetic-closing-fixture` の `setup` / `teardown`。

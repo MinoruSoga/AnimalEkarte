@@ -2,6 +2,7 @@ package billing
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -14,9 +15,11 @@ import (
 )
 
 const (
-	syntheticClosingSubtotal = int64(1000)
-	syntheticClosingTax      = int64(100)
-	syntheticClosingTotal    = int64(1100)
+	syntheticClosingSubtotal        = int64(1000)
+	syntheticClosingTax             = int64(100)
+	syntheticClosingTotal           = int64(1100)
+	syntheticClosingCashSystemKey   = "cash"
+	syntheticClosingCashDisplayName = "現金"
 )
 
 // SyntheticClosingRequest は S09 用の新規合成会計 5 件を作る入力。
@@ -138,16 +141,9 @@ func CreateSyntheticClosingFixture(ctx context.Context, db *gorm.DB, req Synthet
 			return apperrors.Wrap(err, "create synthetic pet")
 		}
 
-		cashKey := "cash"
-		paymentMethod := &model.PaymentMethodMaster{
-			ClinicID:     clinicID,
-			Name:         "現金",
-			SystemKey:    &cashKey,
-			DisplayOrder: 1,
-			IsActive:     true,
-		}
-		if err := tx.Create(paymentMethod).Error; err != nil {
-			return apperrors.Wrap(err, "create synthetic payment method")
+		paymentMethod, err := resolveSyntheticClosingCashPaymentMethod(tx, clinicID)
+		if err != nil {
+			return err
 		}
 
 		ids := make([]uint64, 0, len(completed))
@@ -226,6 +222,39 @@ func CreateSyntheticClosingFixture(ctx context.Context, db *gorm.DB, req Synthet
 		return nil, err
 	}
 	return result, nil
+}
+
+// resolveSyntheticClosingCashPaymentMethod は clinic INSERT の
+// trg_create_default_payment_methods が既に入れた cash 行を再利用する。
+// testdb は trigger を載せないので、無いときだけ INSERT する。
+func resolveSyntheticClosingCashPaymentMethod(tx *gorm.DB, clinicID uint64) (*model.PaymentMethodMaster, error) {
+	var existing model.PaymentMethodMaster
+	err := tx.Where("clinic_id = ? AND system_key = ?", clinicID, syntheticClosingCashSystemKey).
+		Take(&existing).Error
+	if err == nil {
+		return &existing, nil
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, apperrors.Wrap(err, "load synthetic cash payment method")
+	}
+
+	cashKey := syntheticClosingCashSystemKey
+	created := &model.PaymentMethodMaster{
+		ClinicID:     clinicID,
+		Name:         syntheticClosingCashDisplayName,
+		SystemKey:    &cashKey,
+		DisplayOrder: 1,
+		IsActive:     true,
+	}
+	if err := tx.Create(created).Error; err != nil {
+		var raced model.PaymentMethodMaster
+		if loadErr := tx.Where("clinic_id = ? AND system_key = ?", clinicID, syntheticClosingCashSystemKey).
+			Take(&raced).Error; loadErr == nil {
+			return &raced, nil
+		}
+		return nil, apperrors.Wrap(err, "create synthetic payment method")
+	}
+	return created, nil
 }
 
 // DeleteSyntheticClosingFixture は合成 clinic とその子孫だけを消す。clinic 1/2 と接頭辞不一致は拒否する。

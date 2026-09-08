@@ -2,6 +2,8 @@ package billing
 
 import (
 	"context"
+	"errors"
+	"os"
 	"testing"
 	"time"
 
@@ -12,6 +14,8 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/testdb"
 )
+
+var errRollbackSyntheticClosingCashTrigger = errors.New("rollback s09 cash trigger fixture")
 
 func testdbSetupSyntheticClosing(t *testing.T) *gorm.DB {
 	t.Helper()
@@ -121,6 +125,88 @@ func TestCreateSyntheticClosingFixture_CreatesFiveNewCompletedBillings(t *testin
 	require.NoError(t, db.WithContext(ctx).Model(&model.Billing{}).Where("clinic_id = ?", got.ClinicID).Count(&remaining).Error)
 	assert.Zero(t, remaining)
 	require.Error(t, db.WithContext(ctx).First(&model.Clinic{}, got.ClinicID).Error)
+}
+
+func TestInitSQL_ClinicInsertCreatesDefaultCashPaymentMethod(t *testing.T) {
+	raw, err := os.ReadFile("../../migrations/001_init.sql") //nolint:gocritic // B5b requires this relative path.
+	require.NoError(t, err)
+	ddl := string(raw)
+	assert.Contains(t, ddl, "CREATE TRIGGER trg_create_default_payment_methods")
+	assert.Contains(t, ddl, "(NEW.id, '現金',            'cash',             1, true)")
+	assert.Contains(t, ddl, "CREATE UNIQUE INDEX idx_payment_methods_clinic_system_key")
+}
+
+func TestCreateSyntheticClosingFixture_ReusesTriggerCreatedCash(t *testing.T) {
+	db := testdbSetupSyntheticClosing(t)
+	ctx := context.Background()
+	jst, err := time.LoadLocation("Asia/Tokyo")
+	require.NoError(t, err)
+
+	var got *SyntheticClosingResult
+	txErr := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		require.NoError(t, tx.Exec(`
+			CREATE UNIQUE INDEX IF NOT EXISTS idx_s09_test_payment_methods_clinic_system_key
+			  ON payment_methods (clinic_id, system_key)
+			  WHERE system_key IS NOT NULL AND deleted_at IS NULL
+		`).Error)
+		require.NoError(t, tx.Exec(`
+			CREATE UNIQUE INDEX IF NOT EXISTS idx_s09_test_payment_methods_clinic_name
+			  ON payment_methods (clinic_id, name)
+			  WHERE deleted_at IS NULL
+		`).Error)
+		require.NoError(t, tx.Exec(`
+			CREATE OR REPLACE FUNCTION s09_test_create_default_payment_methods()
+			RETURNS TRIGGER AS $$
+			BEGIN
+			    INSERT INTO payment_methods (clinic_id, name, system_key, display_order, is_active, created_at, updated_at)
+			    VALUES
+			        (NEW.id, '現金',            'cash',             1, true, now(), now()),
+			        (NEW.id, 'クレジットカード', 'credit_card',      2, true, now(), now()),
+			        (NEW.id, '電子マネー',       'electronic_money', 3, true, now(), now()),
+			        (NEW.id, '銀行振込',         'bank_transfer',    4, true, now(), now());
+			    RETURN NEW;
+			END;
+			$$ LANGUAGE plpgsql
+		`).Error)
+		require.NoError(t, tx.Exec(`
+			DROP TRIGGER IF EXISTS trg_s09_test_create_default_payment_methods ON clinics
+		`).Error)
+		require.NoError(t, tx.Exec(`
+			CREATE TRIGGER trg_s09_test_create_default_payment_methods
+			    AFTER INSERT ON clinics
+			    FOR EACH ROW
+			    EXECUTE FUNCTION s09_test_create_default_payment_methods()
+		`).Error)
+
+		created, createErr := CreateSyntheticClosingFixture(ctx, tx, SyntheticClosingRequest{
+			AppEnv: "development", DBHost: "db", TargetDate: time.Date(2026, 9, 7, 0, 0, 0, 0, jst), PasswordHash: "x",
+		})
+		if createErr != nil {
+			return createErr
+		}
+		got = created
+
+		var cashCount int64
+		if err := tx.Model(&model.PaymentMethodMaster{}).
+			Where("clinic_id = ? AND system_key = ?", got.ClinicID, "cash").
+			Count(&cashCount).Error; err != nil {
+			return err
+		}
+		if cashCount != 1 {
+			return errors.New("expected exactly one cash payment method after trigger-backed setup")
+		}
+		var methodCount int64
+		if err := tx.Model(&model.PaymentMethodMaster{}).Where("clinic_id = ?", got.ClinicID).Count(&methodCount).Error; err != nil {
+			return err
+		}
+		if methodCount != 4 {
+			return errors.New("expected trigger defaults only, without a duplicate cash insert")
+		}
+		return errRollbackSyntheticClosingCashTrigger
+	})
+	require.ErrorIs(t, txErr, errRollbackSyntheticClosingCashTrigger)
+	require.NotNil(t, got)
+	require.Len(t, got.BillingIDs, 5)
 }
 
 func TestDeleteSyntheticClosingFixture_RejectsWrongToken(t *testing.T) {
