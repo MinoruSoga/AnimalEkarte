@@ -480,6 +480,7 @@ var routeRootPackages = []struct {
 	{dir: "../medicalrecord", prefix: "/api/v1"},
 	{dir: "../reservation", prefix: "/api/v1"},
 	{dir: "../billing", prefix: "/api/v1"},
+	{dir: "../billing", prefix: "/api/v1", rootFn: "RegisterUATRoutes"},
 	{dir: "../lstep", prefix: "/api/v1"},
 	{dir: "../trimming", prefix: "/api/v1"},
 	// #239 Phase 1 — identitylink.RegisterRoutes is mounted from composition_runtime

@@ -1,9 +1,26 @@
 package billing
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/binary"
+	"encoding/hex"
 	"fmt"
+	"net"
 	"strings"
 )
+
+const (
+	syntheticClosingClinicPrefix  = "s09-clinic-"
+	syntheticClosingCompanyPrefix = "s09-synthetic-"
+	syntheticClosingCleanupMACKey = "s09-synthetic-closing-cleanup-v1"
+)
+
+var uatSyntheticClosingHTTPHosts = map[string]struct{}{
+	"backend":   {},
+	"localhost": {},
+	"127.0.0.1": {},
+}
 
 var uatSyntheticClosingEnvs = map[string]struct{}{
 	"test":        {},
@@ -45,4 +62,36 @@ func RejectReservedClinicID(clinicID uint64) error {
 		return fmt.Errorf("clinic_id %d is reserved", clinicID)
 	}
 	return nil
+}
+
+// AllowUATSyntheticClosingHTTPHost はブラウザ/HTTP 呼び出し元ホストを fail-closed で判定する。
+func AllowUATSyntheticClosingHTTPHost(host string) error {
+	normalized := strings.ToLower(strings.TrimSpace(host))
+	if hostname, _, err := net.SplitHostPort(normalized); err == nil {
+		normalized = hostname
+	}
+	if _, ok := uatSyntheticClosingHTTPHosts[normalized]; !ok {
+		return fmt.Errorf("http host %q is not allowed for synthetic closing fixtures", host)
+	}
+	return nil
+}
+
+// SyntheticClosingLoginEmail は合成 staff の公開メール規約。パスワードは含めない。
+func SyntheticClosingLoginEmail(clinicID uint64) string {
+	return fmt.Sprintf("s09-%d@example.test", clinicID)
+}
+
+// SyntheticClosingCleanupToken は clinic 単位の回収トークン。秘密は env ではなく MAC で束ねる。
+func SyntheticClosingCleanupToken(clinicID uint64) string {
+	mac := hmac.New(sha256.New, []byte(syntheticClosingCleanupMACKey))
+	var buf [8]byte
+	binary.BigEndian.PutUint64(buf[:], clinicID)
+	_, _ = mac.Write(buf[:])
+	return hex.EncodeToString(mac.Sum(nil))
+}
+
+// MatchSyntheticClosingCleanupToken は回収トークンを定数時間比較する。
+func MatchSyntheticClosingCleanupToken(clinicID uint64, token string) bool {
+	expected := SyntheticClosingCleanupToken(clinicID)
+	return hmac.Equal([]byte(expected), []byte(strings.TrimSpace(token)))
 }

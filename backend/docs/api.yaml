@@ -18876,6 +18876,94 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  # ─── UAT synthetic closings (local-only; staging/production return 404) ──
+  /uat/synthetic-closings:
+    post:
+      operationId: createUATSyntheticClosings
+      summary: S09 合成締め fixture を作成する
+      description: |
+        ローカル Docker 専用。APP_ENV が test/development/local/dev かつ DB host が
+        db/localhost/127.0.0.1、HTTP host が backend/localhost/127.0.0.1 のときだけ動く。
+        staging/production では 404。既存会計 ID の指定は拒否する。パスワードは返さない。
+      tags: [UAT]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [targetDate]
+              properties:
+                targetDate:
+                  type: string
+                  description: JST 暦日（平日）
+                  example: "2026-09-07"
+                existingBillingIds:
+                  type: array
+                  items:
+                    type: integer
+                    format: int64
+                  description: 指定すると拒否される。既存会計の改変防止。
+      responses:
+        '201':
+          description: 合成 clinic と完了会計 5 件
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  clinicId:
+                    type: integer
+                    format: int64
+                  loginEmail:
+                    type: string
+                  billingIds:
+                    type: array
+                    items:
+                      type: integer
+                      format: int64
+                  completedAt:
+                    type: array
+                    items:
+                      type: string
+                  cleanupToken:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /uat/synthetic-closings/{clinic_id}:
+    delete:
+      operationId: deleteUATSyntheticClosings
+      summary: S09 合成締め fixture を回収する
+      description: 作成時の cleanup token と clinic 名接頭辞が一致する合成 clinic だけを削除する。
+      tags: [UAT]
+      security: []
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: X-UAT-Cleanup-Token
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: 回収成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   # ─── Health ──────────────────────────────────────────────────
   /health:
     get:

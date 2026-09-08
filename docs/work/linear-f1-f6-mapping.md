@@ -35,7 +35,7 @@ repo 証跡 SHA: `d4c870f9e`（`origin/main`）
 
 | ledger ID | repo 状態 | Linear に書いてよいこと | 書いてはいけないこと |
 |-----------|-----------|-------------------------|----------------------|
-| `QA-UAT-S09-FIXTURE` | package helper GREEN（`d4c870f9e`） | helper 実装済み。S09 は BLOCKED | S09 PASS / UAT PASS |
+| `QA-UAT-S09-FIXTURE` | HTTP/CLI/cleanup 実装済み。S09 ブラウザ再実行は未。S09 は BLOCKED | helper + HTTP/CLI 実装。S09 は BLOCKED | S09 PASS / UAT PASS |
 | `QA-UAT-V04-RETEST` | testdb DELETE GREEN。live HTTP 403 | 500 回帰は testdb 非再現。V04 は UNKNOWN | V04 PASS |
 | `QA-FULL-CLINICAL-E2E` | fixture + allowlist 置換済み | `--clinical` 未実行。auth smoke と別 | full E2E PASS |
 | `QA-UAT-EVIDENCE-SYNC` | `UAT-DOMAIN-STATUS.md` が集計正本 | 開いている製品 FAIL は 0 | 未再実行 scenario を PASS |

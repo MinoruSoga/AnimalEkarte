@@ -54,3 +54,20 @@ func TestRejectReservedClinicID(t *testing.T) {
 	require.Error(t, RejectReservedClinicID(1))
 	require.Error(t, RejectReservedClinicID(2))
 }
+
+func TestAllowUATSyntheticClosingHTTPHost(t *testing.T) {
+	t.Parallel()
+	assert.NoError(t, AllowUATSyntheticClosingHTTPHost("localhost"))
+	assert.NoError(t, AllowUATSyntheticClosingHTTPHost("localhost:8080"))
+	assert.NoError(t, AllowUATSyntheticClosingHTTPHost("backend:8080"))
+	assert.NoError(t, AllowUATSyntheticClosingHTTPHost("127.0.0.1:8080"))
+	require.Error(t, AllowUATSyntheticClosingHTTPHost("aws.connect.psdb.cloud"))
+	require.Error(t, AllowUATSyntheticClosingHTTPHost(""))
+}
+
+func TestSyntheticClosingCleanupToken(t *testing.T) {
+	t.Parallel()
+	token := SyntheticClosingCleanupToken(920001)
+	assert.True(t, MatchSyntheticClosingCleanupToken(920001, token))
+	assert.False(t, MatchSyntheticClosingCleanupToken(920002, token))
+}
