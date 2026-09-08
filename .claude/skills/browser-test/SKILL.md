@@ -18,7 +18,7 @@ description: 利用可能なブラウザツールを使った機能テスト。d
 
 **受入正本**: `docs/ops/testing/scenarios/` · アーキテクチャ: `docs/ops/testing/TEST_ARCHITECTURE.md`  
 フォーム V は `FIELD-LEVEL-PROTOCOL.md` を全 fieldKey に適用。環境: `UAT-ENV-SETUP.md`。  
-FAIL 起票先: 確認済み製品 FAIL は root `bug.md` に記録し、その後 Linear Issue 化する。旧 STATUS.md は復活させない。外部投稿の許可がなければレビュー可能な下書きまでで止める。
+FAIL 起票先: 確認済み製品 FAIL は root `todo.md#product-bugs` に記録し、その後 Linear Issue 化する。旧 STATUS.md は復活させない。外部投稿の許可がなければレビュー可能な下書きまでで止める。
 
 ---
 
@@ -111,13 +111,13 @@ Chrome DevTools MCP を使って指定されたテスト項目を実行し、結
 
 1. **テスト結果レポートを出力**する
    - 結果は scenarios / SECTION_14 本体ではなく `reports/uat-YYYY-MM-DD/` またはセッション報告
-   - 確認済み製品 FAIL は `bug.md` に記録し、その後 Linear Issue 化する。STATUS.md や旧二台帳は復活させない
+   - 確認済み製品 FAIL は `todo.md#product-bugs` に記録し、その後 Linear Issue 化する。STATUS.md や旧二台帳は復活させない
 
 2. **サマリを表示**する
    ```
    ## テスト完了: {対象}
    - OK: X件 / NG: Y件 / Partial: Z件
-   - 新規バグ: Linear / bug.md（あれば）
+   - 新規バグ: Linear / todo.md#product-bugs（あれば）
    ```
 
 ---

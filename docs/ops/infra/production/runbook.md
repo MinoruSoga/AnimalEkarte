@@ -2,7 +2,7 @@
 
 > Timeless post-build contract. **NOT RUNNABLE until [setup.md](setup.md) sections 1–6 are implemented and verified.** The current checked-in workflow cannot deploy production through `backend-deploy.yml` until setup acceptance is implemented and verified. External resource, billing, Environment, backup, notification, DNS, and database state is verification-required.
 
-Task details and live status belong in Linear. Root [`todo-po.md`](../../../../todo-po.md) is only a pointer; it has no `#253` detail section and is not a semantic SSOT.
+Task details and live status belong in Linear. Root [todo.md](../../../../todo.md) is the consolidated entry point, including the `#253` USER gate and [human lane](../../../../todo.md#human-lane); it is not the source of truth for live status.
 
 ## 1. Release gate and order
 

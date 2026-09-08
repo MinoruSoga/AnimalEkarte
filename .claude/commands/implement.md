@@ -5,7 +5,7 @@ argument-hint: "TASK-XXX | BUG-XXX"
 
 # タスク実装
 
-指定されたタスクIDを実装する。実行状態の正本は Linear。repo 入口は `todo.md`。確認済み製品 FAIL は `bug.md`。
+指定されたタスクIDを実装する。実行状態の正本は Linear。repo 入口は `todo.md`。確認済み製品 FAIL は `todo.md#product-bugs`。
 
 - 実行タスク、仕様、受け入れ条件、状態、依存関係のSoTはLinear Issue。
 - `docs/work/phase2-deferred.md`は今期外・見送りの索引であり実装台帳ではない。

@@ -7,7 +7,7 @@
 1. local/mock の結果だけで #254 を close しない。
 2. 実 LINE、token、別担当 sign-off は USER 管理 lane で実施する。
 3. 実行時に Linear/GitHub の外部 status と acceptance owner を確認する。checkout 内の ignored report の有無から外部 status を推定しない。
-4. 証跡は `reports/uat-YYYY-MM-DD/` に保存する。確認済み製品 FAIL は root `bug.md` に記録する。環境・権限・fixture BLOCKED は bug にしない。
+4. 証跡は `reports/uat-YYYY-MM-DD/` に保存する。確認済み製品 FAIL は root `todo.md#product-bugs` に記録する。環境・権限・fixture BLOCKED は bug にしない。
 5. scenario Markdown に PASS/FAIL/sign-off を書かない。
 
 ## Stable acceptance mapping

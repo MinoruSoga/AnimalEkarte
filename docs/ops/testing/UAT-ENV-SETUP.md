@@ -86,4 +86,4 @@ For `browser=playwright`, Docker and `frontend/scripts/run-e2e.sh` must exist an
 
 `reports/uat-YYYY-MM-DD/` に profile、tenant/clinic、fixture receipt、pre/post counts、結果を残す。credential や個人情報は残さない。作成名の prefix だけを cleanup とみなさない。deterministic teardown がない場合は disposable DB を破棄する人間手順を選ぶ。
 
-確認済み UAT FAIL は `bug.md` で dedupe/記録してから Linear で追跡する。environment/fixture shortage は BLOCKED とする。
+確認済み UAT FAIL は `todo.md#product-bugs` で dedupe/記録してから Linear で追跡する。environment/fixture shortage は BLOCKED とする。

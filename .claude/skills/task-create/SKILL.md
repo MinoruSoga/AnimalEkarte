@@ -1,13 +1,13 @@
 ---
 name: task-create
-description: "抽象的なタスク依頼を Linear 起票用の実装粒度に分解する。repo 入口は todo.md。確認済み製品 FAIL は bug.md。STATUS.md と旧二台帳は復活させない。"
+description: "抽象的なタスク依頼を Linear 起票用の実装粒度に分解する。repo 入口は todo.md。確認済み製品 FAIL は todo.md#product-bugs。STATUS.md と旧二台帳は復活させない。"
 ---
 
 # Task Decompose — タスク分解・イシュー自動生成
 
 抽象的なタスク依頼を受け取り、コードベースを調査した上で:
 1. 実行状態・担当・Done は Linear を正本とする。repo 入口は [`todo.md`](../../../todo.md)
-2. 確認済み製品 FAIL は [`bug.md`](../../../bug.md) に記録し、その後 Linear Issue 化する
+2. 確認済み製品 FAIL は [`todo.md#product-bugs`](../../../todo.md#product-bugs) に記録し、その後 Linear Issue 化する
 3. BE/FE 分割が必要な場合は同一 Linear Issue を BE/FE の受け入れ条件で分けるか、依存 Issue を対にする
 
 > **パス正本の注意**: `STATUS.md`、旧 `3-session-agent.html#ledger`、`backend/issues/` / `frontend/issues/`・docs/tasks 体系は廃止済み。復活させない。

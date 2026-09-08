@@ -18,11 +18,11 @@ repo 証跡 SHA: `d4c870f9e`（`origin/main`）
 
 ## repo 側の F1〜F6（実装履歴）
 
-`todo-now.md` と git 履歴からの対応。Linear の同名 Issue と 1:1 であることは未証明。
+`todo.md#astra-history` と git 履歴からの対応。Linear の同名 Issue と 1:1 であることは未証明。
 
 | 監査 ID | repo での意味 | 実装状態 | 後続 ledger ID |
 |---------|---------------|----------|----------------|
-| F1 | Astra 品質監査の実装一式（入口は `todo-now.md`） | `origin/main` へ統合済み（監査対象 SHA `c41ba8b1c`） | なし（履歴ポインタのみ） |
+| F1 | Astra 品質監査の実装一式（入口は `todo.md#astra-history`） | `origin/main` へ統合済み（監査対象 SHA `c41ba8b1c`） | なし（履歴ポインタのみ） |
 | F2 | 同上 | 同上 | なし |
 | F3 | E2E auth smoke 配線 + k6 summary 契約 | auth smoke 実装済み。manual run `33972458396`。k6 は `CI-K6-SUMMARY-SCHEMA` / `CI-K6-RUNTIME-CLOSEOUT` で閉じた | 閉じ済み。full clinical E2E は別 ID |
 | F4 | push 後通常 CI | 実装済み。現行 CI は paths-filter のため Backend 証明は PR run を正とする | なし |

@@ -38,7 +38,7 @@ docs/
 
 - **API contract**: 正本は [`backend/docs/api.yaml`](../backend/docs/api.yaml)（Swagger UI 表示は `make docs-ui`）。
 - **docs ドリフトゲート**: `scripts/check-docs-symbol-drift.sh`（GitHub CI ではなく `make ci` のローカル必須ゲート。分担は [ops/ci-policy.md](ops/ci-policy.md)）が、spec/screens/ 系ドキュメントの言及シンボル実在と宣言数値（テーブル数・リソース数等）の実装一致を機械検査する。
-- **タスク台帳**: 実行 SoT は **Linear**（hub BRT-4）。`todo-po.md` は入口ポインタ。[`todo.md`](../todo.md) は repo に結び付く未完了作業（受入残・USER ゲート・STG 実データ・deferred）の入口、[`bug.md`](../bug.md) は確認済み UAT 製品 FAIL の記録を担う。競合時の状態の正本は Linear。root 例外台帳は同一変更で同期し、終了条件と削除予定を台帳内に明記する。時点レポートは CorpVault `evidence/2026-08-20-*` と git 履歴。`reports/` は gitignore（新規 UAT をコミットしない）。
+- **タスク台帳**: 実行 SoT は **Linear**（hub BRT-4）。`todo.md#human-lane` は入口ポインタ。[`todo.md`](../todo.md) は repo に結び付く未完了作業（受入残・USER ゲート・STG 実データ・deferred）の入口、[`todo.md#product-bugs`](../todo.md#product-bugs) は確認済み UAT 製品 FAIL の記録を担う。競合時の状態の正本は Linear。root 例外台帳は同一変更で同期し、終了条件と削除予定を台帳内に明記する。時点レポートは CorpVault `evidence/2026-08-20-*` と git 履歴。`reports/` は gitignore（新規 UAT をコミットしない）。
 - **作業補助**: [`work/README.md`](work/README.md)（採択済み方針の短いポインタ。レポート置き場ではない）。
 
 ---

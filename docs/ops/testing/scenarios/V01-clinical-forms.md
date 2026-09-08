@@ -209,7 +209,7 @@
 
 - 既存の機械テストとの分担: FE component/hook test（use-medical-record-form・TreatmentsTab/dose gate・CheckupsTab・use-examination-form・use-vaccination-form・use-hospitalization-form・use-trimming-form-validation 等）と BE service/validator test（treatment/dose_validators・vital・checkup・vaccination・clinical_plan・hospitalization・trimming 各 service）が単体レベルの入力検証を網羅済み。clinical allowlist は主に表示・検索・遷移であり、`medical-records-create.spec.ts` は mount 時 POST をローカル fulfill して検証する。これを実 DB へのフォーム永続化とは扱わない。**本シナリオはブラウザ → API → DB を貫く項目単位の受入である。** 実行配線と未実施範囲は [CLINICAL-E2E-DESIGN.md](../CLINICAL-E2E-DESIGN.md)。
 - FE 側にしかガードが無い（または有無が未確定の）項目（バイタルの体温範囲・未来日時、健診/ワクチンの未来日、トリミング必須）はブラウザ経由確認が必須。逆に治療明細の quantity/price・追記 500 字・カルテタブのワクチン必須は BE 拒否が期待線で、FE 側のエラー提示の有無を観察する。
-- クロステナント隔離はスコープ外（BE isolation テスト正本）。finalized ロック・監査証跡は S06、異常値ハイライトは S02、次回予定自動計算は S03、入院サイクルは S05 へ委譲。NG 項目は [`bug.md` の確認済み製品不具合](../../../../bug.md) へ `### BUG-XXX` 節として起票する（ローカル連番 最大+1・[README.md](README.md) のルール）。
+- クロステナント隔離はスコープ外（BE isolation テスト正本）。finalized ロック・監査証跡は S06、異常値ハイライトは S02、次回予定自動計算は S03、入院サイクルは S05 へ委譲。NG 項目は [`todo.md#product-bugs` の確認済み製品不具合](../../../../todo.md#product-bugs) へ `### BUG-XXX` 節として起票する（ローカル連番 最大+1・[README.md](README.md) のルール）。
 - 本文中の具体的なエラー文言・プリフィル挙動のうち画面仕様書に記載のないもの（薬量プリフィル+dose gate・追記/健診/トリミングの必須文言・入院差分表の必須断定・トリミングの予約区分前提）は、FE hook / BE バリデータの実装を確認済み。文言はリファクタで変わりうるため、合格基準は「該当エラーが表示され保存されないこと」であり文言の完全一致ではない。
 
 ## 異常系（臨床安全に直結する独立確認）
