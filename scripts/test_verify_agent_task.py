@@ -93,6 +93,11 @@ class VerificationTests(unittest.TestCase):
         self.assertIn(('bash', 'scripts/check-test-worker-makefile.test.sh'), commands)
         self.assertIn(('node', '--test', 'scripts/check-workflow-contracts.test.mjs'), commands)
 
+    def test_security_scan_workflow_uses_workflow_contracts(self):
+        jobs, blocked = verify.plan(['.github/workflows/security-scan.yml'])
+        self.assertFalse(blocked)
+        self.assertEqual(jobs[0]['command'], ['node', '--test', 'scripts/check-workflow-contracts.test.mjs'])
+
     def test_cli_failure_has_no_pass_or_raw_output(self):
         failed = subprocess.CompletedProcess([], 1, 'sensitive stdout', 'sensitive stderr')
         with mock.patch.object(verify, 'git', return_value='fixture-head'), \

@@ -71,6 +71,12 @@ test("AgentShield fail gate treats every AGENTS.md as agent configuration", () =
   assert.match(workflow, /^\s+- ['"]\*\*\/AGENTS\.md['"]\s*$/m);
 });
 
+test("AgentShield fail gate does not treat nested docs CLAUDE.md as agent configuration", () => {
+  const workflow = read(".github/workflows/security-scan.yml");
+  assert.match(workflow, /^\s+- ['"]CLAUDE\.md['"]\s*$/m);
+  assert.doesNotMatch(workflow, /^\s+- ['"]\*\*\/CLAUDE\.md['"]\s*$/m);
+});
+
 test("Docker, packageManager declarations, and CI use pnpm 10.15.0", () => {
   assert.match(
     read("frontend/Dockerfile.dev"),
