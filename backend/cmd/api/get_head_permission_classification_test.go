@@ -61,6 +61,12 @@ func classifyGETHEADRoute(method, path string) (getAuthClass, bool) {
 		return getAuthPublic, true
 	case strings.HasPrefix(path, "/_internal/"):
 		return getAuthInternal, true
+	case path == "/api/v1/pets/:id/first-visit",
+		path == "/api/v1/pets/:id/sub-owners",
+		path == "/api/v1/pets/:id/chronic-conditions",
+		path == "/api/v1/owners/:id/shared-pets",
+		path == "/api/v1/reservations/available-times":
+		return getAuthClinicFixed, true
 	case strings.HasPrefix(path, "/api/v1/owners"),
 		strings.HasPrefix(path, "/api/v1/pets"),
 		strings.HasPrefix(path, "/api/v1/identity-links"),
@@ -82,6 +88,8 @@ func classifyGETHEADRoute(method, path string) (getAuthClass, bool) {
 	case strings.HasPrefix(path, "/api/v1/masters/staffs"),
 		strings.HasPrefix(path, "/api/v1/masters/occupations"),
 		strings.HasPrefix(path, "/api/v1/masters/permission-groups"),
+		strings.HasPrefix(path, "/api/v1/masters/reservation-types"),
+		strings.HasPrefix(path, "/api/v1/masters/reservation-type-groups"),
 		strings.HasPrefix(path, "/api/v1/shifts"),
 		strings.HasPrefix(path, "/api/v1/shift-templates"),
 		strings.HasPrefix(path, "/api/v1/inventory"),
@@ -107,5 +115,34 @@ func classifyGETHEADRoute(method, path string) (getAuthClass, bool) {
 		return getAuthClinicFixed, true
 	default:
 		return "", false
+	}
+}
+
+func TestClassifyGETHEADRoute_ClinicFixedPetAndReservationSurfaces(t *testing.T) {
+	tests := []struct {
+		path string
+		want getAuthClass
+	}{
+		{path: "/api/v1/pets/:id/first-visit", want: getAuthClinicFixed},
+		{path: "/api/v1/pets/:id/sub-owners", want: getAuthClinicFixed},
+		{path: "/api/v1/pets/:id/chronic-conditions", want: getAuthClinicFixed},
+		{path: "/api/v1/owners/:id/shared-pets", want: getAuthClinicFixed},
+		{path: "/api/v1/reservations/available-times", want: getAuthClinicFixed},
+		{path: "/api/v1/masters/reservation-types", want: getAuthClinicFixed},
+		{path: "/api/v1/masters/reservation-types/:id", want: getAuthClinicFixed},
+		{path: "/api/v1/masters/reservation-type-groups", want: getAuthClinicFixed},
+		{path: "/api/v1/pets", want: getAuthCrossClinic},
+		{path: "/api/v1/pets/:id", want: getAuthCrossClinic},
+		{path: "/api/v1/owners", want: getAuthCrossClinic},
+		{path: "/api/v1/reservations", want: getAuthCrossClinic},
+		{path: "/api/v1/reservations/:id", want: getAuthCrossClinic},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			got, ok := classifyGETHEADRoute(http.MethodGet, tt.path)
+			require.True(t, ok)
+			require.Equal(t, tt.want, got)
+		})
 	}
 }

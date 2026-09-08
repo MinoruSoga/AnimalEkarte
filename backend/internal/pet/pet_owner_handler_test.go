@@ -613,3 +613,41 @@ func objectKeys(value map[string]any) []string {
 	}
 	return keys
 }
+
+func TestPetOwnerHandler_ListPetOwnersRequiresSelectedClinicGrant(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	c.Params = gin.Params{{Key: "id", Value: "7"}}
+	c.Set("clinic_id", "1")
+
+	newPetOwnerHandlerForTest(&petOwnerHandlerServiceDouble{
+		getByPetIDFn: func(context.Context, uint64, uint64) ([]model.PetOwner, error) {
+			t.Fatal("ListPetOwners must not run without a selected clinic grant")
+			return nil, nil
+		},
+	}, &petOwnerDetailsFinderDouble{}).ListPetOwners(c)
+
+	assert.Equal(t, http.StatusForbidden, w.Code)
+}
+
+func TestPetOwnerHandler_ListSharedPetsRequiresSelectedClinicGrant(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	c.Params = gin.Params{{Key: "id", Value: "12"}}
+	c.Set("clinic_id", "1")
+
+	newPetOwnerHandlerForTest(&petOwnerHandlerServiceDouble{
+		getSharedPetsByOwnerIDFn: func(context.Context, uint64, uint64) ([]SharedPet, error) {
+			t.Fatal("ListOwnerSharedPets must not run without a selected clinic grant")
+			return nil, nil
+		},
+	}, &petOwnerDetailsFinderDouble{}).ListOwnerSharedPets(c)
+
+	assert.Equal(t, http.StatusForbidden, w.Code)
+}

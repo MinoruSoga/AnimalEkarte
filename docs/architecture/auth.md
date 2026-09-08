@@ -110,8 +110,8 @@ Cookie認証を使う保護routeとlogin/refresh/logoutには `RequireXRequested
 |:---|:---|:---|
 | public | 認証なし | `/health`, `/api/v1/login`, `/api/v1/auth/*`, LIFF, LINE webhook, uploads |
 | internal | 内部 token | `/_internal/*` |
-| cross-clinic | Allowing middleware + 宛先医院ごとの grant | owners, pets, identity-links, reservations, billing/accounting, medical-records, `/me` |
-| clinic-fixed | 選択医院 grant | staffs, occupations, permission-groups, shifts, inventory, trimming, lstep, clinics |
+| cross-clinic | Allowing middleware + 宛先医院ごとの grant | owners / pets / reservations の横断一覧・詳細、identity-links, billing/accounting, medical-records, `/me` |
+| clinic-fixed | 選択医院 grant（パス医院 GET は対象医院の grant） | staffs, occupations, permission-groups, shifts, inventory, trimming, lstep, clinics, reservation-types, 医院固定の pet/reservation GET |
 | shared-master | 既存の明示契約 | `/api/v1/masters/*` の残り |
 
 HEAD 未登録は追加しません。正常に 0 行の一覧と、認可可能な医院が 0 件の 403 は別です。

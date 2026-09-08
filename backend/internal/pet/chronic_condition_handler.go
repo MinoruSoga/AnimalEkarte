@@ -56,6 +56,9 @@ func (h *Handler) ListChronicConditions(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceOwners), "view") {
+		return
+	}
 	petID, ok := httpapi.ParseIDParam(c, "id")
 	if !ok {
 		return

@@ -7,10 +7,23 @@ import {
 
 let attached = false;
 
+function requestPath(config: InternalAxiosRequestConfig): string {
+  return (config.url ?? "").split("?")[0];
+}
+
 function isSessionLogoutRequest(config: InternalAxiosRequestConfig): boolean {
   const method = config.method?.toLowerCase();
-  const url = config.url ?? "";
-  return method === "post" && url.includes("/auth/refresh/logout");
+  const path = requestPath(config);
+  return method === "post" && path.includes("/auth/refresh/logout");
+}
+
+function isPreSessionAuthRequest(config: InternalAxiosRequestConfig): boolean {
+  const method = config.method?.toLowerCase();
+  if (method !== "post") {
+    return false;
+  }
+  const path = requestPath(config);
+  return path === "/v1/login" || path.endsWith("/v1/login");
 }
 
 function isWriteMethod(method: string | undefined): boolean {
@@ -33,7 +46,8 @@ export function attachClinicSelectionInterceptors(client: AxiosInstance): void {
     if (
       areClinicWritesPaused() &&
       isWriteMethod(config.method) &&
-      !isSessionLogoutRequest(config)
+      !isSessionLogoutRequest(config) &&
+      !isPreSessionAuthRequest(config)
     ) {
       return Promise.reject(new Axios.CanceledError("clinic writes paused"));
     }
@@ -47,7 +61,7 @@ export function attachClinicSelectionInterceptors(client: AxiosInstance): void {
       if (config === undefined) {
         return Promise.reject(error);
       }
-      if (isClinicSelectionUnavailable(error.response?.data)) {
+      if (isClinicSelectionUnavailable(error.response?.data) && !isPreSessionAuthRequest(config)) {
         if (isWriteMethod(config.method)) {
           void recoverClinicSelectionOnce();
           return Promise.reject(error);
@@ -57,7 +71,8 @@ export function attachClinicSelectionInterceptors(client: AxiosInstance): void {
       if (
         areClinicWritesPaused() &&
         isWriteMethod(config.method) &&
-        !isSessionLogoutRequest(config)
+        !isSessionLogoutRequest(config) &&
+        !isPreSessionAuthRequest(config)
       ) {
         return Promise.reject(error);
       }

@@ -17,6 +17,7 @@ import { axios } from "./axios";
 import { attachClinicSelectionInterceptors } from "./clinic-selection-axios";
 import {
   CLINIC_SELECTION_UNAVAILABLE,
+  areClinicWritesPaused,
   pauseClinicWrites,
   resetClinicSelectionRecoveryForTests,
 } from "./clinic-selection-recovery";
@@ -85,6 +86,54 @@ describe("clinic selection axios guards", () => {
       axios.request({ adapter, method: "post", url: "/v1/owners", data: { name: "x" } }),
     ).rejects.toMatchObject({ message: "clinic writes paused" });
     expect(adapterCalls).toBe(0);
+  });
+
+  it("does not recover from a failed login without an issued session", async () => {
+    attachClinicSelectionInterceptors(axios);
+    const adapter: AxiosAdapter = async (config) => {
+      throw new AxiosError("clinic unavailable", AxiosError.ERR_BAD_REQUEST, config, undefined, {
+        config,
+        data: { error_code: CLINIC_SELECTION_UNAVAILABLE },
+        headers: new AxiosHeaders(),
+        status: 403,
+        statusText: "Forbidden",
+      });
+    };
+
+    await expect(
+      axios.request({
+        adapter,
+        method: "post",
+        url: "/v1/login",
+        data: { email: "a", password: "b" },
+      }),
+    ).rejects.toThrow("clinic unavailable");
+    expect(recoveryMocks.recover).not.toHaveBeenCalled();
+    expect(areClinicWritesPaused()).toBe(false);
+  });
+
+  it("still allows login while clinic writes are paused", async () => {
+    attachClinicSelectionInterceptors(axios);
+    pauseClinicWrites();
+    let adapterCalls = 0;
+    const adapter: AxiosAdapter = async (config) => {
+      adapterCalls += 1;
+      return {
+        config,
+        data: {},
+        headers: new AxiosHeaders(),
+        status: 200,
+        statusText: "OK",
+      };
+    };
+
+    await axios.request({
+      adapter,
+      method: "post",
+      url: "/v1/login",
+      data: { email: "a", password: "b" },
+    });
+    expect(adapterCalls).toBe(1);
   });
 
   it("still allows logout while clinic writes are paused", async () => {

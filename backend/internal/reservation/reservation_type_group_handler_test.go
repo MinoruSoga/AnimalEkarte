@@ -107,6 +107,14 @@ func TestListReservationTypeGroups(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
+			name: "returns 403 when selected clinic grant is missing",
+			setupCtx: func(c *gin.Context) {
+				c.Set("clinic_id", "1")
+			},
+			svc:        &mockReservationTypeGroupService{},
+			wantStatus: http.StatusForbidden,
+		},
+		{
 			name:     "returns 500 on service error",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockReservationTypeGroupService{
