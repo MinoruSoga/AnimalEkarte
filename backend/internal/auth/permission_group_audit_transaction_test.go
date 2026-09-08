@@ -55,12 +55,13 @@ func (l *permissionAuditTxLogger) LogEntryTx(
 
 func permissionAuditInput(action, resource string) PermissionMutationAudit {
 	return PermissionMutationAudit{
-		ClinicID:     23,
-		ActorStaffID: 17,
-		Action:       action,
-		Resource:     resource,
-		IPAddress:    "127.0.0.1",
-		UserAgent:    "permission-audit-test",
+		ClinicID:           23,
+		ActorStaffID:       17,
+		ActorIsSystemAdmin: true,
+		Action:             action,
+		Resource:           resource,
+		IPAddress:          "127.0.0.1",
+		UserAgent:          "permission-audit-test",
 	}
 }
 

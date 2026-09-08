@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/animal-ekarte/backend/internal/seedbundle"
 	"github.com/animal-ekarte/backend/internal/seedlogin"
 )
 
@@ -712,7 +713,7 @@ func loadDemoAccountComparedSeedTables(moduleRoot string) (map[string]demoAccoun
 				table,
 			)
 		}
-		csvPath := filepath.Join(bundleDir, entry.CSVFile)
+		csvPath := seedbundle.CSVPath(bundleDir, entry.CSVFile)
 		parsed, err := readComparedDemoSeedCSV(demoAccountLabelDriftBundle, entry.CSVFile, csvPath)
 		if err != nil {
 			return nil, err

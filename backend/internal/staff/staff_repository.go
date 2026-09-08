@@ -263,6 +263,9 @@ func (r *staffRepository) Update(ctx context.Context, clinicID, id uint64, cmd U
 }
 
 func (r *staffRepository) AttachAccountID(ctx context.Context, clinicID, staffID, accountID uint64) error {
+	if persistence.TxFromContext(ctx) == nil {
+		return apperrors.WrapInternalServerError("staff account attach requires an active transaction")
+	}
 	if clinicID == 0 || staffID == 0 || accountID == 0 {
 		return apperrors.WrapInvalidInput("staff account attach ids are invalid")
 	}
