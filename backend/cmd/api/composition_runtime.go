@@ -8,6 +8,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/audit"
 	"github.com/animal-ekarte/backend/internal/auth"
+	"github.com/animal-ekarte/backend/internal/billing"
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/identitylink"
 	"github.com/animal-ekarte/backend/internal/infra"
@@ -528,6 +529,7 @@ func (c runtimeComposition) registerDomainRoutes(
 		c.auth.Handler.RequirePermissionAllowingAssignedClinicGrant,
 		c.auth.Handler.HasPermission,
 	).RegisterRoutes(protected)
+	billing.RegisterUATRoutes(router.Group("/api/v1"), &billing.SyntheticClosingHandler{DB: c.db})
 	lstepHandler.RegisterRoutes(protected)
 	lstepHandler.RegisterWebhookRoutes(
 		router,

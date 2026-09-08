@@ -1,6 +1,6 @@
 # タスク台帳 — Linear が正本
 
-統合日: 2026-09-08（下記の作業状態・外部観測は各記録時点のまま。今回の統合では再判定していない）
+統合日: 2026-09-08。2026-09-08 セッションで全 ID を分類し、エージェント可能な S09 HTTP/CLI を実装した。外部状態・go-live は再判定していない。
 
 | 項目 | 値 |
 |------|-----|
@@ -12,13 +12,56 @@
 
 `bug.md`・`todo-now.md`・`todo-po.md`・`todo-refactor.md` は本ファイルへ統合して削除した。別台帳として再作成しない。`todo-fix-auth.md` 等、今回指定外の文書は統合・削除していない。
 
-入口: [実行キュー](#対応順実行キュー) · [製品 FAIL](#product-bugs) · [PO / 人間レーン](#human-lane) · [Astra 完了履歴](#astra-history) · [FE 完了履歴・維持制約](#refactor-history)
+入口: [今回の対応結果](#session-2026-09-08) · [実行キュー](#対応順実行キュー) · [製品 FAIL](#product-bugs) · [PO / 人間レーン](#human-lane) · [Astra 完了履歴](#astra-history) · [FE 完了履歴・維持制約](#refactor-history)
 
 エージェントは PlanetScale、共有 STG apply、`DROP SCHEMA`、本番 cutover、`make reset`、八王子 CSV の producer 出力を実行しない。push / dispatch / Linear Done / 秘密変更は明示承認が必要。
 
-claim は ID ごとに初回編集前に取得する。エージェントは claim を削除しない。
+claim は ID ごとに初回編集前に取得する。エージェントは claim を削除しない。USER 解除待ち: `claim/LEDGER-TODO-CONSOLIDATE`、`claim/LEDGER-TODO-GOAL-20260908`、`claim/QA-UAT-S09-FIXTURE`。旧記録: `claim/LEDGER-TODO-PRUNE`。`claim/TODO-FIX-AUTH` は別セッション。
 
-この統合の claim: `claim/LEDGER-TODO-CONSOLIDATE`（USER のみ解除）。旧台帳更新時の claim 記録: `claim/LEDGER-TODO-PRUNE`。旧 claim の現在状態は本記録では断定しない。
+---
+
+<a id="session-2026-09-08"></a>
+
+## 0. 2026-09-08 全項目対応結果
+
+main のまま。エージェントは Linear 書き込み・秘密・STG/PROD・`make up` をしない。S09 の HTTP/CLI 以外は原因付きスキップ。
+
+| ID | 分類 | 実行者 | 今回 | 結果 / 原因 |
+|----|------|--------|------|-------------|
+| **META-LINEAR-APPLY** | Linear 書き込み | USER | SKIP | Linear MCP なし。`LINEAR_API_KEY` unset。公開ページはログイン壁。エージェントは書かない |
+| **H0-2 / HAC-CSV-1** | STG 実データ | old_db / USER | SKIP | HAC-INPUT-2。完全 KNJO 未受領。同一 BAK 再実行と producer は禁止 |
+| **H0-3b / H1-2** | STG | USER | SKIP | H0-2 待ち |
+| **AE-STG-UAT-LANE3-HAC** | STG | USER | SKIP | 現行状態 UNKNOWN。H0-2 / H0-3b 待ち。共有 STG apply 禁止 |
+| **H3-9 staff attach apply** | STG | USER | SKIP | apply 実施有無 UNKNOWN。STG 実行ゲートは USER |
+| **H3-11 画面確認** | STG | USER | SKIP | H3-9 と自医院ログインが必要。証跡未取得 |
+| **Lane 4** | STG UAT | 医院 / USER | SKIP | 両院 Lane 3 未証明。5営業日証跡なし |
+| **P1 SEC-SECRETS-5** | 秘密 rotation | USER | SKIP | 秘密の作成・表示・投入・revoke はエージェント禁止 |
+| **P2 #253 PROD-SETUP** | Production 構築 | USER | SKIP | Production 未構築。本番構築は自動実行しない |
+| **P3 #250 PROD-DATA-MIGRATION** | 本番移行 | USER | SKIP | 事前準備待ち。本番 cutover 禁止 |
+| **P4 #254 AUTHENTICATED-UAT** | 全業務 UAT | USER | SKIP | full UAT 未証明。PARTIAL/BLOCKED/UNKNOWN を PASS にしない |
+| **P5 #255 STAFF-PROVISION** | 職員投入 | USER | SKIP | roster/email/PII 入力は USER。値は書かない |
+| **P6 #258 DELIVERY** | 納品パッケージ | USER | SKIP | P1・P2 と契約責任者の非機密事実が未反映 |
+| **P7 #256 TRAINING** | 操作説明会 | USER | SKIP | 日程・形式・結果は人間レーン |
+| **P8 #257 GOLIVE** | go-live | USER | SKIP | HOLD。P1〜P7 未達 |
+| **E1 QA-UAT-LSTEP-REAL** | 外部 LSTEP | USER | SKIP | write 有効な実 LSTEP 環境なし |
+| **E2 QA-UAT-LINE-IDTOKEN** | 実 LINE | USER | SKIP | 実 LINE idToken は mock 外。未証明 |
+| **QA-UAT-S09-FIXTURE** | 受入 helper | agent / USER | **PARTIAL** | HTTP/CLI/原子性/staff/支払/明細/cleanup を実装。ブラウザ #2–#6 は compose 停止と `make up` 禁止のため未。S09 は BLOCKED のまま |
+| **QA-UAT-V04-RETEST** | マスタ DELETE | USER / agent | SKIP | live HTTP 403。clinic 1/2 の権限昇格なし。compose 停止。disposable clinic 再実行も stack 必要 |
+| **QA-FULL-CLINICAL-E2E** | clinical E2E | USER / agent | SKIP | `--clinical` は APP_ENV=test の起動済み stack と `E2E_LOGIN_PASSWORD` が必要。`make up` 禁止。e2e.yml full job は USER |
+| **TASK-444** | deferred | agent | SKIP | generated/models 公開契約・codegen・consumer 移行計画が未揃い。横断キャンペーンにしない |
+| **BE-RC-005** | deferred | agent | SKIP | 新規・変更 service から着手。今回その面を触っていない |
+| **BE-RC-009** | deferred | agent | SKIP | 新規 consumer 時のみ。今回対象なし |
+| **BE-RC-014** | deferred | agent | SKIP | typed error 利用面の変更時。今回対象なし |
+| **BE-RC-015** | deferred | agent | SKIP | 新規・変更面の stutter 回避。今回対象なし |
+| **BE-RC-017** | deferred | agent | SKIP | 対象 repository 変更時。今回対象なし |
+| **BE-RC-019** | deferred | agent | SKIP | lab / hospitalization 境界の成立する変更時だけ |
+| **BRT-226** | セキュリティ Review | USER | SKIP | Done は人間。エージェントは遷移しない |
+| **製品 FAIL** | 確認済み FAIL | — | なし | 旧台帳時点で未対応なし。現在の製品全体無欠陥の判定ではない |
+| **PO / 人間レーン** | Linear hub | USER | SKIP | Linear が正本。書き込みなし |
+| **Astra F1〜F6** | 完了履歴 | — | 履歴 | `origin/main` 統合済み。未完了の後続は上表 |
+| **FE リファクタ維持** | 維持制約 | agent | 維持 | 表分割・utils 再作成・FE12 再提案をしない。新規作業ではない |
+
+S09 局所検証（2026-09-08）: fail-closed / CLI / OpenAPI drift GREEN。fixture+HTTP の testdb は disposable Postgres で GREEN。共有 compose は停止のまま。`make codegen` は未実行（USER）。
 
 ---
 
@@ -43,7 +86,7 @@ helper / 再実行スライスは済。UAT / E2E を PASS にしない。正本�
 
 | ID | 残 | 状態 |
 |----|----|------|
-| **QA-UAT-S09-FIXTURE** | HTTP/CLI とブラウザ再実行 | S09 は BLOCKED |
+| **QA-UAT-S09-FIXTURE** | ブラウザ #2–#6 再実行。HTTP/CLI は 2026-09-08 実装済み | S09 は BLOCKED |
 | **QA-UAT-V04-RETEST** | live HTTP は 403。clinic 1/2 の権限昇格なし | V04 は UNKNOWN |
 | **QA-FULL-CLINICAL-E2E** | `--clinical` 未実行。e2e.yml job は未 | E2E は未証明 |
 
@@ -185,6 +228,7 @@ git show ad63bdf28:todo-refactor.md
 | 文書 | 役割 |
 |------|------|
 | [Astra 完了履歴](#astra-history) | Astra F1〜F6 の完了履歴 |
+| [今回の対応結果](#session-2026-09-08) | 2026-09-08 の全 ID 対応 / スキップ原因 |
 | [docs/work/linear-f1-f6-mapping.md](docs/work/linear-f1-f6-mapping.md) | F1〜F6 対応案。Linear は UNKNOWN |
 | [docs/ops/testing/S09-FIXTURE-DESIGN.md](docs/ops/testing/S09-FIXTURE-DESIGN.md) | S09 helper 設計 |
 | [docs/ops/testing/CLINICAL-E2E-DESIGN.md](docs/ops/testing/CLINICAL-E2E-DESIGN.md) | clinical E2E 設計 |

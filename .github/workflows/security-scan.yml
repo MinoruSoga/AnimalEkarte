@@ -53,7 +53,7 @@ jobs:
               - '.claude/**'
               - '.codex/**'
               - '.agents/**'
-              - '**/CLAUDE.md'
+              - 'CLAUDE.md'
               - '**/AGENTS.md'
               - '**/.mcp.json'
               # Note: do NOT include security-scan.yml here — the PR that fixes

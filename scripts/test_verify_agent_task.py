@@ -28,7 +28,6 @@ class VerificationTests(unittest.TestCase):
     def test_docs_skip_and_unknown_script_blocks(self):
         self.assertEqual(verify.plan(['docs/ops/example.md']), ([], []))
         self.assertEqual(verify.plan(['frontend/src/features/manual/content/screens/01-login.md']), ([], []))
-        self.assertEqual(verify.plan(['backend/docs/api.yaml']), ([], []))
         self.assertTrue(verify.plan(['scripts/new-script.sh'])[1])
         self.assertTrue(verify.plan(['frontend/src/content/manual.md'])[1])
 
@@ -69,6 +68,12 @@ class VerificationTests(unittest.TestCase):
         self.assertFalse(blocked)
         self.assertEqual(jobs[0]['command'][-2:], ['-short', './internal/apperrors'])
 
+    def test_openapi_yaml_uses_apicontract_package(self):
+        jobs, blocked = verify.plan(['backend/docs/api.yaml'])
+        self.assertFalse(blocked)
+        self.assertEqual(jobs[0]['command'][-2:], ['-short', './internal/apicontract'])
+        self.assertTrue(jobs[0]['require_completed_test'])
+
     def test_cmd_package_uses_package_tests(self):
         jobs, blocked = verify.plan(['backend/cmd/migrate/csvbundle.go'])
         self.assertFalse(blocked)
@@ -87,6 +92,11 @@ class VerificationTests(unittest.TestCase):
         self.assertIn(('python3', '-B', 'scripts/test_account_csv_layout.py'), commands)
         self.assertIn(('bash', 'scripts/check-test-worker-makefile.test.sh'), commands)
         self.assertIn(('node', '--test', 'scripts/check-workflow-contracts.test.mjs'), commands)
+
+    def test_security_scan_workflow_uses_workflow_contracts(self):
+        jobs, blocked = verify.plan(['.github/workflows/security-scan.yml'])
+        self.assertFalse(blocked)
+        self.assertEqual(jobs[0]['command'], ['node', '--test', 'scripts/check-workflow-contracts.test.mjs'])
 
     def test_cli_failure_has_no_pass_or_raw_output(self):
         failed = subprocess.CompletedProcess([], 1, 'sensitive stdout', 'sensitive stderr')

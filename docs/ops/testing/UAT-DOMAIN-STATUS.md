@@ -92,9 +92,9 @@
 | V02 | PASS |
 
 - **未解消ギャップ（S09 BLOCKED 要件）**:
-  1. 承認済み **fixture API** または **scoped UAT test helper** が必要（`completed_at` を 10:00 / 13:30 / 14:00 / 20:00 / 翌 02:00 に設定した合成会計 5 件）。
+  1. 2026-09-08: HTTP `POST/DELETE /api/v1/uat/synthetic-closings` と CLI `synthetic-closing-fixture` を実装。staff・支払方法・明細・payment_splits・cleanup を含む。
   2. **禁止**: 直接 DB 更新、システム時計変更、既存会計の改変（シナリオ hard rule）。
-  3. 現行 package helper は 5 会計ヘッダを作るが、HTTP/CLI・UAT identity・支払内訳・cleanup が未接続（[設計と実装境界](S09-FIXTURE-DESIGN.md)）。帰属証明ステップ #2–#6 は未再実行 → シナリオ総合 **BLOCKED**（settings/preview/history の先行 PASS では解除しない）。
+  3. ブラウザでの帰属証明ステップ #2–#6 は未再実行（compose 停止・`make up` はエージェント禁止）→ シナリオ総合 **BLOCKED**（helper 実装だけでは解除しない）。
   4. 詳細: `reports/uat-2026-09-05-r5/S09-BLOCKED.md`
 - **関連 bug IDs**: （なし — UAT 接続の不足は製品 FAIL ではない）
 - **証跡**: `reports/uat-2026-09-05-r5/S09-BLOCKED.md` · `reports/uat-2026-09-05-r4/s09-helper-search.json`
