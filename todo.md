@@ -14,7 +14,7 @@
 
 入口: [2026-09-08 の対応履歴](#session-2026-09-08) · [実行キュー](#対応順実行キュー) · [製品 FAIL](#product-bugs) · [PO / 人間レーン](#human-lane) · [Astra 完了履歴](#astra-history) · [FE 完了履歴・維持制約](#refactor-history)
 
-性能調査・改善: [todo-performance.md](todo-performance.md)（PERF-STG-LOGIN、2026-09-09）。STGログインの認証待ちによる白画面と、最終GET接続前の約22.5秒を記録。preflight・接続待ち・Container起動の内訳は未確定、改善は未実装。Linearの対応状態はUNKNOWN。
+性能調査・改善: [todo-performance.md](todo-performance.md)（PERF-STG-LOGIN、2026-09-09）。STGログインの認証待ちによる白画面と、最終GET接続前の約22.5秒を記録。A（待機表示）とB（起動時session restoreの8秒上限・障害表示）はローカル実装・静的検証済み。Browser/E2EはBLOCKED、CI/LinearはUNKNOWN。preflight・接続待ち・Container起動の内訳とC/Dは未完了。
 
 エージェントは PlanetScale、共有 STG apply、`DROP SCHEMA`、本番 cutover、`make reset`、八王子 CSV の producer 出力を実行しない。push / dispatch / Linear Done / 秘密変更は明示承認が必要。
 

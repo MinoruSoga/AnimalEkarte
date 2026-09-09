@@ -133,6 +133,64 @@ describe("axios 401 route policy", () => {
   });
 });
 
+describe("axios startupSessionRestore opt-out", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      writable: true,
+      value: originalLocation,
+    });
+  });
+
+  it("skips GET auto-retry on network errors when startupSessionRestore is true", async () => {
+    let adapterCalls = 0;
+    const adapter: AxiosAdapter = async (config) => {
+      adapterCalls += 1;
+      throw new AxiosError("Network Error", AxiosError.ERR_NETWORK, config);
+    };
+
+    await expect(
+      axios.get("/v1/me", { adapter, startupSessionRestore: true }),
+    ).rejects.toMatchObject({ code: AxiosError.ERR_NETWORK });
+    expect(adapterCalls).toBe(1);
+  });
+
+  it("skips GET auto-retry on 502-504 when startupSessionRestore is true", async () => {
+    let adapterCalls = 0;
+    const adapter: AxiosAdapter = async (config) => {
+      adapterCalls += 1;
+      throw new AxiosError("bad gateway", AxiosError.ERR_BAD_RESPONSE, config, undefined, {
+        config,
+        data: { error: "bad gateway" },
+        headers: new AxiosHeaders(),
+        status: 502,
+        statusText: "Bad Gateway",
+      });
+    };
+
+    await expect(
+      axios.get("/v1/me", { adapter, startupSessionRestore: true }),
+    ).rejects.toMatchObject({ message: "bad gateway" });
+    expect(adapterCalls).toBe(1);
+  });
+
+  it("does not refresh or redirect on 401 when startupSessionRestore is true", async () => {
+    setWindowLocation("/owners/300588");
+    const refreshSpy = vi
+      .spyOn(axios, "post")
+      .mockRejectedValue(new AxiosError("refresh unauthorized"));
+    const initialHref = window.location.href;
+
+    await expect(
+      axios.get("/v1/me", { adapter: unauthorizedAdapter, startupSessionRestore: true }),
+    ).rejects.toThrow("request unauthorized");
+
+    expect(refreshSpy).not.toHaveBeenCalled();
+    expect(window.location.href).toBe(initialHref);
+  });
+});
+
 describe("axios clinic boundary", () => {
   afterEach(() => {
     localStorage.removeItem(CURRENT_CLINIC_STORAGE_KEY);

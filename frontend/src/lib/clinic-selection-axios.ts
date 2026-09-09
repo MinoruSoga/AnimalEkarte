@@ -7,23 +7,95 @@ import {
 
 let attached = false;
 
-function requestPath(config: InternalAxiosRequestConfig): string {
-  return (config.url ?? "").split("?")[0];
+const PRE_SESSION_AUTH_ENDPOINTS = [
+  "/v1/login",
+  "/v1/auth/forgot-password",
+  "/v1/auth/reset-password",
+] as const;
+
+function relativeBaseOrigin(): string {
+  if (
+    typeof window !== "undefined" &&
+    window.location?.origin &&
+    window.location.origin !== "null"
+  ) {
+    return window.location.origin;
+  }
+  return "https://ae-relative-base.invalid";
 }
 
-function isSessionLogoutRequest(config: InternalAxiosRequestConfig): boolean {
-  const method = config.method?.toLowerCase();
-  const path = requestPath(config);
-  return method === "post" && path.includes("/auth/refresh/logout");
+function isAbsoluteUrl(url: string): boolean {
+  return /^(?:[a-z][a-z\d+\-.]*:)?\/\//i.test(url);
 }
 
-function isPreSessionAuthRequest(config: InternalAxiosRequestConfig): boolean {
-  const method = config.method?.toLowerCase();
-  if (method !== "post") {
+function combineUrls(baseURL: string, requestedURL: string): string {
+  if (requestedURL === "") {
+    return baseURL;
+  }
+  if (baseURL === "") {
+    return requestedURL;
+  }
+  return `${baseURL.replace(/\/+$/, "")}/${requestedURL.replace(/^\/+/, "")}`;
+}
+
+function joinBasePath(basePath: string, endpoint: string): string {
+  const normalized = basePath.replace(/\/+$/, "");
+  if (normalized === "" || normalized === "/") {
+    return endpoint;
+  }
+  return `${normalized}${endpoint}`;
+}
+
+function resolveAgainstConfiguredBase(
+  config: InternalAxiosRequestConfig,
+  client: AxiosInstance,
+): { request: URL; base: URL } | null {
+  const requestedURL = config.url ?? "";
+  const requestBaseURL = config.baseURL ?? client.defaults.baseURL ?? "";
+  const configuredBaseURL = client.defaults.baseURL ?? "";
+  const origin = relativeBaseOrigin();
+  try {
+    const base = new URL(configuredBaseURL === "" ? "/" : configuredBaseURL, origin);
+    const fullPath =
+      requestBaseURL !== "" && !isAbsoluteUrl(requestedURL)
+        ? combineUrls(requestBaseURL, requestedURL)
+        : requestedURL;
+    const request = new URL(fullPath === "" ? "/" : fullPath, origin);
+    return { request, base };
+  } catch {
+    return null;
+  }
+}
+
+function isExactConfiguredPost(
+  config: InternalAxiosRequestConfig,
+  client: AxiosInstance,
+  endpoints: readonly string[],
+): boolean {
+  if (config.method?.toLowerCase() !== "post") {
     return false;
   }
-  const path = requestPath(config);
-  return path === "/v1/login" || path.endsWith("/v1/login");
+  const resolved = resolveAgainstConfiguredBase(config, client);
+  if (resolved === null || resolved.request.origin !== resolved.base.origin) {
+    return false;
+  }
+  return endpoints.some(
+    (endpoint) => resolved.request.pathname === joinBasePath(resolved.base.pathname, endpoint),
+  );
+}
+
+function isSessionLogoutRequest(
+  config: InternalAxiosRequestConfig,
+  client: AxiosInstance,
+): boolean {
+  return isExactConfiguredPost(config, client, ["/v1/auth/refresh/logout"]);
+}
+
+function isPreSessionAuthRequest(
+  config: InternalAxiosRequestConfig,
+  client: AxiosInstance,
+): boolean {
+  return isExactConfiguredPost(config, client, PRE_SESSION_AUTH_ENDPOINTS);
 }
 
 function isWriteMethod(method: string | undefined): boolean {
@@ -46,8 +118,8 @@ export function attachClinicSelectionInterceptors(client: AxiosInstance): void {
     if (
       areClinicWritesPaused() &&
       isWriteMethod(config.method) &&
-      !isSessionLogoutRequest(config) &&
-      !isPreSessionAuthRequest(config)
+      !isSessionLogoutRequest(config, client) &&
+      !isPreSessionAuthRequest(config, client)
     ) {
       return Promise.reject(new Axios.CanceledError("clinic writes paused"));
     }
@@ -61,7 +133,15 @@ export function attachClinicSelectionInterceptors(client: AxiosInstance): void {
       if (config === undefined) {
         return Promise.reject(error);
       }
-      if (isClinicSelectionUnavailable(error.response?.data) && !isPreSessionAuthRequest(config)) {
+      if (
+        isClinicSelectionUnavailable(error.response?.data) &&
+        !isPreSessionAuthRequest(config, client)
+      ) {
+        // Startup restore classifies clinic403 itself and owns recovery under the 8s budget.
+        // Awaiting recovery here would leave AuthProvider pending until recovery finishes/aborts.
+        if (config.startupSessionRestore === true) {
+          return Promise.reject(error);
+        }
         if (isWriteMethod(config.method)) {
           void recoverClinicSelectionOnce();
           return Promise.reject(error);
@@ -71,8 +151,8 @@ export function attachClinicSelectionInterceptors(client: AxiosInstance): void {
       if (
         areClinicWritesPaused() &&
         isWriteMethod(config.method) &&
-        !isSessionLogoutRequest(config) &&
-        !isPreSessionAuthRequest(config)
+        !isSessionLogoutRequest(config, client) &&
+        !isPreSessionAuthRequest(config, client)
       ) {
         return Promise.reject(error);
       }

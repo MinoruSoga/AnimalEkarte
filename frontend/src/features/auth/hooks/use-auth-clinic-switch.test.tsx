@@ -9,10 +9,11 @@
  * 5. logout 後に localStorage の clinic キーが削除される
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, act, waitFor } from "@testing-library/react";
+import { render, screen, act, waitFor, cleanup } from "@testing-library/react";
 import { Suspense } from "react";
 import { MemoryRouter } from "react-router";
 import { toast } from "sonner";
+import type { SessionRestoreResult } from "../api/restore-session";
 
 const STORAGE_KEY = "auth_current_clinic:v1";
 const CLINIC_A = "clinic-a";
@@ -20,7 +21,7 @@ const CLINIC_B = "clinic-b";
 const CLINIC_C_UNKNOWN = "clinic-c";
 
 // vi.hoisted: vi.mock factory から参照できるようにすべての定数をモジュール初期化前に巻き上げる
-const { mockQueryClient, MOCK_SYSTEM_ADMIN, MOCK_STAFF } = vi.hoisted(() => {
+const { mockQueryClient, MOCK_SYSTEM_ADMIN, MOCK_STAFF, restoreSessionMock } = vi.hoisted(() => {
   const systemAdmin = {
     id: "user-sysadmin",
     email: "sysadmin@example.com",
@@ -48,11 +49,16 @@ const { mockQueryClient, MOCK_SYSTEM_ADMIN, MOCK_STAFF } = vi.hoisted(() => {
     mockQueryClient: { clear: vi.fn(), setQueryData: vi.fn() },
     MOCK_SYSTEM_ADMIN: systemAdmin,
     MOCK_STAFF: staff,
+    restoreSessionMock: vi.fn().mockResolvedValue({ kind: "verified200", user: systemAdmin }),
   };
 });
 
 vi.mock("../api/refresh-token", () => ({
   refreshToken: vi.fn().mockResolvedValue({ user: MOCK_SYSTEM_ADMIN }),
+}));
+
+vi.mock("../api/restore-session", () => ({
+  restoreSession: restoreSessionMock,
 }));
 
 vi.mock("../api/get-me", () => ({
@@ -112,6 +118,12 @@ async function renderWithAuth(children: React.ReactNode) {
   });
   await waitFor(() => expect(screen.queryByTestId("loading")).not.toBeInTheDocument());
 }
+
+beforeEach(() => {
+  restoreSessionMock
+    .mockReset()
+    .mockResolvedValue({ kind: "verified200", user: MOCK_SYSTEM_ADMIN });
+});
 
 // ----- tests -----
 
@@ -286,6 +298,85 @@ describe("FE5-2: マルチタブ storage イベント検知で reload", () => {
     });
 
     expect(reloadSpy).not.toHaveBeenCalled();
+  });
+
+  it("storage clinic-key change invalidates restore before reload so late verified200/401/403/recovery cannot mutate", async () => {
+    const lateResults: SessionRestoreResult[] = [
+      { kind: "verified200", user: MOCK_SYSTEM_ADMIN },
+      { kind: "anonymous401" },
+      { kind: "restricted403", reason: "forbidden" },
+      { kind: "restricted403", reason: "clinic_selection_unavailable" },
+    ];
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const originalAbort = AbortController.prototype.abort;
+
+    try {
+      for (const result of lateResults) {
+        cleanup();
+        mockQueryClient.clear.mockClear();
+        mockQueryClient.setQueryData.mockClear();
+        fetchMock.mockClear();
+        vi.mocked(toast.warning).mockClear();
+        const callOrder: string[] = [];
+        let resolveRestore: (value: SessionRestoreResult) => void = () => undefined;
+        restoreSessionMock.mockReset().mockImplementation(
+          () =>
+            new Promise<SessionRestoreResult>((resolve) => {
+              resolveRestore = resolve;
+            }),
+        );
+        reloadSpy.mockReset().mockImplementation(() => {
+          callOrder.push("reload");
+        });
+        AbortController.prototype.abort = function abort(this: AbortController, reason?: unknown) {
+          callOrder.push("invalidate");
+          return originalAbort.call(this, reason);
+        };
+
+        await act(async () => {
+          render(
+            <MemoryRouter>
+              <Suspense fallback={<div data-testid="loading">loading</div>}>
+                <AuthProvider>
+                  <div data-testid="session-child">ready</div>
+                </AuthProvider>
+              </Suspense>
+            </MemoryRouter>,
+          );
+        });
+        expect(screen.getByRole("status")).toBeInTheDocument();
+        expect(screen.queryByTestId("session-child")).not.toBeInTheDocument();
+
+        await act(async () => {
+          window.dispatchEvent(
+            new StorageEvent("storage", {
+              key: STORAGE_KEY,
+              oldValue: CLINIC_A,
+              newValue: CLINIC_B,
+            }),
+          );
+        });
+
+        expect(callOrder[0]).toBe("invalidate");
+        expect(callOrder).toEqual(["invalidate", "reload"]);
+        expect(reloadSpy).toHaveBeenCalledOnce();
+
+        await act(async () => {
+          resolveRestore(result);
+        });
+
+        expect(mockQueryClient.setQueryData).not.toHaveBeenCalled();
+        expect(screen.queryByTestId("session-child")).not.toBeInTheDocument();
+        expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(toast.warning).not.toHaveBeenCalled();
+        expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+      }
+    } finally {
+      AbortController.prototype.abort = originalAbort;
+      vi.unstubAllGlobals();
+    }
   });
 });
 

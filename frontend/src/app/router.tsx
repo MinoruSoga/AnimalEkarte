@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { createBrowserRouter, Outlet } from "react-router";
 
 import { RootErrorBoundary } from "@/components/errors/RouteErrorBoundary";
+import { SessionPending } from "@/components/shared/auth/SessionPending";
 import { AuthProvider } from "@/features/auth/provider";
 
 import { appRoutes } from "./routes/app-routes";
@@ -14,7 +15,7 @@ export const router = createBrowserRouter([
     // LoginForm で login() を直接呼び出してから navigate() できる。
     HydrateFallback: RootHydrateFallback,
     element: (
-      <Suspense fallback={null}>
+      <Suspense fallback={<SessionPending message="画面を読み込んでいます" />}>
         <AuthProvider>
           <Outlet />
         </AuthProvider>

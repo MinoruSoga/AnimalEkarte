@@ -250,13 +250,18 @@ describe("ReservationFormModal — 新規飼主モード (Issue #51)", () => {
 
     const onSave = vi.fn();
     const user = userEvent.setup({ delay: null });
+    const start = new Date();
+    start.setDate(start.getDate() + 1);
+    start.setHours(10, 0, 0, 0);
+    const end = new Date(start);
+    end.setHours(11, 0, 0, 0);
 
     render(
       <ReservationFormModal
         isOpen={true}
         onClose={noop}
         onSave={onSave}
-        initialData={null}
+        initialData={{ start, end }}
         canCreate={true}
         canEdit={false}
       />,

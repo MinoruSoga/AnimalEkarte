@@ -5,6 +5,12 @@ import { parseInternalPath } from "@/lib/internal-navigation";
 import { sanitizeNullBytes } from "@/lib/sanitize";
 import { paths } from "@/config/paths";
 
+declare module "axios" {
+  interface AxiosRequestConfig {
+    startupSessionRestore?: boolean;
+  }
+}
+
 const API_URL = import.meta.env.VITE_API_URL || "/api";
 
 function requestInterceptor(config: InternalAxiosRequestConfig) {
@@ -102,12 +108,13 @@ axios.interceptors.response.use(
     if (!config) return Promise.reject(error);
 
     // --- 1. 自動リトライロジック (GETリクエストのみ) ---
+    const isStartupSessionRestore = config.startupSessionRestore === true;
     const isGetRequest = config.method?.toLowerCase() === "get";
     const isNetworkError = !error.response && error.code !== "ERR_CANCELED";
     const isServerError =
       error.response && error.response.status >= 502 && error.response.status <= 504;
 
-    if (isGetRequest && (isNetworkError || isServerError)) {
+    if (!isStartupSessionRestore && isGetRequest && (isNetworkError || isServerError)) {
       config._retryCount = config._retryCount ?? 0;
 
       if (config._retryCount < MAX_RETRIES) {
@@ -116,6 +123,11 @@ axios.interceptors.response.use(
         await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS * config._retryCount!));
         return axios(config);
       }
+    }
+
+    // Startup restore classifies 401/timeout/network itself; do not retry, refresh, or redirect.
+    if (isStartupSessionRestore) {
+      return Promise.reject(error);
     }
 
     // Public auth pages intentionally work without a session. Expected login/recovery

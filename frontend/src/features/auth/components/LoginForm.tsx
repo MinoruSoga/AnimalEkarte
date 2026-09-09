@@ -1,7 +1,7 @@
 import { useState, useCallback, memo, useActionState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router";
 import { paths } from "@/config/paths";
-import { isAxiosError } from "axios";
+import { isAxiosError, isCancel } from "axios";
 import { C } from "@/lib/design-tokens";
 import { parseInternalPath } from "@/lib/internal-navigation";
 import { getFormString } from "@/lib/form-data";
@@ -17,6 +17,12 @@ interface DemoCredential {
   permissionLabel: string;
   clinicLabel: string;
   isSystemAdmin?: boolean;
+}
+
+function loginRedirectPath(location: { search: string; state: unknown }): string {
+  const stateFrom = (location.state as { from?: string } | null)?.from;
+  const queryFrom = new URLSearchParams(location.search).get("from");
+  return parseInternalPath(stateFrom) ?? parseInternalPath(queryFrom) ?? paths.home.getHref();
 }
 
 export const SHOW_DEMO =
@@ -361,14 +367,12 @@ export const LoginForm = memo(function LoginForm() {
       try {
         await login(emailValue, passwordValue);
 
-        const stateFrom = (location.state as { from?: string })?.from;
-        const queryFrom = new URLSearchParams(window.location.search).get("from");
-        const from =
-          parseInternalPath(stateFrom) ?? parseInternalPath(queryFrom) ?? paths.home.getHref();
-
-        navigate(from, { replace: true });
+        navigate(loginRedirectPath(location), { replace: true });
         return { success: true, error: null, timestamp: Date.now() };
       } catch (err) {
+        if (isCancel(err)) {
+          return _prevState;
+        }
         let msg = "ログインに失敗しました。しばらくしてから再度お試しください";
         if (isAxiosError(err)) {
           if (!err.response) msg = "接続できません。ネットワークをご確認ください";
@@ -397,7 +401,7 @@ export const LoginForm = memo(function LoginForm() {
   }, []);
 
   if (isAuthenticated) {
-    return <Navigate to={paths.home.getHref()} replace />;
+    return <Navigate to={loginRedirectPath(location)} replace />;
   }
 
   return (
