@@ -612,6 +612,59 @@ class VerificationTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, 'unsupported import topology'):
                     verify.e2e_spec_consumers('frontend/e2e/pages/accounting-page.ts')
 
+    def test_mixed_valid_consumer_cannot_hide_dynamic_or_reexport(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            page = root / 'frontend/e2e/pages/accounting-page.ts'
+            page.parent.mkdir(parents=True)
+            page.write_text('export class AccountingPage {}\n')
+            good = root / 'frontend/e2e/good.spec.ts'
+            bad = root / 'frontend/e2e/bad.spec.ts'
+            good.write_text(
+                'import { AccountingPage } from "./pages/accounting-page";\n'
+                'import { test } from "@playwright/test";\n'
+                'test("x", async () => {});\n'
+            )
+            bad.write_text(
+                'const load = () => import("./pages/accounting-page");\n'
+                'export { AccountingPage } from "./pages/accounting-page";\n'
+                'import { test } from "@playwright/test";\n'
+                'test("y", async () => {});\n'
+            )
+            with mock.patch.object(verify, 'ROOT', root):
+                forms = verify.e2e_module_references(bad.read_text())
+                self.assertIn(('dynamic-import', './pages/accounting-page'), forms)
+                self.assertIn(('export-from', './pages/accounting-page'), forms)
+                with self.assertRaisesRegex(ValueError, r'unsupported import topology.*bad\.spec\.ts'):
+                    verify.e2e_spec_consumers('frontend/e2e/pages/accounting-page.ts')
+
+    def test_side_effect_import_of_page_is_unsupported(self):
+        text = 'import "./pages/accounting-page";\n'
+        self.assertEqual(
+            verify.e2e_module_references(text),
+            [('side-effect-import', './pages/accounting-page')],
+        )
+
+    def test_absolute_dynamic_import_cannot_hide_behind_valid_consumer(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            page = root / 'frontend/e2e/pages/accounting-page.ts'
+            page.parent.mkdir(parents=True)
+            page.write_text('export class AccountingPage {}\n')
+            (root / 'frontend/e2e/good.spec.ts').write_text(
+                'import { AccountingPage } from "./pages/accounting-page";\n'
+                'import { test } from "@playwright/test";\n'
+                'test("x", async () => {});\n'
+            )
+            (root / 'frontend/e2e/abs.spec.ts').write_text(
+                'const load = () => import("/app/e2e/pages/accounting-page");\n'
+                'import { test } from "@playwright/test";\n'
+                'test("y", async () => {});\n'
+            )
+            with mock.patch.object(verify, 'ROOT', root):
+                with self.assertRaisesRegex(ValueError, r'unsupported import topology.*abs\.spec\.ts'):
+                    verify.e2e_spec_consumers('frontend/e2e/pages/accounting-page.ts')
+
 
 if __name__ == '__main__':
     unittest.main()

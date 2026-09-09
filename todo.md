@@ -196,9 +196,20 @@ Runtime preflight: `old-db-postgres` only Up; animalekarte backend/frontend/db E
 |------|------|
 | I1 | string-literal fake import → specifiers `[]`；real import は importer 相対 resolve。mixed supported+unsupported は ValueError |
 | I2 | discovery key は `frontend/e2e/<path-from-testDir>`。`group-a/shared` のみでは `group-b/shared` を拒否 |
-| regressions | `python3 -B scripts/test_verify_agent_task.py` → 54 OK |
+| regressions | `python3 -B scripts/test_verify_agent_task.py` → 59 OK |
 | offline | `AGENT_VERIFY_FRONTEND_IMAGE=sha256:532501622cd0…` 付き page-only/five-path → PASS；discovery_counts が full identity |
 | CI audit / runtime | 引き続き別 blocker（本単位で deps/runtime 未変更） |
+
+
+#### Import-topology final repair（2026-09-09）
+
+| 項目 | 証跡 |
+|------|------|
+| T1 | dynamic `import()` / `export … from` / side-effect import を form 分類。exact-target unsupported は valid consumer があっても ValueError |
+| RED→GREEN | mixed good+bad fixture: pre `consumers=[good]` / post raises naming `bad.spec.ts (dynamic-import)/(export-from)` |
+| regressions | `python3 -B scripts/test_verify_agent_task.py` → 59 OK |
+| offline | AGENT_VERIFY_* 付き page-only/five-path → PASS（I2 full-path discovery 維持） |
+| CI audit / runtime | 別 blocker のまま |
 
 ## 2. USER ゲート（秘密・本番・外部環境）
 

@@ -102,10 +102,20 @@ E2E_TSCONFIG_BOOTSTRAP = (
 )
 
 
-E2E_IMPORT_RE = re.compile(
-    r"""(?:import\s+(?:type\s+)?[\s\S]*?\s+from\s+|require\s*\(\s*)(['"])([^'"]+)\1"""
-)
 E2E_TRUSTED_DISCOVERY_ROOT = '/app/e2e'
+E2E_SUPPORTED_IMPORT_FORMS = frozenset({'static-import', 'require'})
+E2E_UNSUPPORTED_IMPORT_FORMS = frozenset({'dynamic-import', 'export-from', 'side-effect-import'})
+E2E_MODULE_REFERENCE_PATTERNS = (
+    ('static-import', re.compile(
+        r"""import\s+(?:type\s+)?(?:\{[^}]*\}|\*\s+as\s+[A-Za-z_$][\w$]*|[A-Za-z_$][\w$]*)\s+from\s*(['"])([^'"]+)\1"""
+    )),
+    ('export-from', re.compile(
+        r"""export\s+(?:type\s+)?(?:\*\s+as\s+[A-Za-z_$][\w$]*|\*|\{[^}]*\})\s+from\s*(['"])([^'"]+)\1"""
+    )),
+    ('dynamic-import', re.compile(r"""\bimport\s*\(\s*(['"])([^'"]+)\1\s*\)""")),
+    ('require', re.compile(r"""\brequire\s*\(\s*(['"])([^'"]+)\1\s*\)""")),
+    ('side-effect-import', re.compile(r"""\bimport\s*(['"])([^'"]+)\1""")),
+)
 
 
 def mask_non_code(text):
@@ -197,33 +207,54 @@ def mask_non_code(text):
     return ''.join(out)
 
 
-def e2e_import_specifiers(text):
-    """Return static import/require module specifiers from real statements only."""
+def _specifier_from_match(text, match):
+    quote_index = match.start(1)
+    if quote_index < 0 or quote_index >= len(text):
+        return ''
+    quote = text[quote_index]
+    index = quote_index + 1
+    chars = []
+    while index < len(text):
+        char = text[index]
+        if char == '\\' and index + 1 < len(text):
+            chars.append(text[index + 1])
+            index += 2
+            continue
+        if char == quote:
+            break
+        chars.append(char)
+        index += 1
+    else:
+        return ''
+    return ''.join(chars).strip()
+
+
+def e2e_module_references(text):
+    """Return classified module references from real statements only.
+
+    Each item is (form, specifier) where form is one of:
+    static-import, require, dynamic-import, export-from, side-effect-import.
+    """
     masked = mask_non_code(text)
-    specifiers = []
-    for match in E2E_IMPORT_RE.finditer(masked):
-        quote_index = match.start(1)
-        if quote_index < 0 or quote_index >= len(text):
-            continue
-        quote = text[quote_index]
-        index = quote_index + 1
-        chars = []
-        while index < len(text):
-            char = text[index]
-            if char == '\\' and index + 1 < len(text):
-                chars.append(text[index + 1])
-                index += 2
+    references = []
+    occupied = []
+    for form, pattern in E2E_MODULE_REFERENCE_PATTERNS:
+        for match in pattern.finditer(masked):
+            span = match.span()
+            if any(span[0] < end and span[1] > start for start, end in occupied):
                 continue
-            if char == quote:
-                break
-            chars.append(char)
-            index += 1
-        else:
-            continue
-        specifier = ''.join(chars).strip()
-        if specifier:
-            specifiers.append(specifier)
-    return specifiers
+            specifier = _specifier_from_match(text, match)
+            if not specifier:
+                continue
+            occupied.append(span)
+            references.append((form, specifier))
+    return references
+
+
+def e2e_import_specifiers(text):
+    """Return supported static import/require module specifiers only."""
+    return [specifier for form, specifier in e2e_module_references(text)
+            if form in E2E_SUPPORTED_IMPORT_FORMS]
 
 
 def normalize_e2e_repo_path(path):
@@ -270,19 +301,42 @@ def e2e_spec_consumers(page_path):
         validate_path(relative)
         text = spec.read_text(encoding='utf-8')
         matched = False
-        for specifier in e2e_import_specifiers(text):
+        for form, specifier in e2e_module_references(text):
             normalized = specifier.replace('\\', '/')
-            if normalized.startswith('@/') or normalized.startswith('node:') or '${' in normalized:
-                if f'pages/{module}' in normalized:
-                    unsupported.append(relative)
+            bare = normalized.rstrip('/')
+            aliases_page = (
+                f'pages/{module}' in normalized
+                or bare.endswith(f'pages/{module}')
+                or bare.endswith(f'pages/{module}.ts')
+            )
+            non_relative = (
+                normalized.startswith('@/')
+                or normalized.startswith('node:')
+                or normalized.startswith('http:')
+                or normalized.startswith('https:')
+                or normalized.startswith('/')
+                or '${' in normalized
+            )
+            if non_relative:
+                if aliases_page:
+                    unsupported.append(f'{relative} ({form})')
                 continue
             try:
                 resolved = resolve_e2e_import(relative, normalized)
             except ValueError:
-                unsupported.append(relative)
+                if aliases_page or form in E2E_UNSUPPORTED_IMPORT_FORMS:
+                    unsupported.append(f'{relative} ({form})')
                 continue
-            if resolved == target:
+            if resolved is None:
+                if aliases_page:
+                    unsupported.append(f'{relative} ({form})')
+                continue
+            if resolved != target:
+                continue
+            if form in E2E_SUPPORTED_IMPORT_FORMS:
                 matched = True
+            else:
+                unsupported.append(f'{relative} ({form})')
         if matched:
             consumers.append(relative)
     if unsupported:
