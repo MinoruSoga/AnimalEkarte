@@ -278,9 +278,18 @@ function AuthProviderSession({
     async (email: string, password: string) => {
       invalidateRestore();
       const result = await loginApi(email, password);
+      let stored: boolean;
+      try {
+        stored = saveClinicToStorage(result.user.mainClinicId);
+      } catch {
+        stored = false;
+      }
+      if (!stored) {
+        toast.error("クリニックの切替に失敗しました。ブラウザのストレージ設定を確認してください。");
+        throw new Error("failed to save clinic selection");
+      }
       hydrateUser(result.user);
       setCurrentClinicId(result.user.mainClinicId);
-      saveClinicToStorage(result.user.mainClinicId);
       clearClinicSelectionRecovery();
       restorePhaseRef.current = "ready";
       setRestorePhase("ready");

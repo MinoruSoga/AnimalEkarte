@@ -296,6 +296,26 @@ Product/test acceptance for white-screen fix + deferred pending→resolved route
 - Orchestration: Workflow `ae-perf-stg-login-b-followup-investigate` joined; implementer `01a085bf-ce78-71f1-bd67-f0c2527f2bea` joined; Workflow `ae-perf-stg-login-b-followup-review` (react FAIL HIGH → fixed; security PASS) joined; re-review `01a085e0-0c61-7ac3-bfe3-46a2b739e525` PASS.
 - Historical start-unit RED/review failures preserved above. Browser/E2E BLOCKED. Linear/CI UNKNOWN. Additive commit PARENT-owned (SHA only in session report).
 
+##### Follow-up cycle2 — PERF-STG-LOGIN-B (storage fail-closed + URL identity; commit PARENT-owned)
+
+- Writer: B-candidate sole implementer on `perf/stg-login-bootstrap-b-20260909` at CYCLE2_BASE `d5f109285` (not amended). Claim `claim/PERF-STG-LOGIN-B` left in place.
+- Gaps: login storage false/throw keeps `writesPaused` and prior `blockReason`; does not `clearClinicSelectionRecovery` / hydrate / ready; LoginForm stays on `/login` (no `loginRedirectPath` navigate); paused business adapters stay 0. Pre-session bypass is POST-only exact pathname against axios `baseURL` (query allowed); reject foreign origin, prefix, suffix, extra segment, wrong method. LoginForm.tsx / axios defaults untouched.
+- Allowlist: AuthProvider.tsx, use-auth-initial-session.test.tsx, clinic-selection-axios.ts, clinic-selection-axios.test.ts, todo-performance.md.
+
+| Cycle2 batch | RED | GREEN |
+|---|---|---|
+| 1 storage fail-closed + URL identity | `--paths` use-auth-initial-session.test + clinic-selection-axios.test → FAIL exit 1. Verbose: **4 failed / 29 passed (33)** — login false/throw navigated to `/` and mounted protected children; foreign-origin `endsWith` suffix POSTs resolved instead of `clinic writes paused`. | same `--paths` → PASS `completed_tests=33` eslint0 prettier0 exit 0; fingerprint `c055855b471ee1b3c27e6669d362baa7c64193c52e0cf0c8a423886a0fdd791e`. Owned sources: login storage gated before hydrate; `isPreSessionAuthRequest` exact-base pathname; eslint `--max-warnings 0` + prettier `--check` exit 0. |
+
+- G1/G2/G5 not reopened. AuthContextValue unchanged. Browser/E2E BLOCKED. Linear UNKNOWN. Additive commit PARENT-owned; no cycle2 commit SHA recorded here.
+
+
+#### Cycle2 closeout — PERF-STG-LOGIN-B (local additive; no SHA in ledger)
+
+- CYCLE2_BASE=`d5f109285d2e56f76d8e099436d5040678e90617`. Claim retained. Five-path allowlist only.
+- Gaps: login storage false/throw fail-closed before hydrate/clear pause; pre-session POST allowlist uses configured baseURL origin + exact pathname (no raw endsWith).
+- Verifier isolation: generation reported intermittent FAIL at fp `6c2e3a01…`; clean tip baselines PASS×2 completed_tests=117. After repair exact 17-file verifier PASS×2 consecutive completed_tests=120 fp `c055855b471ee1b3c27e6669d362baa7c64193c52e0cf0c8a423886a0fdd791e` exit0. Direct Vitest supporting only.
+- Owned TS eslint0 prettier0. Orchestration: investigate wf `ae-perf-stg-login-b-cycle2-investigate` joined; implementer `01a08647-615e-7013-9309-c364fbadcdba` joined; review wf `ae-perf-stg-login-b-cycle2-review` (security PASS + react PASS) joined. Browser BLOCKED. CI/Linear UNKNOWN.
+
 ### C. 通信経路を計測して、効果のある対策だけを入れる（A・Bと独立して調査）
 
 まず遷移前からOPTIONSとGETを記録する。必要な追加観測は、Workerで「受付→Container forward完了」の所要時間と起動イベントを取得する小さな変更に限定する。固定のmethod/path分類・status・時間・相関IDに絞り、Cookie・認証ヘッダ・本文をログに出さない。常時監視基盤の新設はこの改善の前提にしない。

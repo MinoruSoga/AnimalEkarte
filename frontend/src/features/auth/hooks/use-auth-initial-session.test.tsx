@@ -3,18 +3,22 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { MemoryRouter, Route, Routes, useLocation, useNavigate } from "react-router";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AxiosError, AxiosHeaders, type AxiosAdapter } from "axios";
+import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import type { AuthUser } from "@/types/auth";
 import { axios } from "@/lib/axios";
-import { CURRENT_CLINIC_STORAGE_KEY } from "@/lib/current-clinic";
 import {
   areClinicWritesPaused,
   clearClinicSelectionRecovery,
   CLINIC_SELECTION_UNAVAILABLE,
+  getClinicSelectionBlockReason,
   pauseClinicWrites,
   recoverClinicSelectionOnce,
   resetClinicSelectionRecoveryForTests,
 } from "@/lib/clinic-selection-recovery";
+import * as clinicSelectionRecovery from "@/lib/clinic-selection-recovery";
+import { CURRENT_CLINIC_STORAGE_KEY } from "@/lib/current-clinic";
+import * as currentClinic from "@/lib/current-clinic";
 import { LoginForm } from "../components/LoginForm";
 import type { SessionRestoreResult } from "../api/restore-session";
 
@@ -69,6 +73,10 @@ vi.mock("@tanstack/react-query", async (importActual) => {
   const actual = await importActual<typeof import("@tanstack/react-query")>();
   return { ...actual, useQueryClient: () => queryClientMock };
 });
+
+vi.mock("sonner", () => ({
+  toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
+}));
 
 const originalLocation = window.location;
 
@@ -141,6 +149,9 @@ describe("AuthProvider initial session restoration", () => {
     restoreSessionMock.mockReset().mockResolvedValue({ kind: "anonymous401" });
     queryClientMock.clear.mockReset();
     queryClientMock.setQueryData.mockReset();
+    vi.mocked(toast.error).mockReset();
+    vi.mocked(toast.warning).mockReset();
+    vi.mocked(toast.success).mockReset();
     vi.useRealTimers();
   });
 
@@ -1072,4 +1083,106 @@ describe("AuthProvider initial session restoration", () => {
     expect(screen.getByRole("button", { name: "ログイン切替" })).toBeEnabled();
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
+
+  it.each([
+    {
+      name: "false",
+      mockStorage: () => {
+        vi.spyOn(currentClinic, "setStoredClinicId").mockReturnValue(false);
+      },
+    },
+    {
+      name: "throw",
+      mockStorage: () => {
+        vi.spyOn(currentClinic, "setStoredClinicId").mockImplementation(() => {
+          throw new Error("storage unavailable");
+        });
+      },
+    },
+  ])(
+    "login storage $name keeps writesPaused, skips recovery clear/hydrate/ready, does not navigate, and leaves business adapters at 0",
+    async ({ mockStorage }) => {
+      setWindowLocation("/login");
+      restoreSessionMock.mockResolvedValue({ kind: "anonymous401" });
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: false,
+          status: 403,
+          json: async () => ({ error_code: CLINIC_SELECTION_UNAVAILABLE }),
+        }),
+      );
+      const protectedMount = vi.fn();
+      function ProtectedChild() {
+        protectedMount();
+        return <div data-testid="protected-child">protected</div>;
+      }
+      const { AuthProvider } = await import("../components/AuthProvider");
+      render(
+        <MemoryRouter initialEntries={["/login"]}>
+          <LocationProbe />
+          <AuthProvider>
+            <Routes>
+              <Route path="/login" element={<LoginForm />} />
+              <Route path="/" element={<ProtectedChild />} />
+            </Routes>
+          </AuthProvider>
+        </MemoryRouter>,
+      );
+
+      await waitFor(() => expect(screen.getByLabelText("メールアドレス")).toBeInTheDocument());
+      await act(async () => {
+        await recoverClinicSelectionOnce();
+      });
+      expect(getClinicSelectionBlockReason()).toBe("no-clinic");
+      expect(areClinicWritesPaused()).toBe(true);
+
+      const clearSpy = vi.spyOn(clinicSelectionRecovery, "clearClinicSelectionRecovery");
+      mockStorage();
+      queryClientMock.setQueryData.mockClear();
+      clearSpy.mockClear();
+
+      fireEvent.change(screen.getByLabelText("メールアドレス"), {
+        target: { value: "staff@example.com" },
+      });
+      fireEvent.change(screen.getByLabelText("パスワード"), {
+        target: { value: "password123" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "ログイン" }));
+
+      expect(
+        await screen.findByText("ログインに失敗しました。しばらくしてから再度お試しください"),
+      ).toBeInTheDocument();
+      expect(loginMock).toHaveBeenCalledOnce();
+      expect(toast.error).toHaveBeenCalledWith(
+        "クリニックの切替に失敗しました。ブラウザのストレージ設定を確認してください。",
+      );
+      expect(clearSpy).not.toHaveBeenCalled();
+      expect(queryClientMock.setQueryData).not.toHaveBeenCalled();
+      expect(areClinicWritesPaused()).toBe(true);
+      expect(getClinicSelectionBlockReason()).toBe("no-clinic");
+      expect(screen.getByTestId("pathname")).toHaveTextContent("/login");
+      expect(screen.queryByTestId("protected-child")).not.toBeInTheDocument();
+      expect(protectedMount).not.toHaveBeenCalled();
+
+      let adapterCalls = 0;
+      const adapter: AxiosAdapter = async (config) => {
+        adapterCalls += 1;
+        return {
+          config,
+          data: {},
+          headers: new AxiosHeaders(),
+          status: 200,
+          statusText: "OK",
+        };
+      };
+      await expect(
+        axios.request({ adapter, method: "post", url: "/v1/owners", data: { name: "x" } }),
+      ).rejects.toMatchObject({ message: "clinic writes paused" });
+      expect(adapterCalls).toBe(0);
+
+      clearSpy.mockRestore();
+      vi.mocked(currentClinic.setStoredClinicId).mockRestore();
+    },
+  );
 });
