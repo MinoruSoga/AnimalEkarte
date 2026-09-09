@@ -9,6 +9,7 @@ import hashlib
 import json
 import os
 import pathlib
+import posixpath
 import re
 import subprocess
 import sys
@@ -133,15 +134,32 @@ def list_e2e_spec_paths():
     return specs
 
 
+def _is_raw_canonical_posix(value):
+    """Reject forged spellings that PurePosixPath would collapse before parts checks."""
+    if not isinstance(value, str) or not value:
+        return False
+    if any(ch.isspace() for ch in value):
+        return False
+    if '\\' in value:
+        return False
+    # Require exact raw spelling: // and /./ must not be erased by normalization.
+    if value != pathlib.PurePosixPath(value).as_posix():
+        return False
+    parts = pathlib.PurePosixPath(value).parts
+    if not parts or any(part in ('.', '..') or part == '' for part in parts):
+        return False
+    return True
+
+
 def _is_canonical_e2e_page(page):
     if not isinstance(page, str) or not page or page.startswith('frontend/'):
         return False
-    if '\\' in page or page.endswith('/'):
+    if page.endswith('/'):
+        return False
+    if not _is_raw_canonical_posix(page):
         return False
     parts = pathlib.PurePosixPath(page).parts
     if len(parts) < 3 or parts[0] != 'e2e' or parts[1] != 'pages':
-        return False
-    if any(part in ('.', '..') for part in parts):
         return False
     return page.endswith('.ts')
 
@@ -149,10 +167,34 @@ def _is_canonical_e2e_page(page):
 def _is_e2e_spec_consumer_file(file_path):
     if not isinstance(file_path, str) or not file_path:
         return False
+    if not _is_raw_canonical_posix(file_path):
+        return False
     parts = pathlib.PurePosixPath(file_path).parts
-    if not parts or parts[0] != 'e2e' or any(part in ('.', '..') for part in parts):
+    if not parts or parts[0] != 'e2e':
         return False
     return file_path.endswith('.spec.ts')
+
+
+def _resolve_importer_relative_specifier(file_path, specifier):
+    """Resolve importer-relative specifier to an e2e/... identity, or None if rejected."""
+    if not isinstance(file_path, str) or not isinstance(specifier, str):
+        return None
+    if not (specifier.startswith('./') or specifier.startswith('../')):
+        return None
+    if any(ch.isspace() for ch in specifier):
+        return None
+    if any(token in specifier for token in ('?', '#', '\0', '\\')):
+        return None
+    base_dir = posixpath.dirname(file_path)
+    joined = posixpath.normpath(posixpath.join(base_dir, specifier))
+    if joined == 'e2e' or not joined.startswith('e2e/'):
+        return None
+    parts = joined.split('/')
+    if any(part in ('.', '..') or part == '' for part in parts):
+        return None
+    if not joined.endswith('.ts'):
+        joined = f'{joined}.ts'
+    return joined
 
 
 def validate_e2e_page_consumers(stdout, expected_pages=None, stderr=''):
@@ -218,6 +260,11 @@ def validate_e2e_page_consumers(stdout, expected_pages=None, stderr=''):
             if not _is_e2e_spec_consumer_file(file_path):
                 raise ValueError(
                     f'E2E page consumer AST consumer file must be e2e/**/*.spec.ts for {page}: {file_path}'
+                )
+            resolved = _resolve_importer_relative_specifier(file_path, specifier)
+            if resolved != page:
+                raise ValueError(
+                    f'E2E page consumer AST specifier does not resolve to page for {page}: {specifier!r}'
                 )
         evidence[page] = consumers
         seen_pages.append(page)

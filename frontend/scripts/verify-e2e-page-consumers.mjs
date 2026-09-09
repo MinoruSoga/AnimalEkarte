@@ -66,10 +66,14 @@ function normalizePageIdentity(pagePath) {
   const raw = toPosix(pagePath).replace(/^\.\/+/, "");
   const stripped = raw.startsWith("frontend/") ? raw.slice("frontend/".length) : raw;
   const identity = withTsExtension(stripped);
+  // Reject //, /./, whitespace, and traversal before segment filtering collapses them.
+  if (/\s/.test(identity) || identity.includes("\\")) return null;
+  if (identity.split("/").some((part) => part === "" || part === "." || part === "..")) {
+    return null;
+  }
   const parts = splitSegments(identity);
   if (parts.length < 3 || parts[0] !== "e2e" || parts[1] !== "pages") return null;
-  if (parts.some((part) => part === "." || part === "..")) return null;
-  if (parts.some((part) => part.includes("\\"))) return null;
+  if (parts.some((part) => part === "." || part === ".." || part.includes("\\"))) return null;
   return parts.join("/");
 }
 
@@ -226,6 +230,21 @@ export function collectModuleReferences(sourceText, importerIdentity) {
 }
 
 export function listSpecFiles(e2eRoot) {
+  let rootStat;
+  try {
+    rootStat = lstatSync(e2eRoot);
+  } catch (error) {
+    throw new Error(
+      `unreadable e2e scan path: ${e2eRoot}: ${error && error.message ? error.message : error}`,
+    );
+  }
+  if (rootStat.isSymbolicLink()) {
+    throw new Error(`e2e root is a symlink: ${e2eRoot}`);
+  }
+  if (!rootStat.isDirectory()) {
+    throw new Error(`e2e root is not a directory: ${e2eRoot}`);
+  }
+
   const out = [];
   const stack = [e2eRoot];
   while (stack.length) {
@@ -240,10 +259,22 @@ export function listSpecFiles(e2eRoot) {
     }
     for (const entry of entries) {
       const full = path.join(current, entry.name);
-      if (entry.isDirectory()) {
+      let st;
+      try {
+        st = lstatSync(full);
+      } catch (error) {
+        throw new Error(
+          `unreadable e2e scan path: ${full}: ${error && error.message ? error.message : error}`,
+        );
+      }
+      // Fail closed on any symlink before extension filtering; never follow links.
+      if (st.isSymbolicLink()) {
+        throw new Error(`symlink in e2e tree: ${full}`);
+      }
+      if (st.isDirectory()) {
         if (entry.name === "node_modules" || entry.name === "dist") continue;
         stack.push(full);
-      } else if (entry.isFile() && entry.name.endsWith(".spec.ts")) {
+      } else if (st.isFile() && entry.name.endsWith(".spec.ts")) {
         out.push(full);
       }
     }
@@ -355,7 +386,13 @@ export function verifyPages(options) {
 
     for (const abs of specAbsPaths) {
       const identity = fileIdentityFromRoot(e2eRoot, abs);
-      if (!identity) continue;
+      if (!identity) {
+        return {
+          ok: false,
+          error: `enumerated spec path escapes e2e root or is noncanonical: ${abs}`,
+          pages: [],
+        };
+      }
       let text;
       try {
         text = read(abs);

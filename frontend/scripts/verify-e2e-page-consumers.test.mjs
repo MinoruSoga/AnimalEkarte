@@ -7,6 +7,7 @@ import {
   mkdtempSync,
   mkdirSync,
   writeFileSync,
+  symlinkSync,
   rmSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -543,6 +544,131 @@ test("zero consumers fails closed", async () => {
     const payload = JSON.parse((result.stdout || result.stderr).match(/\{[\s\S]*\}/)[0]);
     assert.equal(payload.ok, false);
     assert.equal(payload.pages[0].consumers.length, 0);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("RED: symlink .spec.ts with unsupported dynamic import must not ok:true", async () => {
+  const mod = await loadModule();
+  const { root, e2eRoot } = makeFixture({
+    "e2e/pages/accounting-page.ts": "export class AccountingPage {}\n",
+    "e2e/good.spec.ts":
+      'import { AccountingPage } from "./pages/accounting-page";\n',
+    "outside/evil.ts":
+      'const load = () => import("./pages/accounting-page");\n',
+  });
+  try {
+    symlinkSync(
+      path.join(root, "outside/evil.ts"),
+      path.join(e2eRoot, "evil.spec.ts"),
+    );
+    assert.throws(() => mod.listSpecFiles(e2eRoot), /symlink/i);
+    const payload = mod.verifyPages({
+      pages: ["e2e/pages/accounting-page.ts"],
+      e2eRoot,
+    });
+    assert.equal(payload.ok, false, JSON.stringify(payload));
+    assert.match(String(payload.error || ""), /symlink/i);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("RED: symlink directory and symlink e2e root fail closed", async () => {
+  const mod = await loadModule();
+  const { root, e2eRoot } = makeFixture({
+    "e2e/pages/accounting-page.ts": "export class AccountingPage {}\n",
+    "e2e/good.spec.ts":
+      'import { AccountingPage } from "./pages/accounting-page";\n',
+    "outside/dir/nested.spec.ts":
+      'import { AccountingPage } from "../pages/accounting-page";\n',
+  });
+  try {
+    symlinkSync(path.join(root, "outside/dir"), path.join(e2eRoot, "linked-dir"));
+    assert.throws(() => mod.listSpecFiles(e2eRoot), /symlink/i);
+    const dirPayload = mod.verifyPages({
+      pages: ["e2e/pages/accounting-page.ts"],
+      e2eRoot,
+    });
+    assert.equal(dirPayload.ok, false);
+    assert.match(String(dirPayload.error || ""), /symlink/i);
+
+    const linkRootParent = mkdtempSync(path.join(tmpdir(), "ae-e2e-linkroot-"));
+    const realE2e = path.join(linkRootParent, "real-e2e");
+    const linkedE2e = path.join(linkRootParent, "e2e");
+    mkdirSync(path.join(realE2e, "pages"), { recursive: true });
+    writeFileSync(
+      path.join(realE2e, "pages/accounting-page.ts"),
+      "export class AccountingPage {}\n",
+      "utf8",
+    );
+    writeFileSync(
+      path.join(realE2e, "good.spec.ts"),
+      'import { AccountingPage } from "./pages/accounting-page";\n',
+      "utf8",
+    );
+    symlinkSync(realE2e, linkedE2e);
+    try {
+      assert.throws(() => mod.listSpecFiles(linkedE2e), /symlink/i);
+      const rootPayload = mod.verifyPages({
+        pages: ["e2e/pages/accounting-page.ts"],
+        e2eRoot: linkedE2e,
+      });
+      assert.equal(rootPayload.ok, false);
+      assert.match(String(rootPayload.error || ""), /symlink/i);
+    } finally {
+      rmSync(linkRootParent, { recursive: true, force: true });
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("RED: outside-root enumerated path via custom listSpecs fails closed", async () => {
+  const mod = await loadModule();
+  const { root, e2eRoot } = makeFixture({
+    "e2e/pages/accounting-page.ts": "export class AccountingPage {}\n",
+    "e2e/good.spec.ts":
+      'import { AccountingPage } from "./pages/accounting-page";\n',
+    "outside/forged.spec.ts":
+      'const load = () => import("./pages/accounting-page");\n',
+  });
+  try {
+    const good = path.join(e2eRoot, "good.spec.ts");
+    const outside = path.join(root, "outside/forged.spec.ts");
+    // Outside enumerated path must fail closed even when a good consumer exists.
+    const payload = mod.verifyPages({
+      pages: ["e2e/pages/accounting-page.ts"],
+      e2eRoot,
+      listSpecs: () => [good, outside],
+    });
+    assert.equal(payload.ok, false, JSON.stringify(payload));
+    assert.match(String(payload.error || ""), /escape|noncanonical|outside|root/i);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("real-file relative static-import consumers remain ok after symlink policy", async () => {
+  const mod = await loadModule();
+  const { root, e2eRoot } = makeFixture({
+    "e2e/pages/accounting-page.ts": "export class AccountingPage {}\n",
+    "e2e/good.spec.ts":
+      'import { AccountingPage } from "./pages/accounting-page";\n',
+    "e2e/subdir/nested.spec.ts":
+      'import { AccountingPage } from "../pages/accounting-page";\n',
+  });
+  try {
+    const listed = mod.listSpecFiles(e2eRoot);
+    assert.equal(listed.length, 2);
+    const payload = mod.verifyPages({
+      pages: ["e2e/pages/accounting-page.ts"],
+      e2eRoot,
+    });
+    assert.equal(payload.ok, true, JSON.stringify(payload));
+    assert.equal(payload.pages[0].blocking.length, 0);
+    assert.ok(payload.pages[0].consumers.length >= 2);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

@@ -372,3 +372,21 @@ git show ad63bdf28:todo-refactor.md
 - Negatives: shadowed require `ok=false` blocking=`require`; `@/e2e` canonicalize=`null`; forged require-form JSON and extra-page JSON fail-closed.
 - Review fix: Python evidence also requires importer-relative specifier (`./`|`../`) and rejects `?`/`#`/`\`/`/app/...` forgeries; page-only re-PASS exec=6.
 - Separate blockers (unchanged): PR394 Frontend Build/dependency audit; browser/UAT runtime.
+
+### Canonical-evidence + symlink-scan closure (2026-09-10)
+
+- Unit: PR394 raw-canonical evidence + symlink/outside-root scan closure.
+- Claims: prior coordinator/AST claims retained; AI `claim/PR394-CANONICAL-EVIDENCE-SYMLINK` held (not deleted this unit).
+- Pre-edit HEAD: `d350259c4cbb650285621f2f2134a0a5ec951de9` (clean). Allowlisted paths only (5).
+- Selectors (exact): `AGENT_VERIFY_FRONTEND_IMAGE=sha256:532501622cd024ab786a32eb9798db1cd1a0e4d47cddb3dbd56ae107f95d9cb4`, `AGENT_VERIFY_FRONTEND_DEPENDENCY_VOLUME=ekarte-frontend-node-modules`.
+- Closed holes:
+  - Python raw canonical: `value == PurePosixPath(value).as_posix()` so `e2e/pages/./…`, `e2e/pages//…`, `e2e//forged.spec.ts`, `e2e/./good.spec.ts` fail-closed.
+  - Specifier→page: importer-relative resolve from `dirname(file)` must equal claimed page; `./pages/other-page` rejected; nested `../pages/accounting-page` still accepted.
+  - Node scan: `lstat` root + every entry; any symlink fail-closed; outside enumerated path explicit error (no silent `continue`).
+- RED→GREEN: Docker Node **17 pass / 0 fail**; `python3 -B scripts/test_verify_agent_task.py` → **Ran 57 tests … OK**.
+- Plan page-only: `status=PLAN`, `executed_count=0`, discovery_specs=**35**.
+- Actual page-only: `status=PASS`, `executed_count=6`, discovery_n=**35**; consumers accounting=3 settings=2 (static-import).
+- Actual five-path: `status=PASS`, `executed_count=7`.
+- Campaign `--base 53a4a18c62904e793b59a6283e5ef31edd0902a1`: `status=PASS`, `executed_count=9`, unmapped=`[]`.
+- Prior contracts retained: shadowed require blocks; `@/e2e` unrelated; absolute/file exact targets block.
+- Separate blockers (unchanged): PR394 Frontend Build/dependency audit; browser/UAT runtime.

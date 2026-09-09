@@ -665,6 +665,83 @@ class VerificationTests(unittest.TestCase):
                 'blocking': [],
             }]), [page, 'e2e/pages/settings-master-page.ts'])
 
+    def test_raw_canonical_rejects_dot_slash_and_double_slash_identities(self):
+        """PurePosixPath collapses // and /. before parts checks — forged spelling must fail."""
+        self.assertFalse(verify._is_canonical_e2e_page('e2e/pages/./accounting-page.ts'))
+        self.assertFalse(verify._is_canonical_e2e_page('e2e/pages//accounting-page.ts'))
+        self.assertTrue(verify._is_canonical_e2e_page('e2e/pages/accounting-page.ts'))
+
+        self.assertFalse(verify._is_e2e_spec_consumer_file('e2e//forged.spec.ts'))
+        self.assertFalse(verify._is_e2e_spec_consumer_file('e2e/./good.spec.ts'))
+        self.assertTrue(verify._is_e2e_spec_consumer_file('e2e/good.spec.ts'))
+
+        def payload(page_identity, file_path, specifier='./pages/accounting-page'):
+            return json.dumps({
+                'ok': True,
+                'pages': [{
+                    'page': page_identity,
+                    'consumers': [{
+                        'file': file_path,
+                        'form': 'static-import',
+                        'specifier': specifier,
+                    }],
+                    'blocking': [],
+                }],
+            })
+
+        with self.assertRaisesRegex(ValueError, 'canonical|identity|path|raw'):
+            verify.validate_e2e_page_consumers(
+                payload('e2e/pages/./accounting-page.ts', 'e2e/good.spec.ts'),
+            )
+        with self.assertRaisesRegex(ValueError, 'canonical|identity|path|raw'):
+            verify.validate_e2e_page_consumers(
+                payload('e2e/pages//accounting-page.ts', 'e2e/good.spec.ts'),
+            )
+        with self.assertRaisesRegex(ValueError, 'canonical|consumer|spec|file|raw|identity|path'):
+            verify.validate_e2e_page_consumers(
+                payload('e2e/pages/accounting-page.ts', 'e2e//forged.spec.ts'),
+                ['e2e/pages/accounting-page.ts'],
+            )
+        with self.assertRaisesRegex(ValueError, 'canonical|consumer|spec|file|raw|identity|path'):
+            verify.validate_e2e_page_consumers(
+                payload('e2e/pages/accounting-page.ts', 'e2e/./good.spec.ts'),
+                ['e2e/pages/accounting-page.ts'],
+            )
+
+    def test_specifier_must_resolve_exactly_to_claimed_page(self):
+        page = 'e2e/pages/accounting-page.ts'
+
+        def payload(file_path, specifier):
+            return json.dumps({
+                'ok': True,
+                'pages': [{
+                    'page': page,
+                    'consumers': [{
+                        'file': file_path,
+                        'form': 'static-import',
+                        'specifier': specifier,
+                    }],
+                    'blocking': [],
+                }],
+            })
+
+        with self.assertRaisesRegex(ValueError, 'specifier|resolve|mismatch|page'):
+            verify.validate_e2e_page_consumers(
+                payload('e2e/good.spec.ts', './pages/other-page'),
+                [page],
+            )
+        # Nested ../ control must still pass when resolution equals the claimed page.
+        evidence = verify.validate_e2e_page_consumers(
+            payload('e2e/subdir/nested.spec.ts', '../pages/accounting-page'),
+            [page],
+        )
+        self.assertEqual(len(evidence[page]), 1)
+        with self.assertRaisesRegex(ValueError, 'specifier|resolve|escape|e2e|page'):
+            verify.validate_e2e_page_consumers(
+                payload('e2e/good.spec.ts', '../secret'),
+                [page],
+            )
+
     def test_python_has_no_regex_module_reference_authority(self):
         source = pathlib.Path(verify.__file__).read_text(encoding='utf-8')
         self.assertNotIn('E2E_MODULE_REFERENCE_PATTERNS', source)
