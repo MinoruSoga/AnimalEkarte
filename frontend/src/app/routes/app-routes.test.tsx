@@ -1,5 +1,6 @@
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { createMemoryRouter, RouterProvider } from "react-router";
 import { paths } from "@/config/paths";
 import { C } from "@/lib/design-tokens";
 import { appRoutes } from "./app-routes";
@@ -65,7 +66,11 @@ describe("appRoutes login Suspense pending-to-resolved (PERF-STG-LOGIN-A)", () =
       throw new Error("login route is not configured");
     }
 
-    render(<>{loginRoute.element}</>);
+    // Exercise the real login RouteObject through the data router, not a detached element render.
+    const memoryRouter = createMemoryRouter(freshRoutes, {
+      initialEntries: [freshPaths.auth.login.path],
+    });
+    render(<RouterProvider router={memoryRouter} />);
 
     expect(await screen.findByRole("status")).toHaveTextContent("画面を読み込んでいます");
     expect(screen.queryByTestId("login-resolved-child")).not.toBeInTheDocument();

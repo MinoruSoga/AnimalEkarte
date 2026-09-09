@@ -179,6 +179,13 @@ FOLLOWUP_BASE=`8060f87d91cfeb9584b55257b8f547bd646db280`. Claim `claim/PERF-STG-
 - Follow-up neg control (fresh 2026-09-09 16:02 JST, not historical TDD): offline Docker candidate RO + tmp null-patched hydrate → `Unable to find role="status"` / empty body (`NEGATIVE_CONTROL_SENSITIVE_TO_NULL_FALLBACK`)
 - Prior gap: extracted-fallback-only route tests overclaimed; cycle1 replaces with deferred pending→resolved coverage
 
+
+##### Workflow freeze join (late)
+
+- Workflow `ae-perf-stg-login-a-evidence-followup` completed; freeze-followup-scope `01a084f1-c3b2-70e3-a271-f879486f1112` done (joined).
+- Freeze asked login coverage via `createMemoryRouter`+`RouterProvider` over real login RouteObject (applied in follow-up repair).
+- Raw `/tmp/perf-login-a-red*.log` may be absent now: **BLOCKED as durable artifact**; recovered content remains in session `terminal/call-c50ddd98-…-76.log` and prior `/tmp` capture used during this session.
+
 ### B. 起動時の認証確認だけに待ち上限を設ける（Aの次）
 
 起動時のsession restoreを、通常業務API・権限再取得とは分けて制御する。初期案は **1試行8秒、起動時の自動リトライ0回**。8秒は今回の23秒待ちを無反応のまま継続させないためのUX上の初期値であり、cold startを8秒以内に短縮する保証ではない。
