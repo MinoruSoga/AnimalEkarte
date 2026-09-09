@@ -401,7 +401,7 @@ class VerificationTests(unittest.TestCase):
                 self.assertNotIn('--headed', job['command'])
                 self.assertNotIn('--debug', job['command'])
 
-    def test_e2e_page_object_without_consumer_is_blocked(self):
+    def test_e2e_page_object_without_consumer_plans_ast_job(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             page = root / 'frontend/e2e/pages/orphan-page.ts'
@@ -413,8 +413,12 @@ class VerificationTests(unittest.TestCase):
             )
             with mock.patch.object(verify, 'ROOT', root):
                 jobs, blocked = verify.plan(['frontend/e2e/pages/orphan-page.ts'])
-                self.assertFalse(jobs)
-                self.assertEqual(blocked, ['frontend/e2e/pages/orphan-page.ts'])
+                self.assertFalse(blocked)
+                self.assertTrue(jobs)
+                ast_jobs = [job for job in jobs if job.get('require_e2e_page_consumers')]
+                self.assertEqual(len(ast_jobs), 1)
+                self.assertIn('scripts/verify-e2e-page-consumers.mjs', ast_jobs[0]['command'])
+                self.assertIn('e2e/pages/orphan-page.ts', ast_jobs[0]['e2e_pages'])
 
     def test_e2e_deleted_or_unsupported_paths_block(self):
         missing = 'frontend/e2e/missing-spec.spec.ts'
@@ -464,206 +468,118 @@ class VerificationTests(unittest.TestCase):
         self.assertFalse(blocked)
         self.assertEqual(jobs[0]['command'], ['node', '--test', 'scripts/vite-native-config.test.mjs'])
 
-    def test_page_only_plan_includes_real_consumer_specs_in_tsc(self):
+    def test_page_only_plan_includes_all_specs_and_ast_job(self):
         jobs, blocked = verify.plan(['frontend/e2e/pages/accounting-page.ts'])
         self.assertFalse(blocked)
-        tsc = next(job for job in jobs if job['command'] and job['command'][0] == 'sh' and 'ae-e2e-tsc' in job['command'])
-        self.assertIn('e2e/pages/accounting-page.ts', tsc['command'])
-        self.assertIn('e2e/s09-closing-time-boundaries.spec.ts', tsc['command'])
-        self.assertIn('e2e/accounting-flow.spec.ts', tsc['command'])
-        self.assertIn('e2e/accounting-smoke.spec.ts', tsc['command'])
+        all_specs = [path.removeprefix('frontend/') for path in verify.list_e2e_spec_paths()]
+        self.assertGreaterEqual(len(all_specs), 1)
+        tsc = next(
+            job for job in jobs
+            if job['command'][:2] == ['node', 'node_modules/typescript/bin/tsc']
+            and 'e2e/tsconfig.json' in job['command']
+        )
+        self.assertIn('--noEmit', tsc['command'])
+        lint = next(job for job in jobs if job['command'][:1] == ['node'] and 'eslint.js' in job['command'][1])
+        fmt = next(job for job in jobs if job['command'][:1] == ['node'] and 'prettier.cjs' in job['command'][1])
+        for spec in all_specs:
+            self.assertIn(spec, lint['command'], spec)
+            self.assertIn(spec, fmt['command'], spec)
         discovery = next(job for job in jobs if job.get('require_e2e_discovery'))
-        self.assertIn('e2e/s09-closing-time-boundaries.spec.ts', discovery['e2e_discovery_specs'])
-        self.assertIn('e2e/accounting-flow.spec.ts', discovery['e2e_discovery_specs'])
+        for spec in all_specs:
+            self.assertIn(spec, discovery['e2e_discovery_specs'], spec)
+        ast = next(job for job in jobs if job.get('require_e2e_page_consumers'))
+        self.assertEqual(ast['command'][:2], ['node', 'scripts/verify-e2e-page-consumers.mjs'])
+        self.assertIn('--page', ast['command'])
+        self.assertIn('e2e/pages/accounting-page.ts', ast['command'])
+        self.assertIn('e2e/pages/accounting-page.ts', ast['e2e_pages'])
 
-    def test_comment_only_page_import_is_not_a_consumer(self):
-        with tempfile.TemporaryDirectory() as directory:
-            root = pathlib.Path(directory)
-            page = root / 'frontend/e2e/pages/orphan-page.ts'
-            page.parent.mkdir(parents=True)
-            page.write_text('export class Orphan {}\n')
-            (root / 'frontend/e2e').mkdir(exist_ok=True)
-            (root / 'frontend/e2e/fake.spec.ts').write_text(
-                '// import { Orphan } from "./pages/orphan-page";\n'
-                'import { test } from "@playwright/test";\n'
-                'test("x", async () => {});\n'
+    def test_plan_maps_e2e_page_consumer_scripts(self):
+        for path in (
+            'frontend/scripts/verify-e2e-page-consumers.mjs',
+            'frontend/scripts/verify-e2e-page-consumers.test.mjs',
+        ):
+            jobs, blocked = verify.plan([path])
+            self.assertFalse(blocked, path)
+            self.assertEqual(
+                jobs[0]['command'],
+                ['node', '--test', 'scripts/verify-e2e-page-consumers.test.mjs'],
             )
-            with mock.patch.object(verify, 'ROOT', root):
-                self.assertEqual(verify.e2e_spec_consumers('frontend/e2e/pages/orphan-page.ts'), [])
-                jobs, blocked = verify.plan(['frontend/e2e/pages/orphan-page.ts'])
-                self.assertFalse(jobs)
-                self.assertEqual(blocked, ['frontend/e2e/pages/orphan-page.ts'])
 
-    def test_discovery_rejects_missing_or_zero_registered_tests(self):
+    def test_plan_does_not_execute_ast_scan(self):
+        with mock.patch.object(verify, 'run') as mocked_run:
+            jobs, blocked = verify.plan(['frontend/e2e/pages/accounting-page.ts'])
+            self.assertFalse(blocked)
+            self.assertTrue(any(job.get('require_e2e_page_consumers') for job in jobs))
+            mocked_run.assert_not_called()
+
+    def test_validate_e2e_page_consumers_accepts_valid_payload(self):
         payload = {
-            'config': {'rootDir': '/app/e2e'},
-            'suites': [{
-                'specs': [{
-                    'file': 'valid.spec.ts',
-                    'tests': [{'title': 'ok'}],
+            'ok': True,
+            'pages': [{
+                'page': 'e2e/pages/accounting-page.ts',
+                'consumers': [{
+                    'file': 'e2e/accounting-flow.spec.ts',
+                    'form': 'static-import',
+                    'specifier': './pages/accounting-page',
                 }],
+                'blocking': [],
             }],
         }
-        counts = verify.validate_playwright_discovery(
+        evidence = verify.validate_e2e_page_consumers(
             json.dumps(payload),
-            ['e2e/valid.spec.ts'],
+            ['e2e/pages/accounting-page.ts'],
         )
-        self.assertEqual(counts['frontend/e2e/valid.spec.ts'], 1)
-        with self.assertRaisesRegex(ValueError, 'no registered tests'):
-            verify.validate_playwright_discovery(
-                json.dumps(payload),
-                ['e2e/valid.spec.ts', 'e2e/empty.spec.ts'],
-            )
-        with self.assertRaisesRegex(ValueError, 'malformed|empty|not JSON'):
-            verify.validate_playwright_discovery('', ['e2e/valid.spec.ts'])
+        self.assertEqual(len(evidence['e2e/pages/accounting-page.ts']), 1)
 
-    def test_discovery_rejects_same_basename_aliasing(self):
-        payload = {
-            'config': {'rootDir': '/app/e2e'},
-            'suites': [{
-                'specs': [{
-                    'file': 'group-a/shared.spec.ts',
-                    'tests': [{'title': 'valid'}],
+    def test_validate_e2e_page_consumers_fail_closed_matrix(self):
+        valid_consumer = {
+            'file': 'e2e/good.spec.ts',
+            'form': 'static-import',
+            'specifier': './pages/accounting-page',
+        }
+        with self.assertRaisesRegex(ValueError, 'empty output'):
+            verify.validate_e2e_page_consumers('')
+        with self.assertRaisesRegex(ValueError, 'malformed JSON|not JSON'):
+            verify.validate_e2e_page_consumers('not-json')
+        with self.assertRaisesRegex(ValueError, 'ok!=true'):
+            verify.validate_e2e_page_consumers(json.dumps({
+                'ok': False,
+                'pages': [{'page': 'e2e/pages/accounting-page.ts', 'consumers': [valid_consumer], 'blocking': []}],
+            }))
+        with self.assertRaisesRegex(ValueError, 'no spec consumer'):
+            verify.validate_e2e_page_consumers(json.dumps({
+                'ok': True,
+                'pages': [{'page': 'e2e/pages/orphan-page.ts', 'consumers': [], 'blocking': []}],
+            }))
+        with self.assertRaisesRegex(ValueError, 'blocking references'):
+            verify.validate_e2e_page_consumers(json.dumps({
+                'ok': True,
+                'pages': [{
+                    'page': 'e2e/pages/accounting-page.ts',
+                    'consumers': [valid_consumer],
+                    'blocking': [{'file': 'e2e/bad.spec.ts', 'form': 'dynamic-import'}],
                 }],
-            }],
-        }
-        with self.assertRaisesRegex(ValueError, 'group-b/shared.spec.ts'):
-            verify.validate_playwright_discovery(
-                json.dumps(payload),
-                ['e2e/group-a/shared.spec.ts', 'e2e/group-b/shared.spec.ts'],
-            )
-        both = {
-            'config': {'rootDir': '/app/e2e'},
-            'suites': [{
-                'specs': [
-                    {'file': 'group-a/shared.spec.ts', 'tests': [{'title': 'a'}]},
-                    {'file': 'group-b/shared.spec.ts', 'tests': [{'title': 'b'}]},
-                ],
-            }],
-        }
-        counts = verify.validate_playwright_discovery(
-            json.dumps(both),
-            ['e2e/group-a/shared.spec.ts', 'e2e/group-b/shared.spec.ts'],
-        )
-        self.assertEqual(counts['frontend/e2e/group-a/shared.spec.ts'], 1)
-        self.assertEqual(counts['frontend/e2e/group-b/shared.spec.ts'], 1)
+            }))
 
-    def test_string_literal_is_not_an_import_specifier(self):
-        text = 'const message = "import { AccountingPage } from \'./pages/accounting-page\'";\n'
-        self.assertEqual(verify.e2e_import_specifiers(text), [])
-        text_real = 'import { AccountingPage } from "./pages/accounting-page";\n'
-        self.assertEqual(verify.e2e_import_specifiers(text_real), ['./pages/accounting-page'])
+    def test_python_has_no_regex_module_reference_authority(self):
+        source = pathlib.Path(verify.__file__).read_text(encoding='utf-8')
+        self.assertNotIn('E2E_MODULE_REFERENCE_PATTERNS', source)
+        self.assertNotIn('aliases_page', source)
+        self.assertNotIn('def e2e_module_references', source)
+        self.assertNotIn('def e2e_spec_consumers', source)
+        # Former FP: helper URL substring must not be Python consumer authority.
+        self.assertNotIn("f'pages/{module}' in normalized", source)
+        self.assertNotIn('endswith(f\'pages/{module}\')', source)
 
-    def test_regex_literal_is_not_an_import_specifier(self):
-        text = 'const pattern = /import { AccountingPage } from ".\\/pages\\/accounting-page"/;\n'
-        self.assertEqual(verify.e2e_import_specifiers(text), [])
-
-    def test_discovery_rejects_dot_prefix_alias(self):
-        payload = {
-            'config': {'rootDir': '/app/e2e'},
-            'suites': [{
-                'specs': [{
-                    'file': '.group-a/shared.spec.ts',
-                    'tests': [{'title': 'valid'}],
-                }],
-            }],
-        }
-        with self.assertRaisesRegex(ValueError, 'ambiguous|no registered tests|out of root'):
-            verify.validate_playwright_discovery(
-                json.dumps(payload),
-                ['e2e/group-a/shared.spec.ts'],
-            )
-
-    def test_nested_relative_import_resolves_against_importer(self):
+    def test_check_e2e_scope_page_only_requires_existence(self):
+        verify.check_e2e_scope(['frontend/e2e/pages/accounting-page.ts'])
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
-            page = root / 'frontend/e2e/pages/accounting-page.ts'
-            page.parent.mkdir(parents=True)
-            page.write_text('export class AccountingPage {}\n')
-            nested = root / 'frontend/e2e/subdir/foo.spec.ts'
-            nested.parent.mkdir(parents=True)
-            nested.write_text(
-                'import { AccountingPage } from "./pages/accounting-page";\n'
-                'import { test } from "@playwright/test";\n'
-                'test("x", async () => {});\n'
-            )
+            missing = 'frontend/e2e/pages/missing-page.ts'
             with mock.patch.object(verify, 'ROOT', root):
-                self.assertEqual(verify.e2e_spec_consumers('frontend/e2e/pages/accounting-page.ts'), [])
+                with self.assertRaisesRegex(ValueError, 'missing'):
+                    verify.check_e2e_scope([missing])
 
-    def test_mixed_supported_and_unsupported_page_reference_blocks(self):
-        with tempfile.TemporaryDirectory() as directory:
-            root = pathlib.Path(directory)
-            page = root / 'frontend/e2e/pages/accounting-page.ts'
-            page.parent.mkdir(parents=True)
-            page.write_text('export class AccountingPage {}\n')
-            good = root / 'frontend/e2e/good.spec.ts'
-            bad = root / 'frontend/e2e/bad.spec.ts'
-            good.write_text(
-                'import { AccountingPage } from "./pages/accounting-page";\n'
-                'import { test } from "@playwright/test";\n'
-                'test("x", async () => {});\n'
-            )
-            bad.write_text(
-                'import { AccountingPage } from "@/e2e/pages/accounting-page";\n'
-                'import { test } from "@playwright/test";\n'
-                'test("y", async () => {});\n'
-            )
-            with mock.patch.object(verify, 'ROOT', root):
-                with self.assertRaisesRegex(ValueError, 'unsupported import topology'):
-                    verify.e2e_spec_consumers('frontend/e2e/pages/accounting-page.ts')
-
-    def test_mixed_valid_consumer_cannot_hide_dynamic_or_reexport(self):
-        with tempfile.TemporaryDirectory() as directory:
-            root = pathlib.Path(directory)
-            page = root / 'frontend/e2e/pages/accounting-page.ts'
-            page.parent.mkdir(parents=True)
-            page.write_text('export class AccountingPage {}\n')
-            good = root / 'frontend/e2e/good.spec.ts'
-            bad = root / 'frontend/e2e/bad.spec.ts'
-            good.write_text(
-                'import { AccountingPage } from "./pages/accounting-page";\n'
-                'import { test } from "@playwright/test";\n'
-                'test("x", async () => {});\n'
-            )
-            bad.write_text(
-                'const load = () => import("./pages/accounting-page");\n'
-                'export { AccountingPage } from "./pages/accounting-page";\n'
-                'import { test } from "@playwright/test";\n'
-                'test("y", async () => {});\n'
-            )
-            with mock.patch.object(verify, 'ROOT', root):
-                forms = verify.e2e_module_references(bad.read_text())
-                self.assertIn(('dynamic-import', './pages/accounting-page'), forms)
-                self.assertIn(('export-from', './pages/accounting-page'), forms)
-                with self.assertRaisesRegex(ValueError, r'unsupported import topology.*bad\.spec\.ts'):
-                    verify.e2e_spec_consumers('frontend/e2e/pages/accounting-page.ts')
-
-    def test_side_effect_import_of_page_is_unsupported(self):
-        text = 'import "./pages/accounting-page";\n'
-        self.assertEqual(
-            verify.e2e_module_references(text),
-            [('side-effect-import', './pages/accounting-page')],
-        )
-
-    def test_absolute_dynamic_import_cannot_hide_behind_valid_consumer(self):
-        with tempfile.TemporaryDirectory() as directory:
-            root = pathlib.Path(directory)
-            page = root / 'frontend/e2e/pages/accounting-page.ts'
-            page.parent.mkdir(parents=True)
-            page.write_text('export class AccountingPage {}\n')
-            (root / 'frontend/e2e/good.spec.ts').write_text(
-                'import { AccountingPage } from "./pages/accounting-page";\n'
-                'import { test } from "@playwright/test";\n'
-                'test("x", async () => {});\n'
-            )
-            (root / 'frontend/e2e/abs.spec.ts').write_text(
-                'const load = () => import("/app/e2e/pages/accounting-page");\n'
-                'import { test } from "@playwright/test";\n'
-                'test("y", async () => {});\n'
-            )
-            with mock.patch.object(verify, 'ROOT', root):
-                with self.assertRaisesRegex(ValueError, r'unsupported import topology.*abs\.spec\.ts'):
-                    verify.e2e_spec_consumers('frontend/e2e/pages/accounting-page.ts')
 
 
 if __name__ == '__main__':

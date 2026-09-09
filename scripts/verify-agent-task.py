@@ -103,158 +103,6 @@ E2E_TSCONFIG_BOOTSTRAP = (
 
 
 E2E_TRUSTED_DISCOVERY_ROOT = '/app/e2e'
-E2E_SUPPORTED_IMPORT_FORMS = frozenset({'static-import', 'require'})
-E2E_UNSUPPORTED_IMPORT_FORMS = frozenset({'dynamic-import', 'export-from', 'side-effect-import'})
-E2E_MODULE_REFERENCE_PATTERNS = (
-    ('static-import', re.compile(
-        r"""import\s+(?:type\s+)?(?:\{[^}]*\}|\*\s+as\s+[A-Za-z_$][\w$]*|[A-Za-z_$][\w$]*)\s+from\s*(['"])([^'"]+)\1"""
-    )),
-    ('export-from', re.compile(
-        r"""export\s+(?:type\s+)?(?:\*\s+as\s+[A-Za-z_$][\w$]*|\*|\{[^}]*\})\s+from\s*(['"])([^'"]+)\1"""
-    )),
-    ('dynamic-import', re.compile(r"""\bimport\s*\(\s*(['"])([^'"]+)\1\s*\)""")),
-    ('require', re.compile(r"""\brequire\s*\(\s*(['"])([^'"]+)\1\s*\)""")),
-    ('side-effect-import', re.compile(r"""\bimport\s*(['"])([^'"]+)\1""")),
-)
-
-
-def mask_non_code(text):
-    """Replace comments/string/template contents with spaces so regex cannot see lookalikes."""
-    out = []
-    index = 0
-    length = len(text)
-    while index < length:
-        char = text[index]
-        nxt = text[index + 1] if index + 1 < length else ''
-        if char == '/' and nxt == '/':
-            out.append('  ')
-            index += 2
-            while index < length and text[index] not in '\n\r':
-                out.append('\n' if text[index] == '\n' else ' ')
-                index += 1
-            continue
-        if char == '/' and nxt == '*':
-            out.append('  ')
-            index += 2
-            while index < length - 1 and not (text[index] == '*' and text[index + 1] == '/'):
-                out.append('\n' if text[index] == '\n' else ' ')
-                index += 1
-            if index < length - 1:
-                out.append('  ')
-                index += 2
-            continue
-        if char == '/' and nxt not in ('/', '*'):
-            # Mask JS/TS regex literals so import-shaped patterns inside them cannot match.
-            prev = next((item for item in reversed(out) if not item.isspace()), '')
-            if prev and (prev.isalnum() or prev in ')_$]):'):
-                out.append(char)
-                index += 1
-                continue
-            out.append(' ')
-            index += 1
-            while index < length:
-                current = text[index]
-                if current == '\\' and index + 1 < length:
-                    out.append('  ')
-                    index += 2
-                    continue
-                if current == '\n':
-                    out.append('\n')
-                    index += 1
-                    break
-                out.append(' ')
-                index += 1
-                if current == '/':
-                    while index < length and text[index].isalpha():
-                        out.append(' ')
-                        index += 1
-                    break
-            continue
-        if char in ('"', "'", '`'):
-
-            quote = char
-            out.append(quote)
-            index += 1
-            while index < length:
-                current = text[index]
-                out.append(' ' if current != '\n' else '\n')
-                if current == '\\' and quote != '`':
-                    index += 1
-                    if index < length:
-                        out.append(' ')
-                        index += 1
-                    continue
-                if quote == '`' and current == '$' and index + 1 < length and text[index + 1] == '{':
-                    # Keep ${...} body masked; skip until matching }.
-                    out[-1] = ' '
-                    index += 2
-                    depth = 1
-                    while index < length and depth:
-                        if text[index] == '{':
-                            depth += 1
-                        elif text[index] == '}':
-                            depth -= 1
-                        out.append('\n' if text[index] == '\n' else ' ')
-                        index += 1
-                    continue
-                index += 1
-                if current == quote:
-                    out[-1] = quote
-                    break
-            continue
-        out.append(char)
-        index += 1
-    return ''.join(out)
-
-
-def _specifier_from_match(text, match):
-    quote_index = match.start(1)
-    if quote_index < 0 or quote_index >= len(text):
-        return ''
-    quote = text[quote_index]
-    index = quote_index + 1
-    chars = []
-    while index < len(text):
-        char = text[index]
-        if char == '\\' and index + 1 < len(text):
-            chars.append(text[index + 1])
-            index += 2
-            continue
-        if char == quote:
-            break
-        chars.append(char)
-        index += 1
-    else:
-        return ''
-    return ''.join(chars).strip()
-
-
-def e2e_module_references(text):
-    """Return classified module references from real statements only.
-
-    Each item is (form, specifier) where form is one of:
-    static-import, require, dynamic-import, export-from, side-effect-import.
-    """
-    masked = mask_non_code(text)
-    references = []
-    occupied = []
-    for form, pattern in E2E_MODULE_REFERENCE_PATTERNS:
-        for match in pattern.finditer(masked):
-            span = match.span()
-            if any(span[0] < end and span[1] > start for start, end in occupied):
-                continue
-            specifier = _specifier_from_match(text, match)
-            if not specifier:
-                continue
-            occupied.append(span)
-            references.append((form, specifier))
-    return references
-
-
-def e2e_import_specifiers(text):
-    """Return supported static import/require module specifiers only."""
-    return [specifier for form, specifier in e2e_module_references(text)
-            if form in E2E_SUPPORTED_IMPORT_FORMS]
 
 
 def normalize_e2e_repo_path(path):
@@ -270,81 +118,65 @@ def normalize_e2e_repo_path(path):
     return pathlib.PurePosixPath(*parts).as_posix()
 
 
-def resolve_e2e_import(importer_repo_path, specifier):
-    """Resolve a relative import against the importing file to a repo-relative .ts path."""
-    normalized = specifier.replace('\\', '/')
-    if normalized.startswith('@/') or normalized.startswith('node:') or '${' in normalized:
-        return None
-    if normalized.startswith('/') or normalized.startswith('http:') or normalized.startswith('https:'):
-        return None
-    importer = pathlib.PurePosixPath(normalize_e2e_repo_path(importer_repo_path))
-    base = normalized[:-3] if normalized.endswith('.ts') else normalized
-    resolved = pathlib.PurePosixPath(os.path.normpath(str(importer.parent / base)))
-    if '..' in resolved.parts or not str(resolved).startswith('frontend/e2e/'):
-        raise ValueError(f'import resolves outside trusted e2e root: {specifier} from {importer_repo_path}')
-    candidate = resolved.as_posix() + ('' if resolved.suffix else '.ts')
-    return candidate
-
-
-def e2e_spec_consumers(page_path):
-    """Return e2e spec paths whose supported resolved imports target the page module."""
-    page = normalize_e2e_repo_path(page_path)
-    page_path_obj = pathlib.PurePosixPath(page)
-    if len(page_path_obj.parts) < 4 or page_path_obj.parts[2] != 'pages':
+def list_e2e_spec_paths():
+    """Return current repo-relative frontend/e2e/**/*.spec.ts paths (re-counted, not hardcoded)."""
+    root = ROOT / 'frontend' / 'e2e'
+    if not root.is_dir():
         return []
-    target = page if page.endswith('.ts') else page + '.ts'
-    module = page_path_obj.stem
-    consumers = []
-    unsupported = []
-    for spec in sorted((ROOT / 'frontend' / 'e2e').rglob('*.spec.ts')):
+    specs = []
+    for spec in sorted(root.rglob('*.spec.ts')):
+        if not spec.is_file():
+            continue
         relative = spec.relative_to(ROOT).as_posix()
         validate_path(relative)
-        text = spec.read_text(encoding='utf-8')
-        matched = False
-        for form, specifier in e2e_module_references(text):
-            normalized = specifier.replace('\\', '/')
-            bare = normalized.rstrip('/')
-            aliases_page = (
-                f'pages/{module}' in normalized
-                or bare.endswith(f'pages/{module}')
-                or bare.endswith(f'pages/{module}.ts')
-            )
-            non_relative = (
-                normalized.startswith('@/')
-                or normalized.startswith('node:')
-                or normalized.startswith('http:')
-                or normalized.startswith('https:')
-                or normalized.startswith('/')
-                or '${' in normalized
-            )
-            if non_relative:
-                if aliases_page:
-                    unsupported.append(f'{relative} ({form})')
-                continue
-            try:
-                resolved = resolve_e2e_import(relative, normalized)
-            except ValueError:
-                if aliases_page or form in E2E_UNSUPPORTED_IMPORT_FORMS:
-                    unsupported.append(f'{relative} ({form})')
-                continue
-            if resolved is None:
-                if aliases_page:
-                    unsupported.append(f'{relative} ({form})')
-                continue
-            if resolved != target:
-                continue
-            if form in E2E_SUPPORTED_IMPORT_FORMS:
-                matched = True
-            else:
-                unsupported.append(f'{relative} ({form})')
-        if matched:
-            consumers.append(relative)
-    if unsupported:
-        raise ValueError(
-            'E2E page object has unsupported import topology in: '
-            + ', '.join(sorted(set(unsupported)))
-        )
-    return consumers
+        specs.append(relative)
+    return specs
+
+
+def validate_e2e_page_consumers(stdout, expected_pages=None, stderr=''):
+    """Fail-closed parse of verify-e2e-page-consumers.mjs JSON evidence."""
+    text = (stdout or '').strip() or (stderr or '').strip()
+    if not text:
+        raise ValueError('E2E page consumer AST produced empty output')
+    start = text.find('{')
+    if start < 0:
+        raise ValueError('E2E page consumer AST output is not JSON')
+    try:
+        payload = json.loads(text[start:])
+    except ValueError as error:
+        raise ValueError('E2E page consumer AST output is malformed JSON') from error
+    if payload.get('ok') is not True:
+        raise ValueError('E2E page consumer AST reported ok!=true')
+    pages = payload.get('pages')
+    if not isinstance(pages, list) or not pages:
+        raise ValueError('E2E page consumer AST pages payload is missing')
+    evidence = {}
+    for entry in pages:
+        if not isinstance(entry, dict):
+            raise ValueError('E2E page consumer AST page entry is malformed')
+        page = entry.get('page')
+        consumers = entry.get('consumers')
+        blocking = entry.get('blocking')
+        if not isinstance(page, str) or not page:
+            raise ValueError('E2E page consumer AST page identity is missing')
+        if not isinstance(consumers, list) or not isinstance(blocking, list):
+            raise ValueError(f'E2E page consumer AST consumers/blocking malformed for {page}')
+        if blocking:
+            raise ValueError(f'E2E page consumer AST blocking references for {page}')
+        if not consumers:
+            raise ValueError(f'E2E page object has no spec consumer: {page}')
+        for consumer in consumers:
+            if not isinstance(consumer, dict):
+                raise ValueError(f'E2E page consumer AST consumer entry malformed for {page}')
+            if not consumer.get('file') or not consumer.get('form') or 'specifier' not in consumer:
+                raise ValueError(f'E2E page consumer AST consumer identity incomplete for {page}')
+        evidence[page] = consumers
+    if expected_pages:
+        found = {entry.get('page') for entry in pages}
+        missing = [page for page in expected_pages if page not in found]
+        if missing:
+            raise ValueError('E2E page consumer AST missing pages: ' + ', '.join(missing))
+    return evidence
 
 
 def playwright_discovery_counts(stdout, trusted_root=E2E_TRUSTED_DISCOVERY_ROOT):
@@ -427,9 +259,6 @@ def check_e2e_scope(paths):
         target = ROOT / path
         if not target.is_file():
             raise ValueError(f'E2E path is missing: {path}')
-        if path.startswith('frontend/e2e/pages/') and path.endswith('.ts'):
-            if not e2e_spec_consumers(path):
-                raise ValueError(f'E2E page object has no spec consumer: {path}')
 
 
 def plan(paths):
@@ -448,20 +277,17 @@ def plan(paths):
             if not (ROOT / path).is_file():
                 blocked.append(path)
                 continue
-            try:
-                consumers = e2e_spec_consumers(path)
-            except ValueError:
-                blocked.append(path)
-                continue
-            if not consumers:
-                blocked.append(path)
-                continue
             e2e_pages.append(path)
             if path not in e2e_ts:
                 e2e_ts.append(path)
-            for consumer in consumers:
-                if consumer not in e2e_ts:
-                    e2e_ts.append(consumer)
+        elif path in (
+            'frontend/scripts/verify-e2e-page-consumers.mjs',
+            'frontend/scripts/verify-e2e-page-consumers.test.mjs',
+        ):
+            jobs.append({
+                'service': 'frontend',
+                'command': ['node', '--test', 'scripts/verify-e2e-page-consumers.test.mjs'],
+            })
         elif path in ('frontend/vite.config.ts', 'frontend/scripts/vite-native-config.test.mjs'):
             jobs.append({'service': 'frontend', 'command': ['node', '--test', 'scripts/vite-native-config.test.mjs']})
         elif path == 'frontend/scripts/run-e2e.sh':
@@ -524,6 +350,10 @@ def plan(paths):
         if existing:
             jobs.append({'service': 'frontend', 'command': ['node', 'node_modules/eslint/bin/eslint.js', '--max-warnings', '0', *existing]})
             jobs.append({'service': 'frontend', 'command': ['node', 'node_modules/prettier/bin/prettier.cjs', '--check', *existing]})
+    if e2e_pages:
+        for spec in list_e2e_spec_paths():
+            if spec not in e2e_ts:
+                e2e_ts.append(spec)
     e2e_selected = []
     for path in e2e_ts:
         if path not in e2e_selected:
@@ -536,16 +366,27 @@ def plan(paths):
         if relative_ts:
             jobs.append({'service': 'frontend', 'command': ['node', 'node_modules/eslint/bin/eslint.js', '--max-warnings', '0', *relative_ts]})
             jobs.append({'service': 'frontend', 'command': ['node', 'node_modules/prettier/bin/prettier.cjs', '--check', *relative_ts]})
-            jobs.append({
-                'service': 'frontend',
-                'command': [
-                    'sh', '-c',
-                    'node -e \'' + E2E_TSCONFIG_BOOTSTRAP + '\' "$@" '
-                    '&& node node_modules/typescript/bin/tsc -p /tmp/ae-e2e-tsconfig.json --noEmit --pretty false',
-                    'ae-e2e-tsc',
-                    *relative_ts,
-                ],
-            })
+            if e2e_pages:
+                # Page-only conservative mode typechecks the full e2e project so
+                # fixture @/ imports resolve via e2e/tsconfig.json (extends app tsconfig).
+                jobs.append({
+                    'service': 'frontend',
+                    'command': [
+                        'node', 'node_modules/typescript/bin/tsc',
+                        '-p', 'e2e/tsconfig.json', '--noEmit', '--pretty', 'false',
+                    ],
+                })
+            else:
+                jobs.append({
+                    'service': 'frontend',
+                    'command': [
+                        'sh', '-c',
+                        'node -e \'' + E2E_TSCONFIG_BOOTSTRAP + '\' "$@" '
+                        '&& node node_modules/typescript/bin/tsc -p /tmp/ae-e2e-tsconfig.json --noEmit --pretty false',
+                        'ae-e2e-tsc',
+                        *relative_ts,
+                    ],
+                })
         if relative_specs:
             jobs.append({
                 'service': 'frontend',
@@ -559,6 +400,23 @@ def plan(paths):
         if e2e_runner:
             jobs.append({'service': 'host', 'command': ['bash', '-n', 'frontend/scripts/run-e2e.sh']})
         jobs.append({'service': 'host', 'command': ['python3', '-B', 'scripts/verify-agent-task.py', '--check-e2e-scope', *e2e_selected]})
+        if e2e_pages:
+            page_args = []
+            page_idents = []
+            for page in e2e_pages:
+                ident = page.removeprefix('frontend/')
+                page_args.extend(['--page', ident])
+                page_idents.append(ident)
+            jobs.append({
+                'service': 'frontend',
+                'command': [
+                    'node', 'scripts/verify-e2e-page-consumers.mjs',
+                    *page_args,
+                    '--e2e-root', 'e2e',
+                ],
+                'require_e2e_page_consumers': True,
+                'e2e_pages': page_idents,
+            })
     unique = []
     for job in jobs:
         if job not in unique:
@@ -854,6 +712,21 @@ def main():
                     except ValueError as error:
                         failed = True
                         check['discovery_error'] = str(error)
+                if job.get('require_e2e_page_consumers'):
+                    try:
+                        if result.returncode != 0:
+                            raise ValueError(
+                                'E2E page consumer AST exited nonzero: ' + str(result.returncode)
+                            )
+                        consumers = validate_e2e_page_consumers(
+                            result.stdout,
+                            job.get('e2e_pages') or None,
+                            stderr=result.stderr,
+                        )
+                        check['e2e_page_consumers'] = consumers
+                    except ValueError as error:
+                        failed = True
+                        check['e2e_page_consumers_error'] = str(error)
                 check.update(exit_code=result.returncode, status='FAIL' if failed else 'PASS')
                 evidence['checks'].append(check)
                 if failed:
