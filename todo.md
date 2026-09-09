@@ -1,6 +1,6 @@
 # タスク台帳 — Linear が正本
 
-統合日: 2026-09-08。最終ローカル照合: 2026-09-09 / main `48e89dbe4`。Linear 読み取り結果・認証修正の main 反映・旧 claim 削除を確認した。Linear の状態は同日の記録であり、今回のローカル更新では再照会していない。UAT・STG/PROD・go-live は再判定していない。
+統合日: 2026-09-08。最終ローカル照合: 2026-09-09 / main `c0950fbdf`（追加照合 PR 枝 `docs/meta-linear-pr-20260909`）。Codex の Linear 読み取り結果は `48e89dbe4` 以降も保持。Grok 追加照合では Linear MCP がセッション限定で UNAVAILABLE のためライブ再照会はせず、定義再確認と次照会リストを [linear-f1-f6-mapping.md](docs/work/linear-f1-f6-mapping.md) に記録した。UAT・STG/PROD・go-live は再判定していない。
 
 | 項目 | 値 |
 |------|-----|
@@ -16,7 +16,7 @@
 
 エージェントは PlanetScale、共有 STG apply、`DROP SCHEMA`、本番 cutover、`make reset`、八王子 CSV の producer 出力を実行しない。push / dispatch / Linear Done / 秘密変更は明示承認が必要。
 
-claim は ID ごとに初回編集前に確認・取得する。作成者別の削除条件は [AGENTS.md](AGENTS.md#branch-deletion-by-creator-mandatory) を正本とする。ユーザー作成は AI による削除禁止。AI 作成は統合・明示終了・成果を保全した引き継ぎと未使用を確認して削除可能。2026-09-09 の本更新開始前に `git branch --list 'claim/*'` が空であることを確認した。旧 META / QA / 認証 claim の解除待ちは解消済み。claim の削除は UAT や受入の完了を意味しない。新規着手時は現在の claim を再確認する。
+claim は ID ごとに初回編集前に確認・取得する。作成者別の削除条件は [AGENTS.md](AGENTS.md#branch-deletion-by-creator-mandatory) を正本とする。ユーザー作成は AI による削除禁止。AI 作成は統合・明示終了・成果を保全した引き継ぎと未使用を確認して削除可能。旧 META / QA / 認証 claim の解除待ちは解消済み。本 META 追加照合は `claim/META-LINEAR-APPLY` を取得して実施する。claim の削除は UAT や受入の完了を意味しない。新規着手時は現在の claim を再確認する。
 
 ---
 
@@ -71,14 +71,69 @@ S09 局所検証（2026-09-08）: fail-closed / CLI / OpenAPI drift GREEN。fixt
 
 | 順 | ID | 実行者 | なぜこの順 | 状態 |
 |----|----|--------|------------|------|
-| 1 | **META-LINEAR-APPLY** | agent（追加照合） / USER（反映） | 検索範囲・結果は [linear-f1-f6-mapping.md](docs/work/linear-f1-f6-mapping.md)。F1〜F6 の直接対応を確定してから反映 | **PARTIAL**（2026-09-09: プロジェクト55件・hub・関連語を照合。直接対応 ID は未特定。BRT-226 は Review。追加の本文・コメント照合は可能。書き込み・Done は USER 待ち） |
+| 1 | **META-LINEAR-APPLY** | agent（追加照合） / USER（反映） | 検索範囲・結果は [linear-f1-f6-mapping.md](docs/work/linear-f1-f6-mapping.md)。F1〜F6 の直接対応を確定してから反映 | **PARTIAL**（2026-09-09: Codex 55件・hub・関連語照合を保持。Grok 追加照合で定義6行と次の本文・コメント照会リストを文書化。直接対応 ID は未特定のまま。BRT-226 は Review（Astra 六件ではない）。Linear 書き込み・Done は USER 待ち） |
 | 2 | **H0-2 / HAC-CSV-1** | old_db / USER | STG 八王子の先頭。これより前の STG 行は進めない | **BLOCKED**（HAC-INPUT-2。完全 KNJO 未受領。同一 BAK 再実行と producer は禁止） |
 | 3 | **H0-3b → Lane3 HAC → H3-9 → H3-11 → Lane 4** | USER | 2 の依存どおり | 待ち |
 | 4 | **P1 → P2 → P3 → P4 → P5 → P6 → P7 → P8** | USER | go-live 依存。E1 / E2 は P4 の一部 | 待ち |
 
 STG レーンの次は医院/ベンダーからの完全 KNJO 再取得、または城東主経路（JOU-G2-2 の Azure 承認）。H0-3b には入らない。独立して F1〜F6 の Linear 読み取り照合と、下記受入残の実行前提・証跡の確認を進められる。S09 / V04 / clinical E2E の実行は各設計の環境・承認条件を満たしてから行う。Linear 書き込みと Done は USER。
 
-2026-09-09 引き継ぎ: Cursor の Linear 読取不可はそのセッションの制約。Codex の照会結果は `48e89dbe4` で main に反映済み。#254 全体の受入入口は [BRT-45](https://linear.app/baritechllc/issue/BRT-45)（同日観測 Needs Human）。[BRT-68](https://linear.app/baritechllc/issue/BRT-68) の同日観測の残は実 LINE / LIFF。両者を S09 等の PASS と混同しない。旧 META / QA claim は削除済みで、受入残は下記に維持する。
+2026-09-09 引き継ぎ: Cursor の Linear 読取不可はそのセッションの制約。Codex の照会結果は `48e89dbe4` で main に反映済み。Grok 追加照合（本更新）も Linear MCP UNAVAILABLE のためライブ再照会せず、Codex 観測を保持したうえで次照会リストを mapping 文書へ追加した。#254 全体の受入入口は [BRT-45](https://linear.app/baritechllc/issue/BRT-45)（同日観測 Needs Human）。[BRT-68](https://linear.app/baritechllc/issue/BRT-68) の同日観測の残は実 LINE / LIFF。両者を S09 等の PASS と混同しない。独立作業（読み取り照合・受入準備）は継続可能。受入残は下記に維持する。
+
+<a id="meta-linear-apply-evidence"></a>
+
+### META-LINEAR-APPLY 実行証跡（補完・歴史的ローカル証跡 follow-up）
+
+業務状態は上表どおり **PARTIAL**（Linear F1–F6 ID は **UNKNOWN**。書き込み・Done は USER）。本節はゲート証跡の補完であり、受入や Linear Done の再判定ではない。PR #392 の更新・commit/push は本ローカル証跡 follow-up では行わなかった。
+
+| 区分 | 内容 |
+|------|------|
+| 元実行 status | COMPLETE（文書 PR 公開まで）。ただし Execution Flow の台帳追記（gate 実出力）は欠落 |
+| 元 changed files（published） | `todo.md`, `docs/work/linear-f1-f6-mapping.md` @ `c0c00fede2033099e8591c5d9308bba9bb83c047` / PR #392 |
+| 本 follow-up 変更 | candidate `todo.md` のみ（当時ローカル未コミットの証跡節）。mapping は変更しなかった |
+| claim / session | `claim/META-LINEAR-APPLY`（取得 2026-09-09 13:49:34 +0900）。継続 session `01a08490-cf7b-7e13-bb17-8f216b82024b` |
+| 独立レビュー履歴 | attribution `01a084a9-…b437` APPROVE。scope `01a084a9-…b830` **REQUEST_CHANGES**（当時 `main..HEAD=0`）は履歴のまま。運用上の commit/PR で解消したが reviewer 再 APPROVE は観測なし。security `01a084a9-…9c4d6` APPROVE |
+
+#### 歴史的証跡（元実行セッション記録・再実行ではない）
+
+出典: session terminal `call-2dad4b89-…-4.log`（pre-setup）、`call-84e400c8-…-8.log`（claim/worktree）、`call-4f384aee-…-29.log` / `call-56a0dda8-…-33.log`（foreign WIP 観測）。
+
+- pre-setup source: STATUS/STAGED/UNSTAGED/UNTRACKED は空行（clean）。claim 不在。worktree 不在。
+- claim/worktree 後: `CLAIM_ACQUIRED:0`。candidate HEAD=`c0950fbdfe8c2267ea2ab33a41a906fee8f1f6b6`。allowlist 当時 hash: `todo.md`=`82fe6bb4c4e2382e5399be267e17072815b2425f71b69501b3037571cd2eca9e`、`docs/work/linear-f1-f6-mapping.md`=`ce4443c2b437b012220aeec42b173bf16de8aa3792625c4cc74058afabae7d99`。
+- 編集中に source へ foreign WIP 出現: `M todo.md` + `?? todo-performance.md`。candidate のみ編集し source は保全方針。観測時 source `todo.md` sha256=`a0587f9564677249d9cf25aa82f0f1ddf1a1741961342534131fbef36f801013`（`source_todo_lacks_our_markers`）。
+- **共有 WIP 内容保全の厳密証明は BLOCKED**: 元実行中の foreign source WIP について before/after の内容 fingerprint 対が欠落。欠落 ID（完全名）:
+  1. `original_run_source_todo.md_foreign_WIP_sha256_BEFORE_first_observation_as_WIP`
+  2. `original_run_source_todo.md_foreign_WIP_sha256_AFTER_later_original_run_ops_for_compare`
+  3. `original_run_source_todo-performance.md_sha256_BEFORE`
+  4. `original_run_source_todo-performance.md_sha256_AFTER`
+  status 再掲だけでは内容不変を証明しない。今日の hash を遡及証明にしない。
+
+#### 現在の再検証（2026-09-09 follow-up・candidate cwd）
+
+ラベル: **current re-verification**（元実行の代替ではない）。空出力は明記。
+
+| # | command | exit | stdout |
+|---|---------|------|--------|
+| 1 | `git rev-parse HEAD` | 0 | `c0c00fede2033099e8591c5d9308bba9bb83c047` |
+| 2 | `git status --short` | 0 | (empty) ※patch 前。patch 後は ` M todo.md` を別途記録 |
+| 3 | `git diff --name-only` | 0 | (empty) ※patch 前 |
+| 4 | `git diff --cached --name-only` | 0 | (empty) |
+| 5 | `git ls-files --others --exclude-standard` | 0 | (empty) |
+| 6 | `git diff --check` | 0 | (empty) |
+| 7 | `git diff --check c0950fbdfe8c2267ea2ab33a41a906fee8f1f6b6..c0c00fede2033099e8591c5d9308bba9bb83c047` | 0 | (empty) |
+| 8 | `git diff --name-only c0950fbdfe8c2267ea2ab33a41a906fee8f1f6b6..c0c00fede2033099e8591c5d9308bba9bb83c047` | 0 | `docs/work/linear-f1-f6-mapping.md` / `todo.md` |
+| 9 | `git ls-files --error-unmatch todo.md docs/work/linear-f1-f6-mapping.md` | 0 | `docs/work/linear-f1-f6-mapping.md` / `todo.md` |
+| 10 | `git diff -- todo.md` | 0 | 全文は埋め込まない（自己参照のため bytes も固定記載しない）。当時 follow-up 時点の観測: unstaged `todo.md` のみ・`--stat` は insertions のみ・mapping unchanged。precommit 単位の結果は `--stat` / `shasum` / `git status --short` 等の要約のみ記録し、自己参照の全文 diff bytes や未確定の未来 merge SHA を埋め込まない |
+
+Saved Prompt Validation Gate（follow-up）: `node ~/.claude/scripts/prompt-craft-delivery-validate.js --target agent --require-dynamic-workflow …/agent-fast-grok-meta-evidence-followup-20260909.md` → exit 0、`harness=PASS, receiver=PASS`、`promptSha256=2e9e4a0aee74a208564003d064c94129fdd05ba6075cbda62fde6ed4187f88d4`。
+
+#### Assumption deviations
+
+- 本セッションは元 Grok 所有者継続であり claim 再取得はしない（既存 `claim/META-LINEAR-APPLY` を保持）。
+- Linear MCP 不在はセッション限定。Codex 観測を無効化しない。
+- 共有 source の PERF WIP（`todo.md` / `todo-performance.md`）は foreign として未編集・未 restore。
+- 元 scope REQUEST_CHANGES を APPROVE に書き換えない。
+- 欠落した歴史的内容 hash 対を発明しない（E2 は BLOCKED のまま）。
 
 認証の独立した残検証: `950404408`（権限ロック・復旧修正）と `9be825a66`（認可経路・分離検証の追加）は main に反映済み。詳細と開始条件は [todo-fix-auth.md](todo-fix-auth.md) を参照する。実DB並行・初回管理者SQL実行・全経路の実DB返却データ分離・2サーバー即時失効・対象環境のメール・負荷測定は未検証の記録。限定テストの成功をこれらの完了と扱わない。ローカルの前提確認は独立して進められるが、DB/環境操作は個別の実行条件に従う。
 
