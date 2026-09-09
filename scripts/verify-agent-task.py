@@ -9,6 +9,8 @@ import hashlib
 import json
 import os
 import pathlib
+import posixpath
+import re
 import subprocess
 import sys
 import uuid
@@ -90,12 +92,323 @@ def scoped_contract_documents(paths):
                    for document in backend_contract_documents(job['command'])})
 
 
+E2E_TSCONFIG_BOOTSTRAP = (
+    'const fs=require("fs");const path=require("path");'
+    'const files=process.argv.slice(1).map((f)=>path.resolve("/app",f));'
+    'fs.writeFileSync("/tmp/ae-e2e-tsconfig.json",JSON.stringify({'
+    'compilerOptions:{strict:true,module:"CommonJS",moduleResolution:"Node",'
+    'target:"ES2022",esModuleInterop:true,skipLibCheck:true,ignoreDeprecations:"6.0",'
+    'types:["node"],typeRoots:["/app/node_modules/@types","/app/node_modules"]},'
+    'files}));'
+)
+
+
+E2E_TRUSTED_DISCOVERY_ROOT = '/app/e2e'
+
+
+def normalize_e2e_repo_path(path):
+    """Normalize frontend/e2e or e2e paths to frontend/e2e/... identity."""
+    validate_path(path)
+    relative = path[len('frontend/'):] if path.startswith('frontend/') else path
+    if not relative.startswith('e2e/'):
+        raise ValueError(f'path is outside trusted e2e root: {path}')
+    normalized = pathlib.PurePosixPath('frontend') / relative
+    parts = normalized.parts
+    if '..' in parts:
+        raise ValueError(f'path traversal is not allowed: {path}')
+    return pathlib.PurePosixPath(*parts).as_posix()
+
+
+def list_e2e_spec_paths():
+    """Return current repo-relative frontend/e2e/**/*.spec.ts paths (re-counted, not hardcoded)."""
+    root = ROOT / 'frontend' / 'e2e'
+    if not root.is_dir():
+        return []
+    specs = []
+    for spec in sorted(root.rglob('*.spec.ts')):
+        if not spec.is_file():
+            continue
+        relative = spec.relative_to(ROOT).as_posix()
+        validate_path(relative)
+        specs.append(relative)
+    return specs
+
+
+def _is_raw_canonical_posix(value):
+    """Reject forged spellings that PurePosixPath would collapse before parts checks."""
+    if not isinstance(value, str) or not value:
+        return False
+    # C0 controls and DEL survive PurePosixPath; reject before normalization authority.
+    if any(ord(ch) < 0x20 or ord(ch) == 0x7F for ch in value):
+        return False
+    if any(ch.isspace() for ch in value):
+        return False
+    if '\\' in value:
+        return False
+    # Require exact raw spelling: // and /./ must not be erased by normalization.
+    if value != pathlib.PurePosixPath(value).as_posix():
+        return False
+    parts = pathlib.PurePosixPath(value).parts
+    if not parts or any(part in ('.', '..') or part == '' for part in parts):
+        return False
+    return True
+
+
+def _is_canonical_e2e_page(page):
+    if not isinstance(page, str) or not page or page.startswith('frontend/'):
+        return False
+    if page.endswith('/'):
+        return False
+    if not _is_raw_canonical_posix(page):
+        return False
+    parts = pathlib.PurePosixPath(page).parts
+    if len(parts) < 3 or parts[0] != 'e2e' or parts[1] != 'pages':
+        return False
+    return page.endswith('.ts')
+
+
+def _is_e2e_spec_consumer_file(file_path):
+    if not isinstance(file_path, str) or not file_path:
+        return False
+    if not _is_raw_canonical_posix(file_path):
+        return False
+    parts = pathlib.PurePosixPath(file_path).parts
+    if not parts or parts[0] != 'e2e':
+        return False
+    return file_path.endswith('.spec.ts')
+
+
+def _resolve_importer_relative_specifier(file_path, specifier):
+    """Resolve importer-relative specifier to an e2e/... identity, or None if rejected."""
+    if not isinstance(file_path, str) or not isinstance(specifier, str):
+        return None
+    if not (specifier.startswith('./') or specifier.startswith('../')):
+        return None
+    if any(ch.isspace() for ch in specifier):
+        return None
+    if any(token in specifier for token in ('?', '#', '\0', '\\')):
+        return None
+    base_dir = posixpath.dirname(file_path)
+    joined = posixpath.normpath(posixpath.join(base_dir, specifier))
+    if joined == 'e2e' or not joined.startswith('e2e/'):
+        return None
+    parts = joined.split('/')
+    if any(part in ('.', '..') or part == '' for part in parts):
+        return None
+    if not joined.endswith('.ts'):
+        joined = f'{joined}.ts'
+    return joined
+
+
+def validate_e2e_page_consumers(stdout, expected_pages=None, stderr=''):
+    """Fail-closed parse of verify-e2e-page-consumers.mjs JSON evidence."""
+    text = (stdout or '').strip() or (stderr or '').strip()
+    if not text:
+        raise ValueError('E2E page consumer AST produced empty output')
+    start = text.find('{')
+    if start < 0:
+        raise ValueError('E2E page consumer AST output is not JSON')
+    try:
+        payload = json.loads(text[start:])
+    except ValueError as error:
+        raise ValueError('E2E page consumer AST output is malformed JSON') from error
+    if payload.get('ok') is not True:
+        raise ValueError('E2E page consumer AST reported ok!=true')
+    pages = payload.get('pages')
+    if not isinstance(pages, list) or not pages:
+        raise ValueError('E2E page consumer AST pages payload is missing')
+    evidence = {}
+    seen_pages = []
+    for entry in pages:
+        if not isinstance(entry, dict):
+            raise ValueError('E2E page consumer AST page entry is malformed')
+        page = entry.get('page')
+        consumers = entry.get('consumers')
+        blocking = entry.get('blocking')
+        if not isinstance(page, str) or not page:
+            raise ValueError('E2E page consumer AST page identity is missing')
+        if not _is_canonical_e2e_page(page):
+            raise ValueError(f'E2E page consumer AST page identity is not canonical: {page}')
+        if page in evidence:
+            raise ValueError(f'E2E page consumer AST duplicate page: {page}')
+        if not isinstance(consumers, list) or not isinstance(blocking, list):
+            raise ValueError(f'E2E page consumer AST consumers/blocking malformed for {page}')
+        if blocking:
+            raise ValueError(f'E2E page consumer AST blocking references for {page}')
+        if not consumers:
+            raise ValueError(f'E2E page object has no spec consumer: {page}')
+        for consumer in consumers:
+            if not isinstance(consumer, dict):
+                raise ValueError(f'E2E page consumer AST consumer entry malformed for {page}')
+            file_path = consumer.get('file')
+            form = consumer.get('form')
+            specifier = consumer.get('specifier')
+            if not file_path or form is None or 'specifier' not in consumer:
+                raise ValueError(f'E2E page consumer AST consumer identity incomplete for {page}')
+            if form != 'static-import':
+                raise ValueError(
+                    f'E2E page consumer AST consumer form must be static-import for {page}, got {form!r}'
+                )
+            if not isinstance(specifier, str) or not specifier:
+                raise ValueError(f'E2E page consumer AST specifier must be nonempty for {page}')
+            # Match Node consumer contract: importer-relative only (no absolute/alias/URL/query).
+            if not (specifier.startswith('./') or specifier.startswith('../')):
+                raise ValueError(
+                    f'E2E page consumer AST specifier must be importer-relative for {page}: {specifier!r}'
+                )
+            if any(token in specifier for token in ('?', '#', '\0', '\\')):
+                raise ValueError(
+                    f'E2E page consumer AST specifier contains forbidden characters for {page}: {specifier!r}'
+                )
+            if not _is_e2e_spec_consumer_file(file_path):
+                raise ValueError(
+                    f'E2E page consumer AST consumer file must be e2e/**/*.spec.ts for {page}: {file_path}'
+                )
+            resolved = _resolve_importer_relative_specifier(file_path, specifier)
+            if resolved != page:
+                raise ValueError(
+                    f'E2E page consumer AST specifier does not resolve to page for {page}: {specifier!r}'
+                )
+        evidence[page] = consumers
+        seen_pages.append(page)
+    if expected_pages is not None:
+        if not isinstance(expected_pages, (list, tuple, set)):
+            raise ValueError('E2E page consumer AST expected_pages must be a collection')
+        expected = list(expected_pages)
+        if len(expected) != len(set(expected)):
+            raise ValueError('E2E page consumer AST expected_pages contains duplicates')
+        found = set(seen_pages)
+        expected_set = set(expected)
+        if found != expected_set:
+            missing = [page for page in expected if page not in found]
+            extra = [page for page in seen_pages if page not in expected_set]
+            details = []
+            if missing:
+                details.append('missing: ' + ', '.join(missing))
+            if extra:
+                details.append('extra: ' + ', '.join(extra))
+            raise ValueError('E2E page consumer AST page set mismatch (' + '; '.join(details) + ')')
+    return evidence
+
+
+def playwright_discovery_counts(stdout, trusted_root=E2E_TRUSTED_DISCOVERY_ROOT):
+    """Parse Playwright --list JSON into trusted repo-relative identity -> test count."""
+    text = stdout.strip()
+    if not text:
+        raise ValueError('E2E discovery produced empty output')
+    start = text.find('{')
+    if start < 0:
+        raise ValueError('E2E discovery output is not JSON')
+    try:
+        payload = json.loads(text[start:])
+    except ValueError as error:
+        raise ValueError('E2E discovery output is malformed JSON') from error
+    root_dir = str((payload.get('config') or {}).get('rootDir') or '')
+    if os.path.normpath(root_dir) != os.path.normpath(trusted_root):
+        raise ValueError(f'E2E discovery rootDir is not trusted: {root_dir!r}')
+    counts = {}
+
+    def walk(node):
+        for spec in node.get('specs') or []:
+            file_field = str(spec.get('file') or '')
+            if not file_field or file_field.startswith('/') or '..' in pathlib.PurePosixPath(file_field).parts:
+                raise ValueError(f'E2E discovery file identity is ambiguous or out of root: {file_field!r}')
+            if file_field.startswith('./'):
+                relative = file_field[2:]
+            elif file_field.startswith('.'):
+                raise ValueError(f'E2E discovery file identity is ambiguous or out of root: {file_field!r}')
+            else:
+                relative = file_field
+            identity = normalize_e2e_repo_path('frontend/e2e/' + relative)
+            tests = spec.get('tests')
+            if not isinstance(tests, list):
+                raise ValueError(f'E2E discovery tests payload is malformed for {identity}')
+            counts[identity] = counts.get(identity, 0) + len(tests)
+        for child in node.get('suites') or []:
+            walk(child)
+
+    walk(payload)
+    return counts
+
+
+def validate_playwright_discovery(stdout, selected_specs, trusted_root=E2E_TRUSTED_DISCOVERY_ROOT):
+    """Require every selected spec identity to appear with at least one registered test."""
+    if not selected_specs:
+        raise ValueError('E2E discovery selection is empty')
+    selected = [normalize_e2e_repo_path(path if path.startswith('frontend/') else 'frontend/' + path)
+                for path in selected_specs]
+    counts = playwright_discovery_counts(stdout, trusted_root=trusted_root)
+    missing = [path for path in selected if counts.get(path, 0) < 1]
+    if missing:
+        raise ValueError('E2E discovery found no registered tests for: ' + ', '.join(missing))
+    return counts
+
+
+def check_e2e_scope(paths):
+    """Fail-closed offline checks for selected E2E/runner paths (no browser runtime)."""
+    selected = []
+    for path in paths:
+        validate_path(path)
+        selected.append(path)
+    if not selected:
+        raise ValueError('E2E scope selection is empty')
+    runner = 'frontend/scripts/run-e2e.sh'
+    if runner in selected:
+        target = ROOT / runner
+        if not target.is_file():
+            raise ValueError('frontend/scripts/run-e2e.sh is missing')
+        text = target.read_text(encoding='utf-8')
+        for variable in ('UAT_SYNTHETIC_CLOSING_PASSWORD', 'UAT_SYNTHETIC_CLOSING_API_BASE'):
+            if re.search(r'-e\s+' + re.escape(variable) + r'\s*=', text):
+                raise ValueError(f'{variable} must use name-only -e (no secret value on argv)')
+            if not re.search(r'-e\s+' + re.escape(variable) + r'\b(?!\s*=)', text):
+                raise ValueError(f'{variable} must be forwarded with name-only docker -e')
+        if '"$@"' not in text:
+            raise ValueError('run-e2e.sh must preserve playwright argv via "$@"')
+    for path in selected:
+        if path == runner:
+            continue
+        target = ROOT / path
+        if not target.is_file():
+            raise ValueError(f'E2E path is missing: {path}')
+
+
 def plan(paths):
     jobs, blocked, frontend = [], [], []
+    e2e_ts, e2e_pages, e2e_runner = [], [], False
     for path in paths:
         validate_path(path)
         if path.startswith('frontend/src/') and path.endswith(('.ts', '.tsx', '.js', '.jsx')):
             frontend.append(path.removeprefix('frontend/'))
+        elif path.startswith('frontend/e2e/') and path.endswith('.spec.ts'):
+            if not (ROOT / path).is_file():
+                blocked.append(path)
+                continue
+            e2e_ts.append(path)
+        elif path.startswith('frontend/e2e/pages/') and path.endswith('.ts'):
+            if not (ROOT / path).is_file():
+                blocked.append(path)
+                continue
+            e2e_pages.append(path)
+            if path not in e2e_ts:
+                e2e_ts.append(path)
+        elif path in (
+            'frontend/scripts/verify-e2e-page-consumers.mjs',
+            'frontend/scripts/verify-e2e-page-consumers.test.mjs',
+        ):
+            jobs.append({
+                'service': 'frontend',
+                'command': ['node', '--test', 'scripts/verify-e2e-page-consumers.test.mjs'],
+            })
+        elif path in ('frontend/vite.config.ts', 'frontend/scripts/vite-native-config.test.mjs'):
+            jobs.append({'service': 'frontend', 'command': ['node', '--test', 'scripts/vite-native-config.test.mjs']})
+        elif path == 'frontend/scripts/run-e2e.sh':
+            if not (ROOT / path).is_file():
+                blocked.append(path)
+                continue
+            e2e_runner = True
+        elif path.startswith('frontend/e2e/') or path.startswith('frontend/scripts/'):
+            blocked.append(path)
         elif (path.startswith('backend/internal/') or path.startswith('backend/cmd/')) and path.endswith('.go'):
             package = pathlib.PurePosixPath(path).parent
             if not list((ROOT / package).glob('*_test.go')):
@@ -112,8 +425,6 @@ def plan(paths):
         elif path in ('scripts/verify-agent-task.py', 'scripts/test_verify_agent_task.py', '.githooks/pre-commit', '.githooks/pre-push', '.githooks/lib/check-secrets.sh', 'scripts/run-local-ci.sh'):
             if not any(job['service'] == 'host' for job in jobs):
                 jobs.append({'service': 'host', 'command': ['python3', '-B', 'scripts/test_verify_agent_task.py']})
-        elif path in ('frontend/vite.config.ts', 'frontend/scripts/vite-native-config.test.mjs'):
-            jobs.append({'service': 'frontend', 'command': ['node', '--test', 'scripts/vite-native-config.test.mjs']})
         elif path in ('scripts/test_agent_scope_contracts.py', '.gitignore', '.mcp.json', '.claude/settings.json', '.claude/codex-agent-manifest.json', 'backend/wrangler.jsonc'):
             jobs.append({'service': 'host', 'command': ['python3', '-B', 'scripts/test_agent_scope_contracts.py']})
         elif path in ('.claude/scripts/sync-codex-mirror.py', '.claude/scripts/test_sync_codex_mirror.py', '.claude/scripts/sync-codex-mirror.sh'):
@@ -151,6 +462,73 @@ def plan(paths):
         if existing:
             jobs.append({'service': 'frontend', 'command': ['node', 'node_modules/eslint/bin/eslint.js', '--max-warnings', '0', *existing]})
             jobs.append({'service': 'frontend', 'command': ['node', 'node_modules/prettier/bin/prettier.cjs', '--check', *existing]})
+    if e2e_pages:
+        for spec in list_e2e_spec_paths():
+            if spec not in e2e_ts:
+                e2e_ts.append(spec)
+    e2e_selected = []
+    for path in e2e_ts:
+        if path not in e2e_selected:
+            e2e_selected.append(path)
+    if e2e_runner:
+        e2e_selected.append('frontend/scripts/run-e2e.sh')
+    if e2e_selected:
+        relative_ts = [path.removeprefix('frontend/') for path in e2e_selected if path.endswith('.ts')]
+        relative_specs = [path.removeprefix('frontend/') for path in e2e_selected if path.endswith('.spec.ts')]
+        if relative_ts:
+            jobs.append({'service': 'frontend', 'command': ['node', 'node_modules/eslint/bin/eslint.js', '--max-warnings', '0', *relative_ts]})
+            jobs.append({'service': 'frontend', 'command': ['node', 'node_modules/prettier/bin/prettier.cjs', '--check', *relative_ts]})
+            if e2e_pages:
+                # Page-only conservative mode typechecks the full e2e project so
+                # fixture @/ imports resolve via e2e/tsconfig.json (extends app tsconfig).
+                jobs.append({
+                    'service': 'frontend',
+                    'command': [
+                        'node', 'node_modules/typescript/bin/tsc',
+                        '-p', 'e2e/tsconfig.json', '--noEmit', '--pretty', 'false',
+                    ],
+                })
+            else:
+                jobs.append({
+                    'service': 'frontend',
+                    'command': [
+                        'sh', '-c',
+                        'node -e \'' + E2E_TSCONFIG_BOOTSTRAP + '\' "$@" '
+                        '&& node node_modules/typescript/bin/tsc -p /tmp/ae-e2e-tsconfig.json --noEmit --pretty false',
+                        'ae-e2e-tsc',
+                        *relative_ts,
+                    ],
+                })
+        if relative_specs:
+            jobs.append({
+                'service': 'frontend',
+                'command': [
+                    'node', 'node_modules/@playwright/test/cli.js', 'test',
+                    '--list', '--reporter=json', *relative_specs,
+                ],
+                'require_e2e_discovery': True,
+                'e2e_discovery_specs': relative_specs,
+            })
+        if e2e_runner:
+            jobs.append({'service': 'host', 'command': ['bash', '-n', 'frontend/scripts/run-e2e.sh']})
+        jobs.append({'service': 'host', 'command': ['python3', '-B', 'scripts/verify-agent-task.py', '--check-e2e-scope', *e2e_selected]})
+        if e2e_pages:
+            page_args = []
+            page_idents = []
+            for page in e2e_pages:
+                ident = page.removeprefix('frontend/')
+                page_args.extend(['--page', ident])
+                page_idents.append(ident)
+            jobs.append({
+                'service': 'frontend',
+                'command': [
+                    'node', 'scripts/verify-e2e-page-consumers.mjs',
+                    *page_args,
+                    '--e2e-root', 'e2e',
+                ],
+                'require_e2e_page_consumers': True,
+                'e2e_pages': page_idents,
+            })
     unique = []
     for job in jobs:
         if job not in unique:
@@ -352,6 +730,7 @@ def main():
     scope.add_argument('--base', help='Local base commit; includes current tracked and untracked work')
     scope.add_argument('--staged', action='store_true')
     scope.add_argument('--paths', nargs='+')
+    scope.add_argument('--check-e2e-scope', nargs='+', help='Offline E2E/runner contract check for exact paths')
     parser.add_argument('--plan', action='store_true', help='Resolve scope only; no check execution')
     parser.add_argument('--frontend-container')
     parser.add_argument('--backend-container')
@@ -361,6 +740,13 @@ def main():
     parser.add_argument('--backend-dependency-volume', default=defaults.get('backend_dependency_volume'), help='Explicit existing read-only Go module cache volume')
     parser.add_argument('--evidence', type=pathlib.Path)
     args = parser.parse_args()
+    if args.check_e2e_scope is not None:
+        try:
+            check_e2e_scope(args.check_e2e_scope)
+        except ValueError as error:
+            print(str(error), file=sys.stderr)
+            return 1
+        return 0
     evidence = {'status': 'BLOCKED', 'root': str(ROOT), 'checks': []}
     code = 2
     try:
@@ -431,6 +817,28 @@ def main():
                         check.update(exit_code=result.returncode, status='BLOCKED')
                         evidence['checks'].append(check)
                         raise ValueError('Frontend completed no passing test cases; no test proof')
+                if job.get('require_e2e_discovery'):
+                    try:
+                        counts = validate_playwright_discovery(result.stdout, job.get('e2e_discovery_specs') or [])
+                        check['discovery_counts'] = counts
+                    except ValueError as error:
+                        failed = True
+                        check['discovery_error'] = str(error)
+                if job.get('require_e2e_page_consumers'):
+                    try:
+                        if result.returncode != 0:
+                            raise ValueError(
+                                'E2E page consumer AST exited nonzero: ' + str(result.returncode)
+                            )
+                        consumers = validate_e2e_page_consumers(
+                            result.stdout,
+                            job.get('e2e_pages') or None,
+                            stderr=result.stderr,
+                        )
+                        check['e2e_page_consumers'] = consumers
+                    except ValueError as error:
+                        failed = True
+                        check['e2e_page_consumers_error'] = str(error)
                 check.update(exit_code=result.returncode, status='FAIL' if failed else 'PASS')
                 evidence['checks'].append(check)
                 if failed:

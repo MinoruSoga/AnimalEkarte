@@ -1,6 +1,6 @@
 # タスク台帳 — Linear が正本
 
-統合日: 2026-09-08。最終ローカル照合: 2026-09-09 / main `48e89dbe4`。Linear 読み取り結果・認証修正の main 反映・旧 claim 削除を確認した。Linear の状態は同日の記録であり、今回のローカル更新では再照会していない。UAT・STG/PROD・go-live は再判定していない。
+統合日: 2026-09-08。最終ローカル照合: 2026-09-09 / main `c0950fbdf`（追加照合 PR 枝 `docs/meta-linear-pr-20260909`）。Codex の Linear 読み取り結果は `48e89dbe4` 以降も保持。Grok 追加照合では Linear MCP がセッション限定で UNAVAILABLE のためライブ再照会はせず、定義再確認と次照会リストを [linear-f1-f6-mapping.md](docs/work/linear-f1-f6-mapping.md) に記録した。UAT・STG/PROD・go-live は再判定していない。
 
 | 項目 | 値 |
 |------|-----|
@@ -18,7 +18,7 @@
 
 エージェントは PlanetScale、共有 STG apply、`DROP SCHEMA`、本番 cutover、`make reset`、八王子 CSV の producer 出力を実行しない。push / dispatch / Linear Done / 秘密変更は明示承認が必要。
 
-claim は ID ごとに初回編集前に確認・取得する。作成者別の削除条件は [AGENTS.md](AGENTS.md#branch-deletion-by-creator-mandatory) を正本とする。ユーザー作成は AI による削除禁止。AI 作成は統合・明示終了・成果を保全した引き継ぎと未使用を確認して削除可能。2026-09-09 の本更新開始前に `git branch --list 'claim/*'` が空であることを確認した。旧 META / QA / 認証 claim の解除待ちは解消済み。claim の削除は UAT や受入の完了を意味しない。新規着手時は現在の claim を再確認する。
+claim は ID ごとに初回編集前に確認・取得する。作成者別の削除条件は [AGENTS.md](AGENTS.md#branch-deletion-by-creator-mandatory) を正本とする。ユーザー作成は AI による削除禁止。AI 作成は統合・明示終了・成果を保全した引き継ぎと未使用を確認して削除可能。旧 META / QA / 認証 claim の解除待ちは解消済み。本 META 追加照合は `claim/META-LINEAR-APPLY` を取得して実施する。claim の削除は UAT や受入の完了を意味しない。新規着手時は現在の claim を再確認する。
 
 ---
 
@@ -73,14 +73,69 @@ S09 局所検証（2026-09-08）: fail-closed / CLI / OpenAPI drift GREEN。fixt
 
 | 順 | ID | 実行者 | なぜこの順 | 状態 |
 |----|----|--------|------------|------|
-| 1 | **META-LINEAR-APPLY** | agent（追加照合） / USER（反映） | 検索範囲・結果は [linear-f1-f6-mapping.md](docs/work/linear-f1-f6-mapping.md)。F1〜F6 の直接対応を確定してから反映 | **PARTIAL**（2026-09-09: プロジェクト55件・hub・関連語を照合。直接対応 ID は未特定。BRT-226 は Review。追加の本文・コメント照合は可能。書き込み・Done は USER 待ち） |
+| 1 | **META-LINEAR-APPLY** | agent（追加照合） / USER（反映） | 検索範囲・結果は [linear-f1-f6-mapping.md](docs/work/linear-f1-f6-mapping.md)。F1〜F6 の直接対応を確定してから反映 | **PARTIAL**（2026-09-09: Codex 55件・hub・関連語照合を保持。Grok 追加照合で定義6行と次の本文・コメント照会リストを文書化。直接対応 ID は未特定のまま。BRT-226 は Review（Astra 六件ではない）。Linear 書き込み・Done は USER 待ち） |
 | 2 | **H0-2 / HAC-CSV-1** | old_db / USER | STG 八王子の先頭。これより前の STG 行は進めない | **BLOCKED**（HAC-INPUT-2。完全 KNJO 未受領。同一 BAK 再実行と producer は禁止） |
 | 3 | **H0-3b → Lane3 HAC → H3-9 → H3-11 → Lane 4** | USER | 2 の依存どおり | 待ち |
 | 4 | **P1 → P2 → P3 → P4 → P5 → P6 → P7 → P8** | USER | go-live 依存。E1 / E2 は P4 の一部 | 待ち |
 
 STG レーンの次は医院/ベンダーからの完全 KNJO 再取得、または城東主経路（JOU-G2-2 の Azure 承認）。H0-3b には入らない。独立して F1〜F6 の Linear 読み取り照合と、下記受入残の実行前提・証跡の確認を進められる。S09 / V04 / clinical E2E の実行は各設計の環境・承認条件を満たしてから行う。Linear 書き込みと Done は USER。
 
-2026-09-09 引き継ぎ: Cursor の Linear 読取不可はそのセッションの制約。Codex の照会結果は `48e89dbe4` で main に反映済み。#254 全体の受入入口は [BRT-45](https://linear.app/baritechllc/issue/BRT-45)（同日観測 Needs Human）。[BRT-68](https://linear.app/baritechllc/issue/BRT-68) の同日観測の残は実 LINE / LIFF。両者を S09 等の PASS と混同しない。旧 META / QA claim は削除済みで、受入残は下記に維持する。
+2026-09-09 引き継ぎ: Cursor の Linear 読取不可はそのセッションの制約。Codex の照会結果は `48e89dbe4` で main に反映済み。Grok 追加照合（本更新）も Linear MCP UNAVAILABLE のためライブ再照会せず、Codex 観測を保持したうえで次照会リストを mapping 文書へ追加した。#254 全体の受入入口は [BRT-45](https://linear.app/baritechllc/issue/BRT-45)（同日観測 Needs Human）。[BRT-68](https://linear.app/baritechllc/issue/BRT-68) の同日観測の残は実 LINE / LIFF。両者を S09 等の PASS と混同しない。独立作業（読み取り照合・受入準備）は継続可能。受入残は下記に維持する。
+
+<a id="meta-linear-apply-evidence"></a>
+
+### META-LINEAR-APPLY 実行証跡（補完・歴史的ローカル証跡 follow-up）
+
+業務状態は上表どおり **PARTIAL**（Linear F1–F6 ID は **UNKNOWN**。書き込み・Done は USER）。本節はゲート証跡の補完であり、受入や Linear Done の再判定ではない。PR #392 の更新・commit/push は本ローカル証跡 follow-up では行わなかった。
+
+| 区分 | 内容 |
+|------|------|
+| 元実行 status | COMPLETE（文書 PR 公開まで）。ただし Execution Flow の台帳追記（gate 実出力）は欠落 |
+| 元 changed files（published） | `todo.md`, `docs/work/linear-f1-f6-mapping.md` @ `c0c00fede2033099e8591c5d9308bba9bb83c047` / PR #392 |
+| 本 follow-up 変更 | candidate `todo.md` のみ（当時ローカル未コミットの証跡節）。mapping は変更しなかった |
+| claim / session | `claim/META-LINEAR-APPLY`（取得 2026-09-09 13:49:34 +0900）。継続 session `01a08490-cf7b-7e13-bb17-8f216b82024b` |
+| 独立レビュー履歴 | attribution `01a084a9-…b437` APPROVE。scope `01a084a9-…b830` **REQUEST_CHANGES**（当時 `main..HEAD=0`）は履歴のまま。運用上の commit/PR で解消したが reviewer 再 APPROVE は観測なし。security `01a084a9-…9c4d6` APPROVE |
+
+#### 歴史的証跡（元実行セッション記録・再実行ではない）
+
+出典: session terminal `call-2dad4b89-…-4.log`（pre-setup）、`call-84e400c8-…-8.log`（claim/worktree）、`call-4f384aee-…-29.log` / `call-56a0dda8-…-33.log`（foreign WIP 観測）。
+
+- pre-setup source: STATUS/STAGED/UNSTAGED/UNTRACKED は空行（clean）。claim 不在。worktree 不在。
+- claim/worktree 後: `CLAIM_ACQUIRED:0`。candidate HEAD=`c0950fbdfe8c2267ea2ab33a41a906fee8f1f6b6`。allowlist 当時 hash: `todo.md`=`82fe6bb4c4e2382e5399be267e17072815b2425f71b69501b3037571cd2eca9e`、`docs/work/linear-f1-f6-mapping.md`=`ce4443c2b437b012220aeec42b173bf16de8aa3792625c4cc74058afabae7d99`。
+- 編集中に source へ foreign WIP 出現: `M todo.md` + `?? todo-performance.md`。candidate のみ編集し source は保全方針。観測時 source `todo.md` sha256=`a0587f9564677249d9cf25aa82f0f1ddf1a1741961342534131fbef36f801013`（`source_todo_lacks_our_markers`）。
+- **共有 WIP 内容保全の厳密証明は BLOCKED**: 元実行中の foreign source WIP について before/after の内容 fingerprint 対が欠落。欠落 ID（完全名）:
+  1. `original_run_source_todo.md_foreign_WIP_sha256_BEFORE_first_observation_as_WIP`
+  2. `original_run_source_todo.md_foreign_WIP_sha256_AFTER_later_original_run_ops_for_compare`
+  3. `original_run_source_todo-performance.md_sha256_BEFORE`
+  4. `original_run_source_todo-performance.md_sha256_AFTER`
+  status 再掲だけでは内容不変を証明しない。今日の hash を遡及証明にしない。
+
+#### 現在の再検証（2026-09-09 follow-up・candidate cwd）
+
+ラベル: **current re-verification**（元実行の代替ではない）。空出力は明記。
+
+| # | command | exit | stdout |
+|---|---------|------|--------|
+| 1 | `git rev-parse HEAD` | 0 | `c0c00fede2033099e8591c5d9308bba9bb83c047` |
+| 2 | `git status --short` | 0 | (empty) ※patch 前。patch 後は ` M todo.md` を別途記録 |
+| 3 | `git diff --name-only` | 0 | (empty) ※patch 前 |
+| 4 | `git diff --cached --name-only` | 0 | (empty) |
+| 5 | `git ls-files --others --exclude-standard` | 0 | (empty) |
+| 6 | `git diff --check` | 0 | (empty) |
+| 7 | `git diff --check c0950fbdfe8c2267ea2ab33a41a906fee8f1f6b6..c0c00fede2033099e8591c5d9308bba9bb83c047` | 0 | (empty) |
+| 8 | `git diff --name-only c0950fbdfe8c2267ea2ab33a41a906fee8f1f6b6..c0c00fede2033099e8591c5d9308bba9bb83c047` | 0 | `docs/work/linear-f1-f6-mapping.md` / `todo.md` |
+| 9 | `git ls-files --error-unmatch todo.md docs/work/linear-f1-f6-mapping.md` | 0 | `docs/work/linear-f1-f6-mapping.md` / `todo.md` |
+| 10 | `git diff -- todo.md` | 0 | 全文は埋め込まない（自己参照のため bytes も固定記載しない）。当時 follow-up 時点の観測: unstaged `todo.md` のみ・`--stat` は insertions のみ・mapping unchanged。precommit 単位の結果は `--stat` / `shasum` / `git status --short` 等の要約のみ記録し、自己参照の全文 diff bytes や未確定の未来 merge SHA を埋め込まない |
+
+Saved Prompt Validation Gate（follow-up）: `node ~/.claude/scripts/prompt-craft-delivery-validate.js --target agent --require-dynamic-workflow …/agent-fast-grok-meta-evidence-followup-20260909.md` → exit 0、`harness=PASS, receiver=PASS`、`promptSha256=2e9e4a0aee74a208564003d064c94129fdd05ba6075cbda62fde6ed4187f88d4`。
+
+#### Assumption deviations
+
+- 本セッションは元 Grok 所有者継続であり claim 再取得はしない（既存 `claim/META-LINEAR-APPLY` を保持）。
+- Linear MCP 不在はセッション限定。Codex 観測を無効化しない。
+- 共有 source の PERF WIP（`todo.md` / `todo-performance.md`）は foreign として未編集・未 restore。
+- 元 scope REQUEST_CHANGES を APPROVE に書き換えない。
+- 欠落した歴史的内容 hash 対を発明しない（E2 は BLOCKED のまま）。
 
 認証の独立した残検証: `950404408`（権限ロック・復旧修正）と `9be825a66`（認可経路・分離検証の追加）は main に反映済み。詳細と開始条件は [todo-fix-auth.md](todo-fix-auth.md) を参照する。実DB並行・初回管理者SQL実行・全経路の実DB返却データ分離・2サーバー即時失効・対象環境のメール・負荷測定は未検証の記録。限定テストの成功をこれらの完了と扱わない。ローカルの前提確認は独立して進められるが、DB/環境操作は個別の実行条件に従う。
 
@@ -92,13 +147,71 @@ helper / 再実行スライスは済。UAT / E2E を PASS にしない。正本�
 
 | ID | 残 | 状態 |
 |----|----|------|
-| **QA-UAT-S09-FIXTURE** | ブラウザ #2–#6 再実行。HTTP/CLI は 2026-09-08 実装済み | S09 は BLOCKED |
-| **QA-UAT-V04-RETEST** | live HTTP は 403。clinic 1/2 の権限昇格なし | V04 は UNKNOWN |
-| **QA-FULL-CLINICAL-E2E** | `--clinical` 未実行。e2e.yml job は未 | E2E は未証明 |
+| **QA-UAT-S09-FIXTURE** | ブラウザ #2–#6 の自動仕様追加と再実行。HTTP/CLI は 2026-09-08 実装済み | S09 は BLOCKED（2026-09-09 campaign: IMPLEMENT+VERIFY — `e2e/s09-closing-time-boundaries.spec.ts` 不在を埋める。compose 停止のため runtime は別途 BLOCKED） |
+| **QA-UAT-V04-RETEST** | disposable clinic での CRUD/DELETE ブラウザ証明。live HTTP は 403。clinic 1/2 の権限昇格なし | V04 は UNKNOWN（2026-09-09 campaign: IMPLEMENT+VERIFY — `e2e/v04-settings-master-forms.spec.ts` 追加。runtime は stack 前提で BLOCKED 可） |
+| **QA-FULL-CLINICAL-E2E** | `--clinical` 未実行。e2e.yml job は未 | E2E は未証明（2026-09-09 campaign: VERIFY-ONLY/repair — allowlist 既存。`--clinical` は APP_ENV=test + E2E_LOGIN_PASSWORD + 起動済み stack が必要） |
 
 設計: [S09-FIXTURE-DESIGN.md](docs/ops/testing/S09-FIXTURE-DESIGN.md) · [CLINICAL-E2E-DESIGN.md](docs/ops/testing/CLINICAL-E2E-DESIGN.md)。
 
+### 2026-09-09 campaign inventory freeze（`coord/todo-actionable-remaining-20260909`）
+
+BASE `53a4a18c6`（PR #392 merged）。Orchestration: Workflow `ae-todo-remaining-investigate-20260909` probes joined。分類は coordinator 確定（probe の VERIFY-ONLY はブラウザ仕様欠落を IMPLEMENT+VERIFY に上書き）。
+
+| 分類 | IDs |
+|------|-----|
+| IMPLEMENT+VERIFY | QA-UAT-S09-FIXTURE, QA-UAT-V04-RETEST |
+| VERIFY-ONLY / repair | QA-FULL-CLINICAL-E2E, META-LINEAR-APPLY（Linear live UNKNOWN・書込禁止） |
+| OWNER-BLOCKED | claim/TODO-FIX-AUTH 配下, claim/PERF-STG-LOGIN*, BRT-226 Done |
+| EXTERNAL-BLOCKED | H0-2/HAC-CSV-1 連鎖, H0-3b, Lane3 HAC, H3-9, H3-11, Lane4, P1–P8, E1, E2 |
+| DEFERRED | TASK-444, BE-RC-005/009/014/015/017/019 |
+
+Runtime preflight: `old-db-postgres` only Up; animalekarte backend/frontend/db Exited; process `E2E_LOGIN_PASSWORD` unset（`.env.local` 有無は値を出さず未使用）。`make up` 禁止のためブラウザ/clinical 実行は BLOCKED でも仕様追加は継続。
+
 ---
+
+
+### VERIFY-E2E-SCOPE-CONTRACT（2026-09-09 continuation）
+
+| 項目 | 値 |
+|------|-----|
+| claim | `claim/VERIFY-E2E-SCOPE-CONTRACT` |
+| 変更 | `scripts/verify-agent-task.py` / `scripts/test_verify_agent_task.py` に `frontend/e2e/**` + `run-e2e.sh` の offline 契約を追加 |
+| offline | `AGENT_VERIFY_FRONTEND_IMAGE=sha256:532501622cd0… AGENT_VERIFY_FRONTEND_DEPENDENCY_VOLUME=ekarte-frontend-node-modules` を付けた `python3 -B scripts/verify-agent-task.py --staged` → PASS（eslint/prettier/tsc/bash -n/e2e-scope、executed_count=6）。selector 無しの bare `--staged` は frontend image 欠落で BLOCKED。browser/UAT は未実行のまま BLOCKED |
+| 継承 staged | S09/V04 仕様 5 ファイルを保全（Prettier のみ最小整形） |
+
+
+#### Gap repair G1/G2（2026-09-09）
+
+| 項目 | 証跡 |
+|------|------|
+| G1 | page-only `accounting-page.ts` の tsc/discovery に consumer specs（accounting-flow/smoke + s09）を含める。`python3 -B scripts/verify-agent-task.py --paths frontend/e2e/pages/accounting-page.ts` → PASS executed_count=5、discovery_counts accounting-flow:4 smoke:6 s09:5 |
+| G2 | Playwright `--list --reporter=json` で selected spec 毎に registered tests≥1 を要求。empty/missing は FAIL。`validate_playwright_discovery` が mixed missing を拒否 |
+| regressions | `python3 -B scripts/test_verify_agent_task.py` → 50 tests OK |
+| broken-consumer Docker | scratch `missingMethod` → tsc exit 2 |
+| browser/runtime | 引き続き BLOCKED（本単位では run-e2e 実行なし） |
+| CI dependency-audit | PR394 Frontend Build の pnpm audit 失敗は別 NEW WORK（本単位で lock/deps 未変更） |
+
+
+#### File-identity repair I1/I2（2026-09-09）
+
+| 項目 | 証跡 |
+|------|------|
+| I1 | string-literal fake import → specifiers `[]`；real import は importer 相対 resolve。mixed supported+unsupported は ValueError |
+| I2 | discovery key は `frontend/e2e/<path-from-testDir>`。`group-a/shared` のみでは `group-b/shared` を拒否 |
+| regressions | `python3 -B scripts/test_verify_agent_task.py` → 59 OK |
+| offline | `AGENT_VERIFY_FRONTEND_IMAGE=sha256:532501622cd0…` 付き page-only/five-path → PASS；discovery_counts が full identity |
+| CI audit / runtime | 引き続き別 blocker（本単位で deps/runtime 未変更） |
+
+
+#### Import-topology final repair（2026-09-09）
+
+| 項目 | 証跡 |
+|------|------|
+| T1 | dynamic `import()` / `export … from` / side-effect import を form 分類。exact-target unsupported は valid consumer があっても ValueError |
+| RED→GREEN | mixed good+bad fixture: pre `consumers=[good]` / post raises naming `bad.spec.ts (dynamic-import)/(export-from)` |
+| regressions | `python3 -B scripts/test_verify_agent_task.py` → 59 OK |
+| offline | AGENT_VERIFY_* 付き page-only/five-path → PASS（I2 full-path discovery 維持） |
+| CI audit / runtime | 別 blocker のまま |
 
 ## 2. USER ゲート（秘密・本番・外部環境）
 
@@ -242,3 +355,59 @@ git show ad63bdf28:todo-refactor.md
 | [製品 FAIL](#product-bugs) | 確認済み製品 FAIL |
 | [docs/ops/deploy/OLD_DB_HANDOFF_LOCAL.md](docs/ops/deploy/OLD_DB_HANDOFF_LOCAL.md) | ローカル handoff |
 | [docs/ops/deploy/STG_PLANETSCALE_SEED_RUNBOOK.md](docs/ops/deploy/STG_PLANETSCALE_SEED_RUNBOOK.md) | STG 破壊境界 |
+
+---
+
+## PR394 AST E2E page-consumer evidence (compact)
+
+- Unit: PR394 AST binding/alias/evidence repair (VERIFY-E2E-SCOPE-CONTRACT follow-up).
+- Claims: `claim/TODO-ACTIONABLE-REMAINING-20260909`, `claim/VERIFY-E2E-SCOPE-CONTRACT`, `claim/PR394-AST-E2E-PAGE-CONSUMERS` (retained; not deleted).
+- Pre-edit HEAD: `edb2dd6955401f07b80e2a3bf66a6a1bdea25743` (clean). Allowlisted paths only (5).
+- Selectors (exact): `AGENT_VERIFY_FRONTEND_IMAGE=sha256:532501622cd024ab786a32eb9798db1cd1a0e4d47cddb3dbd56ae107f95d9cb4`, `AGENT_VERIFY_FRONTEND_DEPENDENCY_VOLUME=ekarte-frontend-node-modules`.
+- Policy: supported consumer = importer-relative `static-import` only; exact-target `require` blocks (incl. shadowed local `function require`); `@/e2e/...` unrelated (`@/*`→`src/*` per `frontend/tsconfig.json`); `/app`+`file:///app` exact targets block not consume; Python exact page-set + canonical `e2e/pages/**/*.ts` + `e2e/**/*.spec.ts` + form=`static-import`.
+- RED→GREEN Node: Docker `node --test scripts/verify-e2e-page-consumers.test.mjs` → **13 pass / 0 fail**.
+- Python: `python3 -B scripts/test_verify_agent_task.py` → **Ran 55 tests … OK**.
+- Plan page-only: `status=PLAN`, `executed_count=0`, discovery_specs=**35**, AST job, `tsc -p e2e/tsconfig.json`.
+- Actual page-only: `status=PASS`, `executed_count=6`, discovery_n=**35**; consumers all `static-import` (accounting=3, settings=2).
+- Actual five-path: `status=PASS`, `executed_count=7`, discovery_n=**35**.
+- Campaign `--base 53a4a18c62904e793b59a6283e5ef31edd0902a1`: `status=PASS`, `executed_count=9`, unmapped=`[]`.
+- Negatives: shadowed require `ok=false` blocking=`require`; `@/e2e` canonicalize=`null`; forged require-form JSON and extra-page JSON fail-closed.
+- Review fix: Python evidence also requires importer-relative specifier (`./`|`../`) and rejects `?`/`#`/`\`/`/app/...` forgeries; page-only re-PASS exec=6.
+- Separate blockers (unchanged): PR394 Frontend Build/dependency audit; browser/UAT runtime.
+
+### Canonical-evidence + symlink-scan closure (2026-09-10)
+
+- Unit: PR394 raw-canonical evidence + symlink/outside-root scan closure.
+- Claims: prior coordinator/AST claims retained; AI `claim/PR394-CANONICAL-EVIDENCE-SYMLINK` held (not deleted this unit).
+- Pre-edit HEAD: `d350259c4cbb650285621f2f2134a0a5ec951de9` (clean). Allowlisted paths only (5).
+- Selectors (exact): `AGENT_VERIFY_FRONTEND_IMAGE=sha256:532501622cd024ab786a32eb9798db1cd1a0e4d47cddb3dbd56ae107f95d9cb4`, `AGENT_VERIFY_FRONTEND_DEPENDENCY_VOLUME=ekarte-frontend-node-modules`.
+- Closed holes:
+  - Python raw canonical: `value == PurePosixPath(value).as_posix()` so `e2e/pages/./…`, `e2e/pages//…`, `e2e//forged.spec.ts`, `e2e/./good.spec.ts` fail-closed.
+  - Specifier→page: importer-relative resolve from `dirname(file)` must equal claimed page; `./pages/other-page` rejected; nested `../pages/accounting-page` still accepted.
+  - Node scan: `lstat` root + every entry; any symlink fail-closed; outside enumerated path explicit error (no silent `continue`).
+- RED→GREEN: Docker Node **17 pass / 0 fail**; `python3 -B scripts/test_verify_agent_task.py` → **Ran 57 tests … OK**.
+- Plan page-only: `status=PLAN`, `executed_count=0`, discovery_specs=**35**.
+- Actual page-only: `status=PASS`, `executed_count=6`, discovery_n=**35**; consumers accounting=3 settings=2 (static-import).
+- Actual five-path: `status=PASS`, `executed_count=7`.
+- Campaign `--base 53a4a18c62904e793b59a6283e5ef31edd0902a1`: `status=PASS`, `executed_count=9`, unmapped=`[]`.
+- Prior contracts retained: shadowed require blocks; `@/e2e` unrelated; absolute/file exact targets block.
+- Separate blockers (unchanged): PR394 Frontend Build/dependency audit; browser/UAT runtime.
+
+### Residual path-integrity (2026-09-10)
+
+- Unit: PR394 residual path-integrity (third-cycle single invariant).
+- Claims: prior claims retained; AI `claim/PR394-RESIDUAL-PATH-INTEGRITY` acquired/held (not deleted).
+- Pre-edit HEAD: `aba6637a3ae42cb6fa507491882c7b35f4ecfc06` (clean). Allowlisted paths only (5).
+- Selectors (exact): `AGENT_VERIFY_FRONTEND_IMAGE=sha256:532501622cd024ab786a32eb9798db1cd1a0e4d47cddb3dbd56ae107f95d9cb4`, `AGENT_VERIFY_FRONTEND_DEPENDENCY_VOLUME=ekarte-frontend-node-modules`.
+- Closed holes:
+  1. Python: `_is_raw_canonical_posix` rejects C0 (`ord < 0x20`) and DEL (`0x7F`) before pathlib — `e2e/good\0.spec.ts` / DEL / C0 fail-closed.
+  2. Node enum: abs must be string + absolute + `path.resolve(abs) === abs` before `path.relative` — raw `e2eRoot+"/./good.spec.ts"` fail-closed.
+  3. Node read-time: `openSync(O_RDONLY|O_NOFOLLOW)` → `fstat` regular → `/proc/self/fd/<fd>` realpath containment vs e2eRoot (relative equality, no string-prefix) → `readFileSync(fd)`; missing `/proc/self/fd` fails closed. Symlink listSpecs / mid-loop swap → ELOOP/`ok:false`.
+- Independent adversarial re-run: NUL/DEL/C0 FAIL_CLOSED; DOT_RAW/`SYMLINK_LIST`/`RACE_HOOK` ok=false; CONTROL_OK consumers=1.
+- RED→GREEN: Docker Node **20 pass / 0 fail**; `python3 -B scripts/test_verify_agent_task.py` → **Ran 58 tests … OK**.
+- Plan page-only: `status=PLAN`, `executed_count=0`, discovery_specs=**35**.
+- Actual page-only: `status=PASS`, `executed_count=6`, discovery_n=**35**; consumers accounting=3 settings=2.
+- Actual five-path: `status=PASS`, `executed_count=7`.
+- Campaign `--base 53a4a18c62904e793b59a6283e5ef31edd0902a1`: `status=PASS`, `executed_count=9`, unmapped=`[]`.
+- Prior contracts retained (require/alias/static-import/specifier/symlink).
+- Separate blockers (unchanged): PR394 Frontend Build/dependency audit; browser/UAT runtime.

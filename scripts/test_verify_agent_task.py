@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Offline regression tests; never invokes Docker or application tests."""
 import importlib.util
+import io
+import json
 import pathlib
+import subprocess
 import tempfile
 import unittest
 from unittest import mock
-import subprocess
-import io
 
 SPEC = importlib.util.spec_from_file_location('verify', pathlib.Path(__file__).with_name('verify-agent-task.py'))
 verify = importlib.util.module_from_spec(SPEC)
@@ -369,6 +370,441 @@ class VerificationTests(unittest.TestCase):
         self.assertNotIn('gitleaks:latest', source)
         self.assertNotIn('git grep -E -n -I --cached -e "$PATTERN" -- "$f" || true', source)
         self.assertIn('--redact', source)
+
+    def test_e2e_five_path_scope_maps_nonempty_offline_checks(self):
+        paths = [
+            'frontend/e2e/pages/accounting-page.ts',
+            'frontend/e2e/pages/settings-master-page.ts',
+            'frontend/e2e/s09-closing-time-boundaries.spec.ts',
+            'frontend/e2e/v04-settings-master-forms.spec.ts',
+            'frontend/scripts/run-e2e.sh',
+        ]
+        jobs, blocked = verify.plan(paths)
+        self.assertFalse(blocked, blocked)
+        self.assertTrue(jobs)
+        services = {job['service'] for job in jobs}
+        self.assertIn('frontend', services)
+        self.assertIn('host', services)
+        flat = [' '.join(job['command']) for job in jobs]
+        self.assertTrue(any('prettier' in command for command in flat))
+        self.assertTrue(any('eslint' in command for command in flat))
+        self.assertTrue(any('tsc' in command or 'ae-e2e-tsconfig' in command for command in flat))
+        self.assertTrue(any(job['command'][:3] == ['bash', '-n', 'frontend/scripts/run-e2e.sh'] for job in jobs))
+        self.assertTrue(any('--check-e2e-scope' in job['command'] for job in jobs))
+        self.assertTrue(any(job.get('require_e2e_discovery') for job in jobs))
+        for job in jobs:
+            joined = ' '.join(job['command'])
+            self.assertNotIn('npm install', joined)
+            self.assertNotIn('--network=host', joined)
+            if 'cli.js' in joined and 'test' in job['command']:
+                self.assertIn('--list', job['command'])
+                self.assertNotIn('--headed', job['command'])
+                self.assertNotIn('--debug', job['command'])
+
+    def test_e2e_page_object_without_consumer_plans_ast_job(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            page = root / 'frontend/e2e/pages/orphan-page.ts'
+            page.parent.mkdir(parents=True)
+            page.write_text('export class Orphan {}\n')
+            (root / 'frontend/e2e').mkdir(exist_ok=True)
+            (root / 'frontend/e2e/unrelated.spec.ts').write_text(
+                'import { test } from "@playwright/test";\ntest("x", async () => {});\n'
+            )
+            with mock.patch.object(verify, 'ROOT', root):
+                jobs, blocked = verify.plan(['frontend/e2e/pages/orphan-page.ts'])
+                self.assertFalse(blocked)
+                self.assertTrue(jobs)
+                ast_jobs = [job for job in jobs if job.get('require_e2e_page_consumers')]
+                self.assertEqual(len(ast_jobs), 1)
+                self.assertIn('scripts/verify-e2e-page-consumers.mjs', ast_jobs[0]['command'])
+                self.assertIn('e2e/pages/orphan-page.ts', ast_jobs[0]['e2e_pages'])
+
+    def test_e2e_deleted_or_unsupported_paths_block(self):
+        missing = 'frontend/e2e/missing-spec.spec.ts'
+        jobs, blocked = verify.plan([missing])
+        self.assertFalse(jobs)
+        self.assertEqual(blocked, [missing])
+        unsupported = 'frontend/e2e/helpers/clinical-env.ts'
+        jobs, blocked = verify.plan([unsupported])
+        self.assertFalse(jobs)
+        self.assertEqual(blocked, [unsupported])
+        jobs, blocked = verify.plan(['frontend/e2e/notes.md'])
+        self.assertFalse(jobs)
+        self.assertEqual(blocked, ['frontend/e2e/notes.md'])
+
+    def test_e2e_mixed_with_docs_keeps_e2e_checks_and_skips_docs(self):
+        paths = [
+            'docs/ops/testing/UAT-DOMAIN-STATUS.md',
+            'frontend/e2e/s09-closing-time-boundaries.spec.ts',
+            'frontend/scripts/run-e2e.sh',
+        ]
+        jobs, blocked = verify.plan(paths)
+        self.assertFalse(blocked)
+        self.assertTrue(jobs)
+        self.assertTrue(any('eslint' in ' '.join(job['command']) for job in jobs))
+        self.assertTrue(any(job['command'][:3] == ['bash', '-n', 'frontend/scripts/run-e2e.sh'] for job in jobs))
+
+    def test_run_e2e_env_forward_contract_rejects_secret_values_on_argv(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            script = root / 'frontend/scripts/run-e2e.sh'
+            script.parent.mkdir(parents=True)
+            script.write_text(
+                'DOCKER_ENV="-e PLAYWRIGHT_TEST_BASE_URL=${BASE_URL}"\n'
+                'DOCKER_ENV="$DOCKER_ENV -e UAT_SYNTHETIC_CLOSING_PASSWORD=$UAT_SYNTHETIC_CLOSING_PASSWORD"\n'
+                'DOCKER_ENV="$DOCKER_ENV -e UAT_SYNTHETIC_CLOSING_API_BASE=$UAT_SYNTHETIC_CLOSING_API_BASE"\n'
+                'docker run $DOCKER_ENV image playwright test "$@"\n'
+            )
+            with mock.patch.object(verify, 'ROOT', root):
+                with self.assertRaisesRegex(ValueError, 'name-only'):
+                    verify.check_e2e_scope(['frontend/scripts/run-e2e.sh'])
+
+    def test_check_e2e_scope_accepts_current_runner_forwarding(self):
+        verify.check_e2e_scope(['frontend/scripts/run-e2e.sh'])
+
+    def test_plan_maps_vite_native_config_script(self):
+        jobs, blocked = verify.plan(['frontend/scripts/vite-native-config.test.mjs'])
+        self.assertFalse(blocked)
+        self.assertEqual(jobs[0]['command'], ['node', '--test', 'scripts/vite-native-config.test.mjs'])
+
+    def test_page_only_plan_includes_all_specs_and_ast_job(self):
+        jobs, blocked = verify.plan(['frontend/e2e/pages/accounting-page.ts'])
+        self.assertFalse(blocked)
+        all_specs = [path.removeprefix('frontend/') for path in verify.list_e2e_spec_paths()]
+        self.assertGreaterEqual(len(all_specs), 1)
+        tsc = next(
+            job for job in jobs
+            if job['command'][:2] == ['node', 'node_modules/typescript/bin/tsc']
+            and 'e2e/tsconfig.json' in job['command']
+        )
+        self.assertIn('--noEmit', tsc['command'])
+        lint = next(job for job in jobs if job['command'][:1] == ['node'] and 'eslint.js' in job['command'][1])
+        fmt = next(job for job in jobs if job['command'][:1] == ['node'] and 'prettier.cjs' in job['command'][1])
+        for spec in all_specs:
+            self.assertIn(spec, lint['command'], spec)
+            self.assertIn(spec, fmt['command'], spec)
+        discovery = next(job for job in jobs if job.get('require_e2e_discovery'))
+        for spec in all_specs:
+            self.assertIn(spec, discovery['e2e_discovery_specs'], spec)
+        ast = next(job for job in jobs if job.get('require_e2e_page_consumers'))
+        self.assertEqual(ast['command'][:2], ['node', 'scripts/verify-e2e-page-consumers.mjs'])
+        self.assertIn('--page', ast['command'])
+        self.assertIn('e2e/pages/accounting-page.ts', ast['command'])
+        self.assertIn('e2e/pages/accounting-page.ts', ast['e2e_pages'])
+
+    def test_plan_maps_e2e_page_consumer_scripts(self):
+        for path in (
+            'frontend/scripts/verify-e2e-page-consumers.mjs',
+            'frontend/scripts/verify-e2e-page-consumers.test.mjs',
+        ):
+            jobs, blocked = verify.plan([path])
+            self.assertFalse(blocked, path)
+            self.assertEqual(
+                jobs[0]['command'],
+                ['node', '--test', 'scripts/verify-e2e-page-consumers.test.mjs'],
+            )
+
+    def test_plan_does_not_execute_ast_scan(self):
+        with mock.patch.object(verify, 'run') as mocked_run:
+            jobs, blocked = verify.plan(['frontend/e2e/pages/accounting-page.ts'])
+            self.assertFalse(blocked)
+            self.assertTrue(any(job.get('require_e2e_page_consumers') for job in jobs))
+            mocked_run.assert_not_called()
+
+    def test_validate_e2e_page_consumers_accepts_valid_payload(self):
+        payload = {
+            'ok': True,
+            'pages': [{
+                'page': 'e2e/pages/accounting-page.ts',
+                'consumers': [{
+                    'file': 'e2e/accounting-flow.spec.ts',
+                    'form': 'static-import',
+                    'specifier': './pages/accounting-page',
+                }],
+                'blocking': [],
+            }],
+        }
+        evidence = verify.validate_e2e_page_consumers(
+            json.dumps(payload),
+            ['e2e/pages/accounting-page.ts'],
+        )
+        self.assertEqual(len(evidence['e2e/pages/accounting-page.ts']), 1)
+
+    def test_validate_e2e_page_consumers_fail_closed_matrix(self):
+        valid_consumer = {
+            'file': 'e2e/good.spec.ts',
+            'form': 'static-import',
+            'specifier': './pages/accounting-page',
+        }
+        with self.assertRaisesRegex(ValueError, 'empty output'):
+            verify.validate_e2e_page_consumers('')
+        with self.assertRaisesRegex(ValueError, 'malformed JSON|not JSON'):
+            verify.validate_e2e_page_consumers('not-json')
+        with self.assertRaisesRegex(ValueError, 'ok!=true'):
+            verify.validate_e2e_page_consumers(json.dumps({
+                'ok': False,
+                'pages': [{'page': 'e2e/pages/accounting-page.ts', 'consumers': [valid_consumer], 'blocking': []}],
+            }))
+        with self.assertRaisesRegex(ValueError, 'no spec consumer'):
+            verify.validate_e2e_page_consumers(json.dumps({
+                'ok': True,
+                'pages': [{'page': 'e2e/pages/orphan-page.ts', 'consumers': [], 'blocking': []}],
+            }))
+        with self.assertRaisesRegex(ValueError, 'blocking references'):
+            verify.validate_e2e_page_consumers(json.dumps({
+                'ok': True,
+                'pages': [{
+                    'page': 'e2e/pages/accounting-page.ts',
+                    'consumers': [valid_consumer],
+                    'blocking': [{'file': 'e2e/bad.spec.ts', 'form': 'dynamic-import'}],
+                }],
+            }))
+
+    def test_validate_e2e_page_consumers_rejects_forged_forms_paths_and_set_mismatch(self):
+        page = 'e2e/pages/accounting-page.ts'
+        valid_consumer = {
+            'file': 'e2e/good.spec.ts',
+            'form': 'static-import',
+            'specifier': './pages/accounting-page',
+        }
+
+        def payload(pages):
+            return json.dumps({'ok': True, 'pages': pages})
+
+        with self.assertRaisesRegex(ValueError, 'form|static-import|require'):
+            verify.validate_e2e_page_consumers(payload([{
+                'page': page,
+                'consumers': [{**valid_consumer, 'form': 'require'}],
+                'blocking': [],
+            }]), [page])
+        with self.assertRaisesRegex(ValueError, 'form|static-import|dynamic'):
+            verify.validate_e2e_page_consumers(payload([{
+                'page': page,
+                'consumers': [{**valid_consumer, 'form': 'dynamic-import'}],
+                'blocking': [],
+            }]), [page])
+        with self.assertRaisesRegex(ValueError, 'extra|set|mismatch|unexpected'):
+            verify.validate_e2e_page_consumers(payload([
+                {
+                    'page': page,
+                    'consumers': [valid_consumer],
+                    'blocking': [],
+                },
+                {
+                    'page': 'e2e/pages/extra-page.ts',
+                    'consumers': [{
+                        'file': 'e2e/extra.spec.ts',
+                        'form': 'static-import',
+                        'specifier': './pages/extra-page',
+                    }],
+                    'blocking': [],
+                },
+            ]), [page])
+        with self.assertRaisesRegex(ValueError, 'duplicate'):
+            verify.validate_e2e_page_consumers(payload([
+                {'page': page, 'consumers': [valid_consumer], 'blocking': []},
+                {'page': page, 'consumers': [valid_consumer], 'blocking': []},
+            ]), [page])
+        with self.assertRaisesRegex(ValueError, 'page|canonical|identity|path'):
+            verify.validate_e2e_page_consumers(payload([{
+                'page': 'frontend/e2e/pages/accounting-page.ts',
+                'consumers': [valid_consumer],
+                'blocking': [],
+            }]), ['frontend/e2e/pages/accounting-page.ts'])
+        with self.assertRaisesRegex(ValueError, 'page|canonical|identity|path|\\.\\.'):
+            verify.validate_e2e_page_consumers(payload([{
+                'page': 'e2e/pages/../secret.ts',
+                'consumers': [valid_consumer],
+                'blocking': [],
+            }]))
+        with self.assertRaisesRegex(ValueError, 'consumer|spec|file'):
+            verify.validate_e2e_page_consumers(payload([{
+                'page': page,
+                'consumers': [{
+                    'file': 'e2e/helpers/not-a-spec.ts',
+                    'form': 'static-import',
+                    'specifier': './pages/accounting-page',
+                }],
+                'blocking': [],
+            }]), [page])
+        with self.assertRaisesRegex(ValueError, 'specifier'):
+            verify.validate_e2e_page_consumers(payload([{
+                'page': page,
+                'consumers': [{
+                    'file': 'e2e/good.spec.ts',
+                    'form': 'static-import',
+                    'specifier': '',
+                }],
+                'blocking': [],
+            }]), [page])
+        with self.assertRaisesRegex(ValueError, 'importer-relative|specifier'):
+            verify.validate_e2e_page_consumers(payload([{
+                'page': page,
+                'consumers': [{
+                    'file': 'e2e/good.spec.ts',
+                    'form': 'static-import',
+                    'specifier': '/app/e2e/pages/accounting-page',
+                }],
+                'blocking': [],
+            }]), [page])
+        with self.assertRaisesRegex(ValueError, 'forbidden|specifier'):
+            verify.validate_e2e_page_consumers(payload([{
+                'page': page,
+                'consumers': [{
+                    'file': 'e2e/good.spec.ts',
+                    'form': 'static-import',
+                    'specifier': './pages/accounting-page?x=1',
+                }],
+                'blocking': [],
+            }]), [page])
+        with self.assertRaisesRegex(ValueError, 'missing|set|mismatch'):
+            verify.validate_e2e_page_consumers(payload([{
+                'page': page,
+                'consumers': [valid_consumer],
+                'blocking': [],
+            }]), [page, 'e2e/pages/settings-master-page.ts'])
+
+    def test_raw_canonical_rejects_dot_slash_and_double_slash_identities(self):
+        """PurePosixPath collapses // and /. before parts checks — forged spelling must fail."""
+        self.assertFalse(verify._is_canonical_e2e_page('e2e/pages/./accounting-page.ts'))
+        self.assertFalse(verify._is_canonical_e2e_page('e2e/pages//accounting-page.ts'))
+        self.assertTrue(verify._is_canonical_e2e_page('e2e/pages/accounting-page.ts'))
+
+        self.assertFalse(verify._is_e2e_spec_consumer_file('e2e//forged.spec.ts'))
+        self.assertFalse(verify._is_e2e_spec_consumer_file('e2e/./good.spec.ts'))
+        self.assertTrue(verify._is_e2e_spec_consumer_file('e2e/good.spec.ts'))
+
+        def payload(page_identity, file_path, specifier='./pages/accounting-page'):
+            return json.dumps({
+                'ok': True,
+                'pages': [{
+                    'page': page_identity,
+                    'consumers': [{
+                        'file': file_path,
+                        'form': 'static-import',
+                        'specifier': specifier,
+                    }],
+                    'blocking': [],
+                }],
+            })
+
+        with self.assertRaisesRegex(ValueError, 'canonical|identity|path|raw'):
+            verify.validate_e2e_page_consumers(
+                payload('e2e/pages/./accounting-page.ts', 'e2e/good.spec.ts'),
+            )
+        with self.assertRaisesRegex(ValueError, 'canonical|identity|path|raw'):
+            verify.validate_e2e_page_consumers(
+                payload('e2e/pages//accounting-page.ts', 'e2e/good.spec.ts'),
+            )
+        with self.assertRaisesRegex(ValueError, 'canonical|consumer|spec|file|raw|identity|path'):
+            verify.validate_e2e_page_consumers(
+                payload('e2e/pages/accounting-page.ts', 'e2e//forged.spec.ts'),
+                ['e2e/pages/accounting-page.ts'],
+            )
+        with self.assertRaisesRegex(ValueError, 'canonical|consumer|spec|file|raw|identity|path'):
+            verify.validate_e2e_page_consumers(
+                payload('e2e/pages/accounting-page.ts', 'e2e/./good.spec.ts'),
+                ['e2e/pages/accounting-page.ts'],
+            )
+
+    def test_raw_canonical_rejects_nul_c0_and_del_identities(self):
+        """C0 controls and DEL survive PurePosixPath; raw identities must still fail closed."""
+        page = 'e2e/pages/accounting-page.ts'
+        nul_file = 'e2e/good\x00.spec.ts'
+        c0_file = 'e2e/good\x01.spec.ts'
+        del_file = 'e2e/good\x7f.spec.ts'
+        nul_page = 'e2e/pages/accounting\x00-page.ts'
+        del_page = 'e2e/pages/accounting\x7f-page.ts'
+
+        self.assertFalse(verify._is_raw_canonical_posix(nul_file))
+        self.assertFalse(verify._is_raw_canonical_posix(c0_file))
+        self.assertFalse(verify._is_raw_canonical_posix(del_file))
+        self.assertFalse(verify._is_e2e_spec_consumer_file(nul_file))
+        self.assertFalse(verify._is_e2e_spec_consumer_file(c0_file))
+        self.assertFalse(verify._is_e2e_spec_consumer_file(del_file))
+        self.assertFalse(verify._is_canonical_e2e_page(nul_page))
+        self.assertFalse(verify._is_canonical_e2e_page(del_page))
+        self.assertTrue(verify._is_raw_canonical_posix('e2e/good.spec.ts'))
+
+        def payload(page_identity, file_path, specifier='./pages/accounting-page'):
+            return json.dumps({
+                'ok': True,
+                'pages': [{
+                    'page': page_identity,
+                    'consumers': [{
+                        'file': file_path,
+                        'form': 'static-import',
+                        'specifier': specifier,
+                    }],
+                    'blocking': [],
+                }],
+            })
+
+        with self.assertRaisesRegex(ValueError, 'canonical|consumer|spec|file|raw|identity|path'):
+            verify.validate_e2e_page_consumers(payload(page, nul_file), [page])
+        with self.assertRaisesRegex(ValueError, 'canonical|consumer|spec|file|raw|identity|path'):
+            verify.validate_e2e_page_consumers(payload(page, c0_file), [page])
+        with self.assertRaisesRegex(ValueError, 'canonical|consumer|spec|file|raw|identity|path'):
+            verify.validate_e2e_page_consumers(payload(page, del_file), [page])
+        with self.assertRaisesRegex(ValueError, 'canonical|identity|path|raw'):
+            verify.validate_e2e_page_consumers(payload(nul_page, 'e2e/good.spec.ts'))
+        with self.assertRaisesRegex(ValueError, 'canonical|identity|path|raw'):
+            verify.validate_e2e_page_consumers(payload(del_page, 'e2e/good.spec.ts'))
+
+    def test_specifier_must_resolve_exactly_to_claimed_page(self):
+        page = 'e2e/pages/accounting-page.ts'
+
+        def payload(file_path, specifier):
+            return json.dumps({
+                'ok': True,
+                'pages': [{
+                    'page': page,
+                    'consumers': [{
+                        'file': file_path,
+                        'form': 'static-import',
+                        'specifier': specifier,
+                    }],
+                    'blocking': [],
+                }],
+            })
+
+        with self.assertRaisesRegex(ValueError, 'specifier|resolve|mismatch|page'):
+            verify.validate_e2e_page_consumers(
+                payload('e2e/good.spec.ts', './pages/other-page'),
+                [page],
+            )
+        # Nested ../ control must still pass when resolution equals the claimed page.
+        evidence = verify.validate_e2e_page_consumers(
+            payload('e2e/subdir/nested.spec.ts', '../pages/accounting-page'),
+            [page],
+        )
+        self.assertEqual(len(evidence[page]), 1)
+        with self.assertRaisesRegex(ValueError, 'specifier|resolve|escape|e2e|page'):
+            verify.validate_e2e_page_consumers(
+                payload('e2e/good.spec.ts', '../secret'),
+                [page],
+            )
+
+    def test_python_has_no_regex_module_reference_authority(self):
+        source = pathlib.Path(verify.__file__).read_text(encoding='utf-8')
+        self.assertNotIn('E2E_MODULE_REFERENCE_PATTERNS', source)
+        self.assertNotIn('aliases_page', source)
+        self.assertNotIn('def e2e_module_references', source)
+        self.assertNotIn('def e2e_spec_consumers', source)
+        # Former FP: helper URL substring must not be Python consumer authority.
+        self.assertNotIn("f'pages/{module}' in normalized", source)
+        self.assertNotIn('endswith(f\'pages/{module}\')', source)
+
+    def test_check_e2e_scope_page_only_requires_existence(self):
+        verify.check_e2e_scope(['frontend/e2e/pages/accounting-page.ts'])
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            missing = 'frontend/e2e/pages/missing-page.ts'
+            with mock.patch.object(verify, 'ROOT', root):
+                with self.assertRaisesRegex(ValueError, 'missing'):
+                    verify.check_e2e_scope([missing])
+
 
 
 if __name__ == '__main__':
