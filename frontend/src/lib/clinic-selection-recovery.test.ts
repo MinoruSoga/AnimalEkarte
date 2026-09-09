@@ -5,6 +5,7 @@ import {
   isClinicSelectionUnavailable,
   recoverClinicSelectionOnce,
   retryClinicSelectionRecovery,
+  rearmAutomaticClinicSelectionRecoveryAttempt,
   clearClinicSelectionRecovery,
   resetClinicSelectionRecoveryForTests,
   areClinicWritesPaused,
@@ -125,6 +126,23 @@ describe("clinic-selection-recovery", () => {
     expect(areClinicWritesPaused()).toBe(true);
     expect(getClinicSelectionBlockReason()).toBe("recovery-failed");
     expect(reload).not.toHaveBeenCalled();
+  });
+
+  it("rearmAutomaticClinicSelectionRecoveryAttempt does not clear writesPaused or blockReason", async () => {
+    const request = vi.fn().mockRejectedValue(new Error("network"));
+    vi.stubGlobal("fetch", request);
+    await recoverClinicSelectionOnce();
+    expect(areClinicWritesPaused()).toBe(true);
+    expect(getClinicSelectionBlockReason()).toBe("recovery-failed");
+
+    rearmAutomaticClinicSelectionRecoveryAttempt();
+    expect(areClinicWritesPaused()).toBe(true);
+    expect(getClinicSelectionBlockReason()).toBe("recovery-failed");
+
+    await recoverClinicSelectionOnce();
+    expect(request).toHaveBeenCalledTimes(2);
+    expect(areClinicWritesPaused()).toBe(true);
+    expect(getClinicSelectionBlockReason()).toBe("recovery-failed");
   });
 
   it("does not restart automatic recovery for later polling errors", async () => {

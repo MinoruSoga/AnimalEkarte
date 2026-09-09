@@ -1,16 +1,21 @@
-import { StrictMode, Suspense } from "react";
+import { StrictMode, Suspense, useEffect } from "react";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter, useLocation, useNavigate } from "react-router";
+import { MemoryRouter, Route, Routes, useLocation, useNavigate } from "react-router";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { AxiosError, AxiosHeaders, type AxiosAdapter } from "axios";
 import { useAuth } from "@/hooks/use-auth";
 import type { AuthUser } from "@/types/auth";
+import { axios } from "@/lib/axios";
 import { CURRENT_CLINIC_STORAGE_KEY } from "@/lib/current-clinic";
 import {
   areClinicWritesPaused,
   clearClinicSelectionRecovery,
   CLINIC_SELECTION_UNAVAILABLE,
+  pauseClinicWrites,
   recoverClinicSelectionOnce,
+  resetClinicSelectionRecoveryForTests,
 } from "@/lib/clinic-selection-recovery";
+import { LoginForm } from "../components/LoginForm";
 import type { SessionRestoreResult } from "../api/restore-session";
 
 const { loginMock, logoutMock, queryClientMock, refreshTokenMock, restoreSessionMock } = vi.hoisted(
@@ -107,6 +112,24 @@ function RouteControls() {
       </button>
     </div>
   );
+}
+
+function LocationProbe() {
+  const location = useLocation();
+  return (
+    <div>
+      <span data-testid="pathname">{location.pathname}</span>
+      <span data-testid="search">{location.search}</span>
+    </div>
+  );
+}
+
+function WindowLocationSync() {
+  const location = useLocation();
+  useEffect(() => {
+    setWindowLocation(`${location.pathname}${location.search}`);
+  }, [location]);
+  return null;
 }
 
 describe("AuthProvider initial session restoration", () => {
@@ -458,6 +481,7 @@ describe("AuthProvider initial session restoration", () => {
     render(
       <MemoryRouter initialEntries={["/login"]}>
         <AuthProvider>
+          <LoginForm />
           <RouteControls />
         </AuthProvider>
       </MemoryRouter>,
@@ -498,6 +522,7 @@ describe("AuthProvider initial session restoration", () => {
     render(
       <MemoryRouter initialEntries={["/login"]}>
         <AuthProvider>
+          <LoginForm />
           <RouteControls />
         </AuthProvider>
       </MemoryRouter>,
@@ -551,6 +576,7 @@ describe("AuthProvider initial session restoration", () => {
     render(
       <MemoryRouter initialEntries={["/login"]}>
         <AuthProvider>
+          <LoginForm />
           <RouteControls />
         </AuthProvider>
       </MemoryRouter>,
@@ -564,6 +590,95 @@ describe("AuthProvider initial session restoration", () => {
     expect(logoutMock).not.toHaveBeenCalled();
     expect(queryClientMock.clear).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: "ログアウト" })).not.toBeInTheDocument();
+  });
+
+  it("login-switch from protected path navigates to /login with sanitized from and keeps wrong-password 401 off refresh/redirect", async () => {
+    vi.useFakeTimers();
+    setWindowLocation("/owners?tab=summary");
+    restoreSessionMock.mockImplementation(() => new Promise<SessionRestoreResult>(() => undefined));
+    const protectedMount = vi.fn();
+    function ProtectedChild() {
+      protectedMount();
+      return <div data-testid="protected-child">protected</div>;
+    }
+    const { AuthProvider } = await import("../components/AuthProvider");
+    render(
+      <MemoryRouter initialEntries={["/owners?tab=summary"]}>
+        <WindowLocationSync />
+        <LocationProbe />
+        <AuthProvider>
+          <Routes>
+            <Route path="/login" element={<LoginForm />} />
+            <Route path="/owners" element={<ProtectedChild />} />
+          </Routes>
+        </AuthProvider>
+      </MemoryRouter>,
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(8000);
+    });
+    expect(restoreSessionMock).toHaveBeenCalledOnce();
+    expect(screen.queryByTestId("protected-child")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "ログイン切替" }));
+    vi.useRealTimers();
+
+    await waitFor(() => expect(screen.getByTestId("pathname")).toHaveTextContent("/login"));
+    const from = new URLSearchParams(screen.getByTestId("search").textContent ?? "").get("from");
+    expect(from).toBe("/owners?tab=summary");
+    await waitFor(() => expect(window.location.pathname).toBe("/login"));
+    expect(restoreSessionMock).toHaveBeenCalledOnce();
+    expect(protectedMount).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("protected-child")).not.toBeInTheDocument();
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("メールアドレス")).toBeInTheDocument();
+
+    const refreshSpy = vi
+      .spyOn(axios, "post")
+      .mockRejectedValue(new AxiosError("refresh unauthorized"));
+    const hrefBeforeLogin = window.location.href;
+    loginMock.mockImplementation(async () => {
+      await axios.request({
+        adapter: async (config) => {
+          throw new AxiosError(
+            "request unauthorized",
+            AxiosError.ERR_BAD_REQUEST,
+            config,
+            undefined,
+            {
+              config,
+              data: { message: "unauthorized" },
+              headers: new AxiosHeaders(),
+              status: 401,
+              statusText: "Unauthorized",
+            },
+          );
+        },
+        method: "post",
+        url: "/v1/login",
+        data: { email: "staff@example.com", password: "wrong" },
+      });
+    });
+    fireEvent.change(screen.getByLabelText("メールアドレス"), {
+      target: { value: "staff@example.com" },
+    });
+    fireEvent.change(screen.getByLabelText("パスワード"), {
+      target: { value: "wrong-password" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "ログイン" }));
+    expect(await screen.findByText("メールアドレスまたはパスワードが違います")).toBeInTheDocument();
+    expect(refreshSpy).not.toHaveBeenCalled();
+    expect(window.location.href).toBe(hrefBeforeLogin);
+    expect(screen.getByLabelText("メールアドレス")).toBeEnabled();
+    expect(screen.getByRole("button", { name: "ログイン" })).toBeEnabled();
+    expect(restoreSessionMock).toHaveBeenCalledOnce();
+
+    loginMock.mockReset().mockResolvedValue({ user: AUTH_USER });
+    fireEvent.change(screen.getByLabelText("パスワード"), {
+      target: { value: "password123" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "ログイン" }));
+    await waitFor(() => expect(screen.getByTestId("pathname")).toHaveTextContent("/owners"));
+    expect(screen.getByTestId("search").textContent).toBe("?tab=summary");
   });
 
   it("does not render clinic 403 as anonymous Login-only", async () => {
@@ -591,6 +706,44 @@ describe("AuthProvider initial session restoration", () => {
     expect(await screen.findByRole("alertdialog")).toHaveTextContent("利用できる医院がありません");
     expect(screen.queryByLabelText("メールアドレス")).not.toBeInTheDocument();
     expect(screen.queryByTestId("auth-state")).not.toBeInTheDocument();
+  });
+
+  it("keeps terminal clinic block UI after the startup deadline instead of transport SessionRestoreError", async () => {
+    vi.useFakeTimers();
+    setWindowLocation("/login");
+    restoreSessionMock.mockResolvedValue({
+      kind: "restricted403",
+      reason: "clinic_selection_unavailable",
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 403,
+        json: async () => ({ error_code: CLINIC_SELECTION_UNAVAILABLE }),
+      }),
+    );
+    const { AuthProvider } = await import("../components/AuthProvider");
+    render(
+      <MemoryRouter initialEntries={["/login"]}>
+        <AuthProvider>
+          <RouteControls />
+        </AuthProvider>
+      </MemoryRouter>,
+    );
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(screen.getByRole("alertdialog")).toHaveTextContent("利用できる医院がありません");
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(8000);
+    });
+    expect(screen.getByRole("alertdialog")).toHaveTextContent("利用できる医院がありません");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "ログアウト" })).toBeInTheDocument();
+    vi.useRealTimers();
   });
 
   it("ignores a late restore after true unmount to password-recovery", async () => {
@@ -681,5 +834,242 @@ describe("AuthProvider initial session restoration", () => {
     expect(restoreSessionMock).toHaveBeenCalledTimes(2);
     expect(fetchMock).toHaveBeenCalledTimes(2);
     vi.useRealTimers();
+  });
+
+  it("retry re-arms recovery attempt latch only, keeps writesPaused, and double-click starts one restore", async () => {
+    vi.useFakeTimers();
+    setWindowLocation("/login");
+    restoreSessionMock.mockResolvedValue({
+      kind: "restricted403",
+      reason: "clinic_selection_unavailable",
+    });
+    const fetchMock = vi.fn().mockImplementation(
+      (_input: RequestInfo | URL, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => {
+            reject(new DOMException("Aborted", "AbortError"));
+          });
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const { AuthProvider } = await import("../components/AuthProvider");
+    render(
+      <MemoryRouter initialEntries={["/login"]}>
+        <AuthProvider>
+          <RouteControls />
+        </AuthProvider>
+      </MemoryRouter>,
+    );
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(areClinicWritesPaused()).toBe(true);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(8000);
+    });
+    expect(areClinicWritesPaused()).toBe(true);
+    const retry = screen.getByRole("button", { name: "再試行" });
+    fireEvent.click(retry);
+    fireEvent.click(retry);
+    expect(restoreSessionMock).toHaveBeenCalledTimes(2);
+    expect(areClinicWritesPaused()).toBe(true);
+
+    let adapterCalls = 0;
+    const adapter: AxiosAdapter = async (config) => {
+      adapterCalls += 1;
+      return {
+        config,
+        data: {},
+        headers: new AxiosHeaders(),
+        status: 200,
+        statusText: "OK",
+      };
+    };
+    await expect(
+      axios.request({ adapter, method: "post", url: "/v1/owners", data: { name: "x" } }),
+    ).rejects.toMatchObject({ message: "clinic writes paused" });
+    await expect(
+      axios.request({ adapter, method: "put", url: "/v1/pets/1", data: { name: "y" } }),
+    ).rejects.toMatchObject({ message: "clinic writes paused" });
+    await expect(
+      axios.request({ adapter, method: "patch", url: "/v1/owners/1", data: { name: "z" } }),
+    ).rejects.toMatchObject({ message: "clinic writes paused" });
+    await expect(
+      axios.request({ adapter, method: "delete", url: "/v1/owners/1" }),
+    ).rejects.toMatchObject({ message: "clinic writes paused" });
+    expect(adapterCalls).toBe(0);
+    vi.useRealTimers();
+  });
+
+  it("password-recovery and manual-login suppress ClinicSelectionBlockedScreen while writesPaused remains", async () => {
+    setWindowLocation("/");
+    restoreSessionMock
+      .mockResolvedValueOnce({
+        kind: "restricted403",
+        reason: "clinic_selection_unavailable",
+      })
+      .mockImplementation(() => new Promise<SessionRestoreResult>(() => undefined));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 403,
+        json: async () => ({ error_code: CLINIC_SELECTION_UNAVAILABLE }),
+      }),
+    );
+    function OutsideNav() {
+      const navigate = useNavigate();
+      return (
+        <div>
+          <button type="button" onClick={() => void navigate("/forgot-password/")}>
+            to-forgot
+          </button>
+          <button type="button" onClick={() => void navigate("/reset-password/?token=test-token")}>
+            to-reset
+          </button>
+          <button type="button" onClick={() => void navigate("/login")}>
+            to-login
+          </button>
+        </div>
+      );
+    }
+    const { AuthProvider } = await import("../components/AuthProvider");
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <WindowLocationSync />
+        <LocationProbe />
+        <OutsideNav />
+        <AuthProvider>
+          <Routes>
+            <Route path="/" element={<div data-testid="home-page">home</div>} />
+            <Route path="/forgot-password" element={<div data-testid="forgot-page">forgot</div>} />
+            <Route path="/reset-password" element={<div data-testid="reset-page">reset</div>} />
+            <Route path="/login" element={<LoginForm />} />
+          </Routes>
+        </AuthProvider>
+      </MemoryRouter>,
+    );
+    expect(await screen.findByRole("alertdialog")).toHaveTextContent("利用できる医院がありません");
+    expect(areClinicWritesPaused()).toBe(true);
+    expect(restoreSessionMock).toHaveBeenCalledOnce();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "to-forgot" }));
+    });
+    expect(await screen.findByTestId("forgot-page")).toBeInTheDocument();
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(areClinicWritesPaused()).toBe(true);
+    expect(restoreSessionMock).toHaveBeenCalledOnce();
+
+    let adapterCalls = 0;
+    const adapter: AxiosAdapter = async (config) => {
+      adapterCalls += 1;
+      return {
+        config,
+        data: {},
+        headers: new AxiosHeaders(),
+        status: 200,
+        statusText: "OK",
+      };
+    };
+    await axios.request({
+      adapter,
+      method: "post",
+      url: "/v1/auth/forgot-password",
+      data: { email: "a" },
+    });
+    expect(adapterCalls).toBe(1);
+    await expect(
+      axios.request({ adapter, method: "post", url: "/v1/owners", data: { name: "x" } }),
+    ).rejects.toMatchObject({ message: "clinic writes paused" });
+    expect(adapterCalls).toBe(1);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "to-reset" }));
+    });
+    expect(await screen.findByTestId("reset-page")).toBeInTheDocument();
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(areClinicWritesPaused()).toBe(true);
+    expect(restoreSessionMock).toHaveBeenCalledOnce();
+    await axios.request({
+      adapter,
+      method: "post",
+      url: "/v1/auth/reset-password",
+      data: { token: "t", password: "p" },
+    });
+    expect(adapterCalls).toBe(2);
+
+    // Remount onto /login while terminal no-clinic remains: BlockedScreen is correct.
+    // For manual-login suppress, clear only the terminal block UI state then keep pause and
+    // force a hung restore so the 8s deadline can surface SessionRestoreError → ログイン切替.
+    resetClinicSelectionRecoveryForTests();
+    pauseClinicWrites();
+    vi.useFakeTimers();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "to-login" }));
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(8000);
+    });
+    expect(screen.getByRole("alert")).toHaveTextContent("ログイン状態を確認できませんでした");
+    fireEvent.click(screen.getByRole("button", { name: "ログイン切替" }));
+    vi.useRealTimers();
+    await waitFor(() => expect(screen.getByLabelText("メールアドレス")).toBeInTheDocument());
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(areClinicWritesPaused()).toBe(true);
+
+    loginMock.mockRejectedValue(
+      new AxiosError("unauthorized", AxiosError.ERR_BAD_REQUEST, undefined, undefined, {
+        data: { message: "unauthorized" },
+        status: 401,
+        statusText: "Unauthorized",
+        headers: new AxiosHeaders(),
+        config: {} as never,
+      }),
+    );
+    fireEvent.change(screen.getByLabelText("メールアドレス"), {
+      target: { value: "staff@example.com" },
+    });
+    fireEvent.change(screen.getByLabelText("パスワード"), {
+      target: { value: "wrong" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "ログイン" }));
+    expect(await screen.findByText("メールアドレスまたはパスワードが違います")).toBeInTheDocument();
+    expect(areClinicWritesPaused()).toBe(true);
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+  });
+
+  it("restricted403 forbidden shows restriction UI, starts no clinic recovery, and does not claim anonymous", async () => {
+    setWindowLocation("/login");
+    restoreSessionMock.mockResolvedValue({
+      kind: "restricted403",
+      reason: "forbidden",
+    });
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const { AuthProvider } = await import("../components/AuthProvider");
+    render(
+      <MemoryRouter initialEntries={["/login"]}>
+        <AuthProvider>
+          <RouteControls />
+        </AuthProvider>
+      </MemoryRouter>,
+    );
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("このアカウントはアクセスが制限されています");
+    expect(alert).not.toHaveTextContent("ログイン状態を確認できませんでした");
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("auth-state")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("メールアドレス")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "ログイン切替" })).toBeEnabled();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 });

@@ -35,4 +35,22 @@ describe("SessionRestoreError", () => {
     await user.keyboard("{Enter}");
     expect(onSwitchToLogin).toHaveBeenCalledOnce();
   });
+
+  it("generic403 message shows access-restriction guidance distinct from default transport copy and still exposes login-switch", () => {
+    const onSwitchToLogin = vi.fn();
+    render(
+      <SessionRestoreError
+        kind="restricted"
+        onRetry={() => undefined}
+        onSwitchToLogin={onSwitchToLogin}
+      />,
+    );
+
+    const alert = screen.getByRole("alert");
+    expect(alert).not.toHaveTextContent("ログイン状態を確認できませんでした");
+    expect(alert).toHaveTextContent("このアカウントはアクセスが制限されています");
+    expect(alert.textContent).not.toBe("ログイン状態を確認できませんでした");
+    expect(screen.getByRole("button", { name: "ログイン切替" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "再試行" })).toBeEnabled();
+  });
 });

@@ -1,16 +1,18 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useLocation } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { toast } from "sonner";
 import type { AuthContextValue, AuthUser, Resource, ResourceAction } from "@/types/auth";
 import { AuthContext } from "@/hooks/auth-context";
-import { isPasswordRecoveryPublicPath } from "@/lib/auth-route-policy";
+import { paths } from "@/config/paths";
+import { isLoginPublicPath, isPasswordRecoveryPublicPath } from "@/lib/auth-route-policy";
 import {
   CURRENT_CLINIC_STORAGE_KEY,
   getStoredClinicId,
   setStoredClinicId,
 } from "@/lib/current-clinic";
+import { parseInternalPath } from "@/lib/internal-navigation";
 import { ME_QUERY_KEY } from "@/lib/query-keys";
 import { axios } from "@/lib/axios";
 import { attachClinicSelectionInterceptors } from "@/lib/clinic-selection-axios";
@@ -18,6 +20,8 @@ import {
   beginClinicSelectionLogout,
   cancelPendingClinicSelectionRecovery,
   clearClinicSelectionRecovery,
+  getClinicSelectionBlockReason,
+  rearmAutomaticClinicSelectionRecoveryAttempt,
   recoverClinicSelectionOnce,
 } from "@/lib/clinic-selection-recovery";
 import { login as loginApi } from "../api/login";
@@ -28,7 +32,6 @@ import type { SessionRestoreResult } from "../api/restore-session";
 import { useGetMe } from "../api/get-me";
 import { SessionPending } from "@/components/shared/auth/SessionPending";
 import { ClinicSelectionBlockedScreen } from "./ClinicSelectionBlockedScreen";
-import { LoginForm } from "./LoginForm";
 import { SessionRestoreError } from "./SessionRestoreError";
 
 attachClinicSelectionInterceptors(axios);
@@ -71,7 +74,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const sessionKey = passwordRecovery ? "password-recovery" : "session";
 
   return (
-    <AuthProviderSession key={sessionKey} restoreSession={restoreSession}>
+    <AuthProviderSession
+      key={sessionKey}
+      restoreSession={restoreSession}
+      suppressBlockedScreen={passwordRecovery}
+    >
       {children}
     </AuthProviderSession>
   );
@@ -79,9 +86,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
 interface AuthProviderSessionProps extends AuthProviderProps {
   restoreSession: boolean;
+  suppressBlockedScreen: boolean;
 }
 
-function AuthProviderSession({ children, restoreSession }: AuthProviderSessionProps) {
+function AuthProviderSession({
+  children,
+  restoreSession,
+  suppressBlockedScreen,
+}: AuthProviderSessionProps) {
+  const location = useLocation();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [currentClinicId, setCurrentClinicId] = useState<string | null>(null);
@@ -89,6 +103,7 @@ function AuthProviderSession({ children, restoreSession }: AuthProviderSessionPr
   const [restorePhase, setRestorePhase] = useState<RestorePhase>(
     restoreSession ? "pending" : "ready",
   );
+  const [restoreErrorKind, setRestoreErrorKind] = useState<"transport" | "restricted">("transport");
   const restorePhaseRef = useRef<RestorePhase>(restoreSession ? "pending" : "ready");
   const restoreGenerationRef = useRef(0);
   const restoreControllerRef = useRef<AbortController | null>(null);
@@ -158,11 +173,13 @@ function AuthProviderSession({ children, restoreSession }: AuthProviderSessionPr
         }
         clearDeadline();
         restorePhaseRef.current = "error";
+        setRestoreErrorKind("restricted");
         setRestorePhase("error");
         return;
       }
       clearDeadline();
       restorePhaseRef.current = "error";
+      setRestoreErrorKind("transport");
       setRestorePhase("error");
     },
     [clearDeadline, hydrateUser],
@@ -186,6 +203,13 @@ function AuthProviderSession({ children, restoreSession }: AuthProviderSessionPr
       ) {
         return;
       }
+      // Terminal clinic block already has usable restriction UI + logout; do not
+      // replace it with transport SessionRestoreError. Hung recovery (block none)
+      // still fails closed to the recoverable error shell.
+      if (getClinicSelectionBlockReason() !== "none") {
+        deadlineTimerRef.current = null;
+        return;
+      }
       restoreGenerationRef.current += 1;
       controller.abort();
       flightRef.current = null;
@@ -193,6 +217,7 @@ function AuthProviderSession({ children, restoreSession }: AuthProviderSessionPr
       deadlineTimerRef.current = null;
       cancelPendingClinicSelectionRecovery();
       restorePhaseRef.current = "error";
+      setRestoreErrorKind("transport");
       setRestorePhase("error");
     }, RESTORE_DEADLINE_MS);
 
@@ -241,12 +266,13 @@ function AuthProviderSession({ children, restoreSession }: AuthProviderSessionPr
   useEffect(() => {
     function handleStorage(event: StorageEvent): void {
       if (event.key === CURRENT_CLINIC_STORAGE_KEY) {
+        invalidateRestore();
         window.location.reload();
       }
     }
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);
-  }, []);
+  }, [invalidateRestore]);
 
   const login = useCallback(
     async (email: string, password: string) => {
@@ -331,9 +357,11 @@ function AuthProviderSession({ children, restoreSession }: AuthProviderSessionPr
   }, [hydrateUser]);
 
   const handleRetryRestore = useCallback(() => {
+    if (restorePhaseRef.current === "pending") {
+      return;
+    }
     invalidateRestore();
-    // Reset at-most-one recovery latch so a later clinic403 can recover again.
-    clearClinicSelectionRecovery();
+    rearmAutomaticClinicSelectionRecoveryAttempt();
     restorePhaseRef.current = "pending";
     setRestorePhase("pending");
     setIsInitialized(false);
@@ -345,7 +373,14 @@ function AuthProviderSession({ children, restoreSession }: AuthProviderSessionPr
     invalidateRestore();
     restorePhaseRef.current = "manual-login";
     setRestorePhase("manual-login");
-  }, [invalidateRestore]);
+    const loginPath = paths.auth.login.getHref();
+    const sanitized = parseInternalPath(`${location.pathname}${location.search}`);
+    const fromQuery =
+      sanitized !== null && sanitized !== loginPath && !isLoginPublicPath(location.pathname)
+        ? `?from=${encodeURIComponent(sanitized)}`
+        : "";
+    navigate(`${loginPath}${fromQuery}`, { replace: true });
+  }, [invalidateRestore, location.pathname, location.search, navigate]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -373,22 +408,31 @@ function AuthProviderSession({ children, restoreSession }: AuthProviderSessionPr
 
   if (restorePhase === "error") {
     return (
-      <SessionRestoreError onRetry={handleRetryRestore} onSwitchToLogin={handleSwitchToLogin} />
+      <SessionRestoreError
+        kind={restoreErrorKind}
+        onRetry={handleRetryRestore}
+        onSwitchToLogin={handleSwitchToLogin}
+      />
     );
   }
 
   if (restorePhase === "manual-login") {
     return (
       <AuthContext.Provider value={value}>
-        <LoginForm />
+        {isLoginPublicPath(location.pathname) ? children : null}
       </AuthContext.Provider>
     );
   }
 
+  const blockedScreen =
+    suppressBlockedScreen || restorePhase === "manual-login" ? null : (
+      <ClinicSelectionBlockedScreen onLogout={logout} />
+    );
+
   if (!isInitialized) {
     return (
       <AuthContext.Provider value={value}>
-        <ClinicSelectionBlockedScreen onLogout={logout} />
+        {blockedScreen}
         <SessionPending />
       </AuthContext.Provider>
     );
@@ -396,7 +440,7 @@ function AuthProviderSession({ children, restoreSession }: AuthProviderSessionPr
 
   return (
     <AuthContext.Provider value={value}>
-      <ClinicSelectionBlockedScreen onLogout={logout} />
+      {blockedScreen}
       {children}
     </AuthContext.Provider>
   );

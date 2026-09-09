@@ -73,6 +73,10 @@ export function cancelPendingClinicSelectionRecovery(): void {
   cancelPendingRecovery();
 }
 
+export function rearmAutomaticClinicSelectionRecoveryAttempt(): void {
+  automaticRecoveryAttempted = false;
+}
+
 export function resetClinicSelectionRecoveryForTests(): void {
   clearClinicSelectionRecovery();
 }

@@ -136,6 +136,71 @@ describe("clinic selection axios guards", () => {
     expect(adapterCalls).toBe(1);
   });
 
+  it("still allows exact POST /v1/auth/forgot-password and /v1/auth/reset-password while paused and still rejects business writes and near-match /auth paths", async () => {
+    attachClinicSelectionInterceptors(axios);
+    pauseClinicWrites();
+    let adapterCalls = 0;
+    const adapter: AxiosAdapter = async (config) => {
+      adapterCalls += 1;
+      return {
+        config,
+        data: {},
+        headers: new AxiosHeaders(),
+        status: 200,
+        statusText: "OK",
+      };
+    };
+
+    await axios.request({
+      adapter,
+      method: "post",
+      url: "/v1/auth/forgot-password",
+      data: { email: "a" },
+    });
+    await axios.request({
+      adapter,
+      method: "post",
+      url: "/v1/auth/reset-password",
+      data: { token: "t", password: "p" },
+    });
+    await axios.request({
+      adapter,
+      method: "post",
+      url: "https://api.example.test/v1/auth/forgot-password",
+      data: { email: "a" },
+    });
+    await axios.request({
+      adapter,
+      method: "post",
+      url: "https://api.example.test/v1/auth/reset-password",
+      data: { token: "t", password: "p" },
+    });
+    expect(adapterCalls).toBe(4);
+
+    await expect(
+      axios.request({ adapter, method: "post", url: "/v1/owners", data: { name: "x" } }),
+    ).rejects.toMatchObject({ message: "clinic writes paused" });
+    await expect(
+      axios.request({ adapter, method: "put", url: "/v1/owners/1", data: { name: "y" } }),
+    ).rejects.toMatchObject({ message: "clinic writes paused" });
+    await expect(
+      axios.request({ adapter, method: "patch", url: "/v1/pets/1", data: { name: "z" } }),
+    ).rejects.toMatchObject({ message: "clinic writes paused" });
+    await expect(
+      axios.request({ adapter, method: "delete", url: "/v1/owners/1" }),
+    ).rejects.toMatchObject({ message: "clinic writes paused" });
+    await expect(
+      axios.request({ adapter, method: "post", url: "/v1/auth/refresh" }),
+    ).rejects.toMatchObject({ message: "clinic writes paused" });
+    await expect(
+      axios.request({ adapter, method: "post", url: "/v1/auth/forgot-password/extra" }),
+    ).rejects.toMatchObject({ message: "clinic writes paused" });
+    await expect(
+      axios.request({ adapter, method: "put", url: "/v1/auth/forgot-password" }),
+    ).rejects.toMatchObject({ message: "clinic writes paused" });
+    expect(adapterCalls).toBe(4);
+  });
+
   it("still allows logout while clinic writes are paused", async () => {
     attachClinicSelectionInterceptors(axios);
     pauseClinicWrites();

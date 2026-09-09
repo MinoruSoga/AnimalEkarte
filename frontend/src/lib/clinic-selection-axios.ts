@@ -17,13 +17,21 @@ function isSessionLogoutRequest(config: InternalAxiosRequestConfig): boolean {
   return method === "post" && path.includes("/auth/refresh/logout");
 }
 
+function isExactOrSuffixedPath(path: string, exact: string): boolean {
+  return path === exact || path.endsWith(exact);
+}
+
 function isPreSessionAuthRequest(config: InternalAxiosRequestConfig): boolean {
   const method = config.method?.toLowerCase();
   if (method !== "post") {
     return false;
   }
   const path = requestPath(config);
-  return path === "/v1/login" || path.endsWith("/v1/login");
+  return (
+    isExactOrSuffixedPath(path, "/v1/login") ||
+    isExactOrSuffixedPath(path, "/v1/auth/forgot-password") ||
+    isExactOrSuffixedPath(path, "/v1/auth/reset-password")
+  );
 }
 
 function isWriteMethod(method: string | undefined): boolean {

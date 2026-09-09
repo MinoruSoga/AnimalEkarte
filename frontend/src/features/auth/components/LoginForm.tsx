@@ -19,6 +19,12 @@ interface DemoCredential {
   isSystemAdmin?: boolean;
 }
 
+function loginRedirectPath(location: { search: string; state: unknown }): string {
+  const stateFrom = (location.state as { from?: string } | null)?.from;
+  const queryFrom = new URLSearchParams(location.search).get("from");
+  return parseInternalPath(stateFrom) ?? parseInternalPath(queryFrom) ?? paths.home.getHref();
+}
+
 export const SHOW_DEMO =
   import.meta.env.DEV ||
   __VERCEL_ENV__ === "preview" ||
@@ -361,12 +367,7 @@ export const LoginForm = memo(function LoginForm() {
       try {
         await login(emailValue, passwordValue);
 
-        const stateFrom = (location.state as { from?: string })?.from;
-        const queryFrom = new URLSearchParams(window.location.search).get("from");
-        const from =
-          parseInternalPath(stateFrom) ?? parseInternalPath(queryFrom) ?? paths.home.getHref();
-
-        navigate(from, { replace: true });
+        navigate(loginRedirectPath(location), { replace: true });
         return { success: true, error: null, timestamp: Date.now() };
       } catch (err) {
         let msg = "ログインに失敗しました。しばらくしてから再度お試しください";
@@ -397,7 +398,7 @@ export const LoginForm = memo(function LoginForm() {
   }, []);
 
   if (isAuthenticated) {
-    return <Navigate to={paths.home.getHref()} replace />;
+    return <Navigate to={loginRedirectPath(location)} replace />;
   }
 
   return (
