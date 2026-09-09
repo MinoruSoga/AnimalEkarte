@@ -167,7 +167,7 @@ FOLLOWUP_BASE=`8060f87d91cfeb9584b55257b8f547bd646db280`. Claim `claim/PERF-STG-
 - [x] Missing historical evidence recovered or bounded | RED: `/tmp/perf-login-a-red-detail.log` + session `terminal/call-c50ddd98-…-76.log` — `Unable to find role="status"` empty body; promptSha256 `b35514951…` EXIT0; agents listed below | Fresh re-verify dated 2026-09-09 16:02 JST is current correctness only, not historical proof
 - [x] Final independent review + narrow quality gates | Reviewer `01a084f6-d2f7-7ab3-a37b-44f5056129f4` initially FAIL on ledger overclaim (fixed this revision); security `01a084f6-d2f7-7ab3-a37b-4501269bc66e` PASS; gates PASS 9 tests
 - [x] Changes within 4-path allowlist | Only router.test.ts, app-routes.test.tsx, root-hydrate-fallback.test.tsx, todo-performance.md; no production code
-- [ ] Ledger + PR393 reflect evidence without overclaim | Pending push/update of draft PR393 after this commit | Browser/E2E BLOCKED; CI Frontend Build audit FAILURE is deps-out-of-scope
+- [x] Ledger + PR393 reflect evidence without overclaim | PR393 draft OPEN main head `e81ed8eda67d0ef5af81379fba8a1eda42c88d55` | Browser/E2E BLOCKED; CI Frontend Build audit FAILURE is deps-out-of-scope; B/C/D pending
 - [x] Workflow-style orchestration reconciled | Workflow `ae-perf-stg-login-a-evidence-followup` probes joined; spawn reviewers joined
 
 ##### Historical evidence recovery (joined)
