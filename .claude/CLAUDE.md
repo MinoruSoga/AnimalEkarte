@@ -18,7 +18,7 @@
 
 ## Agent workflow
 
-汎用の自律実行・レビュー・権限設定はユーザースコープを優先する。プロジェクト固有の完成条件と検証経路は [agent-harness.md](../docs/ops/agent-harness.md)。ユーザーの `agent-task-lifecycle` Skill があれば利用し、未導入でも同文書の手順で完遂する。臨床データ分離、migration禁止、claimのユーザー専用解除はこのプロジェクトで維持する。
+汎用の自律実行・レビュー・権限設定はユーザースコープを優先する。プロジェクト固有の完成条件と検証経路は [agent-harness.md](../docs/ops/agent-harness.md)。ユーザーの `agent-task-lifecycle` Skill があれば利用し、未導入でも同文書の手順で完遂する。臨床データ分離とmigration禁止はこのプロジェクトで維持する。ブランチ・claim の削除は [AGENTS.md](../AGENTS.md) の作成者別規則に従う。ユーザー作成は削除禁止。AI 作成は統合・明示終了・成果を保全した引き継ぎと未使用を確認してエージェントが削除できる。作成者・使用状況が不明なら保持する。
 
 ---
 
@@ -133,7 +133,7 @@ DB design/migrations → `postgres-patterns` / `migration-seed-safety` skills. G
 - Frontend scoped tests: never `pnpm test:run -- <path>` (runs the full suite). Use `npx vitest run <path>`.
 - Agents must not auto-apply migrations; surface `make migrate` for the user after pull when migrations change.
 - Destructive git (`reset --hard`, `clean -fdx`, force-push, discard-all restore) is prohibited; verify enforcement separately in each runtime.
-- Parallel agents require separate git worktrees; claim branches (`claim/<TASK-ID>`) are user-released only.
+- Parallel agents require separate git worktrees. Branch and claim deletion follows the creator-aware rules in `AGENTS.md`: preserve user-created or uncertain branches; AI-created branches may be removed after integration, explicit abandonment, or a confirmed handoff preserving remaining work, with no active use.
 - Nested GORM `Preload` predicates apply only to the terminal association — scope intermediate clinic-owned associations too.
 - Product philosophy 5-step order is mandatory for feature work; clinical safety overrides efficiency.
 

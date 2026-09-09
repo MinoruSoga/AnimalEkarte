@@ -1,6 +1,6 @@
 # タスク台帳 — Linear が正本
 
-統合日: 2026-09-08。2026-09-08 セッションで全 ID を分類し、エージェント可能な S09 HTTP/CLI を実装した。外部状態・go-live は再判定していない。
+統合日: 2026-09-08。最終ローカル照合: 2026-09-09 / main `48e89dbe4`。Linear 読み取り結果・認証修正の main 反映・旧 claim 削除を確認した。Linear の状態は同日の記録であり、今回のローカル更新では再照会していない。UAT・STG/PROD・go-live は再判定していない。
 
 | 項目 | 値 |
 |------|-----|
@@ -12,11 +12,11 @@
 
 `bug.md`・`todo-now.md`・`todo-po.md`・`todo-refactor.md` は本ファイルへ統合して削除した。別台帳として再作成しない。`todo-fix-auth.md` 等、今回指定外の文書は統合・削除していない。
 
-入口: [今回の対応結果](#session-2026-09-08) · [実行キュー](#対応順実行キュー) · [製品 FAIL](#product-bugs) · [PO / 人間レーン](#human-lane) · [Astra 完了履歴](#astra-history) · [FE 完了履歴・維持制約](#refactor-history)
+入口: [2026-09-08 の対応履歴](#session-2026-09-08) · [実行キュー](#対応順実行キュー) · [製品 FAIL](#product-bugs) · [PO / 人間レーン](#human-lane) · [Astra 完了履歴](#astra-history) · [FE 完了履歴・維持制約](#refactor-history)
 
 エージェントは PlanetScale、共有 STG apply、`DROP SCHEMA`、本番 cutover、`make reset`、八王子 CSV の producer 出力を実行しない。push / dispatch / Linear Done / 秘密変更は明示承認が必要。
 
-claim は ID ごとに初回編集前に取得する。エージェントは claim を削除しない。USER 解除待ち: `claim/LEDGER-TODO-CONSOLIDATE`、`claim/LEDGER-TODO-GOAL-20260908`、`claim/QA-UAT-S09-FIXTURE`。旧記録: `claim/LEDGER-TODO-PRUNE`。`claim/TODO-FIX-AUTH` は別セッション。
+claim は ID ごとに初回編集前に確認・取得する。作成者別の削除条件は [AGENTS.md](AGENTS.md#branch-deletion-by-creator-mandatory) を正本とする。ユーザー作成は AI による削除禁止。AI 作成は統合・明示終了・成果を保全した引き継ぎと未使用を確認して削除可能。2026-09-09 の本更新開始前に `git branch --list 'claim/*'` が空であることを確認した。旧 META / QA / 認証 claim の解除待ちは解消済み。claim の削除は UAT や受入の完了を意味しない。新規着手時は現在の claim を再確認する。
 
 ---
 
@@ -24,7 +24,7 @@ claim は ID ごとに初回編集前に取得する。エージェントは cla
 
 ## 0. 2026-09-08 全項目対応結果
 
-main のまま。エージェントは Linear 書き込み・秘密・STG/PROD・`make up` をしない。S09 の HTTP/CLI 以外は原因付きスキップ。
+以下は 2026-09-08 セッション当時の記録。MCP・compose・claim の現在状態を示すものではない。当時は main のまま、Linear 書き込み・秘密・STG/PROD・`make up` を実行せず、S09 の HTTP/CLI 以外は原因付きスキップとした。
 
 | ID | 分類 | 実行者 | 今回 | 結果 / 原因 |
 |----|------|--------|------|-------------|
@@ -78,7 +78,9 @@ S09 局所検証（2026-09-08）: fail-closed / CLI / OpenAPI drift GREEN。fixt
 
 STG レーンの次は医院/ベンダーからの完全 KNJO 再取得、または城東主経路（JOU-G2-2 の Azure 承認）。H0-3b には入らない。独立して F1〜F6 の Linear 読み取り照合と、下記受入残の実行前提・証跡の確認を進められる。S09 / V04 / clinical E2E の実行は各設計の環境・承認条件を満たしてから行う。Linear 書き込みと Done は USER。
 
-2026-09-09 引き継ぎ: Cursor の Linear 読取不可はそのセッションの制約。Codex の照会結果を上記へ反映した。#254 全体の受入入口は [BRT-45](https://linear.app/baritechllc/issue/BRT-45)（Needs Human）。[BRT-68](https://linear.app/baritechllc/issue/BRT-68) の現在の残は実 LINE / LIFF。両者を S09 等の PASS と混同しない。今回の編集 claim は `claim/META-LINEAR-APPLY`（USER のみ解除）。他の QA claim は保持する。
+2026-09-09 引き継ぎ: Cursor の Linear 読取不可はそのセッションの制約。Codex の照会結果は `48e89dbe4` で main に反映済み。#254 全体の受入入口は [BRT-45](https://linear.app/baritechllc/issue/BRT-45)（同日観測 Needs Human）。[BRT-68](https://linear.app/baritechllc/issue/BRT-68) の同日観測の残は実 LINE / LIFF。両者を S09 等の PASS と混同しない。旧 META / QA claim は削除済みで、受入残は下記に維持する。
+
+認証の独立した残検証: `950404408`（権限ロック・復旧修正）と `9be825a66`（認可経路・分離検証の追加）は main に反映済み。詳細と開始条件は [todo-fix-auth.md](todo-fix-auth.md) を参照する。実DB並行・初回管理者SQL実行・全経路の実DB返却データ分離・2サーバー即時失効・対象環境のメール・負荷測定は未検証の記録。限定テストの成功をこれらの完了と扱わない。ローカルの前提確認は独立して進められるが、DB/環境操作は個別の実行条件に従う。
 
 ---
 

@@ -30,14 +30,21 @@ Full policy: [.claude/rules/git-worktree-safety.md](.claude/rules/git-worktree-s
 - **Parallel Grok/Claude/Codex tasks must use separate git worktrees** (or isolation worktree). Do not share one working tree across concurrent agents.
 - Prefer WIP commits over discarding work. Do not “clean the tree” to unblock yourself.
 
+### Branch deletion by creator (Mandatory)
+
+- **User-created branches must not be deleted by agents.** This includes user-created claim branches.
+- **AI-created branches may be deleted by agents** after verifying that the work is integrated, explicitly abandoned, or handed off with all remaining changes preserved, and that no active session or worktree still uses the branch. Do not delete `main`, `staging`, or `production` as routine cleanup.
+- Determine the creator from session records or an explicit user statement; a branch name or commit author alone is not proof. If the creator or active use is unknown, preserve the branch and report the uncertainty.
+- Prefer `git branch -d <exact-branch>` for local cleanup. If it refuses, inspect unmerged work instead of automatically forcing deletion. Remote branch deletion remains an external action requiring explicit authorization. Report which branches were deleted.
+
 ### Packet claim protocol (Mandatory)
 
 Mutual exclusion on a ledger task ID / packet ID. Convention over existing `git branch` only — no script, hook, or CI.
 
 - **Check (required before the first edit for any ledger task ID):** `git branch --list 'claim/<TASK-ID>'`. A non-empty result is a hard stop: report BLOCKED naming the claim branch; do not edit.
 - **Acquire:** `git branch claim/<TASK-ID>` in the shared repository. A non-zero exit means another session already owns the task — hard stop and report BLOCKED; do not proceed.
-- **Release (USER-only):** Agents must never delete a claim branch (own or another's). After the work is integrated into `main` or explicitly abandoned, the agent reports the claim branch name(s) to the user; the user releases with `git branch -D claim/<TASK-ID>` in a human terminal. Release is coupled to integration: merging into `main` is a user action, so releasing the claim is one too. An agent that released at the end of its own run would drop the lock while its work is still unmerged, letting another session take the same task — the exact failure this protocol exists to prevent.
-- Never delete another session's claim to unblock yourself. A claim that looks abandoned is reported to the user with its branch name and commit date (`git log -1 --format='%ci %s' claim/<TASK-ID>`); removal is a user action.
+- **Release (creator-aware):** Apply the branch deletion rules above. Agents may release AI-created claims after integration, explicit abandonment, or a confirmed handoff that preserves remaining work and ends the previous session's ownership. User-created claims must not be deleted by agents. A claim points to the acquisition commit, so `git branch -d` succeeding does not by itself prove that the claimed work is integrated; inspect the actual task changes and worktree first.
+- Never delete an active session's claim to unblock yourself. Age or an apparently abandoned branch is not proof of release eligibility. Preserve uncertain claims and report the branch name and commit date (`git log -1 --format='%ci %s' claim/<TASK-ID>`). A session ending with unmerged, unhanded-off work is not sufficient reason to release its claim.
 - `<TASK-ID>` is the ledger task ID or packet ID exactly as written (example: `BE-ACT-BOUNDED-MASTER-LISTS`). If an ID contains characters invalid in a git reference name, replace each invalid character with `-` and state the transformed name in the session report before acquire.
 
 ## Execution Autonomy
