@@ -5,7 +5,7 @@
 > **タイミング**: 認可ロジックの実装時・レビュー時。
 
 > **Animal Ekarte**: マルチクリニック対応の堅牢なセキュリティ基盤
-> **バージョン**: v9.2 | **最新更新**: 2026-09-08
+> **バージョン**: v9.2 | **最新更新**: 2026-09-09
 
 ---
 
@@ -32,6 +32,15 @@
 2.  **ルール統合**: 各グループが持つ `permission_group_rules` を収集。
 3.  **パーミッション・マップ**: 同一リソースに対して複数のルールがある場合、いずれかのグループで許可されていれば「許可」と判定します。実効権限の集計は `backend/internal/auth/permission_group_repository.go` の `FindAllEffectivePermissionsByStaffID`、HTTP 境界での強制は `backend/internal/auth/http_permission.go` の `RequirePermission` / `RequirePermissionAny` が担当します。
 4.  **Admin 特例**: `is_system_admin` フラグが true の場合、リソース・アクションの計算をバイパスします。ただし、アクセス対象の clinic scope はバイパスせず、現在も存在する有効なクリニックに限定します。
+
+### 2.1 権限グループ変更の自己ロックアウト (D2)
+
+非システム管理者が自分の所属グループを変更・無効化・自己割当解除するとき、**変更後の選択医院における実効権限**で `master-permission:view` と `master-permission:edit` の両方を維持できなければ 403 で拒否する。別の有効グループからの OR 付与が残る場合は許可する。他の管理担当者が残ることだけでは例外にしない。
+
+- 最終判定は mutation 後の `guardActorKeepsPermissionAdministration`（`permission_group_service_self_lockout.go`）。`UpdateRules` と `Update`（Rules 付き / Update-with-Rules）の両方は、所属グループ単体の事前拒否（旧 `validateNotSelfReference`）に依存しない。別の有効グループからの OR 付与が残れば許可し、最終の view/edit 喪失・lookup/audit 失敗は拒否して rollback する。
+- lookup 失敗・監査書き込み失敗は成功扱いせず、ルール変更と成功監査を rollback する。service 単体では staged/committed TX double（`permission_group_service_rules_d2_test.go` / `permission_group_service_mutate_d2_test.go`）で同一 `WithTx` 参加と失敗時の committed 不変を観測する（実 DB 原子性の証明ではない）。
+- システム管理者はこの自己喪失判定を免除する。システム管理者アカウント自体の削除・無効化保護は別契約。
+- 医院単位の permission policy lock（`pg_advisory_xact_lock`）で並行変更を直列化する。並行 DB テストコードは holder/contender の `pg_locks` 待機関係と worker 終了を観測するが、実行は承認済み隔離 Postgres が必要。
 
 ---
 

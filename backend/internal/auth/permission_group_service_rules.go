@@ -44,7 +44,6 @@ func (s *permissionGroupService) UpdateRules(
 			clinicID,
 			groupID,
 			inputs,
-			actorStaffID,
 		); updateErr != nil {
 			return updateErr
 		}
@@ -81,6 +80,10 @@ func (s *permissionGroupService) UpdateRules(
 	}); err != nil {
 		return nil, err
 	}
+	slog.InfoContext(ctx, "permission group rules set",
+		slog.Uint64("clinic_id", clinicID),
+		slog.Uint64("permission_group_id", groupID),
+		slog.Int("rule_count", len(inputs)))
 	return result, nil
 }
 
@@ -88,26 +91,18 @@ func (s *permissionGroupService) updateRules(
 	ctx context.Context,
 	clinicID, groupID uint64,
 	inputs []SetPermissionGroupRulesInput,
-	actorStaffID uint64,
 ) error {
 	rules := permissionRuleModels(inputs)
 	if err := validateNoDuplicateRules(rules); err != nil {
 		return err
 	}
-	staffGroupIDs, err := s.repo.FindAllGroupIDsByStaffID(ctx, clinicID, actorStaffID)
-	if err != nil {
-		return apperrors.Wrap(err, "failed to find staff group IDs")
-	}
-	if err := validateNotSelfReference(groupID, rules, staffGroupIDs); err != nil {
-		return err
-	}
+	// Self-lockout is decided after mutation by
+	// guardActorKeepsPermissionAdministration using clinic-wide effective
+	// view+edit. Do not pre-reject self-group master-permission edits here:
+	// another active group may still grant administration.
 	if err := s.repo.UpdateRules(ctx, clinicID, groupID, rules); err != nil {
 		return apperrors.Wrap(err, "failed to set permission group rules")
 	}
-	slog.InfoContext(ctx, "permission group rules set",
-		slog.Uint64("clinic_id", clinicID),
-		slog.Uint64("permission_group_id", groupID),
-		slog.Int("rule_count", len(rules)))
 	return nil
 }
 
@@ -141,35 +136,6 @@ func validateNoDuplicateRules(rules []model.PermissionGroupRule) error {
 			return apperrors.WrapInvalidInput("リソース名が重複しています: " + rule.Resource)
 		}
 		seen[rule.Resource] = true
-	}
-	return nil
-}
-
-func validateNotSelfReference(
-	groupID uint64,
-	rules []model.PermissionGroupRule,
-	staffGroupIDs []uint64,
-) error {
-	isSelfGroup := false
-	for _, candidateID := range staffGroupIDs {
-		if candidateID == groupID {
-			isSelfGroup = true
-			break
-		}
-	}
-	if !isSelfGroup {
-		return nil
-	}
-	hasMasterPermissionEdit := false
-	for i := range rules {
-		rule := &rules[i]
-		if rule.Resource == string(model.ResourceMasterPermission) && rule.CanEdit {
-			hasMasterPermissionEdit = true
-			break
-		}
-	}
-	if !hasMasterPermissionEdit {
-		return apperrors.WrapInvalidInput("自分が所属するグループの権限管理権限（master-permission edit）を削除することはできません")
 	}
 	return nil
 }

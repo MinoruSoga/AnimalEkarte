@@ -137,7 +137,6 @@ type PermissionGroupRepository interface {
 	CountUsageByGroupID(ctx context.Context, clinicID, groupID uint64) (int64, error)
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	FindAllEffectivePermissionsByStaffID(ctx context.Context, staffID, clinicID uint64) ([]model.PermissionGroupRule, error)
-	FindAllGroupIDsByStaffID(ctx context.Context, clinicID, staffID uint64) ([]uint64, error)
 }
 
 type permissionGroupService struct {

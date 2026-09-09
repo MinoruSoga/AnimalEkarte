@@ -8,7 +8,7 @@
 >
 > 本書はレビュー指摘のローカル整理と対応記録である。Linear は更新していない。
 
-> 現在の結論: 実装・限定テストの統合は完了。実DB並行処理、全経路の実DB返却データ分離、初回管理者SQL実行、独立2プロセスの失効検証・負荷測定、本番付与・対象環境メール・Linear反映は未完了。統合済みを実環境・運用の完了と扱わない。
+> 現在の結論: 実装・限定テスト（UpdateRules / Update-with-Rules 含む）のローカル修正は完了。実DB並行処理、全経路の実DB返却データ分離、初回管理者SQL実行、独立2プロセスの失効検証・負荷測定、本番付与・対象環境メール・Linear反映は未完了。ローカル修正完了を実環境・運用の完了と扱わない。
 >
 > Git整理: 旧認証作業のブランチ・claimは整理済み。今回の文書更新開始前はローカルブランチが `main` / `staging` のみであることを確認した。この文書更新用に `claim/TODO-FIX-AUTH` を再取得している。旧作業のロック継続を意味しない。
 >
@@ -19,9 +19,9 @@
 | ID | 項目 | 判定 | 証拠 |
 | --- | --- | --- | --- |
 | 1 | 非管理者によるシステム管理者パスワード変更の拒否 | 対応 | `staff_service_update.go` の TX 内 `FindByIDForUpdate`。`staff_admin_password_guard_test.go` |
-| 2 | GET/HEAD 他院 grant fallback を閉じる | 部分対応 | 選択医院 grant の実装と203経路の完全一致台帳。clinic-fixed は middleware deny と許可（Bに grant）を全件実行。横断21件は allowing middleware と handler を実行。元バグ面（スタッフ一覧/詳細・権限グループ）は handler の拒否と許可も実行。clinic-fixed・横断経路とも実DB返却データの分離は未検証 |
+| 2 | GET/HEAD 他院 grant fallback を閉じる | 部分対応 | 選択医院 grant の実装と203経路の完全一致台帳。clinic-fixed は middleware deny と許可（Bに grant）を全件実行。横断 class 21件（うち `GET /clinics` は所属一覧）は allowing middleware と handler を実行。実DB臨床返却分離の対象は横断20+clinic-fixed158=178（台帳D3）。元バグ面は handler の拒否と許可も実行。実DB返却データの分離は未検証 |
 | 3 | login/refresh で無効医院を選ばない | 対応（限定テスト） | active 医院解決共有。全医院失効時の403をFEで判別。自動復旧は一度、以後は手動再試行。失敗書き込みの再送なし。ログアウト開始時に復旧を中止 |
-| 4 | 権限グループ無効化の自己ロックアウト防止 | 対応（実装・単体） | 医院単位の共通policy lockをcommitまで保持し、変更後のview+editを確認。並行無効化・ルール置換・自己割当の実DBテストを追加。実行は隔離Postgres未承認でBLOCKED |
+| 4 | 権限グループ無効化の自己ロックアウト防止 | 対応（実装・単体） / 実DB並行はBLOCKED | 2026-09-09: `UpdateRules` と Update-with-Rules の旧自己グループ事前拒否をやめ、post-mutation 実効 view+edit を最終判定に統一。証拠修復で staged/committed TX double・view/edit喪失命名対応・pg_locks holder/contender 待機・worker Cleanup join を追加。実DB実行は隔離Postgres未承認でBLOCKED |
 | 5 | 旧権限・旧セッションの即時失効 | 部分対応 | production から current-access キャッシュ除去。**SKIP**: 同一 DB・独立 2 サーバープロセスのライブ検証（`make up` 禁止） |
 | 6 | `/me.main_clinic_id` と `is_main` の文書訂正 | 対応 | API 改名なし。`docs/architecture/auth.md` §4.8、OpenAPI 説明 |
 | 7 | `staleTime=5分` の文書訂正 | 対応 | 自動ポーリング追加なし。`get-me.ts` / AuthProvider / auth.md §4.8 |
@@ -247,8 +247,8 @@ runner image: FE `animalekarte-frontend:latest`（`sha256:532501622cd024ab786a32
 ### D1–D5 の実施メモ
 
 - D1: 画面・API は実装。メール自動送信なし。本人設定は既存 forgot-password。対象環境のメール実送信は SKIP。初回SQLは testdata と schema/手順書へ静的照合。実DB実行は未実施。
-- D2: 医院policy lockで権限変更を直列化し、view+editの自己喪失を拒否。admin免除。並行無効化・ルール置換・自己割当の実DBテストを追加。実行は上記BLOCKED。
-- D3: `get_head_permissions.json` の完全一致台帳と登録集合を照合（local 203件、S3 201件）。clinic-fixed は deny（Aのみ grant）と許可（Bに grant）の middleware を全件実行。横断 allowing は全21件、横断 handler も全21件を選択医院B・grant A で実行。`GET /clinics` は所属一覧であり、Bの臨床データ分離対象ではない。handlerテストはservice stubへの引数と応答の検査であり、clinic-fixed・横断経路とも実DB上の返却データ分離は未検証。未検証0件とはしない。
+- D2: 医院policy lockで権限変更を直列化し、view+editの自己喪失を拒否。admin免除。2026-09-09: `UpdateRules` と Update-with-Rules が別有効グループの OR 付与を許すよう修正。証拠修復で service TX 状態観測・pg_locks 待機・worker 終了保証をコード化。実DB実行は上記BLOCKED。
+- D3: `get_head_permissions.json` の完全一致台帳と登録集合を照合（local 203件、S3 201件）。clinic-fixed は deny（Aのみ grant）と許可（Bに grant）の middleware を全件実行。横断 class allowing/handler は JSON上21件（`GET /clinics` 含む）を実行。実DB臨床返却分離の INCLUDE は 178（clinic-fixed158 + 横断20；`GET /clinics` は所属一覧として除外）。handlerテストはservice stubへの引数と応答の検査であり、clinic-fixed・横断経路とも実DB上の返却データ分離は未検証。未検証0件とはしない。
 - D4: `clinic_selection_unavailable` のみ自動復旧を一度実行。ヘッダーなし`/me`も同コードの403なら全医院失効として案内。障害後は手動再試行、再試行中もログアウト可能。ログアウト開始時に復旧を中止。失敗mutationの自動再送なし。セッション未発行loginは復旧対象外。related Vitest 37件 PASS。
 - D5: production は uncached resolver。2 インスタンス検証は SKIP。
 
@@ -275,7 +275,16 @@ runner image: FE `animalekarte-frontend:latest`（`sha256:532501622cd024ab786a32
 - 非システム管理者による、自分が所属するグループの変更・無効化・自己割当解除では、両方を満たさなくなる操作を403で拒否する。他の担当者が残ることは例外理由にしない。create/deleteまで追加で要求しない。
 - システム管理者はグループに依存しないためこの自己喪失判定を免除する。システム管理者アカウントの削除・無効化に関する既存保護は別途維持する。
 - [x] viewだけ喪失、editだけ喪失、両方喪失の拒否を単体テストで確認する。グループ間の並行変更も共通policy lockへ参加させる実装に修正した。
-- [ ] 並行変更後も同じ結果となることを実DBテストで確認する（項目4のBLOCKED参照）。
+- [x] 2026-09-09: `UpdateRules` の旧 `validateNotSelfReference` 事前拒否を外し、別有効グループに view+edit が残る自己ルール変更を成功させる。`permission_group_service_rules_d2_test.go` で RED→GREEN。lookup/audit 失敗の fail-closed と system admin 免除を確認。
+- [x] 2026-09-09 evidence-repair: staged/committed TX double で成功時 rules+監査 commit、失敗時 committed 不変を service 経由で観測（実DB原子性ではない）。viewだけ喪失=`CanView=false/CanEdit=true`、editだけ喪失=`CanView=true/CanEdit=false` に対応。並行DBテストは holder/contender `pg_locks` advisory 待機・Cleanup release/cancel/bounded join をコード化（コンパイル確認。実行は未実施）。
+- [x] 2026-09-09 cleanup-waiter: auth/staff Cleanup の `go workers.Wait` 追加 waiter を除去。起動済み worker ごとの done channel を親 Cleanup が共有 deadline で直接 select。未起動は待たず、期限超過は worker 名付き FAIL。pg_locks・監査・実効権限 assert は保持。
+- [x] 2026-09-09 coordinator: `permission_group_service_mutate.go` Update-with-Rules の旧 `validateNotSelfReference` 事前拒否を外し、`UpdateRules` と同じ post-mutation OR 判定へ揃えた。`permission_group_service_mutate_d2_test.go` で RED→GREEN（修正前の OR 付与自己 strip は `validateNotSelfReference` の InvalidInput；修正後は他グループ OR 付与成功、真の view/edit/both 喪失のみ Forbidden、lookup/audit 失敗 rollback、admin 免除）。旧 helper と単体表テストを除去。
+- [ ] 並行変更後も同じ結果となることを実DBテストで確認する（項目4のBLOCKED参照。人間実行・承認済み使い捨てPostgres・共有DB禁止）。入口:
+  - 管理接続と `TEST_DATABASE_URL` の両方を確認し、共有 `ekarte_db` / `old_db` / `127.0.0.1:15432` を使わない。AutoMigrate は `001_init.sql` 全制約の成立証拠ではない。
+  - `go test -count=1 -timeout=60s -v ./internal/auth -run '^TestPermissionPolicyDB_ConcurrentGroupDeactivation$'`
+  - `go test -count=1 -timeout=60s -v ./internal/auth -run '^TestPermissionPolicyDB_ConcurrentRuleReplacement$'`
+  - `go test -count=1 -timeout=60s -v ./internal/staff -run '^TestPermissionPolicyDB_ConcurrentSelfUnassignWaitsForGroupDeactivation$'`
+  - 停止条件: 共有DB検出、接続先不明、migration apply 要求、`-short` だけの SKIP を PASS 扱いしない。
 
 ### D3. GET認可の確認対象を閉じる（項目2）
 
@@ -304,3 +313,330 @@ runner image: FE `animalekarte-frontend:latest`（`sha256:532501622cd024ab786a32
 - [ ] 即時失効の成立を限定テストで確認したうえで、認証に追加されるDB処理を測定する。性能対策で旧権限を再び許容する仕様へ戻さない。 **SKIP**: 本番相当の負荷測定は起動禁止のため未実施。
 
 参考: [OWASP Authorization Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html)（デフォルト拒否、各リクエストの対象に対する認可確認）。
+
+## Coordinator 実行準備（2026-09-09・計画のみ。実行成功ではない）
+
+計画完成と実行成功を分ける。秘密値は収集・表示しない。本節は準備AC修復（2026-09-09 prep-repair）。**実行していない。**
+
+### 前回ローカル検証証拠（再実行なし・artifact参照）
+
+| 検査 | artifact | 結果 |
+| --- | --- | --- |
+| verify-agent-task auth short + gofmt | `~/.grok/sessions/.../01a08537-317d-7c03-9483-3dc423aa7a3a/terminal/call-40b27744-d2fd-4279-bce2-4734bd871758-86.log` | `completed_tests: 476`, checks PASS, `"reason": "Selected checks passed"`, exit 0 |
+| docker build+vet auth/staff | `.../terminal/call-4013bd17-e95e-44d3-b07d-3d8f374e5563-82.log` | `build_vet_exit=0` |
+| santa TX/auth review | `.../subagents/01a0855a-b5d2-7951-960d-67b2cbac04e6/output.json` | `frozen_hashes_checked: true`, verdict APPROVE |
+| santa test/evidence review | `.../subagents/01a0855a-b5d2-7951-960d-67cd35ef2644/output.json` | `frozen_hashes_checked: true`, verdict APPROVE |
+| RED InvalidInput (Update-with-Rules) | `.../terminal/call-bf8e512a-61a3-4a77-a693-c01e3e0fa13b-54.log` | Allows/SystemAdmin FAIL with `validateNotSelfReference` InvalidInput |
+| GREEN after fix | `.../terminal/call-e9d061f8-fa8f-4f9c-a6ee-daaf3bfa606b-68.log`（`UpdateWithRules_D2_|UpdateRules_D2_|...`） | exit 0 / `ok` |
+
+準備単位の完了 ≠ 台帳全体完了。
+
+### D1 初回SQL・メール・本番付与（実行準備）
+
+| 項目 | 内容 |
+| --- | --- |
+| 入口 | `backend/internal/auth/testdata/first_system_admin.sql`、`docs/ops/deploy/FIRST_SYSTEM_ADMIN.md`、静的 `TestFirstSystemAdminProcedureMatchesInitSchema`（実行済み静的のみ） |
+| 必要入力 (UNKNOWN可) | 対象 env 名、`PGSERVICEFILE` 実体 path、承認記録の provider/host/port/db/role、合成 staff_id/clinic_id/email、bcrypt hash、approval_ref、operator_ref、実行オペレータ |
+| 接続確認コマンド（文書） | `PGSERVICEFILE=/secure/first-system-admin/pg_service.conf PSQL_HISTORY=/dev/null psql -X -w --dbname='service=first-system-admin' --command='\\conninfo'` → 承認記録と照合。不一致なら停止 |
+| 合成 input.csv | ヘッダなし1行・8列（database_name, database_role, staff_id, clinic_id, email, password_hash, approval_ref, operator_ref）。repo外 `0600`、symlink不可、read-only mount `/secure/first-system-admin/input.csv` |
+| 正常系手順 | schema=`001_init` 適用済み使い捨てDB → conninfo照合 → SQL実行 → receipt（account_id/staff_id/clinic） |
+| 競合試験 | (a) 既存 `is_system_admin` あり (b) 同一 email あり → `bootstrap account conflict` EXCEPTION。部分行なし |
+| 監査rollback試験 | 同一TX内で audit INSERT を失敗させる（権限欠落または意図的制約）→ accounts/staffs 不変、admin数0のまま |
+| 本人ログイン | 作成後、通常loginで対象email+本人設定パスワード。失敗なら付与未完了 |
+| assert | admin有効1、`staffs.account_id` 紐付け、audit 1、失敗時不変、平文秘密がログに出ない |
+| 停止 | 接続先/role UNKNOWN、共有パスワード代替、本番付与未承認、メール実送信未承認、staff/主所属未整備 |
+| 承認境界 | 合成DB実行 / 本番付与 / 対象環境メール現地確認は別承認。担当者・環境未確定は UNKNOWN |
+
+### D2 実DB並行3テスト（実行準備）
+
+| 項目 | 内容 |
+| --- | --- |
+| テスト | `TestPermissionPolicyDB_ConcurrentGroupDeactivation` / `ConcurrentRuleReplacement`（auth）、`TestPermissionPolicyDB_ConcurrentSelfUnassignWaitsForGroupDeactivation`（staff） |
+| 管理接続 (testdb) | `DB_HOST`/`DB_PORT`/`DB_USER`/`DB_PASSWORD`/`DB_NAME`（default host `db`, db `ekarte_db`）で main DSN に接続し `{DB_NAME}_test` を CREATE。共有運用DB自体でテストしない |
+| テスト接続 | 既定は `postgres://…/{DB_NAME}_test`。**`TEST_DATABASE_URL` があればそれを優先**（`backend/internal/testdb/testdb.go` `connectTestDatabase`）。両系統を実行前に確認し、共有運用DB・`old_db`・`127.0.0.1:15432` なら停止 |
+| AutoMigrate | `SetupTestDB` は共有ベース AutoMigrate + 毎テスト TRUNCATE。**AutoMigrate は 001_init 全制約の成立証拠ではない**（複合FK/EXCLUDE/triggerは未再現） |
+| TRUNCATE | コア表 CASCADE TRUNCATE でテスト間分離。共有プール MaxOpenConns=10 |
+| 隔離候補 | 使い捨て Postgres container/volume、backend image digest `sha256:6c5b455bf14e3f0ec7bece9ae9a4be2e8ad1441adfb33fdf2ce53d9eaaa22ed4`、`ekarte-go-mod-cache`。共有 compose main mount 禁止 |
+| コマンド（Docker内・直列） | `go test -count=1 -timeout=60s -v ./internal/auth -run '^TestPermissionPolicyDB_ConcurrentGroupDeactivation$'` → 同様に `ConcurrentRuleReplacement` → `./internal/staff -run '^TestPermissionPolicyDB_ConcurrentSelfUnassignWaitsForGroupDeactivation$'` |
+| assert | 一方 Forbidden、もう一方成功、actor が view+edit 維持、audit件数、pg_locks holder/contender 待機（テスト内） |
+| 終了 | テストプロセス終了、`CloseSharedTestDB`、使い捨てDB drop、接続漏洩確認。`-short` SKIP を PASS にしない |
+| 停止 | 共有DB検出、管理接続と TEST_DATABASE_URL の片側のみ確認、migration apply要求、接続先不明 |
+
+### D3-0 集合証明
+
+| 指標 | 値 |
+| --- | --- |
+| JSON 総数 | 203 |
+| 対象 (clinic-fixed + cross-clinic 臨床/横断返却) | 178 (= 158 + 20) |
+| 除外 | 25 (= public5 + liff9 + self1 + shared-master9 + `GET /api/v1/clinics` 所属一覧1) |
+| 対象欠落 / 未知 class | 0 / 0 |
+| method/path 集合 fingerprint (sha256-16) | `30d13703b3cad42b` |
+
+### D3-1 除外一覧（25・全件）
+
+| method/path | class | 除外理由 |
+| --- | --- | --- |
+| `GET /api/liff/:clinicId/available-dates` | liff | LIFF顧客スコープ。スタッフ選択医院 grant の臨床分離対象外 |
+| `GET /api/liff/:clinicId/available-times` | liff | LIFF顧客スコープ。スタッフ選択医院 grant の臨床分離対象外 |
+| `GET /api/liff/:clinicId/courses` | liff | LIFF顧客スコープ。スタッフ選択医院 grant の臨床分離対象外 |
+| `GET /api/liff/:clinicId/health-card` | liff | LIFF顧客スコープ。スタッフ選択医院 grant の臨床分離対象外 |
+| `GET /api/liff/:clinicId/my-reservations` | liff | LIFF顧客スコープ。スタッフ選択医院 grant の臨床分離対象外 |
+| `GET /api/liff/:clinicId/profile` | liff | LIFF顧客スコープ。スタッフ選択医院 grant の臨床分離対象外 |
+| `GET /api/liff/:clinicId/staffs` | liff | LIFF顧客スコープ。スタッフ選択医院 grant の臨床分離対象外 |
+| `GET /api/liff/:clinicId/trimming-courses` | liff | LIFF顧客スコープ。スタッフ選択医院 grant の臨床分離対象外 |
+| `GET /api/liff/:clinicId/trimming-options` | liff | LIFF顧客スコープ。スタッフ選択医院 grant の臨床分離対象外 |
+| `GET /api/liff/:clinicId/settings` | public | 公開/ヘルス/アップロード。選択医院の臨床返却分離対象外 |
+| `GET /api/v1/health` | public | 公開/ヘルス/アップロード。選択医院の臨床返却分離対象外 |
+| `GET /health` | public | 公開/ヘルス/アップロード。選択医院の臨床返却分離対象外 |
+| `GET /uploads/*filepath` | public | 公開/ヘルス/アップロード。選択医院の臨床返却分離対象外 |
+| `HEAD /uploads/*filepath` | public | 公開/ヘルス/アップロード。選択医院の臨床返却分離対象外 |
+| `GET /api/v1/me` | self | 認証本人 `/me`。医院返却データの横断分離対象外 |
+| `GET /api/v1/clinics` | cross-clinic | 所属医院ディレクトリ一覧。臨床データの返却医院分離対象外（所属集合の別契約） |
+| `GET /api/v1/company` | shared-master | 共有マスタ/マニュアル。clinic query 次元なし |
+| `GET /api/v1/lstep-tag-config/auto-managed-prefixes` | shared-master | 共有マスタ/マニュアル。clinic query 次元なし |
+| `GET /api/v1/lstep-tag-config/condition-tag-mappings` | shared-master | 共有マスタ/マニュアル。clinic query 次元なし |
+| `GET /api/v1/lstep-tag-config/send-purpose-tag-prefixes` | shared-master | 共有マスタ/マニュアル。clinic query 次元なし |
+| `GET /api/v1/manual/articles` | shared-master | 共有マスタ/マニュアル。clinic query 次元なし |
+| `GET /api/v1/manual/articles/:category/:slug` | shared-master | 共有マスタ/マニュアル。clinic query 次元なし |
+| `GET /api/v1/manual/articles/:category/:slug/versions` | shared-master | 共有マスタ/マニュアル。clinic query 次元なし |
+| `GET /api/v1/masters/animal-species` | shared-master | 共有マスタ/マニュアル。clinic query 次元なし |
+| `GET /api/v1/masters/animal-species/:id` | shared-master | 共有マスタ/マニュアル。clinic query 次元なし |
+
+### D3-2 共通 fixture と期待応答契約（対象178）
+
+共通 fixture:
+- Clinics A=1 / B=2 active。Staff S が A+B 所属（`clinic_ids=[1,2]`）。非 admin。
+- Grant セット例: **Aのみ**（負の既定） / **A+B**（正）。Selected clinic header 既定は **B=2**（特記なき限り）。
+- 正系では観測可能な B seed を置く（空 list の自明 PASS 禁止）。実DB返却分離は **NOT_RUN**。
+
+期待応答は経路種別で分岐する（全横断を一律403/filterにしない）:
+
+| 区分 | 代表ヘルパ | 負 (selected B・grant Aのみ) の代表 | 正 (Bにも grant + B seed) | 観測 |
+| --- | --- | --- | --- | --- |
+| **clinic-fixed** (158) | `RequirePermission` selected | **HTTP 403**（middleware deny。handler 未到達） | **HTTP 200** + B seed。A seed の clinic-owned 行を含まない | JSON `clinic_id` / entity ID |
+| **cross-clinic list** (`ResolveListClinicIDsForPermission`) | `httpapi/clinic_permission.go` Filter 空→403 | **既定 selected B**: query `clinic_ids` なし → 対象=[B] → filter 空 → **403**、service 未呼出。**混合 `clinic_ids=1,2`**: filter→[A] → **200**（A空可。`"total":0`）。**明示 `clinic_ids=2`**: **403** | 200。応答に B seed≥1。要素 clinic ⊆ 許可集合 | list 要素の clinic 所属 |
+| **cross-clinic detail** (`ResolveAllClinicIDsForPermission` + `*ForClinics`) | 同上 + `FromGORM` NotFound | grant 集合で service 呼出。対象が許可 clinic 外/不存在なら **404**（Bデータを返さない）。grant 0件なら **403**（service 未呼出） | 200 で B seed detail | ID と clinic 所属 |
+| **cross-clinic 集計** (`daily-summary` 等 list ヘルパ) | list と同型 | selected B 既定は **403**（service 未呼出）。混合 query は A のみ集計して **200** | 200。B seed が集計に反映（ゼロ自明PASS禁止） | 集計値 |
+| **cross-clinic path-clinic authorize** (`AuthorizeClinicIDsForPermission` on `:clinic_id`) | `line_reservation_setting_handler.go` | **path=B** かつ grant なし → **403**、service 未呼出（list/filter ではない） | **path=B** かつ B grant → 200/204 | path clinic の設定 body |
+| **cross-clinic identity-link** (`FilterClinicIDsForPermission`→`VerifiedClinics`) | `identitylink/handler.go` + service | grant 0 → **403**。path clinic が VerifiedClinics 外 → service 呼出後 **403**。可視 member 0 の group → **404** | 200。member/履歴は許可 clinic のみ | members[].clinic_id / items |
+
+clinic-fixed で「403 または空」の曖昧 OR は採用しない。middleware deny が成立する経路は **403 のみ**。
+横断でも **403/404/200 を OR で書かず**、条件行を分割する（D3-3）。
+
+### D3-3 cross-clinic 対象（20）— 条件別契約
+
+凡例: selected/path/query/target は clinic ID。grant は resource:action を持つ clinic 集合。`service_called` は handler が domain service に到達したか。evidence は TEST（既存 stub テスト名）または STATIC_DERIVED。realDB=**NOT_RUN**。
+
+| method/path | scenario_id | selected | path | query clinic_ids | target | grant | service_result | status | body/allowed | service_called | source | evidence | realDB |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `GET /api/v1/accountings` | ACC-LIST-DEF-B-403 | 2 | — | (none→B) | B | accounting:view@{1} | n/a | **403** | forbidden。B一覧なし | no | `accounting_handler.go:37-44` + `clinic_permission.go:141-144` | TEST `TestListAccountings_MembershipABGrantASelectedB` defaults L27-40 | NOT_RUN |
+| `GET /api/v1/accountings` | ACC-LIST-MIX-200 | 2 | — | 1,2 | A(filtered) | accounting:view@{1} | empty A list | **200** | total=0。allowed={1} | yes(clinic=1) | `accounting_handler.go:37-82` | TEST same filters mixed L43-58 | NOT_RUN |
+| `GET /api/v1/accountings` | ACC-LIST-B-ONLY-403 | 2 | — | 2 | B | accounting:view@{1} | n/a | **403** | forbidden | no | `clinic_permission.go:141-144` + `context.go:175-193` | STATIC_DERIVED（owners 明示Bと同型 helper） | NOT_RUN |
+| `GET /api/v1/accountings` | ACC-LIST-AB-DEF-B-200 | 2 | — | (none→B) | B | accounting:view@{1,2} | B seed≥1 | **200** | B seed 含む。allowed={2} | yes(clinic=2) | `accounting_handler.go:37-82` + `context.go:175-183` | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/accountings` | ACC-LIST-AB-MIX-200 | 2 | — | 1,2 | A+B | accounting:view@{1,2} | B seed≥1 | **200** | B seed 含む。allowed={1,2} | yes(ListForClinics) | `accounting_handler.go:37-82` | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/accountings/:id` | ACC-GET-A-200 | 2 | id∈A | — | A | accounting:view@{1} | billing clinic=1 | **200** | clinic_id≠2 | yes(clinicIDs=[1]) | `accounting_handler.go:88-106` | TEST `TestGetAccounting_MembershipABGrantASelectedB` L60-76 | NOT_RUN |
+| `GET /api/v1/accountings/:id` | ACC-GET-B-404 | 2 | id∈Bのみ | — | B | accounting:view@{1} | scoped miss | **404** | B bodyなし | yes(clinicIDs=[1]) | `accounting_handler.go:101-104` + `accounting_repository.go:379-401` + `apperrors.FromGORM` | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/accountings/:id` | ACC-GET-B-200 | 2 | id∈B | — | B | accounting:view@{1,2} | billing clinic=2 | **200** | clinic_id=2 B seed | yes(clinicIDs⊇{2}) | `accounting_handler.go:88-106` | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/accountings/:id` | ACC-GET-ZERO-403 | 2 | any | — | — | (none) | n/a | **403** | forbidden | no | `clinic_permission.go:141-144` | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/accountings/daily-summary` | ACC-SUM-DEF-B-403 | 2 | — | (none→B) | B | accounting:view@{1} | n/a | **403** | — | no | `accounting_handler.go:432-439` | TEST `TestGetDailySummary_MembershipABGrantASelectedB` defaults L81-94 | NOT_RUN |
+| `GET /api/v1/accountings/daily-summary` | ACC-SUM-MIX-200 | 2 | — | 1,2 | A | accounting:view@{1} | A summary | **200** | billing_count for A | yes(clinic=1) | `accounting_handler.go:432-450` | TEST same filters mixed L97-110 | NOT_RUN |
+| `GET /api/v1/accountings/daily-summary` | ACC-SUM-AB-200 | 2 | — | 含B | B | accounting:view@{1,2} | B seed反映 | **200** | 非自明B値 | yes | `accounting_handler.go:432-459` | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/accountings/daily-summary` | ACC-SUM-B-ONLY-403 | 2 | — | 2 | B | accounting:view@{1} | n/a | **403** | — | no | `accounting_handler.go:432-439` + `clinic_permission.go:141-144` | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/clinics/:clinic_id/line-reservation-settings` | LRS-PATH-B-403 | 2 | 2 | — | B | hospital-settings:view@{1} | n/a | **403** | — | **no** | `line_reservation_setting_handler.go:25-40` | TEST `TestGetLineReservationSetting_MembershipABGrantASelectedB` rejects path B L19-38 | NOT_RUN |
+| `GET /api/v1/clinics/:clinic_id/line-reservation-settings` | LRS-PATH-A-200 | 2 | 1 | — | A | hospital-settings:view@{1} | status=running | **200** | clinic1 setting | yes(clinic=1) | `line_reservation_setting_handler.go:37-51` | TEST same allows path A L41-62 | NOT_RUN |
+| `GET /api/v1/clinics/:clinic_id/line-reservation-settings` | LRS-PATH-A-204 | 2 | 1 | — | A | hospital-settings:view@{1} | nil setting | **204** | empty | yes | `line_reservation_setting_handler.go:47-49` | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/clinics/:clinic_id/line-reservation-settings` | LRS-PATH-B-200 | 2 | 2 | — | B | hospital-settings:view@{1,2} | setting exists | **200** | B setting JSON | yes | `line_reservation_setting_handler.go:37-51` | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/clinics/:clinic_id/line-reservation-settings` | LRS-PATH-B-204 | 2 | 2 | — | B | hospital-settings:view@{1,2} | nil setting | **204** | empty | yes | `line_reservation_setting_handler.go:47-49` | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/medical-records` | MR-LIST-DEF-B-403 | 2 | — | (none→B) | B | medical-records:view@{1} | n/a | **403** | — | no | `medical_record_handler.go:28-35` | TEST `TestListMedicalRecords_MembershipABGrantASelectedB` L27-40 | NOT_RUN |
+| `GET /api/v1/medical-records` | MR-LIST-MIX-200 | 2 | — | 1,2 | A | medical-records:view@{1} | empty | **200** | total=0 allowed={1} | yes | same L28-62 | TEST same L43-58 | NOT_RUN |
+| `GET /api/v1/medical-records` | MR-LIST-AB-DEF-B-200 | 2 | — | (none→B) | B | medical-records:view@{1,2} | B seed≥1 | **200** | B seed 含む。allowed={2} | yes | `medical_record_handler.go:28-62` + `context.go:175-183` | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/medical-records` | MR-LIST-AB-MIX-200 | 2 | — | 1,2 | A+B | medical-records:view@{1,2} | B seed≥1 | **200** | B seed 含む。allowed={1,2} | yes | `medical_record_handler.go:28-62` | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/medical-records` | MR-LIST-B-ONLY-403 | 2 | — | 2 | B | medical-records:view@{1} | n/a | **403** | forbidden | no | `clinic_permission.go:141-144` + `context.go:175-193` | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/medical-records/:id` | MR-GET-A-200 | 2 | id∈A | — | A | medical-records:view@{1} | record A | **200** | clinic_id≠2 | yes([1]) | `medical_record_handler.go:68-84` | TEST `TestGetMedicalRecord_MembershipABGrantASelectedB` L60-76 | NOT_RUN |
+| `GET /api/v1/medical-records/:id` | MR-GET-B-404 | 2 | id∈B | — | B | medical-records:view@{1} | miss | **404** | Bなし | yes([1]) | GetByIDForClinics+FromGORM | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/medical-records/:id` | MR-GET-B-200 | 2 | id∈B | — | B | medical-records:view@{1,2} | record B | **200** | clinic_id=2 B seed | yes(clinicIDs⊇{2}) | `medical_record_handler.go:68-84` | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/medical-records/:id` | MR-GET-ZERO-403 | 2 | any | — | — | (none) | n/a | **403** | forbidden | no | `clinic_permission.go:141-144` | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/owners` | OWN-LIST-DEF-B-403 | 2 | — | (none→B) | B | owners:view@{1} | n/a | **403** | — | no | `http_owner.go:17-24` | TEST `TestListOwners_MembershipABGrantASelectedB` L27-40 | NOT_RUN |
+| `GET /api/v1/owners` | OWN-LIST-MIX-200 | 2 | — | 1,2 | A | owners:view@{1} | empty | **200** | total=0 | yes | same | TEST L43-57 | NOT_RUN |
+| `GET /api/v1/owners` | OWN-LIST-B-ONLY-403 | 2 | — | 2 | B | owners:view@{1} | n/a | **403** | — | no | same | TEST L59-72 | NOT_RUN |
+| `GET /api/v1/owners` | OWN-LIST-AB-DEF-B-200 | 2 | — | (none→B) | B | owners:view@{1,2} | B seed≥1 | **200** | B seed 含む。allowed={2} | yes | `http_owner.go:17-42` + `context.go:175-183` | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/owners` | OWN-LIST-AB-MIX-200 | 2 | — | 1,2 | A+B | owners:view@{1,2} | B seed≥1 | **200** | B seed 含む。allowed={1,2} | yes | `http_owner.go:17-42` | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/owners/:id` | OWN-GET-A-200 | 2 | id∈A | — | A | owners:view@{1} | owner A | **200** | clinic_id≠2 | yes([1]) | `http_owner.go:48-65` | TEST `TestGetOwner_MembershipABGrantASelectedB` L75-93 | NOT_RUN |
+| `GET /api/v1/owners/:id` | OWN-GET-B-404 | 2 | id∈B | — | B | owners:view@{1} | miss | **404** | Bなし | yes([1]) | GetByIDForClinics+FromGORM | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/owners/:id` | OWN-GET-B-200 | 2 | id∈B | — | B | owners:view@{1,2} | owner B | **200** | clinic_id=2 B seed | yes(clinicIDs⊇{2}) | `http_owner.go:48-65` | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/owners/:id` | OWN-GET-ZERO-403 | 2 | any | — | — | (none) | n/a | **403** | forbidden | no | `clinic_permission.go:141-144` | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/owners/:id/report/pets` | OWN-RPT-A-200 | 2 | owner∈scope | — | A-owned pets | owners:view@{1} | A-scope pets (empty allowed) | **200** | clinic_id≠2 | yes([1]) | `pet_handler.go:122-141` | TEST `TestListOwnerReportPets_MembershipABGrantASelectedB` L79-94 | NOT_RUN |
+| `GET /api/v1/owners/:id/report/pets` | OWN-RPT-B-200 | 2 | owner∈B-scope | — | B-owned pets | owners:view@{1,2} | B pets≥1 | **200** | clinic_id=2 B seed | yes(clinicIDs⊇{2}) | `pet_handler.go:122-141` | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/owners/:id/report/pets` | OWN-RPT-ZERO-403 | 2 | any | — | — | (none) | n/a | **403** | — | no | `ResolveAllClinicIDsForPermission` | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/pets` | PET-LIST-DEF-B-403 | 2 | — | (none→B) | B | owners:view@{1} | n/a | **403** | — | no | `pet_handler.go:92-98` | TEST `TestListPets_MembershipABGrantASelectedB` L27-40 | NOT_RUN |
+| `GET /api/v1/pets` | PET-LIST-MIX-200 | 2 | — | 1,2 | A | owners:view@{1} | empty | **200** | total=0 | yes | same | TEST L43-57 | NOT_RUN |
+| `GET /api/v1/pets` | PET-LIST-AB-DEF-B-200 | 2 | — | (none→B) | B | owners:view@{1,2} | B seed≥1 | **200** | B seed 含む。allowed={2} | yes | `pet_handler.go:92-118` + `context.go:175-183` | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/pets` | PET-LIST-AB-MIX-200 | 2 | — | 1,2 | A+B | owners:view@{1,2} | B seed≥1 | **200** | B seed 含む。allowed={1,2} | yes | `pet_handler.go:92-118` | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/pets` | PET-LIST-B-ONLY-403 | 2 | — | 2 | B | owners:view@{1} | n/a | **403** | forbidden | no | `clinic_permission.go:141-144` + `context.go:175-193` | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/pets/:id` | PET-GET-A-200 | 2 | id∈A | — | A | owners:view@{1} | pet A | **200** | name A | yes([1]) | `pet_handler.go:147-164` | TEST `TestGetPet_MembershipABGrantASelectedB` L60-76 | NOT_RUN |
+| `GET /api/v1/pets/:id` | PET-GET-B-404 | 2 | id∈B | — | B | owners:view@{1} | miss | **404** | Bなし | yes([1]) | GetByIDForClinics+FromGORM | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/pets/:id` | PET-GET-B-200 | 2 | id∈B | — | B | owners:view@{1,2} | pet B | **200** | clinic_id=2 B seed | yes(clinicIDs⊇{2}) | `pet_handler.go:147-164` | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/pets/:id` | PET-GET-ZERO-403 | 2 | any | — | — | (none) | n/a | **403** | forbidden | no | `clinic_permission.go:141-144` | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/reservations` | RSV-LIST-DEF-B-403 | 2 | — | (none→B) | B | reservations:view@{1} | n/a | **403** | — | no | `reservation_handler.go:57-64` | TEST `TestListReservations_MembershipABGrantASelectedB` L28-41 | NOT_RUN |
+| `GET /api/v1/reservations` | RSV-LIST-MIX-200 | 2 | — | 1,2 | A | reservations:view@{1} | empty | **200** | total=0 | yes | same | TEST L44-58 | NOT_RUN |
+| `GET /api/v1/reservations` | RSV-LIST-AB-DEF-B-200 | 2 | — | (none→B) | B | reservations:view@{1,2} | B seed≥1 | **200** | B seed 含む。allowed={2} | yes | `reservation_handler.go:57-83` + `context.go:175-183` | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/reservations` | RSV-LIST-AB-MIX-200 | 2 | — | 1,2 | A+B | reservations:view@{1,2} | B seed≥1 | **200** | B seed 含む。allowed={1,2} | yes | `reservation_handler.go:57-83` | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/reservations` | RSV-LIST-B-ONLY-403 | 2 | — | 2 | B | reservations:view@{1} | n/a | **403** | forbidden | no | `clinic_permission.go:141-144` + `context.go:175-193` | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/reservations/:id` | RSV-GET-A-200 | 2 | id∈A | — | A | reservations:view@{1} | reservation A | **200** | notes A | yes([1]) | `reservation_handler.go:89-106` | TEST `TestGetReservation_MembershipABGrantASelectedB` L61-77 | NOT_RUN |
+| `GET /api/v1/reservations/:id` | RSV-GET-B-404 | 2 | id∈B | — | B | reservations:view@{1} | miss | **404** | Bなし | yes([1]) | GetByIDForClinics+FromGORM | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/reservations/:id` | RSV-GET-B-200 | 2 | id∈B | — | B | reservations:view@{1,2} | reservation B | **200** | clinic_id=2 B seed | yes(clinicIDs⊇{2}) | `reservation_handler.go:89-106` | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/reservations/:id` | RSV-GET-ZERO-403 | 2 | any | — | — | (none) | n/a | **403** | forbidden | no | `clinic_permission.go:141-144` | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/identity-links/owners/search` | IL-OWN-SEARCH-200 | 2 | — | — | Verified={1} | identity-links:view@{1} | items=[] | **200** | items; allowed={1} | yes | `handler.go:66-82` + `51-62` | TEST `TestSearchOwners_MembershipABGrantASelectedB` L99-113 | NOT_RUN |
+| `GET /api/v1/identity-links/owners/search` | IL-OWN-SEARCH-AB-200 | 2 | — | — | Verified={1,2} | identity-links:view@{1,2} | items include B | **200** | items[].clinic_id に2; allowed={1,2} | yes | `handler.go:66-82` + `51-62` | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/identity-links/owners/search` | IL-OWN-SEARCH-0-403 | 2 | — | — | — | (none) | n/a | **403** | — | no | `handler.go:51-62` | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/identity-links/pets/search` | IL-PET-SEARCH-200 | 2 | — | — | Verified={1} | identity-links:view@{1} | items=[] | **200** | items | yes | `handler.go:86-102` | TEST `TestSearchPets_MembershipABGrantASelectedB` L137-151 | NOT_RUN |
+| `GET /api/v1/identity-links/pets/search` | IL-PET-SEARCH-AB-200 | 2 | — | — | Verified={1,2} | identity-links:view@{1,2} | items include B | **200** | items[].clinic_id に2; allowed={1,2} | yes | `handler.go:86-102` + `51-62` | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/identity-links/pets/search` | IL-PET-SEARCH-0-403 | 2 | — | — | — | (none) | n/a | **403** | — | no | `handler.go:51-62` | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/identity-links/owner-groups/:id` | IL-OG-A-200 | 2 | group | — | visible∈A | identity-links:view@{1} | group+A members | **200** | members clinic⊆{1} | yes | `handler.go:106-121` + `service.go:114-135` | TEST `TestGetOwnerGroup_MembershipABGrantASelectedB` L154-169 | NOT_RUN |
+| `GET /api/v1/identity-links/owner-groups/:id` | IL-OG-AB-200 | 2 | group | — | visible includes B | identity-links:view@{1,2} | group+B members | **200** | members clinic_id に2; allowed={1,2} | yes | `handler.go:106-121` + `service.go:114-135` | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/identity-links/owner-groups/:id` | IL-OG-BONLY-404 | 2 | group | — | members⊆B | identity-links:view@{1} | visible=0 | **404** | — | yes | `service.go:122-129` | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/identity-links/pet-groups/:id` | IL-PG-A-200 | 2 | group | — | visible∈A | identity-links:view@{1} | group+A members | **200** | members⊆{1} | yes | `handler.go:215-230` + `service.go:138-157` | TEST `TestGetPetGroup_MembershipABGrantASelectedB` L172-188 | NOT_RUN |
+| `GET /api/v1/identity-links/pet-groups/:id` | IL-PG-AB-200 | 2 | group | — | visible includes B | identity-links:view@{1,2} | group+B members | **200** | members clinic_id に2; allowed={1,2} | yes | `handler.go:215-230` + `service.go:138-157` | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/identity-links/pet-groups/:id` | IL-PG-BONLY-404 | 2 | group | — | members⊆B | identity-links:view@{1} | visible=0 | **404** | — | yes | `service.go:150-151` | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/identity-links/owners/:clinic_id/:owner_id/group` | IL-OWN-PATH-B-403 | 2 | clinic=2 | — | B | identity-links:view@{1} | outside scope | **403** | — | **yes** (Verified={1}) | `handler.go:125-145` + `service.go:169` | TEST `TestFindOwnerGroupByMember_MembershipABGrantASelectedB` L116-134 | NOT_RUN |
+| `GET /api/v1/identity-links/owners/:clinic_id/:owner_id/group` | IL-OWN-PATH-B-200 | 2 | clinic=2 | — | B member | identity-links:view@{1,2} | group visible | **200** | members⊆{1,2} にB | yes | `handler.go:125-145` + `service.go:160-178` | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/identity-links/owners/:clinic_id/:owner_id/group` | IL-OWN-PATH-A-404 | 2 | clinic=1 | — | A miss | identity-links:view@{1} | no membership | **404** | — | yes | `service.go:176` | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/identity-links/owners/:clinic_id/:owner_id/group` | IL-OWN-PATH-A-200 | 2 | clinic=1 | — | A member | identity-links:view@{1} | group visible | **200** | members⊆{1} | yes | `handler.go:125-145` + `service.go:160-178` | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/identity-links/pets/:clinic_id/:pet_id/group` | IL-PET-PATH-B-403 | 2 | clinic=2 | — | B | identity-links:view@{1} | outside scope | **403** | — | yes | `handler.go:234-254` + `service.go:190` | TEST `TestFindPetGroupByMember_MembershipABGrantASelectedB` L190-209 | NOT_RUN |
+| `GET /api/v1/identity-links/pets/:clinic_id/:pet_id/group` | IL-PET-PATH-B-200 | 2 | clinic=2 | — | B member | identity-links:view@{1,2} | group visible | **200** | members⊆{1,2} にB | yes | `handler.go:234-254` + `service.go:181-199` | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/identity-links/pets/:clinic_id/:pet_id/group` | IL-PET-PATH-A-404 | 2 | clinic=1 | — | A miss | identity-links:view@{1} | no membership | **404** | — | yes | `service.go:197` | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/identity-links/pets/:clinic_id/:pet_id/group` | IL-PET-PATH-A-200 | 2 | clinic=1 | — | A member | identity-links:view@{1} | group visible | **200** | members⊆{1} | yes | `handler.go:234-254` + `service.go:181-199` | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/identity-links/pets/:clinic_id/:pet_id/treatment-history` | IL-HIST-SEED-B-403 | 2 | clinic=2 | — | B seed | identity-links:view@{1} | outside scope | **403** | — | yes | `service_history.go:21-22` | TEST `TestListLinkedTreatmentHistory_MembershipABGrantASelectedB` L211-229 | NOT_RUN |
+| `GET /api/v1/identity-links/pets/:clinic_id/:pet_id/treatment-history` | IL-HIST-SEED-B-200 | 2 | clinic=2 | — | B seed | identity-links:view@{1,2} | history includes B | **200** | clinic_id=2 rows; allowed⊇{2} | yes | `service_history.go:11-44` | STATIC_DERIVED | NOT_RUN |
+| `GET /api/v1/identity-links/pets/:clinic_id/:pet_id/treatment-history` | IL-HIST-SEED-A-200 | 2 | clinic=1 | — | A seed | identity-links:view@{1} | history⊆allowed | **200** | clinic⊆{1} | yes | `service_history.go:11-44` | STATIC_DERIVED | NOT_RUN |
+
+**旧台帳との矛盾（修正点）**: `GET /api/v1/clinics/:clinic_id/line-reservation-settings` を「selected B 既定一覧 / 混合 clinic_ids filter」と書いていた記述は誤り。本経路は path `:clinic_id` の `AuthorizeClinicIDsForPermission` であり、path=B×grantAは **403・service未呼出**、path=A×grantAは **200**（A path 成功は B grant 成功の証拠ではない）。
+
+handlerSource 参照（inventory）: accountings*=`internal/billing/accounting_handler.go`; line-reservation-settings=`internal/reservation/line_reservation_setting_handler.go`; identity-links*=`internal/identitylink/handler.go`; medical-records*=`internal/medicalrecord/medical_record_handler.go`; owners*=`internal/owner/http_owner.go`; owners/:id/report/pets・pets*=`internal/pet/pet_handler.go`; reservations*=`internal/reservation/reservation_handler.go`。
+
+集合照合: inventory cross-clinic 21 − `GET /api/v1/clinics` = **20**。上表の unique method/path = 20。missing=0 / extra=0。
+
+### D3-3 単位結果（契約表・docs-only）
+
+- 状態: **単位 COMPLETE（条件別契約表・condition-gap repair）** / 台帳 overall **未完了**（実DB返却分離・D3テスト実装は残件）
+- 変更ファイル: `todo-fix-auth.md` のみ（D3-3表 + 本結果節）
+- 本単位で閉じた gap: **18**（final-byte audit の 8 HIGH + 10 MEDIUM; LRS LOW は非欠陥のため非対象）
+  - detail B-grant 正系 5: ACC/MR/OWN/PET/RSV `*-GET-B-200`
+  - identity-link path/history B-grant 正系 3: `IL-OWN-PATH-B-200` / `IL-PET-PATH-B-200` / `IL-HIST-SEED-B-200`
+  - list AB request shape 分割 5→10: `*-LIST-AB-DEF-B-200` + `*-LIST-AB-MIX-200`（`(none→B) or 含B` 除去）
+  - observable B 正系 5: `OWN-RPT-B-200` / `IL-OWN-SEARCH-AB-200` / `IL-PET-SEARCH-AB-200` / `IL-OG-AB-200` / `IL-PG-AB-200`
+- inventory: unique=20 / missing=0 / extra=0（`GET /api/v1/clinics` 除外維持）
+- 証拠区分: 追加行はすべて STATIC_DERIVED。既存 TEST 負系/コントロール維持。realDB=**NOT_RUN**。新規テスト **unimplemented**。
+- LRS 行は内容変更なし（行位置移動のみあり得る）。
+- set/format/scope: table-bounded 20/0/0、scenario_id unique、mandatory columns、combined-request-condition=0、`git diff --check -- todo-fix-auth.md` exit 0、foreign WIP preserved。
+- D3-3表セクション hash（単位結果節を含まない）: sha1=`9bd3b02d87b27042566e0191619dfb3298438777` / sha256=`32b71083d0b7040d8078836538b464caf3eb9be4502de6a0983285c1d3a1d8ad`
+- file-level freeze: parent and shell-capable reviewers recompute live `git hash-object todo-fix-auth.md` and `shasum -a 256 todo-fix-auth.md` and must match each other (self-describing file hash is not embedded).
+- Independent Review: pending shell-capable A/B
+- ledger overall: **INCOMPLETE**（realDB isolation / D3 test implementation 残件）
+
+### D3-4 clinic-fixed 対象（158）— handlerSource package 集約
+
+URL prefix から package を推測しない。配置は JSON `handlerSource` の実 package。親 directory は全候補で実在確認済み。
+
+| handlerSource package | 件数 | 代表 path 例 | 負 | 正/観測 | 後続テスト候補（未作成） |
+| --- | --- | --- | --- | --- | --- |
+| `backend/internal/medicalrecord/` (61) | 61 | `/api/v1/checkups`, `/api/v1/checkups/field-results`, `/api/v1/examinations`； cages=`cage_handler.go`; | **403** | **200** + B seed 存在、A seed 非混入。CSV/署名URL等は B 対象 ID で観測 | `backend/internal/medicalrecord/realdb_selected_clinic_b_grant_a_isolation_test.go` |
+| `backend/internal/lstep/` (28) | 28 | `/api/v1/clinics/:clinic_id/line-customers`, `/api/v1/clinics/:clinic_id/lstep-settings`, `/api/v1/clinics/:clinic_id/lstep-tag-code-mappings`； shared-files=`shared_file_handler.go`; | **403** | **200** + B seed 存在、A seed 非混入。CSV/署名URL等は B 対象 ID で観測 | `backend/internal/lstep/realdb_selected_clinic_b_grant_a_isolation_test.go` |
+| `backend/internal/billing/` (22) | 22 | `/api/v1/accountings/:id/refunds`, `/api/v1/accountings/unpaid`, `/api/v1/accountings/unpaid-balance`； reports=`accounting_report_handler.go`; | **403** | **200** + B seed 存在、A seed 非混入。CSV/署名URL等は B 対象 ID で観測 | `backend/internal/billing/realdb_selected_clinic_b_grant_a_isolation_test.go` |
+| `backend/internal/reservation/` (12) | 12 | `/api/v1/clinics/:clinic_id/reservation-staffs`, `/api/v1/clinics/:clinic_id/reservation-staffs/:staffId/schedules`, `/api/v1/clinics/:clinic_id/reservation-types` | **403** | **200** + B seed 存在、A seed 非混入。CSV/署名URL等は B 対象 ID で観測 | `backend/internal/reservation/realdb_selected_clinic_b_grant_a_isolation_test.go` |
+| `backend/internal/staff/` (12) | 12 | `/api/v1/masters/occupations`, `/api/v1/masters/occupations/:id`, `/api/v1/masters/staffs` | **403** | **200** + B seed 存在、A seed 非混入。CSV/署名URL等は B 対象 ID で観測 | `backend/internal/staff/realdb_selected_clinic_b_grant_a_isolation_test.go` |
+| `backend/internal/trimming/` (8) | 8 | `/api/v1/masters/trimming-course-types`, `/api/v1/masters/trimming-course-types/:id`, `/api/v1/masters/trimming-courses` | **403** | **200** + B seed 存在、A seed 非混入。CSV/署名URL等は B 対象 ID で観測 | `backend/internal/trimming/realdb_selected_clinic_b_grant_a_isolation_test.go` |
+| `backend/internal/clinic/` (5) | 5 | `/api/v1/clinic-holidays`, `/api/v1/clinics/:clinic_id`, `/api/v1/closing-settings` | **403** | **200** + B seed 存在、A seed 非混入。CSV/署名URL等は B 対象 ID で観測 | `backend/internal/clinic/realdb_selected_clinic_b_grant_a_isolation_test.go` |
+| `backend/internal/inventory/` (4) | 4 | `/api/v1/inventory`, `/api/v1/inventory/:id`, `/api/v1/masters/merchandise-items` | **403** | **200** + B seed 存在、A seed 非混入。CSV/署名URL等は B 対象 ID で観測 | `backend/internal/inventory/realdb_selected_clinic_b_grant_a_isolation_test.go` |
+| `backend/internal/pet/` (4) | 4 | `/api/v1/owners/:id/shared-pets`, `/api/v1/pets/:id/chronic-conditions`, `/api/v1/pets/:id/first-visit` | **403** | **200** + B seed 存在、A seed 非混入。CSV/署名URL等は B 対象 ID で観測 | `backend/internal/pet/realdb_selected_clinic_b_grant_a_isolation_test.go` |
+| `backend/internal/auth/` (2) | 2 | `/api/v1/masters/permission-groups`, `/api/v1/masters/permission-groups/:id`； permission-groups=`http_permission.go`; | **403** | **200** + B seed 存在、A seed 非混入。CSV/署名URL等は B 対象 ID で観測 | `backend/internal/auth/realdb_selected_clinic_b_grant_a_isolation_test.go` — **test implemented / compile checked / realDB NOT_RUN** |
+
+clinic-fixed 件数合計 = 158（158）。全候補親 directory `Path.is_dir` = true。`backend/internal/masters` / `report` / `file` / `hospitalization` / `lab` は **不存在**のため候補に使わない。
+
+経路→候補の辿り方: `get_head_permissions.json` の method/path → `handlerSource` → 上表 package の単一テストファイル候補。
+
+### D3-4 単位結果（auth package 2経路）
+
+- 状態: **auth 2経路 test implemented / offline compile checked** / realDB **NOT_RUN** / 台帳 overall **INCOMPLETE**
+- 変更ファイル: `backend/internal/auth/realdb_selected_clinic_b_grant_a_isolation_test.go`（新規）+ 本節/auth行のみ
+- 対象: `GET /api/v1/masters/permission-groups` と `GET /api/v1/masters/permission-groups/:id`
+- 配線: `testdb.SetupTestDB` + `NewPermissionGroupRepository` + `NewPermissionGroupService` + `NewHTTPHandler`（list/detail payload は実DB。checker は deterministic callback）
+- ケース: grantA+selectedB list/detail **403**（B query guard）; grantB+selectedB list nonempty B / detail B **200**（A id/name/clinic_id 非混入）; selectedB+A-id detail **404**（A body なし）
+- offline: image `sha256:6c5b455bf14e3f0ec7bece9ae9a4be2e8ad1441adfb33fdf2ce53d9eaaa22ed4` + volume `ekarte-go-mod-cache` + `--network none` + `go test -short ./internal/auth` exit 0; 新規5件は `database tests are skipped in -short / offline verification` で **SKIP**; gofmt clean
+- realDB runtime: **NOT_RUN / BLOCKED** — 承認済み捨てPostgreSQLの明示認可が必要。将来 regex: `TestRealDB_PermissionGroups_`
+- 残件: clinic-fixed 残り **156** unimplemented/NOT_RUN; cross-clinic **20** unimplemented/NOT_RUN; D3 overall **INCOMPLETE**
+- Independent Review: R1=`01a086e5-c305-7af1-9155-8fdc11d760d1` + R2=`01a086e5-c305-7af1-9155-8fe6c6f0e3f7` APPROVE (0 CRITICAL/HIGH/MEDIUM) on identical bytes test=`193be05ffc12aa867d722cc43316e14ee8b066fa5b0d320857b74356a48267d9` / pre-stamp ledger=`e3430643b828e9d512e37b0e3607de4d8451d3fb834894d558597b58912291c9` / patch=`7f41ea12e65d22a8187add72daad8321c288543e7cacf0a2b48a2404fe51b41c` (round-1 workflow reviewers BLOCKED on missing shell; round-2 spawn_subagent cleared)
+
+### D5 独立2プロセス・性能（設計条件・実測は未測定）
+
+| 設計項目 | 採用値（今確定） | 根拠 | 実測 |
+| --- | --- | --- | --- |
+| トポロジ | 同一隔離DB + **独立2 APIプロセス** + **2セッション**（別cookie jar） | ①-1 即時失効・多インスタンス | 未測定 |
+| 変更3種 | (1) staff `is_active=false` (2) staff_clinic_assignment 解除 (3) password/epoch 更新 | 項目5確定範囲 | 未測定 |
+| 正アサート | commit後の**次リクエスト**で旧session拒否（401/403）。TTL sleep **禁止** | production uncached resolver | 未測定 |
+| 負アサート | 未変更医院への正当アクセス維持（所属解除時）；新passwordで再login成功 | 仕様 | 未測定 |
+| 測定エンドポイント | `GET /api/v1/me` と clinic-fixed 1本（例: staffs list） | 認可DB再読の代表 | 未測定 |
+| メトリクス | サーバ処理時間 p50/p95、DB statements/request（`pg_stat_statements` またはSQL log count）、error率 | 追加DBコスト可視化 | 未測定 |
+| 負荷 | セッションあたり **1並行**、ウォームアップ5 + 本測定 **30** 反復、インターバル50ms | 起動禁止下の最小再現；soakしない | 未測定 |
+| **安全性判定（独立）** | 旧権限・旧sessionの許容（失効後も通る）= **即 FAIL / 即停止**。性能閾値は参照しない | 認可回帰は性能と無関係 | 未測定 |
+| **性能判定（独立）** | 同fixture 1プロセス p95 をベースライン。2プロセス p95 が **+100%超**のみ → **要調査**（FAILにしない）。+200%超または測定不能 → 性能ゲート停止 | 性能悪化だけで認可FAILにしない | 未測定 |
+| 証拠 | 生latency一覧、要約表、プロセスPID、DB名、コミット前後の応答status | 再現 | 未測定 |
+| 停止（環境） | 共有 compose/main mount、`make up` 必須化、TTL sleep、cache-hit試験復活、本番負荷 | 安全境界 | — |
+
+真理値表:
+
+| 旧権限許容（認可回帰） | 性能 +100%超 | 結果 |
+| --- | --- | --- |
+| あり | 任意 | **即 FAIL/停止**（性能条件不要） |
+| なし | なし | PASS（測定としては完了） |
+| なし | あり（+100%〜+200%） | 認可 PASS、性能 **要調査** |
+| なし | あり（+200%超/測定不能） | 認可 PASS、性能ゲート停止 |
+
+実装済み参照: `backend/cmd/api/composition_auth.go` uncached、`composition_auth_cache_contract_test.go`。
+
+### Linear ローカル投稿本文ドラフト（投稿しない）
+
+- Ticket ID: **UNKNOWN**（本セッションに Linear issue MCP なし）
+- 貼付本文:
+
+```text
+タイトル: 認証・認可レビュー修正 — ローカル完了と実環境残件
+
+完了（ローカル）:
+- 項目1/3/6/7/9 および D4 復旧フロー
+- 項目4 自己ロックアウト: UpdateRules + Update-with-Rules を post-mutation OR(view+edit) に統一。mutate_d2_test RED(InvalidInput)→GREEN。scoped verify auth 476 PASS、build/vet 0、独立2review APPROVE
+- 項目5: production current-access キャッシュ除去（uncached）
+
+未完了 / BLOCKED / SKIP:
+- D2 実DB並行3テスト（隔離Postgres未承認）
+- D1 初回SQL実DB・本番付与・対象環境メール
+- D3 GET/HEAD 全対象経路の実DB返却医院分離（middleware/stubのみ。対応表は台帳に記載済み・テスト未実装）
+- D5 独立2プロセス失効ライブ + 性能測定（設計条件は台帳に固定・実測未）
+- Linear 反映（本投稿の承認待ち）
+
+証拠（ローカル）: todo-fix-auth.md / docs/architecture/auth.md、session verify/review artifacts（再実行せず参照）
+
+次の操作（承認後）:
+1) 使い捨てPostgresで D2 3コマンド直列
+2) 合成DBで first_system_admin.sql（競合/監査rollback含む）
+3) D3 real-DB isolation テスト実装単位
+4) D5 2プロセス検証+測定
+5) 本チケット更新 / 必要なら commit
+```
+
+### 承認対象サマリ（操作ごと）
+
+| 操作 | 対象 | 副作用 | 必要権限 |
+| --- | --- | --- | --- |
+| D2 3テスト実行 | 使い捨てDB | テストデータ書込/TRUNCATE | DB作成・接続、テスト実行承認 |
+| D1 合成SQL | 合成DB | admin作成/監査 | psql運用ロール、合成入力 |
+| D1 本番付与 | 本番DB | 初回admin永続化 | 本番承認・秘密管理 |
+| D1 メール現地 | 対象env | 外部メール | メール基盤確認承認 |
+| D3 テスト実装/実行 | repo+隔離DB | 新規テスト追加・DB読 | 実装単位claim、DB |
+| D5 2プロセス+測定 | 隔離スタック | プロセス起動・測定負荷 | 起動手段承認（make up禁止の代替） |
+| Linear更新 | チケット UNKNOWN | 外部投稿 | 投稿承認 |
+| git commit/push/merge | remote | 履歴公開 | 明示承認 |
+
+### 台帳全体ステータス
+
+**INCOMPLETE / BLOCKED（実環境・運用残件あり）**。prep-repair 準備ACの完了と混同しない。

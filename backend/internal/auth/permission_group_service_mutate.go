@@ -66,6 +66,10 @@ func (s *permissionGroupService) Create(
 	}); err != nil {
 		return nil, err
 	}
+	slog.InfoContext(ctx, "permission group created",
+		slog.Uint64("clinic_id", clinicID),
+		slog.Uint64("permission_group_id", group.ID),
+		slog.String("name", group.Name))
 	return group, nil
 }
 
@@ -111,10 +115,6 @@ func (s *permissionGroupService) create(
 			return nil, mapPermissionGroupNameConflict(err, input.Name, "failed to create permission group with rules")
 		}
 	}
-	slog.InfoContext(ctx, "permission group created",
-		slog.Uint64("clinic_id", clinicID),
-		slog.Uint64("permission_group_id", group.ID),
-		slog.String("name", group.Name))
 	return group, nil
 }
 
@@ -144,7 +144,6 @@ func (s *permissionGroupService) Update(
 			clinicID,
 			id,
 			input,
-			audit.ActorStaffID,
 		)
 		if updateErr != nil {
 			return updateErr
@@ -173,6 +172,9 @@ func (s *permissionGroupService) Update(
 	}); err != nil {
 		return nil, err
 	}
+	slog.InfoContext(ctx, "permission group updated",
+		slog.Uint64("clinic_id", clinicID),
+		slog.Uint64("permission_group_id", id))
 	return result, nil
 }
 
@@ -180,7 +182,6 @@ func (s *permissionGroupService) update(
 	ctx context.Context,
 	clinicID, id uint64,
 	input *UpdatePermissionGroupInput,
-	actorStaffID uint64,
 ) (*model.PermissionGroup, error) {
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput(sharedkernel.ErrMsgInputNotNil)
@@ -204,24 +205,10 @@ func (s *permissionGroupService) update(
 		if validationErr := validateNoDuplicateRules(rules); validationErr != nil {
 			return nil, validationErr
 		}
-		staffGroupIDs, groupIDsErr := s.repo.FindAllGroupIDsByStaffID(
-			ctx,
-			clinicID,
-			actorStaffID,
-		)
-		if groupIDsErr != nil {
-			return nil, apperrors.Wrap(
-				groupIDsErr,
-				"failed to find staff group IDs",
-			)
-		}
-		if validationErr := validateNotSelfReference(
-			id,
-			rules,
-			staffGroupIDs,
-		); validationErr != nil {
-			return nil, validationErr
-		}
+		// Self-lockout is decided after mutation by
+		// guardActorKeepsPermissionAdministration using clinic-wide effective
+		// view+edit. Do not pre-reject self-group master-permission edits here:
+		// another active group may still grant administration.
 		writer, ok := s.repo.(PermissionGroupRulesAtomicWriter)
 		if !ok {
 			return nil, apperrors.WrapInternalServerError(
@@ -248,9 +235,6 @@ func (s *permissionGroupService) update(
 			"permission group repository returned an empty update result",
 		)
 	}
-	slog.InfoContext(ctx, "permission group updated",
-		slog.Uint64("clinic_id", clinicID),
-		slog.Uint64("permission_group_id", id))
 	return result, nil
 }
 
@@ -267,7 +251,7 @@ func (s *permissionGroupService) Delete(
 	); err != nil {
 		return err
 	}
-	return s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		oldGroup, oldErr := s.lockByIDForUpdate(txCtx, clinicID, id)
 		if oldErr != nil {
 			return oldErr
@@ -296,7 +280,13 @@ func (s *permissionGroupService) Delete(
 			)
 		}
 		return nil
-	})
+	}); err != nil {
+		return err
+	}
+	slog.InfoContext(ctx, "permission group deleted",
+		slog.Uint64("clinic_id", clinicID),
+		slog.Uint64("permission_group_id", id))
+	return nil
 }
 
 func (s *permissionGroupService) delete(
@@ -316,9 +306,6 @@ func (s *permissionGroupService) delete(
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to delete permission group")
 	}
-	slog.InfoContext(ctx, "permission group deleted",
-		slog.Uint64("clinic_id", clinicID),
-		slog.Uint64("permission_group_id", id))
 	return nil
 }
 
