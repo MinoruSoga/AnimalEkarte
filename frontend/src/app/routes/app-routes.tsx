@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import { type RouteObject } from "react-router";
 
 import { Layout } from "@/components/shared/Layout/Layout";
+import { SessionPending } from "@/components/shared/auth/SessionPending";
 import { C, STYLE } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
 
@@ -17,7 +18,7 @@ const authRoutes: RouteObject[] = [
   {
     path: paths.auth.login.path,
     element: (
-      <Suspense fallback={null}>
+      <Suspense fallback={<SessionPending message="画面を読み込んでいます" />}>
         <Login />
       </Suspense>
     ),

@@ -1,5 +1,6 @@
 # タスク台帳 — Linear が正本
 
+- Performance (STG login): see `todo-performance.md` (PERF-STG-LOGIN; child unit PERF-STG-LOGIN-A in progress on candidate).
 統合日: 2026-09-08。最終ローカル照合: 2026-09-09 / main `48e89dbe4`。Linear 読み取り結果・認証修正の main 反映・旧 claim 削除を確認した。Linear の状態は同日の記録であり、今回のローカル更新では再照会していない。UAT・STG/PROD・go-live は再判定していない。
 
 | 項目 | 値 |

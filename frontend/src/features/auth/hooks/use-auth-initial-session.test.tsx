@@ -124,6 +124,53 @@ describe("AuthProvider initial session restoration", () => {
     });
   });
 
+  it("shows non-sensitive pending UI while restore Promise is unresolved and keeps protected children unmounted (PERF-STG-LOGIN-A)", async () => {
+    setWindowLocation("/login");
+    let resolveRefresh: (value: { user: AuthUser } | null) => void = () => undefined;
+    refreshTokenMock.mockImplementation(
+      () =>
+        new Promise<{ user: AuthUser } | null>((resolve) => {
+          resolveRefresh = resolve;
+        }),
+    );
+
+    const protectedMount = vi.fn();
+    const businessFetch = vi.fn();
+    function ProtectedChild() {
+      protectedMount();
+      businessFetch();
+      return <div data-testid="protected-child">protected</div>;
+    }
+
+    const { AuthProvider } = await import("../components/AuthProvider");
+    render(
+      <MemoryRouter initialEntries={["/login"]}>
+        <Suspense fallback={<div>loading</div>}>
+          <AuthProvider>
+            <ProtectedChild />
+            <RouteControls />
+          </AuthProvider>
+        </Suspense>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole("status")).toHaveTextContent("ログイン状態を確認しています");
+    expect(screen.queryByTestId("protected-child")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("auth-state")).not.toBeInTheDocument();
+    expect(protectedMount).not.toHaveBeenCalled();
+    expect(businessFetch).not.toHaveBeenCalled();
+    expect(refreshTokenMock).toHaveBeenCalledOnce();
+
+    await act(async () => {
+      resolveRefresh(null);
+    });
+
+    expect(await screen.findByTestId("auth-state")).toHaveTextContent("anonymous");
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.getByTestId("protected-child")).toBeInTheDocument();
+    expect(protectedMount).toHaveBeenCalled();
+  });
+
   it("skips password-recovery public routes and restores once on login (BUG-031)", async () => {
     setWindowLocation("/forgot-password/");
     const { AuthProvider } = await import("../components/AuthProvider");

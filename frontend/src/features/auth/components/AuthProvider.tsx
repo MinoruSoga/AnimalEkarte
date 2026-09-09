@@ -22,6 +22,7 @@ import { login as loginApi } from "../api/login";
 import { logout as logoutApi } from "../api/logout";
 import { refreshToken } from "../api/refresh-token";
 import { useGetMe } from "../api/get-me";
+import { SessionPending } from "@/components/shared/auth/SessionPending";
 import { ClinicSelectionBlockedScreen } from "./ClinicSelectionBlockedScreen";
 
 attachClinicSelectionInterceptors(axios);
@@ -235,8 +236,8 @@ function AuthProviderSession({ children, restoreSession }: AuthProviderSessionPr
     ],
   );
 
-  // セッション復元中は子を描画せず、復元前の一瞬だけ匿名 UI が見えることを防ぐ。
-  if (!isInitialized) return null;
+  // セッション復元中は保護 children をマウントせず、非機密の確認中表示だけを出す。
+  if (!isInitialized) return <SessionPending />;
 
   return (
     <AuthContext.Provider value={value}>
