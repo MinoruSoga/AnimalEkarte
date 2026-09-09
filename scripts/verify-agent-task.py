@@ -69,6 +69,26 @@ OFFLINE_GO_PACKAGE_FLAGS = {
     ],
 }
 
+# Fixed source inputs for Go contracts that read outside the backend module.
+# Only these individual worktree documents are exposed; never mount the repo root.
+BACKEND_CONTRACT_DOCUMENTS = {
+    './internal/auth': ('docs/ops/deploy/FIRST_SYSTEM_ADMIN.md',),
+    './internal/medicalrecord': (
+        'docs/ops/deploy/LAB_DEVICE_CONNECTIVITY.md',
+        'docs/architecture/adr/007-lab-device-receive-and-commit.md',
+    ),
+}
+
+
+def backend_contract_documents(command):
+    return sorted({document for package, documents in BACKEND_CONTRACT_DOCUMENTS.items()
+                   if package in command for document in documents})
+
+
+def scoped_contract_documents(paths):
+    return sorted({document for job in plan(paths)[0] if job['service'] == 'backend'
+                   for document in backend_contract_documents(job['command'])})
+
 
 def plan(paths):
     jobs, blocked, frontend = [], [], []
@@ -115,6 +135,8 @@ def plan(paths):
             jobs.append({'service': 'backend', 'command': ['go', 'test', '-json', '-p=2', '-count=1', '-short', './internal/apicontract'], 'require_completed_test': True})
         elif path == 'backend/cmd/api/testdata/get_head_permissions.json':
             jobs.append({'service': 'backend', 'command': ['go', 'test', '-json', '-p=2', '-count=1', '-short', './cmd/api', '-run=^TestGETHEAD'], 'require_completed_test': True})
+        elif path in ('backend/internal/auth/testdata/first_system_admin.sql', 'docs/ops/deploy/FIRST_SYSTEM_ADMIN.md'):
+            jobs.append({'service': 'backend', 'command': ['go', 'test', '-json', '-p=2', '-count=1', '-short', './internal/auth', '-run=^TestFirstSystemAdminProcedureMatchesInitSchema$'], 'require_completed_test': True})
         elif path.endswith('.md') and (path.startswith(('docs/', '.claude/', '.codex/', '.agents/', 'frontend/src/features/manual/'))
                                       or '/' not in path or pathlib.PurePosixPath(path).name in ('CLAUDE.md', 'AGENTS.md', 'README.md')):
             continue
@@ -246,6 +268,15 @@ def image_command(identity, service, command, volume=None):
                   '--entrypoint', '/usr/bin/env']
     if service == 'backend':
         invocation += ['--tmpfs', '/verify:rw,exec,nosuid,nodev,size=1073741824']
+        for document in backend_contract_documents(command):
+            validate_path(document)
+            source_document = ROOT / document
+            if source_document.is_symlink():
+                raise ValueError('Backend contract document must not be a symlink')
+            if not source_document.is_file():
+                raise ValueError('Required backend contract document is missing')
+            invocation += ['--mount', 'type=bind,src=' + str(source_document)
+                           + ',dst=/' + document + ',readonly']
     if volume:
         destination = '/app/node_modules' if service == 'frontend' else '/go/pkg/mod'
         invocation += ['--mount', 'type=volume,src=' + volume + ',dst=' + destination + ',readonly,volume-nocopy']
@@ -255,17 +286,24 @@ def image_command(identity, service, command, volume=None):
 
 
 def selected_services(paths):
-    return sorted({path.split('/')[0] for path in paths if path.startswith(('backend/', 'frontend/'))})
+    services = {path.split('/')[0] for path in paths if path.startswith(('backend/', 'frontend/'))}
+    services.update(job['service'] for job in plan(paths)[0] if job['service'] in ('backend', 'frontend'))
+    return sorted(services)
 
 
 def reject_unstaged_service_sources(paths):
     for service in selected_services(paths):
         if git('diff', '--name-only', '-z', '--', service) or git('ls-files', '--others', '--exclude-standard', '-z', '--', service):
             raise ValueError('Selected service has unstaged or untracked files; staged verification cannot use them')
+    documents = scoped_contract_documents(paths)
+    if documents and (git('diff', '--name-only', '-z', '--', *documents)
+                      or git('ls-files', '--others', '--exclude-standard', '-z', '--', *documents)):
+        raise ValueError('Backend contract documents are unstaged or untracked; cannot prove staged content')
 
 
 def scope_fingerprint(paths):
     expanded = set(paths)
+    expanded.update(scoped_contract_documents(paths))
     for service in selected_services(paths):
         expanded.update(filter(None, git('ls-files', '--cached', '--others', '--exclude-standard', '-z', '--', service).split('\0')))
     # Do not read environment files or generated dependency/cache content.
@@ -370,6 +408,8 @@ def main():
                         check.update(image=image, dependency_volume=volume, mode='ephemeral-offline')
                         command = image_command(image, service, command, volume)
                     else:
+                        if service == 'backend' and backend_contract_documents(command):
+                            raise ValueError('Backend document contracts require offline image mode with exact read-only inputs')
                         container, image = inspect_container(service, getattr(args, service + '_container'))
                         check.update(container=container, image=image)
                         command = ['docker', 'exec', container, '/usr/bin/env', '-i', 'PATH=/usr/local/go/bin:/usr/local/bin:/usr/bin:/bin', 'HOME=/tmp', 'TMPDIR=/tmp', 'GOCACHE=/tmp/go-cache', 'GOMODCACHE=/go/pkg/mod', 'GOPROXY=off', 'GOSUMDB=off', 'GOTOOLCHAIN=local', 'GOTMPDIR=/verify', 'GOMAXPROCS=2', 'CI=true', *command]

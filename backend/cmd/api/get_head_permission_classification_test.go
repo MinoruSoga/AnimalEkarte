@@ -184,6 +184,23 @@ func TestGETHEADInventoryEvidenceReferences(t *testing.T) {
 	}
 }
 
+func TestGETHEADInventoryVerificationMentionsExecutedTests(t *testing.T) {
+	for _, entry := range readGETHEADInventory(t) {
+		key := entry.Method + " " + entry.Path
+		switch entry.Class {
+		case "clinic-fixed":
+			require.Contains(t, entry.Verification, "TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden", key)
+			require.Contains(t, entry.Verification, "TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler", key)
+		case "cross-clinic":
+			require.Contains(t, entry.Verification, "TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB", key)
+		case "public", "liff", "self":
+			require.Contains(t, entry.Verification, "contract-exclusion-from-selected-clinic-grant", key)
+		case "shared-master":
+			require.Contains(t, entry.Verification, "shared-master-contract", key)
+		}
+	}
+}
+
 func compactGETHEADSource(source string) string {
 	// Registration expressions can be split across lines with trailing commas.
 	return strings.TrimSuffix(strings.ReplaceAll(strings.Join(strings.Fields(source), ""), ",)", ")"), ";")

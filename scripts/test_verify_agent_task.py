@@ -89,6 +89,86 @@ class VerificationTests(unittest.TestCase):
         path = 'backend/cmd/api/testdata/unreviewed.json'
         self.assertEqual(verify.plan([path]), ([], [path]))
 
+    def test_bootstrap_fixture_and_document_run_contract(self):
+        for path in ('backend/internal/auth/testdata/first_system_admin.sql',
+                     'docs/ops/deploy/FIRST_SYSTEM_ADMIN.md'):
+            with self.subTest(path=path):
+                jobs, blocked = verify.plan([path])
+                self.assertFalse(blocked)
+                self.assertEqual(len(jobs), 1)
+                self.assertEqual(jobs[0]['command'], [
+                    'go', 'test', '-json', '-p=2', '-count=1', '-short',
+                    './internal/auth', '-run=^TestFirstSystemAdminProcedureMatchesInitSchema$',
+                ])
+                self.assertTrue(jobs[0]['require_completed_test'])
+        unknown = 'backend/internal/auth/testdata/unreviewed.sql'
+        self.assertEqual(verify.plan([unknown]), ([], [unknown]))
+
+    def test_backend_contract_mounts_only_required_readonly_documents(self):
+        for package, documents in {
+            './internal/auth': ['docs/ops/deploy/FIRST_SYSTEM_ADMIN.md'],
+            './internal/medicalrecord': [
+                'docs/ops/deploy/LAB_DEVICE_CONNECTIVITY.md',
+                'docs/architecture/adr/007-lab-device-receive-and-commit.md',
+            ],
+            './cmd/api': [],
+        }.items():
+            with self.subTest(package=package):
+                command = verify.image_command('sha256:fixture', 'backend', ['go', 'test', package])
+                mounts = [value for value in command if value.startswith('type=bind,')]
+                self.assertEqual(len(mounts), 1 + len(documents))
+                for document in documents:
+                    self.assertIn('type=bind,src=' + str(verify.ROOT / document)
+                                  + ',dst=/' + document + ',readonly', mounts)
+
+    def test_backend_contract_missing_or_external_document_blocks(self):
+        with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as outside:
+            root = pathlib.Path(directory)
+            with mock.patch.object(verify, 'ROOT', root):
+                with self.assertRaisesRegex(ValueError, 'document'):
+                    verify.image_command('sha256:fixture', 'backend', ['go', 'test', './internal/auth'])
+                (root / 'docs').symlink_to(outside, target_is_directory=True)
+                with self.assertRaisesRegex(ValueError, 'escapes'):
+                    verify.image_command('sha256:fixture', 'backend', ['go', 'test', './internal/auth'])
+
+    def test_backend_document_change_affects_fingerprint(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            (root / 'backend/internal/auth').mkdir(parents=True)
+            (root / 'backend/internal/auth/example_test.go').write_text('fixture')
+            document = root / 'docs/ops/deploy/FIRST_SYSTEM_ADMIN.md'
+            document.parent.mkdir(parents=True)
+            document.write_text('before')
+            with mock.patch.object(verify, 'ROOT', root), mock.patch.object(verify, 'git', return_value=''):
+                paths = ['backend/internal/auth/example_test.go']
+                before = verify.scope_fingerprint(paths)
+                document.write_text('after')
+                self.assertNotEqual(before, verify.scope_fingerprint(paths))
+
+    def test_unstaged_backend_contract_document_blocks(self):
+        with mock.patch.object(verify, 'git', side_effect=['', '', 'docs/ops/deploy/FIRST_SYSTEM_ADMIN.md\0']):
+            with self.assertRaisesRegex(ValueError, 'unstaged or untracked'):
+                verify.reject_unstaged_service_sources(['backend/internal/auth/first_system_admin_procedure_test.go'])
+
+    def test_document_only_contract_still_checks_backend_sources(self):
+        paths = ['docs/ops/deploy/FIRST_SYSTEM_ADMIN.md']
+        self.assertEqual(verify.selected_services(paths), ['backend'])
+        with mock.patch.object(verify, 'git', return_value='backend/internal/auth/helper.go\0'):
+            with self.assertRaisesRegex(ValueError, 'unstaged or untracked'):
+                verify.reject_unstaged_service_sources(paths)
+
+    def test_backend_contract_document_symlink_blocks(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            target = root / 'source.md'
+            target.write_text('fixture')
+            document = root / 'docs/ops/deploy/FIRST_SYSTEM_ADMIN.md'
+            document.parent.mkdir(parents=True)
+            document.symlink_to(target)
+            with mock.patch.object(verify, 'ROOT', root):
+                with self.assertRaisesRegex(ValueError, 'symlink'):
+                    verify.image_command('sha256:fixture', 'backend', ['go', 'test', './internal/auth'])
+
     def test_cmd_package_uses_package_tests(self):
         jobs, blocked = verify.plan(['backend/cmd/migrate/csvbundle.go'])
         self.assertFalse(blocked)

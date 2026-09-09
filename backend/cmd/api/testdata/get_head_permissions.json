@@ -13,7 +13,7 @@
     "authorization": "LiffAuth middleware; handler clinic/customer",
     "scope": "LIFF authenticated customer and path clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "contract-exclusion-from-selected-clinic-grant; resource/action=none; executed-class-gate:cmd/api/get_head_permission_execution_test.go#TestGETHEADPublicLiffSelfAreNotSelectedClinicGrantSurfaces"
   },
   {
     "method": "GET",
@@ -29,7 +29,7 @@
     "authorization": "LiffAuth middleware; handler clinic/customer",
     "scope": "LIFF authenticated customer and path clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "contract-exclusion-from-selected-clinic-grant; resource/action=none; executed-class-gate:cmd/api/get_head_permission_execution_test.go#TestGETHEADPublicLiffSelfAreNotSelectedClinicGrantSurfaces"
   },
   {
     "method": "GET",
@@ -45,7 +45,7 @@
     "authorization": "LiffAuth middleware; handler clinic/customer",
     "scope": "LIFF authenticated customer and path clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "contract-exclusion-from-selected-clinic-grant; resource/action=none; executed-class-gate:cmd/api/get_head_permission_execution_test.go#TestGETHEADPublicLiffSelfAreNotSelectedClinicGrantSurfaces"
   },
   {
     "method": "GET",
@@ -61,7 +61,7 @@
     "authorization": "LiffAuth middleware; handler clinic/customer",
     "scope": "LIFF authenticated customer and path clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "contract-exclusion-from-selected-clinic-grant; resource/action=none; executed-class-gate:cmd/api/get_head_permission_execution_test.go#TestGETHEADPublicLiffSelfAreNotSelectedClinicGrantSurfaces"
   },
   {
     "method": "GET",
@@ -77,7 +77,7 @@
     "authorization": "LiffAuth middleware; handler clinic/customer",
     "scope": "LIFF authenticated customer and path clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "contract-exclusion-from-selected-clinic-grant; resource/action=none; executed-class-gate:cmd/api/get_head_permission_execution_test.go#TestGETHEADPublicLiffSelfAreNotSelectedClinicGrantSurfaces"
   },
   {
     "method": "GET",
@@ -93,7 +93,7 @@
     "authorization": "LiffAuth middleware; handler clinic/customer",
     "scope": "LIFF authenticated customer and path clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "contract-exclusion-from-selected-clinic-grant; resource/action=none; executed-class-gate:cmd/api/get_head_permission_execution_test.go#TestGETHEADPublicLiffSelfAreNotSelectedClinicGrantSurfaces"
   },
   {
     "method": "GET",
@@ -109,7 +109,7 @@
     "authorization": "rate-limit only",
     "scope": "public path clinic settings",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "contract-exclusion-from-selected-clinic-grant; resource/action=none; executed-class-gate:cmd/api/get_head_permission_execution_test.go#TestGETHEADPublicLiffSelfAreNotSelectedClinicGrantSurfaces"
   },
   {
     "method": "GET",
@@ -125,7 +125,7 @@
     "authorization": "LiffAuth middleware; handler clinic/customer",
     "scope": "LIFF authenticated customer and path clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "contract-exclusion-from-selected-clinic-grant; resource/action=none; executed-class-gate:cmd/api/get_head_permission_execution_test.go#TestGETHEADPublicLiffSelfAreNotSelectedClinicGrantSurfaces"
   },
   {
     "method": "GET",
@@ -141,7 +141,7 @@
     "authorization": "LiffAuth middleware; handler clinic/customer",
     "scope": "LIFF authenticated customer and path clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "contract-exclusion-from-selected-clinic-grant; resource/action=none; executed-class-gate:cmd/api/get_head_permission_execution_test.go#TestGETHEADPublicLiffSelfAreNotSelectedClinicGrantSurfaces"
   },
   {
     "method": "GET",
@@ -157,7 +157,7 @@
     "authorization": "LiffAuth middleware; handler clinic/customer",
     "scope": "LIFF authenticated customer and path clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "contract-exclusion-from-selected-clinic-grant; resource/action=none; executed-class-gate:cmd/api/get_head_permission_execution_test.go#TestGETHEADPublicLiffSelfAreNotSelectedClinicGrantSurfaces"
   },
   {
     "method": "GET",
@@ -173,7 +173,7 @@
     "authorization": "assigned grant in composition; per-clinic grant in handler",
     "scope": "requested clinics filtered by per-clinic grant",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-allowing-middleware:cmd/api/get_head_permission_execution_test.go#TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB; executed-handler-scope:internal/billing/accounting_handler_selected_clinic_b_grant_a_test.go#TestListAccountings_MembershipABGrantASelectedB; empty-list-vs-zero-grant-distinguished"
   },
   {
     "method": "GET",
@@ -189,7 +189,7 @@
     "authorization": "assigned grant in composition; per-clinic grant in handler",
     "scope": "assigned clinics filtered by per-clinic grant",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-allowing-middleware:cmd/api/get_head_permission_execution_test.go#TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB; executed-handler-scope:internal/billing/accounting_handler_selected_clinic_b_grant_a_test.go#TestGetAccounting_MembershipABGrantASelectedB; empty-list-vs-zero-grant-distinguished"
   },
   {
     "method": "GET",
@@ -205,7 +205,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -221,7 +221,7 @@
     "authorization": "assigned grant in composition; per-clinic grant in handler",
     "scope": "requested clinics filtered by per-clinic grant",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-allowing-middleware:cmd/api/get_head_permission_execution_test.go#TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB; executed-handler-scope:internal/billing/accounting_handler_selected_clinic_b_grant_a_test.go#TestGetDailySummary_MembershipABGrantASelectedB; empty-list-vs-zero-grant-distinguished"
   },
   {
     "method": "GET",
@@ -237,7 +237,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -253,7 +253,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -269,7 +269,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -285,7 +285,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -301,7 +301,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -317,7 +317,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -333,7 +333,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -349,7 +349,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -365,7 +365,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -381,7 +381,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -397,7 +397,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/checkup_handler_test.go#TestCheckupSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -413,7 +413,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/checkup_field_handler_test.go#TestCheckupFieldSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -429,7 +429,7 @@
     "authorization": "selected grant in composition; handler clinic argument",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -445,7 +445,7 @@
     "authorization": "selected hospital-settings grant; handler assignment/admin filter",
     "scope": "active assigned clinics; system admin scope=all",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-allowing-middleware:cmd/api/get_head_permission_execution_test.go#TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB; executed-handler-scope:internal/clinic/clinic_handler_selected_clinic_b_grant_a_test.go#TestListClinics_MembershipABGrantASelectedB; membership-list-includes-assigned-clinics-without-per-clinic-grant"
   },
   {
     "method": "GET",
@@ -461,7 +461,7 @@
     "authorization": "selected grant in composition; handler clinic argument",
     "scope": "selected clinic; system admin permits path clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -477,7 +477,7 @@
     "authorization": "selected grant in composition; handler clinic argument",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -493,7 +493,7 @@
     "authorization": "assigned grant in composition; path clinic grant in handler helper",
     "scope": "path clinic checked by per-clinic grant",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-allowing-middleware:cmd/api/get_head_permission_execution_test.go#TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB; executed-handler-scope:internal/reservation/line_reservation_setting_handler_selected_clinic_b_grant_a_test.go#TestGetLineReservationSetting_MembershipABGrantASelectedB; path-clinic-grant-checked"
   },
   {
     "method": "GET",
@@ -509,7 +509,7 @@
     "authorization": "selected grant in composition; handler clinic argument",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -525,7 +525,7 @@
     "authorization": "selected grant in composition; handler clinic argument",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -541,7 +541,7 @@
     "authorization": "selected grant in composition; handler clinic argument",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -557,7 +557,7 @@
     "authorization": "selected grant in composition; handler clinic argument",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -573,7 +573,7 @@
     "authorization": "selected grant in composition; handler clinic argument",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -589,7 +589,7 @@
     "authorization": "selected grant in composition; handler clinic argument",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -605,7 +605,7 @@
     "authorization": "selected grant in composition; handler clinic argument",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -621,7 +621,7 @@
     "authorization": "selected grant in composition; handler clinic argument",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -637,7 +637,7 @@
     "authorization": "selected grant in composition; handler clinic argument",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -653,7 +653,7 @@
     "authorization": "selected grant in composition; handler clinic argument",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -669,7 +669,7 @@
     "authorization": "selected grant in composition; handler clinic argument",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -685,7 +685,7 @@
     "authorization": "selected grant in composition; handler clinic argument",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -701,7 +701,7 @@
     "authorization": "selected grant in composition; handler clinic argument",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -717,7 +717,7 @@
     "authorization": "selected grant in composition; handler clinic argument",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -733,7 +733,7 @@
     "authorization": "selected grant in composition; handler clinic argument",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -749,7 +749,7 @@
     "authorization": "assigned grant in composition; selected grant in handler helper",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -765,7 +765,7 @@
     "authorization": "assigned grant in composition; selected grant in handler helper",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -781,7 +781,7 @@
     "authorization": "assigned grant in composition; selected grant in handler helper",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -797,7 +797,7 @@
     "authorization": "assigned grant in composition; selected grant in handler helper",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -813,7 +813,7 @@
     "authorization": "selected grant in composition; handler clinic argument",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -829,7 +829,7 @@
     "authorization": "selected grant in composition; handler clinic argument",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -845,7 +845,7 @@
     "authorization": "selected grant in composition; handler clinic argument",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -861,7 +861,7 @@
     "authorization": "selected grant in composition; shared data",
     "scope": "shared data; no clinic query dimension",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "shared-master-contract; not selected-clinic-fixed; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -877,7 +877,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -893,7 +893,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -909,7 +909,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/examination_handler_test.go#TestExaminationSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -925,7 +925,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/examination_handler_test.go#TestExaminationSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -941,7 +941,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/examination_handler_test.go#TestExaminationSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -957,7 +957,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/examination_handler_test.go#TestExaminationSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -973,7 +973,7 @@
     "authorization": "none",
     "scope": "health status only",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "contract-exclusion-from-selected-clinic-grant; resource/action=none; executed-class-gate:cmd/api/get_head_permission_execution_test.go#TestGETHEADPublicLiffSelfAreNotSelectedClinicGrantSurfaces"
   },
   {
     "method": "GET",
@@ -989,7 +989,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/hospitalization_handler_test.go#TestHospitalizationSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1005,7 +1005,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/hospitalization_handler_test.go#TestHospitalizationSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1021,7 +1021,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/care_plan_item_handler_test.go#TestListCarePlanItemsSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1037,7 +1037,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/daily_record_handler_test.go#TestDailyRecordSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1053,7 +1053,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/daily_record_handler_test.go#TestDailyRecordSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1069,7 +1069,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/treatment_plan_handler_test.go#TestTreatmentPlanSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1085,7 +1085,7 @@
     "authorization": "assigned grant in composition; actor clinic grants in handler",
     "scope": "actor viewable clinics; service checks group membership",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-allowing-middleware:cmd/api/get_head_permission_execution_test.go#TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB; executed-handler-scope:internal/identitylink/handler_selected_clinic_b_grant_a_test.go#TestGetOwnerGroup_MembershipABGrantASelectedB; actor-clinics-filtered-to-grant"
   },
   {
     "method": "GET",
@@ -1101,7 +1101,7 @@
     "authorization": "assigned grant in composition; actor clinic grants in handler",
     "scope": "actor viewable clinics; service checks group membership",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-allowing-middleware:cmd/api/get_head_permission_execution_test.go#TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB; executed-handler-scope:internal/identitylink/handler_selected_clinic_b_grant_a_test.go#TestFindOwnerGroupByMember_MembershipABGrantASelectedB; executed-service-reject:internal/identitylink/service_test.go#TestFindOwnerGroupByMember_RejectsSelectedClinicWithoutGrant"
   },
   {
     "method": "GET",
@@ -1117,7 +1117,7 @@
     "authorization": "assigned grant in composition; actor clinic grants in handler",
     "scope": "actor viewable clinics; service checks group membership",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-allowing-middleware:cmd/api/get_head_permission_execution_test.go#TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB; executed-handler-scope:internal/identitylink/handler_selected_clinic_b_grant_a_test.go#TestSearchOwners_MembershipABGrantASelectedB; actor-clinics-filtered-to-grant"
   },
   {
     "method": "GET",
@@ -1133,7 +1133,7 @@
     "authorization": "assigned grant in composition; actor clinic grants in handler",
     "scope": "actor viewable clinics; service checks group membership",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-allowing-middleware:cmd/api/get_head_permission_execution_test.go#TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB; executed-handler-scope:internal/identitylink/handler_selected_clinic_b_grant_a_test.go#TestGetPetGroup_MembershipABGrantASelectedB; actor-clinics-filtered-to-grant"
   },
   {
     "method": "GET",
@@ -1149,7 +1149,7 @@
     "authorization": "assigned grant in composition; actor clinic grants in handler",
     "scope": "actor viewable clinics; service checks group membership",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-allowing-middleware:cmd/api/get_head_permission_execution_test.go#TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB; executed-handler-scope:internal/identitylink/handler_selected_clinic_b_grant_a_test.go#TestFindPetGroupByMember_MembershipABGrantASelectedB; executed-service-reject:internal/identitylink/service_test.go#TestFindPetGroupByMember_RejectsSelectedClinicWithoutGrant"
   },
   {
     "method": "GET",
@@ -1165,7 +1165,7 @@
     "authorization": "assigned grant in composition; actor clinic grants in handler",
     "scope": "actor viewable clinics; service checks group membership",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-allowing-middleware:cmd/api/get_head_permission_execution_test.go#TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB; executed-handler-scope:internal/identitylink/handler_selected_clinic_b_grant_a_test.go#TestListLinkedTreatmentHistory_MembershipABGrantASelectedB; actor-clinics-filtered-to-grant"
   },
   {
     "method": "GET",
@@ -1181,7 +1181,7 @@
     "authorization": "assigned grant in composition; actor clinic grants in handler",
     "scope": "actor viewable clinics; service checks group membership",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-allowing-middleware:cmd/api/get_head_permission_execution_test.go#TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB; executed-handler-scope:internal/identitylink/handler_selected_clinic_b_grant_a_test.go#TestSearchPets_MembershipABGrantASelectedB; actor-clinics-filtered-to-grant"
   },
   {
     "method": "GET",
@@ -1197,7 +1197,7 @@
     "authorization": "selected grant in composition; handler clinic argument",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1213,7 +1213,7 @@
     "authorization": "selected grant in composition; handler clinic argument",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1229,7 +1229,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1245,7 +1245,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1261,7 +1261,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1277,7 +1277,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1293,7 +1293,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1309,7 +1309,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1325,7 +1325,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/lab_import_handler_test.go#TestLabImportJobSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1341,7 +1341,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/lab_import_handler_test.go#TestLabImportJobSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1357,7 +1357,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/lab_report_handler_test.go#TestLabReportSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1373,7 +1373,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/lab_report_handler_test.go#TestLabReportSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1389,7 +1389,7 @@
     "authorization": "selected grant in composition; handler clinic argument",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1405,7 +1405,7 @@
     "authorization": "selected grant in composition; handler clinic argument",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1421,7 +1421,7 @@
     "authorization": "selected grant in composition; shared data",
     "scope": "shared data; no clinic query dimension",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "shared-master-contract; not selected-clinic-fixed; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1437,7 +1437,7 @@
     "authorization": "selected grant in composition; shared data",
     "scope": "shared data; no clinic query dimension",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "shared-master-contract; not selected-clinic-fixed; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1453,7 +1453,7 @@
     "authorization": "selected grant in composition; shared data",
     "scope": "shared data; no clinic query dimension",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "shared-master-contract; not selected-clinic-fixed; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1469,7 +1469,7 @@
     "authorization": "selected grant in composition; handler clinic argument",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1485,7 +1485,7 @@
     "authorization": "selected grant in composition; handler clinic argument",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1501,7 +1501,7 @@
     "authorization": "selected grant in composition; handler clinic argument",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1517,7 +1517,7 @@
     "authorization": "selected grant in composition; handler clinic argument",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1533,7 +1533,7 @@
     "authorization": "selected grant in composition; handler clinic argument",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1549,7 +1549,7 @@
     "authorization": "assigned grant in composition; shared data",
     "scope": "shared data; no clinic query dimension",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "shared-master-contract; not selected-clinic-fixed; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1565,7 +1565,7 @@
     "authorization": "assigned grant in composition; shared data",
     "scope": "shared data; no clinic query dimension",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "shared-master-contract; not selected-clinic-fixed; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1581,7 +1581,7 @@
     "authorization": "assigned grant in composition; shared data",
     "scope": "shared data; no clinic query dimension",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "shared-master-contract; not selected-clinic-fixed; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1597,7 +1597,7 @@
     "authorization": "assigned grant in composition; shared data",
     "scope": "shared data; no clinic query dimension",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "shared-master-contract; not selected-clinic-fixed; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1613,7 +1613,7 @@
     "authorization": "assigned grant in composition; shared data",
     "scope": "shared data; no clinic query dimension",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "shared-master-contract; not selected-clinic-fixed; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1629,7 +1629,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/cage_handler_test.go#TestCageSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1645,7 +1645,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/cage_handler_test.go#TestCageSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1661,7 +1661,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1677,7 +1677,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1693,7 +1693,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/checkup_type_handler_test.go#TestCheckupTypeSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1709,7 +1709,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/checkup_type_handler_test.go#TestCheckupTypeSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1725,7 +1725,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/checkup_field_handler_test.go#TestCheckupFieldSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1741,7 +1741,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/chief_complaint_handler_test.go#TestChiefComplaintSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1757,7 +1757,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/chief_complaint_handler_test.go#TestChiefComplaintSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1773,7 +1773,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/consultation_handler_test.go#TestConsultationSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1789,7 +1789,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/consultation_handler_test.go#TestConsultationSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1805,7 +1805,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/diagnosis_handler_test.go#TestDiagnosisSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1821,7 +1821,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/diagnosis_handler_test.go#TestDiagnosisSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1837,7 +1837,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/diagnosis_handler_test.go#TestDiagnosisSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1853,7 +1853,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/diagnosis_handler_test.go#TestDiagnosisSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1869,7 +1869,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/diagnosis_handler_test.go#TestDiagnosisSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1885,7 +1885,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/exam_type_handler_test.go#TestExamTypeSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1901,7 +1901,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/exam_type_handler_test.go#TestExamTypeSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1917,7 +1917,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/hospitalization_plan_handler_test.go#TestHospitalizationPlanSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1933,7 +1933,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/hospitalization_plan_handler_test.go#TestHospitalizationPlanSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1949,7 +1949,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/inquiry_template_handler_test.go#TestInquiryTemplateSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1965,7 +1965,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/inquiry_template_handler_test.go#TestInquiryTemplateSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1981,7 +1981,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -1997,7 +1997,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2013,7 +2013,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/medicine_handler_test.go#TestMedicineSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2029,7 +2029,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/medicine_handler_test.go#TestMedicineSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2045,7 +2045,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/medicine_dose_param_handler_test.go#TestListMedicineDoseParamsSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2061,7 +2061,7 @@
     "authorization": "selected grant in composition; handler clinic argument",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2077,7 +2077,7 @@
     "authorization": "selected grant in composition; handler clinic argument",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2093,7 +2093,7 @@
     "authorization": "selected grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2109,7 +2109,7 @@
     "authorization": "selected grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2125,7 +2125,7 @@
     "authorization": "selected grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; executed-handler:internal/auth/http_permission_handlers_test.go#TestHTTPHandler_ListPermissionGroups_RejectsSelectedClinicWithoutGrant; executed-handler-allow:internal/auth/http_permission_handlers_test.go#TestHTTPHandler_ListPermissionGroups_MembershipABGrantBSelectedB; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2141,7 +2141,7 @@
     "authorization": "selected grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; executed-handler:internal/auth/http_permission_handlers_test.go#TestHTTPHandler_GetPermissionGroup_MembershipABGrantASelectedB; executed-handler-allow:internal/auth/http_permission_handlers_test.go#TestHTTPHandler_GetPermissionGroup_MembershipABGrantBSelectedB; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2157,7 +2157,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/procedure_handler_test.go#TestProcedureSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2173,7 +2173,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/procedure_handler_test.go#TestProcedureSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2189,7 +2189,7 @@
     "authorization": "assigned grant in composition; selected grant in handler helper",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2205,7 +2205,7 @@
     "authorization": "assigned grant in composition; selected grant in handler helper",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2221,7 +2221,7 @@
     "authorization": "assigned grant in composition; selected grant in handler helper",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2237,7 +2237,7 @@
     "authorization": "assigned grant in composition; selected grant in handler helper",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2253,7 +2253,7 @@
     "authorization": "assigned grant in composition; selected grant in handler helper",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2269,7 +2269,7 @@
     "authorization": "assigned grant in composition; selected grant in handler helper",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2285,7 +2285,7 @@
     "authorization": "assigned grant in composition; selected grant in handler helper",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2301,7 +2301,7 @@
     "authorization": "selected grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; executed-handler:internal/staff/staff_handler_selected_clinic_b_grant_a_test.go#TestListStaffs_MembershipABGrantASelectedB; executed-handler-allow:internal/staff/staff_handler_selected_clinic_b_grant_a_test.go#TestListStaffs_MembershipABGrantBSelectedB; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2317,7 +2317,7 @@
     "authorization": "selected grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; executed-handler:internal/staff/staff_handler_selected_clinic_b_grant_a_test.go#TestGetStaff_MembershipABGrantASelectedB; executed-handler-allow:internal/staff/staff_handler_selected_clinic_b_grant_a_test.go#TestGetStaff_MembershipABGrantBSelectedB; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2333,7 +2333,7 @@
     "authorization": "selected grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2349,7 +2349,7 @@
     "authorization": "selected grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2365,7 +2365,7 @@
     "authorization": "selected grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2381,7 +2381,7 @@
     "authorization": "selected grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; executed-handler:internal/staff/staff_handler_selected_clinic_b_grant_a_test.go#TestGetStaffPermissionGroups_MembershipABGrantASelectedB; executed-handler-allow:internal/staff/staff_handler_selected_clinic_b_grant_a_test.go#TestGetStaffPermissionGroups_MembershipABGrantBSelectedB; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2397,7 +2397,7 @@
     "authorization": "selected grant in composition; handler clinic argument",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2413,7 +2413,7 @@
     "authorization": "selected grant in composition; handler clinic argument",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2429,7 +2429,7 @@
     "authorization": "selected grant in composition; handler clinic argument",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2445,7 +2445,7 @@
     "authorization": "selected grant in composition; handler clinic argument",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2461,7 +2461,7 @@
     "authorization": "selected grant in composition; handler clinic argument",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2477,7 +2477,7 @@
     "authorization": "selected grant in composition; handler clinic argument",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2493,7 +2493,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/vaccine_handler_test.go#TestVaccineSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2509,7 +2509,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/vaccine_handler_test.go#TestVaccineSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2525,7 +2525,7 @@
     "authorization": "Authenticate middleware; current staff identity",
     "scope": "authenticated staff account and active assignments",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "contract-exclusion-from-selected-clinic-grant; resource/action=none; executed-class-gate:cmd/api/get_head_permission_execution_test.go#TestGETHEADPublicLiffSelfAreNotSelectedClinicGrantSurfaces"
   },
   {
     "method": "GET",
@@ -2541,7 +2541,7 @@
     "authorization": "assigned grant in composition; per-clinic grant in handler",
     "scope": "requested clinics filtered by per-clinic grant",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-allowing-middleware:cmd/api/get_head_permission_execution_test.go#TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB; executed-handler-scope:internal/medicalrecord/medical_record_handler_selected_clinic_b_grant_a_test.go#TestListMedicalRecords_MembershipABGrantASelectedB; empty-list-vs-zero-grant-distinguished"
   },
   {
     "method": "GET",
@@ -2557,7 +2557,7 @@
     "authorization": "assigned grant in composition; per-clinic grant in handler",
     "scope": "assigned clinics filtered by per-clinic grant",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-allowing-middleware:cmd/api/get_head_permission_execution_test.go#TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB; executed-handler-scope:internal/medicalrecord/medical_record_handler_selected_clinic_b_grant_a_test.go#TestGetMedicalRecord_MembershipABGrantASelectedB; empty-list-vs-zero-grant-distinguished"
   },
   {
     "method": "GET",
@@ -2573,7 +2573,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/medical_record_addendum_handler_test.go#TestListMedicalRecordAddendaSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2589,7 +2589,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2605,7 +2605,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/checkup_handler_test.go#TestCheckupSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2621,7 +2621,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/checkup_field_handler_test.go#TestCheckupFieldSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2637,7 +2637,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/clinical_plan_handler_test.go#TestGetClinicalPlanSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2653,7 +2653,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2669,7 +2669,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/prescription_handler_test.go#TestListPrescriptionsSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2685,7 +2685,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/treatment_plan_handler_test.go#TestTreatmentPlanSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2701,7 +2701,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/treatment_handler_test.go#TestTreatmentSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2717,7 +2717,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2733,7 +2733,7 @@
     "authorization": "assigned grant in composition; per-clinic grant in handler",
     "scope": "requested clinics filtered by per-clinic grant",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-allowing-middleware:cmd/api/get_head_permission_execution_test.go#TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB; executed-handler-scope:internal/owner/http_owner_selected_clinic_b_grant_a_test.go#TestListOwners_MembershipABGrantASelectedB; empty-list-vs-zero-grant-distinguished"
   },
   {
     "method": "GET",
@@ -2749,7 +2749,7 @@
     "authorization": "assigned grant in composition; per-clinic grant in handler",
     "scope": "assigned clinics filtered by per-clinic grant",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-allowing-middleware:cmd/api/get_head_permission_execution_test.go#TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB; executed-handler-scope:internal/owner/http_owner_selected_clinic_b_grant_a_test.go#TestGetOwner_MembershipABGrantASelectedB; empty-list-vs-zero-grant-distinguished"
   },
   {
     "method": "GET",
@@ -2765,7 +2765,7 @@
     "authorization": "selected grant in composition; handler clinic argument",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2781,7 +2781,7 @@
     "authorization": "selected grant in composition; handler clinic argument",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2797,7 +2797,7 @@
     "authorization": "selected grant in composition; handler clinic argument",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2813,7 +2813,7 @@
     "authorization": "assigned grant in composition; per-clinic grant in handler",
     "scope": "assigned clinics filtered by per-clinic grant",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-allowing-middleware:cmd/api/get_head_permission_execution_test.go#TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB; executed-handler-scope:internal/pet/pet_handler_selected_clinic_b_grant_a_test.go#TestListOwnerReportPets_MembershipABGrantASelectedB; empty-list-vs-zero-grant-distinguished"
   },
   {
     "method": "GET",
@@ -2829,7 +2829,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/pet/pet_owner_handler_test.go#TestPetOwnerHandler_ListPetOwnersRequiresSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2845,7 +2845,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2861,7 +2861,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2877,7 +2877,7 @@
     "authorization": "assigned grant in composition; per-clinic grant in handler",
     "scope": "requested clinics filtered by per-clinic grant",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-allowing-middleware:cmd/api/get_head_permission_execution_test.go#TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB; executed-handler-scope:internal/pet/pet_handler_selected_clinic_b_grant_a_test.go#TestListPets_MembershipABGrantASelectedB; empty-list-vs-zero-grant-distinguished"
   },
   {
     "method": "GET",
@@ -2893,7 +2893,7 @@
     "authorization": "assigned grant in composition; per-clinic grant in handler",
     "scope": "assigned clinics filtered by per-clinic grant",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-allowing-middleware:cmd/api/get_head_permission_execution_test.go#TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB; executed-handler-scope:internal/pet/pet_handler_selected_clinic_b_grant_a_test.go#TestGetPet_MembershipABGrantASelectedB; empty-list-vs-zero-grant-distinguished"
   },
   {
     "method": "GET",
@@ -2909,7 +2909,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2925,7 +2925,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2941,7 +2941,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/pet/pet_owner_handler_test.go#TestPetOwnerHandler_ListPetOwnersRequiresSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2957,7 +2957,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/treatment_handler_test.go#TestTreatmentSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2973,7 +2973,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -2989,7 +2989,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -3005,7 +3005,7 @@
     "authorization": "assigned grant in composition; per-clinic grant in handler",
     "scope": "requested clinics filtered by per-clinic grant",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-allowing-middleware:cmd/api/get_head_permission_execution_test.go#TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB; executed-handler-scope:internal/reservation/reservation_handler_selected_clinic_b_grant_a_test.go#TestListReservations_MembershipABGrantASelectedB; empty-list-vs-zero-grant-distinguished"
   },
   {
     "method": "GET",
@@ -3021,7 +3021,7 @@
     "authorization": "assigned grant in composition; per-clinic grant in handler",
     "scope": "assigned clinics filtered by per-clinic grant",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-allowing-middleware:cmd/api/get_head_permission_execution_test.go#TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB; executed-handler-scope:internal/reservation/reservation_handler_selected_clinic_b_grant_a_test.go#TestGetReservation_MembershipABGrantASelectedB; empty-list-vs-zero-grant-distinguished"
   },
   {
     "method": "GET",
@@ -3037,7 +3037,7 @@
     "authorization": "assigned grant in composition; selected grant in handler helper",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -3053,7 +3053,7 @@
     "authorization": "selected grant in composition; handler clinic argument",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -3069,7 +3069,7 @@
     "authorization": "selected grant in composition; handler clinic argument",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -3085,7 +3085,7 @@
     "authorization": "selected grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -3101,7 +3101,7 @@
     "authorization": "selected grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -3117,7 +3117,7 @@
     "authorization": "selected grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -3133,7 +3133,7 @@
     "authorization": "selected grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -3149,7 +3149,7 @@
     "authorization": "selected grant in composition; handler clinic argument",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -3165,7 +3165,7 @@
     "authorization": "selected grant in composition; handler clinic argument",
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -3181,7 +3181,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/vaccination_handler_test.go#TestVaccinationSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -3197,7 +3197,7 @@
     "authorization": "assigned grant in composition; selected grant in handler",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/vaccination_handler_test.go#TestVaccinationSelectedClinicGrant",
-    "verification": "handler-grant-test-referenced; data-scope-not-assessed"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed"
   },
   {
     "method": "GET",
@@ -3213,7 +3213,7 @@
     "authorization": "none",
     "scope": "health status only",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "contract-exclusion-from-selected-clinic-grant; resource/action=none; executed-class-gate:cmd/api/get_head_permission_execution_test.go#TestGETHEADPublicLiffSelfAreNotSelectedClinicGrantSurfaces"
   },
   {
     "method": "GET",
@@ -3229,7 +3229,7 @@
     "authorization": "none (development storage surface)",
     "scope": "local upload directory; absent with STORAGE_TYPE=s3",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "contract-exclusion-from-selected-clinic-grant; resource/action=none; executed-class-gate:cmd/api/get_head_permission_execution_test.go#TestGETHEADPublicLiffSelfAreNotSelectedClinicGrantSurfaces"
   },
   {
     "method": "HEAD",
@@ -3245,6 +3245,6 @@
     "authorization": "none (development storage surface)",
     "scope": "local upload directory; absent with STORAGE_TYPE=s3",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
-    "verification": "static-inventory-only; semantic-coverage-not-assessed"
+    "verification": "contract-exclusion-from-selected-clinic-grant; resource/action=none; executed-class-gate:cmd/api/get_head_permission_execution_test.go#TestGETHEADPublicLiffSelfAreNotSelectedClinicGrantSurfaces"
   }
 ]

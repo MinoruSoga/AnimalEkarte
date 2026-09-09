@@ -16,13 +16,13 @@
 | ID | 項目 | 判定 | 証拠 |
 | --- | --- | --- | --- |
 | 1 | 非管理者によるシステム管理者パスワード変更の拒否 | 対応 | `staff_service_update.go` の TX 内 `FindByIDForUpdate`。`staff_admin_password_guard_test.go` |
-| 2 | GET/HEAD 他院 grant fallback を閉じる | 部分対応 | 選択医院 grant の実装と203経路の完全一致台帳。D3 の全経路の実データ分離検証は未完了。前方一致の分類を完了根拠にしない |
+| 2 | GET/HEAD 他院 grant fallback を閉じる | 部分対応 | 選択医院 grant の実装と203経路の完全一致台帳。clinic-fixed は middleware deny と許可（Bに grant）を全件実行。横断21件は allowing middleware と handler を実行。元バグ面（スタッフ一覧/詳細・権限グループ）は handler の拒否と許可も実行。clinic-fixed・横断経路とも実DB返却データの分離は未検証 |
 | 3 | login/refresh で無効医院を選ばない | 対応（限定テスト） | active 医院解決共有。全医院失効時の403をFEで判別。自動復旧は一度、以後は手動再試行。失敗書き込みの再送なし。ログアウト開始時に復旧を中止 |
-| 4 | 権限グループ無効化の自己ロックアウト防止 | 対応（実装・単体） | 医院単位の共通policy lockをcommitまで保持し、変更後のview+editを確認。実DB並行テストは追加済み・実行BLOCKED（DB未接続） |
+| 4 | 権限グループ無効化の自己ロックアウト防止 | 対応（実装・単体） | 医院単位の共通policy lockをcommitまで保持し、変更後のview+editを確認。並行無効化・ルール置換・自己割当の実DBテストを追加。実行は隔離Postgres未承認でBLOCKED |
 | 5 | 旧権限・旧セッションの即時失効 | 部分対応 | production から current-access キャッシュ除去。**SKIP**: 同一 DB・独立 2 サーバープロセスのライブ検証（`make up` 禁止） |
 | 6 | `/me.main_clinic_id` と `is_main` の文書訂正 | 対応 | API 改名なし。`docs/architecture/auth.md` §4.8、OpenAPI 説明 |
 | 7 | `staleTime=5分` の文書訂正 | 対応 | 自動ポーリング追加なし。`get-me.ts` / AuthProvider / auth.md §4.8 |
-| 8 | 既存スタッフへのアカウント付与と初回管理者手順 | 部分対応 | 画面APIと初回管理者の人間用SQL手順を整備。SQLの実DB検証、本番実付与、メール基盤の本番検証は未実施 |
+| 8 | 既存スタッフへのアカウント付与と初回管理者手順 | 部分対応 | 画面APIと初回管理者の人間用SQL手順を整備。SQLを `001_init.sql` と手順書へ静的照合。実DB実行・本番実付与・メール基盤の本番検証は未実施 |
 | 9 | 非システム管理者の医院一覧を所属に限定 | 対応 | `scope=all` でも所属のみ。フラグ欠落は 401 |
 
 ### 全体スキップ（原因）
@@ -120,7 +120,7 @@
 - [x] システム管理者による他スタッフの権限解除を許可し、最後のシステム管理者の削除・利用停止の既存保護は維持する。
 - [x] 自分のグループ全解除やルール変更から同じ保護を迂回できないことを確認する。
 - [x] 判定用lookup失敗は拒否する。グループ更新・ルール変更・削除・スタッフ割当置換は同じ医院policy lockをrow lockより前に取得し、実効権限確認・監査・commitまで保持する。
-- [ ] 異なる2グループの同時無効化を実DBで確認する。`TestPermissionPolicyDB_ConcurrentGroupDeactivation` を追加・コンパイル済み。実行はDB未接続でBLOCKED。
+- [ ] 異なる2グループの同時無効化を実DBで確認する。`TestPermissionPolicyDB_ConcurrentGroupDeactivation` / `ConcurrentRuleReplacement` / `TestPermissionPolicyDB_ConcurrentSelfUnassignWaitsForGroupDeactivation` を追加。`-short` では SKIP。実行は承認済み隔離Postgresが必要で BLOCKED。割り当て済みグループの同時削除は usage チェックで先に拒否されるため、自己ロックアウトの並行証明には使わない。
 
 ## B. 文書訂正・失効仕様の明確化
 
@@ -171,7 +171,7 @@
 - [x] 対象staff/clinicの認可・既存accountとの衝突・競合・再実行・監査・失敗時の原子性をテストする。
 - [x] 初回専用手順に、実行するSQL・接続先確認・既存管理者/メール重複拒否・既存staffへの付与・テーブルロック・同一transactionの監査・commit後receiptを記載した。公開の管理者登録経路は追加しない。
 - [x] 初回手順にstaffを複製しないことと、有効な既存staff/主所属を前提とすることを明記した。
-- [ ] 初回SQLを合成データの実DBで検証する。構文・競合・監査rollback・本人ログインは未実測。手順の静的照合を実行成功と扱わない。本番への実付与と対象環境メール実送信は別承認。
+- [ ] 初回SQLを合成データの実DBで検証する。構文・競合・監査rollback・本人ログインは未実測。`testdata/first_system_admin.sql` と `001_init.sql` / `FIRST_SYSTEM_ADMIN.md` の静的照合は実施済み。手順の静的照合を実行成功と扱わない。本番への実付与と対象環境メール実送信は別承認。
 
 ### 9. 非システム管理者の医院一覧を所属医院に限定する（仕様確定）
 
@@ -190,7 +190,7 @@
 候補コードの修正証明は worktree をマウントした scoped Docker テストである。共有 `animalekarte-backend-1`（main マウント）では検証しない。
 
 - [x] 指摘に対応する失敗テストを追加し、scoped `go test` / vitest で確認する（結果は PR に記載）。
-- [ ] DB競合・ロックの隔離DB検証 — **BLOCKED**: 実行可能な対象DBなし。ネットワークなしDockerでのauth/staffパッケージ全体テストはDB接続不可でFAIL。その後の`-short`による両パッケージのオフラインテストはPASS（DBテストは明示SKIP）。共有DB・migration applyは実施しない。
+- [ ] DB競合・ロックの隔離DB検証 — **BLOCKED**: 承認済みの捨てPostgresがない。`old-db-postgres`（`127.0.0.1:15432`）と共有 `ekarte_db` は使わない。`-short` の auth/staff は PASS（DBテストは明示SKIP）。共有DB・migration applyは実施しない。
 - [x] 認可漏れは UI 非表示のみにしない（BE 403 / selected-clinic grant）。
 - [x] `todo-check-auth.md` と `docs/architecture/auth.md` を同期。候補コードと実環境を区別する。
 - [x] 独立レビューの HIGH（復旧 GET が stale JWT で詰まる）を反映。未実施を PASS にしない。
@@ -212,14 +212,41 @@
 | 独立レビュー | logout開始時の復旧中止と、初回SQLの必要権限明示を反映後、今回のロック・復旧・手順書の範囲でBlockなし。DB/runtimeの成立証明ではない |
 | 作業差分 | `git diff --check` PASS。commit/push/merge/Linear更新なし |
 
-runner image: FE `animalekarte-frontend:latest`（`sha256:532501622cd024ab786a32eb9798db1cd1a0e4d47cddb3dbd56ae107f95d9cb4`）、BE `animalekarte-backend:latest`（`sha256:6c5b455bf14e3f0ec7bece9ae9a4be2e8ad1441adfb33fdf2ce53d9eaaa22ed4`）。BEは`ekarte-go-mod-cache` / `ekarte-go-build-cache`と`GOPROXY=off`、FEテストは`vitest run <上記4ファイル> --configLoader native`を使用した。
+runner image: FE `animalekarte-frontend:latest`（`sha256:532501622cd024ab786a32eb9798db1cd1a0e4d47cddb3dbd56ae107f95d9cb4`）、BE `animalekarte-backend:latest`（`sha256:6c5b455bf14e3f0ec7bece9ae9a4be2e8ad1441adfb33fdf2ce53d9eaaa22ed4`）。BEは`ekarte-go-mod-cache` / `ekarte-go-build-cache`と`GOPROXY=off`、FEテストは`vitest run <上記4ファイル> --configLoader native`を使用した。過去の PASS 基点 `db7b6fa24` は現 HEAD `950404408` の証拠に流用しない。
+
+### 2026-09-09 残件再開の検証（worktree `AnimalEkarte-todo-fix-auth-remaining`、HEAD `950404408`）
+
+共有 compose は使わず、worktree を bind mount した ephemeral `docker run`（`--network none`、`GOPROXY=off`）で実施した。claim `claim/TODO-FIX-AUTH` は保持。commit/push/merge なし。
+
+| 検査 | 結果 |
+| --- | --- |
+| BE `-short` | `go test -short -count=1 ./internal/auth ./internal/staff ./internal/clinic ./internal/identitylink ./internal/owner ./internal/pet ./internal/reservation ./internal/billing` PASS。DB並行テストは SKIP |
+| medicalrecord スコープ | `go test -short -count=1 ./internal/medicalrecord -run MembershipABGrantASelectedB` PASS。パッケージ全体は docs 未マウントの既存契約テストで FAIL し得るため未実施 |
+| GET/HEAD 台帳 | `go test -count=1 ./cmd/api -run '^TestGETHEAD'` PASS（clinic-fixed deny/許可 middleware 全件、横断 allowing 21件） |
+| clinic / identitylink / staff / auth grant 分離 | `go test -short -count=1 ./internal/clinic ./internal/identitylink ./internal/staff ./internal/auth -run 'MembershipABGrantASelectedB|MembershipABGrantBSelectedB'` PASS |
+| 初回管理者SQL | docs マウントありで `TestFirstSystemAdminProcedureMatchesInitSchema` PASS（testdata = 手順書 SQL、列は `001_init.sql`） |
+| `go vet` | `./internal/auth ./internal/staff ./internal/clinic ./internal/identitylink ./cmd/api` PASS（残件再開で再実行）。他パッケージは前回 PASS |
+| `git diff --check` | PASS |
+| FE 回帰 | `clinic-selection-recovery` related 37 tests PASS（Vitest 6 files） |
+| 実DB並行 / 2プロセス失効 / 初回SQL実行 | BLOCKED / SKIP。隔離Postgres・独立APIプロセス未承認 |
+| 独立レビュー | 未実施。本セッションの自己確認であり、別 worktree の独立レビューではない |
+
+### 2026-09-09 main統合前の追加確認
+
+上表は終了したCursorセッションの記録。後続の統合作業ではユーザー承認に基づきclaimを引き継ぎ、同じ `950404408` 基点の残件差分を検証した。今回のclaim解除とmain統合は明示承認された例外であり、一般規則は変更しない。
+
+- `cmd/api`、auth、staff、clinic、identitylink、owner、pet、reservation、billing、medicalrecord の10パッケージで `go test -short -count=1` / `go build` / `go vet` PASS。対象worktreeをread-only mountし、networkなしの既存BE imageで実施。実DBテストはSKIP。
+- medicalrecordの既存文書契約も必要な2文書をread-only mountし、今回はパッケージ全体の `-short` を実行した。初回管理者SQLの文書も対象worktreeから個別mountし、欠落時は意図どおりFAIL、存在時は静的照合PASSを確認した。
+- SQLテストデータと初回管理者手順書を専用の検証契約へ登録。必要な文書だけを読み取り専用で参照し、未登録SQL・文書欠落・symlink・未stageの依存変更を拒否する。文書だけの変更でもbackend依存を検査し、検証中の文書変更をfingerprintへ反映する。検証スクリプトの回帰テスト40件PASS。
+- 別worktreeでGoテスト・台帳と検証スクリプトを独立レビューした。横断経路の実DB証明を過大に示す記述、および文書だけの変更時のbackend依存検査を修正し、両レビューApprove。
+- 実DB並行、初回SQLの実行、2プロセス即時失効、全経路の実DB返却データ分離、本番操作・メール・Linearは未実施のまま。テスト追加の統合をこれらの完了と扱わない。
 
 ### D1–D5 の実施メモ
 
-- D1: 画面・API は実装。メール自動送信なし。本人設定は既存 forgot-password。対象環境のメール実送信は SKIP。
-- D2: 医院policy lockで権限変更を直列化し、view+editの自己喪失を拒否。admin免除。実DB並行検証は上記BLOCKED。
-- D3: `get_head_permissions.json` の完全一致台帳と登録集合を照合（local 203件、S3 201件）。追加・削除・method/handler変更を検出。LIFFと医院固定マスタを再分類。テスト参照の存在と実データ分離の実行証拠を区別し、未検証0件とはしない。
-- D4: `clinic_selection_unavailable` のみ自動復旧を一度実行。ヘッダーなし`/me`も同コードの403なら全医院失効として案内。障害後は手動再試行、再試行中もログアウト可能。ログアウト開始時に復旧を中止。失敗mutationの自動再送なし。セッション未発行loginは復旧対象外。
+- D1: 画面・API は実装。メール自動送信なし。本人設定は既存 forgot-password。対象環境のメール実送信は SKIP。初回SQLは testdata と schema/手順書へ静的照合。実DB実行は未実施。
+- D2: 医院policy lockで権限変更を直列化し、view+editの自己喪失を拒否。admin免除。並行無効化・ルール置換・自己割当の実DBテストを追加。実行は上記BLOCKED。
+- D3: `get_head_permissions.json` の完全一致台帳と登録集合を照合（local 203件、S3 201件）。clinic-fixed は deny（Aのみ grant）と許可（Bに grant）の middleware を全件実行。横断 allowing は全21件、横断 handler も全21件を選択医院B・grant A で実行。`GET /clinics` は所属一覧であり、Bの臨床データ分離対象ではない。handlerテストはservice stubへの引数と応答の検査であり、clinic-fixed・横断経路とも実DB上の返却データ分離は未検証。未検証0件とはしない。
+- D4: `clinic_selection_unavailable` のみ自動復旧を一度実行。ヘッダーなし`/me`も同コードの403なら全医院失効として案内。障害後は手動再試行、再試行中もログアウト可能。ログアウト開始時に復旧を中止。失敗mutationの自動再送なし。セッション未発行loginは復旧対象外。related Vitest 37件 PASS。
 - D5: production は uncached resolver。2 インスタンス検証は SKIP。
 
 ## 詳細仕様の確定（2026-09-08・ユーザーによる判断委任）
@@ -252,7 +279,7 @@ runner image: FE `animalekarte-frontend:latest`（`sha256:532501622cd024ab786a32
 - 実装の最初の成果物として、`RequirePermission` と `RequirePermissionAny` が適用される登録済みGET/HEADを全件抽出する。列は「method/path、resource/action、handler、医院固定/横断/共有マスタ、認可箇所、返却範囲、回帰テスト」とする。
 - 医院固定は選択医院のgrantを必須、横断は返却対象医院ごとのgrantを必須にする。共有マスタは既存の明示的契約だけを採用し、分類不能を許可扱いにしない。HEAD未登録はその旨記録し、新たに追加する必要はない。
 - [x] 登録ルートと完全一致台帳の件数・集合・handlerが一致する。既知prefix配下の未登録経路も拒否する。
-- [ ] 全経路について認可実行・返却対象医院の実データ分離を検証し、未検証0件とする。現在のgateは静的対応と参照の存在を検査するものであり、この条件の達成証拠ではない。
+- [ ] 全経路について認可実行・返却対象医院の実データ分離を検証し、未検証0件とする。clinic-fixed の middleware deny/許可と横断 handler は実行済み。clinic-fixed・横断経路とも実DB上の返却データ分離は残件。service stubの応答、前方一致やテスト名存在だけでは完了にしない。
 - [x] 表とテストを既存の認可設計・テスト領域へ集約し、別の実行台帳を増やさない。正常に0行の一覧と、認可可能な医院が0件の拒否を区別する。
 
 ### D4. 旧医院選択からの画面復旧（項目3）
