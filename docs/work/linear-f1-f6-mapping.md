@@ -2,22 +2,30 @@
 
 更新日: 2026-09-09
 
-照会手段: Linear MCP（BRT-226 の読み取り成功）
+照会手段: Codex の Linear MCP。プロジェクト55件（archive を含めて要求、次ページなし）と BRT-4 本文、関連語検索を照合。
 
-Linear 上の現行状態: BRT-226 は **Review**。F1〜F6 の対応 ID と状態は **UNKNOWN**（未照合。repo 記録から Done を推定しない）
+Linear 上の観測状態（2026-09-09）: BRT-226 は **Review**。F1〜F6 に直接対応する Issue は今回の検索範囲で特定できず、対応 ID と状態は **UNKNOWN**。不存在・Done を推定しない。
 
 repo 実装履歴の証跡 SHA: `d4c870f9e`。監査 ID の定義は `75aa2b64c:todo-now.md`（現在の検証結果ではない）
 
-## 照会結果（2026-09-09、BRT-226 のみ再確認）
+## 照会結果（2026-09-09）
 
 | 確認対象 | 結果 |
 |----------|------|
-| Linear Team Baritech / Project ノア動物病院電子カルテ / hub [BRT-4](https://linear.app/baritechllc/issue/BRT-4) | URL は repo に存在する。本文・子 Issue・状態は未取得 |
-| [BRT-105](https://linear.app/baritechllc/issue/BRT-105) | repo 表記は Done。Linear 再確認は未実施 |
+| Linear Team Baritech / Project ノア動物病院電子カルテ / hub [BRT-4](https://linear.app/baritechllc/issue/BRT-4) | プロジェクト55件の一覧と親 ID、hub 本文を取得。hub は Backlog |
+| [BRT-105](https://linear.app/baritechllc/issue/BRT-105) | プロジェクト一覧で Done を確認 |
 | [BRT-226](https://linear.app/baritechllc/issue/BRT-226) | MCP で Review を確認。所属 Team / Project と親 BRT-4 も確認。Done は未実施 |
-| Astra F1〜F6 の Linear ID | **UNKNOWN**。タイトル検索・親子リンク照合は未実施 |
+| Astra F1〜F6 の Linear ID | **UNKNOWN**。プロジェクト一覧と Team 内の `Astra` / `ClinicalPlan` / `CI-K6` / `S09` / `scoped-verification` / `payload` 検索で直接対応を特定できず。検索結果の本文は一部省略されるため、全 Issue 本文・コメントの網羅照合ではない |
+| [BRT-45](https://linear.app/baritechllc/issue/BRT-45) | 本文取得。Needs Human。S09 / V04 / clinical E2E を含む #254 全体の close 条件を管理 |
+| [BRT-68](https://linear.app/baritechllc/issue/BRT-68) / [BRT-61](https://linear.app/baritechllc/issue/BRT-61) | 本文取得。BRT-68 は Needs Human、現在の残は H1 実 LINE / H2 実 token LIFF。旧 S09 H4 の BRT-61 は Duplicate。過去 H4 の完了を現在の S09 PASS に拡張しない |
 
 エージェントはこの項目で Linear 書き込みと Done をしない。
+
+### Cursor 結果の引き継ぎ
+
+Cursor は `db7b6fa24` 起点の `AnimalEkarte-ledger-20260909` で文書2ファイルを変更し、未コミットで引き渡した。そのセッションでは Linear MCP が利用できなかった。これは Cursor の接続制約であり、上記 Codex の読み取り成功を無効にしない。
+
+main の `227f3a6e7` にある監査 ID 訂正・独立作業の継続・S09 要約の同期を維持する。Cursor が報告した F1/F2/F3/F5/F6 のソース確認は補足調査として扱い、新たな runtime 証明にはしない。隔離 Docker の billing / clinicale2e `-short` GREEN は Cursor 報告値で、この引き継ぎでは再実行していない。testdb V04、ブラウザ S09、clinical E2E の未実行境界を維持する。
 
 ## repo 側の F1〜F6（実装履歴）
 
@@ -55,8 +63,8 @@ repo 実装履歴の証跡 SHA: `d4c870f9e`。監査 ID の定義は `75aa2b64c:
 
 見つからない Issue は UNKNOWN のまま。推測で新規 Issue を量産しない。Done は USER だけが遷移する。
 
-1. [BRT-4](https://linear.app/baritechllc/issue/BRT-4) 配下とタイトル検索で `F1`〜`F6` / `Astra` / `CI-K6` / `ClinicalPlan` / `S09` / `clinical E2E` / `V04` を列挙する。
-2. 実装済みで後続なしの Issue は、本ファイルと SHA `d4c870f9e`（未 push なら push 後の SHA）をコメントしてから Done にする。
+1. 今回の検索で特定できなかった F1〜F6 は、既存 Issue URL または本文・コメントの追加照合で対応を確定する。直接対応が確認できるまで推測で ID を割り当てない。読み取りは agent が継続可能。
+2. 直接対応が確認できた Issue に限り、本ファイルと実装 SHA、固有の受入条件を照合して反映案を確定する。コメント・Done は USER の承認と受入判断後に行う。実装履歴だけでは閉じない。
 3. k6 を未完了で残している Issue があれば、run `34025435577` と validator コミットへリンクし、別承認で閉じる。
 4. 残作業と 1:1 で無い Issue は新規を増やさず、既存 ID にコメントで対応付ける。上表の ledger ID を使う。
 5. [BRT-226](https://linear.app/baritechllc/issue/BRT-226) の Done は別判断。F1〜F6 とまとめて閉じない。
