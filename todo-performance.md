@@ -134,7 +134,7 @@
 - B/C/D: still pending
 
 
-#### Frozen pending-UI contract (from investigation probes; awaiting workflow freeze join)
+#### Frozen pending-UI contract (from investigation probes; freeze joined — see cycle2 matrix)
 
 - pending_component_path: `frontend/src/components/shared/auth/SessionPending.tsx`
 - props_contract: optional `message` (default 「ログイン状態を確認しています」); root `role="status"` + `aria-live="polite"`; hook-free; design tokens + lucide Stethoscope only; NO imports from `@/features/auth` or auth hooks/state
@@ -164,10 +164,10 @@ FOLLOWUP_BASE=`8060f87d91cfeb9584b55257b8f547bd646db280`. Claim `claim/PERF-STG-
 ##### Follow-up Acceptance Checklist
 
 - [x] Actual root/login lazy and hydration pending-to-resolved boundaries covered | Tests: `appRoutes login Suspense pending-to-resolved…`, `root Suspense pending-to-resolved…`, hydrate deferred lazy tests in router/root-hydrate files | Verify: `python3 -B scripts/verify-agent-task.py --paths frontend/src/app/router.test.ts frontend/src/app/routes/app-routes.test.tsx frontend/src/app/root-hydrate-fallback.test.tsx --frontend-image sha256:532501622cd024ab786a32eb9798db1cd1a0e4d47cddb3dbd56ae107f95d9cb4 --frontend-dependency-volume ekarte-frontend-node-modules` → status PASS, completed_tests=9, eslint0, prettier0 (`/tmp/perf-login-a-followup-verify2.log`)
-- [x] Missing historical evidence recovered or bounded | RED: `/tmp/perf-login-a-red-detail.log` + session `terminal/call-c50ddd98-…-76.log` — `Unable to find role="status"` empty body; promptSha256 `b35514951…` EXIT0; agents listed below | Fresh re-verify dated 2026-09-09 16:02 JST is current correctness only, not historical proof
+- [x] Missing historical evidence recovered or bounded | RED: `/tmp/perf-login-a-red-detail.log` + session terminal `/Users/minoru/.grok/sessions/%2FUsers%2Fminoru%2FDev%2FCase%2FAnimalHospital%2FAnimalEkarte/01a084bb-b11e-7673-81d5-98974872de68/terminal/call-c50ddd98-04b0-4040-86b6-ebb47c904818-76.log` — `Unable to find role="status"` empty body; promptSha256 `b35514951…` EXIT0; agents listed below | Fresh re-verify dated 2026-09-09 16:02 JST is current correctness only, not historical proof
 - [x] Final independent review + narrow quality gates | Reviewer `01a084f6-d2f7-7ab3-a37b-44f5056129f4` initially FAIL on ledger overclaim (fixed this revision); security `01a084f6-d2f7-7ab3-a37b-4501269bc66e` PASS; gates PASS 9 tests
 - [x] Changes within 4-path allowlist | Only router.test.ts, app-routes.test.tsx, root-hydrate-fallback.test.tsx, todo-performance.md; no production code
-- [x] Ledger + PR393 reflect evidence without overclaim | PR393 draft OPEN main head `e81ed8eda67d0ef5af81379fba8a1eda42c88d55` | Browser/E2E BLOCKED; CI Frontend Build audit FAILURE is deps-out-of-scope; B/C/D pending
+- [x] Ledger + PR393 reflect evidence without overclaim | Historical snapshot only: after evidence commit head was `e81ed8eda67d0ef5af81379fba8a1eda42c88d55` (not final tip). Final published head is recorded in PR/report after cycle2 docs push. Browser/E2E BLOCKED; CI audit FAILURE at historical `8060f87d91cfeb9584b55257b8f547bd646db280`; latest Actions for code subject `d48cca2f7d5661799f68902c9965e7dcc70704f9` = UNKNOWN (gh run list empty); B/C/D pending
 - [x] Workflow-style orchestration reconciled | Workflow `ae-perf-stg-login-a-evidence-followup` probes joined; spawn reviewers joined
 
 ##### Historical evidence recovery (joined)
@@ -184,7 +184,44 @@ FOLLOWUP_BASE=`8060f87d91cfeb9584b55257b8f547bd646db280`. Claim `claim/PERF-STG-
 
 - Workflow `ae-perf-stg-login-a-evidence-followup` completed; freeze-followup-scope `01a084f1-c3b2-70e3-a271-f879486f1112` done (joined).
 - Freeze asked login coverage via `createMemoryRouter`+`RouterProvider` over real login RouteObject (applied in follow-up repair).
-- Raw `/tmp/perf-login-a-red*.log` may be absent now: **BLOCKED as durable artifact**; recovered content remains in session `terminal/call-c50ddd98-…-76.log` and prior `/tmp` capture used during this session.
+- Raw `/tmp/perf-login-a-red*.log` may be absent now: **BLOCKED as durable artifact**; recovered content remains in session terminal `/Users/minoru/.grok/sessions/%2FUsers%2Fminoru%2FDev%2FCase%2FAnimalHospital%2FAnimalEkarte/01a084bb-b11e-7673-81d5-98974872de68/terminal/call-c50ddd98-04b0-4040-86b6-ebb47c904818-76.log` and prior `/tmp` capture used during this session.
+
+
+#### Evidence closeout cycle 2 — PERF-STG-LOGIN-A (2026-09-09 16:42 JST)
+
+Docs-only. Code/test subject frozen at `d48cca2f7d5661799f68902c9965e7dcc70704f9` (includes RouterProvider login coverage). This cycle does not change product/test bytes.
+
+##### Cycle2 Acceptance Checklist
+
+- [x] Original/follow-up evidence claims have exact provenance | Matrix below | Full locators; no PASS*
+- [x] Final independent review covers code/test snapshot `d48cca2f7…` | Workflow review-final-snapshot `01a08518-662c-79a3-9e42-ed9a27c66871` PASS; security `01a08519-5514-7e20-a11e-e1d07f6dd7df` PASS | Current correctness only (not historical review proof)
+- [x] Ledger/PR distinguish historical vs current CI/heads | Historical audit FAIL @ `8060f87d…`; Actions @ `d48cca2f7…` UNKNOWN (`gh run list --commit` → `[]`); Vercel rollup SUCCESS only
+- [x] Allowlist: only `todo-performance.md` in this cycle
+
+##### Evidence matrix (original vs fresh)
+
+| Claim | Kind | Locator | Result |
+|---|---|---|---|
+| Historical RED Unable to find role=status | original | `/tmp/perf-login-a-red-detail.log` L15-32; session `/Users/minoru/.grok/sessions/%2FUsers%2Fminoru%2FDev%2FCase%2FAnimalHospital%2FAnimalEkarte/01a084bb-b11e-7673-81d5-98974872de68/terminal/call-c50ddd98-04b0-4040-86b6-ebb47c904818-76.log` | PASS (content) |
+| session/terminal filename contains `perf-login-a-red` | original | `session/terminal/*perf-login-a-red*` | **BLOCKED** absent filename pattern; content elsewhere |
+| Original promptSha256 b35514951a0f61b176d1a3120521c717dc1c793838d704ae734e761e18e475e0 EXIT0 | original | `/Users/minoru/.grok/sessions/%2FUsers%2Fminoru%2FDev%2FCase%2FAnimalHospital%2FAnimalEkarte/01a084bb-b11e-7673-81d5-98974872de68/terminal/call-d651c062-e4b3-4b78-a0ba-85de3197d20c-3.log` | PASS |
+| Source PRE unstaged FP e273478b82c6ccc93c710139a20b6c66bed02f99f2a0cfa7894c879a84c3c521; todo-performance 96648dc0…; todo.md a0587f95… | original | `/Users/minoru/.grok/sessions/%2FUsers%2Fminoru%2FDev%2FCase%2FAnimalHospital%2FAnimalEkarte/01a084bb-b11e-7673-81d5-98974872de68/terminal/call-d651c062-e4b3-4b78-a0ba-85de3197d20c-4.log` | PASS |
+| Source POST match BASELINE_UNSTAGED==NOW_UNSTAGED e273478b… (after A PR push) | original | `/Users/minoru/.grok/sessions/%2FUsers%2Fminoru%2FDev%2FCase%2FAnimalHospital%2FAnimalEkarte/01a084bb-b11e-7673-81d5-98974872de68/terminal/call-94c0585e-a892-40f1-8ff9-bd675e7b9028-145.log` | PASS (dated snapshot) |
+| A-relevant source docs SHA still 96648dc0… / a0587f95… at closeout | fresh | `shasum -a 256` on source tree | PASS |
+| Full current source unstaged FP equals historical e273478b… | fresh | current FP differs (foreign backend WIP additive) | **BLOCKED** as proof of unchanged full-tree WIP; docs SHA preservation stands separately |
+| Investigate agents dispositions | original | wf_01a084cc28a575e08806ba2cd29b2f7d: probe-auth-render `01a084cc-28bf-7620-bf9e-e7ee7db42c9e` done; probe-tests-rules `01a084cc-28c3-7091-b852-98dc8ca8de34` done; freeze-contract `01a084ce-a21b-73d2-aea7-e46504501219` done | PASS |
+| Review agents dispositions | original | wf_01a084d405947760a2c63685ee1dffc7: code-review `01a084d4-05b2-79c2-8822-560b9e0d8bc5` PASS; security-review `01a084d4-05b4-7391-ac31-ad7264451387` PASS | PASS |
+| Follow-up agents | original | wf_01a084ef87777bc299c56d2fc23eef06 complete; spawn reviewer `01a084f6-d2f7-7ab3-a37b-44f5056129f4` FAIL→ledger fixes; security `01a084f6-d2f7-7ab3-a37b-4501269bc66e` PASS | PASS |
+| Closeout probes | fresh | wf_01a0851865fe7bd196d0bbffe6505e0c: probe-evidence-matrix `01a08518-662b-7572-8d5b-a3b027c7a28f`; review-final-snapshot `01a08518-662c-79a3-9e42-ed9a27c66871` PASS subject d48cca2f7; security `01a08519-5514-7e20-a11e-e1d07f6dd7df` PASS | PASS |
+| Route tests at d48cca2f7 | fresh (generation) | completed_tests=9 exit0 eslint0 prettier0; fingerprint cited in closeout context | PASS (accepted; not re-run this cycle) |
+| Hydration coverage boundary | doc | Production-bound HydrateFallback + controlled deferred test route — **not** full production child-tree E2E | PASS (accurate boundary) |
+| CI Frontend Build audit FAIL | historical | `gh run list --commit 8060f87d91cfeb9584b55257b8f547bd646db280` → CI conclusion failure (databaseId 34319752378) | PASS (historical) |
+| Actions at code subject d48cca2f7 | fresh | `gh run list --commit d48cca2f7d5661799f68902c9965e7dcc70704f9` → `[]` | **UNKNOWN** (not SUCCESS/FAILURE) |
+| Browser/E2E | process | no approved candidate fixture | **BLOCKED** |
+
+##### Implementation acceptance (unchanged)
+
+Product/test acceptance for white-screen fix + deferred pending→resolved route tests remains accepted at subject `d48cca2f7…`. B/C/D pending. No FCP claim.
 
 ### B. 起動時の認証確認だけに待ち上限を設ける（Aの次）
 
