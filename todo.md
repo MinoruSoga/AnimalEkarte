@@ -1,6 +1,6 @@
 # タスク台帳 — Linear が正本
 
-統合日: 2026-09-08。最終ローカル照合: 2026-09-09 / main `48e89dbe4`。Linear 読み取り結果・認証修正の main 反映・旧 claim 削除を確認した。Linear の状態は同日の記録であり、今回のローカル更新では再照会していない。UAT・STG/PROD・go-live は再判定していない。
+統合日: 2026-09-08。最終ローカル照合: 2026-09-09 / main `c0950fbdf`（追加照合 PR 枝 `docs/meta-linear-pr-20260909`）。Codex の Linear 読み取り結果は `48e89dbe4` 以降も保持。Grok 追加照合では Linear MCP がセッション限定で UNAVAILABLE のためライブ再照会はせず、定義再確認と次照会リストを [linear-f1-f6-mapping.md](docs/work/linear-f1-f6-mapping.md) に記録した。UAT・STG/PROD・go-live は再判定していない。
 
 | 項目 | 値 |
 |------|-----|
@@ -16,7 +16,7 @@
 
 エージェントは PlanetScale、共有 STG apply、`DROP SCHEMA`、本番 cutover、`make reset`、八王子 CSV の producer 出力を実行しない。push / dispatch / Linear Done / 秘密変更は明示承認が必要。
 
-claim は ID ごとに初回編集前に確認・取得する。作成者別の削除条件は [AGENTS.md](AGENTS.md#branch-deletion-by-creator-mandatory) を正本とする。ユーザー作成は AI による削除禁止。AI 作成は統合・明示終了・成果を保全した引き継ぎと未使用を確認して削除可能。2026-09-09 の本更新開始前に `git branch --list 'claim/*'` が空であることを確認した。旧 META / QA / 認証 claim の解除待ちは解消済み。claim の削除は UAT や受入の完了を意味しない。新規着手時は現在の claim を再確認する。
+claim は ID ごとに初回編集前に確認・取得する。作成者別の削除条件は [AGENTS.md](AGENTS.md#branch-deletion-by-creator-mandatory) を正本とする。ユーザー作成は AI による削除禁止。AI 作成は統合・明示終了・成果を保全した引き継ぎと未使用を確認して削除可能。旧 META / QA / 認証 claim の解除待ちは解消済み。本 META 追加照合は `claim/META-LINEAR-APPLY` を取得して実施する。claim の削除は UAT や受入の完了を意味しない。新規着手時は現在の claim を再確認する。
 
 ---
 
@@ -71,14 +71,14 @@ S09 局所検証（2026-09-08）: fail-closed / CLI / OpenAPI drift GREEN。fixt
 
 | 順 | ID | 実行者 | なぜこの順 | 状態 |
 |----|----|--------|------------|------|
-| 1 | **META-LINEAR-APPLY** | agent（追加照合） / USER（反映） | 検索範囲・結果は [linear-f1-f6-mapping.md](docs/work/linear-f1-f6-mapping.md)。F1〜F6 の直接対応を確定してから反映 | **PARTIAL**（2026-09-09: プロジェクト55件・hub・関連語を照合。直接対応 ID は未特定。BRT-226 は Review。追加の本文・コメント照合は可能。書き込み・Done は USER 待ち） |
+| 1 | **META-LINEAR-APPLY** | agent（追加照合） / USER（反映） | 検索範囲・結果は [linear-f1-f6-mapping.md](docs/work/linear-f1-f6-mapping.md)。F1〜F6 の直接対応を確定してから反映 | **PARTIAL**（2026-09-09: Codex 55件・hub・関連語照合を保持。Grok 追加照合で定義6行と次の本文・コメント照会リストを文書化。直接対応 ID は未特定のまま。BRT-226 は Review（Astra 六件ではない）。Linear 書き込み・Done は USER 待ち） |
 | 2 | **H0-2 / HAC-CSV-1** | old_db / USER | STG 八王子の先頭。これより前の STG 行は進めない | **BLOCKED**（HAC-INPUT-2。完全 KNJO 未受領。同一 BAK 再実行と producer は禁止） |
 | 3 | **H0-3b → Lane3 HAC → H3-9 → H3-11 → Lane 4** | USER | 2 の依存どおり | 待ち |
 | 4 | **P1 → P2 → P3 → P4 → P5 → P6 → P7 → P8** | USER | go-live 依存。E1 / E2 は P4 の一部 | 待ち |
 
 STG レーンの次は医院/ベンダーからの完全 KNJO 再取得、または城東主経路（JOU-G2-2 の Azure 承認）。H0-3b には入らない。独立して F1〜F6 の Linear 読み取り照合と、下記受入残の実行前提・証跡の確認を進められる。S09 / V04 / clinical E2E の実行は各設計の環境・承認条件を満たしてから行う。Linear 書き込みと Done は USER。
 
-2026-09-09 引き継ぎ: Cursor の Linear 読取不可はそのセッションの制約。Codex の照会結果は `48e89dbe4` で main に反映済み。#254 全体の受入入口は [BRT-45](https://linear.app/baritechllc/issue/BRT-45)（同日観測 Needs Human）。[BRT-68](https://linear.app/baritechllc/issue/BRT-68) の同日観測の残は実 LINE / LIFF。両者を S09 等の PASS と混同しない。旧 META / QA claim は削除済みで、受入残は下記に維持する。
+2026-09-09 引き継ぎ: Cursor の Linear 読取不可はそのセッションの制約。Codex の照会結果は `48e89dbe4` で main に反映済み。Grok 追加照合（本更新）も Linear MCP UNAVAILABLE のためライブ再照会せず、Codex 観測を保持したうえで次照会リストを mapping 文書へ追加した。#254 全体の受入入口は [BRT-45](https://linear.app/baritechllc/issue/BRT-45)（同日観測 Needs Human）。[BRT-68](https://linear.app/baritechllc/issue/BRT-68) の同日観測の残は実 LINE / LIFF。両者を S09 等の PASS と混同しない。独立作業（読み取り照合・受入準備）は継続可能。受入残は下記に維持する。
 
 認証の独立した残検証: `950404408`（権限ロック・復旧修正）と `9be825a66`（認可経路・分離検証の追加）は main に反映済み。詳細と開始条件は [todo-fix-auth.md](todo-fix-auth.md) を参照する。実DB並行・初回管理者SQL実行・全経路の実DB返却データ分離・2サーバー即時失効・対象環境のメール・負荷測定は未検証の記録。限定テストの成功をこれらの完了と扱わない。ローカルの前提確認は独立して進められるが、DB/環境操作は個別の実行条件に従う。
 
