@@ -309,21 +309,24 @@ Product/test acceptance for white-screen fix + deferred pending→resolved route
 - G1/G2/G5 not reopened. AuthContextValue unchanged. Browser/E2E BLOCKED. Linear UNKNOWN. Additive commit PARENT-owned; no cycle2 commit SHA recorded here.
 
 
-#### Cycle2 closeout — PERF-STG-LOGIN-B (local additive; no SHA in ledger)
+#### Cycle2 closeout — PERF-STG-LOGIN-B (evidence statuses separated)
 
-- CYCLE2_BASE=`d5f109285d2e56f76d8e099436d5040678e90617`. Claim retained. Five-path allowlist only.
-- Gaps: login storage false/throw fail-closed before hydrate/clear pause; pre-session POST allowlist uses configured baseURL origin + exact pathname (no raw endsWith).
-- Verifier isolation: generation reported intermittent FAIL at fp `6c2e3a01…`; clean tip baselines PASS×2 completed_tests=117. After repair exact 17-file verifier PASS×2 consecutive completed_tests=120 fp `c055855b471ee1b3c27e6669d362baa7c64193c52e0cf0c8a423886a0fdd791e` exit0. Direct Vitest supporting only.
-- Owned TS eslint0 prettier0. Orchestration: investigate wf `ae-perf-stg-login-b-cycle2-investigate` joined; implementer `01a08647-615e-7013-9309-c364fbadcdba` joined; review wf `ae-perf-stg-login-b-cycle2-review` (security PASS + react PASS) joined. Browser BLOCKED. CI/Linear UNKNOWN.
-- Code tip after cycle2 repair: `bd62225d28064dbbf1a0db46d50b90f12b474e56` (five allowlisted paths only).
+- CYCLE2_BASE=`d5f109285d2e56f76d8e099436d5040678e90617`. Claim `claim/PERF-STG-LOGIN-B` retained.
+- Five-path allowlist only for cycle2 code/docs: AuthProvider.tsx, use-auth-initial-session.test.tsx, clinic-selection-axios.ts, clinic-selection-axios.test.ts, todo-performance.md.
+- **Code tip (behavior):** `bd62225d28064dbbf1a0db46d50b90f12b474e56` — storage fail-closed + configured-origin exact-path pre-session POST allowlist.
+- **Prior evidence commit (docs, superseded by this truth closeout):** `3bd172624bcd22b586cdc7ba65a7b7b992efcc28` still contains conflated “FAIL narrative / PASS satisfies history” wording in its tree. The separated PASS/BLOCKED statuses below are the correction that supersedes that commit’s ledger text (this commit’s own SHA is not recorded here).
+- **Storage/pause behavior:** PASS (static + focused tests on tip). Login gates hydrate/`clearClinicSelectionRecovery`/ready on `saveClinicToStorage` false|throw; writesPaused retained; no protected navigation; business adapters blocked.
+- **URL identity behavior:** PASS (static + focused tests on tip). `isPreSessionAuthRequest` is POST + same configured origin + exact pathname only (no raw `endsWith`).
+- **Current exact 17-file verifier stability:** PASS as current GREEN only. Image `sha256:532501622cd024ab786a32eb9798db1cd1a0e4d47cddb3dbd56ae107f95d9cb4` + volume `ekarte-frontend-node-modules`. Evidenced PASS×2 on code tip `bd62225d2` (`completed_tests=120` exit0 fingerprint `c055855b471ee1b3c27e6669d362baa7c64193c52e0cf0c8a423886a0fdd791e`). Additional same-command confirmation on docs tip `3bd172624` before this truth edit: `completed_tests=120` exit0 same fingerprint. Current PASS does **not** prove a historical failure cause.
+- **Historical verifier root-cause (fp `6c2e3a01afb1249ba6d3f4d00c39917602b2538cdcbaa1aa1948040964d91280`):** **BLOCKED**. Cycle2 prompt narrative claimed FAIL×2 with exit1/no-count at that fingerprint; named machine-readable scratch baselines for the same fingerprint are PASS-only (`completed_tests=117` exit0). Exact failing stdout/stderr/JSON bytes were not retained in-repo and were not reproduced on the clean tip. Required input: original failing runner stdout/stderr/JSON for that command/environment, or a future same-command recurrence captured as machine-readable FAIL. Do not infer cause from later PASS.
+- Orchestration (implementation era): investigate wf `ae-perf-stg-login-b-cycle2-investigate`; implementer `01a08647-615e-7013-9309-c364fbadcdba`; review wf `ae-perf-stg-login-b-cycle2-review`. Re-verify era: wf `ae-perf-stg-login-b-cycle2-verify` (`wf_01a086f3927a72b294a96f544a8fc8e7`); probes storage/url/verifier-history; security-react `01a086f6-f9fe-7642-9e33-14a27a36816e`; react-reviewer `01a086f9-b951-7ad3-8638-3f6254162570`. Browser BLOCKED. CI/Linear UNKNOWN.
 
 ##### Cycle2 re-verify session (prompt agent-fast-stg-login-b-reconcile-cycle2-20260909)
 
-- Receiver continued original B owner worktree; claim `claim/PERF-STG-LOGIN-B` retained (not reacquired/deleted).
-- Exact 17-file Docker verifier re-run twice consecutive on tip `bd62225d2` with image `sha256:532501622cd024ab786a32eb9798db1cd1a0e4d47cddb3dbd56ae107f95d9cb4` + volume `ekarte-frontend-node-modules`: both PASS `completed_tests=120` exit0 fingerprint `c055855b471ee1b3c27e6669d362baa7c64193c52e0cf0c8a423886a0fdd791e`. Generation FAIL×2 at `6c2e3a01…` not reproduced on clean tip; preserved as historical narrative only.
-- Owned-path eslint `--max-warnings 0` + prettier `--check` exit0 for AuthProvider.tsx, use-auth-initial-session.test.tsx, clinic-selection-axios.ts/.test.ts. `git diff --check` clean.
-- Orchestration: Workflow `ae-perf-stg-login-b-cycle2-verify` (`wf_01a086f3927a72b294a96f544a8fc8e7`) probes storage/url/verifier + security review joined; react-reviewer `01a086f9-b951-7ad3-8638-3f6254162570` PASS. Probes: storage `01a086f3-9296-70d0-9af6-206de3b6be5c` closed; url `…2075a565490b` closed; verifier history `…2084fc1243f2` needs_reverify→satisfied by this session PASS×2; security-react `01a086f6-f9fe-7642-9e33-14a27a36816e` ok.
-- Source tree foreign WIP preserved; A candidate `AnimalEkarte-perf-login-a-20260909` at `9b06b551` preserved. Browser BLOCKED. CI/Linear UNKNOWN. No push/PR/merge/deploy.
+- Receiver continued original B owner worktree; claim retained (not reacquired/deleted).
+- Exact 17-file Docker verifier PASS×2 on tip `bd62225d2` = **current stability evidence only** (`completed_tests=120` exit0 fp `c055855b…`). Does not close historical root-cause BLOCKED above.
+- Owned-path eslint `--max-warnings 0` + prettier `--check` exit0 for the four TS/TSX cycle2 paths. `git diff --check` clean.
+- Source foreign WIP preserved; A candidate `AnimalEkarte-perf-login-a-20260909` at `9b06b551` preserved. No push/PR/merge/deploy.
 
 ### C. 通信経路を計測して、効果のある対策だけを入れる（A・Bと独立して調査）
 
