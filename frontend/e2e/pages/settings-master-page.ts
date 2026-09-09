@@ -4,10 +4,9 @@ import { BasePage } from "./base-page";
 /**
  * Generic master-settings CRUD screen (`/settings/*`).
  *
- * The page/heading/search-placeholder differ per master; this object only
- * encapsulates the controls that are identical across them — the `#master-title`
- * panel input, the "操作"/"削除" buttons, and the delete confirmation dialog.
- * Callers navigate with `open(path)` and assert page-specific headings inline.
+ * Shared controls across masters: `#master-title`, row edit, toolbar delete,
+ * and the delete confirmation dialog. Callers navigate with `open(path)` and
+ * assert page-specific headings / search placeholders inline.
  */
 export class SettingsMasterPage extends BasePage {
   masterTitleInput(): Locator {
@@ -26,9 +25,17 @@ export class SettingsMasterPage extends BasePage {
     return this.page.getByRole("button", { name: "キャンセル" });
   }
 
-  /** Row "操作" (edit) button for the row containing `text`. */
+  /** Table row whose cells contain `text`. */
+  rowContaining(text: string): Locator {
+    return this.page.locator("tbody tr").filter({ hasText: text });
+  }
+
+  /**
+   * Row edit/action button for the row containing `text`.
+   * Masters use accessible names like `編集: …` or `…を編集` (not bare "操作").
+   */
   rowActionButton(text: string): Locator {
-    return this.page.locator("tbody tr").filter({ hasText: text }).getByLabel("操作");
+    return this.rowContaining(text).getByRole("button", { name: /編集|を編集|操作/ });
   }
 
   /** Toolbar delete button (aria-label "削除"). */
@@ -38,5 +45,33 @@ export class SettingsMasterPage extends BasePage {
 
   deleteDialog(): Locator {
     return this.page.getByRole("alertdialog");
+  }
+
+  /** Confirm button inside the delete alertdialog (masters vary: 削除 / 削除する). */
+  deleteConfirmButton(confirmLabel: string | RegExp = "削除"): Locator {
+    return this.deleteDialog().getByRole("button", { name: confirmLabel });
+  }
+
+  searchToggle(): Locator {
+    return this.page.getByLabel("検索");
+  }
+
+  searchInput(placeholder: string): Locator {
+    return this.page.getByPlaceholder(placeholder);
+  }
+
+  /** Open PropertyFilter search and fill the placeholder-specific input. */
+  async searchFor(placeholder: string, term: string): Promise<void> {
+    await this.searchToggle().click();
+    await this.searchInput(placeholder).fill(term);
+  }
+
+  /** Medicine side-panel unit price field. */
+  medicinePriceInput(): Locator {
+    return this.page.getByLabel("単価(税込)");
+  }
+
+  toast(): Locator {
+    return this.page.locator("[data-sonner-toast]");
   }
 }

@@ -370,6 +370,95 @@ class VerificationTests(unittest.TestCase):
         self.assertNotIn('git grep -E -n -I --cached -e "$PATTERN" -- "$f" || true', source)
         self.assertIn('--redact', source)
 
+    def test_e2e_five_path_scope_maps_nonempty_offline_checks(self):
+        paths = [
+            'frontend/e2e/pages/accounting-page.ts',
+            'frontend/e2e/pages/settings-master-page.ts',
+            'frontend/e2e/s09-closing-time-boundaries.spec.ts',
+            'frontend/e2e/v04-settings-master-forms.spec.ts',
+            'frontend/scripts/run-e2e.sh',
+        ]
+        jobs, blocked = verify.plan(paths)
+        self.assertFalse(blocked, blocked)
+        self.assertTrue(jobs)
+        services = {job['service'] for job in jobs}
+        self.assertIn('frontend', services)
+        self.assertIn('host', services)
+        flat = [' '.join(job['command']) for job in jobs]
+        self.assertTrue(any('prettier' in command for command in flat))
+        self.assertTrue(any('eslint' in command for command in flat))
+        self.assertTrue(any('tsc' in command or 'ae-e2e-tsconfig' in command for command in flat))
+        self.assertTrue(any(job['command'][:3] == ['bash', '-n', 'frontend/scripts/run-e2e.sh'] for job in jobs))
+        self.assertTrue(any('--check-e2e-scope' in job['command'] for job in jobs))
+        for job in jobs:
+            joined = ' '.join(job['command'])
+            self.assertNotIn('playwright test', joined)
+            self.assertNotIn('npm install', joined)
+            self.assertNotIn('--network=host', joined)
+
+    def test_e2e_page_object_without_consumer_is_blocked(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            page = root / 'frontend/e2e/pages/orphan-page.ts'
+            page.parent.mkdir(parents=True)
+            page.write_text('export class Orphan {}\n')
+            (root / 'frontend/e2e').mkdir(exist_ok=True)
+            (root / 'frontend/e2e/unrelated.spec.ts').write_text(
+                'import { test } from "@playwright/test";\ntest("x", async () => {});\n'
+            )
+            with mock.patch.object(verify, 'ROOT', root):
+                jobs, blocked = verify.plan(['frontend/e2e/pages/orphan-page.ts'])
+                self.assertFalse(jobs)
+                self.assertEqual(blocked, ['frontend/e2e/pages/orphan-page.ts'])
+
+    def test_e2e_deleted_or_unsupported_paths_block(self):
+        missing = 'frontend/e2e/missing-spec.spec.ts'
+        jobs, blocked = verify.plan([missing])
+        self.assertFalse(jobs)
+        self.assertEqual(blocked, [missing])
+        unsupported = 'frontend/e2e/helpers/clinical-env.ts'
+        jobs, blocked = verify.plan([unsupported])
+        self.assertFalse(jobs)
+        self.assertEqual(blocked, [unsupported])
+        jobs, blocked = verify.plan(['frontend/e2e/notes.md'])
+        self.assertFalse(jobs)
+        self.assertEqual(blocked, ['frontend/e2e/notes.md'])
+
+    def test_e2e_mixed_with_docs_keeps_e2e_checks_and_skips_docs(self):
+        paths = [
+            'docs/ops/testing/UAT-DOMAIN-STATUS.md',
+            'frontend/e2e/s09-closing-time-boundaries.spec.ts',
+            'frontend/scripts/run-e2e.sh',
+        ]
+        jobs, blocked = verify.plan(paths)
+        self.assertFalse(blocked)
+        self.assertTrue(jobs)
+        self.assertTrue(any('eslint' in ' '.join(job['command']) for job in jobs))
+        self.assertTrue(any(job['command'][:3] == ['bash', '-n', 'frontend/scripts/run-e2e.sh'] for job in jobs))
+
+    def test_run_e2e_env_forward_contract_rejects_secret_values_on_argv(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            script = root / 'frontend/scripts/run-e2e.sh'
+            script.parent.mkdir(parents=True)
+            script.write_text(
+                'DOCKER_ENV="-e PLAYWRIGHT_TEST_BASE_URL=${BASE_URL}"\n'
+                'DOCKER_ENV="$DOCKER_ENV -e UAT_SYNTHETIC_CLOSING_PASSWORD=$UAT_SYNTHETIC_CLOSING_PASSWORD"\n'
+                'DOCKER_ENV="$DOCKER_ENV -e UAT_SYNTHETIC_CLOSING_API_BASE=$UAT_SYNTHETIC_CLOSING_API_BASE"\n'
+                'docker run $DOCKER_ENV image playwright test "$@"\n'
+            )
+            with mock.patch.object(verify, 'ROOT', root):
+                with self.assertRaisesRegex(ValueError, 'name-only'):
+                    verify.check_e2e_scope(['frontend/scripts/run-e2e.sh'])
+
+    def test_check_e2e_scope_accepts_current_runner_forwarding(self):
+        verify.check_e2e_scope(['frontend/scripts/run-e2e.sh'])
+
+    def test_plan_maps_vite_native_config_script(self):
+        jobs, blocked = verify.plan(['frontend/scripts/vite-native-config.test.mjs'])
+        self.assertFalse(blocked)
+        self.assertEqual(jobs[0]['command'], ['node', '--test', 'scripts/vite-native-config.test.mjs'])
+
 
 if __name__ == '__main__':
     unittest.main()

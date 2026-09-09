@@ -95,7 +95,7 @@
   1. 2026-09-08: HTTP `POST/DELETE /api/v1/uat/synthetic-closings` と CLI `synthetic-closing-fixture` を実装。staff・支払方法・明細・payment_splits・cleanup を含む。
   2. **禁止**: 直接 DB 更新、システム時計変更、既存会計の改変（シナリオ hard rule）。
   3. ブラウザでの帰属証明ステップ #2–#6 は未再実行（compose 停止・`make up` はエージェント禁止）→ シナリオ総合 **BLOCKED**（helper 実装だけでは解除しない）。
-  4. 2026-09-09 campaign: Playwright 仕様 `frontend/e2e/s09-closing-time-boundaries.spec.ts`（#2–#6 + cleanup）と `run-e2e.sh` の `UAT_SYNTHETIC_CLOSING_*` 転送を追加。実行証跡は未。pre-commit の `verify-agent-task.py` が `frontend/e2e/**` 未マップのため commit/PR も BLOCKED。
+  4. 2026-09-09 campaign: Playwright 仕様 `frontend/e2e/s09-closing-time-boundaries.spec.ts`（#2–#6 + cleanup）と `run-e2e.sh` の `UAT_SYNTHETIC_CLOSING_*` 転送を追加。実行証跡は未。`verify-agent-task.py` に E2E offline 契約を追加済み（2026-09-09 VERIFY-E2E-SCOPE-CONTRACT）。browser 実行証跡は未のまま BLOCKED。
   5. 詳細: `reports/uat-2026-09-05-r5/S09-BLOCKED.md`
 - **関連 bug IDs**: （なし — UAT 接続の不足は製品 FAIL ではない）
 - **証跡**: `reports/uat-2026-09-05-r5/S09-BLOCKED.md` · `reports/uat-2026-09-05-r4/s09-helper-search.json`
@@ -183,7 +183,7 @@
   - **2026-09-06 live HTTP**: 合成 catalog login は 200。`master-medical` create は 403（一般グループ）。権限を上げて clinic 1/2 を触っていない。HTTP DELETE の受入は **BLOCKED**
   - **判定**: 当時の製品 FAIL を todo.md#product-bugs に戻さない。V04 全体は PASS にしない
   - 診断・診療項目5タブ・薬剤・トリミング一式・支払方法・締め・請求書欄など他は r6+r7 CRUD PASS
-  - **2026-09-09 campaign**: `frontend/e2e/v04-settings-master-forms.spec.ts` に動物種類 CRUD/DELETE・未使用主訴 DELETE 204・薬剤更新永続・システム支払 409 を追加。shared-clinic demo login 前提であり disposable-clinic 再実行証跡ではない。runtime / commit gate BLOCKED。
+  - **2026-09-09 campaign**: `frontend/e2e/v04-settings-master-forms.spec.ts` に動物種類 CRUD/DELETE・未使用主訴 DELETE 204・薬剤更新永続・システム支払 409 を追加。shared-clinic demo login 前提であり disposable-clinic 再実行証跡ではない。E2E offline commit 契約は VERIFY-E2E-SCOPE-CONTRACT で追加済み。browser/runtime は未実行のため UNKNOWN/BLOCKED。
 - **関連 bug IDs**: 現行 open なし
 - **証跡**: testdb コマンドは `todo.md` 順 2。live は status code のみ（credential・行値なし）
 ## 認証・LINE / LSTEP（V05）

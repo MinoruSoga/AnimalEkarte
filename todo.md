@@ -167,6 +167,16 @@ Runtime preflight: `old-db-postgres` only Up; animalekarte backend/frontend/db E
 
 ---
 
+
+### VERIFY-E2E-SCOPE-CONTRACT（2026-09-09 continuation）
+
+| 項目 | 値 |
+|------|-----|
+| claim | `claim/VERIFY-E2E-SCOPE-CONTRACT` |
+| 変更 | `scripts/verify-agent-task.py` / `scripts/test_verify_agent_task.py` に `frontend/e2e/**` + `run-e2e.sh` の offline 契約を追加 |
+| offline | `AGENT_VERIFY_FRONTEND_IMAGE=sha256:532501622cd0… AGENT_VERIFY_FRONTEND_DEPENDENCY_VOLUME=ekarte-frontend-node-modules` を付けた `python3 -B scripts/verify-agent-task.py --staged` → PASS（eslint/prettier/tsc/bash -n/e2e-scope、executed_count=6）。selector 無しの bare `--staged` は frontend image 欠落で BLOCKED。browser/UAT は未実行のまま BLOCKED |
+| 継承 staged | S09/V04 仕様 5 ファイルを保全（Prettier のみ最小整形） |
+
 ## 2. USER ゲート（秘密・本番・外部環境）
 
 外部状態は実行直前に再確認する。エージェントは秘密値の作成・表示・投入、共有 STG/PROD apply、production 構築、go-live を自動実行しない。

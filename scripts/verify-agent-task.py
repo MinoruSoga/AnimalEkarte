@@ -9,6 +9,7 @@ import hashlib
 import json
 import os
 import pathlib
+import re
 import subprocess
 import sys
 import uuid
@@ -90,12 +91,100 @@ def scoped_contract_documents(paths):
                    for document in backend_contract_documents(job['command'])})
 
 
+E2E_TSCONFIG_BOOTSTRAP = (
+    'const fs=require("fs");const path=require("path");'
+    'const files=process.argv.slice(1).map((f)=>path.resolve("/app",f));'
+    'fs.writeFileSync("/tmp/ae-e2e-tsconfig.json",JSON.stringify({'
+    'compilerOptions:{strict:true,module:"CommonJS",moduleResolution:"Node",'
+    'target:"ES2022",esModuleInterop:true,skipLibCheck:true,ignoreDeprecations:"6.0",'
+    'types:["node"],typeRoots:["/app/node_modules/@types","/app/node_modules"]},'
+    'files}));'
+)
+
+
+def e2e_spec_consumers(page_path):
+    """Return e2e spec paths (repo-relative) that import the page object module."""
+    page = pathlib.PurePosixPath(page_path)
+    if len(page.parts) < 4 or page.parts[0] != 'frontend' or page.parts[1] != 'e2e' or page.parts[2] != 'pages':
+        return []
+    module = page.stem
+    needles = (
+        f'./pages/{module}',
+        f'../pages/{module}',
+        f"pages/{module}",
+    )
+    consumers = []
+    for spec in sorted((ROOT / 'frontend' / 'e2e').rglob('*.spec.ts')):
+        relative = spec.relative_to(ROOT).as_posix()
+        validate_path(relative)
+        text = spec.read_text(encoding='utf-8')
+        if any(needle in text for needle in needles):
+            consumers.append(relative)
+    return consumers
+
+
+def check_e2e_scope(paths):
+    """Fail-closed offline checks for selected E2E/runner paths (no browser runtime)."""
+    selected = []
+    for path in paths:
+        validate_path(path)
+        selected.append(path)
+    if not selected:
+        raise ValueError('E2E scope selection is empty')
+    runner = 'frontend/scripts/run-e2e.sh'
+    if runner in selected:
+        target = ROOT / runner
+        if not target.is_file():
+            raise ValueError('frontend/scripts/run-e2e.sh is missing')
+        text = target.read_text(encoding='utf-8')
+        for variable in ('UAT_SYNTHETIC_CLOSING_PASSWORD', 'UAT_SYNTHETIC_CLOSING_API_BASE'):
+            if re.search(r'-e\s+' + re.escape(variable) + r'\s*=', text):
+                raise ValueError(f'{variable} must use name-only -e (no secret value on argv)')
+            if not re.search(r'-e\s+' + re.escape(variable) + r'\b(?!\s*=)', text):
+                raise ValueError(f'{variable} must be forwarded with name-only docker -e')
+        if '"$@"' not in text:
+            raise ValueError('run-e2e.sh must preserve playwright argv via "$@"')
+    for path in selected:
+        if path == runner:
+            continue
+        target = ROOT / path
+        if not target.is_file():
+            raise ValueError(f'E2E path is missing: {path}')
+        if path.startswith('frontend/e2e/pages/') and path.endswith('.ts'):
+            if not e2e_spec_consumers(path):
+                raise ValueError(f'E2E page object has no spec consumer: {path}')
+
+
 def plan(paths):
     jobs, blocked, frontend = [], [], []
+    e2e_ts, e2e_pages, e2e_runner = [], [], False
     for path in paths:
         validate_path(path)
         if path.startswith('frontend/src/') and path.endswith(('.ts', '.tsx', '.js', '.jsx')):
             frontend.append(path.removeprefix('frontend/'))
+        elif path.startswith('frontend/e2e/') and path.endswith('.spec.ts'):
+            if not (ROOT / path).is_file():
+                blocked.append(path)
+                continue
+            e2e_ts.append(path)
+        elif path.startswith('frontend/e2e/pages/') and path.endswith('.ts'):
+            if not (ROOT / path).is_file():
+                blocked.append(path)
+                continue
+            if not e2e_spec_consumers(path):
+                blocked.append(path)
+                continue
+            e2e_pages.append(path)
+            e2e_ts.append(path)
+        elif path in ('frontend/vite.config.ts', 'frontend/scripts/vite-native-config.test.mjs'):
+            jobs.append({'service': 'frontend', 'command': ['node', '--test', 'scripts/vite-native-config.test.mjs']})
+        elif path == 'frontend/scripts/run-e2e.sh':
+            if not (ROOT / path).is_file():
+                blocked.append(path)
+                continue
+            e2e_runner = True
+        elif path.startswith('frontend/e2e/') or path.startswith('frontend/scripts/'):
+            blocked.append(path)
         elif (path.startswith('backend/internal/') or path.startswith('backend/cmd/')) and path.endswith('.go'):
             package = pathlib.PurePosixPath(path).parent
             if not list((ROOT / package).glob('*_test.go')):
@@ -112,8 +201,6 @@ def plan(paths):
         elif path in ('scripts/verify-agent-task.py', 'scripts/test_verify_agent_task.py', '.githooks/pre-commit', '.githooks/pre-push', '.githooks/lib/check-secrets.sh', 'scripts/run-local-ci.sh'):
             if not any(job['service'] == 'host' for job in jobs):
                 jobs.append({'service': 'host', 'command': ['python3', '-B', 'scripts/test_verify_agent_task.py']})
-        elif path in ('frontend/vite.config.ts', 'frontend/scripts/vite-native-config.test.mjs'):
-            jobs.append({'service': 'frontend', 'command': ['node', '--test', 'scripts/vite-native-config.test.mjs']})
         elif path in ('scripts/test_agent_scope_contracts.py', '.gitignore', '.mcp.json', '.claude/settings.json', '.claude/codex-agent-manifest.json', 'backend/wrangler.jsonc'):
             jobs.append({'service': 'host', 'command': ['python3', '-B', 'scripts/test_agent_scope_contracts.py']})
         elif path in ('.claude/scripts/sync-codex-mirror.py', '.claude/scripts/test_sync_codex_mirror.py', '.claude/scripts/sync-codex-mirror.sh'):
@@ -151,6 +238,30 @@ def plan(paths):
         if existing:
             jobs.append({'service': 'frontend', 'command': ['node', 'node_modules/eslint/bin/eslint.js', '--max-warnings', '0', *existing]})
             jobs.append({'service': 'frontend', 'command': ['node', 'node_modules/prettier/bin/prettier.cjs', '--check', *existing]})
+    e2e_selected = []
+    for path in e2e_ts:
+        if path not in e2e_selected:
+            e2e_selected.append(path)
+    if e2e_runner:
+        e2e_selected.append('frontend/scripts/run-e2e.sh')
+    if e2e_selected:
+        relative_ts = [path.removeprefix('frontend/') for path in e2e_selected if path.endswith('.ts')]
+        if relative_ts:
+            jobs.append({'service': 'frontend', 'command': ['node', 'node_modules/eslint/bin/eslint.js', '--max-warnings', '0', *relative_ts]})
+            jobs.append({'service': 'frontend', 'command': ['node', 'node_modules/prettier/bin/prettier.cjs', '--check', *relative_ts]})
+            jobs.append({
+                'service': 'frontend',
+                'command': [
+                    'sh', '-c',
+                    'node -e \'' + E2E_TSCONFIG_BOOTSTRAP + '\' "$@" '
+                    '&& node node_modules/typescript/bin/tsc -p /tmp/ae-e2e-tsconfig.json --noEmit --pretty false',
+                    'ae-e2e-tsc',
+                    *relative_ts,
+                ],
+            })
+        if e2e_runner:
+            jobs.append({'service': 'host', 'command': ['bash', '-n', 'frontend/scripts/run-e2e.sh']})
+        jobs.append({'service': 'host', 'command': ['python3', '-B', 'scripts/verify-agent-task.py', '--check-e2e-scope', *e2e_selected]})
     unique = []
     for job in jobs:
         if job not in unique:
@@ -352,6 +463,7 @@ def main():
     scope.add_argument('--base', help='Local base commit; includes current tracked and untracked work')
     scope.add_argument('--staged', action='store_true')
     scope.add_argument('--paths', nargs='+')
+    scope.add_argument('--check-e2e-scope', nargs='+', help='Offline E2E/runner contract check for exact paths')
     parser.add_argument('--plan', action='store_true', help='Resolve scope only; no check execution')
     parser.add_argument('--frontend-container')
     parser.add_argument('--backend-container')
@@ -361,6 +473,13 @@ def main():
     parser.add_argument('--backend-dependency-volume', default=defaults.get('backend_dependency_volume'), help='Explicit existing read-only Go module cache volume')
     parser.add_argument('--evidence', type=pathlib.Path)
     args = parser.parse_args()
+    if args.check_e2e_scope is not None:
+        try:
+            check_e2e_scope(args.check_e2e_scope)
+        except ValueError as error:
+            print(str(error), file=sys.stderr)
+            return 1
+        return 0
     evidence = {'status': 'BLOCKED', 'root': str(ROOT), 'checks': []}
     code = 2
     try:
