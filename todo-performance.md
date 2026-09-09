@@ -315,6 +315,15 @@ Product/test acceptance for white-screen fix + deferred pending→resolved route
 - Gaps: login storage false/throw fail-closed before hydrate/clear pause; pre-session POST allowlist uses configured baseURL origin + exact pathname (no raw endsWith).
 - Verifier isolation: generation reported intermittent FAIL at fp `6c2e3a01…`; clean tip baselines PASS×2 completed_tests=117. After repair exact 17-file verifier PASS×2 consecutive completed_tests=120 fp `c055855b471ee1b3c27e6669d362baa7c64193c52e0cf0c8a423886a0fdd791e` exit0. Direct Vitest supporting only.
 - Owned TS eslint0 prettier0. Orchestration: investigate wf `ae-perf-stg-login-b-cycle2-investigate` joined; implementer `01a08647-615e-7013-9309-c364fbadcdba` joined; review wf `ae-perf-stg-login-b-cycle2-review` (security PASS + react PASS) joined. Browser BLOCKED. CI/Linear UNKNOWN.
+- Code tip after cycle2 repair: `bd62225d28064dbbf1a0db46d50b90f12b474e56` (five allowlisted paths only).
+
+##### Cycle2 re-verify session (prompt agent-fast-stg-login-b-reconcile-cycle2-20260909)
+
+- Receiver continued original B owner worktree; claim `claim/PERF-STG-LOGIN-B` retained (not reacquired/deleted).
+- Exact 17-file Docker verifier re-run twice consecutive on tip `bd62225d2` with image `sha256:532501622cd024ab786a32eb9798db1cd1a0e4d47cddb3dbd56ae107f95d9cb4` + volume `ekarte-frontend-node-modules`: both PASS `completed_tests=120` exit0 fingerprint `c055855b471ee1b3c27e6669d362baa7c64193c52e0cf0c8a423886a0fdd791e`. Generation FAIL×2 at `6c2e3a01…` not reproduced on clean tip; preserved as historical narrative only.
+- Owned-path eslint `--max-warnings 0` + prettier `--check` exit0 for AuthProvider.tsx, use-auth-initial-session.test.tsx, clinic-selection-axios.ts/.test.ts. `git diff --check` clean.
+- Orchestration: Workflow `ae-perf-stg-login-b-cycle2-verify` (`wf_01a086f3927a72b294a96f544a8fc8e7`) probes storage/url/verifier + security review joined; react-reviewer `01a086f9-b951-7ad3-8638-3f6254162570` PASS. Probes: storage `01a086f3-9296-70d0-9af6-206de3b6be5c` closed; url `…2075a565490b` closed; verifier history `…2084fc1243f2` needs_reverify→satisfied by this session PASS×2; security-react `01a086f6-f9fe-7642-9e33-14a27a36816e` ok.
+- Source tree foreign WIP preserved; A candidate `AnimalEkarte-perf-login-a-20260909` at `9b06b551` preserved. Browser BLOCKED. CI/Linear UNKNOWN. No push/PR/merge/deploy.
 
 ### C. 通信経路を計測して、効果のある対策だけを入れる（A・Bと独立して調査）
 
