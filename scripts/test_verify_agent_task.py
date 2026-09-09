@@ -496,6 +496,7 @@ class VerificationTests(unittest.TestCase):
 
     def test_discovery_rejects_missing_or_zero_registered_tests(self):
         payload = {
+            'config': {'rootDir': '/app/e2e'},
             'suites': [{
                 'specs': [{
                     'file': 'valid.spec.ts',
@@ -507,7 +508,7 @@ class VerificationTests(unittest.TestCase):
             json.dumps(payload),
             ['e2e/valid.spec.ts'],
         )
-        self.assertEqual(counts['valid.spec.ts'], 1)
+        self.assertEqual(counts['frontend/e2e/valid.spec.ts'], 1)
         with self.assertRaisesRegex(ValueError, 'no registered tests'):
             verify.validate_playwright_discovery(
                 json.dumps(payload),
@@ -515,6 +516,101 @@ class VerificationTests(unittest.TestCase):
             )
         with self.assertRaisesRegex(ValueError, 'malformed|empty|not JSON'):
             verify.validate_playwright_discovery('', ['e2e/valid.spec.ts'])
+
+    def test_discovery_rejects_same_basename_aliasing(self):
+        payload = {
+            'config': {'rootDir': '/app/e2e'},
+            'suites': [{
+                'specs': [{
+                    'file': 'group-a/shared.spec.ts',
+                    'tests': [{'title': 'valid'}],
+                }],
+            }],
+        }
+        with self.assertRaisesRegex(ValueError, 'group-b/shared.spec.ts'):
+            verify.validate_playwright_discovery(
+                json.dumps(payload),
+                ['e2e/group-a/shared.spec.ts', 'e2e/group-b/shared.spec.ts'],
+            )
+        both = {
+            'config': {'rootDir': '/app/e2e'},
+            'suites': [{
+                'specs': [
+                    {'file': 'group-a/shared.spec.ts', 'tests': [{'title': 'a'}]},
+                    {'file': 'group-b/shared.spec.ts', 'tests': [{'title': 'b'}]},
+                ],
+            }],
+        }
+        counts = verify.validate_playwright_discovery(
+            json.dumps(both),
+            ['e2e/group-a/shared.spec.ts', 'e2e/group-b/shared.spec.ts'],
+        )
+        self.assertEqual(counts['frontend/e2e/group-a/shared.spec.ts'], 1)
+        self.assertEqual(counts['frontend/e2e/group-b/shared.spec.ts'], 1)
+
+    def test_string_literal_is_not_an_import_specifier(self):
+        text = 'const message = "import { AccountingPage } from \'./pages/accounting-page\'";\n'
+        self.assertEqual(verify.e2e_import_specifiers(text), [])
+        text_real = 'import { AccountingPage } from "./pages/accounting-page";\n'
+        self.assertEqual(verify.e2e_import_specifiers(text_real), ['./pages/accounting-page'])
+
+    def test_regex_literal_is_not_an_import_specifier(self):
+        text = 'const pattern = /import { AccountingPage } from ".\\/pages\\/accounting-page"/;\n'
+        self.assertEqual(verify.e2e_import_specifiers(text), [])
+
+    def test_discovery_rejects_dot_prefix_alias(self):
+        payload = {
+            'config': {'rootDir': '/app/e2e'},
+            'suites': [{
+                'specs': [{
+                    'file': '.group-a/shared.spec.ts',
+                    'tests': [{'title': 'valid'}],
+                }],
+            }],
+        }
+        with self.assertRaisesRegex(ValueError, 'ambiguous|no registered tests|out of root'):
+            verify.validate_playwright_discovery(
+                json.dumps(payload),
+                ['e2e/group-a/shared.spec.ts'],
+            )
+
+    def test_nested_relative_import_resolves_against_importer(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            page = root / 'frontend/e2e/pages/accounting-page.ts'
+            page.parent.mkdir(parents=True)
+            page.write_text('export class AccountingPage {}\n')
+            nested = root / 'frontend/e2e/subdir/foo.spec.ts'
+            nested.parent.mkdir(parents=True)
+            nested.write_text(
+                'import { AccountingPage } from "./pages/accounting-page";\n'
+                'import { test } from "@playwright/test";\n'
+                'test("x", async () => {});\n'
+            )
+            with mock.patch.object(verify, 'ROOT', root):
+                self.assertEqual(verify.e2e_spec_consumers('frontend/e2e/pages/accounting-page.ts'), [])
+
+    def test_mixed_supported_and_unsupported_page_reference_blocks(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            page = root / 'frontend/e2e/pages/accounting-page.ts'
+            page.parent.mkdir(parents=True)
+            page.write_text('export class AccountingPage {}\n')
+            good = root / 'frontend/e2e/good.spec.ts'
+            bad = root / 'frontend/e2e/bad.spec.ts'
+            good.write_text(
+                'import { AccountingPage } from "./pages/accounting-page";\n'
+                'import { test } from "@playwright/test";\n'
+                'test("x", async () => {});\n'
+            )
+            bad.write_text(
+                'import { AccountingPage } from "@/e2e/pages/accounting-page";\n'
+                'import { test } from "@playwright/test";\n'
+                'test("y", async () => {});\n'
+            )
+            with mock.patch.object(verify, 'ROOT', root):
+                with self.assertRaisesRegex(ValueError, 'unsupported import topology'):
+                    verify.e2e_spec_consumers('frontend/e2e/pages/accounting-page.ts')
 
 
 if __name__ == '__main__':

@@ -189,6 +189,17 @@ Runtime preflight: `old-db-postgres` only Up; animalekarte backend/frontend/db E
 | browser/runtime | 引き続き BLOCKED（本単位では run-e2e 実行なし） |
 | CI dependency-audit | PR394 Frontend Build の pnpm audit 失敗は別 NEW WORK（本単位で lock/deps 未変更） |
 
+
+#### File-identity repair I1/I2（2026-09-09）
+
+| 項目 | 証跡 |
+|------|------|
+| I1 | string-literal fake import → specifiers `[]`；real import は importer 相対 resolve。mixed supported+unsupported は ValueError |
+| I2 | discovery key は `frontend/e2e/<path-from-testDir>`。`group-a/shared` のみでは `group-b/shared` を拒否 |
+| regressions | `python3 -B scripts/test_verify_agent_task.py` → 54 OK |
+| offline | `AGENT_VERIFY_FRONTEND_IMAGE=sha256:532501622cd0…` 付き page-only/five-path → PASS；discovery_counts が full identity |
+| CI audit / runtime | 引き続き別 blocker（本単位で deps/runtime 未変更） |
+
 ## 2. USER ゲート（秘密・本番・外部環境）
 
 外部状態は実行直前に再確認する。エージェントは秘密値の作成・表示・投入、共有 STG/PROD apply、production 構築、go-live を自動実行しない。
