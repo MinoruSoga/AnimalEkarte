@@ -102,25 +102,134 @@ E2E_TSCONFIG_BOOTSTRAP = (
 )
 
 
+E2E_IMPORT_RE = re.compile(
+    r"""(?:import\s+(?:type\s+)?[\s\S]*?\s+from\s+|require\s*\(\s*)['"]([^'"]+)['"]"""
+)
+
+
+def _strip_line_comment(line):
+    in_single = False
+    in_double = False
+    escaped = False
+    for index, char in enumerate(line):
+        if escaped:
+            escaped = False
+            continue
+        if char == '\\' and (in_single or in_double):
+            escaped = True
+            continue
+        if char == "'" and not in_double:
+            in_single = not in_single
+            continue
+        if char == '"' and not in_single:
+            in_double = not in_double
+            continue
+        if char == '/' and not in_single and not in_double and index + 1 < len(line) and line[index + 1] == '/':
+            return line[:index]
+    return line
+
+
+def e2e_import_specifiers(text):
+    """Return static import/require specifiers, ignoring line comments."""
+    cleaned = []
+    in_block = False
+    for raw in text.splitlines():
+        line = raw
+        if in_block:
+            end = line.find('*/')
+            if end < 0:
+                continue
+            line = line[end + 2:]
+            in_block = False
+        while True:
+            start = line.find('/*')
+            if start < 0:
+                break
+            end = line.find('*/', start + 2)
+            if end < 0:
+                line = line[:start]
+                in_block = True
+                break
+            line = line[:start] + line[end + 2:]
+        cleaned.append(_strip_line_comment(line))
+    return E2E_IMPORT_RE.findall('\n'.join(cleaned))
+
+
 def e2e_spec_consumers(page_path):
-    """Return e2e spec paths (repo-relative) that import the page object module."""
+    """Return e2e spec paths (repo-relative) with supported static imports of the page module."""
     page = pathlib.PurePosixPath(page_path)
     if len(page.parts) < 4 or page.parts[0] != 'frontend' or page.parts[1] != 'e2e' or page.parts[2] != 'pages':
         return []
     module = page.stem
-    needles = (
-        f'./pages/{module}',
-        f'../pages/{module}',
-        f"pages/{module}",
-    )
     consumers = []
+    unsupported = []
     for spec in sorted((ROOT / 'frontend' / 'e2e').rglob('*.spec.ts')):
         relative = spec.relative_to(ROOT).as_posix()
         validate_path(relative)
         text = spec.read_text(encoding='utf-8')
-        if any(needle in text for needle in needles):
+        matched = False
+        for specifier in e2e_import_specifiers(text):
+            normalized = specifier.replace('\\', '/')
+            if normalized.startswith('@/') or normalized.startswith('node:') or '${' in normalized:
+                if f'pages/{module}' in normalized:
+                    unsupported.append(relative)
+                continue
+            base = normalized[:-3] if normalized.endswith('.ts') else normalized
+            if base == f'./pages/{module}' or base == f'../pages/{module}' or base.endswith(f'/pages/{module}'):
+                matched = True
+        if matched:
             consumers.append(relative)
+        elif relative in unsupported:
+            # Unsupported alias/dynamic topology mentioning this page cannot silently count as coverage.
+            pass
+    if unsupported and not consumers:
+        raise ValueError(
+            'E2E page object only referenced via unsupported import topology: '
+            + ', '.join(sorted(set(unsupported)))
+        )
     return consumers
+
+
+def playwright_discovery_counts(stdout):
+    """Parse Playwright --list --reporter=json output into basename -> registered test count."""
+    text = stdout.strip()
+    if not text:
+        raise ValueError('E2E discovery produced empty output')
+    start = text.find('{')
+    if start < 0:
+        raise ValueError('E2E discovery output is not JSON')
+    try:
+        payload = json.loads(text[start:])
+    except ValueError as error:
+        raise ValueError('E2E discovery output is malformed JSON') from error
+    counts = {}
+
+    def walk(node):
+        for spec in node.get('specs') or []:
+            name = pathlib.PurePosixPath(str(spec.get('file') or '')).name
+            if not name:
+                continue
+            counts[name] = counts.get(name, 0) + len(spec.get('tests') or [])
+        for child in node.get('suites') or []:
+            walk(child)
+
+    walk(payload)
+    return counts
+
+
+def validate_playwright_discovery(stdout, selected_specs):
+    """Require every selected spec file to appear with at least one registered test."""
+    if not selected_specs:
+        raise ValueError('E2E discovery selection is empty')
+    counts = playwright_discovery_counts(stdout)
+    missing = []
+    for path in selected_specs:
+        name = pathlib.PurePosixPath(path).name
+        if counts.get(name, 0) < 1:
+            missing.append(path)
+    if missing:
+        raise ValueError('E2E discovery found no registered tests for: ' + ', '.join(missing))
+    return counts
 
 
 def check_e2e_scope(paths):
@@ -171,11 +280,20 @@ def plan(paths):
             if not (ROOT / path).is_file():
                 blocked.append(path)
                 continue
-            if not e2e_spec_consumers(path):
+            try:
+                consumers = e2e_spec_consumers(path)
+            except ValueError:
+                blocked.append(path)
+                continue
+            if not consumers:
                 blocked.append(path)
                 continue
             e2e_pages.append(path)
-            e2e_ts.append(path)
+            if path not in e2e_ts:
+                e2e_ts.append(path)
+            for consumer in consumers:
+                if consumer not in e2e_ts:
+                    e2e_ts.append(consumer)
         elif path in ('frontend/vite.config.ts', 'frontend/scripts/vite-native-config.test.mjs'):
             jobs.append({'service': 'frontend', 'command': ['node', '--test', 'scripts/vite-native-config.test.mjs']})
         elif path == 'frontend/scripts/run-e2e.sh':
@@ -246,6 +364,7 @@ def plan(paths):
         e2e_selected.append('frontend/scripts/run-e2e.sh')
     if e2e_selected:
         relative_ts = [path.removeprefix('frontend/') for path in e2e_selected if path.endswith('.ts')]
+        relative_specs = [path.removeprefix('frontend/') for path in e2e_selected if path.endswith('.spec.ts')]
         if relative_ts:
             jobs.append({'service': 'frontend', 'command': ['node', 'node_modules/eslint/bin/eslint.js', '--max-warnings', '0', *relative_ts]})
             jobs.append({'service': 'frontend', 'command': ['node', 'node_modules/prettier/bin/prettier.cjs', '--check', *relative_ts]})
@@ -258,6 +377,16 @@ def plan(paths):
                     'ae-e2e-tsc',
                     *relative_ts,
                 ],
+            })
+        if relative_specs:
+            jobs.append({
+                'service': 'frontend',
+                'command': [
+                    'node', 'node_modules/@playwright/test/cli.js', 'test',
+                    '--list', '--reporter=json', *relative_specs,
+                ],
+                'require_e2e_discovery': True,
+                'e2e_discovery_specs': relative_specs,
             })
         if e2e_runner:
             jobs.append({'service': 'host', 'command': ['bash', '-n', 'frontend/scripts/run-e2e.sh']})
@@ -550,6 +679,13 @@ def main():
                         check.update(exit_code=result.returncode, status='BLOCKED')
                         evidence['checks'].append(check)
                         raise ValueError('Frontend completed no passing test cases; no test proof')
+                if job.get('require_e2e_discovery'):
+                    try:
+                        counts = validate_playwright_discovery(result.stdout, job.get('e2e_discovery_specs') or [])
+                        check['discovery_counts'] = counts
+                    except ValueError as error:
+                        failed = True
+                        check['discovery_error'] = str(error)
                 check.update(exit_code=result.returncode, status='FAIL' if failed else 'PASS')
                 evidence['checks'].append(check)
                 if failed:

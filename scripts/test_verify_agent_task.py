@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Offline regression tests; never invokes Docker or application tests."""
 import importlib.util
+import io
+import json
 import pathlib
+import subprocess
 import tempfile
 import unittest
 from unittest import mock
-import subprocess
-import io
 
 SPEC = importlib.util.spec_from_file_location('verify', pathlib.Path(__file__).with_name('verify-agent-task.py'))
 verify = importlib.util.module_from_spec(SPEC)
@@ -390,11 +391,15 @@ class VerificationTests(unittest.TestCase):
         self.assertTrue(any('tsc' in command or 'ae-e2e-tsconfig' in command for command in flat))
         self.assertTrue(any(job['command'][:3] == ['bash', '-n', 'frontend/scripts/run-e2e.sh'] for job in jobs))
         self.assertTrue(any('--check-e2e-scope' in job['command'] for job in jobs))
+        self.assertTrue(any(job.get('require_e2e_discovery') for job in jobs))
         for job in jobs:
             joined = ' '.join(job['command'])
-            self.assertNotIn('playwright test', joined)
             self.assertNotIn('npm install', joined)
             self.assertNotIn('--network=host', joined)
+            if 'cli.js' in joined and 'test' in job['command']:
+                self.assertIn('--list', job['command'])
+                self.assertNotIn('--headed', job['command'])
+                self.assertNotIn('--debug', job['command'])
 
     def test_e2e_page_object_without_consumer_is_blocked(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -458,6 +463,58 @@ class VerificationTests(unittest.TestCase):
         jobs, blocked = verify.plan(['frontend/scripts/vite-native-config.test.mjs'])
         self.assertFalse(blocked)
         self.assertEqual(jobs[0]['command'], ['node', '--test', 'scripts/vite-native-config.test.mjs'])
+
+    def test_page_only_plan_includes_real_consumer_specs_in_tsc(self):
+        jobs, blocked = verify.plan(['frontend/e2e/pages/accounting-page.ts'])
+        self.assertFalse(blocked)
+        tsc = next(job for job in jobs if job['command'] and job['command'][0] == 'sh' and 'ae-e2e-tsc' in job['command'])
+        self.assertIn('e2e/pages/accounting-page.ts', tsc['command'])
+        self.assertIn('e2e/s09-closing-time-boundaries.spec.ts', tsc['command'])
+        self.assertIn('e2e/accounting-flow.spec.ts', tsc['command'])
+        self.assertIn('e2e/accounting-smoke.spec.ts', tsc['command'])
+        discovery = next(job for job in jobs if job.get('require_e2e_discovery'))
+        self.assertIn('e2e/s09-closing-time-boundaries.spec.ts', discovery['e2e_discovery_specs'])
+        self.assertIn('e2e/accounting-flow.spec.ts', discovery['e2e_discovery_specs'])
+
+    def test_comment_only_page_import_is_not_a_consumer(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            page = root / 'frontend/e2e/pages/orphan-page.ts'
+            page.parent.mkdir(parents=True)
+            page.write_text('export class Orphan {}\n')
+            (root / 'frontend/e2e').mkdir(exist_ok=True)
+            (root / 'frontend/e2e/fake.spec.ts').write_text(
+                '// import { Orphan } from "./pages/orphan-page";\n'
+                'import { test } from "@playwright/test";\n'
+                'test("x", async () => {});\n'
+            )
+            with mock.patch.object(verify, 'ROOT', root):
+                self.assertEqual(verify.e2e_spec_consumers('frontend/e2e/pages/orphan-page.ts'), [])
+                jobs, blocked = verify.plan(['frontend/e2e/pages/orphan-page.ts'])
+                self.assertFalse(jobs)
+                self.assertEqual(blocked, ['frontend/e2e/pages/orphan-page.ts'])
+
+    def test_discovery_rejects_missing_or_zero_registered_tests(self):
+        payload = {
+            'suites': [{
+                'specs': [{
+                    'file': 'valid.spec.ts',
+                    'tests': [{'title': 'ok'}],
+                }],
+            }],
+        }
+        counts = verify.validate_playwright_discovery(
+            json.dumps(payload),
+            ['e2e/valid.spec.ts'],
+        )
+        self.assertEqual(counts['valid.spec.ts'], 1)
+        with self.assertRaisesRegex(ValueError, 'no registered tests'):
+            verify.validate_playwright_discovery(
+                json.dumps(payload),
+                ['e2e/valid.spec.ts', 'e2e/empty.spec.ts'],
+            )
+        with self.assertRaisesRegex(ValueError, 'malformed|empty|not JSON'):
+            verify.validate_playwright_discovery('', ['e2e/valid.spec.ts'])
 
 
 if __name__ == '__main__':

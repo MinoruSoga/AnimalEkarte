@@ -177,6 +177,18 @@ Runtime preflight: `old-db-postgres` only Up; animalekarte backend/frontend/db E
 | offline | `AGENT_VERIFY_FRONTEND_IMAGE=sha256:532501622cd0… AGENT_VERIFY_FRONTEND_DEPENDENCY_VOLUME=ekarte-frontend-node-modules` を付けた `python3 -B scripts/verify-agent-task.py --staged` → PASS（eslint/prettier/tsc/bash -n/e2e-scope、executed_count=6）。selector 無しの bare `--staged` は frontend image 欠落で BLOCKED。browser/UAT は未実行のまま BLOCKED |
 | 継承 staged | S09/V04 仕様 5 ファイルを保全（Prettier のみ最小整形） |
 
+
+#### Gap repair G1/G2（2026-09-09）
+
+| 項目 | 証跡 |
+|------|------|
+| G1 | page-only `accounting-page.ts` の tsc/discovery に consumer specs（accounting-flow/smoke + s09）を含める。`python3 -B scripts/verify-agent-task.py --paths frontend/e2e/pages/accounting-page.ts` → PASS executed_count=5、discovery_counts accounting-flow:4 smoke:6 s09:5 |
+| G2 | Playwright `--list --reporter=json` で selected spec 毎に registered tests≥1 を要求。empty/missing は FAIL。`validate_playwright_discovery` が mixed missing を拒否 |
+| regressions | `python3 -B scripts/test_verify_agent_task.py` → 50 tests OK |
+| broken-consumer Docker | scratch `missingMethod` → tsc exit 2 |
+| browser/runtime | 引き続き BLOCKED（本単位では run-e2e 実行なし） |
+| CI dependency-audit | PR394 Frontend Build の pnpm audit 失敗は別 NEW WORK（本単位で lock/deps 未変更） |
+
 ## 2. USER ゲート（秘密・本番・外部環境）
 
 外部状態は実行直前に再確認する。エージェントは秘密値の作成・表示・投入、共有 STG/PROD apply、production 構築、go-live を自動実行しない。
