@@ -390,3 +390,22 @@ git show ad63bdf28:todo-refactor.md
 - Campaign `--base 53a4a18c62904e793b59a6283e5ef31edd0902a1`: `status=PASS`, `executed_count=9`, unmapped=`[]`.
 - Prior contracts retained: shadowed require blocks; `@/e2e` unrelated; absolute/file exact targets block.
 - Separate blockers (unchanged): PR394 Frontend Build/dependency audit; browser/UAT runtime.
+
+### Residual path-integrity (2026-09-10)
+
+- Unit: PR394 residual path-integrity (third-cycle single invariant).
+- Claims: prior claims retained; AI `claim/PR394-RESIDUAL-PATH-INTEGRITY` acquired/held (not deleted).
+- Pre-edit HEAD: `aba6637a3ae42cb6fa507491882c7b35f4ecfc06` (clean). Allowlisted paths only (5).
+- Selectors (exact): `AGENT_VERIFY_FRONTEND_IMAGE=sha256:532501622cd024ab786a32eb9798db1cd1a0e4d47cddb3dbd56ae107f95d9cb4`, `AGENT_VERIFY_FRONTEND_DEPENDENCY_VOLUME=ekarte-frontend-node-modules`.
+- Closed holes:
+  1. Python: `_is_raw_canonical_posix` rejects C0 (`ord < 0x20`) and DEL (`0x7F`) before pathlib — `e2e/good\0.spec.ts` / DEL / C0 fail-closed.
+  2. Node enum: abs must be string + absolute + `path.resolve(abs) === abs` before `path.relative` — raw `e2eRoot+"/./good.spec.ts"` fail-closed.
+  3. Node read-time: `openSync(O_RDONLY|O_NOFOLLOW)` → `fstat` regular → `/proc/self/fd/<fd>` realpath containment vs e2eRoot (relative equality, no string-prefix) → `readFileSync(fd)`; missing `/proc/self/fd` fails closed. Symlink listSpecs / mid-loop swap → ELOOP/`ok:false`.
+- Independent adversarial re-run: NUL/DEL/C0 FAIL_CLOSED; DOT_RAW/`SYMLINK_LIST`/`RACE_HOOK` ok=false; CONTROL_OK consumers=1.
+- RED→GREEN: Docker Node **20 pass / 0 fail**; `python3 -B scripts/test_verify_agent_task.py` → **Ran 58 tests … OK**.
+- Plan page-only: `status=PLAN`, `executed_count=0`, discovery_specs=**35**.
+- Actual page-only: `status=PASS`, `executed_count=6`, discovery_n=**35**; consumers accounting=3 settings=2.
+- Actual five-path: `status=PASS`, `executed_count=7`.
+- Campaign `--base 53a4a18c62904e793b59a6283e5ef31edd0902a1`: `status=PASS`, `executed_count=9`, unmapped=`[]`.
+- Prior contracts retained (require/alias/static-import/specifier/symlink).
+- Separate blockers (unchanged): PR394 Frontend Build/dependency audit; browser/UAT runtime.

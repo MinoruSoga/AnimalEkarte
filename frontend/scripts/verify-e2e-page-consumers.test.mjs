@@ -8,6 +8,7 @@ import {
   mkdirSync,
   writeFileSync,
   symlinkSync,
+  unlinkSync,
   rmSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -645,6 +646,95 @@ test("RED: outside-root enumerated path via custom listSpecs fails closed", asyn
     });
     assert.equal(payload.ok, false, JSON.stringify(payload));
     assert.match(String(payload.error || ""), /escape|noncanonical|outside|root/i);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("RED: raw /./ absolute spelling via custom listSpecs fails closed", async () => {
+  const mod = await loadModule();
+  const { root, e2eRoot } = makeFixture({
+    "e2e/pages/accounting-page.ts": "export class AccountingPage {}\n",
+    "e2e/good.spec.ts":
+      'import { AccountingPage } from "./pages/accounting-page";\n',
+  });
+  try {
+    const dotted = e2eRoot + "/./good.spec.ts";
+    assert.notEqual(path.resolve(dotted), dotted);
+    assert.equal(path.relative(e2eRoot, dotted), "good.spec.ts");
+    const payload = mod.verifyPages({
+      pages: ["e2e/pages/accounting-page.ts"],
+      e2eRoot,
+      listSpecs: () => [dotted],
+    });
+    assert.equal(payload.ok, false, JSON.stringify(payload));
+    assert.match(
+      String(payload.error || ""),
+      /noncanonical|raw|spelling|absolute|canonical/i,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("RED: custom listSpecs symlink path is rejected by descriptor-safe open", async () => {
+  const mod = await loadModule();
+  const { root, e2eRoot } = makeFixture({
+    "e2e/pages/accounting-page.ts": "export class AccountingPage {}\n",
+    "e2e/good.spec.ts":
+      'import { AccountingPage } from "./pages/accounting-page";\n',
+    "outside/valid-import.ts":
+      'import { AccountingPage } from "./pages/accounting-page";\n',
+  });
+  try {
+    const good = path.join(e2eRoot, "good.spec.ts");
+    const outside = path.join(root, "outside/valid-import.ts");
+    unlinkSync(good);
+    symlinkSync(outside, good);
+    const payload = mod.verifyPages({
+      pages: ["e2e/pages/accounting-page.ts"],
+      e2eRoot,
+      listSpecs: () => [good],
+    });
+    assert.equal(payload.ok, false, JSON.stringify(payload));
+    assert.match(
+      String(payload.error || ""),
+      /symlink|ELOOP|nofollow|trusted|open|regular/i,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("RED: mid-loop swap to outside symlink before trusted read fails closed", async () => {
+  const mod = await loadModule();
+  const { root, e2eRoot } = makeFixture({
+    "e2e/pages/accounting-page.ts": "export class AccountingPage {}\n",
+    "e2e/good.spec.ts":
+      'import { AccountingPage } from "./pages/accounting-page";\n',
+    "outside/valid-import.ts":
+      'import { AccountingPage } from "./pages/accounting-page";\n',
+  });
+  try {
+    const good = path.join(e2eRoot, "good.spec.ts");
+    const outside = path.join(root, "outside/valid-import.ts");
+    let swapped = false;
+    const payload = mod.verifyPages({
+      pages: ["e2e/pages/accounting-page.ts"],
+      e2eRoot,
+      listSpecs: () => [good],
+      beforeTrustedRead: () => {
+        unlinkSync(good);
+        symlinkSync(outside, good);
+        swapped = true;
+      },
+    });
+    assert.equal(swapped, true);
+    assert.equal(payload.ok, false, JSON.stringify(payload));
+    assert.match(
+      String(payload.error || ""),
+      /symlink|ELOOP|nofollow|trusted|open|regular|escape/i,
+    );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

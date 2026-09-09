@@ -138,6 +138,9 @@ def _is_raw_canonical_posix(value):
     """Reject forged spellings that PurePosixPath would collapse before parts checks."""
     if not isinstance(value, str) or not value:
         return False
+    # C0 controls and DEL survive PurePosixPath; reject before normalization authority.
+    if any(ord(ch) < 0x20 or ord(ch) == 0x7F for ch in value):
+        return False
     if any(ch.isspace() for ch in value):
         return False
     if '\\' in value:

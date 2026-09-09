@@ -8,7 +8,11 @@
 
 import { createRequire } from "node:module";
 import {
+  closeSync,
+  constants as fsConstants,
+  fstatSync,
   lstatSync,
+  openSync,
   readdirSync,
   readFileSync,
   realpathSync,
@@ -288,6 +292,74 @@ function fileIdentityFromRoot(e2eRoot, absoluteFile) {
   return `e2e/${rel}`;
 }
 
+function assertRawAbsoluteCanonical(absolutePath) {
+  if (typeof absolutePath !== "string" || !absolutePath) {
+    throw new Error(`enumerated spec path is not a string: ${absolutePath}`);
+  }
+  if (!path.isAbsolute(absolutePath)) {
+    throw new Error(`enumerated spec path is not absolute: ${absolutePath}`);
+  }
+  // Reject /./ inserts and other spellings that path.relative would collapse.
+  if (path.resolve(absolutePath) !== absolutePath) {
+    throw new Error(
+      `enumerated spec path is noncanonical absolute spelling: ${absolutePath}`,
+    );
+  }
+}
+
+/**
+ * Read AST evidence via an O_NOFOLLOW descriptor bound to e2eRoot.
+ * Pathname readFile after a prior lstat is not authoritative under TOCTOU.
+ */
+function readTrustedSpecFile(e2eRoot, absolutePath) {
+  assertRawAbsoluteCanonical(absolutePath);
+  let rootReal;
+  try {
+    rootReal = realpathSync(e2eRoot);
+  } catch (error) {
+    throw new Error(
+      `e2e root is unreadable for trusted read: ${e2eRoot}: ${
+        error && error.message ? error.message : error
+      }`,
+    );
+  }
+
+  const flags = fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW;
+  let fd;
+  try {
+    fd = openSync(absolutePath, flags);
+  } catch (error) {
+    const detail = (error && (error.code || error.message)) || error;
+    throw new Error(`trusted spec open failed (nofollow): ${absolutePath}: ${detail}`);
+  }
+
+  try {
+    const st = fstatSync(fd);
+    if (!st.isFile()) {
+      throw new Error(`trusted spec is not a regular file: ${absolutePath}`);
+    }
+
+    // Descriptor identity — fail closed when /proc/self/fd is unavailable.
+    let openedReal;
+    try {
+      openedReal = realpathSync(`/proc/self/fd/${fd}`);
+    } catch (error) {
+      throw new Error(
+        `trusted spec descriptor realpath unavailable (fail closed): ${absolutePath}: ${
+          error && error.message ? error.message : error
+        }`,
+      );
+    }
+    const rel = toPosix(path.relative(rootReal, openedReal));
+    if (!rel || rel.startsWith("..") || path.isAbsolute(rel)) {
+      throw new Error(`trusted spec escapes e2e root: ${absolutePath}`);
+    }
+    return readFileSync(fd, "utf8");
+  } finally {
+    closeSync(fd);
+  }
+}
+
 function assertPathInsideRoot(rootAbs, targetAbs, label) {
   let rootReal;
   let targetReal;
@@ -332,7 +404,12 @@ function assertSelectedPageExists(e2eRoot, pageIdentity) {
 }
 
 /**
- * @param {{ pages: string[], e2eRoot: string, readFile?: (p: string) => string, listSpecs?: () => string[] }} options
+ * @param {{
+ *   pages: string[],
+ *   e2eRoot: string,
+ *   listSpecs?: () => string[],
+ *   beforeTrustedRead?: (absolutePath: string) => void,
+ * }} options
  */
 export function verifyPages(options) {
   const e2eRoot = options.e2eRoot;
@@ -370,10 +447,13 @@ export function verifyPages(options) {
       pages: [],
     };
   }
-
-  const read =
-    options.readFile ||
-    ((absolutePath) => readFileSync(absolutePath, "utf8"));
+  if (!Array.isArray(specAbsPaths)) {
+    return {
+      ok: false,
+      error: "listSpecs must return an array of absolute paths",
+      pages: [],
+    };
+  }
 
   const pageResults = [];
   let ok = true;
@@ -385,6 +465,15 @@ export function verifyPages(options) {
     const seenBlocking = new Set();
 
     for (const abs of specAbsPaths) {
+      try {
+        assertRawAbsoluteCanonical(abs);
+      } catch (error) {
+        return {
+          ok: false,
+          error: String(error && error.message ? error.message : error),
+          pages: [],
+        };
+      }
       const identity = fileIdentityFromRoot(e2eRoot, abs);
       if (!identity) {
         return {
@@ -393,10 +482,27 @@ export function verifyPages(options) {
           pages: [],
         };
       }
+      if (typeof options.beforeTrustedRead === "function") {
+        options.beforeTrustedRead(abs);
+      }
       let text;
       try {
-        text = read(abs);
-      } catch {
+        // Descriptor-bound read — never pathname readFile for trusted AST evidence.
+        text = readTrustedSpecFile(e2eRoot, abs);
+      } catch (error) {
+        const message = String(error && error.message ? error.message : error);
+        // Security / containment / symlink failures fail the whole scan closed.
+        if (
+          /nofollow|symlink|ELOOP|trusted spec|escapes e2e root|descriptor realpath|regular file|noncanonical/i.test(
+            message,
+          )
+        ) {
+          return {
+            ok: false,
+            error: message,
+            pages: [],
+          };
+        }
         const key = `${identity}|parse-error`;
         if (!seenBlocking.has(key)) {
           seenBlocking.add(key);

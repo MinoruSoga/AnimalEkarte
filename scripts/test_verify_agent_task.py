@@ -708,6 +708,50 @@ class VerificationTests(unittest.TestCase):
                 ['e2e/pages/accounting-page.ts'],
             )
 
+    def test_raw_canonical_rejects_nul_c0_and_del_identities(self):
+        """C0 controls and DEL survive PurePosixPath; raw identities must still fail closed."""
+        page = 'e2e/pages/accounting-page.ts'
+        nul_file = 'e2e/good\x00.spec.ts'
+        c0_file = 'e2e/good\x01.spec.ts'
+        del_file = 'e2e/good\x7f.spec.ts'
+        nul_page = 'e2e/pages/accounting\x00-page.ts'
+        del_page = 'e2e/pages/accounting\x7f-page.ts'
+
+        self.assertFalse(verify._is_raw_canonical_posix(nul_file))
+        self.assertFalse(verify._is_raw_canonical_posix(c0_file))
+        self.assertFalse(verify._is_raw_canonical_posix(del_file))
+        self.assertFalse(verify._is_e2e_spec_consumer_file(nul_file))
+        self.assertFalse(verify._is_e2e_spec_consumer_file(c0_file))
+        self.assertFalse(verify._is_e2e_spec_consumer_file(del_file))
+        self.assertFalse(verify._is_canonical_e2e_page(nul_page))
+        self.assertFalse(verify._is_canonical_e2e_page(del_page))
+        self.assertTrue(verify._is_raw_canonical_posix('e2e/good.spec.ts'))
+
+        def payload(page_identity, file_path, specifier='./pages/accounting-page'):
+            return json.dumps({
+                'ok': True,
+                'pages': [{
+                    'page': page_identity,
+                    'consumers': [{
+                        'file': file_path,
+                        'form': 'static-import',
+                        'specifier': specifier,
+                    }],
+                    'blocking': [],
+                }],
+            })
+
+        with self.assertRaisesRegex(ValueError, 'canonical|consumer|spec|file|raw|identity|path'):
+            verify.validate_e2e_page_consumers(payload(page, nul_file), [page])
+        with self.assertRaisesRegex(ValueError, 'canonical|consumer|spec|file|raw|identity|path'):
+            verify.validate_e2e_page_consumers(payload(page, c0_file), [page])
+        with self.assertRaisesRegex(ValueError, 'canonical|consumer|spec|file|raw|identity|path'):
+            verify.validate_e2e_page_consumers(payload(page, del_file), [page])
+        with self.assertRaisesRegex(ValueError, 'canonical|identity|path|raw'):
+            verify.validate_e2e_page_consumers(payload(nul_page, 'e2e/good.spec.ts'))
+        with self.assertRaisesRegex(ValueError, 'canonical|identity|path|raw'):
+            verify.validate_e2e_page_consumers(payload(del_page, 'e2e/good.spec.ts'))
+
     def test_specifier_must_resolve_exactly_to_claimed_page(self):
         page = 'e2e/pages/accounting-page.ts'
 
