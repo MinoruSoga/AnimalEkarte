@@ -21,7 +21,7 @@ export function SessionPending({ message = DEFAULT_MESSAGE }: SessionPendingProp
       >
         <Stethoscope className={`size-[26px] ${C.textWhite}`} aria-hidden="true" />
       </div>
-      <p className={`text-heading-3 font-bold leading-tight ${C.text} mb-1`}>ノア動物病院</p>
+      <h1 className={`text-heading-3 font-bold leading-tight ${C.text} mb-1`}>ノア動物病院</h1>
       <p className={`text-base ${C.text50}`}>{message}</p>
     </div>
   );

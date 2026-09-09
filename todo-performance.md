@@ -146,14 +146,14 @@
 
 #### Acceptance Checklist (expanded before implementation)
 
-- [ ] Pending restore shows non-sensitive UI without protected children | Target: AuthProvider + SessionPending | Verify: scoped Vitest pending-Promise test RED→GREEN; protected mount and business fetch spies stay zero | PASS: named regression fails before fix and passes afterward
-- [ ] 200/401, recovery, clinic and StrictMode invariants retained | Target: use-auth-initial-session + use-auth-clinic-switch + affected route tests | Verify: exact candidate-mounted verify-agent-task.py paths command | PASS: nonzero test counts, zero failures
-- [ ] Lazy and hydration pending states remain visible and accessible | Target: root-hydrate-fallback, router, app-routes, SessionPending | Verify: unresolved loader/fallback tests + role=status | PASS: visible status before resolution; correct child after; no protected data
-- [ ] Changes stay within write allowlist; preserve pre-existing/foreign changes | Target: tracked/staged/untracked paths | Verify: git diff --name-only, --cached --name-only, ls-files --others vs pre-edit baseline | PASS: only allowlisted owned changes; unknown ownership BLOCKED
-- [ ] Isolated candidate descends from main and includes preserved plan | Target: worktree + ledger | Verify: merge-base ancestor of PERF_BASE; plan SHA import; check-ignore/ls-files --stage | PASS: main base recorded; source SHA unchanged; B/C/D remain pending
-- [ ] Independent review + scoped quality gates completed | Target: frozen candidate diff | Verify: independent reviewer with file/line evidence + exact test/lint/format outputs | PASS: no unresolved CRITICAL/HIGH; review joined
-- [ ] Task branch published and one main PR created | Target: MinoruSoga/AnimalEkarte | Verify: gh pr view --json url,baseRefName,headRefName,headRefOid,isDraft,state vs HEAD | PASS: OPEN PR to main with exact owned head; draft/ready and CI reported truthfully
-- [ ] Workflow-style orchestration used and all launched work reconciled | Target: this session | Verify: Deliverables orchestration evidence | PASS: Workflow/subagent mode recorded; every agent ID/role/status/evidence/integration joined or cancelled
+- [x] Pending restore shows non-sensitive UI without protected children | Target: AuthProvider + SessionPending | Verify: scoped Vitest pending-Promise test RED→GREEN; protected mount and business fetch spies stay zero | PASS: named regression fails before fix and passes afterward
+- [x] 200/401, recovery, clinic and StrictMode invariants retained | Target: use-auth-initial-session + use-auth-clinic-switch + affected route tests | Verify: exact candidate-mounted verify-agent-task.py paths command | PASS: nonzero test counts, zero failures
+- [x] Lazy and hydration pending states remain visible and accessible | Target: root-hydrate-fallback, router, app-routes, SessionPending | Verify: unresolved loader/fallback tests + role=status | PASS: visible status before resolution; correct child after; no protected data
+- [x] Changes stay within write allowlist; preserve pre-existing/foreign changes | Target: tracked/staged/untracked paths | Verify: git diff --name-only, --cached --name-only, ls-files --others vs pre-edit baseline | PASS: only allowlisted owned changes; unknown ownership BLOCKED
+- [x] Isolated candidate descends from main and includes preserved plan | Target: worktree + ledger | Verify: merge-base ancestor of PERF_BASE; plan SHA import; check-ignore/ls-files --stage | PASS: main base recorded; source SHA unchanged; B/C/D remain pending
+- [x] Independent review + scoped quality gates completed | Target: frozen candidate diff | Verify: independent reviewer with file/line evidence + exact test/lint/format outputs | PASS: no unresolved CRITICAL/HIGH; review joined
+- [x] Task branch published and one main PR created | Target: MinoruSoga/AnimalEkarte | Verify: gh pr view --json url,baseRefName,headRefName,headRefOid,isDraft,state vs HEAD | PASS: OPEN PR to main with exact owned head; draft/ready and CI reported truthfully
+- [x] Workflow-style orchestration used and all launched work reconciled | Target: this session | Verify: Deliverables orchestration evidence | PASS: Workflow/subagent mode recorded; every agent ID/role/status/evidence/integration joined or cancelled
 
 
 ### B. 起動時の認証確認だけに待ち上限を設ける（Aの次）
