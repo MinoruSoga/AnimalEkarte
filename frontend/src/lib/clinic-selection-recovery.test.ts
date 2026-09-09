@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { toast } from "sonner";
 import {
   CLINIC_SELECTION_UNAVAILABLE,
   isClinicSelectionUnavailable,
@@ -8,6 +9,7 @@ import {
   resetClinicSelectionRecoveryForTests,
   areClinicWritesPaused,
   getClinicSelectionBlockReason,
+  cancelPendingClinicSelectionRecovery,
 } from "@/lib/clinic-selection-recovery";
 
 const mocks = vi.hoisted(() => ({
@@ -150,6 +152,31 @@ describe("clinic-selection-recovery", () => {
     );
     await recoverClinicSelectionOnce();
     expect(getClinicSelectionBlockReason()).toBe("recovery-failed");
+  });
+
+  it("cancel between setStoredClinicId and toast/reload ignores mutations", async () => {
+    mocks.setStoredClinicId.mockImplementation(() => {
+      cancelPendingClinicSelectionRecovery();
+      return true;
+    });
+    const reload = vi.fn();
+    vi.stubGlobal("window", { location: { reload } });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          main_clinic_id: "2",
+          clinics: [{ clinic_id: "2", clinic_name: "城東", is_main: true }],
+        }),
+      }),
+    );
+
+    await recoverClinicSelectionOnce();
+    expect(mocks.setStoredClinicId).toHaveBeenCalledWith("2");
+    expect(toast.warning).not.toHaveBeenCalled();
+    expect(mocks.queryClient.clear).not.toHaveBeenCalled();
+    expect(reload).not.toHaveBeenCalled();
   });
 
   it("ignores a recovery response that arrives after logout", async () => {

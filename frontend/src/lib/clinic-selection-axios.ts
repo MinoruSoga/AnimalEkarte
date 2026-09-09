@@ -62,6 +62,11 @@ export function attachClinicSelectionInterceptors(client: AxiosInstance): void {
         return Promise.reject(error);
       }
       if (isClinicSelectionUnavailable(error.response?.data) && !isPreSessionAuthRequest(config)) {
+        // Startup restore classifies clinic403 itself and owns recovery under the 8s budget.
+        // Awaiting recovery here would leave AuthProvider pending until recovery finishes/aborts.
+        if (config.startupSessionRestore === true) {
+          return Promise.reject(error);
+        }
         if (isWriteMethod(config.method)) {
           void recoverClinicSelectionOnce();
           return Promise.reject(error);

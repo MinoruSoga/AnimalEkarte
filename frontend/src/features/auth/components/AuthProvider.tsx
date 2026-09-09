@@ -16,16 +16,26 @@ import { axios } from "@/lib/axios";
 import { attachClinicSelectionInterceptors } from "@/lib/clinic-selection-axios";
 import {
   beginClinicSelectionLogout,
+  cancelPendingClinicSelectionRecovery,
   clearClinicSelectionRecovery,
+  recoverClinicSelectionOnce,
 } from "@/lib/clinic-selection-recovery";
 import { login as loginApi } from "../api/login";
 import { logout as logoutApi } from "../api/logout";
 import { refreshToken } from "../api/refresh-token";
+import { restoreSession as restoreSessionApi } from "../api/restore-session";
+import type { SessionRestoreResult } from "../api/restore-session";
 import { useGetMe } from "../api/get-me";
 import { SessionPending } from "@/components/shared/auth/SessionPending";
 import { ClinicSelectionBlockedScreen } from "./ClinicSelectionBlockedScreen";
+import { LoginForm } from "./LoginForm";
+import { SessionRestoreError } from "./SessionRestoreError";
 
 attachClinicSelectionInterceptors(axios);
+
+const RESTORE_DEADLINE_MS = 8000;
+
+type RestorePhase = "pending" | "recovering" | "error" | "manual-login" | "ready";
 
 /* セッション情報は httpOnly Cookie で管理するため localStorage への保存は不要。
  * 選択中のクリニック ID のみ localStorage に残す（権限情報ではないためリスク低） */
@@ -76,7 +86,17 @@ function AuthProviderSession({ children, restoreSession }: AuthProviderSessionPr
   const [user, setUser] = useState<AuthUser | null>(null);
   const [currentClinicId, setCurrentClinicId] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState(!restoreSession);
-  const initialAuthPromiseRef = useRef<ReturnType<typeof refreshToken> | null>(null);
+  const [restorePhase, setRestorePhase] = useState<RestorePhase>(
+    restoreSession ? "pending" : "ready",
+  );
+  const restorePhaseRef = useRef<RestorePhase>(restoreSession ? "pending" : "ready");
+  const restoreGenerationRef = useRef(0);
+  const restoreControllerRef = useRef<AbortController | null>(null);
+  const flightRef = useRef<Promise<void> | null>(null);
+  const flightGenerationRef = useRef<number | null>(null);
+  const deadlineTimerRef = useRef<number | null>(null);
+  const applyEnabledRef = useRef(true);
+  const mountIdRef = useRef(0);
 
   const hydrateUser = useCallback(
     (next: AuthUser) => {
@@ -86,33 +106,121 @@ function AuthProviderSession({ children, restoreSession }: AuthProviderSessionPr
     [queryClient],
   );
 
-  // recovery/session 境界をまたぐと key により remount され、最新の Cookie 状態を
-  // 取得する。同一 mount では StrictMode の effect 再実行時も 1 回だけ呼び出す。
-  useEffect(() => {
-    if (!restoreSession) return;
+  const clearDeadline = useCallback(() => {
+    if (deadlineTimerRef.current !== null) {
+      window.clearTimeout(deadlineTimerRef.current);
+      deadlineTimerRef.current = null;
+    }
+  }, []);
 
-    let active = true;
-    initialAuthPromiseRef.current ??= refreshToken().catch(() => null);
+  const invalidateRestore = useCallback(() => {
+    restoreGenerationRef.current += 1;
+    restoreControllerRef.current?.abort();
+    restoreControllerRef.current = null;
+    flightRef.current = null;
+    flightGenerationRef.current = null;
+    clearDeadline();
+    cancelPendingClinicSelectionRecovery();
+  }, [clearDeadline]);
 
-    void initialAuthPromiseRef.current.then((result) => {
-      if (!active) return;
-
-      if (result) {
+  const applyRestoreResult = useCallback(
+    (generation: number, result: SessionRestoreResult) => {
+      if (!applyEnabledRef.current) return;
+      if (generation !== restoreGenerationRef.current) return;
+      if (result.kind === "cancel") return;
+      if (result.kind === "verified200") {
+        clearDeadline();
         const storedClinic = getStoredClinicId();
         const validClinic = result.user.clinics.some((clinic) => clinic.clinicId === storedClinic);
         hydrateUser(result.user);
         setCurrentClinicId(validClinic ? storedClinic : result.user.mainClinicId);
-      } else {
+        restorePhaseRef.current = "ready";
+        setRestorePhase("ready");
+        setIsInitialized(true);
+        return;
+      }
+      if (result.kind === "anonymous401") {
+        clearDeadline();
         setUser(null);
         setCurrentClinicId(null);
+        restorePhaseRef.current = "ready";
+        setRestorePhase("ready");
+        setIsInitialized(true);
+        return;
       }
-      setIsInitialized(true);
-    });
+      if (result.kind === "restricted403") {
+        if (result.reason === "clinic_selection_unavailable") {
+          // Keep the original 8s wall budget for at-most-one clinic recovery.
+          restorePhaseRef.current = "recovering";
+          setRestorePhase("recovering");
+          void recoverClinicSelectionOnce();
+          return;
+        }
+        clearDeadline();
+        restorePhaseRef.current = "error";
+        setRestorePhase("error");
+        return;
+      }
+      clearDeadline();
+      restorePhaseRef.current = "error";
+      setRestorePhase("error");
+    },
+    [clearDeadline, hydrateUser],
+  );
 
+  const runRestore = useCallback(() => {
+    if (!restoreSession) return;
+    const generation = restoreGenerationRef.current;
+    if (flightRef.current !== null && flightGenerationRef.current === generation) {
+      return;
+    }
+    const controller = new AbortController();
+    restoreControllerRef.current = controller;
+    flightGenerationRef.current = generation;
+    deadlineTimerRef.current = window.setTimeout(() => {
+      if (generation !== restoreGenerationRef.current) return;
+      if (
+        restorePhaseRef.current === "ready" ||
+        restorePhaseRef.current === "error" ||
+        restorePhaseRef.current === "manual-login"
+      ) {
+        return;
+      }
+      restoreGenerationRef.current += 1;
+      controller.abort();
+      flightRef.current = null;
+      flightGenerationRef.current = null;
+      deadlineTimerRef.current = null;
+      cancelPendingClinicSelectionRecovery();
+      restorePhaseRef.current = "error";
+      setRestorePhase("error");
+    }, RESTORE_DEADLINE_MS);
+
+    const flight = restoreSessionApi({ signal: controller.signal }).then((result) => {
+      applyRestoreResult(generation, result);
+    });
+    flightRef.current = flight;
+  }, [applyRestoreResult, restoreSession]);
+
+  // recovery/session 境界をまたぐと key により remount され、最新の Cookie 状態を
+  // 取得する。同一 mount では StrictMode の effect 再実行時も 1 回だけ呼び出す。
+  // True unmount (no remount microtask) hard-invalidates so late results cannot write
+  // the shared query cache or start clinic recovery after password-recovery navigation.
+  useEffect(() => {
+    if (!restoreSession) return;
+    const mountId = mountIdRef.current + 1;
+    mountIdRef.current = mountId;
+    applyEnabledRef.current = true;
+    runRestore();
     return () => {
-      active = false;
+      applyEnabledRef.current = false;
+      queueMicrotask(() => {
+        if (mountIdRef.current === mountId) {
+          invalidateRestore();
+        }
+      });
     };
-  }, [hydrateUser, restoreSession]);
+  }, [invalidateRestore, restoreSession, runRestore]);
 
   // /me のキャッシュ（起動時 hydrate）でユーザー情報を同期する。
   // staleTime 経過だけでは再取得しない。定期ポーリングはしない。
@@ -142,15 +250,21 @@ function AuthProviderSession({ children, restoreSession }: AuthProviderSessionPr
 
   const login = useCallback(
     async (email: string, password: string) => {
+      invalidateRestore();
       const result = await loginApi(email, password);
       hydrateUser(result.user);
       setCurrentClinicId(result.user.mainClinicId);
       saveClinicToStorage(result.user.mainClinicId);
+      clearClinicSelectionRecovery();
+      restorePhaseRef.current = "ready";
+      setRestorePhase("ready");
+      setIsInitialized(true);
     },
-    [hydrateUser],
+    [hydrateUser, invalidateRestore],
   );
 
   const logout = useCallback(async () => {
+    invalidateRestore();
     beginClinicSelectionLogout();
     try {
       await logoutApi();
@@ -166,8 +280,11 @@ function AuthProviderSession({ children, restoreSession }: AuthProviderSessionPr
       removeClinicFromStorage();
       clearClinicSelectionRecovery();
       queryClient.clear();
+      restorePhaseRef.current = "ready";
+      setRestorePhase("ready");
+      setIsInitialized(true);
     }
-  }, [queryClient]);
+  }, [invalidateRestore, queryClient]);
 
   const switchClinic = useCallback(
     (clinicId: string) => {
@@ -175,6 +292,7 @@ function AuthProviderSession({ children, restoreSession }: AuthProviderSessionPr
       if (clinicId === currentClinicId) return;
       const isMember = user.clinics.some((c) => c.clinicId === clinicId);
       if (!isMember) return;
+      invalidateRestore();
       // 1. localStorage 更新（リロード後に axios interceptor が新 clinic_id を送信する）
       // FE6-2: 書込失敗時はここで打ち切る。続行して reload すると旧クリニックIDのまま
       // 復帰し、ユーザーが切替成功と誤認する無音失敗になるため。
@@ -190,7 +308,7 @@ function AuthProviderSession({ children, restoreSession }: AuthProviderSessionPr
       // 3. フルリロードで全データ（React Query + React Router loader）を新クリニックで再取得
       window.location.reload();
     },
-    [user, currentClinicId, queryClient],
+    [user, currentClinicId, queryClient, invalidateRestore],
   );
 
   const hasPermission = useCallback(
@@ -211,6 +329,23 @@ function AuthProviderSession({ children, restoreSession }: AuthProviderSessionPr
       hydrateUser(result.user);
     }
   }, [hydrateUser]);
+
+  const handleRetryRestore = useCallback(() => {
+    invalidateRestore();
+    // Reset at-most-one recovery latch so a later clinic403 can recover again.
+    clearClinicSelectionRecovery();
+    restorePhaseRef.current = "pending";
+    setRestorePhase("pending");
+    setIsInitialized(false);
+    applyEnabledRef.current = true;
+    runRestore();
+  }, [invalidateRestore, runRestore]);
+
+  const handleSwitchToLogin = useCallback(() => {
+    invalidateRestore();
+    restorePhaseRef.current = "manual-login";
+    setRestorePhase("manual-login");
+  }, [invalidateRestore]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -236,8 +371,28 @@ function AuthProviderSession({ children, restoreSession }: AuthProviderSessionPr
     ],
   );
 
-  // セッション復元中は保護 children をマウントせず、非機密の確認中表示だけを出す。
-  if (!isInitialized) return <SessionPending />;
+  if (restorePhase === "error") {
+    return (
+      <SessionRestoreError onRetry={handleRetryRestore} onSwitchToLogin={handleSwitchToLogin} />
+    );
+  }
+
+  if (restorePhase === "manual-login") {
+    return (
+      <AuthContext.Provider value={value}>
+        <LoginForm />
+      </AuthContext.Provider>
+    );
+  }
+
+  if (!isInitialized) {
+    return (
+      <AuthContext.Provider value={value}>
+        <ClinicSelectionBlockedScreen onLogout={logout} />
+        <SessionPending />
+      </AuthContext.Provider>
+    );
+  }
 
   return (
     <AuthContext.Provider value={value}>

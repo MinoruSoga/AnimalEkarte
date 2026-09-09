@@ -55,6 +55,10 @@ vi.mock("../api/refresh-token", () => ({
   refreshToken: vi.fn().mockResolvedValue({ user: MOCK_SYSTEM_ADMIN }),
 }));
 
+vi.mock("../api/restore-session", () => ({
+  restoreSession: vi.fn().mockResolvedValue({ kind: "verified200", user: MOCK_SYSTEM_ADMIN }),
+}));
+
 vi.mock("../api/get-me", () => ({
   useGetMe: vi.fn().mockReturnValue({ data: undefined }),
 }));

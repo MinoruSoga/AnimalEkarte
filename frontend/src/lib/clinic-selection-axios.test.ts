@@ -154,4 +154,54 @@ describe("clinic selection axios guards", () => {
     await axios.request({ adapter, method: "post", url: "/v1/auth/refresh/logout" });
     expect(adapterCalls).toBe(1);
   });
+
+  it("does not start clinic recovery for startupSessionRestore GET /v1/me", async () => {
+    attachClinicSelectionInterceptors(axios);
+    let recoverStarted = false;
+    recoveryMocks.recover.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          recoverStarted = true;
+          resolve(undefined);
+        }),
+    );
+    const adapter: AxiosAdapter = async (config) => {
+      throw new AxiosError("clinic unavailable", AxiosError.ERR_BAD_REQUEST, config, undefined, {
+        config,
+        data: { error_code: CLINIC_SELECTION_UNAVAILABLE },
+        headers: new AxiosHeaders(),
+        status: 403,
+        statusText: "Forbidden",
+      });
+    };
+
+    await expect(
+      axios.request({
+        adapter,
+        method: "get",
+        url: "/v1/me",
+        startupSessionRestore: true,
+      }),
+    ).rejects.toThrow("clinic unavailable");
+    expect(recoverStarted).toBe(false);
+    expect(recoveryMocks.recover).not.toHaveBeenCalled();
+  });
+
+  it("still recovers ordinary GET clinic_selection_unavailable responses", async () => {
+    attachClinicSelectionInterceptors(axios);
+    const adapter: AxiosAdapter = async (config) => {
+      throw new AxiosError("clinic unavailable", AxiosError.ERR_BAD_REQUEST, config, undefined, {
+        config,
+        data: { error_code: CLINIC_SELECTION_UNAVAILABLE },
+        headers: new AxiosHeaders(),
+        status: 403,
+        statusText: "Forbidden",
+      });
+    };
+
+    await expect(axios.request({ adapter, method: "get", url: "/v1/me" })).rejects.toThrow(
+      "clinic unavailable",
+    );
+    expect(recoveryMocks.recover).toHaveBeenCalledOnce();
+  });
 });

@@ -69,6 +69,10 @@ function cancelPendingRecovery(): void {
   recoveryPromise = null;
 }
 
+export function cancelPendingClinicSelectionRecovery(): void {
+  cancelPendingRecovery();
+}
+
 export function resetClinicSelectionRecoveryForTests(): void {
   clearClinicSelectionRecovery();
 }
@@ -155,9 +159,11 @@ async function recoverClinicSelection(generation: number, signal: AbortSignal): 
       return;
     }
     if (!setStoredClinicId(nextId)) {
+      if (generation !== recoveryGeneration) return;
       setBlockReason("recovery-failed");
       return;
     }
+    if (generation !== recoveryGeneration) return;
     const clinicName = clinics.find((clinic) => clinic.clinic_id === nextId)?.clinic_name ?? "";
     toast.warning(
       clinicName === ""
