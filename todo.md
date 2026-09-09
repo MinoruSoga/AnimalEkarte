@@ -14,6 +14,8 @@
 
 入口: [2026-09-08 の対応履歴](#session-2026-09-08) · [実行キュー](#対応順実行キュー) · [製品 FAIL](#product-bugs) · [PO / 人間レーン](#human-lane) · [Astra 完了履歴](#astra-history) · [FE 完了履歴・維持制約](#refactor-history)
 
+性能調査・改善: [todo-performance.md](todo-performance.md)（PERF-STG-LOGIN、2026-09-09）。STGログインの認証待ちによる白画面と、最終GET接続前の約22.5秒を記録。preflight・接続待ち・Container起動の内訳は未確定、改善は未実装。Linearの対応状態はUNKNOWN。
+
 エージェントは PlanetScale、共有 STG apply、`DROP SCHEMA`、本番 cutover、`make reset`、八王子 CSV の producer 出力を実行しない。push / dispatch / Linear Done / 秘密変更は明示承認が必要。
 
 claim は ID ごとに初回編集前に確認・取得する。作成者別の削除条件は [AGENTS.md](AGENTS.md#branch-deletion-by-creator-mandatory) を正本とする。ユーザー作成は AI による削除禁止。AI 作成は統合・明示終了・成果を保全した引き継ぎと未使用を確認して削除可能。2026-09-09 の本更新開始前に `git branch --list 'claim/*'` が空であることを確認した。旧 META / QA / 認証 claim の解除待ちは解消済み。claim の削除は UAT や受入の完了を意味しない。新規着手時は現在の claim を再確認する。
