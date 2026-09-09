@@ -1,6 +1,5 @@
-import { isValidElement, type ReactElement, type ReactNode } from "react";
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { paths } from "@/config/paths";
 import { C } from "@/lib/design-tokens";
 import { appRoutes } from "./app-routes";
@@ -14,16 +13,11 @@ function hasClassInAncestry(element: Element | null, className: string): boolean
   return false;
 }
 
-function loginSuspenseFallback(loginElement: ReactNode): ReactElement {
-  if (!isValidElement(loginElement)) {
-    throw new Error("login route element is not a React element");
-  }
-  const fallback = (loginElement as ReactElement<{ fallback?: ReactNode }>).props.fallback;
-  if (!isValidElement(fallback)) {
-    throw new Error("login route Suspense fallback is missing");
-  }
-  return fallback;
-}
+afterEach(() => {
+  cleanup();
+  vi.resetModules();
+  vi.doUnmock("@/features/auth");
+});
 
 describe("appRoutes 404 fallback", () => {
   it("DESIGN.md の canvas-soft shell 上に表示する", () => {
@@ -49,14 +43,40 @@ describe("appRoutes password recovery routes", () => {
   );
 });
 
-describe("appRoutes login Suspense fallback (PERF-STG-LOGIN-A)", () => {
-  it("configures SessionPending as the login chunk fallback", () => {
-    const loginRoute = appRoutes.find((route) => route.path === paths.auth.login.path);
+describe("appRoutes login Suspense pending-to-resolved (PERF-STG-LOGIN-A)", () => {
+  it("shows SessionPending on the actual login route until the lazy chunk resolves, then shows the login child", async () => {
+    let releaseAuthModule!: () => void;
+    const authModuleGate = new Promise<void>((resolve) => {
+      releaseAuthModule = resolve;
+    });
+
+    vi.resetModules();
+    vi.doMock("@/features/auth", async () => {
+      await authModuleGate;
+      return {
+        Login: () => <div data-testid="login-resolved-child">login-ready</div>,
+      };
+    });
+
+    const { paths: freshPaths } = await import("@/config/paths");
+    const { appRoutes: freshRoutes } = await import("./app-routes");
+    const loginRoute = freshRoutes.find((route) => route.path === freshPaths.auth.login.path);
     if (loginRoute?.element === undefined) {
       throw new Error("login route is not configured");
     }
 
-    render(loginSuspenseFallback(loginRoute.element));
-    expect(screen.getByRole("status")).toHaveTextContent("画面を読み込んでいます");
+    render(<>{loginRoute.element}</>);
+
+    expect(await screen.findByRole("status")).toHaveTextContent("画面を読み込んでいます");
+    expect(screen.queryByTestId("login-resolved-child")).not.toBeInTheDocument();
+
+    await act(async () => {
+      releaseAuthModule();
+    });
+
+    expect(await screen.findByTestId("login-resolved-child")).toHaveTextContent("login-ready");
+    await waitFor(() => {
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    });
   });
 });

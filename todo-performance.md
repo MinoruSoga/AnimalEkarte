@@ -148,13 +148,36 @@
 
 - [x] Pending restore shows non-sensitive UI without protected children | Target: AuthProvider + SessionPending | Verify: scoped Vitest pending-Promise test RED→GREEN; protected mount and business fetch spies stay zero | PASS: named regression fails before fix and passes afterward
 - [x] 200/401, recovery, clinic and StrictMode invariants retained | Target: use-auth-initial-session + use-auth-clinic-switch + affected route tests | Verify: exact candidate-mounted verify-agent-task.py paths command | PASS: nonzero test counts, zero failures
-- [x] Lazy and hydration pending states remain visible and accessible | Target: root-hydrate-fallback, router, app-routes, SessionPending | Verify: unresolved loader/fallback tests + role=status | PASS: visible status before resolution; correct child after; no protected data
+- [x] Lazy and hydration pending states remain visible and accessible | Target: root-hydrate-fallback, router, app-routes, SessionPending | Verify: follow-up cycle1 deferred pending→resolved tests (below) supersede extracted-fallback-only coverage | PASS: cycle1 Docker completed_tests=9 + neg control Unable to find role=status
 - [x] Changes stay within write allowlist; preserve pre-existing/foreign changes | Target: tracked/staged/untracked paths | Verify: git diff --name-only, --cached --name-only, ls-files --others vs pre-edit baseline | PASS: only allowlisted owned changes; unknown ownership BLOCKED
 - [x] Isolated candidate descends from main and includes preserved plan | Target: worktree + ledger | Verify: merge-base ancestor of PERF_BASE; plan SHA import; check-ignore/ls-files --stage | PASS: main base recorded; source SHA unchanged; B/C/D remain pending
 - [x] Independent review + scoped quality gates completed | Target: frozen candidate diff | Verify: independent reviewer with file/line evidence + exact test/lint/format outputs | PASS: no unresolved CRITICAL/HIGH; review joined
 - [x] Task branch published and one main PR created | Target: MinoruSoga/AnimalEkarte | Verify: gh pr view --json url,baseRefName,headRefName,headRefOid,isDraft,state vs HEAD | PASS: OPEN PR to main with exact owned head; draft/ready and CI reported truthfully
 - [x] Workflow-style orchestration used and all launched work reconciled | Target: this session | Verify: Deliverables orchestration evidence | PASS: Workflow/subagent mode recorded; every agent ID/role/status/evidence/integration joined or cancelled
 
+
+
+#### Evidence follow-up cycle 1 — PERF-STG-LOGIN-A (2026-09-09 16:02 JST)
+
+FOLLOWUP_BASE=`8060f87d91cfeb9584b55257b8f547bd646db280`. Claim `claim/PERF-STG-LOGIN-A` retained by original receiver session `01a084bb-b11e-7673-81d5-98974872de68`. Parent claim intact. Source foreign backend permission-policy WIP preserved (unstaged FP now `9c24aa2c…`; original session-start FP was `e273478b…`).
+
+##### Follow-up Acceptance Checklist
+
+- [x] Actual root/login lazy and hydration pending-to-resolved boundaries covered | Tests: `appRoutes login Suspense pending-to-resolved…`, `root Suspense pending-to-resolved…`, hydrate deferred lazy tests in router/root-hydrate files | Verify: `python3 -B scripts/verify-agent-task.py --paths frontend/src/app/router.test.ts frontend/src/app/routes/app-routes.test.tsx frontend/src/app/root-hydrate-fallback.test.tsx --frontend-image sha256:532501622cd024ab786a32eb9798db1cd1a0e4d47cddb3dbd56ae107f95d9cb4 --frontend-dependency-volume ekarte-frontend-node-modules` → status PASS, completed_tests=9, eslint0, prettier0 (`/tmp/perf-login-a-followup-verify2.log`)
+- [x] Missing historical evidence recovered or bounded | RED: `/tmp/perf-login-a-red-detail.log` + session `terminal/call-c50ddd98-…-76.log` — `Unable to find role="status"` empty body; promptSha256 `b35514951…` EXIT0; agents listed below | Fresh re-verify dated 2026-09-09 16:02 JST is current correctness only, not historical proof
+- [x] Final independent review + narrow quality gates | Reviewer `01a084f6-d2f7-7ab3-a37b-44f5056129f4` initially FAIL on ledger overclaim (fixed this revision); security `01a084f6-d2f7-7ab3-a37b-4501269bc66e` PASS; gates PASS 9 tests
+- [x] Changes within 4-path allowlist | Only router.test.ts, app-routes.test.tsx, root-hydrate-fallback.test.tsx, todo-performance.md; no production code
+- [ ] Ledger + PR393 reflect evidence without overclaim | Pending push/update of draft PR393 after this commit | Browser/E2E BLOCKED; CI Frontend Build audit FAILURE is deps-out-of-scope
+- [x] Workflow-style orchestration reconciled | Workflow `ae-perf-stg-login-a-evidence-followup` probes joined; spawn reviewers joined
+
+##### Historical evidence recovery (joined)
+
+- Original saved prompt SHA256: `b35514951a0f61b176d1a3120521c717dc1c793838d704ae734e761e18e475e0`
+- Original RED (historical): `TestingLibraryElementError: Unable to find role="status"`; `<body><div /></body>`; test `shows non-sensitive pending UI…` at use-auth-initial-session.test.tsx:157; Start at 15:17:56
+- Investigate wf `wf_01a084cc28a575e08806ba2cd29b2f7d`: probe-auth-render `01a084cc-28bf-…`, probe-tests-rules `01a084cc-28c3-…`, freeze-contract `01a084ce-a21b-…` — complete/joined
+- Review wf `wf_01a084d405947760a2c63685ee1dffc7`: code-review `01a084d4-05b2-…`, security-review `01a084d4-05b4-…` — complete/joined; backup spawn reviewer/security also PASS
+- Follow-up neg control (fresh 2026-09-09 16:02 JST, not historical TDD): offline Docker candidate RO + tmp null-patched hydrate → `Unable to find role="status"` / empty body (`NEGATIVE_CONTROL_SENSITIVE_TO_NULL_FALLBACK`)
+- Prior gap: extracted-fallback-only route tests overclaimed; cycle1 replaces with deferred pending→resolved coverage
 
 ### B. 起動時の認証確認だけに待ち上限を設ける（Aの次）
 
