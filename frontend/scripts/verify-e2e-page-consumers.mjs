@@ -7,19 +7,35 @@
  */
 
 import { createRequire } from "node:module";
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import {
+  lstatSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  statSync,
+} from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 const require = createRequire(import.meta.url);
 const ts = require("typescript");
 
-const SUPPORTED_FORMS = new Set(["static-import", "require"]);
+// Only importer-relative ImportDeclaration with clause counts as a consumer.
+const SUPPORTED_FORMS = new Set(["static-import"]);
 const UNSUPPORTED_EXACT_FORMS = new Set([
   "side-effect-import",
   "dynamic-import",
   "export-from",
+  "require",
+  "absolute-static-import",
 ]);
+
+function isImporterRelativeSpecifier(specifier) {
+  return (
+    typeof specifier === "string" &&
+    (specifier.startsWith("./") || specifier.startsWith("../"))
+  );
+}
 
 function toPosix(value) {
   return String(value).replaceAll("\\", "/");
@@ -71,10 +87,9 @@ export function canonicalizeSpecifier(importerIdentity, specifier) {
 
   let candidate = trimmed;
 
+  // @/* is src/* in frontend/tsconfig.json — never an e2e/pages identity.
   if (candidate.startsWith("@/")) {
-    const rest = candidate.slice(2);
-    if (!rest.startsWith("e2e/")) return null;
-    candidate = rest;
+    return null;
   } else if (candidate.startsWith("/app/")) {
     candidate = candidate.slice("/app/".length);
   } else if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(candidate)) {
@@ -174,6 +189,9 @@ export function collectModuleReferences(sourceText, importerIdentity) {
       const spec = literalText(node.moduleSpecifier);
       if (!node.importClause) {
         pushRef("side-effect-import", node.moduleSpecifier, spec);
+      } else if (spec != null && !isImporterRelativeSpecifier(spec)) {
+        // Keep identity for exact-target blocking; never a supported consumer.
+        pushRef("absolute-static-import", node.moduleSpecifier, spec);
       } else {
         pushRef("static-import", node.moduleSpecifier, spec);
       }
@@ -207,7 +225,7 @@ export function collectModuleReferences(sourceText, importerIdentity) {
   return refs;
 }
 
-function listSpecFiles(e2eRoot) {
+export function listSpecFiles(e2eRoot) {
   const out = [];
   const stack = [e2eRoot];
   while (stack.length) {
@@ -215,8 +233,10 @@ function listSpecFiles(e2eRoot) {
     let entries;
     try {
       entries = readdirSync(current, { withFileTypes: true });
-    } catch {
-      continue;
+    } catch (error) {
+      throw new Error(
+        `unreadable e2e scan path: ${current}: ${error && error.message ? error.message : error}`,
+      );
     }
     for (const entry of entries) {
       const full = path.join(current, entry.name);
@@ -237,15 +257,89 @@ function fileIdentityFromRoot(e2eRoot, absoluteFile) {
   return `e2e/${rel}`;
 }
 
+function assertPathInsideRoot(rootAbs, targetAbs, label) {
+  let rootReal;
+  let targetReal;
+  try {
+    rootReal = realpathSync(rootAbs);
+    targetReal = realpathSync(targetAbs);
+  } catch (error) {
+    throw new Error(
+      `${label} is unreadable: ${targetAbs}: ${error && error.message ? error.message : error}`,
+    );
+  }
+  const rel = toPosix(path.relative(rootReal, targetReal));
+  if (!rel || rel.startsWith("..") || path.isAbsolute(rel)) {
+    throw new Error(`${label} escapes e2e root: ${targetAbs}`);
+  }
+  return targetReal;
+}
+
+function assertSelectedPageExists(e2eRoot, pageIdentity) {
+  if (!pageIdentity.startsWith("e2e/")) {
+    throw new Error(`selected page is not canonical: ${pageIdentity}`);
+  }
+  const absPage = path.join(e2eRoot, pageIdentity.slice("e2e/".length));
+  let st;
+  try {
+    st = lstatSync(absPage);
+  } catch {
+    throw new Error(`selected page is missing: ${pageIdentity}`);
+  }
+  if (st.isSymbolicLink()) {
+    assertPathInsideRoot(e2eRoot, absPage, `selected page ${pageIdentity}`);
+  }
+  try {
+    st = statSync(absPage);
+  } catch {
+    throw new Error(`selected page is missing: ${pageIdentity}`);
+  }
+  if (!st.isFile()) {
+    throw new Error(`selected page is not a file: ${pageIdentity}`);
+  }
+  assertPathInsideRoot(e2eRoot, absPage, `selected page ${pageIdentity}`);
+}
+
 /**
  * @param {{ pages: string[], e2eRoot: string, readFile?: (p: string) => string, listSpecs?: () => string[] }} options
  */
 export function verifyPages(options) {
   const e2eRoot = options.e2eRoot;
-  const pages = options.pages.map((page) => normalizePageIdentity(page)).filter(Boolean);
-  const specAbsPaths = options.listSpecs
-    ? options.listSpecs()
-    : listSpecFiles(e2eRoot);
+  const normalized = options.pages.map((page) => normalizePageIdentity(page));
+  if (normalized.some((page) => !page) || normalized.length !== options.pages.length) {
+    return {
+      ok: false,
+      error: "one or more --page values are not e2e/pages/*.ts identities",
+      pages: [],
+    };
+  }
+  const pages = normalized;
+
+  try {
+    for (const page of pages) {
+      assertSelectedPageExists(e2eRoot, page);
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      error: String(error && error.message ? error.message : error),
+      pages: [],
+    };
+  }
+
+  let specAbsPaths;
+  try {
+    specAbsPaths = options.listSpecs
+      ? options.listSpecs()
+      : listSpecFiles(e2eRoot);
+  } catch (error) {
+    return {
+      ok: false,
+      error: String(error && error.message ? error.message : error),
+      pages: [],
+    };
+  }
+
   const read =
     options.readFile ||
     ((absolutePath) => readFileSync(absolutePath, "utf8"));
@@ -295,7 +389,10 @@ export function verifyPages(options) {
         if (!ref.identity || !identitiesEqual(ref.identity, page)) {
           continue;
         }
-        if (SUPPORTED_FORMS.has(ref.form)) {
+        if (
+          SUPPORTED_FORMS.has(ref.form) &&
+          isImporterRelativeSpecifier(ref.specifier)
+        ) {
           const key = `${identity}|${ref.form}|${ref.specifier}`;
           if (!seenConsumer.has(key)) {
             seenConsumer.add(key);
@@ -305,7 +402,8 @@ export function verifyPages(options) {
               specifier: ref.specifier,
             });
           }
-        } else if (UNSUPPORTED_EXACT_FORMS.has(ref.form)) {
+        } else {
+          // Exact-target require/absolute/unsupported/unknown → blocking.
           const key = `${identity}|${ref.form}`;
           if (!seenBlocking.has(key)) {
             seenBlocking.add(key);

@@ -112,7 +112,7 @@ test("RED: helper URL dynamic import is not an accounting-page alias / does not 
   }
 });
 
-test("static import matrix: named/namespace/default/default+named/default+namespace/type-only/multiline/ext/no-ext/require", async () => {
+test("static import matrix: named/namespace/default/default+named/default+namespace/type-only/multiline/ext/no-ext only", async () => {
   const mod = await loadModule();
   const cases = [
     ['import { AccountingPage } from "./pages/accounting-page";\n', "static-import"],
@@ -126,8 +126,6 @@ test("static import matrix: named/namespace/default/default+named/default+namesp
       "static-import",
     ],
     ['import { AccountingPage } from "./pages/accounting-page.ts";\n', "static-import"],
-    ['const { AccountingPage } = require("./pages/accounting-page");\n', "require"],
-    ['const page = require("./pages/accounting-page.ts");\n', "require"],
   ];
 
   for (const [source, form] of cases) {
@@ -135,6 +133,95 @@ test("static import matrix: named/namespace/default/default+named/default+namesp
     const hit = refs.find((ref) => ref.identity === "e2e/pages/accounting-page.ts");
     assert.ok(hit, `missing consumer for form=${form}: ${source}`);
     assert.equal(hit.form, form, source);
+  }
+});
+
+test("RED: require is never a happy consumer; exact-target require blocks; unrelated stays unrelated", async () => {
+  const mod = await loadModule();
+  const requireSources = [
+    'const { AccountingPage } = require("./pages/accounting-page");\n',
+    'const page = require("./pages/accounting-page.ts");\n',
+  ];
+  for (const source of requireSources) {
+    const refs = mod.collectModuleReferences(source, "e2e/matrix.spec.ts");
+    const hit = refs.find((ref) => ref.identity === "e2e/pages/accounting-page.ts");
+    assert.ok(hit, `expected require identity match for blocking: ${source}`);
+    assert.equal(hit.form, "require", source);
+  }
+
+  const { root } = makeFixture({
+    "e2e/pages/accounting-page.ts": "export class AccountingPage {}\n",
+    "e2e/good.spec.ts":
+      'import { AccountingPage } from "./pages/accounting-page";\n',
+    "e2e/require-exact.spec.ts":
+      'const { AccountingPage } = require("./pages/accounting-page");\n',
+    "e2e/require-unrelated.spec.ts":
+      'const other = require("./pages/other-page");\n',
+  });
+  try {
+    const result = runCli(
+      ["--page", "e2e/pages/accounting-page.ts", "--e2e-root", "e2e"],
+      root,
+    );
+    assert.notEqual(result.status, 0);
+    const payload = JSON.parse((result.stdout || result.stderr).match(/\{[\s\S]*\}/)[0]);
+    assert.equal(payload.ok, false);
+    assert.ok(
+      payload.pages[0].blocking.some((item) => item.form === "require"),
+      payload.pages[0].blocking,
+    );
+    assert.equal(
+      payload.pages[0].consumers.some((item) => item.form === "require"),
+      false,
+    );
+    assert.equal(
+      payload.pages[0].blocking.some((item) =>
+        item.file.includes("require-unrelated.spec.ts"),
+      ),
+      false,
+      "unrelated require must stay unrelated",
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("RED: shadowed require sole-consumer must not ok:true", async () => {
+  const mod = await loadModule();
+  const source = [
+    "function require(name: string) { return { name }; }",
+    'const x = require("./pages/accounting-page");',
+    "",
+  ].join("\n");
+  const refs = mod.collectModuleReferences(source, "e2e/shadowed.spec.ts");
+  assert.ok(
+    refs.some(
+      (ref) =>
+        ref.form === "require" &&
+        ref.identity === "e2e/pages/accounting-page.ts",
+    ),
+    `shadowed require still exact-target form=require for blocking, got ${JSON.stringify(refs)}`,
+  );
+
+  const { root } = makeFixture({
+    "e2e/pages/accounting-page.ts": "export class AccountingPage {}\n",
+    "e2e/shadowed.spec.ts": source,
+  });
+  try {
+    const result = runCli(
+      ["--page", "e2e/pages/accounting-page.ts", "--e2e-root", "e2e"],
+      root,
+    );
+    assert.notEqual(result.status, 0);
+    const payload = JSON.parse((result.stdout || result.stderr).match(/\{[\s\S]*\}/)[0]);
+    assert.equal(payload.ok, false);
+    assert.equal(payload.pages[0].consumers.length, 0);
+    assert.ok(
+      payload.pages[0].blocking.some((item) => item.form === "require"),
+      payload.pages[0].blocking,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
   }
 });
 
@@ -218,7 +305,7 @@ test("strings/comments/templates/regex lookalikes are ignored", async () => {
   );
 });
 
-test("alias/canonicalization: relative, /app/e2e, @/e2e, helper, query, basename, traversal", async () => {
+test("alias/canonicalization: relative ok; @/e2e unrelated; /app+file identity only; helper/query/credentials null", async () => {
   const mod = await loadModule();
   const page = "e2e/pages/accounting-page.ts";
 
@@ -234,17 +321,26 @@ test("alias/canonicalization: relative, /app/e2e, @/e2e, helper, query, basename
     mod.canonicalizeSpecifier("e2e/subdir/nested.spec.ts", "../pages/accounting-page"),
     page,
   );
+  // @/* maps to src/* only — never an E2E page identity.
+  assert.equal(
+    mod.canonicalizeSpecifier("e2e/flow.spec.ts", "@/e2e/pages/accounting-page"),
+    null,
+  );
+  assert.equal(
+    mod.canonicalizeSpecifier("e2e/flow.spec.ts", "@/pages/accounting-page"),
+    null,
+  );
+  // Absolute /app and file URL keep identity for exact-target blocking, not consumers.
   assert.equal(
     mod.canonicalizeSpecifier("e2e/flow.spec.ts", "/app/e2e/pages/accounting-page"),
     page,
   );
   assert.equal(
-    mod.canonicalizeSpecifier("e2e/flow.spec.ts", "@/e2e/pages/accounting-page"),
+    mod.canonicalizeSpecifier(
+      "e2e/flow.spec.ts",
+      "file:///app/e2e/pages/accounting-page.ts",
+    ),
     page,
-  );
-  assert.equal(
-    mod.canonicalizeSpecifier("e2e/flow.spec.ts", "@/pages/accounting-page"),
-    null,
   );
   assert.equal(
     mod.canonicalizeSpecifier(
@@ -266,13 +362,6 @@ test("alias/canonicalization: relative, /app/e2e, @/e2e, helper, query, basename
       "https://user:pass@example.test/e2e/pages/accounting-page.ts",
     ),
     null,
-  );
-  assert.equal(
-    mod.canonicalizeSpecifier(
-      "e2e/flow.spec.ts",
-      "file:///app/e2e/pages/accounting-page.ts",
-    ),
-    page,
   );
   assert.equal(
     mod.canonicalizeSpecifier(
@@ -312,6 +401,105 @@ test("alias/canonicalization: relative, /app/e2e, @/e2e, helper, query, basename
     mod.canonicalizeSpecifier("e2e/flow.spec.ts", ".\\pages\\accounting-page"),
     null,
   );
+});
+
+test("RED: absolute and file-URL exact-target static imports block, never consume", async () => {
+  const { root } = makeFixture({
+    "e2e/pages/accounting-page.ts": "export class AccountingPage {}\n",
+    "e2e/good.spec.ts":
+      'import { AccountingPage } from "./pages/accounting-page";\n',
+    "e2e/absolute.spec.ts":
+      'import { AccountingPage } from "/app/e2e/pages/accounting-page";\n',
+    "e2e/fileurl.spec.ts":
+      'import { AccountingPage } from "file:///app/e2e/pages/accounting-page.ts";\n',
+    "e2e/alias.spec.ts":
+      'import { AccountingPage } from "@/e2e/pages/accounting-page";\n',
+  });
+  try {
+    const result = runCli(
+      ["--page", "e2e/pages/accounting-page.ts", "--e2e-root", "e2e"],
+      root,
+    );
+    assert.notEqual(result.status, 0);
+    const payload = JSON.parse((result.stdout || result.stderr).match(/\{[\s\S]*\}/)[0]);
+    assert.equal(payload.ok, false);
+    const blockingForms = new Set(payload.pages[0].blocking.map((item) => item.form));
+    assert.ok(
+      blockingForms.has("absolute-static-import"),
+      payload.pages[0].blocking,
+    );
+    assert.ok(
+      payload.pages[0].blocking.some((item) => item.file.includes("absolute.spec.ts")),
+      payload.pages[0].blocking,
+    );
+    assert.ok(
+      payload.pages[0].blocking.some((item) => item.file.includes("fileurl.spec.ts")),
+      payload.pages[0].blocking,
+    );
+    assert.equal(
+      payload.pages[0].consumers.some((item) =>
+        item.specifier.startsWith("/app/") || item.specifier.startsWith("file:"),
+      ),
+      false,
+    );
+    assert.equal(
+      payload.pages[0].consumers.some((item) => item.specifier.startsWith("@/")),
+      false,
+    );
+    // @/e2e is unrelated (tsconfig @/* → src/*), so it must not alone create a page hit.
+    assert.equal(
+      payload.pages[0].blocking.some((item) => item.file.includes("alias.spec.ts")),
+      false,
+      "unrelated @/e2e must not block as exact-target page",
+    );
+    assert.ok(payload.pages[0].consumers.length >= 1);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("RED: filesystem fail-closed on missing page, bad root, and unreadable scan path", async () => {
+  const mod = await loadModule();
+  const { root } = makeFixture({
+    "e2e/pages/accounting-page.ts": "export class AccountingPage {}\n",
+    "e2e/good.spec.ts":
+      'import { AccountingPage } from "./pages/accounting-page";\n',
+  });
+  try {
+    const missing = runCli(
+      ["--page", "e2e/pages/missing-page.ts", "--e2e-root", "e2e"],
+      root,
+    );
+    assert.notEqual(missing.status, 0);
+    const missingPayload = JSON.parse(
+      (missing.stdout || missing.stderr).match(/\{[\s\S]*\}/)[0],
+    );
+    assert.equal(missingPayload.ok, false);
+    assert.match(String(missingPayload.error || ""), /missing/i);
+
+    const badRoot = runCli(
+      ["--page", "e2e/pages/accounting-page.ts", "--e2e-root", "e2e-missing"],
+      root,
+    );
+    assert.notEqual(badRoot.status, 0);
+
+    // Root bypasses mode bits; prove scan fail-closed via unreadable path instead.
+    assert.throws(
+      () => mod.listSpecFiles(path.join(root, "e2e-does-not-exist")),
+      /unreadable/i,
+    );
+    const scanPayload = mod.verifyPages({
+      pages: ["e2e/pages/accounting-page.ts"],
+      e2eRoot: path.join(root, "e2e"),
+      listSpecs: () => {
+        throw new Error(`unreadable e2e scan path: ${path.join(root, "e2e")}`);
+      },
+    });
+    assert.equal(scanPayload.ok, false);
+    assert.match(String(scanPayload.error || ""), /unreadable/i);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test("verifyPages reports JSON shape with consumers and empty blocking on success", async () => {

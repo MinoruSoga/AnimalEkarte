@@ -561,6 +561,110 @@ class VerificationTests(unittest.TestCase):
                 }],
             }))
 
+    def test_validate_e2e_page_consumers_rejects_forged_forms_paths_and_set_mismatch(self):
+        page = 'e2e/pages/accounting-page.ts'
+        valid_consumer = {
+            'file': 'e2e/good.spec.ts',
+            'form': 'static-import',
+            'specifier': './pages/accounting-page',
+        }
+
+        def payload(pages):
+            return json.dumps({'ok': True, 'pages': pages})
+
+        with self.assertRaisesRegex(ValueError, 'form|static-import|require'):
+            verify.validate_e2e_page_consumers(payload([{
+                'page': page,
+                'consumers': [{**valid_consumer, 'form': 'require'}],
+                'blocking': [],
+            }]), [page])
+        with self.assertRaisesRegex(ValueError, 'form|static-import|dynamic'):
+            verify.validate_e2e_page_consumers(payload([{
+                'page': page,
+                'consumers': [{**valid_consumer, 'form': 'dynamic-import'}],
+                'blocking': [],
+            }]), [page])
+        with self.assertRaisesRegex(ValueError, 'extra|set|mismatch|unexpected'):
+            verify.validate_e2e_page_consumers(payload([
+                {
+                    'page': page,
+                    'consumers': [valid_consumer],
+                    'blocking': [],
+                },
+                {
+                    'page': 'e2e/pages/extra-page.ts',
+                    'consumers': [{
+                        'file': 'e2e/extra.spec.ts',
+                        'form': 'static-import',
+                        'specifier': './pages/extra-page',
+                    }],
+                    'blocking': [],
+                },
+            ]), [page])
+        with self.assertRaisesRegex(ValueError, 'duplicate'):
+            verify.validate_e2e_page_consumers(payload([
+                {'page': page, 'consumers': [valid_consumer], 'blocking': []},
+                {'page': page, 'consumers': [valid_consumer], 'blocking': []},
+            ]), [page])
+        with self.assertRaisesRegex(ValueError, 'page|canonical|identity|path'):
+            verify.validate_e2e_page_consumers(payload([{
+                'page': 'frontend/e2e/pages/accounting-page.ts',
+                'consumers': [valid_consumer],
+                'blocking': [],
+            }]), ['frontend/e2e/pages/accounting-page.ts'])
+        with self.assertRaisesRegex(ValueError, 'page|canonical|identity|path|\\.\\.'):
+            verify.validate_e2e_page_consumers(payload([{
+                'page': 'e2e/pages/../secret.ts',
+                'consumers': [valid_consumer],
+                'blocking': [],
+            }]))
+        with self.assertRaisesRegex(ValueError, 'consumer|spec|file'):
+            verify.validate_e2e_page_consumers(payload([{
+                'page': page,
+                'consumers': [{
+                    'file': 'e2e/helpers/not-a-spec.ts',
+                    'form': 'static-import',
+                    'specifier': './pages/accounting-page',
+                }],
+                'blocking': [],
+            }]), [page])
+        with self.assertRaisesRegex(ValueError, 'specifier'):
+            verify.validate_e2e_page_consumers(payload([{
+                'page': page,
+                'consumers': [{
+                    'file': 'e2e/good.spec.ts',
+                    'form': 'static-import',
+                    'specifier': '',
+                }],
+                'blocking': [],
+            }]), [page])
+        with self.assertRaisesRegex(ValueError, 'importer-relative|specifier'):
+            verify.validate_e2e_page_consumers(payload([{
+                'page': page,
+                'consumers': [{
+                    'file': 'e2e/good.spec.ts',
+                    'form': 'static-import',
+                    'specifier': '/app/e2e/pages/accounting-page',
+                }],
+                'blocking': [],
+            }]), [page])
+        with self.assertRaisesRegex(ValueError, 'forbidden|specifier'):
+            verify.validate_e2e_page_consumers(payload([{
+                'page': page,
+                'consumers': [{
+                    'file': 'e2e/good.spec.ts',
+                    'form': 'static-import',
+                    'specifier': './pages/accounting-page?x=1',
+                }],
+                'blocking': [],
+            }]), [page])
+        with self.assertRaisesRegex(ValueError, 'missing|set|mismatch'):
+            verify.validate_e2e_page_consumers(payload([{
+                'page': page,
+                'consumers': [valid_consumer],
+                'blocking': [],
+            }]), [page, 'e2e/pages/settings-master-page.ts'])
+
     def test_python_has_no_regex_module_reference_authority(self):
         source = pathlib.Path(verify.__file__).read_text(encoding='utf-8')
         self.assertNotIn('E2E_MODULE_REFERENCE_PATTERNS', source)

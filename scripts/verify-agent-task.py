@@ -133,6 +133,28 @@ def list_e2e_spec_paths():
     return specs
 
 
+def _is_canonical_e2e_page(page):
+    if not isinstance(page, str) or not page or page.startswith('frontend/'):
+        return False
+    if '\\' in page or page.endswith('/'):
+        return False
+    parts = pathlib.PurePosixPath(page).parts
+    if len(parts) < 3 or parts[0] != 'e2e' or parts[1] != 'pages':
+        return False
+    if any(part in ('.', '..') for part in parts):
+        return False
+    return page.endswith('.ts')
+
+
+def _is_e2e_spec_consumer_file(file_path):
+    if not isinstance(file_path, str) or not file_path:
+        return False
+    parts = pathlib.PurePosixPath(file_path).parts
+    if not parts or parts[0] != 'e2e' or any(part in ('.', '..') for part in parts):
+        return False
+    return file_path.endswith('.spec.ts')
+
+
 def validate_e2e_page_consumers(stdout, expected_pages=None, stderr=''):
     """Fail-closed parse of verify-e2e-page-consumers.mjs JSON evidence."""
     text = (stdout or '').strip() or (stderr or '').strip()
@@ -151,6 +173,7 @@ def validate_e2e_page_consumers(stdout, expected_pages=None, stderr=''):
     if not isinstance(pages, list) or not pages:
         raise ValueError('E2E page consumer AST pages payload is missing')
     evidence = {}
+    seen_pages = []
     for entry in pages:
         if not isinstance(entry, dict):
             raise ValueError('E2E page consumer AST page entry is malformed')
@@ -159,6 +182,10 @@ def validate_e2e_page_consumers(stdout, expected_pages=None, stderr=''):
         blocking = entry.get('blocking')
         if not isinstance(page, str) or not page:
             raise ValueError('E2E page consumer AST page identity is missing')
+        if not _is_canonical_e2e_page(page):
+            raise ValueError(f'E2E page consumer AST page identity is not canonical: {page}')
+        if page in evidence:
+            raise ValueError(f'E2E page consumer AST duplicate page: {page}')
         if not isinstance(consumers, list) or not isinstance(blocking, list):
             raise ValueError(f'E2E page consumer AST consumers/blocking malformed for {page}')
         if blocking:
@@ -168,14 +195,49 @@ def validate_e2e_page_consumers(stdout, expected_pages=None, stderr=''):
         for consumer in consumers:
             if not isinstance(consumer, dict):
                 raise ValueError(f'E2E page consumer AST consumer entry malformed for {page}')
-            if not consumer.get('file') or not consumer.get('form') or 'specifier' not in consumer:
+            file_path = consumer.get('file')
+            form = consumer.get('form')
+            specifier = consumer.get('specifier')
+            if not file_path or form is None or 'specifier' not in consumer:
                 raise ValueError(f'E2E page consumer AST consumer identity incomplete for {page}')
+            if form != 'static-import':
+                raise ValueError(
+                    f'E2E page consumer AST consumer form must be static-import for {page}, got {form!r}'
+                )
+            if not isinstance(specifier, str) or not specifier:
+                raise ValueError(f'E2E page consumer AST specifier must be nonempty for {page}')
+            # Match Node consumer contract: importer-relative only (no absolute/alias/URL/query).
+            if not (specifier.startswith('./') or specifier.startswith('../')):
+                raise ValueError(
+                    f'E2E page consumer AST specifier must be importer-relative for {page}: {specifier!r}'
+                )
+            if any(token in specifier for token in ('?', '#', '\0', '\\')):
+                raise ValueError(
+                    f'E2E page consumer AST specifier contains forbidden characters for {page}: {specifier!r}'
+                )
+            if not _is_e2e_spec_consumer_file(file_path):
+                raise ValueError(
+                    f'E2E page consumer AST consumer file must be e2e/**/*.spec.ts for {page}: {file_path}'
+                )
         evidence[page] = consumers
-    if expected_pages:
-        found = {entry.get('page') for entry in pages}
-        missing = [page for page in expected_pages if page not in found]
-        if missing:
-            raise ValueError('E2E page consumer AST missing pages: ' + ', '.join(missing))
+        seen_pages.append(page)
+    if expected_pages is not None:
+        if not isinstance(expected_pages, (list, tuple, set)):
+            raise ValueError('E2E page consumer AST expected_pages must be a collection')
+        expected = list(expected_pages)
+        if len(expected) != len(set(expected)):
+            raise ValueError('E2E page consumer AST expected_pages contains duplicates')
+        found = set(seen_pages)
+        expected_set = set(expected)
+        if found != expected_set:
+            missing = [page for page in expected if page not in found]
+            extra = [page for page in seen_pages if page not in expected_set]
+            details = []
+            if missing:
+                details.append('missing: ' + ', '.join(missing))
+            if extra:
+                details.append('extra: ' + ', '.join(extra))
+            raise ValueError('E2E page consumer AST page set mismatch (' + '; '.join(details) + ')')
     return evidence
 
 

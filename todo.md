@@ -358,16 +358,17 @@ git show ad63bdf28:todo-refactor.md
 
 ## PR394 AST E2E page-consumer evidence (compact)
 
-- Unit: VERIFY-E2E-SCOPE-CONTRACT TypeScript AST consumer contract (PR394).
-- Claims: ongoing `claim/TODO-ACTIONABLE-REMAINING-20260909` + `claim/VERIFY-E2E-SCOPE-CONTRACT`; session also held AI-created `claim/PR394-AST-E2E-PAGE-CONSUMERS`.
-- Pre-edit HEAD: `4642221520ce84ff9ab8a594faae342971bf1e4e` (clean). Allowlisted paths only (5).
+- Unit: PR394 AST binding/alias/evidence repair (VERIFY-E2E-SCOPE-CONTRACT follow-up).
+- Claims: `claim/TODO-ACTIONABLE-REMAINING-20260909`, `claim/VERIFY-E2E-SCOPE-CONTRACT`, `claim/PR394-AST-E2E-PAGE-CONSUMERS` (retained; not deleted).
+- Pre-edit HEAD: `edb2dd6955401f07b80e2a3bf66a6a1bdea25743` (clean). Allowlisted paths only (5).
 - Selectors (exact): `AGENT_VERIFY_FRONTEND_IMAGE=sha256:532501622cd024ab786a32eb9798db1cd1a0e4d47cddb3dbd56ae107f95d9cb4`, `AGENT_VERIFY_FRONTEND_DEPENDENCY_VOLUME=ekarte-frontend-node-modules`.
-- RED→GREEN Node: Docker `node --test scripts/verify-e2e-page-consumers.test.mjs` → **9 pass / 0 fail** (default+named consumer; helper-URL non-alias; unsupported/malformed/lookalike/canonical matrix).
-- Python: `python3 -B scripts/test_verify_agent_task.py` → **Ran 54 tests … OK**.
-- Plan page-only (`--paths frontend/e2e/pages/accounting-page.ts frontend/e2e/pages/settings-master-page.ts --plan`): `status=PLAN`, `executed_count=0`, discovery_specs=**35**, AST job declared, `tsc -p e2e/tsconfig.json`.
-- Actual page-only: `status=PASS`, `executed_count=6`; discovery_n=**35**; AST consumers accounting=3 (`accounting-flow`, `accounting-smoke`, `s09-closing-time-boundaries`), settings=2 (`settings-crud`, `v04-settings-master-forms`); no browser/network/install.
-- Actual five-path (+ runner): `status=PASS`, `executed_count=7`; discovery_n=**35**; AST nonempty.
-- Campaign `--base 53a4a18c62904e793b59a6283e5ef31edd0902a1`: `status=PASS`, `executed_count=9`, unmapped=`[]` (includes new `.mjs` `node --test`).
-- Repair R1: page-only tsc uses `e2e/tsconfig.json` (ephemeral files bootstrap lacked `@/` + jsx when all 35 specs entered typecheck).
-- Review fix: trusted URL alias is exact prefix `file:///app/e2e/...` only (`file://evil.com/...` and `file://localhost/...` rejected); Node tests still **9 pass / 0 fail**.
+- Policy: supported consumer = importer-relative `static-import` only; exact-target `require` blocks (incl. shadowed local `function require`); `@/e2e/...` unrelated (`@/*`→`src/*` per `frontend/tsconfig.json`); `/app`+`file:///app` exact targets block not consume; Python exact page-set + canonical `e2e/pages/**/*.ts` + `e2e/**/*.spec.ts` + form=`static-import`.
+- RED→GREEN Node: Docker `node --test scripts/verify-e2e-page-consumers.test.mjs` → **13 pass / 0 fail**.
+- Python: `python3 -B scripts/test_verify_agent_task.py` → **Ran 55 tests … OK**.
+- Plan page-only: `status=PLAN`, `executed_count=0`, discovery_specs=**35**, AST job, `tsc -p e2e/tsconfig.json`.
+- Actual page-only: `status=PASS`, `executed_count=6`, discovery_n=**35**; consumers all `static-import` (accounting=3, settings=2).
+- Actual five-path: `status=PASS`, `executed_count=7`, discovery_n=**35**.
+- Campaign `--base 53a4a18c62904e793b59a6283e5ef31edd0902a1`: `status=PASS`, `executed_count=9`, unmapped=`[]`.
+- Negatives: shadowed require `ok=false` blocking=`require`; `@/e2e` canonicalize=`null`; forged require-form JSON and extra-page JSON fail-closed.
+- Review fix: Python evidence also requires importer-relative specifier (`./`|`../`) and rejects `?`/`#`/`\`/`/app/...` forgeries; page-only re-PASS exec=6.
 - Separate blockers (unchanged): PR394 Frontend Build/dependency audit; browser/UAT runtime.
