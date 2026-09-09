@@ -145,11 +145,25 @@ helper / 再実行スライスは済。UAT / E2E を PASS にしない。正本�
 
 | ID | 残 | 状態 |
 |----|----|------|
-| **QA-UAT-S09-FIXTURE** | ブラウザ #2–#6 再実行。HTTP/CLI は 2026-09-08 実装済み | S09 は BLOCKED |
-| **QA-UAT-V04-RETEST** | live HTTP は 403。clinic 1/2 の権限昇格なし | V04 は UNKNOWN |
-| **QA-FULL-CLINICAL-E2E** | `--clinical` 未実行。e2e.yml job は未 | E2E は未証明 |
+| **QA-UAT-S09-FIXTURE** | ブラウザ #2–#6 の自動仕様追加と再実行。HTTP/CLI は 2026-09-08 実装済み | S09 は BLOCKED（2026-09-09 campaign: IMPLEMENT+VERIFY — `e2e/s09-closing-time-boundaries.spec.ts` 不在を埋める。compose 停止のため runtime は別途 BLOCKED） |
+| **QA-UAT-V04-RETEST** | disposable clinic での CRUD/DELETE ブラウザ証明。live HTTP は 403。clinic 1/2 の権限昇格なし | V04 は UNKNOWN（2026-09-09 campaign: IMPLEMENT+VERIFY — `e2e/v04-settings-master-forms.spec.ts` 追加。runtime は stack 前提で BLOCKED 可） |
+| **QA-FULL-CLINICAL-E2E** | `--clinical` 未実行。e2e.yml job は未 | E2E は未証明（2026-09-09 campaign: VERIFY-ONLY/repair — allowlist 既存。`--clinical` は APP_ENV=test + E2E_LOGIN_PASSWORD + 起動済み stack が必要） |
 
 設計: [S09-FIXTURE-DESIGN.md](docs/ops/testing/S09-FIXTURE-DESIGN.md) · [CLINICAL-E2E-DESIGN.md](docs/ops/testing/CLINICAL-E2E-DESIGN.md)。
+
+### 2026-09-09 campaign inventory freeze（`coord/todo-actionable-remaining-20260909`）
+
+BASE `53a4a18c6`（PR #392 merged）。Orchestration: Workflow `ae-todo-remaining-investigate-20260909` probes joined。分類は coordinator 確定（probe の VERIFY-ONLY はブラウザ仕様欠落を IMPLEMENT+VERIFY に上書き）。
+
+| 分類 | IDs |
+|------|-----|
+| IMPLEMENT+VERIFY | QA-UAT-S09-FIXTURE, QA-UAT-V04-RETEST |
+| VERIFY-ONLY / repair | QA-FULL-CLINICAL-E2E, META-LINEAR-APPLY（Linear live UNKNOWN・書込禁止） |
+| OWNER-BLOCKED | claim/TODO-FIX-AUTH 配下, claim/PERF-STG-LOGIN*, BRT-226 Done |
+| EXTERNAL-BLOCKED | H0-2/HAC-CSV-1 連鎖, H0-3b, Lane3 HAC, H3-9, H3-11, Lane4, P1–P8, E1, E2 |
+| DEFERRED | TASK-444, BE-RC-005/009/014/015/017/019 |
+
+Runtime preflight: `old-db-postgres` only Up; animalekarte backend/frontend/db Exited; process `E2E_LOGIN_PASSWORD` unset（`.env.local` 有無は値を出さず未使用）。`make up` 禁止のためブラウザ/clinical 実行は BLOCKED でも仕様追加は継続。
 
 ---
 
