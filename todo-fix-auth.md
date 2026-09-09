@@ -4,12 +4,15 @@
 > 実施日: 2026-09-08〜2026-09-09  
 > 対象: [todo-check-auth.md](todo-check-auth.md) とレビュー時の作業ツリー。  
 > 正規設計書: [docs/architecture/auth.md](docs/architecture/auth.md)。  
-> 実装は [PR #390](https://github.com/MinoruSoga/AnimalEkarte/pull/390) で `main` へマージ済み（`2dc3a2d51`、2026-09-09）。claim: `claim/TODO-FIX-AUTH`（解放はユーザー。マージ後もエージェントは削除しない）。  
+> 最終状態確認: 2026-09-09、ローカル `main` = `48e89dbe4`。初回実装（[PR #390](https://github.com/MinoruSoga/AnimalEkarte/pull/390)、`2dc3a2d51`）に加え、再レビュー修正 `950404408` と残件テスト・検証契約 `9be825a66` も `main` に統合済み。
+>
 > 本書はレビュー指摘のローカル整理と対応記録である。Linear は更新していない。
 
-> 2026-09-09 再レビュー追補: 上記マージ後の5指摘をローカル修正。下記の「未コミット」「claim再取得」は修正・検証時点の記録であり、現在のGit状態は別途確認する。実装・静的検査と、実DB・本番での未検証事項を下記で区別する。
+> 現在の結論: 実装・限定テストの統合は完了。実DB並行処理、全経路の実DB返却データ分離、初回管理者SQL実行、独立2プロセスの失効検証・負荷測定、本番付与・対象環境メール・Linear反映は未完了。統合済みを実環境・運用の完了と扱わない。
 >
-> Cursor引継ぎ: ユーザーは前回修正のローカルコミット、今回限りのエージェントによる `claim/TODO-FIX-AUTH` 解除、専用worktree準備を明示承認した。一般のclaim解除規則は変更しない。残件の開始前にCursorがclaim不在を確認して取得する。GET/HEAD台帳JSONには既存の分類テストを実行する限定検証契約を追加した。push・実DB検証・本番操作の承認ではない。
+> Git整理: 旧認証作業のブランチ・claimは整理済み。今回の文書更新開始前はローカルブランチが `main` / `staging` のみであることを確認した。この文書更新用に `claim/TODO-FIX-AUTH` を再取得している。旧作業のロック継続を意味しない。
+>
+> 履歴の読み方: 下記の「未コミット」「claim保持」「commit/push/mergeなし」「独立レビュー未実施」は各検証時点の記録。後続の「main統合前の追加確認」で追加検証・独立レビューを実施し、上記コミットへ統合した。今回の最新化ではテスト再実行・外部状態の再照会・更新をしていない。
 
 ## 対応サマリー
 
@@ -198,7 +201,7 @@
 
 ### 2026-09-09 再レビュー修正の検証
 
-対象は `main` の基点 `db7b6fa24` に対する今回の未コミット差分。全runnerに現在の作業ツリーをread-only mountし、`--network none`、entrypoint上書きで実行した。
+当時の対象は `main` の基点 `db7b6fa24` に対する未コミット差分（後に `950404408` へコミット・main統合済み）。全runnerに当時の作業ツリーをread-only mountし、`--network none`、entrypoint上書きで実行した。
 
 | 検査 | 結果 |
 | --- | --- |
@@ -216,7 +219,7 @@ runner image: FE `animalekarte-frontend:latest`（`sha256:532501622cd024ab786a32
 
 ### 2026-09-09 残件再開の検証（worktree `AnimalEkarte-todo-fix-auth-remaining`、HEAD `950404408`）
 
-共有 compose は使わず、worktree を bind mount した ephemeral `docker run`（`--network none`、`GOPROXY=off`）で実施した。claim `claim/TODO-FIX-AUTH` は保持。commit/push/merge なし。
+共有 compose は使わず、worktree を bind mount した ephemeral `docker run`（`--network none`、`GOPROXY=off`）で実施した。当時はclaim `claim/TODO-FIX-AUTH` を保持し、commit/push/merge なし。後続の追加確認を経て `9be825a66` へコミット・main統合済み。
 
 | 検査 | 結果 |
 | --- | --- |
