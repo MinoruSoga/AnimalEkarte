@@ -6,7 +6,7 @@
 
 対象: STG `/login` の初回表示遅延。責任者・依頼者: 曽我 稔。
 
-ソース照合の基準点: 本整理着手時のローカル `main` `7c6a4a9d1`、最終 fetch 時の `origin/main` `423a26743`。本整理コミット自身は含めない。調査時に照合した STG bundle は `main-BnyQFmpH.js` であり、現在の STG 配信 revision は未照合。
+ソース照合の基準点: 当初整理着手時のローカル `main` `7c6a4a9d1`。2026-09-10 の本プラン補完時はローカル `main` = `origin/main` = `813c5852d`（本プランの変更自身は含めない）。調査時に照合した STG bundle は `main-BnyQFmpH.js` であり、現在の STG 配信 revision は未照合。
 
 実行 SoT: Linear。本書はユーザー指定のローカル調査・実装準備記録。Linear の関連 issue / 状態は **UNKNOWN（今回未照会・未更新）**。入口は [todo.md](todo.md)。
 
@@ -86,8 +86,10 @@
 |---|---|---|---|
 | P0 | 遅延区間の確定 | 部分完了 | E1の22.5秒が最終GET接続前であることは確認済み。次は下記手順で OPTIONS / 接続待ち / Container 起動の内訳を確定する |
 | P1 | preflight / Container 起動の遅延対策 | 仮説検証待ち | OPTIONSと起動イベントの相関確認後に対策を選ぶ。edgeでのOPTIONS応答はCORS許可元・ヘッダ・資格情報方針を一致させる。GET自体のcold startは別に残る。sleep設定変更は費用と共有環境への影響を明示して判断する |
-| P2 | 初回 bundle の不要読込 | TODO・今回の主因ではない | 配信HTMLは charts / LIFF 等をpreload。ログインに必要な依存を実測して分離する。E1はload約0.31秒のため、23秒の主因として扱わない |
 | P1 | 改善後の再計測 | 未実施 | 同一条件のwarm/cold・初回/再読込を区別し、FCPだけでなくフォーム操作可能時刻、OPTIONS/GET各時間を保存。spinnerの表示だけを「ログイン高速化完了」としない |
+| P1 | STG 配信・ブラウザー受入 | PR競合・未実施 | PR #388 の競合解消候補を隔離worktreeで作成・検証する。外部更新の承認後に配信し、配信revisionを固定して下記受入を実行する |
+| P2 | 初回 bundle の不要読込 | TODO・今回の主因ではない | 配信HTMLは charts / LIFF 等をpreload。ログインに必要な依存を実測して分離する。E1はload約0.31秒のため、23秒の主因として扱わない |
+| P2 | Linear 照合 | UNKNOWN | 関連 issue の有無と現行状態をライブで読み取り、既存 issue と重複しない反映案を作る。書き込み・状態変更は明示承認後に行う |
 
 ### 次回、原因を確定するための具体的な開始手順
 
@@ -120,12 +122,31 @@ Cで通信待ちの原因を特定してから対策を選ぶ。Dは初回キャ
 
 初回キャッシュなしの計測で静的リソースの読込・実行が残る場合に着手する。ログインに不要なcharts / LIFF等の混入経路を確認し、既存の公開entrypointとchunk構成を最小限で調整する。feature境界を破るdeep importや、実測なしのmanualChunks全面再編は採用しない。変更前後の転送量・parse/execute時間・フォーム操作可能時刻を比較し、体感時間が改善することを確認する。
 
+### STG 配信・ブラウザー受入の着手プラン
+
+1. **リモート状態を固定する:** 実行直前に `main` / `staging` の SHA と PR #388 の head・base・mergeable・checks を読み取り、記録する。2026-09-10 の照合では PR #388 は `main` → `staging`、head `813c5852d`、OPEN / CONFLICTING。product jobs は SKIP であり、候補の品質証明には使わない。
+2. **競合解消候補を作る:** 最新 `main` から隔離worktreeを作り、`staging` との差分と競合を先に `merge-tree` で確認する。候補ブランチ内で `staging` をmergeし、環境固有設定と `main` の機能変更をファイル単位で照合する。`backend/migrations/`、seed、起動条件、workflowの差分を別枠で確認し、適用済みmigrationの編集やenv/workflow driftがあれば解消まで停止する。共有 `main` / `staging` は直接編集しない。
+3. **候補を検証する:** 変更ファイルに対応するDocker scoped test、lint、format、`git diff --check` を実行する。認証、CORS、Worker、医院分離に触れる場合は、その境界の回帰テストと独立レビューを必須にする。migration・seed・起動依存を含む場合は、共有DBをresetせず、ユーザー承認を得た隔離環境でfresh applyとUNIQUE制約を確認する。エージェントはmigrationを自動適用しない。CIは対象product jobがSKIPではなく実際にSUCCESSしたことを確認する。
+4. **外部更新と配信を分離する:** push、PR更新・置換、merge、STG deployは外部操作として明示承認後に行う。配信後は provider のcommit SHAとSTGが返すasset/revisionを照合し、対象revision・配信時刻・確認者を記録する。一致しなければ受入を開始しない。
+5. **ブラウザー受入を実行する:** 認証情報や患者情報を証跡に残さず、匿名、既存セッション、復旧画面、医院選択を確認する。自然な未使用期間後の初回と直後の再読込を分け、待機表示、フォーム操作可能、認証成功の3時刻と、OPTIONS / GETの各timingを保存する。休止を強制せず、少数の通常読込から始める。
+6. **判定する:** 対象revisionで機能回帰がなく、原因に対応した区間の改善を変更前後で説明できた場合だけSTG受入をPASSにする。単発値、spinner表示、security checkだけでは性能改善やp95/p99達成を宣言しない。不一致・未実行・再現不能はそれぞれFAIL / BLOCKED / UNKNOWNとして残す。
+
+### Linear 照合・反映の着手プラン
+
+1. **読み取り範囲を固定する:** Team `Baritech`、Project `ノア動物病院電子カルテ`、hub `BRT-4` を対象に、`PERF-STG-LOGIN`、`/login`、`/v1/me`、`preflight`、`cold start`、`Container`、PR #388 / #393 と関連SHAをタイトル・本文・コメントから検索する。
+2. **既存 issue を優先する:** 直接対応する issue が見つかった場合は、現在の担当・状態・受入条件を読み取り、本書の C / D / STG 受入と対応付ける。関連語だけの issue を直接対応と推定せず、複数候補なら UNKNOWN のまま候補と相違点を記録する。
+3. **反映案をローカルで作る:** 原因未確定、C / D未着手、PR #388競合、STG revision、Browser/E2E、測定結果をPASS / BLOCKED / UNKNOWNに分け、issue本文またはコメントの下書きを作る。既存 issue がなければ、重複検索結果と新規issue案を作るところまでとする。
+4. **承認後に反映する:** Linearへのコメント、新規issue、状態・担当・受入条件の変更は外部書き込みとして明示承認後に実行する。repo統合やlocal/static testだけでDoneへ移さない。DoneはSTG受入結果と残作業を照合したうえでUSERが判断する。
+5. **完了条件:** 対応issueのURL・ライブ状態・照合日時と、C / D / STG受入の各状態が相互に一致していること。読み取り手段が利用できない場合は照会語と対象を残し、Linear状態をUNKNOWNのままにする。
+
 ### 検証・実装の分割
 
 | 実装単位 | 必須の確認 | 次へ進める条件 |
 |---|---|---|
 | C: 計測・通信経路修正 | OPTIONS/GET別の時刻、cold/warm比較。変更時はCORS・内部ルート・CSRF契約 | 原因と対策の因果を示す実測あり。環境変更・deployは別途承認 |
 | D: bundle | キャッシュなし/あり、チャンク依存、操作可能時刻 | Cの残課題と切り分けた改善量あり |
+| STG受入 | PR競合解消、migration/seed/env差分、対象CIの実SUCCESS、配信revision一致、匿名・既存session・復旧・医院選択、3時刻とOPTIONS/GET | scoped検証とレビュー後に外部更新承認。対象revisionのbrowser証跡あり |
+| Linear | Team / Project / hub内の本文・コメント検索、既存issueとの対応、状態境界 | ライブ読取結果とローカル反映案あり。書き込みは別途承認 |
 
 実装時は対象worktreeに結び付いたDockerで、既存の `use-auth-initial-session.test.tsx`・`LoginForm.test.tsx` と変更箇所隣接テストを指定して `npx vitest run <対象パス>` を実行する。共有axios変更時は関連interceptorテストも追加する。全体build/testや環境起動を自動実行しない。authロジック変更はReact・認証安全性の独立レビューを受ける。
 
