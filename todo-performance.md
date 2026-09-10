@@ -6,19 +6,20 @@
 
 対象: STG `/login` の初回表示遅延。責任者・依頼者: 曽我 稔。
 
-ソース照合の基準点: 本整理着手時のローカル `main` `7c6a4a9d1`、最終 fetch 時の `origin/main` `423a26743`。本整理コミット自身は含めない。調査時に照合した STG bundle は `main-BnyQFmpH.js` であり、現在の STG 配信 revision は未照合。
+ソース照合の基準点: 更新着手時のローカル `main` = `origin/main` = `5a19989ad`。A は PR [#393](https://github.com/MinoruSoga/AnimalEkarte/pull/393) の `9b06b551c`、B は merge commit `b5be27be6` で `main` に統合済み。調査時に照合した STG bundle は `main-BnyQFmpH.js` であり、A/B の STG 配信 revision は未照合。
 
 実行 SoT: Linear。本書はユーザー指定のローカル調査・実装準備記録。Linear の関連 issue / 状態は **UNKNOWN（今回未照会・未更新）**。入口は [todo.md](todo.md)。
 
-## 現在の未完了状況（2026-09-10）
+## 現在の統合・検証状況（2026-09-10）
 
-- **STG 昇格:** `main` → `staging` の PR [#388](https://github.com/MinoruSoga/AnimalEkarte/pull/388) は OPEN / CONFLICTING。変更検出・security checks は PASS、product jobs は SKIP。STG 配信、ブラウザー/E2E、改善後の実測は **UNKNOWN / 未実施**。
-- **原因調査:** 約22.5秒の preflight・接続待ち・Container 起動の内訳が未確定。
-- **残実装:** 原因調査の結果に基づく通信経路対策 C と、初回 bundle を実測して判断する D。UI変更だけを通信時間の改善とは扱わない。
+- **A（白画面の待機表示）:** PR #393 は MERGED。非機密の待機表示と保護対象の未マウントを `main` に統合済み。
+- **B（8秒上限・障害表示）:** `b5be27be6` で `main` に統合済み。統合前の exact auth 検証は 107 tests、ESLint、Prettier、gitleaks が PASS。GitHub の同 commit では Workflow Contracts、Detect changes、Gitleaks、AgentShield が PASS したが、Frontend Build/Test 等の product jobs は SKIP であり、CI product suite の PASS とは扱わない。
+- **STG 昇格:** `main` (`5a19989ad`) → `staging` の PR [#388](https://github.com/MinoruSoga/AnimalEkarte/pull/388) は OPEN / CONFLICTING。変更検出・security checks は PASS、product jobs は SKIP。A/B の STG 配信、ブラウザー/E2E、改善後の実測は **UNKNOWN / 未実施**。
+- **残作業:** 約22.5秒の preflight・接続待ち・Container 起動の内訳確定と、その結果に基づく C、初回 bundle を実測して判断する D。待機表示の実装完了を通信時間の改善とは扱わない。
 
 ## 結論と判定境界
 
-**調査時に確定した事実: 当時はセッション確認が終わるまでログイン画面を描画しなかったため、通信待ちが白画面の待ち時間になっていた。**
+**確定: セッション確認が終わるまでログイン画面を描画しないため、通信待ちが白画面の待ち時間になる。**
 
 **未確定: 通信全体約22.7秒のうち約22.5秒を占めた、最終 GET の接続開始前の待ち時間の内訳。** 最終 GET の送信から応答開始は約116msだった。「Go API / DB が23秒処理した」とは言えない。一方、CORS preflight（OPTIONS）が先行する構成なので、**ブラウザー内だけの停滞とも断定できない**。OPTIONS の通信・Container 起動待ちが先行区間に含まれた可能性は残る。
 
@@ -71,20 +72,28 @@
 
 負荷試験や warm-up の継続実行はしていない。共有環境を意図的に停止・休止させる操作もしていない。
 
-## 調査時にソースから確認した通信経路
+## 調査時にソースから確認した発生経路（A/B実装前）
 
-1. [axios.ts](frontend/src/lib/axios.ts) は `X-Requested-With` / `X-Request-ID` を付ける。別 origin の API なので、preflight cache がないと OPTIONS が先行する。`X-Requested-With` は CSRF 防御のためであり、高速化目的の無条件削除は不可。
-2. [Worker](backend/worker/index.ts) は通常リクエストを Container に転送する。OPTIONS の edge 即時応答はなく、Container が休止中なら起動を待つ可能性がある。**設定・コード上の候補であって、E1で実際に休止していた証拠は未取得。**
-3. [CORS middleware](backend/internal/middleware/cors.go) は preflight max-age 86400を設定し、OPTIONS に204を返す。ブラウザーによるキャッシュ上限・キャッシュ状態は別途考慮する。
-4. [auth middleware](backend/internal/middleware/auth.go) は token 不在ならDB照会前に401を返す。有効 token の認可経路は異なるため、この短絡を全401に一般化しない。
+以下は遅延調査時のベースラインであり、現在のA/B実装後の挙動ではない。実装と検証の現状は「調査・改善 TODO」と各 child unit の証跡を正本とする。
+
+1. [router.tsx](frontend/src/app/router.tsx) が `/login` を含むルートを AuthProvider で包む。
+2. [AuthProvider.tsx](frontend/src/features/auth/components/AuthProvider.tsx) の53–60行で `/login` でも session restore を有効にし、94–108行で確認完了を待つ。239行は `if (!isInitialized) return null`。既存ログインの復元と遷移（BUG-031）を守るための処理であり、単純な認証確認の削除は不可。
+3. [refresh-token.ts](frontend/src/features/auth/api/refresh-token.ts) の17–21行は、名前に反して refresh POST ではなく **GET `/v1/me`** を呼ぶ。401/403 は匿名状態に戻す。
+4. [axios.ts](frontend/src/lib/axios.ts) の13–23行は `X-Requested-With` / `X-Request-ID` を付ける。別 origin の API なので、preflight cache がないと OPTIONS が先行する。`X-Requested-With` は CSRF 防御のためであり、高速化目的の無条件削除は不可。
+5. 同 axios の timeout は60秒。GET の network error / 502–504 は最大2回、1秒・2秒の間隔で再試行する。`/login` の401は refresh を誘発しない。E1の1件内の22.5秒をリトライの1秒・2秒待ちで説明することはできない。別途、通信障害時に待ち時間が長くなる設計上の残課題はある。
+6. [Worker](backend/worker/index.ts) の44行に `sleepAfter = "10m"`、280–282行は通常リクエストを Container に転送する。OPTIONS の edge 即時応答はなく、Container が休止中なら起動を待つ可能性がある。**設定・コード上の候補であって、E1で実際に休止していた証拠は未取得。**
+7. [CORS middleware](backend/internal/middleware/cors.go) の34行は preflight max-age 86400、36–38行は OPTIONS に204を返す。ブラウザーによるキャッシュ上限・キャッシュ状態は別途考慮する。
+8. [auth middleware](backend/internal/middleware/auth.go) の66–69行は token 不在ならDB照会前に401。有効 token の認可経路は異なるため、この短絡を全401に一般化しない。
 
 ## 調査・改善 TODO
 
-業務目的: ログイン開始時の通信待ちを特定して短縮し、再読込・操作のやり直しを減らす。認証・CSRF・医院分離は維持する。Browser/E2E・STG実測・LinearはUNKNOWNまたは未実施であり、C/Dは未着手。
+業務目的: ログイン開始時の無反応な待ちと、待ちによる再読込・操作のやり直しを減らす。まず白画面という不要な待ち方を除き、認証・CSRF・医院分離は維持する。A/Bは `main` 統合済み。Browser/E2E・STG実測・LinearはUNKNOWNまたは未実施であり、C/Dは未着手。
 
 | 優先 | 項目 | 状態 | 実施内容・完了条件 |
 |---|---|---|---|
 | P0 | 遅延区間の確定 | 部分完了 | E1の22.5秒が最終GET接続前であることは確認済み。次は下記手順で OPTIONS / 接続待ち / Container 起動の内訳を確定する |
+| P0 | ログイン時の白画面を解消 | DONE (`main` integration) | PERF-STG-LOGIN-A: PR #393 / `9b06b551c`。SessionPending + AuthProvider/router/hydrate wiring。Vitest RED→GREEN pending-Promise; protected children unmounted。STG配信・Browser/E2Eは未確認。Linear UNKNOWN。 |
+| P1 | セッション復元の待ち上限・障害表示 | DONE (`main` integration) | PERF-STG-LOGIN-B: `b5be27be6`。起動時専用8秒上限、401/403/timeout/transportの型付き分類、再試行・ログイン切替、遅延結果の無効化を実装。候補tipのexact 17-file verifier PASS（120 tests）。main統合前レビュー修正後のexact auth 12-file verifier PASS（107 tests・ESLint・Prettier）。GitHub product jobsはSKIP。STG配信・Browser/E2Eは未確認、Linear UNKNOWN。 |
 | P1 | preflight / Container 起動の遅延対策 | 仮説検証待ち | OPTIONSと起動イベントの相関確認後に対策を選ぶ。edgeでのOPTIONS応答はCORS許可元・ヘッダ・資格情報方針を一致させる。GET自体のcold startは別に残る。sleep設定変更は費用と共有環境への影響を明示して判断する |
 | P2 | 初回 bundle の不要読込 | TODO・今回の主因ではない | 配信HTMLは charts / LIFF 等をpreload。ログインに必要な依存を実測して分離する。E1はload約0.31秒のため、23秒の主因として扱わない |
 | P1 | 改善後の再計測 | 未実施 | 同一条件のwarm/cold・初回/再読込を区別し、FCPだけでなくフォーム操作可能時刻、OPTIONS/GET各時間を保存。spinnerの表示だけを「ログイン高速化完了」としない |
@@ -99,11 +108,236 @@
 
 現時点の不足: E1当時のOPTIONS / 接続イベント、Cloudflareの該当時刻ログ、Container起動状態・配信revision。利用可能な接続ツールには、この環境のCloudflareログを直接取得する専用接続が見つからず、管理画面ログ・DBを取得していない。遅延は追加の2回では再現しなかったため、根因を確定扱いにしない。
 
-## 残作業の改善プラン
+## 改善プラン（2026-09-09 追記・A/B `main` 統合済み）
 
-Cで通信待ちの原因を特定してから対策を選ぶ。Dは初回キャッシュなし計測で必要性が確認できた場合だけ実施する。
+方針は **A: 白画面をなくす → B: 復元待ちを制御する → C: 計測で特定した通信経路を直す**。Cの原因確定待ちでA・Bを止めない。bundle削減は、その後の初回キャッシュなし計測で必要性を判断する。
 
-### C. 通信経路を計測して、効果のある対策だけを入れる
+以下の時間は設計上の暫定目標であり、測定済みの性能保証・SLOではない。既存の正常時FCP約0.8–0.9秒を基準に、同一端末・回線・キャッシュ条件で比較する。
+
+### A. 非機密の画面枠を先に表示する（最初の実装単位）
+
+認証APIの結果を待たずに、ブランド表示と「ログイン状態を確認しています」を描画する。保護された画面・医院情報・患者データのコンポーネントは、認証確定までマウントしない。
+
+- `AuthProvider` の未初期化時の `null` を、認証コンテキストに依存しない軽量な待機表示に置き換える。ローディング中に単純に全 `children` を表示する変更はしない。
+- `app-routes.tsx` のログイン用 `Suspense fallback={null}`、`router.tsx` のルートfallback、`root-hydrate-fallback.tsx` も確認し、JSチャンク待ちでも同じ非機密表示を出せるようにする。新しい大型ライブラリは追加しない。
+- 既存のdesign tokens・ブランド部品を使い、`role="status"` 等で状態を通知する。自動フォーカス移動や連続読み上げは避ける。
+- **完了条件:** `/me` を23秒保留するテストでも待機表示が先に出る。保護画面のマウントと業務API発火は0件。既存セッションの復元・ログイン済み遷移、パスワード復旧画面を維持する。
+- **実測目標:** 正常な静的配信条件で非機密表示のFCPは1秒以内を目指す。ここで改善するのは白画面であり、フォーム操作可能までの時間やAPI所要時間の改善とは別に報告する。
+
+対象候補: [AuthProvider.tsx](frontend/src/features/auth/components/AuthProvider.tsx)、[app-routes.tsx](frontend/src/app/routes/app-routes.tsx)、[router.tsx](frontend/src/app/router.tsx)、[root-hydrate-fallback.tsx](frontend/src/app/root-hydrate-fallback.tsx)。待機UIは依存方向に沿って配置し、認証feature外から内部ファイルを直接importしない。
+
+
+#### Child unit progress — PERF-STG-LOGIN-A (2026-09-09 15:11 JST)
+
+- Claim: `claim/PERF-STG-LOGIN-A` acquired in shared repo; parent `claim/PERF-STG-LOGIN` left intact.
+- Candidate: `/Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte-perf-login-a-20260909` on branch `perf/stg-login-pending-a-20260909` from `PERF_BASE=c0950fbdfe8c2267ea2ab33a41a906fee8f1f6b6`.
+- Plan imported by exact-byte copy (SHA256 96648dc0a9ba218ece744ab0f3dcdaf214c50c14558ba94edcb1c682f5f692a9); B/C/D remain pending.
+- Status: independent review PASS (code+security); draft PR next (browser/E2E BLOCKED).
+
+#### Implementation evidence — PERF-STG-LOGIN-A (2026-09-09 15:22 JST)
+
+- Changed paths: AuthProvider.tsx, SessionPending.tsx(+test), root-hydrate-fallback.tsx(+test), router.tsx, router.test.ts, app-routes.tsx, app-routes.test.tsx, use-auth-initial-session.test.tsx, todo-performance.md, todo.md
+- RED: pending refreshToken Promise → Unable to find role=status (empty body)
+- GREEN: verify-agent-task related+eslint+prettier PASS (completed_tests=45 on owned frontend set)
+- Assumptions: Layout.tsx isLoading null left unchanged (out of allowlist; unreachable after AuthProvider gate). No FCP/API timing claim. E2E/browser BLOCKED.
+- B/C/D: still pending
+
+
+#### Frozen pending-UI contract (from investigation probes; freeze joined — see cycle2 matrix)
+
+- pending_component_path: `frontend/src/components/shared/auth/SessionPending.tsx`
+- props_contract: optional `message` (default 「ログイン状態を確認しています」); root `role="status"` + `aria-live="polite"`; hook-free; design tokens + lucide Stethoscope only; NO imports from `@/features/auth` or auth hooks/state
+- mount_sites: AuthProvider `!isInitialized` gate; `RootHydrateFallback`; `router.tsx` root Suspense; `app-routes.tsx` login Suspense
+- exact_test_paths: `use-auth-initial-session.test.tsx`, `use-auth-clinic-switch.test.tsx`, `router.test.ts`, `app-routes.test.tsx`, `root-hydrate-fallback.test.tsx`, `SessionPending.test.tsx`
+- must_not_change: LoginForm*, axios, refresh-token/login/logout endpoints, Layout.tsx (out of allowlist; dead isLoading path after AuthProvider gate), B/C/D plan items, deps/lockfiles
+- implementation_notes: Keep children unmounted while pending (do not wrap children). Reuse LoginFormBrandHeader visual pattern in shared without importing auth. E2E/browser BLOCKED (no candidate-serving fixture).
+
+
+#### Acceptance Checklist (expanded before implementation)
+
+- [x] Pending restore shows non-sensitive UI without protected children | Target: AuthProvider + SessionPending | Verify: scoped Vitest pending-Promise test RED→GREEN; protected mount and business fetch spies stay zero | PASS: named regression fails before fix and passes afterward
+- [x] 200/401, recovery, clinic and StrictMode invariants retained | Target: use-auth-initial-session + use-auth-clinic-switch + affected route tests | Verify: exact candidate-mounted verify-agent-task.py paths command | PASS: nonzero test counts, zero failures
+- [x] Lazy and hydration pending states remain visible and accessible | Target: root-hydrate-fallback, router, app-routes, SessionPending | Verify: follow-up cycle1 deferred pending→resolved tests (below) supersede extracted-fallback-only coverage | PASS: cycle1 Docker completed_tests=9 + neg control Unable to find role=status
+- [x] Changes stay within write allowlist; preserve pre-existing/foreign changes | Target: tracked/staged/untracked paths | Verify: git diff --name-only, --cached --name-only, ls-files --others vs pre-edit baseline | PASS: only allowlisted owned changes; unknown ownership BLOCKED
+- [x] Isolated candidate descends from main and includes preserved plan | Target: worktree + ledger | Verify: merge-base ancestor of PERF_BASE; plan SHA import; check-ignore/ls-files --stage | PASS: main base recorded; source SHA unchanged; B/C/D remain pending
+- [x] Independent review + scoped quality gates completed | Target: frozen candidate diff | Verify: independent reviewer with file/line evidence + exact test/lint/format outputs | PASS: no unresolved CRITICAL/HIGH; review joined
+- [x] Task branch published and one main PR created | Target: MinoruSoga/AnimalEkarte | Verify: gh pr view --json url,baseRefName,headRefName,headRefOid,isDraft,state vs HEAD | PASS: OPEN PR to main with exact owned head; draft/ready and CI reported truthfully
+- [x] Workflow-style orchestration used and all launched work reconciled | Target: this session | Verify: Deliverables orchestration evidence | PASS: Workflow/subagent mode recorded; every agent ID/role/status/evidence/integration joined or cancelled
+
+
+
+#### Evidence follow-up cycle 1 — PERF-STG-LOGIN-A (2026-09-09 16:02 JST)
+
+FOLLOWUP_BASE=`8060f87d91cfeb9584b55257b8f547bd646db280`. Claim `claim/PERF-STG-LOGIN-A` retained by original receiver session `01a084bb-b11e-7673-81d5-98974872de68`. Parent claim intact. Source foreign backend permission-policy WIP preserved (unstaged FP now `9c24aa2c…`; original session-start FP was `e273478b…`).
+
+##### Follow-up Acceptance Checklist
+
+- [x] Actual root/login lazy and hydration pending-to-resolved boundaries covered | Tests: `appRoutes login Suspense pending-to-resolved…`, `root Suspense pending-to-resolved…`, hydrate deferred lazy tests in router/root-hydrate files | Verify: `python3 -B scripts/verify-agent-task.py --paths frontend/src/app/router.test.ts frontend/src/app/routes/app-routes.test.tsx frontend/src/app/root-hydrate-fallback.test.tsx --frontend-image sha256:532501622cd024ab786a32eb9798db1cd1a0e4d47cddb3dbd56ae107f95d9cb4 --frontend-dependency-volume ekarte-frontend-node-modules` → status PASS, completed_tests=9, eslint0, prettier0 (`/tmp/perf-login-a-followup-verify2.log`)
+- [x] Missing historical evidence recovered or bounded | RED: `/tmp/perf-login-a-red-detail.log` + session terminal `/Users/minoru/.grok/sessions/%2FUsers%2Fminoru%2FDev%2FCase%2FAnimalHospital%2FAnimalEkarte/01a084bb-b11e-7673-81d5-98974872de68/terminal/call-c50ddd98-04b0-4040-86b6-ebb47c904818-76.log` — `Unable to find role="status"` empty body; promptSha256 `b35514951…` EXIT0; agents listed below | Fresh re-verify dated 2026-09-09 16:02 JST is current correctness only, not historical proof
+- [x] Final independent review + narrow quality gates | Reviewer `01a084f6-d2f7-7ab3-a37b-44f5056129f4` initially FAIL on ledger overclaim (fixed this revision); security `01a084f6-d2f7-7ab3-a37b-4501269bc66e` PASS; gates PASS 9 tests
+- [x] Changes within 4-path allowlist | Only router.test.ts, app-routes.test.tsx, root-hydrate-fallback.test.tsx, todo-performance.md; no production code
+- [x] Ledger + PR393 reflect evidence without overclaim | Historical snapshot only: after evidence commit head was `e81ed8eda67d0ef5af81379fba8a1eda42c88d55` (not final tip). Final published head is recorded in PR/report after cycle2 docs push. Browser/E2E BLOCKED; CI audit FAILURE at historical `8060f87d91cfeb9584b55257b8f547bd646db280`; latest Actions for code subject `d48cca2f7d5661799f68902c9965e7dcc70704f9` = UNKNOWN (gh run list empty); B/C/D pending
+- [x] Workflow-style orchestration reconciled | Workflow `ae-perf-stg-login-a-evidence-followup` probes joined; spawn reviewers joined
+
+##### Historical evidence recovery (joined)
+
+- Original saved prompt SHA256: `b35514951a0f61b176d1a3120521c717dc1c793838d704ae734e761e18e475e0`
+- Original RED (historical): `TestingLibraryElementError: Unable to find role="status"`; `<body><div /></body>`; test `shows non-sensitive pending UI…` at use-auth-initial-session.test.tsx:157; Start at 15:17:56
+- Investigate wf `wf_01a084cc28a575e08806ba2cd29b2f7d`: probe-auth-render `01a084cc-28bf-…`, probe-tests-rules `01a084cc-28c3-…`, freeze-contract `01a084ce-a21b-…` — complete/joined
+- Review wf `wf_01a084d405947760a2c63685ee1dffc7`: code-review `01a084d4-05b2-…`, security-review `01a084d4-05b4-…` — complete/joined; backup spawn reviewer/security also PASS
+- Follow-up neg control (fresh 2026-09-09 16:02 JST, not historical TDD): offline Docker candidate RO + tmp null-patched hydrate → `Unable to find role="status"` / empty body (`NEGATIVE_CONTROL_SENSITIVE_TO_NULL_FALLBACK`)
+- Prior gap: extracted-fallback-only route tests overclaimed; cycle1 replaces with deferred pending→resolved coverage
+
+
+##### Workflow freeze join (late)
+
+- Workflow `ae-perf-stg-login-a-evidence-followup` completed; freeze-followup-scope `01a084f1-c3b2-70e3-a271-f879486f1112` done (joined).
+- Freeze asked login coverage via `createMemoryRouter`+`RouterProvider` over real login RouteObject (applied in follow-up repair).
+- Raw `/tmp/perf-login-a-red*.log` may be absent now: **BLOCKED as durable artifact**; recovered content remains in session terminal `/Users/minoru/.grok/sessions/%2FUsers%2Fminoru%2FDev%2FCase%2FAnimalHospital%2FAnimalEkarte/01a084bb-b11e-7673-81d5-98974872de68/terminal/call-c50ddd98-04b0-4040-86b6-ebb47c904818-76.log` and prior `/tmp` capture used during this session.
+
+
+#### Evidence closeout cycle 2 — PERF-STG-LOGIN-A (2026-09-09 16:42 JST)
+
+Docs-only. Code/test subject frozen at `d48cca2f7d5661799f68902c9965e7dcc70704f9` (includes RouterProvider login coverage). This cycle does not change product/test bytes.
+
+##### Cycle2 Acceptance Checklist
+
+- [x] Original/follow-up evidence claims have exact provenance | Matrix below | Full locators; no PASS*
+- [x] Final independent review covers code/test snapshot `d48cca2f7…` | Workflow review-final-snapshot `01a08518-662c-79a3-9e42-ed9a27c66871` PASS; security `01a08519-5514-7e20-a11e-e1d07f6dd7df` PASS | Current correctness only (not historical review proof)
+- [x] Ledger/PR distinguish historical vs current CI/heads | Historical audit FAIL @ `8060f87d…`; Actions @ `d48cca2f7…` UNKNOWN (`gh run list --commit` → `[]`); Vercel rollup SUCCESS only
+- [x] Allowlist: only `todo-performance.md` in this cycle
+
+##### Evidence matrix (original vs fresh)
+
+| Claim | Kind | Locator | Result |
+|---|---|---|---|
+| Historical RED Unable to find role=status | original | `/tmp/perf-login-a-red-detail.log` L15-32; session `/Users/minoru/.grok/sessions/%2FUsers%2Fminoru%2FDev%2FCase%2FAnimalHospital%2FAnimalEkarte/01a084bb-b11e-7673-81d5-98974872de68/terminal/call-c50ddd98-04b0-4040-86b6-ebb47c904818-76.log` | PASS (content) |
+| session/terminal filename contains `perf-login-a-red` | original | `session/terminal/*perf-login-a-red*` | **BLOCKED** absent filename pattern; content elsewhere |
+| Original promptSha256 b35514951a0f61b176d1a3120521c717dc1c793838d704ae734e761e18e475e0 EXIT0 | original | `/Users/minoru/.grok/sessions/%2FUsers%2Fminoru%2FDev%2FCase%2FAnimalHospital%2FAnimalEkarte/01a084bb-b11e-7673-81d5-98974872de68/terminal/call-d651c062-e4b3-4b78-a0ba-85de3197d20c-3.log` | PASS |
+| Source PRE unstaged FP e273478b82c6ccc93c710139a20b6c66bed02f99f2a0cfa7894c879a84c3c521; todo-performance 96648dc0…; todo.md a0587f95… | original | `/Users/minoru/.grok/sessions/%2FUsers%2Fminoru%2FDev%2FCase%2FAnimalHospital%2FAnimalEkarte/01a084bb-b11e-7673-81d5-98974872de68/terminal/call-d651c062-e4b3-4b78-a0ba-85de3197d20c-4.log` | PASS |
+| Source POST match BASELINE_UNSTAGED==NOW_UNSTAGED e273478b… (after A PR push) | original | `/Users/minoru/.grok/sessions/%2FUsers%2Fminoru%2FDev%2FCase%2FAnimalHospital%2FAnimalEkarte/01a084bb-b11e-7673-81d5-98974872de68/terminal/call-94c0585e-a892-40f1-8ff9-bd675e7b9028-145.log` | PASS (dated snapshot) |
+| A-relevant source docs SHA still 96648dc0… / a0587f95… at closeout | fresh | `shasum -a 256` on source tree | PASS |
+| Full current source unstaged FP equals historical e273478b… | fresh | current FP differs (foreign backend WIP additive) | **BLOCKED** as proof of unchanged full-tree WIP; docs SHA preservation stands separately |
+| Investigate agents dispositions | original | wf_01a084cc28a575e08806ba2cd29b2f7d: probe-auth-render `01a084cc-28bf-7620-bf9e-e7ee7db42c9e` done; probe-tests-rules `01a084cc-28c3-7091-b852-98dc8ca8de34` done; freeze-contract `01a084ce-a21b-73d2-aea7-e46504501219` done | PASS |
+| Review agents dispositions | original | wf_01a084d405947760a2c63685ee1dffc7: code-review `01a084d4-05b2-79c2-8822-560b9e0d8bc5` PASS; security-review `01a084d4-05b4-7391-ac31-ad7264451387` PASS | PASS |
+| Follow-up agents | original | wf_01a084ef87777bc299c56d2fc23eef06 complete; spawn reviewer `01a084f6-d2f7-7ab3-a37b-44f5056129f4` FAIL→ledger fixes; security `01a084f6-d2f7-7ab3-a37b-4501269bc66e` PASS | PASS |
+| Closeout probes | fresh | wf_01a0851865fe7bd196d0bbffe6505e0c: probe-evidence-matrix `01a08518-662b-7572-8d5b-a3b027c7a28f`; review-final-snapshot `01a08518-662c-79a3-9e42-ed9a27c66871` PASS subject d48cca2f7; security `01a08519-5514-7e20-a11e-e1d07f6dd7df` PASS | PASS |
+| Route tests at d48cca2f7 | fresh (generation) | completed_tests=9 exit0 eslint0 prettier0; fingerprint cited in closeout context | PASS (accepted; not re-run this cycle) |
+| Hydration coverage boundary | doc | Production-bound HydrateFallback + controlled deferred test route — **not** full production child-tree E2E | PASS (accurate boundary) |
+| CI Frontend Build audit FAIL | historical | `gh run list --commit 8060f87d91cfeb9584b55257b8f547bd646db280` → CI conclusion failure (databaseId 34319752378) | PASS (historical) |
+| Actions at code subject d48cca2f7 | fresh | `gh run list --commit d48cca2f7d5661799f68902c9965e7dcc70704f9` → `[]` | **UNKNOWN** (not SUCCESS/FAILURE) |
+| Browser/E2E | process | no approved candidate fixture | **BLOCKED** |
+
+##### Implementation acceptance (unchanged)
+
+Product/test acceptance for white-screen fix + deferred pending→resolved route tests remains accepted at subject `d48cca2f7…`. このA closeout時点ではB/C/D pendingだった。現在はBも `main` 統合済みで、C/Dは未完了。No FCP claim.
+
+### B. 起動時の認証確認だけに待ち上限を設ける（Aの次）
+
+起動時のsession restoreを、通常業務API・権限再取得とは分けて制御する。初期案は **1試行8秒、起動時の自動リトライ0回**。8秒は今回の23秒待ちを無反応のまま継続させないためのUX上の初期値であり、cold startを8秒以内に短縮する保証ではない。
+
+| 状態 | 表示・操作 | 認証状態の扱い |
+|---|---|---|
+| 確認中 | Aの表示。二重ログインを開始しない | 未確定。保護画面には入れない |
+| 200で有効なセッション | 既存の認証済み遷移 | 検証済みユーザー・医院を反映 |
+| 401 | ログインフォームを表示 | 未ログインとして扱う |
+| 403 | 応答契約に沿ったアクセス制限・医院選択の案内 | 通信エラーや401へ一律変換しない。既存の医院選択回復経路を維持 |
+| 8秒到達・通信失敗・5xx | 「ログイン状態を確認できませんでした」と再試行、別途ログイン画面への切替を提示 | 未認証と断定しない。Cookie消去・logout送信をしない |
+
+- 起動専用APIは成功・未ログイン・制限・通信失敗を型で区別する。既存 `refreshToken()` は権限再取得にも使われるため、全呼出しの意味やaxiosの共通60秒設定をまとめて変更しない。
+- `AbortController` によるキャンセルに加え、試行番号で古い結果を無視する。再試行・ログイン切替・logout・unmountで番号を進め、古い成功/401がuser・医院・React Queryキャッシュを上書きしないようにする。キャンセルが通信先の処理停止を保証するとは扱わない。
+- 共通axios interceptorの自動リトライにも、起動時専用の型付きオプションで適用除外を通す。単にtimeoutを8秒に変えるだけでは、共通リトライが再度待機を作るため不十分。
+- ログインフォームへの切替時は復元試行を失効させてから、明示的なログインを受け付ける。送信中は重複送信を防ぐ。期限到達や切替だけでセッション・選択医院を消去しない。
+- **完了条件:** 8秒到達後にエラーと再試行操作が表示され、待機だけを継続しない。再試行はクリック1回につき1試行。旧復元の200/401/失敗が新しいログイン・医院・logout後の状態を覆さない。
+- **実測目標:** warm・匿名時のフォーム操作可能時刻は2秒以内を目指す。障害時は復元開始から8秒で回復操作を提示する。JS読込時間は別に記録する。再試行や手動ログインも通信を伴うため、8秒でログイン成功するとは約束しない。
+
+対象候補: authの起動専用API・[AuthProvider.tsx](frontend/src/features/auth/components/AuthProvider.tsx)・[LoginForm.tsx](frontend/src/features/auth/components/LoginForm.tsx)・[axios.ts](frontend/src/lib/axios.ts)・必要な認証型。共通interceptorを変更する場合は起動API以外の既存retry/CSRF/医院選択の回帰を必須とする。
+
+#### Child unit progress — PERF-STG-LOGIN-B (implementer; commit PARENT-owned)
+
+- Claim: `claim/PERF-STG-LOGIN-B` already present (not acquired/deleted this unit). Candidate worktree `/Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte-perf-login-b-20260909`, branch `perf/stg-login-bootstrap-b-20260909`, `B_BASE=9b06b551c7468ad071c0f7672cee42efad67da88`. REPAIR_BASE tip `f5191c4b` (parent-owned commit; not amended). Follow-up cycle1 is uncommitted additive work on that tip.
+- Frozen contract: `restoreSession()` returns `SessionRestoreResult` (`verified200` / `anonymous401` / `restricted403` / `timeout` / `transport` / `cancel`). Startup GET `/v1/me` uses `timeout:8000` + typed `startupSessionRestore: true` (skip GET retry and 401 refresh/redirect; still reject). AuthProvider owns generation + AbortController + flightRef; 8s wall-clock deadline; timeout/transport → `SessionRestoreError` (retry / ログイン切替) without claiming anonymous or clearing cookie/clinic/query. `refreshPermissions` still calls `refreshToken()`. SessionRestoreError path is `frontend/src/features/auth/components/` (parent override; not `components/shared/auth`).
+- Verify image `sha256:532501622cd024ab786a32eb9798db1cd1a0e4d47cddb3dbd56ae107f95d9cb4`, volume `ekarte-frontend-node-modules`. Created gitignored empty `frontend/node_modules` mountpoint scaffold (verify runner requirement).
+
+| Batch | RED | GREEN |
+|---|---|---|
+| 1 restore-session + axios startup flag | `python3 -B scripts/verify-agent-task.py --paths frontend/src/features/auth/api/restore-session.test.ts frontend/src/lib/axios.test.ts --frontend-image sha256:532501622cd024ab786a32eb9798db1cd1a0e4d47cddb3dbd56ae107f95d9cb4 --frontend-dependency-volume ekarte-frontend-node-modules` → first BLOCKED (`Dependency mountpoint must be ignored…`, exit 2, executed_count=0); after mkdir FAIL exit 1. Verbose vitest: **12 failed / 12 passed (24)** — assertion failures (anonymous401 stub; GET retry count 3≠1; 401 still refreshed). | same `--paths` → PASS `completed_tests=24` eslint0 prettier0 exit 0 |
+| 2 AuthProvider generation/flight/8s | `--paths frontend/src/features/auth/hooks/use-auth-initial-session.test.tsx` FAIL exit 1. Verbose: **13 failed / 1 passed (14)** (bootstrap still `refreshToken`; no 8s error UI). | same `--paths` → PASS `completed_tests=14` eslint0 prettier0 exit 0. Verbose 14 passed. |
+| 3 SessionRestoreError | Component introduced in batch 2 so AuthProvider could render timeout/transport. Dedicated tests added here (no extra RED cycle). | `--paths frontend/src/features/auth/components/SessionRestoreError.test.tsx` PASS `completed_tests=2` eslint0 prettier0 exit 0 |
+| 4 recovery gap + LoginForm accept | Recovery generation re-check after `setStoredClinicId` implemented with the new test. `LoginForm.tsx` unchanged: AuthProvider invalidates restore on login start and exclusive-renders LoginForm on ログイン切替. | `--paths frontend/src/features/auth/components/LoginForm.test.tsx frontend/src/lib/clinic-selection-axios.test.ts frontend/src/lib/clinic-selection-recovery.test.ts` PASS `completed_tests=24` eslint0 prettier0 exit 0 |
+
+- Final regression (pre-review-repair): `--paths` restore-session + axios + initial-session + clinic-switch + SessionRestoreError + clinic-selection-recovery + clinic-selection-axios + LoginForm + SessionPending tests → PASS `completed_tests=77` eslint0 prettier0 exit 0.
+- Owned TS/TSX eslint `--max-warnings 0` exit 0; prettier `--check` exit 0 (including AuthProvider / restore-session / SessionRestoreError / axios / clinic-selection-recovery sources).
+- Independent review wf `ae-perf-stg-login-b-review`: security PASS; react FAIL (HIGH true-unmount stale hydrate); code FAIL (CRITICAL startup interceptor awaited clinic recovery; HIGH/MEDIUM deadline/latch). Parent repair round 1:
+  - `clinic-selection-axios.ts`: `startupSessionRestore===true` rejects clinic403 without `recoverClinicSelectionOnce` (AuthProvider owns recovery under 8s budget).
+  - `AuthProvider.tsx`: `applyEnabledRef` + mountId microtask hard-invalidate on true unmount; clinic403 does not `clearDeadline`; `handleRetryRestore` calls `clearClinicSelectionRecovery` to reset latch.
+  - Tests: startup skip recovery; ordinary GET still recovers; late restore after password-recovery unmount ignores ME hydrate; retry after timed-out clinic recovery fetches again.
+- Post-repair parent verify: same full auth/axios/route regression set → PASS `completed_tests=107` eslint0 prettier0 exit 0; fingerprint `4115ebc4345e5cd42d7cb9bc0978235bf01f911a83d1d01bc86e7266ef3fa2a4`. Owned production+test eslint/prettier exit 0.
+- Changed paths at REPAIR_BASE (15; previously logged as 14; allowlist max 16): `frontend/src/features/auth/api/restore-session.ts`, `restore-session.test.ts`, `frontend/src/features/auth/components/AuthProvider.tsx`, `SessionRestoreError.tsx`, `SessionRestoreError.test.tsx`, `LoginForm.test.tsx`, `frontend/src/features/auth/hooks/use-auth-initial-session.test.tsx`, `use-auth-clinic-switch.test.tsx`, `frontend/src/lib/axios.ts`, `axios.test.ts`, `clinic-selection-axios.ts`, `clinic-selection-axios.test.ts`, `clinic-selection-recovery.ts`, `clinic-selection-recovery.test.ts`, `todo-performance.md`. At REPAIR_BASE not modified: `LoginForm.tsx`, `refresh-token.ts`.
+- Assumptions: malformed 200 → `transport.server` (not anonymous); generic 403 → `restricted403.forbidden` then SessionRestoreError; clinic 403 keeps `recoverClinicSelectionOnce` (at most one) bound to restore generation + remaining wall deadline; StrictMode reuses `flightRef` with soft cleanup + true-unmount microtask invalidate.
+- Browser/E2E: **BLOCKED** (no approved candidate fixture). Linear: UNKNOWN. Orchestration (original B unit): Workflow investigate+freeze joined; implementer `01a0854b-b082-7233-849e-4c5127eabcb2` joined; review workflow joined; repair by parent. Historical note: original closeout still said re-review pending join; that is not the current follow-up state. Commit: PARENT-owned (no follow-up commit SHA recorded here).
+
+##### Follow-up cycle1 — PERF-STG-LOGIN-B (G1–G6; commit PARENT-owned)
+
+- Writer: B-candidate sole implementer on `perf/stg-login-bootstrap-b-20260909` at REPAIR_BASE `f5191c4b` (not amended/rebased). Claim `claim/PERF-STG-LOGIN-B` left in place.
+- Gaps closed: G1 protected login-switch navigates to `/login?from=` via `parseInternalPath` and renders route children on `/login` (no LoginForm embed on protected path; BlockedScreen suppressed). Failed login 401 does not refresh/redirect. G2 storage event `invalidateRestore()` then `reload`. G3 `rearmAutomaticClinicSelectionRecoveryAttempt()` latch-only; retry ignores `restorePhase===pending`; writesPaused retained. G4 exact POST `/v1/auth/forgot-password` and `/v1/auth/reset-password` (and `endsWith`) allowed while paused; no blanket `/auth`; BlockedScreen suppressed on password-recovery and manual-login. G5 generic403 restriction copy distinct from transport; no clinic recovery; not claimed anonymous. G6 this ledger correction.
+- NEG retained: timeout / manual-login / retry do not call `clearClinicSelectionRecovery`. AuthContextValue unchanged. `refreshPermissions` still uses `refreshToken()`. AC1 8s deadline UI and AC3 `startupSessionRestore` opt-out remain.
+
+| Follow-up batch | RED | GREEN |
+|---|---|---|
+| 1 G1+G2 AuthProvider/LoginForm/initial-session/clinic-switch | `--paths` LoginForm.test + use-auth-initial-session.test + use-auth-clinic-switch.test → FAIL exit 1. Verbose: **3 failed / 34 passed (37)** — `/owners` stayed after ログイン切替; storage `callOrder[0]==reload`; LoginForm query `from` fell back to home. | `--paths` those tests + AuthProvider.tsx + LoginForm.tsx → PASS `completed_tests=69` eslint0 prettier0 exit 0; fingerprint `a22de45955da70eac7e43093788089d27bfb561f02276ba7c32acff8ada46646` |
+| 2 G3+G4 recovery latch + clinic-selection-axios + provider routes | `--paths` clinic-selection-recovery.test + clinic-selection-axios.test + use-auth-initial-session.test → FAIL exit 1. Verbose: **4 failed / 36 passed (40)** — `rearm…` not a function; forgot/reset POST `clinic writes paused`; retry cleared `writesPaused`; BlockedScreen remained on `/forgot-password`. | `--paths` those tests + recovery/axios/AuthProvider sources → PASS `completed_tests=68` eslint0 prettier0 exit 0; fingerprint `11541e8a69b649f4ffaeace3220589e2bb9b74a089dea9f01bf873da17816d18` |
+| 3 G5 SessionRestoreError + provider generic403 | `--paths` SessionRestoreError.test + use-auth-initial-session.test → FAIL exit 1. Verbose: **2 failed** — default transport copy on `kind=restricted` and `restricted403.forbidden`. | `--paths` SessionRestoreError.tsx/.test.tsx + AuthProvider.tsx + initial-session test → PASS `completed_tests=37` eslint0 prettier0 exit 0; fingerprint `e072753a311c227e37f9b2a2b24a611f4823a22c3cf485a35f369995b93be9d9` |
+
+- Follow-up regression (original auth test-file set + SessionPending): PASS `completed_tests=90` eslint0 prettier0 exit 0; fingerprint `e072753a311c227e37f9b2a2b24a611f4823a22c3cf485a35f369995b93be9d9`.
+- Owned TS/TSX (allowlist sources+tests, including AuthProvider/LoginForm/axios/recovery) eslint `--max-warnings 0` exit 0; prettier `--check` exit 0. Related-graph run that included AuthProvider.tsx also PASS `completed_tests=2070` eslint0 prettier0 exit 0.
+- Cumulative paths from `B_BASE` (16; allowlist max 16): the REPAIR_BASE 15 plus `frontend/src/features/auth/components/LoginForm.tsx`. `refresh-token.ts` still untouched. Source/A trees untouched.
+- Independent auth/React/security review: not executed in this follow-up unit (PARENT-owned join). Browser/E2E still **BLOCKED**. Linear still UNKNOWN. Orchestration current state: follow-up cycle1 writer complete; no pending-join left as this unit's status. Additive commit remains PARENT-owned; no follow-up commit SHA recorded.
+
+
+#### Follow-up cycle1 closeout — PERF-STG-LOGIN-B (local additive; no SHA in ledger)
+
+- REPAIR_BASE tip before follow-up: `f5191c4b8938167855836d26be8f7baeabbe4362`. Claim `claim/PERF-STG-LOGIN-B` retained (original owner continuation).
+- Gaps G1–G6 closed. Gate repair round1: terminal clinic block must not be replaced by transport SessionRestoreError at 8s (deadline early-return when `getClinicSelectionBlockReason()!=="none"`; hung recovery still fail-closed).
+- Parent verify after HIGH fix: `python3 -B scripts/verify-agent-task.py --paths` (17 auth/axios/route targets) + offline image/volume → PASS `completed_tests=117` eslint0 prettier0; fingerprint `6c2e3a01afb1249ba6d3f4d00c39917602b2538cdcbaa1aa1948040964d91280`.
+- Owned follow-up TS/TSX eslint `--max-warnings 0` exit0; prettier `--check` exit0.
+- Cumulative paths from B_BASE: **16 / 16 allowlist** (includes LoginForm.tsx). EXTRA none.
+- Orchestration: Workflow `ae-perf-stg-login-b-followup-investigate` joined; implementer `01a085bf-ce78-71f1-bd67-f0c2527f2bea` joined; Workflow `ae-perf-stg-login-b-followup-review` (react FAIL HIGH → fixed; security PASS) joined; re-review `01a085e0-0c61-7ac3-bfe3-46a2b739e525` PASS.
+- Historical start-unit RED/review failures preserved above. Browser/E2E BLOCKED. Linear/CI UNKNOWN. Additive commit PARENT-owned (SHA only in session report).
+
+##### Follow-up cycle2 — PERF-STG-LOGIN-B (storage fail-closed + URL identity; commit PARENT-owned)
+
+- Writer: B-candidate sole implementer on `perf/stg-login-bootstrap-b-20260909` at CYCLE2_BASE `d5f109285` (not amended). Claim `claim/PERF-STG-LOGIN-B` left in place.
+- Gaps: login storage false/throw keeps `writesPaused` and prior `blockReason`; does not `clearClinicSelectionRecovery` / hydrate / ready; LoginForm stays on `/login` (no `loginRedirectPath` navigate); paused business adapters stay 0. Pre-session bypass is POST-only exact pathname against axios `baseURL` (query allowed); reject foreign origin, prefix, suffix, extra segment, wrong method. LoginForm.tsx / axios defaults untouched.
+- Allowlist: AuthProvider.tsx, use-auth-initial-session.test.tsx, clinic-selection-axios.ts, clinic-selection-axios.test.ts, todo-performance.md.
+
+| Cycle2 batch | RED | GREEN |
+|---|---|---|
+| 1 storage fail-closed + URL identity | `--paths` use-auth-initial-session.test + clinic-selection-axios.test → FAIL exit 1. Verbose: **4 failed / 29 passed (33)** — login false/throw navigated to `/` and mounted protected children; foreign-origin `endsWith` suffix POSTs resolved instead of `clinic writes paused`. | same `--paths` → PASS `completed_tests=33` eslint0 prettier0 exit 0; fingerprint `c055855b471ee1b3c27e6669d362baa7c64193c52e0cf0c8a423886a0fdd791e`. Owned sources: login storage gated before hydrate; `isPreSessionAuthRequest` exact-base pathname; eslint `--max-warnings 0` + prettier `--check` exit 0. |
+
+- G1/G2/G5 not reopened. AuthContextValue unchanged. Browser/E2E BLOCKED. Linear UNKNOWN. Additive commit PARENT-owned; no cycle2 commit SHA recorded here.
+
+
+#### Cycle2 closeout — PERF-STG-LOGIN-B (evidence statuses separated)
+
+- CYCLE2_BASE=`d5f109285d2e56f76d8e099436d5040678e90617`. Claim `claim/PERF-STG-LOGIN-B` retained.
+- Five-path allowlist only for cycle2 code/docs: AuthProvider.tsx, use-auth-initial-session.test.tsx, clinic-selection-axios.ts, clinic-selection-axios.test.ts, todo-performance.md.
+- **Code tip (behavior):** `bd62225d28064dbbf1a0db46d50b90f12b474e56` — storage fail-closed + configured-origin exact-path pre-session POST allowlist.
+- **Prior evidence commit (docs, superseded by this truth closeout):** `3bd172624bcd22b586cdc7ba65a7b7b992efcc28` still contains conflated “FAIL narrative / PASS satisfies history” wording in its tree. The separated PASS/BLOCKED statuses below are the correction that supersedes that commit’s ledger text (this commit’s own SHA is not recorded here).
+- **Storage/pause behavior:** PASS (static + focused tests on tip). Login gates hydrate/`clearClinicSelectionRecovery`/ready on `saveClinicToStorage` false|throw; writesPaused retained; no protected navigation; business adapters blocked.
+- **URL identity behavior:** PASS (static + focused tests on tip). `isPreSessionAuthRequest` is POST + same configured origin + exact pathname only (no raw `endsWith`).
+- **Current exact 17-file verifier stability:** PASS as current GREEN only. Image `sha256:532501622cd024ab786a32eb9798db1cd1a0e4d47cddb3dbd56ae107f95d9cb4` + volume `ekarte-frontend-node-modules`. Evidenced PASS×2 on code tip `bd62225d2` (`completed_tests=120` exit0 fingerprint `c055855b471ee1b3c27e6669d362baa7c64193c52e0cf0c8a423886a0fdd791e`). Additional same-command confirmation on docs tip `3bd172624` before this truth edit: `completed_tests=120` exit0 same fingerprint. Current PASS does **not** prove a historical failure cause.
+- **Historical verifier root-cause (fp `6c2e3a01afb1249ba6d3f4d00c39917602b2538cdcbaa1aa1948040964d91280`):** **BLOCKED**. Cycle2 prompt narrative claimed FAIL×2 with exit1/no-count at that fingerprint; named machine-readable scratch baselines for the same fingerprint are PASS-only (`completed_tests=117` exit0). Exact failing stdout/stderr/JSON bytes were not retained in-repo and were not reproduced on the clean tip. Required input: original failing runner stdout/stderr/JSON for that command/environment, or a future same-command recurrence captured as machine-readable FAIL. Do not infer cause from later PASS.
+- Orchestration (implementation era): investigate wf `ae-perf-stg-login-b-cycle2-investigate`; implementer `01a08647-615e-7013-9309-c364fbadcdba`; review wf `ae-perf-stg-login-b-cycle2-review`. Re-verify era: wf `ae-perf-stg-login-b-cycle2-verify` (`wf_01a086f3927a72b294a96f544a8fc8e7`); probes storage/url/verifier-history; security-react `01a086f6-f9fe-7642-9e33-14a27a36816e`; react-reviewer `01a086f9-b951-7ad3-8638-3f6254162570`. Browser BLOCKED. CI/Linear UNKNOWN.
+
+##### Cycle2 re-verify session (prompt agent-fast-stg-login-b-reconcile-cycle2-20260909)
+
+- Receiver continued original B owner worktree; claim retained (not reacquired/deleted).
+- Exact 17-file Docker verifier PASS×2 on tip `bd62225d2` = **current stability evidence only** (`completed_tests=120` exit0 fp `c055855b…`). Does not close historical root-cause BLOCKED above.
+- Owned-path eslint `--max-warnings 0` + prettier `--check` exit0 for the four TS/TSX cycle2 paths. `git diff --check` clean.
+- Source foreign WIP preserved; A candidate `AnimalEkarte-perf-login-a-20260909` at `9b06b551` preserved. No push/PR/merge/deploy.
+
+### C. 通信経路を計測して、効果のある対策だけを入れる（A・Bと独立して調査）
 
 まず遷移前からOPTIONSとGETを記録する。必要な追加観測は、Workerで「受付→Container forward完了」の所要時間と起動イベントを取得する小さな変更に限定する。固定のmethod/path分類・status・時間・相関IDに絞り、Cookie・認証ヘッダ・本文をログに出さない。常時監視基盤の新設はこの改善の前提にしない。
 
@@ -124,13 +358,16 @@ Cで通信待ちの原因を特定してから対策を選ぶ。Dは初回キャ
 
 | 実装単位 | 必須の確認 | 次へ進める条件 |
 |---|---|---|
+| A: 非機密の待機表示 | 遅延Promiseで初期表示を検証、保護children非表示、auth / route回帰、キーボード・読み上げ | scopedテストと独立レビューに重大指摘なし |
+| B: 復元の期限と競合制御 | fake timersで8秒境界、200/401/403/5xx、再試行、旧成功/旧401、logout、StrictMode、医院回復 | 状態上書き・二重通信・権限低下の回帰なし |
 | C: 計測・通信経路修正 | OPTIONS/GET別の時刻、cold/warm比較。変更時はCORS・内部ルート・CSRF契約 | 原因と対策の因果を示す実測あり。環境変更・deployは別途承認 |
-| D: bundle | キャッシュなし/あり、チャンク依存、操作可能時刻 | Cの残課題と切り分けた改善量あり |
+| D: bundle | キャッシュなし/あり、チャンク依存、操作可能時刻 | A–Cの残課題と切り分けた改善量あり |
 
 実装時は対象worktreeに結び付いたDockerで、既存の `use-auth-initial-session.test.tsx`・`LoginForm.test.tsx` と変更箇所隣接テストを指定して `npx vitest run <対象パス>` を実行する。共有axios変更時は関連interceptorテストも追加する。全体build/testや環境起動を自動実行しない。authロジック変更はReact・認証安全性の独立レビューを受ける。
 
 STG受入は「待機表示が出る」「フォームが操作できる」「認証が成功して業務画面へ進める」の3時刻を分ける。まず通常読込の少数比較から始め、単発値でp95/p99達成を宣言しない。継続測定の件数・時間は既存のSTG測定契約で定める。既存セッション、匿名、復旧画面、医院選択の回帰が出た変更単位は先へ進めず、原因修正または承認済みの前版への切戻しを選ぶ。
 
+2026-09-09の当初調査セッションは**計画の追記まで**で、`claim/PERF-STG-LOGIN` を同じ調査・計画作業として保持した。その時点では新たな実装着手・STG変更をしていない。その後のA/B実装・検証と `main` 統合状況は上記 child unit progress と「調査・改善 TODO」に記録している。STG変更は引き続き未確認。
 
 ## 参考・検証境界
 
@@ -139,3 +376,5 @@ STG受入は「待機表示が出る」「フォームが操作できる」「�
 - [Chrome Network Timingの説明](https://developer.chrome.com/docs/devtools/network/reference/#timing-explanation): Queueing / Stalled / Proxy negotiation / Waitingを区別する。
 - [Cloudflare Containers公式SDK](https://github.com/cloudflare/containers): fetchによる起動とsleepAfterの説明。
 - 既存の測定手順: [STG-PERFORMANCE-CHECKLIST.md](docs/ops/testing/STG-PERFORMANCE-CHECKLIST.md)。health / clinics の低負荷API試験はログイン画面のFCP・preflight・cold startの代替証拠にしない。
+- 当初調査セッションは調査とMarkdownのみで、アプリのbuild/testをSKIPした。ローカル参照リンク・入口リンク・差分の空白チェックはPASS。コード修正・deploy・環境設定変更・ログイン・DB照会・migration・負荷試験・Linear更新は実施しなかった。後続A/Bでは上記のコード変更とDocker scoped検証を実施したが、deploy・STG操作・Linear更新はしていない。
+- 当初調査セッションの作業ファイルは `todo-performance.md`（新規）と `todo.md`（入口追記）のみで、開始時の作業ツリーはcleanだった。当時の claim 記載は履歴であり、現在の保有状態は編集前に Git で再確認する。A/B child claimの解放は、統合・所有終了・worktree未使用を確認してAGENTS.mdのclaim規則に従う。
