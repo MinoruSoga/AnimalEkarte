@@ -189,7 +189,7 @@ Runtime preflight: `old-db-postgres` only Up; animalekarte backend/frontend/db E
 | regressions | `python3 -B scripts/test_verify_agent_task.py` → 50 tests OK |
 | broken-consumer Docker | scratch `missingMethod` → tsc exit 2 |
 | browser/runtime | 引き続き BLOCKED（本単位では run-e2e 実行なし） |
-| CI dependency-audit | PR394 Frontend Build の pnpm audit 失敗は別 NEW WORK（本単位で lock/deps 未変更） |
+| CI dependency-audit | PR394 実行時の Frontend Build は pnpm audit で FAIL。PR は後に統合されたが、本単位で lock/deps は未変更であり、audit 解消の証拠にはしない |
 
 
 #### File-identity repair I1/I2（2026-09-09）
@@ -358,10 +358,18 @@ git show ad63bdf28:todo-refactor.md
 
 ---
 
-## PR394 AST E2E page-consumer evidence (compact)
+## PR394 AST E2E page-consumer evidence (integrated)
+
+### Current status (2026-09-10)
+
+- PR [#394](https://github.com/MinoruSoga/AnimalEkarte/pull/394) は **MERGED**。PR head `16dd2bff90a67f84ec8c29a303348b4ebb1538c6` を merge commit `c9504eada63825e1a23a7e6f08b0360952512887` で `main` に統合。
+- Merge 後の独立照合で Node evidence producer が改行・DEL・whitespace を含む spec path を `ok:true` にする残差を検出。`904e6319e01228bd80a4f5f4296922a97918e859` で raw identity derivation 前の拒否と RED fixture を追加し、merge commit `2c50baf9a98c038c388a4facd2cac7c84f89ff69` で `main` に統合。その時点の `origin/main` と同 SHA を確認。
+- 最終 scoped evidence: Docker Node **21 pass / 0 fail**、Python **58 tests / OK**、`verify-agent-task.py` `status=PASS` / `executed_count=1`、pre-commit / pre-push PASS。独立レビューは CRITICAL/HIGH/MEDIUM なし。
+- Cleanup: remote `coord/todo-actionable-remaining-20260909`、local `fix/pr394-node-control-path-20260910`、PR394 の local claim/branch/worktree は削除済み。以下の claim 記載は各実行時点の historical snapshot であり、現在の保有状態ではない。
+- Evidence boundary: PR 実行時の `Frontend Build` / 集約 `Frontend` は dependency audit で FAIL のまま。PR/main 統合や scoped verifier PASS は audit 解消、browser/UAT runtime、release readiness を証明しない。browser/UAT は未実施。
 
 - Unit: PR394 AST binding/alias/evidence repair (VERIFY-E2E-SCOPE-CONTRACT follow-up).
-- Claims: `claim/TODO-ACTIONABLE-REMAINING-20260909`, `claim/VERIFY-E2E-SCOPE-CONTRACT`, `claim/PR394-AST-E2E-PAGE-CONSUMERS` (retained; not deleted).
+- Historical run claims: `claim/TODO-ACTIONABLE-REMAINING-20260909`, `claim/VERIFY-E2E-SCOPE-CONTRACT`, `claim/PR394-AST-E2E-PAGE-CONSUMERS` (当該実行では retained。現在は削除済み)。
 - Pre-edit HEAD: `edb2dd6955401f07b80e2a3bf66a6a1bdea25743` (clean). Allowlisted paths only (5).
 - Selectors (exact): `AGENT_VERIFY_FRONTEND_IMAGE=sha256:532501622cd024ab786a32eb9798db1cd1a0e4d47cddb3dbd56ae107f95d9cb4`, `AGENT_VERIFY_FRONTEND_DEPENDENCY_VOLUME=ekarte-frontend-node-modules`.
 - Policy: supported consumer = importer-relative `static-import` only; exact-target `require` blocks (incl. shadowed local `function require`); `@/e2e/...` unrelated (`@/*`→`src/*` per `frontend/tsconfig.json`); `/app`+`file:///app` exact targets block not consume; Python exact page-set + canonical `e2e/pages/**/*.ts` + `e2e/**/*.spec.ts` + form=`static-import`.
@@ -373,12 +381,12 @@ git show ad63bdf28:todo-refactor.md
 - Campaign `--base 53a4a18c62904e793b59a6283e5ef31edd0902a1`: `status=PASS`, `executed_count=9`, unmapped=`[]`.
 - Negatives: shadowed require `ok=false` blocking=`require`; `@/e2e` canonicalize=`null`; forged require-form JSON and extra-page JSON fail-closed.
 - Review fix: Python evidence also requires importer-relative specifier (`./`|`../`) and rejects `?`/`#`/`\`/`/app/...` forgeries; page-only re-PASS exec=6.
-- Separate blockers (unchanged): PR394 Frontend Build/dependency audit; browser/UAT runtime.
+- Historical boundary: PR 実行時の Frontend Build/dependency audit は FAIL。browser/UAT runtime は未実施。
 
 ### Canonical-evidence + symlink-scan closure (2026-09-10)
 
 - Unit: PR394 raw-canonical evidence + symlink/outside-root scan closure.
-- Claims: prior coordinator/AST claims retained; AI `claim/PR394-CANONICAL-EVIDENCE-SYMLINK` held (not deleted this unit).
+- Historical run claims: prior coordinator/AST claims retained; AI `claim/PR394-CANONICAL-EVIDENCE-SYMLINK` held (当該実行では未削除。現在は削除済み)。
 - Pre-edit HEAD: `d350259c4cbb650285621f2f2134a0a5ec951de9` (clean). Allowlisted paths only (5).
 - Selectors (exact): `AGENT_VERIFY_FRONTEND_IMAGE=sha256:532501622cd024ab786a32eb9798db1cd1a0e4d47cddb3dbd56ae107f95d9cb4`, `AGENT_VERIFY_FRONTEND_DEPENDENCY_VOLUME=ekarte-frontend-node-modules`.
 - Closed holes:
@@ -391,12 +399,12 @@ git show ad63bdf28:todo-refactor.md
 - Actual five-path: `status=PASS`, `executed_count=7`.
 - Campaign `--base 53a4a18c62904e793b59a6283e5ef31edd0902a1`: `status=PASS`, `executed_count=9`, unmapped=`[]`.
 - Prior contracts retained: shadowed require blocks; `@/e2e` unrelated; absolute/file exact targets block.
-- Separate blockers (unchanged): PR394 Frontend Build/dependency audit; browser/UAT runtime.
+- Historical boundary: PR 実行時の Frontend Build/dependency audit は FAIL。browser/UAT runtime は未実施。
 
 ### Residual path-integrity (2026-09-10)
 
 - Unit: PR394 residual path-integrity (third-cycle single invariant).
-- Claims: prior claims retained; AI `claim/PR394-RESIDUAL-PATH-INTEGRITY` acquired/held (not deleted).
+- Historical run claims: prior claims retained; AI `claim/PR394-RESIDUAL-PATH-INTEGRITY` acquired/held (当該実行では未削除。現在は削除済み)。
 - Pre-edit HEAD: `aba6637a3ae42cb6fa507491882c7b35f4ecfc06` (clean). Allowlisted paths only (5).
 - Selectors (exact): `AGENT_VERIFY_FRONTEND_IMAGE=sha256:532501622cd024ab786a32eb9798db1cd1a0e4d47cddb3dbd56ae107f95d9cb4`, `AGENT_VERIFY_FRONTEND_DEPENDENCY_VOLUME=ekarte-frontend-node-modules`.
 - Closed holes:
@@ -411,4 +419,4 @@ git show ad63bdf28:todo-refactor.md
 - Actual five-path: `status=PASS`, `executed_count=7`.
 - Campaign `--base 53a4a18c62904e793b59a6283e5ef31edd0902a1`: `status=PASS`, `executed_count=9`, unmapped=`[]`.
 - Prior contracts retained (require/alias/static-import/specifier/symlink).
-- Separate blockers (unchanged): PR394 Frontend Build/dependency audit; browser/UAT runtime.
+- Current boundary: PR 実行時の Frontend Build/dependency audit は FAIL。browser/UAT runtime は未実施。いずれも本項の scoped source verification PASS とは別判定。
