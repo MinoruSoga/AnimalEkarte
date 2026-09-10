@@ -128,7 +128,7 @@ Cookie認証を使う保護routeとlogin/refresh/logoutには `RequireXRequested
 
 login、password reset、LINE webhook、scheduled jobs は GET/HEAD ではないため、この表の対象外です。HEAD 未登録は追加しません。正常に 0 行の一覧と、認可可能な医院が 0 件の 403 は別です。
 
-この gate が証明するのは **登録済み経路の静的対応表が欠落・陳腐化していないこと** です。参照テストの存在は実行 PASS を意味せず、登録式の照合だけでは middleware の実行、間接 helper の変更、実 DB の返却範囲は証明できません。台帳の `verification` に示す handler grant の回帰参照と、未確認の実データ分離を区別し、「未検証 0 件」や D3 の全面完了の根拠にはしません。
+この gate が証明するのは **登録済み経路の静的対応表が欠落・陳腐化していないこと** です。参照テストの存在は実行 PASS を意味せず、登録式の照合だけでは middleware の実行、間接 helper の変更、実 DB の返却範囲は証明できません。実 DB の返却分離は台帳 `verification` の `realdb-return-data:`（[get_head_permission_realdb_coverage_test.go](../../backend/cmd/api/get_head_permission_realdb_coverage_test.go)）と disposable 実行証跡で別途証明します。静的分類だけを D3 完了の根拠にはしません。進捗の正本は [todo-fix-auth.md](../../todo-fix-auth.md) です。
 
 ### 4.8 `/me` と login の医院フィールド
 

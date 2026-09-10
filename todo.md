@@ -117,7 +117,7 @@ STG 実行ゲート: 対象環境、data owner、operator、maintenance window�
 |:---|:---|:---|:---|:---|:---|
 | （現在の確認済み未対応項目なし） | — | — | — | — | — |
 
-これは現在の製品全体に不具合がないという判定ではない。認証レビューの修正計画は [todo-fix-auth.md](todo-fix-auth.md) を参照する。対応済み項目は本節に残さず、履歴は Git と `reports/uat-YYYY-MM-DD/` を参照する。
+これは現在の製品全体に不具合がないという判定ではない。認証レビューのローカル検証は完了済みで、残る外部境界（D1 本番付与・メール、Linear 投稿）は [todo-fix-auth.md](todo-fix-auth.md) を参照する。対応済み項目は本節に残さず、履歴は Git と `reports/uat-YYYY-MM-DD/` を参照する。
 
 <a id="human-lane"></a>
 

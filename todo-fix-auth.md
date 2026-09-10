@@ -1,13 +1,22 @@
 # 認証・認可レビューの未完了TODO
 
 > 作成日: 2026-09-08  
-> 最終整理: 2026-09-10
-> 正規設計書: [docs/architecture/auth.md](docs/architecture/auth.md)
+> 最終整理: 2026-09-11  
+> 統合コミット: `a0e569a9a`（`main`）  
+> 正規設計書: [docs/architecture/auth.md](docs/architecture/auth.md)  
 > 元レビュー: [todo-check-auth.md](todo-check-auth.md)
 
-本書には未完了作業と、完了済みでも外部承認が残る境界だけを記載する。ローカル実装と disposable 実DB検証の詳細証跡は Git 差分と `/tmp/ae-auth-fix-evidence/` を参照する。
+本書は **いま残っている外部境界だけ** を未完了として扱う。ローカル実装・disposable 実DB検証は完了済み。証跡の詳細は Git 履歴を参照する。
 
-実装基準は `a4292a241`。認証・認可のローカル修正は `main` に統合済み。2026-09-10 に disposable Postgres（`ae-auth-fix-disposable-pg`）上で D2 / D3 / D1 合成 / D5 を実行した。
+実装基準の起点は `a4292a241`。2026-09-10 に disposable Postgres（`ae-auth-fix-disposable-pg`）で D2 / D3 / D1 合成 / D5 を実行し、結果を `a0e569a9a` に統合した。
+
+## 対応状況（要約）
+
+| 区分 | 状態 |
+| --- | --- |
+| ローカル実装 + disposable 実DB（D2 / D3 / D5 / D1 合成） | **完了**（`a0e569a9a`） |
+| D1 本番付与・対象環境メール | **未完了**（別承認） |
+| Linear ライブ特定・投稿 | **未完了**（UNKNOWN / 投稿承認後） |
 
 ## 未完了サマリー
 
@@ -16,19 +25,19 @@
 | P1 | D1 | PARTIAL | 合成DBは PASS。本番付与・対象環境メールは未実施 | 承認済み本番手順と非機密 receipt、メール経路確認 |
 | P2 | LINEAR | UNKNOWN | 対応チケットのライブ特定と投稿 | 対象 issue を確認し、承認後に未完了境界のみ投稿 |
 
-## 完了済み（本整理で PASS）
+## 完了済み（`a0e569a9a`）
 
 | ID | 状態 | 証跡 |
 | --- | --- | --- |
 | D3 | PASS（disposable 実DB） | GET/HEAD 178 経路に `realdb-return-data:`。coverage gate remaining=0。package 実DB `go test -p 1 -run TestRealDB_` PASS（auth/inventory/staff/clinic/trimming/pet/owner/identitylink/billing/reservation/lstep/medicalrecord） |
 | D2 | PASS（disposable 実DB） | 並行3テスト PASS。`-short` SKIP を PASS にしない |
 | D5 | PASS（disposable 2プロセス） | `scripts/auth-d5-dualprocess.sh` / `backend/cmd/auth-d5-dualprocess`。旧 session 即時 401/403、未変更医院維持、p95 +2.5%。DB statements/request は UNKNOWN |
-| D1 合成 | PASS | migrate 済み `auth_d1_db` で success / admin conflict / email conflict / audit rollback。証跡 `/tmp/ae-auth-fix-evidence/auth-fix-d1-evidence.md` |
+| D1 合成 | PASS | migrate 済み `auth_d1_db` で success / admin conflict / email conflict / audit rollback |
 
 ## 共通の安全条件
 
 - 共有 `ekarte_db`、`old-db-postgres`、STG、PRODをテストDBに使わない。
-- agentは migration を共有環境へ apply しない。今回の disposable `auth_d1_db` への migrate はユーザー明示承認済み。
+- agentは migration を共有環境へ apply しない。今回の disposable `auth_d1_db` への migrate はユーザー明示承認済みだった。
 - 資格情報、接続文字列、メールアドレス、cookie、token、患者情報を本書・ログ・Gitへ記録しない。
 - Linear投稿、本番付与、対象環境メール、STG/PROD変更は個別の明示承認を得る。
 
@@ -36,7 +45,7 @@
 
 - disposable: `ae-auth-fix-disposable-pg`（label `com.animalekarte.disposable=true`）、host publish `127.0.0.1:25432`、DB `auth_fix_db` / `auth_fix_db_test` / migrate 用 `auth_d1_db`
 - 共有 compose `animalekarte-db-1` / `ekarte_db` は実DB検証に未使用
-- 実DB package テストは `TEST_DATABASE_URL` → `auth_fix_db_test`、`-p 1`（共有プール TRUNCATE 競合回避）
+- 実DB package テストは `TEST_DATABASE_URL` → `auth_fix_db_test`、`-p 1`
 
 ## D3. GET/HEADの実DB返却データ分離 — PASS
 
@@ -50,7 +59,7 @@
 
 共有 harness: [clinic_grant_fixture.go](backend/internal/testdb/clinic_grant_fixture.go)。
 
-ExtractClinicID のみだった clinic-fixed handler（inventory / clinic / trimming / lstep）には `RequireSelectedClinicGrant` を追加し、handler 直呼びでも grant A → 403 を証明可能にした。
+ExtractClinicID のみだった clinic-fixed handler（inventory / clinic / trimming / lstep）には `RequireSelectedClinicGrant` を追加した。
 
 ## D2. 自己ロックアウト防止の実DB並行検証 — PASS
 
@@ -81,18 +90,20 @@ ExtractClinicID のみだった clinic-fixed handler（inventory / clinic / trim
 - 所属解除時の未変更医院アクセス維持
 - baseline p95 対 dual p95 +2.5%（調査閾値 +100% 未満）
 - DB statements/request: UNKNOWN（pg_stat_statements 未使用）
-- 証跡: `/tmp/ae-auth-fix-evidence/auth-fix-d5-evidence.md`
 
 ## Linear反映
 
-Ticket ID と現在状態は UNKNOWN。Linear MCP/CLI はこのセッションで利用不可。ローカル下書き: `/tmp/ae-auth-fix-evidence/linear-draft.md`。外部投稿は明示承認後。
+Ticket ID と現在状態は UNKNOWN。Linear MCP/CLI は当該セッションで利用不可だった。外部投稿は明示承認後。
 
-反映すべき内容（承認後）:
+承認後に反映する内容:
 
-- ローカル実装は `a4292a241` 以降の D2/D3/D5/D1合成まで disposable で PASS
+- `a0e569a9a` まで、D2 / D3 / D5 / D1 合成は disposable で PASS
 - D1 本番付与・メール、Linear ライブ更新は未完了
 - static / offline / `-short` / stub の PASS を実DB・本番完了へ変換しない
 
 ## 台帳全体ステータス
 
-**INCOMPLETE（外部境界のみ）**。コード側の D2/D3/D5 と D1 合成は disposable で PASS。D1 本番・メールと Linear 投稿が残る。
+**LOCAL COMPLETE / EXTERNAL INCOMPLETE**。
+
+- ローカル実装と disposable 実DB検証（D2 / D3 / D5 / D1 合成）は完了し `main` の `a0e569a9a` に入っている。
+- 残るのは D1 本番付与・対象環境メールと Linear 投稿のみ。
