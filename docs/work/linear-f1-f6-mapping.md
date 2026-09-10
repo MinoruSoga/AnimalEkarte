@@ -1,6 +1,6 @@
 # META-LINEAR-F1-F6 — 読み取り照合と対応案
 
-更新日: 2026-09-09（追加照合: Grok Build / branch `docs/meta-linear-pr-20260909` / base `c0950fbdf`）
+更新日: 2026-09-10（repo 照合基準: `main`・`origin/main` `5a19989ad`。Linear のライブ再照会なし。下記 Linear 観測は 2026-09-09 のまま）
 
 照会手段（時系列）:
 
@@ -93,8 +93,8 @@ main の `227f3a6e7` にある監査 ID 訂正・独立作業の継続・S09 要
 
 | ledger ID | repo 状態 | Linear に書いてよいこと | 書いてはいけないこと |
 |-----------|-----------|-------------------------|----------------------|
-| `QA-UAT-S09-FIXTURE` | HTTP/CLI/cleanup 実装済み。S09 ブラウザ再実行は未。S09 は BLOCKED | helper + HTTP/CLI 実装。S09 は BLOCKED | S09 PASS / UAT PASS |
-| `QA-UAT-V04-RETEST` | testdb DELETE GREEN。live HTTP 403 | 500 回帰は testdb 非再現。V04 は UNKNOWN | V04 PASS |
+| `QA-UAT-S09-FIXTURE` | HTTP/CLI/cleanup とブラウザ仕様を実装し、PR394 / `c9504eada` で `main` に統合。S09 ブラウザ再実行は未。S09 は BLOCKED | helper + HTTP/CLI + 仕様の repo 統合。S09 は BLOCKED | S09 PASS / UAT PASS |
+| `QA-UAT-V04-RETEST` | testdb DELETE GREEN、live HTTP 403。ブラウザ仕様は PR394 / `c9504eada` で `main` に統合したが未実行 | 500 回帰は testdb 非再現。仕様は repo 統合済み。V04 は UNKNOWN | V04 PASS |
 | `QA-FULL-CLINICAL-E2E` | fixture + allowlist 置換済み | `--clinical` 未実行。auth smoke と別 | full E2E PASS |
 | `QA-UAT-EVIDENCE-SYNC` | `UAT-DOMAIN-STATUS.md` が集計正本 | 開いている製品 FAIL は 0 | 未再実行 scenario を PASS |
 

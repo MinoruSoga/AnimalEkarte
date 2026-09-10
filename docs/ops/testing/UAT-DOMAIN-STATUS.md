@@ -2,8 +2,8 @@
 
 > **目的**: 受け入れ結果をシナリオ ID だけでなく業務ドメイン単位で俯瞰する。
 > **正本リンク**: [scenarios/README.md](./scenarios/README.md) · [TEST_ARCHITECTURE.md](./TEST_ARCHITECTURE.md)
-> **更新日**: 2026-09-06
-> **照合**: `QA-UAT-EVIDENCE-SYNC`。`reports/` は gitignore。コミット済み正本は本ファイルと [`todo.md#product-bugs`](../../../todo.md#product-bugs)。Linear は未照会（UNKNOWN）。
+> **更新日**: 2026-09-10
+> **照合**: `QA-UAT-EVIDENCE-SYNC`。2026-09-10 は PR394 / `c9504eada` での S09・V04 ブラウザ仕様統合だけを repo 照合し、runtime は再実行していない。`reports/` は gitignore。コミット済み正本は本ファイルと [`todo.md#product-bugs`](../../../todo.md#product-bugs)。Linear は未照会（UNKNOWN）。
 
 最終実行スナップショット（2026-09-05 / `uat/20260905` @ `2cbd8d9ad` / local FE :3003 · BE :8080）:
 
@@ -14,13 +14,13 @@
 | PARTIAL | 1 | S01 |
 | BLOCKED | 1 | S09 |
 
-現行（2026-09-06 照合、S09 の実装範囲は 2026-09-08 の記録に同期。再実行していない判定は推定で動かさない）:
+現行（2026-09-10 repo 照合。S09/V04 の仕様は `main` に統合済みだが、再実行していない判定は推定で動かさない）:
 
 | 項目 | 値 |
 |:---|:---|
 | 開いている製品 FAIL（`todo.md#product-bugs`） | **0** |
 | V04 受入 | **UNKNOWN**（全体 PASS ではない。下記 2026-09-06 再実行） |
-| S09 | **BLOCKED**（package helper・HTTP/CLI・cleanup は実装済み。2026-09-09: `e2e/s09-closing-time-boundaries.spec.ts` を作者済みだが compose 停止のためブラウザ未実行。製品 FAIL ではない） |
+| S09 | **BLOCKED**（package helper・HTTP/CLI・cleanup は実装済み。`e2e/s09-closing-time-boundaries.spec.ts` は PR394 / `c9504eada` で `main` に統合済みだが、compose 停止のためブラウザ未実行。製品 FAIL ではない） |
 | S01 | **PARTIAL**（LSTEP 実送信は E1） |
 | r14 | ヘッダだけ「FAIL 0 / PASS 16」と書いてあった regression smoke。V04 再実行の証跡は本ファイルに無く、PASS 翻転ではない。ディレクトリは gitignore のため再読不可 |
 
@@ -95,7 +95,7 @@
   1. 2026-09-08: HTTP `POST/DELETE /api/v1/uat/synthetic-closings` と CLI `synthetic-closing-fixture` を実装。staff・支払方法・明細・payment_splits・cleanup を含む。
   2. **禁止**: 直接 DB 更新、システム時計変更、既存会計の改変（シナリオ hard rule）。
   3. ブラウザでの帰属証明ステップ #2–#6 は未再実行（compose 停止・`make up` はエージェント禁止）→ シナリオ総合 **BLOCKED**（helper 実装だけでは解除しない）。
-  4. 2026-09-09 campaign: Playwright 仕様 `frontend/e2e/s09-closing-time-boundaries.spec.ts`（#2–#6 + cleanup）と `run-e2e.sh` の `UAT_SYNTHETIC_CLOSING_*` 転送を追加。実行証跡は未。`verify-agent-task.py` に E2E offline 契約を追加済み（2026-09-09 VERIFY-E2E-SCOPE-CONTRACT）。browser 実行証跡は未のまま BLOCKED。
+  4. 2026-09-09 campaign: Playwright 仕様 `frontend/e2e/s09-closing-time-boundaries.spec.ts`（#2–#6 + cleanup）と `run-e2e.sh` の `UAT_SYNTHETIC_CLOSING_*` 転送を追加し、2026-09-10 に PR394 / `c9504eada` で `main` へ統合。`verify-agent-task.py` の E2E offline 契約も統合済み。browser 実行証跡は未のまま BLOCKED。
   5. 詳細: `reports/uat-2026-09-05-r5/S09-BLOCKED.md`
 - **関連 bug IDs**: （なし — UAT 接続の不足は製品 FAIL ではない）
 - **証跡**: `reports/uat-2026-09-05-r5/S09-BLOCKED.md` · `reports/uat-2026-09-05-r4/s09-helper-search.json`
@@ -174,7 +174,7 @@
 
 | シナリオ | status |
 |:---|:---|
-| V04 | **UNKNOWN**（2026-09-05 最終実行は FAIL。2026-09-06 は DELETE 回帰のみ再実行。2026-09-09: `e2e/v04-settings-master-forms.spec.ts` 作者済み・未実行） |
+| V04 | **UNKNOWN**（2026-09-05 最終実行は FAIL。2026-09-06 は DELETE 回帰のみ再実行。`e2e/v04-settings-master-forms.spec.ts` は PR394 / `c9504eada` で `main` に統合済みだが未実行） |
 | closing-settings（S09 前提） | PASS（r6 GET/PATCH roundtrip） |
 
 - **Master CRUD 総合（r6+r7・最終実行）**: PASS **26** / PARTIAL **0** / BLOCKED **0** / FAIL **1**（27 行）

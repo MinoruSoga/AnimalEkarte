@@ -1,6 +1,6 @@
 # タスク台帳 — Linear が正本
 
-統合日: 2026-09-08。最終ローカル照合: 2026-09-09 / main `c0950fbdf`（追加照合 PR 枝 `docs/meta-linear-pr-20260909`）。Codex の Linear 読み取り結果は `48e89dbe4` 以降も保持。Grok 追加照合では Linear MCP がセッション限定で UNAVAILABLE のためライブ再照会はせず、定義再確認と次照会リストを [linear-f1-f6-mapping.md](docs/work/linear-f1-f6-mapping.md) に記録した。UAT・STG/PROD・go-live は再判定していない。
+最終 repo 照合: 2026-09-10 / `main`・`origin/main` `5a19989ad`。PR [#393](https://github.com/MinoruSoga/AnimalEkarte/pull/393) と [#394](https://github.com/MinoruSoga/AnimalEkarte/pull/394) は MERGED。起動時 session restore の残りは `b5be27be6`、PR394 の raw path integrity 残差は `2c50baf9a` で `main` に統合済み。Codex の 2026-09-09 Linear 読み取り結果は `48e89dbe4` 以降も保持するが、今回はライブ再照会していないため現行状態は UNKNOWN。UAT・STG/PROD・go-live は再判定していない。
 
 | 項目 | 値 |
 |------|-----|
@@ -14,11 +14,11 @@
 
 入口: [2026-09-08 の対応履歴](#session-2026-09-08) · [実行キュー](#対応順実行キュー) · [製品 FAIL](#product-bugs) · [PO / 人間レーン](#human-lane) · [Astra 完了履歴](#astra-history) · [FE 完了履歴・維持制約](#refactor-history)
 
-性能調査・改善: [todo-performance.md](todo-performance.md)（PERF-STG-LOGIN、2026-09-09）。STGログインの認証待ちによる白画面と、最終GET接続前の約22.5秒を記録。A（待機表示）とB（起動時session restoreの8秒上限・障害表示）はローカル実装・静的検証済み。Browser/E2EはBLOCKED、CI/LinearはUNKNOWN。preflight・接続待ち・Container起動の内訳とC/Dは未完了。
+性能調査・改善: [todo-performance.md](todo-performance.md)（PERF-STG-LOGIN、2026-09-09）。STGログインの認証待ちによる白画面と、最終GET接続前の約22.5秒を記録。A（待機表示）は PR393、B（起動時 session restore の8秒上限・障害表示）は `b5be27be6` で `main` に統合済み。main push の CI workflow 集約は成功したが frontend build/test は path filter で SKIP のため、A/B の frontend CI は **PARTIAL**。Browser/E2E は BLOCKED、Linear は UNKNOWN。preflight・接続待ち・Container起動の内訳とC/Dは未完了。
 
 エージェントは PlanetScale、共有 STG apply、`DROP SCHEMA`、本番 cutover、`make reset`、八王子 CSV の producer 出力を実行しない。push / dispatch / Linear Done / 秘密変更は明示承認が必要。
 
-claim は ID ごとに初回編集前に確認・取得する。作成者別の削除条件は [AGENTS.md](AGENTS.md#branch-deletion-by-creator-mandatory) を正本とする。ユーザー作成は AI による削除禁止。AI 作成は統合・明示終了・成果を保全した引き継ぎと未使用を確認して削除可能。旧 META / QA / 認証 claim の解除待ちは解消済み。本 META 追加照合は `claim/META-LINEAR-APPLY` を取得して実施する。claim の削除は UAT や受入の完了を意味しない。新規着手時は現在の claim を再確認する。
+claim は ID ごとに初回編集前に確認・取得する。作成者別の削除条件は [AGENTS.md](AGENTS.md#branch-deletion-by-creator-mandatory) を正本とする。ユーザー作成は AI による削除禁止。AI 作成は統合・明示終了・成果を保全した引き継ぎと未使用を確認して削除可能。過去セッションの claim 記録は historical snapshot として読み、現在の保有状態は新規着手時に `git branch --list 'claim/<TASK-ID>'` で再確認する。本 META 追加照合に再着手する場合は `claim/META-LINEAR-APPLY` を確認・取得する。claim の削除は UAT や受入の完了を意味しない。
 
 ---
 
@@ -147,8 +147,8 @@ helper / 再実行スライスは済。UAT / E2E を PASS にしない。正本�
 
 | ID | 残 | 状態 |
 |----|----|------|
-| **QA-UAT-S09-FIXTURE** | ブラウザ #2–#6 の自動仕様追加と再実行。HTTP/CLI は 2026-09-08 実装済み | S09 は BLOCKED（2026-09-09 campaign: IMPLEMENT+VERIFY — `e2e/s09-closing-time-boundaries.spec.ts` 不在を埋める。compose 停止のため runtime は別途 BLOCKED） |
-| **QA-UAT-V04-RETEST** | disposable clinic での CRUD/DELETE ブラウザ証明。live HTTP は 403。clinic 1/2 の権限昇格なし | V04 は UNKNOWN（2026-09-09 campaign: IMPLEMENT+VERIFY — `e2e/v04-settings-master-forms.spec.ts` 追加。runtime は stack 前提で BLOCKED 可） |
+| **QA-UAT-S09-FIXTURE** | ブラウザ #2–#6 の自動仕様を `e2e/s09-closing-time-boundaries.spec.ts` として追加し、PR394 / `c9504eada` で `main` に統合。HTTP/CLI は 2026-09-08 実装済み | S09 は BLOCKED（仕様統合は runtime 証跡ではない。compose 停止のためブラウザ未実行） |
+| **QA-UAT-V04-RETEST** | disposable clinic での CRUD/DELETE ブラウザ仕様を `e2e/v04-settings-master-forms.spec.ts` として追加し、PR394 / `c9504eada` で `main` に統合。live HTTP は 403。clinic 1/2 の権限昇格なし | V04 は UNKNOWN（仕様統合は受入 PASS ではない。browser runtime は未実行） |
 | **QA-FULL-CLINICAL-E2E** | `--clinical` 未実行。e2e.yml job は未 | E2E は未証明（2026-09-09 campaign: VERIFY-ONLY/repair — allowlist 既存。`--clinical` は APP_ENV=test + E2E_LOGIN_PASSWORD + 起動済み stack が必要） |
 
 設計: [S09-FIXTURE-DESIGN.md](docs/ops/testing/S09-FIXTURE-DESIGN.md) · [CLINICAL-E2E-DESIGN.md](docs/ops/testing/CLINICAL-E2E-DESIGN.md)。
