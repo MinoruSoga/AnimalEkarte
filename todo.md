@@ -1,6 +1,6 @@
 # タスク台帳 — Linear が正本
 
-統合日: 2026-09-08。最終ローカル/GitHub照合の基準点: 2026-09-10 / 更新着手時の `main` = `origin/main` = `5a19989ad`。`main` → `staging` PR #388 は OPEN / CONFLICTING。Codex の Linear 読み取り結果は `48e89dbe4` 以降も保持。Grok 追加照合では Linear MCP がセッション限定で UNAVAILABLE のためライブ再照会はせず、定義再確認と次照会リストを [linear-f1-f6-mapping.md](docs/work/linear-f1-f6-mapping.md) に記録した。UAT・STG/PROD・go-live は再判定していない。
+統合日: 2026-09-08。最終GitHub照合: 2026-09-10 / `origin/main` `423a26743`。ローカル `main` には未pushの文書整理コミットがある。`main` → `staging` PR #388 は OPEN / CONFLICTING。Codex の Linear 読み取り結果は `48e89dbe4` 以降も保持。Grok 追加照合では Linear MCP がセッション限定で UNAVAILABLE のためライブ再照会はせず、定義再確認と次照会リストを [linear-f1-f6-mapping.md](docs/work/linear-f1-f6-mapping.md) に記録した。UAT・STG/PROD・go-live は再判定していない。
 
 | 項目 | 値 |
 |------|-----|
@@ -12,7 +12,7 @@
 
 入口: [実行キュー](#対応順実行キュー) · [受入残](#acceptance-remains) · [製品 FAIL](#product-bugs) · [PO / 人間レーン](#human-lane) · [FE 維持制約](#refactor-constraints)
 
-性能調査・改善: [todo-performance.md](todo-performance.md)（PERF-STG-LOGIN、最終照合 2026-09-10）。A（待機表示）は PR #393 / `9b06b551c`、B（起動時session restoreの8秒上限・障害表示）は `b5be27be6` で `main` 統合済み。GitHub product jobsはSKIPで、STG配信・Browser/E2E・改善後実測・LinearはUNKNOWNまたは未実施。preflight・接続待ち・Container起動の内訳とC/Dは未完了。
+性能調査・改善: [todo-performance.md](todo-performance.md)（PERF-STG-LOGIN、最終照合 2026-09-10）。未完了は preflight・接続待ち・Container起動の内訳確定、結果に基づく通信経路対策C、条件付きbundle対策D、STG配信・Browser/E2E・改善後実測、Linear照合。
 
 エージェントは PlanetScale、共有 STG apply、`DROP SCHEMA`、本番 cutover、`make reset`、八王子 CSV の producer 出力を実行しない。push / dispatch / Linear Done / 秘密変更は明示承認が必要。
 
@@ -84,8 +84,6 @@ P4 の延期例外: 臨床安全、会計金額、clinic / owner / pet / staff �
 | 4 | **H3-9 staff attach apply** | USER | 入力あり・apply 実施有無 UNKNOWN | 現行 attach と STG 実行ゲート |
 | 5 | **H3-11 画面確認** | USER | UNKNOWN・証跡未取得 | H3-9 と自医院ログイン |
 | 6 | **Lane 4** | 医院スタッフ / USER | 完了未証明 | 両院 Lane 3 verify、H3-11 |
-
-索引から外したもの: AE-OLD-DB-MR-UNIQ、Lane3 城東 21表、H3-7 敷島 / Hako。
 
 STG 実行ゲート: 対象環境、data owner、operator、maintenance window、backup / restore、rollback、承認。正本は [STG 手順の停止ゲート](docs/ops/deploy/STG_PLANETSCALE_SEED_RUNBOOK.md#2-pre-deploy-stop-gates)。
 
