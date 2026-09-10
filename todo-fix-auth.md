@@ -14,9 +14,9 @@
 | 優先 | ID | 状態 | 残作業 | 完了条件 |
 | --- | --- | --- | --- | --- |
 | P0 | D3 | INCOMPLETE | GET/HEAD 178経路の実DB返却データ分離。auth 2経路はテスト実装済み・実DB NOT_RUN。clinic-fixed 156、cross-clinic 20はテスト未実装・NOT_RUN | 全対象で認可と返却clinicを実DB検証し、未検証0件 |
-| P0 | D2 | BLOCKED | 自己ロックアウト防止の実DB並行3テスト | 承認済み使い捨てPostgresで3テストPASS。`-short` SKIPをPASSにしない |
+| P0 | D2 | BLOCKED（環境なし） | 自己ロックアウト防止の実DB並行3テスト | 既存環境の利用は承認済み。使い捨てPostgresが利用可能になったら3テストPASS。`-short` SKIPをPASSにしない |
 | P1 | D1 | BLOCKED / UNKNOWN | 初回管理者SQLの実DB検証、本番付与、対象環境メール確認 | 合成DB検証後、承認済み本番手順と非機密receiptを完了 |
-| P1 | D5 | SKIP | 同一DBを使う独立2 APIプロセスで即時失効と追加DBコストを測定 | 旧session拒否と未変更医院アクセスを確認し、測定結果を保存 |
+| P1 | D5 | BLOCKED（環境なし） | 同一DBを使う独立2 APIプロセスで即時失効と追加DBコストを測定 | 旧session拒否と未変更医院アクセスを確認し、測定結果を保存 |
 | P2 | LINEAR | UNKNOWN | 対応チケットの特定と状態更新 | 対象issueをライブ確認し、承認後に未完了境界を投稿 |
 
 ## 共通の安全条件
@@ -26,6 +26,12 @@
 - 資格情報、接続文字列、メールアドレス、cookie、token、患者情報を本書・ログ・Gitへ記録しない。
 - 実DBテストは使い捨てDBだけで行い、接続先を非機密メタデータで照合してから開始する。
 - Linear投稿、本番付与、対象環境メール、STG/PROD変更は個別の明示承認を得る。
+
+## 既存環境の確認結果（2026-09-10）
+
+ユーザーから既存ローカル環境をD2/D3/D5の検証に使う許可を受領した。OrbStackは起動できたが、`docker ps -a` は0件で、既存の使い捨てPostgres・backend・frontend containerは存在しなかった。
+
+この確認では新規container作成、`make up`、migration apply、DB接続、テスト実行をしていない。D2、D3の実DB部分、D5は **NOT_RUN**。既存containerが利用可能になった時点で、接続先が共有DB・old_db・STG・PRODでないことを確認して再開する。
 
 ## D3. GET/HEADの実DB返却データ分離
 
