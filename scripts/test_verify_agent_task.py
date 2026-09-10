@@ -204,6 +204,23 @@ class VerificationTests(unittest.TestCase):
             self.assertIn('"status": "FAIL"', output.getvalue())
             self.assertNotIn('sensitive', output.getvalue())
 
+    def test_frontend_package_manifest_maps_to_pnpm_audit(self):
+        for path in ('frontend/package.json', 'frontend/pnpm-lock.yaml'):
+            with self.subTest(path=path):
+                jobs, blocked = verify.plan([path])
+                self.assertFalse(blocked)
+                self.assertEqual(jobs, [{
+                    'service': 'host',
+                    'command': [
+                        'docker', 'compose', '--env-file', '.env.local',
+                        'exec', '-T', 'frontend',
+                        'pnpm', 'audit', '--audit-level', 'moderate',
+                    ],
+                }])
+        jobs, blocked = verify.plan(['frontend/package.json', 'frontend/pnpm-lock.yaml'])
+        self.assertFalse(blocked)
+        self.assertEqual(len(jobs), 1)
+
     def test_unmapped_scope_never_executes(self):
         with mock.patch.object(verify, 'git', return_value='fixture-head'), \
              mock.patch.object(verify, 'run') as runner, \

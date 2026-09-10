@@ -402,6 +402,18 @@ def plan(paths):
             })
         elif path in ('frontend/vite.config.ts', 'frontend/scripts/vite-native-config.test.mjs'):
             jobs.append({'service': 'frontend', 'command': ['node', '--test', 'scripts/vite-native-config.test.mjs']})
+        elif path in ('frontend/package.json', 'frontend/pnpm-lock.yaml'):
+            # Match GitHub Frontend Build audit gate (pnpm audit --audit-level moderate).
+            job = {
+                'service': 'host',
+                'command': [
+                    'docker', 'compose', '--env-file', '.env.local',
+                    'exec', '-T', 'frontend',
+                    'pnpm', 'audit', '--audit-level', 'moderate',
+                ],
+            }
+            if job not in jobs:
+                jobs.append(job)
         elif path == 'frontend/scripts/run-e2e.sh':
             if not (ROOT / path).is_file():
                 blocked.append(path)
