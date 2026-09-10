@@ -24,6 +24,14 @@
 
 空のmigration historyに既存`clinics` tableがある場合はfail-closedする。checksumを手でbaselineしない。異なる内容の統合前`001_init.sql`が記録済みの場合も、reviewed recovery/rebuild planが必要になる。
 
+### デモログインの本人・所属契約
+
+- デモは10人・10スタッフ・10アカウントで、主所属は八王子、所属医院は全4院。医院ごとに同じ人のアカウントを作らない。執行1人・一般9人を維持し、それぞれの医院の権限グループを割り当てる。
+- 職種は表示だけでなく主所属医院の `occupations` と `staffs.occupation_id` に保存する。必要なデモ職種を用意し、再適用時も欠落を補完する。別医院の職種を参照しない。
+- 旧デモの医院別複製は既知の合成ID・emailの一致を確認して無効化する。旧DB由来の履歴スタッフは氏名だけで統合・削除せず、ログイン対象と区別する。
+- LoginFormのデモ行を選ぶとemailと共通デモパスワードが入力される。ログイン後は所属医院を切り替える。productionではデモを有効にしない。
+- コード変更だけでは既存DBは更新されない。隔離DBへのfresh apply・再適用・ログイン・医院切替の実検証は、対象を明示した承認後に行う。既存DBのresetは不要な前提を置かず、checksumエラー時は停止する。
+
 ### pull後の開発環境更新
 
 migrationを追加・変更したcommitをpullした開発者は、更新後のアプリを利用する前に `make migrate` を手動実行する。エージェントは自動適用しない。失敗した場合は更新後アプリの利用を止め、checksum・schema/history・ログの失敗段階を確認する。checksumの手修正や `make reset` への自動切替は行わず、対象固有のrecovery手順を確定する。
