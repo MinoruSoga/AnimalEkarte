@@ -434,6 +434,11 @@ def plan(paths):
                 jobs.append(job)
             if (ROOT / path).is_file():
                 jobs.append({'service': 'backend', 'command': ['gofmt', '-l', path.removeprefix('backend/')], 'require_empty_stdout': True})
+        elif path == 'scripts/auth-d5-dualprocess.sh':
+            if not (ROOT / path).is_file():
+                blocked.append(path)
+                continue
+            jobs.append({'service': 'host', 'command': ['bash', '-n', path]})
         elif path in ('scripts/verify-agent-task.py', 'scripts/test_verify_agent_task.py', '.githooks/pre-commit', '.githooks/pre-push', '.githooks/lib/check-secrets.sh', 'scripts/run-local-ci.sh'):
             if not any(job['service'] == 'host' for job in jobs):
                 jobs.append({'service': 'host', 'command': ['python3', '-B', 'scripts/test_verify_agent_task.py']})

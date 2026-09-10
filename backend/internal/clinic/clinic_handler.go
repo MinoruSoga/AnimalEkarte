@@ -101,6 +101,9 @@ func (h *Handler) GetClinic(c *gin.Context) {
 			return
 		}
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceHospitalSettings), "view") {
+		return
+	}
 	clinic, err := h.clinicSvc.GetClinicByID(c.Request.Context(), id)
 	if err != nil {
 		httpapi.RespondError(c, err)

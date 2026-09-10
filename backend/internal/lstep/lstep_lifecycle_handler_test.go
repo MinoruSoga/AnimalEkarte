@@ -362,7 +362,7 @@ func TestDeletePetDeath_ClinicAliasUsesAuthenticatedClinic(t *testing.T) {
 	h := newHandlerWithLstepLifecycleSvc(svc, nil)
 	r := gin.New()
 	r.DELETE("/clinics/:clinic_id/pets/:id/death", func(c *gin.Context) {
-		c.Set("clinic_id", "1")
+		setClinicID(c)
 	}, h.DeletePetDeath)
 
 	w := httptest.NewRecorder()

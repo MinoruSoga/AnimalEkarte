@@ -32,6 +32,11 @@ class VerificationTests(unittest.TestCase):
         self.assertTrue(verify.plan(['scripts/new-script.sh'])[1])
         self.assertTrue(verify.plan(['frontend/src/content/manual.md'])[1])
 
+    def test_auth_d5_dualprocess_script_maps_to_bash_n(self):
+        jobs, blocked = verify.plan(['scripts/auth-d5-dualprocess.sh'])
+        self.assertFalse(blocked)
+        self.assertEqual(jobs[0]['command'], ['bash', '-n', 'scripts/auth-d5-dualprocess.sh'])
+
     def test_reject_path_escape(self):
         for path in ('../secret', '/tmp/x', '-option', 'frontend/../../x'):
             with self.assertRaises(ValueError):

@@ -247,7 +247,7 @@ func TestGetLstepDeliveryTriggerSummary_ClinicAliasUsesAuthenticatedClinic(t *te
 	h := newHandlerWithLstepDeliveryMonitorSvc(svc)
 	r := gin.New()
 	r.GET("/clinics/:clinic_id/lstep/delivery-monitor/summary", func(c *gin.Context) {
-		c.Set("clinic_id", "1")
+		setClinicID(c)
 	}, h.GetLstepDeliveryTriggerSummary)
 
 	w := httptest.NewRecorder()

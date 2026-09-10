@@ -16,6 +16,9 @@ func (h *Handler) GetLstepMonthlyDeliveryStats(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceLstepAnalytics), "view") {
+		return
+	}
 	query, err := newLstepMonthlyDeliveryStatsQuery(c.Request.URL.Query())
 	if err != nil {
 		httpapi.RespondError(c, err)
@@ -34,6 +37,9 @@ func (h *Handler) GetLstepMonthlyDeliveryStats(c *gin.Context) {
 func (h *Handler) GetLstepVisitConversionSummary(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceLstepAnalytics), "view") {
 		return
 	}
 	query, err := newLstepVisitConversionQuery(c.Request.URL.Query())
@@ -59,6 +65,9 @@ func (h *Handler) GetLstepVisitConversionSummary(c *gin.Context) {
 func (h *Handler) GetLstepOwnerFriendAttributes(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceLstepAnalytics), "view") {
 		return
 	}
 	ownerID, ok := httpapi.ParseIDParam(c, "id")

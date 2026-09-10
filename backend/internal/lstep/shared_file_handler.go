@@ -18,6 +18,9 @@ func (h *Handler) ListSharedFiles(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceHospitalSettings), "view") {
+		return
+	}
 	files, err := h.sharedFile.FindAll(c.Request.Context(), clinicID)
 	if err != nil {
 		httpapi.RespondError(c, err)
@@ -84,6 +87,9 @@ func (h *Handler) UploadSharedFile(c *gin.Context) {
 func (h *Handler) GetSharedFileSignedURL(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceHospitalSettings), "view") {
 		return
 	}
 	id, ok := httpapi.ParseIDParam(c, "id")

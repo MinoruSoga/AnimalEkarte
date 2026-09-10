@@ -72,6 +72,9 @@ func NewChronicConditionService(
 }
 
 func (s *chronicConditionService) List(ctx context.Context, clinicID, petID uint64) ([]model.PetChronicCondition, error) {
+	if _, err := s.petRepo.FindByID(ctx, clinicID, petID); err != nil {
+		return nil, apperrors.Wrap(err, "failed to find pet")
+	}
 	records, err := s.repo.FindByPetID(ctx, clinicID, petID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to list chronic conditions")

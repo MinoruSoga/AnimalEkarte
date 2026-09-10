@@ -152,24 +152,46 @@ func TestChronicConditionService_List(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("success", func(t *testing.T) {
+		petRepo := &mockPetRepository{
+			findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Pet, error) {
+				return &model.Pet{ID: id, ClinicID: clinicID}, nil
+			},
+		}
 		repo := &mockPetChronicConditionRepository{
 			findByPetIDFn: func(_ context.Context, clinicID, petID uint64) ([]model.PetChronicCondition, error) {
 				return []model.PetChronicCondition{{ID: 1, ClinicID: clinicID, PetID: petID}}, nil
 			},
 		}
-		svc := NewChronicConditionService(repo, nil, nil)
+		svc := NewChronicConditionService(repo, petRepo, nil)
 		res, err := svc.List(ctx, 1, 100)
 		assert.NoError(t, err)
 		assert.Len(t, res, 1)
 	})
 
+	t.Run("pet not found", func(t *testing.T) {
+		petRepo := &mockPetRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
+				return nil, apperrors.WrapNotFound("pet", "100")
+			},
+		}
+		svc := NewChronicConditionService(&mockPetChronicConditionRepository{}, petRepo, nil)
+		res, err := svc.List(ctx, 1, 100)
+		assert.Error(t, err)
+		assert.Nil(t, res)
+	})
+
 	t.Run("error", func(t *testing.T) {
+		petRepo := &mockPetRepository{
+			findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Pet, error) {
+				return &model.Pet{ID: id, ClinicID: clinicID}, nil
+			},
+		}
 		repo := &mockPetChronicConditionRepository{
 			findByPetIDFn: func(_ context.Context, _, _ uint64) ([]model.PetChronicCondition, error) {
 				return nil, errors.New("db error")
 			},
 		}
-		svc := NewChronicConditionService(repo, nil, nil)
+		svc := NewChronicConditionService(repo, petRepo, nil)
 		res, err := svc.List(ctx, 1, 100)
 		assert.Error(t, err)
 		assert.Nil(t, res)

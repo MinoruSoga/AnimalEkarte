@@ -8,6 +8,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // tagNamePattern は手動付与可能なタグ名の形式（英数字・アンダースコア・ハイフン、1〜100文字）。
@@ -24,6 +25,9 @@ func IsValidManualTagName(tagName string) bool {
 func (h *Handler) GetOwnerLstepTags(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceOwners), "view") {
 		return
 	}
 	ownerID, ok := httpapi.ParseIDParam(c, "id")

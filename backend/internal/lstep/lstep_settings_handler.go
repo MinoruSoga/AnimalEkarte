@@ -5,9 +5,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/animal-ekarte/backend/internal/httpapi"
-
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/httpapi"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // SettingsHandler は LstepSettingsService の HTTP handler。
@@ -26,6 +26,9 @@ func NewSettingsHandler(svc LstepSettingsService, requirePermission PermissionMi
 func (h *SettingsHandler) GetLstepSettings(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceHospitalSettings), "view") {
 		return
 	}
 	resp, err := h.svc.GetSettings(c.Request.Context(), clinicID)

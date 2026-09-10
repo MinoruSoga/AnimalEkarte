@@ -103,6 +103,9 @@ func (h *Handler) ListLstepCsvImports(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceLstepCsvImport), "view") {
+		return
+	}
 
 	limit := newListLstepCsvImportsQuery(c.Request.URL.Query()).toLimit()
 

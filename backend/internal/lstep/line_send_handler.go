@@ -5,9 +5,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/animal-ekarte/backend/internal/httpapi"
-
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/httpapi"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // LineSendHandler は LineSendService の HTTP handler。
@@ -64,6 +64,9 @@ func (h *LineSendHandler) SendLineMessage(c *gin.Context) {
 func (h *LineSendHandler) GetLineSendLogs(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceOwners), "view") {
 		return
 	}
 	ownerID, ok := httpapi.ParseIDParam(c, "id")

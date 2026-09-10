@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/animal-ekarte/backend/internal/httpapi"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // csvExportHeaderWriter defers CSV Content-Type/Disposition until the first body write
@@ -47,6 +48,9 @@ func (h *Handler) GetLstepTagSummary(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceLstepAnalytics), "view") {
+		return
+	}
 	result, err := h.tagSummary.GetTagSummary(c.Request.Context(), clinicID)
 	if err != nil {
 		httpapi.RespondError(c, err)
@@ -61,6 +65,9 @@ func (h *Handler) GetLstepTagSummary(c *gin.Context) {
 func (h *Handler) SearchLstepOwnersByTag(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceLstepAnalytics), "view") {
 		return
 	}
 

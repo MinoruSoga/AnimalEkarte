@@ -8,6 +8,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // --- handlers ---
@@ -17,6 +18,9 @@ import (
 func (h *Handler) ListTagCodeMappings(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceHospitalSettings), "view") {
 		return
 	}
 	mappings, err := h.tagCodeMapping.ListMappings(c.Request.Context(), clinicID)

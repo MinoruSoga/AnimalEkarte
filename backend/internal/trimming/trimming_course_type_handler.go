@@ -8,6 +8,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // ListTrimmingCourseTypes godoc
@@ -15,6 +16,9 @@ import (
 func (h *Handler) ListTrimmingCourseTypes(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMasterTrimming), "view") {
 		return
 	}
 	ms, err := h.svc.TrimmingCourseType.List(c.Request.Context(), clinicID)
@@ -30,6 +34,9 @@ func (h *Handler) ListTrimmingCourseTypes(c *gin.Context) {
 func (h *Handler) GetTrimmingCourseType(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMasterTrimming), "view") {
 		return
 	}
 	id, ok := httpapi.ParseIDParam(c, "id")

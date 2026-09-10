@@ -17,6 +17,9 @@ func (h *Handler) GetLstepDeliveryTriggerSummary(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceLstepAnalytics), "view") {
+		return
+	}
 	query, err := newLstepDeliveryMonitorSummaryQuery(clinicID, c.Request.URL.Query(), time.Now())
 	if err != nil {
 		httpapi.RespondError(c, err)
@@ -35,6 +38,9 @@ func (h *Handler) GetLstepDeliveryTriggerSummary(c *gin.Context) {
 func (h *Handler) GetLstepDeliveryTriggerLogs(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceLstepAnalytics), "view") {
 		return
 	}
 	query, err := newLstepDeliveryMonitorLogsQuery(clinicID, c.Request.URL.Query(), time.Now())

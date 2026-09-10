@@ -18,6 +18,9 @@ func (h *Handler) GetClosingSettings(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceClosingSettings), "view") {
+		return
+	}
 	resp, err := h.closingSettingsSvc.Get(c.Request.Context(), clinicID)
 	if err != nil {
 		httpapi.RespondError(c, err)
@@ -55,6 +58,9 @@ func (h *Handler) UpdateClosingSettings(c *gin.Context) {
 func (h *Handler) ListSpecialPeriods(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceClosingSettings), "view") {
 		return
 	}
 	periods, err := h.closingSettingsSvc.ListSpecialPeriods(c.Request.Context(), clinicID)

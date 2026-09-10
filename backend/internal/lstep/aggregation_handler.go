@@ -108,6 +108,9 @@ func (h *Handler) ListOwnerAggregation(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceOwners), "view") {
+		return
+	}
 
 	query, err := newOwnerAggregationQuery(c.Request.URL.Query())
 	if err != nil {
