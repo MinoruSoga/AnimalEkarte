@@ -9,15 +9,15 @@ cd "$ROOT"
 REFS_FILE=$(mktemp "${TMPDIR:-/tmp}/ae-pre-push.XXXXXXXX")
 trap 'rm -f "$REFS_FILE"' EXIT HUP INT TERM
 cat > "$REFS_FILE"
+if [ -s "$REFS_FILE" ] && [ -n "$(git status --porcelain)" ]; then
+  echo 'BLOCKED: outgoing verification requires a clean worktree matching HEAD.' >&2
+  exit 1
+fi
 HEAD_SHA=$(git rev-parse HEAD)
 while read -r local_ref local_sha remote_ref remote_sha; do
   case "$local_sha" in
     0000000000000000000000000000000000000000) continue ;;
   esac
-  if [ -n "$(git status --porcelain)" ]; then
-    echo 'BLOCKED: outgoing verification requires a clean worktree matching HEAD.' >&2
-    exit 1
-  fi
   if [ "$local_sha" != "$HEAD_SHA" ]; then
     echo 'BLOCKED: verify each outgoing ref in its matching worktree.' >&2
     exit 1
