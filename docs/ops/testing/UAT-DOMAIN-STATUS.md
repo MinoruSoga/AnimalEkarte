@@ -3,7 +3,7 @@
 > **目的**: 受け入れ結果をシナリオ ID だけでなく業務ドメイン単位で俯瞰する。
 > **正本リンク**: [scenarios/README.md](./scenarios/README.md) · [TEST_ARCHITECTURE.md](./TEST_ARCHITECTURE.md)
 > **更新日**: 2026-09-10
-> **照合**: `QA-UAT-EVIDENCE-SYNC`。2026-09-10 は PR394 / `c9504eada` での S09・V04 ブラウザ仕様統合だけを repo 照合し、runtime は再実行していない。`reports/` は gitignore。コミット済み正本は本ファイルと [`todo.md#product-bugs`](../../../todo.md#product-bugs)。Linear は未照会（UNKNOWN）。
+> **照合**: `QA-UAT-EVIDENCE-SYNC`。2026-09-10 は repo の対象仕様を照合したが、runtime は再実行していない。`reports/` は gitignore。コミット済み正本は本ファイルと [`todo.md#product-bugs`](../../../todo.md#product-bugs)。Linear は未照会（UNKNOWN）。
 
 最終実行スナップショット（2026-09-05 / `uat/20260905` @ `2cbd8d9ad` / local FE :3003 · BE :8080）:
 
@@ -14,13 +14,13 @@
 | PARTIAL | 1 | S01 |
 | BLOCKED | 1 | S09 |
 
-現行（2026-09-10 repo 照合。S09/V04 の仕様は `main` に統合済みだが、再実行していない判定は推定で動かさない）:
+現行（2026-09-10 repo 照合。再実行していない判定は推定で動かさない）:
 
 | 項目 | 値 |
 |:---|:---|
 | 開いている製品 FAIL（`todo.md#product-bugs`） | **0** |
 | V04 受入 | **UNKNOWN**（全体 PASS ではない。下記 2026-09-06 再実行） |
-| S09 | **BLOCKED**（package helper・HTTP/CLI・cleanup は実装済み。`e2e/s09-closing-time-boundaries.spec.ts` は PR394 / `c9504eada` で `main` に統合済みだが、compose 停止のためブラウザ未実行。製品 FAIL ではない） |
+| S09 | **BLOCKED**（`e2e/s09-closing-time-boundaries.spec.ts` のブラウザ実行が compose 停止のため未実施。製品 FAIL ではない） |
 | S01 | **PARTIAL**（LSTEP 実送信は E1） |
 | r14 | ヘッダだけ「FAIL 0 / PASS 16」と書いてあった regression smoke。V04 再実行の証跡は本ファイルに無く、PASS 翻転ではない。ディレクトリは gitignore のため再読不可 |
 
@@ -92,11 +92,9 @@
 | V02 | PASS |
 
 - **未解消ギャップ（S09 BLOCKED 要件）**:
-  1. 2026-09-08: HTTP `POST/DELETE /api/v1/uat/synthetic-closings` と CLI `synthetic-closing-fixture` を実装。staff・支払方法・明細・payment_splits・cleanup を含む。
-  2. **禁止**: 直接 DB 更新、システム時計変更、既存会計の改変（シナリオ hard rule）。
-  3. ブラウザでの帰属証明ステップ #2–#6 は未再実行（compose 停止・`make up` はエージェント禁止）→ シナリオ総合 **BLOCKED**（helper 実装だけでは解除しない）。
-  4. 2026-09-09 campaign: Playwright 仕様 `frontend/e2e/s09-closing-time-boundaries.spec.ts`（#2–#6 + cleanup）と `run-e2e.sh` の `UAT_SYNTHETIC_CLOSING_*` 転送を追加し、2026-09-10 に PR394 / `c9504eada` で `main` へ統合。`verify-agent-task.py` の E2E offline 契約も統合済み。browser 実行証跡は未のまま BLOCKED。
-  5. 詳細: `reports/uat-2026-09-05-r5/S09-BLOCKED.md`
+  1. **禁止**: 直接 DB 更新、システム時計変更、既存会計の改変（シナリオ hard rule）。
+  2. `frontend/e2e/s09-closing-time-boundaries.spec.ts` の #2–#6 + cleanup をブラウザで再実行する。compose 停止中のため **BLOCKED**。
+  3. 詳細: `reports/uat-2026-09-05-r5/S09-BLOCKED.md`
 - **関連 bug IDs**: （なし — UAT 接続の不足は製品 FAIL ではない）
 - **証跡**: `reports/uat-2026-09-05-r5/S09-BLOCKED.md` · `reports/uat-2026-09-05-r4/s09-helper-search.json`
 
@@ -170,22 +168,16 @@
 | 実施日 | 2026-09-05 |
 | ブランチ | `uat/20260905` |
 | 環境 | local |
-| ドメイン総合判定 | **UNKNOWN**（V04 全体は未再実行。主訴 DELETE の 500 回帰は testdb で非再現） |
+| ドメイン総合判定 | **UNKNOWN**（V04 全体は未再実行） |
 
 | シナリオ | status |
 |:---|:---|
-| V04 | **UNKNOWN**（2026-09-05 最終実行は FAIL。2026-09-06 は DELETE 回帰のみ再実行。`e2e/v04-settings-master-forms.spec.ts` は PR394 / `c9504eada` で `main` に統合済みだが未実行） |
+| V04 | **UNKNOWN**（2026-09-05 最終実行は FAIL。2026-09-06 は DELETE 回帰のみ再実行。`e2e/v04-settings-master-forms.spec.ts` の browser runtime は未実行） |
 | closing-settings（S09 前提） | PASS（r6 GET/PATCH roundtrip） |
 
-- **Master CRUD 総合（r6+r7・最終実行）**: PASS **26** / PARTIAL **0** / BLOCKED **0** / FAIL **1**（27 行）
-  - **最終実行 FAIL**: `master-chief-complaint` DELETE が `inquiries.deleted_at` 参照で 500 → 当時 BUG-20260905-001
-  - **2026-09-06 testdb**: `TestChiefComplaintTypeRepository_Delete` と `CountUsage` が GREEN。未使用区分は削除できる。参照中は Conflict。`inquiries.deleted_at` を見ない。500 回帰は非再現
-  - **2026-09-06 live HTTP**: 合成 catalog login は 200。`master-medical` create は 403（一般グループ）。権限を上げて clinic 1/2 を触っていない。HTTP DELETE の受入は **BLOCKED**
-  - **判定**: 当時の製品 FAIL を todo.md#product-bugs に戻さない。V04 全体は PASS にしない
-  - 診断・診療項目5タブ・薬剤・トリミング一式・支払方法・締め・請求書欄など他は r6+r7 CRUD PASS
-  - **2026-09-09 campaign**: `frontend/e2e/v04-settings-master-forms.spec.ts` に動物種類 CRUD/DELETE・未使用主訴 DELETE 204・薬剤更新永続・システム支払 409 を追加。shared-clinic demo login 前提であり disposable-clinic 再実行証跡ではない。E2E offline commit 契約は VERIFY-E2E-SCOPE-CONTRACT で追加済み。browser/runtime は未実行のため UNKNOWN/BLOCKED。
+- **未解消ギャップ**: `frontend/e2e/v04-settings-master-forms.spec.ts` を disposable clinic でブラウザ実行し、CRUD/DELETE の受入結果を確定する。runtime 未実行のため UNKNOWN。
 - **関連 bug IDs**: 現行 open なし
-- **証跡**: testdb コマンドは `todo.md` 順 2。live は status code のみ（credential・行値なし）
+- **証跡**: 新しい browser runtime 証跡は未取得
 ## 認証・LINE / LSTEP（V05）
 
 | 項目 | 値 |
