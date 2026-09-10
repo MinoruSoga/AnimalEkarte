@@ -137,7 +137,7 @@ Saved Prompt Validation Gate（follow-up）: `node ~/.claude/scripts/prompt-craf
 - 元 scope REQUEST_CHANGES を APPROVE に書き換えない。
 - 欠落した歴史的内容 hash 対を発明しない（E2 は BLOCKED のまま）。
 
-認証の独立した残検証: `950404408`（権限ロック・復旧修正）と `9be825a66`（認可経路・分離検証の追加）は main に反映済み。詳細と開始条件は [todo-fix-auth.md](todo-fix-auth.md) を参照する。実DB並行・初回管理者SQL実行・全経路の実DB返却データ分離・2サーバー即時失効・対象環境のメール・負荷測定は未検証の記録。限定テストの成功をこれらの完了と扱わない。ローカルの前提確認は独立して進められるが、DB/環境操作は個別の実行条件に従う。
+認証の未完了作業: 詳細と開始条件は [todo-fix-auth.md](todo-fix-auth.md) を参照する。D3全経路の実DB返却データ分離、D2実DB並行、D1初回管理者の実DB・実環境確認、D5独立2プロセス失効・負荷測定、Linear反映が残る。static、offline、`-short`、stubの成功をこれらの完了と扱わない。
 
 ---
 
