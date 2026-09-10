@@ -444,10 +444,10 @@ function AuthProviderSession({
     );
   }
 
-  const blockedScreen =
-    suppressBlockedScreen || restorePhase === "manual-login" ? null : (
-      <ClinicSelectionBlockedScreen onLogout={logout} />
-    );
+  // manual-login already returned above; only suppressBlockedScreen (password recovery) remains here.
+  const blockedScreen = suppressBlockedScreen ? null : (
+    <ClinicSelectionBlockedScreen onLogout={logout} />
+  );
 
   if (!isInitialized) {
     return (

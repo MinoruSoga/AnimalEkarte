@@ -109,13 +109,19 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"auth/permission_group_repository.go|permissionGroupRepository.LockByIDForUpdate":                     {},
 	"auth/permission_group_repository.go|permissionGroupRepository.Reorder":                               {},
 	"auth/permission_group_repository.go|permissionGroupRepository.update":                                {},
-	"auth/permission_group_repository.go|permissionGroupRepository.UpdateWithRules":                       {},
-	"auth/permission_group_repository.go|permissionGroupRepository.UpdateRules":                           {},
-	"auth/permission_group_repository.go|permissionGroupRepository.UpdateStaffGroups":                     {},
-	"auth/permission_group_repository.go|permissionGroupRepository.replaceRules":                          {},
-	"auth/token_blacklist_repository.go|tokenBlacklistRepository.Create":                                  {},
-	"auth/token_blacklist_repository.go|tokenBlacklistRepository.DeleteExpired":                           {},
-	"auth/token_blacklist_repository.go|tokenBlacklistRepository.ExistsByJTI":                             {},
+	// Exported Update wraps LockPermissionPolicy + update in DBOrTx.Transaction (ambient SAVEPOINT).
+	// Runtime: persistence_ambient_tx_test.go "name update participates in ambient rollback".
+	"auth/permission_group_repository.go|permissionGroupRepository.Update":            {},
+	"auth/permission_group_repository.go|permissionGroupRepository.UpdateWithRules":   {},
+	"auth/permission_group_repository.go|permissionGroupRepository.UpdateRules":       {},
+	"auth/permission_group_repository.go|permissionGroupRepository.UpdateStaffGroups": {},
+	"auth/permission_group_repository.go|permissionGroupRepository.replaceRules":      {},
+	// Clinic-scoped advisory lock is fail-closed TxFromContext only (see ambientTxParticipationExpectations).
+	// Runtime: permission_group_policy_lock_test.go RequiresTransactionAndClinic / ClinicKeyAndFailureBeforeGroupRead.
+	"auth/permission_group_policy_lock.go|permissionGroupRepository.LockPermissionPolicy": {},
+	"auth/token_blacklist_repository.go|tokenBlacklistRepository.Create":                  {},
+	"auth/token_blacklist_repository.go|tokenBlacklistRepository.DeleteExpired":           {},
+	"auth/token_blacklist_repository.go|tokenBlacklistRepository.ExistsByJTI":             {},
 	// accounting (R1-1 money-path atomicity; appointment completion moved to the reservation
 	// write owner in BE9-2E-0 while retaining ambient transaction participation)
 	"billing/accounting_repository.go|accountingRepository.Create":             {},
@@ -909,6 +915,9 @@ var ambientTxParticipationExpectations = map[string]ambientTxParticipationExpect
 		helperName: "silentPasswordResetTokenDB",
 	},
 	"auth/password_reset_token_repository.go|passwordResetTokenRepository.FindByTokenHashForUpdate": {
+		shape: ambientTxRequired,
+	},
+	"auth/permission_group_policy_lock.go|permissionGroupRepository.LockPermissionPolicy": {
 		shape: ambientTxRequired,
 	},
 	"audit/repository.go|repository.CreateTx": {

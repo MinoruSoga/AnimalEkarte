@@ -39,9 +39,9 @@ export function ClinicSelectionBlockedScreen({ onLogout }: ClinicSelectionBlocke
       className={`fixed inset-0 z-[100] flex items-center justify-center ${C.bgPage} p-4`}
     >
       <div
-        className={`w-full max-w-md rounded-lg ${C.bgWhite} ${C.borderLight} border p-6 shadow-sm`}
+        className={`w-full max-w-md rounded-lg ${C.bgWhite} ${C.borderLight} border p-6 shadow-level2`}
       >
-        <h1 id="clinic-selection-blocked-title" className={`text-lg font-semibold ${C.text90}`}>
+        <h1 id="clinic-selection-blocked-title" className={`text-xl font-semibold ${C.text90}`}>
           {title}
         </h1>
         <p id="clinic-selection-blocked-description" className={`mt-2 text-sm ${C.text60}`}>

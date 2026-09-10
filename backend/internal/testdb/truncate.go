@@ -16,7 +16,11 @@ import (
 
 // coreTruncateSQL is one statement so CASCADE lock acquisition cannot
 // interleave with a sibling TRUNCATE on another pool connection.
-const coreTruncateSQL = "TRUNCATE TABLE billing_refunds, payments, billings, medical_records, owners CASCADE"
+// RESTART IDENTITY keeps serial counters aligned after shared-DB truncates.
+// companies/clinics stay out of the core set: many suites hardcode clinic_id=1/2
+// without recreating clinic rows, and Create()-based suites must truncate
+// companies+clinics together in their own setup helpers.
+const coreTruncateSQL = "TRUNCATE TABLE billing_refunds, payments, billings, medical_records, owners RESTART IDENTITY CASCADE"
 
 const testDBTruncateLockKey = "testdb.shared-truncate"
 
@@ -63,7 +67,7 @@ func Truncate(t *testing.T, db *gorm.DB, tables ...string) {
 		}
 		quoted = append(quoted, quotePostgresIdentifier(table))
 	}
-	execSharedTruncate(t, db, "TRUNCATE TABLE "+strings.Join(quoted, ", ")+" CASCADE")
+	execSharedTruncate(t, db, "TRUNCATE TABLE "+strings.Join(quoted, ", ")+" RESTART IDENTITY CASCADE")
 }
 
 func execSharedTruncate(t *testing.T, db *gorm.DB, truncateSQL string) {

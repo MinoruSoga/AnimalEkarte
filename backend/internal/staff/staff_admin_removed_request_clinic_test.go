@@ -577,7 +577,7 @@ func setupStaffRemovedRequestClinicDB(
 		&model.CashRegisterClose{},
 	))
 	require.NoError(t, db.Exec(
-		"TRUNCATE TABLE staff_clinic_assignments, staffs, occupations, accounts, shift_entries CASCADE",
+		"TRUNCATE TABLE staff_clinic_assignments, staffs, occupations, accounts, shift_entries, clinics, companies RESTART IDENTITY CASCADE",
 	).Error)
 
 	company := &model.Company{Name: "UAT NEW-1 company"}

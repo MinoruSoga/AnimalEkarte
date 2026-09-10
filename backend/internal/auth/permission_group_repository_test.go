@@ -30,11 +30,16 @@ func setupPermissionGroupRepositoryTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := testdb.SetupTestDB(t)
 	require.NoError(t, testdb.EnsureAutoMigrated(db,
-		&model.Staff{}, &model.StaffClinicAssignment{}, &model.PermissionGroup{},
-		&model.PermissionGroupRule{}, &model.StaffPermissionGroup{},
+		&model.Company{}, &model.Clinic{}, &model.Staff{}, &model.StaffClinicAssignment{},
+		&model.PermissionGroup{}, &model.PermissionGroupRule{}, &model.StaffPermissionGroup{},
 	))
 	ensureStaffPermissionGroupsCreatedAt(t, db)
-	testdb.Truncate(t, db, "staff_permission_groups", "staff_clinic_assignments", "permission_group_rules", "permission_groups", "staffs")
+	// Include companies/clinics so makePermissionGroupTestClinic Create() cannot collide
+	// with leftover clinic rows/sequences from earlier packages on the shared test DB.
+	testdb.Truncate(t, db,
+		"staff_permission_groups", "staff_clinic_assignments", "permission_group_rules",
+		"permission_groups", "staffs", "clinics", "companies",
+	)
 	return db
 }
 

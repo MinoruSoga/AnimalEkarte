@@ -24,9 +24,48 @@ import (
 func setupStaffReservationWriteTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db, &model.Staff{}, &model.StaffClinicAssignment{}))
+	require.NoError(t, ensureAutoMigrated(db,
+		&model.Company{}, &model.Clinic{}, &model.Staff{}, &model.StaffClinicAssignment{},
+	))
 	db.Exec("TRUNCATE TABLE staff_clinic_assignments, staffs CASCADE")
+	ensureHardcodedClinicsForReservationWriteTests(t, db)
 	return db
+}
+
+// ensureHardcodedClinicsForReservationWriteTests provisions clinic 1/2 that these
+// suites reference by literal ID. Shared-DB cleanups may remove leftover clinic
+// rows; staff_clinic_assignments still FK to clinics.
+func ensureHardcodedClinicsForReservationWriteTests(t *testing.T, db *gorm.DB) {
+	t.Helper()
+	ctx := context.Background()
+	for _, clinicID := range []uint64{1, 2} {
+		var count int64
+		require.NoError(t, db.WithContext(ctx).Model(&model.Clinic{}).Where("id = ?", clinicID).Count(&count).Error)
+		if count > 0 {
+			continue
+		}
+		company := &model.Company{Name: "reservation-write clinic fixture 法人"}
+		require.NoError(t, db.WithContext(ctx).Create(company).Error)
+		require.NoError(t, db.WithContext(ctx).Exec(
+			`INSERT INTO clinics (
+				id, company_id, name, is_active, standard_tax_rate, reduced_tax_rate,
+				accounting_document_show_logo, accounting_document_show_registration_warning,
+				accounting_document_show_item_category, accounting_document_footer_note,
+				accounting_document_show_clinic_header, accounting_document_show_owner_pet_info,
+				accounting_document_show_items_table, accounting_document_show_payment_summary,
+				accounting_document_section_order, created_at, updated_at
+			) VALUES (
+				?, ?, ?, true, 0.10, 0.08,
+				false, true, true, '',
+				true, true, true, true,
+				'{}', NOW(), NOW()
+			)`,
+			clinicID, company.ID, "reservation-write clinic fixture",
+		).Error)
+	}
+	require.NoError(t, db.WithContext(ctx).Exec(
+		`SELECT setval(pg_get_serial_sequence('clinics', 'id'), GREATEST((SELECT COALESCE(MAX(id), 1) FROM clinics), 1))`,
+	).Error)
 }
 
 func makeAssignedDoctor(t *testing.T, db *gorm.DB, clinicID uint64, name string, sortOrder int) *model.Staff {
