@@ -296,6 +296,11 @@ function assertRawAbsoluteCanonical(absolutePath) {
   if (typeof absolutePath !== "string" || !absolutePath) {
     throw new Error(`enumerated spec path is not a string: ${absolutePath}`);
   }
+  if (/[\u0000-\u001f\u007f\s]/u.test(absolutePath)) {
+    throw new Error(
+      `enumerated spec path contains control or whitespace characters: ${absolutePath}`,
+    );
+  }
   if (!path.isAbsolute(absolutePath)) {
     throw new Error(`enumerated spec path is not absolute: ${absolutePath}`);
   }
