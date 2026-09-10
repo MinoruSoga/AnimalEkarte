@@ -677,6 +677,31 @@ test("RED: raw /./ absolute spelling via custom listSpecs fails closed", async (
   }
 });
 
+test("RED: control and whitespace spec paths fail before identity authority", async () => {
+  const mod = await loadModule();
+  const { root, e2eRoot } = makeFixture({
+    "e2e/pages/accounting-page.ts": "export class AccountingPage {}\n",
+  });
+  try {
+    for (const unsafe of ["\n", "\x01", "\x7f", " "]) {
+      const absolutePath = path.join(e2eRoot, `bad${unsafe}name.spec.ts`);
+      writeFileSync(
+        absolutePath,
+        'import { AccountingPage } from "./pages/accounting-page";\n',
+      );
+      const payload = mod.verifyPages({
+        pages: ["e2e/pages/accounting-page.ts"],
+        e2eRoot,
+        listSpecs: () => [absolutePath],
+      });
+      assert.equal(payload.ok, false, JSON.stringify(payload));
+      assert.match(String(payload.error || ""), /control|whitespace|canonical/i);
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("RED: custom listSpecs symlink path is rejected by descriptor-safe open", async () => {
   const mod = await loadModule();
   const { root, e2eRoot } = makeFixture({

@@ -403,8 +403,9 @@ git show ad63bdf28:todo-refactor.md
   1. Python: `_is_raw_canonical_posix` rejects C0 (`ord < 0x20`) and DEL (`0x7F`) before pathlib — `e2e/good\0.spec.ts` / DEL / C0 fail-closed.
   2. Node enum: abs must be string + absolute + `path.resolve(abs) === abs` before `path.relative` — raw `e2eRoot+"/./good.spec.ts"` fail-closed.
   3. Node read-time: `openSync(O_RDONLY|O_NOFOLLOW)` → `fstat` regular → `/proc/self/fd/<fd>` realpath containment vs e2eRoot (relative equality, no string-prefix) → `readFileSync(fd)`; missing `/proc/self/fd` fails closed. Symlink listSpecs / mid-loop swap → ELOOP/`ok:false`.
+  4. Node raw identity: enumerated absolute paths containing C0, DEL, or whitespace are rejected before identity derivation; newline/DEL/space-backed real-file fixtures return `ok:false`.
 - Independent adversarial re-run: NUL/DEL/C0 FAIL_CLOSED; DOT_RAW/`SYMLINK_LIST`/`RACE_HOOK` ok=false; CONTROL_OK consumers=1.
-- RED→GREEN: Docker Node **20 pass / 0 fail**; `python3 -B scripts/test_verify_agent_task.py` → **Ran 58 tests … OK**.
+- RED→GREEN: Docker Node **21 pass / 0 fail**; `python3 -B scripts/test_verify_agent_task.py` → **Ran 58 tests … OK**.
 - Plan page-only: `status=PLAN`, `executed_count=0`, discovery_specs=**35**.
 - Actual page-only: `status=PASS`, `executed_count=6`, discovery_n=**35**; consumers accounting=3 settings=2.
 - Actual five-path: `status=PASS`, `executed_count=7`.
