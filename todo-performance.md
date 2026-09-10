@@ -1,14 +1,21 @@
 # Performance 調査・改善 TODO
 
-作成・調査日: 2026-09-09（JST）
+作成・調査日: 2026-09-09（JST）／対応状況の最終照合: 2026-09-10（JST）
 
 調査 ID: **PERF-STG-LOGIN**
 
 対象: STG `/login` の初回表示遅延。責任者・依頼者: 曽我 稔。
 
-ソース照合: ローカル `main` `c0950fbdf`。フロントの該当処理は STG 配信済み `main-BnyQFmpH.js` とも照合。backend / Worker の配信リビジョンは未照合。
+ソース照合の基準点: 更新着手時のローカル `main` = `origin/main` = `5a19989ad`。A は PR [#393](https://github.com/MinoruSoga/AnimalEkarte/pull/393) の `9b06b551c`、B は merge commit `b5be27be6` で `main` に統合済み。調査時に照合した STG bundle は `main-BnyQFmpH.js` であり、A/B の STG 配信 revision は未照合。
 
 実行 SoT: Linear。本書はユーザー指定のローカル調査・実装準備記録。Linear の関連 issue / 状態は **UNKNOWN（今回未照会・未更新）**。入口は [todo.md](todo.md)。
+
+## 現在の統合・検証状況（2026-09-10）
+
+- **A（白画面の待機表示）:** PR #393 は MERGED。非機密の待機表示と保護対象の未マウントを `main` に統合済み。
+- **B（8秒上限・障害表示）:** `b5be27be6` で `main` に統合済み。統合前の exact auth 検証は 107 tests、ESLint、Prettier、gitleaks が PASS。GitHub の同 commit では Workflow Contracts、Detect changes、Gitleaks、AgentShield が PASS したが、Frontend Build/Test 等の product jobs は SKIP であり、CI product suite の PASS とは扱わない。
+- **STG 昇格:** `main` (`5a19989ad`) → `staging` の PR [#388](https://github.com/MinoruSoga/AnimalEkarte/pull/388) は OPEN / CONFLICTING。変更検出・security checks は PASS、product jobs は SKIP。A/B の STG 配信、ブラウザー/E2E、改善後の実測は **UNKNOWN / 未実施**。
+- **残作業:** 約22.5秒の preflight・接続待ち・Container 起動の内訳確定と、その結果に基づく C、初回 bundle を実測して判断する D。待機表示の実装完了を通信時間の改善とは扱わない。
 
 ## 結論と判定境界
 
@@ -80,13 +87,13 @@
 
 ## 調査・改善 TODO
 
-業務目的: ログイン開始時の無反応な待ちと、待ちによる再読込・操作のやり直しを減らす。まず白画面という不要な待ち方を除き、認証・CSRF・医院分離は維持する。A/Bはローカル実装・静的検証済み。Browser/E2EはBLOCKED、CI/LinearはUNKNOWNであり、C/Dは未着手。
+業務目的: ログイン開始時の無反応な待ちと、待ちによる再読込・操作のやり直しを減らす。まず白画面という不要な待ち方を除き、認証・CSRF・医院分離は維持する。A/Bは `main` 統合済み。Browser/E2E・STG実測・LinearはUNKNOWNまたは未実施であり、C/Dは未着手。
 
 | 優先 | 項目 | 状態 | 実施内容・完了条件 |
 |---|---|---|---|
 | P0 | 遅延区間の確定 | 部分完了 | E1の22.5秒が最終GET接続前であることは確認済み。次は下記手順で OPTIONS / 接続待ち / Container 起動の内訳を確定する |
-| P0 | ログイン時の白画面を解消 | DONE (local integration) | PERF-STG-LOGIN-A: SessionPending + AuthProvider/router/hydrate wiring. Vitest RED→GREEN pending-Promise; protected children unmounted. Browser/E2E BLOCKED (no candidate fixture). CI/Linear UNKNOWN. |
-| P1 | セッション復元の待ち上限・障害表示 | DONE (local integration) | PERF-STG-LOGIN-B: 起動時専用8秒上限、401/403/timeout/transportの型付き分類、再試行・ログイン切替、遅延結果の無効化を実装。候補tipのexact 17-file verifier PASS（120 tests）。main統合前レビュー修正後のexact auth 12-file verifier PASS（107 tests・ESLint・Prettier）。Browser/E2E BLOCKED、CI/Linear UNKNOWN。 |
+| P0 | ログイン時の白画面を解消 | DONE (`main` integration) | PERF-STG-LOGIN-A: PR #393 / `9b06b551c`。SessionPending + AuthProvider/router/hydrate wiring。Vitest RED→GREEN pending-Promise; protected children unmounted。STG配信・Browser/E2Eは未確認。Linear UNKNOWN。 |
+| P1 | セッション復元の待ち上限・障害表示 | DONE (`main` integration) | PERF-STG-LOGIN-B: `b5be27be6`。起動時専用8秒上限、401/403/timeout/transportの型付き分類、再試行・ログイン切替、遅延結果の無効化を実装。候補tipのexact 17-file verifier PASS（120 tests）。main統合前レビュー修正後のexact auth 12-file verifier PASS（107 tests・ESLint・Prettier）。GitHub product jobsはSKIP。STG配信・Browser/E2Eは未確認、Linear UNKNOWN。 |
 | P1 | preflight / Container 起動の遅延対策 | 仮説検証待ち | OPTIONSと起動イベントの相関確認後に対策を選ぶ。edgeでのOPTIONS応答はCORS許可元・ヘッダ・資格情報方針を一致させる。GET自体のcold startは別に残る。sleep設定変更は費用と共有環境への影響を明示して判断する |
 | P2 | 初回 bundle の不要読込 | TODO・今回の主因ではない | 配信HTMLは charts / LIFF 等をpreload。ログインに必要な依存を実測して分離する。E1はload約0.31秒のため、23秒の主因として扱わない |
 | P1 | 改善後の再計測 | 未実施 | 同一条件のwarm/cold・初回/再読込を区別し、FCPだけでなくフォーム操作可能時刻、OPTIONS/GET各時間を保存。spinnerの表示だけを「ログイン高速化完了」としない |
@@ -101,7 +108,7 @@
 
 現時点の不足: E1当時のOPTIONS / 接続イベント、Cloudflareの該当時刻ログ、Container起動状態・配信revision。利用可能な接続ツールには、この環境のCloudflareログを直接取得する専用接続が見つからず、管理画面ログ・DBを取得していない。遅延は追加の2回では再現しなかったため、根因を確定扱いにしない。
 
-## 改善プラン（2026-09-09 追記・A/Bローカル統合済み）
+## 改善プラン（2026-09-09 追記・A/B `main` 統合済み）
 
 方針は **A: 白画面をなくす → B: 復元待ちを制御する → C: 計測で特定した通信経路を直す**。Cの原因確定待ちでA・Bを止めない。bundle削減は、その後の初回キャッシュなし計測で必要性を判断する。
 
@@ -223,7 +230,7 @@ Docs-only. Code/test subject frozen at `d48cca2f7d5661799f68902c9965e7dcc70704f9
 
 ##### Implementation acceptance (unchanged)
 
-Product/test acceptance for white-screen fix + deferred pending→resolved route tests remains accepted at subject `d48cca2f7…`. このA closeout時点ではB/C/D pendingだった。現在はBもローカル統合済みで、C/Dは未完了。No FCP claim.
+Product/test acceptance for white-screen fix + deferred pending→resolved route tests remains accepted at subject `d48cca2f7…`. このA closeout時点ではB/C/D pendingだった。現在はBも `main` 統合済みで、C/Dは未完了。No FCP claim.
 
 ### B. 起動時の認証確認だけに待ち上限を設ける（Aの次）
 
@@ -360,7 +367,7 @@ Product/test acceptance for white-screen fix + deferred pending→resolved route
 
 STG受入は「待機表示が出る」「フォームが操作できる」「認証が成功して業務画面へ進める」の3時刻を分ける。まず通常読込の少数比較から始め、単発値でp95/p99達成を宣言しない。継続測定の件数・時間は既存のSTG測定契約で定める。既存セッション、匿名、復旧画面、医院選択の回帰が出た変更単位は先へ進めず、原因修正または承認済みの前版への切戻しを選ぶ。
 
-2026-09-09の当初調査セッションは**計画の追記まで**で、`claim/PERF-STG-LOGIN` を同じ調査・計画作業として保持した。その時点では新たな実装着手・STG変更をしていない。その後のA/Bローカル実装・検証・統合状況は上記 child unit progress と「調査・改善 TODO」に記録している。STG変更は引き続き未実施。
+2026-09-09の当初調査セッションは**計画の追記まで**で、`claim/PERF-STG-LOGIN` を同じ調査・計画作業として保持した。その時点では新たな実装着手・STG変更をしていない。その後のA/B実装・検証と `main` 統合状況は上記 child unit progress と「調査・改善 TODO」に記録している。STG変更は引き続き未確認。
 
 ## 参考・検証境界
 
@@ -370,4 +377,4 @@ STG受入は「待機表示が出る」「フォームが操作できる」「�
 - [Cloudflare Containers公式SDK](https://github.com/cloudflare/containers): fetchによる起動とsleepAfterの説明。
 - 既存の測定手順: [STG-PERFORMANCE-CHECKLIST.md](docs/ops/testing/STG-PERFORMANCE-CHECKLIST.md)。health / clinics の低負荷API試験はログイン画面のFCP・preflight・cold startの代替証拠にしない。
 - 当初調査セッションは調査とMarkdownのみで、アプリのbuild/testをSKIPした。ローカル参照リンク・入口リンク・差分の空白チェックはPASS。コード修正・deploy・環境設定変更・ログイン・DB照会・migration・負荷試験・Linear更新は実施しなかった。後続A/Bでは上記のコード変更とDocker scoped検証を実施したが、deploy・STG操作・Linear更新はしていない。
-- 当初調査セッションの作業ファイルは `todo-performance.md`（新規）と `todo.md`（入口追記）のみで、開始時の作業ツリーはcleanだった。`claim/PERF-STG-LOGIN` は親調査claimとして保持する。A/B child claimの解放は、統合・所有終了・worktree未使用を確認してAGENTS.mdのclaim規則に従う。
+- 当初調査セッションの作業ファイルは `todo-performance.md`（新規）と `todo.md`（入口追記）のみで、開始時の作業ツリーはcleanだった。当時の claim 記載は履歴であり、現在の保有状態は編集前に Git で再確認する。A/B child claimの解放は、統合・所有終了・worktree未使用を確認してAGENTS.mdのclaim規則に従う。

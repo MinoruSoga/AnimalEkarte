@@ -1,6 +1,6 @@
 # タスク台帳 — Linear が正本
 
-統合日: 2026-09-08。最終ローカル照合: 2026-09-09 / main `c0950fbdf`（追加照合 PR 枝 `docs/meta-linear-pr-20260909`）。Codex の Linear 読み取り結果は `48e89dbe4` 以降も保持。Grok 追加照合では Linear MCP がセッション限定で UNAVAILABLE のためライブ再照会はせず、定義再確認と次照会リストを [linear-f1-f6-mapping.md](docs/work/linear-f1-f6-mapping.md) に記録した。UAT・STG/PROD・go-live は再判定していない。
+統合日: 2026-09-08。最終ローカル/GitHub照合の基準点: 2026-09-10 / 更新着手時の `main` = `origin/main` = `5a19989ad`。`main` → `staging` PR #388 は OPEN / CONFLICTING。Codex の Linear 読み取り結果は `48e89dbe4` 以降も保持。Grok 追加照合では Linear MCP がセッション限定で UNAVAILABLE のためライブ再照会はせず、定義再確認と次照会リストを [linear-f1-f6-mapping.md](docs/work/linear-f1-f6-mapping.md) に記録した。UAT・STG/PROD・go-live は再判定していない。
 
 | 項目 | 値 |
 |------|-----|
@@ -14,7 +14,7 @@
 
 入口: [2026-09-08 の対応履歴](#session-2026-09-08) · [実行キュー](#対応順実行キュー) · [製品 FAIL](#product-bugs) · [PO / 人間レーン](#human-lane) · [Astra 完了履歴](#astra-history) · [FE 完了履歴・維持制約](#refactor-history)
 
-性能調査・改善: [todo-performance.md](todo-performance.md)（PERF-STG-LOGIN、2026-09-09）。STGログインの認証待ちによる白画面と、最終GET接続前の約22.5秒を記録。A（待機表示）とB（起動時session restoreの8秒上限・障害表示）はローカル実装・静的検証済み。Browser/E2EはBLOCKED、CI/LinearはUNKNOWN。preflight・接続待ち・Container起動の内訳とC/Dは未完了。
+性能調査・改善: [todo-performance.md](todo-performance.md)（PERF-STG-LOGIN、最終照合 2026-09-10）。A（待機表示）は PR #393 / `9b06b551c`、B（起動時session restoreの8秒上限・障害表示）は `b5be27be6` で `main` 統合済み。GitHub product jobsはSKIPで、STG配信・Browser/E2E・改善後実測・LinearはUNKNOWNまたは未実施。preflight・接続待ち・Container起動の内訳とC/Dは未完了。
 
 エージェントは PlanetScale、共有 STG apply、`DROP SCHEMA`、本番 cutover、`make reset`、八王子 CSV の producer 出力を実行しない。push / dispatch / Linear Done / 秘密変更は明示承認が必要。
 
