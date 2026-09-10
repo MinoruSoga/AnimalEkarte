@@ -15,15 +15,15 @@
 | 区分 | 状態 |
 | --- | --- |
 | ローカル実装 + disposable 実DB（D2 / D3 / D5 / D1 合成） | **完了**（`a0e569a9a`） |
-| D1 本番付与・対象環境メール | **未完了**（別承認） |
-| Linear ライブ特定・投稿 | **未完了**（UNKNOWN / 投稿承認後） |
+| D1 本番付与・対象環境メール | **未完了**（対象環境未定・別承認） |
+| Linear ライブ特定・投稿 | **BLOCKED**（MCP作成試行が free issue limit exceeded で拒否） |
 
 ## 未完了サマリー
 
 | 優先 | ID | 状態 | 残作業 | 完了条件 |
 | --- | --- | --- | --- | --- |
-| P1 | D1 | PARTIAL | 合成DBは PASS。本番付与・対象環境メールは未実施 | 承認済み本番手順と非機密 receipt、メール経路確認 |
-| P2 | LINEAR | UNKNOWN | 対応チケットのライブ特定と投稿 | 対象 issue を確認し、承認後に未完了境界のみ投稿 |
+| P1 | D1 | PARTIAL | 合成DBは PASS。対象環境は未定で、本番付与・対象環境メールは未実施 | 対象環境・承認済み本番手順と非機密 receipt、メール経路確認 |
+| P2 | LINEAR | BLOCKED | 承認済み新規起票を Linear MCP で試行したが、workspace の free issue limit exceeded により HTTP 400 で拒否 | workspace 管理者が新規 issue 作成枠を用意し、同じ下書きで再試行 |
 
 ## 完了済み（`a0e569a9a`）
 
@@ -93,12 +93,12 @@ ExtractClinicID のみだった clinic-fixed handler（inventory / clinic / trim
 
 ## Linear反映
 
-Ticket ID と現在状態は UNKNOWN。Linear MCP/CLI は当該セッションで利用不可だった。外部投稿は明示承認後。
+2026-09-11 に Linear MCP を使用してライブ確認と、明示承認済みの新規起票を 1 件試行した。作成は workspace の free issue limit exceeded により HTTP 400 で拒否され、issue は作成されていない。直接対応する Ticket ID と現在状態は UNKNOWN のままであり、既存 issue の変更・削除、課金または契約変更での解消は承認範囲外である。
 
 承認後に反映する内容:
 
 - `a0e569a9a` まで、D2 / D3 / D5 / D1 合成は disposable で PASS
-- D1 本番付与・メール、Linear ライブ更新は未完了
+- D1 は対象環境未定のまま、本番付与・メールは未完了。Linear は free issue limit の解消後に新規起票を再試行する
 - static / offline / `-short` / stub の PASS を実DB・本番完了へ変換しない
 
 ## 台帳全体ステータス

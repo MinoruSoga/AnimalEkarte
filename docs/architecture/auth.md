@@ -5,7 +5,7 @@
 > **タイミング**: 認可ロジックの実装時・レビュー時。
 
 > **Animal Ekarte**: マルチクリニック対応の堅牢なセキュリティ基盤
-> **バージョン**: v9.2 | **最新更新**: 2026-09-09
+> **バージョン**: v9.2 | **最新更新**: 2026-09-11
 
 ---
 
@@ -71,7 +71,7 @@
 ### 4.2 マルチテナント分離 (X-Clinic-ID)
 - ログイン時に許可された `clinic_ids` のスナップショットをトークンに封入しますが、通常リクエストの最終 authority としては使用しません。
 - 原則としてリクエストごとに account、staff、clinic assignment、対象 clinic の現在状態を `backend/internal/auth/current_access_service.go` で再解決します。production composition は `NewCachedCurrentAccessResolver` を挟みません。スタッフ無効化・所属解除・パスワード変更の **DB commit 後に受け付ける次のリクエスト** から拒否します。commit 前に受け付けた処理の取消しは保証しません。lookup 障害は 503 です。
-- 同じ DB を使う独立 2 プロセスでのライブ検証は、この変更の範囲では実施していません（`make up` 禁止）。`current_access_cache.go` は残置しますが、最終認可の入力には使いません。
+- 2026-09-10 に、同じ disposable DB を使う独立 2 プロセス検証を実施した。staff 無効化・clinic 所属解除・password epoch 後の旧 session 拒否、所属解除時の未変更医院アクセス維持、および p95 +2.5% を確認した。この証拠は disposable local 環境に限られ、STG/PROD・本番 login・DB statements/request を証明しない（DB statements/request は UNKNOWN）。`current_access_cache.go` は残置しますが、最終認可の入力には使いません。
 - request-time authority lookup の一時的な取得障害も fail closed とし、middleware は 503 を返します。JWT の clinic snapshot を continuity authority に昇格しません。failure notifier は運用通知専用であり、認可結果を変更しません。
 - 一般スタッフの `X-Clinic-ID` は、現在有効な所属クリニックとの一致を必須とします。
 - システム管理者も任意の正数 clinic ID を選択できるわけではなく、現在存在する `is_active=true` のクリニックだけを選択できます。stale な main clinic は有効な集合から再選択し、有効な clinic がなければ拒否します。
