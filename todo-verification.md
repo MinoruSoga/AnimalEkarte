@@ -23,46 +23,13 @@
 
 <a id="development-verification"></a>
 
-## 開発タスク3件の検証
+## 開発タスク検証（残り）
 
-開発は [todo.md](todo.md#development-tasks) のREADY範囲で開始できる。以下は実装前後の検証タスクであり、今回の文書更新で実行PASSにはしない。対象mainのDocker mountとファイル一致を実行直前に確認し、別checkoutへ移す場合はrunnerも同じcheckoutに結び付ける。
+DEV-V-PET-REQUEST / DEV-V-LIFF-READERS / DEV-V-OWNER unit は完了済み（Git 履歴）。残るのは OWNER の disposable DB のみ。
 
-| ID | 開発ID | 状態 | 検証する契約 |
-|---|---|---|---|
-| DEV-V-PET-REQUEST | TASK-444 | PASS | 入力型にversion/deceased_at/deceased_reasonがなく、作成必須3項目・更新status除外・danger_reasonのtri-state・既存payloadを維持 |
-| DEV-V-LIFF-READERS | BE-RC-009 | PASS | FindAllだけの2つのstubでconstructorへ注入でき、空き枠・医院条件・nil時動作が維持される |
-| DEV-V-OWNER-COMMAND | BE-RC-017 | PASS（unit）/ BLOCKED（DB） | 公開map更新がなく、型付きcommandで既存のゼロ値/未指定・医院scope・割引権限・同一txでの更新再読込を維持 |
-
-### DEV-V-PET-REQUEST
-
-- 状態: PASS（attempt-dev-v-pet-20260911T122500Z / HEAD e29b41464 / claim/DEV-V-PET-REQUEST）
-- 契約確認: `frontend/src/types/pet.ts` の `PetWritable` は `Pick` 許可リスト。`version` / `deceased_at` / `deceased_reason` 非含有。`CreatePetRequest` 必須は `owner_id` / `animal_species_id` / `name`。`UpdatePetRequest` は `status` 除外、`danger_reason?: string | null`（tri-state）。
-- 型禁止の証明: 専用 scoped tsconfig は未追加（optional・write allowlist外）。代わりに `pet.test.ts` の TASK-444 スイートが `AssertNever` + `typescript.createProgram` 仮想fixtureで禁止3キー代入の診断を要求する（通常のランタイムassertだけでは型禁止を証明しない経路をカバー）。
-- runtime回帰（Docker frontend healthy）:
-  - `docker compose exec -T frontend npx vitest run src/lib/transforms/pet.test.ts src/features/owners/hooks/use-pet-form-list-state-danger-reason.test.ts src/features/owners/hooks/use-pet-form-list-state-death-lifecycle.test.ts src/types/generated-model-response-boundary.test.ts`
-  - 結果: Test Files 4 passed (4) / Tests 49 passed (49) / exit 0
-- 生成物・Go request・codegen は変更なし。foreign WIP `.claude/CLAUDE.md` は未編集。
-
-### DEV-V-LIFF-READERS
-
-- 状態: PASS（attempt-dev-v-liff-20260911T131000Z / HEAD e29b41464 / claim/DEV-V-LIFF-READERS）
-- 実装根拠: BE-RC-009 commit `944577184`（`reservationTypeUnavailableTimeReader` / `reservationTypeAvailableSlotReader` は FindAll のみ。Create/Delete/FindByID 非要求）。
-- 契約確認: `TestNewLiffServiceWithType_FindAllOnlyReaders` が FindAll-only stub 注入と `availableSlotRepo=nil` 配線を固定。`mockLiffUnavailableTimeRepository` から Create/Delete/FindByID を除去済み。
-- runtime回帰（Docker backend healthy）:
-  - `docker compose exec -T backend go test ./internal/reservation -run 'Test(NewLiffService|GetAvailableDates|BuildStaffSlotInputs|LiffService_GetStaffAvailableTimes|IsStaffAvailable)' -count=1`
-  - 結果: `ok github.com/animal-ekarte/backend/internal/reservation` / exit 0（含む `TestNewLiffServiceWithType_FindAllOnlyReaders`）
-- query / filter / 予約書込 / repository 実装の差分なし（検証のみ）。foreign WIP `.claude/CLAUDE.md` と DEV-V-PET-REQUEST PASS 記述は未編集。
-
-### DEV-V-OWNER-COMMAND
-
-- 状態: PASS（unit） / BLOCKED（DB）（attempt-dev-v-owner-20260911T131500Z / HEAD e29b41464 / claim/DEV-V-OWNER-COMMAND）
-- 実装根拠: BE-RC-017 commit `c10a603ba`（typed `UpdateCommand`、`updateCommandFields` 非公開、`ServiceRepository` は map update 非公開）。
-- 契約確認: `TestOwnerUpdateCommand_OmitsNilKeepsZeroAndEmpty` / `SetGroupsAlwaysWrite` / `NoPublicMapUpdateAPI` が nil省略・false/空文字保持・Set* 常時書込・公開map factory不在を固定。`TestOwnerService_Update` がゼロ値更新と割引バリデーションを維持。
-- runtime回帰（Docker backend healthy, `-short`）:
-  - `docker compose exec -T backend go test ./internal/owner -short -run 'TestOwnerService|TestOwnerUpdateCommand' -count=1`
-  - 結果: `ok github.com/animal-ekarte/backend/internal/owner` / exit 0
-- DB（disposable）: BLOCKED — host/backend とも `TEST_DATABASE_URL` unset。`-short` では `TestOwnerRepository_UpdateAndFind_ReloadFailureRollsBackUpdate` / `TestOwnerRepository_Update_ClinicIsolation` / `TestOwnerService_Update_DiscountTOCTOU_*`（LockedDiffWithoutPermission を除く）/ `TestOwnerRepository_LockByIDForUpdate_RequiresAmbientTransaction` が `database tests are skipped in -short / offline verification` で SKIP。未設定・SKIPはPASSにしない。
-- foreign WIP `.claude/CLAUDE.md` と DEV-V-PET-REQUEST / DEV-V-LIFF-READERS PASS 記述は未編集。
+| ID | 状態 | 内容 |
+|---|---|---|
+| DEV-V-OWNER-DB | BLOCKED | disposable `TEST_DATABASE_URL` 未設定。`TestOwnerRepository_UpdateAndFind_ReloadFailureRollsBackUpdate`、`TestOwnerRepository_Update_ClinicIsolation`、`TestOwnerService_Update_DiscountTOCTOU_*`（LockedDiffWithoutPermission を除く）、`TestOwnerRepository_LockByIDForUpdate_RequiresAmbientTransaction` を共有DB以外で実行する。未設定・SKIPはPASSにしない |
 
 ## ID 1: Linear
 
