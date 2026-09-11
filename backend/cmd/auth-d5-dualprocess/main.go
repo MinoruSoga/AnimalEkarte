@@ -3,6 +3,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -25,15 +26,21 @@ func main() {
 		fmt.Fprintln(os.Stderr, "unable to resolve source path")
 		os.Exit(1)
 	}
-	root := filepath.Clean(filepath.Join(filepath.Dir(file), "../../.."))
+	root := filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", ".."))
 	script := filepath.Join(root, "scripts", "auth-d5-dualprocess.sh")
+	if filepath.Base(script) != "auth-d5-dualprocess.sh" {
+		fmt.Fprintln(os.Stderr, "unexpected harness script path")
+		os.Exit(1)
+	}
+	//nolint:gosec // G204: fixed repo-local script resolved from source path; args are intentionally forwarded.
 	cmd := exec.Command(script, os.Args[1:]...)
 	cmd.Dir = root
 	cmd.Env = os.Environ()
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		if ee, ok := err.(*exec.ExitError); ok {
+		var ee *exec.ExitError
+		if errors.As(err, &ee) {
 			os.Exit(ee.ExitCode())
 		}
 		fmt.Fprintf(os.Stderr, "harness failed: %v\n", err)
