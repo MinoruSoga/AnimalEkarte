@@ -26,37 +26,17 @@ claim は ID ごとに初回編集前に確認・取得する。作成者別の�
 
 ## 開発タスク
 
-**2026-09-11 / `f0e238f10` で下記3件をREADYと判断した。** 各行は、対象・実装方針・最初の変更が確定し、STG証跡・新機能の発生・codegenを待たず着手できる開発単位である。実装完了やリリース可能を意味しない。実装時はclaimと既存WIPを再確認し、`main`上では1件ずつ進める。
+**READY の新規開発単位は現時点でなし。** 2026-09-11 に READY とした3件は `origin/main` へ統合済み（下記）。旧10項目の扱いと根拠は [裁定記録](docs/work/development-task-decisions.md)。検証は [統合検証TODO](todo-verification.md)、運用は [todo-operations.md](todo-operations.md)。
 
-依頼者: 曽我 稔。技術判断: Codex。旧10項目すべての扱いと根拠は [裁定記録](docs/work/development-task-decisions.md) に保存した。検証タスク・実行コマンドは [統合検証TODOの開発検証](todo-verification.md#development-verification)、運用作業は [todo-operations.md](todo-operations.md) で管理する。Linearのライブ状態は今回 `USER_NOT_LOGGED_IN` のためUNKNOWN。
+### 実装済み（2026-09-11 / campaign `todo-ready3-20260911`）
 
-| 順 | ID | 状態 | 着手する開発単位 |
-|---|---|---|---|
-| 1 | **TASK-444** | READY | ペット送信型のキーを明示し、モデル追加列が送信可能型へ自動混入しないようにする |
-| 2 | **BE-RC-009** | READY | LIFF空き枠取得の2つの依存を `FindAll` だけの読取interfaceにする |
-| 3 | **BE-RC-017** | READY | 飼主repositoryの公開更新mapを型付きcommandに置き換える |
+| ID | Commit | Linear |
+|---|---|---|
+| TASK-444 | [`bc38dc605`](https://github.com/MinoruSoga/AnimalEkarte/commit/bc38dc605c2cf5fa14a282b1b2f278d778d687fa) | 専用 Issue 未特定。完了証跡は [BRT-4](https://linear.app/baritechllc/issue/BRT-4) コメント（新規作成は free issue limit 超過） |
+| BE-RC-009 | [`944577184`](https://github.com/MinoruSoga/AnimalEkarte/commit/944577184e9ad7ac762950aabd7f409454adb3a7) | 同上 |
+| BE-RC-017 | [`c10a603ba`](https://github.com/MinoruSoga/AnimalEkarte/commit/c10a603bab620bf0e6a9ec91d4415a5d640c3429) | 同上 |
 
-### TASK-444 — ペット送信型を許可キーで固定
-
-- **対象**: `frontend/src/types/pet.ts`、`frontend/src/lib/transforms/pet.ts` と隣接テスト。`generated/models.ts`、Go DTO、codegen設定は変更対象外。
-- **最初の変更**: `PetWritable = Omit<BackendPet, ServerFields>` を、現行フォームが送るキーを列挙した `Pick<BackendPet, ...>` に置き換える。入力型へ `version` / `deceased_at` / `deceased_reason` を取り込まない。未対応の送信キーを新たに増やさない。
-- **確定方針**: 作成の必須3キー、`name_kana`、既存enum、更新時のstatus除外、`danger_reason`の省略/null/値を維持する。既存の生成型を参照し、全モデルの移動・新規生成を前提にしない。
-- **完了時の状態**: モデルへサーバー専用列が増えても入力型は広がらず、既存の作成・更新payloadと死亡専用APIの役割が維持される。公開response型の全面移行完了とは扱わない。
-
-### BE-RC-009 — LIFF空き枠の依存を読取専用に限定
-
-- **対象**: `backend/internal/reservation/liff_service.go`、`liff_service_mock_test.go`、`liff_service_test.go`。空き枠ロジックとrepository実装は変更対象外。
-- **最初の変更**: `liffUnavailableTimeReader` と `liffAvailableSlotReader` を利用側へ定義する。各interfaceは既存と同じ `FindAll(ctx, clinicID, reservationTypeID)` 1メソッドと既存の戻り型だけを持つ。
-- **確定方針**: `liffService` の2フィールドと `NewLiffServiceWithType` の対応引数を上記interfaceに変更する。既存repositoryは構造的に代入でき、管理画面のCreate/Delete能力をLIFFの依存へ要求しなくなる。nil時の既存動作を維持する。
-- **完了時の状態**: 読取1メソッドだけの実装でLIFFを構成でき、医院scope、空き枠判定、DB query、予約書込の動作が変わらない。
-
-### BE-RC-017 — 飼主更新を型付きcommandへ限定
-
-- **対象**: `backend/internal/owner/repository.go`、`service_core.go`、`service_delivery.go`、`service_line.go`、型付きcommand用の同package新規ファイル、関連ownerテスト。
-- **最初の変更**: 現在の更新builderが扱うフィールドだけを具体的な型で持つ `UpdateCommand` を定義する。`UpdateAndFind` のmap引数と `OwnerUpdateApplier` のmap戻り値をcommandへ変更し、DB用mapの組立を非公開処理へ閉じ込める。
-- **確定方針**: プロフィール、配信除外・注意、転院、LINE確認の既存呼出元を同時に移行する。割引権限の再判定は `FOR UPDATE` 後のcallback内に残す。列名や値を任意指定する公開factoryは作らない。
-- **完了時の状態**: 公開更新APIへ任意mapを渡せず、許可された更新のみを表現できる。clinic条件、nil/false/空文字の意味、割引TOCTOU防御、更新と再読込の同一transaction、失敗時rollbackを維持する。
-
+詳細仕様の履歴は Git。addendum codegen（TASK-444 付帯）は deferred のまま。
 ---
 
 <a id="product-bugs"></a>
