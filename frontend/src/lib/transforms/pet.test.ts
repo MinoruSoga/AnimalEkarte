@@ -1,4 +1,8 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, it, expect } from "vitest";
+import ts from "typescript";
 
 import {
   mapPetStatusLabel,
@@ -6,7 +10,24 @@ import {
   transformCreatePetRequest,
   transformUpdatePetRequest,
 } from "./pet";
+import type { CreatePetRequest, UpdatePetRequest } from "@/types/pet";
 import type { PetResponse } from "@/types/generated/pet-responses";
+
+// src/lib/transforms → frontend root (container: /app)
+const FRONTEND_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
+const PET_TYPES_PATH = path.join(FRONTEND_ROOT, "src/types/pet.ts");
+
+/** Compile-time keys that must never appear on create/update request types. */
+type ForbiddenWritableKeys = "version" | "deceased_at" | "deceased_reason";
+type AssertNever<T extends never> = T;
+type _CreateForbidsServerColumns = AssertNever<
+  Extract<keyof CreatePetRequest, ForbiddenWritableKeys>
+>;
+type _UpdateForbidsServerColumns = AssertNever<
+  Extract<keyof UpdatePetRequest, ForbiddenWritableKeys>
+>;
+void 0 as unknown as _CreateForbidsServerColumns;
+void 0 as unknown as _UpdateForbidsServerColumns;
 
 // makeBackendPet は transformBackendPetToFrontend に渡す最小の PetResponse を組み立てる。
 function makeBackendPet(overrides: Partial<PetResponse> = {}): PetResponse {
@@ -179,5 +200,107 @@ describe("transformUpdatePetRequest", () => {
     });
 
     expect(Object.prototype.hasOwnProperty.call(request, "danger_reason")).toBe(false);
+  });
+});
+
+describe("PetWritable allowlist (TASK-444)", () => {
+  it("PetWritable は Omit ではなく Pick 許可リストで定義する", () => {
+    const src = readFileSync(PET_TYPES_PATH, "utf8");
+    const writable = src.match(/type\s+PetWritable\s*=\s*[^;]+;/)?.[0] ?? "";
+    expect(writable, "PetWritable declaration").toMatch(/Pick\s*</);
+    expect(writable).not.toMatch(/Omit\s*</);
+    expect(writable).not.toMatch(/\bversion\b/);
+    expect(writable).not.toMatch(/\bdeceased_at\b/);
+    expect(writable).not.toMatch(/\bdeceased_reason\b/);
+  });
+
+  it("CreatePetRequest / UpdatePetRequest へ version・deceased_* を代入すると型エラーになる", () => {
+    const configPath = ts.findConfigFile(FRONTEND_ROOT, ts.sys.fileExists, "tsconfig.json");
+    expect(configPath, "tsconfig.json").toBeTruthy();
+    const configFile = ts.readConfigFile(configPath!, ts.sys.readFile);
+    const parsed = ts.parseJsonConfigFileContent(
+      configFile.config,
+      ts.sys,
+      FRONTEND_ROOT,
+      undefined,
+      configPath,
+    );
+    const fixturePath = path.join(FRONTEND_ROOT, "src/types/__task444_pet_writable_fixture__.ts");
+    // One excess key per object so TS reports each forbidden property (not only the first).
+    const fixtureSource = [
+      'import type { CreatePetRequest, UpdatePetRequest } from "@/types/pet";',
+      "export const createVersion: CreatePetRequest = {",
+      '  owner_id: 1, animal_species_id: 1, name: "ポチ", version: 1,',
+      "};",
+      "export const createDeceasedAt: CreatePetRequest = {",
+      '  owner_id: 1, animal_species_id: 1, name: "ポチ", deceased_at: "2026-01-01T00:00:00Z",',
+      "};",
+      "export const createDeceasedReason: CreatePetRequest = {",
+      '  owner_id: 1, animal_species_id: 1, name: "ポチ", deceased_reason: "x",',
+      "};",
+      "export const updateVersion: UpdatePetRequest = { version: 2 };",
+      'export const updateDeceasedAt: UpdatePetRequest = { deceased_at: "2026-01-01T00:00:00Z" };',
+      'export const updateDeceasedReason: UpdatePetRequest = { deceased_reason: "y" };',
+      "",
+    ].join("\n");
+
+    const options: ts.CompilerOptions = {
+      ...parsed.options,
+      noEmit: true,
+      // Virtual fixture only — keep diagnostics local to assignability.
+      skipLibCheck: true,
+    };
+    const host = ts.createCompilerHost(options, true);
+    const resolvedFixture = path.resolve(fixturePath);
+    const originalGetSourceFile = host.getSourceFile.bind(host);
+    host.getSourceFile = (fileName, languageVersion, onError, shouldCreateNewSourceFile) => {
+      if (path.resolve(fileName) === resolvedFixture) {
+        return ts.createSourceFile(fixturePath, fixtureSource, languageVersion, true);
+      }
+      return originalGetSourceFile(fileName, languageVersion, onError, shouldCreateNewSourceFile);
+    };
+    const originalFileExists = host.fileExists.bind(host);
+    host.fileExists = (fileName) =>
+      path.resolve(fileName) === resolvedFixture || originalFileExists(fileName);
+    const originalReadFile = host.readFile.bind(host);
+    host.readFile = (fileName) =>
+      path.resolve(fileName) === resolvedFixture ? fixtureSource : originalReadFile(fileName);
+
+    const program = ts.createProgram({
+      rootNames: [fixturePath, PET_TYPES_PATH],
+      options,
+      host,
+    });
+    const diagnostics = ts
+      .getPreEmitDiagnostics(program)
+      .filter((d) => d.file && path.resolve(d.file.fileName) === resolvedFixture)
+      .filter((d) => d.category === ts.DiagnosticCategory.Error);
+    const messages = diagnostics.map((d) => ts.flattenDiagnosticMessageText(d.messageText, "\n"));
+    const joined = messages.join("\n");
+
+    expect(diagnostics.length, joined).toBeGreaterThan(0);
+    expect(joined).toMatch(/version/);
+    expect(joined).toMatch(/deceased_at/);
+    expect(joined).toMatch(/deceased_reason/);
+  });
+
+  it("作成 transform は必須3キーと name_kana・status を送り、死亡列は送らない", () => {
+    const request = transformCreatePetRequest({
+      ownerId: "42",
+      name: "ポチ",
+      animalSpeciesId: "1",
+      petNameKana: "ぽち",
+      status: "alive",
+    });
+    expect(request).toMatchObject({
+      owner_id: 42,
+      name: "ポチ",
+      animal_species_id: 1,
+      name_kana: "ぽち",
+      status: "alive",
+    });
+    expect(request).not.toHaveProperty("version");
+    expect(request).not.toHaveProperty("deceased_at");
+    expect(request).not.toHaveProperty("deceased_reason");
   });
 });
