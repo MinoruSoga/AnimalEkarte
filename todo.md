@@ -1,16 +1,17 @@
-# タスク台帳 — Linear が正本
+# タスク台帳 — 入口
 
-統合日: 2026-09-08。最終GitHub照合: 2026-09-11 / `origin/main` とローカル `main` はともに `f0e238f10`。`main` → `staging` PR #388 は OPEN / UNSTABLE（Backend check FAILURE を含む）。2026-09-11 の Linear 読み取り結果と検索限界は [linear-f1-f6-mapping.md](docs/work/linear-f1-f6-mapping.md) を正本とする。UAT・STG/PROD・go-live は再判定していない。
+統合日: 2026-09-08。最終GitHub照合: 2026-09-11。ローカル `main` は READY3 実装後の追従中（詳細は [todo-issue.md](todo-issue.md)）。`main` → `staging` PR #388 は OPEN / UNSTABLE（Backend check FAILURE を含む）。Linear 読み取り限界は [linear-f1-f6-mapping.md](docs/work/linear-f1-f6-mapping.md)。UAT・STG/PROD・go-live は再判定していない。
 
 | 項目 | 値 |
 |------|-----|
-| **実行 SoT** | Linear Team **Baritech** · Project **ノア動物病院電子カルテ** · hub **[BRT-4](https://linear.app/baritechllc/issue/BRT-4)** |
+| **新規 Issue SoT** | **[todo-issue.md](todo-issue.md)**（Linear は free issue limit のため **新規作成禁止**） |
+| **既存チケット更新** | Linear Team **Baritech** · Project **ノア動物病院電子カルテ** · hub **[BRT-4](https://linear.app/baritechllc/issue/BRT-4)**（コメント・状態のみ） |
 | **セキュリティ修正** | **[BRT-226](https://linear.app/baritechllc/issue/BRT-226)**（Review · `origin/main` 済み · Done は人間） |
-| **本ファイルの範囲** | repo と強く結び付く **開発タスク**、確認済み製品 FAIL、PO 入口、維持制約 |
+| **本ファイルの範囲** | repo と強く結び付く **開発タスク入口**、確認済み製品 FAIL、PO 入口、維持制約 |
 
-状態・Done は Linear を正本とする。行値・秘密は書かない。対応済み項目と完了証跡は本ファイルから除き、Git 履歴を参照する。
+新規実装単位の本文・Open/Done は [todo-issue.md](todo-issue.md)。行値・秘密は書かない。本ファイルの対応済み詳細は Git 履歴を参照する。
 
-入口: [開発タスク](#development-tasks) · [製品 FAIL](#product-bugs) · [PO / 人間レーン](#human-lane) · [FE 維持制約](#refactor-constraints)
+入口: [todo-issue.md](todo-issue.md) · [開発タスク](#development-tasks) · [製品 FAIL](#product-bugs) · [PO / 人間レーン](#human-lane) · [FE 維持制約](#refactor-constraints)
 
 横断・性能・認証の検証順は [todo-verification.md](todo-verification.md) を参照する。開発・検証・運用の実行先を混在させない。
 
@@ -26,24 +27,15 @@ claim は ID ごとに初回編集前に確認・取得する。作成者別の�
 
 ## 開発タスク
 
-**READY の新規開発単位は現時点でなし。** 2026-09-11 に READY とした3件は `origin/main` へ統合済み（下記）。旧10項目の扱いと根拠は [裁定記録](docs/work/development-task-decisions.md)。検証は [統合検証TODO](todo-verification.md)、運用は [todo-operations.md](todo-operations.md)。
+**READY の新規開発単位は現時点でなし。** Open / Done の Issue 本文は [todo-issue.md](todo-issue.md)。旧10項目の扱いと根拠は [裁定記録](docs/work/development-task-decisions.md)。検証は [統合検証TODO](todo-verification.md)、運用は [todo-operations.md](todo-operations.md)。
 
-### 実装済み（2026-09-11 / campaign `todo-ready3-20260911`）
-
-| ID | Commit | Linear |
-|---|---|---|
-| TASK-444 | [`bc38dc605`](https://github.com/MinoruSoga/AnimalEkarte/commit/bc38dc605c2cf5fa14a282b1b2f278d778d687fa) | 専用 Issue 未特定。完了証跡は [BRT-4](https://linear.app/baritechllc/issue/BRT-4) コメント（新規作成は free issue limit 超過） |
-| BE-RC-009 | [`944577184`](https://github.com/MinoruSoga/AnimalEkarte/commit/944577184e9ad7ac762950aabd7f409454adb3a7) | 同上 |
-| BE-RC-017 | [`c10a603ba`](https://github.com/MinoruSoga/AnimalEkarte/commit/c10a603bab620bf0e6a9ec91d4415a5d640c3429) | 同上 |
-
-詳細仕様の履歴は Git。addendum codegen（TASK-444 付帯）は deferred のまま。
 ---
 
 <a id="product-bugs"></a>
 
 ## 4. 確認済み製品 FAIL（旧 bug.md）
 
-記録対象は確認済み製品 FAIL のみ（[TEST_ARCHITECTURE.md](docs/ops/testing/TEST_ARCHITECTURE.md) §6）。環境・seed・権限・fixture 不足による BLOCKED / PARTIAL や受入未実施を混ぜない。証跡に credential・token・cookie・idToken・個人情報（PHI）を含めない。起票後は Linear で追跡し、見出し ID は本節内で重複させない。新規項目は `### BUG-XXX` で本節に追加する。
+記録対象は確認済み製品 FAIL のみ（[TEST_ARCHITECTURE.md](docs/ops/testing/TEST_ARCHITECTURE.md) §6）。環境・seed・権限・fixture 不足による BLOCKED / PARTIAL や受入未実施を混ぜない。証跡に credential・token・cookie・idToken・個人情報（PHI）を含めない。新規 FAIL の詳細は本節と [todo-issue.md](todo-issue.md) に記載する（Linear 新規 Issue は作らない）。既存 Linear チケットがある場合のみコメント更新する。見出し ID は本節内で重複させない。新規項目は `### BUG-XXX` で本節に追加する。
 
 | ID | status | area | severity | scenario | 層 |
 |:---|:---|:---|:---|:---|:---|
@@ -55,7 +47,7 @@ claim は ID ごとに初回編集前に確認・取得する。作成者別の�
 
 ## 5. PO / 人間レーン（旧 todo-po.md）
 
-実行 SoT は Linear hub [BRT-4](https://linear.app/baritechllc/issue/BRT-4) · Project ノア動物病院電子カルテ。人間ゲートの検証は統合検証TODOを正本とし、別の Open 行台帳を再構築しない。
+既存人間ゲートの追跡は Linear hub [BRT-4](https://linear.app/baritechllc/issue/BRT-4) · Project ノア動物病院電子カルテ（更新のみ）。新規の人間レーン項目が必要なら [todo-issue.md](todo-issue.md) に書く。検証は統合検証TODOを正本とし、別の Open 行台帳を再構築しない。
 
 会社側索引: CorpVault `50_Projects/ノア動物病院電子カルテ/05_Linearマップ.md`。旧詳細本文は Git 履歴。
 
@@ -76,7 +68,8 @@ claim は ID ごとに初回編集前に確認・取得する。作成者別の�
 
 | 文書 | 役割 |
 |------|------|
-| [docs/work/linear-f1-f6-mapping.md](docs/work/linear-f1-f6-mapping.md) | F1〜F6 対応案。Linear は UNKNOWN |
+| [todo-issue.md](todo-issue.md) | **新規 Issue 本文の正本**（Linear 新規作成禁止） |
+| [docs/work/linear-f1-f6-mapping.md](docs/work/linear-f1-f6-mapping.md) | F1〜F6 対応案。既存 Linear 照合 |
 | [todo-verification.md](todo-verification.md) | 横断・性能・認証の検証TODO |
 | [todo-operations.md](todo-operations.md) | STG・本番・納品などの運用・外部実行TODO |
 | [製品 FAIL](#product-bugs) | 確認済み製品 FAIL |
