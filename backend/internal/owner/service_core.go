@@ -118,15 +118,15 @@ func (s *ownerService) Update(ctx context.Context, clinicID, id uint64, input *U
 
 	// SEC-CS-F15: lock owner under write TX and recheck discount_rate against locked snapshot.
 	// Handler early check uses pre-TX GetByID; stale equality must not authorize overwrite.
-	owner, err := s.repo.UpdateAndFindApplying(ctx, clinicID, id, func(locked *model.Owner) (map[string]any, error) {
-		fields := buildOwnerUpdate(input)
-		if err := applyOwnerDiscountField(fields, locked, input); err != nil {
-			return nil, err
+	owner, err := s.repo.UpdateAndFindApplying(ctx, clinicID, id, func(locked *model.Owner) (UpdateCommand, error) {
+		cmd := updateCommandFromOwnerInput(input)
+		if err := applyOwnerDiscountField(&cmd, locked, input); err != nil {
+			return UpdateCommand{}, err
 		}
-		if len(fields) == 0 {
-			return nil, apperrors.WrapInvalidInput("at least one field must be provided")
+		if len(updateCommandFields(cmd)) == 0 {
+			return UpdateCommand{}, apperrors.WrapInvalidInput("at least one field must be provided")
 		}
-		return fields, nil
+		return cmd, nil
 	})
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to update owner")
@@ -139,13 +139,13 @@ func (s *ownerService) Update(ctx context.Context, clinicID, id uint64, input *U
 	return owner, nil
 }
 
-func applyOwnerDiscountField(fields map[string]any, locked *model.Owner, input *UpdateOwnerInput) error {
+func applyOwnerDiscountField(cmd *UpdateCommand, locked *model.Owner, input *UpdateOwnerInput) error {
 	if input.DiscountRate == nil {
 		return nil
 	}
 	if httpapi.FloatEquals(*input.DiscountRate, locked.DiscountRate) {
 		if !input.DiscountEditAllowed {
-			delete(fields, colDiscountRate)
+			cmd.DiscountRate = nil
 		}
 		return nil
 	}
@@ -188,10 +188,10 @@ func (s *ownerService) ensureOwnerPhoneUnique(ctx context.Context, clinicID, cur
 func (s *ownerService) updateOwnerAndFind(
 	ctx context.Context,
 	clinicID, id uint64,
-	fields map[string]any,
+	cmd UpdateCommand,
 	wrapMessage string,
 ) (*model.Owner, error) {
-	owner, err := s.repo.UpdateAndFind(ctx, clinicID, id, fields)
+	owner, err := s.repo.UpdateAndFind(ctx, clinicID, id, cmd)
 	if err != nil {
 		return nil, apperrors.Wrap(err, wrapMessage)
 	}

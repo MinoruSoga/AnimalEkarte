@@ -23,22 +23,24 @@ func (s *ownerService) UpdateDeliveryExclusion(ctx context.Context, clinicID, id
 		reason = normalized
 	}
 
-	var optOutAt any
+	var optOutAt *time.Time
 	if input.Excluded {
-		optOutAt = time.Now()
+		now := time.Now()
+		optOutAt = &now
 	}
-	fields := map[string]any{
-		colDeliveryExcluded:       input.Excluded,
-		colDeliveryExcludedReason: reason,
-		colLstepOptOut:            input.Excluded,
-		colLstepOptOutAt:          optOutAt,
-		colLstepOptOutReason:      reason,
+	cmd := UpdateCommand{
+		SetDeliveryExclusion:   true,
+		DeliveryExcluded:       input.Excluded,
+		DeliveryExcludedReason: reason,
+		LstepOptOut:            input.Excluded,
+		LstepOptOutAt:          optOutAt,
+		LstepOptOutReason:      reason,
 	}
 	updated, err := s.updateOwnerAndFind(
 		ctx,
 		clinicID,
 		id,
-		fields,
+		cmd,
 		"failed to update delivery exclusion",
 	)
 	if err != nil {
@@ -71,15 +73,16 @@ func (s *ownerService) UpdateDeliveryCaution(ctx context.Context, clinicID, id u
 		reason = normalized
 	}
 
-	fields := map[string]any{
-		colDeliveryCaution:       input.Caution,
-		colDeliveryCautionReason: reason,
+	cmd := UpdateCommand{
+		SetDeliveryCaution:    true,
+		DeliveryCaution:       input.Caution,
+		DeliveryCautionReason: reason,
 	}
 	updated, err := s.updateOwnerAndFind(
 		ctx,
 		clinicID,
 		id,
-		fields,
+		cmd,
 		"failed to update delivery caution",
 	)
 	if err != nil {
@@ -103,25 +106,28 @@ func (s *ownerService) UpdateTransferStatus(ctx context.Context, clinicID, id ui
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to find owner")
 	}
-	var transferAt any
+	var transferAt *time.Time
 	if input.IsTransferred {
 		now := time.Now()
-		transferAt = now
+		transferAt = &now
 	}
-	fields := map[string]any{
-		colIsTransferred: input.IsTransferred,
-		colTransferAt:    transferAt,
+	cmd := UpdateCommand{
+		SetTransfer:   true,
+		IsTransferred: input.IsTransferred,
+		TransferAt:    transferAt,
 	}
 	if input.IsTransferred {
-		fields[colMembershipType] = model.MembershipTypeTransferred
+		membership := model.MembershipTypeTransferred
+		cmd.MembershipType = &membership
 	} else if owner.MembershipType == model.MembershipTypeTransferred {
-		fields[colMembershipType] = model.MembershipTypeNonMember
+		membership := model.MembershipTypeNonMember
+		cmd.MembershipType = &membership
 	}
 	updated, err := s.updateOwnerAndFind(
 		ctx,
 		clinicID,
 		id,
-		fields,
+		cmd,
 		"failed to update transfer status",
 	)
 	if err != nil {

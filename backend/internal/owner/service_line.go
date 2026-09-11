@@ -75,15 +75,16 @@ func (s *ownerService) ConfirmLineID(ctx context.Context, clinicID, id uint64, a
 	}
 	now := time.Now()
 	// Q22 Guard 2: 確認者（actorUserID）を line_id_confirmed_by に記録する。
-	fields := map[string]any{
-		colLineIDConfirmedAt: now,
-		colLineIDConfirmedBy: actorUserID,
+	cmd := UpdateCommand{
+		SetLineIDConfirmation: true,
+		LineIDConfirmedAt:     now,
+		LineIDConfirmedBy:     actorUserID,
 	}
 	updated, err := s.updateOwnerAndFind(
 		ctx,
 		clinicID,
 		id,
-		fields,
+		cmd,
 		"failed to confirm line id",
 	)
 	if err != nil {

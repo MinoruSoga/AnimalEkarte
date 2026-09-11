@@ -77,10 +77,10 @@ func (m *mockOwnerRepository) Update(ctx context.Context, clinicID, id uint64, f
 func (m *mockOwnerRepository) UpdateAndFind(
 	ctx context.Context,
 	clinicID, id uint64,
-	fields map[string]any,
+	cmd UpdateCommand,
 ) (*model.Owner, error) {
-	return m.UpdateAndFindApplying(ctx, clinicID, id, func(_ *model.Owner) (map[string]any, error) {
-		return fields, nil
+	return m.UpdateAndFindApplying(ctx, clinicID, id, func(_ *model.Owner) (UpdateCommand, error) {
+		return cmd, nil
 	})
 }
 
@@ -100,10 +100,11 @@ func (m *mockOwnerRepository) UpdateAndFindApplying(
 	if err != nil {
 		return nil, err
 	}
-	fields, err := apply(locked)
+	cmd, err := apply(locked)
 	if err != nil {
 		return nil, err
 	}
+	fields := updateCommandFields(cmd)
 	if m.updateAndFindFn != nil {
 		return m.updateAndFindFn(ctx, clinicID, id, fields)
 	}
