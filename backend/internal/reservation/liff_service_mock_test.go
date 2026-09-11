@@ -585,7 +585,7 @@ func newLiffSvcWithDeps(
 	}
 }
 
-// mockLiffUnavailableTimeRepository は ReservationTypeUnavailableTimeRepository のテスト用スタブ
+// mockLiffUnavailableTimeRepository は reservationTypeUnavailableTimeReader のテスト用スタブ
 type mockLiffUnavailableTimeRepository struct {
 	findAllFn func(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeUnavailableTime, error)
 }
@@ -595,15 +595,6 @@ func (m *mockLiffUnavailableTimeRepository) FindAll(ctx context.Context, clinicI
 		return m.findAllFn(ctx, clinicID, reservationTypeID)
 	}
 	return []model.ReservationTypeUnavailableTime{}, nil
-}
-func (m *mockLiffUnavailableTimeRepository) FindByID(_ context.Context, _, _ uint64) (*model.ReservationTypeUnavailableTime, error) {
-	return nil, nil
-}
-func (m *mockLiffUnavailableTimeRepository) Create(_ context.Context, _ *model.ReservationTypeUnavailableTime) error {
-	return nil
-}
-func (m *mockLiffUnavailableTimeRepository) Delete(_ context.Context, _, _ uint64) error {
-	return nil
 }
 
 // liffDefaultSetting はテスト用デフォルト予約設定を返す。
