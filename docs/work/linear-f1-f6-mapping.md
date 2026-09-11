@@ -64,7 +64,7 @@ Linear 上の観測状態（Codex 2026-09-11）: BRT-226 は **Review**。F1〜F
 
 ## USER が Linear で行う手順
 
-見つからない Issue は UNKNOWN のまま。推測で新規 Issue を量産しない。Done は USER だけが遷移する。
+見つからない Issue は UNKNOWN のまま。推測で新規 Issue を量産しない（2026-09-11 以降は Linear free issue limit のため **新規作成禁止**。新規本文は [todo-issue.md](../../todo-issue.md)）。Done は USER だけが遷移する。既存チケットのコメント／状態更新のみ許可。
 
 1. 今回の検索で特定できなかった F1〜F6 は、既存 Issue URL または本文・コメントの追加照合で対応を確定する。直接対応が確認できるまで推測で ID を割り当てない。読み取りは agent が継続可能。
 2. 直接対応が確認できた Issue に限り、本ファイルと実装 SHA、固有の受入条件を照合して反映案を確定する。コメント・Done は USER の承認と受入判断後に行う。実装履歴だけでは閉じない。

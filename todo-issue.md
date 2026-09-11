@@ -1,6 +1,6 @@
 # 新規 Issue 台帳（repo 正本）
 
-作成日: 2026-09-11。  
+作成日: 2026-09-11。最終更新: 2026-09-11 / `origin/main` = `4b37700ff`。  
 理由: Linear workspace が **free issue limit** のため、**新規チケット作成は行わない**。  
 エージェント／人間とも、これから発生する実装単位は本ファイルへ記載する。
 
@@ -10,6 +10,8 @@
 | **既存チケット更新** | Linear のみ（コメント・状態変更）。新規 Issue 作成禁止 |
 | **案件ハブ（既存）** | [BRT-4](https://linear.app/baritechllc/issue/BRT-4) |
 | **入口との関係** | [todo.md](todo.md) は開発キュー・FAIL・人間レーンの入口。新規 Issue 本文は本ファイル |
+| **エージェント READY** | なし（READY3 は Done） |
+| **Open** | `TASK-444-ADDENDUM-CODEGEN`（deferred）のみ |
 
 行値・秘密・PHI は書かない。完了した項目は Open から外し、Done 節か Git 履歴へ移す。
 

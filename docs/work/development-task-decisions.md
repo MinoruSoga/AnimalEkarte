@@ -4,7 +4,19 @@
 
 依頼者: 曽我 稔。目的は、実装対象のない保守方針と前提未確定の仮説を開発キューから分け、次の担当者が対象・変更内容を判断し直さず着手できるようにすること。技術判断は今回の依頼に基づきCodexが行う。
 
-本書は判断の根拠を保存する資料であり、実行タスクの正本は [todo.md](../../todo.md#development-tasks)。測定・テスト・受入は [todo-verification.md](../../todo-verification.md)、環境操作は [todo-operations.md](../../todo-operations.md) を参照する。Linearへの読取は `TASK-444` / `BE-RC` / `PERF-STG-LOGIN` をTeam・Project指定で試みたが、`USER_NOT_LOGGED_IN` で失敗した。以下はローカルの技術判断であり、LinearのDone/Cancelled更新ではない。
+本書は判断の根拠を保存する資料である。実行タスクの入口は [todo.md](../../todo.md#development-tasks)、**新規 Issue 本文の正本は [todo-issue.md](../../todo-issue.md)**（Linear 新規作成はプラン上限で禁止）。測定・テスト・受入は [todo-verification.md](../../todo-verification.md)、環境操作は [todo-operations.md](../../todo-operations.md) を参照する。判断時点の Linear 読取は `USER_NOT_LOGGED_IN` で失敗していた。以下は当時のローカル技術判断であり、Linear の Done/Cancelled 更新ではない。
+
+## 実装結果（2026-09-11 追記）
+
+READY3 は `origin/main` に統合済み。専用 Linear Issue はプラン上限で作成できず、証跡は BRT-4 コメントと [todo-issue.md](../../todo-issue.md) Done 節。
+
+| ID | Commit | 状態 |
+|---|---|---|
+| TASK-444 | `bc38dc605` | Done（repo） |
+| BE-RC-009 | `944577184` | Done（repo） |
+| BE-RC-017 | `c10a603ba` | Done（repo） |
+
+addendum response 型移行（codegen 前提）は引き続き deferred（`TASK-444-ADDENDUM-CODEGEN`）。
 
 ## 性能3件
 

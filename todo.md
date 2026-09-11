@@ -1,6 +1,6 @@
 # タスク台帳 — 入口
 
-統合日: 2026-09-08。最終GitHub照合: 2026-09-11 / `origin/main` = `d9d14492b`（ローカル `main` 同期済み）。READY3（TASK-444 / BE-RC-009 / BE-RC-017）は `origin/main` 反映済み — 詳細は [todo-issue.md](todo-issue.md)。`main` → `staging` PR [#388](https://github.com/MinoruSoga/AnimalEkarte/pull/388) は OPEN・MERGEABLE。2026-09-11 再確認時点で FAILURE なし（Backend Test remaining など一部 in progress）。Linear は free issue limit のため **新規作成禁止**（既存更新のみ）。照合メモは [linear-f1-f6-mapping.md](docs/work/linear-f1-f6-mapping.md)。UAT・STG/PROD・go-live は再判定していない。
+統合日: 2026-09-08。最終GitHub照合: 2026-09-11 / `origin/main` = `4b37700ff`（ローカル `main` 同期済み）。READY3（TASK-444 / BE-RC-009 / BE-RC-017）は `origin/main` 反映済み — 詳細は [todo-issue.md](todo-issue.md)。`main` → `staging` PR [#388](https://github.com/MinoruSoga/AnimalEkarte/pull/388) は OPEN・MERGEABLE だが、再確認時点で **Backend Test (remaining)** / **Backend** が FAILURE（UNSTABLE）。Linear は free issue limit のため **新規作成禁止**（既存更新のみ）。照合メモは [linear-f1-f6-mapping.md](docs/work/linear-f1-f6-mapping.md)。UAT・STG/PROD・go-live は再判定していない。
 
 | 項目 | 値 |
 |------|-----|
@@ -9,6 +9,18 @@
 | **セキュリティ修正** | **[BRT-226](https://linear.app/baritechllc/issue/BRT-226)**（Review · `origin/main` 済み · Done は人間） |
 | **開発キュー** | READY なし（実装済みは todo-issue.md Done） |
 | **本ファイルの範囲** | repo と強く結び付く **開発タスク入口**、確認済み製品 FAIL、PO 入口、維持制約 |
+
+### 残タスク（2026-09-11 時点）
+
+| 区分 | 内容 | 管理先 |
+|------|------|--------|
+| エージェント READY | なし | — |
+| 確認済み製品 FAIL | なし | 本ファイル |
+| deferred | TASK-444-ADDENDUM-CODEGEN | [todo-issue.md](todo-issue.md) |
+| 人間 | BRT-226 Done | Linear（既存） |
+| 人間 | PO / 人間レーン | Linear BRT-4 |
+| 運用 | PR #388 CI 修復・マージ判断 | GitHub / [todo-operations.md](todo-operations.md) |
+| 別台帳 | 検証・性能・認証・運用の Open | todo-verification / todo-performance / todo-fix-auth / todo-operations |
 
 新規実装単位の本文・Open/Done は [todo-issue.md](todo-issue.md)。行値・秘密は書かない。本ファイルの対応済み詳細は Git 履歴を参照する。
 
