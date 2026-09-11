@@ -130,6 +130,10 @@ type realDBTrimmingFixture struct {
 func setupRealDBTrimmingIsolationTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := testdb.SetupTestDB(t)
+	// Warm shared DBs may keep orphan option rows that block AutoMigrate FK add.
+	if db.Migrator().HasTable("appointment_trimming_options") {
+		testdb.Truncate(t, db, "appointment_trimming_options")
+	}
 	require.NoError(t, testdb.EnsureAutoMigrated(db,
 		&model.Company{},
 		&model.Clinic{},

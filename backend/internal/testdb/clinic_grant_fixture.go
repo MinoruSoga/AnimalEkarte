@@ -44,6 +44,13 @@ func SeedDualClinicGrantFixture(t *testing.T, db *gorm.DB, namePrefix string) Cl
 	clinicBName := namePrefix + " clinic B"
 	staffName := namePrefix + " dual-member non-admin"
 
+	// clinics/companies/staffs are shared across realDB suites and are often not
+	// truncated. Explicit-ID inserts elsewhere can leave serial sequences behind
+	// MAX(id), so Create() would collide on pkey (CI remaining shard failure).
+	syncSerialSequence(t, db, "companies")
+	syncSerialSequence(t, db, "clinics")
+	syncSerialSequence(t, db, "staffs")
+
 	company := &model.Company{Name: namePrefix + " 法人"}
 	require.NoError(t, db.WithContext(ctx).Create(company).Error)
 
@@ -163,4 +170,20 @@ func AssertBodyOmitsClinicArtifacts(
 			}
 		}
 	}
+}
+
+// syncSerialSequence aligns table_id_seq with MAX(id) so the next Create()
+// cannot reuse an occupied primary key after explicit-ID inserts.
+func syncSerialSequence(t *testing.T, db *gorm.DB, table string) {
+	t.Helper()
+	switch table {
+	case "companies", "clinics", "staffs":
+	default:
+		t.Fatalf("syncSerialSequence: unsupported table %q", table)
+	}
+	sql := fmt.Sprintf(
+		`SELECT setval(pg_get_serial_sequence('%s', 'id'), COALESCE((SELECT MAX(id) FROM %s) + 1, 1), false)`,
+		table, table,
+	)
+	require.NoError(t, db.Exec(sql).Error)
 }
