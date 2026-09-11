@@ -44,6 +44,9 @@ func (h *Handler) GetLstepTriggerPriorities(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceHospitalSettings), "view") {
+		return
+	}
 	items, err := h.triggerPriority.GetByClinicID(c.Request.Context(), clinicID)
 	if err != nil {
 		httpapi.RespondError(c, err)

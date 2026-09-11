@@ -126,7 +126,15 @@ def build_table_index() -> dict[str, Path]:
             )
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         for entry in manifest["tables"]:
-            index[entry["table"]] = SEEDS_ROOT / bundle / entry["csvFile"]
+            root = SEEDS_ROOT / bundle
+            name = entry["csvFile"]
+            if (root / "accounts").exists() and name in {
+                "accounts.csv", "staffs.csv", "occupations.csv", "permission_groups.csv",
+                "permission_group_rules.csv", "staff_permission_groups.csv",
+                "staff_clinic_assignments.csv",
+            }:
+                root = root / "accounts"
+            index[entry["table"]] = root / name
     return index
 
 

@@ -1,0 +1,79 @@
+{
+  "version": 1,
+  "roles": [
+    {
+      "name": "build-error-resolver",
+      "source": "build-error-resolver.md"
+    },
+    {
+      "name": "clinic-isolation-auditor",
+      "source": "clinic-isolation-auditor.md",
+      "sandbox_mode": "read-only"
+    },
+    {
+      "name": "code-simplifier",
+      "source": "code-simplifier.md"
+    },
+    {
+      "name": "database-reviewer",
+      "source": "database-reviewer.md",
+      "sandbox_mode": "read-only"
+    },
+    {
+      "name": "go-build-resolver",
+      "source": "go-build-resolver.md"
+    },
+    {
+      "name": "go-reviewer",
+      "source": "go-reviewer.md",
+      "sandbox_mode": "read-only"
+    },
+    {
+      "name": "healthcare-reviewer",
+      "source": "healthcare-reviewer.md",
+      "sandbox_mode": "read-only"
+    },
+    {
+      "name": "animalekarte-implementer",
+      "source": "implementer.md"
+    },
+    {
+      "name": "animalekarte-planner",
+      "source": "planner.md",
+      "sandbox_mode": "read-only"
+    },
+    {
+      "name": "react-reviewer",
+      "source": "react-reviewer.md",
+      "sandbox_mode": "read-only"
+    },
+    {
+      "name": "refactor-cleaner",
+      "source": "refactor-cleaner.md"
+    },
+    {
+      "name": "security-analyst",
+      "source": "security-analyst.md",
+      "sandbox_mode": "read-only"
+    },
+    {
+      "name": "silent-failure-hunter",
+      "source": "silent-failure-hunter.md",
+      "sandbox_mode": "read-only"
+    },
+    {
+      "name": "tdd-guide",
+      "source": "tdd-guide.md"
+    },
+    {
+      "name": "animalekarte-test-strategist",
+      "source": "test-strategist.md",
+      "sandbox_mode": "read-only"
+    },
+    {
+      "name": "typescript-reviewer",
+      "source": "typescript-reviewer.md",
+      "sandbox_mode": "read-only"
+    }
+  ]
+}

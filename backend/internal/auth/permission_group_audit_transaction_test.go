@@ -1,8 +1,11 @@
 package auth
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"log/slog"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -55,12 +58,13 @@ func (l *permissionAuditTxLogger) LogEntryTx(
 
 func permissionAuditInput(action, resource string) PermissionMutationAudit {
 	return PermissionMutationAudit{
-		ClinicID:     23,
-		ActorStaffID: 17,
-		Action:       action,
-		Resource:     resource,
-		IPAddress:    "127.0.0.1",
-		UserAgent:    "permission-audit-test",
+		ClinicID:           23,
+		ActorStaffID:       17,
+		ActorIsSystemAdmin: true,
+		Action:             action,
+		Resource:           resource,
+		IPAddress:          "127.0.0.1",
+		UserAgent:          "permission-audit-test",
 	}
 }
 
@@ -68,6 +72,7 @@ func TestPermissionGroupAuditedMutations_RollBackWhenAuditFails(t *testing.T) {
 	auditFailure := errors.New("audit write failed")
 	tests := []struct {
 		name         string
+		successLog   string
 		wantAction   string
 		wantResource string
 		wantOld      any
@@ -76,6 +81,7 @@ func TestPermissionGroupAuditedMutations_RollBackWhenAuditFails(t *testing.T) {
 	}{
 		{
 			name:         "create",
+			successLog:   "permission group created",
 			wantAction:   model.AuditActionPermissionGroupCreate,
 			wantResource: "permission_group",
 			wantNew: map[string]any{
@@ -101,6 +107,7 @@ func TestPermissionGroupAuditedMutations_RollBackWhenAuditFails(t *testing.T) {
 		},
 		{
 			name:         "update",
+			successLog:   "permission group updated",
 			wantAction:   model.AuditActionPermissionGroupUpdate,
 			wantResource: "permission_group",
 			wantOld: map[string]any{
@@ -148,6 +155,7 @@ func TestPermissionGroupAuditedMutations_RollBackWhenAuditFails(t *testing.T) {
 		},
 		{
 			name:         "delete",
+			successLog:   "permission group deleted",
 			wantAction:   model.AuditActionPermissionGroupDelete,
 			wantResource: "permission_group",
 			wantOld: map[string]any{
@@ -178,6 +186,7 @@ func TestPermissionGroupAuditedMutations_RollBackWhenAuditFails(t *testing.T) {
 		},
 		{
 			name:         "rules",
+			successLog:   "permission group rules set",
 			wantAction:   model.AuditActionPermissionRulesUpdate,
 			wantResource: "permission_group_rules",
 			wantOld: map[string]any{"rules": []map[string]any{{
@@ -216,6 +225,11 @@ func TestPermissionGroupAuditedMutations_RollBackWhenAuditFails(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			var logs bytes.Buffer
+			originalLogger := slog.Default()
+			slog.SetDefault(slog.New(slog.NewTextHandler(&logs, nil)))
+			t.Cleanup(func() { slog.SetDefault(originalLogger) })
+
 			mutationAttempted := false
 			lockSeen := false
 			repo := &mockPermissionGroupRepository{
@@ -351,6 +365,11 @@ func TestPermissionGroupAuditedMutations_RollBackWhenAuditFails(t *testing.T) {
 			assert.Equal(t, test.wantOld, audit.entries[0].OldValue)
 			assert.Equal(t, test.wantNew, audit.entries[0].NewValue)
 			assert.Equal(t, []bool{true}, audit.txSeen)
+			assert.False(
+				t,
+				strings.Contains(logs.String(), test.successLog),
+				"rolled-back mutation must not emit a success log",
+			)
 		})
 	}
 }

@@ -8,12 +8,16 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // ListInventory godoc
 func (h *Handler) ListInventory(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceInventory), "view") {
 		return
 	}
 
@@ -37,6 +41,9 @@ func (h *Handler) ListInventory(c *gin.Context) {
 func (h *Handler) GetInventory(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceInventory), "view") {
 		return
 	}
 

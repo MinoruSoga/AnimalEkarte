@@ -128,6 +128,7 @@ const (
 	// #255 staff batch provisioning（PII 非搭載: batch_id / digest / count / external_staff_id のみ）
 	AuditActionStaffProvisionCreate  = "staff.provision.create"
 	AuditActionStaffProvisionReceipt = "staff.provision.receipt"
+	AuditActionStaffAccountAttach    = "staff.account.attach"
 )
 
 // audit_logs.resource 定数

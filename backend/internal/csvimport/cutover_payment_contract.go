@@ -33,9 +33,10 @@ type cutoverPaymentParent struct {
 }
 
 type cutoverBillingFact struct {
-	totalAmount int64
-	status      string
-	completedAt [sha256.Size]byte
+	totalAmount         int64
+	status              string
+	completedAt         [sha256.Size]byte
+	completionTimestamp string
 }
 
 func validateCutoverPaymentGraph(sourceDir string, manifest *CutoverManifest, provenance CutoverProvenanceContract) error {
@@ -74,7 +75,10 @@ func validateCutoverPaymentGraph(sourceDir string, manifest *CutoverManifest, pr
 	if err := accumulateCutoverPaymentSplits(sourceDir, splitsSpec, splitsTable, parents); err != nil {
 		return err
 	}
-	return reconcileCutoverPaymentGraph(billings, parents)
+	if err := verifyWindowZeroCSVSet(manifest, provenance, billings, parents); err != nil {
+		return err
+	}
+	return reconcileCutoverPaymentGraph(billings, parents, manifest.WindowZeroSettlementEvidence != nil)
 }
 
 func cutoverPaymentContractPart(manifest *CutoverManifest, tableName string) (CutoverTableSpec, CutoverManifestTable, error) {

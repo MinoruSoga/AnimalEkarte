@@ -17,9 +17,9 @@ import (
 	"github.com/animal-ekarte/backend/internal/textsearch"
 )
 
-// OwnerUpdateApplier builds the update field map from the FOR UPDATE locked row.
+// OwnerUpdateApplier builds the typed update command from the FOR UPDATE locked row.
 // Returning an error aborts the transaction without writing.
-type OwnerUpdateApplier func(locked *model.Owner) (map[string]any, error)
+type OwnerUpdateApplier func(locked *model.Owner) (UpdateCommand, error)
 
 // ServiceRepository is the minimal owner persistence view consumed by the
 // owner use case.
@@ -33,8 +33,8 @@ type ServiceRepository interface {
 	CreateWithPets(ctx context.Context, owner *model.Owner, pets []model.Pet) error
 	// UpdateAndFind updates and reloads an owner in one transaction. A reload
 	// failure rolls the write back.
-	UpdateAndFind(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Owner, error)
-	// UpdateAndFindApplying locks the owner FOR UPDATE, lets apply build fields from
+	UpdateAndFind(ctx context.Context, clinicID, id uint64, cmd UpdateCommand) (*model.Owner, error)
+	// UpdateAndFindApplying locks the owner FOR UPDATE, lets apply build a command from
 	// the locked snapshot, then updates and reloads (SEC-CS-F15 discount recheck).
 	UpdateAndFindApplying(ctx context.Context, clinicID, id uint64, apply OwnerUpdateApplier) (*model.Owner, error)
 	// LockByIDForUpdate locks a full clinic-scoped owner row. Fail-closed without ambient tx.
@@ -306,10 +306,10 @@ func ownerRegistrationPetDrafts(pets []model.Pet) []PetRegistrationDraft {
 func (r *ownerRepository) UpdateAndFind(
 	ctx context.Context,
 	clinicID, id uint64,
-	fields map[string]any,
+	cmd UpdateCommand,
 ) (*model.Owner, error) {
-	return r.UpdateAndFindApplying(ctx, clinicID, id, func(_ *model.Owner) (map[string]any, error) {
-		return fields, nil
+	return r.UpdateAndFindApplying(ctx, clinicID, id, func(_ *model.Owner) (UpdateCommand, error) {
+		return cmd, nil
 	})
 }
 
@@ -345,10 +345,11 @@ func (r *ownerRepository) UpdateAndFindApplying(
 		if err != nil {
 			return err
 		}
-		fields, err := apply(locked)
+		cmd, err := apply(locked)
 		if err != nil {
 			return err
 		}
+		fields := updateCommandFields(cmd)
 		if len(fields) == 0 {
 			return apperrors.WrapInvalidInput("at least one field must be provided")
 		}

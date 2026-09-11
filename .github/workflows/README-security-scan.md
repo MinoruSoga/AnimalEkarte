@@ -21,8 +21,9 @@ update the workflow intentionally.
   - AgentShield **always runs** (report visible on the check).
   - **Fails the job only when**:
     1. PR targets `main`, **and** agent-config paths changed
-       (`.claude/**`, `.codex/**`, `.agents/**`, `**/CLAUDE.md`,
-       `**/AGENTS.md`, `**/.mcp.json`), **or**
+       (`.claude/**`, `.codex/**`, `.agents/**`, root `CLAUDE.md`,
+       `**/AGENTS.md`, `**/.mcp.json`). Nested `docs/**/CLAUDE.md` is
+       directory guidance, not the fail-gated agent-config surface, **or**
     2. `workflow_dispatch` with `force_fail_on_findings=true`
   - Push events and PRs that do **not** touch agent-config paths are **report-only**
     (same baseline debt must not block docs/backend/frontend PRs).

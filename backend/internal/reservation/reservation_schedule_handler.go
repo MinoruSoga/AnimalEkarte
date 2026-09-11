@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/animal-ekarte/backend/internal/httpapi"
+	"github.com/animal-ekarte/backend/internal/model"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 )
@@ -24,7 +25,7 @@ func NewReservationScheduleHandler(svc ReservationScheduleService) *ReservationS
 
 // ListReservationSchedules godoc
 func (h *ReservationScheduleHandler) ListReservationSchedules(c *gin.Context) {
-	clinicID, ok := httpapi.ExtractClinicID(c)
+	clinicID, ok := extractSelectedClinicGrant(c, string(model.ResourceMasterStaff))
 	if !ok {
 		return
 	}

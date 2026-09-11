@@ -22,6 +22,8 @@ tmp/
 
 # Temporary migration/seed files
 # backend/migrations/*_seed_staging.sql
+backend/migrations/seeds/_old_db_handoff/
+backend/migrations/seeds/002_master/accounts/_old_db_handoff/
 
 # Frontend test and debug artifacts
 frontend/coverage/
@@ -139,8 +141,15 @@ improvement.html
 improvement_ai.html
 # Codex security CLI のローカル出力（再生成は `pnpm run codex-security:export`）
 codex-security-output/
+codex-security-results/
 # Added by code-review-graph
 .code-review-graph/
 
 # Pre-push test cache (SHA of last green push-gate)
 .test-passed
+
+# Machine-local cached verification images and dependency volumes
+/.claude/verification.local.json
+
+# agent-fast-campaign local ledgers (default: do not commit)
+.planning/agent-fast-campaign/

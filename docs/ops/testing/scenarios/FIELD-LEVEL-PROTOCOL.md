@@ -66,7 +66,7 @@
 | status | 意味 |
 |:--|:--|
 | PASS | 期待どおり |
-| FAIL | 確認済み製品不具合 → リポジトリ直下 `bug.md`（環境・権限・fixture 不足は除外） |
+| FAIL | 確認済み製品不具合 → リポジトリ直下 `todo.md#product-bugs`（環境・権限・fixture 不足は除外） |
 | PARTIAL | 観測不十分 |
 | BLOCKED | 環境・権限・fixture 不足 |
 | N/A | 適用外（理由必須） |
@@ -99,5 +99,5 @@ FIELD-LEVEL-PROTOCOL.md … 各項目への F0〜F6（本ファイル）
 1. inventory 上の対象フォームがすべて実施対象に含まれている
 2. 各フォームの**全項目**について、適用 F が PASS または理由付き N/A
 3. 当該フォームの C1〜C3（V 文書）が PASS または真に適用外の理由付き N/A。BLOCKED が1件でもあればフォーム/スコープは未完了
-4. FAIL は リポジトリ直下 `bug.md` に、確認済み製品不具合として起票済み（環境・権限・fixture 不足は起票しない）
+4. FAIL は リポジトリ直下 `todo.md#product-bugs` に、確認済み製品不具合として起票済み（環境・権限・fixture 不足は起票しない）
 5. シナリオ md は未編集

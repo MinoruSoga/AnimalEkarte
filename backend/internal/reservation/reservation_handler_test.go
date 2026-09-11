@@ -359,6 +359,15 @@ func TestGetReservationAvailableTimes(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
+			name:  "returns 403 when selected clinic grant is missing",
+			query: "reservation_type_id=5&date=2026-06-01",
+			setupCtx: func(c *gin.Context) {
+				c.Set("clinic_id", "1")
+			},
+			svc:        &mockLiffService{},
+			wantStatus: http.StatusForbidden,
+		},
+		{
 			name:       "returns 501 when availability service is not configured",
 			query:      "reservation_type_id=5&date=2026-06-01",
 			setupCtx:   func(c *gin.Context) { setClinicID(c) },

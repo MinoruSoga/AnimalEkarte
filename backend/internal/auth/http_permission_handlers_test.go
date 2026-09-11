@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -224,6 +225,9 @@ func setPermissionHTTPIdentity(c *gin.Context) {
 	c.Set("clinic_id", "23")
 	c.Set("user_id", "17")
 	c.Set("is_system_admin", false)
+	httpapi.SetClinicPermissionChecker(c, func(_ *gin.Context, clinicID uint64, _, _ string) bool {
+		return clinicID == 23
+	})
 }
 
 func setPermissionHTTPID(c *gin.Context, id string) {
@@ -560,6 +564,120 @@ func TestHTTPHandler_ListAndGetPermissionGroups(t *testing.T) {
 	)
 	errorHandler.GetPermissionGroup(getError)
 	assert.Equal(t, http.StatusNotFound, getErrorResponse.Code)
+}
+
+func TestHTTPHandler_ListPermissionGroups_RejectsSelectedClinicWithoutGrant(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	handler := permissionHTTPHandler(&permissionHTTPService{
+		listFn: func(context.Context, uint64) ([]model.PermissionGroup, error) {
+			t.Fatal("list must not run without selected-clinic view")
+			return nil, nil
+		},
+	}, nil, nil)
+	listContext, listResponse := permissionHTTPContext(
+		t,
+		http.MethodGet,
+		"/permission-groups",
+		nil,
+		func(c *gin.Context) {
+			c.Set("clinic_id", "23")
+			c.Set("user_id", "17")
+			c.Set("is_system_admin", false)
+			httpapi.SetClinicPermissionChecker(c, func(_ *gin.Context, clinicID uint64, _, _ string) bool {
+				return clinicID == 99
+			})
+		},
+	)
+	handler.ListPermissionGroups(listContext)
+	assert.Equal(t, http.StatusForbidden, listResponse.Code)
+}
+
+func TestHTTPHandler_GetPermissionGroup_MembershipABGrantASelectedB(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	handler := permissionHTTPHandler(&permissionHTTPService{
+		getFn: func(context.Context, uint64, uint64) (*model.PermissionGroup, error) {
+			t.Fatal("must not read a permission group for selected clinic B")
+			return nil, nil
+		},
+	}, nil, nil)
+	getContext, getResponse := permissionHTTPContext(
+		t,
+		http.MethodGet,
+		"/permission-groups/8",
+		nil,
+		func(c *gin.Context) {
+			c.Set("clinic_id", "2")
+			c.Set("clinic_ids", []uint64{1, 2})
+			c.Set("user_id", "17")
+			c.Set("is_system_admin", false)
+			c.Params = gin.Params{{Key: "id", Value: "8"}}
+			httpapi.SetClinicPermissionChecker(c, func(_ *gin.Context, clinicID uint64, resource, action string) bool {
+				return clinicID == 1 && resource == string(model.ResourceMasterPermission) && action == "view"
+			})
+		},
+	)
+	handler.GetPermissionGroup(getContext)
+	assert.Equal(t, http.StatusForbidden, getResponse.Code)
+}
+
+func TestHTTPHandler_ListPermissionGroups_MembershipABGrantBSelectedB(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	handler := permissionHTTPHandler(&permissionHTTPService{
+		listFn: func(_ context.Context, clinicID uint64) ([]model.PermissionGroup, error) {
+			assert.Equal(t, uint64(2), clinicID)
+			return []model.PermissionGroup{{ID: 8, ClinicID: clinicID, Name: "医院B管理"}}, nil
+		},
+	}, nil, nil)
+	listContext, listResponse := permissionHTTPContext(
+		t,
+		http.MethodGet,
+		"/permission-groups",
+		nil,
+		func(c *gin.Context) {
+			c.Set("clinic_id", "2")
+			c.Set("clinic_ids", []uint64{1, 2})
+			c.Set("user_id", "17")
+			c.Set("is_system_admin", false)
+			httpapi.SetClinicPermissionChecker(c, func(_ *gin.Context, clinicID uint64, resource, action string) bool {
+				return clinicID == 2 && resource == string(model.ResourceMasterPermission) && action == "view"
+			})
+		},
+	)
+	handler.ListPermissionGroups(listContext)
+	assert.Equal(t, http.StatusOK, listResponse.Code)
+	assert.Contains(t, listResponse.Body.String(), `"name":"医院B管理"`)
+	assert.NotContains(t, listResponse.Body.String(), `"clinic_id":1`)
+}
+
+func TestHTTPHandler_GetPermissionGroup_MembershipABGrantBSelectedB(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	handler := permissionHTTPHandler(&permissionHTTPService{
+		getFn: func(_ context.Context, clinicID, id uint64) (*model.PermissionGroup, error) {
+			assert.Equal(t, uint64(2), clinicID)
+			assert.Equal(t, uint64(8), id)
+			return &model.PermissionGroup{ID: id, ClinicID: clinicID, Name: "医院B管理"}, nil
+		},
+	}, nil, nil)
+	getContext, getResponse := permissionHTTPContext(
+		t,
+		http.MethodGet,
+		"/permission-groups/8",
+		nil,
+		func(c *gin.Context) {
+			c.Set("clinic_id", "2")
+			c.Set("clinic_ids", []uint64{1, 2})
+			c.Set("user_id", "17")
+			c.Set("is_system_admin", false)
+			c.Params = gin.Params{{Key: "id", Value: "8"}}
+			httpapi.SetClinicPermissionChecker(c, func(_ *gin.Context, clinicID uint64, resource, action string) bool {
+				return clinicID == 2 && resource == string(model.ResourceMasterPermission) && action == "view"
+			})
+		},
+	)
+	handler.GetPermissionGroup(getContext)
+	assert.Equal(t, http.StatusOK, getResponse.Code)
+	assert.Contains(t, getResponse.Body.String(), `"name":"医院B管理"`)
+	assert.NotContains(t, getResponse.Body.String(), `"clinic_id":1`)
 }
 
 func TestHTTPHandler_CreateAndUpdatePermissionGroup(t *testing.T) {

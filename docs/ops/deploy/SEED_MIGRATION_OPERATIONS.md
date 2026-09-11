@@ -13,7 +13,24 @@
 - `002_master/manifest.json` がtable inventoryとload orderのSSOT。現在は12 tableだが、runbookはmanifestから導出する。
 - COPY後のsequence advanceも`cmd/migrate`の同じpathに任せる。
 
+### アカウント関連CSVの配置
+
+- 権限グループ・権限ルールは `002_master/accounts/` に置く。
+- 旧DBのスタッフも `002_master/accounts/_old_db_handoff/<医院コード>/staffs.csv` に集約し、Git管理外・Docker image対象外・所有者限定の権限を維持する。臨床CSVとmanifestは従来の `_old_db_handoff/<医院コード>/` に残す。
+- manifestは従来の論理ファイル名（例: `staffs.csv`）を保持する。readerが物理配置を解決するため、移動だけではmanifest・CSVの内容、bundle checksum、handoffのmanifest SHAは変わらない。
+- スタッフの別置きディレクトリは実ディレクトリ・所有者限定で、中身は `staffs.csv` のみ。臨床CSV側との二重配置やシンボリックリンクは拒否する。旧来の自己完結した直下配置も入力として読み込める。
+- リポジトリ内のhandoffはGo readerとMakeが中央の医院別ディレクトリを解決する。別の配置を使う場合は `CSV_IMPORT_ACCOUNT_SOURCE_DIR`（Make）または `--account-source-dir`（CLI）で明示する。Composeは対象を `/migration-accounts:ro` にmountする。通常のmaster manifestにはスタッフを追加せず、cutoverとしての検証・取り込みを維持する。
+- `cmd/seed-export` と `stage-old-db-handoff.sh` は新しい配置を出力する。職種・ログイン情報の専用CSVは現時点では存在せず、ログイン生成は引き続き `internal/seedlogin` が担当する。
+
 空のmigration historyに既存`clinics` tableがある場合はfail-closedする。checksumを手でbaselineしない。異なる内容の統合前`001_init.sql`が記録済みの場合も、reviewed recovery/rebuild planが必要になる。
+
+### デモログインの本人・所属契約
+
+- デモは10人・10スタッフ・10アカウントで、主所属は八王子、所属医院は全4院。医院ごとに同じ人のアカウントを作らない。執行1人・一般9人を維持し、それぞれの医院の権限グループを割り当てる。
+- 職種は表示だけでなく主所属医院の `occupations` と `staffs.occupation_id` に保存する。必要なデモ職種を用意し、再適用時も欠落を補完する。別医院の職種を参照しない。
+- 旧デモの医院別複製は既知の合成ID・emailの一致を確認して無効化する。旧DB由来の履歴スタッフは氏名だけで統合・削除せず、ログイン対象と区別する。
+- LoginFormのデモ行を選ぶとemailと共通デモパスワードが入力される。ログイン後は所属医院を切り替える。productionではデモを有効にしない。
+- コード変更だけでは既存DBは更新されない。隔離DBへのfresh apply・再適用・ログイン・医院切替の実検証は、対象を明示した承認後に行う。既存DBのresetは不要な前提を置かず、checksumエラー時は停止する。
 
 ### pull後の開発環境更新
 

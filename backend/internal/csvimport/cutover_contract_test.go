@@ -769,12 +769,12 @@ func TestPreflightCutoverBundleRejectsPaymentContractViolations(t *testing.T) {
 			wantErr: "clinic placeholder",
 		},
 		{
-			name: "payment billing amount is zero",
+			name: "payment split amount is zero",
 			mutate: func(f *fixtureBundle) {
 				f.rows["payments"][0][columnIndex(CutoverTableSpecs()[13].Columns, "billing_amount")] = "0"
 				f.rows["payment_splits"][0][columnIndex(CutoverTableSpecs()[14].Columns, "amount")] = "0"
 			},
-			wantErr: "violate the cutover contract",
+			wantErr: "amount must not be zero",
 		},
 		{
 			name: "payment total amount disagrees with billing",
@@ -1076,6 +1076,7 @@ func writeCutoverFixture(t *testing.T, mutate func(*fixtureBundle)) (string, str
 				SourceBackupSizeBytes: int64Pointer(7_475_357_184),
 				BaseArchiveSHA256:     stringPointer(strings.Repeat("b", 64)),
 				KNJOArchiveSHA256:     stringPointer(strings.Repeat("c", 64)),
+				KnjoProvenanceRoute:   stringPointer("reacquire"),
 				Verified:              true,
 			},
 			StageBuildID:           "3ed169df-441b-4515-b128-3b182e53f84a",
@@ -1147,6 +1148,11 @@ func writeCutoverFixture(t *testing.T, mutate func(*fixtureBundle)) (string, str
 		for _, column := range spec.BandColumns {
 			idx := columnIndex(spec.Columns, column)
 			if idx < 0 || row[idx] != "" || column == "clinic_id" {
+				continue
+			}
+			// These master tables are not part of the 21-table import. A valid
+			// fixture cannot invent their parents; producer leaves them empty.
+			if spec.Name == "estimate_items" && (column == "consultation_id" || column == "medicine_id") {
 				continue
 			}
 			if column == "owner_id" {

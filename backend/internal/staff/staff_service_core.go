@@ -308,14 +308,9 @@ func authorizeGlobalStaffUpdate(
 	for clinicID := range assignedClinics {
 		if _, ok := authorized[clinicID]; !ok {
 			return apperrors.WrapForbidden(
-				"staff update requires access to every assigned clinic",
+				"所属するすべての医院でスタッフ編集権限が必要です",
 			)
 		}
-	}
-	if len(assignedClinics) > 1 {
-		return apperrors.WrapForbidden(
-			"multi-clinic staff updates require a system administrator",
-		)
 	}
 	return nil
 }

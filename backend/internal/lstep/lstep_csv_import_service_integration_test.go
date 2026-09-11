@@ -316,6 +316,9 @@ func setupLstepCsvImportServiceTestDB(t *testing.T) *gorm.DB {
 
 func getLstepCsvImportTestDatabaseConnection(t *testing.T) *gorm.DB {
 	t.Helper()
+	if testing.Short() {
+		t.Skip("database tests are skipped in -short / offline verification")
+	}
 
 	dbHost := envOrDefault("DB_HOST", "db")
 	dbPort := envOrDefault("DB_PORT", "5432")

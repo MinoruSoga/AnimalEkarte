@@ -17,6 +17,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/auth"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/testdb"
@@ -287,7 +288,7 @@ func TestHandlerUpdateStaffPasswordReplacementPermission(t *testing.T) {
 			wantPasswordInput: true,
 		},
 		{
-			name:             "allows profile update without password and checker",
+			name:             "allows profile update without password and master-permission checker",
 			body:             `{"name":"更新後スタッフ"}`,
 			useLegacyHandler: true,
 			wantStatus:       http.StatusOK,
@@ -344,6 +345,11 @@ func TestHandlerUpdateStaffPasswordReplacementPermission(t *testing.T) {
 			c.Set("clinic_ids", []uint64{23})
 			c.Set("is_system_admin", false)
 			c.Set("user_id", "17")
+			httpapi.SetClinicPermissionChecker(c, func(_ *gin.Context, clinicID uint64, resource, action string) bool {
+				return clinicID == 23 &&
+					resource == string(model.ResourceMasterStaff) &&
+					action == "edit"
+			})
 			handler.UpdateStaff(c)
 
 			assert.Equal(t, tt.wantStatus, response.Code, response.Body.String())

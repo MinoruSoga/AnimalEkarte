@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/testdb"
@@ -35,6 +36,9 @@ func ensureAutoMigrated(db *gorm.DB, models ...any) error {
 
 func setClinicID(c *gin.Context) {
 	c.Set("clinic_id", "1")
+	httpapi.SetClinicPermissionChecker(c, func(_ *gin.Context, _ uint64, _, _ string) bool {
+		return true
+	})
 }
 
 func strPtr(value string) *string {

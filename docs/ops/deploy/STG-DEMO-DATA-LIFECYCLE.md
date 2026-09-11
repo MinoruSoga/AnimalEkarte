@@ -14,7 +14,7 @@
 | Smoke data | [CRUD-SMOKE-TEST.md](./CRUD-SMOKE-TEST.md) | 同じrunでcleanup |
 | Investigation data | approved task/run sheet | ownerと期限を固定し、終了時cleanup |
 
-`002_master` は医院骨格と参照masterを提供する。現在のclinic CSVにはID 1–4があり、clinic-scoped permission groupsが含まれる。ID 1やgroup名を「system adminとして削除不可」と扱わない。CSV に privileged demo accountは載せない。`002_master` に `accounts.csv` は置かない。STG/local の画面デモログインはフェーズ3が合成アカウントを upsert する（医院ごとに一般9。執行の林 文明は1人（catalog 4医院所属））。実オペレータのシステム管理者は `SEEDLOGIN_OPERATOR_*` で migrate が upsert する（氏名・email・パスワードは git に書かない）。
+`002_master` は医院骨格と参照masterを提供する。現在のclinic CSVにはID 1–4があり、clinic-scoped permission groupsが含まれる。ID 1やgroup名を「system adminとして削除不可」と扱わない。CSV に privileged demo accountは載せない。`002_master` に `accounts.csv` は置かない。STG/local の画面デモログインはフェーズ3が合成アカウントを upsert する（医院ごとに執行1・一般9。林 文明は catalog 4医院すべてに執行所属）。実オペレータのシステム管理者は `SEEDLOGIN_OPERATOR_*` で migrate が upsert する（氏名・email・パスワードは git に書かない）。
 
 ローカルを含む全environmentで `BundleOrderForEnv(APP_ENV)` は現在 `002_master` だけを返す。臨床/demo dataはseed bundleへ復元せず、ローカルは `_old_db_handoff`、STG cutover/UATは承認済みF6経路を使う。
 

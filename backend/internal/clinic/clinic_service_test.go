@@ -635,7 +635,7 @@ func TestDemoSeedGroupRules_Parity(t *testing.T) {
 		}
 	}
 
-	rulesPath := filepath.Join("..", "..", "migrations", "seeds", "002_master", "permission_group_rules.csv")
+	rulesPath := filepath.Join("..", "..", "migrations", "seeds", "002_master", "accounts", "permission_group_rules.csv")
 	f, err := os.Open(rulesPath) //nolint:gosec // fixed seed path relative to backend module root
 	require.NoError(t, err, "seed CSV を読めること (cwd は backend/ 想定)")
 	defer f.Close() //nolint:errcheck // test cleanup

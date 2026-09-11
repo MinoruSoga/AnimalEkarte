@@ -2,25 +2,35 @@ import type { Pet as BackendPet } from "@/types/generated/models";
 import type { Pet } from "@/lib/transforms/pet";
 
 /**
- * サーバー側で自動生成されるフィールド（リクエストに含めない）
+ * リクエストで送信可能なペットフィールド（明示許可リスト）。
+ * transformCreatePetRequest / transformUpdatePetRequest が送るキーに固定する。
+ * BackendPet へサーバー専用列が増えても入力型へ自動混入しない（TASK-444）。
+ * version / deceased_at / deceased_reason は死亡専用 API 側の責務であり含めない。
  */
-type ServerFields =
-  | "id"
-  | "clinic_id"
-  | "created_at"
-  | "updated_at"
-  | "deleted_at"
-  | "last_visit"
-  | "phone"
-  | "owner"
-  | "insurance"
-  | "animal_species";
-
-/**
- * リクエストで送信可能なペットフィールド
- * Goモデル変更 → make codegen → models.ts 更新で自動追従
- */
-type PetWritable = Omit<BackendPet, ServerFields>;
+type PetWritable = Pick<
+  BackendPet,
+  | "owner_id"
+  | "animal_species_id"
+  | "name"
+  | "pet_number"
+  | "name_kana"
+  | "breed"
+  | "color"
+  | "blood_type"
+  | "microchip_number"
+  | "gender"
+  | "birth_date"
+  | "weight"
+  | "food"
+  | "environment"
+  | "neutered_date"
+  | "acquisition_type"
+  | "danger_level"
+  | "danger_reason"
+  | "status"
+  | "insurance_id"
+  | "remarks"
+>;
 
 /**
  * ペット作成リクエスト（バックエンドAPI）

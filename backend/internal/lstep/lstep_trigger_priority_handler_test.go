@@ -220,7 +220,7 @@ func TestLstepTriggerPriorities_ClinicAliasUsesAuthenticatedClinic(t *testing.T)
 		r := gin.New()
 		h := newHandlerWithTriggerPrioritySvc(svc)
 		r.GET("/clinics/:clinic_id/lstep/trigger-priorities", func(c *gin.Context) {
-			c.Set("clinic_id", "1")
+			setClinicID(c)
 		}, h.GetLstepTriggerPriorities)
 
 		w := httptest.NewRecorder()
@@ -242,7 +242,7 @@ func TestLstepTriggerPriorities_ClinicAliasUsesAuthenticatedClinic(t *testing.T)
 		r := gin.New()
 		h := newHandlerWithTriggerPrioritySvc(svc)
 		r.PATCH("/clinics/:clinic_id/lstep/trigger-priorities", func(c *gin.Context) {
-			c.Set("clinic_id", "1")
+			setClinicID(c)
 		}, h.UpdateLstepTriggerPriorities)
 
 		body := bytes.NewBufferString(`{"items":[{"trigger_type":"dormant_365d","priority":1}]}`)

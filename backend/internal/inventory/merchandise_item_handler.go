@@ -8,6 +8,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // ListMerchandiseItems godoc
@@ -16,6 +17,9 @@ import (
 func (h *Handler) ListMerchandiseItems(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMasterMerchandise), "view") {
 		return
 	}
 
@@ -32,6 +36,9 @@ func (h *Handler) ListMerchandiseItems(c *gin.Context) {
 func (h *Handler) GetMerchandiseItem(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMasterMerchandise), "view") {
 		return
 	}
 	id, ok := httpapi.ParseIDParam(c, "id")

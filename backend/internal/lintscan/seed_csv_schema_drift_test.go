@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/animal-ekarte/backend/internal/seedbundle"
 )
 
 const seedCSVSQLIdentifierPattern = `(?:"(?:[^"]|"")*"|[A-Za-z_][A-Za-z0-9_$]*)`
@@ -463,7 +465,7 @@ func loadSeedCSVSchemaTargets(
 				)
 			}
 
-			csvPath := filepath.Join(bundleDir, entry.CSVFile)
+			csvPath := seedbundle.CSVPath(bundleDir, entry.CSVFile)
 			header, err := readSeedCSVHeader(csvPath)
 			if err != nil {
 				return nil, fmt.Errorf(

@@ -147,7 +147,7 @@ func TestIsSafeTruncateTableName(t *testing.T) {
 func TestCoreTruncateUsesSingleStatement(t *testing.T) {
 	assert.Equal(
 		t,
-		"TRUNCATE TABLE billing_refunds, payments, billings, medical_records, owners CASCADE",
+		"TRUNCATE TABLE billing_refunds, payments, billings, medical_records, owners RESTART IDENTITY CASCADE",
 		coreTruncateSQL,
 	)
 

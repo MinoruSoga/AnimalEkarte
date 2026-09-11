@@ -41,15 +41,16 @@ type SetPermissionGroupRulesInput struct {
 // authorization-policy mutation. The use case validates clinic/action/resource
 // and fills ResourceID/OldValue/NewValue from transaction-local state.
 type PermissionMutationAudit struct {
-	ClinicID     uint64
-	ActorStaffID uint64
-	Action       string
-	Resource     string
-	ResourceID   *uint64
-	OldValue     any
-	NewValue     any
-	IPAddress    string
-	UserAgent    string
+	ClinicID           uint64
+	ActorStaffID       uint64
+	ActorIsSystemAdmin bool
+	Action             string
+	Resource           string
+	ResourceID         *uint64
+	OldValue           any
+	NewValue           any
+	IPAddress          string
+	UserAgent          string
 }
 
 // PermissionAuditTxLogger persists an authorization mutation audit entry in
@@ -136,7 +137,6 @@ type PermissionGroupRepository interface {
 	CountUsageByGroupID(ctx context.Context, clinicID, groupID uint64) (int64, error)
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	FindAllEffectivePermissionsByStaffID(ctx context.Context, staffID, clinicID uint64) ([]model.PermissionGroupRule, error)
-	FindAllGroupIDsByStaffID(ctx context.Context, clinicID, staffID uint64) ([]uint64, error)
 }
 
 type permissionGroupService struct {

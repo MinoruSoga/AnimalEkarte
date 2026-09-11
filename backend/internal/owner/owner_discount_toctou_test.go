@@ -54,8 +54,8 @@ func (r *pauseAfterFirstOwnerApply) FindByLineUserID(ctx context.Context, clinic
 func (r *pauseAfterFirstOwnerApply) CreateWithPets(ctx context.Context, owner *model.Owner, pets []model.Pet) error {
 	return r.inner.CreateWithPets(ctx, owner, pets)
 }
-func (r *pauseAfterFirstOwnerApply) UpdateAndFind(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Owner, error) {
-	return r.inner.UpdateAndFind(ctx, clinicID, id, fields)
+func (r *pauseAfterFirstOwnerApply) UpdateAndFind(ctx context.Context, clinicID, id uint64, cmd UpdateCommand) (*model.Owner, error) {
+	return r.inner.UpdateAndFind(ctx, clinicID, id, cmd)
 }
 func (r *pauseAfterFirstOwnerApply) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Owner, error) {
 	return r.inner.LockByIDForUpdate(ctx, clinicID, id)
@@ -99,10 +99,11 @@ func (r *pauseAfterFirstOwnerApply) UpdateAndFindApplying(
 			}
 		}
 
-		fields, err := apply(locked)
+		cmd, err := apply(locked)
 		if err != nil {
 			return err
 		}
+		fields := updateCommandFields(cmd)
 		if len(fields) == 0 {
 			return apperrors.WrapInvalidInput("at least one field must be provided")
 		}

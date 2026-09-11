@@ -3,6 +3,9 @@ import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import tailwindcss from "@tailwindcss/vite";
 import path, { resolve } from "path";
+import { fileURLToPath } from "node:url";
+
+const configDirectory = path.dirname(fileURLToPath(import.meta.url));
 
 /** dev サーバーで /line-reserve/* の HTML ナビゲーションを line-reserve/index.html にリライトする */
 function lineReserveDevPlugin(): Plugin {
@@ -149,7 +152,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss(), lineReserveDevPlugin(), liffDevPlugin()],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      "@": path.resolve(configDirectory, "./src"),
     },
   },
   server: {
@@ -168,9 +171,9 @@ export default defineConfig({
     outDir: "dist",
     rollupOptions: {
       input: {
-        main: resolve(__dirname, "index.html"),
-        "line-reserve": resolve(__dirname, "line-reserve/index.html"),
-        liff: resolve(__dirname, "liff/index.html"),
+        main: resolve(configDirectory, "index.html"),
+        "line-reserve": resolve(configDirectory, "line-reserve/index.html"),
+        liff: resolve(configDirectory, "liff/index.html"),
       },
       output: {
         manualChunks: resolveManualChunk,

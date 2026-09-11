@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, useLocation } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -73,6 +73,44 @@ describe("LoginForm touch targets", () => {
     await user.click(screen.getByRole("button", { name: "ログイン" }));
 
     await waitFor(() => expect(screen.getByTestId("current-location")).toHaveTextContent(/^\/$/));
+  });
+
+  it("uses the sanitized from query on the router location after successful login", async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={["/login?from=/owners/300588"]}>
+        <LoginForm />
+        <CurrentLocation />
+      </MemoryRouter>,
+    );
+
+    await user.type(screen.getByLabelText("メールアドレス"), "staff@example.com");
+    await user.type(screen.getByLabelText("パスワード"), "password123");
+    await user.click(screen.getByRole("button", { name: "ログイン" }));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("current-location")).toHaveTextContent("/owners/300588"),
+    );
+  });
+
+  it("after login-switch intent, submit stays deduped via isPending", async () => {
+    loginMock.mockImplementation(() => new Promise<void>(() => undefined));
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <LoginForm />
+      </MemoryRouter>,
+    );
+
+    await user.type(screen.getByLabelText("メールアドレス"), "staff@example.com");
+    await user.type(screen.getByLabelText("パスワード"), "password123");
+    await user.click(screen.getByRole("button", { name: "ログイン" }));
+
+    const pendingButton = await screen.findByRole("button", { name: "ログイン中..." });
+    expect(pendingButton).toBeDisabled();
+    expect(loginMock).toHaveBeenCalledOnce();
+    fireEvent.click(pendingButton);
+    expect(loginMock).toHaveBeenCalledOnce();
   });
 });
 

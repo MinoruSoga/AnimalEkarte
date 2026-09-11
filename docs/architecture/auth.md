@@ -5,7 +5,7 @@
 > **タイミング**: 認可ロジックの実装時・レビュー時。
 
 > **Animal Ekarte**: マルチクリニック対応の堅牢なセキュリティ基盤
-> **バージョン**: v9.1 | **最新更新**: 2026-09-06
+> **バージョン**: v9.2 | **最新更新**: 2026-09-11
 
 ---
 
@@ -32,6 +32,15 @@
 2.  **ルール統合**: 各グループが持つ `permission_group_rules` を収集。
 3.  **パーミッション・マップ**: 同一リソースに対して複数のルールがある場合、いずれかのグループで許可されていれば「許可」と判定します。実効権限の集計は `backend/internal/auth/permission_group_repository.go` の `FindAllEffectivePermissionsByStaffID`、HTTP 境界での強制は `backend/internal/auth/http_permission.go` の `RequirePermission` / `RequirePermissionAny` が担当します。
 4.  **Admin 特例**: `is_system_admin` フラグが true の場合、リソース・アクションの計算をバイパスします。ただし、アクセス対象の clinic scope はバイパスせず、現在も存在する有効なクリニックに限定します。
+
+### 2.1 権限グループ変更の自己ロックアウト (D2)
+
+非システム管理者が自分の所属グループを変更・無効化・自己割当解除するとき、**変更後の選択医院における実効権限**で `master-permission:view` と `master-permission:edit` の両方を維持できなければ 403 で拒否する。別の有効グループからの OR 付与が残る場合は許可する。他の管理担当者が残ることだけでは例外にしない。
+
+- 最終判定は mutation 後の `guardActorKeepsPermissionAdministration`（`permission_group_service_self_lockout.go`）。`UpdateRules` と `Update`（Rules 付き / Update-with-Rules）の両方は、所属グループ単体の事前拒否（旧 `validateNotSelfReference`）に依存しない。別の有効グループからの OR 付与が残れば許可し、最終の view/edit 喪失・lookup/audit 失敗は拒否して rollback する。
+- lookup 失敗・監査書き込み失敗は成功扱いせず、ルール変更と成功監査を rollback する。service 単体では staged/committed TX double（`permission_group_service_rules_d2_test.go` / `permission_group_service_mutate_d2_test.go`）で同一 `WithTx` 参加と失敗時の committed 不変を観測する（実 DB 原子性の証明ではない）。
+- システム管理者はこの自己喪失判定を免除する。システム管理者アカウント自体の削除・無効化保護は別契約。
+- 医院単位の permission policy lock（`pg_advisory_xact_lock`）で並行変更を直列化する。並行 DB テストコードは holder/contender の `pg_locks` 待機関係と worker 終了を観測するが、実行は承認済み隔離 Postgres が必要。
 
 ---
 
@@ -61,7 +70,8 @@
 
 ### 4.2 マルチテナント分離 (X-Clinic-ID)
 - ログイン時に許可された `clinic_ids` のスナップショットをトークンに封入しますが、通常リクエストの最終 authority としては使用しません。
-- 原則としてリクエストごとに account、staff、clinic assignment、対象 clinic の現在状態を `backend/internal/auth/current_access_service.go` で再解決します。正常に再解決できた場合、無効化・削除・所属解除後の stale token は fail closed です。
+- 原則としてリクエストごとに account、staff、clinic assignment、対象 clinic の現在状態を `backend/internal/auth/current_access_service.go` で再解決します。production composition は `NewCachedCurrentAccessResolver` を挟みません。スタッフ無効化・所属解除・パスワード変更の **DB commit 後に受け付ける次のリクエスト** から拒否します。commit 前に受け付けた処理の取消しは保証しません。lookup 障害は 503 です。
+- 2026-09-10 に、同じ disposable DB を使う独立 2 プロセス検証を実施した。staff 無効化・clinic 所属解除・password epoch 後の旧 session 拒否、所属解除時の未変更医院アクセス維持、および p95 +2.5% を確認した。この証拠は disposable local 環境に限られ、STG/PROD・本番 login・DB statements/request を証明しない（DB statements/request は UNKNOWN）。`current_access_cache.go` は残置しますが、最終認可の入力には使いません。
 - request-time authority lookup の一時的な取得障害も fail closed とし、middleware は 503 を返します。JWT の clinic snapshot を continuity authority に昇格しません。failure notifier は運用通知専用であり、認可結果を変更しません。
 - 一般スタッフの `X-Clinic-ID` は、現在有効な所属クリニックとの一致を必須とします。
 - システム管理者も任意の正数 clinic ID を選択できるわけではなく、現在存在する `is_active=true` のクリニックだけを選択できます。stale な main clinic は有効な集合から再選択し、有効な clinic がなければ拒否します。
@@ -70,7 +80,8 @@
 
 ### 4.3 資格情報変更と監査ログ
 
-- 本人によるパスワード変更、パスワードリセット、管理者によるスタッフのパスワード再設定は、パスワード更新・reset token 失効・成功監査ログを同一 DB transaction で実行します。
+- 管理者によるスタッフのパスワード再設定は、対象アカウントを同一 transaction で `FOR UPDATE` し、対象がシステム管理者なら操作者にもシステム管理者を要求します。拒否時は password hash・reset token・成功監査を変更しません。
+- 既存スタッフへのログインアカウント追加は `POST /api/v1/masters/staffs/{id}/account`（システム管理者のみ）。staff ID は維持し、初期秘密値の平文は返しません。本人はパスワード再設定から設定します。メール自動送信はしません。
 - 監査ログの永続化に失敗した場合は資格情報変更も rollback し、成功レスポンスを返しません。
 - 監査入力は actor、clinic、対象 staff、IP address、User-Agent のみに限定し、平文パスワード、hash、reset token、JWT、メールアドレスを記録しません。
 - transaction の所有権は `backend/internal/auth/account_service.go`、`backend/internal/auth/password_reset_service.go`、`backend/internal/staff/staff_service_core.go` に置き、監査 writer は ambient transaction を必須とします。
@@ -99,6 +110,41 @@ Cookie認証を使う保護routeとlogin/refresh/logoutには `RequireXRequested
 | RBAC repository / use case | `backend/internal/auth/permission_group_repository.go`, `permission_group_service.go` |
 | 資格情報 transaction | `backend/internal/auth/account_service.go`, `password_reset_service.go`, `backend/internal/staff/staff_service_core.go` |
 | production composition | `backend/cmd/api/composition_auth.go`, `composition_staff_account.go` |
+
+### 4.7 GET/HEAD の選択医院 grant
+
+`RequirePermission` / `RequirePermissionAny` の既定は **選択医院の grant のみ** です。GET/HEAD でも所属する他院の grant では通りません。横断一覧・詳細は `RequirePermissionAllowingAssignedClinicGrant`（または Any 版）を composition で明示し、handler が宛先医院ごとに Filter/Authorize します。同じ composition の医院固定 handler は `RequireSelectedClinicGrant` または `extractSelectedClinicGrant` で選択医院を再確認します。
+
+全件の静的対応表は [`get_head_permissions.json`](../../backend/cmd/api/testdata/get_head_permissions.json) です。各行に method/path、handler、resource/action、登録式、認可位置、返却範囲、回帰テスト参照、検証の限界を記録します。[分類テスト](../../backend/cmd/api/get_head_permission_classification_test.go) は登録集合と台帳を双方向照合し、既知 prefix 内の追加も含め、追加・削除・method/handler 変更を拒否します。登録式の変更と参照先の欠落も検出します。local storage は 203 件、S3 設定では uploads の GET/HEAD を除く 201 件です。
+
+| 分類 | 認可 | 代表経路 |
+|:---|:---|:---|
+| public | 認証なし | health、LIFF settings、local uploads |
+| liff | LIFF 認証 + path clinic/customer | LIFF profile、予約一覧、予約可能枠など（settings を除く） |
+| self | 認証済み本人 | `/me` の本人情報・所属医院 |
+| cross-clinic | 宛先医院ごとの grant または明示した所属/admin 判定 | owners / pets / reservations / medical-records / accountings の横断一覧・詳細、identity-links、医院一覧、path clinic の LINE 予約設定 |
+| clinic-fixed | 選択医院 grant + 選択医院の query scope | 診療子リソース、検査、入院、見積、未収、医院別マスタ、staffs、shifts、inventory、trimming、LSTEP 医院データ |
+| shared-master | 明示した grant + 医院非依存データ | animal-species、manual articles、company、LSTEP tag config |
+
+login、password reset、LINE webhook、scheduled jobs は GET/HEAD ではないため、この表の対象外です。HEAD 未登録は追加しません。正常に 0 行の一覧と、認可可能な医院が 0 件の 403 は別です。
+
+この gate が証明するのは **登録済み経路の静的対応表が欠落・陳腐化していないこと** です。参照テストの存在は実行 PASS を意味せず、登録式の照合だけでは middleware の実行、間接 helper の変更、実 DB の返却範囲は証明できません。実 DB の返却分離は台帳 `verification` の `realdb-return-data:`（[get_head_permission_realdb_coverage_test.go](../../backend/cmd/api/get_head_permission_realdb_coverage_test.go)）と disposable 実行証跡で別途証明します。静的分類だけを D3 完了の根拠にはしません。進捗の正本は [todo-fix-auth.md](../../todo-fix-auth.md) です。
+
+### 4.8 `/me` と login の医院フィールド
+
+`main_clinic_id` と `clinics[].is_main` は **永続化された主所属ではなく、この応答時点の選択医院（login/refresh では解決した既定医院）** です。DB の `staff_clinic_assignments.is_main` とは別です。API 名の変更はこの文書訂正だけでは行いません。
+
+Frontend の `/me` は `staleTime` 5 分・window focus 再取得なし・定期ポーリングなしです。5 分経過だけでは自動更新しません。再取得はログイン、token refresh、`refreshPermissions`、`ME_QUERY_KEY` の無効化、再マウントです。UI の古い権限表示と BE の最終認可は別です。自動ポーリングは追加しません。
+
+### 4.9 医院選択失効
+
+選択医院または既定医院が利用できないとき、BE は通常の 403 と区別して `error_code: clinic_selection_unavailable` を返します。Frontend は書き込みを停止し、`X-Clinic-ID` なしの `/me` を 1 回取得して active な既定医院へ戻します。失敗した POST/PUT/PATCH/DELETE は新しい医院へ自動再送しません。
+
+ヘッダーなしの復旧 `/me` も同コードの403なら有効医院が0件のため、管理者への確認とログアウトを案内します。401・通常403・通信障害は「医院なし」と混同しません。自動復旧終了後は後続GETやポーリングで再開せず、復旧障害時の再試行ボタンからだけ実行します。ログアウト開始時に進行中の復旧を中止し、遅延応答が医院保存やreloadを起こすことを防ぎます。
+
+### 4.10 医院一覧 `scope=all`
+
+非システム管理者が `scope=all` を指定しても、所属医院だけを返します。所属判定はサーバ側の staff assignment です。システム管理者の全院一覧は維持します。
 
 ---
 

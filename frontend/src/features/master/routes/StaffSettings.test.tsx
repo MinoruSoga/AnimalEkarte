@@ -69,6 +69,7 @@ vi.mock("../api/staffs", () => ({
   useGetStaffs: () => ({ data: [makeStaff()] }),
   useCreateStaff: () => ({ mutateAsync: mockCreateMutate }),
   useUpdateStaff: () => ({ mutateAsync: mockUpdateMutate }),
+  useAttachStaffAccount: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useDeleteStaff: () => ({ mutate: vi.fn() }),
   useUpdateStaffClinics: () => ({ mutate: mockSetClinics }),
   useGetClinicsList: () => ({ data: [] }),

@@ -63,8 +63,8 @@ func (r *permissionGroupRepository) FindByID(ctx context.Context, clinicID, id u
 	return &group, nil
 }
 
-// LockByIDForUpdate serializes authorization-policy writers before they capture
-// the old audit snapshot. The caller must provide an ambient transaction.
+// LockByIDForUpdate locks the clinic policy before the group and old audit
+// snapshot. The caller must provide an ambient transaction.
 func (r *permissionGroupRepository) LockByIDForUpdate(
 	ctx context.Context,
 	clinicID, id uint64,
@@ -73,6 +73,9 @@ func (r *permissionGroupRepository) LockByIDForUpdate(
 		return nil, apperrors.WrapInternalServerError(
 			"permission group mutation lock requires an ambient transaction",
 		)
+	}
+	if err := r.LockPermissionPolicy(ctx, clinicID); err != nil {
+		return nil, err
 	}
 	var group model.PermissionGroup
 	err := persistence.DBOrTx(ctx, r.db).
@@ -141,10 +144,22 @@ func (r *permissionGroupRepository) CreateWithRules(
 }
 
 func (r *permissionGroupRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdatePermissionGroupInput) (*model.PermissionGroup, error) {
-	if err := r.update(ctx, clinicID, id, buildPermissionGroupUpdate(&cmd)); err != nil {
+	var result *model.PermissionGroup
+	if err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		txCtx := persistence.WithTxValue(ctx, tx)
+		if err := r.LockPermissionPolicy(txCtx, clinicID); err != nil {
+			return err
+		}
+		if err := r.update(txCtx, clinicID, id, buildPermissionGroupUpdate(&cmd)); err != nil {
+			return err
+		}
+		var err error
+		result, err = r.FindByID(txCtx, clinicID, id)
+		return err
+	}); err != nil {
 		return nil, err
 	}
-	return r.FindByID(ctx, clinicID, id)
+	return result, nil
 }
 
 func (r *permissionGroupRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
@@ -168,6 +183,9 @@ func (r *permissionGroupRepository) UpdateWithRules(
 	var result *model.PermissionGroup
 	if err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		txCtx := persistence.WithTxValue(ctx, tx)
+		if err := r.LockPermissionPolicy(txCtx, clinicID); err != nil {
+			return err
+		}
 		var group model.PermissionGroup
 		if err := persistence.DBOrTx(txCtx, r.db).
 			Clauses(clause.Locking{Strength: "UPDATE"}).
@@ -246,6 +264,9 @@ func (r *permissionGroupRepository) replaceRules(
 
 func (r *permissionGroupRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	return persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		if err := r.LockPermissionPolicy(persistence.WithTxValue(ctx, tx), clinicID); err != nil {
+			return err
+		}
 		if err := tx.
 			Clauses(clause.Locking{Strength: "UPDATE"}).
 			Scopes(persistence.ClinicScope(clinicID)).
@@ -308,6 +329,9 @@ func (r *permissionGroupRepository) UpdateRules(
 	rules []model.PermissionGroupRule,
 ) error {
 	if err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		if err := r.LockPermissionPolicy(persistence.WithTxValue(ctx, tx), clinicID); err != nil {
+			return err
+		}
 		var group model.PermissionGroup
 		if err := tx.
 			Clauses(clause.Locking{Strength: "UPDATE"}).
@@ -409,6 +433,9 @@ func (r *permissionGroupRepository) UpdateStaffGroups(ctx context.Context, clini
 	db := persistence.DBOrTx(ctx, r.db)
 	// BE-refactor.md X-7: dbOrTx(ctx, r.db).Transaction(...) で ambient tx があれば SAVEPOINT として参加する。
 	return persistence.ReplaceJunctionInTransaction(db, func(tx *gorm.DB) error {
+		if err := r.LockPermissionPolicy(persistence.WithTxValue(ctx, tx), clinicID); err != nil {
+			return err
+		}
 		var assignment model.StaffClinicAssignment
 		if err := tx.
 			Clauses(clause.Locking{Strength: "UPDATE"}).
@@ -465,6 +492,11 @@ func (r *permissionGroupRepository) UpdateStaffGroups(ctx context.Context, clini
 // BE-refactor.md X-7: dbOrTx(ctx, r.db).Transaction(...) で ambient tx があれば SAVEPOINT として参加する。
 func (r *permissionGroupRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	if err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		// Reorder touches several group rows; share the policy lock order to
+		// avoid a cycle with membership validation's group share locks.
+		if err := r.LockPermissionPolicy(persistence.WithTxValue(ctx, tx), clinicID); err != nil {
+			return err
+		}
 		for i, id := range ids {
 			result := tx.Model(&model.PermissionGroup{}).
 				Scopes(persistence.ClinicScope(clinicID)).Where("id = ? AND deleted_at IS NULL", id).

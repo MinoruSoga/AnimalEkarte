@@ -90,4 +90,42 @@ export class AccountingPage extends BasePage {
   confirmButton(): Locator {
     return this.page.getByRole("button", { name: /会計を確定する|修正を保存する/ });
   }
+
+  // ── Cash-register close / preview (S09) ───────────────────────────────────
+
+  gotoClose(): ReturnType<Page["goto"]> {
+    return this.open("/accounting/close");
+  }
+
+  /** `#target_date` on CashRegisterCloseTargetSection. */
+  targetDateInput(): Locator {
+    return this.page.locator("#target_date");
+  }
+
+  /** Period chip: 午前 / 午後 / 緊急. */
+  periodButton(label: "午前" | "午後" | "緊急"): Locator {
+    return this.page.getByRole("button", { name: label, exact: true });
+  }
+
+  previewButton(): Locator {
+    return this.page.getByRole("button", { name: "プレビュー", exact: true });
+  }
+
+  /** On-screen billing detail table (excludes hidden PrintPortal duplicate). */
+  billingDetailsSection(): Locator {
+    return this.page
+      .locator("section")
+      .filter({ has: this.page.getByRole("heading", { name: /個別会計明細/ }) });
+  }
+
+  billingDetailsHeading(): Locator {
+    return this.billingDetailsSection().getByRole("heading", { name: /個別会計明細/ });
+  }
+
+  /** First column of each detail row is `formatJSTTime(paidAt)` (HH:MM). */
+  billingDetailTimeCell(timeHHMM: string): Locator {
+    return this.billingDetailsSection()
+      .locator("tbody tr td:first-child")
+      .filter({ hasText: timeHHMM });
+  }
 }

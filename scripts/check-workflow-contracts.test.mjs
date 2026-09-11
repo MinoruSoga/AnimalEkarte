@@ -71,6 +71,12 @@ test("AgentShield fail gate treats every AGENTS.md as agent configuration", () =
   assert.match(workflow, /^\s+- ['"]\*\*\/AGENTS\.md['"]\s*$/m);
 });
 
+test("AgentShield fail gate does not treat nested docs CLAUDE.md as agent configuration", () => {
+  const workflow = read(".github/workflows/security-scan.yml");
+  assert.match(workflow, /^\s+- ['"]CLAUDE\.md['"]\s*$/m);
+  assert.doesNotMatch(workflow, /^\s+- ['"]\*\*\/CLAUDE\.md['"]\s*$/m);
+});
+
 test("Docker, packageManager declarations, and CI use pnpm 10.15.0", () => {
   assert.match(
     read("frontend/Dockerfile.dev"),
@@ -255,14 +261,14 @@ test("API endpoint k6 load script binds Animal Species authorization for 一般"
   const readme = read("load-tests/README.md");
   const catalog = read("backend/internal/seedlogin/catalog.go");
   const groupsCsv = read(
-    "backend/migrations/seeds/002_master/permission_groups.csv",
+    "backend/migrations/seeds/002_master/accounts/permission_groups.csv",
   );
   const rulesCsv = read(
-    "backend/migrations/seeds/002_master/permission_group_rules.csv",
+    "backend/migrations/seeds/002_master/accounts/permission_group_rules.csv",
   );
   const petRoutes = read("backend/internal/pet/routes.go");
 
-  assert.match(catalog, /PermissionGroupName\s*=\s*"一般"/);
+  assert.match(catalog, /PermissionGroupGeneral\s*=\s*"一般"/);
 
   assert.match(
     groupsCsv,

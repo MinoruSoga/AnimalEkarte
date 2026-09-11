@@ -13,6 +13,12 @@ description: commit/push 前のスコープ限定ローカル検証ゲート。�
 - backend / frontend の lint・test・gofmt をローカルで確認したい時
 - 「動作確認は完了しました」と報告しようとしている時（報告前に必ず参照する）
 
+## 証跡と対象の一致
+
+まず `python3 -B scripts/verify-agent-task.py --base <BASE_REF> --plan` で変更と検証対象を確認する。実行は対象worktreeをmountしnetwork隔離されたcontainerを明示する（`--frontend-container <ID>` / `--backend-container <ID>`）。起動・依存導入・migrationは行わない。使えるcontainerや対応テストがない場合はBLOCKED。docs-onlyはSKIPでありruntime PASSではない。
+
+手動のscopedコマンドにも同じ条件を適用する。image、mount、対象diff、コマンド、終了コード、件数を記録し、下記Compose例は対象worktreeを検証できる場合に限る。mainをmountする共有Composeでcandidateを検証しない。`--passWithNoTests`、欠落ツール、SKIPをPASSへ変換しない。詳細は `docs/ops/agent-harness.md`。
+
 ## 手順
 
 1. **実行可否はモデル名ではなく範囲と副作用で決める**: 変更に直結するスコープ限定の Docker 検証は自律的に完了する。禁止なのは全件 lint/test/build、DB reset、migration apply、依存インストール、streaming logs。ホストの `npm` / `go` は使わず、コンテナが対象 worktree を見ていることを確認する。
@@ -25,8 +31,8 @@ description: commit/push 前のスコープ限定ローカル検証ゲート。�
    ```
 3. **backend lint（スコープ限定）**:
    ```bash
-   docker run --rm --tmpfs /root/.cache \
-     -v "$PWD/backend:/app" \
+   docker run --rm --pull never --network none --tmpfs /root/.cache \
+     -v "$PWD/backend:/app:ro" \
      -v ekarte-go-mod-cache:/go/pkg/mod \
      -w /app \
      golangci/golangci-lint:v2.11.4 \
@@ -54,7 +60,7 @@ description: commit/push 前のスコープ限定ローカル検証ゲート。�
 ## 検証の罠（実績由来）
 
 - **lint の「全件直した」判定は cap 解除フラグ付きで行う**: `--max-same-issues 0 --max-issues-per-linter 0` を明示付与する。cap が有効な設定では件数が隠蔽される（実 11 件が 10 件表示され、10 件直しても 11 件目が後出しした実例。現行 backend/.golangci.yml は解除済みだがフラグ明示はドリフト耐性がある）。（出典: memory ops_golangci_lint_cap_and_reconcile_20260630）
-- **post-edit-typecheck-ts.js の exit 2 には false-positive がある**: 出力が `DB_USER variable is not set` 等の docker compose env 警告のみで `error TS` 行が無ければ実エラーではない。`grep -cE 'error TS'` の有無で判定する。（出典: memory feedback_frontend_verify_harness_gotchas）
+- **post-edit-typecheck-ts.js の exit 2 は成功と扱わない**: 出力が Docker compose の環境警告だけでも、`error TS` がないことは検査完了の証明にならない。実行環境と対象を確認して再検証し、実行できなければBLOCKED。（出典: memory feedback_frontend_verify_harness_gotchas）
 - **PostToolUse formatter hook が日本語コメントを行折返しで破壊しコンパイルを壊すことがある**。編集後は touched package を `go build ./internal/<pkg>/...` で必ず確認する。（出典: memory cross_tenant_write_audit_20260629）
 - **frontend の import path 改名・移行は `src` `liff/src` `line-reserve/src` の3アプリ全域を対象にする**: 3アプリは `tsconfig.json` の同一 `include`（`src`, `liff/src`, `line-reserve/src`）で同一 `@/` alias を共有する。grep・機械置換を `frontend/src` 限定で行うと他2アプリの死にimportを見逃す（実例: `@/utils/` → `@/lib/` 置換が `line-reserve/src/pages/TrimmingOptionSelectPage.tsx` 等2件を残し、独立レビューの tsc で発見）。（出典: memory fe7_utils_lib_migration_scope_trap_20260718）
 - **`tsc --noEmit`（`pnpm type-check`）は test ファイルを検証しない**: `frontend/tsconfig.json` の `exclude` が `src/**/*.test.tsx` 等（`liff/src`・`line-reserve/src` も同様のパターンで除外、`*.spec.*` は `src` のみ）を除外するため、tsc は本番コードのみを type/module 解決チェックする。import 改名の importer にテストファイルが含まれる場合、tsc が exit 0 でも死にimportを検出できない。`docker compose exec frontend npx vitest run <該当パス>` で module 解決を実証する（dead import なら vitest が fail-fast。実例: `@/contexts/auth-context` → `@/hooks/auth-context` の18 importer中大半がテストファイルで、advisor 指摘後 vitest で17件を実証）。（出典: memory fe7_utils_lib_migration_scope_trap_20260718）

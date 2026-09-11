@@ -34,7 +34,7 @@
 | Fact / 責務 | Canonical path / system | 使い方・証拠境界 |
 |---|---|---|
 | 製品タスクの状態・担当・Done | [work/README.md](../README.md) が指す Linear | 今回は外部未照会。現在の状態をrepoから推定しない |
-| repoに結び付く未完了作業・確認済みUAT製品FAIL | [todo.md](../../../todo.md) ／ [bug.md](../../../bug.md) | work/READMEが認める例外の担当範囲のみ。Linearと競合すればLinearを優先 |
+| repoに結び付く未完了作業・確認済みUAT製品FAIL | [todo.md](../../../todo.md) ／ [todo.md#product-bugs](../../../todo.md#product-bugs) | work/READMEが認める例外の担当範囲のみ。Linearと競合すればLinearを優先 |
 | UAT結果のrepo集計 | [UAT-DOMAIN-STATUS.md](../../ops/testing/UAT-DOMAIN-STATUS.md) | 過去実行snapshot、ソース照合、原証跡の有無を区別。原証跡は非配布で現在未確認のものがある |
 | UI準拠の静的対応表と過去runtime結果 | [ui-design-compliance.md](../../spec/ui-design-compliance.md) | runtime未実行ルートをPASSにしない。表の正本性と検証の鮮度は別 |
 | docs保守の親状態と子ユニット状態 | [GOAL.yaml](GOAL.yaml) ／ [LEDGER.md](LEDGER.md) | 本依頼で明示された保守専用の例外。製品タスクの状態を複製しない。子の証拠は主coordinatorが直列統合 |

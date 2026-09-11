@@ -60,8 +60,8 @@ CSV `002_master` は account/clinical rows を含まない。一方、migrate �
 | :------ | :---------------------------- | :---------------------------------------------------- |
 | PASS    | 期待どおり                    | report                                                |
 | PARTIAL | 一部未確認                    | report。完了と呼ばない                                |
-| BLOCKED | environment/spec/fixture 不足 | report または Linear Needs Human。`bug.md` へ書かない |
-| FAIL    | 確認済み製品欠陥              | `bug.md` で dedupe/記録後、Linear で追跡              |
+| BLOCKED | environment/spec/fixture 不足 | report または Linear Needs Human。`todo.md#product-bugs` へ書かない |
+| FAIL    | 確認済み製品欠陥              | `todo.md#product-bugs` で dedupe/記録後、Linear で追跡              |
 
 その他の新規製品 defect は通常の Linear intake に従う。証跡に credential、token、cookie、idToken、個人情報を含めない。
 

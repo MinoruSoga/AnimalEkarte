@@ -830,5 +830,42 @@ func TestCreateOwnerGroup_IdempotentRetry(t *testing.T) {
 	assert.Equal(t, 0, auditLog.called)
 }
 
+func TestFindOwnerGroupByMember_RejectsSelectedClinicWithoutGrant(t *testing.T) {
+	repo := &mockRepo{
+		findActiveOwnerMembershipFn: func(context.Context, uint64, uint64) (*model.OwnerIdentityGroupMember, error) {
+			t.Fatal("must not read owner membership in clinic B")
+			return nil, nil
+		},
+	}
+	svc := NewService(repo, noopTransactor{}, &mockTxLogger{})
+	_, _, err := svc.FindOwnerGroupByMember(context.Background(), testActor(1), 2, 9)
+	require.ErrorIs(t, err, apperrors.ErrForbidden)
+}
+
+func TestFindPetGroupByMember_RejectsSelectedClinicWithoutGrant(t *testing.T) {
+	repo := &mockRepo{
+		findActivePetMembershipFn: func(context.Context, uint64, uint64) (*model.PetIdentityGroupMember, error) {
+			t.Fatal("must not read pet membership in clinic B")
+			return nil, nil
+		},
+	}
+	svc := NewService(repo, noopTransactor{}, &mockTxLogger{})
+	_, _, err := svc.FindPetGroupByMember(context.Background(), testActor(1), 2, 9)
+	require.ErrorIs(t, err, apperrors.ErrForbidden)
+}
+
+func TestSearchOwners_ScopesToGrantedClinics(t *testing.T) {
+	repo := &mockRepo{
+		searchOwnersFn: func(_ context.Context, clinicIDs []uint64, _ string, _ int) ([]model.Owner, error) {
+			require.Equal(t, []uint64{1}, clinicIDs)
+			return []model.Owner{}, nil
+		},
+	}
+	svc := NewService(repo, noopTransactor{}, &mockTxLogger{})
+	owners, err := svc.SearchOwners(context.Background(), testActor(1), "a", 20)
+	require.NoError(t, err)
+	assert.Empty(t, owners)
+}
+
 // Ensure Transactor interface is satisfied by persistence implementation used in wiring.
 var _ persistence.Transactor = noopTransactor{}

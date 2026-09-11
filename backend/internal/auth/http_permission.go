@@ -80,19 +80,36 @@ func (h *HTTPHandler) attachClinicPermissionChecker(c *gin.Context) {
 	httpapi.SetClinicPermissionChecker(c, h.HasPermissionInClinic)
 }
 
-// RequirePermission rejects requests lacking one resource/action permission.
-// Writes still require the grant in the selected clinic. Safe methods (GET/HEAD)
-// may proceed when another authorized clinic holds the grant so list/detail
-// expansion can Filter/Authorize destination clinics instead of reusing the
-// selected clinic's deny.
+// RequirePermission rejects requests lacking the grant in the selected clinic.
+// GET/HEAD do not succeed merely because another assigned clinic holds the grant.
+// Cross-clinic list/detail surfaces must use
+// RequirePermissionAllowingAssignedClinicGrant and then Filter/Authorize
+// destination clinics.
 func (h *HTTPHandler) RequirePermission(resource, action string) gin.HandlerFunc {
+	return h.requirePermission(resource, action, false)
+}
+
+// RequirePermissionAllowingAssignedClinicGrant is the explicit GET/HEAD
+// fallback for surfaces that re-check every destination clinic.
+func (h *HTTPHandler) RequirePermissionAllowingAssignedClinicGrant(
+	resource, action string,
+) gin.HandlerFunc {
+	return h.requirePermission(resource, action, true)
+}
+
+func (h *HTTPHandler) requirePermission(
+	resource, action string,
+	allowAssignedClinicGrant bool,
+) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		h.attachClinicPermissionChecker(c)
 		if h.HasPermission(c, resource, action) {
 			c.Next()
 			return
 		}
-		if isSafeHTTPMethod(c) && h.hasPermissionInAuthorizedClinics(c, resource, action) {
+		if allowAssignedClinicGrant &&
+			isSafeHTTPMethod(c) &&
+			h.hasPermissionInAuthorizedClinics(c, resource, action) {
 			c.Next()
 			return
 		}
@@ -101,8 +118,25 @@ func (h *HTTPHandler) RequirePermission(resource, action string) gin.HandlerFunc
 	}
 }
 
-// RequirePermissionAny permits a request when at least one requirement matches.
+// RequirePermissionAny permits a request when at least one requirement matches
+// in the selected clinic. GET/HEAD assigned-clinic fallback is opt-in via
+// RequirePermissionAnyAllowingAssignedClinicGrant.
 func (h *HTTPHandler) RequirePermissionAny(
+	permissions ...PermissionRequirement,
+) gin.HandlerFunc {
+	return h.requirePermissionAny(false, permissions...)
+}
+
+// RequirePermissionAnyAllowingAssignedClinicGrant is the GET/HEAD fallback
+// for surfaces that re-check destination clinics after the middleware.
+func (h *HTTPHandler) RequirePermissionAnyAllowingAssignedClinicGrant(
+	permissions ...PermissionRequirement,
+) gin.HandlerFunc {
+	return h.requirePermissionAny(true, permissions...)
+}
+
+func (h *HTTPHandler) requirePermissionAny(
+	allowAssignedClinicGrant bool,
 	permissions ...PermissionRequirement,
 ) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -113,7 +147,7 @@ func (h *HTTPHandler) RequirePermissionAny(
 				return
 			}
 		}
-		if isSafeHTTPMethod(c) {
+		if allowAssignedClinicGrant && isSafeHTTPMethod(c) {
 			for _, permission := range permissions {
 				if h.hasPermissionInAuthorizedClinics(c, permission.Resource, permission.Action) {
 					c.Next()
@@ -364,6 +398,9 @@ func (h *HTTPHandler) GetPermissionGroup(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMasterPermission), "view") {
+		return
+	}
 	id, ok := httpapi.ParseIDParam(c, "id")
 	if !ok {
 		return
@@ -380,6 +417,9 @@ func (h *HTTPHandler) GetPermissionGroup(c *gin.Context) {
 func (h *HTTPHandler) ListPermissionGroups(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMasterPermission), "view") {
 		return
 	}
 	groups, err := h.deps.PermissionGroups.List(c.Request.Context(), clinicID)
@@ -581,12 +621,14 @@ func permissionMutationAuditFromContext(
 	if !ok {
 		return PermissionMutationAudit{}, false
 	}
+	isSystemAdmin, _ := httpapi.PeekIsSystemAdmin(c)
 	return PermissionMutationAudit{
-		ClinicID:     clinicID,
-		ActorStaffID: staffID,
-		Action:       action,
-		Resource:     resource,
-		IPAddress:    c.ClientIP(),
-		UserAgent:    c.Request.Header.Get("User-Agent"),
+		ClinicID:           clinicID,
+		ActorStaffID:       staffID,
+		ActorIsSystemAdmin: isSystemAdmin,
+		Action:             action,
+		Resource:           resource,
+		IPAddress:          c.ClientIP(),
+		UserAgent:          c.Request.Header.Get("User-Agent"),
 	}, true
 }

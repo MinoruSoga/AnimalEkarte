@@ -163,12 +163,13 @@ func permissionAuditRollbackInput(
 	action, resource string,
 ) authdomain.PermissionMutationAudit {
 	return authdomain.PermissionMutationAudit{
-		ClinicID:     clinicID,
-		ActorStaffID: 17,
-		Action:       action,
-		Resource:     resource,
-		IPAddress:    "127.0.0.1",
-		UserAgent:    "permission-audit-db-test",
+		ClinicID:           clinicID,
+		ActorStaffID:       17,
+		ActorIsSystemAdmin: true,
+		Action:             action,
+		Resource:           resource,
+		IPAddress:          "127.0.0.1",
+		UserAgent:          "permission-audit-db-test",
 	}
 }
 

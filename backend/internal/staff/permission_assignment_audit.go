@@ -13,11 +13,12 @@ type permissionAssignmentAuditContextKey struct{}
 // PermissionAssignmentAudit is trusted request metadata for a staff permission
 // group replacement.
 type PermissionAssignmentAudit struct {
-	ClinicID      uint64
-	ActorStaffID  uint64
-	TargetStaffID uint64
-	IPAddress     string
-	UserAgent     string
+	ClinicID           uint64
+	ActorStaffID       uint64
+	ActorIsSystemAdmin bool
+	TargetStaffID      uint64
+	IPAddress          string
+	UserAgent          string
 }
 
 // PermissionAssignmentAuditEntry is staff's consumer-owned audit entry.

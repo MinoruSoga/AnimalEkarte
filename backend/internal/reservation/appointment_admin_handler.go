@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/animal-ekarte/backend/internal/httpapi"
+	"github.com/animal-ekarte/backend/internal/model"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 )
@@ -43,7 +44,7 @@ func (h *ReservationAdminHandler) checkDoctorClinicAssignment(ctx context.Contex
 
 // ListReservationsAdmin godoc
 func (h *ReservationAdminHandler) ListReservationsAdmin(c *gin.Context) {
-	clinicID, ok := httpapi.ExtractClinicID(c)
+	clinicID, ok := extractSelectedClinicGrant(c, string(model.ResourceReservations))
 	if !ok {
 		return
 	}

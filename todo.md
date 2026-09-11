@@ -1,107 +1,80 @@
-# タスク台帳 — Linear が正本
+# タスク台帳 — 入口
 
-更新日: 2026-09-06
+統合日: 2026-09-08。最終GitHub照合: 2026-09-11（`main` = `origin/main` 同期済み）。**ローカルで着手可能な開発タスク（READY）はなし。** `main` → `staging` PR [#388](https://github.com/MinoruSoga/AnimalEkarte/pull/388) は OPEN・MERGEABLE だが Backend Test (remaining) / Backend が FAILURE（UNSTABLE）。Linear は free issue limit のため **新規作成禁止**（既存更新のみ）。照合メモは [linear-f1-f6-mapping.md](docs/work/linear-f1-f6-mapping.md)。UAT・STG/PROD・go-live は再判定していない。対応済みの詳細は本ファイルに残さず Git 履歴を参照する。
 
 | 項目 | 値 |
 |------|-----|
-| **実行 SoT** | Linear Team **Baritech** · Project **ノア動物病院電子カルテ** · hub **[BRT-4](https://linear.app/baritechllc/issue/BRT-4)** |
+| **新規 Issue SoT** | **[todo-issue.md](todo-issue.md)**（Linear 新規作成禁止） |
+| **既存チケット更新** | Linear Team **Baritech** · Project **ノア動物病院電子カルテ** · hub **[BRT-4](https://linear.app/baritechllc/issue/BRT-4)**（コメント・状態のみ） |
 | **セキュリティ修正** | **[BRT-226](https://linear.app/baritechllc/issue/BRT-226)**（Review · `origin/main` 済み · Done は人間） |
-| **本ファイルの範囲** | repo と強く結び付く **未完了作業の入口** |
+| **開発キュー** | **READY なし**（ローカル実装単位なし） |
+| **本ファイルの範囲** | repo と強く結び付く **開発タスク入口**、確認済み製品 FAIL、PO 入口、維持制約 |
 
-状態・Done は Linear を正本とする。行値・秘密は書かない。完了項目は削除する。
+### 残タスク（2026-09-11 時点）
 
-エージェントは PlanetScale、共有 STG apply、`DROP SCHEMA`、本番 cutover、`make reset`、八王子 CSV の producer 出力を実行しない。push / dispatch / Linear Done / 秘密変更は明示承認が必要。
+| 区分 | 内容 | 管理先 |
+|------|------|--------|
+| ローカル開発 READY | **なし** | — |
+| deferred（codegen 承認待ち） | TASK-444-ADDENDUM-CODEGEN | [todo-issue.md](todo-issue.md) |
+| ローカル検証 BLOCKED | DEV-V-OWNER-DB（disposable DB URL 未設定） | [todo-verification.md](todo-verification.md) |
+| 人間 | BRT-226 Done | Linear（既存） |
+| 人間 | PO / 人間レーン | Linear BRT-4 |
+| 運用 | PR #388 CI 修復・マージ判断 | GitHub / [todo-operations.md](todo-operations.md) |
+| 外部検証 | STG/UAT/PERF/AUTH-D1 ほか | [todo-verification.md](todo-verification.md) |
+| 認証外部 | D1 本番付与・メール、Linear 反映 | [todo-fix-auth.md](todo-fix-auth.md) |
 
-claim は ID ごとに初回編集前に取得する。エージェントは claim を削除しない。
+新規実装単位の本文は [todo-issue.md](todo-issue.md)。行値・秘密は書かない。
 
-この更新の claim: `claim/LEDGER-TODO-PRUNE`。
+入口: [todo-issue.md](todo-issue.md) · [開発タスク](#development-tasks) · [製品 FAIL](#product-bugs) · [PO / 人間レーン](#human-lane) · [FE 維持制約](#refactor-constraints)
 
----
+横断・性能・認証の検証順は [todo-verification.md](todo-verification.md) を参照する。開発・検証・運用の実行先を混在させない。
 
-## 対応順（実行キュー）
+性能の技術的な状態は [todo-performance.md](todo-performance.md)、測定・受入は [統合検証TODO](todo-verification.md#perf-stg-login) を参照する。
 
-上から 1 件だけ着手する。USER / old_db に当たったら止めて提示する。deferred はキューに入れない。
+運用・外部環境に関する停止条件は [todo-operations.md](todo-operations.md) を参照する。push / dispatch / Linear Done / 秘密変更は明示承認が必要。
 
-| 順 | ID | 実行者 | なぜこの順 | 状態 |
-|----|----|--------|------------|------|
-| 1 | **META-LINEAR-APPLY** | USER | repo の対応案は [linear-f1-f6-mapping.md](docs/work/linear-f1-f6-mapping.md)。書き込みと Done は USER | **BLOCKED**（Linear MCP / `LINEAR_API_KEY` なし。公開ページはログイン壁。エージェントは書かない） |
-| 2 | **H0-2 / HAC-CSV-1** | old_db / USER | STG 八王子の先頭。これより前の STG 行は進めない | **BLOCKED**（HAC-INPUT-2。完全 KNJO 未受領。同一 BAK 再実行と producer は禁止） |
-| 3 | **H0-3b → Lane3 HAC → H3-9 → H3-11 → Lane 4** | USER | 2 の依存どおり | 待ち |
-| 4 | **P1 → P2 → P3 → P4 → P5 → P6 → P7 → P8** | USER | go-live 依存。E1 / E2 は P4 の一部 | 待ち |
-
-次は医院/ベンダーからの完全 KNJO 再取得、または城東主経路（JOU-G2-2 の Azure 承認）。H0-3b には入らない。Linear 書き込みと Done は USER。
-
----
-
-## 1. 受入残（PASS にしていない）
-
-helper / 再実行スライスは済。UAT / E2E を PASS にしない。正本は [UAT-DOMAIN-STATUS.md](docs/ops/testing/UAT-DOMAIN-STATUS.md)。
-
-| ID | 残 | 状態 |
-|----|----|------|
-| **QA-UAT-S09-FIXTURE** | HTTP/CLI とブラウザ再実行 | S09 は BLOCKED |
-| **QA-UAT-V04-RETEST** | live HTTP は 403。clinic 1/2 の権限昇格なし | V04 は UNKNOWN |
-| **QA-FULL-CLINICAL-E2E** | `--clinical` 未実行。e2e.yml job は未 | E2E は未証明 |
-
-設計: [S09-FIXTURE-DESIGN.md](docs/ops/testing/S09-FIXTURE-DESIGN.md) · [CLINICAL-E2E-DESIGN.md](docs/ops/testing/CLINICAL-E2E-DESIGN.md)。
+claim は ID ごとに初回編集前に確認・取得する。作成者別の削除条件は [AGENTS.md](AGENTS.md#branch-deletion-by-creator-mandatory) を正本とする。ユーザー作成は AI による削除禁止。AI 作成は統合・明示終了・成果を保全した引き継ぎと未使用を確認して削除可能。過去セッションの claim 記録は historical snapshot として読み、現在の保有状態は新規着手時に `git branch --list 'claim/<TASK-ID>'` で再確認する。本 META 追加照合に再着手する場合は `claim/META-LINEAR-APPLY` を確認・取得する。claim の削除は UAT や受入の完了を意味しない。
 
 ---
 
-## 2. USER ゲート（秘密・本番・外部環境）
+<a id="development-tasks"></a>
 
-外部状態は実行直前に再確認する。エージェントは秘密値の作成・表示・投入、共有 STG/PROD apply、production 構築、go-live を自動実行しない。
+## 開発タスク
 
-| 順 | ID | 実行者 | 状態 | 完了条件 |
-|----|----|--------|------|----------|
-| P1 | **SEC-SECRETS-5 / #89 / #97** | USER | 4系統 rotation receipt 未記入 | 新発行→投入→再 deploy→health→旧値 revoke→旧値拒否。値は記録しない |
-| P2 | **#253 / U12 PROD-SETUP** | USER / 開発 | Production 未構築 | Cloudflare 本番、Required reviewers、workflow、rollback、backup rehearsal、URL/CI receipt |
-| P3 | **#250 PROD-DATA-MIGRATION** | USER / 開発 | 事前準備待ち | rehearsal、最終 import、入力停止、backup/rollback、件数・clinic_id・金額突合 |
-| P4 | **#254 AUTHENTICATED-UAT** | USER / agent | full UAT 未証明 | 全業務 scenario の受入結果を確定。PARTIAL / BLOCKED / UNKNOWN を PASS にしない |
-| P5 | **#255 STAFF-PROVISION** | USER | 入力未記入 | roster、email 方針、clinic、role、actor、環境承認。PII-free receipt |
-| P6 | **#258 / U1〜U12 DELIVERY** | USER | 最終承認待ち | P1・P2 と契約責任者の非機密事実を `DELIVERY_PACKAGE.md` へ反映 |
-| P7 | **#256 / U13 TRAINING** | USER | 操作説明会未完 | 日程・形式・範囲・結果・opaque receipt |
-| P8 | **#257 GOLIVE** | USER | HOLD | P1〜P7 の受入と第2段階条件。重大 FAIL や当日 import 未達なら No-Go |
-| E1 | **QA-UAT-LSTEP-REAL** | USER | 外部環境待ち | write 有効な LSTEP で S01 同期と V05-17 remove |
-| E2 | **QA-UAT-LINE-IDTOKEN** | USER | mock 外・未証明 | 実 LINE idToken で link / 409 / 期限切れ 400 |
-
-P4 の延期例外: 臨床安全、会計金額、clinic / owner / pet / staff 分離、認証・権限、データ消失の未解消 FAIL は go-live 前に解消する。それ以外は Linear に受容条件を残し、USER の明示受容がある場合だけ延期できる。
+**ローカルで着手可能な開発単位（READY）はなし。** Open Issue 本文は [todo-issue.md](todo-issue.md)（deferred の codegen のみ）。旧項目の扱いと根拠は [裁定記録](docs/work/development-task-decisions.md)。検証は [統合検証TODO](todo-verification.md)、運用は [todo-operations.md](todo-operations.md)。
 
 ---
 
-## 3. STG 実データ（USER / old_db）
+<a id="product-bugs"></a>
 
-対象は八王子 `clinic_id=1` と城東 `clinic_id=2`。証跡が無いだけなら **UNKNOWN**。再 apply の前に USER が現行状態を確認する。
+## 4. 確認済み製品 FAIL（旧 bug.md）
 
-| 優先 | ID | 実行者 | 状態 | blocked-by |
-|------|----|--------|------|------------|
-| 1 | **H0-2 / HAC-CSV-1** | old_db / USER | HAC-CSV-1 は C1 `HAC-INPUT-2` 待ち。AE `hachioji/` 空。export なし | CHECKDB clean な新規 BAK、または全32列完全 KNJO。同一/既知破損 BAK の再復元は禁止。城東 live を上書きする load も禁止 |
-| 2 | **H0-3b / H1-2** | USER | 待ち | H0-2 |
-| 3 | **AE-STG-UAT-LANE3-HAC** | USER | UNKNOWN・投入判断待ち | 現行状態、H0-2、H0-3b |
-| 4 | **H3-9 staff attach apply** | USER | 入力あり・apply 実施有無 UNKNOWN | 現行 attach と STG 実行ゲート |
-| 5 | **H3-11 画面確認** | USER | UNKNOWN・証跡未取得 | H3-9 と自医院ログイン |
-| 6 | **Lane 4** | 医院スタッフ / USER | 完了未証明 | 両院 Lane 3 verify、H3-11 |
+記録対象は確認済み製品 FAIL のみ（[TEST_ARCHITECTURE.md](docs/ops/testing/TEST_ARCHITECTURE.md) §6）。環境・seed・権限・fixture 不足による BLOCKED / PARTIAL や受入未実施を混ぜない。証跡に credential・token・cookie・idToken・個人情報（PHI）を含めない。新規 FAIL の詳細は本節と [todo-issue.md](todo-issue.md) に記載する（Linear 新規 Issue は作らない）。既存 Linear チケットがある場合のみコメント更新する。見出し ID は本節内で重複させない。新規項目は `### BUG-XXX` で本節に追加する。
 
-索引から外したもの: AE-OLD-DB-MR-UNIQ、Lane3 城東 21表、H3-7 敷島 / Hako。
+| ID | status | area | severity | scenario | 層 |
+|:---|:---|:---|:---|:---|:---|
+| （現在の確認済み未対応項目なし） | — | — | — | — | — |
 
-STG 実行ゲート: 対象環境、data owner、operator、maintenance window、backup / restore、rollback、承認。正本は [STG 手順の停止ゲート](docs/ops/deploy/STG_PLANETSCALE_SEED_RUNBOOK.md#2-pre-deploy-stop-gates)。
+これは現在の製品全体に不具合がないという判定ではない。認証の現在状態は [todo-fix-auth.md](todo-fix-auth.md)、検証は [統合検証TODO](todo-verification.md#認証認可の外部境界) を参照する。対応済み項目は本節に残さず、履歴は Git と `reports/uat-YYYY-MM-DD/` を参照する。
 
-観測（2026-09-06）: 城東・敷島・箱は AE handoff に bundle あり。八王子ディレクトリは空。old_db export も八王子 run なし。producer は未実行。Lane 4 は 5営業日証跡なし。
+<a id="human-lane"></a>
 
----
+## 5. PO / 人間レーン（旧 todo-po.md）
 
-## 4. 触ったときだけ / deferred
+既存人間ゲートの追跡は Linear hub [BRT-4](https://linear.app/baritechllc/issue/BRT-4) · Project ノア動物病院電子カルテ（更新のみ）。新規の人間レーン項目が必要なら [todo-issue.md](todo-issue.md) に書く。検証は統合検証TODOを正本とし、別の Open 行台帳を再構築しない。
 
-横断キャンペーンにしない。
+会社側索引: CorpVault `50_Projects/ノア動物病院電子カルテ/05_Linearマップ.md`。旧詳細本文は Git 履歴。
 
-| ID | 再開条件 |
-|----|----------|
-| **TASK-444** | generated/models の公開契約・codegen・consumer 移行計画が揃ってから |
-| **BE-RC-005** | 新規・変更 service から 5xx 二重ログを解消 |
-| **BE-RC-009** | 新規 consumer または対象機能変更時に利用側最小 port へ分割 |
-| **BE-RC-014** | typed error が使えるようになったら `errors.As` へ |
-| **BE-RC-015** | 新規・変更面から package.Type stutter を避ける |
-| **BE-RC-017** | 対象 repository 変更時に unexported update + typed command |
-| **BE-RC-019** | lab / hospitalization 等の境界が成立する変更時だけ |
+<a id="refactor-constraints"></a>
+
+## 6. FE 維持制約
+
+- `design-tokens.ts` / `query-keys.ts` / `paths.ts` の表分割、50 行までの機械分割、200–399 行ファイルの薄型化だけを目的とした切断は行わない。
+- `utils/` を再作成しない。generated/models の一括移行は行わず、必要性が出た場合だけ [開発タスクの裁定記録](docs/work/development-task-decisions.md#task-444) の境界で分割追従する。
+- `app/pages` の合成と owners `loaders.ts` の例外を維持する。
+- 権限 ref、死亡 sentinel、`useActionState`、queryKey タプルの契約を維持する。
+- FE12 却下（manual chunk、死亡行グレーアウト、owners 行アクションをペット生死で止める）は維持する。
+- 当時のトリミングフォームの権限・死亡ガード欠落は対象外だった。本履歴から現在の未修正・修正済みを判断しない。
 
 ---
 
@@ -109,11 +82,10 @@ STG 実行ゲート: 対象環境、data owner、operator、maintenance window�
 
 | 文書 | 役割 |
 |------|------|
-| [`todo-now.md`](todo-now.md) | Astra F1〜F6 の完了履歴 |
-| [docs/work/linear-f1-f6-mapping.md](docs/work/linear-f1-f6-mapping.md) | F1〜F6 対応案。Linear は UNKNOWN |
-| [docs/ops/testing/S09-FIXTURE-DESIGN.md](docs/ops/testing/S09-FIXTURE-DESIGN.md) | S09 helper 設計 |
-| [docs/ops/testing/CLINICAL-E2E-DESIGN.md](docs/ops/testing/CLINICAL-E2E-DESIGN.md) | clinical E2E 設計 |
-| [docs/ops/testing/UAT-DOMAIN-STATUS.md](docs/ops/testing/UAT-DOMAIN-STATUS.md) | UAT 集計の正本 |
-| [`bug.md`](bug.md) | 確認済み製品 FAIL |
+| [todo-issue.md](todo-issue.md) | **新規 Issue 本文の正本**（Linear 新規作成禁止） |
+| [docs/work/linear-f1-f6-mapping.md](docs/work/linear-f1-f6-mapping.md) | F1〜F6 対応案。既存 Linear 照合 |
+| [todo-verification.md](todo-verification.md) | 横断・性能・認証の検証TODO |
+| [todo-operations.md](todo-operations.md) | STG・本番・納品などの運用・外部実行TODO |
+| [製品 FAIL](#product-bugs) | 確認済み製品 FAIL |
 | [docs/ops/deploy/OLD_DB_HANDOFF_LOCAL.md](docs/ops/deploy/OLD_DB_HANDOFF_LOCAL.md) | ローカル handoff |
 | [docs/ops/deploy/STG_PLANETSCALE_SEED_RUNBOOK.md](docs/ops/deploy/STG_PLANETSCALE_SEED_RUNBOOK.md) | STG 破壊境界 |

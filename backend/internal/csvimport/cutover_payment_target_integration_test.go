@@ -268,6 +268,8 @@ INSERT INTO payment_splits (
 		clinicID,
 		cashID,
 		cardID,
+		true,
+		false,
 	).Scan(&planJSON); err != nil {
 		t.Fatalf("explain payment graph query: %v", err)
 	}

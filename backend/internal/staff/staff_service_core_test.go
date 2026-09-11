@@ -23,6 +23,7 @@ type coreMockStaffRepository struct {
 	lockInClinicFn                     func(ctx context.Context, clinicID, id uint64) (*model.Staff, error)
 	lockForShareFn                     func(ctx context.Context, id uint64) (*model.Staff, error)
 	createFn                           func(ctx context.Context, staff *model.Staff) error
+	attachAccountIDFn                  func(ctx context.Context, clinicID, staffID, accountID uint64) error
 	updateFn                           func(ctx context.Context, clinicID, id uint64, cmd UpdateStaffInput) error
 	deleteFn                           func(ctx context.Context, clinicID, id uint64) error
 	reorderFn                          func(ctx context.Context, clinicID uint64, ids []uint64) error
@@ -56,6 +57,9 @@ func (m *coreMockStaffRepository) LockActiveByIDForUpdate(ctx context.Context, i
 	if m.lockForUpdateFn != nil {
 		return m.lockForUpdateFn(ctx, id)
 	}
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, id)
+	}
 	return &model.Staff{ID: id}, nil
 }
 func (m *coreMockStaffRepository) LockActiveByIDForUpdateInClinic(
@@ -88,6 +92,12 @@ func (m *coreMockStaffRepository) Create(ctx context.Context, staff *model.Staff
 func (m *coreMockStaffRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateStaffInput) error {
 	if m.updateFn != nil {
 		return m.updateFn(ctx, clinicID, id, cmd)
+	}
+	return nil
+}
+func (m *coreMockStaffRepository) AttachAccountID(ctx context.Context, clinicID, staffID, accountID uint64) error {
+	if m.attachAccountIDFn != nil {
+		return m.attachAccountIDFn(ctx, clinicID, staffID, accountID)
 	}
 	return nil
 }
@@ -151,15 +161,32 @@ type coreMockAccountRepository struct {
 		updatedAt time.Time,
 	) error
 	deletePasswordResetTokensFn func(ctx context.Context, id uint64) error
+	findByIDForUpdate           func(ctx context.Context, id uint64) (*model.Account, error)
+	findByEmailFn               func(ctx context.Context, email string) (*model.Account, error)
+	createFn                    func(ctx context.Context, account *model.Account) error
 }
 
 func (m *coreMockAccountRepository) FindByID(_ context.Context, _ uint64) (*model.Account, error) {
 	return nil, nil
 }
-func (m *coreMockAccountRepository) FindByEmail(_ context.Context, _ string) (*model.Account, error) {
+func (m *coreMockAccountRepository) FindByEmail(ctx context.Context, email string) (*model.Account, error) {
+	if m.findByEmailFn != nil {
+		return m.findByEmailFn(ctx, email)
+	}
 	return nil, nil
 }
-func (m *coreMockAccountRepository) Create(_ context.Context, _ *model.Account) error { return nil }
+func (m *coreMockAccountRepository) FindByIDForUpdate(ctx context.Context, id uint64) (*model.Account, error) {
+	if m.findByIDForUpdate != nil {
+		return m.findByIDForUpdate(ctx, id)
+	}
+	return &model.Account{ID: id, IsActive: true}, nil
+}
+func (m *coreMockAccountRepository) Create(ctx context.Context, account *model.Account) error {
+	if m.createFn != nil {
+		return m.createFn(ctx, account)
+	}
+	return nil
+}
 func (m *coreMockAccountRepository) UpdatePasswordHash(
 	ctx context.Context,
 	id uint64,

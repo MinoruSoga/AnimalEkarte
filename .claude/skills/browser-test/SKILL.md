@@ -1,6 +1,6 @@
 ---
 name: browser-test
-description: Chrome DevTools MCPを使ったブラウザ機能テスト。docs/ops/testing/SECTION_14_MANUAL_TEST_GUIDE.mdのシナリオを実行し、結果をテスト結果レポートとして出力する。
+description: 利用可能なブラウザツールを使った機能テスト。docs/ops/testing/SECTION_14_MANUAL_TEST_GUIDE.mdのシナリオを実行し、結果をテスト結果レポートとして出力する。
 ---
 
 # ブラウザ機能テスト スキル
@@ -24,10 +24,10 @@ FAIL 起票先: 確認済み製品 FAIL は root `bug.md` に記録し、その�
 
 ## 実行契約
 
-モデル名（Haiku / Sonnet 等）で可否を決めない。Chrome DevTools はプロジェクト共有 MCP として `http://127.0.0.1:9222` を対象にする。認証は指定環境の契約（`E2E_LOGIN_EMAIL` / `E2E_LOGIN_PASSWORD` 等）へ案内し、固定資格情報例や値をレポートに書かない。
+モデル名で可否を決めない。ユーザースコープのブラウザ接続と現セッションの利用可能toolを確認する。Chrome DevToolsはユーザー設定の固定バージョン・isolatedプロファイル・telemetry無効を既定とし、プロジェクトMCP一覧は空に保つ。既存ブラウザのloopback `http://127.0.0.1:9222` への接続は、その対象をユーザーが明示承認した場合だけ行う。認証は指定環境の契約（`E2E_LOGIN_EMAIL` / `E2E_LOGIN_PASSWORD` 等）へ案内し、固定資格情報例や値をレポートに書かない。
 
 1. 対象が SECTION_14 なら同ガイド、**scenarios ID（Sxx/Vxx）なら `docs/ops/testing/scenarios/`** から手順を読む。V シリーズは `FIELD-LEVEL-PROTOCOL.md` + `FORM-FIELD-INVENTORY.md` も読む
-2. ブラウザ操作は副作用範囲がテスト実行に閉じている場合、現セッションで完了してよい
+2. 専用プロファイル・対象URL・合成テストデータ・許可された書き込み範囲を確認する。患者/飼主の実データや個人ブラウザを流用しない。既に許可されたテスト範囲は再承認不要。削除や外部通知など未承認の副作用が必要なら、その手順を止めて独立ケースを続ける
 3. 結果をテスト結果レポートとして出力する（シナリオ md / SECTION_14 本体は編集しない）
 
 ---
@@ -44,7 +44,7 @@ Chrome DevTools MCP を使って指定されたテスト項目を実行し、結
 - URL: http://localhost:3003
 - 認証: 環境変数 E2E_LOGIN_EMAIL / E2E_LOGIN_PASSWORD（値をレポートに書かない）
 - ロール: 管理者 / 獣医師 / 受付 は seed の役割名で指定（SECTION_14 §4・UAT-ENV-SETUP）
-- ブラウザ: Chrome（Chrome DevTools MCP · remote debugging :9222）
+- ブラウザ: ユーザー設定のChrome DevTools MCP（isolatedプロファイル。既存 :9222 接続には対象の明示承認が必要）
 - フォーム項目単位: FIELD-LEVEL-PROTOCOL F0–F6 を inventory 全 fieldKey に適用
 
 ## テスト対象
@@ -54,14 +54,14 @@ Chrome DevTools MCP を使って指定されたテスト項目を実行し、結
 ## 実行手順
 
 ### Step 1: ブラウザ準備
-1. mcp__chrome-devtools__list_pages でページ一覧を確認
+1. 現セッションのtool定義を確認し、以下のDevTools例を利用可能なAPIへ対応させる。Playwrightは再現テスト、DevToolsは診断、Computer Useは必要な操作に使う。専用プロファイルのページ一覧を確認
 2. アプリが開いていなければ mcp__chrome-devtools__new_page で http://localhost:3003 を開く
 3. ログイン状態を確認（/login ページなら Step 2 へ、そうでなければ Step 3 へ）
 
 ### Step 2: ログイン（未ログイン時のみ）
 1. mcp__chrome-devtools__navigate_page で http://localhost:3003/login に移動
-2. mcp__chrome-devtools__fill でメールアドレス入力: admin@example.com
-3. mcp__chrome-devtools__fill でパスワード入力: password
+2. 利用可能な入力toolで指定環境のテスト用メールアドレスを入力（値は記録しない）
+3. 指定環境のテスト用パスワードを入力（値は記録しない）
 4. mcp__chrome-devtools__click でログインボタンをクリック
 5. mcp__chrome-devtools__wait_for でダッシュボード表示を待機
 
@@ -100,7 +100,9 @@ Chrome DevTools MCP を使って指定されたテスト項目を実行し、結
 - 操作の間は必ず mcp__chrome-devtools__wait_for で応答を待つ（タイムアウト: 5000ms）
 - API 呼び出しが含まれるテストは mcp__chrome-devtools__get_network_request でステータスコードを確認
 - エラーが出た場合はスクリーンショットを取得してから次のテストへ進む
-- N/A は実装・データが存在しない場合のみ使用
+- N/A は仕様上対象外の場合だけ使用。データ不足・ツール不足・未実装・未実施はBLOCKED/未確認として記録する
+- スクリーンショットとAPI証跡から患者/飼主情報・資格情報を除外する
+- local/candidateの成功をSTG/UAT/PRODやrelease readinessへ昇格しない
 ```
 
 ---

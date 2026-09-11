@@ -205,7 +205,7 @@ import type { Owner } from "@/types/owner";
 
 ## ローカル DEV / STG デモアカウント
 
-ログイン画面のデモアカウント一覧は次だけで表示する。林 文明は1人・執行で catalog 全医院に所属し、残りは所属医院の一般。
+ログイン画面のデモアカウント一覧は次だけで表示する。各医院の先頭（林 文明）は執行で catalog 全医院に所属し、残りは所属医院の一般。
 
 - ローカル Vite DEV（`import.meta.env.DEV`）
 - Vercel preview（STG。`frontend-deploy.yml` が `VERCEL_ENV=preview` を焼き込む）

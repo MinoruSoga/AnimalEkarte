@@ -11,8 +11,31 @@ func strPtr(value string) *string {
 }
 
 type mockPermissionGroupRepository struct {
-	findAllGroupIDsByStaffIDFn func(context.Context, uint64, uint64) ([]uint64, error)
-	updateStaffGroupsFn        func(context.Context, uint64, uint64, []uint64) error
+	lockPermissionPolicyFn                 func(context.Context, uint64) error
+	findAllGroupIDsByStaffIDFn             func(context.Context, uint64, uint64) ([]uint64, error)
+	findAllEffectivePermissionsByStaffIDFn func(context.Context, uint64, uint64) ([]model.PermissionGroupRule, error)
+	updateStaffGroupsFn                    func(context.Context, uint64, uint64, []uint64) error
+}
+
+func (m *mockPermissionGroupRepository) LockPermissionPolicy(ctx context.Context, clinicID uint64) error {
+	if m.lockPermissionPolicyFn != nil {
+		return m.lockPermissionPolicyFn(ctx, clinicID)
+	}
+	return nil
+}
+
+func (m *mockPermissionGroupRepository) FindAllEffectivePermissionsByStaffID(
+	ctx context.Context,
+	staffID, clinicID uint64,
+) ([]model.PermissionGroupRule, error) {
+	if m.findAllEffectivePermissionsByStaffIDFn != nil {
+		return m.findAllEffectivePermissionsByStaffIDFn(ctx, staffID, clinicID)
+	}
+	return []model.PermissionGroupRule{{
+		Resource: string(model.ResourceMasterPermission),
+		CanView:  true,
+		CanEdit:  true,
+	}}, nil
 }
 
 func (m *mockPermissionGroupRepository) FindAllGroupIDsByStaffID(

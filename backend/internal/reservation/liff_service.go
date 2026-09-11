@@ -7,6 +7,18 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
+// reservationTypeUnavailableTimeReader is the LIFF consumer-side FindAll-only view
+// for reservation-type unavailable times. Full repositories remain assignable.
+type reservationTypeUnavailableTimeReader interface {
+	FindAll(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeUnavailableTime, error)
+}
+
+// reservationTypeAvailableSlotReader is the LIFF consumer-side FindAll-only view
+// for reservation-type available slots. Full repositories remain assignable.
+type reservationTypeAvailableSlotReader interface {
+	FindAll(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeAvailableSlot, error)
+}
+
 // LiffService はLIFF公開APIのビジネスロジックインターフェース
 type LiffService interface {
 	GetSettings(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error)
@@ -35,8 +47,8 @@ type liffService struct {
 	ownerRepo           liffOwnerRepo
 	validators          ReservationValidators
 	notifier            ReservationNotifier
-	unavailableTimeRepo ReservationTypeUnavailableTimeRepository // BE-117
-	availableSlotRepo   ReservationTypeAvailableSlotRepository
+	unavailableTimeRepo reservationTypeUnavailableTimeReader // BE-117 / BE-RC-009
+	availableSlotRepo   reservationTypeAvailableSlotReader
 	occupationRepo      ReservationTypeOccupationRepository // BE-117
 	trimmingCourseRepo  trimmingCourseFinder                // BE-120
 	trimmingOptionRepo  trimmingOptionFinder                // BE-120
@@ -57,8 +69,8 @@ func NewLiffServiceWithType(
 	tx Transactor,
 	reservationRepo ReservationRepository,
 	notifier ReservationNotifier,
-	unavailableTimeRepo ReservationTypeUnavailableTimeRepository,
-	availableSlotRepo ReservationTypeAvailableSlotRepository,
+	unavailableTimeRepo reservationTypeUnavailableTimeReader,
+	availableSlotRepo reservationTypeAvailableSlotReader,
 	occupationRepo ReservationTypeOccupationRepository,
 	trimmingCourseRepo trimmingCourseFinder,
 	trimmingOptionRepo trimmingOptionFinder,

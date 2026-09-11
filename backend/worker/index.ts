@@ -227,6 +227,43 @@ export class AnimalEkarteApiContainer extends Container<Env> {
   }
 }
 
+type ProxyObservationOutcome =
+  | { readonly status: number }
+  | { readonly failureCode: "container_unavailable" };
+
+const SAFE_REQUEST_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function proxyMethodClass(method: string): "get" | "options" | "other" {
+  if (method === "GET") return "get";
+  if (method === "OPTIONS") return "options";
+  return "other";
+}
+
+function proxyPathClass(pathname: string): "session" | "other" {
+  return pathname === "/api/v1/me" ? "session" : "other";
+}
+
+/**
+ * Returns the fixed, non-PII shape used to correlate Worker forwarding timing.
+ * It deliberately classifies rather than retaining raw request data.
+ */
+export function buildProxyObservation(
+  request: Request,
+  startedAt: number,
+  finishedAt: number,
+  outcome: ProxyObservationOutcome,
+) {
+  const requestId = request.headers.get("X-Request-ID");
+  return {
+    event: "container_fetch_timing",
+    method: proxyMethodClass(request.method),
+    path: proxyPathClass(new URL(request.url).pathname),
+    duration_ms: Math.max(0, Math.round(finishedAt - startedAt)),
+    ...("status" in outcome ? { status: outcome.status } : { failure_code: outcome.failureCode }),
+    ...(requestId !== null && SAFE_REQUEST_ID.test(requestId) ? { request_id: requestId } : {}),
+  };
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     // P4-5(試行10): /_internal/* は Worker でのみ処理し、Container の Gin へは
@@ -278,8 +315,14 @@ export default {
     const forwardedRequest = new Request(request, { headers });
 
     const container = getContainer(env.API_CONTAINER);
+    const startedAt = performance.now();
     try {
-      return await container.fetch(forwardedRequest);
+      const response = await container.fetch(forwardedRequest);
+      console.info(
+        "container fetch timing",
+        buildProxyObservation(request, startedAt, performance.now(), { status: response.status }),
+      );
+      return response;
     } catch {
       // Container 起動失敗(イメージ・メモリ等)・タイムアウト時、Workers既定の500本文では
       // フロントエンドがJSONエラーとして解釈できないため、明示的なフォールバックを返す。
@@ -288,6 +331,12 @@ export default {
         event: "container_fetch_failed",
         failure_code: "container_unavailable",
       });
+      console.info(
+        "container fetch timing",
+        buildProxyObservation(request, startedAt, performance.now(), {
+          failureCode: "container_unavailable",
+        }),
+      );
       return new Response(JSON.stringify({ error: "service_unavailable" }), {
         status: 503,
         headers: { "Content-Type": "application/json" },

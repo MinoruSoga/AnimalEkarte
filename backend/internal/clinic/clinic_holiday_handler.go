@@ -19,6 +19,9 @@ func (h *Handler) ListClinicHolidays(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceShifts), "view") {
+		return
+	}
 
 	query := NewListClinicHolidaysQuery(c.Request.URL.Query())
 	holidays, err := h.holidaySvc.List(c.Request.Context(), clinicID, query.YearMonth)

@@ -3,10 +3,16 @@ package owner
 import (
 	"context"
 	"errors"
+	"go/ast"
+	"go/parser"
+	"go/token"
+	"os"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -77,10 +83,10 @@ func (m *mockOwnerRepository) Update(ctx context.Context, clinicID, id uint64, f
 func (m *mockOwnerRepository) UpdateAndFind(
 	ctx context.Context,
 	clinicID, id uint64,
-	fields map[string]any,
+	cmd UpdateCommand,
 ) (*model.Owner, error) {
-	return m.UpdateAndFindApplying(ctx, clinicID, id, func(_ *model.Owner) (map[string]any, error) {
-		return fields, nil
+	return m.UpdateAndFindApplying(ctx, clinicID, id, func(_ *model.Owner) (UpdateCommand, error) {
+		return cmd, nil
 	})
 }
 
@@ -100,10 +106,11 @@ func (m *mockOwnerRepository) UpdateAndFindApplying(
 	if err != nil {
 		return nil, err
 	}
-	fields, err := apply(locked)
+	cmd, err := apply(locked)
 	if err != nil {
 		return nil, err
 	}
+	fields := updateCommandFields(cmd)
 	if m.updateAndFindFn != nil {
 		return m.updateAndFindFn(ctx, clinicID, id, fields)
 	}
@@ -657,4 +664,116 @@ func TestOwnerService_Update(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestOwnerUpdateCommand_OmitsNilKeepsZeroAndEmpty(t *testing.T) {
+	empty := ""
+	dangerousFalse := false
+	fields := updateCommandFields(UpdateCommand{
+		Name:        nil,
+		Remarks:     &empty,
+		IsDangerous: &dangerousFalse,
+	})
+
+	assert.NotContains(t, fields, colOwnerName)
+	assert.Contains(t, fields, colRemarks)
+	assert.Equal(t, "", fields[colRemarks])
+	assert.Contains(t, fields, colIsDangerous)
+	assert.Equal(t, false, fields[colIsDangerous])
+}
+
+func TestOwnerUpdateCommand_SetGroupsAlwaysWrite(t *testing.T) {
+	fields := updateCommandFields(UpdateCommand{
+		SetDeliveryExclusion:   true,
+		DeliveryExcluded:       false,
+		DeliveryExcludedReason: nil,
+		LstepOptOut:            false,
+		LstepOptOutAt:          nil,
+		LstepOptOutReason:      nil,
+		SetDeliveryCaution:     true,
+		DeliveryCaution:        false,
+		DeliveryCautionReason:  nil,
+		SetTransfer:            true,
+		IsTransferred:          false,
+		TransferAt:             nil,
+	})
+
+	assert.Equal(t, false, fields[colDeliveryExcluded])
+	assert.Nil(t, fields[colDeliveryExcludedReason])
+	assert.Equal(t, false, fields[colLstepOptOut])
+	assert.Nil(t, fields[colLstepOptOutAt])
+	assert.Nil(t, fields[colLstepOptOutReason])
+	assert.Equal(t, false, fields[colDeliveryCaution])
+	assert.Nil(t, fields[colDeliveryCautionReason])
+	assert.Equal(t, false, fields[colIsTransferred])
+	assert.Nil(t, fields[colTransferAt])
+}
+
+func TestOwnerUpdateCommand_NoPublicMapUpdateAPI(t *testing.T) {
+	fset := token.NewFileSet()
+	pkgs, err := parser.ParseDir(fset, ".", func(info os.FileInfo) bool {
+		return !strings.HasSuffix(info.Name(), "_test.go")
+	}, 0)
+	require.NoError(t, err)
+	pkg, ok := pkgs["owner"]
+	require.True(t, ok, "owner package AST required")
+
+	forbiddenFn := map[string]struct{}{
+		"UpdateCommandFields": {},
+		"BuildOwnerUpdate":    {},
+		"BuildUpdateMap":      {},
+		"OwnerUpdateFields":   {},
+	}
+
+	for path, file := range pkg.Files {
+		ast.Inspect(file, func(n ast.Node) bool {
+			switch node := n.(type) {
+			case *ast.FuncDecl:
+				if node.Name == nil || !ast.IsExported(node.Name.Name) {
+					return true
+				}
+				if _, banned := forbiddenFn[node.Name.Name]; banned {
+					t.Errorf("%s: exported map factory %s is forbidden", path, node.Name.Name)
+				}
+			case *ast.TypeSpec:
+				if node.Name == nil || node.Name.Name != "ServiceRepository" {
+					return true
+				}
+				iface, ok := node.Type.(*ast.InterfaceType)
+				if !ok || iface.Methods == nil {
+					return false
+				}
+				for _, method := range iface.Methods.List {
+					fn, ok := method.Type.(*ast.FuncType)
+					if !ok || fn.Params == nil || len(method.Names) == 0 {
+						continue
+					}
+					name := method.Names[0].Name
+					if name != "Update" && name != "UpdateAndFind" && name != "UpdateAndFindApplying" {
+						continue
+					}
+					for _, param := range fn.Params.List {
+						if isOwnerUpdateMapStringAny(param.Type) {
+							t.Errorf("%s: ServiceRepository.%s must not accept map[string]any", path, name)
+						}
+					}
+				}
+				return false
+			}
+			return true
+		})
+	}
+}
+
+func isOwnerUpdateMapStringAny(expr ast.Expr) bool {
+	m, ok := expr.(*ast.MapType)
+	if !ok {
+		return false
+	}
+	key, ok := m.Key.(*ast.Ident)
+	if !ok || key.Name != "string" {
+		return false
+	}
+	val, ok := m.Value.(*ast.Ident)
+	return ok && val.Name == "any"
 }

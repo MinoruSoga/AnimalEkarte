@@ -33,7 +33,8 @@ func TestOwnerRepository_UpdateAndFind_ReloadFailureRollsBackUpdate(t *testing.T
 		}
 	})
 
-	got, err := repo.UpdateAndFind(ctx, clinicID, record.ID, map[string]any{"name": "更新後"})
+	name := "更新後"
+	got, err := repo.UpdateAndFind(ctx, clinicID, record.ID, UpdateCommand{Name: &name})
 
 	assert.Nil(t, got)
 	require.Error(t, err)

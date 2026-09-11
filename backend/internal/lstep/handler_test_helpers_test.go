@@ -4,6 +4,8 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/animal-ekarte/backend/internal/httpapi"
 )
 
 type mockEffectivePermissionService struct{}
@@ -27,6 +29,9 @@ func noopPermissionAny(...PermissionRequirement) gin.HandlerFunc {
 // （medicalrecord/reservation/billing の同名ヘルパーの最小限の複製）。
 func setClinicID(c *gin.Context) {
 	c.Set("clinic_id", "1")
+	httpapi.SetClinicPermissionChecker(c, func(_ *gin.Context, _ uint64, _, _ string) bool {
+		return true
+	})
 }
 
 func strPtr(s string) *string { return &s }

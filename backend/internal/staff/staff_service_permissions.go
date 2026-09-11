@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 func (s *staffService) GetPermissionGroupIDs(ctx context.Context, clinicID, staffID uint64) ([]uint64, error) {
@@ -28,6 +29,11 @@ func (s *staffService) SetPermissionGroupIDs(ctx context.Context, clinicID, staf
 	requestedGroupIDs := append([]uint64(nil), groupIDs...)
 
 	if err := s.tx.WithTx(ctx, func(txCtx context.Context) error {
+		// All policy writers take the clinic lock before staff/assignment/group
+		// row locks, and retain it through the effective-permission guard/audit.
+		if lockErr := s.permissionGroupRepo.LockPermissionPolicy(txCtx, clinicID); lockErr != nil {
+			return apperrors.Wrap(lockErr, "failed to lock permission policy")
+		}
 		lockedStaff, lockErr := s.repo.LockActiveByIDForUpdateInClinic(
 			txCtx,
 			clinicID,
@@ -55,6 +61,20 @@ func (s *staffService) SetPermissionGroupIDs(ctx context.Context, clinicID, staf
 			requestedGroupIDs,
 		); updateErr != nil {
 			return apperrors.Wrap(updateErr, "failed to set permission group ids")
+		}
+		if !audit.ActorIsSystemAdmin {
+			rules, permErr := s.permissionGroupRepo.FindAllEffectivePermissionsByStaffID(
+				txCtx,
+				audit.ActorStaffID,
+				clinicID,
+			)
+			if permErr != nil {
+				return apperrors.Wrap(permErr, "failed to resolve actor permission administration")
+			}
+			if !staffPermissionRulesAllow(rules, string(model.ResourceMasterPermission), "view") ||
+				!staffPermissionRulesAllow(rules, string(model.ResourceMasterPermission), "edit") {
+				return apperrors.WrapForbidden("cannot remove own permission administration")
+			}
 		}
 		if auditErr := s.permissionAudit.LogEntryTx(
 			txCtx,
@@ -114,5 +134,25 @@ func (s *staffService) SetCapableReservationTypeIDs(ctx context.Context, clinicI
 	return nil
 }
 
-// VerifyClinicMembership はスタッフが指定クリニックに所属しているかを確認する。
-// 所属していない場合は ErrNotFound を返す。
+func staffPermissionRulesAllow(
+	rules []model.PermissionGroupRule,
+	resource, action string,
+) bool {
+	for i := range rules {
+		rule := &rules[i]
+		if rule.Resource != resource {
+			continue
+		}
+		switch action {
+		case "view":
+			return rule.CanView
+		case "create":
+			return rule.CanCreate
+		case "edit":
+			return rule.CanEdit
+		case "delete":
+			return rule.CanDelete
+		}
+	}
+	return false
+}

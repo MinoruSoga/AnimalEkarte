@@ -25,6 +25,9 @@ func (h *Handler) ListStaffs(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMasterStaff), "view") {
+		return
+	}
 
 	// NOTE: pagination パラメータは無視（全件返却）
 	// 将来的にページネーション対応が必要な場合は、別エンドポイント化を検討
@@ -74,6 +77,74 @@ func (h *Handler) CreateStaff(c *gin.Context) {
 	c.JSON(http.StatusCreated, toStaffResponse(staff))
 }
 
+const attachStaffAccountMessage = "アカウントを追加しました。本人がログイン画面のパスワード再設定から設定してください"
+
+type attachStaffAccountRequest struct {
+	Email string `json:"email" binding:"required,email,max=254"`
+}
+
+type attachStaffAccountResponse struct {
+	StaffID   uint64 `json:"staff_id"`
+	AccountID uint64 `json:"account_id"`
+	Email     string `json:"email"`
+	Message   string `json:"message"`
+}
+
+// AttachStaffAccount godoc
+// POST /v1/masters/staffs/:id/account
+func (h *Handler) AttachStaffAccount(c *gin.Context) {
+	isSystemAdmin, ok := extractIsSystemAdmin(c)
+	if !ok {
+		return
+	}
+	if !isSystemAdmin {
+		RespondError(c, apperrors.WrapForbidden("forbidden"))
+		return
+	}
+	clinicID, id, ok := h.resolveStaffWithClinic(c)
+	if !ok {
+		return
+	}
+	var req attachStaffAccountRequest
+	if err := bindStaffJSON(c, &req); err != nil {
+		RespondError(c, err)
+		return
+	}
+	actorStaffID, ok := httpapi.ExtractStaffID(c)
+	if !ok {
+		return
+	}
+	staff, err := h.svc.Staff.AttachAccount(c.Request.Context(), clinicID, id, &AttachStaffAccountInput{
+		Email:         req.Email,
+		IsSystemAdmin: isSystemAdmin,
+		CredentialAudit: &CredentialMutationAudit{
+			ClinicID:      clinicID,
+			ActorStaffID:  actorStaffID,
+			TargetStaffID: id,
+			IPAddress:     c.ClientIP(),
+			UserAgent:     c.Request.Header.Get("User-Agent"),
+		},
+	})
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	var accountID uint64
+	if staff != nil && staff.AccountID != nil {
+		accountID = *staff.AccountID
+	}
+	email := ""
+	if staff != nil && staff.Account != nil {
+		email = staff.Account.Email
+	}
+	c.JSON(http.StatusCreated, attachStaffAccountResponse{
+		StaffID:   id,
+		AccountID: accountID,
+		Email:     email,
+		Message:   attachStaffAccountMessage,
+	})
+}
+
 // UpdateStaff godoc
 func (h *Handler) UpdateStaff(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
@@ -115,6 +186,15 @@ func (h *Handler) UpdateStaff(c *gin.Context) {
 	if !ok {
 		return
 	}
+	authorizedClinicIDs, ok = httpapi.FilterClinicIDsForPermission(
+		c,
+		authorizedClinicIDs,
+		string(model.ResourceMasterStaff),
+		"edit",
+	)
+	if !ok {
+		return
+	}
 	input := req.toServiceInput()
 	input.AuthorizedClinicIDs = authorizedClinicIDs
 	input.IsSystemAdmin = isSystemAdmin
@@ -143,6 +223,9 @@ func (h *Handler) UpdateStaff(c *gin.Context) {
 func (h *Handler) GetStaff(c *gin.Context) {
 	clinicID, id, ok := h.resolveStaffWithClinic(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMasterStaff), "view") {
 		return
 	}
 	var (
@@ -189,6 +272,9 @@ func (h *Handler) GetStaffPermissionGroups(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMasterStaff), "view") {
+		return
+	}
 	groupIDs, err := h.svc.Staff.GetPermissionGroupIDs(c.Request.Context(), clinicID, id)
 	if err != nil {
 		RespondError(c, err)
@@ -224,6 +310,9 @@ func (h *Handler) SetStaffPermissionGroups(c *gin.Context) {
 func (h *Handler) GetStaffClinicAssignments(c *gin.Context) {
 	_, id, ok := h.resolveStaffWithClinic(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMasterStaff), "view") {
 		return
 	}
 
@@ -363,6 +452,9 @@ func (h *Handler) GetStaffExcludedReservationTypes(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMasterStaff), "view") {
+		return
+	}
 	ids, err := h.svc.Staff.GetExcludedReservationTypeIDs(c.Request.Context(), clinicID, id)
 	if err != nil {
 		RespondError(c, err)
@@ -398,6 +490,9 @@ func (h *Handler) SetStaffExcludedReservationTypes(c *gin.Context) {
 func (h *Handler) GetStaffCapableReservationTypes(c *gin.Context) {
 	clinicID, id, ok := h.resolveStaffWithClinic(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMasterStaff), "view") {
 		return
 	}
 	ids, err := h.svc.Staff.GetCapableReservationTypeIDs(c.Request.Context(), clinicID, id)

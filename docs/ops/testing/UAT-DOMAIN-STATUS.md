@@ -2,8 +2,8 @@
 
 > **目的**: 受け入れ結果をシナリオ ID だけでなく業務ドメイン単位で俯瞰する。
 > **正本リンク**: [scenarios/README.md](./scenarios/README.md) · [TEST_ARCHITECTURE.md](./TEST_ARCHITECTURE.md)
-> **更新日**: 2026-09-06
-> **照合**: `QA-UAT-EVIDENCE-SYNC`。`reports/` は gitignore。コミット済み正本は本ファイルと [`bug.md`](../../../bug.md)。Linear は未照会（UNKNOWN）。
+> **更新日**: 2026-09-10
+> **照合**: `QA-UAT-EVIDENCE-SYNC`。2026-09-10 は repo の対象仕様を照合したが、runtime は再実行していない。`reports/` は gitignore。コミット済み正本は本ファイルと [`todo.md#product-bugs`](../../../todo.md#product-bugs)。Linear は未照会（UNKNOWN）。
 
 最終実行スナップショット（2026-09-05 / `uat/20260905` @ `2cbd8d9ad` / local FE :3003 · BE :8080）:
 
@@ -14,13 +14,13 @@
 | PARTIAL | 1 | S01 |
 | BLOCKED | 1 | S09 |
 
-現行（2026-09-06 照合。再実行していない判定は推定で動かさない）:
+現行（2026-09-10 repo 照合。再実行していない判定は推定で動かさない）:
 
 | 項目 | 値 |
 |:---|:---|
-| 開いている製品 FAIL（`bug.md`） | **0** |
+| 開いている製品 FAIL（`todo.md#product-bugs`） | **0** |
 | V04 受入 | **UNKNOWN**（全体 PASS ではない。下記 2026-09-06 再実行） |
-| S09 | **BLOCKED**（package helper あり。HTTP/CLI とブラウザ再実行は未。製品 FAIL ではない） |
+| S09 | **BLOCKED**（`e2e/s09-closing-time-boundaries.spec.ts` のブラウザ実行が compose 停止のため未実施。製品 FAIL ではない） |
 | S01 | **PARTIAL**（LSTEP 実送信は E1） |
 | r14 | ヘッダだけ「FAIL 0 / PASS 16」と書いてあった regression smoke。V04 再実行の証跡は本ファイルに無く、PASS 翻転ではない。ディレクトリは gitignore のため再読不可 |
 
@@ -92,10 +92,9 @@
 | V02 | PASS |
 
 - **未解消ギャップ（S09 BLOCKED 要件）**:
-  1. 承認済み **fixture API** または **scoped UAT test helper** が必要（`completed_at` を 10:00 / 13:30 / 14:00 / 20:00 / 翌 02:00 に設定した合成会計 5 件）。
-  2. **禁止**: 直接 DB 更新、システム時計変更、既存会計の改変（シナリオ hard rule）。
-  3. 現行 package helper は 5 会計ヘッダを作るが、HTTP/CLI・UAT identity・支払内訳・cleanup が未接続（[設計と実装境界](S09-FIXTURE-DESIGN.md)）。帰属証明ステップ #2–#6 は未再実行 → シナリオ総合 **BLOCKED**（settings/preview/history の先行 PASS では解除しない）。
-  4. 詳細: `reports/uat-2026-09-05-r5/S09-BLOCKED.md`
+  1. **禁止**: 直接 DB 更新、システム時計変更、既存会計の改変（シナリオ hard rule）。
+  2. `frontend/e2e/s09-closing-time-boundaries.spec.ts` の #2–#6 + cleanup をブラウザで再実行する。compose 停止中のため **BLOCKED**。
+  3. 詳細: `reports/uat-2026-09-05-r5/S09-BLOCKED.md`
 - **関連 bug IDs**: （なし — UAT 接続の不足は製品 FAIL ではない）
 - **証跡**: `reports/uat-2026-09-05-r5/S09-BLOCKED.md` · `reports/uat-2026-09-05-r4/s09-helper-search.json`
 
@@ -169,21 +168,16 @@
 | 実施日 | 2026-09-05 |
 | ブランチ | `uat/20260905` |
 | 環境 | local |
-| ドメイン総合判定 | **UNKNOWN**（V04 全体は未再実行。主訴 DELETE の 500 回帰は testdb で非再現） |
+| ドメイン総合判定 | **UNKNOWN**（V04 全体は未再実行） |
 
 | シナリオ | status |
 |:---|:---|
-| V04 | **UNKNOWN**（2026-09-05 最終実行は FAIL。2026-09-06 は DELETE 回帰のみ再実行） |
+| V04 | **UNKNOWN**（2026-09-05 最終実行は FAIL。2026-09-06 は DELETE 回帰のみ再実行。`e2e/v04-settings-master-forms.spec.ts` の browser runtime は未実行） |
 | closing-settings（S09 前提） | PASS（r6 GET/PATCH roundtrip） |
 
-- **Master CRUD 総合（r6+r7・最終実行）**: PASS **26** / PARTIAL **0** / BLOCKED **0** / FAIL **1**（27 行）
-  - **最終実行 FAIL**: `master-chief-complaint` DELETE が `inquiries.deleted_at` 参照で 500 → 当時 BUG-20260905-001
-  - **2026-09-06 testdb**: `TestChiefComplaintTypeRepository_Delete` と `CountUsage` が GREEN。未使用区分は削除できる。参照中は Conflict。`inquiries.deleted_at` を見ない。500 回帰は非再現
-  - **2026-09-06 live HTTP**: 合成 catalog login は 200。`master-medical` create は 403（一般グループ）。権限を上げて clinic 1/2 を触っていない。HTTP DELETE の受入は **BLOCKED**
-  - **判定**: 当時の製品 FAIL を bug.md に戻さない。V04 全体は PASS にしない
-  - 診断・診療項目5タブ・薬剤・トリミング一式・支払方法・締め・請求書欄など他は r6+r7 CRUD PASS
+- **未解消ギャップ**: `frontend/e2e/v04-settings-master-forms.spec.ts` を disposable clinic でブラウザ実行し、CRUD/DELETE の受入結果を確定する。runtime 未実行のため UNKNOWN。
 - **関連 bug IDs**: 現行 open なし
-- **証跡**: testdb コマンドは `todo.md` 順 2。live は status code のみ（credential・行値なし）
+- **証跡**: 新しい browser runtime 証跡は未取得
 ## 認証・LINE / LSTEP（V05）
 
 | 項目 | 値 |
@@ -208,7 +202,7 @@
 ## メンテ手順（短）
 
 1. 受け入れ再実行後、本ファイルの実施日・ブランチ・各ドメイン表の status / ギャップ / bug ID を更新する。
-2. 製品 FAIL のみルート `bug.md` へ（PARTIAL/BLOCKED は書かない）。
+2. 製品 FAIL のみルート `todo.md#product-bugs` へ（PARTIAL/BLOCKED は書かない）。
 3. 証跡は `reports/uat-YYYY-MM-DD(-postfix|-rN)/` に置き、シナリオ md は編集しない。
 4. S09 解除時は承認済み helper マージ後に #2–#6 を再実行し、本ファイルの会計ドメインとサマリを更新する。
 5. V04 は主訴 DELETE を disposable clinic で再実行してから UNKNOWN を外す。コード修正だけで PASS にしない。

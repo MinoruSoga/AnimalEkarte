@@ -8,6 +8,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // GetCheckupSyncPreview godoc
@@ -15,6 +16,9 @@ import (
 func (h *Handler) GetCheckupSyncPreview(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceOwners), "view") {
 		return
 	}
 	staffID, ok := httpapi.ExtractStaffID(c)

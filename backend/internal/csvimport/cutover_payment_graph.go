@@ -48,9 +48,10 @@ func loadCutoverBillingFacts(sourceDir string, spec CutoverTableSpec, table Cuto
 			return err
 		}
 		billings[billingID] = cutoverBillingFact{
-			totalAmount: totalAmount,
-			status:      status,
-			completedAt: sha256.Sum256([]byte(completedAt)),
+			totalAmount:         totalAmount,
+			status:              status,
+			completedAt:         sha256.Sum256([]byte(completedAt)),
+			completionTimestamp: completedAt,
 		}
 		return nil
 	})
@@ -96,9 +97,8 @@ func loadCutoverPaymentParents(
 		if err != nil {
 			return err
 		}
-		if billingAmount == 0 {
-			return fmt.Errorf("table payments row %d: payment amounts violate the cutover contract", line)
-		}
+		// Opposite-signed nonzero cash/card splits may net to zero. The split
+		// graph below still requires nonzero tenders and an exact parent sum.
 		var totalAmount int64
 		for _, column := range []string{"subtotal", "tax_total", "total_amount", "discount_amount"} {
 			amount, err := parsePaymentGraphInt("payments", column, row[indexes[column]], line)
@@ -219,7 +219,7 @@ func accumulateCutoverPaymentSplits(
 	})
 }
 
-func reconcileCutoverPaymentGraph(billings map[int64]cutoverBillingFact, parents map[int64]cutoverPaymentParent) error {
+func reconcileCutoverPaymentGraph(billings map[int64]cutoverBillingFact, parents map[int64]cutoverPaymentParent, verifiedWindowZero bool) error {
 	for billingID := range parents {
 		parent := parents[billingID]
 		if parent.splitCount < 1 || parent.splitAmount != parent.billingAmount {
@@ -242,7 +242,7 @@ func reconcileCutoverPaymentGraph(billings map[int64]cutoverBillingFact, parents
 		if _, ok := parents[billingID]; ok {
 			continue
 		}
-		if billing.totalAmount == 0 {
+		if billing.totalAmount == 0 || verifiedWindowZero {
 			continue
 		}
 		return fmt.Errorf("table billings: completed billing is missing its payment graph")

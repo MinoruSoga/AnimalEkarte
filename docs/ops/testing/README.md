@@ -21,6 +21,7 @@
 | [CLINICAL-E2E-DESIGN.md](CLINICAL-E2E-DESIGN.md) | `--clinical` fixture/allowlist と未実施境界 | clinical 自動回帰の準備 |
 | [S09-FIXTURE-DESIGN.md](S09-FIXTURE-DESIGN.md) | 完了時刻 fixture の package 実装と未実装の UAT 接続 | S09 BLOCKED の解消設計 |
 | [PERFORMANCE_PROFILING.md](PERFORMANCE_PROFILING.md) | Lighthouse、k6、SQL 分析、現行 profiler の制約 | 性能調査 |
+| [STG-PERFORMANCE-CHECKLIST.md](STG-PERFORMANCE-CHECKLIST.md) | STG性能測定の準備・承認・画面/API計測・中止条件・比較記録 | STG性能測定の計画・実施時 |
 
 ## 重要な現状
 
@@ -28,4 +29,4 @@
 - E2E workflow は manual・non-gating の auth smoke に合成ログインを配線済み。`--clinical` helper/allowlist も実装済みだが、実行成功・全 suite coverage は未確認。
 - performance workflow は `APP_ENV=test` と `LOAD_TEST_LOGIN_*` を配線済み。実 Actions/fresh DB/k6 の結果は UNREPORTED/UNKNOWN。
 - unique form総数はinventory再構築完了まで算定保留。exact key未収録や動的定義が残る間は「全fieldを網羅」と言わない。
-- カバレッジ基準は [../coverage-policy.md](../coverage-policy.md)。確認済み UAT FAIL は `bug.md` で重複確認・記録後に Linear で追跡する。その他の新規 defect は通常の Linear intake に従う。
+- カバレッジ基準は [../coverage-policy.md](../coverage-policy.md)。確認済み UAT FAIL は `todo.md#product-bugs` で重複確認・記録後に Linear で追跡する。その他の新規 defect は通常の Linear intake に従う。

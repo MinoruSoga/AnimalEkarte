@@ -31,7 +31,7 @@ func setupStaffOccupationWriteRaceDB(t *testing.T) *gorm.DB {
 		&model.StaffClinicAssignment{},
 	))
 	require.NoError(t, db.Exec(
-		"TRUNCATE TABLE staff_clinic_assignments, staffs, accounts, occupations CASCADE",
+		"TRUNCATE TABLE staff_clinic_assignments, staffs, accounts, occupations, clinics, companies RESTART IDENTITY CASCADE",
 	).Error)
 	return db
 }

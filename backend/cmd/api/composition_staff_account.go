@@ -22,6 +22,13 @@ func (a staffAccountStoreAdapter) FindByEmail(
 	return a.accounts.FindByEmail(ctx, email)
 }
 
+func (a staffAccountStoreAdapter) FindByIDForUpdate(
+	ctx context.Context,
+	id uint64,
+) (*model.Account, error) {
+	return a.accounts.FindByIDForUpdate(ctx, id)
+}
+
 func (a staffAccountStoreAdapter) Create(
 	ctx context.Context,
 	account *model.Account,

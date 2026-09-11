@@ -8,12 +8,16 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // ListTrimmings はトリミング予約一覧を返す（BE-119: appointments ベース）
 func (h *Handler) ListTrimmings(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceTrimming), "view") {
 		return
 	}
 
@@ -51,6 +55,9 @@ func (h *Handler) ListTrimmings(c *gin.Context) {
 func (h *Handler) GetTrimming(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceTrimming), "view") {
 		return
 	}
 	id, ok := httpapi.ParseIDParam(c, "id")

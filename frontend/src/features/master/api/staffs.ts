@@ -88,6 +88,29 @@ async function createStaff(req: CreateStaffRequest): Promise<Staff> {
   return transformStaff(data);
 }
 
+async function attachStaffAccount(
+  id: string,
+  email: string,
+): Promise<{
+  staffId: string;
+  accountId: string;
+  email: string;
+  message: string;
+}> {
+  const { data } = await axios.post<{
+    staff_id: number;
+    account_id: number;
+    email: string;
+    message: string;
+  }>(`/v1/masters/staffs/${id}/account`, { email });
+  return {
+    staffId: String(data.staff_id),
+    accountId: String(data.account_id),
+    email: data.email,
+    message: data.message,
+  };
+}
+
 async function updateStaff(id: string, req: UpdateStaffRequest): Promise<Staff> {
   const payload = {
     ...req,
@@ -134,6 +157,17 @@ export function useUpdateStaff() {
       queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("staffs") });
     },
     onError: (error) => handleApiError(error, "更新"),
+  });
+}
+
+export function useAttachStaffAccount() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, email }: { id: string; email: string }) => attachStaffAccount(id, email),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("staffs") });
+    },
+    onError: (error) => handleApiError(error, "アカウント追加"),
   });
 }
 

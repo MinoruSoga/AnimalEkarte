@@ -8,6 +8,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // LineCustomerHandler は LineCustomerService の HTTP handler。
@@ -29,6 +30,9 @@ func NewLineCustomerHandler(svc LineCustomerService, requirePermission Permissio
 func (h *LineCustomerHandler) ListLineCustomers(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
+		return
+	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceOwners), "view") {
 		return
 	}
 	result, err := h.svc.List(c.Request.Context(), clinicID)

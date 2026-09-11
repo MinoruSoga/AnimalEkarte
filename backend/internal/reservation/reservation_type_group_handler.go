@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/animal-ekarte/backend/internal/httpapi"
+	"github.com/animal-ekarte/backend/internal/model"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 )
@@ -23,7 +24,7 @@ func NewReservationTypeGroupHandler(svc ReservationTypeGroupService) *Reservatio
 
 // ListReservationTypeGroups godoc
 func (h *ReservationTypeGroupHandler) ListReservationTypeGroups(c *gin.Context) {
-	clinicID, ok := httpapi.ExtractClinicID(c)
+	clinicID, ok := extractSelectedClinicGrant(c, string(model.ResourceMasterReservationType))
 	if !ok {
 		return
 	}
@@ -37,7 +38,7 @@ func (h *ReservationTypeGroupHandler) ListReservationTypeGroups(c *gin.Context) 
 
 // GetReservationTypeGroup godoc
 func (h *ReservationTypeGroupHandler) GetReservationTypeGroup(c *gin.Context) {
-	clinicID, ok := httpapi.ExtractClinicID(c)
+	clinicID, ok := extractSelectedClinicGrant(c, string(model.ResourceMasterReservationType))
 	if !ok {
 		return
 	}

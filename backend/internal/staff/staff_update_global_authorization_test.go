@@ -36,10 +36,9 @@ func TestService_UpdateRequiresAuthorityOverEveryActiveAssignment(t *testing.T) 
 			wantForbidden:       true,
 		},
 		{
-			name:                "rejects non-system editor even when assigned to every target clinic",
+			name:                "allows non-system editor authorized for every assigned clinic",
 			assignmentClinicIDs: []uint64{clinicA, clinicB},
 			authorizedClinicIDs: []uint64{clinicA, clinicB},
-			wantForbidden:       true,
 		},
 		{
 			name:                "allows editor for a single-clinic target",

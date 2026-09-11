@@ -90,7 +90,7 @@ func TestGetOwnerLstepTags_ClinicAliasUsesAuthenticatedClinic(t *testing.T) {
 	r := gin.New()
 	h := newHandlerWithLstepTagSvc(svc)
 	r.GET("/clinics/:clinic_id/owners/:id/lstep/tags", func(c *gin.Context) {
-		c.Set("clinic_id", "1")
+		setClinicID(c)
 	}, h.GetOwnerLstepTags)
 
 	req := httptest.NewRequest(http.MethodGet, "/clinics/999/owners/10/lstep/tags", http.NoBody)

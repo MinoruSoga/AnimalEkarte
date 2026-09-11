@@ -48,9 +48,23 @@ func (h *Handler) actorFromContext(c *gin.Context) (ActorContext, bool) {
 	}, true
 }
 
+func (h *Handler) actorWithViewableClinics(c *gin.Context) (ActorContext, bool) {
+	actor, ok := h.actorFromContext(c)
+	if !ok {
+		return ActorContext{}, false
+	}
+	resource, action := identityLinksView()
+	clinicIDs, ok := httpapi.FilterClinicIDsForPermission(c, actor.VerifiedClinics, resource, action)
+	if !ok {
+		return ActorContext{}, false
+	}
+	actor.VerifiedClinics = clinicIDs
+	return actor, true
+}
+
 // SearchOwners GET /identity-links/owners/search?q=
 func (h *Handler) SearchOwners(c *gin.Context) {
-	actor, ok := h.actorFromContext(c)
+	actor, ok := h.actorWithViewableClinics(c)
 	if !ok {
 		return
 	}
@@ -70,7 +84,7 @@ func (h *Handler) SearchOwners(c *gin.Context) {
 
 // SearchPets GET /identity-links/pets/search?q=
 func (h *Handler) SearchPets(c *gin.Context) {
-	actor, ok := h.actorFromContext(c)
+	actor, ok := h.actorWithViewableClinics(c)
 	if !ok {
 		return
 	}
@@ -90,7 +104,7 @@ func (h *Handler) SearchPets(c *gin.Context) {
 
 // GetOwnerGroup GET /identity-links/owner-groups/:id
 func (h *Handler) GetOwnerGroup(c *gin.Context) {
-	actor, ok := h.actorFromContext(c)
+	actor, ok := h.actorWithViewableClinics(c)
 	if !ok {
 		return
 	}
@@ -109,7 +123,7 @@ func (h *Handler) GetOwnerGroup(c *gin.Context) {
 
 // FindOwnerGroupByMember GET /identity-links/owners/:clinic_id/:owner_id/group
 func (h *Handler) FindOwnerGroupByMember(c *gin.Context) {
-	actor, ok := h.actorFromContext(c)
+	actor, ok := h.actorWithViewableClinics(c)
 	if !ok {
 		return
 	}
@@ -199,7 +213,7 @@ func (h *Handler) UnlinkOwnerMember(c *gin.Context) {
 
 // GetPetGroup GET /identity-links/pet-groups/:id
 func (h *Handler) GetPetGroup(c *gin.Context) {
-	actor, ok := h.actorFromContext(c)
+	actor, ok := h.actorWithViewableClinics(c)
 	if !ok {
 		return
 	}
@@ -218,7 +232,7 @@ func (h *Handler) GetPetGroup(c *gin.Context) {
 
 // FindPetGroupByMember GET /identity-links/pets/:clinic_id/:pet_id/group
 func (h *Handler) FindPetGroupByMember(c *gin.Context) {
-	actor, ok := h.actorFromContext(c)
+	actor, ok := h.actorWithViewableClinics(c)
 	if !ok {
 		return
 	}
@@ -308,7 +322,7 @@ func (h *Handler) UnlinkPetMember(c *gin.Context) {
 
 // ListLinkedTreatmentHistory GET /identity-links/pets/:clinic_id/:pet_id/treatment-history
 func (h *Handler) ListLinkedTreatmentHistory(c *gin.Context) {
-	actor, ok := h.actorFromContext(c)
+	actor, ok := h.actorWithViewableClinics(c)
 	if !ok {
 		return
 	}

@@ -109,7 +109,7 @@ func (h *CRUDHandler) GetReservation(c *gin.Context) {
 // GetReservationAvailableTimes godoc
 // GET /reservations/available-times?reservation_type_id=:id&staff_id=:id&date=YYYY-MM-DD
 func (h *CRUDHandler) GetReservationAvailableTimes(c *gin.Context) {
-	clinicID, ok := httpapi.ExtractClinicID(c)
+	clinicID, ok := extractSelectedClinicGrant(c, string(model.ResourceReservations))
 	if !ok {
 		return
 	}

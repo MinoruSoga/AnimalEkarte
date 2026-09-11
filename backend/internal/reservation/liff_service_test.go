@@ -1192,3 +1192,72 @@ func TestNewLiffServiceWithType(t *testing.T) {
 	assert.Same(t, medicalRecord, impl.medicalRecord, "medicalRecord cleanup view が明示的に配線されること")
 	assert.NotNil(t, impl.validators, "validators が初期化されていること")
 }
+
+// findAllOnlyUnavailableTimeReader / findAllOnlyAvailableSlotReader prove LIFF deps
+// accept FindAll-only consumer stubs (no Create/Delete/FindByID).
+type findAllOnlyUnavailableTimeReader struct{}
+
+func (findAllOnlyUnavailableTimeReader) FindAll(context.Context, uint64, uint64) ([]model.ReservationTypeUnavailableTime, error) {
+	return nil, nil
+}
+
+type findAllOnlyAvailableSlotReader struct{}
+
+func (findAllOnlyAvailableSlotReader) FindAll(context.Context, uint64, uint64) ([]model.ReservationTypeAvailableSlot, error) {
+	return nil, nil
+}
+
+func TestNewLiffServiceWithType_FindAllOnlyReaders(t *testing.T) {
+	svc := NewLiffServiceWithType(
+		&mockLiffSettingRepository{},
+		&mockLiffTypeRepository{},
+		nil,
+		&mockLiffStaffRepository{},
+		&mockLiffScheduleRepository{},
+		&mockLiffAdminRepository{},
+		&mockLiffCustomerRepository{},
+		&mockLiffOwnerRepository{},
+		&mockTransactor{},
+		&mockLiffReservationRepository{},
+		&mockLiffNotifier{},
+		findAllOnlyUnavailableTimeReader{},
+		findAllOnlyAvailableSlotReader{},
+		&mockReservationTypeOccupationRepository{},
+		&mockTrimmingCourseRepository{},
+		&mockTrimmingOptionRepository{},
+		&mockTrimmingDetailRepository{},
+		&mockVaccinationRepository{},
+		openDayHolidayFinder(),
+	)
+	require.NotNil(t, svc)
+
+	impl, ok := svc.(*liffService)
+	require.True(t, ok)
+	assert.NotNil(t, impl.unavailableTimeRepo)
+	assert.NotNil(t, impl.availableSlotRepo)
+
+	nilSlotSvc := NewLiffServiceWithType(
+		&mockLiffSettingRepository{},
+		&mockLiffTypeRepository{},
+		nil,
+		&mockLiffStaffRepository{},
+		&mockLiffScheduleRepository{},
+		&mockLiffAdminRepository{},
+		&mockLiffCustomerRepository{},
+		&mockLiffOwnerRepository{},
+		&mockTransactor{},
+		&mockLiffReservationRepository{},
+		&mockLiffNotifier{},
+		findAllOnlyUnavailableTimeReader{},
+		nil,
+		&mockReservationTypeOccupationRepository{},
+		&mockTrimmingCourseRepository{},
+		&mockTrimmingOptionRepository{},
+		&mockTrimmingDetailRepository{},
+		&mockVaccinationRepository{},
+		openDayHolidayFinder(),
+	)
+	nilImpl, ok := nilSlotSvc.(*liffService)
+	require.True(t, ok)
+	assert.Nil(t, nilImpl.availableSlotRepo)
+}

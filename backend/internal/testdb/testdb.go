@@ -134,8 +134,16 @@ func CloseSharedTestDB() {
 
 // SetupTestDB はテスト用の DB を返し、共有ベーステーブルを TRUNCATE してクリーンな状態にします。
 // DB接続確立・ENUM型作成・ベースモデルの AutoMigrate はプロセス全体で一度だけ実行されます。
+func skipShortDatabase(t *testing.T) {
+	t.Helper()
+	if testing.Short() {
+		t.Skip("database tests are skipped in -short / offline verification")
+	}
+}
+
 func SetupTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
+	skipShortDatabase(t)
 	db := getTestDatabaseConnection(t)
 
 	sharedTestSchemaOnce.Do(func() {
@@ -240,6 +248,7 @@ func MakeTestOwner(t *testing.T, db *gorm.DB, clinicID uint64, name string) *mod
 // 割り当てることでキャッシュ汚染を根本的に回避する（対象は少数のためスループット影響は軽微）。
 func SetupIsolatedTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
+	skipShortDatabase(t)
 	db, err := connectTestDatabase()
 	if err != nil {
 		t.Fatalf("failed to connect to isolated test db: %v", err)
