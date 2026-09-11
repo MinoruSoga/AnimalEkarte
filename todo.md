@@ -25,7 +25,7 @@
 
 新規実装単位の本文は [todo-issue.md](todo-issue.md)。行値・秘密は書かない。
 
-入口: [todo-issue.md](todo-issue.md) · [開発タスク](#development-tasks) · [製品 FAIL](#product-bugs) · [PO / 人間レーン](#human-lane) · [FE 維持制約](#refactor-constraints)
+入口: [todo-now.md](todo-now.md)（PO以外の着手可能） · [todo-issue.md](todo-issue.md) · [開発タスク](#development-tasks) · [製品 FAIL](#product-bugs) · [PO / 人間レーン](#human-lane) · [FE 維持制約](#refactor-constraints)
 
 横断・性能・認証の検証順は [todo-verification.md](todo-verification.md) を参照する。開発・検証・運用の実行先を混在させない。
 
