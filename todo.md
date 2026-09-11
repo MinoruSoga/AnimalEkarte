@@ -1,24 +1,26 @@
 # タスク台帳 — 入口
 
-統合日: 2026-09-08。最終GitHub照合: 2026-09-11 / `origin/main` = `aeecf8f85`（ローカル `main` 同期済み）。`main` → `staging` PR [#388](https://github.com/MinoruSoga/AnimalEkarte/pull/388) は OPEN・MERGEABLE だが、Backend Test (remaining) / Backend が FAILURE（UNSTABLE）。Linear は free issue limit のため **新規作成禁止**（既存更新のみ）。照合メモは [linear-f1-f6-mapping.md](docs/work/linear-f1-f6-mapping.md)。UAT・STG/PROD・go-live は再判定していない。対応済みの詳細は本ファイルに残さず Git 履歴を参照する。
+統合日: 2026-09-08。最終GitHub照合: 2026-09-11 / `origin/main` = `dd3da59f9`（ローカル `main` 同期済み）。**ローカルで着手可能な開発タスク（READY）はなし。** `main` → `staging` PR [#388](https://github.com/MinoruSoga/AnimalEkarte/pull/388) は OPEN・MERGEABLE だが Backend Test (remaining) / Backend が FAILURE（UNSTABLE）。Linear は free issue limit のため **新規作成禁止**（既存更新のみ）。照合メモは [linear-f1-f6-mapping.md](docs/work/linear-f1-f6-mapping.md)。UAT・STG/PROD・go-live は再判定していない。対応済みの詳細は本ファイルに残さず Git 履歴を参照する。
 
 | 項目 | 値 |
 |------|-----|
 | **新規 Issue SoT** | **[todo-issue.md](todo-issue.md)**（Linear 新規作成禁止） |
 | **既存チケット更新** | Linear Team **Baritech** · Project **ノア動物病院電子カルテ** · hub **[BRT-4](https://linear.app/baritechllc/issue/BRT-4)**（コメント・状態のみ） |
 | **セキュリティ修正** | **[BRT-226](https://linear.app/baritechllc/issue/BRT-226)**（Review · `origin/main` 済み · Done は人間） |
-| **開発キュー** | READY なし |
+| **開発キュー** | **READY なし**（ローカル実装単位なし） |
 | **本ファイルの範囲** | repo と強く結び付く **開発タスク入口**、確認済み製品 FAIL、PO 入口、維持制約 |
 
 ### 残タスク（2026-09-11 時点）
 
 | 区分 | 内容 | 管理先 |
 |------|------|--------|
-| deferred | TASK-444-ADDENDUM-CODEGEN | [todo-issue.md](todo-issue.md) |
+| ローカル開発 READY | **なし** | — |
+| deferred（codegen 承認待ち） | TASK-444-ADDENDUM-CODEGEN | [todo-issue.md](todo-issue.md) |
+| ローカル検証 BLOCKED | DEV-V-OWNER-DB（disposable DB URL 未設定） | [todo-verification.md](todo-verification.md) |
 | 人間 | BRT-226 Done | Linear（既存） |
 | 人間 | PO / 人間レーン | Linear BRT-4 |
 | 運用 | PR #388 CI 修復・マージ判断 | GitHub / [todo-operations.md](todo-operations.md) |
-| 検証残り | OWNER disposable DB ほか STG/UAT/PERF/AUTH-D1 | [todo-verification.md](todo-verification.md) |
+| 外部検証 | STG/UAT/PERF/AUTH-D1 ほか | [todo-verification.md](todo-verification.md) |
 | 認証外部 | D1 本番付与・メール、Linear 反映 | [todo-fix-auth.md](todo-fix-auth.md) |
 
 新規実装単位の本文は [todo-issue.md](todo-issue.md)。行値・秘密は書かない。
@@ -39,7 +41,7 @@ claim は ID ごとに初回編集前に確認・取得する。作成者別の�
 
 ## 開発タスク
 
-**READY の新規開発単位は現時点でなし。** Open Issue 本文は [todo-issue.md](todo-issue.md)。旧項目の扱いと根拠は [裁定記録](docs/work/development-task-decisions.md)。検証は [統合検証TODO](todo-verification.md)、運用は [todo-operations.md](todo-operations.md)。
+**ローカルで着手可能な開発単位（READY）はなし。** Open Issue 本文は [todo-issue.md](todo-issue.md)（deferred の codegen のみ）。旧項目の扱いと根拠は [裁定記録](docs/work/development-task-decisions.md)。検証は [統合検証TODO](todo-verification.md)、運用は [todo-operations.md](todo-operations.md)。
 
 ---
 

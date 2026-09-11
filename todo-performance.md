@@ -15,7 +15,7 @@
 
 ## 開発着手の判断（2026-09-11）
 
-`PERF-DEV-OBSERVATION` / `PERF-DEV-MITIGATION` / `PERF-DEV-BUNDLE` は、現時点では開発キューへ採用しない。測定待ちを開発READYへ読み替えず、再判定は統合検証TODOで追跡する。旧IDごとの理由は [開発タスクの裁定記録](docs/work/development-task-decisions.md) を参照する。
+`PERF-DEV-OBSERVATION` / `PERF-DEV-MITIGATION` / `PERF-DEV-BUNDLE` は、現時点では開発キューへ採用しない。測定待ちを開発READYへ読み替えず、再判定は統合検証TODOで追跡する。旧IDごとの理由は [開発タスクの裁定記録](docs/work/development-task-decisions.md) を参照する。**ローカル開発 READY はなし。**
 
 - **観測WIP**: 全proxy要求への常時ログは採用しない。既存の `make test-worker ARGS='backend/worker/index.test.ts'` はrootをmountするDocker runnerであり、「Docker runnerがない」という前の保留理由は誤りだった。Makefileの静的契約8項目を確認済み。WIPのproxy実経路と型検査の証明は別途未完了である。
 - **通信経路**: CORS/CSRF変更、edge OPTIONS応答、`sleepAfter`変更を選べる因果証跡はない。現行 `main` のpending UIは [router.tsx](frontend/src/app/router.tsx)、[app-routes.tsx](frontend/src/app/routes/app-routes.tsx)、[AuthProvider.tsx](frontend/src/features/auth/components/AuthProvider.tsx) に存在し、同じUI実装を重複起票しない。

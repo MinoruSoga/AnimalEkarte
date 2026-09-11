@@ -5,7 +5,7 @@
 > 正規設計書: [docs/architecture/auth.md](docs/architecture/auth.md)  
 > 元レビュー: [todo-check-auth.md](todo-check-auth.md)
 
-ローカル実装（D2 / D3 / D5 / D1 合成）は完了済み（Git 履歴）。外部境界の検証・実行条件は [todo-verification.md](todo-verification.md#認証認可の外部境界) を正本とする。
+ローカル実装（D2 / D3 / D5 / D1 合成）は完了済み（Git 履歴）。**追加のローカル開発 READY はなし。** 外部境界の検証・実行条件は [todo-verification.md](todo-verification.md#認証認可の外部境界) を正本とする。
 
 ## 未完了
 

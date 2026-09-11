@@ -1,6 +1,7 @@
 # タスク台帳の検証 TODO
 
 作成日: 2026-09-11 JST  
+最終更新: 2026-09-11 / `origin/main` = `dd3da59f9`。ローカル開発 READY はなし（検証・外部ゲートのみ残存）。  
 対象: [todo.md](todo.md)・[todo-performance.md](todo-performance.md)・[todo-fix-auth.md](todo-fix-auth.md) が参照する開発検証・測定・受入・外部環境・Linear境界。
 
 ## 判定原則
