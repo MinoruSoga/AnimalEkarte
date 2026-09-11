@@ -150,3 +150,6 @@ codex-security-results/
 
 # Machine-local cached verification images and dependency volumes
 /.claude/verification.local.json
+
+# agent-fast-campaign local ledgers (default: do not commit)
+.planning/agent-fast-campaign/

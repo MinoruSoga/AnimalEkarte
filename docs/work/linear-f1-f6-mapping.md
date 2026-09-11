@@ -1,10 +1,10 @@
 # META-LINEAR-F1-F6 — 読み取り照合と対応案
 
-更新日: 2026-09-10（Linear のライブ再照会なし。下記 Linear 観測は 2026-09-09 のまま）
+更新日: 2026-09-11（Codex Linear MCP を読み取り専用で再照会。外部書き込みなし）
 
-2026-09-09 の Codex Linear MCP 読み取りでは、プロジェクト55件と BRT-4 本文、関連語検索を照合した。以後のセッションではライブ再照会できていないため、現行状態は UNKNOWN とする。
+2026-09-11 の Codex Linear MCP 読み取りでは、Team Baritech / Project ノア動物病院電子カルテ、BRT-4、関連語検索、BRT-45、BRT-68、BRT-226 と各 Issue のコメントを照合した。Project と BRT-4 は Backlog、BRT-45 と BRT-68 は Needs Human、BRT-226 は Review だった。F1〜F6 の直接対応 ID は特定できず、対応 ID と状態は **UNKNOWN** とする。
 
-Linear 上の観測状態（Codex 2026-09-09 を正とし、Grok では再検証せず保持）: BRT-226 は **Review**。F1〜F6 に直接対応する Issue は当時の検索範囲で特定できず、対応 ID と状態は **UNKNOWN**。不存在・Done を推定しない。
+Linear 上の観測状態（Codex 2026-09-11）: BRT-226 は **Review**。F1〜F6 に直接対応する Issue は今回の検索範囲で特定できず、対応 ID と状態は **UNKNOWN**。不存在・Done を推定しない。
 
 監査 ID の定義は `75aa2b64c:todo-now.md`（現在の検証結果ではない）。
 
@@ -14,22 +14,22 @@ Linear 上の観測状態（Codex 2026-09-09 を正とし、Grok では再検証
 
 | 監査 ID | 定義（75aa2b64c） | 分類 | Linear 対応 | 根拠 / 状態 |
 |---------|-------------------|------|-------------|-------------|
-| F1 | 診察プラン更新・削除とカルテ確定の未直列化 | 製品defect指摘 | **未特定 / UNKNOWN** | Codex: 55件+関連語で直接 ID なし。Grok: Linear MCP なし・本文未再取得 |
+| F1 | 診察プラン更新・削除とカルテ確定の未直列化 | 製品defect指摘 | **未特定 / UNKNOWN** | 2026-09-11: 関連語検索と取得可能なコメントに直接対応なし。候補 ID を発明しない |
 | F2 | 編集内容と保存versionの不一致 | 製品defect指摘 | **未特定 / UNKNOWN** | 同上。候補 ID を発明しない |
-| F3 | CI E2E・負荷テストの認証fixture不足 | verification gap | **未特定 / UNKNOWN** | Linear 未照合。full clinical E2E と混同しない |
-| F4 | カルテ受入項目表とpayloadの不一致 | docs drift / verification gap | **未特定 / UNKNOWN** | 同上 |
-| F5 | 診察所見3欄のlabel/id未接続 | a11y defect指摘 | **未特定 / UNKNOWN** | Codex: 55件+関連語で直接 ID なし。Grok: Linear MCP なし・本文未再取得 |
+| F3 | CI E2E・負荷テストの認証fixture不足 | verification gap | **未特定 / UNKNOWN** | 2026-09-11: CI-K6 / k6 / fixture 等で直接対応なし。full clinical E2E と混同しない |
+| F4 | カルテ受入項目表とpayloadの不一致 | docs drift / verification gap | **未特定 / UNKNOWN** | 2026-09-11: payload / 受入 / カルテ等で直接対応なし |
+| F5 | 診察所見3欄のlabel/id未接続 | a11y defect指摘 | **未特定 / UNKNOWN** | 2026-09-11: label / id / 所見等で直接対応なし。候補 ID を発明しない |
 | F6 | 検証skillに廃止packageの例示 | harness drift | **未特定 / UNKNOWN** | **監査 F6 ≠ 八王子 cutover F6**（cutover 運用は `H0-2` / `HAC-CSV-1`） |
 
-## 照会結果（2026-09-09 Codex）
+## 照会結果（2026-09-11 Codex）
 
 | 確認対象 | 結果 |
 |----------|------|
-| Linear Team Baritech / Project ノア動物病院電子カルテ / hub [BRT-4](https://linear.app/baritechllc/issue/BRT-4) | プロジェクト55件の一覧と親 ID、hub 本文を取得。hub は Backlog |
+| Linear Team Baritech / Project ノア動物病院電子カルテ / hub [BRT-4](https://linear.app/baritechllc/issue/BRT-4) | Project と hub は Backlog。BRT-4 の親なし・所属 Project/Team を確認 |
 | [BRT-226](https://linear.app/baritechllc/issue/BRT-226) | MCP で Review を確認。所属 Team / Project と親 BRT-4 も確認。Done は未実施 |
-| Astra F1〜F6 の Linear ID | **UNKNOWN**。プロジェクト一覧と Team 内の `Astra` / `ClinicalPlan` / `CI-K6` / `S09` / `scoped-verification` / `payload` 検索で直接対応を特定できず。検索結果の本文は一部省略されるため、全 Issue 本文・コメントの網羅照合ではない |
-| [BRT-45](https://linear.app/baritechllc/issue/BRT-45) | 本文取得。Needs Human。S09 / V04 / clinical E2E を含む #254 全体の close 条件を管理 |
-| [BRT-68](https://linear.app/baritechllc/issue/BRT-68) | 本文取得。Needs Human。現在の残は H1 実 LINE / H2 実 token LIFF |
+| Astra F1〜F6 の Linear ID | **UNKNOWN**。Team/Project 内で `Astra` / `ClinicalPlan` / `CI-K6` / `S09` / `scoped-verification` / `payload` / `label` / `id` / 関連日本語を検索し、直接対応を特定できず。検索結果の長い本文は一部省略され、横断コメント検索 API は利用できないため、全 Issue 本文・コメントの網羅照合ではない |
+| [BRT-45](https://linear.app/baritechllc/issue/BRT-45) | 本文とコメントを取得。Needs Human。S09 / V04 / clinical E2E を含む #254 全体の close 条件を管理 |
+| [BRT-68](https://linear.app/baritechllc/issue/BRT-68) | 本文とコメントを取得。Needs Human。現在の残は H1 実 LINE / H2 実 token LIFF |
 
 エージェントはこの項目で Linear 書き込みと Done をしない。
 
