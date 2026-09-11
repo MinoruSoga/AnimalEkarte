@@ -1,6 +1,6 @@
 # タスク台帳 — 入口
 
-統合日: 2026-09-08。最終GitHub照合: 2026-09-11 / `origin/main` = `dd3da59f9`（ローカル `main` 同期済み）。**ローカルで着手可能な開発タスク（READY）はなし。** `main` → `staging` PR [#388](https://github.com/MinoruSoga/AnimalEkarte/pull/388) は OPEN・MERGEABLE だが Backend Test (remaining) / Backend が FAILURE（UNSTABLE）。Linear は free issue limit のため **新規作成禁止**（既存更新のみ）。照合メモは [linear-f1-f6-mapping.md](docs/work/linear-f1-f6-mapping.md)。UAT・STG/PROD・go-live は再判定していない。対応済みの詳細は本ファイルに残さず Git 履歴を参照する。
+統合日: 2026-09-08。最終GitHub照合: 2026-09-11（`main` = `origin/main` 同期済み）。**ローカルで着手可能な開発タスク（READY）はなし。** `main` → `staging` PR [#388](https://github.com/MinoruSoga/AnimalEkarte/pull/388) は OPEN・MERGEABLE だが Backend Test (remaining) / Backend が FAILURE（UNSTABLE）。Linear は free issue limit のため **新規作成禁止**（既存更新のみ）。照合メモは [linear-f1-f6-mapping.md](docs/work/linear-f1-f6-mapping.md)。UAT・STG/PROD・go-live は再判定していない。対応済みの詳細は本ファイルに残さず Git 履歴を参照する。
 
 | 項目 | 値 |
 |------|-----|
