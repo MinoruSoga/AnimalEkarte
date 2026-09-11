@@ -1,5 +1,5 @@
 #!/bin/sh
-# Verify the actual outgoing HEAD against the remote base, without a SHA cache.
+# Scoped verify for outgoing HEAD vs remote base (lint/test lives here, not pre-commit).
 # Offline image settings are explicit user-local AGENT_VERIFY_{BACKEND,FRONTEND}_IMAGE
 # and optional *_DEPENDENCY_VOLUME environment variables; no implicit provisioning.
 set -eu

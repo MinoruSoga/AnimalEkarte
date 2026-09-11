@@ -1,12 +1,10 @@
 #!/bin/sh
-# Staged verification: never substitute a different worktree or silently skip.
-# Offline image settings are explicit user-local AGENT_VERIFY_{BACKEND,FRONTEND}_IMAGE
-# and optional *_DEPENDENCY_VOLUME environment variables; no implicit provisioning.
+# Lightweight commit gate: secrets + hard size limit only.
+# Scoped lint/test lives on pre-push (outgoing HEAD vs remote base).
 set -eu
 ROOT=$(git rev-parse --show-toplevel)
 cd "$ROOT"
-printf '%s\n' 'Pre-commit: staged checks starting'
+printf '%s\n' 'Pre-commit: secrets + file-size checks starting'
 sh "$ROOT/.githooks/lib/check-secrets.sh"
 sh "$ROOT/.githooks/lib/check-file-sizes.sh"
-python3 -B "$ROOT/scripts/verify-agent-task.py" --staged
-printf '%s\n' 'Pre-commit: selected checks finished; see PASS/SKIP evidence above (not full-suite proof).'
+printf '%s\n' 'Pre-commit: secrets + file-size checks finished (scoped verify runs on pre-push).'

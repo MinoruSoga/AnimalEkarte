@@ -626,7 +626,7 @@ setup-hooks:
 	@# Absolute .githooks path overrides global hooksPath (e.g. ~/.codex/git-hooks).
 	@# Wrappers under .git/hooks remain for tooling that inspects that path.
 	@git config --local core.hooksPath "$(CURDIR)/.githooks"
-	@echo "Git hooks: core.hooksPath=$(CURDIR)/.githooks (pre-commit: secrets+size+lint; pre-push: cached tests)"
+	@echo "Git hooks: core.hooksPath=$(CURDIR)/.githooks (pre-commit: secrets+size; pre-push: scoped verify)"
 	@echo "Discovery wrappers also at .git/hooks/pre-commit and .git/hooks/pre-push"
 
 # ヘルプ
@@ -700,6 +700,6 @@ help:
 	@echo "  mod-download  Goモジュールダウンロード"
 	@echo "  mod-tidy      Goモジュールtidy"
 	@echo "  sync-modules  node_modulesをホストにコピー（IDE補完用）"
-	@echo "  setup-hooks   git hooksをセットアップ（pre-commit: secrets+size+lint / pre-push: cached tests）"
+	@echo "  setup-hooks   git hooksをセットアップ（pre-commit: secrets+size / pre-push: scoped verify）"
 	@echo ""
 	@echo "  help          このヘルプを表示"
