@@ -21,7 +21,7 @@
 | BUG-RES-DECEASED-STATUS-BYPASS | OPEN | reservation / pet | High | **バグ断定**（status=deceased なのに予約可） | 死亡判定の契約を確定し、不整合ペットへの新規writeを防ぐ。[詳細](#plan-bug-res-deceased-status-bypass) |
 | PO-PET-DECEASED-DATA-BACKFILL | OPEN | data / pet | Medium | **PO確認**（不整合データの修復方針） | 対象・死亡日の根拠・監査・復旧を確定してからデータ修復する。[詳細](#plan-po-pet-deceased-data-backfill) |
 | PO-STAFF-BLANK-NAME-LIST | FIXED | staff UX / data | Low | **PO確認→実装**（空氏名の一覧表示方針） | Grill Recommended: 初期有効のみ＋表示 `(氏名未設定)`。DB書換・一括削除なし。[詳細](#plan-po-staff-blank-name-list) |
-| PO-OCCUPATION-MASTER-EMPTY | OPEN | master / data | Low | **PO確認**（職種マスタ0件の扱い） | 未登録の案内を整え、必須性と医院別初期登録をPO判断する。[詳細](#plan-po-occupation-master-empty) |
+| PO-OCCUPATION-MASTER-EMPTY | FIXED | master / data | Low | **PO確認→実装**（職種マスタ0件の扱い） | Grill Recommended: 0件は未登録案内＋職種マスタへ誘導。`occupation_id` は任意のまま。偽選択肢・自動投入なし。[詳細](#plan-po-occupation-master-empty) |
 | NOTE-STAFF-STARTTIME-RDT | OPEN | staff console | Low | **調査**（startTime TypeError・アプリ外の疑い） | 拡張なしの環境と比較し、stackから原因を特定して修正対象を決める。[詳細](#plan-note-staff-starttime-rdt) |
 
 ---
@@ -221,6 +221,7 @@
 - **実測**: `occupations` where clinic_id=2 → **0 件**。スタッフ編集の職種 Select は有効職種のみ出すため選択肢が空
 - **予約の出勤医師判定・FK には職種は使わない**（スタッフ種別 `doctor` が本線）
 - **問い（PO）**: 職種マスタは運用必須か。必須なら STG／各医院への初期「獣医師」「動物看護師」投入を公式手順にするか
+- **決定（Grill Recommended / 2026-09-13）**: 空マスタ時は未登録案内＋既存 `/settings/occupations` への導線のみ。`occupation_id` はスタッフ保存・予約で必須化しない。偽の Select 選択肢や自動シードは行わない。医院別初期登録は別承認まで対象外。
 
 ---
 
@@ -404,7 +405,9 @@
 3. 必須化する場合は、既存マスタ登録の仕組みで同一医院の重複登録を防ぐ手順を作る。既存行・編集済み名称を上書きせず、追加だけをdry-runで示す。コードで架空の選択肢を生成しない。
 4. 0件・有効職種あり・無効職種のみ・登録権限なし・他院の職種指定をテストする。出勤医師判定のスタッフ種別と、予約区分に職種を紐付けた場合の判定を混同しない。
 
-**完了条件**: 職種0件でも理由と次の操作が分かる。承認された医院だけに重複なく初期登録でき、他院の職種を割り当てられない。職種を任意のまま運用する場合は、その決定を記録して項目の扱いを確定する。
+**実装メモ (2026-09-13 / att-po-occupation-empty-20260913-001)**: `StaffBasicInfoSection` で `allOccupations.length === 0` のとき「職種が未登録です」＋ `paths.settings.occupations.getHref()` へのリンクを表示し、空 Select を出さない。有効職種があるときは従来どおり active-only Select。選択中の無効職種は同一医院マスタ内の既存行だけ表示保持（架空ラベルなし）。`buildStaffCreateRequest` / `buildStaffUpdateRequest` の `occupation_id: data.jobTitleId ?? undefined` は変更なし（任意）。自動シードなし。検証: `docker compose exec frontend npx vitest run src/features/master/components/StaffBasicInfoSection.test.tsx src/features/master/routes/staff-settings-model.test.ts`（13 passed）。
+
+**完了条件**: 職種0件でも理由と次の操作が分かる。承認された医院だけに重複なく初期登録でき、他院の職種を割り当てられない。職種を任意のまま運用する場合は、その決定を記録して項目の扱いを確定する。 → **達成（FIXED・任意運用＋空案内。医院別初期登録は別途）**
 
 <a id="plan-bug-res-staff-select-orphan-label"></a>
 
