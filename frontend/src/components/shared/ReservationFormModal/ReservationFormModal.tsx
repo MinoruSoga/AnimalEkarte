@@ -24,6 +24,7 @@ import { useGetOwnerLineTags } from "@/hooks/use-owner-line-tags";
 import { useGetReservation } from "@/hooks/use-get-reservation";
 import { isValidOwnerPhone } from "@/lib/phone";
 import { formatJSTWallDate, isPastJSTDate } from "@/lib/jst-date";
+import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import type { NewOwnerFormData } from "@/types/reservation-form";
 
 // Relative
@@ -260,6 +261,9 @@ export const ReservationFormModal = memo(function ReservationFormModal({
     // 既存飼主モードのバリデーション
     if (selectedPets.length === 0) {
       errors.patient = "患者を選択してください";
+    } else if (selectedPets.some((pet) => isPetDeceasedForClinicalWrite(pet))) {
+      // Display disable is not the sole guard; submit also rejects death OR-contract pets.
+      errors.patient = "死亡したペットは予約できません";
     }
     if (!formData.start) {
       errors.date = "日付を選択してください";

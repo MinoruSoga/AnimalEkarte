@@ -128,9 +128,10 @@
   - ペット「織」（pet_id=11036309）: `status=deceased`, **`deceased_at` IS NULL**
   - 同ペットで `POST /reservations` → **201 Created**（担当医なし・出勤ありの日）
   - 受付カードは `petStatus === deceased` で【死亡】表示・操作 disable（`AppointmentCard.tsx`）
-- **原因**:
-  - BE 死亡 write ガード（`sharedkernel.ValidatePetNotDeceased`）は **`DeceasedAt != nil` のみ**を死亡とみなす（コメント上、RecordDeath が status と deceased_at を同時更新する契約）
+- **原因（修正前）**:
+  - BE 死亡 write ガード（`sharedkernel.ValidatePetNotDeceased`）は **`DeceasedAt != nil` のみ**を死亡とみなしていた
   - FE／表示は **`status === "deceased"`** を死亡扱い
+- **修正（本ユニット）**: 死亡契約を **`status=deceased OR deceased_at != null`** に統一。日時捏造・DB backfill は行わない（backfill は `PO-PET-DECEASED-DATA-BACKFILL`）。
   - そのため **表示上は死亡・書込は生存扱い** の不整合が起きる
 - **バグ断定の根拠**: オペレータから見て死亡と分かる個体に新規予約が通るのは、画面の死亡表示と write ガードの契約不一致（製品 FAIL）
 - **関連**: `backend/internal/sharedkernel/pet_not_deceased.go` · `appointment_admin_service.go` · `frontend/src/features/reception/components/AppointmentCard.tsx` · `frontend/src/lib/transforms/pet.ts`
@@ -269,15 +270,14 @@
 
 ### 1. BUG-RES-DECEASED-STATUS-BYPASS
 
-**方針案**: `status=deceased` または `deceased_at != null` のどちらかが死亡を示せば、新規予約を拒否する。日時不明の個体を生存扱いにせず、死亡日の推測補完も行わない。既存の `deceased_at` を正とする仕様・コメントとの整合を先に確定する。
+**方針（実装済み・本ユニット）**: `status=deceased` または `deceased_at != null` のどちらかが死亡を示せば、新規予約を拒否する。日時不明の個体を生存扱いにせず、死亡日の推測補完も行わない。
 
-1. [pet_not_deceased.go](backend/internal/sharedkernel/pet_not_deceased.go) の `ValidatePetNotDeceased` と全呼出し元を列挙し、「新規登録・ペット変更」「既存情報の閲覧・訂正・取消」の適用表を作る。現在は予約のほか会計・入院・カルテ・検査にも使われている。[S01の既存シナリオ](docs/ops/testing/scenarios/S01-deceased-pet-guard.md) も死亡日時を根拠としているため、共通ガードを変更する場合は、これらの仕様・回帰テストも受入範囲に含める。
-2. 合成ペットで `alive/null`、`deceased/null`、`deceased/日時あり`、`alive/日時あり` を作り、後者3ケースで予約が保存されないREDを追加する。別医院の個体、存在しない個体、取得失敗も拒否する。
-3. 契約確定後、共通の死亡判定を修正し、通常作成・複数ペット一括作成・管理者作成など既存の入口が同じ判断を使うようにする。FEの選択時・送信直前の拒否も同じ条件に合わせる。画面だけの抑止で完了にしない。
-4. write transaction内で最新のペット状態を検証し、死亡登録との競合時に検証後の状態変更をすり抜けないことを確認する。既存のclinic/owner/pet分離、ロック、監査境界を維持する。
-5. 通常予約、取消、許可された履歴閲覧・訂正、[RecordDeath / ClearDeath](backend/internal/pet/repository.go) の状態条件付き更新と監査の既存テストを回帰確認する。適用対象外の履歴訂正にガードを広げない。仕様コメント・画面仕様も実装と同じ契約へ更新する。
+1. `ValidatePetNotDeceased` を OR 契約へ更新（会計・入院・カルテ・検査も共有ヘルパー経由で継承）。履歴訂正の適用範囲は広げない。
+2. 合成ペット `alive/null` / `deceased/null` / `deceased/dated` / `alive/dated` の RED→GREEN を sharedkernel・Create・CreateBatch・admin Create で固定。
+3. FE は `isPetDeceasedForClinicalWrite`（選択 UI + 予約 submit）で同じ OR 契約。画面 disable のみに依存しない。
+4. S01 コメントを OR 契約へ整合。データ backfill は別ユニット。
 
-**主な対象**: 上記共通ガード、[reservation_service.go](backend/internal/reservation/reservation_service.go)、[appointment_admin_service.go](backend/internal/reservation/appointment_admin_service.go)、[予約フォーム](frontend/src/components/shared/ReservationFormModal/ReservationFormModal.tsx)、[受付カード](frontend/src/features/reception/components/AppointmentCard.tsx)。追加対象は呼出し元の適用表で確定する。
+**主な対象**: 上記共通ガード、[reservation_service.go](backend/internal/reservation/reservation_service.go)、[appointment_admin_service.go](backend/internal/reservation/appointment_admin_service.go)、[予約フォーム](frontend/src/components/shared/ReservationFormModal/ReservationFormModal.tsx)、[受付カード](frontend/src/features/reception/components/AppointmentCard.tsx)。
 
 **完了条件**: 不整合ペットの単体予約は既存の死亡エラーで拒否され、予約・関連データの増分が0件。複数ペットのうち1頭が死亡でも全件rollbackされる。生存ペットの正常予約と、許可された履歴操作は成立する。実データのバックフィルは別項目として残す。
 

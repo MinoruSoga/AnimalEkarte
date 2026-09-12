@@ -22,11 +22,11 @@
 | 5 | 新規入院: 入院新規登録のペット選択画面で対象ペットを検索 | 「選択不可」で無効化され、死亡済みペットへの新規登録が物理的にブロックされる（[09-hospitalization-form.md](../../../spec/screens/09-hospitalization-form.md)） |
 | 5b | 新規検査・新規トリミングの共通ペット選択でも対象ペットを検索 | 同じ「選択不可」。API 直の create も `ValidatePetNotDeceased` で拒否する |
 | 6 | 死亡登録後の Lステップタグと監査証跡を確認する | primary の死亡登録と audit 書込みは失敗時にロールバックする。全ペット死亡なら全 Lステップタグを除去し、生存ペットが残るなら pet-derived タグを再同期/除去する。タグ再同期は best-effort であり、死亡登録の成否と区別して記録する。リマインド行の破棄や exclusion counter は期待しない |
-| 7 | 死亡解除: 同じ編集導線で死亡記録を解除（生存へ戻す） | `DELETE …/pets/:id/death` が成功する。手順 2〜5 の各導線で対象ペットが再び選択可能になる。write ガードの根拠は `deceased_at IS NOT NULL`（表示ラベルの「死亡」ではない） |
+| 7 | 死亡解除: 同じ編集導線で死亡記録を解除（生存へ戻す） | `DELETE …/pets/:id/death` が成功する。手順 2〜5 の各導線で対象ペットが再び選択可能になる。write ガードの根拠は `status=deceased OR deceased_at IS NOT NULL`（日時の捏造はしない） |
 
 ## 確認観点
 
-- write ガードは `sharedkernel.ValidatePetNotDeceased`（`deceased_at != nil`）。フロントの無効化は `PatientSelectionTable.tsx`（予約・既定で死亡除外）と `PetSelectionResultsTable`（カルテ/会計/入院/検査/トリミングの共通選択・`includeDeceased: true` で sentinel 表示＋「選択不可」）。
+- write ガードは `sharedkernel.ValidatePetNotDeceased`（`status=deceased OR deceased_at != nil`）。フロントの無効化は `PatientSelectionTable.tsx`（予約・既定で死亡除外）と `PetSelectionResultsTable` / `PatientSelectionResults`（`isPetDeceasedForClinicalWrite`: status ラベル「死亡」または `deceasedAt`）と予約 submit ガード。カルテ/会計/入院/検査/トリミングの共通選択は `includeDeceased: true` で sentinel 表示＋「選択不可」。
 - ブロックの見え方は経路で異なる: **予約の既定検索**は死亡を結果に出さない。**共通ペット選択**は死亡を出し「グレーアウト＋選択不可」。**飼主 No 検索**で 0 件になる経路もあり、0 件でも異常ではない。
 - 死亡登録はサブダイアログの確定時に API 保存され、外側のペット編集フォームにも保存結果が同期される。死亡登録のために外側フォームの「更新」を重ねて押す必要はない（`PetDeceasedDialog.tsx`・`PetDeceasedRecordButton`）。generic `PATCH /pets/:id` では status を送らない（死亡/復活は `/:id/death` に一本化）。
 - 死亡タグ除去のバックエンド処理は `HandlePetDeath`（`backend/internal/lstep/lstep_lifecycle_service.go`）。解除は `HandlePetRevival`。

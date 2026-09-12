@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/table";
 import { EmptyState, ErrorFallback } from "@/components/shared/DataStates";
 import { C, ICON } from "@/lib/design-tokens";
+import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import type { Pet } from "@/types";
 
 interface PatientSelectionTableBodyProps {
@@ -63,8 +64,9 @@ interface PatientSelectionRowProps {
 }
 
 function PatientSelectionRow({ pet, isBusy, isSelected, onSelect }: PatientSelectionRowProps) {
-  const isDeceased = pet.status === "死亡";
-  const isAlive = pet.status === "生存";
+  // OR contract with BE: status=死亡 or deceasedAt set (alive/dated included).
+  const isDeceased = isPetDeceasedForClinicalWrite(pet);
+  const isAlive = pet.status === "生存" && !isDeceased;
   const isSelectable = isAlive && !isBusy;
 
   return (
