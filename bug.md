@@ -15,7 +15,7 @@
 |:---|:---|:---|:---|:---|:---|
 | BUG-LOCAL-HANDOFF-CSV-CONTRACT | OPEN | ops / local-db | Medium | handoff preflight BLOCKED | 現行契約でbundleを再生成し、取込前に検証する。[詳細](#plan-bug-local-handoff-csv-contract) |
 | BUG-RES-DOCTOR-ID-ZERO | FIXED | reservation | High | **バグ断定**（FK / doctor_id=0） | 作成時の担当未指定をFE・BEで統一し、0をNULLへ正規化済み。[詳細](#plan-bug-res-doctor-id-zero) |
-| BUG-RES-DIALOG-A11Y-CONSOLE | OPEN | reservation / a11y | Low | **バグ断定**（DialogContent Description 欠落コンソール警告） | 警告元と説明IDの対応を特定し、説明の参照切れを直す。[詳細](#plan-bug-res-dialog-a11y-console) |
+| BUG-RES-DIALOG-A11Y-CONSOLE | FIXED | reservation / a11y | Low | **バグ断定**（DialogContent Description 欠落コンソール警告） | 固定ID上書きで Radix DescriptionWarning が context.descriptionId を見失っていた。Radix 管理IDに戻し警告0。[詳細](#plan-bug-res-dialog-a11y-console) |
 | BUG-RES-STAFF-SELECT-ORPHAN-LABEL | FIXED | reservation / UI | High | **バグ断定**（担当者選択後に表示が消える） | 候補外でも表示名を保持し、確定 orphan は理由表示＋解除/再選択まで送信遮断。[詳細](#plan-bug-res-staff-select-orphan-label) |
 | BUG-RES-AVAILABLE-TIMES-404 | FIXED | reservation | Medium | **バグ断定**（LINE設定欠落で院内API 404） | 院内は設定未登録を識別可能な unset（422 + code）にし案内付き手動時刻のみ許可。空枠/障害/LIFF必須は維持。[詳細](#plan-bug-res-available-times-404) |
 | BUG-RES-DECEASED-STATUS-BYPASS | OPEN | reservation / pet | High | **バグ断定**（status=deceased なのに予約可） | 死亡判定の契約を確定し、不整合ペットへの新規writeを防ぐ。[詳細](#plan-bug-res-deceased-status-bypass) |
@@ -152,13 +152,16 @@
 - **実測（2026-09-13）**:
   - 証拠: `reports/uat-2026-09-13/staff-res-crud-v4-20260913-023652.json`（`res_console` / `interesting_console`）
   - スタッフマスタ `/settings/staff` の同 sweep では **コンソール興味イベントなし**（スタッフ CRUD API/UI は PASS）
-- **切り分けメモ**:
-  - `ReservationFormModal` 本体は `aria-describedby={RESERVATION_FORM_DESCRIPTION_ID}` と sr-only `DialogDescription` を持つ実装がある
-  - それでも警告が出るため、**入れ子の別 DialogContent**（例: `components/ui/command.tsx` の Command ダイアログは Description なし）や、Description マウント前の警告の可能性
+- **原因（live / real-Dialog 特定済み）**:
+  - Culprit: `ReservationFormModal` → `DialogContent` + `ReservationModalHeader` の `DialogDescription`
+  - 固定 `id="reservation-form-description"` を `DialogDescription` に渡し、同IDを `DialogContent` の `aria-describedby` にも指定していた
+  - Radix `@radix-ui/react-dialog` の `DescriptionWarning` は **context.descriptionId**（自動採番）の要素存在を見る。custom `id` が context ID を上書きするため `document.getElementById(context.descriptionId)` が失敗し警告が出る
+  - アクセシブル説明自体は custom id 経路で付いていたが、警告は残る（静的 Description 存在だけでは FIXED にできない理由）
+  - Plan §4 の「CommandDialog 欠落」仮説は不成立（現行 CommandDialog は Title+Description あり）
+- **修正（2026-09-13 / att-bug-res-dialog-a11y-20260913-001）**:
+  - custom description id / 手動 `aria-describedby` をやめ、Radix の Description 配線に委譲（`ChangePasswordDialog` と同パターン）
+  - 回帰: `ReservationFormModal.dialog-a11y.test.tsx`（実 Dialog、DialogContent mock なし、Missing Description 警告0 + accessible name/description、入れ子 type-picker）
 - **影響**: 開発者コンソール汚染。a11y（スクリーンリーダー向け説明）欠落の兆候。予約 CRUD 自体の機能 FAIL ではない。
-- **修正方針候補**:
-  1. 警告元の DialogContent を特定し `DialogDescription`（sr-only 可）または `aria-describedby` を付与
-  2. Command ダイアログ等の共有 UI も同様に揃える
 
 
 
@@ -340,12 +343,14 @@
 
 **現行コードでの追加確認**: [CommandDialog](frontend/src/components/ui/command.tsx) は既に `DialogTitle` と `DialogDescription` を持つ。[予約フォーム](frontend/src/components/shared/ReservationFormModal/ReservationFormModal.tsx) と [ヘッダー](frontend/src/components/shared/ReservationFormModal/ReservationFormModalPanels.tsx)、[予約区分選択](frontend/src/components/shared/ReservationFormModal/ReservationTypePickerDialog.tsx) にも説明がある。「共有CommandにDescriptionがない」という上記の仮説は現行コードでは成立しない。
 
-1. 現行コードが稼働しているブラウザで新規予約を開き、consoleのcomponent stackと各ダイアログの `aria-describedby`・説明要素ID・マウント時点を照合する。固定IDの重複、上書き、入れ子、開閉・再表示を調べる。旧ビルド由来ならその差を記録する。
-2. 発生元を絞って、説明要素と参照IDが同じダイアログに対応するよう修正する。既存UIラッパーの標準的なID管理を優先する。consoleの抑制や説明の無条件削除を修正にしない。
-3. モーダルの実コンポーネントを描画する回帰テストで、警告がないこととアクセシブルな名前・説明が得られることを検証する。Dialogをmockして警告を消したテストは受入証拠にしない。
-4. ブラウザで初回表示・閉じて再表示・入れ子の予約区分選択・キーボード操作・フォーカス復帰を確認する。
+**実装メモ (2026-09-13 / att-bug-res-dialog-a11y-20260913-001)**: Culprit は `ReservationFormModal`/`ReservationModalHeader` の固定 description ID。Radix `DescriptionWarning` は context.descriptionId を探すため custom id 上書きで警告。手動 `aria-describedby` と custom id を削除し Radix 配線に委譲。検証: `docker compose exec frontend npx vitest run src/components/shared/ReservationFormModal/ReservationFormModal.dialog-a11y.test.tsx`（2 passed）、関連 picker/init-values（8 passed）。console 抑制なし・DialogContent mock なし。
 
-**完了条件**: 再現していた同じ操作で対象警告0件、説明の参照切れ0件。現行コードで再現できない場合は `OPEN` のまま追加調査結果を記録し、静的にDescriptionがあるだけで修正済みにしない。
+1. ~~現行コードが稼働しているブラウザで新規予約を開き…~~ → real-Dialog vitest で警告再現・原因特定済み（UAT `res_console` と一致）
+2. ~~発生元を絞って…~~ → 固定ID上書きを除去済み
+3. ~~回帰テスト…~~ → `ReservationFormModal.dialog-a11y.test.tsx` 追加済み
+4. 入れ子 type-picker 開閉・Escape 後に親 dialog 残存を vitest で確認済み。ブラウザ実機はログイン要のため RTL を Mode 3 正本とする。
+
+**完了条件**: 再現していた同じ操作で対象警告0件、説明の参照切れ0件。現行コードで再現できない場合は `OPEN` のまま追加調査結果を記録し、静的にDescriptionがあるだけで修正済みにしない。 → **達成（FIXED）**
 
 <a id="plan-bug-local-handoff-csv-contract"></a>
 

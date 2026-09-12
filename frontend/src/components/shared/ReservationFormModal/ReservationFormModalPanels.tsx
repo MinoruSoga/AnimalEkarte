@@ -28,14 +28,12 @@ interface ReservationModalHeaderProps {
   isEditMode: boolean;
   mobilePanel: MobilePanel;
   onMobilePanelChange: (panel: MobilePanel) => void;
-  descriptionId: string;
 }
 
 export function ReservationModalHeader({
   isEditMode,
   mobilePanel,
   onMobilePanelChange,
-  descriptionId,
 }: ReservationModalHeaderProps) {
   return (
     <DialogHeader className="p-4 border-b shrink-0 h-auto flex flex-col gap-3 space-y-0">
@@ -50,7 +48,8 @@ export function ReservationModalHeader({
             {isEditMode ? "予約編集" : "新規予約作成"}
           </DialogTitle>
         </div>
-        <DialogDescription id={descriptionId} className="sr-only">
+        {/* Let Radix assign context.descriptionId; a custom id breaks DescriptionWarning lookup. */}
+        <DialogDescription className="sr-only">
           左側のリストからペットを選択し、右側のフォームで予約情報を入力してください
         </DialogDescription>
       </div>

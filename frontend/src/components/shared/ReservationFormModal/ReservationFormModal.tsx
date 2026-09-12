@@ -49,7 +49,6 @@ const EMPTY_NEW_OWNER: NewOwnerFormData = {
   chiefComplaint: "",
   animalSpeciesId: 0,
 };
-const RESERVATION_FORM_DESCRIPTION_ID = "reservation-form-description";
 const PAST_DATE_ERROR_MESSAGE = "本日以降の日付を選択してください";
 
 /**
@@ -323,14 +322,12 @@ export const ReservationFormModal = memo(function ReservationFormModal({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
-        aria-describedby={RESERVATION_FORM_DESCRIPTION_ID}
         className={`${LAYOUT.modal.full} flex flex-col p-0 gap-0 bg-white overflow-hidden rounded-xl`}
       >
         <ReservationModalHeader
           isEditMode={isEditMode}
           mobilePanel={mobilePanel}
           onMobilePanelChange={setMobilePanel}
-          descriptionId={RESERVATION_FORM_DESCRIPTION_ID}
         />
 
         {submitError ? (
