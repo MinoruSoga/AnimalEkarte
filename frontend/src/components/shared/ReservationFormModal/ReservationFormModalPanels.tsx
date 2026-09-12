@@ -15,7 +15,10 @@ import { cn } from "@/lib/utils";
 import type { Pet, Reservation } from "@/types";
 import { NewOwnerInlineForm } from "./NewOwnerInlineForm";
 import { PatientSelectionTable } from "./PatientSelectionTable";
-import { ReservationFormFields } from "./ReservationFormFields";
+import {
+  ReservationFormFields,
+  type StaffSelectionState,
+} from "./ReservationFormFields";
 
 export type OwnerMode = "existing" | "new";
 export type MobilePanel = "search" | "form";
@@ -188,6 +191,7 @@ interface ReservationDetailsPanelProps {
   onFormChange: (data: Partial<Reservation>) => void;
   onClearError: (field: string) => void;
   onMonthChange: (yearMonth: string) => void;
+  onStaffSelectionStateChange?: (state: StaffSelectionState) => void;
 }
 
 export function ReservationDetailsPanel({
@@ -204,6 +208,7 @@ export function ReservationDetailsPanel({
   onFormChange,
   onClearError,
   onMonthChange,
+  onStaffSelectionStateChange,
 }: ReservationDetailsPanelProps) {
   return (
     <div
@@ -230,6 +235,7 @@ export function ReservationDetailsPanel({
             onClearError={onClearError}
             holidayDates={holidayDates}
             onMonthChange={onMonthChange}
+            onStaffSelectionStateChange={onStaffSelectionStateChange}
           />
           {isEditMode && reservationId ? (
             <ReservationRouteSelect

@@ -32,6 +32,8 @@ interface ReservationTypeAndStaffFieldsProps {
   selectedReservationType: SelectedReservationType | null;
   staffSelectOptions: SearchableSelectOption[];
   staffEmptyMessage: string;
+  staffFallbackLabel?: string;
+  staffOrphanReason?: string | null;
 }
 
 export function ReservationTypeAndStaffFields({
@@ -44,7 +46,10 @@ export function ReservationTypeAndStaffFields({
   selectedReservationType,
   staffSelectOptions,
   staffEmptyMessage,
+  staffFallbackLabel,
+  staffOrphanReason,
 }: ReservationTypeAndStaffFieldsProps) {
+  const doctorError = validationErrors?.doctor || staffOrphanReason || undefined;
   return (
     <>
       <div className="grid grid-cols-2 gap-4">
@@ -152,8 +157,26 @@ export function ReservationTypeAndStaffFields({
           placeholder="選択してください"
           searchPlaceholder="スタッフ名で検索..."
           emptyMessage={staffEmptyMessage}
+          fallbackLabel={staffFallbackLabel}
           triggerTestId="res-staff-trigger"
+          ariaInvalid={Boolean(doctorError)}
+          ariaDescribedBy={doctorError ? "res-staff-error" : undefined}
         />
+        {staffOrphanReason ? (
+          <div className="flex items-start justify-between gap-2">
+            <FormFieldError id="res-staff-error" message={staffOrphanReason} />
+            <button
+              type="button"
+              data-testid="res-staff-clear"
+              className={cn("shrink-0 text-xs underline", C.text60, C.hoverText)}
+              onClick={() => onChange({ ...formData, doctor: "" })}
+            >
+              担当者を解除
+            </button>
+          </div>
+        ) : validationErrors?.doctor ? (
+          <FormFieldError id="res-staff-error" message={validationErrors.doctor} />
+        ) : null}
       </div>
     </>
   );

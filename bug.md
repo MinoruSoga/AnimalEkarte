@@ -16,7 +16,7 @@
 | BUG-LOCAL-HANDOFF-CSV-CONTRACT | OPEN | ops / local-db | Medium | handoff preflight BLOCKED | 現行契約でbundleを再生成し、取込前に検証する。[詳細](#plan-bug-local-handoff-csv-contract) |
 | BUG-RES-DOCTOR-ID-ZERO | FIXED | reservation | High | **バグ断定**（FK / doctor_id=0） | 作成時の担当未指定をFE・BEで統一し、0をNULLへ正規化済み。[詳細](#plan-bug-res-doctor-id-zero) |
 | BUG-RES-DIALOG-A11Y-CONSOLE | OPEN | reservation / a11y | Low | **バグ断定**（DialogContent Description 欠落コンソール警告） | 警告元と説明IDの対応を特定し、説明の参照切れを直す。[詳細](#plan-bug-res-dialog-a11y-console) |
-| BUG-RES-STAFF-SELECT-ORPHAN-LABEL | OPEN | reservation / UI | High | **バグ断定**（担当者選択後に表示が消える） | 条件変更後の選択値・表示・送信値を一致させ、無効な担当は再選択を促す。[詳細](#plan-bug-res-staff-select-orphan-label) |
+| BUG-RES-STAFF-SELECT-ORPHAN-LABEL | FIXED | reservation / UI | High | **バグ断定**（担当者選択後に表示が消える） | 候補外でも表示名を保持し、確定 orphan は理由表示＋解除/再選択まで送信遮断。[詳細](#plan-bug-res-staff-select-orphan-label) |
 | BUG-RES-AVAILABLE-TIMES-404 | OPEN | reservation | Medium | **バグ断定**（LINE設定欠落で院内API 404） | 未設定・満枠・取得失敗を区別し、未設定時の入力契約を確定する。[詳細](#plan-bug-res-available-times-404) |
 | BUG-RES-DECEASED-STATUS-BYPASS | OPEN | reservation / pet | High | **バグ断定**（status=deceased なのに予約可） | 死亡判定の契約を確定し、不整合ペットへの新規writeを防ぐ。[詳細](#plan-bug-res-deceased-status-bypass) |
 | PO-PET-DECEASED-DATA-BACKFILL | OPEN | data / pet | Medium | **PO確認**（不整合データの修復方針） | 対象・死亡日の根拠・監査・復旧を確定してからデータ修復する。[詳細](#plan-po-pet-deceased-data-backfill) |
@@ -410,6 +410,8 @@
 4. 既存予約編集での過去担当の表示と、担当・区分・日時の変更時に必要な再検証を区別する。表示都合で保存済み担当を変更しない。明示解除後は `BUG-RES-DOCTOR-ID-ZERO` の未指定契約で送信する。
 
 **完了条件**: 有効な担当者を選ぶと名前が表示され、payloadも同じIDになる。条件変更で無効になった担当者は未選択に偽装されず、再選択・解除まで送信できない。取得中・失敗で既存選択を破棄せず、履歴表示と医院分離を維持する。スタッフの対応区分を一括で増やしてUI不整合を隠す対応は行わない。
+
+**実装メモ (2026-09-13 / att-bug-res-staff-orphan-20260913-001)**: `SearchableSelect` に `fallbackLabel` を追加。`ReservationFormFields` で候補 settle 後の confirmed orphan を導出し、表示名・理由・解除を `ReservationTypeAndStaffFields` に渡し、Modal submit で遮断。loading/error は orphan 扱いにしない。編集初期化で保存済み `doctor` を書き換えない。capable_courses の一括拡張なし。検証: `docker compose exec frontend npx vitest run src/components/shared/ReservationFormModal`（69 passed）。
 
 <a id="plan-note-staff-starttime-rdt"></a>
 

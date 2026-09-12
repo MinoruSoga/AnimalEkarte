@@ -1,4 +1,4 @@
-import { memo, useMemo, useCallback, useState } from "react";
+import { memo, useMemo, useCallback, useState, useEffect } from "react";
 import { isBefore, startOfDay, format } from "date-fns";
 import { useGetMasterItems } from "@/hooks/use-master-items";
 import {
@@ -20,10 +20,18 @@ import {
   slotTimeToSelectValue,
   TIME_OPTIONS,
 } from "./reservation-time-utils";
-import { filterStaffCandidatesByCapability } from "./filter-staff-candidates";
+import {
+  filterStaffCandidatesByCapability,
+  resolveStaffSelectionEligibility,
+} from "./filter-staff-candidates";
 import { ReservationDateTimeFields } from "./ReservationDateTimeFields";
 import { ReservationTypeAndStaffFields } from "./ReservationTypeAndStaffFields";
 import { ReservationNotesField } from "./ReservationNotesField";
+
+export interface StaffSelectionState {
+  isConfirmedOrphan: boolean;
+  reasonMessage: string | null;
+}
 
 interface ReservationFormFieldsProps {
   formData: Partial<Reservation>;
@@ -34,6 +42,8 @@ interface ReservationFormFieldsProps {
   holidayDates?: Set<string>;
   /** カレンダーの月が変わったときに呼ばれるコールバック (YYYY-MM 形式) — BUG-343 */
   onMonthChange?: (yearMonth: string) => void;
+  /** Notify modal submit guard when type/date filters confirm an options-orphan doctor. */
+  onStaffSelectionStateChange?: (state: StaffSelectionState) => void;
 }
 
 export const ReservationFormFields = memo(function ReservationFormFields({
@@ -43,6 +53,7 @@ export const ReservationFormFields = memo(function ReservationFormFields({
   onClearError: _onClearError,
   holidayDates,
   onMonthChange,
+  onStaffSelectionStateChange,
 }: ReservationFormFieldsProps) {
   // BUG-344: 選択日に出勤しているスタッフのみに絞り込む
   const selectedDateStr = formData.start ? format(formData.start, "yyyy-MM-dd") : null;
@@ -68,12 +79,20 @@ export const ReservationFormFields = memo(function ReservationFormFields({
     [holidayDates],
   );
 
-  const { data: staffItems } = useGetMasterItems("staff");
+  const { data: staffItems, isLoading: isStaffMasterLoading } = useGetMasterItems("staff");
   // useMemo で参照を安定化（staffOptions の deps が毎レンダー新参照を受け取るのを防ぐ）
   const activeStaff = useMemo(() => staffItems.filter((s) => s.status === "active"), [staffItems]);
 
-  const { data: onDutyStaffs } = useGetOnDutyStaffs(selectedDateStr);
-  const { data: reservationStaffs } = useGetReservationStaffs();
+  const {
+    data: onDutyStaffs,
+    isError: isOnDutyError,
+    isFetching: isOnDutyFetching,
+  } = useGetOnDutyStaffs(selectedDateStr);
+  const {
+    data: reservationStaffs,
+    isError: isReservationStaffError,
+    isFetching: isReservationStaffFetching,
+  } = useGetReservationStaffs();
   const { data: availableTimeSlots } = useGetReservationAvailableTimes(
     selectedReservationTypeId,
     selectedDateStr,
@@ -188,6 +207,67 @@ export const ReservationFormFields = memo(function ReservationFormFields({
         ? "この日に出勤しているスタッフがいません"
         : "スタッフが登録されていません";
 
+  const staffNameById = useMemo(() => {
+    const names = new Map<string, string>();
+    for (const staff of staffItems) {
+      names.set(String(staff.id), staff.name);
+    }
+    for (const staff of reservationStaffs ?? []) {
+      names.set(String(staff.id), staff.name);
+    }
+    for (const staff of onDutyStaffs ?? []) {
+      names.set(String(staff.id), staff.name);
+    }
+    return names;
+  }, [staffItems, reservationStaffs, onDutyStaffs]);
+
+  const eligibleOptionIds = useMemo(
+    () => new Set(staffSelectOptions.map((option) => option.value)),
+    [staffSelectOptions],
+  );
+
+  const onDutyReady = selectedDateStr === null || onDutyStaffs !== undefined;
+  const capabilityReady =
+    selectedReservationTypeId === null || reservationStaffs !== undefined;
+  const hasQueryError =
+    (selectedDateStr !== null && isOnDutyError) ||
+    (selectedReservationTypeId !== null && isReservationStaffError);
+  // Pending fetch (undefined data / still fetching) must not confirm orphan eligibility.
+  const candidatesSettled =
+    !isStaffMasterLoading &&
+    onDutyReady &&
+    capabilityReady &&
+    !(selectedDateStr !== null && isOnDutyFetching && onDutyStaffs === undefined) &&
+    !(
+      selectedReservationTypeId !== null &&
+      isReservationStaffFetching &&
+      reservationStaffs === undefined
+    ) &&
+    !hasQueryError;
+
+  const staffEligibility = useMemo(
+    () =>
+      resolveStaffSelectionEligibility({
+        doctorId: formData.doctor ? String(formData.doctor) : "",
+        eligibleOptionIds,
+        nameById: staffNameById,
+        candidatesSettled,
+        hasQueryError,
+      }),
+    [formData.doctor, eligibleOptionIds, staffNameById, candidatesSettled, hasQueryError],
+  );
+
+  useEffect(() => {
+    onStaffSelectionStateChange?.({
+      isConfirmedOrphan: staffEligibility.isConfirmedOrphan,
+      reasonMessage: staffEligibility.reasonMessage,
+    });
+  }, [
+    onStaffSelectionStateChange,
+    staffEligibility.isConfirmedOrphan,
+    staffEligibility.reasonMessage,
+  ]);
+
   return (
     <div className="space-y-4">
       {/* Date + Time Group */}
@@ -211,6 +291,8 @@ export const ReservationFormFields = memo(function ReservationFormFields({
         selectedReservationType={selectedReservationType}
         staffSelectOptions={staffSelectOptions}
         staffEmptyMessage={staffEmptyMessage}
+        staffFallbackLabel={staffEligibility.displayLabel}
+        staffOrphanReason={staffEligibility.reasonMessage}
       />
 
       <ReservationNotesField formData={formData} onChange={onChange} />

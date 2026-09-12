@@ -39,6 +39,11 @@ interface SearchableSelectProps {
   searchPlaceholder?: string;
   emptyMessage?: string;
   disabled?: boolean;
+  /**
+   * value が options/groups に無いときの表示名。
+   * 候補フィルタで一時的に外れた選択値をプレースホルダへ落とさない用途。
+   */
+  fallbackLabel?: string;
   /** トリガーに付与する className。 */
   className?: string;
   /** ポップオーバー内容(リスト)に付与する className。 */
@@ -78,6 +83,7 @@ export function SearchableSelect({
   searchPlaceholder = "検索...",
   emptyMessage = "該当する候補が見つかりません。",
   disabled = false,
+  fallbackLabel,
   className,
   contentClassName,
   triggerTestId,
@@ -90,8 +96,11 @@ export function SearchableSelect({
 
   const selectedLabel = useMemo(() => {
     const all = flattenOptions(options, groups);
-    return all.find((o) => o.value === value)?.label ?? "";
-  }, [options, groups, value]);
+    const fromOptions = all.find((o) => o.value === value)?.label;
+    if (fromOptions) return fromOptions;
+    if (value && fallbackLabel) return fallbackLabel;
+    return "";
+  }, [options, groups, value, fallbackLabel]);
 
   const handleSelect = (next: string) => {
     onValueChange(next);
