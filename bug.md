@@ -18,7 +18,7 @@
 | BUG-RES-DIALOG-A11Y-CONSOLE | FIXED | reservation / a11y | Low | **バグ断定**（DialogContent Description 欠落コンソール警告） | 固定ID上書きで Radix DescriptionWarning が context.descriptionId を見失っていた。Radix 管理IDに戻し警告0。[詳細](#plan-bug-res-dialog-a11y-console) |
 | BUG-RES-STAFF-SELECT-ORPHAN-LABEL | FIXED | reservation / UI | High | **バグ断定**（担当者選択後に表示が消える） | 候補外でも表示名を保持し、確定 orphan は理由表示＋解除/再選択まで送信遮断。[詳細](#plan-bug-res-staff-select-orphan-label) |
 | BUG-RES-AVAILABLE-TIMES-404 | FIXED | reservation | Medium | **バグ断定**（LINE設定欠落で院内API 404） | 院内は設定未登録を識別可能な unset（422 + code）にし案内付き手動時刻のみ許可。空枠/障害/LIFF必須は維持。[詳細](#plan-bug-res-available-times-404) |
-| BUG-RES-DECEASED-STATUS-BYPASS | OPEN | reservation / pet | High | **バグ断定**（status=deceased なのに予約可） | 死亡判定の契約を確定し、不整合ペットへの新規writeを防ぐ。[詳細](#plan-bug-res-deceased-status-bypass) |
+| BUG-RES-DECEASED-STATUS-BYPASS | FIXED | reservation / pet | High | **バグ断定**（status=deceased なのに予約可） | `status=deceased` OR `deceased_at` で新規write拒否。データ補完は別項。[詳細](#plan-bug-res-deceased-status-bypass) |
 | PO-PET-DECEASED-DATA-BACKFILL | OPEN | data / pet | Medium | **PO確認**（不整合データの修復方針） | 対象・死亡日の根拠・監査・復旧を確定してからデータ修復する。[詳細](#plan-po-pet-deceased-data-backfill) |
 | PO-STAFF-BLANK-NAME-LIST | FIXED | staff UX / data | Low | **PO確認→実装**（空氏名の一覧表示方針） | Grill Recommended: 初期有効のみ＋表示 `(氏名未設定)`。DB書換・一括削除なし。[詳細](#plan-po-staff-blank-name-list) |
 | PO-OCCUPATION-MASTER-EMPTY | FIXED | master / data | Low | **PO確認→実装**（職種マスタ0件の扱い） | Grill Recommended: 0件は未登録案内＋職種マスタへ誘導。`occupation_id` は任意のまま。偽選択肢・自動投入なし。[詳細](#plan-po-occupation-master-empty) |
