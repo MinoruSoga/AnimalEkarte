@@ -14,7 +14,7 @@
 | ID | status | area | severity | 種別 | 修正プラン |
 |:---|:---|:---|:---|:---|:---|
 | BUG-LOCAL-HANDOFF-CSV-CONTRACT | OPEN | ops / local-db | Medium | handoff preflight BLOCKED | 現行契約でbundleを再生成し、取込前に検証する。[詳細](#plan-bug-local-handoff-csv-contract) |
-| BUG-RES-DOCTOR-ID-ZERO | OPEN | reservation | High | **バグ断定**（FK / doctor_id=0） | 作成時の担当未指定をFE・BEで統一し、0をNULLへ正規化する。[詳細](#plan-bug-res-doctor-id-zero) |
+| BUG-RES-DOCTOR-ID-ZERO | FIXED | reservation | High | **バグ断定**（FK / doctor_id=0） | 作成時の担当未指定をFE・BEで統一し、0をNULLへ正規化済み。[詳細](#plan-bug-res-doctor-id-zero) |
 | BUG-RES-DIALOG-A11Y-CONSOLE | OPEN | reservation / a11y | Low | **バグ断定**（DialogContent Description 欠落コンソール警告） | 警告元と説明IDの対応を特定し、説明の参照切れを直す。[詳細](#plan-bug-res-dialog-a11y-console) |
 | BUG-RES-STAFF-SELECT-ORPHAN-LABEL | OPEN | reservation / UI | High | **バグ断定**（担当者選択後に表示が消える） | 条件変更後の選択値・表示・送信値を一致させ、無効な担当は再選択を促す。[詳細](#plan-bug-res-staff-select-orphan-label) |
 | BUG-RES-AVAILABLE-TIMES-404 | OPEN | reservation | Medium | **バグ断定**（LINE設定欠落で院内API 404） | 未設定・満枠・取得失敗を区別し、未設定時の入力契約を確定する。[詳細](#plan-bug-res-available-times-404) |
@@ -75,23 +75,28 @@
   - FE: `transformToCreateRequest` の `data.doctor ? Number(data.doctor)` は **`"0"` を truthy** として `doctor_id: 0` を載せうる（`""` なら undefined）
   - BE Create: Update と異なり `DoctorID == 0` の NULL 正規化が無く、そのまま INSERT → FK `fk_appointments_doctor_clinic` で 400
 - **影響**: 担当医なし予約が、出勤医師がいる日でも「参照先が存在しません」で失敗しうる。ユーザーには FK 詳細が見えず原因が分かりにくい。
-- **修正方針候補**（未実装）:
-  1. FE: 担当未選択時は `doctor_id` を payload に含めない（`0` / `"0"` を送らない）
-  2. BE: `DoctorID != nil && *DoctorID == 0` を nil に正規化（fail-closed よりユーザ向け）
-  3. 可能なら制約違反前に明示バリデーションメッセージへ変更
+- **修正方針候補**（実装済み・2026-09-13 attempt `att-bug-res-doctor-id-zero-20260913-001`）:
+  1. FE: `normalizeCreateDoctorID` — 空/`"0"` は `doctor_id` 省略、正の十進 ID は保持、不正文字列は throw（fail-closed）
+  2. BE: 共有 `normalizeCreateDoctorID` を Create / CreateBatch / admin Create で検証・競合・保存に適用（呼出し元 input は非破壊）。正の無効 ID は capability 検証で拒否（nil へ落とさない）
+  3. PATCH 契約は変更なし（omit 保持 / 0→NULL）。回帰: `resolveUpdateParams` + `buildReservationUpdate`
+- **検証**:
+  - `docker compose exec frontend npx vitest run src/features/reservations/api/transforms.test.ts src/features/reservations/hooks/use-reservation-actions.test.ts` → PASS
+  - `docker compose exec backend go test ./internal/reservation` → PASS
 - **再確認（2026-09-13・UAT Bot・clinic_id=1 八王子デモ執行）**:
   - 証拠: `reports/uat-2026-09-13/staff-res-crud-v4-20260913-023652.json`
   - `POST /api/v1/reservations` に ISO `start_time`/`end_time` + `visit_type=first` + `reservation_type_id=1`（トリミング）で:
-    - **`doctor_id: 0` → 400** `参照先が存在しません`
+    - **`doctor_id: 0` → 400** `参照先が存在しません`（修正前の失敗モード）
     - **`doctor_id` 省略 → 201**（id=1000000018）
     - **`doctor_id: null` → 201**
   - 同日、省略作成の予約は **PATCH notes → 200**、**DELETE → 204**（予約 CRUD 自体は doctor 省略時に成立）
-  - FE 経路の追加切り分け: `transformToCreateRequest` は `data.doctor ? Number(data.doctor) : undefined`。**文字列 `"0"` は truthy** なので `doctor_id: 0` が載りうる（空文字 `""` なら undefined）。BE 作成パスは Update と違い `DoctorID==0` を NULL 正規化していない（`reservation_service.go` Create は `DoctorID: input.DoctorID` をそのまま永続化）。
+  - 修正後: FE は空/`"0"` で `doctor_id` 非送信。BE Create 系は 0→NULL。サービス直呼びでも FK `fk_appointments_doctor_clinic` を unset doctor で踏まない。
 
 - **関連コード**:
-  - FE: `frontend/src/features/reservations/api/transforms.ts`（`transformToCreateRequest`）
+  - FE: `frontend/src/features/reservations/api/transforms.ts`（`normalizeCreateDoctorID` / `transformToCreateRequest`）
   - FE: `frontend/src/features/reservations/hooks/use-reservation-save-actions.ts`
-  - BE: `backend/internal/reservation/appointment_admin_request.go`（`DoctorID *uint64`）
+  - BE: `backend/internal/reservation/reservation_service_validate.go`（`normalizeCreateDoctorID`）
+  - BE: `backend/internal/reservation/reservation_service.go`（Create / CreateBatch）
+  - BE: `backend/internal/reservation/appointment_admin_service.go`（admin Create）
   - BE: `fk_appointments_doctor_clinic` / `response_pg.go` の FK 文言マッピング
 
 ---

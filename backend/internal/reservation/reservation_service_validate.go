@@ -227,6 +227,15 @@ func CheckSlotConflict(ctx context.Context, repo slotConflictChecker, clinicID u
 	return checkCapacitySlotConflict(ctx, repo, clinicID, startTime, endTime, excludeID)
 }
 
+// normalizeCreateDoctorID maps create-path omit/nil/0 to unset doctor without mutating the caller.
+// Positive IDs are returned unchanged so clinic/capability validation stays fail-closed.
+func normalizeCreateDoctorID(doctorID *uint64) *uint64 {
+	if doctorID == nil || *doctorID == 0 {
+		return nil
+	}
+	return doctorID
+}
+
 // resolveUpdateParams は現在の予約と更新入力から、競合チェックに使用する時刻・医師 ID を確定する。
 // 未指定フィールドは現在値を維持する。DoctorID=0 は NULL（医師未指定）として扱う。
 func resolveUpdateParams(current *model.Reservation, input *UpdateReservationInput) (start, end time.Time, doctorID *uint64) {
