@@ -3,6 +3,7 @@ import { isBefore, startOfDay, format } from "date-fns";
 import { useGetMasterItems } from "@/hooks/use-master-items";
 import {
   getCurrentClinicId,
+  isLineReservationSettingsUnsetError,
   useGetReservationTypesGrouped,
   useGetOnDutyStaffs,
   useGetReservationStaffs,
@@ -93,11 +94,16 @@ export const ReservationFormFields = memo(function ReservationFormFields({
     isError: isReservationStaffError,
     isFetching: isReservationStaffFetching,
   } = useGetReservationStaffs();
-  const { data: availableTimeSlots } = useGetReservationAvailableTimes(
+  const {
+    data: availableTimeSlots,
+    isError: isAvailableTimesError,
+    error: availableTimesError,
+  } = useGetReservationAvailableTimes(
     selectedReservationTypeId,
     selectedDateStr,
     formData.doctor || null,
   );
+  const isSettingsUnset = isLineReservationSettingsUnsetError(availableTimesError);
   const currentClinicId = getCurrentClinicId();
   const { data: unavailableTimes = [] } = useGetUnavailableTimes(
     currentClinicId,
@@ -118,12 +124,22 @@ export const ReservationFormFields = memo(function ReservationFormFields({
   }, [availableTimeSlots]);
   const startTimeOptions = useMemo(() => {
     let options: string[];
-    if (
-      availableTimeSlotMap !== undefined &&
-      selectedReservationTypeId !== null &&
-      selectedDateStr !== null
-    ) {
+    const hasTypeAndDate =
+      selectedReservationTypeId !== null && selectedDateStr !== null;
+    if (isSettingsUnset) {
+      // Guided manual entry only when LINE settings are unset.
+      options = TIME_OPTIONS.filter(
+        (time) => !isStartTimeUnavailable(time, applicableUnavailableTimes),
+      );
+    } else if (availableTimeSlotMap !== undefined && hasTypeAndDate) {
+      // Success (including holiday/full → []) uses computed slots only — never invent hours.
       options = [...availableTimeSlotMap.keys()];
+    } else if (isAvailableTimesError && hasTypeAndDate) {
+      // Transport/internal errors stay errors — do not fall back to full-day TIME_OPTIONS.
+      options = [];
+    } else if (hasTypeAndDate) {
+      // Loading with type+date selected: wait for API; do not invent slots.
+      options = [];
     } else {
       options = TIME_OPTIONS.filter(
         (time) => !isStartTimeUnavailable(time, applicableUnavailableTimes),
@@ -143,7 +159,14 @@ export const ReservationFormFields = memo(function ReservationFormFields({
     selectedDateStr,
     applicableUnavailableTimes,
     formData.start,
+    isSettingsUnset,
+    isAvailableTimesError,
   ]);
+  const settingsUnsetGuidance = isSettingsUnset
+    ? "LINE予約の空き枠設定が未登録のため、時刻を手動で入力してください"
+    : null;
+  const availableTimesErrorMessage =
+    isAvailableTimesError && !isSettingsUnset ? "空き枠の取得に失敗しました" : null;
   const reservationStaffMap = useMemo(() => {
     if (reservationStaffs === undefined) return undefined;
     return new Map(reservationStaffs.map((staff) => [String(staff.id), staff]));
@@ -279,6 +302,8 @@ export const ReservationFormFields = memo(function ReservationFormFields({
         handleMonthChange={handleMonthChange}
         startTimeOptions={startTimeOptions}
         availableTimeSlotMap={availableTimeSlotMap}
+        settingsUnsetGuidance={settingsUnsetGuidance}
+        availableTimesErrorMessage={availableTimesErrorMessage}
       />
 
       <ReservationTypeAndStaffFields

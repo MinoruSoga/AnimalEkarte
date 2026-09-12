@@ -49,6 +49,25 @@ func IsReservationLimitError(err error) (*ReservationLimitError, bool) {
 	return nil, false
 }
 
+// CodeLineReservationSettingsUnset is the stable JSON code for in-clinic
+// available-times when line_reservation_settings is missing (BUG-RES-AVAILABLE-TIMES-404).
+// Distinct from generic NOT_FOUND and from 200 empty slots.
+const CodeLineReservationSettingsUnset = "LINE_RESERVATION_SETTINGS_UNSET"
+
+// LineReservationSettingsUnsetError marks missing LINE reservation settings for
+// the in-clinic available-times path. LIFF keeps settings-required / not-found.
+type LineReservationSettingsUnsetError struct{}
+
+func (e *LineReservationSettingsUnsetError) Error() string {
+	return fmt.Sprintf("%s: line reservation settings are not configured", CodeLineReservationSettingsUnset)
+}
+
+// IsLineReservationSettingsUnset reports whether err is the in-clinic settings-unset contract.
+func IsLineReservationSettingsUnset(err error) bool {
+	var e *LineReservationSettingsUnsetError
+	return errors.As(err, &e)
+}
+
 // ReservationValidators は予約制限チェックのインターフェース。
 type ReservationValidators interface {
 	ValidateAndCreate(ctx context.Context, input *CreateReservationInput) (*model.Reservation, error)

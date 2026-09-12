@@ -17,7 +17,7 @@
 | BUG-RES-DOCTOR-ID-ZERO | FIXED | reservation | High | **バグ断定**（FK / doctor_id=0） | 作成時の担当未指定をFE・BEで統一し、0をNULLへ正規化済み。[詳細](#plan-bug-res-doctor-id-zero) |
 | BUG-RES-DIALOG-A11Y-CONSOLE | OPEN | reservation / a11y | Low | **バグ断定**（DialogContent Description 欠落コンソール警告） | 警告元と説明IDの対応を特定し、説明の参照切れを直す。[詳細](#plan-bug-res-dialog-a11y-console) |
 | BUG-RES-STAFF-SELECT-ORPHAN-LABEL | FIXED | reservation / UI | High | **バグ断定**（担当者選択後に表示が消える） | 候補外でも表示名を保持し、確定 orphan は理由表示＋解除/再選択まで送信遮断。[詳細](#plan-bug-res-staff-select-orphan-label) |
-| BUG-RES-AVAILABLE-TIMES-404 | OPEN | reservation | Medium | **バグ断定**（LINE設定欠落で院内API 404） | 未設定・満枠・取得失敗を区別し、未設定時の入力契約を確定する。[詳細](#plan-bug-res-available-times-404) |
+| BUG-RES-AVAILABLE-TIMES-404 | FIXED | reservation | Medium | **バグ断定**（LINE設定欠落で院内API 404） | 院内は設定未登録を識別可能な unset（422 + code）にし案内付き手動時刻のみ許可。空枠/障害/LIFF必須は維持。[詳細](#plan-bug-res-available-times-404) |
 | BUG-RES-DECEASED-STATUS-BYPASS | OPEN | reservation / pet | High | **バグ断定**（status=deceased なのに予約可） | 死亡判定の契約を確定し、不整合ペットへの新規writeを防ぐ。[詳細](#plan-bug-res-deceased-status-bypass) |
 | PO-PET-DECEASED-DATA-BACKFILL | OPEN | data / pet | Medium | **PO確認**（不整合データの修復方針） | 対象・死亡日の根拠・監査・復旧を確定してからデータ修復する。[詳細](#plan-po-pet-deceased-data-backfill) |
 | PO-STAFF-BLANK-NAME-LIST | OPEN | staff UX / data | Low | **PO確認**（空氏名の一覧表示方針） | 有効のみの初期表示と空氏名の代替表示をPO判断後に適用する。[詳細](#plan-po-staff-blank-name-list) |
@@ -331,6 +331,8 @@
 | LIFF・設定未登録 | 院内の手動入力例外を流用せず、既存の予約制限を維持 |
 
 **完了条件**: 設定なしの医院でも理由不明の404を出さず、担当未選択を含む院内予約が適切な時刻で登録できる。満枠・休診・障害時に予約可能と誤表示しない。設定seedの投入だけを製品修正の完了根拠にしない。
+
+**実装メモ (2026-09-13 / att-bug-res-available-times-20260913-001)**: 院内 `GetStaffAvailableTimes`（`requireActive=false`）で `line_reservation_settings` not-found を `LINE_RESERVATION_SETTINGS_UNSET`（HTTP 422 + code）へ。LIFF `GetAvailableTimes` は従来どおり not-found。FE は code 検知時のみ案内＋`TIME_OPTIONS` 手動入力、200 `[]` は空、他エラーはエラー表示（全日フォールバック禁止）。available-times queryKey に clinicId を付与。seed/自動作成なし。検証: `docker compose exec backend go test ./internal/reservation`（ok）、`docker compose exec frontend npx vitest run src/hooks/use-reservation-types.test.ts src/components/shared/ReservationFormModal`（82 / 72 passed）。
 
 <a id="plan-bug-res-dialog-a11y-console"></a>
 

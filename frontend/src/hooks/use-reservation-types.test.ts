@@ -7,6 +7,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { server } from "@/testing/mocks/node";
 import { createTestWrapper } from "@/testing/TestUtils";
 import {
+  isLineReservationSettingsUnsetError,
   useGetReservationAvailableTimes,
   useGetReservationStaffs,
   useGetReservationTypesGrouped,
@@ -217,8 +218,95 @@ describe("useGetReservationAvailableTimes (BUG-015)", () => {
     await waitFor(() => expect(result.current.query.isSuccess).toBe(true));
 
     const cached = result.current.queryClient.getQueryCache().find({
-      queryKey: queryKeys.reservations.availableTimes("2", "2026-06-01"),
+      queryKey: [...queryKeys.reservations.availableTimes("2", "2026-06-01"), CLINIC_ID],
     });
     expect(cached?.meta?.silentError).toBe(true);
+  });
+});
+
+describe("useGetReservationAvailableTimes (BUG-RES-AVAILABLE-TIMES-404)", () => {
+  it("marks LINE settings unset via stable code and does not treat it as empty success", async () => {
+    server.use(
+      http.get("/api/v1/reservations/available-times", () =>
+        HttpResponse.json(
+          { error: "LINE予約の空き枠設定が未登録です", code: "LINE_RESERVATION_SETTINGS_UNSET" },
+          { status: 422 },
+        ),
+      ),
+    );
+
+    const { result } = renderHook(() => useGetReservationAvailableTimes("5", "2026-09-13", null), {
+      wrapper: createTestWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(isLineReservationSettingsUnsetError(result.current.error)).toBe(true);
+    expect(result.current.data).toBeUndefined();
+    expect(result.current.failureCount).toBe(1);
+  });
+
+  it("keeps empty array success distinct from unset", async () => {
+    server.use(
+      http.get("/api/v1/reservations/available-times", () => HttpResponse.json([])),
+    );
+
+    const { result } = renderHook(() => useGetReservationAvailableTimes("5", "2026-09-13", null), {
+      wrapper: createTestWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toEqual([]);
+    expect(isLineReservationSettingsUnsetError(result.current.error)).toBe(false);
+  });
+
+  it(
+    "keeps transport errors as non-unset errors",
+    async () => {
+      server.use(
+        http.get("/api/v1/reservations/available-times", () =>
+          HttpResponse.json({ error: "internal server error" }, { status: 500 }),
+        ),
+      );
+
+      const { result } = renderHook(() => useGetReservationAvailableTimes("5", "2026-09-13", null), {
+        wrapper: createTestWrapper(),
+      });
+
+      // Default RQ retries for non-unset 5xx need a longer settle window than unset (no retry).
+      await waitFor(() => expect(result.current.isError).toBe(true), { timeout: 12000 });
+      expect(isLineReservationSettingsUnsetError(result.current.error)).toBe(false);
+    },
+    15000,
+  );
+
+  it("scopes cache by clinic so switching clinics drops stale slots/flags", async () => {
+    let hits = 0;
+    server.use(
+      http.get("/api/v1/reservations/available-times", () => {
+        hits += 1;
+        if (localStorage.getItem(CURRENT_CLINIC_STORAGE_KEY) === "2") {
+          return HttpResponse.json([]);
+        }
+        return HttpResponse.json([{ start_time: "0945", end_time: "1045" }]);
+      }),
+    );
+
+    const { result, rerender } = renderHook(
+      () => useGetReservationAvailableTimes("5", "2026-09-13", null),
+      { wrapper: createTestWrapper() },
+    );
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toEqual([{ start_time: "0945", end_time: "1045" }]);
+    const hitsAfterFirst = hits;
+
+    localStorage.setItem(CURRENT_CLINIC_STORAGE_KEY, "2");
+    rerender();
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+      expect(result.current.data).toEqual([]);
+    });
+    expect(hits).toBeGreaterThan(hitsAfterFirst);
   });
 });
