@@ -549,6 +549,34 @@ describe("useMasterCRUD", () => {
     });
   });
 
+  it("initialFilters指定時はマウント時からactiveFiltersとfilteredItemsに反映し、省略時は空のまま", () => {
+    const initial = [
+      { key: "status", condition: "is", value: "active", displayValue: "有効" },
+    ] satisfies ActiveFilter[];
+    const { result: withInitial } = renderHook(() =>
+      useMasterCRUD<TestEntity>({
+        data,
+        deleteMutation: buildMockDeleteMutation(),
+        entityLabel: "テスト",
+        permissions: allowDeletePermissions,
+        initialFilters: initial,
+      }),
+    );
+    expect(withInitial.current.activeFilters).toEqual(initial);
+    expect(withInitial.current.filteredItems.map((i) => i.id)).toEqual(["1"]);
+
+    const { result: withoutInitial } = renderHook(() =>
+      useMasterCRUD<TestEntity>({
+        data,
+        deleteMutation: buildMockDeleteMutation(),
+        entityLabel: "テスト",
+        permissions: allowDeletePermissions,
+      }),
+    );
+    expect(withoutInitial.current.activeFilters).toEqual([]);
+    expect(withoutInitial.current.filteredItems.map((i) => i.id)).toEqual(["1", "2"]);
+  });
+
   it("handleSortChangeはactiveSortsを更新しfilteredItemsをソートする", () => {
     const { result } = renderHook(() =>
       useMasterCRUD<TestEntity>({

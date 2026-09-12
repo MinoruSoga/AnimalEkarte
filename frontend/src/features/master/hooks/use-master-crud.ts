@@ -53,6 +53,12 @@ interface UseMasterCRUDOptions<T extends MasterEntity> {
   activeFilterApply?: (item: T, filters: ActiveFilter[]) => boolean;
 
   /**
+   * Optional initial PropertyFilter state. Omitted masters keep an empty default
+   * so existing pages stay unfiltered until the user adds filters.
+   */
+  initialFilters?: ActiveFilter[];
+
+  /**
    * BUG-380: サイドパネル編集中の未保存変更を管理するガード。
    * 指定された場合、別行クリック・パネル閉じ・新規作成時に確認ダイアログを出す。
    * 本番は runWithDiscardCheck（継続処理を保持）。confirmDiscard はテスト mock 互換。
@@ -177,6 +183,7 @@ export function useMasterCRUD<T extends MasterEntity>({
   entityLabel,
   searchFilter = defaultSearchFilter,
   activeFilterApply = defaultActiveFilterApply,
+  initialFilters,
   dirtyGuard,
   permissions,
 }: UseMasterCRUDOptions<T>): UseMasterCRUDReturn<T> {
@@ -197,7 +204,9 @@ export function useMasterCRUD<T extends MasterEntity>({
     permissionsRef.current = { canDelete: canDelete === true };
   }, [canDelete]);
   const [isSavePending, startSaveTransition] = useTransition();
-  const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
+  const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>(() =>
+    initialFilters ? [...initialFilters] : [],
+  );
   const [activeSorts, setActiveSorts] = useState<ActiveSort[]>([]);
 
   // ── Search filter (rerender-transitions) ──

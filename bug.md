@@ -20,7 +20,7 @@
 | BUG-RES-AVAILABLE-TIMES-404 | FIXED | reservation | Medium | **バグ断定**（LINE設定欠落で院内API 404） | 院内は設定未登録を識別可能な unset（422 + code）にし案内付き手動時刻のみ許可。空枠/障害/LIFF必須は維持。[詳細](#plan-bug-res-available-times-404) |
 | BUG-RES-DECEASED-STATUS-BYPASS | OPEN | reservation / pet | High | **バグ断定**（status=deceased なのに予約可） | 死亡判定の契約を確定し、不整合ペットへの新規writeを防ぐ。[詳細](#plan-bug-res-deceased-status-bypass) |
 | PO-PET-DECEASED-DATA-BACKFILL | OPEN | data / pet | Medium | **PO確認**（不整合データの修復方針） | 対象・死亡日の根拠・監査・復旧を確定してからデータ修復する。[詳細](#plan-po-pet-deceased-data-backfill) |
-| PO-STAFF-BLANK-NAME-LIST | OPEN | staff UX / data | Low | **PO確認**（空氏名の一覧表示方針） | 有効のみの初期表示と空氏名の代替表示をPO判断後に適用する。[詳細](#plan-po-staff-blank-name-list) |
+| PO-STAFF-BLANK-NAME-LIST | FIXED | staff UX / data | Low | **PO確認→実装**（空氏名の一覧表示方針） | Grill Recommended: 初期有効のみ＋表示 `(氏名未設定)`。DB書換・一括削除なし。[詳細](#plan-po-staff-blank-name-list) |
 | PO-OCCUPATION-MASTER-EMPTY | OPEN | master / data | Low | **PO確認**（職種マスタ0件の扱い） | 未登録の案内を整え、必須性と医院別初期登録をPO判断する。[詳細](#plan-po-occupation-master-empty) |
 | NOTE-STAFF-STARTTIME-RDT | OPEN | staff console | Low | **調査**（startTime TypeError・アプリ外の疑い） | 拡張なしの環境と比較し、stackから原因を特定して修正対象を決める。[詳細](#plan-note-staff-starttime-rdt) |
 
@@ -211,9 +211,10 @@
 - **実測（城東）**: 氏名空かつ無効のスタッフ **198**（種別はほぼ doctor）。一覧 API は `sort_order, name` のため空文字が先頭に来る → 「424件あるが表が真っ白」に見える
 - **これはコード欠陥というより STG／移行データ＋ソート／フィルタの UX**
 - **問い（PO）**:
-  1. デフォルトで「有効のみ」にするか
-  2. 空氏名を `(氏名未設定)` と表示するか
-  3. 無効・空氏名の一括整理（非表示／削除）を許可するか
+  1. デフォルトで「有効のみ」にするか → **採用（Recommended）**
+  2. 空氏名を `(氏名未設定)` と表示するか → **採用（表示のみ）**
+  3. 無効・空氏名の一括整理（非表示／削除）を許可するか → **本ユニット対象外**
+- **修正（2026-09-13 / att-po-staff-blank-20260913-001）**: Staff settings 初期 `status is active`。空・空白氏名は一覧/aria のみ `(氏名未設定)`。create/update payload・DB・予約候補ピッカーは未変更。
 
 ### PO-OCCUPATION-MASTER-EMPTY: 城東の職種マスタが 0 件
 
@@ -388,7 +389,9 @@
 2. [staff-settings-model.ts](frontend/src/features/master/routes/staff-settings-model.ts) のstatusフィルタと一覧画面を再利用し、表示箇所にだけ代替名を適用する。現行 [staff_repository.go](backend/internal/staff/staff_repository.go) は全件を `sort_order, name` 順で返すため、まずFEの初期フィルタ・表示変更に限定する。着手時にページングへ変わっていた場合は、フィルタ・総件数・並び順を同じ条件で計算する。
 3. 有効・無効、氏名あり・空文字・空白だけの組合せ、0件、ページ跨ぎ、検索、医院切替をテストする。予約の担当者候補や過去予約の担当者表示に副作用がないことを確認する。
 
-**完了条件**: 初期表示が空欄で埋まらず、件数と行が一致する。無効スタッフに明示操作で到達でき、元データと過去予約の参照は維持される。データ削除・統合は別の判断と手順にする。
+**実装メモ (2026-09-13 / att-po-staff-blank-20260913-001)**: `STAFF_DEFAULT_ACTIVE_FILTERS` + `useMasterCRUD({ initialFilters })` でスタッフ設定のみ有効初期表示。`formatStaffListDisplayName` を `StaffSettingsRow` の表示/aria に適用。payload・DB書換・一括削除・予約候補フィルタなし。検証: `docker compose exec frontend npx vitest run src/features/master/routes/staff-settings-model.test.ts src/features/master/routes/StaffSettings.test.tsx src/features/master/hooks/use-master-crud.test.ts`（63 passed）。
+
+**完了条件**: 初期表示が空欄で埋まらず、件数と行が一致する。無効スタッフに明示操作で到達でき、元データと過去予約の参照は維持される。データ削除・統合は別の判断と手順にする。 → **達成（FIXED）**
 
 <a id="plan-po-occupation-master-empty"></a>
 

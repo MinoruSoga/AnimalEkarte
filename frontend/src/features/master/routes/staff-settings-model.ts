@@ -12,6 +12,19 @@ import type { StaffFormData } from "../lib/staff-side-panel-model";
 import type { StaffType } from "@/types/generated/models";
 import { normalizeKana } from "@/lib/normalize-kana";
 
+/** Display-only placeholder for blank or whitespace staff names on list surfaces. */
+export const STAFF_BLANK_NAME_PLACEHOLDER = "(氏名未設定)" as const;
+
+/** Staff settings opens with active-only status filter; clear/switch to reach inactive. */
+export const STAFF_DEFAULT_ACTIVE_FILTERS: ActiveFilter[] = [
+  { key: "status", condition: "is", value: "active", displayValue: "有効" },
+];
+
+/** List/aria display helper — never persist this placeholder into create/update payloads. */
+export function formatStaffListDisplayName(name: string): string {
+  return name.trim() === "" ? STAFF_BLANK_NAME_PLACEHOLDER : name;
+}
+
 export function buildStaffIds(staffs: Staff[] | undefined): string[] {
   return (staffs ?? []).map((staff) => staff.id);
 }

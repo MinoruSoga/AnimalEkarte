@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, act } from "@testing-library/react";
+import { render, act, screen } from "@testing-library/react";
 import { toast } from "sonner";
 import { StaffSettings } from "./StaffSettings";
+import { StaffSettingsRow } from "../components/StaffSettingsRow";
 import type { Staff } from "../api/staffs";
 import type { StaffFormData } from "../lib/staff-side-panel-model";
 
@@ -66,7 +67,13 @@ function makeStaff(overrides: Partial<Staff> = {}): Staff {
 }
 
 vi.mock("../api/staffs", () => ({
-  useGetStaffs: () => ({ data: [makeStaff()] }),
+  useGetStaffs: () => ({
+    data: [
+      makeStaff({ id: "1", name: "有効 太郎", isActive: true }),
+      makeStaff({ id: "2", name: "", isActive: false }),
+      makeStaff({ id: "3", name: "   ", isActive: false }),
+    ],
+  }),
   useCreateStaff: () => ({ mutateAsync: mockCreateMutate }),
   useUpdateStaff: () => ({ mutateAsync: mockUpdateMutate }),
   useAttachStaffAccount: () => ({ mutateAsync: vi.fn(), isPending: false }),
@@ -82,7 +89,24 @@ vi.mock("../api/staffs", () => ({
 // ここでは薄くモックして handleSave / crud の呼び出しだけを検証する。
 // renderRow / renderSidePanel は本テストでは呼ばれない（描画しない）。
 let latestProps: {
-  crud: { setEditTarget: (t: Staff | "new" | null) => void };
+  crud: {
+    setEditTarget: (t: Staff | "new" | null) => void;
+    activeFilters: Array<{
+      key: string;
+      condition: string;
+      value: string | string[] | { from?: string; to?: string };
+      displayValue: string;
+    }>;
+    setActiveFilters: (
+      filters: Array<{
+        key: string;
+        condition: string;
+        value: string | string[] | { from?: string; to?: string };
+        displayValue: string;
+      }>,
+    ) => void;
+    filteredItems: Staff[];
+  };
   handleSave: (data: StaffFormData) => Promise<boolean>;
   renderSidePanel: (args: {
     item: Staff | null;
@@ -252,5 +276,66 @@ describe("StaffSettings validate() — 新規/編集判定", () => {
 
     expect(mockUpdateMutate).not.toHaveBeenCalled();
     expect(toast.error).toHaveBeenCalledWith("氏名は必須です");
+  });
+
+  it("初期表示は有効のみフィルタで、フィルタ解除後は無効スタッフにも到達できる", () => {
+    render(<StaffSettings />);
+    expect(latestProps!.crud.activeFilters).toEqual([
+      { key: "status", condition: "is", value: "active", displayValue: "有効" },
+    ]);
+    expect(latestProps!.crud.filteredItems.map((s) => s.id)).toEqual(["1"]);
+
+    act(() => latestProps!.crud.setActiveFilters([]));
+    expect(latestProps!.crud.filteredItems.map((s) => s.id)).toEqual(["1", "2", "3"]);
+
+    act(() =>
+      latestProps!.crud.setActiveFilters([
+        { key: "status", condition: "is", value: "inactive", displayValue: "無効" },
+      ]),
+    );
+    expect(latestProps!.crud.filteredItems.map((s) => s.id)).toEqual(["2", "3"]);
+  });
+});
+
+describe("StaffSettingsRow blank name display", () => {
+  it("空・空白のみの氏名は (氏名未設定) を表示し、aria-labelにも使う", () => {
+    const onEdit = vi.fn();
+    const { rerender } = render(
+      <table>
+        <tbody>
+          <StaffSettingsRow item={makeStaff({ name: "" })} groups={[]} onEdit={onEdit} canEdit />
+        </tbody>
+      </table>,
+    );
+
+    expect(screen.getByRole("button", { name: /詳細: スタッフ \(氏名未設定\)/ })).toHaveTextContent(
+      "(氏名未設定)",
+    );
+    expect(screen.getByRole("button", { name: /を編集/ }).getAttribute("aria-label")).toContain(
+      "(氏名未設定)",
+    );
+
+    rerender(
+      <table>
+        <tbody>
+          <StaffSettingsRow
+            item={makeStaff({ name: "  \t" })}
+            groups={[]}
+            onEdit={onEdit}
+            canEdit
+          />
+        </tbody>
+      </table>,
+    );
+    expect(screen.getByRole("button", { name: /詳細: スタッフ \(氏名未設定\)/ })).toBeInTheDocument();
+
+    rerender(
+      <table>
+        <tbody>
+          <StaffSettingsRow item={makeStaff({ name: "佐藤" })} groups={[]} onEdit={onEdit} canEdit />
+        </tbody>
+      </table>,
+    );
+    expect(screen.getByRole("button", { name: /詳細: スタッフ 佐藤/ })).toHaveTextContent("佐藤");
   });
 });

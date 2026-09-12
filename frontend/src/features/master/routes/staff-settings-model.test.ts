@@ -13,7 +13,10 @@ import {
   buildStaffIds,
   buildStaffUpdateRequest,
   filterStaffByMasterFilters,
+  formatStaffListDisplayName,
   searchStaff,
+  STAFF_BLANK_NAME_PLACEHOLDER,
+  STAFF_DEFAULT_ACTIVE_FILTERS,
 } from "./staff-settings-model";
 
 const GROUPS = [
@@ -164,6 +167,35 @@ describe("staff settings derived model", () => {
     expect(filterStaffByMasterFilters(STAFF, matches)).toBe(true);
     expect(filterStaffByMasterFilters(STAFF, missesStatus)).toBe(false);
     expect(filterStaffByMasterFilters(STAFF, missesOccupation)).toBe(false);
+  });
+
+  it("初期フィルタは status is active（有効のみ）で、明示的に外すと無効も通る", () => {
+    const inactive = { ...STAFF, id: "staff-inactive", isActive: false };
+    expect(STAFF_DEFAULT_ACTIVE_FILTERS).toEqual([
+      { key: "status", condition: "is", value: "active", displayValue: "有効" },
+    ]);
+    expect(filterStaffByMasterFilters(STAFF, STAFF_DEFAULT_ACTIVE_FILTERS)).toBe(true);
+    expect(filterStaffByMasterFilters(inactive, STAFF_DEFAULT_ACTIVE_FILTERS)).toBe(false);
+    expect(filterStaffByMasterFilters(inactive, [])).toBe(true);
+    expect(
+      filterStaffByMasterFilters(inactive, [
+        { key: "status", condition: "is", value: "inactive", displayValue: "無効" },
+      ]),
+    ).toBe(true);
+  });
+
+  it("空・空白のみの氏名は一覧表示だけ (氏名未設定) にし、保存payloadには埋め込まない", () => {
+    expect(formatStaffListDisplayName("")).toBe(STAFF_BLANK_NAME_PLACEHOLDER);
+    expect(formatStaffListDisplayName("   ")).toBe(STAFF_BLANK_NAME_PLACEHOLDER);
+    expect(formatStaffListDisplayName("山田")).toBe("山田");
+    expect(STAFF_BLANK_NAME_PLACEHOLDER).toBe("(氏名未設定)");
+
+    const blankForm = { ...FORM_DATA, name: "" };
+    const whitespaceForm = { ...FORM_DATA, name: "  \t" };
+    expect(buildStaffCreateRequest(blankForm).name).toBe("");
+    expect(buildStaffUpdateRequest(whitespaceForm).name).toBe("  \t");
+    expect(buildStaffCreateRequest(blankForm).name).not.toBe(STAFF_BLANK_NAME_PLACEHOLDER);
+    expect(buildStaffUpdateRequest(whitespaceForm).name).not.toBe(STAFF_BLANK_NAME_PLACEHOLDER);
   });
 
   it("create/update requestへ予約表示項目とoptional値を正規化する", () => {
