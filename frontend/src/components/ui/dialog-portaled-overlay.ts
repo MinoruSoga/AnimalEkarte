@@ -5,7 +5,7 @@ export function isDialogPortaledOverlayTarget(target: EventTarget | null): boole
   }
   return Boolean(
     target.closest("[data-radix-popper-content-wrapper]") ||
-      target.closest('[data-slot="popover-content"]') ||
-      target.closest('[data-slot="select-content"]'),
+    target.closest('[data-slot="popover-content"]') ||
+    target.closest('[data-slot="select-content"]'),
   );
 }
