@@ -40,6 +40,9 @@ type CreateMedicalRecordInput struct {
 	NextVisitRecommendedDate *time.Time
 	RecommendationReason     *string
 	EnteredBy                *uint64
+	// EnteredBySystemAdmin is set only by the HTTP handler from auth context.
+	// Request JSON cannot set this field.
+	EnteredBySystemAdmin bool
 }
 
 // FEAT-381-2 Commit 2: recommendation_reason allowed values (whitelist)
@@ -135,6 +138,7 @@ type medicalRecordService struct {
 	auditTx                AuditTxLogger
 	tx                     Transactor
 	tagSyncSvc             mrTagSyncer
+	enteredByActor         enteredByActorGuard
 }
 
 // NewMedicalRecordServiceWithTxAudit は確定監査を本体更新と同じトランザクションへ参加させる。
@@ -158,7 +162,7 @@ func NewMedicalRecordServiceWithTxAudit(
 	if len(tagSyncSvc) > 0 {
 		syncSvc = tagSyncSvc[0]
 	}
-	return &medicalRecordService{
+	svc := &medicalRecordService{
 		repo:                   repo,
 		inquiryRepo:            inquiryRepo,
 		clinicalPlanRepo:       clinicalPlanRepo,
@@ -173,6 +177,10 @@ func NewMedicalRecordServiceWithTxAudit(
 		tx:                     tx,
 		tagSyncSvc:             syncSvc,
 	}
+	if concrete, ok := repo.(*medicalRecordRepository); ok {
+		svc.enteredByActor = newGormEnteredByActorGuard(concrete.db)
+	}
+	return svc
 }
 
 // withTx requires the production transaction boundary. Create/Update validate request-derived

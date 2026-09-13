@@ -12,7 +12,7 @@
 
 | ID | status | area | severity | 種別 | 修正・検証プラン |
 |:---|:---|:---|:---|:---|:---|
-| BUG2-MR-ENTERED-BY-CLINIC | OPEN | medical-records | High | **バグ断定**（entered_by と選択医院の複合FK） | [本人 ID を保持し、所属認可・FK・履歴読取を整合](#plan-bug2-mr) |
+| BUG2-MR-ENTERED-BY-CLINIC | FIXED | medical-records | High | **バグ断定**（entered_by と選択医院の複合FK） | [本人 ID を保持し、所属認可・FK・履歴読取を整合](#plan-bug2-mr) |
 | BUG2-PAYMETHOD-CREATE-FORBIDDEN | OPEN | payment-methods / authz | Medium | **権限／UX**（一覧可・作成 403） | [既存の権限制御を再検証し、付与方針を PO 判断](#plan-bug2-paymethod) |
 | BUG2-RES-DIALOG-A11Y | OPEN | reservations / a11y | Low | **コンソール**（`bug.md` の BUG-RES-DIALOG-A11Y-CONSOLE と同系） | [既存修正を紐付け、同じ操作で再検証](#plan-bug2-a11y) |
 | NOTE2-SWEEP-COVERAGE | — | uat | — | カバレッジ記録 | [未確認の詳細画面・入院・検査・健診を補完](#plan-note2-coverage) |
@@ -47,6 +47,7 @@
 
 ### BUG2-MR-ENTERED-BY-CLINIC: カルテ作成が `entered_by`×医院の複合FKで「参照先が存在しません」になる
 
+- **status**: **FIXED**（2026-09-13 · attempt `att-bug2-mr-entered-by-20260913-001`）
 - **現象**: 城東（clinic_id=2）選択中に `POST /api/v1/medical-records` すると **400** `参照先が存在しません`。既存 STG 飼主・ペットでも再現。
 - **実測（2026-09-13）**:
   - ログイン: 八王子メインの執行デモ（staff_id=**10000021**）、`X-Clinic-ID: 2`
@@ -55,12 +56,14 @@
     `violates foreign key constraint "fk_medical_records_entered_by_clinic" (SQLSTATE 23503)`  
     INSERT の `entered_by=10000021`, `clinic_id=2`
 - **原因**: `entered_by` にログインスタッフ ID を入れるが、複合 FK `(entered_by, clinic_id) → staffs(id, clinic_id)` に対し、**10000021 は城東行を持たない**（八王子所属）。医院切替だけでは `entered_by` の所属が満たされない。
-- **影響**: 拠点横断ログインで他院カルテを新規作成できない。ユーザーには FK 詳細が見えず「参照先が存在しません」だけ。
-- **修正方針候補**:
-  1. 選択医院に紐づく staff identity（identity-link）を `entered_by` に使う
-  2. または FK を staff 単体参照にし clinic 整合は別バリデーション
-  3. 事前に「この医院に所属するスタッフとして記録できません」と明示エラー
-- **証拠**: docker `animalekarte-backend-1` ログ（2026-09-13 03:46 JST 付近）· `reports/uat-2026-09-13/all-pages/crud-verify.json`
+- **修正内容**:
+  1. 認証 actor の staff ID を `entered_by` のまま保持（identity-link 置換なし）
+  2. 新規 migration `backend/migrations/002_medical_records_entered_by_staff_fk.sql` で複合 FK を `entered_by → staffs(id)` に置換（`001_init.sql` 未編集）
+  3. create tx 内で有効所属ロック（system admin は DB 検証付き例外、auto-create は `EnteredBy=nil` の内部経路）
+  4. list/detail の親 guard から entered_by 医院相関を外し、記録者 preload を履歴表示向けに整合（doctor/owner/pet 隔離は維持）
+- **検証**: `docker compose exec backend go test ./internal/medicalrecord` exit 0（EnteredBy_* real-DDL 含む）
+- **ユーザー作業**: **`make migrate`** を実行して 002 を適用（エージェントは未適用）
+- **UAT 証拠（旧）**: docker `animalekarte-backend-1` ログ（2026-09-13 03:46 JST 付近）· `reports/uat-2026-09-13/all-pages/crud-verify.json`
 
 ### BUG2-PAYMETHOD-CREATE-FORBIDDEN: 執行ロールで支払方法マスタが「見れるが作れない」
 
