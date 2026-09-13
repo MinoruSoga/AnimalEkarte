@@ -211,7 +211,7 @@ func TestEnteredBy_SystemAdminWithoutAssignment_Allowed(t *testing.T) {
 	svc := newEnteredByActorTestService(t, db)
 	got, err := svc.Create(context.Background(), clinicB, &CreateMedicalRecordInput{
 		Date:                 time.Now(),
-		VisitType: model.VisitTypeRevisit,
+		VisitType:            model.VisitTypeRevisit,
 		OwnerID:              &ownerB.ID,
 		PetID:                &petB.ID,
 		EnteredBy:            &actor.ID,
@@ -232,11 +232,11 @@ func TestEnteredBy_AutoCreateNilActor_SkipsAssignmentGate(t *testing.T) {
 	svc := newEnteredByActorTestService(t, db)
 	status := model.MedicalRecordStatusDraft
 	got, err := svc.Create(context.Background(), clinicB, &CreateMedicalRecordInput{
-		Date:    time.Now(),
+		Date:      time.Now(),
 		VisitType: model.VisitTypeRevisit,
-		OwnerID: &ownerB.ID,
-		PetID:   &petB.ID,
-		Status:  &status,
+		OwnerID:   &ownerB.ID,
+		PetID:     &petB.ID,
+		Status:    &status,
 	})
 	require.NoError(t, err)
 	assert.Nil(t, got.EnteredBy)
