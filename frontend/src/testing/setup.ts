@@ -56,6 +56,7 @@ afterEach(() => {
   // (Popover/Select) can leave that style behind after unmount and block later
   // tests from clicking (e.g. ReservationFormModal submit in vitest related).
   document.body.style.pointerEvents = "";
+  document.querySelectorAll("[data-radix-portal]").forEach((node) => node.remove());
 });
 
 //  Close server after all tests
