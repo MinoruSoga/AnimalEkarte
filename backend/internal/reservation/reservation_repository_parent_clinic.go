@@ -6,6 +6,7 @@ import "gorm.io/gorm"
 // clinic_id を相関させる。soft-delete 済みの同一 clinic 関連と過去の staff assignment は予約履歴の
 // 親行/countを維持するため許容し、現在の関連を応答へ表示するかは Preload 側の条件に委ねる。
 // cross-clinic FK と Owner/Pet 不一致だけは、一覧/単件のどちらでも親行ごと fail-closed にする。
+// created_by は登録時に認可済みの履歴であり、現在の所属で親予約を非表示にしない。
 const reservationRelationsMatchParentClinicSQL = `
 		EXISTS (
 			SELECT 1
@@ -68,17 +69,6 @@ const reservationRelationsMatchParentClinicSQL = `
 				  ON scoped_doctor_assignment.staff_id = scoped_doctor.id
 				 AND scoped_doctor_assignment.clinic_id = appointments.clinic_id
 				WHERE scoped_doctor.id = appointments.doctor_id
-			)
-		)
-		AND (
-			appointments.created_by IS NULL
-			OR EXISTS (
-				SELECT 1
-				FROM staffs scoped_creator
-				JOIN staff_clinic_assignments scoped_creator_assignment
-				  ON scoped_creator_assignment.staff_id = scoped_creator.id
-				 AND scoped_creator_assignment.clinic_id = appointments.clinic_id
-				WHERE scoped_creator.id = appointments.created_by
 			)
 		)
 	`

@@ -72,7 +72,7 @@ func (r *reservationAdminRepository) FindAllByDay(ctx context.Context, clinicID 
 	err := r.db.WithContext(ctx).
 		Preload("ReservationType", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Doctor", staffAssignedToClinicsCond, []uint64{clinicID}).
-		Preload("CreatedByStaff", staffAssignedToClinicsCond, []uint64{clinicID}).
+		Preload("CreatedByStaff", reservationCreatedByStaffPreload).
 		Preload("LineCustomer", "clinic_id = ?", clinicID).
 		Preload("Owner", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Pet", "clinic_id = ? AND deleted_at IS NULL", clinicID).
@@ -103,6 +103,9 @@ func (r *reservationAdminRepository) FindTimeRangesByDateRange(ctx context.Conte
 }
 
 func (r *reservationAdminRepository) Create(ctx context.Context, ra *model.Reservation) error {
+	if err := assertReservationCreatedBy(ctx, r.db, ra.ClinicID, ra.CreatedBy); err != nil {
+		return err
+	}
 	if err := persistence.DBOrTx(ctx, r.db).Create(ra).Error; err != nil {
 		return apperrors.FromGORM(err, "appointment", "")
 	}
