@@ -14,7 +14,7 @@
 |:---|:---|:---|:---|:---|:---|
 | BUG2-MR-ENTERED-BY-CLINIC | FIXED | medical-records | High | **バグ断定**（entered_by と選択医院の複合FK） | [本人 ID を保持し、所属認可・FK・履歴読取を整合](#plan-bug2-mr) |
 | BUG2-PAYMETHOD-CREATE-FORBIDDEN | OPEN | payment-methods / authz | Medium | **権限／UX**（一覧可・作成 403） | [既存の権限制御を再検証し、付与方針を PO 判断](#plan-bug2-paymethod) |
-| BUG2-RES-DIALOG-A11Y | OPEN | reservations / a11y | Low | **コンソール**（`bug.md` の BUG-RES-DIALOG-A11Y-CONSOLE と同系） | [既存修正を紐付け、同じ操作で再検証](#plan-bug2-a11y) |
+| BUG2-RES-DIALOG-A11Y | FIXED/reverified | reservations / a11y | Low | **コンソール**（`bug.md` の BUG-RES-DIALOG-A11Y-CONSOLE と同系） | [既存修正を紐付け、同じ操作で再検証](#plan-bug2-a11y) |
 | NOTE2-SWEEP-COVERAGE | — | uat | — | カバレッジ記録 | [未確認の詳細画面・入院・検査・健診を補完](#plan-note2-coverage) |
 
 ## 進捗
@@ -74,9 +74,11 @@
 
 ### BUG2-RES-DIALOG-A11Y: 予約ページの DialogContent Description 欠落コンソール警告
 
+- **status**: **FIXED/reverified**（2026-09-13 · attempt `att-bug2-res-dialog-a11y-20260913-001`）
 - **現象**: `/reservations` で新規予約を開くと  
   `Warning: Missing Description or aria-describedby={undefined} for {DialogContent}.`
 - **注**: `bug.md` の `BUG-RES-DIALOG-A11Y-CONSOLE` と同系。全ページ sweep でも再確認。
+- **再検証結果**: 現行 HEAD は `cde5d4b1e`（`fix(a11y): restore Radix dialog description wiring on reservations`）の子孫。製品コード追加修正なし。`docker compose exec frontend npx vitest run src/components/shared/ReservationFormModal/ReservationFormModal.dialog-a11y.test.tsx` exit 0（2 tests: 本体 Dialog の Missing Description 警告0 + accessible name/description、入れ子 `ReservationTypePickerDialog` open/Escape close で警告0）。UAT 時の警告は stale build 由来と判断し、本項目は `BUG-RES-DIALOG-A11Y-CONSOLE` の重複として FIXED/reverified。
 
 ## コンソール／HTTP 所見（全ページ）
 
@@ -206,6 +208,8 @@
 4. 現行ビルドでも再現した場合のみ、該当する DialogContent と説明の組を特定し、失敗する回帰ケースを追加して最小修正する。コンソール抑制や警告回避だけの `aria-describedby={undefined}` は対策にしない。
 
 **完了条件:** 上記テストと元の UI 操作が成功し、ビルド・日時・証拠を記録したうえで `bug.md` の同一修正に紐付けて解消／重複を整理する。コミットや説明要素の存在だけで元の UAT を PASS に置き換えない。
+
+**再検証クローズ（2026-09-13 · `att-bug2-res-dialog-a11y-20260913-001`）:** HEAD `b58a77fd9` は `cde5d4b1e` の子孫（`git merge-base --is-ancestor cde5d4b1e HEAD` YES）。scoped vitest 2/2 PASS（Missing Description 0、nested type-picker 含む）。製品コード差分なし。status → **FIXED/reverified**（duplicate of `BUG-RES-DIALOG-A11Y-CONSOLE`）。任意のブラウザ手動再確認は未実施（vitest を primary gate とする fast-mode assumption）。
 
 <a id="plan-note2-coverage"></a>
 
