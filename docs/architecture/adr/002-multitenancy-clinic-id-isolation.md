@@ -44,3 +44,13 @@ GORM helperの使用有無だけで安全と判定しない。raw SQL、join、p
 採用時の「すべてに `clinic_id`」はテナント隔離の設計原則であり、すべての GORM 型に直接 `ClinicID` field があるという inventory ではない。global master、account/session、親経由の子レコード、DDL trigger で clinic を複製する列を区別する。現在の DDL 分類は [erd.md](../erd.md)、request-time authority は [auth.md](../auth.md) を参照する。
 
 現在の `ownerRepository.FindByID` は `findOwnerByID` / `persistence.DBOrTx` と clinic-scoped lookup を使う。
+
+### 記録者と現在の担当者の区別（2026-09-13）
+
+予約の `created_by` とカルテの `entered_by` は、登録操作を行ったスタッフの履歴上の識別子である。スタッフは複数医院に所属でき、システム管理者は医院所属行なしでも操作できるため、記録者の主所属医院は記録の所有医院を決めない。記録者を単独staff FKで保持する方式は、カルテの002 migrationと同じ扱いとする。
+
+- **書き込み**: HTTPでは認証されたスタッフIDだけを採用し、JSONによる記録者指定を認めない。予約の通常・一括・管理画面登録では、保存と同じtransactionで有効なスタッフと操作医院への有効な所属、または有効なシステム管理者accountを検証し、認可に使った行をcommitまで共有ロックする。取込・修復等の直接書き込みも、この記録者の正当性を保持する。
+- **読み取りの限定例外**: 親の予約・カルテを認証されたclinic scopeで取得できる場合、その記録者のID・氏名を現在の所属や管理者権限と独立した履歴情報として参照できる。予約の記録者preloadはID・氏名だけを取得する。現在所属を失ったスタッフも履歴として扱い、任意のstaffプロフィール、account、免許情報等への横断アクセスには拡張しない。削除済みスタッフは予約の登録者IDを残し、氏名preloadを返さない。
+- **例外に含まれない関連**: 現在の担当医、飼主、ペット、予約区分、LINE顧客等のclinic所有関係には、引き続き親clinicとの相関と不整合行の拒否を要求する。
+
+この区別は既存のPreload lintのStaff例外を無制限に広げるものではない。[予約の実DDL回帰テスト](../../../backend/internal/reservation/reservation_created_by_fk_test.go)で、記録者の偽装拒否・未所属者の書き込み拒否・最小投影・権限喪失後の履歴・別医院からの親取得拒否を検証する。

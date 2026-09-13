@@ -4,13 +4,13 @@ package reservation
 // クロステナント READ IDOR remediation follow-up — (d) Staff(Doctor)preload の多医院所属対応。
 //
 // staff は staff_clinic_assignments による多医院所属のため、staffs.clinic_id（主所属）単純スコープでは
-// 共有医師を誤って隠す。reservation の Doctor/CreatedByStaff は assignment-EXISTS でスコープし、
+// 共有医師を誤って隠す。reservation の Doctor は assignment-EXISTS でスコープし、
 //   (i)  共有医師（主所属が別 clinic でも当該 clinic に配属済み）は表示される（非破壊）
 //   (ii) 当該 clinic に未配属のスタッフを指す予約は親行ごと fail-closed になる
 //   (iii)#86 認可集合に staff の配属 clinic が含まれても、予約自身の clinic と相関しなければ
 //        親行ごと fail-closed になる
-// を満たすこと。注: 既往カルテ等の履歴 preload は退職スタッフ名の表示を保つため意図的に scope しない
-// （repository/CLAUDE.md 参照）。本テストは現在/未来データである reservation のみを対象とする。
+// を満たすこと。CreatedByStaff は登録時に認可済みの履歴のため、現在の所属と独立した
+// ID/name の投影を返す（reservation_created_by_fk_test.go で write/read を検証）。
 
 import (
 	"context"

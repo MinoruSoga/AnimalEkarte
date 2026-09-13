@@ -12,10 +12,10 @@ import (
 	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
-// staffAssignedToClinicsCond は Preload した staff（Doctor / CreatedByStaff）を、指定クリニック集合の
+// staffAssignedToClinicsCond は Preload した担当者（Doctor）を、指定クリニック集合の
 // いずれかに現在所属している場合のみ表示する条件。staff は staff_clinic_assignments による多医院所属のため
 // staffs.clinic_id（主所属）単純スコープでは共有スタッフを誤って隠す。assignment-EXISTS で多医院所属を
-// 尊重しつつ、別テナント単独所属スタッフ名の漏洩を防ぐ。予約は現在/未来データのため履歴表示の回帰はない。
+// 尊重しつつ、別テナント単独所属スタッフ名の漏洩を防ぐ。登録者の履歴は別の最小投影で取得する。
 const staffAssignedToClinicsCond = "deleted_at IS NULL AND EXISTS (SELECT 1 FROM staff_clinic_assignments sca WHERE sca.staff_id = staffs.id AND sca.clinic_id IN ? AND sca.deleted_at IS NULL)"
 
 // ReservationCRUDRepository は owner package 内のコア persistence 操作。
@@ -247,12 +247,15 @@ func reservationListPreloads(q *gorm.DB, clinicIDs []uint64, withCreatedByStaff 
 		Preload("ReservationType.Group", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
 		Preload("Doctor", staffAssignedToClinicsCond, clinicIDs)
 	if withCreatedByStaff {
-		q = q.Preload("CreatedByStaff", staffAssignedToClinicsCond, clinicIDs)
+		q = q.Preload("CreatedByStaff", reservationCreatedByStaffPreload)
 	}
 	return q
 }
 
 func (r *reservationRepository) Create(ctx context.Context, reservation *model.Reservation) error {
+	if err := assertReservationCreatedBy(ctx, r.db, reservation.ClinicID, reservation.CreatedBy); err != nil {
+		return err
+	}
 	if err := persistence.DBOrTx(ctx, r.db).Create(reservation).Error; err != nil {
 		if persistence.IsUniqueConstraintErr(err) {
 			return apperrors.WrapAlreadyExists("reservation", reservation.StartTime.String())
