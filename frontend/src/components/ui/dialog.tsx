@@ -62,13 +62,15 @@ function DialogContent({
         )}
         {...props}
         onInteractOutside={(event) => {
-          const originalTarget =
-            "detail" in event &&
-            event.detail &&
-            typeof event.detail === "object" &&
-            "originalEvent" in event.detail
-              ? (event.detail.originalEvent as Event).target
-              : event.target;
+          const detail =
+            "detail" in event && event.detail && typeof event.detail === "object"
+              ? event.detail
+              : null;
+          const originalEvent =
+            detail && "originalEvent" in detail
+              ? (detail as { originalEvent?: Event }).originalEvent
+              : undefined;
+          const originalTarget = originalEvent?.target ?? event.target;
           if (isDialogPortaledOverlayTarget(originalTarget)) {
             event.preventDefault();
             return;
