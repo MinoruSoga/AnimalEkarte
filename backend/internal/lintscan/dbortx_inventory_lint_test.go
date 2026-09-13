@@ -411,8 +411,12 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/medical_record_repository.go|medicalRecordRepository.CountByPetAndDate":               {},
 	"medicalrecord/medical_record_repository.go|medicalRecordRepository.CountEstimatesByMedicalRecordID": {}, // delete/estimate creation serialization under the medical-record row lock
 	"medicalrecord/medical_record_repository.go|medicalRecordRepository.Create":                          {},
-	"medicalrecord/medical_record_repository.go|medicalRecordRepository.Delete":                          {}, // draft-only CAS soft delete must share finalization transactions
-	"medicalrecord/medical_record_repository.go|medicalRecordRepository.FindByAppointmentID":             {}, // appointment row-lock serialization proof in medicalrecord package
+	// BUG2-MR-ENTERED-BY-CLINIC: entered_by actor guard joins create ambient tx (SHARE lock).
+	// Runtime: medical_record_entered_by_actor_tx_atomicity_test.go
+	"medicalrecord/medical_record_entered_by_actor.go|gormEnteredByActorGuard.AssertEnteredByActor":     {},
+	"medicalrecord/medical_record_entered_by_actor.go|gormEnteredByActorGuard.isActiveSystemAdminStaff": {},
+	"medicalrecord/medical_record_repository.go|medicalRecordRepository.Delete":                         {}, // draft-only CAS soft delete must share finalization transactions
+	"medicalrecord/medical_record_repository.go|medicalRecordRepository.FindByAppointmentID":            {}, // appointment row-lock serialization proof in medicalrecord package
 	// F-1: delete takes appointments FOR UPDATE before medical_records. Runtime:
 	// TestMedicalRecordService_DeleteWaitsOnAppointmentRowLockBeforeInConsultationCommit
 	// TestMedicalRecordRepository_LockLinkedAppointmentForUpdate_WaitsOnAppointmentRowLock
