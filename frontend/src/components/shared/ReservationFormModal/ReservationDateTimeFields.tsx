@@ -181,18 +181,12 @@ export function ReservationDateTimeFields({
           </Select>
         </div>
         {settingsUnsetGuidance ? (
-          <p
-            data-testid="res-available-times-unset-guidance"
-            className={`text-xs ${C.text40}`}
-          >
+          <p data-testid="res-available-times-unset-guidance" className={`text-xs ${C.text40}`}>
             {settingsUnsetGuidance}
           </p>
         ) : null}
         {availableTimesErrorMessage ? (
-          <FormFieldError
-            id="res-available-times-error"
-            message={availableTimesErrorMessage}
-          />
+          <FormFieldError id="res-available-times-error" message={availableTimesErrorMessage} />
         ) : null}
         {validationErrors?.time ? (
           <FormFieldError id="res-time-error" message={validationErrors.time} />

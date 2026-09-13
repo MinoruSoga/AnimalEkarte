@@ -338,7 +338,9 @@ describe("useReservationActions create doctor_id normalize (BUG-RES-DOCTOR-ID-ZE
     const { result } = setup({ permissions: ALLOW_ALL_PERMISSIONS });
     const data = { ...makeSaveFormData(), doctor: "" };
     await act(async () => {
-      expect(await result.current.handleSave(data, [{ id: "10", ownerId: "20", name: "ポチ" }])).toBeNull();
+      expect(
+        await result.current.handleSave(data, [{ id: "10", ownerId: "20", name: "ポチ" }]),
+      ).toBeNull();
     });
     expect(createMutateAsyncMock).toHaveBeenCalledTimes(1);
     const payload = createMutateAsyncMock.mock.calls[0][0];
@@ -350,7 +352,9 @@ describe("useReservationActions create doctor_id normalize (BUG-RES-DOCTOR-ID-ZE
     const { result } = setup({ permissions: ALLOW_ALL_PERMISSIONS });
     const data = { ...makeSaveFormData(), doctor: "0" };
     await act(async () => {
-      expect(await result.current.handleSave(data, [{ id: "10", ownerId: "20", name: "ポチ" }])).toBeNull();
+      expect(
+        await result.current.handleSave(data, [{ id: "10", ownerId: "20", name: "ポチ" }]),
+      ).toBeNull();
     });
     expect(createMutateAsyncMock).toHaveBeenCalledTimes(1);
     const payload = createMutateAsyncMock.mock.calls[0][0];
@@ -358,7 +362,7 @@ describe("useReservationActions create doctor_id normalize (BUG-RES-DOCTOR-ID-ZE
     expect(payload.doctor_id).toBeUndefined();
   });
 
-  it("複数ペット作成で doctor 空/\"0\" なら batch payload に doctor_id を含めない", async () => {
+  it('複数ペット作成で doctor 空/"0" なら batch payload に doctor_id を含めない', async () => {
     const { result } = setup({ permissions: ALLOW_ALL_PERMISSIONS });
     const pets = [
       { id: "10", ownerId: "20", name: "ポチ" },
@@ -367,9 +371,7 @@ describe("useReservationActions create doctor_id normalize (BUG-RES-DOCTOR-ID-ZE
     for (const doctor of ["", "0"] as const) {
       createBatchMutateAsyncMock.mockClear();
       await act(async () => {
-        expect(
-          await result.current.handleSave({ ...makeSaveFormData(), doctor }, pets),
-        ).toBeNull();
+        expect(await result.current.handleSave({ ...makeSaveFormData(), doctor }, pets)).toBeNull();
       });
       expect(createBatchMutateAsyncMock).toHaveBeenCalledTimes(1);
       const payload = createBatchMutateAsyncMock.mock.calls[0][0];

@@ -327,12 +327,19 @@ describe("StaffSettingsRow blank name display", () => {
         </tbody>
       </table>,
     );
-    expect(screen.getByRole("button", { name: /詳細: スタッフ \(氏名未設定\)/ })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /詳細: スタッフ \(氏名未設定\)/ }),
+    ).toBeInTheDocument();
 
     rerender(
       <table>
         <tbody>
-          <StaffSettingsRow item={makeStaff({ name: "佐藤" })} groups={[]} onEdit={onEdit} canEdit />
+          <StaffSettingsRow
+            item={makeStaff({ name: "佐藤" })}
+            groups={[]}
+            onEdit={onEdit}
+            canEdit
+          />
         </tbody>
       </table>,
     );

@@ -52,8 +52,7 @@ export function StaffBasicInfoSection({
   const occupationSelectItems = useMemo(() => {
     const selectedId = formData.jobTitleId;
     const options = allOccupations.filter(
-      (occupation) =>
-        occupation.isActive || (selectedId !== null && occupation.id === selectedId),
+      (occupation) => occupation.isActive || (selectedId !== null && occupation.id === selectedId),
     );
 
     return options.map((occupation) => (

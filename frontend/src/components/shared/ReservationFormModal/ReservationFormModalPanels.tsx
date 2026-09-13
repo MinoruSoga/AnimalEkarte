@@ -15,10 +15,7 @@ import { cn } from "@/lib/utils";
 import type { Pet, Reservation } from "@/types";
 import { NewOwnerInlineForm } from "./NewOwnerInlineForm";
 import { PatientSelectionTable } from "./PatientSelectionTable";
-import {
-  ReservationFormFields,
-  type StaffSelectionState,
-} from "./ReservationFormFields";
+import { ReservationFormFields, type StaffSelectionState } from "./ReservationFormFields";
 
 export type OwnerMode = "existing" | "new";
 export type MobilePanel = "search" | "form";

@@ -83,9 +83,7 @@ function occupation(overrides: Partial<Occupation> = {}): Occupation {
   };
 }
 
-function renderSection(
-  props: Partial<ComponentProps<typeof StaffBasicInfoSection>> = {},
-) {
+function renderSection(props: Partial<ComponentProps<typeof StaffBasicInfoSection>> = {}) {
   return render(
     <MemoryRouter>
       <StaffBasicInfoSection

@@ -124,8 +124,7 @@ export const ReservationFormFields = memo(function ReservationFormFields({
   }, [availableTimeSlots]);
   const startTimeOptions = useMemo(() => {
     let options: string[];
-    const hasTypeAndDate =
-      selectedReservationTypeId !== null && selectedDateStr !== null;
+    const hasTypeAndDate = selectedReservationTypeId !== null && selectedDateStr !== null;
     if (isSettingsUnset) {
       // Guided manual entry only when LINE settings are unset.
       options = TIME_OPTIONS.filter(
@@ -250,8 +249,7 @@ export const ReservationFormFields = memo(function ReservationFormFields({
   );
 
   const onDutyReady = selectedDateStr === null || onDutyStaffs !== undefined;
-  const capabilityReady =
-    selectedReservationTypeId === null || reservationStaffs !== undefined;
+  const capabilityReady = selectedReservationTypeId === null || reservationStaffs !== undefined;
   const hasQueryError =
     (selectedDateStr !== null && isOnDutyError) ||
     (selectedReservationTypeId !== null && isReservationStaffError);

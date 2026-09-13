@@ -331,9 +331,7 @@ describe("transformToCreateRequest", () => {
   it.each(["abc", "-1", "1.5", "01", "99999999999999999999"])(
     "不正な担当者 ID %s は fail-closed で投げる（未指定へ落とさない）",
     (doctor) => {
-      expect(() => transformToCreateRequest({ ...baseData, doctor }, "1", "1")).toThrow(
-        /doctor/i,
-      );
+      expect(() => transformToCreateRequest({ ...baseData, doctor }, "1", "1")).toThrow(/doctor/i);
     },
   );
 });

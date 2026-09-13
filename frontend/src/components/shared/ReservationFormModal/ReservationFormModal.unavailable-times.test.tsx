@@ -292,9 +292,9 @@ describe("ReservationFormModal — available-times unset contract (BUG-RES-AVAIL
       { wrapper: createWrapper() },
     );
 
-    expect(
-      await screen.findByTestId("res-available-times-unset-guidance"),
-    ).toHaveTextContent("LINE予約の空き枠設定が未登録のため、時刻を手動で入力してください");
+    expect(await screen.findByTestId("res-available-times-unset-guidance")).toHaveTextContent(
+      "LINE予約の空き枠設定が未登録のため、時刻を手動で入力してください",
+    );
 
     const user = userEvent.setup();
     await user.click(screen.getByTestId("res-start-time-trigger"));

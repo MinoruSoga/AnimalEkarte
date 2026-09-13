@@ -9,9 +9,7 @@ export { transformReservation };
 export type { Reservation };
 
 /** Create-only: empty/"0" omit; positive decimal IDs kept; invalid strings fail closed. */
-export const normalizeCreateDoctorID = (
-  doctor: string | undefined,
-): number | undefined => {
+export const normalizeCreateDoctorID = (doctor: string | undefined): number | undefined => {
   if (doctor == null) return undefined;
   const trimmed = doctor.trim();
   if (trimmed === "" || trimmed === "0") return undefined;
