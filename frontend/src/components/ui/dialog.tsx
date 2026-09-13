@@ -2,6 +2,7 @@ import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { XIcon } from "lucide-react";
 
+import { isDialogPortaledOverlayTarget } from "./dialog-portaled-overlay";
 import { cn } from "./utils";
 
 function Dialog({ ...props }: React.ComponentProps<typeof DialogPrimitive.Root>) {
@@ -42,7 +43,13 @@ interface DialogContentProps extends React.ComponentPropsWithoutRef<
   ref?: React.Ref<React.ElementRef<typeof DialogPrimitive.Content>>;
 }
 
-function DialogContent({ className, children, ref, ...props }: DialogContentProps) {
+function DialogContent({
+  className,
+  children,
+  ref,
+  onInteractOutside,
+  ...props
+}: DialogContentProps) {
   return (
     <DialogPortal data-slot="dialog-portal">
       <DialogOverlay />
@@ -54,6 +61,20 @@ function DialogContent({ className, children, ref, ...props }: DialogContentProp
           className,
         )}
         {...props}
+        onInteractOutside={(event) => {
+          const originalTarget =
+            "detail" in event &&
+            event.detail &&
+            typeof event.detail === "object" &&
+            "originalEvent" in event.detail
+              ? (event.detail.originalEvent as Event).target
+              : event.target;
+          if (isDialogPortaledOverlayTarget(originalTarget)) {
+            event.preventDefault();
+            return;
+          }
+          onInteractOutside?.(event);
+        }}
       >
         {children}
         <DialogPrimitive.Close className="ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute top-4 right-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 hover:bg-accent/50 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 p-1">

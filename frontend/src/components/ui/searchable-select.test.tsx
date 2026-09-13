@@ -1,5 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+
+import { isDialogPortaledOverlayTarget } from "./dialog-portaled-overlay";
+import { Popover, PopoverContent, PopoverTrigger } from "./popover";
 import { SearchableSelect } from "./searchable-select";
 
 describe("SearchableSelect", () => {
@@ -59,5 +62,33 @@ describe("SearchableSelect", () => {
       />,
     );
     expect(screen.getByRole("combobox", { name: "担当者" })).toHaveTextContent("選択してください");
+  });
+});
+
+describe("Dialog × portaled Popover (担当者セレクト)", () => {
+  // Modal Dialog sets body { pointer-events: none }. Portaled Popover must opt back in,
+  // otherwise ReservationFormModal staff options receive no mouse clicks.
+  it("PopoverContent は pointer-events-auto を持つ", () => {
+    render(
+      <Popover open>
+        <PopoverTrigger type="button">担当者</PopoverTrigger>
+        <PopoverContent>候補</PopoverContent>
+      </Popover>,
+    );
+
+    expect(document.querySelector('[data-slot="popover-content"]')).toHaveClass(
+      "pointer-events-auto",
+    );
+  });
+
+  it("portaled popover/select を Dialog 外側操作として扱わない", () => {
+    const popper = document.createElement("div");
+    popper.setAttribute("data-radix-popper-content-wrapper", "");
+    const option = document.createElement("div");
+    option.setAttribute("role", "option");
+    popper.appendChild(option);
+
+    expect(isDialogPortaledOverlayTarget(option)).toBe(true);
+    expect(isDialogPortaledOverlayTarget(document.createElement("div"))).toBe(false);
   });
 });
