@@ -205,12 +205,10 @@ export function useGetReservationAvailableTimes(
 ) {
   const clinicId = getCurrentClinicId();
   return useQuery({
-    queryKey: queryKeys.reservations.availableTimes(
-      reservationTypeId!,
-      date!,
-      staffId ?? undefined,
-      clinicId,
-    ),
+    queryKey: [
+      ...queryKeys.reservations.availableTimes(reservationTypeId!, date!, staffId ?? undefined),
+      clinicId ?? "no-clinic",
+    ] as const,
     queryFn: () => fetchReservationAvailableTimes(reservationTypeId!, date!, staffId),
     enabled: reservationTypeId !== null && date !== null,
     staleTime: QUERY_STALE_TIMES.REALTIME,

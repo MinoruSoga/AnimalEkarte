@@ -218,7 +218,7 @@ describe("useGetReservationAvailableTimes (BUG-015)", () => {
     await waitFor(() => expect(result.current.query.isSuccess).toBe(true));
 
     const cached = result.current.queryClient.getQueryCache().find({
-      queryKey: queryKeys.reservations.availableTimes("2", "2026-06-01", undefined, CLINIC_ID),
+      queryKey: [...queryKeys.reservations.availableTimes("2", "2026-06-01"), CLINIC_ID] as const,
     });
     expect(cached?.meta?.silentError).toBe(true);
   });
