@@ -310,6 +310,10 @@ func TestDB_MedicalRecordRepositoryFindAllCorrelatesRelationsToEachParentClinic(
 		ClinicID: clinicA, RecordNo: "MR-UNASSIGNED-DOCTOR", Date: time.Now(),
 		OwnerID: &ownerA.ID, PetID: &petA.ID, DoctorID: &unassignedDoctor.ID,
 	})
+	foreignEnteredByRecord := makeFullMedicalRecord(t, db, &model.MedicalRecord{
+		ClinicID: clinicA, RecordNo: "MR-FOREIGN-ENTERED-BY", Date: time.Now(),
+		OwnerID: &ownerA.ID, PetID: &petA.ID, EnteredBy: &foreignEnteredBy.ID,
+	})
 	pollutedRecords := []*model.MedicalRecord{
 		makeFullMedicalRecord(t, db, &model.MedicalRecord{
 			ClinicID: clinicA, RecordNo: "MR-FOREIGN-OWNER", Date: time.Now(),
@@ -318,10 +322,6 @@ func TestDB_MedicalRecordRepositoryFindAllCorrelatesRelationsToEachParentClinic(
 		makeFullMedicalRecord(t, db, &model.MedicalRecord{
 			ClinicID: clinicA, RecordNo: "MR-FOREIGN-PET", Date: time.Now(),
 			OwnerID: &ownerA.ID, PetID: &petB.ID,
-		}),
-		makeFullMedicalRecord(t, db, &model.MedicalRecord{
-			ClinicID: clinicA, RecordNo: "MR-FOREIGN-ENTERED-BY", Date: time.Now(),
-			OwnerID: &ownerA.ID, PetID: &petA.ID, EnteredBy: &foreignEnteredBy.ID,
 		}),
 	}
 
@@ -350,8 +350,8 @@ func TestDB_MedicalRecordRepositoryFindAllCorrelatesRelationsToEachParentClinic(
 	// still leak clinic B's polluted billing into clinic A's parent record.
 	got, total, err := repo.FindAll(ctx, []uint64{clinicA, clinicB}, MedicalRecordListFilters{}, 1, 100)
 	require.NoError(t, err)
-	require.EqualValues(t, 8, total, "COUNT is clinic-scoped; 3 polluted rows stay out of Find")
-	require.Len(t, got, 5)
+	require.EqualValues(t, 8, total, "COUNT is clinic-scoped; owner/pet polluted rows stay out of Find")
+	require.Len(t, got, 6)
 
 	byID := make(map[uint64]model.MedicalRecord, len(got))
 	for _, record := range got {
@@ -386,6 +386,12 @@ func TestDB_MedicalRecordRepositoryFindAllCorrelatesRelationsToEachParentClinic(
 
 	_, ok = byID[unassignedDoctorRecord.ID]
 	assert.True(t, ok, "same-clinic staff without assignment must appear in the list")
+
+	foreignEnteredByResult, ok := byID[foreignEnteredByRecord.ID]
+	require.True(t, ok, "entered_by attribution must not hide clinic-owned history")
+	require.NotNil(t, foreignEnteredByResult.EnteredByStaff,
+		"entered_by historical projection is staff-id based after FK reshape")
+	assert.Equal(t, foreignEnteredBy.ID, foreignEnteredByResult.EnteredByStaff.ID)
 
 	for _, polluted := range pollutedRecords {
 		_, ok := byID[polluted.ID]

@@ -26,6 +26,7 @@ import {
   buildStaffUpdateRequest,
   filterStaffByMasterFilters,
   searchStaff,
+  STAFF_DEFAULT_ACTIVE_FILTERS,
 } from "./staff-settings-model";
 import { useStaffSettingsLookups } from "../hooks/use-staff-settings-lookups";
 import { ResourceMasterStaff, ResourceMasterPermission } from "@/types/generated/models";
@@ -60,6 +61,7 @@ export function StaffSettings() {
     entityLabel: "スタッフ",
     searchFilter: searchStaff,
     activeFilterApply: filterStaffByMasterFilters,
+    initialFilters: STAFF_DEFAULT_ACTIVE_FILTERS,
     dirtyGuard: dirty,
     permissions: { canDelete },
   });

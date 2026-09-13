@@ -41,3 +41,45 @@ export function filterStaffCandidatesByCapability<T extends StaffCandidateLike>(
     return capable.some((course) => String(course.id) === selectedReservationTypeId);
   });
 }
+
+/** Confirmed type/date orphan: show reason and block submit until clear/reselect. */
+export const STAFF_ORPHAN_REASON_MESSAGE =
+  "この条件では指定できない担当者です。解除するか、対応可能な担当者を選び直してください。";
+
+export interface StaffSelectionEligibilityInput {
+  doctorId: string;
+  eligibleOptionIds: ReadonlySet<string>;
+  nameById: ReadonlyMap<string, string>;
+  /** True when filters' candidate queries have defined success data. */
+  candidatesSettled: boolean;
+  /** True when any candidate query for the current filters failed. */
+  hasQueryError: boolean;
+}
+
+export interface StaffSelectionEligibility {
+  isConfirmedOrphan: boolean;
+  /** Name for SearchableSelect fallback when value is options-orphan. */
+  displayLabel: string | undefined;
+  reasonMessage: string | null;
+}
+
+/**
+ * Resolve display/eligibility for a retained doctor id under type/date filters.
+ * Loading and query error must not be treated as confirmed orphan.
+ */
+export function resolveStaffSelectionEligibility(
+  input: StaffSelectionEligibilityInput,
+): StaffSelectionEligibility {
+  const doctorId = input.doctorId.trim();
+  const hasDoctor = doctorId.length > 0;
+  const displayLabel = hasDoctor ? input.nameById.get(doctorId) : undefined;
+  const isEligible = hasDoctor && input.eligibleOptionIds.has(doctorId);
+  const isConfirmedOrphan =
+    hasDoctor && input.candidatesSettled && !input.hasQueryError && !isEligible;
+
+  return {
+    isConfirmedOrphan,
+    displayLabel,
+    reasonMessage: isConfirmedOrphan ? STAFF_ORPHAN_REASON_MESSAGE : null,
+  };
+}

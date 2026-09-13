@@ -247,38 +247,62 @@ func TestReservationAdminService_Create(t *testing.T) {
 	}
 }
 
-func TestReservationAdminService_Create_RejectsDeceasedPet(t *testing.T) {
+func TestReservationAdminService_Create_RejectsDeceasedPetVariants(t *testing.T) {
 	start := time.Date(2026, 6, 1, 10, 0, 0, 0, config.JST)
 	deceasedAt := start.Add(-24 * time.Hour)
 	petID := uint64(5)
 	ownerID := uint64(2)
-	createCalled := false
-	resRepo := &mockReservationRepository{
-		findPetOwnerInClinicFn: func(_ context.Context, _, _ uint64) (uint64, error) {
-			return ownerID, nil
+
+	cases := []struct {
+		name string
+		pet  *model.Pet
+	}{
+		{
+			name: "deceased/null",
+			pet:  &model.Pet{ID: petID, OwnerID: ownerID, Status: model.PetStatusDeceased},
 		},
-		findPetByIDInClinicFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
-			return &model.Pet{ID: id, OwnerID: ownerID, DeceasedAt: &deceasedAt, Status: model.PetStatusDeceased}, nil
+		{
+			name: "deceased/dated",
+			pet:  &model.Pet{ID: petID, OwnerID: ownerID, Status: model.PetStatusDeceased, DeceasedAt: &deceasedAt},
 		},
-		createFn: func(_ context.Context, _ *model.Reservation) error {
-			createCalled = true
-			return nil
+		{
+			name: "alive/dated",
+			pet:  &model.Pet{ID: petID, OwnerID: ownerID, Status: model.PetStatusAlive, DeceasedAt: &deceasedAt},
 		},
 	}
-	svc := NewReservationAdminServiceWithClinicHolidays(
-		&mockReservationAdminRepository{}, resRepo, nil, &mockTransactor{}, nil, nil, nil, openDayHolidayFinder(),
-	)
-	result, err := svc.Create(context.Background(), 1, &CreateReservationAdminInput{
-		StartTime:         start,
-		EndTime:           start.Add(time.Hour),
-		OwnerID:           &ownerID,
-		PetID:             &petID,
-		ReservationTypeID: 1,
-	})
-	require.Error(t, err)
-	assert.True(t, apperrors.IsInvalidInput(err), "expected InvalidInput, got: %v", err)
-	assert.Nil(t, result)
-	assert.False(t, createCalled)
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			createCalled := false
+			pet := tc.pet
+			resRepo := &mockReservationRepository{
+				findPetOwnerInClinicFn: func(_ context.Context, _, _ uint64) (uint64, error) {
+					return ownerID, nil
+				},
+				findPetByIDInClinicFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
+					return pet, nil
+				},
+				createFn: func(_ context.Context, _ *model.Reservation) error {
+					createCalled = true
+					return nil
+				},
+			}
+			svc := NewReservationAdminServiceWithClinicHolidays(
+				&mockReservationAdminRepository{}, resRepo, nil, &mockTransactor{}, nil, nil, nil, openDayHolidayFinder(),
+			)
+			result, err := svc.Create(context.Background(), 1, &CreateReservationAdminInput{
+				StartTime:         start,
+				EndTime:           start.Add(time.Hour),
+				OwnerID:           &ownerID,
+				PetID:             &petID,
+				ReservationTypeID: 1,
+			})
+			require.Error(t, err)
+			assert.True(t, apperrors.IsInvalidInput(err), "expected InvalidInput, got: %v", err)
+			assert.Nil(t, result)
+			assert.False(t, createCalled, "admin create writes must be 0 for %s", tc.name)
+		})
+	}
 }
 
 func TestReservationAdminService_Create_RejectsFullReservationTypeCapacity(t *testing.T) {

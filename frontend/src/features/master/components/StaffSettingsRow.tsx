@@ -6,6 +6,7 @@ import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { C, LAYOUT, ICON, PALETTE } from "@/lib/design-tokens";
 import type { Staff } from "../api/staffs";
 import type { PermissionGroup } from "../api/permission-groups";
+import { formatStaffListDisplayName } from "../routes/staff-settings-model";
 
 interface StaffSettingsRowProps {
   item: Staff;
@@ -15,16 +16,17 @@ interface StaffSettingsRowProps {
 }
 
 export function StaffSettingsRow({ item, groups, onEdit, canEdit }: StaffSettingsRowProps) {
+  const displayName = formatStaffListDisplayName(item.name);
   const visibleGroups = groups.slice(0, 2);
   const extraCount = groups.length - visibleGroups.length;
   return (
     <DataTableRow key={item.id}>
       <TableCell className={`font-medium ${C.text}`}>
         <DataTableRowButton
-          aria-label={`詳細: スタッフ ${item.name} (ID ${item.id})`}
+          aria-label={`詳細: スタッフ ${displayName} (ID ${item.id})`}
           onClick={() => onEdit(item)}
         >
-          {item.name}
+          {displayName}
         </DataTableRowButton>
       </TableCell>
       <TableCell className={C.text}>{item.occupationName ?? "—"}</TableCell>
@@ -62,7 +64,7 @@ export function StaffSettingsRow({ item, groups, onEdit, canEdit }: StaffSetting
         {canEdit ? (
           <RowActionButton
             onClick={() => onEdit(item)}
-            aria-label={`スタッフ「${item.name}」(ID: ${item.id}) を編集`}
+            aria-label={`スタッフ「${displayName}」(ID: ${item.id}) を編集`}
           />
         ) : null}
       </TableCell>

@@ -23,6 +23,17 @@ export function mapPetStatusLabel(status: string | null | undefined): PetStatusL
   return "不明";
 }
 
+/**
+ * 臨床 write / 予約選択の死亡契約（BE ValidatePetNotDeceased と同義）。
+ * status ラベルが「死亡」または deceasedAt が非 null なら死亡。日時は捏造しない。
+ */
+export function isPetDeceasedForClinicalWrite(pet: {
+  status?: PetStatusLabel | string | null;
+  deceasedAt?: string | null;
+}): boolean {
+  return pet.status === "死亡" || pet.deceasedAt != null;
+}
+
 // 外部公開: useOwnerForm で使用
 export const PET_STATUS_REVERSE_MAP: Record<string, "alive" | "deceased"> = {
   生存: "alive",

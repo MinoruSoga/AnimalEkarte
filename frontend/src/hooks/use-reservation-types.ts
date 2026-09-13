@@ -1,8 +1,20 @@
 import { useQuery } from "@tanstack/react-query";
+import { isAxiosError } from "axios";
 import { axios } from "@/lib/axios";
 import { getStoredClinicId } from "@/lib/current-clinic";
 import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+
+/** Stable API code for in-clinic available-times when LINE settings row is missing. */
+export const LINE_RESERVATION_SETTINGS_UNSET_CODE = "LINE_RESERVATION_SETTINGS_UNSET";
+
+/** True when available-times failed because LINE reservation settings are unset. */
+export function isLineReservationSettingsUnsetError(error: unknown): boolean {
+  if (!isAxiosError(error)) return false;
+  const data = error.response?.data;
+  if (typeof data !== "object" || data === null || !("code" in data)) return false;
+  return (data as { code?: unknown }).code === LINE_RESERVATION_SETTINGS_UNSET_CODE;
+}
 
 // バックエンドの reservation_type_groups レスポンス型
 interface ReservationTypeGroupSummary {
@@ -184,22 +196,25 @@ export function useGetReservationStaffs() {
 /**
  * 院内予約フォーム用の空き枠一覧を取得する。
  * LIFF と同じ空き枠計算を使い、営業時間・スタッフシフト・既存予約・予約不可時間を反映する。
+ * clinicId を queryKey に含め、医院切替で他院の枠/フラグが残らないようにする（BUG-RES-AVAILABLE-TIMES-404）。
  */
 export function useGetReservationAvailableTimes(
   reservationTypeId: string | null,
   date: string | null,
   staffId: string | null,
 ) {
+  const clinicId = getCurrentClinicId();
   return useQuery({
-    queryKey: queryKeys.reservations.availableTimes(
-      reservationTypeId!,
-      date!,
-      staffId ?? undefined,
-    ),
+    queryKey: [
+      ...queryKeys.reservations.availableTimes(reservationTypeId!, date!, staffId ?? undefined),
+      clinicId ?? "no-clinic",
+    ] as const,
     queryFn: () => fetchReservationAvailableTimes(reservationTypeId!, date!, staffId),
     enabled: reservationTypeId !== null && date !== null,
     staleTime: QUERY_STALE_TIMES.REALTIME,
     gcTime: QUERY_GC_TIMES.SHORT,
+    // Unset is a durable clinic config state — do not treat as transient transport failure.
+    retry: (failureCount, error) => !isLineReservationSettingsUnsetError(error) && failureCount < 3,
     // BUG-015: inactive historical edits may 400; form keeps values and skips global toast.
     meta: { silentError: true },
   });

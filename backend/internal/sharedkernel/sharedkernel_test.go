@@ -26,21 +26,50 @@ func TestValidatePetNotDeceased(t *testing.T) {
 	deceasedAt := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
 	msg := "死亡したペットは予約できません"
 
-	t.Run("living pet passes", func(t *testing.T) {
-		err := ValidatePetNotDeceased(context.Background(), &stubPetByIDFinder{
-			pet: &model.Pet{ID: 5, Status: model.PetStatusAlive},
-		}, 1, 5, msg)
-		assert.NoError(t, err)
-	})
-
-	t.Run("deceased pet is invalid input", func(t *testing.T) {
-		err := ValidatePetNotDeceased(context.Background(), &stubPetByIDFinder{
-			pet: &model.Pet{ID: 5, Status: model.PetStatusDeceased, DeceasedAt: &deceasedAt},
-		}, 1, 5, msg)
-		require.Error(t, err)
-		assert.True(t, apperrors.IsInvalidInput(err))
-		assert.Contains(t, err.Error(), msg)
-	})
+	// Death contract: status=deceased OR deceased_at != nil (no date invention).
+	cases := []struct {
+		name        string
+		pet         *model.Pet
+		wantErr     bool
+		wantInvalid bool
+	}{
+		{
+			name: "alive/null passes",
+			pet:  &model.Pet{ID: 5, Status: model.PetStatusAlive},
+		},
+		{
+			name:        "deceased/null is invalid input",
+			pet:         &model.Pet{ID: 5, Status: model.PetStatusDeceased},
+			wantErr:     true,
+			wantInvalid: true,
+		},
+		{
+			name:        "deceased/dated is invalid input",
+			pet:         &model.Pet{ID: 5, Status: model.PetStatusDeceased, DeceasedAt: &deceasedAt},
+			wantErr:     true,
+			wantInvalid: true,
+		},
+		{
+			name:        "alive/dated is invalid input",
+			pet:         &model.Pet{ID: 5, Status: model.PetStatusAlive, DeceasedAt: &deceasedAt},
+			wantErr:     true,
+			wantInvalid: true,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := ValidatePetNotDeceased(context.Background(), &stubPetByIDFinder{pet: tc.pet}, 1, 5, msg)
+			if !tc.wantErr {
+				assert.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			if tc.wantInvalid {
+				assert.True(t, apperrors.IsInvalidInput(err))
+				assert.Contains(t, err.Error(), msg)
+			}
+		})
+	}
 
 	t.Run("nil pet is not found", func(t *testing.T) {
 		err := ValidatePetNotDeceased(context.Background(), &stubPetByIDFinder{pet: nil}, 1, 5, msg)

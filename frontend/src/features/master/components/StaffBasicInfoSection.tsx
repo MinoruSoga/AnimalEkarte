@@ -6,6 +6,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
+import { Link } from "react-router";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PropertyRow, StatusToggleButton } from "@/components/shared/SidePeek";
+import { paths } from "@/config/paths";
 import { useAuth } from "@/hooks/use-auth";
 import { C, STYLE } from "@/lib/design-tokens";
 
@@ -45,17 +47,20 @@ export function StaffBasicInfoSection({
   const [attachEmail, setAttachEmail] = useState("");
   const canAttachAccount = user?.isSystemAdmin === true && !isNew && Boolean(item) && !item?.email;
 
-  const occupationSelectItems = useMemo(
-    () =>
-      allOccupations
-        .filter((occupation) => occupation.isActive)
-        .map((occupation) => (
-          <SelectItem key={occupation.id} value={occupation.id}>
-            {occupation.name}
-          </SelectItem>
-        )),
-    [allOccupations],
-  );
+  const hasOccupationMaster = allOccupations.length > 0;
+
+  const occupationSelectItems = useMemo(() => {
+    const selectedId = formData.jobTitleId;
+    const options = allOccupations.filter(
+      (occupation) => occupation.isActive || (selectedId !== null && occupation.id === selectedId),
+    );
+
+    return options.map((occupation) => (
+      <SelectItem key={occupation.id} value={occupation.id}>
+        {occupation.name}
+      </SelectItem>
+    ));
+  }, [allOccupations, formData.jobTitleId]);
 
   const handleToggleActive = useCallback(() => {
     setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }));
@@ -107,12 +112,24 @@ export function StaffBasicInfoSection({
       <StatusToggleButton isActive={formData.isActive} onToggle={handleToggleActive} />
 
       <PropertyRow label="職種">
-        <Select value={formData.jobTitleId ?? undefined} onValueChange={handleOccupationChange}>
-          <SelectTrigger className={STYLE.selectCompact}>
-            <SelectValue placeholder="選択" />
-          </SelectTrigger>
-          <SelectContent>{occupationSelectItems}</SelectContent>
-        </Select>
+        {hasOccupationMaster ? (
+          <Select value={formData.jobTitleId ?? undefined} onValueChange={handleOccupationChange}>
+            <SelectTrigger className={STYLE.selectCompact}>
+              <SelectValue placeholder="選択" />
+            </SelectTrigger>
+            <SelectContent>{occupationSelectItems}</SelectContent>
+          </Select>
+        ) : (
+          <div className="flex flex-col gap-1">
+            <p className={`text-sm ${C.text40}`}>職種が未登録です</p>
+            <Link
+              to={paths.settings.occupations.getHref()}
+              className={`text-sm underline ${C.text}`}
+            >
+              職種マスタを開く
+            </Link>
+          </div>
+        )}
       </PropertyRow>
 
       <PropertyRow label="資格番号">

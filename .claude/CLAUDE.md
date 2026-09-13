@@ -115,7 +115,17 @@ Read the user's task, determine its type, then load only relevant references bel
 | `naming-conventions.md` | DB/API/Go naming verification |
 | `accessibility-rules.md` | Frontend UI implementation |
 
-DB design/migrations → `postgres-patterns` / `migration-seed-safety` skills. Git/code-style/testing/performance/docker/security の一般規約は `.claude/rules/ecc/**` のグローバルルールと `golang-testing` / `docker-patterns` / `security-checklist` 等のスキルが正本（refs/ の凍結コピーは廃止済み）。
+汎用スキルはユーザースコープを優先する。同名のプロジェクト版を重複して一覧へ登録する必要はない。`gin-api-design` / `go-gin-backend` / `golang-gin-api` の共通本文はユーザー版を利用する。
+
+以下のプロジェクト固有補足は、一覧での有効・無効にかかわらず、該当作業時に原本を読む（無関係な作業では読み込まない）。
+
+| 作業 | 必須のプロジェクト固有補足 |
+|------|---------------------------|
+| Docker 設定・開発環境 | [Docker 運用規則](skills/docker-patterns/SKILL.md) |
+| SQL・DB 設計・クエリ変更 | [PostgreSQL / clinic_id / GORM 規則](skills/postgres-patterns/SKILL.md) |
+| Go テスト作成・変更 | [Go テストの配置・モック・実 DB・検証規則](skills/golang-testing/SKILL.md) |
+
+DB design/migrations → ユーザーの `postgres-patterns` と上記補足 / プロジェクトの `migration-seed-safety`。`analyzing-schema` / `database-indexing` は統合済みの案内であり、独立した一覧登録は不要。Git/code-style/performance/security の一般規約はユーザースコープを利用し、臨床データ分離・migration・Docker 検証などのプロジェクト制約は維持する。
 
 ---
 

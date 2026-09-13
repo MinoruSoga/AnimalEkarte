@@ -116,6 +116,9 @@ func (h *MedicalRecordHandler) CreateMedicalRecord(c *gin.Context) {
 		httpapi.RespondError(c, err)
 		return
 	}
+	if isAdmin, ok := httpapi.PeekIsSystemAdmin(c); ok && isAdmin {
+		svcInput.EnteredBySystemAdmin = true
+	}
 	ctx := c.Request.Context()
 	record, err := h.service.Create(ctx, clinicID, &svcInput)
 	if err != nil {

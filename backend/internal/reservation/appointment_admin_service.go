@@ -144,6 +144,7 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 		customerFields = json.RawMessage("{}")
 	}
 
+	doctorID := normalizeCreateDoctorID(input.DoctorID)
 	var result *model.Reservation
 	err := s.tx.WithTx(ctx, func(ctx context.Context) error {
 		// RSV-02: clinic-scoped advisory lock before FOR UPDATE capacity/conflict checks
@@ -151,7 +152,7 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 		if err := s.resRepo.AcquireBookingLock(ctx, clinicID); err != nil {
 			return apperrors.Wrap(err, "failed to acquire booking lock")
 		}
-		if err := ValidateReservationStaffCapability(ctx, s.reservationStaffRepo, clinicID, input.DoctorID, input.ReservationTypeID); err != nil {
+		if err := ValidateReservationStaffCapability(ctx, s.reservationStaffRepo, clinicID, doctorID, input.ReservationTypeID); err != nil {
 			return apperrors.Wrap(err, "failed to validate staff capability")
 		}
 		if err := ValidateReservationOwnerPetLinksWithRepo(ctx, s.resRepo, clinicID, input.OwnerID, input.PetID); err != nil {
@@ -168,7 +169,7 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 		if err := validateClinicHoliday(ctx, s.holidayFinder, clinicID, input.StartTime); err != nil {
 			return err
 		}
-		if err := CheckSlotConflict(ctx, s.resRepo, clinicID, input.DoctorID, input.StartTime, input.EndTime, nil); err != nil {
+		if err := CheckSlotConflict(ctx, s.resRepo, clinicID, doctorID, input.StartTime, input.EndTime, nil); err != nil {
 			return apperrors.Wrap(err, "failed to check slot conflict")
 		}
 		if err := CheckReservationTypeCapacity(ctx, s.resRepo, s.typeRepo, clinicID, input.ReservationTypeID, input.StartTime, nil); err != nil {
@@ -183,7 +184,7 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 			PetID:             input.PetID,
 			VisitType:         visitType,
 			ReservationTypeID: input.ReservationTypeID,
-			DoctorID:          input.DoctorID,
+			DoctorID:          doctorID,
 			IsDesignated:      input.IsDesignated,
 			Notes:             input.Notes,
 			Source:            model.ReservationSourceManual,

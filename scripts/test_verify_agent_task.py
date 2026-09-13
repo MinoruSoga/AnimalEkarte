@@ -32,6 +32,34 @@ class VerificationTests(unittest.TestCase):
         self.assertTrue(verify.plan(['scripts/new-script.sh'])[1])
         self.assertTrue(verify.plan(['frontend/src/content/manual.md'])[1])
 
+    def test_top_level_migration_sql_uses_cascade_inventory(self):
+        path = 'backend/migrations/002_medical_records_entered_by_staff_fk.sql'
+        jobs, blocked = verify.plan([path])
+        self.assertFalse(blocked)
+        self.assertEqual(len(jobs), 1)
+        self.assertEqual(jobs[0]['command'], [
+            'go', 'test', '-json', '-p=2', '-count=1', '-short',
+            './internal/lintscan',
+            '-run=^TestMigrationCascadeInventory_NoUnreviewedCascade$',
+        ])
+        self.assertTrue(jobs[0]['require_completed_test'])
+        seed_jobs, seed_blocked = verify.plan([
+            'backend/migrations/seeds/002_master/accounts/permission_groups.csv',
+        ])
+        self.assertFalse(seed_blocked)
+        self.assertEqual(seed_jobs[0]['command'], ['python3', '-B', 'scripts/test_account_csv_layout.py'])
+        self.assertTrue(verify.plan(['backend/migrations/seeds/custom.sql'])[1])
+
+    def test_repo_root_repro_images_are_docs_only(self):
+        for path in (
+            'local-reservation-repro-onduty-error.png',
+            'repro-reception-after-stg-restore.png',
+            'evidence.webp',
+        ):
+            with self.subTest(path=path):
+                self.assertEqual(verify.plan([path]), ([], []))
+        self.assertTrue(verify.plan(['docs/ops/screenshot.png'])[1])
+
     def test_auth_d5_dualprocess_script_maps_to_bash_n(self):
         jobs, blocked = verify.plan(['scripts/auth-d5-dualprocess.sh'])
         self.assertFalse(blocked)

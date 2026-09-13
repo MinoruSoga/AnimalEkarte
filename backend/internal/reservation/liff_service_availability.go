@@ -222,6 +222,11 @@ func (s *liffService) getAvailableTimes(
 ) ([]TimeSlot, error) {
 	setting, err := s.settingRepo.FindByClinicID(ctx, clinicID)
 	if err != nil {
+		// BUG-RES-AVAILABLE-TIMES-404: in-clinic (!requireActive) settings missing is
+		// identifiable unset, not generic NOT_FOUND. LIFF (requireActive) keeps settings-required.
+		if !requireActive && apperrors.IsNotFound(err) {
+			return nil, &LineReservationSettingsUnsetError{}
+		}
 		return nil, apperrors.Wrap(err, "failed to get reservation setting")
 	}
 	var course *model.ReservationType

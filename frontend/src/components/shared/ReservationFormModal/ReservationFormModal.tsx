@@ -24,6 +24,7 @@ import { useGetOwnerLineTags } from "@/hooks/use-owner-line-tags";
 import { useGetReservation } from "@/hooks/use-get-reservation";
 import { isValidOwnerPhone } from "@/lib/phone";
 import { formatJSTWallDate, isPastJSTDate } from "@/lib/jst-date";
+import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import type { NewOwnerFormData } from "@/types/reservation-form";
 
 // Relative
@@ -35,6 +36,8 @@ import {
   type MobilePanel,
   type OwnerMode,
 } from "./ReservationFormModalPanels";
+import { STAFF_ORPHAN_REASON_MESSAGE } from "./filter-staff-candidates";
+import type { StaffSelectionState } from "./ReservationFormFields";
 
 // Types
 import type { Pet, Reservation } from "@/types";
@@ -46,7 +49,6 @@ const EMPTY_NEW_OWNER: NewOwnerFormData = {
   chiefComplaint: "",
   animalSpeciesId: 0,
 };
-const RESERVATION_FORM_DESCRIPTION_ID = "reservation-form-description";
 const PAST_DATE_ERROR_MESSAGE = "本日以降の日付を選択してください";
 
 /**
@@ -93,6 +95,10 @@ export const ReservationFormModal = memo(function ReservationFormModal({
   const [ownerMode, setOwnerMode] = useState<OwnerMode>("existing");
   const [newOwnerData, setNewOwnerData] = useState<NewOwnerFormData>(EMPTY_NEW_OWNER);
   const [newOwnerErrors, setNewOwnerErrors] = useState<Record<string, string>>({});
+  const [staffSelectionState, setStaffSelectionState] = useState<StaffSelectionState>({
+    isConfirmedOrphan: false,
+    reasonMessage: null,
+  });
 
   // BUG-343: 定休日を取得して Calendar で disabled にする
   const { data: clinicHolidays = [] } = useGetClinicHolidays(calendarMonth);
@@ -140,6 +146,7 @@ export const ReservationFormModal = memo(function ReservationFormModal({
     setNewOwnerData(EMPTY_NEW_OWNER);
     setMobilePanel("search");
     setCalendarMonth(dateFnsFormat(new Date(), "yyyy-MM")); // BUG-343: 月またぎ表示リセット
+    setStaffSelectionState({ isConfirmedOrphan: false, reasonMessage: null });
     if (initialData) {
       setFormData({ ...initialData });
       if (initialData.petId) {
@@ -190,6 +197,7 @@ export const ReservationFormModal = memo(function ReservationFormModal({
       if (data.start) delete next.date;
       if (data.type) delete next.type;
       if (data.start && data.end && data.end > data.start) delete next.time;
+      if (!data.doctor) delete next.doctor;
       return next;
     });
   }, []);
@@ -200,6 +208,18 @@ export const ReservationFormModal = memo(function ReservationFormModal({
       delete next[field];
       return next;
     });
+  }, []);
+
+  const handleStaffSelectionStateChange = useCallback((state: StaffSelectionState) => {
+    setStaffSelectionState(state);
+    if (!state.isConfirmedOrphan) {
+      setValidationErrors((prev) => {
+        if (!prev.doctor) return prev;
+        const next = { ...prev };
+        delete next.doctor;
+        return next;
+      });
+    }
   }, []);
 
   // edit mode: subscribe to single-reservation query and sync reservationRoute into formData
@@ -241,6 +261,9 @@ export const ReservationFormModal = memo(function ReservationFormModal({
       if (!isEditMode && isReservationStartPastJST(formData.start)) {
         errors.date = PAST_DATE_ERROR_MESSAGE;
       }
+      if (staffSelectionState.isConfirmedOrphan) {
+        errors.doctor = staffSelectionState.reasonMessage ?? STAFF_ORPHAN_REASON_MESSAGE;
+      }
 
       if (Object.keys(noe).length > 0 || Object.keys(errors).length > 0) {
         setNewOwnerErrors(noe);
@@ -260,6 +283,9 @@ export const ReservationFormModal = memo(function ReservationFormModal({
     // 既存飼主モードのバリデーション
     if (selectedPets.length === 0) {
       errors.patient = "患者を選択してください";
+    } else if (selectedPets.some((pet) => isPetDeceasedForClinicalWrite(pet))) {
+      // Display disable is not the sole guard; submit also rejects death OR-contract pets.
+      errors.patient = "死亡したペットは予約できません";
     }
     if (!formData.start) {
       errors.date = "日付を選択してください";
@@ -275,6 +301,9 @@ export const ReservationFormModal = memo(function ReservationFormModal({
     if (!isEditMode && isReservationStartPastJST(formData.start)) {
       errors.date = PAST_DATE_ERROR_MESSAGE;
     }
+    if (staffSelectionState.isConfirmedOrphan) {
+      errors.doctor = staffSelectionState.reasonMessage ?? STAFF_ORPHAN_REASON_MESSAGE;
+    }
 
     if (Object.keys(errors).length > 0) {
       setValidationErrors(errors);
@@ -288,19 +317,17 @@ export const ReservationFormModal = memo(function ReservationFormModal({
       return result;
     }
     return null;
-  }, [formData, selectedPets, onSave, isEditMode, ownerMode, newOwnerData]);
+  }, [formData, selectedPets, onSave, isEditMode, ownerMode, newOwnerData, staffSelectionState]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
-        aria-describedby={RESERVATION_FORM_DESCRIPTION_ID}
         className={`${LAYOUT.modal.full} flex flex-col p-0 gap-0 bg-white overflow-hidden rounded-xl`}
       >
         <ReservationModalHeader
           isEditMode={isEditMode}
           mobilePanel={mobilePanel}
           onMobilePanelChange={setMobilePanel}
-          descriptionId={RESERVATION_FORM_DESCRIPTION_ID}
         />
 
         {submitError ? (
@@ -339,6 +366,7 @@ export const ReservationFormModal = memo(function ReservationFormModal({
             onFormChange={handleFormChange}
             onClearError={handleClearError}
             onMonthChange={handleCalendarMonthChange}
+            onStaffSelectionStateChange={handleStaffSelectionStateChange}
           />
         </div>
 

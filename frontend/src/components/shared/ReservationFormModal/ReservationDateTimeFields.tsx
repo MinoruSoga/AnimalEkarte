@@ -50,6 +50,10 @@ interface ReservationDateTimeFieldsProps {
   handleMonthChange: (month: Date) => void;
   startTimeOptions: string[];
   availableTimeSlotMap: Map<string, string> | undefined;
+  /** Guidance when LINE reservation settings are unset (manual time path). */
+  settingsUnsetGuidance?: string | null;
+  /** Non-unset available-times fetch failure message. */
+  availableTimesErrorMessage?: string | null;
 }
 
 export function ReservationDateTimeFields({
@@ -60,6 +64,8 @@ export function ReservationDateTimeFields({
   handleMonthChange,
   startTimeOptions,
   availableTimeSlotMap,
+  settingsUnsetGuidance = null,
+  availableTimesErrorMessage = null,
 }: ReservationDateTimeFieldsProps) {
   return (
     <div className={`rounded-lg border ${C.bgSubtle} p-3 space-y-3 ${C.borderMediumLight}`}>
@@ -174,6 +180,14 @@ export function ReservationDateTimeFields({
             </SelectContent>
           </Select>
         </div>
+        {settingsUnsetGuidance ? (
+          <p data-testid="res-available-times-unset-guidance" className={`text-xs ${C.text40}`}>
+            {settingsUnsetGuidance}
+          </p>
+        ) : null}
+        {availableTimesErrorMessage ? (
+          <FormFieldError id="res-available-times-error" message={availableTimesErrorMessage} />
+        ) : null}
         {validationErrors?.time ? (
           <FormFieldError id="res-time-error" message={validationErrors.time} />
         ) : null}

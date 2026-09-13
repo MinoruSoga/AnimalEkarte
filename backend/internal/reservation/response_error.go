@@ -27,8 +27,22 @@ func reservationLimitErrorResponse(err error) (status int, message, code string,
 	return http.StatusConflict, message, rle.Code, true
 }
 
+func lineReservationSettingsUnsetResponse(err error) (status int, message, code string, ok bool) {
+	if !IsLineReservationSettingsUnset(err) {
+		return 0, "", "", false
+	}
+	return http.StatusUnprocessableEntity,
+		"LINE予約の空き枠設定が未登録です",
+		CodeLineReservationSettingsUnset,
+		true
+}
+
 // respondError はエラーを適切なHTTPステータスコードとメッセージにマッピングして返す。
 func respondError(c *gin.Context, err error) {
+	if status, message, code, ok := lineReservationSettingsUnsetResponse(err); ok {
+		c.JSON(status, gin.H{"error": message, "code": code})
+		return
+	}
 	if status, message, _, ok := reservationLimitErrorResponse(err); ok {
 		c.JSON(status, gin.H{"error": message})
 		return
@@ -38,6 +52,12 @@ func respondError(c *gin.Context, err error) {
 
 // respondErrorWithExtras は custom extra fields を含むエラーレスポンスを返す。
 func respondErrorWithExtras(c *gin.Context, err error, extras map[string]any) {
+	if status, message, code, ok := lineReservationSettingsUnsetResponse(err); ok {
+		response := gin.H{"error": message, "code": code}
+		maps.Copy(response, extras)
+		c.JSON(status, response)
+		return
+	}
 	if status, message, code, ok := reservationLimitErrorResponse(err); ok {
 		response := gin.H{"error": message, "code": code}
 		maps.Copy(response, extras)

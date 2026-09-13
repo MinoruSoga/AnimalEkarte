@@ -2452,42 +2452,67 @@ func TestReservationService_UpdateReservationRoute(t *testing.T) {
 	})
 }
 
-// #261 P0: 死亡ペットへの予約 write は fail-closed（create / update pet 付け替え）。
-func TestReservationService_Create_RejectsDeceasedPet(t *testing.T) {
+// #261 P0 / BUG-RES-DECEASED-STATUS-BYPASS: death = status=deceased OR deceased_at != nil.
+func TestReservationService_Create_RejectsDeceasedPetVariants(t *testing.T) {
 	now := time.Now()
 	deceasedAt := now.Add(-24 * time.Hour)
 	petID := uint64(5)
 	ownerID := uint64(2)
-	createCalled := false
-	repo := &mockReservationRepository{
-		findPetOwnerInClinicFn: func(_ context.Context, _, id uint64) (uint64, error) {
-			return ownerID, nil
+
+	cases := []struct {
+		name string
+		pet  *model.Pet
+	}{
+		{
+			name: "deceased/null",
+			pet:  &model.Pet{ID: petID, OwnerID: ownerID, Status: model.PetStatusDeceased},
 		},
-		findPetByIDInClinicFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
-			return &model.Pet{ID: id, OwnerID: ownerID, DeceasedAt: &deceasedAt, Status: model.PetStatusDeceased}, nil
+		{
+			name: "deceased/dated",
+			pet:  &model.Pet{ID: petID, OwnerID: ownerID, Status: model.PetStatusDeceased, DeceasedAt: &deceasedAt},
 		},
-		createFn: func(_ context.Context, _ *model.Reservation) error {
-			createCalled = true
-			return nil
+		{
+			name: "alive/dated",
+			pet:  &model.Pet{ID: petID, OwnerID: ownerID, Status: model.PetStatusAlive, DeceasedAt: &deceasedAt},
 		},
 	}
-	svc := NewReservationServiceWithAvailabilityAndType(repo, nil, &mockTransactor{}, nil, nil)
 
-	result, err := svc.Create(context.Background(), &CreateManualReservationInput{
-		ClinicID:          1,
-		StartTime:         now,
-		EndTime:           now.Add(time.Hour),
-		ReservationTypeID: 1,
-		OwnerID:           &ownerID,
-		PetID:             &petID,
-		Status:            model.ReservationStatusConfirmed,
-	})
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			createCalled := false
+			pet := tc.pet
+			repo := &mockReservationRepository{
+				findPetOwnerInClinicFn: func(_ context.Context, _, id uint64) (uint64, error) {
+					return ownerID, nil
+				},
+				findPetByIDInClinicFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
+					return pet, nil
+				},
+				createFn: func(_ context.Context, _ *model.Reservation) error {
+					createCalled = true
+					return nil
+				},
+			}
+			svc := NewReservationServiceWithAvailabilityAndType(repo, nil, &mockTransactor{}, nil, nil)
 
-	require.Error(t, err)
-	assert.True(t, apperrors.IsInvalidInput(err), "expected InvalidInput, got: %v", err)
-	assert.Contains(t, err.Error(), reservationDeceasedPetMessage)
-	assert.Nil(t, result)
-	assert.False(t, createCalled, "repo.Create must not be called for deceased pet")
+			result, err := svc.Create(context.Background(), &CreateManualReservationInput{
+				ClinicID:          1,
+				StartTime:         now,
+				EndTime:           now.Add(time.Hour),
+				ReservationTypeID: 1,
+				OwnerID:           &ownerID,
+				PetID:             &petID,
+				// Match AllowsLivingPet: avoid LINE-settings path so RED asserts the death guard.
+				Status: model.ReservationStatusInConsultation,
+			})
+
+			require.Error(t, err)
+			assert.True(t, apperrors.IsInvalidInput(err), "expected InvalidInput, got: %v", err)
+			assert.Contains(t, err.Error(), reservationDeceasedPetMessage)
+			assert.Nil(t, result)
+			assert.False(t, createCalled, "repo.Create must not be called for deceased pet (%s)", tc.name)
+		})
+	}
 }
 
 func TestReservationService_Create_AllowsLivingPet(t *testing.T) {
@@ -2592,4 +2617,32 @@ func TestReservationService_CreateBatch_AllowsSelectedPetsButRejectsExistingOver
 	_, err = svc.CreateBatch(context.Background(), input, []ReservationBatchPet{{OwnerID: 1, PetID: 12}, {OwnerID: 1, PetID: 13}})
 	require.Error(t, err)
 	assert.Equal(t, 2, created, "unrelated overlap must reject the whole batch before inserts")
+}
+
+func TestReservationService_CreateBatch_RejectsDeceasedNullPet(t *testing.T) {
+	start := time.Date(2027, 6, 1, 10, 0, 0, 0, time.UTC)
+	created := 0
+	repo := &mockReservationRepository{
+		createFn: func(_ context.Context, _ *model.Reservation) error { created++; return nil },
+		hasDoctorConflictFn: func(_ context.Context, _ uint64, _ uint64, _, _ time.Time, _ *uint64) (bool, error) {
+			return false, nil
+		},
+		findPetOwnerInClinicFn: func(_ context.Context, _ uint64, _ uint64) (uint64, error) { return 1, nil },
+		findPetByIDInClinicFn: func(_ context.Context, _, petID uint64) (*model.Pet, error) {
+			if petID == 10 {
+				return &model.Pet{ID: petID, OwnerID: 1, Status: model.PetStatusDeceased}, nil
+			}
+			return &model.Pet{ID: petID, OwnerID: 1, Status: model.PetStatusAlive}, nil
+		},
+		countConflictsFn: func(_ context.Context, _ uint64, _, _ time.Time, _ *uint64) (int64, error) {
+			return 0, nil
+		},
+	}
+	svc := NewReservationServiceWithClinicHolidays(repo, nil, &mockTransactor{}, nil, nil, nil, &mockLineReservationSettingFinder{}, &mockClinicHolidayFinder{})
+	input := &CreateManualReservationInput{ClinicID: 1, StartTime: start, EndTime: start.Add(time.Hour), ReservationTypeID: 1, Status: model.ReservationStatusConfirmed, Source: model.ReservationSourceManual}
+	// Deceased pet first so the death guard rejects before any Create on this non-rolling mock tx.
+	_, err := svc.CreateBatch(context.Background(), input, []ReservationBatchPet{{OwnerID: 1, PetID: 10}, {OwnerID: 1, PetID: 11}})
+	require.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err), "expected InvalidInput, got: %v", err)
+	assert.Equal(t, 0, created, "batch must write 0 rows when any pet is deceased/null")
 }

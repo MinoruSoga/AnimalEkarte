@@ -228,3 +228,139 @@ describe("ReservationFormModal — 予約不可時間", () => {
     expect(screen.getByTestId("res-end-time-trigger")).toHaveTextContent("13:30");
   }, 15000);
 });
+
+describe("ReservationFormModal — available-times unset contract (BUG-RES-AVAILABLE-TIMES-404)", () => {
+  const unsetBaseHandlers = [
+    http.get("/api/v1/clinic-holidays", () => HttpResponse.json([])),
+    http.get("/api/v1/pets", () => HttpResponse.json({ data: [] })),
+    http.get("/api/v1/masters/animal-species", () => HttpResponse.json([])),
+    http.get("/api/v1/masters/staffs", () => HttpResponse.json([])),
+    http.get("/api/v1/shifts/on-duty-staffs", () => HttpResponse.json([])),
+    http.get("/api/v1/clinics/1/reservation-staffs", () => HttpResponse.json([])),
+    http.get("/api/v1/masters/reservation-types/5/unavailable-times", () =>
+      HttpResponse.json({ data: [] }),
+    ),
+    http.get("/api/v1/masters/reservation-types", () =>
+      HttpResponse.json([
+        {
+          id: 5,
+          name: "診察",
+          color: "#111111",
+          is_active: true,
+          duration_minutes: 30,
+          sort_order: 1,
+          is_internal: false,
+          category: "general",
+          group_id: null,
+          group: null,
+        },
+      ]),
+    ),
+  ];
+
+  const newReservationInitial: Partial<Reservation> = {
+    start: new Date(2026, 8, 13, 10, 0, 0),
+    end: new Date(2026, 8, 13, 10, 30, 0),
+    visitType: "first",
+    type: "5",
+    doctor: "",
+    isDesignated: false,
+    status: "confirmed",
+  };
+
+  it("unset settings shows guidance and guided manual TIME_OPTIONS", async () => {
+    localStorage.setItem("auth_current_clinic:v1", "1");
+    server.use(
+      ...unsetBaseHandlers,
+      http.get("/api/v1/reservations/available-times", () =>
+        HttpResponse.json(
+          { error: "LINE予約の空き枠設定が未登録です", code: "LINE_RESERVATION_SETTINGS_UNSET" },
+          { status: 422 },
+        ),
+      ),
+    );
+
+    render(
+      <ReservationFormModal
+        isOpen={true}
+        onClose={noop}
+        onSave={noop}
+        initialData={newReservationInitial}
+        canCreate={true}
+        canEdit={false}
+      />,
+      { wrapper: createWrapper() },
+    );
+
+    expect(await screen.findByTestId("res-available-times-unset-guidance")).toHaveTextContent(
+      "LINE予約の空き枠設定が未登録のため、時刻を手動で入力してください",
+    );
+
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId("res-start-time-trigger"));
+    expect(await screen.findByRole("option", { name: "00:00" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "23:45" })).toBeInTheDocument();
+    expect(screen.queryByText("空き枠の取得に失敗しました")).not.toBeInTheDocument();
+  }, 15000);
+
+  it("empty success (holiday/full) does not invent full-day TIME_OPTIONS", async () => {
+    localStorage.setItem("auth_current_clinic:v1", "1");
+    server.use(
+      ...unsetBaseHandlers,
+      http.get("/api/v1/reservations/available-times", () => HttpResponse.json([])),
+    );
+
+    render(
+      <ReservationFormModal
+        isOpen={true}
+        onClose={noop}
+        onSave={noop}
+        initialData={newReservationInitial}
+        canCreate={true}
+        canEdit={false}
+      />,
+      { wrapper: createWrapper() },
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("res-available-times-unset-guidance")).not.toBeInTheDocument();
+    });
+
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId("res-start-time-trigger"));
+    expect(screen.queryByRole("option", { name: "00:00" })).not.toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "10:00" })).toBeInTheDocument();
+  }, 15000);
+
+  it("transport error shows error UI and does not treat TIME_OPTIONS as success", async () => {
+    localStorage.setItem("auth_current_clinic:v1", "1");
+    server.use(
+      ...unsetBaseHandlers,
+      http.get("/api/v1/reservations/available-times", () =>
+        HttpResponse.json({ error: "internal server error" }, { status: 500 }),
+      ),
+    );
+
+    render(
+      <ReservationFormModal
+        isOpen={true}
+        onClose={noop}
+        onSave={noop}
+        initialData={newReservationInitial}
+        canCreate={true}
+        canEdit={false}
+      />,
+      { wrapper: createWrapper() },
+    );
+
+    expect(
+      await screen.findByText("空き枠の取得に失敗しました", {}, { timeout: 10000 }),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId("res-available-times-unset-guidance")).not.toBeInTheDocument();
+
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId("res-start-time-trigger"));
+    expect(screen.queryByRole("option", { name: "00:00" })).not.toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "10:00" })).toBeInTheDocument();
+  }, 20000);
+});

@@ -65,6 +65,8 @@ export const AppointmentCard = memo(function AppointmentCard({
   isDragOverlay = false,
 }: AppointmentCardProps) {
   const navigate = useNavigate();
+  // Reception wire exposes petStatus; death OR-contract on create is enforced in sharedkernel.
+  // status=deceased (including deceased_at null) must still disable card actions.
   const isDeceased = appointment.petStatus === PetStatusDeceased;
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({

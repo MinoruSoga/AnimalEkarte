@@ -91,7 +91,7 @@ func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicIDs []uint6
 		Preload("Pet", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
 		Preload("Pet.AnimalSpecies").
 		Preload("Doctor", medicalRecordStaffPreload(clinicIDs, true)).
-		Preload("EnteredByStaff", medicalRecordStaffPreload(clinicIDs, false)).
+		Preload("EnteredByStaff", medicalRecordEnteredByStaffPreload()).
 		Preload("Inquiry").
 		Preload("Billing", medicalRecordBillingPreload(clinicIDs)).
 		Find(&records).Error; err != nil {

@@ -92,11 +92,11 @@ func (r *medicalRecordRepository) AcquireAutoCreateLock(
 }
 
 // medicalRecordDetailRelationsScope is used by FindByID and FindAll. Owner/pet must belong to
-// the parent clinic. Staff FKs may be same-clinic staffs without an assignment
+// the parent clinic. Doctor FKs may be same-clinic staffs without an assignment
 // row (imported seed) or assigned to the parent clinic while their primary
-// clinic differs. A staff FK that belongs to another clinic and has no parent
-// assignment still fail-closes. Same-clinic unassigned staff records appear in
-// カルテ一覧 (imported seed).
+// clinic differs. entered_by is attribution-only after the single-column staff FK
+// reshape: historical parents stay visible when assignment is later removed.
+// Doctor isolation is unchanged.
 func medicalRecordDetailRelationsScope() func(*gorm.DB) *gorm.DB {
 	return func(db *gorm.DB) *gorm.DB {
 		return db.Scopes(medicalRecordOwnerPetRelationsScope()).Where(`
@@ -111,19 +111,6 @@ func medicalRecordDetailRelationsScope() func(*gorm.DB) *gorm.DB {
 					FROM staff_clinic_assignments scoped_doctor_assignment
 					WHERE scoped_doctor_assignment.staff_id = medical_records.doctor_id
 					  AND scoped_doctor_assignment.clinic_id = medical_records.clinic_id
-				)
-			)
-			AND (
-				medical_records.entered_by IS NULL OR EXISTS (
-					SELECT 1
-					FROM staffs scoped_entered_by
-					WHERE scoped_entered_by.id = medical_records.entered_by
-					  AND scoped_entered_by.clinic_id = medical_records.clinic_id
-				) OR EXISTS (
-					SELECT 1
-					FROM staff_clinic_assignments scoped_entered_by_assignment
-					WHERE scoped_entered_by_assignment.staff_id = medical_records.entered_by
-					  AND scoped_entered_by_assignment.clinic_id = medical_records.clinic_id
 				)
 			)
 		`)
@@ -175,6 +162,14 @@ func medicalRecordStaffPreload(clinicIDs []uint64, doctorOnly bool) func(*gorm.D
 			query = query.Where("staffs.staff_type = ?", model.StaffTypeDoctor)
 		}
 		return query
+	}
+}
+
+// medicalRecordEnteredByStaffPreload projects historical recording actors without
+// requiring a current clinic assignment (assignment may be removed later).
+func medicalRecordEnteredByStaffPreload() func(*gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		return db.Where("staffs.deleted_at IS NULL")
 	}
 }
 

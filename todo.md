@@ -6,7 +6,7 @@
 |------|-----|
 | **新規 Issue SoT** | **[todo-issue.md](todo-issue.md)**（Linear 新規作成禁止） |
 | **既存チケット更新** | Linear Team **Baritech** · Project **ノア動物病院電子カルテ** · hub **[BRT-4](https://linear.app/baritechllc/issue/BRT-4)**（コメント・状態のみ） |
-| **セキュリティ修正** | **[BRT-226](https://linear.app/baritechllc/issue/BRT-226)**（Review · `origin/main` 済み · Done は人間） |
+| **セキュリティ修正** | **[BRT-226](https://linear.app/baritechllc/issue/BRT-226)**（**Done** · `origin/main` 済み · 2026-09-12） |
 | **開発キュー** | **READY なし**（ローカル実装単位なし） |
 | **本ファイルの範囲** | repo と強く結び付く **開発タスク入口**、確認済み製品 FAIL、PO 入口、維持制約 |
 
@@ -17,7 +17,6 @@
 | ローカル開発 READY | **なし** | — |
 | deferred（codegen 承認待ち） | TASK-444-ADDENDUM-CODEGEN | [todo-issue.md](todo-issue.md) |
 | ローカル検証 BLOCKED | DEV-V-OWNER-DB（disposable DB URL 未設定） | [todo-verification.md](todo-verification.md) |
-| 人間 | BRT-226 Done | Linear（既存） |
 | 人間 | PO / 人間レーン | Linear BRT-4 |
 | 運用 | PR #388 CI 修復・マージ判断 | GitHub / [todo-operations.md](todo-operations.md) |
 | 外部検証 | STG/UAT/PERF/AUTH-D1 ほか | [todo-verification.md](todo-verification.md) |

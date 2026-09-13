@@ -326,7 +326,78 @@ describe("useReservationActions multi-pet batch retry", () => {
   });
 });
 
+describe("useReservationActions create doctor_id normalize (BUG-RES-DOCTOR-ID-ZERO)", () => {
+  beforeEach(() => {
+    createMutateAsyncMock.mockReset();
+    createBatchMutateAsyncMock.mockReset();
+    createMutateAsyncMock.mockResolvedValue(makeReservation({ id: "created" }));
+    createBatchMutateAsyncMock.mockResolvedValue([]);
+  });
+
+  it("単体作成で doctor 空文字なら doctor_id を送らない", async () => {
+    const { result } = setup({ permissions: ALLOW_ALL_PERMISSIONS });
+    const data = { ...makeSaveFormData(), doctor: "" };
+    await act(async () => {
+      expect(
+        await result.current.handleSave(data, [{ id: "10", ownerId: "20", name: "ポチ" }]),
+      ).toBeNull();
+    });
+    expect(createMutateAsyncMock).toHaveBeenCalledTimes(1);
+    const payload = createMutateAsyncMock.mock.calls[0][0];
+    expect(payload).not.toHaveProperty("doctor_id");
+    expect(payload.doctor_id).toBeUndefined();
+  });
+
+  it('単体作成で doctor "0" なら doctor_id を送らない', async () => {
+    const { result } = setup({ permissions: ALLOW_ALL_PERMISSIONS });
+    const data = { ...makeSaveFormData(), doctor: "0" };
+    await act(async () => {
+      expect(
+        await result.current.handleSave(data, [{ id: "10", ownerId: "20", name: "ポチ" }]),
+      ).toBeNull();
+    });
+    expect(createMutateAsyncMock).toHaveBeenCalledTimes(1);
+    const payload = createMutateAsyncMock.mock.calls[0][0];
+    expect(payload).not.toHaveProperty("doctor_id");
+    expect(payload.doctor_id).toBeUndefined();
+  });
+
+  it('複数ペット作成で doctor 空/"0" なら batch payload に doctor_id を含めない', async () => {
+    const { result } = setup({ permissions: ALLOW_ALL_PERMISSIONS });
+    const pets = [
+      { id: "10", ownerId: "20", name: "ポチ" },
+      { id: "11", ownerId: "20", name: "タマ" },
+    ];
+    for (const doctor of ["", "0"] as const) {
+      createBatchMutateAsyncMock.mockClear();
+      await act(async () => {
+        expect(await result.current.handleSave({ ...makeSaveFormData(), doctor }, pets)).toBeNull();
+      });
+      expect(createBatchMutateAsyncMock).toHaveBeenCalledTimes(1);
+      const payload = createBatchMutateAsyncMock.mock.calls[0][0];
+      expect(payload).not.toHaveProperty("doctor_id");
+      expect(payload.doctor_id).toBeUndefined();
+    }
+  });
+
+  it("不正な doctor 文字列は作成 API を呼ばず fail-closed する", async () => {
+    const { result } = setup({ permissions: ALLOW_ALL_PERMISSIONS });
+    const data = { ...makeSaveFormData(), doctor: "abc" };
+    await act(async () => {
+      const err = await result.current.handleSave(data, [
+        { id: "10", ownerId: "20", name: "ポチ" },
+      ]);
+      expect(err).toBeTruthy();
+    });
+    expect(createMutateAsyncMock).not.toHaveBeenCalled();
+  });
+});
+
 describe("useReservationActions new-owner retry", () => {
+  beforeEach(() => {
+    createMutateAsyncMock.mockReset();
+  });
+
   it("retries a new-owner reservation without recreating its committed owner or pet", async () => {
     const createOwnerFn = vi.fn().mockResolvedValue({ id: 30 });
     const createPetFn = vi.fn().mockResolvedValue({ id: 40 });

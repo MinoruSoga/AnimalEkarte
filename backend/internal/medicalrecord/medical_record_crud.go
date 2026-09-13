@@ -78,6 +78,11 @@ func (s *medicalRecordService) createMedicalRecordInTx(
 	clinicID uint64,
 	input *CreateMedicalRecordInput,
 ) (medicalRecordCreateTxResult, error) {
+	// Actor contract before any related write: HTTP keeps authenticated entered_by;
+	// auto-create leaves EnteredBy unset as the internal system-actor path.
+	if err := s.validateMedicalRecordEnteredByActor(ctx, clinicID, input); err != nil {
+		return medicalRecordCreateTxResult{}, err
+	}
 	// Validate request-derived context before appointment preparation can persist a backfill.
 	if err := s.validateMedicalRecordOwnerPetLinks(ctx, clinicID, input.OwnerID, input.PetID); err != nil {
 		return medicalRecordCreateTxResult{}, err
@@ -132,6 +137,27 @@ func (s *medicalRecordService) createMedicalRecordInTx(
 	}
 
 	return medicalRecordCreateTxResult{record: built, isFirstVisit: isFirstVisit}, nil
+}
+
+func (s *medicalRecordService) validateMedicalRecordEnteredByActor(
+	ctx context.Context,
+	clinicID uint64,
+	input *CreateMedicalRecordInput,
+) error {
+	if input == nil || input.EnteredBy == nil {
+		return nil
+	}
+	// Concrete *medicalRecordRepository wires enteredByActor in the constructor.
+	// Mock-repository unit tests leave it nil and are not actor-authz evidence.
+	if s.enteredByActor == nil {
+		return nil
+	}
+	return s.enteredByActor.AssertEnteredByActor(
+		ctx,
+		clinicID,
+		*input.EnteredBy,
+		input.EnteredBySystemAdmin,
+	)
 }
 
 func (s *medicalRecordService) runMedicalRecordCreatePostCommit(ctx context.Context, result medicalRecordCreateTxResult) {

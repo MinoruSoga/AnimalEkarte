@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/config"
@@ -611,4 +612,128 @@ func TestLiffService_TypeScopedPublicReads_RejectHiddenReservationType(t *testin
 			assert.Zero(t, downstreamCalls, "hidden type must not reach staff/date/time dependencies")
 		})
 	}
+}
+
+// BUG-RES-AVAILABLE-TIMES-404: in-clinic settings-missing is identifiable unset;
+// LIFF keeps settings-required; empty holiday stays []; type not-found and DB errors stay errors.
+func TestGetAvailableTimes_SettingsMissing_Contracts(t *testing.T) {
+	const clinicID = uint64(3)
+	const typeID = uint64(7)
+	ctx := context.Background()
+	date := time.Date(2026, 9, 13, 0, 0, 0, 0, config.JST)
+
+	typeRepoOK := &mockLiffTypeRepository{
+		findByIDFn: func(_ context.Context, gotClinicID, gotTypeID uint64) (*model.ReservationType, error) {
+			assert.Equal(t, clinicID, gotClinicID)
+			assert.Equal(t, typeID, gotTypeID)
+			return &model.ReservationType{
+				ID:                   gotTypeID,
+				ClinicID:             gotClinicID,
+				IsActive:             true,
+				ReservationVisible:   true,
+				DurationMinutes:      30,
+				ReservationDayOption: model.DayOptionAnyday,
+			}, nil
+		},
+	}
+
+	t.Run("staff path: settings not-found is identifiable unset", func(t *testing.T) {
+		svc := &liffService{
+			settingRepo: &mockLiffSettingRepository{
+				findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+					return nil, apperrors.FromGORM(gorm.ErrRecordNotFound, "line_reservation_setting", "clinic")
+				},
+			},
+			typeLiffRepo: typeRepoOK,
+			staffRepo: &mockLiffStaffRepository{
+				findAllFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
+					t.Fatal("staff lookup must not run when settings are unset")
+					return nil, nil
+				},
+			},
+		}
+		slots, err := svc.GetStaffAvailableTimes(ctx, clinicID, typeID, 0, date)
+		require.Error(t, err)
+		assert.Nil(t, slots)
+		assert.True(t, IsLineReservationSettingsUnset(err), "want unset error, got %v", err)
+		assert.False(t, apperrors.IsNotFound(err), "unset must not be generic not-found")
+	})
+
+	t.Run("LIFF path: settings not-found stays settings-required not-found", func(t *testing.T) {
+		svc := &liffService{
+			settingRepo: &mockLiffSettingRepository{
+				findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+					return nil, apperrors.FromGORM(gorm.ErrRecordNotFound, "line_reservation_setting", "clinic")
+				},
+			},
+			typeLiffRepo: typeRepoOK,
+		}
+		slots, err := svc.GetAvailableTimes(ctx, clinicID, typeID, 0, date)
+		require.Error(t, err)
+		assert.Nil(t, slots)
+		assert.False(t, IsLineReservationSettingsUnset(err), "LIFF must not get in-clinic unset exception")
+		assert.True(t, apperrors.IsNotFound(err), "LIFF settings missing stays not-found")
+	})
+
+	t.Run("staff path: settings present closed date returns empty slots", func(t *testing.T) {
+		closedDate := time.Date(2026, 9, 14, 0, 0, 0, 0, config.JST) // Monday
+		svc := &liffService{
+			settingRepo: &mockLiffSettingRepository{
+				findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+					s := liffDefaultSetting()
+					s.ClosedWeekdays = []byte(`[1]`)
+					return s, nil
+				},
+			},
+			typeLiffRepo: typeRepoOK,
+			staffRepo: &mockLiffStaffRepository{
+				findAllFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
+					t.Fatal("closed date must return before staff resolution")
+					return nil, nil
+				},
+			},
+		}
+		slots, err := svc.GetStaffAvailableTimes(ctx, clinicID, typeID, 0, closedDate)
+		require.NoError(t, err)
+		assert.Empty(t, slots)
+		assert.False(t, IsLineReservationSettingsUnset(err))
+	})
+
+	t.Run("staff path: type not-found stays not-found not unset", func(t *testing.T) {
+		svc := &liffService{
+			settingRepo: &mockLiffSettingRepository{
+				findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+					return liffDefaultSetting(), nil
+				},
+			},
+			typeLiffRepo: &mockLiffTypeRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.ReservationType, error) {
+					return nil, apperrors.FromGORM(gorm.ErrRecordNotFound, "reservation_type", "7")
+				},
+			},
+		}
+		slots, err := svc.GetStaffAvailableTimes(ctx, clinicID, typeID, 0, date)
+		require.Error(t, err)
+		assert.Nil(t, slots)
+		assert.False(t, IsLineReservationSettingsUnset(err))
+		assert.True(t, apperrors.IsNotFound(err))
+	})
+
+	t.Run("staff path: settings DB error stays non-unset error", func(t *testing.T) {
+		dbErr := errors.New("db connection lost")
+		svc := &liffService{
+			settingRepo: &mockLiffSettingRepository{
+				findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+					return nil, dbErr
+				},
+			},
+			typeLiffRepo: typeRepoOK,
+		}
+		slots, err := svc.GetStaffAvailableTimes(ctx, clinicID, typeID, 0, date)
+		require.Error(t, err)
+		assert.Nil(t, slots)
+		assert.False(t, IsLineReservationSettingsUnset(err))
+		assert.ErrorIs(t, err, dbErr)
+		assert.False(t, apperrors.IsNotFound(err))
+	})
 }

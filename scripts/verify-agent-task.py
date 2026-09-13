@@ -468,6 +468,23 @@ def plan(paths):
         elif path.endswith('.md') and (path.startswith(('docs/', '.claude/', '.codex/', '.agents/', 'frontend/src/features/manual/'))
                                       or '/' not in path or pathlib.PurePosixPath(path).name in ('CLAUDE.md', 'AGENTS.md', 'README.md')):
             continue
+        elif (path.startswith('backend/migrations/') and path.endswith('.sql')
+              and len(pathlib.PurePosixPath(path).parts) == 3):
+            # Top-level DDL only (backend/migrations/<file>.sql). seeds/ stay on their own contracts.
+            job = {
+                'service': 'backend',
+                'command': [
+                    'go', 'test', '-json', '-p=2', '-count=1', '-short',
+                    './internal/lintscan',
+                    '-run=^TestMigrationCascadeInventory_NoUnreviewedCascade$',
+                ],
+                'require_completed_test': True,
+            }
+            if job not in jobs:
+                jobs.append(job)
+        elif path.endswith(('.png', '.jpg', '.jpeg', '.webp', '.gif')) and '/' not in path:
+            # Repo-root local repro evidence screenshots; documentation-only SKIP.
+            continue
         else:
             blocked.append(path)
     for path in paths:

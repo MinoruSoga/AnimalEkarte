@@ -101,12 +101,6 @@ func TestDB_MedicalRecordRepositoryFindByIDForClinicsCorrelatesRelationsToParent
 				record.DoctorID = &foreign.doctor.ID
 			},
 		},
-		{
-			name: "foreign entered-by staff",
-			mutate: func(record *model.MedicalRecord, foreign foreignRelations) {
-				record.EnteredBy = &foreign.enteredBy.ID
-			},
-		},
 	}
 
 	for _, tt := range tests {
@@ -145,6 +139,33 @@ func TestDB_MedicalRecordRepositoryFindByIDForClinicsCorrelatesRelationsToParent
 			assert.Nil(t, got)
 		})
 	}
+
+	t.Run("foreign entered-by staff keeps clinic-owned history readable", func(t *testing.T) {
+		db := setupMedicalRecordOwnerPetPreloadDB(t)
+		repo := NewMedicalRecordRepository(db)
+		ctx := context.Background()
+		const clinicA, clinicB = uint64(1), uint64(2)
+		ensureVaccinationTestClinics(t, db, clinicA, clinicB)
+
+		ownerA := makeTestOwner(t, db, clinicA, "詳細取得自院飼主")
+		petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "詳細取得自院ペット")
+		enteredByB := makeMedicalRecordListStaff(t, db, clinicB, "詳細取得別院入力者", model.StaffTypeNurse)
+		require.NoError(t, db.Create(&model.StaffClinicAssignment{
+			StaffID: enteredByB.ID, ClinicID: clinicB,
+		}).Error)
+		record := &model.MedicalRecord{
+			ClinicID: clinicA, RecordNo: "DETAIL-FOREIGN-ENTERED-BY", Date: time.Now(),
+			OwnerID: &ownerA.ID, PetID: &petA.ID, EnteredBy: &enteredByB.ID,
+		}
+		require.NoError(t, db.WithContext(ctx).Create(record).Error)
+
+		got, err := repo.FindByIDForClinics(ctx, []uint64{clinicA, clinicB}, record.ID)
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		assert.Equal(t, record.ID, got.ID)
+		require.NotNil(t, got.EnteredByStaff)
+		assert.Equal(t, enteredByB.ID, got.EnteredByStaff.ID)
+	})
 
 	t.Run("staff assigned to the parent clinic remains visible when its primary clinic differs", func(t *testing.T) {
 		db := setupMedicalRecordOwnerPetPreloadDB(t)

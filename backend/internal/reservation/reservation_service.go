@@ -296,6 +296,7 @@ func (s *reservationService) Create(ctx context.Context, input *CreateManualRese
 			return nil, apperrors.Wrap(err, "failed to verify reservation type ownership")
 		}
 	}
+	doctorID := normalizeCreateDoctorID(input.DoctorID)
 	reservation := &model.Reservation{
 		ClinicID:          input.ClinicID,
 		StartTime:         input.StartTime,
@@ -304,7 +305,7 @@ func (s *reservationService) Create(ctx context.Context, input *CreateManualRese
 		PetID:             input.PetID,
 		VisitType:         input.VisitType,
 		ReservationTypeID: input.ReservationTypeID,
-		DoctorID:          input.DoctorID,
+		DoctorID:          doctorID,
 		IsDesignated:      input.IsDesignated,
 		Status:            input.Status,
 		Notes:             input.Notes,
@@ -388,9 +389,10 @@ func (s *reservationService) CreateBatch(ctx context.Context, input *CreateManua
 			return nil, err
 		}
 	}
+	doctorID := normalizeCreateDoctorID(input.DoctorID)
 	created := make([]model.Reservation, 0, len(pets))
 	err := s.tx.WithTx(ctx, func(ctx context.Context) error {
-		if err := ValidateReservationStaffCapability(ctx, s.reservationStaffRepo, input.ClinicID, input.DoctorID, input.ReservationTypeID); err != nil {
+		if err := ValidateReservationStaffCapability(ctx, s.reservationStaffRepo, input.ClinicID, doctorID, input.ReservationTypeID); err != nil {
 			return err
 		}
 		if enforceBookingConstraints {
@@ -403,7 +405,7 @@ func (s *reservationService) CreateBatch(ctx context.Context, input *CreateManua
 			if err := s.validateCreateClinicHoliday(ctx, input.ClinicID, input.StartTime); err != nil {
 				return err
 			}
-			if err := CheckSlotConflict(ctx, s.repo, input.ClinicID, input.DoctorID, input.StartTime, input.EndTime, nil); err != nil {
+			if err := CheckSlotConflict(ctx, s.repo, input.ClinicID, doctorID, input.StartTime, input.EndTime, nil); err != nil {
 				return err
 			}
 			if err := CheckReservationTypeCapacityForCount(ctx, s.repo, s.typeRepo, input.ClinicID, input.ReservationTypeID, input.StartTime, len(pets)); err != nil {
@@ -426,7 +428,7 @@ func (s *reservationService) CreateBatch(ctx context.Context, input *CreateManua
 			if err := ValidateReservationPetNotDeceased(ctx, s.repo, input.ClinicID, &petID); err != nil {
 				return err
 			}
-			reservation := model.Reservation{ClinicID: input.ClinicID, StartTime: input.StartTime, EndTime: input.EndTime, OwnerID: &ownerID, PetID: &petID, VisitType: input.VisitType, ReservationTypeID: input.ReservationTypeID, DoctorID: input.DoctorID, IsDesignated: input.IsDesignated, Status: input.Status, Notes: input.Notes, Source: input.Source, CreatedBy: input.CreatedBy, ReservationRoute: input.ReservationRoute}
+			reservation := model.Reservation{ClinicID: input.ClinicID, StartTime: input.StartTime, EndTime: input.EndTime, OwnerID: &ownerID, PetID: &petID, VisitType: input.VisitType, ReservationTypeID: input.ReservationTypeID, DoctorID: doctorID, IsDesignated: input.IsDesignated, Status: input.Status, Notes: input.Notes, Source: input.Source, CreatedBy: input.CreatedBy, ReservationRoute: input.ReservationRoute}
 			if err := s.repo.Create(ctx, &reservation); err != nil {
 				return err
 			}

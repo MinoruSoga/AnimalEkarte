@@ -180,18 +180,14 @@ func listInventorySQLFiles(t *testing.T) []string {
 	return names
 }
 
-// TestTopLevelDDLMigrationInventoryIncludesInitAndEnsure asserts the post-consolidation
-// disk topology: 001_init.sql only under migrations/ (maxdepth 1).
+// TestTopLevelDDLMigrationInventoryIncludesInitAndEnsure asserts migrations/
+// still starts with consolidated 001_init.sql and that every top-level *.sql
+// matches the numbered DDL naming pattern. Additional incremental files
+// (002_*.sql, …) are allowed; count is not frozen (see migrations/CLAUDE.md).
 func TestTopLevelDDLMigrationInventoryIncludesInitAndEnsure(t *testing.T) {
 	sqlFiles := listInventorySQLFiles(t)
-	want := []string{"001_init.sql"}
-	if len(sqlFiles) != len(want) {
-		t.Fatalf("top-level DDL files = %v, want %v", sqlFiles, want)
-	}
-	for i := range want {
-		if sqlFiles[i] != want[i] {
-			t.Fatalf("top-level DDL files = %v, want %v", sqlFiles, want)
-		}
+	if len(sqlFiles) == 0 || sqlFiles[0] != "001_init.sql" {
+		t.Fatalf("top-level DDL must start with 001_init.sql, got %v", sqlFiles)
 	}
 	for _, name := range sqlFiles {
 		if !topLevelDDLNamePattern.MatchString(name) {

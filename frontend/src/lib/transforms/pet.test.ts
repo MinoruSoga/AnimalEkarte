@@ -5,6 +5,7 @@ import { describe, it, expect } from "vitest";
 import ts from "typescript";
 
 import {
+  isPetDeceasedForClinicalWrite,
   mapPetStatusLabel,
   transformBackendPetToFrontend,
   transformCreatePetRequest,
@@ -142,6 +143,18 @@ describe("transformBackendPetToFrontend", () => {
 
     expect(pet.deceasedAt).toBeUndefined();
     expect(pet.deceasedReason).toBeUndefined();
+  });
+
+  it("isPetDeceasedForClinicalWrite は status=死亡 OR deceasedAt を死亡とする", () => {
+    expect(isPetDeceasedForClinicalWrite({ status: "生存" })).toBe(false);
+    expect(isPetDeceasedForClinicalWrite({ status: "死亡" })).toBe(true);
+    expect(
+      isPetDeceasedForClinicalWrite({ status: "死亡", deceasedAt: "2026-07-10T12:00:00+09:00" }),
+    ).toBe(true);
+    expect(
+      isPetDeceasedForClinicalWrite({ status: "生存", deceasedAt: "2026-07-10T12:00:00+09:00" }),
+    ).toBe(true);
+    expect(isPetDeceasedForClinicalWrite({ status: "生存", deceasedAt: null })).toBe(false);
   });
 
   it("未知statusは生存へ推測せず不明にする", () => {

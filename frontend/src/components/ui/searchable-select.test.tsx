@@ -34,4 +34,30 @@ describe("SearchableSelect", () => {
     expect(trigger).toHaveAttribute("aria-invalid", "true");
     expect(trigger).toHaveAttribute("aria-describedby", "testTypeId-error");
   });
+
+  it("options に無い value は fallbackLabel を表示し、未指定時は placeholder", () => {
+    const { rerender } = render(
+      <SearchableSelect
+        value="10"
+        onValueChange={vi.fn()}
+        options={[{ value: "11", label: "鈴木" }]}
+        placeholder="選択してください"
+        fallbackLabel="三井"
+        ariaLabel="担当者"
+      />,
+    );
+
+    expect(screen.getByRole("combobox", { name: "担当者" })).toHaveTextContent("三井");
+
+    rerender(
+      <SearchableSelect
+        value="10"
+        onValueChange={vi.fn()}
+        options={[{ value: "11", label: "鈴木" }]}
+        placeholder="選択してください"
+        ariaLabel="担当者"
+      />,
+    );
+    expect(screen.getByRole("combobox", { name: "担当者" })).toHaveTextContent("選択してください");
+  });
 });

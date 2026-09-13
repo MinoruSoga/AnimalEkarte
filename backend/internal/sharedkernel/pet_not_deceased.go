@@ -13,10 +13,10 @@ type PetByIDFinder interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error)
 }
 
-// ValidatePetNotDeceased は死亡ペット（deceased_at IS NOT NULL）への業務 write を fail-closed で拒否する。
+// ValidatePetNotDeceased は死亡ペットへの業務 write を fail-closed で拒否する。
+// 死亡契約: status=deceased OR deceased_at != nil（日時の捏造・backfill はしない）。
 // FE の選択 UI ブロックだけでは API 直叩きを防げないため BE 側でも検証する。
 // message は呼び出し元の業務文言をそのまま返す（既存 hospitalization テストが assert するため）。
-// 判定は Status ではなく DeceasedAt を正とする（RecordDeath が両方を同時更新する契約）。
 func ValidatePetNotDeceased(ctx context.Context, petRepo PetByIDFinder, clinicID, petID uint64, message string) error {
 	pet, err := petRepo.FindByID(ctx, clinicID, petID)
 	if err != nil {
@@ -25,7 +25,7 @@ func ValidatePetNotDeceased(ctx context.Context, petRepo PetByIDFinder, clinicID
 	if pet == nil {
 		return apperrors.WrapNotFound("pet", "status")
 	}
-	if pet.DeceasedAt != nil {
+	if pet.Status == model.PetStatusDeceased || pet.DeceasedAt != nil {
 		return apperrors.WrapInvalidInput(message)
 	}
 	return nil

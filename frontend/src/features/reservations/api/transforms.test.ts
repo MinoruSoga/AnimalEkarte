@@ -309,4 +309,29 @@ describe("transformToCreateRequest", () => {
       }),
     );
   });
+
+  // BUG-RES-DOCTOR-ID-ZERO: create must never emit doctor_id 0 / "0"
+  it("担当未選択（空文字）では doctor_id を payload に含めない", () => {
+    const result = transformToCreateRequest({ ...baseData, doctor: "" }, "1", "1");
+    expect(result.doctor_id).toBeUndefined();
+    expect(result).not.toHaveProperty("doctor_id");
+  });
+
+  it('担当が文字列 "0" のとき doctor_id を payload に含めない', () => {
+    const result = transformToCreateRequest({ ...baseData, doctor: "0" }, "1", "1");
+    expect(result.doctor_id).toBeUndefined();
+    expect(result).not.toHaveProperty("doctor_id");
+  });
+
+  it("有効な正の担当者 ID は doctor_id number として保持する", () => {
+    const result = transformToCreateRequest({ ...baseData, doctor: "42" }, "1", "1");
+    expect(result.doctor_id).toBe(42);
+  });
+
+  it.each(["abc", "-1", "1.5", "01", "99999999999999999999"])(
+    "不正な担当者 ID %s は fail-closed で投げる（未指定へ落とさない）",
+    (doctor) => {
+      expect(() => transformToCreateRequest({ ...baseData, doctor }, "1", "1")).toThrow(/doctor/i);
+    },
+  );
 });

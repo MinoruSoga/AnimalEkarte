@@ -434,6 +434,41 @@ func TestGetReservationAvailableTimes_PrefersStaffAvailableTimes(t *testing.T) {
 	assert.Zero(t, svc.liffCalls, "LIFF GetAvailableTimes must not run when staff method exists")
 }
 
+// mockSettingsUnsetAvailability returns in-clinic settings-unset for staff path.
+type mockSettingsUnsetAvailability struct{}
+
+func (m *mockSettingsUnsetAvailability) GetAvailableTimes(
+	_ context.Context, _, _, _ uint64, _ time.Time,
+) ([]TimeSlot, error) {
+	return nil, apperrors.WrapNotFound("line_reservation_setting", "clinic")
+}
+
+func (m *mockSettingsUnsetAvailability) GetStaffAvailableTimes(
+	_ context.Context, _, _, _ uint64, _ time.Time,
+) ([]TimeSlot, error) {
+	return nil, &LineReservationSettingsUnsetError{}
+}
+
+func TestGetReservationAvailableTimes_SettingsUnset_IdentifiableCode(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	h := newHandlerWithLiffSvc(&mockSettingsUnsetAvailability{})
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(
+		http.MethodGet,
+		"/?reservation_type_id=5&date=2026-09-13",
+		http.NoBody,
+	)
+	setClinicID(c)
+
+	h.GetReservationAvailableTimes(c)
+
+	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+	assert.Contains(t, w.Body.String(), `"code":"`+CodeLineReservationSettingsUnset+`"`)
+	assert.NotContains(t, w.Body.String(), `"error":"not found"`)
+}
+
 // ---- CreateReservation ----
 
 func TestCreateReservation(t *testing.T) {

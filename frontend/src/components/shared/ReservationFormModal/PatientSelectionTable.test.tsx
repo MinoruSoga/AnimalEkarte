@@ -28,6 +28,7 @@ interface BackendPetRow {
   animal_species_id: number;
   gender: string;
   status: string;
+  deceased_at?: string | null;
 }
 
 function backendPet(id: number, overrides: Partial<BackendPetRow> = {}): BackendPetRow {
@@ -504,6 +505,30 @@ describe("PatientSelectionTable — 選択操作", () => {
   it("死亡ペットは選択不可のまま描画する", async () => {
     mockPetList(() => ({
       data: [backendPet(1, { status: "deceased" })],
+      total: 1,
+      page: 1,
+      limit: 20,
+    }));
+
+    const user = userEvent.setup();
+    renderTable();
+    await user.type(screen.getByLabelText(SEARCH_LABEL), "や");
+
+    expect(
+      await screen.findByRole("button", {
+        name: "死亡・選択不可: ミケ1 (ID 1)",
+      }),
+    ).toBeDisabled();
+  });
+
+  it("status=alive でも deceased_at があるペットは選択不可（alive/dated）", async () => {
+    mockPetList(() => ({
+      data: [
+        backendPet(1, {
+          status: "alive",
+          deceased_at: "2026-07-10T12:00:00+09:00",
+        }),
+      ],
       total: 1,
       page: 1,
       limit: 20,
