@@ -20,8 +20,16 @@ class VerificationTests(unittest.TestCase):
         self.assertFalse(jobs)
         self.assertTrue(blocked)
 
-    def test_frontend_uses_related_tests_without_empty_success(self):
+    def test_frontend_feature_uses_feature_dir_vitest_without_empty_success(self):
         jobs, blocked = verify.plan(['frontend/src/features/pets/Pet.tsx'])
+        self.assertFalse(blocked)
+        self.assertEqual(jobs[0]['command'][:4], ['node', 'node_modules/vitest/vitest.mjs', 'run', '--reporter=json'])
+        self.assertIn('src/features/pets', jobs[0]['command'])
+        self.assertNotIn('related', jobs[0]['command'])
+        self.assertNotIn('--passWithNoTests', jobs[0]['command'])
+
+    def test_frontend_shared_ui_keeps_related_tests(self):
+        jobs, blocked = verify.plan(['frontend/src/components/ui/dialog.tsx'])
         self.assertFalse(blocked)
         self.assertIn('related', jobs[0]['command'])
         self.assertNotIn('--passWithNoTests', jobs[0]['command'])

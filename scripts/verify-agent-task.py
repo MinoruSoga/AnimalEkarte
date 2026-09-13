@@ -18,6 +18,18 @@ import uuid
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
+def _plan_scope(paths):
+    """Load ci_scope_plan without requiring package install."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        'ci_scope_plan', pathlib.Path(__file__).with_name('ci_scope_plan.py')
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.plan_scope(paths)
+
+
 def run(command, root=ROOT):
     owned_name = 'ae-verify-' + uuid.uuid4().hex if command[:2] == ['docker', 'run'] else None
     actual = command[:2] + ['--name', owned_name] + command[2:] if owned_name else command
@@ -439,9 +451,22 @@ def plan(paths):
                 blocked.append(path)
                 continue
             jobs.append({'service': 'host', 'command': ['bash', '-n', path]})
-        elif path in ('scripts/verify-agent-task.py', 'scripts/test_verify_agent_task.py', '.githooks/pre-commit', '.githooks/pre-push', '.githooks/lib/check-secrets.sh', 'scripts/run-local-ci.sh'):
-            if not any(job['service'] == 'host' for job in jobs):
+        elif path in (
+            'scripts/verify-agent-task.py',
+            'scripts/test_verify_agent_task.py',
+            'scripts/ci_scope_plan.py',
+            'scripts/ci_scope_plan_test.py',
+            '.githooks/pre-commit',
+            '.githooks/pre-push',
+            '.githooks/lib/check-secrets.sh',
+            'scripts/run-local-ci.sh',
+        ):
+            if not any(job['service'] == 'host' and job['command'][-1].endswith('test_verify_agent_task.py') for job in jobs):
                 jobs.append({'service': 'host', 'command': ['python3', '-B', 'scripts/test_verify_agent_task.py']})
+            if path.startswith('scripts/ci_scope_plan') and not any(
+                job['service'] == 'host' and job['command'][-1].endswith('ci_scope_plan_test.py') for job in jobs
+            ):
+                jobs.append({'service': 'host', 'command': ['python3', '-B', 'scripts/ci_scope_plan_test.py']})
         elif path in ('scripts/test_agent_scope_contracts.py', '.gitignore', '.mcp.json', '.claude/settings.json', '.claude/codex-agent-manifest.json', 'backend/wrangler.jsonc'):
             jobs.append({'service': 'host', 'command': ['python3', '-B', 'scripts/test_agent_scope_contracts.py']})
         elif path in ('.claude/scripts/sync-codex-mirror.py', '.claude/scripts/test_sync_codex_mirror.py', '.claude/scripts/sync-codex-mirror.sh'):
@@ -491,7 +516,27 @@ def plan(paths):
         if path in ('.githooks/pre-commit', '.githooks/pre-push', '.githooks/lib/check-secrets.sh', 'scripts/run-local-ci.sh', '.claude/scripts/sync-codex-mirror.sh', '.claude/scripts/sync-agents-skills.sh'):
             jobs.append({'service': 'host', 'command': ['bash' if path.endswith('.sh') else 'sh', '-n', path]})
     if frontend:
-        jobs.append({'service': 'frontend', 'command': ['node', 'node_modules/vitest/vitest.mjs', 'related', '--run', '--configLoader', 'native', '--reporter=json', *frontend], 'require_frontend_tests': True})
+        scope = _plan_scope(paths)
+        if scope['mode'] == 'partial' and scope['frontend_features']:
+            feature_paths = [f'src/features/{name}' for name in scope['frontend_features']]
+            jobs.append({
+                'service': 'frontend',
+                'command': [
+                    'node', 'node_modules/vitest/vitest.mjs', 'run',
+                    '--reporter=json', *feature_paths,
+                ],
+                'require_frontend_tests': True,
+            })
+        else:
+            # Shared/cross-cutting FE: keep graph-local related (not full suite).
+            jobs.append({
+                'service': 'frontend',
+                'command': [
+                    'node', 'node_modules/vitest/vitest.mjs', 'related',
+                    '--run', '--configLoader', 'native', '--reporter=json', *frontend,
+                ],
+                'require_frontend_tests': True,
+            })
         existing = [path for path in frontend if (ROOT / 'frontend' / path).is_file() and '/types/generated/' not in '/' + path]
         if existing:
             jobs.append({'service': 'frontend', 'command': ['node', 'node_modules/eslint/bin/eslint.js', '--max-warnings', '0', *existing]})

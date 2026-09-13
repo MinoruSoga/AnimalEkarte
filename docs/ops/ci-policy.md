@@ -16,9 +16,11 @@
 
 ## Remote CI の要点
 
-- Backend test は独立 PostgreSQL を持つ 4 shard。coverage profile は `scripts/merge_go_coverprofiles.py` で統合する。
-- Frontend test は 2 Vitest shard。blob report を native merge して coverage ratchet を実行する。
-- `main`、`staging`、`production` 向け PR は、path filter に該当する層の build/test を行う。
+- 変更 path は `scripts/ci_scope_plan.py` で **backend domain / frontend feature** に分解する。
+- **partial**: 変更 domain/feature のテストだけを dynamic matrix で実行する。全体 coverage ratchet は **SKIP**（summary に明示）。
+- **full**（shared / migration / workflow / 横断ヒット）: Backend は独立 PostgreSQL を持つ従来 4 shard。Frontend は Vitest 2 shard。coverage は merge 後に ratchet。
+- Backend coverage profile の結合は `scripts/merge_go_coverprofiles.py`（full 時のみ）。Frontend blob も full 時のみ merge。
+- `main`、`staging`、`production` 向け PR は、path filter に該当する層の build と、スコープ計画に応じた test を行う。
 - frontend install は frozen lockfile を使う。
 - Backend は console 出力を制限し、gzip の full log artifact を 7 日保持する。
 - Frontend は `vitest-full.log` を削除する。Vitest blob を artifact にし、失敗時は bounded `vitest-tail.log` のみ追加 upload する。Backend と同じ full-log 契約ではない。

@@ -60,9 +60,20 @@ jobs:
       migrations: ${{ steps.filter.outputs.migrations }}
       worker: ${{ steps.filter.outputs.worker }}
       skip_push_heavy: ${{ steps.release_pr.outputs.skip_heavy }}
+      mode: ${{ steps.scope.outputs.mode }}
+      coverage_ratchet: ${{ steps.scope.outputs.coverage_ratchet }}
+      run_backend_tests: ${{ steps.scope.outputs.run_backend_tests }}
+      run_frontend_tests: ${{ steps.scope.outputs.run_frontend_tests }}
+      backend_shard_count: ${{ steps.scope.outputs.backend_shard_count }}
+      frontend_shard_count: ${{ steps.scope.outputs.frontend_shard_count }}
+      backend_matrix: ${{ steps.scope.outputs.backend_matrix }}
+      frontend_matrix: ${{ steps.scope.outputs.frontend_matrix }}
+      scope_reason: ${{ steps.scope.outputs.reason }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
 
       - name: Path filter
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
@@ -99,6 +110,36 @@ jobs:
               - 'backend/worker/**'
               - 'package.json'
               - 'pnpm-lock.yaml'
+
+      - name: Plan domain/feature test scope
+        id: scope
+        shell: bash --noprofile --norc -euo pipefail {0}
+        run: |
+          set +e
+          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
+            base="${{ github.event.pull_request.base.sha }}"
+            git diff --name-only "${base}"...HEAD > /tmp/ci-changed-paths.txt
+          else
+            before="${{ github.event.before }}"
+            if [[ -z "${before}" || "${before}" =~ ^0+$ ]]; then
+              git diff --name-only HEAD~1 HEAD > /tmp/ci-changed-paths.txt
+            else
+              git diff --name-only "${before}"...HEAD > /tmp/ci-changed-paths.txt
+            fi
+          fi
+          set -e
+          if [[ ! -s /tmp/ci-changed-paths.txt ]]; then
+            if [[ "${{ steps.filter.outputs.backend }}" == "true" || "${{ steps.filter.outputs.frontend }}" == "true" ]]; then
+              printf '%s\n' '.github/workflows/ci.yml' > /tmp/ci-changed-paths.txt
+            fi
+          fi
+          python3 scripts/ci_scope_plan.py --paths-file /tmp/ci-changed-paths.txt --github-output "$GITHUB_OUTPUT" | tee /tmp/ci-scope-plan.json
+          {
+            echo "### CI scope"
+            echo '```json'
+            cat /tmp/ci-scope-plan.json
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       # main→staging release PR は同じ SHA の PR workflow で累積差分を検証する。
       # その場合だけ push 側の重い job を省き、API 障害時は fail-open で実行する。
@@ -183,13 +224,13 @@ jobs:
   backend_test:
     name: Backend Test (${{ matrix.shard }})
     needs: changes
-    if: needs.changes.outputs.backend == 'true' && needs.changes.outputs.skip_push_heavy != 'true'
+    if: needs.changes.outputs.backend == 'true' && needs.changes.outputs.run_backend_tests == 'true' && needs.changes.outputs.skip_push_heavy != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
-        shard: [medicalrecord, auth, staff-billing-reservation, remaining]
+        include: ${{ fromJson(needs.changes.outputs.backend_matrix) }}
     services:
       postgres:
         image: postgres:18-alpine
@@ -247,28 +288,27 @@ jobs:
         shell: bash --noprofile --norc -euo pipefail {0}
         run: |
           mapfile -t all_packages < <(go list ./... | LC_ALL=C sort)
-          case "${{ matrix.shard }}" in
-            medicalrecord)
-              packages=(github.com/animal-ekarte/backend/internal/medicalrecord)
-              ;;
-            auth)
-              packages=(github.com/animal-ekarte/backend/internal/auth)
-              ;;
-            staff-billing-reservation)
-              packages=(
-                github.com/animal-ekarte/backend/internal/staff
-                github.com/animal-ekarte/backend/internal/billing
-                github.com/animal-ekarte/backend/internal/reservation
-              )
+          select_mode="${{ matrix.select }}"
+          packages=()
+          case "${select_mode}" in
+            packages)
+              # matrix.packages is a space-separated list of ./internal/... paths
+              read -r -a rel_packages <<< "${{ matrix.packages }}"
+              for rel in "${rel_packages[@]}"; do
+                packages+=("github.com/animal-ekarte/backend/${rel#./}")
+              done
               ;;
             remaining)
-              packages=()
               for package in "${all_packages[@]}"; do
                 case "$package" in
                   */internal/medicalrecord|*/internal/auth|*/internal/staff|*/internal/billing|*/internal/reservation) ;;
                   *) packages+=("$package") ;;
                 esac
               done
+              ;;
+            *)
+              echo "::error::Unknown backend matrix select=${select_mode}"
+              exit 1
               ;;
           esac
           if [[ "${#packages[@]}" -eq 0 ]]; then
@@ -310,7 +350,7 @@ jobs:
   backend:
     name: Backend
     needs: [changes, backend_build, backend_test]
-    if: always() && needs.changes.outputs.backend == 'true' && needs.changes.outputs.skip_push_heavy != 'true'
+    if: always() && needs.changes.outputs.backend == 'true' && needs.changes.outputs.run_backend_tests == 'true' && needs.changes.outputs.skip_push_heavy != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -341,16 +381,20 @@ jobs:
           merge-multiple: true
 
       - name: Merge coverage profiles
+        if: needs.changes.outputs.coverage_ratchet == 'run'
         shell: bash --noprofile --norc -euo pipefail {0}
+        env:
+          EXPECTED_SHARDS: ${{ needs.changes.outputs.backend_shard_count }}
         run: |
           mapfile -t profiles < <(find backend/coverage-shards -maxdepth 1 -name 'coverage-*.out' -type f | LC_ALL=C sort)
-          if [[ "${#profiles[@]}" -ne 4 ]]; then
-            echo "::error::Expected 4 backend coverage profiles, found ${#profiles[@]}."
+          if [[ "${#profiles[@]}" -ne "${EXPECTED_SHARDS}" ]]; then
+            echo "::error::Expected ${EXPECTED_SHARDS} backend coverage profiles, found ${#profiles[@]}."
             exit 1
           fi
           python3 scripts/merge_go_coverprofiles.py --output backend/coverage.out "${profiles[@]}"
 
       - name: Coverage summary
+        if: needs.changes.outputs.coverage_ratchet == 'run'
         working-directory: backend
         run: |
           go tool cover -func=coverage.out | tee coverage-summary.txt
@@ -363,9 +407,20 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Coverage ratchet
+        if: needs.changes.outputs.coverage_ratchet == 'run'
         working-directory: backend
         shell: bash --noprofile --norc -euo pipefail {0}
         run: go run ./cmd/coverage-ratchet -baseline .coverage-baseline -func-file coverage-summary.txt | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Skip coverage ratchet (partial domain run)
+        if: needs.changes.outputs.coverage_ratchet != 'run'
+        shell: bash --noprofile --norc -euo pipefail {0}
+        run: |
+          {
+            echo "### Backend coverage"
+            echo "coverage_ratchet=SKIP (partial domain run)"
+            echo "reason: ${{ needs.changes.outputs.scope_reason }}"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload backend coverage artifact
         if: always()
@@ -430,15 +485,15 @@ jobs:
         run: pnpm run build
 
   frontend_test:
-    name: Frontend Test (${{ matrix.shard }}/2)
+    name: Frontend Test (${{ matrix.shard }})
     needs: changes
-    if: needs.changes.outputs.frontend == 'true' && needs.changes.outputs.skip_push_heavy != 'true'
+    if: needs.changes.outputs.frontend == 'true' && needs.changes.outputs.run_frontend_tests == 'true' && needs.changes.outputs.skip_push_heavy != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2]
+        include: ${{ fromJson(needs.changes.outputs.frontend_matrix) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7.0.1
@@ -462,11 +517,31 @@ jobs:
       - name: Test shard with coverage
         working-directory: frontend
         shell: bash --noprofile --norc -euo pipefail {0}
+        env:
+          SELECT_MODE: ${{ matrix.select }}
+          FEATURE_PATH: ${{ matrix.feature_path }}
+          VITEST_SHARD: ${{ matrix.vitest_shard }}
+          COVERAGE_RATCHET: ${{ needs.changes.outputs.coverage_ratchet }}
         run: |
           set +e
+          args=(run --reporter=dot --silent=passed-only)
+          if [[ "${COVERAGE_RATCHET}" == "run" ]]; then
+            args+=(--coverage --reporter=blob)
+          fi
+          case "${SELECT_MODE}" in
+            vitest-shard)
+              args+=(--shard="${VITEST_SHARD}")
+              ;;
+            feature)
+              args+=("${FEATURE_PATH}")
+              ;;
+            *)
+              echo "::error::Unknown frontend matrix select=${SELECT_MODE}"
+              exit 1
+              ;;
+          esac
           timeout --signal=TERM --kill-after=30s 18m \
-            pnpm exec vitest run --coverage --shard=${{ matrix.shard }}/2 \
-              --reporter=dot --reporter=blob --silent=passed-only >vitest-full.log 2>&1
+            pnpm exec vitest "${args[@]}" >vitest-full.log 2>&1
           status=$?
           set -e
           tail -n 5000 vitest-full.log >vitest-tail.log
@@ -475,7 +550,7 @@ jobs:
           exit "$status"
 
       - name: Upload Vitest blob
-        if: always()
+        if: always() && needs.changes.outputs.coverage_ratchet == 'run'
         uses: actions/upload-artifact@v7
         with:
           name: frontend-vitest-blob-${{ matrix.shard }}
@@ -496,7 +571,7 @@ jobs:
   frontend:
     name: Frontend
     needs: [changes, frontend_build, frontend_test]
-    if: always() && needs.changes.outputs.frontend == 'true' && needs.changes.outputs.skip_push_heavy != 'true'
+    if: always() && needs.changes.outputs.frontend == 'true' && needs.changes.outputs.run_frontend_tests == 'true' && needs.changes.outputs.skip_push_heavy != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -530,6 +605,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Download Vitest blobs
+        if: needs.changes.outputs.coverage_ratchet == 'run'
         uses: actions/download-artifact@v8
         with:
           pattern: frontend-vitest-blob-*
@@ -537,19 +613,33 @@ jobs:
           merge-multiple: true
 
       - name: Merge Vitest reports and coverage
+        if: needs.changes.outputs.coverage_ratchet == 'run'
         working-directory: frontend
+        env:
+          EXPECTED_SHARDS: ${{ needs.changes.outputs.frontend_shard_count }}
         run: |
           blob_count=$(find .vitest-reports -maxdepth 1 -name 'blob-*.json' -type f | wc -l | tr -d ' ')
-          if [[ "$blob_count" -ne 2 ]]; then
-            echo "::error::Expected 2 Vitest blob reports, found $blob_count."
+          if [[ "$blob_count" -ne "${EXPECTED_SHARDS}" ]]; then
+            echo "::error::Expected ${EXPECTED_SHARDS} Vitest blob reports, found $blob_count."
             exit 1
           fi
-          pnpm exec vitest --mergeReports .vitest-reports --coverage             --reporter=default --silent=passed-only
+          pnpm exec vitest --mergeReports .vitest-reports --coverage --reporter=default --silent=passed-only
 
       - name: Coverage ratchet
+        if: needs.changes.outputs.coverage_ratchet == 'run'
         working-directory: frontend
         shell: bash --noprofile --norc -euo pipefail {0}
         run: node scripts/coverage-ratchet.mjs --summary coverage/coverage-summary.json --baseline .coverage-baseline | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Skip coverage ratchet (partial feature run)
+        if: needs.changes.outputs.coverage_ratchet != 'run'
+        shell: bash --noprofile --norc -euo pipefail {0}
+        run: |
+          {
+            echo "### Frontend coverage"
+            echo "coverage_ratchet=SKIP (partial feature run)"
+            echo "reason: ${{ needs.changes.outputs.scope_reason }}"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload frontend coverage artifact
         if: always()
