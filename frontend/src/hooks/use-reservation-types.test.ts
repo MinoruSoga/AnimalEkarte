@@ -218,7 +218,7 @@ describe("useGetReservationAvailableTimes (BUG-015)", () => {
     await waitFor(() => expect(result.current.query.isSuccess).toBe(true));
 
     const cached = result.current.queryClient.getQueryCache().find({
-      queryKey: [...queryKeys.reservations.availableTimes("2", "2026-06-01"), CLINIC_ID],
+      queryKey: queryKeys.reservations.availableTimes("2", "2026-06-01", undefined, CLINIC_ID),
     });
     expect(cached?.meta?.silentError).toBe(true);
   });
@@ -246,9 +246,7 @@ describe("useGetReservationAvailableTimes (BUG-RES-AVAILABLE-TIMES-404)", () => 
   });
 
   it("keeps empty array success distinct from unset", async () => {
-    server.use(
-      http.get("/api/v1/reservations/available-times", () => HttpResponse.json([])),
-    );
+    server.use(http.get("/api/v1/reservations/available-times", () => HttpResponse.json([])));
 
     const { result } = renderHook(() => useGetReservationAvailableTimes("5", "2026-09-13", null), {
       wrapper: createTestWrapper(),
@@ -259,25 +257,21 @@ describe("useGetReservationAvailableTimes (BUG-RES-AVAILABLE-TIMES-404)", () => 
     expect(isLineReservationSettingsUnsetError(result.current.error)).toBe(false);
   });
 
-  it(
-    "keeps transport errors as non-unset errors",
-    async () => {
-      server.use(
-        http.get("/api/v1/reservations/available-times", () =>
-          HttpResponse.json({ error: "internal server error" }, { status: 500 }),
-        ),
-      );
+  it("keeps transport errors as non-unset errors", async () => {
+    server.use(
+      http.get("/api/v1/reservations/available-times", () =>
+        HttpResponse.json({ error: "internal server error" }, { status: 500 }),
+      ),
+    );
 
-      const { result } = renderHook(() => useGetReservationAvailableTimes("5", "2026-09-13", null), {
-        wrapper: createTestWrapper(),
-      });
+    const { result } = renderHook(() => useGetReservationAvailableTimes("5", "2026-09-13", null), {
+      wrapper: createTestWrapper(),
+    });
 
-      // Default RQ retries for non-unset 5xx need a longer settle window than unset (no retry).
-      await waitFor(() => expect(result.current.isError).toBe(true), { timeout: 12000 });
-      expect(isLineReservationSettingsUnsetError(result.current.error)).toBe(false);
-    },
-    15000,
-  );
+    // Default RQ retries for non-unset 5xx need a longer settle window than unset (no retry).
+    await waitFor(() => expect(result.current.isError).toBe(true), { timeout: 12000 });
+    expect(isLineReservationSettingsUnsetError(result.current.error)).toBe(false);
+  }, 15000);
 
   it("scopes cache by clinic so switching clinics drops stale slots/flags", async () => {
     let hits = 0;

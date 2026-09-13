@@ -205,21 +205,18 @@ export function useGetReservationAvailableTimes(
 ) {
   const clinicId = getCurrentClinicId();
   return useQuery({
-    queryKey: [
-      ...queryKeys.reservations.availableTimes(
-        reservationTypeId!,
-        date!,
-        staffId ?? undefined,
-      ),
-      clinicId ?? "no-clinic",
-    ] as const,
+    queryKey: queryKeys.reservations.availableTimes(
+      reservationTypeId!,
+      date!,
+      staffId ?? undefined,
+      clinicId,
+    ),
     queryFn: () => fetchReservationAvailableTimes(reservationTypeId!, date!, staffId),
     enabled: reservationTypeId !== null && date !== null,
     staleTime: QUERY_STALE_TIMES.REALTIME,
     gcTime: QUERY_GC_TIMES.SHORT,
     // Unset is a durable clinic config state — do not treat as transient transport failure.
-    retry: (failureCount, error) =>
-      !isLineReservationSettingsUnsetError(error) && failureCount < 3,
+    retry: (failureCount, error) => !isLineReservationSettingsUnsetError(error) && failureCount < 3,
     // BUG-015: inactive historical edits may 400; form keeps values and skips global toast.
     meta: { silentError: true },
   });

@@ -124,8 +124,20 @@ export const queryKeys = {
      * 明示的に invalidate する必要がある（既存の呼び出し側は対応済み）。
      */
     detail: (id: string) => ["reservation", id] as const,
-    availableTimes: (reservationTypeId: string, date: string, staffId?: string) =>
-      ["reservations", "available-times", reservationTypeId, date, staffId ?? ""] as const,
+    availableTimes: (
+      reservationTypeId: string,
+      date: string,
+      staffId?: string,
+      clinicId?: string | null,
+    ) =>
+      [
+        "reservations",
+        "available-times",
+        reservationTypeId,
+        date,
+        staffId ?? "",
+        clinicId ?? "no-clinic",
+      ] as const,
   },
   reception: {
     all: () => ["reception"] as const,
