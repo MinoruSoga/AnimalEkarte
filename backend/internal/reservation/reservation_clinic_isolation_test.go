@@ -179,7 +179,6 @@ func TestReservationRepository_MultiClinicReadsCorrelateRelationsToParentClinic(
 	doctorA := makeReservationClinicCorrelationStaff(t, db, clinicA, clinicA, "医院A医師")
 	doctorB := makeReservationClinicCorrelationStaff(t, db, clinicB, clinicB, "医院B医師")
 	creatorA := makeReservationClinicCorrelationStaff(t, db, clinicA, clinicA, "医院A作成者")
-	creatorB := makeReservationClinicCorrelationStaff(t, db, clinicB, clinicB, "医院B作成者")
 	lineCustomerA := makeLineCustomerForAdmin(t, db, clinicA, "line-correlation-a")
 	lineCustomerB := makeLineCustomerForAdmin(t, db, clinicB, "line-correlation-b")
 
@@ -235,12 +234,6 @@ func TestReservationRepository_MultiClinicReadsCorrelateRelationsToParentClinic(
 			).ID,
 		},
 		{
-			name: "creator assigned only to foreign clinic",
-			reservationID: makeReservationClinicCorrelationAppointment(
-				t, db, clinicA, typeA.ID, ownerA.ID, petA.ID, doctorA.ID, creatorB.ID,
-			).ID,
-		},
-		{
 			name: "foreign LINE customer",
 			reservationID: func() uint64 {
 				reservation := makeReservationClinicCorrelationAppointment(
@@ -291,6 +284,22 @@ func TestReservationRepository_MultiClinicReadsCorrelateRelationsToParentClinic(
 			assert.True(t, apperrors.IsNotFound(err), "error must be NotFound: %v", err)
 		})
 	}
+
+	t.Run("historical creator does not determine the appointment clinic", func(t *testing.T) {
+		// Write authorization is covered with the real FK in reservation_created_by_fk_test.go.
+		// A recorded actor can later lose their assignment/admin privilege.
+		creatorB := makeReservationClinicCorrelationStaff(t, db, clinicB, clinicB, "履歴作成者")
+		historical := makeReservationClinicCorrelationAppointment(
+			t, db, clinicA, typeA.ID, ownerA.ID, petA.ID, doctorA.ID, creatorB.ID,
+		)
+		got, err := repo.FindByID(ctx, clinicA, historical.ID)
+		require.NoError(t, err)
+		require.NotNil(t, got.CreatedByStaff)
+		assert.Equal(t, creatorB.ID, got.CreatedByStaff.ID)
+		assert.Zero(t, got.CreatedByStaff.ClinicID, "creator projection contains only ID and name")
+		_, err = repo.FindByID(ctx, clinicB, historical.ID)
+		assert.True(t, apperrors.IsNotFound(err), "parent clinic still scopes historical actors")
+	})
 }
 
 func TestReservationRepository_MultiClinicReadsKeepHistoricalParentWithSoftDeletedRelations(t *testing.T) {

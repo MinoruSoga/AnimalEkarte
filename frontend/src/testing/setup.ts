@@ -50,7 +50,14 @@ if (typeof window !== "undefined") {
 beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
 
 //  Reset handlers after each test `important for test isolation`
-afterEach(() => server.resetHandlers());
+afterEach(() => {
+  server.resetHandlers();
+  // Radix modal Dialog sets body pointer-events:none. Nested portaled overlays
+  // (Popover/Select) can leave that style behind after unmount and block later
+  // tests from clicking (e.g. ReservationFormModal submit in vitest related).
+  document.body.style.pointerEvents = "";
+  document.querySelectorAll("[data-radix-portal]").forEach((node) => node.remove());
+});
 
 //  Close server after all tests
 afterAll(() => server.close());

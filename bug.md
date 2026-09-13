@@ -7,14 +7,14 @@
 
 更新日: 2026-09-13
 
-修正プラン: [着手順序と依存関係](#bug-fix-order) · [検証と完了条件](#bug-fix-verification)。各項目の方針と詳細手順は下表から確認できる。すべて計画段階であり、修正済みではない。
+修正プラン: [着手順序と依存関係](#bug-fix-order) · [検証と完了条件](#bug-fix-verification)。各項目の方針と詳細手順は下表から確認できる。実装・STG配備・実機での解消確認は区別して各項目に記録する。
 
 ## 索引
 
 | ID | status | area | severity | 種別 | 修正プラン |
 |:---|:---|:---|:---|:---|:---|
 | BUG-LOCAL-HANDOFF-CSV-CONTRACT | OPEN | ops / local-db | Medium | handoff preflight BLOCKED | 現行契約でbundleを再生成し、取込前に検証する。[詳細](#plan-bug-local-handoff-csv-contract) |
-| BUG-RES-DOCTOR-ID-ZERO | FIXED | reservation | High | **バグ断定**（FK / doctor_id=0） | 作成時の担当未指定をFE・BEで統一し、0をNULLへ正規化済み。[詳細](#plan-bug-res-doctor-id-zero) |
+| BUG-RES-DOCTOR-ID-ZERO | OPEN | reservation | High | **再調査**（担当未選択でもFKエラーが残存） | 0→NULL修正はSTG反映済み。城東で再発報告があり、登録者 `created_by` の主所属制約を追加修正中。STG解消は未確認。[詳細](#plan-bug-res-doctor-id-zero) |
 | BUG-RES-DIALOG-A11Y-CONSOLE | FIXED | reservation / a11y | Low | **バグ断定**（DialogContent Description 欠落コンソール警告） | 固定ID上書きで Radix DescriptionWarning が context.descriptionId を見失っていた。Radix 管理IDに戻し警告0。[詳細](#plan-bug-res-dialog-a11y-console) |
 | BUG-RES-STAFF-SELECT-ORPHAN-LABEL | FIXED | reservation / UI | High | **バグ断定**（担当者選択後に表示が消える） | 候補外でも表示名を保持し、確定 orphan は理由表示＋解除/再選択まで送信遮断。[詳細](#plan-bug-res-staff-select-orphan-label) |
 | BUG-RES-AVAILABLE-TIMES-404 | FIXED | reservation | Medium | **バグ断定**（LINE設定欠落で院内API 404） | 院内は設定未登録を識別可能な unset（422 + code）にし案内付き手動時刻のみ許可。空枠/障害/LIFF必須は維持。[詳細](#plan-bug-res-available-times-404) |
@@ -51,6 +51,12 @@
 ---
 
 ### BUG-RES-DOCTOR-ID-ZERO: 予約作成で担当医未選択なのに `doctor_id=0` が送られ「参照先が存在しません」になる
+
+- **2026-09-13 追加報告・再オープン**: STGの城東で、担当者未選択でも同じエラーが続くとユーザー報告。既存の0→NULL修正が配備されたことと、予約登録が成功することは別の確認事項。
+- **追加原因（実DDLで再現済み、STG実エラー制約名は未取得）**: 担当者とは別に認証スタッフIDを `created_by` に保存する。`fk_appointments_created_by_clinic` が `staffs(id, clinic_id)`、つまり主所属を要求するため、所属が許可された兼務先での予約も拒否する。既存002 migrationはカルテの `entered_by` のみを修正し、この予約制約は残っていた。
+- **追加修正候補**: 新規003 migrationで登録者を単独staff FK（削除RESTRICT）に変更。通常・複数ペット・管理画面の保存で、有効な登録者の医院所属またはシステム管理者権限を同一transaction内で検証・共有ロックする。登録者IDと履歴表示は保持する。
+- **隔離DB検証（2026-09-13）**: ユーザー承認済みの使い捨てPostgreSQL 18で、001→003・master/login seed投入と再実行が成功。実DDLの旧FKで `doctor_id=NULL` の登録失敗（23503、上記制約名）を再現。新[回帰テスト](backend/internal/reservation/reservation_created_by_fk_test.go)で3登録経路×省略/null/0、未所属・無効actor拒否、権限変更とのロック競合、他院FK維持、履歴取得を検証。新guardのstatement coverageは86.7%。既存の予約repository・医院分離テスト19件もPASS。これはSTG実操作の受入証跡ではない。
+- **完了条件**: 実DDLで旧制約による失敗と修正後の登録成功を確認し、未所属者の拒否・他院の飼主/ペット/予約区分の隔離を維持する。STGへ配備・migration適用後、城東の担当者未選択操作で保存・再表示を確認するまでOPEN。
 
 - **現象**: 院内予約作成（新規予約）で飼主・ペット・予約区分・日時を入れて「予約を登録／確定」すると、トースト **「参照先が存在しません」** で失敗することがある。担当者は「選択してください」（未選択）のまま。
 - **ユーザー報告の流れ**:
@@ -295,7 +301,7 @@
 
 ### 2. BUG-RES-DOCTOR-ID-ZERO
 
-**現行コードでの追加確認**: `/reservations` と `/reservations/batch` の入力は [reservation_request.go](backend/internal/reservation/reservation_request.go)。上記にある `appointment_admin_request.go` は別の管理者経路である。`Create` / `CreateBatch` は0を保存し、`buildReservationUpdate` は更新時の0をNULLにする。担当者所属・対応区分の検証も0を未指定扱いで通すため、検証と保存が不一致になっている。
+**旧修正時の確認**: `/reservations` と `/reservations/batch` の入力は [reservation_request.go](backend/internal/reservation/reservation_request.go)。`appointment_admin_request.go` は別の管理者経路。作成時の0→NULL正規化は既に実装・STG配備済みだが、上記の追加報告により登録者 `created_by` の主所属FKを追加修正する。以下1〜5は最初のdoctor_id正規化修正の計画として保持する。
 
 1. [transforms.test.ts](frontend/src/features/reservations/api/transforms.test.ts) と [use-reservation-actions.test.ts](frontend/src/features/reservations/hooks/use-reservation-actions.test.ts) に、未選択・`"0"`・有効IDについて、実際の送信payloadを検証するREDを追加する。既存ペット単体、複数ペット、新規飼主からの予約を対象にする。
 2. [transformToCreateRequest](frontend/src/features/reservations/api/transforms.ts) の作成用変換で、空値と互換用の `"0"` を未指定へ正規化する。負数・小数・数値でない値・安全に表現できないIDは入力エラーとし、未指定扱いで黙って保存しない。未選択を0にするフォーム初期値・選択解除経路が見つかった場合は、[担当者欄](frontend/src/components/shared/ReservationFormModal/ReservationTypeAndStaffFields.tsx) とその入力元を修正する。

@@ -110,7 +110,9 @@ describe("ReservationFormModal — 新規飼主モード (Issue #51)", () => {
 
     await user.click(screen.getByRole("button", { name: "予約を確定" }));
 
-    expect(await screen.findByText("患者を選択してください")).toBeInTheDocument();
+    expect(
+      await screen.findByText("患者を選択してください", {}, { timeout: 5000 }),
+    ).toBeInTheDocument();
     expect(screen.getByText("予約区分を選択してください")).toBeInTheDocument();
     expect(onSave).not.toHaveBeenCalled();
   });

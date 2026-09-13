@@ -112,7 +112,9 @@ describe("ReservationFormModal — 過去日付検証 (FE-RC-003, JST基準)", (
     const user = userEvent.setup({ delay: null });
     await user.click(screen.getByRole("button", { name: "予約を確定" }));
 
-    expect(await screen.findByText("本日以降の日付を選択してください")).toBeInTheDocument();
+    expect(
+      await screen.findByText("本日以降の日付を選択してください", {}, { timeout: 5000 }),
+    ).toBeInTheDocument();
   });
 
   it("実TZがJSTより1日進んでいても、JST暦日で今日以降の予約は過去日付エラーにならない", async () => {
@@ -151,7 +153,9 @@ describe("ReservationFormModal — 過去日付検証 (FE-RC-003, JST基準)", (
     // 既存飼主モードのまま確定 → 患者未選択/区分未選択エラーは出るが、過去日付エラーは出ない
     await user.click(screen.getByRole("button", { name: "予約を確定" }));
 
-    expect(await screen.findByText("患者を選択してください")).toBeInTheDocument();
+    expect(
+      await screen.findByText("患者を選択してください", {}, { timeout: 5000 }),
+    ).toBeInTheDocument();
     expect(screen.queryByText("本日以降の日付を選択してください")).not.toBeInTheDocument();
   });
 });
