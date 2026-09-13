@@ -478,8 +478,16 @@ def plan(paths):
                 jobs.append({'service': 'host', 'command': ['python3', '-B', '.claude/scripts/' + test]})
         elif path in ACCOUNT_LAYOUT_PATHS:
             jobs.append({'service': 'host', 'command': ['python3', '-B', 'scripts/test_account_csv_layout.py']})
-        elif path in ('scripts/check-workflow-contracts.test.mjs', '.github/workflows/security-scan.yml', '.github/workflows/README-security-scan.md'):
+        elif path in (
+            'scripts/check-workflow-contracts.test.mjs',
+            '.github/workflows/security-scan.yml',
+            '.github/workflows/README-security-scan.md',
+            '.github/workflows/ci.yml',
+        ):
             jobs.append({'service': 'host', 'command': ['node', '--test', 'scripts/check-workflow-contracts.test.mjs']})
+            if path == '.github/workflows/ci.yml':
+                jobs.append({'service': 'host', 'command': ['python3', '-B', 'scripts/ci_scope_plan_test.py']})
+                jobs.append({'service': 'host', 'command': ['python3', '-B', 'scripts/test_verify_agent_task.py']})
         elif path.startswith('backend/worker/') or path == 'backend/wrangler.jsonc':
             jobs.append({'service': 'host', 'command': ['bash', 'scripts/check-test-worker-makefile.test.sh']})
         elif path.startswith('.claude/skills/') and path.endswith('.md'):
