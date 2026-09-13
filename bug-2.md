@@ -13,7 +13,7 @@
 | ID | status | area | severity | 種別 | 修正・検証プラン |
 |:---|:---|:---|:---|:---|:---|
 | BUG2-MR-ENTERED-BY-CLINIC | FIXED | medical-records | High | **バグ断定**（entered_by と選択医院の複合FK） | [本人 ID を保持し、所属認可・FK・履歴読取を整合](#plan-bug2-mr) |
-| BUG2-PAYMETHOD-CREATE-FORBIDDEN | OPEN | payment-methods / authz | Medium | **権限／UX**（一覧可・作成 403） | [既存の権限制御を再検証し、付与方針を PO 判断](#plan-bug2-paymethod) |
+| BUG2-PAYMETHOD-CREATE-FORBIDDEN | SPEC-OK | payment-methods / authz | Medium | **権限／UX**（一覧可・作成 403） | [既存の権限制御を再検証し、付与方針を PO 判断](#plan-bug2-paymethod) |
 | BUG2-RES-DIALOG-A11Y | FIXED/reverified | reservations / a11y | Low | **コンソール**（`bug.md` の BUG-RES-DIALOG-A11Y-CONSOLE と同系） | [既存修正を紐付け、同じ操作で再検証](#plan-bug2-a11y) |
 | NOTE2-SWEEP-COVERAGE | — | uat | — | カバレッジ記録 | [未確認の詳細画面・入院・検査・健診を補完](#plan-note2-coverage) |
 
@@ -67,10 +67,13 @@
 
 ### BUG2-PAYMETHOD-CREATE-FORBIDDEN: 執行ロールで支払方法マスタが「見れるが作れない」
 
+- **status**: **SPEC-OK**（2026-09-13 · attempt `att-bug2-paymethod-20260913-001`）
 - **現象**: `/settings/payment-methods` は開ける。`GET /api/v1/payment-methods` は 200。`POST` は **403 forbidden**。
 - **実測**: `/api/v1/me` の permissions で `master-payment-method`: `view=true, create=false, edit=true, delete=false`
-- **判断**: コード欠陥というより **権限マトリクス**。執行で create=false かつ edit=true は運用として不自然な可能性があるため起票。
-- **次アクション**: PO に「執行は支払方法を作成できるべきか」を確認。UI は create 不可なら新規ボタンを出さない方がよい。
+- **判断（Grill Q9 Recommended）**: 執行 create=false は既定権限契約。UAT の POST 403 は欠陥ではなく期待値。blanket create 付与はしない。
+- **再検証結果**: HEAD で UI 漏れなし。`PaymentMethodSettings` は `usePermission(ResourcePaymentMethod)` → `canCreate`/`canEdit` を `useMasterSave` と `MasterCRUDPage`（`resource`）へ渡す。`MasterPageShell` は `canCreate` 偽で「新規登録」非表示（BUG-124）。`MasterCRUDPage` は新規パネルを `readOnly` 化。`use-master-save` は `canCreate!==true` で createMutation を発行しない。`billing/routes.go` POST は create 必須。`clinic_service.go` `ResourcePaymentMethod` 執行は view+edit のみ（create false）。製品コード差分なし。
+- **検証**: `docker compose exec frontend npx vitest run src/features/master/components/MasterCRUDPage.test.tsx src/features/master/hooks/use-master-save.test.ts src/features/master/routes/payment-method-settings-model.test.ts` exit 0（19 tests）。backend 未変更のため権限契約は routes/defaults の静的確認；参考で `docker compose exec backend go test ./internal/billing/ -count=1` exit 0。
+- **残作業（本 unit 外）**: 将来 PO が対象医院・権限グループを指名した create 付与のみ別 unit。delete 拡張なし。ADR-003 system_key／医院分離は維持。
 
 ### BUG2-RES-DIALOG-A11Y: 予約ページの DialogContent Description 欠落コンソール警告
 
@@ -191,6 +194,8 @@
 - フロントは既存の `MasterCRUDPage.test.tsx`、`use-master-save.test.ts`、`payment-method-settings-model.test.ts` を優先して回帰を追加し、Docker の `vitest run` で変更対象ファイルを指定する。バックエンドを変更した場合は該当 billing／clinic／auth テストを Docker で実行する。
 
 **終了判断:** 現行契約どおりなら「仕様どおり／UAT 期待値訂正」、実際の UI 漏れや権限仕様を変更したなら、その差分と検証証拠を添えて終了する。無条件の POST 200/201 化を目標にしない。
+
+**SPEC-OK クローズ（2026-09-13 · `att-bug2-paymethod-20260913-001`）:** Grill Q9 により create=false 維持。UI 漏れなし（製品コード未変更）。scoped vitest 19/19 PASS。POST create middleware と執行 defaults（create false）は現行のまま。status → **SPEC-OK**。PO 指名の create 付与は将来 unit。
 
 <a id="plan-bug2-a11y"></a>
 
