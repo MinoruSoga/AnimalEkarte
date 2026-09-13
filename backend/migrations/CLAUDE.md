@@ -1,5 +1,9 @@
 # Migrations
 
+## DB変更の追加方針
+
+**今後のDB変更は新しい連番のmigrationファイルで行う。`001_init.sql`への追記・編集や、後続migrationの再統合は禁止。** 一度コミットされたmigration SQLは変更・削除・リネームせず、訂正も新規ファイルで行う。手順と理由は[README.md](README.md)を参照する。
+
 ## 命名規則
 
 ```
@@ -41,9 +45,9 @@ docker compose exec db psql ...  # 直接 SQL 実行
 
 ## seed データは CSV が正、SQL は DDL のみ（2026-07 stub 削除 + 001 完全統合）
 
-`backend/migrations/` 直下の `.sql` は DDL 専用。過去の incremental DDL は複数回に分けて原文のまま `001_init.sql` 末尾の統合セクションへ統合済み（各回の内訳・元コミット・SHA-256 は `001_init.sql` の統合セクションと git 履歴が正）。今後スキーマ変更を追加する場合も、適用済みファイルの checksum を変える影響を先に評価する。
+`backend/migrations/` 直下の `.sql` は DDL 専用。過去の incremental DDL は複数回に分けて原文のまま `001_init.sql` 末尾の統合セクションへ統合済み（各回の内訳・元コミット・SHA-256 は `001_init.sql` の統合セクションと git 履歴が正）。これは過去の統合履歴であり、今後の変更は新しい連番のファイルで追加する。適用済みファイルの checksum は変更しない。
 
-直下 DDL の顔ぶれ・本数は固定ではない（増分の追加・`001_init.sql` への統合で変わる）。正の在庫は次の実測とする:
+直下 DDL の顔ぶれ・本数は固定ではない（新しい増分ファイルの追加で増える）。正の在庫は次の実測とする:
 
 ```bash
 ls backend/migrations/*.sql
