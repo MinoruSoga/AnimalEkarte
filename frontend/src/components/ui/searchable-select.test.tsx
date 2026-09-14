@@ -1,7 +1,11 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { isDialogPortaledOverlayTarget } from "./dialog-portaled-overlay";
+import {
+  isDialogPortaledOverlayTarget,
+  shouldPreventDialogOutsideInteraction,
+} from "./dialog-portaled-overlay";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
 import { SearchableSelect } from "./searchable-select";
 
@@ -90,5 +94,42 @@ describe("Dialog × portaled Popover (担当者セレクト)", () => {
 
     expect(isDialogPortaledOverlayTarget(option)).toBe(true);
     expect(isDialogPortaledOverlayTarget(document.createElement("div"))).toBe(false);
+    expect(
+      shouldPreventDialogOutsideInteraction({
+        target: document.createElement("div"),
+        detail: { originalEvent: { target: option } as unknown as Event },
+      }),
+    ).toBe(true);
+    expect(
+      shouldPreventDialogOutsideInteraction({
+        target: document.createElement("div"),
+        detail: { originalEvent: { target: document.body } as unknown as Event },
+      }),
+    ).toBe(false);
+  });
+
+  // iPad/touch: SearchableSelect must open as a modal Popover so the dismissable
+  // layer nests under Dialog and options remain hittable.
+  it("担当者候補を開き選択できる（modal Popover）", async () => {
+    const user = userEvent.setup();
+    const onValueChange = vi.fn();
+    render(
+      <SearchableSelect
+        value=""
+        onValueChange={onValueChange}
+        options={[
+          { value: "7", label: "鈴木 諒平" },
+          { value: "37", label: "三井隆行" },
+        ]}
+        placeholder="選択してください"
+        ariaLabel="担当者"
+        triggerTestId="res-staff-trigger"
+      />,
+    );
+
+    await user.click(screen.getByTestId("res-staff-trigger"));
+    expect(document.querySelector('[data-slot="popover-content"]')).not.toBeNull();
+    await user.click(screen.getByRole("option", { name: "三井隆行" }));
+    expect(onValueChange).toHaveBeenCalledWith("37");
   });
 });
