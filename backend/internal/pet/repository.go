@@ -21,6 +21,8 @@ import (
 // Search はペット名/カナ + 飼主名/カナ/電話に加え、空白非依存の飼主フルネーム、
 // 飼主No（owners.id の文字列一致）、ペット番号（pets.pet_number）を対象に
 // ILIKE + NormalizeKana で部分一致（番号は text 比較）する。
+// 半角/全角/連続空白で分割した複数語は各語が既存フィールドのいずれかに一致する AND。
+// 1語はフィールド間 OR（飼主フルネームの空白除去一致を含む）。
 type PetListFilters struct {
 	OwnerID         *uint64
 	Search          string
@@ -182,21 +184,35 @@ func applyPetListSearch(q *gorm.DB, search string) *gorm.DB {
 		return q
 	}
 	// 空白のみは fail-closed で 0 件（空フィルタ扱いで全件返さない）。
-	compactSearch := compactSearchText(search)
-	if compactSearch == "" {
+	if compactSearchText(search) == "" {
 		return q.Where("1 = 0")
 	}
+	// strings.Fields は半角/全角/連続 Unicode 空白で分割する。
+	// 複数語は各語が既存検索フィールドのいずれかに一致する AND。
+	// 1語は従来のフィールド間 OR（compact は語単位。飼主+ペット連結には使わない）。
+	tokens := strings.Fields(search)
+	if len(tokens) == 0 {
+		return q.Where("1 = 0")
+	}
+	for _, token := range tokens {
+		q = applyPetListSearchToken(q, token)
+	}
+	return q
+}
+
+func applyPetListSearchToken(q *gorm.DB, token string) *gorm.DB {
+	compactSearch := compactSearchText(token)
 	// raw name の同一表記一致は既存の trgm index を利用可能な形で残し、
 	// translate() した name/name_kana との比較でカナ表記をまたぐ一致を補う。
 	// 空白除去形は「姓 名」入力の半角/全角/連続空白差を順序保持で吸収する（BUG-001）。
 	// 飼主No は独立カラムではなく owners.id の text 一致。pet_number は文字列列。
 	// いずれもユーザ入力を数値パースせずバインドする。
-	qSearch := textsearch.NormalizeQuerySpaces(search)
+	qSearch := textsearch.NormalizeQuerySpaces(token)
 	rawPattern := "%" + textsearch.EscapeLike(qSearch) + "%"
 	normalizedPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(qSearch)) + "%"
 	compactPattern := "%" + textsearch.EscapeLike(compactSearch) + "%"
 	compactNormalizedPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(compactSearch)) + "%"
-	trimmedSearch := strings.TrimSpace(search)
+	trimmedSearch := strings.TrimSpace(token)
 	return q.Where(
 		`(pets.name ILIKE ? ESCAPE '\'`+
 			` OR translate(pets.name, ?, ?) ILIKE ? ESCAPE '\'`+
