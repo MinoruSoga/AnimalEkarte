@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -15,7 +16,8 @@ import (
 // then optionally one operator system-admin from SEEDLOGIN_OPERATOR_* env.
 // It is not a CSV bundle. The shared password is seedlogin.SharedPassword
 // and applies only to catalog emails. Production / empty / unknown APP_ENV skip.
-// Re-runs always upsert.
+// When schema_migrations already records the current catalog checksum, skip.
+// Catalog changes (checksum drift) re-upsert and refresh the record.
 func runLoginSeed(ctx context.Context, db *sql.DB, logger *slog.Logger) error {
 	appEnv := os.Getenv("APP_ENV")
 	if !seedlogin.ShouldApply(appEnv) {
@@ -23,6 +25,24 @@ func runLoginSeed(ctx context.Context, db *sql.DB, logger *slog.Logger) error {
 		return nil
 	}
 
+	key := seedlogin.MigrationKey()
+	checksum := seedlogin.CatalogChecksum()
+	needsApply, err := loginSeedNeedsApply(db, key, checksum)
+	if err != nil {
+		return err
+	}
+	if !needsApply {
+		logger.Info("⏭ Skipping login seed (already applied)",
+			slog.String("bundle", seedlogin.BundleDir),
+			slog.String("APP_ENV", appEnv),
+		)
+		return nil
+	}
+
+	logger.Info("Applying login seed",
+		slog.String("bundle", seedlogin.BundleDir),
+		slog.String("APP_ENV", appEnv),
+	)
 	applied, err := seedlogin.Apply(ctx, db)
 	if err != nil {
 		return err
@@ -33,7 +53,7 @@ func runLoginSeed(ctx context.Context, db *sql.DB, logger *slog.Logger) error {
 	if err != nil {
 		return fmt.Errorf("begin login seed record tx: %w", err)
 	}
-	if err := upsertMigrationRecord(tx, seedlogin.MigrationKey(), seedlogin.CatalogChecksum()); err != nil {
+	if err := upsertMigrationRecord(tx, key, checksum); err != nil {
 		_ = tx.Rollback()
 		return fmt.Errorf("record login seed: %w", err)
 	}
@@ -41,6 +61,24 @@ func runLoginSeed(ctx context.Context, db *sql.DB, logger *slog.Logger) error {
 		return fmt.Errorf("commit login seed record: %w", err)
 	}
 	return nil
+}
+
+// loginSeedNeedsApply reports whether catalog upsert should run.
+// Missing row or checksum change → apply. Matching checksum → skip.
+// Unlike DDL isAlreadyApplied, checksum change is not fail-closed: login seed is upsertable.
+func loginSeedNeedsApply(db *sql.DB, filename, checksum string) (bool, error) {
+	var storedChecksum string
+	err := db.QueryRow(
+		"SELECT checksum FROM schema_migrations WHERE filename = $1",
+		filename,
+	).Scan(&storedChecksum)
+	if errors.Is(err, sql.ErrNoRows) {
+		return true, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("failed to query schema_migrations for login seed: %w", err)
+	}
+	return storedChecksum != checksum, nil
 }
 
 // expectedSeedBundleDirs is the coverage plan: CSV bundles for APP_ENV, plus

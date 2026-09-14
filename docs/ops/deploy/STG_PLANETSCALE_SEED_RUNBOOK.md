@@ -97,7 +97,7 @@ Approved rebuildでは`DROP SCHEMA`と`CREATE SCHEMA`を対で扱い、`public` 
 
 ### 6.2 再構築後にWorker migrateが赤でもschema失敗としない場合
 
-本番Containerの`CMD`は`/app/migrate && exec /app/api`（`backend/Dockerfile.production`）。起動のたびにlogin seed upsert（bcrypt）が走る。basic instanceでは8080 listenが`POST /_internal/migrate`の待ち時間を超え、`migrate_exec_failed`やhealth timeoutになり得る。これは§6.1のcoverage `missing=0`とhandoff verify PASSを打ち消さない。reset目的で`gh workflow run backend-deploy.yml --ref staging`しない。dispatchはContainerを再起動し、同じコールドスタートを起こす。
+本番Containerの`CMD`は`/app/migrate && exec /app/api`（`backend/Dockerfile.production`）。`POST /_internal/migrate` も同じ `/app/migrate` を exec する。login seed（`seeds/003_login`）は **catalog checksum が一致すれば skip** し、変更時だけ再 upsert する。Worker の migrate exec timeout は 240s（`cf-run-migrate.sh` の curl は 270s）。それでも cold start + 初回 login seed が逼迫する場合は `migrate_exec_failed` / exit 143（SIGTERM）になり得る。これは§6.1のcoverage `missing=0`とhandoff verify PASSを打ち消さない。reset目的で`gh workflow run backend-deploy.yml --ref staging`しない。dispatchはContainerを再起動し、同じコールドスタートを起こす。
 
 ## 7. Deferred blockers
 
