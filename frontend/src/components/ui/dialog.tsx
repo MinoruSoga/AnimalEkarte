@@ -2,7 +2,7 @@ import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { XIcon } from "lucide-react";
 
-import { isDialogPortaledOverlayTarget } from "./dialog-portaled-overlay";
+import { shouldPreventDialogOutsideInteraction } from "./dialog-portaled-overlay";
 import { cn } from "./utils";
 
 function Dialog({ ...props }: React.ComponentProps<typeof DialogPrimitive.Root>) {
@@ -48,6 +48,7 @@ function DialogContent({
   children,
   ref,
   onInteractOutside,
+  onPointerDownOutside,
   ...props
 }: DialogContentProps) {
   return (
@@ -61,17 +62,16 @@ function DialogContent({
           className,
         )}
         {...props}
+        onPointerDownOutside={(event) => {
+          // Touch/iPad: pointerdown outside fires before interact-outside; guard portaled overlays.
+          if (shouldPreventDialogOutsideInteraction(event)) {
+            event.preventDefault();
+            return;
+          }
+          onPointerDownOutside?.(event);
+        }}
         onInteractOutside={(event) => {
-          const detail =
-            "detail" in event && event.detail && typeof event.detail === "object"
-              ? event.detail
-              : null;
-          const originalEvent =
-            detail && "originalEvent" in detail
-              ? (detail as { originalEvent?: Event }).originalEvent
-              : undefined;
-          const originalTarget = originalEvent?.target ?? event.target;
-          if (isDialogPortaledOverlayTarget(originalTarget)) {
+          if (shouldPreventDialogOutsideInteraction(event)) {
             event.preventDefault();
             return;
           }

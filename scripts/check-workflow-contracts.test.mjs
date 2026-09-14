@@ -124,6 +124,42 @@ test("frontend deploy bakes VERCEL_ENV into the prebuilt Vite bundle", () => {
   );
 });
 
+test("CI plans domain/feature test scope with dynamic matrices", () => {
+  const workflow = read(".github/workflows/ci.yml");
+  assert.match(workflow, /Plan domain\/feature test scope/);
+  assert.match(workflow, /scripts\/ci_scope_plan\.py/);
+  assert.match(
+    workflow,
+    /include: \$\{\{ fromJson\(needs\.changes\.outputs\.backend_matrix\) \}\}/,
+  );
+  assert.match(
+    workflow,
+    /include: \$\{\{ fromJson\(needs\.changes\.outputs\.frontend_matrix\) \}\}/,
+  );
+  assert.match(workflow, /run_backend_tests == 'true'/);
+  assert.match(workflow, /run_frontend_tests == 'true'/);
+  assert.match(workflow, /coverage_ratchet == 'run'/);
+  assert.match(workflow, /Skip coverage ratchet \(partial/);
+});
+
+test("ci_scope_plan unit coverage stays wired for host verify", () => {
+  const planner = read("scripts/ci_scope_plan.py");
+  assert.match(planner, /BACKEND_DOMAINS/);
+  assert.match(planner, /coverage_ratchet/);
+  assert.match(planner, /mode = 'partial'/);
+  const verify = read("scripts/verify-agent-task.py");
+  assert.match(verify, /ci_scope_plan/);
+  assert.match(verify, /src\/features\//);
+});
+
+test("STG migrate timeouts leave margin for login seed", () => {
+  assert.match(read("infra/scripts/cf-run-migrate.sh"), /^MIGRATE_TIMEOUT=270$/m);
+  assert.match(
+    read("backend/worker/index.ts"),
+    /MIGRATE_TIMEOUT_MS = 240_000/,
+  );
+});
+
 test("frontend audit treats registry audit endpoint timeouts as unavailable", () => {
   const workflow = read(".github/workflows/ci.yml");
   assert.match(workflow, /ERR_PNPM_AUDIT_BAD_RESPONSE\|ERR_SOCKET_TIMEOUT/);

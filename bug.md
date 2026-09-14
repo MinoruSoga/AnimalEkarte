@@ -14,7 +14,7 @@
 | ID | status | area | severity | 種別 | 修正プラン |
 |:---|:---|:---|:---|:---|:---|
 | BUG-LOCAL-HANDOFF-CSV-CONTRACT | OPEN | ops / local-db | Medium | handoff preflight BLOCKED | 現行契約でbundleを再生成し、取込前に検証する。[詳細](#plan-bug-local-handoff-csv-contract) |
-| BUG-RES-DOCTOR-ID-ZERO | OPEN | reservation | High | **再調査**（担当未選択でもFKエラーが残存） | 0→NULL修正はSTG反映済み。城東で再発報告があり、登録者 `created_by` の主所属制約を追加修正中。STG解消は未確認。[詳細](#plan-bug-res-doctor-id-zero) |
+| BUG-RES-DOCTOR-ID-ZERO | FIXED | reservation | High | **STG実機確認済み**（担当未選択・兼務先での登録） | `created_by` の主所属制約を追加修正。STG `916159093`で城東・担当者未選択の保存201、再読込・詳細再表示200を確認。[詳細](#plan-bug-res-doctor-id-zero) |
 | BUG-RES-DIALOG-A11Y-CONSOLE | FIXED | reservation / a11y | Low | **バグ断定**（DialogContent Description 欠落コンソール警告） | 固定ID上書きで Radix DescriptionWarning が context.descriptionId を見失っていた。Radix 管理IDに戻し警告0。[詳細](#plan-bug-res-dialog-a11y-console) |
 | BUG-RES-STAFF-SELECT-ORPHAN-LABEL | FIXED | reservation / UI | High | **バグ断定**（担当者選択後に表示が消える） | 候補外でも表示名を保持し、確定 orphan は理由表示＋解除/再選択まで送信遮断。[詳細](#plan-bug-res-staff-select-orphan-label) |
 | BUG-RES-AVAILABLE-TIMES-404 | FIXED | reservation | Medium | **バグ断定**（LINE設定欠落で院内API 404） | 院内は設定未登録を識別可能な unset（422 + code）にし案内付き手動時刻のみ許可。空枠/障害/LIFF必須は維持。[詳細](#plan-bug-res-available-times-404) |
@@ -54,9 +54,11 @@
 
 - **2026-09-13 追加報告・再オープン**: STGの城東で、担当者未選択でも同じエラーが続くとユーザー報告。既存の0→NULL修正が配備されたことと、予約登録が成功することは別の確認事項。
 - **追加原因（実DDLで再現済み、STG実エラー制約名は未取得）**: 担当者とは別に認証スタッフIDを `created_by` に保存する。`fk_appointments_created_by_clinic` が `staffs(id, clinic_id)`、つまり主所属を要求するため、所属が許可された兼務先での予約も拒否する。既存002 migrationはカルテの `entered_by` のみを修正し、この予約制約は残っていた。
-- **追加修正候補**: 新規003 migrationで登録者を単独staff FK（削除RESTRICT）に変更。通常・複数ペット・管理画面の保存で、有効な登録者の医院所属またはシステム管理者権限を同一transaction内で検証・共有ロックする。登録者IDと履歴表示は保持する。
+- **追加修正（PR #396、STG反映PR #397）**: 新規003 migrationで登録者を単独staff FK（削除RESTRICT）に変更。通常・複数ペット・管理画面の保存で、有効な登録者の医院所属またはシステム管理者権限を同一transaction内で検証・共有ロックする。登録者IDと履歴表示は保持する。
 - **隔離DB検証（2026-09-13）**: ユーザー承認済みの使い捨てPostgreSQL 18で、001→003・master/login seed投入と再実行が成功。実DDLの旧FKで `doctor_id=NULL` の登録失敗（23503、上記制約名）を再現。新[回帰テスト](backend/internal/reservation/reservation_created_by_fk_test.go)で3登録経路×省略/null/0、未所属・無効actor拒否、権限変更とのロック競合、他院FK維持、履歴取得を検証。新guardのstatement coverageは86.7%。既存の予約repository・医院分離テスト19件もPASS。これはSTG実操作の受入証跡ではない。
-- **完了条件**: 実DDLで旧制約による失敗と修正後の登録成功を確認し、未所属者の拒否・他院の飼主/ペット/予約区分の隔離を維持する。STGへ配備・migration適用後、城東の担当者未選択操作で保存・再表示を確認するまでOPEN。
+- **STG実機検証（2026-09-13）**: 主所属が八王子（医院1）、城東（医院2）にも所属する非管理者のデモスタッフで検証。配備前は担当者を送信しない予約POSTが400「参照先が存在しません」。STG `916159093`の新コンテナへの切替完了後、同条件の合成飼主・ペットを使った画面保存が201となり、ブラウザ再読込後のカレンダーと詳細に表示された。単件GETも200、担当者未指定、登録者ID保持、医院2への保存を確認。
+- **デプロイジョブとの区別**: [Backend Deploy 34739608245](https://github.com/MinoruSoga/AnimalEkarte/actions/runs/34739608245)は、配布後に旧コンテナ（DDLは001/002のみ）で開始したmigrationがrollout中に終了コード143で失敗。新コンテナへの切替は05:13:17 UTCに100%完了し、起動時migration後のhealth 200と上記予約成功を確認した。予約バグの解消と、デプロイ手順にrollout完了待ちがない問題は別として扱う。
+- **完了条件達成**: 実DDLで旧制約による失敗と修正後の登録成功、未所属者の拒否・他院FKの隔離を検証し、STGの城東・担当者未選択で保存・再表示まで確認済み。
 
 - **現象**: 院内予約作成（新規予約）で飼主・ペット・予約区分・日時を入れて「予約を登録／確定」すると、トースト **「参照先が存在しません」** で失敗することがある。担当者は「選択してください」（未選択）のまま。
 - **ユーザー報告の流れ**:

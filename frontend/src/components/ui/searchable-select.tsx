@@ -116,6 +116,12 @@ export function SearchableSelect({
         keywords={[opt.label, ...(opt.keywords ?? [])]}
         disabled={opt.disabled}
         onSelect={() => handleSelect(opt.value)}
+        // iOS/iPad: prevent focus move on pointerdown so cmdk onSelect still fires.
+        onPointerDown={(event) => {
+          if (!opt.disabled) {
+            event.preventDefault();
+          }
+        }}
         className={cn("cursor-pointer", indentClassName)}
       >
         <span className={cn("flex-1 whitespace-nowrap text-sm", C.text)}>{opt.label}</span>
@@ -125,7 +131,9 @@ export function SearchableSelect({
   };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    // modal: nest dismissable-layer correctly inside Dialog so iPad/touch can
+    // hit portaled options (body pointer-events:none + non-modal Popover fails).
+    <Popover open={open} onOpenChange={setOpen} modal>
       <PopoverTrigger
         type="button"
         role="combobox"
@@ -161,6 +169,18 @@ export function SearchableSelect({
           `${Z_CLASS.overlay} w-max min-w-[var(--radix-popover-trigger-width)] max-w-[min(40rem,90vw)] p-0`,
           contentClassName,
         )}
+        onOpenAutoFocus={(event) => {
+          // Coarse pointer (iPad): autofocusing the search input opens the
+          // keyboard and can dismiss/jank the nested Popover. Keep focus in
+          // the content without forcing the search field.
+          if (typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches) {
+            event.preventDefault();
+          }
+        }}
+        onCloseAutoFocus={(event) => {
+          // Avoid returning focus in a way that re-triggers Dialog focus traps on iOS.
+          event.preventDefault();
+        }}
       >
         <Command
           filter={(_value, search, keywords) => {

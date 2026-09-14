@@ -109,7 +109,9 @@ export class AnimalEkarteApiContainer extends Container<Env> {
   // migrate exec のハングアップ対策(code-reviewer指摘 MEDIUM)。pg_advisory_lock が
   // 別プロセスに握られたまま解放されない等の異常時、exec が無期限に応答を待たないようにする。
   // ECS版もタイムアウト付き(backend-deploy.yml `timeout-minutes: 15`)だが、単発execなので短く設定。
-  static readonly MIGRATE_TIMEOUT_MS = 120_000;
+  // Login seed (40 demo accounts) has taken ~45–90s on STG containers; keep margin
+  // above cold-start + DDL/seed skip + occasional PlanetScale latency.
+  static readonly MIGRATE_TIMEOUT_MS = 240_000;
 
   // P4-5(試行10): ECS `animalekarte-stg-migrate` one-shot task 相当。
   // `@cloudflare/containers`(0.3.7)の Container ラッパーは exec() を公開していないため、

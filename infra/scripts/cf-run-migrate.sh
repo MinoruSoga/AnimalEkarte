@@ -21,11 +21,10 @@ if [[ -z "${MIGRATE_RUN_SECRET:-}" ]]; then
   exit 1
 fi
 
-# code-reviewer指摘 MEDIUM: curlにタイムアウト無指定だとネットワーク異常時にスクリプトが
-# 無期限にハングする。self-testは即応するはずなので短め、本実行はWorker側exec timeout
-# (index.ts MIGRATE_TIMEOUT_MS=120s)より長めのマージンを持たせる。
+# curl timeouts: self-test is immediate; migrate must exceed Worker
+# AnimalEkarteApiContainer.MIGRATE_TIMEOUT_MS (240s) with margin.
 SELFTEST_TIMEOUT=15
-MIGRATE_TIMEOUT=150
+MIGRATE_TIMEOUT=270
 
 # Harness Improvement Feedback P0: 認証なしアクセスの self-test。
 # 401以外が返る場合は認証が機能していない可能性が高いため即中断する。

@@ -483,6 +483,7 @@ def plan(paths):
             '.github/workflows/security-scan.yml',
             '.github/workflows/README-security-scan.md',
             '.github/workflows/ci.yml',
+            'infra/scripts/cf-run-migrate.sh',
         ):
             jobs.append({'service': 'host', 'command': ['node', '--test', 'scripts/check-workflow-contracts.test.mjs']})
             if path == '.github/workflows/ci.yml':
