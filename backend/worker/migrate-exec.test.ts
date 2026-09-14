@@ -6,7 +6,14 @@
 // WebCrypto implementation — a Node-run test would either fail to resolve the
 // call or silently exercise a different code path than production.
 import { describe, expect, it } from "vitest";
-import { isAuthorizedMigrateRequest, timingSafeEqual, toMigrateResponse, attachLoginSeedMigrateEnv } from "./migrate-exec";
+import {
+  isAuthorizedMigrateRequest,
+  timingSafeEqual,
+  toMigrateResponse,
+  toMigrateExecFailedResponse,
+  sanitizeMigrateFailureMessage,
+  attachLoginSeedMigrateEnv,
+} from "./migrate-exec";
 
 function utf8ByteLength(value: string): number {
   return new TextEncoder().encode(value).length;
@@ -126,6 +133,27 @@ describe("toMigrateResponse", () => {
   it("sets Content-Type: application/json", () => {
     const res = toMigrateResponse({ exitCode: 0, stdout: "", stderr: "" });
     expect(res.headers.get("Content-Type")).toBe("application/json");
+  });
+});
+
+describe("toMigrateExecFailedResponse", () => {
+  it("redacts bearer tokens and returns a message for CI", async () => {
+    const res = toMigrateExecFailedResponse(
+      new Error("migrate exec timed out after Bearer super-secret-token-value"),
+    );
+    expect(res.status).toBe(500);
+    const body = (await res.json()) as {
+      error: string;
+      message: string;
+    };
+    expect(body.error).toBe("migrate_exec_failed");
+    expect(body.message).toContain("Bearer [redacted]");
+    expect(body.message).not.toContain("super-secret-token-value");
+  });
+
+  it("sanitizeMigrateFailureMessage truncates long messages", () => {
+    const msg = sanitizeMigrateFailureMessage(new Error("x".repeat(600)));
+    expect(msg.length).toBe(500);
   });
 });
 

@@ -36,22 +36,39 @@ if [[ "${UNAUTH_CODE}" != "401" ]]; then
 fi
 echo "    OK (401)"
 
-echo "==> POST ${ENDPOINT}"
-RESPONSE=$(curl -s --max-time "${MIGRATE_TIMEOUT}" -w '\n%{http_code}' -X POST "${ENDPOINT}" \
-  -H "Authorization: Bearer ${MIGRATE_RUN_SECRET}")
-HTTP_CODE=$(echo "${RESPONSE}" | tail -n1)
-BODY=$(echo "${RESPONSE}" | sed '$d')
+# After Container image replace, first migrate can fail while the DO/container
+# finishes booting (bare migrate_exec_failed, no exitCode). Retry with backoff.
+MAX_ATTEMPTS="${MIGRATE_MAX_ATTEMPTS:-3}"
+SLEEP_SECS="${MIGRATE_RETRY_SLEEP_SECS:-20}"
 
-echo "--- Migration response (HTTP ${HTTP_CODE}) ---"
-# code-reviewer指摘 LOW: python3依存はCI環境で不確実なため jq に統一(このリポジトリの
-# 他スクリプトはpsql/aws/pscale等CLI中心でpython3常設を前提にしていない)。
-echo "${BODY}" | jq . 2>/dev/null || echo "${BODY}"
+attempt=1
+while [[ "${attempt}" -le "${MAX_ATTEMPTS}" ]]; do
+  echo "==> POST ${ENDPOINT} (attempt ${attempt}/${MAX_ATTEMPTS})"
+  RESPONSE=$(curl -s --max-time "${MIGRATE_TIMEOUT}" -w '\n%{http_code}' -X POST "${ENDPOINT}" \
+    -H "Authorization: Bearer ${MIGRATE_RUN_SECRET}")
+  HTTP_CODE=$(echo "${RESPONSE}" | tail -n1)
+  BODY=$(echo "${RESPONSE}" | sed '$d')
 
-EXIT_CODE=$(echo "${BODY}" | jq -r '.exitCode // "unknown"' 2>/dev/null || echo "unknown")
+  echo "--- Migration response (HTTP ${HTTP_CODE}) ---"
+  echo "${BODY}" | jq . 2>/dev/null || echo "${BODY}"
 
-if [[ "${HTTP_CODE}" != "200" || "${EXIT_CODE}" != "0" ]]; then
-  echo "::error::Migration failed (HTTP ${HTTP_CODE}, exitCode ${EXIT_CODE})" >&2
-  exit 1
-fi
+  EXIT_CODE=$(echo "${BODY}" | jq -r '.exitCode // "unknown"' 2>/dev/null || echo "unknown")
+  if [[ "${HTTP_CODE}" == "200" && "${EXIT_CODE}" == "0" ]]; then
+    echo "==> Migration succeeded (exitCode 0)"
+    exit 0
+  fi
 
-echo "==> Migration succeeded (exitCode 0)"
+  # Non-zero migrate exit is deterministic; do not retry application failures.
+  if [[ "${EXIT_CODE}" != "unknown" && "${EXIT_CODE}" != "null" && "${EXIT_CODE}" != "0" ]]; then
+    echo "::error::Migration failed (HTTP ${HTTP_CODE}, exitCode ${EXIT_CODE})" >&2
+    exit 1
+  fi
+
+  if [[ "${attempt}" -eq "${MAX_ATTEMPTS}" ]]; then
+    echo "::error::Migration failed after ${MAX_ATTEMPTS} attempts (HTTP ${HTTP_CODE}, exitCode ${EXIT_CODE})" >&2
+    exit 1
+  fi
+  echo "==> Transient migrate failure; sleeping ${SLEEP_SECS}s before retry"
+  sleep "${SLEEP_SECS}"
+  attempt=$((attempt + 1))
+done

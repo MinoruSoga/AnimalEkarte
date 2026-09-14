@@ -12,7 +12,14 @@
 // 触るユースケースが増えた場合のために wrangler.jsonc の binding 自体は残す)。
 import { Container, getContainer } from "@cloudflare/containers";
 import { env } from "cloudflare:workers";
-import { isAuthorizedMigrateRequest, toMigrateResponse, attachLoginSeedMigrateEnv, type MigrateExecResult } from "./migrate-exec";
+import {
+  isAuthorizedMigrateRequest,
+  toMigrateResponse,
+  toMigrateExecFailedResponse,
+  attachLoginSeedMigrateEnv,
+  sanitizeMigrateFailureMessage,
+  type MigrateExecResult,
+} from "./migrate-exec";
 import { dispatchScheduledEvent } from "./scheduled-handler";
 import {
   SchedulerCoordinator,
@@ -413,14 +420,12 @@ async function handleMigrateRequest(request: Request, env: Env): Promise<Respons
   try {
     const result = await container.runMigrate();
     return toMigrateResponse(result);
-  } catch {
+  } catch (err) {
     console.error("migrate exec failed", {
       event: "migrate_exec_failed",
       failure_code: "migrate_exec_failed",
+      message: sanitizeMigrateFailureMessage(err),
     });
-    return new Response(JSON.stringify({ error: "migrate_exec_failed" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    return toMigrateExecFailedResponse(err);
   }
 }

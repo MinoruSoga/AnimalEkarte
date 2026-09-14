@@ -51,6 +51,29 @@ export function toMigrateResponse(result: MigrateExecResult): Response {
   });
 }
 
+/** Sanitize thrown migrate errors for CI logs (no env/secrets). */
+export function sanitizeMigrateFailureMessage(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err);
+  return raw
+    .replace(/Bearer\s+\S+/gi, "Bearer [redacted]")
+    .replace(/password[=:]\S+/gi, "password=[redacted]")
+    .slice(0, 500);
+}
+
+export function toMigrateExecFailedResponse(err: unknown): Response {
+  return new Response(
+    JSON.stringify({
+      error: "migrate_exec_failed",
+      failure_code: "migrate_exec_failed",
+      message: sanitizeMigrateFailureMessage(err),
+    }),
+    {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    },
+  );
+}
+
 export interface LoginSeedOperatorEnv {
   email?: string;
   name?: string;

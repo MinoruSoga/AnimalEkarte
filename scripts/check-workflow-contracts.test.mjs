@@ -158,6 +158,8 @@ test("STG migrate timeouts leave margin for login seed", () => {
     read("backend/worker/index.ts"),
     /MIGRATE_TIMEOUT_MS = 240_000/,
   );
+  assert.match(read("infra/scripts/cf-run-migrate.sh"), /MAX_ATTEMPTS/);
+  assert.match(read("infra/scripts/cf-run-migrate.sh"), /Transient migrate failure/);
 });
 
 test("frontend audit treats registry audit endpoint timeouts as unavailable", () => {
