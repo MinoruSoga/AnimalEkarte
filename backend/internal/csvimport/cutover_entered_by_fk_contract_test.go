@@ -210,7 +210,6 @@ ALTER TABLE appointments
 	})
 }
 
-
 func cutoverIntegrationSeeds() CutoverSeedIDs {
 	// Clinic insert triggers payment_methods ids 1..4; align seed IDs to that contract.
 	return CutoverSeedIDs{
