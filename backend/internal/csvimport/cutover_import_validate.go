@@ -187,7 +187,7 @@ func validateCutoverForeignKeys(ctx context.Context, q cutoverQuerier) error {
 			foreignKey.parentTable,
 			foreignKey.parentColumn,
 		).Scan(&exists); err != nil {
-			return fmt.Errorf("inspect target foreign key for %s.%s", foreignKey.childTable, foreignKey.childColumn)
+			return fmt.Errorf("inspect target foreign key for %s.%s: %w", foreignKey.childTable, foreignKey.childColumn, err)
 		}
 		if !exists {
 			return fmt.Errorf("target requires a validated foreign key from %s.%s to %s.%s",

@@ -247,7 +247,7 @@ func injectSyntheticFailureRollback(
 		return time.Time{}, fmt.Errorf("lock synthetic failure cutover tables")
 	}
 	if err := validateCutoverTarget(ctx, tx, manifest, input.Seeds, true); err != nil {
-		return time.Time{}, fmt.Errorf("validate synthetic failure target")
+		return time.Time{}, fmt.Errorf("validate synthetic failure target: %w", err)
 	}
 	if err := copySyntheticFailureOwner(ctx, tx, input.Seeds); err != nil {
 		return time.Time{}, err
