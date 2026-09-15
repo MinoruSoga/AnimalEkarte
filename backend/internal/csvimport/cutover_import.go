@@ -127,7 +127,11 @@ func cutoverRequiredForeignKeys() []cutoverForeignKeySpec {
 		{"medical_records", "clinic_id", "clinics", "id"},
 		{"medical_records", "owner_id", "owners", "id"},
 		{"medical_records", "pet_id", "pets", "id"},
-		// doctor_id / entered_by are clinic-scoped composites (see cutoverRequiredCompositeForeignKeys).
+		// doctor_id remains clinic-scoped composite (see cutoverRequiredCompositeForeignKeys).
+		// entered_by is a historical recorder: single-column FK to staffs(id) after migration 002
+		// (home clinic may differ from medical_records.clinic_id). Cutover COPY does not call
+		// AssertEnteredByActor; existence is enforced by this FK only (no active/assignment check).
+		{"medical_records", "entered_by", "staffs", "id"},
 		{"inquiries", "medical_record_id", "medical_records", "id"},
 		{"inquiries", "staff_id", "staffs", "id"},
 		{"clinical_plans", "medical_record_id", "medical_records", "id"},
@@ -137,6 +141,9 @@ func cutoverRequiredForeignKeys() []cutoverForeignKeySpec {
 		{"vital_records", "staff_id", "staffs", "id"},
 		{"appointments", "clinic_id", "clinics", "id"},
 		// owner_id / pet_id / doctor_id are clinic-scoped composites.
+		// created_by is historical attribution after migration 003: single-column FK to staffs(id).
+		// Cutover does not call assertReservationCreatedBy (no active/assignment re-check on import).
+		{"appointments", "created_by", "staffs", "id"},
 		{"appointments", "reservation_type_id", "reservation_types", "id"},
 		{"appointment_trimming_details", "clinic_id", "clinics", "id"},
 		{"appointment_trimming_details", "appointment_id", "appointments", "id"},
@@ -196,12 +203,7 @@ func cutoverRequiredCompositeForeignKeys() []cutoverCompositeForeignKeySpec {
 			parentTable:   "staffs",
 			parentColumns: []string{"id", "clinic_id"},
 		},
-		{
-			childTable:    "medical_records",
-			childColumns:  []string{"entered_by", "clinic_id"},
-			parentTable:   "staffs",
-			parentColumns: []string{"id", "clinic_id"},
-		},
+		// entered_by is NOT a composite after migration 002; see cutoverRequiredForeignKeys.
 		{
 			childTable:    "appointments",
 			childColumns:  []string{"clinic_id", "owner_id"},
