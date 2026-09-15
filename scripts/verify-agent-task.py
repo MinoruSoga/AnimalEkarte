@@ -532,7 +532,7 @@ def plan(paths):
                 'service': 'frontend',
                 'command': [
                     'node', 'node_modules/vitest/vitest.mjs', 'run',
-                    '--reporter=json', *feature_paths,
+                    '--configLoader', 'native', '--reporter=json', *feature_paths,
                 ],
                 'require_frontend_tests': True,
             })

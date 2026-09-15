@@ -23,7 +23,10 @@ class VerificationTests(unittest.TestCase):
     def test_frontend_feature_uses_feature_dir_vitest_without_empty_success(self):
         jobs, blocked = verify.plan(['frontend/src/features/pets/Pet.tsx'])
         self.assertFalse(blocked)
-        self.assertEqual(jobs[0]['command'][:4], ['node', 'node_modules/vitest/vitest.mjs', 'run', '--reporter=json'])
+        self.assertEqual(
+            jobs[0]['command'][:6],
+            ['node', 'node_modules/vitest/vitest.mjs', 'run', '--configLoader', 'native', '--reporter=json'],
+        )
         self.assertIn('src/features/pets', jobs[0]['command'])
         self.assertNotIn('related', jobs[0]['command'])
         self.assertNotIn('--passWithNoTests', jobs[0]['command'])
