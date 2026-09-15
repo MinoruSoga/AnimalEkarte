@@ -868,10 +868,49 @@ func TestCutoverRequiredForeignKeysIncludePaymentContract(t *testing.T) {
 	}
 }
 
+func TestCutoverRequiredForeignKeysIncludeHistoricalRecorderSingleColumn(t *testing.T) {
+	required := map[string]bool{
+		"medical_records.entered_by->staffs.id": false,
+		"appointments.created_by->staffs.id":    false,
+	}
+	for _, foreignKey := range cutoverRequiredForeignKeys() {
+		key := foreignKey.childTable + "." + foreignKey.childColumn + "->" +
+			foreignKey.parentTable + "." + foreignKey.parentColumn
+		if _, ok := required[key]; ok {
+			required[key] = true
+		}
+		if foreignKey.childTable == "medical_records" && foreignKey.childColumn == "entered_by" {
+			if foreignKey.parentTable != "staffs" || foreignKey.parentColumn != "id" {
+				t.Fatalf("entered_by parent = %s.%s, want staffs.id", foreignKey.parentTable, foreignKey.parentColumn)
+			}
+		}
+		if foreignKey.childTable == "appointments" && foreignKey.childColumn == "created_by" {
+			if foreignKey.parentTable != "staffs" || foreignKey.parentColumn != "id" {
+				t.Fatalf("created_by parent = %s.%s, want staffs.id", foreignKey.parentTable, foreignKey.parentColumn)
+			}
+		}
+	}
+	for key, found := range required {
+		if !found {
+			t.Errorf("missing required historical-recorder foreign key %s", key)
+		}
+	}
+}
+
+func TestCutoverRequiredCompositeForeignKeysExcludeEnteredByAfterMigration002(t *testing.T) {
+	for _, foreignKey := range cutoverRequiredCompositeForeignKeys() {
+		if foreignKey.childTable == "medical_records" &&
+			len(foreignKey.childColumns) == 2 &&
+			foreignKey.childColumns[0] == "entered_by" &&
+			foreignKey.childColumns[1] == "clinic_id" {
+			t.Fatalf("medical_records.entered_by must not be a required composite FK after migration 002")
+		}
+	}
+}
+
 func TestCutoverRequiredCompositeForeignKeysIncludePaymentClinicAxis(t *testing.T) {
 	required := map[string]bool{
 		"medical_records(doctor_id, clinic_id)->staffs(id, clinic_id)":           false,
-		"medical_records(entered_by, clinic_id)->staffs(id, clinic_id)":          false,
 		"appointments(clinic_id, owner_id)->owners(clinic_id, id)":               false,
 		"appointments(clinic_id, pet_id)->pets(clinic_id, id)":                   false,
 		"appointments(doctor_id, clinic_id)->staffs(id, clinic_id)":              false,
