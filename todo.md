@@ -2,6 +2,10 @@
 
 最終照合: 2026-09-15（JST）。ローカル `main` の実装、9月13日のバグ記録、9月15日の医院フィードバック、GitHub / Linear の読取結果を照合。**未完了の作業だけを掲載する。** 実装済みの詳細・完了項目は Git 履歴と元の UAT 記録を参照する。
 
+## 着手プランの確認
+
+2026-09-15、未完了タスクの計画を全件点検した。大枠の方針は既存文書にあり、不足していたコード/手順の入口、前提、実施順、成果物・完了条件を [開発・調査](todo-issue.md)、[検証・受入](todo-verification.md)、[運用・納品](todo-operations.md) に補完した。各表の ID から計画へ進める。`todo-performance.md` は技術記録、バグ/医院報告は元の根拠として参照する。計画があることと、実装・外部実行・受入の完了は区別する。
+
 ## 残作業の入口
 
 | 区分 | 次に行うこと | 正本 |
@@ -29,15 +33,15 @@
 
 | ID | 内容 | 状態 |
 |---|---|---|
-| UAT-R2-TREATMENT-COMMIT | 治療タブ: Enter 1回で確定しない。2回目で数量 PATCH。反映の遅さを減らす | READY（再現・設計） |
-| UAT-R2-MASTER-LIST-HEIGHT | 治療検索の選択肢をスクロールなしで見える高さにする | READY（再現・設計） |
-| UAT-R2-MASTER-PATH | マスタ入力後に金額が空／会計画面に出ない。登録画面を特定してから直す | BLOCKED（医院入力） |
-| UAT-R2-CHART-FIT | サイドバー展開時にカルテ編集を1画面に収める | BLOCKED（端末条件） |
-| UAT-R2-EXCLUSIVE-LOCK | 旧システム相当の「他PC入力禁止」は未実装。全面ロックは製品判断後 | PO 判断待ち |
-| UAT-Q3-GENDER-MAP | 避妊去勢済みが性別不明。コード 3/4 を雄/雌へ。STG 訂正は運用 | 未完了（old_db・運用） |
-| UAT-Q2-VACCINE-SPECIES | 猫に犬用ワクチン（Proheart・6種等）。件数調査のあと種を付ける | 調査待ち |
-| UAT-Q4-UNPAID-TRIAGE | 未納はデモではない。実未納と突合漏れを集計で切る。一括完了しない | 調査待ち |
-| UAT-Q2-TREATMENTS-IMPORT | 旧カルテの処置・処方明細が未移行 | DEFERRED（PO 未決） |
+| [UAT-R2-TREATMENT-COMMIT](todo-issue.md#uat-r2-treatment-commit) | 治療タブ: Enter 1回で確定しない。2回目で数量 PATCH。反映の遅さを減らす | READY（再現・設計） |
+| [UAT-R2-MASTER-LIST-HEIGHT](todo-issue.md#uat-r2-master-list-height) | 治療検索の選択肢をスクロールなしで見える高さにする | READY（再現・設計） |
+| [UAT-R2-MASTER-PATH](todo-issue.md#uat-r2-master-path) | マスタ入力後に金額が空／会計画面に出ない。登録画面を特定してから直す | BLOCKED（医院入力） |
+| [UAT-R2-CHART-FIT](todo-issue.md#uat-r2-chart-fit) | サイドバー展開時にカルテ編集を1画面に収める | BLOCKED（端末条件） |
+| [UAT-R2-EXCLUSIVE-LOCK](todo-issue.md#uat-r2-exclusive-lock) | 旧システム相当の「他PC入力禁止」は未実装。全面ロックは製品判断後 | PO 判断待ち |
+| [UAT-Q3-GENDER-MAP](todo-issue.md#uat-q3-gender-map) | 避妊去勢済みが性別不明。コード 3/4 を雄/雌へ。STG 訂正は運用 | 未完了（old_db・運用） |
+| [UAT-Q2-VACCINE-SPECIES](todo-issue.md#uat-q2-vaccine-species) | 猫に犬用ワクチン（Proheart・6種等）。件数調査のあと種を付ける | 調査待ち |
+| [UAT-Q4-UNPAID-TRIAGE](todo-issue.md#uat-q4-unpaid-triage) | 未納はデモではない。実未納と突合漏れを集計で切る。一括完了しない | 調査待ち |
+| [UAT-Q2-TREATMENTS-IMPORT](todo-issue.md#uat-q2-treatments-import) | 旧カルテの処置・処方明細が未移行 | DEFERRED（PO 未決） |
 
 先行するのは `UAT-R2-TREATMENT-COMMIT` と `UAT-R2-MASTER-LIST-HEIGHT`。データ運用や入力待ちを、無条件の実装 READY にしない。
 

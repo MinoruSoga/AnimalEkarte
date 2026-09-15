@@ -10,7 +10,7 @@
 | [todo-operations.md](../../todo-operations.md) | STG・本番・納品などの運用・外部実行 |
 | CorpVault `50_Projects/ノア動物病院電子カルテ/` | 会社側索引・時点ログ |
 
-**競合・終了ルール:** 状態・担当・Done は Linear を正とする。`todo.md` の実行キューには未完了作業だけを保持し、完了行を除く。統合元の完了履歴・維持制約は別節に分離し、現在の受入や release 判定には使わない。STG Lane 4 の終了条件・記録方法は [STG 手順書](../ops/deploy/STG_PLANETSCALE_SEED_RUNBOOK.md) を参照する。[製品 FAIL 節](../../todo.md#product-bugs) は Linear と対応付け、受入未実施や環境 BLOCKED を製品 FAIL に混ぜない。
+**競合・終了ルール:** 状態・担当・Done は Linear を正とする。`todo.md` の実行キューには未完了作業だけを保持し、完了行を除く。統合元の完了履歴・維持制約は別節に分離し、現在の受入や release 判定には使わない。STG Lane 4 の終了条件・記録方法は [運用計画](../../todo-operations.md#lane-4) と [受入計画](../../todo-verification.md#todo-v-stg-data) を参照する。[製品 FAIL 節](../../todo.md#product-bugs) は Linear と対応付け、受入未実施や環境 BLOCKED を製品 FAIL に混ぜない。
 
 | 補助 | 役割 |
 |------|------|
@@ -30,6 +30,9 @@
 
 | 削除したもの | 理由 | 後継 |
 |---|---|---|
+| root `todo-check-auth.md` / `todo-fix-auth.md`（2026-09-15） | 認証の参照用メモと残件の重複管理を解消 | 契約は [認証設計](../architecture/auth.md)、D1・メール・Linear の残件は [統合検証 TODO](../../todo-verification.md#認証認可の外部境界) |
+| root `fe-refactor.md`（2026-09-15） | 完了した監査の独立メモ | 維持判断は [裁定記録](./development-task-decisions.md#frontend-監査から引き継ぐ維持判断2026-09-15)、完了履歴は Git |
+| root `readiness-report.md`（2026-09-15） | 9月4日時点の環境評価。現在の品質・実行状態の証拠として使わない | 現行規約は [.claude/CLAUDE.md](../../.claude/CLAUDE.md)、検証条件は [agent harness](../ops/agent-harness.md)。当時の評価は Git |
 | root `bug.md`・`todo-now.md`・`todo-po.md`・`todo-refactor.md`（2026-09-08） | ユーザー依頼による5台帳の統合。別台帳として再作成しない | [todo.md](../../todo.md) の製品 FAIL・PO・Astra 履歴・FE 履歴。削除前の原文は Git |
 | `STATUS.md`・`PO-todo.md`・2026-08-20 時点の旧フル `todo.md` / `todo-po.md` | 実行台帳の統合・縮小 | Linear。現在の root 台帳の役割は上記入口を参照 |
 | root `phase2.html` / `research-cloudflare.html` / `codex-security-output/` | 作業・調査資料の整理 | 当時の内容は git 履歴。今期外項目は `phase2-deferred.md` |
