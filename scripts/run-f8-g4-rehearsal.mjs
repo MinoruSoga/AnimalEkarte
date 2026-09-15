@@ -161,7 +161,7 @@ function readIdentityInput() {
   };
   requireValue(PROJECT_RE.test(identity.composeProject ?? ""), "Compose project is invalid");
   requireValue(CLINIC_RE.test(identity.clinicCode ?? ""), "clinic code is invalid");
-  requireValue(identity.clinicOrdinal === 1, "clinic ordinal must be 1");
+  requireValue(Number.isInteger(identity.clinicOrdinal) && identity.clinicOrdinal >= 1 && identity.clinicOrdinal <= 50, "clinic ordinal must be an integer between 1 and 50");
   requireValue(RUN_RE.test(identity.runId ?? ""), "run ID is invalid");
   requireValue(COMMIT_RE.test(identity.targetReleaseCommit ?? ""), "target release commit is invalid");
   return {
