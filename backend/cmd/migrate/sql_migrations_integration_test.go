@@ -238,12 +238,12 @@ func TestSeedCutoverRehearsalAgainstDisposablePostgres(t *testing.T) {
 INSERT INTO companies (id, name) VALUES (1, 'CSV import rehearsal');
 INSERT INTO clinics (id, company_id, name) VALUES (1, 1, 'CSV import rehearsal');
 INSERT INTO animal_species (id, name) VALUES
-  (1, 'Rehearsal species 1'),
-  (2, 'Rehearsal species 2'),
-  (3, 'Rehearsal species 3'),
-  (4, 'Rehearsal species 4'),
-  (5, 'Rehearsal species 5'),
-  (6, 'Rehearsal species 6');
+  (1, '犬'),
+  (2, '猫'),
+  (3, '鳥'),
+  (4, 'うさぎ'),
+  (5, 'ハムスター'),
+  (6, 'その他');
 INSERT INTO exam_types (id, clinic_id, name) VALUES (11008, 1, '検査');
 INSERT INTO reservation_types (id, clinic_id, name, category)
 VALUES (9, 1, 'CSV import rehearsal trimming', 'trimming');
