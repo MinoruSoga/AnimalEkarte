@@ -2,7 +2,7 @@
 
 作成: 2026-09-15。回答§1 最終更新: 2026-09-15（STG デプロイ後）。  
 入口: [docs/work/README.md](./README.md) の補助表。  
-範囲: 医院からの4問への回答、および各問に対して実施すべき修正タスク。  
+範囲: 医院からの4問の原文、送付用回答、および各問に対して実施すべき修正タスク。  
 制約: 推測で「デモだから」と説明しない。Linear 新規 Issue は作らない。本ファイルは実行 SoT ではない。  
 反映範囲: Q1 / Q4保険 / Q2履歴ナビは **STG デプロイ済み**（PR [#411](https://github.com/MinoruSoga/AnimalEkarte/pull/411)、merge `d337f016`。Backend Deploy #176 / Frontend Deploy #51 success）。production 未反映。ブラウザ確認は未実施。
 
@@ -18,6 +18,23 @@
 | 未納 | `docs/spec/screens/30-unpaid-list.md`、`old_db/sql/migration/030_stage.sql` billings.status |
 | 保険割合 | `frontend/src/features/accounting/components/InsuranceCard.tsx`、`docs/spec/screens/11-accounting-detail.md` |
 | デモ退役 | `docs/ops/deploy/STG-DEMO-DATA-LIFECYCLE.md`（`003_demo` 退役。臨床データは handoff/import） |
+
+---
+
+## 0. 医院からの質問原文
+
+受領した文面を改変せずに置く。送付用は §1。
+
+- Q1
+  - 動物の名前の検索についてですが、フルネーム（名字+ペット名）で検索することはできないでしょうか。件数の多い名字　小林、渡辺、望月、雨宮、佐藤などは400件以上ヒットしてとても探せないです。
+- Q2
+  - 過去カルテが参照できないです。これはデモ版だからでしょうか...？猫で犬でしか打たない注射が履歴に入っています。proheartや6種混合ワクチンなどです。
+- Q3
+  - おそらく避妊去勢済みの動物が全て性別不明になってるのでオスかメスか確認できるようにできたりしませんか？　避妊去勢済の項目はありますが...オスかメスかの情報は欲しいです。
+- Q4
+  - 会計画面で気になる点があります。
+    - 未納残高が入ってるのはデモ版だからでしょうか？
+    - 保険の負担割合は90%と100%は無いです。
 
 ---
 
