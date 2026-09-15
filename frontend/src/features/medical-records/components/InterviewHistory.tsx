@@ -94,9 +94,7 @@ export const InterviewHistory = memo(function InterviewHistory({
               </p>
             </Link>
           ))}
-          {filteredItems.length === 0 ? (
-            <EmptyState message="該当する抜粋はありません" />
-          ) : null}
+          {filteredItems.length === 0 ? <EmptyState message="該当する抜粋はありません" /> : null}
         </div>
       </ScrollArea>
     </div>
