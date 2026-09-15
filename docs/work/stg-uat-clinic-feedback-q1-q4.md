@@ -1,10 +1,10 @@
 # STG UAT 医院フィードバック Q1–Q4（回答原文と修正タスク）
 
-作成: 2026-09-15。回答§1 最終更新: 2026-09-15（local `main` 実装後）。  
+作成: 2026-09-15。回答§1 最終更新: 2026-09-15（STG デプロイ後）。  
 入口: [docs/work/README.md](./README.md) の補助表。  
 範囲: 医院からの4問への回答、および各問に対して実施すべき修正タスク。  
 制約: 推測で「デモだから」と説明しない。Linear 新規 Issue は作らない。本ファイルは実行 SoT ではない。  
-反映範囲: Q1 / Q4保険 / Q2履歴ナビは **local `main` 済み・未 push**。STG にはまだ載っていない。送付時は「検証環境への反映はこれから」と区別する。
+反映範囲: Q1 / Q4保険 / Q2履歴ナビは **STG デプロイ済み**（PR [#411](https://github.com/MinoruSoga/AnimalEkarte/pull/411)、merge `d337f016`。Backend Deploy #176 / Frontend Deploy #51 success）。production 未反映。ブラウザ確認は未実施。
 
 根拠（コード・仕様。PHI は含めない）:
 
@@ -24,17 +24,15 @@
 ## 1. 医院向け回答（送付用）
 
 ご確認いただきありがとうございます。ご指摘の4点について、現状と対応を分けて回答します。  
-（アプリ側の検索・保険割合・過去カルテ導線は開発リポジトリへ入れ済みです。**いまお使いの検証環境への反映はこれから**です。）
+検索・保険割合・過去カルテの導線は、**いまお使いの検証環境に反映済み**です。本番環境にはまだ出ていません。
 
 **Q1. 名字＋ペット名での検索**
 
-ご指摘のとおり、名字だけだと件数が多く探せませんでした。対応として、飼主・ペット一覧の検索欄はそのまま1つで、**空白で区切った語をすべて満たす行だけ**出すようにしました。
+ご指摘のとおり、名字だけだと件数が多く探せませんでした。飼主・ペット一覧の検索欄はそのまま1つで、**空白で区切った語をすべて満たす行だけ**出すようにしました。検証環境でお試しいただけます。
 
 - 「小林 ポチ」→ 飼主名側に小林、ペット名側にポチがある行に絞る
 - 「小林」だけ → 従来どおり同姓がすべて出る
 - 電話番号・ペット番号での検索は従来どおり使えます
-
-検証環境に載り次第、名字＋ペット名で再度お試しください。
 
 **Q2. 過去カルテが参照できない／猫に犬用注射が出る**
 
@@ -64,7 +62,7 @@
 **未納残高もデモ用のダミーではありません。**  
 会計の未納は、支払待ち（未精算）の請求から集計しています。旧システムで未精算だったものが、移行後も未納として出ます。全件が実未納か、一部が移行上の未紐付けかは、件数を切り分けます。実運用上すでに回収済みのものがあれば、例をください。
 
-保険の負担割合（保険会社が支払う割合）は、ご指摘を受けて **新規の選択肢を 50% と 70% のみ**にしました。すでに 90% / 100% で保存されている会計は、その割合を消して 50% に置き換えません。マスタの補償率からの自動セットはありません。50% と 70% 以外に必要な割合があれば、その値をください。
+保険の負担割合（保険会社が支払う割合）は、ご指摘を受けて **新規の選択肢を 50% と 70% のみ**にしました（検証環境に反映済み）。すでに 90% / 100% で保存されている会計は、その割合を消して 50% に置き換えません。マスタの補償率からの自動セットはありません。50% と 70% 以外に必要な割合があれば、その値をください。
 
 ---
 
@@ -90,9 +88,9 @@
 
 | ID | 問 | 優先 | 種別 | 状態 |
 |----|----|------|------|------|
-| UAT-Q1-SEARCH-AND | Q1 | P0 | アプリ（BE、仕様、テスト） | local main 統合済み（未 push） |
-| UAT-Q4-INSURANCE-RATES | Q4 | P0 | アプリ（FE、仕様） | local main 統合済み（ブラウザ SKIP・未 push） |
-| UAT-Q2-HISTORY-NAV | Q2 | P1 | アプリ（FE） | local main 統合済み（ブラウザ SKIP・未 push） |
+| UAT-Q1-SEARCH-AND | Q1 | P0 | アプリ（BE、仕様、テスト） | STG デプロイ済み（PR #411）。ブラウザ未確認。production 未反映 |
+| UAT-Q4-INSURANCE-RATES | Q4 | P0 | アプリ（FE、仕様） | STG デプロイ済み（PR #411）。ブラウザ未確認。production 未反映 |
+| UAT-Q2-HISTORY-NAV | Q2 | P1 | アプリ（FE） | STG デプロイ済み（PR #411）。ブラウザ未確認。production 未反映 |
 | UAT-Q3-GENDER-MAP | Q3 | P0 | 移行SQL＋既存データの訂正 | 未着手。old_db + STG 運用承認 |
 | UAT-Q2-VACCINE-SPECIES | Q2 | P1 | 調査→マスタ種 | 未着手。STG 件数調査が先 |
 | UAT-Q4-UNPAID-TRIAGE | Q4 | P1 | 調査（集計のみ） | 未着手。STG read 承認 |
@@ -112,7 +110,7 @@
   4. 仕様 `03-owners-list.md` に「複数語は AND」を追記。
 - **検証**: `docker compose exec backend go test ./internal/pet/...`（`repository_test.go` / `repository_space_search_test.go` / `repository_kana_search_test.go` を拡張）。全件 `go test ./...` は自動実行しない。
 - **やらないこと**: 新しい検索API、クライアント全件取得、種別名の検索対象化。
-- **状態**: local `main` 統合済み（`feat/UAT-Q1-SEARCH-AND` を merge）。未 push。ブラウザ未確認。
+- **状態**: STG デプロイ済み（PR #411、`d337f016`）。ブラウザ未確認。production 未反映。
 
 ---
 
@@ -146,7 +144,7 @@
   3. 既存で 90% が入っている詳細を開いても計算に使った割合が分かる（消えて 50% に置き換わらない）。
 - **検証**: `docker compose exec frontend npx vitest run src/features/accounting`（InsuranceCard / use-accounting-detail-state）。ブラウザ確認は会計新規の保険スイッチ。
 - **やらないこと**: 保険マスタ画面の補償率 0–100 整数を会計 Select に結合する（未実装のまま）。
-- **状態**: local `main` 統合済み（`feat/UAT-Q4-INSURANCE-RATES` を merge）。未 push。新規 50/70、既存 0.9/1.0 は Select に残す。ブラウザ未確認。
+- **状態**: STG デプロイ済み（PR #411）。新規 50/70、既存 0.9/1.0 は Select に残す。ブラウザ未確認。production 未反映。
 
 ---
 
@@ -165,7 +163,7 @@
   3. 引用ボタンを残す場合: クリックで当日問診に主訴が入る。残さない場合: ボタンが無い。
 - **検証**: `npx vitest run src/features/medical-records/components/InterviewHistory.test.tsx` および Form の履歴導線テスト。
 - **やらないこと**: この単位で treatments を移行する。デモデータのせいにするコピー。
-- **状態**: local `main` 統合済み（`feat/UAT-Q2-HISTORY-NAV` を merge）。未 push。見出し「問診抜粋」、詳細へ Link、引用ボタン削除。ブラウザ未確認。
+- **状態**: STG デプロイ済み（PR #411）。見出し「問診抜粋」、詳細へ Link、引用ボタン削除。ブラウザ未確認。production 未反映。
 
 ---
 
@@ -207,9 +205,9 @@
 
 ## 4. 推奨実施順（残）
 
-AE のみの3単位は local `main` に cherry-pick 済み（§6）。push していない。残る順:
+AE のみの3単位は STG デプロイ済み（§6、PR #411）。production 未反映。残る順:
 
-1. 画面確認（飼主一覧「名字 ペット名」、会計保険 50/70、カルテ右パネル→詳細）
+1. STG 画面確認（飼主一覧「名字 ペット名」、会計保険 50/70、カルテ右パネル→詳細）
 2. **UAT-Q3-GENDER-MAP**（old_db SQL＋STG 訂正。書き込みは人間）
 3. **UAT-Q4-UNPAID-TRIAGE** と **UAT-Q2-VACCINE-SPECIES** 調査（並列可、read-only）
 4. ワクチン種の実装は 3 の結論後
@@ -237,7 +235,7 @@ local `main` 統合（この tree）:
 - AI claim 3本は統合後に `git branch -d` 済み
 - `feat/UAT-Q1-SEARCH-AND` / `feat/UAT-Q4-INSURANCE-RATES` / `feat/UAT-Q2-HISTORY-NAV` と対応 worktree は、この時点でリポジトリに無い（統合済みのため再作成しない）
 - `feat/R09-C-PRIME-CSVIMPORT-ENTERED-BY-FK` は別作業。削除しない
-- push / Linear / migrate / STG なし
+- 2026-09-15 STG: PR [#411](https://github.com/MinoruSoga/AnimalEkarte/pull/411) を `staging` に merge（`d337f016`）。[Backend Deploy #176](https://github.com/MinoruSoga/AnimalEkarte/actions/runs/34923018516) success（Worker、migrate、`/health`、CRUD smoke）。[Frontend Deploy #51](https://github.com/MinoruSoga/AnimalEkarte/actions/runs/34923018544) success。production 未反映。Linear なし
 
 | ID | Mode 3 | 照合 |
 |----|--------|------|
