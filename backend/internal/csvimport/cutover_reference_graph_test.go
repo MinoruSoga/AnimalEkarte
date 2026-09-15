@@ -190,12 +190,46 @@ func TestPreflightCutoverBundleRejectsNumericDuplicateParents(t *testing.T) {
 	}
 }
 
+func cutoverSpecColumns(table string) map[string]bool {
+	columns := map[string]bool{}
+	for _, spec := range CutoverTableSpecs() {
+		if spec.Name != table {
+			continue
+		}
+		for _, column := range spec.Columns {
+			columns[column] = true
+		}
+	}
+	return columns
+}
+
+func TestCutoverAppointmentsCreatedByIsSchemaOnlyNotCSV(t *testing.T) {
+	if cutoverSpecColumns("appointments")["created_by"] {
+		t.Fatal("appointments.created_by must stay off the 21-table CSV; COPY leaves it NULL")
+	}
+	found := false
+	for _, target := range cutoverRequiredForeignKeys() {
+		if target.childTable == "appointments" && target.childColumn == "created_by" {
+			found = true
+			if target.parentTable != "staffs" || target.parentColumn != "id" {
+				t.Fatalf("appointments.created_by parent = %s.%s, want staffs.id", target.parentTable, target.parentColumn)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("appointments.created_by must remain a required single-column staffs.id FK")
+	}
+}
+
 func TestCutoverReferenceInventoryCoversAllTargetForeignKeys(t *testing.T) {
 	references := cutoverCSVReferences()
 	if err := validateCutoverReferenceInventory(CutoverTableSpecs(), references); err != nil {
 		t.Fatal(err)
 	}
 	for _, target := range cutoverRequiredForeignKeys() {
+		if !cutoverSpecColumns(target.childTable)[target.childColumn] {
+			continue
+		}
 		found := false
 		for _, ref := range references[target.childTable] {
 			if ref.column == target.childColumn && ref.parent == target.parentTable && target.parentColumn == "id" {

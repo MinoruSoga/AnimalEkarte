@@ -21,14 +21,36 @@ interface InsuranceCardProps {
   insuranceAmount: number;
 }
 
-const INSURANCE_RATIO_ITEMS = (
-  <>
-    <SelectItem value="0.5">50%</SelectItem>
-    <SelectItem value="0.7">70%</SelectItem>
-    <SelectItem value="0.9">90%</SelectItem>
-    <SelectItem value="1.0">100%</SelectItem>
-  </>
-);
+const NEW_INSURANCE_RATIO_ITEMS = [
+  { value: "0.5", label: "50%" },
+  { value: "0.7", label: "70%" },
+] as const;
+
+const LEGACY_INSURANCE_RATIO_LABELS: Record<string, string> = {
+  "0.9": "90%",
+  "1.0": "100%",
+  "1": "100%",
+};
+
+function insuranceRatioSelectItems(currentValue: string) {
+  const items = NEW_INSURANCE_RATIO_ITEMS.map((item) => (
+    <SelectItem key={item.value} value={item.value}>
+      {item.label}
+    </SelectItem>
+  ));
+  const isNewChoice = NEW_INSURANCE_RATIO_ITEMS.some((item) => item.value === currentValue);
+  if (!isNewChoice) {
+    const label = LEGACY_INSURANCE_RATIO_LABELS[currentValue];
+    if (label !== undefined) {
+      items.push(
+        <SelectItem key={currentValue} value={currentValue}>
+          {label}
+        </SelectItem>,
+      );
+    }
+  }
+  return items;
+}
 
 export const InsuranceCard = memo(function InsuranceCard({
   useInsurance,
@@ -59,7 +81,7 @@ export const InsuranceCard = memo(function InsuranceCard({
               <SelectTrigger className="h-11" aria-label="負担割合">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>{INSURANCE_RATIO_ITEMS}</SelectContent>
+              <SelectContent>{insuranceRatioSelectItems(insuranceRatio)}</SelectContent>
             </Select>
           </div>
           <div

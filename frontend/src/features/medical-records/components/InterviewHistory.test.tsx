@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router";
 import { InterviewHistory } from "./InterviewHistory";
 import type { InterviewHistoryItem } from "../types";
 
@@ -23,9 +24,22 @@ const ITEMS: InterviewHistoryItem[] = [
   },
 ];
 
+function renderHistory(historyItems: InterviewHistoryItem[]) {
+  return render(
+    <MemoryRouter>
+      <InterviewHistory historyItems={historyItems} />
+    </MemoryRouter>,
+  );
+}
+
+function LocationPathname() {
+  const location = useLocation();
+  return <div>{location.pathname}</div>;
+}
+
 describe("InterviewHistory — カナ混同検索", () => {
   it("過去カルテ検索inputに明示labelとid/nameを接続する", () => {
-    render(<InterviewHistory historyItems={ITEMS} />);
+    renderHistory(ITEMS);
 
     expect(screen.getByRole("textbox", { name: "過去のカルテを検索" })).toHaveAttribute(
       "id",
@@ -38,14 +52,14 @@ describe("InterviewHistory — カナ混同検索", () => {
   });
 
   it("空の検索語は全件表示する", () => {
-    render(<InterviewHistory historyItems={ITEMS} />);
+    renderHistory(ITEMS);
     expect(screen.getByText("タイトルカタカナ")).toBeInTheDocument();
     expect(screen.getByText("別のタイトル")).toBeInTheDocument();
   });
 
   it("ひらがなで検索するとカタカナのタイトルにヒットする", async () => {
     const user = userEvent.setup();
-    render(<InterviewHistory historyItems={ITEMS} />);
+    renderHistory(ITEMS);
 
     await user.type(screen.getByPlaceholderText("検索..."), "たいとるかたかな");
 
@@ -75,7 +89,7 @@ describe("InterviewHistory — カナ混同検索", () => {
       },
     ];
     const user = userEvent.setup();
-    render(<InterviewHistory historyItems={hiraganaItems} />);
+    renderHistory(hiraganaItems);
 
     await user.type(screen.getByPlaceholderText("検索..."), "タイトルヒラガナ");
 
@@ -105,7 +119,7 @@ describe("InterviewHistory — カナ混同検索", () => {
       },
     ];
     const user = userEvent.setup();
-    render(<InterviewHistory historyItems={katakanaContentItems} />);
+    renderHistory(katakanaContentItems);
 
     await user.type(screen.getByPlaceholderText("検索..."), "ほんぶんかたかな");
 
@@ -113,5 +127,80 @@ describe("InterviewHistory — カナ混同検索", () => {
       expect(screen.getByText("タイトル1")).toBeInTheDocument();
       expect(screen.queryByText("タイトル2")).not.toBeInTheDocument();
     });
+  });
+});
+
+describe("InterviewHistory — 過去行の詳細遷移", () => {
+  it("過去行は /medical-records/:id へリンクし、引用ボタンは無い", () => {
+    renderHistory(ITEMS);
+
+    expect(screen.getByRole("link", { name: /タイトルカタカナ/ })).toHaveAttribute(
+      "href",
+      "/medical-records/1",
+    );
+    expect(screen.getByRole("link", { name: /別のタイトル/ })).toHaveAttribute(
+      "href",
+      "/medical-records/2",
+    );
+    expect(screen.queryByRole("button", { name: "引用" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "問診抜粋" })).toBeInTheDocument();
+    expect(screen.getByText("全文は詳細で確認できます")).toBeInTheDocument();
+  });
+
+  it("treatments が無い移行カルテでも詳細自体を開く", async () => {
+    const user = userEvent.setup();
+    const migratedWithoutTreatments: InterviewHistoryItem = {
+      id: "rec-empty-treatments",
+      date: "2026-03-01",
+      type: "診察",
+      title: "治療タブ空の移行カルテ",
+      content: "問診のみ",
+      author: "田中",
+    };
+
+    render(
+      <MemoryRouter initialEntries={["/medical-records/current"]}>
+        <Routes>
+          <Route
+            path="/medical-records/current"
+            element={<InterviewHistory historyItems={[migratedWithoutTreatments]} />}
+          />
+          <Route path="/medical-records/:id" element={<LocationPathname />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByRole("button", { name: "引用" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("link", { name: /治療タブ空の移行カルテ/ }));
+    expect(await screen.findByText("/medical-records/rec-empty-treatments")).toBeInTheDocument();
+  });
+
+  it("呼び出し側の 50 件上限をさらに切らず、各行が詳細へ開く", () => {
+    const items: InterviewHistoryItem[] = Array.from({ length: 50 }, (_, index) => ({
+      id: String(index + 1),
+      date: "2026-01-01",
+      type: "診察",
+      title: `履歴${index + 1}`,
+      content: "抜粋",
+      author: "田中",
+    }));
+
+    renderHistory(items);
+
+    expect(screen.getAllByRole("link")).toHaveLength(50);
+    expect(screen.getByRole("link", { name: /履歴50/ })).toHaveAttribute(
+      "href",
+      "/medical-records/50",
+    );
+    expect(screen.queryByRole("button", { name: "引用" })).not.toBeInTheDocument();
+  });
+
+  it("空状態は問診抜粋であり全文は詳細にあると示す", () => {
+    renderHistory([]);
+
+    expect(screen.getByRole("heading", { name: "問診抜粋" })).toBeInTheDocument();
+    expect(screen.getByText(/問診抜粋/)).toBeInTheDocument();
+    expect(screen.getByText(/全文は詳細/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "引用" })).not.toBeInTheDocument();
   });
 });
