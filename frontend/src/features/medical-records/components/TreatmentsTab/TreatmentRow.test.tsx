@@ -202,7 +202,7 @@ describe("TreatmentRow — 絶対上限超過の物理ブロック", () => {
     // 無効値が入力中の間は保存不可理由を隠さない
     expect(await screen.findByRole("alert")).toHaveTextContent(/上限.*保存できません/);
 
-    await user.keyboard("{Enter}");
+    await user.keyboard("{Enter}{Enter}");
     expect(onUpdate).not.toHaveBeenCalled();
   });
 
@@ -227,7 +227,7 @@ describe("TreatmentRow — 絶対上限超過の物理ブロック", () => {
     // 無効値が入力中の間は保存不可理由を隠さない
     expect(await screen.findByRole("alert")).toHaveTextContent(/上限.*保存できません/);
 
-    await user.keyboard("{Enter}");
+    await user.keyboard("{Enter}{Enter}");
 
     expect(onUpdate).not.toHaveBeenCalled();
     // 数量は正常値に戻っている。sticky エラーを F5 なしで消す
@@ -312,7 +312,7 @@ describe("TreatmentRow — dose-params technical failure (TASK-025)", () => {
     const quantityInput = screen.getByRole("spinbutton", { name: "数量" });
     await user.clear(quantityInput);
     await user.type(quantityInput, "2");
-    await user.keyboard("{Enter}");
+    await user.keyboard("{Enter}{Enter}");
 
     expect(onUpdate).not.toHaveBeenCalled();
   });
@@ -355,6 +355,8 @@ describe("TreatmentRow — dose-params technical failure (TASK-025)", () => {
     await user.clear(quantityInput);
     await user.type(quantityInput, "2");
     await user.keyboard("{Enter}");
+    expect(onUpdate).not.toHaveBeenCalled();
+    await user.keyboard("{Enter}");
 
     expect(onUpdate).toHaveBeenCalledWith("1", { quantity: 2 });
   });
@@ -386,7 +388,7 @@ describe("TreatmentRow — dose-params technical failure (TASK-025)", () => {
     const quantityInput = screen.getByRole("spinbutton", { name: "数量" });
     await user.clear(quantityInput);
     await user.type(quantityInput, "3");
-    await user.keyboard("{Enter}");
+    await user.keyboard("{Enter}{Enter}");
 
     expect(onUpdate).toHaveBeenCalledWith("1", { quantity: 3 });
   });
@@ -417,7 +419,7 @@ describe("TreatmentRow — dose-params technical failure (TASK-025)", () => {
     const quantityInput = screen.getByRole("spinbutton", { name: "数量" });
     await user.clear(quantityInput);
     await user.type(quantityInput, "3");
-    await user.keyboard("{Enter}");
+    await user.keyboard("{Enter}{Enter}");
 
     expect(onUpdate).toHaveBeenCalledWith("1", { quantity: 3 });
   });
@@ -443,7 +445,7 @@ describe("TreatmentRow — dose-params technical failure (TASK-025)", () => {
     const quantityInput = screen.getByRole("spinbutton", { name: "数量" });
     await user.clear(quantityInput);
     await user.type(quantityInput, "3");
-    await user.keyboard("{Enter}");
+    await user.keyboard("{Enter}{Enter}");
 
     expect(onUpdate).toHaveBeenCalledWith("1", { quantity: 3 });
   });
@@ -496,6 +498,8 @@ describe("TreatmentRow — dose deviation reason (TASK-377)", () => {
     await user.clear(quantityInput);
     await user.type(quantityInput, "5");
     await user.keyboard("{Enter}");
+    expect(onUpdate).not.toHaveBeenCalled();
+    await user.keyboard("{Enter}");
 
     expect(onUpdate).not.toHaveBeenCalled();
     expect(screen.getByRole("alert")).toHaveTextContent(/推奨値/);
@@ -523,7 +527,7 @@ describe("TreatmentRow — dose deviation reason (TASK-377)", () => {
     const quantityInput = screen.getByRole("spinbutton", { name: "数量" });
     await user.clear(quantityInput);
     await user.type(quantityInput, "5");
-    await user.keyboard("{Enter}");
+    await user.keyboard("{Enter}{Enter}");
     expect(onUpdate).not.toHaveBeenCalled();
 
     const reasonInput = screen.getByLabelText("用量逸脱の理由");
@@ -565,7 +569,7 @@ describe("TreatmentRow — dose deviation reason (TASK-377)", () => {
     const quantityInput = screen.getByRole("spinbutton", { name: "数量" });
     await user.clear(quantityInput);
     await user.type(quantityInput, "0.1");
-    await user.keyboard("{Enter}");
+    await user.keyboard("{Enter}{Enter}");
 
     expect(onUpdate).not.toHaveBeenCalled();
     expect(screen.getByRole("alert")).toHaveTextContent(/下限|推奨値/);
@@ -591,8 +595,62 @@ describe("TreatmentRow — dose deviation reason (TASK-377)", () => {
     await user.clear(quantityInput);
     await user.type(quantityInput, "2");
     await user.keyboard("{Enter}");
+    expect(onUpdate).not.toHaveBeenCalled();
+    await user.keyboard("{Enter}");
 
     expect(onUpdate).toHaveBeenCalledTimes(1);
     expect(onUpdate).toHaveBeenCalledWith("1", { quantity: 2 });
+  });
+});
+
+describe("TreatmentRow — quantity Enter×2 / Blur / Escape (GRILL Q8)", () => {
+  beforeEach(() => {
+    server.use(http.get("*/v1/masters/medicines/:id/dose-params", () => HttpResponse.json([])));
+  });
+
+  it("数量の1回目 Enter では onUpdate せず、2回目で1回だけ persist する", async () => {
+    const onUpdate = vi.fn();
+    const user = userEvent.setup();
+    renderRow({ ...baseTreatment, quantity: 1 }, { onUpdate });
+
+    await user.click(screen.getByRole("button", { name: "1" }));
+    const quantityInput = screen.getByRole("spinbutton", { name: "数量" });
+    await user.clear(quantityInput);
+    await user.type(quantityInput, "3");
+    await user.keyboard("{Enter}");
+    expect(onUpdate).not.toHaveBeenCalled();
+    await user.keyboard("{Enter}");
+    expect(onUpdate).toHaveBeenCalledTimes(1);
+    expect(onUpdate).toHaveBeenCalledWith("1", { quantity: 3 });
+  });
+
+  it("数量 Blur は Enter なしで commit する", async () => {
+    const onUpdate = vi.fn();
+    const user = userEvent.setup();
+    renderRow({ ...baseTreatment, quantity: 1 }, { onUpdate });
+
+    await user.click(screen.getByRole("button", { name: "1" }));
+    const quantityInput = screen.getByRole("spinbutton", { name: "数量" });
+    await user.clear(quantityInput);
+    await user.type(quantityInput, "4");
+    await user.tab();
+    expect(onUpdate).toHaveBeenCalledTimes(1);
+    expect(onUpdate).toHaveBeenCalledWith("1", { quantity: 4 });
+  });
+
+  it("数量 Escape は武装後も保存せず編集を終了する", async () => {
+    const onUpdate = vi.fn();
+    const user = userEvent.setup();
+    renderRow({ ...baseTreatment, quantity: 1 }, { onUpdate });
+
+    await user.click(screen.getByRole("button", { name: "1" }));
+    const quantityInput = screen.getByRole("spinbutton", { name: "数量" });
+    await user.clear(quantityInput);
+    await user.type(quantityInput, "9");
+    await user.keyboard("{Enter}");
+    expect(onUpdate).not.toHaveBeenCalled();
+    await user.keyboard("{Escape}");
+    expect(onUpdate).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "1" })).toBeInTheDocument();
   });
 });

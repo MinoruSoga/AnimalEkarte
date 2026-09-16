@@ -39,10 +39,7 @@ import {
   type SchedulerAlertConfig,
   type SchedulerOpsAuthConfig,
 } from "./scheduler-ops";
-import {
-  SCHEDULER_NAME,
-  runScheduledJobRequest,
-} from "./scheduled-jobs";
+import { SCHEDULER_NAME, runScheduledJobRequest } from "./scheduled-jobs";
 
 export class AnimalEkarteApiContainer extends Container<Env> {
   defaultPort = 8080;
@@ -166,7 +163,10 @@ export class AnimalEkarteApiContainer extends Container<Env> {
 
     const timeoutMs = AnimalEkarteApiContainer.MIGRATE_TIMEOUT_MS;
     const timeout = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error(`migrate exec timed out after ${timeoutMs}ms`)), timeoutMs);
+      setTimeout(
+        () => reject(new Error(`migrate exec timed out after ${timeoutMs}ms`)),
+        timeoutMs,
+      );
     });
 
     let output;
@@ -206,10 +206,7 @@ export class AnimalEkarteApiContainer extends Container<Env> {
     return new SchedulerCoordinator(this.ctx.storage).getStatus(limit);
   }
 
-  async consumeScheduledJobsOpsRateLimit(
-    actorPrincipal: string,
-    now: number,
-  ) {
+  async consumeScheduledJobsOpsRateLimit(actorPrincipal: string, now: number) {
     return new SchedulerCoordinator(this.ctx.storage).consumeOpsRateLimit(
       actorPrincipal,
       now,
@@ -240,7 +237,8 @@ type ProxyObservationOutcome =
   | { readonly status: number }
   | { readonly failureCode: "container_unavailable" };
 
-const SAFE_REQUEST_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const SAFE_REQUEST_ID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function proxyMethodClass(method: string): "get" | "options" | "other" {
   if (method === "GET") return "get";
@@ -268,9 +266,57 @@ export function buildProxyObservation(
     method: proxyMethodClass(request.method),
     path: proxyPathClass(new URL(request.url).pathname),
     duration_ms: Math.max(0, Math.round(finishedAt - startedAt)),
-    ...("status" in outcome ? { status: outcome.status } : { failure_code: outcome.failureCode }),
-    ...(requestId !== null && SAFE_REQUEST_ID.test(requestId) ? { request_id: requestId } : {}),
+    ...("status" in outcome
+      ? { status: outcome.status }
+      : { failure_code: outcome.failureCode }),
+    ...(requestId !== null && SAFE_REQUEST_ID.test(requestId)
+      ? { request_id: requestId }
+      : {}),
   };
+}
+
+type ContainerFetcher = {
+  fetch(request: Request): Promise<Response>;
+};
+
+/**
+ * Forwards one request to the API container and emits the fixed timing observation.
+ * Exception bodies are intentionally not logged.
+ */
+export async function forwardContainerFetch(
+  request: Request,
+  forwardedRequest: Request,
+  container: ContainerFetcher,
+): Promise<Response> {
+  const startedAt = performance.now();
+  try {
+    const response = await container.fetch(forwardedRequest);
+    console.info(
+      "container fetch timing",
+      buildProxyObservation(request, startedAt, performance.now(), {
+        status: response.status,
+      }),
+    );
+    return response;
+  } catch {
+    // Container 起動失敗(イメージ・メモリ等)・タイムアウト時、Workers既定の500本文では
+    // フロントエンドがJSONエラーとして解釈できないため、明示的なフォールバックを返す。
+    // 例外本文・stack は外部応答や機密値を含み得るためログへ出さない。
+    console.error("container fetch failed", {
+      event: "container_fetch_failed",
+      failure_code: "container_unavailable",
+    });
+    console.info(
+      "container fetch timing",
+      buildProxyObservation(request, startedAt, performance.now(), {
+        failureCode: "container_unavailable",
+      }),
+    );
+    return new Response(JSON.stringify({ error: "service_unavailable" }), {
+      status: 503,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
 }
 
 export default {
@@ -324,49 +370,17 @@ export default {
     const forwardedRequest = new Request(request, { headers });
 
     const container = getContainer(env.API_CONTAINER);
-    const startedAt = performance.now();
-    try {
-      const response = await container.fetch(forwardedRequest);
-      console.info(
-        "container fetch timing",
-        buildProxyObservation(request, startedAt, performance.now(), { status: response.status }),
-      );
-      return response;
-    } catch {
-      // Container 起動失敗(イメージ・メモリ等)・タイムアウト時、Workers既定の500本文では
-      // フロントエンドがJSONエラーとして解釈できないため、明示的なフォールバックを返す。
-      // 例外本文・stack は外部応答や機密値を含み得るためログへ出さない。
-      console.error("container fetch failed", {
-        event: "container_fetch_failed",
-        failure_code: "container_unavailable",
-      });
-      console.info(
-        "container fetch timing",
-        buildProxyObservation(request, startedAt, performance.now(), {
-          failureCode: "container_unavailable",
-        }),
-      );
-      return new Response(JSON.stringify({ error: "service_unavailable" }), {
-        status: 503,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
+    return forwardContainerFetch(request, forwardedRequest, container);
   },
 
   async scheduled(controller: ScheduledController, env: Env): Promise<void> {
     const coordinator = getContainer(env.API_CONTAINER, SCHEDULER_NAME);
     try {
-      await dispatchScheduledEvent(
-        controller,
-        async (cron, scheduledTime) => {
-          const results = await coordinator.runScheduledJobs(
-            cron,
-            scheduledTime,
-          );
-          await notifySchedulerFailures(results, schedulerAlertConfig(env));
-          return results;
-        },
-      );
+      await dispatchScheduledEvent(controller, async (cron, scheduledTime) => {
+        const results = await coordinator.runScheduledJobs(cron, scheduledTime);
+        await notifySchedulerFailures(results, schedulerAlertConfig(env));
+        return results;
+      });
     } catch {
       // cron と scheduledTime は Cloudflare 設定由来で PII/secret を含まない。
       // Go 応答本文や例外詳細は記録せず、失敗種別は永続 run ledger で確認する。
@@ -401,7 +415,10 @@ function schedulerOpsAuthConfig(env: Env): SchedulerOpsAuthConfig {
 
 // P4-5(試行10): migrate one-shot 管理エンドポイント。POST + Bearer secret必須。
 // GET/その他メソッドは405、secret不一致・未設定は401(存在の有無を分けない — enumeration対策)。
-async function handleMigrateRequest(request: Request, env: Env): Promise<Response> {
+async function handleMigrateRequest(
+  request: Request,
+  env: Env,
+): Promise<Response> {
   if (request.method !== "POST") {
     return new Response(JSON.stringify({ error: "method_not_allowed" }), {
       status: 405,

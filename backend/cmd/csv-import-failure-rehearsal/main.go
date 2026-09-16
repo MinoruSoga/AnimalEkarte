@@ -227,7 +227,7 @@ func parseOptions(args []string) (options, error) {
 	flags := flag.NewFlagSet("csv-import-failure-rehearsal run", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	flags.StringVar(&opt.clinicCode, "clinic-code", "", "clinic code binding")
-	flags.Int64Var(&opt.clinicOrdinal, "clinic-ordinal", 0, "fixed clinic ordinal 1")
+	flags.Int64Var(&opt.clinicOrdinal, "clinic-ordinal", 0, "clinic ordinal in the synthetic failure band (1..50)")
 	flags.StringVar(&opt.runID, "run-id", "", "failure rehearsal run ID")
 	flags.StringVar(&opt.targetReleaseCommit, "target-release-commit", "", "exact clean target release commit")
 	flags.StringVar(&opt.targetDatabaseIdentitySHA256, "target-database-identity-sha256", "", "host-attested disposable database identity SHA-256")

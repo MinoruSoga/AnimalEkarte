@@ -6,6 +6,27 @@ import {
   type DoseGateSource,
 } from "./treatment-row-dose-gate";
 
+export type QuantityEnterPhase = "idle" | "armed";
+
+export type QuantityEnterAction = "none" | "commit" | "cancel";
+
+/** Quantity-only Enter arming: first Enter arms, second commits; Escape cancels. */
+export function reduceQuantityEnterKey(
+  phase: QuantityEnterPhase,
+  key: string,
+): { phase: QuantityEnterPhase; action: QuantityEnterAction } {
+  if (key === "Escape") {
+    return { phase: "idle", action: "cancel" };
+  }
+  if (key === "Enter") {
+    if (phase === "idle") {
+      return { phase: "armed", action: "none" };
+    }
+    return { phase: "idle", action: "commit" };
+  }
+  return { phase, action: "none" };
+}
+
 export interface QuantityCommitParams {
   localQuantity: string;
   localDeviationReason: string;

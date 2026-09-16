@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -113,6 +114,20 @@ func TestRunWithDependenciesRejectsUnsafeTargetBeforeOpeningIt(t *testing.T) {
 	}
 }
 
+func TestParseOptionsAcceptsClinicOrdinalsInLibraryRange(t *testing.T) {
+	for _, ordinal := range []string{"1", "2", "50"} {
+		t.Run("ordinal_"+ordinal, func(t *testing.T) {
+			opt, err := parseOptions(replaceArg(validArgs(), "--clinic-ordinal", ordinal))
+			if err != nil {
+				t.Fatalf("parseOptions() error = %v", err)
+			}
+			if got := strconv.FormatInt(opt.clinicOrdinal, 10); got != ordinal {
+				t.Fatalf("clinicOrdinal = %s, want %s", got, ordinal)
+			}
+		})
+	}
+}
+
 func TestParseOptionsRejectsVariableInjectionSurface(t *testing.T) {
 	for _, test := range []struct {
 		name string
@@ -123,7 +138,8 @@ func TestParseOptionsRejectsVariableInjectionSurface(t *testing.T) {
 		{"wrong command", append([]string{"apply"}, validArgs()[1:]...), "unsupported command"},
 		{"operator SQL", append(validArgs(), "--injection-sql", "DELETE FROM owners"), "flag provided but not defined"},
 		{"operator source", append(validArgs(), "--source-dir", "/private/data"), "flag provided but not defined"},
-		{"wrong ordinal", replaceArg(validArgs(), "--clinic-ordinal", "2"), "clinic ordinal 1"},
+		{"ordinal below range", replaceArg(validArgs(), "--clinic-ordinal", "0"), "clinic ordinal must be between 1 and 50"},
+		{"ordinal above range", replaceArg(validArgs(), "--clinic-ordinal", "51"), "clinic ordinal must be between 1 and 50"},
 		{"invalid release", replaceArg(validArgs(), "--target-release-commit", "short"), "release commit"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
