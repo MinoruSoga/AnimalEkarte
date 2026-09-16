@@ -1,90 +1,69 @@
 # タスク台帳 — 入口
 
-統合日: 2026-09-08。最終GitHub照合: 2026-09-11（`main` = `origin/main` 同期済み）。**ローカルで着手可能な開発タスク（READY）はなし。** `main` → `staging` PR [#388](https://github.com/MinoruSoga/AnimalEkarte/pull/388) は OPEN・MERGEABLE だが Backend Test (remaining) / Backend が FAILURE（UNSTABLE）。Linear は free issue limit のため **新規作成禁止**（既存更新のみ）。照合メモは [linear-f1-f6-mapping.md](docs/work/linear-f1-f6-mapping.md)。UAT・STG/PROD・go-live は再判定していない。対応済みの詳細は本ファイルに残さず Git 履歴を参照する。
+最終照合: 2026-09-15（JST）。ローカル `main` の実装、9月13日のバグ記録、9月15日の医院フィードバック、GitHub / Linear の読取結果を照合。**未完了の作業だけを掲載する。** 実装済みの詳細・完了項目は Git 履歴と元の UAT 記録を参照する。
 
-| 項目 | 値 |
-|------|-----|
-| **新規 Issue SoT** | **[todo-issue.md](todo-issue.md)**（Linear 新規作成禁止） |
-| **既存チケット更新** | Linear Team **Baritech** · Project **ノア動物病院電子カルテ** · hub **[BRT-4](https://linear.app/baritechllc/issue/BRT-4)**（コメント・状態のみ） |
-| **セキュリティ修正** | **[BRT-226](https://linear.app/baritechllc/issue/BRT-226)**（**Done** · `origin/main` 済み · 2026-09-12） |
-| **開発キュー** | **READY なし**（ローカル実装単位なし） |
-| **本ファイルの範囲** | repo と強く結び付く **開発タスク入口**、確認済み製品 FAIL、PO 入口、維持制約 |
+## 着手プランの確認
 
-### 残タスク（2026-09-11 時点）
+2026-09-15、未完了タスクの計画を全件点検した。大枠の方針は既存文書にあり、不足していたコード/手順の入口、前提、実施順、成果物・完了条件を [開発・調査](todo-issue.md)、[検証・受入](todo-verification.md)、[運用・納品](todo-operations.md) に補完した。各表の ID から計画へ進める。`todo-performance.md` は技術記録、バグ/医院報告は元の根拠として参照する。計画があることと、実装・外部実行・受入の完了は区別する。
 
-| 区分 | 内容 | 管理先 |
-|------|------|--------|
-| ローカル開発 READY | **なし** | — |
-| deferred（codegen 承認待ち） | TASK-444-ADDENDUM-CODEGEN | [todo-issue.md](todo-issue.md) |
-| ローカル検証 BLOCKED | DEV-V-OWNER-DB（disposable DB URL 未設定） | [todo-verification.md](todo-verification.md) |
-| 人間 | PO / 人間レーン | Linear BRT-4 |
-| 運用 | PR #388 CI 修復・マージ判断 | GitHub / [todo-operations.md](todo-operations.md) |
-| 外部検証 | STG/UAT/PERF/AUTH-D1 ほか | [todo-verification.md](todo-verification.md) |
-| 認証外部 | D1 本番付与・メール、Linear 反映 | [todo-fix-auth.md](todo-fix-auth.md) |
+## 残作業の入口
 
-新規実装単位の本文は [todo-issue.md](todo-issue.md)。行値・秘密は書かない。
+| 区分 | 次に行うこと | 正本 |
+|---|---|---|
+| 着手可能な再現・設計 | 治療数量の Enter 確定、治療検索一覧の高さを検討。保存仕様・表示条件を固定してから実装 | [開発・調査キュー](todo-issue.md#open) |
+| 医院・PO の入力待ち | マスタ登録経路、排他制御の目的、カルテ表示端末、処置移行の範囲 | [未完了 Issue](todo-issue.md#open) |
+| 移行・データ調査 | 性別コード、ワクチン種、未納、死亡データの訂正方針 | [未完了 Issue](todo-issue.md#open) |
+| 実装後の確認 | 検索・保険割合・過去カルテ導線の STG ブラウザ確認、全ページ UAT の未確認操作 | [検証 TODO](todo-verification.md#uat-followup) |
+| 既存の検証残件 | OWNER 実DB、S09 / V04 / clinical E2E、性能実測、認証 D1 | [検証 TODO](todo-verification.md) |
+| 環境・本番・納品 | handoff 再生成、承認後のデータ訂正、Lane 3–4、本番構築・移行・研修 | [運用 TODO](todo-operations.md) |
+| deferred | `TASK-444-ADDENDUM-CODEGEN` | [未完了 Issue](todo-issue.md#task-444-addendum-codegen) |
 
-入口: [todo-issue.md](todo-issue.md) · [開発タスク](#development-tasks) · [製品 FAIL](#product-bugs) · [PO / 人間レーン](#human-lane) · [FE 維持制約](#refactor-constraints)
+## 管理先と完了の扱い
 
-横断・性能・認証の検証順は [todo-verification.md](todo-verification.md) を参照する。開発・検証・運用の実行先を混在させない。
-
-性能の技術的な状態は [todo-performance.md](todo-performance.md)、測定・受入は [統合検証TODO](todo-verification.md#perf-stg-login) を参照する。
-
-運用・外部環境に関する停止条件は [todo-operations.md](todo-operations.md) を参照する。push / dispatch / Linear Done / 秘密変更は明示承認が必要。
-
-claim は ID ごとに初回編集前に確認・取得する。作成者別の削除条件は [AGENTS.md](AGENTS.md#branch-deletion-by-creator-mandatory) を正本とする。ユーザー作成は AI による削除禁止。AI 作成は統合・明示終了・成果を保全した引き継ぎと未使用を確認して削除可能。過去セッションの claim 記録は historical snapshot として読み、現在の保有状態は新規着手時に `git branch --list 'claim/<TASK-ID>'` で再確認する。本 META 追加照合に再着手する場合は `claim/META-LINEAR-APPLY` を確認・取得する。claim の削除は UAT や受入の完了を意味しない。
-
----
+- 新規の実装・調査・PO 課題は [todo-issue.md](todo-issue.md)。検証・外部作業は各専用 TODO に置き、同じ残件の詳細を複製しない。
+- 既存チケットの実行状態は Linear Team **Baritech** / Project **ノア動物病院電子カルテ** / [BRT-4](https://linear.app/baritechllc/issue/BRT-4)。新規 Issue を作らない既存方針を維持する。コメント・状態変更は明示承認後。
+- 実装完了と、STG ブラウザ受入・production 配備・go-live を分ける。実装済みの項目は開発キューから削除し、未完了の受入・運用だけを残す。
+- 確認元: [医院フィードバック](docs/work/stg-uat-clinic-feedback-q1-q4.md)、[予約・スタッフの UAT 記録](bug.md)、[全ページ UAT 記録](bug-2.md)。元記録の古い計画・当時の状態は現在のキューに読み替えない。
 
 <a id="development-tasks"></a>
 
 ## 開発タスク
 
-**ローカルで着手可能な開発単位（READY）はなし。** Open Issue 本文は [todo-issue.md](todo-issue.md)（deferred の codegen のみ）。旧項目の扱いと根拠は [裁定記録](docs/work/development-task-decisions.md)。検証は [統合検証TODO](todo-verification.md)、運用は [todo-operations.md](todo-operations.md)。
+医院フィードバックのうち **まだ直すもの**。原文と回答は [stg-uat-clinic-feedback-q1-q4.md](docs/work/stg-uat-clinic-feedback-q1-q4.md)。詳細・受入は [todo-issue.md](todo-issue.md#open)。実装済み（検索 AND・保険 50/70・問診抜粋リンク）と手順案内（明日以降の予約編集）は載せない。
 
----
+| ID | 内容 | 状態 |
+|---|---|---|
+| [UAT-R2-TREATMENT-COMMIT](todo-issue.md#uat-r2-treatment-commit) | 治療タブ: Enter 1回で確定しない。2回目で数量 PATCH。反映の遅さを減らす | READY（再現・設計） |
+| [UAT-R2-MASTER-LIST-HEIGHT](todo-issue.md#uat-r2-master-list-height) | 治療検索の選択肢をスクロールなしで見える高さにする | READY（再現・設計） |
+| [UAT-R2-MASTER-PATH](todo-issue.md#uat-r2-master-path) | マスタ入力後に金額が空／会計画面に出ない。登録画面を特定してから直す | BLOCKED（医院入力） |
+| [UAT-R2-CHART-FIT](todo-issue.md#uat-r2-chart-fit) | サイドバー展開時にカルテ編集を1画面に収める | BLOCKED（端末条件） |
+| [UAT-R2-EXCLUSIVE-LOCK](todo-issue.md#uat-r2-exclusive-lock) | 旧システム相当の「他PC入力禁止」は未実装。全面ロックは製品判断後 | PO 判断待ち |
+| [UAT-Q3-GENDER-MAP](todo-issue.md#uat-q3-gender-map) | 避妊去勢済みが性別不明。コード 3/4 を雄/雌へ。STG 訂正は運用 | 未完了（old_db・運用） |
+| [UAT-Q2-VACCINE-SPECIES](todo-issue.md#uat-q2-vaccine-species) | 猫に犬用ワクチン（Proheart・6種等）。件数調査のあと種を付ける | 調査待ち |
+| [UAT-Q4-UNPAID-TRIAGE](todo-issue.md#uat-q4-unpaid-triage) | 未納はデモではない。実未納と突合漏れを集計で切る。一括完了しない | 調査待ち |
+| [UAT-Q2-TREATMENTS-IMPORT](todo-issue.md#uat-q2-treatments-import) | 旧カルテの処置・処方明細が未移行 | DEFERRED（PO 未決） |
+
+先行するのは `UAT-R2-TREATMENT-COMMIT` と `UAT-R2-MASTER-LIST-HEIGHT`。データ運用や入力待ちを、無条件の実装 READY にしない。
 
 <a id="product-bugs"></a>
 
-## 4. 確認済み製品 FAIL（旧 bug.md）
+## 確認済み製品 FAIL
 
-記録対象は確認済み製品 FAIL のみ（[TEST_ARCHITECTURE.md](docs/ops/testing/TEST_ARCHITECTURE.md) §6）。環境・seed・権限・fixture 不足による BLOCKED / PARTIAL や受入未実施を混ぜない。証跡に credential・token・cookie・idToken・個人情報（PHI）を含めない。新規 FAIL の詳細は本節と [todo-issue.md](todo-issue.md) に記載する（Linear 新規 Issue は作らない）。既存 Linear チケットがある場合のみコメント更新する。見出し ID は本節内で重複させない。新規項目は `### BUG-XXX` で本節に追加する。
-
-| ID | status | area | severity | scenario | 層 |
-|:---|:---|:---|:---|:---|:---|
-| （現在の確認済み未対応項目なし） | — | — | — | — | — |
-
-これは現在の製品全体に不具合がないという判定ではない。認証の現在状態は [todo-fix-auth.md](todo-fix-auth.md)、検証は [統合検証TODO](todo-verification.md#認証認可の外部境界) を参照する。対応済み項目は本節に残さず、履歴は Git と `reports/uat-YYYY-MM-DD/` を参照する。
+現在の未解消報告は [todo-issue.md](todo-issue.md) の症状別調査・データ課題に整理した。`bug.md` / `bug-2.md` の FIXED / SPEC-OK を未修正の製品 FAIL として再登録しない。環境・fixture 不足は運用、未確認操作は検証に置く。新たに製品欠陥が確定したら、既存 ID のまま再現・原因・担当範囲を確定する。
 
 <a id="human-lane"></a>
 
-## 5. PO / 人間レーン（旧 todo-po.md）
+## PO / 人間レーン
 
-既存人間ゲートの追跡は Linear hub [BRT-4](https://linear.app/baritechllc/issue/BRT-4) · Project ノア動物病院電子カルテ（更新のみ）。新規の人間レーン項目が必要なら [todo-issue.md](todo-issue.md) に書く。検証は統合検証TODOを正本とし、別の Open 行台帳を再構築しない。
-
-会社側索引: CorpVault `50_Projects/ノア動物病院電子カルテ/05_Linearマップ.md`。旧詳細本文は Git 履歴。
+医院入力待ち・製品判断は [todo-issue.md](todo-issue.md#open)、実環境の承認と操作は [todo-operations.md](todo-operations.md)、受入・go-live は [todo-verification.md](todo-verification.md)。既存の人間ゲートは BRT-4 配下で追跡する。
 
 <a id="refactor-constraints"></a>
 
-## 6. FE 維持制約
+## FE 維持制約
 
-- `design-tokens.ts` / `query-keys.ts` / `paths.ts` の表分割、50 行までの機械分割、200–399 行ファイルの薄型化だけを目的とした切断は行わない。
-- `utils/` を再作成しない。generated/models の一括移行は行わず、必要性が出た場合だけ [開発タスクの裁定記録](docs/work/development-task-decisions.md#task-444) の境界で分割追従する。
-- `app/pages` の合成と owners `loaders.ts` の例外を維持する。
-- 権限 ref、死亡 sentinel、`useActionState`、queryKey タプルの契約を維持する。
-- FE12 却下（manual chunk、死亡行グレーアウト、owners 行アクションをペット生死で止める）は維持する。
-- 当時のトリミングフォームの権限・死亡ガード欠落は対象外だった。本履歴から現在の未修正・修正済みを判断しない。
+- `design-tokens.ts` / `query-keys.ts` / `paths.ts` の表分割や行数だけを目的とした機械的分割をしない。
+- `utils/` 再作成・generated/models 一括移行をしない。必要性は [裁定記録](docs/work/development-task-decisions.md#task-444) に従って判断する。
+- `app/pages` の合成と owners `loaders.ts` の例外、権限 ref、死亡 sentinel、`useActionState`、queryKey タプルを維持する。
+- FE12 却下（manual chunk、死亡行グレーアウト、owners 行アクションをペット生死で止める）を維持する。
 
----
-
-## 参照
-
-| 文書 | 役割 |
-|------|------|
-| [todo-issue.md](todo-issue.md) | **新規 Issue 本文の正本**（Linear 新規作成禁止） |
-| [docs/work/linear-f1-f6-mapping.md](docs/work/linear-f1-f6-mapping.md) | F1〜F6 対応案。既存 Linear 照合 |
-| [todo-verification.md](todo-verification.md) | 横断・性能・認証の検証TODO |
-| [todo-operations.md](todo-operations.md) | STG・本番・納品などの運用・外部実行TODO |
-| [製品 FAIL](#product-bugs) | 確認済み製品 FAIL |
-| [docs/ops/deploy/OLD_DB_HANDOFF_LOCAL.md](docs/ops/deploy/OLD_DB_HANDOFF_LOCAL.md) | ローカル handoff |
-| [docs/ops/deploy/STG_PLANETSCALE_SEED_RUNBOOK.md](docs/ops/deploy/STG_PLANETSCALE_SEED_RUNBOOK.md) | STG 破壊境界 |
+着手時は [AGENTS.md](AGENTS.md) の claim・worktree 規則に従う。秘密・患者情報は台帳へ書かない。

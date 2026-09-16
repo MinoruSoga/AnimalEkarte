@@ -130,7 +130,8 @@ func TestValidateSyntheticFailureInput(t *testing.T) {
 		mutate func(*SyntheticFailureInput)
 		want   string
 	}{
-		{"clinic ordinal", func(input *SyntheticFailureInput) { input.ClinicOrdinal = 2 }, "clinic ordinal 1"},
+		{"clinic ordinal low", func(input *SyntheticFailureInput) { input.ClinicOrdinal = 0 }, "clinic ordinal must be between"},
+		{"clinic ordinal high", func(input *SyntheticFailureInput) { input.ClinicOrdinal = 51 }, "clinic ordinal must be between"},
 		{"run id", func(input *SyntheticFailureInput) { input.RunID = "../escape" }, "run ID"},
 		{"release", func(input *SyntheticFailureInput) { input.TargetReleaseCommit = "short" }, "release commit"},
 		{"database identity", func(input *SyntheticFailureInput) { input.TargetDatabaseIdentitySHA256 = "invalid" }, "database identity"},
@@ -251,4 +252,39 @@ func (tx *fakeFailureRehearsalTx) Rollback(context.Context) error {
 func (tx *fakeFailureRehearsalTx) Commit(context.Context) error {
 	tx.committed = true
 	return errors.New("synthetic failure transaction must not commit")
+}
+
+func TestSyntheticFailureBandSupportsClinicOrdinals(t *testing.T) {
+	band1, owner1, pet1, missing1, err := syntheticFailureBand(1)
+	if err != nil {
+		t.Fatalf("ordinal 1: %v", err)
+	}
+	if band1.Base != 0 || band1.EndExclusive != 10_000_000 || owner1 != 300_000 || pet1 != 1_000_000 || missing1 != 9_999_999 {
+		t.Fatalf("unexpected ordinal 1 band/ids: %+v %d %d %d", band1, owner1, pet1, missing1)
+	}
+
+	band2, owner2, pet2, missing2, err := syntheticFailureBand(2)
+	if err != nil {
+		t.Fatalf("ordinal 2: %v", err)
+	}
+	if band2.Base != 10_000_000 || band2.EndExclusive != 20_000_000 || owner2 != 10_300_000 || pet2 != 11_000_000 || missing2 != 19_999_999 {
+		t.Fatalf("unexpected ordinal 2 band/ids: %+v %d %d %d", band2, owner2, pet2, missing2)
+	}
+
+	if _, _, _, _, err := syntheticFailureBand(0); err == nil {
+		t.Fatal("ordinal 0 accepted")
+	}
+	if _, _, _, _, err := syntheticFailureBand(51); err == nil {
+		t.Fatal("ordinal 51 accepted")
+	}
+
+	input := validSyntheticFailureInput()
+	input.ClinicOrdinal = 2
+	if err := validateSyntheticFailureInput(input); err != nil {
+		t.Fatalf("ordinal 2 input rejected: %v", err)
+	}
+	manifest := syntheticFailureManifest(input)
+	if manifest.ClinicBandBase != 10_000_000 || manifest.IDBand.NonOwnerIDOffset != 11_000_000 {
+		t.Fatalf("manifest band not ordinal-aware: %+v", manifest.IDBand)
+	}
 }

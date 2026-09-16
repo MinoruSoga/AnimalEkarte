@@ -68,3 +68,13 @@ addendum response 型移行（codegen 前提）は引き続き deferred（`TASK-
 調査と文書更新を完了し、main上の未コミット差分として引き継ぐ。実装・実DB検証・配信は今回の完了範囲ではない。文書リンク、3件のREADY行、旧10IDの判断先、検証先、既存WIPのhashを確認した。アプリコードの変更はなく、runtime検証は不要だった。
 
 この調査だけで作成した `claim/LEDGER-TODO-READY`、`claim/TASK-444`、`claim/BE-RC-005`、`claim/BE-RC-009`、`claim/BE-RC-014`、`claim/BE-RC-015`、`claim/BE-RC-017`、`claim/BE-RC-019`、`claim/PERF-DEV-OBSERVATION`、`claim/PERF-DEV-MITIGATION`、`claim/PERF-DEV-BUNDLE` は、文書の保全と調査担当の終了後に解放する。READY3件の実装を開始する担当者は、それぞれのclaimを新規取得する。これは実装済みの宣言ではない。
+
+## frontend 監査から引き継ぐ維持判断（2026-09-15）
+
+完了した frontend 監査の独立メモを削除し、再作業を防ぐ判断だけをここへ集約した。過去の監査結果・修正・検証は `fe-refactor.md` の Git 履歴を参照する。
+
+- 第1期 FE-RC-001〜089、第2期 FE-RC-101〜128、第3期 FE-RC-201〜228、FE-RC-W3-LEAVE の完了履歴だけを理由に再オープンしない。新しい不具合は現在の証拠から判断する。
+- FE-RC-117 の `use-reservation-type-color-map` は `@/hooks` を正本とする。
+- `useInventoryList` は派生値 facade のため `useGet` へ改名しない（FE-RC-055）。原則は [feature の命名例外](../../frontend/src/features/CLAUDE.md#命名例外-fe-rc-0552026-09-03) を参照する。
+- 公開型や対応する実体がない feature に、形を揃えるためだけの空の `types/` / `hooks/` を新設しない。
+- manual chunk、死亡行のグレーアウト、飼主一覧の行アクション制限の却下と再開条件は [frontend 規約](../../frontend/CLAUDE.md) を維持する。

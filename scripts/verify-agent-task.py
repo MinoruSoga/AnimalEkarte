@@ -489,6 +489,27 @@ def plan(paths):
             if path == '.github/workflows/ci.yml':
                 jobs.append({'service': 'host', 'command': ['python3', '-B', 'scripts/ci_scope_plan_test.py']})
                 jobs.append({'service': 'host', 'command': ['python3', '-B', 'scripts/test_verify_agent_task.py']})
+        elif path in (
+            'scripts/run-f8-g4-rehearsal.mjs',
+            'scripts/lib/f8-g4-evidence.mjs',
+            'scripts/lib/f8-g4-evidence.test.mjs',
+            'scripts/lib/f8-g4-host-safety.mjs',
+            'scripts/lib/f8-g4-host-safety.test.mjs',
+            'scripts/check-f8-g4-resources.mjs',
+            'docker-compose.f8-g4-rehearsal.yml',
+            'docs/ops/deploy/F8_G4_FAILURE_REHEARSAL.md',
+        ):
+            jobs.append({'service': 'host', 'command': ['node', '--test', 'scripts/lib/f8-g4-evidence.test.mjs']})
+            jobs.append({'service': 'host', 'command': ['node', '--test', 'scripts/lib/f8-g4-host-safety.test.mjs']})
+            jobs.append({
+                'service': 'backend',
+                'command': [
+                    'go', 'test', '-json', '-p=2', '-count=1', '-short',
+                    './internal/csvimport',
+                    '-run=^TestValidateSyntheticFailureInput$|^TestSyntheticFailureBandSupportsClinicOrdinals$',
+                ],
+                'require_completed_test': True,
+            })
         elif path.startswith('backend/worker/') or path == 'backend/wrangler.jsonc':
             jobs.append({'service': 'host', 'command': ['bash', 'scripts/check-test-worker-makefile.test.sh']})
         elif path.startswith('.claude/skills/') and path.endswith('.md'):
