@@ -1,6 +1,6 @@
 # 未完了の検証・受入 TODO
 
-最終照合: 2026-09-15（JST）。完了した実装・unit 検証の列挙を削除し、残る検証と受入だけを扱う。新規実装は [todo-issue.md](todo-issue.md)、外部操作は [todo-operations.md](todo-operations.md)。
+最終照合: 2026-09-17（JST）。完了した実装・unit 検証の列挙を削除し、残る検証と受入だけを扱う。新規実装は [todo-issue.md](todo-issue.md)、外部操作は [todo-operations.md](todo-operations.md)。
 
 着手プラン確認: 2026-09-15。各 ID の入口・前提・手順・証拠を下記に補完した。これは計画の充足確認であり、テストや受入の完了判定ではない。
 
@@ -17,6 +17,8 @@
 
 | ID / 対象 | 残る確認 | 状態・完了条件 |
 |---|---|---|
+| [UAT-R2-TREATMENT-COMMIT](#uat-r2-treatment-commit) | 実機 IME、Blur、2回 Enter 後の保存・再読込を確認 | ローカル28 tests済み。対象 browser/build の receipt 待ち |
+| [UAT-R2-MASTER-LIST-HEIGHT](#uat-r2-master-list-height) | viewport・ズーム・検索/閉じる操作・キーボード選択・フォーカス復帰 | ローカル10 tests済み。対象端末での可視範囲の受入待ち |
 | [UAT-Q1-SEARCH-AND](#uat-q1-search-and) | STG で複数語検索・1語検索・医院分離を確認 | ブラウザ未確認。対象 build と結果を記録 |
 | [UAT-Q4-INSURANCE-RATES](#uat-q4-insurance-rates) | 新規の保険割合 50/70、既存 90/100 の保持と金額を確認 | ブラウザ未確認。既存値のサイレント丸めなし |
 | [UAT-Q2-HISTORY-NAV](#uat-q2-history-nav) | 問診抜粋の行から同一ペットのカルテ詳細へ進めることを確認 | ブラウザ未確認。未移行の処置が空でも詳細を開ける |
@@ -26,6 +28,14 @@
 Q1 / Q4保険 / Q2履歴の実装は再開しない。根拠は [医院フィードバック](docs/work/stg-uat-clinic-feedback-q1-q4.md) と、9月15日に読取確認した [PR #411](https://github.com/MinoruSoga/AnimalEkarte/pull/411)（merged）、[Backend Deploy](https://github.com/MinoruSoga/AnimalEkarte/actions/runs/34923018516) / [Frontend Deploy](https://github.com/MinoruSoga/AnimalEkarte/actions/runs/34923018544)（ともに success、`d337f016`）。この配備記録はブラウザ確認や本番反映の代替ではない。
 
 `NOTE2-SWEEP-COVERAGE` は `/accounting/:id`、`/hospitalization/:id`、`/hospitalization/:id/edit`、`/inventory/:id` の前提 ID を確保し、有効な cage 等の必須値で入院・検査を確認する。カルテ actor の修正は再実装せず、対象環境の schema を確認した後に新規カルテ→再読込→健診を再検証する。古い「カルテバグでブロック」を現行判定に流用しない。元の `reports/uat-2026-09-13/` を保持し、新しい run の route/action・前提・結果・証拠・未確認理由を残す。
+
+### UAT-R2-TREATMENT-COMMIT
+
+`72807128` の [TreatmentQuantityCell](frontend/src/features/medical-records/components/TreatmentsTab/TreatmentQuantityCell.tsx) は Enter 2回で確定、Blur 保存、Escape 取消を実装済み。repeat / isComposing / keyCode229 の無視を含む28 testsは [既存の同一コミット検証](.planning/agent-fast-campaign/four-candidate-integration-20260916/evidence/rev7-reverify-72807128-codex/controller/RECONCILIATION.md) による。今回の文書更新では再実行していない。残るのは承認された対象 build・fixture での物理 IME と、1回目で未保存→2回目/Blur→再読込で値が残ることのブラウザ確認。実測前に高速化完了とはしない。
+
+### UAT-R2-MASTER-LIST-HEIGHT
+
+同じ検証の10 testsで [TreatmentSearchDialog](frontend/src/components/shared/TreatmentSearchDialog/TreatmentSearchDialog.tsx) の一覧上限 `max-h-[calc(80vh-12rem)]` を確認済み。残るのは対象端末の viewport・ズーム別の可視行、画面内の検索/閉じる操作、キーボード選択・フォーカス復帰の受入。長い一覧のスクロールは残す。ノートPC125%の記録だけでは解像度・対象タブを確定できない。
 
 ### UAT-Q1-SEARCH-AND
 
@@ -103,11 +113,11 @@ OWNER の対象は `TestOwnerRepository_UpdateAndFind_ReloadFailureRollsBackUpda
 
 ## Linear 照合の残り
 
-9月15日の読取結果: [BRT-4](https://linear.app/baritechllc/issue/BRT-4) は Backlog、[BRT-45](https://linear.app/baritechllc/issue/BRT-45) / [BRT-68](https://linear.app/baritechllc/issue/BRT-68) は Needs Human。既存 Issue の読み取りは利用可能。完了済みチケットは残件表から除く。
+9月15日の読取結果: [BRT-4](https://linear.app/baritechllc/issue/BRT-4) は Backlog、[BRT-45](https://linear.app/baritechllc/issue/BRT-45) / [BRT-68](https://linear.app/baritechllc/issue/BRT-68) は Needs Human。これは当時の読取記録。9月17日の照会は `USER_NOT_LOGGED_IN` で失敗し、現在の状態・対応先は UNKNOWN。完了済みチケットは残件表から除く。
 
 | ID | 状態 | 残作業 |
 |---|---|---|
-| [TODO-V-LINEAR / META-LINEAR-APPLY](#todo-v-linear--meta-linear-apply) | 照合・下書き待ち | 9月13〜15日の残件と既存 Issue の対応を確認し、反映先・URL・現状・更新案を作る |
+| [TODO-V-LINEAR / META-LINEAR-APPLY](#todo-v-linear--meta-linear-apply) | UNKNOWN（再認証・照合待ち） | 9月13〜17日の残件と既存 Issue の対応を確認し、反映先・URL・現状・更新案を作る |
 | [PERF-V-LINEAR](#perf-v-linear) | 対応先未確定 | PERF-STG-LOGIN と通信区間の調査を、既存 Issue に直接対応づける |
 | [AUTH-V-LINEAR-READ](#auth-v-linear-read) | 対応先未確定 | D1 対象環境・メール・反映範囲と、既存 Issue 本文を照合 |
 | [AUTH-V-LINEAR-WRITE](#auth-v-linear-write) | 承認待ち | 確定した既存 Issue への更新案を明示承認後に反映。新規作成枠を前提にしない |
@@ -120,7 +130,7 @@ Team/Project/BRT-4 配下で ID・元報告・実装・受入条件を照会し�
 
 ### PERF-V-LINEAR
 
-同じ Team/Project/BRT-4 内で `PERF-STG-LOGIN`、`/login`、`/me`、OPTIONS、Container を手掛かりに既存本文を照合する。通信全体とサーバー区間を分けた計測結果、原因未確定、観測コードの検証残、STG 受入を別欄にした更新案を作る。直接対応する Issue と日時が確認できれば下書き完了。投稿/Done は別承認で、類似する別案件へ割り当てない。
+同じ Team/Project/BRT-4 内で `PERF-STG-LOGIN`、`/login`、`/me`、OPTIONS、Container を手掛かりに既存本文を照合する。通信全体とサーバー区間を分けた計測結果、原因未確定、観測コードのローカル検証済み範囲、STG 受入を別欄にした更新案を作る。直接対応する Issue と日時が確認できれば下書き完了。投稿/Done は別承認で、類似する別案件へ割り当てない。
 
 ### AUTH-V-LINEAR-READ
 
@@ -134,22 +144,20 @@ READ の確定 URL と下書きに対する承認後、更新直前に対象本�
 
 ## PERF-STG-LOGIN
 
-技術記録は [todo-performance.md](todo-performance.md)。Worker 観測は現在 tracked code に存在し、未導入 WIP の扱いを終了した。残るのは現行コードのログ出力・型検査の確認、遅延の因果測定、必要性の再判定、受入である。
+技術記録は [todo-performance.md](todo-performance.md)。Worker 観測は現在 tracked code に存在し、未導入 WIP の扱いを終了した。`PERF-V-IMPLEMENT-OBSERVATION` の実 proxy 4 tests・worker typecheck（`index.test.ts` include済み）は `72807128` の [既存検証](.planning/agent-fast-campaign/four-candidate-integration-20260916/evidence/rev7-reverify-72807128-codex/controller/RECONCILIATION.md) で完了し、開いたキューから外した。残るのは遅延の因果測定、常時観測の必要性・出力範囲の再判定、STG 受入である。
 
 | 順 | ID | 状態 | 次の作業・完了条件 |
 |---|---|---|---|
 | 1 | [PERF-V-CLIENT-TRACE](#性能タスクの着手順と成果物) | 承認・観測条件待ち | `/login` 遷移前から OPTIONS / GET、FCP、操作可能時刻を記録。通常読込と再読込を分ける |
 | 2 | [PERF-V-CF-EVENTS](#性能タスクの着手順と成果物) | provider 証拠待ち | 同じ時刻の Worker 受付・forwarding・Container 起動を関連づける。時刻対応できなければ UNKNOWN |
 | 3 | [PERF-V-DECIDE-OBSERVATION](#性能タスクの着手順と成果物) | 調査待ち | 実装済み観測の常時出力が必要かを1・2の結果から再判定。必要なら対象を限定する変更、不要なら撤去を別実装単位にする |
-| 4 | [PERF-V-IMPLEMENT-OBSERVATION](#性能タスクの着手順と成果物) | UNKNOWN（現行経路の検証残） | 純粋関数だけでなく実 proxy の forwarding・503・CORS/認証・出力制約・型検査を確認 |
-| 5 | [PERF-V-MITIGATION](#性能タスクの着手順と成果物) | DEFERRED（因果待ち） | OPTIONS / GET の遅延箇所を特定してから通信・設定変更を選ぶ |
-| 6 | [PERF-V-BUNDLE](#性能タスクの着手順と成果物) | DEFERRED（実測待ち） | 固定 revision の転送・parse/execute への寄与を測り、必要な変更だけを判断 |
-| 7 | [PERF-V-STG-ACCEPTANCE](#性能タスクの着手順と成果物) | ブラウザ受入待ち | 対象 build の匿名・既存 session・復旧・医院選択を確認し、待機表示・操作可能・認証成功の時刻を分離 |
+| 4 | [PERF-V-MITIGATION](#性能タスクの着手順と成果物) | DEFERRED（因果待ち） | OPTIONS / GET の遅延箇所を特定してから通信・設定変更を選ぶ |
+| 5 | [PERF-V-BUNDLE](#性能タスクの着手順と成果物) | DEFERRED（実測待ち） | 固定 revision の転送・parse/execute への寄与を測り、必要な変更だけを判断 |
+| 6 | [PERF-V-STG-ACCEPTANCE](#性能タスクの着手順と成果物) | ブラウザ受入待ち | 対象 build の匿名・既存 session・復旧・医院選択を確認し、待機表示・操作可能・認証成功の時刻を分離 |
 
 - `PERF-V-CLIENT-TRACE`: 承認済み対象・時間枠・停止担当・証拠保存先を固定する。相対時刻、method、status、protocol、initiator、OPTIONS/GET 対応、FCP を保存し、Cookie・Authorization・本文・個人情報は含めない。HAR 等は保存前に機密除去。単発値や未使用時間だけで p95/p99・cold start・改善完了と判定しない。
 - `PERF-V-CF-EVENTS`: provider 時刻と browser 時刻を対応づけ、Container 起動証拠がない場合は Worker 所要時間だけで起動待ちと断定しない。観測で設定・配備を変更しない。
-- `PERF-V-IMPLEMENT-OBSERVATION`: 現在の `backend/worker/index.test.ts` は純粋関数中心で、`tsconfig.test.json` の明示 include に同ファイルがない。まず対象・影響を確認し、型検査の補完が必要なら実装単位を切る。出力は固定の method/path 分類、非負の丸めた時間、status/failure code、検証済み相関 ID に限定し、raw URL/query、Cookie、IP、例外本文を出さない。
-- scoped runner は `make test-worker ARGS='backend/worker/index.test.ts'`。型検査は同じ候補を mount した Docker の worker typecheck で別確認する。共有依存 volume の同時利用・host npm/pnpm での代用をしない。
+- 将来の変更時だけ、既存依存を利用し対象候補を mount した隔離 Docker の scoped Vitest と worker typecheck を別々に確認する。依存インストールや今回の再実行は不要。
 - `PERF-V-BUNDLE`: cache 条件を分ける。過去の HTML load 約0.31秒だけで約23秒の待ちを bundle 起因としない。公開 entrypoint を壊す deep import や一括 chunk 再編を先行させない。
 
 [STG パフォーマンス測定チェックシート](docs/ops/testing/STG-PERFORMANCE-CHECKLIST.md) に従い、証拠は既存の非公開 run 保存先へ置く。STG traffic・Cloudflare 読取・設定変更・配備・Linear 更新は各対象の承認範囲で行う。
@@ -163,7 +171,6 @@ READ の確定 URL と下書きに対する承認後、更新直前に対象本�
 | PERF-V-CLIENT-TRACE | 通常利用を変えず `/login` 遷移前から記録 → OPTIONS/GET の各区間、FCP、操作可能時刻を収集 | 相対時刻表と条件。初回/再読込を分け、秘密除去後に保存 |
 | PERF-V-CF-EVENTS | 同一の時刻窓と時刻基準を固定 → 受付/forwarding/Container起動/Go区間を対応づける | client/provider の対応表。相関できない区間は UNKNOWN |
 | PERF-V-DECIDE-OBSERVATION | 上記2表で遅延区間を特定 → 現行常時ログが判断に寄与するか評価 | 維持・対象限定・撤去・保留の理由と必要な変更範囲。再現/因果がなければ判断保留 |
-| PERF-V-IMPLEMENT-OBSERVATION | [index.ts](backend/worker/index.ts) の通常 proxy と [test](backend/worker/index.test.ts)、[型検査対象](backend/worker/tsconfig.test.json) を照合 → 実 proxy の forwarding/503/CORS/認証/許可ログ出力を scoped runner と worker typecheck で検証 | 対象ケース、runtime test と型検査の別結果。純粋関数だけで済ませず、不足は失敗テストを含む別実装単位へ。ローカルの検証準備は観測待ちと独立に進められる |
 | PERF-V-MITIGATION | 因果が分かった区間に対し1変更の仮説と比較条件を作る → 承認された対象で前後測定 | 時間内訳の比較と CORS/CSRF/認証の回帰結果。因果未確定なら通信/設定を変えない |
 | PERF-V-BUNDLE | 固定版を cache なし/ありで記録 → 転送/parse/execute が操作可能時刻に占める割合を測る | bundle 寄与と採否。寄与がなければ分割を採用せず、公開 entrypoint を維持 |
 | PERF-V-STG-ACCEPTANCE | 対象 run の成功と実配信 revision を照合 → 匿名/既存session/復旧/医院選択を確認 | 待機表示・操作可能・認証成功の3時刻とケース結果。改善候補があれば同条件の前後比較を付ける |

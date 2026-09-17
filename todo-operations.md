@@ -1,8 +1,8 @@
 # 運用・外部実行 TODO
 
-最終照合: 2026-09-15。未完了の環境・データ・本番・納品作業を管理する。実装は [todo-issue.md](todo-issue.md)、受入は [todo-verification.md](todo-verification.md)。既存チケットは [BRT-4](https://linear.app/baritechllc/issue/BRT-4) 配下。完了した PR の CI 修復・マージ待ちは削除した。
+最終照合: 2026-09-17。未完了の環境・データ・本番・納品作業を管理する。実装は [todo-issue.md](todo-issue.md)、受入は [todo-verification.md](todo-verification.md)。既存チケットは [BRT-4](https://linear.app/baritechllc/issue/BRT-4) 配下。完了した PR の CI 修復・マージ待ちは削除した。
 
-今回確認した外部情報は GitHub / Linear の読み取りだけ。STG / PROD の DB、秘密、最新データ投入 receipt は確認していない。以前の「未構築」「未受領」を現在の事実として断定せず、再実行前に実施有無を確認する。
+9月17日の `git ls-remote` では remote main は `f5699c2a`、local main `72807128` は1コミット先。新しい4単位の push・GitHub CI・STG/production は未確認。Linear は `USER_NOT_LOGGED_IN` で現在 UNKNOWN。9月15日の GitHub / Linear 読取は履歴。STG / PROD の DB、秘密、最新データ投入 receipt は確認していない。以前の「未構築」「未受領」を現在の事実として断定せず、再実行前に実施有無を確認する。
 
 着手プランを 2026-09-15 に補完した。各表の ID から下の個別手順を参照する。承認前にも、既存資料の照合・不足入力表・実行案の作成は進められる。外部の実操作を、この計画の記載だけで開始しない。
 
@@ -12,10 +12,10 @@
 
 | ID | 残作業・担当 | 開始条件と完了条件 |
 |---|---|---|
-| [UAT-Q3-GENDER-MAP](#uat-q3-gender-map) | old_db / USER: producer 修正状態の確認、既存 STG の性別訂正 | [課題本文](todo-issue.md#uat-q3-gender-map) のデコード・対象・バックアップ・監査・復旧を固定。承認後に適用し、性別と手術日を別々に照合 |
+| [UAT-Q3-GENDER-MAP](#uat-q3-gender-map) | old_db / USER: 検証済み隔離候補の main 統合・bundle、既存 STG の性別訂正 | [課題本文](todo-issue.md#uat-q3-gender-map) のデコード・対象・バックアップ・監査・復旧を固定。承認後に適用し、性別と手術日を別々に照合 |
 | [UAT-Q2-VACCINE-SPECIES](#uat-q2-vaccine-species) | USER / 調査担当: STG 集計の読取範囲を確保 | 医院と時刻窓を固定し、件数・参照関係で原因分類。個体情報を共有せず、履歴修正は別承認 |
 | [UAT-Q4-UNPAID-TRIAGE](#uat-q4-unpaid-triage) | USER / 調査担当: STG 未納の集計 | status、支払有無、金額で切り分け。既存請求を一括完了にしない |
-| [PO-PET-DECEASED-DATA-BACKFILL](#po-pet-deceased-data-backfill) | USER: PO 判断後の限定訂正 | [修復方針](todo-issue.md#po-pet-deceased-data-backfill) の対象と死亡日根拠を承認後に適用。監査・前後件数・復旧を確認 |
+| [PO-PET-DECEASED-DATA-BACKFILL](#po-pet-deceased-data-backfill) | USER: 日付根拠がある行だけの限定訂正 | [修復方針](todo-issue.md#po-pet-deceased-data-backfill) の対象と死亡日根拠を承認後に適用。監査・前後件数・復旧を確認 |
 | [BUG-LOCAL-HANDOFF-CSV-CONTRACT](#bug-local-handoff-csv-contract) | producer / USER: 現行契約の bundle 再生成・受領 | [元の障害](bug.md#plan-bug-local-handoff-csv-contract) は古い rehearsal bundle の不一致。現在の producer / manifest を照合し、未解消なら一体で再生成。digest の手修正や eligibility 昇格で通さない |
 
 実行手順は [ローカル handoff](docs/ops/deploy/OLD_DB_HANDOFF_LOCAL.md)、[STG 停止ゲート](docs/ops/deploy/STG_PLANETSCALE_SEED_RUNBOOK.md#2-pre-deploy-stop-gates)。共有環境への書込み・再取込・DB 作成/破棄・migration は今回実施しない。必要な `make migrate` は、対象環境の適用状態を確認したうえでユーザーが実行する。
@@ -52,7 +52,7 @@ Q1検索・Q4保険・Q2履歴を含む STG 修正の production 反映は未完
 
 ### UAT-Q3-GENDER-MAP
 
-1. producer 担当が [課題のデコード](todo-issue.md#uat-q3-gender-map) と現行 export の差分・テストを確認し、旧コード 3/4 の修正状況を提示する。
+1. [検証済み隔離候補](todo-issue.md#uat-q3-gender-map) は未コミット・old_db main 未統合。producer 担当が対象差分を統合し、現行契約の bundle を再生成・照合する。38 tests / SQLite CASE の成功を PostgreSQL・export・STG の証拠にしない。
 2. 運用担当が対象医院、旧コードを追跡できる根拠、訂正対象件数、除外条件、backup・監査・復旧方法を事前照合する。producer の修正と既存 STG の修正は別々に判定する。
 3. 承認された限定訂正後に雄/雌の件数・表示を照合する。手術日は変更対象と混ぜず、推測日付を入れない。成果物は producer revision、承認参照、前後集計、画面確認の非機密 receipt。
 
@@ -70,8 +70,8 @@ Q1検索・Q4保険・Q2履歴を含む STG 修正の production 反映は未完
 
 ### PO-PET-DECEASED-DATA-BACKFILL
 
-1. [元の修復計画](bug.md#plan-po-pet-deceased-data-backfill) に沿って不整合の種類、日付根拠、対象医院と件数を整理する。日付根拠がない行は未決として残す。
-2. PO が対象・根拠・訂正内容を確定した後、操作者、backup、監査、失敗/通信断時の照合・復旧を含む限定実行案を作る。
+1. [元の修復計画](bug.md#plan-po-pet-deceased-data-backfill) に沿って不整合の種類、日付根拠、対象医院と件数を整理する。日付根拠がある行だけを訂正対象とし、根拠がない行は補完対象外として残す。
+2. 根拠に基づく対象・訂正内容を確定した後、操作者、backup、監査、失敗/通信断時の照合・復旧を含む限定実行案を作る。
 3. 承認後の訂正と前後件数・画面・監査の一致で完了とする。死亡 write ガードを再実装せず、監査や既存履歴を削除しない。
 
 ### BUG-LOCAL-HANDOFF-CSV-CONTRACT

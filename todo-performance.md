@@ -1,6 +1,6 @@
 # Performance 調査・改善 TODO
 
-最終照合: 2026-09-15。調査 ID: **PERF-STG-LOGIN**。対象は STG `/login` の初回表示遅延。責任者・依頼者: 曽我 稔。
+最終照合: 2026-09-17。調査 ID: **PERF-STG-LOGIN**。対象は STG `/login` の初回表示遅延。責任者・依頼者: 曽我 稔。
 
 未完了の測定・受入は [todo-verification.md](todo-verification.md#perf-stg-login)。新たな実装が必要になったら [todo-issue.md](todo-issue.md) に範囲を確定する。本書は判断に必要な技術記録のみを保持する。
 
@@ -8,7 +8,7 @@
 
 - 初回遅延の原因と改善後の測定結果は未確定。通信全体約22.7秒を Go / DB 処理時間と断定しない。
 - Worker 観測は `b42c00ccb` で既にコミットされ、現在の [index.ts](backend/worker/index.ts) に `buildProxyObservation` と通常 proxy のログ出力が存在する。**「未導入 WIP を保全」「commit・deploy しない」という旧記述は現状と一致しないため削除した。** STG 配備対象 `d337f016` にも同じ観測経路が含まれる。
-- 残るのは、現行観測の必要性・出力範囲・実 proxy 回帰・型検査と、ブラウザ/provider の時刻対応の確認。ログが存在するだけで原因特定や性能改善を完了にしない。
+- `72807128` の実 proxy 4 tests と worker typecheck は [既存の同一コミット検証](.planning/agent-fast-campaign/four-candidate-integration-20260916/evidence/rev7-reverify-72807128-codex/controller/RECONCILIATION.md) で PASS。`index.test.ts` は `tsconfig.test.json` の include に追加済み。今回再実行した結果ではない。残るのは現行観測の必要性・出力範囲、ブラウザ/provider の時刻対応、STG 受入であり、原因特定・性能改善は未完了。
 - pending UI は既存実装を利用する。CORS / CSRF、edge OPTIONS、Container 設定、bundle 分割を、因果証拠なしに変更しない。
 
 ## 次に確認すること
@@ -16,7 +16,6 @@
 1. 通常の `/login` 読込で OPTIONS / GET の各区間、FCP、フォーム操作可能時刻を測る。
 2. 同じ時刻の provider 受付・forwarding・Container 起動証拠と対応づける。
 3. 現行の常時ログが必要かを再判定する。必要なら対象と出力を限定し、不要なら撤去を別実装単位にする。
-4. 現行 proxy 経路と新規テストの型検査を確認する。`index.test.ts` は `tsconfig.test.json` の明示 include にないため、検証範囲を確認して補完要否を決める。
 
 対象・承認・完了条件は [検証 TODO](todo-verification.md#perf-stg-login)。旧候補の裁定は [履歴](docs/work/development-task-decisions.md) であり、現在の導入状態は上記を正とする。
 
@@ -43,6 +42,6 @@ HTML TTFB 49.2ms、DOMContentLoaded 303.1ms、load 309.1ms、FCP 23,548ms。`/ap
 - [axios.ts](frontend/src/lib/axios.ts) の `X-Requested-With` は CSRF 防御。高速化のために無条件で削除しない。
 - browser の接続待ち、Worker forwarding、Container 起動、Go request latency を分ける。
 - 秘密・raw URL/query・本文・IP・個人情報を観測証拠へ出さない。
-- Docker の `make test-worker ARGS='backend/worker/index.test.ts'` は既存 runner。runner 不在を理由にしない。runtime・型検査・STG 性能受入は別に検証する。
+- 将来の変更時は既存依存を使い、対象候補を mount した隔離 Docker の scoped Vitest と worker typecheck を使う。依存インストールを伴う旧 umbrella コマンドは今回実行しない。STG 性能受入はローカル検証とは別。
 
 参照: [測定チェックシート](docs/ops/testing/STG-PERFORMANCE-CHECKLIST.md) · [プロファイリングガイド](docs/ops/testing/PERFORMANCE_PROFILING.md)

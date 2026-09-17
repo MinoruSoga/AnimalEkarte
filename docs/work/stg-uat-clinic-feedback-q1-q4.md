@@ -6,6 +6,8 @@
 制約: 推測で「デモだから」と説明しない。Linear 新規 Issue は作らない。本ファイルは実行 SoT ではない。  
 反映範囲: Q1 / Q4保険 / Q2履歴ナビは **STG デプロイ済み**（PR [#411](https://github.com/MinoruSoga/AnimalEkarte/pull/411)、merge `d337f016`。Backend Deploy #176 / Frontend Deploy #51 success）。production 未反映。ブラウザ確認は未実施。
 
+現況追記（2026-09-17）: §1・§7 の医院原文/回答と §6 の当時の結果は保存した。現在は治療 Enter・検索一覧高さのローカル実装/検証が完了し、[実機受入](../../todo-verification.md#uat-followup) が残る。性別修正は [隔離候補の検証済み](../../todo-issue.md#uat-q3-gender-map)、main 統合・bundle・STG 訂正は未完了。ノートPC125% は記録済み、タブ・解像度は未回答。全面ロックは導入せず目的確認待ち。処置移行は今期に含むが種類・期間・責任者・受入条件待ち。死亡日は根拠がある行だけ訂正し、実適用は未了。Linear は現在 `USER_NOT_LOGGED_IN` / UNKNOWN。追加の医院・PO 事実は得られていない。
+
 根拠（コード・仕様。PHI は含めない）:
 
 | 題材 | 根拠 |
@@ -117,10 +119,10 @@
 | UAT-Q1-SEARCH-AND | Q1 | P0 | アプリ（BE、仕様、テスト） | STG デプロイ済み（PR #411）。ブラウザ未確認。production 未反映 |
 | UAT-Q4-INSURANCE-RATES | Q4 | P0 | アプリ（FE、仕様） | STG デプロイ済み（PR #411）。ブラウザ未確認。production 未反映 |
 | UAT-Q2-HISTORY-NAV | Q2 | P1 | アプリ（FE） | STG デプロイ済み（PR #411）。ブラウザ未確認。production 未反映 |
-| UAT-Q3-GENDER-MAP | Q3 | P0 | 移行SQL＋既存データの訂正 | 未着手。old_db + STG 運用承認 |
+| UAT-Q3-GENDER-MAP | Q3 | P0 | 移行SQL＋既存データの訂正 | 隔離候補検証済み。main 統合・bundle・STG 訂正待ち |
 | UAT-Q2-VACCINE-SPECIES | Q2 | P1 | 調査→マスタ種 | 未着手。STG 件数調査が先 |
 | UAT-Q4-UNPAID-TRIAGE | Q4 | P1 | 調査（集計のみ） | 未着手。STG read 承認 |
-| UAT-Q2-TREATMENTS-IMPORT | Q2 | P2 | 移行21表の外 | deferred。PO 未決 |
+| UAT-Q2-TREATMENTS-IMPORT | Q2 | P2 | 移行21表の外 | 今期に含む。種類・期間・責任者・受入条件待ち |
 
 ---
 
@@ -143,10 +145,10 @@
 ### UAT-Q3-GENDER-MAP: 旧性別コード 3/4 を雄/雌へ直す
 
 - **問題**: 避妊去勢済み個体が性別「不明」。医院はオス/メスを残したい。避妊去勢欄はある。
-- **根拠**: 承認済みデコードは `PetSeibt_Kbn` `{1,3}=male, {2,4}=female, {5,0}=unknown`。去勢事実はコードから `neutered_date` を捏造しない（`propose-review-decisions.md`）。一方 stage SQL は `sex_kbn IN ('1','01')→male`、`('2','02')→female`、**else unknown**。コード3/4が unknown になる。`neutered_date` は `PetOpe_Date` から別列。AE の性別は `male|female|unknown`、UI は雄/雌/不明。去勢日は別フィールド。
+- **根拠（元の old_db main `2eab89ac`）**: 承認済みデコードは `PetSeibt_Kbn` `{1,3}=male, {2,4}=female, {5,0}=unknown`。去勢事実はコードから `neutered_date` を捏造しない（`propose-review-decisions.md`）。一方 stage SQL は `sex_kbn IN ('1','01')→male`、`('2','02')→female`、**else unknown**。コード3/4が unknown になる。`neutered_date` は `PetOpe_Date` から別列。AE の性別は `male|female|unknown`、UI は雄/雌/不明。去勢日は別フィールド。
 - **修正方針**:
-  1. `old_db/sql/migration/030_stage.sql` の gender CASE を承認デコードに合わせる（1/01/3/03→male、2/02/4/04→female、それ以外 unknown）。
-  2. 対応する stage テストがあれば更新。
+  1. 隔離候補の `030_stage.sql` は承認デコード（1/01/3/03→male、2/02/4/04→female、それ以外 unknown）へ修正済み。元の main への統合は残る。
+  2. classifier/oracle と38 mapping tests・80% gateは候補で確認済み。SQL CASE は SQLite のみで、PostgreSQL・export は未検証。[候補と証跡](../../todo-issue.md#uat-q3-gender-map) を参照。
   3. **既に STG へ入った行**は SQL 再実行または `pets.gender` の訂正バッチ。再取込は `make stg-uat-*` の運用承認が必要。エージェントは migrate/STG 書き込みを自動実行しない。
   4. AE の性別enumは増やさない。画面は「性別」＋「去勢・避妊手術日」の併記を維持。一覧に性別列は仕様上無い（`03-owners-list.md`）。詳細フォームで確認できることを受入にする。
 - **受け入れ条件**:
@@ -155,7 +157,7 @@
   3. 飼主詳細のペット編集で、去勢日がある個体が雄または雌で表示される（不明に落ちない）。
 - **検証**: old_db の stage SQL テスト（当該 repo）。AE 側は性別表示の既存 transform テストで十分（enum 変更なし）。STG 訂正後の件数は集計のみ（PHIなし: gender×neutered_date IS NOT NULL のクロス集計）。
 - **やらないこと**: 性別に「去勢済オス」を足す。去勢日未入力をコード3/4から捏造する。
-- **状態**: マッピング承認と SQL の不一致は文書上確定。STG 適用は運用ゲート。
+- **状態**: 隔離候補のローカル検証済み。未コミット・main 未統合。bundle と承認後の STG 訂正・受入は未完了。
 
 ---
 
@@ -219,13 +221,15 @@
 
 ---
 
-### UAT-Q2-TREATMENTS-IMPORT: 処置・処方の移行（今期外候補）
+<a id="uat-q2-treatments-import-処置処方の移行今期外候補"></a>
+
+### UAT-Q2-TREATMENTS-IMPORT: 処置・処方の移行（今期対象・詳細待ち）
 
 - **問題**: 旧カルテの注射・処置が一覧に無いと「カルテが空／参照できない」に見える。
 - **根拠**: `CutoverTableSpecs` に `treatments` も `prescriptions` も無い。`030_stage.sql` に treatments INSERT は無い。
-- **修正方針**: 21表の契約変更＋old_db stage＋F6。PO が「処置明細を移行する」と決めるまで実装しない。決まるまでは Q2-HISTORY-NAV で詳細へ通し、治療タブ空は移行範囲と明示する。
-- **受け入れ条件**: 未設定（対象外のまま）。
-- **状態**: 今期外候補。本ファイルでは追跡するが READY にしない。`phase2-deferred.md` へは、再開条件・named owner・Linear URL が揃ってから移す。
+- **修正方針**: 21表の契約変更＋old_db stage＋F6。今期に含む方針は記録済み。種類・期間・責任者・受入条件が確定するまで実装を保留する。それまでは Q2-HISTORY-NAV で詳細へ通し、治療タブ空は移行範囲と明示する。
+- **受け入れ条件**: 種類・期間・責任者とともに未確定。
+- **状態**: 今期対象・詳細待ち。[現行計画](../../todo-issue.md#uat-q2-treatments-import) で追跡し、入力が揃うまで実装 READY にしない。
 
 ---
 
@@ -234,11 +238,11 @@
 AE のみの3単位は STG デプロイ済み（§6、PR #411）。production 未反映。残る順:
 
 1. STG 画面確認（飼主一覧「名字 ペット名」、会計保険 50/70、カルテ右パネル→詳細）
-2. **UAT-Q3-GENDER-MAP**（old_db SQL＋STG 訂正。書き込みは人間）
+2. **UAT-Q3-GENDER-MAP**（検証済み候補の main 統合・bundle と、承認後の STG 訂正）
 3. **UAT-Q4-UNPAID-TRIAGE** と **UAT-Q2-VACCINE-SPECIES** 調査（並列可、read-only）
 4. ワクチン種の実装は 3 の結論後
-5. 処置移行は PO 決定後
-6. 第2報: **UAT-R2-TREATMENT-COMMIT**（Enter 2回）→ マスタ経路確認 → 検索一覧高さ → カルテ密度。排他ロックは製品判断後。#4 は手順案内のみ
+5. 今期対象の処置移行は種類・期間・責任者・受入条件の確定後
+6. 第2報: 治療 Enter・検索一覧高さは実機受入へ。マスタ経路とカルテのタブ・解像度は医院入力待ち。全面ロックは導入せず目的確認を残す。#4 は手順案内のみ
 
 ---
 
@@ -366,18 +370,18 @@ local `main` 統合（この tree）:
 |----|----|------|------|------|
 | UAT-R2-MASTER-PATH | #1① | P0 | 調査＋必要ならマスタ単価/導線 | 医院に登録画面の確認待ち。実装は調査後 |
 | UAT-R2-EXCLUSIVE-LOCK | #1② | P1 | 製品判断が先。旧PCロックの複製はしない | 未実装は確定。全面ロックは要件を疑う |
-| UAT-R2-TREATMENT-COMMIT | #2 | P0 | アプリ（カルテ治療タブ） | Enter 2回、数量の即時 PATCH を見直す |
-| UAT-R2-MASTER-LIST-HEIGHT | #2 | P1 | アプリ（検索ダイアログ高さ） | TreatmentSearchDialog `max-h-[400px]` |
-| UAT-R2-CHART-FIT | #3 | P1 | アプリ（カルテ密度・サイドバー） | 解像度確認後 |
+| UAT-R2-TREATMENT-COMMIT | #2 | P0 | 実機受入 | Enter 2回・Blur 保存実装/28 tests済み。IME・再読込待ち |
+| UAT-R2-MASTER-LIST-HEIGHT | #2 | P1 | 実機受入 | 一覧 `max-h-[calc(80vh-12rem)]`・10 tests済み。viewport確認待ち |
+| UAT-R2-CHART-FIT | #3 | P1 | アプリ（カルテ密度・サイドバー） | ノートPC125%。タブ・解像度待ち |
 | UAT-R2-RESERVATION-HOWTO | #4 | — | 手順回答のみ | §7 #4 に記載。機能追加なし |
 
 ### UAT-R2-MASTER-PATH
 
 - **問題**: マスタ入力後に金額が空、会計画面に出ない。
-- **根拠**: 会計の「マスタから選択」は `useGetAllMerchandiseItems` の **有効な商品マスタのみ**（`ItemListCard`）。診療項目はカルテ治療 → 未請求（`treatment_id`）。会計確認は単価 null/負を「価格未設定」（`isUnbillableMasterPrice`）。診療項目の単価は全タブ保存、課税は診察・処置のみ（`master-treatment.md`）。商品単価は 0 以上で保存可。
+- **根拠**: 会計の「マスタから選択」は `useGetAllMerchandiseItems` の **有効な商品マスタのみ**（`ItemListCard`）。診療項目はカルテ治療 → 未請求（`treatment_id`）。検査・ワクチン候補の会計確認は単価 null/非有限/負を「価格未設定」（`isUnbillableMasterPrice`）。全治療単価の nullable 契約には一般化しない。診療項目の単価は全タブ保存、課税は診察・処置のみ（`master-treatment.md`）。商品単価は 0 以上で保存可。
 - **方針**: まず医院が触ったマスタ画面を特定する。推測で「全部のマスタを会計に出す」はしない。単価未保存なら入力必須化を検討。診療項目を会計ダイアログに出すのは二重管理になるため、カルテ経由が正なら手順を案内する。
 - **やらないこと**: 全マスタを会計ダイアログへ混在させる。
-- **状態**: 登録画面の特定待ち。
+- **状態**: [商品直接請求と治療→未請求の source 調査](../../todo-issue.md#uat-r2-master-path) は完了。医院の登録画面は未特定。
 
 ### UAT-R2-EXCLUSIVE-LOCK
 
@@ -385,22 +389,15 @@ local `main` 統合（この tree）:
 - **根拠**: セッション占有ロックは無い。`clinical_plan` は version 楽観ロック（衝突時 Conflict）。会計 write は行ロック。`NavigationBlocker` は同一タブの未保存離脱警告。写真未添付。
 - **方針**: 旧ロックの複製は製品哲学①（存在を疑う）。目的は二重会計・上書き防止なら、保存衝突の明示と会計の原子確定で足りるか先に確認。全面ロックは工程を増やす。
 - **やらないこと**: 写真なしで全画面ロックを実装する。
-- **状態**: 未実装は確定。着手は PO + 医院の目的確認後。
+- **状態**: [version 競合・会計行ロック・未保存離脱警告の source 調査](../../todo-issue.md#uat-r2-exclusive-lock) は完了。全面ロックは導入せず、目的・具体的事故の確認待ち。
 
 ### UAT-R2-TREATMENT-COMMIT
 
-- **問題**: 数量反映が遅い。Enter 1回で確定。2回にしてほしい。
-- **根拠**: `handleTreatmentEditorKeyDown` は Enter で即 `commit()`。数量は `onBlur` でも commit。commit は `onUpdate` → 治療 PATCH。会計明細の数量は表示のみ。
-- **方針**: 治療タブの数量（必要なら単価も）を、Enter 1回では確定せず 2回目で PATCH。1回目はローカル確定の見た目だけ、または無視。Blur は残すか医院確認。PATCH 回数を減らして遅さに効かせる。
-- **受け入れ**: Enter 1回ではサーバー保存しない。2回目で数量が残り、一覧再読込後も同じ。Escape は現行どおりキャンセル。
-- **状態**: 仕様は医院原文どおり。実装は承認後。
+`72807128` で Enter 2回、Blur 保存、Escape 取消を実装済み。repeat / isComposing / keyCode229 を含む28 testsは既存検証で PASS。実機 IME・ブラウザ保存→再読込は [検証 TODO](../../todo-verification.md#uat-r2-treatment-commit) に残す。性能改善の実測は未了。§7 の回答は改修前の記録。
 
 ### UAT-R2-MASTER-LIST-HEIGHT
 
-- **問題**: 選択肢がスクロールしないと見えない。
-- **根拠**: `TreatmentSearchDialog` 一覧 `max-h-[400px]`、ダイアログ `max-h-[80vh]`。会計マスタ選択は `max-h-[70vh]` + 内部 `overflow-auto`。Select は Radix の available-height。
-- **方針**: 治療検索一覧の可視行を増やす（高さ上限の見直し）。画面からはみ出さない。どのダイアログかは医院確認が望ましいが、治療タブ検索を先にする。
-- **状態**: 治療検索を先。会計ダイアログは同じ症状なら続報。
+`72807128` の `TreatmentSearchDialog` は一覧上限を `max-h-[calc(80vh-12rem)]` へ変更済み、10 testsは既存検証で PASS。viewport・ズーム・キーボード選択・フォーカス復帰の実機受入は [検証 TODO](../../todo-verification.md#uat-r2-master-list-height) に残す。長い一覧にはスクロールが残る。
 
 ### UAT-R2-CHART-FIT
 
@@ -408,7 +405,7 @@ local `main` 統合（この tree）:
 - **根拠**: 展開サイドバー `w-[220px]`、1280px 未満は自動 collapse。カルテは `LAYOUT.fullHeight` + 問診時右カラム抜粋。タブは9つ。
 - **方針**: 余白・行高の圧縮、問診以外で右カラムを出さない（現行どおりタブ依存）。チャートページだけサイドバーを畳む案は、医院が常時開いたままを望むなら不適。解像度待ち。
 - **やらないこと**: タブを消して情報を落とす。
-- **状態**: 端末サイズ確認待ち。
+- **状態**: ノートPC・125% は記録済み。対象タブと解像度の確認待ち。
 
 ### UAT-R2-RESERVATION-HOWTO
 

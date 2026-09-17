@@ -1,6 +1,6 @@
 # 未完了 Issue 台帳（repo 正本）
 
-最終照合: 2026-09-15。新規の実装・調査・PO 課題を管理する。完了した実装・仕様どおりの報告・回答済みの操作案内は削除し、履歴は Git と元の UAT 記録を参照する。検証は [todo-verification.md](todo-verification.md)、外部実行は [todo-operations.md](todo-operations.md) を正本とする。
+最終照合: 2026-09-17。新規の実装・調査・PO 課題を管理する。完了した実装・仕様どおりの報告・回答済みの操作案内は削除し、履歴は Git と元の UAT 記録を参照する。検証は [todo-verification.md](todo-verification.md)、外部実行は [todo-operations.md](todo-operations.md) を正本とする。
 
 既存 Linear は [BRT-4](https://linear.app/baritechllc/issue/BRT-4) 配下を更新する。新規 Issue を作らない方針を維持し、外部投稿は別途承認後。以下の新規 ID に専用 Linear Issue は今回割り当てていない。
 
@@ -8,53 +8,41 @@
 
 ## Open
 
-着手プラン確認: 2026-09-15。11 ID すべてに個別の計画と根拠がある。各 ID を開き、前提が揃った範囲から着手する。
+着手プラン照合: 2026-09-17。未完了の9 ID に個別の計画と根拠がある。治療 Enter と検索一覧高さの実装は完了し、残る実機受入を [検証 TODO](todo-verification.md#uat-followup) へ移した。各 ID を開き、前提が揃った範囲から着手する。
 
 | ID | 状態 | 残作業・次の一手 |
 |---|---|---|
-| [UAT-R2-TREATMENT-COMMIT](#uat-r2-treatment-commit) | READY（再現・設計） | 数量確定の Enter / Blur / PATCH を再現し、2回 Enter と Blur の扱いを確定 |
-| [UAT-R2-MASTER-LIST-HEIGHT](#uat-r2-master-list-height) | READY（再現・設計） | 治療検索の可視行を増やす案を、viewport・ズーム・操作部の収まりで検証 |
 | [UAT-R2-MASTER-PATH](#uat-r2-master-path) | BLOCKED（医院入力） | 登録したマスタ種別・画面・単価・操作順を特定し、保存漏れと正しい会計導線を分離 |
 | [UAT-R2-EXCLUSIVE-LOCK](#uat-r2-exclusive-lock) | PO 判断待ち | 二重入力・上書きの防止目的と占有範囲を確認し、既存の競合制御で不足する場面を定義 |
-| [UAT-R2-CHART-FIT](#uat-r2-chart-fit) | BLOCKED（端末条件） | 解像度・ズーム・対象タブを確認してから、情報を落とさず余白・行高を調整 |
-| [UAT-Q3-GENDER-MAP](#uat-q3-gender-map) | 未完了（old_db 照合・運用） | producer の性別コード修正状況を再確認し、既存 STG 行の訂正を別工程として計画 |
+| [UAT-R2-CHART-FIT](#uat-r2-chart-fit) | BLOCKED（端末条件） | ノートPC・125% は記録済み。解像度・対象タブを確認してから余白・行高を調整 |
+| [UAT-Q3-GENDER-MAP](#uat-q3-gender-map) | 未完了（統合・運用） | 隔離候補のローカル検証済み。old_db main 統合・bundle と承認後の STG 訂正を進める |
 | [UAT-Q2-VACCINE-SPECIES](#uat-q2-vaccine-species) | 調査待ち | 承認された STG 集計で、マスタ種欠損・参照取り違え・旧記録そのものを分類 |
 | [UAT-Q4-UNPAID-TRIAGE](#uat-q4-unpaid-triage) | 調査待ち | 承認された STG 集計で、旧未精算と支払未紐付けを切り分け |
-| [UAT-Q2-TREATMENTS-IMPORT](#uat-q2-treatments-import) | DEFERRED（PO 未決） | 処置・処方明細を移行対象に含めるか、対象範囲・責任者・受入条件を決定 |
-| [PO-PET-DECEASED-DATA-BACKFILL](#po-pet-deceased-data-backfill) | PO 判断待ち | 死亡状態と死亡日の不整合について、日付根拠・対象・監査・復旧を決定 |
+| [UAT-Q2-TREATMENTS-IMPORT](#uat-q2-treatments-import) | BLOCKED（範囲詳細） | 処置移行は今期に含む。種類・対象期間・責任者・受入条件を確定 |
+| [PO-PET-DECEASED-DATA-BACKFILL](#po-pet-deceased-data-backfill) | 限定訂正待ち | 日付根拠がある行だけ対象。対象・監査・復旧・実行承認を確定 |
 | [TASK-444-ADDENDUM-CODEGEN](#task-444-addendum-codegen) | DEFERRED | 型生成経路の別スコープと user-run codegen が認められたときに再開 |
 
-READY は上表の再現・設計範囲を指す。今回の文書整理は、実装、DB 操作、医院への送信を実施する承認ではない。医院側の要件責任者名は元記録に未記載であり、担当者が実装前に確認する。
+既知の医院入力と source 調査を反映した。追加の医院・PO 事実は今回得られていない。今回の文書整理は、実装、DB 操作、医院への送信を実施する承認ではない。医院側の要件責任者名は元記録に未記載であり、担当者が実装前に確認する。
 
 ## 第2報の着手プラン
 
-### UAT-R2-TREATMENT-COMMIT
-
-- **目的・根拠:** 数量確定時の待ちと誤確定を減らす。[医院第2報](docs/work/stg-uat-clinic-feedback-q1-q4.md#uat-r2-treatment-commit)。`TreatmentRowEditors.tsx` は Enter で commit、数量欄は Blur でも同じ保存経路を通る。
-- **最初の作業:** 1回目・2回目の Enter、IME、Blur、Escape、保存中の再操作を再現し、PATCH 回数と保存完了時間を分けて確認する。Blur で保存するか、1回目の表示をどうするかを確定してから失敗テストを追加する。
-- **完了条件:** 1回目の Enter ではサーバー保存せず、2回目の確定値が再読込後も保持される。Escape の取消、権限・確定済み診療の制約を維持。二重 PATCH や失敗時の入力消失がなく、変更対象を Docker の scoped vitest で検証する。測定前に「高速化した」と扱わない。
-
-### UAT-R2-MASTER-LIST-HEIGHT
-
-- **目的・根拠:** 項目選択時の不要なスクロールを減らす。[医院第2報](docs/work/stg-uat-clinic-feedback-q1-q4.md#uat-r2-master-list-height)。`TreatmentSearchDialog` の一覧上限は `max-h-[400px]`。
-- **最初の作業:** 治療検索を対象として viewport に応じた高さを検討する。任意件数を常に全件表示する約束にせず、検索欄・閉じる操作・候補一覧を同時に使える範囲を決める。
-- **完了条件:** 対象端末で可視行が増え、画面外にはみ出さず、検索・キーボード選択・フォーカス復帰が成立する。長い一覧には必要なスクロールを残す。対象 component の Docker scoped vitest と画面確認を行う。
-
 ### UAT-R2-MASTER-PATH
 
-- **入力・先行準備:** 医院が使った登録画面、マスタ種別、単価、操作順を確認する。回答前に [ItemListCard](frontend/src/features/accounting/components/ItemListCard.tsx) の商品選択と [請求チェック](frontend/src/features/medical-records/lib/medical-record-bill-check-model.ts) の導線を整理する。
+- **入力待ち:** 医院が使った登録画面、マスタ種別、単価、操作順は未特定。
+- **source 調査済み（9月17日）:** 商品は [ItemListCard](frontend/src/features/accounting/components/ItemListCard.tsx) → `useGetAllMerchandiseItems` → [useAccountingItemActions](frontend/src/features/accounting/hooks/use-accounting-item-actions.ts) → [createBillingItem](frontend/src/features/accounting/api/create-billing-item.ts) で手動請求へ入る。診察・処置・薬剤は [useTreatmentMaster](frontend/src/hooks/use-treatment-master.ts) → [useTreatmentsTab](frontend/src/features/medical-records/hooks/use-treatments-tab.ts) → [治療 API](frontend/src/features/medical-records/api/treatments.ts) → [確定カルテの未請求治療](backend/internal/medicalrecord/treatment_repository.go) → [請求連携](backend/internal/billing/billing_item_unbilled.go) を通る。商品・治療単価は負数を拒否し0を許容する。`isUnbillableMasterPrice` の null/非有限/負数判定は [請求チェックの検査・ワクチン候補](frontend/src/features/medical-records/lib/medical-record-bill-check-model.ts) の扱いで、全治療 DTO の単価を nullable とする根拠にはしない。
 - **手順:** 診療項目・薬剤・商品・ワクチンを識別し、該当画面の保存 request → 再読込した単価 → カルテの治療/接種 → 会計未請求 → 請求明細の順に追う。会計の直接選択は商品が対象のため、保存漏れと操作経路の違いを分ける。
 - **成果物・完了条件:** 対象経路、期待値、実際値、原因、最小修正または案内を同じ ID に記録。修正する場合は保存・再読込・金額連携の失敗テストから Docker scoped 検証へ進む。登録経路が未特定の間は実装修正を止め、全マスタを会計選択に混在させない。根拠は [医院回答](docs/work/stg-uat-clinic-feedback-q1-q4.md#uat-r2-master-path)。
 
 ### UAT-R2-EXCLUSIVE-LOCK
 
-- **入力・先行準備:** PO/医院に防ぎたい事故（上書き、二重会計、同時診療入力、未保存離脱）と対象画面・占有時間を確認する。回答前に [clinical_plan の競合判定](backend/internal/medicalrecord/clinical_plan_repository.go)、[会計の行ロック](backend/internal/billing/accounting_repository.go)、[NavigationBlocker の呼出元](frontend/src/features/medical-records/routes/MedicalRecordFormReadyPanels.tsx) を対応表にする。
+- **入力・先行準備:** PO/医院に防ぎたい事故（上書き、二重会計、同時診療入力、未保存離脱）と対象画面・占有時間を確認する。全面ロックは導入しない方針を維持し、目的・具体的な衝突事例は未確定。
+- **source 調査済み（9月17日）:** [カルテ保存](frontend/src/features/medical-records/hooks/use-medical-record-save-action.ts) の loaded version → [clinical_plan](backend/internal/medicalrecord/clinical_plan_repository.go) の `expectedVersion` 比較は古い保存を拒否する。[会計](backend/internal/billing/accounting_repository.go) と [明細](backend/internal/billing/billing_item_repository.go) の `FOR UPDATE` は取引内の更新を直列化する。[ReadyPanels](frontend/src/features/medical-records/routes/MedicalRecordFormReadyPanels.tsx) の dirty 状態 → [NavigationBlocker](frontend/src/components/shared/NavigationBlocker/NavigationBlocker.tsx) と [beforeunload](frontend/src/hooks/use-unsaved-changes.ts) は未保存離脱の警告。いずれも、他端末が画面を開くことを禁止する占有ロックではない。
 - **手順:** 合意した1場面を合成データと2セッションで再現し、競合検出・再読込・再入力で目的を満たせるかを先に判断する。不足時だけロック対象、期限、切断/異常終了時の解放、権限、監査、復旧方法を設計する。
 - **成果物・完了条件:** named owner の仕様判断と再現例、採用案、競合・取消・再接続の受入条件を同じ ID に残す。製品判断がない間は全面ロックを実装しない。実装を採用した場合のみ、2セッションの上書き/二重処理防止と医院分離を scoped テスト・対象環境で検証する。[背景](docs/work/stg-uat-clinic-feedback-q1-q4.md#uat-r2-exclusive-lock)。
 
 ### UAT-R2-CHART-FIT
 
-- **入力・先行準備:** 解像度、ブラウザのズーム、対象タブ、サイドバーの希望状態を確認する。回答前に [カルテ配置](frontend/src/features/medical-records/routes/MedicalRecordFormReadyPanels.tsx) と [Sidebar](frontend/src/components/shared/Layout/Sidebar.tsx) の現行高さ・展開条件を整理する。
+- **入力・先行準備:** ノートPC・ブラウザ125% は記録済み。解像度、対象タブ、サイドバーの希望状態を確認する。回答前に [カルテ配置](frontend/src/features/medical-records/routes/MedicalRecordFormReadyPanels.tsx) と [Sidebar](frontend/src/components/shared/Layout/Sidebar.tsx) の現行高さ・展開条件を整理する。
 - **手順:** 確定した viewport で overflow を再現し、カルテ内の余白・行高・タブ周辺の密度を小さい差分で調整する。自動 collapse と医院の希望が衝突する場合は PO に判断を戻す。
 - **成果物・完了条件:** 同じ端末条件の変更前後、可視範囲、操作数を記録し、必須情報・保存操作・キーボードフォーカスが届くことを確認する。情報/タブの削除や小さすぎる文字で収めない。端末条件未確定ではレイアウト実装を止める。[背景](docs/work/stg-uat-clinic-feedback-q1-q4.md#uat-r2-chart-fit)。
 
@@ -62,7 +50,9 @@ READY は上表の再現・設計範囲を指す。今回の文書整理は、�
 
 ### UAT-Q3-GENDER-MAP
 
-[元の照合記録](docs/work/stg-uat-clinic-feedback-q1-q4.md#uat-q3-gender-map-旧性別コード-34-を雄雌へ直す) では旧コード 3/4 が不明へ落ちる。old_db の現行実装・テストを producer 担当が確認し、未修正なら承認されたデコードと一致させる。今回 old_db リポジトリの現行状態は未照合なので実装完了とはしない。既存 STG の訂正は [運用 TODO](todo-operations.md#uat-data-operations) に従う。完了条件は雄/雌の復元、手術日の捏造なし、訂正後の件数・画面証拠。
+[元の照合記録](docs/work/stg-uat-clinic-feedback-q1-q4.md#uat-q3-gender-map-旧性別コード-34-を雄雌へ直す) に対し、9月17日に producer の source と隔離候補を照合した。元の old_db `main` `2eab89ac` は1/01→male・2/02→femaleのみ。`../old_db-codex-uat-q3-gender-map-20260917`（`fix/codex-uat-q3-gender-map-20260917`）の未コミット候補は3/03→male・4/04→femaleを追加し、classifier/oracle も一致する。`PetOpe_Date` と1900年ガードは変更していない。
+
+[候補の検証報告](.planning/agent-fast-campaign/remaining-local-reconciliation-20260917/evidence/gender-001/receiver/Completion%20Report.md) は38 mapping tests と80% gateが PASS。SQL CASE は SQLite での検証に限り、PostgreSQL・export・STG は未検証。既存の別文書に起因する global sensitive-scan FAIL は残り、変更4パスの scoped scan は PASS。ローカル候補の検証完了を main 統合・bundle 作成・実データ訂正の完了にしない。残る統合・現行契約 bundle と既存 STG の訂正は [運用 TODO](todo-operations.md#uat-q3-gender-map) へ。受入は雄/雌の復元、手術日の捏造なし、訂正後の件数・画面証拠。
 
 ### UAT-Q2-VACCINE-SPECIES
 
@@ -76,13 +66,13 @@ READY は上表の再現・設計範囲を指す。今回の文書整理は、�
 
 ### UAT-Q2-TREATMENTS-IMPORT
 
-[移行範囲の判断記録](docs/work/stg-uat-clinic-feedback-q1-q4.md#uat-q2-treatments-import-処置処方の移行今期外候補) を基に、PO が必要な明細・対象期間・責任者・受入条件を決定するまで deferred。先行準備は [21表契約](backend/internal/csvimport/cutover_contract.go) と不足する処置・処方項目の差分表までとする。
+[移行範囲の判断記録](docs/work/stg-uat-clinic-feedback-q1-q4.md#uat-q2-treatments-import-処置処方の移行今期外候補) の後、**処置移行を今期に含める**方針が記録された。種類・対象期間・責任者・受入条件は未確定で、詳細確定まで実装を保留する。先行準備は [21表契約](backend/internal/csvimport/cutover_contract.go) と不足する処置・処方項目の差分表までとする。
 
-再開後は、old_db source → producer → AE import → 過去カルテ表示の項目対応、数量/単位/金額、旧IDと医院境界、重複防止、訂正/復旧を契約化する。合成 fixture で件数・参照・金額を検証してから、承認された disposable rehearsal で保存→再読込→表示を確認する。成果物は PO の範囲判断、両 repo の契約差分、検証結果。実データ投入は別承認とし、21表契約を先行拡張したり、既存の過去カルテ導線を作り直したりしない。
+詳細確定後は、old_db source → producer → AE import → 過去カルテ表示の項目対応、数量/単位/金額、旧IDと医院境界、重複防止、訂正/復旧を契約化する。合成 fixture で件数・参照・金額を検証してから、承認された disposable rehearsal で保存→再読込→表示を確認する。成果物は PO の範囲判断、両 repo の契約差分、検証結果。実データ投入は別承認とし、21表契約を先行拡張したり、既存の過去カルテ導線を作り直したりしない。
 
 ### PO-PET-DECEASED-DATA-BACKFILL
 
-[修復計画](bug.md#plan-po-pet-deceased-data-backfill) の対象・死亡日の根拠・監査・復旧方法を確定する。死亡 write ガードの実装は再開しない。訂正日は推測で埋めず、承認されたデータ操作と照合が完了するまで残件として維持する。
+[修復計画](bug.md#plan-po-pet-deceased-data-backfill) は **死亡日の根拠がある行だけ訂正**する方針。根拠がない行は補完対象外のまま残し、対象・監査・復旧方法・実行承認を確定する。死亡 write ガードの実装は再開しない。訂正日は推測で埋めず、承認されたデータ操作と照合が完了するまで残件として維持する。
 
 ### TASK-444-ADDENDUM-CODEGEN
 
