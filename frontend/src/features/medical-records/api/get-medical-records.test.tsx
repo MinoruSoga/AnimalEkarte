@@ -58,6 +58,7 @@ describe("useGetMedicalRecords", () => {
 
     expect(capturedUrl?.searchParams.get("page")).toBe("1");
     expect(capturedUrl?.searchParams.get("limit")).toBe("20");
+    expect(capturedUrl?.searchParams.get("clinic_ids")).toBeNull();
     // 旧DB由来 425,524件級の total をそのまま透過すること（B-1 の 20件打ち切りに回帰しない）
     expect(result.current.data?.total).toBe(425524);
     expect(result.current.data?.data).toHaveLength(1);
@@ -121,7 +122,7 @@ describe("useGetMedicalRecords", () => {
     expect(capturedUrl?.searchParams.get("clinic_ids")).toBe("1,2");
   });
 
-  it("clinicIds が1件以下のときは clinic_ids を送信しない（単一医院スコープ）", async () => {
+  it("clinicIds が1件でも clinic_ids を送信する", async () => {
     let capturedUrl: URL | undefined;
     server.use(
       http.get("/api/v1/medical-records", ({ request }) => {
@@ -136,6 +137,6 @@ describe("useGetMedicalRecords", () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(capturedUrl?.searchParams.get("clinic_ids")).toBeNull();
+    expect(capturedUrl?.searchParams.get("clinic_ids")).toBe("1");
   });
 });

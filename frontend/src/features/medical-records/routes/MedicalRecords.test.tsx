@@ -163,6 +163,43 @@ describe("MedicalRecords pet_id route filter", () => {
   });
 });
 
+describe("MedicalRecords clinic scope", () => {
+  it("現在医院のみの選択では clinicIds を送信しない", () => {
+    renderPage();
+
+    expect(mockUseGetMedicalRecords).toHaveBeenLastCalledWith(
+      expect.objectContaining({ clinicIds: undefined }),
+    );
+  });
+
+  it("単一の非現在医院選択ではその clinicIds を送信する", () => {
+    mockUseClinicScope.mockReturnValue({
+      ...defaultClinicScope(),
+      selectedClinicIds: ["clinic-2"],
+    });
+
+    renderPage("/medical-records?clinics=clinic-2");
+
+    expect(mockUseGetMedicalRecords).toHaveBeenLastCalledWith(
+      expect.objectContaining({ clinicIds: ["clinic-2"] }),
+    );
+  });
+
+  it("複数医院選択では選択した全 clinicIds を送信する", () => {
+    mockUseClinicScope.mockReturnValue({
+      ...defaultClinicScope(),
+      selectedClinicIds: ["clinic-1", "clinic-2"],
+      isMultiClinic: true,
+    });
+
+    renderPage("/medical-records?clinics=clinic-1,clinic-2");
+
+    expect(mockUseGetMedicalRecords).toHaveBeenLastCalledWith(
+      expect.objectContaining({ clinicIds: ["clinic-1", "clinic-2"] }),
+    );
+  });
+});
+
 describe("MedicalRecords 一覧テーブル (DESIGN.md ex-data-table-cell)", () => {
   it("テーブルヘッダーが sectionLabel（eyebrow 相当）で表示される", () => {
     renderPage();
@@ -248,6 +285,20 @@ describe("MedicalRecords contextual actions", () => {
     renderPage();
 
     expect(screen.queryByRole("button", { name: /会計/ })).not.toBeInTheDocument();
+  });
+
+  it("単一の非現在医院のカルテ行では詳細・会計・編集・削除を表示しない", () => {
+    mockUseClinicScope.mockReturnValue({
+      ...defaultClinicScope(),
+      selectedClinicIds: ["clinic-2"],
+    });
+    mockMedicalRecords([makeMedicalRecord({ clinicId: "clinic-2", accountingId: "acct-other" })]);
+
+    renderPage("/medical-records?clinics=clinic-2");
+
+    expect(screen.queryByRole("link", { name: /カルテ詳細:.*mr-1/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /会計/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /カルテ操作:.*mr-1/ })).not.toBeInTheDocument();
   });
 
   it("accounting:view権限がない場合は会計導線を表示しない", () => {

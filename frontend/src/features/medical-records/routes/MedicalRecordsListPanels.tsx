@@ -88,7 +88,7 @@ function MedicalRecordsListRow({
   onEdit,
   onDeleteRequest,
 }: MedicalRecordsListRowProps) {
-  const isOtherClinic = showClinicColumn && record.clinicId !== currentClinicId;
+  const isOtherClinic = record.clinicId !== currentClinicId;
   const accountingId = record.accountingId;
   return (
     <DataTableRow key={record.id}>

@@ -127,7 +127,11 @@ export function MedicalRecords() {
   const { currentPage, sortKey, sortOrder, handleSortToggle, directionForSort, handlePageChange } =
     useMedicalRecordsUrlState(resetKey);
 
-  const clinicIdsForApi = isMultiClinic ? selectedClinicIds : undefined;
+  const clinicIdsForApi =
+    selectedClinicIds.length === 0 ||
+    (selectedClinicIds.length === 1 && selectedClinicIds[0] === currentClinicId)
+      ? undefined
+      : selectedClinicIds;
   const { records, total, isLoading, isError } = useMedicalRecordsList({
     searchTerm: deferredSearch,
     activeFilters,
