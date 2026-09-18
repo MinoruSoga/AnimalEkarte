@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/testdb"
@@ -33,7 +34,35 @@ func testModels() []any {
 		&model.Hospitalization{},
 		&model.Estimate{},
 		&model.EstimateItem{},
+		&model.AuditLog{},
 	}
+}
+
+func ensureAuditLogForeignKeys(t *testing.T, db *gorm.DB) {
+	t.Helper()
+	require.NoError(t, db.Exec(`
+		DO $$
+		BEGIN
+			IF NOT EXISTS (
+				SELECT 1
+				FROM pg_constraint
+				WHERE conname = 'audit_logs_clinic_id_fkey'
+			) THEN
+				ALTER TABLE audit_logs
+					ADD CONSTRAINT audit_logs_clinic_id_fkey
+					FOREIGN KEY (clinic_id) REFERENCES clinics(id) ON DELETE RESTRICT;
+			END IF;
+			IF NOT EXISTS (
+				SELECT 1
+				FROM pg_constraint
+				WHERE conname = 'audit_logs_actor_id_fkey'
+			) THEN
+				ALTER TABLE audit_logs
+					ADD CONSTRAINT audit_logs_actor_id_fkey
+					FOREIGN KEY (actor_id) REFERENCES staffs(id) ON DELETE RESTRICT;
+			END IF;
+		END $$;
+	`).Error)
 }
 
 func TestCreate_RejectsUnsafeRequest(t *testing.T) {
@@ -60,6 +89,7 @@ func TestCreate_RejectsUnsafeRequest(t *testing.T) {
 func TestCreateAndDelete_DisposableClinicGraph(t *testing.T) {
 	db := testdb.SetupTestDB(t)
 	require.NoError(t, testdb.EnsureAutoMigrated(db, testModels()...))
+	ensureAuditLogForeignKeys(t, db)
 	ctx := context.Background()
 
 	got, err := Create(ctx, db, Request{AppEnv: "test", DBHost: "db", PasswordHash: "test-hash-not-for-login"})
@@ -118,6 +148,63 @@ func TestCreateAndDelete_DisposableClinicGraph(t *testing.T) {
 	var leftoverPets int64
 	require.NoError(t, db.Model(&model.Pet{}).Where("clinic_id = ?", got.ClinicID).Count(&leftoverPets).Error)
 	assert.Zero(t, leftoverPets)
+}
+
+func TestDelete_RemovesOnlyFixtureStaffAuditLogs(t *testing.T) {
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, testModels()...))
+	ensureAuditLogForeignKeys(t, db)
+	ctx := context.Background()
+
+	fixture, err := Create(ctx, db, Request{AppEnv: "test", DBHost: "db", PasswordHash: "test-hash-not-for-login"})
+	require.NoError(t, err)
+
+	var fixtureStaff model.Staff
+	require.NoError(t, db.Where("clinic_id = ?", fixture.ClinicID).First(&fixtureStaff).Error)
+	fixtureAuditLog := &model.AuditLog{
+		ClinicID:  &fixture.ClinicID,
+		ActorID:   &fixtureStaff.ID,
+		ActorType: model.AuditActorTypeStaff,
+		Action:    model.AuditActionAuthLoginSuccess,
+		Resource:  model.AuditResourceStaff,
+	}
+	require.NoError(t, db.Create(fixtureAuditLog).Error)
+	foreignCompany := &model.Company{Name: "foreign-audit-company"}
+	require.NoError(t, db.Create(foreignCompany).Error)
+	foreignClinicID := fixture.ClinicID + 100000
+	foreignClinic := &model.Clinic{
+		ID:        foreignClinicID,
+		CompanyID: foreignCompany.ID,
+		Name:      "foreign-audit-clinic",
+		IsActive:  true,
+	}
+	require.NoError(t, db.Create(foreignClinic).Error)
+	foreignStaff := &model.Staff{
+		ClinicID:  foreignClinicID,
+		Name:      "foreign-audit-staff",
+		IsActive:  true,
+		StaffType: model.StaffTypeDoctor,
+	}
+	require.NoError(t, db.Create(foreignStaff).Error)
+	foreignAuditLog := &model.AuditLog{
+		ClinicID:  &foreignClinicID,
+		ActorID:   &foreignStaff.ID,
+		ActorType: model.AuditActorTypeStaff,
+		Action:    model.AuditActionAuthLoginSuccess,
+		Resource:  model.AuditResourceStaff,
+	}
+	require.NoError(t, db.Create(foreignAuditLog).Error)
+
+	require.NoError(t, Delete(ctx, db, "test", "db", fixture.ClinicID))
+
+	var fixtureAuditCount int64
+	require.NoError(t, db.Model(&model.AuditLog{}).Where("id = ?", fixtureAuditLog.ID).Count(&fixtureAuditCount).Error)
+	assert.Zero(t, fixtureAuditCount)
+
+	var remainingForeignAudit model.AuditLog
+	require.NoError(t, db.First(&remainingForeignAudit, foreignAuditLog.ID).Error)
+	assert.Equal(t, foreignClinicID, *remainingForeignAudit.ClinicID)
+	assert.Equal(t, foreignStaff.ID, *remainingForeignAudit.ActorID)
 }
 
 func TestDelete_RejectsReservedAndMismatchedClinic(t *testing.T) {
