@@ -8,7 +8,7 @@ interface UseMedicalRecordsListParams {
   /** 確定済み検索語（useDeferredValue 適用後） */
   searchTerm: string;
   activeFilters: ActiveFilter[];
-  /** #86: 拠点横断表示。2件以上のときのみ送信 */
+  /** #86: 拠点横断表示。明示選択の非空 clinicIds は直列化し、未指定・current既定scopeは送信しない */
   clinicIds?: string[];
   petId?: string;
   page: number;
