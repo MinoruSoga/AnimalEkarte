@@ -302,7 +302,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
         </div>
 
         <div
-          className={`flex-1 min-h-0 ${C.bgWhite} rounded-lg border ${C.borderLight} overflow-hidden flex flex-col`}
+          className={`flex-1 min-h-0 ${C.bgWhite} rounded-lg border ${C.borderLight} overflow-y-auto flex flex-col`}
         >
           <div className="flex-1 min-h-0">
             <TreatmentTable

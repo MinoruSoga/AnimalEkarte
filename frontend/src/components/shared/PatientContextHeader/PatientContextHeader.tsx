@@ -47,6 +47,16 @@ export interface PatientContextHeaderProps {
   insuranceName?: string;
   insuranceDetails?: string;
   visitCount?: number;
+  /** 既存 pet.microchip_number。ヘッダーは表示専用。空は出さない。 */
+  microchipNumber?: string;
+  /** 今回カルテの最新バイタル（表示専用。時刻は出さない）。 */
+  vitalsSummary?: {
+    temperature?: number;
+    heartRate?: number;
+    respirationRate?: number;
+    weight?: number;
+    weightUnit?: string;
+  };
   onOwnerClick?: () => void;
   contextControls?: ReactNode;
 }
@@ -70,6 +80,8 @@ export function PatientContextHeader({
   insuranceName,
   insuranceDetails,
   visitCount,
+  microchipNumber,
+  vitalsSummary,
   onOwnerClick,
   contextControls,
 }: PatientContextHeaderProps) {
@@ -136,6 +148,16 @@ export function PatientContextHeader({
               {petName}
             </span>
           </Tooltip>
+          {microchipNumber ? (
+            <Tooltip content={microchipNumber} className="min-w-0 max-w-[200px]">
+              <span
+                className={`font-mono text-2xs px-1 py-0 rounded ${C.bgPage} border ${C.borderMediumLight} ${C.text40} leading-4 truncate max-w-[12rem]`}
+                aria-label={`マイクロチップ番号 ${microchipNumber}`}
+              >
+                {microchipNumber}
+              </span>
+            </Tooltip>
+          ) : null}
           {isDeceased ? (
             <span
               className={`text-2xs font-semibold px-1.5 py-0.5 rounded ${C.bgDanger} ${C.textWhite} uppercase ml-1`}
@@ -185,6 +207,28 @@ export function PatientContextHeader({
                 {weight}
               </span>
             </Tooltip>
+          ) : null}
+          {vitalsSummary ? (
+            <span
+              className="flex items-center flex-wrap gap-x-2 gap-y-0.5"
+              aria-label="今回のバイタル"
+            >
+              {vitalsSummary.temperature != null ? (
+                <span className="whitespace-nowrap">T {vitalsSummary.temperature}</span>
+              ) : null}
+              {vitalsSummary.heartRate != null ? (
+                <span className="whitespace-nowrap">HR {vitalsSummary.heartRate}</span>
+              ) : null}
+              {vitalsSummary.respirationRate != null ? (
+                <span className="whitespace-nowrap">RR {vitalsSummary.respirationRate}</span>
+              ) : null}
+              {vitalsSummary.weight != null ? (
+                <span className="whitespace-nowrap">
+                  測定体重 {vitalsSummary.weight}
+                  {vitalsSummary.weightUnit ?? ""}
+                </span>
+              ) : null}
+            </span>
           ) : null}
           {typeof visitCount === "number" && visitCount > 0 ? (
             <Tooltip content="このペットの通算来院回数です">

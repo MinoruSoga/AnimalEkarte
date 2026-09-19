@@ -198,7 +198,7 @@ export function MedicalRecordFormReadyPanels({
         <UnifiedTabsRoot
           value={form.activeTab}
           onValueChange={ready.handleTabChange}
-          className={form.activeTab === "問診" ? "flex-1 min-h-0" : undefined}
+          className="flex-1 min-h-0"
           ariaBusy={ready.isTabPending}
         >
           <MedicalRecordStickyHeader
@@ -220,6 +220,8 @@ export function MedicalRecordFormReadyPanels({
             onNextVisitDatePatch={form.handleNextVisitDatePatch}
             onNextVisitDateValidChange={form.handleNextVisitDateValidChange}
             hasLineIntegration={ready.hasLineIntegration}
+            medicalRecordId={recordId}
+            recordClinicId={ready.recordClinicId}
           />
           <fieldset
             disabled={ready.recordFinalized || !canSubmit}

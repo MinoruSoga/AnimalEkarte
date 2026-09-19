@@ -147,7 +147,7 @@ func (s *accountingService) createCompleteBillingHeader(
 			return nil, nil, apperrors.Wrap(lookupErr, "failed to resolve completion unique conflict")
 		}
 		if existing == nil {
-			return nil, nil, apperrors.Wrap(err, "failed to create accounting header for complete")
+			return nil, nil, apperrors.WrapConflict("このカルテには既に会計があります")
 		}
 		replay, replayErr := s.resolveIdempotentReplay(txCtx, input.ClinicID, existing, digest)
 		if replayErr != nil {

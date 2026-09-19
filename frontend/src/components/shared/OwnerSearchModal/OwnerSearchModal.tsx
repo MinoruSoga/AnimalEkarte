@@ -187,7 +187,10 @@ export const OwnerSearchModal = memo(function OwnerSearchModal({
           </div>
 
           {/* Results */}
-          <div className={`flex-1 overflow-auto min-h-[200px] ${isFiltering ? "opacity-60" : ""}`}>
+          <div
+            data-testid="owner-search-results"
+            className={`flex-1 min-h-0 max-h-[calc(80vh-12rem)] overflow-y-auto ${isFiltering ? "opacity-60" : ""}`}
+          >
             {isSearching ? (
               <div className={`flex items-center justify-center h-full text-sm ${C.text40}`}>
                 検索中...

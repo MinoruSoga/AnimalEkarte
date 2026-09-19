@@ -24,6 +24,7 @@ import {
 import {
   filterStaffCandidatesByCapability,
   resolveStaffSelectionEligibility,
+  staffCandidateEmptyMessage,
 } from "./filter-staff-candidates";
 import { ReservationDateTimeFields } from "./ReservationDateTimeFields";
 import { ReservationTypeAndStaffFields } from "./ReservationTypeAndStaffFields";
@@ -222,12 +223,6 @@ export const ReservationFormFields = memo(function ReservationFormFields({
     () => staffOptions.map((s) => ({ value: String(s.id), label: s.name })),
     [staffOptions],
   );
-  const staffEmptyMessage =
-    selectedReservationTypeId !== null
-      ? "この条件で対応可能なスタッフがいません"
-      : selectedDateStr !== null
-        ? "この日に出勤しているスタッフがいません"
-        : "スタッフが登録されていません";
 
   const staffNameById = useMemo(() => {
     const names = new Map<string, string>();
@@ -265,6 +260,13 @@ export const ReservationFormFields = memo(function ReservationFormFields({
       reservationStaffs === undefined
     ) &&
     !hasQueryError;
+
+  const staffEmptyMessage = staffCandidateEmptyMessage({
+    hasQueryError,
+    candidatesSettled,
+    selectedReservationTypeId,
+    selectedDateStr,
+  });
 
   const staffEligibility = useMemo(
     () =>

@@ -11,7 +11,9 @@ import { selectCohabitingPets } from "../hooks/use-medical-record-form";
 import { MedicalRecordStickyHeader } from "./MedicalRecordFormPanels";
 
 vi.mock("@/components/shared/PatientContextHeader", () => ({
-  PatientContextHeader: () => <div data-testid="patient-context-header" />,
+  PatientContextHeader: ({ microchipNumber }: { microchipNumber?: string }) => (
+    <div data-testid="patient-context-header">{microchipNumber ?? ""}</div>
+  ),
 }));
 
 vi.mock("@/components/shared/UnifiedTabs", () => ({
@@ -21,6 +23,10 @@ vi.mock("@/components/shared/UnifiedTabs", () => ({
 
 vi.mock("@/hooks/use-permission", () => ({
   usePermission: () => ({ canView: false }),
+}));
+
+vi.mock("../api/vitals", () => ({
+  useGetVitals: () => ({ data: [] }),
 }));
 
 vi.mock("./VisitTypeSelect", () => ({
@@ -76,6 +82,16 @@ function renderHeader({
 }
 
 describe("MedicalRecordStickyHeader cohabiting pets", () => {
+  it("selectedPet.microchipNumber を PatientContextHeader へ渡す", () => {
+    renderHeader({ selectedPet: makePet({ microchipNumber: "392140000123456" }) });
+    expect(screen.getByTestId("patient-context-header")).toHaveTextContent("392140000123456");
+  });
+
+  it("microchipNumber が無いときはヘッダーへ空を渡す", () => {
+    renderHeader({ selectedPet: makePet({ microchipNumber: undefined }) });
+    expect(screen.getByTestId("patient-context-header")).toHaveTextContent("");
+  });
+
   it("同居ペット2匹を名前（種別）でヘッダ直下・タブ直上に表示する", () => {
     renderHeader({
       cohabitingPets: [

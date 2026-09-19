@@ -86,6 +86,14 @@ describe("MedicalRecordExamination — カナ混同検索", () => {
     expect(screen.getByText("ビリルビン")).toBeInTheDocument();
   });
 
+  it("625px シェルと競合する min-h-[500px] を持たず局所スクロールする", () => {
+    const { container } = renderExaminations();
+    const root = container.firstElementChild as HTMLElement;
+    expect(root.className).not.toContain("min-h-[500px]");
+    expect(root.className).toContain("min-h-0");
+    expect(root.className).toContain("overflow-y-auto");
+  });
+
   it("100件で打ち切られた場合は履歴の省略を表示する", () => {
     vi.mocked(useGetRecordExaminations).mockReturnValue({
       data: { items: EXAM_GROUPS, isTruncated: true },

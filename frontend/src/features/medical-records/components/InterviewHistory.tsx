@@ -41,7 +41,7 @@ export const InterviewHistory = memo(function InterviewHistory({
 
   return (
     <div
-      className={`flex flex-col border ${C.borderMedium} ${C.bgWhite} rounded-md overflow-hidden ${className ?? ""}`}
+      className={`flex flex-col border ${C.borderMedium} ${C.bgWhite} rounded-md min-h-0 ${className ?? ""}`}
     >
       <div
         className={`p-3 border-b ${C.borderLight} ${C.bgPage} flex items-center justify-between min-h-12 shrink-0 gap-2`}
@@ -63,7 +63,7 @@ export const InterviewHistory = memo(function InterviewHistory({
               id="medical-record-history-search"
               name="medicalRecordHistorySearch"
               placeholder="検索..."
-              className={`${LAYOUT.touch.md} w-48 pl-9 text-sm ${C.bgWhite} ${C.borderMedium}`}
+              className={`${LAYOUT.touch.md} w-full max-w-[12rem] pl-9 text-sm ${C.bgWhite} ${C.borderMedium}`}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />

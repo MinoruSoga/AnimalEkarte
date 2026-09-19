@@ -161,7 +161,7 @@ export const DiagnosisHeaderDiagnosis = memo(function DiagnosisHeaderDiagnosis({
 
   return (
     <DiagnosisHeaderSection
-      className="col-span-5"
+      className="col-span-1 md:col-span-5"
       icon={<ChevronRight className={ICON.action} />}
       title="診断"
       controls={controls}

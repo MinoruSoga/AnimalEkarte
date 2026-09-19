@@ -114,6 +114,8 @@ describe("MedicalRecordVaccination responsive layout", () => {
     const layout = screen.getByTestId("vaccination-form").parentElement;
     expect(layout).toHaveClass("grid-cols-1", "lg:grid-cols-5");
     expect(layout).not.toHaveClass("grid-cols-12");
+    expect(layout).not.toHaveClass("min-h-[500px]");
+    expect(layout).toHaveClass("min-h-0");
     expect(screen.getByTestId("vaccination-history").parentElement).toBe(layout);
   });
 });

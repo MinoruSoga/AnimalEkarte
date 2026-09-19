@@ -95,7 +95,7 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
       ) : null}
       <form
         action={formAction}
-        className="grid grid-cols-1 gap-4 h-[calc(100vh-220px)] min-h-[500px] overflow-y-auto pb-20 pr-1 lg:grid-cols-5"
+        className="grid grid-cols-1 gap-4 flex-1 min-h-0 overflow-y-auto pb-20 pr-1 lg:grid-cols-5"
       >
         {isAdding ? (
           <VaccinationForm

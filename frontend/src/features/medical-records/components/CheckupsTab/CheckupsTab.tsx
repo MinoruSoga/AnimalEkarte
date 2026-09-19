@@ -155,7 +155,7 @@ export const CheckupsTab = memo(function CheckupsTab({
   const checkupList = checkups ?? [];
 
   return (
-    <div className="flex flex-col gap-3 pb-24">
+    <div className="flex flex-col gap-3 pb-24 flex-1 min-h-0 overflow-y-auto">
       {lstepStatus !== undefined ? (
         <div className="flex items-center gap-2">
           <LstepStatusBadge status={lstepStatus} />

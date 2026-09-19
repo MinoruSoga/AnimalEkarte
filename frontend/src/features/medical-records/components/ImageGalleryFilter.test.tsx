@@ -105,6 +105,19 @@ describe("ImageGalleryFilter — SEC-CS-F08 multi-file caps", () => {
     expect(toast.error).toHaveBeenCalledWith(expect.stringContaining("huge.jpg"));
   });
 
+  it("撮影は別 input で capture し、既存 multiple upload は capture を持たない", () => {
+    renderFilter();
+    const inputs = [...document.querySelectorAll('input[type="file"]')] as HTMLInputElement[];
+    const upload = inputs.find((el) => el.multiple);
+    const camera = inputs.find((el) => el.getAttribute("capture") === "environment");
+    expect(upload).toBeTruthy();
+    expect(upload).not.toHaveAttribute("capture");
+    expect(upload?.accept).toContain("application/pdf");
+    expect(camera).toBeTruthy();
+    expect(camera?.multiple).toBe(false);
+    expect(camera?.accept).not.toContain("application/pdf");
+  });
+
   it("アップロード不可時はボタンを出さない", () => {
     render(
       <ImageGalleryFilter

@@ -552,6 +552,25 @@ func TestAccountingService_CompleteAccounting_AlreadyExistsResolvesToReplay(t *t
 	assert.Equal(t, 0, items.calls, "replay must not create items")
 }
 
+func TestAccountingService_CompleteAccounting_DifferentKeySameMedicalRecordConflict(t *testing.T) {
+	key := uuid.NewString()
+	input := validCompleteInput(key)
+	repo := &mockAccountingRepository{
+		findByCompletionRequestIDFn: func(_ context.Context, _ uint64, _ string) (*model.Billing, error) {
+			return nil, nil
+		},
+		createFn: func(_ context.Context, _ uint64, _ *model.Billing) error {
+			return apperrors.WrapAlreadyExists("billing", input.ScheduledDate.String())
+		},
+	}
+	svc := newCompleteTestService(repo, &mockAuditService{}, &mockCompleteItemWriter{}, &mockCompleteTotalsWriter{})
+
+	result, err := svc.Complete(context.Background(), input)
+	require.Error(t, err)
+	assert.True(t, apperrors.IsConflict(err), "got %v", err)
+	assert.Nil(t, result)
+}
+
 func TestAccountingService_CompleteAccounting_ManualOtherSetsCreatedBy(t *testing.T) {
 	key := uuid.NewString()
 	var captured *CreateBillingItemInput

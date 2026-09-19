@@ -17,6 +17,8 @@ import type { Pet } from "@/types";
 import { NextVisitButton } from "./NextVisitButton";
 import { VisitTypeSelect } from "./VisitTypeSelect";
 import { isMedicalRecordFinalizedStatus } from "../lib/medical-record-lock";
+import { useGetVitals } from "../api/vitals";
+import { latestVisitVitalChips } from "../lib/visit-vital-chips";
 
 interface MedicalRecordStickyHeaderProps {
   selectedPet: Pet;
@@ -37,6 +39,8 @@ interface MedicalRecordStickyHeaderProps {
   onNextVisitDatePatch: (date: string) => void;
   onNextVisitDateValidChange: (valid: boolean) => void;
   hasLineIntegration?: boolean;
+  medicalRecordId?: string;
+  recordClinicId?: string;
 }
 
 const CohabitingPetChips = memo(function CohabitingPetChips({ pets }: { pets: Pet[] }) {
@@ -92,7 +96,11 @@ export function MedicalRecordStickyHeader({
   onNextVisitDatePatch,
   onNextVisitDateValidChange,
   hasLineIntegration,
+  medicalRecordId,
+  recordClinicId,
 }: MedicalRecordStickyHeaderProps) {
+  const { data: visitVitals } = useGetVitals(medicalRecordId ?? "", recordClinicId);
+  const vitalsSummary = medicalRecordId ? latestVisitVitalChips(visitVitals) : null;
   const isFinalized = isMedicalRecordFinalizedStatus(recordStatus);
   const canEditDate = canEdit && !isFinalized && !!onDateChange && !isNewRecord;
   const dateInputValue = recordDate ? recordDate.replace(/\//g, "-") : undefined;
@@ -205,6 +213,8 @@ export function MedicalRecordStickyHeader({
         insuranceName={selectedPet.insuranceName ?? undefined}
         insuranceDetails={selectedPet.insuranceDetails ?? undefined}
         visitCount={visitCount}
+        microchipNumber={selectedPet.microchipNumber?.trim() || undefined}
+        vitalsSummary={vitalsSummary ?? undefined}
         onOwnerClick={!isNewRecord && canEdit && !isFinalized ? onOwnerClick : undefined}
         contextControls={contextControls}
       />

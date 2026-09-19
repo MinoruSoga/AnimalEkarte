@@ -25,7 +25,7 @@ export const DiagnosisHeaderPhysicalExam = memo(function DiagnosisHeaderPhysical
 }: DiagnosisHeaderPhysicalExamProps) {
   return (
     <DiagnosisHeaderSection
-      className="col-span-4"
+      className="col-span-1 md:col-span-4"
       icon={<Activity className={ICON.action} />}
       title="診察(PE)"
     >

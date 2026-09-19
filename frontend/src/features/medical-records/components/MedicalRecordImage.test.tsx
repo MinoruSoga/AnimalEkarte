@@ -71,6 +71,14 @@ describe("MedicalRecordImage — カナ混同検索", () => {
     expect(screen.getByText("エコー検査")).toBeInTheDocument();
   });
 
+  it("625px シェルと競合する min-h-[500px] を持たず局所スクロールする", () => {
+    const { container } = render(<MedicalRecordImage medicalRecordId="123" />);
+    const root = container.firstElementChild as HTMLElement;
+    expect(root.className).not.toContain("min-h-[500px]");
+    expect(root.className).toContain("min-h-0");
+    expect(root.className).toContain("overflow-y-auto");
+  });
+
   it("ひらがな「れんとげん」でカタカナ画像名「レントゲン画像」にヒットする", async () => {
     const user = userEvent.setup();
     render(<MedicalRecordImage medicalRecordId="123" />);
