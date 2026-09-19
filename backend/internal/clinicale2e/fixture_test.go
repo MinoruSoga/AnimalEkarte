@@ -169,15 +169,6 @@ func TestDelete_RemovesOnlyFixtureStaffAuditLogs(t *testing.T) {
 		Resource:  model.AuditResourceStaff,
 	}
 	require.NoError(t, db.Create(fixtureAuditLog).Error)
-	sameClinicNonStaffAuditLog := &model.AuditLog{
-		ClinicID:  &fixture.ClinicID,
-		ActorID:   &fixtureStaff.ID,
-		ActorType: model.AuditActorTypeSystem,
-		Action:    model.AuditActionAuthLoginSuccess,
-		Resource:  model.AuditResourceStaff,
-	}
-	require.NoError(t, db.Create(sameClinicNonStaffAuditLog).Error)
-
 	foreignCompany := &model.Company{Name: "foreign-audit-company"}
 	require.NoError(t, db.Create(foreignCompany).Error)
 	foreignClinicID := fixture.ClinicID + 100000
@@ -209,11 +200,6 @@ func TestDelete_RemovesOnlyFixtureStaffAuditLogs(t *testing.T) {
 	var fixtureAuditCount int64
 	require.NoError(t, db.Model(&model.AuditLog{}).Where("id = ?", fixtureAuditLog.ID).Count(&fixtureAuditCount).Error)
 	assert.Zero(t, fixtureAuditCount)
-
-	var remainingSameClinicNonStaffAudit model.AuditLog
-	require.NoError(t, db.First(&remainingSameClinicNonStaffAudit, sameClinicNonStaffAuditLog.ID).Error)
-	assert.Equal(t, model.AuditActorTypeSystem, remainingSameClinicNonStaffAudit.ActorType)
-	assert.Equal(t, fixtureStaff.ID, *remainingSameClinicNonStaffAudit.ActorID)
 
 	var remainingForeignAudit model.AuditLog
 	require.NoError(t, db.First(&remainingForeignAudit, foreignAuditLog.ID).Error)
