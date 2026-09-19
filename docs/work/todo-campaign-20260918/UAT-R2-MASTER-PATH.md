@@ -1,6 +1,6 @@
 # UAT-R2-MASTER-PATH: マスタ登録と会計導線の再現票
 
-状態: **医院の操作情報待ち（UNKNOWN）**。これは既知の実装経路を照合するための票であり、医院での再現結果や修正完了を示さない。元の課題は「マスタ入力後に金額が空、会計画面に出ない」だが、登録画面・マスタ種別・単価・操作順はまだ特定されていない（[元 TODO](../../../todo-issue.md#uat-r2-master-path)、[UAT フィードバック](../stg-uat-clinic-feedback-q1-q4.md#uat-r2-master-path)）。
+状態: **全経路の検証設計 READY／テスト未実行**。2026-09-19に依頼者が「可能性のあるページをすべて検証」と回答したため、発生ページの回答待ちを解除する。金額を入力する全マスタの新規/編集と、利用先・会計までを検証する。元の症状がどの画面で発生したかは未確定であり、全経路の検証結果と医院での再現事実を混同しない（[要件・状態の正本](../../../todo-issue.md#uat-r2-master-path)、[元報告](../stg-uat-clinic-feedback-q1-q4.md#uat-r2-master-path)）。
 
 ## 既知の期待経路
 
@@ -11,21 +11,32 @@
 
 商品マスタとカルテ治療の単価は負数を拒否し、0 を許す（[商品入力と保存](../../../backend/internal/inventory/merchandise_item_request.go)、[商品サービス](../../../backend/internal/inventory/merchandise_item_service.go)、[治療サービス](../../../backend/internal/medicalrecord/treatment_service.go)）。ただし、請求チェックの検査・ワクチン候補で `null`・非有限・負数を「価格未設定」とする判定は、全治療 DTO の単価が nullable という意味ではない（[候補判定](../../../frontend/src/features/medical-records/lib/medical-record-bill-check-model.ts)、[元 TODO](../../../todo-issue.md#uat-r2-master-path)）。診療項目の単価は全タブ保存、課税区分と税率の保存は診察・処置のみという仕様も、対象タブを特定してから照合する（[診療項目マスタ仕様](../../../docs/spec/screens/settings/master-treatment.md)）。
 
-## 医院回答を入れて照合する表
+## 全ページの対象一覧
 
-| ケース | 期待値（既知の仕様から） | 医院での実際値 | 判定に必要な入力 |
-| --- | --- | --- | --- |
-| 商品マスタを登録・再読込 | 保存した商品単価が再読込後も維持され、有効な商品なら会計の直接選択に現れる。 | **UNKNOWN** | 登録画面、商品マスタ ID、入力単価、保存 request/結果、再読込後の単価と有効状態、会計での操作順と表示結果 |
-| 診察・処置・薬剤などを登録・再読込 | 対象マスタの単価が保存・再読込され、カルテ治療に選択した後、確定カルテの未請求候補を経て請求明細になる。 | **UNKNOWN** | 登録画面とマスタ種別/ID、入力単価、保存 request/結果、再読込後の単価、カルテ治療/確定/会計の操作順と表示結果 |
-| 会計の「マスタから選択」で商品以外を探す | この欄は商品マスタ経路であり、治療マスタはカルテ経由で確認する。 | **UNKNOWN** | 実際に開いた会計画面、検索したマスタ種別/ID、操作順、医院が期待した結果 |
+開始時点の母集団は **11単価フォーム＋1割引フォーム**。下表を [route定義](../../../frontend/src/config/paths.ts)・[分類設定](../../../frontend/src/features/master/constants/category-config.ts)・実フォームと突合し、追加の金額経路があれば同じ票へ足す。`showPrice=false` だけで除外しない（ケージは単価入力を持つ）。金額のないフォームは理由付きN/Aとし、V04全CRUDをこの課題の範囲へ混ぜない。
 
-この票に共通して未確認の項目: **医院が使った登録画面 UNKNOWN、マスタ種別 UNKNOWN、入力額 UNKNOWN、保存後・再読込後の額 UNKNOWN、会計操作順 UNKNOWN、実際の表示・請求結果 UNKNOWN、医院の期待結果 UNKNOWN、要件責任者（個人名）UNKNOWN、業務目的 UNKNOWN**。患者・診療データをこの票へ転記せず、同一 ID を用いた診断に必要な操作と金額の事実だけを収集する。
+| ページ/フォーム | 入力根拠 | 保存後に追う経路 |
+| --- | --- | --- |
+| `/settings/treatment-items?tab=consultation`（診察） | [診療項目request変換](../../../frontend/src/features/master/routes/treatment-plan-master-model.ts) | カルテ治療→医師確認→確定→未請求→会計 |
+| 同 `tab=examination`（検査） | 同上 | 治療として選ぶ経路と、検査作成→医師確認の検査候補→会計を別ケース |
+| 同 `tab=procedure`（処置） | 同上 | カルテ治療→医師確認→確定→未請求→会計 |
+| 同 `tab=vaccine`（予防接種） | 同上 | 治療として選ぶ経路と、接種作成→医師確認の接種候補→会計を別ケース |
+| 同 `tab=checkup`（定期健診） | 同上 | 治療候補/健診作成の実際の価格参照を追跡。会計連携の有無はsourceで確認 |
+| `/settings/medicine`（薬剤・分類/明細を区別） | [薬剤単価欄](../../../frontend/src/features/master/components/MedicineSidePanelSections.tsx) | 治療検索→カルテ治療→会計。分類行の価格0を保存失敗と誤判定しない |
+| `/settings/merchandise-items`（商品） | [商品フォーム](../../../frontend/src/features/master/components/MerchandiseSidePanel.tsx) | 会計の商品選択→明細→保存/再読込 |
+| `/settings/hospitalization`（入院プラン） | [入院フォーム](../../../frontend/src/features/master/components/HospitalizationSidePanel.tsx) | 入院のプラン/料金単位/日数→会計参照の有無を追跡 |
+| `/settings/cage`（ケージ） | [ケージ単価欄](../../../frontend/src/features/master/components/CageSidePanel.tsx) | 入院のケージ料金参照とプラン料金の関係を追跡。合算を推測しない |
+| `/settings/trimming?tab=course`（コース） | [コースフォーム](../../../frontend/src/features/master/components/TrimmingCourseSidePanel.tsx) | トリミング選択→会計。予約側の価格表示はlocal合成データで確認 |
+| `/settings/trimming?tab=option`（オプション） | [オプションフォーム](../../../frontend/src/features/master/components/TrimmingOptionSidePanel.tsx) | トリミング追加料金→会計。外部予約/LINE送信は行わない |
+| `/settings/campaigns`（割引額/率） | [割引フォーム](../../../frontend/src/features/master/components/CampaignSidePanel.tsx) | 保存/再読込と適用先の割引額。単価と別軸で照合 |
 
-## 次の判定ゲート
+下流はカルテ治療・検査・予防接種・定期健診・医師確認・見積、入院、トリミング、会計新規/詳細を対象にする。会計連携の参照型は [明細作成](../../../frontend/src/features/accounting/hooks/create-accounting-items.ts) にある `treatment_id` / `exam_id` / `vaccination_id` / `trimming_course_id` / `trimming_option_id` 等を確認する。未実装の自動連携を本検証で新仕様として追加しない。
 
-1. 医院から上記の画面、マスタ種別/ID、入力額、保存 request と再読込後の額、カルテ・会計の操作順、期待結果、要件責任者の個人名と業務目的を受け取る。現時点の原因は **UNKNOWN**。
-2. 同一マスタ ID で保存 request → 保存結果 → 再読込した単価を照合する。ここで不一致なら **単価保存・再読込の失敗** として切り分け、該当経路の失敗テストと最小修正を検討する。
-3. 単価が一致する場合は、対象が商品か治療かを確認し、上表の正しい会計経路と医院の操作を照合する。カルテ経由が正しく、会計の商品選択だけを探していたなら **操作経路の案内** を検討する。カルテ確定後の未請求または明細で不一致なら、その同一 ID の連携を調べる。
-4. 個人名を持つ要件責任者と業務目的が確定するまでは機能変更を決めない。全マスタを会計の直接選択に混在させる案は、現行の経路と二重管理防止の方針に合わない（[UAT フィードバック](../stg-uat-clinic-feedback-q1-q4.md#uat-r2-master-path)、[設計思想](../../product-philosophy.md)）。
+## 実行手順・期待値
 
-完了条件: 同一 ID の対象経路・期待値・実際値・原因・最小修正または案内を根拠付きで記録すること。医院の入力がそろうまでは製品修正と医院 UAT 判定を **BLOCKED** とする（[元 TODO](../../../todo-issue.md#uat-r2-master-path)）。
+1. 開発/QAが上表を新規/編集×保存/再読込/下流のケースに展開し、既存V04・form・APIテストで覆う箇所を紐付ける。候補revision、Docker mount、専用合成clinic/患者、実行者、後処理、receipt保存先を固定する。借用した他タスクのDBや実請求を使わない。
+2. 通常単価1,200円を新規保存→ページを開き直す→2,300円へ編集→再読込する。正常系とは別に0、空欄、負数、取消/保存失敗を各フォームの既存契約で照合する。空欄/NULL/0を一律同値にしない。数量2の行は単価と行金額を分け、税込/税率/丸めは各仕様に従う。キャンペーンは単価ではなく割引額/率として期待値を作る。
+3. request→response→再取得API→表示値→下流ID/金額の最初の不一致を特定する。マスタ編集が過去の確定明細を遡及変更しないこと、新規選択の価格は適切に更新されることも確認する。
+4. 不一致ごとに失敗テスト→最小修正→Docker scoped検証。商品以外を商品選択欄へ追加する改変で辻褄を合わせない。保存が正常でも該当下流の検証を省略しない。
+
+成果物列: `route/tab / create-or-update / fixture / input / request / reread / downstream / expected / actual / evidence / cleanup / PASS-FAIL-BLOCKED-N/A`。実際値は全行 **未実行** から開始。完了は全対象がPASSまたは根拠付きN/Aで、価格消失/不一致のFAIL・未実行が残らないこと。新しい製品仕様が必要なときだけ要件責任者の判断へ戻す。医院の元の操作特定は、合成検証を止める前提にしない。

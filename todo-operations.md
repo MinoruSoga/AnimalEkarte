@@ -1,8 +1,8 @@
 # 運用・外部実行 TODO
 
-最終照合: 2026-09-18（文書・source）。未完了の環境・データ・本番・納品作業を管理する。実装は [todo-issue.md](todo-issue.md)、受入は [todo-verification.md](todo-verification.md)。既存チケットは [BRT-4](https://linear.app/baritechllc/issue/BRT-4) 配下。完了した PR の CI 修復・マージ待ちは削除した。
+最終照合: 2026-09-19（文書・source・old_db統合履歴）。未完了の環境・データ・本番・納品作業を管理する。実装は [todo-issue.md](todo-issue.md)、受入は [todo-verification.md](todo-verification.md)。既存チケットは [BRT-4](https://linear.app/baritechllc/issue/BRT-4) 配下。完了した PR の CI 修復・マージ待ちは削除した。
 
-9月17日の `git ls-remote` では remote main は `f5699c2a`、当時の local main `72807128` は1コミット先。9月18日の local main は `e1261cc75`。remote・CI・配備は今回再照会していないため、現在の同期/反映状態は UNKNOWN。Linear MCP は9月18日も `USER_NOT_LOGGED_IN`。9月15日の GitHub / Linear 読取は履歴。STG / PROD の DB、秘密、最新データ投入 receipt は確認していない。以前の「未構築」「未受領」を現在の事実として断定せず、再実行前に実施有無を確認する。
+9月17日のremote確認は履歴。9月19日のローカルmainは `71c583992` だが、remote・CI・配備は今回再照会していないため現在の同期/反映状態はUNKNOWN。Linearは9月18日23:22–23:23 JSTの読取成功記録がある一方、9月19日の接続試行は `USER_NOT_LOGGED_IN`。STG/PRODのDB・秘密・最新データ投入receiptは確認していない。以前の「未構築」「未受領」を現在の事実として断定せず、再実行前に実施有無を確認する。
 
 着手プランを 2026-09-18 に再点検した。各表の ID から下の個別手順を参照する。承認前にも、既存資料の照合・不足入力表・実行案の作成は進められる。外部の実操作を、この計画の記載だけで開始しない。
 
@@ -14,7 +14,7 @@
 
 | ID | 準備可: ローカルで作る成果物 | 外部実行を開始する条件 |
 |---|---|---|
-| UAT-Q3-GENDER-MAP | 候補4パスの引継ぎ票、producer修正とSTG限定訂正を分けた実行票 | 所有権引継ぎ・統合判断、現行bundle、旧コード根拠と対象集合、訂正承認 |
+| UAT-Q3-GENDER-MAP | old_db統合済みrevisionと現行bundle/DB検証receiptを対応づけ、STG限定訂正票へ | 現行bundle、旧コード根拠と対象集合、訂正承認。候補の再統合は不要 |
 | UAT-Q2-VACCINE-SPECIES | [集計設計](todo-issue.md#data-investigation-contracts) の医院・期間・出力列・保存先を実行票へ | 対象を限定した読取承認。履歴更新は別単位 |
 | UAT-Q4-UNPAID-TRIAGE | 同設計の母集団・payment結合・未納式・照合条件を実行票へ | 読取承認。原因未確定なら件数分類まで |
 | PO-PET-DECEASED-DATA-BACKFILL | 根拠あり対象/除外/既訂正/競合の判定表とdry-run・監査・復旧案 | 現在の対象件数と日付根拠、合成検証、限定訂正承認 |
@@ -40,7 +40,7 @@
 
 | ID | 残作業・担当 | 開始条件と完了条件 |
 |---|---|---|
-| [UAT-Q3-GENDER-MAP](#uat-q3-gender-map) | old_db / USER: 検証済み隔離候補の main 統合・bundle、既存 STG の性別訂正 | [課題本文](todo-issue.md#uat-q3-gender-map) のデコード・対象・バックアップ・監査・復旧を固定。承認後に適用し、性別と手術日を別々に照合 |
+| [UAT-Q3-GENDER-MAP](#uat-q3-gender-map) | old_db / USER: 統合済み性別修正のbundle/DB証拠照合、既存STG訂正 | [課題本文](todo-issue.md#uat-q3-gender-map) のデコード・対象・バックアップ・監査・復旧を固定。承認後に適用し、性別と手術日を別々に照合 |
 | [UAT-Q2-VACCINE-SPECIES](#uat-q2-vaccine-species) | USER / 調査担当: STG 集計の読取範囲を確保 | 医院と時刻窓を固定し、件数・参照関係で原因分類。個体情報を共有せず、履歴修正は別承認 |
 | [UAT-Q4-UNPAID-TRIAGE](#uat-q4-unpaid-triage) | USER / 調査担当: STG 未納の集計 | status、支払有無、金額で切り分け。既存請求を一括完了にしない |
 | [PO-PET-DECEASED-DATA-BACKFILL](#po-pet-deceased-data-backfill) | USER: 日付根拠がある行だけの限定訂正 | [修復方針](todo-issue.md#po-pet-deceased-data-backfill) の対象と死亡日根拠を承認後に適用。監査・前後件数・復旧を確認 |
@@ -80,7 +80,7 @@ Q1検索・Q4保険・Q2履歴を含む STG 修正の production 反映は未完
 
 ### UAT-Q3-GENDER-MAP
 
-1. [検証済み隔離候補](todo-issue.md#uat-q3-gender-map) は未コミット・old_db main 未統合。producer 担当が対象差分を統合し、現行契約の bundle を再生成・照合する。38 tests / SQLite CASE の成功を PostgreSQL・export・STG の証拠にしない。
+1. [性別修正](todo-issue.md#uat-q3-gender-map) は old_db `5fbc3b2` → merge `a2cea37` でmain統合済み（9月19日読取）。producer担当は修正を含むrevisionと現行bundle/検証receiptを照合し、未生成なら正規経路で再生成する。38 tests / SQLite CASEの既存成功をPostgreSQL・export・STGの証拠にしない。再統合タスクは起こさない。
 2. 運用担当が対象医院、旧コードを追跡できる根拠、訂正対象件数、除外条件、backup・監査・復旧方法を事前照合する。producer の修正と既存 STG の修正は別々に判定する。
 3. 承認された限定訂正後に雄/雌の件数・表示を照合する。手術日は変更対象と混ぜず、推測日付を入れない。成果物は producer revision、承認参照、前後集計、画面確認の非機密 receipt。
 

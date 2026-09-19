@@ -1,8 +1,10 @@
 # 未完了の検証・受入 TODO
 
-最終照合: 2026-09-18（JST）。完了した実装・unit 検証の列挙を削除し、残る検証と受入だけを扱う。新規実装は [todo-issue.md](todo-issue.md)、外部操作は [todo-operations.md](todo-operations.md)。
+最終照合: 2026-09-19（JST）。完了した実装・unit 検証の列挙を削除し、残る検証と受入だけを扱う。新規実装は [todo-issue.md](todo-issue.md)、外部操作は [todo-operations.md](todo-operations.md)。
 
 着手プラン確認: 2026-09-18。各 ID の入口・前提・手順・証拠に加え、実行前に作れるケース票を下記に具体化した。これは計画の充足確認であり、テストや受入の完了判定ではない。
+
+9月19日の依頼者回答を反映: 全金額経路・1366×625 UI・上書き/二重会計防止・全期間処置移行の受入ケースは [各実行票](todo.md#今開始する4件仕様入力の回収は完了) に具体化済み。既存票を再作成せず、対象revisionと未カバーケースを対応づける。以下のruntime準備では、他タスクの起動済みコンテナや共有DBを検証先に流用しない。
 
 ## 判定原則
 
@@ -20,7 +22,7 @@ QA/開発が作るケース票の共通列は `ID / case / revision / 環境・f
 | ID | 準備可: 最初に作るケース票・照合表 | 実行へ進む条件 |
 |---|---|---|
 | UAT-R2-TREATMENT-COMMIT | Enter 1回/2回、Blur、Escape、長押し、IME確定を別ケースにして保存回数と再読込値を記録 | 対象 build、物理 IME 端末、変更可能 fixture、後処理 |
-| UAT-R2-MASTER-LIST-HEIGHT | 短い/長い一覧、検索/閉じる、キーボード選択、復帰先フォーカス × viewport/zoom | 実端末の CSS 表示領域と zoom。CHART-FIT の未回答値を推定しない |
+| UAT-R2-MASTER-LIST-HEIGHT | 短い/長い一覧、検索/閉じる、キーボード選択、復帰先フォーカス × viewport/zoom | 1366×625 CSS pxで開始。Windows 8/Chrome実機はQAが版・CSS表示領域・100%/既報125%を採取して別run |
 | UAT-Q1-SEARCH-AND | 複数語AND/1語/0件/他院候補非表示の期待件数 | STG 配信版と医院別の合成検索 fixture |
 | UAT-Q4-INSURANCE-RATES | 新規50/70、既存90/100 × 選択/保存/再読込の期待金額 | 承認済み検証会計・後処理。実請求は使わない |
 | UAT-Q2-HISTORY-NAV | 同一ペットの問診行→詳細→戻る、処置未移行の記録 | 対象 build と合成の履歴参照 |
@@ -67,7 +69,7 @@ Q1 / Q4保険 / Q2履歴の実装は再開しない。根拠は [医院フィー
 
 ### UAT-R2-MASTER-LIST-HEIGHT
 
-同じ検証の10 testsで [TreatmentSearchDialog](frontend/src/components/shared/TreatmentSearchDialog/TreatmentSearchDialog.tsx) の一覧上限 `max-h-[calc(80vh-12rem)]` を確認済み。残るのは対象端末の viewport・ズーム別の可視行、画面内の検索/閉じる操作、キーボード選択・フォーカス復帰の受入。長い一覧のスクロールは残す。ノートPC125%の記録だけでは解像度・対象タブを確定できない。
+同じ検証の10 testsで [TreatmentSearchDialog](frontend/src/components/shared/TreatmentSearchDialog/TreatmentSearchDialog.tsx) の一覧上限 `max-h-[calc(80vh-12rem)]` を確認済み。残るのは可視行、画面内の検索/閉じる操作、キーボード選択・フォーカス復帰の受入。9月19日の回答でWindows 8 / Chrome、15.6インチ、1366×625を基準にできる。[CHART-FIT票](docs/work/todo-campaign-20260918/UAT-R2-CHART-FIT.md) と同じfixture/runを使い、短い/長い一覧とsidebar両状態を検証する。長い一覧のスクロールは残す。実機CSS領域・100%/既報125%・旧Chrome版の結果を別記し、最新Chromiumの合格を旧Chrome対応済みとしない。
 
 ### UAT-Q1-SEARCH-AND
 
