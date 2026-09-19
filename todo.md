@@ -1,10 +1,38 @@
 # タスク台帳 — 入口
 
-最終照合: 2026-09-17（JST）。ローカル `main` `72807128`、既存の検証証跡、医院回答と source 調査を照合。Linear は現在 `USER_NOT_LOGGED_IN` で UNKNOWN。9月15日の読取結果は履歴として保持する。**未完了の作業だけを掲載する。** 実装済みの詳細・完了項目は Git 履歴と元の UAT 記録を参照する。
+最終照合: 2026-09-19（JST）。ローカル `main` `06e88ca92` の TODO 5文書、参照仕様・手順・source、ローカル準備キャンペーンを照合。Linear は2026-09-18 23:22–23:23 JSTの読取で BRT-4 / BRT-41 / BRT-42 / BRT-45 / BRT-68 を確認したが、ローカル ID との直接対応は0件で、投稿・状態変更は未実施。**未完了の作業だけを掲載する。** 実装済みの詳細・完了項目は Git 履歴と元の UAT 記録を参照する。
 
 ## 着手プランの確認
 
-2026-09-15、未完了タスクの計画を全件点検した。大枠の方針は既存文書にあり、不足していたコード/手順の入口、前提、実施順、成果物・完了条件を [開発・調査](todo-issue.md)、[検証・受入](todo-verification.md)、[運用・納品](todo-operations.md) に補完した。各表の ID から計画へ進める。`todo-performance.md` は技術記録、バグ/医院報告は元の根拠として参照する。計画があることと、実装・外部実行・受入の完了は区別する。
+**全件が実装・実行 READY ではない。** 9月18日の点検で、調査の出力定義、検証対象の限定、担当分界、外部入力の不足を補完した。[開発・調査](todo-issue.md)、[検証・受入](todo-verification.md)、[運用・納品](todo-operations.md) の同じ ID に、今できる最小作業と次段の開始条件を記載する。`todo-performance.md` は性能の技術記録、`bug.md` / `bug-2.md` / 医院報告は根拠・過去の実施記録。`docs/ops/backlog-spreadsheet.md` は外部 Q&A の管理規則であり、追加の実行キューではない。
+
+### 着手判定の読み方
+
+- **準備可**: repo 内の仕様照合、集計設計、合成ケース設計、既存証拠の対応表、依頼文の下書きに着手できる。成果物を同じ ID へ追記したら準備を終え、回答待ちのまま同じ調査を繰り返さない。
+- **条件付き**: 対象版・環境・fixture・実行者・必要な承認参照・証拠保存先が揃った単位だけ実行できる。現時点で揃ったと確認していないものを READY に昇格しない。
+- **BLOCKED / 判断待ち**: 本文の不足入力が必要。準備可の作業は先行できるが、医院の事実、責任者名、承認、現在の外部状態を推測で埋めない。
+- **DEFERRED**: 再開条件まで実装しない。既存の調査メモで十分なら新たな作業を起こさない。
+
+担当欄の「開発・QA・運用・PO・医院・producer」は必要な役割で、個人への割当や承認取得を表さない。実行担当は claim 取得時、要件責任者・受入者は実装/受入前に記録する。通常のローカル調査・文書下書きに追加承認は不要。
+
+### 2026-09-19 のローカル準備状況
+
+次の8 IDの準備票を作成し、固定セットのローカルキャンペーンは `COMPLETE`。準備票は `docs/work/todo-campaign-20260918/` に配置した。各本体の実装、STG読取、医院受入、外部反映は完了していない。
+
+- `UAT-R2-MASTER-PATH`、`UAT-R2-EXCLUSIVE-LOCK`、`UAT-R2-CHART-FIT`
+- `UAT-Q2-VACCINE-SPECIES`、`UAT-Q4-UNPAID-TRIAGE`、`UAT-Q2-TREATMENTS-IMPORT`
+- `PO-PET-DECEASED-DATA-BACKFILL`、`TODO-V-LINEAR`
+
+### 次に選ぶ作業
+
+| 順 | 次の単位 | 現在の状態 / 後続条件 |
+|---|---|---|
+| 1 | [医院・PO 入力の確定票](todo-issue.md#decision-inputs) と準備票の未回答欄を回収 | マスタ操作、排他事故、端末実測値、処置移行範囲は未確認。本体は BLOCKED / 判断待ち |
+| 2 | 性別修正候補の所有者引継ぎと old_db 統合判断 | 候補4パスのローカル検証済み。bundle、PostgreSQL、STG訂正は未実施 |
+| 3 | [検証準備表](todo-verification.md#readiness-preparation) と [運用準備表](todo-operations.md#readiness-preparation) の条件を満たす単位を実行 | 対象 build、fixture、環境、実行者、承認、証拠保存先が揃った単位だけ着手 |
+| 4 | Linear の残る既存 Issue を full local ID・元報告・受入条件で照合 | 2026-09-18 の読取範囲では直接対応0件。投稿・状態変更は別途明示承認後 |
+
+今回の文書改訂と準備票はタスク実装、テスト実行、外部反映、受入の完了を意味しない。着手時には現行 HEAD と該当 claim・対象入力を再確認する。
 
 ## 残作業の入口
 
@@ -33,13 +61,13 @@
 
 | ID | 内容 | 状態 |
 |---|---|---|
-| [UAT-R2-MASTER-PATH](todo-issue.md#uat-r2-master-path) | マスタ入力後に金額が空／会計画面に出ない。登録画面を特定してから直す | BLOCKED（医院入力） |
-| [UAT-R2-CHART-FIT](todo-issue.md#uat-r2-chart-fit) | ノートPC・125%。対象タブと解像度を確認してカルテ配置を調整 | BLOCKED（端末条件） |
-| [UAT-R2-EXCLUSIVE-LOCK](todo-issue.md#uat-r2-exclusive-lock) | 旧システム相当の「他PC入力禁止」は未実装。全面ロックは製品判断後 | PO 判断待ち |
+| [UAT-R2-MASTER-PATH](todo-issue.md#uat-r2-master-path) | マスタ入力後に金額が空／会計画面に出ない。登録画面を特定してから直す | 準備票作成済／本体 BLOCKED（医院入力） |
+| [UAT-R2-CHART-FIT](todo-issue.md#uat-r2-chart-fit) | ノートPC・125%。対象タブと解像度を確認してカルテ配置を調整 | 準備票作成済／本体 BLOCKED（端末条件） |
+| [UAT-R2-EXCLUSIVE-LOCK](todo-issue.md#uat-r2-exclusive-lock) | 旧システム相当の「他PC入力禁止」は未実装。全面ロックは製品判断後 | 準備票作成済／PO 判断待ち |
 | [UAT-Q3-GENDER-MAP](todo-issue.md#uat-q3-gender-map) | コード 3/4 修正の隔離候補は検証済み。main 統合・bundle・STG 訂正が残る | 未完了（統合・運用） |
-| [UAT-Q2-VACCINE-SPECIES](todo-issue.md#uat-q2-vaccine-species) | 猫に犬用ワクチン（Proheart・6種等）。件数調査のあと種を付ける | 調査待ち |
-| [UAT-Q4-UNPAID-TRIAGE](todo-issue.md#uat-q4-unpaid-triage) | 未納はデモではない。実未納と突合漏れを集計で切る。一括完了しない | 調査待ち |
-| [UAT-Q2-TREATMENTS-IMPORT](todo-issue.md#uat-q2-treatments-import) | 処置移行は今期に含む。種類・期間・責任者・受入条件待ち | BLOCKED（範囲詳細） |
+| [UAT-Q2-VACCINE-SPECIES](todo-issue.md#uat-q2-vaccine-species) | 猫に犬用ワクチン（Proheart・6種等）。件数調査のあと種を付ける | 集計設計票作成済／STG 調査待ち |
+| [UAT-Q4-UNPAID-TRIAGE](todo-issue.md#uat-q4-unpaid-triage) | 未納はデモではない。実未納と突合漏れを集計で切る。一括完了しない | 集計設計票作成済／STG 調査待ち |
+| [UAT-Q2-TREATMENTS-IMPORT](todo-issue.md#uat-q2-treatments-import) | 処置移行は今期に含む。種類・期間・責任者・受入条件待ち | 契約差分票作成済／本体 BLOCKED（範囲詳細） |
 
 マスタ導線・競合制御の source 調査は完了し、該当 ID に記録した。医院入力待ち・外部操作を無条件の実装 READY にしない。`TASK-444` / `BE-RC-009` / `BE-RC-017` の既存完了は維持する。
 
