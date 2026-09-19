@@ -1,10 +1,38 @@
 # 運用・外部実行 TODO
 
-最終照合: 2026-09-17。未完了の環境・データ・本番・納品作業を管理する。実装は [todo-issue.md](todo-issue.md)、受入は [todo-verification.md](todo-verification.md)。既存チケットは [BRT-4](https://linear.app/baritechllc/issue/BRT-4) 配下。完了した PR の CI 修復・マージ待ちは削除した。
+最終照合: 2026-09-18（文書・source）。未完了の環境・データ・本番・納品作業を管理する。実装は [todo-issue.md](todo-issue.md)、受入は [todo-verification.md](todo-verification.md)。既存チケットは [BRT-4](https://linear.app/baritechllc/issue/BRT-4) 配下。完了した PR の CI 修復・マージ待ちは削除した。
 
-9月17日の `git ls-remote` では remote main は `f5699c2a`、local main `72807128` は1コミット先。新しい4単位の push・GitHub CI・STG/production は未確認。Linear は `USER_NOT_LOGGED_IN` で現在 UNKNOWN。9月15日の GitHub / Linear 読取は履歴。STG / PROD の DB、秘密、最新データ投入 receipt は確認していない。以前の「未構築」「未受領」を現在の事実として断定せず、再実行前に実施有無を確認する。
+9月17日の `git ls-remote` では remote main は `f5699c2a`、当時の local main `72807128` は1コミット先。9月18日の local main は `e1261cc75`。remote・CI・配備は今回再照会していないため、現在の同期/反映状態は UNKNOWN。Linear MCP は9月18日も `USER_NOT_LOGGED_IN`。9月15日の GitHub / Linear 読取は履歴。STG / PROD の DB、秘密、最新データ投入 receipt は確認していない。以前の「未構築」「未受領」を現在の事実として断定せず、再実行前に実施有無を確認する。
 
-着手プランを 2026-09-15 に補完した。各表の ID から下の個別手順を参照する。承認前にも、既存資料の照合・不足入力表・実行案の作成は進められる。外部の実操作を、この計画の記載だけで開始しない。
+着手プランを 2026-09-18 に再点検した。各表の ID から下の個別手順を参照する。承認前にも、既存資料の照合・不足入力表・実行案の作成は進められる。外部の実操作を、この計画の記載だけで開始しない。
+
+<a id="readiness-preparation"></a>
+
+## 今着手する運用準備
+
+次の担当は運用/producer/USER。個人の割当は未確定であり、実行票で確定する。実行票は `ID / 対象環境・医院 / revision・manifest等の入力識別 / 読取・変更する範囲 / 前段証拠 / 操作者・承認者 / 実行枠 / 中止条件 / 復旧 / 証拠保存先` を持つ。秘密・実 roster・患者情報は repo 外の承認済み保管先に置き、台帳には非機密参照だけを残す。既存 receipt が見つかれば同一対象・入力との一致を先に検証し、再実行の要否を決める。
+
+| ID | 準備可: ローカルで作る成果物 | 外部実行を開始する条件 |
+|---|---|---|
+| UAT-Q3-GENDER-MAP | 候補4パスの引継ぎ票、producer修正とSTG限定訂正を分けた実行票 | 所有権引継ぎ・統合判断、現行bundle、旧コード根拠と対象集合、訂正承認 |
+| UAT-Q2-VACCINE-SPECIES | [集計設計](todo-issue.md#data-investigation-contracts) の医院・期間・出力列・保存先を実行票へ | 対象を限定した読取承認。履歴更新は別単位 |
+| UAT-Q4-UNPAID-TRIAGE | 同設計の母集団・payment結合・未納式・照合条件を実行票へ | 読取承認。原因未確定なら件数分類まで |
+| PO-PET-DECEASED-DATA-BACKFILL | 根拠あり対象/除外/既訂正/競合の判定表とdry-run・監査・復旧案 | 現在の対象件数と日付根拠、合成検証、限定訂正承認 |
+| BUG-LOCAL-HANDOFF-CSV-CONTRACT | producer/consumer revision・header・hash・provenance の差分表 | 再生成元と担当、出力/配置先。DB apply は配置checkと別承認 |
+| H0-2 / HAC-CSV-1 | 完全KNJO/clean BAKの受領参照・provenance・producer結果の不足票 | 現在の正式入力受領と検証。未接続Linearの昔の本文で受領済みにしない |
+| H0-3b / H1-2 | 受領/配置/preflight の作業別担当表（旧ID対応欄は未確定） | 元Issue/引継ぎによるID分界、同一manifest、対象・読取条件 |
+| AE-STG-UAT-LANE3-HAC | formal/STG UAT の経路選択票、現行band占有と投入要否の照合項目 | H0入力、eligibility、seed binding、backup/rollback、apply承認 |
+| H3-9 | roster項目・staff/account/clinic/role 対応の不足票 | repo外入力と対象host/database、preflight、必要分のattach承認 |
+| H3-11 | H3-9 receiptと同一対象のlogin/所属/権限/再読込ケース票 | attach完了、本人・医院・ブラウザ範囲 |
+| Lane 4 | 両院×5営業日のlogin/主要操作/締め/障害・監査結果の記録枠 | 両院Lane3 verify、H3-11、開始日、医院担当、中止条件 |
+| P1 / SEC-SECRETS-5 | 下記4系統×発行/投入/deploy/health/revoke拒否のreceipt不足表 | 各系統の担当・変更対象・復旧・明示承認 |
+| P2 / PROD-SETUP | 下記repo実装不足とprovider確認事項を分けた差分表 | setup §1–6、保護された実行経路、環境・配備承認 |
+| P3 / PROD-DATA-MIGRATION | 正式bundleとP2 receiptに結び付く当日実行票 | rehearsal/復旧成功、本番window、入力停止・最終import承認 |
+| P5 / STAFF-PROVISION | I-ROSTER〜I-RECEIPT の不足票とremote実行方式の設計案 | roster等の入力、対象/承認/rollback、remote方式の実装・検証 |
+| P6 / DELIVERY | U1–U12 の未記入欄を契約/運用/providerの供給者別にまとめる | 現行の事実・P1/P2等のreceiptと契約責任者の承認 |
+| P7 / TRAINING | U13 の日程/形式/職種/操作/質疑/未解決事項の実施票 | 医院担当・対象版・開催条件、案内送信の承認 |
+
+準備は不足票・実行案を同じ ID に残した時点で一区切り。実行条件を満たさない行は BLOCKED/UNKNOWN を維持する。必要な入力を揃える作業と、実環境を変更する作業を同じ「着手済み」にまとめない。
 
 <a id="uat-data-operations"></a>
 
@@ -90,6 +118,8 @@ Q1検索・Q4保険・Q2履歴を含む STG 修正の production 反映は未完
 
 ### H0-3b / H1-2
 
+9月18日に追跡文書を検索した範囲でも旧 ID の詳細な役割定義は見つからず、Linear は未接続。名称から H0/H1 の役割を再定義しない。照合票の列を「元ID / 元Issue・引継ぎ参照 / producer受領担当 / AE配置担当 / preflight実行者 / 対象manifest / 未確定欄」とし、確認できたセルだけを埋める。
+
 1. H0-2 の最新 bundle と [handoff 手順](docs/ops/deploy/OLD_DB_HANDOFF_LOCAL.md) を照合する。旧 ID の担当分界は現台帳だけでは詳細不明のため、既存 Issue/producer 引継ぎで「受領・配置・preflight」の担当と対象を確定するところから始める。
 2. manifest の医院、source run、consumer 契約、全 CSV digest、formal/rehearsal の用途を固定する。ローカル配置確認後、承認された対象で用途に合う read-only preflight を行う。
 3. 成果物は ID 別の担当分界、同一 manifest に結び付いた preflight と対象環境の receipt。前段不足・契約不一致・既存 band 占有・担当分界不明なら apply に進まない。過去 receipt が現在の入力と一致すれば重複実行しない。
@@ -122,11 +152,17 @@ Q1検索・Q4保険・Q2履歴を含む STG 修正の production 反映は未完
 
 ### P1 / SEC-SECRETS-5
 
+4系統は **PlanetScale DB / Cloudflare API・Worker secrets / LINE channel secret・access token / JWT・INTEGRATION_ENCRYPTION_KEY**。値は取得・転記せず、[既存の不足表とreceipt欄](docs/ops/deploy/runbooks/BUG_MD_EXTERNAL_OPS_PENDING_APPROVAL.md) を使う。発行済み・投入済み・旧値拒否の証拠は別セルにし、一部成功で全系統を閉じない。
+
 1. [資格情報手順の不足表](docs/ops/deploy/runbooks/BUG_MD_EXTERNAL_OPS_PENDING_APPROVAL.md) を使い、4系統の既存 receipt と対象 config/環境を names-only で照合する。
 2. 不足分について人間が発行 → 投入 → deploy → health と対象機能確認 → 旧値 revoke/拒否の実行案を作る。暗号鍵は既存暗号化データの再暗号化/復元手順が別途検証されるまで変更しない。
 3. 明示承認後に担当者が実施し、系統別の非機密 receipt を保存する。#97 本文のマスクはローテーション完了後の別外部操作。秘密値を台帳へ載せず、未確認の系統があれば P1 を閉じない。
 
 ### P2 / PROD-SETUP
+
+9月18日の repo 照合: [backend deploy workflow](.github/workflows/backend-deploy.yml) は staging push / workflow_dispatch と既定の `wrangler deploy` を使い、production の trigger・Environment gate・`wrangler.production.jsonc` 選択は未配線。[setup の受入条件](docs/ops/infra/production/setup.md) に従い、保護環境への結付け、production config/secret scope/health target、workflow tests/actionlint の変更案を作る。workflow_dispatch があるだけで本番へ配備できると扱わない。採用する経路は同書の deploy → migrate → health の順を守り、migration を伴う実行をこの文書準備から自動起動しない。
+
+provider側は Environment reviewer・契約/課金・DB/R2/DNS・Vercel API target の現在状態が未確認。production config の `TRUSTED_PROXY_CIDR` の実測と `S3_PUBLIC_BASE_URL` 等の確定も不足表へ入れる。これらと setup §1–6 の実装/検証が揃うまで production runbook は **not runnable**。
 
 1. [production setup](docs/ops/infra/production/setup.md) §1–6 と `.github/workflows/backend-deploy.yml`、`backend/wrangler.production.jsonc` を比較し、実装差分と provider 設定の不足を分ける。checked-in の draft を構築済みの根拠にしない。
 2. 人間が Environment protection/reviewer・課金・DB/R2/DNS・秘密 scope を確認。必要な workflow 変更は対象と検証を別実装単位にして、保護条件が整った後に有効化する。
@@ -140,11 +176,15 @@ Q1検索・Q4保険・Q2履歴を含む STG 修正の production 反映は未完
 
 ### P5 / STAFF-PROVISION
 
+[スタッフ発行手順](docs/ops/deploy/STAFF_ACCOUNT_PROVISIONING.md) は remote apply の実行方式を未定義としている。`STAFF_PROVISION_ALLOW_REMOTE` の許可値だけで共有STG/PROD applyへ進まない。secretのread-only供給、対象を固定した実行入口、承認、rollback、非機密receiptを設計し、実装・検証が揃ってから実行する。H3-9 の `stg-uat-staff-attach` は既存staffへのattach用で、P5の方式が完成した根拠にはしない。
+
 1. [スタッフ発行の不足入力表](docs/ops/deploy/STAFF_ACCOUNT_PROVISIONING.md#不足入力チェックリスト2026-08-20) の I-ROSTER〜I-RECEIPT を現在の入力と照合する。名簿受領履歴と現在版の適用可否を分ける。
 2. 個人 email 方針、clinic、明示した permission group、休退職者、actor、対象環境を確定し、repo 外に manifest/secrets を準備する。初回管理者が未整備なら [D1](todo-verification.md#認証認可の外部境界) を先に満たす。
 3. 承認済み preflight → 人間による apply → login・所属・最小権限・audit の確認を行う。成果物は batch/digest/count と結果の receipt。実 roster や秘密を Git に保存せず、架空スタッフで未入力を埋めない。
 
 ### P6 / DELIVERY
+
+未記入欄は [納品パッケージ U1–U12](docs/delivery/DELIVERY_PACKAGE.md) に集約する。U1–U4=クラウド/DB/Vercel/GitHubの契約・請求・移管/権限、U5–U6=LINE/LSTEPの本番設定参照（秘密は別管理）、U7–U8=支援窓口/通知先、U9–U11=DB復旧・R2保全・監査保持の方針と実測、U12=本番構築/疎通の証拠。公開repoから契約名義や保持年数を推定せず、確認依頼の下書きにする。
 
 1. [納品パッケージ](docs/delivery/DELIVERY_PACKAGE.md) の U1–U12 を契約名義・本番環境・通知先・運用担当の現在の事実と照合し、不足欄を供給者別にまとめる。
 2. P1/P2 と関連する実行 receipt を取得して、手順・構成・管理者設定・backup/障害連絡の記載を実際の納品対象へ合わせる。秘密の投入と本文更新を同じ作業にしない。

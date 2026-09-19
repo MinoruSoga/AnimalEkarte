@@ -1,8 +1,8 @@
 # 未完了の検証・受入 TODO
 
-最終照合: 2026-09-17（JST）。完了した実装・unit 検証の列挙を削除し、残る検証と受入だけを扱う。新規実装は [todo-issue.md](todo-issue.md)、外部操作は [todo-operations.md](todo-operations.md)。
+最終照合: 2026-09-18（JST）。完了した実装・unit 検証の列挙を削除し、残る検証と受入だけを扱う。新規実装は [todo-issue.md](todo-issue.md)、外部操作は [todo-operations.md](todo-operations.md)。
 
-着手プラン確認: 2026-09-15。各 ID の入口・前提・手順・証拠を下記に補完した。これは計画の充足確認であり、テストや受入の完了判定ではない。
+着手プラン確認: 2026-09-18。各 ID の入口・前提・手順・証拠に加え、実行前に作れるケース票を下記に具体化した。これは計画の充足確認であり、テストや受入の完了判定ではない。
 
 ## 判定原則
 
@@ -10,6 +10,38 @@
 - 過去の未実施記録だけから、現在も未実施と断定しない。新しい証拠を照合していないものは UNKNOWN、既知の前提不足は BLOCKED とする。
 - 実行前に対象 revision、環境、操作者、承認、fixture、証拠保存先を固定する。秘密・接続文字列・患者情報は台帳や共有ログに含めない。
 - データ書込み・migration・配備・外部送信は承認された単位のみ。今回の文書更新ではテスト、DB 操作、ブラウザ UAT を実行していない。
+
+<a id="readiness-preparation"></a>
+
+## 今着手する検証準備
+
+QA/開発が作るケース票の共通列は `ID / case / revision / 環境・fixture参照 / 操作 / 期待値 / 実際値 / 証拠参照 / 後処理 / 判定`。準備時の実際値は「未実行」とし、同じ ID の既存 run に十分な証拠があれば再実行せず対応づける。準備完了は「未実行の行と不足入力が特定できた」状態。ブラウザが使えることだけで共有環境のデータ操作まで許可されたとは扱わない。
+
+| ID | 準備可: 最初に作るケース票・照合表 | 実行へ進む条件 |
+|---|---|---|
+| UAT-R2-TREATMENT-COMMIT | Enter 1回/2回、Blur、Escape、長押し、IME確定を別ケースにして保存回数と再読込値を記録 | 対象 build、物理 IME 端末、変更可能 fixture、後処理 |
+| UAT-R2-MASTER-LIST-HEIGHT | 短い/長い一覧、検索/閉じる、キーボード選択、復帰先フォーカス × viewport/zoom | 実端末の CSS 表示領域と zoom。CHART-FIT の未回答値を推定しない |
+| UAT-Q1-SEARCH-AND | 複数語AND/1語/0件/他院候補非表示の期待件数 | STG 配信版と医院別の合成検索 fixture |
+| UAT-Q4-INSURANCE-RATES | 新規50/70、既存90/100 × 選択/保存/再読込の期待金額 | 承認済み検証会計・後処理。実請求は使わない |
+| UAT-Q2-HISTORY-NAV | 同一ペットの問診行→詳細→戻る、処置未移行の記録 | 対象 build と合成の履歴参照 |
+| NOTE2-SWEEP-COVERAGE | `bug-2.md` の未確認 route×操作へ必要 ID・必須値を対応づける | 有効 cage 等の fixture、対象 schema、変更可能範囲 |
+| NOTE-STAFF-STARTTIME-RDT | 通常/拡張なし環境で同一操作の stack・発生有無を比較する票 | ユーザー環境の利用。製品由来か拡張由来か未確定の間は修正しない |
+| DEV-V-OWNER-DB | 下記5ケースの既存結果を PASS/FAIL/SKIP/未実行に分類 | 専用 disposable DB、cleanup、候補 mount。共有 DB は不可 |
+| TODO-V-S09 / QA-UAT-S09-FIXTURE | 下記5時刻の帰属期待表と setup/cleanup 欄 | 起動済み専用 local、helper 条件、合成 identity、clinic 1/2 除外 |
+| TODO-V-V04 / QA-UAT-V04-RETEST | V04 のフォーム×C1/C2/C3 を9月13日の証拠へ対応づける | 未収録ケースと disposable clinic・権限 account |
+| TODO-V-CLINICAL-E2E / QA-FULL-CLINICAL-E2E | `--clinical` allowlist と DB保存/stub/未実行を分ける | local/CI、APP_ENV=test、専用 fixture/teardown。full job は別定義 |
+| TODO-V-STG-DATA | 医院×manifest×Lane3 verify×H3-11×5営業日の証拠一覧 | 運用側の同一入力・対象に結び付く receipt |
+| TODO-V-RELEASE / P4 / P8 | P1–P8/E1/E2 の個別結果を close checklist の項目へ対応づける | P4 sign-off と P8 当日 window/判断者/復旧担当。未達は HOLD/No-Go |
+| E1 / QA-UAT-LSTEP-REAL | primary 保存・外部タグ・再取得結果・後処理の期待表 | 実 LSTEP write の対象・範囲・復旧・承認 |
+| E2 / QA-UAT-LINE-IDTOKEN | 正規idToken、再連携409、無効/期限切れlinkTokenの400系 | 実 LINE の対象・正規 token 取得経路・後処理・承認 |
+| TODO-V-LINEAR / META-LINEAR-APPLY | ローカル ID・根拠・残件・更新下書きを既存照合文書へまとめる | 接続復旧後の本文/コメント読取で対応 URL を確定。投稿は別承認 |
+| PERF-V-LINEAR | 原因未確定・区間別測定・導入済み観測・受入残の下書き | 直接対応する既存 Issue の読取 |
+| AUTH-V-LINEAR-READ / AUTH-V-LINEAR-WRITE | D1の付与/login/mailを分けた下書き。WRITE は READ の後 | 接続復旧、確定 URL、直前再読取、exact 下書きの承認 |
+| AUTH-V-D1-PREFLIGHT | 環境別経路・既存admin・staff/主所属・schema・監査・復旧の不足表 | 対象環境・実行者・承認参照の確定 |
+| AUTH-V-D1-APPLY | PREFLIGHT→COMMIT→監査receipt→通常loginの確認票 | PREFLIGHT 完了と付与承認。通信断時は再発行せず照合 |
+| AUTH-V-D1-MAIL | 送信/受信/リンク利用/再利用拒否/期限切れ拒否/後処理のケース票 | 通常login成功、宛先・回数・受信担当・送信承認 |
+
+`PERF-V-CLIENT-TRACE` / `PERF-V-CF-EVENTS` / `PERF-V-DECIDE-OBSERVATION` / `PERF-V-MITIGATION` / `PERF-V-BUNDLE` / `PERF-V-STG-ACCEPTANCE` は [性能の6単位](#性能タスクの着手順と成果物) がケース票の正本。因果測定前の MITIGATION/BUNDLE 実装は DEFERRED のまま。依頼・承認が必要な行も、ケース票作成はローカルで先行できる。
 
 <a id="uat-followup"></a>
 
@@ -64,6 +96,8 @@ Q1 / Q4保険 / Q2履歴の実装は再開しない。根拠は [医院フィー
 
 OWNER の対象は `TestOwnerRepository_UpdateAndFind_ReloadFailureRollsBackUpdate`、`TestOwnerRepository_Update_ClinicIsolation`、`TestOwnerService_Update_DiscountTOCTOU_*`（LockedDiffWithoutPermission を除く）、`TestOwnerRepository_LockByIDForUpdate_RequiresAmbientTransaction`。既存の unit 完了は再登録しない。共有 DB をテスト用にせず、未実行・SKIP は PASS にしない。
 
+9月18日の source 照合で、ワイルドカード部分は `TestOwnerService_Update_DiscountTOCTOU_StaleZeroRejected` と `TestOwnerService_Update_DiscountTOCTOU_NonDiscountFieldStillOK` の2件。実行票にはこの完全名を使い、上記の他3件と合わせて **5件それぞれの実行結果**を記録する。パッケージの exit 0 だけでは充足しない。
+
 ### DEV-V-OWNER-DB
 
 1. [owner テスト](backend/internal/owner/) と [testdb helper](backend/internal/testdb/) の接続・schema 作成/cleanup 条件を確認し、現在の専用 disposable DB と過去 receipt を照合する。`TEST_DATABASE_URL` は秘密管理から供給し、接続先の実体が共有 DB でないことを実行者が確認する。
@@ -76,17 +110,33 @@ OWNER の対象は `TestOwnerRepository_UpdateAndFind_ReloadFailureRollsBackUpda
 2. helper で新規合成 fixture を作成 → S09 #2–#6 の帰属プレビューをブラウザ確認 → cleanup token による teardown の順で実行する。fixture の完了時刻は設計の5時刻を使い、既存会計やシステム時計を変えない。
 3. 成果物は秘密除去済みの fixture 参照、ケース別の対象時刻・期待/実際集計、browser report、cleanup 結果。token/password を report に残さず、cleanup 未完了も明記する。共有 STG/PROD には接続しない。
 
+準備時に確定できる期待値は [S09 シナリオ](docs/ops/testing/scenarios/S09-closing-time-boundaries.md) と既存 spec の合成設定（AM開始09:00、境界13:30、平日終了19:00）を使う。時刻は JST。対象日をDとして次の5件を固定し、実医院の締め設定には適用しない。
+
+| 合成会計の完了時刻 | 期待する帰属 |
+|---|---|
+| D 10:00 | D の午前のみ |
+| D 13:30:00 | D の午後。午前へ重複しない |
+| D 14:00 | D の午後 |
+| D 20:00 | D の緊急 |
+| D+1 02:00 | D の緊急。D+1 の緊急へ重複しない |
+
+各スロットの件数は午前1・午後2・緊急2。金額はfixtureに設定した額から独立に計算してケース票へ記入する。
+
 ### TODO-V-V04 / QA-UAT-V04-RETEST
 
 1. [V04](docs/ops/testing/scenarios/V04-settings-master-forms.md) の各フォームを9月13日の証拠に対応づけ、未収録の項目だけを選ぶ。対象は一般設定・マスタ・検査機器項目で、LINE/LSTEP の V05 と分ける。
 2. disposable clinic と権限別 account を固定し、作成 → validation → 編集 → 再読込 → 未使用行の削除と使用中行の拒否を、該当フォームの C1/C2/C3 に従って確認する。system master の削除を期待しない。
 3. 成果物はフォーム×操作の coverage 表、保存/拒否/権限の証拠と後処理結果。以前の DELETE regression だけで全フォームを PASS にせず、未収録・対象外は理由付きで残す。
 
+coverage の母数は V04 本文の標準マスタ16種、診療項目5タブ、薬剤と用量、予約区分、予約枠、締め時間3フォーム、シフト、lab-device、法人invoice。LINE/LSTEPはV05へ残す。現行 [V04 spec](frontend/e2e/v04-settings-master-forms.spec.ts) の4テストは動物種類、主訴、薬剤価格保存、system支払方法削除拒否だけなので、自動 spec の成功を母数全体へ広げない。9月13日の手動証拠を照合できないセルは未収録のままとする。
+
 ### TODO-V-CLINICAL-E2E / QA-FULL-CLINICAL-E2E
 
 1. [clinical E2E 設計](docs/ops/testing/CLINICAL-E2E-DESIGN.md) と [runner](frontend/scripts/run-e2e.sh) の allowlist を照合する。承認された起動済み local/CI、`APP_ENV=test`、許可された local base URL、合成 identity、clinic 1/2 除外、teardown を固定する。
 2. Docker 内で専用 fixture の setup → runner の `--clinical` → teardown を行う。対象外の auth smoke・全 suite job は分け、full job は別の実行承認と対象定義を満たしてから確認する。
 3. 成果物は revision、allowlist と実行ケース数、機密除去済み report、fixture/cleanup の結果。stub で create する spec は DB 保存の証拠に数えない。失敗・未実行・環境違いは後続の全体 PASS にまとめない。
+
+9月18日の runner の `--clinical` は `e2e/` 下の10 spec: `clinical-flows`、`clinical-smoke`、`medical-records-create`、`medical-records-patient-search`、`medical-records-pagination-sort`、`examinations-flow`、`vaccinations-flow`、`checkups-flow`、`hospitalization-flow`、`estimates-flow`（各 `.spec.ts`）。ケース票はこの集合に固定する。[CI workflow](.github/workflows/e2e.yml) の実行対象は `auth-flows.spec.ts` のみで、clinical/full suite job は未配線。`--clinical` の実行証拠と、全suite CIを要求するかの判断・配線作業は別の欄にし、auth smoke成功でどちらも閉じない。
 
 <a id="stg-データレーン"></a>
 
@@ -113,7 +163,7 @@ OWNER の対象は `TestOwnerRepository_UpdateAndFind_ReloadFailureRollsBackUpda
 
 ## Linear 照合の残り
 
-9月15日の読取結果: [BRT-4](https://linear.app/baritechllc/issue/BRT-4) は Backlog、[BRT-45](https://linear.app/baritechllc/issue/BRT-45) / [BRT-68](https://linear.app/baritechllc/issue/BRT-68) は Needs Human。これは当時の読取記録。9月17日の照会は `USER_NOT_LOGGED_IN` で失敗し、現在の状態・対応先は UNKNOWN。完了済みチケットは残件表から除く。
+9月15日の読取結果: [BRT-4](https://linear.app/baritechllc/issue/BRT-4) は Backlog、[BRT-45](https://linear.app/baritechllc/issue/BRT-45) / [BRT-68](https://linear.app/baritechllc/issue/BRT-68) は Needs Human。これは当時の読取記録。9月18日の Linear MCP 再照会も未接続（`USER_NOT_LOGGED_IN`）で失敗し、現在の状態・対応先は UNKNOWN。完了済みチケットは残件表から除く。
 
 | ID | 状態 | 残作業 |
 |---|---|---|

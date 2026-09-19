@@ -1,6 +1,6 @@
 # Performance 調査・改善 TODO
 
-最終照合: 2026-09-17。調査 ID: **PERF-STG-LOGIN**。対象は STG `/login` の初回表示遅延。責任者・依頼者: 曽我 稔。
+最終照合: 2026-09-18（文書・source）。調査 ID: **PERF-STG-LOGIN**。対象は STG `/login` の初回表示遅延。責任者・依頼者: 曽我 稔。
 
 未完了の測定・受入は [todo-verification.md](todo-verification.md#perf-stg-login)。新たな実装が必要になったら [todo-issue.md](todo-issue.md) に範囲を確定する。本書は判断に必要な技術記録のみを保持する。
 
@@ -18,6 +18,16 @@
 3. 現行の常時ログが必要かを再判定する。必要なら対象と出力を限定し、不要なら撤去を別実装単位にする。
 
 対象・承認・完了条件は [検証 TODO](todo-verification.md#perf-stg-login)。旧候補の裁定は [履歴](docs/work/development-task-decisions.md) であり、現在の導入状態は上記を正とする。
+
+### 測定準備で決めること
+
+ローカルで [測定チェックシート](docs/ops/testing/STG-PERFORMANCE-CHECKLIST.md) の run 票を作れる。匿名/既存session/復旧/医院選択ごとに、対象build、ブラウザ、cache条件、通常遷移/再読込、回数・間隔、同一時刻窓、provider証拠の取得担当、停止条件と保存先を記入する。実測前の結果欄は未実行。承認範囲に測定回数と対象操作を含め、承認のない外部trafficや負荷試験を開始しない。
+
+比較表の列は「run/case、OPTIONS/GET各区間、FCP、待機表示、フォーム操作可能、認証成功、Worker受付/forwarding、Container起動証拠、時刻対応の可否」。非公開の生証拠は保管規則に従い、共有表には秘密除去した相対時刻と分類だけを置く。対応しない区間は UNKNOWN のまま、ブラウザ全体の待ちとWorker内時間を足し合わせて二重計上しない。
+
+**SLO の採用値は未確定。** チェックシートの API p95 500ms / 初回操作可能1.5秒などは提案例であり、合否判定へ自動採用しない。一方、[既存STG k6](load-tests/k6-cf-stg-sustained.js) の p95 3秒・失敗率5%未満は `/health` と `/api/v1/clinics` を3 VUで測るスクリプト閾値で、ブラウザ `/login` の受入値ではない。今回の遅延調査にその負荷試験を追加せず、初回表示の区間測定から始める。
+
+準備完了は6単位それぞれの入力・出力・未確定条件がケース票に揃った時点。MITIGATION は因果区間、BUNDLE は転送/parse/executeの寄与が分かるまで実装 DEFERRED。測定できても採用 SLO が未合意なら、計測完了と性能受入完了を分ける。
 
 ## E1: 2026-09-09 の遅延記録（過去の測定）
 
