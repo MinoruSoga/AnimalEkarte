@@ -80,6 +80,7 @@ describe("TreatmentQuantityCell — Enter×2 / Blur / Escape", () => {
     renderEditing(onUpdate);
 
     const quantityInput = screen.getByRole("spinbutton", { name: "数量" });
+    expect(quantityInput).toHaveAccessibleDescription(/Enterを2回押して確定/);
     await user.clear(quantityInput);
     await user.type(quantityInput, "3");
     await user.keyboard("{Enter}");

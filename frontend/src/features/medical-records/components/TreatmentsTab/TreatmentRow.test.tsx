@@ -651,6 +651,10 @@ describe("TreatmentRow — quantity Enter×2 / Blur / Escape (GRILL Q8)", () => 
     expect(onUpdate).not.toHaveBeenCalled();
     await user.keyboard("{Escape}");
     expect(onUpdate).not.toHaveBeenCalled();
-    expect(screen.getByRole("button", { name: "1" })).toBeInTheDocument();
+    const quantityButton = screen.getByRole("button", { name: "1" });
+    expect(quantityButton).toHaveFocus();
+
+    await user.click(quantityButton);
+    expect(screen.getByRole("spinbutton", { name: "数量" })).toHaveValue(1);
   });
 });

@@ -41,6 +41,8 @@ export function TreatmentQuantityCell({
   const [showDeviationReason, setShowDeviationReason] = useState(false);
   const enterPhaseRef = useRef<QuantityEnterPhase>("idle");
   const lastDeviationCommitKeyRef = useRef<string | null>(null);
+  const quantityButtonRef = useRef<HTMLButtonElement>(null);
+  const wasEditingRef = useRef(isEditing);
 
   const resetEnterPhase = () => {
     enterPhaseRef.current = "idle";
@@ -56,8 +58,13 @@ export function TreatmentQuantityCell({
   }, [treatment]);
 
   useEffect(() => {
+    const wasEditing = wasEditingRef.current;
+    wasEditingRef.current = isEditing;
     if (!isEditing) {
       resetEnterPhase();
+      if (wasEditing) {
+        quantityButtonRef.current?.focus();
+      }
     }
   }, [isEditing]);
 
@@ -81,6 +88,14 @@ export function TreatmentQuantityCell({
     commitTreatmentQuantity(commitParams);
   };
   const commitDeviationReason = () => commitTreatmentDeviationReason(commitParams);
+  const cancelQuantityEdit = () => {
+    resetEnterPhase();
+    setLocalQuantity(String(treatment.quantity));
+    setLocalDeviationReason("");
+    setShowDeviationReason(false);
+    lastDeviationCommitKeyRef.current = null;
+    onStopEdit();
+  };
 
   const handleQuantityKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     const isComposing = event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229;
@@ -100,9 +115,17 @@ export function TreatmentQuantityCell({
       return;
     }
     if (next.action === "cancel") {
-      onStopEdit();
+      cancelQuantityEdit();
     }
   };
+
+  const quantityInstructionId = `treatment-quantity-instruction-${treatment.id}`;
+  const quantityDescriptionIds = [
+    quantityInstructionId,
+    dose.hasDoseMessage ? dose.doseWarningId : null,
+  ]
+    .filter((id): id is string => id !== null)
+    .join(" ");
 
   return (
     <TableCell className="w-20 text-right">
@@ -121,11 +144,12 @@ export function TreatmentQuantityCell({
           onKeyDown={handleQuantityKeyDown}
           className={`h-8 text-sm text-right px-2 ${C.borderMedium}`}
           aria-label="数量"
-          aria-describedby={dose.hasDoseMessage ? dose.doseWarningId : undefined}
+          aria-describedby={quantityDescriptionIds}
           aria-invalid={dose.doseBlockReason !== "" ? true : undefined}
         />
       ) : (
         <button
+          ref={quantityButtonRef}
           type="button"
           className={`w-full text-right text-sm ${C.hoverBgLight} px-1 py-0.5 rounded-xxs transition-colors ${quantityDisplayClassName(
             dose.currentGate.warning,
@@ -138,6 +162,9 @@ export function TreatmentQuantityCell({
           {showDeviationReason ? localQuantity : treatment.quantity}
         </button>
       )}
+      <span id={quantityInstructionId} className="sr-only">
+        Enterを2回押して確定します。Escapeで変更を取り消します。
+      </span>
       <TreatmentDoseMessages
         treatment={treatment}
         doseWarningId={dose.doseWarningId}
