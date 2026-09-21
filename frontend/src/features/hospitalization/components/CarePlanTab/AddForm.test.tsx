@@ -91,4 +91,31 @@ describe("AddForm — type連動マスタ参照(BUG-403)", () => {
       }),
     );
   });
+
+  // Named price-loss: CarePlanRefSelect only returns plan id; AddForm never copies
+  // hospitalization plan master price into create payload. BE persists omitted
+  // unit_price as 0; discharge billing copies care_plan_items.unit_price.
+  it("type=持ち物 で入院プランを選んでも create payload に unit_price を積まない", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(<AddForm onSubmit={onSubmit} />);
+
+    await selectType(user, "持ち物");
+    await user.type(screen.getByPlaceholderText("名称を入力"), "スタンダード入院プラン");
+    await user.type(screen.getByLabelText("ref-select-stub"), "3");
+    await user.click(screen.getByRole("button", { name: /追加/ }));
+
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    const payload = onSubmit.mock.calls[0][0] as Record<string, unknown>;
+    expect(payload).toEqual(
+      expect.objectContaining({
+        type: "item",
+        name: "スタンダード入院プラン",
+        hospitalization_plan_id: "3",
+        medicine_id: null,
+        procedure_id: null,
+      }),
+    );
+    expect(payload).not.toHaveProperty("unit_price");
+  });
 });

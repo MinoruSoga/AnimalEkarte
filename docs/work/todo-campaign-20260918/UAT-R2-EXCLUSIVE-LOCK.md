@@ -1,6 +1,6 @@
 # UAT-R2-EXCLUSIVE-LOCK: 同時操作の判断票
 
-状態: **競合ケース設計・不足箇所の調査 READY／実行未実施**。2026-09-19依頼者回答の「両方」により、目的はカルテの上書きと同じ会計の二重確定の防止に確定した。旧システムの画面占有を複製する要件ではない（[要件・状態の正本](../../../todo-issue.md#uat-r2-exclusive-lock)、[元報告](../stg-uat-clinic-feedback-q1-q4.md#uat-r2-exclusive-lock)）。
+状態: **競合ケース設計 READY／unit・mock 防御の再照合済み（2026-09-21）／治療・バイタル・処方・接種 Update の現防御・GAP・最小設計・テスト計画を追記（2026-09-22・製品 CAS は未 land）／DB apply 証明と 2 セッション実機は残件**。2026-09-19依頼者回答の「両方」により、目的はカルテの上書きと同じ会計の二重確定の防止に確定した。旧システムの画面占有を複製する要件ではない（[要件・状態の正本](../../../todo-issue.md#uat-r2-exclusive-lock)、[元報告](../stg-uat-clinic-feedback-q1-q4.md#uat-r2-exclusive-lock)）。画面占有ロックは未採用。
 
 ## 既存の防御と限界
 
@@ -39,11 +39,11 @@
 | 古いカルテ保存（所見・診断） | [clinical_plan_repository_optimistic_lock_test.go](../../../backend/internal/medicalrecord/clinical_plan_repository_optimistic_lock_test.go) `TestClinicalPlanRepository_Update_OptimisticLock`（stale `expectedVersion` は Conflict、一致時は version+1） | sequential な repo 更新で古い `expectedVersion` は上書きしない | 2 HTTP セッション同時送信は未カバー。`expectedVersion == nil` は照合スキップ（後方互換）。保存UIは [use-medical-record-save-action.ts](../../../frontend/src/features/medical-records/hooks/use-medical-record-save-action.ts) が version 未確定なら fail-closed |
 | 確定 vs 所見編集/削除 | [clinical_plan_finalize_concurrency_test.go](../../../backend/internal/medicalrecord/clinical_plan_finalize_concurrency_test.go) `TestClinicalPlanFinalizeConcurrency`（update/delete が finalize より先に commit / finalize 先行なら child は Conflict） | clinical_plan 親行ロックと確定後の編集拒否 | 所見以外のタブ更新はこのテストの対象外 |
 | 同一 Idempotency-Key の会計再送 | [accounting_complete_test.go](../../../backend/internal/billing/accounting_complete_test.go) `TestAccountingService_CompleteAccounting_IdempotentReplaySameDigest` / `…_IdempotentConflictDifferentDigest` / `…_AlreadyExistsResolvesToReplay`。FE 再利用は [complete-accounting.test.ts](../../../frontend/src/features/accounting/api/complete-accounting.test.ts) | 同一 key+同一 digest は create せず replay。同一 key+異なる digest は Conflict。Create UNIQUE→AlreadyExists を key 照会へ落とす | mock 経路が主。実DBで2接続が同一 key を同時 insert する証明は別途必要。`uq_billings_clinic_completion_request_id`（[001_init.sql](../../../backend/migrations/001_init.sql)）は同一 key 用 |
-| 異なるキーの二重 complete | **GAP** | なし。`Complete` は key 単位の replay のみ（[accounting_complete.go](../../../backend/internal/billing/accounting_complete.go) / [accounting_complete_tx.go](../../../backend/internal/billing/accounting_complete_tx.go) は `completion_request_id` 衝突だけ replay） | 別 UUID の2確定は冪等キーでは止まない。`idx_billings_medical_record_id_unique` は schema にあるが、この index 名を参照するテストは見つからない。2キー同時 complete の Conflict 契約は未固定 |
-| 未請求項目の二重請求 | 接種: [billing_item_vaccination_test.go](../../../backend/internal/billing/billing_item_vaccination_test.go) `TestBillingItemVaccinationProvenance_ConcurrentClaim` と `uq_billing_items_vaccination_lifetime`。検査: `uq_billing_items_exam_lifetime`（schema） | 同一 vaccination_id の並行 claim を拒否する経路がある | **治療 `treatment_id` は UNIQUE ではなく通常 index**（`idx_billing_items_treatment_id`）。exam の lifetime unique に対応する並行テスト名は見つからない。未請求治療/検査の complete 経由二重作成は **GAP** |
-| カルテ API（clinical_plan 以外） | 親カルテ: [medical_record_repository_update_test.go](../../../backend/internal/medicalrecord/medical_record_repository_update_test.go) の `expectedVersion` 不一致 Conflict。検査改訂: [examination_revision_workflow_safety_test.go](../../../backend/internal/medicalrecord/examination_revision_workflow_safety_test.go) の stale version | 親レコードと検査 revision には CAS がある | 治療 / バイタル / 処方 / 接種 Update に `expectedVersion` は見つからない。clinical_plan version だけで全タブ保護済みとしない |
-| 明細編集と確定 | 明細作成は親 `LockAndFindByID`（[billing_item_service_create.go](../../../backend/internal/billing/billing_item_service_create.go)）。実ロック: [accounting_repository_tx_atomicity_test.go](../../../backend/internal/billing/accounting_repository_tx_atomicity_test.go) の FOR UPDATE 説明 | 同一請求行の明細 write を tx 内直列化 | complete が古い画面合計を再検証して拒否するかは complete テストに無い。**GAP** |
-| 取消/通信断後の再試行 | complete の N番目失敗 rollback: `TestAccountingService_CompleteAccounting_NthItemFailure_FullRollback` / `…_DBAtomicRollback`。FE は mutation 単位で key 再利用 | 同一 mutation の再送は増やさない設計 | 切断後に **新しい key** で再発行する2セッション手順のテストは **GAP**。占有ロックの期限/解放は対象外 |
+| 異なるキーの二重 complete | [accounting_complete_test.go](../../../backend/internal/billing/accounting_complete_test.go) `TestAccountingService_CompleteAccounting_DifferentKeySameMedicalRecordConflict`。Create の非 completion-key AlreadyExists → Conflict（[accounting_complete_tx.go](../../../backend/internal/billing/accounting_complete_tx.go) `createCompleteBillingHeader`、「このカルテには既に会計があります」）。schema: `idx_billings_medical_record_id_unique` | 別 Idempotency-Key でも同一 medical_record の第二 complete は Conflict（mock）。同一 key replay とは別経路 | 実DBで2接続が別 key を同時 insert する証明と 2 セッション実機は **残件**（migrate apply 後） |
+| 未請求項目の二重請求 | 接種: [billing_item_vaccination_test.go](../../../backend/internal/billing/billing_item_vaccination_test.go) `TestBillingItemVaccinationProvenance_ConcurrentClaim` と `uq_billing_items_vaccination_lifetime`。治療: [004_billing_items_treatment_lifetime_unique.sql](../../../backend/migrations/004_billing_items_treatment_lifetime_unique.sql) + [billing_item_treatment_test.go](../../../backend/internal/billing/billing_item_treatment_test.go) `TestBillingItemService_CreateItem_DuplicateTreatmentProvenanceConflicts` / `TestBillingItemTreatmentProvenance_SecondClaimConflicts`（AlreadyExists→409）。検査: `uq_billing_items_exam_lifetime` + mock `TestBillingItemService_CreateItem_DuplicateExamProvenanceConflicts` | treatment/vaccination/exam の provenance UNIQUE 違反は Conflict | 治療 UNIQUE の **DB apply 証明**（`make migrate` はユーザー作業）と exam の実DB並行 claim は **残件**。complete 経由の二重作成は medical_record unique + provenance unique で抑止する設計 |
+| カルテ API（clinical_plan 以外） | 親カルテ: [medical_record_repository_update_test.go](../../../backend/internal/medicalrecord/medical_record_repository_update_test.go) の `expectedVersion` 不一致 Conflict。検査改訂: [examination_revision_workflow_safety_test.go](../../../backend/internal/medicalrecord/examination_revision_workflow_safety_test.go) の stale version | 親レコードと検査 revision には CAS がある | **残GAP（詳細は下節）**: 治療 / バイタル / 処方 / 接種 Update に行 `version`/`expectedVersion` は無い（schema・model・request いずれも未装備）。clinical_plan version だけで全タブ保護済みとしない。本 unit は設計のみ・製品 CAS は land しない |
+| 明細編集と確定 | 明細作成は親 `LockAndFindByID`（[billing_item_service_create.go](../../../backend/internal/billing/billing_item_service_create.go)）。実ロック: [accounting_repository_tx_atomicity_test.go](../../../backend/internal/billing/accounting_repository_tx_atomicity_test.go)。Complete は server totals 再計算 + payment 再検証: `TestAccountingService_CompleteAccounting_StaleScreenTotalRejected` / `…_PartialSplitRejected` / `…_OpenPeriodAtomicSuccess`（server total, not client）。確定後の遅延明細: `TestBillingItemService_CreateItem_LateItemOnCompletedConflicts`（+ testdb StatusGuard） | 古い合計での確定は InvalidInput。確定後の明細追加は Conflict | 実DB ambient 2tx と 2 ブラウザ実機の明細↔確定レースは **残件** |
+| 取消/通信断後の再試行 | complete の N番目失敗 rollback: `TestAccountingService_CompleteAccounting_NthItemFailure_FullRollback` / `…_DBAtomicRollback`。FE は mutation 単位で key 再利用 | 同一 mutation の再送は増やさない設計 | 切断後に **新しい key** で再発行する2セッション手順のテストは **残GAP**。占有ロックの期限/解放は対象外（未採用） |
 | 医院分離 | [accounting_repository_clinic_isolation_test.go](../../../backend/internal/billing/accounting_repository_clinic_isolation_test.go) が他院 FOR UPDATE を拒否 | clinic scope を破らない | 2セッション実機の分離確認は UNKNOWN |
 
 ## 最小サーバー側提案（占有ロックは採用しない）
@@ -52,10 +52,57 @@
 
 1. **expectedVersion（CAS）** — clinical_plan と親 medical_record に既にある。GAP の治療・バイタル・処方・接種など last-write-wins の更新へ、読み込み版を更新条件に含める。`expectedVersion == nil` のスキップ経路は新規 caller に広げない。
 2. **行ロック（FOR UPDATE / ambient tx）** — 請求親と vaccination claim に既にある。complete と未請求ソース行の確定を同じ tx で固定し、古い画面の合計確定を commit 前に再評価する。ambient tx 不在は fail-closed。
-3. **UNIQUE / 業務キー** — 同一 key は `uq_billings_clinic_completion_request_id`。異なる key の二重 complete は冪等キーでは不足。`idx_billings_medical_record_id_unique` / hospitalization unique の 23505 を Conflict へ写し、2キー同時 complete の RED を先に置く。治療 provenance は接種/検査と同様の lifetime UNIQUE（`treatment_id IS NOT NULL`）を検討し、exam の並行 claim テスト欠落も RED 対象。
+3. **UNIQUE / 業務キー** — 同一 key は `uq_billings_clinic_completion_request_id`。異なる key の二重 complete は `idx_billings_medical_record_id_unique` の AlreadyExists→Conflict（landed）。治療 provenance は `uq_billing_items_treatment_lifetime`（migration 004、**未 apply のまま残件**）+ AlreadyExists→409（landed）。exam/vaccination lifetime UNIQUE は schema 済み。exam mock Conflict を追加済み。exam 実DB並行 claim は残件。
 4. **Idempotency-Key** — 再送・連打専用。別端末が別 UUID を使うケースの防御には使わない。不明結果を新しい key で再発行しない契約を UI とサーバで揃える。
 
 **採否（再掲）:** 画面占有ロックは未採用。開始/期限/解除/切断復旧を持つ occupancy は本票では提案しない。既存防御で足りる経路は再実装しない。
+
+
+
+## 治療 / バイタル / 処方 / 接種 Update — 現防御・GAP・最小設計（2026-09-22）
+
+対照パターン（既 land）: [clinical_plan Update](../../../backend/internal/medicalrecord/clinical_plan_repository.go) は `version` 列 + `expectedVersion` WHERE + RowsAffected==0 の Conflict 正規化。[親 medical_record Update](../../../backend/internal/medicalrecord/medical_record_repository.go) も同型。検査は revision workflow の version。会計は親 `FOR UPDATE` / UNIQUE / Idempotency-Key。**画面占有ロックは採用しない**（本節も提案しない）。製品 CAS・migration はこの票では land しない。
+
+### 参照正本（コード）
+
+| 経路 | Service Update | Repository Update | 子行ロック | 親 draft 直列化 |
+| --- | --- | --- | --- | --- |
+| 治療 | [treatment_service_tx.go](../../../backend/internal/medicalrecord/treatment_service_tx.go) `updateTreatmentInTx` | [treatment_repository.go](../../../backend/internal/medicalrecord/treatment_repository.go) `Update`（version 述語なし） | `LockByIDForUpdate`（ambient tx 必須・SEC-CS-F09） | `lockDraftMedicalRecord` |
+| バイタル | [vital_service_update.go](../../../backend/internal/medicalrecord/vital_service_update.go) `updateVitalInTx` | [vital_repository.go](../../../backend/internal/medicalrecord/vital_repository.go) `Update`（version 述語なし） | **なし**（子行は Updates のみ） | `lockDraftParent` → 親 `LockByIDForUpdate` + finalized Conflict |
+| 処方 | [prescription_service.go](../../../backend/internal/medicalrecord/prescription_service.go) `Update` | [prescription_repository.go](../../../backend/internal/medicalrecord/prescription_repository.go) `Update`（version 述語なし） | **なし** | `lockDraftMedicalRecord` |
+| 接種 | [vaccination_service.go](../../../backend/internal/medicalrecord/vaccination_service.go) `Update` | [vaccination_repository.go](../../../backend/internal/medicalrecord/vaccination_repository.go) `Update`（version 述語なし） | `LockByIDForUpdate`（ambient tx 必須） | MR がある場合のみ `medicalRecords.LockByIDForUpdate`（**draft/finalized 判定は Update 経路に無し**） |
+
+Schema / model: `clinical_plans.version` のみ。[treatments](../../../backend/migrations/001_init.sql) / `vital_records` / `prescriptions` / `vaccinations` と対応 model（`Treatment` / `VitalRecord` / `Prescription` / `Vaccination`）に **version 列は無い**。request/input にも `expectedVersion` は無い。
+
+### 経路別 — 現防御 / GAP / 最小防御案
+
+| 経路 | 現在の防御（証明できる範囲） | clinical_plan / 親 CAS・行ロック・UNIQUE との GAP | 提案する最小防御（製品 land は別 unit） |
+| --- | --- | --- | --- |
+| 治療 Update | (1) 親 draft `FOR UPDATE` で finalize と直列化。(2) 子 `FOR UPDATE` + discount 再検証（TOCTOU）。(3) clinic-scoped subquery Update。同一 tx 内の直列化と割引権限の失効は守る。 | **lost update**: A/B が同スナップショットを読み非割引フィールドを別々に保存すると後勝ち。`expectedVersion` / 子 `version` なし。billing provenance UNIQUE（`uq_billing_items_treatment_lifetime`）は **請求 claim** 用であり、治療行の内容上書き CAS の代替にならない。 | 子 `version INTEGER NOT NULL DEFAULT 1`（新 migration）+ Update WHERE `version = expectedVersion` + 成功時 +1。API/FE は読取版を必須送付（`nil` スキップを新規 caller に広げない）。既存子 `FOR UPDATE` と親 draft ロックは維持。UNIQUE 追加は不要（同一 PK 更新）。 |
+| バイタル Update | (1) 親 draft ロック + finalized Conflict。(2) relation / staff 検証。(3) Update 後の同一 tx 再取得と audit fail-closed。 | 子行に `FOR UPDATE` も `version` も無い。親ロックは finalize レースを直列化するが、**同一 draft 親上の 2 セッション vital 内容競合は last-write-wins**。clinical_plan CAS と非対称。UNIQUE は適用場面なし。 | (優先) 子 `version` + `expectedVersion` CAS（clinical_plan 同型）。(補助) Update 前に vital 行 `LockByIDForUpdate`（ambient tx 必須・fail-closed）で同一 tx 内の他 writer と直列化。CAS 無しの行ロックだけでは「古い画面の上書き拒否」は成立しない点を明示。 |
+| 処方 Update | (1) 親 draft `FOR UPDATE`。(2) medical_record_id 束縛。(3) Update 後同一 tx 再取得（MRC-01）。 | 子行ロック無し・version 無し。同一 draft 親上の処方フィールド競合は last-write-wins。clinical_plan CAS と非対称。 | 子 `version` + `expectedVersion` CAS。補助として prescription 行 `LockByIDForUpdate`（親ロック tx 内・FK/FOR KEY SHARE デッドロック注意は Create コメントと同型で DBOrTx 参加を維持）。UNIQUE 不要。 |
+| 接種 Update | (1) 子 `FOR UPDATE` + 関係再検証（関係変更は Conflict）。(2) 並行 Update は行ロックで直列化（`TestVaccinationService_ConcurrentUpdatesSerialize`）。(3) MR 紐付け時は親行ロック。 | **内容の stale overwrite 拒否なし**（後勝ち）。**親 draft ガードなし**（治療/バイタル/処方と非対称。確定済みカルテ紐付け接種の編集可否は未契約）。`version`/`expectedVersion` なし。billing `uq_billing_items_vaccination_lifetime` は請求 claim 用。 | (1) 子 `version` + `expectedVersion` CAS。(2) `medical_record_id != nil` のとき `lockDraftMedicalRecord`（または status=draft 条件）を Update/Delete に揃え、確定後編集を Conflict。(3) 既存子 `FOR UPDATE` は維持。UNIQUE は Update CAS の代替にしない。 |
+
+### 最小テスト計画（製品 CAS land 時・本 unit では実装しない）
+
+命名は既存 clinical_plan / treatment TOCTOU / vaccination concurrency に揃える。mock と testdb を分離する。
+
+| 経路 | 追加する最小テスト（案） | 証明すること | 既存で足りるもの（再実装しない） |
+| --- | --- | --- | --- |
+| 治療 | `TestTreatmentRepository_Update_OptimisticLock`（testdb）: stale `expectedVersion` → Conflict・書込なし、一致 → version+1。`TestTreatmentService_Update_StaleExpectedVersionConflict`（mock） | CAS 原子性とサービス Conflict 伝播 | `TestTreatmentService_Update_DiscountTOCTOU_*` / `TestTreatmentRepository_LockByIDForUpdate_RequiresAmbientTransaction`（割引・ロック） |
+| バイタル | `TestVitalRepository_Update_OptimisticLock`；`TestVitalService_Update_StaleExpectedVersionConflict`；任意で `TestVitalRepository_LockByIDForUpdate_RequiresAmbientTransaction`（行ロックを入れる場合） | CAS と（採用時）ambient 必須 | `TestVitalService_Update_AuditFailureRollsBack` / refetch-in-tx（監査・再取得） |
+| 処方 | `TestPrescriptionRepository_Update_OptimisticLock`；`TestPrescriptionService_Update_StaleExpectedVersionConflict` | CAS | `TestPrescriptionService_Update_FinalizedRejected`（親確定拒否） |
+| 接種 | `TestVaccinationRepository_Update_OptimisticLock`；`TestVaccinationService_Update_StaleExpectedVersionConflict`；`TestVaccinationService_Update_FinalizedMedicalRecordRejected`（draft ガード追加時） | CAS + 親確定拒否 | `TestVaccinationService_ConcurrentUpdatesSerialize` / `TestVaccinationService_Update_RejectsConcurrentRelationChangeAfterValidation` / Lock ambient 必須 |
+
+FE（別 unit）: 各タブの読取レスポンス `version` を保存リクエストへ必須で載せる。未確定なら fail-closed（clinical_plan の [use-medical-record-save-action.ts](../../../frontend/src/features/medical-records/hooks/use-medical-record-save-action.ts) と同方針）。本票では FE 実装しない。
+
+**採否再掲:** 占有ロック未採用。Idempotency-Key は再送専用で別端末 UUID の上書き防止には使わない。billing provenance UNIQUE は「同じ治療/接種を二重に請求しない」用であり、本節の **行内容 CAS** とは別レイヤ。
+
+## 本 unit 残件（実行ゲート）
+
+1. `make migrate` で `004_billing_items_treatment_lifetime_unique.sql` を適用し、testdb/実DB で treatment second-claim を再確認（エージェントは migrate しない）。
+2. 候補 mount 済み専用環境で実トランザクション競合と 2 ブラウザセッション（古いカルテ保存・別 key complete・明細↔確定）を記録する。
+3. 非 findings タブ（治療/バイタル/処方/接種）への `expectedVersion` 拡張は上節の最小設計を正本とし、**別 unit で製品 CAS を land**（本 unit は設計のみ。migration/製品コードは対象外）。
 
 ## 2 セッションの合成再現と採否ゲート
 

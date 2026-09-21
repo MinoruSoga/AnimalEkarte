@@ -477,6 +477,11 @@ func TestExaminationService_Create(t *testing.T) {
 			svc := NewExaminationService(repo, medRec, examTypeRepo, &mockAuditTxLogger{}, &mockCheckupTransactor{})
 			tt.input.ActorID = ptrUint64(1)
 
+			var created *model.Examination
+			repo.createFn = func(_ context.Context, exam *model.Examination) error {
+				created = exam
+				return tt.repoErr
+			}
 			exam, err := svc.Create(context.Background(), tt.clinicID, tt.input)
 
 			if tt.wantErr {
@@ -485,6 +490,10 @@ func TestExaminationService_Create(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, exam)
+				// M1/M6: manual Create must leave job_id unset (device ingest owns JobID).
+				require.NotNil(t, created)
+				assert.Nil(t, created.JobID)
+				assert.Nil(t, exam.JobID)
 			}
 		})
 	}

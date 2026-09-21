@@ -660,6 +660,97 @@ func TestVaccinationService_Create_RejectsFutureVaccinationDate(t *testing.T) {
 	}
 }
 
+func TestVaccinationService_Create_RejectsMissingVaccine(t *testing.T) {
+	createCalled := false
+	repo := &mockVaccinationRepository{
+		createFn: func(_ context.Context, _ *model.Vaccination) error {
+			createCalled = true
+			return nil
+		},
+	}
+	vaccineRepo := &mockVaccineRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Vaccine, error) {
+			return nil, apperrors.WrapNotFound("vaccine", "9")
+		},
+	}
+	svc := newTestVaccinationService(repo, vaccineRepo, nil)
+
+	got, err := svc.Create(context.Background(), 1, &CreateVaccinationInput{
+		VaccineID: 9,
+		Date:      time.Now(),
+	})
+
+	require.Error(t, err)
+	assert.Nil(t, got)
+	assert.False(t, createCalled, "repo.Create must not run when vaccine relation fails")
+	assert.True(t, apperrors.IsNotFound(err), "expected not found but got: %v", err)
+}
+
+func TestVaccinationService_Create_SameDaySequentialSinglePosts(t *testing.T) {
+	nowJST := time.Now().In(config.JST)
+	today := time.Date(nowJST.Year(), nowJST.Month(), nowJST.Day(), 10, 0, 0, 0, config.JST)
+	nextA := today.AddDate(0, 0, 28)
+	nextB := today.AddDate(0, 0, 35)
+	nextC := today.AddDate(0, 0, 42)
+
+	var created []*model.Vaccination
+	var nextID uint64 = 100
+	repo := &mockVaccinationRepository{
+		createFn: func(_ context.Context, vaccination *model.Vaccination) error {
+			nextID++
+			vaccination.ID = nextID
+			cp := *vaccination
+			created = append(created, &cp)
+			return nil
+		},
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Vaccination, error) {
+			for _, v := range created {
+				if v.ID == id {
+					cp := *v
+					return &cp, nil
+				}
+			}
+			return nil, apperrors.WrapNotFound("vaccination", "missing")
+		},
+	}
+	svc := newTestVaccinationService(repo, okVaccineRepo(), nil)
+	petID := uint64(5)
+
+	inputs := []CreateVaccinationInput{
+		{PetID: &petID, VaccineID: 1, Date: today, Lot1: "LOT-A", NextDate: &nextA},
+		{PetID: &petID, VaccineID: 2, Date: today, Lot1: "LOT-B", NextDate: &nextB},
+		{PetID: &petID, VaccineID: 3, Date: today, Lot1: "LOT-C", NextDate: &nextC},
+	}
+
+	results := make([]*model.Vaccination, 0, len(inputs))
+	for i := range inputs {
+		got, err := svc.Create(context.Background(), 1, &inputs[i])
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		results = append(results, got)
+	}
+
+	require.Len(t, results, 3)
+	require.Len(t, created, 3)
+	assert.NotEqual(t, results[0].ID, results[1].ID)
+	assert.NotEqual(t, results[1].ID, results[2].ID)
+	assert.Equal(t, []uint64{1, 2, 3}, []uint64{results[0].VaccineID, results[1].VaccineID, results[2].VaccineID})
+	assert.Equal(t, []string{"LOT-A", "LOT-B", "LOT-C"}, []string{results[0].Lot1, results[1].Lot1, results[2].Lot1})
+	assert.Equal(t, today, results[0].Date)
+	assert.Equal(t, today, results[1].Date)
+	assert.Equal(t, today, results[2].Date)
+	require.NotNil(t, results[0].NextDate)
+	require.NotNil(t, results[1].NextDate)
+	require.NotNil(t, results[2].NextDate)
+	assert.True(t, results[0].NextDate.Equal(nextA))
+	assert.True(t, results[1].NextDate.Equal(nextB))
+	assert.True(t, results[2].NextDate.Equal(nextC))
+	// Later single POSTs must not mutate the first committed row snapshot.
+	assert.Equal(t, uint64(1), created[0].VaccineID)
+	assert.Equal(t, "LOT-A", created[0].Lot1)
+	assert.True(t, created[0].NextDate.Equal(nextA))
+}
+
 func TestVaccinationService_Update_RejectsFutureVaccinationDate(t *testing.T) {
 	nowJST := time.Now().In(config.JST)
 	today := time.Date(nowJST.Year(), nowJST.Month(), nowJST.Day(), 10, 0, 0, 0, config.JST)

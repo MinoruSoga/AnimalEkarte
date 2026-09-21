@@ -78,6 +78,45 @@ describe("ExaminationGroup", () => {
     expect(screen.getByText("DRI-CHEM")).toBeInTheDocument();
   });
 
+  // M4 (SLACK-MANUAL-URINE): chart exam-tab must show manual urine fixture
+  // strings; empty machine is not a missing-data signal (≠ 目視 / ≠ 欠落).
+  it("M4: 手入力 FIXTURE-STRIP の inspection/unit/reference を表示し空 machine を欠落扱いにしない", () => {
+    renderGroup(
+      makeGroup({
+        id: 501,
+        date: "2026-09-21 10:00",
+        machine: "",
+        name: "検査",
+        items: [
+          makeItem({
+            id: "501",
+            examTypeFieldId: 901,
+            name: "FIXTURE-STRIP-PAD-A",
+            result: "",
+            inspectionValue: "(+)",
+            normalValue: "FIXTURE-REF-A",
+            unit: "FIXTURE-UNIT-A",
+            referenceValue: "FIXTURE-REF-A",
+            isAssessed: false,
+            status: "normal",
+          }),
+        ],
+      }),
+    );
+
+    expect(screen.getByText("FIXTURE-STRIP-PAD-A")).toBeInTheDocument();
+    expect(screen.getByText("(+)")).toBeInTheDocument();
+    expect(screen.getByText("FIXTURE-UNIT-A")).toBeInTheDocument();
+    expect(screen.getByText("FIXTURE-REF-A")).toBeInTheDocument();
+    expect(screen.getByText("2026-09-21 10:00")).toBeInTheDocument();
+    expect(screen.getByText("未判定")).toBeInTheDocument();
+    expect(screen.queryByText("欠落")).not.toBeInTheDocument();
+    expect(screen.queryByText("未設定")).not.toBeInTheDocument();
+    expect(screen.queryByText("目視")).not.toBeInTheDocument();
+    // Empty machine must not be replaced with a missing placeholder label.
+    expect(screen.queryByText("DRI-CHEM")).not.toBeInTheDocument();
+  });
+
   it("項目名・結果値・単位・基準値（referenceValue）を表示する", () => {
     renderGroup(
       makeGroup({

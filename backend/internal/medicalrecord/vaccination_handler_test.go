@@ -294,6 +294,28 @@ func TestCreateVaccination(t *testing.T) {
 			},
 			wantStatus: http.StatusInternalServerError,
 		},
+		{
+			name:     "returns 400 when service rejects future vaccination date",
+			body:     validBody(),
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockVaccinationService{
+				createFn: func(_ context.Context, _ uint64, _ *CreateVaccinationInput) (*model.Vaccination, error) {
+					return nil, apperrors.WrapInvalidInput("接種日は今日以前の日付を入力してください")
+				},
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 404 when service cannot resolve vaccine relation",
+			body:     validBody(),
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockVaccinationService{
+				createFn: func(_ context.Context, _ uint64, _ *CreateVaccinationInput) (*model.Vaccination, error) {
+					return nil, apperrors.WrapNotFound("vaccine", "1")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
 	}
 
 	for _, tt := range tests {

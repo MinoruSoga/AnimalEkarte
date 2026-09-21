@@ -96,6 +96,7 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
             value={chiefComplaintTypeId ? String(chiefComplaintTypeId) : ""}
             onValueChange={(value) => setChiefComplaintTypeId(value ? Number(value) : null)}
             options={categoryOptions}
+            clearable
             disabled={isLoading || fieldsDisabled}
             placeholder={isLoading ? "読み込み中..." : "選択してください"}
             searchPlaceholder="主訴区分を検索..."

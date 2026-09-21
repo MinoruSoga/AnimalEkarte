@@ -6,15 +6,18 @@ import { CarePlanRefSelect } from "./CarePlanRefSelect";
 
 vi.mock("@/hooks/use-treatment-master", () => ({
   useGetAllMedicinesMaster: () => ({
-    data: [{ id: "1", name: "アモキシシリン" }],
+    data: [{ id: "1", name: "アモキシシリン", price: 100 }],
     isLoading: false,
   }),
   useGetAllProcedures: () => ({
-    data: [{ id: "2", name: "血液検査" }],
+    data: [{ id: "2", name: "血液検査", price: 4000 }],
     isLoading: false,
   }),
+  // Production hook maps API plans to {id,name} only and drops price.
+  // Extra price on the mock proves CarePlanRefSelect still emits id-only onChange
+  // (named price-loss: master 1200 never reaches AddForm/EditRow unit_price).
   useGetAllHospitalizationPlansMaster: () => ({
-    data: [{ id: "3", name: "スタンダード入院プラン" }],
+    data: [{ id: "3", name: "スタンダード入院プラン", price: 1200 }],
     isLoading: false,
   }),
 }));
@@ -62,5 +65,20 @@ describe("CarePlanRefSelect", () => {
     await user.click(screen.getByRole("combobox"));
     await user.click(await screen.findByText("アモキシシリン"));
     expect(handleChange).toHaveBeenCalledWith("1");
+  });
+
+  it("入院プラン選択の onChange は id のみで、マスタ price 1200 を第2引数にもオブジェクトにも渡さない", async () => {
+    const user = userEvent.setup();
+    const handleChange = vi.fn();
+    render(<CarePlanRefSelect type="item" value={null} onChange={handleChange} />, {
+      wrapper: createTestWrapper(),
+    });
+    await user.click(screen.getByRole("combobox"));
+    await user.click(await screen.findByText("スタンダード入院プラン"));
+
+    expect(handleChange).toHaveBeenCalledTimes(1);
+    expect(handleChange).toHaveBeenCalledWith("3");
+    expect(handleChange.mock.calls[0]).toHaveLength(1);
+    expect(handleChange.mock.calls[0][0]).not.toEqual(expect.objectContaining({ price: 1200 }));
   });
 });
