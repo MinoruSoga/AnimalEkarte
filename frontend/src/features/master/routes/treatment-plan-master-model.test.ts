@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { TreatmentFormData } from "../components/TreatmentItemSidePanel";
 import {
+  buildConsultationCreateRequest,
   buildProcedureCreateRequest,
   buildProcedureUpdateRequest,
 } from "./treatment-plan-master-model";
@@ -19,6 +20,17 @@ function makeFormData(overrides: Partial<TreatmentFormData> = {}): TreatmentForm
     ...overrides,
   };
 }
+
+describe("buildConsultationCreateRequest", () => {
+  it("buildConsultationCreateRequest persists price 0 and tax_type", () => {
+    const request = buildConsultationCreateRequest(
+      makeFormData({ name: "再診", price: 0, taxType: "excluded", taxRate: 0.1 }),
+    );
+    expect(request.price).toBe(0);
+    expect(request.tax_type).toBe("excluded");
+    expect(request.tax_rate).toBe(0.1);
+  });
+});
 
 describe("buildProcedureCreateRequest", () => {
   it.each([
