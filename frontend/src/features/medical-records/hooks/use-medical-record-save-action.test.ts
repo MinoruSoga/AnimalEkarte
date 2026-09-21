@@ -583,3 +583,70 @@ describe("useMedicalRecordSaveAction captured formAction snapshot", () => {
     expect(toast.success).not.toHaveBeenCalled();
   });
 });
+
+describe("useMedicalRecordSaveAction chief_complaint_type unset/clear", () => {
+  it("N unset new save: 問診 PATCH sends chief_complaint_type_id JSON null and keeps body text", async () => {
+    const updateInquiry = vi.fn().mockResolvedValue(undefined);
+    const { result } = renderHook(() =>
+      useMedicalRecordSaveAction(
+        buildSaveArgs({
+          activeTab: "問診",
+          chiefComplaintTypeId: null,
+          chiefComplaint: "食欲低下",
+          chiefComplaintDefault: "",
+          updateInquiryMutation: { mutateAsync: updateInquiry },
+        }),
+      ),
+    );
+
+    act(() => {
+      startTransition(() => result.current.formAction(new FormData()));
+    });
+
+    await waitFor(() => expect(result.current.formState.success).toBe(true));
+    expect(updateInquiry).toHaveBeenCalledWith({
+      chief_complaint: "食欲低下",
+      chief_complaint_type_id: null,
+      notes: undefined,
+    });
+  });
+
+  it("C intentional clear: null type after prior selection still sends chief_complaint_type_id null", async () => {
+    const updateInquiry = vi.fn().mockResolvedValue(undefined);
+    const { result, rerender } = renderHook(
+      ({ chiefComplaintTypeId }: { chiefComplaintTypeId: number | null }) =>
+        useMedicalRecordSaveAction(
+          buildSaveArgs({
+            activeTab: "問診",
+            chiefComplaintTypeId,
+            chiefComplaint: "食欲低下",
+            chiefComplaintDefault: "",
+            updateInquiryMutation: { mutateAsync: updateInquiry },
+          }),
+        ),
+      { initialProps: { chiefComplaintTypeId: 5 as number | null } },
+    );
+
+    act(() => {
+      startTransition(() => result.current.formAction(new FormData()));
+    });
+    await waitFor(() => expect(result.current.formState.success).toBe(true));
+    expect(updateInquiry).toHaveBeenCalledWith(
+      expect.objectContaining({ chief_complaint_type_id: 5 }),
+    );
+
+    updateInquiry.mockClear();
+    rerender({ chiefComplaintTypeId: null });
+
+    act(() => {
+      startTransition(() => result.current.formAction(new FormData()));
+    });
+    await waitFor(() => expect(updateInquiry).toHaveBeenCalled());
+    expect(updateInquiry).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chief_complaint: "食欲低下",
+        chief_complaint_type_id: null,
+      }),
+    );
+  });
+});

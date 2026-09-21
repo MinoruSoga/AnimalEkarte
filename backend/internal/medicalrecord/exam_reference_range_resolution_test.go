@@ -202,6 +202,32 @@ func TestExaminationService_NonnumericInputWithNumericRangeRemainsUnassessed(t *
 	assert.False(t, toExamResultResponse(&got[0]).IsAssessed)
 }
 
+// M2/M7: manual rows (nil exam_type_field_id) keep fixture strings and stay unassessed.
+// Do not invent hospital cutoffs; clinical meaning of tokens remains UNKNOWN.
+func TestExaminationService_ReplaceItems_ManualNilFieldIDStoresFixtureStringsUnassessed(t *testing.T) {
+	const petID = uint64(70)
+	repo := &referenceRangeResolverExaminationRepository{
+		speciesID:       7,
+		rangesBySpecies: map[uint64]map[uint64]model.ExamReferenceRange{},
+	}
+	svc := newReferenceRangeResolverService(petID, nil, repo)
+
+	got, err := svc.ReplaceItems(context.Background(), 1, 50, nil, []UpsertExamItemInput{
+		{Name: "FIXTURE-STRIP-PAD-B", InspectionValue: "(+)", SortOrder: 1},
+		{Name: "FIXTURE-STRIP-PAD-C", InspectionValue: "陰性", SortOrder: 2},
+	})
+
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+	assert.Nil(t, got[0].ExamTypeItemID)
+	assert.Equal(t, "(+)", got[0].InspectionValue)
+	assert.False(t, toExamResultResponse(&got[0]).IsAssessed)
+	assert.Nil(t, got[1].ExamTypeItemID)
+	assert.Equal(t, "陰性", got[1].InspectionValue)
+	assert.False(t, toExamResultResponse(&got[1]).IsAssessed)
+	assert.Equal(t, 0, repo.resolveCalls, "nil field IDs must not resolve master ranges")
+}
+
 func TestExaminationService_CoexistingRangeFamiliesFailClosed(t *testing.T) {
 	const (
 		petID     = uint64(70)

@@ -14,8 +14,8 @@ const (
 	maxCutoverManifestBytes    = int64(4 << 20)
 	maxCutoverCSVBytes         = int64(512 << 20)
 	cutoverManifestSchema      = "animalekarte-cutover-v1"
-	cutoverStageMappingSHA256  = "0d7f089990079af28c2ba454ee48188d55a67beab19a9f16a86dee93fec80597"
-	cutoverCSVContractSHA256   = "19b2c5c270058b20c1fa816679c0430f236a0a181165ae1ed2257c64c83f6671"
+	cutoverStageMappingSHA256  = "bf8c262e136d4d5e74751508286710035b27bd1e7ed927ce4f47320dd4e9152b"
+	cutoverCSVContractSHA256   = "befeeaea5d191091c391e8a7e21deaa41bd10f985020818fd667d94fa5014320"
 )
 
 var placeholderPattern = regexp.MustCompile(`\{\{[A-Z0-9_]+\}\}`)
@@ -206,12 +206,12 @@ func CutoverTableSpecs() []CutoverTableSpec {
 		{"merchandise_items", []string{"id", "clinic_id", "name", "category", "unit_price", "tax_type", "tax_rate", "is_active", "sort_order"}, []string{"id"}, []string{"name"}},
 		{"owners", []string{"id", "clinic_id", "name", "name_kana", "birth_date", "company", "postal_code", "address1", "address2", "home_postal_code", "home_address1", "home_address2", "phone", "company_phone", "email", "remarks", "is_dangerous", "discount_rate", "membership_type", "dm_preference"}, []string{"id"}, []string{"name", "name_kana", "company", "postal_code", "address1", "address2", "home_postal_code", "home_address1", "home_address2", "phone", "company_phone", "email", "remarks"}},
 		{"pets", []string{"id", "clinic_id", "owner_id", "pet_number", "name", "name_kana", "animal_species_id", "gender", "status", "birth_date", "breed", "color", "weight", "neutered_date", "food", "remarks", "deceased_at"}, []string{"id", "owner_id"}, []string{"pet_number", "name", "name_kana", "breed", "color", "food", "remarks"}},
-		{"medical_records", []string{"id", "clinic_id", "record_no", "date", "owner_id", "pet_id", "status", "visit_type", "doctor_id", "entered_by"}, []string{"id", "owner_id", "pet_id", "doctor_id", "entered_by"}, []string{"record_no"}},
+		{"appointments", []string{"id", "clinic_id", "start_time", "end_time", "owner_id", "pet_id", "visit_type", "reservation_type_id", "doctor_id", "status", "source"}, []string{"id", "owner_id", "pet_id", "doctor_id"}, nil},
+		{"appointment_trimming_details", []string{"id", "clinic_id", "appointment_id", "remarks"}, []string{"id", "appointment_id"}, []string{"remarks"}},
+		{"medical_records", []string{"id", "clinic_id", "record_no", "date", "owner_id", "pet_id", "appointment_id", "status", "visit_type", "doctor_id", "entered_by"}, []string{"id", "owner_id", "pet_id", "appointment_id", "doctor_id", "entered_by"}, []string{"record_no"}},
 		{"inquiries", []string{"id", "medical_record_id", "chief_complaint", "owner_observations", "history", "notes", "allergy_info", "current_medications", "staff_id"}, []string{"id", "medical_record_id", "staff_id"}, []string{"chief_complaint", "owner_observations", "history", "notes", "allergy_info", "current_medications"}},
 		{"clinical_plans", []string{"id", "medical_record_id", "physical_exam", "diagnosis_details", "treatment_policy"}, []string{"id", "medical_record_id"}, []string{"physical_exam", "diagnosis_details", "treatment_policy"}},
 		{"vital_records", []string{"id", "clinic_id", "medical_record_id", "pet_id", "recorded_at", "temperature", "weight", "weight_unit", "heart_rate", "respiration_rate", "staff_id", "notes"}, []string{"id", "medical_record_id", "pet_id", "staff_id"}, []string{"notes"}},
-		{"appointments", []string{"id", "clinic_id", "start_time", "end_time", "owner_id", "pet_id", "visit_type", "reservation_type_id", "doctor_id", "status", "source"}, []string{"id", "owner_id", "pet_id", "doctor_id"}, nil},
-		{"appointment_trimming_details", []string{"id", "clinic_id", "appointment_id", "remarks"}, []string{"id", "appointment_id"}, []string{"remarks"}},
 		{"billings", []string{"id", "clinic_id", "medical_record_id", "owner_id", "pet_id", "total_amount", "status", "scheduled_date", "completed_at"}, []string{"id", "medical_record_id", "owner_id", "pet_id"}, nil},
 		{"billing_items", []string{"id", "clinic_id", "billing_id", "category", "name", "unit_price", "quantity", "tax_type", "is_insurance_applicable", "sort_order"}, []string{"id", "billing_id"}, []string{"name"}},
 		{"payments", []string{"id", "clinic_id", "billing_id", "subtotal", "tax_total", "total_amount", "insurance_name", "insurance_ratio", "insurance_amount", "discount_amount", "billing_amount", "received_amount", "change_amount", "method", "payment_method_id", "paid_by", "created_at"}, []string{"id", "billing_id", "paid_by"}, []string{"insurance_name"}},

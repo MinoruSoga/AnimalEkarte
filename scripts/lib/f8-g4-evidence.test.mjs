@@ -39,8 +39,8 @@ function receipt() {
     tableCount: 21,
     tables: [
       "staffs", "procedures", "merchandise_items", "owners", "pets",
-      "medical_records", "inquiries", "clinical_plans", "vital_records",
-      "appointments", "appointment_trimming_details", "billings",
+      "appointments", "appointment_trimming_details", "medical_records",
+      "inquiries", "clinical_plans", "vital_records", "billings",
       "billing_items", "payments", "payment_splits", "estimates",
       "estimate_items", "exams", "exam_results", "vaccines", "vaccinations",
     ].map((table) => ({ table, rowCount: 0 })),

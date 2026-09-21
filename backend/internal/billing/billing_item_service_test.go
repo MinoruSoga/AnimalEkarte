@@ -90,6 +90,12 @@ func (m *mockBillingItemRepository) ValidateExamCreateReference(
 	return nil
 }
 
+func (m *mockBillingItemRepository) ExamBillingValues(
+	_ context.Context, _, _ uint64,
+) (*examBillingValues, error) {
+	return &examBillingValues{Name: "検査", UnitPrice: 1000}, nil
+}
+
 func (m *mockBillingItemRepository) ValidateVaccinationCreateReference(
 	_ context.Context,
 	_, _, _ uint64,

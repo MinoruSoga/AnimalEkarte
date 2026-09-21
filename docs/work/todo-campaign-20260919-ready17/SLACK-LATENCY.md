@@ -16,11 +16,11 @@
 
 | 項目 | コードで分かること | 医院事実 |
 | --- | --- | --- |
-| 対象端末（PC / iPad）・OS・ブラウザ版 | なし | **UNKNOWN** |
+| 対象端末クラス（`DEVICE-PC` / `DEVICE-TABLET`）・OS・ブラウザ版 | なし。クラスラベルのみプロトコルで固定（機種名は書かない） | **UNKNOWN**。採取時にクラスを選び、機種・OS・ブラウザは採取ログ側 |
 | 回線（院内 LAN / モバイル / VPN） | なし | **UNKNOWN** |
-| 対象カルテの治療行数 | `sortedTreatments` は全件ソートして描画（[use-treatments-tab.ts](../../../frontend/src/features/medical-records/hooks/use-treatments-tab.ts) L91–95、[TreatmentsTabParts.tsx](../../../frontend/src/features/medical-records/components/TreatmentsTab/TreatmentsTabParts.tsx) L85–104） | **UNKNOWN**。採取時に行数を固定・記録する |
-| 数量入力時の IME（日本語変換中 Enter 含む） | IME Enter は arm/commit しない（後述） | **UNKNOWN**。採取時に IME on/off を固定する |
-| フロント/API revision | 本票作成時 worktree HEAD `aac697645`（`docs: TODOを回答済み要件から着手可能に整理`）。実行時は `git rev-parse HEAD` を記録 | **UNKNOWN**（実測セッションの SHA）。HEAD を採時条件に固定する |
+| 対象カルテの治療行数帯（`BAND-FEW` / `BAND-TYPICAL` / `BAND-HEAVY`）と実数 | `sortedTreatments` は全件ソートして描画（[use-treatments-tab.ts](../../../frontend/src/features/medical-records/hooks/use-treatments-tab.ts) L91–95、[TreatmentsTabParts.tsx](../../../frontend/src/features/medical-records/components/TreatmentsTab/TreatmentsTabParts.tsx) L85–104） | **UNKNOWN**。帯名と実測行数を採取時に記録。帯の件数閾値は本票に置かない |
+| 数量入力時の IME（`IME-OFF` / `IME-ON`。日本語変換中 Enter 含む） | IME Enter は arm/commit しない（後述） | **UNKNOWN**。採取時に IME-OFF/ON をランごとに固定する |
+| フロント/API revision 識別方法 | 方法のみ固定: 実測セッション開始時の `git rev-parse HEAD` を必須。フロント bundle 識別が取れる場合のみ併記。本票作成時 HEAD `aac697645` は条件値に使わない | **UNKNOWN**（実測セッションの SHA / bundle）。架空 SHA 禁止 |
 | 「遅すぎる」の許容 ms | なし | **UNKNOWN**。実測後に臨床 PO が合意するまで閾値を書かない |
 
 ## 混ぜてはいけない待ち
@@ -67,13 +67,18 @@
 
 同一医院・同一ログイン・同一カルテ・同一行で、次を記録してからタイマーを置く。環境不足なら計測 BLOCKED。
 
-固定条件:
+### 固定条件（軸を凍結。値は採取時。未採取は UNKNOWN）
 
-- 行数（例: 実カルテの実数。合成しないならその旨を書く）
-- revision: `git rev-parse HEAD` とフロント bundle の識別が取れればそれも
-- IME: オフ（半角数字）と、対象端末の日本語 IME オンを別ラン
-- 項目種別: 少なくとも **consultation（用量ゲートなし）** と **medicine（用量ゲートあり）** を分ける。混ぜた平均を出さない
-- 確定操作: **Blur ラン** と **Enter×2 ラン** を別表。Enter×2 ランでは「1回目 Enter → 2回目 Enter」を C の内側で分ける
+方法・プレースホルダだけを凍結する。機種名・病院行数・許容 ms・debounce・楽観 persist は捏造しない。
+
+| 軸 | 凍結した方法 / プレースホルダ | 採取時の記入 | 捏造禁止 |
+| --- | --- | --- | --- |
+| revision 識別 | **方法固定:** (1) 実測セッション開始時の `git rev-parse HEAD` を必須記録 (2) フロント bundle 識別が DevTools / ビルド成果物から取れる場合のみ併記。取れなければ (1) のみでラン成立。本票作成時 HEAD は条件値に使わない | 実測時 SHA（と任意の bundle id）。未採取は UNKNOWN | 架空 SHA・旧 HEAD の流用禁止 |
+| 端末クラス | **プレースホルダ固定:** `DEVICE-PC` / `DEVICE-TABLET`。機種名・OS・ブラウザ版は医院事実のまま UNKNOWN とし、本票に具体モデルを書かない | ランごとにクラスラベルを選ぶ。具体機種は採取ログ側 | 機種名・版の捏造禁止 |
+| 行数帯 | **名前付き帯のみ固定:** `BAND-FEW` / `BAND-TYPICAL` / `BAND-HEAVY`。各帯の件数閾値は本票に置かない。実カルテの実数を採取時に併記。合成行で医院事実を置換しない | 帯名 + 実測行数。未採取は UNKNOWN | 病院行数の仮置き・閾値 ms 化禁止 |
+| IME | **ラベル固定:** `IME-OFF`（半角数字）と `IME-ON`（対象端末の日本語 IME）を別ラン。IME composition Enter は arm/commit に使わない（既存契約） | ランラベルに IME-OFF / IME-ON | IME 条件を混ぜた平均禁止 |
+| 確定操作 | **分離固定:** `OP-BLUR` と `OP-ENTER-x2` を別表・別ラン。Enter×2 では C-arm（1回目）と C1-Enter（2回目）を分ける。Blur と Enter×2 を合算しない | 操作ラベル OP-BLUR / OP-ENTER-x2 | Enter×1 化や仕様変更を本票で提案しない |
+| 項目種別 | **分離固定:** 少なくとも **consultation（用量ゲートなし）** と **medicine（用量ゲートあり）** を分ける | 種別ラベル | 混ぜた平均を出さない |
 
 タイマー（推奨。ツールが無ければ DevTools Performance + Network で同じ境界を手で印す）:
 
@@ -94,7 +99,7 @@
 
 保存値一致: セル表示・React Query cache・`GET` ボディの `quantity` が同じこと。一致するまでの時間が R。一致しないなら本票の「遅さ」ではなく不整合（別票）。
 
-並行負荷: 行数を変えたラン（少行 vs 実カルテ行数）を分ける。全行 `pointer-events-none` と一覧 GET は行数に感ずる可能性がある。感度は実測。行数を増やした合成データで医院事実を置き換えない。
+並行負荷: 行数帯を変えたラン（`BAND-FEW` / `BAND-TYPICAL` / `BAND-HEAVY`）を分ける。全行 `pointer-events-none` と一覧 GET は行数に感ずる可能性がある。感度は実測。行数を増やした合成データで医院事実を置き換えない。帯の件数閾値は実測後に医院事実として記録し、本票へ仮置きしない。
 
 ## 停止・PO
 
@@ -106,8 +111,10 @@
 
 ## 実測結果（未実行）
 
-| ラン | 行数 | revision | IME | 操作 | D1 | C | N1 | L1 | R2 | R3 | T-user | 保存値一致 |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| — | UNKNOWN | UNKNOWN | UNKNOWN | — | 未実行 | 未実行 | 未実行 | 未実行 | 未実行 | 未実行 | 未実行 | 未実行 |
+固定条件の軸列だけ揃える。実測セルは未実行のまま。閾値列・debounce 列は設けない。
+
+| ラン | 端末クラス | 行数帯 | 行数(実測) | revision | IME | 操作 | D1 | C | N1 | L1 | R2 | R3 | T-user | 保存値一致 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| — | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | — | 未実行 | 未実行 | 未実行 | 未実行 | 未実行 | 未実行 | 未実行 | 未実行 |
 
 閾値列は設けない（UNKNOWN のまま空けると架空の欄になるため）。
