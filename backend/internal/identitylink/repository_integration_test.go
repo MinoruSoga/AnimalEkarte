@@ -34,7 +34,39 @@ func setupIdentityLinkTestDB(t *testing.T) *gorm.DB {
 	))
 	// Clean identity tables each test.
 	_ = db.Exec("TRUNCATE TABLE pet_identity_group_members, pet_identity_groups, owner_identity_group_members, owner_identity_groups, treatments, medical_records, pets, owners, animal_species, audit_logs RESTART IDENTITY CASCADE").Error
+	ensureIdentityLinkAuditTargets(t, db)
 	return db
+}
+
+// ensureIdentityLinkAuditTargets は audit_logs の clinic_id / actor_id FK を満たす。
+// CI は migration 適用済みの空 DB で remaining shard を流すため、先行パッケージが
+// clinic 1/2 を残しても testActor の staff id 7 は存在しない。
+func ensureIdentityLinkAuditTargets(t *testing.T, db *gorm.DB) {
+	t.Helper()
+	require.NoError(t, db.Exec(`
+		INSERT INTO companies (id, name)
+		VALUES (1, 'identity-link-test')
+		ON CONFLICT (id) DO NOTHING
+	`).Error)
+	require.NoError(t, db.Exec(`
+		INSERT INTO clinics (id, company_id, name)
+		VALUES (1, 1, 'identity-link-clinic-1'), (2, 1, 'identity-link-clinic-2')
+		ON CONFLICT (id) DO NOTHING
+	`).Error)
+	require.NoError(t, db.Exec(`
+		INSERT INTO staffs (id, clinic_id, name)
+		VALUES (7, 1, 'identity-link-actor')
+		ON CONFLICT (id) DO NOTHING
+	`).Error)
+	require.NoError(t, db.Exec(`
+		SELECT setval(pg_get_serial_sequence('companies', 'id'), (SELECT COALESCE(MAX(id), 1) FROM companies))
+	`).Error)
+	require.NoError(t, db.Exec(`
+		SELECT setval(pg_get_serial_sequence('clinics', 'id'), (SELECT COALESCE(MAX(id), 1) FROM clinics))
+	`).Error)
+	require.NoError(t, db.Exec(`
+		SELECT setval(pg_get_serial_sequence('staffs', 'id'), (SELECT COALESCE(MAX(id), 1) FROM staffs))
+	`).Error)
 }
 
 func seedClinicOwner(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.Owner {
