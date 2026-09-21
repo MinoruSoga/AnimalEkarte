@@ -570,6 +570,74 @@ func TestLabImportExaminationService_PersistExam_Duplicate(t *testing.T) {
 	}
 }
 
+// M6: pre-existing manual exam (job_id NULL) must remain untouched when a device
+// persist lands for the same pet/day/type with different content — two rows, no merge.
+func TestLabImportExaminationService_PersistExam_DoesNotOverwriteManualNilJobIDExam(t *testing.T) {
+	examRepo := newStubExamRepo()
+	dupChecker := &examRepoBackedDupChecker{repo: examRepo}
+	svc := NewLabImportExaminationService(
+		examRepo, dupChecker, okExamTypeRepo(), okPetRepo(), okMedicalRecordRepo(), passthroughLabImportTransactor{},
+	).(*labImportExaminationService)
+
+	petID := uint64(42)
+	date := time.Date(2026, 9, 21, 0, 0, 0, 0, time.UTC)
+	manualID := uint64(9001)
+	manual := &model.Examination{
+		ID:         manualID,
+		ClinicID:   1,
+		PetID:      &petID,
+		ExamTypeID: 77,
+		Date:       date,
+		Machine:    "",
+		JobID:      nil,
+		Status:     model.ExaminationStatusPending,
+	}
+	examRepo.exams[manualID] = manual
+	examRepo.nextID = manualID + 1
+	examRepo.results[manualID] = []model.ExamResult{{
+		ExamID:          manualID,
+		Name:            "FIXTURE-STRIP-PAD-A",
+		InspectionValue: "(+)",
+		Unit:            "FIXTURE-UNIT-A",
+		SortOrder:       1,
+	}}
+
+	deviceJob := uuid.New()
+	res, err := svc.persistExam(context.Background(), LabExamPersistInput{
+		ClinicID:   1,
+		PetID:      &petID,
+		ExamTypeID: 77,
+		Date:       date,
+		Machine:    "FIXTURE-DEVICE-HINT",
+		JobID:      deviceJob,
+		Items: []LabExamItemInput{{
+			Name: "FIXTURE-STRIP-PAD-A", InspectionValue: "(-)", Unit: "FIXTURE-UNIT-A", SortOrder: 1,
+		}},
+	})
+	if err != nil {
+		t.Fatalf("device persist: %v", err)
+	}
+	if res.Duplicate {
+		t.Fatal("device persist must not treat different-content manual exam as duplicate merge")
+	}
+	if res.ExamID == 0 || res.ExamID == manualID {
+		t.Fatalf("expected new device exam id, got %d (manual=%d)", res.ExamID, manualID)
+	}
+	if len(examRepo.exams) != 2 {
+		t.Fatalf("expected manual+device coexistence (2 exams), got %d", len(examRepo.exams))
+	}
+	if examRepo.exams[manualID].JobID != nil {
+		t.Fatalf("manual exam job_id must stay nil, got %v", examRepo.exams[manualID].JobID)
+	}
+	deviceExam, ok := examRepo.exams[res.ExamID]
+	if !ok || deviceExam.JobID == nil || *deviceExam.JobID != deviceJob {
+		t.Fatalf("device exam must keep JobID=%s, got %+v", deviceJob, deviceExam)
+	}
+	if got := examRepo.results[manualID][0].InspectionValue; got != "(+)" {
+		t.Fatalf("manual inspection_value must remain (+), got %q", got)
+	}
+}
+
 // TestLabImportExaminationService_PersistExam_SameDayDifferentContentNotDuplicate は
 // Issue #249 R-3: 同日・同検査種別でも内容が異なれば両方 persist されることを検証する。
 func TestLabImportExaminationService_PersistExam_SameDayDifferentContentNotDuplicate(t *testing.T) {

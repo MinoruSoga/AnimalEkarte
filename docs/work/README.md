@@ -20,6 +20,10 @@
 | [skill-reeval-2026-09-06.md](./skill-reeval-2026-09-06.md) | 代表タスクごとの資料選択・停止判断 |
 | [development-task-decisions.md](./development-task-decisions.md) | 旧10開発候補の採否と具体的な着手範囲の根拠。実行キューはtodo.md |
 | [stg-uat-clinic-feedback-q1-q4.md](./stg-uat-clinic-feedback-q1-q4.md) | STG UAT 医院Q1–Q4の送付用回答と修正タスク。Q1/Q4保険/Q2履歴は STG デプロイ済み（PR #411）。実行 SoT ではない |
+| [linmig-campaign-20260919/](./linmig-campaign-20260919/) | P1–P5/P8・検査機器・実LINE・migrate・件数・フォント・締め時間・bundle のローカル準備票。実行完了ではない |
+| [remaining-campaign-20260920/](./remaining-campaign-20260920/) | P6/P7 と Slack PO/evidence 16件の判断材料・ケース票。PO裁定と実機/STGは未了 |
+| [todo-campaign-20260918/](./todo-campaign-20260918/) | UAT-R2 / Q2・Q4 集計 / 処置移行 / 死亡日 / Linear 照合の準備票 |
+| [todo-campaign-20260919-ready17/](./todo-campaign-20260919-ready17/) | Slack READY 13件の設計票 |
 | [docs-perfection/README.md](./docs-perfection/README.md) | **Astra 調査パッケージ入口**（棚卸し・RQ・子 goal・証拠）。製品の実行 SoT は上記 Linear |
 | [docs-perfection/REPAIR-QUEUE.md](./docs-perfection/REPAIR-QUEUE.md) | 調査時点の優先修復キュー（RQ-001〜） |
 | [docs-perfection/ROLE-MAP.md](./docs-perfection/ROLE-MAP.md) | docs 保守の Living Docs 役割割当 |

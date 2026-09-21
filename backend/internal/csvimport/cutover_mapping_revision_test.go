@@ -78,7 +78,7 @@ func TestCutoverReviewedMappingRevision(t *testing.T) {
 		digest string
 		accept bool
 	}{
-		{"reviewed", "0d7f089990079af28c2ba454ee48188d55a67beab19a9f16a86dee93fec80597", true},
+		{"reviewed", "bf8c262e136d4d5e74751508286710035b27bd1e7ed927ce4f47320dd4e9152b", true},
 		{"superseded", "888dac89e9b262320cd3afb0c6d223ba5f9c5b943be43f9a56367e81bcad8131", false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

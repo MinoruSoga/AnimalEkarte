@@ -187,6 +187,10 @@ func (s *billingItemService) createItemInAmbientTx(ctx context.Context, input *C
 	}
 
 	if err := s.repo.Create(ctx, item); err != nil {
+		if apperrors.IsAlreadyExists(err) &&
+			(input.TreatmentID != nil || input.VaccinationID != nil || input.ExamID != nil) {
+			return nil, apperrors.WrapConflict("この明細は既に会計に登録されています")
+		}
 		return nil, apperrors.Wrap(err, "failed to create billing item")
 	}
 

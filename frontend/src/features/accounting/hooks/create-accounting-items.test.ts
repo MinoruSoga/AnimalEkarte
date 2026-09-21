@@ -110,4 +110,60 @@ describe("createAccountingItems", () => {
     expect(createItem).toHaveBeenCalledTimes(2);
     expect(createItem.mock.calls.map(([request]) => request.name)).toEqual(["診察料", "内服薬"]);
   });
+
+  it("治療明細では treatment_id を送り hospitalization/cage/checkup id を混在させない", async () => {
+    const createItem = vi.fn().mockResolvedValue({});
+
+    await createAccountingItemsSequentially(
+      42,
+      [{ ...ITEMS[1], treatmentId: "91", source: "medical_record" }],
+      createItem,
+    );
+
+    const payload = createItem.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(payload).toEqual(
+      expect.objectContaining({
+        treatment_id: 91,
+      }),
+    );
+    expect(payload.merchandise_item_id).toBeUndefined();
+    expect(payload.vaccination_id).toBeUndefined();
+    expect(payload.exam_id).toBeUndefined();
+    expect(payload).not.toHaveProperty("hospitalization_id");
+    expect(payload).not.toHaveProperty("cage_id");
+    expect(payload).not.toHaveProperty("checkup_id");
+  });
+
+  it("トリミング明細では course/option id のみを送り他マスタ id を混在させない", async () => {
+    const createItem = vi.fn().mockResolvedValue({});
+
+    await createAccountingItemsSequentially(
+      42,
+      [
+        {
+          ...ITEMS[0],
+          name: "カット",
+          trimmingCourseId: "15",
+          trimmingOptionId: "16",
+          source: "trimming",
+        },
+      ],
+      createItem,
+    );
+
+    const payload = createItem.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(payload).toEqual(
+      expect.objectContaining({
+        trimming_course_id: 15,
+        trimming_option_id: 16,
+      }),
+    );
+    expect(payload.merchandise_item_id).toBeUndefined();
+    expect(payload.treatment_id).toBeUndefined();
+    expect(payload.vaccination_id).toBeUndefined();
+    expect(payload.exam_id).toBeUndefined();
+    expect(payload).not.toHaveProperty("hospitalization_id");
+    expect(payload).not.toHaveProperty("cage_id");
+    expect(payload).not.toHaveProperty("checkup_id");
+  });
 });

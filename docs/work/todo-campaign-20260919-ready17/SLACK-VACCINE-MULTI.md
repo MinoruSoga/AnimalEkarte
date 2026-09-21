@@ -1,14 +1,14 @@
 # SLACK-VACCINE-MULTI: 登録失敗 vs 同日 2–3 件の順次保存（batch API を捏造しない）
 
-状態: **経路分離 READY／製品実装・実機受入 未実行**。出典は [todo-issue.md](../../../todo-issue.md) 見出し `### SLACK-VACCINE-MULTI`（L142–146、索引 L427）。保持する現場条件:
+状態: **経路分離 READY／自動回帰（F 失敗 + S 同日順次単件 POST）追加済／batch UX・実機受入は PO 残**。出典は [todo-issue.md](../../../todo-issue.md) 見出し `### SLACK-VACCINE-MULTI`（L142–146、索引 L427）。保持する現場条件:
 
 - 「登録できない」と「初診/同日に 2–3 件入力」は **別ケース**
 - 単件 POST の存在だけで「同日複数不可」や **batch API 必須**と決めない
 - 各接種の実施日・lot・次回予定・金額が **行をまたいで混ざらない**こと
 - [種別課題](../../../todo-issue.md#uat-q2-vaccine-species) の承認済み条件を保持する。接種間隔などの臨床判断は代行しない
-- 一括入力が必要な操作数 / 失敗時の部分保存の扱いは **PO 裁定後**に設計する
+- 一括入力が必要な操作数 / 失敗時の部分保存の扱いは **PO 裁定後**に設計する（本 unit は batch API を追加しない）
 
-本票は [カルテ内フォーム](../../../frontend/src/features/medical-records/hooks/use-medical-record-vaccination-form.ts) と [独立フォーム](../../../frontend/src/features/vaccinations/hooks/use-vaccination-form.ts)、[作成 API 再export](../../../frontend/src/features/vaccinations/api/create-vaccination.ts)、[実 mutation](../../../frontend/src/hooks/use-create-vaccination.ts)、[接種 service](../../../backend/internal/medicalrecord/vaccination_service.go) を照合する。製品コード・テストは変更しない。
+本票は [カルテ内フォーム](../../../frontend/src/features/medical-records/hooks/use-medical-record-vaccination-form.ts) と [独立フォーム](../../../frontend/src/features/vaccinations/hooks/use-vaccination-form.ts)、[作成 API 再export](../../../frontend/src/features/vaccinations/api/create-vaccination.ts)、[実 mutation](../../../frontend/src/hooks/use-create-vaccination.ts)、[接種 service](../../../backend/internal/medicalrecord/vaccination_service.go) を照合する。本 unit の最小実装は **owned テスト追加 + 本票更新**のみ（製品 Create 契約は単件 POST のまま。batch エンドポイントは追加しない）。
 
 本ファイルは製品コードから import されない。キャンペーン unit `SLACK-VACCINE-MULTI` の owned path および人間が読む調査票である。製品モジュールからの呼び出し行は無い（sibling `SLACK-VITALS.md` と同じ）。既存 `docs/work/todo-campaign-20260918/` にも本 unit の票は無い。ledger `owned_paths` が本パス単体のため、他シートへの追記では unit 完了にならない。種別集計の再設計は [UAT-Q2-VACCINE-SPECIES](../todo-campaign-20260918/UAT-Q2-VACCINE-SPECIES.md) に残し、本票では繰り返さない。
 
@@ -155,6 +155,18 @@ DB: [001_init.sql](../../../backend/migrations/001_init.sql) L1477–1496。`(pe
 - 履歴の犬用名称は誤参照の証拠ではない。名称から種を推測して補完しない。一括削除しない。
 - 本 unit の 2–3 件再現でも、候補に出たマスタを種不一致として自動除外しない。種品質の集計は種票の読取条件が揃うまで BLOCKED。
 
+## 自動回帰（本 unit で追加）
+
+製品 Create 契約は変更せず、次を scoped テストで固定する。batch `/vaccinations/batch` や配列 body は追加しない。
+
+| 面 | ファイル | カバー |
+| --- | --- | --- |
+| FE mutation | [use-create-vaccination.test.ts](../../../frontend/src/hooks/use-create-vaccination.test.ts) | 単件 POST のみ・amount 無し・4xx で `handleApiError`・同日 2–3 件順次 POST で vaccine/lot/next_date 非混在 |
+| BE service | [vaccination_service_test.go](../../../backend/internal/medicalrecord/vaccination_service_test.go) | vaccine 関係欠落で Create 拒否、同日 3 件順次 Create で行分離 |
+| BE handler | [vaccination_handler_test.go](../../../backend/internal/medicalrecord/vaccination_handler_test.go) | service invalid input → 400、vaccine NotFound → 404 |
+
+種別条件は [UAT-Q2-VACCINE-SPECIES](../todo-campaign-20260918/UAT-Q2-VACCINE-SPECIES.md) 正本のまま。本票・本 unit テストは species フィルタやマスタ補完を変更しない。
+
 ## 停止条件
 
 - 単件 POST があることだけを根拠に batch API を追加しない。
@@ -164,7 +176,7 @@ DB: [001_init.sql](../../../backend/migrations/001_init.sql) L1477–1496。`(pe
 - 接種行へ amount 列を足して「金額保存」を満たしたことにしない。会計・マスタ単価と混ぜて設計しない。
 - 実機未採取の失敗原因を 1 つに断定しない。
 
-## 受入で先に採るもの（実装しない）
+## 受入で先に採るもの（実機・PO。自動テストでは代替しない）
 
 1. 画面（カルテタブ / 独立）。保存済みカルテか新規か。権限。ペット生存。
 2. 単件: 必須を空にした失敗、正常 1 件の 2xx、履歴 1 行、lot/次回がその行だけ。

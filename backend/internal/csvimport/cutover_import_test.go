@@ -243,8 +243,18 @@ func TestApplyCutoverUsesForceNotNullForDeclaredTextColumns(t *testing.T) {
 	if !strings.Contains(tx.copySQLs[0], `FORCE_NOT_NULL ("name", "license_number")`) {
 		t.Fatalf("staffs COPY does not preserve required empty text: %s", tx.copySQLs[0])
 	}
-	if strings.Contains(tx.copySQLs[9], "FORCE_NOT_NULL") {
-		t.Fatalf("appointments COPY unexpectedly forces nullable values: %s", tx.copySQLs[9])
+	var appointmentsCopySQL string
+	for _, copySQL := range tx.copySQLs {
+		if strings.Contains(copySQL, `COPY "appointments"`) {
+			appointmentsCopySQL = copySQL
+			break
+		}
+	}
+	if appointmentsCopySQL == "" {
+		t.Fatal("appointments COPY was not issued")
+	}
+	if strings.Contains(appointmentsCopySQL, "FORCE_NOT_NULL") {
+		t.Fatalf("appointments COPY unexpectedly forces nullable values: %s", appointmentsCopySQL)
 	}
 	var paymentsCopySQL string
 	for _, copySQL := range tx.copySQLs {

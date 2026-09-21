@@ -295,6 +295,60 @@ describe("ExamPivotTable", () => {
     expect(screen.queryByText("未実施")).not.toBeInTheDocument();
   });
 
+  it("M5/M6: 手入力 FIXTURE-STRIP と機器ヒント exam を同日別列で共存し空値は出さない", async () => {
+    const manual = makeExamination("manual-1", "2026-09-21", "77");
+    manual.machine = "";
+    manual.testType = "FIXTURE-EXAM-TYPE";
+    const device = makeExamination("device-1", "2026-09-21", "77");
+    device.machine = "FIXTURE-DEVICE-HINT";
+    device.testType = "FIXTURE-EXAM-TYPE";
+
+    renderPivot([manual, device], {
+      "manual-1": [
+        makeItem({
+          id: 10,
+          exam_id: 10,
+          exam_type_field_id: null,
+          name: "FIXTURE-STRIP-PAD-A",
+          inspection_value: "(+)",
+          unit: "FIXTURE-UNIT-A",
+          reference_value: "",
+          is_assessed: false,
+        }),
+        makeItem({
+          id: 11,
+          exam_id: 10,
+          exam_type_field_id: null,
+          name: "FIXTURE-STRIP-PAD-EMPTY",
+          inspection_value: "",
+          unit: "",
+          reference_value: "",
+          is_assessed: false,
+        }),
+      ],
+      "device-1": [
+        makeItem({
+          id: 20,
+          exam_id: 20,
+          exam_type_field_id: null,
+          name: "FIXTURE-STRIP-PAD-A",
+          inspection_value: "(-)",
+          unit: "FIXTURE-UNIT-A",
+          reference_value: "",
+          is_assessed: false,
+        }),
+      ],
+    });
+
+    expect(
+      await screen.findByRole("columnheader", { name: "2026-09-21 1件目" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "2026-09-21 2件目" })).toBeInTheDocument();
+    expect(screen.getByText("(+)").closest("td")).toBeTruthy();
+    expect(screen.getByText("(-)").closest("td")).toBeTruthy();
+    expect(screen.queryByText("FIXTURE-STRIP-PAD-EMPTY")).not.toBeInTheDocument();
+  });
+
   it("直近10検査だけを取得・表示する", async () => {
     const examinations = Array.from({ length: 11 }, (_, index) => {
       const day = String(index + 1).padStart(2, "0");
