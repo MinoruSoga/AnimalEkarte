@@ -1,13 +1,13 @@
 # Performance 調査・改善 TODO
 
-最終照合: 2026-09-18（文書・source）。調査 ID: **PERF-STG-LOGIN**。対象は STG `/login` の初回表示遅延。責任者・依頼者: 曽我 稔。
+最終照合: 2026-09-22（ローカル HEAD `cd2feaa14` のSLACK-LATENCY計測票差分。PERF-STG-LOGINの判定・過去測定は9月21日の照合を保持）。runtime・provider・配備状態は今回未照会。主調査 ID: **PERF-STG-LOGIN**。対象は STG `/login` の初回表示遅延。責任者・依頼者: 曽我 稔。
 
 未完了の測定・受入は [todo-verification.md](todo-verification.md#perf-stg-login)。新たな実装が必要になったら [todo-issue.md](todo-issue.md) に範囲を確定する。本書は判断に必要な技術記録のみを保持する。
 
 ## 現在の判断
 
 - 初回遅延の原因と改善後の測定結果は未確定。通信全体約22.7秒を Go / DB 処理時間と断定しない。
-- Worker 観測は `b42c00ccb` で既にコミットされ、現在の [index.ts](backend/worker/index.ts) に `buildProxyObservation` と通常 proxy のログ出力が存在する。**「未導入 WIP を保全」「commit・deploy しない」という旧記述は現状と一致しないため削除した。** STG 配備対象 `d337f016` にも同じ観測経路が含まれる。
+- Worker 観測は `b42c00ccb` で既にコミットされ、現在の [index.ts](backend/worker/index.ts) に `buildProxyObservation` と通常 proxy のログ出力が存在する。**「未導入 WIP を保全」「commit・deploy しない」という旧記述は現状と一致しないため削除した。** 9月15日に確認した STG 配備対象 `d337f016` にも同じ観測経路が含まれていた。現在の配信版を再確認した結果ではない。
 - `72807128` の実 proxy 4 tests と worker typecheck は [既存の同一コミット検証](.planning/agent-fast-campaign/four-candidate-integration-20260916/evidence/rev7-reverify-72807128-codex/controller/RECONCILIATION.md) で PASS。`index.test.ts` は `tsconfig.test.json` の include に追加済み。今回再実行した結果ではない。残るのは現行観測の必要性・出力範囲、ブラウザ/provider の時刻対応、STG 受入であり、原因特定・性能改善は未完了。
 - pending UI は既存実装を利用する。CORS / CSRF、edge OPTIONS、Container 設定、bundle 分割を、因果証拠なしに変更しない。
 
@@ -28,6 +28,16 @@
 **SLO の採用値は未確定。** チェックシートの API p95 500ms / 初回操作可能1.5秒などは提案例であり、合否判定へ自動採用しない。一方、[既存STG k6](load-tests/k6-cf-stg-sustained.js) の p95 3秒・失敗率5%未満は `/health` と `/api/v1/clinics` を3 VUで測るスクリプト閾値で、ブラウザ `/login` の受入値ではない。今回の遅延調査にその負荷試験を追加せず、初回表示の区間測定から始める。
 
 準備完了は6単位それぞれの入力・出力・未確定条件がケース票に揃った時点。MITIGATION は因果区間、BUNDLE は転送/parse/executeの寄与が分かるまで実装 DEFERRED。測定できても採用 SLO が未合意なら、計測完了と性能受入完了を分ける。
+
+## SLACK-LATENCY: 治療数量の反映待ち
+
+`/login` とは別の課題。状態・受入条件の正本は [SLACK-LATENCY](todo-issue.md#slack-latency)、区間別の採時計画は [既存の測定票](docs/work/todo-campaign-20260919-ready17/SLACK-LATENCY.md)。`cd2feaa14` で比較条件とrevision固定方法の設計は完了。端末/回線等の実条件と実測値は未収録で、原因・許容時間・改善効果はUNKNOWN。票の作成時 revision と、これから測る対象 build を混同しない。
+
+現行 [数量セル](frontend/src/features/medical-records/components/TreatmentsTab/TreatmentQuantityCell.tsx) のローカル入力、2回目 Enter/Blur の確定、[PATCH 後の一覧 invalidate](frontend/src/features/medical-records/api/treatments.ts#L85)、[mutation中の操作制限](frontend/src/features/medical-records/hooks/use-treatments-tab.ts#L338) を別区間で測る。PATCH 応答だけで表示更新完了とはしない。2回 Enter の受入と、表示・通信・再取得の速度を分ける。
+
+比較ラベルは `DEVICE-PC/TABLET`、`BAND-FEW/TYPICAL/HEAVY`、`IME-OFF/ON`、`OP-BLUR/ENTER-x2`、診察/薬剤に固定済み。行数帯の数値境界・実端末/ブラウザ版・回線・IME・対象buildはUNKNOWNで、架空の値を埋めない。票の作成時SHAや計測担当のローカルHEADだけでは配信版を証明できないため、実行時はFE/APIの対象revision・bundle/配備receipt等との対応も記録する。
+
+次はQA/計測担当が対象端末・ブラウザ・回線・行数・IME・対象build・fixture・操作範囲を確定し、既存票へ各区間の時間と保存値一致を記録する。同じ計測設計を再作成しない。条件が不足するrunはBLOCKED、未測定の原因はUNKNOWN。因果証拠なしのdebounce・楽観保存・Enter仕様変更は開始しない。`PERF-STG-LOGIN` の6単位やk6の閾値をこの課題の完了条件へ転用しない。
 
 ## E1: 2026-09-09 の遅延記録（過去の測定）
 

@@ -1,8 +1,8 @@
 # 未完了の検証・受入 TODO
 
-最終照合: 2026-09-19（JST）。完了した実装・unit 検証の列挙を削除し、残る検証と受入だけを扱う。新規実装は [todo-issue.md](todo-issue.md)、外部操作は [todo-operations.md](todo-operations.md)。
+最終照合: 2026-09-22（JST、ローカル HEAD `cd2feaa14` の追加対応8件。他の判定は9月21日の照合を保持）。完了した実装・unit 検証の列挙を削除し、残る検証と受入だけを扱う。新規実装は [todo-issue.md](todo-issue.md)、外部操作は [todo-operations.md](todo-operations.md)。ローカルケース票の一部は [linmig-campaign-20260919](docs/work/linmig-campaign-20260919/) と [remaining-campaign-20260920](docs/work/remaining-campaign-20260920/) に作成済み。今回 runtime は再実行していない。過去の結果は当時の revision に限定し、追加実装の受入は現在の receipt 未照合として UNKNOWN を維持する。
 
-着手プラン確認: 2026-09-18。各 ID の入口・前提・手順・証拠に加え、実行前に作れるケース票を下記に具体化した。これは計画の充足確認であり、テストや受入の完了判定ではない。
+着手プラン確認: 2026-09-22。前回の [追加実装のキュー](#code-followup-20260921) を維持し、今回8件の追加対応から [残検証・受入](#ready8-followup-20260922) を更新した。既存ケース票を再利用し、追加済みunit/mockと、ローカル未カバー・実DB・実機・医院/POの未確認を分ける。調査票のGREENは当時の記録で、今回の再実行結果ではない。
 
 9月19日の依頼者回答を反映: 全金額経路・1366×625 UI・上書き/二重会計防止・全期間処置移行の受入ケースは [各実行票](todo.md#今開始する4件仕様入力の回収は完了) に具体化済み。既存票を再作成せず、対象revisionと未カバーケースを対応づける。以下のruntime準備では、他タスクの起動済みコンテナや共有DBを検証先に流用しない。
 
@@ -29,17 +29,17 @@ QA/開発が作るケース票の共通列は `ID / case / revision / 環境・f
 | NOTE2-SWEEP-COVERAGE | `bug-2.md` の未確認 route×操作へ必要 ID・必須値を対応づける | 有効 cage 等の fixture、対象 schema、変更可能範囲 |
 | NOTE-STAFF-STARTTIME-RDT | 通常/拡張なし環境で同一操作の stack・発生有無を比較する票 | ユーザー環境の利用。製品由来か拡張由来か未確定の間は修正しない |
 | DEV-V-OWNER-DB | 下記5ケースの既存結果を PASS/FAIL/SKIP/未実行に分類 | 専用 disposable DB、cleanup、候補 mount。共有 DB は不可 |
-| TODO-V-S09 / QA-UAT-S09-FIXTURE | 下記5時刻の帰属期待表と setup/cleanup 欄 | 起動済み専用 local、helper 条件、合成 identity、clinic 1/2 除外 |
-| TODO-V-V04 / QA-UAT-V04-RETEST | V04 のフォーム×C1/C2/C3 を9月13日の証拠へ対応づける | 未収録ケースと disposable clinic・権限 account |
-| TODO-V-CLINICAL-E2E / QA-FULL-CLINICAL-E2E | `--clinical` allowlist と DB保存/stub/未実行を分ける | local/CI、APP_ENV=test、専用 fixture/teardown。full job は別定義 |
+| TODO-V-S09 / QA-UAT-S09-FIXTURE | 期待表は既存 S09 シナリオ。締め時間の投入計画は [LINMIG-233](docs/work/linmig-campaign-20260919/LINMIG-233.md) | 起動済み専用 local、helper 条件、合成 identity、clinic 1/2 除外 |
+| TODO-V-V04 / QA-UAT-V04-RETEST | V04 のフォーム×C1/C2/C3 を9月13日の証拠へ対応づける。close 照合は [LINMIG-231](docs/work/linmig-campaign-20260919/LINMIG-231.md) | 未収録ケースと disposable clinic・権限 account |
+| TODO-V-CLINICAL-E2E / QA-FULL-CLINICAL-E2E | `--clinical` allowlist と DB保存/stub/未実行を分ける。医院マトリクスは [SLACK-CLINICAL-UAT](docs/work/remaining-campaign-20260920/SLACK-CLINICAL-UAT.md) | local/CI、APP_ENV=test、専用 fixture/teardown。full job は別定義 |
 | TODO-V-STG-DATA | 医院×manifest×Lane3 verify×H3-11×5営業日の証拠一覧 | 運用側の同一入力・対象に結び付く receipt |
-| TODO-V-RELEASE / P4 / P8 | P1–P8/E1/E2 の個別結果を close checklist の項目へ対応づける | P4 sign-off と P8 当日 window/判断者/復旧担当。未達は HOLD/No-Go |
-| E1 / QA-UAT-LSTEP-REAL | primary 保存・外部タグ・再取得結果・後処理の期待表 | 実 LSTEP write の対象・範囲・復旧・承認 |
-| E2 / QA-UAT-LINE-IDTOKEN | 正規idToken、再連携409、無効/期限切れlinkTokenの400系 | 実 LINE の対象・正規 token 取得経路・後処理・承認 |
+| TODO-V-RELEASE / P4 / P8 | close 対応は [LINMIG-228](docs/work/linmig-campaign-20260919/LINMIG-228.md) と [LINMIG-231](docs/work/linmig-campaign-20260919/LINMIG-231.md) | P4 sign-off と P8 当日 window/判断者/復旧担当。未達は HOLD/No-Go |
+| E1 / QA-UAT-LSTEP-REAL | primary 保存・外部タグ・再取得結果・後処理の期待表。H1/H2 条件は [LINMIG-208](docs/work/linmig-campaign-20260919/LINMIG-208.md) | 実 LSTEP write の対象・範囲・復旧・承認 |
+| E2 / QA-UAT-LINE-IDTOKEN | 正規idToken、再連携409、無効/期限切れlinkTokenの400系。同 [LINMIG-208](docs/work/linmig-campaign-20260919/LINMIG-208.md) | 実 LINE の対象・正規 token 取得経路・後処理・承認 |
 | TODO-V-LINEAR / META-LINEAR-APPLY | ローカル ID・根拠・残件・更新下書きを既存照合文書へまとめる | 接続復旧後の本文/コメント読取で対応 URL を確定。投稿は別承認 |
 | PERF-V-LINEAR | 原因未確定・区間別測定・導入済み観測・受入残の下書き | 直接対応する既存 Issue の読取 |
 | AUTH-V-LINEAR-READ / AUTH-V-LINEAR-WRITE | D1の付与/login/mailを分けた下書き。WRITE は READ の後 | 接続復旧、確定 URL、直前再読取、exact 下書きの承認 |
-| AUTH-V-D1-PREFLIGHT | 環境別経路・既存admin・staff/主所属・schema・監査・復旧の不足表 | 対象環境・実行者・承認参照の確定 |
+| AUTH-V-D1-PREFLIGHT | 環境別経路・既存admin・staff/主所属・schema・監査・復旧の不足表。migrate 適用要否は [LINMIG-209](docs/work/linmig-campaign-20260919/LINMIG-209.md) | 対象環境・実行者・承認参照の確定 |
 | AUTH-V-D1-APPLY | PREFLIGHT→COMMIT→監査receipt→通常loginの確認票 | PREFLIGHT 完了と付与承認。通信断時は再発行せず照合 |
 | AUTH-V-D1-MAIL | 送信/受信/リンク利用/再利用拒否/期限切れ拒否/後処理のケース票 | 通常login成功、宛先・回数・受信担当・送信承認 |
 
@@ -58,6 +58,41 @@ QA/開発が作るケース票の共通列は `ID / case / revision / 環境・f
 | [UAT-Q2-HISTORY-NAV](#uat-q2-history-nav) | 問診抜粋の行から同一ペットのカルテ詳細へ進めることを確認 | ブラウザ未確認。未移行の処置が空でも詳細を開ける |
 | [NOTE2-SWEEP-COVERAGE](bug-2.md#plan-note2-coverage) | 未確認の詳細画面、入院、検査、カルテ・健診の操作を補完 | [全ページ UAT の残範囲](bug-2.md#plan-note2-coverage)。82ページ到達を全 CRUD 完了にしない |
 | [NOTE-STAFF-STARTTIME-RDT](bug.md#plan-note-staff-starttime-rdt) | 通常環境と拡張なし環境を比較し、再現時の発生元を確認 | ユーザー環境の確認待ち。製品起因と断定せず、[元の調査](bug.md#plan-note-staff-starttime-rdt) に結果を対応づけ |
+
+<a id="code-followup-20260921"></a>
+
+### 追加実装に伴う受入（2026-09-21照合）
+
+以下は同じ Issue ID の検証範囲であり、別の開発チケットではない。コード対応済み5件と、部分対応の STAFF / EXCLUSIVE を分ける。各行の実行前に対象 build・端末/環境・合成 fixture・操作者・操作範囲/承認・後処理・証拠保存先を固定する。新たに確認したのはコードとテスト定義の存在までで、テスト実行・配備・実機成功は今回確認していない。
+
+| ID / 現行コード | 残る確認・次の作業 | 現在の状態 / 完了条件 |
+|---|---|---|
+| [UAT-R2-CHART-FIT](todo-issue.md#uat-r2-chart-fit) / [タブ高さ制約](frontend/src/features/medical-records/routes/MedicalRecordFormReadyPanels.tsx#L198) | 1366×625、全9タブ、sidebar両状態、長文/長一覧/ダイアログで必須情報・保存・フォーカス到達を確認。実機Chrome版・CSS領域・100%/既報125%を別記 | コード対応済み・受入 UNKNOWN。対象端末で見切れず操作できる証拠。最新ChromiumだけではWindows 8/旧Chrome受入にならない |
+| [SLACK-OWNER-HEIGHT](todo-issue.md#slack-owner-height) / [検索結果scroll](frontend/src/components/shared/OwnerSearchModal/OwnerSearchModal.tsx#L189) | 飼主検索モーダルの候補多数/0件、検索欄、末尾行、閉じる、キーボード選択とフォーカス復帰を確認 | モーダルのコード対応済み・実機受入 UNKNOWN。元報告が飼主/ペット一覧画面なら、そのsurfaceは別途照合 |
+| [SLACK-VITALS](todo-issue.md#slack-vitals) / [最新測定値の抽出](frontend/src/features/medical-records/lib/visit-vital-chips.ts) | 同一カルテの取得結果のうちrecorded_atが最新の1行だけを表示し、体温/心拍/呼吸/体重の欠損を古い行から補完しない現行動作を確認。測定なし・患者切替・全9タブ・狭い画面、時刻の保存と表示省略も確認 | 表示コード対応済み・臨床受入 UNKNOWN。現行の表示範囲が医院の期待を満たすか確認し、時刻を非表示にしても保存値を失わない。ヘッダーでの新規入力を実装済みとしない |
+| [SLACK-MICROCHIP](todo-issue.md#slack-microchip) / [ヘッダー表示](frontend/src/components/shared/PatientContextHeader/PatientContextHeader.tsx#L151) | 番号有無、長い番号、API再取得、患者切替、1366×625で対象ペットと表示の一致を確認 | コード対応済み・受入 UNKNOWN。空欄/長い値でも操作を隠さず、前患者の番号が残らない証拠 |
+| [SLACK-CAMERA](todo-issue.md#slack-camera) / [撮影入力](frontend/src/features/medical-records/components/ImageGalleryFilter.tsx#L118) | 対象端末の撮影→確認/取消→正しいカルテへ保存→再読込。権限拒否・容量/形式・通信失敗も確認 | 撮影入口コード対応済み・実機受入 UNKNOWN。JPEG/PNG/GIFの撮影入力と、PDFも扱う通常アップロードを分ける。capture属性だけでカメラ起動成功としない |
+| [SLACK-STAFF-SELECT](todo-issue.md#slack-staff-select) / [候補状態の分離](frontend/src/components/shared/ReservationFormModal/filter-staff-candidates.ts#L70) | loading/失敗/候補なし/対象外を分けた表示を確認後、候補がある状態でiPad・元報告のPCの選択/保存/再読込を確認 | 部分対応済み・元症状は UNKNOWN。状態表示の回帰だけで端末固有の選択不能を解消済みにしない |
+| [UAT-R2-EXCLUSIVE-LOCK](todo-issue.md#uat-r2-exclusive-lock) / [異なるkeyの409](backend/internal/billing/accounting_complete_tx.go#L139) | [DB制約の適用確認](todo-operations.md#billing-schema-readiness) 後、異なるkeyの同一カルテ会計・明細重複・古い合計・確定後明細を実DB/2セッションで確認。所見以外のstale更新設計はIssue側で継続 | 9月22日追記: 古い合計/確定後明細/検査重複のmock回帰は追加済み、実並行はUNKNOWN。全受入が揃うまで閉じず、migration自動適用禁止 |
+
+再現した不一致は同じ Issue ID に戻す。元報告の画面・端末や臨床上の期待値が一致しない場合、既存修正の成功から補外せず、未確認ケースと必要な判断を残す。
+
+<a id="ready8-followup-20260922"></a>
+
+### 追加対応8件の残検証・受入（2026-09-22照合）
+
+基準は `cd2feaa14`。以下は既存IDの残条件で、新規課題や追加済み回帰の再作成ではない。実行前の対象build・専用環境/fixture・操作者・操作範囲/承認・後処理・証拠保存先は上の共通条件に従う。unit/mockは実DB永続化・実端末操作・医院の臨床期待の代替にしない。
+
+| ID | 確認できた追加対応 | 残る確認・完了条件 |
+|---|---|---|
+| [UAT-R2-MASTER-PATH](todo-issue.md#uat-r2-master-path) | 複数価格フォームの0/未入力/税区分/新規・更新のrequest/model回帰と会計参照ID分離 | 下流の未カバー合成検証はIssueへ。専用fixtureで全12フォームの新規/編集→API保存→再読込→該当下流/会計をreceipt化。自動連携しない経路は根拠付きN/A、未実行をPASSにしない |
+| [UAT-R2-EXCLUSIVE-LOCK](todo-issue.md#uat-r2-exclusive-lock) | 古い合計・確定後明細・検査由来重複のmock回帰 | 上の [競合検証](#code-followup-20260921) とDB適用ゲートへ。実DB2接続/2ブラウザ、rollback・入力救済・1回分の請求/監査を確認 |
+| [UAT-Q2-TREATMENTS-IMPORT](todo-issue.md#uat-q2-treatments-import) | 旧列→canonical→producer/AE候補の写像票 | まず契約案/合成fixture設計。現行21表に履歴2表はなく、実装前に履歴受入を開始しない。レビュー/実装後に同一契約の件数・帰属・金額・保留理由・参照専用表示を検証 |
+| [SLACK-COMPLAINT](todo-issue.md#slack-complaint) | null hydrate修正と空欄payload/本文保持・記録切替の回帰 | C0の実UI解除は未対応でIssueへ。対象buildで初期空欄・意図的解除・保存失敗・再読込・記録切替を区別し、主訴本文と区分nullのDB保存を確認。mockの空値callbackを解除操作成功にしない |
+| [SLACK-MANUAL-URINE](todo-issue.md#slack-manual-urine) | M1–M3/M5–M8の合成回帰、文字列保持・未判定・手動/機器非上書き | M4カルテ表示のローカル回帰はIssueへ。医院承認の項目/凡例/単位/基準、origin表示の採否、保存→再読込→表示、機器結果との非混在/非上書きは別受入。実データ/実機は承認後 |
+| [SLACK-VACCINE-MULTI](todo-issue.md#slack-vaccine-multi) | 単件POST/失敗通知/同日2〜3件順次POSTのFE・BE回帰 | 元症状の入口・対象版・エラー採取後、単件→順次保存→一覧再読込を実フォーム/DBで確認。実施日・lot・次回予定・会計参照の非混在を照合。batch UX/部分成功はPO裁定、species原因は別ID |
+| [SLACK-PLAN-MANUAL](todo-issue.md#slack-plan-manual) | 検索優先/fallbackの到達性回帰 | 治療タブの手入力案内で閉じるか、プラン表への直接追加かをPO裁定。配信版の保存・再読込・会計関係を確認。回帰追加をプラン手入力UI実装済みにしない |
+| [SLACK-LATENCY](todo-issue.md#slack-latency) | 比較ラベル・revision固定方法の設計 | [性能TODO](todo-performance.md#slack-latency-治療数量の反映待ち) の実端末/回線/行数/IME/FE・API buildを固定し区間別採時。actualは未収録、原因・改善効果はUNKNOWN |
 
 Q1 / Q4保険 / Q2履歴の実装は再開しない。根拠は [医院フィードバック](docs/work/stg-uat-clinic-feedback-q1-q4.md) と、9月15日に読取確認した [PR #411](https://github.com/MinoruSoga/AnimalEkarte/pull/411)（merged）、[Backend Deploy](https://github.com/MinoruSoga/AnimalEkarte/actions/runs/34923018516) / [Frontend Deploy](https://github.com/MinoruSoga/AnimalEkarte/actions/runs/34923018544)（ともに success、`d337f016`）。この配備記録はブラウザ確認や本番反映の代替ではない。
 
@@ -90,11 +125,11 @@ Q1 / Q4保険 / Q2履歴の実装は再開しない。根拠は [医院フィー
 | ID | 状態 | 次の作業・完了条件 |
 |---|---|---|
 | [DEV-V-OWNER-DB](#dev-v-owner-db) | UNKNOWN（追加証拠未照合） | 前回は disposable DB URL 未設定。現在の専用 DB と過去実行証拠を確認し、下記の実DBテストの不足だけを実行 |
-| [TODO-V-S09](#todo-v-s09--qa-uat-s09-fixture) | BLOCKED（fixture・対象環境待ち） | `QA-UAT-S09-FIXTURE` の #2–#6 を専用 fixture で確認。既存の [UAT 状態](docs/ops/testing/UAT-DOMAIN-STATUS.md) と run の対応を記録 |
-| [TODO-V-V04](#todo-v-v04--qa-uat-v04-retest) | UNKNOWN | `QA-UAT-V04-RETEST` と9月13日の master CRUD 証拠を項目単位で対応づけ、削除・後処理・未収録項目を補完 |
-| [TODO-V-CLINICAL-E2E](#todo-v-clinical-e2e--qa-full-clinical-e2e) | BLOCKED（実行条件待ち） | `QA-FULL-CLINICAL-E2E` の承認済み test 環境・identity・fixture と full job 証拠を確保 |
+| [TODO-V-S09](#todo-v-s09--qa-uat-s09-fixture) | BLOCKED（fixture・対象環境待ち）。投入計画は [LINMIG-233](docs/work/linmig-campaign-20260919/LINMIG-233.md) | `QA-UAT-S09-FIXTURE` の #2–#6 を専用 fixture で確認。既存の [UAT 状態](docs/ops/testing/UAT-DOMAIN-STATUS.md) と run の対応を記録 |
+| [TODO-V-V04](#todo-v-v04--qa-uat-v04-retest) | UNKNOWN。close 照合は [LINMIG-231](docs/work/linmig-campaign-20260919/LINMIG-231.md) | `QA-UAT-V04-RETEST` と9月13日の master CRUD 証拠を項目単位で対応づけ、削除・後処理・未収録項目を補完 |
+| [TODO-V-CLINICAL-E2E](#todo-v-clinical-e2e--qa-full-clinical-e2e) | BLOCKED（実行条件待ち）。マトリクスは [SLACK-CLINICAL-UAT](docs/work/remaining-campaign-20260920/SLACK-CLINICAL-UAT.md) | `QA-FULL-CLINICAL-E2E` の承認済み test 環境・identity・fixture と full job 証拠を確保 |
 | [TODO-V-STG-DATA](#todo-v-stg-data) | UNKNOWN（受入の追加証拠未照合） | H0–H3 / Lane 3–4 の対象入力・医院・件数・金額・画面証拠を確認。配備 success でデータ受入を代用しない |
-| [TODO-V-RELEASE](#todo-v-release) | BLOCKED（受入条件未充足） | P1–P8 / E1–E2 の個別 receipt を確認。未解消の臨床安全・会計・分離 FAIL があれば go-live は No-Go |
+| [TODO-V-RELEASE](#todo-v-release) | BLOCKED（受入条件未充足）。HOLD 対応は [LINMIG-228](docs/work/linmig-campaign-20260919/LINMIG-228.md) | P1–P8 / E1–E2 の個別 receipt を確認。未解消の臨床安全・会計・分離 FAIL があれば go-live は No-Go |
 
 OWNER の対象は `TestOwnerRepository_UpdateAndFind_ReloadFailureRollsBackUpdate`、`TestOwnerRepository_Update_ClinicIsolation`、`TestOwnerService_Update_DiscountTOCTOU_*`（LockedDiffWithoutPermission を除く）、`TestOwnerRepository_LockByIDForUpdate_RequiresAmbientTransaction`。既存の unit 完了は再登録しない。共有 DB をテスト用にせず、未実行・SKIP は PASS にしない。
 

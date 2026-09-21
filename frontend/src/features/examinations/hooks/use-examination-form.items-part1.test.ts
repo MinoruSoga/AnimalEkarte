@@ -679,4 +679,120 @@ describe("useExaminationForm — 検査項目テーブル（FE-EXAM-001）", () 
       }),
     );
   });
+
+  // SLACK-MANUAL-URINE synthetic gaps (non-clinical fixture labels only).
+  it("M1: 再オープンでテンプレ行の inspection/unit/reference を復元する（FIXTURE-STRIP）", async () => {
+    const { useGetExamination } = await import("../api/get-examination");
+    const { useGetExaminationItems } = await import("../api/get-examination-items");
+    vi.mocked(useGetExamination).mockReturnValue({
+      data: {
+        id: "exam-urine-manual-1",
+        testTypeId: "77",
+        doctorId: "3",
+        status: "結果入力済み" as const,
+        ownerName: "",
+        petName: "",
+        date: "2026-09-21",
+        machine: "",
+      },
+    } as ReturnType<typeof useGetExamination>);
+    vi.mocked(useGetExaminationItems).mockReturnValue({
+      data: [
+        {
+          id: "501",
+          examTypeFieldId: 901,
+          name: "FIXTURE-STRIP-PAD-A",
+          result: "",
+          inspectionValue: "(+)",
+          normalValue: "FIXTURE-REF-A",
+          unit: "FIXTURE-UNIT-A",
+          referenceValue: "FIXTURE-REF-A",
+          isAssessed: false,
+          isAbnormal: false,
+          status: "normal" as const,
+          sortOrder: 1,
+        },
+      ],
+      isSuccess: true,
+      isError: false,
+    } as ReturnType<typeof useGetExaminationItems>);
+
+    const { result } = renderExaminationForm("exam-urine-manual-1");
+    expect(result.current.formItems).toHaveLength(1);
+    expect(result.current.formItems[0]).toMatchObject({
+      examTypeFieldId: 901,
+      name: "FIXTURE-STRIP-PAD-A",
+      inspectionValue: "(+)",
+      unit: "FIXTURE-UNIT-A",
+      referenceValue: "FIXTURE-REF-A",
+      isAssessed: false,
+    });
+    expect(result.current.formData.machine).toBe("");
+  });
+
+  it("M2/M7: 手動行の再読込は field ID null のまま定性文字列を保持し未判定のまま", async () => {
+    const { useGetExamination } = await import("../api/get-examination");
+    const { useGetExaminationItems } = await import("../api/get-examination-items");
+    vi.mocked(useGetExamination).mockReturnValue({
+      data: {
+        id: "exam-urine-manual-2",
+        testTypeId: "77",
+        doctorId: "3",
+        status: "結果入力済み" as const,
+        ownerName: "",
+        petName: "",
+        date: "2026-09-21",
+        machine: "",
+      },
+    } as ReturnType<typeof useGetExamination>);
+    vi.mocked(useGetExaminationItems).mockReturnValue({
+      data: [
+        {
+          id: "502",
+          examTypeFieldId: undefined,
+          name: "FIXTURE-STRIP-PAD-B",
+          result: "",
+          inspectionValue: "(+)",
+          normalValue: "",
+          unit: "",
+          referenceValue: "",
+          isAssessed: false,
+          isAbnormal: false,
+          status: "normal" as const,
+          sortOrder: 1,
+        },
+        {
+          id: "503",
+          examTypeFieldId: undefined,
+          name: "FIXTURE-STRIP-PAD-C",
+          result: "",
+          inspectionValue: "陰性",
+          normalValue: "",
+          unit: "",
+          referenceValue: "",
+          isAssessed: false,
+          isAbnormal: false,
+          status: "normal" as const,
+          sortOrder: 2,
+        },
+      ],
+      isSuccess: true,
+      isError: false,
+    } as ReturnType<typeof useGetExaminationItems>);
+
+    const { result } = renderExaminationForm("exam-urine-manual-2");
+    expect(result.current.formItems).toHaveLength(2);
+    expect(result.current.formItems[0]).toMatchObject({
+      examTypeFieldId: undefined,
+      name: "FIXTURE-STRIP-PAD-B",
+      inspectionValue: "(+)",
+      isAssessed: false,
+    });
+    expect(result.current.formItems[1]).toMatchObject({
+      examTypeFieldId: undefined,
+      name: "FIXTURE-STRIP-PAD-C",
+      inspectionValue: "陰性",
+      isAssessed: false,
+    });
+  });
 });

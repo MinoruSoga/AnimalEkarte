@@ -44,8 +44,9 @@ export function useApplyMedicalRecord({
   useEffect(() => {
     if (!existingRecord) return;
     if (existingRecord.chiefComplaint) setChiefComplaint(existingRecord.chiefComplaint);
-    if (existingRecord.chiefComplaintTypeId != null && setChiefComplaintTypeId) {
-      setChiefComplaintTypeId(existingRecord.chiefComplaintTypeId);
+    // Always write type (including null): reload/clear/chart-switch must not keep a stale id.
+    if (setChiefComplaintTypeId) {
+      setChiefComplaintTypeId(existingRecord.chiefComplaintTypeId ?? null);
     }
     if (existingRecord.plan) setPlan(existingRecord.plan);
     if (existingRecord.assessment) setAssessment(existingRecord.assessment);
