@@ -522,6 +522,9 @@ jobs:
           FEATURE_PATH: ${{ matrix.feature_path }}
           VITEST_SHARD: ${{ matrix.vitest_shard }}
           COVERAGE_RATCHET: ${{ needs.changes.outputs.coverage_ratchet }}
+          # Coverage on a full shard exceeds Node's default old-space limit
+          # (Radix group updates previously died with heap OOM or the 18m kill).
+          NODE_OPTIONS: "--max-old-space-size=5120"
         run: |
           set +e
           args=(run --reporter=dot --silent=passed-only)
