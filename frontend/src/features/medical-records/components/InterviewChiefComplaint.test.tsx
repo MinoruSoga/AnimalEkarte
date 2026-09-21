@@ -24,43 +24,6 @@ vi.mock("../api/get-chief-complaint-types", () => ({
   }),
 }));
 
-/** Expose empty-value path without depending on SearchableSelect clear UI (C0). */
-vi.mock("@/components/ui/searchable-select", () => ({
-  SearchableSelect: ({
-    id,
-    value,
-    onValueChange,
-    placeholder,
-    disabled,
-  }: {
-    id?: string;
-    value: string;
-    onValueChange: (value: string) => void;
-    placeholder?: string;
-    disabled?: boolean;
-  }) => (
-    <div>
-      <button
-        type="button"
-        id={id}
-        role="combobox"
-        aria-label="主訴区分"
-        disabled={disabled}
-        data-value={value}
-        data-placeholder={placeholder}
-      >
-        {value || placeholder}
-      </button>
-      <button type="button" onClick={() => onValueChange("5")}>
-        select-type-5
-      </button>
-      <button type="button" onClick={() => onValueChange("")}>
-        clear-type
-      </button>
-    </div>
-  ),
-}));
-
 describe("InterviewChiefComplaint chief_complaint_type unset/clear", () => {
   beforeEach(() => {
     mockUsePermission.mockReturnValue({
@@ -71,7 +34,9 @@ describe("InterviewChiefComplaint chief_complaint_type unset/clear", () => {
     });
   });
 
-  it("N unset: null type renders empty select value and keeps detail editable without required", () => {
+  it("N unset: null type shows placeholder, no clear affordance, detail stays editable", async () => {
+    const user = userEvent.setup();
+
     render(
       <InterviewChiefComplaint
         chiefComplaint="食欲低下"
@@ -84,13 +49,16 @@ describe("InterviewChiefComplaint chief_complaint_type unset/clear", () => {
     );
 
     const typeSelect = screen.getByRole("combobox", { name: "主訴区分" });
-    expect(typeSelect).toHaveAttribute("data-value", "");
+    expect(typeSelect).toHaveTextContent("選択してください");
     expect(typeSelect).not.toBeRequired();
     expect(screen.getByLabelText("主訴詳細")).toHaveValue("食欲低下");
     expect(screen.getByLabelText("主訴詳細")).not.toBeDisabled();
+
+    await user.click(typeSelect);
+    expect(screen.queryByRole("option", { name: "選択をクリア" })).not.toBeInTheDocument();
   });
 
-  it("C intentional clear receive path: empty onValueChange maps to null setter", async () => {
+  it("C intentional clear: real clear affordance emits empty and maps to null setter", async () => {
     const user = userEvent.setup();
     const setChiefComplaintTypeId = vi.fn();
 
@@ -105,8 +73,34 @@ describe("InterviewChiefComplaint chief_complaint_type unset/clear", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "clear-type" }));
+    const typeSelect = screen.getByRole("combobox", { name: "主訴区分" });
+    expect(typeSelect).toHaveTextContent("消化器");
+
+    await user.click(typeSelect);
+    await user.click(screen.getByRole("option", { name: "選択をクリア" }));
     expect(setChiefComplaintTypeId).toHaveBeenCalledWith(null);
+  });
+
+  it("reload hydrate null: parent-driven null shows empty without clear click", () => {
+    const setChiefComplaintTypeId = vi.fn();
+    const props = {
+      chiefComplaint: "食欲低下",
+      setChiefComplaint: vi.fn(),
+      setChiefComplaintTypeId,
+      templates: [] as { label: string; text: string }[],
+      onInsertTemplate: vi.fn(),
+    };
+
+    const { rerender } = render(
+      <InterviewChiefComplaint {...props} chiefComplaintTypeId={5} />,
+    );
+    expect(screen.getByRole("combobox", { name: "主訴区分" })).toHaveTextContent("消化器");
+
+    rerender(<InterviewChiefComplaint {...props} chiefComplaintTypeId={null} />);
+    expect(screen.getByRole("combobox", { name: "主訴区分" })).toHaveTextContent(
+      "選択してください",
+    );
+    expect(setChiefComplaintTypeId).not.toHaveBeenCalled();
   });
 
   it("selecting a type maps string id to number setter", async () => {
@@ -124,7 +118,8 @@ describe("InterviewChiefComplaint chief_complaint_type unset/clear", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "select-type-5" }));
+    await user.click(screen.getByRole("combobox", { name: "主訴区分" }));
+    await user.click(screen.getByRole("option", { name: "消化器" }));
     expect(setChiefComplaintTypeId).toHaveBeenCalledWith(5);
   });
 });

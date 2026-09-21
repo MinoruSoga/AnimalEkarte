@@ -1,6 +1,6 @@
 # タスク台帳 — 入口
 
-最終照合: 2026-09-21（JST）。照合したローカル HEAD は `4781e9434`（remaining-ops 準備票の統合）。remote・CI・配備・Linear の現在状態は再照会していない。投稿・状態変更は未実施。**未完了の作業だけを掲載する。** 完了の詳細はGit履歴と元のUAT記録を参照する。ローカル準備票の作成完了を、実装・STG読取・医院受入・本番実行の完了にしない。
+最終照合: 2026-09-22（JST）。ローカル HEAD `cd2feaa14` の追加対応8件を照合し、関連する残作業を同期した。その他の判定は9月21日の照合を保持。remote・CI・配備・Linear の現在状態は再照会していない。投稿・状態変更は未実施。**未完了の作業だけを掲載する。** 完了の詳細はGit履歴と元のUAT記録を参照する。ローカル準備・修正・回帰追加を、課題全体・STG読取・医院受入・本番実行の完了にしない。
 
 ## 着手プランの確認
 
@@ -16,14 +16,16 @@
 
 担当欄の「開発・QA・運用・PO・医院・producer」は必要な役割で、個人への割当や承認取得を表さない。実行担当は claim 取得時、要件責任者・受入者は実装/受入前に記録する。通常のローカル調査・文書下書きに追加承認は不要。
 
-### ローカル準備票の配置（2026-09-21）
+<a id="ローカル準備票の配置2026-09-21"></a>
 
-リンク先の調査/設計票は作成済み。一部コード対応も進んだが、実機受入・DB適用・配備などの現在の実行証拠は今回照合していない。[Issue の5エリア](todo-issue.md#open) は、調査継続8件 / PO判断待ち8件 / 証拠・環境待ち15件 / 保留3件 / コード対応済み・受入待ち5件。別掲の解決済み7トピックは再登録しない。
+### ローカル準備票の配置（2026-09-22）
+
+リンク先の調査/設計票は作成済み。一部コード対応も進んだが、実機受入・DB適用・配備などの現在の実行証拠は今回照合していない。[Issue の5エリア](todo-issue.md#open) は、ローカル調査・検証・設計継続5件 / PO判断待ち9件 / 証拠・環境待ち17件 / 保留3件 / コード対応済み・受入待ち5件。別掲の解決済み7トピックは再登録しない。
 
 | 配置 | 対象 | 備考 |
 |---|---|---|
 | [todo-campaign-20260918/](docs/work/todo-campaign-20260918/) | UAT-R2 3件、Q2/Q4 集計、処置移行、死亡日訂正、Linear照合 | 2026-09-19 キャンペーン |
-| [todo-campaign-20260919-ready17/](docs/work/todo-campaign-20260919-ready17/) | Slack READY 13件の設計票 | `873685b0b` / `06cf170ad` のコード差分を現行 HEAD で照合。対応済み5件は受入へ、金額全経路・会計競合は残ケースへ |
+| [todo-campaign-20260919-ready17/](docs/work/todo-campaign-20260919-ready17/) | Slack READY 13件の設計票（作成時の名称） | `cd2feaa14` で主訴null hydrate修正、尿検査/接種/プラン導線回帰、遅延条件を追加。現在の開始区分はIssueの5エリアを参照 |
 | [linmig-campaign-20260919/](docs/work/linmig-campaign-20260919/) | P1–P5/P8、検査機器、実LINE、migrate、件数、フォント、締め時間、bundle | 実行条件は [運用](todo-operations.md) / [検証](todo-verification.md) |
 | [remaining-campaign-20260920/](docs/work/remaining-campaign-20260920/) | P6/P7 と PO/evidence の Slack 14件（計16票） | 判断材料・ケース票。PO裁定と実機/STGの現在の結果は UNKNOWN |
 
@@ -31,12 +33,16 @@
 
 | 順 / ID | 最初に行う作業 | この単位の完了条件 / 後続 |
 |---|---|---|
-| 1 / UAT-R2-MASTER-PATH | [全経路票](docs/work/todo-campaign-20260918/UAT-R2-MASTER-PATH.md) の11単価＋1割引フォームに、追加済みの治療計画マスタ価格0・税区分のrequest回帰を対応づける | 全フォームの新規/編集→再読込→利用/会計は未充足。未カバーケースを専用fixtureで検証し、再現した金額不一致を修正 |
+| 1 / UAT-R2-MASTER-PATH | [全経路票](docs/work/todo-campaign-20260918/UAT-R2-MASTER-PATH.md) の複数マスタrequest/model回帰は追加済み。次はexam_types配線・予防分類・入院参照の下流を合成ケースへ | 全12フォームの新規/編集→再読込→利用/会計は未実証。専用fixtureで未カバー箇所を検証し、再現した金額不一致だけ修正 |
 | 2 / UAT-R2-CHART-FIT | 高さ制約・タブ内scrollのコード対応済み。[受入キュー](todo-verification.md#uat-followup) で1366×625、全9タブ、sidebar両状態の残ケースを確認 | 必須情報/保存/フォーカスに到達できる対象buildの証拠。Windows 8/Chrome実機の版・CSS領域・100%/既報125%はQAが採取し、最新Chromiumと分ける |
-| 3 / UAT-R2-EXCLUSIVE-LOCK | 異なるkeyの二重会計409・治療明細の一意制約/409は部分対応済み。[競合票](docs/work/todo-campaign-20260918/UAT-R2-EXCLUSIVE-LOCK.md) の残ケースへ対応づける | [DB適用確認](todo-operations.md#billing-schema-readiness) 後の実DB並行・2セッション、古い合計/後追い明細・所見以外のstale更新を検証。全面ロックは未採用 |
-| 4 / UAT-Q2-TREATMENTS-IMPORT | [全期間移行票](docs/work/todo-campaign-20260918/UAT-Q2-TREATMENTS-IMPORT.md) の旧列→producer→AE→表示を両repoで埋める | マスタ/全種類/全期間の履歴、参照・精度・重複・欠損・復旧を契約化。レビュー後に実装、実データ投入は別承認 |
+| 3 / UAT-R2-EXCLUSIVE-LOCK | 二重会計409・明細一意制約と、古い合計/確定後明細/検査重複のmock回帰は追加済み。次は [競合票](docs/work/todo-campaign-20260918/UAT-R2-EXCLUSIVE-LOCK.md) の所見以外stale更新API・不足防御を設計 | 実DB/2セッションは [DB適用証拠](todo-operations.md#billing-schema-readiness) と専用環境待ち。古い合計/後追い明細の実並行も未確認。全面ロックは未採用 |
+| 4 / UAT-Q2-TREATMENTS-IMPORT | [全期間移行票](docs/work/todo-campaign-20260918/UAT-Q2-TREATMENTS-IMPORT.md) の列写像は調査済み。未確定FK/分類/日時/用量/価格等を契約案・合成fixture設計へ | 現行21表にはtreatments/prescriptionsなし。全種類・全期間の履歴契約を両repoでレビュー後に実装。実データ投入は別承認 |
 
 上記は4件の現在の次工程。既存の設計票や対応済みコードを作り直さず、依存しない調査は別worktreeで並行可。実装時に同じカルテ/会計ファイルへ触れる単位は直列化する。対象の全列挙・実機値の計測・元列の特定は担当者の作業であり、同じ内容を依頼者へ聞き直さない。個人名を伴う要件/受入担当の参照は製品仕様変更前に実行票へ記録する。
+
+### 追加対応8件の残作業（2026-09-22）
+
+上のMASTER / EXCLUSIVE / IMPORTに加え、[尿検査M4](todo-issue.md#slack-manual-urine) のカルテ表示回帰と [主訴C0](todo-issue.md#slack-complaint) の実UI解除導線はローカル作業を継続できる。主訴のnull再読込修正・追加済み回帰は再実装しない。[プラン手入力](todo-issue.md#slack-plan-manual) は案内/導線採否のPO待ちへ、[ワクチン複数入力](todo-issue.md#slack-vaccine-multi) と [遅延](todo-issue.md#slack-latency) は元症状・実機/実測の証拠待ちへ移した。受入の残条件は [検証TODO](todo-verification.md#ready8-followup-20260922)。今回のコード差分は主訴修正、その他は回帰追加/調査票の具体化であり、8課題全体が完了したという意味ではない。
 
 ### その他の残件を開始する順序
 
@@ -80,12 +86,12 @@
 
 | ID | 内容 | 状態 |
 |---|---|---|
-| [UAT-R2-MASTER-PATH](todo-issue.md#uat-r2-master-path) | 金額を持つ全マスタの保存・再読込・下流経路を検証 | request回帰の一部追加済み／全経路の検証継続 |
-| [UAT-R2-EXCLUSIVE-LOCK](todo-issue.md#uat-r2-exclusive-lock) | カルテ上書きと二重会計の両方を防止 | 会計側の部分防御追加済み／残ケース継続、DB適用・実並行は未確認 |
+| [UAT-R2-MASTER-PATH](todo-issue.md#uat-r2-master-path) | 金額を持つ全マスタの保存・再読込・下流経路を検証 | 価格request/model回帰拡充済み／下流配線・全経路の検証継続 |
+| [UAT-R2-EXCLUSIVE-LOCK](todo-issue.md#uat-r2-exclusive-lock) | カルテ上書きと二重会計の両方を防止 | 会計防御/追加mock回帰あり／所見以外stale設計、DB適用・実並行は残る |
 | [UAT-Q3-GENDER-MAP](todo-issue.md#uat-q3-gender-map) | コード3/4修正はold_db main統合済み。bundle・DB/STG証拠を照合 | 未完了（bundle・運用） |
 | [UAT-Q2-VACCINE-SPECIES](todo-issue.md#uat-q2-vaccine-species) | 猫に犬用ワクチン（Proheart・6種等）。件数調査のあと種を付ける | 集計設計票作成済／STG 調査待ち |
 | [UAT-Q4-UNPAID-TRIAGE](todo-issue.md#uat-q4-unpaid-triage) | 未納はデモではない。実未納と突合漏れを集計で切る。一括完了しない | 集計設計票作成済／STG 調査待ち |
-| [UAT-Q2-TREATMENTS-IMPORT](todo-issue.md#uat-q2-treatments-import) | 処置マスタと患者ごとの全種類・全期間の履歴を移行 | 契約設計READY、実投入は別承認 |
+| [UAT-Q2-TREATMENTS-IMPORT](todo-issue.md#uat-q2-treatments-import) | 処置マスタと患者ごとの全種類・全期間の履歴を移行 | 列写像調査済み／履歴契約案・fixture設計READY、実装/投入は未実施 |
 
 既存のsource調査と追加回答を各IDへ反映した。READYの範囲と、実行環境・外部承認待ちを分離する。`TASK-444` / `BE-RC-009` / `BE-RC-017` の既存完了は維持する。
 

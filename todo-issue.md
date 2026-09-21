@@ -2,7 +2,7 @@
 
 # Issue 台帳（着手区分別・repo 正本）
 
-最終照合: 2026-09-21。新規の実装・調査・PO 課題を管理する。完了した実装・仕様どおりの報告・回答済みの操作案内は 未対応エリアに戻さず、[Slack 出典対応表](#slack-source-map) に処理区分を残す。検証は [todo-verification.md](todo-verification.md)、外部実行は [todo-operations.md](todo-operations.md) を正本とする。PO/evidence のローカル判断材料は [remaining-campaign-20260920](docs/work/remaining-campaign-20260920/) に作成済み。PO裁定・実機/STGの新しい結果は今回未照合（UNKNOWN）。
+最終照合: 2026-09-22（ローカル HEAD `cd2feaa14` の追加対応8件。他31件の判定は9月21日照合を保持）。新規の実装・調査・PO 課題を管理する。完了した実装・仕様どおりの報告・回答済みの操作案内は 未対応エリアに戻さず、[Slack 出典対応表](#slack-source-map) に処理区分を残す。検証は [todo-verification.md](todo-verification.md)、外部実行は [todo-operations.md](todo-operations.md) を正本とする。PO/evidence のローカル判断材料は [remaining-campaign-20260920](docs/work/remaining-campaign-20260920/) に作成済み。PO裁定・実機/STGの新しい結果は今回未照合（UNKNOWN）。
 
 既存 Linear は [BRT-4](https://linear.app/baritechllc/issue/BRT-4) 配下を更新する。新規 Issue を作らない方針を維持し、外部投稿は別途承認後。以下の新規 ID に専用 Linear Issue は今回割り当てていない。
 
@@ -18,15 +18,15 @@
 
 | エリア | 件数 | 読み方 |
 |---|---|---|
-| [1. 今すぐ調査・設計に着手できる](#area-ready) | 8課題 | 調査済み票を使い、残る調査・合成検証・実装差分へ進む |
-| [2. PO判断待ち](#area-po) | 8課題 | 比較/判断材料は作成済み。未裁定仕様の実装は停止 |
-| [3. 資料・環境・実機確認待ち](#area-evidence) | 15課題 | 準備済み範囲と、資料・環境・承認・実機の待ちを区別 |
+| [1. 今すぐ調査・設計に着手できる](#area-ready) | 5課題 | 追加済みの修正/回帰を除き、残るローカル調査・合成検証・設計へ進む |
+| [2. PO判断待ち](#area-po) | 9課題 | PLAN-MANUALを移管。未裁定仕様の実装は停止 |
+| [3. 資料・環境・実機確認待ち](#area-evidence) | 17課題 | LATENCY/VACCINE-MULTIを移管。準備と実機受入を区別 |
 | [4. 納品後対応・別スコープ待ち](#area-deferred) | 3課題 | 納品後2件と、納品に依存しない別スコープ1件を区別 |
 | [5. 回答済み・実装済み（受入確認は別管理）](#area-resolved) | 5課題＋既存7トピック | コード対応した範囲を保持。課題全体・医院受入の完了とは扱わない |
 
-課題本文は計39件（既存9件＋Slack個別プラン30件）で増減なし。今回5件の本文をエリア5へ移し、残る34件はエリア1〜4に置いた。既存の回答済み・実装済み7トピックは参照のまま保持する。45トピックとの対応は [トピック別の処理先](#トピック別の処理先) を参照。
+課題本文は計39件（既存9件＋Slack個別プラン30件）で増減なし。エリア5の5件と、エリア1〜4の34件を維持。今回、エリア1からPLAN-MANUALをエリア2へ、LATENCY/VACCINE-MULTIをエリア3へ移した。既存の回答済み・実装済み7トピックは参照のまま保持する。45トピックとの対応は [トピック別の処理先](#トピック別の処理先) を参照。
 
-着手プラン照合: 2026-09-21（範囲の確定回答は9月19日のまま）。依頼者の追加回答を反映し、4件の「医院に範囲を聞く」待ちを解除した。READY は明記した調査・設計単位の開始可否であり、実環境操作や実装完了ではない。治療 Enter と検索一覧高さは [実機受入](todo-verification.md#uat-followup) が残る。
+着手プラン照合: 2026-09-22（追加対応8件。範囲の確定回答は9月19日のまま）。依頼者の追加回答を反映し、4件の「医院に範囲を聞く」待ちを解除した。READY は明記した調査・設計単位の開始可否であり、実環境操作や実装完了ではない。治療 Enter と検索一覧高さは [実機受入](todo-verification.md#uat-followup) が残る。
 
 対象は Vault 相対パス `50_Projects/顧客案件/ノア動物病院電子カルテ/会話ログ/Slack_電子カルテ開発_曽我/2026-08-20以降_不具合等Slack全文.md`（SHA-256 `9d54ab0d7c4432dade86fcb75c82fef55cbe91243745fbe594dc4b543a286e03`）。収録実期間は8月29日〜9月17日、50親投稿＋82返信＝132出現、重複を除く130メッセージ。以下の `source` は同ファイルの行と親 timestamp を指し、返信も対象にする。添付は名称・存在のみを確認しており、画像・PDFの中身は UNKNOWN。個人・患者データ、認証情報、外部シートのURL/本文は転記しない。
 
@@ -34,9 +34,11 @@
 
 本節は依頼されたローカル課題整理であり、外部 Q&A シートの複製ではない。今回の登録先は本書のみ。Plane/Linear/Backlogへの書込みは実施していない。外部チケットの現行状態は今回の文書判定に用いない。
 
-### 今回のコード照合範囲（2026-09-21）
+<a id="今回のコード照合範囲2026-09-21"></a>
 
-基準はローカルHEAD `4781e9434`。実装 `873685b0b`、会計競合/単体テスト追加 `06cf170ad`、設計/受入準備票 `7f412b871` / `4781e9434` と現行ソース・テスト定義を照合した。着手済みの調査・実装を「未着手」に戻さず、各本文の「対応状況」と「次の作業」を現在の正本とする。リンク先の設計票に残る「実装未実施」等は作成時の記録であり、本書の9月21日照合を優先する。
+### 今回のコード照合範囲（2026-09-22）
+
+基準はローカルHEAD `cd2feaa14`。前回の `4781e9434` / 文書更新 `37cc028b7` 以降に統合された追加対応8件について、現行コード・テスト定義・更新済み調査票を照合した。主訴null hydrateの修正、価格/競合/尿検査/接種/プラン導線の回帰テスト、処置移行の列写像、遅延計測条件の具体化を反映。各調査票のローカル単位の COMPLETE / GREEN は、その範囲の記録であり課題全体の完了ではない。今回対象外31件の状態・外部証拠は再判定していない。リンク先の古い作成時状態より、各本文の最新照合日と残件を優先する。
 
 今回は文書更新のみ。テストファイルの存在は確認したが、Dockerテスト・ブラウザ・実機・STG/PROD・migration・外部チケット更新は実行していない。テスト追加を今回のPASS、コード実装を医院受入/配備成功とは扱わない。
 
@@ -46,37 +48,39 @@
 
 ## 1. 今すぐ調査・設計に着手できる
 
-既存の設計票を作り直さず、各本文に残る調査・合成ケース・計測・最小実装差分から始めます。一部コード対応済みの課題も、ID全体の残件があるためここに置きます。共有環境・実データ実行の許可を意味しません。
+既存の設計票・追加済み回帰を作り直さず、未カバーのローカル検証・設計だけを開始します。残る5件は、MASTERの下流配線、EXCLUSIVEの所見以外の古い更新、全期間処置移行契約、尿検査M4のカルテ表示、主訴の実UI解除導線です。各ID内のDB/実機/医院判断待ちは別ゲートとして残します。前の作業単位の対象外だったことだけを、新しい環境・承認待ちとは扱いません。共有環境・実データ実行の許可を意味しません。
 
 既存課題の担当・成果物・開始条件:
 
 | ID | 状態・次の一手 | 担当・ローカル成果物 | 本体の開始条件 |
 |---|---|---|---|
-| [UAT-R2-MASTER-PATH](#uat-r2-master-path) | 一部単体テスト追加済み・全経路検証待ち / 金額を持つ全マスタ登録ページを列挙し、新規/編集→再読込→利用→会計を検証。発生ページの回答を待たない | 開発/QA: [全経路票](docs/work/todo-campaign-20260918/UAT-R2-MASTER-PATH.md) を現行route/formへ対応づけ、未カバー経路の失敗テストを用意 | 実行は候補mount・専用fixture・後処理を固定。修正は再現した不一致に限定 |
-| [UAT-R2-EXCLUSIVE-LOCK](#uat-r2-exclusive-lock) | 一部競合防御/回帰追加済み・残ケース継続 / カルテ上書きと二重会計の両方を防ぐ。2セッションと再送のケースを既存防御/テストに対応づける | 開発: [競合ケース](docs/work/todo-campaign-20260918/UAT-R2-EXCLUSIVE-LOCK.md) の既存テスト・未カバー箇所と最小修正案 | 2セッションの専用環境。全面占有ロックは採用せず、サーバー側の競合拒否・重複防止を優先 |
-| [UAT-Q2-TREATMENTS-IMPORT](#uat-q2-treatments-import) | READY（全期間の移行契約設計） / 処置マスタ・患者ごとの処置履歴を全種類・全期間対象として旧列→producer→AE→履歴表示を対応づける | 両 repo 担当: [契約差分票](docs/work/todo-campaign-20260918/UAT-Q2-TREATMENTS-IMPORT.md) の旧列・FK・重複キー・精度・参照専用表示を具体化 | 全種類・全期間の設計開始可。原本不明列を推定しない。契約変更・実データ投入は別レビュー/承認 |
+| [UAT-R2-MASTER-PATH](#uat-r2-master-path) | 複数マスタのrequest/model回帰追加済み / exam_types・予防カテゴリ・入院参照の下流配線を合成ケースへ | 開発/QA: [全経路票](docs/work/todo-campaign-20260918/UAT-R2-MASTER-PATH.md) の未カバー欄とfixture・期待値 | 12フォーム全経路の実行は候補mount・専用fixture・後処理を固定。修正は再現した不一致に限定 |
+| [UAT-R2-EXCLUSIVE-LOCK](#uat-r2-exclusive-lock) | 古い合計/後追い明細等のmock回帰追加済み / 所見以外のstale更新APIと不足防御を設計 | 開発: [競合票](docs/work/todo-campaign-20260918/UAT-R2-EXCLUSIVE-LOCK.md) のAPI・現在の防御・不足ケースの対応 | 実DB/2セッションはDB適用証拠と専用環境が必要。全面占有ロックは未採用 |
+| [UAT-Q2-TREATMENTS-IMPORT](#uat-q2-treatments-import) | 列写像調査済み / 全種類・全期間の履歴契約案と合成fixture設計へ | 両repo担当: [契約差分票](docs/work/todo-campaign-20260918/UAT-Q2-TREATMENTS-IMPORT.md) の未確定FK/分類/日時/精度と保留規則 | 原本不明列を推定しない。21表契約変更・実装はレビュー後、実データ投入は別承認 |
 
 ### UAT-R2-MASTER-PATH
 
-- **対応状況（2026-09-21）:** **一部テスト追加済み・全12経路の検証は継続。** `06cf170ad` で [診察マスタのprice=0/tax_type送信テスト](frontend/src/features/master/routes/treatment-plan-master-model.test.ts#L24) が追加された。全経路票と現在のフォームを照合済みだが、この単体ケースだけでは新規/編集→再読込→利用→会計の全経路完了にならない。
+- **対応状況（2026-09-22）:** **価格request/model回帰を拡充済み・全12経路の実証は残る。** `cd2feaa14` で [診療項目](frontend/src/features/master/routes/treatment-plan-master-model.test.ts)、商品・入院・ケージ・トリミング・キャンペーンの各modelテストと [会計参照IDの分離](frontend/src/features/accounting/hooks/create-accounting-items.test.ts) を追加した。0/未入力/税区分/新規・更新の差を固定した範囲であり、実DB保存や全フォームの再読込・下流・会計までのPASSではない。[全経路票](docs/work/todo-campaign-20260918/UAT-R2-MASTER-PATH.md) のactualは未実行のまま。
 - **Slack 追加根拠:** `1789453043.269699` の9月16日返信は「治療プランから入力したマスタの金額」、`1789540156.256659` はマスタがない場合と0円の質問。[MedicalRecordDiagnosisPlan](frontend/src/features/medical-records/components/MedicalRecordDiagnosisPlan.tsx#L13-L19) は `treatments` API を使い、[手入力とマスタ単価設定](frontend/src/features/medical-records/components/MedicalRecordDiagnosisPlan.tsx#L135-L162) がある。同名の backend `treatment_plans` をこの画面の保存先とみなさない。[request](backend/internal/medicalrecord/treatment_request.go#L7-L25) は price を受け、[service](backend/internal/medicalrecord/treatment_service.go#L172-L180) は0以上を許容し、[未請求明細](backend/internal/billing/billing_item_unbilled.go#L124-L142) は治療を扱う。原因は未確定。該当タブでも選択→request→保存→再読込→未請求→確定会計を追い、0円・欠損・未保存を分離する。マスタなしは既存手入力の運用案内を検証し、0円がデモだからとは断定しない。
 - **開始範囲確定（9月19日）:** 医院での元の操作は未特定だが、依頼者が「可能性のあるページをすべて検証」と指定したため再現調査を開始する。対象は [全経路票](docs/work/todo-campaign-20260918/UAT-R2-MASTER-PATH.md) の価格持ち12フォーム群と下流画面。1件再現しても残りを未検証のまま閉じない。
 - **source 調査済み（9月17日）:** 商品は [ItemListCard](frontend/src/features/accounting/components/ItemListCard.tsx) → `useGetAllMerchandiseItems` → [useAccountingItemActions](frontend/src/features/accounting/hooks/use-accounting-item-actions.ts) → [createBillingItem](frontend/src/features/accounting/api/create-billing-item.ts) で手動請求へ入る。診察・処置・薬剤は [useTreatmentMaster](frontend/src/hooks/use-treatment-master.ts) → [useTreatmentsTab](frontend/src/features/medical-records/hooks/use-treatments-tab.ts) → [治療 API](frontend/src/features/medical-records/api/treatments.ts) → [確定カルテの未請求治療](backend/internal/medicalrecord/treatment_repository.go) → [請求連携](backend/internal/billing/billing_item_unbilled.go) を通る。商品・治療単価は負数を拒否し0を許容する。`isUnbillableMasterPrice` の null/非有限/負数判定は [請求チェックの検査・ワクチン候補](frontend/src/features/medical-records/lib/medical-record-bill-check-model.ts) の扱いで、全治療 DTO の単価を nullable とする根拠にはしない。
+- **次のローカル作業:** [全経路票](docs/work/todo-campaign-20260918/UAT-R2-MASTER-PATH.md) の未検証欄から、TreatmentSearchDialogのexam_types未配線、予防選択→other分類、CarePlanRefSelectの価格転記について現在の入出力と合成期待値を対応づける。未配線/分類を直ちにバグと断定せず、下流で実際に金額が失われるケースを特定する。全12フォームを再列挙したり、追加済みのrequest/modelテストを作り直したりしない。
 - **手順:** フォームごとに新規・編集、保存 request → API応答 → キャッシュに頼らない再読込 → 適用先の金額を追う。診療項目5タブ、薬剤、商品、入院プラン、ケージ、トリミング2種の単価とキャンペーン割引額を区別し、該当するカルテ/検査/接種/入院/トリミング→会計へ照合する。会計に自動連携しない仕様は根拠付きN/Aにし、保存漏れと経路の違いを分ける。
 - **成果物・完了条件:** 全対象の新規/編集/再読込/下流結果がPASSまたは根拠付きN/Aで、金額不一致が解消した経路別receipt。FAILは再現テスト→最小修正→Docker scoped検証。環境不足はBLOCKED、未実行は未実行と残す。全マスタを会計選択に混在させない。[元報告](docs/work/stg-uat-clinic-feedback-q1-q4.md#uat-r2-master-path)。
 
 ### UAT-R2-EXCLUSIVE-LOCK
 
-- **対応状況（2026-09-21）:** **会計側の競合防御を一部実装済み・課題全体は継続。** `873685b0b` で [異なる再送キー/同一カルテの競合変換](backend/internal/billing/accounting_complete_tx.go#L147) と [mock回帰](backend/internal/billing/accounting_complete_test.go#L555)、治療明細の [生涯一意index](backend/migrations/004_billing_items_treatment_lifetime_unique.sql) が追加された。`06cf170ad` では [明細重複の競合変換](backend/internal/billing/billing_item_service_create.go#L189) と [治療明細テスト](backend/internal/billing/billing_item_treatment_test.go) を追加。indexの対象DB適用・実DBの並行実行・古い合計/後追い明細・所見以外のstale更新は今回未確認。追加済み防御を未実装に戻さず、残るケースを検証する。migrationは自動適用しない。
+- **対応状況（2026-09-22）:** **既存の会計競合防御に回帰を追加済み・所見以外の更新と実並行は残る。** `873685b0b` / `06cf170ad` の [異なるkey/同一カルテの409](backend/internal/billing/accounting_complete_tx.go#L147)、[明細重複の409](backend/internal/billing/billing_item_service_create.go#L189)、[治療明細の生涯一意index](backend/migrations/004_billing_items_treatment_lifetime_unique.sql) は維持。`cd2feaa14` では [古い画面合計の拒否](backend/internal/billing/accounting_complete_test.go#L483)、[確定後の遅延明細・検査由来重複の拒否](backend/internal/billing/billing_item_treatment_test.go#L74) をmock回帰へ追加した。[別key同一カルテの既存回帰](backend/internal/billing/accounting_complete_test.go#L588) もある。004の対象DB適用・実DB/2ブラウザ並行の新しい証拠はUNKNOWN。テスト追加を全APIのstale防御や実並行成功とは扱わず、migrationは自動適用しない。
 - **Slack 追加根拠:** `1789453043.269699` の9月16日返信に「別端末で会計待ち→診察中へ戻し、会計後に追加マスタが反映されない」「問い合わせ用に入れた明細の消し忘れ」がある。[会計確認](backend/internal/billing/billing_confirmation_service.go) と受付・カルテの状態遷移、会計確定が読む明細集合を時系列にし、会計を開く→別端末で戻す→追加→確定の再現を既存2セッション票へ追加する。閲覧だけで全面占有する設計は未採用。問い合わせ用の価格確認を請求行へ書かずに済ませる導線も調査し、PO と編集可能状態・確定時の不一致通知・再確認の責任を決める。完了は後追い明細の黙った脱落、二重請求、照会目的の混入が防げる証拠。画面ロックや確認ダイアログ単独を安全性の根拠にしない。
 - **範囲確定（9月19日）:** 防ぐのは「カルテの上書き」と「二重会計」の両方。画面占有は手段として未採用。未保存離脱の既存防御を維持しつつ、[2セッションのケース票](docs/work/todo-campaign-20260918/UAT-R2-EXCLUSIVE-LOCK.md) から不足箇所を特定する。
 - **source 調査済み（9月17日）:** [カルテ保存](frontend/src/features/medical-records/hooks/use-medical-record-save-action.ts) の loaded version → [clinical_plan](backend/internal/medicalrecord/clinical_plan_repository.go) の `expectedVersion` 比較は古い保存を拒否する。[会計](backend/internal/billing/accounting_repository.go) と [明細](backend/internal/billing/billing_item_repository.go) の `FOR UPDATE` は取引内の更新を直列化する。[ReadyPanels](frontend/src/features/medical-records/routes/MedicalRecordFormReadyPanels.tsx) の dirty 状態 → [NavigationBlocker](frontend/src/components/shared/NavigationBlocker/NavigationBlocker.tsx) と [beforeunload](frontend/src/hooks/use-unsaved-changes.ts) は未保存離脱の警告。いずれも、他端末が画面を開くことを禁止する占有ロックではない。
+- **次のローカル作業:** 所見以外の治療/バイタル/処方/接種更新について、version入力・状態検証・競合通知の有無をAPIごとに対応づけ、古い更新で失う内容と不足回帰を設計する。追加済みの合計/重複/遅延明細mock回帰は再作成しない。新たな更新契約の実装は対象・入力救済・互換性をレビュー後に限定する。DB/2セッションの実行は [適用証拠](todo-operations.md#billing-schema-readiness) と専用環境待ち。
 - **手順:** 所見以外の更新APIも含め、古い保存、確定と編集の競合、同一キーの再送、別端末の異なるキーによる同一会計/同一未請求項目の確定、取消/通信断後の再試行を対応づける。[complete](backend/internal/billing/accounting_complete.go) の冪等性は同一キーの再送対策であり、異なるキーの二重処理まで防ぐ証拠にしない。まず既存テストの未カバー箇所をREDにし、不足した状態検証・排他・重複防止だけを修正する。
 - **成果物・完了条件:** 勝者の保存内容保持、敗者への競合通知と入力救済/再読込手順、1回分だけの請求/支払/業務監査、失敗時rollback、医院分離を2セッションで確認したreceipt。別患者の別業務を不当に止めない。全面ロックを必要と判断した場合だけ別途占有範囲・期限・解放条件を裁定する。[背景](docs/work/stg-uat-clinic-feedback-q1-q4.md#uat-r2-exclusive-lock)。
 
 ### UAT-Q2-TREATMENTS-IMPORT
 
-- **対応状況（2026-09-21）:** **契約差分の設計票あり・処置履歴取込は未対応。** 現行 [21表契約](backend/internal/csvimport/cutover_contract.go#L201) に `procedures` / `billing_items` はあるが、`treatments` / `prescriptions` はない。元表/列・FK・精度・重複キー・参照専用表示の具体化が残る。今回の会計provenance index追加を履歴移行と数えない。
+- **対応状況（2026-09-22）:** **旧列→canonical→producer/AE候補の写像調査済み・履歴取込は未実装。** `cd2feaa14` で [契約差分票](docs/work/todo-campaign-20260918/UAT-Q2-TREATMENTS-IMPORT.md) を具体化した。旧マスタからprocedures、来院行からbilling_itemsの既存変換を整理したが、現行 [21表契約](backend/internal/csvimport/cutover_contract.go#L201) に `treatments` / `prescriptions` はない。分類・薬剤/処方FK・行単位日時・用量/単位等の未確定を残す。契約/hash・producer/consumer・DB/codegen・実データは変更していない。写像票の完成を全期間履歴の移行完了にしない。
 [移行範囲の判断記録](docs/work/stg-uat-clinic-feedback-q1-q4.md#uat-q2-treatments-import-処置処方の移行今期外候補) の後、**処置移行を今期に含める**方針となり、9月19日に依頼者がマスタ/患者別履歴/期間の問いへ「全部」と回答した。**処置名・料金マスタと患者ごとの処置履歴を全種類・全期間**対象として契約設計を開始する。任意の起止日で減らさず、提供原本の最古から最終抽出までを対象医院別に照合する。関連する注射・薬剤/処方行も棚卸し対象にし、臨床項目の不足を明示する。無関係な全DB移行や履歴の再請求は範囲外。
 
 9月18日の契約照合では、`procedures`（マスタ）と `billing_items`（請求明細）は含むが `treatments` / `prescriptions` は含まない。既存表があることを診療実績の移行済み根拠にしない。両 repo 担当は次表の不足だけを設計資料へ展開する。
@@ -88,44 +92,23 @@
 | 処方 | `prescriptions` は対象外 | 全処置履歴に付随する原本の元表/列、薬剤参照、用量/用法/日数、旧表現の保持。復元根拠のない用量や単位は作らない |
 | 会計・過去表示 | `billing_items` と過去カルテ導線は既存 | 参照専用/再請求可の判断、二重請求防止、表示先、欠損時の表示、件数/金額の照合規則 |
 
-次の成果物は [既存契約差分票](docs/work/todo-campaign-20260918/UAT-Q2-TREATMENTS-IMPORT.md) の列対応の具体化。元表/列は repo 内の schema/変換定義から確認し、不明な列を推測しない。過去分は参照専用・自動再請求なしを設計の安全側既定とする。合成fixtureは同一医院/ペット/旧カルテ帰属、数量/単位/金額の原本保持、再取込時の重複なし、欠損/未移行の区別を必須とする。原本行数＝取込＋理由付き保留＋根拠付き重複除外を全期間で突合し、黙った除外を許さない。履歴が保留のままなら「全部移行完了」としない。
+次の成果物は [具体化済み契約差分票](docs/work/todo-campaign-20260918/UAT-Q2-TREATMENTS-IMPORT.md) を入力にした契約案・合成fixture設計・理由付き保留規則。マスタと請求の既存写像を再作成せず、処置履歴のitem_type、薬剤/処方FK、行単位日時、用量/単位、価格採用、重複キーと参照専用表示の未確定欄を詰める。元表/列は repo 内の schema/変換定義から確認し、不明な列を推測しない。過去分は参照専用・自動再請求なしを設計の安全側既定とする。合成fixtureは同一医院/ペット/旧カルテ帰属、数量/単位/金額の原本保持、再取込時の重複なし、欠損/未移行の区別を必須とする。原本行数＝取込＋理由付き保留＋根拠付き重複除外を全期間で突合し、黙った除外を許さない。履歴が保留のままなら「全部移行完了」としない。
 
 契約案を両repo担当がレビューし、要件責任者/受入者の参照を記録してからproducer・AE importの変更を同一契約で実装する。合成fixtureの件数/参照/金額検証後、承認済みdisposable rehearsalで保存→再読込→既存過去カルテ導線の表示を確認する。実データ投入は別承認。今回の「全部」という範囲確定だけで21表契約/hash/生成物を先行変更したり、migrationを自動適用したりしない。
 
 ### SLACK-MANUAL-URINE
 
-- **対応状況（2026-09-21）:** **経路/受入設計票作成済み・合成検証待ち。** [調査票](docs/work/todo-campaign-20260919-ready17/SLACK-MANUAL-URINE.md) は、手入力の文字列結果と機器由来を分ける既存保存経路を整理済み。医院承認の項目/凡例/単位/基準とorigin表示の不足が残り、尿試験紙の保存→再読込を実証したとは扱わない。
+- **対応状況（2026-09-22）:** **合成回帰を追加済み・カルテ検査タブM4と臨床受入は残る。** `cd2feaa14` で [手入力結果](frontend/src/features/examinations/hooks/use-examination-form.items-part2.test.ts)、[pivot表示](frontend/src/features/examinations/components/ExamPivotTable.test.tsx)、[機器結果との非上書き](backend/internal/medicalrecord/lab_import_examination_service_test.go) 等を追加。[調査票](docs/work/todo-campaign-20260919-ready17/SLACK-MANUAL-URINE.md) のM1–M3/M5–M8は合成・unit/mockの検証記録で、実DB往復/機器受信/医院受入の証拠ではない。M4は前単位の対象外で未検証。医院承認の項目/凡例/単位/基準とorigin表示の不足も残る。
 - **source / 状態:** MANUAL-URINE。出典212–294の9月9日返信で敷島/猫は尿試験紙を目視、城東/八王子は機器測定と明示。手入力の受入設計票作成済み、検証は残件。
-- **現行根拠・次の作業:** [作成済み受入票](docs/work/todo-campaign-20260919-ready17/SLACK-MANUAL-URINE.md) の既存保存経路・未カバーケースを使い、手動結果の保存→再読込→カルテ表示を合成fixtureで検証する。医院承認のない単位/基準を作らず、測定方法と原本由来の表示不足は切り分ける。
+- **現行根拠・次の作業:** [受入票](docs/work/todo-campaign-20260919-ready17/SLACK-MANUAL-URINE.md) のM4（カルテ検査タブ）へ合成fixtureを渡し、手入力文字列の表示と患者/記録切替の回帰を追加する。M4の前単位allowlist外は今回以降のローカル検証自体の禁止ではない。既存M1–M3/M5–M8を再作成しない。originはFE変換でjob_idが落ちる範囲を明示して採用する表示を臨床POと決め、医院承認の項目/凡例/単位/基準・実機/DBの受入は [検証](todo-verification.md#ready8-followup-20260922) へ分ける。
 - **完了 / PO・停止:** 各院の実際の項目/定性表現/単位/基準値について医院が承認した期待表と保存・表示の一致。基準値や陽性/陰性の臨床的意味は推定しない。不明項目は PO/検査担当へ確認し、機器測定結果と手入力結果の混同・上書きを防ぐ。
-
-### SLACK-LATENCY
-
-- **対応状況（2026-09-21）:** **採時区間と計測票は作成済み・実測/性能改善は未確認。** [計測票](docs/work/todo-campaign-20260919-ready17/SLACK-LATENCY.md) と、数量セルのローカル状態→ [PATCH後のinvalidate](frontend/src/features/medical-records/api/treatments.ts#L72) を照合。Enter/IMEの既存修正やヘッダー追加を、遅延の原因特定/短縮測定と扱わない。
-- **source / 状態:** LATENCY。出典883–896の「数量入力など反映に時間がかかりすぎる」。2回Enterの受入とは独立の計測課題。
-- **現行根拠・次の作業:** [計測票](docs/work/todo-campaign-20260919-ready17/SLACK-LATENCY.md) のactual欄を、入力表示・commit・PATCH・再取得に分けて埋める。行数・端末・回線・revision・IME条件を固定し、失敗/取消/連続操作も採時する。計測前に原因や短縮率を決めない。
-- **完了 / PO・停止:** 同じケースの前後計測と保存値一致、既存Enter/Blur/IME挙動の維持。許容時間は現場の目的と実測から合意し、架空の性能値/原因を置かない。対象環境不足は計測BLOCKED。根拠がない一括debounce/楽観更新を先行実装しない。
 
 ### SLACK-COMPLAINT
 
-- **対応状況（2026-09-21）:** **空欄の入力/送信経路は既存・解除/再読込の検証が残る。** [保存payload](frontend/src/features/medical-records/hooks/use-medical-record-save-action.ts#L236) は区分nullを送る一方、[hydrate](frontend/src/features/medical-records/hooks/use-apply-medical-record.ts#L46) はnon-null時だけ区分setterを呼ぶ。これだけで医院での不具合原因と断定せず、選択済み→解除→保存→再読込と記録切替をローカル回帰で確かめる。[調査票](docs/work/todo-campaign-20260919-ready17/SLACK-COMPLAINT.md) は作成済み。
+- **対応状況（2026-09-22）:** **null再読込・カルテ切替の修正/回帰追加済み・実UI解除は未対応。** `cd2feaa14` の [hydrate](frontend/src/features/medical-records/hooks/use-apply-medical-record.ts#L47) は `chiefComplaintTypeId ?? null` をsetterへ渡す。空欄payload/本文保持・空値callback・再読込/記録切替の [回帰](frontend/src/features/medical-records/hooks/use-apply-medical-record.test.ts) を追加済み。一方 [UIテスト](frontend/src/features/medical-records/components/InterviewChiefComplaint.test.tsx) の解除はmockの空値callbackで、実際のSearchableSelectにはクリア操作がない。[調査票](docs/work/todo-campaign-20260919-ready17/SLACK-COMPLAINT.md) のC0は案内のみ/UI追加なし、実機保存・再読込は未実行。修正済みC3を再実装せず、課題全体は閉じない。
 - **source / 状態:** COMPLAINT。出典929–937の「主訴区分は空欄で入力」。空欄許可は依頼済みであり、可否を再質問せず保存経路を調査する。
-- **現行根拠・次の作業:** [空欄UI](frontend/src/features/medical-records/components/InterviewChiefComplaint.tsx#L94) とnull送信を再実装せず、未選択での新規保存、選択解除、再取得、同じコンポーネントでの記録切替を分けてテストする。null hydrateの影響を確認し、主訴本文の保持とDB再読込までの不足ケースを埋める。
+- **現行根拠・次の作業:** C0の実コンポーネントで、初期未選択と選択後の意図的解除の到達性を分け、mockに依存しない操作ケースと最小の解除導線案を作る。空欄許可は確定済みで再質問しない。実UI追加は既存の空欄受入条件・対象画面・受入者と照合してから進め、別の保存意味/納品範囲への拡張だけPO裁定を要する。C3修正と既存null payloadは再実装せず、本文保持・失敗時・DB再読込は [受入](todo-verification.md#ready8-followup-20260922) へ残す。
 - **完了 / PO・停止:** 区分未設定で主訴本文を失わず保存でき、既存区分の意図的解除も受入条件に対応する。失敗した画面/経路だけ最小修正し、該当しなければ操作案内へ。納品区分・受入者の確認は別途だが、空欄許可そのものを新しい仕様待ちに戻さない。
-
-### SLACK-VACCINE-MULTI
-
-- **対応状況（2026-09-21）:** **単件/複数入力の経路調査済み・登録失敗の特定と順次登録受入が残る。** [調査票](docs/work/todo-campaign-20260919-ready17/SLACK-VACCINE-MULTI.md) と [単件POST](frontend/src/hooks/use-create-vaccination.ts#L72) / [Create](backend/internal/medicalrecord/vaccination_service.go#L138) を照合。batch追加はなく、同日2〜3件を順に登録できないとする制約も今回確認できない。失敗原因や全件成功は未確認。
-- **source / 状態:** VACCINE-MULTI。出典968–975。「登録できない」と「初診/同日に2–3件入力」を別ケースとして経路調査済み、再現/受入は残件。
-- **現行根拠・次の作業:** [経路比較票](docs/work/todo-campaign-20260919-ready17/SLACK-VACCINE-MULTI.md) のカルテ内/独立フォーム、保存済み/新規カルテ、権限・species候補を固定し、実エラー→単件成功→同日別接種2〜3件の順次保存→一覧再読込を確認する。batchを先行追加せず、一括入力の必要性/部分成功は別裁定。
-- **完了 / PO・停止:** 登録失敗の原因/修正receiptと、各接種の実施日・lot・次回予定・金額が混ざらず保存される証拠。一括入力が必要な操作数/失敗時の部分保存の扱いはPO裁定後に設計する。単件POSTの存在だけで同日複数不可やbatch API必須と決めない。[種別課題](#uat-q2-vaccine-species) の承認済み条件を保持し、接種間隔などの臨床判断を代行しない。
-
-### SLACK-PLAN-MANUAL
-
-- **対応状況（2026-09-21）:** **既存治療タブの手入力を確認済み・診察/治療プラン表の導線には残件。** [治療タブの「手入力で追加」](frontend/src/features/medical-records/components/TreatmentsTab/TreatmentsTabParts.tsx#L203) は存在する。一方プラン側に空行追加handlerがあっても、[表示ボタン](frontend/src/features/medical-records/components/TreatmentTable.tsx#L228) は `onOpenSearch || onAddRow` で検索を優先するため、そのhandlerの存在だけで「プラン表でも手入力可」と案内しない。[対応票](docs/work/todo-campaign-20260919-ready17/SLACK-PLAN-MANUAL.md) から案内で満たせる範囲と導線修正の要否を切り分ける。
-- **source / 状態:** PLAN-MANUAL。出典987–994。治療プランと治療の違いの質問、プランへの手入力要望。既存治療タブの手入力を確認済み、プラン表の導線は別に残る。
-- **現行根拠・次の作業:** [対応票](docs/work/todo-campaign-20260919-ready17/SLACK-PLAN-MANUAL.md) の治療タブ手入力を配信版で案内/保存確認する。プラン表での手入力が必要な場合は、空行handlerと検索優先ボタンの到達性を回帰ケースにし、導線の採否を確認する。このUIは `treatments` APIを使うため、別のbackend `treatment_plans` を保存先や予定専用の根拠にしない。
-- **完了 / PO・停止:** 現行配信版で手入力の場所・保存・再読込・会計との関係を示し、既存機能で満たせば操作質問として閉じる。価格欠落は [MASTER](#uat-r2-master-path) へ統合する。真に別の「予定だけで未実施/非請求」の意味が必要と分かった場合だけ、実施への移行条件を臨床POが裁定するまでその仕様変更を停止する。予定を自動で実施・請求済みにしない。
 
 <a id="area-po"></a>
 
@@ -189,6 +172,13 @@
 - **現行根拠・次の作業:** [比較/安全条件票](docs/work/todo-campaign-20260919-ready17/SLACK-COPY.md) をPOが裁定する。追記/置換・対象項目・コピー元の選び方と再確認を決めるまで、コピー保存処理には進まない。過去詳細リンク/定型文挿入/接種履歴複製を本件の実装済み根拠にしない。
 - **完了 / PO・停止:** コピー元の記録/日付が追え、追記/置換、現入力との競合、数量/単価/日付/薬剤の再確認、対象項目を臨床POが決めた受入条件。保存前previewと取消で元記録・現入力を失わず、旧ID/請求済み状態の流用や重複請求を防ぐ。過去の投薬判断を未確認で再実施する仕様や「前回」の曖昧な選択は停止。
 
+### SLACK-PLAN-MANUAL
+
+- **対応状況（2026-09-22）:** **検索優先の導線回帰を追加済み・案内で閉じるか導線を追加するかPO判断待ち。** `cd2feaa14` の [TreatmentTable回帰](frontend/src/features/medical-records/components/TreatmentTable.test.tsx) は `onOpenSearch` 優先と未指定時の `onAddRow` を固定しただけで、プラン表への手入力UIは追加していない。[治療タブの手入力](frontend/src/features/medical-records/components/TreatmentsTab/TreatmentsTabParts.tsx#L207) は既存。到達性の再調査は不要で、[対応票](docs/work/todo-campaign-20260919-ready17/SLACK-PLAN-MANUAL.md) の操作案内/仕様採否を裁定する段階。
+- **source / 状態:** PLAN-MANUAL。出典987–994。治療プランと治療の違いの質問、プランへの手入力要望。既存治療タブの手入力を確認済み、プラン表の導線は別に残る。
+- **現行根拠・次の作業:** PO/要件責任者は [対応票](docs/work/todo-campaign-20260919-ready17/SLACK-PLAN-MANUAL.md) から、治療タブの手入力案内で足りるか、プラン表に直接追加が必要かを操作目的/削減工程とともに裁定する。後者だけ導線案と受入ケースを確定し、未裁定のUI追加は停止。配信版での案内・保存/再読込/会計の確認は別の受入条件。このUIの保存先は `treatments` APIであり、backend `treatment_plans` や予定専用/非請求を意味すると推定しない。
+- **完了 / PO・停止:** 現行配信版で手入力の場所・保存・再読込・会計との関係を示し、既存機能で満たせば操作質問として閉じる。価格欠落は [MASTER](#uat-r2-master-path) へ統合する。真に別の「予定だけで未実施/非請求」の意味が必要と分かった場合だけ、実施への移行条件を臨床POが裁定するまでその仕様変更を停止する。予定を自動で実施・請求済みにしない。
+
 <a id="area-evidence"></a>
 <a id="データ移行の残件"></a>
 
@@ -204,6 +194,20 @@
 | [UAT-Q2-VACCINE-SPECIES](#uat-q2-vaccine-species) | 調査待ち / 承認された STG 集計で、マスタ種欠損・参照取り違え・旧記録そのものを分類 | 集計設計済み。[既存票](docs/work/todo-campaign-20260918/UAT-Q2-VACCINE-SPECIES.md) を使い、対象医院/期間/読取条件を実行担当が埋める | 条件未充足なら待機。同じ集計設計を作り直さない |
 | [UAT-Q4-UNPAID-TRIAGE](#uat-q4-unpaid-triage) | 調査待ち / 承認された STG 集計で、旧未精算と支払未紐付けを切り分け | 集計設計済み。[既存票](docs/work/todo-campaign-20260918/UAT-Q4-UNPAID-TRIAGE.md) を使い、対象医院/期間/読取条件を実行担当が埋める | 条件未充足なら待機。回収済み事実は旧記録との照合が必要 |
 | [PO-PET-DECEASED-DATA-BACKFILL](#po-pet-deceased-data-backfill) | 限定訂正待ち / 日付根拠がある行だけ対象。対象・監査・復旧・実行承認を確定 | 設計済み。[既存票](docs/work/todo-campaign-20260918/PO-PET-DECEASED-DATA-BACKFILL.md) の対象/除外条件へ実行担当が根拠を対応づける | 日付根拠のある対象集合・対象環境・監査・実行承認。根拠なしは除外 |
+
+### SLACK-LATENCY
+
+- **対応状況（2026-09-22）:** **比較条件の設計済み・対象環境/実測待ち。** `cd2feaa14` で [計測票](docs/work/todo-campaign-20260919-ready17/SLACK-LATENCY.md) に端末・行数帯・IME・確定操作・revisionの固定方法を追加した。実端末/回線/行数/対象buildの確定値と全区間のactualは未収録。コード変更や性能改善の実証はなく、原因/許容時間/短縮率はUNKNOWN。
+- **source / 状態:** LATENCY。出典883–896の「数量入力など反映に時間がかかりすぎる」。2回Enterの受入とは独立の計測課題。
+- **現行根拠・次の作業:** [性能TODO](todo-performance.md#slack-latency-治療数量の反映待ち) と既存票を使い、QA/計測担当が実端末・ブラウザ・回線・行数・IME・fixture・対象FE/API buildを確定する。PC/TABLET、少/通常/多、IME ON/OFF、Blur/Enter2回、診察/薬剤の比較条件は設計済み。未記入の実条件が揃ったrunだけ、入力表示・commit・PATCH・再取得・保存値を採取する。同じ計測設計を再作成せず、数値帯/性能値を推測しない。
+- **完了 / PO・停止:** 同じケースの前後計測と保存値一致、既存Enter/Blur/IME挙動の維持。許容時間は現場の目的と実測から合意し、架空の性能値/原因を置かない。対象環境不足は計測BLOCKED。根拠がない一括debounce/楽観更新を先行実装しない。
+
+### SLACK-VACCINE-MULTI
+
+- **対応状況（2026-09-22）:** **単件/同日2〜3件の順次POST回帰追加済み・元症状/実機受入待ち。** `cd2feaa14` の [FE回帰](frontend/src/hooks/use-create-vaccination.test.ts) と [BE回帰](backend/internal/medicalrecord/vaccination_service_test.go) は、単件POST、エラー通知、別接種のvaccine/lot/next_date等の非混在を合成・mockで確認する定義。batch追加や製品仕様変更はない。[調査票](docs/work/todo-campaign-20260919-ready17/SLACK-VACCINE-MULTI.md) の「登録できない」実入口・エラーと、実フォーム→DB保存→一覧再読込は未確認。species原因は別課題、一括入力/部分成功の仕様はPO判断待ち。
+- **source / 状態:** VACCINE-MULTI。出典968–975。「登録できない」と「初診/同日に2–3件入力」を別ケースとして経路調査済み、再現/受入は残件。
+- **現行根拠・次の作業:** QA/医院が [経路比較票](docs/work/todo-campaign-20260919-ready17/SLACK-VACCINE-MULTI.md) の実入口・対象版・新規/保存済みカルテ・権限・species候補・秘密除去したエラーを採取する。承認済み合成患者で単件→同日2〜3件の順次保存→一覧再読込と各フィールド/会計参照を確認し、FAILだけ同じIDの最小修正へ戻す。batchは先行追加せず、一括UX/部分成功の扱いはPOが別裁定する。
+- **完了 / PO・停止:** 登録失敗の原因/修正receiptと、各接種の実施日・lot・次回予定・金額が混ざらず保存される証拠。一括入力が必要な操作数/失敗時の部分保存の扱いはPO裁定後に設計する。単件POSTの存在だけで同日複数不可やbatch API必須と決めない。[種別課題](#uat-q2-vaccine-species) の承認済み条件を保持し、接種間隔などの臨床判断を代行しない。
 
 ### UAT-Q3-GENDER-MAP
 
@@ -343,7 +347,7 @@ OCR・Smaregiは納品後の採用判断まで延期します。`TASK-444-ADDEND
 
 ## 5. 回答済み・実装済み（受入確認は別管理）
 
-今回コード対応を確認した5課題と、既存の回答済み操作2トピック/コード対応・導線5トピックを保持します。5課題の「実装済み」は本文で示す変更範囲だけで、ID全体の受入完了ではありません。実機・臨床PO・互換性の残件は本文に保持し、検証の実行/結果は [検証 TODO](todo-verification.md#uat-followup) と [医院×職種の受入](#slack-clinical-uat) に接続します。
+9月21日照合でコード対応を確認した5課題と、既存の回答済み操作2トピック/コード対応・導線5トピックを保持します。5課題の「実装済み」は本文で示す変更範囲だけで、ID全体の受入完了ではありません。実機・臨床PO・互換性の残件は本文に保持し、検証の実行/結果は [検証 TODO](todo-verification.md#uat-followup) と [医院×職種の受入](#slack-clinical-uat) に接続します。
 
 既存課題の担当・成果物・開始条件:
 
@@ -444,7 +448,7 @@ OCR・Smaregiは納品後の採用判断まで延期します。`TASK-444-ADDEND
 | UAT-SCHEDULE | 受入準備 → [SLACK-UAT-SCHEDULE](#slack-uat-schedule) |
 | HAC-IMPORT | 既存運用へ接続 → [SLACK-HAC-IMPORT](#slack-hac-import) |
 | LAB | 調査・実機受入待ち → [SLACK-LAB](#slack-lab) |
-| MANUAL-URINE | 受入設計済み・合成検証待ち → [SLACK-MANUAL-URINE](#slack-manual-urine) |
+| MANUAL-URINE | 合成回帰追加済み・M4/臨床受入は残る → [SLACK-MANUAL-URINE](#slack-manual-urine) |
 | OCR | 納品後 DEFERRED → [SLACK-OCR](#slack-ocr) |
 | EXAM-HISTORY | 移行元の区別・受入 → [SLACK-EXAM-HISTORY](#slack-exam-history) |
 | SMAREGI | 納品後 DEFERRED → [SLACK-SMAREGI](#slack-smaregi) |
@@ -459,14 +463,14 @@ OCR・Smaregiは納品後の採用判断まで延期します。`TASK-444-ADDEND
 | GENDER | old_db 統合済み・bundle/実データ受入待ち → [UAT-Q3-GENDER-MAP](#uat-q3-gender-map) |
 | UNPAID | 原因未確定・既存調査 → [UAT-Q4-UNPAID-TRIAGE](#uat-q4-unpaid-triage) |
 | INSURANCE | 新規50/70・旧90/100保持の受入 → [UAT-Q4-INSURANCE-RATES](todo-verification.md#uat-q4-insurance-rates) |
-| MASTER | 単体ケース追加済み・全経路検証を継続 → [UAT-R2-MASTER-PATH](#uat-r2-master-path) |
-| CONCURRENCY | 会計競合を部分対応・残ケース検証 → [UAT-R2-EXCLUSIVE-LOCK](#uat-r2-exclusive-lock) |
-| LATENCY | 採時票作成済み・実測待ち → [SLACK-LATENCY](#slack-latency) |
+| MASTER | 価格request/model回帰拡充・下流/全経路は残る → [UAT-R2-MASTER-PATH](#uat-r2-master-path) |
+| CONCURRENCY | 競合mock回帰拡充・stale設計/実並行は残る → [UAT-R2-EXCLUSIVE-LOCK](#uat-r2-exclusive-lock) |
+| LATENCY | 比較条件設計済み・実環境/実測待ち → [SLACK-LATENCY](#slack-latency) |
 | ENTER | コード対応済み・実機IME待ち → [UAT-R2-TREATMENT-COMMIT](todo-verification.md#uat-r2-treatment-commit) |
 | MASTER-HEIGHT | コード対応済み・実画面受入待ち → [UAT-R2-MASTER-LIST-HEIGHT](todo-verification.md#uat-r2-master-list-height) |
 | CHART-FIT | scroll/高さコード対応済み・全9タブ/実機受入待ち → [UAT-R2-CHART-FIT](#uat-r2-chart-fit) |
 | RESERVATION-EDIT | 回答・謝辞あり → [操作案内の保持](#slack-answered) |
-| COMPLAINT | 空欄送信は既存・解除/再読込の回帰待ち → [SLACK-COMPLAINT](#slack-complaint) |
+| COMPLAINT | null hydrate修正済み・実UI解除/DB受入は残る → [SLACK-COMPLAINT](#slack-complaint) |
 | BACKGROUND | 対象欄の特定・PO → [SLACK-BACKGROUND](#slack-background) |
 | VITALS | ヘッダー表示コード対応済み・臨床受入待ち → [SLACK-VITALS](#slack-vitals) |
 | MICROCHIP | ヘッダー表示コード対応済み・受入待ち → [SLACK-MICROCHIP](#slack-microchip) |
@@ -474,16 +478,16 @@ OCR・Smaregiは納品後の採用判断まで延期します。`TASK-444-ADDEND
 | DETAILS | 導線比較済み・PO裁定待ち → [SLACK-DETAILS](#slack-details) |
 | STORY | 記録目的/保存先のPO → [SLACK-STORY](#slack-story) |
 | VACCINE-PRINT | 専用証明書の仕様確認 → [SLACK-VACCINE-PRINT](#slack-vaccine-print) |
-| VACCINE-MULTI | 経路調査済み・単件/順次登録の受入待ち → [SLACK-VACCINE-MULTI](#slack-vaccine-multi) |
+| VACCINE-MULTI | 単件/順次POST回帰追加済み・元症状/実機待ち → [SLACK-VACCINE-MULTI](#slack-vaccine-multi) |
 | DECEASED | 死亡後連絡記録のPO → [SLACK-DECEASED](#slack-deceased) |
-| PLAN-MANUAL | 治療タブ手入力は既存・プラン表導線は残件 → [SLACK-PLAN-MANUAL](#slack-plan-manual) |
+| PLAN-MANUAL | 検索優先回帰追加済み・案内/導線採否のPO待ち → [SLACK-PLAN-MANUAL](#slack-plan-manual) |
 | COPY | 安全条件整理済み・PO裁定待ち → [SLACK-COPY](#slack-copy) |
 | CAMERA | 撮影入口コード対応済み・実機受入待ち → [SLACK-CAMERA](#slack-camera) |
 | BILLING-UAT | 最優先の実機受入 → [SLACK-BILLING-UAT](#slack-billing-uat) |
 | CLINICAL-UAT | 各院の診療/看護受入 → [SLACK-CLINICAL-UAT](#slack-clinical-uat) |
 | INTAKE | repo内分類済み・外部照合条件待ち → [SLACK-INTAKE](#slack-intake) |
 | BACKLOG61 | 原票・PDF内容待ち → [SLACK-BACKLOG61](#slack-backlog61) |
-| TREATMENTS-IMPORT | 既存の全種類/全期間回答保持 → [UAT-Q2-TREATMENTS-IMPORT](#uat-q2-treatments-import) |
+| TREATMENTS-IMPORT | 列写像調査済み・全期間履歴契約案へ → [UAT-Q2-TREATMENTS-IMPORT](#uat-q2-treatments-import) |
 | EXISTING-OTHER | 保存 → [死亡日限定訂正](#po-pet-deceased-data-backfill)、[追記型生成](#task-444-addendum-codegen) |
 
 <a id="slack-source-map"></a>

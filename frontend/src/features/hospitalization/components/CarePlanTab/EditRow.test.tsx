@@ -89,6 +89,28 @@ describe("EditRow — type連動マスタ参照(BUG-403)", () => {
     );
   });
 
+  // Named price-loss (edit path): plan ref id is saved, master price is not transferred.
+  it("type=持ち物 の保存 payload に unit_price を積まない（マスタ価格非転記）", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    render(<EditRow item={baseItem} onSave={onSave} onCancel={vi.fn()} />);
+
+    await selectType(user, "持ち物");
+    await user.type(screen.getByLabelText("ref-select-stub"), "plan-1");
+    await user.click(screen.getByRole("button", { name: /保存/ }));
+
+    expect(onSave).toHaveBeenCalledTimes(1);
+    const payload = onSave.mock.calls[0][0] as Record<string, unknown>;
+    expect(payload).toEqual(
+      expect.objectContaining({
+        type: "item",
+        hospitalization_plan_id: "plan-1",
+      }),
+    );
+    expect(payload).not.toHaveProperty("unit_price");
+  });
+
+
   it("type=指示・その他(参照不要)のままなら参照選択欄は表示されない", () => {
     render(<EditRow item={baseItem} onSave={vi.fn()} onCancel={vi.fn()} />);
     expect(screen.queryByLabelText("ref-select-stub")).not.toBeInTheDocument();

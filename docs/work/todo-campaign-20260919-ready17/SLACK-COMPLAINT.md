@@ -1,6 +1,6 @@
 # SLACK-COMPLAINT: 主訴区分の新規未選択 vs 既存クリア
 
-状態: **回帰テスト READY／C3 hydrate 最小修正済み／実機保存・再読込 未実行**。出典は [todo-issue.md](../../../todo-issue.md) 見出し `### SLACK-COMPLAINT`（L118–122、索引 L419）。保持する現場条件:
+状態: **C0 clearable 実装済み／C3 hydrate 先行修正済み／N・C・reload 回帰 PASS／実機保存・再読込 未実行**。出典は [todo-issue.md](../../../todo-issue.md) 見出し `### SLACK-COMPLAINT`（L118–122、索引 L419）。保持する現場条件:
 
 - 「主訴区分は空欄で入力」（出典 929–937。現行 `todo-issue.md` は要約のみ。原文行は本票では再掲しない）
 - **空欄許可は依頼済み**。可否を PO へ再質問しない。新しい仕様待ちに戻さない
@@ -19,7 +19,7 @@
 | 報告医院・端末・ブラウザ | なし | **UNKNOWN** |
 | 「空欄で入力」が新規カルテか、既存区分の解除か | UI は両方あり得る（後述）。報告一文では区別できない | **UNKNOWN**。採取前に片方へ決めない |
 | 空欄時に残したい主訴本文の実例 | 定型テンプレ初期値はある（後述）。現場文面は別 | **UNKNOWN** |
-| 既存区分を消す操作をしたか（クリア UI の有無はコードで分かる） | SearchableSelect に空 option / クリアボタンは無い | 現場がどう空欄にしたかは **UNKNOWN** |
+| 既存区分を消す操作をしたか（クリア UI の有無はコードで分かる） | SearchableSelect は opt-in `clearable` で選択中のみ「選択をクリア」→ `onValueChange("")`。InterviewChiefComplaint が `clearable` を有効化 | 現場が過去にどう空欄にしたかは **UNKNOWN** |
 | フロント/API revision | 本票作成時 worktree HEAD `aac697645`（`docs: TODOを回答済み要件から着手可能に整理`） | 再現セッションの SHA は **UNKNOWN**。採取時に固定する |
 
 ## 混ぜてはいけないケース
@@ -41,14 +41,14 @@
 
 ### C — 既存選択の意図的解除
 
-一度選んだ区分を空に戻す経路。空欄**許可**は既にある。クリア UI が無ければ操作案内、PATCH が残存するなら経路修正。どちらも「空欄にしてよいか」の仕様待ちではない。
+一度選んだ区分を空に戻す経路。空欄**許可**は既にある。C0 でクリア option を追加済み。PATCH/hydrate 残存は経路修正（C3 は先行 attempt）。「空欄にしてよいか」の仕様待ちではない。
 
 | ID | 条件（コード） | いまの経路 | 期待する分離 |
 | --- | --- | --- | --- |
-| C0 クリア操作 | [SearchableSelect](../../../frontend/src/components/ui/searchable-select.tsx) は option の `onSelect` → `handleSelect(opt.value)`（L105–108, L118）。空 value の option もクリアボタンも無い。再選択も同じ ID を渡す | 画面操作だけでは `onValueChange("")` が起きない | **意図的クリアの UI が無い**。現場が空に見えても C 未実施のことがある。再現前に C を実装前提にしない |
-| C1 空文字→null の受け口 | InterviewChiefComplaint L97: `onValueChange={(value) => setChiefComplaintTypeId(value ? Number(value) : null)}`。props は `number \| null`（L24–25） | Select が `""` を出せば state は null。現行 SearchableSelect は出さない | 受け口があることと、ユーザーが空にできることを同一視しない |
-| C2 問診 PATCH | 保存は常に `chief_complaint_type_id: snapshot.chiefComplaintTypeId`（save-action L241）。state が null なら JSON `null` | 既存 ID が state に残っていればその数値が送られる | UI で消せないなら C2 の null は到達しない。到達したら C3 以降 |
-| C3 hydrate の片方向 | [use-apply-medical-record.ts](../../../frontend/src/features/medical-records/hooks/use-apply-medical-record.ts) L47–49: `chiefComplaintTypeId != null` のときだけ setter。null / 省略は **既存 state を触らない**。BUG-406 follow-up は「値がある場合に載る」（[use-medical-record-form.test.ts](../../../frontend/src/features/medical-records/hooks/use-medical-record-form.test.ts) L282–305）。null へ戻すテストは無い | サーバが空でも、画面に残った選択値は消え得る | 再読込後も区分が見えることを「空欄禁止」と読まない。C3 は hydrate ギャップ |
+| C0 クリア操作 | [SearchableSelect](../../../frontend/src/components/ui/searchable-select.tsx) に opt-in `clearable`。選択中かつ未 disabled のときリスト先頭に「選択をクリア」を出し、選択で `handleSelect("")` → `onValueChange("")`。InterviewChiefComplaint が `clearable` を渡す | 主訴区分で意図的クリア可能。フィルタ用途の他 SearchableSelect は既定 `clearable=false` のまま | **最小経路は empty affordance（クリア option）**。空欄許可の再質問はしない |
+| C1 空文字→null の受け口 | InterviewChiefComplaint: `onValueChange={(value) => setChiefComplaintTypeId(value ? Number(value) : null)}`。props は `number \| null` | C0 の `""` がここに入り state は null | 受け口と C0 クリア UI が接続済み |
+| C2 問診 PATCH | 保存は常に `chief_complaint_type_id: snapshot.chiefComplaintTypeId`（save-action L241）。state が null なら JSON `null` | C0 クリア後は null が送れる | C0→C1→C2 で JSON null 到達。残存は C3/persist |
+| C3 hydrate | 先行 attempt で `use-apply-medical-record.ts` が server null も state へ書くよう修正済み。本 attempt では再編集しない | null hydrate でローカル選択を消す | 再読込残存を空欄禁止と読まない。本票は C0 実装に限定 |
 | C4 確定済み | 問診フィールドは `!canEdit \|\| isFinalized` で disabled（InterviewChiefComplaint L43–44, L99）。PATCH も確定済みで拒否（inquiry_repository Conflict）。save-action は finalized を mutation 前に拒否 | 確定後クリアは対象外 | 確定カルテの空欄要望を draft 経路に混ぜない |
 
 ## omit 対 JSON null
@@ -88,31 +88,31 @@
 | 手順 | 固定すること | PASS の見方 | やってはいけないこと |
 | --- | --- | --- | --- |
 | N 新規未選択 | 区分はプレースホルダのまま。主訴本文を DEFAULT から変更して保存 → 再読込 | 本文が残り、区分は空のまま。4xx にしない | 空欄禁止バリデーションを足す。PO に可否を聞く |
-| C 既存解除 | 一度区分を選んで保存・再読込で ID が戻ることを確認してから、空に戻して保存 | **C0 で空に戻せない**なら、クリア操作なしと記録し、操作案内候補。無理に仕様追加しない。戻せたのに再読込で残るなら C3/persist を疑う | クリア UI が無いのに「空欄が禁止されている」と結論する |
+| C 既存解除 | 一度区分を選んで保存・再読込で ID が戻ることを確認してから、「選択をクリア」で空に戻して保存 | クリア後に JSON null が飛び、再読込で空のまま。再読込で残るなら C3/persist を疑う（C3 hydrate は先行 attempt で修正済み） | 空欄許可を再質問する。C3 を再実装する |
 | omit vs null | 開発者ツールで N1 POST と N3 PATCH の JSON を保存 | N1 に type キー無し、N3 未選択は `null` | 片方だけ見て「常に omit」または「常に null」と書く |
 
 対象環境不足は該当行 BLOCKED。根拠がない一括「必須化」や「全医院で空にできない」断定を先行実装しない。
 
-## 回帰結果（att-complaint-20260921-001）
+## 回帰結果（att-complaint-20260921-001 + att-complaint-20260922-001）
 
 | ケース | 期待 | 結果 | 証跡 |
 | --- | --- | --- | --- |
 | N unset new save | 問診 PATCH が `chief_complaint_type_id: null`、本文保持 | **PASS** | `use-medical-record-save-action.test.ts` |
 | C intentional clear receive | `onValueChange("")` → setter `null`；保存も JSON null | **PASS** | `InterviewChiefComplaint.test.tsx` + save-action |
-| C0 clear UI | SearchableSelect にクリア無し | **案内のみ**（UI 追加なし） | 本票 C0 |
-| C3 reload / chart switch | server/null へ hydrate で local type を消す | **FAIL→PASS** | RED: apply-medical-record 2 failing；fix `use-apply-medical-record.ts` always-write null；GREEN 23/23 |
+| C0 clear UI | SearchableSelect `clearable` + InterviewChiefComplaint 有効化。「選択をクリア」→ `""` | **PASS**（att-complaint-20260922-001） | 本票 C0；vitest 4/4 |
+| C3 reload / chart switch | server/null へ hydrate で local type を消す | **FAIL→PASS**（先行 attempt） | apply-medical-record always-write null；本 attempt では再編集なし |
+| N vs C vs reload 区別 | 新規未選択はクリア option 無し／意図的クリアは option あり／親 null 再描画は clear クリック無しで空 | **PASS** | `InterviewChiefComplaint.test.tsx` |
 | 空欄許可再質問 | 再開しない | **PASS** | 本票・実装とも PO 質問なし |
 
-検証コマンド（compose frontend down → ephemeral）:
+検証コマンド（compose frontend down → ephemeral, att-complaint-20260922-001）:
 
 ```bash
-docker run --rm --network none --pull never -v "$PWD/frontend:/app" -w /app \
-  sha256:532501622cd024ab786a32eb9798db1cd1a0e4d47cddb3dbd56ae107f95d9cb4 \
+docker run --rm --network none --pull never \
+  -v "$PWD/frontend:/app" -v ekarte-frontend-node-modules:/app/node_modules \
+  -w /app node:24-alpine \
   node node_modules/vitest/vitest.mjs run --configLoader native \
-  src/features/medical-records/hooks/use-apply-medical-record.test.ts \
-  src/features/medical-records/components/InterviewChiefComplaint.test.tsx \
-  src/features/medical-records/hooks/use-medical-record-save-action.test.ts
-# GREEN: Test Files 3 passed / Tests 23 passed
+  src/features/medical-records/components/InterviewChiefComplaint.test.tsx
+# GREEN: Test Files 1 passed / Tests 4 passed
 ```
 
 ## 完了 / PO・停止
@@ -120,8 +120,7 @@ docker run --rm --network none --pull never -v "$PWD/frontend:/app" -w /app \
 todo-issue L122 の完了条件を本票に落とす:
 
 - 区分未設定で主訴本文を失わず保存できる（N）。失敗した画面/経路だけ最小修正 — **回帰 PASS**
-- 既存区分の意図的解除も受入に含める（C）。クリア UI が無ければ案内。PATCH/hydrate が残存するならその経路だけ — **C0 案内／C3 hydrate 修正済み**
-- 該当しなければ操作案内へ
+- 既存区分の意図的解除も受入に含める（C）。**C0 は最小 clearable option を追加**。C3 hydrate は先行 attempt で修正済み（本 attempt では再編集なし）
 - 納品区分・受入者確認は別途
 - **空欄許可そのものを新しい仕様待ちに戻さない**
 

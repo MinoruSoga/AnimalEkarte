@@ -1,6 +1,6 @@
 # SLACK-MANUAL-URINE: 手入力尿試験紙の保存・再読込・表示設計
 
-状態: **手入力経路の受入設計 READY／合成検証 M1–M3,M5–M8 PASS（M4 BLOCKED）**。出典は [todo-issue.md](../../../todo-issue.md) 見出し `### SLACK-MANUAL-URINE`（9月9日返信 212–294）。敷島/猫は尿試験紙を**目視**、城東/八王子は**機器測定**と明示されている。本票は手動結果の UI → request → 永続化 → 再読込 → カルテ/検歴表示を現行コードへ対応づける。機器受信へ統合しない。臨床的な陽性/陰性の意味・院別カットオフは推定しない。ready8 unit `SLACK-MANUAL-URINE` / attempt `att-urine-20260921-001` が合成ギャップの scoped テスト追加を許可（医院カットオフ発明なし）。
+状態: **手入力経路の受入設計 READY／合成検証 M1–M8 PASS（M4 local PASS）**。出典は [todo-issue.md](../../../todo-issue.md) 見出し `### SLACK-MANUAL-URINE`（9月9日返信 212–294）。敷島/猫は尿試験紙を**目視**、城東/八王子は**機器測定**と明示されている。本票は手動結果の UI → request → 永続化 → 再読込 → カルテ/検歴表示を現行コードへ対応づける。機器受信へ統合しない。臨床的な陽性/陰性の意味・院別カットオフは推定しない。ready5 residual unit `SLACK-MANUAL-URINE` / attempt `att-urine-20260922-001` がカルテ検査タブ M4 合成回帰を許可（医院カットオフ発明なし）。
 
 機器受信そのものは todo-issue の `### SLACK-LAB`（同出典ブロック）へ分離する。実装済み受信コードを手入力の完了根拠にしない。
 
@@ -111,7 +111,7 @@ FE 再マップ: [mapExamResultsToFormRows](../../../frontend/src/features/exami
 
 印刷は保存済み print-snapshot のみ。未保存 formItems を使わない（ExaminationForm.tsx L104–108）。
 
-## 合成で確認するケース（actual 更新: att-urine-20260921-001）
+## 合成で確認するケース（actual 更新: att-urine-20260922-001）
 
 対象: 専用合成 clinic / 猫ペット / 尿検査に相当する exam_type。実患者・実試験紙写真・本番機器は使わない。医院承認の項目表が無い間、項目名は fixture ラベルに留め、臨床意味を書かない。
 
@@ -120,13 +120,13 @@ FE 再マップ: [mapExamResultsToFormRows](../../../frontend/src/features/exami
 | M1 | テンプレ行に文字列結果を入れて保存→一覧→再オープン | `inspection_value` / `unit` / `reference_value` が一致。`job_id` NULL | **PASS** | FE `items-part1` M1 reload + `items-part2` Create POST without `job_id` (FIXTURE-STRIP-PAD-A / `(+)`); BE `TestExaminationService_Create` asserts `JobID==nil` |
 | M2 | 「検査項目を追加」で名前+結果を保存→再読込 | 手動行が残る。`exam_type_field_id` null。判定は未判定 | **PASS** | FE existing manual add/PATCH + M2/M7 reload; BE `ReplaceItems_ManualNilFieldIDStoresFixtureStringsUnassessed` |
 | M3 | 結果あり・名前空の手動行を保存 | FE が拒否。silent drop しない（既存テスト） | **PASS** | FE `結果値がある手動行の空名を拒否し、silent drop しない` |
-| M4 | カルテ検査タブで同一レコードを表示 | 結果値・単位・基準の文字列一致。`machine` 空でも欠落扱いにしない | **BLOCKED** | chart surface `frontend/src/features/medical-records` は本 unit write allowlist 外。空 machine≠目視は設計どおり維持。後続 unit で medical-records 許可時に再実行 |
+| M4 | カルテ検査タブで同一レコードを表示 | 結果値・単位・基準の文字列一致。`machine` 空でも欠落扱いにしない | **PASS** | FE `ExaminationGroup` + `MedicalRecordExamination` M4 FIXTURE-STRIP chart display; empty machine ≠ 欠落/目視; pet/record switch isolation (att-urine-20260922-001) |
 | M5 | `historyView=pivot` で同ペットの手入力行 | 値がある項目がセルに出る。空値は出ない | **PASS** | `ExamPivotTable` empty-omit + M5/M6 FIXTURE-STRIP coexistence columns |
 | M6 | 同一ペットに手入力 exam と `job_id` 付き受信 exam を共存 | 2 行のまま。互いに上書きしない | **PASS** | BE `PersistExam_DoesNotOverwriteManualNilJobIDExam` + pivot 同日別列 |
 | M7 | コードが知る定性トークンと、知らない文字列（例: テストが拒否する `陰性`） | 文字列としては保存され得る。判定はマスタ bounds とトークン一致時のみ。臨床意味は UNKNOWN | **PASS** | `TestQualitativeValueOrder` + `NonnumericInputWithNumericRangeRemainsUnassessed` + FE M2/M7 reload of `(+)` / `陰性` |
 | M8 | 確定後の結果編集 | ロック。解除は unconfirm 権限 | **PASS** | FE `examination-lock.test.ts` + `items-part2`/`actions` 確定ロック／unconfirm（機器 Undo 非混在） |
 
-成果物列（実行時）: `case / fixture / input string / request JSON keys / DB job_id / reread inspection_value,unit,reference_value / chart or pivot cell / expected / actual / evidence`。医院カットオフ・凡例は未発明。M4 のみ BLOCKED。
+成果物列（実行時）: `case / fixture / input string / request JSON keys / DB job_id / reread inspection_value,unit,reference_value / chart or pivot cell / expected / actual / evidence`。医院カットオフ・凡例は未発明。M1–M8 local PASS（医院 UAT / カットオフは UNKNOWN のまま）。
 
 ## 既存テストと GAP（ready8 で合成ギャップを拡張）
 
@@ -136,13 +136,22 @@ FE 再マップ: [mapExamResultsToFormRows](../../../frontend/src/features/exami
 | 定性トークン順と比較、非正規表記拒否 | [exam_result_assessment_test.go](../../../backend/internal/medicalrecord/exam_result_assessment_test.go) `TestQualitativeValueOrder` + ReplaceItems nil-field fixture | 医院凡例との一致は対象外。`陰性` はコード上 rejected notation（保存は可・未判定） |
 | 手動 Create が JobID 無し | `TestExaminationService_Create` が `JobID==nil` を明示 | **PASS** |
 | 機器 persist の job_id / 非上書き | [lab_import_examination_service_test.go](../../../backend/internal/medicalrecord/lab_import_examination_service_test.go) `PersistExam_DoesNotOverwriteManualNilJobIDExam` | 手入力 merge 禁止 **明示テスト追加** |
-| カルテ表示 | ExaminationGroup / MedicalRecordExamination | **M4 BLOCKED**（allowlist 外） |
+| カルテ表示 | ExaminationGroup / MedicalRecordExamination | **M4 PASS**（FIXTURE-STRIP chart + switch isolation） |
 | `inputMode="decimal"` × 定性記号 | なし | 一部ブラウザで `+` 入力が不便になり得る。実機は UNKNOWN。専用キーパッドを本票で追加しない |
 | FE で job_id / origin 表示 | transform が job_id を落とす | 見た目の由来区別は **GAP**。実装は医院が混同した場合の後続単位。本票は DB `job_id` を正本とする |
 
 検証（compose down → ephemeral）:
 
 ```bash
+# M4 chart surface (att-urine-20260922-001)
+docker run --rm --network none --pull never \
+  -v "$PWD/frontend:/app" -v ekarte-frontend-node-modules:/app/node_modules -w /app \
+  node:24-alpine \
+  node node_modules/vitest/vitest.mjs run --configLoader native \
+  src/features/medical-records/components/ExaminationGroup.test.tsx \
+  src/features/medical-records/components/MedicalRecordExamination.test.tsx
+# GREEN: Test Files 2 passed / Tests 27 passed
+
 docker run --rm --network none --pull never \
   -v "$PWD/frontend:/app" -v ekarte-frontend-node-modules:/app/node_modules -w /app \
   sha256:532501622cd024ab786a32eb9798db1cd1a0e4d47cddb3dbd56ae107f95d9cb4 \
@@ -165,7 +174,7 @@ docker run --rm --network none --pull never --entrypoint go \
 
 完了（後続の実装・UAT）: 医院が承認した項目/定性表現/単位/基準の期待表と、保存・再読込・カルテ/ピボット表示が一致する。機器結果と手入力が別 exam として残り、上書きされない。
 
-本 ready8 単位の完了: 合成 M-gaps を scoped テストでカバー（または BLOCKED 理由明示）。UNKNOWN を残し、カットオフを発明せず、機器 ingest にマージしない。M4 カルテ表示は allowlist 外のため BLOCKED。
+本 ready5 residual 単位の完了: 合成 M4 カルテ検査タブ表示を scoped テストでカバー。UNKNOWN を残し、カットオフを発明せず、機器 ingest にマージしない。M1–M8 local PASS。
 
 停止:
 

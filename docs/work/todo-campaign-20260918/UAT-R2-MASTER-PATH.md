@@ -9,19 +9,29 @@
 | # | フォーム | scoped save→reread→billing | 備考 |
 | --- | --- | --- | --- |
 | 1 | 診察 | **newly covered** | `treatment-plan-master-model.test.ts` price 0（既存）+ update 1200→2300/tax。専用env actual は未実行 |
-| 2 | 検査 | **newly covered** | exam create/update price 0/1200/2300・tax 非送出。検索ダイアログ exam vs checkup は **unverified**（shared component・allowlist外） |
+| 2 | 検査 | **newly covered** | exam create/update price 0/1200/2300・tax 非送出。検索ダイアログ exam vs checkup は下記 residual I/O で固定（配線のみ・価格消失バグ自動宣言なし） |
 | 3 | 処置 | **newly covered** | procedure price 0 + tax、update 2300 |
-| 4 | 予防接種 | **newly covered (master persist)** | vaccine price 0/1200/2300。治療検索「予防」→`other` は **unverified**（`medical-records/lib` allowlist外） |
+| 4 | 予防接種 | **newly covered (master persist)** | vaccine price 0/1200/2300。治療検索「予防」→`other` は分類のみ（`unit_price` は維持。価格消失ではない） |
 | 5 | 定期健診 | **newly covered (persist)** | checkup price persist。会計自動連携は根拠付き N/A のまま |
 | 6 | 薬剤 | **already covered** | 既存 `medicine-settings-model.test.ts`（分類0強制・明細価格・BUG-006）。本単位で再実装しない |
 | 7 | 商品 | **newly covered** | `merchandise-item-settings-model.test.ts` unit_price 0/1200/2300 + accounting `merchandise_item_id` |
-| 8 | 入院プラン | **newly covered** | create は UI 0 で price omit、update は 0 を明示送信 |
+| 8 | 入院プラン | **newly covered + residual price-loss** | create は UI 0 で price omit、update は 0 を明示送信。CarePlanRefSelect→AddForm/EditRow はマスタ価格を転記しない（下記） |
 | 9 | ケージ | **newly covered (persist)** | cage price 0/1200/2300。billing 自動連携 N/A |
 | 10 | トリミングコース | **newly covered** | `""`→null / `"0"`→0 / reread null→`""`・0→`"0"` + trimming_course_id 会計 |
 | 11 | トリミングオプション | **newly covered** | 同上 + trimming_option_id |
 | 12 | キャンペーン | **newly covered** | discount_value 0/1200/rate10。単価フィールド非混在 |
 
-**残 unverified（専用envまたは allowlist外）**: TreatmentSearchDialog exam_types 配線、vaccine search→`other`、CarePlanRefSelect 価格転記の実測、専用合成 clinic の 12フォームマトリクス全行。
+**残**: 専用合成 clinic の 12フォームマトリクス全行（専用env）。下記 residual 3経路は現行 I/O＋合成期待を固定済み。フル12フォーム PASS は主張しない。
+
+### Residual I/O map（2026-09-22 att-master-20260922-001）
+
+配線/分類だけではバグにしない。下流で単価が消える経路だけを価格消失 mismatch とする。
+
+| 経路 | 現行 I/O（コード根拠） | 合成期待 | 価格消失? | scoped 証跡 |
+| --- | --- | --- | --- | --- |
+| TreatmentSearchDialog × exam_types | hooks: consultations / procedures / vaccines / **checkupTypes** / medicines のみ。[TreatmentSearchDialog.tsx](../../../frontend/src/components/shared/TreatmentSearchDialog/TreatmentSearchDialog.tsx) は `useGetAllExaminationTypes` / `/v1/masters/examination-types` を呼ばない。checkupTypes を category `"検査"`・`unitPrice=ct.price` で出す。exam_types 単価の会計経路は検索ダイアログではなく検査レコード→未請求 `exam_id`。 | 合成: exam_type 価格 1200 をマスタ登録しても治療検索一覧に exam_types 行は出ない。checkup 1200 は「検査」行として出る。検索未選択は価格消失ではない。 | **No**（配線差。会計は exam_id 経路） | 本票の対応表＋既存 dialog テスト（checkup 表示）。exam fetch 追加の製品変更は本単位外 |
+| vaccine search → `resolveItemTypeFromCategory` → `other` | ダイアログは vaccines を category `"予防"`・`unitPrice=v.price` で出す。[treatments-tab-model.ts](../../../frontend/src/features/medical-records/lib/treatments-tab-model.ts) は `"予防"`→`item_type:"other"` だが `buildMasterSelectionPayload` は **`unit_price: item.unitPrice` を維持**。接種会計は別経路 `vaccination_id`（vaccines.price）。 | 合成: ワクチン 5000 を治療検索で選ぶ → create treatment は `item_type=other` かつ `unit_price=5000`。分類が other でも単価は落ちない。二重計上リスクは分類バグではなく経路分離の検証対象。 | **No**（分類のみ） | 既存 `treatments-tab-model.test.ts`（予防→other）。価格維持は payload 契約で読み取り固定 |
+| CarePlanRefSelect 入院プラン価格転記 | [useGetAllHospitalizationPlansMaster](../../../frontend/src/hooks/use-treatment-master.ts) は API 応答を `{id,name}` のみへ写し **price を落とす**。[CarePlanRefSelect](../../../frontend/src/features/hospitalization/components/CarePlanTab/CarePlanRefSelect.tsx) の onChange は id 文字列のみ。[AddForm](../../../frontend/src/features/hospitalization/components/CarePlanTab/AddForm.tsx) / [EditRow](../../../frontend/src/features/hospitalization/components/CarePlanTab/EditRow.tsx) の create/update payload に **`unit_price` を積まない**。BE create は request `unit_price`（省略時 0）を保存しプランマスタから自動コピーしない。退院会計は `care_plan_items.unit_price` を写す。 | 合成: プランマスタ price=1200 を type=持ち物で選択→ケアプラン create に `hospitalization_plan_id` はあるが `unit_price` 欠落→永続 0→退院会計 0。手動で unit_price を別 UI から入れない限りマスタ 1200 は下流に出ない。 | **Yes**（named price-loss） | `CarePlanRefSelect.test.tsx`（選択は id のみ）+ `AddForm.test.tsx` / `EditRow.test.tsx`（持ち物 submit に unit_price なし） |
 
 ## 0/空欄/欠損/未保存の区別（検証時に同値にしない）
 
@@ -101,13 +111,13 @@ Route 定義: [paths.ts](../../../frontend/src/config/paths.ts)（`settings.trea
 | フォーム | 既存（価格に触れるもの） | 未カバー候補 / 今回の扱い | 主張したい不一致 |
 | --- | --- | --- | --- |
 | 診察 | [TreatmentItemSidePanel.test.tsx](../../../frontend/src/features/master/components/TreatmentItemSidePanel.test.tsx) 負数拒否。`buildConsultationCreateRequest persists price 0 and tax_type`（既存） | **newly covered**: update 1200→2300/tax。専用env reread UI は残 | 再読込 1200→2300、税が検査タブへ漏れないこと |
-| 検査 | 同上パネル。未請求 [billing_item_exam_test.go](../../../backend/internal/billing/billing_item_exam_test.go)、bill-check 0 は請求可 | **newly covered**: examination create/update price・tax 非送出。`TreatmentSearchDialog` exam配線は **残 unverified** | 検索に exam_types が出ず checkup が検査扱い |
+| 検査 | 同上パネル。未請求 [billing_item_exam_test.go](../../../backend/internal/billing/billing_item_exam_test.go)、bill-check 0 は請求可 | **newly covered**: examination create/update price・tax 非送出。`TreatmentSearchDialog` exam配線は residual I/O で **価格消失ではない**と固定 | 検索に exam_types が出ず checkup が検査扱い（配線。会計は exam_id） |
 | 処置 | [treatment-plan-master-model.test.ts](../../../frontend/src/features/master/routes/treatment-plan-master-model.test.ts) 麻酔+税 | **newly covered**: procedure price 0 + update 2300。BE procedure 0 は既存 request test | 麻酔表示が価格契約を変えない |
-| 予防 | 未請求 [billing_item_vaccination_test.go](../../../backend/internal/billing/billing_item_vaccination_test.go) | **newly covered**: vaccine price persist。`treatments-tab-model` 予防→other は **残 unverified**（allowlist外） | 治療行と接種レコードの二重計上/取りこぼし |
+| 予防 | 未請求 [billing_item_vaccination_test.go](../../../backend/internal/billing/billing_item_vaccination_test.go) | **newly covered**: vaccine price persist。予防→`other` は分類のみ（unit_price 維持。価格消失バグにしない） | 治療行と接種レコードの二重計上/取りこぼし |
 | 健診 | [TreatmentPlanMaster.test.tsx](../../../frontend/src/features/master/routes/TreatmentPlanMaster.test.tsx) 権限/reorder のみ | **newly covered**: checkup price persist。会計 N/A 固定は残 | 会計 N/A を「バグで消えた」と誤判定しない |
 | 薬剤 | [medicine-settings-model.test.ts](../../../frontend/src/features/master/hooks/medicine-settings-model.test.ts) 分類強制 0、明細 1500、BUG-006 | **already covered**（再実装しない）。SidePanel 負数 UI は残 | BUG-006 分類0 vs 明細0 |
 | 商品 | [ItemListCard.test.tsx](../../../frontend/src/features/accounting/components/ItemListCard.test.tsx) 1200 + merchandiseItemId | **newly covered**: `merchandise-item-settings-model.test.ts` 0/1200/2300 | 会計選択に治療マスタが混ざらない |
-| 入院プラン | [hospitalization_plan_request_test.go](../../../backend/internal/medicalrecord/hospitalization_plan_request_test.go) price 0 ポインタ | **newly covered**: create omit 0 / update send 0。CarePlanRefSelect 転記実測は残 | マスタ 1200 がケアプラン 0 のまま退院会計へ |
+| 入院プラン | [hospitalization_plan_request_test.go](../../../backend/internal/medicalrecord/hospitalization_plan_request_test.go) price 0 ポインタ | **newly covered**: create omit 0 / update send 0。**CarePlanRefSelect 価格非転記は scoped で実証**（price-loss） | マスタ 1200 がケアプラン 0 のまま退院会計へ |
 | ケージ | [CageSettings.test.tsx](../../../frontend/src/features/master/routes/CageSettings.test.tsx) price 表示 | **newly covered**: `cage-settings-model.test.ts` 0/1200/2300。billing N/A | プラン料金との合算を推測しない |
 | コース/オプション | [TrimmingSettings.test.tsx](../../../frontend/src/features/master/routes/TrimmingSettings.test.tsx) dirty。[billing_item_trimming_test.go](../../../backend/internal/billing/billing_item_trimming_test.go) | **newly covered**: `trimming-settings-model.test.ts` 空/0 分離 + reread + accounting course/option id | local 合成予約表示と会計 ID |
 | キャンペーン | [campaign_service_test.go](../../../backend/internal/billing/campaign_service_test.go) 負拒否 | **newly covered**: `campaign-settings-model.test.ts` discount 0/1200/rate。suggestions 追随は残 | 単価列と割引列の取り違え |
@@ -139,4 +149,4 @@ Route 定義: [paths.ts](../../../frontend/src/config/paths.ts)（`settings.trea
 - 全マスタを会計選択に足して欠落を隠さない。
 - 確認ダイアログや画面ロックだけを価格保全の根拠にしない。
 - 自動連携がコード上無い経路は N/A とし、未実行と FAIL を取り違えない。
-- 専用envフルマトリクスと allowlist外（TreatmentSearchDialog / treatments-tab-model）は別タスク。本単位の scoped unit 追加は coverage 表を正とする。
+- 専用envフルマトリクスは別タスク（本票はフル12フォーム PASS を主張しない）。residual 3経路の現行 I/O は上表を正とし、価格消失は CarePlan 転記のみを named mismatch とする。

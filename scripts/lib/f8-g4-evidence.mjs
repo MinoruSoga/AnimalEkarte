@@ -8,8 +8,8 @@ const SAFETY_POLICY =
   "Aggregate timings, counts, statuses, and digests only. No identifiers, row values, credentials, paths, screenshots, logs, or free text.";
 const TABLES = Object.freeze([
   "staffs", "procedures", "merchandise_items", "owners", "pets",
-  "medical_records", "inquiries", "clinical_plans", "vital_records",
-  "appointments", "appointment_trimming_details", "billings",
+  "appointments", "appointment_trimming_details", "medical_records",
+  "inquiries", "clinical_plans", "vital_records", "billings",
   "billing_items", "payments", "payment_splits", "estimates",
   "estimate_items", "exams", "exam_results", "vaccines", "vaccinations",
 ]);

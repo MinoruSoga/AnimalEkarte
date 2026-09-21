@@ -1,6 +1,6 @@
 # Performance 調査・改善 TODO
 
-最終照合: 2026-09-21（ローカル HEAD `4781e9434` の文書・source）。runtime・provider・配備状態は今回未照会。主調査 ID: **PERF-STG-LOGIN**。対象は STG `/login` の初回表示遅延。責任者・依頼者: 曽我 稔。
+最終照合: 2026-09-22（ローカル HEAD `cd2feaa14` のSLACK-LATENCY計測票差分。PERF-STG-LOGINの判定・過去測定は9月21日の照合を保持）。runtime・provider・配備状態は今回未照会。主調査 ID: **PERF-STG-LOGIN**。対象は STG `/login` の初回表示遅延。責任者・依頼者: 曽我 稔。
 
 未完了の測定・受入は [todo-verification.md](todo-verification.md#perf-stg-login)。新たな実装が必要になったら [todo-issue.md](todo-issue.md) に範囲を確定する。本書は判断に必要な技術記録のみを保持する。
 
@@ -31,11 +31,13 @@
 
 ## SLACK-LATENCY: 治療数量の反映待ち
 
-`/login` とは別の課題。状態・受入条件の正本は [SLACK-LATENCY](todo-issue.md#slack-latency)、区間別の採時計画は [既存の測定票](docs/work/todo-campaign-20260919-ready17/SLACK-LATENCY.md)。計画は作成済みで、実測値・原因・許容時間・改善効果は UNKNOWN。票の作成時 revision と、これから測る対象 build を混同しない。
+`/login` とは別の課題。状態・受入条件の正本は [SLACK-LATENCY](todo-issue.md#slack-latency)、区間別の採時計画は [既存の測定票](docs/work/todo-campaign-20260919-ready17/SLACK-LATENCY.md)。`cd2feaa14` で比較条件とrevision固定方法の設計は完了。端末/回線等の実条件と実測値は未収録で、原因・許容時間・改善効果はUNKNOWN。票の作成時 revision と、これから測る対象 build を混同しない。
 
 現行 [数量セル](frontend/src/features/medical-records/components/TreatmentsTab/TreatmentQuantityCell.tsx) のローカル入力、2回目 Enter/Blur の確定、[PATCH 後の一覧 invalidate](frontend/src/features/medical-records/api/treatments.ts#L85)、[mutation中の操作制限](frontend/src/features/medical-records/hooks/use-treatments-tab.ts#L338) を別区間で測る。PATCH 応答だけで表示更新完了とはしない。2回 Enter の受入と、表示・通信・再取得の速度を分ける。
 
-次は対象端末・ブラウザ・回線・行数・IME・revision・fixture・操作範囲を固定し、既存票へ各区間の時間と保存値一致を記録する。条件が不足する run は BLOCKED、未測定の原因は UNKNOWN。因果証拠なしの debounce・楽観保存・Enter仕様変更は開始しない。`PERF-STG-LOGIN` の6単位や k6 の閾値をこの課題の完了条件へ転用しない。
+比較ラベルは `DEVICE-PC/TABLET`、`BAND-FEW/TYPICAL/HEAVY`、`IME-OFF/ON`、`OP-BLUR/ENTER-x2`、診察/薬剤に固定済み。行数帯の数値境界・実端末/ブラウザ版・回線・IME・対象buildはUNKNOWNで、架空の値を埋めない。票の作成時SHAや計測担当のローカルHEADだけでは配信版を証明できないため、実行時はFE/APIの対象revision・bundle/配備receipt等との対応も記録する。
+
+次はQA/計測担当が対象端末・ブラウザ・回線・行数・IME・対象build・fixture・操作範囲を確定し、既存票へ各区間の時間と保存値一致を記録する。同じ計測設計を再作成しない。条件が不足するrunはBLOCKED、未測定の原因はUNKNOWN。因果証拠なしのdebounce・楽観保存・Enter仕様変更は開始しない。`PERF-STG-LOGIN` の6単位やk6の閾値をこの課題の完了条件へ転用しない。
 
 ## E1: 2026-09-09 の遅延記録（過去の測定）
 

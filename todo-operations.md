@@ -1,10 +1,10 @@
 # 運用・外部実行 TODO
 
-最終照合: 2026-09-21（ローカル HEAD `4781e9434` のコード・文書・準備票）。未完了の環境・データ・本番・納品作業を管理する。実装は [todo-issue.md](todo-issue.md)、受入は [todo-verification.md](todo-verification.md)。既存チケットは [BRT-4](https://linear.app/baritechllc/issue/BRT-4) 配下。完了した PR の CI 修復・マージ待ちは削除した。
+最終照合: 2026-09-22（ローカル HEAD `cd2feaa14` の追加対応に関係する会計DB・配備ゲート。他の判定は9月21日の照合を保持）。未完了の環境・データ・本番・納品作業を管理する。実装は [todo-issue.md](todo-issue.md)、受入は [todo-verification.md](todo-verification.md)。既存チケットは [BRT-4](https://linear.app/baritechllc/issue/BRT-4) 配下。完了した PR の CI 修復・マージ待ちは削除した。
 
 remote・CI・配備・Linear・STG/PROD の DB/秘密/投入 receipt は今回再照会していない。以前の「未構築」「未受領」を現在の事実として断定せず、再実行前に実施有無を確認する。ローカル準備票の作成は実行完了ではない。
 
-着手プランを 2026-09-21 に再点検し、統合済みの LINMIG / remaining 準備票と現行コードを照合した。既存票を作り直す段階ではなく、不足入力・対象環境の適用状態・実行証拠を揃える段階。各表の ID から下の個別手順を参照する。承認前にも、既存資料の照合・不足入力表・実行案の作成は進められる。外部の実操作を、この計画の記載だけで開始しない。
+運用全体の着手プランは 2026-09-21 に再点検し、統合済みの LINMIG / remaining 準備票と現行コードを照合した。既存票を作り直す段階ではなく、不足入力・対象環境の適用状態・実行証拠を揃える段階。各表の ID から下の個別手順を参照する。承認前にも、既存資料の照合・不足入力表・実行案の作成は進められる。外部の実操作を、この計画の記載だけで開始しない。
 
 <a id="readiness-preparation"></a>
 
@@ -52,7 +52,7 @@ remote・CI・配備・Linear・STG/PROD の DB/秘密/投入 receipt は今回�
 
 ### UAT-R2-EXCLUSIVE-LOCK: 会計競合防御のDB適用確認
 
-[治療明細の一意制約 migration 004](backend/migrations/004_billing_items_treatment_lifetime_unique.sql) はコード追加済み。`treatment_id IS NOT NULL` の治療明細を、soft delete 済みも含め生涯一意にする。対象DBへの適用・index存在・実DB並行検証の現在の証拠は UNKNOWN。APIの409変換やmock回帰だけで、対象環境の二重登録防止を完了にしない。
+9月22日照合: `cd2feaa14` は古い合計/確定後明細/検査重複のmock回帰を追加したが、新しいmigrationは含まない。[治療明細の一意制約 migration 004](backend/migrations/004_billing_items_treatment_lifetime_unique.sql) は以前からコード追加済み。`treatment_id IS NOT NULL` の治療明細を、soft delete 済みも含め生涯一意にする。対象DBへの適用・index存在・実DB並行検証の現在の証拠は UNKNOWN。APIの409変換やmock回帰だけで、対象環境の二重登録防止を完了にしない。
 
 1. 運用担当は [環境別migrate確認票](docs/work/linmig-campaign-20260919/LINMIG-209.md) を再利用し、対象DB・schema version・004/indexの適用有無を承認されたread-only範囲で照合する。適用済みなら重複実行せずreceiptを対応づける。
 2. 未適用なら、既存データの制約適合・backup/復旧・実行者・対象/承認・実行枠を確認する。migrationを含む更新を取り込んだ開発環境では、ユーザーが対象を確認して `make migrate` を実行する。共有STG/PRODは環境別手順と承認に従い、エージェントは自動適用しない。重複データがあっても自動削除で通さない。
@@ -84,7 +84,7 @@ remote・CI・配備・Linear・STG/PROD の DB/秘密/投入 receipt は今回�
 | [P6 / #258 / U1–U12 DELIVERY](#p6--delivery) | 供給者別未記入表済 / 最終承認待ち | [P6](docs/work/remaining-campaign-20260920/P6.md)。P1 / P2 と契約責任者の事実を [納品パッケージ](docs/delivery/DELIVERY_PACKAGE.md) に反映 |
 | [P7 / #256 / U13 TRAINING](#p7--training) | 実施票済 / 完了未証明 | [P7](docs/work/remaining-campaign-20260920/P7.md)。説明会の日程・形式・範囲・実施結果の receipt |
 
-Q1検索・Q4保険・Q2履歴に加え、[追加実装5件と会計等の部分対応](todo-verification.md#code-followup-20260921) は、現行productionへの反映証拠を今回未照合（UNKNOWN）。本番releaseの対象revisionと既存receiptを照合し、反映済みなら重複配備しない。ブラウザ受入と上記前提を先に確認し、STG 配備だけで本番反映済みにしない。P4 / P8 / E1 / E2、go-live は [検証 TODO](todo-verification.md) を正本とする。
+Q1検索・Q4保険・Q2履歴、[追加実装5件と会計等の部分対応](todo-verification.md#code-followup-20260921)、今回 `cd2feaa14` の主訴null hydrate修正は、現行productionへの反映証拠を今回未照合（UNKNOWN）。本番releaseの対象revisionと既存receiptを照合し、反映済みなら重複配備しない。ブラウザ受入と上記前提を先に確認し、STG 配備だけで本番反映済みにしない。P4 / P8 / E1 / E2、go-live は [検証 TODO](todo-verification.md) を正本とする。
 
 ## データ操作の着手プラン
 

@@ -41,7 +41,7 @@ func cutoverCSVReferences() map[string][]cutoverCSVReference {
 		"merchandise_items":            {{"clinic_id", "clinics", false, cutoverClinicSeed}},
 		"owners":                       {{"clinic_id", "clinics", false, cutoverClinicSeed}},
 		"pets":                         {{"clinic_id", "clinics", false, cutoverClinicSeed}, {"owner_id", "owners", false, cutoverCSVParent}, {"animal_species_id", "animal_species", false, cutoverSpeciesSeed}},
-		"medical_records":              {{"clinic_id", "clinics", false, cutoverClinicSeed}, {"owner_id", "owners", true, cutoverCSVParent}, {"pet_id", "pets", true, cutoverCSVParent}, {"doctor_id", "staffs", true, cutoverCSVParent}, {"entered_by", "staffs", true, cutoverCSVParent}},
+		"medical_records":              {{"clinic_id", "clinics", false, cutoverClinicSeed}, {"owner_id", "owners", true, cutoverCSVParent}, {"pet_id", "pets", true, cutoverCSVParent}, {"appointment_id", "appointments", true, cutoverCSVParent}, {"doctor_id", "staffs", true, cutoverCSVParent}, {"entered_by", "staffs", true, cutoverCSVParent}},
 		"inquiries":                    {{"medical_record_id", "medical_records", false, cutoverCSVParent}, {"staff_id", "staffs", true, cutoverCSVParent}},
 		"clinical_plans":               {{"medical_record_id", "medical_records", false, cutoverCSVParent}},
 		"vital_records":                {{"clinic_id", "clinics", false, cutoverClinicSeed}, {"medical_record_id", "medical_records", true, cutoverCSVParent}, {"pet_id", "pets", false, cutoverCSVParent}, {"staff_id", "staffs", true, cutoverCSVParent}},

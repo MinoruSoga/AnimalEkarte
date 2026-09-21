@@ -1,8 +1,8 @@
 # 未完了の検証・受入 TODO
 
-最終照合: 2026-09-21（JST、ローカル HEAD `4781e9434`）。完了した実装・unit 検証の列挙を削除し、残る検証と受入だけを扱う。新規実装は [todo-issue.md](todo-issue.md)、外部操作は [todo-operations.md](todo-operations.md)。ローカルケース票の一部は [linmig-campaign-20260919](docs/work/linmig-campaign-20260919/) と [remaining-campaign-20260920](docs/work/remaining-campaign-20260920/) に作成済み。今回 runtime は再実行していない。過去の結果は当時の revision に限定し、追加実装の受入は現在の receipt 未照合として UNKNOWN を維持する。
+最終照合: 2026-09-22（JST、ローカル HEAD `cd2feaa14` の追加対応8件。他の判定は9月21日の照合を保持）。完了した実装・unit 検証の列挙を削除し、残る検証と受入だけを扱う。新規実装は [todo-issue.md](todo-issue.md)、外部操作は [todo-operations.md](todo-operations.md)。ローカルケース票の一部は [linmig-campaign-20260919](docs/work/linmig-campaign-20260919/) と [remaining-campaign-20260920](docs/work/remaining-campaign-20260920/) に作成済み。今回 runtime は再実行していない。過去の結果は当時の revision に限定し、追加実装の受入は現在の receipt 未照合として UNKNOWN を維持する。
 
-着手プラン確認: 2026-09-21。更新済み `todo-issue.md` とコードを照合し、対応済み5件と部分対応2件の残受入を [追加実装のキュー](#code-followup-20260921) へ接続した。各 ID の既存ケース票を再利用し、入口・前提・手順・証拠の不足だけを補う。計画・テストコードの存在を、テスト実行や受入の完了判定にしない。
+着手プラン確認: 2026-09-22。前回の [追加実装のキュー](#code-followup-20260921) を維持し、今回8件の追加対応から [残検証・受入](#ready8-followup-20260922) を更新した。既存ケース票を再利用し、追加済みunit/mockと、ローカル未カバー・実DB・実機・医院/POの未確認を分ける。調査票のGREENは当時の記録で、今回の再実行結果ではない。
 
 9月19日の依頼者回答を反映: 全金額経路・1366×625 UI・上書き/二重会計防止・全期間処置移行の受入ケースは [各実行票](todo.md#今開始する4件仕様入力の回収は完了) に具体化済み。既存票を再作成せず、対象revisionと未カバーケースを対応づける。以下のruntime準備では、他タスクの起動済みコンテナや共有DBを検証先に流用しない。
 
@@ -73,9 +73,26 @@ QA/開発が作るケース票の共通列は `ID / case / revision / 環境・f
 | [SLACK-MICROCHIP](todo-issue.md#slack-microchip) / [ヘッダー表示](frontend/src/components/shared/PatientContextHeader/PatientContextHeader.tsx#L151) | 番号有無、長い番号、API再取得、患者切替、1366×625で対象ペットと表示の一致を確認 | コード対応済み・受入 UNKNOWN。空欄/長い値でも操作を隠さず、前患者の番号が残らない証拠 |
 | [SLACK-CAMERA](todo-issue.md#slack-camera) / [撮影入力](frontend/src/features/medical-records/components/ImageGalleryFilter.tsx#L118) | 対象端末の撮影→確認/取消→正しいカルテへ保存→再読込。権限拒否・容量/形式・通信失敗も確認 | 撮影入口コード対応済み・実機受入 UNKNOWN。JPEG/PNG/GIFの撮影入力と、PDFも扱う通常アップロードを分ける。capture属性だけでカメラ起動成功としない |
 | [SLACK-STAFF-SELECT](todo-issue.md#slack-staff-select) / [候補状態の分離](frontend/src/components/shared/ReservationFormModal/filter-staff-candidates.ts#L70) | loading/失敗/候補なし/対象外を分けた表示を確認後、候補がある状態でiPad・元報告のPCの選択/保存/再読込を確認 | 部分対応済み・元症状は UNKNOWN。状態表示の回帰だけで端末固有の選択不能を解消済みにしない |
-| [UAT-R2-EXCLUSIVE-LOCK](todo-issue.md#uat-r2-exclusive-lock) / [異なるkeyの409](backend/internal/billing/accounting_complete_tx.go#L139) | [DB制約の適用確認](todo-operations.md#billing-schema-readiness) 後、異なるkeyの同一カルテ会計・治療明細重複を実DB/2セッションで確認。古い合計・後追い明細・所見以外のstale更新も残ケースへ | 会計側は部分対応済み・実並行は UNKNOWN。mock回帰を実DBの証拠にせず、上書き/二重会計の全受入が揃うまで閉じない。migration自動適用禁止 |
+| [UAT-R2-EXCLUSIVE-LOCK](todo-issue.md#uat-r2-exclusive-lock) / [異なるkeyの409](backend/internal/billing/accounting_complete_tx.go#L139) | [DB制約の適用確認](todo-operations.md#billing-schema-readiness) 後、異なるkeyの同一カルテ会計・明細重複・古い合計・確定後明細を実DB/2セッションで確認。所見以外のstale更新設計はIssue側で継続 | 9月22日追記: 古い合計/確定後明細/検査重複のmock回帰は追加済み、実並行はUNKNOWN。全受入が揃うまで閉じず、migration自動適用禁止 |
 
 再現した不一致は同じ Issue ID に戻す。元報告の画面・端末や臨床上の期待値が一致しない場合、既存修正の成功から補外せず、未確認ケースと必要な判断を残す。
+
+<a id="ready8-followup-20260922"></a>
+
+### 追加対応8件の残検証・受入（2026-09-22照合）
+
+基準は `cd2feaa14`。以下は既存IDの残条件で、新規課題や追加済み回帰の再作成ではない。実行前の対象build・専用環境/fixture・操作者・操作範囲/承認・後処理・証拠保存先は上の共通条件に従う。unit/mockは実DB永続化・実端末操作・医院の臨床期待の代替にしない。
+
+| ID | 確認できた追加対応 | 残る確認・完了条件 |
+|---|---|---|
+| [UAT-R2-MASTER-PATH](todo-issue.md#uat-r2-master-path) | 複数価格フォームの0/未入力/税区分/新規・更新のrequest/model回帰と会計参照ID分離 | 下流の未カバー合成検証はIssueへ。専用fixtureで全12フォームの新規/編集→API保存→再読込→該当下流/会計をreceipt化。自動連携しない経路は根拠付きN/A、未実行をPASSにしない |
+| [UAT-R2-EXCLUSIVE-LOCK](todo-issue.md#uat-r2-exclusive-lock) | 古い合計・確定後明細・検査由来重複のmock回帰 | 上の [競合検証](#code-followup-20260921) とDB適用ゲートへ。実DB2接続/2ブラウザ、rollback・入力救済・1回分の請求/監査を確認 |
+| [UAT-Q2-TREATMENTS-IMPORT](todo-issue.md#uat-q2-treatments-import) | 旧列→canonical→producer/AE候補の写像票 | まず契約案/合成fixture設計。現行21表に履歴2表はなく、実装前に履歴受入を開始しない。レビュー/実装後に同一契約の件数・帰属・金額・保留理由・参照専用表示を検証 |
+| [SLACK-COMPLAINT](todo-issue.md#slack-complaint) | null hydrate修正と空欄payload/本文保持・記録切替の回帰 | C0の実UI解除は未対応でIssueへ。対象buildで初期空欄・意図的解除・保存失敗・再読込・記録切替を区別し、主訴本文と区分nullのDB保存を確認。mockの空値callbackを解除操作成功にしない |
+| [SLACK-MANUAL-URINE](todo-issue.md#slack-manual-urine) | M1–M3/M5–M8の合成回帰、文字列保持・未判定・手動/機器非上書き | M4カルテ表示のローカル回帰はIssueへ。医院承認の項目/凡例/単位/基準、origin表示の採否、保存→再読込→表示、機器結果との非混在/非上書きは別受入。実データ/実機は承認後 |
+| [SLACK-VACCINE-MULTI](todo-issue.md#slack-vaccine-multi) | 単件POST/失敗通知/同日2〜3件順次POSTのFE・BE回帰 | 元症状の入口・対象版・エラー採取後、単件→順次保存→一覧再読込を実フォーム/DBで確認。実施日・lot・次回予定・会計参照の非混在を照合。batch UX/部分成功はPO裁定、species原因は別ID |
+| [SLACK-PLAN-MANUAL](todo-issue.md#slack-plan-manual) | 検索優先/fallbackの到達性回帰 | 治療タブの手入力案内で閉じるか、プラン表への直接追加かをPO裁定。配信版の保存・再読込・会計関係を確認。回帰追加をプラン手入力UI実装済みにしない |
+| [SLACK-LATENCY](todo-issue.md#slack-latency) | 比較ラベル・revision固定方法の設計 | [性能TODO](todo-performance.md#slack-latency-治療数量の反映待ち) の実端末/回線/行数/IME/FE・API buildを固定し区間別採時。actualは未収録、原因・改善効果はUNKNOWN |
 
 Q1 / Q4保険 / Q2履歴の実装は再開しない。根拠は [医院フィードバック](docs/work/stg-uat-clinic-feedback-q1-q4.md) と、9月15日に読取確認した [PR #411](https://github.com/MinoruSoga/AnimalEkarte/pull/411)（merged）、[Backend Deploy](https://github.com/MinoruSoga/AnimalEkarte/actions/runs/34923018516) / [Frontend Deploy](https://github.com/MinoruSoga/AnimalEkarte/actions/runs/34923018544)（ともに success、`d337f016`）。この配備記録はブラウザ確認や本番反映の代替ではない。
 
