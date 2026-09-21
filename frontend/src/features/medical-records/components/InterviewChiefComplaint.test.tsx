@@ -91,9 +91,7 @@ describe("InterviewChiefComplaint chief_complaint_type unset/clear", () => {
       onInsertTemplate: vi.fn(),
     };
 
-    const { rerender } = render(
-      <InterviewChiefComplaint {...props} chiefComplaintTypeId={5} />,
-    );
+    const { rerender } = render(<InterviewChiefComplaint {...props} chiefComplaintTypeId={5} />);
     expect(screen.getByRole("combobox", { name: "主訴区分" })).toHaveTextContent("消化器");
 
     rerender(<InterviewChiefComplaint {...props} chiefComplaintTypeId={null} />);

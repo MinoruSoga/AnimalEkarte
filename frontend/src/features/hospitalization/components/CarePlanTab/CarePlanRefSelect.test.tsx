@@ -79,8 +79,6 @@ describe("CarePlanRefSelect", () => {
     expect(handleChange).toHaveBeenCalledTimes(1);
     expect(handleChange).toHaveBeenCalledWith("3");
     expect(handleChange.mock.calls[0]).toHaveLength(1);
-    expect(handleChange.mock.calls[0][0]).not.toEqual(
-      expect.objectContaining({ price: 1200 }),
-    );
+    expect(handleChange.mock.calls[0][0]).not.toEqual(expect.objectContaining({ price: 1200 }));
   });
 });

@@ -110,7 +110,6 @@ describe("EditRow — type連動マスタ参照(BUG-403)", () => {
     expect(payload).not.toHaveProperty("unit_price");
   });
 
-
   it("type=指示・その他(参照不要)のままなら参照選択欄は表示されない", () => {
     render(<EditRow item={baseItem} onSave={vi.fn()} onCancel={vi.fn()} />);
     expect(screen.queryByLabelText("ref-select-stub")).not.toBeInTheDocument();
