@@ -7,9 +7,9 @@
 - 予定を自動で実施・請求済みにしない。会計は `billing_confirmations` 確認後の未請求集計であり、行追加 POST では走らない
 - マスタ単価の欠落・0円・再読込不一致は本票で直さず [UAT-R2-MASTER-PATH](../../../todo-issue.md#uat-r2-master-path) / [全経路票](../todo-campaign-20260918/UAT-R2-MASTER-PATH.md) へ統合する
 
-本票は [MedicalRecordDiagnosisPlan](../../../frontend/src/features/medical-records/components/MedicalRecordDiagnosisPlan.tsx) と [use-treatments-tab](../../../frontend/src/features/medical-records/hooks/use-treatments-tab.ts) を照合する。製品コード・テストは変更しない。
+本票は [MedicalRecordDiagnosisPlan](../../../frontend/src/features/medical-records/components/MedicalRecordDiagnosisPlan.tsx) と [use-treatments-tab](../../../frontend/src/features/medical-records/hooks/use-treatments-tab.ts) を照合する。planned-vs-billed / 自動実施・自動請求の意味は変更しない。製品 UI の意味変更はしない。到達性の回帰として [TreatmentTable.test.tsx](../../../frontend/src/features/medical-records/components/TreatmentTable.test.tsx) のみ許可（検索優先 `onOpenSearch || onAddRow`）。
 
-本ファイルは製品コードから import されない。キャンペーン unit `SLACK-PLAN-MANUAL` の owned path および人間が読む調査票である。ledger `owned_paths` が本パス単体のため、他シートへの追記では unit 完了にならない。入院 `treatment_plans` の仕様変更は本票の範囲外。
+本ファイルは製品コードから import されない。キャンペーン unit `SLACK-PLAN-MANUAL` の owned path および人間が読む調査票である。attempt `att-plan-manual-20260921-001` で treatments-tab 手入力と plan-table 検索優先 gap を再確認し、欠落していた TreatmentTable 到達性テストを追加した。入院 `treatment_plans` の仕様変更は本票の範囲外。
 
 ## 医院事実（コード外・UNKNOWN）
 
@@ -22,7 +22,7 @@
 | 「手入力」がマスタ無し行か、マスタ行の単価上書きか | 両方の経路がある（後述） | **UNKNOWN** |
 | 0円行を請求したいか | Create は `unit_price >= 0` を許容。0 は未請求候補から除外されない | **UNKNOWN**。デモだから 0 とは断定しない |
 | 「予定だけで未実施/非請求」が必要か | 現行のプラン表は `treatments` を即保存し、確認後は未請求に載り得る | **UNKNOWN**。必要と分かった場合だけ臨床 PO が移行条件を裁定するまで仕様変更を停止 |
-| フロント/API revision | 本票作成時 worktree HEAD `aac697645` | 再現セッションの SHA は **UNKNOWN** |
+| フロント/API revision | 本票作成時 worktree HEAD `aac697645`。attempt `att-plan-manual-20260921-001` 照合 HEAD `37cc028b730745574b23db2f238c3525e4e2fd20`（citations L236–239 / L211–214 / L247–248 一致） | 再現セッションの SHA は **UNKNOWN** |
 
 ## 混ぜてはいけない名前
 
@@ -102,7 +102,7 @@
 | ID | 操作 | 期待 |
 | --- | --- | --- |
 | E1 | 保存済みカルテの治療タブで「手入力で追加」→ 内容入力 → 追加 | `POST .../treatments` 1件。再読込で治療タブとプラン表の両方に同じ行。会計確認前は未請求に出ない |
-| E2 | プラン表「行を追加（検索）」 | 検索ダイアログ。空行 `handleAddRow` は走らない |
+| E2 | プラン表「行を追加（検索）」 | 検索ダイアログ。空行 `handleAddRow` は走らない。回帰: [TreatmentTable.test.tsx](../../../frontend/src/features/medical-records/components/TreatmentTable.test.tsx) が `onOpenSearch` 優先を固定 |
 | E3 | マスタ選択 | `unit_price` はマスタ値。欠落/0/再読込不一致は MASTER-PATH のケース |
 | E4 | 会計(医師確認) で confirmed | その後の未請求に `treatment_id` 付き候補。プラン POST 単体では confirmed にならない |
 | E5 | 入院画面の治療プラン | `treatment_plan_request` / `treatment_plans`。カルテ見出し「治療プラン」の保存先ではない |

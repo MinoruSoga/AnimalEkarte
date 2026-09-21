@@ -1,12 +1,12 @@
 # SLACK-COMPLAINT: 主訴区分の新規未選択 vs 既存クリア
 
-状態: **保存経路調査 READY／実機保存・再読込 未実行**。出典は [todo-issue.md](../../../todo-issue.md) 見出し `### SLACK-COMPLAINT`（L118–122、索引 L419）。保持する現場条件:
+状態: **回帰テスト READY／C3 hydrate 最小修正済み／実機保存・再読込 未実行**。出典は [todo-issue.md](../../../todo-issue.md) 見出し `### SLACK-COMPLAINT`（L118–122、索引 L419）。保持する現場条件:
 
 - 「主訴区分は空欄で入力」（出典 929–937。現行 `todo-issue.md` は要約のみ。原文行は本票では再掲しない）
 - **空欄許可は依頼済み**。可否を PO へ再質問しない。新しい仕様待ちに戻さない
-- 納品区分・受入者の確認は別途。本票は保存経路の事実トレースだけにする
+- 納品区分・受入者の確認は別途。本票は保存経路の事実トレース＋回帰証跡にする
 
-本票は [InterviewChiefComplaint](../../../frontend/src/features/medical-records/components/InterviewChiefComplaint.tsx) → 問診 PATCH / 作成 request → inquiries 永続化 → GET 再読込 を、**新規の未選択（N）**と**既存選択の意図的解除（C）**に分離する。製品コード・テストは変更しない。
+本票は [InterviewChiefComplaint](../../../frontend/src/features/medical-records/components/InterviewChiefComplaint.tsx) → 問診 PATCH / 作成 request → inquiries 永続化 → GET 再読込 を、**新規の未選択（N）**と**既存選択の意図的解除（C）**に分離する。ready8 attempt `att-complaint-20260921-001` で N/C/reload/switch 回帰を追加し、再現した C3 hydrate のみ最小修正した。
 
 本ファイルは製品コードから import されない。キャンペーン unit `SLACK-COMPLAINT` の owned path および人間が読む調査票である。製品モジュールからの呼び出し行は無い（sibling `SLACK-STAFF-SELECT.md` と同じ）。既存 `docs/work/todo-campaign-20260918/` にも本 unit の票は無い。ledger `owned_paths` が本パス単体のため、他シートへの追記では unit 完了にならない。
 
@@ -93,14 +93,36 @@
 
 対象環境不足は該当行 BLOCKED。根拠がない一括「必須化」や「全医院で空にできない」断定を先行実装しない。
 
+## 回帰結果（att-complaint-20260921-001）
+
+| ケース | 期待 | 結果 | 証跡 |
+| --- | --- | --- | --- |
+| N unset new save | 問診 PATCH が `chief_complaint_type_id: null`、本文保持 | **PASS** | `use-medical-record-save-action.test.ts` |
+| C intentional clear receive | `onValueChange("")` → setter `null`；保存も JSON null | **PASS** | `InterviewChiefComplaint.test.tsx` + save-action |
+| C0 clear UI | SearchableSelect にクリア無し | **案内のみ**（UI 追加なし） | 本票 C0 |
+| C3 reload / chart switch | server/null へ hydrate で local type を消す | **FAIL→PASS** | RED: apply-medical-record 2 failing；fix `use-apply-medical-record.ts` always-write null；GREEN 23/23 |
+| 空欄許可再質問 | 再開しない | **PASS** | 本票・実装とも PO 質問なし |
+
+検証コマンド（compose frontend down → ephemeral）:
+
+```bash
+docker run --rm --network none --pull never -v "$PWD/frontend:/app" -w /app \
+  sha256:532501622cd024ab786a32eb9798db1cd1a0e4d47cddb3dbd56ae107f95d9cb4 \
+  node node_modules/vitest/vitest.mjs run --configLoader native \
+  src/features/medical-records/hooks/use-apply-medical-record.test.ts \
+  src/features/medical-records/components/InterviewChiefComplaint.test.tsx \
+  src/features/medical-records/hooks/use-medical-record-save-action.test.ts
+# GREEN: Test Files 3 passed / Tests 23 passed
+```
+
 ## 完了 / PO・停止
 
 todo-issue L122 の完了条件を本票に落とす:
 
-- 区分未設定で主訴本文を失わず保存できる（N）。失敗した画面/経路だけ最小修正
-- 既存区分の意図的解除も受入に含める（C）。クリア UI が無ければ案内。PATCH/hydrate が残存するならその経路だけ
+- 区分未設定で主訴本文を失わず保存できる（N）。失敗した画面/経路だけ最小修正 — **回帰 PASS**
+- 既存区分の意図的解除も受入に含める（C）。クリア UI が無ければ案内。PATCH/hydrate が残存するならその経路だけ — **C0 案内／C3 hydrate 修正済み**
 - 該当しなければ操作案内へ
 - 納品区分・受入者確認は別途
 - **空欄許可そのものを新しい仕様待ちに戻さない**
 
-臨床的な「空欄にしてよいか」は依頼済みとして閉じる。医院ごとの必須運用ルールはコードに無く **UNKNOWN**。本票で作らない。
+臨床的な「空欄にしてよいか」は依頼済みとして閉じる。医院ごとの必須運用ルールはコードに無く **UNKNOWN**。本票で作らない。実機保存・再読込は未実行（本 attempt は unit 回帰範囲）。

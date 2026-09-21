@@ -595,6 +595,87 @@ describe("useExaminationForm — 検査項目テーブル（FE-EXAM-001）", () 
     expect(updateItemsMutate).not.toHaveBeenCalled();
   });
 
+  it("M1: 手入力 Create POST は job_id を送らず FIXTURE-STRIP 値を保持する", async () => {
+    const { useCreateExamination } = await import("../api/create-examination");
+    const { useGetExamTypeFields } = await import("../api/get-exam-type-fields");
+
+    vi.mocked(useGetExamTypeFields).mockReturnValue({
+      data: [
+        {
+          id: 901,
+          name: "FIXTURE-STRIP-PAD-A",
+          unit: "FIXTURE-UNIT-A",
+          normalValue: "FIXTURE-REF-A",
+          sortOrder: 1,
+        },
+      ],
+    } as ReturnType<typeof useGetExamTypeFields>);
+
+    const createMutate = vi.fn().mockResolvedValue({ id: "new-urine-1" });
+    vi.mocked(useCreateExamination).mockReturnValue({
+      mutateAsync: createMutate,
+    } as ReturnType<typeof useCreateExamination>);
+
+    vi.mocked(usePetSelection).mockReturnValue({
+      selectedPets: [
+        {
+          id: "42",
+          name: "FIXTURE-CAT",
+          ownerName: "FIXTURE-OWNER",
+          ownerId: "5",
+          species: "猫",
+          breed: "",
+          birthday: "",
+          gender: "女",
+          weight: null,
+          imageUrl: null,
+          status: "生存" as const,
+          microchipNumber: null,
+          insuranceNumber: null,
+          insuranceExpiry: null,
+          memo: null,
+        },
+      ],
+      setSelectedPets: vi.fn(),
+    } as ReturnType<typeof usePetSelection>);
+
+    const { result } = renderExaminationForm();
+    act(() => {
+      result.current.setFormData({ testTypeId: "77", doctorId: "3" });
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    if (result.current.formItems.length > 0) {
+      act(() => {
+        result.current.setInspectionValue(result.current.formItems[0].key, "(+)");
+      });
+    }
+
+    await act(async () => {
+      startTransition(() => result.current.formAction(new FormData()));
+    });
+
+    await waitFor(() => expect(createMutate).toHaveBeenCalledOnce());
+    const payload = createMutate.mock.calls[0][0] as Record<string, unknown>;
+    expect(payload).not.toHaveProperty("job_id");
+    expect(payload).toEqual(
+      expect.objectContaining({
+        exam_type_id: 77,
+        machine: undefined,
+        items: [
+          expect.objectContaining({
+            exam_type_field_id: 901,
+            name: "FIXTURE-STRIP-PAD-A",
+            inspection_value: "(+)",
+            unit: "FIXTURE-UNIT-A",
+            reference_value: "FIXTURE-REF-A",
+          }),
+        ],
+      }),
+    );
+  });
+
   it("新規保存時に items が空でも空配列を POST に含める", async () => {
     const { useCreateExamination } = await import("../api/create-examination");
     const { useGetExamTypeFields } = await import("../api/get-exam-type-fields");
