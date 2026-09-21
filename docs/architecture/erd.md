@@ -146,7 +146,7 @@ erDiagram
 
 ## 4. スキーマ整合・不要候補判定ログ
 
-照合対象は `backend/migrations/` 直下の4本（`001_init.sql` と `002`〜`004`）。128テーブルは全て `001_init.sql` で定義され、後続3本はFK置換・index追加のみでテーブル数を増やさない。内訳はセクション11統合後の 123 + `lab_device_item_masters`, `lab_import_job_items`, `lab_device_waits`, `lab_device_station_settings`, `lab_devices` の5 table = **128**。後続の exam provenance 列、negative billing amount 変更、2026-09-01〜02 の tenant FK / RLS / 予約グラフ複合 FK は table を追加しない。直下 DDL inventory と DDL 本文を正とし、実 DB のデータ量・実行時 SQL・アクセスログはこの静的照合の対象外とする。active seed bundle は `backend/migrations/seeds/002_master` のみ。
+照合対象は `ls backend/migrations/*.sql` で確認する直下 DDL である。各ファイルの役割とテーブル定義の所在は §4.4、過去の統合でテーブル数がどう変わったかは §4.3 の履歴を見る。在庫の件数をこの段落では固定しない。直下 DDL inventory と DDL 本文を正とし、実 DB のデータ量・実行時 SQL・アクセスログはこの静的照合の対象外とする。active seed bundle は `backend/migrations/seeds/002_master` のみ。
 
 > [!NOTE]
 > **Historical schema chronology (2026-07-04〜2026-09-02; not current inventory):** 旧 incremental は複数回 `001_init.sql` へ統合された。table count は 108 → 109 → 110 → 115 → 123 → 124 → 127 → 128 と変化した。2026-08-20 までに lab-device 5 table を含む 128 table へ到達し、exam provenance、2026-08-25 の negative-amount change、2026-09-01〜02 の tenant FK / RLS / 予約グラフ複合 FK は table を増やしていない。旧番号、当時の apply/reset 条件、commit provenance は `001_init.sql` の archive comment と git history を参照する。旧 `seeds/003_demo` / `seeds/004_staging` は CSV 移行後に存在したが commit `09d2c9e2b` で退役した。HEAD の active seed は `seeds/002_master` だけである。
