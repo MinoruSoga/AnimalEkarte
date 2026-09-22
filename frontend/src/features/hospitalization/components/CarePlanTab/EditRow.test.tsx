@@ -10,16 +10,23 @@ vi.mock("./CarePlanRefSelect", () => ({
     type,
     value,
     onChange,
+    onUnitPriceChange,
   }: {
     type: string;
     value: string | null;
     onChange: (v: string | null) => void;
+    onUnitPriceChange?: (price: number | null) => void;
   }) => (
     <input
       aria-label="ref-select-stub"
       data-type={type}
       value={value ?? ""}
-      onChange={(e) => onChange(e.target.value || null)}
+      onChange={(e) => {
+        const next = e.target.value || null;
+        onChange(next);
+        // 実物は type=item 選択時に入院プランマスタの price を伝播する(本テストでは 1200 固定)
+        onUnitPriceChange?.(next !== null && type === "item" ? 1200 : null);
+      }}
     />
   ),
 }));
@@ -89,8 +96,8 @@ describe("EditRow — type連動マスタ参照(BUG-403)", () => {
     );
   });
 
-  // Named price-loss (edit path): plan ref id is saved, master price is not transferred.
-  it("type=持ち物 の保存 payload に unit_price を積まない（マスタ価格非転記）", async () => {
+  // 回帰(price-loss 修正): 入院プランを選び直すとマスタ price が update payload に積まる。
+  it("type=持ち物 で入院プラン(price=1200)を選択して保存すると update payload に unit_price=1200 を積む", async () => {
     const user = userEvent.setup();
     const onSave = vi.fn();
     render(<EditRow item={baseItem} onSave={onSave} onCancel={vi.fn()} />);
@@ -100,14 +107,37 @@ describe("EditRow — type連動マスタ参照(BUG-403)", () => {
     await user.click(screen.getByRole("button", { name: /保存/ }));
 
     expect(onSave).toHaveBeenCalledTimes(1);
-    const payload = onSave.mock.calls[0][0] as Record<string, unknown>;
-    expect(payload).toEqual(
+    expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({
         type: "item",
         hospitalization_plan_id: "plan-1",
+        unit_price: 1200,
       }),
     );
-    expect(payload).not.toHaveProperty("unit_price");
+  });
+
+  // 回帰(price-loss 修正): 既存の持ち物項目は再選択なしでも保存時に永続化済みの単価を維持する。
+  it("type=持ち物の既存項目はプラン再選択なしでも保存時に unit_price=1200 を維持する", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    const item: CarePlanItem = {
+      ...baseItem,
+      type: "item",
+      hospitalization_plan_id: "3",
+      unit_price: 1200,
+      name: "入院プラン項目",
+    };
+    render(<EditRow item={item} onSave={onSave} onCancel={vi.fn()} />);
+
+    await user.click(screen.getByRole("button", { name: /保存/ }));
+
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "item",
+        hospitalization_plan_id: "3",
+        unit_price: 1200,
+      }),
+    );
   });
 
   it("type=指示・その他(参照不要)のままなら参照選択欄は表示されない", () => {

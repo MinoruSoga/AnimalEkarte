@@ -12,16 +12,23 @@ vi.mock("./CarePlanRefSelect", () => ({
     type,
     value,
     onChange,
+    onUnitPriceChange,
   }: {
     type: string;
     value: string | null;
     onChange: (v: string | null) => void;
+    onUnitPriceChange?: (price: number | null) => void;
   }) => (
     <input
       aria-label="ref-select-stub"
       data-type={type}
       value={value ?? ""}
-      onChange={(e) => onChange(e.target.value || null)}
+      onChange={(e) => {
+        const next = e.target.value || null;
+        onChange(next);
+        // 実物は type=item 選択時に入院プランマスタの price を伝播する(本テストでは 1200 固定)
+        onUnitPriceChange?.(next !== null && type === "item" ? 1200 : null);
+      }}
     />
   ),
 }));
@@ -92,10 +99,10 @@ describe("AddForm — type連動マスタ参照(BUG-403)", () => {
     );
   });
 
-  // Named price-loss: CarePlanRefSelect only returns plan id; AddForm never copies
-  // hospitalization plan master price into create payload. BE persists omitted
-  // unit_price as 0; discharge billing copies care_plan_items.unit_price.
-  it("type=持ち物 で入院プランを選んでも create payload に unit_price を積まない", async () => {
+  // 回帰(price-loss 修正): CarePlanRefSelect が選択プランのマスタ price を伝播し、
+  // AddForm が create payload の unit_price に積む。BE は request unit_price を保存し、
+  // 退院会計は care_plan_items.unit_price を写す。
+  it("type=持ち物 で入院プラン(price=1200)を選択すると create payload に unit_price=1200 を積む", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
     render(<AddForm onSubmit={onSubmit} />);
@@ -106,16 +113,15 @@ describe("AddForm — type連動マスタ参照(BUG-403)", () => {
     await user.click(screen.getByRole("button", { name: /追加/ }));
 
     expect(onSubmit).toHaveBeenCalledTimes(1);
-    const payload = onSubmit.mock.calls[0][0] as Record<string, unknown>;
-    expect(payload).toEqual(
+    expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({
         type: "item",
         name: "スタンダード入院プラン",
         hospitalization_plan_id: "3",
         medicine_id: null,
         procedure_id: null,
+        unit_price: 1200,
       }),
     );
-    expect(payload).not.toHaveProperty("unit_price");
   });
 });

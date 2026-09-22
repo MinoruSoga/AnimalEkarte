@@ -46,12 +46,17 @@ export function EditRow({ item, onSave, onCancel }: EditRowProps) {
   const [type, setType] = useState<CarePlanItemType>(item.type);
   const [timing, setTiming] = useState<CarePlanTiming[]>(item.timing);
   const [refId, setRefId] = useState<string | null>(initialRefId(item));
+  /** 持ち物の保存単価。既存値で初期化し、プラ再選択時はマスタ price で上書き。0 は有限値として保持。 */
+  const [refUnitPrice, setRefUnitPrice] = useState<number | null>(
+    item.type === "item" ? item.unit_price : null,
+  );
 
   const needsRef = requiresRef(type);
 
   const handleTypeChange = useCallback((next: CarePlanItemType) => {
     setType(next);
     setRefId(null);
+    setRefUnitPrice(null);
   }, []);
 
   const handleTimingToggle = useCallback((t: CarePlanTiming) => {
@@ -69,6 +74,8 @@ export function EditRow({ item, onSave, onCancel }: EditRowProps) {
         type,
         timing,
         ...buildRefFields(type, refId),
+        // 持ち物は既存/再選択したプランマスタの単価を unit_price に維持・転記する
+        ...(type === "item" && refUnitPrice !== null ? { unit_price: refUnitPrice } : {}),
       });
       return { error: null };
     },
@@ -102,7 +109,14 @@ export function EditRow({ item, onSave, onCancel }: EditRowProps) {
           placeholder="名称"
         />
       </div>
-      {needsRef ? <CarePlanRefSelect type={type} value={refId} onChange={setRefId} /> : null}
+      {needsRef ? (
+        <CarePlanRefSelect
+          type={type}
+          value={refId}
+          onChange={setRefId}
+          onUnitPriceChange={setRefUnitPrice}
+        />
+      ) : null}
       <div className="flex items-center gap-3">
         <span className={`text-xs ${C.text50} shrink-0`}>タイミング:</span>
         <div className="flex gap-2">

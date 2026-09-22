@@ -18,6 +18,11 @@ interface CarePlanRefSelectProps {
   /** 選択中の参照先マスタ ID(未選択時は null)。 */
   value: string | null;
   onChange: (value: string | null) => void;
+  /**
+   * type=item(入院プラン)の選択変更時に選択プランのマスタ price を伝播する。
+   * クリア・マスタ未検出時は null。0 は有限値としてそのまま渡す。
+   */
+  onUnitPriceChange?: (price: number | null) => void;
 }
 
 /**
@@ -27,7 +32,7 @@ interface CarePlanRefSelectProps {
  * 既存パターン(VaccinationForm.tsx の SearchableSelect + マスタ取得 hook)を再利用し、
  * 新しい選択 UI は発明しない。
  */
-export function CarePlanRefSelect({ type, value, onChange }: CarePlanRefSelectProps) {
+export function CarePlanRefSelect({ type, value, onChange, onUnitPriceChange }: CarePlanRefSelectProps) {
   const { data: medicines, isLoading: isMedicinesLoading } = useGetAllMedicinesMaster();
   const { data: procedures, isLoading: isProceduresLoading } = useGetAllProcedures();
   const { data: plans, isLoading: isPlansLoading } = useGetAllHospitalizationPlansMaster();
@@ -46,6 +51,13 @@ export function CarePlanRefSelect({ type, value, onChange }: CarePlanRefSelectPr
   );
 
   const handleChange = (next: string) => onChange(next || null);
+
+  // type=item: 選択プランのマスタ price を unit_price 転記用に伝播する(0 は有限値として保持)
+  const handlePlanChange = (next: string) => {
+    const id = next || null;
+    onChange(id);
+    onUnitPriceChange?.(plans?.find((p) => p.id === id)?.price ?? null);
+  };
 
   if (type === "medicine") {
     return (
@@ -77,7 +89,7 @@ export function CarePlanRefSelect({ type, value, onChange }: CarePlanRefSelectPr
     return (
       <SearchableSelect
         value={value ?? ""}
-        onValueChange={handleChange}
+        onValueChange={handlePlanChange}
         options={planOptions}
         disabled={isPlansLoading}
         placeholder={isPlansLoading ? "読み込み中..." : "入院プランを選択"}
