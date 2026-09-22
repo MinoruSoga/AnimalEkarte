@@ -32,6 +32,11 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
 # ===========================
 FROM alpine:3.21
 
+# イメージ再ビルド強制用のダミーラベル。Cloudflare Containers はイメージ差分でのみ
+# 新バージョンをロールアウトするため、APAC配置制約(wrangler.jsonc constraints.regions)
+# 適用後の即時インスタンス再配置を起こすために導入。値を上げる=再ロールアウト。
+LABEL rollout="1"
+
 # Install runtime dependencies
 RUN apk add --no-cache \
     ca-certificates \
