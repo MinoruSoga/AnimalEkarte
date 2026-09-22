@@ -32,7 +32,12 @@ interface CarePlanRefSelectProps {
  * 既存パターン(VaccinationForm.tsx の SearchableSelect + マスタ取得 hook)を再利用し、
  * 新しい選択 UI は発明しない。
  */
-export function CarePlanRefSelect({ type, value, onChange, onUnitPriceChange }: CarePlanRefSelectProps) {
+export function CarePlanRefSelect({
+  type,
+  value,
+  onChange,
+  onUnitPriceChange,
+}: CarePlanRefSelectProps) {
   const { data: medicines, isLoading: isMedicinesLoading } = useGetAllMedicinesMaster();
   const { data: procedures, isLoading: isProceduresLoading } = useGetAllProcedures();
   const { data: plans, isLoading: isPlansLoading } = useGetAllHospitalizationPlansMaster();
