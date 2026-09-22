@@ -478,6 +478,19 @@ def plan(paths):
                 jobs.append({'service': 'host', 'command': ['python3', '-B', '.claude/scripts/' + test]})
         elif path in ACCOUNT_LAYOUT_PATHS:
             jobs.append({'service': 'host', 'command': ['python3', '-B', 'scripts/test_account_csv_layout.py']})
+            if path == 'Makefile':
+                account_source_job = {
+                    'service': 'host',
+                    'command': ['bash', 'scripts/check-csv-import-account-source.test.sh'],
+                }
+                if account_source_job not in jobs:
+                    jobs.append(account_source_job)
+        elif path in (
+            'scripts/check-csv-import-account-source.test.sh',
+            'scripts/import-old-db-handoffs-on-reset.sh',
+        ):
+            jobs.append({'service': 'host', 'command': ['bash', 'scripts/check-csv-import-account-source.test.sh']})
+            jobs.append({'service': 'host', 'command': ['bash', '-n', path]})
         elif path in (
             'scripts/check-workflow-contracts.test.mjs',
             '.github/workflows/security-scan.yml',
