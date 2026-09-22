@@ -246,6 +246,21 @@ class VerificationTests(unittest.TestCase):
                 self.assertIn(('bash', 'scripts/check-csv-import-account-source.test.sh'), commands)
                 self.assertIn(('bash', '-n', path), commands)
 
+    def test_cross_clinic_staff_link_helpers_have_host_contract(self):
+        for path in (
+            'scripts/link-old-db-cross-clinic-staff-accounts.py',
+            'scripts/sql/link-old-db-cross-clinic-staff-accounts.sql',
+            'scripts/import-old-db-handoffs-on-reset.sh',
+        ):
+            with self.subTest(path=path):
+                jobs, blocked = verify.plan([path])
+                self.assertFalse(blocked)
+                commands = [tuple(job['command']) for job in jobs]
+                self.assertIn(
+                    ('python3', '-B', 'scripts/link-old-db-cross-clinic-staff-accounts.py', '--self-test'),
+                    commands,
+                )
+
     def test_security_scan_workflow_uses_workflow_contracts(self):
         jobs, blocked = verify.plan(['.github/workflows/security-scan.yml'])
         self.assertFalse(blocked)

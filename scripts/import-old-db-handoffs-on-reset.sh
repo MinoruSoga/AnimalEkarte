@@ -328,5 +328,14 @@ if [[ "$found" -eq 0 ]]; then
 fi
 
 ensure_hachioji_curated_demo_staffs
+
+link_cross_clinic_staff_accounts() {
+  echo "INFO  linking cross-clinic staffs that share one unambiguous name"
+  docker compose -p animalekarte exec -T db \
+    psql -U ekarte_user -d "$DB_NAME_VAL" -v ON_ERROR_STOP=1 \
+    < "$ROOT/scripts/sql/link-old-db-cross-clinic-staff-accounts.sql"
+}
+
+link_cross_clinic_staff_accounts
 attach_staff_if_roster_present
 activate_curated_demo_staff_for_local_login

@@ -491,6 +491,19 @@ def plan(paths):
         ):
             jobs.append({'service': 'host', 'command': ['bash', 'scripts/check-csv-import-account-source.test.sh']})
             jobs.append({'service': 'host', 'command': ['bash', '-n', path]})
+            if path == 'scripts/import-old-db-handoffs-on-reset.sh':
+                jobs.append({
+                    'service': 'host',
+                    'command': ['python3', '-B', 'scripts/link-old-db-cross-clinic-staff-accounts.py', '--self-test'],
+                })
+        elif path in (
+            'scripts/link-old-db-cross-clinic-staff-accounts.py',
+            'scripts/sql/link-old-db-cross-clinic-staff-accounts.sql',
+        ):
+            jobs.append({
+                'service': 'host',
+                'command': ['python3', '-B', 'scripts/link-old-db-cross-clinic-staff-accounts.py', '--self-test'],
+            })
         elif path in (
             'scripts/check-workflow-contracts.test.mjs',
             '.github/workflows/security-scan.yml',
