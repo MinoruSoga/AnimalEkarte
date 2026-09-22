@@ -15,7 +15,7 @@ const (
 	maxCutoverCSVBytes         = int64(512 << 20)
 	cutoverManifestSchema      = "animalekarte-cutover-v1"
 	cutoverStageMappingSHA256  = "bf8c262e136d4d5e74751508286710035b27bd1e7ed927ce4f47320dd4e9152b"
-	cutoverCSVContractSHA256   = "befeeaea5d191091c391e8a7e21deaa41bd10f985020818fd667d94fa5014320"
+	cutoverCSVContractSHA256   = "9e02897b86c742f94162ddfd4171067b3036a3ac4f055c6d3fd4a614e0fb37c9"
 )
 
 var placeholderPattern = regexp.MustCompile(`\{\{[A-Z0-9_]+\}\}`)
