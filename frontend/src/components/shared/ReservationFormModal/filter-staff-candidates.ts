@@ -67,6 +67,27 @@ export interface StaffSelectionEligibility {
  * Resolve display/eligibility for a retained doctor id under type/date filters.
  * Loading and query error must not be treated as confirmed orphan.
  */
+export function staffCandidateEmptyMessage(input: {
+  hasQueryError: boolean;
+  candidatesSettled: boolean;
+  selectedReservationTypeId: string | null;
+  selectedDateStr: string | null;
+}): string {
+  if (input.hasQueryError) {
+    return "スタッフ候補の取得に失敗しました";
+  }
+  if (!input.candidatesSettled) {
+    return "スタッフ候補を読み込み中です";
+  }
+  if (input.selectedReservationTypeId !== null) {
+    return "この条件で対応可能なスタッフがいません";
+  }
+  if (input.selectedDateStr !== null) {
+    return "この日に出勤しているスタッフがいません";
+  }
+  return "スタッフが登録されていません";
+}
+
 export function resolveStaffSelectionEligibility(
   input: StaffSelectionEligibilityInput,
 ): StaffSelectionEligibility {

@@ -199,7 +199,7 @@ export const TreatmentSearchDialog = memo(function TreatmentSearchDialog({
         {/* Item List */}
         <FilteringIndicator
           isFiltering={isFiltering}
-          className="flex-1 overflow-y-auto space-y-1 pr-1 max-h-[400px]"
+          className="flex-1 overflow-y-auto space-y-1 pr-1 max-h-[calc(80vh-12rem)]"
         >
           {filteredItems.length === 0 ? (
             <EmptyState message="該当する治療プランが見つかりません。" />

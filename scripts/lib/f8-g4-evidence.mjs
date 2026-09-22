@@ -8,8 +8,8 @@ const SAFETY_POLICY =
   "Aggregate timings, counts, statuses, and digests only. No identifiers, row values, credentials, paths, screenshots, logs, or free text.";
 const TABLES = Object.freeze([
   "staffs", "procedures", "merchandise_items", "owners", "pets",
-  "medical_records", "inquiries", "clinical_plans", "vital_records",
-  "appointments", "appointment_trimming_details", "billings",
+  "appointments", "appointment_trimming_details", "medical_records",
+  "inquiries", "clinical_plans", "vital_records", "billings",
   "billing_items", "payments", "payment_splits", "estimates",
   "estimate_items", "exams", "exam_results", "vaccines", "vaccinations",
 ]);
@@ -25,7 +25,7 @@ function canonicalTimestamp(value, label) {
 
 function validateIdentity(identity) {
   requireValue(CLINIC_RE.test(identity?.clinicCode ?? ""), "clinic code is invalid");
-  requireValue(identity.clinicOrdinal === 1, "clinic ordinal must be 1");
+  requireValue(Number.isInteger(identity.clinicOrdinal) && identity.clinicOrdinal >= 1 && identity.clinicOrdinal <= 50, "clinic ordinal must be an integer between 1 and 50");
   requireValue(RUN_RE.test(identity.runId ?? ""), "run ID is invalid");
   requireValue(COMMIT_RE.test(identity.targetReleaseCommit ?? ""), "target release commit is invalid");
   requireValue(

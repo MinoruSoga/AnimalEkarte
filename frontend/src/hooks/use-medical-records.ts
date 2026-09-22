@@ -57,7 +57,7 @@ export async function getMedicalRecords(
   if (filters?.endDate) params.end_date = filters.endDate;
   if (filters?.petId) params.pet_id = filters.petId;
   if (filters?.ownerId) params.owner_id = filters.ownerId;
-  if (filters?.clinicIds && filters.clinicIds.length > 1) {
+  if (filters?.clinicIds?.length) {
     params.clinic_ids = filters.clinicIds.join(",");
   }
   if (filters?.search) params.search = filters.search;

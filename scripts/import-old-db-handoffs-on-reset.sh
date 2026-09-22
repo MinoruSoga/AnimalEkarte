@@ -173,6 +173,16 @@ SQL
   echo "INFO  cleared existing clinic_id=${seed_clinic} clinical/owner/catalog rows before import" >&2
 
   export CSV_IMPORT_SOURCE_DIR="$dir"
+  # staffs.csv is owner-only under 002_master/accounts/_old_db_handoff/<clinic>/.
+  # Set explicitly so a parent `make reset` empty export / CURDIR case mismatch
+  # cannot drop --account-source-dir (preflight would look under /migration-input).
+  clinic_leaf="$(basename "$dir")"
+  account_dir="$ROOT/backend/migrations/seeds/002_master/accounts/_old_db_handoff/$clinic_leaf"
+  if [[ -d "$account_dir" ]]; then
+    export CSV_IMPORT_ACCOUNT_SOURCE_DIR="$account_dir"
+  else
+    unset CSV_IMPORT_ACCOUNT_SOURCE_DIR || true
+  fi
   export CSV_MANIFEST_SHA256="$sha"
   export CLINIC_CODE="$clinic"
   export CLINIC_ORDINAL="$ordinal"
@@ -318,5 +328,14 @@ if [[ "$found" -eq 0 ]]; then
 fi
 
 ensure_hachioji_curated_demo_staffs
+
+link_cross_clinic_staff_accounts() {
+  echo "INFO  linking cross-clinic staffs that share one unambiguous name"
+  docker compose -p animalekarte exec -T db \
+    psql -U ekarte_user -d "$DB_NAME_VAL" -v ON_ERROR_STOP=1 \
+    < "$ROOT/scripts/sql/link-old-db-cross-clinic-staff-accounts.sql"
+}
+
+link_cross_clinic_staff_accounts
 attach_staff_if_roster_present
 activate_curated_demo_staff_for_local_login

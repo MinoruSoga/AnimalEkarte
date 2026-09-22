@@ -57,6 +57,11 @@ describe("OwnerSearchModal", () => {
     expect(await screen.findByText("山田 太郎")).toBeInTheDocument();
     expect(screen.getByText("090-1111-2222")).toBeInTheDocument();
     expect(screen.queryByText("該当する飼主が見つかりません")).not.toBeInTheDocument();
+    const results = screen.getByTestId("owner-search-results");
+    expect(results.className).toContain("max-h-[calc(80vh-12rem)]");
+    expect(results.className).toContain("overflow-y-auto");
+    expect(results.className).toContain("min-h-0");
+    expect(results.className).not.toContain("overflow-hidden");
   });
 
   it("検索をpage=1・limit=100に制限し、続きがある場合は打ち切りを表示する", async () => {

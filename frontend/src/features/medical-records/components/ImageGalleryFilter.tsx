@@ -2,7 +2,7 @@
 import { useRef, memo } from "react";
 
 // External
-import { Upload } from "lucide-react";
+import { Camera, Upload } from "lucide-react";
 import { toast } from "sonner";
 
 // Internal
@@ -63,9 +63,14 @@ export const ImageGalleryFilter = memo(function ImageGalleryFilter({
   canUpload = true,
 }: ImageGalleryFilterProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const captureInputRef = useRef<HTMLInputElement>(null);
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
+  };
+
+  const handleCaptureClick = () => {
+    captureInputRef.current?.click();
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -101,7 +106,7 @@ export const ImageGalleryFilter = memo(function ImageGalleryFilter({
   return (
     <div className="flex flex-col gap-3">
       {canUpload ? (
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
           <input
             ref={fileInputRef}
             type="file"
@@ -110,6 +115,25 @@ export const ImageGalleryFilter = memo(function ImageGalleryFilter({
             className="hidden"
             onChange={handleFileChange}
           />
+          <input
+            ref={captureInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/gif"
+            capture="environment"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className={`gap-2 h-10 text-sm shadow-none rounded-full px-4 ${C.borderMedium} ${C.text}`}
+            onClick={handleCaptureClick}
+            disabled={isUploading}
+          >
+            <Camera className={ICON.action} />
+            撮影
+          </Button>
           <Button
             type="button"
             size="sm"

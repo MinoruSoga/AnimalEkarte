@@ -44,6 +44,11 @@ interface SearchableSelectProps {
    * 候補フィルタで一時的に外れた選択値をプレースホルダへ落とさない用途。
    */
   fallbackLabel?: string;
+  /**
+   * 選択中のみ「選択をクリア」を出し、選択すると onValueChange("")。
+   * フィルタ用途など空が既定の箇所では付けない。
+   */
+  clearable?: boolean;
   /** トリガーに付与する className。 */
   className?: string;
   /** ポップオーバー内容(リスト)に付与する className。 */
@@ -74,6 +79,9 @@ function flattenOptions(
  * cmdk の既定フィルタは CommandItem の value 属性で照合するため、value には
  * 一意の opt.value を渡しつつ keywords(label + 任意の別名)で検索一致させる。
  */
+const CLEAR_ITEM_VALUE = "__searchable_select_clear__";
+const CLEAR_ITEM_LABEL = "選択をクリア";
+
 export function SearchableSelect({
   value,
   onValueChange,
@@ -84,6 +92,7 @@ export function SearchableSelect({
   emptyMessage = "該当する候補が見つかりません。",
   disabled = false,
   fallbackLabel,
+  clearable = false,
   className,
   contentClassName,
   triggerTestId,
@@ -106,6 +115,8 @@ export function SearchableSelect({
     onValueChange(next);
     setOpen(false);
   };
+
+  const showClearItem = clearable && Boolean(value) && !disabled;
 
   const renderItem = (opt: SearchableSelectOption, indentClassName?: string) => {
     const isSelected = opt.value === value;
@@ -193,6 +204,22 @@ export function SearchableSelect({
             <CommandEmpty className={cn("py-6 text-center text-sm", C.text60)}>
               {emptyMessage}
             </CommandEmpty>
+            {showClearItem ? (
+              <CommandItem
+                key={CLEAR_ITEM_VALUE}
+                value={CLEAR_ITEM_VALUE}
+                keywords={[CLEAR_ITEM_LABEL, "クリア", "解除"]}
+                onSelect={() => handleSelect("")}
+                onPointerDown={(event) => {
+                  event.preventDefault();
+                }}
+                className="cursor-pointer"
+              >
+                <span className={cn("flex-1 whitespace-nowrap text-sm", C.text40)}>
+                  {CLEAR_ITEM_LABEL}
+                </span>
+              </CommandItem>
+            ) : null}
             {groups
               ? groups.map((group) => (
                   <CommandGroup key={group.label} heading={group.label}>

@@ -19,16 +19,31 @@ import (
 )
 
 const (
-	SyntheticFailureFixtureID      = "F8_G4_TRANSACTION_ROLLBACK_V1"
-	SyntheticFailureCheckpoint     = "G4_TARGET_VERIFIED"
-	SyntheticFailureStage          = "TRANSACTION"
-	SyntheticFailureMarker         = "SYNTHETIC_FK_VIOLATION_AFTER_COPY"
-	syntheticFailureSQLState       = "23503"
-	syntheticFailureOwnerID        = int64(300_000)
-	syntheticFailurePetID          = int64(1_000_000)
-	syntheticFailureMissingOwnerID = int64(9_999_999)
-	failureRollbackTimeout         = 15 * time.Second
+	SyntheticFailureFixtureID  = "F8_G4_TRANSACTION_ROLLBACK_V1"
+	SyntheticFailureCheckpoint = "G4_TARGET_VERIFIED"
+	SyntheticFailureStage      = "TRANSACTION"
+	SyntheticFailureMarker     = "SYNTHETIC_FK_VIOLATION_AFTER_COPY"
+	syntheticFailureSQLState   = "23503"
+	maxSyntheticClinicOrdinal  = int64(50)
+	failureRollbackTimeout     = 15 * time.Second
 )
+
+// syntheticFailureBand returns the disposable clinic ID band and in-band
+// synthetic owner/pet/missing-owner IDs for one clinic ordinal (1..50).
+func syntheticFailureBand(ordinal int64) (CutoverIDBand, int64, int64, int64, error) {
+	if ordinal < 1 || ordinal > maxSyntheticClinicOrdinal {
+		return CutoverIDBand{}, 0, 0, 0, fmt.Errorf("clinic ordinal must be between 1 and %d", maxSyntheticClinicOrdinal)
+	}
+	base := (ordinal - 1) * clinicBandSize
+	band := CutoverIDBand{
+		Base:               base,
+		EndExclusive:       base + clinicBandSize,
+		NonOwnerIDOffset:   base + nonOwnerBandOffset,
+		OwnerFloor:         base + ownerBandOffset,
+		ApplicationIDFloor: applicationIDFloor,
+	}
+	return band, band.OwnerFloor, band.NonOwnerIDOffset, band.EndExclusive - 1, nil
+}
 
 var commitPattern = regexp.MustCompile(`^[a-f0-9]{40}$`)
 
@@ -247,9 +262,13 @@ func injectSyntheticFailureRollback(
 		return time.Time{}, fmt.Errorf("lock synthetic failure cutover tables")
 	}
 	if err := validateCutoverTarget(ctx, tx, manifest, input.Seeds, true); err != nil {
-		return time.Time{}, fmt.Errorf("validate synthetic failure target")
+		return time.Time{}, fmt.Errorf("validate synthetic failure target: %w", err)
 	}
-	if err := copySyntheticFailureOwner(ctx, tx, input.Seeds); err != nil {
+	_, ownerID, petID, missingOwnerID, err := syntheticFailureBand(input.ClinicOrdinal)
+	if err != nil {
+		return time.Time{}, err
+	}
+	if err := copySyntheticFailureOwner(ctx, tx, input.Seeds, ownerID); err != nil {
 		return time.Time{}, err
 	}
 
@@ -257,9 +276,9 @@ func injectSyntheticFailureRollback(
 		ctx,
 		`INSERT INTO pets (id, clinic_id, owner_id, name, animal_species_id)
 VALUES ($1, $2, $3, $4, $5)`,
-		syntheticFailurePetID,
+		petID,
 		input.Seeds.ClinicID,
-		syntheticFailureMissingOwnerID,
+		missingOwnerID,
 		"F8 synthetic pet",
 		input.Seeds.AnimalSpeciesID,
 	)
@@ -285,8 +304,8 @@ func validateSyntheticFailureInput(input SyntheticFailureInput) error {
 	if !clinicCodePattern.MatchString(input.ClinicCode) {
 		return fmt.Errorf("clinic code has an invalid format")
 	}
-	if input.ClinicOrdinal != 1 {
-		return fmt.Errorf("synthetic failure rehearsal requires clinic ordinal 1")
+	if input.ClinicOrdinal < 1 || input.ClinicOrdinal > maxSyntheticClinicOrdinal {
+		return fmt.Errorf("clinic ordinal must be between 1 and %d", maxSyntheticClinicOrdinal)
 	}
 	if !runIDPattern.MatchString(input.RunID) {
 		return fmt.Errorf("synthetic failure run ID has an invalid format")
@@ -321,12 +340,10 @@ func ValidateSyntheticFailureInput(input SyntheticFailureInput) error {
 }
 
 func syntheticFailureManifest(input SyntheticFailureInput) CutoverManifest {
-	band := CutoverIDBand{
-		Base:               0,
-		EndExclusive:       clinicBandSize,
-		NonOwnerIDOffset:   nonOwnerBandOffset,
-		OwnerFloor:         ownerBandOffset,
-		ApplicationIDFloor: applicationIDFloor,
+	band, _, _, _, err := syntheticFailureBand(input.ClinicOrdinal)
+	if err != nil {
+		// validateSyntheticFailureInput already rejects out-of-range ordinals.
+		panic(err)
 	}
 	manifest := CutoverManifest{
 		ClinicCode:             input.ClinicCode,
@@ -380,6 +397,7 @@ func copySyntheticFailureOwner(
 	ctx context.Context,
 	tx failureRehearsalTx,
 	seeds CutoverSeedIDs,
+	ownerID int64,
 ) error {
 	var contents bytes.Buffer
 	writer := csv.NewWriter(&contents)
@@ -387,7 +405,7 @@ func copySyntheticFailureOwner(
 		return fmt.Errorf("build synthetic owner copy")
 	}
 	if err := writer.Write([]string{
-		fmt.Sprintf("%d", syntheticFailureOwnerID),
+		fmt.Sprintf("%d", ownerID),
 		fmt.Sprintf("%d", seeds.ClinicID),
 		"F8 synthetic owner",
 	}); err != nil {

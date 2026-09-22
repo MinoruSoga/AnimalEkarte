@@ -159,4 +159,22 @@ describe("TreatmentSearchDialog", () => {
     expect(screen.getByText("一般診察")).toBeInTheDocument();
     expect(screen.getByText("点滴処置")).toBeInTheDocument();
   });
+
+  it("一覧は400px天井ではなくviewport安全な高いmax-heightを使い、ヘッダー/検索を残し長リストはoverflow-y-auto", () => {
+    renderDialog();
+
+    // Dialog chrome remains reachable (title + search + close via dialog).
+    expect(screen.getByText("治療プラン検索")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("治療プランを検索...")).toBeInTheDocument();
+
+    const list = screen.getByText("一般診察").closest("div.overflow-y-auto");
+    expect(list).toBeTruthy();
+    const className = list?.className ?? "";
+
+    // Old failure mode: short fixed ceiling forced needless scroll on typical viewports.
+    expect(className).not.toMatch(/max-h-\[400px\]/);
+    // Taller viewport-safe ceiling inside DialogContent max-h-[80vh]; not always-show-all-rows.
+    expect(className).toMatch(/max-h-\[calc\(80vh-12rem\)\]/);
+    expect(className).toMatch(/overflow-y-auto/);
+  });
 });

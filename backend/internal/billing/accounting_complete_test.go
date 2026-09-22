@@ -477,6 +477,39 @@ func TestAccountingService_CompleteAccounting_PartialSplitRejected(t *testing.T)
 	assert.Nil(t, savedPayment, "partial split must not persist a payment")
 }
 
+// TestAccountingService_CompleteAccounting_StaleScreenTotalRejected pins UAT-R2-EXCLUSIVE-LOCK
+// "明細編集と確定": Complete uses server-recalculated totals and rejects payment amounts that
+// still match an older (stale) screen total after line items changed.
+func TestAccountingService_CompleteAccounting_StaleScreenTotalRejected(t *testing.T) {
+	key := uuid.NewString()
+	var savedPayment *model.Payment
+	repo := &mockAccountingRepository{
+		findByCompletionRequestIDFn: func(_ context.Context, _ uint64, _ string) (*model.Billing, error) {
+			return nil, nil
+		},
+		createFn: func(_ context.Context, clinicID uint64, b *model.Billing) error {
+			b.ID = 55
+			b.ClinicID = clinicID
+			return nil
+		},
+		savePaymentFn: func(_ context.Context, p *model.Payment) error {
+			savedPayment = p
+			return nil
+		},
+	}
+	// Server totals after late item edit are higher than the stale UI payment (1100).
+	svc := newCompleteTestService(repo, &mockAuditService{}, &mockCompleteItemWriter{}, &mockCompleteTotalsWriter{
+		subtotal: 2000, taxTotal: 200, total: 2200,
+	})
+	input := validCompleteInput(key) // PaymentSplits still total 1100 (stale screen)
+
+	result, err := svc.Complete(context.Background(), input)
+	require.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err), "stale payment vs server total must be invalid: %v", err)
+	assert.Nil(t, result)
+	assert.Nil(t, savedPayment, "stale-total complete must not persist payment")
+}
+
 func TestAccountingService_CompleteAccounting_EmptySplitsRejectedWhenBillingPositive(t *testing.T) {
 	key := uuid.NewString()
 	var savedPayment *model.Payment
@@ -550,6 +583,25 @@ func TestAccountingService_CompleteAccounting_AlreadyExistsResolvesToReplay(t *t
 	assert.False(t, result.Created)
 	assert.Equal(t, uint64(77), result.Accounting.ID)
 	assert.Equal(t, 0, items.calls, "replay must not create items")
+}
+
+func TestAccountingService_CompleteAccounting_DifferentKeySameMedicalRecordConflict(t *testing.T) {
+	key := uuid.NewString()
+	input := validCompleteInput(key)
+	repo := &mockAccountingRepository{
+		findByCompletionRequestIDFn: func(_ context.Context, _ uint64, _ string) (*model.Billing, error) {
+			return nil, nil
+		},
+		createFn: func(_ context.Context, _ uint64, _ *model.Billing) error {
+			return apperrors.WrapAlreadyExists("billing", input.ScheduledDate.String())
+		},
+	}
+	svc := newCompleteTestService(repo, &mockAuditService{}, &mockCompleteItemWriter{}, &mockCompleteTotalsWriter{})
+
+	result, err := svc.Complete(context.Background(), input)
+	require.Error(t, err)
+	assert.True(t, apperrors.IsConflict(err), "got %v", err)
+	assert.Nil(t, result)
 }
 
 func TestAccountingService_CompleteAccounting_ManualOtherSetsCreatedBy(t *testing.T) {

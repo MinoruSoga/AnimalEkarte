@@ -132,6 +132,48 @@ describe("PatientContextHeader", () => {
     });
   });
 
+  it("microchipNumber があればペット名近くに表示する", () => {
+    render(<PatientContextHeader {...baseProps} microchipNumber="392140000123456" />);
+    expect(screen.getAllByText("392140000123456").length).toBeGreaterThan(0);
+    expect(screen.getByLabelText("マイクロチップ番号 392140000123456")).toBeInTheDocument();
+  });
+
+  it("microchipNumber が無いときは番号を出さない", () => {
+    render(<PatientContextHeader {...baseProps} />);
+    expect(screen.queryByLabelText(/マイクロチップ番号/)).not.toBeInTheDocument();
+  });
+
+  it("空文字の microchipNumber は未記録と同じく出さない", () => {
+    render(<PatientContextHeader {...baseProps} microchipNumber="" />);
+    expect(screen.queryByLabelText(/マイクロチップ番号/)).not.toBeInTheDocument();
+  });
+
+  it("長いマイクロチップ番号は DOM に全文を残す", () => {
+    const longChip = "A".repeat(64);
+    render(<PatientContextHeader {...baseProps} microchipNumber={longChip} />);
+    expect(screen.getAllByText(longChip).length).toBeGreaterThan(0);
+  });
+
+  it("vitalsSummary は時刻なしで T/HR/RR/測定体重を出す", () => {
+    render(
+      <PatientContextHeader
+        {...baseProps}
+        vitalsSummary={{
+          temperature: 38.5,
+          heartRate: 120,
+          respirationRate: 24,
+          weight: 4.2,
+          weightUnit: "kg",
+        }}
+      />,
+    );
+    expect(screen.getByLabelText("今回のバイタル")).toHaveTextContent("T 38.5");
+    expect(screen.getByLabelText("今回のバイタル")).toHaveTextContent("HR 120");
+    expect(screen.getByLabelText("今回のバイタル")).toHaveTextContent("RR 24");
+    expect(screen.getByLabelText("今回のバイタル")).toHaveTextContent("測定体重 4.2kg");
+    expect(screen.queryByText(/2026/)).not.toBeInTheDocument();
+  });
+
   it("weight があれば Nkg 形式で表示される", () => {
     render(<PatientContextHeader {...baseProps} weight="3.2kg" />);
     expect(screen.getByText("3.2kg")).toBeInTheDocument();

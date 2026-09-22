@@ -17,7 +17,7 @@ bound into the target database identity digest.
 
 Do not run unless the target release checkout is committed and clean. The
 runner rejects a dirty or mismatched HEAD, an existing Compose project, a DB
-name outside `animalekarte_f8_g4_*`, clinic ordinal other than `1`, missing
+name outside `animalekarte_f8_g4_*`, clinic ordinal outside `1..50`, missing
 seed bindings, non-localhost port publication, a non-internal network, or
 resources without the exact disposable/run labels.
 

@@ -65,7 +65,7 @@ export const MedicalRecordExamination = memo(function MedicalRecordExamination({
   }, [refetch]);
 
   return (
-    <div className="h-[calc(100vh-220px)] min-h-[500px] flex flex-col gap-3 overflow-y-auto pb-20 pr-1">
+    <div className="flex flex-col gap-3 flex-1 min-h-0 overflow-y-auto pb-20 pr-1">
       {petId && !isNewRecord ? <LabDeviceUnlinkedBanner petId={petId} /> : null}
       {/* Search & Actions Header */}
       <ExaminationFilter

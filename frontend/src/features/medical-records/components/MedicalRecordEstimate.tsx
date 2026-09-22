@@ -219,7 +219,7 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
   }, []);
 
   return (
-    <div className="h-[calc(100vh-220px)] min-h-[500px] flex flex-col gap-3 overflow-y-auto pb-24 pr-1">
+    <div className="flex flex-col gap-3 flex-1 min-h-0 overflow-y-auto pb-24 pr-1">
       {/* Subject */}
       <EstimateForm subject={subject} onSubjectChange={setSubject} canEdit={canEdit} />
       <FormFieldError message={subjectError} />
@@ -247,7 +247,7 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
       />
 
       {/* Comments & Remarks */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3">
         <div className="flex flex-col gap-1">
           <Label className={`text-sm font-medium ${C.text60}`}>コメント</Label>
           <Textarea

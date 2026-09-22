@@ -20,7 +20,7 @@ export const DiagnosisHeaderChiefComplaint = memo(function DiagnosisHeaderChiefC
 }: DiagnosisHeaderChiefComplaintProps) {
   return (
     <DiagnosisHeaderSection
-      className="col-span-3"
+      className="col-span-1 md:col-span-3"
       icon={<FileText className={ICON.action} />}
       title="問診・主訴"
     >

@@ -291,7 +291,9 @@ func Delete(ctx context.Context, db *gorm.DB, appEnv, dbHost string, clinicID ui
 			return apperrors.Wrap(err, "list synthetic staff")
 		}
 		accountIDs := make([]uint64, 0, len(staffs))
+		staffIDs := make([]uint64, 0, len(staffs))
 		for _, staff := range staffs {
+			staffIDs = append(staffIDs, staff.ID)
 			if staff.AccountID != nil {
 				accountIDs = append(accountIDs, *staff.AccountID)
 			}
@@ -309,6 +311,11 @@ func Delete(ctx context.Context, db *gorm.DB, appEnv, dbHost string, clinicID ui
 		if len(estimateIDs) > 0 {
 			if err := tx.Unscoped().Where("estimate_id IN ?", estimateIDs).Delete(&model.EstimateItem{}).Error; err != nil {
 				return apperrors.Wrap(err, "delete synthetic estimate items")
+			}
+		}
+		if len(staffIDs) > 0 {
+			if err := tx.Where("clinic_id = ? AND actor_type = ? AND actor_id IN ?", clinicID, model.AuditActorTypeStaff, staffIDs).Delete(&model.AuditLog{}).Error; err != nil {
+				return apperrors.Wrap(err, "delete synthetic fixture staff audit logs")
 			}
 		}
 		scoped := []any{

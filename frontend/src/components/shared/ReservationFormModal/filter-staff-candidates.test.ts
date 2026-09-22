@@ -2,11 +2,41 @@ import { describe, expect, it } from "vitest";
 import {
   filterStaffCandidatesByCapability,
   resolveStaffSelectionEligibility,
+  staffCandidateEmptyMessage,
   STAFF_ORPHAN_REASON_MESSAGE,
   type ReservationStaffCapabilityLike,
 } from "./filter-staff-candidates";
 
 const staff = (id: number) => ({ id, name: `S${id}` });
+
+describe("staffCandidateEmptyMessage", () => {
+  it("separates loading from capability-empty and fetch error", () => {
+    expect(
+      staffCandidateEmptyMessage({
+        hasQueryError: false,
+        candidatesSettled: false,
+        selectedReservationTypeId: "5",
+        selectedDateStr: "2026-09-20",
+      }),
+    ).toBe("スタッフ候補を読み込み中です");
+    expect(
+      staffCandidateEmptyMessage({
+        hasQueryError: true,
+        candidatesSettled: false,
+        selectedReservationTypeId: "5",
+        selectedDateStr: "2026-09-20",
+      }),
+    ).toBe("スタッフ候補の取得に失敗しました");
+    expect(
+      staffCandidateEmptyMessage({
+        hasQueryError: false,
+        candidatesSettled: true,
+        selectedReservationTypeId: "5",
+        selectedDateStr: "2026-09-20",
+      }),
+    ).toBe("この条件で対応可能なスタッフがいません");
+  });
+});
 
 describe("filterStaffCandidatesByCapability", () => {
   it("returns all candidates when no reservation type is selected", () => {
