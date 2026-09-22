@@ -119,6 +119,17 @@
       "image": "./Dockerfile.production",
       "instance_type": "basic", // 1/4 vCPU / 1GiB。docs/ops/infra/architecture.md のコスト想定に合わせる
       "max_instances": 3,
+      // コンテナインスタンスの配置をAPACメトロに限定するスケジューリング制約
+      // (wrangler公式 constraints.regions。課金差なし・無料)。実測で同一DOの
+      // インスタンスが起動毎に ewr01/bom09 等へドリフトし、PlanetScale(ap-northeast-2)
+      // へのRTTが悪化する事象を確認したため追加。DO名の locationHint は初回DO作成時のみ
+      // 効くbest-effortであり、インスタンス再配置には効かないことが判明済み(PR #423/#425)。
+      // APAC内では日本ユーザーのリクエストに「最も近い空きインスタンス」が選ばれるため
+      // nrt/kix/icn 系への着地を期待。bom/sin 等もAPAC内ではあり得るが ENAM/EEUR の
+      // 最悪ケースは排除できる。
+      "constraints": {
+        "regions": ["APAC"],
+      },
     },
   ],
 
