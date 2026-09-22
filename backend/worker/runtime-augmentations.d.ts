@@ -4,6 +4,8 @@
 interface Env {
   DB_MAX_OPEN_CONNS: string;
   DB_MAX_IDLE_CONNS: string;
+  // STG vars only; absent in production so the Go auth access cache stays off.
+  CURRENT_ACCESS_CACHE_TTL_SEC?: string;
   S3_PUBLIC_BASE_URL: string;
   SCHEDULER_ENVIRONMENT: string;
   APP_ENV: string;
@@ -27,6 +29,7 @@ declare namespace Cloudflare {
   interface Env {
     DB_MAX_OPEN_CONNS: string;
     DB_MAX_IDLE_CONNS: string;
+    CURRENT_ACCESS_CACHE_TTL_SEC?: string;
     S3_PUBLIC_BASE_URL: string;
     SCHEDULER_ENVIRONMENT: string;
     APP_ENV: string;

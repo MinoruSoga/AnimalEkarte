@@ -45,7 +45,10 @@ export class AnimalEkarteApiContainer extends Container<Env> {
   defaultPort = 8080;
   // AC-5: scale-to-zero 検証用。アイドル10分でコンテナを停止する
   // (docs/ops/infra/_archive/migration-cloudflare.md の想定コスト・「通常操作 10 分間程度」の負荷スモーク方針に合わせる)。
-  sleepAfter = "10m";
+  // STG の画面遅延対策として 1h に延長(10m ではデモ中の待ち時間毎にコールドスタート
+  // 数秒が発生していた)。稼働時間課金は増えるが basic インスタンスでは小額。
+  // scale-to-zero 検証やコスト抑制が優先になったら "10m" へ戻す。
+  sleepAfter = "1h";
 
   // Container 起動時に注入する環境変数。Go 側の config.Load()/main.go が読む
   // os.Getenv キーと1:1で対応させる(対応表は wrangler.jsonc のコメント参照)。
@@ -67,6 +70,8 @@ export class AnimalEkarteApiContainer extends Container<Env> {
     // 接続プール上限(wrangler.jsonc vars 参照 — スロット枯渇防止のため CF では低値必須)
     DB_MAX_OPEN_CONNS: env.DB_MAX_OPEN_CONNS,
     DB_MAX_IDLE_CONNS: env.DB_MAX_IDLE_CONNS,
+    // STGのみ wrangler.jsonc vars で設定。未設定(空文字)なら Go 側はキャッシュ無効。
+    CURRENT_ACCESS_CACHE_TTL_SEC: env.CURRENT_ACCESS_CACHE_TTL_SEC ?? "",
 
     JWT_SECRET: env.JWT_SECRET,
     INTEGRATION_ENCRYPTION_KEY: env.INTEGRATION_ENCRYPTION_KEY,
