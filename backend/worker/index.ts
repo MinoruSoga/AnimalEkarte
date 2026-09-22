@@ -238,21 +238,11 @@ export class AnimalEkarteApiContainer extends Container<Env> {
   }
 }
 
-// STG API のユーザートラフィックは PlanetScale(ap-northeast/Tokyo)と同じ北東アジアの
-// Durable Object に固定する。既定名 cf-singleton-container は locationHint 未指定で
-// 米国(ewr01)に作成済みであり、DO は作成後に移動しないため、新しい名前で apac-ne
-// ヒントを持つ DO を初回 get() 時に作成する(locationHint は新規 Object の初回 get のみ
-// 有効・best-effort で保証ではない。旧 EWR の DO は traffic 喪失後に自然 sleep する)。
-const API_CONTAINER_NAME = "api-apac-ne-v1";
-const API_CONTAINER_LOCATION_HINT = "apac-ne" as const;
-
-function getApiContainer(
-  env: Env,
-): DurableObjectStub<AnimalEkarteApiContainer> {
-  return env.API_CONTAINER.getByName(API_CONTAINER_NAME, {
-    locationHint: API_CONTAINER_LOCATION_HINT,
-  });
-}
+// NOTE: api-apac-ne-v1 への locationHint ピン留めは 2026-09-22 に試行・撤回済み。
+// DO は bom09 に固定されたが、コンテナインスタンスが起動毎に別メトロ(ewr01等)へ
+// 配置され、edge→DO→container の二重ホップで health が 0.25s→0.65s に悪化した。
+// 既定の cf-singleton-container は ewr01 で安定しており、低速化の主因である
+// 逐次 DB 往復は CurrentAccess キャッシュ(CURRENT_ACCESS_CACHE_TTL_SEC)側で削る。
 
 type ProxyObservationOutcome =
   | { readonly status: number }
@@ -390,7 +380,7 @@ export default {
     }
     const forwardedRequest = new Request(request, { headers });
 
-    const container = getApiContainer(env);
+    const container = getContainer(env.API_CONTAINER);
     return forwardContainerFetch(request, forwardedRequest, container);
   },
 
@@ -454,7 +444,7 @@ async function handleMigrateRequest(
     });
   }
 
-  const container = getApiContainer(env);
+  const container = getContainer(env.API_CONTAINER);
   try {
     const result = await container.runMigrate();
     return toMigrateResponse(result);
