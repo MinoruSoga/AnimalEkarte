@@ -153,3 +153,6 @@ codex-security-results/
 
 # agent-fast-campaign local ledgers (default: do not commit)
 .planning/agent-fast-campaign/
+
+# Wrangler local state/cache (created by `wrangler types`, `wrangler dev`, containers commands)
+**/.wrangler/
