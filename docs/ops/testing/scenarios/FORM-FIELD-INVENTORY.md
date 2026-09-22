@@ -3,7 +3,7 @@
 > **目的**: 受入 V シリーズの永続化フォームについて、検証済み exact field key と未収録 gap を管理する。
 > **使い方**: 左の項目を 1 行ずつ [FIELD-LEVEL-PROTOCOL.md](FIELD-LEVEL-PROTOCOL.md) で実施。手順の補足は V01〜V05。
 > **更新規則**: 画面に入力項目を追加したら、本表と該当 V を同 PR で更新する。
-> **ステータス**: inventory は再構築中。下表は検証済み exact field key の部分一覧であり、一意フォーム総数や「全フォーム/全項目完了」はまだ主張しない。route inventory は 86 product pages だが page 数と form 数は別。
+> **ステータス**: V02〜V05 の exact field key は保存 request builder と突合して収録済み（BE 受理だが FE 非送出の key は計上せず注記）。V01 の定義依存行（健診/検査の fixture field）は envelope を確定済みとしたうえで、承認済み定義の id 列挙は実行時作業として残る。一意フォーム総数や「全フォーム/全項目の受入完了」は依然主張しない — inventory 収録は実行完了を意味しない。route inventory は 86 product pages だが page 数と form 数は別。
 
 凡例: **R**=必須 / **O**=任意 / **C**=条件付き必須 / **S**=システム（入力不可→F は N/A）。fieldKey は保存 request の wire key を使う。response 名や UI state 名が異なる場合は表直前の対応表を参照する。未検証の UI-only helper/context は永続 field と数えない。
 
@@ -59,13 +59,16 @@ Owner: clinical_plan PATCH child resource. The parent medical-record and inquiry
 
 ### medical-record-checkups-tab — [V01 §4](V01-clinical-forms.md)
 
-| fieldKey               | R/O | 型        | F 重点                                                                                                                   |
-| :--------------------- | :-- | :-------- | :----------------------------------------------------------------------------------------------------------------------- |
-| performed_on           | R   | date      | F1 F4                                                                                                                    |
-| checkup_type_id        | R   | select FK | F1 F4 C3-1                                                                                                               |
-| （fixture field keys） | C   | 定義依存  | 実行前に承認済み健診定義の exact key を run report inventory に列挙する。この source inventory が未完の間は V01 完了不可 |
-| result_note            | O   | text      | F4 F5                                                                                                                    |
-| next_due_on            | O   | date      | F4 F5                                                                                                                    |
+保存は2段: `POST /api/v1/medical-records/:mrId/checkups`（下表の静的 key）→ 値あり時のみ `PUT /checkups/:cid/field-results`（`{results:[…]}` 全置換。省略=送信しない、`results:[]`=意図的全削除）。**編集 PATCH は動的項目を含まない**（動的項目は create 専用）。`results[]` 項目キー: `checkup_type_field_id` + `value_number|value_text|value_bool|value_list` のいずれか1種（`field_type` で決定: number→value_number、boolean→value_bool、single_select/text→value_text、multi_select/checklist→value_list）。列挙元: `GET /v1/masters/checkup-types/:id/fields` の `id`/`field_type`。
+
+| fieldKey                                             | R/O | 型        | F 重点                                                                                                                                      |
+| :--------------------------------------------------- | :-- | :-------- | :------------------------------------------------------------------------------------------------------------------------------------------ |
+| date                                                 | R   | date      | F1 F4                                                                                                                                       |
+| checkup_type_id                                      | R   | select FK | F1 F4 C3-1                                                                                                                                  |
+| doctor_id                                            | O   | select FK | F4                                                                                                                                          |
+| result                                               | O   | text      | F4 F5                                                                                                                                       |
+| next_date                                            | O   | date      | F4 F5                                                                                                                                       |
+| results[].checkup_type_field_id / value_*（上記4種） | C   | 定義依存  | envelope 確定済み。実行前に承認済み健診定義の field.id と field_type を run report inventory に列挙する。定義 id が未完の間は V01 完了不可 |
 
 ### medical-record-vaccination-tab — [V01 §5](V01-clinical-forms.md)
 
@@ -97,12 +100,19 @@ Owner: clinical_plan PATCH child resource. The parent medical-record and inquiry
 
 ### examination-form — [V01 §7](V01-clinical-forms.md)
 
-| fieldKey                      | R/O | 型          | F 重点                                                                                                                             |
-| :---------------------------- | :-- | :---------- | :--------------------------------------------------------------------------------------------------------------------------------- |
-| exam_type_id                  | R   | select      | F1 F4 C3-1                                                                                                                         |
-| doctor_id                     | R   | select      | F1 F4                                                                                                                              |
-| date                          | O/R | date        | F1/F4                                                                                                                              |
-| （fixture result field keys） | C   | number/text | 実行前に `exam_type_field_id` ごとの exact key を run report inventory に列挙する。この source inventory が未完の間は V01 完了不可 |
+`POST /api/v1/examinations` / `PATCH /:id`（`items` ネスト）または `PUT /:id/items`（全置換・`items`省略=全削除）。`status` は PATCH のみ。`items[]` 項目キー: `exam_type_field_id`（テンプレ紐付け・手動行は null）/ `name`（R・空 name 行は送信前に除外）/ `inspection_value` / `normal_value` / `unit` / `reference_value` / `sort_order`。`status`/`is_abnormal`/基準値評価はサーバー導出で送信しない。列挙元: `GET /v1/masters/examination-types/:id` の `exam_type_fields`（`id`/`name`/`unit`/`normal_value` は行の pre-fill 元）。
+
+| fieldKey                                                                     | R/O | 型          | F 重点                                                                                                                              |
+| :--------------------------------------------------------------------------- | :-- | :---------- | :---------------------------------------------------------------------------------------------------------------------------------- |
+| exam_type_id                                                                 | R   | select      | F1 F4 C3-1                                                                                                                          |
+| medical_record_id                                                            | O   | id          | create 紐付け F4                                                                                                                    |
+| pet_id                                                                       | C   | id          | 承認済み患者変更時のみ PATCH F4                                                                                                     |
+| doctor_id                                                                    | R   | select      | FE 必須（「担当医を選択してください」）F1 F4                                                                                        |
+| date                                                                         | O/R | date        | FE JST 当日補完・BE required F1 F4                                                                                                  |
+| machine                                                                      | O   | text        | F4 F5                                                                                                                               |
+| result_summary                                                               | O   | text        | F4 F5                                                                                                                               |
+| status                                                                       | O   | enum        | PATCH のみ `pending|in_progress|result_entered|completed|confirmed` F4                                                              |
+| items[].exam_type_field_id / name(R) / inspection_value / normal_value / unit / reference_value / sort_order | C | rows | shape 確定済み（上記）。実行前に対象 `exam_type_id` の `exam_type_fields` を run report inventory に列挙する。未完の間は V01 完了不可 |
 
 ### vaccination-form（独立）— [V01 §8](V01-clinical-forms.md)
 
@@ -110,11 +120,15 @@ Owner: clinical_plan PATCH child resource. The parent medical-record and inquiry
 
 ### checkup-form（独立クイック）— [V01 §9](V01-clinical-forms.md)
 
-| fieldKey                       | R/O | F 重点                                                                                        |
-| :----------------------------- | :-- | :-------------------------------------------------------------------------------------------- |
-| checkup_type_id                | R   | F1 F4                                                                                         |
-| performed_on                   | R   | F1 F4                                                                                         |
-| （fixture checkup field keys） | C   | 実行前に exact key を run report inventory に列挙。この source inventory が未完の間は完了不可 |
+3段チェーン: `POST /v1/medical-records {pet_id, owner_id, visit_date}` → `POST /medical-records/:mrId/checkups` → 値あり時 `PUT /checkups/:cid/field-results`（checkups-tab と同一 envelope・全置換）。
+
+| fieldKey                                             | R/O | F 重点                                                                                          |
+| :--------------------------------------------------- | :-- | :---------------------------------------------------------------------------------------------- |
+| pet_id / owner_id / visit_date                       | R/S | 親カルテ自動作成の context。F0                                                                   |
+| checkup_type_id                                      | R   | F1 F4                                                                                           |
+| date                                                 | R   | F1 F4                                                                                           |
+| next_date / doctor_id / result                       | O   | F4 F5                                                                                           |
+| results[].checkup_type_field_id / value_*（上記4種） | C   | envelope 確定済み。定義 id/field_type のみ実行時列挙 — 未完の間は完了不可                        |
 
 ### hospitalization-form — [V01 §10](V01-clinical-forms.md)
 
@@ -166,7 +180,7 @@ Owner: clinical_plan PATCH child resource. The parent medical-record and inquiry
 | used_shampoo | O | 使用シャンプー F4 F5 |
 | used_ribbon | O | 使用リボン F4 F5 |
 | remarks | O | 備考 F4 F5 |
-| （画像保存経路） | — | exact wire key 未確定。永続化 PASS には数えない |
+| （画像保存経路） | — | wire key は `style_image` / `completed_image`（string≤2048・同一 POST/PATCH body）で確定済み。ただし FE は File を preview のみに使い upload 手段が存在せず送信されないため永続化 PASS には数えない（既知 gap、[17-trimming-form.md](../../../spec/screens/17-trimming-form.md)） |
 
 ---
 
@@ -374,32 +388,301 @@ UI form 名は `minStockLevel` / `expiryDate` / `lastRestocked`。保存時は `
 | color                         | O   | F4                                                             |
 | permissions[resource][action] | O   | **全 resource × view/create/edit/delete** を F4（ON/OFF 代表） |
 
-### clinic-master-side-panel — [V03 §7](V03-owner-pet-staff-forms.md)
+### clinic-master-side-panel — `/settings/clinic` — [V03 §7](V03-owner-pet-staff-forms.md)
 
-| fieldKey                       | R/O | F 重点                                                                     |
-| :----------------------------- | :-- | :------------------------------------------------------------------------- |
-| name                           | R   | F1 F4                                                                      |
-| postal_code                    | O   | F2 F4                                                                      |
-| address                        | O   | F4                                                                         |
-| phone                          | O   | F2 F4                                                                      |
-| email                          | O   | F2 F4                                                                      |
-| standard_tax_rate              | O   | 0–100% F3 F4                                                               |
-| reduced_tax_rate               | O   | 0–100% F3 F4                                                               |
-| （accounting document fields） | O   | exact keys 未収録。この行は coverage に数えず、収録完了まで V03 incomplete |
+`PATCH /api/v1/clinics/:clinic_id`（builder: `frontend/src/features/clinic-settings/lib/clinic-master-settings-model.ts` `buildUpdateClinicRequest`）。profile 文字列系は `""`→key 省略（既存値保持・クリア不可）、`accounting_document_*` と税率・`is_active` は常時送信。`POST /api/v1/clinics`（create・system_admin 限定）は profile 9 key のみで税率・`is_active`・`accounting_document_*` は非送信（BE 既定適用）。非 admin の他院 PATCH は 403。`logo_url` は BE PATCH が受理するが FE 型・UI とも非送信（ロゴアップロード機能なし）— 計上しない。
+
+| fieldKey                                       | R/O | 型      | F 重点                                                              |
+| :--------------------------------------------- | :-- | :------ | :------------------------------------------------------------------ |
+| name                                           | R   | string  | FE「院名は必須です」が唯一のガード（BE omitempty は `""` 受理）F1 F4 |
+| is_active                                      | O   | boolean | 常時送信。ステータス pill F4                                         |
+| postal_code                                    | O   | string  | `""`→省略。BE `jp_postal` →400 F2 F4                                 |
+| address                                        | O   | string  | `""`→省略。BE max=500 F4                                             |
+| phone_number                                   | O   | string  | `""`→省略。BE `jp_phone` →400 F2 F4                                  |
+| fax_number                                     | O   | string  | `""`→省略。BE `jp_phone` 同一 F2 F4                                  |
+| registration_number                            | O   | string  | `""`→省略。BE max=100。医院の登録番号（領収書印字用）F4                |
+| director_name                                  | O   | string  | `""`→省略。BE max=255 F4                                             |
+| email                                          | O   | string  | `""`→省略。FE type=email + BE `jp_email` →400 F2 F4                  |
+| website                                        | O   | string  | `""`→省略。BE max=500 F4                                             |
+| standard_tax_rate                              | O   | number  | 常時送信。FE 0–100%→÷100・BE service 0–1 range F3 F4                 |
+| reduced_tax_rate                               | O   | number  | 同上 F3 F4                                                          |
+| accounting_document_show_logo                  | O   | boolean | 常時送信。ロゴ表示 F4                                                |
+| accounting_document_show_registration_warning  | O   | boolean | 登録番号警告（既定 true）F4                                          |
+| accounting_document_show_item_category         | O   | boolean | 項目カテゴリ F4                                                      |
+| accounting_document_show_clinic_header         | O   | boolean | 病院情報ヘッダー F4                                                  |
+| accounting_document_show_owner_pet_info        | O   | boolean | 飼主・ペット情報 F4                                                  |
+| accounting_document_show_items_table           | O   | boolean | 明細テーブル F4                                                      |
+| accounting_document_show_payment_summary       | O   | boolean | お会計サマリー F4                                                    |
+| accounting_document_section_order              | O   | string[] | 全キー順列送信（欠落キーは末尾補完）。BE enum+重複拒否→400 F4         |
+| accounting_document_footer_note                | O   | string  | 常時送信・`""` クリア可。FE maxLength=500 < BE max=1000（非対称境界）F3 F4 F5 |
 
 ---
 
 ## V04 設定マスタ（算定保留）
 
-V04 の exact field-key inventory は再構築中。共通して確認済みの keys は次だけであり、各 master 固有 key の収録が完了するまで V04 完了・総数を主張しない。
+共通 save パイプライン: `useMasterSave`（`frontend/src/features/master/hooks/use-master-save.ts`）— `validate` → `toCreateRequest`/`toUpdateRequest` → `POST /api/v1/masters/<resource>` / `PATCH /{id}`。下表は SidePanel builder が**実際に送出する wire key** のみを列挙する。BE が受理するが FE 非送出の key（`sort_order`・`display_order`・`duration`・`time_condition` 等）は計上せず注記のみ。並び替えは専用ワイヤ `PATCH /api/v1/masters/<resource>/reorder {ids:number[]}` が owner。
 
-| form family                 | fieldKey   | R/O | F 重点 |
-| :-------------------------- | :--------- | :-- | :----- |
-| standard master side panels | name       | R   | F1 F4  |
-| standard master side panels | is_active  | O   | F4     |
-| standard master side panels | sort_order | O   | F4     |
+**F5 系統的注意（要実測）**: builder の `x || undefined`（key 省略）と `→ null` は Go update map が非 nil のみを拾うため **PATCH では既存値が残りクリア不可**。クリア可は常時送信系（`""`・`[]`・`0` 保存）のみ。対象外: interview-template `content`（`""` 保存）、campaign `target_categories`/`target_item_ids`（`[]`）、insurance `coverage_rate`（空→`0`）、数値系 `price`/`unit_price`（空→`0`）。
+
+**create の `is_active`**: payment-method・trimming-course-type の create POST は BE struct が `is_active` を持たず dead key。animal-species・diagnosis-type/name・trimming-course・trimming-option は create で `true` 固定送信。`is_active` の F4（OFF 永続）は PATCH 経路でのみ意味を持つ。
 
 L-step/LINE settings は V05 が唯一の owner。V04 では実行・集計しない。
+
+### V04 §1 標準マスタ SidePanel 群（16 フォーム）
+
+`name` 系は共通で FE `maxLength=100`（trimming-course-type のみ 50）+ BE `required`。BE 側上限の有無は不統一（max=255 あり: animal-species/merchandise/insurance/occupation/chief-complaint/campaign、上限なし: 他）— F3 の実測はフォーム別。
+
+#### master-animal-species — `/settings/animal-species`
+
+| fieldKey | R/O | 型 | 制約・特記 | F 重点 |
+| :-- | :-- | :-- | :-- | :-- |
+| name | R | string | BE `required,max=255`。グローバル一意（`WHERE is_active=true`） | F1 F3 F4 C3-2 |
+| is_active | O | boolean | create `true` 固定 / update フォーム値 | F4 |
+| （sort_order） | S | int | create のみ `0` 固定送信・UI 非編集 | F6 |
+
+#### master-diagnosis-type — `/settings/diagnosis?tab=diagnosis_type`
+
+| fieldKey | R/O | 型 | 制約・特記 | F 重点 |
+| :-- | :-- | :-- | :-- | :-- |
+| name | R | string | BE `required`（上限タグなし）。(clinic_id,name) 一意 | F1 F4 C3-2 |
+| description | O | string | `|| undefined` → PATCH クリア不可（要実測） | F4 |
+| is_active | O | boolean | create `true` 固定 / update フォーム値 | F4 |
+
+#### master-diagnosis-name — `/settings/diagnosis?tab=diagnosis_name`
+
+| fieldKey | R/O | 型 | 制約・特記 | F 重点 |
+| :-- | :-- | :-- | :-- | :-- |
+| name | R | string | BE `required` | F1 F4 |
+| diagnosis_type_id | R | uint64 | BE `required`。FE「カテゴリを選択してください」 | F1 F4 C3-1 |
+| description | O | string | `|| undefined` → クリア不可 | F4 |
+| is_active | O | boolean | create `true` 固定 / update フォーム値 | F4 |
+
+#### master-chief-complaint — `/settings/interview/chief-complaint`
+
+| fieldKey | R/O | 型 | 制約・特記 | F 重点 |
+| :-- | :-- | :-- | :-- | :-- |
+| name | R | string | BE `required,min=1,max=255`。(clinic_id,name) 一意 | F1 F3 F4 C3-2 |
+| description | O | string | `|| undefined` → クリア不可 | F4 |
+| is_active | O | boolean | フォーム値 | F4 |
+
+#### master-interview-template — `/settings/inquiry-templates`
+
+| fieldKey | R/O | 型 | 制約・特記 | F 重点 |
+| :-- | :-- | :-- | :-- | :-- |
+| category | R | string | BE `required,min=1,max=255`。自由テキスト入力 | F1 F3 F4 |
+| title | R | string | BE `required,min=1,max=255`。**wire key は `name` ではなく `title`** | F1 F3 F4 |
+| content | O | string | 常時送信・`""` で保存（クリア可） | F4 F5 |
+| is_active | O | boolean | フォーム値 | F4 |
+
+#### master-reservation-type-group — `/settings/reservation-type`
+
+| fieldKey | R/O | 型 | 制約・特記 | F 重点 |
+| :-- | :-- | :-- | :-- | :-- |
+| name | R | string | BE `required`（上限なし） | F1 F4 |
+| color | O | string | `|| undefined` → クリア不可。BE 制約なし（形式検証なし・要実測） | F2 F4 |
+| is_active | O | boolean | フォーム値 | F4 |
+
+#### master-hospitalization-plan — `/settings/hospitalization`
+
+| fieldKey | R/O | 型 | 制約・特記 | F 重点 |
+| :-- | :-- | :-- | :-- | :-- |
+| name | R | string | BE `required`。(clinic_id,name) 一意 | F1 F4 C3-2 |
+| price | O | int64 | create `|| undefined`（0→省略）/ update 常時送信（空→0）。BE 上下限なし・負値可（要実測） | F3 F4 |
+| body_size | O | enum `small|medium|large` | BE `omitempty,oneof`。update `null`→patch skip→**クリア不可**（要実測） | F2 F4 |
+| billing_unit | O | enum `per_day|per_night` | body_size と同様（クリア不可） | F2 F4 |
+| tax_type | O | enum `included|excluded|exempt` | BE `omitempty,oneof`。FE 既定 `excluded` | F2 F4 |
+| tax_rate | O | float64 | 0.1/0.08 選択。BE `*float64` 範囲タグなし | F4 |
+| description | O | string | `|| undefined` → クリア不可 | F4 |
+| is_active | O | boolean | フォーム値 | F4 |
+
+#### master-cage — `/settings/cage`
+
+| fieldKey | R/O | 型 | 制約・特記 | F 重点 |
+| :-- | :-- | :-- | :-- | :-- |
+| name | R | string | BE `required`。(clinic_id,name) 一意 | F1 F4 C3-2 |
+| cage_type | R | enum `icu|dog|cat|general` | BE `required,oneof`。FE 既定 `general` | F1 F2 F4 |
+| cage_size | R | enum `small|medium|large` | BE `required,oneof`。FE 既定 `medium` | F1 F2 F4 |
+| price | O | int64 | 常時送信・空→0。BE 上下限なし（負値要実測） | F3 F4 |
+| description | O | string | `|| undefined` → クリア不可 | F4 |
+| is_active | O | boolean | フォーム値 | F4 |
+
+#### master-merchandise-item — `/settings/merchandise-items`
+
+| fieldKey | R/O | 型 | 制約・特記 | F 重点 |
+| :-- | :-- | :-- | :-- | :-- |
+| name | R | string | BE `required,max=255`。(clinic_id,name) `WHERE is_active=true` 一意 | F1 F3 F4 C3-2 |
+| category | R | enum `food|goods|other` | BE `required,oneof`。FE 既定 `goods` | F1 F2 F4 |
+| unit_price | O | int64 | 常時送信・空→0。BE `min=0` → 負値 400 | F3 F4 |
+| tax_type | R | enum `included|excluded|exempt` | BE `required,oneof`。FE 既定 `excluded` | F1 F2 F4 |
+| tax_rate | O | float64 | 0.1/0.08。BE `omitempty,min=0,max=1` | F3 F4 |
+| is_active | O | boolean | フォーム値 | F4 |
+
+#### master-insurance — `/settings/insurance`
+
+| fieldKey | R/O | 型 | 制約・特記 | F 重点 |
+| :-- | :-- | :-- | :-- | :-- |
+| name | R | string | BE `required,max=255`。(clinic_id,name) 一意 | F1 F3 F4 C3-2 |
+| coverage_rate | O | int | BE `omitempty,min=0,max=100`（0 受理・101/-1 拒否）。FE 同一境界。**空入力→`0` 送信**（省略でなく 0 保存） | F2 F3 F4 |
+| description | O | string | `|| undefined` → クリア不可 | F4 |
+| contact_phone | O | string | `|| undefined` → クリア不可 | F4 |
+| is_active | O | boolean | フォーム値 | F4 |
+
+#### master-occupation — `/settings/occupations`
+
+| fieldKey | R/O | 型 | 制約・特記 | F 重点 |
+| :-- | :-- | :-- | :-- | :-- |
+| name | R | string | BE `required,min=1,max=255`。(clinic_id,name) 一意 | F1 F3 F4 C3-2 |
+| description | O | string | `|| undefined` → クリア不可。BE `max=2000` | F3 F4 |
+| is_active | O | boolean | フォーム値 | F4 |
+
+#### master-trimming-course — `/settings/trimming?tab=course`
+
+| fieldKey | R/O | 型 | 制約・特記 | F 重点 |
+| :-- | :-- | :-- | :-- | :-- |
+| name | R | string | BE `required`（上限なし）。(clinic_id,name) 一意 | F1 F4 C3-2 |
+| price | O | int64 | `toNullableNumber` 空→`null`→PATCH クリア不可（要実測）。BE 上下限なし | F3 F4 |
+| target_size | O | enum `small|medium|large|cat` | BE `omitempty,oneof`。`null`→クリア不可 | F2 F4 |
+| course_type_id | O | uint64 FK | 空→`undefined`→省略・クリア不可 | F4 C3-1 |
+| duration | O | int | 空→`null`→クリア不可 | F4 |
+| description | O | string | `|| undefined` → クリア不可 | F4 |
+| is_active | O | boolean | create `true` 固定 / update フォーム値 | F4 |
+
+#### master-trimming-option — `/settings/trimming?tab=option`
+
+| fieldKey | R/O | 型 | 制約・特記 | F 重点 |
+| :-- | :-- | :-- | :-- | :-- |
+| name | R | string | BE `required`。(clinic_id,name) 一意 | F1 F4 C3-2 |
+| price | O | int64 | 空→`null`→クリア不可 | F3 F4 |
+| duration | O | int | 同上 | F4 |
+| is_combinable | O | boolean | 常時送信。既定 ON | F4 |
+| description | O | string | `|| undefined` → クリア不可 | F4 |
+| is_active | O | boolean | create `true` 固定 / update フォーム値 | F4 |
+
+#### master-trimming-course-type — `/settings/trimming-course-type`
+
+| fieldKey | R/O | 型 | 制約・特記 | F 重点 |
+| :-- | :-- | :-- | :-- | :-- |
+| name | R | string | BE `required`（上限なし）。FE `maxLength=50`。(clinic_id,name) 一意 | F1 F3 F4 C3-2 |
+| is_active | O | boolean | **create POST は BE が `is_active` を持たず dead key**・PATCH のみ有効 | F4 F6 |
+
+#### master-campaign — `/settings/campaigns`
+
+| fieldKey | R/O | 型 | 制約・特記 | F 重点 |
+| :-- | :-- | :-- | :-- | :-- |
+| name | R | string | BE `required,max=255` | F1 F3 F4 |
+| start_date | R | date | BE `required` + DateOnly parse → 非形式 400 | F1 F2 F4 |
+| end_date | R | date | 同上。FE `end<start` 拒否 + BE `validateCampaignPeriod` も拒否 | F1 F2 F4 |
+| discount_type | R | enum `rate|amount` | BE `required,oneof`。FE 既定 `rate` | F1 F2 F4 |
+| discount_value | O | float64 | BE `min=0`。**rate 時の max=100 は HTML 属性のみ → rate>100 も BE 受理**（要実測） | F3 F4 |
+| target_categories | O | string[] | BE `omitempty,dive,oneof`。常時送信・`[]`→クリア可 | F4 F5 |
+| target_item_ids | O | uint64[] | 常時送信・`[]`→クリア可 | F4 F5 |
+| is_active | O | boolean | フォーム値 | F4 |
+
+#### master-payment-method — `/settings/payment-methods`（`/v1/masters/` 外: `/api/v1/payment-methods`）
+
+| fieldKey | R/O | 型 | 制約・特記 | F 重点 |
+| :-- | :-- | :-- | :-- | :-- |
+| name | R | string | BE `required,max=255`。FE 一覧内重複拒否。(clinic_id,name) `WHERE deleted_at IS NULL` 一意 | F1 F4 C3-2 |
+| is_active | O | boolean | **create は dead key（BE struct 非保持）**・PATCH 有効。`system_key` 保持行の OFF は 409 | F4 F6 |
+| （system_key） | S | — | **wire 非送信**（FE/BE request ともに存在しない）。DB immutable 識別子・GET 応答のみ | F6 |
+
+### V04 §2 診療項目マスタ 5 タブ — `/settings/treatment-items?tab=…`
+
+5 タブ共通: `name`(R・FE 必須)・`price`(O・`<0` 拒否)・`description`(O・`||undefined`→クリア不可)・`is_active`(O)・`parent_id`(O・truthy 時のみ送信・子持ち時非表示)・`clear_parent_id`(O・PATCH のみ・parentId=""→`true`)。**タブ別 wire 差異**: `tax_type`/`tax_rate` は consultation・procedure のみ送信、`is_non_insurance` は examination のみ、`anesthesia`（`none|local|sedation|general`・BE create required）は procedure のみ。vaccine・checkup は上記 4+parent のみ。**パネルに表示されるが非送信の UI-only 項目を永続 field に数えない**。検査タブは API resource が `checkup-types` でなく `examination-types`。
+
+| タブ | endpoint | 追加 wire key |
+| :-- | :-- | :-- |
+| consultation | `/v1/masters/consultations` | tax_type(`omitempty,oneof`)・tax_rate(`min=0,max=1`) |
+| examination | `/v1/masters/examination-types` | is_non_insurance(bool)。**+ 検査項目サブリソース**: `POST/PATCH …/fields[/:fid] {name(R),inspection_value,normal_value,unit}`・`PUT …/fields/:fid/reference-ranges {ranges:[{animal_species_id(R),ref_min,ref_max,qualitative_min,qualitative_max}]}`（重複種別拒否・numeric XOR qualitative・min≤max）・reorder `PATCH …/fields/reorder {ids[]}` |
+| procedure | `/v1/masters/procedures` | tax_type(create `required,oneof`)・tax_rate・anesthesia(create `required,oneof none|local|sedation|general`・既定 `none`) |
+| vaccine | `/v1/masters/vaccines` | なし（共通のみ） |
+| checkup | `/v1/masters/checkup-types` | なし（共通のみ） |
+
+### V04 §3 master-medicine — `/settings/medicine`
+
+| fieldKey | R/O | 型 | 制約・特記 | F 重点 |
+| :-- | :-- | :-- | :-- | :-- |
+| name | R | string | FE 必須。カテゴリなし・price≤0・剤形なしの組合せは FE 拒否（「親カテゴリ、単価、または剤形のいずれかを入力してください」） | F1 F4 |
+| price | O | int64 | カテゴリノードは強制 0・UI disabled。非カテゴリ `min=0` | F3 F4 F6 |
+| parent_id / clear_parent_id | O | uint64/bool | clear は PATCH のみ | F5 |
+| description | O | string | そのまま送信（`""` 可） | F4 F5 |
+| is_active | O | boolean | | F4 |
+| dosage_form | O | enum `tablet|liquid|injection|topical|powder` | `""`→undefined | F4 F5 |
+| medicine_unit | O | enum `per_tablet|per_ml|per_dose|per_gram` | `""`→undefined | F4 F5 |
+| tax_type / tax_rate | O | enum/float | カテゴリは disabled。tax_rate 0–1 | F3 F4 F6 |
+| is_non_insurance | O | boolean | | F4 |
+| calculation_type | O | enum `none|per_weight` | | F4 F6 |
+| strength | C | float64 | `calculation_type≠none` 時のみ送信。BE `gt=0`・per_weight 必須（400） | C F3 F6 |
+| frequency_per_day | O | int | 同上 gating。`gt=0` | F3 F6 |
+| default_duration_days | O | int | 同上 | F3 F6 |
+
+投与量パラメータ（`calculation_type=per_weight` 時のみ描画）: `PUT /v1/masters/medicines/:id/dose-params/:species`（`:species` は `dog|cat` の URL パス・body 外）/`DELETE` 同パス。body: `dose_basis`(O・`per_administration|per_day`)、`dose_per_kg`(R・`gt=0`)、`min_mg_per_kg`(O・≤max かつ ≤dose_per_kg)、`max_mg_per_kg`(C・absolute_max_dose なし時必須)、`absolute_max_dose`(C・同上)、`rounding_step`+`rounding_mode`(C・セットで有/無・mode は `up|down|nearest`)、`notes`(O)。全項目 F0/F4、`gt=0` 境界 F3、either/or・ペア条件 F6。
+**注**: BE PATCH は `clear_strength` を受理するが FE 経路なし — per_weight→none 切替で strength は残存（要実測）。
+
+### V04 §4 master-reservation-type — `/settings/reservation-type`
+
+| fieldKey | R/O | 型 | 制約・特記 | F 重点 |
+| :-- | :-- | :-- | :-- | :-- |
+| name | R | string | FE 必須 | F1 F4 |
+| description | O | string | `""`→undefined | F4 |
+| is_active | O | boolean | **create は `true` 固定**（toggle 無視）/ update 実値 | F4 S |
+| group_id | O | uint64 | 未選択=「未分類」。**clear_group_id 非送信 → グループ解除不可**（要実測） | F4 F5 |
+| reservation_display_name | O | string | `""`→undefined（空は name フォールバック） | F4 F5 |
+| duration_minutes | O | int | FE `Number(v)||15` フォールバック（非数値/空/0→15）。min=5 max=480 は属性のみ | F2 F3 F4 |
+| short_name | O | string | `""`→undefined | F4 F5 |
+| reservation_visible | O | boolean | 予約ページに表示 | F4 |
+| reservation_comment | O | string | `""`→undefined | F4 F5 |
+| reservation_image_url | O | string | `""`→undefined。形式検証なし | F4 F5 |
+| show_short_name | O | boolean | 略称を使用 | F4 |
+| reservation_day_option | O | enum `none|weekday|saturday|anyday` | BE `omitempty,oneof` | F4 |
+| is_internal | O | boolean | 内部サービス | F4 |
+
+紐付け職種（既存項目のみ）: `POST /v1/masters/reservation-types/:id/occupations {occupation_id(R)}` / `DELETE …/occupations/:linkId`。不可時間帯: `POST …/unavailable-times {unavailable_type(R,weekly|specific), day_of_week?|specific_date?, start_time(R), end_time(R)}` / `DELETE …/unavailable-times/:id`。
+
+### V04 §5 reservation-type-available-slots — `/settings/reservation-type`（§4 パネル内・`/line-reservation/slots` と同一コンポーネント）
+
+`POST /v1/masters/reservation-types/:id/available-slots` / `DELETE …/:slotId`。
+
+| fieldKey | R/O | 型 | 制約・特記 | F 重点 |
+| :-- | :-- | :-- | :-- | :-- |
+| available_type | R | enum `weekly|specific` | BE `required,oneof` | F1 |
+| start_time | R | string `HH:MM` | 15分刻み select。BE required+時刻 parse | F1 F2 |
+| is_active | S | boolean | **`true` 固定送信**（UI 非編集） | S |
+| day_of_week | C | int8 | weekly のみ送信・BE 必須+0–6 | C |
+| specific_date | C | date | specific のみ。**FE 検証なし** → 空は BE 400 | C F2 |
+| （重複） | — | — | type+day/date+start_time 重複は BE 409 | — |
+
+### V04 §6 締め時間設定 — `/settings/closing-time`（3 フォーム）
+
+closing-standard-time `PATCH /v1/closing-settings`: `closing_am_pm_boundary`(R・HH:MM・**両終了時刻より前必須**)、`closing_weekday_end`(R)、`closing_sunday_end`(R)、`closed_weekdays`(O・int64[]・0–6 重複なし)。全項目 F1/F2（time 形式）・F4。
+
+closing-holiday `POST /v1/closing-settings/holidays` / `DELETE …/:date`: `date`(R・YYYY-MM-DD)、`reason`(O・`""`→undefined・BE max=500)。同日再 POST は 409（insert-only）。F1/F2/F3/F4。
+
+closing-special-period `POST /v1/closing-settings/special-periods` / `DELETE …/:id`: `note`(O・max=1000)、`start_date`(R)、`end_date`(R・start>end 拒否)、`am_pm_boundary`(R・pm_end より前)、`pm_end`(R)。MasterSidePanel は `<form noValidate>` — required 属性はブラウザ非強制で **BE `binding:"required"` が唯一のゲート**。期間重複は 409。F1(BE)/F2/F3/F4。
+
+### V04 §7 master-shift-template — `/settings/shift-templates`
+
+`POST /v1/shift-templates` / `PATCH /:id`。
+
+| fieldKey | R/O | 型 | 制約・特記 | F 重点 |
+| :-- | :-- | :-- | :-- | :-- |
+| name | R | string | FE 保存ボタン disabled 制御。BE `required,max=255` | F1 F3 F4 |
+| shift_type | R | enum `full|morning|afternoon|off|paid_leave` | BE `required,oneof` | F1 |
+| start_time | C | string `HH:MM` | type∈{off,paid_leave} 以外で FE 必須・非表示時 create=undefined/update=null | C F6 F5 |
+| end_time | C | string `HH:MM` | 同上 | C F6 F5 |
+| breaks[] | O | array | 両端 set のペアのみ送信・非表示型は `[]`。BE `max=50`・各 break_start/break_end `required` | F4 F6 |
+| notes | O | string | BE `max=2000` | F3 F4 F5 |
+| is_active | O | boolean | StatusPill | F4 |
+
+並び替え: `PATCH /v1/shift-templates/reorder {ids:number[]}`。
+
+### V04 §10 company-invoice-section — `/settings/clinic` 上部
+
+**別 entity・別 endpoint**: `PATCH /api/v1/company`（singleton・id なし）。clinic の `registration_number`（獣医師会番号等・V03 §7 側）とは別物 — 混同注意。
+
+| fieldKey | R/O | 型 | 制約・特記 | F 重点 |
+| :-- | :-- | :-- | :-- | :-- |
+| invoice_registration_number | O | string | 常時送信・`""` クリア可。**T+13桁の形式検証は FE/BE ともになし**（BE `omitempty,max=100` のみ）→ F2 形式は「検証なし」が正 | F3(>100) F4 F5 |
 
 ---
 
@@ -425,16 +708,116 @@ V04 が唯一の owner。V05 では数えない。
 | auth-change-password         | current, new, confirm                                                           | V05-2                                                 |
 | auth-forgot-password         | email                                                                           | V05-3                                                 |
 | auth-reset-password          | password, confirm                                                               | V05-4                                                 |
-| liff-account-link            | （自動・入力なし）                                                              | F0 分岐のみ                                           |
-| line-reserve-create          | —                                                                               | exact keys 未収録。収録完了まで V05 incomplete        |
-| line-reserve-cancel          | cancel action                                                                   | F0 F4                                                 |
-| line-reservation-settings    | —                                                                               | exact keys 未収録。収録完了まで V05 incomplete        |
-| line-reservation-page-editor | header_text, request_example, reservation_notice, cancel_notice, privacy_policy | V05-9（唯一の owner）                                 |
-| line-reservation-slots       | 日付・開始時刻                                                                  | V05-10                                                |
-| owner-line-customer-link     | link/unlink 操作                                                                | V05-11                                                |
-| lstep-settings               | —                                                                               | exact keys 未収録。収録完了まで V05 incomplete        |
-| lstep-tag-config             | —                                                                               | exact keys 未収録。収録完了まで V05 incomplete        |
-| lstep-checkup-sync-create    | tag_name                                                                        | exact filter keys 未収録。収録完了まで V05 incomplete |
+| liff-account-link            | link_token, line_id_token（自動実行・入力欄なし）                               | V05-5・F0 分岐のみ                                    |
+| line-reserve-create          | course_id, staff_id, date, start_time, end_time, customer_fields{customer_name, phone, owner_name, pets[]}, request_text, trimming_course_id, trimming_option_ids — 下表参照 | V05-6 |
+| line-reserve-cancel          | （body なし・`DELETE /api/liff/{clinicId}/my-reservations/{id}`）               | V05-7・F0 F4                                          |
+| line-reservation-settings    | 全量 PUT 25 key（status ほか）+ secret 2 key 非送信 — 下表参照                  | V05-8                                                 |
+| line-reservation-page-editor | header_text, request_example, reservation_notice, cancel_notice, privacy_policy（編集は5項目・wire は全量 PUT 25 key） | V05-9（唯一の owner） |
+| line-reservation-slots       | available_type(`specific`固定), specific_date, start_time, is_active(`true`固定) | V05-10                                                |
+| owner-line-customer-link     | owner_id（紐付け=id・解除=null）                                                | V05-11・F0 F1 F4 F6 C3-2                              |
+| lstep-settings               | PATCH 28 key（secret3+text2+enum1+numeric23+bool1）— 下表参照                   | V05-12                                                |
+| lstep-trigger-priority       | items[]{trigger_type, priority}（全トリガー一括置換 PATCH）                     | V05-13・F0 F1 F3 F4 F6                                |
+| lstep-tag-code-mappings      | entries[]{code_type, codes[]}（tagName 単位全量置換 PUT・4 固定タグ）           | V05-14・F0 F1 F2 F4                                   |
+| lstep-tag-config             | 3 追加フォーム: prefix+category / condition_code+tag_name / purpose+tag_prefix — 下表参照 | V05-15                          |
+| lstep-csv-import             | file（multipart・パート名 `file`・.csv・BE 上限 ~51MB）                         | V05-16・F0 F1 F3 F4                                   |
+| lstep-bulk-tag-remove        | （body なし・tagName/ownerId は URL パス・逐次 DELETE）                         | V05-17・F0 F6                                         |
+| lstep-checkup-sync-create    | checkup_type, owner_ids[](1–100), tag_name + preview query 12 key — 下表参照    | V05-18                                                |
+
+### line-reserve-create — line-reserve アプリ（`frontend/line-reserve/`・独立 SPA）— V05-6
+
+`POST /api/liff/{clinicId}/reservations`（Bearer LINE idToken）。409 は `{code:"SLOT_TAKEN", redirect_step}` で FE 画面遷移。BE は `trimming_style_request` も受理するが FE 非送信。
+
+| fieldKey | R/O | 型 | 制約・特記 | F 重点 |
+| :-- | :-- | :-- | :-- | :-- |
+| course_id | R | number | BE `required`。inactive 区分は BE 拒否 | F0 F1 F4 C3-1 |
+| staff_id | R | number | `0`=指名なし。非 0 は BE clinic 所属チェック | F0 F1 F4 |
+| date | R | string `YYYY-MM-DD` | BE `required`+DateOnly parse | F0 F1 F2 F4 |
+| start_time / end_time | R | string `HHMM` | BE `required` | F0 F1 F2 F4 |
+| customer_fields | R | object | BE: JSON ≤10KB・top ≤20 key・各 string ≤500 | F0 F3 F4 |
+| customer_fields.customer_name | R | string | FE trim 非空 | F0 F1 F4 |
+| customer_fields.phone | R | string | FE `/^[0-9+ ()-]+$/`+数字≥10桁・BE 同規約 | F0 F1 F2 F4 |
+| customer_fields.owner_name | O | string | 空可 | F0 F4 F5 |
+| customer_fields.pets[] | O | array | `{name, type, is_new}`。新規追加は name 非空 | F0 F1(行内) F4 C3-1 |
+| request_text | O | string | BE ≤1000 字。**FE maxLength なし** → 1001 字で 400 | F0 F3 F4 F5 |
+| trimming_course_id / trimming_option_ids | O | number/number[] | trimming 分岐時のみ送信 | F0 F4 F6 |
+
+### line-reservation-settings — `/line-reservation/settings` — V05-8
+
+`PUT /v1/clinics/{clinicId}/line-reservation-settings`（clinic 1 レコード・**全量 PUT** — UI 非編集項目も round-trip 送信）。F4 は編集可能項目に適用、round-trip-only 項目は F0+F4（値が消えないことの確認として V05-9 手順3 で代表実施）。
+
+| fieldKey | R/O | 型 | 制約・特記 | F 重点 |
+| :-- | :-- | :-- | :-- | :-- |
+| status | R | enum `running|stopped` | BE `required,oneof`。停止時 LIFF は MaintenancePage | F0 F1 F4 |
+| national_holiday_closed | R | boolean | 祝日休診 | F0 F4 |
+| closed_weekdays | R | string[] | 曜日番号 `"0"`–`"6"`（0=日） | F0 F4 |
+| closed_dates | R | string[] | `YYYY-MM-DD`。UI 非編集・round-trip | F0 F4 |
+| business_hours | R | object `{start,end} HHMM` | FE が `:` 除去して送信 | F0 F1 F2 F4 |
+| business_hours_by_weekday | R | object | `{"0".."6":{start,end}}`・トグル OFF で `{}` | F0 F4 F6 |
+| break_hours | R | array `[{start,end}]` | `HHMM`。BE 形式必須 | F0 F2 F4 |
+| daily_limit / monthly_limit | R | number\|null | UI 非編集・round-trip。BE `min=0,max=100000` | F0 F4 |
+| booking_window_min_days | R | number | FE `min=0`・BE `min=0,max=366` | F0 F3 F4 |
+| booking_window_max_days | R | number | FE `min=1`・BE `min=0,max=366` | F0 F3 F4 |
+| calendar_months | R | number | FE `min=1 max=6`・BE `min=0,max=12`（**境界非対称**） | F0 F3 F4 |
+| phone_number | R | string | BE `max=32` | F0 F3 F4 |
+| notification_email | R | string | FE type=email・BE `omitempty,email,max=254` | F0 F2 F4 |
+| request_example | R | string | UI 非編集（編集は page-editor）。BE `max=2000` | F0 F4 |
+| time_slot_mode | R | enum `minimize_gaps|allow_gaps` | BE `required,oneof` | F0 F1 F4 |
+| time_slot_interval_minutes | R | number | FE `min=5 step=5`・BE `min=1,max=1440` | F0 F3 F4 |
+| no_staff_mode | R | enum `first_available|top_priority` | BE `required,oneof` | F0 F1 F4 |
+| show_no_staff_option | R | boolean | UI 非編集・round-trip | F0 F4 |
+| additional_fields | R | json | UI 非編集・round-trip（顧客追加項目） | F0 F4 |
+| header_text | R | string | UI 非編集。BE `max=2000` | F0 F4 |
+| reservation_notice | R | string | UI 非編集。BE `max=10000` | F0 F4 |
+| cancel_notice | R | string | UI 非編集。BE `max=10000` | F0 F4 |
+| privacy_policy | R | string | UI 非編集。BE `max=100000` | F0 F4 |
+| line_channel_id | R | string | BE `max=255` | F0 F4 |
+| liff_id | R | string | BE `max=255` | F0 F4 |
+
+**secret-bearing（値は扱わない・キー名のみ）**: `line_channel_secret` — BE request struct に存在しない（故意に非受付・canonical owner は別 API）。`line_access_token` — BE binding はあるが **FE 非送信**・response 非返却（write-only 相当・非含有は FE テストで回帰固定済み）。いずれも F0 のみ・値の永続確認対象外。
+
+### lstep-settings — `/settings/integrations/lstep` — V05-12
+
+`PATCH /v1/clinics/{clinicId}/lstep-settings`。**空欄=変更なし**（`setTrimmedString skipEmpty`）が基本で、正の整数のみ送信する数値系（0/負値は送信せず既存値維持）と混在。`liff_id` のみ空文字クリア可。secret 3 key は response が `*_masked` のみ返却する write-only。
+
+| fieldKey | R/O | 型 | 制約・特記 | F 重点 |
+| :-- | :-- | :-- | :-- | :-- |
+| lstep_api_key / line_channel_access_token / line_channel_secret | O | string | **secret（write-only・response 非エコー）**。空欄=変更なし | F0 F4 F5 |
+| liff_id | O | string | **唯一 `""` でクリア可** | F0 F4 F5 |
+| lstep_base_url | O | string | 空欄=変更なし。BE `max=512`+https/allowlisted host（`https://app.lstep.jp`→400） | F0 F2 F4 F5 |
+| line_account_name | — | string | BE・FE 型に存在するが **UI 非送信** — 計上せず注記のみ | — |
+| cpm_version | O | enum `v1|v2` | payload に入るのはこの2値のみ | F0 F4 |
+| dormant_prevention_180/210/240/365_days・health_prevention_lookback_days・vaccine_deadline_days・cpm_v2_*_threshold・cpm_v1_*（23 数値キー） | O | int/int64 | `setPositiveInteger` — ≥1 のみ送信（0/負値は既存値維持） | F0 F3 F4 |
+| is_sync_enabled | R | boolean | **常時送信**。無効化は ConfirmDialog 経由 | F0 F4 F6 |
+
+ボタン類（永続しない操作）: `POST …/lstep-settings/test-connection`・`DELETE …/lstep-settings`（ConfirmDialog）。
+
+### lstep-tag-config — `/settings/integrations/lstep` 内セクション — V05-15
+
+**追加フォームは 3 種**（POST/DELETE は `requireSystemAdmin` — UAT 実行権限の前提）。
+
+| formId | endpoint | fieldKey | R/O | F 重点 |
+| :-- | :-- | :-- | :-- | :-- |
+| auto-managed-prefixes | `POST /v1/lstep-tag-config/auto-managed-prefixes` | prefix | R | F0 F1 F4 C3-2（重複 409） |
+| | | category | R enum `B|C1|C2|C3` | F0 F1 F2 F4 |
+| condition-tag-mappings | `POST /v1/lstep-tag-config/condition-tag-mappings` | condition_code | R・BE `max=50`・同一コード 409 | F0 F1 F3 F4 C3-2 |
+| | | tag_name | R | F0 F1 F4 |
+| send-purpose-tag-prefixes | `POST /v1/lstep-tag-config/send-purpose-tag-prefixes` | purpose | R（V05 表に第3フォームとして追記済み） | F0 F1 F4 |
+| | | tag_prefix | R | F0 F1 F4 |
+| 行削除 | `DELETE …/{type}/{id}` → 204 | — | — | F0 F4 |
+
+（`description` は BE が受理するが UI 非送信 — 計上しない）
+
+### lstep-checkup-sync-create — `/lstep/checkup-sync` — V05-18
+
+永続化: `POST /v1/clinics/{clinicId}/lstep/checkup-sync`。
+
+| fieldKey | R/O | 型 | 制約・特記 | F 重点 |
+| :-- | :-- | :-- | :-- | :-- |
+| checkup_type | R | enum `annual|dental|blood|skin|cancer|other` | BE `required`+enum | F0 F1 F4 |
+| owner_ids | R | string[] | BE `required,min=1,max=100`。FE 上限 100 で disabled | F0 F1 F3 F4 F6 |
+| tag_name | R | string | FE trim 非空。BE `^[a-zA-Z0-9_\-]{1,100}$`+システム管理タグ拒否 | F0 F1 F2 F3 F4 |
+
+前段プレビュー（非永続 GET `/checkup-sync/preview`・query keys — F0/F2/F5 のみ適用）: `checkup_type`(R)・`species`・`last_visit_after`/`last_visit_before`(date)・`min_age_years`/`max_age_years`(≥0・min>max エラー)・`has_chronic_condition`(`true|false`)・`cpm_stage`(`cpm_encounter|cpm_growing|cpm_core|cpm_spot|cpm_noah|cpm_dormant`)・`min_total_amount`・`min_annual_visit_count`・`last_checkup_after`/`last_checkup_before`(date)。
 
 ---
 

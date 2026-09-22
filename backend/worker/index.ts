@@ -233,6 +233,22 @@ export class AnimalEkarteApiContainer extends Container<Env> {
   }
 }
 
+// STG API のユーザートラフィックは PlanetScale(ap-northeast/Tokyo)と同じ北東アジアの
+// Durable Object に固定する。既定名 cf-singleton-container は locationHint 未指定で
+// 米国(ewr01)に作成済みであり、DO は作成後に移動しないため、新しい名前で apac-ne
+// ヒントを持つ DO を初回 get() 時に作成する(locationHint は新規 Object の初回 get のみ
+// 有効・best-effort で保証ではない。旧 EWR の DO は traffic 喪失後に自然 sleep する)。
+const API_CONTAINER_NAME = "api-apac-ne-v1";
+const API_CONTAINER_LOCATION_HINT = "apac-ne" as const;
+
+function getApiContainer(
+  env: Env,
+): DurableObjectStub<AnimalEkarteApiContainer> {
+  return env.API_CONTAINER.getByName(API_CONTAINER_NAME, {
+    locationHint: API_CONTAINER_LOCATION_HINT,
+  });
+}
+
 type ProxyObservationOutcome =
   | { readonly status: number }
   | { readonly failureCode: "container_unavailable" };
@@ -369,7 +385,7 @@ export default {
     }
     const forwardedRequest = new Request(request, { headers });
 
-    const container = getContainer(env.API_CONTAINER);
+    const container = getApiContainer(env);
     return forwardContainerFetch(request, forwardedRequest, container);
   },
 
@@ -433,7 +449,7 @@ async function handleMigrateRequest(
     });
   }
 
-  const container = getContainer(env.API_CONTAINER);
+  const container = getApiContainer(env);
   try {
     const result = await container.runMigrate();
     return toMigrateResponse(result);
