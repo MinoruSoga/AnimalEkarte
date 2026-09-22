@@ -290,6 +290,59 @@ type ContainerFetcher = {
   fetch(request: Request): Promise<Response>;
 };
 
+// CORS preflight (OPTIONS) contract — backend/internal/middleware/cors.go の
+// Worker edge 複製。preflight を Container へプロキシすると scale-to-zero の
+// コールドスタートで数秒ブロックされるため、OPTIONS は Worker が即応答する。
+// フィールド値は Go 側と完全一致を維持する(変更時は cors.go と同時に直す)。
+const CORS_PREFLIGHT_ALLOW_METHODS = "GET, POST, PUT, PATCH, DELETE, OPTIONS";
+const CORS_PREFLIGHT_ALLOW_HEADERS =
+  "Content-Type, Authorization, X-Request-ID, X-Clinic-ID, X-Requested-With, Idempotency-Key";
+const CORS_PREFLIGHT_MAX_AGE = "86400";
+// cors.go と同じ開発環境フォールバック(管理画面 + LIFF App)。
+const CORS_PREFLIGHT_FALLBACK_ORIGINS =
+  "http://localhost:3000,http://localhost:3001,https://liff.line.me";
+
+function isCorsOriginAllowed(origin: string, allowedOrigin: string): boolean {
+  for (const allowed of allowedOrigin.split(",")) {
+    if (allowed.trim() === origin) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Answers a CORS preflight at the edge with the same header contract as
+ * backend/internal/middleware/cors.go: Access-Control-Allow-Origin,
+ * Timing-Allow-Origin, and Vary are emitted only when the request Origin
+ * matches the configured allowlist; the remaining fields are unconditional,
+ * mirroring the Go middleware. Always 204 with no body.
+ */
+export function buildCorsPreflightResponse(
+  request: Request,
+  allowedOrigin: string,
+): Response {
+  const headers = new Headers();
+  const origin = request.headers.get("Origin");
+  if (
+    origin !== null &&
+    isCorsOriginAllowed(
+      origin,
+      allowedOrigin || CORS_PREFLIGHT_FALLBACK_ORIGINS,
+    )
+  ) {
+    headers.set("Access-Control-Allow-Origin", origin);
+    headers.set("Timing-Allow-Origin", origin);
+    // SEC-601: キャッシュポイズニング対策(Origin別に異なるレスポンス)。
+    headers.set("Vary", "Origin");
+  }
+  headers.set("Access-Control-Allow-Credentials", "true");
+  headers.set("Access-Control-Allow-Headers", CORS_PREFLIGHT_ALLOW_HEADERS);
+  headers.set("Access-Control-Allow-Methods", CORS_PREFLIGHT_ALLOW_METHODS);
+  headers.set("Access-Control-Max-Age", CORS_PREFLIGHT_MAX_AGE);
+  return new Response(null, { status: 204, headers });
+}
+
 /**
  * Forwards one request to the API container and emits the fixed timing observation.
  * Exception bodies are intentionally not logged.
@@ -363,6 +416,13 @@ export default {
         status: 404,
         headers: { "Content-Type": "application/json" },
       });
+    }
+
+    // PERF-E5: CORS preflight(OPTIONS)は edge で即応答し Container を起こさない。
+    // /_internal ガードより後に置く(内部ルートは従来通り Worker 内処理で、
+    // preflight 応答を外部へ開かない)。ヘッダ契約は cors.go と同一。
+    if (request.method === "OPTIONS") {
+      return buildCorsPreflightResponse(request, env.CORS_ALLOWED_ORIGIN);
     }
 
     // H2/AC-2: containerFetch は既定では X-Forwarded-For を注入しない(試行9の実測で確認—
