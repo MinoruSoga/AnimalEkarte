@@ -135,11 +135,9 @@
       // 最悪ケースは排除できる。
       "constraints": {
         "regions": ["APAC"],
-        // @hidden フィールドだが wrangler は constraints.cities を API へそのまま
-        // 転送する(containers-shared config.ts)。APAC制約だけでは bom/maa/sin
-        // (米国から近い順に選ばれる挙動)に偏る実績があるため、PlanetScale(ap-northeast-2)
-        // とユーザー(日本)双方に近いメトロへ限定する。
-        "cities": ["nrt", "kix", "icn"],
+        // cities によるメトロ指定(nrt/kix/icn)は CITIES_CONSTRAINT ケイパビリティ必須で
+        // このアカウントでは API エラー(VALIDATE_INPUT)になることがデプロイ実測で判明
+        // (PR #429 当初版で失敗)。利用可能なのは regions 粒度まで。
       },
     },
   ],
