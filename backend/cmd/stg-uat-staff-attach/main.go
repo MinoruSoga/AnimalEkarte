@@ -180,6 +180,11 @@ func run(
 	if err != nil {
 		return err
 	}
+	// PlanetScale user-defined roles are not the table owner. RLS is ENABLE
+	// without FORCE, so non-owner connections see zero clinic rows unless
+	// app.bypass_rls is on (001_init.sql). RuntimeParams applies the setting
+	// to every pooled connection, matching csv-import's AfterConnect bypass.
+	pgxConfig.RuntimeParams["app.bypass_rls"] = "on"
 	db, err := deps.openDB(pgxConfig)
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)

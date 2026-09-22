@@ -355,6 +355,18 @@ stg-uat-handoff-verify:
 # TARGET_DB_NAME and STG_UAT_STAFF_ATTACH_CONFIRM_HOST are required.
 # Remote STG: USER sets DB_HOST/DB_PORT/DB_SSL_MODE and
 # STG_UAT_STAFF_ATTACH_ALLOW_REMOTE=YES_I_UNDERSTAND (Make forwards both).
+# The backend service only injects env_file (.env.local) DB credentials, so
+# for remote targets the caller must also export DB_NAME/DB_USER/DB_PASSWORD/
+# DB_SSL_ROOT_CERT; each is forwarded only when set, preserving the local
+# .env.local fallback used by scripts/import-old-db-handoffs-on-reset.sh.
+# Valueless -e so secrets stay in the process environment and are never
+# echoed into the recipe command line / logs.
+STG_UAT_STAFF_ATTACH_DB_ENV = \
+	$(if $(DB_NAME),-e DB_NAME) \
+	$(if $(DB_USER),-e DB_USER) \
+	$(if $(DB_PASSWORD),-e DB_PASSWORD) \
+	$(if $(DB_SSL_ROOT_CERT),-e DB_SSL_ROOT_CERT)
+
 stg-uat-staff-attach-preflight:
 	@test -n "$${TARGET_DB_NAME}" || (echo "TARGET_DB_NAME is required" >&2; exit 1)
 	@test -n "$${STG_UAT_STAFF_ATTACH_CONFIRM_HOST}" || (echo "STG_UAT_STAFF_ATTACH_CONFIRM_HOST is required" >&2; exit 1)
@@ -366,6 +378,7 @@ stg-uat-staff-attach-preflight:
 		-e DB_HOST="$${DB_HOST:-db}" \
 		-e DB_PORT="$${DB_PORT:-5432}" \
 		-e DB_SSL_MODE="$${DB_SSL_MODE:-disable}" \
+		$(STG_UAT_STAFF_ATTACH_DB_ENV) \
 		-v "$${STG_UAT_STAFF_ATTACH_ROSTER}:/secure/roster.json:ro" \
 		-v "$${STG_UAT_STAFF_ATTACH_SECRETS}:/secure/secrets.json:ro" \
 		--entrypoint go backend \
@@ -386,6 +399,7 @@ stg-uat-staff-attach:
 		-e DB_HOST="$${DB_HOST:-db}" \
 		-e DB_PORT="$${DB_PORT:-5432}" \
 		-e DB_SSL_MODE="$${DB_SSL_MODE:-disable}" \
+		$(STG_UAT_STAFF_ATTACH_DB_ENV) \
 		-v "$${STG_UAT_STAFF_ATTACH_ROSTER}:/secure/roster.json:ro" \
 		-v "$${STG_UAT_STAFF_ATTACH_SECRETS}:/secure/secrets.json:ro" \
 		--entrypoint go backend \
