@@ -55,6 +55,10 @@ type Treatment struct {
 	DoseAmountUnit    *string         `gorm:"type:text"          json:"dose_amount_unit,omitempty"`    // 'mg' | 'ug'
 	DoseParamSnapshot json.RawMessage `gorm:"type:jsonb"         json:"dose_param_snapshot,omitempty"` // species/dose_per_kg/strength/丸め設定/計算式版
 
+	// Version は楽観的ロック用（UAT-R2-EXCLUSIVE-LOCK）。更新は version+1 を書き戻し、
+	// caller の読取版を expectedVersion として WHERE 照合する（clinical_plan/medical_record と同型）。
+	Version int `gorm:"default:1" json:"version"`
+
 	DeletedAt gorm.DeletedAt `json:"-"`
 	CreatedAt time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
