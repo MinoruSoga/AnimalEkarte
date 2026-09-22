@@ -469,6 +469,8 @@ def plan(paths):
                 jobs.append({'service': 'host', 'command': ['python3', '-B', 'scripts/ci_scope_plan_test.py']})
         elif path in ('scripts/test_agent_scope_contracts.py', '.gitignore', '.mcp.json', '.claude/settings.json', '.claude/codex-agent-manifest.json', 'backend/wrangler.jsonc'):
             jobs.append({'service': 'host', 'command': ['python3', '-B', 'scripts/test_agent_scope_contracts.py']})
+        elif path == 'backend/Dockerfile.production':
+            jobs.append({'service': 'host', 'command': ['docker', 'build', '--check', '-f', path, 'backend/']})
         elif path in ('.claude/scripts/sync-codex-mirror.py', '.claude/scripts/test_sync_codex_mirror.py', '.claude/scripts/sync-codex-mirror.sh'):
             jobs.append({'service': 'host', 'command': ['python3', '-B', '.claude/scripts/test_sync_codex_mirror.py']})
         elif path in ('.claude/scripts/sync-agents-skills.py', '.claude/scripts/test_sync_agents_skills.py', '.claude/scripts/sync-agents-skills.sh'):
