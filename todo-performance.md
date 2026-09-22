@@ -1,21 +1,52 @@
 # Performance 調査・改善 TODO
 
-最終照合: 2026-09-22（ローカル HEAD `cd2feaa14` のSLACK-LATENCY計測票差分。PERF-STG-LOGINの判定・過去測定は9月21日の照合を保持）。runtime・provider・配備状態は今回未照会。主調査 ID: **PERF-STG-LOGIN**。対象は STG `/login` の初回表示遅延。責任者・依頼者: 曽我 稔。
+最終照合: 2026-09-22（同日 curl 実測でコールドスタートを直接観測し **E4** として記録。原因区間を確定し改善候補を整理。SLACK-LATENCY計測票差分は別記録を保持）。主調査 ID: **PERF-STG-LOGIN**。対象は STG `/login` 初回表示遅延に始まり、ユーザー報告により STG 全域のページ読み込み遅延へ拡大。責任者・依頼者: 曽我 稔。
 
 未完了の測定・受入は [todo-verification.md](todo-verification.md#perf-stg-login)。新たな実装が必要になったら [todo-issue.md](todo-issue.md) に範囲を確定する。本書は判断に必要な技術記録のみを保持する。
 
 ## 現在の判断
 
-- 初回遅延の原因と改善後の測定結果は未確定。通信全体約22.7秒を Go / DB 処理時間と断定しない。
-- Worker 観測は `b42c00ccb` で既にコミットされ、現在の [index.ts](backend/worker/index.ts) に `buildProxyObservation` と通常 proxy のログ出力が存在する。**「未導入 WIP を保全」「commit・deploy しない」という旧記述は現状と一致しないため削除した。** 9月15日に確認した STG 配備対象 `d337f016` にも同じ観測経路が含まれていた。現在の配信版を再確認した結果ではない。
-- `72807128` の実 proxy 4 tests と worker typecheck は [既存の同一コミット検証](.planning/agent-fast-campaign/four-candidate-integration-20260916/evidence/rev7-reverify-72807128-codex/controller/RECONCILIATION.md) で PASS。`index.test.ts` は `tsconfig.test.json` の include に追加済み。今回再実行した結果ではない。残るのは現行観測の必要性・出力範囲、ブラウザ/provider の時刻対応、STG 受入であり、原因特定・性能改善は未完了。
-- pending UI は既存実装を利用する。CORS / CSRF、edge OPTIONS、Container 設定、bundle 分割を、因果証拠なしに変更しない。
+- 初回遅延の主因は **Cloudflare Containers の scale-to-zero コールドスタート** と実測で確定（E4）。`sleepAfter = "10m"` でアイドル10分後にコンテナが停止し、全 API リクエストは単一の共有コンテナ（`getContainer(env.API_CONTAINER)`、名前なし=既定インスタンス）の起動完了を待つ。`instance_type: "basic"`（1/4 vCPU / 1GiB）で起動は実測 約6〜16秒。
+- E1 の約22.5秒（最終 GET の接続開始前）は Container 起動待ちと整合する。「通信全体を Go / DB 処理時間と断定しない」判断は維持し、温間 TTFB 0.24〜0.25 秒から Go/DB 自体の遅さではないことを確認済み。
+- Worker 観測 `container_fetch_timing`（`b42c00ccb` 由来）は継続有効。改善実装後の区間別再測定に使う。
+- 温間状態の認証済み API レイテンシは **E5 で実測済み**。`/v1/clinics` 0.47s、`/v1/me` 0.85s（認証キャッシュ適用後・暖機）。E4 の UNKNOWN は解消。`/v1/pets` 検索等の重めクエリは未測定のまま。
+- pending UI は既存実装を利用する。bundle 分割（BUNDLE）は転送/parse/execute の寄与が未測定のため DEFERRED のまま。edge OPTIONS と Container 設定は因果証拠（E4）が取れたため実装候補へ昇格したが、採用・範囲・受入は別途確定する。
+
+## 改善プラン（候補・2026-09-22）
+
+対象区間は E4 で確定したコールドスタート待ちと、プリフライト／リトライ／N+1 による増幅。実装単位の確定・受入条件・担当は [todo-issue.md](todo-issue.md) / [todo-verification.md](todo-verification.md#perf-stg-login) に移す。ここでは技術的根拠と前提のみ記録する。
+
+| # | 案 | 削減する区間 | 前提・注意 |
+|---|----|------------|------------|
+| 1 | keep-alive：`sleepAfter` 延長、または営業時間中の定期 `/health` ping | コールドスタート待ち（支配的区間）そのもの | 既存 cron（01:00/06:00/11:00/17:00 UTC）は `SCHEDULER_NAME` の named コンテナを起こすのみで、既定名の API コンテナは温まらない。ping は `getContainer(env.API_CONTAINER)` の既定インスタンスに届く経路（通常 `/health` GET で可）が必要。scale-to-zero のコスト想定（AC-5 検証目的）とのトレードオフは STG 運用判断 |
+| 2 | OPTIONS を Worker エッジで応答（Container へ転送しない） | プリフライトのコールド待ち（実測 6 秒）と温間時の往復 1 回分 | CORS allowlist は静的（`CORS_ALLOWED_ORIGIN` vars）で Worker 側に複製可能。`Allow-Headers/Methods/Max-Age` の契約は `internal/middleware/cors.go` と一致させる。GET 本体のコールド待ちは残るため単独では不十分 |
+| 3 | axios の 502–504 リトライ範囲・回数の見直し | 起動中の二重待ち（1秒・2秒バックオフ＋再送） | `isServerError` は 502–504 で、Worker が起動失敗時に返す 503 `service_unavailable` を含む。起動待ち中の再送はコンテナ起動を早めない。503 を対象外にするか回数を絞るかは、起動失敗時の UX（速く失敗を返す）とセットで判断 |
+| 4 | `ownerLoader` の N+1（飼主 + ペット個別 GET）解消 | 飼主詳細のリクエスト数（ペット N 頭で N+1 本、各 URL が別プリフライトキー） | `/v1/pets/{id}` は URL ごとにプリフライトキャッシュが別キー。バックエンドで pets 同梱またはバッチ取得にする。温間実測が出るまでは二次因扱い |
+| 5 | `instance_type` 引き上げ（basic → 上位） | コールドスタートの起動時間そのもの | コスト増。案1と排他ではない（起動を速くしても sleep 自体は残る） |
+| 6 | プリフライト自体の削減 | 温間時の往復 1 回分 × リクエスト数 | `X-Requested-With` は CSRF 防御で固定（「測定で維持する境界」参照）。GET から `X-Request-ID`・`X-Clinic-ID` 等を外せば simple request 化してプリフライト不要になるが、`Content-Type: application/json` を伴う POST/PUT/PATCH は safelist 外のため依然 preflight が必要。削減効果は GET 系に限定される |
+
+補足: 案2・3・4・6 は「温間でも遅い」場合の二次因にも効くが、E4 時点では温間 API は速い（0.25 秒未満）ため優先度は案1が最大。ブラウザのプリフライトキャッシュは `(origin, URL, method)` 単位で、`Access-Control-Max-Age: 86400` を返しても Chrome 系は約2時間で切り捨てられるため、Max-Age 引き上げでは増幅は解消しない。
+
+### 費用影響（Cloudflare 公式 pricing 確認・2026-09-22）
+
+Containers は稼働時間課金（10ms 単位、Workers Paid $5/月に含む）。単価: メモリ $0.0000025/GiB-秒（25 GiB-h/月込み、provisioned 課金）、CPU $0.000020/vCPU-秒（375 vCPU-分/月込み、2025-11 改訂で **アクティブ使用分のみ**）、ディスク $0.00000007/GB-秒（200 GB-h/月込み）。現行 `basic` = 1/4 vCPU / 1 GiB / 4 GB。
+
+| 案 | 増分の目安（STG・単一コンテナ前提） |
+|---|---|
+| 1. keep-alive | **増加するが小さい**。24/7 常時起動 ≈ $7/月（メモリ $6.4 + ディスク $0.7、CPU はアイドル時ほぼゼロ）。営業時間のみ（約264h/月）≈ $2.4/月 |
+| 2. edge OPTIONS | 実質ゼロ（Workers Paid のリクエスト枠内、STG 量は誤差） |
+| 3/4/6. リトライ・N+1・プリフライト削減 | 微減（リクエスト数減） |
+| 5. instance_type 引上げ | 稼働時間比例。basic→standard-1（4GiB/8GB）で 24/7 なら約 $28/月。sleep 維持なら増分は小さい |
+| Redis系（現時点で不採用候補） | コールドスタートには無効。温間クエリの実測遅延が確認されてから検討。Upstash は CF 請求外、KV/Cache API はこの規模では実質無料。マルチテナント（clinic_id）分離の安全不変条件があり、エッジキャッシュには越境リーク設計が必要 |
+
+結論として費用が問題になるのは案1と案5のみで、案1でも月 $2〜7 程度。scale-to-zero が節約しているのは月数ドルであり、対価として6〜16秒の起動待ちが発生している。
 
 ## 次に確認すること
 
-1. 通常の `/login` 読込で OPTIONS / GET の各区間、FCP、フォーム操作可能時刻を測る。
-2. 同じ時刻の provider 受付・forwarding・Container 起動証拠と対応づける。
+1. 認証済みブラウザで `/owners` 等の実ページについて、コールド（10分超アイドル後）と温間の区間別時間を測る（既存チェックシートの run 票を使用）。
+2. Workers Logs の `container_fetch_timing` で実リクエストの `duration_ms` を集計し、温間でも遅い API（二次因 = 実クエリやレスポンスサイズ）があるか切り分ける。未認証 curl では実クエリ時間を測れないため、この確認なしに「温間は全て速い」と断定しない。
 3. 現行の常時ログが必要かを再判定する。必要なら対象と出力を限定し、不要なら撤去を別実装単位にする。
+4. 採用した改善案の実装後、同じ条件で再測定し E5 として記録する。
 
 対象・承認・完了条件は [検証 TODO](todo-verification.md#perf-stg-login)。旧候補の裁定は [履歴](docs/work/development-task-decisions.md) であり、現在の導入状態は上記を正とする。
 
@@ -51,11 +82,75 @@ HTML TTFB 49.2ms、DOMContentLoaded 303.1ms、load 309.1ms、FCP 23,548ms。`/ap
 | requestStart → responseStart | 115.8ms |
 | 本文受信 | 2.3ms |
 
-`workerStart=0`。当時の OPTIONS、相関 ID、接続交渉、Container 起動、配信 revision は未保存。約22.5秒は最終 GET の接続開始前であり、Worker 内の所要時間だけでは説明できない。
+`workerStart=0`。当時の OPTIONS、相関 ID、接続交渉、Container 起動、配信 revision は未保存。約22.5秒は最終 GET の接続開始前であり、Worker 内の所要時間だけでは説明できない。→ E4 で Container 起動待ち（コールドスタート中にブラウザ側が接続を待つ区間）と整合することを確認。
 
 ## E2 / E3: 再現しなかった記録
 
-同日の通常 Chrome 2回では `/me` 221.4 / 190.0ms、FCP 944 / 768ms（いずれも401）。単発 HTTP は `/login` 281ms、Cookie なし `/me` 254ms、OPTIONS 240ms。遅延が再現しなかった記録であり、認証済みブラウザ経路・cold start 解消・p95/p99 を証明しない。
+同日の通常 Chrome 2回では `/me` 221.4 / 190.0ms、FCP 944 / 768ms（いずれも401）。単発 HTTP は `/login` 281ms、Cookie なし `/me` 254ms、OPTIONS 240ms。遅延が再現しなかった記録であり、認証済みブラウザ経路・cold start 解消・p95/p99 を証明しない。→ 温間状態なら速いことは E4 とも一致する。
+
+## E4: 2026-09-22 curl 実測（コールドスタートの直接観測）
+
+対象: `https://api.stg.noah-karte.com`（STG API、Cloudflare Workers → Containers → PlanetScale）と `https://stg.noah-karte.com`（Vercel）。未認証のため実クエリ時間は含まない。ユーザー報告「ほとんどのページで読み込みが遅い」を受けて実施。
+
+| リクエスト | 計測 | 解釈 |
+|---|---|---|
+| `GET /health`（10分超アイドル後の初回） | TTFB 15.69s | Container 起動待ち |
+| `GET /health`（2・3回目） | TTFB 0.24s / 0.25s | 温間は速い。Go/DB 自体の遅さではない |
+| `OPTIONS /api/v1/me`（コールド） | TTFB 5.96s | プリフライトも同じコンテナ起動を待つ |
+| `GET /api/v1/me`（直後） | TTFB 0.24s（401） | 温間 |
+| `GET /api/v1/pets?page=1&limit=20` | TTFB 0.25s（401） | 温間。認証前のため実クエリ未含む |
+| `GET /owners`（Vercel） | TTFB 0.32s（2.5KB shell） | Vercel 側は速い。遅延は API 側 |
+
+構造上の確定事項（再確認済み）:
+
+- `backend/worker/index.ts`: `sleepAfter = "10m"`、`getContainer(env.API_CONTAINER)`（名前なし = 全トラフィックが既定の単一インスタンスに集中）。
+- `backend/wrangler.jsonc`: `instance_type: "basic"`（1/4 vCPU / 1GiB）、`max_instances: 3`。DB は PlanetScale 直結（Hyperdrive 非経由、`DB_SSL_MODE=verify-full`）、プール上限 `DB_MAX_OPEN_CONNS=10`/`DB_MAX_IDLE_CONNS=5`。コールドスタートでは Go 起動に加えてプール空の状態から PlanetScale への TLS 接続確立が入る。
+- Worker は OPTIONS を含む全リクエストを `containerFetch` でコンテナへ転送する薄いプロキシ。エッジで OPTIONS を返さないため、プリフライトも起動待ちに入る。
+- axios は全リクエストに `X-Requested-With`（CSRF）・`X-Request-ID`・選択中は `X-Clinic-ID` を付与し、`Content-Type: application/json` も safelist 外のため、全 API コールが preflight 対象。プリフライトキャッシュは `(origin, URL, method)` 単位で `Access-Control-Max-Age: 86400` を返すが Chrome 系は約2時間で切り捨て。
+- axios は GET の 502–504（Worker の起動失敗時 503 `service_unavailable` を含む）を最大2回・1s/2s バックオフでリトライする。
+- `ownerLoader` は飼主取得後にペットごと `/v1/pets/{id}` を並列取得（N+1。各 URL が別プリフライトキー）。
+- 既存 cron は `SCHEDULER_NAME` の named コンテナを起こすのみで、既定名の API コンテナは温めない。
+
+「ほとんどのページが遅い」と整合する解釈: STG はアクセスがまばらで、操作の合間に10分を超える間隔があくたびコンテナが停止する。次のページ遷移・API 呼び出しが起動待ちになり、プリフライト＋リトライ＋N+1 が体感をさらに悪化させる。
+
+## E5: 2026-09-22 実装後の再測定（配置制約＋認証キャッシュ＋sleepAfter延長）
+
+E4 以降にユーザー報告で発覚した追加原因と、採用した改善・その実測を記録する。E4 の「温間は速い」は **Container↔PlanetScale 間の越洋 RTT を未認証 401 では測れていなかった** ため部分的な結論だった。認証済み curl で実測すると温間でも `/v1/clinics` ~1.0s、`/v1/me` ~1.5s、`login` ~4.1s で、遅延はコールドスタートだけではなかった。
+
+### 追加で確定した原因
+
+- **コンテナ↔DB の地理分離**: DB は `ap-northeast-2.pg.psdb.cloud`（PlanetScale = AWS ソウル）。当初コンテナは `ewr01`（米東部）で稼働し、認証ミドルウェアが毎リクエスト staff→account→assignments→clinics を逐次 DB 再検証するため、1 往復 ~190ms×クエリ数が積み上がっていた。
+- **インスタンス配置はブート/ロールアウト毎に再抽選される**: 同一 DO 名 `cf-singleton-container` のまま `ewr01→bom09→maa01→sin14→bom09` とドリフトを観測。DO の `locationHint`/改名は初回 DO 作成時のみ効く best-effort で、**インスタンス再配置には効かない**（PR #423 の `api-apac-ne-v1` 実験は bom09 着地で撤回・PR #425）。
+- **`constraints.cities` はこのアカウントで利用不可**: デプロイが `VALIDATE_INPUT: City-level placement requires INTERNAL or CITIES_CONSTRAINT capability` で失敗（run 35749806541）。メトロ粒度のピン留めはできない。
+- `scheduling_policy: "regional"` を wrangler.jsonc に記載したが `wrangler containers info` は `default` を返し続ける。API が受理したか不明。
+
+### 採用した変更（staging にマージ済み）
+
+| PR | 変更 |
+|---|---|
+| #424 | STG限定の認証 resolver キャッシュ `CURRENT_ACCESS_CACHE_TTL_SEC=30`（vars→envVars→`os.Getenv`→`composition_auth.go` の env ゲート。未設定/0/負値ならキャッシュ無しで本番は従来通り）。`sleepAfter` 10m→1h |
+| #426 | `containers[].constraints.regions = ["APAC"]` — 配置抽選を APAC メトロに限定（無料） |
+| #427 | `Dockerfile.production` に `LABEL rollout="1"` — イメージ差分で新バージョンを強制ロールアウトし即時再配置を起こす仕掛け。`verify-agent-task.py` に Dockerfile の scoped 検証（`docker build --check`）を追加 |
+| #428 | `scheduling_policy: "regional"`（API 上は default のまま。残置するが効果未確認） |
+| #429→#430 | `cities` 試行→ケイパビリティ不足で失敗→撤回 |
+
+### 実測（認証済み・暖機・日本から）
+
+| エンドポイント | E4 時点（ewr01） | 最悪時（bom09） | E5 現在 |
+|---|---|---|---|
+| `GET /health`（DB無し） | 0.25s | ~1.0s | **0.20s** |
+| `GET /v1/clinics` | ~1.0s | ~1.5s | **0.47s** |
+| `GET /v1/me` | ~1.5s | ~2.2s | **0.85s** |
+| `POST /v1/login` | 4.1s | 5.4s | **3.5s** |
+
+改善の内訳は越洋 RTT 削減（現行インスタンスは日本近辺と推定）＋認証キャッシュで resolver の逐次 DB 往復が消失＋コールドスタート頻度低下（sleepAfter 1h）の複合。
+
+### 残存事項・運用メモ
+
+- 配置は依然ブート毎の抽選。APAC 制約は ENAM/EEUR の最悪ケースを防ぐだけで日本着地は保証しない。悪い着地（bom/sin/maa）を引いたら `LABEL rollout` をインクリメントして再デプロイすると再抽選できる。
+- `login` 3.5s は bcrypt×1/4 vCPU 由来でリージョンと独立。`instance_type` 引上げ（案5）が残るが実コスト増。
+- 認証キャッシュは 3148d229f の認可ギャップ修正とトレードオフ（権限変更が最大30秒遅延）。STG限定のため vars は本番 `wrangler.production.jsonc` には設定しない。
+- 費用: sleepAfter 延長のみ課金に触れる。basic 1台の課金は ~$0.01/h（メモリ+ディスク支配、CPU はアイドル時ほぼゼロ）。通常デモ利用で月+数十〜百円、常時稼働化しても ~$7/月が上限。
 
 ## 測定で維持する境界
 

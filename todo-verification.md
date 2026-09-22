@@ -28,7 +28,7 @@ QA/開発が作るケース票の共通列は `ID / case / revision / 環境・f
 | UAT-Q2-HISTORY-NAV | 同一ペットの問診行→詳細→戻る、処置未移行の記録 | 対象 build と合成の履歴参照 |
 | NOTE2-SWEEP-COVERAGE | `bug-2.md` の未確認 route×操作へ必要 ID・必須値を対応づける | 有効 cage 等の fixture、対象 schema、変更可能範囲 |
 | NOTE-STAFF-STARTTIME-RDT | 通常/拡張なし環境で同一操作の stack・発生有無を比較する票 | ユーザー環境の利用。製品由来か拡張由来か未確定の間は修正しない |
-| DEV-V-OWNER-DB | 下記5ケースの既存結果を PASS/FAIL/SKIP/未実行に分類 | 専用 disposable DB、cleanup、候補 mount。共有 DB は不可 |
+| DEV-V-OWNER-DB | 分類済み: 全5ケースが過去receiptなし・未実行（[分類表](docs/work/todo-ledger-20260922/DEV-V-OWNER-DB.md)） | 専用 disposable DB、cleanup、候補 mount。共有 DB は不可 |
 | TODO-V-S09 / QA-UAT-S09-FIXTURE | 期待表は既存 S09 シナリオ。締め時間の投入計画は [LINMIG-233](docs/work/linmig-campaign-20260919/LINMIG-233.md) | 起動済み専用 local、helper 条件、合成 identity、clinic 1/2 除外 |
 | TODO-V-V04 / QA-UAT-V04-RETEST | V04 のフォーム×C1/C2/C3 を9月13日の証拠へ対応づける。close 照合は [LINMIG-231](docs/work/linmig-campaign-20260919/LINMIG-231.md) | 未収録ケースと disposable clinic・権限 account |
 | TODO-V-CLINICAL-E2E / QA-FULL-CLINICAL-E2E | `--clinical` allowlist と DB保存/stub/未実行を分ける。医院マトリクスは [SLACK-CLINICAL-UAT](docs/work/remaining-campaign-20260920/SLACK-CLINICAL-UAT.md) | local/CI、APP_ENV=test、専用 fixture/teardown。full job は別定義 |
@@ -124,7 +124,7 @@ Q1 / Q4保険 / Q2履歴の実装は再開しない。根拠は [医院フィー
 
 | ID | 状態 | 次の作業・完了条件 |
 |---|---|---|
-| [DEV-V-OWNER-DB](#dev-v-owner-db) | UNKNOWN（追加証拠未照合） | 前回は disposable DB URL 未設定。現在の専用 DB と過去実行証拠を確認し、下記の実DBテストの不足だけを実行 |
+| [DEV-V-OWNER-DB](#dev-v-owner-db) | 分類済み（[分類表](docs/work/todo-ledger-20260922/DEV-V-OWNER-DB.md)）: 全5ケースが過去receiptなし・未実行 | 専用 disposable DB で下記5ケースを実行。実行案は分類表どおり。共有 DB 不可・未実行とSKIP は PASS にしない |
 | [TODO-V-S09](#todo-v-s09--qa-uat-s09-fixture) | BLOCKED（fixture・対象環境待ち）。投入計画は [LINMIG-233](docs/work/linmig-campaign-20260919/LINMIG-233.md) | `QA-UAT-S09-FIXTURE` の #2–#6 を専用 fixture で確認。既存の [UAT 状態](docs/ops/testing/UAT-DOMAIN-STATUS.md) と run の対応を記録 |
 | [TODO-V-V04](#todo-v-v04--qa-uat-v04-retest) | UNKNOWN。close 照合は [LINMIG-231](docs/work/linmig-campaign-20260919/LINMIG-231.md) | `QA-UAT-V04-RETEST` と9月13日の master CRUD 証拠を項目単位で対応づけ、削除・後処理・未収録項目を補完 |
 | [TODO-V-CLINICAL-E2E](#todo-v-clinical-e2e--qa-full-clinical-e2e) | BLOCKED（実行条件待ち）。マトリクスは [SLACK-CLINICAL-UAT](docs/work/remaining-campaign-20260920/SLACK-CLINICAL-UAT.md) | `QA-FULL-CLINICAL-E2E` の承認済み test 環境・identity・fixture と full job 証拠を確保 |
