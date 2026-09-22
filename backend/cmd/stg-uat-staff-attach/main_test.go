@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/assert"
@@ -566,4 +567,17 @@ func TestRequireStagingTarget(t *testing.T) {
 	require.ErrorContains(t, requireStagingTarget(opt, "other", "ekarte"), "host confirmation")
 	require.ErrorContains(t, requireStagingTarget(opt, "db", "other"), "database confirmation")
 	require.NoError(t, requireStagingTarget(opt, "db", "ekarte"))
+}
+
+func TestParseOptions_TimeoutFlag(t *testing.T) {
+	opt, err := parseOptions([]string{"apply", "--roster=/tmp/r.json", "--secrets=/tmp/s.json"})
+	require.NoError(t, err)
+	require.Equal(t, defaultCommandTimeout, opt.timeout)
+
+	opt, err = parseOptions([]string{"apply", "--roster=/tmp/r.json", "--secrets=/tmp/s.json", "--timeout=45m"})
+	require.NoError(t, err)
+	require.Equal(t, 45*time.Minute, opt.timeout)
+
+	_, err = parseOptions([]string{"apply", "--roster=/tmp/r.json", "--secrets=/tmp/s.json", "--timeout=0"})
+	require.ErrorContains(t, err, "--timeout must be positive")
 }
