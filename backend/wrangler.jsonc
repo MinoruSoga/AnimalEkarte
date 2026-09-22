@@ -119,6 +119,12 @@
       "image": "./Dockerfile.production",
       "instance_type": "basic", // 1/4 vCPU / 1GiB。docs/ops/infra/architecture.md のコスト想定に合わせる
       "max_instances": 3,
+      // "regional" = リクエスト元リージョン単位でインスタンスをスケジュールする配置ポリシー。
+      // "default" ではデプロイ直後に最初にリクエストを受けた場所(CIの /health = 米国runner)
+      // に近い空きインスタンスが選ばれて固定されるため、APAC制約下でも bom09/maa01(インド)
+      // に着地し続けた実績がある。regional なら日本ユーザーのリクエストは日本近辺のAPAC
+      // インスタンスで処理される期待が持てる。max_instances=3 でインスタンス数・課金は上限内。
+      "scheduling_policy": "regional",
       // コンテナインスタンスの配置をAPACメトロに限定するスケジューリング制約
       // (wrangler公式 constraints.regions。課金差なし・無料)。実測で同一DOの
       // インスタンスが起動毎に ewr01/bom09 等へドリフトし、PlanetScale(ap-northeast-2)
