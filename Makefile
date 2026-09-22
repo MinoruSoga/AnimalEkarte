@@ -1,4 +1,4 @@
-.PHONY: up down build logs logs-api logs-front ps db clean reset migrate seed docs-ui old-db-handoff-stage old-db-handoff-check csv-import-preflight csv-import csv-import-verify a4-csv-import-preflight a4-csv-import a4-csv-import-verify a4-rehearsal-contract-test a4-rehearsal-config-check a4-rehearsal-up a4-rehearsal-ps a4-rehearsal-runtime-report a4-rehearsal-down f8-g4-rehearsal-contract-test f8-g4-rehearsal-config-check f8-g4-rehearsal-run f8-g4-rehearsal-down restart-api restart-front build-prod lint lint-fix test test-cover lint-front test-front test-worker test-worker-makefile-test build-front e2e build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check setup-hooks ci check-reset-contract check-reset-contract-test shellcheck shellcheck-test codex-security-scan stg-uat-skeleton stg-uat-csv-import-preflight stg-uat-csv-import stg-uat-csv-import-verify stg-uat-import stg-uat-handoff-preflight stg-uat-handoff stg-uat-handoff-verify stg-uat-staff-attach-preflight stg-uat-staff-attach
+.PHONY: up down build logs logs-api logs-front ps db clean reset migrate seed docs-ui old-db-handoff-stage old-db-handoff-check csv-import-preflight csv-import csv-import-verify a4-csv-import-preflight a4-csv-import a4-csv-import-verify a4-rehearsal-contract-test a4-rehearsal-config-check a4-rehearsal-up a4-rehearsal-ps a4-rehearsal-runtime-report a4-rehearsal-down f8-g4-rehearsal-contract-test f8-g4-rehearsal-config-check f8-g4-rehearsal-run f8-g4-rehearsal-down restart-api restart-front build-prod lint lint-fix test test-cover lint-front test-front test-worker test-worker-makefile-test build-front e2e build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check setup-hooks ci check-reset-contract check-reset-contract-test check-csv-import-account-source-test shellcheck shellcheck-test codex-security-scan stg-uat-skeleton stg-uat-csv-import-preflight stg-uat-csv-import stg-uat-csv-import-verify stg-uat-import stg-uat-handoff-preflight stg-uat-handoff stg-uat-handoff-verify stg-uat-staff-attach-preflight stg-uat-staff-attach
 
 # デフォルトターゲット
 .DEFAULT_GOAL := help
@@ -84,6 +84,10 @@ check-reset-contract:
 # 正しい wait-set は通し、codegen 混入 / 必須欠落 / 裸 up --wait を reject できることを検証する。
 check-reset-contract-test:
 	@bash scripts/check-reset-wait-services.test.sh
+
+# csv-import の ACCOUNT_SOURCE 解決（handoff 分離 staffs.csv / 空 export / パス大小文字）
+check-csv-import-account-source-test:
+	@bash scripts/check-csv-import-account-source.test.sh
 
 # scripts/*.sh の shellcheck ゲート（severity=warning）。
 # shellcheck はローカルに無ければピン留め Docker イメージ経由で実行する（再現可能）。
@@ -172,8 +176,19 @@ old-db-handoff-check:
 CSV_IMPORT_DC = $(DC) --profile csv-import
 # Split local handoffs keep staff data under the central account directory.
 # External/self-contained bundles can leave this empty, or set it explicitly.
+#
+# Resolve from the SOURCE path's seeds tree (parent basename == _old_db_handoff),
+# not from $(CURDIR)/... filter. macOS may yield CURDIR=/Dev/Case/... while
+# abspath(SOURCE)=/dev/case/...; make `filter` is case-sensitive and used to
+# drop --account-source-dir, so preflight looked for /migration-input/staffs.csv.
+# An empty CSV_IMPORT_ACCOUNT_SOURCE_DIR inherited from parent `make reset`
+# must not stick via `?=`.
 CSV_IMPORT_SOURCE_PATH = $(abspath $(CSV_IMPORT_SOURCE_DIR))
-CSV_IMPORT_ACCOUNT_SOURCE_DIR ?= $(if $(filter $(CURDIR)/backend/migrations/seeds/_old_db_handoff/%,$(CSV_IMPORT_SOURCE_PATH)),$(wildcard $(CURDIR)/backend/migrations/seeds/002_master/accounts/_old_db_handoff/$(notdir $(CSV_IMPORT_SOURCE_PATH))))
+CSV_IMPORT_SOURCE_HANDOFF_LEAF = $(notdir $(CSV_IMPORT_SOURCE_PATH))
+CSV_IMPORT_SOURCE_HANDOFF_PARENT = $(notdir $(patsubst %/,%,$(dir $(CSV_IMPORT_SOURCE_PATH))))
+CSV_IMPORT_SEEDS_DIR = $(abspath $(CSV_IMPORT_SOURCE_PATH)/../..)
+CSV_IMPORT_ACCOUNT_SOURCE_COMPUTED = $(if $(and $(CSV_IMPORT_SOURCE_DIR),$(filter _old_db_handoff,$(CSV_IMPORT_SOURCE_HANDOFF_PARENT))),$(wildcard $(CSV_IMPORT_SEEDS_DIR)/002_master/accounts/_old_db_handoff/$(CSV_IMPORT_SOURCE_HANDOFF_LEAF)))
+CSV_IMPORT_ACCOUNT_SOURCE_DIR := $(if $(strip $(CSV_IMPORT_ACCOUNT_SOURCE_DIR)),$(CSV_IMPORT_ACCOUNT_SOURCE_DIR),$(CSV_IMPORT_ACCOUNT_SOURCE_COMPUTED))
 export CSV_IMPORT_ACCOUNT_SOURCE_DIR
 CSV_IMPORT_ACCOUNT_ARGS = $(if $(CSV_IMPORT_ACCOUNT_SOURCE_DIR),--account-source-dir /migration-accounts)
 export CSV_IMPORT_SOURCE_DIR CSV_MANIFEST_SHA256 CLINIC_CODE CLINIC_ORDINAL MIGRATION_RUN_ID
@@ -694,6 +709,7 @@ help:
 	@echo "  schema-check  GoモデルとDBスキーマの差分チェック"
 	@echo "  check-reset-contract      make reset の wait-set 契約を静的検証（Docker不要）"
 	@echo "  check-reset-contract-test 上記契約チェック自体の回帰テスト"
+	@echo "  check-csv-import-account-source-test  handoff staffs.csv の ACCOUNT_SOURCE 解決回帰テスト"
 	@echo "  shellcheck       scripts/*.sh を shellcheck で検査（severity=warning・ローカル無ければDocker経由）"
 	@echo "  shellcheck-test  上記 shellcheck ゲート自体の回帰テスト"
 	@echo "  build-go      Goビルド（開発用）"
