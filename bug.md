@@ -35,6 +35,10 @@
 | BUG-DIALOG-FOCUS-RESTORE | OPEN | shared UI / a11y | Low | **バグ断定**（治療プラン検索ダイアログを Escape で閉じるとフォーカスが呼出元ボタンに戻らず `document.body` に落下。実クリック開閉・キーボード開閉の両経路で再現） | Radix Dialog の focus restoration が効いていない経路を特定し、閉じた後にフォーカスがトリガーへ戻ることを固定する。[詳細](#plan-bug-dialog-focus-restore) |
 | BUG-BILLING-TAX-TYPE-DROPPED | OPEN | billing / master | High | **バグ断定**（マスタ登録の税区分（内税/非課税）が会計明細へ伝播せず全て外税10%で請求される。処置・診察の未請求候補と物販マスタ追加の双方で再現し DB も `excluded` 固定） | 未請求候補の集約と物販追加の両経路で master の tax_type/tax_rate をスナップショット引継ぎする契約へ修正。[詳細](#plan-bug-billing-tax-type-dropped) |
 | BUG-ACCT-DUP-COMPLETE-500 | OPEN | billing / idempotency | Medium | **バグ断定**（同一カルテへの二重会計確定が意図した 409「このカルテには既に会計があります」に届かず 500。UNIQUE 競合後の replay 判定クエリが abort 済み tx 上で実行され 25P02 になる。逐次・真並行の双方で再現。行は作られずデータは守られるが、クライアントには不透明な 500 しか返らない） | 競合解決クエリを別接続/tx で実行するか、制約名（`idx_billings_medical_record_id_unique` / completion_request_id）を見て直接 409/replay に分岐する。[詳細](#plan-bug-acct-dup-complete-500) |
+| BUG-MR-DOCTOR-HEADER-STALE | OPEN | medical-record / UI | Medium | **バグ断定**（ヘッダー担当医が再読込でログインユーザー表示に戻る） | `staffName` が `user.displayName` 初期化のみで `record.doctor` から hydrate されない。[詳細](#plan-bug-mr-doctor-header-stale) |
+| BUG-VITAL-NOTE-KEY-MISMATCH | OPEN | medical-record / vitals | Medium | **バグ断定**（バイタルのメモが保存も表示もされない） | FE は `note` を送受信、BE 契約は `notes`。双方向で silent drop。[詳細](#plan-bug-vital-note-key-mismatch) |
+| BUG-MR-VACCINE-FORM-NESTED | OPEN | medical-record / vaccination | High | **バグ断定**（カルテ内の接種記録追加フォームが送信不能） | 内側 `<form action>` が外側カルテ `<form>` にネストし、submit が `javascript:` placeholder へ落下して CSP ブロック。POST もバリデーションも発火しない。[詳細](#plan-bug-mr-vaccine-form-nested) |
+| BUG-TRIM-EXCL-TIMERANGE-500 | OPEN | trimming / reservation | High | **バグ断定**（同一担当の連続トリミング登録が 500 で失敗） | record_shortcut は一意な現在 JST 時刻+90分を割当（BUG-010 対策）するが、同一 staff_id で 90 分以内の 2 件目が `excl_appointments_doctor_timerange` に抵触し、DB exclusion violation が 409 にマップされず 500 で返る。[詳細](#plan-bug-trim-excl-timerange-500) |
 
 ---
 
@@ -605,6 +609,8 @@
 
 **完了条件**: 実ブラウザで「ボタンで開く → Escape/閉じる → `document.activeElement` が呼出元ボタン」となること。S18 手順6 を迂回なしで完走できること。
 
+<a id="plan-bug-billing-tax-type-dropped"></a>
+
 ### 21. BUG-BILLING-TAX-TYPE-DROPPED
 
 **方針**: マスタの税区分・税率を会計明細へスナップショットとして引き継ぐ。確定済み会計は遡って再計算しない（S20 手順7 で確認済みの不変性を維持）。
@@ -614,6 +620,8 @@
 3. 回帰: 「内税/非課税マスタ → 未請求候補/物販追加 → 明細行の課税区分・税額・合計」が正しいこと、および確定済み会計の明細が変わらないことを FE/BE テストと DB 値で固定。
 
 **完了条件**: S20 手順5 を再実行し、内税・非課税項目が正しい税区分で明細化され、合計が手計算と一致すること。既存確定会計の金額が変わらないこと。
+
+<a id="plan-bug-acct-dup-complete-500"></a>
 
 ### 22. BUG-ACCT-DUP-COMPLETE-500
 
@@ -773,3 +781,49 @@ git diff --check -- bug.md
 - バグごとに、変更ファイル、対象revision、実行コマンドと終了状態、UI/API/DBの受入証拠、未実施事項を報告する。コード修正済み・限定テストPASS・UAT完了・データ修復完了を区別し、計画追記のみで `OPEN` を閉じない。
 
 **今回の検証範囲**: 文書の差分・全10項目（調査メモ1件を含む）の網羅・追加した参照先・既存WIPの保全を確認する。文書のみの変更のため、実装テストとruntime検証は不要（未実施）。
+
+---
+
+## 確認済み製品欠陥（UAT 2026-09-23 · V01 追加分）
+
+`docs/ops/testing/scenarios/V01-clinical-forms.md` の UAT 実行で確定した製品欠陥。証拠は `reports/uat-2026-09-23/V01-clinical-forms.md`（gitignore 対象の日次レポート）。正本登録は `todo.md#product-bugs` と重複確認済み。S01–S33 由来の欠陥（BUG-LIFF-HEALTHCARD-OWNER-SYNC・BUG-ACCT-INS-SIGN-MISMATCH・BUG-ACCT-INS-EDIT-REWRITE・BUG-DIALOG-FOCUS-RESTORE・BUG-BILLING-TAX-TYPE-DROPPED・BUG-ACCT-DUP-COMPLETE-500）は上記の番号付き計画節を参照。
+
+<a id="plan-bug-mr-doctor-header-stale"></a>
+
+### BUG-MR-DOCTOR-HEADER-STALE（V01・Medium）
+
+- **現象**: カルテヘッダーの「担当医」表示が、保存済み `doctor_id` ではなく常にログインユーザー名を表示する。担当医を変更すると即時 PATCH `{"doctor_id":…}` が発行され DB には正しく保存されるが、ブラウザ再読込後のヘッダーは再びログインユーザー名に戻る。
+- **実証**: MR `1000000016` で担当医を 林文明 → 高橋純子（`doctor_id=10000003`）へ変更し PATCH 201・DB 永続を確認。再読込後も DB は `doctor_id=10000003` のままだが、ヘッダー表示は `担当医 林 文明`。
+- **根因**: `MedicalRecordFormReadyPanels.tsx` の `staffName` が `useState(() => user?.displayName ?? "")` で初期化され、`useGetMedicalRecord` で取得した `record.doctor`（GET レスポンスに `doctor?: Staff` あり）から hydrate する経路がない。更新は `handleSelectStaff` 経由のローカル state のみ。
+- **影響**: 別スタッフがカルテを開くと担当医が自分の名前に見える（誤帰属表示）。データ自体は正しいため表示限定だが、臨床帰属の誤認リスクあり。
+- **証拠**: `reports/uat-2026-09-23/V01-clinical-forms.md`（§1 手順5）
+
+<a id="plan-bug-vital-note-key-mismatch"></a>
+
+### BUG-VITAL-NOTE-KEY-MISMATCH（V01・Medium）
+
+- **現象**: バイタル記録のメモ（note）を入力して追加すると、保存は 201 で成功するが DB の `notes` カラムは空のまま。一覧のメモ列も常に `-` 表示。
+- **実証**: MR `1000000016` の VitalsModal でメモ `V01メモ` を入力 → POST body `{"note":"V01メモ",…}` → `vital_records.notes` は空。既存メモの表示経路も FE が `vital.note` を読むのに対し BE response は `json:"notes"` のため表示不能。
+- **根因**: wire key の不一致。FE `Vital`/`CreateVitalInput`/`UpdateVitalInput` は `note`（`medical-records/types/index.ts`）、BE `vital_request.go`/`vital_response.go` は `json:"notes"`。Go の unknown-key 無視によりエラーなく silent drop。
+- **影響**: バイタルメモがユーザーの知らないうちに保存されず、既存メモも表示されない（軽度だが確実なデータ損失）。
+- **証拠**: `reports/uat-2026-09-23/V01-clinical-forms.md`（§3 手順4）
+
+<a id="plan-bug-mr-vaccine-form-nested"></a>
+
+### BUG-MR-VACCINE-FORM-NESTED（V01・High）
+
+- **現象**: カルテ編集画面の「予防接種」タブ →「記録を追加」で開くインライン接種フォームが一切送信できない。ワクチン未選択でもバリデーションエラー（`ワクチン種別を選択してください`）が表示されず、ワクチン＋接種日を入力しても POST が発行されない。
+- **実証**: MR `1000000016` 予防接種タブで「接種記録を追加」を実クリック → 送信イベントは発火するが `fieldErrors` 未描画・`vaccinations` POST なし・DB 0 件。コンソールに `Running the JavaScript URL violates CSP 'script-src 'self''` が毎回記録される。内側 `<form>` の `action` 属性は React の `javascript:throw new Error('A React form was unexpectedly submitted…')` placeholder のまま。
+- **根因**: `MedicalRecordFormReadyPanels.tsx:182` の外側 `<form action={form.formAction}>` がカルテ全体を包み、`MedicalRecordVaccination.tsx:96` の内側 `<form action={formAction}>` がネスト。HTML では form のネストは無効で、React の useActionState submit 横取りが内側フォームに効かず、既定送信が CSP でブロックされて無害に失敗する。
+- **影響**: カルテ内からの接種記録追加が完全に使用不能（`/vaccinations/new` 独立ルートは正常・S29 実証済み）。機能喪失＋ユーザーへのフィードバックゼロ。
+- **証拠**: `reports/uat-2026-09-23/V01-clinical-forms.md`（§6）
+
+<a id="plan-bug-trim-excl-timerange-500"></a>
+
+### BUG-TRIM-EXCL-TIMERANGE-500（V01・High）
+
+- **現象**: 同一担当スタッフで同日に別ペットのトリミング（record_shortcut）を続けて登録すると、`POST /api/v1/trimmings` が **500 Internal Server Error** で失敗する。ユーザーにはトースト・インラインエラー等のフィードバックがなく保存できない。
+- **実証**: 担当 `UAT担当医`（staff_id=1000000000）で豆助（pet 1000002）のトリミングを保存 → appointment `1000000015`（start 05:26:54+09 / end 06:56:54+09 の 90 分枠）作成。約 23 分後にマメラ（pet 1000001）で同一担当・同一コース系の 2 件目を保存 → 500×2 回。backend ログに `ERROR: conflicting key value violates exclusion constraint "excl_appointments_doctor_timerange" (SQLSTATE 23P01)`（`reservation_repository.go:259`）。2 件目の start_time は 05:49:29 付近で 1 件目の 90 分枠内に落下。
+- **根因**: 2 層の問題。(a) FE `defaultRecordShortcutTimes`（`trimming-form-utils.ts`）は BUG-010 対策で「固定 10:00 → 現在 JST 時刻+90 分」にしたが、同一担当の連続登録は依然として時間枠が重複する（一意化は時刻文字列のみで枠の非重複は保証しない）。(b) BE は exclusion violation（23P01）を 409 conflict へマップしておらず、tx エラーがそのまま 500 として返る。
+- **影響**: 同一スタッフが 90 分以内に複数トリミングを連続登録できない。エラーハンドリング不在のため UI は無音失敗に近く、V01 §12-6 の期待（一意な時刻が付き無関係な 2 件目がブロックされない）を満たさない。
+- **証拠**: `reports/uat-2026-09-23/V01-clinical-forms.md`（§12 手順6）

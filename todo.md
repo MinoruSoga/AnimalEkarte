@@ -115,6 +115,15 @@
 - **BUG-BILLING-TAX-TYPE-DROPPED（OPEN / High / billing・master）**: マスタ登録の `tax_type`（内税/非課税）が会計明細へ伝播せず、全行 `excluded`・10% で計算・保存される。カルテ連携の未請求候補（`treatmentToUnbilledBillingItem` が `TaxTypeExcluded` をハードコード）と物販マスタ追加（`use-accounting-item-actions.ts` が `tax_type:"excluded"` 固定送信、`get-merchandise-items.ts` が transform で `tax_type` を欠落）の双方で再現。billing 1000000028 の DB 値で確認（内税¥1,100・非課税¥1,000 ×2 が全て外税）。期待合計 ¥5,850 に対し実請求 ¥6,270（税の過剰計上 ¥420）。UAT S20 手順5（2026-09-23）で確定。台帳・切り分け詳細は [bug.md](bug.md#bug-billing-tax-type-dropped)、修正計画は [同](bug.md#plan-bug-billing-tax-type-dropped)。
 - **BUG-ACCT-DUP-COMPLETE-500（OPEN / Medium / billing・idempotency）**: 同一カルテへの二重会計確定（別 Idempotency-Key・同一 `medical_record_id`）が意図した 409「このカルテには既に会計があります」に届かず 500。`createCompleteBillingHeader` が UNIQUE 競合後の replay 判定クエリを abort 済み tx 上で実行し 25P02 になるため、`accounting_complete_tx.go` の replay/409 分岐は実環境で到達不能。逐次・真並行の双方で再現（勝者 201・敗者 500）。二重会計行は作られずデータは守られるが、クライアント契約は破損。UAT S21 手順4（2026-09-23）で確定。`UAT-R2-EXCLUSIVE-LOCK` の実DB確認項目に接続。台帳・切り分け詳細は [bug.md](bug.md#bug-acct-dup-complete-500)、修正計画は [同](bug.md#plan-bug-acct-dup-complete-500)。
 
+### UAT 2026-09-23 V01 追加分（証拠: `reports/uat-2026-09-23/V01-clinical-forms.md`、詳細: `bug.md` 末尾「確認済み製品欠陥」）
+
+| ID | severity | 領域 | 症状 | シナリオ |
+|:---|:---|:---|:---|:---|
+| BUG-MR-DOCTOR-HEADER-STALE | Medium | medical-record / UI | カルテヘッダー担当医が再読込で保存済み doctor_id でなくログインユーザー名を表示 | V01 |
+| BUG-VITAL-NOTE-KEY-MISMATCH | Medium | medical-record / vitals | バイタルメモが FE `note` ↔ BE `notes` の key 不一致で保存・表示とも消失 | V01 |
+| BUG-MR-VACCINE-FORM-NESTED | High | medical-record / vaccination | カルテ内接種フォームがネスト `<form>` で送信不能（javascript: action が CSP ブロック） | V01 |
+| BUG-TRIM-EXCL-TIMERANGE-500 | High | trimming / reservation | 同一担当の90分以内連続トリミング登録が `excl_appointments_doctor_timerange` で 500（409未マップ・UI無音失敗） | V01 |
+
 <a id="human-lane"></a>
 
 ## PO / 人間レーン

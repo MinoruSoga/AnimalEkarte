@@ -28,12 +28,12 @@ import (
 )
 
 const (
-	allowRemoteEnv       = "STG_UAT_STAFF_ATTACH_ALLOW_REMOTE"
-	allowRemoteSentinel  = "YES_I_UNDERSTAND"
-	commandTimeout       = 10 * time.Minute
-	rosterSchemaVersion  = "stg-uat-staff-attach-v1"
-	attachAuditAction    = "staff.uat_attach"
-	attachAuditUserAgent = "stg-uat-staff-attach"
+	allowRemoteEnv        = "STG_UAT_STAFF_ATTACH_ALLOW_REMOTE"
+	allowRemoteSentinel   = "YES_I_UNDERSTAND"
+	defaultCommandTimeout = 10 * time.Minute
+	rosterSchemaVersion   = "stg-uat-staff-attach-v1"
+	attachAuditAction     = "staff.uat_attach"
+	attachAuditUserAgent  = "stg-uat-staff-attach"
 )
 
 type options struct {
@@ -43,6 +43,7 @@ type options struct {
 	repoRoot              string
 	confirmTargetHost     string
 	confirmTargetDatabase string
+	timeout               time.Duration
 }
 
 type runDependencies struct {
@@ -191,7 +192,7 @@ func run(
 	}
 	defer closeGormDBQuietly(db)
 
-	runCtx, cancel := context.WithTimeout(ctx, commandTimeout)
+	runCtx, cancel := context.WithTimeout(ctx, opt.timeout)
 	defer cancel()
 
 	att := deps.newAttacher(db, repoRoots)
@@ -237,11 +238,15 @@ func parseOptions(args []string) (options, error) {
 	repoRoot := fs.String("repo-root", "", "optional absolute repository root to exclude as input location")
 	confirmTargetHost := fs.String("confirm-target-host", "", "must exactly equal DB_HOST")
 	confirmTargetDatabase := fs.String("confirm-target-database", "", "must exactly equal DB_NAME")
+	timeout := fs.Duration("timeout", defaultCommandTimeout, "overall command timeout (e.g. 45m for remote targets)")
 	if err := fs.Parse(args[1:]); err != nil {
 		return options{}, fmt.Errorf("parse flags: %w", err)
 	}
 	if strings.TrimSpace(*rosterPath) == "" || strings.TrimSpace(*secretsPath) == "" {
 		return options{}, fmt.Errorf("--roster and --secrets are required")
+	}
+	if *timeout <= 0 {
+		return options{}, fmt.Errorf("--timeout must be positive")
 	}
 	return options{
 		command:               command,
@@ -250,6 +255,7 @@ func parseOptions(args []string) (options, error) {
 		repoRoot:              strings.TrimSpace(*repoRoot),
 		confirmTargetHost:     *confirmTargetHost,
 		confirmTargetDatabase: *confirmTargetDatabase,
+		timeout:               *timeout,
 	}, nil
 }
 
