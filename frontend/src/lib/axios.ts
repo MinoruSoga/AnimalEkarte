@@ -111,8 +111,11 @@ axios.interceptors.response.use(
     const isStartupSessionRestore = config.startupSessionRestore === true;
     const isGetRequest = config.method?.toLowerCase() === "get";
     const isNetworkError = !error.response && error.code !== "ERR_CANCELED";
-    const isServerError =
-      error.response && error.response.status >= 502 && error.response.status <= 504;
+    // PERF-E5: 503 (Cloudflare Worker がコンテナ起動中に返す service_unavailable) は
+    // リトライしない。コンテナのコールドスタートは固定バックオフでは間に合わず、
+    // 重複リトライは SPA のエラー表面化を遅らせるだけのため即時伝播する。502/504 は継続。
+    const status = error.response?.status;
+    const isServerError = status === 502 || status === 504;
 
     if (!isStartupSessionRestore && isGetRequest && (isNetworkError || isServerError)) {
       config._retryCount = config._retryCount ?? 0;
