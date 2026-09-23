@@ -147,11 +147,170 @@ func TestCurrentAccessResolver_RegularStaffUsesScopedActiveIDsWithoutListClinics
 	require.NoError(t, err)
 	assert.Equal(t, []uint64{24}, access.ClinicIDs)
 	assert.Equal(t, 0, scoped.listAllCalls)
+	assert.Equal(t, 1, scoped.listActiveIDsCalls)
+}
+
+func TestCurrentAccessResolver_GraphPathRegularStaffUsesJoinedClinicActivity(
+	t *testing.T,
+) {
+	accountID := uint64(41)
+	clinics := &countingCurrentAccessClinicReader{
+		err: errors.New("clinic inventory must not be queried on the graph path"),
+	}
+	staffReader := &fakeGraphCurrentAccessStaffReader{graph: &currentAccessGraph{
+		Staff: CurrentAccessStaffIdentity{
+			ID:        17,
+			AccountID: &accountID,
+			IsActive:  true,
+		},
+		Account: &model.Account{
+			ID:        accountID,
+			IsActive:  true,
+			UpdatedAt: time.Unix(1_721_000_000, 0),
+		},
+		Assignments: []model.StaffClinicAssignment{
+			{StaffID: 17, ClinicID: 23, IsMain: true},
+			{StaffID: 17, ClinicID: 24},
+		},
+		AssignmentClinicActive: []bool{false, true},
+	}}
+	resolver := NewCurrentAccessResolverWithClinics(
+		staffReader,
+		currentAccessAccountService{
+			err: errors.New("GetByID must not run on the graph path"),
+		},
+		currentAccessAssignmentReader{
+			err: errors.New("FindAllByStaffID must not run on the graph path"),
+		},
+		clinics,
+	)
+
+	access, err := resolver.Resolve(context.Background(), 17)
+
+	require.NoError(t, err)
+	assert.Equal(t, 1, staffReader.graphCalls)
+	assert.False(t, access.IsSystemAdmin)
+	assert.Equal(t, []uint64{24}, access.ClinicIDs)
+	assert.Equal(t, "24", access.MainClinicID)
+	assert.Equal(t, 0, clinics.listClinicsCalls)
+	assert.Equal(t, 0, clinics.listActiveIDsCalls)
+}
+
+func TestCurrentAccessResolver_GraphPathSystemAdminStillListsClinics(
+	t *testing.T,
+) {
+	accountID := uint64(41)
+	clinics := &countingCurrentAccessClinicReader{clinics: []model.Clinic{
+		{ID: 23, IsActive: true},
+		{ID: 24, IsActive: true},
+		{ID: 31, IsActive: false},
+	}}
+	staffReader := &fakeGraphCurrentAccessStaffReader{graph: &currentAccessGraph{
+		Staff: CurrentAccessStaffIdentity{
+			ID:        17,
+			AccountID: &accountID,
+			IsActive:  true,
+		},
+		Account: &model.Account{
+			ID:            accountID,
+			IsActive:      true,
+			IsSystemAdmin: true,
+			UpdatedAt:     time.Unix(1_721_000_000, 0),
+		},
+		Assignments: []model.StaffClinicAssignment{
+			{StaffID: 17, ClinicID: 23, IsMain: true},
+		},
+		AssignmentClinicActive: []bool{true},
+	}}
+	resolver := NewCurrentAccessResolverWithClinics(
+		staffReader,
+		currentAccessAccountService{},
+		currentAccessAssignmentReader{},
+		clinics,
+	)
+
+	access, err := resolver.Resolve(context.Background(), 17)
+
+	require.NoError(t, err)
+	assert.True(t, access.IsSystemAdmin)
+	assert.Equal(t, []uint64{23, 24}, access.ClinicIDs)
+	assert.Equal(t, "23", access.MainClinicID)
+	assert.Equal(t, 1, clinics.listClinicsCalls)
+	assert.Equal(t, 0, clinics.listActiveIDsCalls)
+}
+
+func TestCurrentAccessResolver_GraphPathStaffWithoutAssignmentsFailsClosed(
+	t *testing.T,
+) {
+	accountID := uint64(41)
+	clinics := &countingCurrentAccessClinicReader{}
+	staffReader := &fakeGraphCurrentAccessStaffReader{graph: &currentAccessGraph{
+		Staff: CurrentAccessStaffIdentity{
+			ID:        17,
+			AccountID: &accountID,
+			IsActive:  true,
+		},
+		Account: &model.Account{
+			ID:        accountID,
+			IsActive:  true,
+			UpdatedAt: time.Unix(1_721_000_000, 0),
+		},
+		Assignments:            []model.StaffClinicAssignment{},
+		AssignmentClinicActive: []bool{},
+	}}
+	resolver := NewCurrentAccessResolverWithClinics(
+		staffReader,
+		currentAccessAccountService{},
+		currentAccessAssignmentReader{},
+		clinics,
+	)
+
+	access, err := resolver.Resolve(context.Background(), 17)
+
+	require.Error(t, err)
+	assert.ErrorIs(t, err, apperrors.ErrForbidden)
+	assert.Nil(t, access)
+	assert.Equal(t, 0, clinics.listClinicsCalls)
+	assert.Equal(t, 0, clinics.listActiveIDsCalls)
+}
+
+func TestCurrentAccessResolver_GraphPathFailsClosedWithoutClinicAuthority(
+	t *testing.T,
+) {
+	accountID := uint64(41)
+	staffReader := &fakeGraphCurrentAccessStaffReader{graph: &currentAccessGraph{
+		Staff: CurrentAccessStaffIdentity{
+			ID:        17,
+			AccountID: &accountID,
+			IsActive:  true,
+		},
+		Account: &model.Account{
+			ID:        accountID,
+			IsActive:  true,
+			UpdatedAt: time.Unix(1_721_000_000, 0),
+		},
+		Assignments: []model.StaffClinicAssignment{
+			{StaffID: 17, ClinicID: 23, IsMain: true},
+		},
+		AssignmentClinicActive: []bool{true},
+	}}
+	resolver := NewCurrentAccessResolverWithClinics(
+		staffReader,
+		currentAccessAccountService{},
+		currentAccessAssignmentReader{},
+		nil,
+	)
+
+	access, err := resolver.Resolve(context.Background(), 17)
+
+	require.Error(t, err)
+	assert.Nil(t, access)
 }
 
 type scopedCurrentAccessClinicReader struct {
-	activeIDs    []uint64
-	listAllCalls int
+	activeIDs          []uint64
+	listAllCalls       int
+	listActiveIDsCalls int
 }
 
 func (r *scopedCurrentAccessClinicReader) ListClinics(
@@ -165,7 +324,56 @@ func (r *scopedCurrentAccessClinicReader) ListActiveClinicIDs(
 	_ context.Context,
 	_ []uint64,
 ) ([]uint64, error) {
+	r.listActiveIDsCalls++
 	return append([]uint64(nil), r.activeIDs...), nil
+}
+
+// fakeGraphCurrentAccessStaffReader implements currentAccessGraphLoader so the
+// resolver takes the single-query graph path without touching a database.
+type fakeGraphCurrentAccessStaffReader struct {
+	graph      *currentAccessGraph
+	graphErr   error
+	graphCalls int
+}
+
+func (r *fakeGraphCurrentAccessStaffReader) FindCurrentAccessStaff(
+	context.Context,
+	uint64,
+) (*CurrentAccessStaffIdentity, error) {
+	return nil, errors.New("FindCurrentAccessStaff must not run on the graph path")
+}
+
+func (r *fakeGraphCurrentAccessStaffReader) loadCurrentAccessGraph(
+	context.Context,
+	uint64,
+) (*currentAccessGraph, error) {
+	r.graphCalls++
+	return r.graph, r.graphErr
+}
+
+// countingCurrentAccessClinicReader records which clinic inventory method the
+// resolver invoked; the non-admin graph path must invoke neither.
+type countingCurrentAccessClinicReader struct {
+	clinics            []model.Clinic
+	activeIDs          []uint64
+	err                error
+	listClinicsCalls   int
+	listActiveIDsCalls int
+}
+
+func (r *countingCurrentAccessClinicReader) ListClinics(
+	context.Context,
+) ([]model.Clinic, error) {
+	r.listClinicsCalls++
+	return append([]model.Clinic(nil), r.clinics...), r.err
+}
+
+func (r *countingCurrentAccessClinicReader) ListActiveClinicIDs(
+	_ context.Context,
+	_ []uint64,
+) ([]uint64, error) {
+	r.listActiveIDsCalls++
+	return append([]uint64(nil), r.activeIDs...), r.err
 }
 
 func TestCurrentAccessResolver_RegularStaffUsesOnlyActiveClinicInventory(

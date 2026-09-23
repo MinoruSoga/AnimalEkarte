@@ -42,6 +42,10 @@ type UpdateVaccinationInput struct {
 	Lot3             *string
 	Lot4             *string
 	Remarks          *string
+	// Version は楽観的ロック用 expectedVersion（nil=照合スキップ・後方互換）。
+	// UpdateClinicalPlanInput.Version と同型: repository Update の WHERE version=? 述語に
+	// そのまま渡り、一致時のみ version+1 で書き戻す。0/負値はどの行にも一致せず Conflict。
+	Version *int
 }
 
 func buildVaccinationUpdate(input *UpdateVaccinationInput) map[string]any {
@@ -224,6 +228,15 @@ func (s *vaccinationService) Update(ctx context.Context, clinicID, id uint64, in
 		medicalRecordID, petID, doctorID, vaccineID := effectiveVaccinationRelations(snapshot, input)
 		if err := s.validateRelations(txCtx, clinicID, medicalRecordID, petID, doctorID, vaccineID); err != nil {
 			return err
+		}
+		// UAT-R2-EXCLUSIVE-LOCK 最小設計: 紐付くカルテが確定済みなら更新を Conflict で拒否する
+		// （治療/バイタル/処方の lockDraftMedicalRecord と対称化）。validateRelations が既に
+		// 親行を FOR UPDATE で取得済みのため、ここでの再ロックは同一 tx 内で即時解決する。
+		if medicalRecordID != nil {
+			if err := lockDraftMedicalRecord(txCtx, s.medicalRecords, clinicID, *medicalRecordID,
+				"failed to verify medical record ownership", "確定済みカルテのワクチン接種は編集できません"); err != nil {
+				return err
+			}
 		}
 
 		locked, err := s.repo.LockByIDForUpdate(txCtx, clinicID, id)

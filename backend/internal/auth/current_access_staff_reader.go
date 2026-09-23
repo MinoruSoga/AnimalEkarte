@@ -19,6 +19,11 @@ type currentAccessGraph struct {
 	Staff       CurrentAccessStaffIdentity
 	Account     *model.Account
 	Assignments []model.StaffClinicAssignment
+	// AssignmentClinicActive is parallel to Assignments: entry i reports
+	// whether the clinic referenced by Assignments[i] is currently active
+	// under the same predicate CurrentAccessActiveClinicIDReader applies
+	// (a clinics row exists and is_active is true; a missing row is false).
+	AssignmentClinicActive []bool
 }
 
 type currentAccessGraphLoader interface {
@@ -26,17 +31,18 @@ type currentAccessGraphLoader interface {
 }
 
 type currentAccessGraphRow struct {
-	StaffID          uint64         `gorm:"column:staff_id"`
-	AccountID        *uint64        `gorm:"column:account_id"`
-	StaffIsActive    bool           `gorm:"column:staff_is_active"`
-	StaffDeletedAt   gorm.DeletedAt `gorm:"column:staff_deleted_at"`
-	AccID            *uint64        `gorm:"column:acc_id"`
-	AccIsActive      bool           `gorm:"column:acc_is_active"`
-	AccIsSystemAdmin bool           `gorm:"column:acc_is_system_admin"`
-	AccUpdatedAt     time.Time      `gorm:"column:acc_updated_at"`
-	AccDeletedAt     gorm.DeletedAt `gorm:"column:acc_deleted_at"`
-	AssignClinicID   *uint64        `gorm:"column:assign_clinic_id"`
-	AssignIsMain     bool           `gorm:"column:assign_is_main"`
+	StaffID              uint64         `gorm:"column:staff_id"`
+	AccountID            *uint64        `gorm:"column:account_id"`
+	StaffIsActive        bool           `gorm:"column:staff_is_active"`
+	StaffDeletedAt       gorm.DeletedAt `gorm:"column:staff_deleted_at"`
+	AccID                *uint64        `gorm:"column:acc_id"`
+	AccIsActive          bool           `gorm:"column:acc_is_active"`
+	AccIsSystemAdmin     bool           `gorm:"column:acc_is_system_admin"`
+	AccUpdatedAt         time.Time      `gorm:"column:acc_updated_at"`
+	AccDeletedAt         gorm.DeletedAt `gorm:"column:acc_deleted_at"`
+	AssignClinicID       *uint64        `gorm:"column:assign_clinic_id"`
+	AssignIsMain         bool           `gorm:"column:assign_is_main"`
+	AssignClinicIsActive bool           `gorm:"column:assign_clinic_is_active"`
 }
 
 // NewCurrentAccessStaffReader constructs the dedicated preload-free identity
@@ -100,10 +106,12 @@ func (r *currentAccessStaffReader) loadCurrentAccessGraph(
 			accounts.updated_at AS acc_updated_at,
 			accounts.deleted_at AS acc_deleted_at,
 			staff_clinic_assignments.clinic_id AS assign_clinic_id,
-			staff_clinic_assignments.is_main AS assign_is_main
+			staff_clinic_assignments.is_main AS assign_is_main,
+			clinics.is_active AS assign_clinic_is_active
 		`).
 		Joins("LEFT JOIN accounts ON accounts.id = staffs.account_id").
 		Joins("LEFT JOIN staff_clinic_assignments ON staff_clinic_assignments.staff_id = staffs.id AND staff_clinic_assignments.deleted_at IS NULL").
+		Joins("LEFT JOIN clinics ON clinics.id = staff_clinic_assignments.clinic_id").
 		Where("staffs.id = ?", staffID).
 		Scan(&rows).Error
 	if err != nil {
@@ -121,7 +129,8 @@ func (r *currentAccessStaffReader) loadCurrentAccessGraph(
 			IsActive:  first.StaffIsActive,
 			IsDeleted: first.StaffDeletedAt.Valid,
 		},
-		Assignments: make([]model.StaffClinicAssignment, 0, len(rows)),
+		Assignments:            make([]model.StaffClinicAssignment, 0, len(rows)),
+		AssignmentClinicActive: make([]bool, 0, len(rows)),
 	}
 	if first.AccID != nil && *first.AccID != 0 {
 		graph.Account = &model.Account{
@@ -148,6 +157,10 @@ func (r *currentAccessStaffReader) loadCurrentAccessGraph(
 			ClinicID: clinicID,
 			IsMain:   row.AssignIsMain,
 		})
+		graph.AssignmentClinicActive = append(
+			graph.AssignmentClinicActive,
+			row.AssignClinicIsActive,
+		)
 	}
 	return graph, nil
 }

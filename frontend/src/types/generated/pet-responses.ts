@@ -71,6 +71,59 @@ export interface PetResponse {
   insurance?: PetInsuranceNested;
 }
 /**
+ * PetListResponse はリスト表示に必要な最小限フィールドのみ返す（GET /v1/pets 専用）。
+ * PERF-E5-N1-PETS: ownerLoader が飼主詳細ペットを本一覧（owner_id + include_deceased）経由で
+ * 一括取得するため、detail 経路 (PetResponse) が返していた deceased_at / deceased_reason /
+ * phone を保持する。deceased_reason の露出範囲は PetResponse の BUG-003 コメントと同じ
+ * staff 向け経路限定（LIFF/owner 向け DTO には載せない）。
+ * tygo 生成対象とするため exported にする（生成型 PetListResponse が FE 側の正本）。
+ */
+export interface PetListResponse {
+  id: number /* uint64 */;
+  /**
+   * ClinicID: #266/#86 拠点横断一覧で FE (OwnersList.tsx) が「別医院の行は編集・削除を抑止」
+   * 判定に使う。PetResponse(詳細) には既にあるが PetListResponse は最小限フィールド構成のため
+   * 欠けていた（#266 pets 一覧のペット行粒度化で FE がこの一覧に依存するようになり露見）。
+   */
+  clinic_id: number /* uint64 */;
+  owner_id: number /* uint64 */;
+  animal_species_id: number /* uint64 */;
+  pet_number: string;
+  name: string;
+  pet_name_kana: string;
+  gender: string;
+  status: string;
+  birth_date?: string;
+  breed: string;
+  color: string;
+  blood_type?: string;
+  microchip_number?: string;
+  weight?: number /* float64 */;
+  neutered_date?: string;
+  acquisition_type?: string;
+  danger_level: string;
+  danger_reason?: string;
+  food: string;
+  environment: string;
+  /**
+   * Phone は PetResponse（詳細）と同じペット個体の電話番号。FE は
+   * owner.phone 空時の fallback として p.phone を使う（detail/list で契約を揃える）。
+   */
+  phone: string;
+  last_visit?: string;
+  insurance_id?: number /* uint64 */;
+  remarks: string;
+  /**
+   * DeceasedReason / DeceasedAt は staff 向け GET /v1/pets 専用（PetResponse 同様）。
+   * omitempty: 生存ペットや未記録時は JSON から物理的に欠落させる。
+   */
+  deceased_reason?: string;
+  deceased_at?: string;
+  owner?: PetOwnerNested;
+  animal_species?: PetAnimalSpeciesNested;
+  insurance?: PetInsuranceNested;
+}
+/**
  * SummaryResponse is the nested pet carrier retained for trimming and other
  * compatibility responses until those domains own their response DTOs.
  */

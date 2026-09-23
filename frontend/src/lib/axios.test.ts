@@ -191,6 +191,119 @@ describe("axios startupSessionRestore opt-out", () => {
   });
 });
 
+describe("axios GET auto-retry", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it.each([502, 504])("retries a GET once after a %i then succeeds", async (status) => {
+    vi.useFakeTimers();
+    let adapterCalls = 0;
+    const adapter: AxiosAdapter = async (config) => {
+      adapterCalls += 1;
+      if (adapterCalls === 1) {
+        throw new AxiosError("server error", AxiosError.ERR_BAD_RESPONSE, config, undefined, {
+          config,
+          data: { error: "server error" },
+          headers: new AxiosHeaders(),
+          status,
+          statusText: "",
+        });
+      }
+      return {
+        config,
+        data: { ok: true },
+        headers: new AxiosHeaders(),
+        status: 200,
+        statusText: "OK",
+      };
+    };
+
+    const request = axios.get("/v1/example", { adapter });
+    await vi.advanceTimersByTimeAsync(1000);
+    const response = await request;
+
+    expect(response.status).toBe(200);
+    expect(adapterCalls).toBe(2);
+  });
+
+  it("does not retry a GET on 503 and propagates the error immediately", async () => {
+    vi.useFakeTimers();
+    let adapterCalls = 0;
+    const adapter: AxiosAdapter = async (config) => {
+      adapterCalls += 1;
+      throw new AxiosError("service unavailable", AxiosError.ERR_BAD_RESPONSE, config, undefined, {
+        config,
+        data: { error: "service_unavailable" },
+        headers: new AxiosHeaders(),
+        status: 503,
+        statusText: "Service Unavailable",
+      });
+    };
+
+    const request = axios.get("/v1/example", { adapter });
+    const rejection = expect(request).rejects.toMatchObject({
+      message: "service unavailable",
+      response: { status: 503 },
+    });
+    // リトライウィンドウ全体 (1s + 2s) を十分に超える時刻まで進めても再試行されないこと
+    await vi.advanceTimersByTimeAsync(10000);
+    await rejection;
+    expect(adapterCalls).toBe(1);
+  });
+
+  it("retries a GET on network error up to MAX_RETRIES with per-attempt backoff", async () => {
+    vi.useFakeTimers();
+    let adapterCalls = 0;
+    const adapter: AxiosAdapter = async (config) => {
+      adapterCalls += 1;
+      throw new AxiosError("Network Error", AxiosError.ERR_NETWORK, config);
+    };
+
+    const request = axios.get("/v1/example", { adapter });
+    const rejection = expect(request).rejects.toMatchObject({
+      code: AxiosError.ERR_NETWORK,
+    });
+
+    // 初回リトライは RETRY_DELAY_MS (1s) 待機
+    await vi.advanceTimersByTimeAsync(999);
+    expect(adapterCalls).toBe(1);
+    await vi.advanceTimersByTimeAsync(2);
+    expect(adapterCalls).toBe(2);
+    // 2回目は RETRY_DELAY_MS * 2 (2s) 待機 — 1s ではまだ発火しない
+    await vi.advanceTimersByTimeAsync(1998);
+    expect(adapterCalls).toBe(2);
+    await vi.advanceTimersByTimeAsync(10);
+    expect(adapterCalls).toBe(3);
+
+    await rejection; // MAX_RETRIES 到達後はエラーをそのまま伝播
+  });
+
+  it("never retries a non-GET request on 502", async () => {
+    vi.useFakeTimers();
+    let adapterCalls = 0;
+    const adapter: AxiosAdapter = async (config) => {
+      adapterCalls += 1;
+      throw new AxiosError("bad gateway", AxiosError.ERR_BAD_RESPONSE, config, undefined, {
+        config,
+        data: { error: "bad gateway" },
+        headers: new AxiosHeaders(),
+        status: 502,
+        statusText: "Bad Gateway",
+      });
+    };
+
+    const request = axios.request({ adapter, method: "post", url: "/v1/example", data: {} });
+    const rejection = expect(request).rejects.toMatchObject({
+      response: { status: 502 },
+    });
+    await vi.advanceTimersByTimeAsync(10000);
+    await rejection;
+    expect(adapterCalls).toBe(1);
+  });
+});
+
 describe("axios clinic boundary", () => {
   afterEach(() => {
     localStorage.removeItem(CURRENT_CLINIC_STORAGE_KEY);

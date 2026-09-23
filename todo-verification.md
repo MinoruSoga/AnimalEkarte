@@ -28,7 +28,7 @@ QA/開発が作るケース票の共通列は `ID / case / revision / 環境・f
 | UAT-Q2-HISTORY-NAV | 同一ペットの問診行→詳細→戻る、処置未移行の記録 | 対象 build と合成の履歴参照 |
 | NOTE2-SWEEP-COVERAGE | `bug-2.md` の未確認 route×操作へ必要 ID・必須値を対応づける | 有効 cage 等の fixture、対象 schema、変更可能範囲 |
 | NOTE-STAFF-STARTTIME-RDT | 通常/拡張なし環境で同一操作の stack・発生有無を比較する票 | ユーザー環境の利用。製品由来か拡張由来か未確定の間は修正しない |
-| DEV-V-OWNER-DB | 下記5ケースの既存結果を PASS/FAIL/SKIP/未実行に分類 | 専用 disposable DB、cleanup、候補 mount。共有 DB は不可 |
+| DEV-V-OWNER-DB | 分類済み: 全5ケースが過去receiptなし・未実行（[分類表](docs/work/todo-ledger-20260922/DEV-V-OWNER-DB.md)） | 専用 disposable DB、cleanup、候補 mount。共有 DB は不可 |
 | TODO-V-S09 / QA-UAT-S09-FIXTURE | 期待表は既存 S09 シナリオ。締め時間の投入計画は [LINMIG-233](docs/work/linmig-campaign-20260919/LINMIG-233.md) | 起動済み専用 local、helper 条件、合成 identity、clinic 1/2 除外 |
 | TODO-V-V04 / QA-UAT-V04-RETEST | V04 のフォーム×C1/C2/C3 を9月13日の証拠へ対応づける。close 照合は [LINMIG-231](docs/work/linmig-campaign-20260919/LINMIG-231.md) | 未収録ケースと disposable clinic・権限 account |
 | TODO-V-CLINICAL-E2E / QA-FULL-CLINICAL-E2E | `--clinical` allowlist と DB保存/stub/未実行を分ける。医院マトリクスは [SLACK-CLINICAL-UAT](docs/work/remaining-campaign-20260920/SLACK-CLINICAL-UAT.md) | local/CI、APP_ENV=test、専用 fixture/teardown。full job は別定義 |
@@ -124,7 +124,7 @@ Q1 / Q4保険 / Q2履歴の実装は再開しない。根拠は [医院フィー
 
 | ID | 状態 | 次の作業・完了条件 |
 |---|---|---|
-| [DEV-V-OWNER-DB](#dev-v-owner-db) | UNKNOWN（追加証拠未照合） | 前回は disposable DB URL 未設定。現在の専用 DB と過去実行証拠を確認し、下記の実DBテストの不足だけを実行 |
+| [DEV-V-OWNER-DB](#dev-v-owner-db) | 分類済み（[分類表](docs/work/todo-ledger-20260922/DEV-V-OWNER-DB.md)）: 全5ケースが過去receiptなし・未実行 | 専用 disposable DB で下記5ケースを実行。実行案は分類表どおり。共有 DB 不可・未実行とSKIP は PASS にしない |
 | [TODO-V-S09](#todo-v-s09--qa-uat-s09-fixture) | BLOCKED（fixture・対象環境待ち）。投入計画は [LINMIG-233](docs/work/linmig-campaign-20260919/LINMIG-233.md) | `QA-UAT-S09-FIXTURE` の #2–#6 を専用 fixture で確認。既存の [UAT 状態](docs/ops/testing/UAT-DOMAIN-STATUS.md) と run の対応を記録 |
 | [TODO-V-V04](#todo-v-v04--qa-uat-v04-retest) | UNKNOWN。close 照合は [LINMIG-231](docs/work/linmig-campaign-20260919/LINMIG-231.md) | `QA-UAT-V04-RETEST` と9月13日の master CRUD 証拠を項目単位で対応づけ、削除・後処理・未収録項目を補完 |
 | [TODO-V-CLINICAL-E2E](#todo-v-clinical-e2e--qa-full-clinical-e2e) | BLOCKED（実行条件待ち）。マトリクスは [SLACK-CLINICAL-UAT](docs/work/remaining-campaign-20260920/SLACK-CLINICAL-UAT.md) | `QA-FULL-CLINICAL-E2E` の承認済み test 環境・identity・fixture と full job 証拠を確保 |
@@ -231,16 +231,18 @@ READ の確定 URL と下書きに対する承認後、更新直前に対象本�
 
 ## PERF-STG-LOGIN
 
-技術記録は [todo-performance.md](todo-performance.md)。Worker 観測は現在 tracked code に存在し、未導入 WIP の扱いを終了した。`PERF-V-IMPLEMENT-OBSERVATION` の実 proxy 4 tests・worker typecheck（`index.test.ts` include済み）は `72807128` の [既存検証](.planning/agent-fast-campaign/four-candidate-integration-20260916/evidence/rev7-reverify-72807128-codex/controller/RECONCILIATION.md) で完了し、開いたキューから外した。残るのは遅延の因果測定、常時観測の必要性・出力範囲の再判定、STG 受入である。
+技術記録は [todo-performance.md](todo-performance.md)。Worker 観測は現在 tracked code に存在し、未導入 WIP の扱いを終了した。`PERF-V-IMPLEMENT-OBSERVATION` の実 proxy 4 tests・worker typecheck（`index.test.ts` include済み）は `72807128` の [既存検証](.planning/agent-fast-campaign/four-candidate-integration-20260916/evidence/rev7-reverify-72807128-codex/controller/RECONCILIATION.md) で完了し、開いたキューから外した。残るのは遅延の因果測定、常時観測の必要性・出力範囲の再判定、STG 受入である。（2026-09-23 E5 追記: 因果は `containerFetch` 区間まで局在、常時観測は KEEP 判定、STG 受入証拠は4ケース取得済。下表の各状態を参照。）
 
 | 順 | ID | 状態 | 次の作業・完了条件 |
 |---|---|---|---|
-| 1 | [PERF-V-CLIENT-TRACE](#性能タスクの着手順と成果物) | 承認・観測条件待ち | `/login` 遷移前から OPTIONS / GET、FCP、操作可能時刻を記録。通常読込と再読込を分ける |
-| 2 | [PERF-V-CF-EVENTS](#性能タスクの着手順と成果物) | provider 証拠待ち | 同じ時刻の Worker 受付・forwarding・Container 起動を関連づける。時刻対応できなければ UNKNOWN |
-| 3 | [PERF-V-DECIDE-OBSERVATION](#性能タスクの着手順と成果物) | 調査待ち | 実装済み観測の常時出力が必要かを1・2の結果から再判定。必要なら対象を限定する変更、不要なら撤去を別実装単位にする |
-| 4 | [PERF-V-MITIGATION](#性能タスクの着手順と成果物) | DEFERRED（因果待ち） | OPTIONS / GET の遅延箇所を特定してから通信・設定変更を選ぶ |
-| 5 | [PERF-V-BUNDLE](#性能タスクの着手順と成果物) | DEFERRED（実測待ち） | 固定 revision の転送・parse/execute への寄与を測り、必要な変更だけを判断 |
-| 6 | [PERF-V-STG-ACCEPTANCE](#性能タスクの着手順と成果物) | ブラウザ受入待ち | 対象 build の匿名・既存 session・復旧・医院選択を確認し、待機表示・操作可能・認証成功の時刻を分離 |
+| 1 | [PERF-V-CLIENT-TRACE](#性能タスクの着手順と成果物) | 承認・観測条件待ち → 証拠取得済（2026-09-23 E5） | `/login` 遷移前から OPTIONS / GET、FCP、操作可能時刻を記録。通常読込と再読込を分ける |
+| 2 | [PERF-V-CF-EVENTS](#性能タスクの着手順と成果物) | provider 証拠待ち → 証拠取得済（2026-09-23 E5） | 同じ時刻の Worker 受付・forwarding・Container 起動を関連づける。時刻対応できなければ UNKNOWN |
+| 3 | [PERF-V-DECIDE-OBSERVATION](#性能タスクの着手順と成果物) | 調査待ち → 判定済 KEEP（2026-09-23 E5） | 実装済み観測の常時出力が必要かを1・2の結果から再判定。必要なら対象を限定する変更、不要なら撤去を別実装単位にする |
+| 4 | [PERF-V-MITIGATION](#性能タスクの着手順と成果物) | DEFERRED（因果待ち → 原因は containerFetch 区間に局在。2026-09-23 E5） | OPTIONS / GET の遅延箇所を特定してから通信・設定変更を選ぶ |
+| 5 | [PERF-V-BUNDLE](#性能タスクの着手順と成果物) | DEFERRED（実測待ち → /login は cold FCP 0.7s で bundle 非主因。2026-09-23 E5） | 固定 revision の転送・parse/execute への寄与を測り、必要な変更だけを判断 |
+| 6 | [PERF-V-STG-ACCEPTANCE](#性能タスクの着手順と成果物) | ブラウザ受入待ち → 証拠取得済（2026-09-23 E5、4ケース n=1） | 対象 build の匿名・既存 session・復旧・医院選択を確認し、待機表示・操作可能・認証成功の時刻を分離 |
+
+2026-09-23 E5 追記（証拠は `reports/perf-e5-residual-20260923/`）: CLIENT-TRACE は `/login` cold/warm 2遷移を記録し OPTIONS 0・FCP 692/88ms を取得（[client-trace](reports/perf-e5-residual-20260923/client-trace/README.md)）。CF-EVENTS は cf-ray 相関で `container_fetch` 866–3848ms 支配・edge+worker 約60–115ms・稼働 instance `maa01`・`scheduling_policy` deployed=`default` vs config=`regional` の乖離を取得（[cf-events](reports/perf-e5-residual-20260923/cf-events/README.md)）。DECIDE-OBSERVATION は KEEP と判定（[obs-decision](reports/perf-e5-residual-20260923/obs-decision/README.md)）。STG-ACCEPTANCE は匿名/既存session/復旧/ログイン後の4ケースを記録し login POST 3882ms・`/v1/me` 1475ms ゲート・OPTIONS 0（[stg-acceptance](reports/perf-e5-residual-20260923/stg-acceptance/README.md)）。測定値は現行 STG 配信版のもので、E5 のコード変更は未配備。PERF-V-LINEAR は対応先未確定のまま。
 
 - `PERF-V-CLIENT-TRACE`: 承認済み対象・時間枠・停止担当・証拠保存先を固定する。相対時刻、method、status、protocol、initiator、OPTIONS/GET 対応、FCP を保存し、Cookie・Authorization・本文・個人情報は含めない。HAR 等は保存前に機密除去。単発値や未使用時間だけで p95/p99・cold start・改善完了と判定しない。
 - `PERF-V-CF-EVENTS`: provider 時刻と browser 時刻を対応づけ、Container 起動証拠がない場合は Worker 所要時間だけで起動待ちと断定しない。観測で設定・配備を変更しない。

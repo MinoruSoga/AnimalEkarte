@@ -34,6 +34,10 @@ type UpdateVitalInput struct {
 	WeightUnit      *model.BodyWeightUnit
 	Notes           *string
 	ActorID         *uint64 // 監査ログ用: 操作スタッフ ID（nil = システム）
+	// Version は楽観的ロック用 expectedVersion（nil=照合スキップ・後方互換）。
+	// UpdateClinicalPlanInput.Version と同型: repository Update の WHERE version=? 述語に
+	// そのまま渡り、一致時のみ version+1 で書き戻す。0/負値はどの行にも一致せず Conflict。
+	Version *int
 }
 
 // VitalService はバイタル記録のビジネスロジックインターフェース

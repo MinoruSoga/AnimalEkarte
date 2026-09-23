@@ -207,7 +207,11 @@ describe("useOwnerForm dangerReason readback", () => {
       ],
     });
     mockGetOwner.mockResolvedValue(ownerWithoutDangerReason);
-    mockAxiosGet.mockResolvedValue({ data: backendPet });
+    // PERF-E5-N1-PETS: ownerLoader は GET /v1/pets/{id} ではなく owner_id スコープの
+    // paginated list（data 配列 + total/page/limit）を1回だけ発行する。
+    mockAxiosGet.mockResolvedValue({
+      data: { data: [backendPet], total: 1, page: 1, limit: 100 },
+    });
 
     const { owner } = await ownerLoader({ params: { id: "123" } });
 
@@ -215,13 +219,18 @@ describe("useOwnerForm dangerReason readback", () => {
       wrapper: createTestWrapper(),
     });
 
-    expect(mockAxiosGet).toHaveBeenCalledWith("/v1/pets/7");
+    expect(mockAxiosGet).toHaveBeenCalledWith(
+      "/v1/pets",
+      expect.objectContaining({
+        params: expect.objectContaining({ owner_id: "123", include_deceased: "true" }),
+      }),
+    );
     expect(result.current.pets[0].dangerReason).toBe("保定時に噛む");
   });
 });
 
 describe("useOwnerForm death lifecycle readback (BUG-022)", () => {
-  it("full reload相当のdetail再取得後も死亡statusと死亡日時をform stateへ保持する", async () => {
+  it("full reload相当のlist再取得後も死亡statusと死亡日時をform stateへ保持する", async () => {
     const deceasedAt = "2026-07-10T12:00:00+09:00";
     const backendPet: PetResponse = {
       id: 7,
@@ -248,14 +257,23 @@ describe("useOwnerForm death lifecycle readback (BUG-022)", () => {
     mockGetOwner.mockResolvedValue(
       makeOwner({ pets: [transformBackendPetToFrontend(backendPet)] }),
     );
-    mockAxiosGet.mockResolvedValue({ data: backendPet });
+    // PERF-E5-N1-PETS: ownerLoader は GET /v1/pets/{id} ではなく owner_id スコープの
+    // paginated list を発行する。deceased_at/deceased_reason は PetListResponse が保持する。
+    mockAxiosGet.mockResolvedValue({
+      data: { data: [backendPet], total: 1, page: 1, limit: 100 },
+    });
 
     const { owner } = await ownerLoader({ params: { id: "123" } });
     const { result } = renderHook(() => useOwnerForm("123", owner, undefined, EDIT_PERMISSIONS), {
       wrapper: createTestWrapper(),
     });
 
-    expect(mockAxiosGet).toHaveBeenCalledWith("/v1/pets/7");
+    expect(mockAxiosGet).toHaveBeenCalledWith(
+      "/v1/pets",
+      expect.objectContaining({
+        params: expect.objectContaining({ owner_id: "123", include_deceased: "true" }),
+      }),
+    );
     expect(result.current.pets[0]).toEqual(expect.objectContaining({ status: "死亡", deceasedAt }));
   });
 

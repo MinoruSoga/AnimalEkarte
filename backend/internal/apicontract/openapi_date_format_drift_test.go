@@ -116,7 +116,10 @@ var knownDateFormatDrifts = map[string]int{
 	// It isn't real drift: the response schemas declare `format: date-time` for deceased_at,
 	// matching the target response DTO's time.Time wire format exactly.
 	"owner/http_response.go|deceased_at": 1,
-	"pet/pet_response.go|deceased_at":    1,
+	// 219ef7f46 (owner-scoped pet list) hoisted the staff-only deceased_at into a second
+	// pet_response.go builder; both sites use the same LocalTimePtr path as the reviewed
+	// PetResponse one, so the benign-collision count above doubles by design.
+	"pet/pet_response.go|deceased_at": 2,
 }
 
 func driftKey(file, jsonName string) string { return file + "|" + jsonName }

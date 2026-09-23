@@ -100,47 +100,64 @@ func toPetFirstVisitResponse(date *time.Time) petFirstVisitResponse {
 	return petFirstVisitResponse{FirstVisitDate: httpapi.LocalTimePtr(date)}
 }
 
-// petListResponse はリスト表示に必要な最小限フィールドのみ返す（GET /v1/pets 専用）
-type petListResponse struct {
+// PetListResponse はリスト表示に必要な最小限フィールドのみ返す（GET /v1/pets 専用）。
+// PERF-E5-N1-PETS: ownerLoader が飼主詳細ペットを本一覧（owner_id + include_deceased）経由で
+// 一括取得するため、detail 経路 (PetResponse) が返していた deceased_at / deceased_reason /
+// phone を保持する。deceased_reason の露出範囲は PetResponse の BUG-003 コメントと同じ
+// staff 向け経路限定（LIFF/owner 向け DTO には載せない）。
+// tygo 生成対象とするため exported にする（生成型 PetListResponse が FE 側の正本）。
+type PetListResponse struct {
 	ID uint64 `json:"id"`
 	// ClinicID: #266/#86 拠点横断一覧で FE (OwnersList.tsx) が「別医院の行は編集・削除を抑止」
-	// 判定に使う。PetResponse(詳細) には既にあるが petListResponse は最小限フィールド構成のため
+	// 判定に使う。PetResponse(詳細) には既にあるが PetListResponse は最小限フィールド構成のため
 	// 欠けていた（#266 pets 一覧のペット行粒度化で FE がこの一覧に依存するようになり露見）。
-	ClinicID        uint64                  `json:"clinic_id"`
-	OwnerID         uint64                  `json:"owner_id"`
-	AnimalSpeciesID uint64                  `json:"animal_species_id"`
-	PetNumber       string                  `json:"pet_number"`
-	Name            string                  `json:"name"`
-	PetNameKana     string                  `json:"pet_name_kana"`
-	Gender          string                  `json:"gender"`
-	Status          string                  `json:"status"`
-	BirthDate       *time.Time              `json:"birth_date,omitempty"`
-	Breed           string                  `json:"breed"`
-	Color           string                  `json:"color"`
-	BloodType       *string                 `json:"blood_type,omitempty"`
-	MicrochipNumber *string                 `json:"microchip_number,omitempty"`
-	Weight          *float64                `json:"weight,omitempty"`
-	NeuteredDate    *time.Time              `json:"neutered_date,omitempty"`
-	AcquisitionType *string                 `json:"acquisition_type,omitempty"`
-	DangerLevel     string                  `json:"danger_level"`
-	DangerReason    *string                 `json:"danger_reason,omitempty"`
-	Food            string                  `json:"food"`
-	Environment     string                  `json:"environment"`
-	LastVisit       *time.Time              `json:"last_visit,omitempty"`
-	InsuranceID     *uint64                 `json:"insurance_id,omitempty"`
-	Remarks         string                  `json:"remarks"`
-	Owner           *PetOwnerNested         `json:"owner,omitempty"`
-	AnimalSpecies   *PetAnimalSpeciesNested `json:"animal_species,omitempty"`
-	Insurance       *PetInsuranceNested     `json:"insurance,omitempty"`
+	ClinicID        uint64     `json:"clinic_id"`
+	OwnerID         uint64     `json:"owner_id"`
+	AnimalSpeciesID uint64     `json:"animal_species_id"`
+	PetNumber       string     `json:"pet_number"`
+	Name            string     `json:"name"`
+	PetNameKana     string     `json:"pet_name_kana"`
+	Gender          string     `json:"gender"`
+	Status          string     `json:"status"`
+	BirthDate       *time.Time `json:"birth_date,omitempty"`
+	Breed           string     `json:"breed"`
+	Color           string     `json:"color"`
+	BloodType       *string    `json:"blood_type,omitempty"`
+	MicrochipNumber *string    `json:"microchip_number,omitempty"`
+	Weight          *float64   `json:"weight,omitempty"`
+	NeuteredDate    *time.Time `json:"neutered_date,omitempty"`
+	AcquisitionType *string    `json:"acquisition_type,omitempty"`
+	DangerLevel     string     `json:"danger_level"`
+	DangerReason    *string    `json:"danger_reason,omitempty"`
+	Food            string     `json:"food"`
+	Environment     string     `json:"environment"`
+	// Phone は PetResponse（詳細）と同じペット個体の電話番号。FE は
+	// owner.phone 空時の fallback として p.phone を使う（detail/list で契約を揃える）。
+	Phone       string     `json:"phone"`
+	LastVisit   *time.Time `json:"last_visit,omitempty"`
+	InsuranceID *uint64    `json:"insurance_id,omitempty"`
+	Remarks     string     `json:"remarks"`
+	// DeceasedReason / DeceasedAt は staff 向け GET /v1/pets 専用（PetResponse 同様）。
+	// omitempty: 生存ペットや未記録時は JSON から物理的に欠落させる。
+	DeceasedReason *string                 `json:"deceased_reason,omitempty"`
+	DeceasedAt     *time.Time              `json:"deceased_at,omitempty"`
+	Owner          *PetOwnerNested         `json:"owner,omitempty"`
+	AnimalSpecies  *PetAnimalSpeciesNested `json:"animal_species,omitempty"`
+	Insurance      *PetInsuranceNested     `json:"insurance,omitempty"`
 }
 
-func toPetListResponse(p *model.Pet) petListResponse {
+// petListResponse は PetListResponse の package 内後方互換 alias。
+// 既存テスト（realdb_cross_clinic_grant_a_isolation_test.go 等）の型参照を維持する。
+// 新規コードは PetListResponse を使う。
+type petListResponse = PetListResponse
+
+func toPetListResponse(p *model.Pet) PetListResponse {
 	var acquisitionType *string
 	if p.AcquisitionType != nil {
 		s := string(*p.AcquisitionType)
 		acquisitionType = &s
 	}
-	resp := petListResponse{
+	resp := PetListResponse{
 		ID:              p.ID,
 		ClinicID:        p.ClinicID,
 		OwnerID:         p.OwnerID,
@@ -165,9 +182,12 @@ func toPetListResponse(p *model.Pet) petListResponse {
 		DangerReason:    p.DangerReason,
 		Food:            p.Food,
 		Environment:     p.Environment,
+		Phone:           p.Phone,
 		LastVisit:       httpapi.LocalTimePtr(p.LastVisit),
 		InsuranceID:     p.InsuranceID,
 		Remarks:         p.Remarks,
+		DeceasedReason:  p.DeceasedReason,
+		DeceasedAt:      httpapi.LocalTimePtr(p.DeceasedAt),
 	}
 	resp.Owner = toPetOwnerNested(p.Owner)
 	if p.AnimalSpecies != nil {
