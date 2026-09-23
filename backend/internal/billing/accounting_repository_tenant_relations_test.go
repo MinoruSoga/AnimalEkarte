@@ -205,7 +205,7 @@ func TestAccountingRepository_ReadsExcludeForeignSplitAndRefundRows(t *testing.T
 		require.Len(t, got, 1)
 		require.Len(t, got[0].PaymentSplits, 1)
 		assert.Equal(t, validSplit.ID, got[0].PaymentSplits[0].ID)
-		assert.Empty(t, got[0].Refunds, "list uses attachRefundTotals instead of Refunds preload")
+		assert.Empty(t, got[0].Refunds, "list uses bulk refund aggregation instead of Refunds preload")
 		assert.Equal(t, int64(100), got[0].TotalRefundedAmount)
 	})
 

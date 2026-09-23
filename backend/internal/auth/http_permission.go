@@ -22,6 +22,42 @@ func (h *HTTPHandler) HasPermission(
 	return h.HasPermissionInClinic(c, clinicID, resource, action)
 }
 
+// effectivePermissionsGinKey は request-scoped の effective-permission rules
+// memo の gin context key。route middleware の selected-clinic 判定と handler 側の
+// FilterClinicIDsForPermission など、同一 (staff, clinic) への重複
+// GetEffectivePermissions クエリを 1 request 内で 1 回に畳む（EMR-201）。
+// request 途中で rule が変わる経路は無いため、request 境界の memo は安全。
+const effectivePermissionsGinKey = "auth_effective_permission_rules"
+
+// effectivePermissionRules は (staffID, clinicID) の effective permission rules を
+// request 内 memo 経由で返す。失敗時は cache せず fail closed。
+func (h *HTTPHandler) effectivePermissionRules(
+	c *gin.Context,
+	staffID, clinicID uint64,
+) ([]model.PermissionGroupRule, bool) {
+	var memo map[uint64][]model.PermissionGroupRule
+	if cached, exists := c.Get(effectivePermissionsGinKey); exists {
+		memo, _ = cached.(map[uint64][]model.PermissionGroupRule)
+		if rules, ok := memo[clinicID]; ok {
+			return rules, true
+		}
+	}
+	if memo == nil {
+		memo = make(map[uint64][]model.PermissionGroupRule)
+		c.Set(effectivePermissionsGinKey, memo)
+	}
+	rules, err := h.deps.EffectivePermissions.GetEffectivePermissions(
+		c.Request.Context(),
+		staffID,
+		clinicID,
+	)
+	if err != nil {
+		return nil, false
+	}
+	memo[clinicID] = rules
+	return rules, true
+}
+
 // HasPermissionInClinic evaluates one resource/action pair for a destination clinic.
 // system_admin remains an explicit bypass. Missing identity, a zero clinic, a nil
 // EffectivePermissions dependency, or a repository error fail closed.
@@ -42,12 +78,8 @@ func (h *HTTPHandler) HasPermissionInClinic(
 	if !ok || clinicID == 0 || h.deps.EffectivePermissions == nil {
 		return false
 	}
-	rules, err := h.deps.EffectivePermissions.GetEffectivePermissions(
-		c.Request.Context(),
-		staffID,
-		clinicID,
-	)
-	if err != nil {
+	rules, ok := h.effectivePermissionRules(c, staffID, clinicID)
+	if !ok {
 		return false
 	}
 	return permissionRulesAllow(rules, resource, action)
