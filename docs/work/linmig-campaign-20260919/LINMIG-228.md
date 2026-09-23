@@ -1,5 +1,7 @@
 # LINMIG-228 — Go-live pre-window evidence map (docs-only)
 
+> Current task status is tracked in Plane `EMR-40`. This local document remains supporting execution/evidence material; see the [migration receipt](../plane-md-migration-20260923-receipt.md) for the crosswalk.
+
 Campaign `linmig-ops-prep-20260919` revision 1. Unit `LINMIG-228`. Attempt `att-linmig-228-20260919-001`. Claim `claim/LINMIG-228`. Linear issue `LINMIG-228` was not found; keep as claim only.
 
 Maps to [todo-verification.md](../../../todo-verification.md) **TODO-V-RELEASE / P8** and GitHub [#257](https://github.com/MinoruSoga/AnimalEkarte/issues/257). Binding sources for this unit:

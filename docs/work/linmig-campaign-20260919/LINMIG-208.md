@@ -1,5 +1,7 @@
 # LINMIG-208 — local real LINE / LIFF UAT H1·H2 prep sheet
 
+> Current task status is tracked in Plane `EMR-22`. This local document remains supporting execution/evidence material; see the [migration receipt](../plane-md-migration-20260923-receipt.md) for the crosswalk.
+
 Campaign `linmig-ops-prep-20260919` revision 1. Unit `LINMIG-208`. Linear issue `LINMIG-208` was not found at sheet authoring; current Linear state is UNKNOWN.
 
 This file is a **prep sheet only**. It does not execute real-device UAT, send LINE messages, collect `idToken` values, or store secrets.

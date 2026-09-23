@@ -1,44 +1,46 @@
 # 一時バグ／障害メモ（ユーザー依頼 2026-09-13）
 
+> Task migrated to Plane `EMR-180`. This file remains supporting acceptance/evidence material; use Plane for current status.
+
 > **注意**: root `bug.md` は 2026-09-08 に `todo.md` の [製品 FAIL](todo.md#product-bugs) へ統合廃止済み。  
 > 本ファイルはユーザー明示依頼により **一旦** 再作成したメモ台帳。製品 FAIL 正本は引き続き `todo.md#product-bugs`。  
 > `BUG-LOCAL-HANDOFF-CSV-CONTRACT` は環境／handoff fixture の BLOCKED。  
-> `BUG-*` はローカル（STG スナップショット）で切り分け済み。`PO-*` は仕様・データ修復の判断が必要。
+> OPEN 項目は2026-09-23にPlaneへ移行済み。以下の調査結果・実証データは履歴証拠として保持し、現在の状態は[移行記録](docs/work/plane-md-migration-20260923-receipt.md)とPlaneを参照する。
 
 更新日: 2026-09-13
 
-修正プラン: [着手順序と依存関係](#bug-fix-order) · [検証と完了条件](#bug-fix-verification)。各項目の方針と詳細手順は下表から確認できる。実装・STG配備・実機での解消確認は区別して各項目に記録する。
+以下の調査・実証記録は根拠/履歴として保持する。OPENだった作業の現在状態と実行計画はPlaneで管理する（[移行記録](docs/work/plane-md-migration-20260923-receipt.md)）。過去の修正案やSTG receiptを現在の完了証拠として扱わない。
 
 ## 索引
 
 | ID | status | area | severity | 種別 | 修正プラン |
 |:---|:---|:---|:---|:---|:---|
-| BUG-LOCAL-HANDOFF-CSV-CONTRACT | OPEN | ops / local-db | Medium | handoff preflight BLOCKED | 現行契約でbundleを再生成し、取込前に検証する。[詳細](#plan-bug-local-handoff-csv-contract) |
+| BUG-LOCAL-HANDOFF-CSV-CONTRACT | Plane MIG-19 | ops / local-db | Medium | handoff preflight BLOCKED | 現在の課題・状態は `MIG-19`（詳細は移行記録） |
 | BUG-RES-DOCTOR-ID-ZERO | FIXED | reservation | High | **STG実機確認済み**（担当未選択・兼務先での登録） | `created_by` の主所属制約を追加修正。STG `916159093`で城東・担当者未選択の保存201、再読込・詳細再表示200を確認。[詳細](#plan-bug-res-doctor-id-zero) |
 | BUG-RES-DIALOG-A11Y-CONSOLE | FIXED | reservation / a11y | Low | **バグ断定**（DialogContent Description 欠落コンソール警告） | 固定ID上書きで Radix DescriptionWarning が context.descriptionId を見失っていた。Radix 管理IDに戻し警告0。[詳細](#plan-bug-res-dialog-a11y-console) |
 | BUG-RES-STAFF-SELECT-ORPHAN-LABEL | FIXED | reservation / UI | High | **バグ断定**（担当者選択後に表示が消える） | 候補外でも表示名を保持し、確定 orphan は理由表示＋解除/再選択まで送信遮断。[詳細](#plan-bug-res-staff-select-orphan-label) |
 | BUG-RES-AVAILABLE-TIMES-404 | FIXED | reservation | Medium | **バグ断定**（LINE設定欠落で院内API 404） | 院内は設定未登録を識別可能な unset（422 + code）にし案内付き手動時刻のみ許可。空枠/障害/LIFF必須は維持。[詳細](#plan-bug-res-available-times-404) |
 | BUG-RES-DECEASED-STATUS-BYPASS | FIXED | reservation / pet | High | **バグ断定**（status=deceased なのに予約可） | `status=deceased` OR `deceased_at` で新規write拒否。データ補完は別項。[詳細](#plan-bug-res-deceased-status-bypass) |
-| PO-PET-DECEASED-DATA-BACKFILL | OPEN | data / pet | Medium | **PO確認**（不整合データの修復方針） | 対象・死亡日の根拠・監査・復旧を確定してからデータ修復する。[詳細](#plan-po-pet-deceased-data-backfill) |
+| PO-PET-DECEASED-DATA-BACKFILL | Plane EMR-108 | data / pet | Medium | **PO確認**（不整合データの修復方針） | 現在の課題・状態は `EMR-108`（詳細は移行記録） |
 | PO-STAFF-BLANK-NAME-LIST | FIXED | staff UX / data | Low | **PO確認→実装**（空氏名の一覧表示方針） | Grill Recommended: 初期有効のみ＋表示 `(氏名未設定)`。DB書換・一括削除なし。[詳細](#plan-po-staff-blank-name-list) |
 | PO-OCCUPATION-MASTER-EMPTY | FIXED | master / data | Low | **PO確認→実装**（職種マスタ0件の扱い） | Grill Recommended: 0件は未登録案内＋職種マスタへ誘導。`occupation_id` は任意のまま。偽選択肢・自動投入なし。[詳細](#plan-po-occupation-master-empty) |
-| NOTE-STAFF-STARTTIME-RDT | OPEN | staff console | Low | **調査**（startTime TypeError・アプリ外の疑い） | 拡張なしの環境と比較し、stackから原因を特定して修正対象を決める。[詳細](#plan-note-staff-starttime-rdt) |
-| BUG-ACCT-CLOSE-PERM-DEFAULT | OPEN | billing / permission | Medium | **バグ断定**（既定権限でレジ締め不能。edit は dead grant、必須の create は全グループ未付与） | `cash-register-close` の既定付与を create へ修正するか、締め endpoint の要求スコープを edit に揃えるかを裁定し実装。[詳細](#plan-bug-acct-close-perm-default) |
-| BUG-S09-FIXTURE-TEARDOWN | OPEN | testing / fixture | Low | **バグ断定**（締め実行済みの S09 合成 clinic が teardown で削除不能。append-only 台帳との矛盾） | teardown の scoped 削除設計を裁定（closes/adjustments/holidays を含めるか、trigger 無効化の運用経路を持つか）。[詳細](#plan-bug-s09-fixture-teardown) |
-| BUG-AGG-NO-VISIT-REVENUE | OPEN | aggregation / revenue | Medium | **バグ断定**（来院なし飼主が完了会計を持っても売上ランキングに一切出ない。`include_no_visit=false` 既定除外が売上タブにも適用） | `include_no_visit` フィルタの適用範囲を最終来院タブ限定に修正し、売上軸では来院有無に依らず算入する。[詳細](#plan-bug-agg-no-visit-revenue) |
-| BUG-TRIM-KANBAN-IN-CONSULTATION | OPEN | trimming / reception | High | **バグ断定**（受付済トリミングカードの「カルテ作成」が `in_consultation` 遷移を試みるが、カルテ必須ガードで 409。トリミングは medical_record を持たないため永久に受付済のまま） | `validateInConsultationHasMedicalRecord` を trimming category で免除するか、FE が trimming 作成 POST に `status: in_consultation` を載せる経路に統一する。[詳細](#plan-bug-trim-kanban-in-consultation) |
-| BUG-BILLING-UNBILLED-MR-EXCLUSION | OPEN | billing / unbilled | Medium | **バグ断定**（カルテ連携 pending 会計から明細を soft-delete しても、billing が `medical_record_id` を保持する限り元の treatment が未請求候補に復帰しない。サイレント請求漏れ） | `FindUnbilledByPetID` の billing 単位除外を明細単位の除外に限定し、削除された明細の請求元を再候補化する。[詳細](#plan-bug-billing-unbilled-mr-exclusion) |
-| BUG-RES-OVERLAP-500 | OPEN | reservation / API | Medium | **バグ断定**（同一スタッフ・時間帯重複の予約作成が DB 排他制約 `excl_appointments_doctor_timerange` の 500 として漏れる。完全一致は正しく 409） | 排他制約違反（23P01 / exclusion violation）を conflict 409 へマッピングする。[詳細](#plan-bug-res-overlap-500) |
-| BUG-LIFF-HEALTHCARD-OWNER-SYNC | OPEN | liff / line_customers | High | **バグ断定**（LIFF トークン連携が `owners.line_user_id` のみ書き `line_customers.owner_id` を更新しない。health-card は `line_customers.owner_id` 経由解決のため、連携済み飼主のヘルスカードが「ペット情報はありません」のまま） | `LinkAccount` で line_customers 行を FindOrCreate＋owner_id 紐付けするか、手動 link-owner を正式な第2段として仕様化するか裁定。[詳細](#plan-bug-liff-healthcard-owner-sync) |
-| BUG-ACCT-INS-SIGN-MISMATCH | OPEN | billing / insurance | High | **バグ断定**（保険適用会計の新規確定が FE/BE の `insurance_amount` 符号規約不整合で必ず 400。FE は負値送信だが BE は `billing=total−insurance_amount` で正値を前提） | FE/BE どちらかの符号規約に統一し、保険付き会計の complete を回帰固定。[詳細](#plan-bug-acct-ins-sign-mismatch) |
-| BUG-ACCT-INS-EDIT-REWRITE | OPEN | billing / insurance | Medium | **バグ断定**（確定済み会計の修正保存で、未変更の `insurance_amount`/`billing_amount` が recalc 値に上書きされ、保存後に保険表示が消える。`hasInsurance` が `insurance_amount < 0` 推定のため正値・0 の保存値は OFF 表示） | 編集保存で保険フィールドを変更しない限り保存値を維持する契約へ修正し、`hasInsurance` を保存フラグ由来にする。[詳細](#plan-bug-acct-ins-edit-rewrite) |
-| BUG-DIALOG-FOCUS-RESTORE | OPEN | shared UI / a11y | Low | **バグ断定**（治療プラン検索ダイアログを Escape で閉じるとフォーカスが呼出元ボタンに戻らず `document.body` に落下。実クリック開閉・キーボード開閉の両経路で再現） | Radix Dialog の focus restoration が効いていない経路を特定し、閉じた後にフォーカスがトリガーへ戻ることを固定する。[詳細](#plan-bug-dialog-focus-restore) |
-| BUG-BILLING-TAX-TYPE-DROPPED | OPEN | billing / master | High | **バグ断定**（マスタ登録の税区分（内税/非課税）が会計明細へ伝播せず全て外税10%で請求される。処置・診察の未請求候補と物販マスタ追加の双方で再現し DB も `excluded` 固定） | 未請求候補の集約と物販追加の両経路で master の tax_type/tax_rate をスナップショット引継ぎする契約へ修正。[詳細](#plan-bug-billing-tax-type-dropped) |
-| BUG-ACCT-DUP-COMPLETE-500 | OPEN | billing / idempotency | Medium | **バグ断定**（同一カルテへの二重会計確定が意図した 409「このカルテには既に会計があります」に届かず 500。UNIQUE 競合後の replay 判定クエリが abort 済み tx 上で実行され 25P02 になる。逐次・真並行の双方で再現。行は作られずデータは守られるが、クライアントには不透明な 500 しか返らない） | 競合解決クエリを別接続/tx で実行するか、制約名（`idx_billings_medical_record_id_unique` / completion_request_id）を見て直接 409/replay に分岐する。[詳細](#plan-bug-acct-dup-complete-500) |
-| BUG-MR-DOCTOR-HEADER-STALE | OPEN | medical-record / UI | Medium | **バグ断定**（ヘッダー担当医が再読込でログインユーザー表示に戻る） | `staffName` が `user.displayName` 初期化のみで `record.doctor` から hydrate されない。[詳細](#plan-bug-mr-doctor-header-stale) |
-| BUG-VITAL-NOTE-KEY-MISMATCH | OPEN | medical-record / vitals | Medium | **バグ断定**（バイタルのメモが保存も表示もされない） | FE は `note` を送受信、BE 契約は `notes`。双方向で silent drop。[詳細](#plan-bug-vital-note-key-mismatch) |
-| BUG-MR-VACCINE-FORM-NESTED | OPEN | medical-record / vaccination | High | **バグ断定**（カルテ内の接種記録追加フォームが送信不能） | 内側 `<form action>` が外側カルテ `<form>` にネストし、submit が `javascript:` placeholder へ落下して CSP ブロック。POST もバリデーションも発火しない。[詳細](#plan-bug-mr-vaccine-form-nested) |
-| BUG-TRIM-EXCL-TIMERANGE-500 | OPEN | trimming / reservation | High | **バグ断定**（同一担当の連続トリミング登録が 500 で失敗） | record_shortcut は一意な現在 JST 時刻+90分を割当（BUG-010 対策）するが、同一 staff_id で 90 分以内の 2 件目が `excl_appointments_doctor_timerange` に抵触し、DB exclusion violation が 409 にマップされず 500 で返る。[詳細](#plan-bug-trim-excl-timerange-500) |
+| NOTE-STAFF-STARTTIME-RDT | Plane EMR-180 | staff console | Low | **調査**（startTime TypeError・アプリ外の疑い） | 現在の課題・状態は `EMR-180`（詳細は移行記録） |
+| BUG-ACCT-CLOSE-PERM-DEFAULT | Plane EMR-71 | billing / permission | Medium | **バグ断定**（既定権限でレジ締め不能。edit は dead grant、必須の create は全グループ未付与） | 現在の課題・状態は `EMR-71`（詳細は移行記録） |
+| BUG-S09-FIXTURE-TEARDOWN | Plane EMR-72 | testing / fixture | Low | **バグ断定**（締め実行済みの S09 合成 clinic が teardown で削除不能。append-only 台帳との矛盾） | 現在の課題・状態は `EMR-72`（詳細は移行記録） |
+| BUG-AGG-NO-VISIT-REVENUE | Plane EMR-73 | aggregation / revenue | Medium | **バグ断定**（来院なし飼主が完了会計を持っても売上ランキングに一切出ない。`include_no_visit=false` 既定除外が売上タブにも適用） | 現在の課題・状態は `EMR-73`（詳細は移行記録） |
+| BUG-TRIM-KANBAN-IN-CONSULTATION | Plane EMR-74 | trimming / reception | High | **バグ断定**（受付済トリミングカードの「カルテ作成」が `in_consultation` 遷移を試みるが、カルテ必須ガードで 409。トリミングは medical_record を持たないため永久に受付済のまま） | 現在の課題・状態は `EMR-74`（詳細は移行記録） |
+| BUG-BILLING-UNBILLED-MR-EXCLUSION | Plane EMR-75 | billing / unbilled | Medium | **バグ断定**（カルテ連携 pending 会計から明細を soft-delete しても、billing が `medical_record_id` を保持する限り元の treatment が未請求候補に復帰しない。サイレント請求漏れ） | 現在の課題・状態は `EMR-75`（詳細は移行記録） |
+| BUG-RES-OVERLAP-500 | Plane EMR-76 | reservation / API | Medium | **バグ断定**（同一スタッフ・時間帯重複の予約作成が DB 排他制約 `excl_appointments_doctor_timerange` の 500 として漏れる。完全一致は正しく 409） | 現在の課題・状態は `EMR-76`（詳細は移行記録） |
+| BUG-LIFF-HEALTHCARD-OWNER-SYNC | Plane EMR-61 | liff / line_customers | High | **バグ断定**（LIFF トークン連携が `owners.line_user_id` のみ書き `line_customers.owner_id` を更新しない。health-card は `line_customers.owner_id` 経由解決のため、連携済み飼主のヘルスカードが「ペット情報はありません」のまま） | 現在の課題・状態は `EMR-61`（詳細は移行記録） |
+| BUG-ACCT-INS-SIGN-MISMATCH | Plane EMR-62 | billing / insurance | High | **バグ断定**（保険適用会計の新規確定が FE/BE の `insurance_amount` 符号規約不整合で必ず 400。FE は負値送信だが BE は `billing=total−insurance_amount` で正値を前提） | 現在の課題・状態は `EMR-62`（詳細は移行記録） |
+| BUG-ACCT-INS-EDIT-REWRITE | Plane EMR-63 | billing / insurance | Medium | **バグ断定**（確定済み会計の修正保存で、未変更の `insurance_amount`/`billing_amount` が recalc 値に上書きされ、保存後に保険表示が消える。`hasInsurance` が `insurance_amount < 0` 推定のため正値・0 の保存値は OFF 表示） | 現在の課題・状態は `EMR-63`（詳細は移行記録） |
+| BUG-DIALOG-FOCUS-RESTORE | Plane EMR-64 | shared UI / a11y | Low | **バグ断定**（治療プラン検索ダイアログを Escape で閉じるとフォーカスが呼出元ボタンに戻らず `document.body` に落下。実クリック開閉・キーボード開閉の両経路で再現） | 現在の課題・状態は `EMR-64`（詳細は移行記録） |
+| BUG-BILLING-TAX-TYPE-DROPPED | Plane EMR-65 | billing / master | High | **バグ断定**（マスタ登録の税区分（内税/非課税）が会計明細へ伝播せず全て外税10%で請求される。処置・診察の未請求候補と物販マスタ追加の双方で再現し DB も `excluded` 固定） | 現在の課題・状態は `EMR-65`（詳細は移行記録） |
+| BUG-ACCT-DUP-COMPLETE-500 | Plane EMR-66 | billing / idempotency | Medium | **バグ断定**（同一カルテへの二重会計確定が意図した 409「このカルテには既に会計があります」に届かず 500。UNIQUE 競合後の replay 判定クエリが abort 済み tx 上で実行され 25P02 になる。逐次・真並行の双方で再現。行は作られずデータは守られるが、クライアントには不透明な 500 しか返らない） | 現在の課題・状態は `EMR-66`（詳細は移行記録） |
+| BUG-MR-DOCTOR-HEADER-STALE | Plane EMR-67 | medical-record / UI | Medium | **バグ断定**（ヘッダー担当医が再読込でログインユーザー表示に戻る） | 現在の課題・状態は `EMR-67`（詳細は移行記録） |
+| BUG-VITAL-NOTE-KEY-MISMATCH | Plane EMR-68 | medical-record / vitals | Medium | **バグ断定**（バイタルのメモが保存も表示もされない） | 現在の課題・状態は `EMR-68`（詳細は移行記録） |
+| BUG-MR-VACCINE-FORM-NESTED | Plane EMR-69 | medical-record / vaccination | High | **バグ断定**（カルテ内の接種記録追加フォームが送信不能） | 現在の課題・状態は `EMR-69`（詳細は移行記録） |
+| BUG-TRIM-EXCL-TIMERANGE-500 | Plane EMR-76 | trimming / reservation | High | **バグ断定**（同一担当の連続トリミング登録が 500 で失敗） | 現在の課題・状態は `EMR-76`（詳細は移行記録） |
 
 ---
 
@@ -299,10 +301,10 @@
 
 ## 修正プラン（2026-09-13・未実装）
 
-本節は上記9件（BUG6件・PO3件）の修正計画と、調査メモ1件の切り分け計画。計画作成中に追加された担当者表示バグと `startTime` 調査も対象に含めた。既存の再現記録と `OPEN` は維持する。上記の「候補」と現行コードが異なる場合は、本節の追加調査を踏まえて着手する。今回の確認範囲はローカル `main` / `7d0f3543c96ec61ac74b23b687b9af98e91726be` のコードと本メモであり、記載済みのDB件数・UAT結果を今回再測定したものではない。
+以下は2026-09-13時点の計画記録。未完了項目の現在の作業内容と状態はPlaneを正本とし、移行済みの局所実行計画は削除した。上記コード/UAT観測は当時の証拠として保持する。
 
 - **成果物の範囲**: このファイルへの計画追記。製品コードの修正、データ更新、reset、migration、STG操作は未実施。
-- **正本との関係**: 製品FAILの入口は引き続き [todo.md](todo.md#product-bugs)、実行管理の正本はLinear。本節はローカル案。Linear MCPの検索は実行できたが、対象IDとの対応を特定できておらず、外部チケット状態は **UNKNOWN**。登録・更新は別途承認後に行う。
+- **正本との関係**: 本メモは根拠と履歴。2026-09-23以降の実行管理はPlaneへ移行済み（[移行記録](docs/work/plane-md-migration-20260923-receipt.md)）。
 - **業務目的**: 担当未選択の予約での再入力をなくす、死亡ペットへの新規業務登録を防ぐ、予約枠の設定不備を満枠と混同させない。不要な確認ダイアログや設定の二重管理は追加しない。
 - **責任者・仕様判断**: 計画作成の依頼元は本セッションのユーザー。未確定の業務仕様・データ修復については、判断を担うPOの個人名と決定内容を実装着手前に記録する。以下の推奨案は承認済み仕様を意味しない。
 
@@ -317,11 +319,11 @@
 | 2と連続・担当者表示 | BUG-RES-STAFF-SELECT-ORPHAN-LABEL | 区分・日付変更後の候補と選択値の不一致を再現 | doctorの正規化と同じフォームを触るため順次実装 |
 | 3・空き枠 | BUG-RES-AVAILABLE-TIMES-404 | 設定未登録・満枠・通信障害のAPI/UI契約を決める | 未設定時の時刻入力可否と応答形式の確定 |
 | 4・a11y | BUG-RES-DIALOG-A11Y-CONSOLE | 現行画面で警告元と説明IDの対応を特定 | 再現するコンポーネントを特定してから修正 |
-| 独立・環境 | BUG-LOCAL-HANDOFF-CSV-CONTRACT | producer/importer契約と再生成元を確認 | 再生成可能な元データ・producerが必要。取込は別の運用作業 |
-| 判断後 | PO-PET-DECEASED-DATA-BACKFILL | 不整合を由来・死亡日根拠の有無で分類 | 死亡判定の契約、対象環境、修復・監査・復旧手順の承認 |
+| 独立・環境 | Plane `MIG-19` | 現在の課題本文はPlane | 再生成可能な元データ・producerが必要。取込は別の運用作業 |
+| 判断後 | Plane `EMR-108` | 現在の課題本文はPlane | 死亡判定の契約、対象環境、修復・監査・復旧手順の承認 |
 | 判断後 | PO-STAFF-BLANK-NAME-LIST | 表示改善とデータ整理を分けて決める | デフォルト絞り込み・代替表示の承認 |
 | 判断後 | PO-OCCUPATION-MASTER-EMPTY | 職種の必須性と医院別の初期値を決める | マスタ責任者・正式な職種名の確定 |
-| 独立・原因調査 | NOTE-STAFF-STARTTIME-RDT | 同じ操作を拡張なしの環境と比較 | 再現元URL・stackの特定。製品バグとは未確定 |
+| 独立・原因調査 | Plane `EMR-180` | 現在の課題本文はPlane | 再現元URL・stackの特定。製品バグとは未確定 |
 
 実装単位ごとに同名IDのclaimを確認・取得する。1〜3は `reservation` のサービスやテストが重なるため、同じファイルを同時編集しない。並行する場合は別worktreeと排他的な担当パスを使う。製品バグの回帰テストには合成データを用い、古いhandoffや実データの復旧を全項目の前提にしない。
 
@@ -403,33 +405,15 @@
 
 **完了条件**: 再現していた同じ操作で対象警告0件、説明の参照切れ0件。現行コードで再現できない場合は `OPEN` のまま追加調査結果を記録し、静的にDescriptionがあるだけで修正済みにしない。 → **達成（FIXED）**
 
-<a id="plan-bug-local-handoff-csv-contract"></a>
+<a id="plan-bug-local-handoff-csv-contract">
 
 ### 5. BUG-LOCAL-HANDOFF-CSV-CONTRACT
 
-**方針**: importerの現行contractに対応したproducerからbundleを再生成する。manifestのdigestだけを置換したり、validatorを緩めたりしない。
-
-1. [cutover_contract.go](backend/internal/csvimport/cutover_contract.go)、[cutover_contract_validate.go](backend/internal/csvimport/cutover_contract_validate.go)、[handoff手順](docs/ops/deploy/OLD_DB_HANDOFF_LOCAL.md) を基に、producerのrevision、列契約、provenance、元データ、対象医院を一覧化する。旧bundleは証拠として保持する。
-2. 再生成元が揃えば、現行producerでCSV・manifest・hash・provenanceを一体で生成する。生成元を確認できない場合は環境項目を `BLOCKED` とし、予約の回帰検証は合成データで継続する。`REHEARSAL_ONLY` を本番投入可能へ昇格させない。
-3. `stage-old-db-handoff.sh` / `check-old-db-handoff.sh` の既存経路で配置を確認し、取込前のpreflightで全対象bundleを検証する。古い契約・hash改ざん・医院不一致を拒否し、新契約が受理されることを確認する。fixture自体の更新で解決する場合は、検証器のコード変更を増やさない。
-4. ユーザーが取込検証を行う段階で、専用ローカル環境のバックアップ・対象・復旧方法を確定し、既存手順に従って実行する。エージェントからreset、DBへの投入、migration適用を自動実行しない。
-
-**完了条件**: まず全bundleのpreflight PASSを確認し、その後に承認されたローカル取込で医院別件数・owner/pet参照・再実行時の挙動を確認する。preflight PASSと取込成功は別の証拠とし、STG相当や本番cutover合格へ読み替えない。
-
-<a id="plan-po-pet-deceased-data-backfill"></a>
+> Current task detail is in Plane `MIG-19`. The local execution plan was removed; historical findings above remain.
 
 ### 6. PO-PET-DECEASED-DATA-BACKFILL
 
-**推奨案**: 死亡日は根拠がある個体だけ補完し、根拠不明の個体は死亡表示と新規write拒否を保持したまま要確認に残す。現在日時による一括補完や、一律 `alive` への戻しは行わない。
-
-1. POが死亡判定の正本、死亡日時不明の表現、対象環境（local/STG/本番cutover）、修復責任者を決める。日時必須を採る場合も、根拠がない個体を処理する方法を先に定義する。
-2. 承認された読取調査で、医院・データ由来・根拠の有無別の件数を再集計する。既存メモの件数を現在値として流用しない。個人情報を含む原票はアクセス制限下で扱い、台帳には集計と証拠の参照だけを残す。
-3. dry-runの変更前後差分、適用条件、更新済み行のスキップ、監査sink、並行更新の競合検出、再実行性、復旧方法を備えた修復手順を作る。実データ適用前に合成データで検証する。
-4. 適用は対象環境と差分への明示承認後に実施し、医院別の修復件数・未解決件数・予約拒否の結果を照合する。死亡状態変更の既存監査を迂回しない。
-
-**完了条件**: 承認対象の全件について修復または要確認の帰属が明確で、監査と再実行検証が成立する。未解決が残る場合は件数と担当を残し、本項目を完了扱いにしない。製品側の死亡ガード修正とは独立して判定する。
-
-<a id="plan-po-staff-blank-name-list"></a>
+> Current task detail is in Plane `EMR-108`. The local execution plan was removed; historical findings above remain.
 
 ### 7. PO-STAFF-BLANK-NAME-LIST
 
@@ -475,281 +459,99 @@
 
 **実装メモ (2026-09-13 / att-bug-res-staff-orphan-20260913-001)**: `SearchableSelect` に `fallbackLabel` を追加。`ReservationFormFields` で候補 settle 後の confirmed orphan を導出し、表示名・理由・解除を `ReservationTypeAndStaffFields` に渡し、Modal submit で遮断。loading/error は orphan 扱いにしない。編集初期化で保存済み `doctor` を書き換えない。capable_courses の一括拡張なし。検証: `docker compose exec frontend npx vitest run src/components/shared/ReservationFormModal`（69 passed）。
 
-<a id="plan-note-staff-starttime-rdt"></a>
+<a id="plan-note-staff-starttime-rdt">
 
 ### 10. NOTE-STAFF-STARTTIME-RDT（調査計画）
 
-**方針**: 製品コード・ブラウザ拡張・開発ツールのどこで発生するかを特定してから修正対象を決める。`reportAllChanges` がアプリソースにないことだけでは、アプリ外と断定しない。
-
-1. 承認されたブラウザ対象で、発生操作、ビルドrevision、ファイルURLを含むstack、発生時刻を記録する。個人情報や認証情報は証拠から除外する。
-2. 同じビルド・同じ操作を、拡張のない専用プロファイルと報告環境で比較する。シークレットモードでも許可済み拡張が動くことがあるため、拡張の無効化状態を確認する。ユーザーの通常プロファイルや拡張設定を勝手に変更しない。
-3. アプリ起因なら該当コード・再現条件・REDテストを持つ製品バグへ整理する。拡張起因と特定できた場合は拡張名・バージョン・比較結果と回避手順を記録する。再現できない場合は原因 `UNKNOWN` として必要な追加証拠を残す。
-
-**調査完了条件**: 同条件の比較とstackで原因の帰属を説明できること。製品修正が必要なら別途その実装・検証が完了するまで閉じない。未再現だけを「バグなし」「修正済み」の根拠にしない。
-
-<a id="plan-bug-acct-close-perm-default"></a>
+> Current task detail is in Plane `EMR-180`. The local execution plan was removed; historical findings above remain.
 
 ### 11. BUG-ACCT-CLOSE-PERM-DEFAULT
 
-**方針**: まず設計意図を裁定する（締め実行に必要なスコープは `create` か `edit` か）。既定モデルが exec へ機能しない `edit` を付与し `create` を全グループから外している現状は、意図的 fail-closed にしても内部矛盾。
-
-1. `POST /cash-register/closes` の要求スコープと `permission_group_rules.csv` / `defaultPermissionRuleTable` の既定付与を突合し、(a) 既定へ create 追加・(b) endpoint を edit 要求へ変更・(c) fail-closed 維持で dead edit 除去+運用明記、のいずれかを決める。
-2. (a)/(b) を選ぶ場合、既存 clinic の権限グループへの移行影響（既に締め運用中の環境で権限が落ちないこと）を確認し、必要なら移行 seed を用意する。
-3. 修正後、既定権限のままの新規 clinic で執行アカウントが締めを実行できること（または意図的拒否が文書どおりであること）を UAT レベルで再検証する。
-
-**完了条件**: 既定権限モデルで締め実行の可否が設計意図と一致し、dead grant が解消されていること。S08 手順10 の再実行で締め→締め後訂正→監査記録（post_close フラグ）まで既定プロビジョニングのみで完走できること。
-
-<a id="plan-bug-s09-fixture-teardown"></a>
+> Current task detail is in Plane `EMR-71`. The local execution plan was removed; historical findings above remain.
 
 ### 12. BUG-S09-FIXTURE-TEARDOWN
 
-**方針**: append-only 監査台帳（W-013）は製品正として維持し、fixture 側の破棄設計を直す。immutable テーブルの行を消す実装は採らない。
-
-1. `DeleteSyntheticClosingFixture` の方針を裁定: (a) closes/adjustments を除く全行削除後に clinic を `is_active=false` で残置する「論理破棄」へ変更、(b) DB 全体リセット前提の運用に変えて teardown を締め済み clinic で失敗する旨を明示、のどちらかが安全。trigger 無効化による物理削除は監査設計を壊すため非推奨。
-2. 選んだ方針で teardown を修正し、「締め→締め後編集→teardown」の順で回収が成立することを隔離 DB で検証する。
-3. `clinic_holidays` など scoped 削除から抜けている他の fixture 生成物も棚卸しして対象に含める。
-
-**完了条件**: S09 手順を全実行した合成 clinic に対して teardown がエラーなく完走する（または意図的残置が文書化され clinic 非活性化まで行われる）こと。`cash_register_closes`/`cash_register_close_adjustments` の append-only 制約を迂回しないこと。
-
-<a id="plan-bug-agg-no-visit-revenue"></a>
+> Current task detail is in Plane `EMR-72`. The local execution plan was removed; historical findings above remain.
 
 ### 13. BUG-AGG-NO-VISIT-REVENUE
 
-**方針**: `include_no_visit` 除外は「最終来院」軸の UI 選択肢（来院なしを含む）を制御するものであり、売上ランキング・来院回数クエリへ適用するのは意味論的に誤り。`filterLTVRows` で no_visit 除外を `LastVisitBucket` 指定クエリに限定する。
-
-1. `filterLTVRows`（`backend/internal/owner/ltv_repository_query.go`）の no_visit 除外を、`params.LastVisitBucket != ""` または last_visit 系ソート指定時に限定するよう修正。売上/来院軸では除外しない。
-2. 回帰テスト: 完了会計を持つ no_visit 飼主が売上ランキング (`year` + `amount_basis` 指定) に出ること、`last_visit_bucket=over_1y` + `include_no_visit=false` では従来どおり除外されることを table-driven test で固定。
-3. 仕様正本 36 との整合（「全顧客を対象とした売上貢献度」）を再確認。CPM ステージ集計への影響（no_visit 飼主の CPM 分類）も別途確認。
-
-**完了条件**: `medical_record_id` なしの完了会計のみを持つ飼主が、売上ランキングで `annual_amount` 付きで表示されること。最終来院タブの「来院なしを含む」チェック動作が従来どおり機能すること。
-
-<a id="plan-bug-trim-kanban-in-consultation"></a>
+> Current task detail is in Plane `EMR-73`. The local execution plan was removed; historical findings above remain.
 
 ### 14. BUG-TRIM-KANBAN-IN-CONSULTATION
 
-**方針**: 「in_consultation には medical_record が必要」というガードを trimming appointment に適用しない設計へ裁定する。候補は (a) `validateInConsultationHasMedicalRecord` で `reservation_types.category = 'trimming'` を免除（対象は `appointment_trimming_details` の存在を確認するか単に免除）、(b) FE `use-trimming-form` が既存 appointment への detail 作成 POST に `status: in_consultation` を載せる（BE `createTrimmingDetailForExistingInTx` は既に honor する）、(c) カンバン側で trimming は受付済→会計待ちの直行遷移を正式化。カルテ必須ガード自体は medical category で維持する。
-
-1. 遷移契約を裁定: trimming の `checked_in → in_consultation` は detail 作成をもって成立させるか（§2.4/§5.2-G）、不要とするか。仕様正本 `reservation-to-record-flow.md` と S11 記述を更新対象に含める。
-2. 選んだ契約で実装: (a) なら validator に category 分岐を追加し `appointment_trimming_details` 存在を要件化、(b) なら `buildCreateTrimmingRequest` に status 送信を追加。両方やる場合は冪等にする。
-3. 回帰: 受付済 trimming カード→「トリミングカルテ作成」→保存で appointment が `in_consultation` になること、medical appointment のカルテなし遷移が従来どおり 409 で拒否されることを固定する。
-
-**完了条件**: 受付済トリミングカードが UI 操作のみで「診療中→会計待ち」へ進めること。S11 手順2/4 を迂回なしで完走できること。
-
-<a id="plan-bug-billing-unbilled-mr-exclusion"></a>
+> Current task detail is in Plane `EMR-74`. The local execution plan was removed; historical findings above remain.
 
 ### 15. BUG-BILLING-UNBILLED-MR-EXCLUSION
 
-**方針**: `FindUnbilledByPetID` の L115（`b.medical_record_id = mr.id AND b.status != 'cancelled'` の billing 単位除外）を見直す。「1 カルテ 1 会計」の意図なら明細削除ではなく会計 cancel を正規解放経路として明文化するか、明細単位除外（L114 のみ）へ変更して削除明細の請求元を再候補化するかを裁定する。
-
-1. 仕様裁定: pending 会計からの明細削除を「その請求元の請求放棄」とみなすか「再候補化」とみなすか。S11 A3 の記述は再候補化を前提。
-2. 再候補化を採る場合: L115 を削除または「billing に当該 MR の明細が1件でも残る場合のみ除外」へ緩める。trimming/vaccination 側の unbilled クエリも同じ二段除外があるか棚卸しする。
-3. 回帰: MR 連携 pending 会計→明細 soft-delete→unbilled-details 復帰、billing cancel→復帰、精算済み明細削除→409 の3ケースを固定。
-
-**完了条件**: 明細削除で請求元が未請求候補に復帰し、かつ精算済み会計の明細削除が引き続き拒否されること。
-
-<a id="plan-bug-res-overlap-500"></a>
+> Current task detail is in Plane `EMR-75`. The local execution plan was removed; historical findings above remain.
 
 ### 16. BUG-RES-OVERLAP-500
 
-**方針**: `excl_appointments_doctor_timerange`（SQLSTATE 23P01 exclusion_violation）を `response_pg.go` のエラーマッピングで 409 Conflict + 既存の重複メッセージへ変換する。`CheckSlotConflict` の事前チェックは維持し、DB 制約到達時も同じ契約で返す。
-
-1. `response_pg.go`（または apperrors.FromGORM の PG code 変換）に 23P01 → Conflict のマッピングを追加。制約名で「時間帯重複」メッセージを選択する。
-2. 回帰テスト: 同一スタッフ部分重複 POST → 409、完全一致 → 409、別スタッフ同一時刻 → 201 を固定。
-3. LIFF / バッチ作成経路でも同じ制約違反が 409 になることを確認。
-
-**完了条件**: 時間帯重複が常に 409 + 業務メッセージで返り、500 + DB 制約名の漏出がなくなること。
-
-<a id="plan-bug-liff-healthcard-owner-sync"></a>
+> Current task detail is in Plane `EMR-76`. The local execution plan was removed; historical findings above remain.
 
 ### 17. BUG-LIFF-HEALTHCARD-OWNER-SYNC
 
-**方針**: 「連携済み」の意味を一本化する。`owners.line_user_id`（L-step/通知向け）と `line_customers.owner_id`（health-card/予約顧客解決）の2系統を、検証済み LIFF トークン連携の成立時に同期するか、スタッフ手動 link-owner を必須の第2段として仕様・シナリオ・画面文言に明記するかを裁定する。
-
-1. 仕様裁定: 医療情報開示前のスタッフ確認を意図的ゲートとするか。S12 は「連携完了→ヘルスカード閲覧」を一段で記述。
-2. 同期を採る場合: `LinkAccount` 内で `line_customers` を `line_user_id` で FindOrCreate し `owner_id` を同一 Tx で更新。clinic_id 一致・既存 owner_id との競合（別飼主に紐付済み）の扱いを定義。解除時の逆同期も定義する。
-3. 手動2段を採る場合: 04-owners-form / 38-liff-pet-health / S12 シナリオに「LIFF 連携後はスタッフが LINE 顧客の飼主紐付けを別途実施」と明記し、FE の連携済み表示に未紐付け顧客の注意を出す。
-4. 回帰: 連携成立→ health-card が飼主ペットを返すこと、別飼主データが混ざらないこと、連携解除で再び空に戻ることを固定。
-
-**完了条件**: LIFF トークン連携完了後にヘルスカードが当該飼主のペットを返すか、あるいは2段運用が仕様正本に明文化され画面が矛盾しないこと。
-
-<a id="plan-bug-acct-ins-sign-mismatch"></a>
+> Current task detail is in Plane `EMR-61`. The local execution plan was removed; historical findings above remain.
 
 ### 18. BUG-ACCT-INS-SIGN-MISMATCH
 
-**方針**: `insurance_amount`（および同じ規約リスクを持つ `discount_amount`）の符号規約を FE/BE で一本化する。BE complete 経路（`billing = total − insurance − discount`）は正値前提が自然なため、FE 送信側を正値化（送信時に符号反転または絶対値）し、`PaymentInfo.insuranceAmount` の画面内表示契約（負値）とは分離するのが第一候補。BE を負値前提に変える案は既存の正値データ・update 経路との整合確認が必要。
-
-1. API 契約を確定: `POST /accountings/complete` の `insurance_amount` を正値（保険負担額の絶対値）と明文化し、負値は 400 で拒否するか双方受理するか決める。OpenAPI/型生成に反映。
-2. FE `use-accounting-completion-action.ts` の complete payload で `insurance_amount` を正値で送信（画面表示の負値との変換を境界で明示）。`has_insurance=false` 時は従来どおり null。
-3. 回帰: 保険 50%/70% 付き会計の complete が 201 で `billing_amount = total − insurance` となること、保険なし会計が従来どおり成立すること、二重送信防止（Idempotency-Key）が維持されることを固定。`discount_amount` を送る経路があれば同じ検証を行う。
-
-**完了条件**: UI から保険 50%/70% の新規会計が確定でき、API の `billing_amount`・`payments.insurance_amount` が画面内訳と一致すること。S15 手順7 を迂回なしで完走できること。
-
-<a id="plan-bug-acct-ins-edit-rewrite"></a>
+> Current task detail is in Plane `EMR-62`. The local execution plan was removed; historical findings above remain.
 
 ### 19. BUG-ACCT-INS-EDIT-REWRITE
 
-**方針**: 確定済み会計の修正保存で「変更した項目だけが変わる」を保証する。`hasInsurance` を `insurance_amount < 0` 推定ではなく保存された `has_insurance` フラグ（または `insurance_ratio` の存在）から初期化し、編集保存ではユーザーが保険・明細を変更していない限り保存済みの `insurance_amount`/`billing_amount` を維持する（差分送信または変更検知ゲート）。
-
-1. `use-accounting-detail-state.ts:197` の初期化を `has_insurance` フラグ優先に修正し、`insurance_amount` 非負・ratio のみ・金額不整合の各保存状態でスイッチ表示が保存値と一致することを vitest で固定。
-2. `use-accounting-completion-action.ts` の update 経路で、保険関連フィールド（ratio/switch/明細の is_insurance_applicable）が未変更なら `insurance_amount`/`billing_amount` を送信しないか保存値を送る契約へ変更。変更ありの場合のみ recalc 値を送る。
-3. 回帰: レガシー 90% 会計で理由のみ変更→保存→再読込で ratio/金額/保険表示が不変、明細変更→正しく recalc、正値保存データ（BE 規約）の再表示で保険 ON・保存金額が表示されることを固定。手順6/7 の再実行で確認。
-
-**完了条件**: 確定済み会計の無変更保存で `payments` の金額・割合が保存値のまま維持され、再読込表示が保存値と一致すること。`has_insurance=true` と保険スイッチ表示が乖離しないこと。
-
-<a id="plan-bug-dialog-focus-restore"></a>
+> Current task detail is in Plane `EMR-63`. The local execution plan was removed; historical findings above remain.
 
 ### 20. BUG-DIALOG-FOCUS-RESTORE
 
-**方針**: `TreatmentSearchDialog`（および同パターンで外部 `open` 制御・`lazy` 化された他ダイアログ）で、閉じた後のフォーカスが呼出元トリガーへ戻ることを保証する。Radix の既定復帰が効かない経路をまず特定する。
-
-1. `TreatmentsTab` のトリガーが `DialogTrigger` ではなく外部 state ボタンである点と、`lazy` 遅延マウントで Radix FocusScope が復帰対象（開く直前のフォーカス要素）を捕捉できていない点を確認する。`DialogTrigger` 構成へ移行するか、`onCloseAutoFocus` でトリガー ref へ明示復帰するかを裁定する。
-2. 選んだ方式で実装し、vitest（実 Dialog）で「開く → Escape → activeElement がトリガー」を固定。同一ダイアログで項目選択による閉鎖でも復帰先が妥当（現行は追加行の数量入力へ移る継続編集仕様）であることを確認する。
-3. 同一パターン（外部 `open` 制御＋非 DialogTrigger）の他ダイアログを棚卸しし、共通 `Dialog` の修正で済むか個別対応かを決める。
-4. （任意・別裁定）長い一覧の矢印キー移動: listbox/roving tabindex 導入の要否を PO/デザインと決める。Tab 順送りは現状の正式経路として維持。
-
-**完了条件**: 実ブラウザで「ボタンで開く → Escape/閉じる → `document.activeElement` が呼出元ボタン」となること。S18 手順6 を迂回なしで完走できること。
-
-<a id="plan-bug-billing-tax-type-dropped"></a>
+> Current task detail is in Plane `EMR-64`. The local execution plan was removed; historical findings above remain.
 
 ### 21. BUG-BILLING-TAX-TYPE-DROPPED
 
-**方針**: マスタの税区分・税率を会計明細へスナップショットとして引き継ぐ。確定済み会計は遡って再計算しない（S20 手順7 で確認済みの不変性を維持）。
-
-1. BE: `billing_item_unbilled.go` の `treatmentToUnbilledBillingItem`・vaccination/exam/trimming 候補生成が、マスタの `tax_type`/`tax_rate` を参照するよう SQL と item 組立てを修正。マスタに税区分を持たない source（vaccine 等）は既定値のままとし、欠落時のフォールバック契約をテストで固定。
-2. FE: `get-merchandise-items.ts` の transform に `tax_type` を含め、`use-accounting-item-actions.ts` の `handleAddItem` がマスタ値を `tax_type`/`tax_rate` として送信するよう修正。手入力項目は現行どおり外税10%既定で可。
-3. 回帰: 「内税/非課税マスタ → 未請求候補/物販追加 → 明細行の課税区分・税額・合計」が正しいこと、および確定済み会計の明細が変わらないことを FE/BE テストと DB 値で固定。
-
-**完了条件**: S20 手順5 を再実行し、内税・非課税項目が正しい税区分で明細化され、合計が手計算と一致すること。既存確定会計の金額が変わらないこと。
-
-<a id="plan-bug-acct-dup-complete-500"></a>
+> Current task detail is in Plane `EMR-65`. The local execution plan was removed; historical findings above remain.
 
 ### 22. BUG-ACCT-DUP-COMPLETE-500
 
-**方針**: `POST /accountings/complete` の UNIQUE 競合分岐が、abort 済みトランザクション上で後続クエリを実行しない構造にする。
-
-1. `createCompleteBillingHeader`（`accounting_complete_tx.go`）で `repo.Create` が UNIQUE 競合（23505）を返した場合、`FindByCompletionRequestID` を同じ `txCtx` で呼ぶと Postgres は 25P02 で全コマンドを拒否する。競合解決クエリを（a）トランザクション外の別接続で実行、（b）エラーの制約名を見て `completion_request_id` 衝突のみ tx 外 replay に回す、（c）`ON CONFLICT DO NOTHING`＋別 tx 読取、のいずれかに修正する。
-2. `medical_record_id` 衝突（別キーの同一カルテ二重会計）→ 409「このカルテには既に会計があります」、`completion_request_id` 衝突（同キー並行リクエスト）→ digest 一致なら replay 200 / 不一致なら 409、の分岐を実 DB テストで固定。
-3. 回帰: 並行2リクエスト（同キー同 payload→両方 200/同一 billing、同キー異 payload→片方 409、別キー同一 MR→勝者 201・敗者 409）を実 DB の integration test または UAT 手順で固定。
-
-**完了条件**: S21 手順4・異常系A2 を再実行し、二重会計試行が 409 で拒否されること（500 にならない）。既存行が壊れないこと。
+> Current task detail is in Plane `EMR-66`. The local execution plan was removed; historical findings above remain.
 
 ### BUG-AGG-NO-VISIT-REVENUE: 来院なし飼主が完了会計を持っても売上ランキングに表示されない
 
-- **発見経緯**: 2026-09-22 UAT S10 手順7（見積のみの飼主 B を確認）の拡張検証。飼主 B（UAT集計 飼主B, id=1000000002）に `medical_record_id` なしの完了会計 ¥3,300（billing 1000000012）を作成したところ、売上ランキングの全フィルタ組合せ（`include_zero` 真偽両方）で表示されない。
-- **現象**: `GET /api/v1/clinics/1/owners/aggregations?search=UAT集計 飼主B&include_zero=true` → `owners=[]`。`include_no_visit=true` を付けた場合のみ `annual_amount=3300` で出現。
-- **原因（切り分け済み）**: `filterLTVRows`（`backend/internal/owner/ltv_repository_query.go`）で `!params.IncludeNoVisit && *row.LastVisitBucket == "no_visit"` の行を無条件除外。来院履歴のない飼主は `vs.last_visit_date IS NULL` → bucket=`no_visit` となり、完了会計を持っていても除外される。`include_no_visit` は最終来院タブの「来院なしを含む」用パラメータだが、売上・来院回数クエリにも同じ既定除外が適用されている。FE の売上タブ既定 params（`aggregation-dashboard-model.ts`）には `include_no_visit` がなく、UI から回避不能。
-- **影響**: 物販のみ等の「来院記録なし・売上あり」顧客が売上ランキングから恒久的に脱落し、年間診療費の一覧合計が実績を過小計上する。仕様正本 36 は「クリニックの全顧客を対象とした売上貢献度（LTV）」と定義しており矛盾。
-- **再現**: 飼主作成 → `POST /accountings/complete`（`medical_record_id` なし、`owner_id` 指定）→ 集計 API で `search` 一致しても `include_no_visit=true` なしでは 0 件。
-- **関連**: `reports/uat-2026-09-22/S10-customer-aggregation-consistency.md`。`todo.md#product-bugs` 正本にも登録
+> Current task detail is in Plane `EMR-73`. The local execution plan was removed; historical findings above remain.
 
 ### BUG-TRIM-KANBAN-IN-CONSULTATION: 受付済トリミングカードが「診療中」へ遷移できず受付済に滞留する
 
-- **発見経緯**: 2026-09-22→23 UAT S11 手順2/4。受付済（`checked_in`）トリミング appointment のカードから「トリミングカルテ作成」を押下。
-- **現象**: ボタンには「※カルテ作成と同時に『診療中』へ移動します」と明記されるが、実際には `PATCH /api/v1/reservations/:id {status: in_consultation}` が **409** `診療を開始するにはカルテが必要です` で拒否され、カードは受付済のまま。トリミング記録の保存（`appointment_trimming_details`）を行っても status は変わらない。backend ログで 409 を2回確認（request_id `167894b8`, `3970757a`、対象 appointment 1000000006）。
-- **原因（切り分け済み）**:
-  - `validateInConsultationHasMedicalRecord`（`backend/internal/reservation/reservation_service_validate.go:286`）は status→`in_consultation` 遷移時に `medical_records` の COUNT>0 を**予約区分を問わず**要求する。トリミング appointment は `appointment_trimming_details` を持ち `medical_records` を持たないため、件数 0 で常に Conflict。
-  - FE 経路も断線: カードの `onConfirm`（`ReceptionDialogActionButtons.tsx` 受付済分岐）が汎用 PATCH で in_consultation を試みて 409。一方、trimming 作成 POST 経路（`createTrimmingDetailForExistingInTx`）は `input.Status` を honor するが、FE の `use-trimming-form.ts` は `hasExistingAppointment` 時に `status` を送信しない（`record_shortcut` 新規のみ送信）ため detail 作成も遷移を起こさない。
-  - 結果: 受付済 → 診療中 の正規遷移経路がトリミングには存在しない。ドラッグは `受付済→診療中` 直行を禁止し、ボタン列は `受付済→診療中` のみ（`NEXT_COLUMN_TITLE`）。**迂回**: `PATCH status=accounting`（受付済→会計待ちの飛び級）は 200 で通る（本 UAT で使用）が、in_consultation を経ない飛び級は状態機械の想定外。
-- **影響**: トリミングの通常運用（受付→施術→会計待ち）が UI ボタン操作では完走しない。S11 の「カルテ作成が診療中への契機」および手順4「明示的な完了操作で会計待ちへ」の仕様記述と矛盾。
-- **関連**: `reports/uat-2026-09-23/S11-trimming-combined-accounting.md`。`todo.md#product-bugs` 正本にも登録
+> Current task detail is in Plane `EMR-74`. The local execution plan was removed; historical findings above remain.
 
 ### BUG-BILLING-UNBILLED-MR-EXCLUSION: カルテ連携会計から明細削除しても請求元 treatment が未請求候補に復帰しない
 
-- **発見経緯**: 2026-09-23 UAT S11 異常系 A3（未精算の統合会計から一方の明細を削除→再候補化を確認）。
-- **現象**: `medical_record_id` 付き pending 会計（billing 1000000016）に treatment_id=3 の明細を追加後、`DELETE /api/v1/billing-items/:id` で soft-delete（204）しても、`GET /billing-items/unbilled-details?pet_id=` がその treatment を返さない（0件）。会計を cancel（status=cancelled）すると復帰することを確認。
-- **原因（切り分け済み）**: `FindUnbilledByPetID`（`backend/internal/medicalrecord/treatment_repository.go:114-115`）の除外条件が2段ある。
-  - L114: `billing_items` 行単位（`bi.treatment_id = treatments.id AND bi.deleted_at IS NULL`）— soft-delete された明細はここを通過する
-  - L115: `billings` 単位（`b.medical_record_id = mr.id AND b.status != 'cancelled'`）— **会計が `medical_record_id` を保持する限り、そのカルテの全 treatment が明細の有無に関係なく除外される**
-  - 明細削除後も billing 行は残るため L115 が効き続け、treatment は未請求候補に復帰しない。
-- **影響**: S11 異常系 A3 の仕様記述「明細削除は soft-delete。未請求クエリは deleted_at IS NULL のため削除行は再候補になる」と矛盾。pending/統合会計から明細を外すと請求元がサイレントに未請求一覧から消え、会計全体を cancel しない限り再請求できない（請求漏れリスク）。
-- **補足**: `trimming` 明細側（`FindUnbilledTrimmingItemsByPetID`）は `appointment_id` 紐付けのため別経路。手入力明細（マスタ参照なし）には影響しない。
-- **関連**: `reports/uat-2026-09-23/S11-trimming-combined-accounting.md`。`todo.md#product-bugs` 正本にも登録
+> Current task detail is in Plane `EMR-75`. The local execution plan was removed; historical findings above remain.
 
 ### BUG-RES-OVERLAP-500: 時間帯重複の予約作成が排他制約 500 で漏れる（完全一致は 409）
 
-- **発見経緯**: 2026-09-23 UAT S11 fixture 作成中、同一スタッフ（UAT担当医）に時間帯が一部重複する予約を POST。
-- **現象**: 完全一致の同一時刻予約は `POST /reservations` → **409** `同じ時間帯に既に予約があります`（正しい）。一方、部分重複（例: 10:30-11:30 vs 既存 10:00-11:00）は PostgreSQL 排他制約 `excl_appointments_doctor_timerange` の SQLSTATE 23P01 が素通りして **500** `ERROR: conflicting key value violates exclusion constraint` が返る。
-- **原因（切り分け済み）**: `CheckSlotConflict` の事前チェックは完全一致を捕捉するが、レースまたは部分重複パターンで DB 排他制約に到達し、`response_pg.go` のエラーマッピングに 23P01（exclusion violation）の conflict 変換がない。
-- **影響**: クライアントには区別不能な 500 で返り、再試行・メッセージ表示の分岐を阻害。予約 UI からは通常発生しないが、並行予約・LIFF 同時予約では起こりうる。
-- **関連**: `reports/uat-2026-09-23/S11-trimming-combined-accounting.md`。`todo.md#product-bugs` 正本にも登録
+> Current task detail is in Plane `EMR-76`. The local execution plan was removed; historical findings above remain.
 
 ### BUG-LIFF-HEALTHCARD-OWNER-SYNC: LIFF 連携が成立しても `line_customers.owner_id` が更新されずヘルスカードが空のまま
 
-- **発見経緯**: 2026-09-23 UAT S12。LIFF モック連携成功後の health-card 解決経路をコード突合。
-- **現象**: `owners.line_user_id` が設定された（=院内 UI「連携済み」）状態で `line_customers.owner_id` が NULL のままだと、`GET /api/liff/:clinicId/health-card` は LINE 表示名 + `pets:[]` を返し、画面は「ペット情報はありません」。実測: `owners.line_user_id='mock-line-user-id'` + `line_customers.owner_id=NULL` で「テストユーザー / ペット情報はありません」、その後 `PATCH /line-customers/1/link-owner` で owner 紐付けすると同じ LINE 顧客のヘルスカードに飼主名+ペット+ワクチン記録が表示。
-- **原因（切り分け済み）**:
-  - `LinkAccount`（`line_link_service.go:259-326`）の Tx は `owners.line_user_id` 更新・token consume・audit のみ。`line_customers` への FindOrCreate / `owner_id` 書込みが存在しない。
-  - health-card 解決（`liff_service_health_card.go:34-47`）は `line_customers.owner_id` → `Owner.Pets` のみを見る。`owners.line_user_id` からの逆引きはない。
-  - `line_customers.owner_id` の唯一の書き手は `UpdateOwnerLink`（`line_customer_repository.go:120`、スタッフ手動 `PATCH /line-customers/:id/link-owner` 経由）。
-  - DB トリガ・バッチ同期も存在しない（pg_trigger 確認済み）。
-- **影響**: QR/URL 連携を完了した飼主全員がヘルスカードで「ペット情報はありません」を見る。院内は「連携済み」と表示され、誰も第二段の手動紐付けが必要だと気付かない。S12 シナリオ目的そのものが成立しない。
-- **注意**: SEC-CS2-F02 で name+phone 自動紐付けは意図的に廃止済みだが、本件は検証済み単回トークン経由の明示的連携であり同一の脅威モデルではない。意図的な2段ゲートの可能性もあるため裁定要。
-- **関連**: `reports/uat-2026-09-23/S12-liff-pet-health.md`。`todo.md#product-bugs` 正本にも登録
+> Current task detail is in Plane `EMR-61`. The local execution plan was removed; historical findings above remain.
 
 ### BUG-ACCT-INS-SIGN-MISMATCH: 保険適用会計の新規確定が FE/BE 符号規約不整合で必ず 400
 
-- **発見経緯**: 2026-09-23 UAT S15 手順7（新規会計を 50% で保存）。UI で保険 ON・支払 ¥1,200 を入力して「会計を確定する」を押下 → `支払い内訳の合計（1200）が請求金額（3200）と一致しません`。
-- **現象**: 保険 ON の新規会計が UI から一切確定できない。画面の請求額表示は正しい（¥1,200）のに、BE が請求額を ¥3,200 と計算し支払内訳一致検証で 400。
-- **原因（切り分け済み）**: `insurance_amount` の符号規約が FE/BE で不一致。
-  - FE: `calculations.ts:112` `Math.floor(target * ratio) * -1` で負値を生成し、`use-accounting-completion-action.ts:271-300` がそのまま `insurance_amount` に送信。型注釈も「保険負担額（マイナスのみ）」（`types/index.ts:61`）。
-  - BE: `accounting_complete_tx.go:211` `billingAmount = totalAmount - insuranceAmount - discountAmount` は**正値**の保険負担額を前提。負値 −1000 を渡すと `2200 − (−1000) = 3200`。
-  - 直 API 検証: `insurance_amount:-1000` → 400（請求額3200と不一致）、`+1000` → 201（billing 1000000027 作成）。FE 送信経路は常に負値のため UI からは確定不能。
-- **影響**: 保険窓口精算が新規会計で実質使用不能。画面上の内訳は正しいのに確定だけが失敗するため、利用者には理由が分からない。
-- **関連**: `reports/uat-2026-09-23/S15-insurance-rate-preservation.md`。`todo.md#product-bugs` 正本にも登録
+> Current task detail is in Plane `EMR-62`. The local execution plan was removed; historical findings above remain.
 
 ### BUG-ACCT-INS-EDIT-REWRITE: 確定済み会計の無変更保存で保険金額・割合表示が保持されない
 
-- **発見経緯**: 2026-09-23 UAT S15 手順6（レガシー 90% 会計で割合以外の変更のみ保存）および手順7（保存→再読込の保持確認）。
-- **現象（2つの失敗モード）**:
-  - (a) 保存値が現在の recalc と異なるレガシー会計（`insurance_amount=-220`, `billing_amount=1980`, ratio 0.9、保険適用明細なし）で、修正理由のみ入力して保存 → `insurance_amount` が **0**、`billing_amount` が **2200** にサイレント上書き。再読込後は `has_insurance=true`・`insurance_ratio=0.9` が残るのに保険スイッチ OFF・割合非表示になり、実質保険が表示から消える。
-  - (b) BE 規約（正値）で保存された会計（billing 1000000027: `insurance_amount=+1000`, ratio 0.5, `billing_amount=1200`）を詳細で開くと、保険スイッチ OFF・保険負担額行なし・請求額が recalc の ¥2,200 表示・「残り ¥1,000 未入力」の幻影未収が出る。保存時の金額と再読込表示が一致しない。
-- **原因（切り分け済み）**:
-  - `use-accounting-detail-state.ts:197` が `hasInsurance = (insurance_amount ?? 0) < 0` で推定しており、保存された `has_insurance` フラグ・`insurance_ratio` を見ない。正値（BE 規約）や 0 の保存値は常に OFF 表示。
-  - `use-accounting-completion-action.ts:318-321` の編集保存（`updateAccounting`）は `insurance_amount`/`billing_amount` を現在明細からの recalc 値で無条件送信するため、ユーザーが保険・金額に触れなくても保存値が上書きされる（`insurance_amount` が 0 のときは `null` 送信）。
-  - 結果として `has_insurance=true` + `insurance_ratio=0.9` + `insurance_amount=0` の内部矛盾レコードが生成される。
-- **影響**: 「変更した項目だけが変わる」契約違反。レガシー移行データの金額が無関係な修正で静かに書き換わり、保険適用の表示自体も消失する。S15 手順6/7 の期待結果に合致しない。
-- **関連**: `reports/uat-2026-09-23/S15-insurance-rate-preservation.md`。`todo.md#product-bugs` 正本にも登録
+> Current task detail is in Plane `EMR-63`. The local execution plan was removed; historical findings above remain.
 
 ### BUG-DIALOG-FOCUS-RESTORE: 治療プラン検索ダイアログを閉じるとフォーカスが呼出元へ戻らず body に落下する
 
-- **発見経緯**: 2026-09-23 UAT S18 手順6（Escape/閉じるで閉じた後の focus restoration 確認）。
-- **現象**: カルテ治療タブの「マスタから追加」で `TreatmentSearchDialog` を開き、Escape で閉じると `document.activeElement` が `document.body` になる。キーボード操作の利用者は位置を失い、次の Tab は文書先頭からやり直しになる。
-- **実測（2026-09-23・Chromium 系実ブラウザ・1366×625）**:
-  - 実クリックで開く → Escape → `activeElement = BODY`（呼出元ボタンでない）
-  - 呼出元ボタンを `focus()` 済みの状態で Enter キー押下により開く → Escape → 同じく `BODY`（キーボード経路でも復帰しない）
-  - ダイアログは `lazy()` インポートの `TreatmentSearchDialog`（`TreatmentsTab.tsx:7-9`）で、トリガーは Radix `DialogTrigger` ではなく外部 `open` state で制御する通常ボタン
-- **原因（切り分け）**: `ui/dialog.tsx` の `DialogContent` は `onCloseAutoFocus` を上書きしていないため Radix 既定の focus restore が期待されるが、実測では復帰しない。Radix の復帰先は「ダイアログが開く直前にフォーカスを持っていた要素」だが、`lazy` + 外部 `open` 制御の組合せで FocusScope が復帰対象を記録できていない可能性。`DialogTrigger` 経由でないため trigger 参照も存在しない。
-- **関連するキーボード操作ギャップ（同一ダイアログ）**: 一覧項目はネイティブ `<button>` のみで ArrowUp/ArrowDown の roving や listbox 意味論がない。Tab で全項目を順送りする設計のため、長い一覧（実測 scrollHeight ≈ 389,000px）ではキーボードだけでの到達が事実上困難。検索絞込みとの併用が事実上の前提になる。
-- **影響**: キーボードのみの利用者が項目選択/キャンセル後に画面位置を失う。S18 手順6 の「フォーカスが呼び出し元へ戻る（focus restoration）」に合致しない。マウス利用では影響なし。
-- **関連**: `reports/uat-2026-09-23/S18-treatment-search-dialog-height.md`。`todo.md#product-bugs` 正本にも登録
+> Current task detail is in Plane `EMR-64`. The local execution plan was removed; historical findings above remain.
 
 ### BUG-BILLING-TAX-TYPE-DROPPED: マスタの税区分（内税/非課税）が会計明細へ伝播せず全て外税10%で請求される
 
-- **発見経緯**: 2026-09-23 UAT S20 手順5（税区分バリエーションの会計伝播確認）。
-- **現象**: マスタで `tax_type=included`（内税）または `exempt`（非課税）として登録した項目が、会計明細では全て `外税 10%` として計算・保存される。
-- **実測（2026-09-23・clinic 1・billing 1000000028）**:
-  - マスタ登録: 処置 `S20 処置内税`（included, ¥1,100）、`S20 処置非課税`（exempt, ¥1,000）、物販 `S20 商品内税`（included, ¥1,100）、`S20 商品非課税`（exempt, ¥1,000）
-  - 未請求候補（カルテ連携）の表示: 全行「外税 10%」。物販・その他追加ピッカーからの追加も全行「外税 10%」
-  - DB `billing_items`（id 1000000025–1000000031）: 全行 `tax_type=excluded, tax_rate=0.10`（source=medical_record / manual 双方）
-  - 期待合計（税区分が正しく伝播する場合）: ¥5,850 ／ 実際の請求: ¥6,270（消費税の過剰計上 ¥420）
-- **原因（切り分け）**:
-  - カルテ連携経路: `backend/internal/billing/billing_item_unbilled.go` の `treatmentToUnbilledBillingItem`（同ファイル内 vaccination/exam/trimming も同様）が `TaxType: model.TaxTypeExcluded, TaxRate: sharedkernel.DefaultTaxRate` をハードコードし、マスタの tax_type/tax_rate を参照していない
-  - 物販経路: `frontend/src/features/accounting/api/get-merchandise-items.ts` の transform が `tax_type` を落とし、`use-accounting-item-actions.ts` の `handleAddItem` が `tax_type: "excluded"` を固定送信する
-- **影響**: 非課税・内税品目を正しく登録しても会計で外税10%が課され、患者側への請求税額が実際より多くなる。会計明細行の課税区分は編集可能だが、修正を手動で行わない限り誤請求のまま確定する。
-- **関連**: `reports/uat-2026-09-23/S20-master-to-accounting-path.md`。`todo.md#product-bugs` 正本にも登録
+> Current task detail is in Plane `EMR-65`. The local execution plan was removed; historical findings above remain.
 
 ### BUG-ACCT-DUP-COMPLETE-500: 同一カルテへの二重会計確定が意図した 409 に届かず 500 で漏れる
 
-- **発見経緯**: 2026-09-23 UAT S21 手順4（別 Idempotency-Key・同一 medical_record_id で complete 再送）。
-- **現象**: 会計確定済みのカルテへ別キーで再度 complete を送ると、設計どおりの 409「このカルテには既に会計があります」ではなく `500 internal server error` が返る。真並行（別キー2リクエスト同時送信）でも敗者が同じく 500。
-- **実測（2026-09-23・clinic 1）**:
-  - 逐次: MR 1000000011 に billing 1000000030 確定後、別キー `…5502` で complete → `{"error":"internal server error"}` 500
-  - 並行: MR 1000000012 へ別キー2本同時送信 → 勝者 201（billing 1000000032）・敗者 500
-  - データ保全: 二重会計は作られない（`idx_billings_medical_record_id_unique` で INSERT 拒否・tx rollback）。レスポンス契約のみ破損
-  - サーバーログ: `duplicate key value violates unique constraint "idx_billings_medical_record_id_unique" (SQLSTATE 23505)` → 直後の replay 判定クエリが `current transaction is aborted (SQLSTATE 25P02)` で失敗し `"failed to resolve completion unique conflict"` として 500 化
-- **原因（切り分け済み）**: `accounting_complete_tx.go` の `createCompleteBillingHeader` が `repo.Create` の UNIQUE 失敗後に `FindByCompletionRequestID` を**同じ abort 済みトランザクション上**で実行する。Postgres は tx 内エラー後の全コマンドを拒否するため、replay/409 分岐（`accounting_complete_tx.go:149-156`）は実環境では到達不能な dead path。tx 前の冪等 lookup（`accounting_complete.go:199`）だけが機能しており、UNIQUE 側の競合は全て 500 に落ちる。
-- **影響**: 「このカルテには既に会計があります」409 の契約が成立しない。クライアントは原因を判別できず、再送しても同じ 500。並行確定（2人のスタッフが同じカルテを同時確定等）でも敗者に意味不明な 500 が返る。監査・復旧上の誤解を招く。
-- **関連**: `reports/uat-2026-09-23/S21-accounting-concurrency-idempotency.md`。`UAT-R2-EXCLUSIVE-LOCK` の「異なるkeyの同一カルテ会計を実DBで確認」項目の実測結果として接続。`todo.md#product-bugs` 正本にも登録
+> Current task detail is in Plane `EMR-66`. The local execution plan was removed; historical findings above remain.
 
 ## バグではない（記録のみ）
 

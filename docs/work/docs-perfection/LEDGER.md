@@ -366,12 +366,4 @@ Phase Cはarchitecture → spec → ops → delivery → workの5ユニット。
 
 ## DOCS-REFRESH-ISSUE-RECONCILIATION
 
-- 依頼: `ecc:loop-design-check` に従い、GitHub Issue等の仕様を理解したうえで `docs/` 全体を最新化（2026-09-07）。先行子契約とは別のdocs-only追加依頼。
-- 受入状態: **awaiting-human-verification**。先行GOALのcompletedは開始時からある値で、今回の人間受入に転用しない。
-- 範囲と根拠: [Issue照合レポート](ISSUE-RECONCILIATION.md)。既存199 Markdown + GOAL.yaml、35補助ファイルはバイト列を保持。
-- 入力: HEAD `267a17e48ed8f0cc1944d25ad11900cdbd433226` と開始時WIP、GitHub全144 Issue・コメント957件の取得スナップショット。コメントにはPR分も含み、個々の文書では関連Issueのコメントだけを根拠にする。
-- 分担: architecture / spec / ops / workの独立read-only読者、rootがdelivery・governance確認と唯一のwriter。受入仕様・検証器は独立担当が編集前に固定。最終判定は独立レビューへ渡す。
-- loop設計: 週次反復需要の証拠がないため常設ループ・cronは作らない。一回の手動実行をplan → build → judgeへ分離し、同一失敗は最大3回。人間受入は自動化しない。
-- 今回の修復: 薬品/物販在庫UI案内、#255の受領履歴と現在版/apply待ちの分離、ADR-006の36/14補足、RQ-002と先行状態の古い管理説明。
-- 検証境界: docs-onlyのためruntime検証不要。UAT・provider・Linear現在値は未確認。先行EVIDENCEは再生成せず保存する。
-- claim: `claim/DOCS-REFRESH-ISSUE-RECONCILIATION`。統合/明示放棄後の解放はUSERのみ。
+> Task migrated to Plane `EMR-192` (Needs Human). This ledger keeps the historical completion evidence only; use Plane for current task state.

@@ -1,5 +1,7 @@
 # SLACK-VITALS: 常時表示バイタルの配置案（VitalsTab vs ReadyPanels ヘッダー）
 
+> Task migrated to Plane `EMR-190`. This file remains supporting acceptance/evidence material; use Plane for current status.
+
 状態: **表示配置の比較 READY／製品実装・実機受入 未実行**。出典は [todo-issue.md](../../../todo-issue.md) 見出し `### SLACK-VITALS`（L124–128、索引 L421）。保持する現場条件:
 
 - 「名前のすぐ近く」「クリックなしで表示」「時間不要」（出典 929–937。現行 `todo-issue.md` は要約のみ。原文行は本票では再掲しない）

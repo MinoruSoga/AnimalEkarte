@@ -1,5 +1,7 @@
 # SLACK-UAT-SCHEDULE: 医院×職種 UAT カバレッジマトリクス
 
+> Current task state: Plane `EMR-200`. The matrices below preserve case/evidence history.
+
 状態: **カバレッジ表 READY／実施枠 UNKNOWN／未実施セルのみ**。出典は [todo-issue.md](../../../todo-issue.md) 見出し `### SLACK-UAT-SCHEDULE`（L270–274、索引 L394）と [UAT 環境条件](../../ops/testing/UAT-ENV-SETUP.md)、[直近 UAT の残作業](../../../todo-verification.md#直近-uat-の残作業)。保持する現場条件:
 
 - 医院・交代勤務者を網羅するテスト準備であり、机上チェックを医院受入に数えない
@@ -71,7 +73,7 @@ Catalog 医院ラベル（`backend/internal/seedlogin/catalog.go` `clinicBands`�
 | UAT-Q1-SEARCH-AND | STG で複数語 AND / 1語 / 0件 / 他院候補非表示 | 受付が主。他職種も検索するなら別セル | STG 配信版と医院別の合成検索 fixture。ブラウザ未確認 |
 | UAT-Q4-INSURANCE-RATES | 新規 50/70、既存 90/100 の選択/保存/再読込金額 | 受付/獣医師（会計） | 承認済み検証会計・後処理。実請求は使わない。ブラウザ未確認 |
 | UAT-Q2-HISTORY-NAV | 問診行→同一ペット詳細→戻る。未移行処置でも詳細を開ける | 獣医師/看護 | 対象 build と合成履歴参照。ブラウザ未確認 |
-| NOTE2-SWEEP-COVERAGE | 未確認の詳細・入院・検査・カルテ/健診操作 | 職種は route ごとに UNKNOWN | 有効 cage 等の fixture、対象 schema。82 ページ到達を全 CRUD 完了にしない |
+| NOTE2-SWEEP-COVERAGE (`EMR-200`) | 未確認の詳細・入院・検査・カルテ/健診操作 | 職種は route ごとに UNKNOWN | 有効 cage 等の fixture、対象 schema。82 ページ到達を全 CRUD 完了にしない |
 
 ACCESS（ログイン）は全セルの前提であり、9月9日の一部ログイン成功を全員確認済みにしない。本マトリクスの実施列には入れない。
 
@@ -92,7 +94,7 @@ ACCESS（ログイン）は全セルの前提であり、9月9日の一部ログ
 | UAT-Q1-SEARCH-AND | 未実施 | 未実施 | 未実施 |
 | UAT-Q4-INSURANCE-RATES | 未実施 | 未実施 | — |
 | UAT-Q2-HISTORY-NAV | — | 未実施 | 未実施 |
-| NOTE2-SWEEP-COVERAGE | 未実施 | 未実施 | 未実施 |
+| NOTE2-SWEEP-COVERAGE (`EMR-200`) | 未実施 | 未実施 | 未実施 |
 
 ### 城東センター病院（clinic_id 2）
 
@@ -105,7 +107,7 @@ ACCESS（ログイン）は全セルの前提であり、9月9日の一部ログ
 | UAT-Q1-SEARCH-AND | 未実施 | 未実施 | 未実施 |
 | UAT-Q4-INSURANCE-RATES | 未実施 | 未実施 | — |
 | UAT-Q2-HISTORY-NAV | — | 未実施 | 未実施 |
-| NOTE2-SWEEP-COVERAGE | 未実施 | 未実施 | 未実施 |
+| NOTE2-SWEEP-COVERAGE (`EMR-200`) | 未実施 | 未実施 | 未実施 |
 
 ### ノア動物病院　敷島病院（clinic_id 3）
 
@@ -120,7 +122,7 @@ ACCESS（ログイン）は全セルの前提であり、9月9日の一部ログ
 | UAT-Q1-SEARCH-AND | 未実施 | 未実施 | 未実施 |
 | UAT-Q4-INSURANCE-RATES | 未実施 | 未実施 | — |
 | UAT-Q2-HISTORY-NAV | — | 未実施 | 未実施 |
-| NOTE2-SWEEP-COVERAGE | 未実施 | 未実施 | 未実施 |
+| NOTE2-SWEEP-COVERAGE (`EMR-200`) | 未実施 | 未実施 | 未実施 |
 
 ### ノア動物病院　Hako bu neco（clinic_id 4）
 
@@ -133,7 +135,7 @@ ACCESS（ログイン）は全セルの前提であり、9月9日の一部ログ
 | UAT-Q1-SEARCH-AND | 未実施 | 未実施 | 未実施 |
 | UAT-Q4-INSURANCE-RATES | 未実施 | 未実施 | — |
 | UAT-Q2-HISTORY-NAV | — | 未実施 | 未実施 |
-| NOTE2-SWEEP-COVERAGE | 未実施 | 未実施 | 未実施 |
+| NOTE2-SWEEP-COVERAGE (`EMR-200`) | 未実施 | 未実施 | 未実施 |
 
 `—` は当該職種の主対象外（導線メモに従う）。空セルで実施済みと読まない。
 

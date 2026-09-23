@@ -1,5 +1,7 @@
 # SLACK-MICROCHIP: 既存 `pet.microchip_number` を患者名近くへ表示（第二ストア禁止）
 
+> Task migrated to Plane `EMR-185`. This file remains supporting acceptance/evidence material; use Plane for current status.
+
 状態: **表示経路のマッピング READY／製品実装・実機受入 未実行**。出典は [todo-issue.md](../../../todo-issue.md) 見出し `### SLACK-MICROCHIP`（L130–134、索引 L422）。保持する現場条件:
 
 - マイクロチップ番号を**名前の近くへ表示**したい（出典 938–943。現行 `todo-issue.md` は要約のみ。原文行は本票では再掲しない）

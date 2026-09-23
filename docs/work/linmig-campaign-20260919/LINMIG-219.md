@@ -1,5 +1,7 @@
 # LINMIG-219 — legacy data count specification (no live values)
 
+> Current task status is tracked in Plane `EMR-33`. This local document remains supporting execution/evidence material; see the [migration receipt](../plane-md-migration-20260923-receipt.md) for the crosswalk.
+
 Campaign `linmig-ops-prep-20260919` revision 1. Unit `LINMIG-219`. Claim id `LINMIG-219`. Linear issue `LINMIG-219` was not found at sheet authoring; current Linear state is **UNKNOWN**.
 
 This file is a **count specification only**. It names aggregation dimensions, join rules, record fields, and the PASS / FAIL / UNKNOWN result-branch procedure for P3 / #250 day-of 突合. It does **not** query STG or PROD, run SQL, export PHI, invent counts, or treat rehearsal PASS as production done.

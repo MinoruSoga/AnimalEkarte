@@ -1,5 +1,7 @@
 # LINMIG-232 — Production CI/CD gap sheet (docs-only)
 
+> Current task status is tracked in Plane `EMR-44`. This local document remains supporting execution/evidence material; see the [migration receipt](../plane-md-migration-20260923-receipt.md) for the crosswalk.
+
 Campaign `linmig-ops-prep-20260919` revision 1. Claim ID `LINMIG-232` (Linear issue not found; keep as claim only). Maps to [todo-operations.md](../../../todo-operations.md) P2 / GitHub [#253](https://github.com/MinoruSoga/AnimalEkarte/issues/253).
 
 Worktree: `/Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte-linmig-232` on `feat/linmig-232-ops-prep` at HEAD `aac697645df92fd24611c7c13bf0f7dda12a6e08`. Sheet date: 2026-09-19. Repo evidence only. No workflow, wrangler, Terraform, secret, deploy, migrate, or Linear Done change was applied.

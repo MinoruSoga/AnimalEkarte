@@ -1,5 +1,7 @@
 # 操作マニュアル（納品版・現場スタッフ向け）
 
+> Current task status is tracked in Plane `EMR-41`. This local document remains supporting execution/evidence material; see the [migration receipt](../work/plane-md-migration-20260923-receipt.md) for the crosswalk.
+
 > **対象 Issue**: #256 ／ **リポジトリ由来 slice 同期日**: 2026-09-06（`7c6592f9f`） ／ **状態**: ドラフト（repo 由来ナビ完成・**U13 = 未完**・#254 依存は未 close）
 > **読者**: 受付・獣医師・看護師・トリマー・経理などの現場スタッフ
 > **使い方**: 本書は「どの画面で・何をするか」への最短ナビゲーションです。各節は要点サマリーと参照リンクのみで構成し、詳細手順はリンク先（画面別ドキュメントとシステム内マニュアル）を正本とします。

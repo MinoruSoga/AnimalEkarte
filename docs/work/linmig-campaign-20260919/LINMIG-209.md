@@ -1,5 +1,7 @@
 # LINMIG-209 — Per-environment migration apply-or-not, schema-diff, backup/restore prep
 
+> Current task status is tracked in Plane `EMR-23`. This local document remains supporting execution/evidence material; see the [migration receipt](../plane-md-migration-20260923-receipt.md) for the crosswalk.
+
 Campaign `linmig-ops-prep-20260919` revision 1. Claim ID `LINMIG-209` (Linear issue **not found**; keep as claim only). Maps to [production setup](../../ops/infra/production/setup.md) migrate order, [production runbook](../../ops/infra/production/runbook.md) backup/restore, [STG PlanetScale seed runbook](../../ops/deploy/STG_PLANETSCALE_SEED_RUNBOOK.md) stop gates, and AUTH-V-D1 in [todo-verification.md](../../../todo-verification.md).
 
 Worktree: `/Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte-linmig-209` on `feat/linmig-209-ops-prep` at HEAD `aac697645df92fd24611c7c13bf0f7dda12a6e08`. Sheet date: 2026-09-19. Repo evidence only.

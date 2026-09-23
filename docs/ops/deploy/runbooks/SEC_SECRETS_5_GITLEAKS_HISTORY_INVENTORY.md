@@ -1,5 +1,7 @@
 # SEC-SECRETS-5 — gitleaks 全履歴スキャン インベントリ（2026-07-15）
 
+> Current task status is tracked in Plane `EMR-51`. This local document remains supporting execution/evidence material; see the [migration receipt](../../../work/plane-md-migration-20260923-receipt.md) for the crosswalk.
+
 > 値は記載しない。パスと件数のみ。ローテーション（[外部資格情報オペレーション](./BUG_MD_EXTERNAL_OPS_PENDING_APPROVAL.md) §1）完了まで Issue #89/#97 はクローズしない。
 > filter-repo は禁止方針。正攻法はローテーション。
 

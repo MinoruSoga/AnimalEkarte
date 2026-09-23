@@ -1,5 +1,7 @@
 # 一時バグ／障害メモ（全ページ CRUD UAT · 2026-09-13）
 
+> Task status source: Plane `EMR-200`. This file retains route/evidence history; use Plane for current status.
+
 > ユーザー依頼: 全ページの CRUD／動作確認で発見したバグ・コンソールエラーを本ファイルに記載。  
 > `bug.md`（スタッフ／予約系）とは分離。製品 FAIL 正本は引き続き `todo.md#product-bugs`。
 
@@ -15,7 +17,7 @@
 | BUG2-MR-ENTERED-BY-CLINIC | FIXED | medical-records | High | **バグ断定**（entered_by と選択医院の複合FK） | [本人 ID を保持し、所属認可・FK・履歴読取を整合](#plan-bug2-mr) |
 | BUG2-PAYMETHOD-CREATE-FORBIDDEN | SPEC-OK | payment-methods / authz | Medium | **権限／UX**（一覧可・作成 403） | [既存の権限制御を再検証し、付与方針を PO 判断](#plan-bug2-paymethod) |
 | BUG2-RES-DIALOG-A11Y | FIXED/reverified | reservations / a11y | Low | **コンソール**（`bug.md` の BUG-RES-DIALOG-A11Y-CONSOLE と同系） | [既存修正を紐付け、同じ操作で再検証](#plan-bug2-a11y) |
-| NOTE2-SWEEP-COVERAGE | — | uat | — | カバレッジ記録 | [未確認の詳細画面・入院・検査・健診を補完](#plan-note2-coverage) |
+| `NOTE2-SWEEP-COVERAGE` → `EMR-200` | Plane |  |  |  |  |
 
 ## 進捗
 
@@ -112,7 +114,7 @@
 | 1 | BUG2-MR-ENTERED-BY-CLINIC | 記録者と医院所属の契約を確定し、実 DDL で失敗を再現するテストを準備 | 記録者・system actor・履歴表示の設計確認後にアプリと FK を修正 |
 | 並行可 | BUG2-PAYMETHOD-CREATE-FORBIDDEN | 現行 UI の権限ガードを再検証し、PO が執行の create 可否を決定 | 不許可なら期待値を訂正、許可するなら対象医院・権限グループを限定して変更 |
 | 並行可 | BUG2-RES-DIALOG-A11Y | 既存修正 `cde5d4b1e` の対象ビルドを特定して再検証 | 同一操作で警告なし・説明とフォーカス正常を確認 |
-| 2 | NOTE2-SWEEP-COVERAGE | 未確認操作と必要なテストデータを一覧化 | カルテ修正後に健診を再確認。入院・検査等の独立した確認は先行可 |
+| `NOTE2-SWEEP-COVERAGE` → `EMR-200` | Plane |  |  |
 
 実装時は各 ID の claim と担当ファイルを確保する。共通コードに触れる作業は同時編集せず、別 worktree の変更を順に統合する。
 
@@ -218,23 +220,13 @@
 
 <a id="plan-note2-coverage"></a>
 
-### NOTE2-SWEEP-COVERAGE — 未確認の操作を埋める
+### NOTE2-SWEEP-COVERAGE — Plane `EMR-200`
 
-これは追加の製品バグではなく検証の残作業。**82 ページ到達 PASS と、全ページの CRUD 完了は分けて記録する。**
+> Task details and current state were migrated to Plane. The surrounding sections are historical coverage evidence.
 
-| 未確認対象 | 準備・確認方法 | 依存／判定 |
-|:---|:---|:---|
-| `/accounting/:id` | 対象医院の参照可能な会計 ID をテストデータから取得し、詳細表示と権限別操作を確認 | ID 未取得のまま PASS にしない |
-| `/hospitalization/:id`、`/hospitalization/:id/edit` | 有効なケージ・飼主・ペット等を [入院画面仕様](docs/spec/screens/09-hospitalization-form.md) と request DTO に合わせて準備し、作成→詳細→編集→再読込を確認 | 必須項目不足の 400 は入力契約確認。正当な入力でも失敗すれば新規不具合として切り分け |
-| `/inventory/:id` | 既存の CRUD 成功記録と作成 ID を照合し、対象医院の詳細画面を確認 | API 成功を詳細 UI の検証に代用しない |
-| 検査 create | [検査画面仕様](docs/spec/screens/13-examinations-form.md)・request DTO・画面 payload を照合し、不足項目を特定して有効な入力で再実行 | 400 の原因が契約・UI 送信漏れ・API 不具合のどれかを確定して記録 |
-| 新規カルテ・健診 | [create-checkup-medical-record.ts](frontend/src/features/checkups/api/create-checkup-medical-record.ts) のカルテ作成→カルテ配下の健診操作を UI から確認 | BUG2-MR-ENTERED-BY-CLINIC の解消に依存。存在しない汎用 `/checkups` 作成 API を追加しない |
+## NOTE2-SWEEP-COVERAGE — Plane `EMR-200`
 
-**実行・完了条件**
-
-1. `reports/uat-2026-09-13/all-pages/` の既存証拠を保持し、新しい run の対象ビルド・医院・権限・前提データ・route/action・期待結果・実結果・証拠を記録する。対象一覧を母数として、未実行は PENDING、前提不足は BLOCKED、対象外は理由付き SKIP とする。
-2. テストデータは承認された検証環境で準備し、他の利用者の診療データを変更しない。更新・削除の確認は仕様上許可される操作を対象とし、削除不可の臨床記録を物理削除して CRUD を埋めない。
-3. 上表の未確認操作に結果と証拠が付き、製品 FAIL があれば正本へ紐付ける。未解消の FAIL／BLOCKED が残る場合は対象と次の作業を残し、「全 CRUD 完了」と報告しない。
+> Current task details are in Plane. The earlier route and API findings remain as evidence.
 
 ### この計画追記の検証範囲
 

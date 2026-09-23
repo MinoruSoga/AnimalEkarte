@@ -1,5 +1,7 @@
 # SLACK-CAMERA: 撮影→カルテは既存 upload 経路（独自カメラ UI は picker 欠落時のみ）
 
+> Task migrated to Plane `EMR-183`. This file remains supporting acceptance/evidence material; use Plane for current status.
+
 状態: **file input vs capture と既存 upload のトレース READY／製品実装・実機受入 未実行**。出典は [todo-issue.md](../../../todo-issue.md) 見出し `### SLACK-CAMERA`（L160–164、索引 L431）。保持する現場条件:
 
 - 「撮影してそのままカルテへ追加したい」（出典 995–999。現行 `todo-issue.md` は要約のみ。原文行は本票では再掲しない）

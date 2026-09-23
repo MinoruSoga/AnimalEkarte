@@ -1,5 +1,7 @@
 # LINMIG-230 — Staff-batch provision execution method, secret supply, and rollback (docs-only)
 
+> Current task status is tracked in Plane `EMR-42`. This local document remains supporting execution/evidence material; see the [migration receipt](../plane-md-migration-20260923-receipt.md) for the crosswalk.
+
 Campaign `linmig-ops-prep-20260919` revision 1. Claim ID `LINMIG-230` (Linear issue not found; keep as claim only). Maps to [todo-operations.md](../../../todo-operations.md) P5 / GitHub [#255](https://github.com/MinoruSoga/AnimalEkarte/issues/255).
 
 Worktree: `/Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte-linmig-230` on `feat/linmig-230-ops-prep` at HEAD `aac697645df92fd24611c7c13bf0f7dda12a6e08`. Sheet date: 2026-09-19. Repo evidence only. This unit **does not** run `staff-provision`, read secret files, invent roster rows, edit Go, apply migrations, or change shared STG/PROD.

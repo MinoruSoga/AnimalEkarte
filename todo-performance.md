@@ -1,8 +1,10 @@
-# Performance 調査・改善 TODO
+# Performance evidence and history
+
+> Performance work items are tracked in Plane. The migration crosswalk is [here](docs/work/plane-md-migration-20260923-receipt.md); measurements and historical evidence below remain local.
 
 最終照合: 2026-09-22（同日 curl 実測でコールドスタートを直接観測し **E4** として記録。原因区間を確定し改善候補を整理。SLACK-LATENCY計測票差分は別記録を保持）。主調査 ID: **PERF-STG-LOGIN**。対象は STG `/login` 初回表示遅延に始まり、ユーザー報告により STG 全域のページ読み込み遅延へ拡大。責任者・依頼者: 曽我 稔。
 
-未完了の測定・受入は [todo-verification.md](todo-verification.md#perf-stg-login)。新たな実装が必要になったら [todo-issue.md](todo-issue.md) に範囲を確定する。本書は判断に必要な技術記録のみを保持する。
+未完了の性能作業と現在状態はPlane（`PERF-E5-STG-DEPLOY-VERIFY`, `PERF-V-MITIGATION`, `PERF-V-BUNDLE`, `SLACK-LATENCY`）に移行済み。本書は判断に必要な技術記録のみを保持する。
 
 ## 現在の判断
 
@@ -62,13 +64,7 @@ Containers は稼働時間課金（10ms 単位、Workers Paid $5/月に含む）
 
 ## SLACK-LATENCY: 治療数量の反映待ち
 
-`/login` とは別の課題。状態・受入条件の正本は [SLACK-LATENCY](todo-issue.md#slack-latency)、区間別の採時計画は [既存の測定票](docs/work/todo-campaign-20260919-ready17/SLACK-LATENCY.md)。`cd2feaa14` で比較条件とrevision固定方法の設計は完了。端末/回線等の実条件と実測値は未収録で、原因・許容時間・改善効果はUNKNOWN。票の作成時 revision と、これから測る対象 build を混同しない。
-
-現行 [数量セル](frontend/src/features/medical-records/components/TreatmentsTab/TreatmentQuantityCell.tsx) のローカル入力、2回目 Enter/Blur の確定、[PATCH 後の一覧 invalidate](frontend/src/features/medical-records/api/treatments.ts#L85)、[mutation中の操作制限](frontend/src/features/medical-records/hooks/use-treatments-tab.ts#L338) を別区間で測る。PATCH 応答だけで表示更新完了とはしない。2回 Enter の受入と、表示・通信・再取得の速度を分ける。
-
-比較ラベルは `DEVICE-PC/TABLET`、`BAND-FEW/TYPICAL/HEAVY`、`IME-OFF/ON`、`OP-BLUR/ENTER-x2`、診察/薬剤に固定済み。行数帯の数値境界・実端末/ブラウザ版・回線・IME・対象buildはUNKNOWNで、架空の値を埋めない。票の作成時SHAや計測担当のローカルHEADだけでは配信版を証明できないため、実行時はFE/APIの対象revision・bundle/配備receipt等との対応も記録する。
-
-次はQA/計測担当が対象端末・ブラウザ・回線・行数・IME・対象build・fixture・操作範囲を確定し、既存票へ各区間の時間と保存値一致を記録する。同じ計測設計を再作成しない。条件が不足するrunはBLOCKED、未測定の原因はUNKNOWN。因果証拠なしのdebounce・楽観保存・Enter仕様変更は開始しない。`PERF-STG-LOGIN` の6単位やk6の閾値をこの課題の完了条件へ転用しない。
+> Task detail migrated to Plane `EMR-104` and verified by readback. Historical/evidence material remains in linked source records.
 
 ## E1: 2026-09-09 の遅延記録（過去の測定）
 
@@ -185,4 +181,49 @@ E4 以降にユーザー報告で発覚した追加原因と、採用した改�
 | STG-ACCEPTANCE | [stg-acceptance](reports/perf-e5-residual-20260923/stg-acceptance/README.md)（4ケース、n=1。非SLO証拠） | 匿名 `/login` 操作可能 +1163ms。既存 session は `/v1/me` 1475ms にゲート。復旧は +689ms で login フォーム。login POST 3882ms → 認証 UI 205ms。医院選択ステップは存在せず `mainClinicId` 自動選択。全ケース OPTIONS 0 |
 | OBS-DECISION | [obs-decision](reports/perf-e5-residual-20260923/obs-decision/README.md) | `container_fetch_timing` 常時ログは **KEEP**。STG・production draft とも `head_sampling_rate: 1` を維持し、本番トラフィック実測後の再評価トリガーのみ記録 |
 
-残る DEFERRED: MITIGATION（原因は `containerFetch` 区間に局在。Go/DB の内訳は container 側計装が必要で、配置制約は regions 粒度までで選択肢が枯渇）、BUNDLE（転送/parse/execute 寄与は未測定。`/login` 頁は cold FCP 0.7s で bundle は主因ではない）。配置の再抽選手順は [STG runbook](docs/ops/infra/staging/runbook.md) を参照。
+残る MITIGATION と BUNDLE の作業状態・次の一手は Plane の `PERF-V-MITIGATION` / `PERF-V-BUNDLE` に移行済み。ここでは当時の計測判断を履歴として保持する。配置の手順は [STG runbook](docs/ops/infra/staging/runbook.md) を参照。
+
+## E6: 2026-09-23 perf-e5-postdeploy-verify キャンペーン結果（revision 1・デプロイ後検証）
+
+証拠の正本は `reports/perf-e5-postdeploy-verify-20260923/`。E5 実装単位を含む perf マージコミット `453be4ecc`（2026-09-22T18:41:12Z）の STG 配信後に実測。配信版は worker `15a85636`（2026-09-23T04:09:34Z 作成）・コンテナ v70（観測窓の途中で v71・`sin14` へ再作成）。n=1・n=5 の単発観測であり p95/p99・SLO 達成を主張しない。
+
+### 単位別結果
+
+| 単位 | 取得証拠 | 主な値・判定 |
+|---|---|---|
+| DEPLOY-VERIFY | [deploy-verify](reports/perf-e5-postdeploy-verify-20260923/deploy-verify/README.md) | **SERVES-NEW-BUILD**。serving worker `15a85636`（04:09:34Z）とコンテナ v70（更新 04:12:44Z・新規稼働 instance 04:10:55Z `maa01`）は perf コミットを後置。OPTIONS が edge で 204（Go middleware ヘッダ無し、TTFB 58–304ms）、GET は Go ヘッダ全件でコンテナを通過 |
+| OPTIONS-EDGE | [options-edge](reports/perf-e5-postdeploy-verify-20260923/options-edge/README.md)（6 probe matrix） | **EDGE CONTRACT VERIFIED**。allowlisted origin は ACAO echo・ACAC=true・Max-Age 86400・TAO・`Vary: Origin` の完全セット、非 allowlisted は ACAO/TAO/Vary 無しの 204、`/_internal` は worker guard で 404、GET control は Go ヘッダ付きでコンテナ通過。OPTIONS 中央値 ~60ms |
+| WARM-MEASURE | [warm-measure](reports/perf-e5-postdeploy-verify-20260923/warm-measure/README.md)（curl、n=5 warm、中央値） | warm 中央値は E5 baseline と統計的に同一（全端末 ±0.01s 内）。対照表は下記。login 単発 1.975s |
+| LOGIN-MEASURE | [login-measure](reports/perf-e5-postdeploy-verify-20260923/login-measure/README.md)（login ×3、15s 超間隔） | 中央値 **1.471s** vs E5 ~3.33s（**−56%**）。bcrypt-skip（`AcceptSharedPassword` を bcrypt より前へ）は方向的に確認。帰属は warmth・初回ヒット費用と不可分で bcrypt 単独寄与は UNKNOWN |
+| PLACEMENT | [placement](reports/perf-e5-postdeploy-verify-20260923/placement/README.md) | capture 時点の稼働 instance は依然 `maa01`。`scheduling_policy` deployed=`default` vs config=`regional` の乖離は継続。`constraints.regions=["APAC"]` は live だが India メトロを除外できない（`cities` はケイパビリティ不足で利用不可）。**LABEL rollout 再抽選を推奨** |
+| CF-EVENTS | [cf-events](reports/perf-e5-postdeploy-verify-20260923/cf-events/README.md)（wrangler tail + cf-ray 相関、5 リクエスト） | `container_fetch_timing` は post-deploy でも 5/5 に存在。**1001–1988ms** vs E5 866–3848ms（上限が約半分に収束）。edge+worker ~57–63ms、Worker→DO +9–11ms。窓の途中で稼働 instance が `maa01`→`sin14`（v71）へ再作成 |
+| BROWSER-PAGES | [browser-pages](reports/perf-e5-postdeploy-verify-20260923/browser-pages/README.md)（実 Chrome・認証済み `/owners/301164` ×2 run） | **N+1 解消を実ブラウザで確認**: owner detail 1 読込につき owner スコープの `GET /api/v1/pets?owner_id=301164…` がちょうど 1 本、per-pet fan-out 0。document TTFB ~15ms。**新規所見**: `accountings?owner_id=` が最遅 API（1.9–2.7s） |
+| STG-ACCEPTANCE | [stg-acceptance](reports/perf-e5-postdeploy-verify-20260923/stg-acceptance/README.md)（4 ケース、n=1・非 SLO 証拠） | 匿名 `/login` FCP 320ms・フォーム操作可能 +972ms。login POST **1451ms**（E5 3882ms、**−62.6%**）→ 認証 UI 54ms。既存 session の `/v1/me` ゲート 1100.7ms（E5 1475ms、−25%）。復旧は 401→`/login` リダイレクト 304ms・フォーム +613ms。医院選択は引続き `mainClinicId` 自動選択でステップ非存在。全ケース OPTIONS 0 |
+
+### E5 との対照
+
+| 指標 | E5（デプロイ前・perf-e5-residual） | E6（デプロイ後） | 差分・判定 |
+|---|---|---|---|
+| `GET /health` warm 中央値 | 0.199s | 0.202s | +0.003s（同一視） |
+| `GET /v1/me` warm 中央値 | 0.944s | 0.946s | +0.002s（同一視） |
+| `GET /v1/clinics` warm 中央値 | 0.572s | 0.568s | −0.004s（同一視） |
+| `GET /v1/pets` warm 中央値 | 1.108s | 1.100s | −0.008s（同一視） |
+| `GET /v1/pets?q=` warm 中央値 | 1.100s | 1.104s | +0.004s（同一視） |
+| `GET /v1/pets?include_deceased` warm 中央値 | 1.103s | 1.103s | 0.000s（同一視） |
+| `POST /v1/login`（curl 中央値） | ~3.33s | **1.471s** | **−56%** |
+| `POST /v1/login`（browser、stg-acceptance case4） | 3882ms | **1451ms** | **−62.6%** |
+| `GET /v1/me` 既存 session ゲート（browser） | 1475ms | 1100.7ms | −25% |
+| `container_fetch_timing` レンジ | 866–3848ms | 1001–1988ms | 上限が約半分に収束 |
+| edge+worker オーバーヘッド | ~59–115ms | ~57–63ms（warm） | 縮小 |
+| OPTIONS preflight | コンテナ経由（コールド時は起動待ち ~6s）・browser 実測 0 件 | **edge で 204・中央値 ~60ms**・browser 実測は依然 0 件 | 契約面は検証済。cookie 認証の simple request では励起しない（下記） |
+| 稼働 instance 配置 | `maa01` | `maa01`（capture 時）→ 観測窓内で `sin14` へ再作成 | APAC 内ドリフト継続 |
+| owner detail の pets fan-out | N+1 解消を実装（実機未確認） | **実ブラウザで owner スコープ 1 リクエストを確認** | 実機検証済み |
+
+### 残存事項（E6 時点）
+
+- **AXIOS-RETRY**: 実装・配備済みだが**フィールド観測は除外**——観測窓に 503 ストーム（起動失敗応答）が発生せずリトライ経路は未励起。**unverified-in-field** であり失敗ではない。確認は 503 発生時の再観測か、合成 fault 注入の別単位で行う。
+- **INSTANCE-TYPE（案5）/ MITIGATION / BUNDLE**: いずれもトリガー付き DEFERRED のまま（INSTANCE-TYPE は login 等の CPU 拘束区間の更なる短縮要請と実コスト増の权衡、MITIGATION は因果区間の確定、BUNDLE は転送/parse/execute 寄与の実測）。作業状態の正本は Plane。
+- **SLACK-LATENCY**: ユーザーレーン（Plane `EMR-104`）。本キャンペーンの対象外。
+- **PERF-V-LINEAR**: 依然 **BLOCKED**——Linear MCP が未接続（`USER_NOT_LOGGED_IN`）で照会不能。`EMR-136` へ移行済みだが対応先の確定は保留。
+- **配置**: `maa01`/`sin14` いずれも日本非ローカルで APAC 制約は満たすが Japan 着地は保証しない。runbook の再抽選（`LABEL rollout` インクリメント再デプロイ）の実施は承認済み運用操作に委ねる。
+- **新規候補**: `GET /api/v1/accountings?owner_id=` が owner detail 画面の最遅 API（1.9–2.7s、browser-pages 観測）。次期改善候補として記録する。

@@ -1,5 +1,7 @@
 # LINMIG-234 — Formal migration-bundle, 突合, rehearsal, and restore-prep (docs-only)
 
+> Current task status is tracked in Plane `EMR-46`. This local document remains supporting execution/evidence material; see the [migration receipt](../plane-md-migration-20260923-receipt.md) for the crosswalk.
+
 Campaign `linmig-ops-prep-20260919` revision 1. Unit `LINMIG-234`. Attempt `att-linmig-234-20260919-001`. Claim `claim/LINMIG-234`. Linear issue `LINMIG-234` was not found; keep as claim only. Prompt SHA `bdada2092c3a10d8cff133231a392e1c33b688349e96a49c053f1af7f04dffda`.
 
 Maps to [todo-operations.md](../../../todo-operations.md) **P3 / PROD-DATA-MIGRATION** and GitHub [#250](https://github.com/MinoruSoga/AnimalEkarte/issues/250). Binding sources:

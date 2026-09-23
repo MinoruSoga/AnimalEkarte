@@ -1,5 +1,7 @@
 # SLACK-OWNER-HEIGHT: OwnersListTable vs OwnerSearchModal のスクロール責務
 
+> Task migrated to Plane `EMR-187`. This file remains supporting acceptance/evidence material; use Plane for current status.
+
 状態: **再現調査 READY／実機採取 未実行（端末 ID・CSS viewport UNKNOWN）**。出典は [todo-issue.md](../../../todo-issue.md) 見出し `### SLACK-OWNER-HEIGHT`（L107–110）および Slack 736–763（`1789351591.207249`、L472）。保持する現場条件:
 
 - 最大化済みでも飼主**検索結果**をスクロールできない
