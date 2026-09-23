@@ -26,6 +26,25 @@ fi
 SELFTEST_TIMEOUT=15
 MIGRATE_TIMEOUT=270
 
+# deploy で warm コンテナが旧イメージのまま残ると、旧イメージには新しい
+# migration ファイルが存在せず `/app/migrate` が「適用済み」で exitCode 0 を
+# 返す偽陽性になる(実機で004/005/006の3回再現)。リポジトリ上の最新
+# migration ファイル名を Worker へ送り、イメージ内に無ければコンテナを
+# 新イメージへ再起動させる。
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+MIGRATIONS_DIR="${MIGRATIONS_DIR:-${SCRIPT_DIR}/../../backend/migrations}"
+EXPECTED_MIGRATION=""
+if [[ -d "${MIGRATIONS_DIR}" ]]; then
+  EXPECTED_MIGRATION="$(find "${MIGRATIONS_DIR}" -maxdepth 1 -name '[0-9]*.sql' -exec basename {} \; | sort | tail -n1)"
+fi
+EXPECTED_HEADERS=()
+if [[ -n "${EXPECTED_MIGRATION}" ]]; then
+  EXPECTED_HEADERS=(-H "X-Expected-Migration: ${EXPECTED_MIGRATION}")
+  echo "==> expected newest migration in image: ${EXPECTED_MIGRATION}"
+else
+  echo "::warning::backend/migrations が見つかりません。stale image プローブなしで実行します" >&2
+fi
+
 # Harness Improvement Feedback P0: 認証なしアクセスの self-test。
 # 401以外が返る場合は認証が機能していない可能性が高いため即中断する。
 echo "==> self-test: unauthenticated request should be rejected"
@@ -37,15 +56,18 @@ fi
 echo "    OK (401)"
 
 # After Container image replace, first migrate can fail while the DO/container
-# finishes booting (bare migrate_exec_failed, no exitCode). Retry with backoff.
-MAX_ATTEMPTS="${MIGRATE_MAX_ATTEMPTS:-3}"
+# finishes booting (bare migrate_exec_failed, no exitCode). The stale-image
+# probe can also fail transiently while the new image is still rolling out to
+# the instance's region. Retry with backoff.
+MAX_ATTEMPTS="${MIGRATE_MAX_ATTEMPTS:-5}"
 SLEEP_SECS="${MIGRATE_RETRY_SLEEP_SECS:-20}"
 
 attempt=1
 while [[ "${attempt}" -le "${MAX_ATTEMPTS}" ]]; do
   echo "==> POST ${ENDPOINT} (attempt ${attempt}/${MAX_ATTEMPTS})"
   RESPONSE=$(curl -s --max-time "${MIGRATE_TIMEOUT}" -w '\n%{http_code}' -X POST "${ENDPOINT}" \
-    -H "Authorization: Bearer ${MIGRATE_RUN_SECRET}")
+    -H "Authorization: Bearer ${MIGRATE_RUN_SECRET}" \
+    "${EXPECTED_HEADERS[@]+"${EXPECTED_HEADERS[@]}"}")
   HTTP_CODE=$(echo "${RESPONSE}" | tail -n1)
   BODY=$(echo "${RESPONSE}" | sed '$d')
 

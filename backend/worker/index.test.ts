@@ -382,3 +382,73 @@ describe("worker fetch OPTIONS edge responder", () => {
     );
   });
 });
+
+describe("worker fetch /_internal/migrate", () => {
+  // Dummy fixture only — not a real credential. Must stay >= 32 UTF-8 bytes.
+  const MIGRATE_SECRET = "t".repeat(48);
+
+  function migrateEnv() {
+    const runMigrate = vi.fn(
+      async (_expected?: string | null) => ({
+        exitCode: 0,
+        stdout: "",
+        stderr: "",
+      }),
+    );
+    const binding = {
+      idFromName: vi.fn((name: string) => `id:${name}`),
+      get: vi.fn(() => ({ runMigrate })),
+    };
+    const env = {
+      API_CONTAINER: binding,
+      MIGRATE_RUN_SECRET: MIGRATE_SECRET,
+    } as unknown as Env;
+    return { env, binding, runMigrate };
+  }
+
+  function migrateRequest(headers: Record<string, string>): Request {
+    return new Request("https://api.example.test/_internal/migrate", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${MIGRATE_SECRET}`, ...headers },
+    });
+  }
+
+  it("routes to the dedicated runner instance and forwards the expected migration", async () => {
+    const { env, binding, runMigrate } = migrateEnv();
+
+    const response = await worker.fetch(
+      migrateRequest({
+        "X-Expected-Migration": "006_accounts_rls_ops_bypass.sql",
+      }),
+      env,
+    );
+
+    expect(response.status).toBe(200);
+    expect(binding.idFromName).toHaveBeenCalledWith(
+      "animalekarte-migrate-runner-v1",
+    );
+    expect(runMigrate).toHaveBeenCalledWith("006_accounts_rls_ops_bypass.sql");
+  });
+
+  it("passes null when the expected-migration header is absent", async () => {
+    const { env, runMigrate } = migrateEnv();
+
+    const response = await worker.fetch(migrateRequest({}), env);
+
+    expect(response.status).toBe(200);
+    expect(runMigrate).toHaveBeenCalledWith(null);
+  });
+
+  it("rejects a malformed expected migration without touching the runner", async () => {
+    const { env, binding, runMigrate } = migrateEnv();
+
+    const response = await worker.fetch(
+      migrateRequest({ "X-Expected-Migration": "../evil.sql" }),
+      env,
+    );
+
+    expect(response.status).toBe(400);
+    expect(binding.get).not.toHaveBeenCalled();
+    expect(runMigrate).not.toHaveBeenCalled();
+  });
+});

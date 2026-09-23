@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -124,7 +125,7 @@ func TestRun_PreflightHappyPathLogsDigestOnly(t *testing.T) {
 				Host: "localhost", Port: "5432", User: "u", Password: "p", SSLMode: "disable",
 			}, nil
 		},
-		openDB: func(string) (*gorm.DB, error) {
+		openDB: func(*pgx.ConnConfig) (*gorm.DB, error) {
 			return &gorm.DB{}, nil
 		},
 		repoRoots: func(string) ([]string, error) {
@@ -178,7 +179,7 @@ func TestRun_ApplyRefusesNonLocalWithoutOverride(t *testing.T) {
 				Host: "db.example.internal", Port: "5432", User: "u", Password: "p", SSLMode: "require",
 			}, nil
 		},
-		openDB: func(string) (*gorm.DB, error) {
+		openDB: func(*pgx.ConnConfig) (*gorm.DB, error) {
 			t.Fatal("openDB must not be called when remote apply is refused")
 			return nil, nil
 		},

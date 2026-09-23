@@ -9,6 +9,45 @@ export interface MigrateExecResult {
   stderr: string;
 }
 
+// migrate 専用の named Container インスタンス。既定の singleton は通常
+// トラフィックを捌くため、そこでコンテナを再起動すると in-flight リクエストを
+// 落とす。専用インスタンスに分離すれば stale image 検出時の再起動が
+// トラフィックへ影響しない(scheduler の SCHEDULER_NAME と同じ分離パターン)。
+export const MIGRATE_RUNNER_NAME = "animalekarte-migrate-runner-v1" as const;
+
+// deploy パイプライン(cf-run-migrate.sh)がリポジトリ上の最新 migration ファイル名を
+// 送るヘッダ。warm コンテナが旧イメージのまま残ると新しい migration ファイルが
+// イメージ内に存在しないため、exec 前の `test -f` プローブで stale を検出する。
+export const EXPECTED_MIGRATION_HEADER = "X-Expected-Migration";
+
+// マイグレーションファイル名規約: NNN_name.sql (001_init.sql 等)。
+// exec のシェル引数に埋め込むためパス区切り・空白・`..` を構造的に排除する。
+const MIGRATION_FILENAME_PATTERN = /^[0-9]{3}_[0-9A-Za-z][0-9A-Za-z_.-]{0,120}\.sql$/;
+
+export class InvalidExpectedMigrationError extends Error {
+  constructor() {
+    super("invalid_expected_migration_header");
+    this.name = "InvalidExpectedMigrationError";
+  }
+}
+
+/**
+ * `X-Expected-Migration` ヘッダを検証して返す。未指定・空は null(旧互換:
+ * プローブなしで exec する)。形式不正は InvalidExpectedMigrationError —
+ * 黙って無視すると CI 側のミス設定を隠すため 400 で失敗させる。
+ */
+export function expectedMigrationFromRequest(request: Request): string | null {
+  const raw = request.headers.get(EXPECTED_MIGRATION_HEADER);
+  if (raw === null || raw.trim() === "") {
+    return null;
+  }
+  const value = raw.trim();
+  if (!MIGRATION_FILENAME_PATTERN.test(value) || value.includes("..")) {
+    throw new InvalidExpectedMigrationError();
+  }
+  return value;
+}
+
 /**
  * 定数時間文字列比較。Cloudflare Workers ランタイムが SubtleCrypto に独自追加している
  * `crypto.subtle.timingSafeEqual`(Web標準APIではないCloudflare拡張)を使う
