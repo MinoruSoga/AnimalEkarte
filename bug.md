@@ -41,6 +41,8 @@
 | BUG-VITAL-NOTE-KEY-MISMATCH | Plane EMR-68 | medical-record / vitals | Medium | **バグ断定**（バイタルのメモが保存も表示もされない） | 現在の課題・状態は `EMR-68`（詳細は移行記録） |
 | BUG-MR-VACCINE-FORM-NESTED | Plane EMR-69 | medical-record / vaccination | High | **バグ断定**（カルテ内の接種記録追加フォームが送信不能） | 現在の課題・状態は `EMR-69`（詳細は移行記録） |
 | BUG-TRIM-EXCL-TIMERANGE-500 | Plane EMR-76 | trimming / reservation | High | **バグ断定**（同一担当の連続トリミング登録が 500 で失敗） | 現在の課題・状態は `EMR-76`（詳細は移行記録） |
+| BUG-MASTER-RESVTYPE-SLOT-FORM-NESTED | OPEN（UAT 2026-09-23） | reservation / master settings | High | **バグ断定**（予約区分パネル内の予約可能枠フォームがネスト `<form>` で送信不能） | [詳細](#plan-bug-master-resvtype-slot-form-nested) |
+| BUG-MASTER-RESVTYPE-OCC-ENVELOPE | OPEN（UAT 2026-09-23） | reservation / master settings | Medium | **バグ断定**（職種紐付 GET が裸配列・FE は `{data}` 期待でバッジ非表示） | [詳細](#plan-bug-master-resvtype-occ-envelope) |
 
 ---
 
@@ -629,3 +631,27 @@ git diff --check -- bug.md
 - **根因**: 2 層の問題。(a) FE `defaultRecordShortcutTimes`（`trimming-form-utils.ts`）は BUG-010 対策で「固定 10:00 → 現在 JST 時刻+90 分」にしたが、同一担当の連続登録は依然として時間枠が重複する（一意化は時刻文字列のみで枠の非重複は保証しない）。(b) BE は exclusion violation（23P01）を 409 conflict へマップしておらず、tx エラーがそのまま 500 として返る。
 - **影響**: 同一スタッフが 90 分以内に複数トリミングを連続登録できない。エラーハンドリング不在のため UI は無音失敗に近く、V01 §12-6 の期待（一意な時刻が付き無関係な 2 件目がブロックされない）を満たさない。
 - **証拠**: `reports/uat-2026-09-23/V01-clinical-forms.md`（§12 手順6）
+
+## 確認済み製品欠陥（UAT 2026-09-23 · V04 追加分）
+
+`docs/ops/testing/scenarios/V04-settings-master-forms.md` の再テスト（EMR-127）で確定した製品欠陥。証拠は `reports/uat-2026-09-23/v04-retest/README.md`（gitignore 対象の日次レポート）。正本登録は `todo.md#product-bugs` と重複確認済み。いずれも disposable local clinic 2 で実ブラウザ＋API 実測。
+
+<a id="plan-bug-master-resvtype-slot-form-nested"></a>
+
+### BUG-MASTER-RESVTYPE-SLOT-FORM-NESTED（V04・High）
+
+- **現象**: 設定 > 予約区分マスタのサイドパネル内「予約可能枠」セクションで曜日・時刻を選んで `追加` を押しても、API リクエストが一切発行されず枠を追加できない。バリデーションエラー表示も出ない。
+- **実証**: ブラウザ実機（Playwright・clinic 2）で予約区分編集パネルを開き `追加` をクリック → ネットワークに `POST /available-slots` 不発、コンソールに CSP `Running the JavaScript URL violates CSP 'script-src 'self''` 警告を毎回記録。同一パラメータを `POST /api/v1/masters/reservation-types/:id/available-slots` へ直接送ると 201 で永続し、パネル再表示で `毎週月曜日 …` の描画を確認。重複追加はエラーステータスで拒否。
+- **根因**: `ReservationTypeSidePanel` がコンテンツ全体を `<form action={handleAction}>` で包み、`ReservationTypeAvailableSlotsSection` 内の `<form action={formAction}>` がネスト。HTML では form ネストが無効で内側 form がパーサに破棄され、`追加` は外側パネルの placeholder `javascript:` action を submit して CSP にブロックされる。BUG-MR-VACCINE-FORM-NESTED（V01・EMR-69）と同根因クラス。
+- **影響**: 予約可能枠の UI 登録経路が完全に使用不能（API 経路は正常）。ユーザーへのフィードバックゼロの無音失敗。
+- **証拠**: `reports/uat-2026-09-23/v04-retest/README.md`（§5）、`frontend/e2e/v04-settings-master-forms-retest.spec.ts` test `4-5 予約区分`
+
+<a id="plan-bug-master-resvtype-occ-envelope"></a>
+
+### BUG-MASTER-RESVTYPE-OCC-ENVELOPE（V04・Medium）
+
+- **現象**: 予約区分パネルの「紐付け職種」で職種を追加しても、紐付け済み職種のバッジが一切表示されない。再読込・パネル再オープン後も同様。
+- **実証**: clinic 2 で `V04職種` を作成し予約区分へ紐付け → `POST /api/v1/masters/reservation-types/:id/occupations` は永続成功（GET で `[{occupation:{name:"V04職種"}}]` を確認）するが UI にバッジ非表示。GET レスポンスは裸配列 `[{...}]`。
+- **根因**: BE `ListReservationTypeOccupations`（`reservation_type_handler.go:302`）は `c.JSON(200, httpapi.MapSlice(items, …))` で裸配列を返すが、FE `getReservationTypeOccupations`（`frontend/src/features/master/api/reservation-type-occupations.ts`）は `axios.get<{data: T[]}>` で `data.data.map(...)` を呼ぶ → `data.data` が undefined で TypeError → query が error となり描画されない。兄弟エンドポイントの `getAvailableSlots` は `Array.isArray(data) ? data : data.data` で両形状に対応済みだが、occupations 側だけ未対応。
+- **影響**: 職種紐付けは保存されるが一覧表示が常に空に見える（無音失敗）。ユーザーは紐付けが効いていないと誤認し、重複操作や運用ミスを誘発しうる。データ損失ではない表示限定の欠陥。
+- **証拠**: `reports/uat-2026-09-23/v04-retest/README.md`（§4）、`frontend/e2e/v04-settings-master-forms-retest.spec.ts` test `4-5 予約区分`
