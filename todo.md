@@ -101,6 +101,21 @@
 
 現在の未解消報告は [todo-issue.md](todo-issue.md) の症状別調査・データ課題に整理した。`bug.md` / `bug-2.md` の FIXED / SPEC-OK を未修正の製品 FAIL として再登録しない。環境・fixture 不足は運用、未確認操作は検証に置く。新たに製品欠陥が確定したら、既存 ID のまま再現・原因・担当範囲を確定する。
 
+### UAT 2026-09-23 確定分（証拠: `reports/uat-2026-09-23/`、詳細: `bug.md` 末尾「確認済み製品欠陥」）
+
+| ID | severity | 領域 | 症状 | シナリオ |
+|:---|:---|:---|:---|:---|
+| BUG-LIFF-HEALTHCARD-OWNER-SYNC | High | liff / health-card | LIFF 連携済み飼主のヘルスカードが空（`line_customers.owner_id` 未同期） | S12 |
+| BUG-ACCT-INS-SIGN-MISMATCH | High | accounting / insurance | 保険付き会計が FE/BE 符号規約不整合で UI から確定不能（400） | S15 |
+| BUG-ACCT-INS-EDIT-REWRITE | Medium | accounting / insurance | 確定会計の無変更保存で `insurance_amount`/`billing_amount` が recalc 値に上書き・保険表示消失 | S15 |
+| BUG-DIALOG-FOCUS-RESTORE | Medium | shared UI / a11y | 外部 open 制御ダイアログの閉鎖後フォーカスが body へ落下（TreatmentSearchDialog・OwnerSearchModal） | S18 / S32 |
+| BUG-BILLING-TAX-TYPE-DROPPED | High | accounting / master | 内税・非課税マスタが会計明細へ `excluded` として伝播・税過剰計上 | S20 |
+| BUG-ACCT-DUP-COMPLETE-500 | Medium | accounting / idempotency | 同一カルテ別キー確定が UNIQUE 競合経路で 409 でなく 500 | S21 |
+| BUG-MR-DOCTOR-HEADER-STALE | Medium | medical-record / UI | カルテヘッダー担当医が再読込で保存済み doctor_id でなくログインユーザー名を表示 | V01 |
+| BUG-VITAL-NOTE-KEY-MISMATCH | Medium | medical-record / vitals | バイタルメモが FE `note` ↔ BE `notes` の key 不一致で保存・表示とも消失 | V01 |
+| BUG-MR-VACCINE-FORM-NESTED | High | medical-record / vaccination | カルテ内接種フォームがネスト `<form>` で送信不能（javascript: action が CSP ブロック） | V01 |
+| BUG-TRIM-EXCL-TIMERANGE-500 | High | trimming / reservation | 同一担当の90分以内連続トリミング登録が `excl_appointments_doctor_timerange` で 500（409未マップ・UI無音失敗） | V01 |
+
 <a id="human-lane"></a>
 
 ## PO / 人間レーン
