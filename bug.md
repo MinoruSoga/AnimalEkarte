@@ -41,6 +41,9 @@
 | BUG-VITAL-NOTE-KEY-MISMATCH | Plane EMR-68 | medical-record / vitals | Medium | **バグ断定**（バイタルのメモが保存も表示もされない） | 現在の課題・状態は `EMR-68`（詳細は移行記録） |
 | BUG-MR-VACCINE-FORM-NESTED | Plane EMR-69 | medical-record / vaccination | High | **バグ断定**（カルテ内の接種記録追加フォームが送信不能） | 現在の課題・状態は `EMR-69`（詳細は移行記録） |
 | BUG-TRIM-EXCL-TIMERANGE-500 | Plane EMR-76 | trimming / reservation | High | **バグ断定**（同一担当の連続トリミング登録が 500 で失敗） | 現在の課題・状態は `EMR-76`（詳細は移行記録） |
+| BUG-PRINT-PORTAL-HIDDEN-BLANK | Plane EMR-205 | print / shared UI | High | **バグ断定**（検査結果・日次会計・月次レポート・レジ締めの印刷が全面白紙。`hidden` 属性 + 印刷ポータルの unlayered `display:block!important` が Tailwind v4 preflight `[hidden]{display:none!important}`（`@layer base`）に敗北） | 詳細は [下記](#bug-print-portal-hidden-blank) |
+| BUG-LIFF-VACCINE-DATE-RAW-ISO | Plane EMR-206 | liff / pet-health | Low | **バグ断定**（ペット健康カードのワクチン接種日・次回予定日が `2026-08-15T09:00:00+09:00` の RFC3339 生値で表示。最終来院日は `time.DateOnly` で整形済みのため不整合） | 詳細は [下記](#bug-liff-vaccine-date-raw-iso) |
+| BUG-BUTTON-FOCUS-INVISIBLE | Plane EMR-207 | shared UI / a11y | Medium | **バグ断定**（共有 `Button` コンポーネントにフォーカス可視インジケータが無い。`outline-none` のみで `focus-visible:ring-*` が無く、キーボード Tab でフォーカスしても見た目が変化しない。nav リンク・input は可視） | 詳細は [下記](#bug-button-focus-invisible) |
 
 ---
 
@@ -629,3 +632,53 @@ git diff --check -- bug.md
 - **根因**: 2 層の問題。(a) FE `defaultRecordShortcutTimes`（`trimming-form-utils.ts`）は BUG-010 対策で「固定 10:00 → 現在 JST 時刻+90 分」にしたが、同一担当の連続登録は依然として時間枠が重複する（一意化は時刻文字列のみで枠の非重複は保証しない）。(b) BE は exclusion violation（23P01）を 409 conflict へマップしておらず、tx エラーがそのまま 500 として返る。
 - **影響**: 同一スタッフが 90 分以内に複数トリミングを連続登録できない。エラーハンドリング不在のため UI は無音失敗に近く、V01 §12-6 の期待（一意な時刻が付き無関係な 2 件目がブロックされない）を満たさない。
 - **証拠**: `reports/uat-2026-09-23/V01-clinical-forms.md`（§12 手順6）
+
+---
+
+<a id="bug-print-portal-hidden-blank"></a>
+
+### BUG-PRINT-PORTAL-HIDDEN-BLANK（S37・High）
+
+- **現象**: 印刷ポータルを使う帳票面（検査結果・日次会計・月次集計レポート・レジ締め明細）で印刷/PDF 出力を実行すると、アプリ本体は非表示になるが帳票本体も `display:none` のままで、**出力が白紙になる**。カルテ印刷（`MedicalRecordPrintView`）と領収書（`AccountingPrintArea`）は `hidden` Tailwind クラス方式のため正常。
+- **実証**（`reports/uat-2026-09-23/S37-print-documents-layout.md`）: Playwright の `emulateMedia({ media: "print" })` で実測。
+  - `/accounting?tab=daily` → `[data-testid="daily-print-area"]` が print メディアで `display:none`（`hidden` 属性付与のまま）。`#root` も `none` → 印刷面 0。
+  - `/accounting/reports` → `[data-print-portal]`（monthly）が print で `display:none`、`#root` も `none`。
+  - `/examinations/1000000000` → `[data-print-portal]`（examination）が print で `display:none`、`#root` も `none`。
+  - `/accounting?tab=daily` の `page.pdf()` が **1,156 bytes**（実質 1 ページ白紙）。
+  - 対照: `/medical-records/1000000019` の印刷面（`hidden print:block` クラス方式）は print で `display:block`・本文 498 文字 → 正常。
+- **根因**: Tailwind v4.3.3 preflight（`tailwindcss/preflight.css:391`）が `[hidden]:where(:not([hidden='until-found'])) { display: none !important; }` を **`@layer base` 内**で出力する。CSS Cascade 5 では `!important` 宣言のレイヤー優先順位が反転するため、**先に宣言された `base` レイヤーの `!important` が、unlayered の `!important` に勝つ**。`PrintPortal.tsx`（`<div hidden … data-print-portal>` + unlayered `[data-print-portal]{display:block!important}`）と `DailyAccountingPrintArea.tsx`（`hidden` + unlayered `[data-testid="daily-print-area"]{display:block!important}`）はいずれも unlayered のため `display:none!important` に敗北する。実測でも unlayered `!important` は `none` のまま、`@layer base`/`@layer utilities` の同一宣言なら `block` になることを確認（Chrome 実測）。`hidden` Tailwind クラス（`.hidden`）は属性ではなくクラスのため preflight の対象外で、`print:block` が同じ utilities レイヤー内で後勝ちし正常動作する。
+- **影響**: 検査結果・日次会計・月次レポート・レジ締めの印刷/PDF がすべて白紙。帳票運用（監査・締め・月次）が成立しない。High。
+- **修正方針候補**: (a) 各印刷面の `hidden` 属性をやめ、`hidden print:block`（Tailwind クラス）方式に統一する（MR/領収書と同方式）、(b) 印刷ポータルの上書き規則を `@layer base`（または preflight より前のレイヤー）に置く、(c) `@media print` 内で `[hidden]` を `display:block!important` で上書きする規則を `@layer base` に追加する。回帰は「print メディアで各ポータルが `display:block` になること」を固定する。
+- **証拠**: `reports/uat-2026-09-23/S37-print-documents-layout.md`
+
+---
+
+<a id="bug-liff-vaccine-date-raw-iso"></a>
+
+### BUG-LIFF-VACCINE-DATE-RAW-ISO（S38・Low）
+
+- **現象**: LIFF ペット健康カードのワクチン記録テーブルで「接種日」「次回予定日」が `2026-08-15T09:00:00+09:00` の RFC3339 生値で表示される（LINE 利用者に見える画面）。同じカードの「最終来院日」は `2026-08-15` 形式で整形されており、同一画面内で書式が不整合。
+- **実証**: `http://localhost:3003/liff/?clinic_id=1`（mock lane、データは実バックエンド由来。飼主 `UATヘルス 飼主A` / 犬A）を 390×844 で表示。ワクチン行が `10%Ｐｒｏ-Ｈｅａｒｔ SR 12(10.1～20.0kg)` / `2026-08-15T09:00:00+09:00` / `2027-08-15T09:00:00+09:00`。S12 でも観測済み（未登録）。
+- **根因**: `backend/internal/reservation/liff_response.go` の `liffHealthCardVaccineResponse` が `VaccinatedAt time.Time` / `NextDueAt *time.Time` をそのまま公開（`toLiffHealthCardResponse` で整形なし）。一方 `LastVisitDate` は同ファイル内で `time.DateOnly` 整形（294 行）。FE `frontend/liff/src/pages/PetHealthPage.tsx:173,175` も `v.vaccinated_at` / `v.next_due_at` を無整形で描画。
+- **影響**: 利用者向けに機械可読タイムスタンプが露出。可読性・信頼感の低下（機能は動作）。Low。
+- **修正方針候補**: バックエンドで `LastVisitDate` と同様に `time.DateOnly`（または FE で `formatJSTDate`）へ統一する。接種日は本来日付粒度のため、レスポンスを日付文字列に揃えるのが自然。回帰は「接種日/次回予定日が `YYYY-MM-DD` 形式であること」を固定。
+- **証拠**: `reports/uat-2026-09-23/S38-liff-mobile-viewport.md`
+
+---
+
+<a id="bug-button-focus-invisible"></a>
+
+### BUG-BUTTON-FOCUS-INVISIBLE（S39・Medium）
+
+- **現象**: 共有 `Button` コンポーネントで描画されたボタン（更新・戻る・保存 等、主要操作の大半）に、キーボードフォーカス時の可視インジケータが無い。Tab でフォーカスしても見た目が一切変化しない。同じ画面でも nav リンク（`<a>`）はブラウザ既定の outline、input はブランド色 2px リングが出るため、ボタンだけが不可視。
+- **実証**（`reports/uat-2026-09-23/S39-state-feedback-visibility.md`、Playwright 実測）:
+  - `Button(更新)` / `Button(戻る)`: `:focus-visible = true`、`outline-style: none`、着色 box-shadow なし → 可視インジケータなし。
+  - 対照 `nav a`: `:focus-visible = true`、`outline: auto 1px rgb(3,139,148)` → 可視。
+  - 対照 `input#phone`: `:focus-visible = true`、`box-shadow: … rgb(3,139,148) 0 0 0 2px` → 可視。
+- **根因**: `frontend/src/components/ui/button-variants.ts` の cva 基底クラスが `outline-none` のみで `focus-visible:ring-*` を持たない（input は `C.focusRingActionPrimary` = `focus:shadow-focus-primary` を使用しているが、Button には相当の指定が無い）。`globals.css` にもボタン向けの `:focus-visible` 代替規則は無い（`--shadow-focus-primary` 等の変数定義のみ）。
+- **影響**: WCAG 2.2 AA 2.4.7（Focus Visible）/ 2.4.11 に不適合。キーボード操作時にどのボタンにフォーカスがあるか判別できず、誤操作・操作不能に近い状態。アプリ全体の主要操作に波及するため Medium。
+- **修正方針候補**: `buttonVariants` の基底に `focus-visible:ring-2 focus-visible:ring-[#038B94] focus-visible:ring-offset-1`（既存 `--shadow-focus-primary` と同等）を追加する。回帰は「各 variant の Button が `:focus-visible` で着色リングを持つこと」を固定。
+- **証拠**: `reports/uat-2026-09-23/S39-state-feedback-visibility.md`
+
+
+

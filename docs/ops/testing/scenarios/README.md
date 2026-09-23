@@ -52,8 +52,14 @@
 | [S31](S31-detail-route-direct-access.md) | 詳細画面への直接到達（会計・入院・在庫） | 回帰 | 薄い |
 | [S32](S32-owner-search-modal-fit.md) | 飼主検索モーダル — 多数候補の可視範囲と操作到達 | 顧客/UI | 薄い |
 | [S33](S33-receipt-print-pdf.md) | 明細兼領収書 — プレビュー → 印刷 → PDF 保存 | 会計 | 中 |
+| [S34](S34-overlay-stack-fit.md) | オーバーレイの積層 — モーダル内ポップアップ・入れ子ダイアログ・トースト | UI | 中 |
+| [S35](S35-extreme-content-fit.md) | 極端コンテンツ — 長文・空・NULL・大桁数・全角/絵文字の表示適合 | UI | 中 |
+| [S36](S36-table-kanban-horizontal-fit.md) | 一覧テーブル・カンバン — 横方向の収まりと操作到達 | UI | 中 |
+| [S37](S37-print-documents-layout.md) | 印刷帳票のレイアウト — 領収書以外の印刷面 | UI/帳票 | 中 |
+| [S38](S38-liff-mobile-viewport.md) | LIFF モバイル画面 — スマホ viewport での表示適合 | UI/LIFF | 中 |
+| [S39](S39-state-feedback-visibility.md) | 状態フィードバック — loading・空・エラー・disabled・フォーカスの可視性 | UI/a11y | 中 |
 
-実行順の制約: S01 を最初に、S10 は S08 の後。S13・S14〜S33 は独立。それ以外は任意順。S21 は `billing-schema-readiness` の DB 制約ゲート、S28 は医院承認の項目表、S23 は複数医院 fixture が前提 — 前提未充足のシナリオは BLOCKED として扱い、スキップを PASS にしない。
+実行順の制約: S01 を最初に、S10 は S08 の後。S13・S14〜S39 は独立。それ以外は任意順。S21 は `billing-schema-readiness` の DB 制約ゲート、S28 は医院承認の項目表、S23 は複数医院 fixture が前提 — 前提未充足のシナリオは BLOCKED として扱い、スキップを PASS にしない。
 
 機器クライアントの独立確認票: [LAB_DEVICE_CLIENT_UAT.md](LAB_DEVICE_CLIENT_UAT.md)（NX600/AU10V。未確定機器を PASS にしない）。
 
@@ -87,7 +93,7 @@
 - **環境**: 自動投入されるのは `002_master` の参照マスタだけ。各シナリオに記載した合成 fixture を、承認済み UAT skeleton/import 手順でローカルの使い捨て clinic に作成する。手順の正本が `../UAT-ENV-SETUP.md` で修正済みであることを実行前に確認する。共有 STG、既存患者・飼主、固定 ID は使用しない。
 - **実行記録はシナリオファイルに書かない**。証跡は gitignore の `reports/uat-YYYY-MM-DD/`（results は `formId.fieldKey.Fx` 推奨）。
 - **製品 FAIL は `todo.md#product-bugs` 必須**（確認済みのみ · 見出し重複禁止 · env/権限 BLOCKED は書かない）。PARTIAL は todo.md#product-bugs にしない。Linear Issue 化は後続レーン。
-- **S シリーズは core 受入**: local では S01→S33 を実施し FINAL を書く。V シリーズは項目単位の別軸（inventory 全 fieldKey）。「全て実施」は少なくとも core S の実行完了を指し、FAIL/PARTIAL/BLOCKED が残る場合は「全て PASS」と言わない。S14〜S33 は各ファイル冒頭の前提条件（fixture・権限・ゲート）を満たした環境でのみ実行する。
+- **S シリーズは core 受入**: local では S01→S39 を実施し FINAL を書く。V シリーズは項目単位の別軸（inventory 全 fieldKey）。「全て実施」は少なくとも core S の実行完了を指し、FAIL/PARTIAL/BLOCKED が残る場合は「全て PASS」と言わない。S14〜S39 は各ファイル冒頭の前提条件（fixture・権限・ゲート）を満たした環境でのみ実行する。
 - **AI 実行**: browser-test + Chrome DevTools MCP、または Playwright MCP / 再現スクリプト。
 - **【要実測】**: 観測結果を実装/テスト/承認済み仕様と照合する。観測だけで期待結果へ昇格せず、仕様判断が残る場合は PARTIAL/BLOCKED。
 - **クレデンシャル禁止**: パスワード・トークンを本ディレクトリに書かない。アカウントはロール名。認証は `E2E_LOGIN_*`。
