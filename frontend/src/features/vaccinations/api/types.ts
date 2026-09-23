@@ -32,4 +32,9 @@ export interface UpdateVaccinationRequest {
   remarks?: string;
   supplemental?: string;
   next_schedule_type?: string;
+  /**
+   * UAT-R2-EXCLUSIVE-LOCK: 楽観的ロック expectedVersion。
+   * 呼出側は読取済み VaccinationRecord.version を必ず同送する（省略時は BE が照合スキップ＝後方互換）。
+   */
+  version?: number;
 }

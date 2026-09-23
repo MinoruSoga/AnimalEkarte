@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 import { usePermission } from "@/hooks/use-permission";
 import { useClinicTaxRates } from "@/hooks/use-clinic-tax-rates";
@@ -122,9 +123,16 @@ export function useTreatmentsTab({
   const handleUpdate = useCallback(
     (treatmentId: string, input: UpdateTreatmentInput) => {
       if (!canEdit) return;
-      updateTreatmentFn({ treatmentId, input });
+      const target = sortedTreatments.find((t) => t.id === treatmentId);
+      // UAT-R2-EXCLUSIVE-LOCK: version 未確定のまま送ると BE は CAS 照合をスキップするため
+      // fail-closed で拒否する（clinical_plan の保存アクションと同じ方針）。
+      if (typeof target?.version !== "number") {
+        toast.error("治療明細の読み込みが完了してから保存してください");
+        return;
+      }
+      updateTreatmentFn({ treatmentId, input: { ...input, version: target.version } });
     },
-    [canEdit, updateTreatmentFn],
+    [canEdit, sortedTreatments, updateTreatmentFn],
   );
 
   const handleDelete = useCallback(

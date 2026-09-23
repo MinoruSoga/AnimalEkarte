@@ -22,6 +22,7 @@ const vaccination = {
   lot4: undefined,
   supplemental: "合成補足",
   remarks: "合成備考",
+  version: 1,
 } satisfies VaccinationRecord;
 
 function renderCard(nextDate: string) {

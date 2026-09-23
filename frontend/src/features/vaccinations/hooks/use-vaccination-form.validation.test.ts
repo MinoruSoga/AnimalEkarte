@@ -219,6 +219,7 @@ describe("useVaccinationForm — 新規登録時の接種日デフォルト（BU
         date: "2026-01-15",
         nextDate: "2027-01-15",
         nextScheduleType: "1year",
+        version: 1,
       },
       isLoading: false,
       isError: false,
@@ -398,6 +399,7 @@ describe("useVaccinationForm — 編集時のバリデーション", () => {
         date: "2026-07-01",
         nextDate: "",
         nextScheduleType: "1year",
+        version: 1,
       },
     } as ReturnType<typeof useGetVaccination>);
     const { result } = renderVaccinationForm("10");
@@ -422,6 +424,7 @@ describe("useVaccinationForm — 編集時のバリデーション", () => {
         date: "2026-07-01",
         nextDate: "",
         nextScheduleType: "1year",
+        version: 1,
       },
     } as ReturnType<typeof useGetVaccination>);
     const { result } = renderVaccinationForm("10");
@@ -445,6 +448,7 @@ describe("useVaccinationForm — 編集時のバリデーション", () => {
         date: "2026-01-01",
         nextDate: "",
         nextScheduleType: "1year",
+        version: 1,
       },
     } as ReturnType<typeof useGetVaccination>);
     const mockMutateAsync = vi.fn().mockResolvedValue({});
@@ -474,6 +478,7 @@ describe("useVaccinationForm — 編集時のバリデーション", () => {
         date: "2026-07-01",
         nextDate: "",
         nextScheduleType: "1year",
+        version: 1,
       },
     } as ReturnType<typeof useGetVaccination>);
     const { result } = renderVaccinationForm("10");
@@ -500,6 +505,7 @@ describe("useVaccinationForm — 編集時のバリデーション", () => {
         date: "2026-07-01",
         nextDate: "",
         nextScheduleType: "1year",
+        version: 1,
       },
     } as ReturnType<typeof useGetVaccination>);
     const mockMutateAsync = vi.fn().mockResolvedValue({});
@@ -531,6 +537,7 @@ describe("useVaccinationForm — 編集時のバリデーション", () => {
         date: "2026-07-01",
         nextDate: "",
         nextScheduleType: "1year",
+        version: 1,
       },
     } as ReturnType<typeof useGetVaccination>);
     const mockMutateAsync = vi.fn().mockResolvedValue({});
@@ -566,6 +573,7 @@ describe("useVaccinationForm — 編集時のバリデーション", () => {
         date: "2026-07-01",
         nextDate: "",
         nextScheduleType: "1year",
+        version: 1,
       },
     } as ReturnType<typeof useGetVaccination>);
     const mockMutateAsync = vi.fn().mockResolvedValue({});

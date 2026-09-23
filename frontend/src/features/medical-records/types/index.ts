@@ -45,6 +45,8 @@ export interface Treatment {
   dose_amount_mg?: number | null;
   dose_amount_unit?: string | null;
   dose_param_snapshot?: Record<string, unknown> | null;
+  /** UAT-R2-EXCLUSIVE-LOCK: 楽観的ロック用。PATCH の version にはこの値をそのまま送る。 */
+  version: number;
   created_at: string;
   updated_at: string;
 }
@@ -90,6 +92,11 @@ export interface UpdateTreatmentInput {
   sort_order?: number;
   /** TASK-377: 上限内の下限割れ/著しい乖離時に必須の free-text 逸脱理由（1〜500 Unicode） */
   dose_deviation_reason?: string;
+  /**
+   * UAT-R2-EXCLUSIVE-LOCK: 楽観的ロック expectedVersion。
+   * 呼出側は読取済み Treatment.version を必ず同送する（省略時は BE が照合スキップ＝後方互換）。
+   */
+  version?: number;
 }
 
 export interface BulkReorderTreatmentsInput {
@@ -133,6 +140,8 @@ export interface Vital {
   weight?: number | null;
   weight_unit: BodyWeightUnit;
   note?: string | null;
+  /** UAT-R2-EXCLUSIVE-LOCK: 楽観的ロック用。PATCH の version にはこの値をそのまま送る。 */
+  version: number;
   created_at: string;
   updated_at: string;
 }
@@ -155,4 +164,9 @@ export interface UpdateVitalInput {
   weight?: number | null;
   weight_unit?: BodyWeightUnit;
   note?: string | null;
+  /**
+   * UAT-R2-EXCLUSIVE-LOCK: 楽観的ロック expectedVersion。
+   * 呼出側は読取済み Vital.version を必ず同送する（省略時は BE が照合スキップ＝後方互換）。
+   */
+  version?: number;
 }

@@ -131,6 +131,7 @@ type updateVaccinationRequest struct {
 	Lot3             *string `json:"lot3"`
 	Lot4             *string `json:"lot4"`
 	Remarks          *string `json:"remarks"`
+	Version          *int    `json:"version"` // 楽観的ロック用
 }
 
 func (r *updateVaccinationRequest) toServiceInput() (*UpdateVaccinationInput, error) {
@@ -157,6 +158,7 @@ func (r *updateVaccinationRequest) toServiceInput() (*UpdateVaccinationInput, er
 		Lot3:            r.Lot3,
 		Lot4:            r.Lot4,
 		Remarks:         r.Remarks,
+		Version:         r.Version,
 	}
 	if r.NextScheduleType != nil {
 		nst := model.NextScheduleType(*r.NextScheduleType)

@@ -16,6 +16,7 @@ type prescriptionResponse struct {
 	MedicalRecordID *string `json:"medical_record_id,omitempty"`
 	PrescribedAt    string  `json:"prescribed_at"`
 	DurationDays    int     `json:"duration_days"`
+	Version         int     `json:"version"`
 	CreatedAt       string  `json:"created_at"`
 	UpdatedAt       string  `json:"updated_at"`
 }
@@ -27,6 +28,7 @@ func toPrescriptionResponse(p *model.Prescription) prescriptionResponse {
 		OwnerID:      strconv.FormatUint(p.OwnerID, 10),
 		PrescribedAt: p.PrescribedAt.In(time.Local).Format(time.DateOnly),
 		DurationDays: p.DurationDays,
+		Version:      p.Version,
 		CreatedAt:    httpapi.LocalTimeRFC3339(p.CreatedAt),
 		UpdatedAt:    httpapi.LocalTimeRFC3339(p.UpdatedAt),
 	}
