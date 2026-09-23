@@ -267,6 +267,7 @@
   - 当該ブラウザに `__REACT_DEVTOOLS_GLOBAL_HOOK__` あり
 - **判断**: 現状は **製品コード起因と断定できない**（拡張機能／DevTools の可能性が高い）。ユーザー環境（通常 Chrome + 拡張）での再現スタック（ファイルURL付き）があれば再判定。
 - **次アクション**: シークレットウィンドウ（拡張OFF）でスタッフマスタを開き、同エラーが消えるか確認してもらう
+- **調査結果（2026-09-23 / EMR-180）**: **原因帰属 = Chrome DevTools 同梱 web-vitals**（製品コード・拡張機能のいずれでもない）。`reportAllChanges` は web-vitals の report option で、スタックのオフセット (`:2:19429`/`:2:5652`) が上流バグと完全一致（GoogleChrome/web-vitals#792, angular/angular#70464）。アプリは web-vitals/RUM 系を一切同梱せず CSP `script-src 'self'` で第三者 script も走らない。発生条件は「Chrome ≤152 + DevTools (Live Metrics) オープン + SPA soft navigation」。上流修正 devtools-frontend CL 8300032 は 2026-08-31 merge 済みで Chrome 153 で配布。**製品側の修正対象なし**。回避は Chrome 153+ 更新 or `chrome://flags/#soft-navigation-heuristics` 無効化。詳細: `docs/work/emr-180-note-staff-starttime-rdt-investigation.md`
 
 ### BUG-ACCT-CLOSE-PERM-DEFAULT: 既定権限モデルで `cash-register-close:create` が全グループ未付与、レジ締めが実行不能
 
