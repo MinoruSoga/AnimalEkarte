@@ -120,10 +120,13 @@
       "instance_type": "basic", // 1/4 vCPU / 1GiB。docs/ops/infra/architecture.md のコスト想定に合わせる
       "max_instances": 3,
       // "regional" = リクエスト元リージョン単位でインスタンスをスケジュールする配置ポリシー。
-      // "default" ではデプロイ直後に最初にリクエストを受けた場所(CIの /health = 米国runner)
-      // に近い空きインスタンスが選ばれて固定されるため、APAC制約下でも bom09/maa01(インド)
-      // に着地し続けた実績がある。regional なら日本ユーザーのリクエストは日本近辺のAPAC
-      // インスタンスで処理される期待が持てる。max_instances=3 でインスタンス数・課金は上限内。
+      // 【2026-09-23 切り分け済み(EMR-202)】wrangler は deploy 毎の PATCH /applications/{id} で
+      // この値を送信し API は受理(SUCCESS Modified application)するが、既存 application では
+      // 永続化されず deployed は "default" を返し続ける(v69/70/71 で再現)。反映には application
+      // の削除→再作成が必要(破壊的・要承認)。値は将来の再作成に備えた宣言として残置し、
+      // 現行の実配置挙動は default + constraints.regions=["APAC"] の抽選として扱う。
+      // 詳細: docs/ops/infra/staging/runbook.md「Container placement」。max_instances=3 で
+      // インスタンス数・課金は上限内。
       "scheduling_policy": "regional",
       // コンテナインスタンスの配置をAPACメトロに限定するスケジューリング制約
       // (wrangler公式 constraints.regions。課金差なし・無料)。実測で同一DOの
