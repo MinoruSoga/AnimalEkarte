@@ -100,8 +100,15 @@ case "$MODE" in
     # shellcheck disable=SC1090
     source "$ENV_FILE"
     : "${DB_HOST:?}" "${DB_USER:?}" "${DB_PASSWORD:?}"
-    export PGHOST="$DB_HOST" PGUSER="$DB_USER" PGPASSWORD="$DB_PASSWORD"
-    export PGDATABASE="${TARGET_DB_NAME:-postgres}" PGSSLMODE=verify-full PGSSLROOTCERT=system
+    export PGHOST="$DB_HOST" PGPORT="${DB_PORT:-5432}" PGUSER="$DB_USER" PGPASSWORD="$DB_PASSWORD"
+    export PGDATABASE="${DB_NAME:-postgres}" PGSSLMODE="${DB_SSL_MODE:-verify-full}"
+    ssl_root="${DB_SSL_ROOT_CERT:-}"
+    psql_major="$(psql --version | grep -oE '[0-9]+' | head -1)"
+    if [[ "$ssl_root" = "system" && "${psql_major:-0}" -lt 17 ]]; then
+      # libpq <17 lacks sslrootcert=system; use the OS CA bundle instead
+      ssl_root="/etc/ssl/cert.pem"
+    fi
+    [[ -n "$ssl_root" ]] && export PGSSLROOTCERT="$ssl_root"
     export PGOPTIONS="-c app.bypass_rls=on"
     echo "INFO  applying identity map link (stg db: $PGDATABASE, dry_run=$DRY_RUN)"
     build_stream | psql -v ON_ERROR_STOP=1
