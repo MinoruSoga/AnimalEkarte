@@ -167,7 +167,7 @@ export const VitalsTab = memo(function VitalsTab({
         respiration_rate: respiratoryRate,
         weight: bodyWeight,
         weight_unit: currentAddForm.weight_unit,
-        note: currentAddForm.note.trim() || null,
+        notes: currentAddForm.notes.trim() || null,
       };
 
       try {

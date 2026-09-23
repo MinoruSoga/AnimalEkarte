@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import type { UpdateVitalInput, Vital } from "../../types";
-import { VitalsAddRow, VitalsEditRow } from "./VitalsTabRows";
+import { VitalsAddRow, VitalsDisplayRow, VitalsEditRow } from "./VitalsTabRows";
 import type { VitalsAddFormState } from "../../lib/vitals-tab-table-model";
 
 const baseVital: Vital = {
@@ -15,10 +15,82 @@ const baseVital: Vital = {
   respiration_rate: 20,
   weight: 8.5,
   weight_unit: "Kg",
-  note: null,
+  notes: null,
   created_at: "2026-08-01T10:00:00+09:00",
   updated_at: "2026-08-01T10:00:00+09:00",
 };
+
+describe("VitalsDisplayRow memo column (EMR-68)", () => {
+  it("renders vital.notes in the memo column", () => {
+    render(
+      <table>
+        <tbody>
+          <VitalsDisplayRow
+            vital={{ ...baseVital, notes: "食欲やや低下" }}
+            canEdit={false}
+            canDelete={false}
+            deletePending={false}
+            onStartEdit={() => undefined}
+            onDeleteClick={() => undefined}
+          />
+        </tbody>
+      </table>,
+    );
+
+    expect(screen.getByText("食欲やや低下")).toBeInTheDocument();
+  });
+
+  it("renders a dash when vital.notes is null", () => {
+    render(
+      <table>
+        <tbody>
+          <VitalsDisplayRow
+            vital={{ ...baseVital, notes: null }}
+            canEdit={false}
+            canDelete={false}
+            deletePending={false}
+            onStartEdit={() => undefined}
+            onDeleteClick={() => undefined}
+          />
+        </tbody>
+      </table>,
+    );
+
+    expect(screen.getByText("-")).toBeInTheDocument();
+  });
+});
+
+describe("VitalsEditRow notes wire key (EMR-68)", () => {
+  it("hydrates the memo input from vital.notes and saves with the notes key", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+
+    render(
+      <table>
+        <tbody>
+          <VitalsEditRow
+            vital={{ ...baseVital, notes: "既存メモ" }}
+            onSave={onSave}
+            onCancel={() => undefined}
+            isPending={false}
+          />
+        </tbody>
+      </table>,
+    );
+
+    const memoInput = screen.getByLabelText(/メモ/);
+    expect(memoInput).toHaveValue("既存メモ");
+
+    await user.clear(memoInput);
+    await user.type(memoInput, "更新メモ");
+    await user.click(screen.getByTitle("保存"));
+
+    expect(onSave).toHaveBeenCalledTimes(1);
+    const [, payload] = onSave.mock.calls[0] as [string, UpdateVitalInput];
+    expect(payload.notes).toBe("更新メモ");
+    expect(payload).not.toHaveProperty("note");
+  });
+});
 
 describe("VitalsEditRow weight unit toggle (BUG-015)", () => {
   it("converts value and unit atomically; save payload preserves physical mass", async () => {
@@ -93,7 +165,7 @@ describe("VitalsAddRow weight unit toggle (BUG-015)", () => {
       respiration_rate: "",
       weight: "5",
       weight_unit: "Kg",
-      note: "",
+      notes: "",
     };
 
     render(
@@ -126,7 +198,7 @@ describe("VitalsAddRow weight unit toggle (BUG-015)", () => {
       respiration_rate: "",
       weight: "",
       weight_unit: "Kg",
-      note: "",
+      notes: "",
     };
 
     render(

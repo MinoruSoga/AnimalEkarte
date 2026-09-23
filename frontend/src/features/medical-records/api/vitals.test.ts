@@ -98,9 +98,39 @@ describe("vitals API クリニックスコープ (#186 review P2-15)", () => {
       respiration_rate: null,
       weight: null,
       weight_unit: "Kg",
-      note: null,
+      notes: null,
     });
 
     await waitFor(() => expect(receivedClinicHeader).toBe("2"));
+  });
+
+  it("create mutation はメモを `notes` キーで送り、legacy `note` キーは送らない（EMR-68）", async () => {
+    localStorage.setItem(CURRENT_CLINIC_STORAGE_KEY, "1");
+
+    let receivedBody: Record<string, unknown> | null = null;
+    server.use(
+      http.post("*/v1/medical-records/:id/vitals", async ({ request }) => {
+        receivedBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ id: "1" }, { status: 201 });
+      }),
+    );
+
+    const { result } = renderHook(() => useCreateVital("42"), {
+      wrapper: createTestWrapper(),
+    });
+
+    result.current.mutate({
+      recorded_at: "2026-07-16T00:00:00Z",
+      temperature: 38,
+      heart_rate: null,
+      respiration_rate: null,
+      weight: null,
+      weight_unit: "Kg",
+      notes: "食欲やや低下",
+    });
+
+    await waitFor(() => expect(receivedBody).not.toBeNull());
+    expect(receivedBody).toMatchObject({ notes: "食欲やや低下" });
+    expect(receivedBody).not.toHaveProperty("note");
   });
 });
