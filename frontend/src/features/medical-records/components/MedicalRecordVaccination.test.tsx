@@ -25,9 +25,9 @@ vi.mock("../api/get-pet-vaccinations", () => ({
   useGetPetVaccinations: () => ({ data: mockHistoryItems.current, isLoading: false }),
 }));
 
-// FE-RC-008: useActionState + <form action> への移行に伴い、"保存" は
-// type="submit" の素の button に変更。onSave コールバックは廃止し、実フォームの
-// action (親コンポーネント側) を通す。
+// FE-RC-008: useActionState + formAction への移行に伴い、"保存" は
+// type="submit" + formAction の素の button に変更。onSave コールバックは廃止し、
+// 親コンポーネント側の action を SubmitButton の formAction 経由で通す（EMR-212）。
 vi.mock("./VaccinationForm", () => ({
   VaccinationForm: ({
     vaccineName,
@@ -37,6 +37,7 @@ vi.mock("./VaccinationForm", () => ({
     setSupplemental,
     setNextScheduleType,
     fieldErrors,
+    formAction,
   }: {
     vaccineName: string;
     setVaccineName: (value: string) => void;
@@ -45,6 +46,7 @@ vi.mock("./VaccinationForm", () => ({
     setSupplemental: (value: string) => void;
     setNextScheduleType: (value: string) => void;
     fieldErrors?: Record<string, string>;
+    formAction: (payload: FormData) => void;
   }) => (
     <div data-testid="vaccination-form">
       <input
@@ -60,7 +62,9 @@ vi.mock("./VaccinationForm", () => ({
       />
       {fieldErrors?.vaccineId ? <p role="alert">{fieldErrors.vaccineId}</p> : null}
       {fieldErrors?.date ? <p role="alert">{fieldErrors.date}</p> : null}
-      <button type="submit">保存</button>
+      <button type="submit" formAction={formAction}>
+        保存
+      </button>
     </div>
   ),
 }));
@@ -87,6 +91,16 @@ beforeEach(() => {
   vi.mocked(toast.success).mockClear();
 });
 
+// EMR-212: 本番では常に外側 <form>（カルテ保存 action）内に描画されるため、
+// テストも同じ構造で包む。formAction ボタンは form 要素の submit 経由で発火する。
+function renderPanel(outerAction: (payload: FormData) => void = () => {}) {
+  return render(
+    <form action={outerAction}>
+      <MedicalRecordVaccination petId="1" medicalRecordId="99" />
+    </form>,
+  );
+}
+
 function openAddForm() {
   fireEvent.click(screen.getByRole("button", { name: "記録を追加" }));
 }
@@ -99,7 +113,7 @@ async function submitForm() {
 describe("MedicalRecordVaccination left list (BUG-007)", () => {
   it("接種記録があるときは空状態ではなく一覧を表示する", () => {
     mockHistoryItems.current = [{ id: 11, name: "混合ワクチン", date: "26/8/1" }];
-    render(<MedicalRecordVaccination petId="1" medicalRecordId="99" />);
+    renderPanel();
     expect(screen.getByText("混合ワクチン")).toBeInTheDocument();
     expect(screen.queryByText(/接種記録がありません/)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "記録を追加" })).toBeInTheDocument();
@@ -108,7 +122,7 @@ describe("MedicalRecordVaccination left list (BUG-007)", () => {
 
 describe("MedicalRecordVaccination responsive layout", () => {
   it("mobileではform/historyを縦積みし、lg以上で5列gridに戻る", () => {
-    render(<MedicalRecordVaccination petId="1" medicalRecordId="99" />);
+    renderPanel();
 
     openAddForm();
     const layout = screen.getByTestId("vaccination-form").parentElement;
@@ -122,7 +136,7 @@ describe("MedicalRecordVaccination responsive layout", () => {
 
 describe("MedicalRecordVaccination vaccination payload", () => {
   it("embedded 保存 payload に supplemental と next_schedule_type を含める（サイレント消失防止）", async () => {
-    render(<MedicalRecordVaccination petId="1" medicalRecordId="99" />);
+    renderPanel();
     openAddForm();
 
     fireEvent.change(screen.getByLabelText("ワクチンID"), { target: { value: "7" } });
@@ -144,7 +158,7 @@ describe("MedicalRecordVaccination vaccination payload", () => {
 
 describe("MedicalRecordVaccination BUG-501 実施日 default", () => {
   it("記録を追加で開いたフォームの接種日は JST 当日で初期表示される", () => {
-    render(<MedicalRecordVaccination petId="1" medicalRecordId="99" />);
+    renderPanel();
     openAddForm();
 
     expect(screen.getByLabelText("接種日")).toHaveValue("2026-08-29");
@@ -153,7 +167,7 @@ describe("MedicalRecordVaccination BUG-501 実施日 default", () => {
 
 describe("MedicalRecordVaccination BUG-015 required validation", () => {
   it("ワクチン未選択のまま追加すると明示エラーを出し API を呼ばない", async () => {
-    render(<MedicalRecordVaccination petId="1" medicalRecordId="99" />);
+    renderPanel();
     openAddForm();
 
     fireEvent.change(screen.getByLabelText("接種日"), { target: { value: "2026-07-20" } });
@@ -164,7 +178,7 @@ describe("MedicalRecordVaccination BUG-015 required validation", () => {
   });
 
   it("接種日を明示クリアしたまま追加すると明示エラーを出し API を呼ばない", async () => {
-    render(<MedicalRecordVaccination petId="1" medicalRecordId="99" />);
+    renderPanel();
     openAddForm();
 
     fireEvent.change(screen.getByLabelText("ワクチンID"), { target: { value: "7" } });
@@ -177,7 +191,7 @@ describe("MedicalRecordVaccination BUG-015 required validation", () => {
   });
 
   it("ワクチンと接種日を選択すると create が呼ばれ成功する", async () => {
-    render(<MedicalRecordVaccination petId="1" medicalRecordId="99" />);
+    renderPanel();
     openAddForm();
 
     fireEvent.change(screen.getByLabelText("ワクチンID"), { target: { value: "7" } });
@@ -200,7 +214,7 @@ describe("MedicalRecordVaccination BUG-015 required validation", () => {
 
 describe("MedicalRecordVaccination BUG-001 inner save toast", () => {
   it("接種記録の追加に成功したら成功トーストを出す", async () => {
-    render(<MedicalRecordVaccination petId="1" medicalRecordId="99" />);
+    renderPanel();
     openAddForm();
 
     fireEvent.change(screen.getByLabelText("ワクチンID"), { target: { value: "7" } });
@@ -215,7 +229,7 @@ describe("MedicalRecordVaccination BUG-001 inner save toast", () => {
 
   it("接種記録の追加が失敗したら成功トーストを出さずフォームを残す", async () => {
     mockCreateVaccination.mockRejectedValue(new Error("create failed"));
-    render(<MedicalRecordVaccination petId="1" medicalRecordId="99" />);
+    renderPanel();
     openAddForm();
 
     fireEvent.change(screen.getByLabelText("ワクチンID"), { target: { value: "7" } });
@@ -229,5 +243,40 @@ describe("MedicalRecordVaccination BUG-001 inner save toast", () => {
     expect(screen.getByTestId("vaccination-form")).toBeInTheDocument();
     expect(screen.getByLabelText("ワクチンID")).toBeInTheDocument();
     expect(screen.getByLabelText("接種日")).toBeInTheDocument();
+  });
+});
+
+describe("MedicalRecordVaccination EMR-212 nested form", () => {
+  // EMR-212 (EMR-208 同型): MedicalRecordFormReadyPanels の外側 <form>（カルテ保存）
+  // 内にネストした <form> は HTML では無効でブラウザが内側を破棄し、「接種記録を追加」が
+  // カルテ保存 action に吸収される不具合だった。回帰防止: セクション内に <form> を持たず、
+  // SubmitButton の formAction でワクチン登録 action を呼ぶ。
+  it("親フォーム内で「保存」を押すとワクチン登録 action が走り、外側のカルテ保存 action は呼ばれない", async () => {
+    const outerAction = vi.fn();
+    const { container } = render(
+      <form action={outerAction}>
+        <MedicalRecordVaccination petId="1" medicalRecordId="99" />
+      </form>,
+    );
+
+    // セクション側に <form> が残っていないこと（ネスト form の構造的回帰検査）
+    expect(container.querySelectorAll("form")).toHaveLength(1);
+
+    openAddForm();
+    fireEvent.change(screen.getByLabelText("ワクチンID"), { target: { value: "7" } });
+    fireEvent.change(screen.getByLabelText("接種日"), { target: { value: "2026-07-20" } });
+    await submitForm();
+
+    await waitFor(() => {
+      expect(mockCreateVaccination).toHaveBeenCalledWith(
+        expect.objectContaining({
+          pet_id: 1,
+          medical_record_id: 99,
+          vaccine_id: 7,
+          date: "2026-07-20",
+        }),
+      );
+    });
+    expect(outerAction).not.toHaveBeenCalled();
   });
 });

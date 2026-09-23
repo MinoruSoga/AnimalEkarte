@@ -28,6 +28,7 @@ const baseProps = {
   setNextDate: noop,
   remarks: "",
   setRemarks: noop,
+  formAction: noop,
 };
 
 describe("VaccinationForm responsive layout", () => {

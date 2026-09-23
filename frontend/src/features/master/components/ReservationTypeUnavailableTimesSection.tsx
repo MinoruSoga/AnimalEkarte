@@ -152,7 +152,10 @@ export function ReservationTypeUnavailableTimesSection({ clinicId, reservationTy
       ) : null}
 
       {/* 追加フォーム */}
-      <form action={formAction} className="space-y-2">
+      {/* EMR-212: MasterSidePanel がコンテンツ全体を <form action> で包むため、ここに
+          <form> を置くとネスト form となりブラウザが破棄して送信不能になる。
+          form 要素は使わず、SubmitButton の formAction で送信する（EMR-208 と同型） */}
+      <div className="space-y-2">
         {/* 種別 */}
         <div className="flex items-center gap-2">
           <Select
@@ -202,12 +205,16 @@ export function ReservationTypeUnavailableTimesSection({ clinicId, reservationTy
             </SelectTrigger>
             <SelectContent>{TIME_SELECT_ITEMS}</SelectContent>
           </Select>
-          <SubmitButton loadingText="追加中..." className="h-8 text-sm px-3">
+          <SubmitButton
+            loadingText="追加中..."
+            className="h-8 text-sm px-3"
+            formAction={formAction}
+          >
             <Plus className={ICON.smXs} />
             追加
           </SubmitButton>
         </div>
-      </form>
+      </div>
     </div>
   );
 }
