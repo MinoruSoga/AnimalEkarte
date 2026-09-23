@@ -144,6 +144,7 @@ func (r *currentAccessResolver) Resolve(
 	var account *model.Account
 	var accountEpoch int64
 	var assignments []model.StaffClinicAssignment
+	var graphActiveClinicIDs []uint64
 	if loader, ok := r.staff.(currentAccessGraphLoader); ok {
 		graph, err := loader.loadCurrentAccessGraph(ctx, staffID)
 		if err != nil {
@@ -154,6 +155,15 @@ func (r *currentAccessResolver) Resolve(
 			return nil, err
 		}
 		assignments = graph.Assignments
+		graphActiveClinicIDs = make([]uint64, 0, len(graph.Assignments))
+		for i := range graph.Assignments {
+			if graph.AssignmentClinicActive[i] {
+				graphActiveClinicIDs = append(
+					graphActiveClinicIDs,
+					graph.Assignments[i].ClinicID,
+				)
+			}
+		}
 	} else {
 		_, loadedAccount, epoch, err := r.loadCurrentAccessIdentity(ctx, staffID)
 		if err != nil {
@@ -173,12 +183,20 @@ func (r *currentAccessResolver) Resolve(
 	if err != nil {
 		return nil, err
 	}
-	clinicIDs, mainClinicID, err = r.resolveCurrentAccessClinics(
-		ctx,
-		account,
-		clinicIDs,
-		mainClinicID,
-	)
+	if graphActiveClinicIDs != nil && !account.IsSystemAdmin {
+		clinicIDs, mainClinicID, err = r.resolveStaffClinicAccessFromGraph(
+			clinicIDs,
+			mainClinicID,
+			graphActiveClinicIDs,
+		)
+	} else {
+		clinicIDs, mainClinicID, err = r.resolveCurrentAccessClinics(
+			ctx,
+			account,
+			clinicIDs,
+			mainClinicID,
+		)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -256,6 +274,28 @@ func (r *currentAccessResolver) validateCurrentAccessIdentity(
 		)
 	}
 	return staff, account, accountEpoch, nil
+}
+
+// resolveStaffClinicAccessFromGraph applies the non-admin active-clinic filter
+// using the clinics.is_active values already joined by loadCurrentAccessGraph,
+// so the graph path does not issue a second clinic query. It keeps the
+// fail-closed contract of resolveCurrentAccessClinics when the clinic
+// authority dependency is missing.
+func (r *currentAccessResolver) resolveStaffClinicAccessFromGraph(
+	clinicIDs []uint64,
+	mainClinicID string,
+	activeClinicIDs []uint64,
+) ([]uint64, string, error) {
+	if r.clinics == nil {
+		return nil, "", apperrors.WrapInternalServerError(
+			"current clinic authority is not configured",
+		)
+	}
+	return currentStaffClinicAccessFromActiveIDs(
+		mainClinicID,
+		clinicIDs,
+		activeClinicIDs,
+	)
 }
 
 func (r *currentAccessResolver) resolveCurrentAccessClinics(
