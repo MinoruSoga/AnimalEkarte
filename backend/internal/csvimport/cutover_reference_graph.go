@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"reflect"
 	"strconv"
 	"strings"
 )
@@ -64,7 +63,7 @@ func cutoverCSVReferences() map[string][]cutoverCSVReference {
 // sets for referenced parents, not source rows or per-edge copies. Parent tables
 // precede children; self references are checked after that complete table so a
 // later row may be the parent. Every scan rehashes its exact opened bytes.
-func validateCutoverReferenceGraph(sourceDir string, manifest CutoverManifest) error {
+func validateCutoverReferenceGraph(sourceDir string, manifest CutoverManifest, allowPermutation bool) error {
 	specs := CutoverTableSpecs()
 	references := cutoverCSVReferences()
 	if err := validateCutoverReferenceInventory(specs, references); err != nil {
@@ -78,15 +77,16 @@ func validateCutoverReferenceGraph(sourceDir string, manifest CutoverManifest) e
 			}
 		}
 	}
-	for i, spec := range specs {
-		if i >= len(manifest.Tables) || manifest.Tables[i].Table != spec.Name {
+	for _, spec := range specs {
+		table, err := cutoverManifestTableByName(manifest, spec.Name)
+		if err != nil {
 			return fmt.Errorf("source reference graph: table contract mismatch")
 		}
 		ids := make(map[uint64]struct{})
-		selfParents := make(map[uint64]struct{})
+		selfParents := make(map[uint64]cutoverSelfParentRef)
 		_, retainIDs := parents[spec.Name]
-		err := streamCutoverReferenceCSV(sourceDir, spec, manifest.Tables[i], func(row []string, indexes map[string]int) error {
-			if err := validateCutoverRow(spec, row, indexes, manifest.IDBand, 0); err != nil {
+		err = streamCutoverReferenceCSV(sourceDir, spec, table, allowPermutation, func(row []string, header []string, indexes map[string]int, csvLine int64) error {
+			if err := validateCutoverRow(spec, header, row, indexes, manifest.IDBand, 0); err != nil {
 				return fmt.Errorf("table %s: source reference CSV scalar contract changed", spec.Name)
 			}
 			if retainIDs {
@@ -101,7 +101,7 @@ func validateCutoverReferenceGraph(sourceDir string, manifest CutoverManifest) e
 			}
 			for _, ref := range references[spec.Name] {
 				value := row[indexes[ref.column]]
-				if err := validateCutoverCSVReference(spec.Name, ref, value, parents, selfParents); err != nil {
+				if err := validateCutoverCSVReference(spec.Name, ref, value, parents, selfParents, csvLine); err != nil {
 					return err
 				}
 			}
@@ -110,9 +110,10 @@ func validateCutoverReferenceGraph(sourceDir string, manifest CutoverManifest) e
 		if err != nil {
 			return err
 		}
-		for id := range selfParents {
+		for id, selfRef := range selfParents {
 			if _, found := ids[id]; !found {
-				return fmt.Errorf("table %s column parent_id: source CSV parent is missing", spec.Name)
+				return fmt.Errorf("table %s column %s row %d: source CSV reference to %s is missing",
+					spec.Name, selfRef.column, selfRef.csvLine, spec.Name)
 			}
 		}
 		if retainIDs {
@@ -122,7 +123,14 @@ func validateCutoverReferenceGraph(sourceDir string, manifest CutoverManifest) e
 	return nil
 }
 
-func validateCutoverCSVReference(table string, ref cutoverCSVReference, value string, parents map[string]map[uint64]struct{}, selfParents map[uint64]struct{}) error {
+// cutoverSelfParentRef records where a self-referencing row declared its
+// parent so a miss can name the declaring row, never the identifier value.
+type cutoverSelfParentRef struct {
+	column  string
+	csvLine int64
+}
+
+func validateCutoverCSVReference(table string, ref cutoverCSVReference, value string, parents map[string]map[uint64]struct{}, selfParents map[uint64]cutoverSelfParentRef, csvLine int64) error {
 	if value == "" && ref.nullable {
 		return nil
 	}
@@ -131,7 +139,9 @@ func validateCutoverCSVReference(table string, ref cutoverCSVReference, value st
 	case cutoverCSVParent:
 		id, ok := cutoverReferenceID(value)
 		if ok && ref.parent == table {
-			selfParents[id] = struct{}{}
+			if _, seen := selfParents[id]; !seen {
+				selfParents[id] = cutoverSelfParentRef{column: ref.column, csvLine: csvLine}
+			}
 			return nil
 		}
 		_, exists := parents[ref.parent][id]
@@ -144,10 +154,10 @@ func validateCutoverCSVReference(table string, ref cutoverCSVReference, value st
 	case cutoverPlaceholderSeed:
 		valid = placeholderAllowed(table, ref.column, value, value)
 	case cutoverUnavailableParent:
-		return fmt.Errorf("table %s column %s: non-imported source parent must be empty", table, ref.column)
+		return fmt.Errorf("table %s column %s row %d: non-imported source parent %s must be empty", table, ref.column, csvLine, ref.parent)
 	}
 	if !valid {
-		return fmt.Errorf("table %s column %s: source CSV parent is missing or invalid", table, ref.column)
+		return fmt.Errorf("table %s column %s row %d: source CSV reference to %s is missing or invalid", table, ref.column, csvLine, ref.parent)
 	}
 	return nil
 }
@@ -198,7 +208,7 @@ func validateCutoverReferenceInventory(specs []CutoverTableSpec, references map[
 	return nil
 }
 
-func streamCutoverReferenceCSV(sourceDir string, spec CutoverTableSpec, table CutoverManifestTable, visit func([]string, map[string]int) error) error {
+func streamCutoverReferenceCSV(sourceDir string, spec CutoverTableSpec, table CutoverManifestTable, allowPermutation bool, visit func(row []string, header []string, indexes map[string]int, csvLine int64) error) error {
 	file, err := openStableOwnerOnlyFile(cutoverCSVPath(sourceDir, table))
 	if err != nil {
 		return fmt.Errorf("table %s: source reference CSV cannot be opened safely", spec.Name)
@@ -210,16 +220,18 @@ func streamCutoverReferenceCSV(sourceDir string, spec CutoverTableSpec, table Cu
 	}
 	hash := sha256.New()
 	reader := csv.NewReader(bufio.NewReader(io.TeeReader(io.LimitReader(file, maxCutoverCSVBytes+1), hash)))
-	reader.FieldsPerRecord = len(spec.Columns)
 	reader.ReuseRecord = true
 	header, err := reader.Read()
-	if err != nil || !reflect.DeepEqual(header, spec.Columns) {
+	if err != nil {
 		return fmt.Errorf("table %s: source reference CSV header changed", spec.Name)
 	}
-	indexes := make(map[string]int, len(header))
-	for i, column := range header {
-		indexes[column] = i
+	indexes, _, err := cutoverColumnIndexes(spec, header, allowPermutation)
+	if err != nil {
+		return fmt.Errorf("table %s: source reference CSV header changed", spec.Name)
 	}
+	// ReuseRecord may overwrite the header slice once data rows stream, so the
+	// visit callback receives a stable clone for name-based column checks.
+	header = append([]string(nil), header...)
 	var count int64
 	for {
 		row, readErr := reader.Read()
@@ -230,7 +242,7 @@ func streamCutoverReferenceCSV(sourceDir string, spec CutoverTableSpec, table Cu
 			return fmt.Errorf("table %s: source reference CSV cannot be parsed", spec.Name)
 		}
 		count++
-		if err := visit(row, indexes); err != nil {
+		if err := visit(row, header, indexes, count+1); err != nil {
 			return err
 		}
 	}

@@ -59,6 +59,10 @@ type CutoverResult struct {
 	RunID       string           `json:"runId"`
 	IDBand      CutoverIDBand    `json:"idBand"`
 	Counts      map[string]int64 `json:"counts"`
+	// ToleratedDrift carries the bundle's recorded rehearsal drift plus any
+	// target-side drift tolerated during apply (a missing serial id sequence).
+	// It is empty for formal/trusted artifacts.
+	ToleratedDrift []string `json:"toleratedDrift,omitempty"`
 }
 
 type cutoverSeedFacts struct {

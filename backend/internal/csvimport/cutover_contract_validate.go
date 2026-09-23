@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -42,16 +43,23 @@ func PreflightCutoverBundle(sourceDir string, expected ExpectedCutoverSource) (C
 	if err != nil {
 		return CutoverBundle{}, err
 	}
-	if err := validateCutoverManifest(manifest, expected); err != nil {
+	manifestNotes, err := validateCutoverManifest(&manifest, expected)
+	if err != nil {
 		return CutoverBundle{}, err
 	}
 	if err := bindCutoverAccountSource(cleanDir, expected.AccountSourceDir, &manifest); err != nil {
 		return CutoverBundle{}, err
 	}
-	if err := validateCutoverFiles(cleanDir, manifest, expected.Provenance); err != nil {
+	fileNotes, err := validateCutoverFiles(cleanDir, manifest, expected.Provenance)
+	if err != nil {
 		return CutoverBundle{}, err
 	}
-	return CutoverBundle{SourceDir: cleanDir, Manifest: manifest, Provenance: expected.Provenance}, nil
+	return CutoverBundle{
+		SourceDir:      cleanDir,
+		Manifest:       manifest,
+		Provenance:     expected.Provenance,
+		ToleratedDrift: append(manifestNotes, fileNotes...),
+	}, nil
 }
 
 func validateCutoverDirectory(sourceDir string) (string, error) {
@@ -119,31 +127,33 @@ func ensureJSONEOF(decoder *json.Decoder) error {
 	return nil
 }
 
-func validateCutoverManifest(manifest CutoverManifest, expected ExpectedCutoverSource) error {
-	if acceptsRehearsalManifest(expected.Provenance.Mode) {
+func validateCutoverManifest(manifest *CutoverManifest, expected ExpectedCutoverSource) ([]string, error) {
+	mode := expected.Provenance.Mode
+	if acceptsRehearsalManifest(mode) {
 		if manifest.Status != "PASS" && manifest.Status != "REHEARSAL_ONLY" {
-			return fmt.Errorf("manifest status must be PASS or REHEARSAL_ONLY for rehearsal import")
+			return nil, fmt.Errorf("manifest status must be PASS or REHEARSAL_ONLY for rehearsal import")
 		}
 	} else if manifest.Status != "PASS" {
-		return fmt.Errorf("manifest status must be PASS")
+		return nil, fmt.Errorf("manifest status must be PASS")
 	}
-	if err := validateCutoverProducerProvenance(manifest, expected.Provenance); err != nil {
-		return err
+	notes, err := validateCutoverProducerProvenance(*manifest, expected.Provenance)
+	if err != nil {
+		return nil, err
 	}
-	if err := validateWindowZeroEvidence(manifest, expected.Provenance); err != nil {
-		return err
+	if err := validateWindowZeroEvidence(*manifest, expected.Provenance); err != nil {
+		return nil, err
 	}
 	if manifest.SourceLayer != "animalekarte_stage" {
-		return fmt.Errorf("manifest source layer must be animalekarte_stage")
+		return nil, fmt.Errorf("manifest source layer must be animalekarte_stage")
 	}
 	if manifest.Format != "csv-with-header" {
-		return fmt.Errorf("manifest format must be csv-with-header")
+		return nil, fmt.Errorf("manifest format must be csv-with-header")
 	}
 	if _, err := time.Parse(time.RFC3339Nano, manifest.GeneratedAt); err != nil {
-		return fmt.Errorf("manifest generatedAt must be an RFC3339 timestamp")
+		return nil, fmt.Errorf("manifest generatedAt must be an RFC3339 timestamp")
 	}
 	if manifest.ClinicCode != expected.ClinicCode || manifest.ClinicOrdinal != expected.ClinicOrdinal || manifest.SourceRunID != expected.RunID {
-		return fmt.Errorf("manifest clinic/run binding does not match expected source")
+		return nil, fmt.Errorf("manifest clinic/run binding does not match expected source")
 	}
 	expectedBand := CutoverIDBand{
 		Base:               (expected.ClinicOrdinal - 1) * clinicBandSize,
@@ -156,7 +166,7 @@ func validateCutoverManifest(manifest CutoverManifest, expected ExpectedCutoverS
 		manifest.ClinicBandEndExclusive != expectedBand.EndExclusive ||
 		manifest.StageIDOffset != expectedBand.NonOwnerIDOffset ||
 		manifest.IDBand != expectedBand {
-		return fmt.Errorf("manifest clinic band is inconsistent with clinic ordinal")
+		return nil, fmt.Errorf("manifest clinic band is inconsistent with clinic ordinal")
 	}
 	wantOutputDir := filepath.Join("sensitive-local", "animalekarte-csv-export", expected.ClinicCode, expected.RunID)
 	outputDirMatches := manifest.OutputDir == wantOutputDir
@@ -169,44 +179,109 @@ func validateCutoverManifest(manifest CutoverManifest, expected ExpectedCutoverS
 	// "-rehearsal-current") while retaining the clinic/run binding. Formal
 	// cutover and verified staging PASS bundles allow only the bound revision above.
 	if expected.Provenance.Mode == CutoverProvenanceLocalRehearsal ||
-		(expected.Provenance.Mode == CutoverProvenanceStagingRehearsal && isRehearsalOnlyProducer(manifest)) {
+		(expected.Provenance.Mode == CutoverProvenanceStagingRehearsal && isRehearsalOnlyProducer(*manifest)) {
 		outputDirMatches = outputDirMatches || strings.HasPrefix(manifest.OutputDir, wantOutputDir+"-rehearsal-")
 	}
 	if !outputDirMatches || filepath.IsAbs(manifest.OutputDir) || filepath.Clean(manifest.OutputDir) != manifest.OutputDir {
-		return fmt.Errorf("manifest output directory binding is invalid")
+		return nil, fmt.Errorf("manifest output directory binding is invalid")
 	}
+	// Drift tolerance is artifact-keyed: only REHEARSAL_ONLY handoffs admitted
+	// under a rehearsal provenance mode may diverge from the frozen contract
+	// surface, and every accepted divergence is recorded on the bundle.
+	drift := rehearsalContractDrift(*manifest, mode)
 	if manifest.ImportablePredicate != cutoverImportablePredicate {
-		return fmt.Errorf("manifest importable predicate does not match the cutover contract")
+		if !drift {
+			return nil, fmt.Errorf("manifest importable predicate does not match the cutover contract")
+		}
+		notes = append(notes, "manifest.importablePredicate")
 	}
 	if !reflect.DeepEqual(manifest.PlaceholderColumns, CutoverPlaceholderColumns()) {
-		return fmt.Errorf("manifest placeholder inventory does not match the cutover contract")
+		if !drift {
+			return nil, fmt.Errorf("manifest placeholder inventory does not match the cutover contract")
+		}
+		notes = append(notes, "manifest.placeholderColumns")
 	}
 
 	specs := CutoverTableSpecs()
-	if len(manifest.Tables) != len(specs) {
-		return fmt.Errorf("manifest table order/count mismatch: got %d tables, want %d", len(manifest.Tables), len(specs))
+	if err := normalizeCutoverManifestTables(manifest, specs, drift, &notes); err != nil {
+		return nil, err
 	}
 	for i, spec := range specs {
 		table := manifest.Tables[i]
-		if table.Table != spec.Name {
-			return fmt.Errorf("manifest table order mismatch at position %d", i+1)
-		}
 		wantFile := spec.Name + ".csv"
 		if table.File != wantFile || filepath.Base(table.File) != table.File || strings.ContainsAny(table.File, `/\\`) {
-			return fmt.Errorf("manifest filename is unsafe or unexpected for table %s", spec.Name)
+			return nil, fmt.Errorf("manifest filename is unsafe or unexpected for table %s", spec.Name)
 		}
 		if table.RowCount < 0 {
-			return fmt.Errorf("manifest row count must not be negative for table %s", spec.Name)
+			return nil, fmt.Errorf("manifest row count must not be negative for table %s", spec.Name)
 		}
-		if !acceptsRehearsalManifest(expected.Provenance.Mode) &&
+		if !acceptsRehearsalManifest(mode) &&
 			(spec.Name == "payments" || spec.Name == "payment_splits") &&
 			table.RowCount == 0 {
-			return fmt.Errorf("manifest table %s must contain formal rows", spec.Name)
+			return nil, fmt.Errorf("manifest table %s must contain formal rows", spec.Name)
 		}
 		if !validSHA256(table.SHA256) {
-			return fmt.Errorf("manifest sha256 is invalid for table %s", spec.Name)
+			return nil, fmt.Errorf("manifest sha256 is invalid for table %s", spec.Name)
 		}
 	}
+	return notes, nil
+}
+
+// normalizeCutoverManifestTables re-orders manifest tables into the immutable
+// parent-before-child CutoverTableSpecs() order so every downstream consumer
+// (files, reference graph, apply, resume, verify) iterates spec order even
+// when a rehearsal producer emitted a different order. A reordered tables[]
+// is tolerated only for rehearsal-grade bundles and recorded as drift;
+// formal bundles must already match the contract order exactly. Unknown,
+// duplicate, missing, or extra table names always fail closed.
+func normalizeCutoverManifestTables(manifest *CutoverManifest, specs []CutoverTableSpec, drift bool, notes *[]string) error {
+	if len(manifest.Tables) != len(specs) {
+		return fmt.Errorf("manifest table order/count mismatch: got %d tables, want %d", len(manifest.Tables), len(specs))
+	}
+	byName := make(map[string]int, len(manifest.Tables))
+	for i, table := range manifest.Tables {
+		if _, duplicate := byName[table.Table]; duplicate {
+			return fmt.Errorf("manifest lists table %s more than once", table.Table)
+		}
+		byName[table.Table] = i
+	}
+	specNames := make(map[string]struct{}, len(specs))
+	for _, spec := range specs {
+		specNames[spec.Name] = struct{}{}
+	}
+	var unknown []string
+	for name := range byName {
+		if _, ok := specNames[name]; !ok {
+			unknown = append(unknown, name)
+		}
+	}
+	slices.Sort(unknown)
+	if len(unknown) > 0 {
+		return fmt.Errorf("manifest contains unknown table %s", unknown[0])
+	}
+	normalized := make([]CutoverManifestTable, len(specs))
+	for i, spec := range specs {
+		j, found := byName[spec.Name]
+		if !found {
+			return fmt.Errorf("manifest is missing table %s", spec.Name)
+		}
+		normalized[i] = manifest.Tables[j]
+	}
+	mismatch := -1
+	for i, table := range manifest.Tables {
+		if table.Table != specs[i].Name {
+			mismatch = i
+			break
+		}
+	}
+	if mismatch < 0 {
+		return nil
+	}
+	if !drift {
+		return fmt.Errorf("manifest table order mismatch at position %d", mismatch+1)
+	}
+	*notes = append(*notes, "manifest.tables order")
+	manifest.Tables = normalized
 	return nil
 }
 
@@ -214,7 +289,7 @@ func acceptsRehearsalManifest(mode CutoverProvenanceMode) bool {
 	return mode == CutoverProvenanceLocalRehearsal || mode == CutoverProvenanceStagingRehearsal
 }
 
-func validateCutoverProducerProvenance(manifest CutoverManifest, contract CutoverProvenanceContract) error {
+func validateCutoverProducerProvenance(manifest CutoverManifest, contract CutoverProvenanceContract) ([]string, error) {
 	switch contract.Mode {
 	case "", CutoverProvenanceFormal:
 		// Formal provenance validation continues below.
@@ -223,7 +298,7 @@ func validateCutoverProducerProvenance(manifest CutoverManifest, contract Cutove
 	case CutoverProvenanceStagingRehearsal:
 		if contract.Target.Environment != "staging" || contract.Target.Host == "" ||
 			contract.Target.Database == "" || contract.Target.ClinicID <= 0 {
-			return fmt.Errorf("staging rehearsal provenance requires an explicit staging target binding")
+			return nil, fmt.Errorf("staging rehearsal provenance requires an explicit staging target binding")
 		}
 		// Shared STG can load _old_db_handoff rehearsal bundles after the
 		// cmd/csv-import-stg-uat env sentinel and target binding. Formal
@@ -231,42 +306,42 @@ func validateCutoverProducerProvenance(manifest CutoverManifest, contract Cutove
 		if isRehearsalOnlyProducer(manifest) {
 			return validateLocalRehearsalProducerProvenance(manifest)
 		}
-		return validateStagingRehearsalProducerProvenance(manifest)
+		return nil, validateStagingRehearsalProducerProvenance(manifest)
 	default:
-		return fmt.Errorf("unknown cutover provenance mode %q", contract.Mode)
+		return nil, fmt.Errorf("unknown cutover provenance mode %q", contract.Mode)
 	}
 	if manifest.ManifestSchemaVersion != cutoverManifestSchema ||
 		manifest.StageMappingSHA256 != cutoverStageMappingSHA256 ||
 		manifest.CSVContractSHA256 != cutoverCSVContractSHA256 {
-		return fmt.Errorf("manifest mapping contract binding is invalid")
+		return nil, fmt.Errorf("manifest mapping contract binding is invalid")
 	}
 	if manifest.HandoffEligibility != "TRUSTED_CANDIDATE" {
-		return fmt.Errorf("manifest handoff eligibility must be TRUSTED_CANDIDATE")
+		return nil, fmt.Errorf("manifest handoff eligibility must be TRUSTED_CANDIDATE")
 	}
 	if manifest.SourceCompletenessStatus != "PASS" ||
 		!manifest.SourceComplete ||
 		!manifest.SourceProvenanceVerified {
-		return fmt.Errorf("manifest source completeness must be fully verified")
+		return nil, fmt.Errorf("manifest source completeness must be fully verified")
 	}
 	if manifest.IncompleteSourceTables == nil || len(*manifest.IncompleteSourceTables) != 0 {
-		return fmt.Errorf("manifest incomplete source table list must be empty")
+		return nil, fmt.Errorf("manifest incomplete source table list must be empty")
 	}
 	if !stageBuildIDPattern.MatchString(manifest.StageBuildID) {
-		return fmt.Errorf("manifest stage build ID is invalid")
+		return nil, fmt.Errorf("manifest stage build ID is invalid")
 	}
 	if !validVerifiedSourceIdentity(manifest.SourceIdentity) {
-		return fmt.Errorf("manifest source identity must be complete and verified")
+		return nil, fmt.Errorf("manifest source identity must be complete and verified")
 	}
 	if !validLayerDigests(manifest.SourceSummarySHA256) {
-		return fmt.Errorf("manifest summary digest set is invalid")
+		return nil, fmt.Errorf("manifest summary digest set is invalid")
 	}
 	if !validEvidenceDigests(manifest.SourceEvidenceSHA256, manifest.SourceIdentity) {
-		return fmt.Errorf("manifest evidence digest set is invalid")
+		return nil, fmt.Errorf("manifest evidence digest set is invalid")
 	}
 	if !validOrderedLayerTimestamps(manifest.SourceSummaryGeneratedAt, manifest.GeneratedAt) {
-		return fmt.Errorf("manifest summary generation timestamps are invalid or out of order")
+		return nil, fmt.Errorf("manifest summary generation timestamps are invalid or out of order")
 	}
-	return nil
+	return nil, nil
 }
 
 func validateStagingRehearsalProducerProvenance(manifest CutoverManifest) error {
@@ -311,36 +386,44 @@ func validateStagingRehearsalProducerProvenance(manifest CutoverManifest) error 
 	return nil
 }
 
-func validateLocalRehearsalProducerProvenance(manifest CutoverManifest) error {
+func validateLocalRehearsalProducerProvenance(manifest CutoverManifest) ([]string, error) {
 	if manifest.ManifestSchemaVersion != cutoverManifestSchema {
-		return fmt.Errorf("manifest schema version is invalid")
+		return nil, fmt.Errorf("manifest schema version is invalid")
 	}
-	// CSV contract must still match; stage mapping may differ while old_db SQL
-	// is ahead of the frozen consumer digest during local rehearsal.
+	// Stage mapping may differ while old_db SQL is ahead of the frozen
+	// consumer digest during local rehearsal. A drifted CSV contract digest is
+	// tolerated only for rehearsal-grade artifacts: the file-level gates
+	// (header set equality, per-file sha256, row counts, reference graph)
+	// stay authoritative, so the drift is recorded on the bundle instead of
+	// being hidden. TRUSTED_CANDIDATE/PASS artifacts keep the strict check.
+	var notes []string
 	if manifest.CSVContractSHA256 != cutoverCSVContractSHA256 {
-		return fmt.Errorf("manifest CSV contract digest is invalid")
+		if !isRehearsalOnlyProducer(manifest) {
+			return nil, fmt.Errorf("manifest CSV contract digest is invalid")
+		}
+		notes = append(notes, "manifest.csvContractSha256")
 	}
 	if manifest.HandoffEligibility != "TRUSTED_CANDIDATE" &&
 		manifest.HandoffEligibility != "REHEARSAL_ONLY" {
-		return fmt.Errorf("manifest handoff eligibility must be TRUSTED_CANDIDATE or REHEARSAL_ONLY")
+		return nil, fmt.Errorf("manifest handoff eligibility must be TRUSTED_CANDIDATE or REHEARSAL_ONLY")
 	}
 	switch manifest.SourceCompletenessStatus {
 	case "PASS", "PARTIAL", "UNVERIFIED":
 	default:
-		return fmt.Errorf("manifest source completeness status is unsupported for local rehearsal")
+		return nil, fmt.Errorf("manifest source completeness status is unsupported for local rehearsal")
 	}
 	if !stageBuildIDPattern.MatchString(manifest.StageBuildID) {
-		return fmt.Errorf("manifest stage build ID is invalid")
+		return nil, fmt.Errorf("manifest stage build ID is invalid")
 	}
 	if !validSHA256(manifest.SourceSummarySHA256.Raw) ||
 		!validSHA256(manifest.SourceSummarySHA256.Intermediate) ||
 		!validSHA256(manifest.SourceSummarySHA256.Stage) {
-		return fmt.Errorf("manifest summary digest set is invalid")
+		return nil, fmt.Errorf("manifest summary digest set is invalid")
 	}
 	if !validOrderedLayerTimestamps(manifest.SourceSummaryGeneratedAt, manifest.GeneratedAt) {
-		return fmt.Errorf("manifest summary generation timestamps are invalid or out of order")
+		return nil, fmt.Errorf("manifest summary generation timestamps are invalid or out of order")
 	}
-	return nil
+	return notes, nil
 }
 
 func validVerifiedSourceIdentity(identity CutoverSourceIdentity) bool {
@@ -398,11 +481,22 @@ func validOrderedLayerTimestamps(timestamps CutoverLayerTimestamps, manifestGene
 		!stage.After(manifest)
 }
 
-func validateCutoverFiles(sourceDir string, manifest CutoverManifest, provenance CutoverProvenanceContract) error {
-	for i, spec := range CutoverTableSpecs() {
-		path := cutoverCSVPath(sourceDir, manifest.Tables[i])
-		if err := validateCutoverCSV(path, spec, manifest.Tables[i], manifest.IDBand); err != nil {
-			return err
+func validateCutoverFiles(sourceDir string, manifest CutoverManifest, provenance CutoverProvenanceContract) ([]string, error) {
+	// Header permutation tolerance is keyed on the same artifact+mode pair as
+	// manifest drift so preflight and apply observe one policy.
+	allowPermutation := rehearsalContractDrift(manifest, provenance.Mode)
+	var notes []string
+	for _, spec := range CutoverTableSpecs() {
+		table, err := cutoverManifestTableByName(manifest, spec.Name)
+		if err != nil {
+			return nil, err
+		}
+		permuted, err := validateCutoverCSV(cutoverCSVPath(sourceDir, table), spec, table, manifest.IDBand, allowPermutation)
+		if err != nil {
+			return nil, err
+		}
+		if permuted {
+			notes = append(notes, "csv header order: "+spec.Name)
 		}
 	}
 	allowed := map[string]struct{}{cutoverManifestName: {}}
@@ -414,64 +508,65 @@ func validateCutoverFiles(sourceDir string, manifest CutoverManifest, provenance
 	}
 	entries, err := os.ReadDir(sourceDir)
 	if err != nil {
-		return fmt.Errorf("list cutover source directory: %w", err)
+		return nil, fmt.Errorf("list cutover source directory: %w", err)
 	}
 	for _, entry := range entries {
 		if _, ok := allowed[entry.Name()]; !ok {
-			return fmt.Errorf("unexpected file or directory in cutover source")
+			return nil, fmt.Errorf("unexpected file or directory in cutover source")
 		}
 	}
 	if err := validateCutoverPaymentGraph(sourceDir, &manifest, provenance); err != nil {
-		return err
+		return nil, err
 	}
-	return validateCutoverReferenceGraph(sourceDir, manifest)
+	if err := validateCutoverReferenceGraph(sourceDir, manifest, allowPermutation); err != nil {
+		return nil, err
+	}
+	return notes, nil
 }
 
-func validateCutoverCSV(path string, spec CutoverTableSpec, table CutoverManifestTable, band CutoverIDBand) error {
+func validateCutoverCSV(path string, spec CutoverTableSpec, table CutoverManifestTable, band CutoverIDBand, allowPermutation bool) (bool, error) {
 	path, err := resolveCutoverAccountCSV(path)
 	if err != nil {
-		return err
+		return false, err
 	}
 	info, err := os.Lstat(path)
 	if err != nil {
-		return fmt.Errorf("table %s: inspect CSV: %w", spec.Name, err)
+		return false, fmt.Errorf("table %s: inspect CSV: %w", spec.Name, err)
 	}
 	if info.Mode()&os.ModeSymlink != 0 {
-		return fmt.Errorf("table %s: CSV must not be a symbolic link", spec.Name)
+		return false, fmt.Errorf("table %s: CSV must not be a symbolic link", spec.Name)
 	}
 	if !info.Mode().IsRegular() {
-		return fmt.Errorf("table %s: CSV must be a regular file", spec.Name)
+		return false, fmt.Errorf("table %s: CSV must be a regular file", spec.Name)
 	}
 	if err := requireOwnerOnly(info, false); err != nil {
-		return fmt.Errorf("table %s: %w", spec.Name, err)
+		return false, fmt.Errorf("table %s: %w", spec.Name, err)
 	}
 
 	f, err := openStableOwnerOnlyFile(path)
 	if err != nil {
-		return fmt.Errorf("table %s: open CSV: %w", spec.Name, err)
+		return false, fmt.Errorf("table %s: open CSV: %w", spec.Name, err)
 	}
 	defer func() { _ = f.Close() }()
 	openedInfo, statErr := f.Stat()
 	if statErr != nil || openedInfo.Size() > maxCutoverCSVBytes {
-		return fmt.Errorf("table %s: CSV exceeds the size limit", spec.Name)
+		return false, fmt.Errorf("table %s: CSV exceeds the size limit", spec.Name)
 	}
 	hash := sha256.New()
 	// Hash and validate the exact same opened bytes. Separate pathname opens
 	// would allow a file swap between digest and structural validation.
 	reader := csv.NewReader(bufio.NewReader(io.TeeReader(io.LimitReader(f, maxCutoverCSVBytes+1), hash)))
-	reader.FieldsPerRecord = len(spec.Columns)
+	// The header declares row arity (FieldsPerRecord 0): every data row must
+	// match it exactly, and cutoverColumnIndexes resolves fields by name.
 	header, err := reader.Read()
 	if err != nil {
-		return fmt.Errorf("table %s: read CSV header: %w", spec.Name, err)
+		return false, fmt.Errorf("table %s: read CSV header: %w", spec.Name, err)
 	}
-	if !reflect.DeepEqual(header, spec.Columns) {
-		return fmt.Errorf("table %s: CSV header does not match exact column order", spec.Name)
+	columnIndexes, permuted, err := cutoverColumnIndexes(spec, header, allowPermutation)
+	if err != nil {
+		return false, err
 	}
 
-	columnIndexes := make(map[string]int, len(spec.Columns))
-	for i, column := range spec.Columns {
-		columnIndexes[column] = i
-	}
 	var rowCount int64
 	seenIDs := make(map[int64]struct{})
 	for {
@@ -480,48 +575,80 @@ func validateCutoverCSV(path string, spec CutoverTableSpec, table CutoverManifes
 			break
 		}
 		if readErr != nil {
-			return fmt.Errorf("table %s row %d: read CSV: %w", spec.Name, rowCount+2, readErr)
+			return false, fmt.Errorf("table %s row %d: read CSV: %w", spec.Name, rowCount+2, readErr)
 		}
 		rowCount++
 		idText := row[columnIndexes["id"]]
 		id, parseErr := strconv.ParseInt(idText, 10, 64)
 		if parseErr != nil {
-			return fmt.Errorf("table %s column id row %d: primary ID must be an integer", spec.Name, rowCount+1)
+			return false, fmt.Errorf("table %s column id row %d: primary ID must be an integer", spec.Name, rowCount+1)
 		}
 		if _, duplicate := seenIDs[id]; duplicate {
-			return fmt.Errorf("table %s column id row %d: duplicate primary ID", spec.Name, rowCount+1)
+			return false, fmt.Errorf("table %s column id row %d: duplicate primary ID", spec.Name, rowCount+1)
 		}
 		seenIDs[id] = struct{}{}
-		if err := validateCutoverRow(spec, row, columnIndexes, band, rowCount+1); err != nil {
-			return err
+		if err := validateCutoverRow(spec, header, row, columnIndexes, band, rowCount+1); err != nil {
+			return false, err
 		}
 	}
 	if rowCount != table.RowCount {
-		return fmt.Errorf("table %s: row count mismatch: got %d, want %d", spec.Name, rowCount, table.RowCount)
+		return false, fmt.Errorf("table %s: row count mismatch: got %d, want %d", spec.Name, rowCount, table.RowCount)
 	}
 	actualDigest := hex.EncodeToString(hash.Sum(nil))
 	if !strings.EqualFold(actualDigest, table.SHA256) {
-		return fmt.Errorf("table %s: CSV sha256 does not match manifest", spec.Name)
+		return false, fmt.Errorf("table %s: CSV sha256 does not match manifest", spec.Name)
 	}
-	return nil
+	return permuted, nil
 }
 
-func validateCutoverRow(spec CutoverTableSpec, row []string, indexes map[string]int, band CutoverIDBand, csvLine int64) error {
+// cutoverColumnIndexes binds CSV header names to field positions so no
+// consumer ever indexes rows positionally. Formal bundles keep exact-order
+// enforcement; rehearsal-grade bundles may permute the same column set.
+// Duplicate names, unknown columns, and missing contract columns each fail
+// closed with the offending column named — never a cell value.
+func cutoverColumnIndexes(spec CutoverTableSpec, header []string, allowPermutation bool) (map[string]int, bool, error) {
+	exact := reflect.DeepEqual(header, spec.Columns)
+	if !exact && !allowPermutation {
+		return nil, false, fmt.Errorf("table %s: CSV header does not match exact column order", spec.Name)
+	}
+	indexes := make(map[string]int, len(header))
+	for i, column := range header {
+		if _, duplicate := indexes[column]; duplicate {
+			return nil, false, fmt.Errorf("table %s: CSV header contains duplicate column %s", spec.Name, column)
+		}
+		indexes[column] = i
+	}
+	for _, column := range header {
+		if !hasColumn(spec.Columns, column) {
+			return nil, false, fmt.Errorf("table %s: CSV header contains unknown column %s", spec.Name, column)
+		}
+	}
+	for _, column := range spec.Columns {
+		if _, ok := indexes[column]; !ok {
+			return nil, false, fmt.Errorf("table %s: CSV header is missing column %s", spec.Name, column)
+		}
+	}
+	return indexes, !exact, nil
+}
+
+func validateCutoverRow(spec CutoverTableSpec, header []string, row []string, indexes map[string]int, band CutoverIDBand, csvLine int64) error {
 	if err := validatePaymentMethodPlaceholder(spec, row, indexes, csvLine); err != nil {
 		return err
 	}
 	if (spec.Name == "payments" || spec.Name == "payment_splits") && row[indexes["clinic_id"]] != "{{CLINIC_ID}}" {
 		return fmt.Errorf("table %s column clinic_id row %d: clinic placeholder is required", spec.Name, csvLine)
 	}
+	// header[i] is the actual CSV column name for row[i]; the CSV reader pins
+	// row arity to the header length so the two are always aligned.
 	for i, value := range row {
 		matches := placeholderPattern.FindAllString(value, -1)
 		for _, token := range matches {
-			if !placeholderAllowed(spec.Name, spec.Columns[i], value, token) {
-				return fmt.Errorf("table %s column %s row %d: unknown or misplaced placeholder", spec.Name, spec.Columns[i], csvLine)
+			if !placeholderAllowed(spec.Name, header[i], value, token) {
+				return fmt.Errorf("table %s column %s row %d: unknown or misplaced placeholder", spec.Name, header[i], csvLine)
 			}
 		}
 		if (strings.Contains(value, "{{") || strings.Contains(value, "}}")) && len(matches) == 0 {
-			return fmt.Errorf("table %s column %s row %d: malformed placeholder", spec.Name, spec.Columns[i], csvLine)
+			return fmt.Errorf("table %s column %s row %d: malformed placeholder", spec.Name, header[i], csvLine)
 		}
 	}
 	for _, column := range spec.BandColumns {

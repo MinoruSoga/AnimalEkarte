@@ -7,11 +7,11 @@ import (
 	"strings"
 )
 
-func loadCutoverBillingFacts(sourceDir string, spec CutoverTableSpec, table CutoverManifestTable) (map[int64]cutoverBillingFact, error) {
+func loadCutoverBillingFacts(sourceDir string, spec CutoverTableSpec, table CutoverManifestTable, allowPermutation bool) (map[int64]cutoverBillingFact, error) {
 	billings := make(map[int64]cutoverBillingFact)
 	seenMedicalRecordIDs := make(map[int64]int64)
 	path := filepath.Join(sourceDir, table.File)
-	err := streamCutoverCSV(path, spec, table.SHA256, func(row []string, indexes map[string]int, line int64) error {
+	err := streamCutoverCSV(path, spec, table.SHA256, allowPermutation, func(row []string, indexes map[string]int, line int64) error {
 		billingID, err := parsePaymentGraphInt("billings", "id", row[indexes["id"]], line)
 		if err != nil {
 			return err
@@ -67,10 +67,11 @@ func loadCutoverPaymentParents(
 	table CutoverManifestTable,
 	billings map[int64]cutoverBillingFact,
 	relaxPaymentSnapshot bool,
+	allowPermutation bool,
 ) (map[int64]cutoverPaymentParent, error) {
 	parents := make(map[int64]cutoverPaymentParent)
 	path := filepath.Join(sourceDir, table.File)
-	err := streamCutoverCSV(path, spec, table.SHA256, func(row []string, indexes map[string]int, line int64) error {
+	err := streamCutoverCSV(path, spec, table.SHA256, allowPermutation, func(row []string, indexes map[string]int, line int64) error {
 		billingID, err := parsePaymentGraphInt("payments", "billing_id", row[indexes["billing_id"]], line)
 		if err != nil {
 			return err
@@ -150,9 +151,10 @@ func accumulateCutoverPaymentSplits(
 	spec CutoverTableSpec,
 	table CutoverManifestTable,
 	parents map[int64]cutoverPaymentParent,
+	allowPermutation bool,
 ) error {
 	path := filepath.Join(sourceDir, table.File)
-	return streamCutoverCSV(path, spec, table.SHA256, func(row []string, indexes map[string]int, line int64) error {
+	return streamCutoverCSV(path, spec, table.SHA256, allowPermutation, func(row []string, indexes map[string]int, line int64) error {
 		billingID, err := parsePaymentGraphInt("payment_splits", "billing_id", row[indexes["billing_id"]], line)
 		if err != nil {
 			return err

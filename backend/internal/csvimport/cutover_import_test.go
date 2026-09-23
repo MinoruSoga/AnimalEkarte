@@ -374,6 +374,7 @@ type fakeCutoverTransaction struct {
 	commitError          error
 	countMismatch        bool
 	sequenceBelowFloor   bool
+	missingSequence      bool
 	paymentGraphMismatch bool
 	copyBlockedByRLS     bool
 	insertBatchRowCounts []int64
@@ -382,6 +383,8 @@ type fakeCutoverTransaction struct {
 
 func (tx *fakeCutoverTransaction) QueryRow(ctx context.Context, query string, args ...any) pgx.Row {
 	switch {
+	case strings.Contains(query, "pg_get_serial_sequence") && tx.missingSequence:
+		return staticRow{values: []any{nil}}
 	case strings.Contains(query, "relrowsecurity"):
 		return staticRow{values: []any{tx.copyBlockedByRLS}}
 	case strings.Contains(query, "required animal_species master"):
@@ -471,8 +474,9 @@ func TestTransformCutoverCSVResolvesOnlyDeclaredPlaceholders(t *testing.T) {
 		t.Fatal(err)
 	}
 	sum := sha256.Sum256([]byte(source))
+	spec := CutoverTableSpec{Name: "pets", Columns: []string{"id", "clinic_id", "owner_id", "animal_species_id", "name"}}
 	var output bytes.Buffer
-	count, err := transformCutoverCSV(context.Background(), path, &output, CutoverSeedIDs{
+	count, err := transformCutoverCSV(context.Background(), path, spec, false, &output, CutoverSeedIDs{
 		ClinicID: 11, AnimalSpeciesID: 22, ExamTypeID: 33, TrimmingReservationTypeID: 44,
 		CashPaymentMethodID: 55, CreditCardPaymentMethodID: 66,
 	}, hex.EncodeToString(sum[:]))
@@ -495,8 +499,9 @@ func TestTransformCutoverCSVResolvesPaymentMethodPlaceholders(t *testing.T) {
 		t.Fatal(err)
 	}
 	sum := sha256.Sum256([]byte(source))
+	spec := CutoverTableSpec{Name: "payments", Columns: []string{"id", "method", "payment_method_id"}}
 	var output bytes.Buffer
-	count, err := transformCutoverCSV(context.Background(), path, &output, CutoverSeedIDs{
+	count, err := transformCutoverCSV(context.Background(), path, spec, false, &output, CutoverSeedIDs{
 		ClinicID: 11, AnimalSpeciesID: 22, ExamTypeID: 33, TrimmingReservationTypeID: 44,
 		CashPaymentMethodID: 55, CreditCardPaymentMethodID: 66,
 	}, hex.EncodeToString(sum[:]))
@@ -518,8 +523,9 @@ func TestTransformCutoverCSVRejectsDigestChangeWithoutLeakingValue(t *testing.T)
 	if err := os.WriteFile(path, []byte("id,name\n300001,private-owner-name\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
+	spec := CutoverTableSpec{Name: "owners", Columns: []string{"id", "name"}}
 	var output bytes.Buffer
-	_, err := transformCutoverCSV(context.Background(), path, &output, CutoverSeedIDs{}, strings.Repeat("0", 64))
+	_, err := transformCutoverCSV(context.Background(), path, spec, false, &output, CutoverSeedIDs{}, strings.Repeat("0", 64))
 	if err == nil || !strings.Contains(strings.ToLower(err.Error()), "sha256") {
 		t.Fatalf("error = %v, want sha256 rejection", err)
 	}
@@ -1402,6 +1408,10 @@ func (row staticRow) Scan(destinations ...any) error {
 		case *string:
 			*destination = value.(string)
 		case **string:
+			if value == nil {
+				*destination = nil
+				continue
+			}
 			copy := value.(string)
 			*destination = &copy
 		case *[]string:

@@ -296,7 +296,7 @@ func TestCutoverReferenceGraphRehashesOpenedBytes(t *testing.T) {
 	if err := os.WriteFile(path, []byte(changed), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	err = validateCutoverReferenceGraph(dir, bundle.Manifest)
+	err = validateCutoverReferenceGraph(dir, bundle.Manifest, false)
 	if err == nil || !strings.Contains(err.Error(), "digest or row count changed") || strings.Contains(err.Error(), "private-value") || strings.Contains(err.Error(), dir) {
 		t.Fatalf("changed file error = %v", err)
 	}
