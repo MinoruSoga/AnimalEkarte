@@ -863,6 +863,38 @@ func TestLinkReservationTypeOccupation(t *testing.T) {
 		h.LinkReservationTypeOccupation(c)
 		assert.Equal(t, http.StatusCreated, w.Code)
 		assert.Contains(t, w.Header().Get("Location"), "/occupations/")
+		// EMR-209 / BUG-MASTER-RESVTYPE-OCC-ENVELOPE: 標準 {data: ...} エンベロープで返す
+		var resp map[string]any
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+		link, ok := resp["data"].(map[string]any)
+		require.True(t, ok, "response must carry the created link under data")
+		assert.Equal(t, float64(10), link["id"])
+	})
+
+	t.Run("returns 409 with error, code, and existing link in data when duplicated", func(t *testing.T) {
+		// EMR-209 / BUG-MASTER-RESVTYPE-OCC-ENVELOPE
+		h := newHandlerWithReservationTypeSvc(&mockReservationTypeService{
+			linkOccupationFn: func(_ context.Context, _, _, occupationID uint64) (*model.ReservationTypeOccupation, error) {
+				return &model.ReservationTypeOccupation{ID: 42, OccupationID: occupationID},
+					apperrors.WrapAlreadyExistsMessage("この職種はすでに紐付けられています")
+			},
+		})
+		body, _ := json.Marshal(map[string]any{"occupation_id": 7})
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+		c.Request.Header.Set("Content-Type", "application/json")
+		c.Params = gin.Params{{Key: "id", Value: "1"}}
+		setClinicID(c)
+		h.LinkReservationTypeOccupation(c)
+		assert.Equal(t, http.StatusConflict, w.Code)
+		var resp map[string]any
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+		assert.NotEmpty(t, resp["error"])
+		assert.NotEmpty(t, resp["code"])
+		link, ok := resp["data"].(map[string]any)
+		require.True(t, ok, "409 response must carry the existing link under data")
+		assert.Equal(t, float64(42), link["id"])
 	})
 
 	t.Run("returns 400 when occupation_id missing", func(t *testing.T) {
@@ -897,6 +929,12 @@ func TestListReservationTypeOccupations(t *testing.T) {
 		setClinicID(c)
 		h.ListReservationTypeOccupations(c)
 		assert.Equal(t, http.StatusOK, w.Code)
+		// EMR-209 / BUG-MASTER-RESVTYPE-OCC-ENVELOPE: 標準 {data: [...]} エンベロープで返す
+		var resp map[string]any
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+		items, ok := resp["data"].([]any)
+		require.True(t, ok, "response must carry the list under data")
+		assert.Len(t, items, 1)
 	})
 
 	t.Run("returns 401 when clinic_id missing", func(t *testing.T) {
