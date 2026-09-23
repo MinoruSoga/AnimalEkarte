@@ -3064,6 +3064,11 @@ export interface Prescription {
   medical_record_id?: number /* uint64 */;
   prescribed_at: string;
   duration_days: number /* int */;
+  /**
+   * Version は楽観的ロック用（UAT-R2-EXCLUSIVE-LOCK）。更新は version+1 を書き戻し、
+   * caller の読取版を expectedVersion として WHERE 照合する（clinical_plan/medical_record と同型）。
+   */
+  version: number /* int */;
   created_at: string;
   updated_at: string;
   /**
@@ -3540,6 +3545,11 @@ export interface Treatment {
   dose_amount_mg?: number /* float64 */; // 実効用量(mg)。安全域判定(C1)はこの丸め後の値
   dose_amount_unit?: string; // 'mg' | 'ug'
   dose_param_snapshot?: unknown; // species/dose_per_kg/strength/丸め設定/計算式版
+  /**
+   * Version は楽観的ロック用（UAT-R2-EXCLUSIVE-LOCK）。更新は version+1 を書き戻し、
+   * caller の読取版を expectedVersion として WHERE 照合する（clinical_plan/medical_record と同型）。
+   */
+  version: number /* int */;
   created_at: string;
   updated_at: string;
   /**
@@ -3682,6 +3692,11 @@ export interface Vaccination {
   lot3: string;
   lot4: string;
   remarks: string;
+  /**
+   * Version は楽観的ロック用（UAT-R2-EXCLUSIVE-LOCK）。更新は version+1 を書き戻し、
+   * caller の読取版を expectedVersion として WHERE 照合する（clinical_plan/medical_record と同型）。
+   */
+  version: number /* int */;
   created_at: string;
   updated_at: string;
   /**
@@ -3736,6 +3751,11 @@ export interface VitalRecord {
   weight?: number /* float64 */;
   weight_unit: BodyWeightUnit;
   notes: string;
+  /**
+   * Version は楽観的ロック用（UAT-R2-EXCLUSIVE-LOCK）。更新は version+1 を書き戻し、
+   * caller の読取版を expectedVersion として WHERE 照合する（clinical_plan/medical_record と同型）。
+   */
+  version: number /* int */;
   created_at: string;
   updated_at: string;
   pet?: Pet;
