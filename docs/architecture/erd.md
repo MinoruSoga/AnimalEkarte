@@ -40,12 +40,13 @@
 
 図の親側 `||` は参照先が設定されている場合の関係を示す。nullable FK の未設定は省略し、列の NULL 可否は DDL を正とする。`billings ||--|| payments` は支払いが存在する場合の1対1を表し、全会計に支払い行の存在を強制する制約ではない。予約とカルテは削除済み行を含めると1対多で、active カルテだけが予約ごとに最大1件となる。治療・接種・検査から会計明細への `o|` は、それぞれの参照IDに対する部分一意indexによる最大1件（明細の論理削除後も含む）を表す。治療の制約は `004` 適用後の定義であり、稼働DBへの適用証明ではない。
 
-`staffs.clinic_id` は主所属、`staff_clinic_assignments` は医院への所属を表す。カルテの `entered_by` と予約の `created_by` は記録者として `staffs(id)` を参照し、親レコードの医院と主所属の一致をDBでは強制しない。担当医の `doctor_id` とは異なる関係で、記録時の医院権限はアプリ側の検証対象（§4.4）。
+`staffs.clinic_id` は主所属、`staff_clinic_assignments` は医院への所属を表す。`accounts` と `staffs` は `staffs.account_id` で 1 対 1 とする（アプリは `account_id` から staff 行を一意に解決する前提で動作する。`account_id` の一意制約は DB に存在しないため、この不変条件はアプリ・プロビジョニング・移行手順で維持する）。同一人物が複数医院に所属する場合もアカウント・staffs 行は 1 つで、所属は `staff_clinic_assignments` の行数で表す。医院ごとに別アカウント・別 staffs 行を発行しない。カルテの `entered_by` と予約の `created_by` は記録者として `staffs(id)` を参照し、親レコードの医院と主所属の一致をDBでは強制しない。担当医の `doctor_id` とは異なる関係で、記録時の医院権限はアプリ側の検証対象（§4.4）。
 
 ```mermaid
 erDiagram
     clinics ||--o{ owners : "clinic_id"
     clinics ||--o{ staffs : "clinic_id (主所属)"
+    accounts ||--o| staffs : "account_id (1対1)"
     clinics ||--o{ staff_clinic_assignments : "clinic_id"
     staffs ||--o{ staff_clinic_assignments : "staff_id"
     staffs ||--o{ medical_records : "entered_by (記録者)"
