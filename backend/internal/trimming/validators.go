@@ -20,6 +20,10 @@ func validateOptionalName(name *string) error {
 	return sharedkernel.ValidateOptionalName(name)
 }
 
+func validateNonNegativePrice(price *int64) error {
+	return sharedkernel.ValidateNonNegativePrice(price)
+}
+
 func validateOwnedMasterFK(
 	ctx context.Context,
 	entity string,

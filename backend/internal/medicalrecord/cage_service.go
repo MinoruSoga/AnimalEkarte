@@ -115,6 +115,9 @@ func (s *cageService) Create(ctx context.Context, clinicID uint64, input *Create
 	if err := validateCageSize(input.CageSize); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate cage size")
 	}
+	if err := validateNonNegativePrice(input.Price); err != nil {
+		return nil, apperrors.Wrap(err, "failed to validate non negative price")
+	}
 	cage := &model.Cage{
 		ClinicID:    clinicID,
 		Name:        input.Name,
@@ -161,6 +164,9 @@ func (s *cageService) Update(ctx context.Context, clinicID, id uint64, input *Up
 		if err := validateCageSize(*input.CageSize); err != nil {
 			return nil, apperrors.Wrap(err, "failed to validate cage size")
 		}
+	}
+	if err := validateNonNegativePrice(input.Price); err != nil {
+		return nil, apperrors.Wrap(err, "failed to validate non negative price")
 	}
 	if len(buildCageUpdate(input)) == 0 {
 		return nil, apperrors.WrapInvalidInput(errMsgAtLeastOneField)

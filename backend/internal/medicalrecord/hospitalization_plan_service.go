@@ -119,6 +119,9 @@ func (s *hospitalizationPlanService) Create(ctx context.Context, clinicID uint64
 	if err := validateRequiredName(input.Name); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate required name")
 	}
+	if err := validateNonNegativePrice(input.Price); err != nil {
+		return nil, apperrors.Wrap(err, "failed to validate non negative price")
+	}
 	taxType := model.TaxTypeExcluded
 	if input.TaxType != "" {
 		taxType = model.TaxType(input.TaxType)
@@ -162,6 +165,9 @@ func (s *hospitalizationPlanService) Update(ctx context.Context, clinicID, id ui
 	}
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate optional name")
+	}
+	if err := validateNonNegativePrice(input.Price); err != nil {
+		return nil, apperrors.Wrap(err, "failed to validate non negative price")
 	}
 	fields := buildHospitalizationPlanUpdate(*input)
 	if len(fields) == 0 {

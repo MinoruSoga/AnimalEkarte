@@ -106,6 +106,9 @@ func (s *trimmingOptionService) Create(ctx context.Context, clinicID uint64, inp
 	if err := validateRequiredName(input.Name); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate required name")
 	}
+	if err := validateNonNegativePrice(input.Price); err != nil {
+		return nil, apperrors.Wrap(err, "failed to validate non negative price")
+	}
 	option := &model.TrimmingOption{
 		ClinicID:     clinicID,
 		Name:         input.Name,
@@ -134,6 +137,9 @@ func (s *trimmingOptionService) Update(ctx context.Context, clinicID, id uint64,
 	}
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate optional name")
+	}
+	if err := validateNonNegativePrice(input.Price); err != nil {
+		return nil, apperrors.Wrap(err, "failed to validate non negative price")
 	}
 	fields := buildTrimmingOptionUpdate(input)
 	if len(fields) == 0 {

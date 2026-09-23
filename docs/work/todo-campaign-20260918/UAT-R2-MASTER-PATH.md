@@ -1,8 +1,8 @@
 # UAT-R2-MASTER-PATH: マスタ登録と会計導線の再現票
 
-状態: **scoped unit 一部カバー／専用envマトリクス未実行**。2026-09-19に依頼者が「可能性のあるページをすべて検証」と回答したため、発生ページの回答待ちを解除する。金額を入力する全マスタの新規/編集と、利用先・会計までを検証する。元の症状がどの画面で発生したかは未確定であり、全経路の検証結果と医院での再現事実を混同しない（[要件・状態の正本](../../../todo-issue.md#uat-r2-master-path)、[元報告](../stg-uat-clinic-feedback-q1-q4.md#uat-r2-master-path)）。
+状態: **12フォーム合成検証 実行済み（2026-09-23, EMR-84）**。scoped unit に加え、合成 clinic で create→保存 request→API 応答→キャッシュ非依存の再読込→下流/会計までを HTTP で実行し、下の合成実行マトリクスを actual で埋めた。1件の再現 defect（trimming-courses / trimming-options / hospitalization-plans / cages が負価格を保存）を最小修正し、Docker scoped 検証（unit + 実機再確認）まで完了。2026-09-19に依頼者が「可能性のあるページをすべて検証」と回答したため、発生ページの回答待ちを解除する。元の症状がどの画面で発生したかは未確定であり、全経路の検証結果と医院での再現事実を混同しない（[要件・状態の正本](../../../todo-issue.md#uat-r2-master-path)、[元報告](../stg-uat-clinic-feedback-q1-q4.md#uat-r2-master-path)）。
 
-本票は現行 route / form / API への対応づけと、未カバー失敗テストの**候補名**までを固定する。合成検証の actual は全行 **未実行 / UNKNOWN**（専用共有envマトリクスは未実行のまま。フル12フォーム PASS は主張しない）。全マスタを会計の「マスタから選択」へ混在させる提案はしない。
+本票は現行 route / form / API への対応づけと、未カバー失敗テストの**候補名**までを固定する。合成検証の actual は下記「合成実行マトリクス（actual = 実行済み）」に記録した。**専用env（A4 rehearsal overlay）は KNJO 21-table bundle 不在のため未使用**であり、検証は稼働中 dev stack（clinic_id=4）で行った。全マスタを会計の「マスタから選択」へ混在させる提案はしない。
 
 ### 12フォーム coverage（2026-09-21 scoped unit）
 
@@ -15,13 +15,13 @@
 | 5 | 定期健診 | **newly covered (persist)** | checkup price persist。会計自動連携は根拠付き N/A のまま |
 | 6 | 薬剤 | **already covered** | 既存 `medicine-settings-model.test.ts`（分類0強制・明細価格・BUG-006）。本単位で再実装しない |
 | 7 | 商品 | **newly covered** | `merchandise-item-settings-model.test.ts` unit_price 0/1200/2300 + accounting `merchandise_item_id` |
-| 8 | 入院プラン | **newly covered + residual price-loss** | create は UI 0 で price omit、update は 0 を明示送信。CarePlanRefSelect→AddForm/EditRow はマスタ価格を転記しない（下記） |
+| 8 | 入院プラン | **newly covered + residual price-loss 修正済み** | create は UI 0 で price omit、update は 0 を明示送信。CarePlanRefSelect→AddForm/EditRow のマスタ価格転記は commit `e79930591` で実装済み（下記 residual 行を更新）。合成検証で 2300 がケアプラン→退院会計まで維持されることを実測 |
 | 9 | ケージ | **newly covered (persist)** | cage price 0/1200/2300。billing 自動連携 N/A |
 | 10 | トリミングコース | **newly covered** | `""`→null / `"0"`→0 / reread null→`""`・0→`"0"` + trimming_course_id 会計 |
 | 11 | トリミングオプション | **newly covered** | 同上 + trimming_option_id |
 | 12 | キャンペーン | **newly covered** | discount_value 0/1200/rate10。単価フィールド非混在 |
 
-**残**: 専用合成 clinic の 12フォームマトリクス全行（専用env）。下記 residual 3経路は現行 I/O＋合成期待を固定済み。フル12フォーム PASS は主張しない。
+**実行状況（2026-09-23, EMR-84）**: 12フォームすべてで create(1200)→再読込→update(2300)→再読込 を稼働中 dev stack で PASS。下流は treatment/exam/vaccination/checkup/merchandise/hospitalization/trimming/campaign を実測（下の合成実行マトリクス）。0/省略/負の境界も実行。**専用env（A4 rehearsal overlay）は KNJO 21-table bundle 不在で未使用**のため、「専用envでの再実行」のみ残る。負価格を許す 1 defect を発見・最小修正済み。
 
 ### Residual I/O map（2026-09-22 att-master-20260922-001）
 
@@ -31,7 +31,7 @@
 | --- | --- | --- | --- | --- |
 | TreatmentSearchDialog × exam_types | hooks: consultations / procedures / vaccines / **checkupTypes** / medicines のみ。[TreatmentSearchDialog.tsx](../../../frontend/src/components/shared/TreatmentSearchDialog/TreatmentSearchDialog.tsx) は `useGetAllExaminationTypes` / `/v1/masters/examination-types` を呼ばない。checkupTypes を category `"検査"`・`unitPrice=ct.price` で出す。exam_types 単価の会計経路は検索ダイアログではなく検査レコード→未請求 `exam_id`。 | 合成: exam_type 価格 1200 をマスタ登録しても治療検索一覧に exam_types 行は出ない。checkup 1200 は「検査」行として出る。検索未選択は価格消失ではない。 | **No**（配線差。会計は exam_id 経路） | 本票の対応表＋既存 dialog テスト（checkup 表示）。exam fetch 追加の製品変更は本単位外 |
 | vaccine search → `resolveItemTypeFromCategory` → `other` | ダイアログは vaccines を category `"予防"`・`unitPrice=v.price` で出す。[treatments-tab-model.ts](../../../frontend/src/features/medical-records/lib/treatments-tab-model.ts) は `"予防"`→`item_type:"other"` だが `buildMasterSelectionPayload` は **`unit_price: item.unitPrice` を維持**。接種会計は別経路 `vaccination_id`（vaccines.price）。 | 合成: ワクチン 5000 を治療検索で選ぶ → create treatment は `item_type=other` かつ `unit_price=5000`。分類が other でも単価は落ちない。二重計上リスクは分類バグではなく経路分離の検証対象。 | **No**（分類のみ） | 既存 `treatments-tab-model.test.ts`（予防→other）。価格維持は payload 契約で読み取り固定 |
-| CarePlanRefSelect 入院プラン価格転記 | [useGetAllHospitalizationPlansMaster](../../../frontend/src/hooks/use-treatment-master.ts) は API 応答を `{id,name}` のみへ写し **price を落とす**。[CarePlanRefSelect](../../../frontend/src/features/hospitalization/components/CarePlanTab/CarePlanRefSelect.tsx) の onChange は id 文字列のみ。[AddForm](../../../frontend/src/features/hospitalization/components/CarePlanTab/AddForm.tsx) / [EditRow](../../../frontend/src/features/hospitalization/components/CarePlanTab/EditRow.tsx) の create/update payload に **`unit_price` を積まない**。BE create は request `unit_price`（省略時 0）を保存しプランマスタから自動コピーしない。退院会計は `care_plan_items.unit_price` を写す。 | 合成: プランマスタ price=1200 を type=持ち物で選択→ケアプラン create に `hospitalization_plan_id` はあるが `unit_price` 欠落→永続 0→退院会計 0。手動で unit_price を別 UI から入れない限りマスタ 1200 は下流に出ない。 | **Yes**（named price-loss） | `CarePlanRefSelect.test.tsx`（選択は id のみ）+ `AddForm.test.tsx` / `EditRow.test.tsx`（持ち物 submit に unit_price なし） |
+| CarePlanRefSelect 入院プラン価格転記 | **修正済み（commit `e79930591`）**: [CarePlanRefSelect](../../../frontend/src/features/hospitalization/components/CarePlanTab/CarePlanRefSelect.tsx) は `onUnitPriceChange` で選択プランの `price` を伝播（0 は有限値保持）。[AddForm](../../../frontend/src/features/hospitalization/components/CarePlanTab/AddForm.tsx) / [EditRow](../../../frontend/src/features/hospitalization/components/CarePlanTab/EditRow.tsx) は type=item で `unit_price` を payload に積む。BE create は request `unit_price`（省略時 0）を保存しプランマスタから自動コピーしない（契約は据え置き）。退院会計は `care_plan_items.unit_price` を写す。 | 合成（実測）: プランマスタ price=2300 を type=持ち物で `hospitalization_plan_id` + `unit_price=2300` で create→ケアプラン再読込 2300→退院会計明細 2300。**価格消失は再現しない**。BE 単体に `unit_price` を省略すると 0 保存（FE が送る契約） | **No（修正済み）** | 実行ログ（合成実行マトリクス §入院プラン）+ `AddForm.test.tsx` / `EditRow.test.tsx` |
 
 ## 0/空欄/欠損/未保存の区別（検証時に同値にしない）
 
@@ -123,25 +123,67 @@ Route 定義: [paths.ts](../../../frontend/src/config/paths.ts)（`settings.trea
 | キャンペーン | [campaign_service_test.go](../../../backend/internal/billing/campaign_service_test.go) 負拒否 | **newly covered**: `campaign-settings-model.test.ts` discount 0/1200/rate。suggestions 追随は残 | 単価列と割引列の取り違え |
 | 横断 | [create-accounting-items.ts](../../../frontend/src/features/accounting/hooks/create-accounting-items.ts) に hospitalization/cage/checkup ID なし | **newly covered**: create-accounting-items.test が treatment/trimming id を送り hospitalization/cage/checkup を非混在 | 全マスタ混在の禁止 |
 
-## 合成実行マトリクス（actual = 未実行）
+## 合成実行マトリクス（actual = 実行済み, 2026-09-23 EMR-84）
 
-固定: 合成 clinic、金額 1200→2300、0、空、負、保存失敗。実行者・mount・receipt は実行時に埋める。
+**環境**: 稼働中 dev stack `animalekarte-backend-1`（:8080、mount は main checkout と同一 commit `923bb99` = 本 worktree HEAD）。合成 clinic `clinic_id=4`（ノア動物病院 Hako bu neco）、合成ログイン `stg-staff-10000021@example.test`（林 文明・執行・全 4 医院）、合成飼主/ペット `UATR2`（owner=pet=1000000019）、合成カルテ 1000000020–1000000023。**専用env（A4 rehearsal overlay）は KNJO 21-table bundle 不在で未使用**。DB は dev 共有でありタスク隔離ではない（残余リスクとして下記）。
 
-| route/tab | create-or-update | fixture | input | request | reread | downstream | expected | actual | evidence | cleanup | 判定 |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| treatment-items?tab=consultation | create | UNKNOWN | 1200 | UNKNOWN | UNKNOWN | カルテ治療 treatment_id | 再読込 1200、未請求同額 | 未実行 | — | — | UNKNOWN |
-| treatment-items?tab=consultation | update | UNKNOWN | 2300 | UNKNOWN | UNKNOWN | 新規選択は新単価、旧明細は非遡及 | 同上 | 未実行 | — | — | UNKNOWN |
-| treatment-items?tab=examination | create/update | UNKNOWN | 1200/0/負 | UNKNOWN | UNKNOWN | exam_id 未請求。検索ダイアログは別ケース | 0 は未請求可、NULL/負は unbillable | 未実行 | — | — | UNKNOWN |
-| treatment-items?tab=procedure | create/update | UNKNOWN | 1200 | UNKNOWN | UNKNOWN | treatment_id | 税も保存 | 未実行 | — | — | UNKNOWN |
-| treatment-items?tab=vaccine | create/update | UNKNOWN | 1200 | UNKNOWN | UNKNOWN | 接種 vaccination_id と治療 other を分離 | 二重計上しない | 未実行 | — | — | UNKNOWN |
-| treatment-items?tab=checkup | create/update | UNKNOWN | 1200 | UNKNOWN | UNKNOWN | CheckupsTab。会計自動は N/A | 保存/再読込のみ必須。会計 N/A | 未実行 | — | — | UNKNOWN |
-| /settings/medicine | create/update | UNKNOWN | 明細1200 / 分類0 | UNKNOWN | UNKNOWN | 治療 medicine_id | 分類0≠保存失敗 | 未実行 | — | — | UNKNOWN |
-| /settings/merchandise-items | create/update | UNKNOWN | unit_price 1200 | UNKNOWN | UNKNOWN | ItemListCard merchandise_item_id | 治療マスタ非表示 | 未実行 | — | — | UNKNOWN |
-| /settings/hospitalization | create/update | UNKNOWN | 1200 と 0 omit | UNKNOWN | UNKNOWN | ケアプラン/退院 | マスタ価格転記の有無を実測 | 未実行 | — | — | UNKNOWN |
-| /settings/cage | create/update | UNKNOWN | 1200 | UNKNOWN | UNKNOWN | 入院 cage_id。会計自動 N/A | 一覧再読込。合算しない | 未実行 | — | — | UNKNOWN |
-| trimming?tab=course | create/update | UNKNOWN | "1200" / "" | UNKNOWN | UNKNOWN | trimming_course_id | 空と 0 を分離 | 未実行 | — | — | UNKNOWN |
-| trimming?tab=option | create/update | UNKNOWN | "1200" | UNKNOWN | UNKNOWN | trimming_option_id | 同上 | 未実行 | — | — | UNKNOWN |
-| /settings/campaigns | create/update | UNKNOWN | amount 1200 / rate 10 | UNKNOWN | UNKNOWN | discount-suggestions | 単価ではない | 未実行 | — | — | UNKNOWN |
+**マスタ 12 フォーム（create 1200 → 一覧再読込 → update 2300 → 一覧再読込）**: 全 37 チェック PASS（API 応答値・再読込値とも一致）。
+
+| # | マスタ route | create 応答 | 再読込 | update→再読込 | 判定 |
+| --- | --- | --- | --- | --- | --- |
+| 1 | /masters/consultations | price=1200 | 1200 | 2300 | PASS |
+| 2 | /masters/examination-types | price=1200 | 1200 | 2300 | PASS |
+| 3 | /masters/procedures | price=1200 | 1200 | 2300 | PASS |
+| 4 | /masters/vaccines | price=1200 | 1200 | 2300 | PASS |
+| 5 | /masters/checkup-types | price=1200 | 1200 | 2300 | PASS |
+| 6 | /masters/medicines | price=1200 | 1200 | 2300 | PASS |
+| 7 | /masters/merchandise-items | unit_price=1200 | 1200 | 2300 | PASS |
+| 8 | /masters/hospitalization-plans | price=1200 | 1200 | 2300 | PASS |
+| 9 | /masters/cages | price=1200 | 1200 | 2300 | PASS |
+| 10 | /masters/trimming-courses | price=1200 | 1200 | 2300 | PASS |
+| 11 | /masters/trimming-options | price=1200 | 1200 | 2300 | PASS |
+| 12 | /masters/campaigns | discount_value=1200 | 1200 | 2300 | PASS |
+
+**下流経路（カルテ確定 → 未請求 → 会計）**: 全 28 チェック PASS。
+
+| 経路 | 手順 | actual | 判定 |
+| --- | --- | --- | --- |
+| 診察→治療→未請求 | treatment(item_type=consultation, unit_price=2300)→confirm→GET /billing-items/unbilled | 未請求 `treatment_id`・unit_price=2300 | PASS |
+| 処置→治療→未請求 | item_type=procedure, 2300 | treatment_id・2300 | PASS |
+| 薬剤→治療→未請求 | item_type=medicine, quantity=2, 2300 | treatment_id・unit_price=2300・quantity=2 | PASS |
+| 予防(分類 other)→治療→未請求 | item_type=other, unit_price=2300 | 未請求 treatment_id・2300（分類 other でも単価維持） | PASS |
+| 検査→未請求 | POST /examinations(exam_type_id)→confirm→unbilled | 未請求 `exam_id`・unit_price=2300（`exam_types.price` 参照） | PASS |
+| 接種→未請求 | POST /vaccinations(vaccine_id)→confirm→unbilled | 未請求 `vaccination_id`・unit_price=2300（`vaccines.price` 参照） | PASS |
+| 接種 vs 治療 other の分離 | 上記 2 経路の同時確認 | other 行の `vaccination_id` は null、接種行は `vaccination_id` 保持。二重計上なし | PASS |
+| 健診（checkup_type_id） | POST /medical-records/:id/checkups→GET | カルテに checkup 1 件、再読込一致。会計自動連携は**根拠付き N/A**（checkup_id を未請求集計が持たない） | PASS / N/A |
+| 商品→会計 | POST /accountings→POST /billing-items(merchandise_item_id, unit_price=2300)→GET /accountings/:id | 会計明細 unit_price=2300・merchandise_item_id 保持 | PASS |
+| キャンペーン→割引候補 | GET /billing-items/:id/discount-suggestions | campaign hit（discount_type=amount, discount_value=2300, amount=2300）。単価列と別軸 | PASS |
+| 入院プラン→ケアプラン→退院会計 | POST /hospitalizations(cage_id)→POST care-plan-items(type=item, hospitalization_plan_id, unit_price=2300)→POST discharge-with-billing(create_accounting=true)→GET /accountings/:id | ケアプラン再読込 2300、退院会計明細 unit_price=2300。**価格消失なし**（`e79930591` の転記修正を実測） | PASS |
+| ケージ→入院割当 | POST /hospitalizations(cage_id) | cage_id が入院に反映。billing unbilled に cage 単価は現れない → **根拠付き N/A** | PASS / N/A |
+| トリミング コース/オプション→未請求 | POST /trimmings(reservation_type category=trimming, status=accounting, course_id, option_ids)→unbilled | 未請求 `trimming_course_id`/`trimming_option_id`・unit_price=2300 | PASS |
+
+**境界（0 / 省略 / 負）**: 全 16 チェック中 15 PASS、1 FAIL → 修正済み。
+
+| ケース | actual | 判定 |
+| --- | --- | --- |
+| 各マスタ price=0 create→再読込 | 0 が保存・再読込一致（consultation/exam/procedure/vaccine/medicine/merchandise/trimming course/option/campaign） | PASS |
+| consultation price 省略 | price=null（0 と区別） | PASS |
+| procedures/merchandise/consultations/exam-types/vaccines/checkup-types/medicines 負 | HTTP 400「金額は0以上を入力してください」 | PASS |
+| treatment unit_price=0 | 201・0 保存 | PASS |
+| treatment unit_price=-100 | HTTP 400 | PASS |
+| care-plan-item unit_price 省略 | 0 保存（BE 契約。FE は master price を送る） | PASS |
+| trimming-courses / trimming-options / hospitalization-plans / cages 負 | **HTTP 201 で負値を保存（再現 defect）** → 最小修正後 400 | **FAIL → 修正済み** |
+
+### 再現 defect と最小修正（EMR-84）
+
+- **症状**: `/masters/trimming-courses`・`/masters/trimming-options`・`/masters/hospitalization-plans`・`/masters/cages` の create/update が負の金額を保存（201）。他 8 マスタは `sharedkernel.ValidateNonNegativePrice` で 400。
+- **下流影響**: トリミング未請求 SQL は `COALESCE(tc.price,0) > 0` のため、負価格コースは**請求候補から静かに消える**（価格消失経路）。
+- **修正**: `internal/trimming/validators.go` に `validateNonNegativePrice` delegate を追加し、上記 4 サービス（trimming course/option, hospitalization plan, cage）の Create/Update で呼び出し。既存 8 マスタと同じ `ErrMsgPriceZeroOrMore` 文言。
+- **検証**: 追加した service unit（create/update 負拒否）を Docker で PASS。worktree の backend を一時コンテナ（:8081、migrate スキップ）で起動し、4 マスタとも create/update 負 → 400、正値 → 201 を実機確認。
+
+### 合成 fixture の後処理
+
+30 件削除（マスタ・カルテ・入院・会計 cancel・トリミング予約・飼主）。残 15 件（`UATR2` 接頭辞のマスタ 11・入院 3・飼主 1）は使用中参照のため HTTP 409 で削除不可（usage-protection は正常動作）。dev 共有 DB 上の不活性な合成行。
 
 ## 停止条件
 
@@ -149,4 +191,5 @@ Route 定義: [paths.ts](../../../frontend/src/config/paths.ts)（`settings.trea
 - 全マスタを会計選択に足して欠落を隠さない。
 - 確認ダイアログや画面ロックだけを価格保全の根拠にしない。
 - 自動連携がコード上無い経路は N/A とし、未実行と FAIL を取り違えない。
-- 専用envフルマトリクスは別タスク（本票はフル12フォーム PASS を主張しない）。residual 3経路の現行 I/O は上表を正とし、価格消失は CarePlan 転記のみを named mismatch とする。
+- 2026-09-23 実行分は稼働中 dev stack（clinic_id=4）での合成検証。**専用env（A4 rehearsal overlay）での再実行は KNJO 21-table bundle 不在のため未実施**であり、この 1 点のみ未実行として残す。
+- residual 3経路のうち CarePlan 転記は commit `e79930591` で修正済み（合成実測で価格消失なし）。exam_types 配線差・予防→other 分類は価格消失ではないと確定。今回新たに named mismatch として検出・修正したのは 4 マスタの**負価格保存**。
