@@ -1,6 +1,5 @@
-import { createPortal } from "react-dom";
-
-import { C, Z } from "@/lib/design-tokens";
+import { C } from "@/lib/design-tokens";
+import { PrintPortal } from "@/components/shared/PrintPortal";
 import { PAYMENT_METHOD_LABELS } from "@/constants/payment-method";
 import { formatCurrency, formatCurrencyIfNonzero } from "@/lib/format/number";
 import { CatCell } from "./DailyAccountingTabParts";
@@ -17,28 +16,12 @@ export function DailyPrintArea({ date, rows, totals }: DailyPrintAreaProps) {
   const hospitalTotal = totals.medical + totals.surgery + totals.rv + totals.food + totals.goods;
   const trimmingTotal = totals.trimming + totals.hotel;
 
-  return createPortal(
-    <div
-      hidden
-      className={C.bgWhite}
-      data-testid="daily-print-area"
-      style={{ position: "fixed", inset: 0, zIndex: Z.overlay, overflow: "auto", padding: "8mm" }}
-    >
-      <style type="text/css">
-        {`
-          @media print {
-            [data-testid="daily-print-area"] {
-              display: block !important;
-            }
-            body > :not([data-testid="daily-print-area"]) {
-              display: none !important;
-            }
-          }
-          @page { size: A4 landscape; margin: 8mm; }
-          @media print { body { margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
-        `}
-      </style>
-
+  // EMR-205: 自前の portal + hidden 属性は Tailwind v4 preflight の
+  // `[hidden] { display:none !important }`（@layer base）に負けて白紙化するため、
+  // 共通基盤 PrintPortal（hidden/print:block クラス + data-print-portal 固定キー、#187）に統一する。
+  // data-testid="daily-print-area"・A4 landscape・8mm 余白は PrintPortal 側で引き継がれる。
+  return (
+    <PrintPortal testId="daily-print-area" orientation="landscape">
       {/* ヘッダー */}
       <div className="mb-3 text-center">
         <h1 className="text-[14pt] font-bold">日次集計一覧表</h1>
@@ -212,7 +195,6 @@ export function DailyPrintArea({ date, rows, totals }: DailyPrintAreaProps) {
           </tr>
         </tfoot>
       </table>
-    </div>,
-    document.body,
+    </PrintPortal>
   );
 }
