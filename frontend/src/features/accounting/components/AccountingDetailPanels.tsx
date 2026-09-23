@@ -278,6 +278,7 @@ export function AccountingDetailColumns({
           insuranceRatio={insuranceRatio}
           onInsuranceRatioChange={onInsuranceRatioChange}
           insuranceAmount={calculation.insuranceAmount}
+          showPreservedNote={Boolean(accountingId)}
         />
 
         <PaymentCard

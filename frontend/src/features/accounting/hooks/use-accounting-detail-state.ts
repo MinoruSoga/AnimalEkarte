@@ -194,7 +194,8 @@ export function useAccountingDetailState({
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!fetchedAccounting?.payment) return;
-    setHasInsurance((fetchedAccounting.payment.insuranceAmount ?? 0) < 0);
+    // EMR-62: 正規契約は正の magnitude。レガシー負値行（< 0）も保険ありとして扱う。
+    setHasInsurance((fetchedAccounting.payment.insuranceAmount ?? 0) !== 0);
     setInsuranceRatio(
       fetchedAccounting.payment.insuranceRatio?.toString() ?? DEFAULT_INSURANCE_RATIO,
     );

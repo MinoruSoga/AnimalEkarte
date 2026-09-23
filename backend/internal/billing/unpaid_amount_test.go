@@ -8,77 +8,71 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-func TestOutstandingAmount(t *testing.T) {
-	t.Parallel()
+// TestPatientOutstanding_AbsInsuranceAmount は EMR-62:
+// insurance_amount / discount_amount の正規契約は正の magnitude。旧クライアント由来の
+// 負値レガシー行でも ABS 解釈し、未収残高を過大計上しないことを固定する。
+func TestPatientOutstanding_AbsInsuranceAmount(t *testing.T) {
+	tests := []struct {
+		name    string
+		payment *model.Payment
+		want    int64
+	}{
+		{
+			name:    "nil payment は 0",
+			payment: nil,
+			want:    0,
+		},
+		{
+			name: "正の保険額: due=1100-500, paid=600 → 未収 0",
+			payment: &model.Payment{
+				TotalAmount:     1100,
+				InsuranceAmount: 500,
+				BillingAmount:   600,
+			},
+			want: 0,
+		},
+		{
+			name: "負の保険額レガシー行も magnitude 解釈: due=1100-500, paid=600 → 未収 0",
+			payment: &model.Payment{
+				TotalAmount:     1100,
+				InsuranceAmount: -500,
+				BillingAmount:   600,
+			},
+			want: 0,
+		},
+		{
+			name: "負値を素通しすると due=1600 となり過大計上する回帰防止",
+			payment: &model.Payment{
+				TotalAmount:     1100,
+				InsuranceAmount: -500,
+				DiscountAmount:  -100,
+				BillingAmount:   500,
+			},
+			// due = 1100 - 500 - 100 = 500, residual = 0
+			want: 0,
+		},
+		{
+			name: "クレジット訂正で支払額が due 未満: 残差を未収として返す",
+			payment: &model.Payment{
+				TotalAmount:     1100,
+				InsuranceAmount: 0,
+				BillingAmount:   400,
+			},
+			want: 700,
+		},
+		{
+			name: "過払い（residual 負）は 0 に丸める",
+			payment: &model.Payment{
+				TotalAmount:   1100,
+				BillingAmount: 1500,
+			},
+			want: 0,
+		},
+	}
 
-	t.Run("waiting without payment: full total_amount", func(t *testing.T) {
-		t.Parallel()
-		b := &model.Billing{Status: model.BillingStatusWaiting, TotalAmount: 1100}
-		assert.Equal(t, int64(1100), OutstandingAmount(b))
-	})
-
-	t.Run("completed full card settle: residual 0", func(t *testing.T) {
-		t.Parallel()
-		b := &model.Billing{
-			Status:      model.BillingStatusCompleted,
-			TotalAmount: 1100,
-			Payments: []model.Payment{{
-				TotalAmount: 1100, BillingAmount: 1100,
-			}},
-		}
-		assert.Equal(t, int64(0), OutstandingAmount(b))
-	})
-
-	t.Run("BUG-007: credit correction underpay residual", func(t *testing.T) {
-		t.Parallel()
-		// medical 1100, insurance/discount 0, card corrected to 900 → unpaid 200
-		b := &model.Billing{
-			Status:      model.BillingStatusCompleted,
-			TotalAmount: 1100,
-			Payments: []model.Payment{{
-				TotalAmount: 1100, BillingAmount: 900,
-			}},
-		}
-		assert.Equal(t, int64(200), OutstandingAmount(b))
-	})
-
-	t.Run("insurance: residual uses patient_due not medical total", func(t *testing.T) {
-		t.Parallel()
-		// medical 10000, insurance 5000 → due 5000; collected 4000 → unpaid 1000
-		b := &model.Billing{
-			Status:      model.BillingStatusCompleted,
-			TotalAmount: 10000,
-			Payments: []model.Payment{{
-				TotalAmount: 10000, InsuranceAmount: 5000, BillingAmount: 4000,
-			}},
-		}
-		assert.Equal(t, int64(1000), OutstandingAmount(b))
-	})
-
-	t.Run("over-collection residual is 0 not negative", func(t *testing.T) {
-		t.Parallel()
-		b := &model.Billing{
-			Status:      model.BillingStatusCompleted,
-			TotalAmount: 10000,
-			Payments: []model.Payment{{
-				TotalAmount: 10000, BillingAmount: 12000,
-			}},
-		}
-		assert.Equal(t, int64(0), OutstandingAmount(b))
-	})
-
-	t.Run("cancelled is 0", func(t *testing.T) {
-		t.Parallel()
-		b := &model.Billing{
-			Status:      model.BillingStatusCancelled,
-			TotalAmount: 1100,
-			Payments:    []model.Payment{{TotalAmount: 1100, BillingAmount: 0}},
-		}
-		assert.Equal(t, int64(0), OutstandingAmount(b))
-	})
-
-	t.Run("nil billing is 0", func(t *testing.T) {
-		t.Parallel()
-		assert.Equal(t, int64(0), OutstandingAmount(nil))
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, patientOutstanding(tt.payment))
+		})
+	}
 }

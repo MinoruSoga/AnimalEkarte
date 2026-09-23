@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -186,6 +187,56 @@ func TestUpdateAccounting_PostCloseDestinationDateRequiresPermission(t *testing.
 	assert.Contains(t, w.Body.String(), "accounting-post-close-edit:edit")
 }
 
+// TestCompleteAccounting_AlreadyCompletedReturns409WithExisting は EMR-66:
+// 同一 medical_record / hospitalization スロットへの二重確定が UNIQUE 500 ではなく
+// HTTP 409 + code=ACCOUNTING_ALREADY_COMPLETED + 既存会計オブジェクトを返すことを固定する。
+func TestCompleteAccounting_AlreadyCompletedReturns409WithExisting(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	mrID := uint64(777)
+	existing := &model.Billing{
+		ID:              66,
+		ClinicID:        1,
+		Status:          model.BillingStatusCompleted,
+		MedicalRecordID: &mrID,
+		TotalAmount:     1100,
+		ScheduledDate:   time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC),
+	}
+
+	h := NewAccountingHandler(
+		&mockAccountingService{
+			completeFn: func(_ context.Context, input *CompleteAccountingInput) (*CompleteAccountingResult, error) {
+				assert.Equal(t, uint64(1), input.ClinicID)
+				return nil, newAccountingAlreadyCompletedError("このカルテには既に会計があります", existing)
+			},
+		},
+		&stubCashRegisterIsClosed{
+			isDateClosedFn: func(_ context.Context, _ uint64, _ time.Time) (bool, error) { return false, nil },
+		},
+		func(_ *gin.Context, _, _ string) bool { return true },
+	)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	setNonSystemAdmin(c)
+	c.Request = httptest.NewRequest(
+		http.MethodPost,
+		"/v1/accountings/complete",
+		strings.NewReader(`{"owner_id":1,"pet_id":2,"medical_record_id":777,"scheduled_date":"2026-06-01T00:00:00Z","items":[{"name":"診察","unit_price":1000,"quantity":1}]}`),
+	)
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Request.Header.Set("Idempotency-Key", uuid.NewString())
+
+	h.CompleteAccounting(c)
+
+	assert.Equal(t, http.StatusConflict, w.Code)
+	body := w.Body.String()
+	assert.Contains(t, body, `"code":"ACCOUNTING_ALREADY_COMPLETED"`)
+	assert.Contains(t, body, `"accounting"`)
+	assert.Contains(t, body, `"id":66`)
+	assert.NotContains(t, body, "unique constraint", "UNIQUE 違反の内部情報をレスポンスに露出しない")
+}
+
 // ---- mock AccountingService (full interface, nil-safe forwarding) ----
 
 type mockAccountingService struct {
@@ -194,6 +245,7 @@ type mockAccountingService struct {
 	getByIDFn                   func(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
 	getByIDForClinicsFn         func(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Billing, error)
 	createFn                    func(ctx context.Context, input *CreateAccountingInput) (*model.Billing, error)
+	completeFn                  func(ctx context.Context, input *CompleteAccountingInput) (*CompleteAccountingResult, error)
 	updateFn                    func(ctx context.Context, input *UpdateAccountingInput) (*model.Billing, error)
 	correctCreditPaymentFn      func(ctx context.Context, input *CorrectCreditPaymentInput) (*model.Billing, error)
 	cancelFn                    func(ctx context.Context, clinicID, id uint64, actorID *uint64) error
@@ -221,7 +273,10 @@ func (m *mockAccountingService) GetByIDForClinics(ctx context.Context, clinicIDs
 	return m.getByIDForClinicsFn(ctx, clinicIDs, id)
 }
 
-func (m *mockAccountingService) Complete(_ context.Context, _ *CompleteAccountingInput) (*CompleteAccountingResult, error) {
+func (m *mockAccountingService) Complete(ctx context.Context, input *CompleteAccountingInput) (*CompleteAccountingResult, error) {
+	if m.completeFn != nil {
+		return m.completeFn(ctx, input)
+	}
 	return nil, apperrors.WrapInternalServerError("Complete not implemented in mockAccountingService")
 }
 

@@ -116,15 +116,81 @@ func (s *accountingService) Create(ctx context.Context, input *CreateAccountingI
 // resolvePaymentWrites は書込み前に method(ENUM)→payment_methods マスタ id を解決する
 // （tx 外・低コストな読取のみ。BE-refactor.md E-4）。hasPaymentFields(input) が false の場合は
 // (nil, nil, nil) を返す。
-func (s *accountingService) resolvePaymentWrites(ctx context.Context, input *UpdateAccountingInput) (*model.Payment, []model.PaymentSplit, error) {
+//
+// EMR-63: payment は既存行（existing.Payments[0]）を base として merge する。
+// 未送信フィールドは既存値を保持し、payment 全項目の再送を要求しない。
+// billing_amount は client 供給値を採用せず server が merged 値から権威的に再計算する
+// （請求額 = 合計 − 保険 − 割引 の不変条件を永続化させない = tamper-proof）。
+func (s *accountingService) resolvePaymentWrites(ctx context.Context, input *UpdateAccountingInput, existing *model.Billing) (*model.Payment, []model.PaymentSplit, error) {
 	if !hasPaymentFields(input) {
 		return nil, nil, nil
 	}
+	var base *model.Payment
+	var existingSplits []model.PaymentSplit
+	if existing != nil {
+		for i := range existing.Payments {
+			base = &existing.Payments[i]
+			break
+		}
+		if base == nil {
+			// payment 行未作成の会計（waiting など）は billing ヘッダの金額を merge base に使う。
+			// これにより payment 未作成でも「請求額 = 合計 − 保険 − 割引」の server 算出が成立する。
+			base = &model.Payment{
+				Subtotal:    existing.Subtotal,
+				TaxTotal:    existing.TaxTotal,
+				TotalAmount: existing.TotalAmount,
+			}
+		}
+		existingSplits = existing.PaymentSplits
+	}
+	payment := buildPaymentFromInput(input, base)
+	// EMR-62: insurance_amount は正の magnitude（円）が正規契約。
+	// merge 後の値（input 明示値・既存保持値どちらでも）を絶対値に正規化し、
+	// 旧クライアントの負値送信・レガシー負値行を canonical な正値へ収束させる。
+	if payment.InsuranceAmount < 0 {
+		payment.InsuranceAmount = -payment.InsuranceAmount
+	}
+	if payment.DiscountAmount < 0 {
+		return nil, nil, apperrors.WrapInvalidInput("割引額は0円以上で指定してください")
+	}
+	// 保険なし会計に保険負担額が非ゼロは矛盾レコードのため拒否する（tamper-proof）。
+	hasInsurance := false
+	if existing != nil {
+		hasInsurance = existing.HasInsurance
+	}
+	if input.HasInsurance != nil {
+		hasInsurance = *input.HasInsurance
+	}
+	if !hasInsurance && payment.InsuranceAmount != 0 {
+		return nil, nil, apperrors.WrapInvalidInput("保険なし会計に保険負担額は設定できません")
+	}
+	// EMR-63: billing_amount は server が不変条件から再計算する。部分PUT（保険や内訳だけの更新）
+	// で既存請求額が client の再計算値やゼロ値で破壊されることを防ぎ、矛盾した請求額の混入も
+	// client 側改竄として通さない。
+	payment.BillingAmount = payment.TotalAmount - payment.InsuranceAmount - payment.DiscountAmount
+	if payment.BillingAmount < 0 {
+		return nil, nil, apperrors.WrapInvalidInput("請求金額が負になります（保険・割引の指定を確認してください）")
+	}
+	// 提供された支払い内訳は server 算出の請求額と一致しなければならない。
+	if err := validatePaymentSplits(input.PaymentSplits, &payment.BillingAmount); err != nil {
+		return nil, nil, err
+	}
+	// 内訳未送信で既存内訳が残る場合、金額系フィールドの変更後も既存内訳合計が請求額と
+	// 一致しなければ拒否する（請求額だけ変わって内訳が古いまま残る不整合を防ぐ）。
+	if len(input.PaymentSplits) == 0 && len(existingSplits) > 0 {
+		var splitTotal int64
+		for i := range existingSplits {
+			splitTotal += existingSplits[i].Amount
+		}
+		if splitTotal != payment.BillingAmount {
+			return nil, nil, apperrors.WrapInvalidInput("支払い内訳の合計が請求金額と一致しません。支払い内訳も併せて更新してください")
+		}
+	}
+
 	systemKeyToID, err := s.loadPaymentMethodSystemKeyToID(ctx, input.ClinicID)
 	if err != nil {
 		return nil, nil, err // loadPaymentMethodSystemKeyToID 内で既に wrap + log 済み
 	}
-	payment := buildPaymentFromInput(input)
 	// 代表支払方法も master id を併設（dual maintain）。method 未設定の更新（保険のみ等）は解決対象外。
 	if payment.Method != "" {
 		pid, err := resolvePaymentMethodMasterID(payment.Method, payment.PaymentMethodID, systemKeyToID)
@@ -133,7 +199,7 @@ func (s *accountingService) resolvePaymentWrites(ctx context.Context, input *Upd
 		}
 		payment.PaymentMethodID = pid
 	}
-	splits := buildPaymentSplits(input)
+	splits := buildPaymentSplits(input, payment.BillingAmount)
 	for i := range splits {
 		pid, err := resolvePaymentMethodMasterID(splits[i].Method, splits[i].PaymentMethodID, systemKeyToID)
 		if err != nil {
@@ -163,8 +229,9 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 	if input.TotalAmount != nil && *input.TotalAmount < 0 {
 		return nil, apperrors.WrapInvalidInput(sharedkernel.ErrMsgPriceZeroOrMore)
 	}
-	// 混在会計バリデーション
-	if err := validatePaymentSplits(input.PaymentSplits, input.BillingAmount); err != nil {
+	// 混在会計バリデーション（構造チェックのみ。金額一致は EMR-63 で server 算出の
+	// 請求額と突き合わせる resolvePaymentWrites が権威的に検証する）。
+	if err := validatePaymentSplits(input.PaymentSplits, nil); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate payment splits")
 	}
 	cmd := accountingUpdateFromInput(input)
@@ -177,7 +244,7 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 	// #128: 書込み前に method(ENUM)→payment_methods マスタ id を解決する（tx 外・低コストな読取のみ）。
 	// レジ締め・月次集計は payment_method_id をキーにし NULL を現金とみなすため、
 	// 非現金 split が NULL のまま保存されると全て現金に倒れる。解決失敗時はここで会計確定を止める。
-	payment, splits, err := s.resolvePaymentWrites(ctx, input)
+	payment, splits, err := s.resolvePaymentWrites(ctx, input, existing)
 	if err != nil {
 		return nil, err // resolvePaymentWrites 内で既に wrap + log 済み
 	}

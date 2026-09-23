@@ -2,6 +2,7 @@ package billing
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -68,6 +69,48 @@ type CompleteAccountingResult struct {
 	Accounting *model.Billing
 	Created    bool
 }
+
+// AccountingCodeAlreadyCompleted は EMR-66 の二重確定 409 で返す安定エラーコード。
+// medical_record_id / hospitalization_id のスロットに既存会計がある complete 確定に対応する。
+const AccountingCodeAlreadyCompleted = "ACCOUNTING_ALREADY_COMPLETED"
+
+// accountingAlreadyCompletedError は既に会計が存在するスロットへの complete を表す 409。
+// Existing には既存会計を同梱し、handler が response body の accounting として返す。
+type accountingAlreadyCompletedError struct {
+	appErr   *apperrors.AppError
+	Existing *model.Billing
+}
+
+func (e *accountingAlreadyCompletedError) Error() string { return e.appErr.Error() }
+func (e *accountingAlreadyCompletedError) Unwrap() error { return e.appErr }
+
+func newAccountingAlreadyCompletedError(message string, existing *model.Billing) *accountingAlreadyCompletedError {
+	return &accountingAlreadyCompletedError{
+		appErr: &apperrors.AppError{
+			Code:    AccountingCodeAlreadyCompleted,
+			Message: message,
+			Err:     apperrors.ErrConflict,
+		},
+		Existing: existing,
+	}
+}
+
+// completeUniqueConflictError は header INSERT の UNIQUE 衝突を tx 外で再解決するための
+// 内部 sentinel。PostgreSQL は UNIQUE 違反後の同一 tx を aborted (25P02) にするため、
+// 衝突した行の再検索は rollback 後の健全な ctx で行う。
+// Unwrap が元の AlreadyExists/unique エラーを指すため、万が一未解決のまま漏れても
+// 409 ALREADY_EXISTS として分類される（500 にはならない）。
+type completeUniqueConflictError struct {
+	medicalRecordID   *uint64
+	hospitalizationID *uint64
+	cause             error
+}
+
+func (e *completeUniqueConflictError) Error() string {
+	return fmt.Sprintf("complete accounting unique conflict: %v", e.cause)
+}
+
+func (e *completeUniqueConflictError) Unwrap() error { return e.cause }
 
 // completeItemWriter は ambient tx 内で明細を作成する collaborator（WithTx を開始しない）。
 type completeItemWriter interface {
@@ -217,7 +260,12 @@ func (s *accountingService) Complete(ctx context.Context, input *CompleteAccount
 		result = completeResult
 		return nil
 	}); err != nil {
-
+		// EMR-66: header INSERT の UNIQUE 衝突は rollback 後の健全な ctx で再解決する。
+		// aborted tx 上で再検索すると 25P02 → 500 になるため、ここで replay / 409 に分岐する。
+		var slotConflict *completeUniqueConflictError
+		if errors.As(err, &slotConflict) {
+			return s.resolveCompleteUniqueConflict(ctx, input, digest, slotConflict)
+		}
 		return nil, apperrors.Wrap(err, "failed to complete accounting in transaction")
 	}
 
@@ -249,4 +297,46 @@ func (s *accountingService) resolveIdempotentReplay(ctx context.Context, clinicI
 		return nil, apperrors.Wrap(err, "failed to reload accounting for idempotent replay")
 	}
 	return &CompleteAccountingResult{Accounting: reloaded, Created: false}, nil
+}
+
+// resolveCompleteUniqueConflict は EMR-66: header INSERT の UNIQUE 衝突を rollback 後に再解決する。
+//   - 同一 completion_request_id の行 → 冪等 replay（digest 一致）または異 digest 409
+//   - medical_record_id / hospitalization_id スロット占有 → ACCOUNTING_ALREADY_COMPLETED + 既存会計
+//   - 上記いずれでも特定できない UNIQUE 違反 → 従来どおりの汎用 409
+func (s *accountingService) resolveCompleteUniqueConflict(
+	ctx context.Context,
+	input *CompleteAccountingInput,
+	digest string,
+	conflict *completeUniqueConflictError,
+) (*CompleteAccountingResult, error) {
+	existing, err := s.repo.FindByCompletionRequestID(ctx, input.ClinicID, input.IdempotencyKey)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to resolve completion unique conflict")
+	}
+	if existing != nil {
+		return s.resolveIdempotentReplay(ctx, input.ClinicID, existing, digest)
+	}
+	blocking, err := s.repo.FindCompleteConflict(ctx, input.ClinicID, conflict.medicalRecordID, conflict.hospitalizationID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to resolve accounting slot conflict")
+	}
+	if blocking != nil {
+		return nil, s.alreadyCompletedConflict(ctx, input.ClinicID, blocking)
+	}
+	return nil, apperrors.WrapConflict("このカルテには既に会計があります")
+}
+
+// alreadyCompletedConflict は衝突した既存 billing を preload 付きで取り直して
+// ACCOUNTING_ALREADY_COMPLETED エラーを組み立てる。soft-deleted などで reload できない
+// 場合は衝突検出時の行をそのまま同梱する。
+func (s *accountingService) alreadyCompletedConflict(ctx context.Context, clinicID uint64, blocking *model.Billing) error {
+	existing := blocking
+	if reloaded, err := s.repo.FindByID(ctx, clinicID, blocking.ID); err == nil && reloaded != nil {
+		existing = reloaded
+	}
+	msg := "このカルテには既に会計があります"
+	if blocking.MedicalRecordID == nil && blocking.HospitalizationID != nil {
+		msg = "この入院には既に会計があります"
+	}
+	return newAccountingAlreadyCompletedError(msg, existing)
 }

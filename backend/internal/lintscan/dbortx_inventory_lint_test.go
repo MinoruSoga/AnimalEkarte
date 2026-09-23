@@ -135,6 +135,11 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// caller's ambient transaction so a replay cannot observe a pre-commit gap and create a
 	// second billing for the same key. Unscoped + ClinicScope keeps soft-deleted keys reserved.
 	"billing/accounting_repository.go|accountingRepository.FindByCompletionRequestID": {},
+	// EMR-66 duplicate-complete slot probe: the pre-insert conflict check runs inside the
+	// caller's ambient transaction (assertCompleteSlotAvailable) so it observes the same
+	// snapshot as the INSERT it precedes; the post-rollback resolution call runs on the
+	// outer ctx via the same method.
+	"billing/accounting_repository_complete.go|accountingRepository.FindCompleteConflict": {},
 	// Audit writes deliberately require an already-open ambient transaction and call
 	// persistence.TxFromContext directly. The explicit expectation below prevents weakening
 	// this fail-closed contract back to fallback DBOrTx behavior.

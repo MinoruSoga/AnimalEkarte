@@ -361,6 +361,50 @@ describe("useAccountingCompletionAction completed accounting updates", () => {
     expect(result.current.formState.success).toBe(true);
     expect(args.navigate).toHaveBeenCalledWith("/accounting/123");
   });
+
+  it.each([["新規 complete", undefined] as const, ["既存 update", "123"] as const])(
+    "EMR-62: insurance_amount は正の magnitude で送信する（%s）",
+    async (_label, accountingId) => {
+      const args = {
+        ...buildHookArgs({ accountingId: accountingId ?? undefined }),
+        hasInsurance: true,
+        insuranceRatio: "0.5",
+        calculation: {
+          subtotal: 1000,
+          taxTotal: 100,
+          totalAmount: 1100,
+          insuranceAmount: 550,
+          billingAmount: 550,
+        },
+        paymentSplits: [{ method: "cash" as const, amount: "550", receivedAmount: "550" }],
+      };
+      completeAccountingMock.mockResolvedValue({ ...waitingAccounting(), status: "completed" });
+      updateAccountingMock.mockResolvedValue({ ...waitingAccounting(), status: "completed" });
+      const { result } = renderHook(() => useAccountingCompletionAction(args));
+
+      await submitCompletionAction(result.current.formAction);
+
+      if (accountingId === undefined) {
+        expect(completeAccountingMock).toHaveBeenCalledExactlyOnceWith(
+          expect.objectContaining({
+            has_insurance: true,
+            insurance_ratio: 0.5,
+            insurance_amount: 550,
+          }),
+          "test-idempotency-key",
+        );
+        const sent = completeAccountingMock.mock.calls[0]?.[0]?.insurance_amount;
+        expect(sent).toBeGreaterThanOrEqual(0);
+      } else {
+        expect(updateAccountingMock).toHaveBeenCalledExactlyOnceWith(
+          accountingId,
+          expect.objectContaining({ insurance_amount: 550 }),
+        );
+        const sent = updateAccountingMock.mock.calls[0]?.[1]?.insurance_amount;
+        expect(sent).toBeGreaterThanOrEqual(0);
+      }
+    },
+  );
 });
 
 // FE-RC-001: fieldset disabled 等の render 側ガードをバイパスされても action 側で権限を再検証し、fail-closed で API を叩かないことを保証する。

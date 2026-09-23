@@ -9,6 +9,7 @@ function renderInsuranceCard(
     useInsurance: boolean;
     insuranceRatio: string;
     insuranceAmount: number;
+    showPreservedNote: boolean;
     onUseInsuranceChange: (v: boolean) => void;
     onInsuranceRatioChange: (v: string) => void;
   }> = {},
@@ -25,6 +26,7 @@ function renderInsuranceCard(
         insuranceRatio={overrides.insuranceRatio ?? "0.5"}
         onInsuranceRatioChange={onInsuranceRatioChange}
         insuranceAmount={overrides.insuranceAmount ?? 0}
+        showPreservedNote={overrides.showPreservedNote ?? false}
       />,
     ),
   };
@@ -65,5 +67,42 @@ describe("InsuranceCard insurance ratio options", () => {
 
     expect(screen.getByRole("combobox", { name: "負担割合" })).toHaveTextContent("100%");
     expect(onInsuranceRatioChange).not.toHaveBeenCalled();
+  });
+});
+
+describe("InsuranceCard insurance amount display (EMR-62)", () => {
+  it("保険負担額は正の magnitude で表示する", () => {
+    renderInsuranceCard({ insuranceAmount: 5500 });
+
+    expect(screen.getByText("保険負担額")).toBeInTheDocument();
+    expect(screen.getByText("5,500 円")).toBeInTheDocument();
+    expect(screen.queryByText(/マイナス/)).not.toBeInTheDocument();
+  });
+
+  it("レガシー負値データも絶対値で表示する", () => {
+    renderInsuranceCard({ insuranceAmount: -5500 });
+
+    expect(screen.getByText("5,500 円")).toBeInTheDocument();
+    expect(screen.queryByText("-5,500 円")).not.toBeInTheDocument();
+  });
+});
+
+describe("InsuranceCard preserved note (EMR-63)", () => {
+  it("showPreservedNote=true のとき既存値保持の注記を表示する", () => {
+    renderInsuranceCard({ showPreservedNote: true });
+
+    expect(screen.getByText("保険情報は既存の値が保持されます")).toBeInTheDocument();
+  });
+
+  it("既定では注記を表示しない", () => {
+    renderInsuranceCard();
+
+    expect(screen.queryByText("保険情報は既存の値が保持されます")).not.toBeInTheDocument();
+  });
+
+  it("保険スイッチOFFでは注記を表示しない", () => {
+    renderInsuranceCard({ useInsurance: false, showPreservedNote: true });
+
+    expect(screen.queryByText("保険情報は既存の値が保持されます")).not.toBeInTheDocument();
   });
 });
