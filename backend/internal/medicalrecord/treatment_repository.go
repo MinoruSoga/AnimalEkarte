@@ -246,26 +246,68 @@ func (r *treatmentRepository) Create(ctx context.Context, treatment *model.Treat
 	return nil
 }
 
-// Update は dbOrTx で ambient tx に参加する（Create と同じ理由、BE9-2D ④b）。
+// Update は dbOrTx で ambient tx に参加する clinic-scoped な部分更新（Create と同じ理由、BE9-2D ④b）。
+// cmd.Version が非 nil の場合は expectedVersion として
+// WHERE version=? 述語を追加する（UAT-R2-EXCLUSIVE-LOCK: 楽観ロックの原子化、
+// clinical_plan_repository.go の Update と同型）。成功時は version+1 を書き戻す。
+// cmd.Version が nil の場合は従来どおり version 述語なし（照合スキップ、後方互換）。
+// RowsAffected==0 は「存在しない/他クリニック」と「バージョン不一致」を区別するため
+// existsInClinic で再照会し正しいエラー種別に正規化する
+// （clinical_plan_repository.go の conflictAfterZeroClinicalPlanRows と同型。
+// 親カルテの draft ガードは service 側の lockDraftMedicalRecord FOR UPDATE が担うため
+// ここでは行の存否のみを見る）。
 func (r *treatmentRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateTreatmentInput) error {
-	return r.update(ctx, clinicID, id, buildTreatmentUpdate(&cmd))
+	return r.update(ctx, clinicID, id, buildTreatmentUpdate(&cmd), cmd.Version)
 }
 
-func (r *treatmentRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+func (r *treatmentRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any, expectedVersion *int) error {
 	// NOTE: GORM does not propagate Joins() into the generated UPDATE statement's SQL
 	// (it is a SELECT-only clause), so a WHERE referencing the joined table fails with
 	// "missing FROM-clause entry". clinic_id isolation must be expressed as a subquery instead.
-	result := persistence.DBOrTx(ctx, r.db).
+	q := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Treatment{}).
-		Where("treatments.id = ? AND treatments.deleted_at IS NULL AND treatments.medical_record_id IN (SELECT id FROM medical_records WHERE clinic_id = ? AND deleted_at IS NULL)", id, clinicID).
-		Updates(fields)
+		Where("treatments.id = ? AND treatments.deleted_at IS NULL AND treatments.medical_record_id IN (SELECT id FROM medical_records WHERE clinic_id = ? AND deleted_at IS NULL)", id, clinicID)
+	if expectedVersion != nil {
+		q = q.Where("treatments.version = ?", *expectedVersion)
+	}
+	fields["version"] = gorm.Expr("version + 1")
+	result := q.Updates(fields)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "treatment", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("treatment", fmt.Sprintf("%d", id))
+		return r.conflictAfterZeroTreatmentRows(ctx, clinicID, id, expectedVersion)
 	}
 	return nil
+}
+
+// existsInClinic は id の treatment が clinicID 配下（親カルテの draft/finalized を問わず）に
+// 存在するかを返す。Update の RowsAffected==0 を「存在しない」と「バージョン不一致」で
+// 区別するために使う（clinical_plan_repository.go の existsInClinic と同型）。
+func (r *treatmentRepository) existsInClinic(ctx context.Context, clinicID, id uint64) (bool, error) {
+	var count int64
+	if err := persistence.DBOrTx(ctx, r.db).
+		Model(&model.Treatment{}).
+		Where("treatments.id = ? AND treatments.deleted_at IS NULL AND treatments.medical_record_id IN (SELECT id FROM medical_records WHERE clinic_id = ? AND deleted_at IS NULL)", id, clinicID).
+		Count(&count).Error; err != nil {
+		return false, apperrors.FromGORM(err, "treatment", fmt.Sprintf("%d", id))
+	}
+	return count > 0, nil
+}
+
+func (r *treatmentRepository) conflictAfterZeroTreatmentRows(ctx context.Context, clinicID, id uint64, expectedVersion *int) error {
+	// version 述語なし（照合スキップ）で 0 行 = 行自体が存在しない → 従来どおり NotFound。
+	if expectedVersion == nil {
+		return apperrors.WrapNotFound("treatment", fmt.Sprintf("%d", id))
+	}
+	exists, err := r.existsInClinic(ctx, clinicID, id)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return apperrors.WrapNotFound("treatment", fmt.Sprintf("%d", id))
+	}
+	return apperrors.WrapConflict("他のユーザーがこの治療を変更しました。再読み込みしてください")
 }
 
 // Delete は dbOrTx で ambient tx に参加する（Create と同じ理由、BE9-2D ④b）。

@@ -101,6 +101,8 @@ export function useGetAllMedicinesMaster() {
 export interface HospitalizationPlanRefItem {
   id: string;
   name: string;
+  /** マスタ単価。0 は有限値として保持し欠損/空欄に畳まない(API 省略時は 0)。 */
+  price: number;
 }
 
 /**
@@ -116,7 +118,11 @@ export function useGetAllHospitalizationPlansMaster() {
       const { data } = await axios.get<HospitalizationPlanModel[]>(
         "/v1/masters/hospitalization-plans",
       );
-      return data.map((item) => ({ id: String(item.id), name: item.name }));
+      return data.map((item) => ({
+        id: String(item.id),
+        name: item.name,
+        price: item.price ?? 0,
+      }));
     },
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,

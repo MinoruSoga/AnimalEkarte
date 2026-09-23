@@ -27,9 +27,12 @@ type VitalRecord struct {
 	Weight          *float64       `gorm:"type:numeric"                      json:"weight"`
 	WeightUnit      BodyWeightUnit `gorm:"type:body_weight_unit;default:'Kg'" json:"weight_unit"`
 	Notes           string         `gorm:"not null;default:''"               json:"notes"`
-	CreatedAt       time.Time      `gorm:"not null;default:now()"            json:"created_at"`
-	UpdatedAt       time.Time      `gorm:"not null;default:now()"            json:"updated_at"`
-	DeletedAt       gorm.DeletedAt `gorm:"index"                             json:"-"`
+	// Version は楽観的ロック用（UAT-R2-EXCLUSIVE-LOCK）。更新は version+1 を書き戻し、
+	// caller の読取版を expectedVersion として WHERE 照合する（clinical_plan/medical_record と同型）。
+	Version   int            `gorm:"default:1"                        json:"version"`
+	CreatedAt time.Time      `gorm:"not null;default:now()"            json:"created_at"`
+	UpdatedAt time.Time      `gorm:"not null;default:now()"            json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index"                             json:"-"`
 
 	Pet           *Pet           `gorm:"foreignKey:PetID"           json:"pet,omitempty"`
 	MedicalRecord *MedicalRecord `gorm:"foreignKey:MedicalRecordID" json:"-"`

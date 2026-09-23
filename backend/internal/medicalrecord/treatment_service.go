@@ -59,6 +59,10 @@ type UpdateTreatmentInput struct {
 	// DiscountEditAllowed is set by the HTTP boundary from discount:edit RBAC.
 	// Service rechecks discount fields against the FOR UPDATE locked row (SEC-CS-F09).
 	DiscountEditAllowed bool
+	// Version は楽観的ロック用 expectedVersion（nil=照合スキップ・後方互換）。
+	// UpdateClinicalPlanInput.Version と同型: repository Update の WHERE version=? 述語に
+	// そのまま渡り、一致時のみ version+1 で書き戻す。0/負値はどの行にも一致せず Conflict。
+	Version *int
 	// persistDose is set only by service after locked dose revalidation. HTTP/client must not set it.
 	persistDose map[string]any
 }

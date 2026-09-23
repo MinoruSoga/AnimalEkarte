@@ -39,12 +39,15 @@ export function AddForm({ onSubmit }: AddFormProps) {
   const [name, setName] = useState("");
   const [timing, setTiming] = useState<CarePlanTiming[]>(INITIAL_TIMING);
   const [refId, setRefId] = useState<string | null>(null);
+  /** type=item で選択した入院プランマスタの単価。0 は有限値として保持する。 */
+  const [refUnitPrice, setRefUnitPrice] = useState<number | null>(null);
 
   const needsRef = requiresRef(type);
 
   const handleTypeChange = useCallback((next: CarePlanItemType) => {
     setType(next);
     setRefId(null);
+    setRefUnitPrice(null);
   }, []);
 
   const handleTimingToggle = useCallback((t: CarePlanTiming) => {
@@ -62,12 +65,15 @@ export function AddForm({ onSubmit }: AddFormProps) {
         name: trimmedName,
         timing,
         ...buildRefFields(type, refId),
+        // 持ち物は入院プランマスタの単価を unit_price に転記する(BE は省略時 0 で保存)
+        ...(type === "item" && refUnitPrice !== null ? { unit_price: refUnitPrice } : {}),
       });
 
       setName("");
       setType("instruction");
       setTiming(INITIAL_TIMING);
       setRefId(null);
+      setRefUnitPrice(null);
       return { error: null };
     },
     INITIAL_STATE,
@@ -99,7 +105,14 @@ export function AddForm({ onSubmit }: AddFormProps) {
             placeholder="名称を入力"
           />
         </div>
-        {needsRef ? <CarePlanRefSelect type={type} value={refId} onChange={setRefId} /> : null}
+        {needsRef ? (
+          <CarePlanRefSelect
+            type={type}
+            value={refId}
+            onChange={setRefId}
+            onUnitPriceChange={setRefUnitPrice}
+          />
+        ) : null}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <span className={`text-xs ${C.text50} shrink-0`}>タイミング:</span>

@@ -1,6 +1,6 @@
 # タスク台帳 — 入口
 
-最終照合: 2026-09-22（JST）。ローカル HEAD `cd2feaa14` の追加対応8件を照合し、関連する残作業を同期した。その他の判定は9月21日の照合を保持。remote・CI・配備・Linear の現在状態は再照会していない。投稿・状態変更は未実施。**未完了の作業だけを掲載する。** 完了の詳細はGit履歴と元のUAT記録を参照する。ローカル準備・修正・回帰追加を、課題全体・STG読取・医院受入・本番実行の完了にしない。
+最終照合: 2026-09-23（JST）。HEAD `936610d75` のコードベースで再照合した。前回（2026-09-22・`cd2feaa14`）以降の着地分: 尿検査M4表示回帰と主訴C0解除UI（`a95835cb9`）、実行シナリオ S14–S33 とフォーム wire-key 総覧（`5a5828a1d`）、handoff CSV 契約 digest 解消と cross-clinic staff 連携（`d34e09df7`・`0c91f5dc9`）、STG 遅延対策の実装と curl 実測（`d96c4ba27`・cities/DO pinning は能力不足で撤回）。製品 FAIL 10件はコード照合で全件「記載どおり未修復」を再確認。作業ツリーには未コミットの3単位がある: 子レコード stale 更新防御（backend・EXCLUSIVE-LOCK）、入院プラン単価転記（FE・MASTER-PATH）、stg-uat-staff-attach RLS bypass。remote・CI・配備・Linear の現在状態は再照会していない。投稿・状態変更は未実施。**未完了の作業だけを掲載する。** 完了の詳細はGit履歴と元のUAT記録を参照する。ローカル準備・修正・回帰追加を、課題全体・STG読取・医院受入・本番実行の完了にしない。
 
 ## 着手プランの確認
 
@@ -28,32 +28,33 @@
 | [todo-campaign-20260919-ready17/](docs/work/todo-campaign-20260919-ready17/) | Slack READY 13件の設計票（作成時の名称） | `cd2feaa14` で主訴null hydrate修正、尿検査/接種/プラン導線回帰、遅延条件を追加。現在の開始区分はIssueの5エリアを参照 |
 | [linmig-campaign-20260919/](docs/work/linmig-campaign-20260919/) | P1–P5/P8、検査機器、実LINE、migrate、件数、フォント、締め時間、bundle | 実行条件は [運用](todo-operations.md) / [検証](todo-verification.md) |
 | [remaining-campaign-20260920/](docs/work/remaining-campaign-20260920/) | P6/P7 と PO/evidence の Slack 14件（計16票） | 判断材料・ケース票。PO裁定と実機/STGの現在の結果は UNKNOWN |
+| [todo-ledger-20260922/](docs/work/todo-ledger-20260922/) | EXCLUSIVE-LOCK 子レコード実装記録、GENDER-MAP 対応表とSTG訂正ドラフト、handoff CSV 契約差分、OWNER-DB 分類・実行案 | 2026-09-22 キャンペーン（5票）。進捗は下の該当行と各専用TODOへ反映済み |
 
 ### 今開始する4件（仕様入力の回収は完了）
 
 | 順 / ID | 最初に行う作業 | この単位の完了条件 / 後続 |
 |---|---|---|
-| 1 / UAT-R2-MASTER-PATH | [全経路票](docs/work/todo-campaign-20260918/UAT-R2-MASTER-PATH.md) の複数マスタrequest/model回帰は追加済み。次はexam_types配線・予防分類・入院参照の下流を合成ケースへ | 全12フォームの新規/編集→再読込→利用/会計は未実証。専用fixtureで未カバー箇所を検証し、再現した金額不一致だけ修正 |
+| 1 / UAT-R2-MASTER-PATH | [全経路票](docs/work/todo-campaign-20260918/UAT-R2-MASTER-PATH.md) の複数マスタrequest/model回帰は追加済み。入院参照の下流（プラン単価転記）はコード対応済み・未コミット（named price-loss の解消、回帰は反転固定済み）。次はexam_types配線と予防分類のunit_price維持を合成ケースへ（実行票 S20・docs/ops/testing/scenarios/） | 全12フォームの新規/編集→再読込→利用/会計は未実証。専用fixtureで未カバー箇所を検証し、再現した金額不一致だけ修正 |
 | 2 / UAT-R2-CHART-FIT | 高さ制約・タブ内scrollのコード対応済み。[受入キュー](todo-verification.md#uat-followup) で1366×625、全9タブ、sidebar両状態の残ケースを確認 | 必須情報/保存/フォーカスに到達できる対象buildの証拠。Windows 8/Chrome実機の版・CSS領域・100%/既報125%はQAが採取し、最新Chromiumと分ける |
-| 3 / UAT-R2-EXCLUSIVE-LOCK | 二重会計409・明細一意制約と、古い合計/確定後明細/検査重複のmock回帰は追加済み。次は [競合票](docs/work/todo-campaign-20260918/UAT-R2-EXCLUSIVE-LOCK.md) の所見以外stale更新API・不足防御を設計 | 実DB/2セッションは [DB適用証拠](todo-operations.md#billing-schema-readiness) と専用環境待ち。古い合計/後追い明細の実並行も未確認。全面ロックは未採用 |
+| 3 / UAT-R2-EXCLUSIVE-LOCK | 二重会計409・明細一意制約と、古い合計/確定後明細/検査重複のmock回帰は追加済み。[実施記録](docs/work/todo-ledger-20260922/UAT-R2-EXCLUSIVE-LOCK.md) のとおり子レコード4種別（治療/バイタル/処方/接種）のstale更新CASをbackend実装済み・scoped GREEN（migration 005は未適用）。次はhandler/DTO・OpenAPI・FE生成typesへのversion配線 | 実DB/2セッションは [DB適用証拠](todo-operations.md#billing-schema-readiness) と専用環境待ち。Deleteと一括並べ替えはversion対象外のまま。全面ロックは未採用 |
 | 4 / UAT-Q2-TREATMENTS-IMPORT | [全期間移行票](docs/work/todo-campaign-20260918/UAT-Q2-TREATMENTS-IMPORT.md) の列写像は調査済み。未確定FK/分類/日時/用量/価格等を契約案・合成fixture設計へ | 現行21表にはtreatments/prescriptionsなし。全種類・全期間の履歴契約を両repoでレビュー後に実装。実データ投入は別承認 |
 
 上記は4件の現在の次工程。既存の設計票や対応済みコードを作り直さず、依存しない調査は別worktreeで並行可。実装時に同じカルテ/会計ファイルへ触れる単位は直列化する。対象の全列挙・実機値の計測・元列の特定は担当者の作業であり、同じ内容を依頼者へ聞き直さない。個人名を伴う要件/受入担当の参照は製品仕様変更前に実行票へ記録する。
 
 ### 追加対応8件の残作業（2026-09-22）
 
-上のMASTER / EXCLUSIVE / IMPORTに加え、[尿検査M4](todo-issue.md#slack-manual-urine) のカルテ表示回帰と [主訴C0](todo-issue.md#slack-complaint) の実UI解除導線はローカル作業を継続できる。主訴のnull再読込修正・追加済み回帰は再実装しない。[プラン手入力](todo-issue.md#slack-plan-manual) は案内/導線採否のPO待ちへ、[ワクチン複数入力](todo-issue.md#slack-vaccine-multi) と [遅延](todo-issue.md#slack-latency) は元症状・実機/実測の証拠待ちへ移した。受入の残条件は [検証TODO](todo-verification.md#ready8-followup-20260922)。今回のコード差分は主訴修正、その他は回帰追加/調査票の具体化であり、8課題全体が完了したという意味ではない。
+上のMASTER / EXCLUSIVE / IMPORTに加え、[尿検査M4](todo-issue.md#slack-manual-urine) のカルテ表示回帰は `a95835cb9` で着地済み（残は医院承認の項目/凡例/単位/基準・実行票 S28）。[主訴C0](todo-issue.md#slack-complaint) はnull再読込修正・回帰に加え clearable 解除UIまで実装済み（`a95835cb9`・実行票 S27）。残は実機保存・再読込の受入。実装済み回帰は再実装しない。[プラン手入力](todo-issue.md#slack-plan-manual) は案内/導線採否のPO待ち、[ワクチン複数入力](todo-issue.md#slack-vaccine-multi) は元症状・実機証拠待ち、[遅延](todo-issue.md#slack-latency) はSTG curl実測を `todo-performance.md`（E4/E5・未コミット）へ記録済みで、残は実機ブラウザ区間測定の計測設計。受入の残条件は [検証TODO](todo-verification.md#ready8-followup-20260922)。これらの対応は8課題全体の完了を意味しない。
 
 ### その他の残件を開始する順序
 
 | 残件 | 次の具体作業 / 終了または停止条件 |
 |---|---|
-| 性別修正・handoff | old_db修正は `a2cea37` でmain統合済み。再統合せず、同revisionを含むbundle/header/hashとPostgreSQL検証receiptを [運用計画](todo-operations.md#uat-q3-gender-map) へ対応づける。未照合を未実施と断定しない |
+| 性別修正・handoff | [対応表](docs/work/todo-ledger-20260922/UAT-Q3-GENDER-MAP.md) 確定済み: hachioji 1院は統合済みrevisionと一致、jouto/shikishima/hakobuneco の3院は修正前mapping世代でbundle再生成対象。[STG限定訂正ドラフト](docs/work/todo-ledger-20260922/UAT-Q3-GENDER-MAP-CORRECTION-DRAFT.md) 完成・operator承認待ち。handoff CSV契約はdigest bump（`d34e09df7`）でローカルrehearsal BLOCKは解消、formal F6はREHEARSAL_ONLYのまま [BLOCKED](docs/work/todo-ledger-20260922/BUG-LOCAL-HANDOFF-CSV-CONTRACT.md)。PostgreSQL検証receipt取得には未コミットの [stg-uat-staff-attach RLS bypass](backend/cmd/stg-uat-staff-attach/main.go) が前提 |
 | ワクチン種・未納・死亡日訂正 | 既存集計/訂正設計は完成済み。[運用担当](todo-operations.md#uat-data-operations) が対象医院・期間・読取範囲/承認・保存先を埋める。条件が揃うまで実データ操作は停止 |
-| OWNER / S09 / V04 / clinical / その他UAT | [検証表](todo-verification.md#readiness-preparation) のexactケースを対象revisionの既存receiptへ対応づける。未収録ケースだけ専用fixtureと実行先を確保して検証。起動中の他タスク用コンテナは借用しない |
+| OWNER / S09 / V04 / clinical / その他UAT | [OWNER実DB 5ケースは過去receipt皆無・全件未実行](docs/work/todo-ledger-20260922/DEV-V-OWNER-DB.md) と分類済み。次は専用disposable DBでの実行（共有DB不可）。S09 / V04 / clinical のexactケース対応づけは [検証表](todo-verification.md#readiness-preparation) どおり継続。起動中の他タスク用コンテナは借用しない |
 | P2 / P5 | 差分・remote方式は [LINMIG-232](docs/work/linmig-campaign-20260919/LINMIG-232.md) / [LINMIG-230](docs/work/linmig-campaign-20260919/LINMIG-230.md)。provider有効化・配備・発行は承認まで停止 |
 | STGデータ / release / P1・P3・P6・P7 / 認証 | 不足表は linmig / remaining 票へ作成済。[運用表](todo-operations.md#readiness-preparation) の実行条件が揃うまで送信・資格情報変更・本番作業は停止 |
-| 性能 | [測定票](todo-performance.md#測定準備で決めること) に対象build/通常操作/区間/時刻/回数を固定。未測定の因果関係で改善を実装しない |
+| 性能 | STGのcurl実測は `todo-performance.md`（E4/E5・未コミット）へ記録済み（`d96c4ba27` の認証キャッシュとsleepAfter延長の効果、配置pinningは能力不足で撤回）。残は [測定票](todo-performance.md#測定準備で決めること) での実機ブラウザ区間測定の対象固定。未測定の因果関係で改善を実装しない |
 | Linear | [既存照合票](docs/work/todo-campaign-20260918/TODO-V-LINEAR.md) の履歴を保持。接続復旧後に残る既存Issueをfull local ID/元報告/受入条件で照合。投稿・状態変更は別承認 |
 | TASK-444-ADDENDUM-CODEGEN | 必要性と別スコープの採用までDEFERRED。準備票を増やすために再開しない |
 
@@ -86,9 +87,9 @@
 
 | ID | 内容 | 状態 |
 |---|---|---|
-| [UAT-R2-MASTER-PATH](todo-issue.md#uat-r2-master-path) | 金額を持つ全マスタの保存・再読込・下流経路を検証 | 価格request/model回帰拡充済み／下流配線・全経路の検証継続 |
-| [UAT-R2-EXCLUSIVE-LOCK](todo-issue.md#uat-r2-exclusive-lock) | カルテ上書きと二重会計の両方を防止 | 会計防御/追加mock回帰あり／所見以外stale設計、DB適用・実並行は残る |
-| [UAT-Q3-GENDER-MAP](todo-issue.md#uat-q3-gender-map) | コード3/4修正はold_db main統合済み。bundle・DB/STG証拠を照合 | 未完了（bundle・運用） |
+| [UAT-R2-MASTER-PATH](todo-issue.md#uat-r2-master-path) | 金額を持つ全マスタの保存・再読込・下流経路を検証 | 価格request/model回帰拡充済み／入院参照下流はコード対応済み（未コミット）／exam_types配線・予防分類と全経路の検証継続 |
+| [UAT-R2-EXCLUSIVE-LOCK](todo-issue.md#uat-r2-exclusive-lock) | カルテ上書きと二重会計の両方を防止 | 子レコードstale防御はbackend実装済み（migration 005未適用・FE/handler配線なし）／DB適用・実並行は残る |
+| [UAT-Q3-GENDER-MAP](todo-issue.md#uat-q3-gender-map) | コード3/4修正はold_db main統合済み。対応表とSTG訂正ドラフトは作成済み | 3院bundle再生成とoperator承認待ち（bundle・運用） |
 | [UAT-Q2-VACCINE-SPECIES](todo-issue.md#uat-q2-vaccine-species) | 猫に犬用ワクチン（Proheart・6種等）。件数調査のあと種を付ける | 集計設計票作成済／STG 調査待ち |
 | [UAT-Q4-UNPAID-TRIAGE](todo-issue.md#uat-q4-unpaid-triage) | 未納はデモではない。実未納と突合漏れを集計で切る。一括完了しない | 集計設計票作成済／STG 調査待ち |
 | [UAT-Q2-TREATMENTS-IMPORT](todo-issue.md#uat-q2-treatments-import) | 処置マスタと患者ごとの全種類・全期間の履歴を移行 | 列写像調査済み／履歴契約案・fixture設計READY、実装/投入は未実施 |
@@ -99,18 +100,25 @@
 
 ## 確認済み製品 FAIL
 
-現在の未解消報告は [todo-issue.md](todo-issue.md) の症状別調査・データ課題に整理した。`bug.md` / `bug-2.md` の FIXED / SPEC-OK を未修正の製品 FAIL として再登録しない。環境・fixture 不足は運用、未確認操作は検証に置く。新たに製品欠陥が確定したら、既存 ID のまま再現・原因・担当範囲を確定する。
+現在の未解消報告は [todo-issue.md](todo-issue.md) の症状別調査・データ課題に整理した。`bug.md` / `bug-2.md` の FIXED / SPEC-OK を未修正の製品 FAIL として再登録しない。環境・fixture 不足は運用、未確認操作は検証に置く。新たに製品欠陥が確定したら、既存 ID のまま再現・原因・担当範囲を確定する。2026-09-23 HEAD `936610d75` のコード照合で、下記10件はいずれも記載どおり未修復を再確認（`cd2feaa14`..HEAD にこれら領域の fix commit なし）。
 
-### UAT 2026-09-23 確定分（証拠: `reports/uat-2026-09-23/`、詳細: `bug.md` 末尾「確認済み製品欠陥」）
+- **BUG-ACCT-CLOSE-PERM-DEFAULT（OPEN / Medium / billing・permission）**: 既定権限モデルで `cash-register-close:create` が全権限グループ未付与（seed CSV 9グループ・新規 clinic 既定テーブルともに create なし）のため、権限グループ手動編集なしにレジ締め不能。執行への `edit` 付与は消費 endpoint のない dead grant。UAT S08（2026-09-22）で確定。台帳・切り分け詳細は [bug.md](bug.md#bug-acct-close-perm-default)、修正計画は [同](bug.md#plan-bug-acct-close-perm-default)。
+- **BUG-S09-FIXTURE-TEARDOWN（OPEN / Low / testing・fixture）**: S09 合成 clinic で締め実行後、`synthetic-closing-fixture teardown` が `cash_register_close_adjustments` の RESTRICT FK と append-only trigger（closes/adjustments とも UPDATE/DELETE 不可）で削除不能。scoped 削除リストに closes/adjustments/holidays がない。UAT S09（2026-09-22）で確定。台帳・切り分け詳細は [bug.md](bug.md#bug-s09-fixture-teardown)、修正計画は [同](bug.md#plan-bug-s09-fixture-teardown)。
+- **BUG-AGG-NO-VISIT-REVENUE（OPEN / Medium / aggregation・revenue）**: 完了会計を持つ来院なし飼主が売上ランキングに一切出ない。`filterLTVRows` の `include_no_visit=false` 既定除外（最終来院タブ用の「来院なしを含む」制御）が売上・来院クエリにも適用され、FE の売上タブに回避手段がない。UAT S10（2026-09-22）で確定（飼主 B: 完了会計 ¥3,300・MR なし → `include_no_visit=true` 時のみ出現）。台帳・切り分け詳細は [bug.md](bug.md#bug-agg-no-visit-revenue)、修正計画は [同](bug.md#plan-bug-agg-no-visit-revenue)。
+- **BUG-TRIM-KANBAN-IN-CONSULTATION（OPEN / High / trimming・reception）**: 受付済トリミングカードの「トリミングカルテ作成」（UI 表示は「カルテ作成と同時に診療中へ移動」）が `PATCH status=in_consultation` で 409 になる。`validateInConsultationHasMedicalRecord` が `medical_records` 件数を予約区分不問で要求するため、trimming（`appointment_trimming_details` のみ）は永久に受付済滞留。FE 側も既存 appointment への detail 作成 POST に `status` を送らない。UAT S11（2026-09-23）で確定（appointment 1000000006、409 を2回実測）。台帳・切り分け詳細は [bug.md](bug.md#bug-trim-kanban-in-consultation)、修正計画は [同](bug.md#plan-bug-trim-kanban-in-consultation)。
+- **BUG-BILLING-UNBILLED-MR-EXCLUSION（OPEN / Medium / billing・unbilled）**: `medical_record_id` 付き pending 会計から明細を soft-delete しても請求元 treatment が未請求候補に復帰しない。`FindUnbilledByPetID` の billing 単位除外（`b.medical_record_id = mr.id AND status != 'cancelled'`）が明細有無に関係なく効き続けるため。会計 cancel でのみ復帰。S11 A3 仕様（削除行は再候補）と矛盾・請求漏れリスク。UAT S11（2026-09-23）で確定（billing 1000000016 / treatment 3）。台帳・切り分け詳細は [bug.md](bug.md#bug-billing-unbilled-mr-exclusion)、修正計画は [同](bug.md#plan-bug-billing-unbilled-mr-exclusion)。
+- **BUG-RES-OVERLAP-500（OPEN / Medium / reservation・API）**: 同一スタッフの時間帯部分重複の予約作成が PostgreSQL 排他制約 `excl_appointments_doctor_timerange`（23P01）の 500 として漏れる。完全一致は正しく 409。エラーマッピングに 23P01→Conflict の変換がない。UAT S11 fixture 作成時（2026-09-23）に確定。台帳・切り分け詳細は [bug.md](bug.md#bug-res-overlap-500)、修正計画は [同](bug.md#plan-bug-res-overlap-500)。
+- **BUG-LIFF-HEALTHCARD-OWNER-SYNC（OPEN / High / liff・line_customers）**: LIFF トークン連携（`LinkAccount`）は `owners.line_user_id` のみ書き、`line_customers.owner_id` を更新しない。health-card は `line_customers.owner_id` 経由のみで飼主を解決するため、連携済み飼主のヘルスカードが「ペット情報はありません」のまま。`line_customers.owner_id` の書き手はスタッフ手動 `link-owner` のみで、LIFF 連携→ヘルスカード閲覧の導線が断絶。意図的2段ゲートか要裁定。UAT S12（2026-09-23）で確定（fixture 状態で空カードを実測）。台帳・切り分け詳細は [bug.md](bug.md#bug-liff-healthcard-owner-sync)、修正計画は [同](bug.md#plan-bug-liff-healthcard-owner-sync)。
+- **BUG-ACCT-INS-SIGN-MISMATCH（OPEN / High / billing・insurance）**: `POST /accountings/complete` で `insurance_amount` の符号規約が FE（負値「マイナスのみ」）と BE（`billing=total−insurance−discount` の正値前提）で不一致。FE 送信値 −1000 で BE は請求額を 3200 と計算し支払内訳一致検証で 400 — UI から保険付き会計を確定不能。直 API で −1000→400 / +1000→201 を実測。UAT S15（2026-09-23）で確定。台帳・切り分け詳細は [bug.md](bug.md#bug-acct-ins-sign-mismatch)、修正計画は [同](bug.md#plan-bug-acct-ins-sign-mismatch)。
+- **BUG-ACCT-INS-EDIT-REWRITE（OPEN / Medium / billing・insurance）**: 確定済み会計の修正保存が未変更の `insurance_amount`/`billing_amount` を recalc 値で上書き（観測: −220→0・1980→2200）。`hasInsurance` が `insurance_amount<0` 推定のため保存後に保険表示が消え、BE 正値規約の保存会計も OFF・金額不整合で開く。「変更した項目だけが変わる」違反。UAT S15（2026-09-23）で確定（billing 1000000019/1000000027）。台帳・切り分け詳細は [bug.md](bug.md#bug-acct-ins-edit-rewrite)、修正計画は [同](bug.md#plan-bug-acct-ins-edit-rewrite)。
+- **BUG-DIALOG-FOCUS-RESTORE（OPEN / Low / shared UI・a11y）**: 治療プラン検索ダイアログ（`TreatmentSearchDialog`）を Escape で閉じるとフォーカスが呼出元ボタンに戻らず `document.body` に落下。外部 `open` 制御＋`lazy` マウントで Radix FocusScope が復帰対象を捕捉しない疑い。実クリック・キーボード開閉の両経路で再現。S18 手順6 の focus restoration 要件に不合致。同一ダイアログに矢印キー移動なし（Tab 順送りのみ）のギャップも併記。UAT S18（2026-09-23）で確定。台帳・切り分け詳細は [bug.md](bug.md#bug-dialog-focus-restore)、修正計画は [同](bug.md#plan-bug-dialog-focus-restore)。
+- **BUG-BILLING-TAX-TYPE-DROPPED（OPEN / High / billing・master）**: マスタ登録の `tax_type`（内税/非課税）が会計明細へ伝播せず、全行 `excluded`・10% で計算・保存される。カルテ連携の未請求候補（`treatmentToUnbilledBillingItem` が `TaxTypeExcluded` をハードコード）と物販マスタ追加（`use-accounting-item-actions.ts` が `tax_type:"excluded"` 固定送信、`get-merchandise-items.ts` が transform で `tax_type` を欠落）の双方で再現。billing 1000000028 の DB 値で確認（内税¥1,100・非課税¥1,000 ×2 が全て外税）。期待合計 ¥5,850 に対し実請求 ¥6,270（税の過剰計上 ¥420）。UAT S20 手順5（2026-09-23）で確定。台帳・切り分け詳細は [bug.md](bug.md#bug-billing-tax-type-dropped)、修正計画は [同](bug.md#plan-bug-billing-tax-type-dropped)。
+- **BUG-ACCT-DUP-COMPLETE-500（OPEN / Medium / billing・idempotency）**: 同一カルテへの二重会計確定（別 Idempotency-Key・同一 `medical_record_id`）が意図した 409「このカルテには既に会計があります」に届かず 500。`createCompleteBillingHeader` が UNIQUE 競合後の replay 判定クエリを abort 済み tx 上で実行し 25P02 になるため、`accounting_complete_tx.go` の replay/409 分岐は実環境で到達不能。逐次・真並行の双方で再現（勝者 201・敗者 500）。二重会計行は作られずデータは守られるが、クライアント契約は破損。UAT S21 手順4（2026-09-23）で確定。`UAT-R2-EXCLUSIVE-LOCK` の実DB確認項目に接続。台帳・切り分け詳細は [bug.md](bug.md#bug-acct-dup-complete-500)、修正計画は [同](bug.md#plan-bug-acct-dup-complete-500)。
+
+### UAT 2026-09-23 V01 追加分（証拠: `reports/uat-2026-09-23/V01-clinical-forms.md`、詳細: `bug.md` 末尾「確認済み製品欠陥」）
 
 | ID | severity | 領域 | 症状 | シナリオ |
 |:---|:---|:---|:---|:---|
-| BUG-LIFF-HEALTHCARD-OWNER-SYNC | High | liff / health-card | LIFF 連携済み飼主のヘルスカードが空（`line_customers.owner_id` 未同期） | S12 |
-| BUG-ACCT-INS-SIGN-MISMATCH | High | accounting / insurance | 保険付き会計が FE/BE 符号規約不整合で UI から確定不能（400） | S15 |
-| BUG-ACCT-INS-EDIT-REWRITE | Medium | accounting / insurance | 確定会計の無変更保存で `insurance_amount`/`billing_amount` が recalc 値に上書き・保険表示消失 | S15 |
-| BUG-DIALOG-FOCUS-RESTORE | Medium | shared UI / a11y | 外部 open 制御ダイアログの閉鎖後フォーカスが body へ落下（TreatmentSearchDialog・OwnerSearchModal） | S18 / S32 |
-| BUG-BILLING-TAX-TYPE-DROPPED | High | accounting / master | 内税・非課税マスタが会計明細へ `excluded` として伝播・税過剰計上 | S20 |
-| BUG-ACCT-DUP-COMPLETE-500 | Medium | accounting / idempotency | 同一カルテ別キー確定が UNIQUE 競合経路で 409 でなく 500 | S21 |
 | BUG-MR-DOCTOR-HEADER-STALE | Medium | medical-record / UI | カルテヘッダー担当医が再読込で保存済み doctor_id でなくログインユーザー名を表示 | V01 |
 | BUG-VITAL-NOTE-KEY-MISMATCH | Medium | medical-record / vitals | バイタルメモが FE `note` ↔ BE `notes` の key 不一致で保存・表示とも消失 | V01 |
 | BUG-MR-VACCINE-FORM-NESTED | High | medical-record / vaccination | カルテ内接種フォームがネスト `<form>` で送信不能（javascript: action が CSP ブロック） | V01 |

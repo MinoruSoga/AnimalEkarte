@@ -434,6 +434,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/vaccination_repository.go|vaccinationRepository.FindByOwner":                 {},
 	"medicalrecord/vaccination_repository.go|vaccinationRepository.FindOwnersByVaccineDeadline": {},
 	"medicalrecord/vaccination_repository.go|vaccinationRepository.LockByIDForUpdate":           {},
+	"medicalrecord/vaccination_repository.go|vaccinationRepository.existsInClinic":              {}, // UAT-R2-EXCLUSIVE-LOCK: stale-save Conflict normalization runs in the ambient update tx
 	"medicalrecord/vaccination_repository.go|vaccinationRepository.update":                      {},
 	"medicalrecord/vaccine_repository.go|vaccineRepository.FindByID":                            {},
 	"medicalrecord/vaccine_repository.go|vaccineRepository.Delete":                              {}, // Runtime: TestVaccineRepository_Delete_RollsBackWhenAmbientTxFails
@@ -534,16 +535,17 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// Runtime: cage_delete_concurrency_test.go ConcurrentAssignFirst / DeleteFirst /
 	// CountUsage_AmbientTxSeesUncommittedHospitalization /
 	// LockByIDForUpdate_RequiresAmbientTransaction.
-	"medicalrecord/cage_repository.go|cageRepositoryImpl.FindAll":              {},
-	"medicalrecord/cage_repository.go|cageRepositoryImpl.FindByID":             {},
-	"medicalrecord/cage_repository.go|cageRepositoryImpl.LockByIDForUpdate":    {},
-	"medicalrecord/cage_repository.go|cageRepositoryImpl.Create":               {},
-	"medicalrecord/cage_repository.go|cageRepositoryImpl.update":               {},
-	"medicalrecord/cage_repository.go|cageRepositoryImpl.Delete":               {},
-	"medicalrecord/cage_repository.go|cageRepositoryImpl.CountUsageByCageID":   {},
-	"medicalrecord/prescription_repository.go|prescriptionRepository.Create":   {}, // BE8-4 batch7: moved from prescription_repository.go
-	"medicalrecord/prescription_repository.go|prescriptionRepository.FindByID": {}, // MRC-01: response re-fetch must observe and govern the same tx mutation
-	"medicalrecord/prescription_repository.go|prescriptionRepository.update":   {}, // BE8-4 batch7: moved from prescription_repository.go
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.FindAll":                    {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.FindByID":                   {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.LockByIDForUpdate":          {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.Create":                     {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.update":                     {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.Delete":                     {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.CountUsageByCageID":         {},
+	"medicalrecord/prescription_repository.go|prescriptionRepository.Create":         {}, // BE8-4 batch7: moved from prescription_repository.go
+	"medicalrecord/prescription_repository.go|prescriptionRepository.FindByID":       {}, // MRC-01: response re-fetch must observe and govern the same tx mutation
+	"medicalrecord/prescription_repository.go|prescriptionRepository.existsInClinic": {}, // UAT-R2-EXCLUSIVE-LOCK: stale-save Conflict normalization runs in the ambient update tx
+	"medicalrecord/prescription_repository.go|prescriptionRepository.update":         {}, // BE8-4 batch7: moved from prescription_repository.go
 	// prescription Delete (BE-refactor.md H-8e: prescriptionService.Delete が finalize ロック確認・
 	// Delete を s.transactor.WithTx で束ねるようになったための追加。examination Delete=H-8d と同型)
 	"medicalrecord/prescription_repository.go|prescriptionRepository.Delete": {}, // BE8-4 batch7: moved from prescription_repository.go
@@ -719,6 +721,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// read の tx 参加維持（旧 repos.Transaction の tx-bound clone と等価にする）
 	"medicalrecord/vital_repository.go|vitalRepository.FindByMedicalRecordID": {},
 	"medicalrecord/vital_repository.go|vitalRepository.Create":                {},
+	"medicalrecord/vital_repository.go|vitalRepository.existsInClinic":        {}, // UAT-R2-EXCLUSIVE-LOCK: stale-save Conflict normalization runs in the ambient update tx
 	"medicalrecord/vital_repository.go|vitalRepository.update":                {},
 	"medicalrecord/vital_repository.go|vitalRepository.Delete":                {},
 	// G6-2 (BE-refactor.md tx-mechanism-consolidation): repo-internal r.db.WithContext(ctx).Transaction
@@ -742,6 +745,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// lockDraftMedicalRecord 行ロック・在庫減算・逸脱監査と同一 ambient tx へ参加させる)
 	"medicalrecord/treatment_repository.go|treatmentRepository.Create":              {},
 	"medicalrecord/treatment_repository.go|treatmentRepository.Delete":              {},
+	"medicalrecord/treatment_repository.go|treatmentRepository.existsInClinic":      {}, // UAT-R2-EXCLUSIVE-LOCK: stale-save Conflict normalization runs in the ambient update tx
 	"medicalrecord/treatment_repository.go|treatmentRepository.update":              {},
 	"medicalrecord/treatment_repository.go|treatmentRepository.BulkUpdateSortOrder": {},
 	// SEC-CS-F09/F10: treatment / treatment-plan discount recheck under FOR UPDATE in write TX.

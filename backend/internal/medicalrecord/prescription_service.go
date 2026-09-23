@@ -20,6 +20,10 @@ type CreatePrescriptionInput struct {
 type UpdatePrescriptionInput struct {
 	PrescribedAt *time.Time
 	DurationDays *int
+	// Version は楽観的ロック用 expectedVersion（nil=照合スキップ・後方互換）。
+	// UpdateClinicalPlanInput.Version と同型: repository Update の WHERE version=? 述語に
+	// そのまま渡り、一致時のみ version+1 で書き戻す。0/負値はどの行にも一致せず Conflict。
+	Version *int
 }
 
 func buildPrescriptionUpdate(input *UpdatePrescriptionInput) map[string]any {

@@ -126,24 +126,64 @@ func (r *prescriptionRepository) Create(ctx context.Context, prescription *model
 	return nil
 }
 
-// Update は dbOrTx(ctx, r.db) で ambient tx に参加する（Create と同じ理由、BE-refactor.md X-11）。
+// Update は dbOrTx(ctx, r.db) で ambient tx に参加する clinic-scoped な部分更新
+// （Create と同じ理由、BE-refactor.md X-11）。cmd.Version が非 nil の場合は
+// expectedVersion として WHERE version=? 述語を追加する（UAT-R2-EXCLUSIVE-LOCK:
+// 楽観ロックの原子化、clinical_plan_repository.go の Update と同型）。成功時は
+// version+1 を書き戻す。cmd.Version が nil の場合は従来どおり version 述語なし
+// （照合スキップ、後方互換）。RowsAffected==0 は「存在しない/他クリニック」と
+// 「バージョン不一致」を区別するため existsInClinic で再照会し正しいエラー種別に
+// 正規化する。親カルテの draft ガードは service 側の lockDraftMedicalRecord が担う。
 func (r *prescriptionRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdatePrescriptionInput) error {
-	return r.update(ctx, clinicID, id, buildPrescriptionUpdate(&cmd))
+	return r.update(ctx, clinicID, id, buildPrescriptionUpdate(&cmd), cmd.Version)
 }
 
-func (r *prescriptionRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	result := persistence.DBOrTx(ctx, r.db).
+func (r *prescriptionRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any, expectedVersion *int) error {
+	q := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Prescription{}).
 		Scopes(persistence.ClinicScope(clinicID)).
-		Where("id = ?", id).
-		Updates(fields)
+		Where("id = ?", id)
+	if expectedVersion != nil {
+		q = q.Where("prescriptions.version = ?", *expectedVersion)
+	}
+	fields["version"] = gorm.Expr("version + 1")
+	result := q.Updates(fields)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "prescription", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("prescription", fmt.Sprintf("%d", id))
+		return r.conflictAfterZeroPrescriptionRows(ctx, clinicID, id, expectedVersion)
 	}
 	return nil
+}
+
+// existsInClinic は id の prescriptions が clinicID 配下に存在するかを返す。
+// Update の RowsAffected==0 を「存在しない」と「バージョン不一致」で区別するために使う。
+func (r *prescriptionRepository) existsInClinic(ctx context.Context, clinicID, id uint64) (bool, error) {
+	var count int64
+	if err := persistence.DBOrTx(ctx, r.db).
+		Model(&model.Prescription{}).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ?", id).
+		Count(&count).Error; err != nil {
+		return false, apperrors.FromGORM(err, "prescription", fmt.Sprintf("%d", id))
+	}
+	return count > 0, nil
+}
+
+func (r *prescriptionRepository) conflictAfterZeroPrescriptionRows(ctx context.Context, clinicID, id uint64, expectedVersion *int) error {
+	// version 述語なし（照合スキップ）で 0 行 = 行自体が存在しない → 従来どおり NotFound。
+	if expectedVersion == nil {
+		return apperrors.WrapNotFound("prescription", fmt.Sprintf("%d", id))
+	}
+	exists, err := r.existsInClinic(ctx, clinicID, id)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return apperrors.WrapNotFound("prescription", fmt.Sprintf("%d", id))
+	}
+	return apperrors.WrapConflict("他のユーザーがこの処方を変更しました。再読み込みしてください")
 }
 
 // Delete は dbOrTx(ctx, r.db) で ambient tx に参加する（Create/Update と同じ理由、BE-refactor.md H-8e）。
