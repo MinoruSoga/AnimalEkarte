@@ -483,25 +483,116 @@ func TestTreatmentRepository_FindUnbilledByPetID(t *testing.T) {
 		assert.Equal(t, "未会計治療", got[0].Content)
 	})
 
-	t.Run("excludes treatment when a non-cancelled billing already exists for the medical record", func(t *testing.T) {
-		mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-BILLED", time.Now())
-		makeHistoryTreatment(t, db, mr.ID, model.TreatmentItemTypeMedicine, "会計済み治療", 0)
+	// S11 異常系: カルテ紐付き会計の明細を論理削除すると、会計自体は未取消のままでも
+	// その治療は未会計候補へ復帰しなければならない（除外は明細行単位で判断する）。
+	t.Run("resurfaces treatment when its billing item on the medical record's billing is soft-deleted", func(t *testing.T) {
+		mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-ITEM-DELETED", time.Now())
+		makeHistoryTreatment(t, db, mr.ID, model.TreatmentItemTypeMedicine, "明細削除で復帰する治療", 0)
 		require.NoError(t, db.Create(&model.BillingConfirmation{
 			MedicalRecordID: mr.ID,
 			Status:          model.ConfirmationStatusConfirmed,
 		}).Error)
-		require.NoError(t, db.Create(&model.Billing{
+
+		var tr model.Treatment
+		require.NoError(t, db.Where("medical_record_id = ?", mr.ID).First(&tr).Error)
+
+		billing := &model.Billing{
 			ClinicID:        clinicA,
 			MedicalRecordID: &mr.ID,
 			Status:          model.BillingStatusWaiting,
 			ScheduledDate:   time.Now(),
-		}).Error)
+		}
+		require.NoError(t, db.Create(billing).Error)
+		item := &model.BillingItem{
+			BillingID:   billing.ID,
+			Category:    model.ItemCategoryOther,
+			Name:        "削除対象明細",
+			TreatmentID: &tr.ID,
+		}
+		require.NoError(t, db.Create(item).Error)
 
 		got, err := repo.FindUnbilledByPetID(ctx, clinicA, pet.ID)
 		require.NoError(t, err)
-		for _, item := range got {
-			assert.NotEqual(t, "会計済み治療", item.Content)
+		assert.False(t, treatmentContentExists(got, "明細削除で復帰する治療"), "生存明細が参照する治療は除外されるべき")
+
+		require.NoError(t, db.Delete(item).Error)
+
+		got, err = repo.FindUnbilledByPetID(ctx, clinicA, pet.ID)
+		require.NoError(t, err)
+		assert.True(t, treatmentContentExists(got, "明細削除で復帰する治療"), "明細を論理削除した治療は未会計候補へ復帰すべき")
+	})
+
+	t.Run("resurfaces treatments when all billing items are soft-deleted", func(t *testing.T) {
+		mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-ALL-ITEMS-DELETED", time.Now())
+		makeHistoryTreatment(t, db, mr.ID, model.TreatmentItemTypeMedicine, "全明細削除で復帰A", 0)
+		makeHistoryTreatment(t, db, mr.ID, model.TreatmentItemTypeMedicine, "全明細削除で復帰B", 1)
+		require.NoError(t, db.Create(&model.BillingConfirmation{
+			MedicalRecordID: mr.ID,
+			Status:          model.ConfirmationStatusConfirmed,
+		}).Error)
+
+		var trs []model.Treatment
+		require.NoError(t, db.Where("medical_record_id = ?", mr.ID).Order("id ASC").Find(&trs).Error)
+		require.Len(t, trs, 2)
+		tr1ID, tr2ID := trs[0].ID, trs[1].ID
+
+		billing := &model.Billing{
+			ClinicID:        clinicA,
+			MedicalRecordID: &mr.ID,
+			Status:          model.BillingStatusWaiting,
+			ScheduledDate:   time.Now(),
 		}
+		require.NoError(t, db.Create(billing).Error)
+		item1 := &model.BillingItem{BillingID: billing.ID, Category: model.ItemCategoryOther, Name: "全削除明細1", TreatmentID: &tr1ID}
+		item2 := &model.BillingItem{BillingID: billing.ID, Category: model.ItemCategoryOther, Name: "全削除明細2", TreatmentID: &tr2ID}
+		require.NoError(t, db.Create(item1).Error)
+		require.NoError(t, db.Create(item2).Error)
+
+		got, err := repo.FindUnbilledByPetID(ctx, clinicA, pet.ID)
+		require.NoError(t, err)
+		assert.False(t, treatmentContentExists(got, "全明細削除で復帰A"))
+		assert.False(t, treatmentContentExists(got, "全明細削除で復帰B"))
+
+		require.NoError(t, db.Delete(item1).Error)
+		require.NoError(t, db.Delete(item2).Error)
+
+		got, err = repo.FindUnbilledByPetID(ctx, clinicA, pet.ID)
+		require.NoError(t, err)
+		assert.True(t, treatmentContentExists(got, "全明細削除で復帰A"), "全明細が論理削除なら治療Aは復帰すべき")
+		assert.True(t, treatmentContentExists(got, "全明細削除で復帰B"), "全明細が論理削除なら治療Bは復帰すべき")
+	})
+
+	t.Run("partial delete resurfaces only the deleted line's treatment", func(t *testing.T) {
+		mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-PARTIAL-DELETE", time.Now())
+		makeHistoryTreatment(t, db, mr.ID, model.TreatmentItemTypeMedicine, "部分削除で復帰する治療", 0)
+		makeHistoryTreatment(t, db, mr.ID, model.TreatmentItemTypeMedicine, "部分削除でも残る治療", 1)
+		require.NoError(t, db.Create(&model.BillingConfirmation{
+			MedicalRecordID: mr.ID,
+			Status:          model.ConfirmationStatusConfirmed,
+		}).Error)
+
+		var trs []model.Treatment
+		require.NoError(t, db.Where("medical_record_id = ?", mr.ID).Order("id ASC").Find(&trs).Error)
+		require.Len(t, trs, 2)
+		deletedLineID, keptLineID := trs[0].ID, trs[1].ID
+
+		billing := &model.Billing{
+			ClinicID:        clinicA,
+			MedicalRecordID: &mr.ID,
+			Status:          model.BillingStatusWaiting,
+			ScheduledDate:   time.Now(),
+		}
+		require.NoError(t, db.Create(billing).Error)
+		deletedItem := &model.BillingItem{BillingID: billing.ID, Category: model.ItemCategoryOther, Name: "部分削除明細", TreatmentID: &deletedLineID}
+		require.NoError(t, db.Create(deletedItem).Error)
+		require.NoError(t, db.Create(&model.BillingItem{BillingID: billing.ID, Category: model.ItemCategoryOther, Name: "残留明細", TreatmentID: &keptLineID}).Error)
+
+		require.NoError(t, db.Delete(deletedItem).Error)
+
+		got, err := repo.FindUnbilledByPetID(ctx, clinicA, pet.ID)
+		require.NoError(t, err)
+		assert.True(t, treatmentContentExists(got, "部分削除で復帰する治療"), "削除した明細の治療のみ復帰すべき")
+		assert.False(t, treatmentContentExists(got, "部分削除でも残る治療"), "生存明細が参照する治療は除外されたままであるべき")
 	})
 
 	t.Run("includes treatment when the only billing is cancelled", func(t *testing.T) {
