@@ -4,9 +4,12 @@ import (
 	"context"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	authdomain "github.com/animal-ekarte/backend/internal/auth"
@@ -15,6 +18,28 @@ import (
 	"github.com/animal-ekarte/backend/internal/staff"
 	"github.com/animal-ekarte/backend/internal/testdb"
 )
+
+// countingGormLogger records every SQL statement issued through its session so
+// tests can assert the exact DB query count of request-time auth resolution.
+type countingGormLogger struct {
+	logger.Interface
+	statements []string
+}
+
+func (l *countingGormLogger) Trace(
+	ctx context.Context,
+	begin time.Time,
+	fc func() (string, int64),
+	err error,
+) {
+	sql, rows := fc()
+	l.statements = append(l.statements, sql)
+	l.Interface.Trace(ctx, begin, func() (string, int64) { return sql, rows }, err)
+}
+
+func (l *countingGormLogger) reset() {
+	l.statements = nil
+}
 
 func TestCurrentAccessStaffReaderDB_ReadsIdentityRow(t *testing.T) {
 	db, _ := setupPermissionAuditRollbackDB(t)
@@ -99,19 +124,22 @@ func TestCurrentAccessResolverDB_RegularStaffUsesOnlyActiveClinicInventory(
 		},
 	}).Error)
 
+	statements := &countingGormLogger{Interface: db.Logger}
+	countedDB := db.Session(&gorm.Session{Logger: statements})
 	resolver := authdomain.NewCurrentAccessResolverWithClinics(
-		authdomain.NewCurrentAccessStaffReader(db),
-		authdomain.NewAccountService(authdomain.NewAccountRepository(db)),
+		authdomain.NewCurrentAccessStaffReader(countedDB),
+		authdomain.NewAccountService(authdomain.NewAccountRepository(countedDB)),
 		staff.NewStaffClinicAssignmentService(
-			staff.NewStaffClinicAssignmentRepository(db),
+			staff.NewStaffClinicAssignmentRepository(countedDB),
 		),
 		clinic.NewService(
-			clinic.NewClinicRepository(db),
+			clinic.NewClinicRepository(countedDB),
 			nil,
 			nil,
 		),
 	)
 
+	statements.reset()
 	access, err := resolver.Resolve(context.Background(), staffRow.ID)
 
 	require.NoError(t, err)
@@ -121,12 +149,19 @@ func TestCurrentAccessResolverDB_RegularStaffUsesOnlyActiveClinicInventory(
 		strconv.FormatUint(activeClinic.ID, 10),
 		access.MainClinicID,
 	)
+	require.Len(t, statements.statements, 1,
+		"non-admin Resolve must issue exactly one DB query")
+	assert.Contains(t, statements.statements[0], "LEFT JOIN clinics",
+		"the single graph query must fold in clinics.is_active")
 
 	require.NoError(t, db.Model(activeClinic).
 		Update("is_active", false).Error)
+	statements.reset()
 	access, err = resolver.Resolve(context.Background(), staffRow.ID)
 
 	require.Error(t, err)
 	assert.ErrorIs(t, err, apperrors.ErrForbidden)
 	assert.Nil(t, access)
+	assert.Len(t, statements.statements, 1,
+		"non-admin Resolve must stay a single query even when it fails closed")
 }

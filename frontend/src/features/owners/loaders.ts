@@ -8,69 +8,17 @@ import {
   ACQUISITION_TYPE_MAP,
   DANGER_LEVEL_MAP,
   mapPetStatusLabel,
-  transformBackendPetToFrontend,
 } from "@/lib/transforms/pet";
 import type { Pet } from "@/types";
-import type { PetResponse } from "@/types/generated/pet-responses";
+import type { PetListResponse } from "@/types/generated/pet-responses";
 import type { Owner } from "@/types/owner";
 
-// #266: GET /v1/pets 専用の list DTO は PetResponse（詳細）より薄い。
-// PetOwnerNested 等は pet-responses と一致するが、list 専用の欠落フィールドがあるため
-// ローカル型を維持する。
-interface PetListOwnerNested {
-  id: number;
-  owner_number: number;
-  name: string;
-  name_kana: string;
-  phone: string;
-  is_dangerous: boolean;
-}
-
-interface PetListAnimalSpeciesNested {
-  id: number;
-  name: string;
-  sort_order: number;
-}
-
-interface PetListInsuranceNested {
-  id: number;
-  name: string;
-  coverage_rate: number;
-  contact_phone: string;
-}
-
-interface PetListApiItem {
-  id: number;
-  clinic_id: number;
-  owner_id: number;
-  animal_species_id: number;
-  pet_number: string;
-  name: string;
-  pet_name_kana: string;
-  gender: string;
-  status: string;
-  birth_date?: string;
-  breed: string;
-  color: string;
-  blood_type?: string;
-  microchip_number?: string;
-  weight?: number;
-  neutered_date?: string;
-  acquisition_type?: string;
-  danger_level: string;
-  danger_reason?: string;
-  food: string;
-  environment: string;
-  last_visit?: string;
-  insurance_id?: number;
-  remarks: string;
-  owner?: PetListOwnerNested;
-  animal_species?: PetListAnimalSpeciesNested;
-  insurance?: PetListInsuranceNested;
-}
+// PERF-E5-N1-PETS: GET /v1/pets の list DTO は tygo 生成型 PetListResponse が正本。
+// 以前は Go 側が非公開 struct（petListResponse）で生成対象外だったため欠落フィールドを
+// ローカル interface で補っていたが、exported 化により手管理の drift 経路を解消した。
 
 interface PetsResponse {
-  data: PetListApiItem[];
+  data: PetListResponse[];
   total: number;
   page: number;
   limit: number;
@@ -79,6 +27,10 @@ interface PetsResponse {
 // #266: 飼主・ペット一覧のページサイズ。以前の client-side usePagination のデフォルト(20件)を踏襲。
 // ページ粒度はペット行単位（旧: 飼主単位のフラット化）— 1ページの行数は常に一定になる。
 const OWNERS_PAGE_SIZE = 20;
+
+// PERF-E5-N1-PETS: 飼主詳細のペット一括取得は単一リクエスト契約のため、
+// backend ParsePagination の上限（DefaultMaxPaginationLimit=100）を limit に使う。
+const OWNER_PETS_MAX_LIMIT = 100;
 
 export interface OwnersLoaderData {
   pets: Pet[];
@@ -89,8 +41,8 @@ export interface OwnersLoaderData {
 
 // pets 一覧レスポンス → フロントエンド Pet 型変換。
 // transformBackendPetToFrontend (lib/transforms/pet.ts) と同じフィールド構成を維持するが、
-// petListResponse の薄い owner サマリ（address1/2 等を持たない）に合わせて address は常に undefined。
-function transformPetListItemToFrontend(p: PetListApiItem): Pet {
+// PetListResponse の薄い owner サマリ（address1/2 等を持たない）に合わせて address は常に undefined。
+function transformPetListItemToFrontend(p: PetListResponse): Pet {
   return {
     id: String(p.id),
     clinicId: p.clinic_id != null ? String(p.clinic_id) : undefined,
@@ -99,10 +51,13 @@ function transformPetListItemToFrontend(p: PetListApiItem): Pet {
     ownerName: p.owner?.name ?? "",
     ownerNameKana: p.owner?.name_kana ?? undefined,
     address: undefined,
-    phone: p.owner?.phone ?? "",
+    // detail 経路 (transformBackendPetToFrontend) と同じ fallback 契約:
+    // owner サマリの phone が空ならペット個体の phone に倒す。
+    phone: p.owner?.phone || p.phone || "",
     petNumber: p.pet_number,
     name: p.name ?? "",
-    petNameKana: p.pet_name_kana ?? undefined,
+    // detail 経路 (transformBackendPetToFrontend) と同じく空文字は undefined に揃える。
+    petNameKana: p.pet_name_kana || undefined,
     species: p.animal_species?.name ?? "",
     animalSpeciesId: p.animal_species_id != null ? String(p.animal_species_id) : undefined,
     breed: p.breed,
@@ -127,9 +82,10 @@ function transformPetListItemToFrontend(p: PetListApiItem): Pet {
     insuranceDetails:
       p.insurance?.coverage_rate != null ? `${p.insurance.coverage_rate}%補償` : undefined,
     remarks: p.remarks,
-    // petListResponse は deceased_at を含まない（status で十分 — StatusBadge は pet.status を使用）。
-    deceasedAt: undefined,
-    deceasedReason: undefined,
+    // PERF-E5-N1-PETS: PetListResponse は deceased_at / deceased_reason を持つ
+    // （ownerLoader の単一 list リクエスト化で detail 経路と情報量を揃えた）。
+    deceasedAt: p.deceased_at,
+    deceasedReason: p.deceased_reason,
   };
 }
 
@@ -195,12 +151,37 @@ export const ownerLoader = async ({
   }
   try {
     const owner = await getOwner(id);
-    const pets = await Promise.all(
-      (owner.pets ?? []).map(async (pet) => {
-        const { data } = await axios.get<PetResponse>(`/v1/pets/${pet.id}`);
-        return transformBackendPetToFrontend(data);
-      }),
-    );
+    // PERF-E5-N1-PETS: owner.pets の各 id を個別 GET する 1+N を廃止し、
+    // owner_id スコープの一覧リクエストに集約する。include_deceased=true は
+    // 旧挙動（owner.pets preload が死亡個体も含む）の保持。
+    // 失敗も per-pet ではなく1回だけ表面化する。
+    // BUG-010 回帰防止: clinic_ids 未指定だと選択中医院のみに絞られ、他医院の飼主を
+    // 開いたときペット一覧が空になる。飼主取得成功 = その医院は認可済みなので、
+    // 旧 per-pet detail 経路（全認可医院で取得できた）と同じ結果になるよう
+    // owner.clinicId を clinic_ids として渡す。
+    const baseParams = {
+      owner_id: id,
+      include_deceased: "true",
+      limit: OWNER_PETS_MAX_LIMIT,
+      ...(owner.clinicId ? { clinic_ids: owner.clinicId } : {}),
+    };
+    const { data: firstPage } = await axios.get<PetsResponse>("/v1/pets", {
+      params: { ...baseParams, page: 1 },
+    });
+    const rows = [...firstPage.data];
+    // limit(=100) を超えるペットを持つ飼主は残ページを順次取得して順序を保ったまま結合する
+    // （通常は total<=limit で1リクエストのまま）。空ページ返却は total 不整合時の
+    // 無限ループ防止のため打ち切る。
+    for (let page = 2; rows.length < firstPage.total; page += 1) {
+      const { data: next } = await axios.get<PetsResponse>("/v1/pets", {
+        params: { ...baseParams, page },
+      });
+      if (next.data.length === 0) {
+        break;
+      }
+      rows.push(...next.data);
+    }
+    const pets = rows.map(transformPetListItemToFrontend);
     return { owner: { ...owner, pets } };
   } catch (err) {
     // BUG-010: 他医院作成直後に旧 X-Clinic-ID で GET すると 404。汎用クラッシュではなく明示メッセージにする。

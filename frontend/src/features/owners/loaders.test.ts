@@ -271,6 +271,193 @@ describe("ownersLoader — 上流ステータスの保全", () => {
   });
 });
 
+// PERF-E5-N1-PETS: ownerLoader の N+1 解消 — GET /v1/owners/:id に加えて
+// GET /v1/pets?owner_id=<id>&include_deceased=true を1回だけ発行する。
+// 旧実装は owner.pets の各 id に GET /v1/pets/{id} を並列発行していた（1+N）。
+describe("ownerLoader — PERF-E5-N1-PETS ペット一括取得", () => {
+  beforeEach(() => {
+    mockedGet.mockReset();
+  });
+
+  const ownerApiResponse = {
+    id: 7,
+    clinic_id: 1,
+    owner_name: "山田太郎",
+    pets: [{ id: 101 }, { id: 102 }],
+  };
+
+  const petsListResponse = {
+    data: {
+      data: [
+        {
+          id: 101,
+          clinic_id: 1,
+          owner_id: 7,
+          animal_species_id: 2,
+          pet_number: "P-101",
+          name: "ポチ",
+          pet_name_kana: "ポチ",
+          gender: "male",
+          status: "alive",
+          breed: "柴犬",
+          color: "茶",
+          danger_level: "low",
+          food: "ドライ",
+          environment: "室内",
+          remarks: "",
+        },
+        {
+          id: 102,
+          clinic_id: 1,
+          owner_id: 7,
+          animal_species_id: 2,
+          pet_number: "P-102",
+          name: "タマ",
+          pet_name_kana: "タマ",
+          gender: "female",
+          status: "deceased",
+          breed: "",
+          color: "",
+          danger_level: "low",
+          food: "",
+          environment: "",
+          remarks: "",
+          deceased_at: "2026-07-10T03:00:00+09:00",
+          deceased_reason: "老衰",
+        },
+      ],
+      total: 2,
+      page: 1,
+      limit: 100,
+    },
+  };
+
+  it("飼主1件の取得でペットは1回の list リクエストのみ発火する（N+1 回帰防止）", async () => {
+    mockedGet
+      .mockResolvedValueOnce({ data: ownerApiResponse })
+      .mockResolvedValueOnce(petsListResponse);
+
+    const result = await ownerLoader({ params: { id: "7" } });
+
+    expect(mockedGet).toHaveBeenCalledTimes(2);
+    expect(mockedGet).toHaveBeenNthCalledWith(1, "/v1/owners/7");
+    expect(mockedGet).toHaveBeenNthCalledWith(
+      2,
+      "/v1/pets",
+      expect.objectContaining({
+        params: expect.objectContaining({
+          owner_id: "7",
+          include_deceased: "true",
+          clinic_ids: "1",
+        }),
+      }),
+    );
+    // GET /v1/pets/{id} の個別取得が残っていないことを保証
+    const perPetCalls = mockedGet.mock.calls.filter(([url]) =>
+      /^\/v1\/pets\/\d+$/.test(url as string),
+    );
+    expect(perPetCalls).toHaveLength(0);
+
+    expect(result.owner.pets).toHaveLength(2);
+    // list 応答順（pets.id ASC）をそのまま保持する
+    expect(result.owner.pets?.map((p) => p.id)).toEqual(["101", "102"]);
+  });
+
+  it("list 行の deceased_at / deceased_reason を deceasedAt / deceasedReason にマップする", async () => {
+    mockedGet
+      .mockResolvedValueOnce({ data: ownerApiResponse })
+      .mockResolvedValueOnce(petsListResponse);
+
+    const result = await ownerLoader({ params: { id: "7" } });
+
+    const deceased = result.owner.pets?.[1];
+    expect(deceased?.status).toBe("死亡");
+    expect(deceased?.deceasedAt).toBe("2026-07-10T03:00:00+09:00");
+    expect(deceased?.deceasedReason).toBe("老衰");
+  });
+
+  // BUG-010 回帰防止: 選択中医院と異なる医院の飼主でも、飼主の所属医院を
+  // clinic_ids へ渡してペット一覧が空にならないことを保証する。
+  it("他医院所属の飼主では clinic_ids に飼主の clinicId を渡す（拠点横断回帰）", async () => {
+    mockedGet
+      .mockResolvedValueOnce({ data: { ...ownerApiResponse, clinic_id: 2 } })
+      .mockResolvedValueOnce(petsListResponse);
+
+    const result = await ownerLoader({ params: { id: "7" } });
+
+    expect(mockedGet).toHaveBeenNthCalledWith(
+      2,
+      "/v1/pets",
+      expect.objectContaining({
+        params: expect.objectContaining({ clinic_ids: "2" }),
+      }),
+    );
+    expect(result.owner.pets).toHaveLength(2);
+  });
+
+  // limit(=100) 超過の飼主: total が初回取得件数を超える場合は残ページを
+  // 順次取得して全件を保持する（打ち切りでペットを失わない）。
+  it("total が1ページを超える飼主は残ページを取得して全件保持する", async () => {
+    const makeRow = (id: number) => ({
+      id,
+      clinic_id: 1,
+      owner_id: 7,
+      animal_species_id: 2,
+      pet_number: `P-${id}`,
+      name: `ペット${id}`,
+      pet_name_kana: "",
+      gender: "unknown",
+      status: "alive",
+      breed: "",
+      color: "",
+      danger_level: "low",
+      food: "",
+      environment: "",
+      remarks: "",
+    });
+    const page1Rows = Array.from({ length: 100 }, (_, i) => makeRow(i + 1));
+    const page2Rows = Array.from({ length: 50 }, (_, i) => makeRow(i + 101));
+    mockedGet
+      .mockResolvedValueOnce({ data: ownerApiResponse })
+      .mockResolvedValueOnce({
+        data: { data: page1Rows, total: 150, page: 1, limit: 100 },
+      })
+      .mockResolvedValueOnce({
+        data: { data: page2Rows, total: 150, page: 2, limit: 100 },
+      });
+
+    const result = await ownerLoader({ params: { id: "7" } });
+
+    expect(mockedGet).toHaveBeenCalledTimes(3);
+    expect(mockedGet).toHaveBeenNthCalledWith(
+      3,
+      "/v1/pets",
+      expect.objectContaining({
+        params: expect.objectContaining({ owner_id: "7", page: 2, limit: 100 }),
+      }),
+    );
+    expect(result.owner.pets).toHaveLength(150);
+    // ページ結合後も list 応答順（id 昇順）を保持する
+    expect(result.owner.pets?.[0].id).toBe("1");
+    expect(result.owner.pets?.[149].id).toBe("150");
+  });
+
+  it("ペット一覧取得の失敗は1回だけ表面化する（per-pet エラーの重複なし）", async () => {
+    mockedGet
+      .mockResolvedValueOnce({ data: ownerApiResponse })
+      .mockRejectedValueOnce({ isAxiosError: true, response: { status: 403 } });
+
+    const thrown = await ownerLoader({ params: { id: "7" } }).then(
+      () => undefined,
+      (err: unknown) => err,
+    );
+
+    expect(mockedGet).toHaveBeenCalledTimes(2);
+    expect(thrown).toBeInstanceOf(Response);
+    expect((thrown as Response).status).toBe(403);
+  });
+});
+
 describe("ownerLoader — BUG-010 clinic mismatch 404", () => {
   beforeEach(() => {
     mockedGet.mockReset();
