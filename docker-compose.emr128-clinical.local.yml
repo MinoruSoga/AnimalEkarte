@@ -1,0 +1,38 @@
+# EMR-128 disposable clinical E2E lane — overlay on docker-compose.yml.
+# Mirrors the A4 rehearsal overlay contract: isolated project volumes and
+# network, no shared animalekarte data. Frontend keeps host :3003 because the
+# run-e2e.sh --clinical base-URL allowlist pins the local compose frontend port;
+# animalekarte-frontend-1 must be stopped for the duration of the run and
+# restarted afterwards.
+services:
+  db:
+    ports: !override []
+    networks: !override
+      - emr128-net
+
+  backend:
+    ports: !override []
+    networks: !override
+      - emr128-net
+    environment:
+      APP_ENV: test
+
+  frontend:
+    # 0.0.0.0 binding is required: the Playwright container reaches the app via
+    # host.docker.internal (host-gateway), which does not hit loopback-only binds.
+    ports: !override
+      - "3003:3000"
+    networks: !override
+      - emr128-net
+
+volumes:
+  postgres_data:
+    name: emr128-postgres-data
+  frontend_node_modules:
+    name: emr128-frontend-node-modules
+  # go_mod_cache / go_build_cache stay on the shared fixed-name volumes:
+  # they are content-addressed build caches, not data.
+
+networks:
+  emr128-net:
+    name: emr128-net
