@@ -98,7 +98,7 @@ QA/開発が作るケース票の共通列は `ID / case / revision / 環境・f
 
 Q1 / Q4保険 / Q2履歴の実装は再開しない。根拠は [医院フィードバック](docs/work/stg-uat-clinic-feedback-q1-q4.md) と、9月15日に読取確認した [PR #411](https://github.com/MinoruSoga/AnimalEkarte/pull/411)（merged）、[Backend Deploy](https://github.com/MinoruSoga/AnimalEkarte/actions/runs/34923018516) / [Frontend Deploy](https://github.com/MinoruSoga/AnimalEkarte/actions/runs/34923018544)（ともに success、`d337f016`）。この配備記録はブラウザ確認や本番反映の代替ではない。
 
-`NOTE2-SWEEP-COVERAGE` の受入条件はPlane `EMR-200` へ移行済み。
+`NOTE2-SWEEP-COVERAGE` の受入条件はPlane `EMR-200` へ移行済み。route×operation カバレッジ表と API/契約レベルの証拠は [docs/work/emr-200-note2-coverage/NOTE2-SWEEP-COVERAGE.md](docs/work/emr-200-note2-coverage/NOTE2-SWEEP-COVERAGE.md) を参照（2026-09-23、revision `923bb99ba`。ブラウザ UAT は未実施 UNKNOWN/BLOCKED）。
 
 ### UAT-R2-TREATMENT-COMMIT
 
