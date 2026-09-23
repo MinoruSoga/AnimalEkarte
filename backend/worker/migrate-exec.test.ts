@@ -7,6 +7,9 @@
 // call or silently exercise a different code path than production.
 import { describe, expect, it } from "vitest";
 import {
+  EXPECTED_MIGRATION_HEADER,
+  InvalidExpectedMigrationError,
+  expectedMigrationFromRequest,
   isAuthorizedMigrateRequest,
   timingSafeEqual,
   toMigrateResponse,
@@ -207,5 +210,54 @@ describe("attachLoginSeedMigrateEnv", () => {
       DB_PORT: "5432",
       APP_ENV: "staging",
     });
+  });
+});
+
+describe("expectedMigrationFromRequest", () => {
+  function requestWithExpected(header: string | null): Request {
+    const headers = new Headers();
+    if (header !== null) {
+      headers.set(EXPECTED_MIGRATION_HEADER, header);
+    }
+    return new Request("https://example.com/_internal/migrate", {
+      method: "POST",
+      headers,
+    });
+  }
+
+  it("returns null when the header is absent", () => {
+    expect(expectedMigrationFromRequest(requestWithExpected(null))).toBeNull();
+  });
+
+  it("returns null for an empty header value", () => {
+    expect(expectedMigrationFromRequest(requestWithExpected("  "))).toBeNull();
+  });
+
+  it("accepts a conventional migration filename", () => {
+    expect(
+      expectedMigrationFromRequest(
+        requestWithExpected("006_accounts_rls_ops_bypass.sql"),
+      ),
+    ).toBe("006_accounts_rls_ops_bypass.sql");
+  });
+
+  it("trims surrounding whitespace", () => {
+    expect(
+      expectedMigrationFromRequest(requestWithExpected(" 001_init.sql ")),
+    ).toBe("001_init.sql");
+  });
+
+  it.each([
+    "../migrations/006.sql",
+    "006_accounts.sql; DROP TABLE staffs",
+    "006.sql",
+    "006 .sql",
+    "006/../evil.sql",
+    "006_..sql",
+    "006_foo.SQL.sh",
+  ])("rejects malformed value %p", (value) => {
+    expect(() =>
+      expectedMigrationFromRequest(requestWithExpected(value)),
+    ).toThrow(InvalidExpectedMigrationError);
   });
 });
