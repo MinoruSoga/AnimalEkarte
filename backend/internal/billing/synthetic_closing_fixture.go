@@ -12,6 +12,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/reservation"
 	"github.com/animal-ekarte/backend/internal/staff"
 )
 
@@ -353,7 +354,6 @@ var syntheticClosingDeleteStatements = []string{
 	"DELETE FROM reservation_type_occupations WHERE clinic_id = ?",
 	"DELETE FROM reservation_type_unavailable_times WHERE clinic_id = ?",
 	"DELETE FROM shared_files WHERE clinic_id = ?",
-	"DELETE FROM shift_entries WHERE clinic_id = ?",
 	"DELETE FROM shift_templates WHERE clinic_id = ?",
 	"DELETE FROM staff_clinic_assignments WHERE clinic_id = ?",
 	"DELETE FROM staff_reservation_capabilities WHERE clinic_id = ?",
@@ -383,11 +383,9 @@ var syntheticClosingDeleteStatements = []string{
 	"DELETE FROM checkup_types WHERE clinic_id = ?",
 	"DELETE FROM exams WHERE clinic_id = ?",
 	"DELETE FROM owner_identity_groups WHERE created_clinic_id = ?",
-	"DELETE FROM appointments WHERE clinic_id = ?",
 	"DELETE FROM lab_import_jobs WHERE clinic_id = ?",
 	"DELETE FROM exam_types WHERE clinic_id = ?",
 	"DELETE FROM line_customers WHERE clinic_id = ?",
-	"DELETE FROM reservation_types WHERE clinic_id = ?",
 	"DELETE FROM pets WHERE clinic_id = ?",
 	"DELETE FROM owners WHERE clinic_id = ?",
 }
@@ -484,6 +482,9 @@ func DeleteSyntheticClosingFixtureWithAuditPolicy(ctx context.Context, db *gorm.
 			}
 		}
 
+		if err := reservation.UnscopedDeleteSyntheticClosingReservations(ctx, tx, clinicID); err != nil {
+			return apperrors.Wrap(err, "delete synthetic reservations")
+		}
 		if err := staff.UnscopedDeleteSyntheticClosingStaffs(ctx, tx, clinicID); err != nil {
 			return apperrors.Wrap(err, "delete synthetic staff")
 		}

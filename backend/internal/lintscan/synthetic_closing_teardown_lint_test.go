@@ -36,11 +36,14 @@ const syntheticClosingFixtureRelPath = "../internal/billing/synthetic_closing_fi
 // series, in execution order. The scoped list plus these roots is the
 // "deleted" set the closure runs over.
 var teardownTailRoots = []string{
-	"staffs",         // staff.UnscopedDeleteSyntheticClosingStaffs
-	"accounts",       // by collected staff account ids
-	"animal_species", // by s09-species-<clinicID> name
-	"clinics",        // the clinic row itself
-	"companies",      // the synthetic company
+	"appointments",      // reservation.UnscopedDeleteSyntheticClosingReservations (staffs/reservation_types の子・先に削除)
+	"reservation_types", // reservation.UnscopedDeleteSyntheticClosingReservations
+	"shift_entries",     // staff.UnscopedDeleteSyntheticClosingStaffs (staffs の子・write owner 内で先に削除)
+	"staffs",            // staff.UnscopedDeleteSyntheticClosingStaffs
+	"accounts",          // by collected staff account ids
+	"animal_species",    // by s09-species-<clinicID> name
+	"clinics",           // the clinic row itself
+	"companies",         // the synthetic company
 }
 
 // teardownClosureExemptions are blocking children that teardown deliberately
