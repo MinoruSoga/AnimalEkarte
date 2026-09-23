@@ -17,6 +17,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/stdlib"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	gormlogger "gorm.io/gorm/logger"
@@ -39,7 +41,7 @@ type options struct {
 type runDependencies struct {
 	configureTimeZone func() error
 	fromEnv           func() (dbconn.ConnParams, error)
-	openDB            func(dsn string) (*gorm.DB, error)
+	openDB            func(config *pgx.ConnConfig) (*gorm.DB, error)
 	repoRoots         func(explicit string) ([]string, error)
 	newProvisioner    func(db *gorm.DB, repoRoots []string) *staff.StaffProvisioner
 }
@@ -48,11 +50,16 @@ func productionRunDependencies() runDependencies {
 	return runDependencies{
 		configureTimeZone: config.ConfigureTimeZone,
 		fromEnv:           dbconn.FromEnv,
-		openDB: func(dsn string) (*gorm.DB, error) {
-			return gorm.Open(postgres.Open(dsn), &gorm.Config{
+		openDB: func(config *pgx.ConnConfig) (*gorm.DB, error) {
+			sqlDB := stdlib.OpenDB(*config)
+			db, err := gorm.Open(postgres.New(postgres.Config{Conn: sqlDB}), &gorm.Config{
 				// Never emit SQL bind values that may include emails/password hashes.
 				Logger: gormlogger.Default.LogMode(gormlogger.Silent),
 			})
+			if err != nil {
+				_ = sqlDB.Close()
+			}
+			return db, err
 		},
 		repoRoots: defaultRepoRoots,
 		newProvisioner: func(db *gorm.DB, repoRoots []string) *staff.StaffProvisioner {
@@ -115,7 +122,16 @@ func run(
 		}
 	}
 
-	db, err := deps.openDB(conn.DSN(database))
+	pgxConfig, err := conn.PGXConfig(database)
+	if err != nil {
+		return fmt.Errorf("database configuration failed: %w", err)
+	}
+	// PlanetScale user-defined roles are not the table owner. RLS is ENABLE
+	// without FORCE, so non-owner connections see zero clinic rows unless
+	// app.bypass_rls is on (001_init.sql). RuntimeParams applies the setting
+	// to every pooled connection, matching csv-import's AfterConnect bypass.
+	pgxConfig.RuntimeParams["app.bypass_rls"] = "on"
+	db, err := deps.openDB(pgxConfig)
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
 	}

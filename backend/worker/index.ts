@@ -13,6 +13,9 @@
 import { Container, getContainer } from "@cloudflare/containers";
 import { env } from "cloudflare:workers";
 import {
+  InvalidExpectedMigrationError,
+  MIGRATE_RUNNER_NAME,
+  expectedMigrationFromRequest,
   isAuthorizedMigrateRequest,
   toMigrateResponse,
   toMigrateExecFailedResponse,
@@ -131,8 +134,17 @@ export class AnimalEkarteApiContainer extends Container<Env> {
   //
   // DB_RESET は渡す env に含めていないため、Go側 os.Getenv("DB_RESET") は常に空文字 = false
   // (このexecでも上書きしない。破壊的操作は本エンドポイントでは不可能)。
-  async runMigrate(): Promise<MigrateExecResult> {
+  //
+  // expectedMigration が指定された場合、exec 前にイメージ内の migration
+  // ファイル有無をプローブする。deploy 後も warm コンテナが旧イメージのまま
+  // 残り続けると(sleepAfter=1h の間)、旧イメージには新しい migration が存在せず
+  // `/app/migrate` は「適用済み」で exitCode 0 を返してしまう(実機で 004/005/006
+  // の3回再現)。その場合 stop → start で新イメージへ再起動してから exec する。
+  async runMigrate(expectedMigration?: string | null): Promise<MigrateExecResult> {
     await this.startAndWaitForPorts(this.defaultPort);
+    if (expectedMigration) {
+      await this.ensureFreshContainerImage(expectedMigration);
+    }
 
     const rawContainer = this.ctx.container;
     if (!rawContainer) {
@@ -188,6 +200,41 @@ export class AnimalEkarteApiContainer extends Container<Env> {
       stdout: decoder.decode(output.stdout),
       stderr: decoder.decode(output.stderr),
     };
+  }
+
+  // イメージ内の migration ファイル有無を `test -f` でプローブする。
+  // ファイル名は EXPECTED_MIGRATION_HEADER の厳格なバリデーション
+  // (migrate-exec.ts) を通過した値のみが届く想定だが、防御的にここでも
+  // シェル引数をシングルクォートで囲む。
+  private async containerHasMigrationFile(name: string): Promise<boolean> {
+    const rawContainer = this.ctx.container;
+    if (!rawContainer) {
+      return false;
+    }
+    const proc = await rawContainer.exec(
+      ["/bin/sh", "-c", `test -f '/app/migrations/${name}'`],
+      { stdout: "pipe", stderr: "pipe" },
+    );
+    const output = await proc.output();
+    return output.exitCode === 0;
+  }
+
+  // stale warm コンテナ(旧イメージ)を検出したら再起動して新イメージを
+  // 起こす。このメソッドは migrate 専用 named インスタンス上で呼ばれるため
+  // (handleMigrateRequest の MIGRATE_RUNNER_NAME 参照)、再起動による
+  // in-flight リクエスト断は発生しない。再起動後もファイルが無い場合は
+  // イメージのロールアウトが未完了 — 呼び出し側のリトライに委ねて失敗させる。
+  private async ensureFreshContainerImage(expectedMigration: string): Promise<void> {
+    if (await this.containerHasMigrationFile(expectedMigration)) {
+      return;
+    }
+    await this.stop();
+    await this.startAndWaitForPorts(this.defaultPort);
+    if (!(await this.containerHasMigrationFile(expectedMigration))) {
+      throw new Error(
+        `container image lacks ${expectedMigration} after restart`,
+      );
+    }
   }
 
   // BE9-3: Cron 専用の named DO からのみ呼ばれる RPC。
@@ -504,9 +551,25 @@ async function handleMigrateRequest(
     });
   }
 
-  const container = getContainer(env.API_CONTAINER);
+  let expectedMigration: string | null;
   try {
-    const result = await container.runMigrate();
+    expectedMigration = expectedMigrationFromRequest(request);
+  } catch (err) {
+    if (err instanceof InvalidExpectedMigrationError) {
+      return new Response(
+        JSON.stringify({ error: "invalid_expected_migration" }),
+        { status: 400, headers: { "Content-Type": "application/json" } },
+      );
+    }
+    throw err;
+  }
+
+  // migrate は専用 named インスタンスで実行する。既定 singleton はトラフィックを
+  // 捌いており、stale image 検出時のコンテナ再起動をそこで行うとリクエスト断が
+  // 発生するため分離する(専用インスタンスの再起動はトラフィック無影響)。
+  const container = getContainer(env.API_CONTAINER, MIGRATE_RUNNER_NAME);
+  try {
+    const result = await container.runMigrate(expectedMigration);
     return toMigrateResponse(result);
   } catch (err) {
     console.error("migrate exec failed", {
