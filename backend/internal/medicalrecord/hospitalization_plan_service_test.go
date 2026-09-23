@@ -226,6 +226,7 @@ func TestHospitalizationPlanService_GetByID(t *testing.T) {
 }
 
 func TestHospitalizationPlanService_Create(t *testing.T) {
+	negativePrice := int64(-1)
 	tests := []struct {
 		name    string
 		input   *CreateHospitalizationPlanInput
@@ -240,6 +241,15 @@ func TestHospitalizationPlanService_Create(t *testing.T) {
 			},
 			repoErr: nil,
 			wantErr: false,
+		},
+		{
+			name: "returns error when price is negative",
+			input: &CreateHospitalizationPlanInput{
+				Name:  "Negative Plan",
+				Price: &negativePrice,
+			},
+			repoErr: nil,
+			wantErr: true,
 		},
 		{
 			name: "returns error when repository fails",
@@ -321,6 +331,7 @@ func TestHospitalizationPlanService_Create_WithBodySizeAndBillingUnit(t *testing
 func TestHospitalizationPlanService_Update(t *testing.T) {
 	name := "Updated Plan"
 	isActive := false
+	negativePrice := int64(-1)
 	tests := []struct {
 		name    string
 		input   UpdateHospitalizationPlanInput
@@ -335,6 +346,14 @@ func TestHospitalizationPlanService_Update(t *testing.T) {
 			},
 			repoErr: nil,
 			wantErr: false,
+		},
+		{
+			name: "returns error when price is negative",
+			input: UpdateHospitalizationPlanInput{
+				Price: &negativePrice,
+			},
+			repoErr: nil,
+			wantErr: true,
 		},
 		{
 			name:    "returns error when no fields provided",

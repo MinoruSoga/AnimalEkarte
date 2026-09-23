@@ -214,6 +214,7 @@ func TestCageService_GetByID(t *testing.T) {
 
 func TestCageService_Create(t *testing.T) {
 	price := int64(3000)
+	negativePrice := int64(-1)
 	tests := []struct {
 		name    string
 		input   *CreateCageInput
@@ -279,6 +280,16 @@ func TestCageService_Create(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "returns error when price is negative",
+			input: &CreateCageInput{
+				Name:     "負価格ケージ",
+				CageType: string(model.CageTypeDog),
+				CageSize: string(model.CageSizeSmall),
+				Price:    &negativePrice,
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -305,6 +316,7 @@ func TestCageService_Create(t *testing.T) {
 
 func TestCageService_Update(t *testing.T) {
 	price := int64(4500)
+	negativePrice := int64(-1)
 	name := "更新後ケージ"
 	cageType := string(model.CageTypeDog)
 	cageSize := string(model.CageSizeLarge)
@@ -340,6 +352,14 @@ func TestCageService_Update(t *testing.T) {
 			},
 			repoErr: nil,
 			wantErr: false,
+		},
+		{
+			name:     "returns error when price is negative",
+			clinicID: 1,
+			id:       1,
+			input:    UpdateCageInput{Price: &negativePrice},
+			repoErr:  nil,
+			wantErr:  true,
 		},
 		{
 			name:     "returns error when no fields provided",

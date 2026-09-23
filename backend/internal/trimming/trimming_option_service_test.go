@@ -242,6 +242,7 @@ func TestTrimmingOptionService_GetByID(t *testing.T) {
 }
 
 func TestTrimmingOptionService_Create(t *testing.T) {
+	negativePrice := int64(-1)
 	tests := []struct {
 		name    string
 		input   *CreateTrimmingOptionInput
@@ -253,6 +254,12 @@ func TestTrimmingOptionService_Create(t *testing.T) {
 			input:   &CreateTrimmingOptionInput{Name: "新規オプション", IsActive: true, IsCombinable: true},
 			repoErr: nil,
 			wantErr: false,
+		},
+		{
+			name:    "returns error when price is negative",
+			input:   &CreateTrimmingOptionInput{Name: "負価格オプション", Price: &negativePrice},
+			repoErr: nil,
+			wantErr: true,
 		},
 		{
 			name: "creates option with duration",
@@ -310,6 +317,7 @@ func TestTrimmingOptionService_Create(t *testing.T) {
 
 func TestTrimmingOptionService_Update(t *testing.T) {
 	optName := "更新後オプション名"
+	negativePrice := int64(-1)
 	tests := []struct {
 		name    string
 		input   *UpdateTrimmingOptionInput
@@ -321,6 +329,12 @@ func TestTrimmingOptionService_Update(t *testing.T) {
 			input:   &UpdateTrimmingOptionInput{Name: &optName},
 			repoErr: nil,
 			wantErr: false,
+		},
+		{
+			name:    "returns error when price is negative",
+			input:   &UpdateTrimmingOptionInput{Price: &negativePrice},
+			repoErr: nil,
+			wantErr: true,
 		},
 		{
 			name:    "returns error when no fields provided",
