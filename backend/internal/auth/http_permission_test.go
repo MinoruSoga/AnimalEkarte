@@ -103,6 +103,63 @@ func TestHTTPHandler_HasPermissionInClinic_UsesDestinationClinic(t *testing.T) {
 	assert.False(t, handler.HasPermissionInClinic(c, 0, string(model.ResourceOwners), "view"))
 }
 
+// TestHTTPHandler_HasPermissionInClinic_MemoizesEffectivePermissions は EMR-201:
+// 同一 request 内の同一 clinic への権限評価は GetEffectivePermissions を 1 回だけ呼ぶ。
+// route middleware と handler 側の FilterClinicIDsForPermission で重複していた DB 往復を畳む。
+func TestHTTPHandler_HasPermissionInClinic_MemoizesEffectivePermissions(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	calls := 0
+	handler := NewHTTPHandler(HTTPDependencies{
+		EffectivePermissions: authServiceEffectivePermissionStub{
+			getFn: func(_ context.Context, _, clinicID uint64) ([]model.PermissionGroupRule, error) {
+				calls++
+				if clinicID != 23 {
+					return nil, nil
+				}
+				return []model.PermissionGroupRule{{
+					Resource: string(model.ResourceOwners),
+					CanView:  true,
+				}}, nil
+			},
+		},
+	}, CookieConfigForProduction(false))
+
+	c := authPermissionContext(t)
+	assert.True(t, handler.HasPermissionInClinic(c, 23, string(model.ResourceOwners), "view"))
+	assert.False(t, handler.HasPermissionInClinic(c, 23, string(model.ResourceOwners), "edit"))
+	assert.Equal(t, 1, calls)
+
+	// 別 clinic は別エントリとして評価される（memo は clinic 単位）。
+	assert.False(t, handler.HasPermissionInClinic(c, 99, string(model.ResourceOwners), "view"))
+	assert.Equal(t, 2, calls)
+}
+
+// TestHTTPHandler_HasPermissionInClinic_ErrorNotMemoized は失敗を cache しない:
+// 一時的な repository 障害の後に権限が回復した場合、同じ request 内でも再評価される。
+func TestHTTPHandler_HasPermissionInClinic_ErrorNotMemoized(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	calls := 0
+	handler := NewHTTPHandler(HTTPDependencies{
+		EffectivePermissions: authServiceEffectivePermissionStub{
+			getFn: func(_ context.Context, _, _ uint64) ([]model.PermissionGroupRule, error) {
+				calls++
+				if calls == 1 {
+					return nil, errors.New("transient failure")
+				}
+				return []model.PermissionGroupRule{{
+					Resource: string(model.ResourceOwners),
+					CanView:  true,
+				}}, nil
+			},
+		},
+	}, CookieConfigForProduction(false))
+
+	c := authPermissionContext(t)
+	assert.False(t, handler.HasPermissionInClinic(c, 23, string(model.ResourceOwners), "view"))
+	assert.True(t, handler.HasPermissionInClinic(c, 23, string(model.ResourceOwners), "view"))
+	assert.Equal(t, 2, calls)
+}
+
 func TestHTTPHandler_RequirePermission_AttachesClinicChecker(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	handler := NewHTTPHandler(HTTPDependencies{

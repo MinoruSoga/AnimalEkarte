@@ -49,6 +49,7 @@ type updateVitalRequest struct {
 	Weight          *float64   `json:"weight"`
 	WeightUnit      *string    `json:"weight_unit"`
 	Notes           *string    `json:"notes"`
+	Version         *int       `json:"version"` // 楽観的ロック用
 }
 
 func (r updateVitalRequest) validate() error {
@@ -66,6 +67,7 @@ func (r updateVitalRequest) toServiceInput(actorID uint64) *UpdateVitalInput {
 		WeightUnit:      toBodyWeightUnit(r.WeightUnit),
 		Notes:           r.Notes,
 		ActorID:         &actorID,
+		Version:         r.Version,
 	}
 }
 

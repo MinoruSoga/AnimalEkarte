@@ -560,6 +560,10 @@ def plan(paths):
                 ],
                 'require_completed_test': True,
             })
+        elif path == 'docker-compose.emr128-clinical.local.yml':
+            jobs.append({'service': 'host', 'command': [
+                'docker', 'compose', '-f', 'docker-compose.yml', '-f', path, 'config', '--quiet',
+            ]})
         elif path.startswith('backend/worker/') or path == 'backend/wrangler.jsonc':
             jobs.append({'service': 'host', 'command': ['bash', 'scripts/check-test-worker-makefile.test.sh']})
         elif path.startswith('.claude/skills/') and path.endswith('.md'):

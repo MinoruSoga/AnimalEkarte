@@ -34,6 +34,7 @@ type treatmentResponse struct {
 	DoseAmountMg      *float64        `json:"dose_amount_mg,omitempty"`
 	DoseAmountUnit    *string         `json:"dose_amount_unit,omitempty"`
 	DoseParamSnapshot json.RawMessage `json:"dose_param_snapshot,omitempty"`
+	Version           int             `json:"version"`
 	CreatedAt         time.Time       `json:"created_at"`
 	UpdatedAt         time.Time       `json:"updated_at"`
 }
@@ -64,6 +65,7 @@ func toTreatmentResponse(t *model.Treatment) treatmentResponse {
 		DoseAmountMg:      t.DoseAmountMg,
 		DoseAmountUnit:    t.DoseAmountUnit,
 		DoseParamSnapshot: t.DoseParamSnapshot,
+		Version:           t.Version,
 		CreatedAt:         httpapi.LocalTime(t.CreatedAt),
 		UpdatedAt:         httpapi.LocalTime(t.UpdatedAt),
 	}

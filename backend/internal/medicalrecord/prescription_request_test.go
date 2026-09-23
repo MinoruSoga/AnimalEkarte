@@ -46,9 +46,11 @@ func TestCreatePrescriptionRequest_ToServiceInput_InvalidDate(t *testing.T) {
 func TestUpdatePrescriptionRequest_ToServiceInput(t *testing.T) {
 	date := "2026-05-29"
 	durationDays := 14
+	version := 2
 	req := updatePrescriptionRequest{
 		Date:         &date,
 		DurationDays: &durationDays,
+		Version:      &version,
 	}
 
 	input, err := req.toServiceInput()
@@ -64,6 +66,9 @@ func TestUpdatePrescriptionRequest_ToServiceInput(t *testing.T) {
 	}
 	if input.DurationDays == nil || *input.DurationDays != durationDays {
 		t.Fatalf("DurationDays = %v, want %d", input.DurationDays, durationDays)
+	}
+	if input.Version == nil || *input.Version != version {
+		t.Fatalf("Version = %v, want %d", input.Version, version)
 	}
 }
 

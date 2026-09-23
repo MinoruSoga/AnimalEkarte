@@ -206,6 +206,7 @@ describe("useVaccinationForm — 次回予定 type/日付の整合（BUG-005）"
         date: "2026-07-01",
         nextDate: "2027-07-01",
         nextScheduleType: "1year",
+        version: 1,
       },
     } as ReturnType<typeof useGetVaccination>);
 
@@ -231,6 +232,7 @@ describe("useVaccinationForm — 次回予定 type/日付の整合（BUG-005）"
         date: "2026-07-01",
         nextDate: "2027-07-01",
         nextScheduleType: "1year",
+        version: 1,
       },
     } as ReturnType<typeof useGetVaccination>);
     const mockMutateAsync = vi.fn().mockResolvedValue({});
@@ -262,9 +264,47 @@ describe("useVaccinationForm — 次回予定 type/日付の整合（BUG-005）"
         req: expect.objectContaining({
           next_schedule_type: "other",
           next_date: jstDateStartISOString("2027-07-20"),
+          // UAT-R2-EXCLUSIVE-LOCK: 読取済み version を expectedVersion として同送する
+          version: 1,
         }),
       }),
     );
+  });
+
+  it("編集時: 読取済み version が無い場合は保存をブロックし update を呼ばない", async () => {
+    vi.mocked(useGetVaccination).mockReturnValue({
+      data: {
+        id: "10",
+        petId: "5",
+        vaccineId: "1",
+        date: "2026-07-01",
+        nextDate: "2027-07-01",
+        nextScheduleType: "1year",
+        version: undefined,
+      },
+    } as ReturnType<typeof useGetVaccination>);
+    const mockMutateAsync = vi.fn().mockResolvedValue({});
+    vi.mocked(useUpdateVaccination).mockReturnValue({
+      mutateAsync: mockMutateAsync,
+      isPending: false,
+    } as ReturnType<typeof useUpdateVaccination>);
+    vi.mocked(useGetPet).mockImplementation(
+      (requestedPetId) =>
+        ({
+          data: requestedPetId === "5" ? LIVING_PET : undefined,
+          isLoading: false,
+        }) as ReturnType<typeof useGetPet>,
+    );
+
+    const { result } = renderVaccinationForm("10");
+    await waitFor(() => expect(result.current.form.nextScheduleType).toBe("1year"));
+
+    runFormAction(result.current.formAction);
+
+    await waitFor(() => {
+      expect(result.current.formState.success).toBe(false);
+    });
+    expect(mockMutateAsync).not.toHaveBeenCalled();
   });
 });
 
@@ -401,6 +441,7 @@ describe("useVaccinationForm — handleDelete (BUG-025)", () => {
         date: "2026-07-01",
         nextDate: "",
         nextScheduleType: "1year",
+        version: 1,
       },
     } as ReturnType<typeof useGetVaccination>);
     const mockMutate = vi.fn((_id: string, opts?: { onSuccess?: () => void }) =>

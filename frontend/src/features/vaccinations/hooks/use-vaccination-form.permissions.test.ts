@@ -176,6 +176,7 @@ describe("useVaccinationForm — mutation permission boundary (FE12-02 U8)", () 
         date: "2026-07-01",
         nextDate: "",
         nextScheduleType: "1year",
+        version: 1,
       },
     } as ReturnType<typeof useGetVaccination>);
     const mockMutateAsync = vi.fn().mockResolvedValue({});
@@ -269,6 +270,7 @@ describe("useVaccinationForm — mutation permission boundary (FE12-02 U8)", () 
         date: "2026-07-01",
         nextDate: "",
         nextScheduleType: "1year",
+        version: 1,
       },
     } as ReturnType<typeof useGetVaccination>);
     vi.mocked(useGetPet).mockReturnValue({
@@ -328,6 +330,7 @@ describe("useVaccinationForm — mutation permission boundary (FE12-02 U8)", () 
         date: "2026-07-01",
         nextDate: "",
         nextScheduleType: "1year",
+        version: 1,
       },
     } as ReturnType<typeof useGetVaccination>);
     vi.mocked(useGetPet).mockReturnValue({
@@ -486,6 +489,7 @@ describe("useVaccinationForm — deceased pet mutation boundary (FE12-02 C6a)", 
         date: "2026-07-01",
         nextDate: "",
         nextScheduleType: "1year",
+        version: 1,
       },
     } as ReturnType<typeof useGetVaccination>);
     const livingPet = { ...DECEASED_PET, status: "生存" as const };
@@ -538,6 +542,7 @@ describe("useVaccinationForm — deceased pet mutation boundary (FE12-02 C6a)", 
         date: "2026-07-01",
         nextDate: "",
         nextScheduleType: "1year",
+        version: 1,
       },
     } as ReturnType<typeof useGetVaccination>);
     vi.mocked(useGetPet).mockImplementation(
@@ -607,6 +612,7 @@ describe("useVaccinationForm — deceased pet mutation boundary (FE12-02 C6a)", 
         date: "2026-07-01",
         nextDate: "",
         nextScheduleType: "1year",
+        version: 1,
       },
     } as ReturnType<typeof useGetVaccination>);
     vi.mocked(useGetPet).mockImplementation(
@@ -776,6 +782,7 @@ describe("useVaccinationForm BUG-016 entity read", () => {
         nextScheduleType: "1year",
         nextDate: "2027-01-15T00:00:00+09:00",
         doctor: "Dr.A",
+        version: 1,
       },
       isLoading: false,
       isError: false,

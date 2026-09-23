@@ -120,3 +120,44 @@ todo-issue L134 を本票に落とす:
 - 実機 viewport・院内桁数は UNKNOWN のまま採取。本票で数値を埋めない
 
 本票は経路トレースと O1 比較まで。製品コードは変更していない。
+
+## 検証記録（2026-09-23 / worktree `emr-185`、HEAD `923bb99`）
+
+本票作成後に製品実装が commit `873685b0b`（`feat: add ready-17 chart, header, and billing guards`）で landing 済み。以下は現行コードとの照合結果であり、本票の履歴トレースは当時の正確な記録として残す。
+
+**ヘッダー props マッピング（欠落→解消）**
+
+- `PatientContextHeaderProps` に `microchipNumber?: string` が追加済み（[PatientContextHeader.tsx](../../../frontend/src/components/shared/PatientContextHeader/PatientContextHeader.tsx) L50–51、コメント「既存 pet.microchip_number。ヘッダーは表示専用。空は出さない。」）。
+- [MedicalRecordStickyHeader.tsx](../../../frontend/src/features/medical-records/components/MedicalRecordStickyHeader.tsx) L216 が `microchipNumber={selectedPet.microchipNumber?.trim() || undefined}` を渡す。`trim()` で空白のみの値も未記録へ倒す。
+- 表示位置は**ペット名隣**（同 L151–160、`items-baseline` の飼主名・ペット名行内）。read-only の `font-mono` チップで、`truncate max-w-[12rem]` + Tooltip（content に全文）+ `aria-label="マイクロチップ番号 …"`。falsy なら要素ごと非表示。
+- 本番マウントは StickyHeader 1 箇所のみ（`rg PatientContextHeader frontend/src` で他は test/index のみ）。第二ストアなし（`rg microchip backend/internal/medicalrecord` → 0 件）。
+
+**受入項目のコード/テスト照合**
+
+| ID | 結果 | 根拠 |
+| --- | --- | --- |
+| M0 未記録 | PASS | `{microchipNumber ? … : null}` で行ごと非表示（L151–160）。テスト L141–144 |
+| M1 空文字/空白 | PASS | StickyHeader の `?.trim() \|\| undefined` + falsy ガードで非表示。テスト L146–149 |
+| L0 64 文字 | PASS | DOM に全文保持 + `truncate` + Tooltip 全文。テスト L151–155 |
+| SW0/SW1 患者切替 | PASS（コード上） | `resolvedPetId` は既存カルテ `existingRecord?.petId` / 新規 `?pet_id=`（helpers L147）→ `useGetPet` は `["pet", id]` のペット単位 key（query-keys.ts L329） |
+| SW3 ロード中 stale | PASS（コード上） | `useGetPet` に `placeholderData`/`keepPreviousData` 無し（use-pet.ts L55–64）。key 切替中 `selectedPet` は undefined → MedicalRecordForm.tsx L72 `return null` で前ペットの番号を残さない |
+| RF1 自画面 PATCH | PASS | `useUpdatePet` が `pets.list()` + `pets.detail(id)` を invalidate（update-pet.ts L20–22）。ヘッダーは同一 key を読むため追従 |
+| RF0 同一ペット再取得 | **残留（既知）** | `staleTime: STATIC=30分` + `refetchOnWindowFocus:false`（react-query.ts L19, L49）。別端末変更は最大 30 分古い値が残り得る。本票の想定どおり |
+| W0 1366×625 | **UNKNOWN（実機未実施）** | `flex-wrap`（L115）+ truncate + Tooltip + タブ `overflow-x-auto` で欠損なく折返す構造。実機 `innerWidth/innerHeight` は未採取 |
+
+**scoped 検証（この worktree を mount した隔離 container）**
+
+```
+docker run --rm --network none -v "$PWD/frontend:/app" \
+  -v ekarte-frontend-node-modules:/app/node_modules -w /app \
+  animalekarte-frontend npx vitest run \
+    src/components/shared/PatientContextHeader/PatientContextHeader.test.tsx \
+    src/features/medical-records/components/MedicalRecordFormPanels.test.tsx \
+    src/lib/transforms/pet.test.ts
+→ Test Files 3 passed (3) / Tests 56 passed (56)
+```
+
+**残項（本票の UNKNOWN を維持）**
+
+- 実機 1366×625 での目視受入、医院の番号桁・区切り規格、表示目的/権限の PO 確認は未実施のまま。
+- update で空文字ポインタを送ると `""` で上書きし得る persist 契約（service.go L131–132 付近）は本 unit の範囲外（表示側は falsy で畳むため実害なし）。

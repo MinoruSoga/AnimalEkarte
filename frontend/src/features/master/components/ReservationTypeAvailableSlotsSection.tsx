@@ -136,7 +136,10 @@ export function ReservationTypeAvailableSlotsSection({ clinicId, reservationType
         <p className={`text-xs ${C.text40} mb-3`}>未設定の場合は営業時間内の空き枠を使用します</p>
       )}
 
-      <form action={formAction} className="space-y-2">
+      {/* BUG-MASTER-RESVTYPE-SLOT-FORM-NESTED: MasterSidePanel がコンテンツ全体を
+          <form action> で包むため、ここに <form> を置くとネスト form となりブラウザが
+          破棄して送信不能になる。form 要素は使わず、SubmitButton の formAction で送信する */}
+      <div className="space-y-2">
         <div className="flex items-center gap-2">
           <Select
             value={form.availableType}
@@ -182,12 +185,16 @@ export function ReservationTypeAvailableSlotsSection({ clinicId, reservationType
             </SelectTrigger>
             <SelectContent>{TIME_SELECT_ITEMS}</SelectContent>
           </Select>
-          <SubmitButton loadingText="追加中..." className="h-8 text-sm px-3">
+          <SubmitButton
+            loadingText="追加中..."
+            className="h-8 text-sm px-3"
+            formAction={formAction}
+          >
             <Plus className={ICON.smXs} />
             追加
           </SubmitButton>
         </div>
-      </form>
+      </div>
     </div>
   );
 }

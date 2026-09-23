@@ -11,11 +11,11 @@ import (
 )
 
 type mockInquiryRepository struct {
-	upsertFn func(ctx context.Context, clinicID uint64, inquiry *model.Inquiry) (*model.Inquiry, error)
+	upsertFn func(ctx context.Context, clinicID uint64, fields InquiryUpsertFields) (*model.Inquiry, error)
 }
 
-func (m *mockInquiryRepository) SaveByMedicalRecordID(ctx context.Context, clinicID uint64, inquiry *model.Inquiry) (*model.Inquiry, error) {
-	return m.upsertFn(ctx, clinicID, inquiry)
+func (m *mockInquiryRepository) SaveByMedicalRecordID(ctx context.Context, clinicID uint64, fields InquiryUpsertFields) (*model.Inquiry, error) {
+	return m.upsertFn(ctx, clinicID, fields)
 }
 
 func (m *mockInquiryRepository) CountByChiefComplaintTypeID(_ context.Context, _, _ uint64) (int64, error) {
@@ -26,6 +26,7 @@ func TestInquiryService_Save(t *testing.T) {
 	complaint := "食欲不振"
 	notes := "2日前から"
 	typeID := uint64(3)
+	typeIDSet := &typeID
 
 	tests := []struct {
 		name      string
@@ -38,7 +39,7 @@ func TestInquiryService_Save(t *testing.T) {
 			input: UpsertInquiryInput{
 				ClinicID:             1,
 				MedicalRecordID:      10,
-				ChiefComplaintTypeID: &typeID,
+				ChiefComplaintTypeID: &typeIDSet,
 				ChiefComplaint:       &complaint,
 				Notes:                &notes,
 			},
@@ -68,7 +69,7 @@ func TestInquiryService_Save(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			returned := &model.Inquiry{ID: 1, MedicalRecordID: tt.input.MedicalRecordID}
 			repo := &mockInquiryRepository{
-				upsertFn: func(_ context.Context, _ uint64, _ *model.Inquiry) (*model.Inquiry, error) {
+				upsertFn: func(_ context.Context, _ uint64, _ InquiryUpsertFields) (*model.Inquiry, error) {
 					if tt.upsertErr != nil {
 						return nil, tt.upsertErr
 					}

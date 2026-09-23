@@ -50,6 +50,7 @@ func TestUpdateTreatmentRequest_ToServiceInput(t *testing.T) {
 	status := "not_applicable"
 	content := ""
 	sortOrder := 0
+	version := 3
 	req := updateTreatmentRequest{
 		ItemType:   &itemType,
 		UnitPrice:  &unitPrice,
@@ -58,6 +59,7 @@ func TestUpdateTreatmentRequest_ToServiceInput(t *testing.T) {
 		Status:     &status,
 		Content:    &content,
 		SortOrder:  &sortOrder,
+		Version:    &version,
 	}
 
 	input := req.toServiceInput()
@@ -79,6 +81,9 @@ func TestUpdateTreatmentRequest_ToServiceInput(t *testing.T) {
 	}
 	if input.SortOrder == nil || *input.SortOrder != sortOrder {
 		t.Errorf("SortOrder = %v, want %d", input.SortOrder, sortOrder)
+	}
+	if input.Version == nil || *input.Version != version {
+		t.Errorf("Version = %v, want %d", input.Version, version)
 	}
 }
 

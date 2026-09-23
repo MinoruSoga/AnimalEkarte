@@ -206,6 +206,7 @@ func TestTrimmingCourseService_GetByID(t *testing.T) {
 }
 
 func TestTrimmingCourseService_Create(t *testing.T) {
+	negativePrice := int64(-1)
 	tests := []struct {
 		name    string
 		input   *CreateTrimmingCourseInput
@@ -217,6 +218,12 @@ func TestTrimmingCourseService_Create(t *testing.T) {
 			input:   &CreateTrimmingCourseInput{Name: "新規コース", IsActive: true},
 			repoErr: nil,
 			wantErr: false,
+		},
+		{
+			name:    "returns error when price is negative",
+			input:   &CreateTrimmingCourseInput{Name: "負価格コース", Price: &negativePrice},
+			repoErr: nil,
+			wantErr: true,
 		},
 		{
 			name: "creates course with target size",
@@ -268,6 +275,7 @@ func TestTrimmingCourseService_Create(t *testing.T) {
 
 func TestTrimmingCourseService_Update(t *testing.T) {
 	name := "更新後コース名"
+	negativePrice := int64(-1)
 	tests := []struct {
 		name    string
 		input   *UpdateTrimmingCourseInput
@@ -279,6 +287,12 @@ func TestTrimmingCourseService_Update(t *testing.T) {
 			input:   &UpdateTrimmingCourseInput{Name: &name},
 			repoErr: nil,
 			wantErr: false,
+		},
+		{
+			name:    "returns error when price is negative",
+			input:   &UpdateTrimmingCourseInput{Price: &negativePrice},
+			repoErr: nil,
+			wantErr: true,
 		},
 		{
 			name:    "returns error when no fields provided",

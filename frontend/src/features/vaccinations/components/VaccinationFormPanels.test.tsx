@@ -221,6 +221,7 @@ const HISTORY_RECORD = {
   lot4: undefined,
   supplemental: "合成補足",
   remarks: "合成備考",
+  version: 1,
 } satisfies VaccinationRecord;
 
 describe("VaccinationHistoryPanel", () => {

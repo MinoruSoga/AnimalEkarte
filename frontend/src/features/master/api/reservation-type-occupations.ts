@@ -40,10 +40,11 @@ const occupationsKey = (clinicId: string, reservationTypeId: string) =>
 async function getReservationTypeOccupations(
   reservationTypeId: string,
 ): Promise<ReservationTypeOccupation[]> {
-  const { data } = await axios.get<{ data: ReservationTypeOccupationRaw[] }>(
-    `/v1/masters/reservation-types/${reservationTypeId}/occupations`,
-  );
-  return data.data.map(transformReservationTypeOccupation);
+  const { data } = await axios.get<
+    ReservationTypeOccupationRaw[] | { data: ReservationTypeOccupationRaw[] }
+  >(`/v1/masters/reservation-types/${reservationTypeId}/occupations`);
+  const items = Array.isArray(data) ? data : data.data;
+  return items.map(transformReservationTypeOccupation);
 }
 
 async function linkOccupation(reservationTypeId: string, occupationId: number): Promise<void> {

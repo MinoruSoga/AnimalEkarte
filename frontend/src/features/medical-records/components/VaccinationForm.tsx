@@ -42,6 +42,12 @@ interface VaccinationFormProps {
   setRemarks: (v: string) => void;
   /** BUG-015: 必須未選択時のインラインエラー（独立フォームと同文言） */
   fieldErrors?: Record<string, string>;
+  /**
+   * EMR-212: 親（MedicalRecordVaccination）が持つ useActionState の dispatch。
+   * カルテ画面では外側 <form>（カルテ保存）内に描画されるため、ここに <form> を
+   * 置けず、SubmitButton の formAction で送信する。
+   */
+  formAction: (payload: FormData) => void;
 }
 
 export const VaccinationForm = memo(function VaccinationForm({
@@ -67,6 +73,7 @@ export const VaccinationForm = memo(function VaccinationForm({
   remarks,
   setRemarks,
   fieldErrors = {},
+  formAction,
 }: VaccinationFormProps) {
   return (
     <div className="col-span-1 flex flex-col gap-4 lg:col-span-3">
@@ -161,9 +168,11 @@ export const VaccinationForm = memo(function VaccinationForm({
         />
       </div>
 
-      {/* Save Button — React 19 useFormStatus 経由で親 <form> の pending を自動反映 */}
+      {/* Save Button — 外側 <form>（カルテ保存）内にネストできないため formAction で
+          ワクチン登録 action を送信する。pending は useFormStatus 経由で外側 form の
+          送信中状態を自動反映する（EMR-208 と同型） */}
       <div className="pt-2">
-        <SubmitButton colorVariant="primary" loadingText="登録中...">
+        <SubmitButton colorVariant="primary" loadingText="登録中..." formAction={formAction}>
           接種記録を追加
         </SubmitButton>
       </div>

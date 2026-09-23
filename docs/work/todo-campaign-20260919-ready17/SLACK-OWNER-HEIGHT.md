@@ -2,7 +2,7 @@
 
 > Task migrated to Plane `EMR-187`. This file remains supporting acceptance/evidence material; use Plane for current status.
 
-状態: **再現調査 READY／実機採取 未実行（端末 ID・CSS viewport UNKNOWN）**。出典は [todo-issue.md](../../../todo-issue.md) 見出し `### SLACK-OWNER-HEIGHT`（L107–110）および Slack 736–763（`1789351591.207249`、L472）。保持する現場条件:
+状態: **ローカル再現 DONE（1366×625 CSS px・2026-09-23、下記「再現記録」）／実機採取 未実行（端末 ID・CSS viewport UNKNOWN）**。出典は [todo-issue.md](../../../todo-issue.md) 見出し `### SLACK-OWNER-HEIGHT`（L107–110）および Slack 736–763（`1789351591.207249`、L472）。保持する現場条件:
 
 - 最大化済みでも飼主**検索結果**をスクロールできない
 - Windows 8 / Chrome、申告 1366×625、15.6インチ
@@ -121,6 +121,45 @@ OwnersListTable を誤って開いた場合の分離:
 2. **削除:** 最大化案内を完了条件にしない。OwnersListTable と TreatmentSearchDialog をこの症状の修正対象に足さない。
 3. **簡素化:** OwnerSearchModal の結果領域に、既存マスタ検索と同じく **明示天井 + `overflow-y-auto` + `min-h-0`** を足す（`max-h-[calc(80vh-…)]` または親 `overflow-hidden` + 子 `flex-1 min-h-0`）。床 `min-h-[200px]` を実機 innerHeight で再評価。API 失敗と 0 件を同じ EmptyState にしている点は本票の高さ問題とは別ギャップ。
 4. サイクル短縮・自動化は手動で C3/C5 が通ってから。viewport フィクスチャ無しの見た目テストを PASS にしない。
+
+## 再現記録（2026-09-23・ローカル基準 1366×625 CSS px）
+
+実機採取とは別 run。Vite dev を孤立 Docker コンテナ（`ekarte-frontend:latest` + `frontend_node_modules` volume、host :3400）で起動し、スクラッチ harness（`frontend/repro-owner-height.html` + `src/repro-owner-height.tsx`。`GET /v1/owners` を stub し行数・total・入れ子を query param で制御。製品コードからは import されず、run 後に削除）で実コンポーネント `OwnerSearchModal` を実ブラウザ（Playwright Chromium、`page.setViewportSize`）に描画。`window.innerWidth=1366` / `innerHeight=625` は実測で確認済み（申告値の転用ではない）。
+
+### 結果（現行コード = 修正済み `flex-1 min-h-0 max-h-[calc(80vh-12rem)] overflow-y-auto`）
+
+| ID | 結果 | 実測 |
+| --- | --- | --- |
+| C0 | PASS | 未検索「検索してください」表示。検索欄・Close(X) が viewport 内。`body { overflow: hidden }` で Radix scroll-lock 実測 |
+| C1 | PASS | 0件→「該当する飼主が見つかりません」到達。検索欄・閉じる残置 |
+| C2 | PASS | 3行。結果領域 scrollHeight=clientHeight=248 でスクロール不要。末行「選択」bottom 487 ≤ 625 |
+| C3 | PASS | 100行。結果 `div` が scrollport: clientHeight 308 / scrollHeight 6941。scrollTop 6633 で末行「選択」が scrollport 内（top 473–517）・elementFromPoint=選択 button。クリック→確認 Dialog「飼主変更の確認」→「変更する」→ `selected:100` で modal close |
+| C4 | PASS | `total=150 > 100` で「先頭100件」バナー可視（role=status） |
+| C5 | PASS | Enter で検索発火。可視外行の「選択」button を `focus()` で scrollport が自動スクロール（top 7106→473）。ESC で閉じる |
+| C6 | PASS | 親 Dialog（`sm:max-w-[1000px] max-h-[90vh] overflow-y-auto` = PetEditModal と同クラス）内の入れ子 Root でも結果 scrollport は独立稼働（scrollTop 6633、末行 hit-test 可） |
+
+証跡 PNG（worktree ルート）: `slack-owner-height-c0-unsearched-1366x625.png` / `-c1-empty-1366x625.png` / `-c2-3rows-1366x625.png` / `-c3-100rows-scrolled-last-row-1366x625.png` / `-c3-confirm-dialog-1366x625.png` / `-c6-nested-last-row-1366x625.png` / `-legacy-broken-innerH380.png`
+
+### 修正前クラス（`flex-1 overflow-auto min-h-[200px]`）との対比 — 機序の訂正
+
+DOM の class 差し替えで legacy セットを同一 fixture に再現して計測した。**L55–59 の仮説は 1366×625 では再現しない。** `overflow:auto` の要素は scroll container であり block 方向の automatic minimum size は 0 になるため、definite な親高さ（`max-h-[80vh]` が効いた 500px）に対して flex 子は正しく縮む。実測（legacy @625）: clientHeight 322 / scrollHeight 6977 / `scrollTop=5000` 可・末行 hit-test 可 —— 申告 viewport では legacy でもスクロールは成立する。
+
+実際に legacy が破綻するのは **床 `min-h-[200px]` が dialog 内容収容高を超えた時**:
+
+| innerHeight (CSS px) | legacy 結果領域 | 状態 |
+| --- | --- | --- |
+| 625 | 322px、scrollport 成立 | PASS（報告値そのままでは再現しない） |
+| 450 | 200px（床）が dialog 360px に辛うじて内蔵（下端差 -7px） | PASS 境界 |
+| 380 | 200px が dialog 下端を **+49px**、viewport を **+11px** 越え。最大 scroll で末行 button bottom 378 vs dialog 下端 342 | 末行が枠外・下端切れ（PNG 証跡あり） |
+| 340 | 最大 scroll でも末行「選択」 bottom 374 > viewport 340 → **off-viewport・物理的に到達不能**。fixed 版は同条件で results 80px・末行 top 217–261 で到達可 | FAIL=症状一致 |
+
+発火条件はおよそ `0.8 × innerHeight < ヘッダ+検索+padding(実測約153px) + 200px` → **innerHeight ≲ 440 CSS px**。申告「1366×625」が画面解像度で実機 innerHeight がブラウザ UI・OS 表示スケール・ズームで ≲440 まで下がっていたなら「最大化してもスクロールできない」と整合する（最大化は CSS px の innerHeight を変えない）。実機 innerWidth×innerHeight・ズーム・OS スケール・Chrome 版は引き続き **UNKNOWN**（実機受入は別 run で残す）。
+
+### 結論の確認
+
+- 報告症状のスクロール owner は **OwnerSearchModal の結果 `div`**（`[data-testid=owner-search-results]`）で確定。呼出元は MedicalRecordFormModals / PetEditModal の 2 箇所のみ（grep 確認済み）、OwnersListTable は import せず別 surface。
+- 現行コードは 1366×625 および 340・380 の低下 innerHeight でも全ケース到達可。legacy の破綻は床 `min-h-[200px]` 起因であり、現行の `min-h-0` + 明示天井が除去している。
+- 実機（Win8/Chrome ≤109、実 innerHeight、ズーム/スケール）の受入は本 run では閉じない。
 
 ## 参照
 

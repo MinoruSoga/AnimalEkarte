@@ -36,6 +36,26 @@ func MedicalRecordTenantScope(
 	}
 }
 
+// BillingTenantScope joins clinic-less billing children through billings.
+// Some billing child tables keep clinic_id only for provenance rows
+// (e.g. billing_items.clinic_id is set solely for vaccination/exam provenance),
+// so tenant correlation must be enforced via the parent billings row.
+// childTable must be a compile-time literal.
+func BillingTenantScope(
+	childTable string,
+	clinicIDs []uint64,
+) func(*gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		return db.Joins(
+			"JOIN billings ON billings.id = "+
+				childTable+
+				".billing_id AND billings.clinic_id IN ? "+
+				"AND billings.deleted_at IS NULL",
+			clinicIDs,
+		)
+	}
+}
+
 // ClinicScopeIn filters rows by clinic_id IN (...). Empty input yields no rows.
 func ClinicScopeIn(clinicIDs []uint64) func(*gorm.DB) *gorm.DB {
 	return func(db *gorm.DB) *gorm.DB {

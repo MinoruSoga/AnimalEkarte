@@ -18,8 +18,8 @@
 
 | 項目 | 値 |
 |:---|:---|
-| 開いている製品 FAIL（`todo.md#product-bugs`） | **0** |
-| V04 受入 | **UNKNOWN**（全体 PASS ではない。下記 2026-09-06 再実行） |
+| 開いている製品 FAIL（`todo.md#product-bugs`） | **2**（V04 再テストで新規確定。移行前の一覧は Plane EMR-199） |
+| V04 受入 | **FAIL**（2026-09-23 browser retest 実施済み・24/24 PASS だが製品欠陥2件を確認。下記 V04 節） |
 | S09 | **BLOCKED**（`e2e/s09-closing-time-boundaries.spec.ts` のブラウザ実行が compose 停止のため未実施。製品 FAIL ではない） |
 | S01 | **PARTIAL**（LSTEP 実送信は E1） |
 | r14 | ヘッダだけ「FAIL 0 / PASS 16」と書いてあった regression smoke。V04 再実行の証跡は本ファイルに無く、PASS 翻転ではない。ディレクトリは gitignore のため再読不可 |
@@ -165,19 +165,19 @@
 
 | 項目 | 値 |
 |:---|:---|
-| 実施日 | 2026-09-05 |
-| ブランチ | `uat/20260905` |
-| 環境 | local |
-| ドメイン総合判定 | **UNKNOWN**（V04 全体は未再実行） |
+| 実施日 | 2026-09-23 |
+| ブランチ | `MinoruSoga/emr-127` |
+| 環境 | disposable local（clinic 2・FE :3013 / BE :8080） |
+| ドメイン総合判定 | **FAIL**（V04 browser retest 実施済み・製品欠陥2件確認） |
 
 | シナリオ | status |
 |:---|:---|
-| V04 | **UNKNOWN**（2026-09-05 最終実行は FAIL。2026-09-06 は DELETE 回帰のみ再実行。`e2e/v04-settings-master-forms.spec.ts` の browser runtime は未実行） |
-| closing-settings（S09 前提） | PASS（r6 GET/PATCH roundtrip） |
+| V04 | **FAIL**（`e2e/v04-settings-master-forms-retest.spec.ts` 24/24 PASS・form×C1/C2/C3 実測済み。§5 予約可能枠 UI 経路と §4 職種紐付け表示で欠陥2件を確認し API 迂回で証跡取得 — 全体 PASS ではない） |
+| closing-settings（S09 前提） | PASS（r6 GET/PATCH roundtrip + V04 §6 締め時間3フォーム再実施済み） |
 
-- **未解消ギャップ**: `frontend/e2e/v04-settings-master-forms.spec.ts` を disposable clinic でブラウザ実行し、CRUD/DELETE の受入結果を確定する。runtime 未実行のため UNKNOWN。
-- **関連 bug IDs**: 現行 open なし
-- **証跡**: 新しい browser runtime 証跡は未取得
+- **未解消ギャップ**: 診療項目5タブのうち UI 直接実施は診察のみ（他4タブは同一パネル・API レベルで作成/重複409/削除を確認）。投与量パラメータは API レベル実測。L4 受入の代替にはしない。
+- **関連 bug IDs**: `BUG-MASTER-RESVTYPE-SLOT-FORM-NESTED`（予約可能枠 UI 送信不能・ネスト form）/ `BUG-MASTER-RESVTYPE-OCC-ENVELOPE`（職種紐付 GET envelope 不整合でバッジ非表示）— いずれも `todo.md#product-bugs`・`bug.md` 登録
+- **証跡**: `reports/uat-2026-09-23/v04-retest/README.md`（gitignore 対象）
 ## 認証・LINE / LSTEP（V05）
 
 | 項目 | 値 |
@@ -205,4 +205,4 @@
 2. 製品 FAIL のみルート `todo.md#product-bugs` へ（PARTIAL/BLOCKED は書かない）。
 3. 証跡は `reports/uat-YYYY-MM-DD(-postfix|-rN)/` に置き、シナリオ md は編集しない。
 4. S09 解除時は承認済み helper マージ後に #2–#6 を再実行し、本ファイルの会計ドメインとサマリを更新する。
-5. V04 は主訴 DELETE を disposable clinic で再実行してから UNKNOWN を外す。コード修正だけで PASS にしない。
+5. V04 は 2026-09-23 に disposable clinic 2 で browser retest 済み（FAIL・欠陥2件）。欠陥修正後に `e2e/v04-settings-master-forms-retest.spec.ts` を再実行してから FAIL を外す。コード修正だけで PASS にしない。

@@ -9,10 +9,11 @@ import (
 )
 
 // UpsertInquiryInput は問診 upsert の入力 DTO（nil = 未送信フィールド）
+// ChiefComplaintTypeID は **uint64: nil=未送信(既存値を保持), &nil=明示 JSON null(NULL クリア), &&v=値セット。
 type UpsertInquiryInput struct {
 	ClinicID             uint64
 	MedicalRecordID      uint64
-	ChiefComplaintTypeID *uint64
+	ChiefComplaintTypeID **uint64
 	ChiefComplaint       *string
 	Notes                *string
 }
@@ -36,7 +37,7 @@ func NewInquiryService(repo InquiryRepository, chiefComplaintTypeRepo ChiefCompl
 
 // Save は medical_record_id に対応する問診を upsert する。
 func (s *inquiryService) Save(ctx context.Context, input UpsertInquiryInput) (*model.Inquiry, error) {
-	if err := validateOwnedMasterFK(ctx, "chief complaint type", input.ClinicID, input.ChiefComplaintTypeID,
+	if err := validateOwnedMasterFK(ctx, "chief complaint type", input.ClinicID, optionalDoubleUint64(input.ChiefComplaintTypeID),
 		func(actx context.Context, cid, mid uint64) error {
 			_, err := s.chiefComplaintTypeRepo.FindByID(actx, cid, mid)
 			return err
@@ -44,20 +45,14 @@ func (s *inquiryService) Save(ctx context.Context, input UpsertInquiryInput) (*m
 		return nil, err
 	}
 
-	inquiry := &model.Inquiry{
-		MedicalRecordID: input.MedicalRecordID,
-	}
-	if input.ChiefComplaintTypeID != nil {
-		inquiry.ChiefComplaintTypeID = input.ChiefComplaintTypeID
-	}
-	if input.ChiefComplaint != nil {
-		inquiry.ChiefComplaint = *input.ChiefComplaint
-	}
-	if input.Notes != nil {
-		inquiry.Notes = *input.Notes
-	}
-
-	result, err := s.repo.SaveByMedicalRecordID(ctx, input.ClinicID, inquiry)
+	// EMR-87: 未送信フィールドは nil ポインタのまま repository へ渡し、既存値を消さない
+	// （新規 model.Inquiry に非 nil だけ詰めると、未送信列がゼロ値で上書きされる）。
+	result, err := s.repo.SaveByMedicalRecordID(ctx, input.ClinicID, InquiryUpsertFields{
+		MedicalRecordID:      input.MedicalRecordID,
+		ChiefComplaint:       input.ChiefComplaint,
+		Notes:                input.Notes,
+		ChiefComplaintTypeID: input.ChiefComplaintTypeID,
+	})
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to upsert inquiry")
 	}

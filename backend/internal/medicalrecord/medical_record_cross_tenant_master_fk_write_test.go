@@ -20,9 +20,9 @@ func TestMedicalRecordService_CreateSubRecords_RejectsCrossClinicChiefComplaintT
 
 	newSvc := func(saved *bool) *medicalRecordService {
 		inquiryRepo := &mockInquiryRepository{
-			upsertFn: func(_ context.Context, _ uint64, inquiry *model.Inquiry) (*model.Inquiry, error) {
+			upsertFn: func(_ context.Context, _ uint64, _ InquiryUpsertFields) (*model.Inquiry, error) {
 				*saved = true
-				return inquiry, nil
+				return &model.Inquiry{}, nil
 			},
 		}
 		clinicalPlanRepo := &mockClinicalPlanRepository{

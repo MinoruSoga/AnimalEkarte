@@ -29,6 +29,7 @@ func TestToPrescriptionResponse(t *testing.T) {
 				MedicalRecordID: &medicalRecordID,
 				PrescribedAt:    prescribedAt,
 				DurationDays:    7,
+				Version:         6,
 				CreatedAt:       createdAt,
 				UpdatedAt:       updatedAt,
 			},
@@ -65,6 +66,9 @@ func TestToPrescriptionResponse(t *testing.T) {
 			}
 			if got.DurationDays != tt.p.DurationDays {
 				t.Errorf("DurationDays = %d, want %d", got.DurationDays, tt.p.DurationDays)
+			}
+			if got.Version != tt.p.Version {
+				t.Errorf("Version = %d, want %d", got.Version, tt.p.Version)
 			}
 			if got.CreatedAt != createdAt.In(time.Local).Format(time.RFC3339) {
 				t.Errorf("CreatedAt = %q, want %q", got.CreatedAt, createdAt.In(time.Local).Format(time.RFC3339))

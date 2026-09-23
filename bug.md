@@ -41,6 +41,11 @@
 | BUG-VITAL-NOTE-KEY-MISMATCH | Plane EMR-68 | medical-record / vitals | Medium | **バグ断定**（バイタルのメモが保存も表示もされない） | 現在の課題・状態は `EMR-68`（詳細は移行記録） |
 | BUG-MR-VACCINE-FORM-NESTED | Plane EMR-69 | medical-record / vaccination | High | **バグ断定**（カルテ内の接種記録追加フォームが送信不能） | 現在の課題・状態は `EMR-69`（詳細は移行記録） |
 | BUG-TRIM-EXCL-TIMERANGE-500 | Plane EMR-76 | trimming / reservation | High | **バグ断定**（同一担当の連続トリミング登録が 500 で失敗） | 現在の課題・状態は `EMR-76`（詳細は移行記録） |
+| BUG-PRINT-PORTAL-HIDDEN-BLANK | Plane EMR-205 | print / shared UI | High | **バグ断定**（検査結果・日次会計・月次レポート・レジ締めの印刷が全面白紙。`hidden` 属性 + 印刷ポータルの unlayered `display:block!important` が Tailwind v4 preflight `[hidden]{display:none!important}`（`@layer base`）に敗北） | 詳細は [下記](#bug-print-portal-hidden-blank) |
+| BUG-LIFF-VACCINE-DATE-RAW-ISO | Plane EMR-206 | liff / pet-health | Low | **バグ断定**（ペット健康カードのワクチン接種日・次回予定日が `2026-08-15T09:00:00+09:00` の RFC3339 生値で表示。最終来院日は `time.DateOnly` で整形済みのため不整合） | 詳細は [下記](#bug-liff-vaccine-date-raw-iso) |
+| BUG-BUTTON-FOCUS-INVISIBLE | Plane EMR-207 | shared UI / a11y | Medium | **バグ断定**（共有 `Button` コンポーネントにフォーカス可視インジケータが無い。`outline-none` のみで `focus-visible:ring-*` が無く、キーボード Tab でフォーカスしても見た目が変化しない。nav リンク・input は可視） | 詳細は [下記](#bug-button-focus-invisible) |
+| BUG-MASTER-RESVTYPE-SLOT-FORM-NESTED | OPEN（UAT 2026-09-23） | reservation / master settings | High | **バグ断定**（予約区分パネル内の予約可能枠フォームがネスト `<form>` で送信不能） | [詳細](#plan-bug-master-resvtype-slot-form-nested) |
+| BUG-MASTER-RESVTYPE-OCC-ENVELOPE | OPEN（UAT 2026-09-23） | reservation / master settings | Medium | **バグ断定**（職種紐付 GET が裸配列・FE は `{data}` 期待でバッジ非表示） | [詳細](#plan-bug-master-resvtype-occ-envelope) |
 
 ---
 
@@ -267,6 +272,7 @@
   - 当該ブラウザに `__REACT_DEVTOOLS_GLOBAL_HOOK__` あり
 - **判断**: 現状は **製品コード起因と断定できない**（拡張機能／DevTools の可能性が高い）。ユーザー環境（通常 Chrome + 拡張）での再現スタック（ファイルURL付き）があれば再判定。
 - **次アクション**: シークレットウィンドウ（拡張OFF）でスタッフマスタを開き、同エラーが消えるか確認してもらう
+- **調査結果（2026-09-23 / EMR-180）**: **原因帰属 = Chrome DevTools 同梱 web-vitals**（製品コード・拡張機能のいずれでもない）。`reportAllChanges` は web-vitals の report option で、スタックのオフセット (`:2:19429`/`:2:5652`) が上流バグと完全一致（GoogleChrome/web-vitals#792, angular/angular#70464）。アプリは web-vitals/RUM 系を一切同梱せず CSP `script-src 'self'` で第三者 script も走らない。発生条件は「Chrome ≤152 + DevTools (Live Metrics) オープン + SPA soft navigation」。上流修正 devtools-frontend CL 8300032 は 2026-08-31 merge 済みで Chrome 153 で配布。**製品側の修正対象なし**。回避は Chrome 153+ 更新 or `chrome://flags/#soft-navigation-heuristics` 無効化。詳細: `docs/work/emr-180-note-staff-starttime-rdt-investigation.md`
 
 ### BUG-ACCT-CLOSE-PERM-DEFAULT: 既定権限モデルで `cash-register-close:create` が全グループ未付与、レジ締めが実行不能
 
@@ -629,3 +635,76 @@ git diff --check -- bug.md
 - **根因**: 2 層の問題。(a) FE `defaultRecordShortcutTimes`（`trimming-form-utils.ts`）は BUG-010 対策で「固定 10:00 → 現在 JST 時刻+90 分」にしたが、同一担当の連続登録は依然として時間枠が重複する（一意化は時刻文字列のみで枠の非重複は保証しない）。(b) BE は exclusion violation（23P01）を 409 conflict へマップしておらず、tx エラーがそのまま 500 として返る。
 - **影響**: 同一スタッフが 90 分以内に複数トリミングを連続登録できない。エラーハンドリング不在のため UI は無音失敗に近く、V01 §12-6 の期待（一意な時刻が付き無関係な 2 件目がブロックされない）を満たさない。
 - **証拠**: `reports/uat-2026-09-23/V01-clinical-forms.md`（§12 手順6）
+
+---
+
+<a id="bug-print-portal-hidden-blank"></a>
+
+### BUG-PRINT-PORTAL-HIDDEN-BLANK（S37・High）
+
+- **現象**: 印刷ポータルを使う帳票面（検査結果・日次会計・月次集計レポート・レジ締め明細）で印刷/PDF 出力を実行すると、アプリ本体は非表示になるが帳票本体も `display:none` のままで、**出力が白紙になる**。カルテ印刷（`MedicalRecordPrintView`）と領収書（`AccountingPrintArea`）は `hidden` Tailwind クラス方式のため正常。
+- **実証**（`reports/uat-2026-09-23/S37-print-documents-layout.md`）: Playwright の `emulateMedia({ media: "print" })` で実測。
+  - `/accounting?tab=daily` → `[data-testid="daily-print-area"]` が print メディアで `display:none`（`hidden` 属性付与のまま）。`#root` も `none` → 印刷面 0。
+  - `/accounting/reports` → `[data-print-portal]`（monthly）が print で `display:none`、`#root` も `none`。
+  - `/examinations/1000000000` → `[data-print-portal]`（examination）が print で `display:none`、`#root` も `none`。
+  - `/accounting?tab=daily` の `page.pdf()` が **1,156 bytes**（実質 1 ページ白紙）。
+  - 対照: `/medical-records/1000000019` の印刷面（`hidden print:block` クラス方式）は print で `display:block`・本文 498 文字 → 正常。
+- **根因**: Tailwind v4.3.3 preflight（`tailwindcss/preflight.css:391`）が `[hidden]:where(:not([hidden='until-found'])) { display: none !important; }` を **`@layer base` 内**で出力する。CSS Cascade 5 では `!important` 宣言のレイヤー優先順位が反転するため、**先に宣言された `base` レイヤーの `!important` が、unlayered の `!important` に勝つ**。`PrintPortal.tsx`（`<div hidden … data-print-portal>` + unlayered `[data-print-portal]{display:block!important}`）と `DailyAccountingPrintArea.tsx`（`hidden` + unlayered `[data-testid="daily-print-area"]{display:block!important}`）はいずれも unlayered のため `display:none!important` に敗北する。実測でも unlayered `!important` は `none` のまま、`@layer base`/`@layer utilities` の同一宣言なら `block` になることを確認（Chrome 実測）。`hidden` Tailwind クラス（`.hidden`）は属性ではなくクラスのため preflight の対象外で、`print:block` が同じ utilities レイヤー内で後勝ちし正常動作する。
+- **影響**: 検査結果・日次会計・月次レポート・レジ締めの印刷/PDF がすべて白紙。帳票運用（監査・締め・月次）が成立しない。High。
+- **修正方針候補**: (a) 各印刷面の `hidden` 属性をやめ、`hidden print:block`（Tailwind クラス）方式に統一する（MR/領収書と同方式）、(b) 印刷ポータルの上書き規則を `@layer base`（または preflight より前のレイヤー）に置く、(c) `@media print` 内で `[hidden]` を `display:block!important` で上書きする規則を `@layer base` に追加する。回帰は「print メディアで各ポータルが `display:block` になること」を固定する。
+- **証拠**: `reports/uat-2026-09-23/S37-print-documents-layout.md`
+
+---
+
+<a id="bug-liff-vaccine-date-raw-iso"></a>
+
+### BUG-LIFF-VACCINE-DATE-RAW-ISO（S38・Low）
+
+- **現象**: LIFF ペット健康カードのワクチン記録テーブルで「接種日」「次回予定日」が `2026-08-15T09:00:00+09:00` の RFC3339 生値で表示される（LINE 利用者に見える画面）。同じカードの「最終来院日」は `2026-08-15` 形式で整形されており、同一画面内で書式が不整合。
+- **実証**: `http://localhost:3003/liff/?clinic_id=1`（mock lane、データは実バックエンド由来。飼主 `UATヘルス 飼主A` / 犬A）を 390×844 で表示。ワクチン行が `10%Ｐｒｏ-Ｈｅａｒｔ SR 12(10.1～20.0kg)` / `2026-08-15T09:00:00+09:00` / `2027-08-15T09:00:00+09:00`。S12 でも観測済み（未登録）。
+- **根因**: `backend/internal/reservation/liff_response.go` の `liffHealthCardVaccineResponse` が `VaccinatedAt time.Time` / `NextDueAt *time.Time` をそのまま公開（`toLiffHealthCardResponse` で整形なし）。一方 `LastVisitDate` は同ファイル内で `time.DateOnly` 整形（294 行）。FE `frontend/liff/src/pages/PetHealthPage.tsx:173,175` も `v.vaccinated_at` / `v.next_due_at` を無整形で描画。
+- **影響**: 利用者向けに機械可読タイムスタンプが露出。可読性・信頼感の低下（機能は動作）。Low。
+- **修正方針候補**: バックエンドで `LastVisitDate` と同様に `time.DateOnly`（または FE で `formatJSTDate`）へ統一する。接種日は本来日付粒度のため、レスポンスを日付文字列に揃えるのが自然。回帰は「接種日/次回予定日が `YYYY-MM-DD` 形式であること」を固定。
+- **証拠**: `reports/uat-2026-09-23/S38-liff-mobile-viewport.md`
+
+---
+
+<a id="bug-button-focus-invisible"></a>
+
+### BUG-BUTTON-FOCUS-INVISIBLE（S39・Medium）
+
+- **現象**: 共有 `Button` コンポーネントで描画されたボタン（更新・戻る・保存 等、主要操作の大半）に、キーボードフォーカス時の可視インジケータが無い。Tab でフォーカスしても見た目が一切変化しない。同じ画面でも nav リンク（`<a>`）はブラウザ既定の outline、input はブランド色 2px リングが出るため、ボタンだけが不可視。
+- **実証**（`reports/uat-2026-09-23/S39-state-feedback-visibility.md`、Playwright 実測）:
+  - `Button(更新)` / `Button(戻る)`: `:focus-visible = true`、`outline-style: none`、着色 box-shadow なし → 可視インジケータなし。
+  - 対照 `nav a`: `:focus-visible = true`、`outline: auto 1px rgb(3,139,148)` → 可視。
+  - 対照 `input#phone`: `:focus-visible = true`、`box-shadow: … rgb(3,139,148) 0 0 0 2px` → 可視。
+- **根因**: `frontend/src/components/ui/button-variants.ts` の cva 基底クラスが `outline-none` のみで `focus-visible:ring-*` を持たない（input は `C.focusRingActionPrimary` = `focus:shadow-focus-primary` を使用しているが、Button には相当の指定が無い）。`globals.css` にもボタン向けの `:focus-visible` 代替規則は無い（`--shadow-focus-primary` 等の変数定義のみ）。
+- **影響**: WCAG 2.2 AA 2.4.7（Focus Visible）/ 2.4.11 に不適合。キーボード操作時にどのボタンにフォーカスがあるか判別できず、誤操作・操作不能に近い状態。アプリ全体の主要操作に波及するため Medium。
+- **修正方針候補**: `buttonVariants` の基底に `focus-visible:ring-2 focus-visible:ring-[#038B94] focus-visible:ring-offset-1`（既存 `--shadow-focus-primary` と同等）を追加する。回帰は「各 variant の Button が `:focus-visible` で着色リングを持つこと」を固定。
+- **証拠**: `reports/uat-2026-09-23/S39-state-feedback-visibility.md`
+
+
+
+## 確認済み製品欠陥（UAT 2026-09-23 · V04 追加分）
+
+`docs/ops/testing/scenarios/V04-settings-master-forms.md` の再テスト（EMR-127）で確定した製品欠陥。証拠は `reports/uat-2026-09-23/v04-retest/README.md`（gitignore 対象の日次レポート）。正本登録は `todo.md#product-bugs` と重複確認済み。いずれも disposable local clinic 2 で実ブラウザ＋API 実測。
+
+<a id="plan-bug-master-resvtype-slot-form-nested"></a>
+
+### BUG-MASTER-RESVTYPE-SLOT-FORM-NESTED（V04・High）
+
+- **現象**: 設定 > 予約区分マスタのサイドパネル内「予約可能枠」セクションで曜日・時刻を選んで `追加` を押しても、API リクエストが一切発行されず枠を追加できない。バリデーションエラー表示も出ない。
+- **実証**: ブラウザ実機（Playwright・clinic 2）で予約区分編集パネルを開き `追加` をクリック → ネットワークに `POST /available-slots` 不発、コンソールに CSP `Running the JavaScript URL violates CSP 'script-src 'self''` 警告を毎回記録。同一パラメータを `POST /api/v1/masters/reservation-types/:id/available-slots` へ直接送ると 201 で永続し、パネル再表示で `毎週月曜日 …` の描画を確認。重複追加はエラーステータスで拒否。
+- **根因**: `ReservationTypeSidePanel` がコンテンツ全体を `<form action={handleAction}>` で包み、`ReservationTypeAvailableSlotsSection` 内の `<form action={formAction}>` がネスト。HTML では form ネストが無効で内側 form がパーサに破棄され、`追加` は外側パネルの placeholder `javascript:` action を submit して CSP にブロックされる。BUG-MR-VACCINE-FORM-NESTED（V01・EMR-69）と同根因クラス。
+- **影響**: 予約可能枠の UI 登録経路が完全に使用不能（API 経路は正常）。ユーザーへのフィードバックゼロの無音失敗。
+- **証拠**: `reports/uat-2026-09-23/v04-retest/README.md`（§5）、`frontend/e2e/v04-settings-master-forms-retest.spec.ts` test `4-5 予約区分`
+
+<a id="plan-bug-master-resvtype-occ-envelope"></a>
+
+### BUG-MASTER-RESVTYPE-OCC-ENVELOPE（V04・Medium）
+
+- **現象**: 予約区分パネルの「紐付け職種」で職種を追加しても、紐付け済み職種のバッジが一切表示されない。再読込・パネル再オープン後も同様。
+- **実証**: clinic 2 で `V04職種` を作成し予約区分へ紐付け → `POST /api/v1/masters/reservation-types/:id/occupations` は永続成功（GET で `[{occupation:{name:"V04職種"}}]` を確認）するが UI にバッジ非表示。GET レスポンスは裸配列 `[{...}]`。
+- **根因**: BE `ListReservationTypeOccupations`（`reservation_type_handler.go:302`）は `c.JSON(200, httpapi.MapSlice(items, …))` で裸配列を返すが、FE `getReservationTypeOccupations`（`frontend/src/features/master/api/reservation-type-occupations.ts`）は `axios.get<{data: T[]}>` で `data.data.map(...)` を呼ぶ → `data.data` が undefined で TypeError → query が error となり描画されない。兄弟エンドポイントの `getAvailableSlots` は `Array.isArray(data) ? data : data.data` で両形状に対応済みだが、occupations 側だけ未対応。
+- **影響**: 職種紐付けは保存されるが一覧表示が常に空に見える（無音失敗）。ユーザーは紐付けが効いていないと誤認し、重複操作や運用ミスを誘発しうる。データ損失ではない表示限定の欠陥。
+- **証拠**: `reports/uat-2026-09-23/v04-retest/README.md`（§4）、`frontend/e2e/v04-settings-master-forms-retest.spec.ts` test `4-5 予約区分`

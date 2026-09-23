@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"golang.org/x/sync/errgroup"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
@@ -268,71 +269,104 @@ func sanitizeBillingSliceRelations(billings []model.Billing) {
 }
 
 func (r *accountingRepository) FindAll(ctx context.Context, clinicID uint64, filters AccountingListFilters, page, limit int) ([]model.Billing, int64, error) {
-	q := r.db.WithContext(ctx).Model(&model.Billing{}).Scopes(persistence.ClinicScope(clinicID))
-	return r.findBillingsWithFilters(ctx, q, []uint64{clinicID}, filters, page, limit)
+	return r.findBillingsWithFilters(ctx, []uint64{clinicID}, filters, page, limit)
 }
 
 func (r *accountingRepository) FindAllForClinics(ctx context.Context, clinicIDs []uint64, filters AccountingListFilters, page, limit int) ([]model.Billing, int64, error) {
-	q := r.db.WithContext(ctx).Model(&model.Billing{}).Scopes(persistence.ClinicScopeIn(clinicIDs))
-	return r.findBillingsWithFilters(ctx, q, clinicIDs, filters, page, limit)
+	return r.findBillingsWithFilters(ctx, clinicIDs, filters, page, limit)
 }
 
-// findBillingsWithFilters はフィルタ・ページネーション適用後に返金合計を付与して返す共通実装。
-// FindAll / FindAllForClinics の clinic スコープ差分は呼び出し元で適用済みのクエリ q を受け取る。
-// clinicIDs は Owner/Pet Preload の P3.1 clinic_id 述語用（AUD-002）。
-// search / status / payment_method はサーバサイド（ページ横断）。
-func (r *accountingRepository) findBillingsWithFilters(ctx context.Context, q *gorm.DB, clinicIDs []uint64, filters AccountingListFilters, page, limit int) ([]model.Billing, int64, error) {
-	billings := make([]model.Billing, 0)
-	var total int64
+// billingListClinicScope は一覧クエリの clinic スコープ。Find は Owner/Pet を
+// LEFT JOIN するため、bare の clinic_id は owners/pets 側と曖昧になるので
+// 必ず billings. で修飾する。
+func billingListClinicScope(clinicIDs []uint64) func(*gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		return db.Where("billings.clinic_id IN ?", clinicIDs)
+	}
+}
 
+// applyAccountingListFilters は一覧の COUNT / FIND 両クエリに共通するフィルタ述語。
+// 破損 FK を除く pets EXISTS 絞り込みは契約上 Find 側のみ（corrupt-FK 分離テストが
+// total ≠ len(items) を要求する）なのでここには含めない。
+// JOIN 併用のため裸列名は曖昧になり得るので全て billings. で修飾する。
+func applyAccountingListFilters(q *gorm.DB, filters AccountingListFilters) *gorm.DB {
 	if filters.PetID != nil {
-		q = q.Where("pet_id = ?", *filters.PetID)
+		q = q.Where("billings.pet_id = ?", *filters.PetID)
 	}
 	if filters.OwnerID != nil {
-		q = q.Where("owner_id = ?", *filters.OwnerID)
+		q = q.Where("billings.owner_id = ?", *filters.OwnerID)
 	}
 	if filters.Status != nil && *filters.Status != "" {
 		op := strings.ToLower(strings.TrimSpace(filters.StatusOp))
 		if op == "is_not" {
-			q = q.Where("status <> ?", *filters.Status)
+			q = q.Where("billings.status <> ?", *filters.Status)
 		} else {
-			q = q.Where("status = ?", *filters.Status)
+			q = q.Where("billings.status = ?", *filters.Status)
 		}
 	}
 	if filters.StartDate != nil {
-		q = q.Where("scheduled_date >= ?", *filters.StartDate)
+		q = q.Where("billings.scheduled_date >= ?", *filters.StartDate)
 	}
 	if filters.EndDate != nil {
-		q = q.Where("scheduled_date <= ?", *filters.EndDate)
+		q = q.Where("billings.scheduled_date <= ?", *filters.EndDate)
 	}
 	if filters.Search != "" {
 		q = applyBillingOwnerPetSearch(q, filters.Search)
 	}
-	q = applyBillingPaymentMethodFilter(q, filters.PaymentMethod, filters.PaymentMethodOp)
-	countQuery := q
-	if err := countQuery.Count(&total).Error; err != nil {
-		return nil, 0, apperrors.FromGORM(err, "billing", "")
-	}
-	// 一覧は日次集計が Items/Splits を使う。PaidByStaff ネストは一覧非表示なので載せない。
-	findQuery := q.Where("(billings.pet_id IS NULL OR EXISTS (SELECT 1 FROM pets p WHERE p.id = billings.pet_id AND p.clinic_id = billings.clinic_id))")
-	if err := findQuery.
-		Preload("Owner", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
-		Preload("Pet", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
-		Preload("Payments", "deleted_at IS NULL").
-		Preload("Items", "deleted_at IS NULL").
-		Preload("PaymentSplits", scopedPaymentSplitsPreload(clinicIDs)).
-		Scopes(persistence.Paginate(page, limit)).Order("scheduled_date DESC, created_at DESC").Find(&billings).Error; err != nil {
-		return nil, 0, apperrors.FromGORM(err, "billing", "")
-	}
-	sanitizeBillingSliceRelations(billings)
-	if err := r.attachRefundTotals(ctx, billings); err != nil {
+	return applyBillingPaymentMethodFilter(q, filters.PaymentMethod, filters.PaymentMethodOp)
+}
+
+func (r *accountingRepository) billingListQuery(ctx context.Context, clinicIDs []uint64, filters AccountingListFilters) *gorm.DB {
+	return applyAccountingListFilters(
+		r.db.WithContext(ctx).Model(&model.Billing{}).Scopes(billingListClinicScope(clinicIDs)),
+		filters,
+	)
+}
+
+// findBillingsWithFilters はフィルタ・ページネーション適用後に関連データを付与して返す共通実装。
+// STG では 1 クエリあたりの DB 往復がレイテンシの支配項のため、COUNT と FIND、および
+// ページ内 association の取得をそれぞれ並行化して往復数を削減する（EMR-201）。
+// Owner/Pet は belongs-to で行増殖しないため JOIN に畳み込み、clinic 述語は ON 句に
+// 保持する（旧 Preload の "clinic_id IN ? AND deleted_at IS NULL" と同条件・AUD-002）。
+// search / status / payment_method はサーバサイド（ページ横断）。
+func (r *accountingRepository) findBillingsWithFilters(ctx context.Context, clinicIDs []uint64, filters AccountingListFilters, page, limit int) ([]model.Billing, int64, error) {
+	billings := make([]model.Billing, 0)
+	var total int64
+
+	g, gctx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		if err := r.billingListQuery(gctx, clinicIDs, filters).Count(&total).Error; err != nil {
+			return apperrors.FromGORM(err, "billing", "")
+		}
+		return nil
+	})
+	g.Go(func() error {
+		err := r.billingListQuery(gctx, clinicIDs, filters).
+			Where("(billings.pet_id IS NULL OR EXISTS (SELECT 1 FROM pets p WHERE p.id = billings.pet_id AND p.clinic_id = billings.clinic_id))").
+			Joins("Owner", r.db.Where(`"Owner".clinic_id IN ? AND "Owner".deleted_at IS NULL`, clinicIDs)).
+			Joins("Pet", r.db.Where(`"Pet".clinic_id IN ? AND "Pet".deleted_at IS NULL`, clinicIDs)).
+			Scopes(persistence.Paginate(page, limit)).
+			Order("billings.scheduled_date DESC, billings.created_at DESC").
+			Find(&billings).Error
+		if err != nil {
+			return apperrors.FromGORM(err, "billing", "")
+		}
+		return nil
+	})
+	if err := g.Wait(); err != nil {
 		return nil, 0, err
 	}
+	if err := r.attachBillingListRelations(ctx, billings, clinicIDs); err != nil {
+		return nil, 0, err
+	}
+	sanitizeBillingSliceRelations(billings)
 	return billings, total, nil
 }
 
-// attachRefundTotals は billing スライスの各要素に返金合計をサブクエリで一括付与する。
-func (r *accountingRepository) attachRefundTotals(ctx context.Context, billings []model.Billing) error {
+// attachBillingListRelations はページ内 billing の Payments / Items / PaymentSplits /
+// 返金合計を 1 並行バッチで取得して demultiplex する。発行する SQL は従来の
+// Preload / attachRefundTotals と同一条件で、直列 4 往復を 1 往復分に縮める。
+func (r *accountingRepository) attachBillingListRelations(ctx context.Context, billings []model.Billing, clinicIDs []uint64) error {
 	if len(billings) == 0 {
 		return nil
 	}
@@ -340,6 +374,76 @@ func (r *accountingRepository) attachRefundTotals(ctx context.Context, billings 
 	for i := range billings {
 		ids = append(ids, billings[i].ID)
 	}
+
+	var payments []model.Payment
+	var items []model.BillingItem
+	var splits []model.PaymentSplit
+	var refundTotals map[uint64]int64
+
+	g, gctx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		if err := r.db.WithContext(gctx).
+			Scopes(persistence.BillingTenantScope("payments", clinicIDs)).
+			Where("payments.billing_id IN ? AND payments.deleted_at IS NULL", ids).
+			Find(&payments).Error; err != nil {
+			return apperrors.FromGORM(err, "payment", "")
+		}
+		return nil
+	})
+	g.Go(func() error {
+		if err := r.db.WithContext(gctx).
+			Scopes(persistence.BillingTenantScope("billing_items", clinicIDs)).
+			Where("billing_items.billing_id IN ? AND billing_items.deleted_at IS NULL", ids).
+			Find(&items).Error; err != nil {
+			return apperrors.FromGORM(err, "billing_item", "")
+		}
+		return nil
+	})
+	g.Go(func() error {
+		if err := scopedPaymentSplitsPreload(clinicIDs)(
+			r.db.WithContext(gctx).Where("payment_splits.billing_id IN ?", ids),
+		).Find(&splits).Error; err != nil {
+			return apperrors.FromGORM(err, "payment_split", "")
+		}
+		return nil
+	})
+	g.Go(func() error {
+		totals, err := r.billingRefundTotals(gctx, ids)
+		if err != nil {
+			return err
+		}
+		refundTotals = totals
+		return nil
+	})
+	if err := g.Wait(); err != nil {
+		return err
+	}
+
+	paymentsByBilling := make(map[uint64][]model.Payment, len(payments))
+	for _, p := range payments {
+		paymentsByBilling[p.BillingID] = append(paymentsByBilling[p.BillingID], p)
+	}
+	itemsByBilling := make(map[uint64][]model.BillingItem, len(items))
+	for _, item := range items {
+		itemsByBilling[item.BillingID] = append(itemsByBilling[item.BillingID], item)
+	}
+	splitsByBilling := make(map[uint64][]model.PaymentSplit, len(splits))
+	for _, split := range splits {
+		splitsByBilling[split.BillingID] = append(splitsByBilling[split.BillingID], split)
+	}
+	for i := range billings {
+		billings[i].Payments = paymentsByBilling[billings[i].ID]
+		billings[i].Items = itemsByBilling[billings[i].ID]
+		billings[i].PaymentSplits = splitsByBilling[billings[i].ID]
+		billings[i].TotalRefundedAmount = refundTotals[billings[i].ID]
+	}
+	return nil
+}
+
+// billingRefundTotals は指定 billing の返金合計を一括集計する。
+// billing_refunds の行は Unscoped（soft-delete 済み返金も合計に含める従来挙動）で、
+// 親 billings への clinic 相関 JOIN はそのまま維持する。
+func (r *accountingRepository) billingRefundTotals(ctx context.Context, ids []uint64) (map[uint64]int64, error) {
 	type refundSum struct {
 		BillingID uint64
 		Total     int64
@@ -360,16 +464,13 @@ func (r *accountingRepository) attachRefundTotals(ctx context.Context, billings 
 		Where("billing_refunds.billing_id IN ?", ids).
 		Group("billing_refunds.billing_id").
 		Scan(&sums).Error; err != nil {
-		return apperrors.FromGORM(err, "billing_refund", "")
+		return nil, apperrors.FromGORM(err, "billing_refund", "")
 	}
-	sumMap := make(map[uint64]int64, len(sums))
+	totals := make(map[uint64]int64, len(sums))
 	for _, s := range sums {
-		sumMap[s.BillingID] = s.Total
+		totals[s.BillingID] = s.Total
 	}
-	for i := range billings {
-		billings[i].TotalRefundedAmount = sumMap[billings[i].ID]
-	}
-	return nil
+	return totals, nil
 }
 
 func (r *accountingRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error) {

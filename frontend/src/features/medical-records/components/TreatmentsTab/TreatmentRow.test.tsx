@@ -36,6 +36,7 @@ const baseTreatment: Treatment = {
   discount_rate: 0,
   discount_amount: 0,
   sort_order: 0,
+  version: 1,
   created_at: "2026-07-12T00:00:00Z",
   updated_at: "2026-07-12T00:00:00Z",
 };

@@ -29,6 +29,7 @@ type vaccinationResponse struct {
 	Lot3             string     `json:"lot3"`
 	Lot4             string     `json:"lot4"`
 	Remarks          string     `json:"remarks"`
+	Version          int        `json:"version"`
 	CreatedAt        time.Time  `json:"created_at"`
 	UpdatedAt        time.Time  `json:"updated_at"`
 	// リレーション: 一覧で飼主名/ペット名/ワクチン名/担当医を表示するため。Preload 時のみ埋まる。
@@ -58,6 +59,7 @@ func toVaccinationResponse(v *model.Vaccination) vaccinationResponse {
 		Lot3:             v.Lot3,
 		Lot4:             v.Lot4,
 		Remarks:          v.Remarks,
+		Version:          v.Version,
 		CreatedAt:        httpapi.LocalTime(v.CreatedAt),
 		UpdatedAt:        httpapi.LocalTime(v.UpdatedAt),
 		Pet:              toPetSummary(v.Pet),

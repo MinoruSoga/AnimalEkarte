@@ -61,6 +61,9 @@ var grandchildParentTargets = []grandchildParentTarget{
 		parentTable:        "billings",
 		parentPK:           "id",
 		parentClinicColumn: "clinic_id",
+		scopeHelpers: []grandchildScopeHelper{
+			{qualifier: "persistence", name: "BillingTenantScope", tableArg: "billing_items"},
+		},
 	},
 	{
 		modelName:          "MedicalRecordImage",

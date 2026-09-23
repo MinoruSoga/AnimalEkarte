@@ -54,20 +54,20 @@ func TestInquiryRepository_SaveByMedicalRecordID(t *testing.T) {
 	mrA := makeInquiryMedicalRecord(t, db, clinicA, "MR-A-001")
 
 	t.Run("medical_record が別クリニックの場合 NotFound", func(t *testing.T) {
-		_, err := repo.SaveByMedicalRecordID(ctx, clinicB, &model.Inquiry{MedicalRecordID: mrA.ID, ChiefComplaint: "嘔吐"})
+		_, err := repo.SaveByMedicalRecordID(ctx, clinicB, InquiryUpsertFields{MedicalRecordID: mrA.ID, ChiefComplaint: strPtr("嘔吐")})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
 	t.Run("medical_record が存在しない場合 NotFound", func(t *testing.T) {
-		_, err := repo.SaveByMedicalRecordID(ctx, clinicA, &model.Inquiry{MedicalRecordID: 999999, ChiefComplaint: "嘔吐"})
+		_, err := repo.SaveByMedicalRecordID(ctx, clinicA, InquiryUpsertFields{MedicalRecordID: 999999, ChiefComplaint: strPtr("嘔吐")})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
 	var savedID uint64
 	t.Run("新規作成される", func(t *testing.T) {
-		got, err := repo.SaveByMedicalRecordID(ctx, clinicA, &model.Inquiry{MedicalRecordID: mrA.ID, ChiefComplaint: "嘔吐", Notes: "初回"})
+		got, err := repo.SaveByMedicalRecordID(ctx, clinicA, InquiryUpsertFields{MedicalRecordID: mrA.ID, ChiefComplaint: strPtr("嘔吐"), Notes: strPtr("初回")})
 		require.NoError(t, err)
 		assert.Equal(t, mrA.ID, got.MedicalRecordID)
 		assert.Equal(t, "嘔吐", got.ChiefComplaint)
@@ -77,7 +77,7 @@ func TestInquiryRepository_SaveByMedicalRecordID(t *testing.T) {
 	})
 
 	t.Run("既存レコードは新規作成せず更新される（同一 medical_record_id は1件のみ）", func(t *testing.T) {
-		got, err := repo.SaveByMedicalRecordID(ctx, clinicA, &model.Inquiry{MedicalRecordID: mrA.ID, ChiefComplaint: "下痢", Notes: "再診"})
+		got, err := repo.SaveByMedicalRecordID(ctx, clinicA, InquiryUpsertFields{MedicalRecordID: mrA.ID, ChiefComplaint: strPtr("下痢"), Notes: strPtr("再診")})
 		require.NoError(t, err)
 		assert.Equal(t, savedID, got.ID, "同じ medical_record_id に対して同一レコードが更新される")
 		assert.Equal(t, "下痢", got.ChiefComplaint)
@@ -97,12 +97,96 @@ func TestInquiryRepository_SaveByMedicalRecordID(t *testing.T) {
 		}
 		require.NoError(t, db.WithContext(ctx).Create(mrFinalized).Error)
 
-		_, err := repo.SaveByMedicalRecordID(ctx, clinicA, &model.Inquiry{MedicalRecordID: mrFinalized.ID, ChiefComplaint: "嘔吐"})
+		_, err := repo.SaveByMedicalRecordID(ctx, clinicA, InquiryUpsertFields{MedicalRecordID: mrFinalized.ID, ChiefComplaint: strPtr("嘔吐")})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsConflict(err), "確定済みカルテへの問診保存は Conflict(409) であるべき: %v", err)
 
 		var count int64
 		require.NoError(t, db.WithContext(ctx).Model(&model.Inquiry{}).Where("medical_record_id = ?", mrFinalized.ID).Count(&count).Error)
 		assert.Zero(t, count, "確定済みカルテには問診データが残ってはならない")
+	})
+}
+
+// TestInquiryRepository_SaveByMedicalRecordID_ChiefComplaintTypeNullPersistence は
+// SLACK-COMPLAINT (EMR-87) の残存 UNKNOWN を実 DB で閉じる回帰テスト。
+// SaveByMedicalRecordID は送信フィールドのみ map[string]any に載せる:
+//   - ChiefComplaintTypeID = &nil（明示 JSON null）なら列を SQL NULL へ書き込む（意図的解除）
+//   - ChiefComplaintTypeID = nil（未送信）なら列に触れず既存値を保持する
+//   - 未送信の chief_complaint / notes は既存値を保持する（区分のみ保存で本文を消さない）
+func TestInquiryRepository_SaveByMedicalRecordID_ChiefComplaintTypeNullPersistence(t *testing.T) {
+	db := setupInquiryTestDB(t)
+	repo := NewInquiryRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	mr := makeInquiryMedicalRecord(t, db, clinicID, "MR-NULL-001")
+	ctype := makeChiefComplaintType(t, db, clinicID, "嘔吐")
+
+	// clearTypeID は明示的な「区分なし」(&nil) を表す。
+	var clearTypeID *uint64
+	// persistedTypeID は DB 列を直接読んで返す（返却 struct ではなく永続化値を検証する）。
+	// COALESCE で NULL を 0 へ写像する（chief_complaint_type_id の実 ID は 1 始まりのため 0 は NULL のみを意味する）。
+	persistedTypeID := func(t *testing.T) uint64 {
+		t.Helper()
+		var id uint64
+		require.NoError(t, db.WithContext(ctx).
+			Raw("SELECT COALESCE(chief_complaint_type_id, 0) FROM inquiries WHERE medical_record_id = ?", mr.ID).
+			Row().Scan(&id))
+		return id
+	}
+
+	t.Run("区分未選択のまま保存すると列は NULL で主訴本文は残る", func(t *testing.T) {
+		got, err := repo.SaveByMedicalRecordID(ctx, clinicID, InquiryUpsertFields{
+			MedicalRecordID: mr.ID,
+			ChiefComplaint:  ptr("元気がない"),
+		})
+		require.NoError(t, err)
+		assert.Nil(t, got.ChiefComplaintTypeID)
+		assert.Equal(t, "元気がない", got.ChiefComplaint)
+		assert.Zero(t, persistedTypeID(t), "未選択保存は chief_complaint_type_id を NULL で永続化する")
+	})
+
+	t.Run("既存区分を明示 null (&nil) で再保存すると列が NULL に戻り本文は保持される", func(t *testing.T) {
+		setType := &ctype.ID
+		got, err := repo.SaveByMedicalRecordID(ctx, clinicID, InquiryUpsertFields{
+			MedicalRecordID:      mr.ID,
+			ChiefComplaintTypeID: &setType,
+			ChiefComplaint:       ptr("嘔吐気味"),
+		})
+		require.NoError(t, err)
+		require.NotNil(t, got.ChiefComplaintTypeID)
+		assert.Equal(t, ctype.ID, *got.ChiefComplaintTypeID)
+		assert.Equal(t, ctype.ID, persistedTypeID(t))
+
+		// 区分のみを解除する保存（chief_complaint は未送信）: 列は NULL、本文は保持。
+		got, err = repo.SaveByMedicalRecordID(ctx, clinicID, InquiryUpsertFields{
+			MedicalRecordID:      mr.ID,
+			ChiefComplaintTypeID: &clearTypeID,
+		})
+		require.NoError(t, err)
+		assert.Nil(t, got.ChiefComplaintTypeID)
+		assert.Zero(t, persistedTypeID(t), "明示 null で再保存したら DB 列も NULL になる")
+		assert.Equal(t, "嘔吐気味", got.ChiefComplaint, "区分解除のみの保存で主訴本文を失わない")
+	})
+
+	t.Run("chief_complaint_type_id 未送信は既存区分を保持する（PATCH 部分更新）", func(t *testing.T) {
+		setType := &ctype.ID
+		_, err := repo.SaveByMedicalRecordID(ctx, clinicID, InquiryUpsertFields{
+			MedicalRecordID:      mr.ID,
+			ChiefComplaintTypeID: &setType,
+		})
+		require.NoError(t, err)
+		require.Equal(t, ctype.ID, persistedTypeID(t))
+
+		// 本文だけの保存（chief_complaint_type_id 未送信）: 既存区分を消さない。
+		got, err := repo.SaveByMedicalRecordID(ctx, clinicID, InquiryUpsertFields{
+			MedicalRecordID: mr.ID,
+			ChiefComplaint:  ptr("再診テキスト"),
+		})
+		require.NoError(t, err)
+		require.NotNil(t, got.ChiefComplaintTypeID)
+		assert.Equal(t, ctype.ID, *got.ChiefComplaintTypeID)
+		assert.Equal(t, ctype.ID, persistedTypeID(t), "未送信フィールドは既存値を保持する")
+		assert.Equal(t, "再診テキスト", got.ChiefComplaint)
 	})
 }

@@ -23,6 +23,7 @@ func TestToTreatmentResponse_DoseFieldsPresentWhenSaved(t *testing.T) {
 		ID:                1,
 		MedicalRecordID:   10,
 		ItemType:          model.TreatmentItemTypeMedicine,
+		Version:           3,
 		DoseWeightKg:      &weightKg,
 		DoseWeightSource:  &weightSource,
 		DoseAmountMg:      &amountMg,
@@ -32,6 +33,7 @@ func TestToTreatmentResponse_DoseFieldsPresentWhenSaved(t *testing.T) {
 
 	resp := toTreatmentResponse(treatment)
 
+	assert.Equal(t, 3, resp.Version)
 	require.NotNil(t, resp.DoseWeightKg)
 	assert.Equal(t, weightKg, *resp.DoseWeightKg)
 	require.NotNil(t, resp.DoseWeightSource)

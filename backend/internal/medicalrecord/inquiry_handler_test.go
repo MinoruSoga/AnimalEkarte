@@ -75,6 +75,39 @@ func TestUpdateInquiry(t *testing.T) {
 			wantBody:   `"chief_complaint":"嘔吐"`,
 		},
 		{
+			name:     "binds explicit JSON null chief_complaint_type_id as &nil for intentional clear (EMR-87)",
+			paramID:  "5",
+			body:     map[string]any{"chief_complaint_type_id": nil, "chief_complaint": "元気がない"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockInquiryService{
+				upsertFn: func(_ context.Context, input UpsertInquiryInput) (*model.Inquiry, error) {
+					require.NotNil(t, input.ChiefComplaintTypeID, "JSON null は「送信済み・値なし」(&nil) として service input に届く")
+					assert.Nil(t, *input.ChiefComplaintTypeID, "内側 nil は NULL クリアを意味する")
+					require.NotNil(t, input.ChiefComplaint)
+					assert.Equal(t, "元気がない", *input.ChiefComplaint)
+					return &model.Inquiry{ID: 1, MedicalRecordID: 5, ChiefComplaint: *input.ChiefComplaint}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"chief_complaint":"元気がない"`,
+		},
+		{
+			name:     "omitted chief_complaint_type_id stays absent (preserve) and does not reach service as clear (EMR-87)",
+			paramID:  "5",
+			body:     map[string]any{"chief_complaint": "嘔吐が続く"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockInquiryService{
+				upsertFn: func(_ context.Context, input UpsertInquiryInput) (*model.Inquiry, error) {
+					assert.Nil(t, input.ChiefComplaintTypeID, "未送信は nil 外側ポインタ（既存値保持）として届く")
+					require.NotNil(t, input.ChiefComplaint)
+					assert.Equal(t, "嘔吐が続く", *input.ChiefComplaint)
+					return &model.Inquiry{ID: 1, MedicalRecordID: 5, ChiefComplaint: *input.ChiefComplaint}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"chief_complaint":"嘔吐が続く"`,
+		},
+		{
 			name:       "returns 401 when clinic_id is missing",
 			paramID:    "5",
 			body:       map[string]any{"notes": "x"},
