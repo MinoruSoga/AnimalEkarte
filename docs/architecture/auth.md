@@ -24,9 +24,11 @@
 
 ### 1.3 アカウント・スタッフ・医院所属の不変条件
 
-同一人物は 1 つの `accounts` 行と 1 件の `staffs` 行で表し、複数医院への所属は `staff_clinic_assignments` の複数行で表現する。医院ごとに別アカウント・別 staffs 行を発行しない。`staffs.clinic_id` は主所属で、兼務先は assignment 行で追加する。
+同一人物は 1 つの `accounts` 行で表し、医院ごとに別アカウントを発行しない。複数医院への所属は `staff_clinic_assignments` の行で表現し、`staffs.clinic_id` は主所属である。
 
-認証・認可は `staffs.account_id` から staff 行を一意に解決する前提で動作する（`FindByAccountID` は単一の staff を返す）。DB は `staffs.account_id` の一意性を制約で強制しないため、この不変条件はアプリ・プロビジョニング・移行手順が維持する。同一人物かどうかの判定は同姓同名の一致だけでは根拠にならず、統合には権威ある identity 対応表が必要である。
+`staffs` 行の粒度は登録経路で異なる。通常のスタッフ登録・`staff-provision` は 1 人物 = 1 staffs 行で、兼務は assignment の追加で表す。一方、旧DB移行データでは `(doctor_id, clinic_id)` 複合FK が医院別の staffs 行を要求するため、同一人物が医院別に複数の staffs 行を持ちうる。その場合、同一人物の全行は同一 `account_id` を共有し、各行は所属医院すべてへの assignment を持つ（`scripts/sql/link-old-db-cross-clinic-staff-accounts.sql` のリンクモデル）。統合の根拠は old_db 側の権威 identity map で、製品側は `scripts/sql/link-old-db-staff-identity-map.sql` が `CONFIRMED` 分類のグループのみを適用する（`NEEDS_REVIEW` / `UNRESOLVED` は別アカウントを維持）。map 非指定のローカル reset 経路では同名ヒューリスティック版が fallback として残る。
+
+認証・認可は `staffs.account_id` から 1 つの staff 行を解決する（`FindByAccountID` は単一の staff を返す）。同一人物の複数行が同等の assignment を持つため、解決先の行によらず同一の医院アクセスを得る前提である。DB は `staffs.account_id` の一意性を制約で強制しないため、この不変条件はアプリ・プロビジョニング・移行手順が維持する。同一人物かどうかの判定は同姓同名の一致だけでは根拠にならず、統合には権威ある identity 対応表が必要である。
 
 ---
 
