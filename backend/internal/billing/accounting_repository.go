@@ -383,7 +383,7 @@ func (r *accountingRepository) attachBillingListRelations(ctx context.Context, b
 	g, gctx := errgroup.WithContext(ctx)
 	g.Go(func() error {
 		if err := r.db.WithContext(gctx).
-			Where("billing_id IN ? AND deleted_at IS NULL", ids).
+			Where("billing_id IN ? AND clinic_id IN ? AND deleted_at IS NULL", ids, clinicIDs).
 			Find(&payments).Error; err != nil {
 			return apperrors.FromGORM(err, "payment", "")
 		}
@@ -391,6 +391,7 @@ func (r *accountingRepository) attachBillingListRelations(ctx context.Context, b
 	})
 	g.Go(func() error {
 		if err := r.db.WithContext(gctx).
+			Scopes(persistence.BillingTenantScope("billing_items", clinicIDs)).
 			Where("billing_id IN ? AND deleted_at IS NULL", ids).
 			Find(&items).Error; err != nil {
 			return apperrors.FromGORM(err, "billing_item", "")
