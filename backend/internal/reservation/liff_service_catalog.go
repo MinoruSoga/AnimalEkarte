@@ -18,7 +18,7 @@ func (s *liffService) GetSettings(ctx context.Context, clinicID uint64) (*model.
 
 // GetProfile は顧客プロフィールを返す。
 func (s *liffService) GetProfile(ctx context.Context, clinicID, customerID uint64) (*model.LineCustomer, error) {
-	c, err := s.customerRepo.FindByID(ctx, clinicID, customerID)
+	c, err := s.findCustomerWithOwnerSync(ctx, clinicID, customerID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get customer profile")
 	}
