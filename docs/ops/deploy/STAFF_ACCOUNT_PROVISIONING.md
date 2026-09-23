@@ -37,6 +37,8 @@
 
 **identity 不変条件**: 各 `staff` 行は **1 人物 = 1 行** とする。ソースデータで同一人物が複数医院に所属する場合、manifest では 1 行に集約し `main_clinic_id` と `clinic_ids`（所属医院すべて）で表す。医院ごとに別行（= 別アカウント）を生成しない（[auth §1.3](../../architecture/auth.md)）。同姓同名の一致だけでは同一人物の根拠にならないため、集約には権威ある identity 対応表が必要である。なお旧DB移行経路では `(doctor_id, clinic_id)` 複合FK のため同一人物が医院別の複数 staffs 行を持ちうるが、その場合も行が共有するアカウントは 1 つである。統合は old_db の権威 identity map に基づき `scripts/sql/link-old-db-staff-identity-map.sql` が `CONFIRMED` グループのみを適用する（`scripts/staff-identity-map-link.sh` 経由、map CSV は 0600 + SHA256SUMS 検証）。map 非指定のローカル reset 経路では `scripts/sql/link-old-db-cross-clinic-staff-accounts.sql` の同名ヒューリスティックが fallback として残る。
 
+**移行スタッフの有効化**: 旧DB移行スタッフは `is_active=false` で投入される（退職フラグではなく移行ポリシー）。有効化は old_db の権威 staff-activity map（在籍推定 artifact）に基づき `scripts/sql/apply-old-db-staff-activity-map.sql` が `ACTIVE_CONFIRMED` 分類のみ `is_active=true` にする（`scripts/staff-activity-map-apply.sh` 経由、map CSV は 0600 + SHA256SUMS 検証）。`ACTIVE_LIKELY` / `LIKELY_RETIRED` / `NO_EVIDENCE` は変更しない。
+
 各 `staff` 行:
 
 - `external_staff_id`（batch 内一意）
