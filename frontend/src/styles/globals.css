@@ -181,6 +181,15 @@
     @apply border-border outline-ring;
   }
 
+  /* EMR-207 (BUG-BUTTON-FOCUS-INVISIBLE): 共有 Button の focus-visible ユーティリティを
+     持たないネイティブ <button> へブランド色インジケータを保証する。
+     outline-hidden は強制カラーモードで可視化される transparent outline を残すため、
+     box-shadow が無効な環境でも単一の可視インジケータを維持する。 */
+  button:focus-visible:not([class*="focus-visible"]) {
+    @apply outline-hidden;
+    box-shadow: var(--shadow-focus-primary);
+  }
+
   html {
     font-family:
       "Inter",
