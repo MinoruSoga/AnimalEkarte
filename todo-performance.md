@@ -118,7 +118,7 @@ E4 以降にユーザー報告で発覚した追加原因と、採用した改�
 - **コンテナ↔DB の地理分離**: DB は `ap-northeast-2.pg.psdb.cloud`（PlanetScale = AWS ソウル）。当初コンテナは `ewr01`（米東部）で稼働し、認証ミドルウェアが毎リクエスト staff→account→assignments→clinics を逐次 DB 再検証するため、1 往復 ~190ms×クエリ数が積み上がっていた。
 - **インスタンス配置はブート/ロールアウト毎に再抽選される**: 同一 DO 名 `cf-singleton-container` のまま `ewr01→bom09→maa01→sin14→bom09` とドリフトを観測。DO の `locationHint`/改名は初回 DO 作成時のみ効く best-effort で、**インスタンス再配置には効かない**（PR #423 の `api-apac-ne-v1` 実験は bom09 着地で撤回・PR #425）。
 - **`constraints.cities` はこのアカウントで利用不可**: デプロイが `VALIDATE_INPUT: City-level placement requires INTERNAL or CITIES_CONSTRAINT capability` で失敗（run 35749806541）。メトロ粒度のピン留めはできない。
-- `scheduling_policy: "regional"` を wrangler.jsonc に記載したが `wrangler containers info` は `default` を返し続ける。API が受理したか不明。
+- `scheduling_policy: "regional"` を wrangler.jsonc に記載したが `wrangler containers info` は `default` を返し続ける。2026-09-23 EMR-202 で切り分け済み: deploy 時の PATCH で `regional` は送信され API も受理する(CI log の `default → regional` 差分 + `SUCCESS Modified application`)が、既存 application には永続化されず readback は `default` のまま(v69/70/71 で再現)。wrangler 側の設定未適用ではなく Cloudflare Containers API 側の既存 app への PATCH 不保持が原因。実質 application 作成時のみ有効で、反映には app 削除→再作成(破壊的・要承認)が必要。運用は [STG runbook](docs/ops/infra/staging/runbook.md)「Container placement」参照。
 
 ### 採用した変更（staging にマージ済み）
 
@@ -127,7 +127,7 @@ E4 以降にユーザー報告で発覚した追加原因と、採用した改�
 | #424 | STG限定の認証 resolver キャッシュ `CURRENT_ACCESS_CACHE_TTL_SEC=30`（vars→envVars→`os.Getenv`→`composition_auth.go` の env ゲート。未設定/0/負値ならキャッシュ無しで本番は従来通り）。`sleepAfter` 10m→1h |
 | #426 | `containers[].constraints.regions = ["APAC"]` — 配置抽選を APAC メトロに限定（無料） |
 | #427 | `Dockerfile.production` に `LABEL rollout="1"` — イメージ差分で新バージョンを強制ロールアウトし即時再配置を起こす仕掛け。`verify-agent-task.py` に Dockerfile の scoped 検証（`docker build --check`）を追加 |
-| #428 | `scheduling_policy: "regional"`（API 上は default のまま。残置するが効果未確認） |
+| #428 | `scheduling_policy: "regional"`（PATCH は送信・受理されるが既存 app に永続化されず deployed=default のままと 2026-09-23 EMR-202 で確定。将来の app 再作成に備えた宣言として残置） |
 | #429→#430 | `cities` 試行→ケイパビリティ不足で失敗→撤回 |
 
 ### 実測（認証済み・暖機・日本から）
