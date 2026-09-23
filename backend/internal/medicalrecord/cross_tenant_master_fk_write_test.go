@@ -372,9 +372,9 @@ func TestInquiryService_Save_RejectsCrossClinicChiefComplaintType(t *testing.T) 
 
 	newSvc := func(saved *bool) InquiryService {
 		repo := &mockInquiryRepository{
-			upsertFn: func(_ context.Context, _ uint64, inquiry *model.Inquiry) (*model.Inquiry, error) {
+			upsertFn: func(_ context.Context, _ uint64, _ InquiryUpsertFields) (*model.Inquiry, error) {
 				*saved = true
-				return inquiry, nil
+				return &model.Inquiry{}, nil
 			},
 		}
 		return NewInquiryService(repo, rejectChiefComplaintTypeRepo(ownedTypeID))
@@ -384,8 +384,9 @@ func TestInquiryService_Save_RejectsCrossClinicChiefComplaintType(t *testing.T) 
 		saved := false
 		svc := newSvc(&saved)
 		foreign := foreignTypeID
+		foreignSet := &foreign
 		out, err := svc.Save(context.Background(), UpsertInquiryInput{
-			ClinicID: clinicID, MedicalRecordID: 1, ChiefComplaintTypeID: &foreign,
+			ClinicID: clinicID, MedicalRecordID: 1, ChiefComplaintTypeID: &foreignSet,
 		})
 		assert.Error(t, err)
 		assert.Nil(t, out)
@@ -396,8 +397,9 @@ func TestInquiryService_Save_RejectsCrossClinicChiefComplaintType(t *testing.T) 
 		saved := false
 		svc := newSvc(&saved)
 		owned := ownedTypeID
+		ownedSet := &owned
 		out, err := svc.Save(context.Background(), UpsertInquiryInput{
-			ClinicID: clinicID, MedicalRecordID: 1, ChiefComplaintTypeID: &owned,
+			ClinicID: clinicID, MedicalRecordID: 1, ChiefComplaintTypeID: &ownedSet,
 		})
 		assert.NoError(t, err)
 		assert.NotNil(t, out)

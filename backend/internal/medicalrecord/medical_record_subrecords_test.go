@@ -16,7 +16,7 @@ func TestCreateSubRecords(t *testing.T) {
 	t.Run("no inquiry input: SaveByMedicalRecordID is not called", func(t *testing.T) {
 		saveCalled := false
 		inquiryRepo := &mockInquiryRepository{
-			upsertFn: func(_ context.Context, _ uint64, _ *model.Inquiry) (*model.Inquiry, error) {
+			upsertFn: func(_ context.Context, _ uint64, _ InquiryUpsertFields) (*model.Inquiry, error) {
 				saveCalled = true
 				return &model.Inquiry{}, nil
 			},
@@ -34,14 +34,14 @@ func TestCreateSubRecords(t *testing.T) {
 	})
 
 	t.Run("inquiry input present: SaveByMedicalRecordID is called with mapped fields", func(t *testing.T) {
-		var savedInquiry *model.Inquiry
+		var savedInquiry *InquiryUpsertFields
 		typeID := uint64(3)
 		complaint := "食欲不振"
 		notes := "2日前から"
 		inquiryRepo := &mockInquiryRepository{
-			upsertFn: func(_ context.Context, _ uint64, inquiry *model.Inquiry) (*model.Inquiry, error) {
-				savedInquiry = inquiry
-				return inquiry, nil
+			upsertFn: func(_ context.Context, _ uint64, fields InquiryUpsertFields) (*model.Inquiry, error) {
+				savedInquiry = &fields
+				return &model.Inquiry{}, nil
 			},
 		}
 		clinicalPlanRepo := &mockClinicalPlanRepository{
@@ -59,16 +59,22 @@ func TestCreateSubRecords(t *testing.T) {
 
 		if assert.NotNil(t, savedInquiry) {
 			assert.Equal(t, uint64(10), savedInquiry.MedicalRecordID)
-			assert.Equal(t, &typeID, savedInquiry.ChiefComplaintTypeID)
-			assert.Equal(t, complaint, savedInquiry.ChiefComplaint)
-			assert.Equal(t, notes, savedInquiry.Notes)
+			if assert.NotNil(t, savedInquiry.ChiefComplaintTypeID) {
+				assert.Equal(t, &typeID, *savedInquiry.ChiefComplaintTypeID)
+			}
+			if assert.NotNil(t, savedInquiry.ChiefComplaint) {
+				assert.Equal(t, complaint, *savedInquiry.ChiefComplaint)
+			}
+			if assert.NotNil(t, savedInquiry.Notes) {
+				assert.Equal(t, notes, *savedInquiry.Notes)
+			}
 		}
 	})
 
 	t.Run("inquiry upsert failure is logged and swallowed (best-effort)", func(t *testing.T) {
 		complaint := "嘔吐"
 		inquiryRepo := &mockInquiryRepository{
-			upsertFn: func(_ context.Context, _ uint64, _ *model.Inquiry) (*model.Inquiry, error) {
+			upsertFn: func(_ context.Context, _ uint64, _ InquiryUpsertFields) (*model.Inquiry, error) {
 				return nil, errors.New("db error")
 			},
 		}
