@@ -518,6 +518,17 @@ def plan(paths):
             if path.endswith('.sh'):
                 jobs.append({'service': 'host', 'command': ['bash', '-n', path]})
         elif path in (
+            'scripts/apply-old-db-staff-activity-map.py',
+            'scripts/sql/apply-old-db-staff-activity-map.sql',
+            'scripts/staff-activity-map-apply.sh',
+        ):
+            jobs.append({
+                'service': 'host',
+                'command': ['python3', '-B', 'scripts/apply-old-db-staff-activity-map.py', '--self-test'],
+            })
+            if path.endswith('.sh'):
+                jobs.append({'service': 'host', 'command': ['bash', '-n', path]})
+        elif path in (
             'scripts/check-workflow-contracts.test.mjs',
             '.github/workflows/security-scan.yml',
             '.github/workflows/README-security-scan.md',
