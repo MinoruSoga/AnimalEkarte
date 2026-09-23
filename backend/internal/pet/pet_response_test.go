@@ -78,6 +78,55 @@ func TestToPetListResponseIncludesOwnerReportDetailFields(t *testing.T) {
 	assert.Equal(t, 70, resp.Insurance.CoverageRate)
 }
 
+// TestToPetListResponseSerializesDeceasedFields は PERF-E5-N1-PETS のリグレッションテスト。
+// ownerLoader が飼主詳細ペットを GET /v1/pets?owner_id=<id>&include_deceased=true の
+// 単一リクエストへ集約したため、list DTO も detail 経路が返していた
+// deceased_at / deceased_reason / phone を保持する（飼主詳細で情報欠落させない）。
+// deceased_reason は staff 向け経路限定の契約で PetResponse 側の BUG-003 と同じ範囲。
+func TestToPetListResponseSerializesDeceasedFields(t *testing.T) {
+	deceasedAt := time.Date(2026, 7, 10, 3, 0, 0, 0, time.UTC)
+	deceasedReason := "老衰"
+
+	resp := toPetListResponse(&model.Pet{
+		ID:             7,
+		OwnerID:        42,
+		Name:           "ポチ",
+		Status:         model.PetStatusDeceased,
+		Phone:          "090-1111-2222",
+		DeceasedAt:     &deceasedAt,
+		DeceasedReason: &deceasedReason,
+	})
+
+	assert.Equal(t, "090-1111-2222", resp.Phone)
+	require.NotNil(t, resp.DeceasedAt)
+	assert.True(t, deceasedAt.Equal(*resp.DeceasedAt))
+	require.NotNil(t, resp.DeceasedReason)
+	assert.Equal(t, deceasedReason, *resp.DeceasedReason)
+
+	body, err := json.Marshal(resp)
+	require.NoError(t, err)
+	assert.Contains(t, string(body), `"deceased_reason":"老衰"`)
+	assert.Contains(t, string(body), "deceased_at")
+}
+
+// TestToPetListResponseOmitsDeceasedFieldsWhenAlive は、生存ペットで
+// deceased_at / deceased_reason が JSON から物理的に欠落することを保証する
+// （誤って死亡情報を捏造しない。detail 側 TestToResponseOmitsDeceasedAtWhenAlive と同契約）。
+func TestToPetListResponseOmitsDeceasedFieldsWhenAlive(t *testing.T) {
+	resp := toPetListResponse(&model.Pet{
+		ID:     7,
+		Status: model.PetStatusAlive,
+	})
+
+	assert.Nil(t, resp.DeceasedAt)
+	assert.Nil(t, resp.DeceasedReason)
+
+	body, err := json.Marshal(resp)
+	require.NoError(t, err)
+	assert.NotContains(t, string(body), "deceased_at")
+	assert.NotContains(t, string(body), "deceased_reason")
+}
+
 // TestToResponseSerializesDeceasedAt は
 // PR#186 P2-2 Bug#1 のリグレッションテスト。死亡記録された pet の
 // deceased_at が pet 詳細 (toResponse) で serialize されることを保証する。
