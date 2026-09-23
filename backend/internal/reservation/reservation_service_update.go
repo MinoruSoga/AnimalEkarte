@@ -132,6 +132,13 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 	needsKarteCheck := isTransitioningToInConsultation(current, input)
 	isCancel := input.Status != nil && *input.Status == model.ReservationStatusCancelled
 
+	// EMR-74: 汎用 Update は trimming 予約の in_consultation 遷移を InvalidInput で拒否する。
+	// FindByID は ReservationType を clinic スコープで preload 済みのため current で判定できる。
+	// tx 内のカルテ存在チェックより先に評価し、cancel/conflict-check 両経路をカバーする。
+	if err := validateGenericUpdateRejectsTrimmingInConsultation(current, input); err != nil {
+		return nil, err
+	}
+
 	// RSV-06 / X-06: cancel = status update + soft delete as one business graph.
 	// Q7: soft-delete after status=cancelled so FindByID (deleted_at IS NULL) can still return
 	// the cancelled row from the update path before Delete; both must share one transaction.

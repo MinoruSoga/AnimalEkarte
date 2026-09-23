@@ -283,6 +283,30 @@ func isTransitioningToInConsultation(current *model.Reservation, input *UpdateRe
 	return true
 }
 
+// validateGenericUpdateRejectsTrimmingInConsultation は汎用 Update（PATCH
+// /api/v1/reservations/:id）が trimming 予約を in_consultation へ遷移させることを拒否する。
+//
+// EMR-74: in_consultation は受付カンバンの「診療中」（診療行為）を表す。trimming の
+// 「施術中」は同じ enum 値を共有するが、遷移は trimming intent（UpdateForTrimming）
+// が所有するため汎用 Update では受け付けない。
+// カルテ存在チェック（validateInConsultationHasMedicalRecord）より先に呼ぶ。
+// current.ReservationType が未 preload の場合は既存挙動（カルテ検査）へフォールスルーする。
+func validateGenericUpdateRejectsTrimmingInConsultation(
+	current *model.Reservation,
+	input *UpdateReservationInput,
+) error {
+	if !isTransitioningToInConsultation(current, input) {
+		return nil
+	}
+	if current == nil || current.ReservationType == nil {
+		return nil
+	}
+	if current.ReservationType.Category != model.ReservationTypeCategoryTrimming {
+		return nil
+	}
+	return apperrors.WrapInvalidInput("トリミング予約は診療中ステータスに遷移できません")
+}
+
 func validateInConsultationHasMedicalRecord(
 	ctx context.Context,
 	repo ReservationRepository,
