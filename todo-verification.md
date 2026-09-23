@@ -231,16 +231,18 @@ READ の確定 URL と下書きに対する承認後、更新直前に対象本�
 
 ## PERF-STG-LOGIN
 
-技術記録は [todo-performance.md](todo-performance.md)。Worker 観測は現在 tracked code に存在し、未導入 WIP の扱いを終了した。`PERF-V-IMPLEMENT-OBSERVATION` の実 proxy 4 tests・worker typecheck（`index.test.ts` include済み）は `72807128` の [既存検証](.planning/agent-fast-campaign/four-candidate-integration-20260916/evidence/rev7-reverify-72807128-codex/controller/RECONCILIATION.md) で完了し、開いたキューから外した。残るのは遅延の因果測定、常時観測の必要性・出力範囲の再判定、STG 受入である。
+技術記録は [todo-performance.md](todo-performance.md)。Worker 観測は現在 tracked code に存在し、未導入 WIP の扱いを終了した。`PERF-V-IMPLEMENT-OBSERVATION` の実 proxy 4 tests・worker typecheck（`index.test.ts` include済み）は `72807128` の [既存検証](.planning/agent-fast-campaign/four-candidate-integration-20260916/evidence/rev7-reverify-72807128-codex/controller/RECONCILIATION.md) で完了し、開いたキューから外した。残るのは遅延の因果測定、常時観測の必要性・出力範囲の再判定、STG 受入である。（2026-09-23 E5 追記: 因果は `containerFetch` 区間まで局在、常時観測は KEEP 判定、STG 受入証拠は4ケース取得済。下表の各状態を参照。）
 
 | 順 | ID | 状態 | 次の作業・完了条件 |
 |---|---|---|---|
-| 1 | [PERF-V-CLIENT-TRACE](#性能タスクの着手順と成果物) | 承認・観測条件待ち | `/login` 遷移前から OPTIONS / GET、FCP、操作可能時刻を記録。通常読込と再読込を分ける |
-| 2 | [PERF-V-CF-EVENTS](#性能タスクの着手順と成果物) | provider 証拠待ち | 同じ時刻の Worker 受付・forwarding・Container 起動を関連づける。時刻対応できなければ UNKNOWN |
-| 3 | [PERF-V-DECIDE-OBSERVATION](#性能タスクの着手順と成果物) | 調査待ち | 実装済み観測の常時出力が必要かを1・2の結果から再判定。必要なら対象を限定する変更、不要なら撤去を別実装単位にする |
-| 4 | [PERF-V-MITIGATION](#性能タスクの着手順と成果物) | DEFERRED（因果待ち） | OPTIONS / GET の遅延箇所を特定してから通信・設定変更を選ぶ |
-| 5 | [PERF-V-BUNDLE](#性能タスクの着手順と成果物) | DEFERRED（実測待ち） | 固定 revision の転送・parse/execute への寄与を測り、必要な変更だけを判断 |
-| 6 | [PERF-V-STG-ACCEPTANCE](#性能タスクの着手順と成果物) | ブラウザ受入待ち | 対象 build の匿名・既存 session・復旧・医院選択を確認し、待機表示・操作可能・認証成功の時刻を分離 |
+| 1 | [PERF-V-CLIENT-TRACE](#性能タスクの着手順と成果物) | 承認・観測条件待ち → 証拠取得済（2026-09-23 E5） | `/login` 遷移前から OPTIONS / GET、FCP、操作可能時刻を記録。通常読込と再読込を分ける |
+| 2 | [PERF-V-CF-EVENTS](#性能タスクの着手順と成果物) | provider 証拠待ち → 証拠取得済（2026-09-23 E5） | 同じ時刻の Worker 受付・forwarding・Container 起動を関連づける。時刻対応できなければ UNKNOWN |
+| 3 | [PERF-V-DECIDE-OBSERVATION](#性能タスクの着手順と成果物) | 調査待ち → 判定済 KEEP（2026-09-23 E5） | 実装済み観測の常時出力が必要かを1・2の結果から再判定。必要なら対象を限定する変更、不要なら撤去を別実装単位にする |
+| 4 | [PERF-V-MITIGATION](#性能タスクの着手順と成果物) | DEFERRED（因果待ち → 原因は containerFetch 区間に局在。2026-09-23 E5） | OPTIONS / GET の遅延箇所を特定してから通信・設定変更を選ぶ |
+| 5 | [PERF-V-BUNDLE](#性能タスクの着手順と成果物) | DEFERRED（実測待ち → /login は cold FCP 0.7s で bundle 非主因。2026-09-23 E5） | 固定 revision の転送・parse/execute への寄与を測り、必要な変更だけを判断 |
+| 6 | [PERF-V-STG-ACCEPTANCE](#性能タスクの着手順と成果物) | ブラウザ受入待ち → 証拠取得済（2026-09-23 E5、4ケース n=1） | 対象 build の匿名・既存 session・復旧・医院選択を確認し、待機表示・操作可能・認証成功の時刻を分離 |
+
+2026-09-23 E5 追記（証拠は `reports/perf-e5-residual-20260923/`）: CLIENT-TRACE は `/login` cold/warm 2遷移を記録し OPTIONS 0・FCP 692/88ms を取得（[client-trace](reports/perf-e5-residual-20260923/client-trace/README.md)）。CF-EVENTS は cf-ray 相関で `container_fetch` 866–3848ms 支配・edge+worker 約60–115ms・稼働 instance `maa01`・`scheduling_policy` deployed=`default` vs config=`regional` の乖離を取得（[cf-events](reports/perf-e5-residual-20260923/cf-events/README.md)）。DECIDE-OBSERVATION は KEEP と判定（[obs-decision](reports/perf-e5-residual-20260923/obs-decision/README.md)）。STG-ACCEPTANCE は匿名/既存session/復旧/ログイン後の4ケースを記録し login POST 3882ms・`/v1/me` 1475ms ゲート・OPTIONS 0（[stg-acceptance](reports/perf-e5-residual-20260923/stg-acceptance/README.md)）。測定値は現行 STG 配信版のもので、E5 のコード変更は未配備。PERF-V-LINEAR は対応先未確定のまま。
 
 - `PERF-V-CLIENT-TRACE`: 承認済み対象・時間枠・停止担当・証拠保存先を固定する。相対時刻、method、status、protocol、initiator、OPTIONS/GET 対応、FCP を保存し、Cookie・Authorization・本文・個人情報は含めない。HAR 等は保存前に機密除去。単発値や未使用時間だけで p95/p99・cold start・改善完了と判定しない。
 - `PERF-V-CF-EVENTS`: provider 時刻と browser 時刻を対応づけ、Container 起動証拠がない場合は Worker 所要時間だけで起動待ちと断定しない。観測で設定・配備を変更しない。

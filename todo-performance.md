@@ -65,3 +65,29 @@ HTML TTFB 49.2ms、DOMContentLoaded 303.1ms、load 309.1ms、FCP 23,548ms。`/ap
 - 将来の変更時は既存依存を使い、対象候補を mount した隔離 Docker の scoped Vitest と worker typecheck を使う。依存インストールを伴う旧 umbrella コマンドは今回実行しない。STG 性能受入はローカル検証とは別。
 
 参照: [測定チェックシート](docs/ops/testing/STG-PERFORMANCE-CHECKLIST.md) · [プロファイリングガイド](docs/ops/testing/PERFORMANCE_PROFILING.md)
+
+## E5: 2026-09-23 perf-e5-residual キャンペーン結果（revision 2）
+
+証拠の正本は `reports/perf-e5-residual-20260923/`。測定値は全て**計測時点の現行 STG 配信版**のもの。キャンペーンのコード変更は claim/PERF-E5-* ブランチまたは作業ツリー WIP にあり STG 未配備であり、下記の値に変更後の効果は含まれない。n=1・n=5 の単発観測であり p95/p99・SLO 達成を主張しない。
+
+### 実装単位（STG 未配備のコード変更）
+
+| 単位 | 結果 |
+|---|---|
+| EDGE-OPTIONS | OPTIONS preflight を Worker edge で応答する経路を実装。ただし cookie 認証の simple request では preflight が発生せず、browser 証拠（client-trace・stg-acceptance ともに OPTIONS 0 件）では同改善は未励起 — 正直な記録として併記する |
+| AXIOS-RETRY | axios の retry 動作を縮小 |
+| N1-PETS | owner loader を owner 1リクエスト + clinic_ids 付き owner スコープのページネーションへ変更し、ペット毎 detail fan-out を解消 |
+| AUTH-1RTT | `clinics.is_active` を resolver の JOIN へ畳み込み、非 admin の current-access を 1 RTT 化 |
+| STG-LOGIN | `AcceptSharedPassword` ゲートを bcrypt より前へ移動。staging のみ、production は不変 |
+
+### 測定・判定単位
+
+| 単位 | 取得証拠 | 主な値 |
+|---|---|---|
+| STG-MEASURE | [stg-measure](reports/perf-e5-residual-20260923/stg-measure/README.md)（curl、n=5 warm、中央値のみ） | health 0.199s / me 0.944s / clinics 0.572s / pets 1.108s / pets検索 1.100s / pets+include_deceased 1.103s。login 一回 3.33s |
+| CLIENT-TRACE | [client-trace](reports/perf-e5-residual-20260923/client-trace/README.md)（headless Chrome、n=1×2条件） | `/login` FCP cold 692ms / warm 88ms、DCL 663/57ms、long task 0、OPTIONS 0。唯一の API 呼出は未認証 `/me` 401（cold 488ms） |
+| CF-EVENTS | [cf-events](reports/perf-e5-residual-20260923/cf-events/README.md)（wrangler tail + cf-ray 相関、20秒5リクエスト） | `container_fetch` 866–3848ms が支配的。edge(KIX)+Worker shim は約60–115ms、Worker→DO は 5–7ms。稼働 instance は `maa01`（ingress は KIX、PlanetScale は ap-northeast-2）。`scheduling_policy` は deployed=`default` vs config=`regional` の乖離を記録 |
+| STG-ACCEPTANCE | [stg-acceptance](reports/perf-e5-residual-20260923/stg-acceptance/README.md)（4ケース、n=1。非SLO証拠） | 匿名 `/login` 操作可能 +1163ms。既存 session は `/v1/me` 1475ms にゲート。復旧は +689ms で login フォーム。login POST 3882ms → 認証 UI 205ms。医院選択ステップは存在せず `mainClinicId` 自動選択。全ケース OPTIONS 0 |
+| OBS-DECISION | [obs-decision](reports/perf-e5-residual-20260923/obs-decision/README.md) | `container_fetch_timing` 常時ログは **KEEP**。STG・production draft とも `head_sampling_rate: 1` を維持し、本番トラフィック実測後の再評価トリガーのみ記録 |
+
+残る DEFERRED: MITIGATION（原因は `containerFetch` 区間に局在。Go/DB の内訳は container 側計装が必要で、配置制約は regions 粒度までで選択肢が枯渇）、BUNDLE（転送/parse/execute 寄与は未測定。`/login` 頁は cold FCP 0.7s で bundle は主因ではない）。配置の再抽選手順は [STG runbook](docs/ops/infra/staging/runbook.md) を参照。
