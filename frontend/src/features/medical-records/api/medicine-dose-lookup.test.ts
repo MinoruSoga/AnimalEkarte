@@ -9,6 +9,7 @@ function makeVital(overrides: Partial<Vital>): Vital {
     medical_record_id: "1",
     recorded_at: "2026-07-12T00:00:00Z",
     weight_unit: "Kg",
+    version: 1,
     created_at: "2026-07-12T00:00:00Z",
     updated_at: "2026-07-12T00:00:00Z",
     ...overrides,

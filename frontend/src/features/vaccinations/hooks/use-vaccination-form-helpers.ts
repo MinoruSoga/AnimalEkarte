@@ -276,7 +276,6 @@ export async function runVaccinationSave(deps: VaccinationSaveDeps): Promise<{
       if (deps.entityReadRef.current.status !== "found") {
         return { success: false, timestamp: Date.now() };
       }
-      const req = buildUpdateVaccinationRequest(formData);
       if (!deps.isMutationAllowed("canEdit")) {
         toast.error("この操作を行う権限がありません");
         return { success: false, timestamp: Date.now() };
@@ -289,6 +288,14 @@ export async function runVaccinationSave(deps: VaccinationSaveDeps): Promise<{
         toast.error("死亡したペットの予防接種記録は保存できません");
         return { success: false, timestamp: Date.now() };
       }
+      // UAT-R2-EXCLUSIVE-LOCK: 読取済み version が無いまま送ると BE は CAS 照合を
+      // スキップするため fail-closed で拒否する（clinical_plan の保存アクションと同じ方針）。
+      const expectedVersion = deps.entityReadRef.current.data.version;
+      if (typeof expectedVersion !== "number") {
+        toast.error("予防接種情報の読み込みが完了してから保存してください");
+        return { success: false, timestamp: Date.now() };
+      }
+      const req = buildUpdateVaccinationRequest(formData, expectedVersion);
       await deps.updateMutation.mutateAsync({ id: deps.id, req });
       toast.success("予防接種情報を更新しました");
     } else {

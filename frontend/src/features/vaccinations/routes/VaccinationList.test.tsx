@@ -64,6 +64,7 @@ const vaccination: VaccinationRecord = {
   lot4: undefined,
   supplemental: undefined,
   remarks: undefined,
+  version: 1,
 };
 
 function LocationProbe() {

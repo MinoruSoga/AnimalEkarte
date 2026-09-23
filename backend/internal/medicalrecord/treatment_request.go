@@ -66,6 +66,7 @@ type updateTreatmentRequest struct {
 	SortOrder      *int     `json:"sort_order"`
 	// DoseDeviationReason は TASK-377: reason-required 時に必須。
 	DoseDeviationReason *string `json:"dose_deviation_reason"`
+	Version             *int    `json:"version"` // 楽観的ロック用
 }
 
 func (r *updateTreatmentRequest) toServiceInput() *UpdateTreatmentInput {
@@ -86,6 +87,7 @@ func (r *updateTreatmentRequest) toServiceInput() *UpdateTreatmentInput {
 		DiscountAmount:      r.DiscountAmount,
 		SortOrder:           r.SortOrder,
 		DoseDeviationReason: r.DoseDeviationReason,
+		Version:             r.Version,
 	}
 	if r.ItemType != nil {
 		itemType := model.TreatmentItemType(*r.ItemType)

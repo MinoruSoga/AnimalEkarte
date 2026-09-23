@@ -120,6 +120,7 @@ export function validateVaccinationForm(
 
 export function buildUpdateVaccinationRequest(
   formData: VaccinationFormState,
+  version: number,
 ): UpdateVaccinationRequest {
   const toRFC3339 = (d: string) => (d ? jstDateStartISOString(d) : undefined);
   return {
@@ -132,6 +133,8 @@ export function buildUpdateVaccinationRequest(
     remarks: formData.remarks || undefined,
     supplemental: formData.supplemental || undefined,
     next_schedule_type: formData.nextScheduleType || undefined,
+    // UAT-R2-EXCLUSIVE-LOCK: 読取済み version を expectedVersion として必ず同送する。
+    version,
   };
 }
 

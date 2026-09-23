@@ -110,3 +110,57 @@ docker compose --env-file .env.local exec -T backend go test -race -v -p 1 ./int
 - vaccination Delete への draft ガード拡張（設計票は Update/Delete 対称を示唆。本 unit の
   最小テスト計画は Update のみのため Update に実装。Delete 拡張は別 unit で検討）。
 - migration 適用（ユーザー手動 `make migrate`）と 2 セッション実機検証。
+
+---
+
+## 追記: version 送付配線 unit（EMR-85 dispatch / 2026-09-23）
+
+前 unit で留保していた request/response DTO・OpenAPI・FE 配線を実施。
+
+### 変更内容
+
+- request DTO 4 件（`updateTreatmentRequest` / `updateVitalRequest` /
+  `updatePrescriptionRequest` / `updateVaccinationRequest`）に
+  `Version *int`（json tag `version`）を追加し `toServiceInput` で
+  `input.Version` へマップ。nil=照合スキップの後方互換は維持。
+- response DTO 4 件に `version` を露出（model.Version をそのまま返却）。
+- `backend/docs/api.yaml`: Vaccination/Vital/Treatment/Prescription 各レスポンスと
+  Update*Request に version を追記（読取 version を次 PATCH へ同送、stale は 409）。
+- FE: `Treatment`/`Vital`/`VaccinationRecord` に `version` 追加し transform で写像。
+  更新境界（use-treatments-tab handleUpdate / MedicalRecordDiagnosisPlan・
+  MedicalRecordBillCheck handleUpdateItem / VitalsTab handleEditSave /
+  runVaccinationSave）は読取済み version を fail-closed で同送（未取得なら
+  toast 拒否。権限チェックは version チェックより先に実行し authz を覆わない）。
+- `src/hooks/use-create-vaccination.ts` の transform にも version を写像。
+
+### 検証（実施済み）
+
+- `docker compose run --rm --no-deps --entrypoint go backend test ./internal/medicalrecord/ -count=1` → ok 62.998s
+- `docker compose run --rm --no-deps --entrypoint go backend test ./internal/apicontract/ -count=1` → ok 0.434s
+- `docker compose run --rm --no-deps frontend npx vitest run src/features/vaccinations src/features/medical-records` → 80 files / 635 tests PASS
+- `docker compose run --rm --no-deps frontend pnpm type-check` → PASS
+- `docker compose run --rm --no-deps --entrypoint gofmt backend -l ./internal/medicalrecord/` → 差分なし
+
+### 実 DB・HTTP 2 リクエスト検証（2026-09-23、共有 dev DB `ekarte_db`）
+
+`005_child_records_version.sql` は共有 dev DB へ適用済み（entrypoint migration log で
+applied=0 / skipped=6 を確認。本 unit での適用作業はなし）。worktree build の API
+（:18085、`stg-staff-10000003@example.test` / clinic_id=1）で確認:
+
+- 治療 `PATCH /medical-records/1000000002/treatments/2`: version=2 で 200（version→3）、
+  同一 version=2 の再送で 409 `他のユーザーがこの治療を変更しました。再読み込みしてください`
+- バイタル `PATCH /medical-records/1000000019/vitals/1000000012`: version=1 で 200（→2）、
+  stale version=1 で 409 `他のユーザーがこのバイタルを変更しました。…`
+- 処方 `PATCH /medical-records/1000000019/prescriptions/1`: version=1 で 200（→2）、
+  stale version=1 で 409 `他のユーザーがこの処方を変更しました。…`
+- ワクチン `PATCH /vaccinations/1000000010`: version=1 で 200（→2）、stale version=1 で
+  409 `他のユーザーがこのワクチン接種を変更しました。…`、GET で勝者内容・version=2 を確認
+- 後方互換: version 省略 PATCH は 200（無条件更新・version+1）を実 DB で確認
+- 検証で作成した vital/処方/接種行は DELETE 済み（204）。既存 treatment#2 の content は
+  UAT ラベルへ復元済み（version=3 で PATCH、200）。
+
+### 残件（本 unit でも扱わない）
+
+- Delete / 一括並べ替えへの version 拡張可否（別 unit で検討）。
+- 会計側の実並行シナリオ（会計を開く→別端末で戻す→追加→確定）は billing 既存実装の
+  スコープ。本 unit は子レコード更新の配線のみ。

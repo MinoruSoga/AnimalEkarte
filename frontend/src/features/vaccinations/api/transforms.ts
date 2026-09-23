@@ -28,6 +28,8 @@ export function transformVaccination(data: BackendVaccination) {
     lot4: data.lot4 || undefined,
     supplemental: data.supplemental || undefined,
     remarks: data.remarks || undefined,
+    // UAT-R2-EXCLUSIVE-LOCK: 楽観的ロック用。編集保存の version にはこの値をそのまま送る。
+    version: data.version,
   };
 }
 

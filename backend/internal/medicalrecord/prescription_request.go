@@ -26,6 +26,7 @@ func (r createPrescriptionRequest) toServiceInput() (*CreatePrescriptionInput, e
 type updatePrescriptionRequest struct {
 	Date         *string `json:"date"`
 	DurationDays *int    `json:"duration_days"`
+	Version      *int    `json:"version"` // 楽観的ロック用
 }
 
 func (r updatePrescriptionRequest) toServiceInput() (*UpdatePrescriptionInput, error) {
@@ -41,5 +42,6 @@ func (r updatePrescriptionRequest) toServiceInput() (*UpdatePrescriptionInput, e
 	return &UpdatePrescriptionInput{
 		PrescribedAt: updateDate,
 		DurationDays: r.DurationDays,
+		Version:      r.Version,
 	}, nil
 }

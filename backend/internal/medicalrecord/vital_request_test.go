@@ -61,6 +61,7 @@ func TestUpdateVitalRequest_ToServiceInput(t *testing.T) {
 	weight := 0.0
 	weightUnit := "g"
 	notes := ""
+	version := 4
 
 	req := updateVitalRequest{
 		RecordedAt:      &recordedAt,
@@ -71,6 +72,7 @@ func TestUpdateVitalRequest_ToServiceInput(t *testing.T) {
 		Weight:          &weight,
 		WeightUnit:      &weightUnit,
 		Notes:           &notes,
+		Version:         &version,
 	}
 
 	input := req.toServiceInput(9)
@@ -86,13 +88,17 @@ func TestUpdateVitalRequest_ToServiceInput(t *testing.T) {
 	if input.ActorID == nil || *input.ActorID != 9 {
 		t.Fatalf("ActorID = %v, want 9", input.ActorID)
 	}
+	if input.Version == nil || *input.Version != version {
+		t.Fatalf("Version = %v, want %d", input.Version, version)
+	}
 }
 
 func TestUpdateVitalRequest_ToServiceInput_NilFields(t *testing.T) {
 	input := (&updateVitalRequest{}).toServiceInput(9)
 
 	if input.RecordedAt != nil || input.StaffID != nil || input.Temperature != nil || input.HeartRate != nil ||
-		input.RespirationRate != nil || input.Weight != nil || input.WeightUnit != nil || input.Notes != nil {
+		input.RespirationRate != nil || input.Weight != nil || input.WeightUnit != nil || input.Notes != nil ||
+		input.Version != nil {
 		t.Fatalf("input = %+v, want request fields nil", input)
 	}
 	if input.ActorID == nil || *input.ActorID != 9 {

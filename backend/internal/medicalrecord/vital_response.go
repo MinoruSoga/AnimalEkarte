@@ -19,6 +19,7 @@ type vitalResponse struct {
 	Weight          *float64             `json:"weight,omitempty"`
 	WeightUnit      model.BodyWeightUnit `json:"weight_unit"`
 	Notes           string               `json:"notes"`
+	Version         int                  `json:"version"`
 	CreatedAt       time.Time            `json:"created_at"`
 }
 
@@ -32,6 +33,7 @@ func toVitalResponse(v *model.VitalRecord) vitalResponse {
 		Weight:          v.Weight,
 		WeightUnit:      v.WeightUnit,
 		Notes:           v.Notes,
+		Version:         v.Version,
 		CreatedAt:       httpapi.LocalTime(v.CreatedAt),
 	}
 	if v.MedicalRecordID != nil {

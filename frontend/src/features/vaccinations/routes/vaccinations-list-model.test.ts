@@ -82,6 +82,7 @@ describe("orderVaccinationListRows (BUG-502)", () => {
       doctor: "doc",
       date: "2026-08-29",
       nextDate: "2026-09-10",
+      version: 1,
       ...partial,
     };
   }

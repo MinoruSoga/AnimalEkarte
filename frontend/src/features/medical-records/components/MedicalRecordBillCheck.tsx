@@ -190,7 +190,14 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
   const handleUpdateItem = useCallback(
     (id: number, field: keyof TreatmentItem, value: string | number | boolean) => {
       if (!canEdit) return;
-      const input: UpdateTreatmentInput = {};
+      const target = treatments.find((t) => Number(t.id) === id);
+      // UAT-R2-EXCLUSIVE-LOCK: version 未確定のまま送ると BE は CAS 照合をスキップするため
+      // fail-closed で拒否する。
+      if (typeof target?.version !== "number") {
+        toast.error("治療明細の読み込みが完了してから保存してください");
+        return;
+      }
+      const input: UpdateTreatmentInput = { version: target.version };
       if (field === "content") input.content = String(value);
       if (field === "memo") input.memo = String(value);
       if (field === "is_insurance") input.is_insurance = Boolean(value);
@@ -203,7 +210,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
 
       updateTreatment({ treatmentId: String(id), input });
     },
-    [canEdit, updateTreatment],
+    [canEdit, treatments, updateTreatment],
   );
 
   const { mutate: deleteTreatmentFn } = useDeleteTreatment(medicalRecordId, recordClinicId);

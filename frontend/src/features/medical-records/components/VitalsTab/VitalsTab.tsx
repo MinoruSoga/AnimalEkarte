@@ -94,6 +94,11 @@ export const VitalsTab = memo(function VitalsTab({
         : [],
     [vitals],
   );
+  // UAT-R2-EXCLUSIVE-LOCK: 行保存時に最新の読取 version を引くため ref で同期する。
+  const sortedVitalsRef = useRef(sortedVitals);
+  useLayoutEffect(() => {
+    sortedVitalsRef.current = sortedVitals;
+  }, [sortedVitals]);
 
   const handleAddFormChange = useCallback((patch: Partial<VitalsAddFormState>) => {
     setAddForm((prev) => ({ ...prev, ...patch }));
@@ -196,8 +201,15 @@ export const VitalsTab = memo(function VitalsTab({
         toast.error(PERMISSION_DENIED_MESSAGE);
         return;
       }
+      const target = sortedVitalsRef.current.find((v) => v.id === vitalId);
+      // UAT-R2-EXCLUSIVE-LOCK: version 未確定のまま送ると BE は CAS 照合をスキップするため
+      // fail-closed で拒否する。
+      if (typeof target?.version !== "number") {
+        toast.error("バイタルの読み込みが完了してから保存してください");
+        return;
+      }
       updateVital(
-        { vitalId, input },
+        { vitalId, input: { ...input, version: target.version } },
         {
           onSuccess: () => {
             setEditingId(null);

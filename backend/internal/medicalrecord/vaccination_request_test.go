@@ -187,11 +187,13 @@ func TestUpdateVaccinationRequest_ToServiceInput(t *testing.T) {
 	nextScheduleType := string(model.NextScheduleTypeOther)
 	remarks := ""
 	vaccineID := uint64(2)
+	version := 5
 	req := updateVaccinationRequest{
 		VaccineID:        &vaccineID,
 		Date:             &date,
 		NextScheduleType: &nextScheduleType,
 		Remarks:          &remarks,
+		Version:          &version,
 	}
 
 	input, err := req.toServiceInput()
@@ -210,5 +212,8 @@ func TestUpdateVaccinationRequest_ToServiceInput(t *testing.T) {
 	}
 	if input.Remarks == nil || *input.Remarks != remarks {
 		t.Fatalf("Remarks = %v, want explicit empty string", input.Remarks)
+	}
+	if input.Version == nil || *input.Version != version {
+		t.Fatalf("Version = %v, want %d", input.Version, version)
 	}
 }
