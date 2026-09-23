@@ -330,6 +330,11 @@ fi
 ensure_hachioji_curated_demo_staffs
 
 link_cross_clinic_staff_accounts() {
+  if [[ -n "${OLD_DB_STAFF_IDENTITY_MAP_CSV:-}" ]]; then
+    echo "INFO  linking cross-clinic staffs via authoritative identity map"
+    bash "$ROOT/scripts/staff-identity-map-link.sh" local
+    return
+  fi
   echo "INFO  linking cross-clinic staffs that share one unambiguous name"
   docker compose -p animalekarte exec -T db \
     psql -U ekarte_user -d "$DB_NAME_VAL" -v ON_ERROR_STOP=1 \

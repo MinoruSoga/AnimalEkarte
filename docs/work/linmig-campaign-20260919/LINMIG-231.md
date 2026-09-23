@@ -1,5 +1,7 @@
 # LINMIG-231 — UAT-254 close-condition map vs S09 / V04 / clinical E2E (docs-only)
 
+> Current task status is tracked in Plane `EMR-43`. This local document remains supporting execution/evidence material; see the [migration receipt](../plane-md-migration-20260923-receipt.md) for the crosswalk.
+
 Campaign `linmig-ops-prep-20260919` revision 1. Unit `LINMIG-231`. Attempt `att-linmig-231-20260919-001`. Claim `claim/LINMIG-231`. Linear issue `LINMIG-231` was not found; keep as claim only.
 
 Maps delivery close of GitHub [#254](https://github.com/MinoruSoga/AnimalEkarte/issues/254) against bound evidence cells for S09, V04, and clinical E2E. Binding sources for this unit:

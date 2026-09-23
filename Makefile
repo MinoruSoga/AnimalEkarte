@@ -1,4 +1,4 @@
-.PHONY: up down build logs logs-api logs-front ps db clean reset migrate seed docs-ui old-db-handoff-stage old-db-handoff-check csv-import-preflight csv-import csv-import-verify a4-csv-import-preflight a4-csv-import a4-csv-import-verify a4-rehearsal-contract-test a4-rehearsal-config-check a4-rehearsal-up a4-rehearsal-ps a4-rehearsal-runtime-report a4-rehearsal-down f8-g4-rehearsal-contract-test f8-g4-rehearsal-config-check f8-g4-rehearsal-run f8-g4-rehearsal-down restart-api restart-front build-prod lint lint-fix test test-cover lint-front test-front test-worker test-worker-makefile-test build-front e2e build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check setup-hooks ci check-reset-contract check-reset-contract-test check-csv-import-account-source-test shellcheck shellcheck-test codex-security-scan stg-uat-skeleton stg-uat-csv-import-preflight stg-uat-csv-import stg-uat-csv-import-verify stg-uat-import stg-uat-handoff-preflight stg-uat-handoff stg-uat-handoff-verify stg-uat-staff-attach-preflight stg-uat-staff-attach
+.PHONY: up down build logs logs-api logs-front ps db clean reset migrate seed docs-ui old-db-handoff-stage old-db-handoff-check csv-import-preflight csv-import csv-import-verify a4-csv-import-preflight a4-csv-import a4-csv-import-verify a4-rehearsal-contract-test a4-rehearsal-config-check a4-rehearsal-up a4-rehearsal-ps a4-rehearsal-runtime-report a4-rehearsal-down f8-g4-rehearsal-contract-test f8-g4-rehearsal-config-check f8-g4-rehearsal-run f8-g4-rehearsal-down restart-api restart-front build-prod lint lint-fix test test-cover lint-front test-front test-worker test-worker-makefile-test build-front e2e build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check setup-hooks ci check-reset-contract check-reset-contract-test check-csv-import-account-source-test shellcheck shellcheck-test codex-security-scan stg-uat-skeleton stg-uat-csv-import-preflight stg-uat-csv-import stg-uat-csv-import-verify stg-uat-import stg-uat-handoff-preflight stg-uat-handoff stg-uat-handoff-verify stg-uat-staff-attach-preflight stg-uat-staff-attach stg-uat-staff-identity-link-preflight stg-uat-staff-identity-link
 
 # デフォルトターゲット
 .DEFAULT_GOAL := help
@@ -409,6 +409,17 @@ stg-uat-staff-attach:
 		--confirm-target-host "$${STG_UAT_STAFF_ATTACH_CONFIRM_HOST}" \
 		--confirm-target-database "$${TARGET_DB_NAME}"
 
+# old_db 権威 identity map で医院横断スタッフを1アカウント共有に統合。
+# CONFIRMED グループのみ適用（NEEDS_REVIEW/UNRESOLVED は別アカウント維持）。
+# OLD_DB_STAFF_IDENTITY_MAP_CSV=.../staff-identity-map.csv (0600+SHA256SUMS検証)
+stg-uat-staff-identity-link-preflight:
+	@test -n "$${OLD_DB_STAFF_IDENTITY_MAP_CSV}" || (echo "OLD_DB_STAFF_IDENTITY_MAP_CSV is required" >&2; exit 1)
+	bash scripts/staff-identity-map-link.sh stg --dry-run
+
+stg-uat-staff-identity-link:
+	@test -n "$${OLD_DB_STAFF_IDENTITY_MAP_CSV}" || (echo "OLD_DB_STAFF_IDENTITY_MAP_CSV is required" >&2; exit 1)
+	bash scripts/staff-identity-map-link.sh stg
+
 # ============================================================================
 # A4 UI rehearsal: isolated, disposable, localhost-only full stack
 # ============================================================================
@@ -691,6 +702,7 @@ help:
 	@echo "  stg-uat-handoff         _old_db_handoff 全医院を STG へ投入（local.env の接続情報を使用）"
 	@echo "  stg-uat-skeleton         clinics 1/2 + F6 bindings（21 cutover 表には書かない）"
 	@echo "  stg-uat-staff-attach-*   移行 staffs.id へ account 後付け（staff-provision ではない）"
+	@echo "  stg-uat-staff-identity-link*  権威 identity map で医院横断1アカウント化（CONFIRMED のみ）"
 	@echo "  a4-rehearsal-contract-test A4隔離構成/runtime report契約テスト（Docker起動不要）"
 	@echo "  a4-rehearsal-config-check A4 Composeのlocalhost/network/volume契約検査"
 	@echo "  a4-rehearsal-up          A4専用disposable stackをbuild/start"

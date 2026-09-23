@@ -1,6 +1,8 @@
 # LINMIG-233 — Clinic closing-time input plan + S09 boundary-test prep (docs-only)
 
-Campaign `linmig-ops-prep-20260919` revision 1. Unit `LINMIG-233`. Attempt `att-linmig-233-20260919-001`. Claim `claim/LINMIG-233`. Linear issue `LINMIG-233` was not found; keep as claim only. Prompt SHA `a91f9328eadd8b21ed3dc44e34a8e68b20c5b1c3f9626f6165a3eb4b08ac8e13`.
+> This local sheet is supporting execution/evidence material, not an independent task ledger. Current clinic closing-time task: Plane `EMR-45` (BRT-43 / #252). S09 fixture verification: Plane `EMR-126` (`TODO-V-S09 / QA-UAT-S09-FIXTURE`). Use those Plane items for current status; this document preserves the cited plan and safety boundaries.
+
+Campaign `linmig-ops-prep-20260919` revision 1. Unit `LINMIG-233`. Attempt `att-linmig-233-20260919-001`. Claim `claim/LINMIG-233`. The 2026-09-19 local inventory did not find Linear issue `LINMIG-233`; later reconciliation matched the clinic-input work to Plane `EMR-45` and the S09 fixture work to `EMR-126`. Prompt SHA `a91f9328eadd8b21ed3dc44e34a8e68b20c5b1c3f9626f6165a3eb4b08ac8e13`.
 
 Maps to GitHub [#252](https://github.com/MinoruSoga/AnimalEkarte/issues/252) and [GOLIVE_RUNBOOK.md](../../delivery/GOLIVE_RUNBOOK.md) **§1 item 10** (全院の締め時間設定). Binding sources for this unit:
 

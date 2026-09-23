@@ -1,5 +1,7 @@
 # UAT-R2-CHART-FIT — 1366×625のカルテUI修正・検証票
 
+> Task migrated to Plane `EMR-181`. This file remains supporting acceptance/evidence material; use Plane for current status.
+
 状態: **寸法再現・UI修正設計 READY／実装・実機受入未実施**。2026-09-19依頼者回答を反映。従来の「解像度・対象タブの回答待ち」を解除し、下記の基準で着手する。状態の正本は [TODO](../../../todo-issue.md#uat-r2-chart-fit)。
 
 ## 確認済みの事実と未確定の入力

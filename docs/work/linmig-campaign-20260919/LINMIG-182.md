@@ -1,5 +1,7 @@
 # LINMIG-182 — Lab-device spec versus acceptance, consumer-token supply
 
+> Current task status is tracked in Plane `EMR-14`. This local document remains supporting execution/evidence material; see the [migration receipt](../plane-md-migration-20260923-receipt.md) for the crosswalk.
+
 Campaign `linmig-ops-prep-20260919` revision 1. Claim id `LINMIG-182` (Linear issue not found; local packet only). This sheet maps [`docs/ops/deploy/LAB_DEVICE_CONNECTIVITY.md`](../../ops/deploy/LAB_DEVICE_CONNECTIVITY.md) and current lab-import / lab-device APIs to acceptance, names the consumer-token supply and browser-to-agent distribution path, and marks real-device UAT as remainder.
 
 **This unit does not** edit application code, mint tokens, send payloads, open serial ports, or touch STG/PROD. No token values appear here.

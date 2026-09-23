@@ -1,10 +1,12 @@
-# 未完了の検証・受入 TODO
+# 検証・受入の履歴（現在のタスク状態はPlane）
 
-最終照合: 2026-09-22（JST、ローカル HEAD `cd2feaa14` の追加対応8件。他の判定は9月21日の照合を保持）。完了した実装・unit 検証の列挙を削除し、残る検証と受入だけを扱う。新規実装は [todo-issue.md](todo-issue.md)、外部操作は [todo-operations.md](todo-operations.md)。ローカルケース票の一部は [linmig-campaign-20260919](docs/work/linmig-campaign-20260919/) と [remaining-campaign-20260920](docs/work/remaining-campaign-20260920/) に作成済み。今回 runtime は再実行していない。過去の結果は当時の revision に限定し、追加実装の受入は現在の receipt 未照合として UNKNOWN を維持する。
+> Current task state is in Plane. Local task details were migrated 2026-09-23; see [crosswalk](docs/work/plane-md-migration-20260923-receipt.md).
+
+最終タスク移行: 2026-09-23。未完了の検証・受入タスクと状態はPlaneを正本とする。実行記録・検証原則・証拠はローカルで保持する。ローカルケース票の一部は [linmig-campaign-20260919](docs/work/linmig-campaign-20260919/) と [remaining-campaign-20260920](docs/work/remaining-campaign-20260920/) に作成済み。今回 runtime は再実行していない。過去の結果は当時の revision に限定し、追加実装の受入は現在の receipt 未照合として UNKNOWN を維持する。
 
 着手プラン確認: 2026-09-22。前回の [追加実装のキュー](#code-followup-20260921) を維持し、今回8件の追加対応から [残検証・受入](#ready8-followup-20260922) を更新した。既存ケース票を再利用し、追加済みunit/mockと、ローカル未カバー・実DB・実機・医院/POの未確認を分ける。調査票のGREENは当時の記録で、今回の再実行結果ではない。
 
-9月19日の依頼者回答を反映: 全金額経路・1366×625 UI・上書き/二重会計防止・全期間処置移行の受入ケースは [各実行票](todo.md#今開始する4件仕様入力の回収は完了) に具体化済み。既存票を再作成せず、対象revisionと未カバーケースを対応づける。以下のruntime準備では、他タスクの起動済みコンテナや共有DBを検証先に流用しない。
+受入タスクの現行状態・未実施条件はPlaneの移行済み項目を参照する。過去runの証拠と判定原則はこのファイルに残し、他タスクの起動中コンテナや共有DBを検証先に流用しない。
 
 ## 判定原則
 
@@ -21,27 +23,27 @@ QA/開発が作るケース票の共通列は `ID / case / revision / 環境・f
 
 | ID | 準備可: 最初に作るケース票・照合表 | 実行へ進む条件 |
 |---|---|---|
-| UAT-R2-TREATMENT-COMMIT | Enter 1回/2回、Blur、Escape、長押し、IME確定を別ケースにして保存回数と再読込値を記録 | 対象 build、物理 IME 端末、変更可能 fixture、後処理 |
-| UAT-R2-MASTER-LIST-HEIGHT | 短い/長い一覧、検索/閉じる、キーボード選択、復帰先フォーカス × viewport/zoom | 1366×625 CSS pxで開始。Windows 8/Chrome実機はQAが版・CSS表示領域・100%/既報125%を採取して別run |
-| UAT-Q1-SEARCH-AND | 複数語AND/1語/0件/他院候補非表示の期待件数 | STG 配信版と医院別の合成検索 fixture |
-| UAT-Q4-INSURANCE-RATES | 新規50/70、既存90/100 × 選択/保存/再読込の期待金額 | 承認済み検証会計・後処理。実請求は使わない |
-| UAT-Q2-HISTORY-NAV | 同一ペットの問診行→詳細→戻る、処置未移行の記録 | 対象 build と合成の履歴参照 |
-| NOTE2-SWEEP-COVERAGE | `bug-2.md` の未確認 route×操作へ必要 ID・必須値を対応づける | 有効 cage 等の fixture、対象 schema、変更可能範囲 |
-| NOTE-STAFF-STARTTIME-RDT | 通常/拡張なし環境で同一操作の stack・発生有無を比較する票 | ユーザー環境の利用。製品由来か拡張由来か未確定の間は修正しない |
-| DEV-V-OWNER-DB | 分類済み: 全5ケースが過去receiptなし・未実行（[分類表](docs/work/todo-ledger-20260922/DEV-V-OWNER-DB.md)） | 専用 disposable DB、cleanup、候補 mount。共有 DB は不可 |
-| TODO-V-S09 / QA-UAT-S09-FIXTURE | 期待表は既存 S09 シナリオ。締め時間の投入計画は [LINMIG-233](docs/work/linmig-campaign-20260919/LINMIG-233.md) | 起動済み専用 local、helper 条件、合成 identity、clinic 1/2 除外 |
-| TODO-V-V04 / QA-UAT-V04-RETEST | V04 のフォーム×C1/C2/C3 を9月13日の証拠へ対応づける。close 照合は [LINMIG-231](docs/work/linmig-campaign-20260919/LINMIG-231.md) | 未収録ケースと disposable clinic・権限 account |
-| TODO-V-CLINICAL-E2E / QA-FULL-CLINICAL-E2E | `--clinical` allowlist と DB保存/stub/未実行を分ける。医院マトリクスは [SLACK-CLINICAL-UAT](docs/work/remaining-campaign-20260920/SLACK-CLINICAL-UAT.md) | local/CI、APP_ENV=test、専用 fixture/teardown。full job は別定義 |
-| TODO-V-STG-DATA | 医院×manifest×Lane3 verify×H3-11×5営業日の証拠一覧 | 運用側の同一入力・対象に結び付く receipt |
-| TODO-V-RELEASE / P4 / P8 | close 対応は [LINMIG-228](docs/work/linmig-campaign-20260919/LINMIG-228.md) と [LINMIG-231](docs/work/linmig-campaign-20260919/LINMIG-231.md) | P4 sign-off と P8 当日 window/判断者/復旧担当。未達は HOLD/No-Go |
-| E1 / QA-UAT-LSTEP-REAL | primary 保存・外部タグ・再取得結果・後処理の期待表。H1/H2 条件は [LINMIG-208](docs/work/linmig-campaign-20260919/LINMIG-208.md) | 実 LSTEP write の対象・範囲・復旧・承認 |
-| E2 / QA-UAT-LINE-IDTOKEN | 正規idToken、再連携409、無効/期限切れlinkTokenの400系。同 [LINMIG-208](docs/work/linmig-campaign-20260919/LINMIG-208.md) | 実 LINE の対象・正規 token 取得経路・後処理・承認 |
-| TODO-V-LINEAR / META-LINEAR-APPLY | ローカル ID・根拠・残件・更新下書きを既存照合文書へまとめる | 接続復旧後の本文/コメント読取で対応 URL を確定。投稿は別承認 |
-| PERF-V-LINEAR | 原因未確定・区間別測定・導入済み観測・受入残の下書き | 直接対応する既存 Issue の読取 |
-| AUTH-V-LINEAR-READ / AUTH-V-LINEAR-WRITE | D1の付与/login/mailを分けた下書き。WRITE は READ の後 | 接続復旧、確定 URL、直前再読取、exact 下書きの承認 |
-| AUTH-V-D1-PREFLIGHT | 環境別経路・既存admin・staff/主所属・schema・監査・復旧の不足表。migrate 適用要否は [LINMIG-209](docs/work/linmig-campaign-20260919/LINMIG-209.md) | 対象環境・実行者・承認参照の確定 |
-| AUTH-V-D1-APPLY | PREFLIGHT→COMMIT→監査receipt→通常loginの確認票 | PREFLIGHT 完了と付与承認。通信断時は再発行せず照合 |
-| AUTH-V-D1-MAIL | 送信/受信/リンク利用/再利用拒否/期限切れ拒否/後処理のケース票 | 通常login成功、宛先・回数・受信担当・送信承認 |
+| `UAT-R2-TREATMENT-COMMIT` → `EMR-120` | Planeへ移行済み |  |
+| `UAT-R2-MASTER-LIST-HEIGHT` → `EMR-121` | Planeへ移行済み |  |
+| `UAT-Q1-SEARCH-AND` → `EMR-122` | Planeへ移行済み |  |
+| `UAT-Q4-INSURANCE-RATES` → `EMR-123` | Planeへ移行済み |  |
+| `UAT-Q2-HISTORY-NAV` → `EMR-124` | Planeへ移行済み |  |
+| `NOTE2-SWEEP-COVERAGE` → `EMR-200` | Planeへ移行済み |  |
+| `NOTE-STAFF-STARTTIME-RDT` → `EMR-180` | Planeへ移行済み |  |
+| `DEV-V-OWNER-DB` → `EMR-125` | Planeへ移行済み |  |
+| `TODO-V-S09 / QA-UAT-S09-FIXTURE` → `EMR-126` | Planeへ移行済み |  |
+| `TODO-V-V04 / QA-UAT-V04-RETEST` → `EMR-127` | Planeへ移行済み |  |
+| `SLACK-CLINICAL-UAT` → `EMR-110`, `TODO-V-CLINICAL-E2E / QA-FULL-CLINICAL-E2E` → `EMR-128` | Planeへ移行済み |  |
+| `TODO-V-STG-DATA` → `EMR-129`, `H3-11` → `EMR-145` | Planeへ移行済み |  |
+| `TODO-V-RELEASE` → `EMR-130`, `P4 / #254 AUTHENTICATED-UAT` → `EMR-131`, `P8 / #257 GOLIVE` → `EMR-134` | Planeへ移行済み |  |
+| `E1 / QA-UAT-LSTEP-REAL` → `EMR-132` | Planeへ移行済み |  |
+| `E2 / QA-UAT-LINE-IDTOKEN` → `EMR-133` | Planeへ移行済み |  |
+| `TODO-V-LINEAR / META-LINEAR-APPLY` → `EMR-135` | Planeへ移行済み |  |
+| `PERF-V-LINEAR` → `EMR-136` | Planeへ移行済み |  |
+| `AUTH-V-LINEAR-READ` → `EMR-137`, `AUTH-V-LINEAR-WRITE` → `EMR-138` | Planeへ移行済み |  |
+| `AUTH-V-D1-PREFLIGHT` → `EMR-139` | Planeへ移行済み |  |
+| `AUTH-V-D1-APPLY` → `EMR-140` | Planeへ移行済み |  |
+| `AUTH-V-D1-MAIL` → `EMR-141` | Planeへ移行済み |  |
 
 `PERF-V-CLIENT-TRACE` / `PERF-V-CF-EVENTS` / `PERF-V-DECIDE-OBSERVATION` / `PERF-V-MITIGATION` / `PERF-V-BUNDLE` / `PERF-V-STG-ACCEPTANCE` は [性能の6単位](#性能タスクの着手順と成果物) がケース票の正本。因果測定前の MITIGATION/BUNDLE 実装は DEFERRED のまま。依頼・承認が必要な行も、ケース票作成はローカルで先行できる。
 
@@ -51,13 +53,13 @@ QA/開発が作るケース票の共通列は `ID / case / revision / 環境・f
 
 | ID / 対象 | 残る確認 | 状態・完了条件 |
 |---|---|---|
-| [UAT-R2-TREATMENT-COMMIT](#uat-r2-treatment-commit) | 実機 IME、Blur、2回 Enter 後の保存・再読込を確認 | ローカル28 tests済み。対象 browser/build の receipt 待ち |
-| [UAT-R2-MASTER-LIST-HEIGHT](#uat-r2-master-list-height) | viewport・ズーム・検索/閉じる操作・キーボード選択・フォーカス復帰 | ローカル10 tests済み。対象端末での可視範囲の受入待ち |
-| [UAT-Q1-SEARCH-AND](#uat-q1-search-and) | STG で複数語検索・1語検索・医院分離を確認 | ブラウザ未確認。対象 build と結果を記録 |
-| [UAT-Q4-INSURANCE-RATES](#uat-q4-insurance-rates) | 新規の保険割合 50/70、既存 90/100 の保持と金額を確認 | ブラウザ未確認。既存値のサイレント丸めなし |
-| [UAT-Q2-HISTORY-NAV](#uat-q2-history-nav) | 問診抜粋の行から同一ペットのカルテ詳細へ進めることを確認 | ブラウザ未確認。未移行の処置が空でも詳細を開ける |
-| [NOTE2-SWEEP-COVERAGE](bug-2.md#plan-note2-coverage) | 未確認の詳細画面、入院、検査、カルテ・健診の操作を補完 | [全ページ UAT の残範囲](bug-2.md#plan-note2-coverage)。82ページ到達を全 CRUD 完了にしない |
-| [NOTE-STAFF-STARTTIME-RDT](bug.md#plan-note-staff-starttime-rdt) | 通常環境と拡張なし環境を比較し、再現時の発生元を確認 | ユーザー環境の確認待ち。製品起因と断定せず、[元の調査](bug.md#plan-note-staff-starttime-rdt) に結果を対応づけ |
+| `UAT-R2-TREATMENT-COMMIT` → `EMR-120` | Planeへ移行済み |  |
+| `UAT-R2-MASTER-LIST-HEIGHT` → `EMR-121` | Planeへ移行済み |  |
+| `UAT-Q1-SEARCH-AND` → `EMR-122` | Planeへ移行済み |  |
+| `UAT-Q4-INSURANCE-RATES` → `EMR-123` | Planeへ移行済み |  |
+| `UAT-Q2-HISTORY-NAV` → `EMR-124` | Planeへ移行済み |  |
+| `NOTE2-SWEEP-COVERAGE` → `EMR-200` | Planeへ移行済み |  |
+| `NOTE-STAFF-STARTTIME-RDT` → `EMR-180` | Planeへ移行済み |  |
 
 <a id="code-followup-20260921"></a>
 
@@ -72,8 +74,8 @@ QA/開発が作るケース票の共通列は `ID / case / revision / 環境・f
 | [SLACK-VITALS](todo-issue.md#slack-vitals) / [最新測定値の抽出](frontend/src/features/medical-records/lib/visit-vital-chips.ts) | 同一カルテの取得結果のうちrecorded_atが最新の1行だけを表示し、体温/心拍/呼吸/体重の欠損を古い行から補完しない現行動作を確認。測定なし・患者切替・全9タブ・狭い画面、時刻の保存と表示省略も確認 | 表示コード対応済み・臨床受入 UNKNOWN。現行の表示範囲が医院の期待を満たすか確認し、時刻を非表示にしても保存値を失わない。ヘッダーでの新規入力を実装済みとしない |
 | [SLACK-MICROCHIP](todo-issue.md#slack-microchip) / [ヘッダー表示](frontend/src/components/shared/PatientContextHeader/PatientContextHeader.tsx#L151) | 番号有無、長い番号、API再取得、患者切替、1366×625で対象ペットと表示の一致を確認 | コード対応済み・受入 UNKNOWN。空欄/長い値でも操作を隠さず、前患者の番号が残らない証拠 |
 | [SLACK-CAMERA](todo-issue.md#slack-camera) / [撮影入力](frontend/src/features/medical-records/components/ImageGalleryFilter.tsx#L118) | 対象端末の撮影→確認/取消→正しいカルテへ保存→再読込。権限拒否・容量/形式・通信失敗も確認 | 撮影入口コード対応済み・実機受入 UNKNOWN。JPEG/PNG/GIFの撮影入力と、PDFも扱う通常アップロードを分ける。capture属性だけでカメラ起動成功としない |
-| [SLACK-STAFF-SELECT](todo-issue.md#slack-staff-select) / [候補状態の分離](frontend/src/components/shared/ReservationFormModal/filter-staff-candidates.ts#L70) | loading/失敗/候補なし/対象外を分けた表示を確認後、候補がある状態でiPad・元報告のPCの選択/保存/再読込を確認 | 部分対応済み・元症状は UNKNOWN。状態表示の回帰だけで端末固有の選択不能を解消済みにしない |
-| [UAT-R2-EXCLUSIVE-LOCK](todo-issue.md#uat-r2-exclusive-lock) / [異なるkeyの409](backend/internal/billing/accounting_complete_tx.go#L139) | [DB制約の適用確認](todo-operations.md#billing-schema-readiness) 後、異なるkeyの同一カルテ会計・明細重複・古い合計・確定後明細を実DB/2セッションで確認。所見以外のstale更新設計はIssue側で継続 | 9月22日追記: 古い合計/確定後明細/検査重複のmock回帰は追加済み、実並行はUNKNOWN。全受入が揃うまで閉じず、migration自動適用禁止 |
+| `SLACK-STAFF-SELECT` → `EMR-116` | Planeへ移行済み |  |
+| `UAT-R2-EXCLUSIVE-LOCK` → `EMR-85` | Planeへ移行済み |  |
 
 再現した不一致は同じ Issue ID に戻す。元報告の画面・端末や臨床上の期待値が一致しない場合、既存修正の成功から補外せず、未確認ケースと必要な判断を残す。
 
@@ -85,51 +87,44 @@ QA/開発が作るケース票の共通列は `ID / case / revision / 環境・f
 
 | ID | 確認できた追加対応 | 残る確認・完了条件 |
 |---|---|---|
-| [UAT-R2-MASTER-PATH](todo-issue.md#uat-r2-master-path) | 複数価格フォームの0/未入力/税区分/新規・更新のrequest/model回帰と会計参照ID分離 | 下流の未カバー合成検証はIssueへ。専用fixtureで全12フォームの新規/編集→API保存→再読込→該当下流/会計をreceipt化。自動連携しない経路は根拠付きN/A、未実行をPASSにしない |
-| [UAT-R2-EXCLUSIVE-LOCK](todo-issue.md#uat-r2-exclusive-lock) | 古い合計・確定後明細・検査由来重複のmock回帰 | 上の [競合検証](#code-followup-20260921) とDB適用ゲートへ。実DB2接続/2ブラウザ、rollback・入力救済・1回分の請求/監査を確認 |
-| [UAT-Q2-TREATMENTS-IMPORT](todo-issue.md#uat-q2-treatments-import) | 旧列→canonical→producer/AE候補の写像票 | まず契約案/合成fixture設計。現行21表に履歴2表はなく、実装前に履歴受入を開始しない。レビュー/実装後に同一契約の件数・帰属・金額・保留理由・参照専用表示を検証 |
-| [SLACK-COMPLAINT](todo-issue.md#slack-complaint) | null hydrate修正と空欄payload/本文保持・記録切替の回帰 | C0の実UI解除は未対応でIssueへ。対象buildで初期空欄・意図的解除・保存失敗・再読込・記録切替を区別し、主訴本文と区分nullのDB保存を確認。mockの空値callbackを解除操作成功にしない |
-| [SLACK-MANUAL-URINE](todo-issue.md#slack-manual-urine) | M1–M3/M5–M8の合成回帰、文字列保持・未判定・手動/機器非上書き | M4カルテ表示のローカル回帰はIssueへ。医院承認の項目/凡例/単位/基準、origin表示の採否、保存→再読込→表示、機器結果との非混在/非上書きは別受入。実データ/実機は承認後 |
-| [SLACK-VACCINE-MULTI](todo-issue.md#slack-vaccine-multi) | 単件POST/失敗通知/同日2〜3件順次POSTのFE・BE回帰 | 元症状の入口・対象版・エラー採取後、単件→順次保存→一覧再読込を実フォーム/DBで確認。実施日・lot・次回予定・会計参照の非混在を照合。batch UX/部分成功はPO裁定、species原因は別ID |
-| [SLACK-PLAN-MANUAL](todo-issue.md#slack-plan-manual) | 検索優先/fallbackの到達性回帰 | 治療タブの手入力案内で閉じるか、プラン表への直接追加かをPO裁定。配信版の保存・再読込・会計関係を確認。回帰追加をプラン手入力UI実装済みにしない |
-| [SLACK-LATENCY](todo-issue.md#slack-latency) | 比較ラベル・revision固定方法の設計 | [性能TODO](todo-performance.md#slack-latency-治療数量の反映待ち) の実端末/回線/行数/IME/FE・API buildを固定し区間別採時。actualは未収録、原因・改善効果はUNKNOWN |
+| `UAT-R2-MASTER-PATH` → `EMR-84` | Planeへ移行済み |  |
+| `UAT-R2-EXCLUSIVE-LOCK` → `EMR-85` | Planeへ移行済み |  |
+| `UAT-Q2-TREATMENTS-IMPORT` → `MIG-15` | Planeへ移行済み |  |
+| `SLACK-COMPLAINT` → `EMR-87` | Planeへ移行済み |  |
+| `SLACK-MANUAL-URINE` → `EMR-86` | Planeへ移行済み |  |
+| `SLACK-VACCINE-MULTI` → `EMR-105` | Planeへ移行済み |  |
+| `SLACK-PLAN-MANUAL` → `EMR-103` | Planeへ移行済み |  |
+| `SLACK-LATENCY` → `EMR-104` | Planeへ移行済み |  |
 
 Q1 / Q4保険 / Q2履歴の実装は再開しない。根拠は [医院フィードバック](docs/work/stg-uat-clinic-feedback-q1-q4.md) と、9月15日に読取確認した [PR #411](https://github.com/MinoruSoga/AnimalEkarte/pull/411)（merged）、[Backend Deploy](https://github.com/MinoruSoga/AnimalEkarte/actions/runs/34923018516) / [Frontend Deploy](https://github.com/MinoruSoga/AnimalEkarte/actions/runs/34923018544)（ともに success、`d337f016`）。この配備記録はブラウザ確認や本番反映の代替ではない。
 
-`NOTE2-SWEEP-COVERAGE` は `/accounting/:id`、`/hospitalization/:id`、`/hospitalization/:id/edit`、`/inventory/:id` の前提 ID を確保し、有効な cage 等の必須値で入院・検査を確認する。カルテ actor の修正は再実装せず、対象環境の schema を確認した後に新規カルテ→再読込→健診を再検証する。古い「カルテバグでブロック」を現行判定に流用しない。元の `reports/uat-2026-09-13/` を保持し、新しい run の route/action・前提・結果・証拠・未確認理由を残す。
+`NOTE2-SWEEP-COVERAGE` の受入条件はPlane `EMR-200` へ移行済み。
 
 ### UAT-R2-TREATMENT-COMMIT
 
-`72807128` の [TreatmentQuantityCell](frontend/src/features/medical-records/components/TreatmentsTab/TreatmentQuantityCell.tsx) は Enter 2回で確定、Blur 保存、Escape 取消を実装済み。repeat / isComposing / keyCode229 の無視を含む28 testsは [既存の同一コミット検証](.planning/agent-fast-campaign/four-candidate-integration-20260916/evidence/rev7-reverify-72807128-codex/controller/RECONCILIATION.md) による。今回の文書更新では再実行していない。残るのは承認された対象 build・fixture での物理 IME と、1回目で未保存→2回目/Blur→再読込で値が残ることのブラウザ確認。実測前に高速化完了とはしない。
-
+> 移行済み: Plane `EMR-120`。詳細と現在の状態は[移行記録](docs/work/plane-md-migration-20260923-receipt.md)を参照。
 ### UAT-R2-MASTER-LIST-HEIGHT
 
-同じ検証の10 testsで [TreatmentSearchDialog](frontend/src/components/shared/TreatmentSearchDialog/TreatmentSearchDialog.tsx) の一覧上限 `max-h-[calc(80vh-12rem)]` を確認済み。残るのは可視行、画面内の検索/閉じる操作、キーボード選択・フォーカス復帰の受入。9月19日の回答でWindows 8 / Chrome、15.6インチ、1366×625を基準にできる。[CHART-FIT票](docs/work/todo-campaign-20260918/UAT-R2-CHART-FIT.md) と同じfixture/runを使い、短い/長い一覧とsidebar両状態を検証する。長い一覧のスクロールは残す。実機CSS領域・100%/既報125%・旧Chrome版の結果を別記し、最新Chromiumの合格を旧Chrome対応済みとしない。
-
+> 移行済み: Plane `EMR-121`。詳細と現在の状態は[移行記録](docs/work/plane-md-migration-20260923-receipt.md)を参照。
 ### UAT-Q1-SEARCH-AND
 
-承認された STG の対象 build と自医院の検索 fixture を固定し、「飼主名 ペット名」の複数語 AND → 1語 → 0件 → 他医院の候補非表示を確認する。結果は検索語そのものを共有せず、ケース番号・期待件数・表示件数と機密除去した画面証拠を新しい UAT run に記録する。元の [検索仕様](docs/spec/screens/03-owners-list.md) と異なる結果だけを再現付きで開発へ戻す。
-
+> 移行済み: Plane `EMR-122`。詳細と現在の状態は[移行記録](docs/work/plane-md-migration-20260923-receipt.md)を参照。
 ### UAT-Q4-INSURANCE-RATES
 
-承認された検証会計を用意し、[会計仕様](docs/spec/screens/11-accounting-detail.md) の新規 50/70 と既存 90/100 を別ケースで確認する。選択 → 金額 → 保存 → 再読込を通し、既存値が変更なしでも丸められないことを照合する。成果物は割合別の期待/実際金額と保存結果。既存の実請求を検証用に変更せず、対象・後処理がなければ開始しない。
-
+> 移行済み: Plane `EMR-123`。詳細と現在の状態は[移行記録](docs/work/plane-md-migration-20260923-receipt.md)を参照。
 ### UAT-Q2-HISTORY-NAV
 
-承認済み fixture で問診抜粋の行 → 同一ペットのカルテ詳細 → 戻るを確認し、処置が未移行の記録も詳細へ進めることを照合する。[InterviewHistory](frontend/src/features/medical-records/components/InterviewHistory.tsx) のリンク先と表示対象の対応を証拠にする。成果物は対象 build と行/詳細の対応、未確認理由。これで処置明細の移行完了とはしない。
-
-<a id="development-verification"></a>
-
+> 移行済み: Plane `EMR-124`。詳細と現在の状態は[移行記録](docs/work/plane-md-migration-20260923-receipt.md)を参照。
 ## 既存の検証キュー
 
 | ID | 状態 | 次の作業・完了条件 |
 |---|---|---|
-| [DEV-V-OWNER-DB](#dev-v-owner-db) | 分類済み（[分類表](docs/work/todo-ledger-20260922/DEV-V-OWNER-DB.md)）: 全5ケースが過去receiptなし・未実行 | 専用 disposable DB で下記5ケースを実行。実行案は分類表どおり。共有 DB 不可・未実行とSKIP は PASS にしない |
-| [TODO-V-S09](#todo-v-s09--qa-uat-s09-fixture) | BLOCKED（fixture・対象環境待ち）。投入計画は [LINMIG-233](docs/work/linmig-campaign-20260919/LINMIG-233.md) | `QA-UAT-S09-FIXTURE` の #2–#6 を専用 fixture で確認。既存の [UAT 状態](docs/ops/testing/UAT-DOMAIN-STATUS.md) と run の対応を記録 |
-| [TODO-V-V04](#todo-v-v04--qa-uat-v04-retest) | UNKNOWN。close 照合は [LINMIG-231](docs/work/linmig-campaign-20260919/LINMIG-231.md) | `QA-UAT-V04-RETEST` と9月13日の master CRUD 証拠を項目単位で対応づけ、削除・後処理・未収録項目を補完 |
-| [TODO-V-CLINICAL-E2E](#todo-v-clinical-e2e--qa-full-clinical-e2e) | BLOCKED（実行条件待ち）。マトリクスは [SLACK-CLINICAL-UAT](docs/work/remaining-campaign-20260920/SLACK-CLINICAL-UAT.md) | `QA-FULL-CLINICAL-E2E` の承認済み test 環境・identity・fixture と full job 証拠を確保 |
-| [TODO-V-STG-DATA](#todo-v-stg-data) | UNKNOWN（受入の追加証拠未照合） | H0–H3 / Lane 3–4 の対象入力・医院・件数・金額・画面証拠を確認。配備 success でデータ受入を代用しない |
-| [TODO-V-RELEASE](#todo-v-release) | BLOCKED（受入条件未充足）。HOLD 対応は [LINMIG-228](docs/work/linmig-campaign-20260919/LINMIG-228.md) | P1–P8 / E1–E2 の個別 receipt を確認。未解消の臨床安全・会計・分離 FAIL があれば go-live は No-Go |
+| `DEV-V-OWNER-DB` → `EMR-125` | Planeへ移行済み |  |
+| `TODO-V-S09 / QA-UAT-S09-FIXTURE` → `EMR-126` | Planeへ移行済み |  |
+| `TODO-V-V04 / QA-UAT-V04-RETEST` → `EMR-127` | Planeへ移行済み |  |
+| `SLACK-CLINICAL-UAT` → `EMR-110`, `TODO-V-CLINICAL-E2E / QA-FULL-CLINICAL-E2E` → `EMR-128` | Planeへ移行済み |  |
+| `TODO-V-STG-DATA` → `EMR-129` | Planeへ移行済み |  |
+| `TODO-V-RELEASE` → `EMR-130`, `E1 / QA-UAT-LSTEP-REAL` → `EMR-132`, `E2 / QA-UAT-LINE-IDTOKEN` → `EMR-133`, `P8 / #257 GOLIVE` → `EMR-134`, `P1 / SEC-SECRETS-5 / #89 / #97` → `EMR-147` | Planeへ移行済み |  |
 
 OWNER の対象は `TestOwnerRepository_UpdateAndFind_ReloadFailureRollsBackUpdate`、`TestOwnerRepository_Update_ClinicIsolation`、`TestOwnerService_Update_DiscountTOCTOU_*`（LockedDiffWithoutPermission を除く）、`TestOwnerRepository_LockByIDForUpdate_RequiresAmbientTransaction`。既存の unit 完了は再登録しない。共有 DB をテスト用にせず、未実行・SKIP は PASS にしない。
 
@@ -137,112 +132,67 @@ OWNER の対象は `TestOwnerRepository_UpdateAndFind_ReloadFailureRollsBackUpda
 
 ### DEV-V-OWNER-DB
 
-1. [owner テスト](backend/internal/owner/) と [testdb helper](backend/internal/testdb/) の接続・schema 作成/cleanup 条件を確認し、現在の専用 disposable DB と過去 receipt を照合する。`TEST_DATABASE_URL` は秘密管理から供給し、接続先の実体が共有 DB でないことを実行者が確認する。
-2. 対象 worktree を mount した Docker で `./internal/owner` の上記5ケースだけを `go test -run` に列挙して実行する。TOCTOU は `StaleZeroRejected` と `NonDiscountFieldStillOK` が対象で、`LockedDiffWithoutPermission` は除外する。
-3. 成果物は revision、専用 DB の承認参照、各ケースの実行/PASS/FAIL/SKIP、cleanup 結果。接続未設定・全体 exit 0 でもケースが SKIP なら未完了。共有 DB への fallback や自動 migration で補わない。
-
+> 移行済み: Plane `EMR-125`。詳細と現在の状態は[移行記録](docs/work/plane-md-migration-20260923-receipt.md)を参照。
 ### TODO-V-S09 / QA-UAT-S09-FIXTURE
 
-1. [S09 fixture 設計](docs/ops/testing/S09-FIXTURE-DESIGN.md) と [対象 spec](frontend/e2e/s09-closing-time-boundaries.spec.ts) を読み、起動済みの専用 local Docker、許可された APP_ENV、合成パスワードの安全な供給、clinic 1/2 を使わない条件を確認する。
-2. helper で新規合成 fixture を作成 → S09 #2–#6 の帰属プレビューをブラウザ確認 → cleanup token による teardown の順で実行する。fixture の完了時刻は設計の5時刻を使い、既存会計やシステム時計を変えない。
-3. 成果物は秘密除去済みの fixture 参照、ケース別の対象時刻・期待/実際集計、browser report、cleanup 結果。token/password を report に残さず、cleanup 未完了も明記する。共有 STG/PROD には接続しない。
-
-準備時に確定できる期待値は [S09 シナリオ](docs/ops/testing/scenarios/S09-closing-time-boundaries.md) と既存 spec の合成設定（AM開始09:00、境界13:30、平日終了19:00）を使う。時刻は JST。対象日をDとして次の5件を固定し、実医院の締め設定には適用しない。
-
-| 合成会計の完了時刻 | 期待する帰属 |
-|---|---|
-| D 10:00 | D の午前のみ |
-| D 13:30:00 | D の午後。午前へ重複しない |
-| D 14:00 | D の午後 |
-| D 20:00 | D の緊急 |
-| D+1 02:00 | D の緊急。D+1 の緊急へ重複しない |
-
-各スロットの件数は午前1・午後2・緊急2。金額はfixtureに設定した額から独立に計算してケース票へ記入する。
-
+> 移行済み: Plane `EMR-126`。詳細と現在の状態は[移行記録](docs/work/plane-md-migration-20260923-receipt.md)を参照。
 ### TODO-V-V04 / QA-UAT-V04-RETEST
 
-1. [V04](docs/ops/testing/scenarios/V04-settings-master-forms.md) の各フォームを9月13日の証拠に対応づけ、未収録の項目だけを選ぶ。対象は一般設定・マスタ・検査機器項目で、LINE/LSTEP の V05 と分ける。
-2. disposable clinic と権限別 account を固定し、作成 → validation → 編集 → 再読込 → 未使用行の削除と使用中行の拒否を、該当フォームの C1/C2/C3 に従って確認する。system master の削除を期待しない。
-3. 成果物はフォーム×操作の coverage 表、保存/拒否/権限の証拠と後処理結果。以前の DELETE regression だけで全フォームを PASS にせず、未収録・対象外は理由付きで残す。
-
-coverage の母数は V04 本文の標準マスタ16種、診療項目5タブ、薬剤と用量、予約区分、予約枠、締め時間3フォーム、シフト、lab-device、法人invoice。LINE/LSTEPはV05へ残す。現行 [V04 spec](frontend/e2e/v04-settings-master-forms.spec.ts) の4テストは動物種類、主訴、薬剤価格保存、system支払方法削除拒否だけなので、自動 spec の成功を母数全体へ広げない。9月13日の手動証拠を照合できないセルは未収録のままとする。
-
+> 移行済み: Plane `EMR-127`。詳細と現在の状態は[移行記録](docs/work/plane-md-migration-20260923-receipt.md)を参照。
 ### TODO-V-CLINICAL-E2E / QA-FULL-CLINICAL-E2E
 
-1. [clinical E2E 設計](docs/ops/testing/CLINICAL-E2E-DESIGN.md) と [runner](frontend/scripts/run-e2e.sh) の allowlist を照合する。承認された起動済み local/CI、`APP_ENV=test`、許可された local base URL、合成 identity、clinic 1/2 除外、teardown を固定する。
-2. Docker 内で専用 fixture の setup → runner の `--clinical` → teardown を行う。対象外の auth smoke・全 suite job は分け、full job は別の実行承認と対象定義を満たしてから確認する。
-3. 成果物は revision、allowlist と実行ケース数、機密除去済み report、fixture/cleanup の結果。stub で create する spec は DB 保存の証拠に数えない。失敗・未実行・環境違いは後続の全体 PASS にまとめない。
-
-9月18日の runner の `--clinical` は `e2e/` 下の10 spec: `clinical-flows`、`clinical-smoke`、`medical-records-create`、`medical-records-patient-search`、`medical-records-pagination-sort`、`examinations-flow`、`vaccinations-flow`、`checkups-flow`、`hospitalization-flow`、`estimates-flow`（各 `.spec.ts`）。ケース票はこの集合に固定する。[CI workflow](.github/workflows/e2e.yml) の実行対象は `auth-flows.spec.ts` のみで、clinical/full suite job は未配線。`--clinical` の実行証拠と、全suite CIを要求するかの判断・配線作業は別の欄にし、auth smoke成功でどちらも閉じない。
-
-<a id="stg-データレーン"></a>
-
+> 移行済み: Plane `EMR-128`。詳細と現在の状態は[移行記録](docs/work/plane-md-migration-20260923-receipt.md)を参照。
 ## STG データレーン
 
 入力受領と操作は [運用 TODO](todo-operations.md#stg-data-lanes)。受入では source manifest・対象医院・件数・金額・監査・画面を照合する。Lane 4 は両院の Lane 3 verify、H3-11、所定の運用日数の証拠が揃うまで完了にしない。9月13日の一部 CRUD 成功をこの受入全体に拡張しない。
 
 ### TODO-V-STG-DATA
 
-最初に [H0–Lane 4 の個別計画](todo-operations.md#stg-データレーンの着手プラン) から、医院別の最新 manifest・投入/skip/verify・staff attach・画面・5営業日の証拠を一覧にする。同一入力・同一対象と対応する証拠だけを採用し、不足部分の確認依頼を作る。運用側の実施後に件数・参照・医院分離・金額・監査と画面を再照合し、成果物を医院別の受入表にする。wrapper の exit 0、過去の apply PASS、配備 success のいずれも受入全体の代替にしない。
-
+> 移行済み: Plane `EMR-129`。詳細と現在の状態は[移行記録](docs/work/plane-md-migration-20260923-receipt.md)を参照。
 ### TODO-V-RELEASE
 
-最初に [本番・納品 P1/P2/P3/P5/P6/P7](todo-operations.md#本番納品の着手プラン) の receipt と、下表の P4/P8/E1/E2 を対象 revision・環境に対応づける。個別の判定・不足・担当・参照先を [go-live runbook](docs/delivery/GOLIVE_RUNBOOK.md) に集約する。P4 に必要な E1/E2 を省略せず、P8 の当日判定まで完了扱いにしない。
+> 移行済み: Plane `EMR-130`。詳細と現在の状態は[移行記録](docs/work/plane-md-migration-20260923-receipt.md)を参照。
+## Linear 照合の過去記録（現在の状態はPlane）
 
-| ID / 対象 | 着手手順 | 成果物・停止条件 |
-|---|---|---|
-| P4 / #254 AUTHENTICATED-UAT | [close checklist](docs/ops/testing/scenarios/UAT-254-CLOSE-CHECKLIST.md) の5業務フロー、実 LINE/token、DB/audit、残件処理を現在の証拠へ対応づけ、不足操作を承認済み fixture で補完 | 同じ対象版の run 一覧と実施者以外の sign-off。臨床安全・会計・分離・認証・データ消失の未解消 FAIL があれば No-Go |
-| E1 / QA-UAT-LSTEP-REAL | [S01 のタグ同期](docs/ops/testing/scenarios/S01-deceased-pet-guard.md) と [V05-17](docs/ops/testing/scenarios/V05-auth-line-forms.md) を、write 有効な承認済み LSTEP 対象・テスト対象者・復旧範囲に限定して確認。設定変更/送信は別承認 | primary 保存と best-effort 同期、外部タグと再取得件数を別々に照合。mock/停止中の204や toast だけで PASS にしない |
-| E2 / QA-UAT-LINE-IDTOKEN | [V05 の実 LINE 連携](docs/ops/testing/scenarios/V05-auth-line-forms.md) で正規 idToken による link → 再連携409 → 無効/期限切れ linkToken の400系を確認 | token値/URLを残さないケース別 receipt、二重紐付けなしと後処理。idToken と linkToken を区別し、mock を実 LINE の証拠にしない |
-| P8 / #257 GOLIVE | [当日手順](docs/delivery/GOLIVE_RUNBOOK.md) の新 window・判断者・support/rollback owner を記入し、pre-window 全項目 → 当日 import 突合 → smoke → Go/No-Go → 支援へ進む | 判断者の署名、時刻、当日 receipt、復旧判断。window 未確定・前段不足・当日突合未達なら HOLD/No-Go。過去日程を再利用しない |
-
-<a id="linear-reconciliation"></a>
-
-## Linear 照合の残り
-
-9月15日の読取結果: [BRT-4](https://linear.app/baritechllc/issue/BRT-4) は Backlog、[BRT-45](https://linear.app/baritechllc/issue/BRT-45) / [BRT-68](https://linear.app/baritechllc/issue/BRT-68) は Needs Human。これは当時の読取記録。9月18日の Linear MCP 再照会も未接続（`USER_NOT_LOGGED_IN`）で失敗し、現在の状態・対応先は UNKNOWN。完了済みチケットは残件表から除く。
+9月15日の読取結果（当時）: [BRT-4](https://linear.app/baritechllc/issue/BRT-4) は Backlog、[BRT-45](https://linear.app/baritechllc/issue/BRT-45) / [BRT-68](https://linear.app/baritechllc/issue/BRT-68) は Needs Human。これは当時の読取記録。9月18日の Linear MCP 再照会も未接続（`USER_NOT_LOGGED_IN`）で失敗し、現在の状態・対応先は UNKNOWN。完了済みチケットは残件表から除く。
 
 | ID | 状態 | 残作業 |
 |---|---|---|
-| [TODO-V-LINEAR / META-LINEAR-APPLY](#todo-v-linear--meta-linear-apply) | UNKNOWN（再認証・照合待ち） | 9月13〜17日の残件と既存 Issue の対応を確認し、反映先・URL・現状・更新案を作る |
-| [PERF-V-LINEAR](#perf-v-linear) | 対応先未確定 | PERF-STG-LOGIN と通信区間の調査を、既存 Issue に直接対応づける |
-| [AUTH-V-LINEAR-READ](#auth-v-linear-read) | 対応先未確定 | D1 対象環境・メール・反映範囲と、既存 Issue 本文を照合 |
-| [AUTH-V-LINEAR-WRITE](#auth-v-linear-write) | 承認待ち | 確定した既存 Issue への更新案を明示承認後に反映。新規作成枠を前提にしない |
+| `TODO-V-LINEAR / META-LINEAR-APPLY` → `EMR-135` | Planeへ移行済み |  |
+| `PERF-V-LINEAR` → `EMR-136` | Planeへ移行済み |  |
+| `AUTH-V-LINEAR-READ` → `EMR-137` | Planeへ移行済み |  |
+| `AUTH-V-LINEAR-WRITE` → `EMR-138` | Planeへ移行済み |  |
 
 新規 Issue を作らない方針は維持するが、過去の free issue limit を read-only 照会や既存 Issue 更新の技術的ブロッカーにしない。類似語だけでチケットを割り当てず、不明なら UNKNOWN とする。今回、外部投稿・状態変更は未実施。
 
 ### TODO-V-LINEAR / META-LINEAR-APPLY
 
-Team/Project/BRT-4 配下で ID・元報告・実装・受入条件を照会し、既存本文とコメントを読む。検索ヒットだけで直接対応を確定しない。成果物は「ローカル ID → 既存 Issue URL → 読取日時/状態 → 一致根拠 → 本文/コメントの更新案」の対応表で、[既存の照合下書き](docs/work/linear-f1-f6-mapping.md) を利用する。反映は対象 URL と exact な下書きの明示承認後に行い、再読取で反映を確認する。読取不可・対応不明は UNKNOWN のまま残す。
-
+> 移行済み: Plane `EMR-135`。詳細と現在の状態は[移行記録](docs/work/plane-md-migration-20260923-receipt.md)を参照。
 ### PERF-V-LINEAR
 
-同じ Team/Project/BRT-4 内で `PERF-STG-LOGIN`、`/login`、`/me`、OPTIONS、Container を手掛かりに既存本文を照合する。通信全体とサーバー区間を分けた計測結果、原因未確定、観測コードのローカル検証済み範囲、STG 受入を別欄にした更新案を作る。直接対応する Issue と日時が確認できれば下書き完了。投稿/Done は別承認で、類似する別案件へ割り当てない。
-
+> 移行済み: Plane `EMR-136`。詳細と現在の状態は[移行記録](docs/work/plane-md-migration-20260923-receipt.md)を参照。
 ### AUTH-V-LINEAR-READ
 
-D1 の対象環境・既存スタッフ・通常 login・メールの受入条件を BRT-4 配下の既存本文/コメントと照合し、各残件の直接対応を確認する。成果物は URL/取得日時/現在状態/差分と更新案。合成 DB 成功と対象環境の付与・メールを分け、対象が不明なら UNKNOWN と記録する。
-
+> 移行済み: Plane `EMR-137`。詳細と現在の状態は[移行記録](docs/work/plane-md-migration-20260923-receipt.md)を参照。
 ### AUTH-V-LINEAR-WRITE
 
-READ の確定 URL と下書きに対する承認後、更新直前に対象本文・状態を再読取して他者更新を確認する。承認範囲の既存 Issue へ反映 → 再読取 → 更新差分の照合で完了とする。成果物は投稿/更新参照と時刻。競合・拒否・対象変更なら停止し、新規 Issue 作成や未完了 D1/mail の Done 化で代用しない。
-
-<a id="perf-stg-login"></a>
-
+> 移行済み: Plane `EMR-138`。詳細と現在の状態は[移行記録](docs/work/plane-md-migration-20260923-receipt.md)を参照。
 ## PERF-STG-LOGIN
 
 技術記録は [todo-performance.md](todo-performance.md)。Worker 観測は現在 tracked code に存在し、未導入 WIP の扱いを終了した。`PERF-V-IMPLEMENT-OBSERVATION` の実 proxy 4 tests・worker typecheck（`index.test.ts` include済み）は `72807128` の [既存検証](.planning/agent-fast-campaign/four-candidate-integration-20260916/evidence/rev7-reverify-72807128-codex/controller/RECONCILIATION.md) で完了し、開いたキューから外した。残るのは遅延の因果測定、常時観測の必要性・出力範囲の再判定、STG 受入である。（2026-09-23 E5 追記: 因果は `containerFetch` 区間まで局在、常時観測は KEEP 判定、STG 受入証拠は4ケース取得済。下表の各状態を参照。）
 
 | 順 | ID | 状態 | 次の作業・完了条件 |
 |---|---|---|---|
-| 1 | [PERF-V-CLIENT-TRACE](#性能タスクの着手順と成果物) | 承認・観測条件待ち → 証拠取得済（2026-09-23 E5） | `/login` 遷移前から OPTIONS / GET、FCP、操作可能時刻を記録。通常読込と再読込を分ける |
-| 2 | [PERF-V-CF-EVENTS](#性能タスクの着手順と成果物) | provider 証拠待ち → 証拠取得済（2026-09-23 E5） | 同じ時刻の Worker 受付・forwarding・Container 起動を関連づける。時刻対応できなければ UNKNOWN |
-| 3 | [PERF-V-DECIDE-OBSERVATION](#性能タスクの着手順と成果物) | 調査待ち → 判定済 KEEP（2026-09-23 E5） | 実装済み観測の常時出力が必要かを1・2の結果から再判定。必要なら対象を限定する変更、不要なら撤去を別実装単位にする |
-| 4 | [PERF-V-MITIGATION](#性能タスクの着手順と成果物) | DEFERRED（因果待ち → 原因は containerFetch 区間に局在。2026-09-23 E5） | OPTIONS / GET の遅延箇所を特定してから通信・設定変更を選ぶ |
-| 5 | [PERF-V-BUNDLE](#性能タスクの着手順と成果物) | DEFERRED（実測待ち → /login は cold FCP 0.7s で bundle 非主因。2026-09-23 E5） | 固定 revision の転送・parse/execute への寄与を測り、必要な変更だけを判断 |
-| 6 | [PERF-V-STG-ACCEPTANCE](#性能タスクの着手順と成果物) | ブラウザ受入待ち → 証拠取得済（2026-09-23 E5、4ケース n=1） | 対象 build の匿名・既存 session・復旧・医院選択を確認し、待機表示・操作可能・認証成功の時刻を分離 |
+| 1 | [PERF-V-CLIENT-TRACE](#性能タスクの着手順と成果物) | 承認・観測条件待ち → 証拠取得済（2026-09-23 E5）→ post-deploy 再取得済（2026-09-23 E6 browser-pages/stg-acceptance） | `/login` 遷移前から OPTIONS / GET、FCP、操作可能時刻を記録。通常読込と再読込を分ける |
+| 2 | [PERF-V-CF-EVENTS](#性能タスクの着手順と成果物) | provider 証拠待ち → 証拠取得済（2026-09-23 E5）→ post-deploy 再取得済（2026-09-23 E6） | 同じ時刻の Worker 受付・forwarding・Container 起動を関連づける。時刻対応できなければ UNKNOWN |
+| 3 | [PERF-V-DECIDE-OBSERVATION](#性能タスクの着手順と成果物) | 調査待ち → 判定済 KEEP（2026-09-23 E5）→ post-deploy でも `container_fetch_timing` 出力を確認（2026-09-23 E6、KEEP 判定と整合） | 実装済み観測の常時出力が必要かを1・2の結果から再判定。必要なら対象を限定する変更、不要なら撤去を別実装単位にする |
+| `PERF-V-MITIGATION` → `EMR-142` | Planeへ移行済み |  |  |
+| `PERF-V-BUNDLE` → `EMR-143` | Planeへ移行済み |  |  |
+| 6 | [PERF-V-STG-ACCEPTANCE](#性能タスクの着手順と成果物) | ブラウザ受入待ち → 証拠取得済（2026-09-23 E5、4ケース n=1）→ post-deploy 再取得済（2026-09-23 E6、4ケース n=1） | 対象 build の匿名・既存 session・復旧・医院選択を確認し、待機表示・操作可能・認証成功の時刻を分離 |
 
 2026-09-23 E5 追記（証拠は `reports/perf-e5-residual-20260923/`）: CLIENT-TRACE は `/login` cold/warm 2遷移を記録し OPTIONS 0・FCP 692/88ms を取得（[client-trace](reports/perf-e5-residual-20260923/client-trace/README.md)）。CF-EVENTS は cf-ray 相関で `container_fetch` 866–3848ms 支配・edge+worker 約60–115ms・稼働 instance `maa01`・`scheduling_policy` deployed=`default` vs config=`regional` の乖離を取得（[cf-events](reports/perf-e5-residual-20260923/cf-events/README.md)）。DECIDE-OBSERVATION は KEEP と判定（[obs-decision](reports/perf-e5-residual-20260923/obs-decision/README.md)）。STG-ACCEPTANCE は匿名/既存session/復旧/ログイン後の4ケースを記録し login POST 3882ms・`/v1/me` 1475ms ゲート・OPTIONS 0（[stg-acceptance](reports/perf-e5-residual-20260923/stg-acceptance/README.md)）。測定値は現行 STG 配信版のもので、E5 のコード変更は未配備。PERF-V-LINEAR は対応先未確定のまま。
+
+2026-09-23 E6 追記（post-deploy、証拠は `reports/perf-e5-postdeploy-verify-20260923/`、配信版 worker `15a85636`・コンテナ v70→v71）: DEPLOY-VERIFY は配信版が perf コミット `453be4ecc` を後置することと edge OPTIONS 204（Go ヘッダ無し）を確認し SERVES-NEW-BUILD（[deploy-verify](reports/perf-e5-postdeploy-verify-20260923/deploy-verify/README.md)）。OPTIONS-EDGE は 6 probe で edge 契約を検証（allowlist echo・非 allowlist は ACAO 無し・`_internal` 404・OPTIONS 中央値 ~60ms、[options-edge](reports/perf-e5-postdeploy-verify-20260923/options-edge/README.md)）。WARM-MEASURE は warm 中央値が E5 と ±0.01s 内で同一（[warm-measure](reports/perf-e5-postdeploy-verify-20260923/warm-measure/README.md)）。LOGIN-MEASURE は中央値 1.471s vs E5 ~3.33s（−56%）で bcrypt-skip を方向的に確認（warmth 混在のため単独寄与は UNKNOWN、[login-measure](reports/perf-e5-postdeploy-verify-20260923/login-measure/README.md)）。PLACEMENT は `maa01` 継続・`scheduling_policy` 乖離は未解消・再抽選を推奨（[placement](reports/perf-e5-postdeploy-verify-20260923/placement/README.md)）。CF-EVENTS は `container_fetch` 1001–1988ms・edge+worker ~57–63ms・観測窓内で `sin14` へ再作成（[cf-events](reports/perf-e5-postdeploy-verify-20260923/cf-events/README.md)）。BROWSER-PAGES は実ブラウザで N+1 解消を確認し `accountings?owner_id=` 1.9–2.7s を新規候補として記録（[browser-pages](reports/perf-e5-postdeploy-verify-20260923/browser-pages/README.md)）。STG-ACCEPTANCE は login POST 1451ms（E5 比 −62.6%）・`/v1/me` ゲート 1100.7ms・全ケース OPTIONS 0（[stg-acceptance](reports/perf-e5-postdeploy-verify-20260923/stg-acceptance/README.md)）。未解決の正直な記録: AXIOS-RETRY は配備済みだが観測窓に 503 が無くフィールド未検証（unverified-in-field、失敗ではない）、INSTANCE-TYPE/MITIGATION/BUNDLE はトリガー付き DEFERRED のまま、SLACK-LATENCY はユーザーレーン（`EMR-104`）、PERF-V-LINEAR は Linear MCP 未接続（`USER_NOT_LOGGED_IN`）で BLOCKED のまま。
 
 - `PERF-V-CLIENT-TRACE`: 承認済み対象・時間枠・停止担当・証拠保存先を固定する。相対時刻、method、status、protocol、initiator、OPTIONS/GET 対応、FCP を保存し、Cookie・Authorization・本文・個人情報は含めない。HAR 等は保存前に機密除去。単発値や未使用時間だけで p95/p99・cold start・改善完了と判定しない。
 - `PERF-V-CF-EVENTS`: provider 時刻と browser 時刻を対応づけ、Container 起動証拠がない場合は Worker 所要時間だけで起動待ちと断定しない。観測で設定・配備を変更しない。
@@ -260,8 +210,8 @@ READ の確定 URL と下書きに対する承認後、更新直前に対象本�
 | PERF-V-CLIENT-TRACE | 通常利用を変えず `/login` 遷移前から記録 → OPTIONS/GET の各区間、FCP、操作可能時刻を収集 | 相対時刻表と条件。初回/再読込を分け、秘密除去後に保存 |
 | PERF-V-CF-EVENTS | 同一の時刻窓と時刻基準を固定 → 受付/forwarding/Container起動/Go区間を対応づける | client/provider の対応表。相関できない区間は UNKNOWN |
 | PERF-V-DECIDE-OBSERVATION | 上記2表で遅延区間を特定 → 現行常時ログが判断に寄与するか評価 | 維持・対象限定・撤去・保留の理由と必要な変更範囲。再現/因果がなければ判断保留 |
-| PERF-V-MITIGATION | 因果が分かった区間に対し1変更の仮説と比較条件を作る → 承認された対象で前後測定 | 時間内訳の比較と CORS/CSRF/認証の回帰結果。因果未確定なら通信/設定を変えない |
-| PERF-V-BUNDLE | 固定版を cache なし/ありで記録 → 転送/parse/execute が操作可能時刻に占める割合を測る | bundle 寄与と採否。寄与がなければ分割を採用せず、公開 entrypoint を維持 |
+| `PERF-V-MITIGATION` → `EMR-142` | Planeへ移行済み |  |
+| `PERF-V-BUNDLE` → `EMR-143` | Planeへ移行済み |  |
 | PERF-V-STG-ACCEPTANCE | 対象 run の成功と実配信 revision を照合 → 匿名/既存session/復旧/医院選択を確認 | 待機表示・操作可能・認証成功の3時刻とケース結果。改善候補があれば同条件の前後比較を付ける |
 
 <a id="認証認可の外部境界"></a>
@@ -272,20 +222,18 @@ READ の確定 URL と下書きに対する承認後、更新直前に対象本�
 
 | ID | 状態 | 次の作業・完了条件 |
 |---|---|---|
-| [AUTH-V-D1-PREFLIGHT](#auth-v-d1-preflight) | BLOCKED | 対象環境・操作者・承認・既存 staff/主所属・影響範囲・rollback を確定 |
-| [AUTH-V-D1-APPLY](#auth-v-d1-apply) | BLOCKED（前段待ち） | 承認済み手順で初回管理者を付与し、通常 login の非機密 receipt を取得 |
-| [AUTH-V-D1-MAIL](#auth-v-d1-mail) | BLOCKED（前段待ち） | 承認済みの対象と送信・後処理範囲でメール経路を検証 |
+| `AUTH-V-D1-PREFLIGHT` → `EMR-139` | Planeへ移行済み |  |
+| `AUTH-V-D1-APPLY` → `EMR-140` | Planeへ移行済み |  |
+| `AUTH-V-D1-MAIL` → `EMR-141` | Planeへ移行済み |  |
 
-Linear の残りは [照合の残り](#linear-reconciliation)。共有 `ekarte_db` / `old-db-postgres` / STG / PROD をテスト DB に使わず、本番付与・メール・migration を自動実行しない。receipt は対象環境、日時、担当、承認、結果、復旧可否のみを既存 runbook へ保存する。外部受入が残れば完了にしない。
+過去のLinear照合記録は [こちら](#linear-reconciliation)。現在のタスク状態は各Plane項目を参照。共有 `ekarte_db` / `old-db-postgres` / STG / PROD をテスト DB に使わず、本番付与・メール・migration を自動実行しない。receipt は対象環境、日時、担当、承認、結果、復旧可否のみを既存 runbook へ保存する。外部受入が残れば完了にしない。
 
 ### AUTH-V-D1-PREFLIGHT
 
-最初に [初回管理者手順](docs/ops/deploy/FIRST_SYSTEM_ADMIN.md) で対象環境の経路を選ぶ。本番専用手順は無効/削除済みも含め system_admin が0件、既存 staff と有効な主所属があることが条件。操作者、適用済み schema、安全な接続先照合、保守枠、監査、通信断時の確認/復旧を不足表にする。成果物は実行案と非機密承認参照。既存管理者がいる場合は bootstrap を再実行せず復旧/通常の追加経路へ戻す。環境未確定でも入力・手順の照合まで先行できる。
-
+> 移行済み: Plane `EMR-139`。詳細と現在の状態は[移行記録](docs/work/plane-md-migration-20260923-receipt.md)を参照。
 ### AUTH-V-D1-APPLY
 
-PREFLIGHT と対象操作の明示承認後、人間が runbook の secure service・repo 外入力・1 transaction の手順を実行する。exit 0、COMMIT、監査付き receipt 1行を確認し、本人の通常 login → 医院選択まで照合する。成果物は保護された account/staff/clinic/audit の対応と、台帳用の非機密結果参照。通信断や COMMIT 不明なら再発行せず read-only receipt で照合し、成功後の取消に account/staff/audit の DELETE を使わない。
-
+> 移行済み: Plane `EMR-140`。詳細と現在の状態は[移行記録](docs/work/plane-md-migration-20260923-receipt.md)を参照。
 ### AUTH-V-D1-MAIL
 
-通常 login の確認後、[認証設計](docs/architecture/auth.md) と [V05 のパスワード再設定](docs/ops/testing/scenarios/V05-auth-line-forms.md) から確認するメール経路を選び、承認された宛先・送信回数・受信確認担当・秘密の後処理を固定する。送信 → 受信 → 対象リンクの利用 → 使用済み/期限切れの拒否を確認する。成果物は経路別の非機密 receipt と後処理結果で、メール本文・宛先・token を保存しない。送信不能・想定外宛先・所属不整合は停止し、付与成功でメール成功を代用しない。
+> 移行済み: Plane `EMR-141`。詳細と現在の状態は[移行記録](docs/work/plane-md-migration-20260923-receipt.md)を参照。

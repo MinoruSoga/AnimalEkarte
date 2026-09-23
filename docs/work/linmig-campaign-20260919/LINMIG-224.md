@@ -1,5 +1,7 @@
 # LINMIG-224 — LINE reserve owner-flow font QA matrix
 
+> Current task status is tracked in Plane `EMR-36`. This local document remains supporting execution/evidence material; see the [migration receipt](../plane-md-migration-20260923-receipt.md) for the crosswalk.
+
 Campaign `linmig-ops-prep-20260919` revision 1. Attempt `att-linmig-224-20260919-001`. Claim `claim/LINMIG-224`. Local sheet only.
 
 This unit maps three devices against remaining Noto Sans JP display conditions. It does not run device QA, capture screenshots, or change CSS.

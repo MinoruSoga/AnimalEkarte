@@ -1,5 +1,7 @@
 # LINMIG-239 — Four-system credential-rotation order, restore conditions, missing receipts (docs-only)
 
+> Current task status is tracked in Plane `EMR-51`. This local document remains supporting execution/evidence material; see the [migration receipt](../plane-md-migration-20260923-receipt.md) for the crosswalk.
+
 Campaign `linmig-ops-prep-20260919` revision 1. Unit `LINMIG-239`. Attempt `att-linmig-239-20260919-001`. Claim `claim/LINMIG-239`. Linear issue `LINMIG-239` was not found; keep as claim only. Prompt SHA `d39400d404ed43865bd10664d1dee26116d742bba15b293b2f1a3f6961fc87bb`.
 
 Maps to [todo-operations.md](../../../todo-operations.md) **P1 / SEC-SECRETS-5** and GitHub [#89](https://github.com/MinoruSoga/AnimalEkarte/issues/89) / [#97](https://github.com/MinoruSoga/AnimalEkarte/issues/97). Binding sources:
