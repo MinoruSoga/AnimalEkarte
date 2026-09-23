@@ -507,6 +507,17 @@ def plan(paths):
                 'command': ['python3', '-B', 'scripts/link-old-db-cross-clinic-staff-accounts.py', '--self-test'],
             })
         elif path in (
+            'scripts/link-old-db-staff-identity-map.py',
+            'scripts/sql/link-old-db-staff-identity-map.sql',
+            'scripts/staff-identity-map-link.sh',
+        ):
+            jobs.append({
+                'service': 'host',
+                'command': ['python3', '-B', 'scripts/link-old-db-staff-identity-map.py', '--self-test'],
+            })
+            if path.endswith('.sh'):
+                jobs.append({'service': 'host', 'command': ['bash', '-n', path]})
+        elif path in (
             'scripts/check-workflow-contracts.test.mjs',
             '.github/workflows/security-scan.yml',
             '.github/workflows/README-security-scan.md',
