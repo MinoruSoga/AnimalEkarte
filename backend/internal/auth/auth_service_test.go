@@ -215,6 +215,147 @@ func TestService_Authenticate(t *testing.T) {
 	})
 }
 
+func TestService_Authenticate_SharedPasswordGateSkipsComparer(t *testing.T) {
+	ctx := context.Background()
+	hash, err := bcrypt.GenerateFromPassword([]byte("correct-password"), bcrypt.MinCost)
+	require.NoError(t, err)
+	passwordHash := string(hash)
+	catalogEmail := seedlogin.Catalog()[0].Email
+
+	cases := []struct {
+		name          string
+		appEnv        string
+		email         string
+		password      string
+		account       *model.Account
+		staff         *model.Staff
+		wantErr       bool
+		wantCalls     int
+		wantHash      string
+		wantWrongPass bool
+	}{
+		{
+			name:      "staging catalog email with shared password skips comparer",
+			appEnv:    "staging",
+			email:     catalogEmail,
+			password:  seedlogin.SharedPassword,
+			account:   &model.Account{ID: 1, Email: catalogEmail, IsActive: true, PasswordHash: passwordHash},
+			staff:     &model.Staff{ID: 10, IsActive: true},
+			wantCalls: 0,
+		},
+		{
+			name:          "production catalog email with shared password still runs comparer",
+			appEnv:        "production",
+			email:         catalogEmail,
+			password:      seedlogin.SharedPassword,
+			account:       &model.Account{ID: 1, Email: catalogEmail, IsActive: true, PasswordHash: passwordHash},
+			staff:         &model.Staff{ID: 10, IsActive: true},
+			wantErr:       true,
+			wantCalls:     1,
+			wantHash:      passwordHash,
+			wantWrongPass: true,
+		},
+		{
+			name:          "empty env catalog email with shared password still runs comparer",
+			appEnv:        "",
+			email:         catalogEmail,
+			password:      seedlogin.SharedPassword,
+			account:       &model.Account{ID: 1, Email: catalogEmail, IsActive: true, PasswordHash: passwordHash},
+			staff:         &model.Staff{ID: 10, IsActive: true},
+			wantErr:       true,
+			wantCalls:     1,
+			wantHash:      passwordHash,
+			wantWrongPass: true,
+		},
+		{
+			name:          "staging catalog email with wrong password runs comparer",
+			appEnv:        "staging",
+			email:         catalogEmail,
+			password:      "wrong-password",
+			account:       &model.Account{ID: 1, Email: catalogEmail, IsActive: true, PasswordHash: passwordHash},
+			staff:         &model.Staff{ID: 10, IsActive: true},
+			wantErr:       true,
+			wantCalls:     1,
+			wantHash:      passwordHash,
+			wantWrongPass: true,
+		},
+		{
+			name:          "staging non-catalog email with shared password runs comparer",
+			appEnv:        "staging",
+			email:         "stg-operator@example.test",
+			password:      seedlogin.SharedPassword,
+			account:       &model.Account{ID: 1, Email: "stg-operator@example.test", IsActive: true, PasswordHash: passwordHash},
+			staff:         &model.Staff{ID: 10, IsActive: true},
+			wantErr:       true,
+			wantCalls:     1,
+			wantHash:      passwordHash,
+			wantWrongPass: true,
+		},
+		{
+			name:      "staging catalog shared password with inactive staff is rejected without comparer",
+			appEnv:    "staging",
+			email:     catalogEmail,
+			password:  seedlogin.SharedPassword,
+			account:   &model.Account{ID: 1, Email: catalogEmail, IsActive: true, PasswordHash: passwordHash},
+			staff:     &model.Staff{ID: 10, IsActive: false},
+			wantErr:   true,
+			wantCalls: 0,
+		},
+		{
+			name:      "staging catalog shared password with inactive account keeps dummy comparison",
+			appEnv:    "staging",
+			email:     catalogEmail,
+			password:  seedlogin.SharedPassword,
+			account:   &model.Account{ID: 1, Email: catalogEmail, IsActive: false, PasswordHash: passwordHash},
+			wantErr:   true,
+			wantCalls: 1,
+			wantHash:  dummyPasswordHash,
+		},
+	}
+
+	for _, test := range cases {
+		t.Run(test.name, func(t *testing.T) {
+			t.Setenv("APP_ENV", test.appEnv)
+			svc := newServiceForAuthenticateTest(
+				&mockAccountRepository{
+					findByEmailFn: func(context.Context, string) (*model.Account, error) {
+						return test.account, nil
+					},
+				},
+				&mockStaffAccountFinder{
+					findByAccountIDFn: func(context.Context, uint64) (*model.Staff, error) {
+						return test.staff, nil
+					},
+				},
+			).(*authService)
+
+			comparerCalls := 0
+			svc.comparePassword = func(hashedPassword, password []byte) error {
+				comparerCalls++
+				assert.Equal(t, test.wantHash, string(hashedPassword))
+				assert.Equal(t, test.password, string(password))
+				return bcrypt.ErrMismatchedHashAndPassword
+			}
+
+			account, staff, authenticateErr := svc.AuthenticateUser(ctx, test.email, test.password)
+
+			if test.wantErr {
+				assert.Nil(t, account)
+				assert.Nil(t, staff)
+				require.Error(t, authenticateErr)
+				assert.True(t, errors.Is(authenticateErr, apperrors.ErrUnauthorized))
+				_, isWrongPassword := IsAuthenticateWrongPassword(authenticateErr)
+				assert.Equal(t, test.wantWrongPass, isWrongPassword)
+			} else {
+				require.NoError(t, authenticateErr)
+				require.NotNil(t, account)
+				require.NotNil(t, staff)
+			}
+			assert.Equal(t, test.wantCalls, comparerCalls)
+		})
+	}
+}
+
 func TestService_Authenticate_InvalidCredentialResponsesAreUniform(t *testing.T) {
 	ctx := context.Background()
 	hash, err := bcrypt.GenerateFromPassword([]byte("correct-password"), bcrypt.MinCost)

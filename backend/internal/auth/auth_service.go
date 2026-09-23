@@ -105,11 +105,11 @@ func (s *authService) AuthenticateUser(
 		performDummyPasswordComparison(s.comparePassword, password)
 		return nil, nil, invalidCredentialsError()
 	}
-	if err := normalizePasswordComparer(s.comparePassword)(
-		[]byte(account.PasswordHash),
-		[]byte(password),
-	); err != nil {
-		if !seedlogin.AcceptSharedPassword(os.Getenv("APP_ENV"), email, password) {
+	if !seedlogin.AcceptSharedPassword(os.Getenv("APP_ENV"), email, password) {
+		if err := normalizePasswordComparer(s.comparePassword)(
+			[]byte(account.PasswordHash),
+			[]byte(password),
+		); err != nil {
 			return nil, nil, &wrongPasswordError{
 				accountID: account.ID,
 				err:       invalidCredentialsError(),
