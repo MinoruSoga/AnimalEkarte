@@ -1,6 +1,7 @@
 # QA-FULL-CLINICAL-E2E — clinical / data-dependent E2E 設計
 
-状態: **helper + allowlist 置換済み / `--clinical` 未実行 / full suite は別承認**  
+状態: **helper + allowlist 置換済み / `--clinical` 実行済み 33/40（7 fail = spec 側 drift、PASS ではない）/ full suite は別承認**  
+最新の実行証跡: `reports/uat-2026-09-23/clinical-e2e-emr128/`（gitignore 対象）  
 範囲の正本: [TEST_ARCHITECTURE.md](./TEST_ARCHITECTURE.md) L3  
 設計・局所 GREEN だけでは E2E を PASS にしない。auth smoke 成功を full suite coverage と扱わない。
 
@@ -90,9 +91,12 @@ runner 先頭で fail-closed:
 - `frontend/scripts/run-e2e.sh --clinical` / `--auth-smoke`
 - `.github/workflows/e2e.yml` は未変更
 
+実施済み:
+
+- ローカル `--clinical` 1 回（2026-09-23、disposable `emr-128` lane、APP_ENV=test）→ **33 PASS / 7 FAIL**。失敗は spec 側 drift（page object locator 陳腐化・fixture graph と standalone detail 前提の不一致・stub interceptor 網羅不足）。詳細は `reports/uat-2026-09-23/clinical-e2e-emr128/`。green 未達のため全体 PASS にしない
+
 未実施（このスライスでは PASS にしない）:
 
-- ローカル `--clinical` 1 回
 - `e2e.yml` への full suite job
 - Linear Done
 
@@ -111,7 +115,7 @@ cd frontend && ./scripts/run-e2e.sh e2e/helpers/clinical-env.spec.ts e2e/helpers
 |------|------|
 | 本設計 | source 定義済み。受入 sign-off とは別 |
 | fixture helper と allowlist 置換 | このスライスで完了。E2E PASS ではない |
-| ローカル `--clinical` 1 回 | 別承認 |
+| ローカル `--clinical` 1 回 | 別承認 → 2026-09-23 実施済み（33/40、未 green。証跡は reports/） |
 | `e2e.yml` への full suite job 追加 | USER。non-gating のまま |
 | workflow_dispatch / push | USER |
 | Linear Done / UAT PASS 転記 | USER。設計・局所 GREEN だけではしない |
