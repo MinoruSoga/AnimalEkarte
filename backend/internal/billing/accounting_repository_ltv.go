@@ -16,6 +16,15 @@ import (
 // billing whose optional medical record is cross-clinic or soft-deleted.
 // DEC-27: medical_records.owner_id and billings.owner_id are independent
 // snapshots; do not require equality (pet transfer must not drop LTV rows).
+//
+// EMR-73 / spec-36 (顧客集計カウント整合): revenue/LTV aggregation counts ALL
+// completed billings — including owners whose completed billings have
+// medical_record_id NULL and no medical_records rows at all ("来院なし"
+// owners). A manual/retail-only completed billing is real revenue and must
+// not be dropped here. Visit gating (include_no_visit) belongs only to the
+// owner-aggregation last-visit filter in internal/owner, never to these
+// billing-side sums; conversely COUNT(DISTINCT medical_records.date) remains
+// the rule wherever actual visit days are counted.
 func validBillingOwnerMedicalRecordScope(db *gorm.DB) *gorm.DB {
 	return db.Where(`billings.medical_record_id IS NULL OR EXISTS (
 		SELECT 1
