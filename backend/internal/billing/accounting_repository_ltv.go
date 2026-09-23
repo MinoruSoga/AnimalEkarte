@@ -21,10 +21,13 @@ import (
 // completed billings — including owners whose completed billings have
 // medical_record_id NULL and no medical_records rows at all ("来院なし"
 // owners). A manual/retail-only completed billing is real revenue and must
-// not be dropped here. Visit gating (include_no_visit) belongs only to the
-// owner-aggregation last-visit filter in internal/owner, never to these
-// billing-side sums; conversely COUNT(DISTINCT medical_records.date) remains
-// the rule wherever actual visit days are counted.
+// not be dropped here. medical_records rows determine visit counts and visit
+// dates only, never revenue eligibility. The include_no_visit exclusion lives
+// in the owner-aggregation layer (internal/owner shouldExcludeNoVisit) and is
+// scoped to the last-visit-axis query (last_visit_bucket 指定または最終来院
+// 系ソート) — it must never gate these billing-side sums; conversely
+// COUNT(DISTINCT medical_records.date) remains the rule wherever actual visit
+// days are counted.
 func validBillingOwnerMedicalRecordScope(db *gorm.DB) *gorm.DB {
 	return db.Where(`billings.medical_record_id IS NULL OR EXISTS (
 		SELECT 1
