@@ -1,6 +1,6 @@
 # タスク台帳 — 入口
 
-最終照合: 2026-09-23（JST）。HEAD `936610d75` のコードベースで再照合した。前回（2026-09-22・`cd2feaa14`）以降の着地分: 尿検査M4表示回帰と主訴C0解除UI（`a95835cb9`）、実行シナリオ S14–S33 とフォーム wire-key 総覧（`5a5828a1d`）、handoff CSV 契約 digest 解消と cross-clinic staff 連携（`d34e09df7`・`0c91f5dc9`）、STG 遅延対策の実装と curl 実測（`d96c4ba27`・cities/DO pinning は能力不足で撤回）。製品 FAIL 10件はコード照合で全件「記載どおり未修復」を再確認。作業ツリーには未コミットの3単位がある: 子レコード stale 更新防御（backend・EXCLUSIVE-LOCK）、入院プラン単価転記（FE・MASTER-PATH）、stg-uat-staff-attach RLS bypass。remote・CI・配備・Linear の現在状態は再照会していない。投稿・状態変更は未実施。**未完了の作業だけを掲載する。** 完了の詳細はGit履歴と元のUAT記録を参照する。ローカル準備・修正・回帰追加を、課題全体・STG読取・医院受入・本番実行の完了にしない。
+最終照合: 2026-09-23（JST・午後）。HEAD `65b4defff`（origin/main と一致・作業ツリークリーン）で再照合。前回照合（同日午前・`936610d75`）以降に23 commit が着地: 午前時点で未コミットだった3単位（子レコード stale 更新防御・入院プラン単価転記・stg-uat-staff-attach RLS bypass）は全て main 着地済み。PR #431/#435（staff-attach＋timeout flag・CI 修正2件）、PERF-E5 キャンペーン（login bcrypt前倒し・current-access 1RTT 化・owner loader fan-out 解消・503 retry 停止・E5 証拠5単位は `todo-performance.md` E5 rev2 に記録済み。**campaign のコード変更は STG 未配備のため効果は実測に未反映**）。製品 FAIL 10件は spot 再確認で全件未修復を維持（23P01 変換なし・trimming 例外なし・LinkAccount の owner_id 未更新・FE 保険負値を本日実測）。STG 配備・Linear の現在状態は再照会していない。投稿・状態変更は未実施。**未完了の作業だけを掲載する。** 完了の詳細はGit履歴と元のUAT記録を参照する。ローカル準備・修正・回帰追加を、課題全体・STG読取・医院受入・本番実行の完了にしない。
 
 ## 着手プランの確認
 
@@ -34,27 +34,27 @@
 
 | 順 / ID | 最初に行う作業 | この単位の完了条件 / 後続 |
 |---|---|---|
-| 1 / UAT-R2-MASTER-PATH | [全経路票](docs/work/todo-campaign-20260918/UAT-R2-MASTER-PATH.md) の複数マスタrequest/model回帰は追加済み。入院参照の下流（プラン単価転記）はコード対応済み・未コミット（named price-loss の解消、回帰は反転固定済み）。次はexam_types配線と予防分類のunit_price維持を合成ケースへ（実行票 S20・docs/ops/testing/scenarios/） | 全12フォームの新規/編集→再読込→利用/会計は未実証。専用fixtureで未カバー箇所を検証し、再現した金額不一致だけ修正 |
+| 1 / UAT-R2-MASTER-PATH | [全経路票](docs/work/todo-campaign-20260918/UAT-R2-MASTER-PATH.md) の複数マスタrequest/model回帰は追加済み。入院参照の下流（プラン単価転記）は main 着地済み（`e79930591`・named price-loss の解消、回帰は反転固定済み）。次はexam_types配線と予防分類のunit_price維持を合成ケースへ（実行票 S20・docs/ops/testing/scenarios/） | 全12フォームの新規/編集→再読込→利用/会計は未実証。専用fixtureで未カバー箇所を検証し、再現した金額不一致だけ修正 |
 | 2 / UAT-R2-CHART-FIT | 高さ制約・タブ内scrollのコード対応済み。[受入キュー](todo-verification.md#uat-followup) で1366×625、全9タブ、sidebar両状態の残ケースを確認 | 必須情報/保存/フォーカスに到達できる対象buildの証拠。Windows 8/Chrome実機の版・CSS領域・100%/既報125%はQAが採取し、最新Chromiumと分ける |
-| 3 / UAT-R2-EXCLUSIVE-LOCK | 二重会計409・明細一意制約と、古い合計/確定後明細/検査重複のmock回帰は追加済み。[実施記録](docs/work/todo-ledger-20260922/UAT-R2-EXCLUSIVE-LOCK.md) のとおり子レコード4種別（治療/バイタル/処方/接種）のstale更新CASをbackend実装済み・scoped GREEN（migration 005は未適用）。次はhandler/DTO・OpenAPI・FE生成typesへのversion配線 | 実DB/2セッションは [DB適用証拠](todo-operations.md#billing-schema-readiness) と専用環境待ち。Deleteと一括並べ替えはversion対象外のまま。全面ロックは未採用 |
+| 3 / UAT-R2-EXCLUSIVE-LOCK | 二重会計409・明細一意制約と、古い合計/確定後明細/検査重複のmock回帰は追加済み。[実施記録](docs/work/todo-ledger-20260922/UAT-R2-EXCLUSIVE-LOCK.md) のとおり子レコード4種別（治療/バイタル/処方/接種）のstale更新CASは main 着地済み（`95cfe63f6`）・ローカルDBへは migration 005/006 適用済み。次はhandler/DTO・OpenAPI・FE配線へのversion送付（本日実測でrequest DTO未配線を再確認・生成models.tsはversion対応済み） | 実DB/2セッションは [DB適用証拠](todo-operations.md#billing-schema-readiness) と専用環境待ち。Deleteと一括並べ替えはversion対象外のまま。全面ロックは未採用 |
 | 4 / UAT-Q2-TREATMENTS-IMPORT | [全期間移行票](docs/work/todo-campaign-20260918/UAT-Q2-TREATMENTS-IMPORT.md) の列写像は調査済み。未確定FK/分類/日時/用量/価格等を契約案・合成fixture設計へ | 現行21表にはtreatments/prescriptionsなし。全種類・全期間の履歴契約を両repoでレビュー後に実装。実データ投入は別承認 |
 
 上記は4件の現在の次工程。既存の設計票や対応済みコードを作り直さず、依存しない調査は別worktreeで並行可。実装時に同じカルテ/会計ファイルへ触れる単位は直列化する。対象の全列挙・実機値の計測・元列の特定は担当者の作業であり、同じ内容を依頼者へ聞き直さない。個人名を伴う要件/受入担当の参照は製品仕様変更前に実行票へ記録する。
 
 ### 追加対応8件の残作業（2026-09-22）
 
-上のMASTER / EXCLUSIVE / IMPORTに加え、[尿検査M4](todo-issue.md#slack-manual-urine) のカルテ表示回帰は `a95835cb9` で着地済み（残は医院承認の項目/凡例/単位/基準・実行票 S28）。[主訴C0](todo-issue.md#slack-complaint) はnull再読込修正・回帰に加え clearable 解除UIまで実装済み（`a95835cb9`・実行票 S27）。残は実機保存・再読込の受入。実装済み回帰は再実装しない。[プラン手入力](todo-issue.md#slack-plan-manual) は案内/導線採否のPO待ち、[ワクチン複数入力](todo-issue.md#slack-vaccine-multi) は元症状・実機証拠待ち、[遅延](todo-issue.md#slack-latency) はSTG curl実測を `todo-performance.md`（E4/E5・未コミット）へ記録済みで、残は実機ブラウザ区間測定の計測設計。受入の残条件は [検証TODO](todo-verification.md#ready8-followup-20260922)。これらの対応は8課題全体の完了を意味しない。
+上のMASTER / EXCLUSIVE / IMPORTに加え、[尿検査M4](todo-issue.md#slack-manual-urine) のカルテ表示回帰は `a95835cb9` で着地済み（残は医院承認の項目/凡例/単位/基準・実行票 S28）。[主訴C0](todo-issue.md#slack-complaint) はnull再読込修正・回帰に加え clearable 解除UIまで実装済み（`a95835cb9`・実行票 S27）。残は実機保存・再読込の受入。実装済み回帰は再実装しない。[プラン手入力](todo-issue.md#slack-plan-manual) は案内/導線採否のPO待ち、[ワクチン複数入力](todo-issue.md#slack-vaccine-multi) は元症状・実機証拠待ち、[遅延](todo-issue.md#slack-latency) はPERF-E5 キャンペーンで計測設計と実測が完了（`todo-performance.md` E5 rev2・client-trace は FCP cold 692ms/warm 88ms・OPTIONS 0 件）。残は campaign コードの STG 配備と配備後の効果検証（cookie 認証では preflight が発生しないため EDGE-OPTIONS は未励起）。受入の残条件は [検証TODO](todo-verification.md#ready8-followup-20260922)。これらの対応は8課題全体の完了を意味しない。
 
 ### その他の残件を開始する順序
 
 | 残件 | 次の具体作業 / 終了または停止条件 |
 |---|---|
-| 性別修正・handoff | [対応表](docs/work/todo-ledger-20260922/UAT-Q3-GENDER-MAP.md) 確定済み: hachioji 1院は統合済みrevisionと一致、jouto/shikishima/hakobuneco の3院は修正前mapping世代でbundle再生成対象。[STG限定訂正ドラフト](docs/work/todo-ledger-20260922/UAT-Q3-GENDER-MAP-CORRECTION-DRAFT.md) 完成・operator承認待ち。handoff CSV契約はdigest bump（`d34e09df7`）でローカルrehearsal BLOCKは解消、formal F6はREHEARSAL_ONLYのまま [BLOCKED](docs/work/todo-ledger-20260922/BUG-LOCAL-HANDOFF-CSV-CONTRACT.md)。PostgreSQL検証receipt取得には未コミットの [stg-uat-staff-attach RLS bypass](backend/cmd/stg-uat-staff-attach/main.go) が前提 |
+| 性別修正・handoff | [対応表](docs/work/todo-ledger-20260922/UAT-Q3-GENDER-MAP.md) 確定済み: hachioji 1院は統合済みrevisionと一致、jouto/shikishima/hakobuneco の3院は修正前mapping世代でbundle再生成対象。[STG限定訂正ドラフト](docs/work/todo-ledger-20260922/UAT-Q3-GENDER-MAP-CORRECTION-DRAFT.md) 完成・operator承認待ち。handoff CSV契約はdigest bump（`d34e09df7`）でローカルrehearsal BLOCKは解消、formal F6はREHEARSAL_ONLYのまま [BLOCKED](docs/work/todo-ledger-20260922/BUG-LOCAL-HANDOFF-CSV-CONTRACT.md)。PostgreSQL検証receipt取得の前提だった [stg-uat-staff-attach RLS bypass](backend/cmd/stg-uat-staff-attach/main.go) は `6063f58a0`（timeout flag追加）とともに main 着地済み |
 | ワクチン種・未納・死亡日訂正 | 既存集計/訂正設計は完成済み。[運用担当](todo-operations.md#uat-data-operations) が対象医院・期間・読取範囲/承認・保存先を埋める。条件が揃うまで実データ操作は停止 |
 | OWNER / S09 / V04 / clinical / その他UAT | [OWNER実DB 5ケースは過去receipt皆無・全件未実行](docs/work/todo-ledger-20260922/DEV-V-OWNER-DB.md) と分類済み。次は専用disposable DBでの実行（共有DB不可）。S09 / V04 / clinical のexactケース対応づけは [検証表](todo-verification.md#readiness-preparation) どおり継続。起動中の他タスク用コンテナは借用しない |
 | P2 / P5 | 差分・remote方式は [LINMIG-232](docs/work/linmig-campaign-20260919/LINMIG-232.md) / [LINMIG-230](docs/work/linmig-campaign-20260919/LINMIG-230.md)。provider有効化・配備・発行は承認まで停止 |
 | STGデータ / release / P1・P3・P6・P7 / 認証 | 不足表は linmig / remaining 票へ作成済。[運用表](todo-operations.md#readiness-preparation) の実行条件が揃うまで送信・資格情報変更・本番作業は停止 |
-| 性能 | STGのcurl実測は `todo-performance.md`（E4/E5・未コミット）へ記録済み（`d96c4ba27` の認証キャッシュとsleepAfter延長の効果、配置pinningは能力不足で撤回）。残は [測定票](todo-performance.md#測定準備で決めること) での実機ブラウザ区間測定の対象固定。未測定の因果関係で改善を実装しない |
+| 性能 | PERF-E5 キャンペーンの実測は完了（`todo-performance.md` E5 rev2・`reports/perf-e5-residual-20260923/`。container_fetch 866–3848ms が支配的・稼働 instance は `maa01` を記録）。campaign の5実装単位は main 済みだが **STG 未配備**。残は配備と配備後の効果検証（`claim/PERF-E5-*` 進行中）。未測定の因果関係で改善を実装しない |
 | Linear | [既存照合票](docs/work/todo-campaign-20260918/TODO-V-LINEAR.md) の履歴を保持。接続復旧後に残る既存Issueをfull local ID/元報告/受入条件で照合。投稿・状態変更は別承認 |
 | TASK-444-ADDENDUM-CODEGEN | 必要性と別スコープの採用までDEFERRED。準備票を増やすために再開しない |
 
@@ -87,8 +87,8 @@
 
 | ID | 内容 | 状態 |
 |---|---|---|
-| [UAT-R2-MASTER-PATH](todo-issue.md#uat-r2-master-path) | 金額を持つ全マスタの保存・再読込・下流経路を検証 | 価格request/model回帰拡充済み／入院参照下流はコード対応済み（未コミット）／exam_types配線・予防分類と全経路の検証継続 |
-| [UAT-R2-EXCLUSIVE-LOCK](todo-issue.md#uat-r2-exclusive-lock) | カルテ上書きと二重会計の両方を防止 | 子レコードstale防御はbackend実装済み（migration 005未適用・FE/handler配線なし）／DB適用・実並行は残る |
+| [UAT-R2-MASTER-PATH](todo-issue.md#uat-r2-master-path) | 金額を持つ全マスタの保存・再読込・下流経路を検証 | 価格request/model回帰拡充済み／入院参照下流はmain着地（`e79930591`）／exam_types配線・予防分類と全経路の検証継続 |
+| [UAT-R2-EXCLUSIVE-LOCK](todo-issue.md#uat-r2-exclusive-lock) | カルテ上書きと二重会計の両方を防止 | 子レコードstale防御はmain着地（ローカルDBへ005/006適用済み・FE/handler配線なし）／STG適用・実並行は残る |
 | [UAT-Q3-GENDER-MAP](todo-issue.md#uat-q3-gender-map) | コード3/4修正はold_db main統合済み。対応表とSTG訂正ドラフトは作成済み | 3院bundle再生成とoperator承認待ち（bundle・運用） |
 | [UAT-Q2-VACCINE-SPECIES](todo-issue.md#uat-q2-vaccine-species) | 猫に犬用ワクチン（Proheart・6種等）。件数調査のあと種を付ける | 集計設計票作成済／STG 調査待ち |
 | [UAT-Q4-UNPAID-TRIAGE](todo-issue.md#uat-q4-unpaid-triage) | 未納はデモではない。実未納と突合漏れを集計で切る。一括完了しない | 集計設計票作成済／STG 調査待ち |
