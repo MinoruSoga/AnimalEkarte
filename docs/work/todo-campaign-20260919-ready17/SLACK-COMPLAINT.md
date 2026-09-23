@@ -1,6 +1,6 @@
 # SLACK-COMPLAINT: 主訴区分の新規未選択 vs 既存クリア
 
-状態: **C0 clearable 実装済み／C3 hydrate 先行修正済み／N・C・reload 回帰 PASS／実機保存・再読込 未実行**。出典は [todo-issue.md](../../../todo-issue.md) 見出し `### SLACK-COMPLAINT`（L118–122、索引 L419）。保持する現場条件:
+状態: **C0 clearable 実装済み／C3 hydrate 先行修正済み／N・C・reload 回帰 PASS／部分更新欠陥（C5）を最小修正済み／実 API・実 DB で保存・再読込を検証済み**。出典は [todo-issue.md](../../../todo-issue.md) 見出し `### SLACK-COMPLAINT`（L118–122、索引 L419）。保持する現場条件:
 
 - 「主訴区分は空欄で入力」（出典 929–937。現行 `todo-issue.md` は要約のみ。原文行は本票では再掲しない）
 - **空欄許可は依頼済み**。可否を PO へ再質問しない。新しい仕様待ちに戻さない
@@ -59,19 +59,39 @@
 | --- | --- | --- | --- |
 | 新規 POST（N1） | auto-create がキーを付けない。Create TS 型に `null` が無い | この経路では送っていない | この経路では送っていない |
 | 問診 PATCH（N3/C2） | `undefined` だけ axios が落とす。save-action は type を常に `number \| null` で渡すので **省略しない** | 未選択なら `chief_complaint_type_id: null` | 選択中なら数値 |
-| BE bind | [updateInquiryRequest](../../../backend/internal/medicalrecord/inquiry_request.go) L3–5 / create L136 は `*uint64` で `omitempty` なし。キー省略も JSON null も **nil ポインタ** | 同左 | non-nil |
-| サービスコメント | [UpsertInquiryInput](../../../backend/internal/medicalrecord/inquiry_service.go) L11–17 は「nil = 未送信フィールド」。Save L47–52 は nil なら struct の type を触らない（ゼロ値の nil のまま） | bind 後は omit と null を区別できない | 代入する |
-| 永続化 | [SaveByMedicalRecordID](../../../backend/internal/medicalrecord/inquiry_repository.go) L74–84 は `map[string]any` に `"chief_complaint_type_id": inquiry.ChiefComplaintTypeID` を **毎回含める**。既存行を読んでマージしない。ゼロ値 struct の nil ポインタがマップに入る | omit と null は同じ nil ポインタ | ポインタ付き ID |
-| 作成 subrecord | type が nil なら inquiry に type を書かない（[medical_record_subrecords.go](../../../backend/internal/medicalrecord/medical_record_subrecords.go) L36–38）。inquiry upsert 自体は N2 のとおり入力が無いとスキップ | 作成 JSON null も bind 後 nil → 同じ | 入力ありなら upsert |
+| BE bind | [updateInquiryRequest](../../../backend/internal/medicalrecord/inquiry_request.go) L3–8 は `chief_complaint_type_id` に `nullableUint64RequestField`（clinical_plan の diagnosis_2_*_id と同型）を使う。**キー省略 → `set=false`、JSON null → `set=true,value=nil`、数値 → `set=true,value=&v`** で3値を区別する（EMR-87 修正後） | 明示 null は「送信済み・値なし」 | non-nil |
+| サービスコメント | [UpsertInquiryInput](../../../backend/internal/medicalrecord/inquiry_service.go) L11–19 は `ChiefComplaintTypeID **uint64`: nil=未送信(保持) / &nil=NULL クリア / &&v=セット。Save は `optionalDoubleUint64` で nil 正規化して所有マスタ照合し、`InquiryUpsertFields` をそのまま repository へ渡す | &nil は「列を NULL にする」 | &&v |
+| 永続化 | [SaveByMedicalRecordID](../../../backend/internal/medicalrecord/inquiry_repository.go) L84–109 は `map[string]any` に**送信されたフィールドのみ**載せる。`fields.ChiefComplaintTypeID != nil` なら `"chief_complaint_type_id": *fields.ChiefComplaintTypeID`（内側 nil → SQL NULL）。未送信キーは列に触れない | omit は列を保持、明示 null は NULL 書込 | ポインタ付き ID |
+| 作成 subrecord | type が nil なら `ChiefComplaintTypeID` 外側 nil のまま渡し既存値を保持（[medical_record_subrecords.go](../../../backend/internal/medicalrecord/medical_record_subrecords.go) L33–42）。inquiry upsert 自体は N2 のとおり入力が無いとスキップ | nil は保持（既存行を消さない） | 入力ありなら &&v で upsert |
 | GET 応答 | [InquirySummaryResponse](../../../backend/internal/medicalrecord/medical_record_response.go) L45 と [inquiryResponse](../../../backend/internal/medicalrecord/inquiry_response.go) L13 は `json:"chief_complaint_type_id,omitempty"`。nil は **キー省略**。JSON null は出さない | 応答に null は出ない | 数値 |
 | FE 再読込 | [transformMedicalRecord](../../../frontend/src/lib/transforms/medical-record.ts) L52–53: `record.inquiry?.chief_complaint_type_id ?? null`。キー省略は JS `undefined` → `null` | 応答に現れない | 数値。BUG-013 テスト（[transforms.test.ts](../../../frontend/src/features/medical-records/api/transforms.test.ts) L144–149） |
 
 要点:
 
 1. **新規作成（N1）の未選択は omit。問診保存（N3）の未選択は JSON null。** 同じ「空」でも HTTP 形が違う。
-2. **Go の PATCH bind は omit と null を区別しない**（どちらも `*uint64` nil）。
-3. サービスは nil を「未送信」と書くが、repository は既存 type を読まずマップへ type 列を載せる。GORM `Updates(map)` が SQL NULL になるかは **本票では実 DB 未実行**（inquiry_repository_test は type 列の NULL 化を断言していない）。persist の NULL 化は **UNKNOWN**。失敗したら C の最小修正対象であり、空欄許可の再質問ではない。
+2. ~~Go の PATCH bind は omit と null を区別しない~~ → **修正済み**: `nullableUint64RequestField` で omit（保持）/ null（クリア）/ 数値（セット）の3値を区別する。
+3. ~~persist の NULL 化は UNKNOWN~~ → **実 DB で解消済み**: 修正前は `chief_complaint_type_id` のみならず未送信の `chief_complaint`/`notes` もゼロ値で上書きしていた（C5、下記）。`InquiryUpsertFields` の部分更新で、明示 null のみ NULL 書込・未送信は保持を実 PostgreSQL で確認した。
 4. GET は nil を omit する。FE は omit を `null` に正規化する。C3 の hydrate は `null` を state に書き戻さない。
+
+## C5 — 部分更新欠陥（本 attempt で実機再現・最小修正）
+
+再現（本 worktree コードを disposable backend + disposable PostgreSQL で起動し curl で実行）:
+
+```text
+PATCH /api/v1/medical-records/1/inquiries {"chief_complaint":"朝から嘔吐している","notes":"元気あり","chief_complaint_type_id":null} → 200（保存 OK）
+PATCH /api/v1/medical-records/1/inquiries {"chief_complaint_type_id":1}          → 200 だが chief_complaint/notes が "" に消える
+```
+
+原因: `inquiryService.Save` が非 nil 入力だけを詰めた**新規 `model.Inquiry`** を `SaveByMedicalRecordID` へ渡し、repository が 12 列すべてを `map[string]any` で無条件に上書きしていた。未送信フィールドはゼロ値（`""`/nil）で既存値を消していた。save-action は unchanged の本文/notes を `undefined`（省略）で送るため、**区分クリアのみの保存で主訴本文が失われる**実害があった（N4 の期待に反する）。
+
+最小修正（clinical_plan の `**uint64` PATCH 契約と同型）:
+
+- `updateInquiryRequest.ChiefComplaintTypeID` → `nullableUint64RequestField`（omit/null/値の3値区別）
+- `UpsertInquiryInput.ChiefComplaintTypeID` → `**uint64`（nil=保持 / &nil=NULL クリア / &&v=セット）
+- `SaveByMedicalRecordID` は `InquiryUpsertFields` を受け、送信フィールドのみを update map に載せる（未送信列は触らない。空パッチは Updates をスキップ）
+- `medical_record_subrecords.go` も同じ patch 型へ移行（type 未送信時に既存区分を消さない）
+
+clinic_id スコープ・確定済み拒否・FOR UPDATE 直列化・FirstOrCreate は不変更。
 
 ## 現行経路（UI → request → 保存 → 再読込）
 
@@ -103,6 +123,11 @@
 | C3 reload / chart switch | server/null へ hydrate で local type を消す | **FAIL→PASS**（先行 attempt） | apply-medical-record always-write null；本 attempt では再編集なし |
 | N vs C vs reload 区別 | 新規未選択はクリア option 無し／意図的クリアは option あり／親 null 再描画は clear クリック無しで空 | **PASS** | `InterviewChiefComplaint.test.tsx` |
 | 空欄許可再質問 | 再開しない | **PASS** | 本票・実装とも PO 質問なし |
+| C5 部分更新欠陥（本 attempt で発見） | 区分のみの PATCH が未送信の `chief_complaint`/`notes` を消さない | **FAIL→PASS** | 修正前は実 API で `""` に消えることを再現。`InquiryUpsertFields` 部分更新化で解消 |
+| BE persist: NULL 書込 | 明示 `null`（&nil）で `chief_complaint_type_id` が SQL NULL | **PASS** | `inquiry_repository_test.go` `…_ChiefComplaintTypeNullPersistence`（実 PostgreSQL、COALESCE 直読） |
+| BE persist: 未送信は保持 | type 未送信の PATCH が既存区分を消さない | **PASS** | 同上 subtest「未送信は既存区分を保持」 |
+| BE bind: omit vs null | JSON `null` → `&nil`、キー省略 → nil 外側（保持） | **PASS** | `inquiry_handler_test.go` TestUpdateInquiry 2 subtest 追加 |
+| 実 API 保存・再読込 | disposable backend（本 worktree）+ disposable PostgreSQL で PATCH→GET | **PASS** | 下記コマンド群。N: null+本文→200・本文保持・列 NULL。C: 区分1→null で本文保持・列 NULL・GET 再読込でも空。type 未送信 PATCH は既存区分を保持 |
 
 検証コマンド（compose frontend down → ephemeral, att-complaint-20260922-001）:
 
@@ -115,6 +140,26 @@ docker run --rm --network none --pull never \
 # GREEN: Test Files 1 passed / Tests 4 passed
 ```
 
+本 attempt の追加検証（disposable postgres `emr87-pg` + 本 worktree マウントの ephemeral コンテナ、compose スタック不使用）:
+
+```bash
+# backend scoped tests（パッケージ全体、TestMain が <DB>_test を構築）
+docker run --rm --network emr87-test -v "$PWD/backend:/app" -v "$PWD/docs:/docs:ro" \
+  -v ekarte-go-mod-cache:/go/pkg/mod -v ekarte-go-build-cache:/root/.cache/go-build \
+  -w /app -e DB_HOST=emr87-pg -e DB_PORT=5432 -e DB_USER=ekarte_user \
+  -e DB_PASSWORD=ekarte_password -e DB_NAME=ekarte_db --entrypoint go \
+  animalekarte-backend:latest test ./internal/medicalrecord/ -count=1
+# ok github.com/animal-ekarte/backend/internal/medicalrecord 57.6s
+
+# 実 API（disposable backend `emr87-api`、air が本 worktree を watch）
+PATCH /api/v1/medical-records/1/inquiries {"chief_complaint":"…","notes":"…","chief_complaint_type_id":1} → 200
+PATCH /api/v1/medical-records/1/inquiries {"chief_complaint_type_id":null} → 200（本文/notes 保持・type omit）
+GET  /api/v1/medical-records/1 → inquiry.chief_complaint="…"、chief_complaint_type_id キー無し
+DB:  SELECT … chief_complaint_type_id IS NULL → t
+PATCH /api/v1/medical-records/1/inquiries {"chief_complaint":"再診：少し改善"}（type キー無し）→ 区分 1 を保持
+PATCH /api/v1/medical-records/2/inquiries {"chief_complaint":"下痢","chief_complaint_type_id":null} → 200・列 NULL
+```
+
 ## 完了 / PO・停止
 
 todo-issue L122 の完了条件を本票に落とす:
@@ -124,4 +169,4 @@ todo-issue L122 の完了条件を本票に落とす:
 - 納品区分・受入者確認は別途
 - **空欄許可そのものを新しい仕様待ちに戻さない**
 
-臨床的な「空欄にしてよいか」は依頼済みとして閉じる。医院ごとの必須運用ルールはコードに無く **UNKNOWN**。本票で作らない。実機保存・再読込は未実行（本 attempt は unit 回帰範囲）。
+臨床的な「空欄にしてよいか」は依頼済みとして閉じる。医院ごとの必須運用ルールはコードに無く **UNKNOWN**。本票で作らない。保存・再読込は本 worktree の実 backend + 実 PostgreSQL（disposable）で検証済み。**残る未実施はブラウザ実機での UI 操作受入**（「選択をクリア」クリック→保存→リロード→カルテ切替の画面上確認）のみ。

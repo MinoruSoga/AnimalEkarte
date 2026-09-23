@@ -30,19 +30,17 @@ func (s *medicalRecordService) upsertInquirySubRecord(
 	if err := s.assertChiefComplaintTypeForSubRecords(ctx, clinicID, input.ChiefComplaintTypeID); err != nil {
 		return err
 	}
-	inquiry := &model.Inquiry{
+	// EMR-87: 未送信フィールドは nil のまま渡して既存値を保持する。
+	// ChiefComplaintTypeID が送られた場合のみ &&v（値セット）として渡す。
+	fields := InquiryUpsertFields{
 		MedicalRecordID: recordID,
+		ChiefComplaint:  input.ChiefComplaint,
+		Notes:           input.Notes,
 	}
 	if input.ChiefComplaintTypeID != nil {
-		inquiry.ChiefComplaintTypeID = input.ChiefComplaintTypeID
+		fields.ChiefComplaintTypeID = &input.ChiefComplaintTypeID
 	}
-	if input.ChiefComplaint != nil {
-		inquiry.ChiefComplaint = *input.ChiefComplaint
-	}
-	if input.Notes != nil {
-		inquiry.Notes = *input.Notes
-	}
-	if _, err := s.inquiryRepo.SaveByMedicalRecordID(ctx, clinicID, inquiry); err != nil {
+	if _, err := s.inquiryRepo.SaveByMedicalRecordID(ctx, clinicID, fields); err != nil {
 		return apperrors.Wrap(err, "failed to upsert medical record inquiry")
 	}
 	return nil

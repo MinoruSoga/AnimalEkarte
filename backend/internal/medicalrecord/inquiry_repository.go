@@ -18,9 +18,21 @@ import (
 	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
+// InquiryUpsertFields は SaveByMedicalRecordID への部分更新入力。
+// nil ポインタのフィールドは「未送信」を意味し既存列値を保持する（PATCH 意味論）。
+// ChiefComplaintTypeID は **uint64: nil=未送信(保持) / &nil=明示 JSON null(NULL 書込) / &&v=値セット。
+// EMR-87: 以前は *model.Inquiry を受け全列を無条件に書き込んでいたため、
+// 未送信フィールドがゼロ値で既存値を上書きしていた（区分のみ解除すると主訴本文が消える不具合）。
+type InquiryUpsertFields struct {
+	MedicalRecordID      uint64
+	ChiefComplaint       *string
+	Notes                *string
+	ChiefComplaintTypeID **uint64
+}
+
 // InquiryRepository は医療記録問診の永続化インターフェース
 type InquiryRepository interface {
-	SaveByMedicalRecordID(ctx context.Context, clinicID uint64, inquiry *model.Inquiry) (*model.Inquiry, error)
+	SaveByMedicalRecordID(ctx context.Context, clinicID uint64, fields InquiryUpsertFields) (*model.Inquiry, error)
 }
 
 type inquiryRepository struct {
@@ -45,7 +57,7 @@ func NewInquiryRepository(db *gorm.DB) InquiryRepository {
 // Conflict（確定済み）時は FirstOrCreate で作った空行も rollback され残らない。
 // 本メソッドは明示 Transaction を開くため ambient DBOrTx 参加者にはしない
 // （呼び出し側 Transactor と二重接続にならない）。
-func (r *inquiryRepository) SaveByMedicalRecordID(ctx context.Context, clinicID uint64, inquiry *model.Inquiry) (*model.Inquiry, error) {
+func (r *inquiryRepository) SaveByMedicalRecordID(ctx context.Context, clinicID uint64, fields InquiryUpsertFields) (*model.Inquiry, error) {
 	var refreshed model.Inquiry
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// 親カルテを FOR UPDATE で固定し finalize と直列化する（vital/examination と同型）。
@@ -53,9 +65,9 @@ func (r *inquiryRepository) SaveByMedicalRecordID(ctx context.Context, clinicID 
 		if err := tx.
 			Clauses(clause.Locking{Strength: "UPDATE"}).
 			Scopes(persistence.ClinicScope(clinicID)).
-			Where("id = ?", inquiry.MedicalRecordID).
+			Where("id = ?", fields.MedicalRecordID).
 			First(&mr).Error; err != nil {
-			return apperrors.FromGORM(err, "inquiry", fmt.Sprintf("medical_record_id=%d", inquiry.MedicalRecordID))
+			return apperrors.FromGORM(err, "inquiry", fmt.Sprintf("medical_record_id=%d", fields.MedicalRecordID))
 		}
 		if mr.Status == model.MedicalRecordStatusFinalized {
 			return apperrors.WrapConflict("確定済みカルテの問診は編集できません")
@@ -64,38 +76,36 @@ func (r *inquiryRepository) SaveByMedicalRecordID(ctx context.Context, clinicID 
 		// Step 1: medical_record_id で既存レコードを取得または新規作成
 		var existing model.Inquiry
 		if err := tx.
-			Where(model.Inquiry{MedicalRecordID: inquiry.MedicalRecordID}).
+			Where(model.Inquiry{MedicalRecordID: fields.MedicalRecordID}).
 			FirstOrCreate(&existing).Error; err != nil {
 			return apperrors.FromGORM(err, "inquiry", "")
 		}
 
-		// Step 2: 更新フィールドを map[string]any で明示的に Updates（GORM ゼロ値問題を回避）。
+		// Step 2: 送信されたフィールドのみ map[string]any で明示的に Updates（GORM ゼロ値問題を回避）。
+		// 未送信フィールドはキー自体を載せないため既存値を保持する（EMR-87）。
 		// medical_records の status='draft' 条件は defense-in-depth。
-		updates := map[string]any{
-			"chief_complaint":         inquiry.ChiefComplaint,
-			"notes":                   inquiry.Notes,
-			"history":                 inquiry.History,
-			"current_medications":     inquiry.CurrentMedications,
-			"allergy_info":            inquiry.AllergyInfo,
-			"last_meal":               inquiry.LastMeal,
-			"last_defecation":         inquiry.LastDefecation,
-			"last_urination":          inquiry.LastUrination,
-			"owner_observations":      inquiry.OwnerObservations,
-			"chief_complaint_type_id": inquiry.ChiefComplaintTypeID,
-			"appetite":                inquiry.Appetite,
-			"water_intake":            inquiry.WaterIntake,
-			"staff_id":                inquiry.StaffID,
+		updates := map[string]any{}
+		if fields.ChiefComplaint != nil {
+			updates["chief_complaint"] = *fields.ChiefComplaint
 		}
-		result := tx.
-			Model(&existing).
-			Where("medical_record_id IN (SELECT id FROM medical_records WHERE clinic_id = ? AND status = ? AND deleted_at IS NULL)",
-				clinicID, model.MedicalRecordStatusDraft).
-			Updates(updates)
-		if result.Error != nil {
-			return apperrors.FromGORM(result.Error, "inquiry", "")
+		if fields.Notes != nil {
+			updates["notes"] = *fields.Notes
 		}
-		if result.RowsAffected == 0 {
-			return apperrors.WrapConflict("確定済みカルテの問診は編集できません")
+		if fields.ChiefComplaintTypeID != nil {
+			updates["chief_complaint_type_id"] = *fields.ChiefComplaintTypeID
+		}
+		if len(updates) > 0 {
+			result := tx.
+				Model(&existing).
+				Where("medical_record_id IN (SELECT id FROM medical_records WHERE clinic_id = ? AND status = ? AND deleted_at IS NULL)",
+					clinicID, model.MedicalRecordStatusDraft).
+				Updates(updates)
+			if result.Error != nil {
+				return apperrors.FromGORM(result.Error, "inquiry", "")
+			}
+			if result.RowsAffected == 0 {
+				return apperrors.WrapConflict("確定済みカルテの問診は編集できません")
+			}
 		}
 
 		// 最新状態を同一 tx から取得（updated_at 等の DB 管理フィールドも正確に反映）

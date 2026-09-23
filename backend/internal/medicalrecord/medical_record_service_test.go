@@ -1332,14 +1332,16 @@ func TestMedicalRecordService_CreateSubRecords_SavesInquiryWhenInputProvided(t *
 	})
 
 	assert.True(t, inquiryRepo.called)
-	assert.Equal(t, "食欲不振", inquiryRepo.saved.ChiefComplaint)
+	if assert.NotNil(t, inquiryRepo.saved.ChiefComplaint) {
+		assert.Equal(t, "食欲不振", *inquiryRepo.saved.ChiefComplaint)
+	}
 }
 
 // noopInquiryRepo は CreateSubRecords テスト用の no-op InquiryRepository
 type noopInquiryRepo struct{}
 
-func (n *noopInquiryRepo) SaveByMedicalRecordID(_ context.Context, _ uint64, inquiry *model.Inquiry) (*model.Inquiry, error) {
-	return inquiry, nil
+func (n *noopInquiryRepo) SaveByMedicalRecordID(_ context.Context, _ uint64, _ InquiryUpsertFields) (*model.Inquiry, error) {
+	return &model.Inquiry{}, nil
 }
 func (n *noopInquiryRepo) CountByChiefComplaintTypeID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
@@ -1347,13 +1349,13 @@ func (n *noopInquiryRepo) CountByChiefComplaintTypeID(_ context.Context, _, _ ui
 
 type spyInquiryRepo struct {
 	called bool
-	saved  model.Inquiry
+	saved  InquiryUpsertFields
 }
 
-func (s *spyInquiryRepo) SaveByMedicalRecordID(_ context.Context, _ uint64, inquiry *model.Inquiry) (*model.Inquiry, error) {
+func (s *spyInquiryRepo) SaveByMedicalRecordID(_ context.Context, _ uint64, fields InquiryUpsertFields) (*model.Inquiry, error) {
 	s.called = true
-	s.saved = *inquiry
-	return inquiry, nil
+	s.saved = fields
+	return &model.Inquiry{}, nil
 }
 func (s *spyInquiryRepo) CountByChiefComplaintTypeID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil

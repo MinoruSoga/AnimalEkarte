@@ -10,7 +10,7 @@ func TestUpdateInquiryRequest_ToServiceInput(t *testing.T) {
 	typeID := uint64(7)
 	req := updateInquiryRequest{
 		ChiefComplaint:       &chiefComplaint,
-		ChiefComplaintTypeID: &typeID,
+		ChiefComplaintTypeID: nullableUint64RequestField{set: true, value: &typeID},
 	}
 
 	input := req.toServiceInput(1, 2)
@@ -24,7 +24,7 @@ func TestUpdateInquiryRequest_ToServiceInput(t *testing.T) {
 	if input.ChiefComplaint == nil || *input.ChiefComplaint != chiefComplaint {
 		t.Errorf("ChiefComplaint = %v, want empty string pointer", input.ChiefComplaint)
 	}
-	if input.ChiefComplaintTypeID == nil || *input.ChiefComplaintTypeID != typeID {
-		t.Errorf("ChiefComplaintTypeID = %v, want %d", input.ChiefComplaintTypeID, typeID)
+	if input.ChiefComplaintTypeID == nil || *input.ChiefComplaintTypeID == nil || **input.ChiefComplaintTypeID != typeID {
+		t.Errorf("ChiefComplaintTypeID = %v, want &&%d", input.ChiefComplaintTypeID, typeID)
 	}
 }
