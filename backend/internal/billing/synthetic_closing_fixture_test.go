@@ -222,3 +222,111 @@ func TestDeleteSyntheticClosingFixture_RejectsWrongToken(t *testing.T) {
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "cleanup token")
 }
+
+// EMR-210: teardown が cash_register_closes / cash_register_close_adjustments を含む
+// 全ブロッキング FK 子孫を消し切ること。testdb は GORM double で実 RESTRICT/composite
+// FK・append-only trigger を持たないため、ここでは系列の実行経路と削除結果を検証する。
+// 実スキーマでの完走保証は MIGRATE_SQL_INTEGRATION の disposable DB テストと
+// internal/lintscan のクロージャゲートが担う。
+func TestDeleteSyntheticClosingFixture_RemovesCashRegisterCloseGraph(t *testing.T) {
+	db := testdbSetupSyntheticClosing(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db,
+		&model.CashRegisterCloseAdjustment{}, &model.AuditLog{},
+	))
+	ctx := context.Background()
+	jst, err := time.LoadLocation("Asia/Tokyo")
+	require.NoError(t, err)
+	day := time.Date(2026, 9, 7, 0, 0, 0, 0, jst)
+
+	got, err := CreateSyntheticClosingFixture(ctx, db, SyntheticClosingRequest{
+		AppEnv: "development", DBHost: "db", TargetDate: day, PasswordHash: "x",
+	})
+	require.NoError(t, err)
+
+	var staffRow model.Staff
+	require.NoError(t, db.WithContext(ctx).Where("clinic_id = ?", got.ClinicID).First(&staffRow).Error)
+
+	close := &model.CashRegisterClose{
+		ClinicID:  got.ClinicID,
+		CloseDate: day,
+		Period:    "am",
+		ClosedBy:  &staffRow.ID,
+	}
+	require.NoError(t, db.WithContext(ctx).Create(close).Error)
+	adjustment := &model.CashRegisterCloseAdjustment{
+		ClinicID:  got.ClinicID,
+		CloseID:   close.ID,
+		BillingID: got.BillingIDs[0],
+		Reason:    "s09 teardown regression",
+		ActorID:   &staffRow.ID,
+	}
+	require.NoError(t, db.WithContext(ctx).Create(adjustment).Error)
+
+	require.NoError(t, DeleteSyntheticClosingFixture(ctx, db, "development", "db", got.ClinicID, got.CleanupToken))
+
+	for name, modelPtr := range map[string]any{
+		"cash_register_close_adjustments": &model.CashRegisterCloseAdjustment{},
+		"cash_register_closes":            &model.CashRegisterClose{},
+		"payment_splits":                  &model.PaymentSplit{},
+		"payments":                        &model.Payment{},
+		"billing_items":                   &model.BillingItem{},
+		"billings":                        &model.Billing{},
+		"owners":                          &model.Owner{},
+		"pets":                            &model.Pet{},
+		"staffs":                          &model.Staff{},
+	} {
+		var remaining int64
+		require.NoError(t, db.WithContext(ctx).Model(modelPtr).Unscoped().Where("clinic_id = ?", got.ClinicID).Count(&remaining).Error)
+		assert.Zero(t, remaining, "%s rows must be removed", name)
+	}
+	require.Error(t, db.WithContext(ctx).First(&model.Clinic{}, got.ClinicID).Error)
+}
+
+// EMR-211 の受け口: auditRowsPolicy が teardown tx 内で呼ばれ、その失敗は
+// teardown 全体をロールバックさせる。既定（nil）は audit 行を温存する。
+func TestDeleteSyntheticClosingFixture_AuditRowsPolicySeam(t *testing.T) {
+	db := testdbSetupSyntheticClosing(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.AuditLog{}))
+	ctx := context.Background()
+	jst, err := time.LoadLocation("Asia/Tokyo")
+	require.NoError(t, err)
+	day := time.Date(2026, 9, 7, 0, 0, 0, 0, jst)
+
+	t.Run("policy error aborts teardown", func(t *testing.T) {
+		got, err := CreateSyntheticClosingFixture(ctx, db, SyntheticClosingRequest{
+			AppEnv: "development", DBHost: "db", TargetDate: day, PasswordHash: "x",
+		})
+		require.NoError(t, err)
+
+		policyErr := errors.New("audit policy refused")
+		err = DeleteSyntheticClosingFixtureWithAuditPolicy(ctx, db, "development", "db", got.ClinicID, got.CleanupToken,
+			func(context.Context, *gorm.DB, uint64) error { return policyErr })
+		require.ErrorIs(t, err, policyErr)
+
+		// ロールバックされるので clinic は残る。
+		require.NoError(t, db.WithContext(ctx).First(&model.Clinic{}, got.ClinicID).Error)
+	})
+
+	t.Run("policy resolves audit rows inside tx", func(t *testing.T) {
+		got, err := CreateSyntheticClosingFixture(ctx, db, SyntheticClosingRequest{
+			AppEnv: "development", DBHost: "db", TargetDate: day, PasswordHash: "x",
+		})
+		require.NoError(t, err)
+		var staffRow model.Staff
+		require.NoError(t, db.WithContext(ctx).Where("clinic_id = ?", got.ClinicID).First(&staffRow).Error)
+		require.NoError(t, db.WithContext(ctx).Create(&model.AuditLog{
+			ClinicID: &got.ClinicID, ActorID: &staffRow.ID,
+			ActorType: "staff", Action: "login", Resource: "session",
+		}).Error)
+
+		var sawClinic uint64
+		err = DeleteSyntheticClosingFixtureWithAuditPolicy(ctx, db, "development", "db", got.ClinicID, got.CleanupToken,
+			func(pctx context.Context, tx *gorm.DB, clinicID uint64) error {
+				sawClinic = clinicID
+				return tx.Exec("DELETE FROM audit_logs WHERE clinic_id = ?", clinicID).Error
+			})
+		require.NoError(t, err)
+		assert.Equal(t, got.ClinicID, sawClinic)
+		require.Error(t, db.WithContext(ctx).First(&model.Clinic{}, got.ClinicID).Error)
+	})
+}
