@@ -124,6 +124,7 @@ func (s *billingItemService) GetUngroupedSameDaySummary(ctx context.Context, cli
 func treatmentToUnbilledBillingItem(t *model.Treatment) model.BillingItem {
 	treatmentID := t.ID
 	medicalRecordID := t.MedicalRecordID
+	taxType, taxRate := treatmentMasterTax(t)
 	return model.BillingItem{
 		ID:                    t.ID,
 		BillingID:             0,
@@ -131,8 +132,8 @@ func treatmentToUnbilledBillingItem(t *model.Treatment) model.BillingItem {
 		Name:                  t.Content,
 		UnitPrice:             t.UnitPrice,
 		Quantity:              t.Quantity,
-		TaxType:               model.TaxTypeExcluded,
-		TaxRate:               sharedkernel.DefaultTaxRate,
+		TaxType:               taxType,
+		TaxRate:               taxRate,
 		IsInsuranceApplicable: t.IsInsurance,
 		Source:                model.ItemSourceMedicalRecord,
 		TreatmentID:           &treatmentID,
@@ -140,6 +141,22 @@ func treatmentToUnbilledBillingItem(t *model.Treatment) model.BillingItem {
 		MedicalRecordID: &medicalRecordID,
 		SortOrder:       t.SortOrder,
 	}
+}
+
+// treatmentMasterTax はリンク済みマスタ（consultation / procedure / medicine）の
+// 税区分・税率を返す（EMR-65）。税フィールドを持たない inventory 由来やマスタ
+// 未リンクの治療は従来の外税既定を維持する（fail-closed、行スキップや0円化はしない）。
+func treatmentMasterTax(t *model.Treatment) (model.TaxType, float64) {
+	if t.Consultation != nil {
+		return t.Consultation.TaxType, t.Consultation.TaxRate
+	}
+	if t.Procedure != nil {
+		return t.Procedure.TaxType, t.Procedure.TaxRate
+	}
+	if t.Medicine != nil {
+		return t.Medicine.TaxType, t.Medicine.TaxRate
+	}
+	return model.TaxTypeExcluded, sharedkernel.DefaultTaxRate
 }
 
 func treatmentTypeToItemCategory(t *model.Treatment) model.ItemCategory {
