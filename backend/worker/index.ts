@@ -430,6 +430,37 @@ export async function forwardContainerFetch(
   }
 }
 
+// STG keep-alive(EMR-213): 既定名 API コンテナ(cf-singleton-container)へ /health を打ち、
+// sleepAfter=1h のアイドル sleep を営業時間帯に跨がせない。コールドスタート実測 6〜16s の
+// 体感解消が目的。cron は UTC 指定で "10,40 0-9 * * *" = JST 09:10〜18:40 に30分間隔。
+// jobsForCron の job allowlist とは別系統のため scheduled() 内で dispatchScheduledEvent
+// より前に捌く。trigger は wrangler.jsonc(STG)のみに登録し production には載せない。
+// 失敗は best-effort で握り潰す — 次 tick(30分後)が再試行する。scheduler の失敗記録・
+// アラート経路(notifySchedulerFailures)とは分離し、業務ジョブの失敗計装を汚さない。
+export const API_KEEPALIVE_CRON = "10,40 0-9 * * *" as const;
+
+async function warmDefaultApiContainer(env: Env): Promise<void> {
+  const startedAt = performance.now();
+  try {
+    const container = getContainer(env.API_CONTAINER);
+    const response = await container.fetch(
+      new Request("http://container.internal/health"),
+    );
+    console.info("api keepalive", {
+      event: "api_keepalive",
+      status: response.status,
+      duration_ms: Math.max(0, Math.round(performance.now() - startedAt)),
+    });
+  } catch {
+    // 例外本文・stack は外部応答や機密値を含み得るためログへ出さない。
+    console.error("api keepalive failed", {
+      event: "api_keepalive",
+      failure_code: "container_unavailable",
+      duration_ms: Math.max(0, Math.round(performance.now() - startedAt)),
+    });
+  }
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     // P4-5(試行10): /_internal/* は Worker でのみ処理し、Container の Gin へは
@@ -492,6 +523,12 @@ export default {
   },
 
   async scheduled(controller: ScheduledController, env: Env): Promise<void> {
+    // keep-alive は業務ジョブではないため、coordinator/allowlist を介さず
+    // 既定名コンテナを直接温める(SCHEDULER_NAME の名前付きインスタンスを起こさない)。
+    if (controller.cron === API_KEEPALIVE_CRON) {
+      await warmDefaultApiContainer(env);
+      return;
+    }
     const coordinator = getContainer(env.API_CONTAINER, SCHEDULER_NAME);
     try {
       await dispatchScheduledEvent(controller, async (cron, scheduledTime) => {

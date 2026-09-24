@@ -1,10 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import worker, {
+  API_KEEPALIVE_CRON,
   buildCorsPreflightResponse,
   buildProxyObservation,
   forwardContainerFetch,
 } from "./index";
+import { SCHEDULER_NAME } from "./scheduled-jobs";
 
 describe("buildProxyObservation", () => {
   it("emits the fixed session success shape without raw request data", () => {
@@ -380,6 +382,85 @@ describe("worker fetch OPTIONS edge responder", () => {
       "container fetch timing",
       expect.objectContaining({ method: "get", status: 200 }),
     );
+  });
+});
+
+describe("worker scheduled API keep-alive", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function fakeKeepAliveEnv(
+    fetchImpl?: (_request: Request) => Promise<Response>,
+  ) {
+    const containerFetch = vi.fn(
+      fetchImpl ??
+        (async (_request: Request) =>
+          new Response(JSON.stringify({ ok: true }), { status: 200 })),
+    );
+    const binding = {
+      idFromName: vi.fn((name: string) => `id:${name}`),
+      get: vi.fn(() => ({ fetch: containerFetch })),
+    };
+    const env = { API_CONTAINER: binding } as unknown as Env;
+    return { env, binding, containerFetch };
+  }
+
+  function fakeController(cron: string): ScheduledController {
+    return {
+      cron,
+      scheduledTime: 1_700_000_000_000,
+      noRetry: vi.fn(),
+    } as unknown as ScheduledController;
+  }
+
+  it("warms the default API container without touching the named scheduler", async () => {
+    const { env, binding, containerFetch } = fakeKeepAliveEnv();
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+
+    await worker.scheduled(fakeController(API_KEEPALIVE_CRON), env);
+
+    expect(binding.idFromName).toHaveBeenCalledWith("cf-singleton-container");
+    expect(binding.idFromName).not.toHaveBeenCalledWith(SCHEDULER_NAME);
+    expect(containerFetch).toHaveBeenCalledTimes(1);
+    const warmRequest = containerFetch.mock.calls[0]?.[0];
+    expect(new URL(warmRequest.url).pathname).toBe("/health");
+    expect(infoSpy).toHaveBeenCalledWith(
+      "api keepalive",
+      expect.objectContaining({ event: "api_keepalive", status: 200 }),
+    );
+  });
+
+  it("resolves without throwing when the container fetch fails", async () => {
+    const { env } = fakeKeepAliveEnv(async () => {
+      throw new Error("container start failed");
+    });
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(
+      worker.scheduled(fakeController(API_KEEPALIVE_CRON), env),
+    ).resolves.toBeUndefined();
+    expect(errorSpy).toHaveBeenCalledWith(
+      "api keepalive failed",
+      expect.objectContaining({
+        event: "api_keepalive",
+        failure_code: "container_unavailable",
+      }),
+    );
+  });
+
+  it("still routes business crons through the named scheduler coordinator", async () => {
+    const { env, binding, containerFetch } = fakeKeepAliveEnv();
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    // 業務cronは SCHEDULER_NAME の coordinator.runScheduledJobs に進む。fake binding は
+    // RPC メソッドを持たないため失敗し、scheduled() の catch が "scheduled invocation
+    // failed" で再 throw する。keep-alive 分岐に入らないことの境界確認。
+    await expect(
+      worker.scheduled(fakeController("0 1 * * *"), env),
+    ).rejects.toThrow("scheduled invocation failed");
+    expect(binding.idFromName).toHaveBeenCalledWith(SCHEDULER_NAME);
+    expect(containerFetch).not.toHaveBeenCalled();
   });
 });
 
