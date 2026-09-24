@@ -96,6 +96,8 @@ export interface UpdateAccountingRequest {
   subtotal?: number | null;
   tax_total?: number | null;
   total_amount?: number | null;
+  /** EMR-63: 保険フラグの遷移（ON/OFF）を PATCH で表現する。省略時は既存値を保持。 */
+  has_insurance?: boolean;
   insurance_name?: string;
   insurance_ratio?: number | null;
   insurance_amount?: number | null;

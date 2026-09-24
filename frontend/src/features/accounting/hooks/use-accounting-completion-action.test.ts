@@ -407,6 +407,165 @@ describe("useAccountingCompletionAction completed accounting updates", () => {
   );
 });
 
+describe("useAccountingCompletionAction insurance wire contract (EMR-63)", () => {
+  beforeEach(() => {
+    completeAccountingMock.mockReset();
+    updateAccountingMock.mockReset();
+    handleApiErrorMock.mockReset();
+    vi.mocked(toast.error).mockReset();
+    vi.mocked(toast.success).mockReset();
+  });
+
+  const insuredPayment = {
+    subtotal: 1000,
+    taxTotal: 100,
+    totalAmount: 1100,
+    insuranceRatio: 0.5,
+    insuranceAmount: 550,
+    discountAmount: 0,
+    billingAmount: 550,
+    receivedAmount: 550,
+    changeAmount: 0,
+    method: "cash" as const,
+  };
+
+  function completedInsuredAccounting(): Accounting {
+    return {
+      ...waitingAccounting(),
+      status: "completed",
+      completedAt: "2026-05-01T09:00:00+09:00",
+      payment: { ...insuredPayment },
+    };
+  }
+
+  it("保険なし会計で ON にすると has_insurance:true と比率・金額を送る（なし→あり遷移）", async () => {
+    const args = {
+      ...buildHookArgs(),
+      hasInsurance: true,
+      insuranceRatio: "0.5",
+      calculation: {
+        subtotal: 1000,
+        taxTotal: 100,
+        totalAmount: 1100,
+        insuranceAmount: 550,
+        billingAmount: 550,
+      },
+      paymentSplits: [{ method: "cash" as const, amount: "550", receivedAmount: "550" }],
+    };
+    updateAccountingMock.mockResolvedValue({ ...waitingAccounting(), status: "completed" });
+    const { result } = renderHook(() => useAccountingCompletionAction(args));
+
+    await submitCompletionAction(result.current.formAction);
+
+    expect(updateAccountingMock).toHaveBeenCalledExactlyOnceWith(
+      "123",
+      expect.objectContaining({
+        has_insurance: true,
+        insurance_ratio: 0.5,
+        insurance_amount: 550,
+      }),
+    );
+  });
+
+  it("確定済み保険会計で OFF にすると has_insurance:false と明示 0 を送る（あり→なし遷移）", async () => {
+    const accounting = completedInsuredAccounting();
+    const args = {
+      ...buildHookArgs(),
+      accounting,
+      hasInsurance: false,
+      insuranceRatio: "0.5",
+      calculation: {
+        subtotal: 1000,
+        taxTotal: 100,
+        totalAmount: 1100,
+        insuranceAmount: 0,
+        billingAmount: 1100,
+      },
+      paymentSplits: [{ method: "cash" as const, amount: "1100", receivedAmount: "1100" }],
+    };
+    updateAccountingMock.mockResolvedValue(accounting);
+    const { result } = renderHook(() => useAccountingCompletionAction(args));
+
+    await submitCompletionAction(result.current.formAction);
+    act(() => result.current.confirmCompletedEdit());
+    await submitCompletionAction(result.current.formAction);
+
+    expect(updateAccountingMock).toHaveBeenCalledExactlyOnceWith(
+      accounting.id,
+      expect.objectContaining({
+        has_insurance: false,
+        insurance_ratio: 0,
+        insurance_amount: 0,
+      }),
+    );
+  });
+
+  it("保険設定未変更（フラグ・比率・算出額が取得値と一致）は保険フィールドを省略する", async () => {
+    const accounting = completedInsuredAccounting();
+    const args = {
+      ...buildHookArgs(),
+      accounting,
+      hasInsurance: true,
+      insuranceRatio: "0.5",
+      calculation: {
+        subtotal: 1000,
+        taxTotal: 100,
+        totalAmount: 1100,
+        insuranceAmount: 550,
+        billingAmount: 550,
+      },
+      paymentSplits: [{ method: "cash" as const, amount: "550", receivedAmount: "550" }],
+    };
+    updateAccountingMock.mockResolvedValue(accounting);
+    const { result } = renderHook(() => useAccountingCompletionAction(args));
+
+    await submitCompletionAction(result.current.formAction);
+    act(() => result.current.confirmCompletedEdit());
+    await submitCompletionAction(result.current.formAction);
+
+    expect(updateAccountingMock).toHaveBeenCalledExactlyOnceWith(
+      accounting.id,
+      expect.objectContaining({ has_insurance: true }),
+    );
+    const payload = updateAccountingMock.mock.calls[0]?.[1];
+    expect(payload).not.toHaveProperty("insurance_ratio");
+    expect(payload).not.toHaveProperty("insurance_amount");
+  });
+
+  it("明細編集で保険算出額が変わった場合はフラグ・比率未変更でも再計算値を送る", async () => {
+    const accounting = completedInsuredAccounting();
+    const args = {
+      ...buildHookArgs(),
+      accounting,
+      hasInsurance: true,
+      insuranceRatio: "0.5",
+      calculation: {
+        subtotal: 1200,
+        taxTotal: 120,
+        totalAmount: 1320,
+        insuranceAmount: 600,
+        billingAmount: 720,
+      },
+      paymentSplits: [{ method: "cash" as const, amount: "720", receivedAmount: "720" }],
+    };
+    updateAccountingMock.mockResolvedValue(accounting);
+    const { result } = renderHook(() => useAccountingCompletionAction(args));
+
+    await submitCompletionAction(result.current.formAction);
+    act(() => result.current.confirmCompletedEdit());
+    await submitCompletionAction(result.current.formAction);
+
+    expect(updateAccountingMock).toHaveBeenCalledExactlyOnceWith(
+      accounting.id,
+      expect.objectContaining({
+        has_insurance: true,
+        insurance_ratio: 0.5,
+        insurance_amount: 600,
+      }),
+    );
+  });
+});
+
 // FE-RC-001: fieldset disabled 等の render 側ガードをバイパスされても action 側で権限を再検証し、fail-closed で API を叩かないことを保証する。
 describe("useAccountingCompletionAction permissions (FE-RC-001 fail-closed)", () => {
   beforeEach(() => {
