@@ -12,10 +12,8 @@ import (
 )
 
 func PreflightCutoverTarget(ctx context.Context, target cutoverQuerier, manifest CutoverManifest, seeds CutoverSeedIDs) error {
-	if err := validateCutoverTarget(ctx, target, manifest, seeds, true); err != nil {
-		return err
-	}
-	return nil
+	_, err := validateCutoverTarget(ctx, target, manifest, seeds, true)
+	return err
 }
 
 // ApplyCutover imports all twenty-one CSVs in one transaction. It never deletes
@@ -72,15 +70,25 @@ func applyCutoverWithBegin(
 	if err := lockCutoverTables(ctx, tx); err != nil {
 		return CutoverResult{}, err
 	}
-	if err := validateCutoverTarget(ctx, tx, bundle.Manifest, seeds, true); err != nil {
+	targetNotes, err := validateCutoverTarget(ctx, tx, bundle.Manifest, seeds, true)
+	if err != nil {
 		return CutoverResult{}, err
 	}
+	drift := append([]string(nil), bundle.ToleratedDrift...)
+	drift = append(drift, targetNotes...)
 
+	// The apply order is the immutable spec order (parents before children);
+	// manifest entries resolve by name so a reordered rehearsal tables[] cannot
+	// change which table each CSV feeds.
+	allowPermutation := rehearsalContractDrift(bundle.Manifest, bundle.Provenance.Mode)
 	counts := make(map[string]int64, len(bundle.Manifest.Tables))
-	for i, spec := range CutoverTableSpecs() {
-		manifestTable := bundle.Manifest.Tables[i]
+	for _, spec := range CutoverTableSpecs() {
+		manifestTable, err := cutoverManifestTableByName(bundle.Manifest, spec.Name)
+		if err != nil {
+			return CutoverResult{}, err
+		}
 		path := cutoverCSVPath(bundle.SourceDir, manifestTable)
-		count, err := copyCutoverTable(ctx, tx, path, spec, manifestTable, seeds)
+		count, err := copyCutoverTable(ctx, tx, path, spec, manifestTable, seeds, allowPermutation)
 		if err != nil {
 			return CutoverResult{}, err
 		}
@@ -89,12 +97,16 @@ func applyCutoverWithBegin(
 	if err := verifyCutoverRows(ctx, tx, bundle.Manifest, seeds, bundle.Provenance); err != nil {
 		return CutoverResult{}, err
 	}
-	if err := advanceCutoverSequences(ctx, tx); err != nil {
+	advanceNotes, err := advanceCutoverSequences(ctx, tx, isRehearsalOnlyProducer(bundle.Manifest))
+	if err != nil {
 		return CutoverResult{}, err
 	}
-	if err := verifyCutoverSequences(ctx, tx); err != nil {
+	verifyNotes, err := verifyCutoverSequences(ctx, tx, isRehearsalOnlyProducer(bundle.Manifest))
+	if err != nil {
 		return CutoverResult{}, err
 	}
+	drift = append(drift, advanceNotes...)
+	drift = append(drift, verifyNotes...)
 	if err := tx.Commit(ctx); err != nil {
 		if errors.Is(err, pgx.ErrTxCommitRollback) {
 			return CutoverResult{}, fmt.Errorf("commit rejected and transaction rolled back: %w", err)
@@ -105,11 +117,12 @@ func applyCutoverWithBegin(
 		return CutoverResult{}, fmt.Errorf("%w: run read-only verify before any retry or restore", ErrCutoverCommitOutcomeUnknown)
 	}
 	return CutoverResult{
-		CompletedAt: time.Now().UTC(),
-		ClinicCode:  bundle.Manifest.ClinicCode,
-		RunID:       bundle.Manifest.SourceRunID,
-		IDBand:      bundle.Manifest.IDBand,
-		Counts:      counts,
+		CompletedAt:    time.Now().UTC(),
+		ClinicCode:     bundle.Manifest.ClinicCode,
+		RunID:          bundle.Manifest.SourceRunID,
+		IDBand:         bundle.Manifest.IDBand,
+		Counts:         counts,
+		ToleratedDrift: drift,
 	}, nil
 }
 
@@ -120,48 +133,56 @@ func VerifyCutover(ctx context.Context, target cutoverQuerier, manifest CutoverM
 }
 
 func VerifyCutoverWithProvenance(ctx context.Context, target cutoverQuerier, manifest CutoverManifest, seeds CutoverSeedIDs, provenance CutoverProvenanceContract) error {
-	if err := validateCutoverTarget(ctx, target, manifest, seeds, false); err != nil {
+	if _, err := validateCutoverTarget(ctx, target, manifest, seeds, false); err != nil {
 		return err
 	}
 	if err := verifyCutoverRows(ctx, target, manifest, seeds, provenance); err != nil {
 		return err
 	}
-	return verifyCutoverSequences(ctx, target)
+	_, err := verifyCutoverSequences(ctx, target, isRehearsalOnlyProducer(manifest))
+	return err
 }
 
-func validateCutoverTarget(ctx context.Context, q cutoverQuerier, manifest CutoverManifest, seeds CutoverSeedIDs, requireEmptyBand bool) error {
+// validateCutoverTarget returns the target-side drift notes it tolerated (a
+// missing serial sequence is the only tolerated target drift); callers merge
+// them into the bundle/result drift record.
+func validateCutoverTarget(ctx context.Context, q cutoverQuerier, manifest CutoverManifest, seeds CutoverSeedIDs, requireEmptyBand bool) ([]string, error) {
 	facts, err := queryCutoverSeedFacts(ctx, q, seeds)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if err := validateCutoverSeedFacts(seeds, facts); err != nil {
-		return err
+		return nil, err
 	}
 	if err := validateRequiredAnimalSpecies(ctx, q); err != nil {
-		return err
+		return nil, err
 	}
 	if err := validateCutoverColumnTypes(ctx, q); err != nil {
-		return err
+		return nil, err
 	}
 	if err := validateCutoverRequiredTargetColumns(ctx, q); err != nil {
-		return err
+		return nil, err
 	}
 	if err := validateCutoverForeignKeys(ctx, q); err != nil {
-		return err
+		return nil, err
 	}
 	if err := validateCutoverCompositeForeignKeys(ctx, q); err != nil {
-		return err
+		return nil, err
 	}
 	if err := validateCutoverUniqueIndexes(ctx, q); err != nil {
-		return err
+		return nil, err
 	}
-	if err := validateCutoverSequences(ctx, q); err != nil {
-		return err
+	// Sequence tolerance is artifact-keyed: target preflight has no provenance
+	// context, and only a REHEARSAL_ONLY artifact can reach a rehearsal target
+	// in any admissible flow. TRUSTED_CANDIDATE/PASS artifacts stay strict.
+	notes, err := validateCutoverSequences(ctx, q, isRehearsalOnlyProducer(manifest))
+	if err != nil {
+		return nil, err
 	}
 	if requireEmptyBand {
-		return validateCutoverBandEmpty(ctx, q, manifest.IDBand)
+		return notes, validateCutoverBandEmpty(ctx, q, manifest.IDBand)
 	}
-	return nil
+	return notes, nil
 }
 
 func validateCutoverForeignKeys(ctx context.Context, q cutoverQuerier) error {

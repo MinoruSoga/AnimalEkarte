@@ -159,17 +159,56 @@ func TestPreflightCutoverBundleAcceptsForwardSelfReferences(t *testing.T) {
 	}
 }
 
+func TestPreflightCutoverBundleRejectsSelfReferenceCycle(t *testing.T) {
+	dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
+		for i, spec := range CutoverTableSpecs() {
+			if spec.Name != "procedures" && spec.Name != "vaccines" {
+				continue
+			}
+			// row 0 (id 1000001) declares parent 1000002; the appended row
+			// (id 1000002) declares parent 1000001 — a 2-cycle no insert order
+			// can satisfy under the non-deferrable self FK.
+			setReferenceFixtureCell(f, spec.Name, "parent_id", "1000002")
+			cycle := append([]string(nil), f.rows[spec.Name][0]...)
+			cycle[columnIndex(spec.Columns, "id")] = "1000002"
+			cycle[columnIndex(spec.Columns, "parent_id")] = "1000001"
+			f.rows[spec.Name] = append(f.rows[spec.Name], cycle)
+			f.manifest.Tables[i].RowCount++
+		}
+	})
+	_, err := PreflightCutoverBundle(dir, referenceFixtureSource(digest))
+	if err == nil || !strings.Contains(err.Error(), "self-reference cycle") {
+		t.Fatalf("PreflightCutoverBundle() error = %v, want self-reference cycle rejection", err)
+	}
+	if strings.Contains(err.Error(), "1000001") || strings.Contains(err.Error(), "1000002") || strings.Contains(err.Error(), dir) {
+		t.Fatal("cycle error exposes identifier values or path")
+	}
+}
+
 func TestPreflightCutoverBundleUsesNumericReferenceIdentity(t *testing.T) {
 	dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
-		for table, refs := range cutoverCSVReferences() {
-			for _, ref := range refs {
-				if ref.kind == cutoverCSVParent {
-					value := "+001000001"
-					if ref.parent == "owners" {
-						value = "+00300001"
-					}
-					setReferenceFixtureCell(f, table, ref.column, value)
+		for i, spec := range CutoverTableSpecs() {
+			for _, ref := range cutoverCSVReferences()[spec.Name] {
+				if ref.kind != cutoverCSVParent {
+					continue
 				}
+				if ref.parent == spec.Name {
+					// A self-reference written as the row's own id would be a
+					// self-loop cycle; append a parent row instead and reference
+					// it with the numeric-equivalent spelling.
+					parent := append([]string(nil), f.rows[spec.Name][0]...)
+					parent[columnIndex(spec.Columns, "id")] = "1000002"
+					parent[columnIndex(spec.Columns, ref.column)] = ""
+					f.rows[spec.Name] = append(f.rows[spec.Name], parent)
+					f.manifest.Tables[i].RowCount++
+					setReferenceFixtureCell(f, spec.Name, ref.column, "+001000002")
+					continue
+				}
+				value := "+001000001"
+				if ref.parent == "owners" {
+					value = "+00300001"
+				}
+				setReferenceFixtureCell(f, spec.Name, ref.column, value)
 			}
 		}
 	})
@@ -296,7 +335,7 @@ func TestCutoverReferenceGraphRehashesOpenedBytes(t *testing.T) {
 	if err := os.WriteFile(path, []byte(changed), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	err = validateCutoverReferenceGraph(dir, bundle.Manifest)
+	err = validateCutoverReferenceGraph(dir, bundle.Manifest, false)
 	if err == nil || !strings.Contains(err.Error(), "digest or row count changed") || strings.Contains(err.Error(), "private-value") || strings.Contains(err.Error(), dir) {
 		t.Fatalf("changed file error = %v", err)
 	}

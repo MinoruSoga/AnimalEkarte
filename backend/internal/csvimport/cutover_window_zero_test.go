@@ -33,7 +33,7 @@ func TestWindowZeroEvidencePreflight(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			facts, err := loadCutoverBillingFacts(dir, spec, table)
+			facts, err := loadCutoverBillingFacts(dir, spec, table, false)
 			if err != nil {
 				t.Fatal(err)
 			}
