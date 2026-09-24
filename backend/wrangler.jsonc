@@ -122,16 +122,13 @@
       // ローカル Docker でビルドし、Cloudflare 管理の Registry(R2バック)へ自動 push する。
       // 完全なイメージURL直書きは不要(旧TODOは誤り。試行9で公式ドキュメント確認済み)。
       "image": "./Dockerfile.production",
-      "instance_type": "dev", // 1/16 vCPU / 256MiB。docs/ops/infra/architecture.md のコスト想定に合わせる
+      "instance_type": "basic", // 1/4 vCPU / 1GiB。dev(1/16 vCPU)では bcrypt ログインが実用を割くため最小実用サイズ
       "max_instances": 3,
-      // "regional" = リクエスト元リージョン単位でインスタンスをスケジュールする配置ポリシー。
-      // 【2026-09-23 切り分け済み(EMR-202)】wrangler は deploy 毎の PATCH /applications/{id} で
-      // この値を送信し API は受理(SUCCESS Modified application)するが、既存 application では
-      // 永続化されず deployed は "default" を返し続ける(v69/70/71 で再現)。反映には application
-      // の削除→再作成が必要(破壊的・要承認)。値は将来の再作成に備えた宣言として残置し、
-      // 現行の実配置挙動は default + constraints.regions=["APAC"] の抽選として扱う。
-      // 詳細: docs/ops/infra/staging/runbook.md「Container placement」。max_instances=3 で
-      // インスタンス数・課金は上限内。
+      // 【2026-09-24 確定(EMR-213)】"regional" はこのアカウントでは application create 時に
+      // VALIDATE_INPUT で拒否される(許可値は "default"/"fill_metals" のみ)。既存 app への
+      // PATCH も受理されるだけで永続化されないため、declared 値として置くと削除→再作成時に
+      // デプロイが失敗する罠になる。"default" 固定が必須。配置は下記 constraints.regions
+      // によるメトロ制約で制御する。詳細: docs/ops/infra/staging/runbook.md。
       "scheduling_policy": "default",
       // コンテナインスタンスの配置をAPACメトロに限定するスケジューリング制約
       // (wrangler公式 constraints.regions。課金差なし・無料)。実測で同一DOの
