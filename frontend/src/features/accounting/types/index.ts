@@ -19,6 +19,8 @@ export interface AddAccountingItemInput {
   price: string;
   category: string;
   otherReason?: string;
+  /** EMR-65: マスタ登録の税区分（未指定は外税） */
+  taxType?: TaxType;
   taxRate?: number;
   merchandiseItemId?: string;
 }

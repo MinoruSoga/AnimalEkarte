@@ -12,7 +12,8 @@ vi.mock("../api/get-merchandise-items", () => ({
         name: "療法食",
         category: "goods",
         unitPrice: 1200,
-        taxRate: 0.1,
+        taxType: "included",
+        taxRate: 0.08,
         isActive: true,
       },
     ],
@@ -45,11 +46,13 @@ describe("ItemListCard merchandise selection", () => {
     expect(addButton.tagName).toBe("BUTTON");
     expect(addButton).toHaveClass("min-h-11", "min-w-11");
     await user.click(addButton);
+    // EMR-65: マスタの税区分・税率を欠落なく onAddItem へ伝播する（一律 excluded 潰しの回帰防止）
     expect(onAddItem).toHaveBeenCalledWith({
       name: "療法食",
       price: "1200",
       category: "goods",
-      taxRate: 0.1,
+      taxType: "included",
+      taxRate: 0.08,
       merchandiseItemId: "item-1",
     });
   });
