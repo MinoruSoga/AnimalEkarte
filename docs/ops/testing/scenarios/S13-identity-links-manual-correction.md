@@ -25,6 +25,22 @@
 | 7 | view のみ権限の別アカウントで同 URL を開く | 閲覧可・link/unlink ボタン非表示。mutation API 直叩きは 403 |
 | 8 | 親 owner group anchor 医院に所属しないアカウントで CreatePetGroup を試す | 403 Forbidden。DB に pet group / members / audit が増えないこと |
 
+link → unlink → relink の group ライフサイクル:
+
+```mermaid
+stateDiagram-v2
+    state "未リンク" as unlinked
+    state "owner group" as ownerGroup
+    state "pet group" as petGroup
+    state "group soft-delete" as groupDeleted
+    [*] --> unlinked
+    unlinked --> ownerGroup : 飼主をリンク
+    ownerGroup --> petGroup : ペットをリンク（POST /pet-groups）
+    petGroup --> petGroup : メンバー unlink（残メンバーあり・member soft-delete）
+    petGroup --> groupDeleted : 最終メンバー unlink（group soft-delete）
+    groupDeleted --> petGroup : relink は新規 group のみ（既存への add ボタンなし）
+```
+
 ## 確認観点
 
 - **全医院セット認可**: mutation は parent owner anchor（`CreatedClinicID`）+ 全 active owner member clinics + 対象 pet clinics を要求（`assertActorCoversOwnerGroupClinics`）。any-member フォールバックなし。親 owner member 1 院欠けでも CreatePetGroup は Forbidden・ゼロ書き込み（回帰: `TestCreatePetGroup_RejectsMissingParentOwnerMemberClinic_NoPartialWrite`）。

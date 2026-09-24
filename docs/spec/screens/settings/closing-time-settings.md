@@ -32,6 +32,15 @@
 ### 1. 売上計上の自動判定
 システムは、会計が完了（`completed_at`）した時刻と、本マスタの設定値を照合し、「何日の、AM/PM/EMG いずれの売上か」を自動的に決定します（AM/PM/EMG は連続・非重複で 24 時間を被覆）。これにより、深夜に及ぶ緊急診療等でも正確な日次集計が可能です。
 
+```mermaid
+flowchart LR
+    Done["会計完了 completed_at"] --> Judge{"本マスタの境界時刻と照合"}
+    Judge -->|AM 開始時刻〜AM/PM 境界| AM["当日 AM の売上"]
+    Judge -->|AM/PM 境界〜終了時刻| PM["当日 PM の売上"]
+    Judge -->|終了時刻〜翌日 AM 開始時刻| EMG["当日 EMG の売上"]
+    EMG -.->|日跨ぎの会計| Prev["前日 EMG に帰属"]
+```
+
 ### 2. 予約枠計算とは非連動
 本画面の休診設定（定例休診日 `closed_weekdays`・特別期間・日付単位の休診日）はいずれも `clinic_settings` / `closing_special_periods` / `clinic_holidays` テーブルに保存され、**売上集計専用**です。LINE 予約の空き枠計算エンジン（[28-line-reservation.md](../28-line-reservation.md)）は完全に別モデルの `line_reservation_settings.closed_weekdays`（LINE 予約設定画面で個別設定）を参照しており、本画面の設定とは連動しません。曜日休診をLINE予約にも反映したい場合は、LINE 予約設定側でも別途設定する必要があります。
 

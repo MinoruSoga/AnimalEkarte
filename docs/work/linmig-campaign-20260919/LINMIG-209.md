@@ -31,6 +31,16 @@ Decision for this session: **do not apply**. No target env, live revision, backu
 
 When a future human-approved run is considered, use the matrix. Empty cells stay UNKNOWN until filled from a protected operator record — do not invent host/db names as live facts.
 
+```mermaid
+flowchart TB
+    D{"apply or not?"} --> S{"any shared stop rule below?"}
+    S -->|yes| STOP["stop — do not apply"]
+    S -->|no| E{"target env"}
+    E -->|local disposable compose| L["USER runs make migrate"]
+    E -->|shared STG| T["operator-only apply or recorded skip<br/>rebuild = separate approval"]
+    E -->|PROD| P["do not apply now<br/>until go-live approval"]
+```
+
 ### 2.1 Shared stop rules (all environments)
 
 Stop (do **not** apply) if any of:

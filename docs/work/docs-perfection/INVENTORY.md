@@ -10,6 +10,22 @@
 - `stale-suspect` / `duplicate` / `obsolete-suspect`: 鮮度根拠/重複正本/退役根拠がある場合に用いる。今回は旧日付だけでは付けず、完全一致重複は0件。
 - `skip-with-reason`: 今回新設したcoordinator文書は既存本文監査から外し、別の全AC・独立レビューで検証する。理由を各行に残す。
 
+```mermaid
+flowchart TB
+    A["docs 配下の全Markdown"] --> B["一次検査<br>ローカルリンク・見出し・完全一致重複・Git更新手がかり"]
+    B --> C{"一次トリアージ<br>全命題の一致認定ではない"}
+    C --> D["current"]
+    C --> E["conflict-suspect"]
+    C --> F["structure-debt"]
+    C --> G["stale-suspect / duplicate / obsolete-suspect"]
+    C --> H["skip-with-reason<br>新規coordinator文書"]
+    D --> I["カテゴリ子が全件再照合"]
+    E --> I
+    F --> I
+    G --> I
+    H --> J["別の全AC・独立レビューで検証"]
+```
+
 L=検査したローカルMarkdownリンクtarget数、H=見出し行数。更新手がかりはGit最終変更日とcommit略記であり、内容の正しさを保証しない。役割は [ROLE-MAP](ROLE-MAP.md)、category childは [LEDGER](LEDGER.md)、修復の両側根拠は [REPAIR-QUEUE](REPAIR-QUEUE.md)。current行も子の全件再照合対象。
 
 | Path | Role | Classification | 最終更新手がかり | 一次検査・根拠・子での確認 |

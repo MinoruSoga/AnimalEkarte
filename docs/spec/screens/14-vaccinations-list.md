@@ -31,6 +31,16 @@
 - **次回予定の視覚化**: 「次回予定」列で各個体の次回接種推奨日を一覧表示します（受付画面での自動アラート表示はありません。期限接近の通知は LINE 配信設定の `vaccine_deadline_60d` / `vaccine_deadline_30d` トリガーによる飼主宛リマインドで行われます）。
 - **編集画面への遷移**: ペット名リンクで詳細へ移動します。カルテ紐付きは `/medical-records/:medicalRecordId?tab=予防接種&vaccinationId=:id`、未紐付きは `/vaccinations/:id` へ着地します。リンクは編集権限と独立して表示し、編集・削除操作は各権限でゲートします。
 
+一覧からの遷移先と期限リマインドの経路：
+
+```mermaid
+flowchart TB
+    L["ペット名リンク"] --> Q{"カルテ紐付きか"}
+    Q -->|あり| M["/medical-records/:medicalRecordId<br/>?tab=予防接種&vaccinationId=:id"]
+    Q -->|なし| V["/vaccinations/:id"]
+    N["次回予定日の期限接近"] --> R["LINE 配信トリガーで飼主へリマインド<br/>（画面内の自動アラートは無し）"]
+```
+
 ---
 
 ## 3. 技術仕様

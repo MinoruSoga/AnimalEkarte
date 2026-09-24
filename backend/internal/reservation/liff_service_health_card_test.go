@@ -15,6 +15,12 @@ import (
 // newHealthCardTestService は customerRepo/vaccinationRepo のみ実データを差し込み、
 // 他の依存は空モックで最小配線した liffService を返す。
 func newHealthCardTestService(customerRepo *mockLiffCustomerRepository, vaccinationRepo *mockVaccinationRepository) *liffService {
+	return newHealthCardTestServiceWithOwner(customerRepo, vaccinationRepo, &mockLiffOwnerRepository{})
+}
+
+// newHealthCardTestServiceWithOwner は ownerRepo を差し替え可能な variant
+// （owner sync heal 経路の検証用）。
+func newHealthCardTestServiceWithOwner(customerRepo *mockLiffCustomerRepository, vaccinationRepo *mockVaccinationRepository, ownerRepo liffOwnerRepo) *liffService {
 	svc := NewLiffServiceWithType(
 		&mockLiffSettingRepository{},
 		&mockLiffTypeRepository{},
@@ -23,7 +29,7 @@ func newHealthCardTestService(customerRepo *mockLiffCustomerRepository, vaccinat
 		&mockLiffScheduleRepository{},
 		&mockLiffAdminRepository{},
 		customerRepo,
-		&mockLiffOwnerRepository{},
+		ownerRepo,
 		&mockTransactor{},
 		&mockLiffReservationRepository{},
 		&mockLiffNotifier{},

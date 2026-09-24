@@ -98,6 +98,21 @@ FE 臨床契約は BE と同義: [isPetDeceasedForClinicalWrite](../../../fronte
 
 慢性疾患 `notes`（[chronic_condition_service.go](../../../backend/internal/pet/chronic_condition_service.go)）は病名メモであり、死亡後の飼主連絡先ではない。
 
+ガードの内側と外側の概形:
+
+```mermaid
+flowchart TB
+    N["死亡後の飼主連絡を残したい 要望"]
+    W{"死亡 write ガード<br/>status = deceased または<br/>deceased_at あり"}
+    A["臨床 write — 拒否 InvalidInput<br/>新規カルテ 会計 予約<br/>入院 検査 カルテ画像"]
+    OK["生存ペットの臨床 write — 許可"]
+    B["備考 write — ガード対象外<br/>owners remarks / pets remarks<br/>上書きのみ actor 時刻列なし"]
+    N --> B
+    N -.->|連絡のために臨床経路を使わない| A
+    W -->|死亡| A
+    W -->|生存| OK
+```
+
 ## 連絡メモ案（実装しない。比較用）
 
 PO が記録対象・閲覧/編集者・時刻/記録者/監査・過去カルテ関係を確定するまで、いずれも製品変更しない。

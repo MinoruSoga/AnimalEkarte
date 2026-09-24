@@ -30,6 +30,23 @@
 `001_init.sql` と整合する。exam 系マッピングは汎用検査機構への相乗りであり健診固有要件
 （パッケージ化・種別別閾値）を表現できない。
 
+```mermaid
+flowchart LR
+    subgraph BEFORE["二重管理（解消前）"]
+        direction TB
+        EX1["Examination 系<br/>検査階層に健診カテゴリを<br/>マッピング"]
+        CK1["Checkup 系<br/>健診専用スキーマ"]
+        EX1 <-->|"同一の健診項目が<br/>両系統に存在"| CK1
+    end
+    subgraph AFTER["決定後"]
+        direction TB
+        EX2["Examination 系<br/>臨床検査専用に戻る"]
+        CK2["Checkup 系<br/>健診の唯一の正系統"]
+        TOMB["撤去済み健診 seed の<br/>ID 範囲は再利用禁止"]
+    end
+    BEFORE --> AFTER
+```
+
 ## Consequences
 
 **ポジティブ:**

@@ -3,6 +3,19 @@
 > **目的**: reviewed `main -> staging` delivery後のrepository-derived gatesを定義する。
 > **境界**: Production approval gatesは別途実装・検証が必要。このcheckのPASSだけでproductionへmerge/pushしない。
 
+ゲート全体の流れ:
+
+```mermaid
+flowchart TB
+  PR["reviewed main → staging delivery 完了"] --> G1["§1 Configuration audit<br/>secrets・vars・GitHub secret names を names-only で確認"]
+  G1 --> G2["§2 Migration / seed gate<br/>delivery 順序: wrangler deploy → POST /_internal/migrate → /health"]
+  G2 --> G3["§3 Post-deploy checks<br/>Infrastructure + Corrected CRUD cases"]
+  G3 --> Rec["PASS → §5 Record で証跡を記録"]
+  G1 & G2 & G3 -.->|"1つでも該当"| Stop["§4 Stop criteria"]
+  Stop --> Fix["release success にしない。<br/>Cloudflare / Vercel 側の修正・rebuild / redeploy で復旧<br/>（AWS は rollback 先ではない）"]
+  Rec -.-> Bound["この check の PASS だけで production へ merge / push しない<br/>（production approval gates は別途）"]
+```
+
 ## 1. Configuration audit
 
 - [ ] target `backend/wrangler.jsonc`（またはproduction target file）の`secrets.required`をnames-only SSOTとして全nameを確認した。値を表示・記録していない。

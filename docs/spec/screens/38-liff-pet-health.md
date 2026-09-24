@@ -56,6 +56,30 @@ LIFF SDK 初期化中に表示される全画面スピナー（`Spinner` + 「�
 2. 飼い主が URL を開くと `useLiffLink`（`use-liff-link.ts`）が LIFF 認証完了後に POST `/api/liff/:clinicId/link` へ link_token と LINE ID Token を送信。
 3. サーバ側（`LinkLiffAccount`）は ①LINE ID Token 検証 → ②トークンの実在・期限・クリニック一致検証 → ③飼い主の既存 LINE User ID 有無チェック（既設定なら 409）→ ④LINE User ID 更新 → ⑤トークンの単回 CAS 消費 → ⑥監査ログ記録と更新結果の再取得、の順で処理する。④〜⑥は同一 transaction で実行し、いずれかが失敗した場合は飼い主更新・トークン消費・監査を全て rollback する。上書き・再リンクはこの endpoint では未対応で、strict JSON decode により `force` などの未知フィールドも拒否する。
 
+```mermaid
+sequenceDiagram
+    participant Staff as スタッフ（飼主情報画面）
+    participant Owner as 飼い主（LIFF）
+    participant API as サーバ
+    participant LINE as LINE 検証 API
+
+    Staff->>API: link-token 発行（owners edit 権限）
+    API-->>Staff: link_token + clinic_id 付き LIFF URL
+    Note over Owner: 飼い主が URL を開き LIFF 認証を完了
+    Owner->>API: POST /api/liff/:clinicId/link（link_token + line_id_token）
+    API->>LINE: line_id_token を検証
+    LINE-->>API: 検証結果
+    API->>API: token 実在・期限・clinic 一致・既存 LINE ID を確認
+    Note over API: 飼い主更新・token 消費・監査は同一 transaction<br/>（失敗時は全て rollback）
+    alt 紐付け成功
+        API-->>Owner: success（連携が完了しました）
+    else 飼い主に既存 LINE ID あり
+        API-->>Owner: conflict（連携済みです）
+    else token 無効・期限切れ・clinic 不一致
+        API-->>Owner: expired（リンクが無効です）
+    end
+```
+
 ### 3. 未紐付け時の挙動
 health-card API は LINE 顧客が飼い主未紐付けでも 200 を返し、owner_name = LINE 表示名 + pets 空配列にフォールバックする（`liff_service_health_card.go`）。画面上は「ペット情報はありません」となり、紐付け前でもエラーにはならない。
 

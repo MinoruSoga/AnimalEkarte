@@ -63,12 +63,16 @@ func (s *accountingService) completeInTx(
 		return nil, err
 	}
 
-	billing, replay, err := s.createCompleteBillingHeader(txCtx, input, digest, medicalRecordID)
-	if err != nil {
+	// EMR-66: medical_record / hospitalization スロットが既存会計で占有済みなら INSERT の
+	// UNIQUE 違反を待たずにここで 409 + 既存会計を返す。INSERT 失敗後に同 tx で再検索すると
+	// PostgreSQL 25P02（aborted transaction）になり 500 へ落ちるため、必ず INSERT 前に検出する。
+	if err := s.assertCompleteSlotAvailable(txCtx, input, medicalRecordID); err != nil {
 		return nil, err
 	}
-	if replay != nil {
-		return replay, nil
+
+	billing, err := s.createCompleteBillingHeader(txCtx, input, digest, medicalRecordID)
+	if err != nil {
+		return nil, err
 	}
 
 	// Items: ambient tx 参加。N 番目失敗で全 rollback。
@@ -112,12 +116,29 @@ func (s *accountingService) replayCompleteIfExisting(
 	return s.resolveIdempotentReplay(txCtx, clinicID, existing, digest)
 }
 
+// assertCompleteSlotAvailable は EMR-66: medical_record_id / hospitalization_id の
+// 確定スロットが既存会計で占有済みかを INSERT 前に検出する。
+// 占有時は ACCOUNTING_ALREADY_COMPLETED（409）と既存会計を返す。
+func (s *accountingService) assertCompleteSlotAvailable(txCtx context.Context, input *CompleteAccountingInput, medicalRecordID *uint64) error {
+	if medicalRecordID == nil && input.HospitalizationID == nil {
+		return nil
+	}
+	blocking, err := s.repo.FindCompleteConflict(txCtx, input.ClinicID, medicalRecordID, input.HospitalizationID)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check accounting slot conflict")
+	}
+	if blocking == nil {
+		return nil
+	}
+	return s.alreadyCompletedConflict(txCtx, input.ClinicID, blocking)
+}
+
 func (s *accountingService) createCompleteBillingHeader(
 	txCtx context.Context,
 	input *CompleteAccountingInput,
 	digest string,
 	medicalRecordID *uint64,
-) (*model.Billing, *CompleteAccountingResult, error) {
+) (*model.Billing, error) {
 	reqID := input.IdempotencyKey
 	hash := digest
 	billing := &model.Billing{
@@ -138,24 +159,19 @@ func (s *accountingService) createCompleteBillingHeader(
 	}
 	if err := s.repo.Create(txCtx, input.ClinicID, billing); err != nil {
 		// Create は UNIQUE を AlreadyExists に変換する（pg 23505 は chain されない）。
-		// completion_request_id 衝突時のみ replay。他 UNIQUE は existing==nil のまま元エラー。
 		if !apperrors.IsAlreadyExists(err) && !persistence.IsUniqueConstraintErr(err) {
-			return nil, nil, apperrors.Wrap(err, "failed to create accounting header for complete")
+			return nil, apperrors.Wrap(err, "failed to create accounting header for complete")
 		}
-		existing, lookupErr := s.repo.FindByCompletionRequestID(txCtx, input.ClinicID, input.IdempotencyKey)
-		if lookupErr != nil {
-			return nil, nil, apperrors.Wrap(lookupErr, "failed to resolve completion unique conflict")
+		// EMR-66: UNIQUE 衝突後に aborted tx 上で再検索すると 25P02 → 500 になる。
+		// ここでは sentinel だけ返し、rollback 後の resolveCompleteUniqueConflict で
+		// completion_request_id replay / slot 衝突 409 を再解決する。
+		return nil, &completeUniqueConflictError{
+			medicalRecordID:   medicalRecordID,
+			hospitalizationID: input.HospitalizationID,
+			cause:             err,
 		}
-		if existing == nil {
-			return nil, nil, apperrors.WrapConflict("このカルテには既に会計があります")
-		}
-		replay, replayErr := s.resolveIdempotentReplay(txCtx, input.ClinicID, existing, digest)
-		if replayErr != nil {
-			return nil, nil, replayErr
-		}
-		return nil, replay, nil
 	}
-	return billing, nil, nil
+	return billing, nil
 }
 
 func (s *accountingService) createCompleteItems(txCtx context.Context, input *CompleteAccountingInput, billingID uint64) error {
@@ -204,9 +220,21 @@ func (s *accountingService) persistCompletePayments(
 	if input.InsuranceAmount != nil {
 		insuranceAmount = *input.InsuranceAmount
 	}
+	// EMR-62: insurance_amount は正の magnitude（円）が正規契約（billing = total − insurance − discount）。
+	// 旧クライアントの負値送信も絶対値として正規化して保存し、符号解釈ずれによる確定失敗を防ぐ。
+	if insuranceAmount < 0 {
+		insuranceAmount = -insuranceAmount
+	}
+	// 保険なし会計に保険負担額が非ゼロは矛盾レコードのため拒否する。
+	if !input.HasInsurance && insuranceAmount != 0 {
+		return apperrors.WrapInvalidInput("保険なし会計に保険負担額は設定できません")
+	}
 	discountAmount := int64(0)
 	if input.DiscountAmount != nil {
 		discountAmount = *input.DiscountAmount
+	}
+	if discountAmount < 0 {
+		return apperrors.WrapInvalidInput("割引額は0円以上で指定してください")
 	}
 	billingAmount := totalAmount - insuranceAmount - discountAmount
 	if billingAmount < 0 {
@@ -241,7 +269,7 @@ func (s *accountingService) persistCompletePayments(
 		method := representativeMethod(input.PaymentSplits)
 		updateInput.PaymentMethod = &method
 	}
-	payment := buildPaymentFromInput(updateInput)
+	payment := buildPaymentFromInput(updateInput, nil)
 	if payment.Method != "" {
 		pid, err := resolvePaymentMethodMasterID(payment.Method, payment.PaymentMethodID, systemKeyToID)
 		if err != nil {
@@ -249,7 +277,7 @@ func (s *accountingService) persistCompletePayments(
 		}
 		payment.PaymentMethodID = pid
 	}
-	splits := buildPaymentSplits(updateInput)
+	splits := buildPaymentSplits(updateInput, billingAmount)
 	for i := range splits {
 		pid, err := resolvePaymentMethodMasterID(splits[i].Method, splits[i].PaymentMethodID, systemKeyToID)
 		if err != nil {

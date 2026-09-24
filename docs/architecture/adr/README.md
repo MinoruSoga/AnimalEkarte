@@ -17,6 +17,14 @@
 | [007-lab-device-receive-and-commit.md](007-lab-device-receive-and-commit.md) | 城東検査機器の受信永続化・1画面・即 persist + detach（ローカル受信 agent 判断は ADR-008 が部分的に supersede） |
 | [008-local-lab-device-agent.md](008-local-lab-device-agent.md) | Mac ローカル受信 agent。ADR-007 の「デーモンを作らない」判断を部分的に supersede |
 
+現行の supersede 関係:
+
+```mermaid
+flowchart LR
+    A005["ADR-005<br/>Go/Gin backend 指針"] -. "backend 構成判断を supersede" .-> A001["ADR-001<br/>システムアーキテクチャ"]
+    A008["ADR-008<br/>ローカル受信 agent"] -. "一部の判断を supersede" .-> A007["ADR-007<br/>検査機器の受信 + commit"]
+```
+
 ## 運用ルール
 
 - ADR は追記型。決定を覆す場合は既存 ADR を書き換えず、新番号の ADR で「supersedes ADR-XXX」と明記する。

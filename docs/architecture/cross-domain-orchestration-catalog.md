@@ -42,6 +42,19 @@ Both PATH-RES-MR-* request paths must retain failure audit/observability when si
 
 Any **new** cross-domain write or orchestration path — including **automation/batch** and durable scheduler jobs — MUST follow these rules before merge:
 
+```mermaid
+flowchart TD
+    New["New cross-domain write or orchestration path"] --> Intent["Call owner typed intents only"]
+    Intent --> Boundary{"Write boundary?"}
+    Boundary -->|"ambient tx participation"| SameTx["same-tx: fail-closed by default"]
+    Boundary -->|"explicit orchestration"| Sep["separate-tx boundary"]
+    Sep --> Doc{"best-effort documented?"}
+    Doc -->|"recovery + observability + accepted partial success"| BE["best-effort allowed"]
+    Doc -->|"undocumented"| No["forbidden: no silent partial success"]
+    SameTx --> Cat["Add row to this catalog with test anchors"]
+    BE --> Cat
+```
+
 1. **Owner typed intents only**  
    Consumer domains call reservation/billing/medicalrecord (etc.) through **owner typed intents** or a minimal consumer-side interface. Do not add generic field-update APIs or independent write implementations against another domain's tables (especially `appointments` — write owner remains `reservation`). Automation must reuse the same owner intents as manual paths where a write exists (example: no-show → `MarkNoShow`).
 

@@ -23,6 +23,26 @@
 | 5 | 1 件目を開いて内容を確認する | A の値が A のまま。B/C の値が混入しない。次回予定日は A のマスタ間隔で計算されている |
 | 6 | 同日の 1 件を削除する | その記録だけが削除され、同日の他記録は残る |
 
+同日複数登録は順次の単件 POST（1 リクエストの多重 create ではない）:
+
+```mermaid
+sequenceDiagram
+    actor U as スタッフ
+    participant F as 登録フォーム
+    participant API as API
+    participant L as 一覧・カルテタブ
+    U->>F: ワクチン A を同日付で登録
+    F->>API: 単件 POST
+    API-->>F: 保存（記録 A）
+    U->>F: 同日でワクチン B を登録
+    F->>API: 単件 POST — 同日でも 409・上書きにならない
+    API-->>F: 保存（記録 B）
+    U->>F: 同日で予防薬 C を登録
+    F->>API: 単件 POST
+    API-->>F: 保存（記録 C）
+    L-->>U: 同日の記録は別行・次回予定日は各記録のマスタ間隔で独立計算
+```
+
 ## 確認観点
 
 - 各接種は `useCreateVaccination` の単件 POST で独立保存される。同日複数は「順次 POST」を意味し、1 リクエストの多重 create ではない。

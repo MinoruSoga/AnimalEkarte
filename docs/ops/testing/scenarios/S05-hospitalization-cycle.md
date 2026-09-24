@@ -24,6 +24,19 @@
 | 6 | 入院一覧に戻り、タブとボードを確認する | 当該患者が「入院中」タブから消え「退院済」タブに表示される（[07 §2](../../../spec/screens/07-hospitalization-list.md)）。「入院中」タブのボードで当該ケージは空きに戻る。「退院済」タブのボードは退院患者を最終ケージ位置に表示し続ける（履歴表示） |
 | 7 | 2 件目の入院を作成し、退院処理ダイアログで **「退院後、そのまま会計画面へ進む」を入れないまま**（既定 OFF）退院を実行する | 会計なし経路: FE は `PATCH` で `status=discharged` のみ更新（`DischargeWithBilling` は呼ばない）。会計画面への遷移なし・会計レコードが作られないこと |
 
+**退院経路の分岐**（手順 5・7 と A1 の概要）:
+
+```mermaid
+flowchart LR
+    A["入院登録<br/>ケージ必須・治療プラン同一TX"] --> B["入院中"]
+    B --> C{"退院ダイアログ<br/>「会計画面へ進む」"}
+    C -->|"チェック ON"| D["POST discharge-with-billing<br/>退院 + 会計生成が同一TX"]
+    C -->|"チェック OFF（既定）"| E["PATCH で status=discharged のみ更新"]
+    D --> F["退院済<br/>会計詳細 or ?petId= 新規会計へ遷移"]
+    E --> G["退院済<br/>会計なし・画面遷移なし"]
+    F -.->|"discharge-with-billing 再送"| H["行ロックで直列化 → already discharged で拒否<br/>会計は二重生成されない"]
+```
+
 ## 確認観点
 
 - **会計あり退院**のみ `DischargeWithBilling`（`create_accounting: true`）で退院と会計生成が同一トランザクション（`backend/internal/medicalrecord/hospitalization_service.go`）。片方だけ成立しない。

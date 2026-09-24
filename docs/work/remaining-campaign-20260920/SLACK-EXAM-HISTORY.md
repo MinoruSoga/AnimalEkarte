@@ -108,6 +108,20 @@ Executable headers: [cutover_contract.go](../../../backend/internal/csvimport/cu
 
 This is a **schema map**, not a populated value map. Per-clinic item names, units, and result strings: **UNKNOWN**. Do not invent.
 
+BAK からカルテ表示までの経路の概形:
+
+```mermaid
+flowchart LR
+    B["旧カルテ / BAK"] --> E["exams csv"]
+    B --> R["exam_results csv"]
+    E --> ET["exams 表<br/>clinic_id 列で isolation"]
+    R --> RT["exam_results 表<br/>親 exam への FK"]
+    ET --> API["GET /v1/examinations<br/>pet_id と medical_record_id"]
+    RT --> API
+    API --> V["カルテ 検査タブ<br/>日付 group で表示"]
+    D["DrOne 単体データ"] -.->|移行対象外| B
+```
+
 ## 6. List limit vs import gap vs HAC
 
 | Symptom | Likely class | Do not collapse into |

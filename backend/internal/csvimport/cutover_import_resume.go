@@ -49,7 +49,7 @@ func (s pgxPoolCutoverSession) Begin(ctx context.Context, iso pgx.TxIsoLevel) (c
 // table can resume after a previous table had committed. Formal cutover still
 // uses PreflightCutoverTarget and requires every band empty.
 func PreflightCutoverTargetAllowingResume(ctx context.Context, target cutoverQuerier, manifest CutoverManifest, seeds CutoverSeedIDs) error {
-	if err := validateCutoverTarget(ctx, target, manifest, seeds, false); err != nil {
+	if _, err := validateCutoverTarget(ctx, target, manifest, seeds, false); err != nil {
 		return err
 	}
 	return validateCutoverBandResumable(ctx, target, manifest, seeds)
@@ -57,8 +57,12 @@ func PreflightCutoverTargetAllowingResume(ctx context.Context, target cutoverQue
 
 func validateCutoverBandResumable(ctx context.Context, q cutoverQuerier, manifest CutoverManifest, seeds CutoverSeedIDs) error {
 	seenEmpty := false
-	for i, spec := range CutoverTableSpecs() {
-		state, _, err := inspectCutoverBand(ctx, q, spec, manifest.Tables[i], manifest.IDBand, seeds)
+	for _, spec := range CutoverTableSpecs() {
+		table, err := cutoverManifestTableByName(manifest, spec.Name)
+		if err != nil {
+			return err
+		}
+		state, _, err := inspectCutoverBand(ctx, q, spec, table, manifest.IDBand, seeds)
 		if err != nil {
 			return err
 		}
@@ -133,14 +137,20 @@ func applyCutoverCommittingEachTable(
 	if _, err := session.Exec(ctx, `SELECT set_config('app.bypass_rls', 'on', false)`); err != nil {
 		return CutoverResult{}, fmt.Errorf("configure cutover RLS bypass: %w", err)
 	}
-	if err := validateCutoverTarget(ctx, session, bundle.Manifest, seeds, false); err != nil {
+	targetNotes, err := validateCutoverTarget(ctx, session, bundle.Manifest, seeds, false)
+	if err != nil {
 		return CutoverResult{}, err
 	}
+	drift := append([]string(nil), bundle.ToleratedDrift...)
+	drift = append(drift, targetNotes...)
 
 	counts := make(map[string]int64, len(bundle.Manifest.Tables))
 	seenEmpty := false
-	for i, spec := range CutoverTableSpecs() {
-		manifestTable := bundle.Manifest.Tables[i]
+	for _, spec := range CutoverTableSpecs() {
+		manifestTable, err := cutoverManifestTableByName(bundle.Manifest, spec.Name)
+		if err != nil {
+			return CutoverResult{}, err
+		}
 		state, count, err := inspectCutoverBand(ctx, session, spec, manifestTable, bundle.Manifest.IDBand, seeds)
 		if err != nil {
 			return CutoverResult{}, err
@@ -160,15 +170,18 @@ func applyCutoverCommittingEachTable(
 		counts[spec.Name] = imported
 	}
 
-	if err := finalizeCutoverAfterTables(ctx, session, iso, bundle, seeds); err != nil {
+	finalizeNotes, err := finalizeCutoverAfterTables(ctx, session, iso, bundle, seeds)
+	if err != nil {
 		return CutoverResult{}, err
 	}
+	drift = append(drift, finalizeNotes...)
 	return CutoverResult{
-		CompletedAt: time.Now().UTC(),
-		ClinicCode:  bundle.Manifest.ClinicCode,
-		RunID:       bundle.Manifest.SourceRunID,
-		IDBand:      bundle.Manifest.IDBand,
-		Counts:      counts,
+		CompletedAt:    time.Now().UTC(),
+		ClinicCode:     bundle.Manifest.ClinicCode,
+		RunID:          bundle.Manifest.SourceRunID,
+		IDBand:         bundle.Manifest.IDBand,
+		Counts:         counts,
+		ToleratedDrift: drift,
 	}, nil
 }
 
@@ -203,7 +216,8 @@ func importOneCutoverTable(
 		return 0, fmt.Errorf("%s: target clinic band is already occupied in table %s", CutoverRefBandOccupied, spec.Name)
 	}
 	path := cutoverCSVPath(bundle.SourceDir, manifestTable)
-	count, err := copyCutoverTable(ctx, tx, path, spec, manifestTable, seeds)
+	count, err := copyCutoverTable(ctx, tx, path, spec, manifestTable, seeds,
+		rehearsalContractDrift(bundle.Manifest, bundle.Provenance.Mode))
 	if err != nil {
 		return 0, err
 	}
@@ -225,32 +239,36 @@ func finalizeCutoverAfterTables(
 	iso pgx.TxIsoLevel,
 	bundle CutoverBundle,
 	seeds CutoverSeedIDs,
-) error {
+) ([]string, error) {
 	tx, err := session.Begin(ctx, iso)
 	if err != nil {
-		return fmt.Errorf("begin cutover final verification")
+		return nil, fmt.Errorf("begin cutover final verification")
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 	if _, err := tx.Exec(ctx, `SET LOCAL lock_timeout = '10s'`); err != nil {
-		return fmt.Errorf("configure cutover lock timeout: %w", err)
+		return nil, fmt.Errorf("configure cutover lock timeout: %w", err)
 	}
 	if _, err := tx.Exec(ctx, `SELECT set_config('app.bypass_rls', 'on', true)`); err != nil {
-		return fmt.Errorf("configure cutover RLS bypass: %w", err)
+		return nil, fmt.Errorf("configure cutover RLS bypass: %w", err)
 	}
 	if err := verifyCutoverRows(ctx, tx, bundle.Manifest, seeds, bundle.Provenance); err != nil {
-		return err
+		return nil, err
 	}
-	if err := advanceCutoverSequences(ctx, tx); err != nil {
-		return err
+	sequenceTolerant := isRehearsalOnlyProducer(bundle.Manifest)
+	notes, err := advanceCutoverSequences(ctx, tx, sequenceTolerant)
+	if err != nil {
+		return nil, err
 	}
-	if err := verifyCutoverSequences(ctx, tx); err != nil {
-		return err
+	verifyNotes, err := verifyCutoverSequences(ctx, tx, sequenceTolerant)
+	if err != nil {
+		return nil, err
 	}
+	notes = append(notes, verifyNotes...)
 	if err := tx.Commit(ctx); err != nil {
 		if errors.Is(err, pgx.ErrTxCommitRollback) {
-			return fmt.Errorf("commit rejected and transaction rolled back: %w", err)
+			return nil, fmt.Errorf("commit rejected and transaction rolled back: %w", err)
 		}
-		return fmt.Errorf("%w: run read-only verify before any retry or restore", ErrCutoverCommitOutcomeUnknown)
+		return nil, fmt.Errorf("%w: run read-only verify before any retry or restore", ErrCutoverCommitOutcomeUnknown)
 	}
-	return nil
+	return notes, nil
 }

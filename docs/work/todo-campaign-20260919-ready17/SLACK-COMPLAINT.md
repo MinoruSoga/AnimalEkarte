@@ -55,6 +55,14 @@
 
 層が違うと「送っていない」と「明示 null」が同じ Go 値になる。医院ポリシーではなくワイヤの事実。
 
+```mermaid
+flowchart TB
+    P["PATCH body の chief_complaint_type_id"] --> K{"キーの形"}
+    K -->|"キー省略（omit）"| O["set=false → 既存値を保持"]
+    K -->|"JSON null"| N["set=true・値 nil → 列を NULL 書込"]
+    K -->|"数値 ID"| V["set=true・値あり → 所有マスタ照合のうえセット"]
+```
+
 | 層 | omit（キーなし） | JSON `null` | 数値 ID |
 | --- | --- | --- | --- |
 | 新規 POST（N1） | auto-create がキーを付けない。Create TS 型に `null` が無い | この経路では送っていない | この経路では送っていない |

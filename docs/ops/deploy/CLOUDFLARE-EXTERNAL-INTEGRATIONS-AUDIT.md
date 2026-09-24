@@ -18,6 +18,23 @@ Cloudflare のエッジ網を経由するため、**送信元 IP は固定され
 これが影響するのは、送信先サービスが「IP allowlist」方式のアクセス制御を採用している場合のみ。
 本ドキュメントは LINE / Lステップ / SMTP / LIFF の各連携についてこの依存の有無を確認する。
 
+**egress 経路の差分**:
+
+```mermaid
+flowchart TB
+  subgraph AWS[旧 AWS STG 構成]
+    ECS[Private Subnet の ECS Fargate] --> NAT[fck-nat EC2 + Elastic IP]
+    NAT -->|単一の固定 IP| EXT1[外部サービス]
+  end
+  subgraph CF[現行 Cloudflare 構成]
+    WC[Workers + Containers] --> EDGE[Cloudflare エッジ網]
+    EDGE -->|送信元 IP は固定されない| EXT2[外部サービス]
+  end
+  EXT2 --> Q{送信先が IP allowlist 制御か}
+  Q -->|いいえ| SAFE[影響なし]
+  Q -->|はい| RISK[非固定 IP で拒否され得る。対象 console 設定を事前確認]
+```
+
 ---
 
 ## 現行棚卸し

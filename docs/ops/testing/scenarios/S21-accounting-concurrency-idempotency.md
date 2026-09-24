@@ -24,6 +24,17 @@
 | 6 | 2 セッションで同じ会計を開き、片方で確定→もう片方で古い合計のまま更新/確定する | 古い合計・古い版での更新は拒否または再計算される。楽観ロックまたはサーバー再計算で不整合を残さない |
 | 7 | 検査由来の項目が会計明細へ重複して入らないことを確認する | 検査連携の項目は 1 回だけ請求され、再取込・再保存で重複行が増えない |
 
+確定リクエストの冪等分岐（CompletionRequestID + Hash で判定）:
+
+```mermaid
+flowchart TB
+  R[確定リクエスト<br/>CompletionRequestID + CompletionRequestHash] --> D{既存の確定と照合}
+  D -->|同一 ID + digest 一致| RP[冪等リプレイ<br/>既存を返す・重複作成なし]
+  D -->|同一 ID + payload 相違| X1[409 拒否<br/>既存レコードを壊さない]
+  D -->|別 ID・同一カルテ| X2[409 拒否<br/>このカルテには既に会計があります]
+  D -->|競合なし| NEW[billing header を 1 件作成]
+```
+
 ## 確認観点
 
 - 冪等の判定は `backend/internal/billing/accounting_complete_tx.go` が `CompletionRequestID` + `CompletionRequestHash` で replay（digest 一致）と真の UNIQUE 競合（別 request ID や別内容）を区別する。replay は既存を返し、非 replay は「このカルテには既に会計があります」等で拒否。

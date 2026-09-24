@@ -22,6 +22,21 @@
 | インフラ | Docker Compose (dev) / AWS ECS (staging/prod) / Vercel (frontend) | 開発環境の再現性とステージング/本番の分離 |
 | CI | GitHub Actions | backend (Go build/test/lint) + frontend (pnpm lint/build) を PR ごとに検証 |
 
+レイヤ間の関係（採用時 snapshot。インフラの現行正本は Supersession note 参照）:
+
+```mermaid
+flowchart LR
+    FE["フロントエンド<br/>React / TypeScript / Vite"]
+    BE["バックエンド<br/>Go / Gin / GORM"]
+    DB[("PostgreSQL<br/>clinic_id 完全隔離")]
+    CI["GitHub Actions"]
+    FE -->|"API"| BE
+    BE --> DB
+    BE -. "tygo で API レスポンス型を自動生成" .-> FE
+    CI -. "PR ごとに検証" .-> FE
+    CI -. "PR ごとに検証" .-> BE
+```
+
 ## Consequences
 
 **ポジティブ:**

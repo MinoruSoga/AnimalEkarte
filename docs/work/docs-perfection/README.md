@@ -14,6 +14,16 @@
 6. [LEDGER.md](LEDGER.md) / [PROGRESS.md](PROGRESS.md) / [GOAL.yaml](GOAL.yaml) — 進行・親 goal
 7. [EVIDENCE/](EVIDENCE/) — drift・検証・独立レビューの生証拠
 
+```mermaid
+flowchart LR
+    R["README<br>役割と境界"] --> RM["ROLE-MAP<br>4役割の割当"]
+    RM --> RQ["REPAIR-QUEUE<br>優先修復RQ"]
+    RQ --> IV["INVENTORY<br>一次トリアージ"]
+    IV --> CG["CHILD-GOALS<br>実行契約"]
+    CG --> LP["LEDGER / PROGRESS / GOAL<br>進行・親goal"]
+    LP --> EV["EVIDENCE<br>生証拠"]
+```
+
 ## 調査の出所（Astra）
 
 | 成果 | セッション | 備考 |

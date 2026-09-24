@@ -51,7 +51,8 @@ function buildPaymentInfo(data: BackendAccounting) {
     totalAmount: data.total_amount ?? 0,
     insuranceName: payment.insurance_name || undefined,
     insuranceRatio: payment.insurance_ratio ?? undefined,
-    insuranceAmount: payment.insurance_amount ?? 0,
+    // EMR-62: wire 契約は正の magnitude。レガシー負値行を境界で正規化する。
+    insuranceAmount: Math.abs(payment.insurance_amount ?? 0),
     discountAmount: payment.discount_amount ?? 0,
     billingAmount: payment.billing_amount ?? 0,
     receivedAmount: payment.received_amount ?? 0,

@@ -589,8 +589,11 @@ func TestRealDB_SelectedClinicBGrantAIsolation(t *testing.T) {
 		c, w := testdb.NewHTTPTestContext(t, http.MethodGet, fmt.Sprintf("/api/v1/masters/reservation-types/%d/occupations", fx.typeB.ID), withParams(configureResGrant(fx, string(model.ResourceMasterReservationType), fx.fx.ClinicB), gin.Params{{Key: "id", Value: fmt.Sprintf("%d", fx.typeB.ID)}}))
 		fx.handlers.typeHandler.ListReservationTypeOccupations(c)
 		require.Equal(t, http.StatusOK, w.Code, w.Body.String())
-		var listed []realDBResOccupationDTO
-		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &listed))
+		var body struct {
+			Data []realDBResOccupationDTO `json:"data"`
+		}
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+		listed := body.Data
 		require.NotEmpty(t, listed)
 		found := false
 		for _, item := range listed {

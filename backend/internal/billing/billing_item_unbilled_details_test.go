@@ -15,6 +15,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // ---- BUG-013 source matrix: unbilled-details aggregation ----
@@ -288,6 +289,63 @@ func TestGetUnbilledItemDetails_HandlerEnvelope(t *testing.T) {
 	require.Len(t, warnings, 1)
 	w0 := warnings[0].(map[string]any)
 	assert.Equal(t, []string{"blocking", "code", "count", "source"}, sortedKeys(w0))
+}
+
+// EMR-65 / BUG-BILLING-TAX-TYPE-DROPPED: リンク済みマスタの税区分・税率が
+// 未請求候補明細へ伝播する。内税・非課税・非既定税率を外税10%へ一律潰しする
+// 回帰（過課金）を防ぐ。税フィールドを持たない inventory / 未リンク行は
+// 従来の外税既定を維持し、候補行のスキップや0円フォールバックは禁止。
+func TestBillingItemService_UnbilledDetails_MasterTaxPropagation(t *testing.T) {
+	repo := &matrixVaccinationRepo{mockBillingItemRepository: defaultMockBillingItemRepo()}
+	svc := newMatrixService(t, repo, &matrixTreatmentRepo{
+		items: []model.Treatment{
+			{
+				ID: 11, ItemType: model.TreatmentItemTypeProcedure, Content: "内税処置",
+				UnitPrice: 1000, Quantity: 1,
+				Procedure: &model.Procedure{TaxType: model.TaxTypeIncluded, TaxRate: 0.08},
+			},
+			{
+				ID: 12, ItemType: model.TreatmentItemTypeMedicine, Content: "非課税薬",
+				UnitPrice: 500, Quantity: 2,
+				Medicine: &model.Medicine{TaxType: model.TaxTypeExempt, TaxRate: 0},
+			},
+			{
+				ID: 13, ItemType: model.TreatmentItemTypeConsultation, Content: "外税診察",
+				UnitPrice: 3000, Quantity: 1,
+				Consultation: &model.Consultation{TaxType: model.TaxTypeExcluded, TaxRate: 0.10},
+			},
+			{
+				ID: 14, ItemType: model.TreatmentItemTypeOther, Content: "物販",
+				UnitPrice: 800, Quantity: 1,
+				Inventory: &model.InventoryItem{},
+			},
+			{
+				ID: 15, ItemType: model.TreatmentItemTypeOther, Content: "マスタ未リンク",
+				UnitPrice: 200, Quantity: 1,
+			},
+		},
+	})
+
+	details, err := svc.GetUnbilledItemDetails(context.Background(), 1, 7)
+	require.NoError(t, err)
+	require.Len(t, details.Items, 5, "税メタデータの有無にかかわらず候補行は全件返す")
+
+	byID := make(map[uint64]model.BillingItem, len(details.Items))
+	for _, item := range details.Items {
+		byID[item.ID] = item
+		assert.Greater(t, item.UnitPrice, int64(0), "zero-yen fallback は禁止")
+	}
+
+	assert.Equal(t, model.TaxTypeIncluded, byID[11].TaxType, "procedure マスタの内税を伝播")
+	assert.InDelta(t, 0.08, byID[11].TaxRate, 1e-9)
+	assert.Equal(t, model.TaxTypeExempt, byID[12].TaxType, "medicine マスタの非課税を伝播")
+	assert.InDelta(t, 0, byID[12].TaxRate, 1e-9)
+	assert.Equal(t, model.TaxTypeExcluded, byID[13].TaxType, "consultation マスタの外税を伝播")
+	assert.InDelta(t, 0.10, byID[13].TaxRate, 1e-9)
+	assert.Equal(t, model.TaxTypeExcluded, byID[14].TaxType, "inventory は税フィールドを持たないため既定維持")
+	assert.InDelta(t, sharedkernel.DefaultTaxRate, byID[14].TaxRate, 1e-9)
+	assert.Equal(t, model.TaxTypeExcluded, byID[15].TaxType, "未リンク行も既定維持")
+	assert.InDelta(t, sharedkernel.DefaultTaxRate, byID[15].TaxRate, 1e-9)
 }
 
 func sortedKeys(m map[string]any) []string {

@@ -13,6 +13,20 @@ immutable archive. The pinned Go/PostgreSQL base manifests, backend archive
 digest/tree, local Docker daemon identity, database image, and runner image are
 bound into the target database identity digest.
 
+```mermaid
+flowchart LR
+    cfg["env file + non-secret bindings"] --> chk["contract-test + config-check"]
+    chk --> run["f8-g4-rehearsal-run"]
+    subgraph iso["internal Docker network + dedicated volume"]
+        fix["serializable fixture:<br/>synthetic owner + pet to missing owner"] -->|"SQLSTATE 23503 + rollback"| db[("disposable PostgreSQL")]
+    end
+    run --> iso
+    run --> ev["owner-only evidence directory<br/>+ count / transaction sidecars"]
+    ev -->|"regular files only"| olddb["old_db F8 input directory"]
+    ev -->|"sidecar SHA-256 digests"| chan["operator-controlled evidence channel"]
+    olddb --> down["f8-g4-rehearsal-down:<br/>re-attest → remove project + volumes"]
+```
+
 ## Stop conditions
 
 Do not run unless the target release checkout is committed and clean. The

@@ -23,18 +23,28 @@ Drワン remains excluded. `mkan.mdb` is not an input. COM4 / DRI-CHEM 7000V is 
 
 Spec (`LAB_DEVICE_CONNECTIVITY.md` L8–L28, L41–L42): file upload is not the daily path. One exam Mac owns wired serial via user LaunchAgent `lab-device-agent`. The agent binds loopback HTTP `127.0.0.1:17654`. Browser `/lab-device` (`LabDeviceBoard`) does not own serial; it polls the agent with a consumer token obtained from the authorized API, then posts frames to the API.
 
-```
-device serial --USB-Serial--> lab-device-agent (LaunchAgent)
-                                    |
-                                    | loopback HTTP 127.0.0.1:17654
-                                    | claim / frames / ack|reject
-                                    v
-authenticated browser /lab-device (LabDeviceBoard)
-                                    |
-                                    | JWT to API only (not stored on agent)
-                                    | POST /api/v1/lab-device/frames  device_hint=auto
-                                    v
-medicalrecord receive + board + attach/detach
+```mermaid
+sequenceDiagram
+    participant Dev as 検査機器 (USB serial)
+    participant Ag as lab-device-agent<br/>LaunchAgent 127.0.0.1:17654
+    participant Br as browser /lab-device<br/>LabDeviceBoard
+    participant API as medicalrecord API
+
+    Br->>API: GET agent-consumer (JWT, lab-import grant)
+    API-->>Br: agent_consumer_token
+    Br->>Ag: POST /claim (X-Lab-Device-Consumer-Token + clinic_id)
+    Ag-->>Br: single consumer lease (other tab/clinic → 409)
+    Dev-->>Ag: serial frame
+    Br->>Ag: GET /frames (token + X-Clinic-ID + owner)
+    Ag-->>Br: pending frame
+    Br->>API: POST /lab-device/frames (JWT only; device_hint auto)
+    alt HTTP 200
+        Br->>Ag: POST /frames/:id/ack
+    else HTTP 400
+        Br->>Ag: reject (raw stays in reject queue)
+    else other failure
+        Note over Br,Ag: frame stays pending for retry
+    end
 ```
 
 Code citations:

@@ -61,6 +61,20 @@
 7. **締め:** 日付・区分入力 → preview 有効化 → 部門別集計 / 税内訳 / 個別明細 / 理論現金。実査 `actual_cash` ≥ 0。Submit「締める」は confirm 後に POST。権限 `canCreate` を action 側で再検証（ClosePage L85–88）。締め帳票も `window.print()`（CashRegisterClosePanels L237、「印刷 / PDF出力」）。こちらもプリンタ PASS ではない。
 8. **コード上の自動テスト:** AccountingDetail.test は印刷ボタン表示と `window.print` spy。ClosePage.test は mutation mock。どちらも実プリンタ・実締めではない。
 
+通しの流れの概形:
+
+```mermaid
+flowchart LR
+    C["CONFIRM<br/>顧客 品目 金額の確認"]
+    K["COMPLETE<br/>POST /v1/accountings/complete<br/>Idempotency-Key"]
+    P["PDF<br/>ブラウザ印刷ダイアログ"]
+    R["PRINT-PHYS<br/>実プリンタ 用紙 縮尺 欠落なし"]
+    L["CLOSE<br/>preview → 実査 → confirm → POST"]
+    C --> K --> P --> R --> L
+    N["window.print 呼出は<br/>プリンタ PASS ではない"] -.-> P
+    N -.-> R
+```
+
 ## 通しケース（実績はすべて 未実行）
 
 対象: 八王子 **新規カルテ**（方針）。合成 fixture。実請求・実締めは運用承認後。止まった route/action は個別不具合にし、Smaregi 待ちにしない。

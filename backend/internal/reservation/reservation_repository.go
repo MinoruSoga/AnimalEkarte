@@ -257,6 +257,11 @@ func (r *reservationRepository) Create(ctx context.Context, reservation *model.R
 		return err
 	}
 	if err := persistence.DBOrTx(ctx, r.db).Create(reservation).Error; err != nil {
+		// EMR-76: exclusion constraint (23P01 excl_appointments_doctor_timerange) is a
+		// domain 409, not a generic 500.
+		if conflict := asReservationTimeConflict(err); conflict != nil {
+			return conflict
+		}
 		if persistence.IsUniqueConstraintErr(err) {
 			return apperrors.WrapAlreadyExists("reservation", reservation.StartTime.String())
 		}
@@ -278,6 +283,11 @@ func (r *reservationRepository) update(ctx context.Context, clinicID, id uint64,
 		return findErr
 	})
 	if err != nil {
+		// EMR-76: UpdateScopedByID already runs FromGORM but keeps the PgError in the
+		// chain via %w, so the exclusion violation is still detectable here.
+		if conflict := asReservationTimeConflict(err); conflict != nil {
+			return nil, conflict
+		}
 		return nil, err
 	}
 	return loaded, nil

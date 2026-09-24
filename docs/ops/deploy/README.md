@@ -136,6 +136,19 @@ gh workflow run stg-smoke.yml
 3. Cloudflare 側の修正・再デプロイを行う。基盤喪失時はスナップショットと現行 IaC から再建する。
 4. health と smoke を再確認し、インシデント記録へ原因・復旧内容・再発防止を残す。
 
+**障害判定から復旧までの流れ**:
+
+```mermaid
+flowchart TB
+  H{実 URL の health} -->|status ok| OK[§4.3 の成功条件判定へ]
+  H -->|失敗| W{workers.dev の health}
+  W -->|こちらは応答| DNS[DNS / route を疑う]
+  W -->|両方失敗| SYS[Worker / Container / DB を疑う]
+  STEP[Actions で deploy / migrate / post-migrate health の失敗 step を確認] --> REC
+  DNS --> REC[復旧: 通知 → runbook で切り分け → 修正・再デプロイ → health / smoke 再確認 → インシデント記録]
+  SYS --> REC
+```
+
 ---
 
 ### 4.3 デプロイ成功の条件

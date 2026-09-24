@@ -11,6 +11,19 @@
 | [production/runbook.md](production/runbook.md) | 本番運用契約。setup 完了・検証前は実行不可 |
 | [reorg-plan.md](reorg-plan.md) | **historical / unfinished plan。実行手順ではない** |
 
+```mermaid
+flowchart LR
+    IDX["README.md<br/>入口"]
+    IDX --> ARCH["architecture.md<br/>checked-in topology"]
+    IDX --> IAC["iac-guidelines.md<br/>IaC / state / token / drift 契約"]
+    IDX --> STG["staging/runbook.md<br/>STG 運用手順"]
+    IDX --> SETUP["production/setup.md<br/>本番構築前の契約"]
+    IDX --> PROD["production/runbook.md<br/>本番運用契約"]
+    IDX --> REORG["reorg-plan.md<br/>historical・実行手順ではない"]
+    IDX --> DEP["deploy/<br/>デプロイ・seed 実行手順"]
+    SETUP -->|"完了・検証が前提"| PROD
+```
+
 Terraform は現在 `infra/cloudflare/` の flat STG と `production/` に分かれる。Wrangler は `backend/wrangler.jsonc` と `backend/wrangler.production.jsonc`。未実装の module/env layout を現行構成と呼ばない。
 
 デプロイと seed の実行手順は [deploy/](../deploy/README.md) を参照する。AWS 廃止資料の git-history pointer は [architecture.md](architecture.md) に集約する。

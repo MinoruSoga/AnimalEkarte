@@ -82,10 +82,19 @@
 
 ## 4. V シナリオとの関係
 
-```text
-Vxx.md          … フォーム単位の手順・業務固有チェック・C1〜C3 の入口
-FORM-FIELD-INVENTORY.md … 全フォームの項目一覧（カバー範囲）
-FIELD-LEVEL-PROTOCOL.md … 各項目への F0〜F6（本ファイル）
+```mermaid
+flowchart TB
+    VX["Vxx.md — フォーム単位の手順・業務固有チェック・C1〜C3 の入口"]
+    INV["FORM-FIELD-INVENTORY.md — 全フォームの項目一覧（カバー範囲）"]
+    FL["FIELD-LEVEL-PROTOCOL.md — 各項目への F0〜F6（本ファイル）"]
+    INV -->|"項目行を左から右へ"| RUN["適用可能な F チェックを実施"]
+    FL --> RUN
+    VX -->|"固有手順を追加実施"| RUN
+    RUN --> REC["reports/uat-*/ — scenarioId.formId.fieldKey.checkId で記録"]
+    REC --> OUT{"status"}
+    OUT -->|"PASS / N/A（理由必須）"| OK["当該項目は完了扱い"]
+    OUT -->|"FAIL（確認済み製品不具合）"| BUG["todo.md#product-bugs へ起票"]
+    OUT -->|"PARTIAL / BLOCKED"| NG["フォーム/スコープは未完了"]
 ```
 
 実施時は **inventory の項目行を左から右へ**進め、Vxx の固有手順（薬量ゲート、締め取消不可等）を追加で実施する。

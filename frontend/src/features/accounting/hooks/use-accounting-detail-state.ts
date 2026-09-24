@@ -17,7 +17,8 @@ import { createInitialPaymentSplits } from "../lib/accounting-detail-model";
 // FE-RC-048: 新規会計の未取得ペット種別に対する表示上の暫定既定値（実データ未確定時のみ使用）。
 const DEFAULT_PET_SPECIES_LABEL = "犬";
 // FE-RC-049: 保険適用比率の初期値（デフォルト5割負担）。
-const DEFAULT_INSURANCE_RATIO = "0.5";
+// EMR-63: 取得済み保険との差分判定にも使うため export（use-accounting-completion-action）。
+export const DEFAULT_INSURANCE_RATIO = "0.5";
 
 interface UseAccountingDetailStateArgs {
   accountingId?: string;
@@ -194,7 +195,8 @@ export function useAccountingDetailState({
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!fetchedAccounting?.payment) return;
-    setHasInsurance((fetchedAccounting.payment.insuranceAmount ?? 0) < 0);
+    // EMR-62: 正規契約は正の magnitude。レガシー負値行（< 0）も保険ありとして扱う。
+    setHasInsurance((fetchedAccounting.payment.insuranceAmount ?? 0) !== 0);
     setInsuranceRatio(
       fetchedAccounting.payment.insuranceRatio?.toString() ?? DEFAULT_INSURANCE_RATIO,
     );

@@ -61,6 +61,18 @@
 
 実行順の制約: S01 を最初に、S10 は S08 の後。S13・S14〜S39 は独立。それ以外は任意順。S21 は `billing-schema-readiness` の DB 制約ゲート、S28 は医院承認の項目表、S23 は複数医院 fixture が前提 — 前提未充足のシナリオは BLOCKED として扱い、スキップを PASS にしない。
 
+```mermaid
+flowchart TB
+    S01["S01 — 最初に実行"] --> REST["その他のシナリオ（任意順）"]
+    S08["S08 会計訂正系"] --> S10["S10 顧客集計整合（S08 の後）"]
+    subgraph PRE["前提が必要 — 未充足なら BLOCKED（スキップを PASS にしない）"]
+        S21["S21 — billing-schema-readiness の DB 制約ゲート"]
+        S28["S28 — 医院承認の項目表"]
+        S23["S23 — 複数医院 fixture"]
+    end
+    IND["S13・S14〜S39 — 独立（各ファイル冒頭の前提条件を満たした環境で実行）"]
+```
+
 機器クライアントの独立確認票: [LAB_DEVICE_CLIENT_UAT.md](LAB_DEVICE_CLIENT_UAT.md)（NX600/AU10V。未確定機器を PASS にしない）。
 
 **#254 close 条件の再配置（結果は書かない）**: [UAT-254-CLOSE-CHECKLIST.md](UAT-254-CLOSE-CHECKLIST.md)。local PASS では close しない。実施レーンは BRT-68。

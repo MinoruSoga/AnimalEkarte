@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -40,6 +39,9 @@ type cutoverBillingFact struct {
 }
 
 func validateCutoverPaymentGraph(sourceDir string, manifest *CutoverManifest, provenance CutoverProvenanceContract) error {
+	// Header permutation tolerance follows the same artifact+mode keying as
+	// validateCutoverFiles so payment readers and the scalar validator agree.
+	allowPermutation := rehearsalContractDrift(*manifest, provenance.Mode)
 	paymentsSpec, paymentsTable, err := cutoverPaymentContractPart(manifest, "payments")
 	if err != nil {
 		return err
@@ -58,7 +60,7 @@ func validateCutoverPaymentGraph(sourceDir string, manifest *CutoverManifest, pr
 	if err != nil {
 		return err
 	}
-	billings, err := loadCutoverBillingFacts(sourceDir, billingsSpec, billingsTable)
+	billings, err := loadCutoverBillingFacts(sourceDir, billingsSpec, billingsTable, allowPermutation)
 	if err != nil {
 		return err
 	}
@@ -68,11 +70,12 @@ func validateCutoverPaymentGraph(sourceDir string, manifest *CutoverManifest, pr
 		paymentsTable,
 		billings,
 		relaxesCutoverPaymentSnapshot(*manifest, provenance.Mode),
+		allowPermutation,
 	)
 	if err != nil {
 		return err
 	}
-	if err := accumulateCutoverPaymentSplits(sourceDir, splitsSpec, splitsTable, parents); err != nil {
+	if err := accumulateCutoverPaymentSplits(sourceDir, splitsSpec, splitsTable, parents, allowPermutation); err != nil {
 		return err
 	}
 	if err := verifyWindowZeroCSVSet(manifest, provenance, billings, parents); err != nil {
@@ -101,6 +104,7 @@ func streamCutoverCSV(
 	path string,
 	spec CutoverTableSpec,
 	expectedSHA256 string,
+	allowPermutation bool,
 	visit func([]string, map[string]int, int64) error,
 ) error {
 	file, err := openStableOwnerOnlyFile(path)
@@ -110,14 +114,13 @@ func streamCutoverCSV(
 	defer func() { _ = file.Close() }()
 	hash := sha256.New()
 	reader := csv.NewReader(bufio.NewReader(io.TeeReader(io.LimitReader(file, maxCutoverCSVBytes+1), hash)))
-	reader.FieldsPerRecord = len(spec.Columns)
 	header, err := reader.Read()
-	if err != nil || !reflect.DeepEqual(header, spec.Columns) {
+	if err != nil {
 		return fmt.Errorf("table %s: payment CSV header changed after preflight", spec.Name)
 	}
-	indexes := make(map[string]int, len(header))
-	for i, column := range header {
-		indexes[column] = i
+	indexes, _, err := cutoverColumnIndexes(spec, header, allowPermutation)
+	if err != nil {
+		return fmt.Errorf("table %s: payment CSV header changed after preflight", spec.Name)
 	}
 	var line int64 = 2
 	for {

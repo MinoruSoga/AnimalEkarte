@@ -24,6 +24,18 @@
 - 週次: 全体検査・demo account 検証
 - 月次: データベース健全性・ログ監査
 
+運用サイクルと記録の関係:
+
+```mermaid
+flowchart TB
+  D["日次（デプロイ直後）<br/>health・Cloudflare 経路・error log・audit_write_failed"]
+  W["週次（木曜）<br/>Vercel 表示・運用 account login・CRUD smoke・cleanup"]
+  M["月次（第1金曜）<br/>ログ・通知監査・deploy 履歴・PlanetScale 健全性・seed integrity"]
+  D --> L["§5: 実施ごとに実施ログを正式証跡へ記録"]
+  W --> L
+  M --> L
+```
+
 ---
 
 ## 2. 日次オペレーション（デプロイ直後）

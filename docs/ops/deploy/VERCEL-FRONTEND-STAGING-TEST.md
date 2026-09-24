@@ -11,6 +11,24 @@ prebuilt `.vercel/output/config.json` に `/api` rewrite はないが、上記�
 
 設定の存在だけで疎通は証明しない。deployed artifact の API target と cookie/CORS を以下で確認する。
 
+確認対象の request 経路:
+
+```mermaid
+sequenceDiagram
+    participant B as Browser
+    participant V as stg.noah-karte.com
+    participant A as api.stg.noah-karte.com
+    B->>V: ページを開く
+    V-->>B: Vite app shell と hashed assets
+    B->>A: approved account で login
+    A-->>B: HttpOnly cookie 発行
+    B->>A: GET /api/v1/...（Cookie + X-Requested-With + withCredentials）
+    A-->>B: 200 または contract どおり 403 の API JSON
+    B->>A: 会計確定 POST（Idempotency-Key 付き）
+    A-->>B: API JSON（SPA HTML fallback は失敗）
+    Note over A: 固定許可ヘッダーと設定済み origin のみ許可
+```
+
 ## 1. Deployment evidence
 
 - reviewed `main -> staging` PRとfrontend path-filtered workflow runを確認する。

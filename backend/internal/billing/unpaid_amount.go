@@ -12,6 +12,8 @@ import (
 // （complete 時の billing_amount と同式。クレジット訂正後も medical/保険/割引は不変）。
 // 実支払額 = payments.billing_amount（訂正後は split 合計へ再定義される）。
 //
+// EMR-62: insurance_amount の正規契約は正の magnitude（円）。負値で保存されたレガシー行が
+// 残っていても ABS() で magnitude として解釈し、未収残高を過大計上しない。
 // payment 行が無い waiting は従来どおり billings.total_amount 全額を未収とする。
 const unpaidAmountSQL = `CASE
 	WHEN billings.status = 'waiting' AND payments.id IS NULL THEN billings.total_amount
@@ -19,8 +21,8 @@ const unpaidAmountSQL = `CASE
 		GREATEST(
 			0,
 			COALESCE(payments.total_amount, 0)
-				- COALESCE(payments.insurance_amount, 0)
-				- COALESCE(payments.discount_amount, 0)
+				- ABS(COALESCE(payments.insurance_amount, 0))
+				- ABS(COALESCE(payments.discount_amount, 0))
 				- COALESCE(payments.billing_amount, 0)
 		)
 	WHEN billings.status = 'waiting' THEN billings.total_amount
@@ -56,10 +58,19 @@ func patientOutstanding(p *model.Payment) int64 {
 	if p == nil {
 		return 0
 	}
-	due := p.TotalAmount - p.InsuranceAmount - p.DiscountAmount
+	// EMR-62: 保険・割引は magnitude（絶対値）で解釈する。正規契約は正値だが、
+	// 旧クライアント由来の負値レガシー行でも未収残高を過大計上しない。
+	due := p.TotalAmount - absInt64(p.InsuranceAmount) - absInt64(p.DiscountAmount)
 	residual := due - p.BillingAmount
 	if residual < 0 {
 		return 0
 	}
 	return residual
+}
+
+func absInt64(v int64) int64 {
+	if v < 0 {
+		return -v
+	}
+	return v
 }

@@ -336,6 +336,58 @@ topological order (dependency-first):
 
 edge定義（`EDGES[X] = X が依存してよい対象のリスト`、Kahn法でnode=13・indegree/outdegreeから位相順序を導出、残余node（cycle参加node）が0件であることを`remaining`配列の空チェックで確認）は、下記§5.1の10cycle解消後に残る一方向edgeと1対1対応する。
 
+現行 allowlist（identitylink 含む）の domain→domain edge を図示する（矢印 = importer → 依存先。`model` / `apperrors` 等の cross-cutting import は domain 間 edge ではないため対象外）:
+
+```mermaid
+flowchart TB
+    lstep --> owner
+    lstep --> pet
+    lstep --> staff
+    lstep --> reservation
+    lstep --> medicalrecord
+    lstep --> billing
+    lstep --> clinic
+    lstep --> httpapi
+    medicalrecord --> owner
+    medicalrecord --> pet
+    medicalrecord --> staff
+    medicalrecord --> reservation
+    medicalrecord --> billing
+    medicalrecord --> clinic
+    medicalrecord --> httpapi
+    billing --> owner
+    billing --> reservation
+    billing --> trimming
+    billing --> inventory
+    billing --> clinic
+    billing --> staff
+    billing --> httpapi
+    trimming --> reservation
+    trimming --> pet
+    trimming --> clinic
+    trimming --> httpapi
+    reservation --> owner
+    reservation --> pet
+    reservation --> staff
+    reservation --> clinic
+    reservation --> httpapi
+    auth --> staff
+    auth --> clinic
+    auth --> httpapi
+    staff --> clinic
+    staff --> httpapi
+    pet --> owner
+    pet --> clinic
+    pet --> httpapi
+    owner --> clinic
+    owner --> httpapi
+    inventory --> clinic
+    inventory --> httpapi
+    clinic --> httpapi
+    manualarticle --> httpapi
+    identitylink --> httpapi
+```
+
 ### 5.1 生cycleの解消方式一覧
 
 | # | cycle | 解消方式 | 残るエッジ |

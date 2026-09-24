@@ -25,6 +25,17 @@ This sheet is that input-gap table. It is **not** apply authorization.
 
 Operator / first system admin is a fourth, out-of-band path ([STAFF_ACCOUNT_PROVISIONING.md](../../ops/deploy/STAFF_ACCOUNT_PROVISIONING.md) L25; [FIRST_SYSTEM_ADMIN.md](../../ops/deploy/FIRST_SYSTEM_ADMIN.md)). `SEEDLOGIN_OPERATOR_*` values are repo-external. Catalog emails never receive the shared-password shortcut as operator accounts ([env.go](../../../backend/internal/seedlogin/env.go) L45–48).
 
+経路分離の概形:
+
+```mermaid
+flowchart TB
+    K["アカウント経路は 3 系統 + 帯外 混ぜない"]
+    K --> D["Demo catalog<br/>seedlogin Apply が upsert<br/>dev / local / test / staging のみ"]
+    K --> P["Formal provision P5<br/>staff-provision preflight → apply<br/>USER 承認と環境内方式が前提"]
+    K --> H["H3-9 attach<br/>既存 staffs 行へ UAT アカウントを紐付け<br/>staff は新規作成しない"]
+    O["Operator / first system admin"] -.->|第 4 の帯外経路| K
+```
+
 ## 3. Demo catalog (code facts — not a roster)
 
 Source: [env.go](../../../backend/internal/seedlogin/env.go), [catalog.go](../../../backend/internal/seedlogin/catalog.go), [env_test.go](../../../backend/internal/seedlogin/env_test.go). Personal names in `clinicLocalPeople` / `hayashiSpec` are **fixture identities**. They are **not** copied here and are **not** the July or current hospital roster.

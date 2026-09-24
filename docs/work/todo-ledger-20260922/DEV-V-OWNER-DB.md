@@ -47,6 +47,17 @@ Sheet date: 2026-09-22. Worktree HEAD `1a2a4fe4e6ac5a401a637172a365b2d081393c17`
 
 ## 3. 実行案(専用 disposable DB・共有DB非使用)
 
+実行案の全体像:
+
+```mermaid
+flowchart TB
+  G["前提: 外部承認の充足<br/>（disposable DB 承認・TEST_DATABASE_URL の秘密管理供給・実行者確認）"] --> P["専用 disposable DB を provision<br/>共有 DB へ到達可能な経路を残さない"]
+  P --> R["一時 container + worktree mount で go test<br/>（-short なし・-count=1・完全名列挙の -run）"]
+  R --> C["ケース別の --- PASS / FAIL / SKIP 行を採取<br/>パッケージ exit 0 を個別充足にしない"]
+  C --> CL["cleanup: disposable DB 廃棄・一時秘密除去"]
+  CL --> RP["実行 receipt: revision / 承認参照 /<br/>ケース別結果 / cleanup / 接続確認"]
+```
+
 ### 3.1 前提条件(外部承認・実行前に揃える)
 
 | 条件 | 内容 | 根拠 |

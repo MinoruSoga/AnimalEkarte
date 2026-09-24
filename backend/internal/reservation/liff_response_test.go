@@ -1,6 +1,7 @@
 package reservation
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -213,6 +214,85 @@ func TestToLiffReservationResponse(t *testing.T) {
 			assert.Equal(t, tt.wantStaffName, got.StaffName)
 		})
 	}
+}
+
+// ---- toLiffHealthCardResponse ----
+
+// BUG-LIFF-VACCINE-DATE-RAW-ISO (EMR-206): LIFF 健康手帳のワクチン日付は
+// last_visit_date と同じくローカル日付 (YYYY-MM-DD) でシリアライズし、
+// RFC3339 タイムスタンプやゼロ値の 0001-01-01 を露出しない。
+func TestToLiffHealthCardResponse(t *testing.T) {
+	jst := time.FixedZone("JST", 9*60*60)
+	vaccinatedAt := time.Date(2026, 8, 15, 9, 0, 0, 0, jst)
+	nextDueAt := time.Date(2027, 8, 15, 9, 0, 0, 0, jst)
+	lastVisit := time.Date(2026, 9, 1, 15, 30, 0, 0, jst)
+
+	marshalVaccines := func(t *testing.T, vaccines []VaccineRecord) ([]byte, []map[string]any) {
+		t.Helper()
+		got := toLiffHealthCardResponse(&HealthCardResult{
+			OwnerName: "山田花子",
+			Pets: []PetHealthCard{{
+				PetID:         42,
+				PetName:       "ポチ",
+				Species:       "犬",
+				Breed:         "柴犬",
+				LastVisitDate: &lastVisit,
+				Vaccines:      vaccines,
+			}},
+		})
+		body, err := json.Marshal(got)
+		require.NoError(t, err)
+		var payload struct {
+			Pets []struct {
+				LastVisitDate *string          `json:"last_visit_date"`
+				Vaccines      []map[string]any `json:"vaccines"`
+			} `json:"pets"`
+		}
+		require.NoError(t, json.Unmarshal(body, &payload))
+		require.Len(t, payload.Pets, 1)
+		require.NotNil(t, payload.Pets[0].LastVisitDate)
+		assert.Equal(t, lastVisit.In(time.Local).Format(time.DateOnly), *payload.Pets[0].LastVisitDate)
+		return body, payload.Pets[0].Vaccines
+	}
+
+	t.Run("serializes vaccine dates as local date-only strings", func(t *testing.T) {
+		_, vaccines := marshalVaccines(t, []VaccineRecord{{
+			VaccineName:  "混合ワクチン",
+			VaccinatedAt: vaccinatedAt,
+			NextDueAt:    &nextDueAt,
+		}})
+		require.Len(t, vaccines, 1)
+		vaccine := vaccines[0]
+		assert.Equal(t, vaccinatedAt.In(time.Local).Format(time.DateOnly), vaccine["vaccinated_at"])
+		assert.Equal(t, nextDueAt.In(time.Local).Format(time.DateOnly), vaccine["next_due_at"])
+		assert.NotContains(t, vaccine["vaccinated_at"], "T")
+		assert.NotContains(t, vaccine["next_due_at"], "T")
+	})
+
+	t.Run("serializes nil next_due_at as JSON null", func(t *testing.T) {
+		_, vaccines := marshalVaccines(t, []VaccineRecord{{
+			VaccineName:  "狂犬病ワクチン",
+			VaccinatedAt: vaccinatedAt,
+			NextDueAt:    nil,
+		}})
+		require.Len(t, vaccines, 1)
+		vaccine := vaccines[0]
+		assert.Contains(t, vaccine, "next_due_at")
+		assert.Nil(t, vaccine["next_due_at"])
+	})
+
+	t.Run("zero and absent values never emit a sentinel date", func(t *testing.T) {
+		zero := time.Time{}
+		body, vaccines := marshalVaccines(t, []VaccineRecord{
+			{VaccineName: "未接種", VaccinatedAt: time.Time{}, NextDueAt: nil},
+			{VaccineName: "次回不明", VaccinatedAt: vaccinatedAt, NextDueAt: &zero},
+		})
+		require.Len(t, vaccines, 2)
+		assert.Equal(t, "", vaccines[0]["vaccinated_at"])
+		assert.Nil(t, vaccines[0]["next_due_at"])
+		assert.Nil(t, vaccines[1]["next_due_at"])
+		assert.NotContains(t, string(body), "0001-01-01")
+	})
 }
 
 // ---- toLiffTrimmingCourseResponse ----

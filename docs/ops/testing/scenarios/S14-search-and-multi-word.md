@@ -24,6 +24,21 @@
 | 6 | 空白のみ（全角・半角スペースだけ）で検索する | 0 件の空状態になる。空白のみは fail-closed で全件返ししない（`compactSearchText` が空なら `1 = 0`） |
 | 7 | 他医院に同名・類似名の owner/pet がある条件で検索する（複数医院所属 actor で `?clinics=` を絞る場合は絞り込み側のみ） | スコープ外医院の候補は一切表示されない。URL の `clinics` パラメータと表示件数の対応を記録する |
 
+検索語の評価経路:
+
+```mermaid
+flowchart TB
+  Q[検索語の入力] --> B{空白のみか}
+  B -->|はい| Z[0件の空状態 fail-closed]
+  B -->|いいえ| S[空白で分割 半角・全角・連続を吸収]
+  S --> N{語数}
+  N -->|複数語| AND[各語を AND 絞り込み]
+  N -->|1語| OR[部分一致で複数フィールドを OR]
+  AND --> C[医院スコープで絞る clinic_ids]
+  OR --> C
+  C --> R[自医院の一致行のみ表示]
+```
+
 ## 確認観点
 
 - 検索はサーバー側 `applyPetListSearch`（`backend/internal/pet/repository.go`）が `strings.Fields` で半角/全角/連続 Unicode 空白を分割し、各語を AND 適用する（語内は pets.name/name_kana・owners.name/name_kana/phone/id・pets.pet_number への ILIKE OR）。フロントは URL の `search` をそのまま API へ転送する（`frontend/src/features/owners/loaders.ts`）。前方一致ではなく部分一致。

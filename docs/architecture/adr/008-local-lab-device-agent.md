@@ -28,6 +28,26 @@ Mac側では`/dev/cu.usbserial-*`を個別ポートとして列挙できる。�
 
 機器分類の正本は既存backend decoderとし、agentに分類ロジックを複製しない。
 
+```mermaid
+sequenceDiagram
+    participant Dev as 検査機器（NX600 / AU10V）
+    participant Ag as lab-device-agent<br>（LaunchAgent・127.0.0.1:17654 のみ待受）
+    participant FE as Frontend（/lab-device）
+    participant API as backend
+
+    Dev->>Ag: シリアル電文（9600 8N1、2秒無通信で区切った生バイト）
+    Ag->>Ag: 生バイトを pending キューへ保持
+    FE->>Ag: キュー poll・frame 取得（consumer token を提示）
+    FE->>API: POST /v1/lab-device/frames（device_hint=auto）
+    alt backend 成功
+        FE->>Ag: ACK（成功後のみ）
+    else 400 不正電文
+        FE->>Ag: reject（生バイトは agent 内 reject 領域へ保持）
+    else その他の失敗
+        Note over FE,Ag: 再試行（ACK しない）
+    end
+```
+
 ## Safety boundaries
 
 - loopback bind、Host完全一致、Frontend Origin allowlist、Private Network Access preflightを必須とする。

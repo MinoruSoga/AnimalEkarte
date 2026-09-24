@@ -206,3 +206,13 @@
 3. 証跡は `reports/uat-YYYY-MM-DD(-postfix|-rN)/` に置き、シナリオ md は編集しない。
 4. S09 解除時は承認済み helper マージ後に #2–#6 を再実行し、本ファイルの会計ドメインとサマリを更新する。
 5. V04 は 2026-09-23 に disposable clinic 2 で browser retest 済み（FAIL・欠陥2件）。欠陥修正後に `e2e/v04-settings-master-forms-retest.spec.ts` を再実行してから FAIL を外す。コード修正だけで PASS にしない。
+
+```mermaid
+flowchart LR
+    R[受け入れ再実行] --> U[実施日・status・ギャップ・bug ID を更新]
+    U --> Q{製品 FAIL}
+    Q -->|確認済み FAIL のみ| T["todo.md product-bugs で dedupe・記録"]
+    T --> L[Linear で追跡]
+    Q -->|PARTIAL / BLOCKED| N[todo.md へ書かない]
+    R -. 証跡 .-> E["reports uat-YYYY-MM-DD<br>scenario 本文は編集しない"]
+```

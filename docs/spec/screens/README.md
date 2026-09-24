@@ -8,6 +8,16 @@
 
 画面の実装参照は `frontend/src/app/routes/` と各 feature、API の契約参照は `backend/docs/api.yaml` と各 domain の route 登録。GitHub Issue は本文に加えて後続の仕様訂正・集約先を確認する。Closed だけでは臨床承認・UAT・本番稼働の証明にならない。実行状態と残ゲートは [作業入口](../../work/README.md) を参照する。
 
+```mermaid
+flowchart LR
+    Spec["番号付き仕様ファイル（本索引）"]
+    Spec -->|画面の実装参照| Routes["frontend/src/app/routes と各 feature"]
+    Spec -->|API の契約参照| Api["backend/docs/api.yaml と domain の route 登録"]
+    Spec -->|仕様訂正・集約先| Issue["GitHub Issue"]
+    Spec -->|実行状態と残ゲート| Work["docs/work/README.md（作業入口）"]
+    Leaf["route-inventory の product leaf"] -. 数え方が異なる .-> Spec
+```
+
 ---
 
 ## 🩺 臨床・診療コア (Clinical Core)

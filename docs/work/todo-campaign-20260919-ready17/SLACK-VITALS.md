@@ -46,6 +46,15 @@
 
 ヘッダーへ **第二ストアを作らない**。入力・保存・再読込の正本は次だけ。表示はチップと modal の 2 面が同じ GET を読む。
 
+```mermaid
+flowchart LR
+    A["FAB「バイタル記録」→ VitalsModal → VitalsTab（入力・編集）"] --> B["POST / PATCH /v1/medical-records/:id/vitals"]
+    B --> C[("vital_records（recorded_at 必須）")]
+    C --> D["GET vitals（同一 query key）"]
+    D --> E["modal 内一覧（記録日時列あり）"]
+    D --> F["ヘッダーチップ（今回カルテ末尾・時刻なし・read-only）"]
+```
+
 0. **ヘッダー表示（クリック不要・read-only）:** StickyHeader L102 `useGetVitals(medicalRecordId ?? "", recordClinicId)` → `latestVisitVitalChips`（`recorded_at` 最大の 1 件を T/HR/RR/測定体重へ。0 件・全項目 null は null）→ PatientContextHeader `vitalsSummary`（L211–232）。時刻は出さない。保存 invalidate が同一 query key のためチップは保存後に自動更新される。
 1. **入口（クリック必須・入力）:** [MedicalRecordFormReadyPanels](../../../frontend/src/features/medical-records/routes/MedicalRecordFormReadyPanels.tsx) L347–364 の [MedicalRecordFloatingActions](../../../frontend/src/features/medical-records/components/MedicalRecordFormActions.tsx) `onVitalsClick` → `setIsVitalsOpen(true)`。ボタンは L68–86。会計タブでは FAB 全体が `return null`（L53）。見積書タブではバイタルボタンを出さない（L68）。新規カルテ / 確定済 / 死亡ペットは disabled または非表示。
 2. **モーダル:** [MedicalRecordFormModals](../../../frontend/src/features/medical-records/components/MedicalRecordFormModals.tsx) L70–78。`!isNewRecord && recordId` のときだけ [VitalsModal](../../../frontend/src/features/medical-records/components/VitalsModal.tsx) をマウント。`DialogContent` は `max-w-4xl max-h-[85vh] overflow-y-auto`（L31）。中身は **同じ** [VitalsTab](../../../frontend/src/features/medical-records/components/VitalsTab/VitalsTab.tsx)。

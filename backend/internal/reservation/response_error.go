@@ -37,9 +37,23 @@ func lineReservationSettingsUnsetResponse(err error) (status int, message, code 
 		true
 }
 
+// reservationTimeConflictResponse は EMR-76 の重複予約 409 を error+code で返す
+// （既に予約が存在します / reservation_time_conflict）。
+func reservationTimeConflictResponse(err error) (status int, message, code string, ok bool) {
+	if !isReservationTimeConflict(err) {
+		return 0, "", "", false
+	}
+	status, message, code = httpapi.ResolveErrorResponse(err)
+	return status, message, code, true
+}
+
 // respondError はエラーを適切なHTTPステータスコードとメッセージにマッピングして返す。
 func respondError(c *gin.Context, err error) {
 	if status, message, code, ok := lineReservationSettingsUnsetResponse(err); ok {
+		c.JSON(status, gin.H{"error": message, "code": code})
+		return
+	}
+	if status, message, code, ok := reservationTimeConflictResponse(err); ok {
 		c.JSON(status, gin.H{"error": message, "code": code})
 		return
 	}
@@ -53,6 +67,12 @@ func respondError(c *gin.Context, err error) {
 // respondErrorWithExtras は custom extra fields を含むエラーレスポンスを返す。
 func respondErrorWithExtras(c *gin.Context, err error, extras map[string]any) {
 	if status, message, code, ok := lineReservationSettingsUnsetResponse(err); ok {
+		response := gin.H{"error": message, "code": code}
+		maps.Copy(response, extras)
+		c.JSON(status, response)
+		return
+	}
+	if status, message, code, ok := reservationTimeConflictResponse(err); ok {
 		response := gin.H{"error": message, "code": code}
 		maps.Copy(response, extras)
 		c.JSON(status, response)

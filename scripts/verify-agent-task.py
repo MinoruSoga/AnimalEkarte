@@ -433,6 +433,10 @@ def plan(paths):
             e2e_runner = True
         elif path.startswith('frontend/e2e/') or path.startswith('frontend/scripts/'):
             blocked.append(path)
+        elif path == 'frontend/src/styles/globals.css':
+            jobs.append({'service': 'frontend', 'command': [
+                'node', 'node_modules/prettier/bin/prettier.cjs', '--check', 'src/styles/globals.css',
+            ]})
         elif (path.startswith('backend/internal/') or path.startswith('backend/cmd/')) and path.endswith('.go'):
             package = pathlib.PurePosixPath(path).parent
             if not list((ROOT / package).glob('*_test.go')):

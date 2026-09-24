@@ -34,6 +34,19 @@ old_db `main` HEAD: `b941a9c80dcde86086a5f6e0aa65988f257212e7`（worktree クリ
 
 現行 bundle = `backend/migrations/seeds/_old_db_handoff/<clinic>/manifest.json`。全 4 院とも `status: REHEARSAL_ONLY`・`manifestSchemaVersion: animalekarte-cutover-v1`・`handoffEligibility: REHEARSAL_ONLY`（formal 投入可の bundle ではない）。
 
+判定の構造:
+
+```mermaid
+flowchart TB
+  fix["old_db main b941a9c<br/>（修正 5fbc3b2 / merge a2cea37 統合済み）"] --> hnew["参照 hash: bf8c262e…<br/>stageMappingBundleSha256"]
+  pre["修正前の元 main 2eab89ac"] --> hold["参照 hash: da3468ff…（再計算）"]
+  hnew --> cmp{"各院 bundle manifest の<br/>stageMappingSha256 と照合"}
+  hold --> cmp
+  cmp -->|"hachioji = bf8c262e…"| m1["一致: 修正込み mapping で生成"]
+  cmp -->|"jouto = 2f65b0de…"| m2["差異: 両参照とも不一致の修正前世代"]
+  cmp -->|"shikishima / hakobuneco = 1cff15b1…"| m3["差異: 同一のさらに古い mapping 世代"]
+```
+
 | clinic | bundle generatedAt / sourceRunId / stageBuildId | stageMappingSha256 | revision との対応判定 | 根拠 |
 |---|---|---|---|---|
 | hachioji | 2026-09-22T04:09:34Z / `hachioji-intake-20260921-01` / `fe9f228b-bd3f-495a-aebc-ef3c4d8128b3` | `bf8c262e…9152b` | **一致（修正込み mapping で生成）** | manifest の hash が現行 main の計算値と完全一致。manifest は生成 commit を記録しないため「内容一致」の証拠であり commit 同一性の証明ではない |

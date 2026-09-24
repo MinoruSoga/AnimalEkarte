@@ -33,3 +33,14 @@
 - [ ] USER: 4 系統ローテーション（[外部資格情報オペレーション](./BUG_MD_EXTERNAL_OPS_PENDING_APPROVAL.md) §1）
 - [ ] USER: current secret registration sources（[`infra/cloudflare/README.md`](../../../../infra/cloudflare/README.md) と target Wrangler file）に従って GitHub/Cloudflare secret names を登録
 - [ ] USER: #97 本文マスク（ローテーション後）
+
+残作業の依存関係:
+
+```mermaid
+flowchart LR
+  Scan["gitleaks 全履歴スキャン"] --> Inv["インベントリ記録（パスと件数のみ・値なし）"]
+  Inv --> Rot["USER: 露出系統のローテーション<br/>（正攻法。filter-repo 禁止）"]
+  Inv --> Reg["USER: GitHub / Cloudflare secret names 登録"]
+  Rot --> Mask["USER: #97 本文マスク（ローテーション後）"]
+  Rot --> Close["#89 / #97 close"]
+```

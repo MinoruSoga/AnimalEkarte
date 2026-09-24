@@ -5,20 +5,13 @@
 
 ## System context
 
-```text
-Browser / external client
-        |
-        v
-React frontend / API client
-        |
-     HTTPS JSON
-        |
-        v
-Go net/http + Gin
-        |
-        +--> PostgreSQL
-        +--> external services
-        +--> background work
+```mermaid
+flowchart TB
+    Client["Browser / external client"] --> FE["React frontend / API client"]
+    FE -->|"HTTPS JSON"| API["Go net/http + Gin"]
+    API --> PG[("PostgreSQL")]
+    API --> Ext["external services"]
+    API --> BG["background work"]
 ```
 
 API contract は [`backend/docs/api.yaml`](../../backend/docs/api.yaml)、data isolation は [ADR-002](adr/002-multitenancy-clinic-id-isolation.md) を正本とする。
@@ -54,6 +47,24 @@ BE9の構造移行後、production実装は`internal/<domain>`へ収束した。
 この構成は「Clean Architectureのfolderを再現する」ことではない。ただし、依存方向、consumer-side interface、明示的DI、境界をまたぐtransactionといった原則は必要な箇所で選択的に使う。効率化よりclinical safetyとclinic isolationを優先する。
 
 ## Request lifecycle
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant M as Middleware chain
+    participant H as HTTP boundary
+    participant D as Domain / persistence
+    participant DB as PostgreSQL
+
+    C->>M: request
+    M->>M: recovery / observability / authn / authz / rate limit
+    M->>H: route 解決
+    H->>H: body/query/URI/header を bind・形式検証
+    H->>D: clinic scope 決定 + resource ownership 検証
+    D->>DB: Context 伝播・transaction/invariant 維持
+    D-->>H: 結果 / domain error
+    H-->>C: error を stable HTTP contract に mapping し、公開 contract の field のみ返却
+```
 
 1. `net/http` / Gin が request を受ける。
 2. route group と middleware が recovery、observability、authentication、authorization、rate limit 等を適用する。

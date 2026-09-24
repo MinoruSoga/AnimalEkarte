@@ -38,6 +38,16 @@
 - duplicate: 親の再掲。同一イベントへ統合し、重複実装課題を作らない
 - out of scope: 製品課題を追加しない（助成金受理の確認済みを意味しない）
 
+```mermaid
+flowchart TB
+    A["Slack 親投稿・トピック"] --> Q{"分類"}
+    Q -->|"既存課題・検証 TODO に該当"| E1["existing ID → 既存票へ接続（新規 Issue なし）"]
+    Q -->|"操作案内・対応済み"| E2["answered → 新規実装を起こさない"]
+    Q -->|"親の再掲"| E3["duplicate → 同一イベントへ統合"]
+    Q -->|"製品課題外"| E4["out of scope"]
+    Q -->|"どれにも該当しない"| E5["new investigation"]
+```
+
 ## 45キー分類マトリクス
 
 出典: [トピック別の処理先](../../../todo-issue.md#トピック別の処理先)（45キー = Slack個別30 + 既存8キー/9課題 + 実装済み受入5 + 回答済み操作2）。EXISTING-OTHER は2件。

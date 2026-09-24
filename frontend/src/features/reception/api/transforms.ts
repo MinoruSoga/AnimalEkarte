@@ -149,6 +149,17 @@ export function transformReservationsToReceptionColumns(
       if (col.id === "pending") {
         return a.status === "pending" || a.status === "confirmed";
       }
+      // EMR-74: trimming の in_consultation は「施術中」を意味し、診療行為の
+      // 「診療中」カラムとは別概念。受付済カラムに表示し、診療中には入れない。
+      if (col.id === "in_consultation") {
+        return a.status === "in_consultation" && a.reservationCategory !== "trimming";
+      }
+      if (col.id === "checked_in") {
+        return (
+          a.status === "checked_in" ||
+          (a.status === "in_consultation" && a.reservationCategory === "trimming")
+        );
+      }
       return a.status === col.id;
     }),
   }));

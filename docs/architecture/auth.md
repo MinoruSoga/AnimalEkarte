@@ -36,6 +36,19 @@
 
 スタッフの実権限は、所属する複数の権限グループの「和集合 (OR)」として動的に計算されます。
 
+```mermaid
+flowchart TB
+    Staff["Staff"] --> Groups{"所属 permission_groups"}
+    Groups -->|"0 件 (deny-by-default)"| Deny["全リソース拒否"]
+    Groups --> GA["group A の permission_group_rules"]
+    Groups --> GB["group B の permission_group_rules"]
+    GA --> Union["同一 resource/action の OR 和集合"]
+    GB --> Union
+    Union --> Map["実効 permission map<br/>FindAllEffectivePermissionsByStaffID"]
+    Map --> Enforce["RequirePermission / RequirePermissionAny<br/>http_permission.go"]
+    Admin["is_system_admin"] -.->|"計算 bypass（clinic scope は bypass しない）"| Enforce
+```
+
 1.  **グループ所属**: スタッフは 0 個以上の `permission_groups` に紐付けられます。該当 grant が 1 つもない場合は deny-by-default です。
 2.  **ルール統合**: 各グループが持つ `permission_group_rules` を収集。
 3.  **パーミッション・マップ**: 同一リソースに対して複数のルールがある場合、いずれかのグループで許可されていれば「許可」と判定します。実効権限の集計は `backend/internal/auth/permission_group_repository.go` の `FindAllEffectivePermissionsByStaffID`、HTTP 境界での強制は `backend/internal/auth/http_permission.go` の `RequirePermission` / `RequirePermissionAny` が担当します。
@@ -71,6 +84,22 @@
 ## 4. セッションとセキュリティ
 
 ### 4.1 dual-token 方式
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant S as token_service
+
+    C->>S: login
+    S-->>C: Access Token (JWT・15分・httpOnly Cookie)
+    S-->>C: Refresh Token (JWT・最大7日・family ID + 一意 JTI)
+    C->>S: refresh (ローテーション)
+    S-->>C: 新しい access + refresh
+    Note over S: ローテーション・並行 refresh でも<br/>family の初回失効時刻は延長しない
+    C->>S: ローテーション済み token の再利用
+    S->>S: reuse 検知 → token family 全体を失効
+```
+
 - **Access Token (JWT)**: 15分有効。`httpOnly` Cookieに格納し、保護されたstaff向け`/api/v1` routeの認可に使用する。login/refresh/password-reset等のpublic auth routeと、LIFF専用routeは各route固有の認証・rate limitを使う。
 - **Refresh Token (JWT)**: 最大 7 日間有効。ログイン単位の family ID と一意な JTI を持ち、ローテーション後も family の初回失効時刻を延長しません。
 - **再利用検知**: ローテーション済み refresh token の再利用を検知した場合は、その token family 全体を失効させます。並行 refresh でも family の有効期間を延長しません。

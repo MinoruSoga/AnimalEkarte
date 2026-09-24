@@ -40,6 +40,13 @@ GitHub issue 284 is cited only as that local markdown link. This sheet did not f
 
 Code and docs above are **not** substituted for 実機確認.
 
+```mermaid
+flowchart LR
+    W["webfont link + CSS application<br/>implemented per spec 37"] --> EV["code / docs evidence"]
+    QA["実機確認 #284<br/>iPhone / Android / iPad × cold / warm / offline"] -->|"all cells 未実行"| GAP["not yet evidence"]
+    EV -.->|"not a substitute"| GAP
+```
+
 ## Matrix (device × display condition)
 
 Pass/fail is not claimed. Every actual-QA cell is **未実行**. Device identity is **UNKNOWN**.

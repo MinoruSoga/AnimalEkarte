@@ -91,21 +91,12 @@ export const ActionButtons = memo(function ActionButtons({
       <>
         {ownerDetailBtn}
         {isTrimming ? (
-          <div className="flex flex-col items-end gap-1">
-            <Button
-              onClick={() => {
-                if (onConfirm) onConfirm();
-                onCreateTrimming();
-              }}
-              className={PRIMARY_ACTION_BUTTON_CLASSES}
-            >
-              <Scissors className={ICON.action} />
-              トリミングカルテ作成
-            </Button>
-            <span className={`text-2xs ${C.text40}`}>
-              ※カルテ作成と同時に「診療中」へ移動します
-            </span>
-          </div>
+          // EMR-74: トリミング記録の作成では汎用ステータス遷移（onConfirm →
+          // in_consultation PATCH）を発火しない。施術中は trimming intent 経路で管理する。
+          <Button onClick={onCreateTrimming} className={PRIMARY_ACTION_BUTTON_CLASSES}>
+            <Scissors className={ICON.action} />
+            トリミングカルテ作成
+          </Button>
         ) : isMedical ? (
           <div className="flex flex-col items-end gap-1">
             <Button

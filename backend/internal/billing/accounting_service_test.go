@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -941,7 +942,7 @@ func TestBuildPaymentSplits(t *testing.T) {
 				{Method: model.PaymentMethodCreditCard, Amount: 3000},
 			},
 		}
-		result := buildPaymentSplits(input)
+		result := buildPaymentSplits(input, 0)
 		assert.Len(t, result, 2)
 		assert.Equal(t, uint64(1), result[0].ClinicID)
 		assert.Equal(t, uint64(10), result[0].BillingID)
@@ -960,7 +961,7 @@ func TestBuildPaymentSplits(t *testing.T) {
 			BillingAmount:  ptrInt64(5000),
 			ReceivedAmount: ptrInt64(5000),
 		}
-		result := buildPaymentSplits(input)
+		result := buildPaymentSplits(input, 5000)
 		assert.Len(t, result, 1)
 		assert.Equal(t, model.PaymentMethodCreditCard, result[0].Method)
 		assert.Equal(t, int64(5000), result[0].Amount)
@@ -968,7 +969,7 @@ func TestBuildPaymentSplits(t *testing.T) {
 
 	t.Run("PaymentSplits 空 + BillingAmount nil: nil を返す", func(t *testing.T) {
 		input := &UpdateAccountingInput{ID: 10, ClinicID: 1}
-		result := buildPaymentSplits(input)
+		result := buildPaymentSplits(input, 0)
 		assert.Nil(t, result)
 	})
 }
@@ -996,7 +997,7 @@ func TestAccountingService_Update_MixedPayment(t *testing.T) {
 			if callCount == 2 {
 				return reloadedBilling, nil
 			}
-			return &model.Billing{ID: 1, ClinicID: 1, Status: model.BillingStatusCompleted}, nil
+			return &model.Billing{ID: 1, ClinicID: 1, Status: model.BillingStatusCompleted, TotalAmount: 5000}, nil
 		},
 		updateFieldsFn: func(_ context.Context, _, _ uint64, _ AccountingUpdate) (*model.Billing, error) {
 			return &model.Billing{ID: 1, ClinicID: 1}, nil
@@ -1098,7 +1099,7 @@ func TestAccountingService_Update_ResolvesPaymentMethodID(t *testing.T) {
 	newRepo := func(captured *[]model.PaymentSplit) *mockAccountingRepository {
 		return &mockAccountingRepository{
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) {
-				return &model.Billing{ID: 1, ClinicID: 1, Status: model.BillingStatusCompleted}, nil
+				return &model.Billing{ID: 1, ClinicID: 1, Status: model.BillingStatusCompleted, TotalAmount: 5000}, nil
 			},
 			updateFieldsFn: func(_ context.Context, _, _ uint64, _ AccountingUpdate) (*model.Billing, error) {
 				return &model.Billing{ID: 1, ClinicID: 1, Status: model.BillingStatusCompleted}, nil
@@ -1210,6 +1211,232 @@ func TestAccountingService_Update_ResolvesPaymentMethodID(t *testing.T) {
 	})
 }
 
+// ---- EMR-62 / EMR-63: 保険符号契約と部分 PUT merge ----
+
+// emr63ExistingCompletedBilling は payment 行つきの確定済み billing を組み立てる。
+// 保険・割引なしの請求 1100 円を基準に、部分 PUT で未送信フィールドが保持されるかを見る。
+func emr63ExistingCompletedBilling() *model.Billing {
+	return &model.Billing{
+		ID:           1,
+		ClinicID:     1,
+		Status:       model.BillingStatusCompleted,
+		HasInsurance: true,
+		Payments: []model.Payment{
+			{
+				ID:              11,
+				BillingID:       1,
+				Subtotal:        1000,
+				TaxTotal:        100,
+				TotalAmount:     1100,
+				InsuranceRatio:  0.5,
+				InsuranceName:   "既存保険",
+				InsuranceAmount: 0,
+				DiscountAmount:  0,
+				BillingAmount:   1100,
+				ReceivedAmount:  2000,
+				ChangeAmount:    900,
+				Method:          model.PaymentMethodCash,
+			},
+		},
+	}
+}
+
+// TestAccountingService_Update_PreservesOmittedPaymentFields は EMR-63:
+// PUT が一部フィールド（insurance_name のみ）を送っても、未送信の payment フィールド
+// （預り金・お釣り・支払方法・保険割合等）が既存値を保持することを固定する。
+func TestAccountingService_Update_PreservesOmittedPaymentFields(t *testing.T) {
+	existing := emr63ExistingCompletedBilling()
+	existing.PaymentSplits = []model.PaymentSplit{
+		{ClinicID: 1, BillingID: 1, Method: model.PaymentMethodCash, Amount: 1100, ReceivedAmount: 2000, ChangeAmount: 900},
+	}
+
+	var capturedPayment *model.Payment
+	var capturedSplits []model.PaymentSplit
+	repo := &mockAccountingRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) {
+			return existing, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ AccountingUpdate) (*model.Billing, error) {
+			return existing, nil
+		},
+		savePaymentFn: func(_ context.Context, payment *model.Payment) error {
+			capturedPayment = payment
+			return nil
+		},
+		savePaymentSplitsFn: func(_ context.Context, splits []model.PaymentSplit) error {
+			capturedSplits = splits
+			return nil
+		},
+	}
+	svc := NewAccountingService(repo, nil, nil, nil, nil, &mockTransactor{}, &mockAuditService{}, seededPayMethodMock())
+
+	newName := "あいおいニッセイ同和損保"
+	_, err := svc.Update(context.Background(), &UpdateAccountingInput{
+		ID:            1,
+		ClinicID:      1,
+		InsuranceName: &newName,
+	})
+	require.NoError(t, err)
+
+	require.NotNil(t, capturedPayment)
+	// 未送信フィールドは既存値を保持する（ゼロ値で破壊しない）。
+	assert.Equal(t, newName, capturedPayment.InsuranceName, "送信されたフィールドのみ更新")
+	assert.Equal(t, 0.5, capturedPayment.InsuranceRatio, "未送信の保険割合は既存値を保持")
+	assert.Equal(t, int64(2000), capturedPayment.ReceivedAmount, "未送信の預り金は既存値を保持")
+	assert.Equal(t, int64(900), capturedPayment.ChangeAmount, "未送信のお釣りは既存値を保持")
+	assert.Equal(t, model.PaymentMethodCash, capturedPayment.Method, "未送信の支払方法は既存値を保持")
+	assert.Equal(t, int64(1000), capturedPayment.Subtotal)
+	assert.Equal(t, int64(1100), capturedPayment.TotalAmount)
+	assert.Equal(t, int64(1100), capturedPayment.BillingAmount, "server が不変条件から再計算")
+
+	// 内訳未送信なら既存 payment_splits を上書きしない（空スライスで repo 早期 return）。
+	assert.Empty(t, capturedSplits, "内訳未送信では SavePaymentSplits に新行を渡さない")
+}
+
+// TestAccountingService_Update_NormalizesNegativeInsuranceAmount は EMR-62:
+// 旧クライアントが負値で送る insurance_amount を、merge 後に絶対値へ正規化して
+// 正の magnitude として保存することを固定する。
+func TestAccountingService_Update_NormalizesNegativeInsuranceAmount(t *testing.T) {
+	existing := emr63ExistingCompletedBilling()
+
+	var capturedPayment *model.Payment
+	repo := &mockAccountingRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) {
+			return existing, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ AccountingUpdate) (*model.Billing, error) {
+			return existing, nil
+		},
+		savePaymentFn: func(_ context.Context, payment *model.Payment) error {
+			capturedPayment = payment
+			return nil
+		},
+	}
+	svc := NewAccountingService(repo, nil, nil, nil, nil, &mockTransactor{}, &mockAuditService{}, seededPayMethodMock())
+
+	negative := int64(-500)
+	billing := int64(600)
+	_, err := svc.Update(context.Background(), &UpdateAccountingInput{
+		ID:              1,
+		ClinicID:        1,
+		InsuranceAmount: &negative,
+		BillingAmount:   &billing, // client 値は採用しない（server が 1100-500=600 を算出）
+		PaymentSplits: []PaymentSplitInput{
+			{Method: model.PaymentMethodCash, Amount: 600, ReceivedAmount: 600},
+		},
+	})
+	require.NoError(t, err)
+
+	require.NotNil(t, capturedPayment)
+	assert.Equal(t, int64(500), capturedPayment.InsuranceAmount, "負値は絶対値に正規化して保存")
+	assert.Equal(t, int64(600), capturedPayment.BillingAmount, "請求額 = 合計 - |保険| - 割引")
+}
+
+// TestAccountingService_Update_RejectsInsuranceAmountWithoutInsurance は EMR-62:
+// has_insurance=false の会計に非ゼロの保険負担額を送る矛盾入力を 400 で拒否する。
+func TestAccountingService_Update_RejectsInsuranceAmountWithoutInsurance(t *testing.T) {
+	existing := emr63ExistingCompletedBilling()
+	existing.HasInsurance = false
+	existing.Payments[0].InsuranceAmount = 0
+	existing.Payments[0].InsuranceRatio = 0
+	existing.Payments[0].InsuranceName = ""
+
+	saveCalled := false
+	repo := &mockAccountingRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) {
+			return existing, nil
+		},
+		savePaymentFn: func(_ context.Context, _ *model.Payment) error {
+			saveCalled = true
+			return nil
+		},
+	}
+	svc := NewAccountingService(repo, nil, nil, nil, nil, &mockTransactor{}, &mockAuditService{}, seededPayMethodMock())
+
+	amount := int64(500)
+	_, err := svc.Update(context.Background(), &UpdateAccountingInput{
+		ID:              1,
+		ClinicID:        1,
+		InsuranceAmount: &amount,
+	})
+	require.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err), "got %v", err)
+	assert.False(t, saveCalled, "矛盾入力は永続化しない")
+}
+
+// TestAccountingService_Update_RejectsStaleSplitTotalsAfterAmountChange は EMR-63:
+// 保険額の変更で請求額が変わるのに内訳を再送しない部分 PUT は、既存内訳と請求額の
+// 不整合を生むため 400 で拒否する（tamper-proof）。
+func TestAccountingService_Update_RejectsStaleSplitTotalsAfterAmountChange(t *testing.T) {
+	existing := emr63ExistingCompletedBilling()
+	existing.PaymentSplits = []model.PaymentSplit{
+		{ClinicID: 1, BillingID: 1, Method: model.PaymentMethodCash, Amount: 1100, ReceivedAmount: 2000, ChangeAmount: 900},
+	}
+
+	saveCalled := false
+	repo := &mockAccountingRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) {
+			return existing, nil
+		},
+		savePaymentFn: func(_ context.Context, _ *model.Payment) error {
+			saveCalled = true
+			return nil
+		},
+	}
+	svc := NewAccountingService(repo, nil, nil, nil, nil, &mockTransactor{}, &mockAuditService{}, seededPayMethodMock())
+
+	insurance := int64(500) // 請求額が 1100 → 600 に変わるが内訳（合計1100）を再送しない
+	_, err := svc.Update(context.Background(), &UpdateAccountingInput{
+		ID:              1,
+		ClinicID:        1,
+		InsuranceAmount: &insurance,
+	})
+	require.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err), "got %v", err)
+	assert.False(t, saveCalled, "内訳不整合は永続化しない")
+}
+
+// TestAccountingService_Update_ServerRecomputesBillingAmount は EMR-63 tamper-proof:
+// client が送る billing_amount は採用せず、合計 - 保険 - 割引 から server が権威的に
+// 再計算した値だけを永続化することを固定する。
+func TestAccountingService_Update_ServerRecomputesBillingAmount(t *testing.T) {
+	existing := emr63ExistingCompletedBilling()
+
+	var capturedPayment *model.Payment
+	var capturedSplits []model.PaymentSplit
+	repo := &mockAccountingRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) {
+			return existing, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ AccountingUpdate) (*model.Billing, error) {
+			return existing, nil
+		},
+		savePaymentFn: func(_ context.Context, payment *model.Payment) error {
+			capturedPayment = payment
+			return nil
+		},
+		savePaymentSplitsFn: func(_ context.Context, splits []model.PaymentSplit) error {
+			capturedSplits = splits
+			return nil
+		},
+	}
+	svc := NewAccountingService(repo, nil, nil, nil, nil, &mockTransactor{}, &mockAuditService{}, seededPayMethodMock())
+
+	bogus := int64(1)
+	_, err := svc.Update(context.Background(), &UpdateAccountingInput{
+		ID:            1,
+		ClinicID:      1,
+		BillingAmount: &bogus, // client 供給の請求額は改竄とみなし採用しない
+	})
+	require.NoError(t, err)
+
+	require.NotNil(t, capturedPayment)
+	assert.Equal(t, int64(1100), capturedPayment.BillingAmount, "server 算出の請求額を採用")
+	// 単一支払い backward-compat の合成 split も server 算出額で作られる。
+	require.Len(t, capturedSplits, 1)
+	assert.Equal(t, int64(1100), capturedSplits[0].Amount)
+}
+
 // TestAccountingService_Update_ResolvesPaymentMethodID_RenameResilient は #197 system_key 導入後の
 // rename 耐性を検証する: 支払方法 name を改名しても system_key ベースで master id に正しく解決される。
 func TestAccountingService_Update_ResolvesPaymentMethodID_RenameResilient(t *testing.T) {
@@ -1218,7 +1445,7 @@ func TestAccountingService_Update_ResolvesPaymentMethodID_RenameResilient(t *tes
 	newRepo := func(captured *[]model.PaymentSplit) *mockAccountingRepository {
 		return &mockAccountingRepository{
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) {
-				return &model.Billing{ID: 1, ClinicID: 1, Status: model.BillingStatusCompleted}, nil
+				return &model.Billing{ID: 1, ClinicID: 1, Status: model.BillingStatusCompleted, TotalAmount: 5000}, nil
 			},
 			updateFieldsFn: func(_ context.Context, _, _ uint64, _ AccountingUpdate) (*model.Billing, error) {
 				return &model.Billing{ID: 1, ClinicID: 1, Status: model.BillingStatusCompleted}, nil

@@ -25,6 +25,18 @@
 6. **No bulk re-home Issue**  
    Do not open a “move all of model into domains” epic. Touch-path gradual ownership only.
 
+```mermaid
+flowchart LR
+    subgraph ModelPkg["internal/model: shared GORM type definitions"]
+        Fact["business fact: GORM type and tables"]
+    end
+    Owner["write owner domain package"]
+    Other["other domain package"]
+    Owner -->|"create / update / delete"| Fact
+    Other -->|"typed intents / consumer-side interface"| Owner
+    Other -.->|"direct table write: forbidden"| Fact
+```
+
 ## Catalog table
 
 | Fact / GORM type(s) | Typical table(s) | Write owner package | Notes / gate |

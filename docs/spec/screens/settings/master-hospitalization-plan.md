@@ -26,6 +26,17 @@
 ### 1. 会計への自動集計は本マスタの単価を使用しない
 退院処理（`DischargeWithBilling`、`backend/internal/medicalrecord/hospitalization_service.go`）は、`HospitalizationPlan` の単価・対象体格・入院日数の計算を一切参照しません。実際に会計明細へ変換されるのは、入院記録に紐づく `CarePlanItem`（ケアプランタスク）一件ごとの手動設定単価（数量は常に 1 固定）です。本マスタの単価は入院プラン一覧の参考表示にとどまり、会計自動生成のロジックには組み込まれていません。
 
+会計明細生成で参照されるもの・されないもの:
+
+```mermaid
+flowchart TB
+    M["入院・宿泊プランマスタ（本画面）<br>単価・対象体格・料金単位"]
+    M -.->|単価・対象体格・入院日数を参照しない| B["退院処理 DischargeWithBilling"]
+    C["CarePlanItem<br>一件ごとの手動設定単価"] -->|会計明細へ変換| B
+    M -->|参考表示のみ| L["入院プラン一覧"]
+    C -.->|任意で hospitalization_plan_id を保持<br>タスク自動展開ではない| M
+```
+
 ### 2. ケアプランとの関連（別画面）
 `CarePlanItem`（ケアプランタスク）は任意で `hospitalization_plan_id` を持てるが、これは入院登録時にタスクを自動展開する機能ではなく、本設定画面のサイドパネルからも編集できない。
 

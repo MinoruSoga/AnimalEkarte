@@ -58,6 +58,40 @@
 
 診療項目の単価は全タブ保存、課税区分と税率の保存は診察・処置のみ（[診療項目マスタ仕様](../../../docs/spec/screens/settings/master-treatment.md)、[request 変換](../../../frontend/src/features/master/routes/treatment-plan-master-model.ts)）。
 
+マスタ登録から会計明細までの期待経路:
+
+```mermaid
+flowchart TB
+    subgraph MS["マスタフォーム"]
+        direction LR
+        MC["診察・処置・薬剤"]
+        MV["予防接種"]
+        MX["検査"]
+        MK["定期健診"]
+        MG["商品"]
+        MH["入院プラン / ケージ"]
+        MT["トリミング"]
+        MP["キャンペーン"]
+    end
+    MC -->|カルテ治療行| TRT["treatments"]
+    MV -->|治療検索で選択（item_type=other）| TRT
+    MV -->|接種レコード| VAC["vaccinations"]
+    MX -->|検査レコード| EXM["exams"]
+    MK -->|健診タブ checkup_type_id| CHK["checkups"]
+    MT -->|予約に紐づく| TRM["trimmings"]
+    MH -->|入院・ケアプラン| HSP["hospitalizations / care_plan_items"]
+    TRT -->|treatment_id| UB["未請求"]
+    VAC -->|vaccination_id| UB
+    EXM -->|exam_id| UB
+    TRM -->|trimming_course_id / option_id| UB
+    MG -->|会計のマスタから選択| BI["billing_items"]
+    UB --> BI
+    HSP -->|退院会計で unit_price を転記| BI
+    MP -->|割引候補| DS["discount-suggestions"]
+    CHK -.->|未請求集計に checkup_id なし| NA["会計自動連携は根拠付き N/A"]
+    MH -.->|ケージ単価は unbilled に現れない| NA
+```
+
 ## 現行 route / form 対応（12フォーム）
 
 開始母集団は **11単価フォーム＋1割引フォーム**。`showPrice=false` だけで除外しない（ケージは単価入力を持つ）。金額のない設定フォーム（スタッフ、診断名等）は V04 全 CRUD を本課題へ混ぜない。

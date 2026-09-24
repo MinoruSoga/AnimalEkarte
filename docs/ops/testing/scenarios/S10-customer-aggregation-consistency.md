@@ -28,6 +28,16 @@
 | 10 | 一覧で飼主 A の行をチェックし CSV 出力を実行 | 表示中のリスト内容が CSV としてダウンロードされる（仕様正本 36 §1.3） |
 | 11 | 一覧の飼主名（飼主 A）をクリック | 飼主詳細 `/owners/:id` へ遷移し、会計履歴セクションで #5 と同じ会計が確認できる（ドリルダウン） |
 
+**集計指標の対象データ分離**（手順 4〜7 と確認観点「LTV と来院回数の対象分離」の概要）:
+
+```mermaid
+flowchart LR
+    B["completed 会計（billings）<br/>medical_record_id なし手動会計も含む"] --> L["LTV・年間診療費・売上ランキング"]
+    M["medical_records の診療日<br/>論理削除を除く"] --> V["来院回数・最終来院日"]
+    E["estimates 見積"] -.->|"売上に算入しない"| L
+    B -.->|"来院として数えない"| V
+```
+
 ## 確認観点
 
 - **LTV と来院回数の対象分離**: LTV は医院・飼主が一致する完了（completed）会計を `billings` から集計し、`medical_record_id` のない手動会計も含む（`ltv_repository.go` の ba サブクエリ）。期間判定は `COALESCE(bmr.date, b.scheduled_date)`。payments 集計は **billings.clinic_id で scope**（BUG-012）。来院回数・最終来院日は論理削除されていない `medical_records` の診療日だけを数え、手動会計では増えない。見積（estimates）は売上に算入されない。

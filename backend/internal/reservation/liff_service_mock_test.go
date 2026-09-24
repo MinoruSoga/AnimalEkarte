@@ -314,6 +314,7 @@ func (m *mockLiffCustomerRepository) UpdateAdditionalFields(ctx context.Context,
 
 type mockLiffOwnerRepository struct {
 	findByNameAndPhoneFn func(ctx context.Context, clinicID uint64, name, phone string) (*model.Owner, error)
+	findByLineUserIDFn   func(ctx context.Context, clinicID uint64, lineUserID string) (*model.Owner, error)
 }
 
 func (m *mockLiffOwnerRepository) FindAll(_ context.Context, _ []uint64, _, _ int, _ string) ([]model.Owner, int64, error) {
@@ -358,7 +359,10 @@ func (m *mockLiffOwnerRepository) Delete(_ context.Context, _, _ uint64) error {
 func (m *mockLiffOwnerRepository) CountPetsByOwnerID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
-func (m *mockLiffOwnerRepository) FindByLineUserID(_ context.Context, _ uint64, _ string) (*model.Owner, error) {
+func (m *mockLiffOwnerRepository) FindByLineUserID(ctx context.Context, clinicID uint64, lineUserID string) (*model.Owner, error) {
+	if m.findByLineUserIDFn != nil {
+		return m.findByLineUserIDFn(ctx, clinicID, lineUserID)
+	}
 	return nil, nil
 }
 func (m *mockLiffOwnerRepository) FindAllWithLineUserID(_ context.Context, _ uint64) ([]model.Owner, error) {

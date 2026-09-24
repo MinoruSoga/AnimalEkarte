@@ -6,6 +6,20 @@
 
 再開時は担当者と再開条件を持つ Linear Issue を新規作成する。本ファイルへ作業結果を書き足さない。状態が競合した場合は Linear を正とする。
 
+```mermaid
+stateDiagram-v2
+    state "見送り（監視は継続）" as Hold
+    state "再起案" as Repropose
+    [*] --> Hold
+    Hold --> Hold: audit_write_failed 未観測・散発
+    Hold --> Repropose: 月1件以上の継続観測＋実測1か月分を添える
+    Repropose --> [*]: 担当者付き Linear Issue＋本項直リンクで着手
+    note right of Hold
+        担当者未定のまま再開しない
+        結果は本ファイルに書き足さない
+    end note
+```
+
 ## 運用上残している再開条件
 
 ### PERF-AUDIT-TX P2（outbox パターン移行）— 見送り

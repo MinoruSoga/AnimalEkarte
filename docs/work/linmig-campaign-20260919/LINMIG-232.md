@@ -42,6 +42,22 @@ Source: [.github/workflows/frontend-deploy.yml](../../../.github/workflows/front
 
 [setup.md](../../ops/infra/production/setup.md) §1 already cites this frontend binding: `frontend-deploy.yml` binds `Production` and rejects production dispatch from non-production refs. That is a **checked-in workflow fact**. Whether GitHub Environment `Production` currently has Required reviewers, which refs it allows, and whether Vercel production settings match, is **UNKNOWN** (not queried this session).
 
+```mermaid
+flowchart TB
+    subgraph BE ["backend-deploy.yml"]
+        B1["push staging"] --> B2["npx wrangler deploy<br/>STG worker URL"]
+        B3["workflow_dispatch"] --> B2
+        B2 --> B4["migrate → health → optional smoke"]
+        B5["production trigger / environment /<br/>-c wrangler.production.jsonc"] -.->|"missing"| B2
+    end
+    subgraph FE ["frontend-deploy.yml"]
+        F1["push staging"] --> F2["Preview"]
+        F3["push production / dispatch production"] --> F4{"ref is refs/heads/production?"}
+        F4 -->|no| F5["step fails"]
+        F4 -->|yes| F6["Production env → vercel --prod"]
+    end
+```
+
 ## 3. `wrangler.production.jsonc` vs default STG config
 
 | Item | STG `backend/wrangler.jsonc` | Production draft `backend/wrangler.production.jsonc` | Selected by `backend-deploy.yml`? |

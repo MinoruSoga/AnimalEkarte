@@ -14,6 +14,20 @@
 
 `make ci` の正確な gate 一覧と順序は `scripts/run-local-ci.sh` の `begin_step` 呼び出しを参照する。現在は inventory/guardrail、STG UAT handoff wrapper、A4 rehearsal isolation、design-system audit、lint/type/codegen、backend/frontend build/test などを含む。件数や列挙をこの文書へ複製しない。
 
+```mermaid
+flowchart TB
+    Push["push / PR"] --> Remote["Remote CI"]
+    Remote --> Scope{"変更 path を domain / feature に分解"}
+    Scope -->|"partial"| P["変更 domain / feature のみ build・test<br/>coverage ratchet は SKIP"]
+    Scope -->|"full（shared / migration / workflow / 横断）"| F["backend・frontend の shard test<br/>coverage は merge 後に ratchet"]
+    Push -.->|"main 向け PR で agent config 変更<br/>または manual dispatch で有効化"| AS["AgentShield が findings を fail 扱い<br/>他は report-only"]
+    subgraph NonAuto["自動 push/PR ゲートではない区分"]
+        L["Local: push/PR 前に make ci<br/>GitHub は強制も証明もしない"]
+        E["E2E: workflow_dispatch のみ"]
+        Perf["Performance: schedule / manual dispatch"]
+    end
+```
+
 ## Remote CI の要点
 
 - 変更 path は `scripts/ci_scope_plan.py` で **backend domain / frontend feature** に分解する。

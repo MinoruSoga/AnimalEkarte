@@ -36,6 +36,20 @@
 4. clinicは削除せず、保存した元値へ復元してGETで確認する。もし別のapproved caseでtest clinicを作った場合だけ最後に削除する。
 5. list/detailでstateを確認する。permission-groupの成功mutationだけは明示contractに従いauditも確認する。
 
+cleanup 順序と停止条件:
+
+```mermaid
+flowchart TB
+  A["run sheet の known IDs と list/detail API で対象を再確認"] --> B["この run の test permission group を削除"]
+  B -->|"active assignment あり"| S["停止: detach や direct SQL で推測しない"]
+  B --> C["この run の test staff を削除"]
+  C -->|"child dependency で 409"| S
+  C --> D["clinic は削除せず元値へ復元し GET で確認"]
+  D -.->|"approved case で test clinic を作った場合のみ"| F["最後に test clinic を削除"]
+  F --> E
+  D --> E["list/detail で state 確認<br/>permission-group の成功 mutation は audit も確認"]
+```
+
 依存関係が異なるcaseではAPIの`409`を正として停止し、順序を推測してdirect SQLへ切り替えない。
 
 ## 4. Direct DB operation

@@ -37,6 +37,18 @@ close 判断時に USER が次を確認する。
 - fixture と cleanup が完了し、共有/STG の既存データを変更していない。
 - Linear/GitHub の外部状態を実行時に再確認した。
 
+**close 判定の流れ:**
+
+```mermaid
+flowchart TB
+  R["5 flow の run report — 同一 revision / environment contract を参照"] --> G{"close gate（USER が確認）"}
+  L["実 LINE lane + token health の証跡 — mock のみでは代替しない"] --> G
+  A["DB / audit 照合・residual disposition・実施者とは別の acceptance owner sign-off"] --> G
+  C["fixture cleanup 完了・外部状態の再確認"] --> G
+  G -->|"充足"| CL["#254 close"]
+  G -->|"製品 FAIL あり"| FX["臨床安全・会計金額・分離・認証・消失系は Go-live 前に解消。その他は Linear 受容条件 + USER 明示受容で納品後へ延期可"]
+```
+
 ## 禁止
 
 - ignored report が checkout にないことを未実施/完了の根拠にする

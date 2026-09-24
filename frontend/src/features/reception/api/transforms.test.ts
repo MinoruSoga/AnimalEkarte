@@ -304,6 +304,24 @@ describe("transformReservationToReceptionAppointment", () => {
   it("checked_in_at が未設定の場合 checkedInAt は undefined", () => {
     expect(transformReservationToReceptionAppointment(minimal).checkedInAt).toBeUndefined();
   });
+
+  // EMR-74: trimming の in_consultation は「施術中」を意味し、受付カンバンの
+  // 「診療中」カラムとは別概念。status 値自体は変換せず、カラム配置側で category を見て振り分ける。
+  it("in_consultation の trimming 予約も status 変換は変わらず in_consultation を保持する", () => {
+    const result = transformReservationToReceptionAppointment({
+      ...minimal,
+      status: "in_consultation",
+      reservation_type: {
+        id: 9,
+        clinic_id: 1,
+        name: "シャンプーコース",
+        category: "trimming",
+      } as BackendReservation["reservation_type"],
+    });
+
+    expect(result.status).toBe("in_consultation");
+    expect(result.reservationCategory).toBe("trimming");
+  });
 });
 
 describe("transformReservationsToReceptionColumns", () => {
@@ -344,5 +362,50 @@ describe("transformReservationsToReceptionColumns", () => {
     const columns = transformReservationsToReceptionColumns(reservations);
     const col = columns.find((c) => c.id === "in_consultation");
     expect(col?.appointments.some((a) => a.id === "3")).toBe(true);
+  });
+
+  // EMR-74: trimming の in_consultation（施術中）は診療中カラムではなく受付済に表示する。
+  it("trimming カテゴリの in_consultation は受付済カラムに入り診療中には入らない", () => {
+    const trimming: BackendReservation = {
+      ...minimal,
+      id: 5,
+      status: "in_consultation",
+      reservation_type: {
+        id: 9,
+        clinic_id: 1,
+        name: "シャンプーコース",
+        category: "trimming",
+      } as BackendReservation["reservation_type"],
+    };
+    const columns = transformReservationsToReceptionColumns([trimming]);
+
+    expect(columns.find((c) => c.id === "checked_in")?.appointments.some((a) => a.id === "5")).toBe(
+      true,
+    );
+    expect(
+      columns.find((c) => c.id === "in_consultation")?.appointments.some((a) => a.id === "5"),
+    ).toBe(false);
+  });
+
+  it("trimming でない in_consultation は引き続き診療中カラムに入る", () => {
+    const general: BackendReservation = {
+      ...minimal,
+      id: 6,
+      status: "in_consultation",
+      reservation_type: {
+        id: 1,
+        clinic_id: 1,
+        name: "一般診察",
+        category: "general",
+      } as BackendReservation["reservation_type"],
+    };
+    const columns = transformReservationsToReceptionColumns([general]);
+
+    expect(
+      columns.find((c) => c.id === "in_consultation")?.appointments.some((a) => a.id === "6"),
+    ).toBe(true);
+    expect(columns.find((c) => c.id === "checked_in")?.appointments.some((a) => a.id === "6")).toBe(
+      false,
+    );
   });
 });

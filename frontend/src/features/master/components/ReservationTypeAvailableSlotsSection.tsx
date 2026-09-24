@@ -1,4 +1,4 @@
-import { useActionState, useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, useTransition } from "react";
 import { useNavigate } from "react-router";
 import { CalendarDays, Clock, Plus, Trash2 } from "lucide-react";
 import {
@@ -8,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { SubmitButton } from "@/components/shared/Form/SubmitButton";
+import { Button } from "@/components/ui/button";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
 import { DAY_OF_WEEK_LABELS } from "@/constants/day-of-week";
@@ -57,22 +57,26 @@ export function ReservationTypeAvailableSlotsSection({ clinicId, reservationType
     [],
   );
 
-  const [, formAction] = useActionState(async () => {
-    try {
-      const req: CreateAvailableSlotRequest = {
-        available_type: form.availableType,
-        start_time: form.startTime,
-        is_active: true,
-        ...(form.availableType === AvailableSlotTypeWeekly
-          ? { day_of_week: Number(form.dayOfWeek) }
-          : { specific_date: form.specificDate }),
-      };
-      await createMutation.mutateAsync(req);
-      setForm(DEFAULT_FORM);
-    } catch {
-      // エラー通知は useCreateAvailableSlot の onError に一本化（二重トースト防止）
-    }
-  }, null);
+  const [isAddPending, startAddTransition] = useTransition();
+
+  const handleAdd = useCallback(() => {
+    startAddTransition(async () => {
+      try {
+        const req: CreateAvailableSlotRequest = {
+          available_type: form.availableType,
+          start_time: form.startTime,
+          is_active: true,
+          ...(form.availableType === AvailableSlotTypeWeekly
+            ? { day_of_week: Number(form.dayOfWeek) }
+            : { specific_date: form.specificDate }),
+        };
+        await createMutation.mutateAsync(req);
+        setForm(DEFAULT_FORM);
+      } catch {
+        // エラー通知は useCreateAvailableSlot の onError に一本化（二重トースト防止）
+      }
+    });
+  }, [form, createMutation]);
 
   const handleDelete = useCallback(
     (id: number) => {
@@ -136,9 +140,11 @@ export function ReservationTypeAvailableSlotsSection({ clinicId, reservationType
         <p className={`text-xs ${C.text40} mb-3`}>未設定の場合は営業時間内の空き枠を使用します</p>
       )}
 
-      {/* BUG-MASTER-RESVTYPE-SLOT-FORM-NESTED: MasterSidePanel がコンテンツ全体を
-          <form action> で包むため、ここに <form> を置くとネスト form となりブラウザが
-          破棄して送信不能になる。form 要素は使わず、SubmitButton の formAction で送信する */}
+      {/* BUG-MASTER-RESVTYPE-SLOT-FORM-NESTED (EMR-208): MasterSidePanel が
+          コンテンツ全体を <form action> で包むため、ここに <form> を置くとネスト form
+          となりブラウザが破棄して送信不能になる。formAction 経由の submitter も
+          祖先 form が無い readOnly パネルでは発火しない。form 要素にも祖先 form への
+          依存にも頼らず、type="button" + useTransition で mutation を直接呼ぶ */}
       <div className="space-y-2">
         <div className="flex items-center gap-2">
           <Select
@@ -185,14 +191,21 @@ export function ReservationTypeAvailableSlotsSection({ clinicId, reservationType
             </SelectTrigger>
             <SelectContent>{TIME_SELECT_ITEMS}</SelectContent>
           </Select>
-          <SubmitButton
-            loadingText="追加中..."
+          <Button
+            type="button"
+            onClick={handleAdd}
+            disabled={isAddPending}
             className="h-8 text-sm px-3"
-            formAction={formAction}
           >
-            <Plus className={ICON.smXs} />
-            追加
-          </SubmitButton>
+            {isAddPending ? (
+              "追加中..."
+            ) : (
+              <>
+                <Plus className={ICON.smXs} />
+                追加
+              </>
+            )}
+          </Button>
         </div>
       </div>
     </div>

@@ -18,6 +18,7 @@ import { updateAccounting } from "../api/update-accounting";
 import type { PaymentSplitRequest } from "../api/types";
 import type { PaymentSplitDraft } from "../components/PaymentCard";
 import type { Accounting, AccountingItem, PaymentInfo, PaymentMethod } from "../types";
+import { DEFAULT_INSURANCE_RATIO } from "./use-accounting-detail-state";
 import {
   buildPaymentSplitRequests,
   type AccountingFormState,
@@ -310,14 +311,35 @@ export function useAccountingCompletionAction({
           toast.success("会計を登録・完了しました");
           navigate(paths.accounting.detail.getHref(created.id));
         } else {
+          // EMR-63: BE の merge セマンティクス（未送信フィールド=既存値保持）と整合するよう、
+          // 保険フラグ・比率が取得値から変わっていない無変更時だけ保険フィールドを省略する。
+          // has_insurance は常に送り、フラグの ON/OFF 遷移を PATCH で表現できるようにする
+          // （未送信だと BE は existing.HasInsurance を継承し、トグルが行き止まりになる）。
+          // OFF 遷移では null ではなく明示 0 を送ってクリアする（null は「未送信」と同義）。
+          // 比率・フラグ未変更でも明細編集で算出額が動いた場合は再計算値を送る
+          // （支払い内訳合計と server 再計算請求額の一致を保つため）。
+          const fetchedPayment = accounting.payment;
+          const fetchedHasInsurance = (fetchedPayment?.insuranceAmount ?? 0) !== 0;
+          const fetchedInsuranceRatio =
+            fetchedPayment?.insuranceRatio?.toString() ?? DEFAULT_INSURANCE_RATIO;
+          const insuranceDirty =
+            hasInsurance !== fetchedHasInsurance || insuranceRatio !== fetchedInsuranceRatio;
+          const insuranceUnchanged =
+            !insuranceDirty &&
+            fetchedPayment != null &&
+            calculation.insuranceAmount === (fetchedPayment.insuranceAmount ?? 0);
           await updateAccounting(accountingId, {
             status: "completed",
             subtotal: calculation.subtotal,
             tax_total: calculation.taxTotal,
             total_amount: calculation.totalAmount,
-            insurance_ratio: hasInsurance ? parseFloat(insuranceRatio) : null,
-            insurance_amount:
-              calculation.insuranceAmount !== 0 ? calculation.insuranceAmount : null,
+            has_insurance: hasInsurance,
+            ...(insuranceUnchanged
+              ? {}
+              : {
+                  insurance_ratio: hasInsurance ? parseFloat(insuranceRatio) : 0,
+                  insurance_amount: hasInsurance ? calculation.insuranceAmount : 0,
+                }),
             billing_amount: calculation.billingAmount,
             received_amount: totalReceived,
             change_amount: totalChange,

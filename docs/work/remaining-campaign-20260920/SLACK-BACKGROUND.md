@@ -72,6 +72,23 @@
 | S6 | 同タブ → 見出し **治療プラン** の表 | マスタ検索ダイアログ、またはコード上の空行 `handleAddRow`（クリックは検索優先。PLAN-MANUAL） | `treatments`（`content` / `unit_price` / `item_type`） | 候補。請求候補になり得る。背景文ではない |
 | S7 | カルテ「治療」タブ | 同一 `treatments` + 薬剤投与量ゲート | 同じ `treatments` | 候補。S6 と別欄ではない |
 
+候補と保存先の概形（宛先は選ばない）:
+
+```mermaid
+flowchart TB
+    R["要望 背景分に皮下点滴を追加"] --> Q{"対象欄は未裁定<br/>候補の列挙のみ"}
+    Q --> A["カルテ 問診タブ"]
+    Q --> B["カルテ 診察/治療プラン タブ"]
+    Q --> C["設定 問診テンプレート"]
+    A --> A1["S1 定型文挿入<br/>主訴の全文置換"]
+    A --> A2["S2 主訴詳細<br/>inquiries chief_complaint"]
+    A --> A3["S3 治療方針<br/>inquiries notes"]
+    B --> B1["S5 所見 3 欄<br/>clinical_plans"]
+    B --> B2["S6 治療プラン表<br/>treatments"]
+    B2 -.->|同一集合| B3["S7 治療タブ<br/>treatments"]
+    C --> C1["S4 category history<br/>inquiry_templates"]
+```
+
 **採用した宛先: 無し。** 上表のどの ID も BACKGROUND の入力欄ではない。PO 意味は **UNKNOWN**。
 
 ## コード根拠（引用）

@@ -17,10 +17,10 @@ Current unfinished implementation, verification, data, performance, delivery, an
 
 ### UAT 2026-09-23 確定分（証拠: `reports/uat-2026-09-23/v04-retest/`、詳細: `bug.md` 末尾「確認済み製品欠陥（UAT 2026-09-23 · V04 追加分）」）
 
-| ID | severity | 領域 | 症状 | シナリオ |
-|:---|:---|:---|:---|:---|
-| BUG-MASTER-RESVTYPE-SLOT-FORM-NESTED | High | reservation / master settings | 予約区分パネル内の予約可能枠フォームがネスト `<form>` で破棄され追加不能（javascript: action が CSP ブロック） | V04 §5 |
-| BUG-MASTER-RESVTYPE-OCC-ENVELOPE | Medium | reservation / master settings | `GET /reservation-types/:id/occupations` が裸配列を返すが FE は `{data}` エンベロープ期待で `data.data.map` が TypeError → 紐付け職種バッジが常に非表示 | V04 §4 |
+| ID | severity | 領域 | 症状 | シナリオ | Plane / 修正PR |
+|:---|:---|:---|:---|:---|:---|
+| BUG-MASTER-RESVTYPE-SLOT-FORM-NESTED | High | reservation / master settings | 予約区分パネル内の予約可能枠フォームがネスト `<form>` で破棄され追加不能（javascript: action が CSP ブロック） | V04 §5 | EMR-208 / PR #469 |
+| BUG-MASTER-RESVTYPE-OCC-ENVELOPE | Medium | reservation / master settings | `GET /reservation-types/:id/occupations` が裸配列を返すが FE は `{data}` エンベロープ期待で `data.data.map` が TypeError → 紐付け職種バッジが常に非表示 | V04 §4 | EMR-209 / PR #469 |
 
 ## PO / 人間レーン
 

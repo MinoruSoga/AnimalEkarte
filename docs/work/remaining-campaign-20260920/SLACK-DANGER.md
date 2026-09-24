@@ -56,6 +56,16 @@ HEAD at write: `873685b0bea3692c2f8100b19ded660c8357f2b0` (`feat/rem-slack-dange
 
 **結論（既存）:** 「高」の赤系バッジと理由開示は実装済み。欠落しているのは **中/低/不明を赤/黄のどれで出すか、どこに出すか** であり、既存「高」ではない。
 
+enum から表示までの概形:
+
+```mermaid
+flowchart LR
+    D["pets danger_level<br/>low / medium / high"] --> T["FE ラベル変換<br/>低 / 中 / 高"]
+    T --> B{"飼主一覧バッジ"}
+    B -->|"高 のみ"| W["⚠ 危険 赤系<br/>理由 Popover 保持"]
+    B -->|"中 / 低"| N["非表示<br/>黄割当は PO 未裁定"]
+```
+
 ## 要望との差分（実装しない。PO 待ち）
 
 | 要望（todo-issue L192–194） | 現行 | 本票の扱い |

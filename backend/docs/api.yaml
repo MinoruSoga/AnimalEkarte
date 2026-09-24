@@ -292,6 +292,7 @@ components:
         insurance_amount:
           type: integer
           format: int64
+          description: 保険負担額（円、正の値）。billing_amount = total_amount − insurance_amount − discount_amount
         discount_amount:
           type: integer
           format: int64
@@ -2224,11 +2225,16 @@ components:
           type: integer
           format: int64
           nullable: true
+          description: >
+            保険負担額（円）。正規契約は正の値で、server は
+            billing_amount = total_amount − insurance_amount − discount_amount を再計算する。
+            旧クライアント互換で負値も受け付けるが絶対値に正規化して保存する。
+            has_insurance=false と非ゼロの併用は 400。
         discount_amount:
           type: integer
           format: int64
           nullable: true
-          description: 非ゼロの場合 discount:edit 権限が必要
+          description: 非ゼロの場合 discount:edit 権限が必要。負値は 400
         items:
           type: array
           minItems: 1
@@ -4643,10 +4649,12 @@ components:
         weight_unit:
           type: string
           enum: [Kg, g]
+          nullable: true
           default: Kg
           description: 体重単位（未指定時は Kg）
         notes:
           type: string
+          nullable: true
 
     UpdateVitalRequest:
       type: object
@@ -12299,7 +12307,27 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
         '409':
-          $ref: '#/components/responses/Conflict'
+          description: >
+            競合。次のいずれか:
+            - 同一 Idempotency-Key で異なる payload を再送した（ErrorResponse）
+            - medical_record_id / hospitalization_id に既存会計がある二重確定（EMR-66）。
+              この場合 code=ACCOUNTING_ALREADY_COMPLETED で、
+              既存会計が accounting フィールドに同梱される
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error, code]
+                properties:
+                  error:
+                    type: string
+                    description: エラーメッセージ
+                  code:
+                    type: string
+                    description: 安定エラーコード（二重確定時は ACCOUNTING_ALREADY_COMPLETED）
+                    example: ACCOUNTING_ALREADY_COMPLETED
+                  accounting:
+                    $ref: '#/components/schemas/Billing'
         '500':
           $ref: '#/components/responses/InternalError'
   /accountings/{id}:
@@ -12332,6 +12360,14 @@ paths:
     patch:
       operationId: updateAccounting
       summary: 会計更新
+      description: >
+        部分更新（EMR-63）。省略したフィールドは既存値を保持し、payment 全項目の再送は不要。
+        payment_splits を省略した場合は既存の支払い内訳をそのまま保持する。
+        billing_amount / insurance_amount は client 値を採用せず server が
+        billing_amount = total_amount − insurance_amount − discount_amount から再計算する
+        （insurance_amount は正の magnitude。負値は絶対値に正規化）。
+        has_insurance=false と非ゼロ insurance_amount の併用、
+        請求額変更後に既存内訳合計と請求額が一致しない場合は 400。
       tags: [Accountings]
       parameters:
         - name: id

@@ -160,6 +160,17 @@ UAT-ENV-SETUP の選択組（`profile` × `browser`）が揃わないセルは *
 | browser | 選択した `cdp` または `playwright` が実際に利用可能 | 本 unit ではブラウザ UAT 未実行 |
 | `check-uat-env.sh` | advisory のみ。正式 readiness gate ではない | 使っても ready としない |
 
+ゲートから証跡までの概形:
+
+```mermaid
+flowchart LR
+    G["環境ゲート<br/>target boundary / stack / account<br/>fixture / browser"]
+    G -->|"揃わない"| B["セルは BLOCKED<br/>未実施のまま残す"]
+    G -->|"揃う"| R["医院 × 職種 × 導線<br/>実機で実施"]
+    P["最優先<br/>八王子 × 受付・獣医師<br/>× BILLING-UAT"] --> R
+    R --> REP["reports/uat-YYYY-MM-DD/<br/>run の証跡を保存"]
+```
+
 ## 履歴日付（現行ウィンドウではない）
 
 次は照合した履歴であり、実施枠・締切・次会にしない。

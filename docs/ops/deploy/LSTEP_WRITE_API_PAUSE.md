@@ -29,6 +29,18 @@ Write が外部へ送られるのは **両方** が true のときだけ。
 - `buildClient` が `nil` client を返し、サービスは同期をスキップまたは設定エラーとする
 - infra client まで到達しないため外部 write は 0
 
+```mermaid
+flowchart TB
+  W["Write メソッド呼び出し<br/>AddTag / RemoveTag / AddTagBulk / SetProperty"]
+  W --> G1{"Clinic flag（サービス層 buildClient）<br/>is_sync_enabled"}
+  G1 -->|false| N1["nil client<br/>同期スキップまたは設定エラー<br/>infra client 未到達・外部 write 0"]
+  G1 -->|true| G2{"Deploy kill switch（infra client）<br/>LSTEP_WRITE_API_ENABLED"}
+  G2 -->|未設定・空・false・未知値| N2["ErrWriteDisabled（nil 成功にしない）<br/>HTTP request 0<br/>delivery fired / tag cache receipt へ進まない"]
+  G2 -->|exact true| OK["Lステップ API へ write 送信"]
+```
+
+読み取り系 API とアプリ内 DB 更新は、gate の状態に関わらず継続する。
+
 ---
 
 ## 現在の Write メソッド

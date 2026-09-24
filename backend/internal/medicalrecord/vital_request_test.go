@@ -1,6 +1,7 @@
 package medicalrecord
 
 import (
+	"encoding/json"
 	"math"
 	"strings"
 	"testing"
@@ -17,6 +18,7 @@ func TestCreateVitalRequest_ToServiceInput(t *testing.T) {
 	respirationRate := 30
 	weight := 4.2
 	weightUnit := "kg"
+	notes := "stable"
 
 	req := createVitalRequest{
 		RecordedAt:      recordedAt,
@@ -26,7 +28,7 @@ func TestCreateVitalRequest_ToServiceInput(t *testing.T) {
 		RespirationRate: &respirationRate,
 		Weight:          &weight,
 		WeightUnit:      &weightUnit,
-		Notes:           "stable",
+		Notes:           &notes,
 	}
 
 	input := req.toServiceInput(1, 2)
@@ -47,9 +49,81 @@ func TestCreateVitalRequest_ToServiceInput(t *testing.T) {
 	if input.WeightUnit == nil || string(*input.WeightUnit) != weightUnit {
 		t.Fatalf("WeightUnit = %v, want %q", input.WeightUnit, weightUnit)
 	}
-	if input.Notes != req.Notes {
-		t.Fatalf("Notes = %q, want %q", input.Notes, req.Notes)
+	if input.Notes != notes {
+		t.Fatalf("Notes = %q, want %q", input.Notes, notes)
 	}
+}
+
+// TestCreateVitalRequest_JSONBinding は POST body のワイヤ契約を直接検証する:
+// canonical key は `notes`（legacy `note` は無視）、optional fields は null 許容の
+// ポインタバインドで、Notes nil は toServiceInput で DB 安全な "" に正規化される。
+func TestCreateVitalRequest_JSONBinding(t *testing.T) {
+	cases := []struct {
+		name      string
+		body      string
+		wantNotes string
+		wantNil   bool
+	}{
+		{
+			name:      "notes string is preserved",
+			body:      `{"recorded_at":"2026-05-28T10:30:00Z","temperature":38.5,"notes":"食欲やや低下"}`,
+			wantNotes: "食欲やや低下",
+		},
+		{
+			name:      "notes null binds nil and normalizes to empty",
+			body:      `{"recorded_at":"2026-05-28T10:30:00Z","temperature":38.5,"notes":null}`,
+			wantNotes: "",
+			wantNil:   true,
+		},
+		{
+			name:      "notes absent binds nil and normalizes to empty",
+			body:      `{"recorded_at":"2026-05-28T10:30:00Z","temperature":38.5}`,
+			wantNotes: "",
+			wantNil:   true,
+		},
+		{
+			name:      "legacy note key is ignored",
+			body:      `{"recorded_at":"2026-05-28T10:30:00Z","temperature":38.5,"note":"legacy memo"}`,
+			wantNotes: "",
+			wantNil:   true,
+		},
+		{
+			name:      "all optional fields null bind as nil pointers",
+			body:      `{"recorded_at":"2026-05-28T10:30:00Z","staff_id":null,"temperature":null,"heart_rate":null,"respiration_rate":null,"weight":null,"weight_unit":null,"notes":null}`,
+			wantNotes: "",
+			wantNil:   true,
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			var req createVitalRequest
+			if err := json.Unmarshal([]byte(tt.body), &req); err != nil {
+				t.Fatalf("unmarshal: %v", err)
+			}
+			if tt.wantNil && req.Notes != nil {
+				t.Fatalf("Notes = %q, want nil", *req.Notes)
+			}
+			if !tt.wantNil && (req.Notes == nil || *req.Notes != tt.wantNotes) {
+				t.Fatalf("Notes = %v, want %q", req.Notes, tt.wantNotes)
+			}
+			input := req.toServiceInput(1, 2)
+			if input.Notes != tt.wantNotes {
+				t.Fatalf("service input Notes = %q, want %q", input.Notes, tt.wantNotes)
+			}
+		})
+	}
+
+	t.Run("null optional fields bind all-nil pointers", func(t *testing.T) {
+		var req createVitalRequest
+		body := `{"recorded_at":"2026-05-28T10:30:00Z","staff_id":null,"temperature":null,"heart_rate":null,"respiration_rate":null,"weight":null,"weight_unit":null,"notes":null}`
+		if err := json.Unmarshal([]byte(body), &req); err != nil {
+			t.Fatalf("unmarshal: %v", err)
+		}
+		if req.StaffID != nil || req.Temperature != nil || req.HeartRate != nil ||
+			req.RespirationRate != nil || req.Weight != nil || req.WeightUnit != nil || req.Notes != nil {
+			t.Fatalf("req = %+v, want all optional fields nil", req)
+		}
+	})
 }
 
 func TestUpdateVitalRequest_ToServiceInput(t *testing.T) {

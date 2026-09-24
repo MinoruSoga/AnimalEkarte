@@ -19,6 +19,8 @@ interface InsuranceCardProps {
   insuranceRatio: string;
   onInsuranceRatioChange: (v: string) => void;
   insuranceAmount: number;
+  /** EMR-63: 既存会計の編集時、未送信の保険フィールドが既存値を保持することを明示する */
+  showPreservedNote?: boolean;
 }
 
 const NEW_INSURANCE_RATIO_ITEMS = [
@@ -58,6 +60,7 @@ export const InsuranceCard = memo(function InsuranceCard({
   insuranceRatio,
   onInsuranceRatioChange,
   insuranceAmount,
+  showPreservedNote = false,
 }: InsuranceCardProps) {
   return (
     <Card>
@@ -87,9 +90,13 @@ export const InsuranceCard = memo(function InsuranceCard({
           <div
             className={`flex justify-between items-center text-sm font-medium ${C.textStatusGreen} ${C.bgStatusGreen} p-2 rounded`}
           >
-            <span>保険負担額（マイナス）</span>
-            <span>{insuranceAmount.toLocaleString()} 円</span>
+            <span>保険負担額</span>
+            {/* EMR-62: insuranceAmount は正の magnitude で保存・表示する */}
+            <span>{Math.abs(insuranceAmount).toLocaleString()} 円</span>
           </div>
+          {showPreservedNote ? (
+            <p className={`text-xs ${C.text60}`}>保険情報は既存の値が保持されます</p>
+          ) : null}
         </CardContent>
       ) : null}
     </Card>

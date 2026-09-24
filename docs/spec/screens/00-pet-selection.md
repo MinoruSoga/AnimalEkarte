@@ -7,6 +7,15 @@
   - 対象 feature: medical-records / hospitalization / trimming / examinations / checkups / accounting / vaccinations
 - **アクセス権限**: 通常は遷移元機能の`<Resource>:create`権限。例外としてcheckupsは`ResourceMedicalRecords:create` **かつ** `ResourceMedicalRecords:edit`を要求する（`RequirePermission`）。
 
+**中間ページとしての役割:**
+
+```mermaid
+flowchart LR
+    A["遷移元機能の新規作成導線<br>(診療記録・入院・トリミング等)"] --> B["select-pet 画面<br>フリーテキスト + 飼主No で検索<br>サーバ側ページング・デバウンス"]
+    B --> C["対象ペットを選択<br>死亡ペットは表示のみ・選択不可"]
+    C --> D["遷移元機能の新規データ作成画面"]
+```
+
 ---
 
 ## 画面構成

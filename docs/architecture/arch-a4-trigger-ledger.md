@@ -4,6 +4,15 @@
 > **Status**: Historical snapshot. `todo.md` no longer has an ARCH-A4 / #259 task pointer. Linear/BRT-4 is the execution SoT, but no active ARCH-A4 issue was verified for this refresh. Remeasure HEAD before using any candidate below.
 > **Related**: [composition-root-conventions](composition-root-conventions.md).
 
+```mermaid
+flowchart LR
+    trig[着手トリガー] --> remeasure[HEAD 再実測]
+    remeasure --> decide{痛みを実測で確認?}
+    decide -->|yes| slice[同一 package へ小さい slice 抽出・挙動不変]
+    decide -->|no / blocked| nobulk[no bulk — convert on touch]
+    slice --> record[landed slice として本 ledger に記録]
+```
+
 ## 2026-08-07 measurement
 
 | Subdomain | Trigger from todo | Evidence | Decision |

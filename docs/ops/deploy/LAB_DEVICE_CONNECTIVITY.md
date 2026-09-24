@@ -22,10 +22,16 @@ IDEXX は **JOU-LAB-X**。`idexx_vetlab` は decoder / persist / 既定slotを�
 - **本リポジトリは新カルテ。Drワン製品も `mkan.mdb` も使わない。**
 - 常時つなぐのは検査機器用 Mac 1 台。院内の他 Mac はつながない。
 
-```
-現行: 機器 --COM--> Windows 7 --> Drワン --> 現行カルテ
-あと: 同じ口 --USB-Serial--> 検査機器用 Mac の LaunchAgent `lab-device-agent`
-                                      --loopback HTTP (127.0.0.1:17654)--> ブラウザ `/lab-device` --> lab-imports
+```mermaid
+flowchart LR
+    subgraph cur["現行"]
+        dev["機器"] -->|"COM"| win["Windows 7"] --> drw["Drワン"] --> kart["現行カルテ"]
+    end
+    subgraph nxt["あと"]
+        port["同じ口"] -->|"USB-Serial"| mac["検査機器用 Mac の LaunchAgent<br/>lab-device-agent"]
+        mac -->|"loopback HTTP<br/>127.0.0.1:17654"| brw["ブラウザ /lab-device"]
+        brw --> imp["lab-imports"]
+    end
 ```
 
 Win7 の COM 番号を Mac の `/dev/cu.*` だと思わない。口はつなぐたびに増えた行。

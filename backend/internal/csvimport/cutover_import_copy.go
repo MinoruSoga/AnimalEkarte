@@ -41,14 +41,25 @@ WHERE table_schema = 'public' AND table_name = $1 AND column_name = $2`, spec.Na
 	return nil
 }
 
-func validateCutoverSequences(ctx context.Context, q cutoverQuerier) error {
+// validateCutoverSequences requires every import table to expose a serial id
+// sequence. For rehearsal-grade artifacts a missing sequence is tolerated with
+// a recorded drift note: COPY always supplies explicit ids, so no sequence can
+// mint out-of-band values for that table. Formal artifacts stay strict.
+func validateCutoverSequences(ctx context.Context, q cutoverQuerier, tolerant bool) ([]string, error) {
+	var notes []string
 	for _, spec := range CutoverTableSpecs() {
 		var sequence *string
-		if err := q.QueryRow(ctx, `SELECT pg_get_serial_sequence($1, 'id')`, "public."+spec.Name).Scan(&sequence); err != nil || sequence == nil || *sequence == "" {
-			return fmt.Errorf("target table %s must have a serial id sequence", spec.Name)
+		if err := q.QueryRow(ctx, `SELECT pg_get_serial_sequence($1, 'id')`, "public."+spec.Name).Scan(&sequence); err != nil {
+			return nil, fmt.Errorf("target table %s must have a serial id sequence", spec.Name)
+		}
+		if sequence == nil || *sequence == "" {
+			if !tolerant {
+				return nil, fmt.Errorf("target table %s must have a serial id sequence", spec.Name)
+			}
+			notes = append(notes, "target id sequence missing: "+spec.Name)
 		}
 	}
-	return nil
+	return notes, nil
 }
 
 func validateCutoverBandEmpty(ctx context.Context, q cutoverQuerier, band CutoverIDBand) error {
@@ -118,6 +129,8 @@ func runCutoverCSVTransform(
 	writer *io.PipeWriter,
 	result chan<- cutoverTransformResult,
 	path string,
+	spec CutoverTableSpec,
+	allowPermutation bool,
 	seeds CutoverSeedIDs,
 	expectedSHA256 string,
 ) {
@@ -128,7 +141,7 @@ func runCutoverCSVTransform(
 			result <- cutoverTransformResult{err: err}
 		}
 	}()
-	count, err := transformCutoverCSV(ctx, path, writer, seeds, expectedSHA256)
+	count, err := transformCutoverCSV(ctx, path, spec, allowPermutation, writer, seeds, expectedSHA256)
 	_ = writer.CloseWithError(err)
 	result <- cutoverTransformResult{count: count, err: err}
 }
@@ -246,13 +259,114 @@ func insertCutoverStaging(ctx context.Context, tx cutoverTransaction, spec Cutov
 	return total, nil
 }
 
-func copyCutoverTable(ctx context.Context, tx cutoverTransaction, path string, spec CutoverTableSpec, table CutoverManifestTable, seeds CutoverSeedIDs) (int64, error) {
+func cutoverStagingDepthRelation(table string) string {
+	return "cutover_depth_" + table
+}
+
+// cutoverStagingDepthCreateSQL maps every staged row to its distance from a
+// NULL parent. UNION dedup keeps the walk finite; rows that only exist inside
+// a self-reference cycle (or descend from one) never reach a root and stay
+// absent from the map so the leftover check below can reject them.
+func cutoverStagingDepthCreateSQL(spec CutoverTableSpec, selfColumn string) string {
+	staging := pgx.Identifier{cutoverCopyStagingRelation(spec.Name)}.Sanitize()
+	column := pgx.Identifier{selfColumn}.Sanitize()
+	return "CREATE TEMP TABLE " + pgx.Identifier{cutoverStagingDepthRelation(spec.Name)}.Sanitize() +
+		" AS WITH RECURSIVE walk AS (" +
+		"SELECT id, 0 AS depth FROM " + staging + " WHERE " + column + " IS NULL" +
+		" UNION " +
+		"SELECT s.id, w.depth + 1 FROM " + staging + " AS s JOIN walk AS w ON s." + column + " = w.id" +
+		") SELECT id, depth FROM walk"
+}
+
+func cutoverStagingDepthLeftoverSQL(spec CutoverTableSpec) string {
+	return "SELECT count(*) FROM " + pgx.Identifier{cutoverCopyStagingRelation(spec.Name)}.Sanitize() +
+		" AS staged WHERE NOT EXISTS (SELECT 1 FROM " +
+		pgx.Identifier{cutoverStagingDepthRelation(spec.Name)}.Sanitize() + " AS walk WHERE walk.id = staged.id)"
+}
+
+func cutoverStagingMaxDepthSQL(spec CutoverTableSpec) string {
+	return "SELECT COALESCE(max(depth), -1) FROM " +
+		pgx.Identifier{cutoverStagingDepthRelation(spec.Name)}.Sanitize()
+}
+
+// cutoverStagingDepthInsertSQL moves one depth level. Siblings at the same
+// depth can never reference each other, so a per-level INSERT in depth order
+// satisfies the non-deferrable self FK regardless of the CSV row order.
+func cutoverStagingDepthInsertSQL(spec CutoverTableSpec) string {
+	columns := strings.Join(cutoverQuotedColumns(spec), ", ")
+	staged := make([]string, len(spec.Columns))
+	for i, column := range spec.Columns {
+		staged[i] = "staged." + pgx.Identifier{column}.Sanitize()
+	}
+	return "INSERT INTO " + pgx.Identifier{spec.Name}.Sanitize() + " (" + columns +
+		") OVERRIDING SYSTEM VALUE SELECT " + strings.Join(staged, ", ") +
+		" FROM " + pgx.Identifier{cutoverCopyStagingRelation(spec.Name)}.Sanitize() + " AS staged JOIN " +
+		pgx.Identifier{cutoverStagingDepthRelation(spec.Name)}.Sanitize() +
+		" AS walk ON staged.id = walk.id WHERE walk.depth = $1 ORDER BY staged.id"
+}
+
+// insertCutoverStagingSelfReferenced moves a self-referencing table in
+// topological order. Depth-level batches keep each INSERT bounded like the
+// flat batch loop, and a leftover staged row means a source self-reference
+// cycle that preflight should have caught — reject before any row is written.
+func insertCutoverStagingSelfReferenced(
+	ctx context.Context,
+	tx cutoverTransaction,
+	spec CutoverTableSpec,
+	selfColumn string,
+	expected int64,
+) (int64, error) {
+	if _, err := tx.Exec(ctx, cutoverStagingDepthCreateSQL(spec, selfColumn)); err != nil {
+		return 0, fmt.Errorf("table %s: build self-reference depth map failed", spec.Name)
+	}
+	defer func() {
+		_, _ = tx.Exec(ctx, "DROP TABLE "+pgx.Identifier{cutoverStagingDepthRelation(spec.Name)}.Sanitize())
+	}()
+	var cyclic int64
+	if err := tx.QueryRow(ctx, cutoverStagingDepthLeftoverSQL(spec)).Scan(&cyclic); err != nil {
+		return 0, fmt.Errorf("table %s: inspect self-reference depth map: %w", spec.Name, err)
+	}
+	if cyclic != 0 {
+		return 0, fmt.Errorf("table %s: source self-reference cycle blocks topological insert", spec.Name)
+	}
+	var maxDepth int64
+	if err := tx.QueryRow(ctx, cutoverStagingMaxDepthSQL(spec)).Scan(&maxDepth); err != nil {
+		return 0, fmt.Errorf("table %s: inspect self-reference depth map: %w", spec.Name, err)
+	}
+	insertSQL := cutoverStagingDepthInsertSQL(spec)
+	var total int64
+	for depth := int64(0); depth <= maxDepth; depth++ {
+		if err := ctx.Err(); err != nil {
+			return 0, err
+		}
+		tag, err := tx.Exec(ctx, insertSQL, depth)
+		if insertErr := cutoverStagingInsertError(spec.Name, err); insertErr != nil {
+			return 0, insertErr
+		}
+		n := tag.RowsAffected()
+		if n < 0 || (n > 0 && total > math.MaxInt64-n) {
+			return 0, fmt.Errorf("table %s: imported row count does not match manifest", spec.Name)
+		}
+		total += n
+	}
+	if total != expected {
+		return 0, fmt.Errorf("table %s: imported row count does not match manifest", spec.Name)
+	}
+	return total, nil
+}
+
+func copyCutoverTable(ctx context.Context, tx cutoverTransaction, path string, spec CutoverTableSpec, table CutoverManifestTable, seeds CutoverSeedIDs, allowPermutation bool) (int64, error) {
 	blocked, err := copyFromBlockedByRLS(ctx, tx, spec.Name)
 	if err != nil {
 		return 0, err
 	}
+	selfColumn, selfRef := cutoverSelfReferenceColumn(spec.Name)
+	// Self-referencing FKs are not deferrable: a direct COPY inserts in CSV row
+	// order, but preflight does not require parents to precede children. Stage
+	// those tables too so the INSERT can emit a topological order.
+	staged := blocked || selfRef
 	dest := pgx.Identifier{spec.Name}
-	if blocked {
+	if staged {
 		dest = pgx.Identifier{cutoverCopyStagingRelation(spec.Name)}
 		if _, err := tx.Exec(ctx, cutoverCopyStagingCreateSQL(spec.Name)); err != nil {
 			return 0, fmt.Errorf("table %s: create COPY staging table failed", spec.Name)
@@ -263,7 +377,7 @@ func copyCutoverTable(ctx context.Context, tx cutoverTransaction, path string, s
 	defer cancel()
 	reader, writer := io.Pipe()
 	result := make(chan cutoverTransformResult, 1)
-	go runCutoverCSVTransform(copyCtx, writer, result, path, seeds, table.SHA256)
+	go runCutoverCSVTransform(copyCtx, writer, result, path, spec, allowPermutation, seeds, table.SHA256)
 
 	copySQL := cutoverCopySQL(spec, dest)
 	tag, copyErr := tx.CopyFrom(copyCtx, reader, copySQL)
@@ -281,9 +395,15 @@ func copyCutoverTable(ctx context.Context, tx cutoverTransaction, path string, s
 	if tag.RowsAffected() != table.RowCount || transformed.count != table.RowCount {
 		return 0, fmt.Errorf("table %s: imported row count does not match manifest", spec.Name)
 	}
-	if blocked {
-		if _, err := insertCutoverStaging(ctx, tx, spec, table.RowCount); err != nil {
-			return 0, err
+	if staged {
+		var insertErr error
+		if selfRef {
+			_, insertErr = insertCutoverStagingSelfReferenced(ctx, tx, spec, selfColumn, table.RowCount)
+		} else {
+			_, insertErr = insertCutoverStaging(ctx, tx, spec, table.RowCount)
+		}
+		if insertErr != nil {
+			return 0, insertErr
 		}
 		if _, err := tx.Exec(ctx, cutoverCopyStagingDropSQL(spec.Name)); err != nil {
 			return 0, fmt.Errorf("table %s: drop COPY staging table failed", spec.Name)
@@ -347,7 +467,13 @@ func cutoverConnectionClosed(err error) bool {
 	return false
 }
 
-func transformCutoverCSV(ctx context.Context, path string, output io.Writer, seeds CutoverSeedIDs, expectedSHA256 string) (int64, error) {
+// transformCutoverCSV streams a source CSV into the contract column order that
+// the COPY statement lists. Rehearsal-grade bundles may carry permuted
+// headers: cutoverColumnIndexes re-maps every field by name and rows are
+// re-emitted in spec.Columns order. The strict path streams records verbatim
+// — preflight already proved exact order, and the digest re-check below is the
+// authoritative backstop.
+func transformCutoverCSV(ctx context.Context, path string, spec CutoverTableSpec, allowPermutation bool, output io.Writer, seeds CutoverSeedIDs, expectedSHA256 string) (int64, error) {
 	file, err := openStableOwnerOnlyFile(path)
 	if err != nil {
 		return 0, err
@@ -368,6 +494,9 @@ func transformCutoverCSV(ctx context.Context, path string, output io.Writer, see
 		"{{PAYMENT_METHOD_CASH_ID}}":        strconv.FormatInt(seeds.CashPaymentMethodID, 10),
 		"{{PAYMENT_METHOD_CREDIT_CARD_ID}}": strconv.FormatInt(seeds.CreditCardPaymentMethodID, 10),
 	}
+	// order[i] is the source field index for spec.Columns[i]; nil keeps the
+	// input order untouched on the strict path.
+	var order []int
 	var records int64
 	firstRecord := true
 	for {
@@ -382,6 +511,25 @@ func transformCutoverCSV(ctx context.Context, path string, output io.Writer, see
 			return 0, fmt.Errorf("read CSV record %d", records+1)
 		}
 		mapped := append([]string(nil), record...)
+		if firstRecord && allowPermutation {
+			indexes, _, err := cutoverColumnIndexes(spec, record, true)
+			if err != nil {
+				return 0, err
+			}
+			order = make([]int, len(spec.Columns))
+			for i, column := range spec.Columns {
+				order[i] = indexes[column]
+			}
+			mapped = append([]string(nil), spec.Columns...)
+		} else if order != nil {
+			// The CSV reader pins row arity to the header length, so every
+			// order[i] index is in range.
+			reordered := make([]string, len(order))
+			for i, source := range order {
+				reordered[i] = record[source]
+			}
+			mapped = reordered
+		}
 		for i, value := range mapped {
 			if replacement, ok := replacements[value]; ok {
 				mapped[i] = replacement
@@ -453,8 +601,12 @@ func openStableOwnerOnlyFile(path string) (*os.File, error) {
 }
 
 func verifyCutoverRows(ctx context.Context, q cutoverQuerier, manifest CutoverManifest, seeds CutoverSeedIDs, provenance CutoverProvenanceContract) error {
-	for i, spec := range CutoverTableSpecs() {
-		if err := verifyCutoverTable(ctx, q, spec, manifest.Tables[i], manifest.IDBand, seeds); err != nil {
+	for _, spec := range CutoverTableSpecs() {
+		table, err := cutoverManifestTableByName(manifest, spec.Name)
+		if err != nil {
+			return err
+		}
+		if err := verifyCutoverTable(ctx, q, spec, table, manifest.IDBand, seeds); err != nil {
 			return err
 		}
 	}
@@ -492,63 +644,84 @@ func hasColumn(columns []string, target string) bool {
 	return false
 }
 
-func advanceCutoverSequences(ctx context.Context, tx cutoverTransaction) error {
+func advanceCutoverSequences(ctx context.Context, tx cutoverTransaction, tolerant bool) ([]string, error) {
 	// PostgreSQL sequence changes are non-transactional. This function only
 	// advances values and runs after all row/count checks, so the only possible
 	// rollback residue is a harmless jump to the reserved application range.
+	var notes []string
 	for _, spec := range CutoverTableSpecs() {
 		var sequence *string
-		if err := tx.QueryRow(ctx, `SELECT pg_get_serial_sequence($1, 'id')`, "public."+spec.Name).Scan(&sequence); err != nil || sequence == nil {
-			return fmt.Errorf("resolve sequence for table %s", spec.Name)
+		if err := tx.QueryRow(ctx, `SELECT pg_get_serial_sequence($1, 'id')`, "public."+spec.Name).Scan(&sequence); err != nil {
+			return nil, fmt.Errorf("resolve sequence for table %s", spec.Name)
+		}
+		if sequence == nil || *sequence == "" {
+			// Rehearsal-grade targets may ship without a serial sequence; COPY
+			// supplied explicit ids so there is nothing to advance. Formal
+			// artifacts keep the strict requirement.
+			if !tolerant {
+				return nil, fmt.Errorf("resolve sequence for table %s", spec.Name)
+			}
+			notes = append(notes, "target id sequence missing: "+spec.Name)
+			continue
 		}
 		var current int64
 		sequenceSQL := pgx.Identifier(strings.Split(*sequence, ".")).Sanitize()
 		if err := tx.QueryRow(ctx, "SELECT last_value FROM "+sequenceSQL).Scan(&current); err != nil {
-			return fmt.Errorf("read sequence for table %s: %w", spec.Name, err)
+			return nil, fmt.Errorf("read sequence for table %s: %w", spec.Name, err)
 		}
 		var maxID int64
 		maxQuery := fmt.Sprintf(`SELECT COALESCE(max(id), 0) FROM %s`, pgx.Identifier{spec.Name}.Sanitize())
 		if err := tx.QueryRow(ctx, maxQuery).Scan(&maxID); err != nil {
-			return fmt.Errorf("read max id for table %s: %w", spec.Name, err)
+			return nil, fmt.Errorf("read max id for table %s: %w", spec.Name, err)
 		}
 		lastValue := max(current, max(maxID, applicationIDFloor-1))
 		if _, err := tx.Exec(ctx, `SELECT setval($1::regclass, $2, true)`, *sequence, lastValue); err != nil {
-			return fmt.Errorf("advance sequence for table %s: %w", spec.Name, err)
+			return nil, fmt.Errorf("advance sequence for table %s: %w", spec.Name, err)
 		}
 	}
-	return nil
+	return notes, nil
 }
 
-func verifyCutoverSequences(ctx context.Context, q cutoverQuerier) error {
+func verifyCutoverSequences(ctx context.Context, q cutoverQuerier, tolerant bool) ([]string, error) {
+	var notes []string
 	for _, spec := range CutoverTableSpecs() {
 		var sequence *string
-		if err := q.QueryRow(ctx, `SELECT pg_get_serial_sequence($1, 'id')`, "public."+spec.Name).Scan(&sequence); err != nil || sequence == nil {
-			return fmt.Errorf("resolve sequence for table %s", spec.Name)
+		if err := q.QueryRow(ctx, `SELECT pg_get_serial_sequence($1, 'id')`, "public."+spec.Name).Scan(&sequence); err != nil {
+			return nil, fmt.Errorf("resolve sequence for table %s", spec.Name)
+		}
+		if sequence == nil || *sequence == "" {
+			// Same rehearsal-only skip as advanceCutoverSequences: nothing to
+			// verify when the target table has no serial sequence to drift.
+			if !tolerant {
+				return nil, fmt.Errorf("resolve sequence for table %s", spec.Name)
+			}
+			notes = append(notes, "target id sequence missing: "+spec.Name)
+			continue
 		}
 		sequenceSQL := pgx.Identifier(strings.Split(*sequence, ".")).Sanitize()
 		var lastValue int64
 		var isCalled bool
 		if err := q.QueryRow(ctx, "SELECT last_value, is_called FROM "+sequenceSQL).Scan(&lastValue, &isCalled); err != nil {
-			return fmt.Errorf("verify sequence for table %s: %w", spec.Name, err)
+			return nil, fmt.Errorf("verify sequence for table %s: %w", spec.Name, err)
 		}
 		nextValue := lastValue
 		if isCalled {
 			if lastValue == math.MaxInt64 {
-				return fmt.Errorf("table %s sequence exhausted", spec.Name)
+				return nil, fmt.Errorf("table %s sequence exhausted", spec.Name)
 			}
 			nextValue++
 		}
 		if nextValue < applicationIDFloor {
-			return fmt.Errorf("table %s sequence next value is below application floor", spec.Name)
+			return nil, fmt.Errorf("table %s sequence next value is below application floor", spec.Name)
 		}
 		var maxID int64
 		maxQuery := fmt.Sprintf(`SELECT COALESCE(max(id), 0) FROM %s`, pgx.Identifier{spec.Name}.Sanitize())
 		if err := q.QueryRow(ctx, maxQuery).Scan(&maxID); err != nil {
-			return fmt.Errorf("read max id for table %s during sequence verification: %w", spec.Name, err)
+			return nil, fmt.Errorf("read max id for table %s during sequence verification: %w", spec.Name, err)
 		}
 		if nextValue <= maxID {
-			return fmt.Errorf("table %s sequence next value does not exceed the current max id", spec.Name)
+			return nil, fmt.Errorf("table %s sequence next value does not exceed the current max id", spec.Name)
 		}
 	}
-	return nil
+	return notes, nil
 }

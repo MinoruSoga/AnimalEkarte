@@ -1,6 +1,7 @@
 package csvimport
 
 import (
+	"fmt"
 	"regexp"
 )
 
@@ -43,6 +44,39 @@ func relaxesCutoverPaymentSnapshot(manifest CutoverManifest, mode CutoverProvena
 		return true
 	}
 	return mode == CutoverProvenanceStagingRehearsal && isRehearsalOnlyProducer(manifest)
+}
+
+// rehearsalContractDrift reports whether a bundle may carry the bounded
+// rehearsal-grade contract drift from MIG-19: a csvContractSha256 mismatch, a
+// drifted importablePredicate/placeholderColumns inventory, a permuted
+// manifest tables[] order, or permuted CSV headers. Tolerance requires both a
+// rehearsal provenance mode and a REHEARSAL_ONLY artifact; a
+// TRUSTED_CANDIDATE/PASS artifact always stays strict, and the formal mode
+// rejects rehearsal-only artifacts before this is consulted.
+func rehearsalContractDrift(manifest CutoverManifest, mode CutoverProvenanceMode) bool {
+	return acceptsRehearsalManifest(mode) && isRehearsalOnlyProducer(manifest)
+}
+
+// cutoverManifestTableByName resolves the manifest entry bound to a spec
+// table by name so every consumer is safe even when a manifest skipped
+// preflight normalization. Missing or duplicate names fail closed.
+func cutoverManifestTableByName(manifest CutoverManifest, name string) (CutoverManifestTable, error) {
+	found := false
+	var entry CutoverManifestTable
+	for _, table := range manifest.Tables {
+		if table.Table != name {
+			continue
+		}
+		if found {
+			return CutoverManifestTable{}, fmt.Errorf("manifest lists table %s more than once", name)
+		}
+		found = true
+		entry = table
+	}
+	if !found {
+		return CutoverManifestTable{}, fmt.Errorf("manifest is missing table %s", name)
+	}
+	return entry, nil
 }
 
 type CutoverTargetBinding struct {
@@ -165,6 +199,12 @@ type CutoverBundle struct {
 	SourceDir  string
 	Manifest   CutoverManifest
 	Provenance CutoverProvenanceContract
+	// ToleratedDrift lists the rehearsal-grade contract differences that
+	// preflight accepted (e.g. "manifest.csvContractSha256", "manifest.tables
+	// order", "csv header order: pets"), expressed in stable non-PHI terms.
+	// It is empty for formal bundles: trusted artifacts fail closed on any
+	// drift. See rehearsalContractDrift for the artifact+mode keying.
+	ToleratedDrift []string
 }
 
 // CutoverPlaceholderColumns is a copy of the exact producer-side placeholder

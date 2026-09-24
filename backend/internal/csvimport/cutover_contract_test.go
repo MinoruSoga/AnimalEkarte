@@ -139,7 +139,7 @@ func TestStagingRehearsalProvenanceRequiresTargetBinding(t *testing.T) {
 		{Mode: CutoverProvenanceStagingRehearsal},
 		{Mode: CutoverProvenanceStagingRehearsal, Target: CutoverTargetBinding{Environment: "local", Host: "db", Database: "ekarte", ClinicID: 1}},
 	} {
-		if err := validateCutoverProducerProvenance(manifest, contract); err == nil || !strings.Contains(err.Error(), "target binding") {
+		if _, err := validateCutoverProducerProvenance(manifest, contract); err == nil || !strings.Contains(err.Error(), "target binding") {
 			t.Fatalf("contract %+v error = %v, want target binding rejection", contract, err)
 		}
 	}
@@ -1039,6 +1039,7 @@ func TestPreflightCutoverBundleRejectsSymlinkedCSV(t *testing.T) {
 type fixtureBundle struct {
 	manifest      CutoverManifest
 	rows          map[string][][]string
+	headerOrder   map[string][]string
 	afterManifest func(string)
 }
 
@@ -1155,6 +1156,11 @@ func writeCutoverFixture(t *testing.T, mutate func(*fixtureBundle)) (string, str
 			if spec.Name == "estimate_items" && (column == "consultation_id" || column == "medicine_id") {
 				continue
 			}
+			// A self-reference filled with the row's own id is a self-loop cycle
+			// that no insert order can satisfy; producer leaves it empty.
+			if selfColumn, ok := cutoverSelfReferenceColumn(spec.Name); ok && column == selfColumn {
+				continue
+			}
 			if column == "owner_id" {
 				row[idx] = "300001"
 			} else {
@@ -1170,19 +1176,38 @@ func writeCutoverFixture(t *testing.T, mutate func(*fixtureBundle)) (string, str
 		mutate(&f)
 	}
 
-	for i, spec := range CutoverTableSpecs() {
+	for _, spec := range CutoverTableSpecs() {
 		fileName := spec.Name + ".csv"
 		file := filepath.Join(dir, fileName)
 		out, err := os.OpenFile(file, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
 		if err != nil {
 			t.Fatal(err)
 		}
+		header := spec.Columns
+		order := f.headerOrder[spec.Name]
+		if order != nil {
+			header = order
+		}
 		w := csv.NewWriter(out)
-		if err := w.Write(spec.Columns); err != nil {
+		if err := w.Write(header); err != nil {
 			t.Fatal(err)
 		}
 		for _, row := range f.rows[spec.Name] {
-			if err := w.Write(row); err != nil {
+			if order == nil {
+				if err := w.Write(row); err != nil {
+					t.Fatal(err)
+				}
+				continue
+			}
+			permuted := make([]string, len(order))
+			for i, name := range order {
+				idx := columnIndex(spec.Columns, name)
+				if idx < 0 {
+					t.Fatalf("headerOrder[%s] names non-contract column %q", spec.Name, name)
+				}
+				permuted[i] = row[idx]
+			}
+			if err := w.Write(permuted); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -1198,7 +1223,16 @@ func writeCutoverFixture(t *testing.T, mutate func(*fixtureBundle)) (string, str
 			t.Fatal(err)
 		}
 		sum := sha256.Sum256(contents)
-		f.manifest.Tables[i].SHA256 = hex.EncodeToString(sum[:])
+		// Bind the digest to the table name, not the manifest position: a
+		// rehearsal producer may emit tables[] in any order, so the fixture
+		// must not assume spec ordering either. An intentionally incomplete
+		// manifest (missing table entry) simply leaves the digest unset.
+		for j := range f.manifest.Tables {
+			if f.manifest.Tables[j].Table == spec.Name {
+				f.manifest.Tables[j].SHA256 = hex.EncodeToString(sum[:])
+				break
+			}
+		}
 	}
 
 	manifestBytes, err := json.MarshalIndent(f.manifest, "", "  ")

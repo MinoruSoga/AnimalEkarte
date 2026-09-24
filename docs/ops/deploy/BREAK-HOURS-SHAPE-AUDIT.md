@@ -17,6 +17,21 @@ R1-3 で `parseBusinessHoursForDate` の `break_hours` JSON unmarshal 失敗を 
 （例: `{}`、`[{"start":"900"}]`、`[{"start":"25:00"}]`）が残っている場合、その clinic の LINE 予約作成が
 **deploy 直後から警告なく全件拒否**され続ける可用性障害になり得る。本監査でそれを**事前検出**する。
 
+**可用性障害のしくみと監査判定**:
+
+```mermaid
+flowchart TB
+  subgraph RISK[監査が必要な理由]
+    direction LR
+    A[ガード導入前に保存された不正形状の行] -->|deploy 後| B[unmarshal 失敗で fail-closed]
+    B --> C[対象 clinic の LINE 予約を警告なく全件拒否]
+  end
+  D[監査 SQL を STG / prod で read-only 実行] --> E{不正形状の行}
+  E -->|なし| F[形状監査 PASS。他の release / approval gate を継続]
+  E -->|あり| G[明示承認のうえ通常管理フローで是正]
+  G -->|再監査| D
+```
+
 ## 対象の「不正形状」の定義（`MinutesSinceMidnight` と一致）
 
 有効な `break_hours` は `[{"start":"HHMM","end":"HHMM"}, ...]`（jsonb array）で、各 start/end は:

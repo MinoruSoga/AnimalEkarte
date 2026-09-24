@@ -130,6 +130,32 @@ docker compose run --rm --no-deps --entrypoint '' -T \
 5. staff 単位 audit（`staff.provision.create`）と、影響 clinic ごとの receipt audit（`staff.provision.receipt`）を **同 tx**  
 6. commit
 
+```mermaid
+sequenceDiagram
+  participant Op as 認可済みオペレータ
+  participant Cmd as staff-provision
+  participant FS as 入力ファイル（repo 外・0600）
+  participant DB as DB
+
+  Op->>Cmd: preflight
+  Cmd->>FS: realpath / 0600 / repo 外 / strict decode
+  Cmd->>DB: 参照のみ（clinic / occupation / permission_group / email 未使用 / actor 認可）
+  Note over Cmd,DB: write 0。receipt は見ない
+
+  Op->>Cmd: apply（USER 承認後）
+  Cmd->>FS: preflight と同一の入力・認可検証
+  Cmd->>DB: tx 開始 + pg_advisory_xact_lock(batch_id)
+  Cmd->>DB: 認可済み clinic_scope に限定して receipt 照合
+  alt 全 clinic が同一 digest
+    Cmd-->>Op: noop（再実行安全）
+  else 一部欠落 / digest 不一致 / 同一 batch 異 digest
+    Cmd-->>Op: conflict
+  else receipt なし
+    Cmd->>DB: 全 staff を 1 tx で create + audit + receipt（同 tx）→ commit
+    Cmd-->>Op: PII-free JSON（batch_id / digest / staff_count / clinic_scope）
+  end
+```
+
 ## 監査・receipt
 
 | action | resource | payload（PII-free） |

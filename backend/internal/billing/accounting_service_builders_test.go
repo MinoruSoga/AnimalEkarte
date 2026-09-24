@@ -70,7 +70,7 @@ func TestBuildPaymentFromInput(t *testing.T) {
 
 	t.Run("フィールドが全てnilの場合はBillingID/PaidByのみ設定", func(t *testing.T) {
 		input := &UpdateAccountingInput{ID: billingID, StaffID: &staffID}
-		p := buildPaymentFromInput(input)
+		p := buildPaymentFromInput(input, nil)
 		assert.Equal(t, billingID, p.BillingID)
 		assert.Equal(t, &staffID, p.PaidBy)
 		assert.Equal(t, int64(0), p.Subtotal)
@@ -106,7 +106,7 @@ func TestBuildPaymentFromInput(t *testing.T) {
 			PaymentMethod:   &method,
 		}
 
-		p := buildPaymentFromInput(input)
+		p := buildPaymentFromInput(input, nil)
 
 		assert.Equal(t, subtotal, p.Subtotal)
 		assert.Equal(t, taxTotal, p.TaxTotal)
@@ -130,7 +130,7 @@ func TestBuildPaymentFromInput(t *testing.T) {
 			},
 		}
 
-		p := buildPaymentFromInput(input)
+		p := buildPaymentFromInput(input, nil)
 
 		assert.Equal(t, model.PaymentMethodCash, p.Method) // cash が代表手段
 		assert.Equal(t, int64(500), p.ReceivedAmount)
@@ -145,7 +145,7 @@ func TestBuildPaymentFromInput(t *testing.T) {
 			},
 		}
 
-		p := buildPaymentFromInput(input)
+		p := buildPaymentFromInput(input, nil)
 
 		assert.Equal(t, model.PaymentMethodCreditCard, p.Method)
 		assert.Equal(t, int64(0), p.ReceivedAmount)

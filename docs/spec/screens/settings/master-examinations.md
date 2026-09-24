@@ -23,6 +23,17 @@
   - 基準値（reference ranges: Min/Max 等）
   - 追加・更新・削除・DnD 並び替え
 
+画面構成と定義の参照先:
+
+```mermaid
+flowchart TB
+    T["診療項目画面 検査タブ<br>TreatmentPlanMaster"] --> L["検査プラン一覧"]
+    L -->|プラン選択| P["サイドパネル<br>TreatmentPlanSidePanelHost"]
+    P --> F["プラン本体フィールド"]
+    P -->|examinationType があるとき| E["ExamTypeFieldsEditor<br>測定項目・単位・基準値・並び替え"]
+    E -->|定義を参照| R["検査結果入力 /examinations<br>HIGH/LOW ハイライト"]
+```
+
 ---
 
 ## 主要な機能

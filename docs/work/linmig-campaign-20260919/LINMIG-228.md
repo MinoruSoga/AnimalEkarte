@@ -60,6 +60,14 @@ Source table: GOLIVE_RUNBOOK.md L32–L43. Column **Named owner** is **UNKNOWN**
 
 Item 1 is the only row the runbook itself marks complete. Items 2–10 are unmet in the runbook ⇒ **HOLD**. One HOLD row is enough for overall **Go 判定不可**.
 
+```mermaid
+flowchart TB
+    I["GOLIVE §1 pre-window items"] --> C{"all items green<br/>+ named owners?"}
+    C -->|"any unmet / unconfirmed"| H["Go 判定不可 — HOLD"]
+    C -->|"green + named judges / support / rollback"| W["window fill → day-of gates"]
+    H -.->|"this sheet: items unmet; owners UNKNOWN"| N["P8 stays HOLD"]
+```
+
 ## Window fields (not filled)
 
 Source: GOLIVE_RUNBOOK.md L11–L18. Copied as 確定待ち; values are **not** invented.

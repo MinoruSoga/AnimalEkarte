@@ -37,6 +37,20 @@ export SCHEDULER_OPS_SECRET="<secret-from-approved-secret-store>"
 
 CLIはHTTPS、host完全一致、redirect禁止、接続/全体timeout、4KiB以下の厳格JSON requestを強制する。`jq`が必要で、request ID省略時は`uuidgen`が必要である。
 
+実行経路と操作面の関係:
+
+```mermaid
+flowchart TB
+  Cron["Cloudflare cron（UTC）<br/>許可された式以外は fail-closed で拒否"] -->|"scheduled event"| W["Worker scheduled handler<br/>animalekarte-scheduler-v1"]
+  Ops["operator / automation CLI<br/>cf-scheduler-ops.sh"] -->|"status / pause / resume / run<br/>ops secret または Access JWT"| EP["/_internal/scheduler/*<br/>公開 API へ proxy しない"]
+  W --> Coord["coordinator（Durable Object）<br/>ledger + lease + revision CAS"]
+  EP --> Coord
+  Coord -->|"claim 受理"| Go["Go Container 内部 endpoint"]
+  Coord -.->|"拒否: slot_already_recorded / scheduler_paused / scheduler_busy"| Rej["run 不実行"]
+  Go --> UC["domain use case<br/>no_show / delivery / dormant"]
+  Note["期限は Go job → Worker fetch → coordinator lease の順に長い。<br/>lease は二重確定を防ぐが、開始済みの Go side effect は取消さない"] -.-> Coord
+```
+
 ## Read-only status
 
 変更操作の前後に必ずstatusを保存する。返却されるsecretやPIIはなく、control revision、active lease、直近run、操作履歴を確認できる。
