@@ -151,6 +151,7 @@ describe("MedicalRecords pet_id route filter", () => {
 
     expect(mockUseGetMedicalRecords).toHaveBeenLastCalledWith(
       expect.objectContaining({ petId: "22" }),
+      expect.objectContaining({ preservePreviousData: true }),
     );
   });
 
@@ -159,6 +160,7 @@ describe("MedicalRecords pet_id route filter", () => {
 
     expect(mockUseGetMedicalRecords).toHaveBeenLastCalledWith(
       expect.objectContaining({ petId: undefined }),
+      expect.objectContaining({ preservePreviousData: true }),
     );
   });
 });
@@ -169,6 +171,7 @@ describe("MedicalRecords clinic scope", () => {
 
     expect(mockUseGetMedicalRecords).toHaveBeenLastCalledWith(
       expect.objectContaining({ clinicIds: undefined }),
+      expect.objectContaining({ preservePreviousData: true }),
     );
   });
 
@@ -182,6 +185,7 @@ describe("MedicalRecords clinic scope", () => {
 
     expect(mockUseGetMedicalRecords).toHaveBeenLastCalledWith(
       expect.objectContaining({ clinicIds: ["clinic-2"] }),
+      expect.objectContaining({ preservePreviousData: true }),
     );
   });
 
@@ -196,6 +200,7 @@ describe("MedicalRecords clinic scope", () => {
 
     expect(mockUseGetMedicalRecords).toHaveBeenLastCalledWith(
       expect.objectContaining({ clinicIds: ["clinic-1", "clinic-2"] }),
+      expect.objectContaining({ preservePreviousData: true }),
     );
   });
 });
