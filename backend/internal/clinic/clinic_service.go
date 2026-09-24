@@ -107,9 +107,12 @@ func BuildClinicUpdate(input *UpdateClinicInput) (map[string]any, error) {
 // model.AllResources (36) をすべてカバーする。既存デモ seed は明示 rollout 前の
 // examination-unconfirm を含めず、同権限は新規クリニックでも default-deny とする。
 //
-// 設定系フォールバック（cash-register-close / accounting-reports /
+// 設定系フォールバック（accounting-reports /
 // master-payment-method / lstep-csv-import / lstep-analytics / manual-edit /
 // lab-import）: 執行=view+edit（create/delete 不可、hospital-settings と同型）、
+// 一般=view のみ。
+// 例外: cash-register-close は closes が append-only で POST /closes が
+// create scope を要求するため、執行=view+create（edit/delete 不付与）、
 // 一般=view のみ。
 // 例外: closing-settings は /closing-settings/holidays と special-periods が
 // create/delete を要求するため、執行は CRUD 全許可（POC-01 契約整合）。
@@ -151,8 +154,9 @@ var defaultPermissionRuleTable = []defaultPermissionRule{
 	{model.ResourceDiscount, true, true, true, true, false, false, false, false},
 	{model.ResourceAccountingCancel, true, false, true, false, true, false, false, false},
 	{model.ResourceAccountingPostCloseEdit, true, false, true, false, true, false, false, false},
+	// レジ締め: closes は append-only で POST /closes が create を要求（執行 view+create / 一般 view）
+	{model.ResourceCashRegisterClose, true, true, false, false, true, false, false, false},
 	// 設定系フォールバック（hospital-settings と同型: 執行 view+edit / 一般 view）
-	{model.ResourceCashRegisterClose, true, false, true, false, true, false, false, false},
 	{model.ResourceAccountingReports, true, false, true, false, true, false, false, false},
 	{model.ResourceClosingSettings, true, true, true, true, true, false, false, false},
 	{model.ResourcePaymentMethod, true, false, true, false, true, false, false, false},
