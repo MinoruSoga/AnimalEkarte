@@ -219,7 +219,7 @@ func TestRegisterBaseRoutes_LocalUploadsAndSchedulerAuthSurface(t *testing.T) {
 	t.Setenv("STORAGE_TYPE", "")
 	t.Setenv("SCHEDULER_INTERNAL_TOKEN", "test-scheduler-internal-token-32b!!")
 	router := gin.New()
-	require.NoError(t, registerBaseRoutes(router, nil))
+	require.NoError(t, registerBaseRoutes(router, nil, nil))
 	routes := make(map[string]struct{})
 	for _, route := range router.Routes() {
 		routes[route.Method+" "+route.Path] = struct{}{}
@@ -229,7 +229,7 @@ func TestRegisterBaseRoutes_LocalUploadsAndSchedulerAuthSurface(t *testing.T) {
 
 	t.Setenv("STORAGE_TYPE", "s3")
 	routerS3 := gin.New()
-	require.NoError(t, registerBaseRoutes(routerS3, nil))
+	require.NoError(t, registerBaseRoutes(routerS3, nil, nil))
 	routesS3 := make(map[string]struct{})
 	for _, route := range routerS3.Routes() {
 		routesS3[route.Method+" "+route.Path] = struct{}{}

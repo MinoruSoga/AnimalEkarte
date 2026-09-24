@@ -84,9 +84,13 @@ func TestRouteCompositionSmoke_TargetGraphRegistersEverySurface(t *testing.T) {
 	// Handlers 404 outside allowed local HTTP hosts; they still register:
 	//   POST   /api/v1/uat/synthetic-closings
 	//   DELETE /api/v1/uat/synthetic-closings/:clinic_id
-	require.Len(t, routes, 526)
+	// 2026-09-25: 527 — GET /health/db (EMR-213 STG keep-alive DB ping).
+	// Operational endpoint returning a detail-free status; intentionally absent
+	// from api.yaml (see openapi_route_drift_test.go knownMissingFromSpec).
+	require.Len(t, routes, 527)
 	for _, expected := range []string{
 		"GET /health",
+		"GET /health/db",
 		"GET /api/v1/health",
 		"GET /uploads/*filepath",
 		"HEAD /uploads/*filepath",

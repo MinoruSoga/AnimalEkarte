@@ -424,7 +424,7 @@ describe("worker scheduled API keep-alive", () => {
     expect(binding.idFromName).not.toHaveBeenCalledWith(SCHEDULER_NAME);
     expect(containerFetch).toHaveBeenCalledTimes(1);
     const warmRequest = containerFetch.mock.calls[0]?.[0];
-    expect(new URL(warmRequest.url).pathname).toBe("/health");
+    expect(new URL(warmRequest.url).pathname).toBe("/health/db");
     expect(infoSpy).toHaveBeenCalledWith(
       "api keepalive",
       expect.objectContaining({ event: "api_keepalive", status: 200 }),
