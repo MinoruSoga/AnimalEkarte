@@ -135,7 +135,7 @@ func (s *liffService) tryAttachReservationOwnerPet(
 		return
 	}
 
-	customer, err := s.customerRepo.FindByID(ctx, clinicID, customerID)
+	customer, err := s.findCustomerWithOwnerSync(ctx, clinicID, customerID)
 	if err != nil || customer == nil || customer.OwnerID == nil || customer.Owner == nil {
 		return
 	}
