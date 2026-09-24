@@ -19,6 +19,14 @@
 - **マルチクリニック**: 所属医院をチェックボックスで割り当て（新規作成時はスタッフ登録後に設定可能）。
 - **アカウントと医院所属の不変条件**: 同一人物のログインアカウントは 1 つ。複数医院への所属はこのチェックボックス割当（`staff_clinic_assignments`）で表現し、医院ごとに別アカウントは作成しない。この画面での新規作成は 1 スタッフレコードに複数医院を割り当てる形を取る。`staffs.clinic_id` は主所属（ホーム医院）を表す。複数医院に所属するスタッフは、ログイン後にサイドバー上部で操作医院を切り替える（医院ごとの再ログインは不要）。医院をまたぐ同一人物の追加登録は、新規アカウント作成ではなく既存スタッフへの所属追加で行う。なお旧DB移行データでは `(doctor_id, clinic_id)` 複合FK の都合で同一人物が医院別に複数の staffs 行を持つ場合があり、その場合も共有するアカウントは 1 つである（`docs/architecture/auth.md` §1.3）。
 
+```mermaid
+erDiagram
+    accounts ||--o{ staffs : "account_id（同一人物のアカウントは1つ）"
+    clinics ||--o{ staffs : "clinic_id（主所属）"
+    staffs ||--o{ staff_clinic_assignments : "staff_id"
+    clinics ||--o{ staff_clinic_assignments : "clinic_id"
+```
+
 ---
 
 ## 2. LINE 予約公開設定

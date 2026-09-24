@@ -48,6 +48,19 @@
 
 **一意制約の共通形**: ほぼ全マスタが `(clinic_id, name)` UNIQUE（削除済み行を除く部分 Index）。重複時は FE 事前チェックなしで BE が UNIQUE 違反を返すため、C3-2 では「エラーが表示され保存されない（無音失敗・白画面にならない）」ことを確認する。
 
+**共通の保存・一意制約フロー:**
+
+```mermaid
+flowchart TB
+  F["マスタ SidePanel 入力"] --> V{"FE 必須チェック（名称のみ）"}
+  V -->|"空欄"| E1["エラー表示・保存されない"]
+  V -->|"入力あり"| API["POST / PATCH"]
+  API --> BE{"BE 検証 — 形式/境界 + (clinic_id,name) UNIQUE<br/>削除済み行を除く部分 Index"}
+  BE -->|"重複"| E2["409 → トーストでエラー表示"]
+  BE -->|"形式/境界違反"| E3["400 → トーストでエラー表示"]
+  BE -->|"OK"| OK["一覧反映 → 再読込 → 再オープンで永続"]
+```
+
 ## 1. 標準マスタ SidePanel 群（フォーム別差分表）
 
 実行方法: 各行で **C1-1（必須欄空→エラー）→ 新規「V04〇〇」作成 → C2-1〜C2-3 → 一意制約列が「—」以外なら C3-2** を実施し、特記チェック列の指示を追加実行する。画面正本は [screens/settings/](../../../spec/screens/settings/README.md) 配下の各文書 — 同名文書がある形（例: `master-cage.md`）のほか、診断カテゴリ/病名→`master-diagnosis.md`、問診テンプレート→`master-interview.md`、物販→`master-merchandise.md`、キャンペーン→`master-campaigns.md`、支払方法→`payment-methods.md`、トリミングコース/オプション→`master-trimming.md`、予約区分グループ→`master-reservation-type.md`。

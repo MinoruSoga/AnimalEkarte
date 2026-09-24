@@ -13,6 +13,17 @@
 
 Local mock PASS を real LINE PASS とみなさない。STG prerequisite が欠けた場合は BLOCKED/Needs Human とする。
 
+```mermaid
+flowchart LR
+    subgraph LO[local mock]
+      LM[LIFF_MOCK / VITE_LIFF_MOCK] --> LG[shared LIFF hooks<br>mock token API / UI path]
+    end
+    subgraph ST[STG real LINE — human lane]
+      SR[approved dedicated UAT clinic<br>mock disabled] --> SG[real SDK / idToken<br>in-client behavior]
+    end
+    LG -. 代替にならない .-> SG
+```
+
 ## 2. local mock
 
 - Backend `LIFF_MOCK=true`: `backend/internal/middleware/liff_auth.go` の mock path。

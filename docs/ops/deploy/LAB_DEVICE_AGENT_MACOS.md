@@ -6,6 +6,15 @@
 
 ## インストール
 
+```mermaid
+flowchart TB
+    dev["開発・サポート側<br/>医院設定済み bundle を作成<br/>（LAB_DEVICE_AGENT_CONSUMER_TOKEN 必須）"]
+    dev -->|"信頼済み共有経路で受け渡し<br/>（manifest SHA-256 は別経路で照合）"| cli["クライアント"]
+    cli --> ins["install.sh<br/>接続中の2本を許可リストとして固定"]
+    ins --> ag["LaunchAgent lab-device-agent<br/>NX600 / AU10V 専用"]
+    ag --> ui["/lab-device の ローカル受信機 が<br/>稼働中 + 監視ポート数を表示"]
+```
+
 クライアントには医院設定済みbundleを渡す。クライアント側にDocker、Go、リポジトリは不要。
 
 現在のbundleはクライアントUAT用で、Developer ID署名・notarizationは未実施。本番配布前に署名済み成果物を作成し、`codesign --verify --deep --strict`と`spctl --assess`をrelease gateにする。Gatekeeperを無効化する手順は案内しない。

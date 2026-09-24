@@ -22,6 +22,25 @@
 | 5 | 以前選択していた担当医が、候補データ確定後に対象外（orphan）になった状態を作る | `STAFF_ORPHAN_REASON_MESSAGE` で理由が示され、orphan を解消しないと送信できない（`resolveStaffSelectionEligibility`） |
 | 6 | API が 409（例: 出勤医師ゼロ・時間重複）を返すケースを直接発生させる | `extractApiErrorMessage` で API の理由メッセージがモーダル内に表示され、無言の失敗や汎用エラーだけにならない |
 
+担当者候補の状態遷移（fail-closed と orphan 判定タイミング）:
+
+```mermaid
+stateDiagram-v2
+    state "capability 取得中" as Loading
+    state "候補データ確定" as Resolved
+    state "状態別の empty message" as Empty
+    state "候補リスト提示" as Listed
+    state "orphan 検出" as Orphaned
+    [*] --> Loading
+    Loading --> Empty: 取得失敗・未確定でも全員は出さない（fail-closed）
+    Loading --> Resolved: capability 確定
+    Resolved --> Empty: 対応可能な担当者・出勤・登録がない場合
+    Resolved --> Listed: 対応可能な担当者あり
+    Listed --> Orphaned: 確定後に選択済み担当医が対象外
+    Orphaned --> [*]: 理由を表示・orphan 解消まで送信不可
+    Empty --> [*]
+```
+
 ## 確認観点
 
 - 409 の表示面は「FE 事前チェック」と「API 409」が**同じモーダル内の inline メッセージ面**に出る設計（`use-reservation-save-actions.ts`）。モーダルが閉じて入力が消えるのは BRT-102 の症状であり FAIL。

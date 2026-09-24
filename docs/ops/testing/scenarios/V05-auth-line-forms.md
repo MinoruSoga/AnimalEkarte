@@ -77,6 +77,19 @@
 
 入力欄なしの自動実行フォーム（token 付きページ表示＝連携実行）。エラー分岐の網羅が本体。FE `VITE_LIFF_MOCK` の成功表示は backend の連携を行わないため、手順 2〜4 の実 API 結果は [S12](S12-liff-pet-health.md) と同じ実 LINE/承認済み API lane で確認し、mock 表示だけで PASS にしない。
 
+**起動 URL と連携結果の分岐:**
+
+```mermaid
+flowchart TB
+  A["LIFF アプリ起動"] --> Q{"URL の token / clinic_id"}
+  Q -->|"token + clinic_id あり"| RUN["アカウント連携を実行"]
+  Q -->|"token なし"| HC["health-card 分岐（連携を実行しない）"]
+  Q -->|"clinic_id なし"| INV["無効 URL"]
+  RUN -->|"有効な linkToken"| OK["連携成功 → 飼い主に LINE 紐付け（院内 LINE 連携セクションにも反映）"]
+  RUN -->|"連携済み"| DUP["409 すでに連携済み — 二重紐付けなし"]
+  RUN -->|"無効・期限切れ"| NG["トークン無効 / 期限切れ表示 — 連携されない"]
+```
+
 | # | 操作 | 期待結果 |
 |:--|:--|:--|
 | 1 | token 付き URL から `clinic_id` を外して起動。別に token なしで起動 | token あり・clinic_id なしは無効 URL。token なしは health-card 分岐となり連携を実行しない（`frontend/liff/src/App.tsx`）。`/liff/{clinicId}/` は Vite rewrite 必須。無いと `/liff/{clinicId}/src/main.tsx` が 503 で白紙（BUG-017） |

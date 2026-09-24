@@ -19,6 +19,13 @@
 > - **ink ランプ（`#000000` / `#31302E` / `#615D59` / `#A39E98`）は DESIGN.md と同値を採用**する（§2.3）。装飾ではなく可読性の階層であり、DESIGN.md の4段が製品要件を満たすため一致させた（FE11-F2 実装済み）。
 > - **nav-bar（サイドバー）は canvas-soft を維持**する。DESIGN.md は白 canvas を規定するが、白にすると本文カードとの図地関係（§1 核心原則）が消えるため、色軸の正本である本書の判断を優先する。
 
+```mermaid
+flowchart TB
+    DS["本書 design-system.md"] -->|"色の正本"| TOK
+    DM["DESIGN.md"] -->|"タイポ・形状・余白・エレベーション・寸法の正本"| TOK
+    TOK["design-tokens.ts<br/>C / STYLE / PALETTE / LAYOUT / BADGE / ICON"] --> UI["画面 UI 実装<br/>（hex 直書き・実行時クラス合成は禁止）"]
+```
+
 ---
 
 ## 1. Overview / デザイン思想

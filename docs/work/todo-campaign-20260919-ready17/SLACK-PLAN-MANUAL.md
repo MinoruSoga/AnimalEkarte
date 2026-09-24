@@ -46,6 +46,17 @@
 | カルテタブ **会計(医師確認)** | [MedicalRecordBillCheck](../../../frontend/src/features/medical-records/components/MedicalRecordBillCheck.tsx) L84–94 | 同じ `treatments` を再取得し、確認 API を別途呼ぶ | 確認ボタンは confirmation write。治療行の create を呼ばない経路と、マスタから治療を足す経路が共存 | 確認後に会計側が未請求候補を読む。complete は別会計フロー。プラン保存の副作用ではない |
 | 入院フォームの治療プラン | hospitalization `treatment-plans` API | `treatment_plans` | 入院 create 同梱または nested POST | 退院会計は `care_plan_items` 側（MASTER-PATH 票）。本カルテ UI の未請求 SQL は `treatments.id` を見る |
 
+```mermaid
+flowchart TB
+    A["診察/治療プランタブの所見欄"] --> C[("clinical_plans")]
+    B["同タブの治療プラン表"] --> T[("treatments")]
+    D["治療タブ"] --> T
+    E["入院フォームの治療プラン"] --> P[("treatment_plans")]
+    F["会計（医師確認）タブ"] --> G[("billing_confirmations")]
+    T --> U["未請求候補（treatment_id 付き）"]
+    G -->|"confirmed が条件"| U
+```
+
 未請求 SQL は `is_selected` も `treatments.status` も見ない（[treatment_repository.go](../../../backend/internal/medicalrecord/treatment_repository.go) L109–116）。billing パッケージに `IsSelected` 参照は無い。選択解除や `pending` 表示を「非請求」と案内しない。除外条件は削除済み、確認未了、既に非キャンセル billing に `treatment_id` がある、または親カルテに非キャンセル billing があること。
 
 ## 既存手入力（新規行を足す場所）

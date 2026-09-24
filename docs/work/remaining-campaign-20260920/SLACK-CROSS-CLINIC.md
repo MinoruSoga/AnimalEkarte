@@ -61,6 +61,22 @@
 
 職員が所属する医院の **部分集合**だけを検索できる。画面の操作（受付・カルテ作成・会計 write）は **今選択している 1 医院**に固定される。検索で見えた他院レコードの `clinic_id` は、選択医院と一致しない限り操作医院にならない。
 
+5 層の関係の概形:
+
+```mermaid
+flowchart TB
+    A["account 所属集合<br/>StaffClinicAssignment<br/>system_admin は全 active clinic"]
+    S["selected 操作医院<br/>X-Clinic-ID → gin clinic_id<br/>非所属は 403"]
+    Q["search 検索範囲<br/>クエリ clinic_ids<br/>所属の部分集合のみ"]
+    R["record 行が持つ clinic_id"]
+    O["operation 書込医院<br/>ExtractClinicID<br/>常に selected"]
+    A --> S
+    A --> Q
+    Q --> R
+    S --> O
+    R -.->|"他院 record が見えても操作医院にはならない"| O
+```
+
 ## コード根拠（引用）
 
 ### 1. アカウント所属（account）

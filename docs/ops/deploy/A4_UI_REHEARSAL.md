@@ -4,6 +4,22 @@ This runbook creates the disposable AnimalEkarte environment used by the
 `old_db` A4 screen rehearsal. It never uses the normal `animalekarte` Compose
 project or its database.
 
+```mermaid
+flowchart TB
+  subgraph KEEP[Must stay untouched]
+    NORMAL[animalekarte Compose project and its database]
+  end
+  subgraph A4[Disposable A4 rehearsal project]
+    S0[stop conditions recorded, owner named] --> S1[env file + contract test + config check]
+    S1 --> S2[a4-rehearsal-up]
+    S2 --> S3[a4-csv-import preflight / apply / verify]
+    S3 --> S4[runtime report under sensitive-local]
+    S4 --> S5[UI journeys]
+    S5 --> S6[a4-rehearsal-down]
+  end
+  S4 -.->|copy as regular file, then compare SHA-256| OLD[old_db sensitive-local]
+```
+
 ## Stop conditions
 
 Before starting, record the named execution owner in the private work log.

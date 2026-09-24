@@ -32,6 +32,19 @@ DDL と model が正本である。`ON DELETE CASCADE` を追加して一括削�
 5. clinic を hard delete する。
 6. 途中の失敗は cleanup と clinic delete をまとめて rollback する。
 
+```mermaid
+flowchart TD
+    subgraph TX["1つの transaction（clinicService.DeleteClinic）"]
+        Lock["1. clinic を LockByIDForUpdate で lock"] --> Recheck["2. owner・staff 等の active blocking reference を再確認"]
+        Recheck --> Decision{"active blocker あり?"}
+        Decision -->|"あり"| Conflict["3. conflict として削除しない"]
+        Decision -->|"なし"| Cleanup["4. eligible な soft-deleted permission groups を hard delete"]
+        Cleanup --> Delete["5. clinic を hard delete"]
+        Cleanup -.->|"失敗"| Rollback["6. cleanup と clinic delete をまとめて rollback"]
+        Delete -.->|"失敗"| Rollback
+    end
+```
+
 この経路の API semantics:
 
 | 条件 | 結果 |

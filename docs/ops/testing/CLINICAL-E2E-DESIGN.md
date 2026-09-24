@@ -73,6 +73,19 @@ runner 先頭で fail-closed:
 
 1 つでも欠けたら suite を開始しない。
 
+```mermaid
+flowchart LR
+    R["run-e2e.sh --clinical"] --> G{fail-closed 環境ゲート}
+    G -->|APP_ENV が test 以外| X[suite を開始しない]
+    G -->|base URL が local 以外| X
+    G -->|除外 clinic / fixture owner 未作成| X
+    G -->|teardown 未登録| X
+    G -->|全条件 OK| S[disposable clinic setup]
+    S --> P[allowlist spec]
+    P --> T[runner による fixture teardown]
+    T -->|teardown 失敗| U[非ゼロ exit / BLOCKED]
+```
+
 ## cleanup / 失敗時回収
 
 - 通常の Playwright 終了時（spec 失敗を含む）は `run-e2e.sh` が fixture CLI の teardown を呼び、teardown 失敗ならその非ゼロ exit を返す。spec の `afterAll` は browser context を閉じる。clinic 削除は runner の責任。

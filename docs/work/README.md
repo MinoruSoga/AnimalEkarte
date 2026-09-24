@@ -12,6 +12,21 @@
 
 **競合・終了ルール:** 状態・担当・Done は Linear を正とする。`todo.md` の実行キューには未完了作業だけを保持し、完了行を除く。統合元の完了履歴・維持制約は別節に分離し、現在の受入や release 判定には使わない。STG Lane 4 の終了条件・記録方法は [運用計画](../../todo-operations.md#lane-4) と [受入計画](../../todo-verification.md#todo-v-stg-data) を参照する。[製品 FAIL 節](../../todo.md#product-bugs) は Linear と対応付け、受入未実施や環境 BLOCKED を製品 FAIL に混ぜない。
 
+```mermaid
+flowchart TB
+    L["Linear hub（実行 SoT）<br>状態・担当・Done は Linear を正とする"]
+    subgraph Repo["repo 側の入口"]
+        T["todo.md<br>未完了作業キュー"]
+        TV["todo-verification.md<br>検証・受入・外部照合"]
+        TO["todo-operations.md<br>STG・本番・納品の運用"]
+    end
+    W["docs/work 補助票<br>decisions/・phase2-deferred・各 campaign 票ほか<br>判断根拠の保存（実行 SoT ではない）"]
+    CV["CorpVault<br>会社側索引・時点ログ"]
+    L -->|競合時の正| Repo
+    W -.->|根拠・索引| Repo
+    CV -.->|時点ログ| L
+```
+
 | 補助 | 役割 |
 |------|------|
 | [decisions/](./decisions/README.md) | 採択済み方針の短いポインタ |

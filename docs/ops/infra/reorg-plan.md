@@ -25,3 +25,15 @@
 3. token split は外部 secret operation のため人が実施・検証し、値を記録しない。
 
 これらは proposals であり、current infrastructure contract ではない。
+
+```mermaid
+flowchart TB
+    H["reorg-plan.md<br/>HISTORICAL / DO NOT EXECUTE"]
+    H -->|"completed in repository history"| A["Phase A<br/>AWS-era code removal"]
+    H -->|"completed then archives deleted"| C["Phase C<br/>docs consolidation"]
+    H -->|"not implemented"| B["Phase B<br/>modules / envs / remote state"]
+    H -->|"not implemented or<br/>external-verification-required"| D["Phase D<br/>drift CI / token split"]
+    B --> P["Remaining proposals<br/>owner/issue と review を経て設計"]
+    D --> P
+    P -.->|"proposals であり current contract ではない"| S["現行契約<br/>README / architecture / iac-guidelines"]
+```

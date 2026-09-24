@@ -45,6 +45,15 @@
 ### 権限制御 (RBAC)
 ポータルは認証 `Layout` 内で全ユーザーが閲覧可能です。カードは `usePermission` / `hasPermission` で表示を絞り、個別フロントエンドルートは `RequirePermission` でガードします。各 API は同じ resource/action をサーバー側でも認可します。
 
+```mermaid
+flowchart LR
+    Portal["マスタ設定トップ<br>認証済みなら全員が閲覧可"]
+    Portal --> Section["セクション<br>配下に閲覧可能なマスタが無ければ非表示"]
+    Section --> Card["マスタカード<br>権限で表示フィルタ"]
+    Card --> Route["個別マスタ画面<br>ルートガード"]
+    Route --> API["API<br>サーバー側でも同じ権限を認可"]
+```
+
 ### 使用コンポーネント
 - **`MasterSettingsIndex`**: メインコンテナ。
 - **`PermissionFilteredSection`**: セクション別のグループ表示部品。セクション内の全マスタに閲覧権限がない場合はセクションごと非表示になる。

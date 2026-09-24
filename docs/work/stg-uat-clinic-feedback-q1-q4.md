@@ -124,6 +124,35 @@
 | UAT-Q4-UNPAID-TRIAGE | Q4 | P1 | 調査（集計のみ） | 未着手。STG read 承認 |
 | UAT-Q2-TREATMENTS-IMPORT | Q2 | P2 | 移行21表の外 | 今期に含む。種類・期間・責任者・受入条件待ち |
 
+```mermaid
+flowchart TB
+    subgraph R1["第1報（§1）"]
+        Q1["Q1 検索"]
+        Q2["Q2 過去カルテ"]
+        Q3["Q3 性別"]
+        Q4["Q4 会計"]
+    end
+    subgraph R2["第2報（§7）"]
+        N1["#1 マスタ金額・他PC排他"]
+        N2["#2 数量・Enter・選択肢"]
+        N3["#3 カルテ1画面"]
+        N4["#4 予約編集"]
+    end
+    Q1 --> A1["UAT-Q1-SEARCH-AND<br>STG 済み"]
+    Q4 --> A2["UAT-Q4-INSURANCE-RATES<br>STG 済み"]
+    Q2 --> A3["UAT-Q2-HISTORY-NAV<br>STG 済み"]
+    Q3 --> B1["UAT-Q3-GENDER-MAP<br>main 統合・STG 訂正待ち"]
+    Q4 --> B2["UAT-Q4-UNPAID-TRIAGE<br>STG 集計のみ"]
+    Q2 --> B3["UAT-Q2-VACCINE-SPECIES<br>件数調査が先"]
+    Q2 --> B4["UAT-Q2-TREATMENTS-IMPORT<br>詳細待ち"]
+    N1 --> C1["UAT-R2-MASTER-PATH<br>医院確認待ち"]
+    N1 --> C2["UAT-R2-EXCLUSIVE-LOCK<br>製品判断待ち"]
+    N2 --> C3["UAT-R2-TREATMENT-COMMIT<br>実機受入待ち"]
+    N2 --> C4["UAT-R2-MASTER-LIST-HEIGHT<br>実機受入待ち"]
+    N3 --> C5["UAT-R2-CHART-FIT<br>解像度待ち"]
+    N4 --> C6["UAT-R2-RESERVATION-HOWTO<br>手順回答のみ"]
+```
+
 ---
 
 ### UAT-Q1-SEARCH-AND: 空白区切りAND検索（名字＋ペット名）

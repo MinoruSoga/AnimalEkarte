@@ -2,6 +2,13 @@
 
 > この文書は HEAD の設定を説明する。Cloudflare、PlanetScale、Vercel、課金、証明書、DB 内容などの live state は証明しない。運用前に人が日付と証跡を付けて検証する。
 
+```mermaid
+flowchart LR
+    DOC["この文書<br/>HEAD checked-in config"] -->|"説明する"| CFG["topology と<br/>repository configuration state"]
+    DOC -->|"証明しない"| LIVE["live state<br/>Cloudflare / PlanetScale / Vercel<br/>課金・証明書・DB 内容"]
+    LIVE -->|"運用前に"| HUMAN["人による<br/>日付と証跡を付けた検証"]
+```
+
 ## Topology
 
 ```text

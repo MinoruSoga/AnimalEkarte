@@ -12,6 +12,14 @@ A human release owner verifies the reviewed ref, exact GitHub Environment name/p
 
 Every production invocation is a hard stop until setup acceptance criteria are present in the workflow and verified. `/health` returns process health and does not prove DB access. CRUD smoke uses a deliberately provisioned synthetic account with named owner, expiry, and cleanup; production demo seed credentials are not expected because migrate is master-only.
 
+```mermaid
+flowchart LR
+    PRE["setup.md sections 1-6<br/>implemented and verified"] --> GATE["human release owner verifies<br/>ref / Environment / secrets /<br/>backup / frontend target / rollback"]
+    PRE -.->|"not verified"| STOP["hard stop<br/>production invocation not runnable"]
+    GATE --> DEP["deploy"] --> MIG["migrate"] --> HEA["/health"] --> SMK["optional smoke"]
+    HEA -.->|"process health only"| DBV["DB access verified separately"]
+```
+
 ## 2. Incident triage
 
 1. Declare an owner and timestamp. Record no secret or PHI.

@@ -27,6 +27,21 @@
 
 **`audit_logs` は scoped delete リストに含まれていない**。これが EMR-210 の一部を構成する。
 
+```mermaid
+flowchart TB
+    G["環境ゲート・s09-clinic- 名 prefix 検証"]
+    G --> S["staffs 列挙・accountIDs 収集"]
+    S --> D["clinic スコープ物理削除<br>Payment 系 → Billing 系 → Pet → Owner → StaffClinicAssignment"]
+    D --> ST["staffs 物理削除"]
+    ST --> AC["accounts 物理削除"]
+    AC --> SP["AnimalSpecies 削除"]
+    SP --> C["clinics 物理削除"]
+    C --> CO["company 物理削除"]
+    AL["audit_logs：scoped delete に未収録"]
+    AL -.->|actor_id RESTRICT で失敗| ST
+    AL -.->|clinic_id RESTRICT| C
+```
+
 ### 1.2 `audit_logs` のスキーマと制約
 
 `backend/migrations/001_init.sql`:

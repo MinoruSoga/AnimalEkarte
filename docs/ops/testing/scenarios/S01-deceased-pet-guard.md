@@ -24,6 +24,28 @@
 | 6 | 死亡登録後の Lステップタグと監査証跡を確認する | primary の死亡登録と audit 書込みは失敗時にロールバックする。全ペット死亡なら全 Lステップタグを除去し、生存ペットが残るなら pet-derived タグを再同期/除去する。タグ再同期は best-effort であり、死亡登録の成否と区別して記録する。リマインド行の破棄や exclusion counter は期待しない |
 | 7 | 死亡解除: 同じ編集導線で死亡記録を解除（生存へ戻す） | `DELETE …/pets/:id/death` が成功する。手順 2〜5 の各導線で対象ペットが再び選択可能になる。write ガードの根拠は `status=deceased OR deceased_at IS NOT NULL`（日時の捏造はしない） |
 
+```mermaid
+stateDiagram-v2
+    direction LR
+    alive: 生存
+    deceased: 死亡
+
+    [*] --> alive
+    alive --> deceased: 死亡登録 PATCH …/pets/:id/death（死亡日・理由）
+    deceased --> alive: 死亡解除 DELETE …/pets/:id/death — 各導線で再び選択可能
+    deceased --> deceased: 新規の予約・カルテ・会計・入院・検査・トリミング write は拒否（状態は変わらない）
+
+    note right of deceased
+        ブロックの見え方は経路で異なる
+        予約の既定検索: 結果に出さない
+        共通ペット選択: グレーアウト + 選択不可
+        API 直の create: ValidatePetNotDeceased で拒否
+        過去のカルテ・会計履歴: 閲覧はブロックしない
+        LSTEP: 全ペット死亡なら全タグ除去、生存が残れば pet-derived タグを再同期（best-effort）
+        登録・解除は audit_logs に記録
+    end note
+```
+
 ## 確認観点
 
 - write ガードは `sharedkernel.ValidatePetNotDeceased`（`status=deceased OR deceased_at != nil`）。フロントの無効化は `PatientSelectionTable.tsx`（予約・既定で死亡除外）と `PetSelectionResultsTable` / `PatientSelectionResults`（`isPetDeceasedForClinicalWrite`: status ラベル「死亡」または `deceasedAt`）と予約 submit ガード。カルテ/会計/入院/検査/トリミングの共通選択は `includeDeceased: true` で sentinel 表示＋「選択不可」。

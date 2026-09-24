@@ -20,6 +20,25 @@ docs/
 └── work/                   … 補助メモ・採択済み決裁・今期外索引（実行 SoT ではない）
 ```
 
+索引の参照チェーン（本書は入口のみ。ファイル単位の説明は各フォルダ README が正本）:
+
+```mermaid
+flowchart LR
+    P["product-philosophy.md<br/>意思決定原則（上位原則）"]
+    Root["docs/README.md（本書）<br/>第 1 層: カテゴリ入口"]
+    subgraph L2["第 2 層: ファイル索引の正本"]
+        direction TB
+        A["architecture/README.md"]
+        S["spec/README.md"]
+        O["ops/README.md"]
+        D["delivery/README.md"]
+        W["work/README.md"]
+    end
+    P -.->|上位原則| Root
+    Root --> L2
+    L2 --> Files["個別ドキュメント（正本）"]
+```
+
 | カテゴリ | 索引 | 概要 |
 |:---|:---|:---|
 | **意思決定原則** | [product-philosophy.md](product-philosophy.md) | 5 ステップの意思決定原則。新機能・仕様変更の着手前に必読 |

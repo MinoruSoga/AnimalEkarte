@@ -57,6 +57,15 @@ Do not close P1, #89, or #97 while any system lacks non-secret receipts for all 
 
 **Target-binding stop:** if names-only target check disagrees on environment, exact config path, Worker name, or change ID, stop (L26).
 
+```mermaid
+flowchart TB
+    subgraph shared ["shared rotation order"]
+        direction LR
+        S1["発行"] --> S2["投入"] --> S3["deploy"] --> S4["health + 対象機能"] --> S5["旧 revoke"] --> S6["旧値拒否"]
+    end
+    K["INTEGRATION_ENCRYPTION_KEY<br/>no old-key fallback"] -->|"six-step order alone is not enough"| ST["stop until backup /<br/>re-encrypt / cutover /<br/>old-key retention approved"]
+```
+
 ## System 4 restore conditions — `INTEGRATION_ENCRYPTION_KEY` has no old-key fallback
 
 Treat `INTEGRATION_ENCRYPTION_KEY` as **not** interchangeable with `JWT_SECRET` (BUG_MD L40).

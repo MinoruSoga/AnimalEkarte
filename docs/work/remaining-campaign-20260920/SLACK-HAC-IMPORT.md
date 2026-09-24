@@ -28,6 +28,18 @@ Binding sources (read-only this session):
 
 Do **not** treat the send report as a verified bundle. Do **not** treat older “完全 KNJO 未受領” wording as a current fact ([todo-operations.md](../../../todo-operations.md) L5, L115). Current receipt is still **UNKNOWN** because this session did not collate a live producer result.
 
+証跡の段階の概形:
+
+```mermaid
+flowchart LR
+    S["9/11 送付報告<br/>Slack 報告のみ"] -.->|"報告は受領証跡ではない"| B["正式 producer bundle<br/>manifest + 対象 CSV 群"]
+    B --> C["consumer receipt<br/>run-report の manifest SHA を別経路で突合"]
+    C --> P{"formal preflight<br/>全条件の成立"}
+    P -->|成立| F["csv-import 候補"]
+    P -->|"PARTIAL / REHEARSAL_ONLY / 欠損"| X["reject"]
+    B -.->|"本セッションの受領"| U["UNKNOWN"]
+```
+
 ## Current HAC receipt (this session)
 
 **UNKNOWN.** No current formal COMPLETE producer bundle, `clinic-migration-run-report.json`, live `manifest.json`, or `_old_db_handoff/hachioji/` tree was received or inspected.

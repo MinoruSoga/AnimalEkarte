@@ -56,6 +56,18 @@ LINE 予約の管理機能は、電子カルテの各標準メニューに完全
 2.  **Negative (減点要素)**: スタッフの「休憩時間」、医院の「休診日」。
 3.  **Conflict (除外要素)**: 既に入っている「診察予約」「トリミング予約」等の既存予約（予約区分は general/trimming の2種）。
 
+```mermaid
+flowchart LR
+    Shift["スタッフの勤務時間<br/>Positive（加点）"]
+    Rest["休憩時間・休診日<br/>Negative（減点）"]
+    Appt["既存予約（general / trimming）<br/>Conflict（除外）"]
+
+    Shift --> Calc["空き枠の動的合算"]
+    Rest --> Calc
+    Appt --> Calc
+    Calc --> Slots["当日の空きスロット"]
+```
+
 ---
 
 ### 作成時の再検証と限界

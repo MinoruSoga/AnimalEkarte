@@ -28,6 +28,17 @@ sustained script is a separate path and is not covered by this local-CI contract
 
 Lighthouse は metrics を記録し performance category score 75 を script 内で判定するが、workflow step は `continue-on-error: true`。上記 timing targets を gate しない。
 
+```mermaid
+flowchart LR
+    subgraph M[測定手段と境界]
+      FE[frontend<br>DevTools Profiler / Lighthouse artifact]
+      BE[backend<br>N+1 regression test のみ<br>live profiler 未実装]
+      DB[database<br>EXPLAIN ANALYZE は read-only SELECT 限定]
+      K6["k6<br>local = synthetic login fail-closed<br>STG sustained = 個別承認 lane"]
+    end
+    M --> G[proposed targets<br>SLO 未 link・gate なし]
+```
+
 ## 2. frontend
 
 React DevTools Profiler と Lighthouse artifact を使う。`medical-records`、`accounting`、`reception` の rerender を実測してから最適化する。`memo`、`useCallback`、`useMemo` を無条件に適用しない。

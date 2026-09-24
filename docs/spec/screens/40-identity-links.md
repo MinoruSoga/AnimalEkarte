@@ -49,6 +49,28 @@
 4. クロス医院の無断リンクはサーバ拒否。fail-closed の権限デフォルト（新規医院テンプレートに identity-links を付けない）。
 5. **親飼主 group の全医院セット必須（mutation）**: ペット group 作成（`CreatePetGroup`）では、actor が親 owner group の **anchor（`CreatedClinicID`）＋全 active owner member の clinic** および全 pet clinic に所属していること。1 医院でも欠けると Forbidden・ゼロ書き込み。any-member フォールバックは禁止（`assertActorCoversOwnerGroupClinics`）。既存 pet group の Add/Unlink は `assertCanManagePetGroup`（pet group anchor + owner-group anchor + 全 pet member clinics）。閲覧（GET/search/history）は actor clinic でフィルタ可。
 
+```mermaid
+sequenceDiagram
+    participant U as スタッフ
+    participant W as IdentityLinksWorkbench
+    participant API as identity-links API
+
+    Note over W: link/unlink ボタンは edit 権限時のみ表示（閲覧のみは status バナー）
+    U->>W: 飼主を検索し 2 件以上選択
+    W->>API: POST /identity-links/owner-groups
+    API-->>W: ownerGroupId 保持
+    U->>W: ペットを検索し 2 件以上選択
+    W->>API: POST /identity-links/pet-groups（owner_group_id 必須）
+    Note over API: クロス医院・hidden 混在、または親 owner group の全医院未カバーは Forbidden・部分書き込みなし
+    U->>W: メンバーを選択
+    W->>API: GET .../group（選択メンバーの group ID を逆引き）
+    Note over W: group ID が解決したメンバーだけ unlink を有効化
+    U->>W: unlink
+    W->>API: DELETE .../members
+    U->>W: 連携履歴ボタン（view/edit どちらでも可）
+    W->>API: GET .../treatment-history（include_linked）
+```
+
 ---
 
 ## 3. 臨床安全・アクセシビリティ

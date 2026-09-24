@@ -6,6 +6,17 @@
 
 本書は判断の根拠を保存する資料である。実行タスクの入口は [todo.md](../../todo.md#development-tasks)、**新規 Issue 本文の正本は [todo-issue.md](../../todo-issue.md)**（Linear 新規作成はプラン上限で禁止）。測定・テスト・受入は [todo-verification.md](../../todo-verification.md)、環境操作は [todo-operations.md](../../todo-operations.md) を参照する。判断時点の Linear 読取は `USER_NOT_LOGGED_IN` で失敗していた。以下は当時のローカル技術判断であり、Linear の Done/Cancelled 更新ではない。
 
+```mermaid
+flowchart LR
+    C["旧10候補 + 代替 TASK-444 の採否"]
+    C --> A["採用：最小範囲を固定<br>TASK-444・BE-RC-009・BE-RC-017<br>→ main 統合済み（repo Done）"]
+    C --> K["維持制約・不採用<br>BE-RC-005・014・015・019"]
+    C --> P["不採用：再判定 ID で管理<br>性能3件 → PERF-V-*"]
+    A -.->|addendum 型移行は codegen 前提| DF["TASK-444-ADDENDUM-CODEGEN<br>別範囲で deferred"]
+    K -.->|新たな具体根拠が出た時| Q["最小範囲を再定義し<br>開発キューへ戻す"]
+    P -.-> Q
+```
+
 ## 実装結果（2026-09-11 追記）
 
 READY3 は `origin/main` に統合済み。専用 Linear Issue はプラン上限で作成できず、証跡は BRT-4 コメントと [todo-issue.md](../../todo-issue.md) Done 節。

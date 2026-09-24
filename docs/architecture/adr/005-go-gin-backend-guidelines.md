@@ -20,6 +20,25 @@
 - P1–P18 を廃止し、公式ガイドと application safety invariant に基づく review へ置き換える。
 - clinic/owner/pet/staff isolation、認可、監査、医療データ完全性は framework 非依存の [Backend Application Invariants](../../../.claude/refs/backend-application-invariants.md) と ADR-002 で維持する。
 
+```mermaid
+flowchart TB
+    R["backend 実装・レビューの根拠"]
+    R --> official
+    R --> project
+
+    subgraph official["公式一次資料に従う領域（正本: Go/Gin Backend Guidelines）"]
+        direction TB
+        go["Go 公式: internal の import 制約 / package naming /<br>consumer-side interface / Context 伝播"]
+        gin["Gin 公式: route group / closure・struct DI / binding・error middleware /<br>security / graceful shutdown / httptest"]
+    end
+
+    subgraph project["project 固有判断（ADR / invariant として根拠を記録）"]
+        direction TB
+        pkg["package 設計: 凝集性 / 利用者 / 依存方向 / 変更単位<br>固定 layer（Handler → Service → Repository 等）を mandatory にしない"]
+        inv["安全不変条件: clinic・owner・pet・staff isolation / 認可 /<br>監査 / 医療データ完全性（Backend Application Invariants + ADR-002）"]
+    end
+```
+
 採用時、この ADR 自体は directory の一括移動を許可しなかった。その後 ADR-006 が domain migration を完了した。移行期間中だけ旧 directory と新しい境界が一時的に共存した。
 
 ## Consequences

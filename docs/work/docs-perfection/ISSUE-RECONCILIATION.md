@@ -10,6 +10,18 @@
 - 新規本文は本レポート1件。全件の確認記録は [照合カタログ](EVIDENCE/issue-refresh-catalog.json) にまとめる。`keep`は確認した主張に訂正が不要という判定で、全命題・全環境の無欠陥認定ではない。
 - 役割別読者: architecture/product/index 24、spec 80、ops 73、work 6、delivery/governance 17。新規の本書1を含む確認記録は201件。
 
+```mermaid
+flowchart LR
+    A["ローカル HEAD と開始時WIP"] --> D{"Issue本文・コメントを<br>現在コードと照合"}
+    B["GitHub Issue・コメント"] --> D
+    C["docs 全件と GOAL.yaml"] --> D
+    D --> E["文書訂正"]
+    D --> F["外部依存の残件"]
+    E --> G["静的ゲートと独立レビュー"]
+    F --> G
+    G --> H["人間受入待ち<br>awaiting-human-verification"]
+```
+
 ## 訂正内容
 
 | 文書 | 訂正と直接の根拠 |

@@ -25,3 +25,11 @@ Hyperdrive の STG/PROD files は tombstone である。Containers では利用�
 ## Change flow
 
 plan → review → explicit human approval → apply。destroy、credential change、shared environment apply は agent が実行しない。provider/Wrangler version を pin する。
+
+```mermaid
+flowchart LR
+    P["plan"] --> R["review"] --> A["explicit human approval"] --> X["apply"]
+    subgraph HUMAN["human only — agent は実行しない"]
+        D["destroy / credential change /<br/>shared environment apply"]
+    end
+```

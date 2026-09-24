@@ -134,6 +134,20 @@
 - `SharedFilePurposeVaccineCert = "vaccine_cert"`（[shared_file.go](../../../backend/internal/model/shared_file.go) L37、[models.ts](../../../frontend/src/types/generated/models.ts) L3331）。LSTEP 共有ファイルの purpose。JPEG/PNG/PDF の **アップロード**（同ファイル L41–48）。生成しない。
 - 会計の「印刷 / PDF出力」は月次・明細。ワクチン証明書ではない。
 
+経路と欠落の概形:
+
+```mermaid
+flowchart TB
+    subgraph have["実装済み"]
+        C["経路 C 一般カルテ印刷<br/>見出し 診療カルテ<br/>window.print"]
+        V["経路 V 接種記録<br/>保存 UI のみ 印刷ハンドラ無し"]
+    end
+    X["専用証明書 renderer<br/>route 無し specimen UNKNOWN"]
+    C -.->|"証明書の代用にしない"| X
+    V -.->|"記録保存は発行ではない"| X
+    S["PO が用途 種類 用紙を承認<br/>承認済み見本の特定"] --> X
+```
+
 ## 停止条件
 
 todo-issue L206 を本票の完了ゲートとして再掲する。本票は調査まで。次を満たすまで製品コード・PDF を足さない。

@@ -67,6 +67,16 @@
 
 カルテヘッダーへ備考は渡っていない。表示したい場合でも **第二カラムではなく既存 R の配線**が候補であり、本票では実装しない（SLACK-MICROCHIP と同型の「persist ではなく props」問題になり得る。表示先は PO）。
 
+1 系統の備考と読取先の概形:
+
+```mermaid
+flowchart LR
+    W["PetCareSection<br/>備考・特記事項 textarea"] --> S["pets remarks<br/>自由文の正本は 1 系統"]
+    S --> L["飼主ペット一覧 備考列"]
+    S --> R["飼主レポート 診療メモ"]
+    S -.->|未配線| H["カルテヘッダー<br/>表示なし"]
+```
+
 ## オプション比較（実装しない）
 
 [product-philosophy.md](../../product-philosophy.md) の順序: ①要件を疑う → ②削除 → ③簡素化。欄追加は ①② を通過するまで止める。

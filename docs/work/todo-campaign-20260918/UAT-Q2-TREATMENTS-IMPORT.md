@@ -13,6 +13,45 @@
 
 `030_stage.sql:1072-1108` の会計明細は `unit_price_raw` を数値判定して丸め、`quantity_raw` を正数判定して小数第 1 位へ丸め、それ以外は既定値にする。これは**現行の会計変換**であり、臨床履歴の元数量・元金額を保存する方針ではない。`procedures` 側の価格は `030_stage.sql:239-270` で `NULL`。会計金額と臨床実施値の対応・差額照合は別途決める必要がある。
 
+旧表から AE までの送出経路と cutover 契約の内外:
+
+```mermaid
+flowchart LR
+    subgraph OLD[旧物理]
+        M["MST_SAL_INFO"]
+        T["TBL_TRI_DATA"]
+        Y["TBL_YBS_HIST"]
+    end
+    subgraph CAN[canonical]
+        SI["sale_items"]
+        BI["billings / billing_items"]
+        VY["vaccinations_ybs"]
+    end
+    subgraph ST[animalekarte_stage]
+        SP["procedures"]
+        SB["billings / billing_items"]
+        SV["vaccinations"]
+    end
+    subgraph AE[AE]
+        subgraph CVC[cutover 契約内]
+            AP["procedures"]
+            AB["billings / billing_items"]
+            AV["vaccinations"]
+        end
+        AT["treatments / prescriptions<br/>契約外・producer 無し"]
+    end
+    M --> SI
+    SI -->|"sal_tri_kbn='1' のみ"| SP
+    SP --> AP
+    T -->|全行を会計明細へ正規化| BI
+    BI --> SB
+    SB --> AB
+    Y --> VY
+    VY --> SV
+    SV --> AV
+    T -.->|臨床実施の送出は ABSENT| AT
+```
+
 ## 旧列 → producer → AE（repo 根拠。不明列は UNKNOWN）
 
 根拠ファイル（読取のみ）:

@@ -128,6 +128,22 @@ Allowlist source: `run-e2e.sh` L34; restated todo-verification L141. Ten specs. 
 
 CI [`.github/workflows/e2e.yml`](../../../.github/workflows/e2e.yml) runs `auth-flows.spec.ts` only (design L13, L45, L91; todo-verification L141). Auth smoke is **out** of this allowlist.
 
+自動試験レーンと医院受入レーンの分離:
+
+```mermaid
+flowchart TB
+    subgraph auto["自動試験レーン — 合成 clinic"]
+        C["--clinical allowlist specs<br/>本セッション 未実行"]
+        CI["CI e2e.yml<br/>auth-flows のみ"] -.->|allowlist 外| C
+    end
+    subgraph hosp["医院受入レーン — 全セル 未実施"]
+        A["Matrix A<br/>医院 × 職種 × カルテ タブ"]
+        B["Matrix B<br/>医院 × 職種 × journey<br/>予約 中断復帰を含む"]
+    end
+    C -->|"GREEN でも医院受入を満たさない"| A
+    C --> B
+```
+
 | Spec (`frontend/e2e/…spec.ts`) | Nearest 9-tab / journey surface | Persist vs stub (bound) | Auto-test this session | Hospital UAT (any clinic × role) |
 |--------------------------------|----------------------------------|-------------------------|------------------------|----------------------------------|
 | `clinical-flows` | カルテ一覧・検索・行遷移・ペット選択 (clinical-flows.spec.ts L19–L75). Not a named tab save | Fixture read of synthetic records; not hospital save | **未実行** | **未実施** |

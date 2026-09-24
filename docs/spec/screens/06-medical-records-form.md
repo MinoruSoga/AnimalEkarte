@@ -42,6 +42,20 @@
 - **アクティブタブの追加保存**: 保存成功直後、その時点で開いているタブが「診察/治療プラン」または「見積書」の場合のみ、`useMedicalRecordPostSave` が対応する登録済みコールバックを追加実行する（他タブ在中時は発火しない。両タブを並行実行することもない）。見積タブは `items` を create/update 同一 tx で置換永続化する（独立画面 `/estimates` はヘッダ金額のみ。詳細は [23-estimate-form.md](./23-estimate-form.md)）。
 - **治療・検査等のサブリソース**: 「治療」タブの明細は行単位の追加/編集/削除操作ごとに `/medical-records/:id/treatments...` へ個別・即時送信される（メイン保存とは独立しており、「バックグラウンド並行保存」ではない）。
 
+**保存処理のルーティング:**
+
+```mermaid
+flowchart TB
+    Save["フローティング保存ボタン"] --> Q{"アクティブタブ"}
+    Q -->|"問診"| A["PATCH /medical-records/:id/inquiries<br>主訴・主訴区分・治療方針"]
+    Q -->|"診察・治療プラン"| B["PATCH /medical-records/:id/clinical-plan<br>+ PATCH /medical-records/:id (次回来院推奨日)"]
+    Q -->|"予防接種"| D["保存ボタン非表示<br>タブ内の接種記録追加を使う"]
+    Q -->|"その他"| C["カルテ本体の送信なし"]
+    H["ヘッダー項目の変更<br>(担当医・来院種別・診察日・次回予定)"] -->|"保存ボタンを経由せず即時"| E["PATCH /medical-records/:id"]
+    T["治療タブ明細の行操作"] -->|"操作ごと個別・即時送信"| F["treatments 系エンドポイント"]
+    Save -.->|"成功直後・診察/見積タブ在住時のみ"| G["追加保存コールバック<br>見積 items は同一txで置換"]
+```
+
 ### 2.3 臨床安全ガード
 - **確定ロック**: `finalized`（確定済）ステータスのカルテはバックエンドが更新を拒否し（409）、訂正は追記（addendum）のみ許可することで真正性を担保。確定への遷移は `PATCH /medical-records/:id` の `status` 指定によるもの。画面右下のフローティングアクション（`MedicalRecordFloatingActions`）に「確定する」ボタンが表示され（編集権限あり・保存済み・未確定の場合のみ）、会計(医師確認)が `confirmed` の場合だけ有効になる。未確認・差戻し・取得中・取得失敗・確認状態なしでは「会計確認が未完了です」として確定を物理ブロックする。有効時は `MedicalRecordFinalizeDialog` で不可逆であることを確認した上で確定する。確定取り消し（unfinalize）API は存在しないため、確定後の修正経路は訂正追記（addendum）のみ。会計完了時の自動確定は現状存在しない。確定済みカルテはサイドヘッダーに「確定済」バッジ（`StatusBadge`）を常時表示する。
 - **訂正追記モーダル**: `AddendumModal` の修正内容・修正理由は controlled input。バリデーション失敗後も入力済みの値を保持する（React 19 `useActionState` の remount で消えない）。修正理由は 500 文字以内。

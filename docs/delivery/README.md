@@ -7,6 +7,18 @@
 
 開発者向けの技術・運用文書は [../architecture/](../architecture/README.md)・[../spec/](../spec/README.md)・[../ops/](../ops/README.md) を参照。本フォルダは**先方に渡す文書とその作成過程**だけを置く。
 
+**読者と正本の対応**:
+
+```mermaid
+flowchart LR
+  Admin["先方管理者"] --> DP["DELIVERY_PACKAGE.md<br/>構成・管理者設定・運用<br/>U1–U12 入力待ち表の正本"]
+  Staff["現場スタッフ"] --> OM["OPERATION_MANUAL.md<br/>画面操作ナビ（U13 は §10）"]
+  Impl["切替実施者"] --> GR["GOLIVE_RUNBOOK.md<br/>切替前提・当日手順・切り戻し"]
+  OM -->|操作手順の正本| IM["システム内マニュアル（/manual）"]
+  GR -->|構築・現行構成の正本| Dev["ops/infra/production/setup.md<br/>ops/infra/architecture.md"]
+  RB4["production/runbook.md §4<br/>backup contract"] -.->|未確定の間は GOLIVE を HOLD| GR
+```
+
 ## ファイル一覧（inventory）
 
 | ファイル | 対象 Issue | 読者 | 内容 | 必要な入力・受入 |

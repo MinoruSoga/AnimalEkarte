@@ -72,6 +72,16 @@
 3. If it is a domain: add `domainPackages` + `domainImportAllowlist` edges.
 4. If it is an exception: document here why it is not a domain and what consumers are allowed.
 
+```mermaid
+flowchart TD
+    Code["New code to place"] --> Prefer{"Fits an existing domain or keep-tier package?"}
+    Prefer -->|"yes"| Existing["Use existing package"]
+    Prefer -->|"no"| Pin["Update acceptedTopLevelPackages and ADR / boundary map in same PR"]
+    Pin --> Kind{"Is it a domain?"}
+    Kind -->|"domain"| Domain["Add domainPackages and domainImportAllowlist edges"]
+    Kind -->|"exception"| Exception["Document here why not a domain and which consumers are allowed"]
+```
+
 ## Machine gates
 
 | Rule | Gate |

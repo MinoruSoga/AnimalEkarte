@@ -23,6 +23,19 @@
 | 6 | 全天ビュー・週間ビューで同じフィルタを確認する | 両ビューでフィルタが一貫して効く。ビュー切替でフィルタが勝手に外れない |
 | 7 | 職種のスタッフ名を確認する | 表示名（`occupationName`）がマスタの職種名と一致する。ID や別職種名に化けない |
 
+職種フィルタの分岐とビュー間の一貫性:
+
+```mermaid
+flowchart TB
+    S["スタッフ一覧"] --> F{"職種フィルタ"}
+    F -->|"なし・解除"| A["全スタッフ表示"]
+    F -->|"職種を選択"| B["その occupationId のスタッフのみ — 切替は即時反映"]
+    F -->|"職種未設定"| C["occupationId が null のスタッフのみ — 全員とは別の独立フィルタ"]
+    A --> V["全天・週間の両ビューで同じフィルタが一貫して効く"]
+    B --> V
+    C --> V
+```
+
 ## 確認観点
 
 - 職種フィルタは `ShiftCalendar` の `occupationFilteredStaffs`（`onOccupationChange` で切替）。staff の `occupationId`/`occupationName` で絞り込む（`frontend/src/features/shifts/types/`）。

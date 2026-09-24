@@ -35,6 +35,26 @@
 
 LTV 上位 20% は CPM ステージとは独立した `LTV_上位20` タグとして別途付与される。
 
+```mermaid
+stateDiagram-v2
+    direction LR
+    [*] --> deai
+    deai --> korekara : 累計来院回数の増加
+    korekara --> iikanji : 累計来院回数の増加
+    iikanji --> family : 累計来院回数の増加
+    family --> noa : 累計来院回数の増加
+
+    deai : 出会い
+    korekara : これから
+    iikanji : いいかんじ
+    family : ファミリー
+    noa : ノア
+
+    note right of noa
+        LTV 上位タグは CPM ステージと独立して別途付与
+    end note
+```
+
 ### 2.1a CPM V1（金額＋期間）と残余
 タグ同期の既定は医院設定の CPM バージョンに従う。V1 は Encounter / Growing / Core / Spot / Noah / Dormant の 6 区分。該当しない飼主は `cpm_unclassified`（配信対象外。`allCPMStages` に含めない）。顧客集計ダッシュボードの人数チップは 6 区分 + Unclassified の 7 つ（画面正本: [36-aggregation-dashboard.md](../screens/36-aggregation-dashboard.md)）。
 

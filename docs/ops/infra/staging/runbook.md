@@ -29,6 +29,17 @@ runtime、DB 内容、credential、provider status は本更新では確認し�
 
 STG Container の稼働 instance は deploy・instance 入替のたびに再配置され、配置は認証系 API の遅延に直接効く。deploy 後に実配置を確認し、不利なら再抽選する。
 
+```mermaid
+flowchart TB
+    D["deploy・migrate・/health 確認後"] --> C["containers list / instances で<br/>稼働 instance の metro を確認"]
+    C --> J{"LOCATION は<br/>nrt / kix / icn 系か"}
+    J -->|"Yes"| KEEP["据え置き"]
+    J -->|"No"| LIM{"再抽選の上限内か"}
+    LIM -->|"Yes"| BUMP["Dockerfile.production の LABEL rollout を<br/>インクリメントして deploy"]
+    BUMP --> C
+    LIM -->|"No"| REC["記録だけ残して運用続行"]
+```
+
 ### 確認と再抽選の手順
 
 1. `cd backend && npx wrangler containers list` で app・version・state を確認する。

@@ -20,6 +20,25 @@
 | **会計待ち** | 診療が終了し、レジでの精算・処方待ちの状態。 | `accounting` |
 | **会計済** | 精算が完了し、帰宅または入院へ移行した状態。 | `completed` |
 
+**カラム遷移イメージ:**
+
+```mermaid
+stateDiagram-v2
+    direction LR
+    state "受付予約 (pending/confirmed)" as reserved
+    state "受付済 (checked_in)" as checkedIn
+    state "診療中 (in_consultation)" as consulting
+    state "会計待ち (accounting)" as billing
+    state "会計済 (completed)" as done
+
+    [*] --> reserved : LINE予約・手動予約
+    [*] --> checkedIn : walk-in 新規予約登録
+    reserved --> checkedIn : 来院・受付
+    checkedIn --> consulting : カルテ作成で進行 (DnD禁止)
+    consulting --> billing : 診療終了
+    billing --> done : 精算完了
+```
+
 ### 2. 患者カード (`AppointmentCard`)
 一目で「誰が・いつ・何で」来院しているかを把握するための情報が集約されています。
 

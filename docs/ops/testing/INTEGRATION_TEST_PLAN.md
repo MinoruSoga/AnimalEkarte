@@ -44,3 +44,11 @@ L4 の宣言 inventory は [scenarios/](scenarios/README.md)。wildcard/`要実�
 2. destructive clean DB contract (`make reset`) は user-only。agent は実行しない。
 3. E2E/k6 は disposable local DB または approved isolated UAT tenant のみ。shared STG/production は禁止。
 4. execution result は CI artifact、Linear、または `reports/uat-YYYY-MM-DD/` に記録する。strategy document を PASS evidence にしない。
+
+```mermaid
+flowchart TB
+    Q{実行対象環境} -->|disposable local DB| OK[実行可]
+    Q -->|承認済み isolated UAT tenant| OK
+    Q -->|shared STG / production| NG[禁止]
+    OK --> R["記録先<br>CI artifact / Linear / reports uat-YYYY-MM-DD"]
+```

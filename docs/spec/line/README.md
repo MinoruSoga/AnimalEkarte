@@ -36,6 +36,24 @@
 - **臨床データに基づく CRM**: 診察結果や最終来院日に基づき、Lステップが「忘れられない病院」として自動で飼い主をフォロー。
 - **競合を拒否する空き枠管理**: 作成transaction内で予約種別規則とappointment conflictを再検証する。明示staffはclinic所属・capability・LIFF公開/activeを検査するが、**選択時刻のshift再検証は未実装のsource gap**であり、frontendのshift絞り込みだけを安全根拠にしない。
 
+```mermaid
+flowchart LR
+    Owner["飼い主<br/>LINE アプリ"]
+    LIFF["LIFF App"]
+    API["電子カルテ本体<br/>Go API（共通の脳）"]
+    Kanban["受付カンバン"]
+    LSTEP["Lステップ管理基盤"]
+    Staff["病院側スタッフ"]
+
+    Owner -->|空き枠確認・予約| LIFF
+    LIFF --> API
+    API -->|LINE 予約の即時反映| Kanban
+    API -->|臨床データに基づく判定・タグ付与| LSTEP
+    Staff -->|運用| LSTEP
+    Staff -->|受付| Kanban
+    LSTEP -->|自動フォロー配信| Owner
+```
+
 ---
 
 ## 3. 再開条件（#259）

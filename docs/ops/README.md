@@ -8,6 +8,19 @@
 
 ## 索引
 
+```text
+docs/ops/
+├── README.md                  … 本索引
+├── CLAUDE.md                  … 編集時ルール（インフラ SSOT・運用原則）
+├── deploy/                    … デプロイハブ・runbooks・検査機器の実装契約
+├── testing/                   … テストアーキテクチャ・受入 scenarios・E2E・環境セットアップ
+├── infra/                     … Cloudflare 基盤の現行契約と構成図・AWS 廃止履歴への正本ポインタ
+├── ci-policy.md               … CI ワークフローの決定事項記録
+├── agent-harness.md           … AI 設定スコープ・作業完了条件・検証と失敗の還元
+├── coverage-policy.md         … テストカバレッジ ratchet 方式の運用ポリシー
+└── backlog-spreadsheet.md     … Q&A バックログスプレッドシートの運用ルール
+```
+
 | ドキュメント | 内容 | いつ読むか |
 |:---|:---|:---|
 | [deploy/](deploy/README.md) | デプロイハブ（環境 URL・Cloudflare デプロイ・障害時判断） | デプロイ・リリース作業前 |

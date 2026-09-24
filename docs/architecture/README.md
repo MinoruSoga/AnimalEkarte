@@ -6,6 +6,14 @@
 
 仕様（何をするか）は [../spec/](../spec/README.md)、運用（どう動かすか）は [../ops/](../ops/README.md) を参照。
 
+```mermaid
+flowchart LR
+    spec["spec/<br/>仕様（何をするか）"]
+    arch["architecture/（本フォルダ）<br/>説明系（どう作られているか）"]
+    ops["ops/<br/>運用（どう動かすか）"]
+    spec --- arch --- ops
+```
+
 ## 索引
 
 | ドキュメント | 内容 | いつ読むか |

@@ -88,6 +88,14 @@ This session executes **none** of steps 2–7 against a clinic.
 
 Clock B is **fixture, not clinic values**. Clock A is **not** the S09 scenario premise. Running S09 expected buckets (13:30 on-boundary = PM) against Clock A would be a mixed-clock error: under Clock A, 13:30 is interior PM (after 12:00), not the half-open boundary sample.
 
+```mermaid
+flowchart LR
+    A["Clock A — clinic go-live<br/>09:00 / 12:00 / 18:30"] -->|"named clinic + USER approval"| RA["実医院投入予定<br/>not applied"]
+    B["Clock B — S09 fixture<br/>09:00 / 13:30 / 19:00"] -->|"disposable clinic only"| SB["S09 fixture<br/>not run"]
+    B -.->|"never apply to real clinics"| RA
+    A -.->|"not the S09 premise"| SB
+```
+
 ## S09-style boundary-test prep (not executed)
 
 Sources: S09 L7–L32; S09-FIXTURE-DESIGN L1–L30, L49–L53; todo-verification L109–L125.

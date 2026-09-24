@@ -34,6 +34,15 @@
 - **1年以上**: 365 日以上。
 - **来院なし**: 来院記録なし。
 
+```mermaid
+flowchart LR
+    V["最終来院からの経過日数"] --> A["3ヶ月未満<br/>90 日未満"]
+    V --> B["3ヶ月以上<br/>90 日〜180 日未満"]
+    V --> C["6ヶ月以上<br/>180 日〜365 日未満"]
+    V --> D["1年以上<br/>365 日以上"]
+    V --> E["来院なし<br/>来院記録なし"]
+```
+
 > **境界の出典**: 境界日数(90/180/365)は `backend/internal/owner/ltv_repository_query.go` の `ownerLTVSelectSQL` に固定値として実装されており、clinic 単位の設定変更はできない。CPM ステージ（V1 の 6 区分 + ダッシュボード残余 `cpm_unclassified`。clinic 単位で設定変更可能な `CPMV1Thresholds`（`DormantDays` 既定240・`SpotInactiveDays` 既定90、`backend/internal/model/cpm_v1_thresholds.go`）を用いる）は Lステップ連携・CPMステージ絞り込み用の別軸の判定であり、本項の最終来院日分類とは別の仕組み。ダッシュボードの人数チップは [36-aggregation-dashboard.md](./screens/36-aggregation-dashboard.md) を正本とする。
 
 ---

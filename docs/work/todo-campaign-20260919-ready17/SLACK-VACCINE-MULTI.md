@@ -48,6 +48,14 @@
 
 DB: [001_init.sql](../../../backend/migrations/001_init.sql) L1477–1496。`(pet_id, date, vaccine_id)` UNIQUE は無い。`uq_vaccinations_id_clinic` は `(id, clinic_id)`（L4042–4043）。同日・同一ペット・別（または同一）ワクチンの 2 行目は **一意制約では拒否されない**。
 
+```mermaid
+flowchart LR
+    A["フォーム入力（単件）"] --> B["POST /v1/vaccinations"]
+    B -->|"成功"| C["接種行を commit → toast → 履歴 invalidate"]
+    B -->|"失敗"| D["この POST のみ失敗（先行の保存行は残る）"]
+    C -->|"同日の次の接種はフォームを開き直して別 POST"| A
+```
+
 ### C — カルテ埋め込み（初診カルテから打つ経路）
 
 入口: [MedicalRecordServiceTabs](../../../frontend/src/features/medical-records/components/MedicalRecordServiceTabs.tsx) L25–32。新規 / `recordId` 無しは [MedicalRecordSaveRequired](../../../frontend/src/features/medical-records/components/MedicalRecordTabsShared.tsx) L33–36 が「カルテを保存してから使用できます」で **フォームをマウントしない**。

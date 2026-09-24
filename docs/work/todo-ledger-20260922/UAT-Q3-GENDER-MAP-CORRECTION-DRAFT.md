@@ -29,6 +29,20 @@ STG 環境の `pets.gender` において、旧システムの性別区分コー�
 - 対象医院: STG に投入済み bundle の範囲に限定。`sensitive-local/csv-import-reports/` の receipt では jouto・shikishima・hakobuneco が runId `jouto-intake-20260822-01`（修正前 bundle）で STG rehearsal PASS（9/4-9/7）したが、3 院とも `STALE-AFTER-RESET-20260907` で **reset 後の現行 STG DB 状態は UNKNOWN**。hachioji は修正込み bundle の local apply PASS（9/22）のみで STG 投入 receipt なし。**対象医院と件数は現行 STG DB の照合 receipt 取得後に確定する**。全 4 院 bundle は `REHEARSAL_ONLY` であり、formal 投入と rehearsal 投入を混同しない。
 - 除外: `neutered_date`・他列の変更、コード 5/0/未入力行、AE 側 enum・画面仕様の変更（enum は `male|female|unknown` のまま増やさない）。
 
+訂正実行の流れ（§4–§10）:
+
+```mermaid
+flowchart TB
+  ap["外部承認一覧の充足（§11）"] --> pre["事前照合（§4）<br/>対象集合・医院別件数の確定"]
+  pre --> bk["backup（§5）<br/>対象行の最小列を repo 外へ export"]
+  bk --> sql["冪等 訂正 SQL（§6）<br/>gender=unknown かつ対象 ID 集合限定"]
+  sql --> agg{"前後クロス集計（§6–§7）<br/>変化量 = 対象件数"}
+  agg -->|"一致"| acc["受入条件（§10）<br/>画面証拠を receipt に添付"]
+  agg -->|"残余あり（失敗・通信断）"| retry["再集計 → 冪等 SQL を再実行（§7）"]
+  retry --> sql
+  agg -->|"対象外行の変化を検出"| stop["直ちに中止 → 復旧（§8）<br/>backup から元値へ戻す"]
+```
+
 ## 4. 事前照合（実行前ゲート）
 
 1. 対応表 `UAT-Q3-GENDER-MAP.md` を receipt として、訂正に使う stage/bundle が修正込み revision と一致することを確認する。hachioji は一致済み、jouto・shikishima・hakobuneco は修正前世代（差異）のため、**STG に入っているのが修正前 bundle の場合は対象集合に含め、修正込み bundle の再生成・再投入が先なら訂正不要**と判定を分ける。

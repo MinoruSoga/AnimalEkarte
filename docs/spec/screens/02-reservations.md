@@ -46,6 +46,30 @@
 - **受付への反映**: プッシュではない。受付側の 30 秒ポーリングとフォーカス再取得。
 - **レコード作成**: 予約詳細からワンクリックで「カルテ作成」「入院・ホテル登録」「トリミング記録作成」を開始可能。
 
+**来院後の主経路:**
+
+```mermaid
+stateDiagram-v2
+    direction LR
+    state "予約確定" as confirmed
+    state "受付済" as checkedIn
+    state "診療中" as consulting
+    state "会計待ち" as billing
+    state "完了" as done
+
+    confirmed --> checkedIn
+    checkedIn --> consulting
+    consulting --> billing
+    billing --> done
+
+    note right of confirmed
+        詳細モーダルでは他に
+        仮予約・キャンセル・未来院 も扱う。
+        キャンセル (cancelled) はカレンダー描画前に除外、
+        未来院 (no_show) は表示対象のまま。
+    end note
+```
+
 ---
 
 ## 技術仕様

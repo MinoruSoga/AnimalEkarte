@@ -32,6 +32,13 @@
 - **訂正経路**: 確定見積の修正は後継ドラフトのみ（`POST /api/v1/estimates/:id/successors`）。原行は不変で、新 draft が `supersedes_estimate_id` で原見積を参照する（S07・TASK-012 FINAL B）。
 - **削除制約**: 明細が残っている見積は削除できません（バックエンドが競合エラーで拒否）。
 
+```mermaid
+flowchart LR
+    Orig["原見積<br>承認済み・却下<br>原行は不変・編集と削除を拒否"]
+    Orig -->|後継ドラフトを作成| Draft["新ドラフト<br>原見積の明細をコピー"]
+    Draft -.->|原見積を参照| Orig
+```
+
 ---
 
 ## 3. 技術仕様

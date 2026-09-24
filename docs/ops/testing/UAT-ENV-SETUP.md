@@ -28,6 +28,18 @@
 | LIFF | local は effective BE/FE mock。STG は approved deploy/settings lane で mock 無効を人間が確認 |
 | browser | selected `cdp` または `playwright` が実際に利用可能 |
 
+```mermaid
+flowchart TB
+    P[profile 選択<br>local / stg] --> B[browser 選択<br>cdp / playwright]
+    B --> C{共通 readiness checklist}
+    C -->|未確認項目あり| X["BLOCKED<br>別経路の INFO で代替しない"]
+    C -->|全項目 OK| D{profile}
+    D -->|local| L[stack 起動はユーザー実行<br>seed 区別・明示 provisioning・safe login]
+    D -->|stg| S[承認済み UAT lane<br>実 LINE・外部送信は人間レーン]
+    L --> R[reports uat-YYYY-MM-DD に記録]
+    S --> R
+```
+
 ## 3. local profile
 
 ### 3.1 stack startup（ユーザー操作）

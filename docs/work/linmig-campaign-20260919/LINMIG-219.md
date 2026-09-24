@@ -43,6 +43,18 @@ Callers: campaign controller and operators reading `docs/work/linmig-campaign-20
 
 Day-of gate ([GOLIVE_RUNBOOK.md](../../delivery/GOLIVE_RUNBOOK.md) L60) and P3 artifact ([todo-operations.md](../../../todo-operations.md) L175) require four independent dimensions. Each dimension is recorded separately; a PASS on one does not fill another.
 
+```mermaid
+flowchart TB
+    SRC["same manifest / revision<br/>source vs target"] --> D1["D1 テーブル別件数"]
+    SRC --> D2["D2 clinic_id 別件数"]
+    SRC --> D3["D3 金額合計"]
+    SRC --> D4["D4 参照整合"]
+    D1 & D2 & D3 & D4 --> R{"result branch"}
+    R --> P["PASS — that environment only"]
+    R --> F["FAIL — stop; restore judgment"]
+    R --> U["UNKNOWN — do not read live DBs"]
+```
+
 | ID | Dimension | Unit of count | Source of expected | Target of actual | Notes |
 | --- | --- | --- | --- | --- | --- |
 | D1 | テーブル別件数 | One row in one of the 21 formal cutover tables | Manifest `Tables[].RowCount` for that table | Target band row count after apply/verify | Mismatch → `CUTOVER_REF_ROW_COUNT` ([CLINIC_CSV_IMPORT.md](../../ops/deploy/CLINIC_CSV_IMPORT.md) L51; `cutover_import_copy.go` committed-row check) |

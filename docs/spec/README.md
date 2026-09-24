@@ -7,6 +7,13 @@
 技術設計（どう作られているか）は [../architecture/](../architecture/README.md)、運用は [../ops/](../ops/README.md) を参照。
 新機能・仕様変更の着手前には [../product-philosophy.md](../product-philosophy.md) の実践ゲートを必ず通すこと。
 
+```mermaid
+flowchart LR
+    A["新機能・仕様変更の着手"] --> B["product-philosophy.md<br/>実践ゲート"]
+    B --> C["本 spec/ の該当仕様書"]
+    S["specification.md §2.1<br/>臨床の安全"] -.->|product-philosophy より優先| B
+```
+
 ## 索引
 
 | ドキュメント | 内容 | いつ読むか |

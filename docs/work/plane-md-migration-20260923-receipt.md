@@ -3,6 +3,20 @@
 Plane readback: 80 newly created work items and 16 exact existing Plane items verified against a fresh live project list.
 All source statuses were retained; no task was marked Done or closed during migration.
 
+```mermaid
+flowchart LR
+    subgraph Src["移行元（repo の台帳・作業票）"]
+        S1["todo-issue.md / todo-verification.md /<br>todo-operations.md / todo.md"]
+        S2["docs/work 各票・bug.md 系"]
+    end
+    Src --> D["stable task ID で重複排除"]
+    D --> N["Plane 新規 work item 作成"]
+    D --> X["既存 Plane item と照合<br>重複作成しない"]
+    N --> R["live readback で照合"]
+    X --> R
+    R --> K["状態は移行元を保持<br>Done・close は行わない"]
+```
+
 ## Crosswalk
 
 | Task ID | Plane | Status | Source references | Source SHA-256 |

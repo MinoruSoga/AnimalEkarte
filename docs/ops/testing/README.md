@@ -23,6 +23,17 @@
 | [PERFORMANCE_PROFILING.md](PERFORMANCE_PROFILING.md) | Lighthouse、k6、SQL 分析、現行 profiler の制約 | 性能調査 |
 | [STG-PERFORMANCE-CHECKLIST.md](STG-PERFORMANCE-CHECKLIST.md) | STG性能測定の準備・承認・画面/API計測・中止条件・比較記録 | STG性能測定の計画・実施時 |
 
+受入タスクの読み進め方と各文書の位置づけ:
+
+```mermaid
+flowchart LR
+    A[TEST_ARCHITECTURE<br>層・環境境界・記録方針の正本] --> B[UAT-ENV-SETUP<br>stack・fixture・account]
+    B --> C[scenarios<br>受入シナリオと項目プロトコル]
+    C --> D[UAT-DOMAIN-STATUS<br>ドメイン別結果の集約]
+    E[自動回帰の方針・設計<br>INTEGRATION_TEST_PLAN / E2E_TESTING_GUIDE<br>CLINICAL-E2E-DESIGN / S09-FIXTURE-DESIGN] -.正本を参照.-> A
+    F[個別境界・手順<br>liff-verification / SECTION_14<br>PERFORMANCE_PROFILING / STG-PERFORMANCE-CHECKLIST] -.正本を参照.-> A
+```
+
 ## 重要な現状
 
 - CSV seed bundle は `002_master` のみ。migrate の別 phase `003_login` は non-production の許可環境で合成ログインを upsert する。臨床 fixture と受入用権限は別途準備する（[UAT-ENV-SETUP.md](UAT-ENV-SETUP.md)）。

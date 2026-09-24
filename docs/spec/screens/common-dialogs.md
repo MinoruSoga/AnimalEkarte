@@ -14,6 +14,14 @@
 - **クイックアクション**: `onOwnerClick` / `onStaffClick` 等のクリックコールバックを任意で受け取る。現状 `onOwnerClick` を渡す利用画面はない。担当者変更はトリミングフォームの担当スタッフ選択と、入院登録・編集フォームの担当医選択で使用する（入院は `canSubmit` 時のみ）。飼主付け替えの `OwnerSearchModal` 起動はカルテ画面側（下記例外）の導線であり、本カード経由の実装は存在しない。
 - **例外**: カルテ画面（06-medical-records-form.md）は `PatientInfoCard` を使わず、専用の `MedicalRecordStickyHeader` が共有 `PatientContextHeader` を組み込んで同等の飼主（`OwnerSearchModal` 起動）/担当医クリック導線を実装している。
 
+```mermaid
+flowchart LR
+    Forms["トリミング / 定期健診 / 検査 / 入院 / 予防接種 の各フォーム"] --> PIC["PatientInfoCard（患者情報カード）"]
+    MR["カルテ画面"] -. 例外 .-> MSH["MedicalRecordStickyHeader（専用ヘッダー）"]
+    MSH --> PCH["共有 PatientContextHeader を組み込む"]
+    MSH --> Act["飼主（OwnerSearchModal 起動）/ 担当医のクリック導線"]
+```
+
 ### 1.2 離脱防止ガード (`NavigationBlocker`)
 React Router 7 の `useBlocker` を活用し、入力データの損失を物理的に防ぎます。
 - **トリガー**: フォーム変更（`isDirty`）がある状態でのページ離脱。

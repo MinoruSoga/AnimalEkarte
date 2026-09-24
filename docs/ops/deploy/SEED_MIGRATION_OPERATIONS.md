@@ -13,6 +13,17 @@
 - `002_master/manifest.json` がtable inventoryとload orderのSSOT。現在は12 tableだが、runbookはmanifestから導出する。
 - COPY後のsequence advanceも`cmd/migrate`の同じpathに任せる。
 
+```mermaid
+flowchart TB
+  M["cmd/migrate"] --> A["migrations 直下の *.sql を昇順適用<br/>COPY 後の sequence advance も同じ path"]
+  A --> B["BundleOrderForEnv(APP_ENV)<br/>CSV order は 002_master のみ<br/>003_demo / 004_staging は退役済み"]
+  B --> C{"internal/seedlogin の<br/>ログイン upsert を適用する環境?"}
+  C -->|development / staging 等| D["upsert 実行<br/>seeds/003_login を記録"]
+  C -->|production / empty / unknown| E["スキップ（記録なし）"]
+  D --> K1["migration keys = DDL filename + seeds/002_master + seeds/003_login"]
+  E --> K2["migration keys = DDL filename + seeds/002_master"]
+```
+
 ### アカウント関連CSVの配置
 
 - 権限グループ・権限ルールは `002_master/accounts/` に置く。

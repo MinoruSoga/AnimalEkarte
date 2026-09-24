@@ -83,6 +83,23 @@
 
 - 起動: `/owners/new` の「ペット追加」。独立フォームではなく §2 の `PetEditModal` 共用。pending としてローカル一覧に積み、飼主作成時に **1 回の** `POST /api/v1/owners`（body `pets[]` ネスト）で原子登録される（`use-owner-form.ts` — 旧ドキュメントの per-pet `Promise.allSettled` は現行コードに存在しない）。
 
+**pending → 原子登録の流れ:**
+
+```mermaid
+sequenceDiagram
+    participant F as 新規飼主フォーム（/owners/new）
+    participant M as PetEditModal
+    participant API as API
+    participant DB as DB
+
+    F->>M: 「ペット追加」で入力
+    M-->>F: pending としてローカル一覧に積む（API 未送信・行の編集/削除可）
+    F->>API: 飼主保存 = 1 回の POST /owners（body pets[] ネスト）
+    API->>DB: CreateWithPets — 同一 TX で owner+pets 全体成功/rollback
+    DB-->>API: 永続化
+    API-->>F: 成功トースト → 飼主詳細にペット紐付き
+```
+
 | # | 操作 | 期待結果 |
 |:--|:--|:--|
 | 1 | 新規飼主フォームで有効なペットを 2 件 pending 追加 | 保存前はフォーム内一覧にのみ表示される（API 未送信）。行の編集・削除ができる |

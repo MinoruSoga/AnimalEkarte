@@ -20,6 +20,15 @@
 
 測定方法と原本由来の区別は、新しい `origin` / `method` 列を発明せず、現行フィールドで保持する。
 
+```mermaid
+flowchart TB
+    A["検査フォーム（手入力）"] --> C["exam Create（job_id なし）"]
+    B["機器受信（lab import・本票対象外）"] --> D["exam persist（job_id 保持）"]
+    C --> E[("exams / exam_results（同一テーブル・マージしない）")]
+    D --> E
+    E --> F["カルテ検査タブ・検歴ピボット（画面上の区別は machine バッジのみ）"]
+```
+
 | 経路 | 入口 | 永続化の印 | 値の編集 |
 | --- | --- | --- | --- |
 | **手入力（本票）** | [ExaminationForm](../../../frontend/src/features/examinations/routes/ExaminationForm.tsx) + [ExaminationFormFields](../../../frontend/src/features/examinations/components/ExaminationFormFields.tsx) + [ExamItemsTable](../../../frontend/src/features/examinations/components/ExamItemsTable.tsx) | `exams.job_id` は NULL。コメント: 「手動作成の exam は NULL」（[examination_record.go](../../../backend/internal/model/examination_record.go) L35–37）。Create は JobID をセットしない（[examination_service.go](../../../backend/internal/medicalrecord/examination_service.go) L235–245） | 結果値はスタッフが `inspection_value` に入力。`status` / `is_abnormal` は request で受け付けない |

@@ -25,6 +25,19 @@
 | 8 | 確定の解除（確定済 → 作成中へ戻す）を試行する | 解除（unfinalize）API はバックエンドに存在しない（`medical_record_crud.go` に該当メソッドなし）。確定は一方向遷移であり、確定後の修正経路は訂正追記（addendum）のみ。解除機能が必要な場合は GAP-1 とは別に要件を起票する |
 | 9 | 手順 1〜4 の操作について `audit_logs` を DB で確認する（**USER 実施**。例: resource がカルテ関連の行を時刻降順で参照） | 確定（finalize）は本体と同一 TX で fail-closed に残る。作成・通常更新は best-effort（欠落しても本体成功を失敗にしない）。全テーブル自動監査ではない（[specification.md §2.1](../../../spec/specification.md)） |
 
+**カルテの状態遷移**（手順 4〜8 と確認観点の概要）:
+
+```mermaid
+stateDiagram-v2
+    [*] --> draft : 画面表示と同時に自動 POST（作成中）
+    draft --> finalized : 会計確認 confirmed 後に確定操作
+    finalized --> finalized : 訂正追記 addendum のみ可
+    note right of finalized
+        編集・削除は UI 非表示 + BE 拒否（409）
+        unfinalize API は存在しない（一方向遷移）
+    end note
+```
+
 ## 確認観点
 
 - 確定ロックは DB 制約ではなくサービス層のガード（`backend/internal/medicalrecord/medical_record_crud.go` — [05 §3.1](../../../spec/screens/05-medical-records-list.md)）。UI ステータス: 作成中=`draft` / 確定済=`finalized`。

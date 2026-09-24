@@ -117,6 +117,16 @@ USER rehearsal order **after** a real COMPLETE receipt (not this session):
 5. `make csv-import-verify` (read-only).
 6. Production cutover is a **separate** gated USER job after #253/#254/#255.
 
+```mermaid
+flowchart TB
+    B["formal COMPLETE bundle<br/>separate-channel SHA-256"] --> P["csv-import-preflight<br/>write 0"]
+    P --> R["disposable rehearsal<br/>import + verify + 復旧"]
+    R --> W["separate approved<br/>production window"]
+    W --> D["day-of: final import → 突合 gate"]
+    D -->|PASS| OK["PASS — that environment only"]
+    D -->|"FAIL / COMMIT_OUTCOME_UNKNOWN"| NG["stop — no P4/P8;<br/>rollback judgment"]
+```
+
 Local `make reset` auto-import of `_old_db_handoff` (including `REHEARSAL_ONLY` / `UNVERIFIED` with `--allow-local-rehearsal`) is **local APP_ENV only** and does **not** change formal F6 gates or authorize shared STG/PROD (OLD_DB_HANDOFF_LOCAL.md L83–L88). This session does not run `make reset`.
 
 **Do not treat rehearsal PASS as production completed** (todo-operations.md L175). GOLIVE item 4 rehearsal PASS is pre-window prep evidence, not day-of import/突合 PASS (GOLIVE L20, L37). Restore rehearsal PASS at T+0:30 is backup-gate evidence, not a production restore (GOLIVE L58, L76–L84).

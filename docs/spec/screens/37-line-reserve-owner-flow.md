@@ -14,11 +14,21 @@
 
 ### フロー全体図
 
-```
-トップ ─┬─ step1 お客様情報 → step2 コース選択 ─┬─（一般）──────────────┐
-        │                                        └─（トリミング）step2b コース → step2c オプション ┘
-        │        → step3 スタッフ → step4 日付 → step5 時間 → step6 ご要望 → step7 確認 → step8 完了
-        └─ マイ予約（予約確認・キャンセル）←──────────────────── step8 からも遷移可
+```mermaid
+flowchart LR
+    Top["トップ"] --> S1["step1 お客様情報"]
+    Top --> My["マイ予約（予約確認・キャンセル）"]
+    S1 --> S2["step2 コース選択"]
+    S2 -->|"一般"| S3["step3 スタッフ"]
+    S2 -->|"トリミング"| S2b["step2b コース"]
+    S2b --> S2c["step2c オプション"]
+    S2c --> S3
+    S3 --> S4["step4 日付"]
+    S4 --> S5["step5 時間"]
+    S5 --> S6["step6 ご要望"]
+    S6 --> S7["step7 確認"]
+    S7 --> S8["step8 完了"]
+    S8 --> My
 ```
 
 ステップ画面には `ProgressDots`（現在位置ドット・`aria-label` 付き）と `BackButton` が付き、戻っても入力値は `useReservationFlow` の状態に保持される。トリミング分岐（step2b/step2c 経由）では総ステップ数が一般フローより 2 つ多くなるため、`getStepProgress`（`lib/step-progress.ts`）が分岐の有無に応じた一貫した `current`/`total` を算出する（step3 以降の共有ページも含め、分岐前後で番号が後退しない）。step3 スタッフ選択の「戻る」は分岐時のみ step2c（トリミングオプション選択）へ戻る。

@@ -54,6 +54,23 @@
 
 `cancelled` / `no_show` は通常の進行列には表示しない。
 
+```mermaid
+stateDiagram-v2
+    [*] --> pending : 予約 (LINE / 院内)
+    pending --> confirmed
+    pending --> checked_in : 来院受付
+    confirmed --> checked_in : 来院受付
+    [*] --> checked_in : 予約なし来院 (route=reception)
+    [*] --> in_consultation : direct consultation / record_shortcut
+    checked_in --> in_consultation : 診療/トリミング開始
+    in_consultation --> accounting : 会計待ち
+    accounting --> completed : billing completion (同一 transaction)
+    pending --> no_show : end + 4h・finalized record なし
+    confirmed --> no_show
+    pending --> cancelled
+    confirmed --> cancelled
+```
+
 ### 2.4 受付から通常カルテ / トリミング
 
 受付 card は `appointmentId` と予約文脈を次画面へ渡す。

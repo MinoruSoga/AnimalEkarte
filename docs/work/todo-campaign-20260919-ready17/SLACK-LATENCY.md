@@ -34,6 +34,15 @@
 | N 通信 | PATCH が HTTP 完了するまで | `useUpdateTreatment` の `axios.patch`。`mutate` は fire-and-forget（handleUpdate L122–127）。`isMutating` 中は全行 `pointer-events-none` | PATCH 時間を GET 再取得に混ぜない。楽観 persist を先行実装しない |
 | R 再取得 | 一覧 GET がセル表示をサーバ値に同期するまで | PATCH 成功後 `invalidateQueries` のみ。PATCH 応答の `Treatment` を cache に `setQueryData` しない。非編集時の表示は `treatment.quantity`（L162） | cache 更新待ちを「input が重い」に数えない。再取得を止める提案で整合を捨てない |
 
+```mermaid
+flowchart LR
+    K["キー入力"] --> D["D 表示（localQuantity → 次の paint）"]
+    D --> C["C commit（2回目 Enter / Blur → onUpdate）"]
+    C -->|"用量ブロック・理由待ち・同一値"| C0["onUpdate せず終了（通信なし）"]
+    C --> N["N 通信（PATCH 応答完了まで）"]
+    N --> R["R 再取得（invalidate → GET → セルが保存値へ）"]
+```
+
 ## 現行経路（数量セル）
 
 1. **入口:** [TreatmentsTab](../../../frontend/src/features/medical-records/components/TreatmentsTab/TreatmentsTab.tsx) L36 が `useTreatmentsTab`。表は [TreatmentsTable](../../../frontend/src/features/medical-records/components/TreatmentsTab/TreatmentsTabParts.tsx) L52–108。各行 [TreatmentRow](../../../frontend/src/features/medical-records/components/TreatmentsTab/TreatmentRow.tsx) が `editField === "quantity"` のとき [TreatmentQuantityCell](../../../frontend/src/features/medical-records/components/TreatmentsTab/TreatmentQuantityCell.tsx) を編集表示にする（TreatmentRow.tsx L122–129）。

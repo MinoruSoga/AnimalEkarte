@@ -31,6 +31,20 @@
 - **共通項目**: 飼主名（クリックで `/owners/:id` の飼主詳細ページへ遷移）、CPM セグメント。
 - **タブ別項目**: 売上ランキングでは年間診療費・会計件数等、来院回数タブでは期間内/累計/年間来院回数、最終来院タブでは最終来院日・経過日数等。
 
+```mermaid
+flowchart TB
+    subgraph Page["/aggregation"]
+        Tabs["集計タブ<br/>revenue / visit / last_visit"]
+        Sum["CPMStageSummary<br/>CPM セグメント別チップ"]
+        Tbl["AggregationOwnerTable<br/>ランキング・複数選択・CSV 出力"]
+        Tabs --> Tbl
+        Sum -->|"チップをクリックして一覧を絞り込み"| Tbl
+    end
+    Q1["useGetCPMStageCounts"] -.->|"別クエリで並行取得"| Sum
+    Q2["useGetOwnerAggregations"] -.-> Tbl
+    Tbl -->|"飼主名クリック"| Owner["/owners/:id 飼主詳細"]
+```
+
 ---
 
 ## 2. 主要な分析ロジック
