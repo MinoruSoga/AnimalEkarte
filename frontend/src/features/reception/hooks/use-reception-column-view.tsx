@@ -29,7 +29,14 @@ export function useReceptionColumnView({
 
   const handleRecordOpen = useCallback(
     (appointment: ReceptionAppointment, columnTitle: string) => {
-      if (columnTitle === "受付済" && canEditReservation === true) {
+      // EMR-74: トリミング予約のレコード起動では汎用の in_consultation 遷移
+      // （advanceStatus → PATCH /reservations）を発火しない。trimming の「施術中」は
+      // trimming 記録側が intent 経路で管理する。
+      if (
+        columnTitle === "受付済" &&
+        canEditReservation === true &&
+        appointment.reservationCategory !== "trimming"
+      ) {
         advanceStatus(appointment);
       }
     },
