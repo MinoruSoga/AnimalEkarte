@@ -4,6 +4,18 @@
 > **読者**: デプロイ担当・QA。
 > **タイミング**: 混在会計関連の変更時。
 
+```mermaid
+flowchart TB
+  UI["会計詳細ページ<br/>支払い方法を追加で複数行入力"] -->|合計 = billing_amount で保存| Save["SavePaymentSplits<br/>DELETE 後 INSERT（transaction）"]
+  Legacy["既存会計（payment_splits なし）"] -->|再保存は単一支払いでも 1 行 split を自動生成| Save
+  Save --> PS[("payment_splits<br/>method / amount / 受取金 / お釣り")]
+  Save --> PM["payments.method（legacy 代表値）<br/>cash > credit_card > bank_transfer > electronic_money"]
+  PS --> Daily["本日会計タブ<br/>「/」区切り表示・支払方法別集計"]
+  PS --> Close["レジ締め CloseAggregate<br/>payment_splits.amount を参照"]
+  PS --> Refund["返金<br/>optional payment_method・method 別残額"]
+  PS --> Reopen["会計詳細の再表示<br/>行数・method・amount が復元"]
+```
+
 ## 前提データ
 
 - 承認済みの合成テスト用データと、対象医院に必要な会計権限を持つ session を使用する。共有環境の書込みは operator 承認後のみ。実施日・対象 commit・結果・cleanup を記録する

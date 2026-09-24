@@ -26,6 +26,16 @@
 
 Do **not** grow `main` with repository fields, service graphs, or route tables. Route registration stays on `runtimeComposition.registerRoutes` (and domain handlers).
 
+```mermaid
+flowchart TB
+    main["main.go / run() — bootstrap のみ"]
+    prep["prepareRuntimeExecution / server runner"]
+    rc["runtimeComposition — domain composition の組み立てのみ（業務ロジックを再実装しない）"]
+    dom["composition_domain.go 群 / domain NewApplication — narrow な cross-domain deps"]
+    routes["runtimeComposition.registerRoutes ＋ domain handlers"]
+    main --> prep --> rc --> dom --> routes
+```
+
 ### A5-3 — Domain `Application` / `Dependencies` (evaluation)
 
 | Domain | Pattern today | Recommendation |

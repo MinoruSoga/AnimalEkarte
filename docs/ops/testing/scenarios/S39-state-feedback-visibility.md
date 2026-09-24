@@ -20,6 +20,23 @@
 | 5 | Tab キーでフォーム全体を順に辿る | フォーカスリングが全インタラクティブ要素で視認でき、タブ順が見た目の順序と一致。フォーカスが画面外に逃げない |
 | 6 | トースト・バナー・インラインエラーの文言色を確認 | エラー（赤系）・成功・情報が識別可能。色だけでなくアイコン/文言で状態が分かる |
 
+**状態フィードバックの遷移:**
+
+```mermaid
+stateDiagram-v2
+    state "送信中（ボタン disabled/ローディング — 多重送信抑止）" as Submitting
+    state "操作不可（権限不足・確定済みロック等 — 理由付き拒否）" as Blocked
+    [*] --> Loading : 読込中
+    Loading --> Ready : スケルトン/スピナー表示（レイアウトシフトなし）
+    Loading --> Failed : API 400/500・ネットワーク断
+    Failed --> Loading : リトライ導線
+    Ready --> Empty : 0 件（空状態メッセージ）
+    Ready --> Submitting : 保存実行
+    Submitting --> Ready
+    Ready --> Blocked
+    note right of Ready : Tab 順は見た目の順序と一致・フォーカスリング可視
+```
+
 ## 確認観点
 
 - 「保存できたか不明」「エラーが出たがどこか不明」「押せるのに反応しない」はいずれも FAIL。

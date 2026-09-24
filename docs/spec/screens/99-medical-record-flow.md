@@ -45,6 +45,34 @@
 - **ロックの波及**: 確定されたカルテに紐付く「検査結果」「処置明細」「処方」「バイタル」「健診記録」「カルテ画像」への追加・更新・削除も、バックエンドで拒否されます（健診タブは UI 上も読み取り専用に切り替わります）。
 - **修正**: 確定済カルテ本体は差し戻しを含め一切更新できません（バックエンドが拒否）。修正が必要な場合は「追記」（`MedicalRecordAddenda`、`POST /v1/medical-records/:id/addenda`）で訂正内容を追記します。
 
+```mermaid
+stateDiagram-v2
+    state "自動作成" as Creating
+    state "前提不足・fail closed" as Blocked
+    state "作成中 draft" as Draft
+    state "確定済 finalized" as Finalized
+
+    [*] --> Creating: /new 表示でカルテ自動作成
+    Creating --> Draft: POST 成功・ID 発番、URL を /:id へ昇格
+    Creating --> Blocked: 前提欠落・取得失敗は draft を描画せず警告
+    Blocked --> Creating: カルテ作成を再試行
+    Draft --> Finalized: 確定
+
+    note right of Draft
+        ハイブリッド保存：
+        ・保存ボタンはアクティブタブのみ送信
+        ・ヘッダー属性は個別 PATCH で即時保存
+        ・タブ内サブデータは操作時点で個別 API へ送信
+        ・isDirty で離脱ブロック
+    end note
+
+    note right of Finalized
+        本体は差し戻し含め一切更新不可
+        紐付く検査・処置・処方・バイタル・健診・画像の追加更新削除も拒否
+        修正は追記のみ
+    end note
+```
+
 ---
 
 ## 4. 安全機能

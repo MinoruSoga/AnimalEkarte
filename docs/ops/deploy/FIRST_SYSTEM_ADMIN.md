@@ -95,6 +95,20 @@ PGSERVICEFILE=/secure/first-system-admin/pg_service.conf PSQL_HISTORY=/dev/null 
 
 初回は短い保守枠で行う。テーブルロックは通常の account 発行・管理者変更・所属更新の INSERT/UPDATE/DELETE とも競合するため、事前に進行中の管理操作が終わるのを待つ。待機中の既存操作があれば先に完了し、その後の状態を READ COMMITTED で検証する。同じ bootstrap 同士だけに効く advisory lock には依存しない。ロックタイムアウト・deadlock は全体失敗とし、自動再試行しない。
 
+```mermaid
+flowchart TB
+    csv["input.csv<br/>ヘッダなし・データ1行のみ"] --> tmp["pg_temp.bootstrap_input"]
+    tmp --> lock["LOCK accounts / clinics / staffs /<br/>staff_clinic_assignments<br/>SHARE ROW EXCLUSIVE"]
+    lock --> chk{"DO ブロック内で検証"}
+    chk -->|"行数 / 対象 DB・role / 形式が不正"| rb["EXCEPTION → ROLLBACK"]
+    chk -->|"既存 is_system_admin あり、<br/>または email 衝突"| rb
+    chk -->|"staff / 主所属が利用不可"| rb
+    chk -->|"OK"| ins["accounts INSERT<br/>is_system_admin + is_active"]
+    ins --> upd["staffs UPDATE account_id"]
+    upd --> aud["audit_logs INSERT<br/>account.bootstrap.create"]
+    aud --> done["COMMIT → receipt SELECT で<br/>account / staff / clinic / audit ID を返す"]
+```
+
 ```sql
 \set ON_ERROR_STOP on
 \set ECHO none

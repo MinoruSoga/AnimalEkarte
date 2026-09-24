@@ -4,6 +4,20 @@ coordinatorは本文を修復せず、後続ユニットへ渡す。Severity は
 
 `queued` は子の修復待ち、`external-scope` は docs 外の別承認依存、`index-resolved` はこのcoordinatorで入口だけ修正済み。全件の本文・runtime修復完了を意味しない。action は update / delete / merge-link / rewrite-structure / adr-correction のいずれか。delete と adr-correction は今回確定対象なし。
 
+```mermaid
+stateDiagram-v2
+    state "index-resolved" as IR
+    state "external-scope" as ES
+    [*] --> queued : 矛盾候補を登録
+    queued --> resolved : 子ユニットが本文修復
+    queued --> IR : coordinatorが入口だけ修正
+    queued --> ES : docs外の別承認依存
+    ES --> resolved : 別承認unitが修復
+    note right of resolved
+        文書修復の状態。全件の本文・runtime修復完了を意味しない
+    end note
+```
+
 | ID | Severity | Impact | Score | 子 / 状態 | 推奨処置 | 根拠と実施すべき修復 |
 |---|---|---|---|---|---|---|
 | RQ-001 | S3 | 4 | 12 | spec / resolved | merge-link | `docs/spec/screens/34-lstep-delivery-monitor.md:48` は死亡後に配信対象から外れると説明するが、`docs/spec/line/lstep-integration.md:72` はbest-effortと既知のgapを明記。`backend/internal/lstep/lstep_delivery_trigger_state.go:11` の最終除外確認にはpet status読取りがない。画面文書を既存の安全制約ownerへリンクし、保証範囲を揃える。コードの安全欠陥が解消したとは書かない |

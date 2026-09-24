@@ -21,6 +21,23 @@
 | 4 | 治療明細が空（または未移行）の過去記録の抜粋行をクリックする | 明細が空でも詳細画面は開け、エラー・真っ白画面にならない。空の治療タブは空状態として表示される |
 | 5 | 別のペットのカルテで同じ操作をする | そのペット自身の履歴だけが抜粋に出る。他人・他ペットの記録が混ざらない |
 
+履歴導線の往復:
+
+```mermaid
+sequenceDiagram
+  actor U as スタッフ
+  participant E as カルテ編集画面
+  participant H as 問診抜粋パネル
+  participant D as 過去カルテ詳細
+  U->>E: 問診タブを表示
+  E->>H: 同一ペットの過去記録一覧（現在の記録を除く）
+  U->>H: 抜粋の 1 行をクリック
+  H->>D: 記録 id の詳細へ遷移（明細が空でも開ける）
+  U->>D: 戻る操作
+  D-->>E: 表示中タブ・患者ヘッダーを維持して復帰
+  Note over E: 未保存入力がある離脱は確認ダイアログを経由
+```
+
 ## 確認観点
 
 - `InterviewHistory`（`frontend/src/features/medical-records/components/`）の各行は `paths.medicalRecords.detail.getHref` で詳細へリンクする。履歴パネルの見出しは「問診抜粋」。

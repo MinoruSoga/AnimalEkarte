@@ -49,6 +49,13 @@ In the current checkout, only `backend/migrations/seeds/002_master` exists. `see
 
 `APP_ENV` is passed through the Worker to the Container and migrate runner. STG config sets `staging`; the production draft currently omits it, so login seeding and the shared demo-password shortcut remain disabled by the empty-value gate. Production configuration must not set a development/test/staging value. CSV master-only selection is independent of this login gate. Production synthetic users require separate approved provisioning with owner, expiry, and cleanup.
 
+```mermaid
+flowchart LR
+    ENV["APP_ENV"] -->|"staging"| ON["login seeding and<br/>demo-password shortcut enabled"]
+    ENV -->|"empty — production draft omits it"| OFF["login seeding and<br/>demo-password shortcut disabled"]
+    CSV["CSV seed bundle"] -->|"every environment"| MAS["master only<br/>independent of the login gate"]
+```
+
 ## 5. IaC and resource verification
 
 Terraform plan must be reviewed by a human before apply. It currently covers only the checked-in resources; Hyperdrive/notification tombstones are not active resources. Apply/destroy, database creation, credential changes, shared environment writes, billing, and DNS changes are human-only external operations.

@@ -10,6 +10,15 @@
 4. inventory集合一致、子schema、drift実行、baselineとの差分、秘密の混入を検証する。
 5. 同一rubricの独立2レビュー、指摘修正、全要件の再照合を経て coordinator-complete を記録する。親は active。
 
+```mermaid
+flowchart TB
+    S1["保存prompt・claim・既存WIPの確認"] --> S2["全Markdownの機械調査<br>+ カテゴリ独立読者"]
+    S2 --> S3["主エージェントが成果物を作成<br>ROLE-MAP / INVENTORY / REPAIR-QUEUE / CHILD-GOALS / LEDGER"]
+    S3 --> S4["集合一致・子schema・drift・baseline差分・秘密混入を検証"]
+    S4 --> S5["同一rubricの独立2レビュー<br>指摘修正・全要件の再照合"]
+    S5 --> S6["coordinator-complete を記録<br>親は active のまま"]
+```
+
 ## 要求と検証の対応（編集前に固定）
 
 | Success criterion | Acceptance | 判定方法 |

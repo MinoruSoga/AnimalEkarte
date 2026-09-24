@@ -39,6 +39,19 @@ Execution date: 2026-09-23 (JST). Ticket: Plane `EMR-125` / unit `DEV-V-OWNER-DB
 | `TEST_DATABASE_URL` | 実行時に生成した使い捨て credential を含む DSN を環境変数として test container にのみ注入（値は本票・ログに記載しない。`postgres://emr125_verify:<redacted>@emr125-ownerdb:5432/ekarte_db_test?sslmode=disable`）。`DB_*` 系も同一 disposable instance を指すため、`testdb.connectTestDatabase` が行う `CREATE DATABASE ekarte_db_test` も disposable instance 上で実行された |
 | `_test` suffix | test DB 名 `ekarte_db_test` は `_test` 接尾辞を満たす（`truncate.go` の非 `_test` 拒否 guard に適合） |
 
+隔離構成:
+
+```mermaid
+flowchart TB
+  subgraph iso["emr125-ownerdb-net（internal=true）"]
+    tc["一時 go test container<br/>worktree backend/ を /app に read-only mount"]
+    db[("emr125-ownerdb<br/>使い捨て PostgreSQL（192.168.155.2）")]
+    tc -->|"TEST_DATABASE_URL（使い捨て credential）"| db
+  end
+  shared[("animalekarte-db-1<br/>共有 DB（ekarte-network / 192.168.97.2）")]
+  tc -- 共有 DB への経路なし --x shared
+```
+
 ## 3. 接続確認（実行者による非共有 DB 確認の記録）
 
 実行時に取得した実測値（実値パスワードは除く）:

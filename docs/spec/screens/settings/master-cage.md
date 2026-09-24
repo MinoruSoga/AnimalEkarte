@@ -31,6 +31,17 @@
 ### 2. 重複割り当てチェック（未実装）
 `backend/internal/medicalrecord/hospitalization_service.go` の Create/Update には、同一ケージへの重複割り当てを防止するバリデーションは実装されていない。複数の入院記録に同じ `cage_id` を設定することは現状ブロックされない。
 
+マスタ定義と入院側データの関係:
+
+```mermaid
+flowchart TB
+    M["ケージマスタ（本画面）<br>名称・エリア・サイズ・単価・有効フラグ"]
+    M -->|定義を利用| B["入院ボード /hospitalization"]
+    R["入院記録"] -->|cage_id で紐付け| M
+    R --> D{"同一ケージへの重複割当"}
+    D -->|バリデーション未実装| X["現状ブロックされない"]
+```
+
 ---
 
 ## 技術仕様

@@ -34,6 +34,11 @@
 
 PRODUCT-PHILOSOPHY 完了。残りは architecture → spec → ops → delivery → work。親が直列統合する。優先修復順はRQのScore、起動順は正本/参照先の依存を優先する。RQ-001/002は高優先度だが、今回の本文修復開始は認可されていない。
 
+```mermaid
+flowchart LR
+    CO["DOCS-PERFECT-COORDINATOR"] --> PP["PRODUCT-PHILOSOPHY"] --> AR["ARCHITECTURE"] --> SP["SPEC"] --> OP["OPS"] --> DE["DELIVERY"] --> WO["WORK"]
+```
+
 | ID | Definition | State | Depends on | 受入の焦点 |
 |---|---|---|---|---|
 | DOCS-PERFECT-PRODUCT-PHILOSOPHY | [product-philosophy.md](CHILD-GOALS/product-philosophy.md) | COMPLETE | DOCS-PERFECT-COORDINATOR | 原則と例、臨床安全の優先、索引の正本参照 |

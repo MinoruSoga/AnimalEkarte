@@ -50,6 +50,17 @@
 
 [設計思想](../../product-philosophy.md) の順で、存在しない画面占有を最適化しない。確認ダイアログや全面ロックは安全性の成立根拠にしない。実装は **未カバー write に既存の expectedVersion / 行ロック / UNIQUE / Idempotency-Key を伸ばす** ことに限定する。製品コード・新規テストファイルはこの票の範囲外。
 
+競合 write の形と既存防御の対応:
+
+```mermaid
+flowchart TB
+    K{"競合 write の形"} -->|古いスナップショットの保存| C["expectedVersion CAS（version 不一致は Conflict）"]
+    K -->|同一 tx 内の並行 write| L["行ロック FOR UPDATE で直列化"]
+    K -->|別 key の二重確定・二重請求| U["UNIQUE / 業務キーで Conflict"]
+    K -->|同一 key の再送・連打| I["Idempotency-Key（同一 digest は replay・異 digest は拒否）"]
+    O["画面占有ロックは未採用"]
+```
+
 1. **expectedVersion（CAS）** — clinical_plan と親 medical_record に既にある。GAP の治療・バイタル・処方・接種など last-write-wins の更新へ、読み込み版を更新条件に含める。`expectedVersion == nil` のスキップ経路は新規 caller に広げない。
 2. **行ロック（FOR UPDATE / ambient tx）** — 請求親と vaccination claim に既にある。complete と未請求ソース行の確定を同じ tx で固定し、古い画面の合計確定を commit 前に再評価する。ambient tx 不在は fail-closed。
 3. **UNIQUE / 業務キー** — 同一 key は `uq_billings_clinic_completion_request_id`。異なる key の二重 complete は `idx_billings_medical_record_id_unique` の AlreadyExists→Conflict（landed）。治療 provenance は `uq_billing_items_treatment_lifetime`（migration 004、**未 apply のまま残件**）+ AlreadyExists→409（landed）。exam/vaccination lifetime UNIQUE は schema 済み。exam mock Conflict を追加済み。exam 実DB並行 claim は残件。

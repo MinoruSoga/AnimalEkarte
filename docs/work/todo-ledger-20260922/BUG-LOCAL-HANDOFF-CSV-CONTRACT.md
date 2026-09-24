@@ -112,6 +112,18 @@ Sheet date: 2026-09-22. Consumer worktree HEAD `5a5828a1dc0f11e03134a9d8d890025f
 | formal cutover F6(`make csv-import`、 rehearsal flag なし) | **BLOCKED(全 4 院)**:`status=REHEARSAL_ONLY`≠`PASS`、`handoffEligibility=REHEARSAL_ONLY`≠`TRUSTED_CANDIDATE`、`sourceIdentity.verified=false`、completeness=UNVERIFIED/PARTIAL | L124–128、L238–243、L346–365 |
 | STG rehearsal(`make stg-uat-handoff`、城東/敷島/箱のみ) | 過去 report: 3 院とも `*-stg-uat-apply.json` PASS(2026-09-07)+ STALE/FAILED 履歴。hachioji は wrapper 対象外 | CLINIC_CSV_IMPORT.md L62、report 一覧。現行 DB 状態は本 unit で未照合 |
 
+経路別ゲートの流れ:
+
+```mermaid
+flowchart TB
+  M["staged bundle<br/>status / handoffEligibility = REHEARSAL_ONLY"] --> R{取込経路}
+  R -->|"local rehearsal<br/>--allow-local-rehearsal / make reset 自動取込"| L["検査対象: schema・csvContractSha256・<br/>eligibility・completeness・stageBuildId・<br/>digest・時刻順序（stageMappingSha256 は対象外）"]
+  L --> LO["受理可能（stageMappingSha256 の差異はこの経路で寛容）"]
+  R -->|"formal<br/>make csv-import"| F["契約一致 + TRUSTED_CANDIDATE を要求"]
+  F --> FO["BLOCKED（eligibility 不合格で stageMappingSha256 以前に拒否）"]
+  R -->|"staging rehearsal<br/>make stg-uat-handoff"| S["rehearsal-only manifest は<br/>local rehearsal 検証へフォールバック"]
+```
+
 ## 7. Doc drift(文書記述 ↔ 現行 staged bundle)
 
 | 項目 | 文書記述 | 現行実測 | 判定 |

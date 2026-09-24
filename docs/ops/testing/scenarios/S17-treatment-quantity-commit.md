@@ -24,6 +24,24 @@
 | 6 | 日本語 IME で数量以外のテキストセル等を編集中、**変換確定の Enter** を押す | 変換確定の Enter がアプリ側の確定・保存へ誤爆しない（`isComposing` / `keyCode 229` を無視）。変換後も編集中のまま |
 | 7 | 数量セルで **Enter を長押し（キーリピート）**する | repeat 中の Enter は確定・保存へ誤爆しない（`repeat` を無視）。離した後の通常 Enter だけが有効 |
 
+数量セルの確定状態遷移（保存要求の発行回数が焦点）:
+
+```mermaid
+stateDiagram-v2
+    state "閲覧" as view
+    state "編集中" as editing
+    state "確定済み（未保存）" as committed
+    state "保存" as saved
+    [*] --> view
+    view --> editing : セルクリック・値を変更
+    editing --> committed : Enter 1回目（編集確定のみ・保存要求なし）
+    committed --> saved : Enter 2回目（保存要求 1 回）
+    editing --> saved : Blur・フォーカス喪失（保存 1 回）
+    editing --> view : Escape（取消・保存要求なし）
+    editing --> editing : IME 変換確定 Enter・キーリピートは無視
+    saved --> view : 再読込でも値が残る
+```
+
 ## 確認観点
 
 - 確定ロジックは `TreatmentQuantityCell`（`frontend/src/features/medical-records/components/TreatmentsTab/`）の `reduceQuantityEnterKey` と `onBlur` commit。1回目 Enter = 編集終了、2回目 = 保存はヘルパーテキストどおりの設計。

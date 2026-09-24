@@ -64,6 +64,16 @@
 
 撮影専用 API は無い。file 選択の先は既存 upload と同じ。
 
+```mermaid
+flowchart LR
+    A["「撮影」ボタン → 撮影 input（capture=environment・単発・画像のみ）"] --> G["共通ゲート handleFileChange（件数・サイズ超過はバッチ全体拒否）"]
+    B["「画像アップロード」→ picker input（複数・PDF 可）"] --> G
+    G --> M["mutate（canUpload かつ resolvedId あり のみ）"]
+    M --> H["POST /v1/medical-records/:id/images/upload"]
+    H --> I["images invalidate → GET 一覧 → ギャラリー表示"]
+    M -.->|"canUpload 偽 / resolvedId 無し"| X["no-op（保存しない）"]
+```
+
 1. **タブ:** [MedicalRecordServiceTabs](../../../frontend/src/features/medical-records/components/MedicalRecordServiceTabs.tsx) L50–56 `tab="画像"` が `MedicalRecordImage` をマウント。`recordClinicId` と `isPetDeceased={selectedPet.status === "死亡"}` を渡す。
 2. **権限 UI:** [MedicalRecordImage.tsx](../../../frontend/src/features/medical-records/components/MedicalRecordImage.tsx) L30 `usePermission("medical-records")`。L58 `canUpload = canCreate && !isPetDeceased`。L38–45 新規は `resolvedId` なし（list/upload 無効）。
 3. **picker:** [ImageGalleryFilter.tsx](../../../frontend/src/features/medical-records/components/ImageGalleryFilter.tsx) L68–74 各ボタンが対応する hidden input を `click()`。picker input は L110–117（`capture` なし・`multiple`・PDF 可）、撮影 input は L118–125（`capture="environment"`・単発・jpeg/png/gif のみ）。ボタンは「撮影」（L126–136）と「画像アップロード」（L137–146）。`canUpload=false` なら input/ボタンごと出さない（L108–148）。

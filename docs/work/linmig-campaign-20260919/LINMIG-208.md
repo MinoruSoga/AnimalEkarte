@@ -37,6 +37,13 @@ From [liff-verification.md](../../ops/testing/liff-verification.md) §1–§2.
 | Remote CI intent | Mock-only token scope | Manual E2E auth smoke success, real LINE, clinical/full suite | **No** |
 | STG / dedicated UAT real LINE | Approved dedicated UAT clinic, real SDK / `idToken` / in-client behavior | Substitute for local mock gates | **Yes — H1/H2 target.** Human lane only |
 
+```mermaid
+flowchart LR
+    M["Local mock<br/>LIFF_MOCK / VITE_LIFF_MOCK"] -->|"mock PASS is not real LINE PASS"| X["Cannot count for H1/H2"]
+    C["Remote CI mock"] -->|"mock only"| X
+    R["STG real LINE<br/>approved UAT clinic"] -->|"human lane only"| Y["H1/H2 evidence"]
+```
+
 Additional mock traps (must stay FAIL/BLOCKED for H1/H2):
 
 - Frontend mock link screen can show success without calling the API. Link proof requires backend mock API **or** STG real LINE, never mock UI alone ([liff-verification.md](../../ops/testing/liff-verification.md) §2; [V05-5](../../ops/testing/scenarios/V05-auth-line-forms.md); [S12](../../ops/testing/scenarios/S12-liff-pet-health.md) step 2).

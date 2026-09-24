@@ -21,6 +21,16 @@ Linear 上の観測状態（Codex 2026-09-11）: BRT-226 は **Review**。F1〜F
 | F5 | 診察所見3欄のlabel/id未接続 | a11y defect指摘 | **未特定 / UNKNOWN** | 2026-09-11: label / id / 所見等で直接対応なし。候補 ID を発明しない |
 | F6 | 検証skillに廃止packageの例示 | harness drift | **未特定 / UNKNOWN** | **監査 F6 ≠ 八王子 cutover F6**（cutover 運用は `H0-2` / `HAC-CSV-1`） |
 
+```mermaid
+flowchart TB
+    F["監査 ID F1〜F6<br>定義の正：git 履歴の旧 todo-now.md"]
+    F --> M{"Linear 本文＋コメント全文で<br>直接対応を確認できたか"}
+    M -->|現時点は確認できず| U["未特定 / UNKNOWN<br>候補 ID を発明しない<br>不存在・Done を推定しない"]
+    M -.->|確認できた場合のみ| L["対応 Issue・実装 SHA・受入条件を照合<br>コメント・Done は USER 承認後"]
+    W["混同禁止<br>監査 F6 ≠ 八王子 cutover F6<br>repo 受入残（S09・V04・clinical E2E）≠ F1〜F6<br>BRT-226 は別件"]
+    W -.-> F
+```
+
 ## 照会結果（2026-09-11 Codex）
 
 | 確認対象 | 結果 |

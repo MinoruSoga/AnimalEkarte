@@ -34,6 +34,14 @@ CLI・ホストアプリ・APIセッションの機能は別々に確認する�
 
 runnerはimageをimmutable IDへ解決し、networkなし・source/依存volume読み取り専用・capabilityなしの一時コンテナで実行する。image pull・依存インストール・Compose起動・migrationは行わない。Frontendのmountpoint用に空の `frontend/node_modules` ディレクトリだけを必要時に作る。Go実行用一時領域とFrontend native config loaderにより、sourceや依存volumeへの書込みを避ける。既存container指定も可能だが同じ隔離条件と対象worktree mountが必要で、通常のComposeは適合しない。
 
+```mermaid
+flowchart LR
+    V["verify-agent-task.py"] --> Img["固定 image を immutable ID へ解決"]
+    Img --> Run["一時コンテナで検証<br/>network なし / source・依存 volume 読み取り専用 / capability なし"]
+    Run --> Ev["evidence へ記録<br/>image・mount・対象 diff・コマンド・終了コード・テスト件数"]
+    Run -.->|行わない| No["image pull・依存インストール・Compose 起動・migration"]
+```
+
 `--evidence <PATH>` には新しい証跡ファイルを指定する。`--staged` 手動実行時はサービス内にunstaged/untracked依存があると停止する。終了コードだけでなく、実行したテスト件数とPASS / FAIL / SKIP / BLOCKEDを読む。対応不能な変更はBLOCKED、docs-onlyのSKIPはruntime PASSではない。
 
 - Go/FrontendはDocker。ホストnpm/goは使わない。既存Composeがmainをマウントしていればcandidateの検証に転用しない。

@@ -53,6 +53,19 @@ repo Update 公開シグネチャは不変（既存 mock / caller を壊さな�
 - `backend/internal/medicalrecord/prescription_repository.go`
 - `backend/internal/medicalrecord/vaccination_repository.go`
 
+CAS の判定流れ:
+
+```mermaid
+flowchart TB
+  U["repo Update（input.Version を private update へ）"] --> X["UPDATE<br/>expectedVersion あり → WHERE version = ? を追加<br/>成功時は SET version = version + 1"]
+  X --> R{"RowsAffected == 0"}
+  R -->|"いいえ"| OK["更新成功"]
+  R -->|"はい"| E["existsInClinic で再照会<br/>（同 scope・version 述語なし）"]
+  E -->|"expectedVersion が nil"| NF1["NotFound（スキップ経路の意味論は不変）"]
+  E -->|"行が存在しない / 他クリニック"| NF2["NotFound"]
+  E -->|"行が存在する"| CF["Conflict（stale）<br/>他のユーザーがこの resource を変更しました"]
+```
+
 ### service / input（4 ファイル）
 
 - `UpdateTreatmentInput` / `UpdateVitalInput` / `UpdatePrescriptionInput` /

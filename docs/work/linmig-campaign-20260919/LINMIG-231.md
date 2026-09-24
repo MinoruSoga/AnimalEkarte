@@ -61,6 +61,17 @@ Source table: UAT-254-CLOSE-CHECKLIST L17–L25.
 
 補完確認 (checklist L25): S05 hospitalization / S12 LIFF health **do not replace** the five flows. Clinical allowlist includes `hospitalization-flow.spec.ts` as E2E design, not as Flow 1–5 close.
 
+```mermaid
+flowchart TB
+    F["UAT-254 flows<br/>same-revision run reports<br/>+ non-operator sign-off"]
+    S09["S09 browser steps"] -->|"required for Flow 1; still 未実施"| F
+    V04["V04 settings persist"] -.->|"not a substitute"| F
+    CE["clinical E2E allowlist"] -.->|"not a substitute"| F
+    MOCK["mock / local helper GREEN"] -.->|"not close"| F
+    F --> J{"close judgement"}
+    J --> NC["not closed this unit"]
+```
+
 ## Close gate vs evidence cells
 
 Source: UAT-254-CLOSE-CHECKLIST L29–L38. USER confirms these at close time. This session did not.

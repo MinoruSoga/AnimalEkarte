@@ -23,6 +23,25 @@
 | **Infrastructure** | Docker Compose（ローカル） / Cloudflare Workers + Containers / PlanetScale Postgres / R2 / Vercel |
 | **Testing** | MSW (Mock Service Worker), Vitest, testify |
 
+```mermaid
+flowchart TB
+    subgraph Local["ローカル開発 (Docker Compose / make up)"]
+        L_FE["frontend :3003<br/>React 19 / Vite"] -->|/api/v1| L_BE["backend :8080<br/>Go / Gin"]
+        L_BE --> L_DB[("db :5434<br/>PostgreSQL 18")]
+    end
+    subgraph Cloud["STG / 本番"]
+        User["ブラウザ / LINE"] --> Vercel["Vercel<br/>React SPA"]
+        User --> CF["Cloudflare<br/>DNS + CDN + SSL"]
+        CF --> Worker["Worker<br/>薄いプロキシ + migrate"]
+        Worker --> Container["Containers<br/>Go API (Gin)"]
+        Container --> PS[("PlanetScale<br/>PostgreSQL")]
+        Container --> R2[("R2<br/>臨床画像・帳票")]
+        Container --> LINE["LINE Messaging / Lステップ API"]
+    end
+```
+
+構成図の正本は [docs/delivery/DELIVERY_PACKAGE.md](docs/delivery/DELIVERY_PACKAGE.md) §1.1 と [docs/ops/infra/architecture.md](docs/ops/infra/architecture.md)。
+
 ---
 
 ## 🔧 クイックスタート

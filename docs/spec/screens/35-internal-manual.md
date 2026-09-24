@@ -44,6 +44,14 @@
 ### 3.2 DB 連携（編集オーバーライド）
 静的 Markdown ファイルを基本としつつ、`ResourceManualEdit` 権限を持つユーザーはシステム画面上（`ManualEditor`）から直接編集が可能です。編集内容は `manual_articles` テーブルにオーバーライド版として保存され、次回表示時に MD ファイル版より優先して読み込まれます。
 
+```mermaid
+flowchart LR
+    Dev["開発者が Markdown を作成"] --> F["features/manual/content/*.md"]
+    F -->|"ビルド時に静的バンドルへ取り込み"| V["記事ビューア<br/>（認証済み全員が閲覧）"]
+    Ed["ManualEditor<br/>（ResourceManualEdit 権限）"] -->|"編集を保存"| DB["manual_articles テーブル"]
+    DB -->|"override があれば MD 版より優先"| V
+```
+
 ---
 
 ### API連携

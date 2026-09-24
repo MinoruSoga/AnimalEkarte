@@ -14,6 +14,22 @@
 
 STGの画面デモログインは migrate フェーズ3が合成 `stg-staff-*@example.test`（医院ごとに執行1・一般9。林 文明は catalog 4医院すべてに執行所属）を upsert する。CSV に account は載せない。実オペレータのシステム管理者は `SEEDLOGIN_OPERATOR_*`（値は git に置かない）。操作用の個別 account は approved provisioning、21表 clinical dataはapproved `make stg-uat-handoff`（`_old_db_handoff` の REHEARSAL_ONLY を含む）または formal cutover を使う。`cmd/migrate` は 21 CSV を読まない。PlanetScale の user-defined role は table owner / `BYPASSRLS` ではないため、RLS 付き 21 表への直接 `COPY FROM` は `0A000` で拒否される。handoff importer が TEMP COPY + バッチ `INSERT SELECT` で回避し、STG UAT は表ごとに commit する（長時間の単一 transaction は backend 切断になる）。`pscale role reset-default` で app `postgres` role のパスワードを回さない。
 
+適用経路の概略:
+
+```mermaid
+flowchart TB
+  OP["approved operator の reviewed delivery / workflow dispatch"] --> MIG
+  RB["承認済み再構築 §6.1（DB_RESET=true）"] --> MIG
+  subgraph MIG["cmd/migrate 単一経路"]
+    direction TB
+    DDL["top-level SQL を昇順適用"] --> SEED["BundleOrderForEnv で 002_master を適用"]
+    SEED --> LOGIN["フェーズ3 seedlogin upsert"]
+  end
+  MIG --> VER["coverage missing=0 と checksum を確認"]
+  VER --> DB[("PlanetScale STG")]
+  HO["make stg-uat-handoff（臨床データ）"] -.->|"cmd/migrate の外"| DB
+```
+
 ## 2. Pre-deploy stop gates
 
 次の1つでも満たさなければdeploy/rebuildを止める。

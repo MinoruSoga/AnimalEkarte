@@ -165,6 +165,27 @@ make csv-import-verify
 - commit 後の rollback は、後続 application row を cascade delete する危険があるため importer に削除コマンドを持たせません。メンテナンス状態を維持し、事前に検証した full backup を復元します。
 - band が既に占有されている場合、`make csv-import` は置換せず fail-closed します。手書き DELETE や別経路への迂回はしません。
 
+**apply report の状態遷移**:
+
+```mermaid
+stateDiagram-v2
+  [*] --> preflight: read-only
+  state "apply へ進めない" as blocked
+  state "read-only verify で DB 照合（隔離）" as verify
+  preflight --> blocked: 不一致があれば
+  preflight --> apply: 全検証一致
+  apply --> FAILED_BEFORE_TRANSACTION: transaction 開始不可（target 未変更）
+  apply --> FAILED_DATA_ROLLED_BACK: 正式経路は単一 transaction で全 rollback
+  apply --> FAILED_TABLE_ROLLED_BACK: stg-uat-handoff は失敗表のみ rollback
+  apply --> COMMIT_OUTCOME_UNKNOWN: commit 応答喪失 / report 欠落・malformed・STARTED 残留
+  apply --> CUTOVER_REF_BAND_OCCUPIED: 対象 band が既に占有（置換しない）
+  apply --> committed: transaction 内検証を通して commit
+  committed --> PASS: 最終 verify 成功
+  committed --> FAILED_POST_COMMIT_VERIFY: 最終 verify 失敗
+  COMMIT_OUTCOME_UNKNOWN --> verify
+  FAILED_TABLE_ROLLED_BACK --> apply: 一致済み prefix は skip して再実行
+```
+
 ## Scoped verification
 
 ```sh

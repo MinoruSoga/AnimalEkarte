@@ -25,6 +25,17 @@
 | 8 | 再度 `/accounting/new` を同じペットで開く | 未請求明細が空で、精算済みの処置・コース・オプションは再表示されない（[flow §10 補足](../../../spec/reservation-to-record-flow.md): `billing_items.treatment_id` / `trimming_course_id` / `trimming_option_id` 紐付けで再表示を防止）— 双方のカルテが請求済みであることの証明 |
 | 9 | 受付カンバンとトリミング一覧を確認する | 会計完了により同日同一飼主・ペットの「会計待ち」appointment がまとめて「会計済」へ進む。本手順の合格条件はカンバン「会計済」。一覧フィルタの「完了」は行 `status` ラベル（予約/進行中/完了） |
 
+**併用精算の pull 統合**（手順 2〜9 の概要）:
+
+```mermaid
+flowchart TB
+    T["トリミング予約 → トリミングカルテ<br/>受付済カードからのみ open 可"] --> W
+    X["同日の診察カルテ → 会計確認を確定"] --> W
+    W["両 appointment が 会計待ち"] --> P["新規会計作成で pet 単位に pull<br/>treatments / trimming / vaccinations を 1 会計へ統合"]
+    P --> C["POST complete で精算"]
+    C --> F["両 appointment が 会計済<br/>請求済み明細は再候補に出ない"]
+```
+
 ## 確認観点
 
 - 未請求明細の取得はペット単位。**現行 FE の新規会計は `GET /api/v1/billing-items/unbilled-details?pet_id=`**（legacy 生配列 `GET /billing-items/unbilled` は非移行 caller 用に残存）。飼主単位ではない（[16 §2](../../../spec/screens/16-trimming-list.md)）。施術完了を契機に会計側へ push する仕組みではなく、会計作成時に pull で取り込まれる。

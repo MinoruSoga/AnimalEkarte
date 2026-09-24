@@ -32,6 +32,21 @@ This sheet is that map. It is **not** a connection-success claim and **not** UAT
 
 Daily path ([LAB_DEVICE_CONNECTIVITY.md](../../ops/deploy/LAB_DEVICE_CONNECTIVITY.md) L8–L9, L41–L42; [LINMIG-182.md](../linmig-campaign-20260919/LINMIG-182.md) L20–L35): one exam Mac LaunchAgent `lab-device-agent` owns wired serial; loopback `127.0.0.1:17654`; browser `/lab-device` (`LabDeviceBoard`) polls with an API-issued consumer token and posts frames. The board does not open serial.
 
+日常受信経路の概形:
+
+```mermaid
+sequenceDiagram
+    participant Dev as 検査機器
+    participant Mac as exam Mac lab-device-agent
+    participant Br as ブラウザ /lab-device
+    participant API as backend API
+    Dev->>Mac: wired serial frame
+    Br->>Mac: loopback poll
+    Mac-->>Br: frame
+    Br->>API: frame post（API 発行の consumer token）
+    API->>API: ReceiveFrames で decode → persist or duplicate
+```
+
 | Code surface | Fact | Citation |
 |---|---|---|
 | Receive entry | `ReceiveFrames` decodes then persist-or-duplicate per clinic | [lab_device_receive_service.go](../../../backend/internal/medicalrecord/lab_device_receive_service.go) L54–L75 |

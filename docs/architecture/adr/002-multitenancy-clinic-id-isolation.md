@@ -24,6 +24,21 @@ func (r *ownerRepository) FindByID(ctx context.Context, clinicID, ownerID uint) 
 
 GORM helperの使用有無だけで安全と判定しない。raw SQL、join、preload、count、bulk処理、background job、request由来FKのownershipを含め、全data pathをruntime isolation testで検証する。cross-tenant accessを可能にする変更はCRITICALとして拒否する。
 
+```mermaid
+sequenceDiagram
+    actor C as 認証済みクライアント
+    participant API as API
+    participant Repo as repository
+    participant DB as PostgreSQL
+    C->>API: リクエスト
+    API->>API: 認証済み identity から clinic scope を決定
+    API->>Repo: 操作 + clinic scope を明示的に受け渡し
+    Repo->>DB: read / write / delete へ clinic_id 条件を適用
+    DB-->>Repo: clinic_id 一致行のみ
+    Repo-->>API: 結果
+    Note over Repo,DB: raw SQL / join / preload / count / bulk / background job も同じ scope 検証対象
+```
+
 ## Consequences
 
 **ポジティブ:**

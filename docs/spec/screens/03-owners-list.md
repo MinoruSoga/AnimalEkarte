@@ -57,6 +57,24 @@
 - **検索入力**: 入力欄はローカル state。URL 反映は **300ms デバウンス**（`SEARCH_DEBOUNCE_MS`）。`useDeferredValue` は owners feature では使わない。
 - **SoT**: `page` / `search` / `species` / `include_deceased` / `clinics` は URL クエリと同期し、変更時に loader が再実行される。
 
+**検索から一覧描画までのデータ流れ:**
+
+```mermaid
+sequenceDiagram
+    participant U as ユーザー
+    participant I as 検索入力欄 (ローカル state)
+    participant Q as URL クエリ (SoT)
+    participant L as ownersLoader
+    participant S as サーバ (GET /v1/pets)
+
+    U->>I: 検索語を入力
+    I->>Q: デバウンス後に URL へ反映
+    Q->>L: クエリ変更で再実行
+    L->>S: page / search / species / include_deceased / clinic_ids
+    S-->>L: サーバ側で絞り込んだページ (ペット行粒度)
+    L-->>I: 一覧へ反映
+```
+
 ### 3.2 臨床ロジック
 - **危険度バッジ**: ペットマスタの `danger_level` カラムを参照。院内スタッフの安全を守るための最重要インジケータとして機能します。
 

@@ -26,6 +26,22 @@
 | 8 | `clinic_id` クエリなしの URL でペットヘルスを開く | 「クリニックIDが見つかりません」系エラー（`PetHealthPage` が clinic_id 必須 reject）。他テナントデータは出ない |
 | 9 | バックエンド停止などで健康記録の取得を失敗させる（ローカルのみ） | 「データ取得に失敗しました」と再試行ボタン。401（ID Token 失効）は再試行ボタンを出さない |
 
+**連携とヘルスカード取得の流れ**（手順 1〜7 と確認観点「飼主間隔離」の概要）:
+
+```mermaid
+sequenceDiagram
+    participant S as 病院側スタッフ
+    participant O as 飼主（LINE / LIFF）
+    participant API as Backend
+
+    S->>O: 連携トークン付き URL 発行（単回・期限付き）
+    O->>API: /liff/{clinicId}/?clinic_id=..&token=.. で連携
+    API-->>O: 連携成立（audit 記録）
+    O->>API: GET /api/liff/:clinicId/health-card（idToken）
+    API->>API: idToken → line_customers → owner_id 解決
+    API-->>O: 自分の飼主レコードの生存ペットのみ返却（他飼主のデータは返らない）
+```
+
 ## 確認観点
 
 - **飼主間隔離**: ヘルスカード API（`GET /api/liff/:clinicId/health-card`）は idToken → `line_customers` → `owner_id` の解決で自分の飼主レコードのペットのみを返す。pet_id 等をクエリで受けない設計のため、URL 操作で他の飼主のデータは閲覧できないこと。

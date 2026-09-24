@@ -10,6 +10,14 @@
 - real LINE/L-step/file send は human STG lane が明示承認した場合だけ。未承認なら mock または BLOCKED。
 - 下記で canonical scenario/API が示されない期待は exploratory (`要実測`) であり、文書の記述だけで acceptance requirement に昇格させない。
 
+```mermaid
+flowchart TB
+    S[安全境界<br>approved tenant / disposable DB<br>外部送信は human lane 承認] --> E[期待・差異の観察]
+    E --> Q{canonical scenario / API spec を特定できる}
+    Q -->|特定できる| A[acceptance expectation として照合]
+    Q -->|特定できない| M[exploratory 要実測<br>記述だけで acceptance requirement に昇格しない]
+```
+
 ## 2. focused checks
 
 ### 2.1 outpatient

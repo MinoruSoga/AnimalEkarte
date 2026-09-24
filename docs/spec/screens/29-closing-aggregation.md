@@ -48,6 +48,18 @@
 
 > ⑥#247 配賦契約: matrix 総額=支払実額基準（割引適用後・締め合計と一致）・割引は明細金額比例で配賦・返金は発生日の負値行・端数は最大剰余法で行合計=列合計=総計を円単位保存・「件数」=会計 distinct・支払方法列は医院 master 順で構築し期間内データを持つ無効/削除済み method は末尾表示。
 
+```mermaid
+flowchart TB
+    P["payment_splits<br/>completed_at が期間内"]
+    R["billing_refunds"]
+    M["締め合計 / matrix grand<br/>close マトリクス・締め snapshot・月次 category_payment_matrix"]
+    K["KPI NetAmount<br/>月次 summary.net_amount・理論現金控除"]
+    P --> M
+    R -->|"refunded_at が期間内<br/>発生日の負値行"| M
+    P --> K
+    R -->|"親会計の completed_at が期間内<br/>完了会計帰属"| K
+```
+
 ##### (a) 返金は発生日の負値行（pre-aggregation 禁止）
 
 | 項目 | 内容 |

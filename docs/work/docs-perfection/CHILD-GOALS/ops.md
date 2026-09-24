@@ -22,3 +22,14 @@ receipt_destination: "最終応答に変更パス・検証コマンド/exit/出�
 [Role map](../ROLE-MAP.md) / [Inventory](../INVENTORY.md) / [Repair queue](../REPAIR-QUEUE.md) / [Parent ledger](../LEDGER.md)
 
 開始前に AGENTS.md → .claude/CLAUDE.md と対象の最寄りCLAUDE.mdを読む。親のcoordinator-completeだけを全docs完了とみなさない。以下の依存は順序を定めるもので、このファイルの作成が子実行を許可するものではない。新しい実行依頼でこの子だけを起動する。
+
+```mermaid
+flowchart LR
+    A["開始時のclaim確認"] --> B{"既存claim?"}
+    B -->|あり| X["BLOCKED<br>編集しない"]
+    B -->|なし| C["claim取得"]
+    C --> D["allowlist内で修復<br>docs/ops/**（RQ-004/005/006/008）"]
+    D --> E["検証群を実行"]
+    E --> F["独立レビュー<br>CRITICAL/HIGH 0"]
+    F --> G["最終応答<br>親coordinatorがLEDGERへ統合"]
+```

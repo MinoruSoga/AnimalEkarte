@@ -159,6 +159,23 @@
 
 - ルート: `/`。カードのドラッグ&ドロップ / 詳細モーダルの進行ボタン。入力フィールドなし（status のみ PATCH — C1 該当なし）。
 
+**カードのステータス遷移:**
+
+```mermaid
+stateDiagram-v2
+    state "受付済" as checked_in
+    state "診察中" as in_consultation
+    state "会計済" as accounting
+    state "キャンセル" as cancelled
+    [*] --> checked_in : 新規予約登録（walk-in・status=checked_in）
+    [*] --> confirmed : 受付予約列「+」（通常予約）
+    pending --> confirmed : 編集保存で昇格
+    checked_in --> in_consultation : カルテ/トリミング記録作成と同時（直接ドラッグは移動しない）
+    in_consultation --> accounting
+    accounting --> checked_in : 逆方向ドラッグは PATCH 可（順序ガードなし）
+    confirmed --> cancelled : キャンセル（ConfirmDialog 経由・status 更新）
+```
+
 | # | 操作 | 期待結果 |
 |:--|:--|:--|
 | 1 | (C2) カードを受付済 → 診察中へドラッグ | 移動せずトースト「カルテ作成が必要です」。進行はカルテ／トリミング記録作成と同時 |

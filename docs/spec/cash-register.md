@@ -38,6 +38,18 @@
   - 20:00 の会計 ➔ 当日の **EMG売上**
   - 翌日 02:00 の会計 ➔ 当日（前日扱い）の **EMG売上**
 
+```mermaid
+stateDiagram-v2
+    AM : AM（am_start 〜 pm_start）
+    PM : PM（pm_start 〜 pm_end）
+    EMG : EMG 夜間・緊急（pm_end 〜 翌日 am_start）
+    [*] --> AM : am_start
+    AM --> PM : pm_start
+    PM --> EMG : pm_end
+    EMG --> AM : 翌日 am_start
+    note right of EMG : 深夜帯の緊急会計はカレンダー日付ではなく前日の EMG に帰属
+```
+
 ---
 
 ## 3. レジ締めフロー

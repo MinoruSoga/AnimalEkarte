@@ -95,6 +95,19 @@ This session did not read any secrets file. Presence of `/secure/staff-batch` on
 
 `staff-provision` has no undo command. Rollback is two different procedures depending on whether the transaction committed.
 
+```mermaid
+stateDiagram-v2
+    [*] --> preflight
+    preflight --> apply: USER approval on named env
+    apply --> rolled_back: tx error (auto)
+    apply --> applied: status applied
+    apply --> noop: same-digest complete receipt
+    apply --> conflict: partial or digest mismatch
+    rolled_back --> preflight: fix non-secret cause, re-check
+    applied --> compensate: USER-only compensating path
+    conflict --> [*]: fail-closed
+```
+
 ### 5.1 Before commit (automatic)
 
 Any error inside `WithTx` rolls the transaction back: no accounts, no staff rows, no receipts, no audit (`staff_provisioning_apply.go` L73–116; repository atomicity tests). Operator action: keep the same 0600 files, fix the **non-secret** cause (scope, actor, FK, conflict), re-run **preflight**, then stop for approval. Do not delete receipts that do not exist.

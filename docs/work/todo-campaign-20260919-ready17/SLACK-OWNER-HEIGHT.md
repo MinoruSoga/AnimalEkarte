@@ -60,6 +60,14 @@ M1 の多数件で内側スクロールが立たないとき、ダイアログ�
 4. **625 CSS px での算術（ローカル基準。実機 innerHeight は UNKNOWN）:** `80vh` = 500px。`p-6`+`gap-4`+ヘッダ+検索行を引くと残りはおおよそ 300px 前後。`min-h-[200px]` の床は 625 基準では主因になりにくい。主因は天井欠如と高さ不定。実機 innerHeight が 625 未満（ブラウザ UI・125%・OS スケール）なら床が余り高さを食う可能性は残る → 実測まで **UNKNOWN**。
 5. **入れ子:** PetEditModal は親 `<Dialog>`（L169、`DialogContent` は `LAYOUT.modal.xl overflow-y-auto` = `max-h-[90vh]`）の**内側**に OwnerSearchModal をマウントする（L253–261）。OwnerSearchModal 自身が別 `Dialog.Root` を持つため **入れ子 Root**（兄弟 Root ではない）。カルテ側はフラグメント直下の独立 Dialog。どちらも結果クラスは同じ。
 
+```mermaid
+flowchart TB
+    A["DialogContent: max-h-80vh + flex-col"] --> B["結果領域 div（flex-1）"]
+    B --> C{"min-h-0 と明示天井の有無"}
+    C -->|"あり（現行）"| D["親高さ内で scrollport 成立 → 末行まで到達"]
+    C -->|"床のみ（legacy）"| E["innerHeight が小さいと床が dialog 下端を越え、末行が枠外"]
+```
+
 ## 現行経路（OwnersListTable = 別 surface）
 
 1. PageLayout L45–56: ルート `h-full` + `STYLE.page`（`overflow-hidden`）。本文 `flex-1 overflow-y-auto`。内側ラッパは `flex-1 flex flex-col` で **`min-h-0` なし**。

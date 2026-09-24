@@ -65,6 +65,23 @@ helper が **新規** に作るものだけを使う。
 | 内部 | 新規 completed billing を transaction で INSERT。generic PATCH は使わない。本番 complete に clock seam は入れない |
 | 登録 | router には載る。staging/production と許可外 HTTP host は handler が 404 |
 
+```mermaid
+sequenceDiagram
+    participant U as UAT 実行者 / CLI
+    participant API as synthetic-closings API
+    participant TX as DB transaction
+    participant BR as ブラウザ UAT
+
+    U->>API: POST setup（対象日 = JST 暦日）
+    API->>TX: 新規 clinic / staff / owner / pet / 支払・明細<br>と指定時刻の completed billing を INSERT
+    TX-->>API: commit
+    API-->>U: clinic_id / loginEmail / billing id / completed_at / cleanup token
+    Note over API,U: パスワードは応答に含めない
+    U->>BR: 合成 staff login・帰属プレビュー確認
+    U->>API: DELETE（X-UAT-Cleanup-Token）
+    API->>TX: 作成 clinic 配下を一括削除
+```
+
 ## 変更ファイル
 
 - `backend/internal/billing/synthetic_closing_*.go`

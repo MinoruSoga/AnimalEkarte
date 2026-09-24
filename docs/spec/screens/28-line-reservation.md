@@ -55,6 +55,23 @@ LINE アプリ内で飼い主が見る画面の文言を編集します。`LineR
 ### 1. リアルタイムな空き枠計算
 ここでの設定と、予約受付スタッフの個人スケジュール（`reservation_schedule_service.go`）、および既に確定している予約 (`/reservations`) を掛け合わせ、飼い主側には常に「最新の空き状況」が表示されます。
 
+```mermaid
+flowchart TB
+    subgraph Admin["管理者側の設定（この画面）"]
+        Settings["基本設定<br>受付期間・定休・営業時間・スロット間隔"]
+        Slots["予約枠カレンダー<br>予約区分ごとの開始時刻"]
+        Page["ページ編集<br>飼主向け文言"]
+    end
+    Sched["予約受付スタッフの個人スケジュール"]
+    Confirmed["確定済みの予約"]
+    Settings --> Calc["空き枠計算エンジン"]
+    Slots -->|営業時間から自動生成される枠へ加算| Calc
+    Sched --> Calc
+    Confirmed --> Calc
+    Calc --> Owner["飼主側 LINE 予約アプリへ最新の空き状況"]
+    Page -->|保存内容を即座に反映| Owner
+```
+
 ### 2. 自動通知連携
 予約の完了およびキャンセルの通知が、Messaging API を通じて飼い主の LINE へ自動送信されます（あわせて病院の通知メール宛にメール通知）。
 

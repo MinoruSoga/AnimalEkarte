@@ -25,6 +25,19 @@
 | 7 | 件数・サイズ上限（`MAX_UPLOAD_FILES`・`MAX_FILE_SIZE_MB`/ファイル・合計 50MB/バッチ）を超える選択をする | バッチ全体が fail-closed で拒否され（SEC-CS-F08）、エラー toast が出て部分アップロードされない |
 | 8 | アップロード後にギャラリーへ反映される | 追加した画像/資料が一覧に出る。再読込で保持される |
 
+撮影・アップロードの 2 系統とガード:
+
+```mermaid
+flowchart TB
+    CAM["撮影（capture=environment・画像のみ）"] --> SEL["ファイル選択"]
+    UPL["アップロード（jpeg png gif pdf・複数選択可）"] --> SEL
+    SEL --> RST["input value をリセット — 同一ファイルの再選択が効く"]
+    RST --> LIM{"件数・サイズの上限内か"}
+    LIM -->|"超過"| REJ["バッチ全体を fail-closed 拒否 — エラー toast・部分アップロードなし"]
+    LIM -->|"範囲内"| UP["アップロード実行 — 実行中は両ボタン disabled で二重送信を防止"]
+    UP --> GAL["ギャラリーへ反映・再読込で保持"]
+```
+
 ## 確認観点
 
 - `ImageGalleryFilter` は撮影用 input（`capture="environment"`・accept jpeg/png/gif）とアップロード用 input（accept jpeg/png/gif/pdf・`multiple`）を分ける。撮影で pdf が取れる設計ではない。

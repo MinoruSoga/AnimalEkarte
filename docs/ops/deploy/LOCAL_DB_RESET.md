@@ -35,6 +35,22 @@ make reset
 
 段階 5 は postflight の後に動くため、失敗しても段階 1〜4 の DB 再構築は巻き戻りません。staged bundle を残したまま `make reset` を実行することは、その clinic の local 行を handoff 内容へ置換する明示的な選択です。
 
+```mermaid
+flowchart TB
+  R["make reset（USER のみ）<br/>scripts/local-db-reset-contract.sh"] --> S1["1. 環境照合<br/>固定 project / volume 名と APP_ENV を照合"]
+  S1 -->|production / staging 系・不一致| X1["拒否（fail-closed）"]
+  S1 -->|一致| S2["2. 回復 snapshot<br/>.local-db-backups へ owner-only の pg_dumpall + SHA-256 + manifest"]
+  S2 -->|空 dump / 空 digest / 書込み失敗| X2["ここで停止（volume は消さない）"]
+  S2 -->|成功| S3["3. 削除<br/>ekarte-postgres-data のみ docker volume rm<br/>cache volume は保持"]
+  S3 --> S4["4. 再起動 + postflight<br/>migration key coverage / 直下 DDL / seed 002_master /<br/>schema_migrations 契約 / backend healthy / health 200"]
+  S4 -->|不足あり| X3["非 0 で停止"]
+  S4 -->|OK| S5{"_old_db_handoff に<br/>manifest 付き bundle あり?"}
+  S5 -->|なし| Done["完了"]
+  S5 -->|あり・local のみ| S6["5. staged handoff 取込<br/>cleanup transaction commit 後に csv-import apply / verify"]
+  S6 -->|後段失敗| X4["非 0 で停止<br/>cleanup 済みの reset DB が残る"]
+  S6 -->|成功| Done
+```
+
 ### 2.1 失われるもの / 保持されるもの
 
 | 失われるもの | 保持されるもの |

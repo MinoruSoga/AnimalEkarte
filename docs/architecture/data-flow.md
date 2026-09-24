@@ -27,6 +27,27 @@
 
 [ADR-006](./adr/006-backend-domain-package-boundaries.md) の domain/capability-first modular monolith では、固定の `internal/handler`・`internal/service`・`internal/repository` ディレクトリを必須としない。小規模 resource は `internal/<domain>` 内に HTTP 境界・use case・persistence を同居させる。
 
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant A as middleware.Auth
+    participant CA as current_access_service
+    participant B as HTTP boundary (internal/owner)
+    participant U as Use case / persistence
+    participant DB as PostgreSQL
+
+    C->>A: GET /api/v1/owners (access_token Cookie / Bearer, X-Clinic-ID)
+    A->>A: JWT 検証 (clinic_ids は snapshot のみ)
+    A->>CA: account / staff / assignment を request-time 再解決
+    CA-->>A: trusted clinic scope (lookup 障害時は 503 fail closed)
+    A->>B: clinic scope を gin.Context に格納
+    B->>B: query bind / 検証 + RequirePermission
+    B->>U: 一覧・件数取得 (clinic scope 付き)
+    U->>DB: Count とページ取得 (別クエリ・clinic 述語強制・snapshot なし)
+    DB-->>U: rows
+    U-->>C: 一覧レスポンス
+```
+
 1.  **Middleware (Auth)**:
     - `access_token` Cookie（または Bearer）から JWT を検証（`middleware.Auth`）。
     - トークンの `clinic_ids` はログイン時スナップショットであり **最終 authority ではない**。
@@ -46,6 +67,25 @@
 ## 3. イベント駆動フロー（会計完了時の CPM タグ同期）
 
 ### 例：Lステップタグ自動付与 (会計完了時)
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant B as accountingService.Complete (internal/billing)
+    participant T as tagSyncSvc.SyncCPMStageTag
+    participant L as Lステップ API
+    participant DB as PostgreSQL
+
+    C->>B: POST /api/v1/accountings/complete
+    B->>DB: 会計確定 transaction
+    Note over B: result.Created=true のときのみタグ同期
+    B->>T: syncCPMStageTag (同期呼び出し・fail-open)
+    T->>T: 累計売上/来院頻度/最終来院を再計算し CPM ステージ再算出 (旧タグ全削除→新タグ付与の冪等)
+    T->>L: タグ付与/解除 (二重ゲート: LSTEP_WRITE_API_ENABLED + is_sync_enabled)
+    L-->>T: HTTP 200 (gate OFF 時は HTTP 送出なし + ErrWriteDisabled)
+    T->>DB: tag cache Upsert/Delete + slog/失敗カウンタ (audit_logs/trigger log 対象外)
+    B-->>C: 会計結果 (タグ同期失敗は記録のみ・本処理は継続)
+```
 
 1.  **Event Trigger**: `POST /api/v1/accountings/complete` → `internal/billing` の `accountingService.Complete` が会計確定 transaction を完了する（`accounting_complete.go`）。`result.Created=true` のときだけタグ同期を呼ぶ。通常 Create/Update は確定への遷移を拒否し、既存確定結果を返す冪等な Complete 再実行もタグ同期を再試行しない。
 2.  **同期ディスパッチ**: レスポンス返却前に `syncCPMStageTag` → `tagSyncSvc.SyncCPMStageTag(ctx, clinicID, ownerID)` を**同期呼び出し**（goroutine ではない）。タグ同期が失敗してもエラーは記録のみで会計処理は継続（fail-open）。

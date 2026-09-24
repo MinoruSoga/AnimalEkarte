@@ -60,6 +60,18 @@ Callers: campaign controller `units.json` `owned_paths`（`SLACK-RESERVATION-REF
 
 Batch Create は同じ capability / type / created_by 経路。各 pet に owner-pet 検証を繰り返す（service L395–430）。予約 API は本セッションから呼び出していない。
 
+検証順序の概形:
+
+```mermaid
+flowchart TB
+    R["予約 Create"] --> A1["handler<br/>担当医の医院所属 check<br/>doctorID = 0 は通過"]
+    A1 --> A4["service<br/>予約区分の医院所有 FindByID"]
+    A4 --> N["doctor_id 正規化<br/>0 → NULL"]
+    N --> TX["同一 tx 内の業務検証<br/>capability / owner pet 整合 / 死亡"]
+    TX --> INS["INSERT<br/>created_by assert 後に挿入"]
+    INS --> FK["DB 複合 FK<br/>23503 → 参照先が存在しません"]
+```
+
 ## 現行参照チェック一覧（FK とアプリ）
 
 「参照先が存在しません」は **DB FK `23503` の総称**である。アプリが先に拒否する場合は別メッセージになる。

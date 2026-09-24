@@ -63,6 +63,19 @@ curl -sS -o /dev/null -w '%{http_code}\n' https://api.stg.noah-karte.com/health
 
 API token等の順序: 新発行 → secret 投入 → 再デプロイ → `/health` と対象機能の確認 → 旧 revoke → 旧値拒否確認。暗号鍵は上記の承認済みデータ移行・復元手順を使い、この順序だけで切り替えない。完了まで #89/#97 は close しない。
 
+```mermaid
+flowchart LR
+  Gate["実行者は USER（エージェントは実行しない）<br/>承認 + environment / config path / Worker名 / change ID の記録"]
+  Gate --> New["新しい値を provider で発行"]
+  New --> Put["投入先へ新値を保存<br/>（target config 明示の wrangler secret put、または対象 UI）"]
+  Put --> Deploy["再デプロイ"]
+  Deploy --> Verify["/health と対象機能で確認"]
+  Verify --> Revoke["旧値を revoke"]
+  Revoke --> Deny["旧値が拒否されることを確認"]
+  Deny --> Close["全系統の完了まで Issue を close しない"]
+  EncKey["暗号鍵（INTEGRATION_ENCRYPTION_KEY 等）の切替"] -.->|"承認済みのデータ移行・復元手順が前提。<br/>この順序だけでは切替えない"| Gate
+```
+
 GitHub Secrets（`CLOUDFLARE_API_TOKEN`, `MIGRATE_RUN_SECRET`, `STG_DEMO_EMAIL`, `STG_DEMO_PASSWORD`）
 の登録手順は [`infra/cloudflare/README.md`](../../../../infra/cloudflare/README.md) の「CI デプロイ」を正とする。
 

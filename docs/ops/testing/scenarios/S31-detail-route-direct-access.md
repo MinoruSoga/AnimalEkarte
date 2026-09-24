@@ -22,6 +22,17 @@
 | 5 | 権限のない actor で各詳細 URL を直接開く | 閲覧不可または権限エラーで、データが見えない。URL 直打ちで権限を迂回できない |
 | 6 | 存在しない/削除済み ID で各詳細を開く | 404 または「見つかりません」等のハンドリングで、真っ白・クラッシュ・別データの誤表示にならない |
 
+**到達判定の流れ:**
+
+```mermaid
+flowchart TB
+  A["詳細 URL へ直接アクセス（会計 / 入院・編集 / 在庫）"] --> B{"権限あり?"}
+  B -->|"なし"| C["閲覧不可 / 権限エラー — URL 直打ちで迂回不可"]
+  B -->|"あり"| D{"対象 ID が存在?"}
+  D -->|"存在"| E["詳細が表示されデータが正しくロードされる"]
+  D -->|"なし / 削除済み"| F["404 / 見つかりません 等のハンドリング — 真っ白・誤表示にならない"]
+```
+
 ## 確認観点
 
 - ルートは `frontend/src/config/paths.ts` の `paths.accounting.detail`（`/accounting/:id`）、`paths.hospitalization.detail`（`/hospitalization/:id`）・`paths.hospitalization.edit`（`/hospitalization/:id/edit`）、`paths.inventory.detail`（`/inventory/:id`）。詳細ルートが登録されていることが前提。

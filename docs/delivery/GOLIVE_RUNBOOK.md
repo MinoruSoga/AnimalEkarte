@@ -23,6 +23,25 @@
 
 ---
 
+**手順の全体像（gate-driven HOLD）**: 前提が揃うまで当日手順は実行しない。当日は Access 停止 → 最終移行 → 突合 gate → 疎通確認を経て、Go/No-Go 判定で利用開始か切り戻しへ分岐する。
+
+```mermaid
+flowchart TB
+  Pre["§1 pre-window 前提チェックリスト"] -->|全項目 green かつ named owner 揃い| Win["「新 window 記入欄」に切替日 T を記入"]
+  Pre -.->|未完了が残る間| Hold["HOLD：当日手順を実行しない"]
+  Win --> Stop["T 日：Access 入力停止を宣言"]
+  Stop --> Mig["最終データ抽出 → 事前バックアップ → 最終データ移行"]
+  Mig --> Gate{"Day-of gate：移行データ突合検証"}
+  Gate -->|未達| NoGo["No-Go（最終判定を Go にしない）"]
+  Gate -->|PASS| Ver["DNS 読み取り確認 → 疎通・スモーク"]
+  Ver --> Judge{"Go/No-Go 最終判定（§4）"}
+  Judge -->|Go| GoStart["利用開始宣言 → 集中監視（§5）"]
+  Judge -->|"No-Go / §4.2 基準発動"| RB["切り戻し（§4.3）<br/>Access へ一時退避 + Cloudflare 正系統を復旧<br/>旧 AWS 系は復活させない"]
+  NoGo -.-> RB
+```
+
+---
+
 ## 1. Pre-window 前提チェックリスト（切替日前に全項目 ✅ であること）
 
 **研修順序の未解決な正本間差異**: [#256](https://github.com/MinoruSoga/AnimalEkarte/issues/256) は操作説明会を納品後とする一方、現行 [`todo.md`](../../todo.md) は P7（U13 研修）を P8（Go-live）の前提に含める。切替前に USER が Linear 上で採用する順序を確定する。本書の同期では既存ゲートを解除せず、U13 を完了扱いにしない。

@@ -22,6 +22,18 @@
 | L4  | 業務・フォーム受入                   | [scenarios/](scenarios/README.md)                  | Chrome DevTools、scripted browser、人手                                                                                                                                           |
 | L5  | focused exploratory / post-deploy    | [SECTION_14](SECTION_14_MANUAL_TEST_GUIDE.md)      | AI または人手                                                                                                                                                                     |
 
+```mermaid
+flowchart TB
+    L0[L0 正しい仕様 — review]
+    L1[L1 関数・component — scoped test / CI]
+    L2[L2 HTTP・DB・認可・FK・clinic isolation — CI shards + coverage ratchet]
+    L3["L3 実装済み画面回帰 — make e2e / run-e2e.sh"]
+    L4[L4 業務・フォーム受入 — scenarios 正本]
+    L5[L5 focused exploratory / post-deploy — SECTION_14]
+    L0 --> L1 --> L2 --> L3 --> L4 --> L5
+    L3 -. 相互に代替しない .- L4
+```
+
 ## 3. L4 の範囲
 
 S01–S13 と V01–V05 が宣言済み受入範囲である。unique form総数はinventory再構築完了まで算定保留である。したがって次を区別する。

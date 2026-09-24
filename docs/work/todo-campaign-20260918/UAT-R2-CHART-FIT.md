@@ -34,6 +34,23 @@
 - 保存/印刷/確定は `fixed bottom-6 right-6`。会計タブではこの塊を出さず、タブ内の「チェック完了」が同じ固定位置。[^actions]
 - 処置検索ダイアログは `max-h-[80vh]`、一覧 `overflow-y-auto max-h-[calc(80vh-12rem)]`。625 高では 80vh でもヘッダ+検索を残し一覧だけ局所スクロールする。[^searchdlg]
 
+共通シェルの高さチェーンと overflow 原因の構造:
+
+```mermaid
+flowchart TB
+    subgraph VP["viewport 1366×625"]
+        direction TB
+        HDR["FormHeader + 患者識別・タブ（スクロール外に固定 / sticky）"]
+        BODY["PageLayout 本文（overflow-y-auto）"]
+        ACT["保存・確定（fixed bottom-6 right-6）"]
+        HDR --> BODY
+        BODY --> TB{"タブルート"}
+        TB -->|問診のみ| OK["flex-1 min-h-0 で高さチェーン継続"]
+        TB -->|他タブ| NG["高さチェーン切断：固定高・min-h・hidden が本文を食う・切る"]
+        ACT -.->|本文末尾を覆い得る| BODY
+    end
+```
+
 **禁止（全タブ共通の最小案）:** 臨床情報や操作を `overflow:hidden` で切って隠す、文字サイズの一律縮小、サイドバー強制折畳みだけで合格、タブ削除。Chrome 109 / Tailwind v4 / `esnext` は下節の **別ゲート** のまま。寸法修正の PASS を旧Chromeの PASS にしない。
 
 実機 CSS viewport（`innerWidth`×`innerHeight`）、OS 表示スケール、Chrome 版は未採取 → **UNKNOWN**。

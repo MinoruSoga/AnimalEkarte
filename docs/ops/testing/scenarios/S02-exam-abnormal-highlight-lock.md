@@ -26,6 +26,32 @@
 | 7b | `examination-unconfirm:edit` 付きアカウントで確定解除（理由 1〜500 字）→ 印刷 | `POST /examinations/:id/unconfirm` が成功し再編集できる。印刷は `GET /examinations/:id/print-snapshot`（confirmed は official、それ以外は draft 透かし） |
 | 8 | examinations view のみを持つ専用 attached accountでログインし、確定操作・結果入力を試行する | examinations の view は許可されるためフォームは見えるが、fieldset 無効・保存ボタンなし。第2アカウントが無い環境はBLOCKEDとして記録し、このscenarioを完了扱いにしない |
 
+```mermaid
+stateDiagram-v2
+    direction LR
+    pending: pending 依頼中
+    in_progress: in_progress 検査中
+    result_entered: result_entered 結果入力済み
+    completed: completed 完了
+    confirmed: confirmed 確定
+
+    [*] --> pending
+    pending --> in_progress
+    in_progress --> result_entered
+    result_entered --> completed
+    completed --> confirmed
+
+    note right of completed
+        revision 無しは結果・削除を封印（完了シール）
+        保存ボタンは消える・完了済みは削除不可
+    end note
+    note right of confirmed
+        全ロック: FE persisted lock + BE confirmed 拒否・削除不可
+        確定解除は examination-unconfirm:edit 権限のみ（理由 1〜500 字・成功で再編集可）
+        ドラフトで確定を選んだだけではロックしない
+    end note
+```
+
 ## 確認観点
 
 - 異常値判定はバックエンド（`backend/internal/medicalrecord/examination_service.go` の `computeExamResultStatus` → `assessExamResult`）に集約。フロント（`ExamItemsTable`）は `status` / `isAssessed` / `isAbnormal` の表示専任（再計算しない）。

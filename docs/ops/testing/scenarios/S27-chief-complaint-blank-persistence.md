@@ -22,6 +22,20 @@
 | 5 | 解除して保存 → 再読込 | 区分が空のまま保持される。前の区分が勝手に復活しない |
 | 6 | 別のカルテ/ペットへ切り替えて戻る | 記録ごとの区分・本文が混ざらない。記録切替で別レコードの値が残らない |
 
+主訴区分の状態遷移（保存・再読込・実 UI 解除）:
+
+```mermaid
+stateDiagram-v2
+    state "区分空欄 + 本文保存済み" as Blank
+    state "区分選択済み" as Selected
+    state "解除後（区分は空のまま）" as Cleared
+    [*] --> Blank: 区分未選択のまま本文だけ入力して保存
+    Blank --> Blank: 再読込で区分は空・本文は保持
+    Blank --> Selected: 区分を選択して保存
+    Selected --> Cleared: 実 UI の解除操作で区分を外して保存
+    Cleared --> Cleared: 再読込・記録切替でも区分は空・本文は保持
+```
+
 ## 確認観点
 
 - 区分は `updateInquiryMutation` の `chief_complaint_type_id: number | null` で null を許容。空欄は仕様（依頼済み）でありエラーにしない。

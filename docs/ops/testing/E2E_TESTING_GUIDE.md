@@ -52,6 +52,16 @@ Current wrapper は headless-only と扱う。DISPLAY/Wayland/X11/VNC を接続�
 
 workflow の配線、実行成功、artifact の存在を区別する。`--clinical` の環境チェックと通常終了時 teardown は、全 suite の isolation/cleanup を保証しない。
 
+```mermaid
+flowchart TB
+    W["e2e.yml workflow_dispatch<br>manual・non-gating"] --> A[auth smoke<br>auth-flows.spec]
+    R["local runner<br>make e2e / run-e2e.sh"] --> A
+    R --> C["--clinical<br>別 allowlist + disposable clinic fixture"]
+    R --> F[full suite 全件]
+    C -. e2e.yml job なし・別承認 .-> J[clinical / full suite job]
+    F -. e2e.yml job なし・別承認 .-> J
+```
+
 ## 5. pass/report contract
 
 - 実行した spec は 100% PASS。skip/retry は明示する。

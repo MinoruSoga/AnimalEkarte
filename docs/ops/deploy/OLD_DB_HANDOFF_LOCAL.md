@@ -42,6 +42,19 @@ backend/migrations/seeds/_old_db_handoff/jouto-local/  # 任意。電話 unique 
   [STG_PLANETSCALE_SEED_RUNBOOK.md](./STG_PLANETSCALE_SEED_RUNBOOK.md) §6。
 - 21 CSV を `003_demo` へ直接コピーして seed 扱いしてはいけない。
 
+```mermaid
+flowchart LR
+  subgraph Seeds["backend/migrations/seeds/"]
+    M["002_master<br/>医院骨格・参照マスタのみ"]
+    H["_old_db_handoff/医院別/<br/>old_db 21 CSV + manifest<br/>Git 管理外"]
+  end
+  Mig["cmd/migrate / make seed"] -->|読む| M
+  Mig -.->|読まない| H
+  H -->|local make reset の postflight 後に自動 import| L["local DB<br/>REHEARSAL_ONLY / UNVERIFIED も local 限定で許可"]
+  H -->|make stg-uat-handoff（対象 clinic のみ）| S["共有 STG rehearsal"]
+  H -->|status=PASS かつ TRUSTED_CANDIDATE| F["正式 cutover（F6）<br/>csv-import preflight → apply → verify"]
+```
+
 詳細境界: [SEED_MIGRATION_OPERATIONS.md](./SEED_MIGRATION_OPERATIONS.md) /
 [CLINIC_CSV_IMPORT.md](./CLINIC_CSV_IMPORT.md)
 

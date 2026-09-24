@@ -39,6 +39,26 @@
 
 ## 2. 主要な監視ロジック
 
+```mermaid
+stateDiagram-v2
+    [*] --> scheduled : トリガー候補のログ作成
+    scheduled --> fired : 配信 API 成功（fired_at 記録）
+    scheduled --> excluded : 自動除外ガードで阻止
+    scheduled --> failed : 配信 API 失敗
+    fired --> [*]
+    excluded --> [*]
+    failed --> [*]
+    note right of scheduled
+        同日に優先度の高い別トリガーがあれば
+        suppressed_by_priority フラグが立ち配信しない
+        （excluded_reason とは別カラム）
+    end note
+    note right of excluded
+        除外理由 = delivery_excluded_flag /
+        no_line_user_id / excl_tag_delivery_stop
+    end note
+```
+
 ### 2.1 自動除外ガード (Auto-Exclusion)
 配信直前にバックエンド（`checkExclusion`）が以下のチェックを行い、不適切な送信を `excluded` として自動で阻止します。
 1.  **配信除外フラグ**: 飼主に配信除外設定がある場合（`delivery_excluded_flag`）。

@@ -37,6 +37,16 @@
 docker compose exec frontend pnpm design-audit
 ```
 
+```mermaid
+flowchart LR
+    P["ページ実装<br/>（routes/pages）"] --> M["機械化チェック<br/>design-system-audit ・ C8 allowlist<br/>違反は strict fail"]
+    P --> H["人手チェック<br/>コードレビュー ・ ブラウザ確認<br/>（臨床安全 UI ・ 意味役割 ・ 全 viewport）"]
+    M --> T["§2 ページ別対応状況表<br/>静的監査 / runtime 監査"]
+    H --> T
+    N["新規リーフ追加"] -.->|同一コミットで更新| M
+    N -.->|同一コミットで更新| T
+```
+
 ## 2. ページ別対応状況表
 
 **静的在庫: 86 製品ルート + wildcard 404 = 87 行。** この docs refresh では source / route inventory を静的に照合したが、runtime E2E は再実行していない。表の静的列は現行 source との対応だけを示し、runtime 合格を意味しない。

@@ -152,6 +152,23 @@ device ［取り消す］は **detach**:
 7. 待機解除は1操作
 8. 未対応行は欄内チップ → マスタ該当行。対応後そのジョブだけ再 attach/再 persist
 
+```mermaid
+stateDiagram-v2
+    state "受信中（ペット未選択）" as receiving
+    state "待機中（有効待機は1件）" as waiting
+    state "保存カード表示" as saved
+    state "未紐付け欄（pet_id NULL）" as unlinked
+
+    [*] --> receiving: ページを開く
+    receiving --> waiting: ペット選択
+    waiting --> saved: 電文到着（即 persist）
+    receiving --> unlinked: 電文到着（未選択）
+    waiting --> unlinked: 期限切れ待機への電文到着
+    waiting --> receiving: 待機解除（1操作）
+    unlinked --> saved: ペットを付ける（attach）
+    saved --> unlinked: 取り消す（detach）
+```
+
 モードAは「未紐付け欄にペットが事前に載っている」最適化。Bを例外画面に分けない。
 
 診察端末: その子の検査画面に「未紐付けの受信あり」。1クリックで `attach`（値は編集しない）。カルテから待機を遠隔起動しない。

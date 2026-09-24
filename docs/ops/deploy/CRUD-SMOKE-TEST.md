@@ -103,6 +103,24 @@ CRUD作成とは分離する。[スタッフアカウント払い出し](./STAFF
 - active child recordを持つ同一clinic staffへのDELETEが `409` になることを確認する。
 - このrunでC-1に作成しchild recordが無い `TEST_STAFF_ID` だけをDELETEし、`204`と後続GET/list stateを確認する。
 
+```mermaid
+sequenceDiagram
+    participant OP as 承認済みoperator
+    participant API as STG API
+    OP->>API: GET /clinics?scope=all（hospital-settings:view あり）
+    API-->>OP: 200
+    OP->>API: GET /clinics?scope=all（permission なし session）
+    API-->>OP: 403
+    OP->>API: PATCH 既存医院 → 保存済み元値で再PATCH
+    API-->>OP: 200 + GET で resource state 確認
+    OP->>API: POST /masters/permission-groups・/masters/staffs（TEST-*）
+    API-->>OP: 201 → TEST_GROUP_ID / TEST_STAFF_ID を記録
+    OP->>API: DELETE active dependency あり resource
+    API-->>OP: 409（in-use / FK 保護）
+    OP->>API: DELETE このrunが作成したIDのみ（子→親）
+    API-->>OP: 204 → GET/list で state 確認
+```
+
 ## 5. 期待status
 
 | case | 期待 |

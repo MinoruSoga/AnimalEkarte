@@ -24,6 +24,19 @@
 | 5 | 拠点を複数（A+B）選択する | `isMultiClinic` で両医院のデータが出る。各行の医院が区別できる |
 | 6 | 飼主一覧・他の一覧でも同じ `?clinics=` スコープが効くことを確認する | 拠点スコープは `useClinicScope` 経由で画面横断。画面ごとに勝手な絞り込みにならない |
 
+拠点スコープの経路と他院行の扱い:
+
+```mermaid
+flowchart TB
+    U["拠点切替（URL ?clinics=）"] --> H["useClinicScope"]
+    H --> S["selectedClinicIds / isMultiClinic / clinicNameById"]
+    S --> Q["一覧 API へ clinicIds を送信"]
+    Q --> ROW{"行の clinicId は現医院か"}
+    ROW -->|"同じ"| EDIT["編集・削除など操作可"]
+    ROW -->|"他院（isOtherClinic）"| VIEW["参照中心・編集/削除を抑制"]
+    NEW["選択中の医院で新規カルテ作成"] --> KEEP["clinic_id に選択医院の帰属が保持される（再読込でも維持）"]
+```
+
 ## 確認観点
 
 - 拠点スコープは `useClinicScope`（`frontend/src/hooks/`）が `?clinics=` → `selectedClinicIds`・`isMultiClinic`・`assignedClinics`・`clinicNameById` を提供する。クライアント側フィルタだけで他医院を隠す設計ではない。

@@ -9,6 +9,18 @@
 
 ---
 
+```mermaid
+flowchart TB
+    S1["1. 事前検証<br/>lint / type-check / test / e2e"]
+    S2["2. インフラ準備<br/>secrets names と vars の分離、migration 整合"]
+    S3["3. リリース実行<br/>main → staging PR → Actions 監視 → migration 任せ"]
+    S4["4. リリース後検証<br/>/health・ログイン・tenant 隔離・Lステップ疎通"]
+    S5["5. 障害判断<br/>runbook で切り分け → Cloudflare 側で修正・再デプロイ"]
+    S1 --> S2 --> S3 --> S4
+    S4 -->|"失敗時"| S5
+    S3 -.- GATE["production merge は backend / frontend の<br/>approval gate 実装・検証まで停止"]
+```
+
 ## 1. 事前検証（開発環境・CI）
 
 デプロイを開始する前に、ローカルおよび CI 環境で以下の品質基準を全て満たしていることを確認します。

@@ -33,6 +33,19 @@
 - `payments.clinic_id` と clinic 軸複合 FK（TASK-445 / 旧005相当）により payment 行のテナント境界を DB でも harden 済み。
 - 残差: レガシー `payment_method_id IS NULL` 行は許容し得る。TRIGGER は soft-deleted master を拒否しない。確定後訂正経路は保存済 method/payment_method_id 組合せを再検証しない。
 
+現行の整合チェック経路（application 層と DB trigger の二層防御）:
+
+```mermaid
+flowchart LR
+    W["会計の書込み<br/>method + payment_method_id"] --> APP{"application 層<br/>resolvePaymentMethodMasterID"}
+    APP -->|"他院 id・method 不一致・master 欠落"| R["拒否（現金 fallback なし）"]
+    APP -->|"解決 OK"| TRG{"DB trigger<br/>method ⇔ system_key 一致を強制"}
+    TRG -->|"不一致"| R
+    TRG -->|"一致"| P[("payments /<br/>payment_splits")]
+    PM[("payment_methods<br/>per-clinic master")] -. "system_key 照合" .-> TRG
+    P -. "clinic 軸 複合 FK" .-> PM
+```
+
 ### Historical proposal（決定前）
 `payment_method_id` は per-clinic master を参照するため、**単純 CHECK では表現不可**（クロステーブル参照が必要）。
 - **案 1A**: `payments` / `payment_splits` の `BEFORE INSERT/UPDATE` トリガーで `NEW.payment_method_id` の行を引き、

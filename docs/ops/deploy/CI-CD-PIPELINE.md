@@ -20,6 +20,21 @@
 
 本番構築は [setup.md](../infra/production/setup.md)、稼働後の契約は [production runbook](../infra/production/runbook.md)。backend/frontend 両方の acceptance が満たされるまで本番リリース成功としない。
 
+**経路の全体像**:
+
+```mermaid
+flowchart TB
+  M[main push] -->|CI のみ| CI[CI]
+  M -.->|review 済みの main から staging への PR で昇格| S[staging push]
+  S -->|backend / workflow / lockfile の変更、manual dispatch| BE[backend-deploy.yml]
+  BE --> STGB[STG backend]
+  S -->|frontend / workflow の変更、preview dispatch| FEP[frontend-deploy.yml]
+  FEP -->|Preview Environment| STGF[STG frontend]
+  P["production push / environment=production dispatch"] -->|production ref 以外は拒否| FPR[frontend-deploy.yml]
+  FPR -->|Production Environment| PDF[Production frontend]
+  P -.->|backend workflow は STG 固定| PB[production backend 未実装]
+```
+
 ## 2. Backend pipeline
 
 1. Checkout、pnpm/Node setup、frozen lockfile install。

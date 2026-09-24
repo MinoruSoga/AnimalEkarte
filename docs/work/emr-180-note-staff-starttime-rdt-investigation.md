@@ -24,6 +24,16 @@ Uncaught TypeError: Cannot read properties of undefined (reading 'startTime')
 | 7 | 上流の根本原因 | Chrome DevTools が Performance パネルの **Live Metrics / soft-navigation heuristics** のためにページへ埋め込む web-vitals コピーが、soft navigation 後に clear/reset 済みの INP エントリへ `setTimeout`/idle 経由で `.startTime` を読み、null check 欠落で throw。SPA で route 遷移するだけで発火。アプリ・フレームワーク非依存 |
 | 8 | 修正状況 | Chromium issue `543499029`。devtools-frontend CL `8300032` **"Live Metrics: Handle empty INP entries" は 2026-08-31 MERGED**。web-vitals maintainer コメントにより **Chrome 153 で修正配布** |
 
+```mermaid
+flowchart TB
+    R["報告スタック<br>reportAllChanges が startTime を読み TypeError"]
+    R --> E1{"アプリソース・依存に存在するか"}
+    E1 -->|src・backend・依存すべて 0 件| E2{"第三者スクリプトの注入経路はあるか"}
+    E2 -->|CSP は script-src self・外部 script なし| E3{"スタックフレームの形"}
+    E3 -->|全フレーム anonymous・eval 系の注入コード| ID["シンボル特定<br>web-vitals の report option。既知 issue と byte 一致"]
+    ID --> C["結論：DevTools Live Metrics が注入する<br>web-vitals バンドルの既知クラッシュ<br>製品コードの修正対象なし"]
+```
+
 ## 発生条件と既往調査との整合
 
 - 発生には「**Chrome ≤152 (修正前) + DevTools オープン (Live Metrics 有効) + SPA の soft navigation**」が必要。`/settings/staff` は react-router の lazy route で、画面遷移が soft navigation に該当するため「スタッフマスタを開いたとき」の発生と一致する。

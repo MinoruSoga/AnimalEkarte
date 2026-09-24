@@ -34,6 +34,15 @@
 
 API/契約レベルの証拠は「ブラウザ UAT」「本番/STG 準備」ではない。ブラウザ操作の成立は別レーン（下記「残件」）。
 
+```mermaid
+flowchart TB
+    U["route × operation の 1 行ごとの確認単位"]
+    U --> A["到達<br>Playwright spec 定義 → PASS（到達）<br>実行結果ではない"]
+    U --> B["API・契約<br>scoped 実DBテスト（ekarte_db_test）<br>→ PASS（API/契約）"]
+    U --> C["ブラウザ実操作・実書込み<br>→ UNKNOWN / BLOCKED"]
+    C -.->|前提が揃うまで実行不可| G["環境ゲート<br>専用 APP_ENV=test stack<br>disposable DB・承認済み fixture・teardown"]
+```
+
 ## 証拠の実行方法（再現手順）
 
 対象 revision の backend コンテナ内で scoped に実行する（テスト DB は `ekarte_db_test`。共有 `ekarte_db` は使わない）。

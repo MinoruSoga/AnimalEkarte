@@ -46,6 +46,22 @@
 - 削除（無効化）済みマスタ参照の挙動 → §12 trimming-form でのみ確認（#228 が仕様正本）。
 - C3-2: 本領域のフォームに UI から入力可能な一意制約カラムはない（`medical_records(clinic_id, record_no)` は自動採番、`clinic_id+name` 一意は参照先マスタ側の制約でマスタ設定フォームのシナリオが担当）— 全セクションで該当なし。
 
+**ブラウザ → API → DB の通し確認（各フォーム共通）:**
+
+```mermaid
+sequenceDiagram
+    participant BR as 実機ブラウザ（フォーム）
+    participant API as API / BE
+    participant DB as DB
+
+    BR->>API: C1 保存送信（必須空・形式違反・境界値）
+    API->>DB: C3 書込み（FK 選択肢・一意制約・ID 存在）
+    DB-->>API: 永続 / 制約違反で拒否
+    API-->>BR: 一覧・詳細へ反映 or エラー表示（無音失敗なし）
+    BR->>BR: C2 再読込・再オープンで永続確認
+    Note over BR,DB: 完了 = 全 fieldKey に F0〜F6 を適用
+```
+
 ## 手順と期待結果
 
 §1〜§12 を順に実行する。各節の (C1)(C2)(C3) は上記の共通チェック手順を指す。

@@ -62,4 +62,22 @@
 - **認可ガード**: 個別のマスタに対し、`ResourceMasterMedical` や `ResourceMasterStaff` 等の独立した権限チェックがバックエンドで実行されます。
 - **名称一意のエラー表示**: `(clinic_id, name)` UNIQUE のマスタで重複保存したとき、トーストは種別ラベルだけでなく入力した実名を含む（診療項目 5 タブの正本は [master-treatment.md §2.3](./master-treatment.md)）。
 
+全マスタ画面に共通する編集導線と認可の流れ:
+
+```mermaid
+sequenceDiagram
+    actor Staff as スタッフ
+    participant List as 一覧画面
+    participant Panel as MasterSidePanel
+    participant API as バックエンド API
+
+    Staff->>List: 行を選択
+    List->>Panel: SidePeekPanel で詳細を開く
+    Staff->>Panel: 属性を編集して保存
+    Panel->>API: 更新リクエスト
+    API->>API: マスタごとの権限チェック
+    API-->>Panel: 保存結果
+    Panel-->>Staff: 一覧を離れずに反映
+```
+
 ---

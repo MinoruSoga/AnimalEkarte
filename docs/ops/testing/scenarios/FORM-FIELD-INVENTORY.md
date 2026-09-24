@@ -7,6 +7,17 @@
 
 凡例: **R**=必須 / **O**=任意 / **C**=条件付き必須 / **S**=システム（入力不可→F は N/A）。fieldKey は保存 request の wire key を使う。response 名や UI state 名が異なる場合は表直前の対応表を参照する。未検証の UI-only helper/context は永続 field と数えない。
 
+```mermaid
+flowchart TB
+    UI["画面の入力項目"] --> Q{"保存 request の wire key があるか"}
+    Q -->|"wire key があり FE が送出"| K["exact field key として本表へ収録"]
+    Q -->|"BE は受理するが FE 非送出"| NK["計上せず注記のみ"]
+    Q -->|"UI-only の helper/context"| NU["永続 field と数えない"]
+    K --> R{"入力可否"}
+    R -->|"S（システム・入力不可）"| NA["F は N/A"]
+    R -->|"R / O / C"| F["各行の F 重点を FIELD-LEVEL-PROTOCOL で実施"]
+```
+
 ---
 
 ## V01 臨床（算定保留）

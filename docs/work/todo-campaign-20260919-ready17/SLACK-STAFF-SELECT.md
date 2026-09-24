@@ -24,6 +24,14 @@
 
 現場の「選べない」は次のどれでも同じ言葉になる。実装・再現・PO 提案を混ぜない。
 
+```mermaid
+flowchart LR
+    A["active かつ 出勤 かつ capable_courses の積集合"] --> B["staffSelectOptions"]
+    B --> C{"option が見えるか"}
+    C -->|"見えない"| E["E: 取得中 / 取得失敗 / 出勤0 / capability 0 を分離"]
+    C -->|"見えるが選べない"| P["P: Dialog 内 Popover のヒット問題を実機で分離"]
+```
+
 ### E — 候補リストが空（または未確定）
 
 候補 `staffSelectOptions.length === 0`。SearchableSelect は開いても option が無い。原因はフィルタまたは取得状態。**capability を外して全 staff を出さない。**

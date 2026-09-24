@@ -23,6 +23,23 @@
 | 5 | 「印刷する」を押してブラウザ印刷 →「PDF として保存」する | `window.print()` が起動し、印刷プレビューで A4 全幅に崩れずレイアウトされる（`print:max-w-none print:w-full print:border-none print:p-0`）。ヘッダー/フッターのページ分割で明細が不自然に切断されない |
 | 6 | 保存した PDF を開く | 画面上の帳票内容が PDF に再現される。文字化け・欠落・レイアウト崩壊がない。印刷専用でない警告バナーは PDF に出ない |
 
+**プレビュー → 印刷 → PDF 保存の流れ:**
+
+```mermaid
+sequenceDiagram
+    participant U as actor（会計参照権限）
+    participant P as 明細兼領収書プレビュー
+    participant B as ブラウザ印刷 window.print
+    participant D as PDF 保存
+
+    U->>P: 確定会計から「明細兼領収書」を開く
+    P-->>U: A4 帳票イメージ（登録番号未設定時は画面のみ警告バナー）
+    U->>B: 「印刷する」押下
+    B-->>U: print: レイアウトで A4 全幅に整形 — 警告バナーは print:hidden で除外
+    U->>D: 「PDF として保存」
+    D-->>U: 帳票内容が再現された PDF（警告バナーは出ない）
+```
+
 ## 確認観点
 
 - プレビューは `AccountingDetailPanels` の「明細兼領収書プレビュー」ダイアログ、印刷は `window.print()`。帳票本体は `AccountingDocument`（BUG-367・A4 統合帳票）で `print:` クラスにより印刷時レイアウトを切り替える。

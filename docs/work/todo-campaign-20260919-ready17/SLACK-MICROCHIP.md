@@ -44,6 +44,14 @@
 
 ヘッダーへ **第二ストアを作らない**。入力・保存・再読込の正本は `pets.microchip_number` だけ。
 
+```mermaid
+flowchart LR
+    A["pets.microchip_number（NULL=未記録）"] --> B["GET /v1/pets/:id 応答 → transform → selectedPet.microchipNumber"]
+    B --> C["StickyHeader → PatientContextHeader"]
+    C --> D["ペット名隣に read-only チップ（全文は Tooltip）"]
+    A -.->|"同じカラムを別 DTO で読む"| E["飼主レポート（別窓）"]
+```
+
 1. **DB:** [001_init.sql](../../../backend/migrations/001_init.sql) L1138 `microchip_number text NULL`。COMMENT L1151「NULL=未記録」。
 2. **モデル:** [pet.go](../../../backend/internal/model/pet.go) L55 `MicrochipNumber *string` `json:"microchip_number,omitempty"`。
 3. **作成 bind:** [pet_request.go](../../../backend/internal/pet/pet_request.go) L110 `binding:"omitempty,max=64"`（string）。飼主登録ネストも同じ max=64（[owner/http_request.go](../../../backend/internal/owner/http_request.go) L125）。

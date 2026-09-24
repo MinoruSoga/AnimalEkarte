@@ -6,6 +6,16 @@
 
 共通ガイダンスの80%以上は品質向上の目標であり、現行リポジトリ全体が達成済みという意味ではない。現在のCIゲートは下記の実測に基づくratchet。新規・変更箇所には受入条件と失敗ケースを検証するテストを追加し、既存baselineを推測で引き上げたり引き下げたりしない。限定テストの成功から全体coverageを推定しない。
 
+```mermaid
+flowchart TB
+    CI["CI coverage 計測"] --> S{"スコープ判定"}
+    S -->|"partial"| SKIP["aggregate ratchet は SKIP<br/>summary に coverage_ratchet=SKIP を明示"]
+    S -->|"full（coverage_ratchet=run）"| CMP{"baseline から tolerance を超える低下か"}
+    CMP -->|Yes| FAIL["CI fail"]
+    CMP -->|No| PASS["pass"]
+    Base[".coverage-baseline<br/>実測値のみ。推測で更新しない"] -.-> CMP
+```
+
 ## 計測と除外
 
 ### Backend

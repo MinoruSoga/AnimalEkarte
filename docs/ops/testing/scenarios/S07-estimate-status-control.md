@@ -25,6 +25,21 @@
 | 8 | 一覧の状態フィルタで「承認済み」「却下」を順に絞り込む | それぞれ検証用A / 検証用B が含まれる（seed 既存 approved/rejected が無い場合は当該 2 件のみ。仕様正本 22 §1.1 状態フィルタ） |
 | 9 | タイトル「S07 検証用C」の見積を「下書き」のまま保存し、一覧から編集（金額変更）→ 保存 → 削除 | （対照）編集・削除とも導線が表示され、いずれも成功する |
 
+**ステータス遷移と確定ロック**（前提条件・手順 2〜7・異常系の概要）:
+
+```mermaid
+stateDiagram-v2
+    [*] --> draft : 新規作成は draft / sent のみ許可
+    draft --> sent : 送付済み
+    sent --> approved : 承認済み
+    sent --> rejected : 却下
+    note right of approved
+        approved / rejected は確定ロック・不可逆
+        編集・削除は UI 導線なし + API 拒否
+        訂正は後継ドラフト作成のみ（原見積は不変）
+    end note
+```
+
 ## 確認観点
 
 - **確定ロックの不変条件**: 承認済み・却下の見積は Update/Delete が API レベルで拒否される（`backend/internal/billing/estimate_service.go` の `isEstimateLocked` ＋ `estimate_repository.go` の status NOT IN 述語による原子的拒否）。新規作成のステータスは draft/sent のみ許可（approved/rejected 指定は Conflict 拒否）。

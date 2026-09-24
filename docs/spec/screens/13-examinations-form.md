@@ -44,6 +44,20 @@
 - **確定解除**: `POST /examinations/:id/unconfirm`（権限 `examination-unconfirm:edit`）。
 - **印刷**: 保存済み print-snapshot。
 
+検査レコードの確定ロック状態：
+
+```mermaid
+stateDiagram-v2
+    state "入力可能" as editing
+    state "確定 confirmed（全ロック）" as confirmed
+    state "完了 completed" as completed
+    [*] --> editing : 新規作成・結果入力
+    editing --> confirmed : 保存で確定
+    editing --> completed : revision 無しで保存
+    confirmed --> editing : 確定解除（POST unconfirm）
+    completed --> [*] : 結果を封印
+```
+
 ### 2.2 保存時ハイライト
 数値の判定（HIGH/LOW）はバックエンドが基準値（Min〜Max）から導出し、保存・再読込のタイミングで UI の色に反映されます。これにより、多忙な診察室でも重要値の見落としを防止します。
 

@@ -42,6 +42,17 @@ BE: both talk primarily to **`reservation`** (LIFF routes + settings). Do not in
 
 If `index.ts` public surface drifts, fix **that feature only**. No monorepo-wide re-export reshuffle.
 
+```mermaid
+flowchart TD
+    UI["New UI work"] --> Place{"Placement"}
+    Place -->|"true app shell"| Shell["router shell / global providers may stay outside features"]
+    Place -->|"feature-specific"| F["features/<feature>/ with index.ts public surface"]
+    F --> Name["Name primary BE domain and RBAC resource from the map"]
+    F --> Share{"Promote to components / hooks / lib?"}
+    Share -->|"multiple real consumers + one-line reason + no domain-specific API or RBAC knowledge"| Promote["Promote out of the feature"]
+    Share -->|"otherwise"| Stay["Keep in the owning feature"]
+```
+
 ## Map (primary ownership)
 
 RBAC strings match `model.Resource*` / generated FE constants (kebab-case values).
