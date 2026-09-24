@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -256,10 +255,11 @@ func toLiffReservationCreatedResponse(r *model.Reservation) liffReservationCreat
 }
 
 // liffHealthCardVaccineResponse はLIFF向け健康手帳ワクチン接種履歴レスポンス。
+// 日付は last_visit_date と同じくローカル日付 (YYYY-MM-DD) のみを露出する。
 type liffHealthCardVaccineResponse struct {
-	VaccineName  string     `json:"vaccine_name"`
-	VaccinatedAt time.Time  `json:"vaccinated_at"`
-	NextDueAt    *time.Time `json:"next_due_at"`
+	VaccineName  string  `json:"vaccine_name"`
+	VaccinatedAt string  `json:"vaccinated_at"`
+	NextDueAt    *string `json:"next_due_at"`
 }
 
 // liffHealthCardPetResponse はLIFF向け健康手帳ペットレスポンス。
@@ -278,6 +278,25 @@ type liffHealthCardResponse struct {
 	Pets      []liffHealthCardPetResponse `json:"pets"`
 }
 
+// liffLocalDateString はローカル日付 (YYYY-MM-DD) を返す。ゼロ値は空文字にし、
+// 0001-01-01 のような意味を持たない日付を露出しない。
+func liffLocalDateString(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return t.In(time.Local).Format(time.DateOnly)
+}
+
+// liffLocalDatePtr はローカル日付 (YYYY-MM-DD) を返す。nil/ゼロ値は nil を返し、
+// JSON では null として出力される（FE の em-dash プレースホルダーに対応）。
+func liffLocalDatePtr(t *time.Time) *string {
+	if t == nil || t.IsZero() {
+		return nil
+	}
+	s := t.In(time.Local).Format(time.DateOnly)
+	return &s
+}
+
 func toLiffHealthCardResponse(r *HealthCardResult) liffHealthCardResponse {
 	pets := make([]liffHealthCardPetResponse, 0, len(r.Pets))
 	for _, p := range r.Pets {
@@ -285,8 +304,8 @@ func toLiffHealthCardResponse(r *HealthCardResult) liffHealthCardResponse {
 		for _, v := range p.Vaccines {
 			vaccines = append(vaccines, liffHealthCardVaccineResponse{
 				VaccineName:  v.VaccineName,
-				VaccinatedAt: httpapi.LocalTime(v.VaccinatedAt),
-				NextDueAt:    httpapi.LocalTimePtr(v.NextDueAt),
+				VaccinatedAt: liffLocalDateString(v.VaccinatedAt),
+				NextDueAt:    liffLocalDatePtr(v.NextDueAt),
 			})
 		}
 		var lastVisitDate *string
