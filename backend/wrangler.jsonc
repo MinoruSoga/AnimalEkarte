@@ -102,11 +102,16 @@
     "head_sampling_rate": 1,
   },
 
-  // Cron は UTC。Worker の exact allowlist と同じ3式だけを登録する。
+  // Cron は UTC。業務ジョブは Worker の exact allowlist と同じ3式だけを登録する。
   // 01:00 UTC = 10:00 JST(no_show → delivery)、06:00/11:00 UTC =
   // 15:00/20:00 JST(no_show)、17:00 UTC = 翌02:00 JST(dormant)。
+  // "10,40 0-9 * * *" は keep-alive(EMR-213): JST 09:10〜18:40 に30分間隔で既定名 API
+  // コンテナへ /health を打ち sleepAfter=1h のアイドル sleep を営業時間帯に跨がせない。
+  // Worker scheduled() はこの式を job dispatch ではなくコンテナ温めに割り当てる
+  // (backend/worker/index.ts API_KEEPALIVE_CRON)。費用影響は basic 稼働時間 +最大
+  // 約10.5h/日(約$3/月)のみ。wrangler.production.jsonc には追加しない。
   "triggers": {
-    "crons": ["0 1 * * *", "0 6,11 * * *", "0 17 * * *"],
+    "crons": ["0 1 * * *", "0 6,11 * * *", "0 17 * * *", "10,40 0-9 * * *"],
   },
 
   "containers": [
