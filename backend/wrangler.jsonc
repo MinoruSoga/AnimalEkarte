@@ -119,15 +119,16 @@
       "image": "./Dockerfile.production",
       "instance_type": "basic", // 1/4 vCPU / 1GiB。docs/ops/infra/architecture.md のコスト想定に合わせる
       "max_instances": 3,
-      // "regional" = リクエスト元リージョン単位でインスタンスをスケジュールする配置ポリシー。
-      // 【2026-09-23 切り分け済み(EMR-202)】wrangler は deploy 毎の PATCH /applications/{id} で
-      // この値を送信し API は受理(SUCCESS Modified application)するが、既存 application では
-      // 永続化されず deployed は "default" を返し続ける(v69/70/71 で再現)。反映には application
-      // の削除→再作成が必要(破壊的・要承認)。値は将来の再作成に備えた宣言として残置し、
-      // 現行の実配置挙動は default + constraints.regions=["APAC"] の抽選として扱う。
-      // 詳細: docs/ops/infra/staging/runbook.md「Container placement」。max_instances=3 で
-      // インスタンス数・課金は上限内。
-      "scheduling_policy": "regional",
+      // 【2026-09-24 実測確定(EMR-202/EMR-213)】このアカウントで作成可能な
+      // scheduling_policy は "default" と "fill_metals" のみ。application 削除→再作成を
+      // 試みたところ create API が "regional" を VALIDATE_INPUT で拒否しデプロイ失敗
+      // (STG 一時停止→本修正で復旧)。PATCH では受理されるが永続化されない(v69-71)ため
+      // 残置は再作成を必ず壊す罠になる — 必ず "default" を明示すること。
+      // 実配置挙動は default + constraints.regions=["APAC"] のメトロ抽選。
+      // 日本近接(nrt/kix/icn)を狙う手段は Dockerfile.production の LABEL rollout
+      // インクリメントによる再抽選のみ(docs/ops/infra/staging/runbook.md「Container
+      // placement」参照)。max_instances=3 でインスタンス数・課金は上限内。
+      "scheduling_policy": "default",
       // コンテナインスタンスの配置をAPACメトロに限定するスケジューリング制約
       // (wrangler公式 constraints.regions。課金差なし・無料)。実測で同一DOの
       // インスタンスが起動毎に ewr01/bom09 等へドリフトし、PlanetScale(ap-northeast-2)
