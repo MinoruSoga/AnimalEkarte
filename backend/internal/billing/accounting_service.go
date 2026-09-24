@@ -142,6 +142,9 @@ type AccountingRepository interface {
 	MaxSingleVisitAmountByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error)
 	FindOwnersByAnnualRevenue(ctx context.Context, clinicID uint64) ([]OwnerAnnualRevenue, error)
 	FindByCompletionRequestID(ctx context.Context, clinicID uint64, requestID string) (*model.Billing, error)
+	// FindCompleteConflict は EMR-66: complete 確定スロットの UNIQUE インデックスと同じ意味論で
+	// 衝突する既存 billing を返す。見つからなければ (nil, nil)。
+	FindCompleteConflict(ctx context.Context, clinicID uint64, medicalRecordID, hospitalizationID *uint64) (*model.Billing, error)
 }
 
 type AccountingService interface {

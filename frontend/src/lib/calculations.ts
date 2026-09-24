@@ -27,9 +27,10 @@ interface BillingTotals {
   globalDiscountAmount: number;
   taxableAmount: number;
   tax: number;
+  /** 保険負担額（円、正の magnitude。API 契約と同じ符号） */
   insuranceAmount: number;
   total: number;
-  billingAmount: number; // Amount to be paid by owner (total + insuranceAmount)
+  billingAmount: number; // Amount to be paid by owner (total - insuranceAmount)
 }
 
 function lineBase(item: BillingItem): number {
@@ -109,8 +110,10 @@ export function calculateBillingTotals(
     .filter((item) => item.isInsuranceApplicable)
     .reduce((sum, item) => sum + (Number(item.unitPrice) || 0) * (Number(item.quantity) || 0), 0);
 
-  const insuranceAmount = Math.floor(insuranceTargetTotal * insuranceRatio) * -1;
-  const billingAmount = Math.max(0, total + insuranceAmount);
+  // EMR-62: insurance_amount の wire/保存契約は正の magnitude（円）。
+  // 請求額 = 合計 − 保険 で BE と同式。表示側で符号反転しないよう正値で返す。
+  const insuranceAmount = Math.floor(insuranceTargetTotal * insuranceRatio);
+  const billingAmount = Math.max(0, total - insuranceAmount);
 
   return {
     subtotal: rawSubtotal,

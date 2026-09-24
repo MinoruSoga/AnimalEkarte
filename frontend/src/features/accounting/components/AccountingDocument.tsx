@@ -269,10 +269,11 @@ export const AccountingDocument = memo(function AccountingDocument({
                   ) : null}
                 </div>
 
-                {paymentInfo.insuranceAmount < 0 ? (
+                {/* EMR-62: insuranceAmount は正の magnitude。領収書では減額行として -表記 */}
+                {paymentInfo.insuranceAmount !== 0 ? (
                   <div className={`flex justify-between ${C.textStatusGreen} border-b pb-1 pt-2`}>
                     <span>保険適用</span>
-                    <span>{paymentInfo.insuranceAmount.toLocaleString()}</span>
+                    <span>-{Math.abs(paymentInfo.insuranceAmount).toLocaleString()}</span>
                   </div>
                 ) : null}
 

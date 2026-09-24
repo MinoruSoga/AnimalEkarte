@@ -2,6 +2,7 @@ package billing
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -191,6 +192,15 @@ func (h *AccountingHandler) CompleteAccounting(c *gin.Context) {
 
 	result, err := h.svc.Complete(ctx, serviceInput)
 	if err != nil {
+		// EMR-66: 同一カルテ/入院の二重確定は 409 + code=ACCOUNTING_ALREADY_COMPLETED と
+		// 既存会計を同梱して返す（フロントが既存会計へ誘導できるようにする）。
+		var alreadyCompleted *accountingAlreadyCompletedError
+		if errors.As(err, &alreadyCompleted) && alreadyCompleted.Existing != nil {
+			httpapi.RespondErrorWithExtras(c, err, map[string]any{
+				"accounting": toAccountingResponse(alreadyCompleted.Existing),
+			})
+			return
+		}
 		httpapi.RespondError(c, err)
 		return
 	}

@@ -189,6 +189,8 @@ type mockAccountingRepository struct {
 	sumPaidByOwnerFn                   func(ctx context.Context, clinicID, ownerID uint64) (int64, error)
 	// BUG-018: completion idempotency lookup
 	findByCompletionRequestIDFn func(ctx context.Context, clinicID uint64, requestID string) (*model.Billing, error)
+	// EMR-66: medical_record / hospitalization 確定スロットの既存会計 lookup
+	findCompleteConflictFn func(ctx context.Context, clinicID uint64, medicalRecordID, hospitalizationID *uint64) (*model.Billing, error)
 }
 
 func (m *mockAccountingRepository) FindAll(ctx context.Context, clinicID uint64, filters AccountingListFilters, page, limit int) ([]model.Billing, int64, error) {
@@ -246,6 +248,13 @@ func (m *mockAccountingRepository) SavePaymentSplits(ctx context.Context, splits
 		return m.savePaymentSplitsFn(ctx, splits)
 	}
 	return nil
+}
+
+func (m *mockAccountingRepository) FindCompleteConflict(ctx context.Context, clinicID uint64, medicalRecordID, hospitalizationID *uint64) (*model.Billing, error) {
+	if m.findCompleteConflictFn != nil {
+		return m.findCompleteConflictFn(ctx, clinicID, medicalRecordID, hospitalizationID)
+	}
+	return nil, nil
 }
 
 func (m *mockAccountingRepository) FindUnpaidByBilling(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]model.Billing, int64, error) {

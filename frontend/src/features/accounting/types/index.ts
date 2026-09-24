@@ -60,8 +60,8 @@ export interface PaymentInfo {
   totalAmount: number; // 税込合計
   insuranceName?: string; // 保険会社名
   insuranceRatio?: number; // 負担割合 (0.5, 0.7 etc)
-  insuranceAmount: number; // 保険負担額（マイナスのみ）
-  discountAmount: number; // 値引き（マイナスのみ）
+  insuranceAmount: number; // 保険負担額（正の magnitude。EMR-62）
+  discountAmount: number; // 値引き（円、0以上）
   billingAmount: number; // 請求金額 (total - insurance - discount)
   receivedAmount: number; // 預り金
   changeAmount: number; // お釣り

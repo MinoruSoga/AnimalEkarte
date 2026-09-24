@@ -228,6 +228,82 @@ func TestAccountingService_CompleteAccounting_OpenPeriodAtomicSuccess(t *testing
 	assert.Len(t, savedSplits, 1)
 }
 
+// TestAccountingService_CompleteAccounting_NormalizesNegativeInsuranceAmount は EMR-62:
+// 旧クライアントが負値で送る insurance_amount を絶対値に正規化し、
+// 請求額 = 合計 − |保険| − 割引 で確定することを固定する。
+func TestAccountingService_CompleteAccounting_NormalizesNegativeInsuranceAmount(t *testing.T) {
+	key := uuid.NewString()
+	var savedPayment *model.Payment
+	repo := &mockAccountingRepository{
+		findByCompletionRequestIDFn: func(_ context.Context, _ uint64, _ string) (*model.Billing, error) {
+			return nil, nil
+		},
+		createFn: func(_ context.Context, clinicID uint64, b *model.Billing) error {
+			b.ID = 42
+			b.ClinicID = clinicID
+			return nil
+		},
+		updateFieldsFn: func(_ context.Context, _, id uint64, _ AccountingUpdate) (*model.Billing, error) {
+			return &model.Billing{ID: id, ClinicID: 1, Status: model.BillingStatusCompleted}, nil
+		},
+		savePaymentFn: func(_ context.Context, p *model.Payment) error {
+			savedPayment = p
+			return nil
+		},
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Billing, error) {
+			return &model.Billing{ID: id, ClinicID: 1, Status: model.BillingStatusCompleted}, nil
+		},
+	}
+	svc := newCompleteTestService(repo, &mockAuditService{}, &mockCompleteItemWriter{}, &mockCompleteTotalsWriter{})
+
+	input := validCompleteInput(key)
+	negative := int64(-550)
+	ratio := 0.5
+	input.HasInsurance = true
+	input.InsuranceRatio = &ratio
+	input.InsuranceAmount = &negative
+	// billing = 1100 - 550 = 550 に合わせた内訳を送る
+	input.PaymentSplits = []PaymentSplitInput{
+		{Method: model.PaymentMethodCash, Amount: 550, ReceivedAmount: 1000, ChangeAmount: 450},
+	}
+
+	result, err := svc.Complete(context.Background(), input)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.NotNil(t, savedPayment)
+	assert.Equal(t, int64(550), savedPayment.InsuranceAmount, "負値は絶対値に正規化して保存")
+	assert.Equal(t, int64(550), savedPayment.BillingAmount, "請求額 = 合計 - |保険|")
+}
+
+// TestAccountingService_CompleteAccounting_RejectsInsuranceAmountWithoutInsurance は EMR-62:
+// has_insurance=false の complete に非ゼロの insurance_amount を送る矛盾入力を 400 で拒否する。
+func TestAccountingService_CompleteAccounting_RejectsInsuranceAmountWithoutInsurance(t *testing.T) {
+	key := uuid.NewString()
+	createCalled := false
+	repo := &mockAccountingRepository{
+		findByCompletionRequestIDFn: func(_ context.Context, _ uint64, _ string) (*model.Billing, error) {
+			return nil, nil
+		},
+		createFn: func(_ context.Context, _ uint64, b *model.Billing) error {
+			b.ID = 42
+			createCalled = true
+			return nil
+		},
+	}
+	svc := newCompleteTestService(repo, &mockAuditService{}, &mockCompleteItemWriter{}, &mockCompleteTotalsWriter{})
+
+	input := validCompleteInput(key)
+	amount := int64(500)
+	input.HasInsurance = false
+	input.InsuranceAmount = &amount
+
+	result, err := svc.Complete(context.Background(), input)
+	require.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err), "got %v", err)
+	assert.Nil(t, result)
+	assert.True(t, createCalled, "header は作成済みだが tx rollback で残らない（モックでは呼出のみ記録）")
+}
+
 func TestAccountingService_CompleteAccounting_PostCloseReasonMissing_NoWrites(t *testing.T) {
 	key := uuid.NewString()
 	createCalled := false
@@ -585,23 +661,166 @@ func TestAccountingService_CompleteAccounting_AlreadyExistsResolvesToReplay(t *t
 	assert.Equal(t, 0, items.calls, "replay must not create items")
 }
 
+// TestAccountingService_CompleteAccounting_DifferentKeySameMedicalRecordConflict は
+// EMR-66: 別キーで同一 medical_record を確定しようとした場合、UNIQUE 500 ではなく
+// ACCOUNTING_ALREADY_COMPLETED（409）+ 既存会計を返すことを固定する。
+// 既存会計が INSERT 前のスロット検査で見つかる通常経路。
 func TestAccountingService_CompleteAccounting_DifferentKeySameMedicalRecordConflict(t *testing.T) {
 	key := uuid.NewString()
 	input := validCompleteInput(key)
+	mrID := uint64(777)
+	input.MedicalRecordID = &mrID
+	existing := &model.Billing{
+		ID: 66, ClinicID: 1, Status: model.BillingStatusCompleted,
+		MedicalRecordID: &mrID, TotalAmount: 1100,
+	}
+	createCalled := false
 	repo := &mockAccountingRepository{
 		findByCompletionRequestIDFn: func(_ context.Context, _ uint64, _ string) (*model.Billing, error) {
 			return nil, nil
 		},
+		findCompleteConflictFn: func(_ context.Context, _ uint64, medicalRecordID, _ *uint64) (*model.Billing, error) {
+			if medicalRecordID != nil && *medicalRecordID == mrID {
+				return existing, nil
+			}
+			return nil, nil
+		},
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Billing, error) {
+			assert.Equal(t, uint64(66), id)
+			return existing, nil
+		},
 		createFn: func(_ context.Context, _ uint64, _ *model.Billing) error {
-			return apperrors.WrapAlreadyExists("billing", input.ScheduledDate.String())
+			createCalled = true
+			return nil
 		},
 	}
-	svc := newCompleteTestService(repo, &mockAuditService{}, &mockCompleteItemWriter{}, &mockCompleteTotalsWriter{})
+	svc := NewAccountingService(
+		repo, &mockMedicalRecordRepository{}, nil, matchingReservationRepo(), nil,
+		&mockTransactor{}, &mockAuditService{}, seededPayMethodMock(),
+		WithCompleteItemWriter(&mockCompleteItemWriter{}),
+		WithCompleteTotalsWriter(&mockCompleteTotalsWriter{}),
+	)
 
 	result, err := svc.Complete(context.Background(), input)
 	require.Error(t, err)
 	assert.True(t, apperrors.IsConflict(err), "got %v", err)
 	assert.Nil(t, result)
+	assert.False(t, createCalled, "既存会計がスロット占有なら INSERT しない")
+
+	var alreadyCompleted *accountingAlreadyCompletedError
+	require.True(t, errors.As(err, &alreadyCompleted), "want accountingAlreadyCompletedError, got %T: %v", err, err)
+	require.NotNil(t, alreadyCompleted.Existing)
+	assert.Equal(t, uint64(66), alreadyCompleted.Existing.ID, "409 応答に既存会計を同梱する")
+
+	var appErr *apperrors.AppError
+	require.True(t, errors.As(err, &appErr))
+	assert.Equal(t, AccountingCodeAlreadyCompleted, appErr.Code)
+}
+
+// TestAccountingService_CompleteAccounting_DuplicateHospitalizationSlotConflict は
+// EMR-66: hospitalization_id スロットも medical_record と同じ 409 契約で扱うことを固定する。
+func TestAccountingService_CompleteAccounting_DuplicateHospitalizationSlotConflict(t *testing.T) {
+	key := uuid.NewString()
+	input := validCompleteInput(key)
+	hospID := uint64(555)
+	input.HospitalizationID = &hospID
+	existing := &model.Billing{
+		ID: 67, ClinicID: 1, Status: model.BillingStatusCompleted,
+		HospitalizationID: &hospID, TotalAmount: 1100,
+	}
+	repo := &mockAccountingRepository{
+		findByCompletionRequestIDFn: func(_ context.Context, _ uint64, _ string) (*model.Billing, error) {
+			return nil, nil
+		},
+		findCompleteConflictFn: func(_ context.Context, _ uint64, _, hospitalizationID *uint64) (*model.Billing, error) {
+			if hospitalizationID != nil && *hospitalizationID == hospID {
+				return existing, nil
+			}
+			return nil, nil
+		},
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Billing, error) {
+			return existing, nil
+		},
+	}
+	hospRepo := &mockHospitalizationRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Hospitalization, error) {
+			return &model.Hospitalization{ID: id, ClinicID: clinicID, OwnerID: 10, PetID: 20}, nil
+		},
+	}
+	svc := NewAccountingService(
+		repo, nil, hospRepo, matchingReservationRepo(), nil,
+		&mockTransactor{}, &mockAuditService{}, seededPayMethodMock(),
+		WithCompleteItemWriter(&mockCompleteItemWriter{}),
+		WithCompleteTotalsWriter(&mockCompleteTotalsWriter{}),
+	)
+
+	result, err := svc.Complete(context.Background(), input)
+	require.Error(t, err)
+	assert.True(t, apperrors.IsConflict(err), "got %v", err)
+	assert.Nil(t, result)
+
+	var alreadyCompleted *accountingAlreadyCompletedError
+	require.True(t, errors.As(err, &alreadyCompleted), "want accountingAlreadyCompletedError, got %T: %v", err, err)
+	require.NotNil(t, alreadyCompleted.Existing)
+	assert.Equal(t, uint64(67), alreadyCompleted.Existing.ID)
+}
+
+// TestAccountingService_CompleteAccounting_UniqueRaceResolvesToAlreadyCompleted は
+// EMR-66: 先行チェックをすり抜けて INSERT が UNIQUE で敗けた場合（同時確定レース）でも、
+// rollback 後の再解決で ACCOUNTING_ALREADY_COMPLETED + 既存会計を返すことを固定する。
+// 失敗した tx 内での再検索は PostgreSQL 25P02 になるため、解決は tx 外で行われる。
+func TestAccountingService_CompleteAccounting_UniqueRaceResolvesToAlreadyCompleted(t *testing.T) {
+	key := uuid.NewString()
+	input := validCompleteInput(key)
+	mrID := uint64(777)
+	input.MedicalRecordID = &mrID
+	existing := &model.Billing{
+		ID: 78, ClinicID: 1, Status: model.BillingStatusCompleted,
+		MedicalRecordID: &mrID, TotalAmount: 1100,
+	}
+	conflictLookup := 0
+	repo := &mockAccountingRepository{
+		findByCompletionRequestIDFn: func(_ context.Context, _ uint64, _ string) (*model.Billing, error) {
+			return nil, nil
+		},
+		findCompleteConflictFn: func(_ context.Context, _ uint64, _, _ *uint64) (*model.Billing, error) {
+			conflictLookup++
+			// 1回目（tx 内 pre-insert チェック）は競合相手未 commit で nil、
+			// 2回目（rollback 後の再解決）で既存会計が見える。
+			if conflictLookup == 1 {
+				return nil, nil
+			}
+			return existing, nil
+		},
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) {
+			return existing, nil
+		},
+		createFn: func(_ context.Context, _ uint64, _ *model.Billing) error {
+			// idx_billings_medical_record_id_unique 相当の UNIQUE 敗北を再現。
+			return apperrors.WrapAlreadyExists("billing", "medical_record_id")
+		},
+	}
+	svc := NewAccountingService(
+		repo, &mockMedicalRecordRepository{}, nil, matchingReservationRepo(), nil,
+		&mockTransactor{}, &mockAuditService{}, seededPayMethodMock(),
+		WithCompleteItemWriter(&mockCompleteItemWriter{}),
+		WithCompleteTotalsWriter(&mockCompleteTotalsWriter{}),
+	)
+
+	result, err := svc.Complete(context.Background(), input)
+	require.Error(t, err)
+	assert.True(t, apperrors.IsConflict(err), "got %v", err)
+	assert.Nil(t, result)
+	assert.GreaterOrEqual(t, conflictLookup, 2, "rollback 後にスロット再解決を行う")
+
+	var alreadyCompleted *accountingAlreadyCompletedError
+	require.True(t, errors.As(err, &alreadyCompleted), "want accountingAlreadyCompletedError, got %T: %v", err, err)
+	require.NotNil(t, alreadyCompleted.Existing)
+	assert.Equal(t, uint64(78), alreadyCompleted.Existing.ID)
+
+	var appErr *apperrors.AppError
+	require.True(t, errors.As(err, &appErr))
+	assert.Equal(t, AccountingCodeAlreadyCompleted, appErr.Code)
 }
 
 func TestAccountingService_CompleteAccounting_ManualOtherSetsCreatedBy(t *testing.T) {

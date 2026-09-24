@@ -48,6 +48,7 @@ func hasPaymentFields(input *UpdateAccountingInput) bool {
 	return len(input.PaymentSplits) > 0 ||
 		input.PaymentMethod != nil ||
 		input.InsuranceRatio != nil ||
+		input.InsuranceName != nil ||
 		input.InsuranceAmount != nil ||
 		input.BillingAmount != nil ||
 		input.ReceivedAmount != nil ||
@@ -121,10 +122,31 @@ func validateCashSplit(s PaymentSplitInput) error {
 
 // buildPaymentFromInput は UpdateAccountingInput から Payment モデルを構築する。
 // splits がある場合は代表支払い手段・受領額・お釣りを splits から導出する。
-func buildPaymentFromInput(input *UpdateAccountingInput) *model.Payment {
+//
+// EMR-63: base（既存の payment 行）が与えられた場合は merge セマンティクス。
+// nil フィールドは既存値を保持し、送信されたフィールドだけが上書きされる。
+// これにより PATCH が payment 全項目の再送を要求せず、未送信フィールドが
+// ゼロ値で既存値を破壊する（保険情報・預り金の消失）ことを防ぐ。
+// billing_amount は呼び出し側が server 権威で再計算して上書きするため、
+// 本関数では base/input どちらの値も最終値として使わない点に注意。
+func buildPaymentFromInput(input *UpdateAccountingInput, base *model.Payment) *model.Payment {
 	p := &model.Payment{
 		BillingID: input.ID,
 		PaidBy:    input.StaffID,
+	}
+	if base != nil {
+		p.Subtotal = base.Subtotal
+		p.TaxTotal = base.TaxTotal
+		p.TotalAmount = base.TotalAmount
+		p.InsuranceName = base.InsuranceName
+		p.InsuranceRatio = base.InsuranceRatio
+		p.InsuranceAmount = base.InsuranceAmount
+		p.DiscountAmount = base.DiscountAmount
+		p.BillingAmount = base.BillingAmount
+		p.ReceivedAmount = base.ReceivedAmount
+		p.ChangeAmount = base.ChangeAmount
+		p.Method = base.Method
+		p.PaymentMethodID = base.PaymentMethodID
 	}
 	if input.Subtotal != nil {
 		p.Subtotal = *input.Subtotal
@@ -152,8 +174,12 @@ func buildPaymentFromInput(input *UpdateAccountingInput) *model.Payment {
 	}
 
 	if len(input.PaymentSplits) > 0 {
-		// 混在会計: splits の一次情報から代表手段・受領額・お釣りを導出（仕様）
+		// 混在会計: splits の一次情報から代表手段・受領額・お釣りを導出（仕様）。
+		// splits が送られた場合、受領額・お釣りは現金内訳のみから決まるため
+		// 既存値は引き継がず明示的に再導出する（現金以外の内訳では 0）。
 		p.Method = representativeMethod(input.PaymentSplits)
+		p.ReceivedAmount = 0
+		p.ChangeAmount = 0
 		for _, s := range input.PaymentSplits {
 			if s.Method == model.PaymentMethodCash {
 				p.ReceivedAmount = s.ReceivedAmount
@@ -177,7 +203,10 @@ func buildPaymentFromInput(input *UpdateAccountingInput) *model.Payment {
 
 // buildPaymentSplits は UpdateAccountingInput から PaymentSplit モデルのスライスを構築する。
 // PaymentSplits が空の場合は単一支払いフィールドから1行を生成する（backward compat）。
-func buildPaymentSplits(input *UpdateAccountingInput) []model.PaymentSplit {
+// effectiveBillingAmount は呼び出し側が server 権威で確定した請求金額（EMR-63）。
+// 単一支払いの合成は input.BillingAmount が明示送信された場合のみ行い、
+// 金額には client 供給値ではなく effectiveBillingAmount を使う。
+func buildPaymentSplits(input *UpdateAccountingInput, effectiveBillingAmount int64) []model.PaymentSplit {
 	if len(input.PaymentSplits) > 0 {
 		splits := make([]model.PaymentSplit, 0, len(input.PaymentSplits))
 		for _, s := range input.PaymentSplits {
@@ -194,8 +223,9 @@ func buildPaymentSplits(input *UpdateAccountingInput) []model.PaymentSplit {
 		}
 		return splits
 	}
-	// 単一支払い backward compat — BillingAmount が設定されている場合のみ生成
-	if input.BillingAmount == nil || *input.BillingAmount <= 0 {
+	// 単一支払い backward compat — BillingAmount が明示送信されている場合のみ生成。
+	// 未送信（nil）のときは既存の payment_splits を保持する（EMR-63: 未送信フィールドは変更しない）。
+	if input.BillingAmount == nil || *input.BillingAmount <= 0 || effectiveBillingAmount <= 0 {
 		return nil
 	}
 	method := model.PaymentMethodCash
@@ -214,7 +244,7 @@ func buildPaymentSplits(input *UpdateAccountingInput) []model.PaymentSplit {
 			ClinicID:       input.ClinicID,
 			BillingID:      input.ID,
 			Method:         method,
-			Amount:         *input.BillingAmount,
+			Amount:         effectiveBillingAmount,
 			ReceivedAmount: received,
 			ChangeAmount:   change,
 			PaidBy:         input.StaffID,

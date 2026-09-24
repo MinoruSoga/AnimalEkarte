@@ -632,6 +632,9 @@ func (r *accountingRepository) SavePayment(ctx context.Context, payment *model.P
 		"change_amount":    payment.ChangeAmount,
 		"method":           payment.Method,
 		"paid_by":          payment.PaidBy,
+		// method ⇄ payment_method_id の dual maintain（model.Payment コメントの不変条件）。
+		// Updates(map) はゼロ値も書き込むため、merge 済みの payment.PaymentMethodID をそのまま反映する。
+		"payment_method_id": payment.PaymentMethodID,
 	}
 
 	if err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
