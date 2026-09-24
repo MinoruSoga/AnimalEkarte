@@ -62,7 +62,9 @@ export function useMedicalRecordsList({
     };
   }, [searchTerm, activeFilters, clinicIds, petId, page, limit, sort, order]);
 
-  const { data, isLoading, isError } = useGetMedicalRecords(filters);
+  const { data, isLoading, isError, isPlaceholderData } = useGetMedicalRecords(filters, {
+    preservePreviousData: true,
+  });
 
   return {
     records: data?.data ?? [],
@@ -71,5 +73,6 @@ export function useMedicalRecordsList({
     limit: data?.limit ?? limit ?? 20,
     isLoading,
     isError,
+    isPlaceholderData,
   };
 }

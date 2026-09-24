@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { formatDate } from "@/lib/format/date";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
@@ -78,10 +78,14 @@ export async function getMedicalRecords(
   };
 }
 
-export function useGetMedicalRecords(filters?: MedicalRecordFilters) {
+export function useGetMedicalRecords(
+  filters?: MedicalRecordFilters,
+  options?: { preservePreviousData?: boolean },
+) {
   return useQuery({
     queryKey: queryKeys.medicalRecords.list(filters),
     queryFn: () => getMedicalRecords(filters),
+    placeholderData: options?.preservePreviousData ? keepPreviousData : undefined,
     staleTime: QUERY_STALE_TIMES.MEDIUM,
     gcTime: QUERY_GC_TIMES.STANDARD,
   });

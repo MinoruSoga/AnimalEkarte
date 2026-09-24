@@ -132,7 +132,7 @@ export function MedicalRecords() {
     (selectedClinicIds.length === 1 && selectedClinicIds[0] === currentClinicId)
       ? undefined
       : selectedClinicIds;
-  const { records, total, isLoading, isError } = useMedicalRecordsList({
+  const { records, total, isLoading, isError, isPlaceholderData } = useMedicalRecordsList({
     searchTerm: deferredSearch,
     activeFilters,
     clinicIds: clinicIdsForApi,
@@ -158,7 +158,7 @@ export function MedicalRecords() {
 
   const startIndex = total === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
   const endIndex = Math.min(currentPage * PAGE_SIZE, total);
-  const isFiltering = searchTerm !== deferredSearch;
+  const isFiltering = searchTerm !== deferredSearch || isPlaceholderData;
 
   const handleNavigateToForm = useCallback(
     (recordId?: string) => {
