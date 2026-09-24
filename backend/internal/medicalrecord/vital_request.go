@@ -17,7 +17,7 @@ type createVitalRequest struct {
 	RespirationRate *int      `json:"respiration_rate"`
 	Weight          *float64  `json:"weight"`
 	WeightUnit      *string   `json:"weight_unit"`
-	Notes           string    `json:"notes"`
+	Notes           *string   `json:"notes"`
 }
 
 func (r *createVitalRequest) validate() error {
@@ -25,6 +25,11 @@ func (r *createVitalRequest) validate() error {
 }
 
 func (r *createVitalRequest) toServiceInput(clinicID, petID uint64) *CreateVitalInput {
+	// vital_records.notes は not null default '' のため、null/未送信は空文字に正規化する。
+	notes := ""
+	if r.Notes != nil {
+		notes = *r.Notes
+	}
 	return &CreateVitalInput{
 		ClinicID:        clinicID,
 		PetID:           petID,
@@ -35,7 +40,7 @@ func (r *createVitalRequest) toServiceInput(clinicID, petID uint64) *CreateVital
 		RespirationRate: r.RespirationRate,
 		Weight:          r.Weight,
 		WeightUnit:      toBodyWeightUnit(r.WeightUnit),
-		Notes:           r.Notes,
+		Notes:           notes,
 	}
 }
 

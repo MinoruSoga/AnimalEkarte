@@ -47,7 +47,7 @@ export function VitalsDisplayRow({
         {displayNum(vital.weight)}
         <span className={`ml-0.5 text-2xs ${C.text40}`}>{vital.weight_unit}</span>
       </TableCell>
-      <TableCell className={C.text60}>{vital.note ? vital.note : "-"}</TableCell>
+      <TableCell className={C.text60}>{vital.notes ? vital.notes : "-"}</TableCell>
       <TableCell>
         <div className="flex items-center justify-end gap-1">
           {canEdit ? (
@@ -84,7 +84,7 @@ function buildEditRowForm(vital: Vital) {
     respiration_rate: vital.respiration_rate != null ? String(vital.respiration_rate) : "",
     weight: vital.weight != null ? String(vital.weight) : "",
     weight_unit: vital.weight_unit ?? "Kg",
-    note: vital.note ?? "",
+    notes: vital.notes ?? "",
   };
 }
 
@@ -135,7 +135,7 @@ export const VitalsEditRow = memo(function VitalsEditRow({
       respiration_rate: parseVitalsNumber(form.respiration_rate),
       weight: parseVitalsNumber(form.weight),
       weight_unit: form.weight_unit as BodyWeightUnit,
-      note: form.note.trim() || null,
+      notes: form.notes.trim() || null,
     });
   }, [form, onSave, vital.id]);
 
@@ -206,8 +206,8 @@ export const VitalsEditRow = memo(function VitalsEditRow({
       <TableCell>
         <input
           type="text"
-          value={form.note}
-          onChange={(e) => handleChange("note", e.target.value)}
+          value={form.notes}
+          onChange={(e) => handleChange("notes", e.target.value)}
           placeholder="メモ"
           aria-label={`メモ (${formatRecordedAt(vital.recorded_at)})`}
           className={EDIT_INPUT_CLASS}
@@ -329,8 +329,8 @@ export function VitalsAddRow({
       </div>
       <input
         type="text"
-        value={addForm.note}
-        onChange={(e) => onChange({ note: e.target.value })}
+        value={addForm.notes}
+        onChange={(e) => onChange({ notes: e.target.value })}
         onKeyDown={(e) => {
           if (e.key === "Escape") onCancel();
         }}
