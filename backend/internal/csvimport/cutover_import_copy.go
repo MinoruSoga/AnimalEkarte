@@ -259,13 +259,114 @@ func insertCutoverStaging(ctx context.Context, tx cutoverTransaction, spec Cutov
 	return total, nil
 }
 
+func cutoverStagingDepthRelation(table string) string {
+	return "cutover_depth_" + table
+}
+
+// cutoverStagingDepthCreateSQL maps every staged row to its distance from a
+// NULL parent. UNION dedup keeps the walk finite; rows that only exist inside
+// a self-reference cycle (or descend from one) never reach a root and stay
+// absent from the map so the leftover check below can reject them.
+func cutoverStagingDepthCreateSQL(spec CutoverTableSpec, selfColumn string) string {
+	staging := pgx.Identifier{cutoverCopyStagingRelation(spec.Name)}.Sanitize()
+	column := pgx.Identifier{selfColumn}.Sanitize()
+	return "CREATE TEMP TABLE " + pgx.Identifier{cutoverStagingDepthRelation(spec.Name)}.Sanitize() +
+		" AS WITH RECURSIVE walk AS (" +
+		"SELECT id, 0 AS depth FROM " + staging + " WHERE " + column + " IS NULL" +
+		" UNION " +
+		"SELECT s.id, w.depth + 1 FROM " + staging + " AS s JOIN walk AS w ON s." + column + " = w.id" +
+		") SELECT id, depth FROM walk"
+}
+
+func cutoverStagingDepthLeftoverSQL(spec CutoverTableSpec) string {
+	return "SELECT count(*) FROM " + pgx.Identifier{cutoverCopyStagingRelation(spec.Name)}.Sanitize() +
+		" AS staged WHERE NOT EXISTS (SELECT 1 FROM " +
+		pgx.Identifier{cutoverStagingDepthRelation(spec.Name)}.Sanitize() + " AS walk WHERE walk.id = staged.id)"
+}
+
+func cutoverStagingMaxDepthSQL(spec CutoverTableSpec) string {
+	return "SELECT COALESCE(max(depth), -1) FROM " +
+		pgx.Identifier{cutoverStagingDepthRelation(spec.Name)}.Sanitize()
+}
+
+// cutoverStagingDepthInsertSQL moves one depth level. Siblings at the same
+// depth can never reference each other, so a per-level INSERT in depth order
+// satisfies the non-deferrable self FK regardless of the CSV row order.
+func cutoverStagingDepthInsertSQL(spec CutoverTableSpec) string {
+	columns := strings.Join(cutoverQuotedColumns(spec), ", ")
+	staged := make([]string, len(spec.Columns))
+	for i, column := range spec.Columns {
+		staged[i] = "staged." + pgx.Identifier{column}.Sanitize()
+	}
+	return "INSERT INTO " + pgx.Identifier{spec.Name}.Sanitize() + " (" + columns +
+		") OVERRIDING SYSTEM VALUE SELECT " + strings.Join(staged, ", ") +
+		" FROM " + pgx.Identifier{cutoverCopyStagingRelation(spec.Name)}.Sanitize() + " AS staged JOIN " +
+		pgx.Identifier{cutoverStagingDepthRelation(spec.Name)}.Sanitize() +
+		" AS walk ON staged.id = walk.id WHERE walk.depth = $1 ORDER BY staged.id"
+}
+
+// insertCutoverStagingSelfReferenced moves a self-referencing table in
+// topological order. Depth-level batches keep each INSERT bounded like the
+// flat batch loop, and a leftover staged row means a source self-reference
+// cycle that preflight should have caught — reject before any row is written.
+func insertCutoverStagingSelfReferenced(
+	ctx context.Context,
+	tx cutoverTransaction,
+	spec CutoverTableSpec,
+	selfColumn string,
+	expected int64,
+) (int64, error) {
+	if _, err := tx.Exec(ctx, cutoverStagingDepthCreateSQL(spec, selfColumn)); err != nil {
+		return 0, fmt.Errorf("table %s: build self-reference depth map failed", spec.Name)
+	}
+	defer func() {
+		_, _ = tx.Exec(ctx, "DROP TABLE "+pgx.Identifier{cutoverStagingDepthRelation(spec.Name)}.Sanitize())
+	}()
+	var cyclic int64
+	if err := tx.QueryRow(ctx, cutoverStagingDepthLeftoverSQL(spec)).Scan(&cyclic); err != nil {
+		return 0, fmt.Errorf("table %s: inspect self-reference depth map: %w", spec.Name, err)
+	}
+	if cyclic != 0 {
+		return 0, fmt.Errorf("table %s: source self-reference cycle blocks topological insert", spec.Name)
+	}
+	var maxDepth int64
+	if err := tx.QueryRow(ctx, cutoverStagingMaxDepthSQL(spec)).Scan(&maxDepth); err != nil {
+		return 0, fmt.Errorf("table %s: inspect self-reference depth map: %w", spec.Name, err)
+	}
+	insertSQL := cutoverStagingDepthInsertSQL(spec)
+	var total int64
+	for depth := int64(0); depth <= maxDepth; depth++ {
+		if err := ctx.Err(); err != nil {
+			return 0, err
+		}
+		tag, err := tx.Exec(ctx, insertSQL, depth)
+		if insertErr := cutoverStagingInsertError(spec.Name, err); insertErr != nil {
+			return 0, insertErr
+		}
+		n := tag.RowsAffected()
+		if n < 0 || (n > 0 && total > math.MaxInt64-n) {
+			return 0, fmt.Errorf("table %s: imported row count does not match manifest", spec.Name)
+		}
+		total += n
+	}
+	if total != expected {
+		return 0, fmt.Errorf("table %s: imported row count does not match manifest", spec.Name)
+	}
+	return total, nil
+}
+
 func copyCutoverTable(ctx context.Context, tx cutoverTransaction, path string, spec CutoverTableSpec, table CutoverManifestTable, seeds CutoverSeedIDs, allowPermutation bool) (int64, error) {
 	blocked, err := copyFromBlockedByRLS(ctx, tx, spec.Name)
 	if err != nil {
 		return 0, err
 	}
+	selfColumn, selfRef := cutoverSelfReferenceColumn(spec.Name)
+	// Self-referencing FKs are not deferrable: a direct COPY inserts in CSV row
+	// order, but preflight does not require parents to precede children. Stage
+	// those tables too so the INSERT can emit a topological order.
+	staged := blocked || selfRef
 	dest := pgx.Identifier{spec.Name}
-	if blocked {
+	if staged {
 		dest = pgx.Identifier{cutoverCopyStagingRelation(spec.Name)}
 		if _, err := tx.Exec(ctx, cutoverCopyStagingCreateSQL(spec.Name)); err != nil {
 			return 0, fmt.Errorf("table %s: create COPY staging table failed", spec.Name)
@@ -294,9 +395,15 @@ func copyCutoverTable(ctx context.Context, tx cutoverTransaction, path string, s
 	if tag.RowsAffected() != table.RowCount || transformed.count != table.RowCount {
 		return 0, fmt.Errorf("table %s: imported row count does not match manifest", spec.Name)
 	}
-	if blocked {
-		if _, err := insertCutoverStaging(ctx, tx, spec, table.RowCount); err != nil {
-			return 0, err
+	if staged {
+		var insertErr error
+		if selfRef {
+			_, insertErr = insertCutoverStagingSelfReferenced(ctx, tx, spec, selfColumn, table.RowCount)
+		} else {
+			_, insertErr = insertCutoverStaging(ctx, tx, spec, table.RowCount)
+		}
+		if insertErr != nil {
+			return 0, insertErr
 		}
 		if _, err := tx.Exec(ctx, cutoverCopyStagingDropSQL(spec.Name)); err != nil {
 			return 0, fmt.Errorf("table %s: drop COPY staging table failed", spec.Name)

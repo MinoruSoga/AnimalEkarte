@@ -80,14 +80,16 @@ func validateCutoverReferenceGraph(sourceDir string, manifest CutoverManifest, a
 	for _, spec := range specs {
 		table, err := cutoverManifestTableByName(manifest, spec.Name)
 		if err != nil {
-			return fmt.Errorf("source reference graph: table contract mismatch")
+			return fmt.Errorf("source reference graph: %w", err)
 		}
 		ids := make(map[uint64]struct{})
 		selfParents := make(map[uint64]cutoverSelfParentRef)
+		selfColumn, hasSelfRef := cutoverSelfReferenceColumn(spec.Name)
+		selfEdges := make(map[uint64]cutoverSelfEdge)
 		_, retainIDs := parents[spec.Name]
 		err = streamCutoverReferenceCSV(sourceDir, spec, table, allowPermutation, func(row []string, header []string, indexes map[string]int, csvLine int64) error {
-			if err := validateCutoverRow(spec, header, row, indexes, manifest.IDBand, 0); err != nil {
-				return fmt.Errorf("table %s: source reference CSV scalar contract changed", spec.Name)
+			if err := validateCutoverRow(spec, header, row, indexes, manifest.IDBand, csvLine); err != nil {
+				return err
 			}
 			if retainIDs {
 				id, ok := cutoverReferenceID(row[indexes["id"]])
@@ -105,6 +107,17 @@ func validateCutoverReferenceGraph(sourceDir string, manifest CutoverManifest, a
 					return err
 				}
 			}
+			if hasSelfRef {
+				id, ok := cutoverReferenceID(row[indexes["id"]])
+				if !ok {
+					return fmt.Errorf("table %s column id: source reference ID is invalid", spec.Name)
+				}
+				if value := row[indexes[selfColumn]]; value != "" {
+					if parent, ok := cutoverReferenceID(value); ok {
+						selfEdges[id] = cutoverSelfEdge{column: selfColumn, parent: parent, csvLine: csvLine}
+					}
+				}
+			}
 			return nil
 		})
 		if err != nil {
@@ -115,6 +128,9 @@ func validateCutoverReferenceGraph(sourceDir string, manifest CutoverManifest, a
 				return fmt.Errorf("table %s column %s row %d: source CSV reference to %s is missing",
 					spec.Name, selfRef.column, selfRef.csvLine, spec.Name)
 			}
+		}
+		if err := validateCutoverSelfReferenceAcyclic(spec.Name, selfEdges); err != nil {
+			return err
 		}
 		if retainIDs {
 			parents[spec.Name] = ids
@@ -128,6 +144,51 @@ func validateCutoverReferenceGraph(sourceDir string, manifest CutoverManifest, a
 type cutoverSelfParentRef struct {
 	column  string
 	csvLine int64
+}
+
+// cutoverSelfEdge is one declared child→parent link inside a self-referencing
+// table; csvLine lets a cycle report point at the declaring row.
+type cutoverSelfEdge struct {
+	column  string
+	parent  uint64
+	csvLine int64
+}
+
+// cutoverSelfReferenceColumn returns the CSV column that references the table
+// itself (procedures.parent_id, vaccines.parent_id), if the contract declares
+// one. Apply uses it to order staged inserts because the FK is not deferrable.
+func cutoverSelfReferenceColumn(table string) (string, bool) {
+	for _, ref := range cutoverCSVReferences()[table] {
+		if ref.kind == cutoverCSVParent && ref.parent == table {
+			return ref.column, true
+		}
+	}
+	return "", false
+}
+
+// validateCutoverSelfReferenceAcyclic walks each declared parent chain. A
+// self-reference cycle can never be satisfied by any insert order under the
+// non-deferrable FK, so the bundle must fail here, before apply commits a
+// partial clinic band on the per-table path.
+func validateCutoverSelfReferenceAcyclic(table string, edges map[uint64]cutoverSelfEdge) error {
+	visited := make(map[uint64]uint64, len(edges))
+	var stamp uint64
+	for node := range edges {
+		stamp++
+		for current := node; ; {
+			edge, isChild := edges[current]
+			if !isChild {
+				break
+			}
+			if visited[current] == stamp {
+				return fmt.Errorf("table %s column %s row %d: self-reference cycle in source CSV",
+					table, edge.column, edge.csvLine)
+			}
+			visited[current] = stamp
+			current = edge.parent
+		}
+	}
+	return nil
 }
 
 func validateCutoverCSVReference(table string, ref cutoverCSVReference, value string, parents map[string]map[uint64]struct{}, selfParents map[uint64]cutoverSelfParentRef, csvLine int64) error {

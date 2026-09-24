@@ -143,6 +143,125 @@ func TestInsertCutoverStagingRejectsManifestCountMismatch(t *testing.T) {
 	}
 }
 
+func TestCutoverStagingDepthSQLWalksSelfReference(t *testing.T) {
+	var spec CutoverTableSpec
+	for _, candidate := range CutoverTableSpecs() {
+		if candidate.Name == "procedures" {
+			spec = candidate
+		}
+	}
+	createSQL := cutoverStagingDepthCreateSQL(spec, "parent_id")
+	for _, fragment := range []string{
+		`CREATE TEMP TABLE "cutover_depth_procedures" AS WITH RECURSIVE walk AS`,
+		`SELECT id, 0 AS depth FROM "cutover_copy_procedures" WHERE "parent_id" IS NULL`,
+		" UNION ",
+		`SELECT s.id, w.depth + 1 FROM "cutover_copy_procedures" AS s JOIN walk AS w ON s."parent_id" = w.id`,
+		"SELECT id, depth FROM walk",
+	} {
+		if !strings.Contains(createSQL, fragment) {
+			t.Fatalf("depth create SQL missing %q: %s", fragment, createSQL)
+		}
+	}
+	insertSQL := cutoverStagingDepthInsertSQL(spec)
+	for _, fragment := range []string{
+		`INSERT INTO "procedures" (`,
+		"OVERRIDING SYSTEM VALUE SELECT",
+		`FROM "cutover_copy_procedures" AS staged JOIN "cutover_depth_procedures" AS walk`,
+		"walk.depth = $1",
+		"ORDER BY staged.id",
+	} {
+		if !strings.Contains(insertSQL, fragment) {
+			t.Fatalf("depth insert SQL missing %q: %s", fragment, insertSQL)
+		}
+	}
+}
+
+func TestInsertCutoverStagingSelfReferencedBatchesByDepthLevel(t *testing.T) {
+	var spec CutoverTableSpec
+	for _, candidate := range CutoverTableSpecs() {
+		if candidate.Name == "procedures" {
+			spec = candidate
+		}
+	}
+	tx := &fakeCutoverTransaction{
+		selfRefMaxDepth:      2,
+		insertBatchRowCounts: []int64{3, 2, 1},
+	}
+	got, err := insertCutoverStagingSelfReferenced(context.Background(), tx, spec, "parent_id", 6)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != 6 {
+		t.Fatalf("inserted = %d, want 6", got)
+	}
+	inserts := 0
+	for _, query := range tx.execQueries {
+		if strings.Contains(query, "INSERT INTO") {
+			inserts++
+			if !strings.Contains(query, "walk.depth = $1") {
+				t.Fatalf("depth insert not level-scoped: %s", query)
+			}
+		}
+	}
+	if inserts != 3 {
+		t.Fatalf("depth-level INSERT batches = %d, want 3 (one per level)", inserts)
+	}
+}
+
+func TestInsertCutoverStagingSelfReferencedRejectsCycleBeforeInsert(t *testing.T) {
+	var spec CutoverTableSpec
+	for _, candidate := range CutoverTableSpecs() {
+		if candidate.Name == "vaccines" {
+			spec = candidate
+		}
+	}
+	tx := &fakeCutoverTransaction{selfRefLeftoverCount: 1}
+	_, err := insertCutoverStagingSelfReferenced(context.Background(), tx, spec, "parent_id", 1)
+	if err == nil || !strings.Contains(err.Error(), "self-reference cycle") {
+		t.Fatalf("error = %v, want self-reference cycle rejection", err)
+	}
+	for _, query := range tx.execQueries {
+		if strings.Contains(query, "INSERT INTO") {
+			t.Fatal("cycle rejection still inserted rows")
+		}
+	}
+}
+
+func TestApplyCutoverStagesSelfReferencedTablesForOrdering(t *testing.T) {
+	bundle := validCutoverBundleForApply(t)
+	tx := &fakeCutoverTransaction{}
+
+	_, err := applyCutoverWithBegin(
+		context.Background(),
+		func(context.Context) (cutoverTransaction, error) { return tx, nil },
+		bundle,
+		validCutoverSeeds(),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	joined := strings.Join(tx.copySQLs, "\n")
+	for _, table := range []string{"procedures", "vaccines"} {
+		if !strings.Contains(joined, `COPY "cutover_copy_`+table+`"`) {
+			t.Fatalf("self-referenced table %s was not staged for ordering", table)
+		}
+		if strings.Contains(joined, `COPY "`+table+`" (`) {
+			t.Fatalf("self-referenced table %s COPY'd directly in CSV order", table)
+		}
+	}
+	for _, query := range tx.execQueries {
+		if !strings.Contains(query, "INSERT INTO") {
+			continue
+		}
+		if !strings.Contains(query, `"cutover_copy_procedures"`) && !strings.Contains(query, `"cutover_copy_vaccines"`) {
+			continue
+		}
+		if !strings.Contains(query, "walk.depth = $1") {
+			t.Fatalf("self-referenced staging insert is not topologically ordered: %s", query)
+		}
+	}
+}
+
 func TestApplyCutoverCopiesThroughTempTableWhenRLSBlocksCOPY(t *testing.T) {
 	bundle := validCutoverBundleForApply(t)
 	tx := &fakeCutoverTransaction{copyBlockedByRLS: true}
@@ -181,21 +300,35 @@ func TestApplyCutoverCopiesThroughTempTableWhenRLSBlocksCOPY(t *testing.T) {
 	if !strings.Contains(paymentsCopySQL, `FORCE_NOT_NULL ("insurance_name")`) {
 		t.Fatalf("payments staging COPY does not preserve required empty text: %s", paymentsCopySQL)
 	}
-	creates := 0
+	selfRefTables := 0
+	for _, spec := range CutoverTableSpecs() {
+		if _, ok := cutoverSelfReferenceColumn(spec.Name); ok {
+			selfRefTables++
+		}
+	}
+	copyCreates := 0
+	depthCreates := 0
 	inserts := 0
 	drops := 0
 	for _, query := range tx.execQueries {
 		switch {
-		case strings.Contains(query, "CREATE TEMP TABLE"):
-			creates++
+		case strings.Contains(query, `CREATE TEMP TABLE "cutover_depth_`):
+			depthCreates++
+		case strings.Contains(query, `CREATE TEMP TABLE "cutover_copy_`):
+			copyCreates++
 		case strings.Contains(query, "INSERT INTO"):
 			inserts++
 		case strings.HasPrefix(query, "DROP TABLE "):
 			drops++
 		}
 	}
-	if creates != len(CutoverTableSpecs()) || inserts != len(CutoverTableSpecs()) || drops != len(CutoverTableSpecs()) {
-		t.Fatalf("staging exec counts create=%d insert=%d drop=%d, want %d each", creates, inserts, drops, len(CutoverTableSpecs()))
+	if copyCreates != len(CutoverTableSpecs()) || depthCreates != selfRefTables {
+		t.Fatalf("staging creates copy=%d depth=%d, want %d copy + %d depth",
+			copyCreates, depthCreates, len(CutoverTableSpecs()), selfRefTables)
+	}
+	if inserts != len(CutoverTableSpecs()) || drops != len(CutoverTableSpecs())+selfRefTables {
+		t.Fatalf("staging exec counts insert=%d drop=%d, want %d inserts + %d drops",
+			inserts, drops, len(CutoverTableSpecs()), len(CutoverTableSpecs())+selfRefTables)
 	}
 }
 
@@ -379,6 +512,8 @@ type fakeCutoverTransaction struct {
 	copyBlockedByRLS     bool
 	insertBatchRowCounts []int64
 	insertBatchIndex     int
+	selfRefLeftoverCount int64
+	selfRefMaxDepth      int64
 }
 
 func (tx *fakeCutoverTransaction) QueryRow(ctx context.Context, query string, args ...any) pgx.Row {
@@ -397,6 +532,10 @@ func (tx *fakeCutoverTransaction) QueryRow(ctx context.Context, query string, ar
 		return staticRow{values: []any{int64(0)}}
 	case strings.Contains(query, "FROM payment_splits split"):
 		return staticRow{values: []any{int64(0)}}
+	case strings.Contains(query, "cutover_depth_") && strings.Contains(query, "count(*)"):
+		return staticRow{values: []any{tx.selfRefLeftoverCount}}
+	case strings.Contains(query, "cutover_depth_"):
+		return staticRow{values: []any{tx.selfRefMaxDepth}}
 	case strings.Contains(query, "count(*)"):
 		if tx.countMismatch {
 			return staticRow{values: []any{int64(0)}}

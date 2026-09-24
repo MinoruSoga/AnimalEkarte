@@ -1156,6 +1156,11 @@ func writeCutoverFixture(t *testing.T, mutate func(*fixtureBundle)) (string, str
 			if spec.Name == "estimate_items" && (column == "consultation_id" || column == "medicine_id") {
 				continue
 			}
+			// A self-reference filled with the row's own id is a self-loop cycle
+			// that no insert order can satisfy; producer leaves it empty.
+			if selfColumn, ok := cutoverSelfReferenceColumn(spec.Name); ok && column == selfColumn {
+				continue
+			}
 			if column == "owner_id" {
 				row[idx] = "300001"
 			} else {
