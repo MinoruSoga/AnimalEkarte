@@ -33,7 +33,7 @@ interface PrintPortalProps {
  * `createPortal` + `@media print` で他要素を非表示 + `@page { size: A4 }` の方式を
  * 単一コンポーネントに切り出し、#184 月次集計レポート・#153 レジ締めサマリーで再利用する。
  *
- * 画面上は `hidden` で常時非表示、印刷時のみ `display:block` で印刷面のみを出力する。
+ * 画面上は `hidden` クラスで常時非表示、印刷時のみ `print:block` で印刷面のみを出力する。
  * `document.body` 直下へ portal するため、印刷時は body 直下の他要素（アプリ本体・
  * トースト等）がまとめて `display:none` になり、操作 UI が出力に混入しない。
  *
@@ -41,6 +41,13 @@ interface PrintPortalProps {
  * `data-print-portal` へ変更。これにより複数ポータル同居時に互いの `:not(...)` が相手を
  * 隠して specificity 競合で全面白紙化する不具合を構造的に解消した。除外キーが共通のため、
  * 各ポータルの注入する `@media print` ルールは同一テキストになり、同居しても打ち消し合わない。
+ *
+ * EMR-205: ルート要素に `hidden` HTML 属性を使わないこと。Tailwind v4 preflight は
+ * `@layer base` で `[hidden] { display: none !important }` を出力し、important 宣言は
+ * カスケードレイヤーの優先度が逆転するため、unlayered な `@media print` の
+ * `display:block !important` 上書きに勝ってしまい印刷面が白紙化する。
+ * 代わりに utilities レイヤーの `hidden` / `print:block` クラスで制御する
+ * （領収書 AccountingPrintArea・カルテ印刷と同じ実績ある仕組み）。
  */
 export function PrintPortal({
   testId,
@@ -83,8 +90,7 @@ export function PrintPortal({
   return createPortal(
     <div
       ref={elementRef}
-      hidden
-      className="bg-white"
+      className="hidden print:block bg-white"
       data-testid={testId}
       data-print-portal=""
       data-print-active={active ? "true" : "false"}
