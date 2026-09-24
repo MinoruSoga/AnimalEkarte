@@ -124,6 +124,7 @@ export function useAccountingItemActions({
       price,
       category,
       otherReason,
+      taxType,
       taxRate,
       merchandiseItemId,
     }: AddAccountingItemInput) => {
@@ -134,8 +135,19 @@ export function useAccountingItemActions({
       const unitPrice = parseInt(price, 10);
       const qty = 1;
       const rate = taxRate ?? DEFAULT_STANDARD_TAX_RATE;
+      // EMR-65: マスタ登録の税区分を優先し、未指定時のみ従来の外税既定
+      const resolvedTaxType: TaxType = taxType ?? "excluded";
       const tempId = `manual_${crypto.randomUUID()}`;
       const manualOtherReason = category === "other" ? otherReason : undefined;
+      const subtotal = unitPrice * qty;
+      // BE BillingItem.CalculateTaxAmount と同一規則（新規行は割引0: base=unitPrice*qty）。
+      // lib/calculations.ts の lineTaxAmount は非公開のためここで同一式を適用する。
+      const taxAmount =
+        resolvedTaxType === "included"
+          ? Math.round((subtotal * rate) / (1 + rate))
+          : resolvedTaxType === "excluded"
+            ? Math.round(subtotal * rate)
+            : 0;
       const newItem: AccountingItem = {
         id: tempId,
         category: category as ItemCategory,
@@ -144,10 +156,10 @@ export function useAccountingItemActions({
         quantity: qty,
         discountRate: 0,
         discountAmount: 0,
-        taxType: "excluded" as TaxType,
+        taxType: resolvedTaxType,
         taxRate: rate,
-        taxAmount: Math.round(unitPrice * qty * rate),
-        subtotal: unitPrice * qty,
+        taxAmount,
+        subtotal,
         isInsuranceApplicable: false,
         source: "manual",
         ...(manualOtherReason !== undefined ? { otherReason: manualOtherReason } : {}),
@@ -166,7 +178,7 @@ export function useAccountingItemActions({
               name,
               unit_price: unitPrice,
               quantity: qty,
-              tax_type: "excluded",
+              tax_type: resolvedTaxType,
               tax_rate: rate,
               is_insurance_applicable: false,
               source: "manual",

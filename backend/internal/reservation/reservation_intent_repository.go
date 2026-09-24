@@ -577,6 +577,10 @@ func (r *reservationRepository) UpdateForTrimming(
 		)`, clinicID, model.ReservationTypeCategoryTrimming)
 	result := query.Updates(fields)
 	if result.Error != nil {
+		// EMR-76: reschedule/update can also hit excl_appointments_doctor_timerange.
+		if conflict := asReservationTimeConflict(result.Error); conflict != nil {
+			return nil, conflict
+		}
 		return nil, apperrors.FromGORM(result.Error, "reservation", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {

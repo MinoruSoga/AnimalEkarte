@@ -32,7 +32,7 @@ type VaccineRecord struct {
 // GetHealthCard はLINE顧客に紐付くOwnerのペット健康手帳データを集約する。
 // Owner未紐付の場合はowner_name（表示名フォールバック）+ pets:[] を返す（リンク前UXを壊さないため）。
 func (s *liffService) GetHealthCard(ctx context.Context, clinicID, customerID uint64) (*HealthCardResult, error) {
-	customer, err := s.customerRepo.FindByID(ctx, clinicID, customerID)
+	customer, err := s.findCustomerWithOwnerSync(ctx, clinicID, customerID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get health card")
 	}

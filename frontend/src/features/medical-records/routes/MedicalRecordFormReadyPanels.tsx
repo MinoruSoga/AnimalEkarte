@@ -70,7 +70,18 @@ function useMedicalRecordFormReadyState(input: {
     isLoading: isBillingConfirmationLoading,
     isError: isBillingConfirmationError,
   } = useGetBillingConfirmation(recordId ?? "");
-  const [staffName, setStaffName] = useState(() => user?.displayName ?? "");
+  // BUG-MR-DOCTOR-HEADER-STALE: ヘッダーの担当医名は取得済みカルテの doctor を優先し、
+  // 未割当（空文字）のときだけログインユーザー名へフォールバックする。スタッフ選択時は
+  // 楽観的オーバーライドで即時反映し、取得値が変化したタイミングで描画中の前値比較が
+  // オーバーライドを破棄する（派生状態の同期に useEffect は使わない）。
+  const recordDoctorName = currentRecord?.doctor ?? "";
+  const [optimisticDoctorName, setOptimisticDoctorName] = useState<string | null>(null);
+  const [prevRecordDoctorName, setPrevRecordDoctorName] = useState(recordDoctorName);
+  if (prevRecordDoctorName !== recordDoctorName) {
+    setPrevRecordDoctorName(recordDoctorName);
+    setOptimisticDoctorName(null);
+  }
+  const staffName = optimisticDoctorName || recordDoctorName || user?.displayName || "";
   const modals = useMedicalRecordFormModals();
   const [mountedTabs, setMountedTabs] = useState<Set<string>>(
     () => new Set(["問診", form.activeTab]),
@@ -114,7 +125,7 @@ function useMedicalRecordFormReadyState(input: {
 
   const handleSelectStaff = useCallback(
     (newStaffId: string, newStaffName: string) => {
-      setStaffName(newStaffName);
+      setOptimisticDoctorName(newStaffName);
       if (recordId) {
         handleChangeDoctor(newStaffId, newStaffName);
       }

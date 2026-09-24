@@ -200,6 +200,18 @@ export function useReceptionKanban({
     [hasMutationPermission, mutateAsync, startUpdateStatusTransition],
   );
 
+  /** 無効ドラッグの警告 toast（連打時の多重表示を throttle で抑止） */
+  const warnInvalidDrag = useCallback((title: string, description: string) => {
+    const now = Date.now();
+    if (now - lastAlertRef.current > INVALID_DRAG_ALERT_THROTTLE_MS) {
+      toast.error(title, {
+        description,
+        duration: INVALID_DRAG_ALERT_DURATION_MS,
+      });
+      lastAlertRef.current = now;
+    }
+  }, []);
+
   /** カードをドラッグで sourceColumn → targetColumn へ移動する。受付済→診療中 直行は禁止。 */
   const moveCard = useCallback(
     (hoverIndex: number, sourceColumn: string, targetColumn: string, cardId: string): boolean => {
@@ -211,16 +223,22 @@ export function useReceptionKanban({
       const appointment = sourceColFiltered.appointments.find((item) => item.id === cardId);
       if (!appointment || appointment.petStatus === PetStatusDeceased) return false;
 
+      // EMR-74: トリミング予約は診療行為の「診療中」カラムに入らない。
+      // trimming の in_consultation（施術中）は受付済カラムで表示する。
+      if (targetColumn === "診療中" && appointment.reservationCategory === "trimming") {
+        warnInvalidDrag(
+          "トリミング予約は「診療中」に移動できません",
+          "施術中のトリミングは「受付済」カラムに表示されます。",
+        );
+        return false;
+      }
+
       // 受付済 → 診療中 への直接ドラッグは禁止（カルテ作成が必要）
       if (sourceColumn === "受付済" && targetColumn === "診療中") {
-        const now = Date.now();
-        if (now - lastAlertRef.current > INVALID_DRAG_ALERT_THROTTLE_MS) {
-          toast.error("カルテ作成が必要です", {
-            description: "このステータスに変更するには、詳細画面からカルテを作成してください。",
-            duration: INVALID_DRAG_ALERT_DURATION_MS,
-          });
-          lastAlertRef.current = now;
-        }
+        warnInvalidDrag(
+          "カルテ作成が必要です",
+          "このステータスに変更するには、詳細画面からカルテを作成してください。",
+        );
         return false;
       }
 
@@ -250,7 +268,7 @@ export function useReceptionKanban({
       );
       return true;
     },
-    [hasMutationPermission, runStatusMutation],
+    [hasMutationPermission, runStatusMutation, warnInvalidDrag],
   );
 
   /** ボタン操作でカードを次ステータスへ進める。会計済 は completed 確定 + ローカル除外。 */
@@ -279,7 +297,12 @@ export function useReceptionKanban({
         return;
       }
 
-      const nextTitle = NEXT_COLUMN_TITLE[currentTitle];
+      // EMR-74: トリミング予約は「診療中」を経由しない。受付済からは会計待ちへ進む
+      // （status=accounting）。in_consultation は trimming intent 経路専用。
+      const nextTitle =
+        currentTitle === "受付済" && currentAppointment.reservationCategory === "trimming"
+          ? "会計待ち"
+          : NEXT_COLUMN_TITLE[currentTitle];
       if (!nextTitle) return;
       const newStatus = COLUMN_TITLE_TO_STATUS[nextTitle];
       if (!newStatus) return;

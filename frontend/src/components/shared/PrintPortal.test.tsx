@@ -94,6 +94,44 @@ describe("PrintPortal (#187 多重ポータル白紙化の再発防止)", () => 
     expect(css).toContain('[data-print-portal][data-print-active="false"]');
   });
 
+  it("EMR-205: 印刷面ルートは hidden HTML 属性を持たない（preflight の [hidden] display:none !important を回避）", () => {
+    render(
+      <PrintPortal testId="area-a">
+        <p>A</p>
+      </PrintPortal>,
+    );
+    const area = screen.getByTestId("area-a");
+    // Tailwind v4 preflight は @layer base で
+    // `[hidden]:where(:not([hidden='until-found'])) { display: none !important; }` を
+    // 出力する。important 宣言はレイヤー優先度が逆転するため、hidden 属性が残ると
+    // unlayered な `[data-print-portal] { display:block !important }` に勝ち、
+    // 印刷面が白紙化する（EMR-205 の根本原因）。
+    expect(area).not.toHaveAttribute("hidden");
+  });
+
+  it("EMR-205: 画面非表示は hidden クラス、印刷表示は print:block クラスで行う", () => {
+    render(
+      <PrintPortal testId="area-a">
+        <p>A</p>
+      </PrintPortal>,
+    );
+    const area = screen.getByTestId("area-a");
+    // 領収書・カルテ印刷と同じ仕組み: utilities レイヤー内で
+    // `print:block` が `.hidden` に勝ち、印刷時に display:block になる。
+    expect(area).toHaveClass("hidden");
+    expect(area).toHaveClass("print:block");
+  });
+
+  it("EMR-205: 注入CSSの印刷面表示ルールが data-print-portal 固定キーで残る", () => {
+    render(
+      <PrintPortal testId="area-a">
+        <p>A</p>
+      </PrintPortal>,
+    );
+    const css = styleTextOf("area-a");
+    expect(css).toContain("[data-print-portal] { display: block !important; }");
+  });
+
   it("orientation を landscape にすると @page が landscape になる", () => {
     render(
       <PrintPortal testId="area-a" orientation="landscape">

@@ -152,3 +152,33 @@ describe("DailyAccountingPrintArea: 金額セルの印字が固定されてい�
     expect(within(grandRow).getByText("¥99,999")).toBeInTheDocument();
   });
 });
+
+describe("EMR-205 再発防止: hidden 属性ではなく hidden/print:block クラス + data-print-portal 固定キー", () => {
+  it("印刷面ルートは hidden HTML 属性を持たず hidden と print:block クラスを持つ", () => {
+    render(<DailyPrintArea date="2026-07-01" rows={ROWS} totals={TOTALS} />);
+    const area = screen.getByTestId("daily-print-area");
+    // Tailwind v4 preflight の [hidden] display:none !important（@layer base）は
+    // unlayered な display:block !important より強いため、hidden 属性が残ると白紙化する。
+    expect(area).not.toHaveAttribute("hidden");
+    expect(area).toHaveClass("hidden");
+    expect(area).toHaveClass("print:block");
+  });
+
+  it("印刷面は固定キー data-print-portal を持ち、注入CSSは per-instance な testId を参照しない", () => {
+    render(<DailyPrintArea date="2026-07-01" rows={ROWS} totals={TOTALS} />);
+    const area = screen.getByTestId("daily-print-area");
+    // #187: 除外キーは全ポータル共通の data-print-portal。per-instance な
+    // data-testid 除外は同居ポータル同士を隠し合って白紙化するため禁止。
+    expect(area).toHaveAttribute("data-print-portal");
+    const css = area.querySelector("style")?.textContent ?? "";
+    expect(css).not.toContain("data-testid");
+    expect(css).toContain(":not([data-print-portal])");
+  });
+
+  it("@page は A4 landscape を維持する", () => {
+    render(<DailyPrintArea date="2026-07-01" rows={ROWS} totals={TOTALS} />);
+    const area = screen.getByTestId("daily-print-area");
+    const css = area.querySelector("style")?.textContent ?? "";
+    expect(css).toContain("size: A4 landscape");
+  });
+});

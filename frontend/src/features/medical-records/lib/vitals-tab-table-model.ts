@@ -12,7 +12,7 @@ export interface VitalsAddFormState {
   respiration_rate: string;
   weight: string;
   weight_unit: BodyWeightUnit;
-  note: string;
+  notes: string;
 }
 
 export const EMPTY_VITALS_ADD_FORM: VitalsAddFormState = {
@@ -22,7 +22,7 @@ export const EMPTY_VITALS_ADD_FORM: VitalsAddFormState = {
   respiration_rate: "",
   weight: "",
   weight_unit: "Kg",
-  note: "",
+  notes: "",
 };
 
 export function parseVitalsNumber(value: string): number | null {

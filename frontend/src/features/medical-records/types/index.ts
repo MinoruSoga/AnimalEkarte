@@ -139,7 +139,7 @@ export interface Vital {
   respiration_rate?: number | null;
   weight?: number | null;
   weight_unit: BodyWeightUnit;
-  note?: string | null;
+  notes?: string | null;
   /** UAT-R2-EXCLUSIVE-LOCK: 楽観的ロック用。PATCH の version にはこの値をそのまま送る。 */
   version: number;
   created_at: string;
@@ -153,7 +153,7 @@ export interface CreateVitalInput {
   respiration_rate?: number | null;
   weight?: number | null;
   weight_unit: BodyWeightUnit;
-  note?: string | null;
+  notes?: string | null;
 }
 
 export interface UpdateVitalInput {
@@ -163,7 +163,7 @@ export interface UpdateVitalInput {
   respiration_rate?: number | null;
   weight?: number | null;
   weight_unit?: BodyWeightUnit;
-  note?: string | null;
+  notes?: string | null;
   /**
    * UAT-R2-EXCLUSIVE-LOCK: 楽観的ロック expectedVersion。
    * 呼出側は読取済み Vital.version を必ず同送する（省略時は BE が照合スキップ＝後方互換）。

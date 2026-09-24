@@ -184,6 +184,52 @@ describe("AppointmentCard", () => {
     expect(screen.queryByRole("button", { name: /ポチのトリミング記録/ })).not.toBeInTheDocument();
   });
 
+  // EMR-74: trimming の in_consultation（施術中）は受付済カラムに「施術中」バッジで示し、
+  // 診療中・診察中とは一切表示しない。
+  it("施術中のトリミング予約は「施術中」バッジを表示し「診療中」「診察中」を表示しない", () => {
+    renderCard(
+      {
+        ...baseAppointment,
+        id: "202",
+        reservationType: "シャンプーコース",
+        reservationCategory: "trimming",
+        status: "in_consultation",
+      },
+      "受付済",
+    );
+
+    expect(screen.getByText("施術中")).toBeInTheDocument();
+    expect(screen.queryByText("診療中")).not.toBeInTheDocument();
+    expect(screen.queryByText("診察中")).not.toBeInTheDocument();
+  });
+
+  it("施術中でないトリミング予約は「施術中」バッジを表示しない", () => {
+    renderCard(
+      {
+        ...baseAppointment,
+        id: "202",
+        reservationType: "シャンプーコース",
+        reservationCategory: "trimming",
+        status: "checked_in",
+      },
+      "受付済",
+    );
+
+    expect(screen.queryByText("施術中")).not.toBeInTheDocument();
+  });
+
+  it("一般予約の診療中カードは「施術中」バッジを表示しない", () => {
+    renderCard(
+      {
+        ...baseAppointment,
+        status: "in_consultation",
+      },
+      "診療中",
+    );
+
+    expect(screen.queryByText("施術中")).not.toBeInTheDocument();
+  });
+
   it("入院予約では通常カルテボタンを表示しない", () => {
     renderCard({
       ...baseAppointment,

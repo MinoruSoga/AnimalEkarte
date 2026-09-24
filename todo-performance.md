@@ -227,3 +227,25 @@ E4 以降にユーザー報告で発覚した追加原因と、採用した改�
 - **PERF-V-LINEAR**: 依然 **BLOCKED**——Linear MCP が未接続（`USER_NOT_LOGGED_IN`）で照会不能。`EMR-136` へ移行済みだが対応先の確定は保留。
 - **配置**: `maa01`/`sin14` いずれも日本非ローカルで APAC 制約は満たすが Japan 着地は保証しない。runbook の再抽選（`LABEL rollout` インクリメント再デプロイ）の実施は承認済み運用操作に委ねる。
 - **新規候補**: `GET /api/v1/accountings?owner_id=` が owner detail 画面の最遅 API（1.9–2.7s、browser-pages 観測）。次期改善候補として記録する。
+
+## E7: 2026-09-24 perf-lane-all-20260924 キャンペーン結果
+
+証拠の正本は `reports/perf-lane-all-20260924/`。観測時点の STG 配信版は worker `a52c2795`（2026-09-23T14:55:37Z 作成）・コンテナ v72 で、EMR-201 の perf コミット `e818195ec` を含む（merge `da359419b` の compare: ahead 69 / behind 0）。migration `007_billings_clinic_owner_scheduled_index.sql` は適用済み（migrate log `missing=0`）。curl n=5 warm・wrangler 読取の単発観測であり p95/p99・SLO 達成を主張しない。
+
+### 単位別結果
+
+| 単位 | 取得証拠 | 主な値・判定 |
+|---|---|---|
+| PERF-ACCT-VERIFY（EMR-201） | [accountings-verify](reports/perf-lane-all-20260924/accountings-verify/README.md)（curl、n=5 warm、中央値のみ） | **IMPROVED**。`GET /api/v1/accountings?owner_id=` warm 中央値 **1.091s**（min 0.968 / max 1.338、全件 HTTP 200・31,320 bytes）vs E6 baseline 1.9–2.7s。初回ヒット 2.659s は旧レンジ上限相当。単一 client・baseline との browser-vs-curl 手法差は正直な caveat として併記 |
+| PERF-PLACEMENT-CHECK（EMR-202） | [placement](reports/perf-lane-all-20260924/placement/README.md)（wrangler 読取 + `/health` GET 1 本） | v72 で配置を再観測: `scheduling_policy` は依然 deployed=`default` vs config=`regional`（`backend/wrangler.jsonc:130`）。稼働 singleton は `maa01`、migrate-runner は `bom09`（いずれも APAC 制約内・日本非ローカル）。runbook・台帳の記載 8/8 が live と MATCH（ドリフト無し）。runbook 発火条件が成立するため **LABEL rollout 再抽選を推奨 YES**——実施は承認済み運用操作に委ねる |
+| PERF-COST-MEMO（EMR-204） | [instance-type-cost](reports/perf-lane-all-20260924/instance-type-cost/README.md)（repo 内読取のみ・外部 call 無し） | 意思決定メモを作成。現行 `basic`（1/4 vCPU / 1GiB）。増分見積（ESTIMATE・sleepAfter 依存）: `standard-1` ≈ **+$2.8–20.4/mo**、`standard-2` ≈ **+$4.7–34.3/mo**。受益側は bcrypt（実パスワード login のみ・共有パスワード経路は bcrypt-free）と起動 CPU 区間に限定され一部 UNKNOWN。**open decision**: approve std-1 / std-2 / reject / defer |
+
+### 残存事項・対象外（E7 時点）
+
+- **EMR-104（SLACK-LATENCY）**: ユーザーレーン（Plane Needs Human）。本キャンペーンの対象外。
+- **EMR-203（AXIOS-RETRY フィールド検証）**: unverified-in-field のまま——観測窓に 503 が無くリトライ経路は未励起。失敗ではない。
+- **EMR-142 / EMR-143（PERF-V-MITIGATION / PERF-V-BUNDLE）**: トリガー付き DEFERRED のまま（Plane Backlog）。
+- **EMR-199（PERF-E5-STG-DEPLOY-VERIFY）**: 終端（Plane Done・prior campaign で完了）。
+- **EMR-136（PERF-V-LINEAR）**: cancelled——Linear MCP 未接続（`USER_NOT_LOGGED_IN`）で照会不能のまま。
+- **EMR-202 再抽選**: 推奨 YES のまま未実施。手順は `backend/Dockerfile.production:38` の `LABEL rollout` インクリメント + 再デプロイで、承認済み運用操作に委ねる（deploy event あたり ~2 回上限。APAC 内の再抽選であり `maa`/`bom`/`sin` 再着地の可能性は残る）。
+- **EMR-204 open decision**: std-1 / std-2 / reject / defer の判断は運用者の承認事項。適用は別単位の `wrangler.jsonc` 変更 + デプロイ（本ユニットはメモのみ）。

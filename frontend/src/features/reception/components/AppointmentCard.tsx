@@ -242,6 +242,17 @@ export const AppointmentCard = memo(function AppointmentCard({
                 <span className="text-2xs ml-0.5 font-semibold">指</span>
               ) : null}
             </Badge>
+
+            {/* EMR-74: trimming の in_consultation は「施術中」。受付済カラム内でのみ
+                バッジ表示し、診療中・診察中という文言は使わない。 */}
+            {isTrimming && appointment.status === "in_consultation" && columnTitle === "受付済" ? (
+              <Badge
+                variant="secondary"
+                className={`text-sm px-[7.5px] h-[22px] ${C.bgBrandLight30} ${C.textBrand} ${C.borderBrandLight}`}
+              >
+                施術中
+              </Badge>
+            ) : null}
           </div>
 
           {/* ミニアクションボタン */}

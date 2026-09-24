@@ -48,6 +48,6 @@ describe("latestVisitVitalChips", () => {
   });
 
   it("returns null when the latest row has no T/HR/RR/weight", () => {
-    expect(latestVisitVitalChips([vital({ note: "only note" })])).toBeNull();
+    expect(latestVisitVitalChips([vital({ notes: "only note" })])).toBeNull();
   });
 });

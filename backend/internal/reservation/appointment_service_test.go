@@ -2129,6 +2129,89 @@ func TestReservationService_Update_AllowsInConsultationWhenMedicalRecordExists(t
 	assert.Equal(t, model.ReservationStatusInConsultation, result.Status)
 }
 
+// EMR-74: 汎用 PATCH /reservations は trimming 予約の in_consultation 遷移を
+// カルテ存在チェック（409 Conflict）より先に InvalidInput で拒否する。
+func TestReservationService_Update_RejectsTrimmingInConsultationBeforeMedicalRecordCheck(t *testing.T) {
+	status := model.ReservationStatusInConsultation
+	medicalRecordCounted := false
+	current := func(clinicID, id uint64) *model.Reservation {
+		return &model.Reservation{
+			ID:                id,
+			ClinicID:          clinicID,
+			ReservationTypeID: 9,
+			Status:            model.ReservationStatusCheckedIn,
+			ReservationType: &model.ReservationType{
+				ID:       9,
+				ClinicID: clinicID,
+				Category: model.ReservationTypeCategoryTrimming,
+			},
+		}
+	}
+	repo := &mockReservationRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+			return current(clinicID, id), nil
+		},
+		lockAndFindByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+			return current(clinicID, id), nil
+		},
+		countMedicalRecordsByReservationID: func(_ context.Context, _ uint64) (int64, error) {
+			medicalRecordCounted = true
+			return 0, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
+			t.Fatal("must not transition a trimming reservation to in_consultation via generic Update")
+			return nil, nil
+		},
+	}
+	svc := NewReservationServiceWithAvailabilityAndType(repo, nil, &mockTransactor{}, nil, nil)
+
+	result, err := svc.Update(context.Background(), 1, 1, &UpdateReservationInput{Status: &status})
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.True(t, apperrors.IsInvalidInput(err), "expected InvalidInput but got: %v", err)
+	assert.False(t, apperrors.IsConflict(err), "must reject before the medical-record conflict path")
+	assert.False(t, medicalRecordCounted,
+		"medical-record validation must not run for trimming reservations")
+}
+
+// EMR-74: 汎用 Update でも、trimming 予約が既に in_consultation で同一 status を再送する
+// ケース（transition ではない）はこれまで通り受理する。
+func TestReservationService_Update_AllowsTrimmingInConsultationSameStatus(t *testing.T) {
+	status := model.ReservationStatusInConsultation
+	updateCalled := false
+	current := func(clinicID, id uint64) *model.Reservation {
+		return &model.Reservation{
+			ID:                id,
+			ClinicID:          clinicID,
+			ReservationTypeID: 9,
+			Status:            model.ReservationStatusInConsultation,
+			ReservationType: &model.ReservationType{
+				ID:       9,
+				ClinicID: clinicID,
+				Category: model.ReservationTypeCategoryTrimming,
+			},
+		}
+	}
+	repo := &mockReservationRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+			return current(clinicID, id), nil
+		},
+		updateFieldsFn: func(_ context.Context, _, id uint64, _ map[string]any) (*model.Reservation, error) {
+			updateCalled = true
+			return &model.Reservation{ID: id, ClinicID: 1, Status: model.ReservationStatusInConsultation}, nil
+		},
+	}
+	svc := NewReservationServiceWithAvailabilityAndType(repo, nil, &mockTransactor{}, nil, nil)
+
+	result, err := svc.Update(context.Background(), 1, 1, &UpdateReservationInput{Status: &status})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.True(t, updateCalled)
+	assert.Equal(t, model.ReservationStatusInConsultation, result.Status)
+}
+
 func TestReservationService_Update_FailsClosedWhenInConsultationRecordCountErrors(t *testing.T) {
 	status := model.ReservationStatusInConsultation
 	current := func(clinicID, id uint64) *model.Reservation {
