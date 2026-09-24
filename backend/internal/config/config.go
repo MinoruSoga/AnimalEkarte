@@ -38,6 +38,9 @@ type Config struct {
 	DBMaxOpenConns int
 	DBMaxIdleConns int
 
+	// DBSlowQueryMS は slow-query ログの閾値(ms)。0 は記録しない。
+	DBSlowQueryMS int
+
 	JWTSecret string
 
 	// SMTP設定（空文字=無効）。LINE アクセストークン・通知先メールはクリニックごとに DB で管理する。
@@ -127,6 +130,7 @@ func Load() *Config {
 
 		DBMaxOpenConns: getEnvInt("DB_MAX_OPEN_CONNS", 50),
 		DBMaxIdleConns: getEnvInt("DB_MAX_IDLE_CONNS", 25),
+		DBSlowQueryMS:  getEnvInt("DB_SLOW_QUERY_MS", 300),
 
 		JWTSecret: getEnv("JWT_SECRET", "dev-secret-change-me"),
 

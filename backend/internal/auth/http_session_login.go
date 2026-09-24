@@ -161,6 +161,27 @@ func (h *HTTPHandler) BuildMeResponse(
 	isSystemAdmin bool,
 	allClinics []model.Clinic,
 ) *MeResponse {
+	permissions := h.CalculateEffectivePermissions(c, isSystemAdmin, staff.ID)
+	return h.buildMeResponseWithPermissions(
+		staff,
+		account,
+		mainClinicID,
+		isSystemAdmin,
+		allClinics,
+		permissions,
+	)
+}
+
+// buildMeResponseWithPermissions assembles /me when the caller has already
+// resolved the effective permission map (GetMe prefetches it concurrently).
+func (h *HTTPHandler) buildMeResponseWithPermissions(
+	staff *model.Staff,
+	account *model.Account,
+	mainClinicID string,
+	isSystemAdmin bool,
+	allClinics []model.Clinic,
+	permissions EffectivePermissions,
+) *MeResponse {
 	clinicNameMap := make(map[string]string, len(allClinics))
 	for i := range allClinics {
 		clinic := &allClinics[i]
@@ -168,7 +189,6 @@ func (h *HTTPHandler) BuildMeResponse(
 	}
 	mainClinicID = h.authService().
 		ResolveSystemAdminMainClinicID(mainClinicID, isSystemAdmin, allClinics)
-	permissions := h.CalculateEffectivePermissions(c, isSystemAdmin, staff.ID)
 	return ToMeResponse(
 		staff,
 		account,
