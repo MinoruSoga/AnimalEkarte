@@ -234,8 +234,9 @@ export function useReservationSaveActions({
       );
 
       if (hasOverlap) {
-        // FE precheck — keep modal open with inline message (same surface as API 409).
-        return "指定された時間帯には既に予約が入っています";
+        // FE precheck — keep modal open with the same message the API 409 returns
+        // (EMR-76: server-side conflict body is 既に予約が存在します).
+        return "既に予約が存在します";
       }
 
       if (currentEditing?.id) {
