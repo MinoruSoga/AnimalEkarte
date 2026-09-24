@@ -249,3 +249,30 @@ E4 以降にユーザー報告で発覚した追加原因と、採用した改�
 - **EMR-136（PERF-V-LINEAR）**: cancelled——Linear MCP 未接続（`USER_NOT_LOGGED_IN`）で照会不能のまま。
 - **EMR-202 再抽選**: 推奨 YES のまま未実施。手順は `backend/Dockerfile.production:38` の `LABEL rollout` インクリメント + 再デプロイで、承認済み運用操作に委ねる（deploy event あたり ~2 回上限。APAC 内の再抽選であり `maa`/`bom`/`sin` 再着地の可能性は残る）。
 - **EMR-204 open decision**: std-1 / std-2 / reject / defer の判断は運用者の承認事項。適用は別単位の `wrangler.jsonc` 変更 + デプロイ（本ユニットはメモのみ）。
+
+## E8: 2026-09-24 post-recovery warm 再計測（単発観測・revision 1）
+
+観測時点の STG 配信版は worker `b25be1b1`（2026-09-24T14:09:21Z）・コンテナ v11・image `a3fd8027`・`basic` 0.25vCPU・`scheduling_policy=default`・APAC 制約。稼働 singleton は `sin07`。seed checksum crash からの復旧（migration 009）直後の同日 23:35–23:50 JST に測定。curl n=5 warm・wrangler tail 相関の単発観測であり p95/p99・SLO 達成を主張しない。
+
+### 単位別結果
+
+| 単位 | 取得証拠 | 主な値・判定 |
+|---|---|---|
+| KEEPALIVE-REG | CI deploy log（run 36010665511） | `Deployed animalekarte-stg-api triggers` に `schedule: 10,40 0-9 * * *` を含む 4 schedule の適用を確認。**登録済み・実発火は未観測**（デプロイ時点で当日の JST 09:10–18:40 窓は終了済み。初回発火は翌営業日 09:10 JST） |
+| LATENCY-DECOMP | `wrangler tail` の `container_fetch_timing` + curl TTFB 相関 | `/health`: container_fetch **193ms**（curl 0.257s）。`/api/v1/me`: container_fetch **3953ms**（curl 4.01s）。**edge+DO ホップは健全（~190ms floor）で、遅延はコンテナ内部（Go+DB）に閉じる** |
+| WARM-REMEASURE | curl n=5 warm、cookie 再利用（`stg-staff-10000021`・執行） | me ~1.5s（0.67–8.35）/ clinics ~0.78（0.38–1.18）/ pets ~2.3（1.5–6.0）/ pets?q ~2.5（0.92–4.9）/ pets+deceased ~2.0（0.66–3.4）/ accountings?owner_id ~3.3（2.5–6.7）。**全 endpoint が E6/E7 baseline を上回り、同一 endpoint で 4–12x のばらつき** |
+
+### 判定
+
+コードは E6/E7 配信版からクエリ経路の変更がない（差分は keep-alive + migration 009 のみ）。にもかかわらず同一リクエストが 12x 変動することから、**支配因は環境**と判定：約24時間の crash loop 停止により PlanetScale のバッファ/接続が完全冷却し、加えて basic 0.25vCPU の共有 CPU ノイズが乗った状態。**新規のコードレベル N+1 回帰の証拠は確認できず**、現観測窓では修正対象の単一ボトルネックを確定できない（タスク規約どおり記録で留める）。
+
+### コードレビュー由来の bounded 所見（測定確度外・follow-up 候補）
+
+1. **`/me` は access-cache miss 時（TTL 2s）に直列 ~5 query**: `loadCurrentAccessGraph` → `Staff.GetByID` → `Accounts.GetByID`（graph の account_id を借用すれば staff 待ち不要化可能）→ `ListClinicsByIDs` → `GetEffectivePermissions`。middleware 解決後の 4 本は独立で errgroup 並列化可能（errgroup は `accounting_repository.go` で既採用）。推定 saving ~2–3 RTT（warm で ~0.2–0.5s）。認証中核経路のため暖機状態での効果検証と慎重なレビュー前提。
+2. **`/health` は静的応答で DB 非到達** — keep-alive cron はコンテナプロセスのみ温め、DB pool（`ConnMaxIdleTime=5min` < cron 30min 間隔）と PlanetScale バッファは tick 間で冷却する。**アイドル後の初回実リクエストは依然 fresh-TLS + cold-page を支払う**。低コスト選択肢: `SELECT 1` のみ行う軽量 endpoint を ≤5min cadence の cron で打つ（追加費用 ~$0・エンドポイント面の設計判断が必要）。
+3. **アプリ内に per-query 計時がない**（GORM logger 無効）→ コンテナ内部の帰属はコード読みに依存。閾値付き slow-query ログ（payload 無し）の導入が次回分析の証拠力を上げる。
+
+### 次の一手
+
+- 翌営業日 JST 09:10–18:40 帯に keep-alive 実発火 + 暖機済み DB での再計測（本日値は cold-DB の下限側バイアスとして扱う）
+- 暖機後も me/accountings 中央値 >1s なら (1) /me 並列化 (2) DB-ping keep-alive (3) slow-query ログ の順で実施判断
