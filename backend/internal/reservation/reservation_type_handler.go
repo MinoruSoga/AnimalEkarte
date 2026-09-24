@@ -299,7 +299,9 @@ func (h *ReservationTypeHandler) ListReservationTypeOccupations(c *gin.Context) 
 		respondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, httpapi.MapSlice(items, toReservationTypeOccupationResponse))
+	// EMR-209 / BUG-MASTER-RESVTYPE-OCC-ENVELOPE: 標準 {data: [...]} エンベロープで返す
+	// （旧来の裸配列だと FE の data.data 参照が TypeError となりバッジが描画されない）。
+	c.JSON(http.StatusOK, gin.H{"data": httpapi.MapSlice(items, toReservationTypeOccupationResponse)})
 }
 
 // LinkOccupation godoc
@@ -319,11 +321,19 @@ func (h *ReservationTypeHandler) LinkReservationTypeOccupation(c *gin.Context) {
 	}
 	result, err := h.occupation.LinkOccupation(c.Request.Context(), clinicID, id, req.OccupationID)
 	if err != nil {
+		// EMR-209 / BUG-MASTER-RESVTYPE-OCC-ENVELOPE: 重複紐付けは 409 の error/code に
+		// 加えて既存リンクを data に載せ、FE がリロードなしでバッジを同期できるようにする。
+		if result != nil && apperrors.IsAlreadyExists(err) {
+			respondErrorWithExtras(c, err, map[string]any{
+				"data": toReservationTypeOccupationResponse(result),
+			})
+			return
+		}
 		respondError(c, err)
 		return
 	}
 	c.Header("Location", fmt.Sprintf("/v1/masters/reservation-types/%d/occupations/%d", id, result.ID))
-	c.JSON(http.StatusCreated, toReservationTypeOccupationResponse(result))
+	c.JSON(http.StatusCreated, gin.H{"data": toReservationTypeOccupationResponse(result)})
 }
 
 // UnlinkOccupation godoc

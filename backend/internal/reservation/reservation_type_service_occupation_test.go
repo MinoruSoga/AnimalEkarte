@@ -164,6 +164,39 @@ func TestReservationTypeService_LinkOccupation(t *testing.T) {
 	}
 }
 
+// EMR-209 / BUG-MASTER-RESVTYPE-OCC-ENVELOPE:
+// 重複紐付けは (既存リンク, ALREADY_EXISTS) を返し、handler が 409 + data に載せる。
+func TestReservationTypeService_LinkOccupation_Duplicate(t *testing.T) {
+	repo := &mockReservationTypeRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.ReservationType, error) {
+			return &model.ReservationType{ID: id, ClinicID: clinicID}, nil
+		},
+	}
+	baseOccRepo := &mockOccupationRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Occupation, error) {
+			return &model.Occupation{ID: id, ClinicID: clinicID}, nil
+		},
+	}
+	existing := &model.ReservationTypeOccupation{ID: 42, ClinicID: 10, ReservationTypeID: 1, OccupationID: 5}
+	occRepo := &mockReservationTypeOccupationRepository{
+		createFn: func(_ context.Context, _ *model.ReservationTypeOccupation) error {
+			return apperrors.ErrAlreadyExists
+		},
+		findByIDFn: func(_ context.Context, _, _, _ uint64) (*model.ReservationTypeOccupation, error) {
+			return existing, nil
+		},
+	}
+	svc := newOccupationLinkTestService(repo, occRepo, baseOccRepo)
+
+	result, err := svc.LinkOccupation(context.Background(), 10, 1, 5)
+
+	require.Error(t, err)
+	assert.True(t, apperrors.IsAlreadyExists(err), "duplicate must surface ALREADY_EXISTS")
+	require.NotNil(t, result, "duplicate must carry the existing link for the 409 data payload")
+	assert.Equal(t, existing.ID, result.ID)
+	assert.Equal(t, existing.OccupationID, result.OccupationID)
+}
+
 // ---- UnlinkOccupation ----
 
 func TestReservationTypeService_UnlinkOccupation(t *testing.T) {
