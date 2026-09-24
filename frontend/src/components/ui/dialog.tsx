@@ -49,8 +49,15 @@ function DialogContent({
   ref,
   onInteractOutside,
   onPointerDownOutside,
+  onOpenAutoFocus,
+  onCloseAutoFocus,
   ...props
 }: DialogContentProps) {
+  // EMR-64: record the element focused when the dialog opened so a controlled
+  // Dialog without a DialogTrigger restores it on close instead of dropping
+  // focus to document.body. DialogContent remounts per open, so this ref is
+  // naturally scoped to one open session.
+  const openFocusRef = React.useRef<HTMLElement | null>(null);
   return (
     <DialogPortal data-slot="dialog-portal">
       <DialogOverlay />
@@ -62,6 +69,27 @@ function DialogContent({
           className,
         )}
         {...props}
+        onOpenAutoFocus={(event) => {
+          // Fires before Radix moves focus into the content: activeElement is
+          // still the invoking control (or body when nothing was focused).
+          const active = document.activeElement;
+          openFocusRef.current =
+            active instanceof HTMLElement && active !== document.body ? active : null;
+          onOpenAutoFocus?.(event);
+        }}
+        onCloseAutoFocus={(event) => {
+          // A consumer-provided handler wins; honoring defaultPrevented keeps
+          // the Radix contract intact.
+          onCloseAutoFocus?.(event);
+          if (event.defaultPrevented) {
+            return;
+          }
+          const target = openFocusRef.current;
+          if (target && target.isConnected) {
+            event.preventDefault();
+            target.focus();
+          }
+        }}
         onPointerDownOutside={(event) => {
           // Touch/iPad: pointerdown outside fires before interact-outside; guard portaled overlays.
           if (shouldPreventDialogOutsideInteraction(event)) {

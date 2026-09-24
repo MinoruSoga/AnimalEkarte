@@ -758,6 +758,133 @@ func TestDemoSeedGroupRules_Parity(t *testing.T) {
 	}
 }
 
+// seedRuleBits は permission_group_rules.csv の1行分の権限ビット。
+// TestDemoSeedGroupRules_Parity 内の reader と同じ列定義を使う。
+type seedRuleBits struct {
+	canView, canCreate, canEdit, canDelete bool
+}
+
+// seedResourceRules は 002_master permission_group_rules.csv を読み、
+// 指定 resource の group_id → 権限ビット を返す。
+func seedResourceRules(t *testing.T, resource model.Resource) map[uint64]seedRuleBits {
+	t.Helper()
+	rulesPath := filepath.Join("..", "..", "migrations", "seeds", "002_master", "accounts", "permission_group_rules.csv")
+	f, err := os.Open(rulesPath) //nolint:gosec // fixed seed path relative to backend module root
+	require.NoError(t, err, "seed CSV を読めること (cwd は backend/ 想定)")
+	defer f.Close() //nolint:errcheck // test cleanup
+
+	records, err := csv.NewReader(f).ReadAll()
+	require.NoError(t, err)
+	require.Greater(t, len(records), 1, "header + rows")
+
+	header := records[0]
+	col := func(name string) int {
+		t.Helper()
+		for i, h := range header {
+			if h == name {
+				return i
+			}
+		}
+		t.Fatalf("missing column %q", name)
+		return -1
+	}
+	iGroup := col("group_id")
+	iRes := col("resource")
+	iView := col("can_view")
+	iCreate := col("can_create")
+	iEdit := col("can_edit")
+	iDelete := col("can_delete")
+
+	parseBool := func(s string) bool {
+		switch s {
+		case "t", "true", "TRUE", "1":
+			return true
+		case "f", "false", "FALSE", "0", "":
+			return false
+		default:
+			t.Fatalf("unexpected bool %q", s)
+			return false
+		}
+	}
+
+	out := make(map[uint64]seedRuleBits, len(demoPermissionSeedGroupProfiles))
+	for _, rec := range records[1:] {
+		if len(rec) <= iDelete || rec[iRes] != string(resource) {
+			continue
+		}
+		gid, err := strconv.ParseUint(rec[iGroup], 10, 64)
+		require.NoError(t, err)
+		out[gid] = seedRuleBits{
+			canView:   parseBool(rec[iView]),
+			canCreate: parseBool(rec[iCreate]),
+			canEdit:   parseBool(rec[iEdit]),
+			canDelete: parseBool(rec[iDelete]),
+		}
+	}
+	return out
+}
+
+// TestCashRegisterCloseCreateNotAllDenied は BUG-ACCT-CLOSE-PERM-DEFAULT の回帰テスト。
+// POST /api/v1/cash-register/closes が要求する cash-register-close:create が
+// 全デフォルトグループで deny になる（= 誰もレジ締めできない）状態を二度と許さない。
+// Go の defaultPermissionRuleTable と seed CSV の両方で検査し、
+// 「整合しているが全員 deny」という一貫した誤りも検出する。
+func TestCashRegisterCloseCreateNotAllDenied(t *testing.T) {
+	resource := model.ResourceCashRegisterClose
+
+	find := func(rules []model.PermissionGroupRule) *model.PermissionGroupRule {
+		for i := range rules {
+			if rules[i].Resource == string(resource) {
+				return &rules[i]
+			}
+		}
+		return nil
+	}
+
+	exec := find(buildDefaultPermissionGroupRules(true))
+	require.NotNilf(t, exec, "執行のデフォルトルールに %s が存在すること", resource)
+	gen := find(buildDefaultPermissionGroupRules(false))
+	require.NotNilf(t, gen, "一般のデフォルトルールに %s が存在すること", resource)
+
+	// 少なくとも1つのデフォルトプロファイルが route-required の create を持つこと（all-deny 禁止）。
+	assert.Truef(t, exec.CanCreate || gen.CanCreate,
+		"%s:create が全デフォルトグループで deny — 少なくとも1グループが許可を持つこと", resource)
+
+	// 会計ドメインの規約どおり、作成できるのは執行のみ。
+	assert.True(t, exec.CanView, "執行は %s を閲覧できること", resource)
+	assert.True(t, exec.CanCreate, "執行は %s を作成できること（レジ締めのデフォルト許可）", resource)
+	assert.False(t, exec.CanEdit, "%s は append-only のため edit は付与しないこと", resource)
+	assert.False(t, exec.CanDelete, "%s は append-only のため delete は付与しないこと", resource)
+
+	assert.True(t, gen.CanView, "一般は %s を閲覧できること", resource)
+	assert.False(t, gen.CanCreate, "一般は %s を作成できないこと（view-only）", resource)
+	assert.False(t, gen.CanEdit, "一般は %s を編集できないこと", resource)
+	assert.False(t, gen.CanDelete, "一般は %s を削除できないこと", resource)
+
+	// seed CSV 側も同じ契約を持つこと（all-deny の seed を出荷しない）。
+	seedClose := seedResourceRules(t, resource)
+	var anySeedCreate bool
+	for gid, profile := range demoPermissionSeedGroupProfiles {
+		r, ok := seedClose[gid]
+		require.Truef(t, ok, "group %d の %s ルールが seed に存在すること", gid, resource)
+		anySeedCreate = anySeedCreate || r.canCreate
+		switch profile {
+		case "executive":
+			assert.Truef(t, r.canView, "group %d (executive): %s can_view", gid, resource)
+			assert.Truef(t, r.canCreate, "group %d (executive): %s can_create=t でレジ締め可能", gid, resource)
+			assert.Falsef(t, r.canEdit, "group %d (executive): %s は append-only のため can_edit=f", gid, resource)
+			assert.Falsef(t, r.canDelete, "group %d (executive): %s は append-only のため can_delete=f", gid, resource)
+		default:
+			assert.Truef(t, r.canView, "group %d (%s): %s can_view", gid, profile, resource)
+			assert.Falsef(t, r.canCreate, "group %d (%s): %s create は付与しない", gid, profile, resource)
+			assert.Falsef(t, r.canEdit, "group %d (%s): %s can_edit", gid, profile, resource)
+			assert.Falsef(t, r.canDelete, "group %d (%s): %s can_delete", gid, profile, resource)
+		}
+	}
+	assert.Truef(t, anySeedCreate,
+		"%s:create が全 seed グループで deny — 少なくとも1グループが許可を持つこと", resource)
+}
+
 func TestService_UpdateClinic(t *testing.T) {
 	tests := []struct {
 		name          string

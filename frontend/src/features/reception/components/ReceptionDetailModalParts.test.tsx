@@ -27,7 +27,7 @@ const trimmingAppointment: ReceptionAppointment = {
 };
 
 describe("ReceptionDialogFooter", () => {
-  it("受付済のトリミング予約ではトリミングカルテ作成から遷移する", async () => {
+  it("受付済のトリミング予約では汎用ステータス遷移せずトリミングカルテ作成へ遷移する", async () => {
     const onConfirm = vi.fn();
     const onCreateTrimming = vi.fn();
 
@@ -49,7 +49,8 @@ describe("ReceptionDialogFooter", () => {
 
     await userEvent.click(screen.getByRole("button", { name: /トリミングカルテ作成/ }));
 
-    expect(onConfirm).toHaveBeenCalledOnce();
+    // EMR-74: トリミング記録作成では汎用の in_consultation 遷移（onConfirm）を発火しない
+    expect(onConfirm).not.toHaveBeenCalled();
     expect(onCreateTrimming).toHaveBeenCalledOnce();
   });
 

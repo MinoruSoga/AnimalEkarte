@@ -549,6 +549,8 @@ func TestFindOwnerLTV_LastVisitBucketBoundaries(t *testing.T) {
 
 // TestFindOwnerLTV_NoVisitBucket
 // ISSUE-003: no_visit 分類を検証
+// EMR-73: include_no_visit=false による除外は最終来院タブ経路（last_visit_bucket 指定または
+// 最終来院系ソート）に限定される。売上・来院回数など他の集計軸では除外しない。
 func TestFindOwnerLTV_NoVisitBucket(t *testing.T) {
 	db := setupLTVTestDB(t)
 	repo := newLTVTestRepository(t, db)
@@ -565,14 +567,25 @@ func TestFindOwnerLTV_NoVisitBucket(t *testing.T) {
 		t.Fatalf("failed to create owner: %v", err)
 	}
 
-	// Test 1: include_no_visit = false (デフォルト)
+	// Test 1: 最終来院軸（最終来院ソート）+ include_no_visit = false (デフォルト)
 	result1, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
 		ClinicID:       clinicID,
+		Sort:           "last_visit_date",
 		IncludeNoVisit: false,
 	})
 	assert.NoError(t, err)
-	// Owner が来院なしで include_no_visit = false なら除外される
-	assert.Equal(t, 0, len(result1), "no_visit owner should be excluded when include_no_visit=false")
+	// 最終来院タブ経路では include_no_visit = false なら除外される
+	assert.Equal(t, 0, len(result1), "no_visit owner should be excluded on the last-visit axis when include_no_visit=false")
+
+	// Test 1b: 最終来院タブ既定形（last_visit_bucket + 最終来院ソート）+ include_no_visit = false
+	result1b, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
+		ClinicID:        clinicID,
+		LastVisitBucket: "over_3m",
+		Sort:            "last_visit_date",
+		IncludeNoVisit:  false,
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, 0, len(result1b), "no_visit owner should be excluded by the last-visit bucket filter when include_no_visit=false")
 
 	// Test 2: include_no_visit = true
 	result2, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
@@ -584,6 +597,19 @@ func TestFindOwnerLTV_NoVisitBucket(t *testing.T) {
 	assert.Len(t, result2, 1)
 	assert.NotNil(t, result2[0].LastVisitBucket)
 	assert.Equal(t, "no_visit", *result2[0].LastVisitBucket)
+
+	// Test 3: 最終来院タブで no_visit バケットを明示 + include_no_visit = true
+	result3, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
+		ClinicID:        clinicID,
+		LastVisitBucket: "no_visit",
+		Sort:            "last_visit_date",
+		IncludeNoVisit:  true,
+		IncludeZero:     true,
+	})
+	assert.NoError(t, err)
+	assert.Len(t, result3, 1)
+	assert.NotNil(t, result3[0].LastVisitBucket)
+	assert.Equal(t, "no_visit", *result3[0].LastVisitBucket)
 }
 
 // TestFindOwnerLTV_IncludeZero
@@ -694,6 +720,74 @@ func TestShouldExcludeZeroAnnualAmount_BUG012(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			assert.Equal(t, tc.want, shouldExcludeZeroAnnualAmount(&tc.params))
+		})
+	}
+}
+
+// TestShouldExcludeNoVisit_EMR73 は no_visit 除外の適用範囲（最終来院軸のみ）を表で固定する。
+// EMR-73: 売上・来院回数など他の集計軸では、完了会計を持つ来院なし飼主を結果から落とさない。
+func TestShouldExcludeNoVisit_EMR73(t *testing.T) {
+	year := 2026
+
+	tests := []struct {
+		name   string
+		params FindOwnerLTVParams
+		want   bool
+	}{
+		{
+			name:   "bare params do not exclude",
+			params: FindOwnerLTVParams{},
+			want:   false,
+		},
+		{
+			name:   "revenue params do not exclude",
+			params: FindOwnerLTVParams{Year: &year, AmountBasis: "gross_total_amount", Sort: "annual_amount"},
+			want:   false,
+		},
+		{
+			name:   "default LTV list sort does not exclude",
+			params: FindOwnerLTVParams{Sort: "total_amount"},
+			want:   false,
+		},
+		{
+			name:   "visit tab params do not exclude",
+			params: FindOwnerLTVParams{PeriodPreset: "last_12_months", Sort: "period_visit_count"},
+			want:   false,
+		},
+		{
+			name:   "last_visit_bucket excludes",
+			params: FindOwnerLTVParams{LastVisitBucket: "over_3m"},
+			want:   true,
+		},
+		{
+			name:   "last_visit_date sort excludes",
+			params: FindOwnerLTVParams{Sort: "last_visit_date"},
+			want:   true,
+		},
+		{
+			name:   "days_since_last_visit sort excludes",
+			params: FindOwnerLTVParams{Sort: "days_since_last_visit"},
+			want:   true,
+		},
+		{
+			name:   "last-visit tab default shape excludes",
+			params: FindOwnerLTVParams{LastVisitBucket: "over_3m", Sort: "last_visit_date"},
+			want:   true,
+		},
+		{
+			name:   "include_no_visit true never excludes",
+			params: FindOwnerLTVParams{IncludeNoVisit: true, LastVisitBucket: "over_3m", Sort: "last_visit_date"},
+			want:   false,
+		},
+		{
+			name:   "include_no_visit true on revenue params does not exclude",
+			params: FindOwnerLTVParams{IncludeNoVisit: true, Year: &year, Sort: "annual_amount"},
+			want:   false,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, shouldExcludeNoVisit(&tc.params))
 		})
 	}
 }

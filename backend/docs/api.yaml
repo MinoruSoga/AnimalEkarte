@@ -4649,10 +4649,12 @@ components:
         weight_unit:
           type: string
           enum: [Kg, g]
+          nullable: true
           default: Kg
           description: 体重単位（未指定時は Kg）
         notes:
           type: string
+          nullable: true
 
     UpdateVitalRequest:
       type: object

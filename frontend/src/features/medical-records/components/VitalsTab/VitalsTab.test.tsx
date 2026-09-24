@@ -152,6 +152,55 @@ describe("VitalsTab FE-RC-114 add form action", () => {
   });
 });
 
+describe("VitalsTab notes wire key (EMR-68)", () => {
+  it("追加フォームの送信 body は `notes` キーを送り、legacy `note` キーを送らない", async () => {
+    let receivedBody: Record<string, unknown> | null = null;
+    server.use(
+      http.get("*/v1/medical-records/:id/vitals", () => HttpResponse.json([])),
+      http.post("*/v1/medical-records/:id/vitals", async ({ request }) => {
+        receivedBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(
+          {
+            id: "99",
+            medical_record_id: MEDICAL_RECORD_ID,
+            recorded_at: "2026-07-20T10:00:00+09:00",
+            weight_unit: "Kg",
+            notes: "メモ入力",
+            version: 1,
+            created_at: "2026-07-20T10:00:00+09:00",
+            updated_at: "2026-07-20T10:00:00+09:00",
+          },
+          { status: 201 },
+        );
+      }),
+    );
+
+    render(<VitalsTab medicalRecordId={MEDICAL_RECORD_ID} />, {
+      wrapper: createTestWrapper(),
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("記録を追加")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText("記録を追加"));
+
+    fireEvent.change(screen.getByLabelText("記録日時"), {
+      target: { value: "2026-07-20T10:00" },
+    });
+    fireEvent.change(screen.getByLabelText("体温"), { target: { value: "38.5" } });
+    fireEvent.change(screen.getByLabelText("メモ"), { target: { value: "メモ入力" } });
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "追加" }));
+
+    await waitFor(() => {
+      expect(receivedBody).not.toBeNull();
+    });
+    expect(receivedBody).toMatchObject({ notes: "メモ入力", temperature: 38.5 });
+    expect(receivedBody).not.toHaveProperty("note");
+  });
+});
+
 describe("VitalsTab deceased pet dual-gate", () => {
   it("死亡ペットでは記録追加ボタンを出さない", async () => {
     server.use(http.get("*/v1/medical-records/:id/vitals", () => HttpResponse.json([])));

@@ -59,7 +59,8 @@ describe("ReservationTypeAvailableSlotsSection", () => {
   // BUG-MASTER-RESVTYPE-SLOT-FORM-NESTED (EMR-208): 親 <form> 内にネストした
   // <form> は HTML では無効でブラウザが内側を破棄し、「追加」が外側の
   // javascript: action へ submit されて CSP にブロックされる無音失敗だった。
-  // 回帰防止: セクション内に <form> を持たず、formAction ボタンで POST を発行する。
+  // 回帰防止: セクション内に <form> を持たず、type="button" + useTransition の
+  // onClick が mutation を直接呼んで POST を発行する（祖先 form に依存しない）。
   it("親フォーム内で「追加」を押すと POST /available-slots が発行され、外側 action は呼ばれない", async () => {
     const posts: unknown[] = [];
     const outerAction = vi.fn();
@@ -94,5 +95,38 @@ describe("ReservationTypeAvailableSlotsSection", () => {
       is_active: true,
     });
     expect(outerAction).not.toHaveBeenCalled();
+  });
+
+  // EMR-208 A3: MasterSidePanel の readOnly モードは祖先 <form> を描画しない。
+  // submitter 経由の dispatch では発火しないため、form 非依存の onClick で
+  // POST が発行されることを固定する。
+  it("祖先フォームなし（readOnly 相当）でも「追加」で POST /available-slots が発行される", async () => {
+    const posts: unknown[] = [];
+    server.use(
+      http.get("/api/v1/masters/reservation-types/5/available-slots", () => HttpResponse.json([])),
+      http.post("/api/v1/masters/reservation-types/5/available-slots", async ({ request }) => {
+        posts.push(await request.json());
+        return HttpResponse.json({ id: 4 }, { status: 201 });
+      }),
+    );
+
+    const user = userEvent.setup();
+    const { container } = render(
+      <ReservationTypeAvailableSlotsSection clinicId="1" reservationTypeId="5" />,
+      { wrapper: createWrapper() },
+    );
+
+    expect(await screen.findByText("予約可能枠")).toBeInTheDocument();
+    expect(container.querySelectorAll("form")).toHaveLength(0);
+
+    await user.click(screen.getByRole("button", { name: "追加" }));
+
+    await waitFor(() => expect(posts).toHaveLength(1));
+    expect(posts[0]).toMatchObject({
+      available_type: "weekly",
+      day_of_week: 1,
+      start_time: "09:45",
+      is_active: true,
+    });
   });
 });

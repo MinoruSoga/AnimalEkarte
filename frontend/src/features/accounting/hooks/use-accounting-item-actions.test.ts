@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { createBillingItem } from "../api/create-billing-item";
 import { deleteBillingItem } from "../api/delete-billing-item";
 import { updateBillingItem } from "../api/update-billing-item";
+import type { AccountingItem } from "../types";
 import { buildPostCloseReasonField, useAccountingItemActions } from "./use-accounting-item-actions";
 
 vi.mock("../api/create-billing-item", () => ({
@@ -180,6 +181,98 @@ describe("useAccountingItemActions post_close_reason (BUG-021)", () => {
         discount_amount: 100,
         post_close_reason: "割引訂正",
       }),
+    );
+  });
+});
+
+// EMR-65 / BUG-BILLING-TAX-TYPE-DROPPED: 物販マスタ由来の tax_type/tax_rate が
+// 作成リクエストとローカルプレビューへ伝播する。一律 "excluded"/既定率への潰しを防ぐ。
+describe("useAccountingItemActions tax propagation (EMR-65)", () => {
+  beforeEach(() => {
+    createBillingItemMock.mockReset();
+    deleteBillingItemMock.mockReset();
+    updateBillingItemMock.mockReset();
+    createBillingItemMock.mockResolvedValue({} as never);
+  });
+
+  it("taxType=included の追加で createBillingItem に included と税率を送る", async () => {
+    const params = buildParams();
+    const { result } = renderHook(() => useAccountingItemActions(params));
+
+    act(() => {
+      result.current.handleAddItem({
+        name: "内税商品",
+        price: "1100",
+        category: "goods",
+        taxType: "included",
+        taxRate: 0.08,
+        merchandiseItemId: "9",
+      });
+    });
+
+    await waitFor(() => {
+      expect(createBillingItemMock).toHaveBeenCalledTimes(1);
+    });
+    expect(createBillingItemMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tax_type: "included",
+        tax_rate: 0.08,
+        merchandise_item_id: 9,
+      }),
+    );
+
+    // ローカルプレビューも同一の課税区分・税率で税額を出す（内税は税抜部分を抽出）
+    const applyUpdate = params.setLocalItems.mock.calls[0]?.[0] as (
+      prev: AccountingItem[] | null,
+    ) => AccountingItem[];
+    const items = applyUpdate(null);
+    expect(items.at(-1)).toMatchObject({
+      taxType: "included",
+      taxRate: 0.08,
+      taxAmount: Math.round((1100 * 0.08) / 1.08),
+    });
+  });
+
+  it("taxType=exempt の追加では税額0で tax_type=exempt を送る", async () => {
+    const params = buildParams();
+    const { result } = renderHook(() => useAccountingItemActions(params));
+
+    act(() => {
+      result.current.handleAddItem({
+        name: "非課税商品",
+        price: "500",
+        category: "goods",
+        taxType: "exempt",
+        taxRate: 0,
+      });
+    });
+
+    await waitFor(() => {
+      expect(createBillingItemMock).toHaveBeenCalledTimes(1);
+    });
+    expect(createBillingItemMock).toHaveBeenCalledWith(
+      expect.objectContaining({ tax_type: "exempt", tax_rate: 0 }),
+    );
+
+    const applyUpdate = params.setLocalItems.mock.calls[0]?.[0] as (
+      prev: AccountingItem[] | null,
+    ) => AccountingItem[];
+    expect(applyUpdate(null).at(-1)).toMatchObject({ taxType: "exempt", taxAmount: 0 });
+  });
+
+  it("taxType 未指定の追加は従来どおり excluded + 既定税率で送る", async () => {
+    const params = buildParams();
+    const { result } = renderHook(() => useAccountingItemActions(params));
+
+    act(() => {
+      result.current.handleAddItem({ name: "手入力明細", price: "1000", category: "test" });
+    });
+
+    await waitFor(() => {
+      expect(createBillingItemMock).toHaveBeenCalledTimes(1);
+    });
+    expect(createBillingItemMock).toHaveBeenCalledWith(
+      expect.objectContaining({ tax_type: "excluded", tax_rate: 0.1 }),
     );
   });
 });

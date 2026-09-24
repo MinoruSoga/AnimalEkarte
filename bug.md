@@ -44,8 +44,10 @@
 | BUG-PRINT-PORTAL-HIDDEN-BLANK | Plane EMR-205 | print / shared UI | High | **バグ断定**（検査結果・日次会計・月次レポート・レジ締めの印刷が全面白紙。`hidden` 属性 + 印刷ポータルの unlayered `display:block!important` が Tailwind v4 preflight `[hidden]{display:none!important}`（`@layer base`）に敗北） | 詳細は [下記](#bug-print-portal-hidden-blank) |
 | BUG-LIFF-VACCINE-DATE-RAW-ISO | Plane EMR-206 | liff / pet-health | Low | **バグ断定**（ペット健康カードのワクチン接種日・次回予定日が `2026-08-15T09:00:00+09:00` の RFC3339 生値で表示。最終来院日は `time.DateOnly` で整形済みのため不整合） | 詳細は [下記](#bug-liff-vaccine-date-raw-iso) |
 | BUG-BUTTON-FOCUS-INVISIBLE | Plane EMR-207 | shared UI / a11y | Medium | **バグ断定**（共有 `Button` コンポーネントにフォーカス可視インジケータが無い。`outline-none` のみで `focus-visible:ring-*` が無く、キーボード Tab でフォーカスしても見た目が変化しない。nav リンク・input は可視） | 詳細は [下記](#bug-button-focus-invisible) |
-| BUG-MASTER-RESVTYPE-SLOT-FORM-NESTED | OPEN（UAT 2026-09-23） | reservation / master settings | High | **バグ断定**（予約区分パネル内の予約可能枠フォームがネスト `<form>` で送信不能） | [詳細](#plan-bug-master-resvtype-slot-form-nested) |
-| BUG-MASTER-RESVTYPE-OCC-ENVELOPE | OPEN（UAT 2026-09-23） | reservation / master settings | Medium | **バグ断定**（職種紐付 GET が裸配列・FE は `{data}` 期待でバッジ非表示） | [詳細](#plan-bug-master-resvtype-occ-envelope) |
+| BUG-MASTER-RESVTYPE-SLOT-FORM-NESTED | Plane EMR-208 | reservation / master settings | High | **バグ断定**（予約区分パネル内の予約可能枠フォームがネスト `<form>` で送信不能） | [詳細](#plan-bug-master-resvtype-slot-form-nested) |
+| BUG-MASTER-RESVTYPE-OCC-ENVELOPE | Plane EMR-209 | reservation / master settings | Medium | **バグ断定**（職種紐付 GET が裸配列・FE は `{data}` 期待でバッジ非表示） | [詳細](#plan-bug-master-resvtype-occ-envelope) |
+
+> 2026-09-24 修正キャンペーン: 上記の未完了項目は15レーンに分割し `agent-fast-campaign` で実装、PR として起票済み（すべて base `main`・未マージ）。対応: EMR-71→#467, EMR-76→#468, EMR-208/209→#469, EMR-72→#470, EMR-67/69→#471, EMR-65/75→#472, EMR-62/63/66→#473, EMR-73→#474, EMR-68→#475, EMR-74→#476, EMR-61→#477, EMR-206→#478, EMR-205→#479, MIG-19→#480, EMR-64/207→#481。完了/状態の正本は Plane。実DB同時実行・実ブラウザ等の lane 規約上の検証残件は各 PR 本文に記載。
 
 ---
 

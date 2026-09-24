@@ -271,19 +271,35 @@ func shouldExcludeZeroAnnualAmount(params *FindOwnerLTVParams) bool {
 	return true
 }
 
+// shouldExcludeNoVisit は include_no_visit=false 時に no_visit 行を落とすかを決める（EMR-73）。
+// include_no_visit は最終来院タブの「来院なしを含む」フィルタであり、除外は最終来院軸の
+// クエリ（last_visit_bucket 指定、または最終来院系ソート）に限定する。
+// 売上・来院回数など他の集計軸では、完了会計を持つ来院なし飼主を結果から落とさない。
+func shouldExcludeNoVisit(params *FindOwnerLTVParams) bool {
+	if params.IncludeNoVisit {
+		return false
+	}
+	// 最終来院タブ経路: バケット絞り込みまたは最終来院系ソート
+	return params.LastVisitBucket != "" ||
+		params.Sort == "last_visit_date" ||
+		params.Sort == "days_since_last_visit"
+}
+
 // filterLTVRows は include_zero / include_no_visit / last_visit_bucket の Go 側後段フィルタを
 // 適用する（BE-refactor.md E-12）。
 func filterLTVRows(rows []OwnerLTVRow, params *FindOwnerLTVParams) []OwnerLTVRow {
 	var filtered []OwnerLTVRow
 	excludeZero := shouldExcludeZeroAnnualAmount(params)
+	excludeNoVisit := shouldExcludeNoVisit(params)
 	for i := range rows {
 		row := &rows[i]
 		// include_zero フィルタ（AGG-BE-001 / BUG-012: 売上軸のみ）
 		if excludeZero && row.AnnualAmount != nil && *row.AnnualAmount == 0 {
 			continue
 		}
-		// include_no_visit フィルタ（AGG-BE-003）
-		if !params.IncludeNoVisit && row.LastVisitBucket != nil && *row.LastVisitBucket == ltvBucketNoVisit {
+		// include_no_visit フィルタ（AGG-BE-003 / EMR-73: 最終来院タブ経路のみ。
+		// 売上・来院回数の集計では no_visit の完了会計オーナーを落とさない）
+		if excludeNoVisit && row.LastVisitBucket != nil && *row.LastVisitBucket == ltvBucketNoVisit {
 			continue
 		}
 		// last_visit_bucket フィルタ（AGG-BE-003 / BUG-008）

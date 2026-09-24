@@ -440,4 +440,92 @@ func TestAccountingRepository_LTVRevenue_SourceContractRejectsFullMaterializatio
 		"must not Scan the full unbounded owner-revenue set into Go")
 }
 
+// EMR-73 / spec-36 (顧客集計カウント整合): a completed billing without
+// medical_record_id is real revenue. An owner whose only completed billings
+// are direct/manual billings and who has zero medical_records rows
+// ("来院なし" no-visit owner — the EMR-73 reproduction state) must still be
+// counted by the billing-side LTV/revenue aggregates. Visit gating belongs to
+// the owner-aggregation last-visit filter, not to these sums; this test pins
+// the contract so a wrongful "exclude no-visit owners" change cannot land
+// silently.
+func TestAccountingRepository_LTVRevenue_NoVisitOwnerCounted(t *testing.T) {
+	db := testdb.SetupTestDB(t)
+	repo := NewAccountingRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+	now := time.Now()
+
+	noVisitOwner := testdb.MakeTestOwner(t, db, clinicID, "来院なし飼主")
+	// The EMR-73 reproduction: a completed billing with medical_record_id
+	// NULL and no medical_records rows for this owner at all.
+	direct := &model.Billing{
+		ClinicID: clinicID, OwnerID: &noVisitOwner.ID,
+		TotalAmount: 3_300, Status: model.BillingStatusCompleted,
+		ScheduledDate: now, CompletedAt: timePtr(now),
+	}
+	require.NoError(t, db.WithContext(ctx).Create(direct).Error)
+
+	total, err := repo.SumPaidByOwner(ctx, clinicID, noVisitOwner.ID)
+	require.NoError(t, err)
+	assert.Equal(t, int64(3_300), total, "no-visit owner completed billing counts toward LTV")
+
+	maxAmount, err := repo.MaxSingleVisitAmountByOwner(ctx, clinicID, noVisitOwner.ID)
+	require.NoError(t, err)
+	assert.Equal(t, int64(3_300), maxAmount)
+
+	results, err := repo.FindOwnersByAnnualRevenue(ctx, clinicID)
+	require.NoError(t, err)
+	require.Len(t, results, 1, "single qualifying owner: no-visit owner must not be dropped")
+	assert.Equal(t, noVisitOwner.ID, results[0].OwnerID)
+	assert.Equal(t, int64(3_300), results[0].Revenue)
+}
+
+// EMR-73 boundary: a no-visit owner also contributes to the top-percent
+// denominator (COUNT(*) OVER () inside owner_revenue). With 5 owners whose
+// completed billings link to medical records plus 1 no-visit owner holding
+// the highest revenue, exact topN = ceil(6*20/100) = 2 — if a no-visit owner
+// were wrongly excluded from the aggregate, N would drop to 5 and topN to 1.
+func TestAccountingRepository_LTVRevenue_NoVisitOwnerContributesToTopPercentDenominator(t *testing.T) {
+	db := testdb.SetupTestDB(t)
+	repo := NewAccountingRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+	now := time.Now()
+
+	visitOwners := make([]*model.Owner, 0, 5)
+	for i := 0; i < 5; i++ {
+		owner := testdb.MakeTestOwner(t, db, clinicID, fmt.Sprintf("ltv-visit-owner-%d", i))
+		mr := &model.MedicalRecord{
+			ClinicID: clinicID, OwnerID: &owner.ID, Date: now,
+			RecordNo: fmt.Sprintf("LTV-NOVISIT-%d", i),
+		}
+		require.NoError(t, db.WithContext(ctx).Create(mr).Error)
+		b := &model.Billing{
+			ClinicID: clinicID, OwnerID: &owner.ID, MedicalRecordID: &mr.ID,
+			TotalAmount: int64(i+1) * 1_000, Status: model.BillingStatusCompleted,
+			ScheduledDate: now, CompletedAt: timePtr(now),
+		}
+		require.NoError(t, db.WithContext(ctx).Create(b).Error)
+		visitOwners = append(visitOwners, owner)
+	}
+
+	noVisitOwner := testdb.MakeTestOwner(t, db, clinicID, "no-visit-top-owner")
+	direct := &model.Billing{
+		ClinicID: clinicID, OwnerID: &noVisitOwner.ID,
+		TotalAmount: 9_900, Status: model.BillingStatusCompleted,
+		ScheduledDate: now, CompletedAt: timePtr(now),
+	}
+	require.NoError(t, db.WithContext(ctx).Create(direct).Error)
+
+	results, err := repo.FindOwnersByAnnualRevenue(ctx, clinicID)
+	require.NoError(t, err)
+
+	require.Len(t, results, 2,
+		"topN = ceil(6*20/100) = 2; if the no-visit owner were excluded from owner_revenue, topN would be 1")
+	assert.Equal(t, noVisitOwner.ID, results[0].OwnerID, "rank 1 is the no-visit owner (highest revenue)")
+	assert.Equal(t, int64(9_900), results[0].Revenue)
+	assert.Equal(t, visitOwners[4].ID, results[1].OwnerID, "rank 2 is the highest visit-linked owner")
+	assert.Equal(t, int64(5_000), results[1].Revenue)
+}
+
 func timePtr(t time.Time) *time.Time { return &t }

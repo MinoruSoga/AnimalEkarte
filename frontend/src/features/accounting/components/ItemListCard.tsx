@@ -142,6 +142,7 @@ export const ItemListCard = memo(function ItemListCard({
         name: item.name,
         price: String(item.unitPrice),
         category: item.category,
+        taxType: item.taxType,
         taxRate: item.taxRate,
         merchandiseItemId: item.id,
       });

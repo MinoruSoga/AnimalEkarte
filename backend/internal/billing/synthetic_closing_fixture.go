@@ -12,6 +12,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/reservation"
 	"github.com/animal-ekarte/backend/internal/staff"
 )
@@ -76,7 +77,12 @@ func CreateSyntheticClosingFixture(ctx context.Context, db *gorm.DB, req Synthet
 	}
 
 	var result *SyntheticClosingResult
-	err = db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	// ambient tx が ctx にあれば SAVEPOINT で join し、無ければ新規 tx を開く。
+	// 委譲 collaborator には tx 束縛 ctx を渡し、persistence.DBOrTx が
+	// 呼び出し側 ambient tx ではなくこの fixture tx を解決するようにする。
+	base := persistence.DBOrTx(ctx, db)
+	err = base.Transaction(func(tx *gorm.DB) error {
+		txCtx := persistence.WithTxValue(ctx, tx)
 		clinicID := uint64(920000 + time.Now().UnixNano()%8000 + 1)
 		if err := RejectReservedClinicID(clinicID); err != nil {
 			return apperrors.WrapInvalidInput(err.Error())
@@ -122,7 +128,7 @@ func CreateSyntheticClosingFixture(ctx context.Context, db *gorm.DB, req Synthet
 			IsActive:  true,
 			StaffType: model.StaffTypeDoctor,
 		}
-		if err := staff.CreateSyntheticClosingStaff(ctx, tx, staffRow); err != nil {
+		if err := staff.CreateSyntheticClosingStaff(txCtx, tx, staffRow); err != nil {
 			return apperrors.Wrap(err, "create synthetic staff")
 		}
 		assignment := &model.StaffClinicAssignment{StaffID: staffRow.ID, ClinicID: clinicID, IsMain: true}
@@ -419,7 +425,13 @@ func DeleteSyntheticClosingFixtureWithAuditPolicy(ctx context.Context, db *gorm.
 		return apperrors.WrapInvalidInput("db is required")
 	}
 
-	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	// create と同じ契約: ambient tx があれば SAVEPOINT join し、委譲 cleanup が
+	// 呼び出し側 ambient tx ではなくこの teardown tx へ解決されるよう
+	// tx 束縛 ctx を渡す。裸 ctx のまま委譲すると DBOrTx が ambient tx を
+	// 選び、teardown tx の外へ commit される残存 bug になる。
+	base := persistence.DBOrTx(ctx, db)
+	return base.Transaction(func(tx *gorm.DB) error {
+		txCtx := persistence.WithTxValue(ctx, tx)
 		var clinic model.Clinic
 		if err := tx.First(&clinic, clinicID).Error; err != nil {
 			return apperrors.Wrap(err, "load synthetic clinic")
@@ -477,15 +489,15 @@ func DeleteSyntheticClosingFixtureWithAuditPolicy(ctx context.Context, db *gorm.
 		}
 
 		if auditRowsPolicy != nil {
-			if err := auditRowsPolicy(ctx, tx, clinicID); err != nil {
+			if err := auditRowsPolicy(txCtx, tx, clinicID); err != nil {
 				return apperrors.Wrap(err, "resolve synthetic audit_logs")
 			}
 		}
 
-		if err := reservation.UnscopedDeleteSyntheticClosingReservations(ctx, tx, clinicID); err != nil {
+		if err := reservation.UnscopedDeleteSyntheticClosingReservations(txCtx, tx, clinicID); err != nil {
 			return apperrors.Wrap(err, "delete synthetic reservations")
 		}
-		if err := staff.UnscopedDeleteSyntheticClosingStaffs(ctx, tx, clinicID); err != nil {
+		if err := staff.UnscopedDeleteSyntheticClosingStaffs(txCtx, tx, clinicID); err != nil {
 			return apperrors.Wrap(err, "delete synthetic staff")
 		}
 		if len(accountIDs) > 0 {

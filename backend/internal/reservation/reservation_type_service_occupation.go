@@ -34,6 +34,16 @@ func (s *reservationTypeService) LinkOccupation(ctx context.Context, clinicID, r
 		OccupationID:      occupationID,
 	}
 	if err := s.occupationRepo.Create(ctx, o); err != nil {
+		// EMR-209 / BUG-MASTER-RESVTYPE-OCC-ENVELOPE:
+		// 重複紐付け (pg 23505 経由の ALREADY_EXISTS) は既存リンクを取り直して
+		// (既存リンク, ALREADY_EXISTS) で返し、handler が 409 + data に載せる。
+		if apperrors.IsAlreadyExists(err) {
+			existing, ferr := s.occupationRepo.FindByID(ctx, clinicID, reservationTypeID, occupationID)
+			if ferr != nil {
+				return nil, apperrors.Wrap(err, "failed to link occupation")
+			}
+			return existing, apperrors.WrapAlreadyExistsMessage("この職種はすでに紐付けられています")
+		}
 		return nil, apperrors.Wrap(err, "failed to link occupation")
 	}
 	slog.InfoContext(ctx, "occupation linked",

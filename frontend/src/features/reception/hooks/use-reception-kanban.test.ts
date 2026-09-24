@@ -110,7 +110,13 @@ function setApiColumns(appointments: ReceptionAppointment[]) {
     completed: "会計済",
   };
   for (const appt of appointments) {
-    byColumn[statusToTitle[appt.status] ?? "受付予約"].appointments.push(appt);
+    // EMR-74: transformReservationsToReceptionColumns と同じく、trimming の
+    // in_consultation（施術中）は 受付済 カラムへ配置する。
+    const title =
+      appt.status === "in_consultation" && appt.reservationCategory === "trimming"
+        ? "受付済"
+        : (statusToTitle[appt.status] ?? "受付予約");
+    byColumn[title].appointments.push(appt);
   }
   apiColumnsHolder = Object.values(byColumn);
 }
@@ -331,9 +337,108 @@ describe("useReceptionKanban", () => {
       expect(columnOf(result.current.columns, "a1")).toBe("受付予約");
       expect(mutateAsyncMock).not.toHaveBeenCalled();
     });
+
+    // EMR-74: トリミング予約は診療中（医療行為）カラムに入らない。
+    // 受付済 以外の起点カラムからでもブロックされることを確認する。
+    it("トリミング予約を診療中へドラッグしてもブロックし API を呼ばない", async () => {
+      setApiColumns([
+        makeAppointment({
+          id: "t1",
+          status: "accounting",
+          reservationCategory: "trimming",
+          reservationType: "シャンプーコース",
+        }),
+      ]);
+      const { result } = await renderKanban();
+
+      let returned: unknown;
+      await act(async () => {
+        returned = result.current.moveCard(0, "会計待ち", "診療中", "t1");
+      });
+
+      expect(returned).toBe(false);
+      expect(columnOf(result.current.columns, "t1")).toBe("会計待ち");
+      expect(mutateAsyncMock).not.toHaveBeenCalled();
+      expect(toastErrorMock).toHaveBeenCalled();
+    });
+
+    it("施術中のトリミングカードを診療中へドラッグしてもブロックされる", async () => {
+      setApiColumns([
+        makeAppointment({
+          id: "t3",
+          status: "in_consultation",
+          reservationCategory: "trimming",
+          reservationType: "シャンプーコース",
+        }),
+      ]);
+      const { result } = await renderKanban();
+      // transform 同様、施術中の trimming カードは 受付済 カラムに配置される
+      expect(columnOf(result.current.columns, "t3")).toBe("受付済");
+
+      let returned: unknown;
+      await act(async () => {
+        returned = result.current.moveCard(0, "受付済", "診療中", "t3");
+      });
+
+      expect(returned).toBe(false);
+      expect(columnOf(result.current.columns, "t3")).toBe("受付済");
+      expect(mutateAsyncMock).not.toHaveBeenCalled();
+    });
+
+    it("一般予約は 会計待ち から 診療中 へドラッグできる", async () => {
+      setApiColumns([makeAppointment({ id: "g1", status: "accounting" })]);
+      const { result } = await renderKanban();
+
+      let returned: unknown;
+      await act(async () => {
+        returned = result.current.moveCard(0, "会計待ち", "診療中", "g1");
+      });
+
+      expect(returned).toBe(true);
+      expect(columnOf(result.current.columns, "g1")).toBe("診療中");
+      await waitFor(() =>
+        expect(mutateAsyncMock).toHaveBeenCalledWith({ id: "g1", status: "in_consultation" }),
+      );
+    });
   });
 
   describe("advanceStatus", () => {
+    // EMR-74: トリミング予約は「診療中」を経由せず 受付済 → 会計待ち へ進む。
+    it("トリミングの受付済カードは 会計待ち へ進み accounting で API を呼ぶ", async () => {
+      const trimming = makeAppointment({
+        id: "t1",
+        status: "checked_in",
+        reservationCategory: "trimming",
+        reservationType: "シャンプーコース",
+      });
+      setApiColumns([trimming]);
+      const { result } = await renderKanban();
+
+      await act(async () => {
+        result.current.advanceStatus(trimming);
+      });
+
+      expect(columnOf(result.current.columns, "t1")).toBe("会計待ち");
+      expect(mutateAsyncMock).toHaveBeenCalledWith({ id: "t1", status: "accounting" });
+    });
+
+    it("トリミングの受付済カードを進めても in_consultation で API を呼ばない", async () => {
+      const trimming = makeAppointment({
+        id: "t2",
+        status: "checked_in",
+        reservationCategory: "trimming",
+        reservationType: "シャンプーコース",
+      });
+      setApiColumns([trimming]);
+      const { result } = await renderKanban();
+
+      await act(async () => {
+        result.current.advanceStatus(trimming);
+      });
+
+      expect(mutateAsyncMock).not.toHaveBeenCalledWith({ id: "t2", status: "in_consultation" });
+    });
+
     it("受付済 → 診療中 へ進め、in_consultation で API を呼ぶ", async () => {
       setApiColumns([makeAppointment({ id: "a2", status: "checked_in" })]);
       const { result } = await renderKanban();

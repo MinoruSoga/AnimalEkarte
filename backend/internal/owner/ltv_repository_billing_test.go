@@ -813,3 +813,115 @@ func TestFindOwnerLTV_SortOrdering(t *testing.T) {
 		assert.Equal(t, low.ID, rows[1].OwnerID)
 	})
 }
+
+// TestFindOwnerLTV_RevenueKeepsNoVisitOwnerWithCompletedBilling_EMR73
+// EMR-73: 完了会計（medical_record_id NULL の直接会計）だけを持ち医療記録の来院が 0 の飼主が、
+// include_no_visit 未指定（=false）の売上・来院回数の集計経路でも結果に残ることを検証する。
+// no_visit 除外は最終来院タブ経路のみに適用される契約を固定する。
+func TestFindOwnerLTV_RevenueKeepsNoVisitOwnerWithCompletedBilling_EMR73(t *testing.T) {
+	db := setupLTVTestDB(t)
+	repo := newLTVTestRepository(t, db)
+	ctx := context.Background()
+
+	clinicID := uint64(7301)
+	now := time.Now()
+
+	// EMR-73 再現: 完了した直接会計（medical_record_id NULL）のみを持ち、医療記録ゼロの飼主。
+	noVisitOwner := &model.Owner{ClinicID: clinicID, Name: "Owner No Visit EMR73"}
+	require.NoError(t, db.WithContext(ctx).Create(noVisitOwner).Error)
+	directBilling := &model.Billing{
+		ClinicID: clinicID, OwnerID: &noVisitOwner.ID,
+		TotalAmount: 3_300, Status: model.BillingStatusCompleted,
+		ScheduledDate: now, CompletedAt: &now,
+	}
+	require.NoError(t, db.WithContext(ctx).Create(directBilling).Error)
+
+	// 対照: 医療記録あり + 医療記録紐付き完了会計の飼主。
+	visitOwner := &model.Owner{ClinicID: clinicID, Name: "Owner With Visit EMR73"}
+	require.NoError(t, db.WithContext(ctx).Create(visitOwner).Error)
+	mr := &model.MedicalRecord{ClinicID: clinicID, OwnerID: &visitOwner.ID, Date: now}
+	require.NoError(t, db.WithContext(ctx).Create(mr).Error)
+	require.NoError(t, db.WithContext(ctx).Create(&model.Billing{
+		ClinicID: clinicID, MedicalRecordID: &mr.ID, OwnerID: &visitOwner.ID,
+		TotalAmount: 5_000, Status: model.BillingStatusCompleted,
+		ScheduledDate: now, CompletedAt: &now,
+	}).Error)
+
+	byOwner := func(rows []OwnerLTVRow) map[uint64]OwnerLTVRow {
+		out := make(map[uint64]OwnerLTVRow, len(rows))
+		for _, row := range rows {
+			out[row.OwnerID] = row
+		}
+		return out
+	}
+
+	// 売上タブ相当（include_no_visit 未指定 = false）。EMR-73 の再現経路。
+	year := now.Year()
+	revenueRows, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
+		ClinicID:    clinicID,
+		Year:        &year,
+		AmountBasis: "gross_total_amount",
+		Sort:        "annual_amount",
+		Order:       "desc",
+	})
+	require.NoError(t, err)
+	revenue := byOwner(revenueRows)
+	require.Contains(t, revenue, noVisitOwner.ID,
+		"EMR-73: no-visit owner with a completed billing must appear in revenue/LTV results")
+	assert.Equal(t, int64(3_300), revenue[noVisitOwner.ID].TotalAmount)
+	require.NotNil(t, revenue[noVisitOwner.ID].AnnualAmount)
+	assert.Equal(t, int64(3_300), *revenue[noVisitOwner.ID].AnnualAmount)
+	assert.Equal(t, int64(0), revenue[noVisitOwner.ID].TotalVisitCount)
+	assert.Nil(t, revenue[noVisitOwner.ID].LastVisitDate)
+	require.NotNil(t, revenue[noVisitOwner.ID].LastVisitBucket)
+	assert.Equal(t, ltvBucketNoVisit, *revenue[noVisitOwner.ID].LastVisitBucket)
+	require.Contains(t, revenue, visitOwner.ID)
+
+	// 既定の LTV 一覧相当（total_amount ソート、フィルタ無し）でも残る。
+	defaultRows, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
+		ClinicID: clinicID,
+		Sort:     "total_amount",
+		Order:    "desc",
+	})
+	require.NoError(t, err)
+	require.Contains(t, byOwner(defaultRows), noVisitOwner.ID,
+		"no-visit owner with revenue must appear in the default LTV listing")
+
+	// 来院回数タブ相当: 来院 0 回として結果に残る（include_zero は UI の「0円を含む」であり
+	// no_visit 除外とは独立。来院なし飼主が来院回数軸でも消えないことを固定する）。
+	visitRows, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
+		ClinicID:     clinicID,
+		PeriodPreset: "last_12_months",
+		Sort:         "period_visit_count",
+		Order:        "desc",
+		IncludeZero:  true,
+	})
+	require.NoError(t, err)
+	visit := byOwner(visitRows)
+	require.Contains(t, visit, noVisitOwner.ID)
+	require.NotNil(t, visit[noVisitOwner.ID].PeriodVisitCount)
+	assert.Equal(t, int64(0), *visit[noVisitOwner.ID].PeriodVisitCount)
+
+	// 最終来院タブ相当: include_no_visit=false では引き続き除外される。
+	lastRows, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
+		ClinicID:        clinicID,
+		LastVisitBucket: "over_3m",
+		Sort:            "last_visit_date",
+		Order:           "asc",
+		IncludeZero:     true,
+	})
+	require.NoError(t, err)
+	assert.NotContains(t, byOwner(lastRows), noVisitOwner.ID,
+		"last-visit tab must still exclude no-visit owners when include_no_visit=false")
+
+	// 最終来院タブで「来院なしを含む」: no_visit バケットを明示すれば残る。
+	noVisitBucketRows, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
+		ClinicID:        clinicID,
+		LastVisitBucket: ltvBucketNoVisit,
+		Sort:            "last_visit_date",
+		IncludeZero:     true,
+		IncludeNoVisit:  true,
+	})
+	require.NoError(t, err)
+	require.Contains(t, byOwner(noVisitBucketRows), noVisitOwner.ID)
+}

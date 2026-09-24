@@ -234,6 +234,66 @@ func TestCreateVital(t *testing.T) {
 			wantLocation: true,
 		},
 		{
+			name:     "returns 201 and preserves notes string",
+			paramID:  "5",
+			body:     `{"recorded_at":"2026-05-28T10:30:00Z","temperature":38.5,"notes":"食欲やや低下"}`,
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
+					petID := uint64(7)
+					return &model.MedicalRecord{ID: id, ClinicID: clinicID, PetID: &petID}, nil
+				},
+			},
+			vitalSvc: &mockVitalService{
+				createFn: func(_ context.Context, _ uint64, input *CreateVitalInput) (*model.VitalRecord, error) {
+					assert.Equal(t, "食欲やや低下", input.Notes)
+					return &model.VitalRecord{ID: 9, Notes: input.Notes}, nil
+				},
+			},
+			wantStatus:   http.StatusCreated,
+			wantLocation: true,
+		},
+		{
+			name:     "returns 201 and normalizes null notes to empty",
+			paramID:  "5",
+			body:     `{"recorded_at":"2026-05-28T10:30:00Z","temperature":38.5,"notes":null}`,
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
+					petID := uint64(7)
+					return &model.MedicalRecord{ID: id, ClinicID: clinicID, PetID: &petID}, nil
+				},
+			},
+			vitalSvc: &mockVitalService{
+				createFn: func(_ context.Context, _ uint64, input *CreateVitalInput) (*model.VitalRecord, error) {
+					assert.Equal(t, "", input.Notes)
+					return &model.VitalRecord{ID: 9, Notes: input.Notes}, nil
+				},
+			},
+			wantStatus:   http.StatusCreated,
+			wantLocation: true,
+		},
+		{
+			name:     "returns 201 ignoring legacy note key",
+			paramID:  "5",
+			body:     `{"recorded_at":"2026-05-28T10:30:00Z","temperature":38.5,"note":"legacy memo"}`,
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
+					petID := uint64(7)
+					return &model.MedicalRecord{ID: id, ClinicID: clinicID, PetID: &petID}, nil
+				},
+			},
+			vitalSvc: &mockVitalService{
+				createFn: func(_ context.Context, _ uint64, input *CreateVitalInput) (*model.VitalRecord, error) {
+					assert.Equal(t, "", input.Notes)
+					return &model.VitalRecord{ID: 9, Notes: input.Notes}, nil
+				},
+			},
+			wantStatus:   http.StatusCreated,
+			wantLocation: true,
+		},
+		{
 			name:       "returns 401 when clinic_id is missing",
 			paramID:    "5",
 			body:       `{"recorded_at":"2026-05-28T10:30:00Z"}`,
