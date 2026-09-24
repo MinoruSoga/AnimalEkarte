@@ -233,6 +233,9 @@ func TestDeleteSyntheticClosingFixture_RejectsWrongToken(t *testing.T) {
 		AppEnv: "development", DBHost: "db", TargetDate: time.Date(2026, 9, 7, 0, 0, 0, 0, jst), PasswordHash: "x",
 	})
 	require.NoError(t, err)
+	t.Cleanup(func() {
+		assert.NoError(t, DeleteSyntheticClosingFixture(ctx, db, "development", "db", got.ClinicID, got.CleanupToken))
+	})
 	err = DeleteSyntheticClosingFixture(ctx, db, "development", "db", got.ClinicID, "deadbeef")
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "cleanup token")
@@ -312,6 +315,9 @@ func TestDeleteSyntheticClosingFixture_AuditRowsPolicySeam(t *testing.T) {
 			AppEnv: "development", DBHost: "db", TargetDate: day, PasswordHash: "x",
 		})
 		require.NoError(t, err)
+		t.Cleanup(func() {
+			assert.NoError(t, DeleteSyntheticClosingFixture(ctx, db, "development", "db", got.ClinicID, got.CleanupToken))
+		})
 
 		policyErr := errors.New("audit policy refused")
 		err = DeleteSyntheticClosingFixtureWithAuditPolicy(ctx, db, "development", "db", got.ClinicID, got.CleanupToken,
