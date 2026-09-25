@@ -118,7 +118,10 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
           <TableBody>
             {items.map((pet, index) => {
               const isDeceased = pet.status === "死亡";
-              const isSelectable = pet.status === "生存" && !isError && !isLoading;
+              // EMR-177: 死亡個体も選択可能。新規作成可否は遷移先機能の死亡ゲートが担う。
+              // 「不明」等の既知外 status は fail-closed で選択不可のまま。
+              const isSelectable =
+                (pet.status === "生存" || pet.status === "死亡") && !isError && !isLoading;
               return (
                 <TableRow
                   key={pet.id}
@@ -206,7 +209,7 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
                           : isLoading
                             ? `読み込み中・選択不可: ${pet.name} (ID ${pet.id})`
                             : isDeceased
-                              ? `死亡・選択不可: ${pet.name} (ID ${pet.id})`
+                              ? `死亡・選択: ${pet.name} (ID ${pet.id})`
                               : pet.status === "生存"
                                 ? `選択: ${pet.name} (ID ${pet.id})`
                                 : `状態不明・選択不可: ${pet.name} (ID ${pet.id})`
