@@ -2521,7 +2521,7 @@
     "source": "internal/auth/http_routes.go",
     "routeExpression": "protected.GET(\"/me\", h.GetMe)",
     "handlerSource": "internal/auth/http_session_me.go",
-    "marker": "BuildMeResponse",
+    "marker": "buildMeResponseWithPermissions",
     "authorization": "Authenticate middleware; current staff identity",
     "scope": "authenticated staff account and active assignments",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
@@ -3213,6 +3213,22 @@
     "authorization": "none",
     "scope": "health status only",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
+    "verification": "contract-exclusion-from-selected-clinic-grant; resource/action=none; executed-class-gate:cmd/api/get_head_permission_execution_test.go#TestGETHEADPublicLiffSelfAreNotSelectedClinicGrantSurfaces"
+  },
+  {
+    "method": "GET",
+    "path": "/health/db",
+    "handler": "github.com/animal-ekarte/backend/cmd/api.registerBaseRoutes.healthDB.func1",
+    "class": "public",
+    "resource": "none",
+    "action": "none",
+    "source": "cmd/api/base_routes.go",
+    "routeExpression": "",
+    "handlerSource": "cmd/api/base_routes.go",
+    "marker": "healthDB",
+    "authorization": "none",
+    "scope": "DB liveness status only; no internals disclosed",
+    "regression": "cmd/api/base_routes_health_test.go#TestHealthDB_OK",
     "verification": "contract-exclusion-from-selected-clinic-grant; resource/action=none; executed-class-gate:cmd/api/get_head_permission_execution_test.go#TestGETHEADPublicLiffSelfAreNotSelectedClinicGrantSurfaces"
   },
   {

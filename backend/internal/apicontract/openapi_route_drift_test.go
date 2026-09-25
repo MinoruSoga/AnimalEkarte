@@ -85,6 +85,9 @@ import (
 var knownMissingFromSpec = map[string]bool{
 	// /health は yaml が絶対パスとして記載していない相対規約の齟齬（doc comment 参照）。
 	"GET /health": true,
+	// /health/db は keep-alive 用の運用面 endpoint(EMR-213)。公開 API 契約ではないため
+	// api.yaml には記載しない。
+	"GET /health/db": true,
 
 	// --- Phase D-1 (完了): owner-nested (co group) lstep/line, 13件中12件は canonical 側と
 	// 同一ハンドラの重複登録のため意図的に未記載のまま(死んだエイリアスの precedent と同型)。

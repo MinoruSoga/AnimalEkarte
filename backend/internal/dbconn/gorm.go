@@ -45,6 +45,11 @@ func openGORMWith(cfg *config.Config, open gormOpener) (*gorm.DB, error) {
 		return nil, apperrors.Wrap(err, "get sql.DB")
 	}
 	applyPoolSettings(sqlDB, cfg)
+	if db.Config != nil {
+		db.Config.Logger = newSlowQueryLogger(
+			time.Duration(cfg.DBSlowQueryMS) * time.Millisecond,
+		)
+	}
 
 	return db, nil
 }

@@ -75,7 +75,7 @@ func TestRegisterBaseRoutesOwnsNonDomainHTTPRoutes(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 
-	require.NoError(t, registerBaseRoutes(router, nil))
+	require.NoError(t, registerBaseRoutes(router, nil, nil))
 
 	routes := make(map[string]struct{})
 	for _, route := range router.Routes() {
@@ -83,6 +83,7 @@ func TestRegisterBaseRoutesOwnsNonDomainHTTPRoutes(t *testing.T) {
 	}
 	assert.Contains(t, routes, http.MethodGet+" /health")
 	assert.Contains(t, routes, http.MethodGet+" /api/v1/health")
+	assert.Contains(t, routes, http.MethodGet+" /health/db")
 	assert.Contains(t, routes, http.MethodGet+" /uploads/*filepath")
 	assert.Contains(t, routes, http.MethodPost+" /_internal/scheduled-jobs/:jobAction")
 }

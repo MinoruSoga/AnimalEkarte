@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
@@ -36,14 +37,69 @@ func (h *HTTPHandler) GetMe(c *gin.Context) {
 		httpapi.RespondError(c, apperrors.WrapInternalServerError("invalid user id"))
 		return
 	}
-	staff, err := h.deps.Staff.GetByID(ctx, parsedUserID)
-	if err != nil {
+
+	currentAccess := currentAccessFromGin(c)
+	accessValid := currentAccess != nil && currentAccess.StaffID == parsedUserID
+
+	// 直列 DB RTT を削るため、middleware 解決後に独立した取得を並列化する
+	// (staff・clinics・assignments fallback・permissions)。account は
+	// staff.AccountID が必要なため staff 取得後に続く第2フェーズ。
+	var (
+		staff         *model.Staff
+		allClinics    []model.Clinic
+		assignments   []model.StaffClinicAssignment
+		assignmentsOK bool
+		permissions   EffectivePermissions
+		permsReady    bool
+	)
+	g, gctx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		var err error
+		staff, err = h.deps.Staff.GetByID(gctx, parsedUserID)
+		return err
+	})
+	g.Go(func() error {
+		var err error
+		allClinics, err = listClinicsForMe(gctx, h.deps.Clinics, currentAccess)
+		return err
+	})
+	if !accessValid {
+		g.Go(func() error {
+			found, err := h.deps.StaffAssignments.FindAllByStaffID(gctx, parsedUserID)
+			if err != nil {
+				slog.ErrorContext(
+					gctx,
+					"failed to find clinic assignments",
+					"error", err,
+					"staff_id", parsedUserID,
+				)
+				return nil
+			}
+			assignments = found
+			assignmentsOK = true
+			return nil
+		})
+	} else {
+		// middleware の graph が同リクエスト内で account.is_system_admin を解決済み
+		// のため、permissions を account 取得を待たずに並列化できる。
+		g.Go(func() error {
+			permissions = h.CalculateEffectivePermissions(
+				c,
+				currentAccess.IsSystemAdmin,
+				parsedUserID,
+			)
+			permsReady = true
+			return nil
+		})
+	}
+	if err := g.Wait(); err != nil {
 		httpapi.RespondError(c, err)
 		return
 	}
 
 	var account *model.Account
 	if staff.AccountID != nil {
+		var err error
 		account, err = h.deps.Accounts.GetByID(ctx, *staff.AccountID)
 		if err != nil {
 			httpapi.RespondError(c, err)
@@ -51,33 +107,26 @@ func (h *HTTPHandler) GetMe(c *gin.Context) {
 		}
 	}
 
-	currentAccess := currentAccessFromGin(c)
-	if currentAccess != nil && currentAccess.StaffID == staff.ID {
+	if accessValid {
 		staff = withClinicAssignments(staff, assignmentsFromCurrentAccess(currentAccess))
-	} else {
-		assignments, assignErr := h.deps.StaffAssignments.FindAllByStaffID(ctx, staff.ID)
-		if assignErr != nil {
-			slog.ErrorContext(
-				ctx,
-				"failed to find clinic assignments",
-				"error", assignErr,
-				"staff_id", staff.ID,
-			)
-		} else {
-			staff = withClinicAssignments(staff, assignments)
-		}
-	}
-
-	allClinics, err := listClinicsForMe(ctx, h.deps.Clinics, currentAccess)
-	if err != nil {
-		httpapi.RespondError(c, err)
-		return
+	} else if assignmentsOK {
+		staff = withClinicAssignments(staff, assignments)
 	}
 
 	isSystemAdmin := account != nil && account.IsSystemAdmin
+	if !permsReady {
+		permissions = h.CalculateEffectivePermissions(c, isSystemAdmin, staff.ID)
+	}
 	c.JSON(
 		http.StatusOK,
-		h.BuildMeResponse(c, staff, account, mainClinicID, isSystemAdmin, allClinics),
+		h.buildMeResponseWithPermissions(
+			staff,
+			account,
+			mainClinicID,
+			isSystemAdmin,
+			allClinics,
+			permissions,
+		),
 	)
 }
 

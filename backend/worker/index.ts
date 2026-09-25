@@ -430,21 +430,23 @@ export async function forwardContainerFetch(
   }
 }
 
-// STG keep-alive(EMR-213): 既定名 API コンテナ(cf-singleton-container)へ /health を打ち、
+// STG keep-alive(EMR-213): 既定名 API コンテナ(cf-singleton-container)へ /health/db を打ち、
 // sleepAfter=1h のアイドル sleep を営業時間帯に跨がせない。コールドスタート実測 6〜16s の
-// 体感解消が目的。cron は UTC 指定で "10,40 0-9 * * *" = JST 09:10〜18:40 に30分間隔。
+// 体感解消が目的。/health/db はプール経由の DB ping なので、アイドル後の初回実クエリが
+// 支払う TLS+認証の再接続コスト(ConnMaxIdleTime=5分でプールは枯渇する)も間に合わせるため、
+// 間隔は 5 分未満の "*/4 0-9 * * *" (UTC) = JST 09:00〜18:56 に4分間隔。
 // jobsForCron の job allowlist とは別系統のため scheduled() 内で dispatchScheduledEvent
 // より前に捌く。trigger は wrangler.jsonc(STG)のみに登録し production には載せない。
-// 失敗は best-effort で握り潰す — 次 tick(30分後)が再試行する。scheduler の失敗記録・
+// 失敗は best-effort で握り潰す — 次 tick(4分後)が再試行する。scheduler の失敗記録・
 // アラート経路(notifySchedulerFailures)とは分離し、業務ジョブの失敗計装を汚さない。
-export const API_KEEPALIVE_CRON = "10,40 0-9 * * *" as const;
+export const API_KEEPALIVE_CRON = "*/4 0-9 * * *" as const;
 
 async function warmDefaultApiContainer(env: Env): Promise<void> {
   const startedAt = performance.now();
   try {
     const container = getContainer(env.API_CONTAINER);
     const response = await container.fetch(
-      new Request("http://container.internal/health"),
+      new Request("http://container.internal/health/db"),
     );
     console.info("api keepalive", {
       event: "api_keepalive",
