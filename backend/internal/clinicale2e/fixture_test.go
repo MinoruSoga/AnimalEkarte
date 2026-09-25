@@ -128,6 +128,42 @@ func TestCreateAndDelete_DisposableClinicGraph(t *testing.T) {
 		assert.Equal(t, model.MedicalRecordStatusFinalized, record.Status)
 	}
 
+	var examinations []model.Examination
+	require.NoError(t, db.Where("clinic_id = ?", got.ClinicID).Find(&examinations).Error)
+	require.Len(t, examinations, 2)
+	var linkedExams, standaloneExams int
+	for _, e := range examinations {
+		if e.MedicalRecordID != nil {
+			linkedExams++
+			require.NotNil(t, e.PetID)
+			assert.Equal(t, got.PetID, *e.PetID)
+		} else {
+			standaloneExams++
+			require.NotNil(t, e.PetID)
+			assert.Equal(t, got.OutsideFirstPagePetID, *e.PetID)
+		}
+	}
+	assert.Equal(t, 1, linkedExams)
+	assert.Equal(t, 1, standaloneExams)
+
+	var vaccinations []model.Vaccination
+	require.NoError(t, db.Where("clinic_id = ?", got.ClinicID).Find(&vaccinations).Error)
+	require.Len(t, vaccinations, 2)
+	var linkedVaccinations, standaloneVaccinations int
+	for _, v := range vaccinations {
+		if v.MedicalRecordID != nil {
+			linkedVaccinations++
+			require.NotNil(t, v.PetID)
+			assert.Equal(t, got.PetID, *v.PetID)
+		} else {
+			standaloneVaccinations++
+			require.NotNil(t, v.PetID)
+			assert.Equal(t, got.OutsideFirstPagePetID, *v.PetID)
+		}
+	}
+	assert.Equal(t, 1, linkedVaccinations)
+	assert.Equal(t, 1, standaloneVaccinations)
+
 	var hospitalizations []model.Hospitalization
 	require.NoError(t, db.Where("clinic_id = ?", got.ClinicID).Find(&hospitalizations).Error)
 	require.Len(t, hospitalizations, 1)

@@ -29,6 +29,10 @@ import type { SyntheticEndpoint } from "../helpers/synthetic-api";
 import type { SyntheticRenderedAssertion } from "../helpers/ui-design-audit";
 import { SYNTHETIC_CREATED_AT as CREATED_AT, SYNTHETIC_IDS } from "./ui-design-clinical-constants";
 import {
+  SYNTHETIC_BILLING_CONFIRMATION,
+  SYNTHETIC_CLINICAL_PLAN,
+} from "./ui-design-clinical-detail";
+import {
   validateMedicalRecordCreate,
   validateReservationCreate,
 } from "./ui-design-clinical-request-contracts";
@@ -394,6 +398,7 @@ const SYNTHETIC_VACCINATION = {
   lot3: "",
   lot4: "",
   remarks: "合成監査備考",
+  version: 1,
   created_at: CREATED_AT,
   updated_at: CREATED_AT,
   pet: SYNTHETIC_PET,
@@ -437,42 +442,6 @@ const SYNTHETIC_OWNER_API_RESPONSE = {
   owner_name: string;
   owner_name_kana?: string;
   dm_preference?: boolean | null;
-};
-
-const SYNTHETIC_CLINICAL_PLAN = {
-  id: "syn-plan-990013",
-  medical_record_id: String(SYNTHETIC_IDS.medicalRecord),
-  physical_exam: "",
-  diagnosis_type_id: undefined,
-  diagnosis_name_id: undefined,
-  diagnosis_2_type_id: undefined,
-  diagnosis_2_name_id: undefined,
-  diagnosis_details: "",
-  treatment_policy: "",
-  created_at: CREATED_AT,
-  updated_at: CREATED_AT,
-  diagnosis_type: null,
-  diagnosis_name: null,
-  diagnosis_2_type: null,
-  diagnosis_2_name: null,
-  version: 1,
-} satisfies {
-  id: string;
-  medical_record_id: string;
-  physical_exam: string;
-  diagnosis_type_id?: string | null;
-  diagnosis_name_id?: string | null;
-  diagnosis_2_type_id?: string | null;
-  diagnosis_2_name_id?: string | null;
-  diagnosis_details: string;
-  treatment_policy: string;
-  created_at: string;
-  updated_at: string;
-  diagnosis_type?: { id: string; name: string } | null;
-  diagnosis_name?: { id: string; name: string } | null;
-  diagnosis_2_type?: { id: string; name: string } | null;
-  diagnosis_2_name?: { id: string; name: string } | null;
-  version: number;
 };
 
 const SYNTHETIC_LINE_STATUS = {
@@ -581,6 +550,22 @@ export const SYNTHETIC_CLINICAL_SCENARIOS = {
           pet_id: String(SYNTHETIC_IDS.pet),
         } satisfies Readonly<Record<string, string>>,
         response: { data: [], total: 0, page: 1, limit: 50 },
+      },
+      // Detail render issues read-only cohabiting-pets + billing-confirmation GETs;
+      // both stay inside the scenario (fail-closed — nothing falls through to a backend).
+      {
+        method: "GET",
+        pathname: "/api/v1/pets",
+        query: {
+          owner_id: String(SYNTHETIC_IDS.owner),
+          include_deceased: "true",
+        } satisfies Readonly<Record<string, string>>,
+        response: { data: [SYNTHETIC_PET], total: 1, page: 1, limit: 1 },
+      },
+      {
+        method: "GET",
+        pathname: `${MEDICAL_RECORD_PATH}/billing-confirmation`,
+        response: SYNTHETIC_BILLING_CONFIRMATION,
       },
       {
         method: "GET",

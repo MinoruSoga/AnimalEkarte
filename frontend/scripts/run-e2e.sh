@@ -94,6 +94,14 @@ fi
 
 # Forward host auth env into the container only when set (name-only -e; no =value on argv).
 DOCKER_ENV="-e PLAYWRIGHT_TEST_BASE_URL=${BASE_URL}"
+# Opt-in host persistence for the Playwright output dir. The runner container is
+# --rm, so test-results/ (traces, error-context, attachments) evaporates unless a
+# host directory is mounted here. Required for evidence-keeping clinical reruns.
+DOCKER_MOUNTS="-v ${FRONTEND_DIR}/e2e:/test/e2e:ro -v ${FRONTEND_DIR}/playwright.config.ts:/test/playwright.config.ts:ro"
+if [ -n "${E2E_RESULTS_DIR:-}" ]; then
+  mkdir -p "$E2E_RESULTS_DIR"
+  DOCKER_MOUNTS="$DOCKER_MOUNTS -v ${E2E_RESULTS_DIR}:/test/test-results"
+fi
 if [ -n "${E2E_LOGIN_EMAIL:-}" ]; then DOCKER_ENV="$DOCKER_ENV -e E2E_LOGIN_EMAIL"; fi
 if [ -n "${E2E_LOGIN_PASSWORD:-}" ]; then DOCKER_ENV="$DOCKER_ENV -e E2E_LOGIN_PASSWORD"; fi
 if [ -n "${E2E_AUTH_STATE_PATH:-}" ]; then DOCKER_ENV="$DOCKER_ENV -e E2E_AUTH_STATE_PATH"; fi
@@ -106,13 +114,12 @@ if [ -n "${UAT_SYNTHETIC_CLOSING_API_BASE:-}" ]; then DOCKER_ENV="$DOCKER_ENV -e
 
 # All args passed through safely as positional params to sh -c via -- "$@".
 # Single-quoted sh -c command prevents host-side shell expansion (injection-safe).
-# shellcheck disable=SC2086 # intentional for DOCKER_ENV flag list only
+# shellcheck disable=SC2086 # intentional for DOCKER_ENV / DOCKER_MOUNTS flag lists only
 PLAYWRIGHT_STATUS=0
 docker run --rm \
   --add-host=host.docker.internal:host-gateway \
   $DOCKER_ENV \
-  -v "${FRONTEND_DIR}/e2e:/test/e2e:ro" \
-  -v "${FRONTEND_DIR}/playwright.config.ts:/test/playwright.config.ts:ro" \
+  $DOCKER_MOUNTS \
   --workdir /test \
   mcr.microsoft.com/playwright:v1.60.0-jammy \
   sh -c 'npm install @playwright/test@1.60.0 --ignore-scripts --silent && node_modules/.bin/playwright test --reporter=list "$@"' \
