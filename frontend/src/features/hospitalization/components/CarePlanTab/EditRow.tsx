@@ -46,9 +46,9 @@ export function EditRow({ item, onSave, onCancel }: EditRowProps) {
   const [type, setType] = useState<CarePlanItemType>(item.type);
   const [timing, setTiming] = useState<CarePlanTiming[]>(item.timing);
   const [refId, setRefId] = useState<string | null>(initialRefId(item));
-  /** 持ち物の保存単価。既存値で初期化し、プラ再選択時はマスタ price で上書き。0 は有限値として保持。 */
+  /** 参照必須 type の保存単価。既存値で初期化し、マスタ再選択時はその price で上書き。0 は有限値として保持。 */
   const [refUnitPrice, setRefUnitPrice] = useState<number | null>(
-    item.type === "item" ? item.unit_price : null,
+    requiresRef(item.type) ? item.unit_price : null,
   );
 
   const needsRef = requiresRef(type);
@@ -74,8 +74,9 @@ export function EditRow({ item, onSave, onCancel }: EditRowProps) {
         type,
         timing,
         ...buildRefFields(type, refId),
-        // 持ち物は既存/再選択したプランマスタの単価を unit_price に維持・転記する
-        ...(type === "item" && refUnitPrice !== null ? { unit_price: refUnitPrice } : {}),
+        // 参照必須 type は既存/再選択したマスタの単価を unit_price に維持・転記する。
+        // 参照なし type への変更では残存価格を明示的に 0 へ戻す(退院会計は全項目の unit_price を写すため)。
+        unit_price: needsRef ? (refUnitPrice ?? item.unit_price) : 0,
       });
       return { error: null };
     },

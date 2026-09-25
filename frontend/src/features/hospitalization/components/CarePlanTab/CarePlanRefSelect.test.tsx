@@ -13,9 +13,7 @@ vi.mock("@/hooks/use-treatment-master", () => ({
     data: [{ id: "2", name: "血液検査", price: 4000 }],
     isLoading: false,
   }),
-  // Production hook maps API plans to {id,name} only and drops price.
-  // Extra price on the mock proves CarePlanRefSelect still emits id-only onChange
-  // (named price-loss: master 1200 never reaches AddForm/EditRow unit_price).
+  // onUnitPriceChange 経路の回帰 pin: onChange は id のみを運び、price は別経路。
   useGetAllHospitalizationPlansMaster: () => ({
     data: [{ id: "3", name: "スタンダード入院プラン", price: 1200 }],
     isLoading: false,
@@ -65,6 +63,57 @@ describe("CarePlanRefSelect", () => {
     await user.click(screen.getByRole("combobox"));
     await user.click(await screen.findByText("アモキシシリン"));
     expect(handleChange).toHaveBeenCalledWith("1");
+  });
+
+  it("薬剤を選択すると onUnitPriceChange が薬剤マスタ price 100 で呼ばれる", async () => {
+    const user = userEvent.setup();
+    const handleUnitPrice = vi.fn();
+    render(
+      <CarePlanRefSelect
+        type="medicine"
+        value={null}
+        onChange={vi.fn()}
+        onUnitPriceChange={handleUnitPrice}
+      />,
+      { wrapper: createTestWrapper() },
+    );
+    await user.click(screen.getByRole("combobox"));
+    await user.click(await screen.findByText("アモキシシリン"));
+    expect(handleUnitPrice).toHaveBeenCalledWith(100);
+  });
+
+  it("処置・検査を選択すると onUnitPriceChange が処置マスタ price 4000 で呼ばれる", async () => {
+    const user = userEvent.setup();
+    const handleUnitPrice = vi.fn();
+    render(
+      <CarePlanRefSelect
+        type="treatment"
+        value={null}
+        onChange={vi.fn()}
+        onUnitPriceChange={handleUnitPrice}
+      />,
+      { wrapper: createTestWrapper() },
+    );
+    await user.click(screen.getByRole("combobox"));
+    await user.click(await screen.findByText("血液検査"));
+    expect(handleUnitPrice).toHaveBeenCalledWith(4000);
+  });
+
+  it("入院プランを選択すると onUnitPriceChange がプランマスタ price 1200 で呼ばれる", async () => {
+    const user = userEvent.setup();
+    const handleUnitPrice = vi.fn();
+    render(
+      <CarePlanRefSelect
+        type="item"
+        value={null}
+        onChange={vi.fn()}
+        onUnitPriceChange={handleUnitPrice}
+      />,
+      { wrapper: createTestWrapper() },
+    );
+    await user.click(screen.getByRole("combobox"));
+    await user.click(await screen.findByText("スタンダード入院プラン"));
+    expect(handleUnitPrice).toHaveBeenCalledWith(1200);
   });
 
   it("入院プラン選択の onChange は id のみで、マスタ price 1200 を第2引数にもオブジェクトにも渡さない", async () => {
