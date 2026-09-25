@@ -157,21 +157,33 @@ func GenerateTimeSlots(input *TimeSlotsInput) ([]TimeSlot, error) {
 
 // generateForStaff は1スタッフ分の空き時間枠を計算する。
 func generateForStaff(input *TimeSlotsInput, staffInput *StaffSlotInput) ([]TimeSlot, error) {
+	_, free, err := staffWorkAndFreeIntervals(input, staffInput)
+	if err != nil {
+		return nil, err
+	}
+	return generateSlotsFromIntervals(input, free)
+}
+
+// staffWorkAndFreeIntervals はスタッフの勤務内区間（休憩除外済み）と、そこから既存予約を
+// 除いた空き区間を返す。休日（勤務区間なし）は両方 nil で返す。
+// potential のみ・free のみを別々に枠化する GenerateSlotCapacities（EMR-170）との共有のため
+// generateForStaff から分割した。
+func staffWorkAndFreeIntervals(input *TimeSlotsInput, staffInput *StaffSlotInput) (potential, free []interval, err error) {
 	// 1. 勤務時間を決定
 	workIntervals, err := resolveWorkIntervals(input, staffInput)
 	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to resolve work intervals")
+		return nil, nil, apperrors.Wrap(err, "failed to resolve work intervals")
 	}
 	if len(workIntervals) == 0 {
-		return nil, nil // 休日
+		return nil, nil, nil // 休日
 	}
 
 	// 2. 休憩時間を除外
 	breaks, err := resolveBreakIntervals(input, staffInput)
 	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to resolve break intervals")
+		return nil, nil, apperrors.Wrap(err, "failed to resolve break intervals")
 	}
-	available := subtract(workIntervals, breaks)
+	potential = subtract(workIntervals, breaks)
 
 	// 3. 既存予約を除外
 	resvIntervals := make([]interval, 0, len(staffInput.ExistingResvs))
@@ -181,17 +193,20 @@ func generateForStaff(input *TimeSlotsInput, staffInput *StaffSlotInput) ([]Time
 		}
 		s, err := MinutesSinceMidnight(r.StartTime)
 		if err != nil {
-			return nil, apperrors.Wrap(err, "failed to parse reservation start time")
+			return nil, nil, apperrors.Wrap(err, "failed to parse reservation start time")
 		}
 		e, err := MinutesSinceMidnight(r.EndTime)
 		if err != nil {
-			return nil, apperrors.Wrap(err, "failed to parse reservation end time")
+			return nil, nil, apperrors.Wrap(err, "failed to parse reservation end time")
 		}
 		resvIntervals = append(resvIntervals, interval{s, e})
 	}
-	available = subtract(available, resvIntervals)
+	free = subtract(potential, resvIntervals)
+	return potential, free, nil
+}
 
-	// 4. 空き区間からコース所要時間が収まる枠を列挙
+// generateSlotsFromIntervals は空き区間からコース所要時間が収まる枠を列挙する。
+func generateSlotsFromIntervals(input *TimeSlotsInput, available []interval) ([]TimeSlot, error) {
 	dur := input.CourseDuration
 	if dur <= 0 {
 		dur = 15

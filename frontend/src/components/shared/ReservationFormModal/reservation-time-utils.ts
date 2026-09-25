@@ -1,5 +1,24 @@
 import { format } from "date-fns";
 import type { ReservationTypeUnavailableTime } from "@/hooks/use-reservation-type-unavailable-times";
+import type { ReservationSlotVacancyStatus } from "@/hooks/use-reservation-types";
+
+// EMR-170: 1枠の空き状況（〇△✕）
+export interface SlotVacancy {
+  status: ReservationSlotVacancyStatus;
+  /** 受け入れ可能な残り枠数（上限なしは null） */
+  remaining: number | null;
+}
+
+const SLOT_VACANCY_LABEL: Record<ReservationSlotVacancyStatus, string> = {
+  available: "〇 空きあり",
+  low: "△ 残り1枠",
+  full: "✕ 満員",
+};
+
+/** 空き状況の表示ラベル。記号＋テキストで色だけに依存しない（WCAG） */
+export function slotVacancyLabel(status: ReservationSlotVacancyStatus): string {
+  return SLOT_VACANCY_LABEL[status];
+}
 
 function generateTimeOptions(): string[] {
   const times: string[] = [];

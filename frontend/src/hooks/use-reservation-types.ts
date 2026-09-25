@@ -49,9 +49,16 @@ interface OnDutyStaff {
   name: string;
 }
 
+// EMR-170: available=〇空きあり / low=△残り1枠 / full=✕満員
+export type ReservationSlotVacancyStatus = "available" | "low" | "full";
+
 export interface ReservationAvailableTimeSlot {
   start_time: string;
   end_time: string;
+  // EMR-170: 空き状況。旧応答 shape（status なし）の後方互換のため optional。
+  status?: ReservationSlotVacancyStatus;
+  // 受け入れ可能な残り枠数（上限なしの枠は null / 旧応答ではフィールド自体なし）。
+  remaining?: number | null;
 }
 
 interface ReservationStaffCourse {
@@ -118,6 +125,8 @@ const fetchReservationAvailableTimes = async (
         reservation_type_id: reservationTypeId,
         date,
         ...(staffId ? { staff_id: staffId } : {}),
+        // EMR-170: 満員枠も返してもらい〇△✕表示に使う
+        include_unavailable: "true",
       },
     },
   );
