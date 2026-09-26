@@ -1,0 +1,38 @@
+{
+  "namespace": "emr169.ear_checkup",
+  "version": "1.0.0",
+  "clinical_approval_ref": "EMR-169",
+  "types": [
+    {
+      "key": "ear",
+      "name": "耳検診",
+      "description": "耳内視鏡による耳の状態チェックと総評価。耳内写真はカルテ添付機能を利用する。状態チェック項目の内訳は医師確認後に追加予定。",
+      "interval": "",
+      "target_age": "",
+      "sort_order": 60,
+      "is_active": true
+    }
+  ],
+  "fields": [
+    {
+      "key": "ear_abnormality",
+      "type_key": "ear",
+      "name": "異常の有無",
+      "field_type": "boolean",
+      "unit": "",
+      "options": [],
+      "is_provisional": false,
+      "sort_order": 1
+    },
+    {
+      "key": "ear_treatment_needed",
+      "type_key": "ear",
+      "name": "治療の要否",
+      "field_type": "boolean",
+      "unit": "",
+      "options": [],
+      "is_provisional": false,
+      "sort_order": 2
+    }
+  ]
+}

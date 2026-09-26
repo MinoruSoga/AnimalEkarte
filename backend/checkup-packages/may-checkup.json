@@ -1,0 +1,17 @@
+{
+  "namespace": "emr169.may_checkup",
+  "version": "1.0.0",
+  "clinical_approval_ref": "EMR-169",
+  "types": [
+    {
+      "key": "may",
+      "name": "5月健診",
+      "description": "5月実施の季節健診（フィラリア予防開始時期）。血液検査・レントゲンは外注のため院内測定は尿検査のみ。尿検査の項目マスタは医師確認後に追加予定。",
+      "interval": "年1回",
+      "target_age": "",
+      "sort_order": 30,
+      "is_active": true
+    }
+  ],
+  "fields": []
+}

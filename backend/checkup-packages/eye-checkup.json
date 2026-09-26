@@ -1,0 +1,68 @@
+{
+  "namespace": "emr169.eye_checkup",
+  "version": "1.0.0",
+  "clinical_approval_ref": "EMR-169",
+  "types": [
+    {
+      "key": "eye",
+      "name": "眼科検診",
+      "description": "傷の有無・眼圧・涙量の測定。傷の部位図示（イラスト記入）は現行機能外のため、必要時はカルテ添付機能を利用する。眼圧・涙量の基準値は医師確認後に設定予定（設定までは異常値自動判定は行われない）。",
+      "interval": "",
+      "target_age": "",
+      "sort_order": 70,
+      "is_active": true
+    }
+  ],
+  "fields": [
+    {
+      "key": "iop_right",
+      "type_key": "eye",
+      "name": "眼圧（右）",
+      "field_type": "number",
+      "unit": "mmHg",
+      "options": [],
+      "is_provisional": false,
+      "sort_order": 1
+    },
+    {
+      "key": "iop_left",
+      "type_key": "eye",
+      "name": "眼圧（左）",
+      "field_type": "number",
+      "unit": "mmHg",
+      "options": [],
+      "is_provisional": false,
+      "sort_order": 2
+    },
+    {
+      "key": "tear_volume_right",
+      "type_key": "eye",
+      "name": "涙量（右）",
+      "field_type": "number",
+      "unit": "mm/分",
+      "options": [],
+      "is_provisional": false,
+      "sort_order": 3
+    },
+    {
+      "key": "tear_volume_left",
+      "type_key": "eye",
+      "name": "涙量（左）",
+      "field_type": "number",
+      "unit": "mm/分",
+      "options": [],
+      "is_provisional": false,
+      "sort_order": 4
+    },
+    {
+      "key": "eye_injury",
+      "type_key": "eye",
+      "name": "目の傷の有無",
+      "field_type": "boolean",
+      "unit": "",
+      "options": [],
+      "is_provisional": false,
+      "sort_order": 5
+    }
+  ]
+}

@@ -9,10 +9,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 func sampleCheckupPackageManifestJSON(t *testing.T, namespace, version string) []byte {
@@ -70,8 +72,23 @@ func TestCheckupPackageImport_OperatorReceiptAllowlistExcludesInternalFields(t *
 	}
 }
 
+// setupCheckupPackageImportSchema は checkup_field_type ENUM と checkup_types /
+// checkup_type_fields を自前で用意する。全量実行では先行テストが作成済みになるが、
+// -run 単独実行ではテーブルが存在しないため冪等に作成する（CREATE TYPE に
+// IF NOT EXISTS は無いため DO ブロックで duplicate_object を許容する）。
+func setupCheckupPackageImportSchema(t *testing.T, db *gorm.DB) {
+	t.Helper()
+	require.NoError(t, db.Exec(`DO $$ BEGIN
+  CREATE TYPE checkup_field_type AS ENUM ('number','single_select','multi_select','boolean','checklist','text');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$`).Error)
+	require.NoError(t, testdb.EnsureAutoMigrated(db,
+		&model.Company{}, &model.Clinic{},
+		&model.CheckupType{}, &model.CheckupTypeField{}))
+}
+
 func TestCheckupPackageImport_DryRunApplyReplayAndCrossClinic(t *testing.T) {
 	db := setupExaminationTestDB(t)
+	setupCheckupPackageImportSchema(t, db)
 	// Ensure import columns/table exist for this test schema.
 	require.NoError(t, db.Exec(`
 ALTER TABLE checkup_types ADD COLUMN IF NOT EXISTS import_namespace text;
@@ -98,6 +115,7 @@ CREATE TABLE IF NOT EXISTS checkup_package_import_receipts (
 	ctx := context.Background()
 	const clinicA = uint64(1)
 	const clinicB = uint64(2)
+	ensureVaccinationTestClinics(t, db, clinicA, clinicB)
 	actorA := makeExaminationActor(t, db, clinicA, "import actor a")
 	actorB := makeExaminationActor(t, db, clinicB, "import actor b")
 
@@ -159,8 +177,63 @@ CREATE TABLE IF NOT EXISTS checkup_package_import_receipts (
 	assert.Equal(t, int64(1), typeCountB)
 }
 
+// Apply 済み single_select フィールドの options が FE/結果値バリデーションの契約形状
+// [{"value":..,"label":..}] で永続化されることを固定する回帰テスト（EMR-169）。
+// manifest 側の []string をそのまま保存すると parseCheckupOptionValues が読めない。
+func TestCheckupPackageImport_SelectFieldOptionsPersistedAsObjects(t *testing.T) {
+	db := setupExaminationTestDB(t)
+	setupCheckupPackageImportSchema(t, db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+	ensureVaccinationTestClinics(t, db, clinicID)
+	actorID := makeExaminationActor(t, db, clinicID, "options actor")
+
+	svc := NewCheckupPackageImportService(db, persistence.NewTransactor(db), &mockAuditTxLogger{})
+	ns := fmt.Sprintf("pkg.options.%d", time.Now().UnixNano())
+	raw, err := json.Marshal(map[string]any{
+		"namespace":             ns,
+		"version":               "1.0.0",
+		"clinical_approval_ref": "EMR-169",
+		"types": []map[string]any{
+			{"key": "adpuritto", "name": "Options Shape Type " + ns, "is_active": true},
+		},
+		"fields": []map[string]any{
+			{
+				"key": "level", "type_key": "adpuritto", "name": "レベル",
+				"field_type": "single_select", "options": []string{"0", "1", "5"},
+				"is_provisional": false, "sort_order": 1,
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	applied, err := svc.Apply(ctx, clinicID, actorID, raw)
+	require.NoError(t, err)
+	assert.Equal(t, "applied", applied.Result)
+
+	var field model.CheckupTypeField
+	require.NoError(t, db.Where("clinic_id = ? AND import_namespace = ? AND import_key = ?", clinicID, ns, "level").
+		First(&field).Error)
+
+	var stored []map[string]any
+	require.NoError(t, json.Unmarshal(field.Options, &stored))
+	require.Len(t, stored, 3)
+	for i, want := range []string{"0", "1", "5"} {
+		assert.Equal(t, want, stored[i]["value"])
+		assert.Equal(t, want, stored[i]["label"])
+	}
+
+	// 本番の結果値バリデーションが保存形状を読めること。
+	allowed, err := parseCheckupOptionValues(&field)
+	require.NoError(t, err)
+	assert.Len(t, allowed, 3)
+	assert.NoError(t, validateCheckupFieldValue(&field, UpsertCheckupFieldResultInput{ValueText: "5"}))
+	assert.Error(t, validateCheckupFieldValue(&field, UpsertCheckupFieldResultInput{ValueText: "9"}))
+}
+
 func TestCheckupPackageImport_PermissionAndRollback(t *testing.T) {
 	db := setupExaminationTestDB(t)
+	setupCheckupPackageImportSchema(t, db)
 	require.NoError(t, db.Exec(`
 ALTER TABLE checkup_types ADD COLUMN IF NOT EXISTS import_namespace text;
 ALTER TABLE checkup_types ADD COLUMN IF NOT EXISTS import_key text;
@@ -184,6 +257,7 @@ CREATE TABLE IF NOT EXISTS checkup_package_import_receipts (
 `).Error)
 	ctx := context.Background()
 	const clinicID = uint64(1)
+	ensureVaccinationTestClinics(t, db, clinicID)
 	actorID := makeExaminationActor(t, db, clinicID, "rollback actor")
 
 	failingAudit := &mockAuditTxLogger{logEntryTxFn: func(context.Context, *AuditEntry) error {
