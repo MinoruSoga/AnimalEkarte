@@ -22,71 +22,101 @@ function renderTab(initialSearch = "") {
   });
 }
 
-const MONTHLY_RESPONSE = {
+const PERIOD_RESPONSE = {
   data: [
     {
       owner_id: 1,
       owner_name: "山田花子",
       pet_id: 10,
       pet_name: "チョコ",
-      prev_month_carryover: 3000,
-      current_month_unpaid: 5000,
-      next_month_carryover: 8000,
+      prev_period_carryover: 3000,
+      current_period_unpaid: 5000,
+      period_end_carryover: 8000,
     },
     {
       owner_id: 2,
       owner_name: "鈴木一郎",
       pet_id: null,
       pet_name: "",
-      prev_month_carryover: 0,
-      current_month_unpaid: 2000,
-      next_month_carryover: 2000,
+      prev_period_carryover: 0,
+      current_period_unpaid: 2000,
+      period_end_carryover: 2000,
     },
   ],
   total: 2,
   page: 1,
   limit: 20,
   summary: {
-    prev_month_carryover: 3000,
-    current_month_unpaid: 7000,
-    next_month_carryover: 10000,
+    prev_period_carryover: 3000,
+    current_period_unpaid: 7000,
+    period_end_carryover: 10000,
   },
 };
 
-describe("UnpaidTab — 月次繰越モード", () => {
+describe("UnpaidTab — 月末未納者一覧モード", () => {
   beforeEach(() => {
     server.use(
-      http.get("/api/v1/accountings/unpaid-monthly", () => HttpResponse.json(MONTHLY_RESPONSE)),
+      http.get("/api/v1/accountings/unpaid-period", () => HttpResponse.json(PERIOD_RESPONSE)),
     );
   });
 
-  it("月次繰越ボタンをクリックすると月次モードに切り替わる", async () => {
+  it("月末未納者一覧ボタンをクリックすると期間モードに切り替わる", async () => {
     const user = userEvent.setup();
     renderTab();
 
-    await user.click(screen.getByRole("button", { name: "月次繰越" }));
+    await user.click(screen.getByRole("button", { name: "月末未納者一覧" }));
 
-    expect(screen.getByLabelText("対象月")).toBeInTheDocument();
-    expect(screen.queryByLabelText("開始日")).not.toBeInTheDocument();
+    await screen.findByText("山田花子");
+    // 期間モードは飼主単位・会計単位と同じ日付入力を使い、対象月ピッカーは存在しない
+    expect(screen.getByLabelText("開始日")).toBeInTheDocument();
+    expect(screen.getByLabelText("終了日")).toBeInTheDocument();
+    expect(screen.queryByLabelText("対象月")).not.toBeInTheDocument();
   });
 
-  it("月次サマリーカードに前月繰越・当月未払い・次月繰越が表示される", async () => {
-    renderTab("group_by=monthly&month=2026-06");
+  it("期間エンドポイントへ start_date/end_date を送信する（year/month は送らない）", async () => {
+    let requested: URL | null = null;
+    server.use(
+      http.get("/api/v1/accountings/unpaid-period", ({ request }) => {
+        requested = new URL(request.url);
+        return HttpResponse.json(PERIOD_RESPONSE);
+      }),
+    );
+
+    renderTab("group_by=period&start_date=2026-06-01&end_date=2026-06-30");
+
+    await screen.findByText("山田花子");
+    expect(requested).not.toBeNull();
+    expect(requested?.searchParams.get("start_date")).toBe("2026-06-01");
+    expect(requested?.searchParams.get("end_date")).toBe("2026-06-30");
+    expect(requested?.searchParams.get("year")).toBeNull();
+    expect(requested?.searchParams.get("month")).toBeNull();
+  });
+
+  it("旧 group_by=monthly の URL でも期間モードとして開く（レガシーエイリアス）", async () => {
+    renderTab("group_by=monthly");
+
+    await screen.findByText("山田花子");
+    expect(screen.getByLabelText("開始日")).toBeInTheDocument();
+    expect(screen.queryByLabelText("対象月")).not.toBeInTheDocument();
+  });
+
+  it("期間サマリーカードに期間前繰越・期間内未納・期末繰越が表示される", async () => {
+    renderTab("group_by=period&start_date=2026-06-01&end_date=2026-06-30");
 
     // サマリーカードとテーブルヘッダーに同一テキストが存在するため getAllByText を使用
     await waitFor(() => {
-      expect(screen.getAllByText("前月繰越").length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText("期間前繰越").length).toBeGreaterThanOrEqual(1);
     });
 
-    expect(screen.getAllByText("当月未払い").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText("次月繰越").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("期間内未納").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("期末繰越").length).toBeGreaterThanOrEqual(1);
     // サマリーのみに存在する金額で検証
     expect(screen.getByText("¥7,000")).toBeInTheDocument();
     expect(screen.getByText("¥10,000")).toBeInTheDocument();
   });
 
-  it("月次テーブルに飼主名・ペット名・3金額列が表示される", async () => {
-    renderTab("group_by=monthly&month=2026-06");
+  it("期間テーブルに飼主名・ペット名・3金額列が表示される", async () => {
+    renderTab("group_by=period&start_date=2026-06-01&end_date=2026-06-30");
 
     await waitFor(() => {
       expect(screen.getByText("山田花子")).toBeInTheDocument();
@@ -99,13 +129,13 @@ describe("UnpaidTab — 月次繰越モード", () => {
     const headerTexts = headers.map((h) => h.textContent);
     expect(headerTexts).toContain("飼主名");
     expect(headerTexts).toContain("ペット名");
-    expect(headerTexts).toContain("前月繰越");
-    expect(headerTexts).toContain("当月未払い");
-    expect(headerTexts).toContain("次月繰越");
+    expect(headerTexts).toContain("期間前繰越");
+    expect(headerTexts).toContain("期間内未納");
+    expect(headerTexts).toContain("期末繰越");
   });
 
-  it("月次行は非interactiveで、飼主詳細への固有名44px native linkを使う", async () => {
-    renderTab("group_by=monthly&month=2026-06");
+  it("期間行は非interactiveで、飼主詳細への固有名44px native linkを使う", async () => {
+    renderTab("group_by=period&start_date=2026-06-01&end_date=2026-06-30");
 
     const link = await screen.findByRole("link", {
       name: "飼主詳細: 山田花子 (ID 1)",
@@ -117,7 +147,7 @@ describe("UnpaidTab — 月次繰越モード", () => {
   });
 
   it("ペット名が空の行は - を表示する", async () => {
-    renderTab("group_by=monthly&month=2026-06");
+    renderTab("group_by=period&start_date=2026-06-01&end_date=2026-06-30");
 
     await waitFor(() => {
       expect(screen.getByText("鈴木一郎")).toBeInTheDocument();
@@ -130,25 +160,29 @@ describe("UnpaidTab — 月次繰越モード", () => {
 
   it("データなしのとき空メッセージを表示する", async () => {
     server.use(
-      http.get("/api/v1/accountings/unpaid-monthly", () =>
+      http.get("/api/v1/accountings/unpaid-period", () =>
         HttpResponse.json({
           data: [],
           total: 0,
           page: 1,
           limit: 20,
-          summary: { prev_month_carryover: 0, current_month_unpaid: 0, next_month_carryover: 0 },
+          summary: {
+            prev_period_carryover: 0,
+            current_period_unpaid: 0,
+            period_end_carryover: 0,
+          },
         }),
       ),
     );
 
-    renderTab("group_by=monthly&month=2026-06");
+    renderTab("group_by=period&start_date=2026-06-01&end_date=2026-06-30");
 
     await waitFor(() => {
-      expect(screen.getByText("対象月の未納データがありません")).toBeInTheDocument();
+      expect(screen.getByText("対象期間の未納データがありません")).toBeInTheDocument();
     });
   });
 
-  it("月次モードでは飼主単位クエリは発火しない", async () => {
+  it("期間モードでは飼主単位クエリは発火しない", async () => {
     let ownerHit = false;
     server.use(
       http.get("/api/v1/accountings/unpaid", () => {
@@ -163,7 +197,7 @@ describe("UnpaidTab — 月次繰越モード", () => {
       }),
     );
 
-    renderTab("group_by=monthly&month=2026-06");
+    renderTab("group_by=period&start_date=2026-06-01&end_date=2026-06-30");
 
     await screen.findByText("山田花子");
     expect(ownerHit).toBe(false);
@@ -208,16 +242,16 @@ describe("UnpaidTab — 飼主単位の既定期間 (BUG-002)", () => {
 describe("UnpaidTab — 明細遷移", () => {
   beforeEach(() => {
     server.use(
-      http.get("/api/v1/accountings/unpaid-monthly", () =>
+      http.get("/api/v1/accountings/unpaid-period", () =>
         HttpResponse.json({
           data: [],
           total: 0,
           page: 1,
           limit: 20,
           summary: {
-            prev_month_carryover: 0,
-            current_month_unpaid: 0,
-            next_month_carryover: 0,
+            prev_period_carryover: 0,
+            current_period_unpaid: 0,
+            period_end_carryover: 0,
           },
         }),
       ),

@@ -29,7 +29,7 @@ flowchart TB
 ### 1. 検索・フィルタリング (`PropertyFilter`)
 - **日付・飼主/ペット名検索・ステータス・支払方法**: すべてサーバサイド（ページ横断）。既定 20 件。ページ内限定バナーは無い。キーワードは `useDeferredValue` 後に API へ送る。
 - **当日会計**: 日付既定は JST 当日（`?daily_date=`）。
-- **未納**: 期間既定は JST 当月（[30-unpaid-list.md](./30-unpaid-list.md)）。
+- **未納**: 期間既定は JST 当月（[30-unpaid-list.md](./30-unpaid-list.md)）。「月末未納者一覧」を含む全表示単位で開始日・終了日の期間検索に対応。
 - **拠点**: 複数所属時は `ClinicScopeFilter`。一覧からのキャンセル操作は無い（`POST …/cancel` は詳細側）。
 
 ### 2. データテーブル (`DataTable`)

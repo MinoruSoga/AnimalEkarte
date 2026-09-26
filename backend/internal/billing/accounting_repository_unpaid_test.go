@@ -20,7 +20,7 @@ const (
 )
 
 // setupUnpaidCarryoverTestDB は setupTestDB を拡張し、pets / animal_species テーブルも整備する。
-// FindMonthlyUnpaidCarryover は LEFT JOIN pets を使うため pets テーブルが必要。
+// FindPeriodUnpaidCarryover は LEFT JOIN pets を使うため pets テーブルが必要。
 func setupUnpaidCarryoverTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := testdb.SetupTestDB(t)
@@ -105,9 +105,9 @@ func TestSumUnpaidByOwner(t *testing.T) {
 	})
 }
 
-// TestFindMonthlyUnpaidCarryover_PrevCurrentSplit は
-// 前月/当月の分割と対象月以降の除外を検証する。#114
-func TestFindMonthlyUnpaidCarryover_PrevCurrentSplit(t *testing.T) {
+// TestFindPeriodUnpaidCarryover_PrevCurrentSplit は
+// 期間前/期間内の分割と対象期間以降の除外を検証する。EMR-188
+func TestFindPeriodUnpaidCarryover_PrevCurrentSplit(t *testing.T) {
 	db := setupUnpaidCarryoverTestDB(t)
 	repo := NewAccountingRepository(db)
 	ctx := context.Background()
@@ -116,35 +116,35 @@ func TestFindMonthlyUnpaidCarryover_PrevCurrentSplit(t *testing.T) {
 	owner := testdb.MakeTestOwner(t, db, clinicID, "分割テスト飼主")
 	id := owner.ID
 
-	// 前月(5月): 1000円 → prev_month_carryover
+	// 期間前(5月): 1000円 → prev_period_carryover
 	makeBilling(t, db, clinicID, &id, nil, 1000, model.BillingStatusWaiting,
 		time.Date(2026, 5, 15, 0, 0, 0, 0, time.UTC))
-	// 当月(6月): 2000円 → current_month_unpaid
+	// 期間内(6月): 2000円 → current_period_unpaid
 	makeBilling(t, db, clinicID, &id, nil, 2000, model.BillingStatusWaiting,
 		time.Date(2026, 6, 15, 0, 0, 0, 0, time.UTC))
-	// 翌月(7月): 3000円 → scheduled_date > lastDay なので除外
+	// 期間後(7月): 3000円 → scheduled_date > endDate なので除外
 	makeBilling(t, db, clinicID, &id, nil, 3000, model.BillingStatusWaiting,
 		time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC))
 
-	items, total, summary, err := repo.FindMonthlyUnpaidCarryover(ctx, clinicID, firstDay2026June, lastDay2026June, 1, 100)
+	items, total, summary, err := repo.FindPeriodUnpaidCarryover(ctx, clinicID, firstDay2026June, lastDay2026June, 1, 100)
 	require.NoError(t, err)
 
-	assert.Equal(t, int64(1000), summary.PrevMonthCarryover, "5月分は前月繰越")
-	assert.Equal(t, int64(2000), summary.CurrentMonthUnpaid, "6月分は当月未払い")
-	assert.Equal(t, int64(3000), summary.NextMonthCarryover, "次月繰越=前月+当月")
+	assert.Equal(t, int64(1000), summary.PrevPeriodCarryover, "5月分は期間前繰越")
+	assert.Equal(t, int64(2000), summary.CurrentPeriodUnpaid, "6月分は期間内未納")
+	assert.Equal(t, int64(3000), summary.PeriodEndCarryover, "期末繰越=期間前+期間内")
 	assert.Equal(t, int64(1), total, "owner+pet組合せ数=1")
 	require.Len(t, items, 1)
-	assert.Equal(t, int64(1000), items[0].PrevMonthCarryover)
-	assert.Equal(t, int64(2000), items[0].CurrentMonthUnpaid)
-	assert.Equal(t, int64(3000), items[0].NextMonthCarryover)
+	assert.Equal(t, int64(1000), items[0].PrevPeriodCarryover)
+	assert.Equal(t, int64(2000), items[0].CurrentPeriodUnpaid)
+	assert.Equal(t, int64(3000), items[0].PeriodEndCarryover)
 	assert.Equal(t, id, items[0].OwnerID)
 	assert.Nil(t, items[0].PetID, "pet_id はnil")
 	assert.Equal(t, "", items[0].PetName, "pet_name は空文字")
 }
 
-// TestFindMonthlyUnpaidCarryover_BoundaryDates は firstDay/lastDay の境界値を検証する。
-// firstDay-1 → prev, firstDay → current, lastDay → current, lastDay+1 → 除外
-func TestFindMonthlyUnpaidCarryover_BoundaryDates(t *testing.T) {
+// TestFindPeriodUnpaidCarryover_BoundaryDates は startDate/endDate の境界値を検証する。
+// startDate-1 → prev, startDate → current, endDate → current, endDate+1 → 除外
+func TestFindPeriodUnpaidCarryover_BoundaryDates(t *testing.T) {
 	db := setupUnpaidCarryoverTestDB(t)
 	repo := NewAccountingRepository(db)
 	ctx := context.Background()
@@ -153,29 +153,29 @@ func TestFindMonthlyUnpaidCarryover_BoundaryDates(t *testing.T) {
 	owner := testdb.MakeTestOwner(t, db, clinicID, "境界値テスト飼主")
 	id := owner.ID
 
-	// 5/31 (firstDay-1): prev
+	// 5/31 (startDate-1): prev
 	makeBilling(t, db, clinicID, &id, nil, 100, model.BillingStatusWaiting,
 		time.Date(2026, 5, 31, 0, 0, 0, 0, time.UTC))
-	// 6/1 (firstDay): current
+	// 6/1 (startDate): current
 	makeBilling(t, db, clinicID, &id, nil, 200, model.BillingStatusWaiting,
 		time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC))
-	// 6/30 (lastDay): current
+	// 6/30 (endDate): current
 	makeBilling(t, db, clinicID, &id, nil, 300, model.BillingStatusWaiting,
 		time.Date(2026, 6, 30, 0, 0, 0, 0, time.UTC))
-	// 7/1 (lastDay+1): 除外
+	// 7/1 (endDate+1): 除外
 	makeBilling(t, db, clinicID, &id, nil, 400, model.BillingStatusWaiting,
 		time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC))
 
-	_, _, summary, err := repo.FindMonthlyUnpaidCarryover(ctx, clinicID, firstDay2026June, lastDay2026June, 1, 100)
+	_, _, summary, err := repo.FindPeriodUnpaidCarryover(ctx, clinicID, firstDay2026June, lastDay2026June, 1, 100)
 	require.NoError(t, err)
 
-	assert.Equal(t, int64(100), summary.PrevMonthCarryover, "5/31 は前月繰越に入る")
-	assert.Equal(t, int64(500), summary.CurrentMonthUnpaid, "6/1+6/30=500 は当月未払い")
-	assert.Equal(t, int64(600), summary.NextMonthCarryover, "次月繰越=100+500、7/1は除外")
+	assert.Equal(t, int64(100), summary.PrevPeriodCarryover, "5/31 は期間前繰越に入る")
+	assert.Equal(t, int64(500), summary.CurrentPeriodUnpaid, "6/1+6/30=500 は期間内未納")
+	assert.Equal(t, int64(600), summary.PeriodEndCarryover, "期末繰越=100+500、7/1は除外")
 }
 
-// TestFindMonthlyUnpaidCarryover_StatusFilter は status=waiting のみが集計対象であることを検証する。
-func TestFindMonthlyUnpaidCarryover_StatusFilter(t *testing.T) {
+// TestFindPeriodUnpaidCarryover_StatusFilter は status=waiting のみが集計対象であることを検証する。
+func TestFindPeriodUnpaidCarryover_StatusFilter(t *testing.T) {
 	db := setupUnpaidCarryoverTestDB(t)
 	repo := NewAccountingRepository(db)
 	ctx := context.Background()
@@ -190,18 +190,18 @@ func TestFindMonthlyUnpaidCarryover_StatusFilter(t *testing.T) {
 	makeBilling(t, db, clinicID, &id, nil, 9000, model.BillingStatusCancelled, date)
 	makeBilling(t, db, clinicID, &id, nil, 9000, model.BillingStatusPending, date)
 
-	items, total, summary, err := repo.FindMonthlyUnpaidCarryover(ctx, clinicID, firstDay2026June, lastDay2026June, 1, 100)
+	items, total, summary, err := repo.FindPeriodUnpaidCarryover(ctx, clinicID, firstDay2026June, lastDay2026June, 1, 100)
 	require.NoError(t, err)
 
-	assert.Equal(t, int64(0), summary.PrevMonthCarryover)
-	assert.Equal(t, int64(1000), summary.CurrentMonthUnpaid, "waiting の1000円のみ集計")
-	assert.Equal(t, int64(1000), summary.NextMonthCarryover)
+	assert.Equal(t, int64(0), summary.PrevPeriodCarryover)
+	assert.Equal(t, int64(1000), summary.CurrentPeriodUnpaid, "waiting の1000円のみ集計")
+	assert.Equal(t, int64(1000), summary.PeriodEndCarryover)
 	assert.Equal(t, int64(1), total)
 	assert.Len(t, items, 1)
 }
 
-// TestFindMonthlyUnpaidCarryover_NullPetID は pet_id=NULL の billing でも正常に動作することを検証する。
-func TestFindMonthlyUnpaidCarryover_NullPetID(t *testing.T) {
+// TestFindPeriodUnpaidCarryover_NullPetID は pet_id=NULL の billing でも正常に動作することを検証する。
+func TestFindPeriodUnpaidCarryover_NullPetID(t *testing.T) {
 	db := setupUnpaidCarryoverTestDB(t)
 	repo := NewAccountingRepository(db)
 	ctx := context.Background()
@@ -212,19 +212,19 @@ func TestFindMonthlyUnpaidCarryover_NullPetID(t *testing.T) {
 	makeBilling(t, db, clinicID, &id, nil, 5000, model.BillingStatusWaiting,
 		time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC))
 
-	items, total, summary, err := repo.FindMonthlyUnpaidCarryover(ctx, clinicID, firstDay2026June, lastDay2026June, 1, 100)
+	items, total, summary, err := repo.FindPeriodUnpaidCarryover(ctx, clinicID, firstDay2026June, lastDay2026June, 1, 100)
 	require.NoError(t, err)
 
-	assert.Equal(t, int64(5000), summary.CurrentMonthUnpaid)
+	assert.Equal(t, int64(5000), summary.CurrentPeriodUnpaid)
 	assert.Equal(t, int64(1), total)
 	require.Len(t, items, 1)
 	assert.Nil(t, items[0].PetID, "pet_id は nil")
 	assert.Equal(t, "", items[0].PetName, "pet_name は空文字 (COALESCE)")
 }
 
-// TestFindMonthlyUnpaidCarryover_MultipleOwnersPets は
+// TestFindPeriodUnpaidCarryover_MultipleOwnersPets は
 // 複数飼主・複数ペット・ペットなし billing の正しいグルーピングを検証する。
-func TestFindMonthlyUnpaidCarryover_MultipleOwnersPets(t *testing.T) {
+func TestFindPeriodUnpaidCarryover_MultipleOwnersPets(t *testing.T) {
 	db := setupUnpaidCarryoverTestDB(t)
 	repo := NewAccountingRepository(db)
 	ctx := context.Background()
@@ -243,10 +243,10 @@ func TestFindMonthlyUnpaidCarryover_MultipleOwnersPets(t *testing.T) {
 	// owner2+pet2: 3000
 	makeBilling(t, db, clinicID, &owner2.ID, &pet2.ID, 3000, model.BillingStatusWaiting, date)
 
-	items, total, summary, err := repo.FindMonthlyUnpaidCarryover(ctx, clinicID, firstDay2026June, lastDay2026June, 1, 100)
+	items, total, summary, err := repo.FindPeriodUnpaidCarryover(ctx, clinicID, firstDay2026June, lastDay2026June, 1, 100)
 	require.NoError(t, err)
 
-	assert.Equal(t, int64(6000), summary.CurrentMonthUnpaid, "全合計=2000+1000+3000")
+	assert.Equal(t, int64(6000), summary.CurrentPeriodUnpaid, "全合計=2000+1000+3000")
 	assert.Equal(t, int64(3), total, "owner+pet組合せ=3グループ")
 	assert.Len(t, items, 3)
 
@@ -255,19 +255,19 @@ func TestFindMonthlyUnpaidCarryover_MultipleOwnersPets(t *testing.T) {
 	for _, it := range items {
 		if it.PetName == "ぽち" {
 			hasPochi = true
-			assert.Equal(t, int64(2000), it.CurrentMonthUnpaid)
+			assert.Equal(t, int64(2000), it.CurrentPeriodUnpaid)
 		}
 		if it.PetName == "たま" {
 			hasTama = true
-			assert.Equal(t, int64(3000), it.CurrentMonthUnpaid)
+			assert.Equal(t, int64(3000), it.CurrentPeriodUnpaid)
 		}
 	}
 	assert.True(t, hasPochi, "ぽち が結果に含まれる")
 	assert.True(t, hasTama, "たま が結果に含まれる")
 }
 
-// TestFindMonthlyUnpaidCarryover_Pagination は total_count と取得件数の整合を検証する。
-func TestFindMonthlyUnpaidCarryover_Pagination(t *testing.T) {
+// TestFindPeriodUnpaidCarryover_Pagination は total_count と取得件数の整合を検証する。
+func TestFindPeriodUnpaidCarryover_Pagination(t *testing.T) {
 	db := setupUnpaidCarryoverTestDB(t)
 	repo := NewAccountingRepository(db)
 	ctx := context.Background()
@@ -280,26 +280,26 @@ func TestFindMonthlyUnpaidCarryover_Pagination(t *testing.T) {
 	}
 
 	// page=1, limit=2
-	items1, total1, _, err := repo.FindMonthlyUnpaidCarryover(ctx, clinicID, firstDay2026June, lastDay2026June, 1, 2)
+	items1, total1, _, err := repo.FindPeriodUnpaidCarryover(ctx, clinicID, firstDay2026June, lastDay2026June, 1, 2)
 	require.NoError(t, err)
 	assert.Equal(t, int64(5), total1, "total は全件数")
 	assert.Len(t, items1, 2, "page1 limit2 → 2件")
 
 	// page=2, limit=2
-	items2, total2, _, err := repo.FindMonthlyUnpaidCarryover(ctx, clinicID, firstDay2026June, lastDay2026June, 2, 2)
+	items2, total2, _, err := repo.FindPeriodUnpaidCarryover(ctx, clinicID, firstDay2026June, lastDay2026June, 2, 2)
 	require.NoError(t, err)
 	assert.Equal(t, int64(5), total2, "total は変わらず5件")
 	assert.Len(t, items2, 2, "page2 limit2 → 2件")
 
 	// page=3, limit=2 (最終ページ: 残り1件)
-	items3, total3, _, err := repo.FindMonthlyUnpaidCarryover(ctx, clinicID, firstDay2026June, lastDay2026June, 3, 2)
+	items3, total3, _, err := repo.FindPeriodUnpaidCarryover(ctx, clinicID, firstDay2026June, lastDay2026June, 3, 2)
 	require.NoError(t, err)
 	assert.Equal(t, int64(5), total3, "total は変わらず5件")
 	assert.Len(t, items3, 1, "page3 limit2 → 残り1件")
 }
 
-// TestFindMonthlyUnpaidCarryover_ClinicIDIsolation は clinic_id による隔離を検証する。
-func TestFindMonthlyUnpaidCarryover_ClinicIDIsolation(t *testing.T) {
+// TestFindPeriodUnpaidCarryover_ClinicIDIsolation は clinic_id による隔離を検証する。
+func TestFindPeriodUnpaidCarryover_ClinicIDIsolation(t *testing.T) {
 	db := setupUnpaidCarryoverTestDB(t)
 	repo := NewAccountingRepository(db)
 	ctx := context.Background()
@@ -313,32 +313,32 @@ func TestFindMonthlyUnpaidCarryover_ClinicIDIsolation(t *testing.T) {
 	makeBilling(t, db, clinicID1, &owner1.ID, nil, 1000, model.BillingStatusWaiting, date)
 	makeBilling(t, db, clinicID2, &owner2.ID, nil, 9000, model.BillingStatusWaiting, date)
 
-	items1, total1, summary1, err := repo.FindMonthlyUnpaidCarryover(ctx, clinicID1, firstDay2026June, lastDay2026June, 1, 100)
+	items1, total1, summary1, err := repo.FindPeriodUnpaidCarryover(ctx, clinicID1, firstDay2026June, lastDay2026June, 1, 100)
 	require.NoError(t, err)
-	assert.Equal(t, int64(1000), summary1.CurrentMonthUnpaid, "医院1は1000のみ")
+	assert.Equal(t, int64(1000), summary1.CurrentPeriodUnpaid, "医院1は1000のみ")
 	assert.Equal(t, int64(1), total1)
 	assert.Len(t, items1, 1)
 
-	items2, total2, summary2, err := repo.FindMonthlyUnpaidCarryover(ctx, clinicID2, firstDay2026June, lastDay2026June, 1, 100)
+	items2, total2, summary2, err := repo.FindPeriodUnpaidCarryover(ctx, clinicID2, firstDay2026June, lastDay2026June, 1, 100)
 	require.NoError(t, err)
-	assert.Equal(t, int64(9000), summary2.CurrentMonthUnpaid, "医院2は9000のみ")
+	assert.Equal(t, int64(9000), summary2.CurrentPeriodUnpaid, "医院2は9000のみ")
 	assert.Equal(t, int64(1), total2)
 	assert.Len(t, items2, 1)
 }
 
-// TestFindMonthlyUnpaidCarryover_EmptyResult は対象データが存在しない場合にゼロ値を返すことを検証する。
-func TestFindMonthlyUnpaidCarryover_EmptyResult(t *testing.T) {
+// TestFindPeriodUnpaidCarryover_EmptyResult は対象データが存在しない場合にゼロ値を返すことを検証する。
+func TestFindPeriodUnpaidCarryover_EmptyResult(t *testing.T) {
 	db := setupUnpaidCarryoverTestDB(t)
 	repo := NewAccountingRepository(db)
 	ctx := context.Background()
 	clinicID := uint64(1)
 
-	items, total, summary, err := repo.FindMonthlyUnpaidCarryover(ctx, clinicID, firstDay2026June, lastDay2026June, 1, 100)
+	items, total, summary, err := repo.FindPeriodUnpaidCarryover(ctx, clinicID, firstDay2026June, lastDay2026June, 1, 100)
 	require.NoError(t, err)
 
-	assert.Equal(t, int64(0), summary.PrevMonthCarryover)
-	assert.Equal(t, int64(0), summary.CurrentMonthUnpaid)
-	assert.Equal(t, int64(0), summary.NextMonthCarryover)
+	assert.Equal(t, int64(0), summary.PrevPeriodCarryover)
+	assert.Equal(t, int64(0), summary.CurrentPeriodUnpaid)
+	assert.Equal(t, int64(0), summary.PeriodEndCarryover)
 	assert.Equal(t, int64(0), total)
 	assert.Empty(t, items)
 }
@@ -474,7 +474,7 @@ func TestAccountingRepository_FindUnpaidByOwner_EmptyResult(t *testing.T) {
 
 // TestUnpaidAggregates_KeepsListingAfterPetTransfer は DEC-27 境界を検証する。
 // pets.owner_id が譲渡で変わっても、billings.owner_id スナップショット側の
-// 未納一覧・残高・月次繰越が clinic 一致時に落ちないこと。
+// 未納一覧・残高・期間繰越が clinic 一致時に落ちないこと。
 func TestUnpaidAggregates_KeepsListingAfterPetTransfer(t *testing.T) {
 	db := setupUnpaidCarryoverTestDB(t)
 	repo := NewAccountingRepository(db)
@@ -523,23 +523,23 @@ func TestUnpaidAggregates_KeepsListingAfterPetTransfer(t *testing.T) {
 		assert.Equal(t, int64(0), newBalance.Count)
 	})
 
-	t.Run("FindMonthlyUnpaidCarryover keeps pet join after transfer", func(t *testing.T) {
-		items, total, summary, err := repo.FindMonthlyUnpaidCarryover(ctx, clinicID, firstDay2026June, lastDay2026June, 1, 100)
+	t.Run("FindPeriodUnpaidCarryover keeps pet join after transfer", func(t *testing.T) {
+		items, total, summary, err := repo.FindPeriodUnpaidCarryover(ctx, clinicID, firstDay2026June, lastDay2026June, 1, 100)
 		require.NoError(t, err)
-		assert.Equal(t, int64(4_200), summary.CurrentMonthUnpaid)
+		assert.Equal(t, int64(4_200), summary.CurrentPeriodUnpaid)
 		assert.Equal(t, int64(1), total)
 		require.Len(t, items, 1)
 		assert.Equal(t, originalOwner.ID, items[0].OwnerID)
 		require.NotNil(t, items[0].PetID)
 		assert.Equal(t, pet.ID, *items[0].PetID)
 		assert.Equal(t, "unpaid-transfer-pet", items[0].PetName)
-		assert.Equal(t, int64(4_200), items[0].CurrentMonthUnpaid)
+		assert.Equal(t, int64(4_200), items[0].CurrentPeriodUnpaid)
 	})
 }
 
-// TestFindMonthlyUnpaidCarryover_NextMonthCarryoverEquality は
-// next_month_carryover = prev_month_carryover + current_month_unpaid の等式を検証する。
-func TestFindMonthlyUnpaidCarryover_NextMonthCarryoverEquality(t *testing.T) {
+// TestFindPeriodUnpaidCarryover_PeriodEndCarryoverEquality は
+// period_end_carryover = prev_period_carryover + current_period_unpaid の等式を検証する。
+func TestFindPeriodUnpaidCarryover_PeriodEndCarryoverEquality(t *testing.T) {
 	db := setupUnpaidCarryoverTestDB(t)
 	repo := NewAccountingRepository(db)
 	ctx := context.Background()
@@ -557,13 +557,13 @@ func TestFindMonthlyUnpaidCarryover_NextMonthCarryoverEquality(t *testing.T) {
 	makeBilling(t, db, clinicID, &id, nil, 5500, model.BillingStatusWaiting,
 		time.Date(2026, 6, 25, 0, 0, 0, 0, time.UTC))
 
-	_, _, summary, err := repo.FindMonthlyUnpaidCarryover(ctx, clinicID, firstDay2026June, lastDay2026June, 1, 100)
+	_, _, summary, err := repo.FindPeriodUnpaidCarryover(ctx, clinicID, firstDay2026June, lastDay2026June, 1, 100)
 	require.NoError(t, err)
 
-	assert.Equal(t, int64(3300), summary.PrevMonthCarryover, "前月繰越=3300")
-	assert.Equal(t, int64(9900), summary.CurrentMonthUnpaid, "当月未払い=9900")
-	assert.Equal(t, summary.PrevMonthCarryover+summary.CurrentMonthUnpaid, summary.NextMonthCarryover,
-		"next_month_carryover は prev + current の和でなければならない")
+	assert.Equal(t, int64(3300), summary.PrevPeriodCarryover, "期間前繰越=3300")
+	assert.Equal(t, int64(9900), summary.CurrentPeriodUnpaid, "期間内未納=9900")
+	assert.Equal(t, summary.PrevPeriodCarryover+summary.CurrentPeriodUnpaid, summary.PeriodEndCarryover,
+		"period_end_carryover は prev + current の和でなければならない")
 }
 
 // TestUnpaidIncludesCreditCorrectionResidual_BUG007 はクレジット訂正で生じた

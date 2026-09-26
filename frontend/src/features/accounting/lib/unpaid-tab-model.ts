@@ -1,9 +1,10 @@
 import type { Accounting } from "../api/transforms";
 
-export type UnpaidGroupBy = "owner" | "billing" | "monthly";
+export type UnpaidGroupBy = "owner" | "billing" | "period";
 
+// EMR-188: "monthly" は旧 URL (group_by=monthly) のレガシーエイリアスとして period に正規化する。
 export function parseUnpaidGroupBy(raw: string | null): UnpaidGroupBy {
-  return raw === "billing" ? "billing" : raw === "monthly" ? "monthly" : "owner";
+  return raw === "billing" ? "billing" : raw === "period" || raw === "monthly" ? "period" : "owner";
 }
 
 export function unpaidBillingAmount(billing: Accounting): number {
