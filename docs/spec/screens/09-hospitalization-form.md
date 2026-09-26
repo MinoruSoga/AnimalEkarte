@@ -35,7 +35,7 @@ flowchart TB
 ## 画面構成
 
 ### 1. 入院基本情報
-- **患者ヘッダー**: `PatientInfoCard` + `formatPatientPetDetails` に `species` を渡す。動物種は実データを表示する（固定の「不明」にしない）。
+- **患者ヘッダー**: `PatientInfoCard` + `formatPatientPetDetails` に `species` を渡す。動物種は実データを表示する（固定の「不明」にしない）。危険マーク（EMR-173、共有 `DangerBadge`）: ペット名横に `danger_level` 高=赤 `⚠ 危険`・中=黄 `⚠ 注意`（Popover で理由）、低・未設定は非表示。飼主 `is_dangerous` は飼主名横に `⚠ 危険人物`。入院・ホテル施術前の安全確認に必須の常時表示。
 
 Notionスタイルのプロパティ編集UIで、入院の根幹となる条件を設定します。
 - **入院タイプ**: 「入院」または「ホテル」を選択。

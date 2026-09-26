@@ -106,6 +106,56 @@ func TestToReservationResponseIncludesPetDangerLevel(t *testing.T) {
 	}
 }
 
+// EMR-173: 受付カンバンの飼主「危険人物」マーク用に、owner サマリへ is_dangerous を
+// 載せる。reservation.owner と reservation.pet.owner の両方が同じ toOwnerSummary を通る。
+func TestToReservationResponseIncludesOwnerIsDangerous(t *testing.T) {
+	owner := &model.Owner{
+		ID:          10,
+		Name:        "山田 太郎",
+		IsDangerous: true,
+	}
+	resp := toReservationResponse(&model.Reservation{
+		ID:       1,
+		ClinicID: 1,
+		Owner:    owner,
+		Pet: &model.Pet{
+			ID:    20,
+			Name:  "ポチ",
+			Owner: owner,
+		},
+	})
+
+	body, err := json.Marshal(resp)
+	if err != nil {
+		t.Fatalf("json.Marshal() error = %v", err)
+	}
+	var payload struct {
+		Owner struct {
+			IsDangerous *bool `json:"is_dangerous"`
+		} `json:"owner"`
+		Pet struct {
+			Owner struct {
+				IsDangerous *bool `json:"is_dangerous"`
+			} `json:"owner"`
+		} `json:"pet"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	if resp.Owner == nil || !resp.Owner.IsDangerous {
+		t.Fatalf("response owner summary = %#v, want IsDangerous true", resp.Owner)
+	}
+	if resp.Pet == nil || resp.Pet.Owner == nil || !resp.Pet.Owner.IsDangerous {
+		t.Fatalf("response pet.owner summary = %#v, want IsDangerous true", resp.Pet)
+	}
+	if payload.Owner.IsDangerous == nil || !*payload.Owner.IsDangerous {
+		t.Fatalf("reservation JSON = %s, want owner.is_dangerous true", body)
+	}
+	if payload.Pet.Owner.IsDangerous == nil || !*payload.Pet.Owner.IsDangerous {
+		t.Fatalf("reservation JSON = %s, want pet.owner.is_dangerous true", body)
+	}
+}
+
 // 受付ヘッダー テレメトリ（change-ui.md Phase 2）: checked_in_at が
 // レスポンス DTO に正しくマッピングされることを保証する。
 func TestToReservationResponseIncludesCheckedInAt(t *testing.T) {
