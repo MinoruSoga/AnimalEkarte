@@ -58,7 +58,11 @@ type PetInOwnerResponse struct {
 	// LIFF LinkLiffAccount 経路でも再利用されるため、スタッフ用の死因自由記述を飼主向け
 	// レスポンスに載せてしまう。UI側でも死亡バナー表示に必要なのは DeceasedAt のみで
 	// DeceasedReason の読み取り消費者は存在しない — 意図的に未追加）。
-	DeceasedAt    *time.Time              `json:"deceased_at,omitempty"`
+	DeceasedAt *time.Time `json:"deceased_at,omitempty"`
+	// EMR-174: 名前の由来 / 出逢いのストーリーは任意記録。
+	// （deceased_reason と違い飼主向け公開に機微情報を含まないため owner 経路でも返す）。
+	NameOrigin    *string                 `json:"name_origin,omitempty"`
+	MeetingStory  *string                 `json:"meeting_story,omitempty"`
 	CreatedAt     time.Time               `json:"created_at"`
 	UpdatedAt     time.Time               `json:"updated_at"`
 	AnimalSpecies *PetAnimalSpeciesNested `json:"animal_species,omitempty"`
@@ -126,6 +130,8 @@ func toPetInOwnerResponse(p *model.Pet) PetInOwnerResponse {
 		InsuranceID:     p.InsuranceID,
 		Remarks:         p.Remarks,
 		DeceasedAt:      httpapi.LocalTimePtr(p.DeceasedAt),
+		NameOrigin:      p.NameOrigin,
+		MeetingStory:    p.MeetingStory,
 		CreatedAt:       httpapi.LocalTime(p.CreatedAt),
 		UpdatedAt:       httpapi.LocalTime(p.UpdatedAt),
 	}

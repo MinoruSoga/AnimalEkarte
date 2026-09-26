@@ -8,6 +8,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { Button } from "@/components/ui/button";
 import { C, STYLE, ICON, LAYOUT } from "@/lib/design-tokens";
+import { paths } from "@/config/paths";
 import { ResourceVaccinations } from "@/types/generated/models";
 import type { SortOrder } from "@/types";
 import type { VaccinationRecord } from "../api/transforms";
@@ -115,6 +116,9 @@ interface VaccinationHistoryFilterState {
 }
 
 interface VaccinationPatient {
+  /** EMR-174: 詳細 deep link 用（選択 Pet 由来） */
+  id?: string;
+  ownerId?: string;
   ownerName: string;
   name: string;
   petNumber?: string;
@@ -204,6 +208,14 @@ export function VaccinationFormBody({
               ownerName={selectedPet.ownerName}
               petName={selectedPet.name}
               petNumber={selectedPet.petNumber ?? ""}
+              ownerDetailHref={
+                selectedPet.ownerId ? paths.owners.detail.getHref(selectedPet.ownerId) : undefined
+              }
+              petDetailHref={
+                selectedPet.ownerId && selectedPet.id
+                  ? paths.owners.detail.pet.getHref(selectedPet.ownerId, selectedPet.id)
+                  : undefined
+              }
               weight={selectedPet.weight ?? ""}
               petDetails={formatPatientPetDetails({
                 species: selectedPet.species,

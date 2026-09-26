@@ -3,6 +3,7 @@ import type { ChangeEvent } from "react";
 import { PatientInfoCard, formatPatientPetDetails } from "@/components/shared/PatientInfoCard";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import { formatDate } from "@/lib/format/date";
+import { paths } from "@/config/paths";
 import type { SortOrder } from "@/types";
 import type { TrimmingFormData } from "@/types/trimming";
 import {
@@ -14,6 +15,9 @@ import type { TrimmingHistoryItem } from "../lib/trimming-form-column-types";
 import type { TrimmingSelectableItem } from "./trimming-form-model";
 
 export interface TrimmingPatient {
+  /** EMR-174: 詳細 deep link 用（選択 Pet 由来。未選択のダミー行では未設定） */
+  id?: string;
+  ownerId?: string;
   ownerName: string;
   name: string;
   petNumber?: string;
@@ -90,6 +94,14 @@ export function TrimmingFormColumns({
         ownerName={selectedPet.ownerName}
         petName={selectedPet.name}
         petNumber={selectedPet.petNumber || ""}
+        ownerDetailHref={
+          selectedPet.ownerId ? paths.owners.detail.getHref(selectedPet.ownerId) : undefined
+        }
+        petDetailHref={
+          selectedPet.ownerId && selectedPet.id
+            ? paths.owners.detail.pet.getHref(selectedPet.ownerId, selectedPet.id)
+            : undefined
+        }
         weight={selectedPet.weight || ""}
         staffName={formData.staffName}
         staffLabel="担当医"

@@ -30,6 +30,9 @@ type PetWritable = Pick<
   | "status"
   | "insurance_id"
   | "remarks"
+  // EMR-174: 名前の由来 / 出逢いのストーリー（nullable text）
+  | "name_origin"
+  | "meeting_story"
 >;
 
 /**
@@ -48,13 +51,20 @@ export type CreatePetRequest = Pick<PetWritable, "owner_id" | "animal_species_id
  * 監査付きの死亡登録/取消エンドポイント(/:id/death)に一本化されている。
  * CreatePetRequest は PetWritable を直接参照するため、この除外の影響を受けない。
  */
-export type UpdatePetRequest = Omit<Partial<PetWritable>, "status" | "danger_reason"> & {
+export type UpdatePetRequest = Omit<
+  Partial<PetWritable>,
+  "status" | "danger_reason" | "name_origin" | "meeting_story"
+> & {
   /**
    * tri-state: key不在=変更なし / null=クリア / 値=更新。
    * backend側は nullableStringRequestField (pet_request.go) で null と absent を区別する。
    * 生成基底の danger_reason?: string のままでは null クリアが型落ちするため、ここで上書きする。
    */
   danger_reason?: string | null;
+  /** EMR-174: tri-state（danger_reason と同じ null クリア方式） */
+  name_origin?: string | null;
+  /** EMR-174: tri-state（danger_reason と同じ null クリア方式） */
+  meeting_story?: string | null;
 };
 
 /**

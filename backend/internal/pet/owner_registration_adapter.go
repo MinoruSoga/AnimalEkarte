@@ -52,6 +52,8 @@ func (a *OwnerRegistrationAdapter) CreateForOwnerRegistration(
 			Phone:           draft.Phone,
 			InsuranceID:     draft.InsuranceID,
 			Remarks:         draft.Remarks,
+			NameOrigin:      draft.NameOrigin,
+			MeetingStory:    draft.MeetingStory,
 		})
 	}
 

@@ -2994,6 +2994,11 @@ export interface Pet {
   last_visit?: string;
   insurance_id?: number /* uint64 */;
   remarks: string;
+  /**
+   * EMR-174: 名前の由来 / 出逢いのストーリーは任意記録。NULL=未記録。
+   */
+  name_origin?: string;
+  meeting_story?: string;
   deceased_at?: string;
   deceased_reason?: string;
   version: number /* int */;

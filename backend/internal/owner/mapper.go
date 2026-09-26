@@ -56,6 +56,8 @@ func buildOwnerPetModels(inputs []CreatePetForOwnerInput) []model.Pet {
 			Environment:     p.Environment,
 			InsuranceID:     p.InsuranceID,
 			Remarks:         p.Remarks,
+			NameOrigin:      p.NameOrigin,
+			MeetingStory:    p.MeetingStory,
 		}
 		// 血液型 / マイクロチップ番号は nullable。空文字は未設定として NULL のままにする。
 		if p.BloodType != "" {

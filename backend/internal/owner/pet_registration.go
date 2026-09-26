@@ -31,6 +31,9 @@ type PetRegistrationDraft struct {
 	Phone           string
 	InsuranceID     *uint64
 	Remarks         string
+	// EMR-174: 名前の由来 / 出逢いのストーリーは任意記録（nil = NULL）。
+	NameOrigin   *string
+	MeetingStory *string
 }
 
 // PetRegistrationIntent is the owner-owned cross-domain command. The pet

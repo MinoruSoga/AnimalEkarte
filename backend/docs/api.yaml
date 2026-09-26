@@ -454,6 +454,16 @@ components:
           nullable: true
         remarks:
           type: string
+        name_origin:
+          type: string
+          maxLength: 500
+          nullable: true
+          description: 名前の由来（任意記録。空文字・省略は NULL=未記録）
+        meeting_story:
+          type: string
+          maxLength: 2000
+          nullable: true
+          description: 出逢いのストーリー（任意記録。空文字・省略は NULL=未記録）
     CreateOwnerRequest:
       type: object
       required: [owner_name]
@@ -685,6 +695,18 @@ components:
           nullable: true
         remarks:
           type: string
+        name_origin:
+          type: string
+          maxLength: 500
+          nullable: true
+          readOnly: true
+          description: 名前の由来（任意記録）
+        meeting_story:
+          type: string
+          maxLength: 2000
+          nullable: true
+          readOnly: true
+          description: 出逢いのストーリー（任意記録）
         deceased_at:
           type: string
           format: date-time
@@ -1001,6 +1023,18 @@ components:
           nullable: true
         remarks:
           type: string
+        name_origin:
+          type: string
+          maxLength: 500
+          nullable: true
+          readOnly: true
+          description: 名前の由来（任意記録）
+        meeting_story:
+          type: string
+          maxLength: 2000
+          nullable: true
+          readOnly: true
+          description: 出逢いのストーリー（任意記録）
         deceased_at:
           type: string
           format: date-time
@@ -1247,6 +1281,18 @@ components:
           nullable: true
         remarks:
           type: string
+        name_origin:
+          type: string
+          maxLength: 500
+          nullable: true
+          readOnly: true
+          description: 名前の由来（任意記録）
+        meeting_story:
+          type: string
+          maxLength: 2000
+          nullable: true
+          readOnly: true
+          description: 出逢いのストーリー（任意記録）
         owner:
           type: object
           description: 飼主サマリ（Preload時のみ含まれる）
@@ -1455,6 +1501,16 @@ components:
           nullable: true
         remarks:
           type: string
+        name_origin:
+          type: string
+          maxLength: 500
+          nullable: true
+          description: 名前の由来（任意記録。空文字・省略は NULL=未記録）
+        meeting_story:
+          type: string
+          maxLength: 2000
+          nullable: true
+          description: 出逢いのストーリー（任意記録。空文字・省略は NULL=未記録）
     UpdatePetRequest:
       type: object
       description: PATCH用（全フィールド任意）
@@ -1522,6 +1578,16 @@ components:
           nullable: true
         remarks:
           type: string
+        name_origin:
+          type: string
+          maxLength: 500
+          nullable: true
+          description: 名前の由来。省略=変更なし、null=NULLクリア、値=更新
+        meeting_story:
+          type: string
+          maxLength: 2000
+          nullable: true
+          description: 出逢いのストーリー。省略=変更なし、null=NULLクリア、値=更新
 
     # ─── ChronicCondition (慢性疾患フラグ BE-012) ─────────────────────────────
     ChronicCondition:

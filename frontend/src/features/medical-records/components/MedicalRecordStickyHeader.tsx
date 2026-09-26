@@ -216,6 +216,14 @@ export function MedicalRecordStickyHeader({
         microchipNumber={selectedPet.microchipNumber?.trim() || undefined}
         vitalsSummary={vitalsSummary ?? undefined}
         onOwnerClick={!isNewRecord && canEdit && !isFinalized ? onOwnerClick : undefined}
+        ownerDetailHref={
+          selectedPet.ownerId ? paths.owners.detail.getHref(selectedPet.ownerId) : undefined
+        }
+        petDetailHref={
+          selectedPet.ownerId && selectedPet.id
+            ? paths.owners.detail.pet.getHref(selectedPet.ownerId, selectedPet.id)
+            : undefined
+        }
         contextControls={contextControls}
       />
       {!isNewRecord && cohabitingPets.length > 0 ? (

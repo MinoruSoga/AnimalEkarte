@@ -3,6 +3,7 @@ import { DatePicker } from "@/components/shared/DatePicker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select";
 import { C, STYLE } from "@/lib/design-tokens";
 import { toJSTWallDate } from "@/lib/jst-date";
@@ -146,6 +147,46 @@ export function PetIdentitySection({
           placeholder="生年月日を選択…"
           disabledDays={{ after: toJSTWallDate(new Date()) }}
         />
+      </div>
+
+      {/* EMR-174: 名前の由来 / 出逢いのストーリー（任意・NULL=未記録） */}
+      <div className="space-y-1">
+        <Label htmlFor="nameOrigin" className={LABEL_CLS}>
+          名前の由来
+        </Label>
+        <Input
+          id="nameOrigin"
+          value={formData.nameOrigin || ""}
+          maxLength={500}
+          aria-invalid={!!fieldErrors.nameOrigin}
+          aria-describedby={fieldErrors.nameOrigin ? "nameOrigin-error" : undefined}
+          onChange={(e) => {
+            setFormData((prev) => ({ ...prev, nameOrigin: e.target.value }));
+            clearFieldError("nameOrigin");
+          }}
+          className={`${INPUT_CLS} ${fieldErrors.nameOrigin ? STYLE.formInputError : ""}`}
+        />
+        <FormFieldError id="nameOrigin-error" message={fieldErrors.nameOrigin} />
+      </div>
+
+      <div className="space-y-1">
+        <Label htmlFor="meetingStory" className={LABEL_CLS}>
+          出逢いのストーリー
+        </Label>
+        <Textarea
+          id="meetingStory"
+          value={formData.meetingStory || ""}
+          maxLength={2000}
+          rows={3}
+          aria-invalid={!!fieldErrors.meetingStory}
+          aria-describedby={fieldErrors.meetingStory ? "meetingStory-error" : undefined}
+          onChange={(e) => {
+            setFormData((prev) => ({ ...prev, meetingStory: e.target.value }));
+            clearFieldError("meetingStory");
+          }}
+          className={`${STYLE.textarea} ${fieldErrors.meetingStory ? STYLE.formInputError : ""}`}
+        />
+        <FormFieldError id="meetingStory-error" message={fieldErrors.meetingStory} />
       </div>
     </div>
   );

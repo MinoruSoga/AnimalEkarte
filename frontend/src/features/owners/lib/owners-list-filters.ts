@@ -13,7 +13,7 @@ import type {
 // フィルタUIの条件選択肢自体を is のみに絞る。
 // react-refresh/only-export-components: OwnersListTable.tsx / OwnersList.tsx はどちらも
 // route/component ファイルのため、共有する非コンポーネント export（定数・純粋関数）は
-// この専用ファイルに集約する（petToFormData と同型のルール、OwnersList.tsx 冒頭コメント参照）。
+// この専用ファイルに集約する。
 const SERVER_FILTER_CONDITIONS: FilterCondition[] = ["is"];
 
 const INCLUDE_DECEASED_OPTIONS: FilterOption[] = [

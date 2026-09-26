@@ -82,6 +82,9 @@ function transformPetListItemToFrontend(p: PetListResponse): Pet {
     insuranceDetails:
       p.insurance?.coverage_rate != null ? `${p.insurance.coverage_rate}%補償` : undefined,
     remarks: p.remarks,
+    // EMR-174: detail 経路 (transformBackendPetToFrontend) と同じ NULL=undefined 契約
+    nameOrigin: p.name_origin ?? undefined,
+    meetingStory: p.meeting_story ?? undefined,
     // PERF-E5-N1-PETS: PetListResponse は deceased_at / deceased_reason を持つ
     // （ownerLoader の単一 list リクエスト化で detail 経路と情報量を揃えた）。
     deceasedAt: p.deceased_at,

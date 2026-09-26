@@ -37,6 +37,9 @@ export function toPet(pet: OwnerReportPet, ownerId: string): Pet {
     insuranceName: pet.insuranceName,
     insuranceDetails: pet.insuranceDetails,
     remarks: pet.remarks,
+    // EMR-174: owner-report wire は name_origin / meeting_story を返さない → undefined
+    nameOrigin: undefined,
+    meetingStory: undefined,
     deceasedAt: undefined,
     deceasedReason: undefined,
   };

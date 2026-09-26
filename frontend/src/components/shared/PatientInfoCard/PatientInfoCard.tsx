@@ -1,4 +1,5 @@
 import { memo } from "react";
+import { Link } from "react-router";
 import { C, ICON } from "@/lib/design-tokens";
 import { ChevronDown, User, Calendar, Activity } from "lucide-react";
 import imgEllipse1 from "@/assets/231a870df600a37e011a0e1140e7608b1f4c3340.png";
@@ -31,6 +32,10 @@ interface PatientInfoCardProps {
   onOwnerClick?: () => void;
   onReservationTypeClick?: () => void;
   staffButtonId?: string;
+  /** EMR-174: 飼主詳細へのリンク（onOwnerClick 併存時はボタン優先） */
+  ownerDetailHref?: string;
+  /** EMR-174: ペット詳細への deep link（飼主詳細 ?pet=） */
+  petDetailHref?: string;
 }
 
 function normalizeAlertDate(value: string): string | undefined {
@@ -76,6 +81,8 @@ export const PatientInfoCard = memo(function PatientInfoCard({
   onOwnerClick,
   onReservationTypeClick,
   staffButtonId,
+  ownerDetailHref,
+  petDetailHref,
 }: PatientInfoCardProps) {
   const isDeceased = status === "deceased";
   const nextVisitAlertDate = nextVisitDate ? normalizeAlertDate(nextVisitDate) : undefined;
@@ -105,12 +112,32 @@ export const PatientInfoCard = memo(function PatientInfoCard({
               >
                 {ownerName}
               </button>
+            ) : ownerDetailHref ? (
+              // EMR-174: onOwnerClick 未指定時は飼主詳細へ link
+              <Link
+                to={ownerDetailHref}
+                aria-label="飼主詳細を開く"
+                className={`text-base font-medium ${C.text} hover:underline decoration-dotted underline-offset-2`}
+              >
+                {ownerName}
+              </Link>
             ) : (
               <span className={`text-base font-medium ${C.text}`}>{ownerName}</span>
             )}
-            <span className={`text-base font-medium ${isDeceased ? C.text60 : C.text}`}>
-              {petName}
-            </span>
+            {petDetailHref ? (
+              // EMR-174: ペット詳細（飼主詳細 ?pet=）へ link
+              <Link
+                to={petDetailHref}
+                aria-label="ペット詳細を開く"
+                className={`text-base font-medium ${isDeceased ? C.text60 : C.text} hover:underline decoration-dotted underline-offset-2`}
+              >
+                {petName}
+              </Link>
+            ) : (
+              <span className={`text-base font-medium ${isDeceased ? C.text60 : C.text}`}>
+                {petName}
+              </span>
+            )}
             {isDeceased ? (
               <span
                 className={`text-2xs font-semibold px-1.5 py-0.5 rounded ${C.bgDanger} ${C.textWhite} uppercase ml-1`}

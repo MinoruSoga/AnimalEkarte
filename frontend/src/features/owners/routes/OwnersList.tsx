@@ -4,8 +4,6 @@ import {
   useMemo,
   useCallback,
   useTransition,
-  lazy,
-  Suspense,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -34,23 +32,14 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { ClinicScopeFilter } from "@/components/shared/ClinicScopeFilter/ClinicScopeFilter";
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
-import { transformUpdatePetRequest } from "@/lib/transforms/pet";
 import { handleApiError } from "@/lib/handle-api-error";
 import { openOwnerReport } from "@/lib/owner-report-window";
 // bundle-barrel-imports: バレルindex経由ではなく直接ファイルからimport
 import { deleteOwner } from "../api/delete-owner";
 import { usePermission } from "@/hooks/use-permission";
 
-// bundle-dynamic-imports: PetEditModal を遅延ロード
-const PetEditModal = lazy(() =>
-  import("../components/PetEditModal").then((m) => ({ default: m.PetEditModal })),
-);
-
 // Types
-import type { Pet } from "@/types";
 import type { OwnersLoaderData } from "../loaders";
-import type { PetFormData } from "../types";
-import type { UpdatePetRequest } from "@/types/pet";
 import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 import { ResourceMedicalRecords, ResourceOwners } from "@/types/generated/models";
 import { OwnersListTable } from "../components/OwnersListTable";
@@ -61,53 +50,18 @@ import {
   buildOwnerFilterProperties,
 } from "../lib/owners-list-filters";
 
-// Pet → ペット編集フォーム初期値の変換。本ルートのモーダルでのみ使用するため
-// コンポーネントファイルからの export はせずここに置く (react-refresh/only-export-components)。
-function petToFormData(pet: Pet): PetFormData {
-  return {
-    id: pet.id,
-    petNumber: pet.petNumber || "",
-    petName: pet.name,
-    petNameKana: pet.petNameKana || "",
-    status: pet.status || "生存",
-    species: pet.species,
-    animalSpeciesId: pet.animalSpeciesId,
-    gender: pet.gender || "",
-    birthDate: pet.birthDate || "",
-    color: pet.color || "",
-    weight: pet.weight || "",
-    food: pet.food || "",
-    environment: pet.environment || "",
-    neuteredDate: pet.neuteredDate || "",
-    acquisitionType: (pet.acquisitionType as PetFormData["acquisitionType"]) || undefined,
-    dangerLevel: (pet.dangerLevel as PetFormData["dangerLevel"]) || undefined,
-    dangerReason: pet.dangerReason || "",
-    remarks: pet.remarks || "",
-    breed: pet.breed,
-    insuranceId: pet.insuranceId,
-    insuranceName: pet.insuranceName,
-    insuranceDetails: pet.insuranceDetails,
-  };
-}
-
-interface OwnersListProps {
-  onUpdatePet?: (id: string, req: UpdatePetRequest) => Promise<Pet>;
-}
-
 const CLINIC_TOGGLE_RESET_PARAMS = ["page"] as const;
 
 const SEARCH_DEBOUNCE_MS = 300;
 
-export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
+export function OwnersList() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { canCreate, canEdit, canDelete } = usePermission("owners");
-  const canEditRef = useRef(canEdit);
   const canDeleteRef = useRef(canDelete);
   useLayoutEffect(() => {
-    canEditRef.current = canEdit;
     canDeleteRef.current = canDelete;
-  }, [canDelete, canEdit]);
+  }, [canDelete]);
   // #158: レポート導線は medical-records:view でゲートする（カルテ内容を横断表示するため）
   const { canView: canReport } = usePermission(ResourceMedicalRecords);
   const revalidator = useRevalidator();
@@ -201,9 +155,6 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
 
   const deleteModal = useModalState<{ id: string; name: string }>();
   const [isDeleting, startDeleteTransition] = useTransition();
-  const petModal = useModalState<Pet>();
-  // PetEditModal は保存呼び出し後すぐ閉じるため pending state を UI で使わない（FE-RC-083）
-  const [, startPetSaveTransition] = useTransition();
 
   const totalPages = Math.max(1, Math.ceil(total / limit));
   const startIndex = total === 0 ? 0 : (page - 1) * limit + 1;
@@ -248,49 +199,6 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
   const handleReport = useCallback((ownerId: string, petId: string) => {
     openOwnerReport(ownerId, petId);
   }, []);
-
-  // rerender-dependencies: object 依存を避け stable な変数に抽出してから deps に渡す
-  const petModalItem = petModal.item;
-  const closePetModal = petModal.close;
-
-  // PetEditModal の保存ハンドラ
-  const handlePetSave = useCallback(
-    (formData: PetFormData) => {
-      if (!petModalItem || !onUpdatePet) return;
-      startPetSaveTransition(async () => {
-        try {
-          const req = transformUpdatePetRequest({
-            name: formData.petName,
-            petNameKana: formData.petNameKana,
-            animalSpeciesId: formData.animalSpeciesId,
-            gender: formData.gender,
-            birthDate: formData.birthDate,
-            breed: formData.breed,
-            color: formData.color,
-            weight: formData.weight,
-            food: formData.food,
-            environment: formData.environment,
-            neuteredDate: formData.neuteredDate,
-            acquisitionType: formData.acquisitionType,
-            dangerLevel: formData.dangerLevel,
-            dangerReason: formData.dangerReason,
-            originalDangerReason: petModalItem.dangerReason,
-            // status は渡さない(BUG-415): transformUpdatePetRequest は status を無視する。
-            insuranceId: formData.insuranceId,
-            remarks: formData.remarks,
-          });
-          if (canEditRef.current !== true) return;
-          await onUpdatePet(petModalItem.id, req);
-          toast.success("ペット情報を更新しました");
-          closePetModal();
-          revalidator.revalidate();
-        } catch (error: unknown) {
-          handleApiError(error, "更新");
-        }
-      });
-    },
-    [petModalItem, closePetModal, onUpdatePet, revalidator],
-  );
 
   const openDeleteModal = deleteModal.open;
   const handleDeleteRequest = useCallback(
@@ -400,21 +308,6 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
         cancelLabel="キャンセル"
         variant="destructive"
       />
-
-      {/* ペット編集モーダル */}
-      {petModal.item ? (
-        <Suspense fallback={null}>
-          <PetEditModal
-            open={petModal.isOpen}
-            onOpenChange={(open) => {
-              if (!open) petModal.close();
-            }}
-            ownerName={petModal.item.ownerName}
-            petData={petToFormData(petModal.item)}
-            onSave={handlePetSave}
-          />
-        </Suspense>
-      ) : null}
     </PageLayout>
   );
 }
