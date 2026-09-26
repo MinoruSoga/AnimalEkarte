@@ -80,12 +80,13 @@ export async function getMedicalRecords(
 
 export function useGetMedicalRecords(
   filters?: MedicalRecordFilters,
-  options?: { preservePreviousData?: boolean },
+  options?: { preservePreviousData?: boolean; enabled?: boolean },
 ) {
   return useQuery({
     queryKey: queryKeys.medicalRecords.list(filters),
     queryFn: () => getMedicalRecords(filters),
     placeholderData: options?.preservePreviousData ? keepPreviousData : undefined,
+    enabled: options?.enabled ?? true,
     staleTime: QUERY_STALE_TIMES.MEDIUM,
     gcTime: QUERY_GC_TIMES.STANDARD,
   });
