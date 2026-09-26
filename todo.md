@@ -2,7 +2,7 @@
 
 > Task migrated to Plane `EMR-199`. This file remains supporting acceptance/evidence material; use Plane for current status.
 
-最終照合: 2026-09-23。未完了タスクと状態はPlaneが正本。以下の旧HEAD・コード/UAT照合内容は当時の根拠であり、現在の配備・受入状態を示さない。移行対応は [Plane移行記録](docs/work/plane-md-migration-20260923-receipt.md)。
+最終照合: 2026-09-26（Plane 状態とコード・git履歴を照合し、Done/Cancelled かつ対応コミットまたは受入記録を確認できた項目を削除）。未完了タスクと状態はPlaneが正本。以下の旧HEAD・コード/UAT照合内容は当時の根拠であり、現在の配備・受入状態を示さない。移行対応は [Plane移行記録](docs/work/plane-md-migration-20260923-receipt.md)。
 
 本ファイルは旧 `todo-issue.md`・`todo-verification.md`・`todo-operations.md`・`todo-performance.md` を 2026-09-26 に統合した。節: [Issue 出典・仕様履歴](#issue-ledger) · [検証・受入](#verification-ledger) · [運用・外部実行](#operations-ledger) · [性能](#performance-ledger)。統合前の行番号参照（`L175` 等）は Git の旧ファイルを指す。
 
@@ -16,13 +16,6 @@ Current unfinished implementation, verification, data, performance, delivery, an
 ## 確認済み製品 FAIL
 
 移行前の一覧は Plane `EMR-199` へ移行済み（[移行記録](docs/work/plane-md-migration-20260923-receipt.md)）。本節には移行後に新規確定した UAT 製品 FAIL だけを記録し、Linear/Plane intake は別途行う。
-
-### UAT 2026-09-23 確定分（証拠: `reports/uat-2026-09-23/v04-retest/`、詳細: `bug.md` 末尾「確認済み製品欠陥（UAT 2026-09-23 · V04 追加分）」）
-
-| ID | severity | 領域 | 症状 | シナリオ | Plane / 修正PR |
-|:---|:---|:---|:---|:---|:---|
-| BUG-MASTER-RESVTYPE-SLOT-FORM-NESTED | High | reservation / master settings | 予約区分パネル内の予約可能枠フォームがネスト `<form>` で破棄され追加不能（javascript: action が CSP ブロック） | V04 §5 | EMR-208 / PR #469 |
-| BUG-MASTER-RESVTYPE-OCC-ENVELOPE | Medium | reservation / master settings | `GET /reservation-types/:id/occupations` が裸配列を返すが FE は `{data}` エンベロープ期待で `data.data.map` が TypeError → 紐付け職種バッジが常に非表示 | V04 §4 | EMR-209 / PR #469 |
 
 ### UAT 2026-09-25 確定分（証拠: `reports/uat-2026-09-25/tickets/EMR-87.md`）
 
@@ -77,14 +70,6 @@ Linear/BRT-4に関する以下の文言は過去の運用方針記録。2026-09-
 
 ### Plane task links
 
-<a id="uat-r2-master-path"></a>
-
-`UAT-R2-MASTER-PATH` → Plane `EMR-84` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
-
-<a id="uat-r2-exclusive-lock"></a>
-
-`UAT-R2-EXCLUSIVE-LOCK` → Plane `EMR-85` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
-
 <a id="uat-q2-treatments-import"></a>
 
 `UAT-Q2-TREATMENTS-IMPORT` → Plane `MIG-15` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
@@ -92,10 +77,6 @@ Linear/BRT-4に関する以下の文言は過去の運用方針記録。2026-09-
 <a id="slack-manual-urine"></a>
 
 `SLACK-MANUAL-URINE` → Plane `EMR-86` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
-
-<a id="slack-complaint"></a>
-
-`SLACK-COMPLAINT` → Plane `EMR-87` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
 
 <a id="slack-cross-clinic"></a>
 
@@ -209,42 +190,6 @@ Linear/BRT-4に関する以下の文言は過去の運用方針記録。2026-09-
 
 `SLACK-SMAREGI` → Plane `EMR-119` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
 
-<a id="uat-r2-treatment-commit"></a>
-
-`UAT-R2-TREATMENT-COMMIT` → Plane `EMR-120` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
-
-<a id="uat-r2-master-list-height"></a>
-
-`UAT-R2-MASTER-LIST-HEIGHT` → Plane `EMR-121` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
-
-<a id="uat-q1-search-and"></a>
-
-`UAT-Q1-SEARCH-AND` → Plane `EMR-122` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
-
-<a id="uat-q4-insurance-rates"></a>
-
-`UAT-Q4-INSURANCE-RATES` → Plane `EMR-123` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
-
-<a id="uat-q2-history-nav"></a>
-
-`UAT-Q2-HISTORY-NAV` → Plane `EMR-124` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
-
-<a id="dev-v-owner-db"></a>
-
-`DEV-V-OWNER-DB` → Plane `EMR-125` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
-
-<a id="todo-v-s09-qa-uat-s09-fixture"></a>
-
-`TODO-V-S09 / QA-UAT-S09-FIXTURE` → Plane `EMR-126` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
-
-<a id="todo-v-s09"></a>
-
-`TODO-V-S09` → Plane `EMR-126` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
-
-<a id="qa-uat-s09-fixture"></a>
-
-`QA-UAT-S09-FIXTURE` → Plane `EMR-126` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
-
 <a id="todo-v-v04-qa-uat-v04-retest"></a>
 
 `TODO-V-V04 / QA-UAT-V04-RETEST` → Plane `EMR-127` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
@@ -337,10 +282,6 @@ Linear/BRT-4に関する以下の文言は過去の運用方針記録。2026-09-
 
 `META-LINEAR-APPLY` → Plane `EMR-135` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
 
-<a id="perf-v-linear"></a>
-
-`PERF-V-LINEAR` → Plane `EMR-136` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
-
 <a id="auth-v-linear-read"></a>
 
 `AUTH-V-LINEAR-READ` → Plane `EMR-137` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
@@ -368,10 +309,6 @@ Linear/BRT-4に関する以下の文言は過去の運用方針記録。2026-09-
 <a id="perf-v-bundle"></a>
 
 `PERF-V-BUNDLE` → Plane `EMR-143` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
-
-<a id="bug-local-handoff-csv-contract"></a>
-
-`BUG-LOCAL-HANDOFF-CSV-CONTRACT` → Plane `MIG-19` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
 
 <a id="h0-2-hac-csv-1"></a>
 
@@ -505,74 +442,6 @@ Linear/BRT-4に関する以下の文言は過去の運用方針記録。2026-09-
 
 `TRAINING` → Plane `EMR-151` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
 
-<a id="bug-acct-close-perm-default"></a>
-
-`BUG-ACCT-CLOSE-PERM-DEFAULT` → Plane `EMR-71` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
-
-<a id="bug-s09-fixture-teardown"></a>
-
-`BUG-S09-FIXTURE-TEARDOWN` → Plane `EMR-72` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
-
-<a id="bug-agg-no-visit-revenue"></a>
-
-`BUG-AGG-NO-VISIT-REVENUE` → Plane `EMR-73` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
-
-<a id="bug-trim-kanban-in-consultation"></a>
-
-`BUG-TRIM-KANBAN-IN-CONSULTATION` → Plane `EMR-74` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
-
-<a id="bug-billing-unbilled-mr-exclusion"></a>
-
-`BUG-BILLING-UNBILLED-MR-EXCLUSION` → Plane `EMR-75` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
-
-<a id="bug-res-overlap-500"></a>
-
-`BUG-RES-OVERLAP-500` → Plane `EMR-76` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
-
-<a id="bug-liff-healthcard-owner-sync"></a>
-
-`BUG-LIFF-HEALTHCARD-OWNER-SYNC` → Plane `EMR-61` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
-
-<a id="bug-acct-ins-sign-mismatch"></a>
-
-`BUG-ACCT-INS-SIGN-MISMATCH` → Plane `EMR-62` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
-
-<a id="bug-acct-ins-edit-rewrite"></a>
-
-`BUG-ACCT-INS-EDIT-REWRITE` → Plane `EMR-63` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
-
-<a id="bug-dialog-focus-restore"></a>
-
-`BUG-DIALOG-FOCUS-RESTORE` → Plane `EMR-64` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
-
-<a id="bug-billing-tax-type-dropped"></a>
-
-`BUG-BILLING-TAX-TYPE-DROPPED` → Plane `EMR-65` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
-
-<a id="bug-acct-dup-complete-500"></a>
-
-`BUG-ACCT-DUP-COMPLETE-500` → Plane `EMR-66` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
-
-<a id="bug-mr-doctor-header-stale"></a>
-
-`BUG-MR-DOCTOR-HEADER-STALE` → Plane `EMR-67` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
-
-<a id="bug-vital-note-key-mismatch"></a>
-
-`BUG-VITAL-NOTE-KEY-MISMATCH` → Plane `EMR-68` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
-
-<a id="bug-mr-vaccine-form-nested"></a>
-
-`BUG-MR-VACCINE-FORM-NESTED` → Plane `EMR-69` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
-
-<a id="bug-trim-excl-timerange-500"></a>
-
-`BUG-TRIM-EXCL-TIMERANGE-500` → Plane `EMR-76` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
-
-<a id="note-staff-starttime-rdt"></a>
-
-`NOTE-STAFF-STARTTIME-RDT` → Plane `EMR-180` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
-
 <a id="uat-r2-chart-fit"></a>
 
 `UAT-R2-CHART-FIT` → Plane `EMR-181` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
@@ -589,10 +458,6 @@ Linear/BRT-4に関する以下の文言は過去の運用方針記録。2026-09-
 
 `SLACK-OWNER-HEIGHT` → Plane `EMR-187` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
 
-<a id="slack-vitals"></a>
-
-`SLACK-VITALS` → Plane `EMR-190` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
-
 <a id="docs-refresh-issue-reconciliation"></a>
 
 `DOCS-REFRESH-ISSUE-RECONCILIATION` → Plane `EMR-192` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
@@ -600,10 +465,6 @@ Linear/BRT-4に関する以下の文言は過去の運用方針記録。2026-09-
 <a id="task-444-addendum-codegen"></a>
 
 `TASK-444-ADDENDUM-CODEGEN` → Plane `EMR-198` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
-
-<a id="perf-e5-stg-deploy-verify"></a>
-
-`PERF-E5-STG-DEPLOY-VERIFY` → Plane `EMR-199` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
 
 <a id="note2-sweep-coverage"></a>
 
@@ -667,22 +528,22 @@ Linear/BRT-4に関する以下の文言は過去の運用方針記録。2026-09-
 | STAFF-SELECT | 候補状態表示を部分対応・実機再確認待ち → [SLACK-STAFF-SELECT](#slack-staff-select) |
 | CROSS-CLINIC | 権限境界の設計・PO → [SLACK-CROSS-CLINIC](#slack-cross-clinic) |
 | OWNER-HEIGHT | 検索modalコード対応済み・実機受入待ち → [SLACK-OWNER-HEIGHT](#slack-owner-height) |
-| SEARCH-AND | コード対応済み・UAT待ち → [UAT-Q1-SEARCH-AND](#ver-uat-q1-search-and) |
-| HISTORY | 導線コードあり・UAT待ち → [UAT-Q2-HISTORY-NAV](#ver-uat-q2-history-nav) |
+| SEARCH-AND | コード対応済み・UAT待ち → [UAT-Q1-SEARCH-AND](docs/work/plane-md-migration-20260923-receipt.md) |
+| HISTORY | 導線コードあり・UAT待ち → [UAT-Q2-HISTORY-NAV](docs/work/plane-md-migration-20260923-receipt.md) |
 | SPECIES | 既存調査 → [UAT-Q2-VACCINE-SPECIES](#uat-q2-vaccine-species) |
 | GENDER | old_db 統合済み・bundle/実データ受入待ち → [UAT-Q3-GENDER-MAP](#uat-q3-gender-map) |
 | UNPAID | 原因未確定・既存調査 → [UAT-Q4-UNPAID-TRIAGE](#uat-q4-unpaid-triage) |
-| INSURANCE | 新規50/70・旧90/100保持の受入 → [UAT-Q4-INSURANCE-RATES](#ver-uat-q4-insurance-rates) |
-| MASTER | 価格request/model回帰拡充・下流/全経路は残る → [UAT-R2-MASTER-PATH](#uat-r2-master-path) |
-| CONCURRENCY | 競合mock回帰拡充・stale設計/実並行は残る → [UAT-R2-EXCLUSIVE-LOCK](#uat-r2-exclusive-lock) |
+| INSURANCE | 新規50/70・旧90/100保持の受入 → [UAT-Q4-INSURANCE-RATES](docs/work/plane-md-migration-20260923-receipt.md) |
+| MASTER | 価格request/model回帰拡充・下流/全経路は残る → [UAT-R2-MASTER-PATH](docs/work/plane-md-migration-20260923-receipt.md) |
+| CONCURRENCY | 競合mock回帰拡充・stale設計/実並行は残る → [UAT-R2-EXCLUSIVE-LOCK](docs/work/plane-md-migration-20260923-receipt.md) |
 | LATENCY | 比較条件設計済み・実環境/実測待ち → [SLACK-LATENCY](#slack-latency) |
-| ENTER | コード対応済み・実機IME待ち → [UAT-R2-TREATMENT-COMMIT](#ver-uat-r2-treatment-commit) |
-| MASTER-HEIGHT | コード対応済み・実画面受入待ち → [UAT-R2-MASTER-LIST-HEIGHT](#ver-uat-r2-master-list-height) |
+| ENTER | コード対応済み・実機IME待ち → [UAT-R2-TREATMENT-COMMIT](docs/work/plane-md-migration-20260923-receipt.md) |
+| MASTER-HEIGHT | コード対応済み・実画面受入待ち → [UAT-R2-MASTER-LIST-HEIGHT](docs/work/plane-md-migration-20260923-receipt.md) |
 | CHART-FIT | scroll/高さコード対応済み・全9タブ/実機受入待ち → [UAT-R2-CHART-FIT](#uat-r2-chart-fit) |
 | RESERVATION-EDIT | 回答・謝辞あり → [操作案内の保持](#slack-answered) |
-| COMPLAINT | null hydrate修正済み・実UI解除/DB受入は残る → [SLACK-COMPLAINT](#slack-complaint) |
+| COMPLAINT | null hydrate修正済み・実UI解除/DB受入は残る → [SLACK-COMPLAINT](docs/work/plane-md-migration-20260923-receipt.md) |
 | BACKGROUND | 対象欄の特定・PO → [SLACK-BACKGROUND](#slack-background) |
-| VITALS | ヘッダー表示コード対応済み・臨床受入待ち → [SLACK-VITALS](#slack-vitals) |
+| VITALS | ヘッダー表示コード対応済み・臨床受入待ち → [SLACK-VITALS](docs/work/plane-md-migration-20260923-receipt.md) |
 | MICROCHIP | ヘッダー表示コード対応済み・受入待ち → [SLACK-MICROCHIP](#slack-microchip) |
 | DANGER | 既存高危険表示の保持・PO → [SLACK-DANGER](#slack-danger) |
 | DETAILS | 導線比較済み・PO裁定待ち → [SLACK-DETAILS](#slack-details) |
@@ -792,15 +653,7 @@ QA/開発が作るケース票の共通列は `ID / case / revision / 環境・f
 
 | ID | 準備可: 最初に作るケース票・照合表 | 実行へ進む条件 |
 |---|---|---|
-| `UAT-R2-TREATMENT-COMMIT` → `EMR-120` | Planeへ移行済み |  |
-| `UAT-R2-MASTER-LIST-HEIGHT` → `EMR-121` | Planeへ移行済み |  |
-| `UAT-Q1-SEARCH-AND` → `EMR-122` | Planeへ移行済み |  |
-| `UAT-Q4-INSURANCE-RATES` → `EMR-123` | Planeへ移行済み |  |
-| `UAT-Q2-HISTORY-NAV` → `EMR-124` | Planeへ移行済み |  |
 | `NOTE2-SWEEP-COVERAGE` → `EMR-200` | Planeへ移行済み |  |
-| `NOTE-STAFF-STARTTIME-RDT` → `EMR-180` | Planeへ移行済み |  |
-| `DEV-V-OWNER-DB` → `EMR-125` | Planeへ移行済み |  |
-| `TODO-V-S09 / QA-UAT-S09-FIXTURE` → `EMR-126` | Planeへ移行済み |  |
 | `TODO-V-V04 / QA-UAT-V04-RETEST` → `EMR-127` | Planeへ移行済み |  |
 | `SLACK-CLINICAL-UAT` → `EMR-110`, `TODO-V-CLINICAL-E2E / QA-FULL-CLINICAL-E2E` → `EMR-128` | Planeへ移行済み |  |
 | `TODO-V-STG-DATA` → `EMR-129`, `H3-11` → `EMR-145` | Planeへ移行済み |  |
@@ -808,7 +661,6 @@ QA/開発が作るケース票の共通列は `ID / case / revision / 環境・f
 | `E1 / QA-UAT-LSTEP-REAL` → `EMR-132` | Planeへ移行済み |  |
 | `E2 / QA-UAT-LINE-IDTOKEN` → `EMR-133` | Planeへ移行済み |  |
 | `TODO-V-LINEAR / META-LINEAR-APPLY` → `EMR-135` | Planeへ移行済み |  |
-| `PERF-V-LINEAR` → `EMR-136` | Planeへ移行済み |  |
 | `AUTH-V-LINEAR-READ` → `EMR-137`, `AUTH-V-LINEAR-WRITE` → `EMR-138` | Planeへ移行済み |  |
 | `AUTH-V-D1-PREFLIGHT` → `EMR-139` | Planeへ移行済み |  |
 | `AUTH-V-D1-APPLY` → `EMR-140` | Planeへ移行済み |  |
@@ -822,13 +674,7 @@ QA/開発が作るケース票の共通列は `ID / case / revision / 環境・f
 
 | ID / 対象 | 残る確認 | 状態・完了条件 |
 |---|---|---|
-| `UAT-R2-TREATMENT-COMMIT` → `EMR-120` | Planeへ移行済み |  |
-| `UAT-R2-MASTER-LIST-HEIGHT` → `EMR-121` | Planeへ移行済み |  |
-| `UAT-Q1-SEARCH-AND` → `EMR-122` | Planeへ移行済み |  |
-| `UAT-Q4-INSURANCE-RATES` → `EMR-123` | Planeへ移行済み |  |
-| `UAT-Q2-HISTORY-NAV` → `EMR-124` | Planeへ移行済み |  |
 | `NOTE2-SWEEP-COVERAGE` → `EMR-200` | Planeへ移行済み |  |
-| `NOTE-STAFF-STARTTIME-RDT` → `EMR-180` | Planeへ移行済み |  |
 
 <a id="code-followup-20260921"></a>
 
@@ -840,11 +686,9 @@ QA/開発が作るケース票の共通列は `ID / case / revision / 環境・f
 |---|---|---|
 | [UAT-R2-CHART-FIT](#uat-r2-chart-fit) / [タブ高さ制約](frontend/src/features/medical-records/routes/MedicalRecordFormReadyPanels.tsx#L198) | 1366×625、全9タブ、sidebar両状態、長文/長一覧/ダイアログで必須情報・保存・フォーカス到達を確認。実機Chrome版・CSS領域・100%/既報125%を別記 | コード対応済み・受入 UNKNOWN。対象端末で見切れず操作できる証拠。最新ChromiumだけではWindows 8/旧Chrome受入にならない |
 | [SLACK-OWNER-HEIGHT](#slack-owner-height) / [検索結果scroll](frontend/src/components/shared/OwnerSearchModal/OwnerSearchModal.tsx#L189) | 飼主検索モーダルの候補多数/0件、検索欄、末尾行、閉じる、キーボード選択とフォーカス復帰を確認 | モーダルのコード対応済み・実機受入 UNKNOWN。元報告が飼主/ペット一覧画面なら、そのsurfaceは別途照合 |
-| [SLACK-VITALS](#slack-vitals) / [最新測定値の抽出](frontend/src/features/medical-records/lib/visit-vital-chips.ts) | 同一カルテの取得結果のうちrecorded_atが最新の1行だけを表示し、体温/心拍/呼吸/体重の欠損を古い行から補完しない現行動作を確認。測定なし・患者切替・全9タブ・狭い画面、時刻の保存と表示省略も確認 | 表示コード対応済み・臨床受入 UNKNOWN。現行の表示範囲が医院の期待を満たすか確認し、時刻を非表示にしても保存値を失わない。ヘッダーでの新規入力を実装済みとしない |
 | [SLACK-MICROCHIP](#slack-microchip) / [ヘッダー表示](frontend/src/components/shared/PatientContextHeader/PatientContextHeader.tsx#L151) | 番号有無、長い番号、API再取得、患者切替、1366×625で対象ペットと表示の一致を確認 | コード対応済み・受入 UNKNOWN。空欄/長い値でも操作を隠さず、前患者の番号が残らない証拠 |
 | [SLACK-CAMERA](#slack-camera) / [撮影入力](frontend/src/features/medical-records/components/ImageGalleryFilter.tsx#L118) | 対象端末の撮影→確認/取消→正しいカルテへ保存→再読込。権限拒否・容量/形式・通信失敗も確認 | 撮影入口コード対応済み・実機受入 UNKNOWN。JPEG/PNG/GIFの撮影入力と、PDFも扱う通常アップロードを分ける。capture属性だけでカメラ起動成功としない |
 | `SLACK-STAFF-SELECT` → `EMR-116` | Planeへ移行済み |  |
-| `UAT-R2-EXCLUSIVE-LOCK` → `EMR-85` | Planeへ移行済み |  |
 
 再現した不一致は同じ Issue ID に戻す。元報告の画面・端末や臨床上の期待値が一致しない場合、既存修正の成功から補外せず、未確認ケースと必要な判断を残す。
 
@@ -856,10 +700,7 @@ QA/開発が作るケース票の共通列は `ID / case / revision / 環境・f
 
 | ID | 確認できた追加対応 | 残る確認・完了条件 |
 |---|---|---|
-| `UAT-R2-MASTER-PATH` → `EMR-84` | Planeへ移行済み |  |
-| `UAT-R2-EXCLUSIVE-LOCK` → `EMR-85` | Planeへ移行済み |  |
 | `UAT-Q2-TREATMENTS-IMPORT` → `MIG-15` | Planeへ移行済み |  |
-| `SLACK-COMPLAINT` → `EMR-87` | Planeへ移行済み |  |
 | `SLACK-MANUAL-URINE` → `EMR-86` | Planeへ移行済み |  |
 | `SLACK-VACCINE-MULTI` → `EMR-105` | Planeへ移行済み |  |
 | `SLACK-PLAN-MANUAL` → `EMR-103` | Planeへ移行済み |  |
@@ -869,54 +710,15 @@ Q1 / Q4保険 / Q2履歴の実装は再開しない。根拠は [医院フィー
 
 `NOTE2-SWEEP-COVERAGE` の受入条件はPlane `EMR-200` へ移行済み。route×operation カバレッジ表と API/契約レベルの証拠は [docs/work/emr-200-note2-coverage/NOTE2-SWEEP-COVERAGE.md](docs/work/emr-200-note2-coverage/NOTE2-SWEEP-COVERAGE.md) を参照（2026-09-23、revision `923bb99ba`。ブラウザ UAT は未実施 UNKNOWN/BLOCKED）。
 
-<a id="ver-uat-r2-treatment-commit"></a>
-
-#### UAT-R2-TREATMENT-COMMIT
-
-> 移行済み: Plane `EMR-120`。詳細と現在の状態は[移行記録](docs/work/plane-md-migration-20260923-receipt.md)を参照。
-<a id="ver-uat-r2-master-list-height"></a>
-
-#### UAT-R2-MASTER-LIST-HEIGHT
-
-> 移行済み: Plane `EMR-121`。詳細と現在の状態は[移行記録](docs/work/plane-md-migration-20260923-receipt.md)を参照。
-<a id="ver-uat-q1-search-and"></a>
-
-#### UAT-Q1-SEARCH-AND
-
-> 移行済み: Plane `EMR-122`。詳細と現在の状態は[移行記録](docs/work/plane-md-migration-20260923-receipt.md)を参照。
-<a id="ver-uat-q4-insurance-rates"></a>
-
-#### UAT-Q4-INSURANCE-RATES
-
-> 移行済み: Plane `EMR-123`。詳細と現在の状態は[移行記録](docs/work/plane-md-migration-20260923-receipt.md)を参照。
-<a id="ver-uat-q2-history-nav"></a>
-
-#### UAT-Q2-HISTORY-NAV
-
-> 移行済み: Plane `EMR-124`。詳細と現在の状態は[移行記録](docs/work/plane-md-migration-20260923-receipt.md)を参照。
 ### 既存の検証キュー
 
 | ID | 状態 | 次の作業・完了条件 |
 |---|---|---|
-| `DEV-V-OWNER-DB` → `EMR-125` | Planeへ移行済み |  |
-| `TODO-V-S09 / QA-UAT-S09-FIXTURE` → `EMR-126` | Planeへ移行済み |  |
 | `TODO-V-V04 / QA-UAT-V04-RETEST` → `EMR-127` | Planeへ移行済み |  |
 | `SLACK-CLINICAL-UAT` → `EMR-110`, `TODO-V-CLINICAL-E2E / QA-FULL-CLINICAL-E2E` → `EMR-128` | Planeへ移行済み |  |
 | `TODO-V-STG-DATA` → `EMR-129` | Planeへ移行済み |  |
 | `TODO-V-RELEASE` → `EMR-130`, `E1 / QA-UAT-LSTEP-REAL` → `EMR-132`, `E2 / QA-UAT-LINE-IDTOKEN` → `EMR-133`, `P8 / #257 GOLIVE` → `EMR-134`, `P1 / SEC-SECRETS-5 / #89 / #97` → `EMR-147` | Planeへ移行済み |  |
 
-OWNER の対象は `TestOwnerRepository_UpdateAndFind_ReloadFailureRollsBackUpdate`、`TestOwnerRepository_Update_ClinicIsolation`、`TestOwnerService_Update_DiscountTOCTOU_*`（LockedDiffWithoutPermission を除く）、`TestOwnerRepository_LockByIDForUpdate_RequiresAmbientTransaction`。既存の unit 完了は再登録しない。共有 DB をテスト用にせず、未実行・SKIP は PASS にしない。
-
-9月18日の source 照合で、ワイルドカード部分は `TestOwnerService_Update_DiscountTOCTOU_StaleZeroRejected` と `TestOwnerService_Update_DiscountTOCTOU_NonDiscountFieldStillOK` の2件。実行票にはこの完全名を使い、上記の他3件と合わせて **5件それぞれの実行結果**を記録する。パッケージの exit 0 だけでは充足しない。
-
-<a id="ver-dev-v-owner-db"></a>
-
-#### DEV-V-OWNER-DB
-
-> 移行済み: Plane `EMR-125`。詳細と現在の状態は[移行記録](docs/work/plane-md-migration-20260923-receipt.md)を参照。
-#### TODO-V-S09 / QA-UAT-S09-FIXTURE
-
-> 移行済み: Plane `EMR-126`。詳細と現在の状態は[移行記録](docs/work/plane-md-migration-20260923-receipt.md)を参照。
 #### TODO-V-V04 / QA-UAT-V04-RETEST
 
 > 移行済み: Plane `EMR-127`。詳細と現在の状態は[移行記録](docs/work/plane-md-migration-20260923-receipt.md)を参照。
@@ -944,7 +746,6 @@ OWNER の対象は `TestOwnerRepository_UpdateAndFind_ReloadFailureRollsBackUpda
 | ID | 状態 | 残作業 |
 |---|---|---|
 | `TODO-V-LINEAR / META-LINEAR-APPLY` → `EMR-135` | Planeへ移行済み |  |
-| `PERF-V-LINEAR` → `EMR-136` | Planeへ移行済み |  |
 | `AUTH-V-LINEAR-READ` → `EMR-137` | Planeへ移行済み |  |
 | `AUTH-V-LINEAR-WRITE` → `EMR-138` | Planeへ移行済み |  |
 
@@ -953,11 +754,7 @@ OWNER の対象は `TestOwnerRepository_UpdateAndFind_ReloadFailureRollsBackUpda
 #### TODO-V-LINEAR / META-LINEAR-APPLY
 
 > 移行済み: Plane `EMR-135`。詳細と現在の状態は[移行記録](docs/work/plane-md-migration-20260923-receipt.md)を参照。
-<a id="ver-perf-v-linear"></a>
 
-#### PERF-V-LINEAR
-
-> 移行済み: Plane `EMR-136`。詳細と現在の状態は[移行記録](docs/work/plane-md-migration-20260923-receipt.md)を参照。
 <a id="ver-auth-v-linear-read"></a>
 
 #### AUTH-V-LINEAR-READ
@@ -1063,7 +860,6 @@ remote・CI・配備・Linear・STG/PROD の DB/秘密/投入 receipt は今回�
 | `UAT-Q2-VACCINE-SPECIES` → `EMR-106` | Planeへ移行済み |  |
 | `UAT-Q4-UNPAID-TRIAGE` → `EMR-107` | Planeへ移行済み |  |
 | `PO-PET-DECEASED-DATA-BACKFILL` → `EMR-108` | Planeへ移行済み |  |
-| `BUG-LOCAL-HANDOFF-CSV-CONTRACT` → `MIG-19` | Planeへ移行済み |  |
 | `SLACK-HAC-IMPORT` → `MIG-17`, `H0-2 / HAC-CSV-1` → `MIG-20` | Planeへ移行済み |  |
 | `H0-3b / H1-2` → `MIG-21` | Planeへ移行済み |  |
 | `AE-STG-UAT-LANE3-HAC` → `MIG-22` | Planeへ移行済み |  |
@@ -1089,15 +885,8 @@ remote・CI・配備・Linear・STG/PROD の DB/秘密/投入 receipt は今回�
 | `UAT-Q2-VACCINE-SPECIES` → `EMR-106` | Planeへ移行済み |  |
 | `UAT-Q4-UNPAID-TRIAGE` → `EMR-107` | Planeへ移行済み |  |
 | `PO-PET-DECEASED-DATA-BACKFILL` → `EMR-108` | Planeへ移行済み |  |
-| `BUG-LOCAL-HANDOFF-CSV-CONTRACT` → `MIG-19` | Planeへ移行済み |  |
 
 実行手順は [ローカル handoff](docs/ops/deploy/OLD_DB_HANDOFF_LOCAL.md)、[STG 停止ゲート](docs/ops/deploy/STG_PLANETSCALE_SEED_RUNBOOK.md#2-pre-deploy-stop-gates)。共有環境への書込み・再取込・DB 作成/破棄・migration は今回実施しない。必要な `make migrate` は、対象環境の適用状態を確認したうえでユーザーが実行する。
-
-<a id="billing-schema-readiness"></a>
-
-#### UAT-R2-EXCLUSIVE-LOCK: 会計競合防御のDB適用確認
-
-> Task detail migrated to Plane `EMR-85` and verified by readback. Historical/evidence material remains in linked source records.
 
 ### STG データレーンの残り
 
@@ -1159,11 +948,6 @@ Q1検索・Q4保険・Q2履歴、[追加実装5件と会計等の部分対応](#
 2. 根拠に基づく対象・訂正内容を確定した後、操作者、backup、監査、失敗/通信断時の照合・復旧を含む限定実行案を作る。
 3. 承認後の訂正と前後件数・画面・監査の一致で完了とする。死亡 write ガードを再実装せず、監査や既存履歴を削除しない。
 
-<a id="ops-bug-local-handoff-csv-contract"></a>
-
-#### BUG-LOCAL-HANDOFF-CSV-CONTRACT
-
-> 移行済み: Plane `MIG-19`。詳細と現在の状態は[移行記録](docs/work/plane-md-migration-20260923-receipt.md)を参照。
 ### STG データレーンの着手プラン
 
 #### H0-2 / HAC-CSV-1
@@ -1267,7 +1051,6 @@ Containers は稼働時間課金（10ms 単位、Workers Paid $5/月に含む）
 1. 認証済みブラウザで `/owners` 等の実ページについて、コールド（10分超アイドル後）と温間の区間別時間を測る（既存チェックシートの run 票を使用）。
 2. Workers Logs の `container_fetch_timing` で実リクエストの `duration_ms` を集計し、温間でも遅い API（二次因 = 実クエリやレスポンスサイズ）があるか切り分ける。未認証 curl では実クエリ時間を測れないため、この確認なしに「温間は全て速い」と断定しない。
 3. 現行の常時ログが必要かを再判定する。必要なら対象と出力を限定し、不要なら撤去を別実装単位にする。
-4. 採用した改善案の実装後、同じ条件で再測定し E5 として記録する。
 
 対象・承認・完了条件は [検証 TODO](#perf-stg-login)。旧候補の裁定は [履歴](docs/work/development-task-decisions.md) であり、現在の導入状態は上記を正とする。
 

@@ -6,7 +6,7 @@
 
 - 最大化済みでも飼主**検索結果**をスクロールできない
 - Windows 8 / Chrome、申告 1366×625、15.6インチ
-- **マスタ候補の高さとは別**（[UAT-R2-MASTER-LIST-HEIGHT](../../../todo.md#ver-uat-r2-master-list-height) / `TreatmentSearchDialog` の `max-h-[calc(80vh-12rem)]` を再実装しない）
+- **マスタ候補の高さとは別**（[UAT-R2-MASTER-LIST-HEIGHT](../plane-md-migration-20260923-receipt.md) / `TreatmentSearchDialog` の `max-h-[calc(80vh-12rem)]` を再実装しない）
 
 本票は「どちらが結果スクロールを持つか」をコードから絞る。ウィンドウを再度最大化する案内で閉じない。物理インチ/申告解像度を CSS viewport と同一視しない。
 
@@ -173,5 +173,5 @@ DOM の class 差し替えで legacy セットを同一 fixture に再現して�
 
 - 症状正本: [todo-issue.md#slack-owner-height](../../../todo.md#slack-owner-height)
 - 共用 viewport: [UAT-R2-CHART-FIT.md](../todo-campaign-20260918/UAT-R2-CHART-FIT.md)
-- マスタ高さ（別 ID）: [todo-verification.md#uat-r2-master-list-height](../../../todo.md#ver-uat-r2-master-list-height)
+- マスタ高さ（別 ID）: [todo-verification.md#uat-r2-master-list-height](../plane-md-migration-20260923-receipt.md)
 - 飼主付け替え仕様: [common-dialogs.md §2.2](../../../docs/spec/screens/common-dialogs.md)

@@ -67,22 +67,22 @@ flowchart TB
 | STAFF-SELECT | existing ID | [SLACK-STAFF-SELECT](../../../todo.md#slack-staff-select) | 1 | 親643と725を統合し個別維持 | 不具合調査 | なし（全 staff 開放で回避しない） |
 | CROSS-CLINIC | existing ID | [SLACK-CROSS-CLINIC](../../../todo.md#slack-cross-clinic) | 2 | STAFF-SELECT と分離 | 権限要望。裁定前は境界変更停止 | 対象医院リストと閲覧/受付/編集/会計の権限（既存本文。再質問しない） |
 | OWNER-HEIGHT | existing ID | [SLACK-OWNER-HEIGHT](../../../todo.md#slack-owner-height) | 1 | no | 不具合調査 | なし。CHART-FIT 寸法と混ぜない |
-| SEARCH-AND | answered | [UAT-Q1-SEARCH-AND](../../../todo.md#ver-uat-q1-search-and) | 5 | no | 実装済み・UAT 待ち | なし。医院受入 PASS ではない |
-| HISTORY | answered | [UAT-Q2-HISTORY-NAV](../../../todo.md#ver-uat-q2-history-nav) | 5 | no | 導線コードあり・UAT 待ち | 未移行なら TREATMENTS-IMPORT。導線再実装しない |
+| SEARCH-AND | answered | [UAT-Q1-SEARCH-AND](../plane-md-migration-20260923-receipt.md) | 5 | no | 実装済み・UAT 待ち | なし。医院受入 PASS ではない |
+| HISTORY | answered | [UAT-Q2-HISTORY-NAV](../plane-md-migration-20260923-receipt.md) | 5 | no | 導線コードあり・UAT 待ち | 未移行なら TREATMENTS-IMPORT。導線再実装しない |
 | SPECIES | existing ID | [UAT-Q2-VACCINE-SPECIES](../../../todo.md#uat-q2-vaccine-species) | 3 | no | 既存調査 | なし。集計設計の作り直し禁止 |
 | GENDER | existing ID | [UAT-Q3-GENDER-MAP](../../../todo.md#uat-q3-gender-map) | 3 | no | old_db 統合済み・bundle/実データ待ち | なし。再統合タスクは終了 |
 | UNPAID | existing ID | [UAT-Q4-UNPAID-TRIAGE](../../../todo.md#uat-q4-unpaid-triage) | 3 | INSURANCE と分離 | 原因未確定の既存調査 | なし。一括完了やタブ隠蔽へ進まない |
-| INSURANCE | answered | [UAT-Q4-INSURANCE-RATES](../../../todo.md#ver-uat-q4-insurance-rates) | 5 | UNPAID と分離 | 新規50/70・旧90/100 の受入 | なし |
-| MASTER | existing ID | [UAT-R2-MASTER-PATH](../../../todo.md#uat-r2-master-path) | 1 | **保つ**（CONCURRENCY と分離。親961も同 ID） | 9/16 追加証拠を既存経路票へ統合 | なし（「全ページ検証」確定済） |
-| CONCURRENCY | existing ID | [UAT-R2-EXCLUSIVE-LOCK](../../../todo.md#uat-r2-exclusive-lock) | 1 | **保つ**（MASTER と分離） | 9/16 追加事故を既存競合票へ統合 | なし（上書きと二重確定の両方） |
+| INSURANCE | answered | [UAT-Q4-INSURANCE-RATES](../plane-md-migration-20260923-receipt.md) | 5 | UNPAID と分離 | 新規50/70・旧90/100 の受入 | なし |
+| MASTER | existing ID | [UAT-R2-MASTER-PATH](../plane-md-migration-20260923-receipt.md) | 1 | **保つ**（CONCURRENCY と分離。親961も同 ID） | 9/16 追加証拠を既存経路票へ統合 | なし（「全ページ検証」確定済） |
+| CONCURRENCY | existing ID | [UAT-R2-EXCLUSIVE-LOCK](../plane-md-migration-20260923-receipt.md) | 1 | **保つ**（MASTER と分離） | 9/16 追加事故を既存競合票へ統合 | なし（上書きと二重確定の両方） |
 | LATENCY | existing ID | [SLACK-LATENCY](../../../todo.md#slack-latency) | 1 | **保つ**（ENTER / MASTER-HEIGHT と3分離） | 計測調査 | なし。Enter/IME と混ぜない |
-| ENTER | answered | [UAT-R2-TREATMENT-COMMIT](../../../todo.md#ver-uat-r2-treatment-commit) | 5 | **保つ** | コード対応済み・実機 IME 待ち | なし |
-| MASTER-HEIGHT | answered | [UAT-R2-MASTER-LIST-HEIGHT](../../../todo.md#ver-uat-r2-master-list-height) | 5 | **保つ** | コード対応済み・実画面受入待ち | なし。OWNER-HEIGHT と混ぜない |
+| ENTER | answered | [UAT-R2-TREATMENT-COMMIT](../plane-md-migration-20260923-receipt.md) | 5 | **保つ** | コード対応済み・実機 IME 待ち | なし |
+| MASTER-HEIGHT | answered | [UAT-R2-MASTER-LIST-HEIGHT](../plane-md-migration-20260923-receipt.md) | 5 | **保つ** | コード対応済み・実画面受入待ち | なし。OWNER-HEIGHT と混ぜない |
 | CHART-FIT | existing ID | [UAT-R2-CHART-FIT](../../../todo.md#uat-r2-chart-fit) | 1 | no | 既存全9タブ計画 | なし（Win8/Chrome/1366×625 確定済） |
 | RESERVATION-EDIT | answered | [操作案内の保持](../../../todo.md#slack-answered) | 5 | no | 質問（案内・謝辞） | なし。後日の権限/保存問題だけ切り分け |
-| COMPLAINT | existing ID | [SLACK-COMPLAINT](../../../todo.md#slack-complaint) | 1 | **保つ**（BACKGROUND / VITALS と3分離） | 任意入力の再現 | 必須化するかは再現後。本票で昇格しない |
+| COMPLAINT | existing ID | [SLACK-COMPLAINT](../plane-md-migration-20260923-receipt.md) | 1 | **保つ**（BACKGROUND / VITALS と3分離） | 任意入力の再現 | 必須化するかは再現後。本票で昇格しない |
 | BACKGROUND | existing ID | [SLACK-BACKGROUND](../../../todo.md#slack-background) | 2 | **保つ** | 対象欄未特定 → PO | 対象欄/目的/マスタか自由文か（既存本文） |
-| VITALS | existing ID | [SLACK-VITALS](../../../todo.md#slack-vitals) | 1 | **保つ** | 表示位置は要望寄り。時刻保持は臨床 | 「時間不要」を保存時刻削除と読まない。臨床時刻は既存停止条件 |
+| VITALS | existing ID | [SLACK-VITALS](../plane-md-migration-20260923-receipt.md) | 1 | **保つ** | 表示位置は要望寄り。時刻保持は臨床 | 「時間不要」を保存時刻削除と読まない。臨床時刻は既存停止条件 |
 | MICROCHIP | existing ID | [SLACK-MICROCHIP](../../../todo.md#slack-microchip) | 1 | no | 既存値の表示設計 | なし。新規欄追加は目的再検討 |
 | DANGER | existing ID | [SLACK-DANGER](../../../todo.md#slack-danger) | 2 | no | 表示要望。既存「高」保持 | 赤/黄の意味と場所（既存本文） |
 | DETAILS | existing ID | [SLACK-DETAILS](../../../todo.md#slack-details) | 1 | **保つ**（STORY と分離） | 詳細導線の調査 | なし。STORY 欄追加と混ぜない |

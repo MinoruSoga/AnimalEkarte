@@ -410,7 +410,7 @@ local `main` 統合（この tree）:
 - **根拠**: 会計の「マスタから選択」は `useGetAllMerchandiseItems` の **有効な商品マスタのみ**（`ItemListCard`）。診療項目はカルテ治療 → 未請求（`treatment_id`）。検査・ワクチン候補の会計確認は単価 null/非有限/負を「価格未設定」（`isUnbillableMasterPrice`）。全治療単価の nullable 契約には一般化しない。診療項目の単価は全タブ保存、課税は診察・処置のみ（`master-treatment.md`）。商品単価は 0 以上で保存可。
 - **方針**: まず医院が触ったマスタ画面を特定する。推測で「全部のマスタを会計に出す」はしない。単価未保存なら入力必須化を検討。診療項目を会計ダイアログに出すのは二重管理になるため、カルテ経由が正なら手順を案内する。
 - **やらないこと**: 全マスタを会計ダイアログへ混在させる。
-- **状態**: [商品直接請求と治療→未請求の source 調査](../../todo.md#uat-r2-master-path) は完了。医院の登録画面は未特定。
+- **状態**: [商品直接請求と治療→未請求の source 調査](plane-md-migration-20260923-receipt.md) は完了。医院の登録画面は未特定。
 
 ### UAT-R2-EXCLUSIVE-LOCK
 
@@ -418,15 +418,15 @@ local `main` 統合（この tree）:
 - **根拠**: セッション占有ロックは無い。`clinical_plan` は version 楽観ロック（衝突時 Conflict）。会計 write は行ロック。`NavigationBlocker` は同一タブの未保存離脱警告。写真未添付。
 - **方針**: 旧ロックの複製は製品哲学①（存在を疑う）。目的は二重会計・上書き防止なら、保存衝突の明示と会計の原子確定で足りるか先に確認。全面ロックは工程を増やす。
 - **やらないこと**: 写真なしで全画面ロックを実装する。
-- **状態**: [version 競合・会計行ロック・未保存離脱警告の source 調査](../../todo.md#uat-r2-exclusive-lock) は完了。全面ロックは導入せず、目的・具体的事故の確認待ち。
+- **状態**: [version 競合・会計行ロック・未保存離脱警告の source 調査](plane-md-migration-20260923-receipt.md) は完了。全面ロックは導入せず、目的・具体的事故の確認待ち。
 
 ### UAT-R2-TREATMENT-COMMIT
 
-`72807128` で Enter 2回、Blur 保存、Escape 取消を実装済み。repeat / isComposing / keyCode229 を含む28 testsは既存検証で PASS。実機 IME・ブラウザ保存→再読込は [検証 TODO](../../todo.md#ver-uat-r2-treatment-commit) に残す。性能改善の実測は未了。§7 の回答は改修前の記録。
+`72807128` で Enter 2回、Blur 保存、Escape 取消を実装済み。repeat / isComposing / keyCode229 を含む28 testsは既存検証で PASS。実機 IME・ブラウザ保存→再読込は [検証 TODO](plane-md-migration-20260923-receipt.md) に残す。性能改善の実測は未了。§7 の回答は改修前の記録。
 
 ### UAT-R2-MASTER-LIST-HEIGHT
 
-`72807128` の `TreatmentSearchDialog` は一覧上限を `max-h-[calc(80vh-12rem)]` へ変更済み、10 testsは既存検証で PASS。viewport・ズーム・キーボード選択・フォーカス復帰の実機受入は [検証 TODO](../../todo.md#ver-uat-r2-master-list-height) に残す。長い一覧にはスクロールが残る。
+`72807128` の `TreatmentSearchDialog` は一覧上限を `max-h-[calc(80vh-12rem)]` へ変更済み、10 testsは既存検証で PASS。viewport・ズーム・キーボード選択・フォーカス復帰の実機受入は [検証 TODO](plane-md-migration-20260923-receipt.md) に残す。長い一覧にはスクロールが残る。
 
 ### UAT-R2-CHART-FIT
 

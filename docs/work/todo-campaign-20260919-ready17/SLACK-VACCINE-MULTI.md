@@ -152,7 +152,7 @@ flowchart LR
 | lot1–4 | 接種行 | カルテの「複製」は lot/次回/備考をコピーし実施日は空（hook L72–81）。複製後に保存すると **新しい行**。1 件目 lot は残る | 複製を「同じ行の再登録」と読まない |
 | 次回予定 | `next_date` / `next_schedule_type` | 実施日や種別変更で UI が再計算（カルテ hook L93–121、独立 `vaccinationOverridesOn*`） | 2 件目の計算結果を 1 件目へコピーしない。間隔の臨床妥当性は見ない |
 | 金額 | **接種 POST に無い**。マスタ `vaccines.price`（[vaccine.go](../../../backend/internal/model/vaccine.go) L21）。FE 変換は `price ?? 0`（[treatment.ts](../../../frontend/src/lib/transforms/treatment.ts) L80） | 履歴に出る price はマスタ。未設定マスタは FE で 0 に見える。会計は `Price == nil` を fail-closed（[billing_item_repository_vaccination_lock.go](../../../backend/internal/billing/billing_item_repository_vaccination_lock.go) L74–88） | 「接種が登録できた」≠「請求単価が接種行に保存された」。0 表示と未設定マスタを混ぜない |
-| 会計 | 請求は接種 `id` に紐づく billing item。`vaccinationRef.MedicalRecordID == nil` は請求拒否（同ファイル L43–45）。確認前も Conflict（L55–57） | 独立画面の `medical_record_id: null` 行は登録できても請求できない | 登録失敗と請求不可を混ぜない。MASTER 価格欠落は [UAT-R2-MASTER-PATH](../../../todo.md#uat-r2-master-path) |
+| 会計 | 請求は接種 `id` に紐づく billing item。`vaccinationRef.MedicalRecordID == nil` は請求拒否（同ファイル L43–45）。確認前も Conflict（L55–57） | 独立画面の `medical_record_id: null` 行は登録できても請求できない | 登録失敗と請求不可を混ぜない。MASTER 価格欠落は [UAT-R2-MASTER-PATH](../plane-md-migration-20260923-receipt.md) |
 
 ## 種別条件（本票では変更しない）
 

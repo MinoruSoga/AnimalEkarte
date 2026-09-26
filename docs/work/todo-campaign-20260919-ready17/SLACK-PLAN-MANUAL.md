@@ -5,7 +5,7 @@
 - 「治療プランと治療の違い」と「プランへの手入力」は **別質問**。前者は画面名の対応表、後者は既存手入力の場所
 - カルテ見出し「治療プラン」は **`treatments` 行**を編集する。同名の backend `treatment_plans` / [treatment_plan_request.go](../../../backend/internal/medicalrecord/treatment_plan_request.go) の存在を、この UI が予定専用である根拠にしない
 - 予定を自動で実施・請求済みにしない。会計は `billing_confirmations` 確認後の未請求集計であり、行追加 POST では走らない
-- マスタ単価の欠落・0円・再読込不一致は本票で直さず [UAT-R2-MASTER-PATH](../../../todo.md#uat-r2-master-path) / [全経路票](../todo-campaign-20260918/UAT-R2-MASTER-PATH.md) へ統合する
+- マスタ単価の欠落・0円・再読込不一致は本票で直さず [UAT-R2-MASTER-PATH](../plane-md-migration-20260923-receipt.md) / [全経路票](../todo-campaign-20260918/UAT-R2-MASTER-PATH.md) へ統合する
 
 本票は [MedicalRecordDiagnosisPlan](../../../frontend/src/features/medical-records/components/MedicalRecordDiagnosisPlan.tsx) と [use-treatments-tab](../../../frontend/src/features/medical-records/hooks/use-treatments-tab.ts) を照合する。planned-vs-billed / 自動実施・自動請求の意味は変更しない。製品 UI の意味変更はしない。到達性の回帰として [TreatmentTable.test.tsx](../../../frontend/src/features/medical-records/components/TreatmentTable.test.tsx) のみ許可（検索優先 `onOpenSearch || onAddRow`）。
 
@@ -84,7 +84,7 @@ flowchart TB
 
 ## 価格欠落は MASTER-PATH（本票で直さない）
 
-9月16日 Slack の「治療プランから入力したマスタの金額」「マスタがない場合と0円」は [todo-issue.md UAT-R2-MASTER-PATH](../../../todo.md#uat-r2-master-path) L56 が既に同じコンポーネントを引用している。
+9月16日 Slack の「治療プランから入力したマスタの金額」「マスタがない場合と0円」は [todo-issue.md UAT-R2-MASTER-PATH](../plane-md-migration-20260923-receipt.md) L56 が既に同じコンポーネントを引用している。
 
 | 症状 | 本票の扱い | 統合先 |
 | --- | --- | --- |
