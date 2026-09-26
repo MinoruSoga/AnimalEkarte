@@ -176,9 +176,11 @@ type AccountingService interface {
 	GetDailySummaryForClinics(ctx context.Context, clinicIDs []uint64, dateStr string) ([]ClinicDailySummary, error)
 }
 
-// unbilledWriteGuard は BUG-013 write-time fail-closed 用（blocking unbilled warning の再集計）。
+// unbilledWriteGuard は BUG-013 write-time fail-closed 用（blocking unbilled warning の再集計）
+// と EMR-196② complete 時の unbilled 集約版照合の最小 view。
 type unbilledWriteGuard interface {
 	AssertNoBlockingUnbilled(ctx context.Context, clinicID, petID uint64) error
+	AssertUnbilledForComplete(ctx context.Context, clinicID, petID uint64, expectedRevision string) error
 }
 
 type accountingService struct {

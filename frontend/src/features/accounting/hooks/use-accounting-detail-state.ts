@@ -107,6 +107,8 @@ export function useAccountingDetailState({
   });
 
   const unbilledItems = unbilledDetails?.items;
+  // EMR-196②: complete の expected_unbilled_revision へ返送する集約版 token。
+  const unbilledRevision = unbilledDetails?.revision;
   const unbilledWarnings: UnbilledWarning[] = useMemo(
     () => unbilledDetails?.warnings ?? [],
     [unbilledDetails?.warnings],
@@ -209,6 +211,7 @@ export function useAccountingDetailState({
     baseAccounting,
     ungroupedSummary,
     unbilledWarnings,
+    unbilledRevision,
     hasBlockingUnbilledWarning,
     unbilledDetailsReady,
     unbilledDetailsError,
