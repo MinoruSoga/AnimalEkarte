@@ -44,7 +44,7 @@ Win7 の COM 番号を Mac の `/dev/cu.*` だと思わない。口はつなぐ�
 
 ## 画面と API
 
-- 日常経路は `/lab-device`（`LabDeviceBoard`）。権限は `lab-import` で操作ごとに分かれる（医院ごとの権限グループで付与。既定 seed では全グループ view のみ・執行のみ edit 付与・create は全グループ未付与のため、受信担当には `/settings/permission-groups` で「検査取込」の作成・編集を ON にする）:
+- 日常経路は `/lab-device`（`LabDeviceBoard`）。権限は `lab-import` で操作ごとに分かれる（医院ごとの権限グループで付与。既定 seed では執行グループに view+create+edit、一般グループに view+create を付与 — EMR-176 で create を既定付与済み。閲覧専用グループは view のみ。既存クリニックの旧既定グループには migration `010_grant_lab_import_create_to_default_groups.sql`（seed bundle 所有行）または `seeds/live_insert_lab_import_create_grant.sql`（後発の既定名グループ、手動適用）で反映する。個別に create を外したい受信しないロールは `/settings/permission-groups` で「検査取込」の作成を OFF にする）:
   - `view` … `/lab-device` の表示、未紐付け一覧・機器ステーション参照（検査画面の未紐付けバナーも view で出る）
   - `create` … 受信・待機選択/解除・board 取得・agent consumer token 発行（`POST /lab-device/frames`・`/lab-device/wait`・`GET /lab-device/board`・`GET /lab-device/agent-consumer`）
   - `edit` … attach/detach/revert、機器・項目マスタの登録変更
