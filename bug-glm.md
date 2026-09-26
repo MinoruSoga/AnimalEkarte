@@ -41,6 +41,8 @@
 
 ### 対応（fix/bug-mr-draft-autopost-failed・PR）
 
+- **PR**: https://github.com/MinoruSoga/AnimalEkarte/pull/496（base: main・2026-09-26）
+
 - **FE**: `MedicalRecordAutoCreateFailurePhase` に `appointment-master-missing` を新設し、前提欠落と API 失敗を区別。master 欠落時は「予約区分マスタに診察系の予約区分が登録されていません。マスタ設定 → 予約区分 で診察区分を追加した後、ページを再読み込みしてください。」を表示し、**再試行ボタンを非表示**（再試行ではキャッシュが再解決されず失敗が続くため）。
 - **テスト**: `MedicalRecordAutoCreateFailure.test.tsx`（新 phase の表示+ボタン非表示）、`use-medical-record-form.auto-create-new.test.ts`（BUG-503 の trimming-only ケースを新 phase に更新）。vitest 3 ファイル 21 tests PASS / type-check PASS / scoped eslint PASS。
 - **残件（USER レーン）**: ①STG へ `live_insert_standard_reservation_types.sql` を適用（適用後、カルテ作成は一般区分で成功する）②seed-export による fresh DB 恒久反映 ③Plane チケット起票（ドラフト済み・アクセス待ち）
