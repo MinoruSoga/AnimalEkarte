@@ -301,7 +301,8 @@ func TestDeleteSyntheticClosingFixture_RemovesCashRegisterCloseGraph(t *testing.
 }
 
 // EMR-211 の受け口: auditRowsPolicy が teardown tx 内で呼ばれ、その失敗は
-// teardown 全体をロールバックさせる。既定（nil）は audit 行を温存する。
+// teardown 全体をロールバックさせる。既定経路の匿名化 policy 自体は
+// synthetic_closing_audit_test.go が検証する。
 func TestDeleteSyntheticClosingFixture_AuditRowsPolicySeam(t *testing.T) {
 	db := testdbSetupSyntheticClosing(t)
 	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.AuditLog{}))
@@ -340,15 +341,25 @@ func TestDeleteSyntheticClosingFixture_AuditRowsPolicySeam(t *testing.T) {
 			ActorType: "staff", Action: "login", Resource: "session",
 		}).Error)
 
+		// EMR-211 (b) 以降 audit 行は削除しない。注入 policy が teardown tx 内で
+		// 実行されたことを行を残したまま書き込んだマーカーで証明し、RESTRICT FK の
+		// 解決は組み込みの匿名化 policy に委譲する（実 FK を持つ testdb では
+		// 参照を付け替えない policy では teardown は完遂しない）。
 		var sawClinic uint64
 		err = DeleteSyntheticClosingFixtureWithAuditPolicy(ctx, db, "development", "db", got.ClinicID, got.CleanupToken,
 			func(pctx context.Context, tx *gorm.DB, clinicID uint64) error {
 				sawClinic = clinicID
-				return tx.Exec("DELETE FROM audit_logs WHERE clinic_id = ?", clinicID).Error
+				if err := tx.Exec("UPDATE audit_logs SET user_agent = 's09-seam-marker' WHERE clinic_id = ?", clinicID).Error; err != nil {
+					return err
+				}
+				return SyntheticClosingAuditAnonymizePolicy(pctx, tx, clinicID)
 			})
 		require.NoError(t, err)
 		assert.Equal(t, got.ClinicID, sawClinic)
 		require.Error(t, db.WithContext(ctx).First(&model.Clinic{}, got.ClinicID).Error)
+		var auditRow model.AuditLog
+		require.NoError(t, db.WithContext(ctx).Where("user_agent = ?", "s09-seam-marker").First(&auditRow).Error)
+		assert.Equal(t, "s09-seam-marker", auditRow.UserAgent, "the injected policy must run inside the teardown tx")
 	})
 }
 

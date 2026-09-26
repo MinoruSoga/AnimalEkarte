@@ -2,6 +2,7 @@ package billing
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -134,11 +135,83 @@ WHERE tgname IN (
 	assert.Empty(t, stillDisabled, "append-only triggers must be re-enabled after teardown")
 }
 
-// audit_logs handling is an EMR-211 product decision: with the default policy
-// the RESTRICT FKs (actor_id → staffs, clinic_id → clinics) keep teardown
-// fail-closed — this test pins that BLOCKED contract — while the injected
-// policy seam must be able to resolve the rows inside the same transaction.
-func TestSyntheticClosingTeardown_AuditRowsStayBlockingByDefault(t *testing.T) {
+// EMR-211 decided option (b): audit_logs rows are never deleted — the default
+// policy re-points them at a non-deletable sentinel clinic/staff inside the
+// teardown transaction so the RESTRICT FKs (actor_id → staffs, clinic_id →
+// clinics) let teardown complete while the audit trail is preserved.
+func TestSyntheticClosingTeardown_AuditRowsAnonymizedByDefault(t *testing.T) {
+	db := openTeardownIntegrationDB(t)
+	ctx := context.Background()
+	got := teardownIntegrationFixture(t, db)
+
+	var staffID uint64
+	require.NoError(t, db.Raw("SELECT id FROM staffs WHERE clinic_id = ? LIMIT 1", got.ClinicID).Scan(&staffID).Error)
+	var auditID uint64
+	var auditCreatedAt time.Time
+	require.NoError(t, db.Raw(`
+INSERT INTO audit_logs (clinic_id, actor_id, actor_type, action, resource)
+VALUES (?, ?, 'staff', 'login', 'session')
+RETURNING id, created_at`, got.ClinicID, staffID).Row().Scan(&auditID, &auditCreatedAt))
+
+	require.NoError(t, DeleteSyntheticClosingFixture(ctx, db, "development", "db", got.ClinicID, got.CleanupToken))
+
+	// The audit row survives, re-pointed at the sentinel staff + clinic; the
+	// immutable fields keep their original values.
+	var (
+		actorID   uint64
+		clinicID  uint64
+		actorType string
+		action    string
+		resource  string
+		createdAt time.Time
+	)
+	require.NoError(t, db.Raw(
+		"SELECT actor_id, clinic_id, actor_type, action, resource, created_at FROM audit_logs WHERE id = ?", auditID,
+	).Row().Scan(&actorID, &clinicID, &actorType, &action, &resource, &createdAt))
+	assert.NotEqual(t, staffID, actorID, "actor must be anonymized to the sentinel staff")
+	assert.NotEqual(t, got.ClinicID, clinicID, "clinic must be anonymized to the sentinel clinic")
+	assert.Equal(t, "staff", actorType)
+	assert.Equal(t, "login", action)
+	assert.Equal(t, "session", resource)
+	assert.True(t, auditCreatedAt.Equal(createdAt), "created_at must be preserved")
+
+	// The sentinel staff is disabled, carries no account, and lives on the
+	// sentinel clinic — none of them may carry the s09 teardown prefixes.
+	var (
+		sentinelActive    bool
+		sentinelAccountID *uint64
+		sentinelStaffName string
+		sentinelClinicID  uint64
+	)
+	require.NoError(t, db.Raw(
+		"SELECT is_active, account_id, name, clinic_id FROM staffs WHERE id = ?", actorID,
+	).Row().Scan(&sentinelActive, &sentinelAccountID, &sentinelStaffName, &sentinelClinicID))
+	assert.False(t, sentinelActive, "sentinel staff must be disabled")
+	assert.Nil(t, sentinelAccountID, "sentinel staff must carry no login-capable account")
+	assert.False(t, strings.HasPrefix(sentinelStaffName, "s09-"))
+	assert.Equal(t, clinicID, sentinelClinicID, "sentinel staff must live on the sentinel clinic")
+	var (
+		sentinelClinicName   string
+		sentinelClinicActive bool
+	)
+	require.NoError(t, db.Raw(
+		"SELECT name, is_active FROM clinics WHERE id = ?", clinicID,
+	).Row().Scan(&sentinelClinicName, &sentinelClinicActive))
+	assert.False(t, sentinelClinicActive, "sentinel clinic must be inactive")
+	assert.False(t, strings.HasPrefix(sentinelClinicName, "s09-"))
+
+	// The torn-down fixture is gone.
+	var remaining int64
+	require.NoError(t, db.Raw("SELECT count(*) FROM staffs WHERE clinic_id = ?", got.ClinicID).Scan(&remaining).Error)
+	assert.Zero(t, remaining)
+	require.NoError(t, db.Raw("SELECT count(*) FROM clinics WHERE id = ?", got.ClinicID).Scan(&remaining).Error)
+	assert.Zero(t, remaining)
+}
+
+// The audit policy seam stays injectable: a failing policy aborts the whole
+// teardown transaction on the real RESTRICT schema, then the default
+// anonymization policy completes the same teardown.
+func TestSyntheticClosingTeardown_AuditPolicySeamRollback(t *testing.T) {
 	db := openTeardownIntegrationDB(t)
 	ctx := context.Background()
 	got := teardownIntegrationFixture(t, db)
@@ -149,9 +222,10 @@ func TestSyntheticClosingTeardown_AuditRowsStayBlockingByDefault(t *testing.T) {
 INSERT INTO audit_logs (clinic_id, actor_id, actor_type, action, resource)
 VALUES (?, ?, 'staff', 'login', 'session')`, got.ClinicID, staffID).Error)
 
-	// Default policy: audit rows are preserved and teardown stays fail-closed.
-	err := DeleteSyntheticClosingFixture(ctx, db, "development", "db", got.ClinicID, got.CleanupToken)
-	require.Error(t, err, "audit rows must keep teardown fail-closed until EMR-211 decides their handling")
+	policyErr := errors.New("s09 audit policy sentinel failure")
+	err := DeleteSyntheticClosingFixtureWithAuditPolicy(ctx, db, "development", "db", got.ClinicID, got.CleanupToken,
+		func(_ context.Context, _ *gorm.DB, _ uint64) error { return policyErr })
+	require.ErrorIs(t, err, policyErr)
 
 	// Rollback left the fixture intact: staff, audit row, and clinic remain.
 	var remaining int64
@@ -162,12 +236,8 @@ VALUES (?, ?, 'staff', 'login', 'session')`, got.ClinicID, staffID).Error)
 	require.NoError(t, db.Raw("SELECT count(*) FROM clinics WHERE id = ?", got.ClinicID).Scan(&remaining).Error)
 	assert.Equal(t, int64(1), remaining)
 
-	// The EMR-211 seam: a policy that deletes the audit rows lets the same
-	// teardown complete — without shipping a default that decides audit fate.
-	require.NoError(t, DeleteSyntheticClosingFixtureWithAuditPolicy(ctx, db, "development", "db", got.ClinicID, got.CleanupToken,
-		func(_ context.Context, tx *gorm.DB, clinicID uint64) error {
-			return tx.Exec("DELETE FROM audit_logs WHERE clinic_id = ?", clinicID).Error
-		}))
+	// The default anonymization policy then tears the same fixture down.
+	require.NoError(t, DeleteSyntheticClosingFixture(ctx, db, "development", "db", got.ClinicID, got.CleanupToken))
 	require.NoError(t, db.Raw("SELECT count(*) FROM clinics WHERE id = ?", got.ClinicID).Scan(&remaining).Error)
 	assert.Zero(t, remaining)
 }

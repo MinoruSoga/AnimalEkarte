@@ -30,3 +30,15 @@ func TestUnscopedDeleteSyntheticClosingStaffs_RejectsReservedClinic(t *testing.T
 	require.Error(t, err)
 	require.ErrorContains(t, err, "reserved")
 }
+
+func TestFindOrCreateSyntheticAuditSentinelStaff_RejectsUnsafeInput(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	_, err := FindOrCreateSyntheticAuditSentinelStaff(ctx, nil, 1, "emr211-audit-sentinel-staff")
+	require.Error(t, err)
+	_, err = FindOrCreateSyntheticAuditSentinelStaff(ctx, nil, 0, "emr211-audit-sentinel-staff")
+	require.Error(t, err)
+	_, err = FindOrCreateSyntheticAuditSentinelStaff(ctx, nil, 1, "  ")
+	require.Error(t, err)
+}
