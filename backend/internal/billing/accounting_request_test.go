@@ -117,28 +117,28 @@ func TestNewDailySummaryQuery(t *testing.T) {
 	}
 }
 
-// ---- newMonthlyUnpaidQuery ----
+// ---- newUnpaidPeriodQuery ----
 
-func TestNewMonthlyUnpaidQuery(t *testing.T) {
+func TestNewUnpaidPeriodQuery(t *testing.T) {
 	tests := []struct {
 		name   string
 		values url.Values
-		want   monthlyUnpaidQuery
+		want   unpaidPeriodQuery
 	}{
 		{
-			name:   "normal: year/month present",
-			values: url.Values{"year": {"2026"}, "month": {"6"}},
-			want:   monthlyUnpaidQuery{Year: "2026", Month: "6"},
+			name:   "normal: start_date/end_date present",
+			values: url.Values{"start_date": {"2026-06-01"}, "end_date": {"2026-06-30"}},
+			want:   unpaidPeriodQuery{StartDate: "2026-06-01", EndDate: "2026-06-30"},
 		},
 		{
 			name:   "zero value: empty url.Values",
 			values: url.Values{},
-			want:   monthlyUnpaidQuery{},
+			want:   unpaidPeriodQuery{},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := newMonthlyUnpaidQuery(tt.values)
+			got := newUnpaidPeriodQuery(tt.values)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -455,30 +455,27 @@ func TestUpdateAccountingRequest_PostCloseReasonNil(t *testing.T) {
 	}
 }
 
-// #114: 月次未納繰越クエリのバリデーション
-func TestMonthlyUnpaidQuery_Parse(t *testing.T) {
+// EMR-188: 月末未納者一覧（期間検索）クエリのバリデーション
+func TestUnpaidPeriodQuery_Parse(t *testing.T) {
 	tests := []struct {
 		name      string
-		query     monthlyUnpaidQuery
-		wantYear  int
-		wantMonth int
+		query     unpaidPeriodQuery
+		wantStart string
+		wantEnd   string
 		wantErr   bool
 	}{
-		{name: "正常: 2026年6月", query: monthlyUnpaidQuery{Year: "2026", Month: "6"}, wantYear: 2026, wantMonth: 6},
-		{name: "正常: 2000年1月(下限)", query: monthlyUnpaidQuery{Year: "2000", Month: "1"}, wantYear: 2000, wantMonth: 1},
-		{name: "正常: 2100年12月(上限)", query: monthlyUnpaidQuery{Year: "2100", Month: "12"}, wantYear: 2100, wantMonth: 12},
-		{name: "エラー: year 欠損", query: monthlyUnpaidQuery{Month: "6"}, wantErr: true},
-		{name: "エラー: month 欠損", query: monthlyUnpaidQuery{Year: "2026"}, wantErr: true},
-		{name: "エラー: year 非数値", query: monthlyUnpaidQuery{Year: "abc", Month: "6"}, wantErr: true},
-		{name: "エラー: year=1999 (下限未満)", query: monthlyUnpaidQuery{Year: "1999", Month: "6"}, wantErr: true},
-		{name: "エラー: year=2101 (上限超)", query: monthlyUnpaidQuery{Year: "2101", Month: "6"}, wantErr: true},
-		{name: "エラー: month=0", query: monthlyUnpaidQuery{Year: "2026", Month: "0"}, wantErr: true},
-		{name: "エラー: month=13", query: monthlyUnpaidQuery{Year: "2026", Month: "13"}, wantErr: true},
+		{name: "正常: 期間指定", query: unpaidPeriodQuery{StartDate: "2026-06-01", EndDate: "2026-06-30"}, wantStart: "2026-06-01", wantEnd: "2026-06-30"},
+		{name: "正常: 同一日（1日期間）", query: unpaidPeriodQuery{StartDate: "2026-06-15", EndDate: "2026-06-15"}, wantStart: "2026-06-15", wantEnd: "2026-06-15"},
+		{name: "エラー: start_date 欠損", query: unpaidPeriodQuery{EndDate: "2026-06-30"}, wantErr: true},
+		{name: "エラー: end_date 欠損", query: unpaidPeriodQuery{StartDate: "2026-06-01"}, wantErr: true},
+		{name: "エラー: start_date 形式不正", query: unpaidPeriodQuery{StartDate: "2026/06/01", EndDate: "2026-06-30"}, wantErr: true},
+		{name: "エラー: end_date 形式不正", query: unpaidPeriodQuery{StartDate: "2026-06-01", EndDate: "2026-13-40"}, wantErr: true},
+		{name: "エラー: 期間逆転 (end < start)", query: unpaidPeriodQuery{StartDate: "2026-06-30", EndDate: "2026-06-01"}, wantErr: true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			year, month, err := tt.query.parse()
+			startDate, endDate, err := tt.query.parse()
 			if tt.wantErr {
 				if err == nil {
 					t.Fatal("parse() returned nil error, want error")
@@ -491,11 +488,11 @@ func TestMonthlyUnpaidQuery_Parse(t *testing.T) {
 			if err != nil {
 				t.Fatalf("parse() returned error: %v", err)
 			}
-			if year != tt.wantYear {
-				t.Fatalf("year = %d, want %d", year, tt.wantYear)
+			if startDate != tt.wantStart {
+				t.Fatalf("startDate = %q, want %q", startDate, tt.wantStart)
 			}
-			if month != tt.wantMonth {
-				t.Fatalf("month = %d, want %d", month, tt.wantMonth)
+			if endDate != tt.wantEnd {
+				t.Fatalf("endDate = %q, want %q", endDate, tt.wantEnd)
 			}
 		})
 	}

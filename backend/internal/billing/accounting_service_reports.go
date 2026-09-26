@@ -11,18 +11,12 @@ import (
 	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
-// GetMonthlyUnpaidCarryover は対象月の未納繰越（前月繰越・当月未払い・次月繰越）を
-// 飼主+ペット単位で返す。#114
-func (s *accountingService) GetMonthlyUnpaidCarryover(ctx context.Context, clinicID uint64, year, month, page, limit int) ([]MonthlyUnpaidOwnerPet, int64, MonthlyUnpaidSummary, error) {
-	if month < 1 || month > 12 {
-		return nil, 0, MonthlyUnpaidSummary{}, apperrors.WrapInvalidInput("month must be between 1 and 12")
-	}
-	firstDay := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, config.JST).Format(time.DateOnly)
-	lastDay := time.Date(year, time.Month(month+1), 0, 0, 0, 0, 0, config.JST).Format(time.DateOnly)
-
-	items, total, summary, err := s.repo.FindMonthlyUnpaidCarryover(ctx, clinicID, firstDay, lastDay, page, limit)
+// GetPeriodUnpaidCarryover は指定期間の未納繰越（期間前繰越・期間内未納・期末繰越）を
+// 飼主+ペット単位で返す。EMR-188: startDate/endDate は handler の期間クエリで検証済み。
+func (s *accountingService) GetPeriodUnpaidCarryover(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]PeriodUnpaidOwnerPet, int64, PeriodUnpaidSummary, error) {
+	items, total, summary, err := s.repo.FindPeriodUnpaidCarryover(ctx, clinicID, startDate, endDate, page, limit)
 	if err != nil {
-		return nil, 0, summary, apperrors.Wrap(err, "failed to get monthly unpaid carryover")
+		return nil, 0, summary, apperrors.Wrap(err, "failed to get period unpaid carryover")
 	}
 	return items, total, summary, nil
 }
