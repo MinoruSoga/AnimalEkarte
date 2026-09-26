@@ -98,9 +98,7 @@ export function activeFiltersToParams(filters: ActiveFilter[]): {
 } {
   const speciesValue = filters.find((f) => isSupportedFilter(f, "species"))?.value;
   const includeDeceasedValue = filters.find((f) => isSupportedFilter(f, "include_deceased"))?.value;
-  const checkupHistoryValue = filters.find((f) =>
-    isSupportedFilter(f, "checkup_history"),
-  )?.value;
+  const checkupHistoryValue = filters.find((f) => isSupportedFilter(f, "checkup_history"))?.value;
   return {
     species: speciesValue,
     // 既定値 (false) は URL に残さない — 明示的に true を選んだ場合のみ転送する。

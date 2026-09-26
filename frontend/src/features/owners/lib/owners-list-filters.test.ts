@@ -61,7 +61,12 @@ describe("activeFiltersToParams — checkup_history", () => {
   it("species/include_deceased との併存を保つ", () => {
     const filters: ActiveFilter[] = [
       { key: "species", condition: "is", value: "1", displayValue: "犬" },
-      { key: "include_deceased", condition: "is", value: "true", displayValue: "死亡ペットも含める" },
+      {
+        key: "include_deceased",
+        condition: "is",
+        value: "true",
+        displayValue: "死亡ペットも含める",
+      },
       {
         key: "checkup_history",
         condition: "is",
@@ -80,10 +85,7 @@ describe("activeFiltersToParams — checkup_history", () => {
 
 describe("paramsToActiveFilters — checkup_history", () => {
   it("URL の checkup_history を表示ラベル付き chip として復元する", () => {
-    const filters = paramsToActiveFilters(
-      new URLSearchParams("checkup_history=within_1y"),
-      [],
-    );
+    const filters = paramsToActiveFilters(new URLSearchParams("checkup_history=within_1y"), []);
 
     expect(filters).toEqual([
       {
@@ -96,10 +98,7 @@ describe("paramsToActiveFilters — checkup_history", () => {
   });
 
   it("enum 外の値は chip として復元しない（サーバが 400 にする値を UI で正当化しない）", () => {
-    const filters = paramsToActiveFilters(
-      new URLSearchParams("checkup_history=within_4y"),
-      [],
-    );
+    const filters = paramsToActiveFilters(new URLSearchParams("checkup_history=within_4y"), []);
 
     expect(filters).toEqual([]);
   });
