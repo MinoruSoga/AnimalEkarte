@@ -182,7 +182,7 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
 
   const handleFilterChange = useCallback(
     (filters: ActiveFilter[]) => {
-      const { species, include_deceased } = activeFiltersToParams(filters);
+      const { species, include_deceased, checkup_history } = activeFiltersToParams(filters);
       setSearchParams(
         (prev) => {
           const next = new URLSearchParams(prev);
@@ -190,6 +190,8 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
           else next.delete("species");
           if (include_deceased) next.set("include_deceased", include_deceased);
           else next.delete("include_deceased");
+          if (checkup_history) next.set("checkup_history", checkup_history);
+          else next.delete("checkup_history");
           next.delete("page");
           return next;
         },

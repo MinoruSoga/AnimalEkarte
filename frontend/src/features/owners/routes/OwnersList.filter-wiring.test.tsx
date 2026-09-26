@@ -11,14 +11,31 @@ import type { Pet } from "@/types";
 // 操作等）は別レイヤーの責務のためモックし、OwnersList 側の onFilterChange 配線のみに焦点を当てる。
 vi.mock("@/components/shared/PropertyFilter/PropertyFilter", () => ({
   PropertyFilter: ({ onFilterChange }: { onFilterChange: (f: unknown[]) => void }) => (
-    <button
-      type="button"
-      onClick={() =>
-        onFilterChange([{ key: "species", condition: "is", value: "1", displayValue: "犬" }])
-      }
-    >
-      種を犬に絞り込む
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={() =>
+          onFilterChange([{ key: "species", condition: "is", value: "1", displayValue: "犬" }])
+        }
+      >
+        種を犬に絞り込む
+      </button>
+      <button
+        type="button"
+        onClick={() =>
+          onFilterChange([
+            {
+              key: "checkup_history",
+              condition: "is",
+              value: "within_2y",
+              displayValue: "2年以内に受診",
+            },
+          ])
+        }
+      >
+        健診受診履歴を2年以内に絞り込む
+      </button>
+    </>
   ),
 }));
 
@@ -121,6 +138,41 @@ describe("OwnersList — #266 フィルタ選択→URL反映の配線", () => {
 
     await waitFor(() => {
       expect(router.state.location.search).toContain("species=1");
+    });
+    expect(router.state.location.search).not.toContain("page=2");
+  });
+
+  // EMR-197-01: 健診受診履歴フィルタも同じ配線（URL へ checkup_history を書き page をリセット）。
+  it("フィルタ選択で checkup_history パラメータへ反映され、page がリセットされる", async () => {
+    const loaderFn = vi.fn((): OwnersLoaderData => ({
+      pets: [makePet()],
+      page: 1,
+      limit: 20,
+      total: 1,
+    }));
+
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/owners",
+          element: <OwnersList />,
+          loader: () => loaderFn(),
+        },
+      ],
+      { initialEntries: ["/owners?page=2"] },
+    );
+    render(
+      <AuthContext.Provider value={makeAuthCtx()}>
+        <RouterProvider router={router} />
+      </AuthContext.Provider>,
+    );
+    await screen.findByText("山田太郎");
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "健診受診履歴を2年以内に絞り込む" }));
+
+    await waitFor(() => {
+      expect(router.state.location.search).toContain("checkup_history=within_2y");
     });
     expect(router.state.location.search).not.toContain("page=2");
   });
