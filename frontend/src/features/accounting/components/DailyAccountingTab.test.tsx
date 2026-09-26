@@ -196,7 +196,8 @@ describe("DailyAccountingTab", () => {
     const row = within(table).getByText("田中太郎").closest("tr");
     expect(row).not.toBeNull();
     const cells = within(row as HTMLElement).getAllByRole("cell");
-    expect(cells[3]).toHaveTextContent("¥-3,000");
+    // EMR-186: 飼主名・ペット名が最右端へ移動したため診療列は index 1
+    expect(cells[1]).toHaveTextContent("¥-3,000");
   });
 
   it("支払方法が表示される", async () => {
@@ -528,5 +529,81 @@ describe("DailyAccountingTab", () => {
     // vaccine 5000, trimming 4000 がそれぞれのフッター列に表示される
     expect(within(footer!).getByText("¥5,000")).toBeInTheDocument();
     expect(within(footer!).getByText("¥4,000")).toBeInTheDocument();
+  });
+
+  // ── EMR-186: 列順 — 飼主名・ペット名が最右端の2列（この順） ──────────────
+
+  it("EMR-186: ヘッダーと明細行の最右端2列が 飼主名→ペット名 の順である", async () => {
+    renderTab();
+    await waitFor(() => {
+      expect(screen.getByTestId("daily-accounting-table")).toBeInTheDocument();
+    });
+    const table = screen.getByTestId("daily-accounting-table");
+    const headerTexts = within(table)
+      .getAllByRole("columnheader")
+      .map((h) => h.textContent);
+    // 最右端2列は 飼主名 → ペット名、支払方法はその左隣、先頭は領収No
+    expect(headerTexts[0]).toBe("領収No");
+    expect(headerTexts.slice(-2)).toEqual(["飼主名", "ペット名"]);
+    expect(headerTexts[headerTexts.length - 3]).toBe("支払方法");
+
+    const row = within(table).getByText("田中太郎").closest("tr")!;
+    const cellTexts = within(row as HTMLElement)
+      .getAllByRole("cell")
+      .map((c) => c.textContent);
+    expect(cellTexts.slice(-2)).toEqual(["田中太郎", "ポチ"]);
+    expect(cellTexts[cellTexts.length - 3]).toBe("現金");
+  });
+
+  it("EMR-186: フッターのセル数（colSpan展開後）がヘッダー列数と一致する", async () => {
+    renderTab();
+    await waitFor(() => {
+      expect(screen.getByTestId("daily-accounting-table")).toBeInTheDocument();
+    });
+    const table = screen.getByTestId("daily-accounting-table");
+    const headerCount = within(table).getAllByRole("columnheader").length;
+    const footerRow = table.querySelector("tfoot tr")!;
+    const span = Array.from(footerRow.querySelectorAll("td")).reduce(
+      (sum, td) => sum + (Number(td.getAttribute("colspan")) || 1),
+      0,
+    );
+    expect(span).toBe(headerCount);
+  });
+
+  it("EMR-186: 拠点列表示時も飼主名・ペット名が最右端で列整合が維持される", async () => {
+    render(
+      <DailyAccountingTab
+        selectedClinicIds={["1", "2"]}
+        clinicNameById={
+          new Map([
+            ["1", "本院"],
+            ["2", "分院"],
+          ])
+        }
+      />,
+      {
+        wrapper: createTestWrapper({
+          initialEntries: [`/accounting?tab=daily&daily_date=${TODAY}`],
+        }),
+      },
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId("daily-accounting-table")).toBeInTheDocument();
+    });
+    const table = screen.getByTestId("daily-accounting-table");
+    const headerTexts = within(table)
+      .getAllByRole("columnheader")
+      .map((h) => h.textContent);
+    expect(headerTexts[0]).toBe("領収No");
+    expect(headerTexts[1]).toBe("拠点");
+    expect(headerTexts.slice(-2)).toEqual(["飼主名", "ペット名"]);
+    expect(headerTexts[headerTexts.length - 3]).toBe("支払方法");
+
+    const footerRow = table.querySelector("tfoot tr")!;
+    const span = Array.from(footerRow.querySelectorAll("td")).reduce(
+      (sum, td) => sum + (Number(td.getAttribute("colspan")) || 1),
+      0,
+    );
+    expect(span).toBe(headerTexts.length);
   });
 });

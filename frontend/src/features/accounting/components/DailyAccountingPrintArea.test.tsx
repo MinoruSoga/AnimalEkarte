@@ -113,7 +113,8 @@ describe("DailyAccountingPrintArea: 金額セルの印字が固定されてい�
     const area = screen.getByTestId("daily-print-area");
     const dataRow = within(area).getByText("赤伝").closest("tr")!;
     const cells = dataRow.querySelectorAll("td");
-    expect(cells[3]).toHaveTextContent("¥-3,000");
+    // EMR-186: 飼主名・ペット名が最右端へ移動したため診療列は index 1
+    expect(cells[1]).toHaveTextContent("¥-3,000");
   });
 
   it("科目合計が負でも符号のまま印字する", () => {
@@ -180,5 +181,36 @@ describe("EMR-205 再発防止: hidden 属性ではなく hidden/print:block ク
     const area = screen.getByTestId("daily-print-area");
     const css = area.querySelector("style")?.textContent ?? "";
     expect(css).toContain("size: A4 landscape");
+  });
+});
+
+describe("EMR-186: 列順 — 飼主名・ペット名が最右端の2列（この順）", () => {
+  it("ヘッダーと明細行の最右端2列が 飼主名→ペット名 の順である", () => {
+    render(<DailyPrintArea date="2026-07-01" rows={ROWS} totals={TOTALS} />);
+    const area = screen.getByTestId("daily-print-area");
+    const headerTexts = Array.from(area.querySelectorAll("thead th")).map((h) => h.textContent);
+    // 最右端2列は 飼主名 → ペット名、合計列はその左隣、先頭は領収No
+    expect(headerTexts[0]).toBe("領収No");
+    expect(headerTexts.slice(-2)).toEqual(["飼主名", "ペット名"]);
+    expect(headerTexts[headerTexts.length - 3]).toBe("合計");
+
+    const dataRow = within(area).getByText("田中太郎").closest("tr")!;
+    const cellTexts = Array.from(dataRow.querySelectorAll("td")).map((c) => c.textContent);
+    expect(cellTexts.slice(-2)).toEqual(["田中太郎", "ポチ"]);
+    expect(cellTexts[cellTexts.length - 3]).toBe("¥12,345");
+  });
+
+  it("各集計行（病院/トリミング/全体合計）のセル数がヘッダー列数と一致する", () => {
+    render(<DailyPrintArea date="2026-07-01" rows={ROWS} totals={TOTALS} />);
+    const area = screen.getByTestId("daily-print-area");
+    const headerCount = area.querySelectorAll("thead th").length;
+    for (const label of ["病院合計", "トリミング合計", "全体合計"]) {
+      const tr = within(area).getByText(label).closest("tr")!;
+      const span = Array.from(tr.querySelectorAll("td")).reduce(
+        (sum, td) => sum + (Number(td.getAttribute("colspan")) || 1),
+        0,
+      );
+      expect(span).toBe(headerCount);
+    }
   });
 });
