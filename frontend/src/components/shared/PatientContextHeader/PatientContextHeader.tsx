@@ -1,4 +1,5 @@
 import { type ReactNode } from "react";
+import { Link } from "react-router";
 import { PawPrint, Weight } from "lucide-react";
 import { C, ICON } from "@/lib/design-tokens";
 import { calcAgePartsAt } from "@/lib/calc-age";
@@ -66,6 +67,10 @@ export interface PatientContextHeaderProps {
   };
   onOwnerClick?: () => void;
   contextControls?: ReactNode;
+  /** EMR-174: 飼主詳細へのリンク（onOwnerClick 併存時はボタン優先） */
+  ownerDetailHref?: string;
+  /** EMR-174: ペット詳細への deep link（飼主詳細 ?pet=） */
+  petDetailHref?: string;
 }
 
 // ──────────────────────────────────────────────────────────
@@ -94,6 +99,8 @@ export function PatientContextHeader({
   vitalsSummary,
   onOwnerClick,
   contextControls,
+  ownerDetailHref,
+  petDetailHref,
 }: PatientContextHeaderProps) {
   const isDeceased = status === "deceased";
 
@@ -146,6 +153,17 @@ export function PatientContextHeader({
                 {ownerName}
               </button>
             </Tooltip>
+          ) : ownerDetailHref ? (
+            // EMR-174: onOwnerClick 未指定時は飼主詳細へ link
+            <Tooltip content={ownerName} className="min-w-0 max-w-[200px]">
+              <Link
+                to={ownerDetailHref}
+                aria-label="飼主詳細を開く"
+                className={`min-h-11 min-w-11 inline-flex items-center px-2 -mx-2 text-base font-medium ${C.text} hover:underline decoration-dotted underline-offset-2 truncate w-full`}
+              >
+                {ownerName}
+              </Link>
+            </Tooltip>
           ) : (
             <Tooltip content={ownerName} className="min-w-0 max-w-[200px]">
               <span className={`text-base font-medium ${C.text} truncate w-full`}>{ownerName}</span>
@@ -153,11 +171,22 @@ export function PatientContextHeader({
           )}
           {ownerIsDangerous ? <DangerBadge variant="owner" /> : null}
           <Tooltip content={petName} className="min-w-0 max-w-[160px]">
-            <span
-              className={`text-base font-medium ${isDeceased ? C.text60 : C.text} truncate w-full`}
-            >
-              {petName}
-            </span>
+            {petDetailHref ? (
+              // EMR-174: ペット詳細（飼主詳細 ?pet=）へ link
+              <Link
+                to={petDetailHref}
+                aria-label="ペット詳細を開く"
+                className={`inline-flex min-h-11 items-center text-base font-medium ${isDeceased ? C.text60 : C.text} hover:underline decoration-dotted underline-offset-2 truncate w-full`}
+              >
+                {petName}
+              </Link>
+            ) : (
+              <span
+                className={`text-base font-medium ${isDeceased ? C.text60 : C.text} truncate w-full`}
+              >
+                {petName}
+              </span>
+            )}
           </Tooltip>
           <DangerBadge
             variant="pet"

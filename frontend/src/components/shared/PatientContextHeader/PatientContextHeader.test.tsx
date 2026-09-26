@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router";
 import { PatientContextHeader } from "./PatientContextHeader";
 
 // PNG asset import を空文字列にスタブ
@@ -241,6 +242,50 @@ describe("PatientContextHeader", () => {
     const petTooltip = tooltips.find((el) => el.textContent === longPet);
     expect(ownerTooltip).toBeInTheDocument();
     expect(petTooltip).toBeInTheDocument();
+  });
+});
+
+// EMR-174: 飼主名・ペット名の detail link（臨床画面から詳細へ戻る導線）
+describe("PatientContextHeader detail links (EMR-174)", () => {
+  function renderWithRouter(props: React.ComponentProps<typeof PatientContextHeader>) {
+    return render(
+      <MemoryRouter>
+        <PatientContextHeader {...props} />
+      </MemoryRouter>,
+    );
+  }
+
+  it("ownerDetailHref / petDetailHref 指定時は飼主名・ペット名が link になる", () => {
+    renderWithRouter({
+      ...baseProps,
+      ownerDetailHref: "/owners/42",
+      petDetailHref: "/owners/42?pet=7",
+    });
+
+    expect(screen.getByRole("link", { name: "飼主詳細を開く" })).toHaveAttribute(
+      "href",
+      "/owners/42",
+    );
+    expect(screen.getByRole("link", { name: "ペット詳細を開く" })).toHaveAttribute(
+      "href",
+      "/owners/42?pet=7",
+    );
+  });
+
+  it("href 未指定時は従来どおり link を出さない", () => {
+    renderWithRouter({ ...baseProps });
+
+    expect(screen.queryByRole("link", { name: "飼主詳細を開く" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "ペット詳細を開く" })).not.toBeInTheDocument();
+  });
+
+  it("onOwnerClick が併存する場合は owner 側ボタンを優先し link は出さない", async () => {
+    const onOwnerClick = vi.fn();
+    renderWithRouter({ ...baseProps, onOwnerClick, ownerDetailHref: "/owners/42" });
+
+    await userEvent.click(screen.getByRole("button", { name: "田中 太郎" }));
+    expect(onOwnerClick).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("link", { name: "飼主詳細を開く" })).not.toBeInTheDocument();
   });
 });
 

@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
+import { DataTableRowLink } from "@/components/shared/DataTable/DataTableRowLink";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,6 +34,7 @@ import {
 } from "@/components/ui/table";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
+import { isPersistedPetId } from "@/lib/pet-id";
 import { mapPetStatusLabel, PET_GENDER_MAP } from "@/lib/transforms/pet";
 import {
   useGetOwnerSharedPets,
@@ -80,7 +82,16 @@ const PetTableRow = memo(function PetTableRow({
     <TableRow className={`transition-colors ${C.borderDivider} ${C.hoverBgPage} h-12`}>
       <TableCell className={STYLE.tableCell}>{pet.petNumber}</TableCell>
       <TableCell className={STYLE.tableCell}>
-        {canEdit ? (
+        {ownerId && isPersistedPetId(pet.id) && pet.isPending !== true ? (
+          // EMR-174: 永続化済みペット名は詳細 deep link（閲覧は canEdit 不要）。
+          // pending (temp-*) はサーバに存在しないため従来どおりローカル編集ボタン。
+          <DataTableRowLink
+            to={paths.owners.detail.pet.getHref(ownerId, pet.id)}
+            aria-label={`ペット詳細を開く: ${pet.petName} (ID ${pet.id})`}
+          >
+            {pet.petName}
+          </DataTableRowLink>
+        ) : canEdit ? (
           <DataTableRowButton
             aria-label={`詳細・編集: ペット ${pet.petName} (ID ${pet.id})`}
             onClick={() => {

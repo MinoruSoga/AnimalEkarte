@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { MessageSquare, AlertCircle } from "lucide-react";
 
 import { formatDate } from "@/lib/format/date";
+import { paths } from "@/config/paths";
 import { PatientInfoCard, formatPatientPetDetails } from "@/components/shared/PatientInfoCard";
 import { PastRecordHistoryPanel } from "@/components/shared/PastRecordHistoryPanel";
 import { FormFieldError } from "@/components/shared/FormFieldError";
@@ -17,6 +18,8 @@ import type { HospitalizationFormData } from "../types";
 
 interface HospitalizationPatient {
   id?: string;
+  /** EMR-174: 詳細 deep link 用（選択 Pet 由来） */
+  ownerId?: string;
   ownerName: string;
   name: string;
   petNumber?: string;
@@ -114,6 +117,14 @@ export function HospitalizationFormFields({
           ownerName={selectedPet.ownerName}
           petName={selectedPet.name}
           petNumber={selectedPet.petNumber || selectedPet.id || ""}
+          ownerDetailHref={
+            selectedPet.ownerId ? paths.owners.detail.getHref(selectedPet.ownerId) : undefined
+          }
+          petDetailHref={
+            selectedPet.ownerId && selectedPet.id
+              ? paths.owners.detail.pet.getHref(selectedPet.ownerId, selectedPet.id)
+              : undefined
+          }
           weight={selectedPet.weight || "-"}
           staffName={formData.doctorName || "未設定"}
           staffLabel="担当医"

@@ -193,7 +193,7 @@ function OwnersListRow({
           {canViewDetail ? (
             <DataTableRowLink
               to={paths.owners.detail.getHref(pet.ownerId)}
-              aria-label={`飼主「${pet.ownerName}」(ID: ${pet.ownerId}) をペット「${pet.name}」(ID: ${pet.id}) の行から開く`}
+              aria-label={`飼主「${pet.ownerName}」(ID: ${pet.ownerId}) の詳細をペット「${pet.name}」(ID: ${pet.id}) の行から開く`}
             >
               {pet.ownerName}
             </DataTableRowLink>
@@ -221,7 +221,20 @@ function OwnersListRow({
       <TableCell className={`${STYLE.tableCell} font-mono whitespace-nowrap hidden lg:table-cell`}>
         {pet.petNumber || "-"}
       </TableCell>
-      <TableCell className={`${STYLE.tableCell} whitespace-nowrap`}>{pet.name}</TableCell>
+      <TableCell className={`${STYLE.tableCell} whitespace-nowrap`}>
+        {canViewDetail ? (
+          // EMR-174: ペット名は飼主詳細の ?pet= deep link（ペット詳細モーダルが開く）。
+          // 別医院行（canViewDetail=false）は閲覧不可のためリンクを出さない。
+          <DataTableRowLink
+            to={paths.owners.detail.pet.getHref(pet.ownerId, pet.id)}
+            aria-label={`ペット「${pet.name}」(ID: ${pet.id}) の詳細を開く`}
+          >
+            {pet.name}
+          </DataTableRowLink>
+        ) : (
+          pet.name
+        )}
+      </TableCell>
       <TableCell className="whitespace-nowrap">
         {pet.status ? (
           <StatusBadge colorClass={getPetStatusColor(pet.status)}>{pet.status}</StatusBadge>

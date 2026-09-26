@@ -8,7 +8,7 @@ import {
   useMemo,
   useRef,
 } from "react";
-import { useNavigate, useParams, useLoaderData } from "react-router";
+import { useNavigate, useParams, useLoaderData, useSearchParams } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { User, Receipt } from "lucide-react";
 import { toast } from "sonner";
@@ -118,6 +118,39 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
   useLayoutEffect(() => {
     editingPetRef.current = editingPet;
   }, [editingPet]);
+
+  // EMR-174: /owners/:id?pet=:petId の deep link で対象ペットの詳細モーダルを直接開く。
+  // 閲覧は canEdit 不要（handleEditPet 側でゲートしない）。開けたら param を除去し、
+  // モーダルを閉じた後に同じペット名リンクから再度開けるようにする。
+  const [searchParams, setSearchParams] = useSearchParams();
+  const deepLinkPetId = searchParams.get("pet");
+  const handledPetParamRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!deepLinkPetId) {
+      // param 消費後に handled をリセットしないと、同じペット名リンクを二度目に
+      // クリックした際モーダルが再オープンせず ?pet= が残ってしまう。
+      handledPetParamRef.current = null;
+      return;
+    }
+    if (handledPetParamRef.current === deepLinkPetId) return;
+    const target = pets.find((pet) => String(pet.id) === deepLinkPetId);
+    if (!target) {
+      // 存在しないIDは pets 確定後（非空）に消費して打ち切り、URL の ?pet= も除去する。
+      // 空配列中はロード待ちで再試行を許す。
+      if (pets.length > 0) {
+        handledPetParamRef.current = deepLinkPetId;
+        const nextParams = new URLSearchParams(searchParams);
+        nextParams.delete("pet");
+        setSearchParams(nextParams, { replace: true });
+      }
+      return;
+    }
+    handledPetParamRef.current = deepLinkPetId;
+    handleEditPet(target);
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("pet");
+    setSearchParams(nextParams, { replace: true });
+  }, [deepLinkPetId, pets, handleEditPet, searchParams, setSearchParams]);
 
   const canSubmit = isEdit ? canEdit : canCreate;
 

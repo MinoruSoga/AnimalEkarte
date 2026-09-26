@@ -3,6 +3,7 @@ package owner
 import (
 	"encoding/json"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -135,6 +136,9 @@ type createPetForOwnerRequest struct {
 	Environment     string    `json:"environment"      binding:"omitempty,max=500"`
 	InsuranceID     *uint64   `json:"insurance_id"`
 	Remarks         string    `json:"remarks"          binding:"omitempty,max=2000"`
+	// EMR-174: 名前の由来 / 出逢いのストーリーは任意記録。空文字は未記録(NULL)扱い。
+	NameOrigin   string `json:"name_origin"   binding:"omitempty,max=500"`
+	MeetingStory string `json:"meeting_story" binding:"omitempty,max=2000"`
 }
 
 func (r *createPetForOwnerRequest) toServiceInput() CreatePetForOwnerInput {
@@ -158,7 +162,19 @@ func (r *createPetForOwnerRequest) toServiceInput() CreatePetForOwnerInput {
 		Environment:     r.Environment,
 		InsuranceID:     r.InsuranceID,
 		Remarks:         r.Remarks,
+		NameOrigin:      nonEmptyStringPtr(r.NameOrigin),
+		MeetingStory:    nonEmptyStringPtr(r.MeetingStory),
 	}
+}
+
+// nonEmptyStringPtr は空文字（および空白のみ）を nil に正規化する。
+// 任意記録フィールドは「空文字の登録」を NULL と区別しない（NULL=未記録）。
+func nonEmptyStringPtr(value string) *string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return nil
+	}
+	return &trimmed
 }
 
 // createOwnerRequest は飼主作成のバインド struct
