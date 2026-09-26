@@ -387,7 +387,7 @@ def check_e2e_scope(paths):
 
 def plan(paths):
     jobs, blocked, frontend = [], [], []
-    e2e_ts, e2e_pages, e2e_runner = [], [], False
+    e2e_ts, e2e_pages, e2e_runner, e2e_fixtures = [], [], False, []
     for path in paths:
         validate_path(path)
         if path.startswith('frontend/src/') and path.endswith(('.ts', '.tsx', '.js', '.jsx')):
@@ -402,6 +402,13 @@ def plan(paths):
                 blocked.append(path)
                 continue
             e2e_pages.append(path)
+            if path not in e2e_ts:
+                e2e_ts.append(path)
+        elif path.startswith('frontend/e2e/fixtures/') and path.endswith('.ts'):
+            if not (ROOT / path).is_file():
+                blocked.append(path)
+                continue
+            e2e_fixtures.append(path)
             if path not in e2e_ts:
                 e2e_ts.append(path)
         elif path in (
@@ -581,6 +588,34 @@ def plan(paths):
         elif path.endswith('.md') and (path.startswith(('docs/', '.claude/', '.codex/', '.agents/', 'frontend/src/features/manual/'))
                                       or '/' not in path or pathlib.PurePosixPath(path).name in ('CLAUDE.md', 'AGENTS.md', 'README.md')):
             continue
+        elif (path.startswith('backend/migrations/seeds/')
+              and path.endswith('.sql')
+              and pathlib.PurePosixPath(path).name.startswith('live_insert_')):
+            # Live seed SQL files must ship a cmd/migrate contract test (fail-closed
+            # via require_completed_test when no TestLiveInsert* case passes).
+            job = {
+                'service': 'backend',
+                'command': [
+                    'go', 'test', '-json', '-p=2', '-count=1', '-short',
+                    './cmd/migrate',
+                    '-run=^TestLiveInsert',
+                ],
+                'require_completed_test': True,
+            }
+            if job not in jobs:
+                jobs.append(job)
+        elif path.startswith('backend/checkup-packages/'):
+            job = {
+                'service': 'backend',
+                'command': [
+                    'go', 'test', '-json', '-p=2', '-count=1', '-short',
+                    './internal/medicalrecord',
+                    '-run=^TestShippedCheckupPackageManifests_Validate$',
+                ],
+                'require_completed_test': True,
+            }
+            if job not in jobs:
+                jobs.append(job)
         elif (path.startswith('backend/migrations/') and path.endswith('.sql')
               and len(pathlib.PurePosixPath(path).parts) == 3):
             # Top-level DDL only (backend/migrations/<file>.sql). seeds/ stay on their own contracts.
@@ -629,7 +664,7 @@ def plan(paths):
         if existing:
             jobs.append({'service': 'frontend', 'command': ['node', 'node_modules/eslint/bin/eslint.js', '--max-warnings', '0', *existing]})
             jobs.append({'service': 'frontend', 'command': ['node', 'node_modules/prettier/bin/prettier.cjs', '--check', *existing]})
-    if e2e_pages:
+    if e2e_pages or e2e_fixtures:
         for spec in list_e2e_spec_paths():
             if spec not in e2e_ts:
                 e2e_ts.append(spec)
@@ -645,8 +680,8 @@ def plan(paths):
         if relative_ts:
             jobs.append({'service': 'frontend', 'command': ['node', 'node_modules/eslint/bin/eslint.js', '--max-warnings', '0', *relative_ts]})
             jobs.append({'service': 'frontend', 'command': ['node', 'node_modules/prettier/bin/prettier.cjs', '--check', *relative_ts]})
-            if e2e_pages:
-                # Page-only conservative mode typechecks the full e2e project so
+            if e2e_pages or e2e_fixtures:
+                # Page/fixture conservative mode typechecks the full e2e project so
                 # fixture @/ imports resolve via e2e/tsconfig.json (extends app tsconfig).
                 jobs.append({
                     'service': 'frontend',

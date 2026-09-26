@@ -61,6 +61,42 @@ class VerificationTests(unittest.TestCase):
         self.assertEqual(seed_jobs[0]['command'], ['python3', '-B', 'scripts/test_account_csv_layout.py'])
         self.assertTrue(verify.plan(['backend/migrations/seeds/custom.sql'])[1])
 
+    def test_live_insert_seed_sql_uses_migrate_contract(self):
+        jobs, blocked = verify.plan(['backend/migrations/seeds/live_insert_standard_reservation_types.sql'])
+        self.assertFalse(blocked)
+        self.assertEqual(jobs[0]['command'], [
+            'go', 'test', '-json', '-p=2', '-count=1', '-short',
+            './cmd/migrate',
+            '-run=^TestLiveInsert',
+        ])
+        self.assertTrue(jobs[0]['require_completed_test'])
+        # live_insert_ 以外の任意 seed SQL は引き続き fail-closed
+        self.assertTrue(verify.plan(['backend/migrations/seeds/custom.sql'])[1])
+        self.assertTrue(verify.plan(['backend/migrations/seeds/other_change.sql'])[1])
+
+    def test_checkup_package_manifest_uses_assets_contract(self):
+        jobs, blocked = verify.plan(['backend/checkup-packages/annual-checkup.json'])
+        self.assertFalse(blocked)
+        self.assertEqual(jobs[0]['command'], [
+            'go', 'test', '-json', '-p=2', '-count=1', '-short',
+            './internal/medicalrecord',
+            '-run=^TestShippedCheckupPackageManifests_Validate$',
+        ])
+        self.assertTrue(jobs[0]['require_completed_test'])
+
+    def test_e2e_fixture_uses_conservative_project_typecheck(self):
+        jobs, blocked = verify.plan(['frontend/e2e/fixtures/ui-design-clinical.ts'])
+        self.assertFalse(blocked)
+        commands = [job['command'] for job in jobs]
+        self.assertIn([
+            'node', 'node_modules/typescript/bin/tsc',
+            '-p', 'e2e/tsconfig.json', '--noEmit', '--pretty', 'false',
+        ], commands)
+        # fixture は複数 spec から import されるため全 spec の discovery が対象
+        self.assertTrue(any('--list' in command for command in commands))
+        # 存在しない fixture は fail-closed
+        self.assertTrue(verify.plan(['frontend/e2e/fixtures/missing.ts'])[1])
+
     def test_repo_root_repro_images_are_docs_only(self):
         for path in (
             'local-reservation-repro-onduty-error.png',
