@@ -120,6 +120,34 @@ describe("transformReservationToReceptionAppointment", () => {
     expect(result.ownerName).toBe("田中太郎");
   });
 
+  it("owner.is_dangerous を ownerIsDangerous にマップする (EMR-173)", () => {
+    const dangerous = transformReservationToReceptionAppointment({
+      ...minimal,
+      owner: {
+        id: 20,
+        clinic_id: 1,
+        name: "田中太郎",
+        is_dangerous: true,
+      } as BackendReservation["owner"],
+    });
+    expect(dangerous.ownerIsDangerous).toBe(true);
+
+    // is_dangerous=false / owner 欠落は危険人物ではない: optional キーを出さない。
+    const safe = transformReservationToReceptionAppointment({
+      ...minimal,
+      owner: {
+        id: 20,
+        clinic_id: 1,
+        name: "田中太郎",
+        is_dangerous: false,
+      } as BackendReservation["owner"],
+    });
+    expect(safe.ownerIsDangerous).toBeUndefined();
+
+    const absent = transformReservationToReceptionAppointment({ ...minimal, owner: undefined });
+    expect(absent.ownerIsDangerous).toBeUndefined();
+  });
+
   it("pet.name を petName にマップする", () => {
     const result = transformReservationToReceptionAppointment({
       ...minimal,

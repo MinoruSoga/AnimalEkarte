@@ -117,43 +117,44 @@ func toOwnerUnpaidBalanceResponse(b OwnerUnpaidBalance) ownerUnpaidBalanceRespon
 	}
 }
 
-// #114: 月次未納繰越集計レスポンス
+// EMR-188: 月末未納者一覧（期間検索）レスポンス
 
-type monthlyUnpaidOwnerPetResponse struct {
-	OwnerID            uint64  `json:"owner_id"`
-	OwnerName          string  `json:"owner_name"`
-	PetID              *uint64 `json:"pet_id,omitempty"`
-	PetName            string  `json:"pet_name"`
-	PrevMonthCarryover int64   `json:"prev_month_carryover"`
-	CurrentMonthUnpaid int64   `json:"current_month_unpaid"`
-	NextMonthCarryover int64   `json:"next_month_carryover"`
+type periodUnpaidOwnerPetResponse struct {
+	OwnerID             uint64  `json:"owner_id"`
+	OwnerName           string  `json:"owner_name"`
+	PetID               *uint64 `json:"pet_id,omitempty"`
+	PetName             string  `json:"pet_name"`
+	PrevPeriodCarryover int64   `json:"prev_period_carryover"`
+	CurrentPeriodUnpaid int64   `json:"current_period_unpaid"`
+	PeriodEndCarryover  int64   `json:"period_end_carryover"`
+	LatestScheduled     string  `json:"latest_scheduled"`
 }
 
-type monthlyUnpaidSummaryResponse struct {
-	PrevMonthCarryover int64 `json:"prev_month_carryover"`
-	CurrentMonthUnpaid int64 `json:"current_month_unpaid"`
-	NextMonthCarryover int64 `json:"next_month_carryover"`
+type periodUnpaidSummaryResponse struct {
+	PrevPeriodCarryover int64 `json:"prev_period_carryover"`
+	CurrentPeriodUnpaid int64 `json:"current_period_unpaid"`
+	PeriodEndCarryover  int64 `json:"period_end_carryover"`
 }
 
-type monthlyUnpaidCarryoverResponse struct {
-	Data    []monthlyUnpaidOwnerPetResponse `json:"data"`
-	Total   int64                           `json:"total"`
-	Page    int                             `json:"page"`
-	Limit   int                             `json:"limit"`
-	Summary monthlyUnpaidSummaryResponse    `json:"summary"`
+type periodUnpaidCarryoverResponse struct {
+	Data    []periodUnpaidOwnerPetResponse `json:"data"`
+	Total   int64                          `json:"total"`
+	Page    int                            `json:"page"`
+	Limit   int                            `json:"limit"`
+	Summary periodUnpaidSummaryResponse    `json:"summary"`
 }
 
-func toMonthlyUnpaidCarryoverResponse(items []MonthlyUnpaidOwnerPet, total int64, page, limit int, s MonthlyUnpaidSummary) monthlyUnpaidCarryoverResponse {
-	data := make([]monthlyUnpaidOwnerPetResponse, 0, len(items))
+func toPeriodUnpaidCarryoverResponse(items []PeriodUnpaidOwnerPet, total int64, page, limit int, s PeriodUnpaidSummary) periodUnpaidCarryoverResponse {
+	data := make([]periodUnpaidOwnerPetResponse, 0, len(items))
 	for _, it := range items {
-		data = append(data, monthlyUnpaidOwnerPetResponse(it))
+		data = append(data, periodUnpaidOwnerPetResponse(it))
 	}
-	return monthlyUnpaidCarryoverResponse{
+	return periodUnpaidCarryoverResponse{
 		Data:    data,
 		Total:   total,
 		Page:    page,
 		Limit:   limit,
-		Summary: monthlyUnpaidSummaryResponse(s),
+		Summary: periodUnpaidSummaryResponse(s),
 	}
 }
 

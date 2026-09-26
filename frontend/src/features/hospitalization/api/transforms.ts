@@ -28,6 +28,13 @@ export const transformHospitalization = (hosp: BackendHospitalization) => {
     id: String(hosp.id ?? 0),
     hospitalizationNo: String(hosp.id ?? ""),
     ownerName: hosp.owner?.name ?? "",
+    // EMR-174: 飼主詳細リンク用。nested owner 優先、欠落時はトップレベル owner_id。
+    ownerId:
+      hosp.owner?.id != null
+        ? String(hosp.owner.id)
+        : hosp.owner_id
+          ? String(hosp.owner_id)
+          : undefined,
     petName: hosp.pet?.name ?? "",
     species: hosp.pet?.animal_species?.name ?? "",
     hospitalizationType: (typeMap[hosp.hospitalization_type] ?? "入院") as HospitalizationType,

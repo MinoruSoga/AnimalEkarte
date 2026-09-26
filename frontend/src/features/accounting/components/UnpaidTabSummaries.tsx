@@ -1,18 +1,18 @@
 import { C } from "@/lib/design-tokens";
 import { formatCurrency } from "@/lib/format/number";
 
-import type { UnpaidByOwnerResponse, MonthlyUnpaidResponse } from "../api/get-unpaid-billings";
+import type { UnpaidByOwnerResponse, PeriodUnpaidResponse } from "../api/get-unpaid-billings";
 
 interface UnpaidTabSummariesProps {
-  groupBy: "owner" | "billing" | "monthly";
+  groupBy: "owner" | "billing" | "period";
   summary: UnpaidByOwnerResponse["summary"] | undefined;
-  monthlySummary: MonthlyUnpaidResponse["summary"] | undefined;
+  periodSummary: PeriodUnpaidResponse["summary"] | undefined;
 }
 
-export function UnpaidTabSummaries({ groupBy, summary, monthlySummary }: UnpaidTabSummariesProps) {
+export function UnpaidTabSummaries({ groupBy, summary, periodSummary }: UnpaidTabSummariesProps) {
   return (
     <>
-      {groupBy !== "monthly" && summary ? (
+      {groupBy !== "period" && summary ? (
         <div className={`rounded-lg border ${C.borderLight} p-4 ${C.bgWhite}`}>
           <p className={`text-xs ${C.text50} mb-1`}>売掛金総額</p>
           <p className="text-heading-3 font-bold">{formatCurrency(summary.total_amount)}</p>
@@ -22,25 +22,26 @@ export function UnpaidTabSummaries({ groupBy, summary, monthlySummary }: UnpaidT
         </div>
       ) : null}
 
-      {groupBy === "monthly" && monthlySummary ? (
+      {/* EMR-188: 月末未納者一覧 */}
+      {groupBy === "period" && periodSummary ? (
         <div className={`rounded-lg border ${C.borderLight} p-4 ${C.bgWhite}`}>
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <p className={`text-xs ${C.text50} mb-1`}>前月繰越</p>
+              <p className={`text-xs ${C.text50} mb-1`}>期間前繰越</p>
               <p className="text-xl font-bold">
-                {formatCurrency(monthlySummary.prev_month_carryover)}
+                {formatCurrency(periodSummary.prev_period_carryover)}
               </p>
             </div>
             <div>
-              <p className={`text-xs ${C.text50} mb-1`}>当月未払い</p>
+              <p className={`text-xs ${C.text50} mb-1`}>期間内未納</p>
               <p className="text-xl font-bold">
-                {formatCurrency(monthlySummary.current_month_unpaid)}
+                {formatCurrency(periodSummary.current_period_unpaid)}
               </p>
             </div>
             <div>
-              <p className={`text-xs ${C.text50} mb-1`}>次月繰越</p>
+              <p className={`text-xs ${C.text50} mb-1`}>期末繰越</p>
               <p className="text-xl font-bold">
-                {formatCurrency(monthlySummary.next_month_carryover)}
+                {formatCurrency(periodSummary.period_end_carryover)}
               </p>
             </div>
           </div>

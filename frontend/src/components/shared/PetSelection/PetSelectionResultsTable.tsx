@@ -3,8 +3,8 @@ import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { Check, Octagon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Pagination } from "@/components/shared/Pagination";
+import { DangerBadge } from "@/components/shared/DangerBadge";
 import {
   Table,
   TableBody,
@@ -133,7 +133,10 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
                     {pet.ownerId}
                   </TableCell>
                   <TableCell className={`text-sm ${C.text} whitespace-nowrap`}>
-                    {pet.ownerName}
+                    <span className="flex items-center gap-1.5">
+                      <span>{pet.ownerName}</span>
+                      {pet.ownerIsDangerous ? <DangerBadge variant="owner" /> : null}
+                    </span>
                   </TableCell>
                   <TableCell className={`font-mono text-sm ${C.text} whitespace-nowrap`}>
                     {pet.petNumber || "-"}
@@ -141,32 +144,12 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
                   <TableCell className={`text-sm ${C.text} whitespace-nowrap`}>
                     <span className="flex items-center gap-1.5">
                       <span>{pet.name}</span>
-                      {pet.dangerLevel === "高" ? (
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <button
-                              type="button"
-                              aria-label={`${pet.name}の危険理由を表示`}
-                              className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-semibold ${C.bgDanger10} ${C.danger} ${C.borderDanger20} outline-none focus-visible:ring-2 ${C.focusRingAccent40}`}
-                            >
-                              ⚠ 危険
-                            </button>
-                          </PopoverTrigger>
-                          <PopoverContent
-                            align="start"
-                            aria-label={`${pet.name}の危険理由`}
-                            onOpenAutoFocus={(event) => event.preventDefault()}
-                            className="w-64"
-                          >
-                            <p className={`text-sm font-semibold ${C.danger}`}>危険理由</p>
-                            <p
-                              className={`mt-1 whitespace-pre-wrap break-words text-sm ${C.textInkSecondary}`}
-                            >
-                              {pet.dangerReason?.trim() || "理由未登録"}
-                            </p>
-                          </PopoverContent>
-                        </Popover>
-                      ) : null}
+                      <DangerBadge
+                        variant="pet"
+                        level={pet.dangerLevel}
+                        subjectName={pet.name}
+                        reason={pet.dangerReason}
+                      />
                     </span>
                   </TableCell>
                   <TableCell className="whitespace-nowrap">

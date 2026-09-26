@@ -301,6 +301,50 @@ describe("transformToHistoryItem", () => {
       "2026/03/25",
     );
   });
+
+  it("inquiry の複写可能値を copySource に保持する（EMR-182 前回複写）", () => {
+    const result = transformToHistoryItem({
+      ...minimalHistory,
+      inquiry: {
+        id: 1,
+        chief_complaint: "元気がない",
+        notes: "安静と投薬",
+        chief_complaint_type_id: 5,
+      },
+    });
+    expect(result.copySource).toEqual({
+      chiefComplaint: "元気がない",
+      treatmentPolicy: "安静と投薬",
+      chiefComplaintTypeId: 5,
+    });
+  });
+
+  it("copySource は空文字・未設定の項目を含めない", () => {
+    const result = transformToHistoryItem({
+      ...minimalHistory,
+      inquiry: {
+        id: 1,
+        chief_complaint: "",
+        notes: "",
+        chief_complaint_type_id: 3,
+      },
+    });
+    expect(result.copySource).toEqual({ chiefComplaintTypeId: 3 });
+  });
+
+  it("複写可能な値が無いとき copySource は undefined", () => {
+    const result = transformToHistoryItem({
+      ...minimalHistory,
+      inquiry: { id: 1, chief_complaint: "", notes: "" },
+    });
+    expect(result.copySource).toBeUndefined();
+  });
+
+  it("inquiry 未設定のとき copySource は undefined", () => {
+    expect(
+      transformToHistoryItem({ ...minimalHistory, inquiry: undefined }).copySource,
+    ).toBeUndefined();
+  });
 });
 
 // ─────────────────────────────────────────────────────────────

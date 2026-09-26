@@ -1,11 +1,18 @@
 // React/Framework
-import { memo, useCallback } from "react";
+import { memo, useCallback, useState } from "react";
+
+// Internal
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 
 // Relative
 import { InterviewChiefComplaint } from "./InterviewChiefComplaint";
 import { InterviewTreatmentPolicy } from "./InterviewTreatmentPolicy";
 import { InterviewHistory } from "./InterviewHistory";
-import type { InterviewHistoryItem } from "../types";
+import {
+  DEFAULT_CHIEF_COMPLAINT,
+  DEFAULT_TREATMENT_POLICY,
+} from "../hooks/use-medical-record-form-model";
+import type { InterviewHistoryCopySource, InterviewHistoryItem } from "../types";
 
 interface MedicalRecordInterviewProps {
   chiefComplaint: string;
@@ -75,6 +82,44 @@ export const MedicalRecordInterview = memo(function MedicalRecordInterview({
     [setChiefComplaint],
   );
 
+  // EMR-182: 前回複写。copySource に存在する項目だけを現在の setter に流す（送信は行わない）。
+  const [pendingCopy, setPendingCopy] = useState<InterviewHistoryCopySource | null>(null);
+
+  const applyCopySource = useCallback(
+    (source: InterviewHistoryCopySource) => {
+      if (source.chiefComplaint !== undefined) setChiefComplaint(source.chiefComplaint);
+      if (source.treatmentPolicy !== undefined) setTreatmentPolicy(source.treatmentPolicy);
+      if (source.chiefComplaintTypeId !== undefined) {
+        setChiefComplaintTypeId(source.chiefComplaintTypeId);
+      }
+    },
+    [setChiefComplaint, setChiefComplaintTypeId, setTreatmentPolicy],
+  );
+
+  const handleCopyItem = useCallback(
+    (item: InterviewHistoryItem) => {
+      const source = item.copySource;
+      if (!source) return;
+      const untouched =
+        chiefComplaint === DEFAULT_CHIEF_COMPLAINT &&
+        treatmentPolicy === DEFAULT_TREATMENT_POLICY &&
+        chiefComplaintTypeId === null;
+      if (untouched) {
+        applyCopySource(source);
+      } else {
+        setPendingCopy(source);
+      }
+    },
+    [chiefComplaint, chiefComplaintTypeId, treatmentPolicy, applyCopySource],
+  );
+
+  const handleConfirmCopy = useCallback(() => {
+    if (pendingCopy) applyCopySource(pendingCopy);
+    setPendingCopy(null);
+  }, [pendingCopy, applyCopySource]);
+
+  const handleCloseCopyConfirm = useCallback(() => setPendingCopy(null), []);
+
   const resolvedHistoryItems =
     historyItems && historyItems.length > 0 ? historyItems : DEFAULT_HISTORY_ITEMS;
 
@@ -104,6 +149,16 @@ export const MedicalRecordInterview = memo(function MedicalRecordInterview({
       <InterviewHistory
         className="col-span-1 lg:col-span-5 h-full"
         historyItems={resolvedHistoryItems}
+        onCopyItem={handleCopyItem}
+      />
+
+      <ConfirmDialog
+        open={pendingCopy !== null}
+        onClose={handleCloseCopyConfirm}
+        onConfirm={handleConfirmCopy}
+        title="過去の問診内容をコピーしますか？"
+        description="主訴詳細・治療方針・主訴区分の現在の入力が上書きされます。"
+        confirmLabel="コピー"
       />
     </div>
   );

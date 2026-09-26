@@ -1547,6 +1547,7 @@ export interface CarePlanItem {
   hospitalization_plan_id?: number /* uint64 */;
   unit_price: number /* int64 */;
   category: string;
+  other_reason: string;
   sort_order: number /* int */;
   created_at: string;
   updated_at: string;
@@ -2994,6 +2995,11 @@ export interface Pet {
   last_visit?: string;
   insurance_id?: number /* uint64 */;
   remarks: string;
+  /**
+   * EMR-174: 名前の由来 / 出逢いのストーリーは任意記録。NULL=未記録。
+   */
+  name_origin?: string;
+  meeting_story?: string;
   deceased_at?: string;
   deceased_reason?: string;
   version: number /* int */;

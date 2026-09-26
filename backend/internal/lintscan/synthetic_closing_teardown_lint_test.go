@@ -21,8 +21,10 @@ import (
 // including ALTER TABLE composite foreign keys, which the handoff gate's
 // inline-only parser cannot see — and require the fixture's delete series to
 // cover it, children before parents. audit_logs is the single documented
-// exemption: its handling is an EMR-211 product decision, so teardown stays
-// fail-closed on audit rows by default.
+// exemption: EMR-211 settled it as option (b) — every audit row is preserved
+// and re-pointed at a non-deletable sentinel inside the teardown tx, so the
+// table is resolved non-destructively rather than appearing in the delete
+// series.
 //
 // exams ↔ examination_revisions is a genuine RESTRICT NOT DEFERRABLE cycle
 // (fk_exams_current_revision points at the revision row). The fixture breaks it
@@ -31,6 +33,7 @@ import (
 // pinned so it cannot be dropped silently.
 
 const syntheticClosingFixtureRelPath = "../internal/billing/synthetic_closing_fixture.go"
+const syntheticClosingAuditRelPath = "../internal/billing/synthetic_closing_audit.go"
 
 // teardownTailRoots are the tables deleted by Go code after the literal DELETE
 // series, in execution order. The scoped list plus these roots is the
@@ -47,9 +50,10 @@ var teardownTailRoots = []string{
 }
 
 // teardownClosureExemptions are blocking children that teardown deliberately
-// does NOT delete. audit_logs is preserved pending the EMR-211
-// delete-vs-anonymize product decision — its RESTRICT FKs then keep teardown
-// fail-closed, which is the accepted BLOCKED behavior, not a gap to fix here.
+// does NOT delete. audit_logs is preserved per the EMR-211 option-(b)
+// decision — the built-in policy re-points its RESTRICT references at a
+// sentinel inside the same transaction, so the exemption resolves the rows
+// non-destructively rather than leaving teardown blocked.
 var teardownClosureExemptions = map[string]bool{
 	"audit_logs": true,
 }
@@ -157,15 +161,37 @@ func TestSyntheticClosingTeardown_DisablesEveryAppendOnlyTable(t *testing.T) {
 
 func TestSyntheticClosingTeardown_PreservesAuditLogs(t *testing.T) {
 	moduleRoot := mustModuleRoot(t)
+	sources := map[string]string{
+		syntheticClosingFixtureRelPath: mustReadTeardownFixtureSource(t, moduleRoot),
+		syntheticClosingAuditRelPath:   mustReadTeardownAuditSource(t, moduleRoot),
+	}
+	for relPath, source := range sources {
+		for line := range strings.Lines(source) {
+			trimmed := strings.TrimSpace(line)
+			if strings.HasPrefix(trimmed, "//") {
+				continue
+			}
+			if regexp.MustCompile(`DELETE FROM\s+audit_logs\b`).MatchString(trimmed) {
+				t.Fatalf(
+					"audit_logs must not be physically deleted by teardown — EMR-211 (b) preserves every row and re-points its references at the sentinel: %s: %s",
+					relPath, trimmed,
+				)
+			}
+		}
+	}
+}
+
+// The EMR-211 (b) policy is what makes the audit_logs closure exemption safe:
+// the default teardown path must keep binding the built-in anonymization
+// policy so the RESTRICT FKs resolve non-destructively inside the tx.
+func TestSyntheticClosingTeardown_WiresAuditAnonymizePolicy(t *testing.T) {
+	moduleRoot := mustModuleRoot(t)
 	source := mustReadTeardownFixtureSource(t, moduleRoot)
-	for line := range strings.Lines(source) {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "//") {
-			continue
-		}
-		if regexp.MustCompile(`DELETE FROM\s+audit_logs\b`).MatchString(trimmed) {
-			t.Fatalf("audit_logs must not be physically deleted by teardown — EMR-211 owns that decision: %s", trimmed)
-		}
+	if !strings.Contains(source, "SyntheticClosingAuditAnonymizePolicy") {
+		t.Fatalf(
+			"%s must pass SyntheticClosingAuditAnonymizePolicy to DeleteSyntheticClosingFixtureWithAuditPolicy on the default path — EMR-211 (b) anonymizes audit rows instead of leaving teardown blocked",
+			syntheticClosingFixtureRelPath,
+		)
 	}
 }
 
@@ -339,9 +365,19 @@ func parseTeardownStringSlice(source, name string) map[string]bool {
 
 func mustReadTeardownFixtureSource(t *testing.T, moduleRoot string) string {
 	t.Helper()
-	raw, err := os.ReadFile(filepath.Join(moduleRoot, "internal/billing/synthetic_closing_fixture.go"))
+	return mustReadTeardownSource(t, moduleRoot, "internal/billing/synthetic_closing_fixture.go")
+}
+
+func mustReadTeardownAuditSource(t *testing.T, moduleRoot string) string {
+	t.Helper()
+	return mustReadTeardownSource(t, moduleRoot, "internal/billing/synthetic_closing_audit.go")
+}
+
+func mustReadTeardownSource(t *testing.T, moduleRoot, relPath string) string {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join(moduleRoot, relPath))
 	if err != nil {
-		t.Fatalf("read fixture source: %v", err)
+		t.Fatalf("read %s: %v", relPath, err)
 	}
 	return string(raw)
 }

@@ -11,22 +11,24 @@ import (
 	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
-// MonthlyUnpaidOwnerPet は飼主+ペット単位の月次未納繰越集約結果。#114
-type MonthlyUnpaidOwnerPet struct {
-	OwnerID            uint64  `json:"owner_id"`
-	OwnerName          string  `json:"owner_name"`
-	PetID              *uint64 `json:"pet_id,omitempty"`
-	PetName            string  `json:"pet_name"`
-	PrevMonthCarryover int64   `json:"prev_month_carryover"`
-	CurrentMonthUnpaid int64   `json:"current_month_unpaid"`
-	NextMonthCarryover int64   `json:"next_month_carryover"`
+// PeriodUnpaidOwnerPet は飼主+ペット単位の期間未納繰越集約結果。EMR-188
+// LatestScheduled はそのグループの未納会計の MAX(scheduled_date)（YYYY-MM-DD）。EMR-189
+type PeriodUnpaidOwnerPet struct {
+	OwnerID             uint64  `json:"owner_id"`
+	OwnerName           string  `json:"owner_name"`
+	PetID               *uint64 `json:"pet_id,omitempty"`
+	PetName             string  `json:"pet_name"`
+	PrevPeriodCarryover int64   `json:"prev_period_carryover"`
+	CurrentPeriodUnpaid int64   `json:"current_period_unpaid"`
+	PeriodEndCarryover  int64   `json:"period_end_carryover"`
+	LatestScheduled     string  `json:"latest_scheduled"`
 }
 
-// MonthlyUnpaidSummary は月次未納繰越のサマリー情報。#114
-type MonthlyUnpaidSummary struct {
-	PrevMonthCarryover int64 `json:"prev_month_carryover"`
-	CurrentMonthUnpaid int64 `json:"current_month_unpaid"`
-	NextMonthCarryover int64 `json:"next_month_carryover"`
+// PeriodUnpaidSummary は期間未納繰越のサマリー情報。EMR-188
+type PeriodUnpaidSummary struct {
+	PrevPeriodCarryover int64 `json:"prev_period_carryover"`
+	CurrentPeriodUnpaid int64 `json:"current_period_unpaid"`
+	PeriodEndCarryover  int64 `json:"period_end_carryover"`
 }
 
 // UnpaidOwnerAggregate は飼主単位の未納集約結果
@@ -193,16 +195,16 @@ func (r *accountingRepository) SumUnpaidByOwner(ctx context.Context, clinicID, o
 	return result, nil
 }
 
-// FindMonthlyUnpaidCarryover は対象月の未納繰越（前月繰越・当月未払い・次月繰越）を
-// 飼主+ペット単位で返す。#114 / BUG-007
-// firstDay: YYYY-MM-01, lastDay: YYYY-MM-DD（月末）
-func (r *accountingRepository) FindMonthlyUnpaidCarryover(ctx context.Context, clinicID uint64, firstDay, lastDay string, page, limit int) ([]MonthlyUnpaidOwnerPet, int64, MonthlyUnpaidSummary, error) {
-	items := make([]MonthlyUnpaidOwnerPet, 0)
-	var summary MonthlyUnpaidSummary
+// FindPeriodUnpaidCarryover は指定期間の未納繰越（期間前繰越・期間内未納・期末繰越）を
+// 飼主+ペット単位で返す。EMR-188 / BUG-007
+// startDate/endDate: YYYY-MM-DD（両端 inclusive）
+func (r *accountingRepository) FindPeriodUnpaidCarryover(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]PeriodUnpaidOwnerPet, int64, PeriodUnpaidSummary, error) {
+	items := make([]PeriodUnpaidOwnerPet, 0)
+	var summary PeriodUnpaidSummary
 	var total int64
 
-	// 未収残高 > 0 かつ scheduled_date <= lastDay が集計対象。
-	// 前月繰越(< firstDay) + 当月未払い(firstDay〜lastDay) = 次月繰越(<= lastDay)。
+	// 未収残高 > 0 かつ scheduled_date <= endDate が集計対象。
+	// 期間前繰越(< startDate) + 期間内未納(startDate〜endDate) = 期末繰越(<= endDate)。
 	base := r.db.WithContext(ctx).
 		Table("billings").
 		Joins(
@@ -214,17 +216,17 @@ func (r *accountingRepository) FindMonthlyUnpaidCarryover(ctx context.Context, c
 		Scopes(validBillingOwnerPetScope).
 		Where("billings.clinic_id = ? AND billings.deleted_at IS NULL", clinicID).
 		Scopes(whereUnpaidBalancePositive).
-		Where("billings.scheduled_date <= ?", lastDay)
+		Where("billings.scheduled_date <= ?", endDate)
 
 	amt := unpaidAmountSQL
 
 	// サマリー取得（3列一括 CASE WHEN）
 	if err := base.Session(&gorm.Session{}).
 		Select(fmt.Sprintf(`
-			COALESCE(SUM(CASE WHEN billings.scheduled_date < ? THEN (%s) ELSE 0 END), 0) AS prev_month_carryover,
-			COALESCE(SUM(CASE WHEN billings.scheduled_date >= ? AND billings.scheduled_date <= ? THEN (%s) ELSE 0 END), 0) AS current_month_unpaid,
-			COALESCE(SUM(%s), 0) AS next_month_carryover
-		`, amt, amt, amt), firstDay, firstDay, lastDay).
+			COALESCE(SUM(CASE WHEN billings.scheduled_date < ? THEN (%s) ELSE 0 END), 0) AS prev_period_carryover,
+			COALESCE(SUM(CASE WHEN billings.scheduled_date >= ? AND billings.scheduled_date <= ? THEN (%s) ELSE 0 END), 0) AS current_period_unpaid,
+			COALESCE(SUM(%s), 0) AS period_end_carryover
+		`, amt, amt, amt), startDate, startDate, endDate).
 		Scan(&summary).Error; err != nil {
 		return nil, 0, summary, apperrors.FromGORM(err, "billing", "")
 	}
@@ -262,7 +264,7 @@ func (r *accountingRepository) FindMonthlyUnpaidCarryover(ctx context.Context, c
 			  )
 			GROUP BY billings.owner_id, billings.pet_id
 		) sub
-	`, unpaidAmountSQL), clinicID, lastDay).Scan(&total).Error; err != nil {
+	`, unpaidAmountSQL), clinicID, endDate).Scan(&total).Error; err != nil {
 		return nil, 0, summary, apperrors.FromGORM(err, "billing", "")
 	}
 
@@ -280,10 +282,11 @@ func (r *accountingRepository) FindMonthlyUnpaidCarryover(ctx context.Context, c
 			owners.name AS owner_name,
 			pets.id AS pet_id,
 			COALESCE(pets.name, '') AS pet_name,
-			COALESCE(SUM(CASE WHEN billings.scheduled_date < ? THEN (%s) ELSE 0 END), 0) AS prev_month_carryover,
-			COALESCE(SUM(CASE WHEN billings.scheduled_date >= ? AND billings.scheduled_date <= ? THEN (%s) ELSE 0 END), 0) AS current_month_unpaid,
-			COALESCE(SUM(%s), 0) AS next_month_carryover
-		`, amt, amt, amt), firstDay, firstDay, lastDay).
+			COALESCE(SUM(CASE WHEN billings.scheduled_date < ? THEN (%s) ELSE 0 END), 0) AS prev_period_carryover,
+			COALESCE(SUM(CASE WHEN billings.scheduled_date >= ? AND billings.scheduled_date <= ? THEN (%s) ELSE 0 END), 0) AS current_period_unpaid,
+			COALESCE(SUM(%s), 0) AS period_end_carryover,
+			MAX(billings.scheduled_date)::text AS latest_scheduled
+		`, amt, amt, amt), startDate, startDate, endDate).
 		Group("billings.owner_id, owners.name, pets.id, COALESCE(pets.name, '')").
 		Order("owners.name ASC, COALESCE(pets.name, '') ASC").
 		Scopes(persistence.Paginate(page, limit)).

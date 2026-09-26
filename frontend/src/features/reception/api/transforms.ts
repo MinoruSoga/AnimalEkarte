@@ -101,6 +101,12 @@ export function transformReservationToReceptionAppointment(
     petDangerReason: pet?.danger_reason,
   };
   const ownerName = reservation.owner?.name ?? cf.owner_name ?? cf.customer_name ?? "";
+  // スタッフ向け飼主危険マーク (EMR-173)。reservation.owner は owner サマリで
+  // is_dangerous を持つ（staff GET /v1/reservations 系のみ。LIFF/owner 契約へは出さない）。
+  // optional キーで返し、型から物理欠落するためローカル再構築側は自然に非表示になる。
+  const ownerSentinelFields: { ownerIsDangerous?: boolean } = {
+    ...(reservation.owner?.is_dangerous === true && { ownerIsDangerous: true }),
+  };
 
   const status = STATUS_TO_COLUMN_ID[reservation.status] ?? "pending";
 
@@ -113,6 +119,7 @@ export function transformReservationToReceptionAppointment(
     petType,
     petName,
     ...petSentinelFields,
+    ...ownerSentinelFields,
     visitType: visitTypeToJapanese(reservation.visit_type),
     reservationType: reservation.reservation_type?.name ?? "",
     reservationTypeId: optionalID(reservation.reservation_type_id),

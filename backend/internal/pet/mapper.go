@@ -28,6 +28,8 @@ func buildPetModel(clinicID uint64, petNumber string, input *CreatePetInput) *mo
 		Phone:           input.Phone,
 		InsuranceID:     input.InsuranceID,
 		Remarks:         input.Remarks,
+		NameOrigin:      input.NameOrigin,
+		MeetingStory:    input.MeetingStory,
 	}
 	if input.Gender != "" {
 		pet.Gender = model.PetGender(input.Gender)

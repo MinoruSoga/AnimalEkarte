@@ -298,6 +298,8 @@ func ownerRegistrationPetDrafts(pets []model.Pet) []PetRegistrationDraft {
 			Phone:           pet.Phone,
 			InsuranceID:     pet.InsuranceID,
 			Remarks:         pet.Remarks,
+			NameOrigin:      pet.NameOrigin,
+			MeetingStory:    pet.MeetingStory,
 		})
 	}
 	return drafts

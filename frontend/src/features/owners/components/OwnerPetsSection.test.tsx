@@ -76,27 +76,32 @@ describe("OwnerPetsSection row actions", () => {
     } as ReturnType<typeof useGetOwnerSharedPets>);
   });
 
-  it("行は編集せず、権限時だけ固有名の44px native buttonで編集する", async () => {
+  it("行は編集せず、権限時だけ操作メニューの詳細・編集から編集する", async () => {
     const user = userEvent.setup();
     const { onEditPet } = renderSection();
 
     await user.click(screen.getByText("犬"));
     expect(onEditPet).not.toHaveBeenCalled();
 
-    const editButton = screen.getByRole("button", {
-      name: "詳細・編集: ペット ポチ (ID pet-1)",
-    });
-    expect(editButton.tagName).toBe("BUTTON");
-    expect(editButton).toHaveClass("min-h-11", "min-w-11");
-    await user.click(editButton);
+    // EMR-174: ペット名は deep link に変更。直接編集は操作メニューの詳細・編集で行う。
+    await user.click(
+      screen.getByRole("button", {
+        name: "操作メニュー: ペット ポチ (ID pet-1)",
+      }),
+    );
+    await user.click(screen.getByRole("menuitem", { name: "詳細・編集" }));
     expect(onEditPet).toHaveBeenCalledWith(PET);
   });
 
-  it("編集権限がなければ編集buttonを表示しない", () => {
+  it("編集権限がなければ操作メニューに編集項目を表示しない", async () => {
+    const user = userEvent.setup();
     renderSection({ canEdit: false });
-    expect(
-      screen.queryByRole("button", { name: "詳細・編集: ペット ポチ (ID pet-1)" }),
-    ).not.toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", {
+        name: "操作メニュー: ペット ポチ (ID pet-1)",
+      }),
+    );
+    expect(screen.queryByRole("menuitem", { name: "詳細・編集" })).not.toBeInTheDocument();
   });
 
   it("作成権限があれば編集権限なしでもペット追加buttonを表示する", () => {
@@ -159,6 +164,49 @@ describe("OwnerPetsSection row actions", () => {
     for (const name of ["予約作成", "カルテ作成", "トリミング", "入院登録", "会計登録", "削除"]) {
       expect(screen.queryByRole("menuitem", { name })).not.toBeInTheDocument();
     }
+  });
+});
+
+// EMR-174: ペット名クリックで飼主詳細のペットモーダル deep link (?pet=) へ遷移する。
+describe("OwnerPetsSection pet detail link (EMR-174)", () => {
+  beforeEach(() => {
+    mockedUseGetOwnerSharedPets.mockReset();
+    mockedUseGetOwnerSharedPets.mockReturnValue({
+      data: { shared_pets: [] },
+      isError: false,
+      isLoading: false,
+    } as ReturnType<typeof useGetOwnerSharedPets>);
+  });
+
+  it("永続化済みペット名は飼主詳細 ?pet= deep link になる（編集権限あり）", () => {
+    renderSection({ canEdit: true });
+
+    const link = screen.getByRole("link", { name: /ポチ/ });
+    expect(link).toHaveAttribute("href", "/owners/owner-1?pet=pet-1");
+  });
+
+  it("閲覧のみのユーザーにもペット名の detail link を表示する", () => {
+    renderSection({ canEdit: false });
+
+    const link = screen.getByRole("link", { name: /ポチ/ });
+    expect(link).toHaveAttribute("href", "/owners/owner-1?pet=pet-1");
+    // mutation 操作は引き続き出さない
+    expect(
+      screen.queryByRole("button", { name: /詳細・編集: ペット ポチ/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("pending (temp-*) ペットは deep link にしない（ローカル編集ボタンのみ）", async () => {
+    const user = userEvent.setup();
+    const { onEditPet } = renderSection({
+      pet: { ...PET, id: "temp-1710000000000", isPending: true },
+      ownerId: undefined,
+    });
+
+    expect(screen.queryByRole("link", { name: /ポチ/ })).not.toBeInTheDocument();
+    const editButton = screen.getByRole("button", { name: /詳細・編集: ペット ポチ/ });
+    await user.click(editButton);
+    expect(onEditPet).toHaveBeenCalled();
   });
 });
 

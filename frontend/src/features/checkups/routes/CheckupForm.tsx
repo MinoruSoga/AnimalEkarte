@@ -95,6 +95,12 @@ export function CheckupForm() {
             ownerName={pet.ownerName ?? ""}
             petName={pet.name}
             petNumber={pet.petNumber ?? ""}
+            ownerDetailHref={pet.ownerId ? paths.owners.detail.getHref(pet.ownerId) : undefined}
+            petDetailHref={
+              pet.ownerId && pet.id
+                ? paths.owners.detail.pet.getHref(pet.ownerId, pet.id)
+                : undefined
+            }
             weight={pet.weight ?? ""}
             petDetails={formatPatientPetDetails({
               species: pet.species,
@@ -104,6 +110,9 @@ export function CheckupForm() {
             })}
             insuranceName={pet.insuranceName}
             insuranceDetails={pet.insuranceDetails}
+            ownerIsDangerous={pet.ownerIsDangerous}
+            petDangerLevel={pet.dangerLevel}
+            petDangerReason={pet.dangerReason}
             staffName={doctorName}
             nextVisitDate={form.nextDate ? formatDate(form.nextDate) : undefined}
             status={isPetDeceased ? "deceased" : "alive"}

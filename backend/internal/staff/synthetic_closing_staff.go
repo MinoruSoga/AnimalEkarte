@@ -2,7 +2,9 @@ package staff
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 
 	"gorm.io/gorm"
 
@@ -61,4 +63,50 @@ func UnscopedDeleteSyntheticClosingStaffs(ctx context.Context, db *gorm.DB, clin
 		return apperrors.FromGORM(err, "staff", fmt.Sprintf("clinic_id=%d", clinicID))
 	}
 	return nil
+}
+
+// FindOrCreateSyntheticAuditSentinelStaff は EMR-211 (b) で audit_logs の RESTRICT
+// 参照先となる sentinel staff を (clinic_id, name) で find-or-create する。
+// login 不能（account_id NULL）・StaffTypeResource・is_active=false・
+// reservation_visible=false の sentinel 不変条件は write owner であるこの package 側で
+// 立てる。呼び出し側が sentinel 作成区間の advisory lock を持つ前提。
+// sentinel clinic は s09 接頭辞を持たない通常行であり小さい ID を取り得るため、
+// s09 fixture 専用の rejectReservedClinicID ガードは適用しない。
+func FindOrCreateSyntheticAuditSentinelStaff(ctx context.Context, db *gorm.DB, clinicID uint64, name string) (*model.Staff, error) {
+	if clinicID == 0 {
+		return nil, apperrors.WrapInvalidInput("clinic id is required")
+	}
+	if strings.TrimSpace(name) == "" {
+		return nil, apperrors.WrapInvalidInput("sentinel staff name is required")
+	}
+	if db == nil {
+		return nil, apperrors.WrapInvalidInput("db is required")
+	}
+	tx := persistence.DBOrTx(ctx, db)
+	var staffRow model.Staff
+	err := tx.Where("clinic_id = ? AND name = ?", clinicID, name).Take(&staffRow).Error
+	switch {
+	case err == nil:
+	case errors.Is(err, gorm.ErrRecordNotFound):
+		staffRow = model.Staff{
+			ClinicID:  clinicID,
+			AccountID: nil, // login 不能: sentinel にアカウントは持たせない
+			Name:      name,
+			StaffType: model.StaffTypeResource,
+		}
+		if createErr := tx.Create(&staffRow).Error; createErr != nil {
+			return nil, apperrors.Wrap(createErr, "create audit sentinel staff")
+		}
+		// staffs.is_active / reservation_visible も default:true の zero 値 trap が
+		// あるため明示 UPDATE で false にする。
+		if updateErr := tx.Model(&model.Staff{}).Where("id = ?", staffRow.ID).
+			Updates(map[string]any{"is_active": false, "reservation_visible": false}).Error; updateErr != nil {
+			return nil, apperrors.Wrap(updateErr, "disable audit sentinel staff")
+		}
+		staffRow.IsActive = false
+		staffRow.ReservationVisible = false
+	default:
+		return nil, apperrors.Wrap(err, "load audit sentinel staff")
+	}
+	return &staffRow, nil
 }

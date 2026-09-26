@@ -1,4 +1,4 @@
-import { Heart, PawPrint } from "lucide-react";
+import { Heart, PawPrint, Stethoscope } from "lucide-react";
 import type {
   ActiveFilter,
   FilterCondition,
@@ -13,12 +13,25 @@ import type {
 // フィルタUIの条件選択肢自体を is のみに絞る。
 // react-refresh/only-export-components: OwnersListTable.tsx / OwnersList.tsx はどちらも
 // route/component ファイルのため、共有する非コンポーネント export（定数・純粋関数）は
-// この専用ファイルに集約する（petToFormData と同型のルール、OwnersList.tsx 冒頭コメント参照）。
+// この専用ファイルに集約する。
 const SERVER_FILTER_CONDITIONS: FilterCondition[] = ["is"];
 
 const INCLUDE_DECEASED_OPTIONS: FilterOption[] = [
   { value: "false", label: "生存のみ（既定）" },
   { value: "true", label: "死亡ペットも含める" },
+];
+
+// EMR-197-01: 健診受診履歴フィルタの enum 選択肢。値は backend の CheckupHistoryFilter
+// 列挙と一致させる（pet_request.go → checkup_history.go 参照）。within_Ny は JST 当日起点
+// N 年（包含境界）内の受診あり、not_within_Ny は同窓内の受診なし、none は受診履歴なし。
+const CHECKUP_HISTORY_OPTIONS: FilterOption[] = [
+  { value: "within_1y", label: "1年以内に受診" },
+  { value: "within_2y", label: "2年以内に受診" },
+  { value: "within_3y", label: "3年以内に受診" },
+  { value: "not_within_1y", label: "1年以上受診なし" },
+  { value: "not_within_2y", label: "2年以上受診なし" },
+  { value: "not_within_3y", label: "3年以上受診なし" },
+  { value: "none", label: "健診受診履歴なし" },
 ];
 
 /**
@@ -49,13 +62,21 @@ export function buildOwnerFilterProperties(speciesOptions: FilterOption[]): Filt
       conditions: SERVER_FILTER_CONDITIONS,
       options: INCLUDE_DECEASED_OPTIONS,
     },
+    {
+      key: "checkup_history",
+      label: "健診受診履歴",
+      type: "select",
+      icon: Stethoscope,
+      conditions: SERVER_FILTER_CONDITIONS,
+      options: CHECKUP_HISTORY_OPTIONS,
+    },
   ];
 }
 
 // #266 既知の制約: FilterAddPopover は FilterProperty.conditions の上書きを条件選択ステップで
 // 参照せず、type=select の既定4条件（次と一致/次と不一致/空/空でない）を常に提示する
 // （共有コンポーネント側の既存ギャップ・本チケットのスコープ外）。pet_repository.go の
-// species/include_deceased は「次と一致」相当の完全一致にしか対応していないため、ここで
+// species/include_deceased/checkup_history は「次と一致」相当の完全一致にしか対応していないため、ここで
 // condition==="is" のみを転送対象とし、is_not/空/空でない が選ばれた場合は黙って別解釈で転送しない
 // （is_not の value をそのまま "is" として送ると絞り込みの意味が反転するサイレントバグになる）。
 function isSupportedFilter(
@@ -73,13 +94,16 @@ function isSupportedFilter(
 export function activeFiltersToParams(filters: ActiveFilter[]): {
   species?: string;
   include_deceased?: string;
+  checkup_history?: string;
 } {
   const speciesValue = filters.find((f) => isSupportedFilter(f, "species"))?.value;
   const includeDeceasedValue = filters.find((f) => isSupportedFilter(f, "include_deceased"))?.value;
+  const checkupHistoryValue = filters.find((f) => isSupportedFilter(f, "checkup_history"))?.value;
   return {
     species: speciesValue,
     // 既定値 (false) は URL に残さない — 明示的に true を選んだ場合のみ転送する。
     include_deceased: includeDeceasedValue === "true" ? "true" : undefined,
+    checkup_history: checkupHistoryValue,
   };
 }
 
@@ -100,6 +124,20 @@ export function paramsToActiveFilters(
       value: "true",
       displayValue: "死亡ペットも含める",
     });
+  }
+  const checkupHistory = searchParams.get("checkup_history");
+  if (checkupHistory) {
+    // CHECKUP_HISTORY_OPTIONS 由来の値のみ復元する — enum 外は backend が 400 にする値であり、
+    // UI 側で chip 化して正当化しない（loader は URL をそのまま転送するため 400 が見える）。
+    const option = CHECKUP_HISTORY_OPTIONS.find((o) => o.value === checkupHistory);
+    if (option) {
+      filters.push({
+        key: "checkup_history",
+        condition: "is",
+        value: checkupHistory,
+        displayValue: option.label,
+      });
+    }
   }
   return filters;
 }

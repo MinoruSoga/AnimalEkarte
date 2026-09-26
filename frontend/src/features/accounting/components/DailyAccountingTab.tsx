@@ -136,9 +136,11 @@ export function DailyAccountingTab({
     );
   }, [rows]);
 
-  // isMultiClinic 時の colSpan: 領収No + 拠点 + 飼主 + ペット = 4
-  // single clinic 時の colSpan: 領収No + 飼主 + ペット = 3
-  const labelColSpan = isMultiClinic ? 4 : 3;
+  // EMR-186: 飼主名・ペット名は最右端の2列へ移動。合計ラベルが span するのは
+  // 先頭の 領収No（+ multi 時は拠点）列のみ
+  // isMultiClinic 時の colSpan: 領収No + 拠点 = 2
+  // single clinic 時の colSpan: 領収No = 1
+  const labelColSpan = isMultiClinic ? 2 : 1;
 
   return (
     <>
@@ -233,8 +235,6 @@ export function DailyAccountingTab({
                         拠点
                       </TableHead>
                     ) : null}
-                    <TableHead className={`${C.text60} whitespace-nowrap`}>飼主名</TableHead>
-                    <TableHead className={`${C.text60} whitespace-nowrap`}>ペット名</TableHead>
                     <TableHead className={`text-right ${C.text60} whitespace-nowrap`}>
                       診療
                     </TableHead>
@@ -260,6 +260,8 @@ export function DailyAccountingTab({
                     <TableHead className={`text-center ${C.text60} whitespace-nowrap`}>
                       支払方法
                     </TableHead>
+                    <TableHead className={`${C.text60} whitespace-nowrap`}>飼主名</TableHead>
+                    <TableHead className={`${C.text60} whitespace-nowrap`}>ペット名</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -273,12 +275,6 @@ export function DailyAccountingTab({
                           {clinicNameById.get(a.clinicId) ?? a.clinicId}
                         </TableCell>
                       ) : null}
-                      <TableCell className={`text-sm ${C.text} font-medium whitespace-nowrap`}>
-                        {a.ownerName}
-                      </TableCell>
-                      <TableCell className={`text-sm ${C.text} whitespace-nowrap`}>
-                        {a.petName}
-                      </TableCell>
                       <TableCell className={`text-right text-sm font-mono ${C.text60}`}>
                         {formatCurrencyIfNonzero(breakdown.medical)}
                       </TableCell>
@@ -312,6 +308,12 @@ export function DailyAccountingTab({
                             ? (PAYMENT_METHOD_LABELS[a.payment.method] ?? a.payment.method)
                             : "-"}
                       </TableCell>
+                      <TableCell className={`text-sm ${C.text} font-medium whitespace-nowrap`}>
+                        {a.ownerName}
+                      </TableCell>
+                      <TableCell className={`text-sm ${C.text} whitespace-nowrap`}>
+                        {a.petName}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -344,6 +346,8 @@ export function DailyAccountingTab({
                     <TableCell className="text-right text-sm font-mono">
                       <span className="font-bold">{formatCurrency(totals.total)}</span>
                     </TableCell>
+                    <TableCell />
+                    <TableCell />
                     <TableCell />
                   </TableRow>
                 </TableFooter>

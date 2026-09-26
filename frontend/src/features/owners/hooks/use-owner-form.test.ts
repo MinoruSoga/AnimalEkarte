@@ -406,6 +406,58 @@ describe("useOwnerForm atomic owner and pets creation", () => {
   });
 });
 
+// EMR-174: pending pet の name_origin / meeting_story を nested create payload へ送る
+describe("useOwnerForm nested pet name_origin / meeting_story (EMR-174)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockCreateOwner.mockResolvedValue(makeOwner({ id: "new-owner" }));
+  });
+
+  it("pending pet の nameOrigin / meetingStory を nested pets へ送る", async () => {
+    const { result } = renderHook(
+      () => useOwnerForm(undefined, undefined, undefined, CREATE_PERMISSIONS),
+      { wrapper: createTestWrapper() },
+    );
+
+    act(() => {
+      result.current.setOwnerData((previous) => ({
+        ...previous,
+        ownerName: "山田太郎",
+        ownerNameKana: "ヤマダタロウ",
+        phone: "090-1234-5678",
+      }));
+      result.current.handleSavePet({
+        id: "pet-fixture",
+        petNumber: "P001",
+        petName: "ポチ",
+        status: "生存",
+        species: "犬",
+        animalSpeciesId: "10",
+        gender: "雄",
+        birthDate: "",
+        color: "",
+        weight: "",
+        environment: "",
+        remarks: "",
+        nameOrigin: "生まれた神社の名前から",
+        meetingStory: "里親募集サイトで出会った",
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.pets).toHaveLength(1);
+    });
+    await submitForm(result.current.formAction);
+
+    await waitFor(() => {
+      expect(mockCreateOwner).toHaveBeenCalledTimes(1);
+    });
+    const nestedPet = mockCreateOwner.mock.calls[0]?.[0]?.pets?.[0];
+    expect(nestedPet.name_origin).toBe("生まれた神社の名前から");
+    expect(nestedPet.meeting_story).toBe("里親募集サイトで出会った");
+  });
+});
+
 describe("useOwnerForm format/range validation display (BUG-023)", () => {
   beforeEach(() => {
     vi.clearAllMocks();

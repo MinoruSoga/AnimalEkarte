@@ -565,8 +565,8 @@ func TestAccountingRepository_UnpaidAggregatesExcludeForeignOwnerPetRelations(
 		assert.Equal(t, OwnerUnpaidBalance{}, foreign)
 	})
 
-	t.Run("monthly owner pet aggregate", func(t *testing.T) {
-		got, total, summary, err := repo.FindMonthlyUnpaidCarryover(
+	t.Run("period owner pet aggregate", func(t *testing.T) {
+		got, total, summary, err := repo.FindPeriodUnpaidCarryover(
 			ctx,
 			clinicA,
 			firstDay2026June,
@@ -576,14 +576,14 @@ func TestAccountingRepository_UnpaidAggregatesExcludeForeignOwnerPetRelations(
 		)
 		require.NoError(t, err)
 		assert.Equal(t, int64(1), total)
-		assert.Equal(t, int64(1000), summary.CurrentMonthUnpaid)
-		assert.Equal(t, int64(1000), summary.NextMonthCarryover)
+		assert.Equal(t, int64(1000), summary.CurrentPeriodUnpaid)
+		assert.Equal(t, int64(1000), summary.PeriodEndCarryover)
 		require.Len(t, got, 1)
 		assert.Equal(t, ownerA.ID, got[0].OwnerID)
 		require.NotNil(t, got[0].PetID)
 		assert.Equal(t, petA.ID, *got[0].PetID)
 		assert.Equal(t, petA.Name, got[0].PetName)
-		assert.Equal(t, int64(1000), got[0].CurrentMonthUnpaid)
+		assert.Equal(t, int64(1000), got[0].CurrentPeriodUnpaid)
 	})
 }
 

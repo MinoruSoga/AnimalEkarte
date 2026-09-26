@@ -9,6 +9,13 @@
 import type { TreatmentItemType, BodyWeightUnit } from "@/types/generated/models";
 export type { TreatmentItemType, BodyWeightUnit };
 
+/** EMR-182: 前回複写ペイロード。inquiry 由来の複写可能値のみを保持する。 */
+export interface InterviewHistoryCopySource {
+  chiefComplaint?: string;
+  treatmentPolicy?: string;
+  chiefComplaintTypeId?: number;
+}
+
 /** Interview (問診) history list item */
 export interface InterviewHistoryItem {
   id: string;
@@ -17,6 +24,8 @@ export interface InterviewHistoryItem {
   type: string;
   title: string;
   content: string;
+  /** EMR-182: 1項目でも複写可能な値を持つ行にのみ設定される。 */
+  copySource?: InterviewHistoryCopySource;
 }
 
 // ── Treatment (治療明細) ──────────────────────────────────────────────

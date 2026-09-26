@@ -64,6 +64,11 @@ export interface PetResponse {
    */
   deceased_reason?: string;
   deceased_at?: string;
+  /**
+   * EMR-174: 名前の由来 / 出逢いのストーリーは任意記録（staff/飼主どちらの詳細も参照可）。
+   */
+  name_origin?: string;
+  meeting_story?: string;
   created_at: string;
   updated_at: string;
   owner?: PetOwnerNested;
@@ -119,6 +124,11 @@ export interface PetListResponse {
    */
   deceased_reason?: string;
   deceased_at?: string;
+  /**
+   * EMR-174: 名前の由来 / 出逢いのストーリーは任意記録。
+   */
+  name_origin?: string;
+  meeting_story?: string;
   owner?: PetOwnerNested;
   animal_species?: PetAnimalSpeciesNested;
   insurance?: PetInsuranceNested;

@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router";
@@ -202,5 +202,93 @@ describe("InterviewHistory — 過去行の詳細遷移", () => {
     expect(screen.getByText(/問診抜粋/)).toBeInTheDocument();
     expect(screen.getByText(/全文は詳細/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "引用" })).not.toBeInTheDocument();
+  });
+});
+
+const COPYABLE_ITEMS: InterviewHistoryItem[] = [
+  {
+    id: "10",
+    date: "2026-02-01",
+    type: "再診",
+    title: "コピー元カルテ",
+    content: "元気がない",
+    author: "田中",
+    copySource: {
+      chiefComplaint: "前回の主訴詳細",
+      treatmentPolicy: "前回の治療方針",
+      chiefComplaintTypeId: 7,
+    },
+  },
+  {
+    id: "11",
+    date: "2026-02-02",
+    type: "初診",
+    title: "コピー不可カルテ",
+    content: "問診なし",
+    author: "佐藤",
+  },
+];
+
+function renderCopyable(onCopyItem?: (item: InterviewHistoryItem) => void) {
+  return render(
+    <MemoryRouter>
+      <InterviewHistory historyItems={COPYABLE_ITEMS} onCopyItem={onCopyItem} />
+    </MemoryRouter>,
+  );
+}
+
+describe("InterviewHistory — 前回複写（コピー）", () => {
+  it("copySource を持つ行にのみ コピー ボタンを表示する", () => {
+    renderCopyable(vi.fn());
+
+    expect(screen.getAllByRole("button", { name: "コピー" })).toHaveLength(1);
+  });
+
+  it("コピー はリンク内にネストしない button で、行リンクは維持される", () => {
+    renderCopyable(vi.fn());
+
+    const link = screen.getByRole("link", { name: /コピー元カルテ/ });
+    expect(link).toHaveAttribute("href", "/medical-records/10");
+    const copyButton = screen.getByRole("button", { name: "コピー" });
+    expect(copyButton.tagName).toBe("BUTTON");
+    expect(link.contains(copyButton)).toBe(false);
+    expect(screen.getByRole("link", { name: /コピー不可カルテ/ })).toHaveAttribute(
+      "href",
+      "/medical-records/11",
+    );
+  });
+
+  it("コピー クリックで onCopyItem に行アイテムを渡し、詳細へ遷移しない", async () => {
+    const user = userEvent.setup();
+    const onCopyItem = vi.fn();
+    renderCopyable(onCopyItem);
+
+    await user.click(screen.getByRole("button", { name: "コピー" }));
+
+    expect(onCopyItem).toHaveBeenCalledTimes(1);
+    expect(onCopyItem).toHaveBeenCalledWith(COPYABLE_ITEMS[0]);
+    expect(screen.getByRole("heading", { name: "問診抜粋" })).toBeInTheDocument();
+  });
+
+  it("disabled fieldset 内では コピー が押せないが行リンクは有効", () => {
+    render(
+      <MemoryRouter>
+        <fieldset disabled>
+          <InterviewHistory historyItems={COPYABLE_ITEMS} onCopyItem={vi.fn()} />
+        </fieldset>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("button", { name: "コピー" })).toBeDisabled();
+    expect(screen.getByRole("link", { name: /コピー元カルテ/ })).toHaveAttribute(
+      "href",
+      "/medical-records/10",
+    );
+  });
+
+  it("copySource の無い行には コピー を表示しない（既定fixture相当）", () => {
+    renderHistory(ITEMS);
+
+    expect(screen.queryByRole("button", { name: "コピー" })).not.toBeInTheDocument();
   });
 });
