@@ -34,7 +34,11 @@ export function ClosingSettingsPage() {
       {!loading && data ? (
         <div className="space-y-6">
           <StandardClosingTimeSection settings={data.settings} canEdit={canEdit} />
-          <SpecialPeriodSection periods={data.special_periods} canEdit={canEdit} />
+          <SpecialPeriodSection
+            periods={data.special_periods}
+            canEdit={canEdit}
+            amStart={data.settings.closing_am_start}
+          />
           <HolidaySection holidays={holidays} canEdit={canEdit} />
         </div>
       ) : null}

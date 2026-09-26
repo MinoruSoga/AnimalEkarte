@@ -7482,6 +7482,9 @@ components:
         next_month_carryover:
           type: integer
           format: int64
+        latest_scheduled:
+          type: string
+          format: date
     MonthlyUnpaidCarryoverResponse:
       description: 月次未納繰越集計（#114）
       allOf:

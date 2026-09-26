@@ -20,6 +20,7 @@ type MonthlyUnpaidOwnerPet struct {
 	PrevMonthCarryover int64   `json:"prev_month_carryover"`
 	CurrentMonthUnpaid int64   `json:"current_month_unpaid"`
 	NextMonthCarryover int64   `json:"next_month_carryover"`
+	LatestScheduled    string  `json:"latest_scheduled"`
 }
 
 // MonthlyUnpaidSummary は月次未納繰越のサマリー情報。#114
@@ -282,7 +283,8 @@ func (r *accountingRepository) FindMonthlyUnpaidCarryover(ctx context.Context, c
 			COALESCE(pets.name, '') AS pet_name,
 			COALESCE(SUM(CASE WHEN billings.scheduled_date < ? THEN (%s) ELSE 0 END), 0) AS prev_month_carryover,
 			COALESCE(SUM(CASE WHEN billings.scheduled_date >= ? AND billings.scheduled_date <= ? THEN (%s) ELSE 0 END), 0) AS current_month_unpaid,
-			COALESCE(SUM(%s), 0) AS next_month_carryover
+			COALESCE(SUM(%s), 0) AS next_month_carryover,
+			MAX(billings.scheduled_date)::text AS latest_scheduled
 		`, amt, amt, amt), firstDay, firstDay, lastDay).
 		Group("billings.owner_id, owners.name, pets.id, COALESCE(pets.name, '')").
 		Order("owners.name ASC, COALESCE(pets.name, '') ASC").

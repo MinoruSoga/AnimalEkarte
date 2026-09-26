@@ -112,6 +112,8 @@ interface MonthlyUnpaidOwnerPet {
   prev_month_carryover: number;
   current_month_unpaid: number;
   next_month_carryover: number;
+  /** EMR-189: その飼主+ペットグループの未納会計の MAX(scheduled_date)（YYYY-MM-DD） */
+  latest_scheduled: string;
 }
 
 interface MonthlyUnpaidSummary {

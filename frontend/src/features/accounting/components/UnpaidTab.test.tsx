@@ -32,6 +32,7 @@ const MONTHLY_RESPONSE = {
       prev_month_carryover: 3000,
       current_month_unpaid: 5000,
       next_month_carryover: 8000,
+      latest_scheduled: "2026-06-20",
     },
     {
       owner_id: 2,
@@ -41,6 +42,7 @@ const MONTHLY_RESPONSE = {
       prev_month_carryover: 0,
       current_month_unpaid: 2000,
       next_month_carryover: 2000,
+      latest_scheduled: "2026-06-05",
     },
   ],
   total: 2,

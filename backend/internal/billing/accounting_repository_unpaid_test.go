@@ -326,6 +326,38 @@ func TestFindMonthlyUnpaidCarryover_ClinicIDIsolation(t *testing.T) {
 	assert.Len(t, items2, 1)
 }
 
+// TestFindMonthlyUnpaidCarryover_LatestScheduled は
+// 飼主+ペットグループの未納会計の MAX(scheduled_date) が latest_scheduled として
+// YYYY-MM-DD で返ることを検証する。EMR-189
+func TestFindMonthlyUnpaidCarryover_LatestScheduled(t *testing.T) {
+	db := setupUnpaidCarryoverTestDB(t)
+	repo := NewAccountingRepository(db)
+	ctx := context.Background()
+	clinicID := uint64(1)
+
+	owner := testdb.MakeTestOwner(t, db, clinicID, "最新未納日テスト飼主")
+	pet := makeSpeciesAndPet(t, db, clinicID, owner.ID, "まめ")
+
+	// 同一 owner+pet グループに前月・当月をまたぐ複数 scheduled_date の未納会計を投入し、
+	// MAX が最新日 (2026-06-20) を選ぶことを確認する。
+	makeBilling(t, db, clinicID, &owner.ID, &pet.ID, 1000, model.BillingStatusWaiting,
+		time.Date(2026, 5, 10, 0, 0, 0, 0, time.UTC))
+	makeBilling(t, db, clinicID, &owner.ID, &pet.ID, 2000, model.BillingStatusWaiting,
+		time.Date(2026, 6, 20, 0, 0, 0, 0, time.UTC))
+	makeBilling(t, db, clinicID, &owner.ID, &pet.ID, 3000, model.BillingStatusWaiting,
+		time.Date(2026, 6, 15, 0, 0, 0, 0, time.UTC))
+	// completed は未納対象外のため MAX に混入しない（6/25 があっても 6/20 が返る）。
+	makeBilling(t, db, clinicID, &owner.ID, &pet.ID, 9999, model.BillingStatusCompleted,
+		time.Date(2026, 6, 25, 0, 0, 0, 0, time.UTC))
+
+	items, total, _, err := repo.FindMonthlyUnpaidCarryover(ctx, clinicID, firstDay2026June, lastDay2026June, 1, 100)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), total)
+	require.Len(t, items, 1)
+	assert.Equal(t, "2026-06-20", items[0].LatestScheduled,
+		"latest_scheduled は未納会計の MAX(scheduled_date) を YYYY-MM-DD で返す")
+}
+
 // TestFindMonthlyUnpaidCarryover_EmptyResult は対象データが存在しない場合にゼロ値を返すことを検証する。
 func TestFindMonthlyUnpaidCarryover_EmptyResult(t *testing.T) {
 	db := setupUnpaidCarryoverTestDB(t)
