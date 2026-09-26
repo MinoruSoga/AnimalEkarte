@@ -177,3 +177,94 @@ describe("AddForm — type連動マスタ参照(BUG-403)", () => {
     );
   });
 });
+
+describe("AddForm — 手入力（その他）明細(EMR-179)", () => {
+  it("type=持ち物 で手入力をONにすると参照選択の代わりに単価・理由欄を表示する", async () => {
+    const user = userEvent.setup();
+    render(<AddForm onSubmit={vi.fn()} />);
+
+    await selectType(user, "持ち物");
+    expect(screen.getByLabelText("ref-select-stub")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("checkbox", { name: /手入力/ }));
+
+    expect(screen.queryByLabelText("ref-select-stub")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("手入力の単価")).toBeInTheDocument();
+    expect(screen.getByLabelText("その他理由")).toBeInTheDocument();
+  });
+
+  it("手入力で名称・単価・理由を入れて追加すると manual=true と trim 済み理由を送る", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(<AddForm onSubmit={onSubmit} />);
+
+    await selectType(user, "持ち物");
+    await user.click(screen.getByRole("checkbox", { name: /手入力/ }));
+    await user.type(screen.getByPlaceholderText("名称を入力"), "持ち込み療養食");
+    await user.type(screen.getByLabelText("手入力の単価"), "800");
+    await user.type(screen.getByLabelText("その他理由"), "  持ち込み品のため  ");
+    await user.click(screen.getByRole("button", { name: /追加/ }));
+
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "item",
+        name: "持ち込み療養食",
+        manual: true,
+        other_reason: "持ち込み品のため",
+        unit_price: 800,
+        hospitalization_plan_id: null,
+        medicine_id: null,
+        procedure_id: null,
+      }),
+    );
+  });
+
+  it("手入力で理由または単価が空のままでは追加ボタンが無効", async () => {
+    const user = userEvent.setup();
+    render(<AddForm onSubmit={vi.fn()} />);
+
+    await selectType(user, "持ち物");
+    await user.click(screen.getByRole("checkbox", { name: /手入力/ }));
+    await user.type(screen.getByPlaceholderText("名称を入力"), "持ち込み品");
+
+    expect(screen.getByRole("button", { name: /追加/ })).toBeDisabled();
+
+    await user.type(screen.getByLabelText("手入力の単価"), "800");
+    expect(screen.getByRole("button", { name: /追加/ })).toBeDisabled();
+
+    await user.type(screen.getByLabelText("その他理由"), "   ");
+    expect(screen.getByRole("button", { name: /追加/ })).toBeDisabled();
+  });
+
+  it("手入力→OFF で理由と単価の入力をクリアして参照選択へ戻る", async () => {
+    const user = userEvent.setup();
+    render(<AddForm onSubmit={vi.fn()} />);
+
+    await selectType(user, "持ち物");
+    await user.click(screen.getByRole("checkbox", { name: /手入力/ }));
+    await user.type(screen.getByLabelText("その他理由"), "分類保留");
+
+    await user.click(screen.getByRole("checkbox", { name: /手入力/ }));
+
+    expect(screen.getByLabelText("ref-select-stub")).toBeInTheDocument();
+    expect(screen.queryByLabelText("その他理由")).not.toBeInTheDocument();
+    // 再度 ON にしても理由は残っていない（モード間の持ち越し防止）
+    await user.click(screen.getByRole("checkbox", { name: /手入力/ }));
+    expect(screen.getByLabelText("その他理由")).toHaveValue("");
+  });
+
+  it("持ち物の手入力中に別 type へ切り替えると手入力モードが解除される", async () => {
+    const user = userEvent.setup();
+    render(<AddForm onSubmit={vi.fn()} />);
+
+    await selectType(user, "持ち物");
+    await user.click(screen.getByRole("checkbox", { name: /手入力/ }));
+    await user.type(screen.getByLabelText("その他理由"), "分類保留");
+
+    await selectType(user, "指示・その他");
+
+    expect(screen.queryByRole("checkbox", { name: /手入力/ })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("その他理由")).not.toBeInTheDocument();
+  });
+});

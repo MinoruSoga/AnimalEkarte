@@ -35,10 +35,12 @@ func setupCarePlanItemTestDB(t *testing.T) *gorm.DB {
 		&model.Hospitalization{},
 		&model.Medicine{},
 		&model.Procedure{},
+		&model.HospitalizationPlan{},
 		&model.CarePlanItem{},
 	))
 	db.Exec("TRUNCATE TABLE care_plan_items CASCADE")
 	db.Exec("TRUNCATE TABLE hospitalizations CASCADE")
+	db.Exec("TRUNCATE TABLE hospitalization_plans CASCADE")
 	db.Exec("TRUNCATE TABLE pets CASCADE")
 	db.Exec("TRUNCATE TABLE animal_species CASCADE")
 	db.Exec("TRUNCATE TABLE medicines CASCADE")
@@ -215,6 +217,32 @@ func TestCarePlanItemRepository_Update(t *testing.T) {
 		name := "乗っ取り"
 		err := repo.Update(ctx, clinicB, item.ID, UpdateCarePlanItemInput{Name: &name})
 		assert.True(t, apperrors.IsNotFound(err))
+	})
+
+	t.Run("manual=true clears hospitalization_plan_id to NULL and persists other_reason", func(t *testing.T) {
+		hospPlan := &model.HospitalizationPlan{ClinicID: clinicA, Name: "スタンダード入院プラン", IsActive: true}
+		require.NoError(t, db.WithContext(ctx).Create(hospPlan).Error)
+		referenced := &model.CarePlanItem{
+			HospitalizationID:     hospA.ID,
+			Type:                  model.CarePlanTypeItem,
+			Name:                  "参照アイテム",
+			HospitalizationPlanID: &hospPlan.ID,
+		}
+		require.NoError(t, db.WithContext(ctx).Create(referenced).Error)
+
+		manual := true
+		reason := "持ち込み品のため"
+		category := "other"
+		require.NoError(t, repo.Update(ctx, clinicA, referenced.ID, UpdateCarePlanItemInput{
+			Manual:      &manual,
+			Category:    &category,
+			OtherReason: &reason,
+		}))
+		got, err := repo.FindByID(ctx, clinicA, referenced.ID)
+		require.NoError(t, err)
+		assert.Nil(t, got.HospitalizationPlanID, "manual 化で hospitalization_plan_id は NULL になる")
+		assert.Equal(t, "other", got.Category)
+		assert.Equal(t, reason, got.OtherReason)
 	})
 }
 

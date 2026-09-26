@@ -64,6 +64,8 @@ vi.mock("../../api/care-plan-items", () => ({
         notes: "",
         unit_price: 0,
         category: "",
+        manual: false,
+        other_reason: "",
         sort_order: 0,
         created_at: "",
         updated_at: "",

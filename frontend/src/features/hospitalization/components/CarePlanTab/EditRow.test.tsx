@@ -52,6 +52,8 @@ const baseItem: CarePlanItem = {
   hospitalization_plan_id: null,
   unit_price: 0,
   category: "",
+  manual: false,
+  other_reason: "",
   sort_order: 0,
   created_at: "2026-07-17T00:00:00Z",
   updated_at: "2026-07-17T00:00:00Z",
@@ -219,5 +221,111 @@ describe("EditRow — type連動マスタ参照(BUG-403)", () => {
   it("type=指示・その他(参照不要)のままなら参照選択欄は表示されない", () => {
     render(<EditRow item={baseItem} onSave={vi.fn()} onCancel={vi.fn()} />);
     expect(screen.queryByLabelText("ref-select-stub")).not.toBeInTheDocument();
+  });
+});
+
+describe("EditRow — 手入力（その他）明細(EMR-179)", () => {
+  const manualItem: CarePlanItem = {
+    ...baseItem,
+    type: "item",
+    name: "持ち込み療養食",
+    manual: true,
+    other_reason: "持ち込み品のため",
+    category: "other",
+    unit_price: 800,
+    hospitalization_plan_id: null,
+  };
+
+  it("手入力行は理由・単価が初期値で表示され、参照選択欄は出ない", () => {
+    render(<EditRow item={manualItem} onSave={vi.fn()} onCancel={vi.fn()} />);
+
+    expect(screen.getByRole("checkbox", { name: /手入力/ })).toBeChecked();
+    expect(screen.getByLabelText("その他理由")).toHaveValue("持ち込み品のため");
+    expect(screen.getByLabelText("手入力の単価")).toHaveValue(800);
+    expect(screen.queryByLabelText("ref-select-stub")).not.toBeInTheDocument();
+  });
+
+  it("手入力行の理由を編集して保存すると manual=true と trim 済み理由を送る", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    render(<EditRow item={manualItem} onSave={onSave} onCancel={vi.fn()} />);
+
+    const reasonInput = screen.getByLabelText("その他理由");
+    await user.clear(reasonInput);
+    await user.type(reasonInput, "  新しい理由  ");
+    await user.click(screen.getByRole("button", { name: /保存/ }));
+
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "item",
+        manual: true,
+        other_reason: "新しい理由",
+        unit_price: 800,
+        hospitalization_plan_id: null,
+      }),
+    );
+  });
+
+  it("手入力行で理由を空にすると保存ボタンが無効", async () => {
+    const user = userEvent.setup();
+    render(<EditRow item={manualItem} onSave={vi.fn()} onCancel={vi.fn()} />);
+
+    await user.clear(screen.getByLabelText("その他理由"));
+
+    expect(screen.getByRole("button", { name: /保存/ })).toBeDisabled();
+  });
+
+  it("手入力→OFF で入院プランを選ぶと manual=false + hospitalization_plan_id で保存される", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    render(<EditRow item={manualItem} onSave={onSave} onCancel={vi.fn()} />);
+
+    await user.click(screen.getByRole("checkbox", { name: /手入力/ }));
+    expect(screen.queryByLabelText("その他理由")).not.toBeInTheDocument();
+    await user.type(screen.getByLabelText("ref-select-stub"), "plan-7");
+    await user.click(screen.getByRole("button", { name: /保存/ }));
+
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "item",
+        manual: false,
+        hospitalization_plan_id: "plan-7",
+        unit_price: 1200,
+      }),
+    );
+    const payload = onSave.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(payload.other_reason).toBeUndefined();
+  });
+
+  it("マスタ参照行で手入力をONにすると参照がクリアされ手入力モードになる", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    const masterItem: CarePlanItem = {
+      ...baseItem,
+      type: "item",
+      name: "入院プラン項目",
+      hospitalization_plan_id: "3",
+      unit_price: 1200,
+    };
+    render(<EditRow item={masterItem} onSave={onSave} onCancel={vi.fn()} />);
+
+    await user.click(screen.getByRole("checkbox", { name: /手入力/ }));
+
+    expect(screen.queryByLabelText("ref-select-stub")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /保存/ })).toBeDisabled();
+
+    await user.type(screen.getByLabelText("手入力の単価"), "500");
+    await user.type(screen.getByLabelText("その他理由"), "特別持ち込み");
+    await user.click(screen.getByRole("button", { name: /保存/ }));
+
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "item",
+        manual: true,
+        other_reason: "特別持ち込み",
+        unit_price: 500,
+        hospitalization_plan_id: null,
+      }),
+    );
   });
 });

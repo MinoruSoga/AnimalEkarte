@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 
 // Relative
-import { TypeIcon, StatusBadge, TimingBadges } from "./CarePlanBadges";
+import { TypeIcon, StatusBadge, TimingBadges, ManualBadge } from "./CarePlanBadges";
 
 // Types
 import type { CarePlanItem } from "../../api/care-plan-items";
@@ -30,6 +30,14 @@ export function ItemRow({ item, onEdit, onDelete, isDeleting }: ItemRowProps) {
       <span className={`min-w-[8rem] flex-1 text-sm font-medium ${C.text} truncate`}>
         {item.name}
       </span>
+      {item.manual ? (
+        <>
+          <ManualBadge />
+          {item.other_reason ? (
+            <span className={`shrink-0 text-xs ${C.text50} truncate`}>{item.other_reason}</span>
+          ) : null}
+        </>
+      ) : null}
       <span className={`shrink-0 text-xs ${C.text60}`}>
         単価 ￥{item.unit_price.toLocaleString()}
       </span>

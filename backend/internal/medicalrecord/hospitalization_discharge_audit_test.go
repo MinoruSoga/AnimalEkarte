@@ -111,6 +111,64 @@ func TestHospitalizationService_DischargeWithBilling_AuditsBillingTotals(t *test
 	}, entry.NewValue)
 }
 
+// TestHospitalizationService_DischargeWithBilling_ManualCarePlanItemConvertsLikeReferenced は
+// EMR-179 の手入力ケアプラン明細（type=item, ref NULL, category=other, other_reason 保持）が
+// 退院会計でマスタ参照明細と同一規則（name/unit_price 転記・ResolveItemCategory・
+// source=hospitalization）に変換され、other_reason が billing_items へ伝播しないことを検証する。
+func TestHospitalizationService_DischargeWithBilling_ManualCarePlanItemConvertsLikeReferenced(t *testing.T) {
+	actorID := uint64(42)
+	hospRepo := admittedHospitalizationRepo(func(_ context.Context, _, _ uint64, _ UpdateHospitalizationInput) (*model.Hospitalization, error) {
+		return &model.Hospitalization{ID: 10}, nil
+	})
+	carePlanRepo := &mockCarePlanItemRepository{
+		listByHospitalizationIDFn: func(_ context.Context, _, _ uint64) ([]model.CarePlanItem, error) {
+			return []model.CarePlanItem{
+				{
+					Name:        "持ち込み療養食",
+					Type:        model.CarePlanTypeItem,
+					UnitPrice:   1500,
+					Category:    "other",
+					OtherReason: "持ち込み品のため",
+				},
+			}, nil
+		},
+	}
+	var createdItem *model.BillingItem
+	billingItemRepo := &mockBillingItemRepository{
+		createFn: func(_ context.Context, item *model.BillingItem) error {
+			createdItem = item
+			return nil
+		},
+		updateBillingTotals: func(_ context.Context, _, _ uint64, _, _, _ int64) error {
+			return nil
+		},
+	}
+	accountingRepo := &mockAccountingRepository{
+		createFn: func(_ context.Context, _ uint64, billing *model.Billing) error {
+			billing.ID = 58
+			return nil
+		},
+	}
+	deps := newDischargeTestDeps(hospRepo, carePlanRepo, accountingRepo, billingItemRepo)
+	svc := NewHospitalizationServiceWithAudit(
+		hospRepo, deps.reservation, nil, nil, carePlanRepo, accountingRepo, deps.billingItem, &mockTransactor{}, &hospitalizationAuditRecorder{},
+	)
+
+	result, err := svc.DischargeWithBilling(context.Background(), 1, 10, DischargeWithBillingInput{
+		DischargeDate:    time.Now(),
+		CreateAccounting: true,
+		ActorID:          &actorID,
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.NotNil(t, createdItem, "手入力ケアプラン明細は請求明細へ変換される")
+	assert.Equal(t, "持ち込み療養食", createdItem.Name)
+	assert.Equal(t, int64(1500), createdItem.UnitPrice)
+	assert.Equal(t, model.ItemSourceHospitalization, createdItem.Source)
+	assert.Nil(t, createdItem.OtherReason, "other_reason は請求明細へ伝播しない（理由必須は source=manual のみ）")
+}
+
 func TestHospitalizationService_DischargeWithBilling_MissingAuditDependencyFailsBeforeStatusWrite(t *testing.T) {
 	actorID := uint64(42)
 	statusWritten := false
