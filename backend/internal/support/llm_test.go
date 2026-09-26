@@ -27,7 +27,7 @@ func TestNewChatCompleter(t *testing.T) {
 func TestOpenAICompatibleClient_Complete(t *testing.T) {
 	t.Run("sends auth header and model, parses reply", func(t *testing.T) {
 		var gotAuth, gotContentType string
-		var gotBody chatCompletionRequest
+		var gotBody map[string]any
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, "/v1/chat/completions", r.URL.Path)
 			gotAuth = r.Header.Get("Authorization")
@@ -48,9 +48,11 @@ func TestOpenAICompatibleClient_Complete(t *testing.T) {
 		assert.Equal(t, "回答です", reply)
 		assert.Equal(t, "Bearer sk-secret", gotAuth)
 		assert.Equal(t, "application/json", gotContentType)
-		assert.Equal(t, "gpt-5-nano", gotBody.Model)
-		assert.Equal(t, chatMaxCompletionTokens, gotBody.MaxCompletionTokens)
-		require.Len(t, gotBody.Messages, 2)
+		assert.Equal(t, "gpt-5-nano", gotBody["model"])
+		assert.Equal(t, float64(chatMaxCompletionTokens), gotBody["max_completion_tokens"])
+		assert.NotContains(t, gotBody, "max_tokens")
+		assert.NotContains(t, gotBody, "thinking")
+		require.Len(t, gotBody["messages"], 2)
 	})
 
 	t.Run("maps non-2xx to upstreamError without leaking body", func(t *testing.T) {
@@ -102,4 +104,41 @@ func TestOpenAICompatibleClient_Complete(t *testing.T) {
 		_, err := client.Complete(context.Background(), []ChatMessage{{Role: "user", Content: "x"}})
 		require.Error(t, err)
 	})
+}
+
+func TestLLMProfileFor(t *testing.T) {
+	cases := []struct {
+		baseURL         string
+		maxTokensField  string
+		disableThinking bool
+	}{
+		{"https://api.openai.com/v1", "max_completion_tokens", false},
+		{"https://api.x.ai/v1", "max_completion_tokens", false},
+		{"https://api.z.ai/api/paas/v4", "max_tokens", true},
+		{"https://open.bigmodel.cn/api/paas/v4", "max_tokens", true},
+		{"http://localhost:18080/v1", "max_completion_tokens", false},
+	}
+	for _, tc := range cases {
+		p := llmProfileFor(tc.baseURL)
+		assert.Equal(t, tc.maxTokensField, p.maxTokensField, tc.baseURL)
+		assert.Equal(t, tc.disableThinking, p.disableThinking, tc.baseURL)
+	}
+}
+
+func TestBuildPayload_ZAI(t *testing.T) {
+	completer := NewChatCompleter("https://api.z.ai/api/paas/v4", "k", "glm-4.5-flash", time.Second)
+	require.NotNil(t, completer)
+	client, ok := completer.(*openAICompatibleClient)
+	require.True(t, ok)
+
+	payload, err := client.buildPayload([]ChatMessage{{Role: "user", Content: "x"}})
+	require.NoError(t, err)
+
+	var body map[string]any
+	require.NoError(t, json.Unmarshal(payload, &body))
+	assert.Equal(t, "glm-4.5-flash", body["model"])
+	// Z.AI は max_completion_tokens を黙殺するため max_tokens を使う（実測で確認済み）
+	assert.Equal(t, float64(chatMaxCompletionTokens), body["max_tokens"])
+	assert.NotContains(t, body, "max_completion_tokens")
+	assert.Equal(t, map[string]any{"type": "disabled"}, body["thinking"])
 }

@@ -41,6 +41,28 @@ func (e *upstreamError) Error() string {
 
 var errUpstreamEmpty = errors.New("llm upstream returned empty content")
 
+// llmProviderProfile は OpenAI 互換プロバイダ間のペイロード差分を吸収する。
+type llmProviderProfile struct {
+	maxTokensField  string
+	disableThinking bool
+}
+
+// llmProfileFor は baseURL からプロバイダ別のペイロード要件を決定する。
+func llmProfileFor(baseURL string) llmProviderProfile {
+	switch {
+	case strings.Contains(baseURL, "z.ai"), strings.Contains(baseURL, "bigmodel.cn"):
+		// Z.AI(GLM): max_completion_tokens は未知フィールドとして黙殺され上限が無効化
+		// されるため max_tokens を使う。thinking は既定有効で、マニュアル抜粋を根拠とする
+		// QA では推論不要かつ応答トークンを10倍超浪費するため disabled を送る。
+		return llmProviderProfile{maxTokensField: "max_tokens", disableThinking: true}
+	default:
+		// OpenAI gpt-5 系は max_tokens を 400 で拒否するため新パラメータ名が必須。
+		// その他の互換エンドポイント(xAI/Gemini等)も同パラメータを送る
+		// （未対応なら黙殺されるだけで従来挙動と同じ）。
+		return llmProviderProfile{maxTokensField: "max_completion_tokens"}
+	}
+}
+
 // openAICompatibleClient は OpenAI 互換 /chat/completions エンドポイント用クライアント。
 // xAI(api.x.ai/v1)や Gemini の OpenAI 互換 API も baseURL 差し替えで利用できる。
 type openAICompatibleClient struct {
@@ -48,6 +70,7 @@ type openAICompatibleClient struct {
 	apiKey     string
 	model      string
 	maxTokens  int
+	profile    llmProviderProfile
 	httpClient *http.Client
 }
 
@@ -60,19 +83,15 @@ func NewChatCompleter(baseURL, apiKey, model string, timeout time.Duration) Chat
 	if strings.TrimSpace(baseURL) == "" {
 		baseURL = "https://api.openai.com/v1"
 	}
+	baseURL = strings.TrimRight(baseURL, "/")
 	return &openAICompatibleClient{
-		baseURL:    strings.TrimRight(baseURL, "/"),
+		baseURL:    baseURL,
 		apiKey:     apiKey,
 		model:      model,
 		maxTokens:  chatMaxCompletionTokens,
+		profile:    llmProfileFor(baseURL),
 		httpClient: &http.Client{Timeout: timeout},
 	}
-}
-
-type chatCompletionRequest struct {
-	Model               string        `json:"model"`
-	Messages            []ChatMessage `json:"messages"`
-	MaxCompletionTokens int           `json:"max_completion_tokens"`
 }
 
 type chatCompletionResponse struct {
@@ -81,17 +100,30 @@ type chatCompletionResponse struct {
 	} `json:"choices"`
 }
 
+// buildPayload はプロバイダ別フィールドを反映したリクエストボディを組み立てる。
+func (c *openAICompatibleClient) buildPayload(messages []ChatMessage) ([]byte, error) {
+	body := map[string]any{
+		"model":                  c.model,
+		"messages":               messages,
+		c.profile.maxTokensField: c.maxTokens,
+	}
+	if c.profile.disableThinking {
+		body["thinking"] = map[string]string{"type": "disabled"}
+	}
+	payload, err := json.Marshal(body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal llm request: %w", err)
+	}
+	return payload, nil
+}
+
 // Complete は chat/completions を呼び出して回答テキストを返す。
 // 非 2xx は *upstreamError で返し、ハンドラ側で 502 にマッピングする。
 // temperature は指定しない（gpt-5 系の reasoning モデルは非デフォルト値を拒否するため）。
 func (c *openAICompatibleClient) Complete(ctx context.Context, messages []ChatMessage) (string, error) {
-	payload, err := json.Marshal(chatCompletionRequest{
-		Model:               c.model,
-		Messages:            messages,
-		MaxCompletionTokens: c.maxTokens,
-	})
+	payload, err := c.buildPayload(messages)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal llm request: %w", err)
+		return "", err
 	}
 
 	req, err := http.NewRequestWithContext(
