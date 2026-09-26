@@ -32,10 +32,8 @@ test.describe("予防接種管理 フロー E2E", () => {
   });
 
   // EMR-60 受入4: fill 直後の DOM・page error・console・trace を採取する。
-  // trace: "on" はこの describe だけに限定（config の on-first-retry を上書き）。
+  // use({ trace }) は describe 内では禁止（worker 強制）のため context.tracing でこのテストだけ採取する。
   test.describe("採証: 検索フィルタ", () => {
-    test.use({ trace: "on" });
-
     test("/vaccinations — 検索フィルタが機能する", async () => {
       const page = await context.newPage();
       const vaccinations = new VaccinationsPage(page);
@@ -43,6 +41,7 @@ test.describe("予防接種管理 フロー E2E", () => {
       const pageErrors: string[] = [];
       page.on("console", (message) => consoleEntries.push(`${message.type()}: ${message.text()}`));
       page.on("pageerror", (error) => pageErrors.push(error.message));
+      await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
       try {
         await vaccinations.gotoList();
         await expect(vaccinations.listHeading()).toBeVisible();
@@ -83,6 +82,12 @@ test.describe("予防接種管理 フロー E2E", () => {
         await expect(vaccinations.detailLinkForPet(fixture.outsideFirstPagePet.name)).toBeVisible();
         expect(pageErrors).toEqual([]);
       } finally {
+        const tracePath = test.info().outputPath("vaccination-filter-trace.zip");
+        await context.tracing.stop({ path: tracePath });
+        await test.info().attach("vaccination-filter-trace.zip", {
+          path: tracePath,
+          contentType: "application/zip",
+        });
         await test.info().attach("vaccination-filter-console.txt", {
           body: consoleEntries.join("\n") || "(no console entries)",
           contentType: "text/plain",
