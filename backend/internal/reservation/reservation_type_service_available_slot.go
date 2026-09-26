@@ -112,7 +112,7 @@ func validateAvailableSlotNotDuplicated(existing []model.ReservationTypeAvailabl
 			}
 		case model.AvailableSlotTypeSpecific:
 			if input.SpecificDate != nil && existing[i].SpecificDate != nil &&
-				existing[i].SpecificDate.In(time.Local).Format(time.DateOnly) == input.SpecificDate.In(time.Local).Format(time.DateOnly) {
+				existing[i].SpecificDate.In(config.JST).Format(time.DateOnly) == input.SpecificDate.In(config.JST).Format(time.DateOnly) {
 				return apperrors.WrapConflict("指定した予約可能枠は既に登録されています")
 			}
 		}
@@ -144,7 +144,7 @@ func FilterApplicableAvailableSlots(slots []model.ReservationTypeAvailableSlot, 
 				result = append(result, slots[i])
 			}
 		case model.AvailableSlotTypeSpecific:
-			if slots[i].SpecificDate != nil && slots[i].SpecificDate.In(time.Local).Format(time.DateOnly) == dateStr {
+			if slots[i].SpecificDate != nil && slots[i].SpecificDate.In(config.JST).Format(time.DateOnly) == dateStr {
 				result = append(result, slots[i])
 			}
 		}
