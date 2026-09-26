@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState, useTransition } from "react";
 
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
+import { PartnerRecordLink } from "@/components/shared/PartnerRecordLink/PartnerRecordLink";
 import { C, LAYOUT } from "@/lib/design-tokens";
 import { UnifiedTabsRoot } from "@/components/shared/UnifiedTabs";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
@@ -197,6 +198,14 @@ export function MedicalRecordFormReadyPanels({
         resource={ResourceMedicalRecords}
         maxWidth={LAYOUT.pageContentMaxWidth.full}
         scrollContainerRef={ready.scrollContainerRef}
+        headerAction={
+          <PartnerRecordLink
+            kind="trimming"
+            petId={selectedPet.id}
+            visitDate={form.partnerVisitDate}
+            isPetDeceased={selectedPet.status === "死亡"}
+          />
+        }
       >
         <NavigationBlocker when={ready.isDirty} />
         {form.autoCreateFailurePhase !== null ? (

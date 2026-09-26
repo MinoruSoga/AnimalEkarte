@@ -1,4 +1,4 @@
-import { Suspense, useCallback, type ChangeEvent } from "react";
+import { Suspense, useCallback, type ChangeEvent, type ReactNode } from "react";
 import { Scissors, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -71,6 +71,8 @@ interface TrimmingFormBodyProps {
   isDeleting: boolean;
   isDirty: boolean;
   hasExistingAppointment: boolean;
+  /** EMR-168: 相方カルテへのショートカット（権限・死亡ゲートは PartnerRecordLink 側） */
+  partnerLink?: ReactNode;
   selectedPet: TrimmingPatient | undefined;
   formData: TrimmingFormData;
   fieldErrors: Record<string, string>;
@@ -117,6 +119,7 @@ export function TrimmingFormBody({
   isDeleting,
   isDirty,
   hasExistingAppointment,
+  partnerLink,
   selectedPet,
   formData,
   fieldErrors,
@@ -179,18 +182,21 @@ export function TrimmingFormBody({
           submitDisabled={isSaving}
           submitFormId={TRIMMING_FORM_ID}
           extra={
-            mode === "edit" && canDelete ? (
-              <Button
-                type="button"
-                onClick={onOpenDeleteConfirm}
-                variant="ghost-danger"
-                className="h-10 rounded-sm text-sm px-4"
-                disabled={isDeleting}
-              >
-                <Trash2 className={`mr-1.5 ${ICON.action}`} />
-                削除
-              </Button>
-            ) : null
+            <>
+              {partnerLink}
+              {mode === "edit" && canDelete ? (
+                <Button
+                  type="button"
+                  onClick={onOpenDeleteConfirm}
+                  variant="ghost-danger"
+                  className="h-10 rounded-sm text-sm px-4"
+                  disabled={isDeleting}
+                >
+                  <Trash2 className={`mr-1.5 ${ICON.action}`} />
+                  削除
+                </Button>
+              ) : null}
+            </>
           }
         />
       }

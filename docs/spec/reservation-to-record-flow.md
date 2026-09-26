@@ -89,6 +89,15 @@ stateDiagram-v2
 - `visit_date` / `date` と `appointment_id` を保持し、pet 選択画面を挟んでも失わない。
 - 通常カルテ作成後と trimming 作成後は reception query を invalidate し、当日 card を再取得する。
 
+### 2.6 カルテ ⇔ トリミング相互 shortcut（EMR-168 案A）
+
+診察カルテフォームとトリミングフォームは、同日・同一ペットの相方 record への相互遷移導線を持つ。画面は 2 枚のまま（1画面統合はしない）で、遷移は既存の `record_shortcut` 経路を再利用する。
+
+- 診察カルテ側「トリミング記録を開く/作成」: 同日・同一ペットの未完了 trimming appointment を `GET /v1/reservations` で解決する。あれば `appointmentId` 付きの `/trimming/new` へ（detail 既存ならフォームが hydrate、なければ同 appointment に upsert）。なければ `petId` + `visitDate` のみで遷移し、保存時にフォームが `record_shortcut` で appointment+detail を作成する。
+- トリミング側「診察カルテを開く/作成」: 同日・同一ペットの通常カルテを `GET /v1/medical-records` で解決する。あれば `/medical-records/:id` へ。なければ `/medical-records/new?petId&visitDate` へ遷移し、auto-create が同日 general appointment を再利用または `record_shortcut` で新規作成する。
+- 遷移先リソースの権限（開く=view、作成=create）がない staff には導線を表示しない。死亡ペットでは非表示。
+- feature 境界（medical-records ↔ trimming の直接 import 禁止）を維持するため、解決ロジックは共有 hook（`src/hooks/use-partner-record-link.ts`）、表示は共有 component（`PartnerRecordLink`）に置く。
+
 ## 3. 空き枠と staff capability
 
 現行の空き枠は `line_reservation_settings`、`reservation_type_available_slots`、`reservation_type_unavailable_times`、`shift_entries`、`shift_entry_breaks`、既存 appointment を組み合わせる。院内 UI も LIFF と同じ計算を利用する。
@@ -138,6 +147,7 @@ clinic-owned relation は tenant boundary を明示する。主要 column は次
 | 受付カンバン | 当日 `appointments` の status を表示し、category で通常/トリミング遷移を分ける |
 | 通常カルテ一覧 | appointment を解決/作成し、JST 日付と予約文脈を保持する |
 | トリミング一覧 | appointment + detail を transaction で作成/再利用し、受付 query を再取得する |
+| カルテ/トリミングフォーム相互導線 | 同日・同一ペットの相方 record へ「開く/作成」。既存相方は解決して遷移、新規は record_shortcut 経路。遷移先権限なし・死亡ペットは非表示 |
 
 ## 7. Deferred / known gaps
 
