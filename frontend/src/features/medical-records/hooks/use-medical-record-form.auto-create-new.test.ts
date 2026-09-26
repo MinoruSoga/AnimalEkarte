@@ -507,7 +507,8 @@ describe("useMedicalRecordForm — 新規作成 auto-create effect (新規予約
     const { result } = renderHook(() => useMedicalRecordForm());
 
     await waitFor(() => {
-      expect(result.current.autoCreateFailurePhase).toBe("appointment");
+      // BUG-MR-DRAFT-AUTOPOST-FAILED: master 欠落は appointment 失敗ではなく前提欠落 phase
+      expect(result.current.autoCreateFailurePhase).toBe("appointment-master-missing");
     });
     expect(mockCreateReservation).not.toHaveBeenCalled();
     expect(mockCreateRecord).not.toHaveBeenCalled();
@@ -515,12 +516,14 @@ describe("useMedicalRecordForm — 新規作成 auto-create effect (新規予約
 
     render(
       createElement(MedicalRecordAutoCreateFailure, {
-        failurePhase: "appointment",
+        failurePhase: "appointment-master-missing",
         isRetrying: false,
         onRetry: () => result.current.retryAutoCreate(),
       }),
     );
-    expect(screen.getByRole("button", { name: "カルテ作成を再試行する" })).toBeEnabled();
+    expect(
+      screen.queryByRole("button", { name: "カルテ作成を再試行する" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("alert")).toBeInTheDocument();
 
     // 再試行時も general が無ければ再び failure（silent に戻らない）
@@ -528,7 +531,7 @@ describe("useMedicalRecordForm — 新規作成 auto-create effect (新規予約
       result.current.retryAutoCreate();
     });
     await waitFor(() => {
-      expect(result.current.autoCreateFailurePhase).toBe("appointment");
+      expect(result.current.autoCreateFailurePhase).toBe("appointment-master-missing");
     });
     expect(mockCreateReservation).not.toHaveBeenCalled();
     expect(mockCreateRecord).not.toHaveBeenCalled();
