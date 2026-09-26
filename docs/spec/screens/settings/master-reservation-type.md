@@ -25,6 +25,22 @@
 
 > ⚠️ **予約可能枠の加算挙動**: 予約可能枠は営業時間から自動生成された空き枠に、登録した開始時刻を**追加**する加算モードで動作する（`mergeAvailableTimeSlots`）。登録済み時刻のみに予約を制限するホワイトリストではなく、枠を登録しても営業時間由来の空き枠は予約可能なまま残る。詳細は [LINE予約設定 §4](../28-line-reservation.md) を参照。
 
+### 1.3 標準予約区分（seed 投入）
+
+全医院に共通で用意する標準区分。八王子テスト報告（EMR-193）で「新規予約作成でトリミングしか選べない」ことが判明したため追加された。
+
+| 名称 | category | 標準所要時間 | sort_order | 既定のLINE公開 | 色 |
+|---|---|---|---|---|---|
+| 診察 | `general` | 15 分 | 1 | 非公開 | `#3B82F6` |
+| お手入れ | `general` | 15 分 | 2 | 非公開 | `#10B981` |
+| ワクチン | `general` | 15 分 | 3 | 非公開 | `#8B5CF6` |
+| 健診 | `general` | 15 分 | 4 | 非公開 | `#F97316` |
+
+- 既存のトリミング区分（`sort_order=9`、`category=trimming`）より前に並ぶ。
+- **投入経路**: `backend/migrations/seeds/live_insert_standard_reservation_types.sql` を承認済み runbook から `psql` で手動適用する。`cmd/migrate` の自動適用対象ではなく、CSV bundle（`002_master`）の immutable 制約により CSV 直接編集も行わない。
+- **冪等性**: `(clinic_id, name)` の有効行が既にある医院では INSERT をスキップし、手動作成済みの同名区分を上書きしない。
+- **`reservation_visible=false`（非公開）が既定**: 院内予約フォームは `is_active` のみで絞るため院内では即選択可能だが、LIFF の飼い主向け選択肢には出ない。LINE 予約へ公開する場合は本画面で区分ごとに有効化する。
+
 ```mermaid
 flowchart LR
     base["営業時間から自動生成された空き枠"]

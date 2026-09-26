@@ -22,6 +22,9 @@ export function createPetFormData(petData?: PetFormData): PetFormData {
       "購入") as (typeof ACQUISITION_TYPE_VALUES)[number],
     dangerLevel: (petData?.dangerLevel || "低") as (typeof DANGER_LEVEL_VALUES)[number],
     dangerReason: petData?.dangerReason || "",
+    // EMR-174: 未記録は空文字で初期化（undefined で PATCH 差分検知を潰さない）
+    nameOrigin: petData?.nameOrigin || "",
+    meetingStory: petData?.meetingStory || "",
     food: petData?.food || "",
     environment: petData?.environment || "",
     status: petData ? petData.status || "不明" : "生存",

@@ -12,7 +12,7 @@ export class VaccinationsPage extends BasePage {
   }
 
   selectPetHeading(): Locator {
-    return this.heading("ワクチン接種 - ペット選択");
+    return this.heading("予防接種登録 - ペット選択");
   }
 
   detailHeading(): Locator {
@@ -33,5 +33,15 @@ export class VaccinationsPage extends BasePage {
 
   firstDetailLink(): Locator {
     return this.page.getByRole("link", { name: /予防接種詳細:/ }).first();
+  }
+
+  /**
+   * Detail link scoped to a pet name. Rows with `medicalRecordId` navigate to the
+   * chart 予防接種 tab (`/medical-records/:id?tab=予防接種&vaccinationId=:id`);
+   * unlinked rows navigate to the standalone detail (`/vaccinations/:id`).
+   * The aria-label is `予防接種詳細:` for both, so callers disambiguate by pet.
+   */
+  detailLinkForPet(petName: string): Locator {
+    return this.page.getByRole("link", { name: `予防接種詳細: ${petName}` });
   }
 }

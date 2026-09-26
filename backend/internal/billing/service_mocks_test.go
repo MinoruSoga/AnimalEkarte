@@ -178,8 +178,8 @@ type mockAccountingRepository struct {
 	findUnpaidByOwnerFn   func(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]UnpaidOwnerAggregate, int64, UnpaidSummary, error)
 	// #182: 飼主未納残高
 	sumUnpaidByOwnerFn func(ctx context.Context, clinicID, ownerID uint64) (OwnerUnpaidBalance, error)
-	// #114: 月次未納繰越集計
-	findMonthlyUnpaidCarryoverFn func(ctx context.Context, clinicID uint64, firstDay, lastDay string, page, limit int) ([]MonthlyUnpaidOwnerPet, int64, MonthlyUnpaidSummary, error)
+	// EMR-188: 月末未納者一覧（期間検索）集計
+	findPeriodUnpaidCarryoverFn func(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]PeriodUnpaidOwnerPet, int64, PeriodUnpaidSummary, error)
 	// 以下4フィールドは F-4 統合で追加（旧 ForReport/ForClose/ForLstepVisit が個別に持っていたフック）。
 	// 未設定時は各旧モックのデフォルトと同じ値を返す（挙動不変）。
 	getCloseAggregateFn                func(ctx context.Context, input GetCloseAggregateInput) (*CloseAggregateResult, error)
@@ -333,11 +333,11 @@ func (m *mockAccountingRepository) FindOwnersByAnnualRevenue(_ context.Context, 
 	return nil, nil
 }
 
-func (m *mockAccountingRepository) FindMonthlyUnpaidCarryover(ctx context.Context, clinicID uint64, firstDay, lastDay string, page, limit int) ([]MonthlyUnpaidOwnerPet, int64, MonthlyUnpaidSummary, error) {
-	if m.findMonthlyUnpaidCarryoverFn != nil {
-		return m.findMonthlyUnpaidCarryoverFn(ctx, clinicID, firstDay, lastDay, page, limit)
+func (m *mockAccountingRepository) FindPeriodUnpaidCarryover(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]PeriodUnpaidOwnerPet, int64, PeriodUnpaidSummary, error) {
+	if m.findPeriodUnpaidCarryoverFn != nil {
+		return m.findPeriodUnpaidCarryoverFn(ctx, clinicID, startDate, endDate, page, limit)
 	}
-	return nil, 0, MonthlyUnpaidSummary{}, nil
+	return nil, 0, PeriodUnpaidSummary{}, nil
 }
 
 func (m *mockAccountingRepository) FindByCompletionRequestID(ctx context.Context, clinicID uint64, requestID string) (*model.Billing, error) {

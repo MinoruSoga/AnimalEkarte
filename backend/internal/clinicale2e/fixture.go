@@ -184,6 +184,18 @@ func Create(ctx context.Context, db *gorm.DB, req Request) (*Result, error) {
 		if err := tx.Create(exam).Error; err != nil {
 			return apperrors.Wrap(err, "create synthetic examination")
 		}
+		// medicalRecordID なし行は一覧の standalone 詳細遷移（/examinations/:id）を担う。
+		standaloneExam := &model.Examination{
+			ClinicID:   clinicID,
+			PetID:      &outsidePet.ID,
+			ExamTypeID: examType.ID,
+			DoctorID:   &staff.ID,
+			Date:       day,
+			Status:     model.ExaminationStatusCompleted,
+		}
+		if err := tx.Create(standaloneExam).Error; err != nil {
+			return apperrors.Wrap(err, "create synthetic standalone examination")
+		}
 
 		vaccine := &model.Vaccine{ClinicID: clinicID, Name: fmt.Sprintf("e2e-vac-%d", clinicID), IsActive: true}
 		if err := tx.Create(vaccine).Error; err != nil {
@@ -199,6 +211,17 @@ func Create(ctx context.Context, db *gorm.DB, req Request) (*Result, error) {
 		}
 		if err := tx.Create(vaccination).Error; err != nil {
 			return apperrors.Wrap(err, "create synthetic vaccination")
+		}
+		// medicalRecordID なし行は一覧の standalone 詳細遷移（/vaccinations/:id）を担う。
+		standaloneVaccination := &model.Vaccination{
+			ClinicID:  clinicID,
+			PetID:     &outsidePet.ID,
+			VaccineID: vaccine.ID,
+			Date:      day,
+			DoctorID:  &staff.ID,
+		}
+		if err := tx.Create(standaloneVaccination).Error; err != nil {
+			return apperrors.Wrap(err, "create synthetic standalone vaccination")
 		}
 
 		checkupType := &model.CheckupType{ClinicID: clinicID, Name: fmt.Sprintf("e2e-chk-%d", clinicID), IsActive: true}

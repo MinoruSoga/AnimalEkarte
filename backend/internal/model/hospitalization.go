@@ -94,6 +94,7 @@ type CarePlanItem struct {
 	HospitalizationPlanID *uint64        `                                                      json:"hospitalization_plan_id,omitempty"`
 	UnitPrice             int64          `gorm:"default:0"                                      json:"unit_price"`
 	Category              string         `gorm:"default:''"                                     json:"category"`
+	OtherReason           string         `gorm:"not null;default:''"                            json:"other_reason"`
 	SortOrder             int            `gorm:"type:integer;default:0"                         json:"sort_order"`
 	CreatedAt             time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt             time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`

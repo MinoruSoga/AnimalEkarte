@@ -220,6 +220,56 @@ func (s *liffService) getAvailableTimes(
 	date time.Time,
 	requireActive bool,
 ) ([]TimeSlot, error) {
+	plan, err := s.prepareDaySlots(ctx, clinicID, typeID, staffID, date, requireActive)
+	if err != nil {
+		return nil, err
+	}
+	if plan.input == nil {
+		return []TimeSlot{}, nil // 定休日
+	}
+
+	result, err := GenerateTimeSlots(plan.input)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to generate time slots")
+	}
+	return s.mergeAndFilterGeneratedSlots(ctx, clinicID, typeID, date, plan.course, result)
+}
+
+// GetStaffTimeSlotAvailabilities は院内予約フォーム向けに、生成された全予約枠の空き状況
+// （available/low/full + remaining）を返す。満員枠も含む点が GetStaffAvailableTimes との差異
+// （EMR-170 〇△✕表示）。無効区分でも枠計算へ進む点は GetStaffAvailableTimes と同じ（BUG-015）。
+func (s *liffService) GetStaffTimeSlotAvailabilities(ctx context.Context, clinicID, typeID, staffID uint64, date time.Time) ([]TimeSlotAvailability, error) {
+	plan, err := s.prepareDaySlots(ctx, clinicID, typeID, staffID, date, false)
+	if err != nil {
+		return nil, err
+	}
+	if plan.input == nil {
+		return []TimeSlotAvailability{}, nil // 定休日
+	}
+
+	caps, err := GenerateSlotCapacities(plan.input)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to generate time slots")
+	}
+	return s.rateSlotCapacities(ctx, clinicID, typeID, date, plan.course, caps)
+}
+
+// daySlotPlan は単日スロット生成の事前解決結果。定休日は input=nil（course は有効値）。
+type daySlotPlan struct {
+	course *model.ReservationType
+	input  *TimeSlotsInput
+}
+
+// prepareDaySlots は予約設定・予約区分・定休日・対象スタッフ・TimeSlotsInput を解決する。
+// requireActive=true は LIFF 向け（無効区分を拒否）、false は院内スタッフ向け（BUG-015:
+// 無効区分でも枠計算へ進む）。定休日の場合は input=nil で返す。
+// getAvailableTimes / GetStaffTimeSlotAvailabilities の共通前段として抽出（EMR-170）。
+func (s *liffService) prepareDaySlots(
+	ctx context.Context,
+	clinicID, typeID, staffID uint64,
+	date time.Time,
+	requireActive bool,
+) (*daySlotPlan, error) {
 	setting, err := s.settingRepo.FindByClinicID(ctx, clinicID)
 	if err != nil {
 		// BUG-RES-AVAILABLE-TIMES-404: in-clinic (!requireActive) settings missing is
@@ -254,7 +304,7 @@ func (s *liffService) getAvailableTimes(
 	}
 	dateJST := date.In(config.JST)
 	if isDateClosed(datesSettings, dateJST) {
-		return []TimeSlot{}, nil
+		return &daySlotPlan{course: course}, nil
 	}
 
 	visibleStaffs, err := s.resolveTargetStaffs(ctx, clinicID, typeID, staffID)
@@ -282,12 +332,7 @@ func (s *liffService) getAvailableTimes(
 	if err := s.appendDateUnavailableBreaks(ctx, clinicID, typeID, date, input); err != nil {
 		return nil, err
 	}
-
-	result, err := GenerateTimeSlots(input)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to generate time slots")
-	}
-	return s.mergeAndFilterGeneratedSlots(ctx, clinicID, typeID, date, course, result)
+	return &daySlotPlan{course: course, input: input}, nil
 }
 
 func (s *liffService) appendDateUnavailableBreaks(

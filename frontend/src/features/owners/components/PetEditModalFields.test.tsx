@@ -57,6 +57,8 @@ const basePet: PetFormData = {
   environment: "室内",
   remarks: "咬傷注意",
   insuranceId: "",
+  nameOrigin: "生まれた神社の名前から",
+  meetingStory: "里親募集サイトで出会った",
 };
 
 function PetFieldsHarness() {
@@ -104,6 +106,30 @@ describe("PetEditModalFields", () => {
 
     expect(screen.getByLabelText("血液型")).toHaveValue("B");
     expect(screen.getByLabelText("マイクロチップ番号")).toHaveValue("900000000000001");
+  });
+
+  // EMR-174: 名前の由来 / 出逢いのストーリー
+  it("保存済みの名前の由来と出逢いのストーリーを初期表示する", () => {
+    render(<PetFieldsHarness />);
+
+    expect(screen.getByLabelText("名前の由来")).toHaveValue("生まれた神社の名前から");
+    expect(screen.getByLabelText("出逢いのストーリー")).toHaveValue("里親募集サイトで出会った");
+  });
+
+  it("名前の由来と出逢いのストーリーを編集できる", async () => {
+    const user = userEvent.setup();
+    render(<PetFieldsHarness />);
+
+    const originInput = screen.getByLabelText("名前の由来");
+    const storyInput = screen.getByLabelText("出逢いのストーリー");
+
+    await user.clear(originInput);
+    await user.type(originInput, "昔飼っていた犬の名前から");
+    await user.clear(storyInput);
+    await user.type(storyInput, "ペットショップで一目惚れした");
+
+    expect(screen.getByLabelText("名前の由来")).toHaveValue("昔飼っていた犬の名前から");
+    expect(screen.getByLabelText("出逢いのストーリー")).toHaveValue("ペットショップで一目惚れした");
   });
 
   it("編集時は PetEditModalFields から副飼主セクションを差し込む", () => {

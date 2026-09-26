@@ -38,4 +38,9 @@ export class BasePage {
   firstRow(): Locator {
     return this.page.locator("tbody tr").first();
   }
+
+  /** `getByRole('tab', { name })` — e.g. the chart tab triggers on /medical-records/:id. */
+  tab(name: string): Locator {
+    return this.page.getByRole("tab", { name });
+  }
 }

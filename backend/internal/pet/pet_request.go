@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
@@ -42,6 +43,7 @@ type listPetQuery struct {
 	Search          string
 	Species         string
 	IncludeDeceased string
+	CheckupHistory  string
 }
 
 func newListPetQuery(values url.Values) listPetQuery {
@@ -50,6 +52,7 @@ func newListPetQuery(values url.Values) listPetQuery {
 		Search:          values.Get("search"),
 		Species:         values.Get("species"),
 		IncludeDeceased: values.Get("include_deceased"),
+		CheckupHistory:  values.Get("checkup_history"),
 	}
 }
 
@@ -87,11 +90,17 @@ func (q listPetQuery) toServiceFilters() (listPetFilters, error) {
 	if err != nil {
 		return listPetFilters{}, err
 	}
+	// EMR-197-01: checkup_history は列挙値のみ受理（未指定 = フィルタ無し）。
+	checkupHistory, err := parseCheckupHistoryFilter(q.CheckupHistory)
+	if err != nil {
+		return listPetFilters{}, err
+	}
 	return listPetFilters{
 		OwnerID:         ownerID,
 		Search:          q.Search,
 		AnimalSpeciesID: speciesID,
 		IncludeDeceased: includeDeceased,
+		CheckupHistory:  checkupHistory,
 	}, nil
 }
 
@@ -118,6 +127,9 @@ type createPetRequest struct {
 	Phone           string    `json:"phone"            binding:"omitempty,max=30"`
 	InsuranceID     *uint64   `json:"insurance_id"`
 	Remarks         string    `json:"remarks"          binding:"omitempty,max=2000"`
+	// EMR-174: 名前の由来 / 出逢いのストーリーは任意記録。空文字は未記録(NULL)扱い。
+	NameOrigin   string `json:"name_origin"   binding:"omitempty,max=500"`
+	MeetingStory string `json:"meeting_story" binding:"omitempty,max=2000"`
 }
 
 func (r *createPetRequest) toServiceInput() *CreatePetInput {
@@ -143,7 +155,19 @@ func (r *createPetRequest) toServiceInput() *CreatePetInput {
 		Phone:           r.Phone,
 		InsuranceID:     r.InsuranceID,
 		Remarks:         r.Remarks,
+		NameOrigin:      nonEmptyStringPtr(r.NameOrigin),
+		MeetingStory:    nonEmptyStringPtr(r.MeetingStory),
 	}
+}
+
+// nonEmptyStringPtr は空文字（および空白のみ）を nil に正規化する。
+// 任意記録フィールドは「空文字の登録」を NULL と区別しない（NULL=未記録）。
+func nonEmptyStringPtr(value string) *string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return nil
+	}
+	return &trimmed
 }
 
 // updatePetRequest はペット更新のバインド struct（全フィールドポインタ型）
@@ -174,6 +198,9 @@ type updatePetRequest struct {
 	LastVisit       *jsonDate                  `json:"last_visit"`
 	InsuranceID     **uint64                   `json:"insurance_id"`
 	Remarks         *string                    `json:"remarks"          binding:"omitempty,max=2000"`
+	// EMR-174: nil=未指定 / &nil=NULLクリア / &&value=更新（danger_reason と同型 tri-state）。
+	NameOrigin   nullableStringRequestField `json:"name_origin"`
+	MeetingStory nullableStringRequestField `json:"meeting_story"`
 }
 
 func (r *updatePetRequest) toServiceInput() *UpdatePetInput {
@@ -200,5 +227,7 @@ func (r *updatePetRequest) toServiceInput() *UpdatePetInput {
 		LastVisit:       jsonDatePtr(r.LastVisit),
 		InsuranceID:     r.InsuranceID,
 		Remarks:         r.Remarks,
+		NameOrigin:      r.NameOrigin.toServiceInput(),
+		MeetingStory:    r.MeetingStory.toServiceInput(),
 	}
 }

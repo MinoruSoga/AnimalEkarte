@@ -3,10 +3,12 @@ package medicalrecord
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -79,6 +81,9 @@ func TestBuildCarePlanItemUpdate(t *testing.T) {
 	unitPrice := int64(500)
 	category := "カテゴリ"
 	sortOrder := 4
+	manualTrue := true
+	manualFalse := false
+	reason := "持ち込み療養食のため"
 
 	tests := []struct {
 		name  string
@@ -155,6 +160,21 @@ func TestBuildCarePlanItemUpdate(t *testing.T) {
 			input: &UpdateCarePlanItemInput{SortOrder: &sortOrder},
 			want:  map[string]any{"sort_order": sortOrder},
 		},
+		{
+			name:  "manual=true clears hospitalization_plan_id and forces category=other",
+			input: &UpdateCarePlanItemInput{Manual: &manualTrue},
+			want:  map[string]any{"hospitalization_plan_id": nil, "category": "other"},
+		},
+		{
+			name:  "manual=false alone writes nothing for the manual flag",
+			input: &UpdateCarePlanItemInput{Manual: &manualFalse},
+			want:  map[string]any{},
+		},
+		{
+			name:  "other_reason set",
+			input: &UpdateCarePlanItemInput{OtherReason: &reason},
+			want:  map[string]any{"other_reason": reason},
+		},
 	}
 
 	for _, tt := range tests {
@@ -227,6 +247,7 @@ func TestCarePlanItemService_Create(t *testing.T) {
 	hospitalizationID := uint64(1)
 	medicineID := uint64(10)
 	sortOrder := 1
+	hospPlanID := uint64(30)
 
 	tests := []struct {
 		name              string
@@ -291,6 +312,108 @@ func TestCarePlanItemService_Create(t *testing.T) {
 			repoErr: errors.New("db error"),
 			wantErr: true,
 		},
+		{
+			name:              "creates manual item with category=other and reason",
+			hospitalizationID: hospitalizationID,
+			input: &CreateCarePlanItemInput{
+				Type:        string(model.CarePlanTypeItem),
+				Name:        "持ち込みおもちゃ",
+				Manual:      true,
+				UnitPrice:   800,
+				OtherReason: "  持ち込み品のため  ",
+			},
+			repoErr: nil,
+			wantErr: false,
+		},
+		{
+			name:              "manual=true on non-item type is rejected",
+			hospitalizationID: hospitalizationID,
+			input: &CreateCarePlanItemInput{
+				Type:        string(model.CarePlanTypeMedicine),
+				Name:        "x",
+				Manual:      true,
+				OtherReason: "理由",
+			},
+			wantErr: true,
+		},
+		{
+			name:              "manual=true with hospitalization_plan_id is rejected",
+			hospitalizationID: hospitalizationID,
+			input: &CreateCarePlanItemInput{
+				Type:                  string(model.CarePlanTypeItem),
+				Name:                  "x",
+				Manual:                true,
+				HospitalizationPlanID: &hospPlanID,
+				OtherReason:           "理由",
+			},
+			wantErr: true,
+		},
+		{
+			name:              "manual=true with missing reason is rejected",
+			hospitalizationID: hospitalizationID,
+			input: &CreateCarePlanItemInput{
+				Type:   string(model.CarePlanTypeItem),
+				Name:   "x",
+				Manual: true,
+			},
+			wantErr: true,
+		},
+		{
+			name:              "manual=true with blank reason is rejected",
+			hospitalizationID: hospitalizationID,
+			input: &CreateCarePlanItemInput{
+				Type:        string(model.CarePlanTypeItem),
+				Name:        "x",
+				Manual:      true,
+				OtherReason: "   ",
+			},
+			wantErr: true,
+		},
+		{
+			name:              "manual=true with over-500-rune reason is rejected",
+			hospitalizationID: hospitalizationID,
+			input: &CreateCarePlanItemInput{
+				Type:        string(model.CarePlanTypeItem),
+				Name:        "x",
+				Manual:      true,
+				OtherReason: strings.Repeat("あ", 501),
+			},
+			wantErr: true,
+		},
+		{
+			name:              "manual=true with non-other category is rejected",
+			hospitalizationID: hospitalizationID,
+			input: &CreateCarePlanItemInput{
+				Type:        string(model.CarePlanTypeItem),
+				Name:        "x",
+				Manual:      true,
+				Category:    "goods",
+				OtherReason: "理由",
+			},
+			wantErr: true,
+		},
+		{
+			name:              "non-manual with other_reason is rejected",
+			hospitalizationID: hospitalizationID,
+			input: &CreateCarePlanItemInput{
+				Type:        string(model.CarePlanTypeItem),
+				Name:        "x",
+				OtherReason: "理由",
+			},
+			wantErr: true,
+		},
+		{
+			name:              "negative unit_price is rejected",
+			hospitalizationID: hospitalizationID,
+			input: &CreateCarePlanItemInput{
+				Type:        string(model.CarePlanTypeItem),
+				Name:        "x",
+				Manual:      true,
+				UnitPrice:   -1,
+				OtherReason: "理由",
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -316,6 +439,37 @@ func TestCarePlanItemService_Create(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestCarePlanItemService_Create_ManualPersistsContractShape は有効な手入力作成時に
+// 正規化された形（category='other' / ref NULL / trim 済み other_reason）で永続化されることを検証する。
+func TestCarePlanItemService_Create_ManualPersistsContractShape(t *testing.T) {
+	var persisted *model.CarePlanItem
+	repo := &mockCarePlanItemRepository{
+		createFn: func(_ context.Context, item *model.CarePlanItem) error {
+			persisted = item
+			return nil
+		},
+		findByIDFn: func(_ context.Context, _, itemID uint64) (*model.CarePlanItem, error) {
+			return &model.CarePlanItem{ID: itemID, HospitalizationID: 1}, nil
+		},
+	}
+	svc := newTestCarePlanItemService(repo, okHospRepoForCarePlan(), okMedicineRepo(), okProcedureRepo(), okHospitalizationPlanRepo())
+
+	item, err := svc.Create(context.Background(), 1, 1, &CreateCarePlanItemInput{
+		Type:        string(model.CarePlanTypeItem),
+		Name:        "持ち込みおもちゃ",
+		Manual:      true,
+		UnitPrice:   800,
+		OtherReason: "  持ち込み品のため  ",
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, item)
+	require.NotNil(t, persisted)
+	assert.Nil(t, persisted.HospitalizationPlanID, "手入力行はマスタ参照を持たない")
+	assert.Equal(t, "other", persisted.Category, "手入力行は category=other に正規化される")
+	assert.Equal(t, "持ち込み品のため", persisted.OtherReason, "other_reason は trim されて保存される")
 }
 
 // TestCarePlanItemService_ValidateMasterFKs_ProcedureOwnership は procedure_id の
@@ -495,6 +649,198 @@ func TestCarePlanItemService_Update_InvalidStatus(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, item)
 }
+
+// TestCarePlanItemService_Update_ManualTransitions は manual<->master の双方向遷移と
+// 拒否マトリクスを検証する（repo へ渡る正規化済み input を捕捉して判定）。
+func TestCarePlanItemService_Update_ManualTransitions(t *testing.T) {
+	const itemID = uint64(7)
+	hospPlanID := uint64(50)
+	manualTrue := true
+	manualFalse := false
+	reason := "持ち込み品のため"
+	itemType := string(model.CarePlanTypeItem)
+	foodType := string(model.CarePlanTypeFood)
+	negativePrice := int64(-1)
+
+	manualExisting := &model.CarePlanItem{
+		ID: itemID, HospitalizationID: 1, Type: model.CarePlanTypeItem,
+		Category: "other", OtherReason: "既存理由",
+	}
+	masterExisting := &model.CarePlanItem{
+		ID: itemID, HospitalizationID: 1, Type: model.CarePlanTypeItem,
+		HospitalizationPlanID: &hospPlanID, Category: "goods",
+	}
+
+	tests := []struct {
+		name         string
+		existing     *model.CarePlanItem
+		input        *UpdateCarePlanItemInput
+		wantErr      bool
+		wantCmdCheck func(t *testing.T, cmd UpdateCarePlanItemInput)
+	}{
+		{
+			name:     "master->manual clears ref and forces category=other with reason",
+			existing: masterExisting,
+			input:    &UpdateCarePlanItemInput{Manual: &manualTrue, OtherReason: &reason},
+			wantErr:  false,
+			wantCmdCheck: func(t *testing.T, cmd UpdateCarePlanItemInput) {
+				require.NotNil(t, cmd.Manual)
+				assert.True(t, *cmd.Manual)
+				require.NotNil(t, cmd.Category)
+				assert.Equal(t, "other", *cmd.Category)
+				require.NotNil(t, cmd.OtherReason)
+				assert.Equal(t, reason, *cmd.OtherReason)
+			},
+		},
+		{
+			name:     "master->manual without reason is rejected",
+			existing: masterExisting,
+			input:    &UpdateCarePlanItemInput{Manual: &manualTrue},
+			wantErr:  true,
+		},
+		{
+			name:     "manual->master sets ref and clears category/other_reason",
+			existing: manualExisting,
+			input:    &UpdateCarePlanItemInput{HospitalizationPlanID: &hospPlanID},
+			wantErr:  false,
+			wantCmdCheck: func(t *testing.T, cmd UpdateCarePlanItemInput) {
+				require.NotNil(t, cmd.HospitalizationPlanID)
+				assert.Equal(t, hospPlanID, *cmd.HospitalizationPlanID)
+				require.NotNil(t, cmd.Category, "category=other は手入力終了時にクリアされる")
+				assert.Equal(t, "", *cmd.Category)
+				require.NotNil(t, cmd.OtherReason, "other_reason は手入力終了時にクリアされる")
+				assert.Equal(t, "", *cmd.OtherReason)
+			},
+		},
+		{
+			name:     "manual item keeps manual shape when editing reason only",
+			existing: manualExisting,
+			input:    &UpdateCarePlanItemInput{OtherReason: ptrStr("  新しい理由  ")},
+			wantErr:  false,
+			wantCmdCheck: func(t *testing.T, cmd UpdateCarePlanItemInput) {
+				require.NotNil(t, cmd.OtherReason)
+				assert.Equal(t, "新しい理由", *cmd.OtherReason, "other_reason は trim されて保存される")
+			},
+		},
+		{
+			name:     "manual item rejects blank reason edit",
+			existing: manualExisting,
+			input:    &UpdateCarePlanItemInput{OtherReason: ptrStr("   ")},
+			wantErr:  true,
+		},
+		{
+			name:     "manual item rejects non-other category while staying manual",
+			existing: manualExisting,
+			input:    &UpdateCarePlanItemInput{Category: ptrStr("goods")},
+			wantErr:  true,
+		},
+		{
+			name:     "manual item rejects manual=false without a master ref",
+			existing: manualExisting,
+			input:    &UpdateCarePlanItemInput{Manual: &manualFalse},
+			wantErr:  true,
+		},
+		{
+			name:     "manual=true conflicts with hospitalization_plan_id",
+			existing: masterExisting,
+			input:    &UpdateCarePlanItemInput{Manual: &manualTrue, HospitalizationPlanID: &hospPlanID, OtherReason: &reason},
+			wantErr:  true,
+		},
+		{
+			name:     "manual=true on non-item merged type is rejected",
+			existing: &model.CarePlanItem{ID: itemID, HospitalizationID: 1, Type: model.CarePlanTypeFood},
+			input:    &UpdateCarePlanItemInput{Manual: &manualTrue, OtherReason: &reason},
+			wantErr:  true,
+		},
+		{
+			name:     "non-item to item without ref or manual is rejected",
+			existing: &model.CarePlanItem{ID: itemID, HospitalizationID: 1, Type: model.CarePlanTypeFood},
+			input:    &UpdateCarePlanItemInput{Type: &itemType},
+			wantErr:  true,
+		},
+		{
+			name:     "other_reason on master-referenced item is rejected",
+			existing: masterExisting,
+			input:    &UpdateCarePlanItemInput{OtherReason: &reason},
+			wantErr:  true,
+		},
+		{
+			name:     "manual->master with explicit manual=false and new ref clears metadata",
+			existing: manualExisting,
+			input:    &UpdateCarePlanItemInput{Manual: &manualFalse, HospitalizationPlanID: &hospPlanID},
+			wantErr:  false,
+			wantCmdCheck: func(t *testing.T, cmd UpdateCarePlanItemInput) {
+				require.NotNil(t, cmd.Category)
+				assert.Equal(t, "", *cmd.Category)
+				require.NotNil(t, cmd.OtherReason)
+				assert.Equal(t, "", *cmd.OtherReason)
+			},
+		},
+		{
+			name:     "manual->non-item type switch clears manual metadata",
+			existing: manualExisting,
+			input:    &UpdateCarePlanItemInput{Type: &foodType},
+			wantErr:  false,
+			wantCmdCheck: func(t *testing.T, cmd UpdateCarePlanItemInput) {
+				require.NotNil(t, cmd.Type)
+				assert.Equal(t, foodType, *cmd.Type)
+				require.NotNil(t, cmd.Category)
+				assert.Equal(t, "", *cmd.Category)
+				require.NotNil(t, cmd.OtherReason)
+				assert.Equal(t, "", *cmd.OtherReason)
+			},
+		},
+		{
+			name:     "whitespace-only other_reason on non-manual item is normalized to empty",
+			existing: masterExisting,
+			input:    &UpdateCarePlanItemInput{OtherReason: ptrStr("   ")},
+			wantErr:  false,
+			wantCmdCheck: func(t *testing.T, cmd UpdateCarePlanItemInput) {
+				require.NotNil(t, cmd.OtherReason)
+				assert.Equal(t, "", *cmd.OtherReason)
+			},
+		},
+		{
+			name:     "negative unit_price is rejected",
+			existing: masterExisting,
+			input:    &UpdateCarePlanItemInput{UnitPrice: &negativePrice},
+			wantErr:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var captured *UpdateCarePlanItemInput
+			repo := &mockCarePlanItemRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.CarePlanItem, error) {
+					return tt.existing, nil
+				},
+				updateFn: func(_ context.Context, _, _ uint64, cmd UpdateCarePlanItemInput) error {
+					captured = &cmd
+					return nil
+				},
+			}
+			svc := newTestCarePlanItemService(repo, okHospRepoForCarePlan(), okMedicineRepo(), okProcedureRepo(), okHospitalizationPlanRepo())
+
+			item, err := svc.Update(context.Background(), 1, 1, itemID, tt.input)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.True(t, apperrors.IsInvalidInput(err), "想定外のエラー種別: %v", err)
+				assert.Nil(t, captured, "拒否時は repo.Update が呼ばれない")
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, item)
+				require.NotNil(t, captured, "受理時は repo.Update が呼ばれる")
+				if tt.wantCmdCheck != nil {
+					tt.wantCmdCheck(t, *captured)
+				}
+			}
+		})
+	}
+}
+
+func ptrStr(s string) *string { return &s }
 
 // TestCarePlanItemService_Update_ReloadError は Update 成功後の再取得
 // （s.repo.FindByID の2回目呼び出し）が失敗した場合にラップされたエラーを返すことを検証する。

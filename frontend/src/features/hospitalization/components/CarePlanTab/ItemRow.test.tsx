@@ -17,6 +17,8 @@ const item = {
   procedure_id: "synthetic-procedure",
   unit_price: 4_321,
   category: "synthetic",
+  manual: false,
+  other_reason: "",
   sort_order: 1,
   created_at: "2026-07-23T00:00:00+09:00",
   updated_at: "2026-07-23T00:00:00+09:00",
@@ -47,5 +49,26 @@ describe("ItemRow", () => {
     await user.click(deleteButton);
     expect(onEdit).toHaveBeenCalledWith(item.id);
     expect(onDelete).toHaveBeenCalledWith(item.id);
+  });
+
+  it("手入力（その他）明細は「手入力」バッジと理由を表示する（EMR-179）", () => {
+    const manualItem = {
+      ...item,
+      type: "item",
+      name: "持ち込み療養食",
+      manual: true,
+      other_reason: "持ち込み品のため",
+      category: "other",
+      hospitalization_plan_id: null,
+    } satisfies CarePlanItem;
+    render(<ItemRow item={manualItem} isDeleting={false} />);
+
+    expect(screen.getByText("手入力")).toBeInTheDocument();
+    expect(screen.getByText("持ち込み品のため")).toBeInTheDocument();
+  });
+
+  it("マスタ参照明細は「手入力」バッジを表示しない", () => {
+    render(<ItemRow item={item} isDeleting={false} />);
+    expect(screen.queryByText("手入力")).not.toBeInTheDocument();
   });
 });

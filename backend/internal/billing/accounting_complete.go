@@ -60,6 +60,12 @@ type CompleteAccountingInput struct {
 	Items             []CompleteAccountingItemInput
 	PaymentSplits     []PaymentSplitInput
 	PostCloseReason   *string
+	// ExpectedUnbilledRevision は EMR-196② の楽観ロック token。
+	// PetID 指定時は必須（client が表示した unbilled-details の revision をそのまま返送）。
+	// complete tx 内で再集計した集約版と不一致なら 409 UNBILLED_ITEMS_CHANGED。
+	// digest（冪等 payload hash）には含めない — 版は操作内容ではなく前提条件であり、
+	// 同一 key の retry が refetch 後も replay として扱われるようにするため。
+	ExpectedUnbilledRevision string
 	// IsPostClose は handler の候補 read（write 時に resolvePostCloseInTx で再評価）。
 	IsPostClose bool
 }
@@ -230,6 +236,15 @@ func (s *accountingService) Complete(ctx context.Context, input *CompleteAccount
 	}
 	if s.totalsWriter == nil {
 		return nil, apperrors.WrapInternalServerError("complete totals writer is not configured")
+	}
+	// EMR-196②: pet 指定の complete は表示した未請求集約の版を必須化する。
+	// 版なし通過を認めると stale 明細での確定を物理ブロックできない（fail-closed）。
+	// handler を迂回する呼び出し元にも不変条件を強制するため binding ではなく service で検証する。
+	if input.PetID != nil && input.ExpectedUnbilledRevision == "" {
+		return nil, apperrors.WrapInvalidInput("pet_id を指定する場合は expected_unbilled_revision が必要です")
+	}
+	if input.PetID == nil && input.ExpectedUnbilledRevision != "" {
+		return nil, apperrors.WrapInvalidInput("expected_unbilled_revision を指定する場合は pet_id が必要です")
 	}
 
 	digest, err := ComputeCompleteAccountingDigest(input)

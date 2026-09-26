@@ -64,6 +64,12 @@ export interface PetInOwnerResponse {
    * DeceasedReason の読み取り消費者は存在しない — 意図的に未追加）。
    */
   deceased_at?: string;
+  /**
+   * EMR-174: 名前の由来 / 出逢いのストーリーは任意記録。
+   * （deceased_reason と違い飼主向け公開に機微情報を含まないため owner 経路でも返す）。
+   */
+  name_origin?: string;
+  meeting_story?: string;
   created_at: string;
   updated_at: string;
   animal_species?: PetAnimalSpeciesNested;

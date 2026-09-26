@@ -15,10 +15,18 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar as CalendarIcon, Clock, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DISPLAY_TIME_FORMAT } from "@/lib/format/date";
-import { TIME_OPTIONS } from "./reservation-time-utils";
+import { slotVacancyLabel, TIME_OPTIONS, type SlotVacancy } from "./reservation-time-utils";
+import type { ReservationSlotVacancyStatus } from "@/hooks/use-reservation-types";
 import type { Reservation } from "@/types";
 
 const TRIGGER_CLASS = `h-9 text-sm bg-white ${C.borderMediumLight} ${C.text} ${C.hoverBgSubtle} transition-colors`;
+
+// EMR-170: 空き状況バッジの色（色だけでなく記号＋テキストも併記する）
+const VACANCY_BADGE_CLASS: Record<ReservationSlotVacancyStatus, string> = {
+  available: C.text60,
+  low: C.textStatusAmber,
+  full: C.danger,
+};
 
 export interface FieldLabelProps {
   children: React.ReactNode;
@@ -50,6 +58,8 @@ interface ReservationDateTimeFieldsProps {
   handleMonthChange: (month: Date) => void;
   startTimeOptions: string[];
   availableTimeSlotMap: Map<string, string> | undefined;
+  /** EMR-170: 開始時刻 → 空き状況。status なし応答・手動入力パスでは undefined/空。 */
+  slotVacancyMap?: Map<string, SlotVacancy>;
   /** Guidance when LINE reservation settings are unset (manual time path). */
   settingsUnsetGuidance?: string | null;
   /** Non-unset available-times fetch failure message. */
@@ -64,6 +74,7 @@ export function ReservationDateTimeFields({
   handleMonthChange,
   startTimeOptions,
   availableTimeSlotMap,
+  slotVacancyMap,
   settingsUnsetGuidance = null,
   availableTimesErrorMessage = null,
 }: ReservationDateTimeFieldsProps) {
@@ -150,11 +161,29 @@ export function ReservationDateTimeFields({
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="max-h-[200px]">
-              {startTimeOptions.map((time) => (
-                <SelectItem key={time} value={time}>
-                  {time}
-                </SelectItem>
-              ))}
+              {startTimeOptions.map((time) => {
+                const vacancy = slotVacancyMap?.get(time);
+                return (
+                  <SelectItem
+                    key={time}
+                    value={time}
+                    textValue={time}
+                    disabled={vacancy?.status === "full"}
+                  >
+                    <span className="flex items-center gap-2">
+                      <span>{time}</span>{" "}
+                      {vacancy ? (
+                        <span
+                          data-testid={`res-start-time-vacancy-${time}`}
+                          className={`text-xs ${VACANCY_BADGE_CLASS[vacancy.status]}`}
+                        >
+                          {slotVacancyLabel(vacancy.status)}
+                        </span>
+                      ) : null}
+                    </span>
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
           <ArrowRight className={`${ICON.action} ${C.text40} flex-shrink-0`} />

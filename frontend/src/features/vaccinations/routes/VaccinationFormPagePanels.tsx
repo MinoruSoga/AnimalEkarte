@@ -8,6 +8,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { Button } from "@/components/ui/button";
 import { C, STYLE, ICON, LAYOUT } from "@/lib/design-tokens";
+import { paths } from "@/config/paths";
 import { ResourceVaccinations } from "@/types/generated/models";
 import type { SortOrder } from "@/types";
 import type { VaccinationRecord } from "../api/transforms";
@@ -115,6 +116,9 @@ interface VaccinationHistoryFilterState {
 }
 
 interface VaccinationPatient {
+  /** EMR-174: 詳細 deep link 用（選択 Pet 由来） */
+  id?: string;
+  ownerId?: string;
   ownerName: string;
   name: string;
   petNumber?: string;
@@ -126,6 +130,11 @@ interface VaccinationPatient {
   status?: string;
   insuranceName?: string;
   insuranceDetails?: string;
+  /** スタッフ向け飼主危険マーク (EMR-173)。Pet transform が供給する。 */
+  ownerIsDangerous?: boolean;
+  /** ペット危険度 (表示値 "高"/"中"/"低")。高/中のみ Popover バッジ。 */
+  dangerLevel?: string;
+  dangerReason?: string;
 }
 
 interface VaccinationFormBodyProps {
@@ -204,6 +213,14 @@ export function VaccinationFormBody({
               ownerName={selectedPet.ownerName}
               petName={selectedPet.name}
               petNumber={selectedPet.petNumber ?? ""}
+              ownerDetailHref={
+                selectedPet.ownerId ? paths.owners.detail.getHref(selectedPet.ownerId) : undefined
+              }
+              petDetailHref={
+                selectedPet.ownerId && selectedPet.id
+                  ? paths.owners.detail.pet.getHref(selectedPet.ownerId, selectedPet.id)
+                  : undefined
+              }
               weight={selectedPet.weight ?? ""}
               petDetails={formatPatientPetDetails({
                 species: selectedPet.species,
@@ -214,6 +231,9 @@ export function VaccinationFormBody({
               status={selectedPet.status === "死亡" ? "deceased" : "alive"}
               insuranceName={selectedPet.insuranceName}
               insuranceDetails={selectedPet.insuranceDetails}
+              ownerIsDangerous={selectedPet.ownerIsDangerous}
+              petDangerLevel={selectedPet.dangerLevel}
+              petDangerReason={selectedPet.dangerReason}
             />
           ) : null}
           {isPetDeceased ? (

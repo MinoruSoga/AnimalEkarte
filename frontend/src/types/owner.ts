@@ -66,6 +66,10 @@ export interface CreateOwnerPetRequest {
   environment?: string;
   insurance_id?: number;
   remarks?: string;
+  /** EMR-174: 名前の由来（nullable。省略=未記録） */
+  name_origin?: string;
+  /** EMR-174: 出逢いのストーリー（nullable。省略=未記録） */
+  meeting_story?: string;
 }
 
 /**

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { slotTimeToSelectValue } from "./reservation-time-utils";
+import { slotTimeToSelectValue, slotVacancyLabel } from "./reservation-time-utils";
 
 describe("slotTimeToSelectValue", () => {
   it("returns HH:mm unchanged when already normalized", () => {
@@ -21,5 +21,13 @@ describe("slotTimeToSelectValue", () => {
 
   it("pads a single-digit minute segment", () => {
     expect(slotTimeToSelectValue("09:5")).toBe("09:05");
+  });
+});
+
+describe("slotVacancyLabel (EMR-170)", () => {
+  it("maps each status to a symbol + text label (not color-only)", () => {
+    expect(slotVacancyLabel("available")).toBe("〇 空きあり");
+    expect(slotVacancyLabel("low")).toBe("△ 残り1枠");
+    expect(slotVacancyLabel("full")).toBe("✕ 満員");
   });
 });

@@ -201,6 +201,15 @@ func (h *AccountingHandler) CompleteAccounting(c *gin.Context) {
 			})
 			return
 		}
+		// EMR-196②: 表示済み unbilled 集約の版不一致は 409 + code=UNBILLED_ITEMS_CHANGED と
+		// 現在の集約版を返す（フロントが stale を検出して再取得・再読込を促せるようにする）。
+		var unbilledConflict *unbilledRevisionConflictError
+		if errors.As(err, &unbilledConflict) {
+			httpapi.RespondErrorWithExtras(c, err, map[string]any{
+				"unbilled_revision": unbilledConflict.CurrentRevision,
+			})
+			return
+		}
 		httpapi.RespondError(c, err)
 		return
 	}
@@ -405,9 +414,9 @@ func (h *AccountingHandler) GetOwnerUnpaidBalance(c *gin.Context) {
 	c.JSON(http.StatusOK, toOwnerUnpaidBalanceResponse(result))
 }
 
-// GetUnpaidMonthlySummary は月次未納繰越集計を返す。#114
-// GET /v1/accountings/unpaid-monthly?year=YYYY&month=MM&page=N&limit=N
-func (h *AccountingHandler) GetUnpaidMonthlySummary(c *gin.Context) {
+// GetUnpaidPeriodSummary は月末未納者一覧（期間検索）を返す。EMR-188
+// GET /v1/accountings/unpaid-period?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD&page=N&limit=N
+func (h *AccountingHandler) GetUnpaidPeriodSummary(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
 		return
@@ -421,19 +430,19 @@ func (h *AccountingHandler) GetUnpaidMonthlySummary(c *gin.Context) {
 		return
 	}
 
-	year, month, err := newMonthlyUnpaidQuery(c.Request.URL.Query()).parse()
+	startDate, endDate, err := newUnpaidPeriodQuery(c.Request.URL.Query()).parse()
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return
 	}
 
 	ctx := c.Request.Context()
-	items, total, summary, err := h.svc.GetMonthlyUnpaidCarryover(ctx, clinicID, year, month, page, limit)
+	items, total, summary, err := h.svc.GetPeriodUnpaidCarryover(ctx, clinicID, startDate, endDate, page, limit)
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toMonthlyUnpaidCarryoverResponse(items, total, page, limit, summary))
+	c.JSON(http.StatusOK, toPeriodUnpaidCarryoverResponse(items, total, page, limit, summary))
 }
 
 // GetDailySummary はレジ締め日次集計を返す。BUG-368

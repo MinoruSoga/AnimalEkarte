@@ -228,9 +228,9 @@ func TestSeedCSVSchemaDrift_OrderedMigrationsAppendPetsVersion(t *testing.T) {
 		wantTail []string
 	}{
 		{
-			name:     "pets version follows danger reason",
+			name:     "pets name_origin/meeting_story appended after version",
 			table:    "pets",
-			wantTail: []string{"danger_reason", "version"},
+			wantTail: []string{"danger_reason", "version", "name_origin", "meeting_story"},
 		},
 	}
 

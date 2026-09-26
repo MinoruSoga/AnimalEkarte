@@ -297,6 +297,101 @@ describe("usePetFormListState focused coverage (BUG-002)", () => {
     expect(result.current.pets[0]?.petName).toBe("合成ペット丙");
   });
 
+  // EMR-174: name_origin / meeting_story の request payload 配線
+  it("EMR-174 更新リクエストへ name_origin / meeting_story を tri-state で送る", () => {
+    const pet = makePet({
+      id: "pet-1",
+      nameOrigin: "生まれた神社の名前から",
+      meetingStory: "里親募集サイトで出会った",
+    });
+    const updatePetMutate = vi.fn((_args: unknown, callbacks: { onSuccess: () => void }) =>
+      callbacks.onSuccess(),
+    );
+    const mutations: PetMutations = {
+      ...makePetMutations().mutations,
+      updatePetMutate,
+    };
+    const { result } = renderHook(() =>
+      usePetFormListState({
+        id: "owner-1",
+        initialPets: [pet],
+        petMutations: mutations,
+        permissions: ALL_PERMISSIONS,
+      }),
+    );
+
+    act(() => result.current.handleEditPet(pet));
+    act(() =>
+      result.current.handleSavePet({
+        ...pet,
+        nameOrigin: "",
+        meetingStory: "新しい出逢いの話",
+      }),
+    );
+
+    expect(updatePetMutate).toHaveBeenCalledTimes(1);
+    const args = updatePetMutate.mock.calls[0]?.[0] as {
+      id: string;
+      req: Record<string, unknown>;
+    };
+    expect(args.id).toBe("pet-1");
+    expect(args.req.name_origin).toBeNull();
+    expect(args.req.meeting_story).toBe("新しい出逢いの話");
+  });
+
+  it("EMR-174 作成リクエストへ name_origin / meeting_story を送る", () => {
+    const createPetMutate = vi.fn((_req: unknown, callbacks: { onSuccess: (pet: Pet) => void }) => {
+      callbacks.onSuccess({ id: "pet-new", name: "ポチ" } as Pet);
+    });
+    const mutations: PetMutations = {
+      ...makePetMutations().mutations,
+      createPetMutate,
+    };
+    const { result } = renderHook(() =>
+      usePetFormListState({
+        id: "owner-1",
+        initialPets: [],
+        petMutations: mutations,
+        permissions: ALL_PERMISSIONS,
+      }),
+    );
+
+    act(() =>
+      result.current.handleSavePet(
+        makePet({
+          id: "",
+          petName: "ポチ",
+          animalSpeciesId: "10",
+          nameOrigin: "生まれた神社の名前から",
+          meetingStory: "里親募集サイトで出会った",
+        }),
+      ),
+    );
+
+    expect(createPetMutate).toHaveBeenCalledTimes(1);
+    const req = createPetMutate.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(req.name_origin).toBe("生まれた神社の名前から");
+    expect(req.meeting_story).toBe("里親募集サイトで出会った");
+  });
+
+  it("EMR-174 編集権限なしでも handleEditPet は詳細モーダルを開く（保存経路は別ガード）", () => {
+    const pet = makePet();
+    const { mutations } = makePetMutations();
+    const { result } = renderHook(() =>
+      usePetFormListState({
+        id: "owner-1",
+        initialPets: [pet],
+        petMutations: mutations,
+        permissions: { canCreate: false, canEdit: false, canDelete: false },
+      }),
+    );
+
+    act(() => result.current.handleEditPet(pet));
+
+    expect(result.current.petModalOpen).toBe(true);
+    expect(result.current.editingPet?.id).toBe("pet-1");
+  });
+
   it("BUG-002 更新 onError / 削除 onError / 作成 onError でも一覧 status を変えない", () => {
     const updatePetMutate = vi.fn(
       (_args: unknown, callbacks: { onSuccess: () => void; onError: (e: unknown) => void }) =>

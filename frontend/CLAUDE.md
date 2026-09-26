@@ -101,7 +101,7 @@ import { RECEPTION_STATUS_COLORS } from "@/constants/status-colors";
 
 ## Pet selector の表示範囲と選択可否 (MANDATORY)
 
-- Accounting / Checkup / Examination / Hospitalization / Medical Record / Trimming / Vaccination の7つの直接記録入力 selector は、本人同定と死亡 sentinel の表示のため、共有 `usePetSelectionPage` から `includeDeceased: true` を要求する。行が見えることは操作可能を意味せず、選択には `pet.status === "生存"` を必須とする。
+- Accounting / Checkup / Examination / Hospitalization / Medical Record / Trimming / Vaccination の7つの直接記録入力 selector は、本人同定と死亡 sentinel の表示のため、共有 `usePetSelectionPage` から `includeDeceased: true` を要求する。EMR-177 以降、死亡個体も選択可能（死亡バッジ + グレーアウトで識別）とする — 選択は閲覧・連絡記録を許可する操作であり、新規記録の作成を許可しない。作成可否は遷移先フォームと BE の死亡ゲートが拒否する。status が「不明」等の既知外は fail-closed で選択不可のまま。カルテ登録 selector は死亡個体選択時に新規作成画面ではなく `/medical-records?pet_id=<id>` のカルテ一覧へ遷移する。
 - `ReservationFormModal` の将来予約 selector は、死亡個体が将来受診候補にならないため、`includeDeceased` を意図的に指定しない。
 
 ## shared-liff 配置 (Decision Record)

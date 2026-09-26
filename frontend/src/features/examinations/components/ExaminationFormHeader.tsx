@@ -1,6 +1,7 @@
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { LabDeviceUnlinkedBanner } from "@/components/shared/LabDeviceUnlinkedBanner/LabDeviceUnlinkedBanner";
 import { C } from "@/lib/design-tokens";
+import { paths } from "@/config/paths";
 import type { Pet } from "@/types";
 import type { ExaminationPrintModel } from "../lib/examination-print-model";
 import { ExaminationPatientChangeDialog } from "./ExaminationPatientChangeDialog";
@@ -44,12 +45,23 @@ export function ExaminationFormHeader({
           ownerName={selectedPet.ownerName}
           petName={`${selectedPet.name}${selectedPet.species ? `(${selectedPet.species})` : ""}`}
           petNumber={selectedPet.petNumber || selectedPet.id}
+          ownerDetailHref={
+            selectedPet.ownerId ? paths.owners.detail.getHref(selectedPet.ownerId) : undefined
+          }
+          petDetailHref={
+            selectedPet.ownerId && selectedPet.id
+              ? paths.owners.detail.pet.getHref(selectedPet.ownerId, selectedPet.id)
+              : undefined
+          }
           weight={selectedPet.weight || "-"}
           staffName={selectedDoctorName}
           reservationType="検査"
           petDetails={`${selectedPet.birthDate ? `${selectedPet.birthDate}生` : ""} / ${selectedPet.species}`}
           insuranceName={selectedPet.insuranceName}
           insuranceDetails={selectedPet.insuranceDetails}
+          ownerIsDangerous={selectedPet.ownerIsDangerous}
+          petDangerLevel={selectedPet.dangerLevel}
+          petDangerReason={selectedPet.dangerReason}
           status={isPetDeceased ? "deceased" : "alive"}
         />
       ) : null}

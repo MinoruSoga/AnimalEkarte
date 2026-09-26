@@ -64,12 +64,15 @@ type Pet struct {
 	LastVisit       *time.Time       `gorm:"type:date"                                      json:"last_visit,omitempty"`
 	InsuranceID     *uint64          `                                                      json:"insurance_id,omitempty"`
 	Remarks         string           `gorm:"default:''"                                     json:"remarks"`
-	DeceasedAt      *time.Time       `gorm:"column:deceased_at"                             json:"deceased_at,omitempty"`
-	DeceasedReason  *string          `gorm:"column:deceased_reason"                         json:"deceased_reason,omitempty"`
-	Version         int              `gorm:"default:1"                                      json:"version"`
-	CreatedAt       time.Time        `gorm:"autoCreateTime"                                 json:"created_at"`
-	UpdatedAt       time.Time        `gorm:"autoUpdateTime"                                 json:"updated_at"`
-	DeletedAt       gorm.DeletedAt   `                                                      json:"-"`
+	// EMR-174: 名前の由来 / 出逢いのストーリーは任意記録。NULL=未記録。
+	NameOrigin     *string        `gorm:"column:name_origin"                             json:"name_origin,omitempty"`
+	MeetingStory   *string        `gorm:"column:meeting_story"                           json:"meeting_story,omitempty"`
+	DeceasedAt     *time.Time     `gorm:"column:deceased_at"                             json:"deceased_at,omitempty"`
+	DeceasedReason *string        `gorm:"column:deceased_reason"                         json:"deceased_reason,omitempty"`
+	Version        int            `gorm:"default:1"                                      json:"version"`
+	CreatedAt      time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
+	UpdatedAt      time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
+	DeletedAt      gorm.DeletedAt `                                                      json:"-"`
 
 	// Relations
 	Owner         *Owner         `gorm:"foreignKey:OwnerID"          json:"owner,omitempty"`

@@ -28,6 +28,9 @@ type AccountingCompletionFocusTarget = NonNullable<AccountingFormState["focusTar
 
 const POST_CLOSE_REASON_MARKER = "post_close_reason";
 
+/** EMR-196②: stale unbilled 集約での complete を BE が拒否したときの安定エラーコード。 */
+const UNBILLED_REVISION_CONFLICT_CODE = "UNBILLED_ITEMS_CHANGED";
+
 function readAxiosErrorBody(error: unknown): string {
   if (typeof error !== "object" || error === null || !("response" in error)) {
     return "";
@@ -42,6 +45,22 @@ function readAxiosErrorBody(error: unknown): string {
   }
   const message = data.error;
   return typeof message === "string" ? message : "";
+}
+
+/** EMR-196②: BE が返す 409 UNBILLED_ITEMS_CHANGED（表示した集約版と現在の版の不一致）を判定する。 */
+export function isUnbilledRevisionConflict(error: unknown): boolean {
+  if (typeof error !== "object" || error === null || !("response" in error)) {
+    return false;
+  }
+  const response = error.response;
+  if (typeof response !== "object" || response === null) {
+    return false;
+  }
+  const { status, data } = response as { status?: unknown; data?: unknown };
+  if (status !== 409 || typeof data !== "object" || data === null) {
+    return false;
+  }
+  return (data as { code?: unknown }).code === UNBILLED_REVISION_CONFLICT_CODE;
 }
 
 /** 締め後理由不足の 400 は postCloseReason、それ以外の失敗は預り金欄へフォーカスする。 */
@@ -171,6 +190,10 @@ interface UseAccountingCompletionActionArgs {
   blockCreateReason?: string;
   /** FE-RC-001: action 開始時に再検証する canCreate/canEdit */
   permissions?: Readonly<AccountingCompletionMutationPermissions>;
+  /** EMR-196②: 表示中の unbilled 集約版 token。新規 complete 時に expected_unbilled_revision として送信する。 */
+  unbilledRevision?: string;
+  /** EMR-196②: 版不一致検出時に stale なローカル明細編集を破棄して最新集約へ揃える。 */
+  setLocalItems: Dispatch<SetStateAction<AccountingItem[] | null>>;
 }
 
 export function useAccountingCompletionAction({
@@ -187,8 +210,11 @@ export function useAccountingCompletionAction({
   postCloseReason,
   blockCreateReason,
   permissions = DENIED_ACCOUNTING_COMPLETION_PERMISSIONS,
+  unbilledRevision,
+  setLocalItems,
 }: UseAccountingCompletionActionArgs) {
   const [editConfirmOpen, setEditConfirmOpen] = useState(false);
+  const [unbilledConflict, setUnbilledConflict] = useState(false);
   const editConfirmedRef = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
   // BUG-018: mutation 単位の Idempotency-Key。失敗 retry で再利用し、成功後のみクリア。
@@ -295,6 +321,9 @@ export function useAccountingCompletionAction({
               pet_id: Number(accounting.petId),
               owner_id: Number(accounting.ownerId),
               medical_record_id: medicalRecordId ?? null,
+              // EMR-196②: 表示した unbilled 集約の版 token。別端末の追記で版が変わると
+              // BE が 409 UNBILLED_ITEMS_CHANGED を返し、stale 明細での確定を拒否する。
+              expected_unbilled_revision: unbilledRevision || undefined,
               scheduled_date: scheduledDate,
               has_insurance: hasInsurance,
               insurance_ratio: insuranceRatioValue,
@@ -353,6 +382,24 @@ export function useAccountingCompletionAction({
         }
         return { success: true, timestamp: Date.now() };
       } catch (error) {
+        // EMR-196②: 表示中に unbilled 集約が別端末で更新された。stale なローカル明細を
+        // 破棄して最新集約を再取得し、画面を新版へ揃える（同じ stale 明細での再送を防ぐ）。
+        // バナーで事情を示し、確認のうえ再確定または再読み込みを促す。silent retry はしない。
+        if (!accountingId && isUnbilledRevisionConflict(error)) {
+          setLocalItems(null);
+          setUnbilledConflict(true);
+          try {
+            await queryClient.refetchQueries({
+              queryKey: queryKeys.unbilledItems(accounting.petId),
+            });
+          } catch {
+            // refetch 失敗でもバナーが再読込を促す。次回確定は BE 側でも版照合で fail-closed。
+          }
+          toast.error(
+            "未請求明細が他の画面で更新されました。最新の内容を確認してから再度確定してください",
+          );
+          return { success: false, timestamp: Date.now() };
+        }
         handleApiError(error, "会計の処理");
         return {
           success: false,
@@ -386,5 +433,7 @@ export function useAccountingCompletionAction({
     formAction,
     formState,
     isPending,
+    /** EMR-196②: 版不一致 409 を検出したあと true（バナー表示用。成功・遷移で解除不要）。 */
+    unbilledConflict,
   };
 }

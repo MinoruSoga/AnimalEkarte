@@ -454,6 +454,16 @@ components:
           nullable: true
         remarks:
           type: string
+        name_origin:
+          type: string
+          maxLength: 500
+          nullable: true
+          description: 名前の由来（任意記録。空文字・省略は NULL=未記録）
+        meeting_story:
+          type: string
+          maxLength: 2000
+          nullable: true
+          description: 出逢いのストーリー（任意記録。空文字・省略は NULL=未記録）
     CreateOwnerRequest:
       type: object
       required: [owner_name]
@@ -685,6 +695,18 @@ components:
           nullable: true
         remarks:
           type: string
+        name_origin:
+          type: string
+          maxLength: 500
+          nullable: true
+          readOnly: true
+          description: 名前の由来（任意記録）
+        meeting_story:
+          type: string
+          maxLength: 2000
+          nullable: true
+          readOnly: true
+          description: 出逢いのストーリー（任意記録）
         deceased_at:
           type: string
           format: date-time
@@ -1001,6 +1023,18 @@ components:
           nullable: true
         remarks:
           type: string
+        name_origin:
+          type: string
+          maxLength: 500
+          nullable: true
+          readOnly: true
+          description: 名前の由来（任意記録）
+        meeting_story:
+          type: string
+          maxLength: 2000
+          nullable: true
+          readOnly: true
+          description: 出逢いのストーリー（任意記録）
         deceased_at:
           type: string
           format: date-time
@@ -1247,6 +1281,18 @@ components:
           nullable: true
         remarks:
           type: string
+        name_origin:
+          type: string
+          maxLength: 500
+          nullable: true
+          readOnly: true
+          description: 名前の由来（任意記録）
+        meeting_story:
+          type: string
+          maxLength: 2000
+          nullable: true
+          readOnly: true
+          description: 出逢いのストーリー（任意記録）
         owner:
           type: object
           description: 飼主サマリ（Preload時のみ含まれる）
@@ -1455,6 +1501,16 @@ components:
           nullable: true
         remarks:
           type: string
+        name_origin:
+          type: string
+          maxLength: 500
+          nullable: true
+          description: 名前の由来（任意記録。空文字・省略は NULL=未記録）
+        meeting_story:
+          type: string
+          maxLength: 2000
+          nullable: true
+          description: 出逢いのストーリー（任意記録。空文字・省略は NULL=未記録）
     UpdatePetRequest:
       type: object
       description: PATCH用（全フィールド任意）
@@ -1522,6 +1578,16 @@ components:
           nullable: true
         remarks:
           type: string
+        name_origin:
+          type: string
+          maxLength: 500
+          nullable: true
+          description: 名前の由来。省略=変更なし、null=NULLクリア、値=更新
+        meeting_story:
+          type: string
+          maxLength: 2000
+          nullable: true
+          description: 出逢いのストーリー。省略=変更なし、null=NULLクリア、値=更新
 
     # ─── ChronicCondition (慢性疾患フラグ BE-012) ─────────────────────────────
     ChronicCondition:
@@ -2104,7 +2170,7 @@ components:
           description: true の場合、呼び出し側は会計確定を無効化する
     UnbilledDetailsResponse:
       type: object
-      required: [items, warnings]
+      required: [items, warnings, revision]
       properties:
         items:
           type: array
@@ -2114,6 +2180,12 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/UnbilledWarning'
+        revision:
+          type: string
+          description: >
+            items+warnings の決定的フィンガープリント（EMR-196）。
+            POST /accountings/complete の expected_unbilled_revision として返送する
+            楽観ロック token。形式は "u1:<sha256-hex>"。
     CompleteAccountingItemRequest:
       type: object
       description: 会計確定時に一括作成する明細1件（BUG-018）
@@ -2207,6 +2279,13 @@ components:
           type: integer
           format: int64
           nullable: true
+        expected_unbilled_revision:
+          type: string
+          maxLength: 128
+          description: >
+            EMR-196: GET /billing-items/unbilled-details が返した集約版 token。
+            pet_id 指定時は必須（未指定・空値は 400）。complete tx 内で再集計した
+            版と不一致なら 409 UNBILLED_ITEMS_CHANGED。冪等 digest には含めない。
         scheduled_date:
           type: string
           format: date-time
@@ -5760,6 +5839,12 @@ components:
           format: double
         category:
           type: string
+        manual:
+          type: boolean
+          description: 手入力「その他」明細かどうか（type=item かつ hospitalization_plan_id=null で導出）
+        other_reason:
+          type: string
+          description: 手入力「その他」明細の理由（trim後1〜500文字。manual でない明細では空文字）
         sort_order:
           type: integer
         created_at:
@@ -5806,6 +5891,14 @@ components:
           format: double
         category:
           type: string
+        manual:
+          type: boolean
+          description: true の場合は手入力「その他」明細（type=item かつ hospitalization_plan_id なし・category=other・other_reason 必須）
+        other_reason:
+          type: string
+          nullable: true
+          maxLength: 500
+          description: manual=true の場合のみ必須。trim後1〜500文字
         sort_order:
           type: integer
 
@@ -5850,6 +5943,15 @@ components:
         category:
           type: string
           nullable: true
+        manual:
+          type: boolean
+          nullable: true
+          description: true で手入力「その他」へ遷移（hospitalization_plan_id をクリア・category=other・other_reason 必須）。false で解除する場合は hospitalization_plan_id の指定が必須
+        other_reason:
+          type: string
+          nullable: true
+          maxLength: 500
+          description: 手入力行の理由（trim後1〜500文字）。手入力を抜ける遷移ではサーバーがクリアする
         sort_order:
           type: integer
           nullable: true
@@ -7446,7 +7548,7 @@ components:
         unpaid_count:
           type: integer
           format: int64
-    MonthlyUnpaidOwnerPet:
+    PeriodUnpaidOwnerPet:
       type: object
       properties:
         owner_id:
@@ -7460,17 +7562,20 @@ components:
           nullable: true
         pet_name:
           type: string
-        prev_month_carryover:
+        prev_period_carryover:
           type: integer
           format: int64
-        current_month_unpaid:
+        current_period_unpaid:
           type: integer
           format: int64
-        next_month_carryover:
+        period_end_carryover:
           type: integer
           format: int64
-    MonthlyUnpaidCarryoverResponse:
-      description: 月次未納繰越集計（#114）
+        latest_scheduled:
+          type: string
+          format: date
+    PeriodUnpaidCarryoverResponse:
+      description: 月末未納者一覧の期間集計（EMR-188）
       allOf:
         - $ref: '#/components/schemas/PaginatedResponse'
         - type: object
@@ -7478,17 +7583,17 @@ components:
             data:
               type: array
               items:
-                $ref: '#/components/schemas/MonthlyUnpaidOwnerPet'
+                $ref: '#/components/schemas/PeriodUnpaidOwnerPet'
             summary:
               type: object
               properties:
-                prev_month_carryover:
+                prev_period_carryover:
                   type: integer
                   format: int64
-                current_month_unpaid:
+                current_period_unpaid:
                   type: integer
                   format: int64
-                next_month_carryover:
+                period_end_carryover:
                   type: integer
                   format: int64
     DailySummary:
@@ -8506,6 +8611,24 @@ components:
           type: string
         end_time:
           type: string
+    ReservationAvailableTimeSlot:
+      type: object
+      description: |
+        院内予約フォーム向けの時間枠＋空き状況（EMR-170）。
+        status は available（〇 空きあり）/ low（△ 残りわずか）/ full（✕ 満員）。
+        remaining は受け入れ可能な残り枠数 = min(空きスタッフ数, 予約区分定員残)。
+        スタッフ制約も区分定員もない枠は上限なしのため null。
+      properties:
+        start_time:
+          type: string
+        end_time:
+          type: string
+        status:
+          type: string
+          enum: [available, low, full]
+        remaining:
+          type: integer
+          nullable: true
     LiffCreateReservationRequest:
       type: object
       required: [course_id, date, start_time, end_time]
@@ -11620,15 +11743,22 @@ paths:
           schema:
             type: string
             format: date
+        - name: include_unavailable
+          in: query
+          description: |
+            `true` の場合、満員（status=full）の枠も応答に含める（EMR-170 空き状況〇△✕表示用）。
+            省略時は従来どおり予約可能な枠のみ返す。
+          schema:
+            type: boolean
       responses:
         '200':
-          description: 予約可能時間枠一覧
+          description: 予約可能時間枠一覧（空き状況 status/remaining 付き。満員枠は include_unavailable=true のときのみ含まれる）
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/LiffTimeSlot'
+                  $ref: '#/components/schemas/ReservationAvailableTimeSlot'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -12313,6 +12443,9 @@ paths:
             - medical_record_id / hospitalization_id に既存会計がある二重確定（EMR-66）。
               この場合 code=ACCOUNTING_ALREADY_COMPLETED で、
               既存会計が accounting フィールドに同梱される
+            - expected_unbilled_revision と現在の unbilled 集約版が不一致（EMR-196）。
+              この場合 code=UNBILLED_ITEMS_CHANGED で、
+              現在の集約版が unbilled_revision フィールドに同梱される
           content:
             application/json:
               schema:
@@ -12324,10 +12457,15 @@ paths:
                     description: エラーメッセージ
                   code:
                     type: string
-                    description: 安定エラーコード（二重確定時は ACCOUNTING_ALREADY_COMPLETED）
+                    description: >
+                      安定エラーコード（二重確定時は ACCOUNTING_ALREADY_COMPLETED、
+                      集約版不一致時は UNBILLED_ITEMS_CHANGED）
                     example: ACCOUNTING_ALREADY_COMPLETED
                   accounting:
                     $ref: '#/components/schemas/Billing'
+                  unbilled_revision:
+                    type: string
+                    description: code=UNBILLED_ITEMS_CHANGED のとき現在の集約版
         '500':
           $ref: '#/components/responses/InternalError'
   /accountings/{id}:
@@ -12631,23 +12769,25 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalError'
-  /accountings/unpaid-monthly:
+  /accountings/unpaid-period:
     get:
-      operationId: getUnpaidMonthlySummary
-      summary: 月次未納繰越集計
-      description: '#114: year・month は必須。'
+      operationId: getUnpaidPeriodSummary
+      summary: 月末未納者一覧（期間検索）
+      description: 'EMR-188: start_date・end_date は必須（YYYY-MM-DD、end_date は start_date 以降）。期間前繰越・期間内未納・期末繰越を返す。'
       tags: [Accountings]
       parameters:
-        - name: year
+        - name: start_date
           in: query
           required: true
           schema:
-            type: integer
-        - name: month
+            type: string
+            format: date
+        - name: end_date
           in: query
           required: true
           schema:
-            type: integer
+            type: string
+            format: date
         - name: page
           in: query
           schema:
@@ -12660,11 +12800,11 @@ paths:
             default: 20
       responses:
         '200':
-          description: 月次未納繰越集計
+          description: 月末未納者一覧（期間検索）
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MonthlyUnpaidCarryoverResponse'
+                $ref: '#/components/schemas/PeriodUnpaidCarryoverResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -13356,6 +13496,8 @@ paths:
         BUG-013: additive エンドポイント。/billing-items/unbilled と同じ明細に加え、
         集約中に検出したデータ品質警告を返す。blocking=true の警告がある間、
         呼び出し側は会計確定を無効化する。警告に ID・名称・価格は含めない。
+        EMR-196: revision は集約の版 token で、POST /accountings/complete の
+        expected_unbilled_revision として返送する（楽観ロック）。
       tags: [BillingItems]
       parameters:
         - name: pet_id

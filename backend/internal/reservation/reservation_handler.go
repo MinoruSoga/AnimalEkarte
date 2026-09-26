@@ -51,6 +51,25 @@ func toReservationAvailableTimeResponse(slot *TimeSlot) liffTimeSlotResponse {
 	return liffTimeSlotResponse{StartTime: slot.StartTime, EndTime: slot.EndTime}
 }
 
+// reservationAvailableTimeSlotResponse は院内予約フォーム向けの時間枠＋空き状況レスポンス
+// （EMR-170）。status は "available"（〇 空きあり）/ "low"（△ 残りわずか）/ "full"（✕ 満員）。
+// remaining は受け入れ可能な残り枠数（上限なしの枠は null）。
+type reservationAvailableTimeSlotResponse struct {
+	StartTime string            `json:"start_time"`
+	EndTime   string            `json:"end_time"`
+	Status    SlotVacancyStatus `json:"status"`
+	Remaining *int              `json:"remaining"`
+}
+
+func toReservationAvailableTimeSlotResponse(avail *TimeSlotAvailability) reservationAvailableTimeSlotResponse {
+	return reservationAvailableTimeSlotResponse{
+		StartTime: avail.StartTime,
+		EndTime:   avail.EndTime,
+		Status:    avail.Status,
+		Remaining: avail.Remaining,
+	}
+}
+
 // ListReservations godoc
 func (h *CRUDHandler) ListReservations(c *gin.Context) {
 	// #86: 拠点横断一覧 — 所属かつ reservations:view を持つ医院だけをスコープにする
@@ -120,6 +139,29 @@ func (h *CRUDHandler) GetReservationAvailableTimes(c *gin.Context) {
 	}
 	if h.liff == nil {
 		respondError(c, apperrors.WrapNotImplemented("予約可能時間の取得は未設定です"))
+		return
+	}
+	// EMR-170: 空き状況評価を実装するサービスでは status/remaining を返し、
+	// include_unavailable=true の場合は満員（full）枠も含める。narrow な
+	// liffAvailability モックには従来応答（空き枠のみ）へフォールバックする。
+	if availLister, ok := h.liff.(interface {
+		GetStaffTimeSlotAvailabilities(ctx context.Context, clinicID, typeID, staffID uint64, date time.Time) ([]TimeSlotAvailability, error)
+	}); ok {
+		availabilities, err := availLister.GetStaffTimeSlotAvailabilities(c.Request.Context(), clinicID, filters.ReservationTypeID, filters.StaffID, filters.Date)
+		if err != nil {
+			respondError(c, err)
+			return
+		}
+		if !filters.IncludeUnavailable {
+			bookable := make([]TimeSlotAvailability, 0, len(availabilities))
+			for _, a := range availabilities {
+				if a.Status != SlotVacancyFull {
+					bookable = append(bookable, a)
+				}
+			}
+			availabilities = bookable
+		}
+		c.JSON(http.StatusOK, httpapi.MapSlice(availabilities, toReservationAvailableTimeSlotResponse))
 		return
 	}
 	// BUG-015: staff path allows inactive types via GetStaffAvailableTimes when present.

@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
+	"unicode/utf8"
 
 	"github.com/lib/pq"
 
@@ -24,6 +26,8 @@ type CreateCarePlanItemInput struct {
 	HospitalizationPlanID *uint64
 	UnitPrice             int64
 	Category              string
+	Manual                bool
+	OtherReason           string
 	SortOrder             int
 }
 
@@ -40,6 +44,8 @@ type UpdateCarePlanItemInput struct {
 	HospitalizationPlanID *uint64
 	UnitPrice             *int64
 	Category              *string
+	Manual                *bool
+	OtherReason           *string
 	SortOrder             *int
 }
 
@@ -78,10 +84,146 @@ func buildCarePlanItemUpdate(input *UpdateCarePlanItemInput) map[string]any {
 	if input.Category != nil {
 		fields["category"] = *input.Category
 	}
+	if input.Manual != nil && *input.Manual {
+		fields["hospitalization_plan_id"] = nil
+		fields["category"] = carePlanItemCategoryOther
+	}
+	if input.OtherReason != nil {
+		fields["other_reason"] = *input.OtherReason
+	}
 	if input.SortOrder != nil {
 		fields["sort_order"] = *input.SortOrder
 	}
 	return fields
+}
+
+// carePlanItemOtherReasonMaxRunes は手入力「その他」理由の上限（billing_items と同じ契約）。
+const carePlanItemOtherReasonMaxRunes = 500
+
+// carePlanItemCategoryOther は手入力明細に強制するカテゴリ値
+// （billing_items の item_category='other' と同値。CarePlanItem.Category は string 型）。
+const carePlanItemCategoryOther = string(model.ItemCategoryOther)
+
+// applyCreateManualContract は作成入力の manual/other_reason 契約を検証・正規化する。
+// manual=true は type=item のみ有効で、マスタ参照なし・category=other・trim 済み
+// 非空 other_reason（500文字以内）を要求する（billing_items の手入力「その他」と同型）。
+// 非手入力行に other_reason が付く場合は拒否する。
+func applyCreateManualContract(input *CreateCarePlanItemInput, item *model.CarePlanItem) error {
+	trimmedReason := strings.TrimSpace(input.OtherReason)
+	if !input.Manual {
+		if trimmedReason != "" {
+			return apperrors.WrapInvalidInput("手入力以外の明細には理由を設定できません")
+		}
+		if item.Type == model.CarePlanTypeItem && item.HospitalizationPlanID == nil {
+			return apperrors.WrapInvalidInput("持ち物の明細はマスタ参照または手入力が必要です")
+		}
+		return nil
+	}
+	if item.Type != model.CarePlanTypeItem {
+		return apperrors.WrapInvalidInput("手入力の明細は持ち物（item）のみ登録できます")
+	}
+	if item.HospitalizationPlanID != nil {
+		return apperrors.WrapInvalidInput("手入力の明細にマスタ参照は設定できません")
+	}
+	if item.Category != "" && item.Category != carePlanItemCategoryOther {
+		return apperrors.WrapInvalidInput("手入力の明細のカテゴリは「その他」固定です")
+	}
+	if trimmedReason == "" {
+		return apperrors.WrapInvalidInput("手入力の明細は理由を入力してください")
+	}
+	if utf8.RuneCountInString(trimmedReason) > carePlanItemOtherReasonMaxRunes {
+		return apperrors.WrapInvalidInput("理由は500文字以内で入力してください")
+	}
+	item.Category = carePlanItemCategoryOther
+	item.OtherReason = trimmedReason
+	return nil
+}
+
+// applyUpdateManualContract は既存行と更新入力をマージして manual/other_reason 契約を検証し、
+// input を正規化する（trim・manual 遷移時の category/reason クリア・conflict 拒否）。
+// *uint64 の参照は「未指定」と「明示NULL」を区別できないため、manual=true が
+// hospitalization_plan_id クリアの明示シグナルになる。
+func applyUpdateManualContract(existing *model.CarePlanItem, input *UpdateCarePlanItemInput) error {
+	mergedType := existing.Type
+	if input.Type != nil {
+		mergedType = model.CarePlanType(*input.Type)
+	}
+	wasManual := existing.Type == model.CarePlanTypeItem && existing.HospitalizationPlanID == nil
+	manualReq := input.Manual != nil && *input.Manual
+	newRef := input.HospitalizationPlanID != nil
+
+	if manualReq && mergedType != model.CarePlanTypeItem {
+		return apperrors.WrapInvalidInput("手入力の明細は持ち物（item）のみ登録できます")
+	}
+	if manualReq && newRef {
+		return apperrors.WrapInvalidInput("手入力の明細にマスタ参照は設定できません")
+	}
+
+	// マージ後に手入力行になるか: manual=true で明示、または手入力状態を維持
+	// （manual フラグ未指定・参照未設定・既存が手入力）の type=item。
+	staysManual := mergedType == model.CarePlanTypeItem &&
+		(manualReq || (!newRef && input.Manual == nil && wasManual))
+	// マージ後にマスタ参照を持つか（manual=true は参照クリアの明示シグナル）。
+	mergedHasRef := !manualReq && (newRef || existing.HospitalizationPlanID != nil)
+
+	if mergedType == model.CarePlanTypeItem && input.Manual != nil && !*input.Manual && wasManual && !newRef {
+		// 明示 manual=false は手入力モードを抜ける操作なので、新しいマスタ参照が必要。
+		return apperrors.WrapInvalidInput("手入力を解除するにはマスタ参照を指定してください")
+	}
+	if mergedType == model.CarePlanTypeItem && !staysManual && !mergedHasRef {
+		// 手入力でない item にはマスタ参照が必須（chk_care_plan_item_ref と同じ契約）。
+		return apperrors.WrapInvalidInput("持ち物の明細はマスタ参照または手入力が必要です")
+	}
+
+	if staysManual {
+		mergedCategory := existing.Category
+		if manualReq {
+			mergedCategory = carePlanItemCategoryOther
+		}
+		if input.Category != nil {
+			mergedCategory = *input.Category
+		}
+		if mergedCategory != carePlanItemCategoryOther {
+			return apperrors.WrapInvalidInput("手入力の明細のカテゴリは「その他」固定です")
+		}
+		mergedReason := existing.OtherReason
+		if input.OtherReason != nil {
+			trimmed := strings.TrimSpace(*input.OtherReason)
+			if trimmed == "" {
+				return apperrors.WrapInvalidInput("手入力の明細は理由を入力してください")
+			}
+			if utf8.RuneCountInString(trimmed) > carePlanItemOtherReasonMaxRunes {
+				return apperrors.WrapInvalidInput("理由は500文字以内で入力してください")
+			}
+			mergedReason = trimmed
+			input.OtherReason = &trimmed
+		}
+		if strings.TrimSpace(mergedReason) == "" {
+			return apperrors.WrapInvalidInput("手入力の明細は理由を入力してください")
+		}
+		if manualReq {
+			category := carePlanItemCategoryOther
+			input.Category = &category
+		}
+		return nil
+	}
+
+	if input.OtherReason != nil {
+		trimmed := strings.TrimSpace(*input.OtherReason)
+		if trimmed != "" {
+			return apperrors.WrapInvalidInput("手入力以外の明細には理由を設定できません")
+		}
+		// whitespace-only は空文字へ正規化し、残留理由を確実にクリアする。
+		input.OtherReason = &trimmed
+	}
+	// 手入力モードを抜ける遷移（manual→master、manual→非item type）は
+	// 手入力専用フィールドをクリアして category=other/理由が残らないようにする。
+	if wasManual && (newRef || mergedType != model.CarePlanTypeItem) {
+		empty := ""
+		input.Category = &empty
+		input.OtherReason = &empty
+	}
+	return nil
 }
 
 // CarePlanItemService はケアプランアイテムのビジネスロジックインターフェース
@@ -150,6 +292,7 @@ func carePlanItemAuditValue(item *model.CarePlanItem) map[string]any {
 		"hospitalization_plan_id": item.HospitalizationPlanID,
 		"unit_price":              item.UnitPrice,
 		"category":                item.Category,
+		"other_reason":            item.OtherReason,
 		"sort_order":              item.SortOrder,
 	}
 }
@@ -231,9 +374,10 @@ func (s *carePlanItemService) Create(ctx context.Context, clinicID, hospitalizat
 		return nil, apperrors.Wrap(err, "failed to verify hospitalization ownership")
 	}
 
-	// クロステナント write 防止: medicine/procedure/hospitalization_plan マスタが caller の clinic に属することを検証する。
-	if err := s.validateMasterFKs(ctx, clinicID, input.MedicineID, input.ProcedureID, input.HospitalizationPlanID); err != nil {
-		return nil, err
+	// 価格フロア: 退院会計変換は repo 直接書込みのため billing 側 min=0 を迂回する。
+	// billing_items と同じ契約（sharedkernel.ErrMsgPriceZeroOrMore）でここで遮断する。
+	if input.UnitPrice < 0 {
+		return nil, apperrors.WrapInvalidInput(errMsgPriceZeroOrMore)
 	}
 
 	item := &model.CarePlanItem{
@@ -250,6 +394,15 @@ func (s *carePlanItemService) Create(ctx context.Context, clinicID, hospitalizat
 		UnitPrice:             input.UnitPrice,
 		Category:              input.Category,
 		SortOrder:             input.SortOrder,
+	}
+	// 手入力「その他」契約: manual=true は type=item のみ・参照なし・理由必須。
+	if err := applyCreateManualContract(input, item); err != nil {
+		return nil, err
+	}
+
+	// クロステナント write 防止: medicine/procedure/hospitalization_plan マスタが caller の clinic に属することを検証する。
+	if err := s.validateMasterFKs(ctx, clinicID, input.MedicineID, input.ProcedureID, input.HospitalizationPlanID); err != nil {
+		return nil, err
 	}
 	// MRA-02: write + response re-fetch before commit.
 	var created *model.CarePlanItem
@@ -293,6 +446,16 @@ func (s *carePlanItemService) Update(ctx context.Context, clinicID, hospitalizat
 		if err := validateCarePlanStatus(model.CarePlanStatus(*input.Status)); err != nil {
 			return nil, apperrors.Wrap(err, "failed to validate care plan status")
 		}
+	}
+
+	// 価格フロア: 退院会計変換は repo 直接書込みのため billing 側 min=0 を迂回する。
+	if input.UnitPrice != nil && *input.UnitPrice < 0 {
+		return nil, apperrors.WrapInvalidInput(errMsgPriceZeroOrMore)
+	}
+
+	// 手入力「その他」契約: 既存行とマージして manual<->master 遷移・理由・カテゴリを検証・正規化する。
+	if err := applyUpdateManualContract(existing, input); err != nil {
+		return nil, err
 	}
 
 	// クロステナント write 防止: 貼り替え先 medicine/procedure/hospitalization_plan マスタの所有権を検証する。

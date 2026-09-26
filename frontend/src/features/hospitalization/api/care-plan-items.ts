@@ -28,6 +28,10 @@ export interface CarePlanItem {
   hospitalization_plan_id?: string | null;
   unit_price: number;
   category: string;
+  /** 手入力「その他」明細かどうか（type=item かつ hospitalization_plan_id=null で導出） */
+  manual: boolean;
+  /** 手入力「その他」明細の理由（manual でない明細では空文字） */
+  other_reason: string;
   sort_order: number;
   created_at: string;
   updated_at: string;
@@ -45,6 +49,10 @@ export interface CreateCarePlanItemInput {
   hospitalization_plan_id?: string | null;
   unit_price?: number;
   category?: string;
+  /** true の場合は手入力「その他」明細（type=item かつ参照なし。other_reason 必須） */
+  manual?: boolean;
+  /** manual=true の場合のみ必須。trim後1〜500文字 */
+  other_reason?: string;
   sort_order?: number;
 }
 
@@ -60,6 +68,10 @@ export interface UpdateCarePlanItemInput {
   hospitalization_plan_id?: string | null;
   unit_price?: number;
   category?: string;
+  /** true で手入力「その他」へ遷移（hospitalization_plan_id をクリア。other_reason 必須） */
+  manual?: boolean;
+  /** 手入力行の理由（trim後1〜500文字）。手入力を抜ける遷移では BE がクリアする */
+  other_reason?: string;
   sort_order?: number;
 }
 

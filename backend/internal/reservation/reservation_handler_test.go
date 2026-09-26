@@ -469,6 +469,111 @@ func TestGetReservationAvailableTimes_SettingsUnset_IdentifiableCode(t *testing.
 	assert.NotContains(t, w.Body.String(), `"error":"not found"`)
 }
 
+// ---- EMR-170: 空き状況（〇△✕）パス ----
+
+// mockTimeSlotAvailabilityLister は空き状況評価を実装するサービスのモック。
+type mockTimeSlotAvailabilityLister struct {
+	availabilities []TimeSlotAvailability
+	err            error
+	availCalls     int
+}
+
+func (m *mockTimeSlotAvailabilityLister) GetAvailableTimes(
+	_ context.Context, _, _, _ uint64, _ time.Time,
+) ([]TimeSlot, error) {
+	return nil, nil
+}
+
+func (m *mockTimeSlotAvailabilityLister) GetStaffTimeSlotAvailabilities(
+	_ context.Context, _, _, _ uint64, _ time.Time,
+) ([]TimeSlotAvailability, error) {
+	m.availCalls++
+	return m.availabilities, m.err
+}
+
+func TestGetReservationAvailableTimes_VacancyStatus(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	remaining2 := 2
+	remaining1 := 1
+	remaining0 := 0
+
+	svc := &mockTimeSlotAvailabilityLister{
+		availabilities: []TimeSlotAvailability{
+			{TimeSlot: TimeSlot{StartTime: "0900", EndTime: "1000"}, Status: SlotVacancyAvailable, Remaining: &remaining2},
+			{TimeSlot: TimeSlot{StartTime: "1000", EndTime: "1100"}, Status: SlotVacancyLow, Remaining: &remaining1},
+			{TimeSlot: TimeSlot{StartTime: "1100", EndTime: "1200"}, Status: SlotVacancyFull, Remaining: &remaining0},
+			{TimeSlot: TimeSlot{StartTime: "2030", EndTime: "2130"}, Status: SlotVacancyAvailable, Remaining: nil},
+		},
+	}
+
+	t.Run("include_unavailable=true returns all slots with status", func(t *testing.T) {
+		h := newHandlerWithLiffSvc(svc)
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(
+			http.MethodGet,
+			"/?reservation_type_id=5&date=2026-06-01&include_unavailable=true",
+			http.NoBody,
+		)
+		setClinicID(c)
+
+		h.GetReservationAvailableTimes(c)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		var body []map[string]any
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+		require.Len(t, body, 4)
+		assert.Equal(t, "0900", body[0]["start_time"])
+		assert.Equal(t, "available", body[0]["status"])
+		assert.Equal(t, float64(2), body[0]["remaining"])
+		assert.Equal(t, "low", body[1]["status"])
+		assert.Equal(t, "full", body[2]["status"])
+		assert.Equal(t, float64(0), body[2]["remaining"])
+		assert.Nil(t, body[3]["remaining"], "上限なしの枠は remaining=null")
+		assert.Equal(t, "available", body[3]["status"])
+	})
+
+	t.Run("without the flag full slots are excluded (legacy-compatible set)", func(t *testing.T) {
+		h := newHandlerWithLiffSvc(svc)
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(
+			http.MethodGet,
+			"/?reservation_type_id=5&date=2026-06-01",
+			http.NoBody,
+		)
+		setClinicID(c)
+
+		h.GetReservationAvailableTimes(c)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		var body []map[string]any
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+		require.Len(t, body, 3)
+		assert.Equal(t, "0900", body[0]["start_time"])
+		assert.Equal(t, "1000", body[1]["start_time"])
+		assert.Equal(t, "2030", body[2]["start_time"])
+	})
+
+	t.Run("service errors propagate", func(t *testing.T) {
+		errSvc := &mockTimeSlotAvailabilityLister{err: &LineReservationSettingsUnsetError{}}
+		h := newHandlerWithLiffSvc(errSvc)
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(
+			http.MethodGet,
+			"/?reservation_type_id=5&date=2026-06-01&include_unavailable=true",
+			http.NoBody,
+		)
+		setClinicID(c)
+
+		h.GetReservationAvailableTimes(c)
+
+		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+		assert.Contains(t, w.Body.String(), `"code":"`+CodeLineReservationSettingsUnset+`"`)
+	})
+}
+
 // ---- CreateReservation ----
 
 func TestCreateReservation(t *testing.T) {

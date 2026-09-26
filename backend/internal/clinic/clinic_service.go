@@ -108,12 +108,15 @@ func BuildClinicUpdate(input *UpdateClinicInput) (map[string]any, error) {
 // examination-unconfirm を含めず、同権限は新規クリニックでも default-deny とする。
 //
 // 設定系フォールバック（accounting-reports /
-// master-payment-method / lstep-csv-import / lstep-analytics / manual-edit /
-// lab-import）: 執行=view+edit（create/delete 不可、hospital-settings と同型）、
+// master-payment-method / lstep-csv-import / lstep-analytics / manual-edit）:
+// 執行=view+edit（create/delete 不可、hospital-settings と同型）、
 // 一般=view のみ。
 // 例外: cash-register-close は closes が append-only で POST /closes が
 // create scope を要求するため、執行=view+create（edit/delete 不付与）、
 // 一般=view のみ。
+// 例外: lab-import は検査機器からの結果受信が日常運用（EMR-176）のため、
+// 執行=view+create+edit、一般=view+create。edit（受信済み結果のカルテ
+// 紐付け/解除/切戻し）は執行のみに留める。
 // 例外: closing-settings は /closing-settings/holidays と special-periods が
 // create/delete を要求するため、執行は CRUD 全許可（POC-01 契約整合）。
 // 例外: master-animal-species は全クリニック共有マスタのため、is_system_admin
@@ -163,7 +166,9 @@ var defaultPermissionRuleTable = []defaultPermissionRule{
 	{model.ResourceLstepCsvImport, true, false, true, false, true, false, false, false},
 	{model.ResourceLstepAnalytics, true, false, true, false, true, false, false, false},
 	{model.ResourceManualEdit, true, false, true, false, true, false, false, false},
-	{model.ResourceLabImport, true, false, true, false, true, false, false, false},
+	// 検査機器受信: create は受信・機器登録・取込起動を許可（EMR-176）。
+	// edit（結果のカルテ紐付け/解除/切戻し）は執行のみ。
+	{model.ResourceLabImport, true, true, true, false, true, true, false, false},
 	// #239 identity-links: fail-closed（通常 staff へ自動付与しない。運用で明示付与）
 	{model.ResourceIdentityLinks, false, false, false, false, false, false, false, false},
 	// TASK-374 / #211 checkup package import: default-deny（明示付与のみ）

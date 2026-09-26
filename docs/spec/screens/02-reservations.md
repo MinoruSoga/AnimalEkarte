@@ -32,6 +32,7 @@
 
 ### 予約詳細の入力
 - **スマート・スナップ**: 時刻は `TIME_OPTIONS`（15分刻み・ゼロ埋め HH:mm）の Select から選択。カレンダーの空き枠クリック位置も15分単位にスナップされる。
+- **空き状況の〇△✕表示**（EMR-170）: 予約区分＋日付を選択済みの場合、開始時刻 Select の各候補に空き状況を `〇 空きあり` / `△ 残り1枠` / `✕ 満員` の記号＋テキストで併記する（色だけに依存しない）。✕（満員）枠は選択不可。`GET /v1/reservations/available-times` に `include_unavailable=true` を付けて満員枠も取得する。判定は `remaining = min(空きスタッフ数, 予約区分定員残)` で、remaining>1 が 〇、=1 が △、=0 が ✕。スタッフ制約も定員も無い枠は remaining=null で常に 〇。LINE 空き枠設定未登録・通信エラー・区分未選択時の手動時刻入力パスではバッジは表示しない。
 - **重複ブッキング警告**: 同一時間帯に同一担当者の予約が重複した場合、保存前に警告を表示（新規作成・編集保存時、およびドラッグ&ドロップでの時間変更時の双方でチェック）。
 - **担当医指名**: 患者の希望に応じた「指名」設定が可能。
 - **予約経路** (`ReservationRouteSelect`、編集モードのみ): LINE/電話/受付/診察室/記録入力のいずれかを選択・記録。メインの保存操作とは独立して即時保存される。
@@ -86,5 +87,6 @@ stateDiagram-v2
 | PATCH | `/api/v1/reservations/:id` | 時間変更・ステータス更新 | `reservations` | `edit` |
 | PATCH | `/api/v1/reservations/:id/reservation-route` | 予約経路の更新 | `reservations` | `edit` |
 | DELETE | `/api/v1/reservations/:id` | 予約のキャンセル・削除 | `reservations` | `delete` |
+| GET | `/api/v1/reservations/available-times` | 予約可能時間枠＋空き状況（`include_unavailable=true` で満員枠も返却、EMR-170） | `reservations` | `view` |
 
 ---

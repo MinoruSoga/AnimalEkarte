@@ -14,11 +14,11 @@ import BedDouble from "lucide-react/dist/esm/icons/bed-double";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { DangerBadge } from "@/components/shared/DangerBadge";
 import { paths } from "@/config/paths";
 import { C, ICON } from "@/lib/design-tokens";
 import { getVisitTypeColor } from "@/constants/status-colors";
-import { DangerLevelHigh, PetStatusDeceased } from "@/types/generated/models";
+import { PetStatusDeceased } from "@/types/generated/models";
 
 import type { ReceptionAppointment } from "../api/types";
 
@@ -84,7 +84,6 @@ export const AppointmentCard = memo(function AppointmentCard({
   const isTrimming = appointment.reservationCategory === "trimming";
   const isHospitalization = isHospitalizationService(appointment.reservationType);
   const isMedical = !isTrimming && !isHospitalization;
-  const isHighDanger = appointment.petDangerLevel === DangerLevelHigh;
   const visitColor = getVisitTypeColor(appointment.visitType);
   const canOpenRecordFromCard = isTrimming
     ? columnTitle === "受付済"
@@ -166,7 +165,12 @@ export const AppointmentCard = memo(function AppointmentCard({
 
           <div className="space-y-0.5">
             <p className="text-base font-semibold truncate leading-tight">
-              {appointment.ownerName}
+              <span className="inline-flex items-center gap-1.5 max-w-full">
+                <span className="truncate">{appointment.ownerName}</span>
+                {appointment.ownerIsDangerous ? (
+                  <DangerBadge variant="owner" stopPropagation />
+                ) : null}
+              </span>
             </p>
             <div className={`flex items-center gap-1 ${C.text60}`}>
               <Dog className={`${ICON.xs} flex-shrink-0`} />
@@ -180,36 +184,13 @@ export const AppointmentCard = memo(function AppointmentCard({
                   【死亡】
                 </span>
               ) : null}
-              {isHighDanger ? (
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <button
-                      type="button"
-                      aria-label={`${appointment.petName}の危険理由を表示`}
-                      className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-semibold ${C.bgDanger10} ${C.danger} ${C.borderDanger20} outline-none focus-visible:ring-2 ${C.focusRingAccent40}`}
-                      onPointerDown={(event) => event.stopPropagation()}
-                      onClick={(event) => event.stopPropagation()}
-                    >
-                      ⚠ 危険
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent
-                    align="start"
-                    aria-label={`${appointment.petName}の危険理由`}
-                    onOpenAutoFocus={(event) => event.preventDefault()}
-                    onPointerDown={(event) => event.stopPropagation()}
-                    onClick={(event) => event.stopPropagation()}
-                    className="w-64"
-                  >
-                    <p className={`text-sm font-semibold ${C.danger}`}>危険理由</p>
-                    <p
-                      className={`mt-1 whitespace-pre-wrap break-words text-sm ${C.textInkSecondary}`}
-                    >
-                      {appointment.petDangerReason?.trim() || "理由未登録"}
-                    </p>
-                  </PopoverContent>
-                </Popover>
-              ) : null}
+              <DangerBadge
+                variant="pet"
+                level={appointment.petDangerLevel}
+                subjectName={appointment.petName}
+                reason={appointment.petDangerReason}
+                stopPropagation
+              />
             </div>
           </div>
 

@@ -1,0 +1,17 @@
+{
+  "namespace": "emr169.annual_checkup",
+  "version": "1.0.0",
+  "clinical_approval_ref": "EMR-169",
+  "types": [
+    {
+      "key": "annual",
+      "name": "年4健診",
+      "description": "春・夏・秋・冬の年4回実施する定期健診。血液検査・レントゲンは外注のため院内測定は尿検査のみ。尿検査の項目マスタは医師確認後に追加予定。",
+      "interval": "年4回",
+      "target_age": "",
+      "sort_order": 10,
+      "is_active": true
+    }
+  ],
+  "fields": []
+}

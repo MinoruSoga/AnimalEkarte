@@ -95,6 +95,9 @@ export function mapOwnerPetsToFormData(owner: Owner): PetFormData[] {
     acquisitionType: (backendPet.acquisitionType as PetFormData["acquisitionType"]) || "購入",
     dangerLevel: (backendPet.dangerLevel as PetFormData["dangerLevel"]) || "低",
     dangerReason: backendPet.dangerReason || "",
+    // EMR-174: 未記録(NULL/欠損)は空文字。PATCH 差分検知の original になる
+    nameOrigin: backendPet.nameOrigin || "",
+    meetingStory: backendPet.meetingStory || "",
     remarks: backendPet.remarks || "",
     breed: backendPet.breed,
     insuranceId: backendPet.insuranceId,
@@ -126,6 +129,9 @@ function mapPendingPetToCreateRequest(
     acquisitionType: pet.acquisitionType,
     dangerLevel: pet.dangerLevel,
     dangerReason: pet.dangerReason,
+    // EMR-174: nested create も同名フィールドで送る（空白のみは transform で除外）
+    nameOrigin: pet.nameOrigin,
+    meetingStory: pet.meetingStory,
     status: PET_STATUS_REVERSE_MAP[pet.status],
     insuranceId: pet.insuranceId,
     remarks: pet.remarks,
@@ -147,6 +153,8 @@ function mapPendingPetToCreateRequest(
     acquisition_type: request.acquisition_type,
     danger_level: request.danger_level,
     danger_reason: request.danger_reason,
+    name_origin: request.name_origin,
+    meeting_story: request.meeting_story,
     food: request.food,
     environment: request.environment,
     insurance_id: request.insurance_id,

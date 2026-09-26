@@ -329,13 +329,15 @@ erDiagram
 
 ### 4.4 現行の追加migration（2026-09-22照合）
 
-次の3本を001の後に番号順で適用したDDLが、本書の図・現在の制約説明の基準。テーブル数は128のまま。SQL自体は変更しておらず、稼働DBへの適用状態は未確認。
+下表のmigrationを001の後に番号順で適用したDDLが、本書の図・現在の制約説明の基準。テーブル数は128のまま。SQL自体は変更しておらず、稼働DBへの適用状態は未確認（直下に存在する他の増分は別途照合対象）。
 
 | migration | 最終DDL上の変更 | 関係・境界 |
 |:---|:---|:---|
 | [002](../../backend/migrations/002_medical_records_entered_by_staff_fk.sql) | `fk_medical_records_entered_by_clinic` と旧単列FKをDROPし、`fk_medical_records_entered_by`（`entered_by → staffs(id)`、`ON DELETE RESTRICT`）を追加 | 兼務先でも記録できる記録者FK。担当医の `(doctor_id, clinic_id)` 複合FKは維持 |
 | [003](../../backend/migrations/003_appointments_created_by_staff_fk.sql) | `fk_appointments_created_by_clinic` と旧単列FKをDROPし、`fk_appointments_created_by`（`created_by → staffs(id)`、`ON DELETE RESTRICT`）を追加 | 予約登録者は担当医とは別。医院の記録権限と過去記録の帰属を区別 |
 | [004](../../backend/migrations/004_billing_items_treatment_lifetime_unique.sql) | `uq_billing_items_treatment_lifetime`：`billing_items(treatment_id) WHERE treatment_id IS NOT NULL` のUNIQUE INDEX | `deleted_at` 条件がないため、論理削除済み明細を含め同一治療参照は最大1件 |
+| [011](../../backend/migrations/011_care_plan_items_manual_other.sql) | `care_plan_items.other_reason`（`text` NOT NULL DEFAULT `''`）を追加し、`chk_care_plan_item_ref` を再定義 | EMR-179。手入力「その他」行（`category='other'` かつ `btrim(other_reason) <> ''`）は `type=item` で `hospitalization_plan_id` NULL を許容。billing_items の手入力契約と同型。`other_reason` の500文字上限はアプリ層検証で CHECK には含めない |
+| [012](../../backend/migrations/012_pets_name_origin_meeting_story.sql) | `pets.name_origin`（`text` NULL）と `pets.meeting_story`（`text` NULL）を追加 | EMR-174。名前の由来・出逢いのストーリー。NULL=未記録。空・空白のみは API 境界で NULL 正規化。検索対象外のため索引なし |
 
 - **記録者の権限**: 単列FKへの変更は医院境界の撤廃ではない。[カルテ記録者ガード](../../backend/internal/medicalrecord/medical_record_entered_by_actor.go) と [予約登録者ガード](../../backend/internal/reservation/reservation_created_by.go) が、作成transaction内で有効なスタッフと医院所属、または確認済みのシステム管理者権限を検証する。FKは記録者の実在・物理削除制限を保持し、現在の操作権限はアプリが別に検証する。
 - **治療明細の一意性**: 001の `idx_billing_items_treatment_id` はactive行検索用の非一意index。二重参照を防ぐのは004のlifetime uniqueであり、単なる検索indexや画面上のロックではない。既存の `treatment_id → treatments(id) ON DELETE SET NULL` は変更していない。

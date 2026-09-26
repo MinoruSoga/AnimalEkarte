@@ -97,7 +97,8 @@ export function usePetFormListState({
   };
 
   const handleEditPet = (pet: PetFormData) => {
-    if (permissionsRef.current.canEdit !== true) return;
+    // EMR-174: 詳細閲覧は canEdit 不要（モーダルは read-only で開く）。
+    // 作成/更新/削除/lifecycle の境界は引き続き各ハンドラ・ボタン側でガードする。
     setEditingPet(pet);
     setPetModalOpen(true);
   };
@@ -156,6 +157,11 @@ export function usePetFormListState({
         dangerLevel: petData.dangerLevel,
         dangerReason: petData.dangerReason,
         originalDangerReason: currentPet.dangerReason,
+        // EMR-174: tri-state 差分検知。未変更は PATCH から除外、クリアは null。
+        nameOrigin: petData.nameOrigin,
+        meetingStory: petData.meetingStory,
+        originalNameOrigin: currentPet.nameOrigin,
+        originalMeetingStory: currentPet.meetingStory,
         // status は渡さない(BUG-415): transformUpdatePetRequest は status を無視する。
         insuranceId: petData.insuranceId,
         remarks: petData.remarks,
@@ -214,6 +220,9 @@ export function usePetFormListState({
         acquisitionType: petData.acquisitionType,
         dangerLevel: petData.dangerLevel,
         dangerReason: petData.dangerReason,
+        // EMR-174: create は空・空白のみを送信しない（transform 側で NULL 保持）
+        nameOrigin: petData.nameOrigin,
+        meetingStory: petData.meetingStory,
         status: PET_STATUS_REVERSE_MAP[petData.status],
         insuranceId: petData.insuranceId,
         remarks: petData.remarks,
@@ -243,6 +252,9 @@ export function usePetFormListState({
               (newPetData.acquisitionType as PetFormData["acquisitionType"]) || "購入",
             dangerLevel: (newPetData.dangerLevel as PetFormData["dangerLevel"]) || "低",
             dangerReason: newPetData.dangerReason || "",
+            // EMR-174: 応答値をローカル行に反映（PATCH 差分検知の original になる）
+            nameOrigin: newPetData.nameOrigin || "",
+            meetingStory: newPetData.meetingStory || "",
             remarks: newPetData.remarks || "",
             breed: newPetData.breed,
             insuranceId: newPetData.insuranceId,

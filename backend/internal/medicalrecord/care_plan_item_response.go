@@ -22,6 +22,8 @@ type carePlanItemResponse struct {
 	HospitalizationPlanID *string   `json:"hospitalization_plan_id,omitempty"`
 	UnitPrice             int64     `json:"unit_price"`
 	Category              string    `json:"category"`
+	Manual                bool      `json:"manual"`
+	OtherReason           string    `json:"other_reason"`
 	SortOrder             int       `json:"sort_order"`
 	CreatedAt             time.Time `json:"created_at"`
 	UpdatedAt             time.Time `json:"updated_at"`
@@ -44,6 +46,8 @@ func toCarePlanItemResponse(item *model.CarePlanItem) carePlanItemResponse {
 		Notes:             item.Notes,
 		UnitPrice:         item.UnitPrice,
 		Category:          item.Category,
+		Manual:            item.Type == model.CarePlanTypeItem && item.HospitalizationPlanID == nil,
+		OtherReason:       item.OtherReason,
 		SortOrder:         item.SortOrder,
 		CreatedAt:         httpapi.LocalTime(item.CreatedAt),
 		UpdatedAt:         httpapi.LocalTime(item.UpdatedAt),

@@ -69,6 +69,8 @@ export interface CompleteAccountingRequest {
   owner_id: number;
   medical_record_id?: number | null;
   hospitalization_id?: number | null;
+  /** EMR-196②: unbilled-details で取得した集約版 token。pet_id 指定時は BE が必須検証する。 */
+  expected_unbilled_revision?: string;
   scheduled_date: string;
   memo?: string;
   has_insurance?: boolean;

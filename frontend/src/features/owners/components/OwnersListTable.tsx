@@ -1,7 +1,7 @@
 import { FileText, Pencil, Trash2 } from "lucide-react";
 
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { TableCell } from "@/components/ui/table";
+import { DangerBadge } from "@/components/shared/DangerBadge";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { DataTableRowLink } from "@/components/shared/DataTable/DataTableRowLink";
@@ -193,37 +193,20 @@ function OwnersListRow({
           {canViewDetail ? (
             <DataTableRowLink
               to={paths.owners.detail.getHref(pet.ownerId)}
-              aria-label={`飼主「${pet.ownerName}」(ID: ${pet.ownerId}) をペット「${pet.name}」(ID: ${pet.id}) の行から開く`}
+              aria-label={`飼主「${pet.ownerName}」(ID: ${pet.ownerId}) の詳細をペット「${pet.name}」(ID: ${pet.id}) の行から開く`}
             >
               {pet.ownerName}
             </DataTableRowLink>
           ) : (
             pet.ownerName
           )}
-          {pet.dangerLevel === "高" ? (
-            <Popover>
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  aria-label={`${pet.name}の危険理由を表示`}
-                  className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-semibold ${C.bgDanger10} ${C.danger} ${C.borderDanger20} outline-none focus-visible:ring-2 ${C.focusRingAccent40}`}
-                >
-                  ⚠ 危険
-                </button>
-              </PopoverTrigger>
-              <PopoverContent
-                align="start"
-                aria-label={`${pet.name}の危険理由`}
-                onOpenAutoFocus={(event) => event.preventDefault()}
-                className="w-64"
-              >
-                <p className={`text-sm font-semibold ${C.danger}`}>危険理由</p>
-                <p className={`mt-1 whitespace-pre-wrap break-words text-sm ${C.textInkSecondary}`}>
-                  {pet.dangerReason?.trim() || "理由未登録"}
-                </p>
-              </PopoverContent>
-            </Popover>
-          ) : null}
+          {pet.ownerIsDangerous ? <DangerBadge variant="owner" /> : null}
+          <DangerBadge
+            variant="pet"
+            level={pet.dangerLevel}
+            subjectName={pet.name}
+            reason={pet.dangerReason}
+          />
         </span>
       </TableCell>
       {/* #86: 拠点横断表示時のみ医院列を表示 */}
@@ -238,7 +221,20 @@ function OwnersListRow({
       <TableCell className={`${STYLE.tableCell} font-mono whitespace-nowrap hidden lg:table-cell`}>
         {pet.petNumber || "-"}
       </TableCell>
-      <TableCell className={`${STYLE.tableCell} whitespace-nowrap`}>{pet.name}</TableCell>
+      <TableCell className={`${STYLE.tableCell} whitespace-nowrap`}>
+        {canViewDetail ? (
+          // EMR-174: ペット名は飼主詳細の ?pet= deep link（ペット詳細モーダルが開く）。
+          // 別医院行（canViewDetail=false）は閲覧不可のためリンクを出さない。
+          <DataTableRowLink
+            to={paths.owners.detail.pet.getHref(pet.ownerId, pet.id)}
+            aria-label={`ペット「${pet.name}」(ID: ${pet.id}) の詳細を開く`}
+          >
+            {pet.name}
+          </DataTableRowLink>
+        ) : (
+          pet.name
+        )}
+      </TableCell>
       <TableCell className="whitespace-nowrap">
         {pet.status ? (
           <StatusBadge colorClass={getPetStatusColor(pet.status)}>{pet.status}</StatusBadge>
