@@ -227,6 +227,35 @@ describe("ownersLoader — #266 サーバサイドページネーション", () 
     });
   });
 
+  it("URL の checkup_history を backend にそのまま転送する（EMR-197-01）", async () => {
+    mockedGet.mockResolvedValue({
+      data: { data: [], total: 0, page: 1, limit: 20 },
+    });
+
+    await ownersLoader({
+      request: new Request("http://localhost/owners?checkup_history=within_2y"),
+    });
+
+    expect(mockedGet).toHaveBeenCalledWith("/v1/pets", {
+      params: {
+        page: 1,
+        limit: 20,
+        checkup_history: "within_2y",
+      },
+    });
+  });
+
+  it("checkup_history 未指定では backend にパラメータを送らない（フィルタ無し）", async () => {
+    mockedGet.mockResolvedValue({
+      data: { data: [], total: 0, page: 1, limit: 20 },
+    });
+
+    await ownersLoader({ request: new Request("http://localhost/owners") });
+
+    const params = mockedGet.mock.calls[0][1]?.params as Record<string, unknown>;
+    expect(params).not.toHaveProperty("checkup_history");
+  });
+
   it("include_deceased が未指定の場合は backend にパラメータを送らない（既定=生存のみ）", async () => {
     mockedGet.mockResolvedValue({
       data: { data: [], total: 0, page: 1, limit: 20 },

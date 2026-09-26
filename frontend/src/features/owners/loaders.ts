@@ -95,8 +95,9 @@ function transformPetListItemToFrontend(p: PetListResponse): Pet {
 /**
  * 飼主・ペット一覧ローダー — #266: GET /v1/pets をペット行粒度でサーバサイドページネーション取得する
  * （owners-pets-list-plan.md の PO 決定: owners API+EXISTS 応急案ではなく pets API 拡張を正本とする）。
- * URL の page/search/species/include_deceased をそのまま backend に転送する
- * （species は animal_species_id 数値、include_deceased 未指定 = 生存のみが既定）。
+ * URL の page/search/species/include_deceased/checkup_history をそのまま backend に転送する
+ * （species は animal_species_id 数値、include_deceased 未指定 = 生存のみが既定、
+ * checkup_history は EMR-197-01 の健診受診履歴 enum で未指定 = フィルタ無し）。
  * #86: URL の ?clinics=1,2 を API の clinic_ids に引き渡し拠点横断取得する
  * （所属検証はサーバ側 resolveListClinicIDs が行う。未指定は現在の医院のみ）。
  */
@@ -112,6 +113,9 @@ export const ownersLoader = async ({
     const search = searchParams.get("search") || undefined;
     const species = searchParams.get("species") || undefined;
     const includeDeceased = searchParams.get("include_deceased") === "true" ? "true" : undefined;
+    // EMR-197-01: checkup_history は列挙値のみ有効 — 検証は backend (400) に委ね、
+    // 値はそのまま透過転送する（URL が source of truth）。
+    const checkupHistory = searchParams.get("checkup_history") || undefined;
 
     const { data: result } = await axios.get<PetsResponse>("/v1/pets", {
       params: {
@@ -121,6 +125,7 @@ export const ownersLoader = async ({
         ...(search ? { search } : {}),
         ...(species ? { species } : {}),
         ...(includeDeceased ? { include_deceased: includeDeceased } : {}),
+        ...(checkupHistory ? { checkup_history: checkupHistory } : {}),
       },
     });
 
