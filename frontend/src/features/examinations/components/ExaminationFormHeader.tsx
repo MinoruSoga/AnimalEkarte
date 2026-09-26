@@ -59,6 +59,9 @@ export function ExaminationFormHeader({
           petDetails={`${selectedPet.birthDate ? `${selectedPet.birthDate}生` : ""} / ${selectedPet.species}`}
           insuranceName={selectedPet.insuranceName}
           insuranceDetails={selectedPet.insuranceDetails}
+          ownerIsDangerous={selectedPet.ownerIsDangerous}
+          petDangerLevel={selectedPet.dangerLevel}
+          petDangerReason={selectedPet.dangerReason}
           status={isPetDeceased ? "deceased" : "alive"}
         />
       ) : null}

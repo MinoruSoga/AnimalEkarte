@@ -75,6 +75,48 @@ describe("ownersLoader — #266 pets API (ペット行粒度)", () => {
     expect(pet.deceasedAt).toBeUndefined();
   });
 
+  it("owner.is_dangerous=true を ownerIsDangerous へマッピングし、false はキーを出さない", async () => {
+    const makeRow = (id: number, isDangerous: boolean) => ({
+      id,
+      clinic_id: 1,
+      owner_id: 5 + id,
+      animal_species_id: 2,
+      pet_number: `P-00${id}`,
+      name: `ペット${id}`,
+      pet_name_kana: "",
+      gender: "male",
+      status: "alive",
+      breed: "",
+      color: "",
+      danger_level: "low",
+      food: "",
+      environment: "",
+      remarks: "",
+      owner: {
+        id: 5 + id,
+        owner_number: 5 + id,
+        name: `飼主${id}`,
+        name_kana: "",
+        phone: "",
+        is_dangerous: isDangerous,
+      },
+    });
+    mockedGet.mockResolvedValue({
+      data: {
+        data: [makeRow(1, true), makeRow(2, false)],
+        total: 2,
+        page: 1,
+        limit: 20,
+      },
+    });
+
+    const result = await ownersLoader({ request: new Request("http://localhost/owners") });
+
+    expect(result.pets[0].ownerIsDangerous).toBe(true);
+    // EMR-173: is_dangerous=false は危険人物ではなく、未設定と同じくキー自体を出さない。
+    expect(result.pets[1].ownerIsDangerous).toBeUndefined();
+  });
+
   it("owner が無い pet 行でもクラッシュせず安全な既定値になる", async () => {
     mockedGet.mockResolvedValue({
       data: {
@@ -222,6 +264,35 @@ describe("ownersLoader — #266 サーバサイドページネーション", () 
         include_deceased: "true",
       },
     });
+  });
+
+  it("URL の checkup_history を backend にそのまま転送する（EMR-197-01）", async () => {
+    mockedGet.mockResolvedValue({
+      data: { data: [], total: 0, page: 1, limit: 20 },
+    });
+
+    await ownersLoader({
+      request: new Request("http://localhost/owners?checkup_history=within_2y"),
+    });
+
+    expect(mockedGet).toHaveBeenCalledWith("/v1/pets", {
+      params: {
+        page: 1,
+        limit: 20,
+        checkup_history: "within_2y",
+      },
+    });
+  });
+
+  it("checkup_history 未指定では backend にパラメータを送らない（フィルタ無し）", async () => {
+    mockedGet.mockResolvedValue({
+      data: { data: [], total: 0, page: 1, limit: 20 },
+    });
+
+    await ownersLoader({ request: new Request("http://localhost/owners") });
+
+    const params = mockedGet.mock.calls[0][1]?.params as Record<string, unknown>;
+    expect(params).not.toHaveProperty("checkup_history");
   });
 
   it("include_deceased が未指定の場合は backend にパラメータを送らない（既定=生存のみ）", async () => {

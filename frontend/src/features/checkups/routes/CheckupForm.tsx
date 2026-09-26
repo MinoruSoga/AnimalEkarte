@@ -110,6 +110,9 @@ export function CheckupForm() {
             })}
             insuranceName={pet.insuranceName}
             insuranceDetails={pet.insuranceDetails}
+            ownerIsDangerous={pet.ownerIsDangerous}
+            petDangerLevel={pet.dangerLevel}
+            petDangerReason={pet.dangerReason}
             staffName={doctorName}
             nextVisitDate={form.nextDate ? formatDate(form.nextDate) : undefined}
             status={isPetDeceased ? "deceased" : "alive"}

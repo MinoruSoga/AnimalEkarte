@@ -84,6 +84,11 @@ export const transformBackendPetToFrontend = (p: PetResponse) => ({
   ownerNumber: p.owner?.owner_number ?? p.owner?.id,
   ownerName: p.owner?.name ?? "",
   ownerNameKana: p.owner?.name_kana ?? undefined,
+  // スタッフ向け飼主危険マーク (EMR-173)。PetOwnerNested.is_dangerous は
+  // staff GET /v1/pets 系契約のみに存在し、LIFF/owner 契約へは出さない。
+  // true の時だけキーを出して optional プロパティにする（false/欠落は同じく非表示、
+  // owner-report 等 transform 以外の経路が組み立てる Pet とも型互換を保つ）。
+  ...(p.owner?.is_dangerous === true && { ownerIsDangerous: true }),
   // PetOwnerNested に住所フィールドは無い（detail/list 共有の軽量サマリ）。
   address: undefined as string | undefined,
   phone: p.owner?.phone || p.phone || "",

@@ -1,7 +1,7 @@
 import { FileText, Pencil, Trash2 } from "lucide-react";
 
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { TableCell } from "@/components/ui/table";
+import { DangerBadge } from "@/components/shared/DangerBadge";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { DataTableRowLink } from "@/components/shared/DataTable/DataTableRowLink";
@@ -200,30 +200,13 @@ function OwnersListRow({
           ) : (
             pet.ownerName
           )}
-          {pet.dangerLevel === "高" ? (
-            <Popover>
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  aria-label={`${pet.name}の危険理由を表示`}
-                  className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-semibold ${C.bgDanger10} ${C.danger} ${C.borderDanger20} outline-none focus-visible:ring-2 ${C.focusRingAccent40}`}
-                >
-                  ⚠ 危険
-                </button>
-              </PopoverTrigger>
-              <PopoverContent
-                align="start"
-                aria-label={`${pet.name}の危険理由`}
-                onOpenAutoFocus={(event) => event.preventDefault()}
-                className="w-64"
-              >
-                <p className={`text-sm font-semibold ${C.danger}`}>危険理由</p>
-                <p className={`mt-1 whitespace-pre-wrap break-words text-sm ${C.textInkSecondary}`}>
-                  {pet.dangerReason?.trim() || "理由未登録"}
-                </p>
-              </PopoverContent>
-            </Popover>
-          ) : null}
+          {pet.ownerIsDangerous ? <DangerBadge variant="owner" /> : null}
+          <DangerBadge
+            variant="pet"
+            level={pet.dangerLevel}
+            subjectName={pet.name}
+            reason={pet.dangerReason}
+          />
         </span>
       </TableCell>
       {/* #86: 拠点横断表示時のみ医院列を表示 */}

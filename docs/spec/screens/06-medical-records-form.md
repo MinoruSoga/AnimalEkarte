@@ -25,6 +25,13 @@
 | 8 | **見積書** | 提示した概算費用の管理。 |
 | 9 | **会計(医師確認)** | 診療費の最終確認と会計ステータスの送信。 |
 
+### 1.1 スティッキー患者ヘッダー (Sticky Patient Header)
+
+9 タブの上部には `MedicalRecordStickyHeader` が画面上部に sticky 固定で常時表示され、内部の `PatientContextHeader` が患者コンテキストを保持する。タブ切替・スクロールに関係なく以下をクリック不要で確認できる。
+
+- **今回カルテのバイタルチップ**: `useGetVitals` で当該カルテのバイタルを取得し、最新 1 件を `latestVisitVitalChips` が `vitalsSummary` へ変換して `PatientContextHeader` へ渡す。体温 T / 心拍数 HR / 呼吸数 RR / 測定体重（`weightUnit` 付き）を、ペット名行直下の属性行へ**計測時刻を付けずに常時表示**する。当該カルテにバイタル記録が無い、または 4 項目すべて未入力の場合はチップ自体を表示しない。
+- **マイクロチップ番号**: ペットの `microchip_number`（props 名 `microchipNumber`）が存在する場合、ペット名の右隣にモノスペースのチップとして表示する（`aria-label` は「マイクロチップ番号 <値>」）。未登録または空白のみの場合はチップを表示しない。
+
 ---
 
 ## 2. 主要な臨床ロジック
@@ -38,6 +45,7 @@
 
 ### 2.2 保存プロセス
 - **メイン保存**: 画面右下のフローティング「保存」ボタン（`MedicalRecordFloatingActions`）は、アクティブタブに応じて送信先を切り替える。「問診」タブは `PATCH /medical-records/:id/inquiries`（主訴・主訴区分・治療方針）、「診察/治療プラン」タブは `PATCH /medical-records/:id/clinical-plan`（治療方針・診断詳細・診断名）と `PATCH /medical-records/:id`（次回来院推奨日）を送信する。他タブではカルテ本体の送信は行われない（`PATCH /medical-records/:id` へまとめて送信する方式ではない）。予防接種タブでは偽成功を避けるため外側の保存ボタン自体を表示せず、タブ内の接種記録追加を使う。
+- **主訴区分は任意（空欄可）**: 「問診」タブの主訴区分は必須項目ではない。`InterviewChiefComplaint` 内のクリア可能な `SearchableSelect`（`clearable`）で選択し、候補は `useGetChiefComplaintTypes` の主訴区分マスタから供給される。クリア操作で空欄に戻せ、空欄時は `PATCH /medical-records/:id/inquiries` へ `chief_complaint_type_id: null` が送られる。バックエンドは nullable（`*uint64`）として受け付け、明示的なクリアとして永続化するため、保存・再読込後も空欄のまま維持される。
 - **ヘッダー即時保存**: 担当医・来院種別・診察日・次回予定はヘッダー変更と同時に `PATCH /medical-records/:id` する（保存ボタンを経由しない）。来院種別の成功後は `queryKeys.medicalRecords.detail` を invalidate し、再読込でラベルが戻らないようにする。失敗時はローカル state をロールバックする。appointment 紐付き通常カルテの `date` は予約開始の JST 日付に固定され、変更は BE Conflict（UI は未紐付け時のみ成功する。正本は [99-medical-record-flow.md](./99-medical-record-flow.md) / [reservation-to-record-flow.md](../reservation-to-record-flow.md) §5.5）。
 - **アクティブタブの追加保存**: 保存成功直後、その時点で開いているタブが「診察/治療プラン」または「見積書」の場合のみ、`useMedicalRecordPostSave` が対応する登録済みコールバックを追加実行する（他タブ在中時は発火しない。両タブを並行実行することもない）。見積タブは `items` を create/update 同一 tx で置換永続化する（独立画面 `/estimates` はヘッダ金額のみ。詳細は [23-estimate-form.md](./23-estimate-form.md)）。
 - **治療・検査等のサブリソース**: 「治療」タブの明細は行単位の追加/編集/削除操作ごとに `/medical-records/:id/treatments...` へ個別・即時送信される（メイン保存とは独立しており、「バックグラウンド並行保存」ではない）。
@@ -62,10 +70,15 @@ flowchart TB
 - **薬量自動計算と絶対上限ゲート（#201）**: 「治療」タブの処方明細（`TreatmentRow`）は、対象ペットの species と当日 vital 体重から数量を自動プリフィルする（`calculateDose`）。保存値がマスタ上限（体重連動上限 weight×max_mg/kg と体重非依存の絶対上限 absolute_max_dose の小さい方）を超える場合、フロントエンドは理由をインライン表示して追加・更新を送信せず、バックエンドも Create/Update の永続化前に 400 で拒否する。`ConfirmDialog` による解除経路は設けない。上限内でも下限未満または推奨値からの著しい乖離は、インラインの逸脱理由（`dose_deviation_reason`、空白のみ不可・500文字以内）が必須。理由を snapshot と同一 transaction の監査へ保存し、actor・監査依存の欠落や監査失敗時は保存しない（`computeDoseGate` / `ensureDoseDeviationAuditReady` / `auditDoseDeviationTx`）。体重未記録・species 正規化不能・投与量パラメータ未設定時は評価をスキップして従来どおり保存を継続する。パラメータ取得の非 NotFound エラーと species 不一致は既存どおり fail-closed とする。権限付き例外フロー（Design B）は実装しない。
 - **臨床承認の境界**: コード上のゲートと、対象薬・値・範囲・単位・出典を含む臨床承認は別。#201 の Closed は #261 への承認作業の集約であり、臨床 bundle の承認完了を意味しない（[承認作業 #261](https://github.com/MinoruSoga/AnimalEkarte/issues/261)）。
 - **未保存警告**: 変更がある状態でページを離れようとすると `NavigationBlocker` が警告を表示。
+- **危険マーク（EMR-173）**: スティッキーヘッダー（`PatientContextHeader`）に共有 `DangerBadge` で表示: ペット名横に `danger_level` 高=赤 `⚠ 危険`・中=黄 `⚠ 注意`（Popover で理由）、低・未設定は非表示。飼主 `is_dangerous` は飼主名横に `⚠ 危険人物`。医療記録中もマークを常時視認できるようにするための安全表示。
 
 ### 2.4 画像・資料の選択制限
 
 ファイル選択欄の対象はJPEG/PNG/GIF/PDF。一度の選択は10件まで、1ファイル10MiB以下・合計50MiB以下とする。件数・合計サイズの超過、または1件でも個別サイズ超過がある場合、その選択分全体を受け付けずエラーを表示する（`ImageGalleryFilter`）。拡張子・形式の選択補助はファイル内容の安全性検証を保証しない。
+
+### 2.5 処置マスタのプロビジョニング（皮下点滴）
+
+「治療」タブで選択する処置項目（皮下点滴を含む）は `procedures` テーブルの `clinic_id` 付きレコードであり、**クリニックごとのランタイムマスタデータ**として管理される。seed 配布物（backend/migrations/seeds/002_master に procedures の CSV は存在しない）やコード内の静的定義は存在しない。各クリニックはマスタ設定画面 `/settings/treatment-items` の「処置」タブ（`?tab=procedure`、表示名「処置マスタ」。`ResourceMasterMedical` 権限で保護された `TreatmentPlanMaster`）から `useCreateProcedure` 等で登録・編集する。皮下点滴もこの運用経路でクリニックごとに追加するものであり、デプロイ物・seed 変更を伴う導入経路は存在しない。
 
 ---
 
@@ -75,6 +88,7 @@ flowchart TB
 - **`MedicalRecordForm`**: 統合フォーム。
 - **`useMedicalRecordForm`**: 複雑な状態管理（9タブ ＋ 履歴引用）を統括するカスタムフック。
 - **`historyItems`**: 「問診」タブ内の右カラム（`InterviewHistory`）に過去の問診履歴を表示。「予防接種」タブは左ペイン一覧と右カラム `VaccinationHistory` の両方を `useGetPetVaccinations`（`GET /vaccinations?pet_id=`）で描画する（フォーム全体で共有される単一サイドパネルではなく、タブごとに独立）。
+- **問診履歴の前回複写（EMR-182）**: `InterviewHistory` の各行は、複写可能な問診値を持つ場合に限り行末尾に「コピー」ボタンを表示する（`InterviewHistoryItem` の `copySource` が存在する行のみ。複写不可の行には表示しない）。複写ペイロードは `useGetPetMedicalHistory` 内の `transformToHistoryItem` が `InquirySummaryResponse` の `inquiry.chief_complaint`（主訴詳細）・`inquiry.notes`（治療方針）・`inquiry.chief_complaint_type_id`（主訴区分）から生成する（feature 側の `transforms.ts` も同形）。「コピー」押下時、`MedicalRecordInterview` は現在の主訴詳細・治療方針・主訴区分が未編集の既定値なら即時適用し、いずれかがユーザー編集済みなら `ConfirmDialog` で上書き確認を求める（キャンセルは現在値を保持）。複写はローカル state の setter のみを更新して `NavigationBlocker` の未保存警告を有効化し、API 送信は行わない。ボタンは行リンク（`/medical-records/:id` 詳細遷移）の sibling の `<button>` であり、確定済み・送信不可の fieldset（`MedicalRecordFormReadyPanels`）配下で自動的に disabled になる（行リンク自体は有効のまま）。
 
 ### API連携
 | メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |

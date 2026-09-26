@@ -5,6 +5,7 @@ import { ChevronDown, User, Calendar, Activity } from "lucide-react";
 import imgEllipse1 from "@/assets/231a870df600a37e011a0e1140e7608b1f4c3340.png";
 import { ImageWithFallback } from "@/components/shared/Feedback";
 import { CheckupAlertBadge } from "@/components/shared/CheckupAlertBadge/CheckupAlertBadge";
+import { DangerBadge } from "@/components/shared/DangerBadge";
 import { Button } from "@/components/ui/button";
 
 interface PatientInfoCardProps {
@@ -27,6 +28,12 @@ interface PatientInfoCardProps {
   nextVisitDate?: string;
   nextVisitContent?: string;
   visitCount?: number;
+  /** スタッフ向け飼主危険マーク (EMR-173)。true なら飼主名横に ⚠ 危険人物。 */
+  ownerIsDangerous?: boolean;
+  /** ペット危険度 (表示値 "高"/"中"/"低" または wire 値)。高/中のみ Popover バッジを出す。 */
+  petDangerLevel?: string;
+  /** ペット危険理由。未設定はバッジ Popover 内で「理由未登録」表示。 */
+  petDangerReason?: string;
   onStaffClick?: () => void;
   onVitalClick?: () => void;
   onOwnerClick?: () => void;
@@ -74,6 +81,9 @@ export const PatientInfoCard = memo(function PatientInfoCard({
   nextVisitDate,
   nextVisitContent,
   visitCount,
+  ownerIsDangerous,
+  petDangerLevel,
+  petDangerReason,
   sticky = true,
   hideStaff = false,
   onStaffClick,
@@ -124,6 +134,7 @@ export const PatientInfoCard = memo(function PatientInfoCard({
             ) : (
               <span className={`text-base font-medium ${C.text}`}>{ownerName}</span>
             )}
+            {ownerIsDangerous ? <DangerBadge variant="owner" /> : null}
             {petDetailHref ? (
               // EMR-174: ペット詳細（飼主詳細 ?pet=）へ link
               <Link
@@ -138,6 +149,12 @@ export const PatientInfoCard = memo(function PatientInfoCard({
                 {petName}
               </span>
             )}
+            <DangerBadge
+              variant="pet"
+              level={petDangerLevel}
+              subjectName={petName}
+              reason={petDangerReason}
+            />
             {isDeceased ? (
               <span
                 className={`text-2xs font-semibold px-1.5 py-0.5 rounded ${C.bgDanger} ${C.textWhite} uppercase ml-1`}

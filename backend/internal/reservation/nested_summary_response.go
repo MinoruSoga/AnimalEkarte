@@ -25,9 +25,12 @@ func toStaffSummary(s *model.Staff) *staffSummaryResponse {
 }
 
 // ownerSummaryResponse is nested owner JSON for reservation responses.
+// IsDangerous is staff-facing only (EMR-173 危険人物 mark); it must not be added to
+// LIFF/owner-facing owner summaries.
 type ownerSummaryResponse struct {
-	ID        uint64 `json:"id"`
-	OwnerName string `json:"name"`
+	ID          uint64 `json:"id"`
+	OwnerName   string `json:"name"`
+	IsDangerous bool   `json:"is_dangerous"`
 }
 
 // toOwnerSummary returns nil when o is nil.
@@ -36,8 +39,9 @@ func toOwnerSummary(o *model.Owner) *ownerSummaryResponse {
 		return nil
 	}
 	return &ownerSummaryResponse{
-		ID:        o.ID,
-		OwnerName: o.Name,
+		ID:          o.ID,
+		OwnerName:   o.Name,
+		IsDangerous: o.IsDangerous,
 	}
 }
 

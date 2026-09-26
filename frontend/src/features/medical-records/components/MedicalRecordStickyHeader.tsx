@@ -214,6 +214,9 @@ export function MedicalRecordStickyHeader({
         insuranceDetails={selectedPet.insuranceDetails ?? undefined}
         visitCount={visitCount}
         microchipNumber={selectedPet.microchipNumber?.trim() || undefined}
+        ownerIsDangerous={selectedPet.ownerIsDangerous}
+        petDangerLevel={selectedPet.dangerLevel}
+        petDangerReason={selectedPet.dangerReason}
         vitalsSummary={vitalsSummary ?? undefined}
         onOwnerClick={!isNewRecord && canEdit && !isFinalized ? onOwnerClick : undefined}
         ownerDetailHref={
