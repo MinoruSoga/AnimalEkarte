@@ -26,8 +26,11 @@ vi.mock("./CarePlanRefSelect", () => ({
       onChange={(e) => {
         const next = e.target.value || null;
         onChange(next);
-        // 実物は type=item 選択時に入院プランマスタの price を伝播する(本テストでは 1200 固定)
-        onUnitPriceChange?.(next !== null && type === "item" ? 1200 : null);
+        // 実物は type に応じた選択マスタの price を伝播する
+        // (本テストでは medicine=100 / treatment=4000 / item=1200 固定)
+        const price =
+          type === "medicine" ? 100 : type === "treatment" ? 4000 : type === "item" ? 1200 : null;
+        onUnitPriceChange?.(next !== null ? price : null);
       }}
     />
   ),
@@ -95,6 +98,55 @@ describe("AddForm — type連動マスタ参照(BUG-403)", () => {
         medicine_id: null,
         procedure_id: null,
         hospitalization_plan_id: null,
+      }),
+    );
+  });
+
+  // 回帰(EMR-196 price-loss): 投薬・処置も持ち物と同じく、CarePlanRefSelect が
+  // 選択マスタの price を伝播し AddForm が create payload の unit_price に積む。
+  // BE は request unit_price を保存し、退院会計は care_plan_items.unit_price を写す。
+  it("type=投薬 で薬剤(price=100)を選択すると create payload に unit_price=100 を積む", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(<AddForm onSubmit={onSubmit} />);
+
+    await selectType(user, "投薬");
+    await user.type(screen.getByPlaceholderText("名称を入力"), "抗生剤");
+    await user.type(screen.getByLabelText("ref-select-stub"), "1");
+    await user.click(screen.getByRole("button", { name: /追加/ }));
+
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "medicine",
+        name: "抗生剤",
+        medicine_id: "1",
+        procedure_id: null,
+        hospitalization_plan_id: null,
+        unit_price: 100,
+      }),
+    );
+  });
+
+  it("type=処置・検査 で処置マスタ(price=4000)を選択すると create payload に unit_price=4000 を積む", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(<AddForm onSubmit={onSubmit} />);
+
+    await selectType(user, "処置・検査");
+    await user.type(screen.getByPlaceholderText("名称を入力"), "血液検査");
+    await user.type(screen.getByLabelText("ref-select-stub"), "2");
+    await user.click(screen.getByRole("button", { name: /追加/ }));
+
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "treatment",
+        name: "血液検査",
+        procedure_id: "2",
+        medicine_id: null,
+        hospitalization_plan_id: null,
+        unit_price: 4000,
       }),
     );
   });

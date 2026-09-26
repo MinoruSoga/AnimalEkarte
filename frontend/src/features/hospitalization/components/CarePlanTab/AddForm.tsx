@@ -39,7 +39,7 @@ export function AddForm({ onSubmit }: AddFormProps) {
   const [name, setName] = useState("");
   const [timing, setTiming] = useState<CarePlanTiming[]>(INITIAL_TIMING);
   const [refId, setRefId] = useState<string | null>(null);
-  /** type=item で選択した入院プランマスタの単価。0 は有限値として保持する。 */
+  /** 選択した参照先マスタの単価。0 は有限値として保持する。 */
   const [refUnitPrice, setRefUnitPrice] = useState<number | null>(null);
 
   const needsRef = requiresRef(type);
@@ -65,8 +65,8 @@ export function AddForm({ onSubmit }: AddFormProps) {
         name: trimmedName,
         timing,
         ...buildRefFields(type, refId),
-        // 持ち物は入院プランマスタの単価を unit_price に転記する(BE は省略時 0 で保存)
-        ...(type === "item" && refUnitPrice !== null ? { unit_price: refUnitPrice } : {}),
+        // マスタ参照を持つ type は選択マスタの単価を unit_price に転記する(BE は省略時 0 で保存)
+        ...(refUnitPrice !== null ? { unit_price: refUnitPrice } : {}),
       });
 
       setName("");

@@ -24,8 +24,11 @@ vi.mock("./CarePlanRefSelect", () => ({
       onChange={(e) => {
         const next = e.target.value || null;
         onChange(next);
-        // 実物は type=item 選択時に入院プランマスタの price を伝播する(本テストでは 1200 固定)
-        onUnitPriceChange?.(next !== null && type === "item" ? 1200 : null);
+        // 実物は type に応じた選択マスタの price を伝播する
+        // (本テストでは medicine=100 / treatment=4000 / item=1200 固定)
+        const price =
+          type === "medicine" ? 100 : type === "treatment" ? 4000 : type === "item" ? 1200 : null;
+        onUnitPriceChange?.(next !== null ? price : null);
       }}
     />
   ),
@@ -92,6 +95,79 @@ describe("EditRow — type連動マスタ参照(BUG-403)", () => {
         hospitalization_plan_id: "plan-1",
         medicine_id: null,
         procedure_id: null,
+      }),
+    );
+  });
+
+  // 回帰(EMR-196 price-loss): 投薬・処置も持ち物と同じく、マスタ再選択時の price が
+  // update payload に積まれ、既存項目は再選択なしでも保存時に永続化済みの単価を維持する。
+  it("type=投薬 で薬剤(price=100)を選び直して保存すると update payload に unit_price=100 を積む", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    const item: CarePlanItem = {
+      ...baseItem,
+      type: "medicine",
+      medicine_id: "med-9",
+      name: "既存投薬",
+    };
+    render(<EditRow item={item} onSave={onSave} onCancel={vi.fn()} />);
+
+    await user.clear(screen.getByLabelText("ref-select-stub"));
+    await user.type(screen.getByLabelText("ref-select-stub"), "1");
+    await user.click(screen.getByRole("button", { name: /保存/ }));
+
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "medicine",
+        medicine_id: "1",
+        unit_price: 100,
+      }),
+    );
+  });
+
+  it("type=処置・検査 で処置マスタ(price=4000)を選び直して保存すると update payload に unit_price=4000 を積む", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    const item: CarePlanItem = {
+      ...baseItem,
+      type: "treatment",
+      procedure_id: "proc-9",
+      name: "既存処置",
+    };
+    render(<EditRow item={item} onSave={onSave} onCancel={vi.fn()} />);
+
+    await user.clear(screen.getByLabelText("ref-select-stub"));
+    await user.type(screen.getByLabelText("ref-select-stub"), "2");
+    await user.click(screen.getByRole("button", { name: /保存/ }));
+
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "treatment",
+        procedure_id: "2",
+        unit_price: 4000,
+      }),
+    );
+  });
+
+  it("type=投薬の既存項目はマスタ再選択なしでも保存時に unit_price=300 を維持する", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    const item: CarePlanItem = {
+      ...baseItem,
+      type: "medicine",
+      medicine_id: "med-9",
+      unit_price: 300,
+      name: "既存投薬",
+    };
+    render(<EditRow item={item} onSave={onSave} onCancel={vi.fn()} />);
+
+    await user.click(screen.getByRole("button", { name: /保存/ }));
+
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "medicine",
+        medicine_id: "med-9",
+        unit_price: 300,
       }),
     );
   });
