@@ -622,6 +622,7 @@ class VerificationTests(unittest.TestCase):
         for path in (
             'frontend/scripts/verify-e2e-page-consumers.mjs',
             'frontend/scripts/verify-e2e-page-consumers.test.mjs',
+            'frontend/scripts/e2e-file-tree.mjs',
         ):
             jobs, blocked = verify.plan([path])
             self.assertFalse(blocked, path)
@@ -647,7 +648,7 @@ class VerificationTests(unittest.TestCase):
                     'form': 'static-import',
                     'specifier': './pages/accounting-page',
                 }],
-                'blocking': [],
+                'carriers': [], 'blocking': [],
             }],
         }
         evidence = verify.validate_e2e_page_consumers(
@@ -669,12 +670,12 @@ class VerificationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'ok!=true'):
             verify.validate_e2e_page_consumers(json.dumps({
                 'ok': False,
-                'pages': [{'page': 'e2e/pages/accounting-page.ts', 'consumers': [valid_consumer], 'blocking': []}],
+                'pages': [{'page': 'e2e/pages/accounting-page.ts', 'consumers': [valid_consumer], 'carriers': [], 'blocking': []}],
             }))
         with self.assertRaisesRegex(ValueError, 'no spec consumer'):
             verify.validate_e2e_page_consumers(json.dumps({
                 'ok': True,
-                'pages': [{'page': 'e2e/pages/orphan-page.ts', 'consumers': [], 'blocking': []}],
+                'pages': [{'page': 'e2e/pages/orphan-page.ts', 'consumers': [], 'carriers': [], 'blocking': []}],
             }))
         with self.assertRaisesRegex(ValueError, 'blocking references'):
             verify.validate_e2e_page_consumers(json.dumps({
@@ -682,6 +683,7 @@ class VerificationTests(unittest.TestCase):
                 'pages': [{
                     'page': 'e2e/pages/accounting-page.ts',
                     'consumers': [valid_consumer],
+                    'carriers': [],
                     'blocking': [{'file': 'e2e/bad.spec.ts', 'form': 'dynamic-import'}],
                 }],
             }))
@@ -701,20 +703,20 @@ class VerificationTests(unittest.TestCase):
             verify.validate_e2e_page_consumers(payload([{
                 'page': page,
                 'consumers': [{**valid_consumer, 'form': 'require'}],
-                'blocking': [],
+                'carriers': [], 'blocking': [],
             }]), [page])
         with self.assertRaisesRegex(ValueError, 'form|static-import|dynamic'):
             verify.validate_e2e_page_consumers(payload([{
                 'page': page,
                 'consumers': [{**valid_consumer, 'form': 'dynamic-import'}],
-                'blocking': [],
+                'carriers': [], 'blocking': [],
             }]), [page])
         with self.assertRaisesRegex(ValueError, 'extra|set|mismatch|unexpected'):
             verify.validate_e2e_page_consumers(payload([
                 {
                     'page': page,
                     'consumers': [valid_consumer],
-                    'blocking': [],
+                    'carriers': [], 'blocking': [],
                 },
                 {
                     'page': 'e2e/pages/extra-page.ts',
@@ -723,25 +725,25 @@ class VerificationTests(unittest.TestCase):
                         'form': 'static-import',
                         'specifier': './pages/extra-page',
                     }],
-                    'blocking': [],
+                    'carriers': [], 'blocking': [],
                 },
             ]), [page])
         with self.assertRaisesRegex(ValueError, 'duplicate'):
             verify.validate_e2e_page_consumers(payload([
-                {'page': page, 'consumers': [valid_consumer], 'blocking': []},
-                {'page': page, 'consumers': [valid_consumer], 'blocking': []},
+                {'page': page, 'consumers': [valid_consumer], 'carriers': [], 'blocking': []},
+                {'page': page, 'consumers': [valid_consumer], 'carriers': [], 'blocking': []},
             ]), [page])
         with self.assertRaisesRegex(ValueError, 'page|canonical|identity|path'):
             verify.validate_e2e_page_consumers(payload([{
                 'page': 'frontend/e2e/pages/accounting-page.ts',
                 'consumers': [valid_consumer],
-                'blocking': [],
+                'carriers': [], 'blocking': [],
             }]), ['frontend/e2e/pages/accounting-page.ts'])
         with self.assertRaisesRegex(ValueError, 'page|canonical|identity|path|\\.\\.'):
             verify.validate_e2e_page_consumers(payload([{
                 'page': 'e2e/pages/../secret.ts',
                 'consumers': [valid_consumer],
-                'blocking': [],
+                'carriers': [], 'blocking': [],
             }]))
         with self.assertRaisesRegex(ValueError, 'consumer|spec|file'):
             verify.validate_e2e_page_consumers(payload([{
@@ -751,7 +753,7 @@ class VerificationTests(unittest.TestCase):
                     'form': 'static-import',
                     'specifier': './pages/accounting-page',
                 }],
-                'blocking': [],
+                'carriers': [], 'blocking': [],
             }]), [page])
         with self.assertRaisesRegex(ValueError, 'specifier'):
             verify.validate_e2e_page_consumers(payload([{
@@ -761,7 +763,7 @@ class VerificationTests(unittest.TestCase):
                     'form': 'static-import',
                     'specifier': '',
                 }],
-                'blocking': [],
+                'carriers': [], 'blocking': [],
             }]), [page])
         with self.assertRaisesRegex(ValueError, 'importer-relative|specifier'):
             verify.validate_e2e_page_consumers(payload([{
@@ -771,7 +773,7 @@ class VerificationTests(unittest.TestCase):
                     'form': 'static-import',
                     'specifier': '/app/e2e/pages/accounting-page',
                 }],
-                'blocking': [],
+                'carriers': [], 'blocking': [],
             }]), [page])
         with self.assertRaisesRegex(ValueError, 'forbidden|specifier'):
             verify.validate_e2e_page_consumers(payload([{
@@ -781,13 +783,13 @@ class VerificationTests(unittest.TestCase):
                     'form': 'static-import',
                     'specifier': './pages/accounting-page?x=1',
                 }],
-                'blocking': [],
+                'carriers': [], 'blocking': [],
             }]), [page])
         with self.assertRaisesRegex(ValueError, 'missing|set|mismatch'):
             verify.validate_e2e_page_consumers(payload([{
                 'page': page,
                 'consumers': [valid_consumer],
-                'blocking': [],
+                'carriers': [], 'blocking': [],
             }]), [page, 'e2e/pages/settings-master-page.ts'])
 
     def test_raw_canonical_rejects_dot_slash_and_double_slash_identities(self):
@@ -810,7 +812,7 @@ class VerificationTests(unittest.TestCase):
                         'form': 'static-import',
                         'specifier': specifier,
                     }],
-                    'blocking': [],
+                    'carriers': [], 'blocking': [],
                 }],
             })
 
@@ -862,7 +864,7 @@ class VerificationTests(unittest.TestCase):
                         'form': 'static-import',
                         'specifier': specifier,
                     }],
-                    'blocking': [],
+                    'carriers': [], 'blocking': [],
                 }],
             })
 
@@ -890,7 +892,7 @@ class VerificationTests(unittest.TestCase):
                         'form': 'static-import',
                         'specifier': specifier,
                     }],
-                    'blocking': [],
+                    'carriers': [], 'blocking': [],
                 }],
             })
 
@@ -908,6 +910,110 @@ class VerificationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'specifier|resolve|escape|e2e|page'):
             verify.validate_e2e_page_consumers(
                 payload('e2e/good.spec.ts', '../secret'),
+                [page],
+            )
+
+    def test_validate_e2e_page_consumers_accepts_transitive_via_consumer(self):
+        page = 'e2e/pages/base-page.ts'
+        payload = json.dumps({
+            'ok': True,
+            'pages': [{
+                'page': page,
+                'consumers': [{
+                    'file': 'e2e/accounting-flow.spec.ts',
+                    'form': 'static-import',
+                    'specifier': './pages/accounting-page',
+                    'via': 'e2e/pages/accounting-page.ts',
+                }],
+                'carriers': [{
+                    'file': 'e2e/pages/accounting-page.ts',
+                    'form': 'static-import',
+                    'specifier': './base-page',
+                }],
+                'blocking': [],
+            }],
+        })
+        evidence = verify.validate_e2e_page_consumers(payload, [page])
+        self.assertEqual(len(evidence[page]), 1)
+
+    def test_validate_e2e_page_consumers_rejects_forged_via_and_carriers(self):
+        page = 'e2e/pages/base-page.ts'
+        carrier = {
+            'file': 'e2e/pages/accounting-page.ts',
+            'form': 'static-import',
+            'specifier': './base-page',
+        }
+        via_consumer = {
+            'file': 'e2e/accounting-flow.spec.ts',
+            'form': 'static-import',
+            'specifier': './pages/accounting-page',
+            'via': 'e2e/pages/accounting-page.ts',
+        }
+
+        def payload(consumers, carriers):
+            return json.dumps({
+                'ok': True,
+                'pages': [{
+                    'page': page,
+                    'consumers': consumers,
+                    'carriers': carriers,
+                    'blocking': [],
+                }],
+            })
+
+        # via without a matching carrier edge must fail closed.
+        with self.assertRaisesRegex(ValueError, 'via|carrier'):
+            verify.validate_e2e_page_consumers(
+                payload([via_consumer], []), [page],
+            )
+        # via pointing at a non-page identity must fail closed.
+        with self.assertRaisesRegex(ValueError, 'via|carrier|canonical'):
+            verify.validate_e2e_page_consumers(
+                payload(
+                    [{**via_consumer, 'via': 'e2e/helpers/evil.ts'}],
+                    [carrier],
+                ),
+                [page],
+            )
+        # via equal to the claimed page is nonsense and must fail.
+        with self.assertRaisesRegex(ValueError, 'via|carrier|distinct'):
+            verify.validate_e2e_page_consumers(
+                payload([{**via_consumer, 'via': page}], [carrier]), [page],
+            )
+        # Spec specifier must resolve to the via carrier, not to page directly.
+        with self.assertRaisesRegex(ValueError, 'via|resolve|carrier'):
+            verify.validate_e2e_page_consumers(
+                payload(
+                    [{**via_consumer, 'specifier': './pages/base-page'}],
+                    [carrier],
+                ),
+                [page],
+            )
+        # Carrier specifier must resolve to the claimed page.
+        with self.assertRaisesRegex(ValueError, 'carrier|resolve|page'):
+            verify.validate_e2e_page_consumers(
+                payload(
+                    [via_consumer],
+                    [{**carrier, 'specifier': './other-page'}],
+                ),
+                [page],
+            )
+        # Non-canonical carrier file must fail closed.
+        with self.assertRaisesRegex(ValueError, 'carrier|canonical'):
+            verify.validate_e2e_page_consumers(
+                payload(
+                    [via_consumer],
+                    [{**carrier, 'file': 'e2e/helpers/helper.ts'}],
+                ),
+                [page],
+            )
+        # Carrier entries with non-static forms must fail closed.
+        with self.assertRaisesRegex(ValueError, 'carrier|static-import'):
+            verify.validate_e2e_page_consumers(
+                payload(
+                    [via_consumer],
+                    [{**carrier, 'form': 'export-from'}],
+                ),
                 [page],
             )
 

@@ -20,7 +20,7 @@ for f in $STAGED; do
   esac
   case "$f" in
     *generated*|*migrations*|*vendor*|*node_modules*) continue ;;
-    *_test.go|*.test.ts|*.test.tsx|*.test.js|*.test.jsx|*.spec.ts|*.spec.tsx) continue ;;
+    *_test.go|*.test.ts|*.test.tsx|*.test.js|*.test.jsx|*.test.mjs|*.test.cjs|*.spec.ts|*.spec.tsx|*.spec.mjs|*.spec.cjs) continue ;;
   esac
   [ -f "$f" ] || continue
   lines=$(wc -l < "$f" | tr -d ' ')

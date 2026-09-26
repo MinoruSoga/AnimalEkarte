@@ -249,6 +249,42 @@ def validate_e2e_page_consumers(stdout, expected_pages=None, stderr=''):
             raise ValueError(f'E2E page consumer AST blocking references for {page}')
         if not consumers:
             raise ValueError(f'E2E page object has no spec consumer: {page}')
+        carriers = entry.get('carriers')
+        if not isinstance(carriers, list):
+            raise ValueError(f'E2E page consumer AST carriers malformed for {page}')
+        carrier_files = set()
+        for carrier in carriers:
+            if not isinstance(carrier, dict):
+                raise ValueError(f'E2E page consumer AST carrier entry malformed for {page}')
+            carrier_file = carrier.get('file')
+            carrier_form = carrier.get('form')
+            carrier_specifier = carrier.get('specifier')
+            if not carrier_file or carrier_form is None or 'specifier' not in carrier:
+                raise ValueError(f'E2E page consumer AST carrier identity incomplete for {page}')
+            if not _is_canonical_e2e_page(carrier_file):
+                raise ValueError(
+                    f'E2E page consumer AST carrier file must be canonical e2e page for {page}: {carrier_file}'
+                )
+            if carrier_form != 'static-import':
+                raise ValueError(
+                    f'E2E page consumer AST carrier form must be static-import for {page}, got {carrier_form!r}'
+                )
+            if not isinstance(carrier_specifier, str) or not carrier_specifier:
+                raise ValueError(f'E2E page consumer AST carrier specifier must be nonempty for {page}')
+            if not (carrier_specifier.startswith('./') or carrier_specifier.startswith('../')):
+                raise ValueError(
+                    f'E2E page consumer AST carrier specifier must be importer-relative for {page}: {carrier_specifier!r}'
+                )
+            if any(token in carrier_specifier for token in ('?', '#', '\0', '\\')):
+                raise ValueError(
+                    f'E2E page consumer AST carrier specifier contains forbidden characters for {page}: {carrier_specifier!r}'
+                )
+            carrier_resolved = _resolve_importer_relative_specifier(carrier_file, carrier_specifier)
+            if carrier_resolved != page:
+                raise ValueError(
+                    f'E2E page consumer AST carrier specifier does not resolve to page for {page}: {carrier_specifier!r}'
+                )
+            carrier_files.add(carrier_file)
         for consumer in consumers:
             if not isinstance(consumer, dict):
                 raise ValueError(f'E2E page consumer AST consumer entry malformed for {page}')
@@ -277,7 +313,21 @@ def validate_e2e_page_consumers(stdout, expected_pages=None, stderr=''):
                     f'E2E page consumer AST consumer file must be e2e/**/*.spec.ts for {page}: {file_path}'
                 )
             resolved = _resolve_importer_relative_specifier(file_path, specifier)
-            if resolved != page:
+            via = consumer.get('via')
+            if via is not None:
+                if not _is_canonical_e2e_page(via) or via == page:
+                    raise ValueError(
+                        f'E2E page consumer AST via must be a distinct canonical e2e page for {page}: {via}'
+                    )
+                if resolved != via:
+                    raise ValueError(
+                        f'E2E page consumer AST specifier does not resolve to via carrier for {page}: {specifier!r}'
+                    )
+                if via not in carrier_files:
+                    raise ValueError(
+                        f'E2E page consumer AST via carrier lacks carrier edge for {page}: {via}'
+                    )
+            elif resolved != page:
                 raise ValueError(
                     f'E2E page consumer AST specifier does not resolve to page for {page}: {specifier!r}'
                 )
@@ -414,6 +464,7 @@ def plan(paths):
         elif path in (
             'frontend/scripts/verify-e2e-page-consumers.mjs',
             'frontend/scripts/verify-e2e-page-consumers.test.mjs',
+            'frontend/scripts/e2e-file-tree.mjs',
         ):
             jobs.append({
                 'service': 'frontend',
@@ -470,6 +521,7 @@ def plan(paths):
             '.githooks/pre-commit',
             '.githooks/pre-push',
             '.githooks/lib/check-secrets.sh',
+            '.githooks/lib/check-file-sizes.sh',
             'scripts/run-local-ci.sh',
         ):
             if not any(job['service'] == 'host' and job['command'][-1].endswith('test_verify_agent_task.py') for job in jobs):
