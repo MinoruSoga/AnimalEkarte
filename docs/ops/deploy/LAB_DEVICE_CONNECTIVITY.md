@@ -44,7 +44,11 @@ Win7 の COM 番号を Mac の `/dev/cu.*` だと思わない。口はつなぐ�
 
 ## 画面と API
 
-- 日常経路は `/lab-device`（`LabDeviceBoard`）。権限は `lab-import`。確認ダイアログは無い。ペット検索はせず、本日診療中のカルテカードを選ぶ。受信結果は日別に一覧する。
+- 日常経路は `/lab-device`（`LabDeviceBoard`）。権限は `lab-import` で操作ごとに分かれる（医院ごとの権限グループで付与。既定 seed では全グループ view のみ・執行のみ edit 付与・create は全グループ未付与のため、受信担当には `/settings/permission-groups` で「検査取込」の作成・編集を ON にする）:
+  - `view` … `/lab-device` の表示、未紐付け一覧・機器ステーション参照（検査画面の未紐付けバナーも view で出る）
+  - `create` … 受信・待機選択/解除・board 取得・agent consumer token 発行（`POST /lab-device/frames`・`/lab-device/wait`・`GET /lab-device/board`・`GET /lab-device/agent-consumer`）
+  - `edit` … attach/detach/revert、機器・項目マスタの登録変更
+- 確認ダイアログは無い。ペット検索はせず、本日診療中のカルテカードを選ぶ。受信結果は日別に一覧する。
 - 医院セットアップでローカル検査機器エージェントの口→機器プロファイルを1回許可する。ブラウザはエージェントへ接続し、シリアルポートを直接読んだり再オープンしたりしない。［読む］は無い。TTL の数値 UI は無い。
 - 診察端末の検査画面は未紐付けバナーから1クリックで `attach` する。値は編集しない。
 - 保持確認は `/examinations`（NX600 / AU10V / 実装済み VetLab 経路はペット確定後に persist。PU-4010 は decoder-only。fixture は commit）
