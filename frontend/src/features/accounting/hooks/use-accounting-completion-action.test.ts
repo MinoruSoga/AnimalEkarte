@@ -699,7 +699,10 @@ describe("useAccountingCompletionAction unbilled revision (EMR-196②)", () => {
   it("409 でも UNBILLED_ITEMS_CHANGED 以外の code は汎用エラー経路を維持する", async () => {
     const args = buildHookArgs({ accountingId: undefined });
     completeAccountingMock.mockRejectedValue(
-      axiosError(409, { error: "このカルテには既に会計があります", code: "ACCOUNTING_ALREADY_COMPLETED" }),
+      axiosError(409, {
+        error: "このカルテには既に会計があります",
+        code: "ACCOUNTING_ALREADY_COMPLETED",
+      }),
     );
     const { result } = renderHook(() => useAccountingCompletionAction(args));
 
@@ -712,9 +715,9 @@ describe("useAccountingCompletionAction unbilled revision (EMR-196②)", () => {
 
   it("isUnbilledRevisionConflict は 409 + code の組合せのみ true", async () => {
     const { isUnbilledRevisionConflict } = await import("./use-accounting-completion-action");
-    expect(
-      isUnbilledRevisionConflict(axiosError(409, { code: "UNBILLED_ITEMS_CHANGED" })),
-    ).toBe(true);
+    expect(isUnbilledRevisionConflict(axiosError(409, { code: "UNBILLED_ITEMS_CHANGED" }))).toBe(
+      true,
+    );
     expect(isUnbilledRevisionConflict(axiosError(409, { code: "OTHER" }))).toBe(false);
     expect(isUnbilledRevisionConflict(axiosError(400, { code: "UNBILLED_ITEMS_CHANGED" }))).toBe(
       false,

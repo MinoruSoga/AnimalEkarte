@@ -395,7 +395,9 @@ export function useAccountingCompletionAction({
           } catch {
             // refetch 失敗でもバナーが再読込を促す。次回確定は BE 側でも版照合で fail-closed。
           }
-          toast.error("未請求明細が他の画面で更新されました。最新の内容を確認してから再度確定してください");
+          toast.error(
+            "未請求明細が他の画面で更新されました。最新の内容を確認してから再度確定してください",
+          );
           return { success: false, timestamp: Date.now() };
         }
         handleApiError(error, "会計の処理");
