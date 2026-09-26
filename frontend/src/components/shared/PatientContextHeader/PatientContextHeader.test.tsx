@@ -243,3 +243,43 @@ describe("PatientContextHeader", () => {
     expect(petTooltip).toBeInTheDocument();
   });
 });
+
+describe("PatientContextHeader 危険マーク (EMR-173)", () => {
+  it("ownerIsDangerous=true なら飼主名の横に ⚠ 危険人物 を出す", () => {
+    render(<PatientContextHeader {...baseProps} ownerIsDangerous />);
+
+    expect(screen.getByText("⚠ 危険人物")).toBeInTheDocument();
+  });
+
+  it("ownerIsDangerous 未指定なら危険人物マークを出さない", () => {
+    render(<PatientContextHeader {...baseProps} />);
+
+    expect(screen.queryByText("⚠ 危険人物")).not.toBeInTheDocument();
+  });
+
+  it("petDangerLevel=高ならペット名の横に ⚠ 危険 badge を出し理由を開ける", async () => {
+    render(
+      <PatientContextHeader {...baseProps} petDangerLevel="高" petDangerReason="保定時に噛む" />,
+    );
+
+    const trigger = screen.getByRole("button", { name: "ポチの危険理由を表示" });
+    await userEvent.click(trigger);
+    expect(await screen.findByText("保定時に噛む")).toBeInTheDocument();
+  });
+
+  it("petDangerLevel=中なら黄色 ⚠ 注意 badge を出し、低・未指定は何も出さない", () => {
+    const { rerender } = render(<PatientContextHeader {...baseProps} petDangerLevel="中" />);
+
+    expect(screen.getByRole("button", { name: "ポチの注意理由を表示" })).toHaveTextContent(
+      "⚠ 注意",
+    );
+    expect(screen.queryByText("⚠ 危険")).not.toBeInTheDocument();
+
+    rerender(<PatientContextHeader {...baseProps} petDangerLevel="低" />);
+    expect(screen.queryByText("⚠ 注意")).not.toBeInTheDocument();
+
+    rerender(<PatientContextHeader {...baseProps} />);
+    expect(screen.queryByText("⚠ 危険")).not.toBeInTheDocument();
+    expect(screen.queryByText("⚠ 注意")).not.toBeInTheDocument();
+  });
+});

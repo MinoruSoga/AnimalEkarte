@@ -42,6 +42,7 @@ type listPetQuery struct {
 	Search          string
 	Species         string
 	IncludeDeceased string
+	CheckupHistory  string
 }
 
 func newListPetQuery(values url.Values) listPetQuery {
@@ -50,6 +51,7 @@ func newListPetQuery(values url.Values) listPetQuery {
 		Search:          values.Get("search"),
 		Species:         values.Get("species"),
 		IncludeDeceased: values.Get("include_deceased"),
+		CheckupHistory:  values.Get("checkup_history"),
 	}
 }
 
@@ -87,11 +89,17 @@ func (q listPetQuery) toServiceFilters() (listPetFilters, error) {
 	if err != nil {
 		return listPetFilters{}, err
 	}
+	// EMR-197-01: checkup_history は列挙値のみ受理（未指定 = フィルタ無し）。
+	checkupHistory, err := parseCheckupHistoryFilter(q.CheckupHistory)
+	if err != nil {
+		return listPetFilters{}, err
+	}
 	return listPetFilters{
 		OwnerID:         ownerID,
 		Search:          q.Search,
 		AnimalSpeciesID: speciesID,
 		IncludeDeceased: includeDeceased,
+		CheckupHistory:  checkupHistory,
 	}, nil
 }
 

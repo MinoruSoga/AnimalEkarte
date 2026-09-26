@@ -292,7 +292,7 @@ type mockAccountingService struct {
 	listUnpaidByBillingFn       func(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]model.Billing, int64, error)
 	listUnpaidByOwnerFn         func(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]UnpaidOwnerAggregate, int64, UnpaidSummary, error)
 	getOwnerUnpaidBalanceFn     func(ctx context.Context, clinicID, ownerID uint64) (OwnerUnpaidBalance, error)
-	getMonthlyUnpaidCarryoverFn func(ctx context.Context, clinicID uint64, year, month, page, limit int) ([]MonthlyUnpaidOwnerPet, int64, MonthlyUnpaidSummary, error)
+	getPeriodUnpaidCarryoverFn  func(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]PeriodUnpaidOwnerPet, int64, PeriodUnpaidSummary, error)
 	getDailySummaryFn           func(ctx context.Context, clinicID uint64, dateStr string) (*DailySummaryResult, error)
 	getDailySummaryForClinicsFn func(ctx context.Context, clinicIDs []uint64, dateStr string) ([]ClinicDailySummary, error)
 }
@@ -348,8 +348,8 @@ func (m *mockAccountingService) GetOwnerUnpaidBalance(ctx context.Context, clini
 	return m.getOwnerUnpaidBalanceFn(ctx, clinicID, ownerID)
 }
 
-func (m *mockAccountingService) GetMonthlyUnpaidCarryover(ctx context.Context, clinicID uint64, year, month, page, limit int) ([]MonthlyUnpaidOwnerPet, int64, MonthlyUnpaidSummary, error) {
-	return m.getMonthlyUnpaidCarryoverFn(ctx, clinicID, year, month, page, limit)
+func (m *mockAccountingService) GetPeriodUnpaidCarryover(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]PeriodUnpaidOwnerPet, int64, PeriodUnpaidSummary, error) {
+	return m.getPeriodUnpaidCarryoverFn(ctx, clinicID, startDate, endDate, page, limit)
 }
 
 func (m *mockAccountingService) GetDailySummary(ctx context.Context, clinicID uint64, dateStr string) (*DailySummaryResult, error) {
@@ -1141,9 +1141,9 @@ func TestGetOwnerUnpaidBalanceHandler(t *testing.T) {
 	}
 }
 
-// ---- GetUnpaidMonthlySummary ----
+// ---- GetUnpaidPeriodSummary ----
 
-func TestGetUnpaidMonthlySummary(t *testing.T) {
+func TestGetUnpaidPeriodSummary(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	tests := []struct {
@@ -1155,15 +1155,15 @@ func TestGetUnpaidMonthlySummary(t *testing.T) {
 		wantBody   string
 	}{
 		{
-			name:     "returns 200 with monthly carryover summary",
-			query:    "year=2026&month=6",
+			name:     "returns 200 with period carryover summary",
+			query:    "start_date=2026-06-01&end_date=2026-06-30",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockAccountingService{
-				getMonthlyUnpaidCarryoverFn: func(_ context.Context, clinicID uint64, year, month, _, _ int) ([]MonthlyUnpaidOwnerPet, int64, MonthlyUnpaidSummary, error) {
+				getPeriodUnpaidCarryoverFn: func(_ context.Context, clinicID uint64, startDate, endDate string, _, _ int) ([]PeriodUnpaidOwnerPet, int64, PeriodUnpaidSummary, error) {
 					assert.Equal(t, uint64(1), clinicID)
-					assert.Equal(t, 2026, year)
-					assert.Equal(t, 6, month)
-					return []MonthlyUnpaidOwnerPet{{OwnerID: 1, OwnerName: "田中太郎"}}, 1, MonthlyUnpaidSummary{}, nil
+					assert.Equal(t, "2026-06-01", startDate)
+					assert.Equal(t, "2026-06-30", endDate)
+					return []PeriodUnpaidOwnerPet{{OwnerID: 1, OwnerName: "田中太郎"}}, 1, PeriodUnpaidSummary{}, nil
 				},
 			},
 			wantStatus: http.StatusOK,
@@ -1171,11 +1171,11 @@ func TestGetUnpaidMonthlySummary(t *testing.T) {
 		},
 		{
 			name:     "returns 200 with latest_scheduled per data row",
-			query:    "year=2026&month=6",
+			query:    "start_date=2026-06-01&end_date=2026-06-30",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockAccountingService{
-				getMonthlyUnpaidCarryoverFn: func(_ context.Context, _ uint64, _, _, _, _ int) ([]MonthlyUnpaidOwnerPet, int64, MonthlyUnpaidSummary, error) {
-					return []MonthlyUnpaidOwnerPet{{OwnerID: 1, OwnerName: "田中太郎", LatestScheduled: "2026-06-20"}}, 1, MonthlyUnpaidSummary{}, nil
+				getPeriodUnpaidCarryoverFn: func(_ context.Context, _ uint64, _, _ string, _, _ int) ([]PeriodUnpaidOwnerPet, int64, PeriodUnpaidSummary, error) {
+					return []PeriodUnpaidOwnerPet{{OwnerID: 1, OwnerName: "田中太郎", LatestScheduled: "2026-06-20"}}, 1, PeriodUnpaidSummary{}, nil
 				},
 			},
 			wantStatus: http.StatusOK,
@@ -1183,48 +1183,76 @@ func TestGetUnpaidMonthlySummary(t *testing.T) {
 		},
 		{
 			name:       "returns 401 when clinic_id is missing",
-			query:      "year=2026&month=6",
+			query:      "start_date=2026-06-01&end_date=2026-06-30",
 			setupCtx:   func(_ *gin.Context) {},
 			svc:        &mockAccountingService{},
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
 			name:  "returns 403 when selected clinic lacks accounting view grant",
-			query: "year=2026&month=6",
+			query: "start_date=2026-06-01&end_date=2026-06-30",
 			setupCtx: func(c *gin.Context) {
 				setClinicID(c)
 				c.Set("clinic_id", "2")
 				setAccountingPermissionOnlyClinic(c, 1, "view")
 			},
 			svc: &mockAccountingService{
-				getMonthlyUnpaidCarryoverFn: func(_ context.Context, _ uint64, _, _, _, _ int) ([]MonthlyUnpaidOwnerPet, int64, MonthlyUnpaidSummary, error) {
+				getPeriodUnpaidCarryoverFn: func(_ context.Context, _ uint64, _, _ string, _, _ int) ([]PeriodUnpaidOwnerPet, int64, PeriodUnpaidSummary, error) {
 					t.Fatal("accounting service must not be reached")
-					return nil, 0, MonthlyUnpaidSummary{}, nil
+					return nil, 0, PeriodUnpaidSummary{}, nil
 				},
 			},
 			wantStatus: http.StatusForbidden,
 		},
 		{
 			name:       "returns 400 on invalid pagination",
-			query:      "year=2026&month=6&page=abc",
+			query:      "start_date=2026-06-01&end_date=2026-06-30&page=abc",
 			setupCtx:   func(c *gin.Context) { setClinicID(c) },
 			svc:        &mockAccountingService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			name:       "returns 400 when year is missing",
-			query:      "month=6",
+			name:       "returns 400 when start_date is missing",
+			query:      "end_date=2026-06-30",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockAccountingService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when end_date is missing",
+			query:      "start_date=2026-06-01",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockAccountingService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when start_date is malformed",
+			query:      "start_date=2026/06/01&end_date=2026-06-30",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockAccountingService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when end_date is malformed",
+			query:      "start_date=2026-06-01&end_date=2026-13-40",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockAccountingService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when end_date is before start_date",
+			query:      "start_date=2026-06-30&end_date=2026-06-01",
 			setupCtx:   func(c *gin.Context) { setClinicID(c) },
 			svc:        &mockAccountingService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:     "returns 500 on service error",
-			query:    "year=2026&month=6",
+			query:    "start_date=2026-06-01&end_date=2026-06-30",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockAccountingService{
-				getMonthlyUnpaidCarryoverFn: func(_ context.Context, _ uint64, _, _, _, _ int) ([]MonthlyUnpaidOwnerPet, int64, MonthlyUnpaidSummary, error) {
-					return nil, 0, MonthlyUnpaidSummary{}, fmt.Errorf("db failure")
+				getPeriodUnpaidCarryoverFn: func(_ context.Context, _ uint64, _, _ string, _, _ int) ([]PeriodUnpaidOwnerPet, int64, PeriodUnpaidSummary, error) {
+					return nil, 0, PeriodUnpaidSummary{}, fmt.Errorf("db failure")
 				},
 			},
 			wantStatus: http.StatusInternalServerError,
@@ -1236,9 +1264,9 @@ func TestGetUnpaidMonthlySummary(t *testing.T) {
 			h := newHandlerWithAccountingSvc(tt.svc)
 			w := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(w)
-			c.Request = httptest.NewRequest(http.MethodGet, "/v1/accountings/unpaid-monthly?"+tt.query, http.NoBody)
+			c.Request = httptest.NewRequest(http.MethodGet, "/v1/accountings/unpaid-period?"+tt.query, http.NoBody)
 			tt.setupCtx(c)
-			h.GetUnpaidMonthlySummary(c)
+			h.GetUnpaidPeriodSummary(c)
 			assert.Equal(t, tt.wantStatus, w.Code)
 			if tt.wantBody != "" {
 				assert.Contains(t, w.Body.String(), tt.wantBody)

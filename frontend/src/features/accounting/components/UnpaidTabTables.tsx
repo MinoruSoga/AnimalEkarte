@@ -15,7 +15,7 @@ import { formatCurrency } from "@/lib/format/number";
 import { formatDate } from "@/lib/format/date";
 import { daysSince } from "@/lib/jst-date";
 
-import type { UnpaidOwner, MonthlyUnpaidResponse } from "../api/get-unpaid-billings";
+import type { UnpaidOwner, PeriodUnpaidResponse } from "../api/get-unpaid-billings";
 import type { Accounting } from "../api/transforms";
 import { unpaidBillingAmount } from "../lib/unpaid-tab-model";
 
@@ -124,13 +124,14 @@ export function UnpaidBillingTable({ billings, endDate }: UnpaidBillingTableProp
   );
 }
 
-interface UnpaidMonthlyTableProps {
-  rows: MonthlyUnpaidResponse["data"];
+interface UnpaidPeriodTableProps {
+  rows: PeriodUnpaidResponse["data"];
 }
 
-export function UnpaidMonthlyTable({ rows }: UnpaidMonthlyTableProps) {
+// EMR-188: 月末未納者一覧（期間前繰越・期間内未納・期末繰越）
+export function UnpaidPeriodTable({ rows }: UnpaidPeriodTableProps) {
   if (rows.length === 0) {
-    return <EmptyState message="対象月の未納データがありません" />;
+    return <EmptyState message="対象期間の未納データがありません" />;
   }
 
   return (
@@ -141,9 +142,9 @@ export function UnpaidMonthlyTable({ rows }: UnpaidMonthlyTableProps) {
             <TableHead>飼主名</TableHead>
             <TableHead>ペット名</TableHead>
             <TableHead>最新未納日</TableHead>
-            <TableHead className="text-right">前月繰越</TableHead>
-            <TableHead className="text-right">当月未払い</TableHead>
-            <TableHead className="text-right">次月繰越</TableHead>
+            <TableHead className="text-right">期間前繰越</TableHead>
+            <TableHead className="text-right">期間内未納</TableHead>
+            <TableHead className="text-right">期末繰越</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -163,13 +164,13 @@ export function UnpaidMonthlyTable({ rows }: UnpaidMonthlyTableProps) {
               <TableCell>{row.pet_name || "-"}</TableCell>
               <TableCell>{row.latest_scheduled || "-"}</TableCell>
               <TableCell className="text-right font-mono">
-                {formatCurrency(row.prev_month_carryover)}
+                {formatCurrency(row.prev_period_carryover)}
               </TableCell>
               <TableCell className="text-right font-mono">
-                {formatCurrency(row.current_month_unpaid)}
+                {formatCurrency(row.current_period_unpaid)}
               </TableCell>
               <TableCell className="text-right font-mono">
-                {formatCurrency(row.next_month_carryover)}
+                {formatCurrency(row.period_end_carryover)}
               </TableCell>
             </TableRow>
           ))}

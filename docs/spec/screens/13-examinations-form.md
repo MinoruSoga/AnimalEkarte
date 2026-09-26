@@ -14,7 +14,7 @@
 ### 1.1 検査基本情報
 - **検査種別**: 血液、尿、エコー等のマスタ（`exam_types`）から選択。
 - **担当医**: `staffType=doctor` かつ active のスタッフ。検査種別とともに保存時の必須項目。
-- **患者ヘッダー**: 種を `petName` / `petDetails` に実データで出す。
+- **患者ヘッダー**: `PatientInfoCard` で種を `petName` / `petDetails` に実データで出す。危険マーク（EMR-173、共有 `DangerBadge`）: ペット名横に `danger_level` 高=赤 `⚠ 危険`・中=黄 `⚠ 注意`（Popover で理由）、低・未設定は非表示。飼主 `is_dangerous` は飼主名横に `⚠ 危険人物`。採血・保定など検査実施前の安全確認用。
 
 ### 1.2 動的検査項目テーブル (`ExamItemsTable`)
 選択した検査種別に基づき、測定項目が動的に生成されます。

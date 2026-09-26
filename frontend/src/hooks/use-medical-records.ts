@@ -92,6 +92,13 @@ export function useGetMedicalRecords(
   });
 }
 
+/** EMR-182: 前回複写ペイロード（feature InterviewHistoryCopySource と同形）。 */
+export interface MedicalRecordInterviewHistoryCopySource {
+  chiefComplaint?: string;
+  treatmentPolicy?: string;
+  chiefComplaintTypeId?: number;
+}
+
 /** FEAT-003: 問診履歴 UI 行（feature InterviewHistoryItem と同形）。 */
 export interface MedicalRecordInterviewHistoryItem {
   id: string;
@@ -100,9 +107,27 @@ export interface MedicalRecordInterviewHistoryItem {
   type: string;
   title: string;
   content: string;
+  /** EMR-182: 1項目でも複写可能な値を持つ行にのみ設定される。 */
+  copySource?: MedicalRecordInterviewHistoryCopySource;
 }
 
-function transformToHistoryItem(record: MedicalRecordResponse): MedicalRecordInterviewHistoryItem {
+/** EMR-182: 前回複写ペイロード。複写可能な値が1つも無いときは undefined。 */
+function toCopySource(
+  inquiry: MedicalRecordResponse["inquiry"],
+): MedicalRecordInterviewHistoryCopySource | undefined {
+  if (!inquiry) return undefined;
+  const source: MedicalRecordInterviewHistoryCopySource = {};
+  if (inquiry.chief_complaint) source.chiefComplaint = inquiry.chief_complaint;
+  if (inquiry.notes) source.treatmentPolicy = inquiry.notes;
+  if (inquiry.chief_complaint_type_id != null) {
+    source.chiefComplaintTypeId = inquiry.chief_complaint_type_id;
+  }
+  return Object.keys(source).length > 0 ? source : undefined;
+}
+
+export function transformToHistoryItem(
+  record: MedicalRecordResponse,
+): MedicalRecordInterviewHistoryItem {
   const chiefComplaint = record.inquiry?.chief_complaint ?? "";
   const content = chiefComplaint || "（記録なし）";
   return {
@@ -112,6 +137,7 @@ function transformToHistoryItem(record: MedicalRecordResponse): MedicalRecordInt
     type: record.status === "finalized" ? "確定済" : "作成中",
     title: chiefComplaint || record.record_no,
     content,
+    copySource: toCopySource(record.inquiry),
   };
 }
 

@@ -2,7 +2,6 @@ package billing
 
 import (
 	"net/url"
-	"strconv"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -93,36 +92,38 @@ func newDailySummaryQuery(values url.Values) dailySummaryQuery {
 	return dailySummaryQuery{Date: values.Get("date")}
 }
 
-// #114: 月次未納繰越集計クエリ
-type monthlyUnpaidQuery struct {
-	Year  string
-	Month string
+// EMR-188: 月末未納者一覧（期間検索）クエリ
+type unpaidPeriodQuery struct {
+	StartDate string
+	EndDate   string
 }
 
-func newMonthlyUnpaidQuery(values url.Values) monthlyUnpaidQuery {
-	return monthlyUnpaidQuery{
-		Year:  values.Get("year"),
-		Month: values.Get("month"),
+func newUnpaidPeriodQuery(values url.Values) unpaidPeriodQuery {
+	return unpaidPeriodQuery{
+		StartDate: values.Get("start_date"),
+		EndDate:   values.Get("end_date"),
 	}
 }
 
-// parse は year/month を検証して int に変換する。
-func (q monthlyUnpaidQuery) parse() (year, month int, err error) {
-	if q.Year == "" {
-		return 0, 0, apperrors.WrapInvalidInput("year is required")
+// parse は start_date/end_date を必須・YYYY-MM-DD・順序で検証する。
+// YYYY-MM-DD 形式が保証された後なので文字列比較で順序判定できる。
+func (q unpaidPeriodQuery) parse() (startDate, endDate string, err error) {
+	if q.StartDate == "" {
+		return "", "", apperrors.WrapInvalidInput("start_date is required")
 	}
-	if q.Month == "" {
-		return 0, 0, apperrors.WrapInvalidInput("month is required")
+	if q.EndDate == "" {
+		return "", "", apperrors.WrapInvalidInput("end_date is required")
 	}
-	year, err = strconv.Atoi(q.Year)
-	if err != nil || year < 2000 || year > 2100 {
-		return 0, 0, apperrors.WrapInvalidInput("year must be a valid year (2000-2100)")
+	if _, err := parseOptionalDateQueryFilter(q.StartDate, "start_date"); err != nil {
+		return "", "", err
 	}
-	month, err = strconv.Atoi(q.Month)
-	if err != nil || month < 1 || month > 12 {
-		return 0, 0, apperrors.WrapInvalidInput("month must be between 1 and 12")
+	if _, err := parseOptionalDateQueryFilter(q.EndDate, "end_date"); err != nil {
+		return "", "", err
 	}
-	return year, month, nil
+	if q.EndDate < q.StartDate {
+		return "", "", apperrors.WrapInvalidInput("end_date must be on or after start_date")
+	}
+	return q.StartDate, q.EndDate, nil
 }
 
 // toServiceFilters は #120: start_date/end_date を必須パラメータとして検証する。

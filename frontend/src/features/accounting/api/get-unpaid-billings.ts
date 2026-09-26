@@ -32,11 +32,11 @@ export interface UnpaidByOwnerResponse {
 }
 
 // #120: start_date/end_date 必須。両方揃うまでクエリは発火しない
-// groupBy に "monthly" を含めることで月次モード時に enabled=false が正しく機能する
+// groupBy に "period" を含めることで期間モード時に enabled=false が正しく機能する
 interface UnpaidQueryParams {
   startDate: string;
   endDate: string;
-  groupBy: "owner" | "billing" | "monthly";
+  groupBy: "owner" | "billing" | "period";
   page: number;
   limit: number;
 }
@@ -102,56 +102,49 @@ export const useGetUnpaidByBilling = (params: UnpaidQueryParams) => {
   });
 };
 
-// #114: 月次未納繰越集計
+// EMR-188: 月末未納者一覧（期間検索）
 
-interface MonthlyUnpaidOwnerPet {
+interface PeriodUnpaidOwnerPet {
   owner_id: number;
   owner_name: string;
   pet_id?: number;
   pet_name: string;
-  prev_month_carryover: number;
-  current_month_unpaid: number;
-  next_month_carryover: number;
+  prev_period_carryover: number;
+  current_period_unpaid: number;
+  period_end_carryover: number;
   /** EMR-189: その飼主+ペットグループの未納会計の MAX(scheduled_date)（YYYY-MM-DD） */
   latest_scheduled: string;
 }
 
-interface MonthlyUnpaidSummary {
-  prev_month_carryover: number;
-  current_month_unpaid: number;
-  next_month_carryover: number;
+interface PeriodUnpaidSummary {
+  prev_period_carryover: number;
+  current_period_unpaid: number;
+  period_end_carryover: number;
 }
 
-export interface MonthlyUnpaidResponse {
-  data: MonthlyUnpaidOwnerPet[];
+export interface PeriodUnpaidResponse {
+  data: PeriodUnpaidOwnerPet[];
   total: number;
   page: number;
   limit: number;
-  summary: MonthlyUnpaidSummary;
+  summary: PeriodUnpaidSummary;
 }
 
-interface MonthlyUnpaidQueryParams {
-  year: number;
-  month: number;
-  page: number;
-  limit: number;
-}
-
-export const useGetUnpaidMonthly = (params: MonthlyUnpaidQueryParams) => {
+export const useGetUnpaidPeriod = (params: UnpaidQueryParams) => {
   return useQuery({
-    queryKey: queryKeys.accounting.unpaidBillings("monthly", params),
-    queryFn: async (): Promise<MonthlyUnpaidResponse> => {
-      const { data } = await axios.get<MonthlyUnpaidResponse>("/v1/accountings/unpaid-monthly", {
+    queryKey: queryKeys.accounting.unpaidBillings("period", params),
+    queryFn: async (): Promise<PeriodUnpaidResponse> => {
+      const { data } = await axios.get<PeriodUnpaidResponse>("/v1/accountings/unpaid-period", {
         params: {
-          year: params.year,
-          month: params.month,
+          start_date: params.startDate,
+          end_date: params.endDate,
           page: params.page,
           limit: params.limit,
         },
       });
       return data;
     },
-    enabled: params.year > 0 && params.month >= 1 && params.month <= 12,
+    enabled: params.groupBy === "period" && !!params.startDate && !!params.endDate,
     staleTime: QUERY_STALE_TIMES.MEDIUM,
     gcTime: QUERY_GC_TIMES.STANDARD,
   });

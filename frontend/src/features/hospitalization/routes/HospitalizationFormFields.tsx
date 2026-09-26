@@ -28,6 +28,11 @@ interface HospitalizationPatient {
   insuranceName?: string;
   insuranceDetails?: string;
   status?: string;
+  /** スタッフ向け飼主危険マーク (EMR-173)。Pet transform が供給する。 */
+  ownerIsDangerous?: boolean;
+  /** ペット危険度 (表示値 "高"/"中"/"低")。高/中のみ Popover バッジ。 */
+  dangerLevel?: string;
+  dangerReason?: string;
 }
 
 export interface HospitalizationFormFieldsProps {
@@ -122,6 +127,9 @@ export function HospitalizationFormFields({
           })}
           insuranceName={selectedPet.insuranceName}
           insuranceDetails={selectedPet.insuranceDetails}
+          ownerIsDangerous={selectedPet.ownerIsDangerous}
+          petDangerLevel={selectedPet.dangerLevel}
+          petDangerReason={selectedPet.dangerReason}
           status={selectedPet.status === "死亡" ? "deceased" : "alive"}
           nextVisitDate={resolveNextVisitDate(formData)}
           nextVisitContent={resolveNextVisitContent(formData)}

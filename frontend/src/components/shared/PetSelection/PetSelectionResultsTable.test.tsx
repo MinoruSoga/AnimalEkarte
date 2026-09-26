@@ -410,6 +410,59 @@ describe("PetSelectionResultsTable row actions", () => {
     expect(screen.getByText("未判定").parentElement).not.toHaveTextContent("⚠ 危険");
   });
 
+  it("危険度が中の個体は黄色 ⚠ 注意 バッジを表示し注意理由を開閉できる", async () => {
+    const user = userEvent.setup();
+    render(
+      <PetSelectionResultsTable
+        pets={createResults([{ ...PET, dangerLevel: "中", dangerReason: DANGER_REASON }])}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    const trigger = screen.getByRole("button", { name: "ポチの注意理由を表示" });
+    expect(trigger.tagName).toBe("BUTTON");
+    expect(trigger).toHaveClass(C.bgNotice, C.textNotice, C.borderNotice);
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByText("⚠ 危険")).not.toBeInTheDocument();
+
+    await user.click(trigger);
+    expect(await screen.findByText(DANGER_REASON)).toBeInTheDocument();
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("危険度が低・未設定の個体は危険バッジを何も出さない", () => {
+    render(
+      <PetSelectionResultsTable
+        pets={createResults([
+          { ...PET, id: "pet-low", name: "ロウ", dangerLevel: "低" },
+          { ...PET, id: "pet-unset", name: "ミセッテイ" },
+        ])}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText("⚠ 危険")).not.toBeInTheDocument();
+    expect(screen.queryByText("⚠ 注意")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /の(危険|注意)理由を表示/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("飼主が危険人物なら飼主名の横に ⚠ 危険人物 を出し、非危険飼主は出さない", () => {
+    render(
+      <PetSelectionResultsTable
+        pets={createResults([
+          { ...PET, id: "pet-dangerous-owner", ownerName: "危険 太郎", ownerIsDangerous: true },
+          { ...PET, id: "pet-safe-owner", ownerName: "通常 花子" },
+        ])}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("危険 太郎").parentElement).toHaveTextContent("⚠ 危険人物");
+    expect(screen.getByText("通常 花子").parentElement).not.toHaveTextContent("⚠ 危険人物");
+  });
+
   it("保存済みの高危険度理由をclickで開き、同じtriggerの再clickで閉じる", async () => {
     const user = userEvent.setup();
     const trigger = renderHighDangerPet(DANGER_REASON);

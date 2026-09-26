@@ -126,6 +126,11 @@ interface VaccinationPatient {
   status?: string;
   insuranceName?: string;
   insuranceDetails?: string;
+  /** スタッフ向け飼主危険マーク (EMR-173)。Pet transform が供給する。 */
+  ownerIsDangerous?: boolean;
+  /** ペット危険度 (表示値 "高"/"中"/"低")。高/中のみ Popover バッジ。 */
+  dangerLevel?: string;
+  dangerReason?: string;
 }
 
 interface VaccinationFormBodyProps {
@@ -214,6 +219,9 @@ export function VaccinationFormBody({
               status={selectedPet.status === "死亡" ? "deceased" : "alive"}
               insuranceName={selectedPet.insuranceName}
               insuranceDetails={selectedPet.insuranceDetails}
+              ownerIsDangerous={selectedPet.ownerIsDangerous}
+              petDangerLevel={selectedPet.dangerLevel}
+              petDangerReason={selectedPet.dangerReason}
             />
           ) : null}
           {isPetDeceased ? (

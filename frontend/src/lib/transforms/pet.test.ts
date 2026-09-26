@@ -193,6 +193,27 @@ describe("transformBackendPetToFrontend", () => {
     const pet = transformBackendPetToFrontend(makeBackendPet({ pet_name_kana: "ぽちたろう" }));
     expect(pet.petNameKana).toBe("ぽちたろう");
   });
+
+  it("owner.is_dangerous を ownerIsDangerous へマッピングする (EMR-173)", () => {
+    const owner = {
+      id: 42,
+      owner_number: 42,
+      name: "山田太郎",
+      name_kana: "ヤマダ タロウ",
+      phone: "090-0000-0000",
+      is_dangerous: true,
+    };
+
+    expect(transformBackendPetToFrontend(makeBackendPet({ owner })).ownerIsDangerous).toBe(true);
+    // is_dangerous=false と owner 欠落は危険人物ではない: optional キーを出さない。
+    expect(
+      transformBackendPetToFrontend(makeBackendPet({ owner: { ...owner, is_dangerous: false } }))
+        .ownerIsDangerous,
+    ).toBeUndefined();
+    expect(
+      transformBackendPetToFrontend(makeBackendPet({ owner: undefined })).ownerIsDangerous,
+    ).toBeUndefined();
+  });
 });
 
 describe("transformUpdatePetRequest", () => {
