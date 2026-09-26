@@ -75,6 +75,7 @@ flowchart TB
 - **`MedicalRecordForm`**: 統合フォーム。
 - **`useMedicalRecordForm`**: 複雑な状態管理（9タブ ＋ 履歴引用）を統括するカスタムフック。
 - **`historyItems`**: 「問診」タブ内の右カラム（`InterviewHistory`）に過去の問診履歴を表示。「予防接種」タブは左ペイン一覧と右カラム `VaccinationHistory` の両方を `useGetPetVaccinations`（`GET /vaccinations?pet_id=`）で描画する（フォーム全体で共有される単一サイドパネルではなく、タブごとに独立）。
+- **問診履歴の前回複写（EMR-182）**: `InterviewHistory` の各行は、複写可能な問診値を持つ場合に限り行末尾に「コピー」ボタンを表示する（`InterviewHistoryItem` の `copySource` が存在する行のみ。複写不可の行には表示しない）。複写ペイロードは `useGetPetMedicalHistory` 内の `transformToHistoryItem` が `InquirySummaryResponse` の `inquiry.chief_complaint`（主訴詳細）・`inquiry.notes`（治療方針）・`inquiry.chief_complaint_type_id`（主訴区分）から生成する（feature 側の `transforms.ts` も同形）。「コピー」押下時、`MedicalRecordInterview` は現在の主訴詳細・治療方針・主訴区分が未編集の既定値なら即時適用し、いずれかがユーザー編集済みなら `ConfirmDialog` で上書き確認を求める（キャンセルは現在値を保持）。複写はローカル state の setter のみを更新して `NavigationBlocker` の未保存警告を有効化し、API 送信は行わない。ボタンは行リンク（`/medical-records/:id` 詳細遷移）の sibling の `<button>` であり、確定済み・送信不可の fieldset（`MedicalRecordFormReadyPanels`）配下で自動的に disabled になる（行リンク自体は有効のまま）。
 
 ### API連携
 | メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |

@@ -8,6 +8,7 @@ import { Link } from "react-router";
 // Internal
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { C, LAYOUT, ICON } from "@/lib/design-tokens";
 import { EmptyState } from "@/components/shared/DataStates";
@@ -18,11 +19,14 @@ import type { InterviewHistoryItem } from "../types";
 interface InterviewHistoryProps {
   className?: string;
   historyItems: InterviewHistoryItem[];
+  /** EMR-182: 行の コピー ボタン押下時のコールバック（複写は親が実施）。 */
+  onCopyItem?: (item: InterviewHistoryItem) => void;
 }
 
 export const InterviewHistory = memo(function InterviewHistory({
   className,
   historyItems,
+  onCopyItem,
 }: InterviewHistoryProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const deferredSearch = useDeferredValue(searchTerm);
@@ -74,25 +78,37 @@ export const InterviewHistory = memo(function InterviewHistory({
       <ScrollArea className="flex-1 min-h-0">
         <div className={`divide-y ${C.borderDivider}`}>
           {filteredItems.map((item) => (
-            <Link
-              key={item.id}
-              to={paths.medicalRecords.detail.getHref(item.id)}
-              className={`block p-3 transition-colors ${C.hoverBgPageHalf}`}
-            >
-              <div className="flex items-start justify-between mb-1">
-                <div className="flex items-center gap-2">
-                  <span className={`font-mono text-sm font-bold ${C.text}`}>{item.date}</span>
-                  <Badge variant="secondary" className="text-sm px-2">
-                    {item.type}
-                  </Badge>
+            <div key={item.id} className="flex items-stretch">
+              <Link
+                to={paths.medicalRecords.detail.getHref(item.id)}
+                className={`block min-w-0 flex-1 p-3 transition-colors ${C.hoverBgPageHalf}`}
+              >
+                <div className="flex items-start justify-between mb-1">
+                  <div className="flex items-center gap-2">
+                    <span className={`font-mono text-sm font-bold ${C.text}`}>{item.date}</span>
+                    <Badge variant="secondary" className="text-sm px-2">
+                      {item.type}
+                    </Badge>
+                  </div>
+                  <span className={`text-sm ${C.text60}`}>{item.author}</span>
                 </div>
-                <span className={`text-sm ${C.text60}`}>{item.author}</span>
-              </div>
-              <h4 className={`text-sm font-bold ${C.text} mb-1`}>{item.title}</h4>
-              <p className={`text-sm ${C.text}/80 leading-snug whitespace-pre-wrap line-clamp-2`}>
-                {item.content}
-              </p>
-            </Link>
+                <h4 className={`text-sm font-bold ${C.text} mb-1`}>{item.title}</h4>
+                <p className={`text-sm ${C.text}/80 leading-snug whitespace-pre-wrap line-clamp-2`}>
+                  {item.content}
+                </p>
+              </Link>
+              {item.copySource ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="m-3 ml-0 self-center"
+                  onClick={() => onCopyItem?.(item)}
+                >
+                  コピー
+                </Button>
+              ) : null}
+            </div>
           ))}
           {filteredItems.length === 0 ? <EmptyState message="該当する抜粋はありません" /> : null}
         </div>
