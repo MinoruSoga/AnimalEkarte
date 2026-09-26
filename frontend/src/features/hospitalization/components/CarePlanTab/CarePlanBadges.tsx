@@ -76,6 +76,17 @@ export function StatusBadge({ status }: { status: CarePlanItem["status"] }) {
   );
 }
 
+/** 手入力「その他」明細（type=item かつマスタ参照なし）のマーカー。 */
+export function ManualBadge() {
+  return (
+    <span
+      className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${BADGE.orange}`}
+    >
+      手入力
+    </span>
+  );
+}
+
 export function TimingBadges({ timing }: { timing: CarePlanTiming[] }) {
   return (
     <div className="flex gap-1">

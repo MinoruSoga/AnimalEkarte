@@ -11,8 +11,10 @@ type createCarePlanItemRequest struct {
 	MedicineID            *uint64  `json:"medicine_id"`
 	ProcedureID           *uint64  `json:"procedure_id"`
 	HospitalizationPlanID *uint64  `json:"hospitalization_plan_id"`
-	UnitPrice             int64    `json:"unit_price"`
+	UnitPrice             int64    `json:"unit_price"              binding:"min=0"`
 	Category              string   `json:"category"`
+	Manual                bool     `json:"manual"`
+	OtherReason           string   `json:"other_reason"            binding:"omitempty,max=500"`
 	SortOrder             int      `json:"sort_order"`
 }
 
@@ -29,6 +31,8 @@ func (r *createCarePlanItemRequest) toServiceInput() *CreateCarePlanItemInput {
 		HospitalizationPlanID: r.HospitalizationPlanID,
 		UnitPrice:             r.UnitPrice,
 		Category:              r.Category,
+		Manual:                r.Manual,
+		OtherReason:           r.OtherReason,
 		SortOrder:             r.SortOrder,
 	}
 }
@@ -44,8 +48,10 @@ type updateCarePlanItemRequest struct {
 	MedicineID            *uint64  `json:"medicine_id"`
 	ProcedureID           *uint64  `json:"procedure_id"`
 	HospitalizationPlanID *uint64  `json:"hospitalization_plan_id"`
-	UnitPrice             *int64   `json:"unit_price"`
+	UnitPrice             *int64   `json:"unit_price"              binding:"omitempty,min=0"`
 	Category              *string  `json:"category"`
+	Manual                *bool    `json:"manual"`
+	OtherReason           *string  `json:"other_reason"            binding:"omitempty,max=500"`
 	SortOrder             *int     `json:"sort_order"`
 }
 
@@ -62,6 +68,8 @@ func (r *updateCarePlanItemRequest) toServiceInput() *UpdateCarePlanItemInput {
 		HospitalizationPlanID: r.HospitalizationPlanID,
 		UnitPrice:             r.UnitPrice,
 		Category:              r.Category,
+		Manual:                r.Manual,
+		OtherReason:           r.OtherReason,
 		SortOrder:             r.SortOrder,
 	}
 }

@@ -5773,6 +5773,12 @@ components:
           format: double
         category:
           type: string
+        manual:
+          type: boolean
+          description: 手入力「その他」明細かどうか（type=item かつ hospitalization_plan_id=null で導出）
+        other_reason:
+          type: string
+          description: 手入力「その他」明細の理由（trim後1〜500文字。manual でない明細では空文字）
         sort_order:
           type: integer
         created_at:
@@ -5819,6 +5825,14 @@ components:
           format: double
         category:
           type: string
+        manual:
+          type: boolean
+          description: true の場合は手入力「その他」明細（type=item かつ hospitalization_plan_id なし・category=other・other_reason 必須）
+        other_reason:
+          type: string
+          nullable: true
+          maxLength: 500
+          description: manual=true の場合のみ必須。trim後1〜500文字
         sort_order:
           type: integer
 
@@ -5863,6 +5877,15 @@ components:
         category:
           type: string
           nullable: true
+        manual:
+          type: boolean
+          nullable: true
+          description: true で手入力「その他」へ遷移（hospitalization_plan_id をクリア・category=other・other_reason 必須）。false で解除する場合は hospitalization_plan_id の指定が必須
+        other_reason:
+          type: string
+          nullable: true
+          maxLength: 500
+          description: 手入力行の理由（trim後1〜500文字）。手入力を抜ける遷移ではサーバーがクリアする
         sort_order:
           type: integer
           nullable: true

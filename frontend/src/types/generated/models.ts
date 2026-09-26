@@ -1547,6 +1547,7 @@ export interface CarePlanItem {
   hospitalization_plan_id?: number /* uint64 */;
   unit_price: number /* int64 */;
   category: string;
+  other_reason: string;
   sort_order: number /* int */;
   created_at: string;
   updated_at: string;
