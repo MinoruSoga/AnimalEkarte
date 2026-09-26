@@ -20,6 +20,7 @@ import {
   isStartTimeUnavailable,
   slotTimeToSelectValue,
   TIME_OPTIONS,
+  type SlotVacancy,
 } from "./reservation-time-utils";
 import {
   filterStaffCandidatesByCapability,
@@ -122,6 +123,19 @@ export const ReservationFormFields = memo(function ReservationFormFields({
         slotTimeToSelectValue(slot.end_time),
       ]),
     );
+  }, [availableTimeSlots]);
+  // EMR-170: 開始時刻 → 空き状況（status を持つ枠のみ。旧応答 shape は空マップ）
+  const slotVacancyMap = useMemo(() => {
+    if (availableTimeSlots === undefined) return undefined;
+    const map = new Map<string, SlotVacancy>();
+    for (const slot of availableTimeSlots) {
+      if (slot.status === undefined || slot.status === null) continue;
+      map.set(slotTimeToSelectValue(slot.start_time), {
+        status: slot.status,
+        remaining: slot.remaining ?? null,
+      });
+    }
+    return map;
   }, [availableTimeSlots]);
   const startTimeOptions = useMemo(() => {
     let options: string[];
@@ -302,6 +316,7 @@ export const ReservationFormFields = memo(function ReservationFormFields({
         handleMonthChange={handleMonthChange}
         startTimeOptions={startTimeOptions}
         availableTimeSlotMap={availableTimeSlotMap}
+        slotVacancyMap={slotVacancyMap}
         settingsUnsetGuidance={settingsUnsetGuidance}
         availableTimesErrorMessage={availableTimesErrorMessage}
       />

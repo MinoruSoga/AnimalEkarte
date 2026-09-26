@@ -8506,6 +8506,24 @@ components:
           type: string
         end_time:
           type: string
+    ReservationAvailableTimeSlot:
+      type: object
+      description: |
+        院内予約フォーム向けの時間枠＋空き状況（EMR-170）。
+        status は available（〇 空きあり）/ low（△ 残りわずか）/ full（✕ 満員）。
+        remaining は受け入れ可能な残り枠数 = min(空きスタッフ数, 予約区分定員残)。
+        スタッフ制約も区分定員もない枠は上限なしのため null。
+      properties:
+        start_time:
+          type: string
+        end_time:
+          type: string
+        status:
+          type: string
+          enum: [available, low, full]
+        remaining:
+          type: integer
+          nullable: true
     LiffCreateReservationRequest:
       type: object
       required: [course_id, date, start_time, end_time]
@@ -11620,15 +11638,22 @@ paths:
           schema:
             type: string
             format: date
+        - name: include_unavailable
+          in: query
+          description: |
+            `true` の場合、満員（status=full）の枠も応答に含める（EMR-170 空き状況〇△✕表示用）。
+            省略時は従来どおり予約可能な枠のみ返す。
+          schema:
+            type: boolean
       responses:
         '200':
-          description: 予約可能時間枠一覧
+          description: 予約可能時間枠一覧（空き状況 status/remaining 付き。満員枠は include_unavailable=true のときのみ含まれる）
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/LiffTimeSlot'
+                  $ref: '#/components/schemas/ReservationAvailableTimeSlot'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
