@@ -179,7 +179,9 @@
       // STGと差分なし(2026-07-16時点)。LINE_CHANNEL_ACCESS_TOKEN等の将来グローバルfallbackも
       // STGと同じ理由でrequired外(wrangler.jsonc本文コメント参照)。
       // SUPPORT_LLM_API_KEY も同様に required 外 — サポートチャットは任意機能で、
-      // 未設定なら無効(検索型ヘルプへフォールバック)。値は secret put のみ。
+      // 未設定なら無効(検索型ヘルプへフォールバック)。
+      // 値は gitignore 済み backend/.env から `pnpm cf:secrets:prod`
+      // (= wrangler secret bulk .env --config wrangler.production.jsonc) で投入する。
     ],
   },
 }

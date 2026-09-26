@@ -212,7 +212,8 @@
       // 除外する(未使用シークレット不足で `wrangler deploy` が失敗するため)。実装され次第ここへ追加する。
       // SUPPORT_LLM_API_KEY はサポートチャット(OpenAI互換API)用の任意シークレット。
       // required に入れない — 未設定ならチャット無効で検索型ヘルプへフォールバックする。
-      // 値は `wrangler secret put SUPPORT_LLM_API_KEY` のみ。
+      // 値は gitignore 済み backend/.env に KEY=VALUE で置き
+      // `pnpm cf:secrets`(= wrangler secret bulk .env) で投入する(secret put 単発でも可)。
       // SUPPORT_LLM_BASE_URL/MODEL/TIMEOUT_MS は Go 既定値(OpenAI/gpt-5-nano/30s)で動くため
       // 変更時のみ vars へ追加する。
     ],
