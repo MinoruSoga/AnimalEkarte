@@ -41,9 +41,7 @@ test.describe("予防接種管理 フロー E2E", () => {
       const vaccinations = new VaccinationsPage(page);
       const consoleEntries: string[] = [];
       const pageErrors: string[] = [];
-      page.on("console", (message) =>
-        consoleEntries.push(`${message.type()}: ${message.text()}`),
-      );
+      page.on("console", (message) => consoleEntries.push(`${message.type()}: ${message.text()}`));
       page.on("pageerror", (error) => pageErrors.push(error.message));
       try {
         await vaccinations.gotoList();
@@ -67,6 +65,7 @@ test.describe("予防接種管理 フロー E2E", () => {
         await searchInput.fill(fixture.ownerSearch);
         await expect(searchInput).toHaveValue(fixture.ownerSearch, { timeout: 10000 });
         // fill 直後（filtered response 到達前）の一覧 DOM を証跡として採取する。
+        // eslint-disable-next-line no-restricted-properties -- Playwright の innerHTML() は読み取り専用の証跡採取（代入ではない）
         const domAfterFill = await vaccinations
           .tableBody()
           .innerHTML()
@@ -81,9 +80,7 @@ test.describe("予防接種管理 フロー E2E", () => {
         // サーバー検索結果が描画されるまで待ってから行を検証する（count() スナップショットは禁止）。
         await expect(vaccinations.ownerText(fixture.ownerName)).toBeVisible({ timeout: 15000 });
         await expect(vaccinations.detailLinkForPet(fixture.petName)).toBeVisible();
-        await expect(
-          vaccinations.detailLinkForPet(fixture.outsideFirstPagePet.name),
-        ).toBeVisible();
+        await expect(vaccinations.detailLinkForPet(fixture.outsideFirstPagePet.name)).toBeVisible();
         expect(pageErrors).toEqual([]);
       } finally {
         await test.info().attach("vaccination-filter-console.txt", {
