@@ -89,9 +89,11 @@ interface UseMedicalRecordSaveActionArgs {
   assessment: string;
   chiefComplaint: string;
   chiefComplaintDefault: string;
+  chiefComplaintBaseline: string;
   chiefComplaintTypeId: number | null;
   treatmentPolicy: string;
   treatmentPolicyDefault: string;
+  treatmentPolicyBaseline: string;
   nextVisitDate: string;
   existingRecordVersion?: number;
   existingClinicalPlanVersion?: number;
@@ -138,9 +140,11 @@ export function useMedicalRecordSaveAction({
   assessment,
   chiefComplaint,
   chiefComplaintDefault,
+  chiefComplaintBaseline,
   chiefComplaintTypeId,
   treatmentPolicy,
   treatmentPolicyDefault,
+  treatmentPolicyBaseline,
   nextVisitDate,
   existingRecordVersion,
   existingClinicalPlanVersion,
@@ -179,9 +183,11 @@ export function useMedicalRecordSaveAction({
     assessment,
     chiefComplaint,
     chiefComplaintDefault,
+    chiefComplaintBaseline,
     chiefComplaintTypeId,
     treatmentPolicy,
     treatmentPolicyDefault,
+    treatmentPolicyBaseline,
     nextVisitDate,
     existingRecordVersion,
     existingClinicalPlanVersion,
@@ -200,9 +206,11 @@ export function useMedicalRecordSaveAction({
       assessment,
       chiefComplaint,
       chiefComplaintDefault,
+      chiefComplaintBaseline,
       chiefComplaintTypeId,
       treatmentPolicy,
       treatmentPolicyDefault,
+      treatmentPolicyBaseline,
       nextVisitDate,
       existingRecordVersion,
       existingClinicalPlanVersion,
@@ -234,13 +242,18 @@ export function useMedicalRecordSaveAction({
               return deniedState(PERMISSION_DENIED_MESSAGE);
             }
             await updateInquiryMutation.mutateAsync({
+              // EMR-215: 入力が既定文と一致していても、保存値(baseline)が既定文と
+              // 異なるなら「既定文へ戻す更新」として送信する。省略は baseline も
+              // 既定文の場合（未保存・未取得）に限る。
               chief_complaint:
-                snapshot.chiefComplaint !== snapshot.chiefComplaintDefault
+                snapshot.chiefComplaint !== snapshot.chiefComplaintDefault ||
+                snapshot.chiefComplaintBaseline !== snapshot.chiefComplaintDefault
                   ? snapshot.chiefComplaint
                   : undefined,
               chief_complaint_type_id: snapshot.chiefComplaintTypeId,
               notes:
-                snapshot.treatmentPolicy !== snapshot.treatmentPolicyDefault
+                snapshot.treatmentPolicy !== snapshot.treatmentPolicyDefault ||
+                snapshot.treatmentPolicyBaseline !== snapshot.treatmentPolicyDefault
                   ? snapshot.treatmentPolicy
                   : undefined,
             });

@@ -7,6 +7,7 @@ import { handleApiError } from "@/lib/handle-api-error";
 import { toast } from "sonner";
 
 import { useMedicalRecordSaveAction } from "./use-medical-record-save-action";
+import { DEFAULT_CHIEF_COMPLAINT, DEFAULT_TREATMENT_POLICY } from "./use-medical-record-form-model";
 
 vi.mock("sonner", () => ({
   toast: {
@@ -48,9 +49,11 @@ function buildSaveArgs(overrides: Record<string, unknown> = {}) {
     assessment: "",
     chiefComplaint: "",
     chiefComplaintDefault: "",
+    chiefComplaintBaseline: "",
     chiefComplaintTypeId: null as number | null,
     treatmentPolicy: "",
     treatmentPolicyDefault: "",
+    treatmentPolicyBaseline: "",
     nextVisitDate: "",
     existingRecordVersion: 1,
     existingClinicalPlanVersion: 1,
@@ -648,5 +651,104 @@ describe("useMedicalRecordSaveAction chief_complaint_type unset/clear", () => {
         chief_complaint_type_id: null,
       }),
     );
+  });
+});
+
+describe("useMedicalRecordSaveAction EMR-215 inquiry template revert", () => {
+  it("保存値が既定文と異なる場合、主訴を既定文と完全一致に戻しても既定文を送信する", async () => {
+    const updateInquiry = vi.fn().mockResolvedValue(undefined);
+    const { result } = renderHook(() =>
+      useMedicalRecordSaveAction(
+        buildSaveArgs({
+          activeTab: "問診",
+          chiefComplaint: DEFAULT_CHIEF_COMPLAINT,
+          chiefComplaintDefault: DEFAULT_CHIEF_COMPLAINT,
+          chiefComplaintBaseline: "保存済みの主訴テキスト",
+          updateInquiryMutation: { mutateAsync: updateInquiry },
+        }),
+      ),
+    );
+
+    act(() => {
+      startTransition(() => result.current.formAction(new FormData()));
+    });
+
+    await waitFor(() => expect(result.current.formState.success).toBe(true));
+    expect(updateInquiry).toHaveBeenCalledWith(
+      expect.objectContaining({ chief_complaint: DEFAULT_CHIEF_COMPLAINT }),
+    );
+  });
+
+  it("保存値が既定文と異なる場合、問診メモを既定文と完全一致に戻しても既定文を送信する", async () => {
+    const updateInquiry = vi.fn().mockResolvedValue(undefined);
+    const { result } = renderHook(() =>
+      useMedicalRecordSaveAction(
+        buildSaveArgs({
+          activeTab: "問診",
+          treatmentPolicy: DEFAULT_TREATMENT_POLICY,
+          treatmentPolicyDefault: DEFAULT_TREATMENT_POLICY,
+          treatmentPolicyBaseline: "保存済みの治療方針メモ",
+          updateInquiryMutation: { mutateAsync: updateInquiry },
+        }),
+      ),
+    );
+
+    act(() => {
+      startTransition(() => result.current.formAction(new FormData()));
+    });
+
+    await waitFor(() => expect(result.current.formState.success).toBe(true));
+    expect(updateInquiry).toHaveBeenCalledWith(
+      expect.objectContaining({ notes: DEFAULT_TREATMENT_POLICY }),
+    );
+  });
+
+  it("保存値も既定文（未保存・未取得）の場合、未編集の既定文は chief_complaint と notes の両方を undefined で送る", async () => {
+    const updateInquiry = vi.fn().mockResolvedValue(undefined);
+    const { result } = renderHook(() =>
+      useMedicalRecordSaveAction(
+        buildSaveArgs({
+          activeTab: "問診",
+          chiefComplaint: DEFAULT_CHIEF_COMPLAINT,
+          chiefComplaintDefault: DEFAULT_CHIEF_COMPLAINT,
+          chiefComplaintBaseline: DEFAULT_CHIEF_COMPLAINT,
+          treatmentPolicy: DEFAULT_TREATMENT_POLICY,
+          treatmentPolicyDefault: DEFAULT_TREATMENT_POLICY,
+          treatmentPolicyBaseline: DEFAULT_TREATMENT_POLICY,
+          updateInquiryMutation: { mutateAsync: updateInquiry },
+        }),
+      ),
+    );
+
+    act(() => {
+      startTransition(() => result.current.formAction(new FormData()));
+    });
+
+    await waitFor(() => expect(result.current.formState.success).toBe(true));
+    expect(updateInquiry).toHaveBeenCalledWith(
+      expect.objectContaining({ chief_complaint: undefined, notes: undefined }),
+    );
+  });
+
+  it("主訴の空文字は既定文との差分として明示クリア送信する", async () => {
+    const updateInquiry = vi.fn().mockResolvedValue(undefined);
+    const { result } = renderHook(() =>
+      useMedicalRecordSaveAction(
+        buildSaveArgs({
+          activeTab: "問診",
+          chiefComplaint: "",
+          chiefComplaintDefault: DEFAULT_CHIEF_COMPLAINT,
+          chiefComplaintBaseline: "保存済みの主訴テキスト",
+          updateInquiryMutation: { mutateAsync: updateInquiry },
+        }),
+      ),
+    );
+
+    act(() => {
+      startTransition(() => result.current.formAction(new FormData()));
+    });
+
+    await waitFor(() => expect(result.current.formState.success).toBe(true));
+    expect(updateInquiry).toHaveBeenCalledWith(expect.objectContaining({ chief_complaint: "" }));
   });
 });
