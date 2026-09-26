@@ -266,10 +266,10 @@ func resolveSyntheticClosingCashPaymentMethod(tx *gorm.DB, clinicID uint64) (*mo
 }
 
 // SyntheticClosingAuditRowsPolicy は teardown トランザクション内で clinic スコープの
-// audit_logs 行を解決する EMR-211 用の受け口。nil（既定）は audit 行を温存し、
-// audit_logs.actor_id / audit_logs.clinic_id の RESTRICT FK により監査行を持つ
-// clinic の teardown は失敗したままになる（fail-closed・BLOCKED）。
-// 監査行の物理削除・匿名化の製品判断は EMR-211 が担うため、ここでは決めない。
+// audit_logs 行を解決する EMR-211 用の受け口。EMR-211 は option (b) に決裁済みで、
+// 既定経路は SyntheticClosingAuditAnonymizePolicy — 監査行を削除せず sentinel に
+// 付け替える — を束ねる。nil は監査行を温存したまま RESTRICT FK で teardown が
+// 失敗する旧来の fail-closed 動作として、受け口検証用途に残る。
 type SyntheticClosingAuditRowsPolicy func(ctx context.Context, tx *gorm.DB, clinicID uint64) error
 
 // syntheticClosingAppendOnlyTables は append-only トリガー（BEFORE UPDATE OR DELETE →
@@ -295,7 +295,8 @@ var syntheticClosingAppendOnlyTables = []string{
 // 削除系列。exams→examination_revisions の RESTRICT サイクルだけは先に
 // current_revision_version を NULL へ戻して切る（exams 自体は append-only ではない）。
 // CASCADE / SET NULL の子（estimate_items・exam_results・staff_notes 等）は親削除で
-// 自動処理されるため対象外。audit_logs は EMR-211 決裁待ちで意図的に除く。
+// 自動処理されるため対象外。audit_logs は EMR-211 (b) で削除せず sentinel へ付け替える
+// ため系列に含めない（synthetic_closing_audit.go）。
 // この系列は internal/lintscan の teardown lint が 001_init.sql から導出した
 // RESTRICT 閉包と突合する — 新規テーブル追加時はここにも追加が必要。
 var syntheticClosingDeleteStatements = []string{
@@ -402,10 +403,11 @@ var syntheticClosingDeleteStatements = []string{
 var syntheticClosingDeleteTargetRe = regexp.MustCompile(`^DELETE FROM (\w+) WHERE (\w+) = \?$`)
 
 // DeleteSyntheticClosingFixture は合成 clinic とその子孫だけを消す。clinic 1/2 と接頭辞不一致は拒否する。
-// audit_logs は既定で温存する（EMR-211 の製品判断待ち）。監査行を持つ合成 clinic の
-// teardown は audit_logs の RESTRICT FK で失敗し続ける — それが現時点の合意動作。
+// audit_logs は EMR-211 (b) の既定 policy で削除せず sentinel clinic/staff へ
+// 付け替える（synthetic_closing_audit.go）ため、監査行を持つ合成 clinic の
+// teardown も監査証跡を保ったまま完遂する。
 func DeleteSyntheticClosingFixture(ctx context.Context, db *gorm.DB, appEnv, dbHost string, clinicID uint64, cleanupToken string) error {
-	return DeleteSyntheticClosingFixtureWithAuditPolicy(ctx, db, appEnv, dbHost, clinicID, cleanupToken, nil)
+	return DeleteSyntheticClosingFixtureWithAuditPolicy(ctx, db, appEnv, dbHost, clinicID, cleanupToken, SyntheticClosingAuditAnonymizePolicy)
 }
 
 // DeleteSyntheticClosingFixtureWithAuditPolicy は DeleteSyntheticClosingFixture と同じだが、
