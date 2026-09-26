@@ -2,7 +2,7 @@
 
 > **目的**: 飼主一覧の検索が「複数語 = AND 絞り込み」「1語 = 部分一致」「0件 = 空表示」「他医院候補は出ない」という仕様（[03 §1.1](../../../spec/screens/03-owners-list.md)）どおりに動くことを、実画面・実データで納品前に証明する。
 > **所要目安**: 10分 / **深度**: 中
-> **仕様正本**: [specification.md §1.1](../../../spec/specification.md)・[screens/03-owners-list.md](../../../spec/screens/03-owners-list.md)。検証キュー: `UAT-Q1-SEARCH-AND`（[todo-verification.md](../../../../todo-verification.md)）。
+> **仕様正本**: [specification.md §1.1](../../../spec/specification.md)・[screens/03-owners-list.md](../../../spec/screens/03-owners-list.md)。検証キュー: `UAT-Q1-SEARCH-AND`（[todo-verification.md](../../../../todo.md#verification-ledger)）。
 
 ## 前提条件
 

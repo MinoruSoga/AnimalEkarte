@@ -2,7 +2,7 @@
 
 > Current task status is tracked in Plane `EMR-200`. This local sheet preserves the route×operation
 > coverage matrix and the evidence pointers. See the [migration receipt](../plane-md-migration-20260923-receipt.md).
-> 索引の正本は [todo-verification.md](../../../todo-verification.md)、履歴は [bug-2.md](../../../bug-2.md#plan-note2-coverage)。
+> 索引の正本は [todo-verification.md](../../../todo.md#verification-ledger)、履歴は [bug-2.md](../../../bug-2.md#plan-note2-coverage)。
 
 - campaign: `emr-200-note2-coverage` revision 2
 - unit: `NOTE2-SWEEP-COVERAGE`（Plane `EMR-200`）
@@ -71,7 +71,7 @@ docker run --rm --network ekarte-network --entrypoint go \
 
 ## カバレッジマトリクス
 
-列は [todo-verification.md](../../../todo-verification.md) の共通列（`ID / case / revision / 環境・fixture参照 / 操作 / 期待値 / 実際値 / 証拠参照 / 後処理 / 判定`）に準拠。
+列は [todo-verification.md](../../../todo.md#verification-ledger) の共通列（`ID / case / revision / 環境・fixture参照 / 操作 / 期待値 / 実際値 / 証拠参照 / 後処理 / 判定`）に準拠。
 
 ### A. カルテ新規 → 再読込 → 健診（actor 修正後の再確認）
 
@@ -134,7 +134,7 @@ docker run --rm --network ekarte-network --entrypoint go \
 
 ## 環境ゲート（ブラウザ実書込みレーン）
 
-[todo-verification.md](../../../todo-verification.md) L9「他タスクの起動中コンテナや共有DBを検証先に流用しない」・L229「共有 `ekarte_db` … をテスト DB に使わず」に従う。
+[todo-verification.md](../../../todo.md#verification-ledger) L9「他タスクの起動中コンテナや共有DBを検証先に流用しない」・L229「共有 `ekarte_db` … をテスト DB に使わず」に従う。
 
 | ゲート | 合格条件 | 現状 |
 |:--|:--|:--|

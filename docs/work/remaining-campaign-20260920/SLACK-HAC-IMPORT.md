@@ -8,15 +8,15 @@ This unit does **not** import CSV, apply DB, run `make csv-import*`, run `make s
 
 Binding sources (read-only this session):
 
-- [todo-issue.md](../../../todo-issue.md) **SLACK-HAC-IMPORT** (L276–280)
-- [todo-operations.md](../../../todo-operations.md) **H0-2 / HAC-CSV-1** (L22, L57, L113–117) and **AE-STG-UAT-LANE3-HAC** (L129–131)
+- [todo-issue.md](../../../todo.md#issue-ledger) **SLACK-HAC-IMPORT** (L276–280)
+- [todo-operations.md](../../../todo.md#operations-ledger) **H0-2 / HAC-CSV-1** (L22, L57, L113–117) and **AE-STG-UAT-LANE3-HAC** (L129–131)
 - [docs/ops/deploy/CLINIC_CSV_IMPORT.md](../../ops/deploy/CLINIC_CSV_IMPORT.md)
 - [docs/ops/deploy/OLD_DB_HANDOFF_LOCAL.md](../../ops/deploy/OLD_DB_HANDOFF_LOCAL.md) (八王子 wrapper 対象外)
 - [LINMIG-234.md](../linmig-campaign-20260919/LINMIG-234.md) (P3 formal-bundle contract analog; **not** an HAC receipt)
 
 ## Send report is not a formal bundle
 
-[todo-issue.md](../../../todo-issue.md) L278 records a **9月11日 BAK→CSV 送付報告** (Slack 出典 77–100, 127–159, 295–423). The same paragraph states that **現在の完全性・受領・投入結果は UNKNOWN**.
+[todo-issue.md](../../../todo.md#issue-ledger) L278 records a **9月11日 BAK→CSV 送付報告** (Slack 出典 77–100, 127–159, 295–423). The same paragraph states that **現在の完全性・受領・投入結果は UNKNOWN**.
 
 [SLACK-INTAKE.md](../todo-campaign-20260919-ready17/SLACK-INTAKE.md) L49 classifies HAC-IMPORT as existing-ID ops connection with the operator rule **送付報告≠投入完了**.
 
@@ -26,7 +26,7 @@ Binding sources (read-only this session):
 | Formal **COMPLETE producer bundle** | Hospital/run-fixed `manifest.json` + 21 AnimalEkarte-shaped CSVs meeting [CLINIC_CSV_IMPORT.md](../../ops/deploy/CLINIC_CSV_IMPORT.md) L81–L88 | Nothing in this session: no current bundle was received or inspected |
 | Consumer **receipt** | Manifest SHA from `clinic-migration-run-report.json` on a **separate channel** (CLINIC_CSV_IMPORT.md L81), producer revision/run, eligibility, verify aggregates | Not substitutable by chat text, Linear history, or a send report |
 
-Do **not** treat the send report as a verified bundle. Do **not** treat older “完全 KNJO 未受領” wording as a current fact ([todo-operations.md](../../../todo-operations.md) L5, L115). Current receipt is still **UNKNOWN** because this session did not collate a live producer result.
+Do **not** treat the send report as a verified bundle. Do **not** treat older “完全 KNJO 未受領” wording as a current fact ([todo-operations.md](../../../todo.md#operations-ledger) L5, L115). Current receipt is still **UNKNOWN** because this session did not collate a live producer result.
 
 証跡の段階の概形:
 
@@ -58,7 +58,7 @@ flowchart LR
 
 ## H0-2 / HAC-CSV-1 gap (prep; no import)
 
-[todo-operations.md](../../../todo-operations.md) L22: local deliverable is 完全KNJO/clean BAK の受領参照・provenance・producer結果の**不足票**. External start needs **現在の正式入力受領と検証**. 未接続 Linear の昔の本文で受領済みにしない.
+[todo-operations.md](../../../todo.md#operations-ledger) L22: local deliverable is 完全KNJO/clean BAK の受領参照・provenance・producer結果の**不足票**. External start needs **現在の正式入力受領と検証**. 未接続 Linear の昔の本文で受領済みにしない.
 
 H0-2 current row (L57): **UNKNOWN（producer の追加状況未照合）**. Next step is confirm current receipt/producer result; if still unresolved, wait for complete input. Previous HAC-INPUT-2 完全 KNJO 未受領 is history, not this session's receipt.
 

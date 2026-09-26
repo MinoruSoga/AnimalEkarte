@@ -2,7 +2,7 @@
 
 > **目的**: マスタ（治療・商品・検査・入院等の価格フォーム）で登録した項目が会計明細へ正しく参照され、0 円・未入力・税区分の差異が保存→再読込→会計まで一貫し、請求不能な項目は会計確定をブロックすることを納品前に証明する。
 > **所要目安**: 20分 / **深度**: 深い
-> **仕様正本**: [screens/11-accounting-detail.md](../../../spec/screens/11-accounting-detail.md)・[screens/20-master-settings.md](../../../spec/screens/20-master-settings.md)。検証キュー: `UAT-R2-MASTER-PATH`（[todo-verification.md](../../../../todo-verification.md)）。
+> **仕様正本**: [screens/11-accounting-detail.md](../../../spec/screens/11-accounting-detail.md)・[screens/20-master-settings.md](../../../spec/screens/20-master-settings.md)。検証キュー: `UAT-R2-MASTER-PATH`（[todo-verification.md](../../../../todo.md#verification-ledger)）。
 
 ## 前提条件
 

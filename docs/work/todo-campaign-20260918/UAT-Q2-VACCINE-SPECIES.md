@@ -4,7 +4,7 @@
 
 ## 根拠と問題の分離
 
-- [元の課題](../../../todo-issue.md#uat-q2-vaccine-species) と [UAT 記録](../stg-uat-clinic-feedback-q1-q4.md#uat-q2-vaccine-species-猫に犬用ワクチンが出る件) は、猫の履歴に犬用名称が出る事例を記す。名称は調査の手掛かりであり、誤参照や種を確定する証拠ではない。
+- [元の課題](../../../todo.md#uat-q2-vaccine-species) と [UAT 記録](../stg-uat-clinic-feedback-q1-q4.md#uat-q2-vaccine-species-猫に犬用ワクチンが出る件) は、猫の履歴に犬用名称が出る事例を記す。名称は調査の手掛かりであり、誤参照や種を確定する証拠ではない。
 - 別リポジトリ `../old_db/sql/migration/030_stage.sql:1501-1540` の stage 定義ではワクチン種に元列がなく、stage の `vaccines.species` は NULL。これは**移行マスタの種品質**の問題。
 - 現行の [マスタ取得 hook](../../../frontend/src/hooks/use-treatment-master.ts) は species を送らず、[接種フォーム](../../../frontend/src/features/vaccinations/hooks/use-vaccination-form.ts) は有効マスタだけを候補にする。これは**現行アプリの新規選択条件**の問題。
 - [repository](../../../backend/internal/medicalrecord/vaccine_repository.go) の species 指定は `species = ?` の完全一致。`species=cat` に `both` は自動で含まれない。猫は `cat` と `both`、犬は `dog` と `both` を残す将来の選択条件を別途設計する。過去履歴の表示は新規候補条件から独立させる。
@@ -67,4 +67,4 @@ flowchart TB
 | 旧記録の参照識別子・対応関係の証拠 | UNKNOWN | B/C/UNKNOWN の根拠付き照合 |
 | 未設定・犬猫以外・既存履歴の医院判断と要件責任者 | UNKNOWN | 新規候補・履歴表示の採否と受入条件 |
 
-[運用 TODO](../../../todo-operations.md#uat-data-operations) の条件が揃うまで実データ集計は **BLOCKED**。件数、実例の B/C 分類、訂正要否、コード修正、臨床 UAT 完了はこの票では判定しない。
+[運用 TODO](../../../todo.md#uat-data-operations) の条件が揃うまで実データ集計は **BLOCKED**。件数、実例の B/C 分類、訂正要否、コード修正、臨床 UAT 完了はこの票では判定しない。

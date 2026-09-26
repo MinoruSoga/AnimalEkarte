@@ -2,7 +2,7 @@
 
 > **目的**: カルテ編集画面の問診パネル「問診抜粋（履歴）」から同一ペットの過去カルテ詳細へ遷移し、戻っても文脈が失われないこと、および処置が未移行の古い記録でも詳細を開けることを納品前に証明する。
 > **所要目安**: 10分 / **深度**: 薄い
-> **仕様正本**: [screens/06-medical-records-form.md](../../../spec/screens/06-medical-records-form.md)・[screens/05-medical-records-list.md](../../../spec/screens/05-medical-records-list.md)。検証キュー: `UAT-Q2-HISTORY-NAV`（[todo-verification.md](../../../../todo-verification.md)）。
+> **仕様正本**: [screens/06-medical-records-form.md](../../../spec/screens/06-medical-records-form.md)・[screens/05-medical-records-list.md](../../../spec/screens/05-medical-records-list.md)。検証キュー: `UAT-Q2-HISTORY-NAV`（[todo-verification.md](../../../../todo.md#verification-ledger)）。
 
 ## 前提条件
 

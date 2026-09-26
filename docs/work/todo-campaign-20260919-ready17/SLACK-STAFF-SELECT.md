@@ -1,6 +1,6 @@
 # SLACK-STAFF-SELECT: 担当者 0件/取得中/失敗 vs 候補あり・選択不能
 
-状態: **再現調査 READY／実機採取 未実行（端末 ID UNKNOWN）**。出典は [todo-issue.md](../../../todo-issue.md) 見出し `### SLACK-STAFF-SELECT`（643–697、重複 725–735）。保持する現場条件:
+状態: **再現調査 READY／実機採取 未実行（端末 ID UNKNOWN）**。出典は [todo-issue.md](../../../todo.md#issue-ledger) 見出し `### SLACK-STAFF-SELECT`（643–697、重複 725–735）。保持する現場条件:
 
 - iPad と一部 PC で獣医師（担当者）を選べない
 - iPad で Chrome に変えても不可

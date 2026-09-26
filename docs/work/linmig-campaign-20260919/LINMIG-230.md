@@ -2,11 +2,11 @@
 
 > Current task status is tracked in Plane `EMR-42`. This local document remains supporting execution/evidence material; see the [migration receipt](../plane-md-migration-20260923-receipt.md) for the crosswalk.
 
-Campaign `linmig-ops-prep-20260919` revision 1. Claim ID `LINMIG-230` (Linear issue not found; keep as claim only). Maps to [todo-operations.md](../../../todo-operations.md) P5 / GitHub [#255](https://github.com/MinoruSoga/AnimalEkarte/issues/255).
+Campaign `linmig-ops-prep-20260919` revision 1. Claim ID `LINMIG-230` (Linear issue not found; keep as claim only). Maps to [todo-operations.md](../../../todo.md#operations-ledger) P5 / GitHub [#255](https://github.com/MinoruSoga/AnimalEkarte/issues/255).
 
 Worktree: `/Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte-linmig-230` on `feat/linmig-230-ops-prep` at HEAD `aac697645df92fd24611c7c13bf0f7dda12a6e08`. Sheet date: 2026-09-19. Repo evidence only. This unit **does not** run `staff-provision`, read secret files, invent roster rows, edit Go, apply migrations, or change shared STG/PROD.
 
-Truth source order used: `backend/cmd/staff-provision` and `backend/internal/staff` over [STAFF_ACCOUNT_PROVISIONING.md](../../ops/deploy/STAFF_ACCOUNT_PROVISIONING.md) over [todo-operations.md](../../../todo-operations.md) P5. Where they agree, both are cited. Live roster, live environment, authorized actor, and apply receipts are **UNKNOWN** (not observed this session).
+Truth source order used: `backend/cmd/staff-provision` and `backend/internal/staff` over [STAFF_ACCOUNT_PROVISIONING.md](../../ops/deploy/STAFF_ACCOUNT_PROVISIONING.md) over [todo-operations.md](../../../todo.md#operations-ledger) P5. Where they agree, both are cited. Live roster, live environment, authorized actor, and apply receipts are **UNKNOWN** (not observed this session).
 
 ## 1. Why this sheet exists
 
@@ -14,7 +14,7 @@ Truth source order used: `backend/cmd/staff-provision` and `backend/internal/sta
 
 > approved remote execution と read-only secret-file mount の仕組みは未定義です。`STAFF_PROVISION_ALLOW_REMOTE` だけを根拠にローカル Compose から共有環境へ apply しません。
 
-[todo-operations.md](../../../todo-operations.md) P5 (L177–183) repeats that gate and forbids treating H3-9 `stg-uat-staff-attach` as P5 completion. This sheet is the **design** for remote apply method, repo-external secret supply, rollback, and I-ROSTER gaps. It is not apply authorization and not an implementation change.
+[todo-operations.md](../../../todo.md#operations-ledger) P5 (L177–183) repeats that gate and forbids treating H3-9 `stg-uat-staff-attach` as P5 completion. This sheet is the **design** for remote apply method, repo-external secret supply, rollback, and I-ROSTER gaps. It is not apply authorization and not an implementation change.
 
 ## 2. Current executable contract (do not re-implement here)
 
@@ -28,9 +28,9 @@ Binary: `backend/cmd/staff-provision`. Commands: `preflight` | `apply` only (`ma
 | stdout / logs are PII-free (`status` / `batch_id` / `digest` / `staff_count` / `clinic_scope`) | [STAFF_ACCOUNT_PROVISIONING.md](../../ops/deploy/STAFF_ACCOUNT_PROVISIONING.md) L105; `main.go` L2–4, L134–153; `TestWriteJSON_EmitsDigestOnlySurface` |
 | apply against non-local `DB_HOST` refuses unless `STAFF_PROVISION_ALLOW_REMOTE=YES_I_UNDERSTAND` | `main.go` L102–116; `TestRun_ApplyRefusesNonLocalWithoutOverride` |
 | local hosts | `db`, `localhost`, `127.0.0.1`, `::1`, `[::1]` in `backend/internal/dbconn/dbconn.go` L107–119 |
-| H3-9 `stg-uat-staff-attach` attaches accounts onto **existing** staff rows; it does not create staff | `backend/cmd/stg-uat-staff-attach/main.go` L1–2; [todo-operations.md](../../../todo-operations.md) L177–178 |
+| H3-9 `stg-uat-staff-attach` attaches accounts onto **existing** staff rows; it does not create staff | `backend/cmd/stg-uat-staff-attach/main.go` L1–2; [todo-operations.md](../../../todo.md#operations-ledger) L177–178 |
 
-`STAFF_PROVISION_ALLOW_REMOTE=YES_I_UNDERSTAND` is a **laptop non-local host guard**, not shared STG/PROD authorization (`main.go` L103–112; [STAFF_ACCOUNT_PROVISIONING.md](../../ops/deploy/STAFF_ACCOUNT_PROVISIONING.md) L22, L101–103; [todo-operations.md](../../../todo-operations.md) L177).
+`STAFF_PROVISION_ALLOW_REMOTE=YES_I_UNDERSTAND` is a **laptop non-local host guard**, not shared STG/PROD authorization (`main.go` L103–112; [STAFF_ACCOUNT_PROVISIONING.md](../../ops/deploy/STAFF_ACCOUNT_PROVISIONING.md) L22, L101–103; [todo-operations.md](../../../todo.md#operations-ledger) L177).
 
 ## 3. Designed remote apply method (not executed)
 
@@ -64,7 +64,7 @@ Citation: [STAFF_ACCOUNT_PROVISIONING.md](../../ops/deploy/STAFF_ACCOUNT_PROVISI
 
 4. Human reviews PII-free stdout (`batch_id`, `digest`, `staff_count`, `clinic_scope`). Compare digest to any prior I-RECEIPT. Do not paste names/emails/passwords into issues or this sheet.
 5. After **explicit USER approval for that named environment**, run **apply** with the same mount and same files. Keep `STAFF_PROVISION_ALLOW_REMOTE` **unset** on this path so a mistaken public `DB_HOST` still fail-closes (`main.go` L102–116).
-6. Record only PII-free receipt fields as I-RECEIPT. Login / clinic / permission / audit checks are USER work after apply ([todo-operations.md](../../../todo-operations.md) L183).
+6. Record only PII-free receipt fields as I-RECEIPT. Login / clinic / permission / audit checks are USER work after apply ([todo-operations.md](../../../todo.md#operations-ledger) L183).
 
 ### 3.3 What this method is not
 

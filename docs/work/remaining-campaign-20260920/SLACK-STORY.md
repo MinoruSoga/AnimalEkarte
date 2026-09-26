@@ -1,6 +1,6 @@
 # SLACK-STORY: 名前の由来と出逢い — 既存 `pets.remarks` 再利用 vs 独立フィールド（採否 UNKNOWN）
 
-状態: **再利用/新規欄の比較 READY／製品実装・スキーマ追加 未実行（停止）**。出典は [todo-issue.md](../../../todo-issue.md) 見出し `### SLACK-STORY`（L196–200、索引 L425）。保持する現場条件:
+状態: **再利用/新規欄の比較 READY／製品実装・スキーマ追加 未実行（停止）**。出典は [todo-issue.md](../../../todo.md#issue-ledger) 見出し `### SLACK-STORY`（L196–200、索引 L425）。保持する現場条件:
 
 - 「名前の由来と出逢いのストーリー欄」（出典 949–955。現行 `todo-issue.md` は要約のみ。原文行は本票では再掲しない）
 - **DETAILS とは別の記録要望。** 詳細閲覧導線は [SLACK-DETAILS](../todo-campaign-20260919-ready17/SLACK-DETAILS.md)。本票は保存先の比較だけ

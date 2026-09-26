@@ -10,7 +10,7 @@ Maps to GitHub [#252](https://github.com/MinoruSoga/AnimalEkarte/issues/252) and
 - [docs/spec/screens/settings/closing-time-settings.md](../../spec/screens/settings/closing-time-settings.md) 全院投入手順 #252 / BRT-43 (L60–L74)
 - [docs/ops/testing/scenarios/S09-closing-time-boundaries.md](../../ops/testing/scenarios/S09-closing-time-boundaries.md)
 - [docs/ops/testing/S09-FIXTURE-DESIGN.md](../../ops/testing/S09-FIXTURE-DESIGN.md)
-- [todo-verification.md](../../../todo-verification.md) **TODO-V-S09 / QA-UAT-S09-FIXTURE** (L109–L125)
+- [todo-verification.md](../../../todo.md#verification-ledger) **TODO-V-S09 / QA-UAT-S09-FIXTURE** (L109–L125)
 
 Worktree `/Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte-linmig-233` on `feat/linmig-233-ops-prep` at HEAD `aac697645df92fd24611c7c13bf0f7dda12a6e08`. Sheet date: 2026-09-20. Local files only.
 

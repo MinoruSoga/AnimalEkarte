@@ -4,10 +4,10 @@ Campaign `remaining-ops-20260920` revision 1. Unit `SLACK-CLINICAL-UAT`. Attempt
 
 Maps 9 chart tabs and the clinical E2E allowlist onto clinic × 受付/獣医師/看護. Binding sources:
 
-- [todo-issue.md](../../../todo-issue.md) `### SLACK-CLINICAL-UAT` (L258–L262) and `### SLACK-UAT-SCHEDULE` (L270–L274)
+- [todo-issue.md](../../../todo.md#issue-ledger) `### SLACK-CLINICAL-UAT` (L258–L262) and `### SLACK-UAT-SCHEDULE` (L270–L274)
 - [medical-record-form-model.ts](../../../frontend/src/features/medical-records/routes/medical-record-form-model.ts) `MEDICAL_RECORD_TABS` L4–L14
 - [frontend/scripts/run-e2e.sh](../../../frontend/scripts/run-e2e.sh) `CLINICAL_SPECS` L34; `--clinical` fail-closed L60–L88
-- [todo-verification.md](../../../todo-verification.md) `TODO-V-CLINICAL-E2E / QA-FULL-CLINICAL-E2E` L34, L95, L135–L141
+- [todo-verification.md](../../../todo.md#verification-ledger) `TODO-V-CLINICAL-E2E / QA-FULL-CLINICAL-E2E` L34, L95, L135–L141
 - [CLINICAL-E2E-DESIGN.md](../../ops/testing/CLINICAL-E2E-DESIGN.md)
 - [LINMIG-231.md](../linmig-campaign-20260919/LINMIG-231.md) clinical E2E cells (docs map only; `--clinical` 未実行)
 - Clinic catalog names: [002_master/clinics.csv](../../../backend/migrations/seeds/002_master/clinics.csv) L2–L5; asserted in [seed_env_gate_test.go](../../../backend/cmd/migrate/seed_env_gate_test.go) L113–L116

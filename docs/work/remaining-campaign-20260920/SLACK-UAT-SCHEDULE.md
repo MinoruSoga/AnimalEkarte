@@ -2,11 +2,11 @@
 
 > Current task state: Plane `EMR-200`. The matrices below preserve case/evidence history.
 
-状態: **カバレッジ表 READY／実施枠 UNKNOWN／未実施セルのみ**。出典は [todo-issue.md](../../../todo-issue.md) 見出し `### SLACK-UAT-SCHEDULE`（L270–274、索引 L394）と [UAT 環境条件](../../ops/testing/UAT-ENV-SETUP.md)、[直近 UAT の残作業](../../../todo-verification.md#直近-uat-の残作業)。保持する現場条件:
+状態: **カバレッジ表 READY／実施枠 UNKNOWN／未実施セルのみ**。出典は [todo-issue.md](../../../todo.md#issue-ledger) 見出し `### SLACK-UAT-SCHEDULE`（L270–274、索引 L394）と [UAT 環境条件](../../ops/testing/UAT-ENV-SETUP.md)、[直近 UAT の残作業](../../../todo.md#直近-uat-の残作業)。保持する現場条件:
 
 - 医院・交代勤務者を網羅するテスト準備であり、机上チェックを医院受入に数えない
 - 過去の候補日・会議調整から **新しい期限を作らない**。現在のテスト可能枠と結果保管先は運用担当が採取する
-- 日程/受入者は医院側。最優先は [会計通し](../../../todo-issue.md#slack-billing-uat)
+- 日程/受入者は医院側。最優先は [会計通し](../../../todo.md#slack-billing-uat)
 - ログイン/fixture が不足する実機実行は停止
 
 本ファイルは製品コードから import されない。キャンペーン unit `SLACK-UAT-SCHEDULE`（`remaining-ops-20260920` revision 1）の owned path および人間が読むカバレッジ表である。照合 revision `873685b0bea3692c2f8100b19ded660c8357f2b0`（`feat/rem-slack-uat-schedule-20260920`）。本票はスケジュール発明をしない。人の割当・連絡の送信はしない。
@@ -62,7 +62,7 @@ Catalog 医院ラベル（`backend/internal/seedlogin/catalog.go` `clinicBands`�
 
 ## 対象導線（優先順）
 
-最優先は会計通し。残りは [直近 UAT の残作業](../../../todo-verification.md#直近-uat-の残作業) と CLINICAL-UAT の医院×職種対応。NOTE-STAFF-STARTTIME-RDT はユーザー環境比較であり、医院×職種セルに入れない。
+最優先は会計通し。残りは [直近 UAT の残作業](../../../todo.md#直近-uat-の残作業) と CLINICAL-UAT の医院×職種対応。NOTE-STAFF-STARTTIME-RDT はユーザー環境比較であり、医院×職種セルに入れない。
 
 | 導線 ID | 残る確認 | 職種メモ | 実行へ進む条件（UAT-ENV-SETUP / todo-verification） |
 | --- | --- | --- | --- |
@@ -143,9 +143,9 @@ ACCESS（ログイン）は全セルの前提であり、9月9日の一部ログ
 
 | ID | 理由 |
 | --- | --- |
-| [NOTE-STAFF-STARTTIME-RDT](../../../todo-verification.md#直近-uat-の残作業) | ユーザー環境 vs 拡張なし比較。医院×職種の現場受入ではない |
+| [NOTE-STAFF-STARTTIME-RDT](../../../todo.md#直近-uat-の残作業) | ユーザー環境 vs 拡張なし比較。医院×職種の現場受入ではない |
 
-既存検証キュー（S09 fixture、V04 retest、clinical E2E、STG data、P4/P8/E1/E2）は [todo-verification.md](../../../todo-verification.md) の別節。本票の医院×職種セルへ畳まない。
+既存検証キュー（S09 fixture、V04 retest、clinical E2E、STG data、P4/P8/E1/E2）は [todo-verification.md](../../../todo.md#verification-ledger) の別節。本票の医院×職種セルへ畳まない。
 
 ## 環境ゲート（実機セルを開始する前）
 

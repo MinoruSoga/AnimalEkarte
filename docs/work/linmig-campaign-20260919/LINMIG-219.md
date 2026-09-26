@@ -23,7 +23,7 @@ Callers: campaign controller and operators reading `docs/work/linmig-campaign-20
 
 | Source | Role for this sheet |
 | --- | --- |
-| [todo-operations.md](../../../todo-operations.md) P3 / PROD-DATA-MIGRATION (L171–L175) | Same manifest/revision 件数・clinic・参照・金額 突合; rehearsal PASS is not production; unknown commit or 突合 FAIL blocks P4/P8 |
+| [todo-operations.md](../../../todo.md#operations-ledger) P3 / PROD-DATA-MIGRATION (L171–L175) | Same manifest/revision 件数・clinic・参照・金額 突合; rehearsal PASS is not production; unknown commit or 突合 FAIL blocks P4/P8 |
 | [CLINIC_CSV_IMPORT.md](../../ops/deploy/CLINIC_CSV_IMPORT.md) | 21-table mapping, `clinic_id` isolation, manifest `RowCount`, aggregate count on reports, payment graph, `CUTOVER_REF_ROW_COUNT` / `CUTOVER_REF_CLINIC_ISOLATION` |
 | [GOLIVE_RUNBOOK.md](../../delivery/GOLIVE_RUNBOOK.md) day-of T+1:15 (L60) and restore rehearsal (L82) | テーブル別件数・`clinic_id` 別件数・金額合計・サンプル目視; restore rehearsal records the same three aggregates |
 | [UAT-Q2-VACCINE-SPECIES.md](../todo-campaign-20260918/UAT-Q2-VACCINE-SPECIES.md) | Clinic-scoped 1-row-1-count join: `vaccinations.clinic_id = pets.clinic_id = vaccines.clinic_id`; 参照異常 separated from normal counts |
@@ -41,7 +41,7 @@ Callers: campaign controller and operators reading `docs/work/linmig-campaign-20
 
 ## Count dimensions
 
-Day-of gate ([GOLIVE_RUNBOOK.md](../../delivery/GOLIVE_RUNBOOK.md) L60) and P3 artifact ([todo-operations.md](../../../todo-operations.md) L175) require four independent dimensions. Each dimension is recorded separately; a PASS on one does not fill another.
+Day-of gate ([GOLIVE_RUNBOOK.md](../../delivery/GOLIVE_RUNBOOK.md) L60) and P3 artifact ([todo-operations.md](../../../todo.md#operations-ledger) L175) require four independent dimensions. Each dimension is recorded separately; a PASS on one does not fill another.
 
 ```mermaid
 flowchart TB
@@ -128,7 +128,7 @@ Apply before any numeric comparison. If a join rule cannot be confirmed, the dim
 3. **One business row, one count.** UAT-Q4: billing 1 row = 1 count. Count and sum after uniqueness on the billing key. Duplicate JOIN rows from payments are not added to N or T (UAT-Q4 L14, L36). Cutover graph: `payments.billing_id` UNIQUE; splits are 1–2 per payment, parented by `billing_id`.
 4. **Stop buckets stay out of normal totals.** Multiple active payments, missing payment parent, other-clinic payment, or orphan payment: count separately; do not compute unpaid into D3 (UAT-Q4 L14–L15, L37). Orphan payments are counted outside the billing population and are not mixed into amount totals.
 5. **Deleted / out-of-window rows.** UAT-Q2 uses 未削除 vaccinations; UAT-Q4 uses 非削除 billing/payment. Day-of cutover counts the imported band, not application soft-delete UI. Date column, window, and timezone for any investigation slice are UNKNOWN until the operator fixes them (UAT-Q2 L14; UAT-Q4 L13).
-6. **Source vs target.** Compare the same manifest/revision only ([todo-operations.md](../../../todo-operations.md) L175). After preflight, CSV SHA-256 must still match; a changed source is rollback, not a new expected count ([CLINIC_CSV_IMPORT.md](../../ops/deploy/CLINIC_CSV_IMPORT.md) L87).
+6. **Source vs target.** Compare the same manifest/revision only ([todo-operations.md](../../../todo.md#operations-ledger) L175). After preflight, CSV SHA-256 must still match; a changed source is rollback, not a new expected count ([CLINIC_CSV_IMPORT.md](../../ops/deploy/CLINIC_CSV_IMPORT.md) L87).
 7. **No PHI in joins or outputs.** Reports may carry status/timestamp, manifest digest, clinic/run/target metadata, ID band, aggregate count, six seed IDs, failure stage — not CSV cell values ([CLINIC_CSV_IMPORT.md](../../ops/deploy/CLINIC_CSV_IMPORT.md) L17, L88, L144).
 
 This sheet does not include executable SQL. Authorized operators use `make csv-import-preflight` / `make csv-import-verify` (read-only) and the importer's in-transaction checks. Ad-hoc SQL against STG/PROD is out of scope.

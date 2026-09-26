@@ -5,13 +5,13 @@ Worktree `/Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte-rem-slack-access` o
 
 Docs-only. This unit does **not** invent a roster, transcribe July Slack names, run `staff-provision`, run `stg-uat-staff-attach`, read secret files, or treat demo catalog logins as production / formal UAT accounts.
 
-Binding: [todo-issue.md](../../../todo-issue.md) heading `### SLACK-ACCESS` (L264–268); [P5](../../../todo-operations.md#p5--staff-provision); [H3-9](../../../todo-operations.md#h3-9); [seedlogin env](../../../backend/internal/seedlogin/env.go); [STAFF_ACCOUNT_PROVISIONING.md](../../ops/deploy/STAFF_ACCOUNT_PROVISIONING.md); [LINMIG-230.md](../linmig-campaign-20260919/LINMIG-230.md). July roster / forward text is **not in this repo**. Personal names stay **UNKNOWN**.
+Binding: [todo-issue.md](../../../todo.md#issue-ledger) heading `### SLACK-ACCESS` (L264–268); [P5](../../../todo.md#p5--staff-provision); [H3-9](../../../todo.md#ops-h3-9); [seedlogin env](../../../backend/internal/seedlogin/env.go); [STAFF_ACCOUNT_PROVISIONING.md](../../ops/deploy/STAFF_ACCOUNT_PROVISIONING.md); [LINMIG-230.md](../linmig-campaign-20260919/LINMIG-230.md). July roster / forward text is **not in this repo**. Personal names stay **UNKNOWN**.
 
 This file is a campaign investigation sheet. Product modules do not import it. The controller ledger names it as `owned_paths` / acceptance target (`units.json` unit `SLACK-ACCESS`; `unit-specs.json` in_scope). Sibling ops docs (`STAFF_ACCOUNT_PROVISIONING.md`, `LINMIG-230.md`) are contracts or a remote-apply design, not this clinic/role/demo-versus-formal gap sheet.
 
 ## 1. Why this sheet exists
 
-[todo-issue.md](../../../todo-issue.md) L266–268: all-clinic login, demo privileges, and per-staff accounts are operational readiness. A 9 September login-success report is a partial example, not a full-staff confirmation. First work is to sort **P5 / H3-9 input gaps by clinic, role, and demo versus formal account**. Formal email / permission policy is PO. Credential changes are a separate approval. If remote apply is undefined or the current roster is missing, **stop that execution**. Do not reuse demo privileges on production.
+[todo-issue.md](../../../todo.md#issue-ledger) L266–268: all-clinic login, demo privileges, and per-staff accounts are operational readiness. A 9 September login-success report is a partial example, not a full-staff confirmation. First work is to sort **P5 / H3-9 input gaps by clinic, role, and demo versus formal account**. Formal email / permission policy is PO. Credential changes are a separate approval. If remote apply is undefined or the current roster is missing, **stop that execution**. Do not reuse demo privileges on production.
 
 This sheet is that input-gap table. It is **not** apply authorization.
 
@@ -21,7 +21,7 @@ This sheet is that input-gap table. It is **not** apply authorization.
 |---|---|---|---|---|
 | **Demo catalog** | Synthetic LoginForm `DEMO_ACCOUNTS` upserted at migrate phase `003_login` | [`seedlogin.Apply`](../../../backend/internal/seedlogin/apply.go); gated by [`ShouldApply`](../../../backend/internal/seedlogin/env.go#L19) | `development` / `local` / `dev` / `test` / `staging` only | Production accounts; current hospital roster; P5 completion |
 | **Formal provision (P5 / #255)** | Batch **create** account + staff + assignments + permission groups | `backend/cmd/staff-provision` `preflight` then `apply` | Authorized local disposable DB; shared STG/PROD only after USER approval **and** a defined in-environment method ([LINMIG-230.md](../linmig-campaign-20260919/LINMIG-230.md) §3) | Demo catalog; attach onto existing staff |
-| **H3-9 attach** | Link synthetic UAT accounts onto **existing** `staffs` rows; does not insert staff | [`Makefile`](../../../Makefile) `stg-uat-staff-attach-preflight` / `stg-uat-staff-attach`; [`backend/cmd/stg-uat-staff-attach`](../../../backend/cmd/stg-uat-staff-attach/main.go) L1–2 | Target host/database confirmed on the command line | Proof that P5 remote apply exists ([todo-operations.md](../../../todo-operations.md) L177–179) |
+| **H3-9 attach** | Link synthetic UAT accounts onto **existing** `staffs` rows; does not insert staff | [`Makefile`](../../../Makefile) `stg-uat-staff-attach-preflight` / `stg-uat-staff-attach`; [`backend/cmd/stg-uat-staff-attach`](../../../backend/cmd/stg-uat-staff-attach/main.go) L1–2 | Target host/database confirmed on the command line | Proof that P5 remote apply exists ([todo-operations.md](../../../todo.md#operations-ledger) L177–179) |
 
 Operator / first system admin is a fourth, out-of-band path ([STAFF_ACCOUNT_PROVISIONING.md](../../ops/deploy/STAFF_ACCOUNT_PROVISIONING.md) L25; [FIRST_SYSTEM_ADMIN.md](../../ops/deploy/FIRST_SYSTEM_ADMIN.md)). `SEEDLOGIN_OPERATOR_*` values are repo-external. Catalog emails never receive the shared-password shortcut as operator accounts ([env.go](../../../backend/internal/seedlogin/env.go) L45–48).
 
@@ -71,7 +71,7 @@ Occupation labels on demo templates (`獣医師` / `看護師` / `動物看護�
 
 ## 5. P5 / #255 missing inputs (formal create)
 
-Source: [STAFF_ACCOUNT_PROVISIONING.md](../../ops/deploy/STAFF_ACCOUNT_PROVISIONING.md) L148–163; restated by [LINMIG-230.md](../linmig-campaign-20260919/LINMIG-230.md) §6 and [todo-operations.md](../../../todo-operations.md) L177–183. This session did not receive a current roster file. Values, names, emails, and passwords are not recorded.
+Source: [STAFF_ACCOUNT_PROVISIONING.md](../../ops/deploy/STAFF_ACCOUNT_PROVISIONING.md) L148–163; restated by [LINMIG-230.md](../linmig-campaign-20260919/LINMIG-230.md) §6 and [todo-operations.md](../../../todo.md#operations-ledger) L177–183. This session did not receive a current roster file. Values, names, emails, and passwords are not recorded.
 
 | ID | Missing input | Why needed for access | Supplier | Status this session | Demo catalog does **not** fill this |
 |---|---|---|---|---|---|
@@ -88,7 +88,7 @@ Remote apply: [STAFF_ACCOUNT_PROVISIONING.md](../../ops/deploy/STAFF_ACCOUNT_PRO
 
 ## 6. H3-9 missing inputs (attach, not create)
 
-Source: [todo-operations.md](../../../todo-operations.md) L133–137, L25; Makefile L340–381; `stg-uat-staff-attach` package comment L1–2. Current attach + existing execution evidence: **UNKNOWN** (todo-operations.md L60).
+Source: [todo-operations.md](../../../todo.md#operations-ledger) L133–137, L25; Makefile L340–381; `stg-uat-staff-attach` package comment L1–2. Current attach + existing execution evidence: **UNKNOWN** (todo-operations.md L60).
 
 | ID | Missing input | Why needed | Status this session |
 |---|---|---|---|

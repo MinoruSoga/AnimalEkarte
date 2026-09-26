@@ -2,7 +2,7 @@
 
 > **目的**: カルテの画像タブで、端末カメラ撮影とファイルアップロードの 2 系統が正しく動き、許可形式・複数選択・同一ファイルの再選択・アップロード中の二重送信防止が仕様どおりであることを納品前に証明する。
 > **所要目安**: 15分 / **深度**: 薄い
-> **仕様正本**: [screens/06-medical-records-form.md §2.4](../../../spec/screens/06-medical-records-form.md)。検証キュー: `SLACK-CAMERA`（[todo-verification.md](../../../../todo-verification.md)）。実装参照: `frontend/src/features/medical-records/components/ImageGalleryFilter.tsx`。
+> **仕様正本**: [screens/06-medical-records-form.md §2.4](../../../spec/screens/06-medical-records-form.md)。検証キュー: `SLACK-CAMERA`（[todo-verification.md](../../../../todo.md#verification-ledger)）。実装参照: `frontend/src/features/medical-records/components/ImageGalleryFilter.tsx`。
 
 ## 前提条件
 

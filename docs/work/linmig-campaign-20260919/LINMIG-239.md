@@ -4,10 +4,10 @@
 
 Campaign `linmig-ops-prep-20260919` revision 1. Unit `LINMIG-239`. Attempt `att-linmig-239-20260919-001`. Claim `claim/LINMIG-239`. Linear issue `LINMIG-239` was not found; keep as claim only. Prompt SHA `d39400d404ed43865bd10664d1dee26116d742bba15b293b2f1a3f6961fc87bb`.
 
-Maps to [todo-operations.md](../../../todo-operations.md) **P1 / SEC-SECRETS-5** and GitHub [#89](https://github.com/MinoruSoga/AnimalEkarte/issues/89) / [#97](https://github.com/MinoruSoga/AnimalEkarte/issues/97). Binding sources:
+Maps to [todo-operations.md](../../../todo.md#operations-ledger) **P1 / SEC-SECRETS-5** and GitHub [#89](https://github.com/MinoruSoga/AnimalEkarte/issues/89) / [#97](https://github.com/MinoruSoga/AnimalEkarte/issues/97). Binding sources:
 
 - [BUG_MD_EXTERNAL_OPS_PENDING_APPROVAL.md](../../ops/deploy/runbooks/BUG_MD_EXTERNAL_OPS_PENDING_APPROVAL.md) **§1** (L24–L71)
-- [todo-operations.md](../../../todo-operations.md) P1 (L28, L70, L153–L159)
+- [todo-operations.md](../../../todo.md#operations-ledger) P1 (L28, L70, L153–L159)
 - Cipher contract: [aes_gcm.go](../../../backend/internal/infra/crypto/aes_gcm.go) (`INTEGRATION_ENCRYPTION_KEY` is a single 64-hex-char key; this package has no old-key fallback)
 
 Worktree `/Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte-linmig-239` on `feat/linmig-239-ops-prep` at HEAD `aac697645df92fd24611c7c13bf0f7dda12a6e08`. Sheet date: 2026-09-20. Local files only.

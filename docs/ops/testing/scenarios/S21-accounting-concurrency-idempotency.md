@@ -2,7 +2,7 @@
 
 > **目的**: 会計確定が二重送信・リトライ・別キー競合で重複作成されず、確定済み会計の明細追加・古い合計での更新・検査由来の重複が正しく拒否/保護されることを実 DB・2 セッションで納品前に証明する。
 > **所要目安**: 20分 / **深度**: 深い
-> **仕様正本**: [screens/11-accounting-detail.md §3.3](../../../spec/screens/11-accounting-detail.md)。検証キュー: `UAT-R2-EXCLUSIVE-LOCK`（[todo-verification.md](../../../../todo-verification.md)）・DB 制約ゲート `billing-schema-readiness`（[todo-operations.md](../../../../todo-operations.md)）。
+> **仕様正本**: [screens/11-accounting-detail.md §3.3](../../../spec/screens/11-accounting-detail.md)。検証キュー: `UAT-R2-EXCLUSIVE-LOCK`（[todo-verification.md](../../../../todo.md#verification-ledger)）・DB 制約ゲート `billing-schema-readiness`（[todo-operations.md](../../../../todo.md#operations-ledger)）。
 
 ## 前提条件
 

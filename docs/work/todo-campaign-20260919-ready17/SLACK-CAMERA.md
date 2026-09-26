@@ -2,7 +2,7 @@
 
 > Task migrated to Plane `EMR-183`. This file remains supporting acceptance/evidence material; use Plane for current status.
 
-状態: **file input vs capture と既存 upload のトレースを現行コードで再検証済み（HEAD `923bb99ba`、2026-09-23）／撮影専用 input（`capture="environment"`）は `873685b0b`（2026-09-20）で実装済み — 本票の最小案 option 1／対象端末での実機受入は未実行**。出典は [todo-issue.md](../../../todo-issue.md) 見出し `### SLACK-CAMERA`（L160–164、索引 L431）。保持する現場条件:
+状態: **file input vs capture と既存 upload のトレースを現行コードで再検証済み（HEAD `923bb99ba`、2026-09-23）／撮影専用 input（`capture="environment"`）は `873685b0b`（2026-09-20）で実装済み — 本票の最小案 option 1／対象端末での実機受入は未実行**。出典は [todo-issue.md](../../../todo.md#issue-ledger) 見出し `### SLACK-CAMERA`（L160–164、索引 L431）。保持する現場条件:
 
 - 「撮影してそのままカルテへ追加したい」（出典 995–999。現行 `todo-issue.md` は要約のみ。原文行は本票では再掲しない）
 - **既存の診療画像 upload を一度だけ使う。** 独自カメラアプリ / `getUserMedia` は、現行 picker に撮影選択が無いと実機で証明されるまで作らない

@@ -2,7 +2,7 @@
 
 > **目的**: 会計の保険負担割合が、新規会計では 50%/70% だけを選択肢として提示し、既存会計の 90%/100% 等のレガシー値をサイレントに丸めずそのまま保持・表示することを納品前に証明する。
 > **所要目安**: 15分 / **深度**: 中
-> **仕様正本**: [screens/11-accounting-detail.md §1.2](../../../spec/screens/11-accounting-detail.md)。検証キュー: `UAT-Q4-INSURANCE-RATES`（[todo-verification.md](../../../../todo-verification.md)）。
+> **仕様正本**: [screens/11-accounting-detail.md §1.2](../../../spec/screens/11-accounting-detail.md)。検証キュー: `UAT-Q4-INSURANCE-RATES`（[todo-verification.md](../../../../todo.md#verification-ledger)）。
 
 ## 前提条件
 

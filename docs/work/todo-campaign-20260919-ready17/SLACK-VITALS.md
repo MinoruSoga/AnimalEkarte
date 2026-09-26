@@ -2,7 +2,7 @@
 
 > Task migrated to Plane `EMR-190`. This file remains supporting acceptance/evidence material; use Plane for current status.
 
-状態: **ヘッダー常時表示（今回カルテ末尾・時刻なし read-only チップ）は `873685b0b` で実装済み／実機受入・PO 項目確定・persist 変更は未実行**。初版は `aac697645` 時点で「比較 READY／未実装」として起筆されたが、同キャンペーンの `873685b0b`（"show microchip and latest vitals on the chart header"）で O1 相当が製品コードに入った。本票は `923bb99ba` 時点のコードへ再検証済み。出典は [todo-issue.md](../../../todo-issue.md) 見出し `### SLACK-VITALS`（L124–128、索引 L421）。保持する現場条件:
+状態: **ヘッダー常時表示（今回カルテ末尾・時刻なし read-only チップ）は `873685b0b` で実装済み／実機受入・PO 項目確定・persist 変更は未実行**。初版は `aac697645` 時点で「比較 READY／未実装」として起筆されたが、同キャンペーンの `873685b0b`（"show microchip and latest vitals on the chart header"）で O1 相当が製品コードに入った。本票は `923bb99ba` 時点のコードへ再検証済み。出典は [todo-issue.md](../../../todo.md#issue-ledger) 見出し `### SLACK-VITALS`（L124–128、索引 L421）。保持する現場条件:
 
 - 「名前のすぐ近く」「クリックなしで表示」「時間不要」（出典 929–937。現行 `todo-issue.md` は要約のみ。原文行は本票では再掲しない）
 - **表示/入力操作の削減**と**診療記録の時刻保持**を分離する

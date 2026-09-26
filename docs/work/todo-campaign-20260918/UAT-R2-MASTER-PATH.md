@@ -1,6 +1,6 @@
 # UAT-R2-MASTER-PATH: マスタ登録と会計導線の再現票
 
-状態: **12フォーム合成検証 実行済み（2026-09-23, EMR-84）**。scoped unit に加え、合成 clinic で create→保存 request→API 応答→キャッシュ非依存の再読込→下流/会計までを HTTP で実行し、下の合成実行マトリクスを actual で埋めた。1件の再現 defect（trimming-courses / trimming-options / hospitalization-plans / cages が負価格を保存）を最小修正し、Docker scoped 検証（unit + 実機再確認）まで完了。2026-09-19に依頼者が「可能性のあるページをすべて検証」と回答したため、発生ページの回答待ちを解除する。元の症状がどの画面で発生したかは未確定であり、全経路の検証結果と医院での再現事実を混同しない（[要件・状態の正本](../../../todo-issue.md#uat-r2-master-path)、[元報告](../stg-uat-clinic-feedback-q1-q4.md#uat-r2-master-path)）。
+状態: **12フォーム合成検証 実行済み（2026-09-23, EMR-84）**。scoped unit に加え、合成 clinic で create→保存 request→API 応答→キャッシュ非依存の再読込→下流/会計までを HTTP で実行し、下の合成実行マトリクスを actual で埋めた。1件の再現 defect（trimming-courses / trimming-options / hospitalization-plans / cages が負価格を保存）を最小修正し、Docker scoped 検証（unit + 実機再確認）まで完了。2026-09-19に依頼者が「可能性のあるページをすべて検証」と回答したため、発生ページの回答待ちを解除する。元の症状がどの画面で発生したかは未確定であり、全経路の検証結果と医院での再現事実を混同しない（[要件・状態の正本](../../../todo.md#uat-r2-master-path)、[元報告](../stg-uat-clinic-feedback-q1-q4.md#uat-r2-master-path)）。
 
 本票は現行 route / form / API への対応づけと、未カバー失敗テストの**候補名**までを固定する。合成検証の actual は下記「合成実行マトリクス（actual = 実行済み）」に記録した。**専用env（A4 rehearsal overlay）は KNJO 21-table bundle 不在のため未使用**であり、検証は稼働中 dev stack（clinic_id=4）で行った。全マスタを会計の「マスタから選択」へ混在させる提案はしない。
 

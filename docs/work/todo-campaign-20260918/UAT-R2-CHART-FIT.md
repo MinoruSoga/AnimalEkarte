@@ -2,7 +2,7 @@
 
 > Task migrated to Plane `EMR-181`. This file remains supporting acceptance/evidence material; use Plane for current status.
 
-状態: **寸法再現・UI修正設計 READY／実装・実機受入未実施**。2026-09-19依頼者回答を反映。従来の「解像度・対象タブの回答待ち」を解除し、下記の基準で着手する。状態の正本は [TODO](../../../todo-issue.md#uat-r2-chart-fit)。
+状態: **寸法再現・UI修正設計 READY／実装・実機受入未実施**。2026-09-19依頼者回答を反映。従来の「解像度・対象タブの回答待ち」を解除し、下記の基準で着手する。状態の正本は [TODO](../../../todo.md#uat-r2-chart-fit)。
 
 ## 確認済みの事実と未確定の入力
 
@@ -74,7 +74,7 @@ flowchart TB
 1. [カルテ配置](../../../frontend/src/features/medical-records/routes/MedicalRecordFormReadyPanels.tsx)・各タブ・[検索ダイアログ](../../../frontend/src/components/shared/TreatmentSearchDialog/TreatmentSearchDialog.tsx) の固定幅/高さ、flex/gridの最小サイズ、スクロール責務を特定。再現する表示/操作テストを先に作り、小さいUI差分で直す。
 2. 基準1366×625 CSS pxで全9タブ×sidebar展開/折畳みを確認する。短文/長文、空/長一覧、入力エラー、選択ダイアログ/保存確認を含める。比較用の大きいviewportでも回帰確認する。15.6インチからCSS値を計算しない。
 3. rootの不要な横スクロール/切取りをなくす。患者識別、タブ切替、主要保存操作を画面内に保ち、本文・長い一覧は明示した領域の縦スクロールで末尾まで到達可能にする。「見切れない」は情報/操作が到達不能でないこととし、全履歴をスクロールなし1画面に押し込まない。列の折返し/上下配置・余白を調整し、情報削除、文字の一律縮小、`overflow:hidden` による隠蔽を使わない。
-4. キーボードで全入力・保存・エラーへ到達し、フォーカスが固定ヘッダ/フッタに隠れないことを確認。ダイアログの検索/選択/閉じると元の位置への復帰を確認する。マスタ一覧高さの既存修正は再実装せず [受入タスク](../../../todo-verification.md#uat-r2-master-list-height) と同じ証拠を使う。
+4. キーボードで全入力・保存・エラーへ到達し、フォーカスが固定ヘッダ/フッタに隠れないことを確認。ダイアログの検索/選択/閉じると元の位置への復帰を確認する。マスタ一覧高さの既存修正は再実装せず [受入タスク](../../../todo.md#ver-uat-r2-master-list-height) と同じ証拠を使う。
 5. 同一実機で100%/既報125%を確認し、その時のCSS viewport、OS倍率、Chrome版をQAが採取する。`1366/1.25` の計算や `deviceScaleFactor` だけを125%の実機再現としない。縮小された実測領域でも同じ到達条件を満たす。環境未確保は実機ケースだけBLOCKEDとし、基準寸法の調査・設計を止めない。
 
 ## Windows 8 / Chrome の互換性ゲート

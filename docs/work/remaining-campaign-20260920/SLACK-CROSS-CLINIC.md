@@ -1,6 +1,6 @@
 # SLACK-CROSS-CLINIC: 所属・選択医院・検索・記録・操作医院の対応表
 
-状態: **コード照合 READY／PO 対象医院リスト UNKNOWN／境界変更なし**。出典は [todo-issue.md](../../../todo-issue.md) 見出し `### SLACK-CROSS-CLINIC`（L178–182、索引 L404）。保持する現場条件:
+状態: **コード照合 READY／PO 対象医院リスト UNKNOWN／境界変更なし**。出典は [todo-issue.md](../../../todo.md#issue-ledger) 見出し `### SLACK-CROSS-CLINIC`（L178–182、索引 L404）。保持する現場条件:
 
 - 山梨の他院患者を検索して受付したい、という要望。**代表アカウントという返信は、単なる同院検索の不具合ではない**（出典 643–697、725–735、832–847）
 - 安全な調査は開始可。裁定前の医院境界変更は停止
@@ -337,7 +337,7 @@ func (h *Handler) CreatePet(c *gin.Context) {
 
 ## PO への質問（既存本文。再質問を増やさない）
 
-[todo-issue.md](../../../todo-issue.md) L182 のとおり:
+[todo-issue.md](../../../todo.md#issue-ledger) L182 のとおり:
 
 - 対象医院の明示リスト（八王子を含むかも明記）
 - 閲覧 / 受付 / 編集 / 会計それぞれの権限

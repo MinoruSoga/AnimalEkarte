@@ -1,6 +1,6 @@
 # SLACK-LATENCY: 治療数量の表示 / commit / 通信 / 再取得の採時計画
 
-状態: **計測計画 READY／実測 未実行（端末・回線・行数・IME・許容 ms はすべて UNKNOWN）**。出典は [todo-issue.md](../../../todo-issue.md) 見出し `### SLACK-LATENCY`（L112–116）。保持する現場条件:
+状態: **計測計画 READY／実測 未実行（端末・回線・行数・IME・許容 ms はすべて UNKNOWN）**。出典は [todo-issue.md](../../../todo.md#issue-ledger) 見出し `### SLACK-LATENCY`（L112–116）。保持する現場条件:
 
 - 「数量入力など反映に時間がかかりすぎる」（出典 883–896。現行 `todo-issue.md` は要約のみ。原文行は本票では再掲しない）
 - **2回 Enter の受入とは独立**の計測課題。Enter×2 を「遅さ」の原因断定にも、廃止提案にも使わない

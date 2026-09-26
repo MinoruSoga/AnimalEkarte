@@ -2,7 +2,7 @@
 
 > **目的**: 一覧経由ではなく URL で直接 `/accounting/:id`、`/hospitalization/:id`、`/hospitalization/:id/edit`、`/inventory/:id` を開いたとき、権限に応じて正しく詳細が表示され、存在しない ID・権限不足で適切に拒否/ハンドリングされることを納品前に証明する。
 > **所要目安**: 15分 / **深度**: 薄い
-> **仕様正本**: [screens/11-accounting-detail.md](../../../spec/screens/11-accounting-detail.md)・[screens/08-hospitalization-detail.md](../../../spec/screens/08-hospitalization-detail.md)・[screens/27-inventory-form.md](../../../spec/screens/27-inventory-form.md)。検証キュー: `NOTE2-SWEEP-COVERAGE`（[todo-verification.md](../../../../todo-verification.md)）。
+> **仕様正本**: [screens/11-accounting-detail.md](../../../spec/screens/11-accounting-detail.md)・[screens/08-hospitalization-detail.md](../../../spec/screens/08-hospitalization-detail.md)・[screens/27-inventory-form.md](../../../spec/screens/27-inventory-form.md)。検証キュー: `NOTE2-SWEEP-COVERAGE`（[todo-verification.md](../../../../todo.md#verification-ledger)）。
 
 ## 前提条件
 
