@@ -12,6 +12,7 @@ import (
 )
 
 // PeriodUnpaidOwnerPet は飼主+ペット単位の期間未納繰越集約結果。EMR-188
+// LatestScheduled はそのグループの未納会計の MAX(scheduled_date)（YYYY-MM-DD）。EMR-189
 type PeriodUnpaidOwnerPet struct {
 	OwnerID             uint64  `json:"owner_id"`
 	OwnerName           string  `json:"owner_name"`
@@ -20,6 +21,7 @@ type PeriodUnpaidOwnerPet struct {
 	PrevPeriodCarryover int64   `json:"prev_period_carryover"`
 	CurrentPeriodUnpaid int64   `json:"current_period_unpaid"`
 	PeriodEndCarryover  int64   `json:"period_end_carryover"`
+	LatestScheduled     string  `json:"latest_scheduled"`
 }
 
 // PeriodUnpaidSummary は期間未納繰越のサマリー情報。EMR-188
@@ -282,7 +284,8 @@ func (r *accountingRepository) FindPeriodUnpaidCarryover(ctx context.Context, cl
 			COALESCE(pets.name, '') AS pet_name,
 			COALESCE(SUM(CASE WHEN billings.scheduled_date < ? THEN (%s) ELSE 0 END), 0) AS prev_period_carryover,
 			COALESCE(SUM(CASE WHEN billings.scheduled_date >= ? AND billings.scheduled_date <= ? THEN (%s) ELSE 0 END), 0) AS current_period_unpaid,
-			COALESCE(SUM(%s), 0) AS period_end_carryover
+			COALESCE(SUM(%s), 0) AS period_end_carryover,
+			MAX(billings.scheduled_date)::text AS latest_scheduled
 		`, amt, amt, amt), startDate, startDate, endDate).
 		Group("billings.owner_id, owners.name, pets.id, COALESCE(pets.name, '')").
 		Order("owners.name ASC, COALESCE(pets.name, '') ASC").

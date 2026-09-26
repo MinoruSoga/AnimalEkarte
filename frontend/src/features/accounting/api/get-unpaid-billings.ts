@@ -112,6 +112,8 @@ interface PeriodUnpaidOwnerPet {
   prev_period_carryover: number;
   current_period_unpaid: number;
   period_end_carryover: number;
+  /** EMR-189: その飼主+ペットグループの未納会計の MAX(scheduled_date)（YYYY-MM-DD） */
+  latest_scheduled: string;
 }
 
 interface PeriodUnpaidSummary {

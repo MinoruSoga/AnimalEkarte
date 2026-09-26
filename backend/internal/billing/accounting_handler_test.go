@@ -1170,6 +1170,18 @@ func TestGetUnpaidPeriodSummary(t *testing.T) {
 			wantBody:   `"owner_id":1`,
 		},
 		{
+			name:     "returns 200 with latest_scheduled per data row",
+			query:    "start_date=2026-06-01&end_date=2026-06-30",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockAccountingService{
+				getPeriodUnpaidCarryoverFn: func(_ context.Context, _ uint64, _, _ string, _, _ int) ([]PeriodUnpaidOwnerPet, int64, PeriodUnpaidSummary, error) {
+					return []PeriodUnpaidOwnerPet{{OwnerID: 1, OwnerName: "田中太郎", LatestScheduled: "2026-06-20"}}, 1, PeriodUnpaidSummary{}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"latest_scheduled":"2026-06-20"`,
+		},
+		{
 			name:       "returns 401 when clinic_id is missing",
 			query:      "start_date=2026-06-01&end_date=2026-06-30",
 			setupCtx:   func(_ *gin.Context) {},

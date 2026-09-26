@@ -32,6 +32,7 @@ const PERIOD_RESPONSE = {
       prev_period_carryover: 3000,
       current_period_unpaid: 5000,
       period_end_carryover: 8000,
+      latest_scheduled: "2026-06-20",
     },
     {
       owner_id: 2,
@@ -41,6 +42,7 @@ const PERIOD_RESPONSE = {
       prev_period_carryover: 0,
       current_period_unpaid: 2000,
       period_end_carryover: 2000,
+      latest_scheduled: "2026-06-05",
     },
   ],
   total: 2,

@@ -7505,6 +7505,9 @@ components:
         period_end_carryover:
           type: integer
           format: int64
+        latest_scheduled:
+          type: string
+          format: date
     PeriodUnpaidCarryoverResponse:
       description: 月末未納者一覧の期間集計（EMR-188）
       allOf:

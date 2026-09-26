@@ -80,6 +80,33 @@ describe("SpecialPeriodSection", () => {
     expect(screen.getByText(/区切り: 12:00 \/ 終了: 17:00/)).toBeInTheDocument();
   });
 
+  it("登録済み期間に AM/PM/EMG の導出時間帯レンジを秒単位で表示する", () => {
+    renderSection(<SpecialPeriodSection periods={[makePeriod()]} canEdit={true} />);
+    expect(screen.getByText(/AM 09:00:00～11:59:59/)).toBeInTheDocument();
+    expect(screen.getByText(/PM 12:00:00～16:59:59/)).toBeInTheDocument();
+    expect(screen.getByText(/EMG 17:00:00～翌08:59:59/)).toBeInTheDocument();
+  });
+
+  it("amStart prop の値を AM/EMG レンジの起点に使う", () => {
+    renderSection(<SpecialPeriodSection periods={[makePeriod()]} canEdit={true} amStart="10:00" />);
+    expect(screen.getByText(/AM 10:00:00～11:59:59/)).toBeInTheDocument();
+    expect(screen.getByText(/EMG 17:00:00～翌09:59:59/)).toBeInTheDocument();
+  });
+
+  it("登録フォームで区切り・終了時刻の入力に応じて AM/PM/EMG プレビューを表示する", () => {
+    renderSection(<SpecialPeriodSection periods={[]} canEdit={true} />);
+    fireEvent.click(screen.getByRole("button", { name: "新規登録" }));
+
+    fireEvent.change(screen.getByLabelText("午前・午後 区切り時間"), {
+      target: { value: "12:00" },
+    });
+    fireEvent.change(screen.getByLabelText("午後 終了時間"), { target: { value: "17:00" } });
+
+    expect(screen.getByText(/AM 09:00:00～11:59:59/)).toBeInTheDocument();
+    expect(screen.getByText(/PM 12:00:00～16:59:59/)).toBeInTheDocument();
+    expect(screen.getByText(/EMG 17:00:00～翌08:59:59/)).toBeInTheDocument();
+  });
+
   it("削除ボタンで deleteMutation.mutateAsync が id で呼ばれる", async () => {
     renderSection(<SpecialPeriodSection periods={[makePeriod({ id: 7 })]} canEdit={true} />);
     fireEvent.click(
@@ -143,6 +170,25 @@ describe("SpecialPeriodSection", () => {
         }),
       ),
     );
+  });
+
+  it("登録成功後にフォームを再表示すると区切り・終了時間の制御値がリセットされる", async () => {
+    renderSection(<SpecialPeriodSection periods={[]} canEdit={true} />);
+    fireEvent.click(screen.getByRole("button", { name: "新規登録" }));
+
+    fillAndSubmit({
+      start_date: "2026-12-29",
+      end_date: "2027-01-03",
+      am_pm_boundary: "12:00",
+      pm_end: "17:00",
+    });
+
+    await waitFor(() => expect(mockCreateMutateAsync).toHaveBeenCalled());
+    await waitFor(() => expect(screen.queryByLabelText("開始日")).not.toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: "新規登録" }));
+    expect(screen.getByLabelText("午前・午後 区切り時間")).toHaveValue("");
+    expect(screen.getByLabelText("午後 終了時間")).toHaveValue("");
   });
 
   // ギャップ回帰テスト: start_date > end_date / am_pm_boundary > pm_end のクライアント側

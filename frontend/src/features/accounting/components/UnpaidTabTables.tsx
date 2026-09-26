@@ -88,6 +88,7 @@ export function UnpaidBillingTable({ billings, endDate }: UnpaidBillingTableProp
             <TableHead>飼主名</TableHead>
             <TableHead>ペット名</TableHead>
             <TableHead>診療日</TableHead>
+            <TableHead>最新未納日</TableHead>
             <TableHead className="text-right">未納額</TableHead>
             <TableHead className="text-right">経過日数</TableHead>
           </TableRow>
@@ -107,6 +108,7 @@ export function UnpaidBillingTable({ billings, endDate }: UnpaidBillingTableProp
                 </TableCell>
                 <TableCell>{billing.petName}</TableCell>
                 <TableCell>{formatDate(billing.scheduledDate)}</TableCell>
+                <TableCell>{billing.scheduledDate || "-"}</TableCell>
                 <TableCell className="text-right font-mono">
                   {formatCurrency(unpaidAmount)}
                 </TableCell>
@@ -139,6 +141,7 @@ export function UnpaidPeriodTable({ rows }: UnpaidPeriodTableProps) {
           <TableRow>
             <TableHead>飼主名</TableHead>
             <TableHead>ペット名</TableHead>
+            <TableHead>最新未納日</TableHead>
             <TableHead className="text-right">期間前繰越</TableHead>
             <TableHead className="text-right">期間内未納</TableHead>
             <TableHead className="text-right">期末繰越</TableHead>
@@ -159,6 +162,7 @@ export function UnpaidPeriodTable({ rows }: UnpaidPeriodTableProps) {
                 </DataTableRowLink>
               </TableCell>
               <TableCell>{row.pet_name || "-"}</TableCell>
+              <TableCell>{row.latest_scheduled || "-"}</TableCell>
               <TableCell className="text-right font-mono">
                 {formatCurrency(row.prev_period_carryover)}
               </TableCell>

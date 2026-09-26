@@ -127,6 +127,7 @@ type periodUnpaidOwnerPetResponse struct {
 	PrevPeriodCarryover int64   `json:"prev_period_carryover"`
 	CurrentPeriodUnpaid int64   `json:"current_period_unpaid"`
 	PeriodEndCarryover  int64   `json:"period_end_carryover"`
+	LatestScheduled     string  `json:"latest_scheduled"`
 }
 
 type periodUnpaidSummaryResponse struct {
