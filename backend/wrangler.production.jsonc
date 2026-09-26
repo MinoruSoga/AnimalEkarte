@@ -100,6 +100,12 @@
     // <PLACEHOLDER-S3_PUBLIC_BASE_URL>
     // production 用 R2 公開ドメイン作成後に運用担当者が投入する(ファイル冒頭コメント #3 参照)。
     "S3_PUBLIC_BASE_URL": "",
+
+    // サポートチャット用 LLM(OpenAI 互換 API)。プロバイダは Z.AI(glm-4.5-flash 無料枠)。
+    // API キーだけがシークレット(backend/.env → `pnpm cf:secrets:prod` で bulk 投入)。
+    // STG と同じプロバイダ構成。OpenAI へ戻す場合はこの2行を変更する。
+    "SUPPORT_LLM_BASE_URL": "https://api.z.ai/api/paas/v4",
+    "SUPPORT_LLM_MODEL": "glm-4.5-flash",
   },
 
   "observability": {
@@ -182,6 +188,7 @@
       // 未設定なら無効(検索型ヘルプへフォールバック)。
       // 値は gitignore 済み backend/.env から `pnpm cf:secrets:prod`
       // (= wrangler secret bulk .env --config wrangler.production.jsonc) で投入する。
+      // SUPPORT_LLM_BASE_URL/MODEL(Z.AI)は vars で管理。TIMEOUT_MS は Go 既定値(30s)。
     ],
   },
 }
