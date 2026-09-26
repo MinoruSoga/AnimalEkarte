@@ -2,7 +2,7 @@
 
 > Current task status is tracked in Plane `EMR-200`. This local sheet preserves the route×operation
 > coverage matrix and the evidence pointers. See the [migration receipt](../plane-md-migration-20260923-receipt.md).
-> 索引の正本は [todo-verification.md](../../../todo.md#verification-ledger)、履歴は [bug-2.md](../../../bug-2.md#plan-note2-coverage)。
+> 索引の正本は [todo-verification.md](../../../todo.md#verification-ledger)、履歴は [bug.md](../../../bug.md#plan-note2-coverage)。
 
 - campaign: `emr-200-note2-coverage` revision 2
 - unit: `NOTE2-SWEEP-COVERAGE`（Plane `EMR-200`）
@@ -12,7 +12,7 @@
 
 ## 目的とスコープ
 
-[bug-2.md#plan-note2-coverage](../../../bug-2.md#plan-note2-coverage) の `NOTE2-SWEEP-COVERAGE` を
+[bug.md#plan-note2-coverage](../../../bug.md#plan-note2-coverage) の `NOTE2-SWEEP-COVERAGE` を
 現行 route inventory と突合し、**未確認だった detail・入院・検査・カルテ/健診の route×operation** を
 1 行ずつ「fixture 必須項目 / 操作 / 期待結果 / 証拠 / 判定」で固定する。
 
@@ -113,7 +113,7 @@ docker run --rm --network ekarte-network --entrypoint go \
 | EMR200-ACCT-DETAIL | `/accounting/:id` → `GET /api/v1/accountings/:id` | 有効な会計 ID（選択医院、一覧に pending 行が必要） | 詳細を取得 | 200。view 権限必須 | handler テスト PASS（`373b0ea0a` で再検証） | `accounting_handler_test.go`: `TestGetAccounting`（200/401/400/404・他院非表示）+ `accounting_handler_selected_clinic_b_grant_a_test.go`: `TestGetAccounting_MembershipABGrantASelectedB`。UI 到達は `accounting-flow.spec.ts`（一覧→詳細リンク→`detailHeading`+確定ボタン表示、確定クリックは未実施） | **PASS（API/契約）/ ブラウザ確定 UNKNOWN** |
 | EMR200-INV-DETAIL | `/inventory/:id` → `GET /api/v1/inventory/:id` | 有効な在庫 ID（選択医院） | 詳細を取得 | 200。view 権限必須。他院/seed ID は 403/404 で本文非漏洩 | handler・実DBテスト PASS（`373b0ea0a` で再検証） | `inventory_handler_test.go`: `TestGetInventory`; `inventory_service_test.go`: `TestInventoryService_GetByID`; `repository_test.go`: `TestInventoryRepository_FindByID`; `realdb_selected_clinic_b_grant_a_isolation_test.go`: `TestRealDB_Inventory_Get_MembershipABGrantASelectedB_Returns403` / `TestRealDB_Inventory_Get_SelectedB_ASeedID_Returns404NoABody` / `TestRealDB_Inventory_List_*`。UI 到達は `inventory-crud.spec.ts`（一覧行クリック→`/inventory/\d+` 編集見出し。同 spec は `/inventory/new` 実登録→一覧反映の**実書込み**ケースも持つ） | **PASS（API/契約）** |
 
-## bug-2.md#plan-note2-coverage との突合（reconciliation）
+## bug.md#plan-note2-coverage との突合（reconciliation）
 
 | 旧記載（2026-09-13） | 現行 route inventory | 本票の扱い |
 |:--|:--|:--|

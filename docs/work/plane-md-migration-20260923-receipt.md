@@ -117,7 +117,7 @@ flowchart LR
 | `SLACK-VITALS` | `EMR-190` | `Ready` | docs/work/todo-campaign-20260919-ready17/SLACK-VITALS.md:1 | `511210609d4d438669d781219577a6ec6fea05075e5d63261d8b391699df31b2` |
 | `DOCS-REFRESH-ISSUE-RECONCILIATION` | `EMR-192` | `Needs Human` | docs/work/docs-perfection/LEDGER.md:367 | `a54f3eb90ef5eb9d981ee9ab44598e5dbd24d4c1acc008090137d4b900a16cf8` |
 
-| `NOTE2-SWEEP-COVERAGE` | `EMR-200` | `Ready` | todo-verification.md:31; bug-2.md#plan-note2-coverage | `1464f3f1eaf270529269dcdda16f44708a4f0fdb5008b3626cd8a5c0301cd309` |
+| `NOTE2-SWEEP-COVERAGE` | `EMR-200` | `Ready` | todo-verification.md:31; bug.md#plan-note2-coverage | `1464f3f1eaf270529269dcdda16f44708a4f0fdb5008b3626cd8a5c0301cd309` |
 
 - `NOTE-STAFF-STARTTIME-RDT` supporting investigation plan was appended to Plane EMR-180 and read back (SHA-256 `76195f3365920b2d8e673656292cfbf7abf526351cfbbdac0169fe4fa16c044e`).
 
@@ -149,7 +149,7 @@ flowchart LR
 - The five canonical ledgers contained 88 distinct unfinished task units; 8 additional independent unfinished tasks were found in the full Markdown scan.
 - 80 new work items were created in Plane and verified by live readback; 16 items already present in Plane were matched by stable task ID and read back without duplication.
 - Two ticket bodies contained credential-like patterns; those patterns were redacted before sending the descriptions to Plane.
-- Eight additional independent unfinished tasks from `bug.md`, `bug-2.md`, `docs/work`, and the docs reconciliation ledger were registered after deduplication.
+- Eight additional independent unfinished tasks from `bug.md`, `bug.md`, `docs/work`, and the docs reconciliation ledger were registered after deduplication.
 - The 58 docs/work task packets were deduplicated by stable task ID against these tasks or current Plane work; they remain as supporting acceptance/evidence records, not independent task entries. Six DOCS-PERFECT child goals were COMPLETE and were not migrated.
 - Foreign WIP in `docs/ops/testing/scenarios/README.md` and S34–S39 was not changed.
 - Runtime verification was not required for the documentation edits. Plane item state/content was read back; no tests, data operations, deployment, or external closures were performed.
