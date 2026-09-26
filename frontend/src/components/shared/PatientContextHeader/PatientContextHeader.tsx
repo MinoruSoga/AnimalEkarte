@@ -5,6 +5,7 @@ import { calcAgePartsAt } from "@/lib/calc-age";
 import imgEllipse1 from "@/assets/231a870df600a37e011a0e1140e7608b1f4c3340.png";
 import { ImageWithFallback } from "@/components/shared/Feedback";
 import { Tooltip } from "@/components/ui/tooltip";
+import { DangerBadge } from "@/components/shared/DangerBadge";
 
 // ──────────────────────────────────────────────────────────
 // Age calculation (JST) — FE3-9: 計算部は共有ヘルパへ委譲。
@@ -49,6 +50,12 @@ export interface PatientContextHeaderProps {
   visitCount?: number;
   /** 既存 pet.microchip_number。ヘッダーは表示専用。空は出さない。 */
   microchipNumber?: string;
+  /** スタッフ向け飼主危険マーク (EMR-173)。true なら飼主名横に ⚠ 危険人物。 */
+  ownerIsDangerous?: boolean;
+  /** ペット危険度 (表示値 "高"/"中"/"低" または wire 値)。高/中のみ Popover バッジを出す。 */
+  petDangerLevel?: string;
+  /** ペット危険理由。未設定はバッジ Popover 内で「理由未登録」表示。 */
+  petDangerReason?: string;
   /** 今回カルテの最新バイタル（表示専用。時刻は出さない）。 */
   vitalsSummary?: {
     temperature?: number;
@@ -81,6 +88,9 @@ export function PatientContextHeader({
   insuranceDetails,
   visitCount,
   microchipNumber,
+  ownerIsDangerous,
+  petDangerLevel,
+  petDangerReason,
   vitalsSummary,
   onOwnerClick,
   contextControls,
@@ -141,6 +151,7 @@ export function PatientContextHeader({
               <span className={`text-base font-medium ${C.text} truncate w-full`}>{ownerName}</span>
             </Tooltip>
           )}
+          {ownerIsDangerous ? <DangerBadge variant="owner" /> : null}
           <Tooltip content={petName} className="min-w-0 max-w-[160px]">
             <span
               className={`text-base font-medium ${isDeceased ? C.text60 : C.text} truncate w-full`}
@@ -148,6 +159,12 @@ export function PatientContextHeader({
               {petName}
             </span>
           </Tooltip>
+          <DangerBadge
+            variant="pet"
+            level={petDangerLevel}
+            subjectName={petName}
+            reason={petDangerReason}
+          />
           {microchipNumber ? (
             <Tooltip content={microchipNumber} className="min-w-0 max-w-[200px]">
               <span

@@ -11,6 +11,7 @@ import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
 import User from "lucide-react/dist/esm/icons/user";
 
 import { Badge } from "@/components/ui/badge";
+import { DangerBadge } from "@/components/shared/DangerBadge";
 import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { C, ICON } from "@/lib/design-tokens";
 import {
@@ -167,7 +168,15 @@ export function ReceptionDialogBody({
             <span className="text-sm">ペット</span>
           </div>
           <div className="text-right">
-            <div className="font-bold text-base">{appointment.petName}</div>
+            <div className="font-bold text-base flex items-center justify-end gap-1.5">
+              <span>{appointment.petName}</span>
+              <DangerBadge
+                variant="pet"
+                level={appointment.petDangerLevel}
+                subjectName={appointment.petName}
+                reason={appointment.petDangerReason}
+              />
+            </div>
             <div className={`text-sm ${C.text60}`}>{appointment.petType}</div>
           </div>
         </div>
@@ -176,7 +185,10 @@ export function ReceptionDialogBody({
             <User className={ICON.action} />
             <span className="text-sm">飼い主</span>
           </div>
-          <span className={`font-medium ${C.text}`}>{appointment.ownerName}</span>
+          <span className={`font-medium ${C.text} inline-flex items-center gap-1.5`}>
+            <span>{appointment.ownerName}</span>
+            {appointment.ownerIsDangerous ? <DangerBadge variant="owner" /> : null}
+          </span>
         </div>
       </div>
 

@@ -50,6 +50,9 @@ function transformPetListItemToFrontend(p: PetListResponse): Pet {
     ownerNumber: p.owner?.owner_number,
     ownerName: p.owner?.name ?? "",
     ownerNameKana: p.owner?.name_kana ?? undefined,
+    // スタッフ向け飼主危険マーク (EMR-173)。detail 経路 (transformBackendPetToFrontend) と
+    // 同一契約: true の時だけ optional キーを出す。
+    ...(p.owner?.is_dangerous === true && { ownerIsDangerous: true }),
     address: undefined,
     // detail 経路 (transformBackendPetToFrontend) と同じ fallback 契約:
     // owner サマリの phone が空ならペット個体の phone に倒す。
