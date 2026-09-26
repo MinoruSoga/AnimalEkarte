@@ -476,7 +476,8 @@ describe("PetSelectionResultsTable row actions", () => {
     expect(onSelect).toHaveBeenCalledWith(PET);
   });
 
-  it("死亡個体は非色依存の名前で選択不可になる", async () => {
+  // EMR-177: 死亡個体は選択可能。死亡識別は色に依存しない文言とグレーアウトで維持する。
+  it("死亡個体は死亡バッジを表示したうえで選択できる", async () => {
     const user = userEvent.setup();
     const onSelect = vi.fn();
     render(
@@ -487,14 +488,14 @@ describe("PetSelectionResultsTable row actions", () => {
     );
 
     const selectButton = screen.getByRole("button", {
-      name: "死亡・選択不可: ポチ (ID pet-1)",
+      name: "死亡・選択: ポチ (ID pet-1)",
     });
-    expect(selectButton).toBeDisabled();
-    expect(selectButton).toHaveTextContent("選択不可");
+    expect(selectButton).toBeEnabled();
+    expect(selectButton).toHaveTextContent("選択");
     expect(screen.getByText("死亡")).toBeInTheDocument();
     expect(selectButton.closest("tr")).toHaveClass("opacity-60", "grayscale-[0.5]");
     await user.click(selectButton);
-    expect(onSelect).not.toHaveBeenCalled();
+    expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ status: "死亡" }));
   });
 
   it("生死不明の個体もfail-closedで選択不可になる", () => {

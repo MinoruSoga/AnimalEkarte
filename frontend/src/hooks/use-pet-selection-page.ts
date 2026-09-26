@@ -125,7 +125,10 @@ export function usePetSelectionPage(config: PetSelectionPageConfig) {
 
   const handleSelect = useCallback(
     (pet: Pet) => {
-      if (pet.status !== "生存") return;
+      // EMR-177: 死亡個体も選択可能とする（カルテ閲覧・連絡記録のため）。
+      // 新規記録の作成可否は遷移先フォーム・BE の死亡ゲートが境界で拒否する。
+      // 「不明」等の既知外 status は引き続き fail-closed で拒否する。
+      if (pet.status !== "生存" && pet.status !== "死亡") return;
 
       const nextParams = new URLSearchParams(location.search);
       nextParams.set("petId", pet.id);
