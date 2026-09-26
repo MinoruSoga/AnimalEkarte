@@ -209,6 +209,10 @@ type completeAccountingRequest struct {
 	Items             []completeAccountingItemRequest `json:"items" binding:"required,min=1,dive"`
 	PaymentSplits     []paymentSplitRequest           `json:"payment_splits" binding:"max=50,dive"`
 	PostCloseReason   *string                         `json:"post_close_reason" binding:"omitempty,max=500"`
+	// ExpectedUnbilledRevision は EMR-196②: pet_id 指定時に必須の unbilled 集約版 token。
+	// binding の required_with ではなく service が pet_id との関係で fail-closed 検証する
+	// （pet 無し complete は対象外・handler 迂回経路にも同じ不変条件を強制するため）。
+	ExpectedUnbilledRevision string `json:"expected_unbilled_revision" binding:"omitempty,max=128"`
 }
 
 func (r *completeAccountingRequest) toServiceInput(clinicID, staffID uint64, idempotencyKey string) *CompleteAccountingInput {
@@ -217,23 +221,24 @@ func (r *completeAccountingRequest) toServiceInput(clinicID, staffID uint64, ide
 		items = append(items, CompleteAccountingItemInput(it))
 	}
 	return &CompleteAccountingInput{
-		ClinicID:          clinicID,
-		StaffID:           &staffID,
-		IdempotencyKey:    idempotencyKey,
-		MedicalRecordID:   r.MedicalRecordID,
-		HospitalizationID: r.HospitalizationID,
-		OwnerID:           r.OwnerID,
-		PetID:             r.PetID,
-		ScheduledDate:     r.ScheduledDate,
-		Memo:              r.Memo,
-		HasInsurance:      r.HasInsurance,
-		InsuranceRatio:    r.InsuranceRatio,
-		InsuranceName:     r.InsuranceName,
-		InsuranceAmount:   r.InsuranceAmount,
-		DiscountAmount:    r.DiscountAmount,
-		Items:             items,
-		PaymentSplits:     toPaymentSplitInputs(r.PaymentSplits),
-		PostCloseReason:   r.PostCloseReason,
+		ClinicID:                 clinicID,
+		StaffID:                  &staffID,
+		IdempotencyKey:           idempotencyKey,
+		MedicalRecordID:          r.MedicalRecordID,
+		HospitalizationID:        r.HospitalizationID,
+		OwnerID:                  r.OwnerID,
+		PetID:                    r.PetID,
+		ScheduledDate:            r.ScheduledDate,
+		Memo:                     r.Memo,
+		HasInsurance:             r.HasInsurance,
+		InsuranceRatio:           r.InsuranceRatio,
+		InsuranceName:            r.InsuranceName,
+		InsuranceAmount:          r.InsuranceAmount,
+		DiscountAmount:           r.DiscountAmount,
+		Items:                    items,
+		PaymentSplits:            toPaymentSplitInputs(r.PaymentSplits),
+		PostCloseReason:          r.PostCloseReason,
+		ExpectedUnbilledRevision: r.ExpectedUnbilledRevision,
 	}
 }
 

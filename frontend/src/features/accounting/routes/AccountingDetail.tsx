@@ -27,6 +27,7 @@ import {
   ReadOnlyAccountingBanner,
   UngroupedItemsWarningBanner,
   UnbilledBlockingWarningBanner,
+  UnbilledConflictBanner,
 } from "../components/AccountingDetailPanels";
 import { isPaymentSubmitDisabled, isPostCloseSubmitBlocked } from "../lib/accounting-detail-model";
 import { useAccountingCompletionAction } from "../hooks/use-accounting-completion-action";
@@ -68,6 +69,7 @@ export const AccountingDetail = memo(function AccountingDetail({
     accounting,
     ungroupedSummary,
     unbilledWarnings,
+    unbilledRevision,
     hasBlockingUnbilledWarning,
     blocksNewAccountingSubmit,
     deceasedPetBlockMessage,
@@ -105,22 +107,30 @@ export const AccountingDetail = memo(function AccountingDetail({
   const { user } = useAuth();
   const { canEdit, canCreate, canDelete } = usePermission("accounting");
 
-  const { editConfirmOpen, setEditConfirmOpen, confirmCompletedEdit, formRef, formAction } =
-    useAccountingCompletionAction({
-      accountingId: id,
-      accounting,
-      calculation,
-      displayItems,
-      hasInsurance,
-      insuranceRatio,
-      paymentSplits,
-      queryClient,
-      navigate,
-      setCompletedPayment,
-      postCloseReason,
-      blockCreateReason: deceasedPetBlockMessage,
-      permissions: { canCreate, canEdit },
-    });
+  const {
+    editConfirmOpen,
+    setEditConfirmOpen,
+    confirmCompletedEdit,
+    formRef,
+    formAction,
+    unbilledConflict,
+  } = useAccountingCompletionAction({
+    accountingId: id,
+    accounting,
+    calculation,
+    displayItems,
+    hasInsurance,
+    insuranceRatio,
+    paymentSplits,
+    queryClient,
+    navigate,
+    setCompletedPayment,
+    postCloseReason,
+    blockCreateReason: deceasedPetBlockMessage,
+    permissions: { canCreate, canEdit },
+    unbilledRevision,
+    setLocalItems,
+  });
   // #118: キャンセルボタン用の専用権限（accounting-cancel の edit = キャンセル可否）
   const { canEdit: canCancelAccounting } = usePermission(ResourceAccountingCancel);
   // #115: 締め後編集専用権限
@@ -257,6 +267,10 @@ export const AccountingDetail = memo(function AccountingDetail({
                   ]
                 : unbilledWarnings
             }
+          />
+          <UnbilledConflictBanner
+            show={unbilledConflict}
+            onReload={() => window.location.reload()}
           />
           <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
             <AccountingDetailColumns

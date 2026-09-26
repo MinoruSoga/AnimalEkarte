@@ -201,6 +201,15 @@ func (h *AccountingHandler) CompleteAccounting(c *gin.Context) {
 			})
 			return
 		}
+		// EMR-196②: 表示済み unbilled 集約の版不一致は 409 + code=UNBILLED_ITEMS_CHANGED と
+		// 現在の集約版を返す（フロントが stale を検出して再取得・再読込を促せるようにする）。
+		var unbilledConflict *unbilledRevisionConflictError
+		if errors.As(err, &unbilledConflict) {
+			httpapi.RespondErrorWithExtras(c, err, map[string]any{
+				"unbilled_revision": unbilledConflict.CurrentRevision,
+			})
+			return
+		}
 		httpapi.RespondError(c, err)
 		return
 	}

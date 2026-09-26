@@ -2104,7 +2104,7 @@ components:
           description: true の場合、呼び出し側は会計確定を無効化する
     UnbilledDetailsResponse:
       type: object
-      required: [items, warnings]
+      required: [items, warnings, revision]
       properties:
         items:
           type: array
@@ -2114,6 +2114,12 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/UnbilledWarning'
+        revision:
+          type: string
+          description: >
+            items+warnings の決定的フィンガープリント（EMR-196）。
+            POST /accountings/complete の expected_unbilled_revision として返送する
+            楽観ロック token。形式は "u1:<sha256-hex>"。
     CompleteAccountingItemRequest:
       type: object
       description: 会計確定時に一括作成する明細1件（BUG-018）
@@ -2207,6 +2213,13 @@ components:
           type: integer
           format: int64
           nullable: true
+        expected_unbilled_revision:
+          type: string
+          maxLength: 128
+          description: >
+            EMR-196: GET /billing-items/unbilled-details が返した集約版 token。
+            pet_id 指定時は必須（未指定・空値は 400）。complete tx 内で再集計した
+            版と不一致なら 409 UNBILLED_ITEMS_CHANGED。冪等 digest には含めない。
         scheduled_date:
           type: string
           format: date-time
@@ -12338,6 +12351,9 @@ paths:
             - medical_record_id / hospitalization_id に既存会計がある二重確定（EMR-66）。
               この場合 code=ACCOUNTING_ALREADY_COMPLETED で、
               既存会計が accounting フィールドに同梱される
+            - expected_unbilled_revision と現在の unbilled 集約版が不一致（EMR-196）。
+              この場合 code=UNBILLED_ITEMS_CHANGED で、
+              現在の集約版が unbilled_revision フィールドに同梱される
           content:
             application/json:
               schema:
@@ -12349,10 +12365,15 @@ paths:
                     description: エラーメッセージ
                   code:
                     type: string
-                    description: 安定エラーコード（二重確定時は ACCOUNTING_ALREADY_COMPLETED）
+                    description: >
+                      安定エラーコード（二重確定時は ACCOUNTING_ALREADY_COMPLETED、
+                      集約版不一致時は UNBILLED_ITEMS_CHANGED）
                     example: ACCOUNTING_ALREADY_COMPLETED
                   accounting:
                     $ref: '#/components/schemas/Billing'
+                  unbilled_revision:
+                    type: string
+                    description: code=UNBILLED_ITEMS_CHANGED のとき現在の集約版
         '500':
           $ref: '#/components/responses/InternalError'
   /accountings/{id}:
@@ -13381,6 +13402,8 @@ paths:
         BUG-013: additive エンドポイント。/billing-items/unbilled と同じ明細に加え、
         集約中に検出したデータ品質警告を返す。blocking=true の警告がある間、
         呼び出し側は会計確定を無効化する。警告に ID・名称・価格は含めない。
+        EMR-196: revision は集約の版 token で、POST /accountings/complete の
+        expected_unbilled_revision として返送する（楽観ロック）。
       tags: [BillingItems]
       parameters:
         - name: pet_id

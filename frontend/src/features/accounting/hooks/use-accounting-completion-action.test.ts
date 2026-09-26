@@ -6,6 +6,7 @@ import type { NavigateFunction } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { handleApiError } from "@/lib/handle-api-error";
+import { queryKeys } from "@/lib/query-keys";
 import { toast } from "sonner";
 import { completeAccounting } from "../api/complete-accounting";
 import { updateAccounting } from "../api/update-accounting";
@@ -107,9 +108,11 @@ function buildHookArgs(
 ) {
   const queryClient = {
     invalidateQueries: vi.fn(),
+    refetchQueries: vi.fn(),
   } as unknown as QueryClient;
   const navigate = vi.fn() as unknown as NavigateFunction;
   const setCompletedPayment = vi.fn();
+  const setLocalItems = vi.fn();
 
   return {
     accountingId: "accountingId" in overrides ? overrides.accountingId : "123",
@@ -128,9 +131,12 @@ function buildHookArgs(
     queryClient,
     navigate,
     setCompletedPayment,
+    setLocalItems,
     postCloseReason: "",
     // FE-RC-001: このテスト群は「権限あり」時の通常フローを検証するため既定で全許可する。
     permissions: { canCreate: true, canEdit: true },
+    // EMR-196②: 新規 complete が送る集約版 token（既存会計経路では未使用）。
+    unbilledRevision: "u1:test-revision",
   };
 }
 
@@ -619,5 +625,101 @@ describe("useAccountingCompletionAction permissions (FE-RC-001 fail-closed)", ()
       expect(toast.error).toHaveBeenCalledWith("この操作を行う権限がありません");
     });
     expect(updateAccountingMock).not.toHaveBeenCalled();
+  });
+});
+
+// EMR-196②: 新規 complete が表示中の unbilled 集約版 token（expected_unbilled_revision）を
+// 送信し、409 UNBILLED_ITEMS_CHANGED 時に stale 明細を捨てて最新集約へ揃え直すことを固定する。
+describe("useAccountingCompletionAction unbilled revision (EMR-196②)", () => {
+  beforeEach(() => {
+    completeAccountingMock.mockReset();
+    updateAccountingMock.mockReset();
+    handleApiErrorMock.mockReset();
+    vi.mocked(toast.error).mockReset();
+    vi.mocked(toast.success).mockReset();
+  });
+
+  it("新規 complete は expected_unbilled_revision をリクエストに載せる", async () => {
+    const args = buildHookArgs({ accountingId: undefined });
+    completeAccountingMock.mockResolvedValue({ ...waitingAccounting(), status: "completed" });
+    const { result } = renderHook(() => useAccountingCompletionAction(args));
+
+    await submitCompletionAction(result.current.formAction);
+
+    expect(completeAccountingMock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        pet_id: 20,
+        expected_unbilled_revision: "u1:test-revision",
+      }),
+      "test-idempotency-key",
+    );
+    expect(result.current.unbilledConflict).toBe(false);
+  });
+
+  it("unbilledRevision 未取得時は expected_unbilled_revision を送らない（BE が 400 で fail-closed）", async () => {
+    const args = { ...buildHookArgs({ accountingId: undefined }), unbilledRevision: undefined };
+    completeAccountingMock.mockResolvedValue({ ...waitingAccounting(), status: "completed" });
+    const { result } = renderHook(() => useAccountingCompletionAction(args));
+
+    await submitCompletionAction(result.current.formAction);
+
+    const payload = completeAccountingMock.mock.calls[0]?.[0];
+    expect(payload?.expected_unbilled_revision).toBeUndefined();
+  });
+
+  it("409 UNBILLED_ITEMS_CHANGED は stale 明細を破棄して最新集約を再取得しバナー表示する", async () => {
+    const args = buildHookArgs({ accountingId: undefined });
+    completeAccountingMock.mockRejectedValue(
+      axiosError(409, {
+        error: "未請求明細が更新されました。最新の内容を確認してから再度確定してください",
+        code: "UNBILLED_ITEMS_CHANGED",
+        unbilled_revision: "u1:current",
+      }),
+    );
+    const { result } = renderHook(() => useAccountingCompletionAction(args));
+
+    await submitCompletionAction(result.current.formAction);
+
+    // stale なローカル明細編集を破棄し、最新の unbilled 集約を再取得する
+    expect(args.setLocalItems).toHaveBeenCalledWith(null);
+    expect(args.queryClient.refetchQueries).toHaveBeenCalledWith({
+      queryKey: queryKeys.unbilledItems("20"),
+    });
+    // silent retry も汎用エラートーストも出さず、バナー + 案内 toast で再確定を促す
+    expect(completeAccountingMock).toHaveBeenCalledTimes(1);
+    expect(handleApiErrorMock).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith(
+      "未請求明細が他の画面で更新されました。最新の内容を確認してから再度確定してください",
+    );
+    expect(result.current.unbilledConflict).toBe(true);
+    expect(result.current.formState.success).toBe(false);
+    expect(result.current.formState.focusTarget).toBeUndefined();
+  });
+
+  it("409 でも UNBILLED_ITEMS_CHANGED 以外の code は汎用エラー経路を維持する", async () => {
+    const args = buildHookArgs({ accountingId: undefined });
+    completeAccountingMock.mockRejectedValue(
+      axiosError(409, { error: "このカルテには既に会計があります", code: "ACCOUNTING_ALREADY_COMPLETED" }),
+    );
+    const { result } = renderHook(() => useAccountingCompletionAction(args));
+
+    await submitCompletionAction(result.current.formAction);
+
+    expect(handleApiErrorMock).toHaveBeenCalledTimes(1);
+    expect(args.setLocalItems).not.toHaveBeenCalled();
+    expect(result.current.unbilledConflict).toBe(false);
+  });
+
+  it("isUnbilledRevisionConflict は 409 + code の組合せのみ true", async () => {
+    const { isUnbilledRevisionConflict } = await import("./use-accounting-completion-action");
+    expect(
+      isUnbilledRevisionConflict(axiosError(409, { code: "UNBILLED_ITEMS_CHANGED" })),
+    ).toBe(true);
+    expect(isUnbilledRevisionConflict(axiosError(409, { code: "OTHER" }))).toBe(false);
+    expect(isUnbilledRevisionConflict(axiosError(400, { code: "UNBILLED_ITEMS_CHANGED" }))).toBe(
+      false,
+    );
+    expect(isUnbilledRevisionConflict(new Error("x"))).toBe(false);
+    expect(isUnbilledRevisionConflict({ response: { status: 409 } })).toBe(false);
   });
 });

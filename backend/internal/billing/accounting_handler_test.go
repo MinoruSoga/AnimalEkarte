@@ -237,6 +237,46 @@ func TestCompleteAccounting_AlreadyCompletedReturns409WithExisting(t *testing.T)
 	assert.NotContains(t, body, "unique constraint", "UNIQUE 違反の内部情報をレスポンスに露出しない")
 }
 
+// TestCompleteAccounting_UnbilledRevisionConflictReturns409 は EMR-196②:
+// expected_unbilled_revision が service input へ届き、集約版不一致が
+// HTTP 409 + code=UNBILLED_ITEMS_CHANGED + 現在の unbilled_revision を返すことを固定する。
+func TestCompleteAccounting_UnbilledRevisionConflictReturns409(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	h := NewAccountingHandler(
+		&mockAccountingService{
+			completeFn: func(_ context.Context, input *CompleteAccountingInput) (*CompleteAccountingResult, error) {
+				assert.Equal(t, "u1:displayed", input.ExpectedUnbilledRevision,
+					"request の expected_unbilled_revision を service input へマッピングする")
+				return nil, newUnbilledRevisionConflictError("u1:current")
+			},
+		},
+		&stubCashRegisterIsClosed{
+			isDateClosedFn: func(_ context.Context, _ uint64, _ time.Time) (bool, error) { return false, nil },
+		},
+		func(_ *gin.Context, _, _ string) bool { return true },
+	)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	setNonSystemAdmin(c)
+	c.Request = httptest.NewRequest(
+		http.MethodPost,
+		"/v1/accountings/complete",
+		strings.NewReader(`{"owner_id":1,"pet_id":2,"expected_unbilled_revision":"u1:displayed","scheduled_date":"2026-06-01T00:00:00Z","items":[{"name":"診察","unit_price":1000,"quantity":1}]}`),
+	)
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Request.Header.Set("Idempotency-Key", uuid.NewString())
+
+	h.CompleteAccounting(c)
+
+	assert.Equal(t, http.StatusConflict, w.Code)
+	body := w.Body.String()
+	assert.Contains(t, body, `"code":"UNBILLED_ITEMS_CHANGED"`)
+	assert.Contains(t, body, `"unbilled_revision":"u1:current"`,
+		"再取得・再送の材料となる現在の集約版を返す")
+}
+
 // ---- mock AccountingService (full interface, nil-safe forwarding) ----
 
 type mockAccountingService struct {
