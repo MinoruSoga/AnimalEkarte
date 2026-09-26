@@ -8,6 +8,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/staff"
 )
 
 // EMR-211 (b) 匿名化 sentinel の識別名。いずれも s09-clinic- / s09-synthetic-
@@ -69,7 +70,7 @@ func SyntheticClosingAuditAnonymizePolicy(ctx context.Context, tx *gorm.DB, clin
 	if err := tx.Exec("SELECT pg_advisory_xact_lock(?)", syntheticAuditSentinelLockKey).Error; err != nil {
 		return apperrors.Wrap(err, "serialize audit sentinel creation")
 	}
-	sentinel, err := findOrCreateSyntheticAuditSentinel(tx)
+	sentinel, err := findOrCreateSyntheticAuditSentinel(ctx, tx)
 	if err != nil {
 		return err
 	}
@@ -96,7 +97,7 @@ type syntheticAuditSentinel struct {
 
 // findOrCreateSyntheticAuditSentinel は sentinel company → clinic → staff を
 // 一度だけ作り、以後は名前で再利用する。呼び出し側が advisory lock を持つ前提。
-func findOrCreateSyntheticAuditSentinel(tx *gorm.DB) (*syntheticAuditSentinel, error) {
+func findOrCreateSyntheticAuditSentinel(ctx context.Context, tx *gorm.DB) (*syntheticAuditSentinel, error) {
 	var company model.Company
 	err := tx.Where("name = ?", syntheticAuditSentinelCompanyName).Take(&company).Error
 	switch {
@@ -131,30 +132,11 @@ func findOrCreateSyntheticAuditSentinel(tx *gorm.DB) (*syntheticAuditSentinel, e
 		return nil, apperrors.Wrap(err, "load audit sentinel clinic")
 	}
 
-	var staffRow model.Staff
-	err = tx.Where("clinic_id = ? AND name = ?", clinic.ID, syntheticAuditSentinelStaffName).Take(&staffRow).Error
-	switch {
-	case err == nil:
-	case errors.Is(err, gorm.ErrRecordNotFound):
-		staffRow = model.Staff{
-			ClinicID:  clinic.ID,
-			AccountID: nil, // login 不能: sentinel にアカウントは持たせない
-			Name:      syntheticAuditSentinelStaffName,
-			StaffType: model.StaffTypeResource,
-		}
-		if createErr := tx.Create(&staffRow).Error; createErr != nil {
-			return nil, apperrors.Wrap(createErr, "create audit sentinel staff")
-		}
-		// staffs.is_active / reservation_visible も default:true の zero 値 trap が
-		// あるため明示 UPDATE で false にする。
-		if updateErr := tx.Model(&model.Staff{}).Where("id = ?", staffRow.ID).
-			Updates(map[string]any{"is_active": false, "reservation_visible": false}).Error; updateErr != nil {
-			return nil, apperrors.Wrap(updateErr, "disable audit sentinel staff")
-		}
-		staffRow.IsActive = false
-		staffRow.ReservationVisible = false
-	default:
-		return nil, apperrors.Wrap(err, "load audit sentinel staff")
+	// staffs/shift_entries の write owner は internal/staff（TestStaffTableWriteOwnerLint）。
+	// sentinel staff の find-or-create は staff package 側の helper へ委譲する。
+	staffRow, err := staff.FindOrCreateSyntheticAuditSentinelStaff(ctx, tx, clinic.ID, syntheticAuditSentinelStaffName)
+	if err != nil {
+		return nil, err
 	}
 
 	return &syntheticAuditSentinel{companyID: company.ID, clinicID: clinic.ID, staffID: staffRow.ID}, nil
