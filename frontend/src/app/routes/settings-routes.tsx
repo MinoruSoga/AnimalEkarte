@@ -458,6 +458,24 @@ export const settingsRoute: RouteObject = {
         },
       ],
     },
+    // サポートウィジェットのバグ報告一覧（backend は hospital-settings view/edit でゲート）
+    {
+      path: "bug-reports",
+      element: (
+        <RequirePermission resource={ResourceHospitalSettings}>
+          <Outlet />
+        </RequirePermission>
+      ),
+      children: [
+        {
+          index: true,
+          lazy: async () => {
+            const { BugReportsPage } = await import("@/features/support");
+            return { Component: BugReportsPage };
+          },
+        },
+      ],
+    },
     {
       path: "lab-device-item-masters",
       element: (

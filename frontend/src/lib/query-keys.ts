@@ -389,13 +389,19 @@ export const queryKeys = {
       ["identity-links", "pet-group", clinicId, petId] as const,
   },
 
-  // ── manual / closing-settings ─────────────────────────────────────
+  // ── manual / closing-settings / support ───────────────────────────
   manualArticles: {
     all: () => ["manual-articles"] as const,
   },
   closingSettings: {
     all: () => ["closing-settings"] as const,
     holidays: () => ["closing-settings", "holidays"] as const,
+  },
+  supportBugReports: {
+    all: () => ["support-bug-reports"] as const,
+  },
+  supportChat: {
+    status: () => ["support-chat", "status"] as const,
   },
 
   // ── test-only ─────────────────────────────────────────────────────

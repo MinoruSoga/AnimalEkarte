@@ -19,7 +19,7 @@ import {
   groupBySection,
   type ManualArticle,
   type ManualCategory,
-} from "../lib/manual-index";
+} from "@/lib/manual-index";
 
 interface ManualSidebarProps {
   viewMode: ManualCategory;

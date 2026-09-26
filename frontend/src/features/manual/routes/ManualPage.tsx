@@ -23,15 +23,15 @@ import "../manual-print.css";
 import { ManualContent } from "../components/ManualContent";
 import { ManualEditor } from "../components/ManualEditor";
 import { ManualPageChrome } from "../components/ManualPageChrome";
-import { useGetManualArticleOverrides } from "../api/get-manual-articles";
+import { useGetManualArticleOverrides } from "@/hooks/use-manual-article-overrides";
+import { useManualSearch } from "@/hooks/use-manual-search";
 import {
   applyOverrides,
   screenArticles as bundledScreenArticles,
   workflowArticles as bundledWorkflowArticles,
   type ManualArticle,
   type ManualCategory,
-} from "../lib/manual-index";
-import { useManualSearch } from "../hooks/use-manual-search";
+} from "@/lib/manual-index";
 
 const DESKTOP_BREAKPOINT_QUERY = "(min-width: 768px)";
 

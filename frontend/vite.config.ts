@@ -164,6 +164,12 @@ export default defineConfig({
         target: "http://backend:8080",
         changeOrigin: true,
       },
+      // ローカルアップローダーが返す /uploads/*（サポート報告スクショ等）を
+      // dev でも表示できるよう backend へ転送。本番は S3 署名付き URL なので対象外。
+      "/uploads": {
+        target: "http://backend:8080",
+        changeOrigin: true,
+      },
     },
   },
   build: {

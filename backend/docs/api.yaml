@@ -9907,6 +9907,26 @@ components:
           nullable: true
         status:
           type: string
+    SupportBugReport:
+      type: object
+      description: サポートウィジェットからのバグ報告(医院スコープ)。
+      properties:
+        id: { type: integer, format: int64 }
+        title: { type: string }
+        detail: { type: string }
+        page_url: { type: string }
+        route_path: { type: string }
+        user_agent: { type: string }
+        viewport: { type: string }
+        app_version: { type: string }
+        status: { type: string, enum: [open, resolved] }
+        reporter_staff_id: { type: integer, format: int64 }
+        reporter_name: { type: string }
+        screenshot_url:
+          type: string
+          description: 署名付き URL(15分 TTL)。スクショなし・署名失敗時は省略。
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
   responses:
     BadRequest:
       description: バリデーションエラー
@@ -25625,3 +25645,179 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+  # ─── サポートウィジェット: バグ報告 + ヘルプチャット ────────────────────
+  /support/chat:
+    post:
+      operationId: postSupportChat
+      summary: ヘルプチャット(マニュアル抜粋を根拠に LLM が回答)
+      description: |
+        認証済みスタッフ全員が利用可能（権限ゲートなし）。フロントエンドがマニュアル検索で
+        取得した抜粋(context)のみを根拠に LLM へ質問する。SUPPORT_LLM_API_KEY 未設定の
+        環境では 501 を返す(フロントエンドは status で検出し検索 UI へフォールバック)。
+        LLM 呼び出しコスト抑制のため IP 単位でレート制限あり。
+      tags: [Support]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message]
+              properties:
+                message:
+                  type: string
+                  maxLength: 2000
+                  description: ユーザーの質問
+                history:
+                  type: array
+                  maxItems: 16
+                  description: 直近の会話履歴(user/assistant のみ)
+                  items:
+                    type: object
+                    required: [role, content]
+                    properties:
+                      role: { type: string, enum: [user, assistant] }
+                      content: { type: string, maxLength: 4000 }
+                context:
+                  type: array
+                  maxItems: 6
+                  description: 回答根拠とするマニュアル抜粋
+                  items:
+                    type: object
+                    required: [title, category, slug, text]
+                    properties:
+                      title: { type: string, maxLength: 200 }
+                      category: { type: string, maxLength: 100 }
+                      slug: { type: string, maxLength: 100 }
+                      text: { type: string, maxLength: 6000 }
+      responses:
+        '200':
+          description: 回答 + 参照記事
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reply: { type: string }
+                  sources:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        title: { type: string }
+                        category: { type: string }
+                        slug: { type: string }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '501': { description: LLM が未設定(SUPPORT_LLM_API_KEY なし) }
+        '502': { description: LLM 上流エラー(プロバイダ詳細は返さない) }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /support/chat/status:
+    get:
+      operationId: getSupportChatStatus
+      summary: ヘルプチャットの有効/無効
+      description: |
+        認証済みスタッフ全員が利用可能。SUPPORT_LLM_API_KEY 設定の有無だけを返す
+        機能フラグ(テナントデータを含まない)。enabled=false の場合フロントエンドは
+        検索型ヘルプ UI を表示する。
+      tags: [Support]
+      responses:
+        '200':
+          description: 有効/無効フラグ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  enabled: { type: boolean }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /support/bug-reports:
+    get:
+      operationId: listSupportBugReports
+      summary: 自医院のバグ報告一覧(新しい順)
+      description: hospital-settings view 権限が必要。スクショは署名付き URL(15分 TTL)で返す。
+      tags: [Support]
+      responses:
+        '200':
+          description: バグ報告一覧
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SupportBugReport'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      operationId: createSupportBugReport
+      summary: バグ報告を作成(スクショ任意添付)
+      description: |
+        認証済みスタッフ全員が利用可能。multipart/form-data で件名・詳細・画面文脈
+        (page_url/route_path/user_agent/viewport/app_version)と任意 file "screenshot"
+        (PNG/JPEG/WebP)を受け付ける。全体 8MiB 上限。
+      tags: [Support]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [title]
+              properties:
+                title: { type: string }
+                detail: { type: string }
+                page_url: { type: string }
+                route_path: { type: string }
+                user_agent: { type: string }
+                viewport: { type: string }
+                app_version: { type: string }
+                screenshot: { type: string, format: binary }
+      responses:
+        '201':
+          description: 作成されたバグ報告
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupportBugReport'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedMediaType' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /support/bug-reports/{id}/status:
+    patch:
+      operationId: updateSupportBugReportStatus
+      summary: バグ報告の対応状況を更新
+      description: hospital-settings edit 権限が必要。status は open/resolved。
+      tags: [Support]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [open, resolved] }
+      responses:
+        '200':
+          description: 更新後のバグ報告
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupportBugReport'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }

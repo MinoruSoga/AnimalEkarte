@@ -489,6 +489,9 @@ var routeRootPackages = []struct {
 	// #239 Phase 1 — identitylink.RegisterRoutes is mounted from composition_runtime
 	// via NewHandler(...).RegisterRoutes(protected); walk package root directly.
 	{dir: "../identitylink", prefix: "/api/v1"},
+	// support.RegisterRoutes is mounted from composition_runtime via
+	// NewHandler(...).RegisterRoutes(protected); walk package root directly.
+	{dir: "../support", prefix: "/api/v1"},
 	{dir: "../reservation", prefix: "", rootFn: "RegisterLiffRoutes"},
 	{dir: "../lstep", prefix: "", rootFn: "RegisterWebhookRoutes"},
 	{dir: "../scheduler", prefix: ""},

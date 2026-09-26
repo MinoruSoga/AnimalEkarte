@@ -15,7 +15,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { C } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
 
-import { screenArticles, workflowArticles, type ManualArticle } from "../lib/manual-index";
+import { screenArticles, workflowArticles, type ManualArticle } from "@/lib/manual-index";
 
 export function getSafeMarkdownHref(href: unknown): string | undefined {
   if (typeof href !== "string") return undefined;

@@ -285,6 +285,7 @@ export const paths = {
       getHref: () => "/settings/payment-methods",
     },
     campaigns: { path: "/settings/campaigns", getHref: () => "/settings/campaigns" },
+    bugReports: { path: "/settings/bug-reports", getHref: () => "/settings/bug-reports" },
     labDeviceItemMasters: {
       path: "/settings/lab-device-item-masters",
       getHref: () => "/settings/lab-device-item-masters",

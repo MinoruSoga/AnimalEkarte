@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   Building2,
+  Bug,
   Calendar,
   ClipboardList,
   Clock,
@@ -38,7 +39,8 @@ export type GroupKey =
   | "campaigns"
   | "closingTime"
   | "examinationItems"
-  | "labDeviceItemMasters";
+  | "labDeviceItemMasters"
+  | "bugReports";
 
 export type MasterCardKey = MasterSettingsCategory | GroupKey;
 
@@ -155,6 +157,15 @@ export const GROUP_CARD_CONFIG: Record<GroupKey, GroupCardConfig> = {
     resource: ResourceLabImport,
     countCategories: [],
   },
+  // サポートウィジェットのバグ報告一覧（settings-routes bug-reports と同権）
+  bugReports: {
+    label: "バグ報告",
+    description: "スタッフから送信されたバグ報告（スクリーンショット付き）を確認・対応します",
+    IconComponent: Bug,
+    path: "/settings/bug-reports",
+    resource: ResourceHospitalSettings,
+    countCategories: [],
+  },
 };
 
 export const MASTER_SECTIONS: SectionDef[] = [
@@ -180,6 +191,7 @@ export const MASTER_SECTIONS: SectionDef[] = [
   },
   { title: "スタッフ・権限", keys: ["staff", "occupations", "permission_group"] },
   { title: "シフト管理", keys: ["shift_template"] },
+  { title: "サポート", keys: ["bugReports"] },
 ];
 
 export function isGroupCardKey(key: MasterCardKey): key is GroupKey {

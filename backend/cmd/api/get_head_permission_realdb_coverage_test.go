@@ -9,9 +9,9 @@ import (
 )
 
 // D3 coverage gate: clinic-fixed ∪ (cross-clinic except GET /api/v1/clinics).
-// Full set is 178; remaining without realdb-return-data must stay 0.
+// Full set is 179; remaining without realdb-return-data must stay 0.
 const (
-	d3CompletedRealDBRouteCount = 178
+	d3CompletedRealDBRouteCount = 179
 	d3MaxRemainingWithoutRealDB = 0
 )
 
@@ -45,7 +45,7 @@ func realDBReturnDataTag(verification string) (string, bool) {
 
 func TestGETHEADRealDBReturnDataCoverageStaged(t *testing.T) {
 	targets := d3RealDBTargetEntries(t)
-	require.Equal(t, 178, len(targets), "D3 target set drifted; recompute allowlist")
+	require.Equal(t, 179, len(targets), "D3 target set drifted; recompute allowlist")
 
 	var completed []getHEADInventoryEntry
 	var remaining []getHEADInventoryEntry

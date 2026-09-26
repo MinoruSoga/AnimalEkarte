@@ -5,6 +5,8 @@
  * バンドル時に静的解決されるため、ランタイム fetch やネットワーク I/O は発生しない。
  */
 
+import Fuse from "fuse.js";
+
 export type ManualCategory = "screens" | "workflows";
 
 export interface ManualArticle {
@@ -51,13 +53,14 @@ function pathToSlug(path: string): string {
 }
 
 // eager: true により ビルド時バンドル。? raw でファイル内容を文字列取得。
-const screenModules = import.meta.glob("../content/screens/*.md", {
+// コンテンツコーパスは features/manual が所有。ここは索引・検索機械のみ提供する。
+const screenModules = import.meta.glob("../features/manual/content/screens/*.md", {
   eager: true,
   query: "?raw",
   import: "default",
 }) as Record<string, string>;
 
-const workflowModules = import.meta.glob("../content/workflows/*.md", {
+const workflowModules = import.meta.glob("../features/manual/content/workflows/*.md", {
   eager: true,
   query: "?raw",
   import: "default",
@@ -88,6 +91,31 @@ function build(category: ManualCategory, modules: Record<string, string>): Manua
 
 export const screenArticles: ManualArticle[] = build("screens", screenModules);
 export const workflowArticles: ManualArticle[] = build("workflows", workflowModules);
+
+const MANUAL_FUSE_OPTIONS = {
+  keys: [
+    { name: "title", weight: 0.6 },
+    { name: "section", weight: 0.2 },
+    { name: "searchText", weight: 0.2 },
+  ],
+  threshold: 0.4,
+  ignoreLocation: true,
+  minMatchCharLength: 2,
+};
+
+/**
+ * 命令型のマニュアル検索関数を生成する。React の外（イベントハンドラ等）からも
+ * 呼べるよう、Fuse インスタンスを一度だけ構築して返す。
+ * useManualSearch はこの関数の React ラッパー。
+ */
+export function createManualSearcher(articles: ManualArticle[]): (query: string) => ManualArticle[] {
+  const fuse = new Fuse(articles, MANUAL_FUSE_OPTIONS);
+  return (query: string) => {
+    const q = query.trim();
+    if (q.length === 0) return articles;
+    return fuse.search(q).map((r) => r.item);
+  };
+}
 
 export function groupBySection(
   articles: ManualArticle[],

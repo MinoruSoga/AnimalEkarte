@@ -19,6 +19,11 @@ import (
 const (
 	lineWebhookRequestsPerSecond = 50
 	lineWebhookBurst             = 200
+	// サポートチャットは LLM 呼び出しコストがかかるため IP 単位でレート制限する。
+	// 院内 NAT で IP を共有するスタッフ複数人の利用を考慮しつつ、
+	// 自動連打は抑止できる程度の値にする。
+	supportChatRequestsPerMinute = 20
+	supportChatBurst             = 10
 )
 
 func main() {

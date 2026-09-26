@@ -1,27 +1,27 @@
 # データベース設計書 (Entity Relationship Diagram)
 
-> **目的**: 全128テーブルの inventory と主要リレーションを記録し、テーブル数等の統計値の正本とする。DDL は列・制約の正本。
+> **目的**: 全129テーブルの inventory と主要リレーションを記録し、テーブル数等の統計値の正本とする。DDL は列・制約の正本。
 > **読者**: 全開発者。
 > **タイミング**: スキーマ変更・DB設計判断時。
 
-<!-- ERD:TABLE_COUNT=128 -->
+<!-- ERD:TABLE_COUNT=129 -->
 
 > **Animal Ekarte**: 高精度・高整合な動物病院データモデル
-> **最終照合**: 2026-09-22 | **基準コミット**: `cd2feaa14` | **対象**: `backend/migrations/` 直下の `001`〜`004`（128テーブル）。記録者FKの置換と治療明細の生涯一意制約を含む、順次適用後のスキーマを記録する。
+> **最終照合**: 2026-09-26 | **対象**: `backend/migrations/` 直下の `001`〜`011`（129テーブル）。記録者FKの置換と治療明細の生涯一意制約を含む、順次適用後のスキーマを記録する。`011_support_bug_reports.sql` の `support_bug_reports` を含む。
 >
 > **確認範囲**: repo内DDL・関連コードとの静的照合。稼働DBのmigration適用状態・実データ・STG/本番受入は未確認。DDLの存在をDB適用済みとは扱わない。後続変更は [migration方針](../../backend/migrations/README.md) に従い、適用済みSQLを編集・再統合しない。
 
 ---
 
-## 1. データモデルの全体像 (全 128 テーブル)
+## 1. データモデルの全体像 (全 129 テーブル)
 
-本システムは、臨床・経営・外部連携を支える 128 のテーブルが高度に正規化され、臨床的整合性を維持するリレーショナルモデルを採用しています。
+本システムは、臨床・経営・外部連携を支える 129 のテーブルが高度に正規化され、臨床的整合性を維持するリレーショナルモデルを採用しています。
 
 ### 1.1 主要ドメイン別構成
 
 | 区分 | 管理対象（物理テーブル名・全件） |
 |:---|:---|
-| **システム基盤 (13)** | `accounts`, `clinics`, `clinic_settings`, `clinic_holidays`, `closing_special_periods`, `staffs`, `permission_groups`, `permission_group_rules`, `audit_logs`, `companies`, `password_reset_tokens`, `token_blacklist`, `occupations` |
+| **システム基盤 (14)** | `accounts`, `clinics`, `clinic_settings`, `clinic_holidays`, `closing_special_periods`, `staffs`, `permission_groups`, `permission_group_rules`, `audit_logs`, `companies`, `password_reset_tokens`, `token_blacklist`, `occupations`, `support_bug_reports` |
 | **入院・稼働 (11)** | `hospitalizations`, `daily_records`, `care_plan_items`, `care_logs`, `cages`, `hospitalization_plans`, `staff_notes`, `staff_clinic_assignments`, `staff_permission_groups`, `staff_reservation_exclusions`, `staff_reservation_capabilities` |
 | **臨床・診察 (24)** | `owners`, `pets`, `pet_owners`, `pet_chronic_conditions`, `animal_species`, `chief_complaint_types`, `medical_records`, `medical_record_addenda`, `medical_record_images`, `medical_record_image_upload_quota`, `clinical_plans`, `treatment_plans`, `treatments`, `prescriptions`, `procedures`, `vital_records`, `inquiries`, `consultations`, `diagnosis_names`, `diagnosis_types`, `inquiry_templates`, `medicines`, `medicine_dose_params`, `vaccines` |
 | **検査・予防 (25)** | `exams`, `exam_results`, `exam_types`, `exam_type_fields`, `exam_reference_ranges`, `examination_revisions`, `examination_revision_items`, `vaccinations`, `checkups`, `checkup_types`, `checkup_type_fields`, `checkup_field_results`, `checkup_package_import_receipts`, `shared_files`, `lab_import_jobs`, `lab_import_events`, `lab_import_exam_retractions`, `lab_import_exam_retraction_items`, `lab_import_usage_receipts`, `lab_import_revert_receipts`, `lab_devices`, `lab_device_item_masters`, `lab_import_job_items`, `lab_device_waits`, `lab_device_station_settings` |

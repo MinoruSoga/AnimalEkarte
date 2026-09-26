@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { ManualArticleOverride } from "../api/get-manual-articles";
+import type { ManualArticleOverride } from "@/hooks/use-manual-article-overrides";
 import { ManualPage } from "./ManualPage";
 
 const { manualPermissions, overridesHookMock } = vi.hoisted(() => ({
@@ -23,7 +23,7 @@ vi.mock("@/hooks/use-permission", () => ({
   usePermission: () => manualPermissions,
 }));
 
-vi.mock("../api/get-manual-articles", () => ({
+vi.mock("@/hooks/use-manual-article-overrides", () => ({
   useGetManualArticleOverrides: overridesHookMock,
 }));
 

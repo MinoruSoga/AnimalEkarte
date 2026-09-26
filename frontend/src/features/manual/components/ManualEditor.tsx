@@ -19,7 +19,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { C } from "@/lib/design-tokens";
 
 import { useUpsertManualArticle } from "../api/upsert-manual-article";
-import type { ManualArticle } from "../lib/manual-index";
+import type { ManualArticle } from "@/lib/manual-index";
 import { ManualContent } from "./ManualContent";
 
 /** コピー完了表示を戻すまでの待ち時間 (FE5-6) */

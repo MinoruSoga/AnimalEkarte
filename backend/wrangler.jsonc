@@ -210,6 +210,11 @@
       // LINE_CHANNEL_ACCESS_TOKEN/LINE_CHANNEL_SECRET/LSTEP_API_KEY は将来のグローバルfallback用に
       // 予約されているが(冒頭コメント参照)、現状 Go 側の env 読み込みパスが無いため required から
       // 除外する(未使用シークレット不足で `wrangler deploy` が失敗するため)。実装され次第ここへ追加する。
+      // SUPPORT_LLM_API_KEY はサポートチャット(OpenAI互換API)用の任意シークレット。
+      // required に入れない — 未設定ならチャット無効で検索型ヘルプへフォールバックする。
+      // 値は `wrangler secret put SUPPORT_LLM_API_KEY` のみ。
+      // SUPPORT_LLM_BASE_URL/MODEL/TIMEOUT_MS は Go 既定値(OpenAI/gpt-5-nano/30s)で動くため
+      // 変更時のみ vars へ追加する。
     ],
   },
 }

@@ -177,6 +177,8 @@ func allModels() []any {
 		&model.OwnerIdentityGroupMember{},
 		&model.PetIdentityGroup{},
 		&model.PetIdentityGroupMember{},
+		// サポートウィジェット
+		&model.SupportBugReport{},
 	}
 }
 

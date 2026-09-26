@@ -1,5 +1,5 @@
 /**
- * get-manual-articles.ts — マニュアル記事一覧の取得 API
+ * use-manual-article-overrides.ts — マニュアル記事一覧の取得 API
  *
  * バックエンドにオーバーライド版のマニュアルが保存されていれば取得。
  * 取得失敗時は無視 (empty array)。MD ファイルバンドル版が引き続き利用される。
@@ -11,7 +11,7 @@ import { axios } from "@/lib/axios";
 import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 
-import type { ManualCategory } from "../lib/manual-index";
+import type { ManualCategory } from "@/lib/manual-index";
 
 export interface ManualArticleOverride {
   id: number;

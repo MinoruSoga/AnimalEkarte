@@ -12,9 +12,8 @@ import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { queryKeys } from "@/lib/query-keys";
 
-import type { ManualCategory } from "../lib/manual-index";
-
-import type { ManualArticleOverride } from "./get-manual-articles";
+import type { ManualCategory } from "@/lib/manual-index";
+import type { ManualArticleOverride } from "@/hooks/use-manual-article-overrides";
 
 interface UpsertManualArticleParams {
   category: ManualCategory;

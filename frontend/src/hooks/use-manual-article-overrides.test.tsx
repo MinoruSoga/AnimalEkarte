@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { useGetManualArticleOverrides } from "./get-manual-articles";
+import { useGetManualArticleOverrides } from "./use-manual-article-overrides";
 
 const { axiosGetMock } = vi.hoisted(() => ({
   axiosGetMock: vi.fn(),
