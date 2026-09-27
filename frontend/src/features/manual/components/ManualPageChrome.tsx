@@ -4,7 +4,7 @@ import { C } from "@/lib/design-tokens";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 import { ManualSidebar } from "../components/ManualSidebar";
-import type { ManualArticle, ManualCategory } from "../lib/manual-index";
+import type { ManualArticle, ManualCategory } from "@/lib/manual-index";
 
 interface ManualPageChromeProps {
   drawerOpen: boolean;

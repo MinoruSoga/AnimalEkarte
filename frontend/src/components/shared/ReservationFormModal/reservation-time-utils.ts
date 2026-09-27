@@ -1,5 +1,24 @@
 import { format } from "date-fns";
 import type { ReservationTypeUnavailableTime } from "@/hooks/use-reservation-type-unavailable-times";
+import type { ReservationSlotVacancyStatus } from "@/hooks/use-reservation-types";
+
+// EMR-170: 1枠の空き状況（〇△✕）
+export interface SlotVacancy {
+  status: ReservationSlotVacancyStatus;
+  /** 受け入れ可能な残り枠数（上限なしは null） */
+  remaining: number | null;
+}
+
+const SLOT_VACANCY_LABEL: Record<ReservationSlotVacancyStatus, string> = {
+  available: "〇 空きあり",
+  low: "△ 残り1枠",
+  full: "✕ 満員",
+};
+
+/** 空き状況の表示ラベル。記号＋テキストで色だけに依存しない（WCAG） */
+export function slotVacancyLabel(status: ReservationSlotVacancyStatus): string {
+  return SLOT_VACANCY_LABEL[status];
+}
 
 function generateTimeOptions(): string[] {
   const times: string[] = [];
@@ -14,6 +33,33 @@ function generateTimeOptions(): string[] {
 }
 
 export const TIME_OPTIONS = generateTimeOptions();
+
+/** EMR-191: 予約区分の duration_minutes が未設定/0 のときの既定所要時間 */
+export const DEFAULT_RESERVATION_DURATION_MINUTES = 15;
+
+/**
+ * EMR-191: 開始時刻の変更に連動する終了時刻。
+ * LINE 空き枠スロットの終了時刻があればそれを優先し、無い場合は
+ * 予約区分の durationMinutes（既定 15 分）を開始時刻へ加算する。
+ */
+export function resolveEndTimeOnStartChange(
+  start: Date,
+  durationMinutes: number | undefined,
+  slotEnd: string | undefined,
+): Date {
+  const end = new Date(start);
+  if (slotEnd) {
+    const [hours, minutes] = slotEnd.split(":").map(Number);
+    end.setHours(hours, minutes, 0, 0);
+    return end;
+  }
+  const duration =
+    durationMinutes !== undefined && durationMinutes > 0
+      ? durationMinutes
+      : DEFAULT_RESERVATION_DURATION_MINUTES;
+  end.setMinutes(end.getMinutes() + duration);
+  return end;
+}
 
 function timeToMinutes(time: string): number {
   const [hours, minutes] = time.split(":").map(Number);

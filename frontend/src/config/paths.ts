@@ -53,6 +53,12 @@ export const paths = {
     detail: {
       path: "/owners/:id",
       getHref: (id: string | number) => `/owners/${encodeURIComponent(id)}`,
+      // EMR-174: ペット詳細 deep link（飼主詳細画面で対象ペットのモーダルを開く）
+      pet: {
+        path: "/owners/:id?pet=:petId",
+        getHref: (ownerId: string | number, petId: string | number) =>
+          `/owners/${encodeURIComponent(ownerId)}?pet=${encodeURIComponent(petId)}`,
+      },
       // #158: 飼主単位カルテレポート（別ウィンドウ / Layout 外スタンドアロン）
       report: {
         path: "/owners/:id/report",
@@ -285,6 +291,7 @@ export const paths = {
       getHref: () => "/settings/payment-methods",
     },
     campaigns: { path: "/settings/campaigns", getHref: () => "/settings/campaigns" },
+    bugReports: { path: "/settings/bug-reports", getHref: () => "/settings/bug-reports" },
     labDeviceItemMasters: {
       path: "/settings/lab-device-item-masters",
       getHref: () => "/settings/lab-device-item-masters",

@@ -280,10 +280,13 @@ func TestGetUnbilledItemDetails_HandlerEnvelope(t *testing.T) {
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
 	_, hasItems := body["items"]
 	_, hasWarnings := body["warnings"]
+	_, hasRevision := body["revision"]
 	assert.True(t, hasItems)
 	assert.True(t, hasWarnings)
+	// EMR-196②: complete の expected_unbilled_revision へ返送する集約版を公開する
+	assert.True(t, hasRevision)
 	// no extra top-level keys
-	assert.Len(t, body, 2)
+	assert.Len(t, body, 3)
 	warnings, ok := body["warnings"].([]any)
 	require.True(t, ok)
 	require.Len(t, warnings, 1)
@@ -346,6 +349,75 @@ func TestBillingItemService_UnbilledDetails_MasterTaxPropagation(t *testing.T) {
 	assert.InDelta(t, sharedkernel.DefaultTaxRate, byID[14].TaxRate, 1e-9)
 	assert.Equal(t, model.TaxTypeExcluded, byID[15].TaxType, "未リンク行も既定維持")
 	assert.InDelta(t, sharedkernel.DefaultTaxRate, byID[15].TaxRate, 1e-9)
+}
+
+// EMR-196②: AssertUnbilledForComplete は complete 確定時の版照合。
+// blocking warning（BUG-013）を先に検査し、その後 expected revision と
+// tx 内再集計の版を比較する（不一致・空指定は Conflict）。
+func TestBillingItemService_AssertUnbilledForComplete(t *testing.T) {
+	buildService := func() BillingItemService {
+		repo := &matrixVaccinationRepo{
+			mockBillingItemRepository: defaultMockBillingItemRepo(),
+			items: []model.BillingItem{{
+				ID: 22, Name: "混合ワクチン", UnitPrice: 5000, Quantity: 1,
+				Category: model.ItemCategoryVaccine,
+			}},
+		}
+		return newMatrixService(t, repo, &matrixTreatmentRepo{
+			items: []model.Treatment{{ID: 11, Content: "処置A", UnitPrice: 15000, Quantity: 1}},
+		})
+	}
+
+	currentRevision := func(t *testing.T, svc BillingItemService) string {
+		t.Helper()
+		details, err := svc.GetUnbilledItemDetails(context.Background(), 1, 7)
+		require.NoError(t, err)
+		require.NotEmpty(t, details.Revision, "集約版が空文字列では token にならない")
+		return details.Revision
+	}
+
+	t.Run("現在の集約版と一致すれば確定を許可する", func(t *testing.T) {
+		svc := buildService()
+		expected := currentRevision(t, svc)
+		err := svc.AssertUnbilledForComplete(context.Background(), 1, 7, expected)
+		require.NoError(t, err)
+	})
+
+	t.Run("別端末の追記相当（items が増えた集約版）とは不一致で Conflict", func(t *testing.T) {
+		svc := buildService()
+		err := svc.AssertUnbilledForComplete(context.Background(), 1, 7, "u1:stale")
+		require.Error(t, err)
+		assert.True(t, apperrors.IsConflict(err), "want 409 conflict, got %v", err)
+
+		var conflict *unbilledRevisionConflictError
+		require.True(t, errors.As(err, &conflict), "want unbilledRevisionConflictError, got %T", err)
+		assert.Equal(t, currentRevision(t, svc), conflict.CurrentRevision)
+
+		var appErr *apperrors.AppError
+		require.True(t, errors.As(err, &appErr))
+		assert.Equal(t, AccountingCodeUnbilledConflict, appErr.Code)
+	})
+
+	t.Run("空の expected は必ず不一致（未指定のすり抜け防止）", func(t *testing.T) {
+		svc := buildService()
+		err := svc.AssertUnbilledForComplete(context.Background(), 1, 7, "")
+		require.Error(t, err)
+		assert.True(t, apperrors.IsConflict(err))
+	})
+
+	t.Run("blocking warning は版照合より先に BUG-013 の Conflict を返す", func(t *testing.T) {
+		repo := &matrixVaccinationRepo{
+			mockBillingItemRepository: defaultMockBillingItemRepo(),
+			unbillable:                1,
+		}
+		svc := newMatrixService(t, repo, &matrixTreatmentRepo{})
+		err := svc.AssertUnbilledForComplete(context.Background(), 1, 7, "u1:any")
+		require.Error(t, err)
+		assert.True(t, apperrors.IsConflict(err))
+		assert.Contains(t, err.Error(), "請求不能な予防接種")
+		var conflict *unbilledRevisionConflictError
+		assert.False(t, errors.As(err, &conflict), "blocking は UNBILLED_ITEMS_CHANGED ではなく BUG-013 の既存契約")
+	})
 }
 
 func sortedKeys(m map[string]any) []string {

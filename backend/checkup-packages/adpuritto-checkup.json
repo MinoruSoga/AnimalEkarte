@@ -1,0 +1,28 @@
+{
+  "namespace": "emr169.adpuritto_checkup",
+  "version": "1.0.0",
+  "clinical_approval_ref": "EMR-169",
+  "types": [
+    {
+      "key": "adpuritto",
+      "name": "アドプリット検診",
+      "description": "歯科検診キャンペーンに併施する検査（別料金・セット販売ではない）。結果は0〜5のレベルでお渡しする。",
+      "interval": "",
+      "target_age": "",
+      "sort_order": 40,
+      "is_active": true
+    }
+  ],
+  "fields": [
+    {
+      "key": "adpuritto_level",
+      "type_key": "adpuritto",
+      "name": "アドプリットレベル",
+      "field_type": "single_select",
+      "unit": "",
+      "options": ["0", "1", "2", "3", "4", "5"],
+      "is_provisional": false,
+      "sort_order": 1
+    }
+  ]
+}

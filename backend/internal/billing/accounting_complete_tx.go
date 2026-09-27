@@ -51,9 +51,11 @@ func (s *accountingService) completeInTx(
 		return nil, err
 	}
 
-	// BUG-013: blocking unbilled を同一 tx 内で再検証（TOCTOU 解消）。
+	// BUG-013 + EMR-196②: blocking unbilled と表示済み集約の版を同一 tx 内で再検証（TOCTOU 解消）。
+	// 自分の billing_items 挿入後に再集計すると自分明細の分だけ集約が縮退するため、
+	// billing header/items の作成前であるこの位置で照合する。
 	if s.unbilledGuard != nil && input.PetID != nil {
-		if err := s.unbilledGuard.AssertNoBlockingUnbilled(txCtx, input.ClinicID, *input.PetID); err != nil {
+		if err := s.unbilledGuard.AssertUnbilledForComplete(txCtx, input.ClinicID, *input.PetID, input.ExpectedUnbilledRevision); err != nil {
 			return nil, err
 		}
 	}

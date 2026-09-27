@@ -78,10 +78,12 @@ function medicalRecordAfterCreateHref(recordId: string, tab?: string | null): st
   return `${path}?${new URLSearchParams({ tab }).toString()}`;
 }
 
-export type MedicalRecordAutoCreateFailurePhase = "appointment" | "medical-record";
+export type MedicalRecordAutoCreateFailurePhase =
+  "appointment" | "appointment-master-missing" | "medical-record";
 
 type MedicalRecordAutoCreateFailure =
   | { phase: "appointment"; appointmentId: null }
+  | { phase: "appointment-master-missing"; appointmentId: null }
   | { phase: "medical-record"; appointmentId: string };
 
 export function useMedicalRecordAutoCreate({
@@ -117,7 +119,9 @@ export function useMedicalRecordAutoCreate({
   }, [selectedPet?.status]);
 
   const markAppointmentPrerequisiteFailure = useCallback(() => {
-    setFailure({ phase: "appointment", appointmentId: null });
+    // BUG-MR-DRAFT-AUTOPOST-FAILED: master 欠落は API 失敗と区別する。
+    // 再試行では generalReservationType が再解決されないため復旧導線はマスタ追加+再読み込み。
+    setFailure({ phase: "appointment-master-missing", appointmentId: null });
   }, []);
 
   const createAppointmentAndRecord = useCallback(

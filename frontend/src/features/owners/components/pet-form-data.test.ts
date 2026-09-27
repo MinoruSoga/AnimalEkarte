@@ -68,6 +68,47 @@ describe("createPetFormData", () => {
     expect(form).toEqual(expect.objectContaining({ status: "死亡", deceasedAt }));
   });
 
+  // EMR-174: 名前の由来 / 出逢いのストーリー
+  it("名前の由来と出逢いのストーリーを初期値として保持する", () => {
+    const form = createPetFormData({
+      id: "7",
+      petNumber: "42-1",
+      petName: "ポチ",
+      status: "生存",
+      species: "犬",
+      gender: "雄",
+      birthDate: "2015-04-14",
+      color: "赤",
+      weight: "7.35",
+      environment: "室内",
+      remarks: "",
+      nameOrigin: "生まれた神社の名前から",
+      meetingStory: "里親募集サイトで出会った",
+    });
+
+    expect(form.nameOrigin).toBe("生まれた神社の名前から");
+    expect(form.meetingStory).toBe("里親募集サイトで出会った");
+  });
+
+  it("名前の由来と出逢いのストーリー未設定は空文字で初期化する（undefined で潰さない）", () => {
+    const form = createPetFormData({
+      id: "7",
+      petNumber: "42-1",
+      petName: "ポチ",
+      status: "生存",
+      species: "犬",
+      gender: "雄",
+      birthDate: "",
+      color: "",
+      weight: "",
+      environment: "",
+      remarks: "",
+    });
+
+    expect(form.nameOrigin).toBe("");
+    expect(form.meetingStory).toBe("");
+  });
+
   it("BUG-022: pending フラグをモーダル formData に保持する", () => {
     const form = createPetFormData({
       id: "temp-99",

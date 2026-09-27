@@ -6,19 +6,19 @@
 |------|------|
 | **Linear** hub [BRT-4](https://linear.app/baritechllc/issue/BRT-4) | **実行 SoT**（状態・担当・ゲート） |
 | [todo.md](../../todo.md) | 着手可能な開発タスク・確認済み製品 FAIL・維持制約 |
-| [todo-verification.md](../../todo-verification.md) | 開発検証・測定・受入・外部照合 |
-| [todo-operations.md](../../todo-operations.md) | STG・本番・納品などの運用・外部実行 |
+| [todo.md 検証節](../../todo.md#verification-ledger) | 開発検証・測定・受入・外部照合 |
+| [todo.md 運用節](../../todo.md#operations-ledger) | STG・本番・納品などの運用・外部実行 |
 | CorpVault `50_Projects/ノア動物病院電子カルテ/` | 会社側索引・時点ログ |
 
-**競合・終了ルール:** 状態・担当・Done は Linear を正とする。`todo.md` の実行キューには未完了作業だけを保持し、完了行を除く。統合元の完了履歴・維持制約は別節に分離し、現在の受入や release 判定には使わない。STG Lane 4 の終了条件・記録方法は [運用計画](../../todo-operations.md#lane-4) と [受入計画](../../todo-verification.md#todo-v-stg-data) を参照する。[製品 FAIL 節](../../todo.md#product-bugs) は Linear と対応付け、受入未実施や環境 BLOCKED を製品 FAIL に混ぜない。
+**競合・終了ルール:** 状態・担当・Done は Linear を正とする。`todo.md` の実行キューには未完了作業だけを保持し、完了行を除く。統合元の完了履歴・維持制約は別節に分離し、現在の受入や release 判定には使わない。STG Lane 4 の終了条件・記録方法は [運用計画](../../todo.md#ops-lane-4) と [受入計画](../../todo.md#ver-todo-v-stg-data) を参照する。[製品 FAIL 節](../../todo.md#product-bugs) は Linear と対応付け、受入未実施や環境 BLOCKED を製品 FAIL に混ぜない。
 
 ```mermaid
 flowchart TB
     L["Linear hub（実行 SoT）<br>状態・担当・Done は Linear を正とする"]
     subgraph Repo["repo 側の入口"]
         T["todo.md<br>未完了作業キュー"]
-        TV["todo-verification.md<br>検証・受入・外部照合"]
-        TO["todo-operations.md<br>STG・本番・納品の運用"]
+        TV["todo.md 検証節<br>検証・受入・外部照合"]
+        TO["todo.md 運用節<br>STG・本番・納品の運用"]
     end
     W["docs/work 補助票<br>decisions/・phase2-deferred・各 campaign 票ほか<br>判断根拠の保存（実行 SoT ではない）"]
     CV["CorpVault<br>会社側索引・時点ログ"]
@@ -49,7 +49,8 @@ flowchart TB
 
 | 削除したもの | 理由 | 後継 |
 |---|---|---|
-| root `todo-check-auth.md` / `todo-fix-auth.md`（2026-09-15） | 認証の参照用メモと残件の重複管理を解消 | 契約は [認証設計](../architecture/auth.md)、D1・メール・Linear の残件は [統合検証 TODO](../../todo-verification.md#認証認可の外部境界) |
+| root `todo-issue.md`・`todo-verification.md`・`todo-operations.md`・`todo-performance.md`（2026-09-26） | ユーザー依頼により todo.md へ統合。別台帳として再作成しない | [todo.md](../../todo.md) の Issue 出典・検証・運用・性能の各節。統合前の原文と行番号参照は Git |
+| root `todo-check-auth.md` / `todo-fix-auth.md`（2026-09-15） | 認証の参照用メモと残件の重複管理を解消 | 契約は [認証設計](../architecture/auth.md)、D1・メール・Linear の残件は [統合検証 TODO](../../todo.md#認証認可の外部境界) |
 | root `fe-refactor.md`（2026-09-15） | 完了した監査の独立メモ | 維持判断は [裁定記録](./development-task-decisions.md#frontend-監査から引き継ぐ維持判断2026-09-15)、完了履歴は Git |
 | root `readiness-report.md`（2026-09-15） | 9月4日時点の環境評価。現在の品質・実行状態の証拠として使わない | 現行規約は [.claude/CLAUDE.md](../../.claude/CLAUDE.md)、検証条件は [agent harness](../ops/agent-harness.md)。当時の評価は Git |
 | root `bug.md`・`todo-now.md`・`todo-po.md`・`todo-refactor.md`（2026-09-08） | ユーザー依頼による5台帳の統合。別台帳として再作成しない | [todo.md](../../todo.md) の製品 FAIL・PO・Astra 履歴・FE 履歴。削除前の原文は Git |

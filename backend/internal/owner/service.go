@@ -66,6 +66,9 @@ type CreatePetForOwnerInput struct {
 	Environment     string
 	InsuranceID     *uint64
 	Remarks         string
+	// EMR-174: 名前の由来 / 出逢いのストーリーは任意記録（nil = NULL）。
+	NameOrigin   *string
+	MeetingStory *string
 }
 
 // CreateOwnerInput は飼主作成の入力DTO

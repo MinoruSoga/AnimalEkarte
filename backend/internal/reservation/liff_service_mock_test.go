@@ -400,7 +400,8 @@ func (m *mockLiffOwnerRepository) FindByIDs(_ context.Context, _ uint64, _ []uin
 // --- mockLiffReservationRepository ---
 
 type mockLiffReservationRepository struct {
-	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
+	updateFieldsFn            func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
+	countByTypeAndStartTimeFn func(ctx context.Context, clinicID, reservationTypeID uint64, startTime time.Time, excludeID *uint64) (int64, error)
 }
 
 func (m *mockLiffReservationRepository) FindAll(_ context.Context, _ []uint64, _, _ int, _, _, _ *time.Time, _, _ *string, _, _ *uint64) ([]model.Reservation, int64, error) {
@@ -462,7 +463,10 @@ func (m *mockLiffReservationRepository) CountConflicts(_ context.Context, _ uint
 	return 0, nil
 }
 
-func (m *mockLiffReservationRepository) CountByTypeAndStartTime(_ context.Context, _, _ uint64, _ time.Time, _ *uint64) (int64, error) {
+func (m *mockLiffReservationRepository) CountByTypeAndStartTime(ctx context.Context, clinicID, reservationTypeID uint64, startTime time.Time, excludeID *uint64) (int64, error) {
+	if m.countByTypeAndStartTimeFn != nil {
+		return m.countByTypeAndStartTimeFn(ctx, clinicID, reservationTypeID, startTime, excludeID)
+	}
 	return 0, nil
 }
 

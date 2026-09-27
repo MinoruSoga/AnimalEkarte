@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router";
 import { PatientContextHeader } from "./PatientContextHeader";
 
 // PNG asset import を空文字列にスタブ
@@ -241,5 +242,89 @@ describe("PatientContextHeader", () => {
     const petTooltip = tooltips.find((el) => el.textContent === longPet);
     expect(ownerTooltip).toBeInTheDocument();
     expect(petTooltip).toBeInTheDocument();
+  });
+});
+
+// EMR-174: 飼主名・ペット名の detail link（臨床画面から詳細へ戻る導線）
+describe("PatientContextHeader detail links (EMR-174)", () => {
+  function renderWithRouter(props: React.ComponentProps<typeof PatientContextHeader>) {
+    return render(
+      <MemoryRouter>
+        <PatientContextHeader {...props} />
+      </MemoryRouter>,
+    );
+  }
+
+  it("ownerDetailHref / petDetailHref 指定時は飼主名・ペット名が link になる", () => {
+    renderWithRouter({
+      ...baseProps,
+      ownerDetailHref: "/owners/42",
+      petDetailHref: "/owners/42?pet=7",
+    });
+
+    expect(screen.getByRole("link", { name: "飼主詳細を開く" })).toHaveAttribute(
+      "href",
+      "/owners/42",
+    );
+    expect(screen.getByRole("link", { name: "ペット詳細を開く" })).toHaveAttribute(
+      "href",
+      "/owners/42?pet=7",
+    );
+  });
+
+  it("href 未指定時は従来どおり link を出さない", () => {
+    renderWithRouter({ ...baseProps });
+
+    expect(screen.queryByRole("link", { name: "飼主詳細を開く" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "ペット詳細を開く" })).not.toBeInTheDocument();
+  });
+
+  it("onOwnerClick が併存する場合は owner 側ボタンを優先し link は出さない", async () => {
+    const onOwnerClick = vi.fn();
+    renderWithRouter({ ...baseProps, onOwnerClick, ownerDetailHref: "/owners/42" });
+
+    await userEvent.click(screen.getByRole("button", { name: "田中 太郎" }));
+    expect(onOwnerClick).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("link", { name: "飼主詳細を開く" })).not.toBeInTheDocument();
+  });
+});
+
+describe("PatientContextHeader 危険マーク (EMR-173)", () => {
+  it("ownerIsDangerous=true なら飼主名の横に ⚠ 危険人物 を出す", () => {
+    render(<PatientContextHeader {...baseProps} ownerIsDangerous />);
+
+    expect(screen.getByText("⚠ 危険人物")).toBeInTheDocument();
+  });
+
+  it("ownerIsDangerous 未指定なら危険人物マークを出さない", () => {
+    render(<PatientContextHeader {...baseProps} />);
+
+    expect(screen.queryByText("⚠ 危険人物")).not.toBeInTheDocument();
+  });
+
+  it("petDangerLevel=高ならペット名の横に ⚠ 危険 badge を出し理由を開ける", async () => {
+    render(
+      <PatientContextHeader {...baseProps} petDangerLevel="高" petDangerReason="保定時に噛む" />,
+    );
+
+    const trigger = screen.getByRole("button", { name: "ポチの危険理由を表示" });
+    await userEvent.click(trigger);
+    expect(await screen.findByText("保定時に噛む")).toBeInTheDocument();
+  });
+
+  it("petDangerLevel=中なら黄色 ⚠ 注意 badge を出し、低・未指定は何も出さない", () => {
+    const { rerender } = render(<PatientContextHeader {...baseProps} petDangerLevel="中" />);
+
+    expect(screen.getByRole("button", { name: "ポチの注意理由を表示" })).toHaveTextContent(
+      "⚠ 注意",
+    );
+    expect(screen.queryByText("⚠ 危険")).not.toBeInTheDocument();
+
+    rerender(<PatientContextHeader {...baseProps} petDangerLevel="低" />);
+    expect(screen.queryByText("⚠ 注意")).not.toBeInTheDocument();
+
+    rerender(<PatientContextHeader {...baseProps} />);
+    expect(screen.queryByText("⚠ 危険")).not.toBeInTheDocument();
+    expect(screen.queryByText("⚠ 注意")).not.toBeInTheDocument();
   });
 });

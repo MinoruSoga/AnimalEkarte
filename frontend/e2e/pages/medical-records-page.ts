@@ -24,7 +24,7 @@ export class MedicalRecordsPage extends BasePage {
   }
 
   selectPetHeading(): Locator {
-    return this.heading("カルテ作成 - ペット選択");
+    return this.heading("カルテ登録 - ペット選択");
   }
 
   patientSearchInput(): Locator {

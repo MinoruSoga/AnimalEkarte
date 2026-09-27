@@ -1,6 +1,7 @@
 import { useParams, useLocation, useSearchParams } from "react-router";
 
 import { usePermission } from "@/hooks/use-permission";
+import { PartnerRecordLink } from "@/components/shared/PartnerRecordLink/PartnerRecordLink";
 import { useTrimmingForm } from "../hooks/use-trimming-form";
 import { useTrimmingFormChrome } from "../hooks/use-trimming-form-chrome";
 import { resolveTrimmingFormGate } from "./trimming-form-model";
@@ -34,6 +35,7 @@ export function TrimmingForm() {
     isEditPetReady,
     notFound,
     hasExistingAppointment,
+    recordDate,
   } = useTrimmingForm(id, { canCreate, canEdit, canDelete });
 
   const selectedPet = petSelection.selectedPets[0];
@@ -72,6 +74,14 @@ export function TrimmingForm() {
       isDeleting={isDeleting}
       isDirty={chrome.isDirty}
       hasExistingAppointment={hasExistingAppointment}
+      partnerLink={
+        <PartnerRecordLink
+          kind="medical-record"
+          petId={selectedPet?.id}
+          visitDate={recordDate}
+          isPetDeceased={isPetDeceased}
+        />
+      }
       selectedPet={selectedPet}
       formData={formData}
       fieldErrors={fieldErrors}

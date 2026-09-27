@@ -61,52 +61,71 @@ func FilterSlotsByCapacity(
 	date time.Time,
 	maxConcurrent int,
 ) ([]TimeSlot, error) {
+	counts, err := countReservationsAtSlotStarts(ctx, slots, repo, clinicID, typeID, date)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]TimeSlot, 0, len(slots))
+	for _, slot := range slots {
+		count, ok := counts[slot.StartTime]
+		if !ok {
+			continue // 不正な形式のスロットは結果から除外（既存挙動）
+		}
+		if count < int64(maxConcurrent) {
+			result = append(result, slot)
+		}
+	}
+	return result, nil
+}
+
+// countReservationsAtSlotStarts は各スロット開始時刻（"HHMM"）の当日予約数を返す。
+// 戻り値のキーは slot.StartTime（不正な HHMM のスロットはキーに含めない）。
+// repo が reservationTypeCapacityBatchCounter を実装していれば1クエリで取得し、
+// 実装していない場合は per-slot で問い合わせる（FilterSlotsByCapacity 既存挙動の踏襲）。
+// EMR-170 の空き状況評価（rateSlotCapacities）と同一カウント経路を共有するために抽出。
+func countReservationsAtSlotStarts(
+	ctx context.Context,
+	slots []TimeSlot,
+	repo reservationTypeCapacityCounter,
+	clinicID, typeID uint64,
+	date time.Time,
+) (map[string]int64, error) {
 	dateJST := date.In(config.JST)
 
-	type slotStart struct {
-		slot      TimeSlot
-		startTime time.Time
-	}
-	valid := make([]slotStart, 0, len(slots))
+	startByHHMM := make(map[string]time.Time, len(slots))
 	for _, slot := range slots {
 		startMin, err := MinutesSinceMidnight(slot.StartTime)
 		if err != nil {
 			continue // 不正な形式のスロットは結果から除外（既存挙動）
 		}
-		startTime := time.Date(
+		startByHHMM[slot.StartTime] = time.Date(
 			dateJST.Year(), dateJST.Month(), dateJST.Day(),
 			startMin/60, startMin%60, 0, 0, config.JST,
 		)
-		valid = append(valid, slotStart{slot: slot, startTime: startTime})
 	}
 
-	result := make([]TimeSlot, 0, len(valid))
-
+	counts := make(map[string]int64, len(startByHHMM))
 	if batchRepo, ok := repo.(reservationTypeCapacityBatchCounter); ok {
-		startTimes := make([]time.Time, len(valid))
-		for i, v := range valid {
-			startTimes[i] = v.startTime
+		startTimes := make([]time.Time, 0, len(startByHHMM))
+		for _, startTime := range startByHHMM {
+			startTimes = append(startTimes, startTime)
 		}
-		counts, err := batchRepo.CountByTypeAndStartTimes(ctx, clinicID, typeID, startTimes, nil)
+		byUnix, err := batchRepo.CountByTypeAndStartTimes(ctx, clinicID, typeID, startTimes, nil)
 		if err != nil {
 			return nil, apperrors.Wrap(err, "failed to count reservations")
 		}
-		for _, v := range valid {
-			if counts[v.startTime.Unix()] < int64(maxConcurrent) {
-				result = append(result, v.slot)
-			}
+		for hhmm, startTime := range startByHHMM {
+			counts[hhmm] = byUnix[startTime.Unix()]
 		}
-		return result, nil
+		return counts, nil
 	}
 
-	for _, v := range valid {
-		count, err := repo.CountByTypeAndStartTime(ctx, clinicID, typeID, v.startTime, nil)
+	for hhmm, startTime := range startByHHMM {
+		count, err := repo.CountByTypeAndStartTime(ctx, clinicID, typeID, startTime, nil)
 		if err != nil {
 			return nil, apperrors.Wrap(err, "failed to count reservations")
 		}
-		if count < int64(maxConcurrent) {
-			result = append(result, v.slot)
-		}
+		counts[hhmm] = count
 	}
-	return result, nil
+	return counts, nil
 }

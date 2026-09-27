@@ -48,6 +48,8 @@ classification manifest 761 rowはBE9-2A開始時のsource-path provenanceを保
 
 > 2026-07-30: `identitylink` を #239 Phase 1 として target recensus に追加（14 target package）。production import は `cmd/api` composition root のみ。package 内 production 依存は `apperrors` / `audit` / `httpapi` / `model` / `persistence` / `textsearch`。
 
+> 2026-09-26: `support` をサポートウィジェット（バグ報告 + LLMヘルプチャット）として追加（15 target package）。domain→domain production 依存は `httpapi` のみ（`PermissionMiddleware` / `fileUploader` / `ChatCompleter` は consumer-side interface で composition root が注入）。
+
 file分割、typed adapter、domain-owned composition/test helperの追加により、現行物理file数はsnapshotのtarget bucket行数と一致しない。移行完了判定は「旧pathの消滅」「現行target packageの存在」「production legacy import 0」「runtime/AST gate」で行い、行数一致だけで判定しない。
 
 2026-07-24のfollow-up hardeningでは、LINE webhookのcross-clinic readを受信前identity解決に必要なchannel-secret走査だけへ縮小し、一意に署名一致したclinicへowner lookup/updateをscopeした。更新はexpected LINE user IDとLINE event timestampを含むCASとし、stale・duplicate・out-of-order・再連携前IDを安全なno-op、同時刻をunfollow優先とする。公開LIFF account linkはowner PIIを返さない`204 No Content`、LINE ID token検証はredirect追従禁止とした。billing confirmation/returnは`Content-Type: application/json`（charset parameter可）を必須とし、不一致を415、bodyを8 KiBのexact-key/string strict single-object JSON、trim後non-blankの`return_reason` 500文字、`memo` 1,000文字として境界で強制する。scheduler opsはCloudflare Access JWKSをWorker isolate内で10分cacheし、同時取得を集約、unknown `kid`/upstream failure後のrefreshを60秒cooldownしてfail closedにする。これらは現行実装の安全境界であり、fresh DB migration、production deploy、Access policy/edge rate limit、alert/recovery rehearsalのrelease gateを完了扱いにしない。
@@ -320,7 +322,7 @@ fan-out: 0(依存先を持たない純粋リーフ)。route: N/A(自身はルー
 
 ### 5.0 acyclicity機械検証（round2 santa dual-reviewで要求されたコマンド+出力の明示）
 
-この 13 node / 45 edge は **BE9-2A 当時の historical design snapshot** である。現行 mechanical allowlist は `identitylink` を含む 14 domain / 46 edge で、§5.2 の lint source を正とする。DESIGNされた許可依存グラフ（13 target package、下記10cycleの解消後に残るedgeのみ）に対し、使い捨てPythonスクリプト（Kahnのtopological sortアルゴリズム、scratchpadのみに配置・repo非コミット——本タスクの制約「使い捨てmeasurement scriptはscratchpadのみ・repo非コミット」に従う）でcycle detectionを実行した。**検証対象はDESIGNされた許可グラフであり、生の現行コード参照グラフではない**——後者は10組のraw cycleを含むため意図的にacyclicではない（advisorの助言通り、acyclicity証明はDESIGNされたグラフに対してのみ行う）。
+この 13 node / 45 edge は **BE9-2A 当時の historical design snapshot** である。現行 mechanical allowlist は `identitylink`・`support` を含む 15 domain / 47 edge で、§5.2 の lint source を正とする。DESIGNされた許可依存グラフ（13 target package、下記10cycleの解消後に残るedgeのみ）に対し、使い捨てPythonスクリプト（Kahnのtopological sortアルゴリズム、scratchpadのみに配置・repo非コミット——本タスクの制約「使い捨てmeasurement scriptはscratchpadのみ・repo非コミット」に従う）でcycle detectionを実行した。**検証対象はDESIGNされた許可グラフであり、生の現行コード参照グラフではない**——後者は10組のraw cycleを含むため意図的にacyclicではない（advisorの助言通り、acyclicity証明はDESIGNされたグラフに対してのみ行う）。
 
 ```
 $ python3 be92a_toposort.py
@@ -386,6 +388,7 @@ flowchart TB
     clinic --> httpapi
     manualarticle --> httpapi
     identitylink --> httpapi
+    support --> httpapi
 ```
 
 ### 5.1 生cycleの解消方式一覧

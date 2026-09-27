@@ -86,6 +86,36 @@ func TestToCarePlanItemResponse(t *testing.T) {
 				assert.Empty(t, resp.Timing)
 			},
 		},
+		{
+			name: "manual item exposes other_reason and derived manual=true",
+			item: &model.CarePlanItem{
+				ID:                3,
+				HospitalizationID: 10,
+				Type:              model.CarePlanTypeItem,
+				Name:              "持ち込みおもちゃ",
+				Category:          "other",
+				OtherReason:       "持ち込み品のため",
+				UnitPrice:         800,
+			},
+			wantFn: func(t *testing.T, resp carePlanItemResponse) {
+				assert.True(t, resp.Manual, "type=item かつ参照なしは manual=true")
+				assert.Equal(t, "持ち込み品のため", resp.OtherReason)
+				assert.Nil(t, resp.HospitalizationPlanID)
+			},
+		},
+		{
+			name: "referenced item reports manual=false",
+			item: &model.CarePlanItem{
+				ID:                    4,
+				HospitalizationID:     10,
+				Type:                  model.CarePlanTypeItem,
+				HospitalizationPlanID: uint64Ptr(7),
+			},
+			wantFn: func(t *testing.T, resp carePlanItemResponse) {
+				assert.False(t, resp.Manual)
+				assert.Empty(t, resp.OtherReason)
+			},
+		},
 	}
 
 	for _, tt := range tests {

@@ -2,7 +2,7 @@
 
 > **目的**: カルテ治療タブの数量セルが「1回目の Enter = 編集確定」「2回目の Enter = 保存」という2段階確定、Blur 保存、Escape 取消を正しく処理し、IME 変換中・長押し（キーリピート）で誤爆しないことを実ブラウザで納品前に証明する。
 > **所要目安**: 15分 / **深度**: 深い
-> **仕様正本**: [screens/06-medical-records-form.md](../../../spec/screens/06-medical-records-form.md)。検証キュー: `UAT-R2-TREATMENT-COMMIT`（[todo-verification.md](../../../../todo-verification.md)）。
+> **仕様正本**: [screens/06-medical-records-form.md](../../../spec/screens/06-medical-records-form.md)。検証キュー: `UAT-R2-TREATMENT-COMMIT`（[todo-verification.md](../../../../todo.md#verification-ledger)）。
 
 ## 前提条件
 

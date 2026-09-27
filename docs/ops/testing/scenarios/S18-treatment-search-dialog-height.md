@@ -2,7 +2,7 @@
 
 > **目的**: 治療項目検索ダイアログが、短い一覧・長い一覧の両方で検索欄・一覧・閉じる操作が画面内に収まり、キーボード選択とフォーカス復帰が機能することを、対象 viewport で納品前に証明する。
 > **所要目安**: 10分 / **深度**: 薄い
-> **仕様正本**: [screens/06-medical-records-form.md](../../../spec/screens/06-medical-records-form.md)。検証キュー: `UAT-R2-MASTER-LIST-HEIGHT`（[todo-verification.md](../../../../todo-verification.md)）。
+> **仕様正本**: [screens/06-medical-records-form.md](../../../spec/screens/06-medical-records-form.md)。検証キュー: `UAT-R2-MASTER-LIST-HEIGHT`（[todo-verification.md](../../../../todo.md#verification-ledger)）。
 
 ## 前提条件
 

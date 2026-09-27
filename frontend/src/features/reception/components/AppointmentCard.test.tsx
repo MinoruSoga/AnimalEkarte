@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   DangerLevelHigh,
   DangerLevelLow,
+  DangerLevelMedium,
   PetStatusAlive,
   PetStatusDeceased,
 } from "@/types/generated/models";
@@ -391,6 +392,52 @@ describe("AppointmentCard", () => {
     expect(screen.queryByText("【死亡】")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /ポチのカルテ/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /ポチの会計/ })).toBeInTheDocument();
+  });
+
+  it("危険度 medium は黄色 ⚠ 注意 badge を出し、注意理由を card click せず開閉できる", async () => {
+    const user = userEvent.setup();
+    const onCardClick = vi.fn();
+    renderCard(
+      {
+        ...baseAppointment,
+        petDangerLevel: DangerLevelMedium,
+        petDangerReason: "興奮しやすい",
+      },
+      "受付済",
+      vi.fn(),
+      onCardClick,
+    );
+
+    const trigger = screen.getByRole("button", { name: "ポチの注意理由を表示" });
+    expect(trigger).toHaveTextContent("⚠ 注意");
+    expect(trigger).toHaveClass(C.bgNotice, C.textNotice, C.borderNotice);
+    expect(screen.queryByText("⚠ 危険")).not.toBeInTheDocument();
+
+    await user.click(trigger);
+    expect(await screen.findByText("興奮しやすい")).toBeInTheDocument();
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    expect(onCardClick).not.toHaveBeenCalled();
+  });
+
+  it("飼主が危険人物なら飼主名の横に ⚠ 危険人物 を出し card click は発火しない", async () => {
+    const user = userEvent.setup();
+    const onCardClick = vi.fn();
+    renderCard({ ...baseAppointment, ownerIsDangerous: true }, "受付済", vi.fn(), onCardClick);
+
+    const mark = screen.getByText("⚠ 危険人物");
+    expect(mark).toHaveClass(C.bgDanger10, C.danger, C.borderDanger20);
+
+    await user.click(mark);
+    expect(onCardClick).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["false", false],
+    ["未設定", undefined],
+  ])("飼主の is_dangerous が%sなら危険人物マークを出さない", (_caseName, ownerIsDangerous) => {
+    renderCard({ ...baseAppointment, ownerIsDangerous });
+
+    expect(screen.queryByText("⚠ 危険人物")).not.toBeInTheDocument();
   });
 
   it("生存かつ危険度 low では badge を表示せず、既存 action を維持する", () => {

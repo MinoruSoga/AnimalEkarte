@@ -1,0 +1,38 @@
+{
+  "namespace": "emr169.skin_checkup",
+  "version": "1.0.0",
+  "clinical_approval_ref": "EMR-169",
+  "types": [
+    {
+      "key": "skin",
+      "name": "皮膚検診",
+      "description": "獣医師の視診による皮膚状態チェック。異常部位の図示（イラスト記入）は現行機能外のため、必要時はカルテ添付機能を利用する。状態チェック項目の内訳は医師確認後に追加予定。",
+      "interval": "",
+      "target_age": "",
+      "sort_order": 50,
+      "is_active": true
+    }
+  ],
+  "fields": [
+    {
+      "key": "skin_abnormality",
+      "type_key": "skin",
+      "name": "異常の有無",
+      "field_type": "boolean",
+      "unit": "",
+      "options": [],
+      "is_provisional": false,
+      "sort_order": 1
+    },
+    {
+      "key": "skin_treatment_needed",
+      "type_key": "skin",
+      "name": "治療の要否",
+      "field_type": "boolean",
+      "unit": "",
+      "options": [],
+      "is_provisional": false,
+      "sort_order": 2
+    }
+  ]
+}

@@ -23,6 +23,13 @@ interface Env {
   SEEDLOGIN_OPERATOR_EMAIL?: string;
   SEEDLOGIN_OPERATOR_NAME?: string;
   SEEDLOGIN_OPERATOR_PASSWORD?: string;
+  // Optional support-chat LLM (OpenAI-compatible). API_KEY is an optional
+  // `wrangler secret put` value — unset means the feature is disabled and
+  // the frontend falls back to manual search.
+  SUPPORT_LLM_BASE_URL?: string;
+  SUPPORT_LLM_API_KEY?: string;
+  SUPPORT_LLM_MODEL?: string;
+  SUPPORT_LLM_TIMEOUT_MS?: string;
 }
 
 declare namespace Cloudflare {
@@ -43,6 +50,10 @@ declare namespace Cloudflare {
     SEEDLOGIN_OPERATOR_EMAIL?: string;
     SEEDLOGIN_OPERATOR_NAME?: string;
     SEEDLOGIN_OPERATOR_PASSWORD?: string;
+    SUPPORT_LLM_BASE_URL?: string;
+    SUPPORT_LLM_API_KEY?: string;
+    SUPPORT_LLM_MODEL?: string;
+    SUPPORT_LLM_TIMEOUT_MS?: string;
   }
 }
 

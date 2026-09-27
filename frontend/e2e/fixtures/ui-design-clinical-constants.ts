@@ -19,4 +19,5 @@ export const SYNTHETIC_IDS = {
   trimmingOption: 990016,
   carePlanItem: 990017,
   treatmentPlan: 990018,
+  billingConfirmation: 990019,
 } as const;

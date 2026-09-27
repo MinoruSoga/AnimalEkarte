@@ -41,6 +41,22 @@ export class ExaminationsPage extends BasePage {
     return this.page.getByRole("link", { name: /検査詳細:/ }).first();
   }
 
+  /**
+   * Linked row detail link (`medicalRecordId` set + medical-records view permission).
+   * Navigates to the chart 検査 tab (`/medical-records/:id?tab=検査&examId=:examId`).
+   */
+  chartTabDetailLink(petName: string): Locator {
+    return this.page.getByRole("link", { name: `カルテ検査: ${petName}` });
+  }
+
+  /**
+   * Unlinked row detail link (no `medicalRecordId`, or no view permission).
+   * Navigates to the standalone detail (`/examinations/:id`).
+   */
+  standaloneDetailLink(petName: string): Locator {
+    return this.page.getByRole("link", { name: `検査詳細: ${petName}` });
+  }
+
   saveButton(): Locator {
     return this.page.getByRole("button", { name: "保存" });
   }

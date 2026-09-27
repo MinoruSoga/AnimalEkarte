@@ -27,11 +27,14 @@ export interface UnbilledWarning {
 export interface UnbilledItemDetails {
   items: AccountingItem[];
   warnings: UnbilledWarning[];
+  /** EMR-196②: 集約版 token。complete の expected_unbilled_revision へそのまま返送する。 */
+  revision: string;
 }
 
 interface BackendUnbilledDetails {
   items?: BackendAccountingItem[] | null;
   warnings?: UnbilledWarning[] | null;
+  revision?: string | null;
 }
 
 function mapUnbilledItems(data: BackendAccountingItem[] | null | undefined): AccountingItem[] {
@@ -52,6 +55,7 @@ export const getUnbilledItems = async (petId: string): Promise<AccountingItem[]>
 /**
  * BUG-013: additive details getter for new accounting consumer.
  * Returns billable candidates plus typed blocking warnings (no silent partial success).
+ * EMR-196②: revision は表示中集約の版 token（complete 時に expected_unbilled_revision として返送）。
  */
 export const getUnbilledItemDetails = async (petId: string): Promise<UnbilledItemDetails> => {
   const { data } = await axios.get<BackendUnbilledDetails>("/v1/billing-items/unbilled-details", {
@@ -60,5 +64,6 @@ export const getUnbilledItemDetails = async (petId: string): Promise<UnbilledIte
   return {
     items: mapUnbilledItems(data?.items),
     warnings: data?.warnings ?? [],
+    revision: data?.revision ?? "",
   };
 };

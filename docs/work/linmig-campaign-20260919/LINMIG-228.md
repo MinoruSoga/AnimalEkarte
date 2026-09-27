@@ -4,10 +4,10 @@
 
 Campaign `linmig-ops-prep-20260919` revision 1. Unit `LINMIG-228`. Attempt `att-linmig-228-20260919-001`. Claim `claim/LINMIG-228`. Linear issue `LINMIG-228` was not found; keep as claim only.
 
-Maps to [todo-verification.md](../../../todo-verification.md) **TODO-V-RELEASE / P8** and GitHub [#257](https://github.com/MinoruSoga/AnimalEkarte/issues/257). Binding sources for this unit:
+Maps to [todo-verification.md](../../../todo.md#verification-ledger) **TODO-V-RELEASE / P8** and GitHub [#257](https://github.com/MinoruSoga/AnimalEkarte/issues/257). Binding sources for this unit:
 
 - [docs/delivery/GOLIVE_RUNBOOK.md](../../delivery/GOLIVE_RUNBOOK.md) **§1** pre-window items 1–10
-- [todo-verification.md](../../../todo-verification.md) **TODO-V-RELEASE** (P4 / E1 / E2 / P8)
+- [todo-verification.md](../../../todo.md#verification-ledger) **TODO-V-RELEASE** (P4 / E1 / E2 / P8)
 
 Worktree `/Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte-linmig-228` on `feat/linmig-228-ops-prep` at HEAD `aac697645df92fd24611c7c13bf0f7dda12a6e08`. Sheet date: 2026-09-19. Local files only. This unit does **not** fill the Go/No-Go window, invent named owners, declare go-live, query Linear/GitHub live state, or run production/STG operations.
 
@@ -29,7 +29,7 @@ Named owners (Go/No-Go authority, Support primary, Rollback owner) remain **UNKN
 
 ## TODO-V-RELEASE correspondence
 
-Source: [todo-verification.md](../../../todo-verification.md) L36, L97, L153–L162.
+Source: [todo-verification.md](../../../todo.md#verification-ledger) L36, L97, L153–L162.
 
 | ID | Related ticket | Procedure (cited) | Stop / deliverable (cited) | Status this unit |
 |----|----------------|-------------------|----------------------------|------------------|
@@ -39,7 +39,7 @@ Source: [todo-verification.md](../../../todo-verification.md) L36, L97, L153–L
 | E2 / QA-UAT-LINE-IDTOKEN | V05 real LINE; required for P4 | Real idToken link → re-link 409 → invalid/expired linkToken 400s | Mock is not real LINE evidence | **HOLD** / **UNKNOWN** (no receipt in bound sources) |
 | P8 / GOLIVE | GitHub #257 | Fill new window + named judges/support/rollback; then pre-window all items → day-of import 突合 → smoke → Go/No-Go → support | Judge signature, time, day-of receipt, restore judgement. Unfilled window / unmet pre-window / unmet 突合 ⇒ HOLD/No-Go. Do not reuse past dates | **HOLD** (this unit maps pre-window only) |
 
-P1 / P2 / P3 / P5 / P6 / P7 receipts are pointed at [todo-operations.md](../../../todo-operations.md) by TODO-V-RELEASE L155. Those operations pages were **not** independently re-verified in this bounded unit → **UNKNOWN** as live receipts. Pre-window rows below still cite the runbook's own related-ticket IDs.
+P1 / P2 / P3 / P5 / P6 / P7 receipts are pointed at [todo-operations.md](../../../todo.md#operations-ledger) by TODO-V-RELEASE L155. Those operations pages were **not** independently re-verified in this bounded unit → **UNKNOWN** as live receipts. Pre-window rows below still cite the runbook's own related-ticket IDs.
 
 ## Pre-window items 1–10
 

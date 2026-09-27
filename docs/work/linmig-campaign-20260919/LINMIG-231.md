@@ -11,7 +11,7 @@ Maps delivery close of GitHub [#254](https://github.com/MinoruSoga/AnimalEkarte/
 - [docs/ops/testing/S09-FIXTURE-DESIGN.md](../../ops/testing/S09-FIXTURE-DESIGN.md)
 - [docs/ops/testing/scenarios/V04-settings-master-forms.md](../../ops/testing/scenarios/V04-settings-master-forms.md)
 - [docs/ops/testing/CLINICAL-E2E-DESIGN.md](../../ops/testing/CLINICAL-E2E-DESIGN.md)
-- [todo-verification.md](../../../todo-verification.md) **TODO-V-S09 / TODO-V-V04 / TODO-V-CLINICAL-E2E** (and P4 row under TODO-V-RELEASE as the close umbrella)
+- [todo-verification.md](../../../todo.md#verification-ledger) **TODO-V-S09 / TODO-V-V04 / TODO-V-CLINICAL-E2E** (and P4 row under TODO-V-RELEASE as the close umbrella)
 - Supporting (not re-run): [docs/ops/testing/UAT-DOMAIN-STATUS.md](../../ops/testing/UAT-DOMAIN-STATUS.md)
 
 Worktree `/Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte-linmig-231` on `feat/linmig-231-ops-prep` at HEAD `aac697645df92fd24611c7c13bf0f7dda12a6e08`. Sheet date: 2026-09-20. Local files only.
@@ -37,7 +37,7 @@ This unit does **not** run UAT, Playwright, Docker app tests, or sign-off. **Act
 
 ## TODO-V correspondence (this unit)
 
-Source: [todo-verification.md](../../../todo-verification.md) L32–L36, L93–L95, L109–L141, L157–L159.
+Source: [todo-verification.md](../../../todo.md#verification-ledger) L32–L36, L93–L95, L109–L141, L157–L159.
 
 | ID | Bound procedure (cited) | Stop / deliverable (cited) | Status in bound docs | Actual this unit |
 |----|-------------------------|----------------------------|----------------------|------------------|

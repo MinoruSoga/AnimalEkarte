@@ -78,13 +78,16 @@ type PetResponse struct {
 	// DeceasedReason は staff 向け GET /pets/{id} (本 DTO) のみに載せる（BUG-003）。
 	// owner.PetInOwnerResponse / LIFF 向け DTO には載せない（飼主経路への死因漏洩防止）。
 	// omitempty: 生存ペットや未記録時は JSON から物理的に欠落させる。
-	DeceasedReason *string                 `json:"deceased_reason,omitempty"`
-	DeceasedAt     *time.Time              `json:"deceased_at,omitempty"`
-	CreatedAt      time.Time               `json:"created_at"`
-	UpdatedAt      time.Time               `json:"updated_at"`
-	Owner          *PetOwnerNested         `json:"owner,omitempty"`
-	AnimalSpecies  *PetAnimalSpeciesNested `json:"animal_species,omitempty"`
-	Insurance      *PetInsuranceNested     `json:"insurance,omitempty"`
+	DeceasedReason *string    `json:"deceased_reason,omitempty"`
+	DeceasedAt     *time.Time `json:"deceased_at,omitempty"`
+	// EMR-174: 名前の由来 / 出逢いのストーリーは任意記録（staff/飼主どちらの詳細も参照可）。
+	NameOrigin    *string                 `json:"name_origin,omitempty"`
+	MeetingStory  *string                 `json:"meeting_story,omitempty"`
+	CreatedAt     time.Time               `json:"created_at"`
+	UpdatedAt     time.Time               `json:"updated_at"`
+	Owner         *PetOwnerNested         `json:"owner,omitempty"`
+	AnimalSpecies *PetAnimalSpeciesNested `json:"animal_species,omitempty"`
+	Insurance     *PetInsuranceNested     `json:"insurance,omitempty"`
 }
 
 // petFirstVisitResponse は #158 飼主レポートのペット初診日（最古カルテ date 由来）。
@@ -139,11 +142,14 @@ type PetListResponse struct {
 	Remarks     string     `json:"remarks"`
 	// DeceasedReason / DeceasedAt は staff 向け GET /v1/pets 専用（PetResponse 同様）。
 	// omitempty: 生存ペットや未記録時は JSON から物理的に欠落させる。
-	DeceasedReason *string                 `json:"deceased_reason,omitempty"`
-	DeceasedAt     *time.Time              `json:"deceased_at,omitempty"`
-	Owner          *PetOwnerNested         `json:"owner,omitempty"`
-	AnimalSpecies  *PetAnimalSpeciesNested `json:"animal_species,omitempty"`
-	Insurance      *PetInsuranceNested     `json:"insurance,omitempty"`
+	DeceasedReason *string    `json:"deceased_reason,omitempty"`
+	DeceasedAt     *time.Time `json:"deceased_at,omitempty"`
+	// EMR-174: 名前の由来 / 出逢いのストーリーは任意記録。
+	NameOrigin    *string                 `json:"name_origin,omitempty"`
+	MeetingStory  *string                 `json:"meeting_story,omitempty"`
+	Owner         *PetOwnerNested         `json:"owner,omitempty"`
+	AnimalSpecies *PetAnimalSpeciesNested `json:"animal_species,omitempty"`
+	Insurance     *PetInsuranceNested     `json:"insurance,omitempty"`
 }
 
 // petListResponse は PetListResponse の package 内後方互換 alias。
@@ -188,6 +194,8 @@ func toPetListResponse(p *model.Pet) PetListResponse {
 		Remarks:         p.Remarks,
 		DeceasedReason:  p.DeceasedReason,
 		DeceasedAt:      httpapi.LocalTimePtr(p.DeceasedAt),
+		NameOrigin:      p.NameOrigin,
+		MeetingStory:    p.MeetingStory,
 	}
 	resp.Owner = toPetOwnerNested(p.Owner)
 	if p.AnimalSpecies != nil {
@@ -269,6 +277,8 @@ func toResponse(p *model.Pet) PetResponse {
 		Remarks:         p.Remarks,
 		DeceasedReason:  p.DeceasedReason,
 		DeceasedAt:      httpapi.LocalTimePtr(p.DeceasedAt),
+		NameOrigin:      p.NameOrigin,
+		MeetingStory:    p.MeetingStory,
 		CreatedAt:       httpapi.LocalTime(p.CreatedAt),
 		UpdatedAt:       httpapi.LocalTime(p.UpdatedAt),
 	}

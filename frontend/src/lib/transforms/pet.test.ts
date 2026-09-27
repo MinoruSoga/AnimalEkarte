@@ -193,6 +193,112 @@ describe("transformBackendPetToFrontend", () => {
     const pet = transformBackendPetToFrontend(makeBackendPet({ pet_name_kana: "ぽちたろう" }));
     expect(pet.petNameKana).toBe("ぽちたろう");
   });
+
+  it("owner.is_dangerous を ownerIsDangerous へマッピングする (EMR-173)", () => {
+    const owner = {
+      id: 42,
+      owner_number: 42,
+      name: "山田太郎",
+      name_kana: "ヤマダ タロウ",
+      phone: "090-0000-0000",
+      is_dangerous: true,
+    };
+
+    expect(transformBackendPetToFrontend(makeBackendPet({ owner })).ownerIsDangerous).toBe(true);
+    // is_dangerous=false と owner 欠落は危険人物ではない: optional キーを出さない。
+    expect(
+      transformBackendPetToFrontend(makeBackendPet({ owner: { ...owner, is_dangerous: false } }))
+        .ownerIsDangerous,
+    ).toBeUndefined();
+    expect(
+      transformBackendPetToFrontend(makeBackendPet({ owner: undefined })).ownerIsDangerous,
+    ).toBeUndefined();
+  });
+});
+
+// EMR-174: pets.name_origin（名前の由来）/ pets.meeting_story（出逢いのストーリー）
+describe("EMR-174 name_origin / meeting_story transforms", () => {
+  it("バックエンド応答の name_origin / meeting_story を nameOrigin / meetingStory へマッピングする", () => {
+    const pet = transformBackendPetToFrontend(
+      makeBackendPet({
+        name_origin: "生まれた神社の名前から",
+        meeting_story: "里親募集サイトで出会った",
+      }),
+    );
+
+    expect(pet.nameOrigin).toBe("生まれた神社の名前から");
+    expect(pet.meetingStory).toBe("里親募集サイトで出会った");
+  });
+
+  it("name_origin / meeting_story 未設定は undefined（捏造しない）", () => {
+    const pet = transformBackendPetToFrontend(makeBackendPet());
+
+    expect(pet.nameOrigin).toBeUndefined();
+    expect(pet.meetingStory).toBeUndefined();
+  });
+
+  it("作成リクエストへ name_origin / meeting_story を含める", () => {
+    const request = transformCreatePetRequest({
+      ownerId: "42",
+      name: "ポチ",
+      animalSpeciesId: "1",
+      nameOrigin: "生まれた神社の名前から",
+      meetingStory: "里親募集サイトで出会った",
+    });
+
+    expect(request.name_origin).toBe("生まれた神社の名前から");
+    expect(request.meeting_story).toBe("里親募集サイトで出会った");
+  });
+
+  it("作成時に空文字の name_origin / meeting_story は送信しない（NULL 保持）", () => {
+    const request = transformCreatePetRequest({
+      ownerId: "42",
+      name: "ポチ",
+      animalSpeciesId: "1",
+      nameOrigin: "  ",
+      meetingStory: "",
+    });
+
+    expect(Object.prototype.hasOwnProperty.call(request, "name_origin")).toBe(false);
+    expect(Object.prototype.hasOwnProperty.call(request, "meeting_story")).toBe(false);
+  });
+
+  it("既存の name_origin をクリアすると null を送信する", () => {
+    const request = transformUpdatePetRequest({
+      nameOrigin: "",
+      originalNameOrigin: "生まれた神社の名前から",
+    });
+
+    expect(Object.prototype.hasOwnProperty.call(request, "name_origin")).toBe(true);
+    expect(request.name_origin).toBeNull();
+  });
+
+  it("name_origin 未変更なら送信しない", () => {
+    const request = transformUpdatePetRequest({
+      nameOrigin: "生まれた神社の名前から",
+      originalNameOrigin: "生まれた神社の名前から",
+    });
+
+    expect(Object.prototype.hasOwnProperty.call(request, "name_origin")).toBe(false);
+  });
+
+  it("meeting_story を新規入力すると値を送信する", () => {
+    const request = transformUpdatePetRequest({
+      meetingStory: "保護施設で出会った",
+      originalMeetingStory: undefined,
+    });
+
+    expect(request.meeting_story).toBe("保護施設で出会った");
+  });
+
+  it("meeting_story 未変更なら送信しない", () => {
+    const request = transformUpdatePetRequest({
+      meetingStory: "里親募集サイトで出会った",
+      originalMeetingStory: "里親募集サイトで出会った",
+    });
+
+    expect(Object.prototype.hasOwnProperty.call(request, "meeting_story")).toBe(false);
+  });
 });
 
 describe("transformUpdatePetRequest", () => {

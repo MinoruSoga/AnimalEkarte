@@ -1,11 +1,11 @@
 # SLACK-VACCINE-MULTI: 登録失敗 vs 同日 2–3 件の順次保存（batch API を捏造しない）
 
-状態: **経路分離 READY／自動回帰（F 失敗 + S 同日順次単件 POST）追加済／batch UX・実機受入は PO 残**。出典は [todo-issue.md](../../../todo-issue.md) 見出し `### SLACK-VACCINE-MULTI`（L142–146、索引 L427）。保持する現場条件:
+状態: **経路分離 READY／自動回帰（F 失敗 + S 同日順次単件 POST）追加済／batch UX・実機受入は PO 残**。出典は [todo-issue.md](../../../todo.md#issue-ledger) 見出し `### SLACK-VACCINE-MULTI`（L142–146、索引 L427）。保持する現場条件:
 
 - 「登録できない」と「初診/同日に 2–3 件入力」は **別ケース**
 - 単件 POST の存在だけで「同日複数不可」や **batch API 必須**と決めない
 - 各接種の実施日・lot・次回予定・金額が **行をまたいで混ざらない**こと
-- [種別課題](../../../todo-issue.md#uat-q2-vaccine-species) の承認済み条件を保持する。接種間隔などの臨床判断は代行しない
+- [種別課題](../../../todo.md#uat-q2-vaccine-species) の承認済み条件を保持する。接種間隔などの臨床判断は代行しない
 - 一括入力が必要な操作数 / 失敗時の部分保存の扱いは **PO 裁定後**に設計する（本 unit は batch API を追加しない）
 
 本票は [カルテ内フォーム](../../../frontend/src/features/medical-records/hooks/use-medical-record-vaccination-form.ts) と [独立フォーム](../../../frontend/src/features/vaccinations/hooks/use-vaccination-form.ts)、[作成 API 再export](../../../frontend/src/features/vaccinations/api/create-vaccination.ts)、[実 mutation](../../../frontend/src/hooks/use-create-vaccination.ts)、[接種 service](../../../backend/internal/medicalrecord/vaccination_service.go) を照合する。本 unit の最小実装は **owned テスト追加 + 本票更新**のみ（製品 Create 契約は単件 POST のまま。batch エンドポイントは追加しない）。
@@ -152,7 +152,7 @@ flowchart LR
 | lot1–4 | 接種行 | カルテの「複製」は lot/次回/備考をコピーし実施日は空（hook L72–81）。複製後に保存すると **新しい行**。1 件目 lot は残る | 複製を「同じ行の再登録」と読まない |
 | 次回予定 | `next_date` / `next_schedule_type` | 実施日や種別変更で UI が再計算（カルテ hook L93–121、独立 `vaccinationOverridesOn*`） | 2 件目の計算結果を 1 件目へコピーしない。間隔の臨床妥当性は見ない |
 | 金額 | **接種 POST に無い**。マスタ `vaccines.price`（[vaccine.go](../../../backend/internal/model/vaccine.go) L21）。FE 変換は `price ?? 0`（[treatment.ts](../../../frontend/src/lib/transforms/treatment.ts) L80） | 履歴に出る price はマスタ。未設定マスタは FE で 0 に見える。会計は `Price == nil` を fail-closed（[billing_item_repository_vaccination_lock.go](../../../backend/internal/billing/billing_item_repository_vaccination_lock.go) L74–88） | 「接種が登録できた」≠「請求単価が接種行に保存された」。0 表示と未設定マスタを混ぜない |
-| 会計 | 請求は接種 `id` に紐づく billing item。`vaccinationRef.MedicalRecordID == nil` は請求拒否（同ファイル L43–45）。確認前も Conflict（L55–57） | 独立画面の `medical_record_id: null` 行は登録できても請求できない | 登録失敗と請求不可を混ぜない。MASTER 価格欠落は [UAT-R2-MASTER-PATH](../../../todo-issue.md#uat-r2-master-path) |
+| 会計 | 請求は接種 `id` に紐づく billing item。`vaccinationRef.MedicalRecordID == nil` は請求拒否（同ファイル L43–45）。確認前も Conflict（L55–57） | 独立画面の `medical_record_id: null` 行は登録できても請求できない | 登録失敗と請求不可を混ぜない。MASTER 価格欠落は [UAT-R2-MASTER-PATH](../plane-md-migration-20260923-receipt.md) |
 
 ## 種別条件（本票では変更しない）
 

@@ -2,7 +2,7 @@
 
 > **目的**: カルテ編集画面が 1366×625 CSS px の狭い viewport でも、全 9 タブで必須情報・保存・主要操作へ見切れず到達できることを納品前に証明する。
 > **所要目安**: 20分 / **深度**: 中
-> **仕様正本**: [screens/06-medical-records-form.md §1](../../../spec/screens/06-medical-records-form.md)。検証キュー: `UAT-R2-CHART-FIT`（[todo-verification.md](../../../../todo-verification.md)）。
+> **仕様正本**: [screens/06-medical-records-form.md §1](../../../spec/screens/06-medical-records-form.md)。検証キュー: `UAT-R2-CHART-FIT`（[todo-verification.md](../../../../todo.md#verification-ledger)）。
 
 ## 前提条件
 

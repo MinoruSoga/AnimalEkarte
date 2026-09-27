@@ -102,6 +102,10 @@ vi.mock("@/components/shared/PageLayout/PageLayout", () => ({
   ),
 }));
 
+vi.mock("@/components/shared/PartnerRecordLink/PartnerRecordLink", () => ({
+  PartnerRecordLink: () => null,
+}));
+
 vi.mock("@/components/shared/NavigationBlocker", () => ({
   NavigationBlocker: () => null,
 }));

@@ -1,6 +1,6 @@
 # SLACK-RESERVATION-REFERENCE: 予約「参照先が存在しません」の現行参照チェック対応表
 
-状態: **コード照合 READY／現行 STG 配信 identity UNKNOWN／再現 未実行**。出典は [todo-issue.md](../../../todo-issue.md) 見出し `### SLACK-RESERVATION-REFERENCE`（L294–298、索引 L402）。保持する現場条件:
+状態: **コード照合 READY／現行 STG 配信 identity UNKNOWN／再現 未実行**。出典は [todo-issue.md](../../../todo.md#issue-ledger) 見出し `### SLACK-RESERVATION-REFERENCE`（L294–298、索引 L402）。保持する現場条件:
 
 - スタッフ／シフト作成後も予約保存が **「参照先が存在しません」** で失敗した、という報告
 - 9月13日に対応報告あり。**報告時の画面・現行配信版の同一性は未確認**

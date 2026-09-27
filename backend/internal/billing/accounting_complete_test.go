@@ -159,7 +159,10 @@ func validCompleteInput(key string) *CompleteAccountingInput {
 		IdempotencyKey: key,
 		OwnerID:        &ownerID,
 		PetID:          &petID,
-		ScheduledDate:  time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC),
+		// EMR-196②: pet 指定の complete は expected_unbilled_revision 必須。
+		// 未配線 guard のテストでは値は照合されないため固定値でよい。
+		ExpectedUnbilledRevision: "u1:test-revision",
+		ScheduledDate:            time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC),
 		Items: []CompleteAccountingItemInput{
 			{Name: "診察料", UnitPrice: 1000, Quantity: 1, Category: "other", Source: "manual", TaxType: "excluded", TaxRate: 0.1},
 			{Name: "薬", UnitPrice: 500, Quantity: 1, Category: "medicine", Source: "manual", TaxType: "excluded", TaxRate: 0.1},
@@ -881,7 +884,7 @@ func TestAccountingService_CompleteAccounting_BlockingUnbilled(t *testing.T) {
 		},
 	}
 	guard := &mockBillingItemService{
-		assertNoBlockingUnbilledFn: func(_ context.Context, _, _ uint64) error {
+		assertUnbilledForCompleteFn: func(_ context.Context, _, _ uint64, _ string) error {
 			return apperrors.WrapConflict("未請求候補に請求不能な予防接種が含まれるため会計を確定できません")
 		},
 	}
@@ -893,6 +896,89 @@ func TestAccountingService_CompleteAccounting_BlockingUnbilled(t *testing.T) {
 	assert.True(t, apperrors.IsConflict(err))
 	assert.Nil(t, result)
 	assert.False(t, createCalled)
+}
+
+// TestAccountingService_CompleteAccounting_UnbilledRevisionConflict は EMR-196②:
+// 表示した集約版と tx 内再集計の版が一致しない complete を 409 で拒否し、
+// billing/items/payments を一切書かないことを固定する。
+func TestAccountingService_CompleteAccounting_UnbilledRevisionConflict(t *testing.T) {
+	key := uuid.NewString()
+	createCalled := false
+	itemCalls := 0
+	repo := &mockAccountingRepository{
+		findByCompletionRequestIDFn: func(_ context.Context, _ uint64, _ string) (*model.Billing, error) {
+			return nil, nil
+		},
+		createFn: func(_ context.Context, _ uint64, _ *model.Billing) error {
+			createCalled = true
+			return nil
+		},
+	}
+	items := &mockCompleteItemWriter{
+		createFn: func(_ context.Context, _ *CreateBillingItemInput) (*model.BillingItem, error) {
+			itemCalls++
+			return &model.BillingItem{ID: 1}, nil
+		},
+	}
+	guard := &mockBillingItemService{
+		assertUnbilledForCompleteFn: func(_ context.Context, clinicID, petID uint64, expectedRevision string) error {
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, uint64(20), petID)
+			assert.Equal(t, "u1:test-revision", expectedRevision)
+			// 画面表示時 u1:test-revision → 現在 u1:current-revision（別端末でカルテ追記された想定）。
+			return newUnbilledRevisionConflictError("u1:current-revision")
+		},
+	}
+	svc := newCompleteTestService(repo, &mockAuditService{}, items, &mockCompleteTotalsWriter{},
+		WithUnbilledWriteGuard(guard),
+	)
+
+	result, err := svc.Complete(context.Background(), validCompleteInput(key))
+	require.Error(t, err)
+	assert.True(t, apperrors.IsConflict(err), "want 409 conflict, got %v", err)
+	assert.Nil(t, result)
+	assert.False(t, createCalled, "stale 集約での complete は billing header を書かない")
+	assert.Equal(t, 0, itemCalls, "stale 集約での complete は明細を書かない")
+
+	var conflict *unbilledRevisionConflictError
+	require.True(t, errors.As(err, &conflict), "want unbilledRevisionConflictError, got %T: %v", err, err)
+	assert.Equal(t, "u1:current-revision", conflict.CurrentRevision)
+
+	var appErr *apperrors.AppError
+	require.True(t, errors.As(err, &appErr))
+	assert.Equal(t, AccountingCodeUnbilledConflict, appErr.Code)
+}
+
+// TestAccountingService_CompleteAccounting_ExpectedUnbilledRevisionRequired は EMR-196②:
+// pet_id 指定の complete で expected_unbilled_revision 未指定を fail-closed で拒否する。
+// 逆に pet_id 無しで revision だけ送る組み合わせも参照不整合として拒否する。
+func TestAccountingService_CompleteAccounting_ExpectedUnbilledRevisionRequired(t *testing.T) {
+	key := uuid.NewString()
+	repo := &mockAccountingRepository{
+		findByCompletionRequestIDFn: func(_ context.Context, _ uint64, _ string) (*model.Billing, error) {
+			return nil, nil
+		},
+	}
+	svc := newCompleteTestService(repo, &mockAuditService{}, &mockCompleteItemWriter{}, &mockCompleteTotalsWriter{})
+
+	t.Run("pet_id 指定で revision 未指定は InvalidInput", func(t *testing.T) {
+		input := validCompleteInput(key)
+		input.ExpectedUnbilledRevision = ""
+		result, err := svc.Complete(context.Background(), input)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err), "want invalid input, got %v", err)
+		assert.Contains(t, err.Error(), "expected_unbilled_revision")
+		assert.Nil(t, result)
+	})
+
+	t.Run("pet_id 無しで revision 指定は InvalidInput", func(t *testing.T) {
+		input := validCompleteInput(key)
+		input.PetID = nil
+		result, err := svc.Complete(context.Background(), input)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err), "want invalid input, got %v", err)
+		assert.Nil(t, result)
+	})
 }
 
 // TestAccountingService_CompleteAccounting_DBAtomicRollback は実 DB で N 番目 item 失敗時に
@@ -944,11 +1030,12 @@ func TestAccountingService_CompleteAccounting_DBAtomicRollback(t *testing.T) {
 	key := uuid.NewString()
 	ownerID, petID := owner.ID, pet.ID
 	input := &CompleteAccountingInput{
-		ClinicID:       clinicID,
-		IdempotencyKey: key,
-		OwnerID:        &ownerID,
-		PetID:          &petID,
-		ScheduledDate:  time.Date(2026, 8, 2, 0, 0, 0, 0, time.UTC),
+		ClinicID:                 clinicID,
+		IdempotencyKey:           key,
+		OwnerID:                  &ownerID,
+		PetID:                    &petID,
+		ExpectedUnbilledRevision: "u1:test-revision",
+		ScheduledDate:            time.Date(2026, 8, 2, 0, 0, 0, 0, time.UTC),
 		Items: []CompleteAccountingItemInput{
 			{Name: "item1", UnitPrice: 1000, Quantity: 1, Category: "examination", Source: "manual", TaxType: "excluded", TaxRate: 0.1},
 			{Name: "item2", UnitPrice: 500, Quantity: 1, Category: "examination", Source: "manual", TaxType: "excluded", TaxRate: 0.1},
@@ -1014,11 +1101,12 @@ func TestAccountingService_CompleteAccounting_DBSuccess_ServerTotals(t *testing.
 	ownerID, petID := owner.ID, pet.ID
 	// Payment amount must match server total: 1000*1 + 100 tax = 1100
 	input := &CompleteAccountingInput{
-		ClinicID:       clinicID,
-		IdempotencyKey: key,
-		OwnerID:        &ownerID,
-		PetID:          &petID,
-		ScheduledDate:  time.Date(2026, 8, 3, 0, 0, 0, 0, time.UTC),
+		ClinicID:                 clinicID,
+		IdempotencyKey:           key,
+		OwnerID:                  &ownerID,
+		PetID:                    &petID,
+		ExpectedUnbilledRevision: "u1:test-revision",
+		ScheduledDate:            time.Date(2026, 8, 3, 0, 0, 0, 0, time.UTC),
 		Items: []CompleteAccountingItemInput{
 			{Name: "診察", UnitPrice: 1000, Quantity: 1, Category: "examination", Source: "manual", TaxType: "excluded", TaxRate: 0.1},
 		},
@@ -1091,11 +1179,12 @@ func TestAccountingService_CompleteAccounting_MixedMedicalRecordAndTrimming_Spli
 	courseID := f.course.ID
 	optionID := f.option.ID
 	input := &CompleteAccountingInput{
-		ClinicID:       f.clinicID,
-		IdempotencyKey: uuid.NewString(),
-		OwnerID:        &ownerID,
-		PetID:          &petID,
-		ScheduledDate:  time.Date(2026, 6, 11, 0, 0, 0, 0, time.UTC),
+		ClinicID:                 f.clinicID,
+		IdempotencyKey:           uuid.NewString(),
+		OwnerID:                  &ownerID,
+		PetID:                    &petID,
+		ExpectedUnbilledRevision: "u1:test-revision",
+		ScheduledDate:            time.Date(2026, 6, 11, 0, 0, 0, 0, time.UTC),
 		Items: []CompleteAccountingItemInput{
 			{
 				Name:          "診察",
@@ -1203,11 +1292,12 @@ func TestAccountingService_CompleteAccounting_MixedMedicalRecordAndTrimming_Omit
 	courseID := f.course.ID
 	optionID := f.option.ID
 	input := &CompleteAccountingInput{
-		ClinicID:       f.clinicID,
-		IdempotencyKey: uuid.NewString(),
-		OwnerID:        &ownerID,
-		PetID:          &petID,
-		ScheduledDate:  time.Date(2026, 6, 11, 0, 0, 0, 0, time.UTC),
+		ClinicID:                 f.clinicID,
+		IdempotencyKey:           uuid.NewString(),
+		OwnerID:                  &ownerID,
+		PetID:                    &petID,
+		ExpectedUnbilledRevision: "u1:test-revision",
+		ScheduledDate:            time.Date(2026, 6, 11, 0, 0, 0, 0, time.UTC),
 		Items: []CompleteAccountingItemInput{
 			{
 				Name:        "診察",

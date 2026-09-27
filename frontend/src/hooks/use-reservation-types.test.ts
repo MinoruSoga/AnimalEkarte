@@ -224,6 +224,37 @@ describe("useGetReservationAvailableTimes (BUG-015)", () => {
   });
 });
 
+describe("useGetReservationAvailableTimes (EMR-170 vacancy status)", () => {
+  it("sends include_unavailable=true and keeps status/remaining on each slot", async () => {
+    let capturedUrl: URL | null = null;
+    server.use(
+      http.get("/api/v1/reservations/available-times", ({ request }) => {
+        capturedUrl = new URL(request.url);
+        return HttpResponse.json([
+          { start_time: "0900", end_time: "0930", status: "available", remaining: 3 },
+          { start_time: "0930", end_time: "1000", status: "low", remaining: 1 },
+          { start_time: "1000", end_time: "1030", status: "full", remaining: 0 },
+          { start_time: "1030", end_time: "1100", status: "available", remaining: null },
+        ]);
+      }),
+    );
+
+    const { result } = renderHook(() => useGetReservationAvailableTimes("5", "2026-09-13", null), {
+      wrapper: createTestWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(capturedUrl?.searchParams.get("include_unavailable")).toBe("true");
+    expect(result.current.data).toEqual([
+      { start_time: "0900", end_time: "0930", status: "available", remaining: 3 },
+      { start_time: "0930", end_time: "1000", status: "low", remaining: 1 },
+      { start_time: "1000", end_time: "1030", status: "full", remaining: 0 },
+      { start_time: "1030", end_time: "1100", status: "available", remaining: null },
+    ]);
+  });
+});
+
 describe("useGetReservationAvailableTimes (BUG-RES-AVAILABLE-TIMES-404)", () => {
   it("marks LINE settings unset via stable code and does not treat it as empty success", async () => {
     server.use(

@@ -6,7 +6,7 @@
 制約: 推測で「デモだから」と説明しない。Linear 新規 Issue は作らない。本ファイルは実行 SoT ではない。  
 反映範囲: Q1 / Q4保険 / Q2履歴ナビは **STG デプロイ済み**（PR [#411](https://github.com/MinoruSoga/AnimalEkarte/pull/411)、merge `d337f016`。Backend Deploy #176 / Frontend Deploy #51 success）。production 未反映。ブラウザ確認は未実施。
 
-現況追記（2026-09-17）: §1・§7 の医院原文/回答と §6 の当時の結果は保存した。現在は治療 Enter・検索一覧高さのローカル実装/検証が完了し、[実機受入](../../todo-verification.md#uat-followup) が残る。性別修正は [隔離候補の検証済み](../../todo-issue.md#uat-q3-gender-map)、main 統合・bundle・STG 訂正は未完了。ノートPC125% は記録済み、タブ・解像度は未回答。全面ロックは導入せず目的確認待ち。処置移行は今期に含むが種類・期間・責任者・受入条件待ち。死亡日は根拠がある行だけ訂正し、実適用は未了。Linear は現在 `USER_NOT_LOGGED_IN` / UNKNOWN。追加の医院・PO 事実は得られていない。
+現況追記（2026-09-17）: §1・§7 の医院原文/回答と §6 の当時の結果は保存した。現在は治療 Enter・検索一覧高さのローカル実装/検証が完了し、[実機受入](../../todo.md#uat-followup) が残る。性別修正は [隔離候補の検証済み](../../todo.md#uat-q3-gender-map)、main 統合・bundle・STG 訂正は未完了。ノートPC125% は記録済み、タブ・解像度は未回答。全面ロックは導入せず目的確認待ち。処置移行は今期に含むが種類・期間・責任者・受入条件待ち。死亡日は根拠がある行だけ訂正し、実適用は未了。Linear は現在 `USER_NOT_LOGGED_IN` / UNKNOWN。追加の医院・PO 事実は得られていない。
 
 根拠（コード・仕様。PHI は含めない）:
 
@@ -177,7 +177,7 @@ flowchart TB
 - **根拠（元の old_db main `2eab89ac`）**: 承認済みデコードは `PetSeibt_Kbn` `{1,3}=male, {2,4}=female, {5,0}=unknown`。去勢事実はコードから `neutered_date` を捏造しない（`propose-review-decisions.md`）。一方 stage SQL は `sex_kbn IN ('1','01')→male`、`('2','02')→female`、**else unknown**。コード3/4が unknown になる。`neutered_date` は `PetOpe_Date` から別列。AE の性別は `male|female|unknown`、UI は雄/雌/不明。去勢日は別フィールド。
 - **修正方針**:
   1. 隔離候補の `030_stage.sql` は承認デコード（1/01/3/03→male、2/02/4/04→female、それ以外 unknown）へ修正済み。元の main への統合は残る。
-  2. classifier/oracle と38 mapping tests・80% gateは候補で確認済み。SQL CASE は SQLite のみで、PostgreSQL・export は未検証。[候補と証跡](../../todo-issue.md#uat-q3-gender-map) を参照。
+  2. classifier/oracle と38 mapping tests・80% gateは候補で確認済み。SQL CASE は SQLite のみで、PostgreSQL・export は未検証。[候補と証跡](../../todo.md#uat-q3-gender-map) を参照。
   3. **既に STG へ入った行**は SQL 再実行または `pets.gender` の訂正バッチ。再取込は `make stg-uat-*` の運用承認が必要。エージェントは migrate/STG 書き込みを自動実行しない。
   4. AE の性別enumは増やさない。画面は「性別」＋「去勢・避妊手術日」の併記を維持。一覧に性別列は仕様上無い（`03-owners-list.md`）。詳細フォームで確認できることを受入にする。
 - **受け入れ条件**:
@@ -258,7 +258,7 @@ flowchart TB
 - **根拠**: `CutoverTableSpecs` に `treatments` も `prescriptions` も無い。`030_stage.sql` に treatments INSERT は無い。
 - **修正方針**: 21表の契約変更＋old_db stage＋F6。今期に含む方針は記録済み。種類・期間・責任者・受入条件が確定するまで実装を保留する。それまでは Q2-HISTORY-NAV で詳細へ通し、治療タブ空は移行範囲と明示する。
 - **受け入れ条件**: 種類・期間・責任者とともに未確定。
-- **状態**: 今期対象・詳細待ち。[現行計画](../../todo-issue.md#uat-q2-treatments-import) で追跡し、入力が揃うまで実装 READY にしない。
+- **状態**: 今期対象・詳細待ち。[現行計画](../../todo.md#uat-q2-treatments-import) で追跡し、入力が揃うまで実装 READY にしない。
 
 ---
 
@@ -410,7 +410,7 @@ local `main` 統合（この tree）:
 - **根拠**: 会計の「マスタから選択」は `useGetAllMerchandiseItems` の **有効な商品マスタのみ**（`ItemListCard`）。診療項目はカルテ治療 → 未請求（`treatment_id`）。検査・ワクチン候補の会計確認は単価 null/非有限/負を「価格未設定」（`isUnbillableMasterPrice`）。全治療単価の nullable 契約には一般化しない。診療項目の単価は全タブ保存、課税は診察・処置のみ（`master-treatment.md`）。商品単価は 0 以上で保存可。
 - **方針**: まず医院が触ったマスタ画面を特定する。推測で「全部のマスタを会計に出す」はしない。単価未保存なら入力必須化を検討。診療項目を会計ダイアログに出すのは二重管理になるため、カルテ経由が正なら手順を案内する。
 - **やらないこと**: 全マスタを会計ダイアログへ混在させる。
-- **状態**: [商品直接請求と治療→未請求の source 調査](../../todo-issue.md#uat-r2-master-path) は完了。医院の登録画面は未特定。
+- **状態**: [商品直接請求と治療→未請求の source 調査](plane-md-migration-20260923-receipt.md) は完了。医院の登録画面は未特定。
 
 ### UAT-R2-EXCLUSIVE-LOCK
 
@@ -418,15 +418,15 @@ local `main` 統合（この tree）:
 - **根拠**: セッション占有ロックは無い。`clinical_plan` は version 楽観ロック（衝突時 Conflict）。会計 write は行ロック。`NavigationBlocker` は同一タブの未保存離脱警告。写真未添付。
 - **方針**: 旧ロックの複製は製品哲学①（存在を疑う）。目的は二重会計・上書き防止なら、保存衝突の明示と会計の原子確定で足りるか先に確認。全面ロックは工程を増やす。
 - **やらないこと**: 写真なしで全画面ロックを実装する。
-- **状態**: [version 競合・会計行ロック・未保存離脱警告の source 調査](../../todo-issue.md#uat-r2-exclusive-lock) は完了。全面ロックは導入せず、目的・具体的事故の確認待ち。
+- **状態**: [version 競合・会計行ロック・未保存離脱警告の source 調査](plane-md-migration-20260923-receipt.md) は完了。全面ロックは導入せず、目的・具体的事故の確認待ち。
 
 ### UAT-R2-TREATMENT-COMMIT
 
-`72807128` で Enter 2回、Blur 保存、Escape 取消を実装済み。repeat / isComposing / keyCode229 を含む28 testsは既存検証で PASS。実機 IME・ブラウザ保存→再読込は [検証 TODO](../../todo-verification.md#uat-r2-treatment-commit) に残す。性能改善の実測は未了。§7 の回答は改修前の記録。
+`72807128` で Enter 2回、Blur 保存、Escape 取消を実装済み。repeat / isComposing / keyCode229 を含む28 testsは既存検証で PASS。実機 IME・ブラウザ保存→再読込は [検証 TODO](plane-md-migration-20260923-receipt.md) に残す。性能改善の実測は未了。§7 の回答は改修前の記録。
 
 ### UAT-R2-MASTER-LIST-HEIGHT
 
-`72807128` の `TreatmentSearchDialog` は一覧上限を `max-h-[calc(80vh-12rem)]` へ変更済み、10 testsは既存検証で PASS。viewport・ズーム・キーボード選択・フォーカス復帰の実機受入は [検証 TODO](../../todo-verification.md#uat-r2-master-list-height) に残す。長い一覧にはスクロールが残る。
+`72807128` の `TreatmentSearchDialog` は一覧上限を `max-h-[calc(80vh-12rem)]` へ変更済み、10 testsは既存検証で PASS。viewport・ズーム・キーボード選択・フォーカス復帰の実機受入は [検証 TODO](plane-md-migration-20260923-receipt.md) に残す。長い一覧にはスクロールが残る。
 
 ### UAT-R2-CHART-FIT
 

@@ -24,9 +24,10 @@ type listReservationQuery struct {
 }
 
 type reservationAvailableTimesQuery struct {
-	ReservationTypeID string
-	StaffID           string
-	Date              string
+	ReservationTypeID  string
+	StaffID            string
+	Date               string
+	IncludeUnavailable string
 }
 
 func newListReservationQuery(values url.Values) listReservationQuery {
@@ -43,9 +44,10 @@ func newListReservationQuery(values url.Values) listReservationQuery {
 
 func newReservationAvailableTimesQuery(values url.Values) reservationAvailableTimesQuery {
 	return reservationAvailableTimesQuery{
-		ReservationTypeID: values.Get("reservation_type_id"),
-		StaffID:           values.Get("staff_id"),
-		Date:              values.Get("date"),
+		ReservationTypeID:  values.Get("reservation_type_id"),
+		StaffID:            values.Get("staff_id"),
+		Date:               values.Get("date"),
+		IncludeUnavailable: values.Get("include_unavailable"),
 	}
 }
 
@@ -110,9 +112,10 @@ func (q *listReservationQuery) toServiceFilters() (listReservationFilters, error
 }
 
 type reservationAvailableTimesFilters struct {
-	ReservationTypeID uint64
-	StaffID           uint64
-	Date              time.Time
+	ReservationTypeID  uint64
+	StaffID            uint64
+	Date               time.Time
+	IncludeUnavailable bool
 }
 
 func (q reservationAvailableTimesQuery) toServiceFilters() (reservationAvailableTimesFilters, error) {
@@ -125,9 +128,10 @@ func (q reservationAvailableTimesQuery) toServiceFilters() (reservationAvailable
 		return reservationAvailableTimesFilters{}, apperrors.WrapInvalidInput("invalid date: must be YYYY-MM-DD")
 	}
 	return reservationAvailableTimesFilters{
-		ReservationTypeID: reservationTypeID,
-		StaffID:           parseOptionalUintQueryValue(q.StaffID),
-		Date:              date,
+		ReservationTypeID:  reservationTypeID,
+		StaffID:            parseOptionalUintQueryValue(q.StaffID),
+		Date:               date,
+		IncludeUnavailable: q.IncludeUnavailable == "true",
 	}, nil
 }
 

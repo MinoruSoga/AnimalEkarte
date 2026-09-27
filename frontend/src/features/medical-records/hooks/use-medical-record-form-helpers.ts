@@ -296,6 +296,12 @@ export function toMedicalRecordFormResult(input: {
     handleChangeDoctor: input.handleChangeDoctor,
     handleVisitTypeChange: input.handleVisitTypeChange,
     recordDate: input.read.existingRecord?.date,
+    // EMR-168: 相方トリミング解決の基準日（YYYY-MM-DD）。既存カルテはその日付、
+    // 新規は visitDate 指定 or 当日。formatDate は "YYYY/MM/DD" を返すため "/"→"-" で戻す。
+    partnerVisitDate:
+      input.read.existingRecord?.date && input.read.existingRecord.date !== "-"
+        ? input.read.existingRecord.date.replaceAll("/", "-")
+        : (input.read.visitDateFromState ?? formatJSTDate(new Date())),
     handleChangeDate: input.handleChangeDate,
     handleFinalize: input.handleFinalize,
     isFinalizeSaving: input.isSavingTransition,

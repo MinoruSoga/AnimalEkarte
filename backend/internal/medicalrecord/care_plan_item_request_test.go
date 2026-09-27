@@ -97,3 +97,40 @@ func TestUpdateCarePlanItemRequest_ToServiceInput_NilTiming(t *testing.T) {
 		t.Fatalf("Timing = %#v, want nil", input.Timing)
 	}
 }
+
+func TestCreateCarePlanItemRequest_ToServiceInput_ManualFields(t *testing.T) {
+	req := createCarePlanItemRequest{
+		Type:        "item",
+		Name:        "持ち込み品",
+		Manual:      true,
+		Category:    "other",
+		OtherReason: "持ち込み療養食のため",
+	}
+
+	input := req.toServiceInput()
+
+	if !input.Manual {
+		t.Fatal("Manual = false, want true")
+	}
+	if input.OtherReason != req.OtherReason {
+		t.Fatalf("OtherReason = %q, want %q", input.OtherReason, req.OtherReason)
+	}
+}
+
+func TestUpdateCarePlanItemRequest_ToServiceInput_ManualFields(t *testing.T) {
+	manual := true
+	reason := "持ち込み療養食のため"
+	req := updateCarePlanItemRequest{
+		Manual:      &manual,
+		OtherReason: &reason,
+	}
+
+	input := req.toServiceInput()
+
+	if input.Manual == nil || *input.Manual != manual {
+		t.Fatalf("Manual = %v, want %v", input.Manual, manual)
+	}
+	if input.OtherReason == nil || *input.OtherReason != reason {
+		t.Fatalf("OtherReason = %v, want %q", input.OtherReason, reason)
+	}
+}

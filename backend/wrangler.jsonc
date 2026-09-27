@@ -95,6 +95,13 @@
     // 形式: スキーム込みの公開 base(例 "https://<R2-custom-domain>" または "https://<id>.r2.dev")。
     // 実ドメインは Cloudflare で公開ドメインを作成後に USER が投入する。推測ドメインは書かないこと。
     "S3_PUBLIC_BASE_URL": "",
+
+    // サポートチャット用 LLM(OpenAI 互換 API)。プロバイダは Z.AI(glm-4.5-flash 無料枠)。
+    // API キーだけがシークレット(gitignore 済み backend/.env → `pnpm cf:secrets` で bulk 投入)。
+    // URL/モデルは非機密のため vars で管理する。OpenAI へ戻す場合はこの2行を変更する
+    // (Go 既定値は api.openai.com/v1 + gpt-5-nano。config.go 参照)。
+    "SUPPORT_LLM_BASE_URL": "https://api.z.ai/api/paas/v4",
+    "SUPPORT_LLM_MODEL": "glm-4.5-flash",
   },
 
   "observability": {
@@ -210,6 +217,11 @@
       // LINE_CHANNEL_ACCESS_TOKEN/LINE_CHANNEL_SECRET/LSTEP_API_KEY は将来のグローバルfallback用に
       // 予約されているが(冒頭コメント参照)、現状 Go 側の env 読み込みパスが無いため required から
       // 除外する(未使用シークレット不足で `wrangler deploy` が失敗するため)。実装され次第ここへ追加する。
+      // SUPPORT_LLM_API_KEY はサポートチャット(OpenAI互換API)用の任意シークレット。
+      // required に入れない — 未設定ならチャット無効で検索型ヘルプへフォールバックする。
+      // 値は gitignore 済み backend/.env に KEY=VALUE で置き
+      // `pnpm cf:secrets`(= wrangler secret bulk .env) で投入する(secret put 単発でも可)。
+      // SUPPORT_LLM_BASE_URL/MODEL(Z.AI)は vars で管理。TIMEOUT_MS は Go 既定値(30s)。
     ],
   },
 }

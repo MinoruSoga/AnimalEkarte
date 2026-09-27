@@ -74,7 +74,7 @@ func (s *checkupPackageImportService) importCheckupFields(
 		if !ok {
 			return nil, 0, apperrors.WrapInvalidInput(fmt.Sprintf("field type_key %q missing", f.TypeKey))
 		}
-		opts, err := json.Marshal(f.Options)
+		opts, err := marshalCheckupFieldOptions(f.Options)
 		if err != nil {
 			return nil, 0, apperrors.Wrap(err, "marshal field options")
 		}
@@ -116,4 +116,22 @@ func (s *checkupPackageImportService) importCheckupFields(
 		fieldsCreated++
 	}
 	return fieldIDByKey, fieldsCreated, nil
+}
+
+// checkupPackageFieldOption は checkup_type_fields.options（jsonb）の永続化形状。
+// 旧 seed・結果値バリデーション（checkupFieldOption）・FE 動的フォームの契約と一致させる。
+type checkupPackageFieldOption struct {
+	Value string `json:"value"`
+	Label string `json:"label"`
+}
+
+// marshalCheckupFieldOptions は manifest の選択肢文字列配列を永続化形状へ変換する。
+// 生の []string のまま保存すると FE（opt.value/opt.label）と
+// parseCheckupOptionValues（[]checkupFieldOption への unmarshal）の両方が読めない。
+func marshalCheckupFieldOptions(options []string) ([]byte, error) {
+	rows := make([]checkupPackageFieldOption, 0, len(options))
+	for _, o := range options {
+		rows = append(rows, checkupPackageFieldOption{Value: o, Label: o})
+	}
+	return json.Marshal(rows)
 }

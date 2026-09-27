@@ -1,18 +1,18 @@
 ---
 name: task-create
-description: "抽象的なタスク依頼を実装粒度に分解する。新規 Issue 本文は todo-issue.md。Linear は既存チケット更新のみ（新規作成禁止）。repo 入口は todo.md。STATUS.md と旧二台帳は復活させない。"
+description: "抽象的なタスク依頼を実装粒度に分解する。新規 Issue 本文は todo.md の Issue 出典節。Linear は既存チケット更新のみ（新規作成禁止）。repo 入口は todo.md。STATUS.md と旧二台帳は復活させない。"
 ---
 
 # Task Decompose — タスク分解・イシュー自動生成
 
 抽象的なタスク依頼を受け取り、コードベースを調査した上で:
-1. **新規 Issue 本文の正本は [`todo-issue.md`](../../../todo-issue.md)**（Linear free issue limit のため **新規作成禁止**）
+1. **新規 Issue 本文の正本は [`todo.md` Issue 出典節](../../../todo.md#issue-ledger)**（Linear free issue limit のため **新規作成禁止**）
 2. repo 入口・FAIL・人間レーンは [`todo.md`](../../../todo.md)
 3. Linear は **既存チケットのコメント／状態更新のみ**（明示承認後）。新規 Linear Issue は作らない
-4. BE/FE 分割が必要な場合は同一 ID に `-BE` / `-FE` 節を分け、本文は `todo-issue.md` に置く
+4. BE/FE 分割が必要な場合は同一 ID に `-BE` / `-FE` 節を分け、本文は `todo.md` の Issue 出典節に置く
 
 > **パス正本の注意**: `STATUS.md`、旧 `3-session-agent.html#ledger`、`backend/issues/` / `frontend/issues/`・docs/tasks 体系は廃止済み。復活させない。
-> GitHub Issue の新規作成と Linear への外部投稿（既存更新含む）は明示承認後のみ。許可がなければ `todo-issue.md` 下書きを完成させる。
+> GitHub Issue の新規作成と Linear への外部投稿（既存更新含む）は明示承認後のみ。許可がなければ `todo.md` Issue 出典節の下書きを完成させる。
 ## 起動トリガー
 
 ユーザーが以下のようなタスク依頼を行った場合に起動:
@@ -164,7 +164,7 @@ grep -n "関連キーワード" frontend/src/types/generated/models.ts
 
 ## Phase 3: タスクセクション生成
 
-### 出力先: [`todo-issue.md`](../../../todo-issue.md) に Open 行＋詳細節。必要なら `todo.md` の該当節へ入口行を追加。`STATUS.md` は作らない。Linear 新規 Issue は作らない。
+### 出力先: [`todo.md` Issue 出典節](../../../todo.md#issue-ledger) に Open 行＋詳細節。必要なら `todo.md` の該当節へ入口行を追加。`STATUS.md` は作らない。Linear 新規 Issue は作らない。
 
 旧テンプレート（概要/仕様確認ログ/サブタスク分解/受入条件/技術的判断/影響範囲/参照実装/リスク/未解決事項/実装順序）の構造を、以下の5項目に**圧縮**して記載する。**1タスク15行程度を上限の目安**とし、長くなる場合は BE/FE 分割するか、詳細を根拠ファイルパスへのポインタに落とす。
 ### テンプレート
@@ -219,7 +219,7 @@ grep -n "関連キーワード" frontend/src/types/generated/models.ts
 1. BE（DB + API）
 2. FE（UI）— BE 完了後に着手可能
 
-新規 Issue の状態は `todo-issue.md`。既存 Linear チケットがある場合のみ、承認後にコメント／状態更新する。
+新規 Issue の状態は `todo.md` の Issue 出典節。既存 Linear チケットがある場合のみ、承認後にコメント／状態更新する。
 ```
 
 ---

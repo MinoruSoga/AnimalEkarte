@@ -25,6 +25,8 @@ const (
 	colPetEnvironment     = "environment"
 	colPetInsuranceID     = "insurance_id"
 	colPetRemarks         = "remarks"
+	colPetNameOrigin      = "name_origin"
+	colPetMeetingStory    = "meeting_story"
 )
 
 // --- Input DTOs（Service層の公開I/F） ---
@@ -53,6 +55,9 @@ type CreatePetInput struct {
 	Phone           string
 	InsuranceID     *uint64
 	Remarks         string
+	// EMR-174: 名前の由来 / 出逢いのストーリーは任意記録。nil = 未記録(NULL)。
+	NameOrigin   *string
+	MeetingStory *string
 }
 
 // UpdatePetInput はペット更新の入力DTO（全フィールドポインタ型: nil = 未指定, 非nil = 更新対象）
@@ -85,6 +90,9 @@ type UpdatePetInput struct {
 	LastVisit    *time.Time
 	InsuranceID  **uint64
 	Remarks      *string
+	// EMR-174: DangerReason と同型 tri-state（nil=未指定 / &nil=NULLクリア / &&value=更新対象）。
+	NameOrigin   **string
+	MeetingStory **string
 }
 
 // PetUpdate is the typed atomic update command owned by the pet package.
@@ -164,6 +172,13 @@ func buildPetUpdate(input *UpdatePetInput) map[string]any {
 	}
 	if input.Remarks != nil {
 		fields[colPetRemarks] = *input.Remarks
+	}
+	if input.NameOrigin != nil {
+		// *input.NameOrigin は *string: nil = NULL クリア、非nil = 値セット
+		fields[colPetNameOrigin] = *input.NameOrigin
+	}
+	if input.MeetingStory != nil {
+		fields[colPetMeetingStory] = *input.MeetingStory
 	}
 	return fields
 }

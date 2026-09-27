@@ -4,7 +4,7 @@
 
 ## 根拠と適用境界
 
-- [現行課題](../../../todo-issue.md#po-pet-deceased-data-backfill) は、根拠のある死亡日だけを訂正し、根拠のない個体を残件として維持する方針を示す（現行 `todo-issue.md:73-75`）。[修復計画](../../../bug.md#plan-po-pet-deceased-data-backfill) は、PO の定義、承認後の読取集計、dry-run、監査、復旧、医院別照合を要求する（`bug.md:380-389`）。既存メモの件数は現在の件数ではない。
+- [現行課題](../../../todo.md#po-pet-deceased-data-backfill) は、根拠のある死亡日だけを訂正し、根拠のない個体を残件として維持する方針を示す（現行 `todo-issue.md:73-75`）。[修復計画](../../../bug.md#plan-po-pet-deceased-data-backfill) は、PO の定義、承認後の読取集計、dry-run、監査、復旧、医院別照合を要求する（`bug.md:380-389`）。既存メモの件数は現在の件数ではない。
 - 旧 `old_db/sql/migration/030_stage.sql:445-455` は、`deceased_date IS NOT NULL` **または** `life_status_kbn IN ('2','02','9','09')` なら stage `status='deceased'` とする。一方、`deceased_at` は `deceased_date > '1900-01-01'` の場合だけ日時へ変換し、それ以外は `NULL` とする。したがって死亡フラグのみ、または非 NULL の番兵日付からも `status='deceased', deceased_at=NULL` が生じる。この SQL の変換結果だけでは実際の死亡日時の根拠を証明できない。
 - stage `pets` は `clinic_id`, `owner_id`, `source_table`, `source_pk`, `legacy_owner_no`, `legacy_pet_no`, `migration_run_id`, `mapping_status` を保持する（旧 SQL `:392-418,420-425,456-479`）。`owner_key` 欠落、個体と飼主の旧医院枝番不一致などは `needs_review` であり、自動訂正対象にしない（同 `:466-479`）。現行 [AE pets CSV 契約](../../../backend/internal/csvimport/cutover_contract.go) は `clinic_id`, `owner_id`, `status`, `deceased_at` を含む（`:203-209`）。`source_table/source_pk` は stage 側の照合情報であり、AE pets CSV の列ではない。
 - 本票は死亡ガードの製品修正を再開しない。実際の対象医院、環境、正本、日付原票、対象個体、現在件数は **UNKNOWN**。旧 SQL の `clinic_id=1` を対象医院の決定や全医院への適用根拠にしない。

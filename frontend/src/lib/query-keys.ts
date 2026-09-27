@@ -16,7 +16,7 @@ export const queryKeys = {
   /** 単数形 "accounting" を第一要素に持つ別ネームスペース（accountings とは別キー） */
   accounting: {
     unpaidAll: () => ["accounting", "unpaid"] as const,
-    unpaidBillings: <P>(groupBy: "owner" | "billing" | "monthly", params: P) =>
+    unpaidBillings: <P>(groupBy: "owner" | "billing" | "period", params: P) =>
       ["accounting", "unpaid", groupBy, params] as const,
     ungroupedItems: (petId: string, date: string) => ["accounting-ungrouped", petId, date] as const,
     merchandiseItems: () => ["accounting", "merchandise-items"] as const,
@@ -389,13 +389,19 @@ export const queryKeys = {
       ["identity-links", "pet-group", clinicId, petId] as const,
   },
 
-  // ── manual / closing-settings ─────────────────────────────────────
+  // ── manual / closing-settings / support ───────────────────────────
   manualArticles: {
     all: () => ["manual-articles"] as const,
   },
   closingSettings: {
     all: () => ["closing-settings"] as const,
     holidays: () => ["closing-settings", "holidays"] as const,
+  },
+  supportBugReports: {
+    all: () => ["support-bug-reports"] as const,
+  },
+  supportChat: {
+    status: () => ["support-chat", "status"] as const,
   },
 
   // ── test-only ─────────────────────────────────────────────────────

@@ -13,13 +13,15 @@ import {
   fstatSync,
   lstatSync,
   openSync,
-  readdirSync,
   readFileSync,
   realpathSync,
   statSync,
 } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { listPageFiles, listSpecFiles } from "./e2e-file-tree.mjs";
+
+export { listPageFiles, listSpecFiles };
 
 const require = createRequire(import.meta.url);
 const ts = require("typescript");
@@ -233,59 +235,6 @@ export function collectModuleReferences(sourceText, importerIdentity) {
   return refs;
 }
 
-export function listSpecFiles(e2eRoot) {
-  let rootStat;
-  try {
-    rootStat = lstatSync(e2eRoot);
-  } catch (error) {
-    throw new Error(
-      `unreadable e2e scan path: ${e2eRoot}: ${error && error.message ? error.message : error}`,
-    );
-  }
-  if (rootStat.isSymbolicLink()) {
-    throw new Error(`e2e root is a symlink: ${e2eRoot}`);
-  }
-  if (!rootStat.isDirectory()) {
-    throw new Error(`e2e root is not a directory: ${e2eRoot}`);
-  }
-
-  const out = [];
-  const stack = [e2eRoot];
-  while (stack.length) {
-    const current = stack.pop();
-    let entries;
-    try {
-      entries = readdirSync(current, { withFileTypes: true });
-    } catch (error) {
-      throw new Error(
-        `unreadable e2e scan path: ${current}: ${error && error.message ? error.message : error}`,
-      );
-    }
-    for (const entry of entries) {
-      const full = path.join(current, entry.name);
-      let st;
-      try {
-        st = lstatSync(full);
-      } catch (error) {
-        throw new Error(
-          `unreadable e2e scan path: ${full}: ${error && error.message ? error.message : error}`,
-        );
-      }
-      // Fail closed on any symlink before extension filtering; never follow links.
-      if (st.isSymbolicLink()) {
-        throw new Error(`symlink in e2e tree: ${full}`);
-      }
-      if (st.isDirectory()) {
-        if (entry.name === "node_modules" || entry.name === "dist") continue;
-        stack.push(full);
-      } else if (st.isFile() && entry.name.endsWith(".spec.ts")) {
-        out.push(full);
-      }
-    }
-  }
-  return out.sort();
-}
-
 function fileIdentityFromRoot(e2eRoot, absoluteFile) {
   const rel = toPosix(path.relative(e2eRoot, absoluteFile));
   if (rel.startsWith("..") || path.isAbsolute(rel)) return null;
@@ -413,6 +362,7 @@ function assertSelectedPageExists(e2eRoot, pageIdentity) {
  *   pages: string[],
  *   e2eRoot: string,
  *   listSpecs?: () => string[],
+ *   listPages?: () => string[],
  *   beforeTrustedRead?: (absolutePath: string) => void,
  * }} options
  */
@@ -460,6 +410,90 @@ export function verifyPages(options) {
     };
   }
 
+  // Build page→page carrier edges: a spec that imports concrete page Q
+  // transitively exercises every page Q statically imports (e.g. base classes).
+  // Only one level of indirection is resolved; deeper chains stay fail-closed.
+  const carriersByPage = new Map();
+  const carrierEvidenceByPage = new Map();
+  let pageAbsPaths = [];
+  try {
+    pageAbsPaths = options.listPages ? options.listPages() : listPageFiles(e2eRoot);
+  } catch (error) {
+    return {
+      ok: false,
+      error: String(error && error.message ? error.message : error),
+      pages: [],
+    };
+  }
+  if (!Array.isArray(pageAbsPaths)) {
+    return {
+      ok: false,
+      error: "listPages must return an array of absolute paths",
+      pages: [],
+    };
+  }
+  for (const abs of pageAbsPaths) {
+    try {
+      assertRawAbsoluteCanonical(abs);
+    } catch (error) {
+      return {
+        ok: false,
+        error: String(error && error.message ? error.message : error),
+        pages: [],
+      };
+    }
+    const identity = fileIdentityFromRoot(e2eRoot, abs);
+    if (!identity || !identity.startsWith("e2e/pages/")) {
+      return {
+        ok: false,
+        error: `enumerated page path escapes e2e pages root or is noncanonical: ${abs}`,
+        pages: [],
+      };
+    }
+    if (typeof options.beforeTrustedRead === "function") {
+      options.beforeTrustedRead(abs);
+    }
+    let text;
+    try {
+      text = readTrustedSpecFile(e2eRoot, abs);
+    } catch (error) {
+      const message = String(error && error.message ? error.message : error);
+      if (
+        /nofollow|symlink|ELOOP|trusted spec|escapes e2e root|descriptor realpath|regular file|noncanonical/i.test(
+          message,
+        )
+      ) {
+        return {
+          ok: false,
+          error: message,
+          pages: [],
+        };
+      }
+      continue;
+    }
+    const refs = collectModuleReferences(text, identity);
+    for (const ref of refs) {
+      if (
+        !ref.identity ||
+        identitiesEqual(ref.identity, identity) ||
+        !SUPPORTED_FORMS.has(ref.form) ||
+        !isImporterRelativeSpecifier(ref.specifier)
+      ) {
+        continue;
+      }
+      if (!carriersByPage.has(ref.identity)) {
+        carriersByPage.set(ref.identity, new Set());
+        carrierEvidenceByPage.set(ref.identity, []);
+      }
+      carriersByPage.get(ref.identity).add(identity);
+      carrierEvidenceByPage.get(ref.identity).push({
+        file: identity,
+        form: ref.form,
+        specifier: ref.specifier,
+      });
+    }
+  }
+
   const pageResults = [];
   let ok = true;
 
@@ -468,6 +502,7 @@ export function verifyPages(options) {
     const blocking = [];
     const seenConsumer = new Set();
     const seenBlocking = new Set();
+    const carrierIdentities = carriersByPage.get(page) || new Set();
 
     for (const abs of specAbsPaths) {
       try {
@@ -534,7 +569,14 @@ export function verifyPages(options) {
           }
           continue;
         }
-        if (!ref.identity || !identitiesEqual(ref.identity, page)) {
+        if (!ref.identity) {
+          continue;
+        }
+        const isDirect = identitiesEqual(ref.identity, page);
+        const viaCarrier = !isDirect && carrierIdentities.has(ref.identity)
+          ? ref.identity
+          : null;
+        if (!isDirect && !viaCarrier) {
           continue;
         }
         if (
@@ -548,6 +590,7 @@ export function verifyPages(options) {
               file: identity,
               form: ref.form,
               specifier: ref.specifier,
+              ...(viaCarrier ? { via: viaCarrier } : {}),
             });
           }
         } else {
@@ -562,7 +605,12 @@ export function verifyPages(options) {
     }
 
     if (consumers.length < 1 || blocking.length > 0) ok = false;
-    pageResults.push({ page, consumers, blocking });
+    pageResults.push({
+      page,
+      consumers,
+      carriers: carrierEvidenceByPage.get(page) || [],
+      blocking,
+    });
   }
 
   if (!pages.length) {

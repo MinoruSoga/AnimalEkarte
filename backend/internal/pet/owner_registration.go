@@ -44,6 +44,9 @@ type CreatePetDraft struct {
 	Phone           string
 	InsuranceID     *uint64
 	Remarks         string
+	// EMR-174: 名前の由来 / 出逢いのストーリーは任意記録（nil = NULL）。
+	NameOrigin   *string
+	MeetingStory *string
 }
 
 // CreateIntent describes one direct pet create. Number allocation and all
@@ -119,6 +122,8 @@ func CreatePetDraftFromModel(pet model.Pet) CreatePetDraft {
 		Phone:           pet.Phone,
 		InsuranceID:     pet.InsuranceID,
 		Remarks:         pet.Remarks,
+		NameOrigin:      pet.NameOrigin,
+		MeetingStory:    pet.MeetingStory,
 	}
 }
 
@@ -170,7 +175,7 @@ func createPetsInTransaction(
 		return []model.Pet{}, nil
 	}
 
-	normalizedPets, err := normalizeCreatePetDraftDangerReasons(intent.Pets)
+	normalizedPets, err := normalizeCreatePetDrafts(intent.Pets)
 	if err != nil {
 		return nil, err
 	}
@@ -203,7 +208,7 @@ func createPetsInTransaction(
 	return created, nil
 }
 
-func normalizeCreatePetDraftDangerReasons(pets []CreatePetDraft) ([]CreatePetDraft, error) {
+func normalizeCreatePetDrafts(pets []CreatePetDraft) ([]CreatePetDraft, error) {
 	normalized := make([]CreatePetDraft, len(pets))
 	for i := range pets {
 		normalized[i] = pets[i]
@@ -212,6 +217,16 @@ func normalizeCreatePetDraftDangerReasons(pets []CreatePetDraft) ([]CreatePetDra
 			return nil, apperrors.Wrap(err, fmt.Sprintf("pets[%d]", i))
 		}
 		normalized[i].DangerReason = reason
+		nameOrigin, err := normalizeOptionalNarrative("名前の由来", pets[i].NameOrigin, nameOriginMaxRunes)
+		if err != nil {
+			return nil, apperrors.Wrap(err, fmt.Sprintf("pets[%d]", i))
+		}
+		normalized[i].NameOrigin = nameOrigin
+		meetingStory, err := normalizeOptionalNarrative("出逢いのストーリー", pets[i].MeetingStory, meetingStoryMaxRunes)
+		if err != nil {
+			return nil, apperrors.Wrap(err, fmt.Sprintf("pets[%d]", i))
+		}
+		normalized[i].MeetingStory = meetingStory
 	}
 	return normalized, nil
 }
@@ -262,6 +277,8 @@ func (p CreatePetDraft) model(clinicID, ownerID uint64, petNumber string) model.
 		Phone:           p.Phone,
 		InsuranceID:     p.InsuranceID,
 		Remarks:         p.Remarks,
+		NameOrigin:      p.NameOrigin,
+		MeetingStory:    p.MeetingStory,
 	}
 }
 

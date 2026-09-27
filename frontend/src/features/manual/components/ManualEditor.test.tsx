@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { toast } from "sonner";
 
-import type { ManualArticle } from "../lib/manual-index";
+import type { ManualArticle } from "@/lib/manual-index";
 import { ManualEditor } from "./ManualEditor";
 
 const PERMISSION_DENIED_MESSAGE = "この操作を行う権限がありません";

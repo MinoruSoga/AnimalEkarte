@@ -131,6 +131,14 @@ if [[ "${1:-}" == "volume" && "${2:-}" == "rm" ]]; then
   exit 98
 fi
 
+# docker ps (container listing — used for foreign volume-holder diagnostics)
+if [[ "${1:-}" == "ps" ]]; then
+  for h in ${db_volume_holders:-}; do
+    printf '%s\n' "$h"
+  done
+  exit 0
+fi
+
 # compose subcommands — find the verb after compose flags
 # argv shape: compose -p PROJECT -f FILE [--env-file FILE] VERB ...
 if [[ "${1:-}" == "compose" ]]; then
@@ -662,7 +670,41 @@ write_mock_curl "$TMP_ROOT/good-execute-assert"
   fi
 }
 
-# 17. Real repo contract-only should pass (static check against worktree)
+# 17. Foreign container still mounts the volume → non-zero, holder named, no volume rm
+build_fixture "$TMP_ROOT/bad-foreign-holder"
+write_mock_docker "$TMP_ROOT/bad-foreign-holder"
+write_mock_curl "$TMP_ROOT/bad-foreign-holder"
+set_flag "$TMP_ROOT/bad-foreign-holder" db_volume_holders "emr999-db-1"
+{
+  set +e
+  out="$(
+    cd "$TMP_ROOT/bad-foreign-holder"
+    env \
+      LOCAL_DB_RESET_ROOT="$TMP_ROOT/bad-foreign-holder" \
+      LOCAL_DB_RESET_DOCKER="$TMP_ROOT/bad-foreign-holder/bin/docker" \
+      LOCAL_DB_RESET_CURL="$TMP_ROOT/bad-foreign-holder/bin/curl" \
+      LOCAL_DB_RESET_BACKUP_ROOT="$TMP_ROOT/bad-foreign-holder/backups" \
+      LOCAL_DB_RESET_COMPOSE_FILE="$TMP_ROOT/bad-foreign-holder/docker-compose.yml" \
+      LOCAL_DB_RESET_ENV_FILE="$TMP_ROOT/bad-foreign-holder/.env.local" \
+      LOCAL_DB_RESET_MAKEFILE="$TMP_ROOT/bad-foreign-holder/Makefile" \
+      LOCAL_DB_RESET_MIGRATIONS_DIR="$TMP_ROOT/bad-foreign-holder/backend/migrations" \
+      bash "$TMP_ROOT/bad-foreign-holder/scripts/local-db-reset-contract.sh" 2>&1
+  )"
+  actual_exit=$?
+  set -e
+  if [[ "$actual_exit" -ne 0 ]] \
+     && printf '%s\n' "$out" | grep -F 'emr999-db-1' >/dev/null 2>&1 \
+     && ! grep -E 'volume([[:space:]]|.*)+rm([[:space:]]|.*)+ekarte-postgres-data' "$TMP_ROOT/bad-foreign-holder/state/docker.log" >/dev/null 2>&1; then
+    echo "PASS  [bad-foreign-holder] exit=$actual_exit, holder named, no volume rm"
+  else
+    echo "FAIL  [bad-foreign-holder] exit=$actual_exit (want non-zero, holder named, no volume rm)"
+    printf '%s\n' "$out"
+    cat "$TMP_ROOT/bad-foreign-holder/state/docker.log"
+    failures=$((failures + 1))
+  fi
+}
+
+# 18. Real repo contract-only should pass (static check against worktree)
 {
   set +e
   out="$(bash "$CONTRACT" --contract-only 2>&1)"

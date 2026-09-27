@@ -32,6 +32,7 @@ type mockBillingItemService struct {
 	getUnbilledItemsFn           func(ctx context.Context, clinicID, petID uint64) ([]model.BillingItem, error)
 	getUnbilledItemDetailsFn     func(ctx context.Context, clinicID, petID uint64) (*UnbilledDetails, error)
 	assertNoBlockingUnbilledFn   func(ctx context.Context, clinicID, petID uint64) error
+	assertUnbilledForCompleteFn  func(ctx context.Context, clinicID, petID uint64, expectedRevision string) error
 	getUngroupedSameDaySummaryFn func(ctx context.Context, clinicID, petID uint64, date time.Time) (UngroupedSameDaySummary, error)
 	getDiscountSuggestionsFn     func(ctx context.Context, clinicID, itemID uint64) ([]DiscountSuggestion, error)
 	getBillingFn                 func(ctx context.Context, clinicID, billingID uint64) (*model.Billing, error)
@@ -75,6 +76,13 @@ func (m *mockBillingItemService) GetUnbilledItemDetails(ctx context.Context, cli
 func (m *mockBillingItemService) AssertNoBlockingUnbilled(ctx context.Context, clinicID, petID uint64) error {
 	if m.assertNoBlockingUnbilledFn != nil {
 		return m.assertNoBlockingUnbilledFn(ctx, clinicID, petID)
+	}
+	return nil
+}
+
+func (m *mockBillingItemService) AssertUnbilledForComplete(ctx context.Context, clinicID, petID uint64, expectedRevision string) error {
+	if m.assertUnbilledForCompleteFn != nil {
+		return m.assertUnbilledForCompleteFn(ctx, clinicID, petID, expectedRevision)
 	}
 	return nil
 }

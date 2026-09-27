@@ -1,6 +1,6 @@
 # SLACK-DECEASED: 死亡後の連絡記録は臨床 write と分け、死亡ガードは維持する
 
-状態: **連絡メモ vs 臨床 write の比較 READY／PO 範囲 UNKNOWN／製品実装なし**。出典は [todo-issue.md](../../../todo-issue.md) 見出し `### SLACK-DECEASED`（L208–212、索引 L428）。保持する現場条件:
+状態: **連絡メモ vs 臨床 write の比較 READY／PO 範囲 UNKNOWN／製品実装なし**。出典は [todo-issue.md](../../../todo.md#issue-ledger) 見出し `### SLACK-DECEASED`（L208–212、索引 L428）。保持する現場条件:
 
 - 死亡後も飼主との連絡を記録したい（出典 982–986。現行 `todo-issue.md` は要約のみ。原文行は本票では再掲しない）
 - **死亡 write ガードはバグではない。** `status=deceased OR deceased_at != nil` の fail-closed を「連絡できないから外す」対象にしない
@@ -129,7 +129,7 @@ PO が記録対象・閲覧/編集者・時刻/記録者/監査・過去カル�
 
 ## PO へ渡す限定質問（再質問を増やさない）
 
-[todo-issue.md](../../../todo-issue.md) L212 の完了条件を分解する。本票で答えを書かない。
+[todo-issue.md](../../../todo.md#issue-ledger) L212 の完了条件を分解する。本票で答えを書かない。
 
 1. 記録対象は飼主か、死亡した個体か、医院全体の連絡か。
 2. 書いてよい職種と、読んでよい職種。

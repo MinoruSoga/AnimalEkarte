@@ -66,7 +66,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"GET /api/v1/accountings/daily-summary GetDailySummary\n" +
 		"GET /api/v1/accountings/unpaid ListUnpaidBillings\n" +
 		"GET /api/v1/accountings/unpaid-balance GetOwnerUnpaidBalance\n" +
-		"GET /api/v1/accountings/unpaid-monthly GetUnpaidMonthlySummary\n" +
+		"GET /api/v1/accountings/unpaid-period GetUnpaidPeriodSummary\n" +
 		"GET /api/v1/billing-items/:id/discount-suggestions GetBillingItemDiscountSuggestions\n" +
 		"GET /api/v1/billing-items/unbilled GetUnbilledItems\n" +
 		"GET /api/v1/billing-items/unbilled-details GetUnbilledItemDetails\n" +

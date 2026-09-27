@@ -177,6 +177,42 @@ export function UnbilledBlockingWarningBanner({
   );
 }
 
+interface UnbilledConflictBannerProps {
+  show: boolean;
+  onReload: () => void;
+}
+
+/**
+ * EMR-196②: complete 確定時に unbilled 集約の版不一致（別端末でのカルテ追記）を検出した案内。
+ * hook 側で最新集約の再取得と stale なローカル編集の破棄は済んでいるため、
+ * 最新内容の確認と再確定・または画面全体の再読み込みを促す。
+ */
+export function UnbilledConflictBanner({ show, onReload }: UnbilledConflictBannerProps) {
+  if (!show) return null;
+
+  return (
+    <div
+      className={`flex items-start gap-2 px-4 py-2.5 rounded-md border mb-4 ${C.bgWarning50} ${C.borderWarning20} ${C.textWarning}`}
+      role="alert"
+      aria-label="未請求明細が他の画面で更新されました"
+    >
+      <AlertTriangle
+        className={`shrink-0 h-4 w-4 mt-0.5 ${C.textWarningIcon}`}
+        aria-hidden="true"
+      />
+      <div className="text-sm flex-1">
+        <span className="font-medium">未請求明細が他の画面で更新されました。</span>
+        <span className={`block ${C.text60} mt-0.5`}>
+          最新の明細を読み込み直しました。内容を確認してから再度確定してください（更新前に行った明細編集は破棄されます）。
+        </span>
+      </div>
+      <Button type="button" variant="outline" size="sm" onClick={onReload}>
+        再読み込み
+      </Button>
+    </div>
+  );
+}
+
 interface AccountingCalculationView {
   subtotal: number;
   taxTotal: number;

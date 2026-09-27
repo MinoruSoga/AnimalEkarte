@@ -1,6 +1,6 @@
 # SLACK-INTAKE: Slack トピックの分類照合（既存 ID へ、todo-issue.md は編集しない）
 
-状態: **分類照合 READY／外部シート照合 UNKNOWN／製品実装なし**。出典は [todo-issue.md](../../../todo-issue.md) 見出し `### SLACK-INTAKE`（L166–170、索引 L434）と親 `1789550614.370909`（出典 1000–1063）。保持する現場条件:
+状態: **分類照合 READY／外部シート照合 UNKNOWN／製品実装なし**。出典は [todo-issue.md](../../../todo.md#issue-ledger) 見出し `### SLACK-INTAKE`（L166–170、索引 L434）と親 `1789550614.370909`（出典 1000–1063）。保持する現場条件:
 
 - 受付/看護の窓口は **Q&A の 1内容1件分類**であり、新しい EMR 受付画面ではない
 - 不具合＝納品前、要望＝納品後、質問＝操作案内。未確定は PO の限定質問。全要望を納品前不具合へ昇格しない
@@ -23,12 +23,12 @@
 
 | 禁止 | 理由 |
 | --- | --- |
-| INTAKE を受付/看護の新画面・集約 UI として実装する | ①要件を疑う。窓口集約は分類運用。現場一連は [SLACK-CLINICAL-UAT](../../../todo-issue.md#slack-clinical-uat) |
+| INTAKE を受付/看護の新画面・集約 UI として実装する | ①要件を疑う。窓口集約は分類運用。現場一連は [SLACK-CLINICAL-UAT](../../../todo.md#slack-clinical-uat) |
 | 45キーを本票1件へ畳む | 9/16 細分化は個別プラン。完了条件が明示 |
 | repo 内に Q&A 複製ビューを置く | [backlog-spreadsheet.md](../../ops/backlog-spreadsheet.md) 禁止。旧 `q&a.html` は現行ではない |
 | 黒塗り行を一括削除する | 無制限削除の許可ではない。対象行・範囲の承認まで停止 |
 | 外部シート状態を本票の分類根拠にする | 外部状態は今回 UNKNOWN。Plane/Linear/Backlog 書込みも未実施 |
-| 本文保存やローカル検証を、報告不具合の解消と扱う | [todo-issue.md](../../../todo-issue.md) L389 |
+| 本文保存やローカル検証を、報告不具合の解消と扱う | [todo-issue.md](../../../todo.md#issue-ledger) L389 |
 
 分類値は完了条件どおり次の5つのみ: **existing ID** / **new investigation** / **answered** / **duplicate** / **out of scope**。
 
@@ -50,55 +50,55 @@ flowchart TB
 
 ## 45キー分類マトリクス
 
-出典: [トピック別の処理先](../../../todo-issue.md#トピック別の処理先)（45キー = Slack個別30 + 既存8キー/9課題 + 実装済み受入5 + 回答済み操作2）。EXISTING-OTHER は2件。
+出典: [トピック別の処理先](../../../todo.md#トピック別の処理先)（45キー = Slack個別30 + 既存8キー/9課題 + 実装済み受入5 + 回答済み操作2）。EXISTING-OTHER は2件。
 
 | Topic key | 分類 | 既存 ID | エリア | 9/16 分離を保つか | 納品前/後/質問 | 限定 PO 質問 |
 | --- | --- | --- | --- | --- | --- | --- |
-| ACCESS | existing ID | [SLACK-ACCESS](../../../todo-issue.md#slack-access) | 3 | no | 運用準備（納品前 readiness） | なし（名簿は権限者参照。本票で作らない） |
-| UAT-SCHEDULE | existing ID | [SLACK-UAT-SCHEDULE](../../../todo-issue.md#slack-uat-schedule) | 3 | no | 受入準備 | なし（過去候補日を新期限にしない） |
-| HAC-IMPORT | existing ID | [SLACK-HAC-IMPORT](../../../todo-issue.md#slack-hac-import) | 3 | no | 既存運用接続 | なし（送付報告≠投入完了） |
-| LAB | existing ID | [SLACK-LAB](../../../todo-issue.md#slack-lab) | 3 | 親976–981は個別維持 | 実機受入待ち。対応時期は未回答 | 機器仕様が揃うまで時期を推定しない |
-| MANUAL-URINE | existing ID | [SLACK-MANUAL-URINE](../../../todo-issue.md#slack-manual-urine) | 1 | LAB から分離済み | 手入力経路の受入 | なし |
-| OCR | existing ID | [SLACK-OCR](../../../todo-issue.md#slack-ocr) | 4 | no | **納品後 DEFERRED** | 再質問しない。当面は画像/PDF 閲覧 |
-| EXAM-HISTORY | existing ID | [SLACK-EXAM-HISTORY](../../../todo-issue.md#slack-exam-history) | 3 | no | DrOne 除外は answered。旧カルテ検査は受入残 | 除外再開は新たな裁定。本票で覆さない |
-| SMAREGI | existing ID | [SLACK-SMAREGI](../../../todo-issue.md#slack-smaregi) | 4 | 親1000–1063で延期を優先 | **納品後 DEFERRED** | 再質問しない。会計 UAT は独立 |
-| SHIFT | answered | [操作案内の保持](../../../todo-issue.md#slack-answered) | 5 | no | 質問（操作案内・謝辞） | なし。予約成功の実証は RESERVATION-REFERENCE |
-| RESERVATION-REFERENCE | existing ID | [SLACK-RESERVATION-REFERENCE](../../../todo-issue.md#slack-reservation-reference) | 3 | STAFF-SELECT / CROSS-CLINIC と分離 | 対応報告あり・再確認待ち | なし。選択 UI 障害は STAFF-SELECT |
-| STAFF-SELECT | existing ID | [SLACK-STAFF-SELECT](../../../todo-issue.md#slack-staff-select) | 1 | 親643と725を統合し個別維持 | 不具合調査 | なし（全 staff 開放で回避しない） |
-| CROSS-CLINIC | existing ID | [SLACK-CROSS-CLINIC](../../../todo-issue.md#slack-cross-clinic) | 2 | STAFF-SELECT と分離 | 権限要望。裁定前は境界変更停止 | 対象医院リストと閲覧/受付/編集/会計の権限（既存本文。再質問しない） |
-| OWNER-HEIGHT | existing ID | [SLACK-OWNER-HEIGHT](../../../todo-issue.md#slack-owner-height) | 1 | no | 不具合調査 | なし。CHART-FIT 寸法と混ぜない |
-| SEARCH-AND | answered | [UAT-Q1-SEARCH-AND](../../../todo-verification.md#uat-q1-search-and) | 5 | no | 実装済み・UAT 待ち | なし。医院受入 PASS ではない |
-| HISTORY | answered | [UAT-Q2-HISTORY-NAV](../../../todo-verification.md#uat-q2-history-nav) | 5 | no | 導線コードあり・UAT 待ち | 未移行なら TREATMENTS-IMPORT。導線再実装しない |
-| SPECIES | existing ID | [UAT-Q2-VACCINE-SPECIES](../../../todo-issue.md#uat-q2-vaccine-species) | 3 | no | 既存調査 | なし。集計設計の作り直し禁止 |
-| GENDER | existing ID | [UAT-Q3-GENDER-MAP](../../../todo-issue.md#uat-q3-gender-map) | 3 | no | old_db 統合済み・bundle/実データ待ち | なし。再統合タスクは終了 |
-| UNPAID | existing ID | [UAT-Q4-UNPAID-TRIAGE](../../../todo-issue.md#uat-q4-unpaid-triage) | 3 | INSURANCE と分離 | 原因未確定の既存調査 | なし。一括完了やタブ隠蔽へ進まない |
-| INSURANCE | answered | [UAT-Q4-INSURANCE-RATES](../../../todo-verification.md#uat-q4-insurance-rates) | 5 | UNPAID と分離 | 新規50/70・旧90/100 の受入 | なし |
-| MASTER | existing ID | [UAT-R2-MASTER-PATH](../../../todo-issue.md#uat-r2-master-path) | 1 | **保つ**（CONCURRENCY と分離。親961も同 ID） | 9/16 追加証拠を既存経路票へ統合 | なし（「全ページ検証」確定済） |
-| CONCURRENCY | existing ID | [UAT-R2-EXCLUSIVE-LOCK](../../../todo-issue.md#uat-r2-exclusive-lock) | 1 | **保つ**（MASTER と分離） | 9/16 追加事故を既存競合票へ統合 | なし（上書きと二重確定の両方） |
-| LATENCY | existing ID | [SLACK-LATENCY](../../../todo-issue.md#slack-latency) | 1 | **保つ**（ENTER / MASTER-HEIGHT と3分離） | 計測調査 | なし。Enter/IME と混ぜない |
-| ENTER | answered | [UAT-R2-TREATMENT-COMMIT](../../../todo-verification.md#uat-r2-treatment-commit) | 5 | **保つ** | コード対応済み・実機 IME 待ち | なし |
-| MASTER-HEIGHT | answered | [UAT-R2-MASTER-LIST-HEIGHT](../../../todo-verification.md#uat-r2-master-list-height) | 5 | **保つ** | コード対応済み・実画面受入待ち | なし。OWNER-HEIGHT と混ぜない |
-| CHART-FIT | existing ID | [UAT-R2-CHART-FIT](../../../todo-issue.md#uat-r2-chart-fit) | 1 | no | 既存全9タブ計画 | なし（Win8/Chrome/1366×625 確定済） |
-| RESERVATION-EDIT | answered | [操作案内の保持](../../../todo-issue.md#slack-answered) | 5 | no | 質問（案内・謝辞） | なし。後日の権限/保存問題だけ切り分け |
-| COMPLAINT | existing ID | [SLACK-COMPLAINT](../../../todo-issue.md#slack-complaint) | 1 | **保つ**（BACKGROUND / VITALS と3分離） | 任意入力の再現 | 必須化するかは再現後。本票で昇格しない |
-| BACKGROUND | existing ID | [SLACK-BACKGROUND](../../../todo-issue.md#slack-background) | 2 | **保つ** | 対象欄未特定 → PO | 対象欄/目的/マスタか自由文か（既存本文） |
-| VITALS | existing ID | [SLACK-VITALS](../../../todo-issue.md#slack-vitals) | 1 | **保つ** | 表示位置は要望寄り。時刻保持は臨床 | 「時間不要」を保存時刻削除と読まない。臨床時刻は既存停止条件 |
-| MICROCHIP | existing ID | [SLACK-MICROCHIP](../../../todo-issue.md#slack-microchip) | 1 | no | 既存値の表示設計 | なし。新規欄追加は目的再検討 |
-| DANGER | existing ID | [SLACK-DANGER](../../../todo-issue.md#slack-danger) | 2 | no | 表示要望。既存「高」保持 | 赤/黄の意味と場所（既存本文） |
-| DETAILS | existing ID | [SLACK-DETAILS](../../../todo-issue.md#slack-details) | 1 | **保つ**（STORY と分離） | 詳細導線の調査 | なし。STORY 欄追加と混ぜない |
-| STORY | existing ID | [SLACK-STORY](../../../todo-issue.md#slack-story) | 2 | **保つ** | 記録欄要望 → PO | 既存備考で足りるか（既存本文）。削減工程ゼロなら再検討 |
-| VACCINE-PRINT | existing ID | [SLACK-VACCINE-PRINT](../../../todo-issue.md#slack-vaccine-print) | 2 | no | 専用証明書の仕様確認 | 用途/記載/用紙（既存本文）。一般カルテ印刷と同一視しない |
-| VACCINE-MULTI | existing ID | [SLACK-VACCINE-MULTI](../../../todo-issue.md#slack-vaccine-multi) | 1 | **保つ**（登録失敗と複数入力を票内分離） | 失敗=不具合、複数入力=要望。同一 ID のまま | 複数入力を納品前必須に昇格しない |
-| DECEASED | existing ID | [SLACK-DECEASED](../../../todo-issue.md#slack-deceased) | 2 | no | 死亡後連絡は要望。死亡日訂正と分離 | 記録対象/権限（既存本文）。BACKFILL と統合しない |
-| PLAN-MANUAL | existing ID | [SLACK-PLAN-MANUAL](../../../todo-issue.md#slack-plan-manual) | 1 | **保つ**（COPY と分離） | 画面差は質問。手入力は既存経路 | なし。MASTER 0円は MASTER-PATH |
-| COPY | existing ID | [SLACK-COPY](../../../todo-issue.md#slack-copy) | 1 | **保つ** | 前回複写は要望寄り。安全設計は READY | 転記の業務目的が未記録なら実装前に責任者を残す |
-| CAMERA | existing ID | [SLACK-CAMERA](../../../todo-issue.md#slack-camera) | 1 | no | 撮影保存は要望寄り。経路調査 READY | **限定:** 納品前の既存 upload 経路確認を続けるか、納品後要望へ移すか。実患者写真は試験禁止 |
-| BILLING-UAT | existing ID | [SLACK-BILLING-UAT](../../../todo-issue.md#slack-billing-uat) | 3 | **保つ**（INTAKE / CLINICAL-UAT / SMAREGI と分離） | 9/16 最優先の実機受入 | なし。Smaregi 待ちにしない |
-| CLINICAL-UAT | existing ID | [SLACK-CLINICAL-UAT](../../../todo-issue.md#slack-clinical-uat) | 3 | **保つ** | 各院の診療/看護一連 | なし。未達は一件一原因。本票へ集約しない |
-| INTAKE | existing ID | 本票（[SLACK-INTAKE](../../../todo-issue.md#slack-intake)） | 1 | 窓口だけにまとめない | 分類照合そのもの | 下記「本票の限定 PO 質問」のみ |
-| BACKLOG61 | existing ID | [SLACK-BACKLOG61](../../../todo-issue.md#slack-backlog61) | 3 | no | 原票・PDF UNKNOWN | 資料なしで帳票式を作らない |
-| TREATMENTS-IMPORT | existing ID | [UAT-Q2-TREATMENTS-IMPORT](../../../todo-issue.md#uat-q2-treatments-import) | 1 | no | 「全部」確定済の既存契約 | なし（期間/種類で絞らない。全DB移行許可ではない） |
-| EXISTING-OTHER | existing ID | [PO-PET-DECEASED-DATA-BACKFILL](../../../todo-issue.md#po-pet-deceased-data-backfill)、[TASK-444-ADDENDUM-CODEGEN](../../../todo-issue.md#task-444-addendum-codegen) | 3 と 4 | no | 死亡日限定訂正は資料待ち。追記型生成は別スコープ DEFERRED | なし。DECEASED 連絡記録と混ぜない |
+| ACCESS | existing ID | [SLACK-ACCESS](../../../todo.md#slack-access) | 3 | no | 運用準備（納品前 readiness） | なし（名簿は権限者参照。本票で作らない） |
+| UAT-SCHEDULE | existing ID | [SLACK-UAT-SCHEDULE](../../../todo.md#slack-uat-schedule) | 3 | no | 受入準備 | なし（過去候補日を新期限にしない） |
+| HAC-IMPORT | existing ID | [SLACK-HAC-IMPORT](../../../todo.md#slack-hac-import) | 3 | no | 既存運用接続 | なし（送付報告≠投入完了） |
+| LAB | existing ID | [SLACK-LAB](../../../todo.md#slack-lab) | 3 | 親976–981は個別維持 | 実機受入待ち。対応時期は未回答 | 機器仕様が揃うまで時期を推定しない |
+| MANUAL-URINE | existing ID | [SLACK-MANUAL-URINE](../../../todo.md#slack-manual-urine) | 1 | LAB から分離済み | 手入力経路の受入 | なし |
+| OCR | existing ID | [SLACK-OCR](../../../todo.md#slack-ocr) | 4 | no | **納品後 DEFERRED** | 再質問しない。当面は画像/PDF 閲覧 |
+| EXAM-HISTORY | existing ID | [SLACK-EXAM-HISTORY](../../../todo.md#slack-exam-history) | 3 | no | DrOne 除外は answered。旧カルテ検査は受入残 | 除外再開は新たな裁定。本票で覆さない |
+| SMAREGI | existing ID | [SLACK-SMAREGI](../../../todo.md#slack-smaregi) | 4 | 親1000–1063で延期を優先 | **納品後 DEFERRED** | 再質問しない。会計 UAT は独立 |
+| SHIFT | answered | [操作案内の保持](../../../todo.md#slack-answered) | 5 | no | 質問（操作案内・謝辞） | なし。予約成功の実証は RESERVATION-REFERENCE |
+| RESERVATION-REFERENCE | existing ID | [SLACK-RESERVATION-REFERENCE](../../../todo.md#slack-reservation-reference) | 3 | STAFF-SELECT / CROSS-CLINIC と分離 | 対応報告あり・再確認待ち | なし。選択 UI 障害は STAFF-SELECT |
+| STAFF-SELECT | existing ID | [SLACK-STAFF-SELECT](../../../todo.md#slack-staff-select) | 1 | 親643と725を統合し個別維持 | 不具合調査 | なし（全 staff 開放で回避しない） |
+| CROSS-CLINIC | existing ID | [SLACK-CROSS-CLINIC](../../../todo.md#slack-cross-clinic) | 2 | STAFF-SELECT と分離 | 権限要望。裁定前は境界変更停止 | 対象医院リストと閲覧/受付/編集/会計の権限（既存本文。再質問しない） |
+| OWNER-HEIGHT | existing ID | [SLACK-OWNER-HEIGHT](../../../todo.md#slack-owner-height) | 1 | no | 不具合調査 | なし。CHART-FIT 寸法と混ぜない |
+| SEARCH-AND | answered | [UAT-Q1-SEARCH-AND](../plane-md-migration-20260923-receipt.md) | 5 | no | 実装済み・UAT 待ち | なし。医院受入 PASS ではない |
+| HISTORY | answered | [UAT-Q2-HISTORY-NAV](../plane-md-migration-20260923-receipt.md) | 5 | no | 導線コードあり・UAT 待ち | 未移行なら TREATMENTS-IMPORT。導線再実装しない |
+| SPECIES | existing ID | [UAT-Q2-VACCINE-SPECIES](../../../todo.md#uat-q2-vaccine-species) | 3 | no | 既存調査 | なし。集計設計の作り直し禁止 |
+| GENDER | existing ID | [UAT-Q3-GENDER-MAP](../../../todo.md#uat-q3-gender-map) | 3 | no | old_db 統合済み・bundle/実データ待ち | なし。再統合タスクは終了 |
+| UNPAID | existing ID | [UAT-Q4-UNPAID-TRIAGE](../../../todo.md#uat-q4-unpaid-triage) | 3 | INSURANCE と分離 | 原因未確定の既存調査 | なし。一括完了やタブ隠蔽へ進まない |
+| INSURANCE | answered | [UAT-Q4-INSURANCE-RATES](../plane-md-migration-20260923-receipt.md) | 5 | UNPAID と分離 | 新規50/70・旧90/100 の受入 | なし |
+| MASTER | existing ID | [UAT-R2-MASTER-PATH](../plane-md-migration-20260923-receipt.md) | 1 | **保つ**（CONCURRENCY と分離。親961も同 ID） | 9/16 追加証拠を既存経路票へ統合 | なし（「全ページ検証」確定済） |
+| CONCURRENCY | existing ID | [UAT-R2-EXCLUSIVE-LOCK](../plane-md-migration-20260923-receipt.md) | 1 | **保つ**（MASTER と分離） | 9/16 追加事故を既存競合票へ統合 | なし（上書きと二重確定の両方） |
+| LATENCY | existing ID | [SLACK-LATENCY](../../../todo.md#slack-latency) | 1 | **保つ**（ENTER / MASTER-HEIGHT と3分離） | 計測調査 | なし。Enter/IME と混ぜない |
+| ENTER | answered | [UAT-R2-TREATMENT-COMMIT](../plane-md-migration-20260923-receipt.md) | 5 | **保つ** | コード対応済み・実機 IME 待ち | なし |
+| MASTER-HEIGHT | answered | [UAT-R2-MASTER-LIST-HEIGHT](../plane-md-migration-20260923-receipt.md) | 5 | **保つ** | コード対応済み・実画面受入待ち | なし。OWNER-HEIGHT と混ぜない |
+| CHART-FIT | existing ID | [UAT-R2-CHART-FIT](../../../todo.md#uat-r2-chart-fit) | 1 | no | 既存全9タブ計画 | なし（Win8/Chrome/1366×625 確定済） |
+| RESERVATION-EDIT | answered | [操作案内の保持](../../../todo.md#slack-answered) | 5 | no | 質問（案内・謝辞） | なし。後日の権限/保存問題だけ切り分け |
+| COMPLAINT | existing ID | [SLACK-COMPLAINT](../plane-md-migration-20260923-receipt.md) | 1 | **保つ**（BACKGROUND / VITALS と3分離） | 任意入力の再現 | 必須化するかは再現後。本票で昇格しない |
+| BACKGROUND | existing ID | [SLACK-BACKGROUND](../plane-md-migration-20260923-receipt.md) | 2 | **保つ** | 対象欄未特定 → PO | 対象欄/目的/マスタか自由文か（既存本文） |
+| VITALS | existing ID | [SLACK-VITALS](../plane-md-migration-20260923-receipt.md) | 1 | **保つ** | 表示位置は要望寄り。時刻保持は臨床 | 「時間不要」を保存時刻削除と読まない。臨床時刻は既存停止条件 |
+| MICROCHIP | existing ID | [SLACK-MICROCHIP](../../../todo.md#slack-microchip) | 1 | no | 既存値の表示設計 | なし。新規欄追加は目的再検討 |
+| DANGER | existing ID | [SLACK-DANGER](../plane-md-migration-20260923-receipt.md) | 2 | no | 表示要望。既存「高」保持 | 赤/黄の意味と場所（既存本文） |
+| DETAILS | existing ID | [SLACK-DETAILS](../plane-md-migration-20260923-receipt.md) | 1 | **保つ**（STORY と分離） | 詳細導線の調査 | なし。STORY 欄追加と混ぜない |
+| STORY | existing ID | [SLACK-STORY](../plane-md-migration-20260923-receipt.md) | 2 | **保つ** | 記録欄要望 → PO | 既存備考で足りるか（既存本文）。削減工程ゼロなら再検討 |
+| VACCINE-PRINT | existing ID | [SLACK-VACCINE-PRINT](../../../todo.md#slack-vaccine-print) | 2 | no | 専用証明書の仕様確認 | 用途/記載/用紙（既存本文）。一般カルテ印刷と同一視しない |
+| VACCINE-MULTI | existing ID | [SLACK-VACCINE-MULTI](../../../todo.md#slack-vaccine-multi) | 1 | **保つ**（登録失敗と複数入力を票内分離） | 失敗=不具合、複数入力=要望。同一 ID のまま | 複数入力を納品前必須に昇格しない |
+| DECEASED | existing ID | [SLACK-DECEASED](../../../todo.md#slack-deceased) | 2 | no | 死亡後連絡は要望。死亡日訂正と分離 | 記録対象/権限（既存本文）。BACKFILL と統合しない |
+| PLAN-MANUAL | existing ID | [SLACK-PLAN-MANUAL](../plane-md-migration-20260923-receipt.md) | 1 | **保つ**（COPY と分離） | 画面差は質問。手入力は既存経路 | なし。MASTER 0円は MASTER-PATH |
+| COPY | existing ID | [SLACK-COPY](../plane-md-migration-20260923-receipt.md) | 1 | **保つ** | 前回複写は要望寄り。安全設計は READY | 転記の業務目的が未記録なら実装前に責任者を残す |
+| CAMERA | existing ID | [SLACK-CAMERA](../../../todo.md#slack-camera) | 1 | no | 撮影保存は要望寄り。経路調査 READY | **限定:** 納品前の既存 upload 経路確認を続けるか、納品後要望へ移すか。実患者写真は試験禁止 |
+| BILLING-UAT | existing ID | [SLACK-BILLING-UAT](../../../todo.md#slack-billing-uat) | 3 | **保つ**（INTAKE / CLINICAL-UAT / SMAREGI と分離） | 9/16 最優先の実機受入 | なし。Smaregi 待ちにしない |
+| CLINICAL-UAT | existing ID | [SLACK-CLINICAL-UAT](../../../todo.md#slack-clinical-uat) | 3 | **保つ** | 各院の診療/看護一連 | なし。未達は一件一原因。本票へ集約しない |
+| INTAKE | existing ID | 本票（[SLACK-INTAKE](../../../todo.md#slack-intake)） | 1 | 窓口だけにまとめない | 分類照合そのもの | 下記「本票の限定 PO 質問」のみ |
+| BACKLOG61 | existing ID | [SLACK-BACKLOG61](../../../todo.md#slack-backlog61) | 3 | no | 原票・PDF UNKNOWN | 資料なしで帳票式を作らない |
+| TREATMENTS-IMPORT | existing ID | [UAT-Q2-TREATMENTS-IMPORT](../../../todo.md#uat-q2-treatments-import) | 1 | no | 「全部」確定済の既存契約 | なし（期間/種類で絞らない。全DB移行許可ではない） |
+| EXISTING-OTHER | existing ID | [PO-PET-DECEASED-DATA-BACKFILL](../../../todo.md#po-pet-deceased-data-backfill)、[TASK-444-ADDENDUM-CODEGEN](../../../todo.md#task-444-addendum-codegen) | 3 と 4 | no | 死亡日限定訂正は資料待ち。追記型生成は別スコープ DEFERRED | なし。DECEASED 連絡記録と混ぜない |
 
 **45キー集計:** existing ID 38（INTAKE 本票を含む。EXISTING-OTHER は1キーで既存2課題） / answered 7（SHIFT, RESERVATION-EDIT, SEARCH-AND, HISTORY, INSURANCE, ENTER, MASTER-HEIGHT） / new investigation 0 / duplicate 0（重複は親単位） / out of scope 0（対象外は親単位）。キー欠落なし。
 
@@ -122,7 +122,7 @@ Slack 個別プラン30はすべて existing ID のまま個別維持。8キー�
 
 ## 50親投稿の出典分類
 
-出典: [全50親投稿・返信の出典対応表](../../../todo-issue.md#slack-source-map)。内訳 通常44 + 重複再掲2 + 対象外4 = 50。行範囲は返信を含む。添付中身は UNKNOWN。
+出典: [全50親投稿・返信の出典対応表](../../../todo.md#slack-source-map)。内訳 通常44 + 重複再掲2 + 対象外4 = 50。行範囲は返信を含む。添付中身は UNKNOWN。
 
 | 出典行 | 親 timestamp | 分類 | 接続先 | メモ |
 | --- | --- | --- | --- | --- |

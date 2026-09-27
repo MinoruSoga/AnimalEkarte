@@ -87,7 +87,14 @@ func TestRouteCompositionSmoke_TargetGraphRegistersEverySurface(t *testing.T) {
 	// 2026-09-25: 527 — GET /health/db (EMR-213 STG keep-alive DB ping).
 	// Operational endpoint returning a detail-free status; intentionally absent
 	// from api.yaml (see openapi_route_drift_test.go knownMissingFromSpec).
-	require.Len(t, routes, 527)
+	// 2026-09-26: 532 — support widget (bug reports + LLM help chat):
+	//   GET    /api/v1/support/bug-reports
+	//   POST   /api/v1/support/bug-reports
+	//   PATCH  /api/v1/support/bug-reports/:id/status
+	//   GET    /api/v1/support/chat/status
+	//   POST   /api/v1/support/chat
+	// All five are documented in backend/docs/api.yaml.
+	require.Len(t, routes, 532)
 	for _, expected := range []string{
 		"GET /health",
 		"GET /health/db",

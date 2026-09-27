@@ -2,12 +2,12 @@ import { useMemo, useState, useCallback } from "react";
 import { useSearchParams } from "react-router";
 
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
-import { currentJSTYearMonth, currentJSTMonthDateRange } from "@/lib/jst-date";
+import { currentJSTMonthDateRange } from "@/lib/jst-date";
 
 import {
   useGetUnpaidByOwner,
   useGetUnpaidByBilling,
-  useGetUnpaidMonthly,
+  useGetUnpaidPeriod,
   type UnpaidOwner,
 } from "../api/get-unpaid-billings";
 import { UnpaidTabFilters } from "./UnpaidTabFilters";
@@ -15,8 +15,8 @@ import { parseUnpaidGroupBy, type UnpaidGroupBy } from "../lib/unpaid-tab-model"
 import { UnpaidTabSummaries } from "./UnpaidTabSummaries";
 import {
   UnpaidBillingTable,
-  UnpaidMonthlyTable,
   UnpaidOwnerTable,
+  UnpaidPeriodTable,
   UnpaidTabPagination,
 } from "./UnpaidTabTables";
 
@@ -29,12 +29,6 @@ export function UnpaidTab() {
   const monthRange = currentJSTMonthDateRange();
   const startDate = searchParams.get("start_date") ?? monthRange.start;
   const endDate = searchParams.get("end_date") ?? monthRange.end;
-
-  // #114: month param (YYYY-MM), default は JST 当月
-  const monthParam = searchParams.get("month") ?? currentJSTYearMonth();
-  const monthParts = monthParam.split("-").map(Number);
-  const yearNum = monthParts[0] ?? 0;
-  const monthNum = monthParts[1] ?? 0;
 
   const [page, setPage] = useState(1);
   const limit = 20;
@@ -86,52 +80,36 @@ export function UnpaidTab() {
     [setSearchParams],
   );
 
-  const handleMonthChange = useCallback(
-    (next: string) => {
-      setSearchParams(
-        (prev) => {
-          const p = new URLSearchParams(prev);
-          if (next) p.set("month", next);
-          else p.delete("month");
-          return p;
-        },
-        { replace: true },
-      );
-      setPage(1);
-    },
-    [setSearchParams],
-  );
-
-  // groupBy: "monthly" のとき enabled=false になるよう型を統一
+  // groupBy: "period" のとき enabled=false になるよう型を統一
   const ownerQuery = useGetUnpaidByOwner({ startDate, endDate, groupBy, page, limit });
   const billingQuery = useGetUnpaidByBilling({ startDate, endDate, groupBy, page, limit });
-  const monthlyQuery = useGetUnpaidMonthly({ year: yearNum, month: monthNum, page, limit });
+  const periodQuery = useGetUnpaidPeriod({ startDate, endDate, groupBy, page, limit });
 
   const summary = ownerQuery.data?.summary;
-  const monthlySummary = monthlyQuery.data?.summary;
+  const periodSummary = periodQuery.data?.summary;
 
   const isLoading =
     groupBy === "owner"
       ? ownerQuery.isLoading
       : groupBy === "billing"
         ? billingQuery.isLoading
-        : monthlyQuery.isLoading;
+        : periodQuery.isLoading;
   const isError =
     groupBy === "owner"
       ? ownerQuery.isError
       : groupBy === "billing"
         ? billingQuery.isError
-        : monthlyQuery.isError;
+        : periodQuery.isError;
 
   const ownerRows = useMemo<UnpaidOwner[]>(() => ownerQuery.data?.data ?? [], [ownerQuery.data]);
-  const monthlyRows = useMemo(() => monthlyQuery.data?.data ?? [], [monthlyQuery.data]);
+  const periodRows = useMemo(() => periodQuery.data?.data ?? [], [periodQuery.data]);
   const billingRows = billingQuery.data?.data ?? [];
   const listData =
     groupBy === "owner"
       ? ownerQuery.data
       : groupBy === "billing"
         ? billingQuery.data
-        : monthlyQuery.data;
+        : periodQuery.data;
 
   return (
     <div className="flex flex-col gap-4">
@@ -139,14 +117,12 @@ export function UnpaidTab() {
         groupBy={groupBy}
         startDate={startDate}
         endDate={endDate}
-        monthParam={monthParam}
         onStartDateChange={handleStartDateChange}
         onEndDateChange={handleEndDateChange}
-        onMonthChange={handleMonthChange}
         onGroupByChange={handleGroupByChange}
       />
 
-      <UnpaidTabSummaries groupBy={groupBy} summary={summary} monthlySummary={monthlySummary} />
+      <UnpaidTabSummaries groupBy={groupBy} summary={summary} periodSummary={periodSummary} />
 
       {isLoading ? <LoadingFallback /> : null}
       {isError ? <ErrorFallback message="データの取得に失敗しました" /> : null}
@@ -159,8 +135,8 @@ export function UnpaidTab() {
         <UnpaidBillingTable billings={billingRows} endDate={endDate} />
       ) : null}
 
-      {!isLoading && !isError && groupBy === "monthly" ? (
-        <UnpaidMonthlyTable rows={monthlyRows} />
+      {!isLoading && !isError && groupBy === "period" ? (
+        <UnpaidPeriodTable rows={periodRows} />
       ) : null}
 
       <UnpaidTabPagination

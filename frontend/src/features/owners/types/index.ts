@@ -43,6 +43,10 @@ export interface PetFormData {
   acquisitionType?: AcquisitionType;
   dangerLevel?: DangerLevel;
   dangerReason?: string;
+  /** EMR-174: 名前の由来（nullable。フォーム上の空文字=未記録） */
+  nameOrigin?: string;
+  /** EMR-174: 出逢いのストーリー（nullable。フォーム上の空文字=未記録） */
+  meetingStory?: string;
   food?: string;
   environment: string;
   remarks: string;

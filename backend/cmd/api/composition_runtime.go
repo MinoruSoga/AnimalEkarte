@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/time/rate"
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/audit"
@@ -20,6 +22,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/owner"
 	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/reservation"
+	"github.com/animal-ekarte/backend/internal/support"
 	"github.com/animal-ekarte/backend/internal/trimming"
 )
 
@@ -85,6 +88,7 @@ type runtimeComposition struct {
 	inventory     inventoryRuntime
 	trimming      trimmingRuntime
 	lstep         *lstep.Application
+	supportChat   support.ChatCompleter
 }
 
 type runtimeCompositionDependencies struct {
@@ -250,6 +254,12 @@ func newRuntimeDomainCompositions(
 			auditKernel,
 		),
 		lstep: lstepApplication,
+		supportChat: support.NewChatCompleter(
+			dependencies.Config.SupportLLMBaseURL,
+			dependencies.Config.SupportLLMAPIKey,
+			dependencies.Config.SupportLLMModel,
+			time.Duration(dependencies.Config.SupportLLMTimeoutMS)*time.Millisecond,
+		),
 	}
 }
 
@@ -519,7 +529,7 @@ func (c runtimeComposition) registerDomainRoutes(
 		c.auth.Handler.HasPermission,
 	).RegisterRoutes(protected)
 	c.registerClinicRoutes(protected)
-	c.registerExistingDomainRoutes(protected, uploader)
+	c.registerExistingDomainRoutes(ctx, protected, uploader)
 
 	lstepHandler := c.newLstepHandler()
 	reservationHandler := c.newReservationHandler(ctx, lstepHandler)
@@ -553,6 +563,7 @@ func (c runtimeComposition) registerClinicRoutes(
 }
 
 func (c runtimeComposition) registerExistingDomainRoutes(
+	ctx context.Context,
 	protected *gin.RouterGroup,
 	uploader infra.FileUploader,
 ) {
@@ -560,6 +571,18 @@ func (c runtimeComposition) registerExistingDomainRoutes(
 		manualarticle.NewManualArticleService(manualarticle.New(c.db)),
 		manualArticleAuditAdapter{logger: c.audit},
 		c.auth.Handler.RequirePermissionAllowingAssignedClinicGrant,
+	).RegisterRoutes(protected)
+	support.NewHandler(
+		support.NewService(support.NewRepository(c.db)),
+		uploader,
+		supportAuditAdapter{logger: c.audit},
+		c.auth.Handler.RequirePermission,
+		c.supportChat,
+		middleware.RateLimit(
+			middleware.NewRateLimitStore(ctx),
+			rate.Limit(supportChatRequestsPerMinute)/60.0,
+			supportChatBurst,
+		),
 	).RegisterRoutes(protected)
 	identitylink.NewHandler(
 		identitylink.NewService(
@@ -627,6 +650,28 @@ type manualArticleAuditAdapter struct {
 func (a manualArticleAuditAdapter) LogEntry(
 	ctx context.Context,
 	entry manualarticle.AuditEntry,
+) error {
+	return a.logger.LogEntry(ctx, &audit.Entry{
+		ClinicID:   entry.ClinicID,
+		ActorID:    entry.ActorID,
+		ActorType:  entry.ActorType,
+		Action:     entry.Action,
+		Resource:   entry.Resource,
+		ResourceID: entry.ResourceID,
+		OldValue:   entry.OldValue,
+		NewValue:   entry.NewValue,
+		IPAddress:  entry.IPAddress,
+		UserAgent:  entry.UserAgent,
+	})
+}
+
+type supportAuditAdapter struct {
+	logger audit.Service
+}
+
+func (a supportAuditAdapter) LogEntry(
+	ctx context.Context,
+	entry support.AuditEntry,
 ) error {
 	return a.logger.LogEntry(ctx, &audit.Entry{
 		ClinicID:   entry.ClinicID,

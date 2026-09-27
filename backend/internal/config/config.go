@@ -96,6 +96,16 @@ type Config struct {
 	// Callers must send header X-Scheduler-Token. Empty expected token keeps the
 	// route registered but middleware fails closed (every request 401).
 	SchedulerInternalToken string
+
+	// SupportLLM* はサポートウィジェットのヘルプチャット用 LLM 設定（OpenAI 互換 API）。
+	// SUPPORT_LLM_API_KEY 未設定の場合はチャット機能自体が無効になり、
+	// フロントエンドは検索型ヘルプへフォールバックする。
+	// xAI / Gemini 等の OpenAI 互換エンドポイントも BaseURL 差し替えで利用できる。
+	// キーは絶対にログに出力しない。
+	SupportLLMBaseURL   string
+	SupportLLMAPIKey    string
+	SupportLLMModel     string
+	SupportLLMTimeoutMS int
 }
 
 // Load reads process environment into Config. Release mode refuses
@@ -163,6 +173,11 @@ func Load() *Config {
 		CORSAllowedOrigin: os.Getenv("CORS_ALLOWED_ORIGIN"),
 
 		SchedulerInternalToken: os.Getenv("SCHEDULER_INTERNAL_TOKEN"),
+
+		SupportLLMBaseURL:   getEnv("SUPPORT_LLM_BASE_URL", "https://api.openai.com/v1"),
+		SupportLLMAPIKey:    os.Getenv("SUPPORT_LLM_API_KEY"),
+		SupportLLMModel:     getEnv("SUPPORT_LLM_MODEL", "gpt-5-nano"),
+		SupportLLMTimeoutMS: getEnvInt("SUPPORT_LLM_TIMEOUT_MS", 30000),
 	}
 }
 
@@ -271,6 +286,11 @@ func (c *Config) Validate() error {
 	}
 	if os.Getenv("LIFF_MOCK") == "true" {
 		return fmt.Errorf("LIFF_MOCK must not be set in release mode")
+	}
+	if c.SupportLLMAPIKey != "" {
+		if err := validateOptionalReleaseHTTPSURL("SUPPORT_LLM_BASE_URL", c.SupportLLMBaseURL); err != nil {
+			return err
+		}
 	}
 	return nil
 }

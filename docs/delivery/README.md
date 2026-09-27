@@ -26,6 +26,7 @@ flowchart LR
 | [DELIVERY_PACKAGE.md](DELIVERY_PACKAGE.md) | #258 | 先方管理者 | システム構成概要・管理者向け初期設定・運用手順 | U1–U12（契約・本番実測・窓口等） |
 | [OPERATION_MANUAL.md](OPERATION_MANUAL.md) | #256 | 現場スタッフ | 画面操作へのナビゲーション（詳細はシステム内マニュアルが正本） | U13 操作説明会・#254 FAQ/スクショ |
 | [GOLIVE_RUNBOOK.md](GOLIVE_RUNBOOK.md) | #257 | 切替実施者 | 本番切替の前提チェック・当日タイムライン・切り戻し基準 | 切替前提・当日の承認と証跡 |
+| [trimming-history-copy-manual-text.md](trimming-history-copy-manual-text.md) | EMR-168 | 現場スタッフ | トリミング「前回カルテのコピー」操作説明の掲載用テキスト（システム内マニュアル `10-trimming.md` へ反映済み） | — |
 
 ## 関連する受入条件
 

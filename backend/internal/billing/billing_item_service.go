@@ -206,6 +206,10 @@ type BillingItemService interface {
 	GetUnbilledItemDetails(ctx context.Context, clinicID, petID uint64) (*UnbilledDetails, error)
 	// AssertNoBlockingUnbilled は pet に blocking unbilled warning がある場合 Conflict を返す（write-time fail-closed）。
 	AssertNoBlockingUnbilled(ctx context.Context, clinicID, petID uint64) error
+	// AssertUnbilledForComplete は blocking warning に加えて、complete の
+	// expected_unbilled_revision と現在の集約版が一致しなければ Conflict を返す（EMR-196②）。
+	// expectedRevision は必須（空文字は必ず不一致になる）。
+	AssertUnbilledForComplete(ctx context.Context, clinicID, petID uint64, expectedRevision string) error
 	// GetUngroupedSameDaySummary は同日同ペットの未会計対象化項目(診察/トリミング)の件数を返す(#77 取り残し警告)。
 	GetUngroupedSameDaySummary(ctx context.Context, clinicID, petID uint64, date time.Time) (UngroupedSameDaySummary, error)
 	// GetDiscountSuggestions は指定明細に適用可能な割引候補を返す（#81 Q-I スタッフ選択）。
@@ -238,9 +242,11 @@ type UnbilledWarning struct {
 }
 
 // UnbilledDetails は additive GET /billing-items/unbilled-details の結果。
+// Revision は items+warnings の決定的フィンガープリント（EMR-196② の楽観ロック token）。
 type UnbilledDetails struct {
 	Items    []model.BillingItem
 	Warnings []UnbilledWarning
+	Revision string
 }
 
 type billingItemService struct {

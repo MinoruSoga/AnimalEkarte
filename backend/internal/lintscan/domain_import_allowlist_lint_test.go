@@ -55,6 +55,7 @@ var domainImportAllowlist = map[string]map[string]struct{}{
 		"owner": {}, "pet": {}, "staff": {}, "reservation": {}, "medicalrecord": {},
 		"billing": {}, "clinic": {}, "httpapi": {},
 	},
+	"support": {"httpapi": {}},
 }
 
 const backendInternalImportPrefix = "github.com/animal-ekarte/backend/internal/"

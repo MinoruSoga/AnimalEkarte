@@ -411,7 +411,9 @@ describe("usePetSelectionPage", () => {
     });
   });
 
-  it("死亡個体は callback 境界で選択を拒否する", () => {
+  // EMR-177: 死亡個体も選択可能（閲覧・連絡記録のため）。新規記録の作成可否は
+  // 遷移先フォームと BE の死亡ゲートが拒否するため、選択境界では通す。
+  it("死亡個体も選択可能で、既存クエリと state を作成画面へ引き継ぐ", () => {
     const deceasedPet = { ...katakanaOwnerPet, status: "死亡" } as Pet;
     mockUseGetPets.mockReturnValue({ data: [deceasedPet] });
     const { result } = renderHook(() => usePetSelectionPage(CONFIG));
@@ -420,7 +422,10 @@ describe("usePetSelectionPage", () => {
       result.current.handleSelect(deceasedPet);
     });
 
-    expect(navigate).not.toHaveBeenCalled();
+    expect(navigate).toHaveBeenCalledWith(
+      "/trimming/new?appointmentId=88&visitDate=2026-05-29&petId=10",
+      { state: locationState },
+    );
   });
 
   it("ペット選択後も既存クエリと state を作成画面へ引き継ぐ", () => {

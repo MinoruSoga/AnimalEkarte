@@ -1547,6 +1547,7 @@ export interface CarePlanItem {
   hospitalization_plan_id?: number /* uint64 */;
   unit_price: number /* int64 */;
   category: string;
+  other_reason: string;
   sort_order: number /* int */;
   created_at: string;
   updated_at: string;
@@ -2994,6 +2995,11 @@ export interface Pet {
   last_visit?: string;
   insurance_id?: number /* uint64 */;
   remarks: string;
+  /**
+   * EMR-174: 名前の由来 / 出逢いのストーリーは任意記録。NULL=未記録。
+   */
+  name_origin?: string;
+  meeting_story?: string;
   deceased_at?: string;
   deceased_reason?: string;
   version: number /* int */;
@@ -3481,6 +3487,37 @@ export interface StaffReservationExclusion {
    */
   staff?: Staff;
   reservation_type?: ReservationType;
+}
+
+//////////
+// source: support_bug_report.go
+
+/**
+ * SupportBugReportStatus はバグ報告の対応状況
+ */
+export const SupportBugReportStatusOpen = "open";
+export const SupportBugReportStatusResolved = "resolved";
+export type SupportBugReportStatus = typeof SupportBugReportStatusOpen | typeof SupportBugReportStatusResolved;
+/**
+ * SupportBugReport はアプリ内サポートウィジェットから送信されたバグ報告。
+ * スクショ画像本体は FileUploader に保存し、DB にはオブジェクト key のみ保持する。
+ */
+export interface SupportBugReport {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  reporter_staff_id: number /* uint64 */;
+  title: string;
+  detail: string;
+  page_url: string;
+  route_path: string;
+  user_agent: string;
+  viewport: string;
+  app_version: string;
+  screenshot_key?: string;
+  status: SupportBugReportStatus;
+  created_at: string;
+  updated_at: string;
+  deleted_at?: string | null;
 }
 
 //////////

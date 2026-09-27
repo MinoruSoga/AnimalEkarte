@@ -19,7 +19,7 @@ This file is a **prep sheet only**. It does not execute real-device UAT, send LI
 | Source | Role |
 | --- | --- |
 | [liff-verification.md](../../ops/testing/liff-verification.md) | Mock vs real LINE guarantee boundary, secret storage, STG human lane, prohibited evidence |
-| [todo-verification.md](../../../todo-verification.md) E1 / E2 | `QA-UAT-LSTEP-REAL`, `QA-UAT-LINE-IDTOKEN` conditions and stop rules |
+| [todo-verification.md](../../../todo.md#verification-ledger) E1 / E2 | `QA-UAT-LSTEP-REAL`, `QA-UAT-LINE-IDTOKEN` conditions and stop rules |
 | [V05-auth-line-forms.md](../../ops/testing/scenarios/V05-auth-line-forms.md) V05-5 / V05-17 | Real link + 409/400, LSTEP bulk-tag remove observation |
 | [S04-liff-reservation-journey.md](../../ops/testing/scenarios/S04-liff-reservation-journey.md) | LIFF reservation journey (line-reserve app) |
 | [S12-liff-pet-health.md](../../ops/testing/scenarios/S12-liff-pet-health.md) | LIFF account link + pet health (health-card app) |
@@ -70,7 +70,7 @@ Additional mock traps (must stay FAIL/BLOCKED for H1/H2):
 
 ### Checks (real LINE / real API only)
 
-Map to [todo-verification.md](../../../todo-verification.md) E2, [V05-5](../../ops/testing/scenarios/V05-auth-line-forms.md), [S12](../../ops/testing/scenarios/S12-liff-pet-health.md) steps 1–4.
+Map to [todo-verification.md](../../../todo.md#verification-ledger) E2, [V05-5](../../ops/testing/scenarios/V05-auth-line-forms.md), [S12](../../ops/testing/scenarios/S12-liff-pet-health.md) steps 1–4.
 
 | ID | Check | Expect | Mock lane result if run | Real LINE required |
 | --- | --- | --- | --- | --- |
@@ -109,7 +109,7 @@ Do not paste `idToken`, `linkToken`, URL query strings that contain tokens, LINE
 - Real device inside LINE in-client LIFF. Desktop browser mock is not H2 PASS.
 - Devices / OS / LINE version: UNKNOWN until recorded on the run report.
 - Send scope: UNKNOWN. S04 steps 6 and 10 mention owner + hospital notifications. **Do not send** until a human names approved recipients and a rollback. If send is not approved, mark notify-receipt rows BLOCKED; do not skip the rest and call H2 PASS.
-- E1 write-enabled LSTEP target, testers, and restore range must be named and approved. Settings change / send is a **separate** approval ([todo-verification.md](../../../todo-verification.md) E1). Until named: E1 rows BLOCKED, not skipped-as-PASS.
+- E1 write-enabled LSTEP target, testers, and restore range must be named and approved. Settings change / send is a **separate** approval ([todo-verification.md](../../../todo.md#verification-ledger) E1). Until named: E1 rows BLOCKED, not skipped-as-PASS.
 - LINE reservation settings: accepting, published exam + trimming courses/options, staff, work/break/existing-booking boundaries.
 - Health: unlinked owner A with living pet (vaccine records), isolation owner B/pet. Deceased pets must not appear.
 

@@ -116,6 +116,15 @@ export class AnimalEkarteApiContainer extends Container<Env> {
     S3_PUBLIC_BASE_URL: env.S3_PUBLIC_BASE_URL,
     AWS_ACCESS_KEY_ID: env.AWS_ACCESS_KEY_ID,
     AWS_SECRET_ACCESS_KEY: env.AWS_SECRET_ACCESS_KEY,
+
+    // サポートチャット用 LLM(OpenAI互換API)。任意: API_KEY 未設定なら
+    // チャットは無効化され、フロントエンドはマニュアル検索へフォールバックする。
+    // secrets.required には入れない(未設定デプロイを許可するため)。
+    // 値は `wrangler secret put SUPPORT_LLM_API_KEY` でのみ投入する。
+    SUPPORT_LLM_BASE_URL: env.SUPPORT_LLM_BASE_URL ?? "",
+    SUPPORT_LLM_API_KEY: env.SUPPORT_LLM_API_KEY ?? "",
+    SUPPORT_LLM_MODEL: env.SUPPORT_LLM_MODEL ?? "",
+    SUPPORT_LLM_TIMEOUT_MS: env.SUPPORT_LLM_TIMEOUT_MS ?? "",
   };
 
   // migrate exec のハングアップ対策(code-reviewer指摘 MEDIUM)。pg_advisory_lock が

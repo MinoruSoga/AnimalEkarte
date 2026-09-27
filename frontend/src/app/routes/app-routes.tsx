@@ -3,6 +3,7 @@ import { type RouteObject } from "react-router";
 
 import { Layout } from "@/components/shared/Layout/Layout";
 import { SessionPending } from "@/components/shared/auth/SessionPending";
+import { useAuth } from "@/hooks/use-auth";
 import { C, STYLE } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
 
@@ -13,6 +14,12 @@ import { settingsRoute } from "./settings-routes";
 
 /* bundle-dynamic-imports: ログインページは未認証ユーザー専用。認証済みユーザーのバンドルに含めない */
 const Login = lazy(() => import("@/features/auth").then((m) => ({ default: m.Login })));
+
+/* サポートウィジェットはマニュアル MD バンドル（glob eager）を抱えるため、
+ * 初期チャンクに含めず認証後に遅延ロードする。 */
+const SupportWidget = lazy(() =>
+  import("@/features/support").then((m) => ({ default: m.SupportWidget })),
+);
 
 const authRoutes: RouteObject[] = [
   {
@@ -58,13 +65,33 @@ const notFoundRoute: RouteObject = {
   ),
 };
 
+/**
+ * サポートウィジェット（全認証画面共通のフローティングボタン）。
+ * Layout 側は feature 非依存（components/shared ルール）を維持するため、
+ * 認証ゲートつきでルートシェルと兄弟にマウントする。
+ */
+function AuthenticatedSupportWidget() {
+  const { isAuthenticated, isLoading } = useAuth();
+  if (isLoading || !isAuthenticated) return null;
+  return (
+    <Suspense fallback={null}>
+      <SupportWidget />
+    </Suspense>
+  );
+}
+
 // Exported for integration testing (AccountingRouteGuards etc.)
 // createMemoryRouter(appRoutes, { initialEntries: [path] }) + AuthContext.Provider で権限ガードを検証できる。
 export const appRoutes: RouteObject[] = [
   ...authRoutes,
   ownerReportRoute,
   {
-    element: <Layout />,
+    element: (
+      <>
+        <Layout />
+        <AuthenticatedSupportWidget />
+      </>
+    ),
     children: [
       ...clinicalRoutes,
       ...accountingRoutes,

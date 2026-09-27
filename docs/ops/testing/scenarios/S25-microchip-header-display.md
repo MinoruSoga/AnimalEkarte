@@ -2,7 +2,7 @@
 
 > **目的**: カルテ編集の患者コンテキストヘッダーにマイクロチップ番号が正しく表示され、長い番号でも truncate + ツールチップで読め、死亡マーク等の他要素と共存して破綻しないことを納品前に証明する。
 > **所要目安**: 10分 / **深度**: 薄い
-> **仕様正本**: [screens/06-medical-records-form.md](../../../spec/screens/06-medical-records-form.md)。検証キュー: `SLACK-MICROCHIP`（[todo-verification.md](../../../../todo-verification.md)）。実装参照: `frontend/src/components/shared/PatientContextHeader/PatientContextHeader.tsx`。
+> **仕様正本**: [screens/06-medical-records-form.md](../../../spec/screens/06-medical-records-form.md)。検証キュー: `SLACK-MICROCHIP`（[todo-verification.md](../../../../todo.md#verification-ledger)）。実装参照: `frontend/src/components/shared/PatientContextHeader/PatientContextHeader.tsx`。
 
 ## 前提条件
 

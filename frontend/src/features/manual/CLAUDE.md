@@ -8,7 +8,7 @@
 | ------------ | --------------------------------------------------------------------------------- |
 | ソース形式   | Markdown (frontmatter 付き)                                                       |
 | 取り込み     | Vite `import.meta.glob('*.md', { query: '?raw', eager: true })`                   |
-| 解析         | 自前 frontmatter parser (`lib/manual-index.ts`)                                   |
+| 解析         | 自前 frontmatter parser (`src/lib/manual-index.ts` — support feature と共有)      |
 | レンダリング | `react-markdown` + `remark-gfm` (テーブル/タスクリスト対応)                       |
 | 画像         | `import.meta.glob('*', { query: '?url', eager: true })` でハッシュ付き URL に解決 |
 | 検索         | `fuse.js` fuzzy search (画面別/業務フロー横断)                                    |
@@ -34,7 +34,7 @@
 
 ### バックエンド統合
 
-- API クライアント: `api/get-manual-articles.ts`, `api/upsert-manual-article.ts`
+- API クライアント: `api/upsert-manual-article.ts`（保存）。記事取得は `@/hooks/use-manual-article-overrides`（support feature と共有のため src/hooks へ昇格）
 - 取得: GET /api/v1/manual/articles（認証済全員、失敗時は空配列に fallback）
 - 保存: PUT /api/v1/manual/articles/:category/:slug（`ResourceManualEdit` edit 権限）
 - 履歴: GET /api/v1/manual/articles/:category/:slug/versions（同 view 権限）
@@ -162,7 +162,7 @@ NN-kebab-case.md     例: 01-login.md, 03-hospitalization-flow.md
 
 ## テスト
 
-- テストは対象ファイルと同階層に配置する（`__tests__/` ディレクトリは使わない）。例: `lib/parse-frontmatter.test.ts` — frontmatter parser の単体テスト
+- テストは対象ファイルと同階層に配置する（`__tests__/` ディレクトリは使わない）。例: `src/lib/parse-frontmatter.test.ts` — frontmatter parser の単体テスト
 - 統合テスト: 必要に応じて `routes/ManualPage.test.tsx` のようにルート/コンポーネントと同階層に追加
 - Vitest を使用: `docker compose exec frontend npx vitest run src/features/manual`
 

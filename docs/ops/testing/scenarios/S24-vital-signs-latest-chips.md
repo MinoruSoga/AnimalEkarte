@@ -2,7 +2,7 @@
 
 > **目的**: カルテ編集の患者コンテキストに、最新記録のバイタルサイン（体温・心拍・呼吸・体重）だけがチップ表示され、過去値へのバックフィルや全非有限値での誤表示がないことを納品前に証明する。
 > **所要目安**: 10分 / **深度**: 薄い
-> **仕様正本**: [screens/06-medical-records-form.md](../../../spec/screens/06-medical-records-form.md)。検証キュー: `SLACK-VITALS`（[todo-verification.md](../../../../todo-verification.md)）。実装参照: `frontend/src/features/medical-records/lib/visit-vital-chips.ts`。
+> **仕様正本**: [screens/06-medical-records-form.md](../../../spec/screens/06-medical-records-form.md)。検証キュー: `SLACK-VITALS`（[todo-verification.md](../../../../todo.md#verification-ledger)）。実装参照: `frontend/src/features/medical-records/lib/visit-vital-chips.ts`。
 
 ## 前提条件
 

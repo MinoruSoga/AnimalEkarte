@@ -173,28 +173,28 @@ func TestToOwnerUnpaidBalanceResponse(t *testing.T) {
 	}
 }
 
-// ---- toMonthlyUnpaidCarryoverResponse ----
+// ---- toPeriodUnpaidCarryoverResponse ----
 
-func TestToMonthlyUnpaidCarryoverResponse(t *testing.T) {
+func TestToPeriodUnpaidCarryoverResponse(t *testing.T) {
 	petID := uint64(9)
 	tests := []struct {
 		name       string
-		items      []MonthlyUnpaidOwnerPet
-		summary    MonthlyUnpaidSummary
+		items      []PeriodUnpaidOwnerPet
+		summary    PeriodUnpaidSummary
 		wantLen    int
 		wantPetNil bool
 	}{
 		{
 			name: "normal: pet_id present",
-			items: []MonthlyUnpaidOwnerPet{
-				{OwnerID: 1, OwnerName: "田中太郎", PetID: &petID, PetName: "ポチ", PrevMonthCarryover: 1000, CurrentMonthUnpaid: 2000, NextMonthCarryover: 3000},
+			items: []PeriodUnpaidOwnerPet{
+				{OwnerID: 1, OwnerName: "田中太郎", PetID: &petID, PetName: "ポチ", PrevPeriodCarryover: 1000, CurrentPeriodUnpaid: 2000, PeriodEndCarryover: 3000},
 			},
-			summary: MonthlyUnpaidSummary{PrevMonthCarryover: 1000, CurrentMonthUnpaid: 2000, NextMonthCarryover: 3000},
+			summary: PeriodUnpaidSummary{PrevPeriodCarryover: 1000, CurrentPeriodUnpaid: 2000, PeriodEndCarryover: 3000},
 			wantLen: 1,
 		},
 		{
 			name: "pet_id nil: owner-level record without a specific pet",
-			items: []MonthlyUnpaidOwnerPet{
+			items: []PeriodUnpaidOwnerPet{
 				{OwnerID: 2, OwnerName: "鈴木花子", PetID: nil},
 			},
 			wantLen:    1,
@@ -202,21 +202,26 @@ func TestToMonthlyUnpaidCarryoverResponse(t *testing.T) {
 		},
 		{
 			name:    "empty items",
-			items:   []MonthlyUnpaidOwnerPet{},
+			items:   []PeriodUnpaidOwnerPet{},
 			wantLen: 0,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := toMonthlyUnpaidCarryoverResponse(tt.items, int64(tt.wantLen), 1, 20, tt.summary)
+			got := toPeriodUnpaidCarryoverResponse(tt.items, int64(tt.wantLen), 1, 20, tt.summary)
 			assert.Len(t, got.Data, tt.wantLen)
-			assert.Equal(t, tt.summary.PrevMonthCarryover, got.Summary.PrevMonthCarryover)
+			assert.Equal(t, tt.summary.PrevPeriodCarryover, got.Summary.PrevPeriodCarryover)
+			assert.Equal(t, tt.summary.CurrentPeriodUnpaid, got.Summary.CurrentPeriodUnpaid)
+			assert.Equal(t, tt.summary.PeriodEndCarryover, got.Summary.PeriodEndCarryover)
 			if tt.wantLen == 1 {
 				if tt.wantPetNil {
 					assert.Nil(t, got.Data[0].PetID)
 				} else {
 					require.NotNil(t, got.Data[0].PetID)
 					assert.Equal(t, petID, *got.Data[0].PetID)
+					assert.Equal(t, tt.items[0].PrevPeriodCarryover, got.Data[0].PrevPeriodCarryover)
+					assert.Equal(t, tt.items[0].CurrentPeriodUnpaid, got.Data[0].CurrentPeriodUnpaid)
+					assert.Equal(t, tt.items[0].PeriodEndCarryover, got.Data[0].PeriodEndCarryover)
 				}
 			}
 		})

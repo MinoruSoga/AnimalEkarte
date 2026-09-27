@@ -1,13 +1,51 @@
 package pet
 
 import (
+	"fmt"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 const ErrMsgWeightZeroOrMore = "体重は0以上の値を入力してください"
+
+// EMR-174: 任意記録フィールドの上限（request binding と同値。service 層でも再検証する）。
+const (
+	nameOriginMaxRunes   = 500
+	meetingStoryMaxRunes = 2000
+)
+
+// normalizeOptionalNarrative は任意記録 *string をトリムし、空白のみを nil（NULL）に
+// 正規化する。上限超過は invalid input。
+func normalizeOptionalNarrative(label string, value *string, maxRunes int) (*string, error) {
+	if value == nil {
+		return nil, nil
+	}
+	trimmed := strings.TrimSpace(*value)
+	if utf8.RuneCountInString(trimmed) > maxRunes {
+		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("%sは%d文字以内で入力してください", label, maxRunes))
+	}
+	if trimmed == "" {
+		return nil, nil
+	}
+	return &trimmed, nil
+}
+
+// normalizeOptionalNarrativeTriState は PATCH tri-state（nil=変更なし / &nil=クリア /
+// &&value=更新）版の正規化。値が送られた場合のみトリム＋上限検証を行い、空白のみは
+// NULL クリア（&nil）と同義に丸める。
+func normalizeOptionalNarrativeTriState(label string, value **string, maxRunes int) (**string, error) {
+	if value == nil {
+		return nil, nil
+	}
+	normalized, err := normalizeOptionalNarrative(label, *value, maxRunes)
+	if err != nil {
+		return nil, err
+	}
+	return &normalized, nil
+}
 
 func validatePetGender(gender string) error {
 	return sharedkernel.ValidatePetGender(gender)
@@ -49,6 +87,13 @@ func validateCreatePetInput(input *CreatePetInput) error {
 	if err := validatePetDangerLevel(input.DangerLevel); err != nil {
 		return apperrors.Wrap(err, "failed to validate pet danger level")
 	}
+	var err error
+	if input.NameOrigin, err = normalizeOptionalNarrative("名前の由来", input.NameOrigin, nameOriginMaxRunes); err != nil {
+		return apperrors.Wrap(err, "failed to validate name origin")
+	}
+	if input.MeetingStory, err = normalizeOptionalNarrative("出逢いのストーリー", input.MeetingStory, meetingStoryMaxRunes); err != nil {
+		return apperrors.Wrap(err, "failed to validate meeting story")
+	}
 	return nil
 }
 
@@ -77,6 +122,13 @@ func validateUpdatePetInput(input *UpdatePetInput) error {
 		if err := validatePetDangerLevel(*input.DangerLevel); err != nil {
 			return apperrors.Wrap(err, "failed to validate pet danger level")
 		}
+	}
+	var err error
+	if input.NameOrigin, err = normalizeOptionalNarrativeTriState("名前の由来", input.NameOrigin, nameOriginMaxRunes); err != nil {
+		return apperrors.Wrap(err, "failed to validate name origin")
+	}
+	if input.MeetingStory, err = normalizeOptionalNarrativeTriState("出逢いのストーリー", input.MeetingStory, meetingStoryMaxRunes); err != nil {
+		return apperrors.Wrap(err, "failed to validate meeting story")
 	}
 	return nil
 }

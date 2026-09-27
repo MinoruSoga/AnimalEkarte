@@ -885,6 +885,76 @@ func TestCashRegisterCloseCreateNotAllDenied(t *testing.T) {
 		"%s:create が全 seed グループで deny — 少なくとも1グループが許可を持つこと", resource)
 }
 
+// TestLabImportCreateNotAllDenied は EMR-176 の回帰テスト。
+// /lab-device 受信経路（frames 受信・検査機器登録・取込起動）が要求する
+// lab-import:create が全デフォルトグループで deny になる
+// （= 誰も検査受信できない）状態を二度と許さない。
+// Go の defaultPermissionRuleTable と seed CSV の両方で検査し、
+// 「整合しているが全員 deny」という一貫した誤りも検出する。
+// create は受信側操作のみに使い、結果のカルテ紐付け（edit）は執行のみに
+// 留める契約。
+func TestLabImportCreateNotAllDenied(t *testing.T) {
+	resource := model.ResourceLabImport
+
+	find := func(rules []model.PermissionGroupRule) *model.PermissionGroupRule {
+		for i := range rules {
+			if rules[i].Resource == string(resource) {
+				return &rules[i]
+			}
+		}
+		return nil
+	}
+
+	exec := find(buildDefaultPermissionGroupRules(true))
+	require.NotNilf(t, exec, "執行のデフォルトルールに %s が存在すること", resource)
+	gen := find(buildDefaultPermissionGroupRules(false))
+	require.NotNilf(t, gen, "一般のデフォルトルールに %s が存在すること", resource)
+
+	// 少なくとも1つのデフォルトプロファイルが route-required の create を持つこと（all-deny 禁止）。
+	assert.Truef(t, exec.CanCreate || gen.CanCreate,
+		"%s:create が全デフォルトグループで deny — 少なくとも1グループが許可を持つこと", resource)
+
+	// 検査受信は日常運用（看護部スタッフを含む）のため、執行・一般の双方に
+	// create を付与する。edit（結果のカルテ紐付け/解除/切戻し）は執行のみ。
+	assert.True(t, exec.CanView, "執行は %s を閲覧できること", resource)
+	assert.True(t, exec.CanCreate, "執行は %s を作成できること（検査受信のデフォルト許可）", resource)
+	assert.True(t, exec.CanEdit, "執行は %s を編集できること（カルテ紐付けのデフォルト許可）", resource)
+	assert.False(t, exec.CanDelete, "%s に delete は付与しないこと", resource)
+
+	assert.True(t, gen.CanView, "一般は %s を閲覧できること", resource)
+	assert.True(t, gen.CanCreate, "一般は %s を作成できること（検査受信のデフォルト許可）", resource)
+	assert.False(t, gen.CanEdit, "一般は %s を編集できないこと（紐付けは執行のみ）", resource)
+	assert.False(t, gen.CanDelete, "一般は %s を削除できないこと", resource)
+
+	// seed CSV 側も同じ契約を持つこと（all-deny の seed を出荷しない）。
+	seedLab := seedResourceRules(t, resource)
+	var anySeedCreate bool
+	for gid, profile := range demoPermissionSeedGroupProfiles {
+		r, ok := seedLab[gid]
+		require.Truef(t, ok, "group %d の %s ルールが seed に存在すること", gid, resource)
+		anySeedCreate = anySeedCreate || r.canCreate
+		switch profile {
+		case "executive":
+			assert.Truef(t, r.canView, "group %d (executive): %s can_view", gid, resource)
+			assert.Truef(t, r.canCreate, "group %d (executive): %s can_create=t で検査受信可能", gid, resource)
+			assert.Truef(t, r.canEdit, "group %d (executive): %s can_edit=t でカルテ紐付け可能", gid, resource)
+			assert.Falsef(t, r.canDelete, "group %d (executive): %s can_delete", gid, resource)
+		case "general":
+			assert.Truef(t, r.canView, "group %d (general): %s can_view", gid, resource)
+			assert.Truef(t, r.canCreate, "group %d (general): %s can_create=t で検査受信可能", gid, resource)
+			assert.Falsef(t, r.canEdit, "group %d (general): %s can_edit（紐付けは執行のみ）", gid, resource)
+			assert.Falsef(t, r.canDelete, "group %d (general): %s can_delete", gid, resource)
+		default:
+			assert.Truef(t, r.canView, "group %d (%s): %s can_view", gid, profile, resource)
+			assert.Falsef(t, r.canCreate, "group %d (%s): %s create は付与しない", gid, profile, resource)
+			assert.Falsef(t, r.canEdit, "group %d (%s): %s can_edit", gid, profile, resource)
+			assert.Falsef(t, r.canDelete, "group %d (%s): %s can_delete", gid, profile, resource)
+		}
+	}
+	assert.Truef(t, anySeedCreate,
+		"%s:create が全 seed グループで deny — 少なくとも1グループが許可を持つこと", resource)
+}
+
 func TestService_UpdateClinic(t *testing.T) {
 	tests := []struct {
 		name          string

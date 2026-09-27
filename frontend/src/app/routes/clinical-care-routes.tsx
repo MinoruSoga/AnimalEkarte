@@ -218,9 +218,12 @@ export const clinicalCareRoutes: RouteObject[] = [
   },
 
   {
+    // EMR-176: ページ自体は view ガード。create 不在時は LabDeviceBoard 内の
+    // 受信不可バナーが不足権限（lab-import:create）を明示する。受信操作は
+    // canCreate の client ゲートと API 側の endpoint 権限で fail-closed。
     path: "/lab-device",
     element: (
-      <RequirePermission resource={ResourceLabImport} action="create">
+      <RequirePermission resource={ResourceLabImport}>
         <Outlet />
       </RequirePermission>
     ),

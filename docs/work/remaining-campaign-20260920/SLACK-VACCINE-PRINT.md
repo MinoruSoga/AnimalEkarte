@@ -1,6 +1,6 @@
 # SLACK-VACCINE-PRINT: 一般カルテ印刷 vs ワクチン証明書（renderer 欠落）
 
-状態: **経路分離 READY／専用証明書 renderer 未確認／製品実装・PDF 未実行（停止）**。出典は [todo-issue.md](../../../todo-issue.md) 見出し `### SLACK-VACCINE-PRINT`（L203–206、索引 L426）。保持する現場条件:
+状態: **経路分離 READY／専用証明書 renderer 未確認／製品実装・PDF 未実行（停止）**。出典は [todo-issue.md](../../../todo.md#issue-ledger) 見出し `### SLACK-VACCINE-PRINT`（L203–206、索引 L426）。保持する現場条件:
 
 - 出典 956–960 の紙のワクチン証明書の質問。専用証明書の対応範囲確認が必要
 - [カルテ print hook](../../../frontend/src/features/medical-records/hooks/use-medical-record-form-modals.ts) と [診療カルテ印刷](../../../frontend/src/features/medical-records/components/MedicalRecordPrintView.tsx) は **一般カルテ用**

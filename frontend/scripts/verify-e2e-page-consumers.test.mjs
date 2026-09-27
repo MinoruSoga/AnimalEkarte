@@ -531,6 +531,64 @@ test("verifyPages reports JSON shape with consumers and empty blocking on succes
   }
 });
 
+test("transitive page consumers satisfy a base-class page via concrete page", async () => {
+  const mod = await loadModule();
+  const { root, e2eRoot } = makeFixture({
+    "e2e/pages/base-page.ts": "export class BasePage {}\n",
+    "e2e/pages/vaccinations-page.ts":
+      'import { BasePage } from "./base-page";\nexport class VaccinationsPage extends BasePage {}\n',
+    "e2e/vaccinations-flow.spec.ts":
+      'import { VaccinationsPage } from "./pages/vaccinations-page";\n',
+  });
+  try {
+    const payload = mod.verifyPages({
+      pages: ["e2e/pages/base-page.ts"],
+      e2eRoot,
+    });
+    assert.equal(payload.ok, true);
+    assert.equal(payload.pages[0].consumers.length, 1);
+    assert.equal(
+      payload.pages[0].consumers[0].file,
+      "e2e/vaccinations-flow.spec.ts",
+    );
+    assert.equal(
+      payload.pages[0].consumers[0].via,
+      "e2e/pages/vaccinations-page.ts",
+    );
+    assert.deepEqual(payload.pages[0].carriers, [
+      {
+        file: "e2e/pages/vaccinations-page.ts",
+        form: "static-import",
+        specifier: "./base-page",
+      },
+    ]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("transitive chain deeper than one level still fails closed", async () => {
+  const mod = await loadModule();
+  const { root, e2eRoot } = makeFixture({
+    "e2e/pages/root-base-page.ts": "export class RootBase {}\n",
+    "e2e/pages/mid-page.ts":
+      'import { RootBase } from "./root-base-page";\nexport class Mid extends RootBase {}\n',
+    "e2e/pages/leaf-page.ts":
+      'import { Mid } from "./mid-page";\nexport class Leaf extends Mid {}\n',
+    "e2e/leaf.spec.ts": 'import { Leaf } from "./pages/leaf-page";\n',
+  });
+  try {
+    const payload = mod.verifyPages({
+      pages: ["e2e/pages/root-base-page.ts"],
+      e2eRoot,
+    });
+    assert.equal(payload.ok, false);
+    assert.equal(payload.pages[0].consumers.length, 0);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("zero consumers fails closed", async () => {
   const { root } = makeFixture({
     "e2e/pages/orphan-page.ts": "export class Orphan {}\n",

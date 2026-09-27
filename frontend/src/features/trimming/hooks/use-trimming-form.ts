@@ -274,5 +274,7 @@ export function useTrimmingForm(
     isEditPetReady: !isEdit || Boolean(petFromEdit),
     notFound: isEdit && !isTrimmingLoading && !existingTrimming && !!id,
     hasExistingAppointment,
+    // EMR-168: 相方カルテ解決の基準日（YYYY-MM-DD）。編集は appointment 日付、新規は入力予定日。
+    recordDate: isEdit ? (existingTrimming?.date ?? "") : existingLookupDate,
   };
 }

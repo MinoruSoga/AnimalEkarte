@@ -4,9 +4,9 @@
 
 Campaign `linmig-ops-prep-20260919` revision 1. Unit `LINMIG-234`. Attempt `att-linmig-234-20260919-001`. Claim `claim/LINMIG-234`. Linear issue `LINMIG-234` was not found; keep as claim only. Prompt SHA `bdada2092c3a10d8cff133231a392e1c33b688349e96a49c053f1af7f04dffda`.
 
-Maps to [todo-operations.md](../../../todo-operations.md) **P3 / PROD-DATA-MIGRATION** and GitHub [#250](https://github.com/MinoruSoga/AnimalEkarte/issues/250). Binding sources:
+Maps to [todo-operations.md](../../../todo.md#operations-ledger) **P3 / PROD-DATA-MIGRATION** and GitHub [#250](https://github.com/MinoruSoga/AnimalEkarte/issues/250). Binding sources:
 
-- [todo-operations.md](../../../todo-operations.md) P3 (L30, L72, L171–L175)
+- [todo-operations.md](../../../todo.md#operations-ledger) P3 (L30, L72, L171–L175)
 - [docs/ops/deploy/CLINIC_CSV_IMPORT.md](../../ops/deploy/CLINIC_CSV_IMPORT.md)
 - [docs/ops/deploy/OLD_DB_HANDOFF_LOCAL.md](../../ops/deploy/OLD_DB_HANDOFF_LOCAL.md)
 - [docs/delivery/GOLIVE_RUNBOOK.md](../../delivery/GOLIVE_RUNBOOK.md) **§1 item 4** Access データ移行の事前準備 (L37)

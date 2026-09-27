@@ -1,10 +1,12 @@
 import { type ReactNode } from "react";
+import { Link } from "react-router";
 import { PawPrint, Weight } from "lucide-react";
 import { C, ICON } from "@/lib/design-tokens";
 import { calcAgePartsAt } from "@/lib/calc-age";
 import imgEllipse1 from "@/assets/231a870df600a37e011a0e1140e7608b1f4c3340.png";
 import { ImageWithFallback } from "@/components/shared/Feedback";
 import { Tooltip } from "@/components/ui/tooltip";
+import { DangerBadge } from "@/components/shared/DangerBadge";
 
 // ──────────────────────────────────────────────────────────
 // Age calculation (JST) — FE3-9: 計算部は共有ヘルパへ委譲。
@@ -49,6 +51,12 @@ export interface PatientContextHeaderProps {
   visitCount?: number;
   /** 既存 pet.microchip_number。ヘッダーは表示専用。空は出さない。 */
   microchipNumber?: string;
+  /** スタッフ向け飼主危険マーク (EMR-173)。true なら飼主名横に ⚠ 危険人物。 */
+  ownerIsDangerous?: boolean;
+  /** ペット危険度 (表示値 "高"/"中"/"低" または wire 値)。高/中のみ Popover バッジを出す。 */
+  petDangerLevel?: string;
+  /** ペット危険理由。未設定はバッジ Popover 内で「理由未登録」表示。 */
+  petDangerReason?: string;
   /** 今回カルテの最新バイタル（表示専用。時刻は出さない）。 */
   vitalsSummary?: {
     temperature?: number;
@@ -59,6 +67,10 @@ export interface PatientContextHeaderProps {
   };
   onOwnerClick?: () => void;
   contextControls?: ReactNode;
+  /** EMR-174: 飼主詳細へのリンク（onOwnerClick 併存時はボタン優先） */
+  ownerDetailHref?: string;
+  /** EMR-174: ペット詳細への deep link（飼主詳細 ?pet=） */
+  petDetailHref?: string;
 }
 
 // ──────────────────────────────────────────────────────────
@@ -81,9 +93,14 @@ export function PatientContextHeader({
   insuranceDetails,
   visitCount,
   microchipNumber,
+  ownerIsDangerous,
+  petDangerLevel,
+  petDangerReason,
   vitalsSummary,
   onOwnerClick,
   contextControls,
+  ownerDetailHref,
+  petDetailHref,
 }: PatientContextHeaderProps) {
   const isDeceased = status === "deceased";
 
@@ -136,18 +153,47 @@ export function PatientContextHeader({
                 {ownerName}
               </button>
             </Tooltip>
+          ) : ownerDetailHref ? (
+            // EMR-174: onOwnerClick 未指定時は飼主詳細へ link
+            <Tooltip content={ownerName} className="min-w-0 max-w-[200px]">
+              <Link
+                to={ownerDetailHref}
+                aria-label="飼主詳細を開く"
+                className={`min-h-11 min-w-11 inline-flex items-center px-2 -mx-2 text-base font-medium ${C.text} hover:underline decoration-dotted underline-offset-2 truncate w-full`}
+              >
+                {ownerName}
+              </Link>
+            </Tooltip>
           ) : (
             <Tooltip content={ownerName} className="min-w-0 max-w-[200px]">
               <span className={`text-base font-medium ${C.text} truncate w-full`}>{ownerName}</span>
             </Tooltip>
           )}
+          {ownerIsDangerous ? <DangerBadge variant="owner" /> : null}
           <Tooltip content={petName} className="min-w-0 max-w-[160px]">
-            <span
-              className={`text-base font-medium ${isDeceased ? C.text60 : C.text} truncate w-full`}
-            >
-              {petName}
-            </span>
+            {petDetailHref ? (
+              // EMR-174: ペット詳細（飼主詳細 ?pet=）へ link
+              <Link
+                to={petDetailHref}
+                aria-label="ペット詳細を開く"
+                className={`inline-flex min-h-11 items-center text-base font-medium ${isDeceased ? C.text60 : C.text} hover:underline decoration-dotted underline-offset-2 truncate w-full`}
+              >
+                {petName}
+              </Link>
+            ) : (
+              <span
+                className={`text-base font-medium ${isDeceased ? C.text60 : C.text} truncate w-full`}
+              >
+                {petName}
+              </span>
+            )}
           </Tooltip>
+          <DangerBadge
+            variant="pet"
+            level={petDangerLevel}
+            subjectName={petName}
+            reason={petDangerReason}
+          />
           {microchipNumber ? (
             <Tooltip content={microchipNumber} className="min-w-0 max-w-[200px]">
               <span

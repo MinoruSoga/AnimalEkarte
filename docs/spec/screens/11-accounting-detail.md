@@ -39,6 +39,11 @@
 
 **確定日時の保護**: 精算済み会計の再保存では `completed_at` を送信せず、最初の確定日時を維持する。バックエンドはクライアントによる確定日時の指定を400で拒否する。支払内訳・金額・締め後修正理由はPATCHで送り、成功後に支払表示・一覧を更新する。新規会計の決済確定は専用Complete経路を使い、未確定の既存会計をPATCHで確定することはできない。
 
+### 2.2 会計中のカルテ追記との競合防止 (EMR-196)
+- **楽観ロック**: 新規会計画面は `GET /billing-items/unbilled-details` の応答 `revision`（items+warnings の決定的フィンガープリント）を保持し、`POST /accountings/complete` の `expected_unbilled_revision` として返送する。`pet_id` 指定の complete では必須で、未指定・空値は400、集約が不一致なら409を返す（受付の差し戻し自体は従来どおり許可し、stale な表示のままの確定だけを物理ブロックする）。
+- **409 応答**: `code=UNBILLED_ITEMS_CHANGED` と現在の集約版 `unbilled_revision` を返す。blocking unbilled warning（請求不能な予防接種候補）の検査は版照合より先に行われ、そちらの409が優先される。
+- **画面の復帰導線**: 409 を検出した場合、再送はせずローカルの明細編集を破棄して最新の unbilled 集約を再取得し、`UnbilledConflictBanner`（`role="alert"`）で「最新の内容を確認してから再度確定」を案内する。バナーの再読み込みボタンで画面全体をリロードできる。
+
 確定・更新経路の分岐と、同一キー再送時の応答：
 
 ```mermaid
@@ -51,7 +56,7 @@ flowchart TB
     K -->|内容相違・削除済み会計のキー再利用| R2["409"]
 ```
 
-### 2.2 インボイス制度への対応
+### 2.3 インボイス制度への対応
 - **帳票形式**: A4 縦。診療明細書と領収書を 1 枚に集約して印字。
 - **必須要件の網羅**: 
     - 適格請求書発行事業者登録番号。
@@ -72,6 +77,7 @@ flowchart TB
 ### 3.3 新規会計確定の再試行
 
 - `Idempotency-Key` はUUID形式が必須。同一医院・同一キー・同一内容の再送は既存会計を返し、支払・監査を再作成しない（初回201、再送200）。同じキーで内容が異なる場合、または削除済み会計に使ったキーの再利用は409となる。
+- `expected_unbilled_revision` は同一性判定の digest に含めない（操作内容ではなく前提条件のため）。409 で集約を再取得した後の再送は同じキー・同じ内容なら replay として扱われる。
 - 画面は失敗後も、入力内容が同じ間はキーを保持して再試行に使う。入力内容の変更や画面再読込では新しいキーになる。通信切断で保存結果が不明なときは、会計一覧で登録状態を確認してから操作する。
 - 別ドメインのAPIへ接続する環境では、このヘッダーのCORS許可も必要。バックエンドの固定allowlistに `Idempotency-Key` を含める。デプロイ後の確認は [Vercel STG検証手順](../../ops/deploy/VERCEL-FRONTEND-STAGING-TEST.md) を参照する。
 
@@ -79,7 +85,8 @@ flowchart TB
 | メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
 |:---|:---|:---|:---|:---|
 | GET | `/api/v1/accountings/:id` | 会計詳細および関連明細の取得 | `accounting` | `view` |
-| POST | `/api/v1/accountings/complete` | 新規会計の原子確定（明細・支払・監査。`Idempotency-Key` 必須） | `accounting` | `create` |
+| GET | `/api/v1/billing-items/unbilled-details` | 新規会計の未請求候補・警告・集約版 `revision` の取得 | `accounting` | `view` |
+| POST | `/api/v1/accountings/complete` | 新規会計の原子確定（明細・支払・監査。`Idempotency-Key` 必須、pet 指定時は `expected_unbilled_revision` 必須） | `accounting` | `create` |
 | POST | `/api/v1/accountings` | レガシー新規作成（本画面の確定経路では使わない） | `accounting` | `create` |
 | PATCH | `/api/v1/accountings/:id` | 既存会計の更新・精算済データの修正（未確定会計の決済確定は不可。確定は `POST /accountings/complete`） | `accounting` | `edit` |
 | POST | `/api/v1/accountings/:id/refunds` | 理由を伴う部分返金の記録 | `accounting` | `create` |

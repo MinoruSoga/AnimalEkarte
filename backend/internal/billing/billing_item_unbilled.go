@@ -65,7 +65,11 @@ func (s *billingItemService) aggregateUnbilled(ctx context.Context, clinicID, pe
 			Blocking: true,
 		})
 	}
-	return &UnbilledDetails{Items: items, Warnings: warnings}, nil
+	return &UnbilledDetails{
+		Items:    items,
+		Warnings: warnings,
+		Revision: computeUnbilledRevision(items, warnings),
+	}, nil
 }
 
 func hasBlockingUnbilledWarning(warnings []UnbilledWarning) bool {
@@ -102,6 +106,24 @@ func (s *billingItemService) AssertNoBlockingUnbilled(ctx context.Context, clini
 	}
 	if hasBlockingUnbilledWarning(details.Warnings) {
 		return apperrors.WrapConflict("未請求候補に請求不能な予防接種が含まれるため会計を確定できません")
+	}
+	return nil
+}
+
+// AssertUnbilledForComplete は complete 確定時の write-time fail-closed 検証（EMR-196②）。
+// blocking unbilled warning（BUG-013）に加え、画面表示した集約の版（expectedRevision）と
+// tx 内再集計の版が一致しなければ Conflict を返す。expectedRevision は必須で、
+// 空文字は必ず不一致になる（未指定での通過は service 層が 400 で拒否済み）。
+func (s *billingItemService) AssertUnbilledForComplete(ctx context.Context, clinicID, petID uint64, expectedRevision string) error {
+	details, err := s.aggregateUnbilled(ctx, clinicID, petID)
+	if err != nil {
+		return err
+	}
+	if hasBlockingUnbilledWarning(details.Warnings) {
+		return apperrors.WrapConflict("未請求候補に請求不能な予防接種が含まれるため会計を確定できません")
+	}
+	if details.Revision != expectedRevision {
+		return newUnbilledRevisionConflictError(details.Revision)
 	}
 	return nil
 }

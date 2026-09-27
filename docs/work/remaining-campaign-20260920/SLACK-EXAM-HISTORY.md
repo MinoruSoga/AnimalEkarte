@@ -6,13 +6,13 @@ Worktree `/Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte-rem-slack-exam-hist
 
 Docs-only. This unit does **not** query STG/PROD, inspect live CSV cells, invent row counts, treat DrOne standalone data as in-scope, or run `make csv-import*` / `make stg-uat-handoff`. **Actual counts: 未実行 / UNKNOWN.**
 
-Binding: [todo-issue.md](../../../todo-issue.md) heading `### SLACK-EXAM-HISTORY` (L288–L292); [MedicalRecordExamination.tsx](../../../frontend/src/features/medical-records/components/MedicalRecordExamination.tsx); [get-record-examinations.ts](../../../frontend/src/features/medical-records/api/get-record-examinations.ts); [CLINIC_CSV_IMPORT.md](../../ops/deploy/CLINIC_CSV_IMPORT.md). Connects to HAC remainder ([todo-issue.md](../../../todo-issue.md) `#slack-hac-import`; sibling sheet [SLACK-HAC-IMPORT](SLACK-HAC-IMPORT.md) if present in another worktree).
+Binding: [todo-issue.md](../../../todo.md#issue-ledger) heading `### SLACK-EXAM-HISTORY` (L288–L292); [MedicalRecordExamination.tsx](../../../frontend/src/features/medical-records/components/MedicalRecordExamination.tsx); [get-record-examinations.ts](../../../frontend/src/features/medical-records/api/get-record-examinations.ts); [CLINIC_CSV_IMPORT.md](../../ops/deploy/CLINIC_CSV_IMPORT.md). Connects to HAC remainder ([todo-issue.md](../../../todo.md#issue-ledger) `#slack-hac-import`; sibling sheet [SLACK-HAC-IMPORT](SLACK-HAC-IMPORT.md) if present in another worktree).
 
-This file is a campaign investigation sheet. Product modules do not import it. Callers are the campaign controller (`units.json` unit `SLACK-EXAM-HISTORY` `owned_paths`) and operators reading `docs/work/remaining-campaign-20260920/`. Human pointers: [todo-issue.md](../../../todo-issue.md) L288–L292 and [SLACK-INTAKE.md](../todo-campaign-20260919-ready17/SLACK-INTAKE.md) L53. Cited contracts stay unedited.
+This file is a campaign investigation sheet. Product modules do not import it. Callers are the campaign controller (`units.json` unit `SLACK-EXAM-HISTORY` `owned_paths`) and operators reading `docs/work/remaining-campaign-20260920/`. Human pointers: [todo-issue.md](../../../todo.md#issue-ledger) L288–L292 and [SLACK-INTAKE.md](../todo-campaign-20260919-ready17/SLACK-INTAKE.md) L53. Cited contracts stay unedited.
 
 ## 1. Why this sheet exists
 
-[todo-issue.md](../../../todo-issue.md) L290–L292 (Slack 出典 506–529): **DrOne 単体データは移行対象外**（回答・謝辞済み）。**旧カルテ / BAK の検査履歴は対象**。後者の移行/表示は受入待ち。First work is to map target tables, old IDs, clinic/pet, exam items, date, and unit from the chart list + CSV contract — and to separate list **limit / date filters** from **import gaps**.
+[todo-issue.md](../../../todo.md#issue-ledger) L290–L292 (Slack 出典 506–529): **DrOne 単体データは移行対象外**（回答・謝辞済み）。**旧カルテ / BAK の検査履歴は対象**。後者の移行/表示は受入待ち。First work is to map target tables, old IDs, clinic/pet, exam items, date, and unit from the chart list + CSV contract — and to separate list **limit / date filters** from **import gaps**.
 
 [SLACK-INTAKE.md](../todo-campaign-20260919-ready17/SLACK-INTAKE.md) L53: DrOne 除外は answered。旧カルテ検査は受入残。**除外再開は新たな裁定。本票で覆さない。**
 
@@ -49,7 +49,7 @@ Required parents for a chart-visible history row: same-clinic `pets` + optional 
 
 | Source | This sheet |
 |---|---|
-| DrOne 単体データ | **excluded.** Do not map DrOne tables, invent DrOne row counts, or reopen the exclusion. Range change needs a new PO ruling ([todo-issue.md](../../../todo-issue.md) L292; SLACK-INTAKE L53, L196). |
+| DrOne 単体データ | **excluded.** Do not map DrOne tables, invent DrOne row counts, or reopen the exclusion. Range change needs a new PO ruling ([todo-issue.md](../../../todo.md#issue-ledger) L292; SLACK-INTAKE L53, L196). |
 | Live DrOne / `mkan.mdb` / `source_type=drwan` | Not an F6 exam-history input. Lab-device sheet treats Drワン / MDB as excluded; this unit does not revive it. |
 | Device receive (`job_id` lab import) | Separate from BAK CSV. Chart can show unattached device exams (`medical_record_id` NULL) after live receive — that is not legacy BAK mapping. |
 
@@ -132,7 +132,7 @@ flowchart LR
 | Chart empty after login | No `exams` in the clinic band **or** no pet/record query | DrOne exclusion |
 | Chart empty because apply never ran | **Import / HAC gap** | Display bug |
 
-HAC remainder ([todo-issue.md](../../../todo-issue.md) L276–L280): 9月11日 BAK→CSV **送付報告** exists as a report; **現在の完全性・受領・投入結果は UNKNOWN**. Formal apply needs a hospital/run-fixed 21-table bundle (including `exams.csv` / `exam_results.csv`) plus separate-channel manifest SHA ([CLINIC_CSV_IMPORT.md](../../ops/deploy/CLINIC_CSV_IMPORT.md) L81–L88). This session did **not** inspect a bundle.
+HAC remainder ([todo-issue.md](../../../todo.md#issue-ledger) L276–L280): 9月11日 BAK→CSV **送付報告** exists as a report; **現在の完全性・受領・投入結果は UNKNOWN**. Formal apply needs a hospital/run-fixed 21-table bundle (including `exams.csv` / `exam_results.csv`) plus separate-channel manifest SHA ([CLINIC_CSV_IMPORT.md](../../ops/deploy/CLINIC_CSV_IMPORT.md) L81–L88). This session did **not** inspect a bundle.
 
 Until HAC receipt exists: imported exam-history **counts stay UNKNOWN / 未実行**. Chart code can still show **synthetic / live** exams; that is not legacy BAK evidence.
 
@@ -153,7 +153,7 @@ Until HAC receipt exists: imported exam-history **counts stay UNKNOWN / 未実�
 - Do not reopen the DrOne exclusion without a new PO ruling.
 - Do not query STG/PROD or log CSV cell values.
 - Do not claim history loaded from a Slack send report.
-- Approval original / formal bundle missing → **実データ検証は停止** ([todo-issue.md](../../../todo-issue.md) L292).
+- Approval original / formal bundle missing → **実データ検証は停止** ([todo-issue.md](../../../todo.md#issue-ledger) L292).
 - List truncation and unwired date pickers are display-contract facts, not import PASS/FAIL.
 
 ## 9. Follow-ups (out of this unit)

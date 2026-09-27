@@ -90,6 +90,36 @@ describe("completeAccounting", () => {
     );
   });
 
+  it("EMR-196②: expected_unbilled_revision を request body に載せる", async () => {
+    await completeAccounting(
+      {
+        pet_id: 1,
+        owner_id: 2,
+        expected_unbilled_revision: "u1:deadbeef",
+        scheduled_date: "2026-08-01T00:00:00+09:00",
+        items: [
+          {
+            category: "examination",
+            name: "診察",
+            unit_price: 1000,
+            quantity: 1,
+            tax_type: "excluded",
+            tax_rate: 0.1,
+            is_insurance_applicable: false,
+            source: "manual",
+          },
+        ],
+      },
+      "33333333-3333-4333-8333-333333333333",
+    );
+
+    expect(postMock).toHaveBeenCalledWith(
+      "/v1/accountings/complete",
+      expect.objectContaining({ expected_unbilled_revision: "u1:deadbeef" }),
+      expect.anything(),
+    );
+  });
+
   it("同一 Idempotency-Key で2回 POST しても key は呼び出し側が再利用できる", async () => {
     const key = "22222222-2222-4222-8222-222222222222";
     const body = {

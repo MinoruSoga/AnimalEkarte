@@ -233,9 +233,9 @@ func (s *accountingQueryGuard) GetOwnerUnpaidBalance(ctx context.Context, clinic
 	s.reject(clinicID, "GetOwnerUnpaidBalance")
 	return s.AccountingService.GetOwnerUnpaidBalance(ctx, clinicID, ownerID)
 }
-func (s *accountingQueryGuard) GetMonthlyUnpaidCarryover(ctx context.Context, clinicID uint64, year, month, page, limit int) ([]MonthlyUnpaidOwnerPet, int64, MonthlyUnpaidSummary, error) {
-	s.reject(clinicID, "GetMonthlyUnpaidCarryover")
-	return s.AccountingService.GetMonthlyUnpaidCarryover(ctx, clinicID, year, month, page, limit)
+func (s *accountingQueryGuard) GetPeriodUnpaidCarryover(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]PeriodUnpaidOwnerPet, int64, PeriodUnpaidSummary, error) {
+	s.reject(clinicID, "GetPeriodUnpaidCarryover")
+	return s.AccountingService.GetPeriodUnpaidCarryover(ctx, clinicID, startDate, endDate, page, limit)
 }
 
 type insuranceQueryGuard struct {
@@ -918,19 +918,19 @@ func TestRealDB_SelectedClinicBGrantAIsolation_Remaining(t *testing.T) {
 		assert.Equal(t, int64(0), got.UnpaidTotal)
 		assert.NotContains(t, w.Body.String(), realDBBillOwnerA)
 	})
-	t.Run("unpaid_monthly_grantA_403", func(t *testing.T) {
+	t.Run("unpaid_period_grantA_403", func(t *testing.T) {
 		db := setupRealDBBillingIsolationTestDB(t)
 		fx := seedRealDBBillingFixture(t, db, 0)
 		fx.handlers = newRealDBBillingHandlers(t, db, fx, fx.fx.ClinicB)
-		c, w := testdb.NewHTTPTestContext(t, http.MethodGet, "/api/v1/accountings/unpaid-monthly?year=2026&month=9&page=1&limit=50", configureBillGrant(fx, string(model.ResourceAccounting), fx.fx.ClinicA))
-		fx.handlers.accounting.GetUnpaidMonthlySummary(c)
+		c, w := testdb.NewHTTPTestContext(t, http.MethodGet, "/api/v1/accountings/unpaid-period?start_date=2026-09-01&end_date=2026-09-30&page=1&limit=50", configureBillGrant(fx, string(model.ResourceAccounting), fx.fx.ClinicA))
+		fx.handlers.accounting.GetUnpaidPeriodSummary(c)
 		assert.Equal(t, http.StatusForbidden, w.Code)
 	})
-	t.Run("unpaid_monthly_grantB_ok", func(t *testing.T) {
+	t.Run("unpaid_period_grantB_ok", func(t *testing.T) {
 		db := setupRealDBBillingIsolationTestDB(t)
 		fx := seedRealDBBillingFixture(t, db, 0)
-		c, w := testdb.NewHTTPTestContext(t, http.MethodGet, "/api/v1/accountings/unpaid-monthly?year=2026&month=9&page=1&limit=50", configureBillGrant(fx, string(model.ResourceAccounting), fx.fx.ClinicB))
-		fx.handlers.accounting.GetUnpaidMonthlySummary(c)
+		c, w := testdb.NewHTTPTestContext(t, http.MethodGet, "/api/v1/accountings/unpaid-period?start_date=2026-09-01&end_date=2026-09-30&page=1&limit=50", configureBillGrant(fx, string(model.ResourceAccounting), fx.fx.ClinicB))
+		fx.handlers.accounting.GetUnpaidPeriodSummary(c)
 		require.Equal(t, http.StatusOK, w.Code, w.Body.String())
 		assert.NotContains(t, w.Body.String(), realDBBillOwnerA)
 		assert.Contains(t, w.Body.String(), realDBBillOwnerB)

@@ -19,7 +19,7 @@ interface CarePlanRefSelectProps {
   value: string | null;
   onChange: (value: string | null) => void;
   /**
-   * type=item(入院プラン)の選択変更時に選択プランのマスタ price を伝播する。
+   * 参照必須 type の選択変更時に選択マスタの price を伝播する。
    * クリア・マスタ未検出時は null。0 は有限値としてそのまま渡す。
    */
   onUnitPriceChange?: (price: number | null) => void;
@@ -55,20 +55,19 @@ export function CarePlanRefSelect({
     [plans],
   );
 
-  const handleChange = (next: string) => onChange(next || null);
-
-  // type=item: 選択プランのマスタ price を unit_price 転記用に伝播する(0 は有限値として保持)
-  const handlePlanChange = (next: string) => {
+  // 選択したマスタの price を unit_price 転記用に伝播する。
+  // クリア・マスタ未検出時は null。0 は有限値としてそのまま渡す。
+  const emitSelection = (masters: { id: string; price: number }[] | undefined, next: string) => {
     const id = next || null;
     onChange(id);
-    onUnitPriceChange?.(plans?.find((p) => p.id === id)?.price ?? null);
+    onUnitPriceChange?.(masters?.find((m) => m.id === id)?.price ?? null);
   };
 
   if (type === "medicine") {
     return (
       <SearchableSelect
         value={value ?? ""}
-        onValueChange={handleChange}
+        onValueChange={(next) => emitSelection(medicines, next)}
         options={medicineOptions}
         disabled={isMedicinesLoading}
         placeholder={isMedicinesLoading ? "読み込み中..." : "薬剤を選択"}
@@ -81,7 +80,7 @@ export function CarePlanRefSelect({
     return (
       <SearchableSelect
         value={value ?? ""}
-        onValueChange={handleChange}
+        onValueChange={(next) => emitSelection(procedures, next)}
         options={procedureOptions}
         disabled={isProceduresLoading}
         placeholder={isProceduresLoading ? "読み込み中..." : "処置・検査を選択"}
@@ -94,7 +93,7 @@ export function CarePlanRefSelect({
     return (
       <SearchableSelect
         value={value ?? ""}
-        onValueChange={handlePlanChange}
+        onValueChange={(next) => emitSelection(plans, next)}
         options={planOptions}
         disabled={isPlansLoading}
         placeholder={isPlansLoading ? "読み込み中..." : "入院プランを選択"}

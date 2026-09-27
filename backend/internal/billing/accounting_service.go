@@ -132,7 +132,7 @@ type AccountingRepository interface {
 	FindUnpaidByBilling(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]model.Billing, int64, error)
 	FindUnpaidByOwner(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]UnpaidOwnerAggregate, int64, UnpaidSummary, error)
 	SumUnpaidByOwner(ctx context.Context, clinicID, ownerID uint64) (OwnerUnpaidBalance, error)
-	FindMonthlyUnpaidCarryover(ctx context.Context, clinicID uint64, firstDay, lastDay string, page, limit int) ([]MonthlyUnpaidOwnerPet, int64, MonthlyUnpaidSummary, error)
+	FindPeriodUnpaidCarryover(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]PeriodUnpaidOwnerPet, int64, PeriodUnpaidSummary, error)
 	GetDailySummary(ctx context.Context, clinicID uint64, date time.Time) (*DailySummaryResult, error)
 	GetCloseAggregate(ctx context.Context, input GetCloseAggregateInput) (*CloseAggregateResult, error)
 	GetMonthlyReport(ctx context.Context, clinicID uint64, year, month int) (*MonthlyReportResult, error)
@@ -168,17 +168,19 @@ type AccountingService interface {
 	ListUnpaidByOwner(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]UnpaidOwnerAggregate, int64, UnpaidSummary, error)
 	// #182: 会計画面表示用の飼主未納残高
 	GetOwnerUnpaidBalance(ctx context.Context, clinicID, ownerID uint64) (OwnerUnpaidBalance, error)
-	// #114: 月次未納繰越集計（前月繰越・当月未払い・次月繰越）
-	GetMonthlyUnpaidCarryover(ctx context.Context, clinicID uint64, year, month, page, limit int) ([]MonthlyUnpaidOwnerPet, int64, MonthlyUnpaidSummary, error)
+	// EMR-188: 月末未納者一覧（期間前繰越・期間内未納・期末繰越）
+	GetPeriodUnpaidCarryover(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]PeriodUnpaidOwnerPet, int64, PeriodUnpaidSummary, error)
 	// BUG-368: レジ締め日次集計
 	GetDailySummary(ctx context.Context, clinicID uint64, dateStr string) (*DailySummaryResult, error)
 	// GetDailySummaryForClinics は複数医院の拠点別日次集計を返す (#86 段階3 論点4=2)。
 	GetDailySummaryForClinics(ctx context.Context, clinicIDs []uint64, dateStr string) ([]ClinicDailySummary, error)
 }
 
-// unbilledWriteGuard は BUG-013 write-time fail-closed 用（blocking unbilled warning の再集計）。
+// unbilledWriteGuard は BUG-013 write-time fail-closed 用（blocking unbilled warning の再集計）
+// と EMR-196② complete 時の unbilled 集約版照合の最小 view。
 type unbilledWriteGuard interface {
 	AssertNoBlockingUnbilled(ctx context.Context, clinicID, petID uint64) error
+	AssertUnbilledForComplete(ctx context.Context, clinicID, petID uint64, expectedRevision string) error
 }
 
 type accountingService struct {

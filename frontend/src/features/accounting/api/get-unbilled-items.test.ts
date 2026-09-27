@@ -105,4 +105,26 @@ describe("getUnbilledItemDetails", () => {
     expect(result.items).toEqual([]);
     expect(result.warnings).toEqual([]);
   });
+
+  it("EMR-196②: details envelope の revision を保持する", async () => {
+    mockedGet.mockResolvedValue({
+      data: {
+        items: [],
+        warnings: [],
+        revision: "u1:deadbeef",
+      },
+    });
+
+    const result = await getUnbilledItemDetails("7");
+    expect(result.revision).toBe("u1:deadbeef");
+  });
+
+  it("EMR-196②: revision 欠落時は空文字にフォールバックする", async () => {
+    mockedGet.mockResolvedValue({
+      data: { items: [] },
+    });
+
+    const result = await getUnbilledItemDetails("7");
+    expect(result.revision).toBe("");
+  });
 });

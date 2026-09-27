@@ -29,6 +29,8 @@ type PetListFilters struct {
 	AnimalSpeciesID *uint64
 	// IncludeDeceased: false（既定）は deceased_at IS NULL（生存のみ）に絞る。
 	IncludeDeceased bool
+	// CheckupHistory: EMR-197-01 健診受診履歴の列挙フィルタ。空文字はフィルタ無し。
+	CheckupHistory CheckupHistoryFilter
 }
 
 type Repository interface {
@@ -108,11 +110,14 @@ func (r *repository) FindAll(ctx context.Context, clinicIDs []uint64, filters Pe
 		return pets, 0, nil
 	}
 
-	if err := r.petCountQuery(ctx, clinicIDs, filters).Count(&total).Error; err != nil {
+	// EMR-197-01: checkup_history の JST 窓境界は count/list で同一 now から導出する
+	// （別々に time.Now() すると JST 日付またぎで total とページ行がずれ得る）。
+	now := time.Now()
+	if err := r.petCountQuery(ctx, clinicIDs, filters, now).Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "pet", "")
 	}
 	// BRT-70: JOIN 時の owners 列混入 scan を避けるため Find だけ pets.* を明示する。
-	if err := r.petListQuery(ctx, clinicIDs, filters).
+	if err := r.petListQuery(ctx, clinicIDs, filters, now).
 		Select("pets.*").
 		Preload("Owner", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
 		Preload("AnimalSpecies").
@@ -132,7 +137,7 @@ func (r *repository) FindAll(ctx context.Context, clinicIDs []uint64, filters Pe
 	return pets, total, nil
 }
 
-func (r *repository) petCountQuery(ctx context.Context, clinicIDs []uint64, filters PetListFilters) *gorm.DB {
+func (r *repository) petCountQuery(ctx context.Context, clinicIDs []uint64, filters PetListFilters, now time.Time) *gorm.DB {
 	q := r.db.WithContext(ctx).Model(&model.Pet{}).
 		Where("pets.clinic_id IN ?", clinicIDs).
 		Where("pets.deleted_at IS NULL")
@@ -145,6 +150,7 @@ func (r *repository) petCountQuery(ctx context.Context, clinicIDs []uint64, filt
 	if !filters.IncludeDeceased {
 		q = q.Where("pets.deceased_at IS NULL AND pets.status <> ?", model.PetStatusDeceased)
 	}
+	q = applyPetCheckupHistoryFilter(q, filters.CheckupHistory, now)
 	if filters.Search == "" {
 		return q
 	}
@@ -152,7 +158,7 @@ func (r *repository) petCountQuery(ctx context.Context, clinicIDs []uint64, filt
 	return applyPetListSearch(q, filters.Search)
 }
 
-func (r *repository) petListQuery(ctx context.Context, clinicIDs []uint64, filters PetListFilters) *gorm.DB {
+func (r *repository) petListQuery(ctx context.Context, clinicIDs []uint64, filters PetListFilters, now time.Time) *gorm.DB {
 	// owners への LEFT JOIN は search 有無に関わらず常に張る
 	// (owners.name_kana ASC を安定順序の主キーにするため、Order 句が常にこの JOIN を要求する)。
 	// clinicScopeIn は "clinic_id" を無修飾で参照し pets/owners 両方に同名列を持つため、
@@ -176,6 +182,7 @@ func (r *repository) petListQuery(ctx context.Context, clinicIDs []uint64, filte
 		// deceased_at が NULL のことがあり、列片方だけ見ると死亡個体が検索に混入する（BUG-001）。
 		q = q.Where("pets.deceased_at IS NULL AND pets.status <> ?", model.PetStatusDeceased)
 	}
+	q = applyPetCheckupHistoryFilter(q, filters.CheckupHistory, now)
 	return applyPetListSearch(q, filters.Search)
 }
 

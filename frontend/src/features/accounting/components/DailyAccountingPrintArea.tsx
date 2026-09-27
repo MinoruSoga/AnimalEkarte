@@ -37,12 +37,6 @@ export function DailyPrintArea({ date, rows, totals }: DailyPrintAreaProps) {
             <th className={`border ${C.borderGray300} px-1 py-0.5 text-left whitespace-nowrap`}>
               領収No
             </th>
-            <th className={`border ${C.borderGray300} px-1 py-0.5 text-left whitespace-nowrap`}>
-              飼主名
-            </th>
-            <th className={`border ${C.borderGray300} px-1 py-0.5 text-left whitespace-nowrap`}>
-              ペット名
-            </th>
             <th className={`border ${C.borderGray300} px-1 py-0.5 text-right whitespace-nowrap`}>
               診療
             </th>
@@ -70,6 +64,12 @@ export function DailyPrintArea({ date, rows, totals }: DailyPrintAreaProps) {
             <th className={`border ${C.borderGray300} px-1 py-0.5 text-right whitespace-nowrap`}>
               合計
             </th>
+            <th className={`border ${C.borderGray300} px-1 py-0.5 text-left whitespace-nowrap`}>
+              飼主名
+            </th>
+            <th className={`border ${C.borderGray300} px-1 py-0.5 text-left whitespace-nowrap`}>
+              ペット名
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -88,10 +88,6 @@ export function DailyPrintArea({ date, rows, totals }: DailyPrintAreaProps) {
                 <td className={`border ${C.borderGray300} px-1 py-0.5 text-[9pt] font-mono`}>
                   {formatReceiptNo(a.id)}
                 </td>
-                <td className={`border ${C.borderGray300} px-1 py-0.5 text-[9pt]`}>
-                  {a.ownerName}
-                </td>
-                <td className={`border ${C.borderGray300} px-1 py-0.5 text-[9pt]`}>{a.petName}</td>
                 <CatCell detail={detailedBreakdown.medical} isMixed={isMixed} />
                 <CatCell detail={detailedBreakdown.surgery} isMixed={isMixed} />
                 <CatCell detail={detailedBreakdown.rv} isMixed={isMixed} />
@@ -109,6 +105,10 @@ export function DailyPrintArea({ date, rows, totals }: DailyPrintAreaProps) {
                 >
                   {formatCurrency(total)}
                 </td>
+                <td className={`border ${C.borderGray300} px-1 py-0.5 text-[9pt]`}>
+                  {a.ownerName}
+                </td>
+                <td className={`border ${C.borderGray300} px-1 py-0.5 text-[9pt]`}>{a.petName}</td>
               </tr>
             );
           })}
@@ -116,7 +116,7 @@ export function DailyPrintArea({ date, rows, totals }: DailyPrintAreaProps) {
         <tfoot>
           {/* 病院合計行 */}
           <tr className={`${C.bgMuted} font-semibold`}>
-            <td colSpan={3} className={`border ${C.borderGray300} px-1 py-0.5 text-[9pt]`}>
+            <td colSpan={1} className={`border ${C.borderGray300} px-1 py-0.5 text-[9pt]`}>
               病院合計
             </td>
             <td className={`border ${C.borderGray300} px-1 py-0.5 text-right text-[9pt]`}>
@@ -140,10 +140,12 @@ export function DailyPrintArea({ date, rows, totals }: DailyPrintAreaProps) {
             <td className={`border ${C.borderGray300} px-1 py-0.5 text-right text-[9pt] font-bold`}>
               {formatCurrency(hospitalTotal)}
             </td>
+            <td className={`border ${C.borderGray300} px-1 py-0.5 text-[9pt]`} />
+            <td className={`border ${C.borderGray300} px-1 py-0.5 text-[9pt]`} />
           </tr>
           {/* トリミング合計行 */}
           <tr className={`${C.bgMuted} font-semibold`}>
-            <td colSpan={3} className={`border ${C.borderGray300} px-1 py-0.5 text-[9pt]`}>
+            <td colSpan={1} className={`border ${C.borderGray300} px-1 py-0.5 text-[9pt]`}>
               トリミング合計
             </td>
             <td className={`border ${C.borderGray300} px-1 py-0.5 text-center text-[9pt]`}>-</td>
@@ -161,10 +163,12 @@ export function DailyPrintArea({ date, rows, totals }: DailyPrintAreaProps) {
             <td className={`border ${C.borderGray300} px-1 py-0.5 text-right text-[9pt] font-bold`}>
               {formatCurrency(trimmingTotal)}
             </td>
+            <td className={`border ${C.borderGray300} px-1 py-0.5 text-[9pt]`} />
+            <td className={`border ${C.borderGray300} px-1 py-0.5 text-[9pt]`} />
           </tr>
           {/* 全体合計行 */}
           <tr className={`${C.bgInactive} font-bold`}>
-            <td colSpan={3} className={`border ${C.borderGray300} px-1 py-1 text-[9pt]`}>
+            <td colSpan={1} className={`border ${C.borderGray300} px-1 py-1 text-[9pt]`}>
               全体合計
             </td>
             <td className={`border ${C.borderGray300} px-1 py-1 text-right text-[9pt]`}>
@@ -192,6 +196,8 @@ export function DailyPrintArea({ date, rows, totals }: DailyPrintAreaProps) {
             <td className={`border ${C.borderGray300} px-1 py-1 text-right text-[10pt] font-bold`}>
               {formatCurrency(totals.total)}
             </td>
+            <td className={`border ${C.borderGray300} px-1 py-1 text-[9pt]`} />
+            <td className={`border ${C.borderGray300} px-1 py-1 text-[9pt]`} />
           </tr>
         </tfoot>
       </table>

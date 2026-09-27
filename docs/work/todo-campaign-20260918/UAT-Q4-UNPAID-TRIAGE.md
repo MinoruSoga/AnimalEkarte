@@ -4,8 +4,8 @@
 
 ## 根拠と調査境界
 
-- [課題](../../../todo-issue.md#uat-q4-unpaid-triage) は status・支払有無・金額帯の匿名集計を先行させ、旧未精算と支払未紐付けを分類し、分類前後の総件数・金額を照合するよう求める（元 main の `todo-issue.md:111-114`）。
-- [運用条件](../../../todo-operations.md#uat-data-operations) は対象医院、期間、payment 結合条件、読取担当、保存先の確定と承認を先行させる（元 main の `todo-operations.md:37-49,93-97`）。[医院フィードバック](../stg-uat-clinic-feedback-q1-q4.md#uat-q4-unpaid-triage-未納の切り分け消さない) はデモ臨床シードの退役を記すが、残る waiting の原因を旧未精算または突合失敗の可能性にとどめる（同文書 `:213-220`）。この設計だけで「デモではない」と実データから証明しない。
+- [課題](../../../todo.md#uat-q4-unpaid-triage) は status・支払有無・金額帯の匿名集計を先行させ、旧未精算と支払未紐付けを分類し、分類前後の総件数・金額を照合するよう求める（元 main の `todo-issue.md:111-114`）。
+- [運用条件](../../../todo.md#uat-data-operations) は対象医院、期間、payment 結合条件、読取担当、保存先の確定と承認を先行させる（元 main の `todo-operations.md:37-49,93-97`）。[医院フィードバック](../stg-uat-clinic-feedback-q1-q4.md#uat-q4-unpaid-triage-未納の切り分け消さない) はデモ臨床シードの退役を記すが、残る waiting の原因を旧未精算または突合失敗の可能性にとどめる（同文書 `:213-220`）。この設計だけで「デモではない」と実データから証明しない。
 - 現行の [未納額式](../../../backend/internal/billing/unpaid_amount.go) は、active payment がない waiting を `billings.total_amount`、payment がある waiting/completed を `max(0, payment.total_amount - insurance_amount - discount_amount - billing_amount)`、payment がない completed を `0` とする（`:15-31`）。[未納 API](../../../backend/internal/billing/accounting_handler.go) は選択医院の閲覧権限を要求し、`group_by=billing|owner` を受ける（`:330-371`）。現行 [repository](../../../backend/internal/billing/accounting_repository_unpaid.go) は医院と `scheduled_date` の範囲で絞り、未納額が正の行だけを一覧に含める（`:87-124`）。よって 0 円例を含む本調査の母集団を API の表示行だけから作らない。
 
 ## 承認後の匿名集計仕様

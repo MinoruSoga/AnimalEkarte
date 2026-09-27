@@ -123,8 +123,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	accountings.GET("/unpaid", h.requirePermission(string(model.ResourceAccounting), "view"), h.accounting.ListUnpaidBillings)
 	// #182: 会計画面表示用 飼主未納残高
 	accountings.GET("/unpaid-balance", h.requirePermission(string(model.ResourceAccounting), "view"), h.accounting.GetOwnerUnpaidBalance)
-	// #114: 月次未納繰越集計
-	accountings.GET("/unpaid-monthly", h.requirePermission(string(model.ResourceAccounting), "view"), h.accounting.GetUnpaidMonthlySummary)
+	// EMR-188: 月末未納者一覧（期間検索）
+	accountings.GET("/unpaid-period", h.requirePermission(string(model.ResourceAccounting), "view"), h.accounting.GetUnpaidPeriodSummary)
 	// BUG-368: レジ締め日次集計
 	accountings.GET("/daily-summary", h.requirePermission(string(model.ResourceAccounting), "view"), h.accounting.GetDailySummary)
 	accountings.GET("/:id", h.requirePermission(string(model.ResourceAccounting), "view"), h.accounting.GetAccounting)

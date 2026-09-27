@@ -21,7 +21,8 @@ export function VaccinationPetSelection() {
 
   const handleSelect = useCallback(
     (pet: Pet) => {
-      if (pet.status !== "生存") return;
+      // EMR-177: 死亡個体も選択可能。作成可否は VaccinationForm の死亡ゲートが拒否する。
+      if (pet.status !== "生存" && pet.status !== "死亡") return;
       navigate(vaccinationCreateHref(pet.id), { state: location.state });
     },
     [location.state, navigate],

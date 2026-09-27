@@ -4,7 +4,7 @@
 
 依頼者: 曽我 稔。目的は、実装対象のない保守方針と前提未確定の仮説を開発キューから分け、次の担当者が対象・変更内容を判断し直さず着手できるようにすること。技術判断は今回の依頼に基づきCodexが行う。
 
-本書は判断の根拠を保存する資料である。実行タスクの入口は [todo.md](../../todo.md#development-tasks)、**新規 Issue 本文の正本は [todo-issue.md](../../todo-issue.md)**（Linear 新規作成はプラン上限で禁止）。測定・テスト・受入は [todo-verification.md](../../todo-verification.md)、環境操作は [todo-operations.md](../../todo-operations.md) を参照する。判断時点の Linear 読取は `USER_NOT_LOGGED_IN` で失敗していた。以下は当時のローカル技術判断であり、Linear の Done/Cancelled 更新ではない。
+本書は判断の根拠を保存する資料である。実行タスクの入口は [todo.md](../../todo.md#development-tasks)、**新規 Issue 本文の正本は [todo-issue.md](../../todo.md#issue-ledger)**（Linear 新規作成はプラン上限で禁止）。測定・テスト・受入は [todo-verification.md](../../todo.md#verification-ledger)、環境操作は [todo-operations.md](../../todo.md#operations-ledger) を参照する。判断時点の Linear 読取は `USER_NOT_LOGGED_IN` で失敗していた。以下は当時のローカル技術判断であり、Linear の Done/Cancelled 更新ではない。
 
 ```mermaid
 flowchart LR
@@ -19,7 +19,7 @@ flowchart LR
 
 ## 実装結果（2026-09-11 追記）
 
-READY3 は `origin/main` に統合済み。専用 Linear Issue はプラン上限で作成できず、証跡は BRT-4 コメントと [todo-issue.md](../../todo-issue.md) Done 節。
+READY3 は `origin/main` に統合済み。専用 Linear Issue はプラン上限で作成できず、証跡は BRT-4 コメントと [todo-issue.md](../../todo.md#issue-ledger) Done 節。
 
 | ID | Commit | 状態 |
 |---|---|---|
@@ -34,7 +34,7 @@ addendum response 型移行（codegen 前提）は引き続き deferred（`TASK-
 | 旧ID | 判断 | 現在の根拠 | 再判定の管理先 |
 |---|---|---|---|
 | PERF-DEV-OBSERVATION | 現行WIP不採用。常時ログ追加を開発キューに置かない | [Worker](../../backend/worker/index.ts) は全proxy要求の `container.fetch` 前後だけを計測。ブラウザーで観測した最終GET接続前22.5秒やContainer起動イベントの内訳は得られない | `PERF-V-CLIENT-TRACE` / `PERF-V-CF-EVENTS` / `PERF-V-DECIDE-OBSERVATION` |
-| PERF-DEV-MITIGATION | 原因未確定の設定・通信経路変更は採用しない | [性能記録](../../todo-performance.md) のE1と再現しなかったE2だけでは、edge OPTIONS・sleep延長・CORS変更のいずれも選べない | `PERF-V-MITIGATION`。因果が特定できた場合に対象を固定して開発キューへ戻す |
+| PERF-DEV-MITIGATION | 原因未確定の設定・通信経路変更は採用しない | [性能記録](../../todo.md#performance-ledger) のE1と再現しなかったE2だけでは、edge OPTIONS・sleep延長・CORS変更のいずれも選べない | `PERF-V-MITIGATION`。因果が特定できた場合に対象を固定して開発キューへ戻す |
 | PERF-DEV-BUNDLE | 根拠のないchunk再編は採用しない | [Vite設定](../../frontend/vite.config.ts) にcharts/LIFFのchunk分類があり、ローカルdistにもpreloadがある。ただしdist生成revisionはUNKNOWNで、現行SHAのtransfer/parse/execute寄与は未測定 | `PERF-V-BUNDLE`。測定で必要とされた依存だけを開発対象にする |
 
 既存のpending表示は [router.tsx](../../frontend/src/app/router.tsx)、[app-routes.tsx](../../frontend/src/app/routes/app-routes.tsx)、[AuthProvider.tsx](../../frontend/src/features/auth/components/AuthProvider.tsx) にある。同じ実装を未完了として起票しない。STG配信や実測改善はこのソース確認からは判定できない。

@@ -1,27 +1,27 @@
 # データベース設計書 (Entity Relationship Diagram)
 
-> **目的**: 全128テーブルの inventory と主要リレーションを記録し、テーブル数等の統計値の正本とする。DDL は列・制約の正本。
+> **目的**: 全129テーブルの inventory と主要リレーションを記録し、テーブル数等の統計値の正本とする。DDL は列・制約の正本。
 > **読者**: 全開発者。
 > **タイミング**: スキーマ変更・DB設計判断時。
 
-<!-- ERD:TABLE_COUNT=128 -->
+<!-- ERD:TABLE_COUNT=129 -->
 
 > **Animal Ekarte**: 高精度・高整合な動物病院データモデル
-> **最終照合**: 2026-09-22 | **基準コミット**: `cd2feaa14` | **対象**: `backend/migrations/` 直下の `001`〜`004`（128テーブル）。記録者FKの置換と治療明細の生涯一意制約を含む、順次適用後のスキーマを記録する。
+> **最終照合**: 2026-09-26 | **対象**: `backend/migrations/` 直下の `001`〜`011`（129テーブル）。記録者FKの置換と治療明細の生涯一意制約を含む、順次適用後のスキーマを記録する。`011_support_bug_reports.sql` の `support_bug_reports` を含む。
 >
 > **確認範囲**: repo内DDL・関連コードとの静的照合。稼働DBのmigration適用状態・実データ・STG/本番受入は未確認。DDLの存在をDB適用済みとは扱わない。後続変更は [migration方針](../../backend/migrations/README.md) に従い、適用済みSQLを編集・再統合しない。
 
 ---
 
-## 1. データモデルの全体像 (全 128 テーブル)
+## 1. データモデルの全体像 (全 129 テーブル)
 
-本システムは、臨床・経営・外部連携を支える 128 のテーブルが高度に正規化され、臨床的整合性を維持するリレーショナルモデルを採用しています。
+本システムは、臨床・経営・外部連携を支える 129 のテーブルが高度に正規化され、臨床的整合性を維持するリレーショナルモデルを採用しています。
 
 ### 1.1 主要ドメイン別構成
 
 | 区分 | 管理対象（物理テーブル名・全件） |
 |:---|:---|
-| **システム基盤 (13)** | `accounts`, `clinics`, `clinic_settings`, `clinic_holidays`, `closing_special_periods`, `staffs`, `permission_groups`, `permission_group_rules`, `audit_logs`, `companies`, `password_reset_tokens`, `token_blacklist`, `occupations` |
+| **システム基盤 (14)** | `accounts`, `clinics`, `clinic_settings`, `clinic_holidays`, `closing_special_periods`, `staffs`, `permission_groups`, `permission_group_rules`, `audit_logs`, `companies`, `password_reset_tokens`, `token_blacklist`, `occupations`, `support_bug_reports` |
 | **入院・稼働 (11)** | `hospitalizations`, `daily_records`, `care_plan_items`, `care_logs`, `cages`, `hospitalization_plans`, `staff_notes`, `staff_clinic_assignments`, `staff_permission_groups`, `staff_reservation_exclusions`, `staff_reservation_capabilities` |
 | **臨床・診察 (24)** | `owners`, `pets`, `pet_owners`, `pet_chronic_conditions`, `animal_species`, `chief_complaint_types`, `medical_records`, `medical_record_addenda`, `medical_record_images`, `medical_record_image_upload_quota`, `clinical_plans`, `treatment_plans`, `treatments`, `prescriptions`, `procedures`, `vital_records`, `inquiries`, `consultations`, `diagnosis_names`, `diagnosis_types`, `inquiry_templates`, `medicines`, `medicine_dose_params`, `vaccines` |
 | **検査・予防 (25)** | `exams`, `exam_results`, `exam_types`, `exam_type_fields`, `exam_reference_ranges`, `examination_revisions`, `examination_revision_items`, `vaccinations`, `checkups`, `checkup_types`, `checkup_type_fields`, `checkup_field_results`, `checkup_package_import_receipts`, `shared_files`, `lab_import_jobs`, `lab_import_events`, `lab_import_exam_retractions`, `lab_import_exam_retraction_items`, `lab_import_usage_receipts`, `lab_import_revert_receipts`, `lab_devices`, `lab_device_item_masters`, `lab_import_job_items`, `lab_device_waits`, `lab_device_station_settings` |
@@ -329,18 +329,22 @@ erDiagram
 
 ### 4.4 現行の追加migration（2026-09-22照合）
 
-次の3本を001の後に番号順で適用したDDLが、本書の図・現在の制約説明の基準。テーブル数は128のまま。SQL自体は変更しておらず、稼働DBへの適用状態は未確認。
+下表のmigrationを001の後に番号順で適用したDDLが、本書の図・現在の制約説明の基準。テーブル数は128のまま。SQL自体は変更しておらず、稼働DBへの適用状態は未確認（直下に存在する他の増分は別途照合対象）。
 
 | migration | 最終DDL上の変更 | 関係・境界 |
 |:---|:---|:---|
 | [002](../../backend/migrations/002_medical_records_entered_by_staff_fk.sql) | `fk_medical_records_entered_by_clinic` と旧単列FKをDROPし、`fk_medical_records_entered_by`（`entered_by → staffs(id)`、`ON DELETE RESTRICT`）を追加 | 兼務先でも記録できる記録者FK。担当医の `(doctor_id, clinic_id)` 複合FKは維持 |
 | [003](../../backend/migrations/003_appointments_created_by_staff_fk.sql) | `fk_appointments_created_by_clinic` と旧単列FKをDROPし、`fk_appointments_created_by`（`created_by → staffs(id)`、`ON DELETE RESTRICT`）を追加 | 予約登録者は担当医とは別。医院の記録権限と過去記録の帰属を区別 |
 | [004](../../backend/migrations/004_billing_items_treatment_lifetime_unique.sql) | `uq_billing_items_treatment_lifetime`：`billing_items(treatment_id) WHERE treatment_id IS NOT NULL` のUNIQUE INDEX | `deleted_at` 条件がないため、論理削除済み明細を含め同一治療参照は最大1件 |
+| [011](../../backend/migrations/011_care_plan_items_manual_other.sql) | `care_plan_items.other_reason`（`text` NOT NULL DEFAULT `''`）を追加し、`chk_care_plan_item_ref` を再定義 | EMR-179。手入力「その他」行（`category='other'` かつ `btrim(other_reason) <> ''`）は `type=item` で `hospitalization_plan_id` NULL を許容。billing_items の手入力契約と同型。`other_reason` の500文字上限はアプリ層検証で CHECK には含めない |
+| [011](../../backend/migrations/011_support_bug_reports.sql) | `support_bug_reports` テーブル新設 | サポートウィジェットのバグ報告。スクショは FileUploader の key のみ保持し配信は署名URL経由。`clinic_id`/`reporter_staff_id` は RESTRICT FK、合成クリニック teardown の削除順に登録済み |
+| [012](../../backend/migrations/012_pets_name_origin_meeting_story.sql) | `pets.name_origin`（`text` NULL）と `pets.meeting_story`（`text` NULL）を追加 | EMR-174。名前の由来・出逢いのストーリー。NULL=未記録。空・空白のみは API 境界で NULL 正規化。検索対象外のため索引なし |
 
 - **記録者の権限**: 単列FKへの変更は医院境界の撤廃ではない。[カルテ記録者ガード](../../backend/internal/medicalrecord/medical_record_entered_by_actor.go) と [予約登録者ガード](../../backend/internal/reservation/reservation_created_by.go) が、作成transaction内で有効なスタッフと医院所属、または確認済みのシステム管理者権限を検証する。FKは記録者の実在・物理削除制限を保持し、現在の操作権限はアプリが別に検証する。
 - **治療明細の一意性**: 001の `idx_billing_items_treatment_id` はactive行検索用の非一意index。二重参照を防ぐのは004のlifetime uniqueであり、単なる検索indexや画面上のロックではない。既存の `treatment_id → treatments(id) ON DELETE SET NULL` は変更していない。
 - **provenance排他の範囲**: `chk_billing_items_provenance_exclusive` は `vaccination_id` と `exam_id` の同時設定だけを禁止する。`treatment_id` を含む3列全体の排他CHECKがあるとは扱わない。
-- **適用・検証**: 本書更新ではDB操作をしていない。migrationを追加する更新を取り込んだ開発者は対象DBの適用状態を確認し、必要な `make migrate` をユーザー操作で実行する。既存データの制約違反を自動削除で解消したり、適用済みSQLを書き換えたりしない。STG/本番は [運用TODOの適用確認](../../todo-operations.md#billing-schema-readiness) と環境別承認に従う。
+- **migration 番号の重複**: `011` は `011_care_plan_items_manual_other.sql` と `011_support_bug_reports.sql` の2ファイルに割り当て済み（`schema_migrations` はファイル名キー・実行順はファイル名ソートのため動作上不整合にならない。コミット済みファイルはリネームしない）。次に追加する migration の番号は **`013`** とする（008 は欠番）。
+- **適用・検証**: 本書更新ではDB操作をしていない。migrationを追加する更新を取り込んだ開発者は対象DBの適用状態を確認し、必要な `make migrate` をユーザー操作で実行する。既存データの制約違反を自動削除で解消したり、適用済みSQLを書き換えたりしない。STG/本番は [運用TODOの適用確認](../work/plane-md-migration-20260923-receipt.md) と環境別承認に従う。
 
 ## 5. 未確定事項（分類に関する注記）
 

@@ -12,7 +12,7 @@
 ## 1. 画面構成
 
 ### 1.0 患者ヘッダー
-- **`PatientInfoCard`**: `formatPatientPetDetails` に `species` / 生年月日 / 性別 / 去勢避妊を渡す。動物種は先頭に実データを出す。欠損の年齢・性別・去勢避妊だけ「不明」（固定ダミーの「犬」は使わない）。
+- **`PatientInfoCard`**: `formatPatientPetDetails` に `species` / 生年月日 / 性別 / 去勢避妊を渡す。動物種は先頭に実データを出す。欠損の年齢・性別・去勢避妊だけ「不明」（固定ダミーの「犬」は使わない）。危険マーク（EMR-173、共有 `DangerBadge`）: ペット名横に `danger_level` 高=赤 `⚠ 危険`・中=黄 `⚠ 注意`（Popover で理由）、低・未設定は非表示。飼主 `is_dangerous` は飼主名横に `⚠ 危険人物`。接種・保定前の安全確認用。
 - カルテ「予防接種」タブ（[06-medical-records-form.md](./06-medical-records-form.md)）は本画面とは別実装。タブ左ペインの一覧も同じ `GET /vaccinations?pet_id=` を使う。
 
 ### 1.1 接種基本情報
