@@ -54,11 +54,11 @@ docker exec <backend-container> go test ./internal/medicalrecord/ -count=1 -v -r
 docker exec <backend-container> go test ./internal/billing/ ./internal/inventory/ -count=1 -v -run '<regex>'
 ```
 
-**注意（2026-09-25 追記）**: `docker run animalekarte-backend <cmd>` は image entrypoint が **migration 適用と `air` 起動を自動実行する**。`docker run` で scoped テストを行う場合は必ず `--entrypoint go` を付け、`--network ekarte-network` で `db` サービスへ到達させる。entrypoint を迂回しない `docker run` は共有 `ekarte_db` へ migration を適用し得るため禁止。
+**注意（2026-09-25 追記）**: `docker run animalekarte-backend <cmd>` は image entrypoint が **migration 適用と `air` 起動を自動実行する**。`docker run` で scoped テストを行う場合は必ず `--entrypoint go` を付け、`--network animalekarte_ekarte-network` で `db` サービスへ到達させる（ネットワークは project-scoped 名に変更済み）。entrypoint を迂回しない `docker run` は共有 `ekarte_db` へ migration を適用し得るため禁止。
 
 ```sh
 # worktree マウント + entrypoint 迂回 + test DB（実測例、373b0ea0a で実行）
-docker run --rm --network ekarte-network --entrypoint go \
+docker run --rm --network animalekarte_ekarte-network --entrypoint go \
   -e DB_HOST=db -e DB_USER=ekarte_user -e DB_PASSWORD=ekarte_password \
   -e DB_NAME=ekarte_db -e DB_PORT=5432 -e APP_ENV=test \
   -v "$PWD/backend:/app" -w /app animalekarte-backend \

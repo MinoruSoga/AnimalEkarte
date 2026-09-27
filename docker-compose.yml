@@ -210,5 +210,9 @@ volumes:
     name: ekarte-go-build-cache
 
 networks:
+  # name: は付けない。固定名にすると worktree 等の別 compose project の同名
+  # service (db 等) が同一 network に同居し、service 名 DNS が複数 IP に
+  # 分散して接続先が分裂する (2026-09-27 make reset で backend の migrate が
+  # 別 project の db に適用される事故)。name 省略で <project>_ekarte-network
+  # が自動採番され、project ごとに分離される。
   ekarte-network:
-    name: ekarte-network

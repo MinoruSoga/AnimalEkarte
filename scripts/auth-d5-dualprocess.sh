@@ -7,7 +7,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 REPORT_DIR="${D5_REPORT_DIR:-$ROOT/reports}"
 WORKDIR="${D5_WORKDIR:-/tmp/auth-d5-dualprocess-$$}"
 API_IMAGE="${D5_API_IMAGE:-animalekarte-backend:latest}"
-NETWORK="${D5_NETWORK:-ekarte-network}"
+NETWORK="${D5_NETWORK:-animalekarte_ekarte-network}"
 PG_CONTAINER="${D5_PG_CONTAINER:-ae-auth-fix-disposable-pg}"
 
 DB_HOST="${D5_DB_HOST:-ae-auth-fix-disposable-pg}"

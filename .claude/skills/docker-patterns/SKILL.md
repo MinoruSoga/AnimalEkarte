@@ -76,9 +76,9 @@ docker compose logs db --tail=50
 docker compose exec frontend sh
 docker compose exec backend sh
 
-# ネットワーク確認
+# ネットワーク確認（実名は project-scoped: <project>_ekarte-network）
 docker network ls
-docker network inspect ekarte-network
+docker network inspect animalekarte_ekarte-network
 
 # ボリューム確認
 docker volume ls
