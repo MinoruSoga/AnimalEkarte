@@ -344,8 +344,19 @@ stop_services_keep_volumes() {
 
 delete_db_volume_only() {
   local v
+  local holders
   info "deleting ONLY volume: $EXPECTED_DB_VOLUME"
   if "$DOCKER_BIN" volume inspect "$EXPECTED_DB_VOLUME" >/dev/null 2>&1; then
+    # Fail-closed: containers outside this compose project (e.g. a leaked
+    # container from a deleted worktree) can still mount the fixed-name
+    # volume. Name them and refuse instead of surfacing docker's bare
+    # "volume is in use" error.
+    holders="$("$DOCKER_BIN" ps -a --filter "volume=$EXPECTED_DB_VOLUME" --format '{{.Names}}\t{{.Label "com.docker.compose.project"}}\t{{.Status}}' 2>/dev/null || true)"
+    if [[ -n "$holders" ]]; then
+      echo "FAIL  volume $EXPECTED_DB_VOLUME is still mounted by container(s):" >&2
+      printf '%s\n' "$holders" | sed 's/^/      /' >&2
+      die "remove those container(s) first (e.g. docker rm <name>), then re-run make reset"
+    fi
     "$DOCKER_BIN" volume rm "$EXPECTED_DB_VOLUME" || die "volume rm $EXPECTED_DB_VOLUME failed"
   else
     info "volume $EXPECTED_DB_VOLUME already absent"

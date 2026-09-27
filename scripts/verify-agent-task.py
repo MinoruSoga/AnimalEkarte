@@ -562,6 +562,12 @@ def plan(paths):
                     'command': ['python3', '-B', 'scripts/link-old-db-cross-clinic-staff-accounts.py', '--self-test'],
                 })
         elif path in (
+            'scripts/local-db-reset-contract.sh',
+            'scripts/local-db-reset-contract.test.sh',
+        ):
+            jobs.append({'service': 'host', 'command': ['bash', 'scripts/local-db-reset-contract.test.sh']})
+            jobs.append({'service': 'host', 'command': ['bash', '-n', path]})
+        elif path in (
             'scripts/link-old-db-cross-clinic-staff-accounts.py',
             'scripts/sql/link-old-db-cross-clinic-staff-accounts.sql',
         ):

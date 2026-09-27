@@ -112,6 +112,14 @@ class VerificationTests(unittest.TestCase):
         self.assertFalse(blocked)
         self.assertEqual(jobs[0]['command'], ['bash', '-n', 'scripts/auth-d5-dualprocess.sh'])
 
+    def test_local_db_reset_contract_maps_to_fixture_test(self):
+        for path in ('scripts/local-db-reset-contract.sh', 'scripts/local-db-reset-contract.test.sh'):
+            with self.subTest(path=path):
+                jobs, blocked = verify.plan([path])
+                self.assertFalse(blocked)
+                self.assertIn({'service': 'host', 'command': ['bash', 'scripts/local-db-reset-contract.test.sh']}, jobs)
+                self.assertIn({'service': 'host', 'command': ['bash', '-n', path]}, jobs)
+
     def test_reject_path_escape(self):
         for path in ('../secret', '/tmp/x', '-option', 'frontend/../../x'):
             with self.assertRaises(ValueError):
