@@ -3490,6 +3490,37 @@ export interface StaffReservationExclusion {
 }
 
 //////////
+// source: support_bug_report.go
+
+/**
+ * SupportBugReportStatus はバグ報告の対応状況
+ */
+export const SupportBugReportStatusOpen = "open";
+export const SupportBugReportStatusResolved = "resolved";
+export type SupportBugReportStatus = typeof SupportBugReportStatusOpen | typeof SupportBugReportStatusResolved;
+/**
+ * SupportBugReport はアプリ内サポートウィジェットから送信されたバグ報告。
+ * スクショ画像本体は FileUploader に保存し、DB にはオブジェクト key のみ保持する。
+ */
+export interface SupportBugReport {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  reporter_staff_id: number /* uint64 */;
+  title: string;
+  detail: string;
+  page_url: string;
+  route_path: string;
+  user_agent: string;
+  viewport: string;
+  app_version: string;
+  screenshot_key?: string;
+  status: SupportBugReportStatus;
+  created_at: string;
+  updated_at: string;
+  deleted_at?: string | null;
+}
+
+//////////
 // source: token_blacklist.go
 
 /**
