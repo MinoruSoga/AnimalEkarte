@@ -2,7 +2,7 @@
 
 > Task migrated to Plane `EMR-199`. This file remains supporting acceptance/evidence material; use Plane for current status.
 
-最終照合: 2026-09-27（Plane 状態とコード・git履歴を照合し、Done/Cancelled/Duplicate かつ対応コミットまたは受入記録を確認できた項目を削除: EMR-90/92/94/101/102/103、EMR-135/137/138/192）。未完了タスクと状態はPlaneが正本。以下の旧HEAD・コード/UAT照合内容は当時の根拠であり、現在の配備・受入状態を示さない。移行対応は [Plane移行記録](docs/work/plane-md-migration-20260923-receipt.md)。 2026-09-27 追記: Plane 移行済みの項目行・`移行済み` スタブ・対応済みの状態表を本文から削除し、旧 ID アンカーは外部リンク維持のため「旧タスク ID」節へ集約した。
+最終照合: 2026-09-27（Plane 状態とコード・git履歴を照合し、Done/Cancelled/Duplicate かつ対応コミットまたは受入記録を確認できた項目を削除: EMR-90/92/94/101/102/103、EMR-135/137/138/192）。未完了タスクと状態はPlaneが正本。以下の旧HEAD・コード/UAT照合内容は当時の根拠であり、現在の配備・受入状態を示さない。移行対応は [Plane移行記録](docs/work/plane-md-migration-20260923-receipt.md)。 2026-09-27 追記: Plane 移行済みの項目行・`移行済み` スタブ・対応済みの状態表を本文から削除し、旧 ID アンカーは外部リンク維持のため「旧タスク ID」節へ集約した。同日再照合（2回目）: 全参照 ID の Plane 現行状態を確認し、Done 到達の EMR-84/85/87/120/121/122/123/124/190 をトピック対応表へ反映、EMR-136/204 の Cancelled 終了と EMR-142/143/203 の Ready 遷移を記録した。
 
 本ファイルは旧 `todo-issue.md`・`todo-verification.md`・`todo-operations.md`・`todo-performance.md` を 2026-09-26 に統合した。節: [Issue 出典・仕様履歴](#issue-ledger) · [検証・受入](#verification-ledger) · [運用・外部実行](#operations-ledger) · [性能](#performance-ledger)。統合前の行番号参照（`L175` 等）は Git の旧ファイルを指す。
 
@@ -126,22 +126,22 @@ Linear/BRT-4に関する以下の文言は過去の運用方針記録。2026-09-
 | STAFF-SELECT | 候補状態表示を部分対応・実機再確認待ち → [SLACK-STAFF-SELECT](#slack-staff-select) |
 | CROSS-CLINIC | 権限境界の設計・PO → [SLACK-CROSS-CLINIC](#slack-cross-clinic) |
 | OWNER-HEIGHT | 検索modalコード対応済み・実機受入待ち → [SLACK-OWNER-HEIGHT](#slack-owner-height) |
-| SEARCH-AND | コード対応済み・UAT待ち → [UAT-Q1-SEARCH-AND](docs/work/plane-md-migration-20260923-receipt.md) |
-| HISTORY | 導線コードあり・UAT待ち → [UAT-Q2-HISTORY-NAV](docs/work/plane-md-migration-20260923-receipt.md) |
+| SEARCH-AND | コード対応・実機受入完了（Plane Done・EMR-122） → [UAT-Q1-SEARCH-AND](docs/work/plane-md-migration-20260923-receipt.md) |
+| HISTORY | 導線受入完了（Plane Done・EMR-124） → [UAT-Q2-HISTORY-NAV](docs/work/plane-md-migration-20260923-receipt.md) |
 | SPECIES | 既存調査 → [UAT-Q2-VACCINE-SPECIES](#uat-q2-vaccine-species) |
 | GENDER | old_db 統合済み・bundle/実データ受入待ち → [UAT-Q3-GENDER-MAP](#uat-q3-gender-map) |
 | UNPAID | 原因未確定・既存調査 → [UAT-Q4-UNPAID-TRIAGE](#uat-q4-unpaid-triage) |
-| INSURANCE | 新規50/70・旧90/100保持の受入 → [UAT-Q4-INSURANCE-RATES](docs/work/plane-md-migration-20260923-receipt.md) |
-| MASTER | 価格request/model回帰拡充・下流/全経路は残る → [UAT-R2-MASTER-PATH](docs/work/plane-md-migration-20260923-receipt.md) |
-| CONCURRENCY | 競合mock回帰拡充・stale設計/実並行は残る → [UAT-R2-EXCLUSIVE-LOCK](docs/work/plane-md-migration-20260923-receipt.md) |
+| INSURANCE | 受入完了（Plane Done・EMR-123） → [UAT-Q4-INSURANCE-RATES](docs/work/plane-md-migration-20260923-receipt.md) |
+| MASTER | 全経路受入完了（Plane Done・EMR-84） → [UAT-R2-MASTER-PATH](docs/work/plane-md-migration-20260923-receipt.md) |
+| CONCURRENCY | 受入完了（Plane Done・EMR-85） → [UAT-R2-EXCLUSIVE-LOCK](docs/work/plane-md-migration-20260923-receipt.md) |
 | LATENCY | 比較条件設計済み・実環境/実測待ち → [SLACK-LATENCY](#slack-latency) |
-| ENTER | コード対応済み・実機IME待ち → [UAT-R2-TREATMENT-COMMIT](docs/work/plane-md-migration-20260923-receipt.md) |
-| MASTER-HEIGHT | コード対応済み・実画面受入待ち → [UAT-R2-MASTER-LIST-HEIGHT](docs/work/plane-md-migration-20260923-receipt.md) |
+| ENTER | 実機IME受入完了（Plane Done・EMR-120） → [UAT-R2-TREATMENT-COMMIT](docs/work/plane-md-migration-20260923-receipt.md) |
+| MASTER-HEIGHT | 実画面受入完了（Plane Done・EMR-121） → [UAT-R2-MASTER-LIST-HEIGHT](docs/work/plane-md-migration-20260923-receipt.md) |
 | CHART-FIT | scroll/高さコード対応済み・全9タブ/実機受入待ち → [UAT-R2-CHART-FIT](#uat-r2-chart-fit) |
 | RESERVATION-EDIT | 回答・謝辞あり → [操作案内の保持](#slack-answered) |
-| COMPLAINT | null hydrate修正済み・実UI解除/DB受入は残る → [SLACK-COMPLAINT](docs/work/plane-md-migration-20260923-receipt.md) |
+| COMPLAINT | 修正・受入完了（Plane Done・EMR-87） → [SLACK-COMPLAINT](docs/work/plane-md-migration-20260923-receipt.md) |
 | BACKGROUND | 対象欄の特定・PO → [SLACK-BACKGROUND](docs/work/plane-md-migration-20260923-receipt.md)（Plane で Duplicate 終了・統合先は Plane 参照） |
-| VITALS | ヘッダー表示コード対応済み・臨床受入待ち → [SLACK-VITALS](docs/work/plane-md-migration-20260923-receipt.md) |
+| VITALS | ヘッダー表示・臨床受入完了（Plane Done・EMR-190） → [SLACK-VITALS](docs/work/plane-md-migration-20260923-receipt.md) |
 | MICROCHIP | ヘッダー表示コード対応済み・受入待ち → [SLACK-MICROCHIP](#slack-microchip) |
 | DANGER | 既存高危険表示の保持・PO → [SLACK-DANGER](docs/work/plane-md-migration-20260923-receipt.md)（Plane で Duplicate 終了・統合先は Plane 参照） |
 | DETAILS | 導線比較済み・PO裁定待ち → [SLACK-DETAILS](docs/work/plane-md-migration-20260923-receipt.md)（Plane で Duplicate 終了・統合先は Plane 参照） |
@@ -627,7 +627,7 @@ E4 以降にユーザー報告で発覚した追加原因と、採用した改�
 - **AXIOS-RETRY**: 実装・配備済みだが**フィールド観測は除外**——観測窓に 503 ストーム（起動失敗応答）が発生せずリトライ経路は未励起。**unverified-in-field** であり失敗ではない。確認は 503 発生時の再観測か、合成 fault 注入の別単位で行う。
 - **INSTANCE-TYPE（案5）/ MITIGATION / BUNDLE**: いずれもトリガー付き DEFERRED のまま（INSTANCE-TYPE は login 等の CPU 拘束区間の更なる短縮要請と実コスト増の权衡、MITIGATION は因果区間の確定、BUNDLE は転送/parse/execute 寄与の実測）。作業状態の正本は Plane。
 - **SLACK-LATENCY**: ユーザーレーン（Plane `EMR-104`）。本キャンペーンの対象外。
-- **PERF-V-LINEAR**: 依然 **BLOCKED**——Linear MCP が未接続（`USER_NOT_LOGGED_IN`）で照会不能。`EMR-136` へ移行済みだが対応先の確定は保留。
+- **PERF-V-LINEAR**: E6時点は **BLOCKED**（Linear MCP が未接続・`USER_NOT_LOGGED_IN`）。`EMR-136` は 2026-09-27 照合で **Cancelled** 終了済み。
 - **配置**: `maa01`/`sin14` いずれも日本非ローカルで APAC 制約は満たすが Japan 着地は保証しない。runbook の再抽選（`LABEL rollout` インクリメント再デプロイ）の実施は承認済み運用操作に委ねる。
 - **新規候補**: `GET /api/v1/accountings?owner_id=` が owner detail 画面の最遅 API（1.9–2.7s、browser-pages 観測）。次期改善候補として記録する。
 
@@ -646,12 +646,12 @@ E4 以降にユーザー報告で発覚した追加原因と、採用した改�
 #### 残存事項・対象外（E7 時点）
 
 - **EMR-104（SLACK-LATENCY）**: ユーザーレーン（Plane Needs Human）。本キャンペーンの対象外。
-- **EMR-203（AXIOS-RETRY フィールド検証）**: unverified-in-field のまま——観測窓に 503 が無くリトライ経路は未励起。失敗ではない。
-- **EMR-142 / EMR-143（PERF-V-MITIGATION / PERF-V-BUNDLE）**: トリガー付き DEFERRED のまま（Plane Backlog）。
+- **EMR-203（AXIOS-RETRY フィールド検証）**: unverified-in-field のまま——観測窓に 503 が無くリトライ経路は未励起。失敗ではない（2026-09-27 照合: Plane Ready）。
+- **EMR-142 / EMR-143（PERF-V-MITIGATION / PERF-V-BUNDLE）**: トリガー付き DEFERRED のまま（E7時点 Backlog → 2026-09-27 照合で Plane Ready）。
 - **EMR-199（PERF-E5-STG-DEPLOY-VERIFY）**: 終端（Plane Done・prior campaign で完了）。
 - **EMR-136（PERF-V-LINEAR）**: cancelled——Linear MCP 未接続（`USER_NOT_LOGGED_IN`）で照会不能のまま。
 - **EMR-202 再抽選**: 推奨 YES のまま未実施。手順は `backend/Dockerfile.production:38` の `LABEL rollout` インクリメント + 再デプロイで、承認済み運用操作に委ねる（deploy event あたり ~2 回上限。APAC 内の再抽選であり `maa`/`bom`/`sin` 再着地の可能性は残る）。
-- **EMR-204 open decision**: std-1 / std-2 / reject / defer の判断は運用者の承認事項。適用は別単位の `wrangler.jsonc` 変更 + デプロイ（本ユニットはメモのみ）。
+- **EMR-204 open decision**: std-1 / std-2 / reject / defer の判断は運用者の承認事項（E7時点）。2026-09-27 照合で Plane **Cancelled** 終了を確認。再検討する場合は別単位として起票する。
 
 ### E8: 2026-09-24 post-recovery warm 再計測（単発観測・revision 1）
 
