@@ -16,6 +16,7 @@ import type { SearchableSelectOption } from "@/components/ui/searchable-select";
 import type { ReservationTypePickerGroup } from "@/components/shared/ReservationFormModal/ReservationTypePickerDialog";
 import type { Reservation } from "@/types";
 import {
+  DEFAULT_RESERVATION_DURATION_MINUTES,
   getApplicableUnavailableTimes,
   isStartTimeUnavailable,
   slotTimeToSelectValue,
@@ -233,6 +234,19 @@ export const ReservationFormFields = memo(function ReservationFormFields({
     }
     return null;
   }, [groupedReservationTypes, selectedReservationTypeId]);
+  // EMR-191: 開始時刻選択時の終了時刻自動設定に使う所要時間(分)
+  const selectedDurationMinutes = useMemo(() => {
+    if (selectedReservationTypeId === null) return DEFAULT_RESERVATION_DURATION_MINUTES;
+    for (const group of groupedReservationTypes) {
+      const found = group.types.find((t) => String(t.id) === selectedReservationTypeId);
+      if (found) {
+        return found.duration_minutes > 0
+          ? found.duration_minutes
+          : DEFAULT_RESERVATION_DURATION_MINUTES;
+      }
+    }
+    return DEFAULT_RESERVATION_DURATION_MINUTES;
+  }, [groupedReservationTypes, selectedReservationTypeId]);
   const staffSelectOptions = useMemo<SearchableSelectOption[]>(
     () => staffOptions.map((s) => ({ value: String(s.id), label: s.name })),
     [staffOptions],
@@ -319,6 +333,7 @@ export const ReservationFormFields = memo(function ReservationFormFields({
         slotVacancyMap={slotVacancyMap}
         settingsUnsetGuidance={settingsUnsetGuidance}
         availableTimesErrorMessage={availableTimesErrorMessage}
+        durationMinutes={selectedDurationMinutes}
       />
 
       <ReservationTypeAndStaffFields

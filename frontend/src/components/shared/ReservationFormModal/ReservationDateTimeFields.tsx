@@ -15,7 +15,13 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar as CalendarIcon, Clock, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DISPLAY_TIME_FORMAT } from "@/lib/format/date";
-import { slotVacancyLabel, TIME_OPTIONS, type SlotVacancy } from "./reservation-time-utils";
+import {
+  DEFAULT_RESERVATION_DURATION_MINUTES,
+  resolveEndTimeOnStartChange,
+  slotVacancyLabel,
+  TIME_OPTIONS,
+  type SlotVacancy,
+} from "./reservation-time-utils";
 import type { ReservationSlotVacancyStatus } from "@/hooks/use-reservation-types";
 import type { Reservation } from "@/types";
 
@@ -64,6 +70,8 @@ interface ReservationDateTimeFieldsProps {
   settingsUnsetGuidance?: string | null;
   /** Non-unset available-times fetch failure message. */
   availableTimesErrorMessage?: string | null;
+  /** EMR-191: 選択中予約区分の所要時間（分）。未選択/未設定時は既定15分。 */
+  durationMinutes?: number;
 }
 
 export function ReservationDateTimeFields({
@@ -77,6 +85,7 @@ export function ReservationDateTimeFields({
   slotVacancyMap,
   settingsUnsetGuidance = null,
   availableTimesErrorMessage = null,
+  durationMinutes = DEFAULT_RESERVATION_DURATION_MINUTES,
 }: ReservationDateTimeFieldsProps) {
   return (
     <div className={`rounded-lg border ${C.bgSubtle} p-3 space-y-3 ${C.borderMediumLight}`}>
@@ -146,15 +155,13 @@ export function ReservationDateTimeFields({
               const [h, m] = v.split(":").map(Number);
               const newStart = new Date(formData.start);
               newStart.setHours(h, m);
-              const nextData: Partial<Reservation> = { ...formData, start: newStart };
-              const slotEnd = availableTimeSlotMap?.get(v);
-              if (slotEnd && formData.end) {
-                const [endHour, endMinute] = slotEnd.split(":").map(Number);
-                const newEnd = new Date(formData.end);
-                newEnd.setHours(endHour, endMinute);
-                nextData.end = newEnd;
-              }
-              onChange(nextData);
+              // EMR-191: LINE 空き枠の終了時刻を優先し、無ければ durationMinutes 加算で終了時刻を自動設定
+              const newEnd = resolveEndTimeOnStartChange(
+                newStart,
+                durationMinutes,
+                availableTimeSlotMap?.get(v),
+              );
+              onChange({ ...formData, start: newStart, end: newEnd });
             }}
           >
             <SelectTrigger data-testid="res-start-time-trigger" className={TRIGGER_CLASS}>
