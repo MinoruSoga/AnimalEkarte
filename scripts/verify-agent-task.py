@@ -691,6 +691,12 @@ def plan(paths):
         elif path.endswith(('.png', '.jpg', '.jpeg', '.webp', '.gif')) and '/' not in path:
             # Repo-root local repro evidence screenshots; documentation-only SKIP.
             continue
+        elif path.startswith('docs/') and path.endswith('.json'):
+            jobs.append({'service': 'host', 'command': [
+                'python3', '-c',
+                'import json,sys; json.load(open(sys.argv[1], encoding="utf-8"))',
+                path,
+            ]})
         else:
             blocked.append(path)
     for path in paths:
