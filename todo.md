@@ -2,7 +2,7 @@
 
 > Task migrated to Plane `EMR-199`. This file remains supporting acceptance/evidence material; use Plane for current status.
 
-最終照合: 2026-09-26（Plane 状態とコード・git履歴を照合し、Done/Cancelled かつ対応コミットまたは受入記録を確認できた項目を削除）。未完了タスクと状態はPlaneが正本。以下の旧HEAD・コード/UAT照合内容は当時の根拠であり、現在の配備・受入状態を示さない。移行対応は [Plane移行記録](docs/work/plane-md-migration-20260923-receipt.md)。
+最終照合: 2026-09-27（Plane 状態とコード・git履歴を照合し、Done/Cancelled/Duplicate かつ対応コミットまたは受入記録を確認できた項目を削除: EMR-90/92/94/101/102/103、EMR-135/137/138/192）。未完了タスクと状態はPlaneが正本。以下の旧HEAD・コード/UAT照合内容は当時の根拠であり、現在の配備・受入状態を示さない。移行対応は [Plane移行記録](docs/work/plane-md-migration-20260923-receipt.md)。
 
 本ファイルは旧 `todo-issue.md`・`todo-verification.md`・`todo-operations.md`・`todo-performance.md` を 2026-09-26 に統合した。節: [Issue 出典・仕様履歴](#issue-ledger) · [検証・受入](#verification-ledger) · [運用・外部実行](#operations-ledger) · [性能](#performance-ledger)。統合前の行番号参照（`L175` 等）は Git の旧ファイルを指す。
 
@@ -21,7 +21,7 @@ Current unfinished implementation, verification, data, performance, delivery, an
 
 | ID | severity | 領域 | 症状 | シナリオ | Plane / 修正PR |
 |:---|:---|:---|:---|:---|:---|
-| BUG-INQUIRY-DEFAULT-TEXT-NOT-SENT | Low | medical-records / 問診 | 保存済み主訴本文を定型文(DEFAULT_CHIEF_COMPLAINT)と完全一致へ戻すと `chief_complaint` が未送信(undefined)になり旧値が残る。`notes`/治療方針も同型（use-medical-record-save-action.ts 問診分岐） | S27 再検証中に観測 | EMR-215（起票済み） |
+| BUG-INQUIRY-DEFAULT-TEXT-NOT-SENT | Low | medical-records / 問診 | 保存済み主訴本文を定型文(DEFAULT_CHIEF_COMPLAINT)と完全一致へ戻すと `chief_complaint` が未送信(undefined)になり旧値が残る。`notes`/治療方針も同型（use-medical-record-save-action.ts 問診分岐） | S27 再検証中に観測 | EMR-215 / PR #498（修正マージ済み・UAT中） |
 
 ## PO / 人間レーン
 
@@ -82,18 +82,6 @@ Linear/BRT-4に関する以下の文言は過去の運用方針記録。2026-09-
 
 `SLACK-CROSS-CLINIC` → Plane `EMR-88` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
 
-<a id="slack-background"></a>
-
-`SLACK-BACKGROUND` → Plane `EMR-90` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
-
-<a id="slack-danger"></a>
-
-`SLACK-DANGER` → Plane `EMR-92` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
-
-<a id="slack-story"></a>
-
-`SLACK-STORY` → Plane `EMR-94` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
-
 <a id="slack-vaccine-print"></a>
 
 `SLACK-VACCINE-PRINT` → Plane `EMR-97` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
@@ -101,18 +89,6 @@ Linear/BRT-4に関する以下の文言は過去の運用方針記録。2026-09-
 <a id="slack-deceased"></a>
 
 `SLACK-DECEASED` → Plane `EMR-99` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
-
-<a id="slack-details"></a>
-
-`SLACK-DETAILS` → Plane `EMR-101` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
-
-<a id="slack-copy"></a>
-
-`SLACK-COPY` → Plane `EMR-102` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
-
-<a id="slack-plan-manual"></a>
-
-`SLACK-PLAN-MANUAL` → Plane `EMR-103` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
 
 <a id="slack-latency"></a>
 
@@ -269,26 +245,6 @@ Linear/BRT-4に関する以下の文言は過去の運用方針記録。2026-09-
 <a id="257-golive"></a>
 
 `257 GOLIVE` → Plane `EMR-134` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
-
-<a id="todo-v-linear-meta-linear-apply"></a>
-
-`TODO-V-LINEAR / META-LINEAR-APPLY` → Plane `EMR-135` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
-
-<a id="todo-v-linear"></a>
-
-`TODO-V-LINEAR` → Plane `EMR-135` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
-
-<a id="meta-linear-apply"></a>
-
-`META-LINEAR-APPLY` → Plane `EMR-135` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
-
-<a id="auth-v-linear-read"></a>
-
-`AUTH-V-LINEAR-READ` → Plane `EMR-137` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
-
-<a id="auth-v-linear-write"></a>
-
-`AUTH-V-LINEAR-WRITE` → Plane `EMR-138` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
 
 <a id="auth-v-d1-preflight"></a>
 
@@ -458,10 +414,6 @@ Linear/BRT-4に関する以下の文言は過去の運用方針記録。2026-09-
 
 `SLACK-OWNER-HEIGHT` → Plane `EMR-187` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
 
-<a id="docs-refresh-issue-reconciliation"></a>
-
-`DOCS-REFRESH-ISSUE-RECONCILIATION` → Plane `EMR-192` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
-
 <a id="task-444-addendum-codegen"></a>
 
 `TASK-444-ADDENDUM-CODEGEN` → Plane `EMR-198` (details in Plane; see [migration receipt](docs/work/plane-md-migration-20260923-receipt.md)).
@@ -542,17 +494,17 @@ Linear/BRT-4に関する以下の文言は過去の運用方針記録。2026-09-
 | CHART-FIT | scroll/高さコード対応済み・全9タブ/実機受入待ち → [UAT-R2-CHART-FIT](#uat-r2-chart-fit) |
 | RESERVATION-EDIT | 回答・謝辞あり → [操作案内の保持](#slack-answered) |
 | COMPLAINT | null hydrate修正済み・実UI解除/DB受入は残る → [SLACK-COMPLAINT](docs/work/plane-md-migration-20260923-receipt.md) |
-| BACKGROUND | 対象欄の特定・PO → [SLACK-BACKGROUND](#slack-background) |
+| BACKGROUND | 対象欄の特定・PO → [SLACK-BACKGROUND](docs/work/plane-md-migration-20260923-receipt.md)（Plane で Duplicate 終了・統合先は Plane 参照） |
 | VITALS | ヘッダー表示コード対応済み・臨床受入待ち → [SLACK-VITALS](docs/work/plane-md-migration-20260923-receipt.md) |
 | MICROCHIP | ヘッダー表示コード対応済み・受入待ち → [SLACK-MICROCHIP](#slack-microchip) |
-| DANGER | 既存高危険表示の保持・PO → [SLACK-DANGER](#slack-danger) |
-| DETAILS | 導線比較済み・PO裁定待ち → [SLACK-DETAILS](#slack-details) |
-| STORY | 記録目的/保存先のPO → [SLACK-STORY](#slack-story) |
+| DANGER | 既存高危険表示の保持・PO → [SLACK-DANGER](docs/work/plane-md-migration-20260923-receipt.md)（Plane で Duplicate 終了・統合先は Plane 参照） |
+| DETAILS | 導線比較済み・PO裁定待ち → [SLACK-DETAILS](docs/work/plane-md-migration-20260923-receipt.md)（Plane で Duplicate 終了・統合先は Plane 参照） |
+| STORY | 記録目的/保存先のPO → [SLACK-STORY](docs/work/plane-md-migration-20260923-receipt.md)（Plane で Duplicate 終了・統合先は Plane 参照） |
 | VACCINE-PRINT | 専用証明書の仕様確認 → [SLACK-VACCINE-PRINT](#slack-vaccine-print) |
 | VACCINE-MULTI | 単件/順次POST回帰追加済み・元症状/実機待ち → [SLACK-VACCINE-MULTI](#slack-vaccine-multi) |
 | DECEASED | 死亡後連絡記録のPO → [SLACK-DECEASED](#slack-deceased) |
-| PLAN-MANUAL | 検索優先回帰追加済み・案内/導線採否のPO待ち → [SLACK-PLAN-MANUAL](#slack-plan-manual) |
-| COPY | 安全条件整理済み・PO裁定待ち → [SLACK-COPY](#slack-copy) |
+| PLAN-MANUAL | 検索優先回帰追加済み・案内/導線採否のPO待ち → [SLACK-PLAN-MANUAL](docs/work/plane-md-migration-20260923-receipt.md)（Plane で Duplicate 終了・統合先は Plane 参照） |
+| COPY | 安全条件整理済み・PO裁定待ち → [SLACK-COPY](docs/work/plane-md-migration-20260923-receipt.md)（Plane で Duplicate 終了・統合先は Plane 参照） |
 | CAMERA | 撮影入口コード対応済み・実機受入待ち → [SLACK-CAMERA](#slack-camera) |
 | BILLING-UAT | 最優先の実機受入 → [SLACK-BILLING-UAT](#slack-billing-uat) |
 | CLINICAL-UAT | 各院の診療/看護受入 → [SLACK-CLINICAL-UAT](#slack-clinical-uat) |
@@ -660,13 +612,11 @@ QA/開発が作るケース票の共通列は `ID / case / revision / 環境・f
 | `TODO-V-RELEASE` → `EMR-130`, `P4 / #254 AUTHENTICATED-UAT` → `EMR-131`, `P8 / #257 GOLIVE` → `EMR-134` | Planeへ移行済み |  |
 | `E1 / QA-UAT-LSTEP-REAL` → `EMR-132` | Planeへ移行済み |  |
 | `E2 / QA-UAT-LINE-IDTOKEN` → `EMR-133` | Planeへ移行済み |  |
-| `TODO-V-LINEAR / META-LINEAR-APPLY` → `EMR-135` | Planeへ移行済み |  |
-| `AUTH-V-LINEAR-READ` → `EMR-137`, `AUTH-V-LINEAR-WRITE` → `EMR-138` | Planeへ移行済み |  |
 | `AUTH-V-D1-PREFLIGHT` → `EMR-139` | Planeへ移行済み |  |
 | `AUTH-V-D1-APPLY` → `EMR-140` | Planeへ移行済み |  |
 | `AUTH-V-D1-MAIL` → `EMR-141` | Planeへ移行済み |  |
 
-`PERF-V-CLIENT-TRACE` / `PERF-V-CF-EVENTS` / `PERF-V-DECIDE-OBSERVATION` / `PERF-V-MITIGATION` / `PERF-V-BUNDLE` / `PERF-V-STG-ACCEPTANCE` は [性能の6単位](#性能タスクの着手順と成果物) がケース票の正本。因果測定前の MITIGATION/BUNDLE 実装は DEFERRED のまま。依頼・承認が必要な行も、ケース票作成はローカルで先行できる。
+`PERF-V-CLIENT-TRACE` / `PERF-V-CF-EVENTS` / `PERF-V-DECIDE-OBSERVATION` / `PERF-V-MITIGATION` / `PERF-V-BUNDLE` / `PERF-V-STG-ACCEPTANCE` は [性能の6単位](#性能タスクの着手順と成果物) がケース票の正本。因果区間は E4–E8 で局在済み。MITIGATION/BUNDLE（`EMR-142`/`EMR-143`）は Plane Ready。依頼・承認が必要な行も、ケース票作成はローカルで先行できる。
 
 <a id="uat-followup"></a>
 
@@ -703,7 +653,6 @@ QA/開発が作るケース票の共通列は `ID / case / revision / 環境・f
 | `UAT-Q2-TREATMENTS-IMPORT` → `MIG-15` | Planeへ移行済み |  |
 | `SLACK-MANUAL-URINE` → `EMR-86` | Planeへ移行済み |  |
 | `SLACK-VACCINE-MULTI` → `EMR-105` | Planeへ移行済み |  |
-| `SLACK-PLAN-MANUAL` → `EMR-103` | Planeへ移行済み |  |
 | `SLACK-LATENCY` → `EMR-104` | Planeへ移行済み |  |
 
 Q1 / Q4保険 / Q2履歴の実装は再開しない。根拠は [医院フィードバック](docs/work/stg-uat-clinic-feedback-q1-q4.md) と、9月15日に読取確認した [PR #411](https://github.com/MinoruSoga/AnimalEkarte/pull/411)（merged）、[Backend Deploy](https://github.com/MinoruSoga/AnimalEkarte/actions/runs/34923018516) / [Frontend Deploy](https://github.com/MinoruSoga/AnimalEkarte/actions/runs/34923018544)（ともに success、`d337f016`）。この配備記録はブラウザ確認や本番反映の代替ではない。
@@ -743,28 +692,10 @@ Q1 / Q4保険 / Q2履歴の実装は再開しない。根拠は [医院フィー
 
 9月15日の読取結果（当時）: [BRT-4](https://linear.app/baritechllc/issue/BRT-4) は Backlog、[BRT-45](https://linear.app/baritechllc/issue/BRT-45) / [BRT-68](https://linear.app/baritechllc/issue/BRT-68) は Needs Human。これは当時の読取記録。9月18日の Linear MCP 再照会も未接続（`USER_NOT_LOGGED_IN`）で失敗し、現在の状態・対応先は UNKNOWN。完了済みチケットは残件表から除く。
 
-| ID | 状態 | 残作業 |
-|---|---|---|
-| `TODO-V-LINEAR / META-LINEAR-APPLY` → `EMR-135` | Planeへ移行済み |  |
-| `AUTH-V-LINEAR-READ` → `EMR-137` | Planeへ移行済み |  |
-| `AUTH-V-LINEAR-WRITE` → `EMR-138` | Planeへ移行済み |  |
+Linear 系の残件は全て終了を確認（2026-09-27 照合・Linear MCP 未接続のまま Plane で終端）: `TODO-V-LINEAR / META-LINEAR-APPLY` → `EMR-135`、`PERF-V-LINEAR` → `EMR-136`、`AUTH-V-LINEAR-READ` → `EMR-137`、`AUTH-V-LINEAR-WRITE` → `EMR-138` はいずれも Cancelled。残件表は削除した。
 
 新規 Issue を作らない方針は維持するが、過去の free issue limit を read-only 照会や既存 Issue 更新の技術的ブロッカーにしない。類似語だけでチケットを割り当てず、不明なら UNKNOWN とする。今回、外部投稿・状態変更は未実施。
 
-#### TODO-V-LINEAR / META-LINEAR-APPLY
-
-> 移行済み: Plane `EMR-135`。詳細と現在の状態は[移行記録](docs/work/plane-md-migration-20260923-receipt.md)を参照。
-
-<a id="ver-auth-v-linear-read"></a>
-
-#### AUTH-V-LINEAR-READ
-
-> 移行済み: Plane `EMR-137`。詳細と現在の状態は[移行記録](docs/work/plane-md-migration-20260923-receipt.md)を参照。
-<a id="ver-auth-v-linear-write"></a>
-
-#### AUTH-V-LINEAR-WRITE
-
-> 移行済み: Plane `EMR-138`。詳細と現在の状態は[移行記録](docs/work/plane-md-migration-20260923-receipt.md)を参照。
 ### PERF-STG-LOGIN
 
 技術記録は [todo-performance.md](#performance-ledger)。Worker 観測は現在 tracked code に存在し、未導入 WIP の扱いを終了した。`PERF-V-IMPLEMENT-OBSERVATION` の実 proxy 4 tests・worker typecheck（`index.test.ts` include済み）は `72807128` の [既存検証](.planning/agent-fast-campaign/four-candidate-integration-20260916/evidence/rev7-reverify-72807128-codex/controller/RECONCILIATION.md) で完了し、開いたキューから外した。残るのは遅延の因果測定、常時観測の必要性・出力範囲の再判定、STG 受入である。（2026-09-23 E5 追記: 因果は `containerFetch` 区間まで局在、常時観測は KEEP 判定、STG 受入証拠は4ケース取得済。下表の各状態を参照。）
@@ -1005,9 +936,9 @@ Q1検索・Q4保険・Q2履歴、[追加実装5件と会計等の部分対応](#
 
 > Performance work items are tracked in Plane. The migration crosswalk is [here](docs/work/plane-md-migration-20260923-receipt.md); measurements and historical evidence below remain local.
 
-最終照合: 2026-09-22（同日 curl 実測でコールドスタートを直接観測し **E4** として記録。原因区間を確定し改善候補を整理。SLACK-LATENCY計測票差分は別記録を保持）。主調査 ID: **PERF-STG-LOGIN**。対象は STG `/login` 初回表示遅延に始まり、ユーザー報告により STG 全域のページ読み込み遅延へ拡大。責任者・依頼者: 曽我 稔。
+最終照合: 2026-09-22（同日 curl 実測でコールドスタートを直接観測し **E4** として記録。原因区間を確定し改善候補を整理。SLACK-LATENCY計測票差分は別記録を保持）→ 2026-09-27 再照合で Plane 終端を確認（下記「未完了の性能作業」行を参照）。主調査 ID: **PERF-STG-LOGIN**。対象は STG `/login` 初回表示遅延に始まり、ユーザー報告により STG 全域のページ読み込み遅延へ拡大。責任者・依頼者: 曽我 稔。
 
-未完了の性能作業と現在状態はPlane（`PERF-E5-STG-DEPLOY-VERIFY`, `PERF-V-MITIGATION`, `PERF-V-BUNDLE`, `SLACK-LATENCY`）に移行済み。本書は判断に必要な技術記録のみを保持する。
+未完了の性能作業と現在状態はPlane（`PERF-V-MITIGATION` EMR-142、`PERF-V-BUNDLE` EMR-143、`SLACK-LATENCY` EMR-104、PLACEMENT 再抽選 EMR-202、AXIOS-RETRY フィールド検証 EMR-203）に移行済み。`PERF-E5-STG-DEPLOY-VERIFY` EMR-199・恒久対策 EMR-213・keep-alive 実発火確認 EMR-214 は Done、COST-MEMO EMR-204 は Cancelled。本書は判断に必要な技術記録のみを保持する。
 
 ### 現在の判断
 
@@ -1274,7 +1205,7 @@ E4 以降にユーザー報告で発覚した追加原因と、採用した改�
 2. **`/health` は静的応答で DB 非到達** — keep-alive cron はコンテナプロセスのみ温め、DB pool（`ConnMaxIdleTime=5min` < cron 30min 間隔）と PlanetScale バッファは tick 間で冷却する。**アイドル後の初回実リクエストは依然 fresh-TLS + cold-page を支払う**。低コスト選択肢: `SELECT 1` のみ行う軽量 endpoint を ≤5min cadence の cron で打つ（追加費用 ~$0・エンドポイント面の設計判断が必要）。
 3. **アプリ内に per-query 計時がない**（GORM logger 無効）→ コンテナ内部の帰属はコード読みに依存。閾値付き slow-query ログ（payload 無し）の導入が次回分析の証拠力を上げる。
 
-#### 次の一手
+#### 次の一手（2026-09-27 照合: 全項目完了・Plane Done）
 
-- 翌営業日 JST 09:10–18:40 帯に keep-alive 実発火 + 暖機済み DB での再計測（本日値は cold-DB の下限側バイアスとして扱う）
-- 暖機後も me/accountings 中央値 >1s なら (1) /me 並列化 (2) DB-ping keep-alive (3) slow-query ログ の順で実施判断
+- keep-alive 実発火 + 暖機済み DB での再計測 → **実施済み**。keep-alive cron は `*/4 0-9 * * *` へ密度化し `/health/db` で DB pool も温める構成へ更新済み（`backend/wrangler.jsonc`・`backend/worker/index.ts`、`api_keepalive` ログ。PR #488/#489・PR #493 `5bbf46820`）。実発火確認は EMR-214、app 再作成・`scheduling_policy: "default"` 固定・再測定は EMR-213 で完了し、いずれも Plane Done。
+- 暖機改善3候補も全て実装済み: (1) `/me` 並列化（`http_session_me.go` で errgroup 並列）(2) DB-ping keep-alive（`/health/db`）(3) slow-query ログ（`internal/dbconn/slow_query_logger.go`・`DB_SLOW_QUERY_MS`・テスト付き）— PR #493 `5bbf46820`。

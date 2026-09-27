@@ -81,17 +81,17 @@ flowchart TB
 | CHART-FIT | existing ID | [UAT-R2-CHART-FIT](../../../todo.md#uat-r2-chart-fit) | 1 | no | 既存全9タブ計画 | なし（Win8/Chrome/1366×625 確定済） |
 | RESERVATION-EDIT | answered | [操作案内の保持](../../../todo.md#slack-answered) | 5 | no | 質問（案内・謝辞） | なし。後日の権限/保存問題だけ切り分け |
 | COMPLAINT | existing ID | [SLACK-COMPLAINT](../plane-md-migration-20260923-receipt.md) | 1 | **保つ**（BACKGROUND / VITALS と3分離） | 任意入力の再現 | 必須化するかは再現後。本票で昇格しない |
-| BACKGROUND | existing ID | [SLACK-BACKGROUND](../../../todo.md#slack-background) | 2 | **保つ** | 対象欄未特定 → PO | 対象欄/目的/マスタか自由文か（既存本文） |
+| BACKGROUND | existing ID | [SLACK-BACKGROUND](../plane-md-migration-20260923-receipt.md) | 2 | **保つ** | 対象欄未特定 → PO | 対象欄/目的/マスタか自由文か（既存本文） |
 | VITALS | existing ID | [SLACK-VITALS](../plane-md-migration-20260923-receipt.md) | 1 | **保つ** | 表示位置は要望寄り。時刻保持は臨床 | 「時間不要」を保存時刻削除と読まない。臨床時刻は既存停止条件 |
 | MICROCHIP | existing ID | [SLACK-MICROCHIP](../../../todo.md#slack-microchip) | 1 | no | 既存値の表示設計 | なし。新規欄追加は目的再検討 |
-| DANGER | existing ID | [SLACK-DANGER](../../../todo.md#slack-danger) | 2 | no | 表示要望。既存「高」保持 | 赤/黄の意味と場所（既存本文） |
-| DETAILS | existing ID | [SLACK-DETAILS](../../../todo.md#slack-details) | 1 | **保つ**（STORY と分離） | 詳細導線の調査 | なし。STORY 欄追加と混ぜない |
-| STORY | existing ID | [SLACK-STORY](../../../todo.md#slack-story) | 2 | **保つ** | 記録欄要望 → PO | 既存備考で足りるか（既存本文）。削減工程ゼロなら再検討 |
+| DANGER | existing ID | [SLACK-DANGER](../plane-md-migration-20260923-receipt.md) | 2 | no | 表示要望。既存「高」保持 | 赤/黄の意味と場所（既存本文） |
+| DETAILS | existing ID | [SLACK-DETAILS](../plane-md-migration-20260923-receipt.md) | 1 | **保つ**（STORY と分離） | 詳細導線の調査 | なし。STORY 欄追加と混ぜない |
+| STORY | existing ID | [SLACK-STORY](../plane-md-migration-20260923-receipt.md) | 2 | **保つ** | 記録欄要望 → PO | 既存備考で足りるか（既存本文）。削減工程ゼロなら再検討 |
 | VACCINE-PRINT | existing ID | [SLACK-VACCINE-PRINT](../../../todo.md#slack-vaccine-print) | 2 | no | 専用証明書の仕様確認 | 用途/記載/用紙（既存本文）。一般カルテ印刷と同一視しない |
 | VACCINE-MULTI | existing ID | [SLACK-VACCINE-MULTI](../../../todo.md#slack-vaccine-multi) | 1 | **保つ**（登録失敗と複数入力を票内分離） | 失敗=不具合、複数入力=要望。同一 ID のまま | 複数入力を納品前必須に昇格しない |
 | DECEASED | existing ID | [SLACK-DECEASED](../../../todo.md#slack-deceased) | 2 | no | 死亡後連絡は要望。死亡日訂正と分離 | 記録対象/権限（既存本文）。BACKFILL と統合しない |
-| PLAN-MANUAL | existing ID | [SLACK-PLAN-MANUAL](../../../todo.md#slack-plan-manual) | 1 | **保つ**（COPY と分離） | 画面差は質問。手入力は既存経路 | なし。MASTER 0円は MASTER-PATH |
-| COPY | existing ID | [SLACK-COPY](../../../todo.md#slack-copy) | 1 | **保つ** | 前回複写は要望寄り。安全設計は READY | 転記の業務目的が未記録なら実装前に責任者を残す |
+| PLAN-MANUAL | existing ID | [SLACK-PLAN-MANUAL](../plane-md-migration-20260923-receipt.md) | 1 | **保つ**（COPY と分離） | 画面差は質問。手入力は既存経路 | なし。MASTER 0円は MASTER-PATH |
+| COPY | existing ID | [SLACK-COPY](../plane-md-migration-20260923-receipt.md) | 1 | **保つ** | 前回複写は要望寄り。安全設計は READY | 転記の業務目的が未記録なら実装前に責任者を残す |
 | CAMERA | existing ID | [SLACK-CAMERA](../../../todo.md#slack-camera) | 1 | no | 撮影保存は要望寄り。経路調査 READY | **限定:** 納品前の既存 upload 経路確認を続けるか、納品後要望へ移すか。実患者写真は試験禁止 |
 | BILLING-UAT | existing ID | [SLACK-BILLING-UAT](../../../todo.md#slack-billing-uat) | 3 | **保つ**（INTAKE / CLINICAL-UAT / SMAREGI と分離） | 9/16 最優先の実機受入 | なし。Smaregi 待ちにしない |
 | CLINICAL-UAT | existing ID | [SLACK-CLINICAL-UAT](../../../todo.md#slack-clinical-uat) | 3 | **保つ** | 各院の診療/看護一連 | なし。未達は一件一原因。本票へ集約しない |
