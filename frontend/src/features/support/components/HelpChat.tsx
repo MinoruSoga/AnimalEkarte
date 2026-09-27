@@ -107,7 +107,9 @@ export function HelpChat({ articles, onClose }: HelpChatProps) {
                 turn.role === "user"
                   ? `self-end max-w-[85%] rounded-lg rounded-br-xxs ${C.bgActionPrimary} ${C.textOnActionPrimary} px-3 py-2 text-sm whitespace-pre-wrap break-words`
                   : `self-start max-w-[85%] rounded-lg rounded-bl-xxs px-3 py-2 text-sm whitespace-pre-wrap break-words ${
-                      turn.isError ? `border ${C.borderDanger} ${C.danger}` : `${C.bgMuted} ${C.text}`
+                      turn.isError
+                        ? `border ${C.borderDanger} ${C.danger}`
+                        : `${C.bgMuted} ${C.text}`
                     }`
               }
             >
@@ -117,7 +119,10 @@ export function HelpChat({ articles, onClose }: HelpChatProps) {
                   {turn.sources.map((s) => (
                     <Link
                       key={`${s.category}/${s.slug}`}
-                      to={paths.manual.article.getHref(s.category as "screens" | "workflows", s.slug)}
+                      to={paths.manual.article.getHref(
+                        s.category as "screens" | "workflows",
+                        s.slug,
+                      )}
                       onClick={onClose}
                       className={`flex items-center gap-1 text-2xs ${C.textActionPrimary} underline underline-offset-2`}
                     >
@@ -165,6 +170,9 @@ export function HelpChat({ articles, onClose }: HelpChatProps) {
           <Send className="size-4" aria-hidden="true" />
         </button>
       </form>
+      <p className={`text-2xs ${C.textMuted}`}>
+        患者・飼主の氏名など個人情報は入力しないでください(外部AIへ送信されます)。
+      </p>
     </div>
   );
 }
