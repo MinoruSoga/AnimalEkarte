@@ -4,13 +4,13 @@
 > 製品 FAIL の正本は引き続き `todo.md#product-bugs`。確定済みのみをそちらへ起票し、本ファイルは **切り分け前の疑義・調査中項目** を保持する。
 > 確定した項目は `todo.md#product-bugs` へ昇格し、本ファイルでは昇格記録を残す。環境起因と確定した項目は「バグではない（記録のみ）」へ移動する。
 
-更新日: 2026-09-26
+更新日: 2026-09-27
 
 ## 索引
 
 | ID | status | area | severity | 種別 | 詳細 |
 |:---|:---|:---|:---|:---|:---|
-| BUG-MR-DRAFT-AUTOPOST-FAILED | FE修正済み(PR)・STGデータ投入待ち | medical-record | High(確定) | **バグ断定**（seed に general 予約区分が無く、カルテ自動作成が再試行不能のデッドエンドになる） | [下記](#bug-mr-draft-autopost-failed) |
+| BUG-MR-DRAFT-AUTOPOST-FAILED | FE修正マージ済み・STG未解消（staging deploy + 予約区分データ投入の双方待ち） | medical-record | High(確定) | **バグ断定**（seed に general 予約区分が無く、カルテ自動作成が失敗する。修正版 STG 反映後もデータ適用までは現象継続） | [下記](#bug-mr-draft-autopost-failed) |
 
 ---
 
@@ -46,3 +46,11 @@
 - **FE**: `MedicalRecordAutoCreateFailurePhase` に `appointment-master-missing` を新設し、前提欠落と API 失敗を区別。master 欠落時は「予約区分マスタに診察系の予約区分が登録されていません。マスタ設定 → 予約区分 で診察区分を追加した後、ページを再読み込みしてください。」を表示し、**再試行ボタンを非表示**（再試行ではキャッシュが再解決されず失敗が続くため）。
 - **テスト**: `MedicalRecordAutoCreateFailure.test.tsx`（新 phase の表示+ボタン非表示）、`use-medical-record-form.auto-create-new.test.ts`（BUG-503 の trimming-only ケースを新 phase に更新）。vitest 3 ファイル 21 tests PASS / type-check PASS / scoped eslint PASS。
 - **残件（USER レーン）**: ①STG へ `live_insert_standard_reservation_types.sql` を適用（適用後、カルテ作成は一般区分で成功する）②seed-export による fresh DB 恒久反映 ③Plane チケット起票（ドラフト済み・アクセス待ち）
+
+### 最新化（2026-09-27・実測）
+
+- **FE 修正**: PR #496 は 2026-09-26 に main マージ済み（merge `f67dfbd`、ローカル main に存在・`appointment-master-missing` phase 取込確認済み）。ただし **STG には未デプロイ** — STG は main→staging 同期経由のデプロイで、最終 staging 取込は 2026-09-24（PR #494、Frontend Deploy success）。本修正はその後の 9/26 マージのため STG フロントエンドは旧コードのまま。
+- **STG データ**: 同日 STG 実測（`stg-staff-10000021` で login 200 → `GET /api/v1/masters/reservation-types`）は依然 **1 件のみ（`id=1 / トリミング / category=trimming`）**。`live_insert_standard_reservation_types.sql` は **STG 未適用のまま**。従って STG では現象が今日も再現する状態（修正版 deploy 後もデータ適用までは前提欠落 phase で失敗し続ける）。
+- **seed 恒久反映**: `backend/migrations/seeds/002_master/reservation_types.csv` は依然トリミングのみ → seed-export 未実施。
+- **Plane**: 本バグの専用チケットは未作成（ドラフト `reports/uat-2026-09-25/tickets/BUG-MR-DRAFT-AUTOPOST-FAILED.md` のまま）。同一根因（標準予約区分の環境未投入）は **EMR-193**（Plane・state: started）が実行 SoT として追跡中。`todo.md#product-bugs` への昇格は、確定後に修正マージが先行したため実施せず。
+- **結論**: 製品コード側の欠陥は解消済みだが、**STG でのユーザー可視の失敗は未解消**（staging deploy とデータ適用が両方揃うまで継続）。残件は EMR-193 の運用レーン。
