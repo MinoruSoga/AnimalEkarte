@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { HISTORY_FETCH_LIMIT } from "@/config/fetch-limits";
 import { queryKeys } from "@/lib/query-keys";
@@ -43,5 +43,9 @@ export const useGetVaccinations = (filters?: VaccinationFilters) => {
     staleTime: QUERY_STALE_TIMES.MEDIUM,
     gcTime: QUERY_GC_TIMES.STANDARD,
     enabled,
+    // List mode keeps the previous rows while a new search/date key loads so the list
+    // (and its PropertyFilter search input) is not unmounted by the loading fallback.
+    // Pet-scoped history must never show another pet's rows, so it gets no placeholder.
+    placeholderData: petScoped ? undefined : keepPreviousData,
   });
 };

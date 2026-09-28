@@ -78,6 +78,9 @@ test.describe("予防接種管理 フロー E2E", () => {
         expect(filteredResponse.status()).toBe(200);
         // サーバー検索結果が描画されるまで待ってから行を検証する（count() スナップショットは禁止）。
         await expect(vaccinations.ownerText(fixture.ownerName)).toBeVisible({ timeout: 15000 });
+        // EMR-60: 検索応答後も検索欄が unmount されず入力値を保持している。
+        await expect(searchInput).toBeVisible();
+        await expect(searchInput).toHaveValue(fixture.ownerSearch);
         await expect(vaccinations.detailLinkForPet(fixture.petName)).toBeVisible();
         await expect(vaccinations.detailLinkForPet(fixture.outsideFirstPagePet.name)).toBeVisible();
         expect(pageErrors).toEqual([]);
@@ -99,6 +102,18 @@ test.describe("予防接種管理 フロー E2E", () => {
         await page.close();
       }
     });
+  });
+
+  test("/vaccinations/select-pet — ペット選択画面が表示される", async () => {
+    const page = await context.newPage();
+    const vaccinations = new VaccinationsPage(page);
+    try {
+      await vaccinations.gotoSelectPet();
+      await expect(vaccinations.selectPetHeading()).toBeVisible({ timeout: 15000 });
+      await expect(page).toHaveURL(/\/vaccinations\/select-pet/);
+    } finally {
+      await page.close();
+    }
   });
 
   test("/vaccinations — 新規登録ボタンでペット選択画面に遷移する", async () => {

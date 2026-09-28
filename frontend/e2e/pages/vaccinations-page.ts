@@ -7,6 +7,10 @@ export class VaccinationsPage extends BasePage {
     return this.open("/vaccinations");
   }
 
+  gotoSelectPet(): ReturnType<Page["goto"]> {
+    return this.open("/vaccinations/select-pet");
+  }
+
   listHeading(): Locator {
     return this.heading("予防接種管理");
   }
