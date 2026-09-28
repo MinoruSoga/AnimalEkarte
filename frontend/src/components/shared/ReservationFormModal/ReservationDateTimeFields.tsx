@@ -21,6 +21,7 @@ import {
   slotVacancyLabel,
   TIME_OPTIONS,
   type SlotVacancy,
+  withCurrentTimeOption,
 } from "./reservation-time-utils";
 import type { ReservationSlotVacancyStatus } from "@/hooks/use-reservation-types";
 import type { Reservation } from "@/types";
@@ -87,6 +88,12 @@ export function ReservationDateTimeFields({
   availableTimesErrorMessage = null,
   durationMinutes = DEFAULT_RESERVATION_DURATION_MINUTES,
 }: ReservationDateTimeFieldsProps) {
+  // EMR-191: 終了側も開始側(BUG-015)と同じ規則で現在値を options に注入し、
+  // 非15分刻みの終了時刻を空白表示しない
+  const endTimeOptions = withCurrentTimeOption(
+    TIME_OPTIONS,
+    formData.end ? format(formData.end, DISPLAY_TIME_FORMAT) : undefined,
+  );
   return (
     <div className={`rounded-lg border ${C.bgSubtle} p-3 space-y-3 ${C.borderMediumLight}`}>
       <div className="space-y-1.5">
@@ -208,7 +215,7 @@ export function ReservationDateTimeFields({
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="max-h-[200px]">
-              {TIME_OPTIONS.map((time) => (
+              {endTimeOptions.map((time) => (
                 <SelectItem key={time} value={time}>
                   {time}
                 </SelectItem>

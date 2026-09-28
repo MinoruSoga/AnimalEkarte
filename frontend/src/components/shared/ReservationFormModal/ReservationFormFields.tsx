@@ -22,6 +22,7 @@ import {
   slotTimeToSelectValue,
   TIME_OPTIONS,
   type SlotVacancy,
+  withCurrentTimeOption,
 } from "./reservation-time-utils";
 import {
   filterStaffCandidatesByCapability,
@@ -161,12 +162,10 @@ export const ReservationFormFields = memo(function ReservationFormFields({
       );
     }
     // BUG-015: keep the current edit start even when the slot map is empty/missing.
-    if (formData.start) {
-      const currentStart = format(formData.start, DISPLAY_TIME_FORMAT);
-      if (!options.includes(currentStart)) {
-        options = [...options, currentStart];
-      }
-    }
+    options = withCurrentTimeOption(
+      options,
+      formData.start ? format(formData.start, DISPLAY_TIME_FORMAT) : undefined,
+    );
     return options;
   }, [
     availableTimeSlotMap,

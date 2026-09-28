@@ -34,6 +34,16 @@ function generateTimeOptions(): string[] {
 
 export const TIME_OPTIONS = generateTimeOptions();
 
+/**
+ * BUG-015/EMR-191: Select の options に現在値が無ければ末尾へ追加する。
+ * Radix Select は options に存在しない value を trigger に表示できないため、
+ * スロット外・非15分刻みの既存値でも空白表示しないようにする。
+ */
+export function withCurrentTimeOption(options: string[], current: string | undefined): string[] {
+  if (current === undefined || options.includes(current)) return options;
+  return [...options, current];
+}
+
 /** EMR-191: 予約区分の duration_minutes が未設定/0 のときの既定所要時間 */
 export const DEFAULT_RESERVATION_DURATION_MINUTES = 15;
 
