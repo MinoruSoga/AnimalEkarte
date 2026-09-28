@@ -523,6 +523,38 @@ class VerificationTests(unittest.TestCase):
                 verify.prepare_dependency_mountpoint('frontend', 'explicit-deps')
                 self.assertEqual((target / 'sentinel').read_text(), 'preserve')
 
+    def _git_repo(self, root, gitignore):
+        subprocess.run(['git', 'init', '-q'], cwd=root, check=True, capture_output=True)
+        (root / '.gitignore').write_text(gitignore)
+        (root / 'frontend').mkdir()
+        calls = []
+
+        def real_run(command, *args, **kwargs):
+            calls.append(command)
+            return subprocess.run(command, cwd=root, capture_output=True, text=True, check=False)
+
+        return calls, real_run
+
+    def test_empty_mount_scaffold_accepts_dir_only_gitignore_without_dir(self):
+        # frontend/node_modules が存在しない worktree でも .gitignore の
+        # ディレクトリ限定パターン (node_modules/) にマッチすることを確認する。
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            calls, real_run = self._git_repo(root, 'node_modules/\n')
+            with mock.patch.object(verify, 'ROOT', root), mock.patch.object(verify, 'run', side_effect=real_run):
+                verify.prepare_dependency_mountpoint('frontend', 'explicit-deps')
+            self.assertEqual(calls, [['git', 'check-ignore', '-q', 'frontend/node_modules/']])
+            self.assertTrue((root / 'frontend/node_modules').is_dir())
+
+    def test_empty_mount_scaffold_still_rejects_unignored_path(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            _, real_run = self._git_repo(root, 'dist/\n')
+            with mock.patch.object(verify, 'ROOT', root), mock.patch.object(verify, 'run', side_effect=real_run):
+                with self.assertRaisesRegex(ValueError, 'must be ignored'):
+                    verify.prepare_dependency_mountpoint('frontend', 'explicit-deps')
+            self.assertFalse((root / 'frontend/node_modules').exists())
+
     def test_frontend_zero_test_report_is_blocked(self):
         result = subprocess.CompletedProcess([], 0, '{"numPassedTests":0}', '')
         job = {'service': 'host', 'command': ['fixture'], 'require_frontend_tests': True}
