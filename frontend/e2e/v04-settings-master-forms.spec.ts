@@ -2137,3 +2137,416 @@ test.describe("V04 設定マスタ §1 標準マスタ（admin）", () => {
     }
   });
 });
+
+// ─────────────────────────────────────────────────
+// view-only account: §1 追加 6 画面（EMR-127f）
+// ─────────────────────────────────────────────────
+
+/**
+ * EMR-127f で追加する view-only 画面。`ViewOnlyMasterScreen` と同じ観点に、
+ * 行ラベルのフィールド名が `name` ではないケース（問診テンプレートの `title`）と
+ * FK が要るケース（診断病名の `diagnosis_type_id`）を載せる拡張。
+ */
+interface ViewOnlyMasterScreenExtra extends ViewOnlyMasterScreen {
+  /** 行ラベルとして使うフィールド名（既定 `"name"`） */
+  seedNameField?: string;
+  /** 代表行のシードを独自に行う（FK 行が要る場合）。戻り値は削除対象パス列 */
+  seedRow?: (
+    request: APIRequestContext,
+    clinicId: number,
+    rowName: string,
+  ) => Promise<{ rowId: number; cleanupPaths: string[] }>;
+}
+
+const VIEW_ONLY_MASTER_SCREENS_EXTRA: ViewOnlyMasterScreenExtra[] = [
+  {
+    resource: "master-medical",
+    screen: "診断カテゴリ",
+    path: "/settings/diagnosis?tab=diagnosis_type",
+    heading: "診断マスタ",
+    entityLabel: "診断カテゴリ",
+    apiPath: "/masters/diagnosis-types",
+    seedBody: { is_active: true },
+  },
+  {
+    resource: "master-medical",
+    screen: "診断病名",
+    path: "/settings/diagnosis?tab=diagnosis_name",
+    heading: "診断マスタ",
+    entityLabel: "診断病名",
+    apiPath: "/masters/diagnosis-names",
+    // 病名は diagnosis_type_id が必須 — 先にカテゴリをシードし、病名→カテゴリの順で削除する。
+    seedRow: async (request, clinicId, rowName) => {
+      const typeId = await seedMasterRow(request, clinicId, "/masters/diagnosis-types", {
+        name: `${rowName}-category`,
+        is_active: true,
+      });
+      const nameId = await seedMasterRow(request, clinicId, "/masters/diagnosis-names", {
+        name: rowName,
+        diagnosis_type_id: typeId,
+        is_active: true,
+      });
+      return {
+        rowId: nameId,
+        cleanupPaths: [`/masters/diagnosis-names/${nameId}`, `/masters/diagnosis-types/${typeId}`],
+      };
+    },
+  },
+  {
+    resource: "master-medical",
+    screen: "主訴種別",
+    path: "/settings/interview/chief-complaint",
+    heading: "主訴マスタ",
+    entityLabel: "主訴",
+    apiPath: "/masters/chief-complaint-types",
+    seedBody: { is_active: true },
+  },
+  {
+    resource: "master-medical",
+    screen: "問診・定型文テンプレート",
+    path: "/settings/inquiry-templates",
+    heading: "問診テンプレートマスタ",
+    entityLabel: "問診テンプレート",
+    apiPath: "/masters/inquiry-templates",
+    // 一覧行のラベルは name ではなく title。
+    seedNameField: "title",
+    seedBody: { category: "chief_complaint", is_active: true },
+  },
+  {
+    resource: "master-trimming",
+    screen: "トリミングオプション",
+    path: "/settings/trimming?tab=option",
+    heading: "トリミングマスタ",
+    entityLabel: "トリミングオプション",
+    apiPath: "/masters/trimming-options",
+    seedBody: { is_active: true },
+  },
+  {
+    resource: "master-trimming",
+    screen: "トリミングコース種別",
+    path: "/settings/trimming-course-type",
+    heading: "コース種別マスタ",
+    entityLabel: "コース種別",
+    apiPath: "/masters/trimming-course-types",
+    seedBody: { is_active: true },
+  },
+];
+
+test.describe("V04 権限: view のみ account 追加画面（EMR-127f）", () => {
+  const v04 = readV04FixtureFromEnv();
+  test.skip(v04 === null, "E2E_CLINICAL_FIXTURE 未設定（suite=v04 以外）");
+
+  let context: BrowserContext | undefined;
+  // シード・後始末用の admin session（view-only account では行を作れない）。
+  let adminContext: BrowserContext | undefined;
+
+  test.beforeAll(async ({ browser }) => {
+    if (v04 === null) return;
+    context = await createViewOnlyContext(browser, v04);
+    adminContext = await createAuthedContext(browser);
+  });
+
+  test.afterAll(async () => {
+    await context?.close();
+    await adminContext?.close();
+  });
+
+  for (const master of VIEW_ONLY_MASTER_SCREENS_EXTRA) {
+    test(`${master.screen}: 一覧と詳細は閲覧可・作成/保存/削除の導線なし・API write は 403`, async () => {
+      test.setTimeout(120000);
+      if (v04 === null) throw new Error("v04 fixture unavailable");
+      if (adminContext === undefined) throw new Error("admin context unavailable");
+      expect(v04.viewOnlyResources, `fixture must grant ${master.resource} view`).toContain(
+        master.resource,
+      );
+      const page = await openViewOnlyPage(context, v04);
+      let cleanupPaths: string[] = [];
+      try {
+        // 一覧の読取 + 代表行を admin でシード（FK が要る画面は seedRow に委譲）。
+        const list = await v04Api(page.request, v04.clinicId, "GET", master.apiPath);
+        expect(list.status(), `GET ${master.apiPath} must be allowed for view`).toBe(200);
+
+        const rowName = `V04-e2e-${master.entityLabel}-${Date.now()}`;
+        let rowId: number;
+        if (master.seedRow !== undefined) {
+          const seeded = await master.seedRow(adminContext.request, v04.clinicId, rowName);
+          rowId = seeded.rowId;
+          cleanupPaths = seeded.cleanupPaths;
+        } else {
+          rowId = await seedMasterRow(adminContext.request, v04.clinicId, master.apiPath, {
+            [master.seedNameField ?? "name"]: rowName,
+            ...(master.seedBody ?? {}),
+          });
+          cleanupPaths = [`${master.apiPath}/${rowId}`];
+        }
+
+        await page.goto(master.path, { waitUntil: "domcontentloaded" });
+        await expect(page.getByRole("heading", { name: master.heading }).first()).toBeVisible({
+          timeout: 45000,
+        });
+
+        const rowButton = page.getByRole("button", {
+          name: `詳細: ${master.entityLabel} ${rowName} (ID ${rowId})`,
+        });
+        await expect(rowButton, "対象行が一覧に表示されること").toBeVisible({ timeout: 30000 });
+        await expect(
+          page.getByRole("button", { name: "新規登録" }),
+          "view-only account must not get a create affordance",
+        ).toHaveCount(0);
+
+        await rowButton.click();
+        const title = page.locator("#master-title");
+        await expect(title).toBeVisible({ timeout: 15000 });
+        await expect(title).toHaveValue(rowName);
+        await expect(
+          page.getByRole("button", { name: "保存" }),
+          "read-only panel must not render a save button",
+        ).toHaveCount(0);
+        await expect(
+          page.getByLabel("削除"),
+          "read-only panel must not render a delete button",
+        ).toHaveCount(0);
+
+        const deniedName = `V04-e2e-denied-${Date.now()}`;
+        const post = await v04Api(page.request, v04.clinicId, "POST", master.apiPath, {
+          [master.seedNameField ?? "name"]: deniedName,
+          ...(master.seedBody ?? {}),
+        });
+        expect(post.status(), `POST ${master.apiPath} must be denied`).toBe(403);
+        const patch = await v04Api(
+          page.request,
+          v04.clinicId,
+          "PATCH",
+          `${master.apiPath}/${rowId}`,
+          { [master.seedNameField ?? "name"]: deniedName },
+        );
+        expect(patch.status(), `PATCH ${master.apiPath}/:id must be denied`).toBe(403);
+        const del = await v04Api(
+          page.request,
+          v04.clinicId,
+          "DELETE",
+          `${master.apiPath}/${rowId}`,
+        );
+        expect(del.status(), `DELETE ${master.apiPath}/:id must be denied`).toBe(403);
+      } finally {
+        if (adminContext !== undefined) {
+          for (const path of cleanupPaths) {
+            await deleteSeededRow(adminContext.request, v04.clinicId, path);
+          }
+        }
+        await page.close();
+      }
+    });
+  }
+});
+
+// ─────────────────────────────────────────────────
+// admin account: §1 C2 追加（職種・トリミングコース種別）（EMR-127f）
+// ─────────────────────────────────────────────────
+
+/** C2 更新永続の対象画面。seed→名称変更→再読込→再オープンの流れは共通。 */
+interface C2MasterScreen {
+  screen: string;
+  path: string;
+  heading: string;
+  apiPath: string;
+}
+
+const C2_MASTER_SCREENS: C2MasterScreen[] = [
+  {
+    screen: "職種",
+    path: "/settings/occupations",
+    heading: "職種マスタ",
+    apiPath: "/masters/occupations",
+  },
+  {
+    screen: "トリミングコース種別",
+    path: "/settings/trimming-course-type",
+    heading: "コース種別マスタ",
+    apiPath: "/masters/trimming-course-types",
+  },
+];
+
+test.describe("V04 設定マスタ §1 C2 更新永続（admin）（EMR-127f）", () => {
+  const v04 = readV04FixtureFromEnv();
+  test.skip(v04 === null, "E2E_CLINICAL_FIXTURE 未設定（suite=v04 以外）");
+
+  let context: BrowserContext;
+
+  test.beforeAll(async ({ browser }) => {
+    context = await createAuthedContext(browser);
+  });
+
+  test.afterAll(async () => {
+    await context.close();
+  });
+
+  for (const master of C2_MASTER_SCREENS) {
+    test(`${master.screen}: 名称変更が保存・再読込・再オープンで永続する (C2)`, async () => {
+      test.setTimeout(120000);
+      if (v04 === null) throw new Error("v04 fixture unavailable");
+      const page = await context.newPage();
+      const settings = new SettingsMasterPage(page);
+      const originalName = disposableName(master.screen);
+      const renamedName = disposableName(`${master.screen}改`);
+      let rowId: number | null = null;
+
+      try {
+        rowId = await seedMasterRow(page.request, v04.clinicId, master.apiPath, {
+          name: originalName,
+          is_active: true,
+        });
+
+        await settings.open(master.path);
+        await expect(settings.heading(master.heading)).toBeVisible({ timeout: 15000 });
+
+        // C2-1: 名称を変更して保存 → PATCH 200。
+        await settings.rowActionButton(originalName).click();
+        await expect(settings.masterTitleInput()).toHaveValue(originalName, { timeout: 10000 });
+        await settings.masterTitleInput().fill(renamedName);
+        const patchPromise = page.waitForResponse(
+          (response) =>
+            new RegExp(`/v1${master.apiPath}/\\d+`).test(response.url()) &&
+            response.request().method() === "PATCH",
+          { timeout: 15000 },
+        );
+        await settings.saveButton().click();
+        expect((await patchPromise).status(), `${master.screen} rename PATCH must succeed`).toBe(
+          200,
+        );
+        await expect(settings.masterTitleInput()).not.toBeVisible({ timeout: 10000 });
+        await expect(settings.rowContaining(renamedName)).toBeVisible({ timeout: 10000 });
+
+        // C2-2/C2-3: ブラウザ再読込 → 行を開き直すと変更後の値が初期表示される。
+        await page.reload({ waitUntil: "domcontentloaded" });
+        await expect(settings.heading(master.heading)).toBeVisible({ timeout: 15000 });
+        await settings.rowActionButton(renamedName).click();
+        await expect(settings.masterTitleInput()).toHaveValue(renamedName, { timeout: 10000 });
+        await settings.cancelButton().click();
+        await expect(settings.masterTitleInput()).not.toBeVisible({ timeout: 10000 });
+      } finally {
+        if (rowId !== null) {
+          await deleteSeededRow(page.request, v04.clinicId, `${master.apiPath}/${rowId}`);
+        }
+        await page.close();
+      }
+    });
+  }
+});
+
+// ─────────────────────────────────────────────────
+// admin account: §1 C1 追加（トリミングコース）（EMR-127f）
+// ─────────────────────────────────────────────────
+
+test.describe("V04 設定マスタ §1 C1 必須バリデーション（admin）（EMR-127f）", () => {
+  const v04 = readV04FixtureFromEnv();
+  test.skip(v04 === null, "E2E_CLINICAL_FIXTURE 未設定（suite=v04 以外）");
+
+  let context: BrowserContext;
+
+  test.beforeAll(async ({ browser }) => {
+    context = await createAuthedContext(browser);
+  });
+
+  test.afterAll(async () => {
+    await context.close();
+  });
+
+  test("トリミングコース: 空名は送信されず・インラインエラー (C1-1)", async () => {
+    test.setTimeout(120000);
+    if (v04 === null) throw new Error("v04 fixture unavailable");
+    const page = await context.newPage();
+    const settings = new SettingsMasterPage(page);
+
+    try {
+      await settings.open("/settings/trimming?tab=course");
+      await expect(settings.heading("トリミングマスタ")).toBeVisible({ timeout: 15000 });
+
+      // C1-1: 名称を空のまま保存 → FE バリデーションで POST は発行されない。
+      await settings.newButton().click();
+      await expect(settings.masterTitleInput()).toBeVisible({ timeout: 10000 });
+      const blockedPostPromise = page.waitForRequest(
+        (request) =>
+          request.url().includes("/masters/trimming-courses") && request.method() === "POST",
+        { timeout: 5000 },
+      );
+      await settings.saveButton().click();
+      await expect(
+        blockedPostPromise,
+        "empty name must not issue POST /masters/trimming-courses",
+      ).rejects.toThrow();
+      await expect(page.getByText("名称を入力してください")).toBeVisible();
+      await settings.cancelButton().click();
+      await expect(settings.masterTitleInput()).not.toBeVisible({ timeout: 10000 });
+    } finally {
+      await page.close();
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────
+// admin account: §1 C3-1 追加（割引キャンペーン）（EMR-127f）
+// ─────────────────────────────────────────────────
+
+test.describe("V04 設定マスタ §1 C3-1 選択肢（admin）（EMR-127f）", () => {
+  const v04 = readV04FixtureFromEnv();
+  test.skip(v04 === null, "E2E_CLINICAL_FIXTURE 未設定（suite=v04 以外）");
+
+  let context: BrowserContext;
+
+  test.beforeAll(async ({ browser }) => {
+    context = await createAuthedContext(browser);
+  });
+
+  test.afterAll(async () => {
+    await context.close();
+  });
+
+  test("割引キャンペーン: 対象商品の選択肢は物販マスタ実データ由来 (C3-1)", async () => {
+    test.setTimeout(120000);
+    if (v04 === null) throw new Error("v04 fixture unavailable");
+    const page = await context.newPage();
+    const settings = new SettingsMasterPage(page);
+    const itemName = disposableName("対象商品");
+    let itemId: number | null = null;
+
+    try {
+      // キャンペーンパネルの対象商品選択肢の供給元 = 物販マスタ。admin で 1 件シードする。
+      itemId = await seedMasterRow(page.request, v04.clinicId, "/masters/merchandise-items", {
+        name: itemName,
+        category: "goods",
+        unit_price: 1000,
+        tax_type: "excluded",
+        is_active: true,
+      });
+
+      await settings.open("/settings/campaigns");
+      await expect(settings.heading("割引キャンペーンマスタ")).toBeVisible({ timeout: 15000 });
+
+      await settings.newButton().click();
+      await expect(settings.masterTitleInput()).toBeVisible({ timeout: 10000 });
+
+      // C3-1: シードした商品が対象商品の選択肢に出て、チェックできる。
+      await page.getByPlaceholder("商品名で検索...").fill(itemName);
+      const itemCheckbox = page.getByRole("checkbox", { name: itemName, exact: true });
+      await expect(itemCheckbox).toBeVisible({ timeout: 10000 });
+      await itemCheckbox.click();
+      await expect(itemCheckbox).toBeChecked();
+
+      // 保存せず閉じる（dirty なので破棄確認が出たら 確認 で閉じる）。
+      await page.getByLabel("閉じる").first().click();
+      const confirm = page.getByRole("button", { name: "確認", exact: true });
+      try {
+        await confirm.click({ timeout: 3000 });
+      } catch {
+        // clean close — no discard dialog
+      }
+      await expect(settings.masterTitleInput()).not.toBeVisible({ timeout: 10000 });
+    } finally {
+      if (itemId !== null) {
+        await deleteSeededRow(page.request, v04.clinicId, `/masters/merchandise-items/${itemId}`);
+      }
+      await page.close();
+    }
+  });
+});
