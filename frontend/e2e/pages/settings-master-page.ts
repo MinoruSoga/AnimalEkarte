@@ -38,9 +38,13 @@ export class SettingsMasterPage extends BasePage {
     return this.rowContaining(text).getByRole("button", { name: /編集|を編集|操作/ });
   }
 
-  /** Toolbar delete button (aria-label "削除"). */
+  /**
+   * Toolbar delete button (aria-label "削除").
+   * `.first()` — 予約区分パネルでは子リソース行（予約可能枠・予約不可時間）にも
+   * 同名ラベルがあるため、DOM 先頭のツールバー側を取る。
+   */
   deleteButton(): Locator {
-    return this.page.getByLabel("削除");
+    return this.page.getByLabel("削除").first();
   }
 
   deleteDialog(): Locator {

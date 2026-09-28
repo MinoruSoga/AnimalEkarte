@@ -276,6 +276,164 @@ test.describe("V04 設定マスタ disposable CRUD/DELETE", () => {
       await page.close();
     }
   });
+
+  test("予約区分: 予約可能枠を追加 → 再読込で永続（EMR-208 回帰）", async () => {
+    test.setTimeout(120000);
+    const page = await context.newPage();
+    const settings = new SettingsMasterPage(page);
+    const typeName = disposableName("区分枠");
+    let needsCleanup = false;
+
+    // セクション見出し <p> の 2 つ上の div がセクション本体（追加フォーム+一覧を含む）。
+    const slotsSection = () => page.getByText("予約可能枠", { exact: true }).locator("xpath=../..");
+
+    try {
+      await settings.open("/settings/reservation-type");
+      await expect(settings.heading("予約区分マスタ")).toBeVisible({ timeout: 15000 });
+
+      // 子セクションは既存の leaf 区分を開き直した時だけ描画されるため、
+      // 先に区分を作成して保存 → 一覧からパネルを開き直す。
+      await settings.newButton().click();
+      await expect(settings.masterTitleInput()).toBeVisible({ timeout: 10000 });
+      await settings.masterTitleInput().fill(typeName);
+      await settings.saveButton().click();
+      await expect(settings.masterTitleInput()).not.toBeVisible({ timeout: 10000 });
+      await expect(page.getByText(typeName)).toBeVisible({ timeout: 10000 });
+      needsCleanup = true;
+
+      await settings.rowActionButton(typeName).click();
+      await expect(settings.masterTitleInput()).toHaveValue(typeName, { timeout: 10000 });
+
+      // EMR-208 回帰点: 「追加」がネスト form ではなく mutation を直接呼び、
+      // POST /available-slots が発行されること（既定値: 毎週月曜日 09:45）。
+      const createSlotResponsePromise = page.waitForResponse(
+        (response) =>
+          /\/v1\/masters\/reservation-types\/\d+\/available-slots/.test(response.url()) &&
+          response.request().method() === "POST",
+        { timeout: 15000 },
+      );
+      await slotsSection().getByRole("button", { name: "追加", exact: true }).click();
+      const createSlotResponse = await createSlotResponsePromise;
+      expect(createSlotResponse.status(), "available-slot POST must be issued and succeed").toBe(
+        201,
+      );
+      await expect(slotsSection().getByText("毎週月曜日")).toBeVisible({ timeout: 10000 });
+
+      // C2-2/C2-3: ブラウザ再読込 → パネル再オープンでスロットが永続している。
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(settings.heading("予約区分マスタ")).toBeVisible({ timeout: 15000 });
+      await settings.rowActionButton(typeName).click();
+      await expect(settings.masterTitleInput()).toHaveValue(typeName, { timeout: 10000 });
+      const persistedRow = slotsSection().locator("div", { hasText: "毎週月曜日" }).last();
+      await expect(persistedRow).toBeVisible({ timeout: 10000 });
+      await expect(persistedRow).toContainText("09:45");
+
+      // 後始末: スロット・予約不可時間行にも aria-label="削除" が居るためツールバー側を .first() で取る。
+      await settings.deleteButton().first().click();
+      await expect(settings.deleteDialog()).toBeVisible();
+      await settings.deleteConfirmButton("削除").click();
+      await expect(settings.rowContaining(typeName)).toHaveCount(0, { timeout: 10000 });
+      needsCleanup = false;
+    } finally {
+      if (needsCleanup) {
+        await bestEffortDeleteRow(
+          settings,
+          "/settings/reservation-type",
+          "予約区分マスタ",
+          "予約区分名で検索...",
+          typeName,
+        );
+      }
+      await page.close();
+    }
+  });
+
+  test("予約区分: 職種を紐付け → パネルにバッジ表示（EMR-209 回帰）", async () => {
+    test.setTimeout(120000);
+    const page = await context.newPage();
+    const settings = new SettingsMasterPage(page);
+    const typeName = disposableName("区分職種");
+    const occupationName = disposableName("職種");
+    let needsTypeCleanup = false;
+    let needsOccupationCleanup = false;
+
+    // <p>紐付け職種…</p> の 2 つ上の div がセクション本体（バッジ群+追加 select を含む）。
+    const occupationsSection = () =>
+      page.getByText("紐付け職種", { exact: false }).locator("xpath=../..");
+
+    try {
+      // 紐付け対象の職種を disposable clinic に作成（fixture は持たないため UI で作成）。
+      await settings.open("/settings/occupations");
+      await expect(settings.heading("職種マスタ")).toBeVisible({ timeout: 15000 });
+      await settings.newButton().click();
+      await expect(settings.masterTitleInput()).toBeVisible({ timeout: 10000 });
+      await settings.masterTitleInput().fill(occupationName);
+      await settings.saveButton().click();
+      await expect(settings.masterTitleInput()).not.toBeVisible({ timeout: 10000 });
+      needsOccupationCleanup = true;
+
+      await settings.open("/settings/reservation-type");
+      await expect(settings.heading("予約区分マスタ")).toBeVisible({ timeout: 15000 });
+      await settings.newButton().click();
+      await expect(settings.masterTitleInput()).toBeVisible({ timeout: 10000 });
+      await settings.masterTitleInput().fill(typeName);
+      await settings.saveButton().click();
+      await expect(settings.masterTitleInput()).not.toBeVisible({ timeout: 10000 });
+      needsTypeCleanup = true;
+
+      await settings.rowActionButton(typeName).click();
+      await expect(settings.masterTitleInput()).toHaveValue(typeName, { timeout: 10000 });
+
+      const linkResponsePromise = page.waitForResponse(
+        (response) =>
+          /\/v1\/masters\/reservation-types\/\d+\/occupations/.test(response.url()) &&
+          response.request().method() === "POST",
+        { timeout: 15000 },
+      );
+      await occupationsSection().getByRole("combobox").click();
+      await page.getByRole("option", { name: occupationName, exact: true }).click();
+      const linkResponse = await linkResponsePromise;
+      expect(linkResponse.status(), "occupation link POST must succeed").toBe(201);
+
+      // EMR-209 回帰点: 紐付け一覧 GET の {data} エンベロープがパースされ、
+      // 紐付け職種セクションに職種名のバッジが描画される。
+      await expect(occupationsSection().getByText(occupationName)).toBeVisible({
+        timeout: 10000,
+      });
+      await expect(
+        occupationsSection().getByLabel(`${occupationName} の紐付けを解除`),
+      ).toBeVisible();
+
+      // 再読込 → パネル再オープンでもバッジが残る（GET パース経路の永続確認）。
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(settings.heading("予約区分マスタ")).toBeVisible({ timeout: 15000 });
+      await settings.rowActionButton(typeName).click();
+      await expect(settings.masterTitleInput()).toHaveValue(typeName, { timeout: 10000 });
+      await expect(occupationsSection().getByText(occupationName)).toBeVisible({
+        timeout: 10000,
+      });
+    } finally {
+      if (needsTypeCleanup) {
+        await bestEffortDeleteRow(
+          settings,
+          "/settings/reservation-type",
+          "予約区分マスタ",
+          "予約区分名で検索...",
+          typeName,
+        );
+      }
+      if (needsOccupationCleanup) {
+        await bestEffortDeleteRow(
+          settings,
+          "/settings/occupations",
+          "職種マスタ",
+          "職種名で検索...",
+          occupationName,
+        );
+      }
+      await page.close();
+    }
+  });
 });
 
 // ─────────────────────────────────────────────────
