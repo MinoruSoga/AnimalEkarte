@@ -306,9 +306,11 @@ class VerificationTests(unittest.TestCase):
                 )
 
     def test_security_scan_workflow_uses_workflow_contracts(self):
-        jobs, blocked = verify.plan(['.github/workflows/security-scan.yml'])
-        self.assertFalse(blocked)
-        self.assertEqual(jobs[0]['command'], ['node', '--test', 'scripts/check-workflow-contracts.test.mjs'])
+        for path in ('.github/workflows/security-scan.yml', '.github/workflows/e2e.yml'):
+            with self.subTest(path=path):
+                jobs, blocked = verify.plan([path])
+                self.assertFalse(blocked)
+                self.assertEqual(jobs[0]['command'], ['node', '--test', 'scripts/check-workflow-contracts.test.mjs'])
 
     def test_cli_failure_has_no_pass_or_raw_output(self):
         failed = subprocess.CompletedProcess([], 1, 'sensitive stdout', 'sensitive stderr')

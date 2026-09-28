@@ -181,24 +181,66 @@ test("backend Compose receives APP_ENV with the development default", () => {
   assert.match(backend, /^\s+APP_ENV: \$\{APP_ENV:-development\}\s*$/m);
 });
 
-test("E2E job uses the test-only synthetic login and runs only the auth smoke spec", () => {
-  const e2e = workflowJob(read(".github/workflows/e2e.yml"), "e2e");
+test("E2E job stays manual-only, keeps the synthetic login, and routes suites to run-e2e.sh modes", () => {
+  const workflow = read(".github/workflows/e2e.yml");
+  const on = yamlBlock(workflow, "on", 0);
+  assert.match(on, /^\s+workflow_dispatch:\s*$/m);
+  assert.doesNotMatch(
+    on,
+    /^\s+(?:push|pull_request|pull_request_target|schedule|workflow_run):/m,
+  );
+  assert.match(on, /^\s+type: choice\s*$/m);
+  assert.match(on, /^\s+default: auth-smoke\s*$/m);
+  assert.match(on, /^\s+- auth-smoke\s*$/m);
+  assert.match(on, /^\s+- clinical\s*$/m);
+  assert.match(on, /^\s+- v04\s*$/m);
+
+  const e2e = workflowJob(workflow, "e2e");
   assert.match(e2e, /^\s+APP_ENV: test\s*$/m);
   assert.match(
     e2e,
     /^\s+E2E_LOGIN_EMAIL: stg-staff-10000021@example\.test\s*$/m,
   );
   assert.match(e2e, /^\s+E2E_LOGIN_PASSWORD: password\s*$/m);
-
-  const run = namedStep(e2e, "Run Playwright E2E");
-  assert.match(
-    run,
-    /^\s+run: \.\/scripts\/run-e2e\.sh e2e\/auth-flows\.spec\.ts\s*$/m,
-  );
   assert.doesNotMatch(
     e2e,
     /(?:echo|printf).*E2E_LOGIN|E2E_LOGIN.*(?:echo|printf)/,
   );
+
+  const run = namedStep(e2e, "Run Playwright E2E (${{ inputs.suite }})");
+  assert.match(run, /^\s+E2E_SUITE: \$\{\{ inputs\.suite \}\}\s*$/m);
+  assert.match(
+    run,
+    /auth-smoke\)\s*\n\s+\.\/scripts\/run-e2e\.sh e2e\/auth-flows\.spec\.ts\s*$/m,
+  );
+  assert.match(run, /clinical\|v04\)/);
+  assert.match(run, /\.\/scripts\/run-e2e\.sh "--\$E2E_SUITE"/);
+  assert.match(run, /export E2E_RESULTS_DIR=/);
+  const script = run.split("run: |")[1];
+  assert.ok(script, "run step must use a block scalar");
+  assert.doesNotMatch(script, /\$\{\{/);
+
+  const upload = namedStep(e2e, "Upload Playwright test results (clinical / v04)");
+  assert.match(
+    upload,
+    /^\s+if: always\(\) && inputs\.suite != 'auth-smoke'\s*$/m,
+  );
+  assert.match(
+    upload,
+    /^\s+path: \$\{\{ runner\.temp \}\}\/e2e-results\/\s*$/m,
+  );
+});
+
+test("run-e2e.sh --v04 reuses the clinical fixture gates and targets only the v04 spec", () => {
+  const script = read("frontend/scripts/run-e2e.sh");
+  assert.match(
+    script,
+    /^V04_SPECS="e2e\/v04-settings-master-forms\.spec\.ts"$/m,
+  );
+  assert.match(script, /^\s+--v04\)\s*$/m);
+  const gate = 'if [ "$MODE" = "clinical" ] || [ "$MODE" = "v04" ]; then';
+  assert.equal(script.split(gate).length - 1, 2);
+  assert.match(script, /set -- \$V04_SPECS "\$@"/);
 });
 
 test("auth smoke keeps the successful-login response and authenticated-home assertions", () => {
