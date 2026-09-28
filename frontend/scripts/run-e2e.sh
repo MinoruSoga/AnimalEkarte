@@ -14,12 +14,13 @@
 #   ./scripts/run-e2e.sh e2e/owners-search.spec.ts   # specific file
 #   ./scripts/run-e2e.sh --auth-smoke                # CI と同じ auth smoke
 #   ./scripts/run-e2e.sh --clinical                  # clinical allowlist + disposable clinic
+#   ./scripts/run-e2e.sh --v04                       # v04 settings master forms + disposable clinic (same fixture as --clinical)
 #   ./scripts/run-e2e.sh --headed                     # headed mode (requires display)
 #   ./scripts/run-e2e.sh e2e/owners-search.spec.ts --headed --timeout=30000
 #
 # Prerequisites:
 #   app must be reachable from the host at http://localhost:3003
-#   --clinical requires APP_ENV=test on the backend container and E2E_LOGIN_PASSWORD
+#   --clinical / --v04 require APP_ENV=test on the backend container and E2E_LOGIN_PASSWORD
 #
 # Note: On Apple Silicon (arm64), use this Docker script as the primary path.
 # The official Playwright image can launch Chromium on linux/arm64.
@@ -32,6 +33,7 @@ REPO_ROOT="$(dirname "$FRONTEND_DIR")"
 BASE_URL="${PLAYWRIGHT_TEST_BASE_URL:-http://host.docker.internal:3003}"
 
 CLINICAL_SPECS="e2e/clinical-flows.spec.ts e2e/clinical-smoke.spec.ts e2e/medical-records-create.spec.ts e2e/medical-records-patient-search.spec.ts e2e/medical-records-pagination-sort.spec.ts e2e/examinations-flow.spec.ts e2e/vaccinations-flow.spec.ts e2e/checkups-flow.spec.ts e2e/hospitalization-flow.spec.ts e2e/estimates-flow.spec.ts"
+V04_SPECS="e2e/v04-settings-master-forms.spec.ts"
 
 compose_backend() {
   docker compose -f "${REPO_ROOT}/docker-compose.yml" --project-directory "${REPO_ROOT}" exec -T "$@"
@@ -41,6 +43,10 @@ MODE=""
 case "${1:-}" in
   --clinical)
     MODE="clinical"
+    shift
+    ;;
+  --v04)
+    MODE="v04"
     shift
     ;;
   --auth-smoke)
@@ -57,14 +63,14 @@ teardown_clinical_fixture() {
   fi
 }
 
-if [ "$MODE" = "clinical" ]; then
+if [ "$MODE" = "clinical" ] || [ "$MODE" = "v04" ]; then
   if [ -z "${E2E_LOGIN_PASSWORD:-}" ]; then
-    echo "run-e2e.sh: E2E_LOGIN_PASSWORD is required for --clinical" >&2
+    echo "run-e2e.sh: E2E_LOGIN_PASSWORD is required for --$MODE" >&2
     exit 1
   fi
   BACKEND_APP_ENV="$(compose_backend backend printenv APP_ENV)"
   if [ "$BACKEND_APP_ENV" != "test" ]; then
-    echo "run-e2e.sh: backend APP_ENV must be test for --clinical" >&2
+    echo "run-e2e.sh: backend APP_ENV must be test for --$MODE" >&2
     exit 1
   fi
   case "$BASE_URL" in
@@ -85,7 +91,13 @@ if [ "$MODE" = "clinical" ]; then
   export E2E_CLINICAL_FIXTURE="$FIXTURE_JSON"
   export E2E_CLINICAL_TEARDOWN=registered
   export E2E_LOGIN_EMAIL="e2e-clinical-${CLINIC_ID}@example.test"
-  set -- $CLINICAL_SPECS "$@"
+  if [ "$MODE" = "v04" ]; then
+    # shellcheck disable=SC2086 # intentional word-split of spec list
+    set -- $V04_SPECS "$@"
+  else
+    # shellcheck disable=SC2086 # intentional word-split of spec list
+    set -- $CLINICAL_SPECS "$@"
+  fi
 fi
 
 if [ "$MODE" = "auth-smoke" ]; then
@@ -126,7 +138,7 @@ docker run --rm \
   -- "$@" || PLAYWRIGHT_STATUS=$?
 
 TEARDOWN_STATUS=0
-if [ "$MODE" = "clinical" ]; then
+if [ "$MODE" = "clinical" ] || [ "$MODE" = "v04" ]; then
   teardown_clinical_fixture || TEARDOWN_STATUS=$?
 fi
 if [ "$TEARDOWN_STATUS" -ne 0 ]; then

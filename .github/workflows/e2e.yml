@@ -2,14 +2,26 @@ name: E2E Tests
 
 # 自動 CI から外す: PR / push では走らせない。
 # ローカル正本は make e2e（frontend/scripts/run-e2e.sh）。
-# 必要時のみ GitHub 上で手動実行（workflow_dispatch）。
+# 必要時のみ GitHub 上で手動実行（workflow_dispatch）。inputs.suite で
+# auth-smoke / clinical / v04 を振り分ける。clinical / v04 はこの job の
+# 新規 APP_ENV=test stack 上で使い捨て fixture clinic を setup/teardown する。
 # LIFF トークン観点は compose 既定の mock のみ（VITE_LIFF_MOCK / LIFF_MOCK）。
 # 実 LINE トークン検証は CI 必須にしない — docs/ops/testing/liff-verification.md。
 on:
   workflow_dispatch:
+    inputs:
+      suite:
+        description: "実行する E2E suite（auth-smoke: 認証 smoke / clinical: run-e2e.sh --clinical / v04: run-e2e.sh --v04）"
+        type: choice
+        required: true
+        default: auth-smoke
+        options:
+          - auth-smoke
+          - clinical
+          - v04
 
 concurrency:
-  group: e2e-${{ github.ref }}
+  group: e2e-${{ github.ref }}-${{ inputs.suite }}
   cancel-in-progress: true
 
 env:
@@ -89,9 +101,25 @@ jobs:
           )
           echo " frontend ready"
 
-      - name: Run Playwright E2E
+      - name: Run Playwright E2E (${{ inputs.suite }})
         working-directory: frontend
-        run: ./scripts/run-e2e.sh e2e/auth-flows.spec.ts
+        env:
+          E2E_SUITE: ${{ inputs.suite }}
+          E2E_RESULTS_DIR_CANDIDATE: ${{ runner.temp }}/e2e-results
+        run: |
+          case "$E2E_SUITE" in
+            auth-smoke)
+              ./scripts/run-e2e.sh e2e/auth-flows.spec.ts
+              ;;
+            clinical|v04)
+              export E2E_RESULTS_DIR="$E2E_RESULTS_DIR_CANDIDATE"
+              ./scripts/run-e2e.sh "--$E2E_SUITE"
+              ;;
+            *)
+              echo "unknown suite: $E2E_SUITE" >&2
+              exit 1
+              ;;
+          esac
 
       - name: Collect logs on failure
         if: failure()
@@ -110,6 +138,15 @@ jobs:
           name: playwright-report
           path: frontend/playwright-report/
           retention-days: 7
+
+      - name: Upload Playwright test results (clinical / v04)
+        if: always() && inputs.suite != 'auth-smoke'
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-results-${{ inputs.suite }}
+          path: ${{ runner.temp }}/e2e-results/
+          retention-days: 7
+          if-no-files-found: warn
 
       - name: Stop app stack
         if: always()
