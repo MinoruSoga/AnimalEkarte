@@ -1301,3 +1301,153 @@ test.describe("V04 設定マスタ §5 予約可能枠（admin）", () => {
     }
   });
 });
+
+// ─────────────────────────────────────────────────
+// admin account: §6 締め時間 #2/#3/#4/#8（EMR-127d）
+// ─────────────────────────────────────────────────
+
+test.describe("V04 設定マスタ §6 締め時間（admin）", () => {
+  const v04 = readV04FixtureFromEnv();
+  test.skip(v04 === null, "E2E_CLINICAL_FIXTURE 未設定（suite=v04 以外）");
+
+  let context: BrowserContext;
+
+  test.beforeAll(async ({ browser }) => {
+    context = await createAuthedContext(browser);
+  });
+
+  test.afterAll(async () => {
+    await context.close();
+  });
+
+  test("標準締め時間: 空欄は送信されず・境界逆転は PATCH 400 + トースト (#2・#3)", async () => {
+    test.setTimeout(120000);
+    const page = await context.newPage();
+    const settings = new SettingsMasterPage(page);
+
+    try {
+      await settings.open("/settings/closing-time");
+      await expect(settings.heading("締め時間設定")).toBeVisible({ timeout: 15000 });
+
+      const standardSection = page
+        .locator("section")
+        .filter({ has: page.getByRole("heading", { name: "標準締め時間" }) });
+
+      // #2: 必須欄を空にして保存 → ネイティブ required で PATCH は発行されない。
+      await page.locator("#closing_am_pm_boundary").fill("");
+      const blockedPatchPromise = page.waitForRequest(
+        (request) => request.url().includes("/closing-settings") && request.method() === "PATCH",
+        { timeout: 5000 },
+      );
+      await standardSection.getByRole("button", { name: "保存" }).click();
+      await expect(
+        blockedPatchPromise,
+        "required empty field must not issue PATCH /closing-settings",
+      ).rejects.toThrow();
+      await expect(page.locator("#closing_am_pm_boundary")).toHaveJSProperty(
+        "validity.valueMissing",
+        true,
+      );
+
+      // #3: 境界逆転（区切り 14:00・平日終了 12:00）→ PATCH 400 + トースト。
+      await page.locator("#closing_am_pm_boundary").fill("14:00");
+      await page.locator("#closing_weekday_end").fill("12:00");
+      const patchResponsePromise = page.waitForResponse(
+        (response) =>
+          response.url().includes("/closing-settings") && response.request().method() === "PATCH",
+        { timeout: 15000 },
+      );
+      await standardSection.getByRole("button", { name: "保存" }).click();
+      expect(
+        (await patchResponsePromise).status(),
+        "reversed boundary PATCH must be rejected",
+      ).toBe(400);
+      await expect(settings.toast()).toContainText("境界時刻", { timeout: 10000 });
+    } finally {
+      await page.close();
+    }
+  });
+
+  test("個別休診日: 日付空では追加されない (#4)", async () => {
+    test.setTimeout(120000);
+    const page = await context.newPage();
+    const settings = new SettingsMasterPage(page);
+
+    try {
+      await settings.open("/settings/closing-time");
+      await expect(settings.heading("締め時間設定")).toBeVisible({ timeout: 15000 });
+
+      const holidaySection = page
+        .locator("section")
+        .filter({ has: page.getByRole("heading", { name: "個別休診日" }) });
+      await holidaySection.getByRole("button", { name: "新規登録" }).click();
+      await expect(page.locator("#holiday_date")).toBeVisible({ timeout: 10000 });
+
+      const blockedPostPromise = page.waitForRequest(
+        (request) =>
+          request.url().includes("/closing-settings/holidays") && request.method() === "POST",
+        { timeout: 5000 },
+      );
+      await holidaySection.getByRole("button", { name: "追加" }).click();
+      await expect(
+        blockedPostPromise,
+        "empty date must not issue POST /closing-settings/holidays",
+      ).rejects.toThrow();
+      await expect(page.locator("#holiday_date")).toHaveJSProperty("validity.valueMissing", true);
+    } finally {
+      await page.close();
+    }
+  });
+
+  test("特別期間: 開始日>終了日・境界>=終了時刻は POST 400 + トースト (#8)", async () => {
+    test.setTimeout(120000);
+    const page = await context.newPage();
+    const settings = new SettingsMasterPage(page);
+
+    try {
+      await settings.open("/settings/closing-time");
+      await expect(settings.heading("締め時間設定")).toBeVisible({ timeout: 15000 });
+
+      const periodSection = page
+        .locator("section")
+        .filter({ has: page.getByRole("heading", { name: "特別期間" }) });
+      await periodSection.getByRole("button", { name: "新規登録" }).click();
+      await expect(page.locator("#start_date")).toBeVisible({ timeout: 10000 });
+      // MasterSidePanel の <form action noValidate> — 必須空欄でも submit する。
+      const periodForm = page.locator("form").filter({ has: page.locator("#start_date") });
+
+      // 開始日 > 終了日 → POST 400「開始日は終了日以前に設定してください」。
+      await page.locator("#start_date").fill("2099-12-20");
+      await page.locator("#end_date").fill("2099-12-19");
+      await page.locator("#am_pm_boundary").fill("13:00");
+      await page.locator("#pm_end").fill("19:00");
+      const postStartGtEndPromise = page.waitForResponse(
+        (response) =>
+          response.url().includes("/closing-settings/special-periods") &&
+          response.request().method() === "POST",
+        { timeout: 15000 },
+      );
+      await periodForm.getByRole("button", { name: "保存" }).click();
+      expect((await postStartGtEndPromise).status(), "start>end POST must be rejected").toBe(400);
+      await expect(settings.toast()).toContainText("開始日は終了日以前", { timeout: 10000 });
+
+      // 区切り時刻 >= 終了時刻 → POST 400「…は境界時刻…より後に設定してください」。
+      // エラー時もフォームは閉じないため、そのまま値を入れ直して再送する。
+      await page.locator("#start_date").fill("2099-12-10");
+      await page.locator("#end_date").fill("2099-12-19");
+      await page.locator("#am_pm_boundary").fill("19:00");
+      await page.locator("#pm_end").fill("13:00");
+      const postBoundaryPromise = page.waitForResponse(
+        (response) =>
+          response.url().includes("/closing-settings/special-periods") &&
+          response.request().method() === "POST",
+        { timeout: 15000 },
+      );
+      await periodForm.getByRole("button", { name: "保存" }).click();
+      expect((await postBoundaryPromise).status(), "boundary>=end POST must be rejected").toBe(400);
+      await expect(settings.toast()).toContainText("境界時刻", { timeout: 10000 });
+    } finally {
+      await page.close();
+    }
+  });
+});
