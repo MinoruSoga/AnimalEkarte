@@ -2339,3 +2339,97 @@ test.describe("V04 権限: view のみ account 追加画面（EMR-127f）", () =
     });
   }
 });
+
+// ─────────────────────────────────────────────────
+// admin account: §1 C2 追加（職種・トリミングコース種別）（EMR-127f）
+// ─────────────────────────────────────────────────
+
+/** C2 更新永続の対象画面。seed→名称変更→再読込→再オープンの流れは共通。 */
+interface C2MasterScreen {
+  screen: string;
+  path: string;
+  heading: string;
+  apiPath: string;
+}
+
+const C2_MASTER_SCREENS: C2MasterScreen[] = [
+  {
+    screen: "職種",
+    path: "/settings/occupations",
+    heading: "職種マスタ",
+    apiPath: "/masters/occupations",
+  },
+  {
+    screen: "トリミングコース種別",
+    path: "/settings/trimming-course-type",
+    heading: "コース種別マスタ",
+    apiPath: "/masters/trimming-course-types",
+  },
+];
+
+test.describe("V04 設定マスタ §1 C2 更新永続（admin）（EMR-127f）", () => {
+  const v04 = readV04FixtureFromEnv();
+  test.skip(v04 === null, "E2E_CLINICAL_FIXTURE 未設定（suite=v04 以外）");
+
+  let context: BrowserContext;
+
+  test.beforeAll(async ({ browser }) => {
+    context = await createAuthedContext(browser);
+  });
+
+  test.afterAll(async () => {
+    await context.close();
+  });
+
+  for (const master of C2_MASTER_SCREENS) {
+    test(`${master.screen}: 名称変更が保存・再読込・再オープンで永続する (C2)`, async () => {
+      test.setTimeout(120000);
+      if (v04 === null) throw new Error("v04 fixture unavailable");
+      const page = await context.newPage();
+      const settings = new SettingsMasterPage(page);
+      const originalName = disposableName(master.screen);
+      const renamedName = disposableName(`${master.screen}改`);
+      let rowId: number | null = null;
+
+      try {
+        rowId = await seedMasterRow(page.request, v04.clinicId, master.apiPath, {
+          name: originalName,
+          is_active: true,
+        });
+
+        await settings.open(master.path);
+        await expect(settings.heading(master.heading)).toBeVisible({ timeout: 15000 });
+
+        // C2-1: 名称を変更して保存 → PATCH 200。
+        await settings.rowActionButton(originalName).click();
+        await expect(settings.masterTitleInput()).toHaveValue(originalName, { timeout: 10000 });
+        await settings.masterTitleInput().fill(renamedName);
+        const patchPromise = page.waitForResponse(
+          (response) =>
+            new RegExp(`/v1${master.apiPath}/\\d+`).test(response.url()) &&
+            response.request().method() === "PATCH",
+          { timeout: 15000 },
+        );
+        await settings.saveButton().click();
+        expect((await patchPromise).status(), `${master.screen} rename PATCH must succeed`).toBe(
+          200,
+        );
+        await expect(settings.masterTitleInput()).not.toBeVisible({ timeout: 10000 });
+        await expect(settings.rowContaining(renamedName)).toBeVisible({ timeout: 10000 });
+
+        // C2-2/C2-3: ブラウザ再読込 → 行を開き直すと変更後の値が初期表示される。
+        await page.reload({ waitUntil: "domcontentloaded" });
+        await expect(settings.heading(master.heading)).toBeVisible({ timeout: 15000 });
+        await settings.rowActionButton(renamedName).click();
+        await expect(settings.masterTitleInput()).toHaveValue(renamedName, { timeout: 10000 });
+        await settings.cancelButton().click();
+        await expect(settings.masterTitleInput()).not.toBeVisible({ timeout: 10000 });
+      } finally {
+        if (rowId !== null) {
+          await deleteSeededRow(page.request, v04.clinicId, `${master.apiPath}/${rowId}`);
+        }
+        await page.close();
+      }
+    });
+  }
+});
