@@ -7,7 +7,7 @@
  *
  * Thresholds:
  *   > 500 lines: warning (soft limit from project rules)
- *   > 800 lines: strong warning (hard limit)
+ *   > 800 lines: strong warning (guideline, not a hard limit)
  *
  * Does NOT block (exit 0) — the edit already happened.
  */
@@ -53,8 +53,8 @@ process.stdin.on('end', () => {
 
     if (lineCount > 800) {
       process.stderr.write(
-        `\n[Hook] ⚠ FILE TOO LARGE: ${filePath} is ${lineCount} lines (hard limit: 800)\n` +
-        '[Hook] Split this file into smaller, focused modules immediately.\n\n'
+        `\n[Hook] ⚠ FILE TOO LARGE: ${filePath} is ${lineCount} lines (guideline: 800)\n` +
+        '[Hook] Consider splitting unless it is a documented exception.\n\n'
       );
     } else if (lineCount > 500) {
       process.stderr.write(

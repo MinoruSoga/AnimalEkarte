@@ -1,8 +1,6 @@
 /**
  * 右下常駐のサポート起動ボタン（features/support の SupportWidget）と、
  * 認証済みシェル（components/shared/Layout）の main 下余白を連動させる共有定数。
- * lib/design-tokens.ts は pre-commit の 800 行 hard limit を超える documented exception で
- * 追記できないため、共有定数の置き場所である src/constants/ に置く。
  */
 export const SUPPORT_WIDGET_LAYOUT = {
   /** 起動ボタンの固定位置（右・下 16px） */

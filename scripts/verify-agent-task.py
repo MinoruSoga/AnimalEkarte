@@ -501,6 +501,15 @@ def plan(paths):
             jobs.append({'service': 'backend', 'command': ['go', 'vet', './cmd/clinical-e2e-fixture']})
             if (ROOT / path).is_file():
                 jobs.append({'service': 'backend', 'command': ['gofmt', '-l', path.removeprefix('backend/')], 'require_empty_stdout': True})
+        elif path.startswith('.claude/hooks/') and path.endswith('.js'):
+            # Claude Code hook scripts: syntax check, plus the sibling node:test file when one exists.
+            test_path = path if path.endswith('.test.js') else path.removesuffix('.js') + '.test.js'
+            if (ROOT / path).is_file():
+                jobs.append({'service': 'host', 'command': ['node', '--check', path]})
+            if (ROOT / test_path).is_file():
+                job = {'service': 'host', 'command': ['node', '--test', test_path]}
+                if job not in jobs:
+                    jobs.append(job)
         elif path == 'frontend/generated-models-import-allowlist.json':
             # TASK-444-S1 inventory: the boundary test compares this allowlist with real import sites.
             jobs.append({

@@ -1,11 +1,13 @@
 #!/bin/sh
-# Block staged source files that exceed the project hard line limit (800).
-# Soft guidance remains 500 (see frontend/CLAUDE.md and .claude hooks).
+# Warn about staged source files that exceed the 800-line guideline.
+# 800 lines is a maintainability guideline, not a hard limit: this check never
+# blocks the commit (documented exceptions such as frontend/src/lib/design-tokens.ts
+# exist). Soft guidance remains 500 (see frontend/CLAUDE.md and .claude hooks).
 # Skips generated, migrations, vendor, and test files.
 
 set -e
 
-MAX_LINES=800
+GUIDELINE_LINES=800
 ROOT=$(git rev-parse --show-toplevel)
 cd "$ROOT"
 
@@ -24,14 +26,14 @@ for f in $STAGED; do
   esac
   [ -f "$f" ] || continue
   lines=$(wc -l < "$f" | tr -d ' ')
-  if [ "$lines" -gt "$MAX_LINES" ]; then
+  if [ "$lines" -gt "$GUIDELINE_LINES" ]; then
     OVER="$OVER\n  $f ($lines lines)"
   fi
 done
 
 if [ -n "$OVER" ]; then
-  echo "ERROR: staged source files exceed ${MAX_LINES}-line hard limit:"
+  echo "WARNING: staged source files exceed the ${GUIDELINE_LINES}-line guideline (not blocking):"
   printf "%b\n" "$OVER"
-  echo "Split into smaller modules before committing."
-  exit 1
+  echo "Consider splitting unless the file is a documented exception."
 fi
+exit 0

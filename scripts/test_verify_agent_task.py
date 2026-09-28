@@ -324,6 +324,16 @@ class VerificationTests(unittest.TestCase):
         self.assertIn(['go', 'vet', './cmd/clinical-e2e-fixture'], commands)
         self.assertIn(['gofmt', '-l', 'cmd/clinical-e2e-fixture/main.go'], commands)
 
+    def test_claude_hook_scripts_use_syntax_check_and_sibling_test(self):
+        jobs, blocked = verify.plan(['.claude/hooks/pre-write-large-file-block.js'])
+        self.assertFalse(blocked)
+        commands = [job['command'] for job in jobs]
+        self.assertIn(['node', '--check', '.claude/hooks/pre-write-large-file-block.js'], commands)
+        self.assertIn(['node', '--test', '.claude/hooks/pre-write-large-file-block.test.js'], commands)
+        jobs, blocked = verify.plan(['.claude/hooks/post-edit-file-size-warn.js'])
+        self.assertFalse(blocked)
+        self.assertEqual([job['command'] for job in jobs], [['node', '--check', '.claude/hooks/post-edit-file-size-warn.js']])
+
     def test_generated_models_allowlist_runs_boundary_test(self):
         jobs, blocked = verify.plan(['frontend/generated-models-import-allowlist.json'])
         self.assertFalse(blocked)

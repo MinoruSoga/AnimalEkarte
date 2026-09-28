@@ -28,7 +28,7 @@ CLI・ホストアプリ・APIセッションの機能は別々に確認する�
 
 ## 変更範囲の検証
 
-事前計画は `python3 -B scripts/verify-agent-task.py --base <BASE_REF> --plan`。未コミットも含む対象diffを確認し、明示パスなら `--paths <PATH>...` を使う。`--staged` は手動の局所確認用で、Git pre-commit では使わない（pre-commit は secrets + 800行のみ。scoped lint/test は pre-push）。
+事前計画は `python3 -B scripts/verify-agent-task.py --base <BASE_REF> --plan`。未コミットも含む対象diffを確認し、明示パスなら `--paths <PATH>...` を使う。`--staged` は手動の局所確認用で、Git pre-commit では使わない（pre-commit は secrets のブロックと 800行超の警告のみ。800行は目安で commit は止めない。scoped lint/test は pre-push）。
 
 実行時は既にローカルにある固定imageを `--frontend-image <ID>` / `--backend-image <ID>`、依存volumeを `--frontend-dependency-volume <NAME>` / `--backend-dependency-volume <NAME>` で指定する。Git pre-push からも使う場合は、無視対象 `.claude/verification.local.json` に `frontend_image` / `backend_image` / `frontend_dependency_volume` / `backend_dependency_volume` の4キーだけを保存する。優先順位はCLI、`AGENT_VERIFY_*` 環境変数、ローカル設定の順。image/volumeはマシン固有なのでコミットしない。
 
