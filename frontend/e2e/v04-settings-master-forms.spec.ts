@@ -1087,3 +1087,519 @@ test.describe("V04 権限: view のみ account（disposable clinic fixture）", 
     }
   });
 });
+
+// ─────────────────────────────────────────────────
+// admin account: §5 予約可能枠 #3〜#6（EMR-127d）
+// ─────────────────────────────────────────────────
+
+/** 予約区分と配下の予約可能枠を API で後始末する（子→親の順。失敗は握りつぶす）。 */
+async function deleteReservationTypeWithSlots(
+  request: APIRequestContext,
+  clinicId: number,
+  typeId: number,
+): Promise<void> {
+  try {
+    const slots = await v04Api(
+      request,
+      clinicId,
+      "GET",
+      `/masters/reservation-types/${typeId}/available-slots`,
+    );
+    if (slots.ok()) {
+      for (const row of listRows(await slots.json())) {
+        const slotId = readRowId(row);
+        if (slotId !== null) {
+          await deleteSeededRow(
+            request,
+            clinicId,
+            `/masters/reservation-types/${typeId}/available-slots/${slotId}`,
+          );
+        }
+      }
+    }
+    await deleteSeededRow(request, clinicId, `/masters/reservation-types/${typeId}`);
+  } catch {
+    // Best-effort cleanup only.
+  }
+}
+
+test.describe("V04 設定マスタ §5 予約可能枠（admin）", () => {
+  const v04 = readV04FixtureFromEnv();
+  test.skip(v04 === null, "E2E_CLINICAL_FIXTURE 未設定（suite=v04 以外）");
+
+  let context: BrowserContext;
+
+  test.beforeAll(async ({ browser }) => {
+    context = await createAuthedContext(browser);
+  });
+
+  test.afterAll(async () => {
+    await context.close();
+  });
+
+  test("予約可能枠: 特定日スロット追加・永続・パネル再オープン・削除 (#3・#4・#6)", async () => {
+    test.setTimeout(120000);
+    if (v04 === null) throw new Error("v04 fixture unavailable");
+    const page = await context.newPage();
+    const settings = new SettingsMasterPage(page);
+    const typeName = disposableName("区分特定日");
+    const specificDate = "2099-01-15";
+    let typeId: number | null = null;
+
+    // セクション見出し <p> の 2 つ上の div がセクション本体（追加フォーム+一覧を含む）。
+    const slotsSection = () => page.getByText("予約可能枠", { exact: true }).locator("xpath=../..");
+
+    try {
+      // leaf 区分を作成して保存 → パネルを開き直す（子セクションは既存行のみ描画）。
+      await settings.open("/settings/reservation-type");
+      await expect(settings.heading("予約区分マスタ")).toBeVisible({ timeout: 15000 });
+      await settings.newButton().click();
+      await expect(settings.masterTitleInput()).toBeVisible({ timeout: 10000 });
+      await settings.masterTitleInput().fill(typeName);
+      await settings.saveButton().click();
+      await expect(settings.masterTitleInput()).not.toBeVisible({ timeout: 10000 });
+      await expect(page.getByText(typeName)).toBeVisible({ timeout: 10000 });
+
+      const listResponse = await v04Api(
+        page.request,
+        v04.clinicId,
+        "GET",
+        "/masters/reservation-types",
+      );
+      typeId = findRowId(listRows(await listResponse.json()), typeName);
+      expect(typeId, "created reservation type must be listed").not.toBeNull();
+
+      await settings.rowActionButton(typeName).click();
+      await expect(settings.masterTitleInput()).toHaveValue(typeName, { timeout: 10000 });
+
+      // 毎週枠を 1 件追加（既定値: 毎週月曜日 09:45）。
+      const weeklyPostPromise = page.waitForResponse(
+        (response) =>
+          /\/v1\/masters\/reservation-types\/\d+\/available-slots/.test(response.url()) &&
+          response.request().method() === "POST",
+        { timeout: 15000 },
+      );
+      await slotsSection().getByRole("button", { name: "追加", exact: true }).click();
+      expect((await weeklyPostPromise).status(), "weekly slot POST must succeed").toBe(201);
+      await expect(slotsSection().getByText("毎週月曜日")).toBeVisible({ timeout: 10000 });
+
+      // #3: モードを「特定日」に切替 → 日付を入れて追加 → 永続。
+      await slotsSection().getByRole("combobox").first().click();
+      await page.getByRole("option", { name: "特定日", exact: true }).click();
+      await page.getByLabel("特定日").fill(specificDate);
+      const specificPostPromise = page.waitForResponse(
+        (response) =>
+          /\/v1\/masters\/reservation-types\/\d+\/available-slots/.test(response.url()) &&
+          response.request().method() === "POST",
+        { timeout: 15000 },
+      );
+      await slotsSection().getByRole("button", { name: "追加", exact: true }).click();
+      expect((await specificPostPromise).status(), "specific-date slot POST must succeed").toBe(
+        201,
+      );
+      await expect(slotsSection().getByText(specificDate)).toBeVisible({ timeout: 10000 });
+
+      // #6: パネルを閉じて開き直す → 毎週・特定日の保存済み枠が再表示される。
+      await page.getByLabel("閉じる").first().click();
+      await expect(settings.masterTitleInput()).not.toBeVisible({ timeout: 10000 });
+      await settings.rowActionButton(typeName).click();
+      await expect(settings.masterTitleInput()).toHaveValue(typeName, { timeout: 10000 });
+      await expect(slotsSection().getByText("毎週月曜日")).toBeVisible({ timeout: 10000 });
+      await expect(slotsSection().getByText(specificDate)).toBeVisible();
+
+      // ブラウザ再読込でも永続。
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(settings.heading("予約区分マスタ")).toBeVisible({ timeout: 15000 });
+      await settings.rowActionButton(typeName).click();
+      await expect(settings.masterTitleInput()).toHaveValue(typeName, { timeout: 10000 });
+      await expect(slotsSection().getByText("毎週月曜日")).toBeVisible({ timeout: 10000 });
+      await expect(slotsSection().getByText(specificDate)).toBeVisible();
+
+      // #4: 特定日スロットを削除 → 再読込でも消えている。
+      const slotRow = page.getByText(specificDate).locator("xpath=..");
+      const deleteSlotPromise = page.waitForResponse(
+        (response) =>
+          /\/v1\/masters\/reservation-types\/\d+\/available-slots\/\d+/.test(response.url()) &&
+          response.request().method() === "DELETE",
+        { timeout: 15000 },
+      );
+      await slotRow.getByRole("button", { name: "削除" }).click();
+      expect((await deleteSlotPromise).status(), "slot DELETE must succeed").toBe(204);
+      await expect(slotsSection().getByText(specificDate)).toHaveCount(0, { timeout: 10000 });
+
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(settings.heading("予約区分マスタ")).toBeVisible({ timeout: 15000 });
+      await settings.rowActionButton(typeName).click();
+      await expect(settings.masterTitleInput()).toHaveValue(typeName, { timeout: 10000 });
+      await expect(slotsSection().getByText(specificDate)).toHaveCount(0, { timeout: 10000 });
+      await expect(slotsSection().getByText("毎週月曜日")).toBeVisible();
+    } finally {
+      if (typeId !== null) {
+        await deleteReservationTypeWithSlots(page.request, v04.clinicId, typeId);
+      }
+      await page.close();
+    }
+  });
+
+  test("予約可能枠: 区分セレクタはリーフ区分のみ選択可 (#5)", async () => {
+    test.setTimeout(120000);
+    if (v04 === null) throw new Error("v04 fixture unavailable");
+    const page = await context.newPage();
+    const parentName = disposableName("区分親");
+    const leafName = disposableName("区分子");
+    let parentId: number | null = null;
+    let leafId: number | null = null;
+
+    try {
+      // 親区分 + 配下の leaf 区分を API で用意（ツリー描画の対象）。
+      parentId = await seedMasterRow(page.request, v04.clinicId, "/masters/reservation-types", {
+        name: parentName,
+        is_active: true,
+      });
+      leafId = await seedMasterRow(page.request, v04.clinicId, "/masters/reservation-types", {
+        name: leafName,
+        is_active: true,
+        parent_id: parentId,
+      });
+
+      await page.goto("/line-reservation/slots", { waitUntil: "domcontentloaded" });
+      await expect(page.getByRole("heading", { name: "LINE予約枠" }).first()).toBeVisible({
+        timeout: 45000,
+      });
+
+      // 親区分は展開トグル（"{name} グループ"）だけで、選択肢としては出ない。
+      const parentButton = page.getByRole("button", { name: `${parentName} グループ` });
+      await expect(parentButton).toBeVisible({ timeout: 30000 });
+      await expect(parentButton).toHaveAttribute("aria-expanded", "false");
+      await parentButton.click();
+      await expect(parentButton).toHaveAttribute("aria-expanded", "true");
+      expect(
+        new URL(page.url()).searchParams.get("typeId"),
+        "parent group click must not select the parent type",
+      ).not.toBe(String(parentId));
+
+      // 展開したグループ内の leaf を選択すると typeId が指し、カレンダーが描画される。
+      const leafButton = page.getByRole("button", { name: leafName, exact: true });
+      await expect(leafButton).toBeVisible({ timeout: 10000 });
+      await leafButton.click();
+      await expect(page).toHaveURL(new RegExp(`typeId=${leafId}`), { timeout: 10000 });
+      await expect(page.getByText(`${parentName} / ${leafName}`, { exact: true })).toBeVisible();
+    } finally {
+      if (leafId !== null) {
+        await deleteSeededRow(page.request, v04.clinicId, `/masters/reservation-types/${leafId}`);
+      }
+      if (parentId !== null) {
+        await deleteSeededRow(page.request, v04.clinicId, `/masters/reservation-types/${parentId}`);
+      }
+      await page.close();
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────
+// admin account: §6 締め時間 #2/#3/#4/#8（EMR-127d）
+// ─────────────────────────────────────────────────
+
+test.describe("V04 設定マスタ §6 締め時間（admin）", () => {
+  const v04 = readV04FixtureFromEnv();
+  test.skip(v04 === null, "E2E_CLINICAL_FIXTURE 未設定（suite=v04 以外）");
+
+  let context: BrowserContext;
+
+  test.beforeAll(async ({ browser }) => {
+    context = await createAuthedContext(browser);
+  });
+
+  test.afterAll(async () => {
+    await context.close();
+  });
+
+  test("標準締め時間: 空欄は送信されず・境界逆転は PATCH 400 + トースト (#2・#3)", async () => {
+    test.setTimeout(120000);
+    const page = await context.newPage();
+    const settings = new SettingsMasterPage(page);
+
+    try {
+      await settings.open("/settings/closing-time");
+      await expect(settings.heading("締め時間設定")).toBeVisible({ timeout: 15000 });
+
+      const standardSection = page
+        .locator("section")
+        .filter({ has: page.getByRole("heading", { name: "標準締め時間" }) });
+
+      // #2: 必須欄を空にして保存 → ネイティブ required で PATCH は発行されない。
+      await page.locator("#closing_am_pm_boundary").fill("");
+      const blockedPatchPromise = page.waitForRequest(
+        (request) => request.url().includes("/closing-settings") && request.method() === "PATCH",
+        { timeout: 5000 },
+      );
+      await standardSection.getByRole("button", { name: "保存" }).click();
+      await expect(
+        blockedPatchPromise,
+        "required empty field must not issue PATCH /closing-settings",
+      ).rejects.toThrow();
+      await expect(page.locator("#closing_am_pm_boundary")).toHaveJSProperty(
+        "validity.valueMissing",
+        true,
+      );
+
+      // #3: 境界逆転（区切り 14:00・平日終了 12:00）→ PATCH 400 + トースト。
+      await page.locator("#closing_am_pm_boundary").fill("14:00");
+      await page.locator("#closing_weekday_end").fill("12:00");
+      const patchResponsePromise = page.waitForResponse(
+        (response) =>
+          response.url().includes("/closing-settings") && response.request().method() === "PATCH",
+        { timeout: 15000 },
+      );
+      await standardSection.getByRole("button", { name: "保存" }).click();
+      expect(
+        (await patchResponsePromise).status(),
+        "reversed boundary PATCH must be rejected",
+      ).toBe(400);
+      await expect(settings.toast()).toContainText("境界時刻", { timeout: 10000 });
+    } finally {
+      await page.close();
+    }
+  });
+
+  test("個別休診日: 日付空では追加されない (#4)", async () => {
+    test.setTimeout(120000);
+    const page = await context.newPage();
+    const settings = new SettingsMasterPage(page);
+
+    try {
+      await settings.open("/settings/closing-time");
+      await expect(settings.heading("締め時間設定")).toBeVisible({ timeout: 15000 });
+
+      const holidaySection = page
+        .locator("section")
+        .filter({ has: page.getByRole("heading", { name: "個別休診日" }) });
+      await holidaySection.getByRole("button", { name: "新規登録" }).click();
+      await expect(page.locator("#holiday_date")).toBeVisible({ timeout: 10000 });
+
+      const blockedPostPromise = page.waitForRequest(
+        (request) =>
+          request.url().includes("/closing-settings/holidays") && request.method() === "POST",
+        { timeout: 5000 },
+      );
+      await holidaySection.getByRole("button", { name: "追加" }).click();
+      await expect(
+        blockedPostPromise,
+        "empty date must not issue POST /closing-settings/holidays",
+      ).rejects.toThrow();
+      await expect(page.locator("#holiday_date")).toHaveJSProperty("validity.valueMissing", true);
+    } finally {
+      await page.close();
+    }
+  });
+
+  test("特別期間: 開始日>終了日・境界>=終了時刻は POST 400 + トースト (#8)", async () => {
+    test.setTimeout(120000);
+    const page = await context.newPage();
+    const settings = new SettingsMasterPage(page);
+
+    try {
+      await settings.open("/settings/closing-time");
+      await expect(settings.heading("締め時間設定")).toBeVisible({ timeout: 15000 });
+
+      const periodSection = page
+        .locator("section")
+        .filter({ has: page.getByRole("heading", { name: "特別期間" }) });
+      await periodSection.getByRole("button", { name: "新規登録" }).click();
+      await expect(page.locator("#start_date")).toBeVisible({ timeout: 10000 });
+      // MasterSidePanel の <form action noValidate> — 必須空欄でも submit する。
+      const periodForm = page.locator("form").filter({ has: page.locator("#start_date") });
+
+      // 開始日 > 終了日 → POST 400「開始日は終了日以前に設定してください」。
+      await page.locator("#start_date").fill("2099-12-20");
+      await page.locator("#end_date").fill("2099-12-19");
+      await page.locator("#am_pm_boundary").fill("13:00");
+      await page.locator("#pm_end").fill("19:00");
+      const postStartGtEndPromise = page.waitForResponse(
+        (response) =>
+          response.url().includes("/closing-settings/special-periods") &&
+          response.request().method() === "POST",
+        { timeout: 15000 },
+      );
+      await periodForm.getByRole("button", { name: "保存" }).click();
+      expect((await postStartGtEndPromise).status(), "start>end POST must be rejected").toBe(400);
+      await expect(settings.toast()).toContainText("開始日は終了日以前", { timeout: 10000 });
+
+      // 区切り時刻 >= 終了時刻 → POST 400「…は境界時刻…より後に設定してください」。
+      // エラー時もフォームは閉じないため、そのまま値を入れ直して再送する。
+      await page.locator("#start_date").fill("2099-12-10");
+      await page.locator("#end_date").fill("2099-12-19");
+      await page.locator("#am_pm_boundary").fill("19:00");
+      await page.locator("#pm_end").fill("13:00");
+      const postBoundaryPromise = page.waitForResponse(
+        (response) =>
+          response.url().includes("/closing-settings/special-periods") &&
+          response.request().method() === "POST",
+        { timeout: 15000 },
+      );
+      await periodForm.getByRole("button", { name: "保存" }).click();
+      expect((await postBoundaryPromise).status(), "boundary>=end POST must be rejected").toBe(400);
+      await expect(settings.toast()).toContainText("境界時刻", { timeout: 10000 });
+    } finally {
+      await page.close();
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────
+// admin account: §7 シフトパターン #4/#5/#6（EMR-127d）
+// ─────────────────────────────────────────────────
+
+test.describe("V04 設定マスタ §7 シフトテンプレート（admin）", () => {
+  const v04 = readV04FixtureFromEnv();
+  test.skip(v04 === null, "E2E_CLINICAL_FIXTURE 未設定（suite=v04 以外）");
+
+  let context: BrowserContext;
+
+  test.beforeAll(async ({ browser }) => {
+    context = await createAuthedContext(browser);
+  });
+
+  test.afterAll(async () => {
+    await context.close();
+  });
+
+  test("シフトテンプレート: 休憩2件・勤務時間外休憩も保存され再オープンで保持 (#4・#5)", async () => {
+    test.setTimeout(120000);
+    if (v04 === null) throw new Error("v04 fixture unavailable");
+    const page = await context.newPage();
+    const settings = new SettingsMasterPage(page);
+    const name = disposableName("シフト");
+    let templateId: number | null = null;
+
+    try {
+      await settings.open("/settings/shift-templates");
+      await expect(settings.heading("シフトテンプレートマスタ")).toBeVisible({ timeout: 15000 });
+
+      await settings.newButton().click();
+      await expect(page.getByLabel("テンプレート名")).toBeVisible({ timeout: 10000 });
+      await page.getByLabel("テンプレート名").fill(name);
+      await page.getByLabel("開始時刻", { exact: true }).fill("09:00");
+      await page.getByLabel("終了時刻", { exact: true }).fill("18:00");
+
+      // #4: 休憩を 2 件追加。2 件目は勤務時間外（19:00–20:00）— #5 により受理される契約。
+      const breakAddButton = page.getByRole("button", { name: "追加", exact: true });
+      await breakAddButton.click();
+      await expect(page.getByLabel("休憩1 開始時刻")).toBeVisible();
+      await breakAddButton.click();
+      await expect(page.getByLabel("休憩2 開始時刻")).toBeVisible();
+      await page.getByLabel("休憩1 開始時刻").fill("12:00");
+      await page.getByLabel("休憩1 終了時刻").fill("13:00");
+      await page.getByLabel("休憩2 開始時刻").fill("19:00");
+      await page.getByLabel("休憩2 終了時刻").fill("20:00");
+
+      const postPromise = page.waitForResponse(
+        (response) =>
+          response.url().includes("/v1/shift-templates") && response.request().method() === "POST",
+        { timeout: 15000 },
+      );
+      await page.getByRole("button", { name: "保存", exact: true }).click();
+      const postResponse = await postPromise;
+      expect(postResponse.status(), "shift template POST must succeed").toBe(201);
+
+      // #5: レスポンスの breaks に勤務時間外の 19:00–20:00 が保存されている。
+      const createdBody: unknown = await postResponse.json();
+      const createdRow =
+        isRecord(createdBody) && isRecord(createdBody.data) ? createdBody.data : createdBody;
+      templateId = readRowId(createdRow);
+      const createdBreaks =
+        isRecord(createdRow) && Array.isArray(createdRow.breaks) ? createdRow.breaks : [];
+      expect(createdBreaks.length, "two breaks must be persisted").toBe(2);
+      expect(
+        createdBreaks.some(
+          (b) =>
+            isRecord(b) &&
+            String(b.break_start).startsWith("19:00") &&
+            String(b.break_end).startsWith("20:00"),
+        ),
+        "out-of-hours break 19:00–20:00 must be persisted",
+      ).toBe(true);
+
+      await expect(settings.toast()).toContainText("テンプレートを作成しました", {
+        timeout: 10000,
+      });
+      await expect(page.getByLabel("テンプレート名")).not.toBeVisible({ timeout: 10000 });
+      await expect(settings.rowContaining(name)).toBeVisible({ timeout: 10000 });
+
+      // #4: パネル再オープン → 休憩 2 件が初期表示で保持される。
+      await settings.rowActionButton(name).click();
+      await expect(page.getByLabel("テンプレート名")).toHaveValue(name, { timeout: 10000 });
+      await expect(page.getByLabel("休憩1 開始時刻")).toHaveValue(/^12:00/, { timeout: 10000 });
+      await expect(page.getByLabel("休憩1 終了時刻")).toHaveValue(/^13:00/);
+      await expect(page.getByLabel("休憩2 開始時刻")).toHaveValue(/^19:00/);
+      await expect(page.getByLabel("休憩2 終了時刻")).toHaveValue(/^20:00/);
+    } finally {
+      if (templateId === null) {
+        const listResponse = await v04Api(
+          page.request,
+          v04.clinicId,
+          "GET",
+          "/shift-templates",
+        ).catch(() => null);
+        if (listResponse !== null && listResponse.ok()) {
+          templateId = findRowId(listRows(await listResponse.json()), name);
+        }
+      }
+      if (templateId !== null) {
+        await deleteSeededRow(page.request, v04.clinicId, `/shift-templates/${templateId}`);
+      }
+      await page.close();
+    }
+  });
+
+  test("シフトテンプレート: 同名登録は 409 + トーストで拒否 (#6)", async () => {
+    test.setTimeout(120000);
+    if (v04 === null) throw new Error("v04 fixture unavailable");
+    const page = await context.newPage();
+    const settings = new SettingsMasterPage(page);
+    const name = disposableName("シフト同名");
+    let templateId: number | null = null;
+
+    try {
+      // uk_shift_templates_clinic_name の対象行を API でシード。
+      templateId = await seedMasterRow(page.request, v04.clinicId, "/shift-templates", {
+        name,
+        shift_type: "full",
+        start_time: "09:00",
+        end_time: "18:00",
+        is_active: true,
+        breaks: [],
+      });
+
+      await settings.open("/settings/shift-templates");
+      await expect(settings.heading("シフトテンプレートマスタ")).toBeVisible({ timeout: 15000 });
+      await expect(settings.rowContaining(name)).toBeVisible({ timeout: 10000 });
+
+      // 同名で新規作成 → POST 409 + トースト。パネルは開いたまま、行は増えない。
+      await settings.newButton().click();
+      await expect(page.getByLabel("テンプレート名")).toBeVisible({ timeout: 10000 });
+      await page.getByLabel("テンプレート名").fill(name);
+      await page.getByLabel("開始時刻", { exact: true }).fill("10:00");
+      await page.getByLabel("終了時刻", { exact: true }).fill("19:00");
+
+      const dupPostPromise = page.waitForResponse(
+        (response) =>
+          response.url().includes("/v1/shift-templates") && response.request().method() === "POST",
+        { timeout: 15000 },
+      );
+      await page.getByRole("button", { name: "保存", exact: true }).click();
+      expect((await dupPostPromise).status(), "duplicate name POST must be rejected").toBe(409);
+      await expect(settings.toast()).toContainText("既に使用されています", { timeout: 10000 });
+      await expect(page.getByLabel("テンプレート名")).toBeVisible();
+      await expect(
+        settings.rowContaining(name),
+        "duplicate-name create must not add a second row",
+      ).toHaveCount(1);
+    } finally {
+      if (templateId !== null) {
+        await deleteSeededRow(page.request, v04.clinicId, `/shift-templates/${templateId}`);
+      }
+      await page.close();
+    }
+  });
+});
