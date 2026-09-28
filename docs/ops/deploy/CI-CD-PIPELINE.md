@@ -1,15 +1,15 @@
 # CI/CD パイプライン構成書
 
 > **目的**: checked-in workflow の実行契約と、実環境で必要な承認・検証を区別する。
-> **照合**: 2026-09-06、`7c6592f9f`。GitHub [#253](https://github.com/MinoruSoga/AnimalEkarte/issues/253) は OPEN。Issue 本文・2026-08-20 コメントは当時の判断であり、現在の workflow 実装や billing/reviewers の実測を代替しない。
+> **照合**: 2026-09-06、`7c6592f9f`。EMR-148 で backend production job を追加（外部状態は未確認）。GitHub [#253](https://github.com/MinoruSoga/AnimalEkarte/issues/253) は OPEN。Issue 本文・2026-08-20 コメントは当時の判断であり、現在の workflow 実装や billing/reviewers の実測を代替しない。
 
 ## 1. 現行のデプロイ経路
 
 | 経路 | トリガー・設定 | 承認境界 |
 |---|---|---|
-| STG backend | `staging` push の `backend/**`、backend workflow、root package/lockfile 変更。または manual dispatch | `backend-deploy.yml` に GitHub Environment job binding はない。共有環境への dispatch / branch 更新は承認済み operator が行う |
+| STG backend | `staging` push の `backend/**`、backend workflow、root package/lockfile 変更。または manual dispatch | staging job（`deploy`）の deploy 経路は EMR-148 でも不変（GitHub Environment binding なし。job-level `if:` で `target=production` dispatch では起動しない）。共有環境への dispatch / branch 更新は承認済み operator が行う |
 | STG frontend | `staging` push の `frontend/**` または frontend workflow 変更。または preview dispatch | job は `Preview` Environment に bind。外部 protection の現在値は別途確認 |
-| Production backend | **未実装**。backend workflow は STG Worker URL / `wrangler.jsonc` 固定 | production trigger・config 選択・protected Environment binding の実装と検証が済むまで実行不可 |
+| Production backend | `production` push（同じ path filter）または `target=production` dispatch で `deploy-production` job が起動。先頭 step が `refs/heads/production` 以外を拒否。`PROD_*` Environment secret、`npx wrangler deploy -c wrangler.production.jsonc`、`api.noah-karte.com` | job は **`Production`** Environment に bind。Environment reviewers / secrets / provider は人間前提。設定・検証が済むまで実行不可 |
 | Production frontend | `production` push の対象 path 変更。または `environment=production` dispatch | job は **`Production`** Environment に bind。production dispatch は `refs/heads/production` 以外を拒否。Required reviewers と branch protection の現在値は外部確認が必要 |
 | main push | CI。STG deploy workflow の直接 trigger ではない | review 済み `main -> staging` PR で昇格する |
 
@@ -32,7 +32,8 @@ flowchart TB
   FEP -->|Preview Environment| STGF[STG frontend]
   P["production push / environment=production dispatch"] -->|production ref 以外は拒否| FPR[frontend-deploy.yml]
   FPR -->|Production Environment| PDF[Production frontend]
-  P -.->|backend workflow は STG 固定| PB[production backend 未実装]
+  PB_IN["production push / target=production dispatch"] -->|non-production ref は先頭 step で拒否| BPR[backend-deploy.yml deploy-production]
+  BPR -->|Production Environment| PDB[Production backend]
 ```
 
 ## 2. Backend pipeline
@@ -48,6 +49,8 @@ flowchart TB
 
 CSV seed は全環境で `002_master` のみ。STG は `APP_ENV=staging` を Worker/Container/migrate に渡し、フェーズ3で合成ログインを upsert する。詳細は [seed operations](SEED_MIGRATION_OPERATIONS.md)。health は process liveness であり DB access の証明ではない。
 
+本番経路は `deploy-production` job（EMR-148 で追加）。`Production` Environment に bind し、`PROD_CLOUDFLARE_API_TOKEN` / `PROD_MIGRATE_RUN_SECRET` を deploy 前に検査する。deploy は `npx wrangler deploy -c wrangler.production.jsonc`、対象 URL は `api.noah-karte.com`。本番 DB へ write する自動 CRUD smoke step は持たず、人手 smoke のみ。順序は STG と同じ deploy → migrate → `/health`。
+
 ### 手動 dispatch
 
 named owner/approval、review 済み commit、target Worker/config、secret scope、共有環境の利用可否を先に記録する。
@@ -60,7 +63,7 @@ test "$REMOTE_SHA" = "$(git rev-parse "${REVIEWED_SHA}^{commit}")" || exit 1
 gh workflow run backend-deploy.yml --ref "$TARGET_REF"
 ```
 
-dispatch 後も run の `headSha == REVIEWED_SHA` を確認する。不一致、migration/health failure、target 不一致は停止条件。production branch で現行 backend workflow を dispatch しても production config の選択にはならない。
+dispatch 後も run の `headSha == REVIEWED_SHA` を確認する。不一致、migration/health failure、target 不一致は停止条件。`-f target=production` なしの dispatch は STG を deploy する。production には `--ref production -f target=production` が必要。
 
 ## 3. Frontend pipeline
 

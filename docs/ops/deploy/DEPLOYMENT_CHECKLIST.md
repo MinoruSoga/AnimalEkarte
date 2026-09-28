@@ -5,7 +5,7 @@
 > **タイミング**: デプロイ実行前。
 
 > **Animal Ekarte**: ステージングおよび本番環境への安全な移行手順
-> **最新更新**: 2026-08-31 | **checked-in config**: STG target/workflowあり、Production workflow未実装。live provider状態はUNKNOWNで実行時receiptが必要
+> **最新更新**: 2026-08-31 | **checked-in config**: STG target/workflowあり、backend production job は checked-in（EMR-148）。Environment reviewers・secret・provider は未設定/UNKNOWNで未実行。live provider状態はUNKNOWNで実行時receiptが必要
 
 ---
 

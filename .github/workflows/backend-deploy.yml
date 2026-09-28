@@ -1,5 +1,7 @@
 # Cloudflare Workers + Containers デプロイ (docs/ops/infra/architecture.md)
 # 旧 AWS ECS 版 CI は 2026-07-20 に廃止済み。履歴は git で確認する。
+# jobs は2系統: deploy (STG) と、GitHub Environment `Production` でゲートされた
+# deploy-production (本番。setup.md の人間前提条件が揃うまで実行不可)。
 
 name: Backend Deploy
 
@@ -7,12 +9,22 @@ on:
   push:
     branches:
       - staging
+      - production
     paths:
       - 'backend/**'
       - '.github/workflows/backend-deploy.yml'
       - 'package.json'
       - 'pnpm-lock.yaml'
   workflow_dispatch:
+    inputs:
+      target:
+        description: "デプロイ先 (staging = STG / production = 本番。production は refs/heads/production からのみ)"
+        required: false
+        default: staging
+        type: choice
+        options:
+          - staging
+          - production
 
 permissions:
   contents: read
@@ -25,6 +37,7 @@ env:
 jobs:
   deploy:
     name: Deploy Backend to Cloudflare
+    if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/staging') || (github.event_name == 'workflow_dispatch' && inputs.target != 'production') }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -136,3 +149,104 @@ jobs:
             exit 0
           fi
           ./infra/scripts/cf-crud-smoke.sh
+
+  deploy-production:
+    name: Deploy Backend to Cloudflare (Production)
+    if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/production') || (github.event_name == 'workflow_dispatch' && inputs.target == 'production') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # `Production` は frontend-deploy.yml と共有する大文字小文字厳密な GitHub Environment 名。
+    # required reviewers と deployment branch (production) 制限は人間設定
+    # (docs/ops/infra/production/setup.md)。Environment が未設定でも deploy 前に secret 検査で fail closed。
+    environment: Production
+    concurrency:
+      group: backend-deploy-production
+      cancel-in-progress: false
+    env:
+      # wrangler.production.jsonc の route 由来。workflow 全体の STG WORKER_URL をこの job だけ上書きする。
+      WORKER_URL: https://api.noah-karte.com
+
+    steps:
+      - name: Reject production deploy from a non-production ref
+        if: ${{ github.ref != 'refs/heads/production' }}
+        run: |
+          echo "::error::Production backend deploy is only allowed from refs/heads/production."
+          exit 1
+
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.15.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # PROD_ の別名にすることで STG repository secrets へのフォールバックを構造的に排除する。
+      # 両方を deploy 前に検査し、欠落時は何も配布せず fail closed する。
+      - name: Verify production credentials
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.PROD_CLOUDFLARE_API_TOKEN }}
+          MIGRATE_RUN_SECRET: ${{ secrets.PROD_MIGRATE_RUN_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CLOUDFLARE_API_TOKEN}" ]; then
+            echo "::error::PROD_CLOUDFLARE_API_TOKEN must be a Production Environment secret (docs/ops/infra/production/setup.md)"
+            exit 1
+          fi
+          if [ -z "${MIGRATE_RUN_SECRET}" ]; then
+            echo "::error::PROD_MIGRATE_RUN_SECRET must be a Production Environment secret (docs/ops/infra/production/setup.md)"
+            exit 1
+          fi
+          pnpm exec wrangler whoami
+
+      - name: Deploy Worker and Container
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.PROD_CLOUDFLARE_API_TOKEN }}
+        working-directory: backend
+        # npx (pnpm exec ではない) は STG job と同じ理由。-c は必須: 省略すると wrangler.jsonc (STG) が使われる。
+        run: |
+          set -euo pipefail
+          test -f wrangler.production.jsonc
+          npx wrangler deploy -c wrangler.production.jsonc
+
+      # STG job と同じ順序・同じ許容 deploy→migrate ウィンドウ (STG job の migration 前段コメント参照)。
+      - name: Run database migration
+        env:
+          MIGRATE_RUN_SECRET: ${{ secrets.PROD_MIGRATE_RUN_SECRET }}
+          WORKER_URL: ${{ env.WORKER_URL }}
+        run: |
+          set -euo pipefail
+          ./infra/scripts/cf-run-migrate.sh
+
+      - name: Wait for /health (post-migrate)
+        run: |
+          set -euo pipefail
+          URL="${WORKER_URL}/health"
+          echo "Polling ${URL} (max 12 attempts, 30s interval)..."
+          for i in $(seq 1 12); do
+            HTTP_CODE=$(curl -sS -o /tmp/health.json -w '%{http_code}' --max-time 30 "${URL}" || echo "000")
+            echo "Attempt ${i}/12: HTTP ${HTTP_CODE}"
+            if [ "${HTTP_CODE}" = "200" ]; then
+              STATUS=$(jq -r '.status // empty' /tmp/health.json)
+              if [ "${STATUS}" = "ok" ]; then
+                echo "Health OK"
+                exit 0
+              fi
+            fi
+            sleep 30
+          done
+          echo "::error::Health check failed after deploy+migrate"
+          cat /tmp/health.json 2>/dev/null || true
+          exit 1
+
+      # 本番 DB へ書き込む CRUD smoke step は意図的に置かない。STG 用デモ credential は本番では
+      # 絶対に使用せず、プロビジョニング済み合成アカウントで人手実施する (setup.md §7)。

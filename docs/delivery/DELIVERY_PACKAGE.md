@@ -173,7 +173,7 @@ flowchart TB
 
 ## 3. 運用手順
 
-本番固有の数値・窓口・バックアップ実測は、checked-in production workflow/setup acceptanceが未実装でprovider/runtime状態もUNKNOWNのため未確定。STG の運用正本は [staging/runbook.md](../ops/infra/staging/runbook.md) および [deploy/README.md](../ops/deploy/README.md)。本番構築後は [production/runbook.md](../ops/infra/production/runbook.md) を整備する。
+本番固有の数値・窓口・バックアップ実測は、backend production job は checked-in（EMR-148）だが Environment reviewers・secret・provider は未設定/UNKNOWNで未実行のため未確定。STG の運用正本は [staging/runbook.md](../ops/infra/staging/runbook.md) および [deploy/README.md](../ops/deploy/README.md)。本番構築後は [production/runbook.md](../ops/infra/production/runbook.md) を整備する。
 
 ### 3.1 バックアップ方針
 

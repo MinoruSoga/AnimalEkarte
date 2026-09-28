@@ -10,7 +10,7 @@ A human owner must record dated evidence for all items before deployment:
 
 - target account/zone/project and billing are approved;
 - production database, role, backup/restore owner, R2, DNS, and certificate are verified;
-- a GitHub Environment with required reviewers exists and its exact case-sensitive name matches the workflow;
+- a GitHub Environment with required reviewers exists and its exact case-sensitive name matches the workflows (`frontend-deploy.yml` and `backend-deploy.yml` job `deploy-production` both bind `Production`);
 - production secrets are environment-scoped and staging values are not reused unless explicitly approved;
 - frontend production settings are verified. `frontend-deploy.yml` binds `Production` and rejects production dispatch from non-production refs. `VERCEL_ENV=production` makes `frontend/vite.config.ts` select the production API; `.env.production` remains STG-valued outside that override. Verify the deployed target and the external Environment reviewers;
 - workflow/config tests and `actionlint` are green on the reviewed change;
@@ -72,7 +72,18 @@ Do not copy an embedded patch from docs. Modify and review the workflow against 
 6. workflow tests and `actionlint` pass;
 7. execution order is **deploy → migrate → `/health` → optional smoke**.
 
-At the 2026-09-06 source review (`7c6592f9f`), `backend-deploy.yml` lacks the production trigger/Environment gate. Therefore a production workflow invocation is **not runnable** until the implementation is merged and verified.
+At EMR-148, `backend-deploy.yml` contains a `deploy-production` job: it triggers on push to `production` with the same path filter, or on `workflow_dispatch` with `target=production`; it binds the `Production` Environment; its first step rejects refs other than `refs/heads/production`; it checks `PROD_CLOUDFLARE_API_TOKEN`/`PROD_MIGRATE_RUN_SECRET` before deploy; it deploys with `npx wrangler deploy -c wrangler.production.jsonc`; it targets `WORKER_URL=https://api.noah-karte.com`; and it runs deploy → migrate → `/health`. Production smoke is intentionally manual (§7).
+
+Mapping to the criteria above: items 2, 3, 4, 5, and 7 are implemented in the YAML. Item 1 is a human precondition — the trigger is checked in but must not be exercised (no push to `production`, no production dispatch) until `Production` has required reviewers and a deployment-branch rule limited to `production`. For item 6, the workflow contract test (`scripts/check-workflow-contracts.test.mjs`) covers the new job; `actionlint` must be green in PR CI (local actionlint run: BLOCKED — `rhysd/actionlint:latest` image not present locally and not pulled). A production invocation remains **not runnable** until this change is merged and all §8 items are verified.
+
+### 6.1 GitHub Actions secrets for `deploy-production`
+
+The job reads two Actions secrets:
+
+- `PROD_CLOUDFLARE_API_TOKEN` — Cloudflare API token for `wrangler whoami` and `wrangler deploy`;
+- `PROD_MIGRATE_RUN_SECRET` — bearer for `POST /_internal/migrate` via `infra/scripts/cf-run-migrate.sh`.
+
+Store both only as `Production` Environment secrets, never repository-level. The distinct `PROD_` names prevent fallback to STG repository secrets. `PROD_MIGRATE_RUN_SECRET` must equal the Worker `MIGRATE_RUN_SECRET` set with `wrangler secret put MIGRATE_RUN_SECRET -c wrangler.production.jsonc` (§2). If either is missing, the job fails before deploy — this also fails closed if the Environment were auto-created without configuration.
 
 ## 7. Go-live verification
 
@@ -81,5 +92,19 @@ At the 2026-09-06 source review (`7c6592f9f`), `backend-deploy.yml` lacks the pr
 - verify frontend production API target from deployed output, not from branch name;
 - use only explicitly provisioned synthetic credentials with lifecycle ownership for CRUD smoke;
 - record non-secret evidence and rollback owner.
+
+## 8. Remaining provider / human work (not done by the repository)
+
+- [ ] contract/billing approval;
+- [ ] Cloudflare account/zone, DNS `api.noah-karte.com`, and certificate;
+- [ ] PlanetScale production database and role;
+- [ ] R2 bucket, S3 credentials, and `S3_PUBLIC_BASE_URL`;
+- [ ] `production` branch creation and branch protection;
+- [ ] GitHub Environment `Production`: required reviewers, a deployment-branch rule limited to `production`, and the two §6.1 secrets;
+- [ ] Worker secrets from §2 set via `wrangler secret put ... -c wrangler.production.jsonc`;
+- [ ] `TRUSTED_PROXY_CIDR` post-deploy measurement and confirmation;
+- [ ] backup acquisition and isolated restore rehearsal with measured timings ([runbook §4](runbook.md));
+- [ ] PR CI `actionlint` green;
+- [ ] go-live date and delivery state confirmed in Plane/Linear.
 
 All checkboxes are requirements, not claims of current external state.
