@@ -775,8 +775,7 @@ test.describe("V04 権限: view のみ account（disposable clinic fixture）", 
         sort_order: 0,
       });
       expect(patch.status(), "PATCH /lab-devices/:id must be denied").toBe(403);
-      const del = await v04Api(page.request, v04.clinicId, "DELETE", `/lab-devices/${deviceId}`);
-      expect(del.status(), "DELETE /lab-devices/:id must be denied").toBe(403);
+      // lab-devices has no DELETE route (GET/POST/PATCH/PUT configuration only), so it is not probed.
     } finally {
       await page.close();
     }
@@ -1006,7 +1005,8 @@ test.describe("V04 権限: view のみ account（disposable clinic fixture）", 
         page.getByLabel(`削除: シフトテンプレート ${templateName} (ID ${templateId})`),
         "read-only panel must not render a delete button",
       ).toHaveCount(0);
-      await expect(page.getByRole("button", { name: "閉じる" })).toBeVisible();
+      // The read-only panel renders both the header icon (aria-label) and a footer text button.
+      await expect(page.getByRole("button", { name: "閉じる", exact: true }).first()).toBeVisible();
 
       const list = await v04Api(page.request, v04.clinicId, "GET", "/shift-templates");
       expect(list.status(), "GET /shift-templates must be allowed for view").toBe(200);
