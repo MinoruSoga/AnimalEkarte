@@ -72,7 +72,11 @@ test.describe("検査管理 フロー E2E", () => {
       await standaloneLink.click();
       await expect(examinations.detailHeading()).toBeVisible({ timeout: 15000 });
       await expect(page).toHaveURL(/\/examinations\/\d+/);
-      await expect(examinations.saveButton()).toBeVisible({ timeout: 10000 });
+      // fixture の standalone 検査は「完了」（backend/internal/clinicale2e/fixture.go）。
+      // 完了済みは結果編集不可の読み取り専用表示が臨床安全上の正しい動作。
+      await expect(examinations.completedLockedNotice()).toBeVisible({ timeout: 10000 });
+      await expect(examinations.testTypeCombobox()).toBeDisabled();
+      await expect(examinations.saveButton()).toHaveCount(0);
     } finally {
       await page.close();
     }

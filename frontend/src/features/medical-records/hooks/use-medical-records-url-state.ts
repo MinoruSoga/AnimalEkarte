@@ -1,5 +1,5 @@
 // React/Framework
-import { useCallback, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 
 // Types
@@ -38,29 +38,43 @@ export function useMedicalRecordsUrlState(resetKey: string): UseMedicalRecordsUr
       : undefined;
   const sortOrder: "asc" | "desc" = searchParams.get("order") === "asc" ? "asc" : "desc";
 
-  const handleSortToggle = useCallback(
-    (key: MedicalRecordSortKey) => {
-      setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev);
-          const currentSort = next.get("sort");
-          const currentOrder = next.get("order") === "asc" ? "asc" : "desc";
-          if (currentSort !== key) {
-            next.set("sort", key);
-            next.set("order", "desc");
-          } else if (currentOrder === "desc") {
-            next.set("order", "asc");
-          } else {
-            next.delete("sort");
-            next.delete("order");
-          }
-          next.delete("page");
-          return next;
-        },
-        { replace: true },
-      );
+  // RouterProvider は router state を React.startTransition 内でコミットするため、
+  // setSearchParams の関数型更新が受け取る prev は描画時点の URL に留まり、
+  // URL が遷移済みでも古いことがある（遷移コミット前の連続クリックで desc 停滞した実績）。
+  // そのため直近に要求・確定したパラメータを ref で保持し、更新は常にそこから組み立てる。
+  const latestParamsRef = useRef(searchParams);
+  useLayoutEffect(() => {
+    latestParamsRef.current = searchParams;
+  }, [searchParams]);
+
+  const updateParams = useCallback(
+    (mutate: (next: URLSearchParams) => void) => {
+      const next = new URLSearchParams(latestParamsRef.current);
+      mutate(next);
+      latestParamsRef.current = next;
+      setSearchParams(next, { replace: true });
     },
     [setSearchParams],
+  );
+
+  const handleSortToggle = useCallback(
+    (key: MedicalRecordSortKey) => {
+      updateParams((next) => {
+        const currentSort = next.get("sort");
+        const currentOrder = next.get("order") === "asc" ? "asc" : "desc";
+        if (currentSort !== key) {
+          next.set("sort", key);
+          next.set("order", "desc");
+        } else if (currentOrder === "desc") {
+          next.set("order", "asc");
+        } else {
+          next.delete("sort");
+          next.delete("order");
+        }
+        next.delete("page");
+      });
+    },
+    [updateParams],
   );
 
   const directionForSort = useCallback(
@@ -73,20 +87,15 @@ export function useMedicalRecordsUrlState(resetKey: string): UseMedicalRecordsUr
 
   const handlePageChange = useCallback(
     (page: number) => {
-      setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev);
-          if (page <= 1) {
-            next.delete("page");
-          } else {
-            next.set("page", String(page));
-          }
-          return next;
-        },
-        { replace: true },
-      );
+      updateParams((next) => {
+        if (page <= 1) {
+          next.delete("page");
+        } else {
+          next.set("page", String(page));
+        }
+      });
     },
-    [setSearchParams],
+    [updateParams],
   );
 
   return {

@@ -61,6 +61,15 @@ export class ExaminationsPage extends BasePage {
     return this.page.getByRole("button", { name: "保存" });
   }
 
+  /** 完了済み検査の読み取り専用注記（ExaminationFormFields の isCompletedLocked 表示）。 */
+  completedLockedNotice(): Locator {
+    return this.page.getByText(/完了済みのため結果の編集・削除はできません/);
+  }
+
+  testTypeCombobox(): Locator {
+    return this.page.getByRole("combobox", { name: "検査種別" });
+  }
+
   searchInput(): Locator {
     return this.page.getByPlaceholder("飼主名、ペット名、検査種別...");
   }

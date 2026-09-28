@@ -2,6 +2,7 @@ import { Navigate, Outlet, useLocation, useNavigation } from "react-router";
 import { Sidebar } from "./Sidebar";
 import { useAuth } from "@/hooks/use-auth";
 import { C, STYLE, Z_CLASS } from "@/lib/design-tokens";
+import { SUPPORT_WIDGET_LAYOUT } from "@/constants/support-widget-layout";
 import { paths } from "@/config/paths";
 
 export function Layout() {
@@ -32,7 +33,9 @@ export function Layout() {
       ) : null}
 
       <Sidebar />
-      <main className="flex-1 flex flex-col overflow-y-auto relative">
+      <main
+        className={`flex-1 flex flex-col overflow-y-auto relative ${SUPPORT_WIDGET_LAYOUT.shellBottomClearance}`}
+      >
         <Outlet />
       </main>
     </div>
