@@ -1184,9 +1184,11 @@ test.describe("V04 設定マスタ §5 予約可能枠（admin）", () => {
       await expect(slotsSection().getByText("毎週月曜日")).toBeVisible({ timeout: 10000 });
 
       // #3: モードを「特定日」に切替 → 日付を入れて追加 → 永続。
+      // パネル内の他セクション（予約不可時間など）にも aria-label="特定日" の
+      // date input があるため、予約可能枠セクションにスコープして一意にする。
       await slotsSection().getByRole("combobox").first().click();
       await page.getByRole("option", { name: "特定日", exact: true }).click();
-      await page.getByLabel("特定日").fill(specificDate);
+      await slotsSection().getByLabel("特定日").fill(specificDate);
       const specificPostPromise = page.waitForResponse(
         (response) =>
           /\/v1\/masters\/reservation-types\/\d+\/available-slots/.test(response.url()) &&
@@ -1268,15 +1270,26 @@ test.describe("V04 設定マスタ §5 予約可能枠（admin）", () => {
       });
 
       // 親区分は展開トグル（"{name} グループ"）だけで、選択肢としては出ない。
+      // 初期の aria-expanded は「展開済み」になっているため固定値は前提にせず、
+      // クリックで値がトグルし、かつ親は選択されない（typeId が付かない）ことを見る。
       const parentButton = page.getByRole("button", { name: `${parentName} グループ` });
       await expect(parentButton).toBeVisible({ timeout: 30000 });
-      await expect(parentButton).toHaveAttribute("aria-expanded", "false");
+      const expandedBefore = await parentButton.getAttribute("aria-expanded");
       await parentButton.click();
-      await expect(parentButton).toHaveAttribute("aria-expanded", "true");
+      await expect(parentButton).toHaveAttribute(
+        "aria-expanded",
+        expandedBefore === "true" ? "false" : "true",
+      );
       expect(
         new URL(page.url()).searchParams.get("typeId"),
         "parent group click must not select the parent type",
       ).not.toBe(String(parentId));
+
+      // leaf を出すため、トグル後が折りたたみならもう一度クリックして展開する。
+      if ((await parentButton.getAttribute("aria-expanded")) !== "true") {
+        await parentButton.click();
+        await expect(parentButton).toHaveAttribute("aria-expanded", "true");
+      }
 
       // 展開したグループ内の leaf を選択すると typeId が指し、カレンダーが描画される。
       const leafButton = page.getByRole("button", { name: leafName, exact: true });
@@ -1423,9 +1436,12 @@ test.describe("V04 設定マスタ §6 締め時間（admin）", () => {
       );
       await periodForm.getByRole("button", { name: "保存" }).click();
       expect((await postStartGtEndPromise).status(), "start>end POST must be rejected").toBe(400);
-      await expect(settings.toast()).toContainText("開始日は終了日以前", { timeout: 10000 });
+      await expect(settings.toast().filter({ hasText: "開始日は終了日以前" })).toBeVisible({
+        timeout: 10000,
+      });
 
       // 区切り時刻 >= 終了時刻 → POST 400「…は境界時刻…より後に設定してください」。
+      // 直前のトーストが残っているため hasText で絞る（strict mode 回避）。
       // エラー時もフォームは閉じないため、そのまま値を入れ直して再送する。
       await page.locator("#start_date").fill("2099-12-10");
       await page.locator("#end_date").fill("2099-12-19");
@@ -1439,7 +1455,9 @@ test.describe("V04 設定マスタ §6 締め時間（admin）", () => {
       );
       await periodForm.getByRole("button", { name: "保存" }).click();
       expect((await postBoundaryPromise).status(), "boundary>=end POST must be rejected").toBe(400);
-      await expect(settings.toast()).toContainText("境界時刻", { timeout: 10000 });
+      await expect(settings.toast().filter({ hasText: "境界時刻" })).toBeVisible({
+        timeout: 10000,
+      });
     } finally {
       await page.close();
     }
