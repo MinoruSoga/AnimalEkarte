@@ -1184,9 +1184,11 @@ test.describe("V04 設定マスタ §5 予約可能枠（admin）", () => {
       await expect(slotsSection().getByText("毎週月曜日")).toBeVisible({ timeout: 10000 });
 
       // #3: モードを「特定日」に切替 → 日付を入れて追加 → 永続。
+      // パネル内の他セクション（予約不可時間など）にも aria-label="特定日" の
+      // date input があるため、予約可能枠セクションにスコープして一意にする。
       await slotsSection().getByRole("combobox").first().click();
       await page.getByRole("option", { name: "特定日", exact: true }).click();
-      await page.getByLabel("特定日").fill(specificDate);
+      await slotsSection().getByLabel("特定日").fill(specificDate);
       const specificPostPromise = page.waitForResponse(
         (response) =>
           /\/v1\/masters\/reservation-types\/\d+\/available-slots/.test(response.url()) &&
@@ -1268,15 +1270,26 @@ test.describe("V04 設定マスタ §5 予約可能枠（admin）", () => {
       });
 
       // 親区分は展開トグル（"{name} グループ"）だけで、選択肢としては出ない。
+      // 初期の aria-expanded は「展開済み」になっているため固定値は前提にせず、
+      // クリックで値がトグルし、かつ親は選択されない（typeId が付かない）ことを見る。
       const parentButton = page.getByRole("button", { name: `${parentName} グループ` });
       await expect(parentButton).toBeVisible({ timeout: 30000 });
-      await expect(parentButton).toHaveAttribute("aria-expanded", "false");
+      const expandedBefore = await parentButton.getAttribute("aria-expanded");
       await parentButton.click();
-      await expect(parentButton).toHaveAttribute("aria-expanded", "true");
+      await expect(parentButton).toHaveAttribute(
+        "aria-expanded",
+        expandedBefore === "true" ? "false" : "true",
+      );
       expect(
         new URL(page.url()).searchParams.get("typeId"),
         "parent group click must not select the parent type",
       ).not.toBe(String(parentId));
+
+      // leaf を出すため、トグル後が折りたたみならもう一度クリックして展開する。
+      if ((await parentButton.getAttribute("aria-expanded")) !== "true") {
+        await parentButton.click();
+        await expect(parentButton).toHaveAttribute("aria-expanded", "true");
+      }
 
       // 展開したグループ内の leaf を選択すると typeId が指し、カレンダーが描画される。
       const leafButton = page.getByRole("button", { name: leafName, exact: true });
@@ -1423,9 +1436,12 @@ test.describe("V04 設定マスタ §6 締め時間（admin）", () => {
       );
       await periodForm.getByRole("button", { name: "保存" }).click();
       expect((await postStartGtEndPromise).status(), "start>end POST must be rejected").toBe(400);
-      await expect(settings.toast()).toContainText("開始日は終了日以前", { timeout: 10000 });
+      await expect(settings.toast().filter({ hasText: "開始日は終了日以前" })).toBeVisible({
+        timeout: 10000,
+      });
 
       // 区切り時刻 >= 終了時刻 → POST 400「…は境界時刻…より後に設定してください」。
+      // 直前のトーストが残っているため hasText で絞る（strict mode 回避）。
       // エラー時もフォームは閉じないため、そのまま値を入れ直して再送する。
       await page.locator("#start_date").fill("2099-12-10");
       await page.locator("#end_date").fill("2099-12-19");
@@ -1439,7 +1455,9 @@ test.describe("V04 設定マスタ §6 締め時間（admin）", () => {
       );
       await periodForm.getByRole("button", { name: "保存" }).click();
       expect((await postBoundaryPromise).status(), "boundary>=end POST must be rejected").toBe(400);
-      await expect(settings.toast()).toContainText("境界時刻", { timeout: 10000 });
+      await expect(settings.toast().filter({ hasText: "境界時刻" })).toBeVisible({
+        timeout: 10000,
+      });
     } finally {
       await page.close();
     }
@@ -1598,6 +1616,186 @@ test.describe("V04 設定マスタ §7 シフトテンプレート（admin）", 
     } finally {
       if (templateId !== null) {
         await deleteSeededRow(page.request, v04.clinicId, `/shift-templates/${templateId}`);
+      }
+      await page.close();
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────
+// admin account: §2 診療項目 5 タブ（EMR-127d）
+// ─────────────────────────────────────────────────
+
+test.describe("V04 設定マスタ §2 診療項目（admin）", () => {
+  const v04 = readV04FixtureFromEnv();
+  test.skip(v04 === null, "E2E_CLINICAL_FIXTURE 未設定（suite=v04 以外）");
+
+  let context: BrowserContext;
+
+  test.beforeAll(async ({ browser }) => {
+    context = await createAuthedContext(browser);
+  });
+
+  test.afterAll(async () => {
+    await context.close();
+  });
+
+  test("診療項目: 4タブを UI で作成・別タブへの同名登録は受理 (#4)", async () => {
+    test.setTimeout(120000);
+    if (v04 === null) throw new Error("v04 fixture unavailable");
+    const page = await context.newPage();
+    const settings = new SettingsMasterPage(page);
+    const sharedName = disposableName("同名項目");
+    const created: { path: string; id: number }[] = [];
+
+    /** 指定タブへ遷移して名称+価格だけで新規作成し、採番 id を返す。 */
+    async function createViaUi(
+      tabLabel: string,
+      tabValue: string,
+      apiPath: string,
+      name: string,
+    ): Promise<number> {
+      await settings.tab(tabLabel).click();
+      await expect(page).toHaveURL(new RegExp(`tab=${tabValue}`), { timeout: 10000 });
+      await settings.newButton().click();
+      await expect(settings.masterTitleInput()).toBeVisible({ timeout: 10000 });
+      await settings.masterTitleInput().fill(name);
+      await settings.medicinePriceInput().fill("1500");
+      const postPromise = page.waitForResponse(
+        (response) =>
+          response.url().includes(`/v1${apiPath}`) &&
+          response.request().method() === "POST" &&
+          !response.url().includes("/reorder"),
+        { timeout: 15000 },
+      );
+      await settings.saveButton().click();
+      const postResponse = await postPromise;
+      expect(postResponse.status(), `${tabLabel} create POST must succeed`).toBe(201);
+      const id = readRowId(await postResponse.json());
+      expect(id, `${tabLabel} create response must carry an id`).not.toBeNull();
+      await expect(settings.masterTitleInput()).not.toBeVisible({ timeout: 10000 });
+      await expect(
+        settings.rowContaining(name),
+        `${tabLabel} row must appear in the list`,
+      ).toBeVisible({ timeout: 10000 });
+      return id as number;
+    }
+
+    try {
+      await settings.open("/settings/treatment-items");
+      await expect(settings.heading("診療項目マスタ")).toBeVisible({ timeout: 15000 });
+
+      // 診察タブで同名行を作成（別タブ同名の比較元。診察の UI 作成は R 2 済みだが
+      // ここではクロスタブ受理の前提行として使う）。
+      const consultationId = await createViaUi(
+        "診察",
+        "consultation",
+        "/masters/consultations",
+        sharedName,
+      );
+      created.push({ path: "/masters/consultations", id: consultationId });
+
+      // #4: 別タブ（検査）に同名 → 受理される（タブごとに別テーブルで一意）。
+      const examinationId = await createViaUi(
+        "検査",
+        "examination",
+        "/masters/examination-types",
+        sharedName,
+      );
+      created.push({ path: "/masters/examination-types", id: examinationId });
+
+      // 残り 3 タブの UI 作成（各タブ固有 API へ POST 201）。
+      for (const { label, value, apiPath, kind } of [
+        { label: "処置", value: "procedure", apiPath: "/masters/procedures", kind: "処置" },
+        { label: "予防接種", value: "vaccine", apiPath: "/masters/vaccines", kind: "予防接種" },
+        { label: "定期健診", value: "checkup", apiPath: "/masters/checkup-types", kind: "健診" },
+      ]) {
+        const id = await createViaUi(label, value, apiPath, disposableName(kind));
+        created.push({ path: apiPath, id });
+      }
+    } finally {
+      for (const { path, id } of created) {
+        await deleteSeededRow(page.request, v04.clinicId, `${path}/${id}`);
+      }
+      await page.close();
+    }
+  });
+
+  test("診療項目: 処置タブの親子階層 — 親セレクタ実データ・ツリー表示・親変更禁止 (#5・#6)", async () => {
+    test.setTimeout(120000);
+    if (v04 === null) throw new Error("v04 fixture unavailable");
+    const page = await context.newPage();
+    const settings = new SettingsMasterPage(page);
+    const parentName = disposableName("処置親");
+    const childName = disposableName("処置子");
+    let parentId: number | null = null;
+    let childId: number | null = null;
+
+    const postProcedure = () =>
+      page.waitForResponse(
+        (response) =>
+          response.url().includes("/v1/masters/procedures") &&
+          response.request().method() === "POST" &&
+          !response.url().includes("/reorder"),
+        { timeout: 15000 },
+      );
+    const parentCategoryRow = () =>
+      page.getByText("親カテゴリ", { exact: true }).locator("xpath=..");
+
+    try {
+      await settings.open("/settings/treatment-items?tab=procedure");
+      await expect(settings.heading("診療項目マスタ")).toBeVisible({ timeout: 15000 });
+      await expect(settings.tab("処置")).toHaveAttribute("data-state", "active");
+
+      // 親項目を UI で作成。
+      await settings.newButton().click();
+      await expect(settings.masterTitleInput()).toBeVisible({ timeout: 10000 });
+      await settings.masterTitleInput().fill(parentName);
+      let postPromise = postProcedure();
+      await settings.saveButton().click();
+      const parentResponse = await postPromise;
+      expect(parentResponse.status(), "parent create must succeed").toBe(201);
+      parentId = readRowId(await parentResponse.json());
+      expect(parentId).not.toBeNull();
+      await expect(settings.masterTitleInput()).not.toBeVisible({ timeout: 10000 });
+
+      // #5: 子項目を作成し、親カテゴリセレクタ（同タブ実データ由来）で親を指定。
+      await settings.newButton().click();
+      await expect(settings.masterTitleInput()).toBeVisible({ timeout: 10000 });
+      await settings.masterTitleInput().fill(childName);
+      await parentCategoryRow().getByRole("combobox").click();
+      await page.getByRole("option", { name: parentName }).click();
+      postPromise = postProcedure();
+      await settings.saveButton().click();
+      const childResponse = await postPromise;
+      expect(childResponse.status(), "child create must succeed").toBe(201);
+      const childBody = await childResponse.json();
+      childId = readRowId(childBody);
+      expect(childId).not.toBeNull();
+      const childRow = isRecord(childBody) && isRecord(childBody.data) ? childBody.data : childBody;
+      expect(
+        Number(isRecord(childRow) ? childRow.parent_id : null),
+        "created child must carry the parent_id",
+      ).toBe(parentId);
+      await expect(settings.masterTitleInput()).not.toBeVisible({ timeout: 10000 });
+
+      // #5: 一覧で親行を展開すると子項目がツリー表示される。
+      await page.getByRole("button", { name: new RegExp(`${parentName}.*子項目を展開`) }).click();
+      await expect(settings.rowContaining(childName)).toBeVisible({ timeout: 10000 });
+
+      // #6: 子を持つ親を編集 → 親カテゴリは変更不可表示でセレクタなし。
+      await settings.rowActionButton(parentName).click();
+      await expect(settings.masterTitleInput()).toHaveValue(parentName, { timeout: 10000 });
+      await expect(parentCategoryRow().getByText("子項目があるため変更できません")).toBeVisible();
+      await expect(parentCategoryRow().getByRole("combobox")).toHaveCount(0);
+      await settings.cancelButton().click();
+      await expect(settings.masterTitleInput()).not.toBeVisible({ timeout: 10000 });
+    } finally {
+      if (childId !== null) {
+        await deleteSeededRow(page.request, v04.clinicId, `/masters/procedures/${childId}`);
+      }
+      if (parentId !== null) {
+        await deleteSeededRow(page.request, v04.clinicId, `/masters/procedures/${parentId}`);
       }
       await page.close();
     }
