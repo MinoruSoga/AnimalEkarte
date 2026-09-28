@@ -93,8 +93,11 @@ func TestRouteCompositionSmoke_TargetGraphRegistersEverySurface(t *testing.T) {
 	//   PATCH  /api/v1/support/bug-reports/:id/status
 	//   GET    /api/v1/support/chat/status
 	//   POST   /api/v1/support/chat
-	// All five are documented in backend/docs/api.yaml.
-	require.Len(t, routes, 532)
+	// 534 — support chat history persistence (staff-scoped, clinic-scoped):
+	//   GET    /api/v1/support/chat/history
+	//   DELETE /api/v1/support/chat/history
+	// All seven are documented in backend/docs/api.yaml.
+	require.Len(t, routes, 534)
 	for _, expected := range []string{
 		"GET /health",
 		"GET /health/db",

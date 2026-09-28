@@ -11,6 +11,8 @@ import { LifeBuoy, X } from "lucide-react";
 
 import { C, ICON, STYLE, Z_CLASS } from "@/lib/design-tokens";
 
+import { HelpChatHistoryProvider } from "./HelpChatHistoryProvider";
+
 import { SupportPanel } from "./SupportPanel";
 
 export function SupportWidget() {
@@ -49,7 +51,9 @@ export function SupportWidget() {
       >
         {open ? <X className={ICON.lg} /> : <LifeBuoy className={ICON.lg} />}
       </button>
-      {open ? <SupportPanel onClose={close} /> : null}
+      <HelpChatHistoryProvider>
+        {open ? <SupportPanel onClose={close} /> : null}
+      </HelpChatHistoryProvider>
     </div>
   );
 }

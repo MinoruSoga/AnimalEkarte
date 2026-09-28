@@ -179,6 +179,7 @@ func allModels() []any {
 		&model.PetIdentityGroupMember{},
 		// サポートウィジェット
 		&model.SupportBugReport{},
+		&model.SupportChatMessage{},
 	}
 }
 

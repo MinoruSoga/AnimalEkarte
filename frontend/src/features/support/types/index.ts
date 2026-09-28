@@ -50,6 +50,25 @@ export interface SupportChatResponse {
   sources: SupportChatSource[];
 }
 
+/** ヘルプチャットの表示用1ターン。API 契約ではなく UI 状態。 */
+export interface SupportChatTurn {
+  role: SupportChatRole;
+  content: string;
+  sources?: SupportChatSource[];
+  isError?: boolean;
+  /** 送信失敗ターンに保持する元の質問文（「もう一度送信」で使う） */
+  retryMessage?: string;
+}
+
+/** GET /v1/support/chat/history の履歴1件（DB 永続化済みメッセージ） */
+export interface SupportChatHistoryRecord {
+  id: number;
+  role: SupportChatRole;
+  content: string;
+  sources?: SupportChatSource[];
+  created_at: string;
+}
+
 export interface SupportChatStatus {
   enabled: boolean;
 }

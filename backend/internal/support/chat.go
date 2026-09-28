@@ -1,16 +1,19 @@
 package support
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 const (
@@ -51,8 +54,8 @@ type chatRequest struct {
 	Context []chatContextItem `json:"context"`
 }
 
-// chatSource は回答の根拠となったマニュアル記事
-type chatSource struct {
+// ChatSource は回答の根拠となったマニュアル記事（レスポンス・履歴保存の双方で使う）
+type ChatSource struct {
 	Title    string `json:"title"`
 	Category string `json:"category"`
 	Slug     string `json:"slug"`
@@ -61,7 +64,21 @@ type chatSource struct {
 // chatResponse は POST /support/chat のレスポンス
 type chatResponse struct {
 	Reply   string       `json:"reply"`
-	Sources []chatSource `json:"sources"`
+	Sources []ChatSource `json:"sources"`
+}
+
+// chatHistoryItem は GET /support/chat/history の履歴1件
+type chatHistoryItem struct {
+	ID        uint64       `json:"id"`
+	Role      string       `json:"role"`
+	Content   string       `json:"content"`
+	Sources   []ChatSource `json:"sources,omitempty"`
+	CreatedAt time.Time    `json:"created_at"`
+}
+
+// chatHistoryResponse は GET /support/chat/history のレスポンス
+type chatHistoryResponse struct {
+	Data []chatHistoryItem `json:"data"`
 }
 
 // parseChatRequest はチャットリクエストをバインド・検証する。
@@ -120,12 +137,31 @@ func buildChatMessages(req *chatRequest) []ChatMessage {
 	return append(messages, ChatMessage{Role: "user", Content: content})
 }
 
-func toChatSources(items []chatContextItem) []chatSource {
-	sources := make([]chatSource, len(items))
+func toChatSources(items []chatContextItem) []ChatSource {
+	sources := make([]ChatSource, len(items))
 	for i, item := range items {
-		sources[i] = chatSource{Title: item.Title, Category: item.Category, Slug: item.Slug}
+		sources[i] = ChatSource{Title: item.Title, Category: item.Category, Slug: item.Slug}
 	}
 	return sources
+}
+
+// toChatHistoryItem は保存済みメッセージをレスポンス形に変換する。
+// sources は保存時に必ず有効な JSON（jsonb）なので、壊れていた場合は空にして件名だけ返す。
+func toChatHistoryItem(m model.SupportChatMessage) chatHistoryItem {
+	item := chatHistoryItem{
+		ID:        m.ID,
+		Role:      string(m.Role),
+		Content:   m.Content,
+		CreatedAt: httpapi.LocalTime(m.CreatedAt),
+	}
+
+	if len(m.Sources) > 0 {
+		var sources []ChatSource
+		if err := json.Unmarshal(m.Sources, &sources); err == nil {
+			item.Sources = sources
+		}
+	}
+	return item
 }
 
 // ChatStatus はチャット機能の有効/無効を返す。
@@ -140,7 +176,12 @@ func (h *Handler) ChatStatus(c *gin.Context) {
 // POST /api/v1/support/chat
 // 認証済みスタッフ全員が利用できる（権限ゲートなし）。
 func (h *Handler) Chat(c *gin.Context) {
-	if _, ok := httpapi.ExtractClinicID(c); !ok {
+	clinicID, ok := httpapi.ExtractClinicID(c)
+	if !ok {
+		return
+	}
+	staffID, ok := httpapi.ExtractStaffID(c)
+	if !ok {
 		return
 	}
 	if h.chat == nil {
@@ -168,5 +209,58 @@ func (h *Handler) Chat(c *gin.Context) {
 		}
 		return
 	}
-	c.JSON(http.StatusOK, chatResponse{Reply: reply, Sources: toChatSources(req.Context)})
+	sources := toChatSources(req.Context)
+	// 履歴保存は回答返却が主契約のため best-effort とする。保存失敗時は当該やり取りが
+	// 次回セッションの履歴に出ないだけなので、WARN を残し回答は通常どおり返す。
+	// service はテストで nil にできるため nil ガードを挟む。
+	if h.service != nil {
+		if err := h.service.RecordChatExchange(c.Request.Context(), clinicID, staffID, req.Message, reply, sources); err != nil {
+			slog.WarnContext(c.Request.Context(), "failed to persist support chat history", "error", err, "clinic_id", clinicID, "staff_id", staffID)
+		}
+	}
+	c.JSON(http.StatusOK, chatResponse{Reply: reply, Sources: sources})
+}
+
+// ChatHistory はログイン中スタッフ（選択clinic内）の会話履歴を古い順で返す。
+//
+// GET /api/v1/support/chat/history
+// 認証済みスタッフ全員が利用できる（権限ゲートなし）。他人・他院の履歴は scope 外。
+func (h *Handler) ChatHistory(c *gin.Context) {
+	clinicID, ok := httpapi.ExtractClinicID(c)
+	if !ok {
+		return
+	}
+	staffID, ok := httpapi.ExtractStaffID(c)
+	if !ok {
+		return
+	}
+	messages, err := h.service.ListChatHistory(c.Request.Context(), clinicID, staffID)
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
+	items := make([]chatHistoryItem, len(messages))
+	for i, m := range messages {
+		items[i] = toChatHistoryItem(m)
+	}
+	c.JSON(http.StatusOK, chatHistoryResponse{Data: items})
+}
+
+// ClearChatHistory はログイン中スタッフ（選択clinic内）の会話履歴をすべて削除する。
+//
+// DELETE /api/v1/support/chat/history
+func (h *Handler) ClearChatHistory(c *gin.Context) {
+	clinicID, ok := httpapi.ExtractClinicID(c)
+	if !ok {
+		return
+	}
+	staffID, ok := httpapi.ExtractStaffID(c)
+	if !ok {
+		return
+	}
+	if err := h.service.ClearChatHistory(c.Request.Context(), clinicID, staffID); err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
+	c.Status(http.StatusNoContent)
 }

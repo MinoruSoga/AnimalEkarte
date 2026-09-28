@@ -32,7 +32,9 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 	got := strings.Join(lines, "\n") + "\n"
 
 	want := "" +
+		"DELETE /api/v1/support/chat/history ClearChatHistory\n" +
 		"GET /api/v1/support/bug-reports ListBugReports\n" +
+		"GET /api/v1/support/chat/history ChatHistory\n" +
 		"GET /api/v1/support/chat/status ChatStatus\n" +
 		"PATCH /api/v1/support/bug-reports/:id/status UpdateBugReportStatus\n" +
 		"POST /api/v1/support/bug-reports CreateBugReport\n" +

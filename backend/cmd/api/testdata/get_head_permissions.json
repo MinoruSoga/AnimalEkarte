@@ -3153,6 +3153,22 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/support/chat/history",
+    "handler": "github.com/animal-ekarte/backend/internal/support.(*Handler).ChatHistory-fm",
+    "class": "self",
+    "resource": "none",
+    "action": "none",
+    "source": "internal/support/handler.go",
+    "routeExpression": "s.GET(\"/chat/history\", h.ChatHistory)",
+    "handlerSource": "internal/support/chat.go",
+    "marker": "ExtractStaffID",
+    "authorization": "Authenticate middleware; JWT clinic_id and user_id scope the query",
+    "scope": "selected-clinic x authenticated-staff own chat history",
+    "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
+    "verification": "contract-exclusion-from-selected-clinic-grant; resource/action=none; executed-handler:internal/support/chat_test.go#TestChatHistory; realdb-return-data:internal/support/realdb_chat_history_isolation_test.go#TestRealDB_SupportChatHistoryClinicStaffIsolation"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/support/chat/status",
     "handler": "github.com/animal-ekarte/backend/internal/support.(*Handler).ChatStatus-fm",
     "class": "self",

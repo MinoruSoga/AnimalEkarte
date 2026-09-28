@@ -25807,6 +25807,55 @@ paths:
         '501': { description: LLM が未設定(SUPPORT_LLM_API_KEY なし) }
         '502': { description: LLM 上流エラー(プロバイダ詳細は返さない) }
         '500': { $ref: '#/components/responses/InternalError' }
+  /support/chat/history:
+    get:
+      operationId: getSupportChatHistory
+      summary: ヘルプチャットの会話履歴(自分のみ・古い順)
+      description: |
+        認証済みスタッフ全員が利用可能（権限ゲートなし）。JWT の clinic_id × user_id で
+        スコープされ、選択clinic内の自分の履歴のみを返す。POST /support/chat が成功するたび
+        「質問+回答」のペアが support_chat_messages に保存され、ここで参照できる。
+        最大100件（新しい方から丸める）。
+      tags: [Support]
+      responses:
+        '200':
+          description: 会話履歴(古い順)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer }
+                        role: { type: string, enum: [user, assistant] }
+                        content: { type: string }
+                        sources:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              title: { type: string }
+                              category: { type: string }
+                              slug: { type: string }
+                        created_at: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    delete:
+      operationId: deleteSupportChatHistory
+      summary: ヘルプチャットの会話履歴をすべて削除(自分のみ)
+      description: |
+        認証済みスタッフ全員が利用可能（権限ゲートなし）。JWT の clinic_id × user_id で
+        スコープされた自分の履歴を soft delete する。フロントエンドの「会話をリセット」
+        から呼ばれる。
+      tags: [Support]
+      responses:
+        '204': { description: 削除完了 }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/InternalError' }
   /support/chat/status:
     get:
       operationId: getSupportChatStatus

@@ -56,7 +56,10 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 	// ヘルプチャットは認証済みスタッフ全員が使える（権限ゲートなし）。
 	// POST は LLM 呼び出しコストがかかるためレート制限を挟む。
+	// 履歴の参照・リセットは常に JWT の clinic_id×staff_id でスコープされる。
 	s.GET("/chat/status", h.ChatStatus)
+	s.GET("/chat/history", h.ChatHistory)
+	s.DELETE("/chat/history", h.ClearChatHistory)
 	chatHandlers := []gin.HandlerFunc{h.Chat}
 	if h.chatRateLimit != nil {
 		chatHandlers = append([]gin.HandlerFunc{h.chatRateLimit}, chatHandlers...)
