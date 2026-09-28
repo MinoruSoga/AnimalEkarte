@@ -1806,3 +1806,334 @@ test.describe("V04 設定マスタ §2 診療項目（admin）", () => {
     }
   });
 });
+
+// ─────────────────────────────────────────────────
+// admin account: §1 標準マスタ C1/C2 系（EMR-127d）
+// ─────────────────────────────────────────────────
+
+test.describe("V04 設定マスタ §1 標準マスタ（admin）", () => {
+  const v04 = readV04FixtureFromEnv();
+  test.skip(v04 === null, "E2E_CLINICAL_FIXTURE 未設定（suite=v04 以外）");
+
+  let context: BrowserContext;
+
+  test.beforeAll(async ({ browser }) => {
+    context = await createAuthedContext(browser);
+  });
+
+  test.afterAll(async () => {
+    await context.close();
+  });
+
+  test("動物種類: 空名は送信されず・グローバル一意の同名は 409 + トースト (C1-1・C3-2)", async () => {
+    test.setTimeout(120000);
+    if (v04 === null) throw new Error("v04 fixture unavailable");
+    const page = await context.newPage();
+    const settings = new SettingsMasterPage(page);
+    const speciesName = disposableName("種");
+    let speciesId: number | null = null;
+
+    try {
+      await settings.open("/settings/animal-species");
+      await expect(settings.heading("動物種類マスタ")).toBeVisible({ timeout: 15000 });
+
+      // C1-1: 名称を空のまま保存 → FE バリデーションで POST は発行されない。
+      await settings.newButton().click();
+      await expect(settings.masterTitleInput()).toBeVisible({ timeout: 10000 });
+      const blockedPostPromise = page.waitForRequest(
+        (request) =>
+          request.url().includes("/masters/animal-species") && request.method() === "POST",
+        { timeout: 5000 },
+      );
+      await settings.saveButton().click();
+      await expect(
+        blockedPostPromise,
+        "empty name must not issue POST /masters/animal-species",
+      ).rejects.toThrow();
+      await expect(page.getByText("名称を入力してください")).toBeVisible();
+
+      // C3-2: グローバル一意（clinic_id なし・WHERE is_active=true）— 既存名で作成は 409。
+      speciesId = await seedMasterRow(page.request, v04.clinicId, "/masters/animal-species", {
+        name: speciesName,
+        is_active: true,
+      });
+      await settings.masterTitleInput().fill(speciesName);
+      const conflictPromise = page.waitForResponse(
+        (response) =>
+          response.url().includes("/masters/animal-species") &&
+          response.request().method() === "POST",
+        { timeout: 15000 },
+      );
+      await settings.saveButton().click();
+      expect(
+        (await conflictPromise).status(),
+        "duplicate animal species name must be rejected with 409",
+      ).toBe(409);
+      await expect(settings.toast().filter({ hasText: "は既に使用されています" })).toBeVisible({
+        timeout: 10000,
+      });
+    } finally {
+      if (speciesId !== null) {
+        await deleteSeededRow(page.request, v04.clinicId, `/masters/animal-species/${speciesId}`);
+      }
+      await page.close();
+    }
+  });
+
+  test("予約区分グループ: 空名は送信されず・インラインエラー (C1-1)", async () => {
+    test.setTimeout(120000);
+    if (v04 === null) throw new Error("v04 fixture unavailable");
+    const page = await context.newPage();
+    const settings = new SettingsMasterPage(page);
+
+    try {
+      await settings.open("/settings/reservation-type");
+      await expect(settings.heading("予約区分マスタ")).toBeVisible({ timeout: 15000 });
+
+      await page.getByRole("button", { name: "グループを追加" }).click();
+      await expect(settings.masterTitleInput()).toBeVisible({ timeout: 10000 });
+      const blockedPostPromise = page.waitForRequest(
+        (request) =>
+          request.url().includes("/masters/reservation-type-groups") && request.method() === "POST",
+        { timeout: 5000 },
+      );
+      await settings.saveButton().click();
+      await expect(
+        blockedPostPromise,
+        "empty group name must not issue POST /masters/reservation-type-groups",
+      ).rejects.toThrow();
+      await expect(page.getByText("名称を入力してください")).toBeVisible();
+    } finally {
+      await page.close();
+    }
+  });
+
+  test("保険: 補償率 -1 は送信されず・編集保存が永続する (C1-3・C2)", async () => {
+    test.setTimeout(120000);
+    if (v04 === null) throw new Error("v04 fixture unavailable");
+    const page = await context.newPage();
+    const settings = new SettingsMasterPage(page);
+    const insuranceName = disposableName("保険");
+    let insuranceId: number | null = null;
+
+    try {
+      insuranceId = await seedMasterRow(page.request, v04.clinicId, "/masters/insurances", {
+        name: insuranceName,
+        coverage_rate: 50,
+        is_active: true,
+      });
+
+      await settings.open("/settings/insurance");
+      await expect(settings.heading("保険マスタ")).toBeVisible({ timeout: 15000 });
+
+      // C2: 補償率を変更して保存 → PATCH 200 → 再オープンで保持。
+      await settings.rowActionButton(insuranceName).click();
+      await expect(settings.masterTitleInput()).toHaveValue(insuranceName, { timeout: 10000 });
+      await page.getByLabel("補償率(%)").fill("60");
+      const patchPromise = page.waitForResponse(
+        (response) =>
+          /\/v1\/masters\/insurances\/\d+/.test(response.url()) &&
+          response.request().method() === "PATCH",
+        { timeout: 15000 },
+      );
+      await settings.saveButton().click();
+      expect((await patchPromise).status(), "insurance update PATCH must succeed").toBe(200);
+      await expect(settings.masterTitleInput()).not.toBeVisible({ timeout: 10000 });
+
+      await settings.rowActionButton(insuranceName).click();
+      await expect(page.getByLabel("補償率(%)")).toHaveValue("60", { timeout: 10000 });
+      await settings.cancelButton().click();
+      await expect(settings.masterTitleInput()).not.toBeVisible({ timeout: 10000 });
+
+      // C1-3: 補償率 -1 → FE バリデーション（BE と同一境界 0〜100）で POST されず
+      // インラインエラーが出る（HTML min による無音ブロックではない）。
+      await settings.newButton().click();
+      await expect(settings.masterTitleInput()).toBeVisible({ timeout: 10000 });
+      await settings.masterTitleInput().fill(disposableName("保険"));
+      await page.getByLabel("補償率(%)").fill("-1");
+      const blockedPostPromise = page.waitForRequest(
+        (request) => request.url().includes("/masters/insurances") && request.method() === "POST",
+        { timeout: 5000 },
+      );
+      await settings.saveButton().click();
+      await expect(
+        blockedPostPromise,
+        "coverage_rate -1 must not issue POST /masters/insurances",
+      ).rejects.toThrow();
+      await expect(page.getByText("補償率は0〜100の範囲で入力してください")).toBeVisible();
+      await expect(page.getByLabel("補償率(%)")).toHaveAttribute("aria-invalid", "true");
+    } finally {
+      if (insuranceId !== null) {
+        await deleteSeededRow(page.request, v04.clinicId, `/masters/insurances/${insuranceId}`);
+      }
+      await page.close();
+    }
+  });
+
+  test("物販・商品: 無効化した行と同名を再登録できる (is_active 部分一意)", async () => {
+    test.setTimeout(120000);
+    if (v04 === null) throw new Error("v04 fixture unavailable");
+    const page = await context.newPage();
+    const settings = new SettingsMasterPage(page);
+    const itemName = disposableName("品目");
+    const createdIds: number[] = [];
+
+    const postMerchandise = () =>
+      page.waitForResponse(
+        (response) =>
+          response.url().includes("/v1/masters/merchandise-items") &&
+          response.request().method() === "POST" &&
+          !response.url().includes("/reorder"),
+        { timeout: 15000 },
+      );
+
+    try {
+      await settings.open("/settings/merchandise-items");
+      await expect(settings.heading("商品マスタ")).toBeVisible({ timeout: 15000 });
+
+      // UI で作成（名称のみ — カテゴリ/価格/税率は既定値）。
+      await settings.newButton().click();
+      await expect(settings.masterTitleInput()).toBeVisible({ timeout: 10000 });
+      await settings.masterTitleInput().fill(itemName);
+      let postPromise = postMerchandise();
+      await settings.saveButton().click();
+      const createResponse = await postPromise;
+      expect(createResponse.status(), "merchandise create must succeed").toBe(201);
+      const firstId = readRowId(await createResponse.json());
+      expect(firstId).not.toBeNull();
+      createdIds.push(firstId as number);
+      await expect(settings.masterTitleInput()).not.toBeVisible({ timeout: 10000 });
+
+      // 無効化 → (clinic_id,name) WHERE is_active=true の一意制約から外れる。
+      await settings.rowActionButton(itemName).click();
+      await expect(settings.masterTitleInput()).toHaveValue(itemName, { timeout: 10000 });
+      await page.getByLabel("ステータスを切り替え").click();
+      const patchPromise = page.waitForResponse(
+        (response) =>
+          /\/v1\/masters\/merchandise-items\/\d+/.test(response.url()) &&
+          response.request().method() === "PATCH",
+        { timeout: 15000 },
+      );
+      await settings.saveButton().click();
+      expect((await patchPromise).status(), "deactivate PATCH must succeed").toBe(200);
+      await expect(settings.masterTitleInput()).not.toBeVisible({ timeout: 10000 });
+
+      // 同名を再登録 → 受理される（部分一意のため無効行とは衝突しない）。
+      await settings.newButton().click();
+      await expect(settings.masterTitleInput()).toBeVisible({ timeout: 10000 });
+      await settings.masterTitleInput().fill(itemName);
+      postPromise = postMerchandise();
+      await settings.saveButton().click();
+      const reRegisterResponse = await postPromise;
+      expect(
+        reRegisterResponse.status(),
+        "re-registering a disabled row's name must be accepted",
+      ).toBe(201);
+      const secondId = readRowId(await reRegisterResponse.json());
+      expect(secondId).not.toBeNull();
+      createdIds.push(secondId as number);
+      await expect(settings.rowContaining(itemName).first()).toBeVisible({ timeout: 10000 });
+    } finally {
+      for (const id of createdIds) {
+        await deleteSeededRow(page.request, v04.clinicId, `/masters/merchandise-items/${id}`);
+      }
+      await page.close();
+    }
+  });
+
+  test("支払方法: 空名は送信されず・標準行の名称変更は可・無効化は 409 (C1-1・C2・特記)", async () => {
+    test.setTimeout(120000);
+    if (v04 === null) throw new Error("v04 fixture unavailable");
+    const page = await context.newPage();
+    const settings = new SettingsMasterPage(page);
+    const originalName = "現金";
+    const renamedName = disposableName("支払");
+    let methodId: number | null = null;
+
+    try {
+      await settings.open("/settings/payment-methods");
+      await expect(settings.heading("支払方法マスタ")).toBeVisible({ timeout: 15000 });
+
+      // C1-1: 名称を空のまま保存 → FE バリデーションで POST は発行されない。
+      await settings.newButton().click();
+      await expect(settings.masterTitleInput()).toBeVisible({ timeout: 10000 });
+      const blockedPostPromise = page.waitForRequest(
+        (request) => request.url().includes("/payment-methods") && request.method() === "POST",
+        { timeout: 5000 },
+      );
+      await settings.saveButton().click();
+      await expect(
+        blockedPostPromise,
+        "empty name must not issue POST /payment-methods",
+      ).rejects.toThrow();
+      await expect(page.getByText("名称を入力してください")).toBeVisible();
+      await settings.cancelButton().click();
+      await expect(settings.masterTitleInput()).not.toBeVisible({ timeout: 10000 });
+
+      // C2: システム標準行「現金」の名称変更は許可される（system_key 保持行・名称は可）。
+      await settings.rowActionButton(originalName).click();
+      await expect(settings.masterTitleInput()).toHaveValue(originalName, { timeout: 10000 });
+      await settings.masterTitleInput().fill(renamedName);
+      const renamePromise = page.waitForResponse(
+        (response) =>
+          /\/v1\/payment-methods\/\d+/.test(response.url()) &&
+          response.request().method() === "PATCH",
+        { timeout: 15000 },
+      );
+      await settings.saveButton().click();
+      const renameResponse = await renamePromise;
+      expect(renameResponse.status(), "renaming a system row must be allowed").toBe(200);
+      methodId = readRowId(await renameResponse.json());
+      expect(methodId).not.toBeNull();
+      await expect(settings.masterTitleInput()).not.toBeVisible({ timeout: 10000 });
+      await expect(settings.rowContaining(renamedName)).toBeVisible({ timeout: 10000 });
+
+      // 特記: システム標準行の無効化は拒否される（BE Conflict）。
+      await settings.rowActionButton(renamedName).click();
+      await expect(settings.masterTitleInput()).toHaveValue(renamedName, { timeout: 10000 });
+      await page.getByLabel("ステータスを切り替え").click();
+      const deactivatePromise = page.waitForResponse(
+        (response) =>
+          /\/v1\/payment-methods\/\d+/.test(response.url()) &&
+          response.request().method() === "PATCH",
+        { timeout: 15000 },
+      );
+      await settings.saveButton().click();
+      expect(
+        (await deactivatePromise).status(),
+        "deactivating a system row must be rejected with 409",
+      ).toBe(409);
+      await expect(settings.toast().filter({ hasText: "無効化できません" })).toBeVisible({
+        timeout: 10000,
+      });
+    } finally {
+      if (methodId !== null) {
+        try {
+          await v04Api(page.request, v04.clinicId, "PATCH", `/payment-methods/${methodId}`, {
+            name: originalName,
+          });
+        } catch {
+          // Best-effort restore only.
+        }
+      }
+      await page.close();
+    }
+  });
+
+  test("ケージ: enum 不正値は POST 400 で拒否される (BE oneof)", async () => {
+    test.setTimeout(120000);
+    if (v04 === null) throw new Error("v04 fixture unavailable");
+
+    // 種別/サイズは UI では select のため不正値を送れない → API で直接検証する。
+    const name = disposableName("ケージ");
+    for (const body of [
+      { name, cage_type: "dragon", cage_size: "small" },
+      { name, cage_type: "dog", cage_size: "huge" },
+    ]) {
+      const response = await v04Api(context.request, v04.clinicId, "POST", "/masters/cages", body);
+      expect(response.status(), `POST /masters/cages ${JSON.stringify(body)} must be 400`).toBe(
+        400,
+      );
+    }
+  });
+});
