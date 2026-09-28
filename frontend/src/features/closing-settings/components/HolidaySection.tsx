@@ -12,11 +12,13 @@ const PERMISSION_DENIED_MESSAGE = "この操作を行う権限がありません
 
 interface HolidaySectionProps {
   holidays: ClosingHoliday[];
+  canCreate: boolean;
   canEdit: boolean;
 }
 
 export const HolidaySection = memo(function HolidaySection({
   holidays,
+  canCreate,
   canEdit,
 }: HolidaySectionProps) {
   const [showForm, setShowForm] = useState(false);
@@ -68,14 +70,16 @@ export const HolidaySection = memo(function HolidaySection({
     <section className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
       <div className="flex items-center justify-between mb-4">
         <h2 className={`text-base font-semibold ${C.text}`}>個別休診日</h2>
-        <button
-          type="button"
-          onClick={handleShowForm}
-          className={`flex min-h-11 min-w-11 items-center gap-1.5 text-base ${C.textBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} rounded-xs px-3 transition-colors`}
-        >
-          <Plus className="size-4" />
-          新規登録
-        </button>
+        {canCreate ? (
+          <button
+            type="button"
+            onClick={handleShowForm}
+            className={`flex min-h-11 min-w-11 items-center gap-1.5 text-base ${C.textBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} rounded-xs px-3 transition-colors`}
+          >
+            <Plus className="size-4" />
+            新規登録
+          </button>
+        ) : null}
       </div>
 
       {showForm ? (

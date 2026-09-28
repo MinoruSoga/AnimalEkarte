@@ -14,7 +14,7 @@ import { HolidaySection } from "../components/HolidaySection";
 
 export function ClosingSettingsPage() {
   const navigate = useNavigate();
-  const { canEdit } = usePermission(ResourceClosingSettings);
+  const { canCreate, canEdit } = usePermission(ResourceClosingSettings);
   const { data, isLoading, isError } = useGetClosingSettings();
   const { data: holidays = [], isLoading: holidaysLoading } = useGetHolidays();
 
@@ -36,10 +36,11 @@ export function ClosingSettingsPage() {
           <StandardClosingTimeSection settings={data.settings} canEdit={canEdit} />
           <SpecialPeriodSection
             periods={data.special_periods}
+            canCreate={canCreate}
             canEdit={canEdit}
             amStart={data.settings.closing_am_start}
           />
-          <HolidaySection holidays={holidays} canEdit={canEdit} />
+          <HolidaySection holidays={holidays} canCreate={canCreate} canEdit={canEdit} />
         </div>
       ) : null}
     </PageLayout>

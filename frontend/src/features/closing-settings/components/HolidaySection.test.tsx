@@ -41,7 +41,7 @@ describe("HolidaySection", () => {
   });
 
   it("holidays が空のとき空状態メッセージを表示する", () => {
-    render(<HolidaySection holidays={[]} canEdit={true} />);
+    render(<HolidaySection holidays={[]} canCreate={true} canEdit={true} />);
     expect(screen.getByText("個別休診日は登録されていません")).toBeInTheDocument();
   });
 
@@ -52,6 +52,7 @@ describe("HolidaySection", () => {
           makeHoliday({ date: "2026-08-15", reason: "院内研修" }),
           makeHoliday({ id: 2, date: "2026-09-01", reason: "" }),
         ]}
+        canCreate={true}
         canEdit={true}
       />,
     );
@@ -61,20 +62,31 @@ describe("HolidaySection", () => {
   });
 
   it("削除ボタンで deleteMutation.mutateAsync が date で呼ばれる", async () => {
-    render(<HolidaySection holidays={[makeHoliday({ date: "2026-08-15" })]} canEdit={true} />);
+    render(
+      <HolidaySection
+        holidays={[makeHoliday({ date: "2026-08-15" })]}
+        canCreate={true}
+        canEdit={true}
+      />,
+    );
     fireEvent.click(screen.getByRole("button", { name: "2026-08-15の休診日を削除" }));
 
     await waitFor(() => expect(mockDeleteMutateAsync).toHaveBeenCalledWith("2026-08-15"));
   });
 
   it("行追加コントロールはマスター共通の「新規登録」ラベルを表示する", () => {
-    render(<HolidaySection holidays={[]} canEdit={true} />);
+    render(<HolidaySection holidays={[]} canCreate={true} canEdit={true} />);
     expect(screen.getByRole("button", { name: "新規登録" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "追加" })).not.toBeInTheDocument();
   });
 
+  it("canCreate=false のとき新規登録ボタンを表示しない", () => {
+    render(<HolidaySection holidays={[]} canCreate={false} canEdit={false} />);
+    expect(screen.queryByRole("button", { name: "新規登録" })).not.toBeInTheDocument();
+  });
+
   it("追加ボタンでフォームを表示し、キャンセルで閉じる", () => {
-    render(<HolidaySection holidays={[]} canEdit={true} />);
+    render(<HolidaySection holidays={[]} canCreate={true} canEdit={true} />);
     fireEvent.click(screen.getByRole("button", { name: "新規登録" }));
     expect(screen.getByText("新しい休診日")).toBeInTheDocument();
 
@@ -83,7 +95,13 @@ describe("HolidaySection", () => {
   });
 
   it("追加・キャンセル・削除を44px以上とし、削除対象を名前で識別できる", () => {
-    render(<HolidaySection holidays={[makeHoliday({ date: "2026-08-15" })]} canEdit={true} />);
+    render(
+      <HolidaySection
+        holidays={[makeHoliday({ date: "2026-08-15" })]}
+        canCreate={true}
+        canEdit={true}
+      />,
+    );
 
     const addButton = screen.getByRole("button", { name: "新規登録" });
     expect(addButton).toHaveClass("min-h-11");
@@ -97,7 +115,7 @@ describe("HolidaySection", () => {
   });
 
   it("追加フォームはmobileで1列、sm以上で2列になる", () => {
-    render(<HolidaySection holidays={[]} canEdit={true} />);
+    render(<HolidaySection holidays={[]} canCreate={true} canEdit={true} />);
     fireEvent.click(screen.getByRole("button", { name: "新規登録" }));
 
     const grid = screen.getByLabelText("日付").parentElement?.parentElement;
@@ -106,7 +124,7 @@ describe("HolidaySection", () => {
   });
 
   it("日付と理由を入力して送信すると createMutation が呼ばれ、送信後フォームが閉じる", async () => {
-    render(<HolidaySection holidays={[]} canEdit={true} />);
+    render(<HolidaySection holidays={[]} canCreate={true} canEdit={true} />);
     fireEvent.click(screen.getByRole("button", { name: "新規登録" }));
 
     fireEvent.change(screen.getByLabelText("日付"), { target: { value: "2026-10-10" } });
@@ -124,7 +142,7 @@ describe("HolidaySection", () => {
   });
 
   it("理由未入力の場合 reason は undefined として渡される", async () => {
-    render(<HolidaySection holidays={[]} canEdit={true} />);
+    render(<HolidaySection holidays={[]} canCreate={true} canEdit={true} />);
     fireEvent.click(screen.getByRole("button", { name: "新規登録" }));
 
     fireEvent.change(screen.getByLabelText("日付"), { target: { value: "2026-10-10" } });
@@ -136,14 +154,14 @@ describe("HolidaySection", () => {
   });
 
   it("canEdit=false のとき formAction は mutate せず toast.error する", async () => {
-    const { rerender } = render(<HolidaySection holidays={[]} canEdit={true} />);
+    const { rerender } = render(<HolidaySection holidays={[]} canCreate={true} canEdit={true} />);
     fireEvent.click(screen.getByRole("button", { name: "新規登録" }));
     fireEvent.change(screen.getByLabelText("日付"), { target: { value: "2026-10-10" } });
 
     const form = screen.getByLabelText("日付").closest("form");
     expect(form).not.toBeNull();
 
-    rerender(<HolidaySection holidays={[]} canEdit={false} />);
+    rerender(<HolidaySection holidays={[]} canCreate={true} canEdit={false} />);
 
     await act(async () => {
       form?.requestSubmit();
@@ -157,7 +175,13 @@ describe("HolidaySection", () => {
   });
 
   it("canEdit=false のとき delete は mutate せず toast.error する", async () => {
-    render(<HolidaySection holidays={[makeHoliday({ date: "2026-08-15" })]} canEdit={false} />);
+    render(
+      <HolidaySection
+        holidays={[makeHoliday({ date: "2026-08-15" })]}
+        canCreate={false}
+        canEdit={false}
+      />,
+    );
     fireEvent.click(screen.getByRole("button", { name: "2026-08-15の休診日を削除" }));
 
     await waitFor(() => {

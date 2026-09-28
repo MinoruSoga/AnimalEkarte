@@ -875,7 +875,7 @@ test.describe("V04 権限: view のみ account（disposable clinic fixture）", 
     });
   }
 
-  test("締め時間設定: 閲覧可・入力は disabled・保存導線なし・休診日の追加は権限拒否・API write は 403", async () => {
+  test("締め時間設定: 閲覧可・入力は disabled・保存/新規登録の導線なし・API write は 403", async () => {
     test.setTimeout(120000);
     if (v04 === null) throw new Error("v04 fixture unavailable");
     expect(v04.viewOnlyResources).toContain("closing-settings");
@@ -893,28 +893,22 @@ test.describe("V04 権限: view のみ account（disposable clinic fixture）", 
         "closing-time must not render a save button for view-only",
       ).toHaveCount(0);
 
-      // 個別休診日: 新規登録フォームは開けるが、送信は canEdit ガードで権限拒否
-      // トーストになり API は発行されない（HolidaySection の canEditRef ガード）。
+      // 個別休診日 / 特別期間: 作成権限がないため「新規登録」ボタン自体を描画しない
+      // （他マスタと同じ canCreate ゲート。canEditRef のトーストガードは二重防御として残る）。
       const holidaySection = page
         .locator("section")
         .filter({ has: page.getByRole("heading", { name: "個別休診日" }) });
-      const holidayPostPromise = page.waitForRequest(
-        (request) =>
-          request.url().includes("/closing-settings/holidays") && request.method() === "POST",
-        { timeout: 5000 },
-      );
-      await holidaySection.getByRole("button", { name: "新規登録" }).click();
-      await page.locator("#holiday_date").fill("2099-12-31");
-      await page.locator("#holiday_reason").fill("V04-e2e-view-only");
-      await holidaySection.getByRole("button", { name: "追加" }).click();
+      const specialPeriodSection = page
+        .locator("section")
+        .filter({ has: page.getByRole("heading", { name: "特別期間" }) });
       await expect(
-        page.locator("[data-sonner-toast]"),
-        "denied holiday add must surface the permission toast",
-      ).toContainText("この操作を行う権限がありません", { timeout: 10000 });
+        holidaySection.getByRole("button", { name: "新規登録" }),
+        "view-only account must not get a holiday create affordance",
+      ).toHaveCount(0);
       await expect(
-        holidayPostPromise,
-        "denied submit must not issue POST /holidays",
-      ).rejects.toThrow();
+        specialPeriodSection.getByRole("button", { name: "新規登録" }),
+        "view-only account must not get a special-period create affordance",
+      ).toHaveCount(0);
 
       const settings = await v04Api(page.request, v04.clinicId, "GET", "/closing-settings");
       expect(settings.status(), "GET /closing-settings must be allowed for view").toBe(200);
