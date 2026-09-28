@@ -899,7 +899,9 @@ def prepare_dependency_mountpoint(service, volume):
         if not target.is_dir():
             raise ValueError('Dependency mountpoint is not a directory')
         return
-    ignored = run(['git', 'check-ignore', '-q', 'frontend/node_modules'])
+    # Trailing slash: check-ignore evaluates dir-only patterns (e.g. node_modules/)
+    # only for directory paths; without it a not-yet-created mountpoint checks as a file.
+    ignored = run(['git', 'check-ignore', '-q', 'frontend/node_modules/'])
     if ignored.returncode:
         raise ValueError('Dependency mountpoint must be ignored before creating empty directory')
     target.mkdir()  # Empty bind mount scaffold only; no install and no replacement.
