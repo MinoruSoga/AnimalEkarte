@@ -521,7 +521,7 @@ E4 以降にユーザー報告で発覚した追加原因と、採用した改�
 - **コンテナ↔DB の地理分離**: DB は `ap-northeast-2.pg.psdb.cloud`（PlanetScale = AWS ソウル）。当初コンテナは `ewr01`（米東部）で稼働し、認証ミドルウェアが毎リクエスト staff→account→assignments→clinics を逐次 DB 再検証するため、1 往復 ~190ms×クエリ数が積み上がっていた。
 - **インスタンス配置はブート/ロールアウト毎に再抽選される**: 同一 DO 名 `cf-singleton-container` のまま `ewr01→bom09→maa01→sin14→bom09` とドリフトを観測。DO の `locationHint`/改名は初回 DO 作成時のみ効く best-effort で、**インスタンス再配置には効かない**（PR #423 の `api-apac-ne-v1` 実験は bom09 着地で撤回・PR #425）。
 - **`constraints.cities` はこのアカウントで利用不可**: デプロイが `VALIDATE_INPUT: City-level placement requires INTERNAL or CITIES_CONSTRAINT capability` で失敗（run 35749806541）。メトロ粒度のピン留めはできない。
-- `scheduling_policy: "regional"` を wrangler.jsonc に記載したが `wrangler containers info` は `default` を返し続ける。2026-09-23 EMR-202 で切り分け済み: deploy 時の PATCH で `regional` は送信され API も受理する(CI log の `default → regional` 差分 + `SUCCESS Modified application`)が、既存 application には永続化されず readback は `default` のまま(v69/70/71 で再現)。wrangler 側の設定未適用ではなく Cloudflare Containers API 側の既存 app への PATCH 不保持が原因。実質 application 作成時のみ有効で、反映には app 削除→再作成(破壊的・要承認)が必要。運用は [STG runbook](docs/ops/infra/staging/runbook.md)「Container placement」参照。
+- `scheduling_policy: "regional"` を wrangler.jsonc に記載したが `wrangler containers info` は `default` を返し続ける。2026-09-23 EMR-202 で切り分け済み: deploy 時の PATCH で `regional` は送信され API も受理する(CI log の `default → regional` 差分 + `SUCCESS Modified application`)が、既存 application には永続化されず readback は `default` のまま(v69/70/71 で再現)。wrangler 側の設定未適用ではなく Cloudflare Containers API 側の既存 app への PATCH 不保持が原因。実質 application 作成時のみ有効で、反映には app 削除→再作成(破壊的・要承認)が必要。運用は [STG runbook](docs/ops/infra/staging/runbook.md)「Container placement」参照。**2026-09-24 EMR-213 で解消済み**: `regional` は application create 時にも `VALIDATE_INPUT` で拒否される（アカウント非対応）ため config を `default` 固定に変更し、乖離は無くなった。
 
 #### 採用した変更（staging にマージ済み）
 
@@ -530,7 +530,7 @@ E4 以降にユーザー報告で発覚した追加原因と、採用した改�
 | #424 | STG限定の認証 resolver キャッシュ `CURRENT_ACCESS_CACHE_TTL_SEC=30`（vars→envVars→`os.Getenv`→`composition_auth.go` の env ゲート。未設定/0/負値ならキャッシュ無しで本番は従来通り）。`sleepAfter` 10m→1h |
 | #426 | `containers[].constraints.regions = ["APAC"]` — 配置抽選を APAC メトロに限定（無料） |
 | #427 | `Dockerfile.production` に `LABEL rollout="1"` — イメージ差分で新バージョンを強制ロールアウトし即時再配置を起こす仕掛け。`verify-agent-task.py` に Dockerfile の scoped 検証（`docker build --check`）を追加 |
-| #428 | `scheduling_policy: "regional"`（PATCH は送信・受理されるが既存 app に永続化されず deployed=default のままと 2026-09-23 EMR-202 で確定。将来の app 再作成に備えた宣言として残置） |
+| #428 | `scheduling_policy: "regional"`（PATCH は送信・受理されるが既存 app に永続化されず deployed=default のままと 2026-09-23 EMR-202 で確定。将来の app 再作成に備えた宣言として残置していたが、EMR-213 の app 再作成で `regional` は create 時も拒否されアカウント非対応と判明し `default` 固定へ変更済み） |
 | #429→#430 | `cities` 試行→ケイパビリティ不足で失敗→撤回 |
 
 #### 実測（認証済み・暖機・日本から）
@@ -640,7 +640,7 @@ E4 以降にユーザー報告で発覚した追加原因と、採用した改�
 | 単位 | 取得証拠 | 主な値・判定 |
 |---|---|---|
 | PERF-ACCT-VERIFY（EMR-201） | [accountings-verify](reports/perf-lane-all-20260924/accountings-verify/README.md)（curl、n=5 warm、中央値のみ） | **IMPROVED**。`GET /api/v1/accountings?owner_id=` warm 中央値 **1.091s**（min 0.968 / max 1.338、全件 HTTP 200・31,320 bytes）vs E6 baseline 1.9–2.7s。初回ヒット 2.659s は旧レンジ上限相当。単一 client・baseline との browser-vs-curl 手法差は正直な caveat として併記 |
-| PERF-PLACEMENT-CHECK（EMR-202） | [placement](reports/perf-lane-all-20260924/placement/README.md)（wrangler 読取 + `/health` GET 1 本） | v72 で配置を再観測: `scheduling_policy` は依然 deployed=`default` vs config=`regional`（`backend/wrangler.jsonc:130`）。稼働 singleton は `maa01`、migrate-runner は `bom09`（いずれも APAC 制約内・日本非ローカル）。runbook・台帳の記載 8/8 が live と MATCH（ドリフト無し）。runbook 発火条件が成立するため **LABEL rollout 再抽選を推奨 YES**——実施は承認済み運用操作に委ねる |
+| PERF-PLACEMENT-CHECK（EMR-202） | [placement](reports/perf-lane-all-20260924/placement/README.md)（wrangler 読取 + `/health` GET 1 本） | v72 で配置を再観測: `scheduling_policy` は依然 deployed=`default` vs config=`regional`（当時の `backend/wrangler.jsonc:130`。この乖離は EMR-213 で config を `default` 固定にして解消済み）。稼働 singleton は `maa01`、migrate-runner は `bom09`（いずれも APAC 制約内・日本非ローカル）。runbook・台帳の記載 8/8 が live と MATCH（ドリフト無し）。runbook 発火条件が成立するため **LABEL rollout 再抽選を推奨 YES**——実施は承認済み運用操作に委ねる |
 | PERF-COST-MEMO（EMR-204） | [instance-type-cost](reports/perf-lane-all-20260924/instance-type-cost/README.md)（repo 内読取のみ・外部 call 無し） | 意思決定メモを作成。現行 `basic`（1/4 vCPU / 1GiB）。増分見積（ESTIMATE・sleepAfter 依存）: `standard-1` ≈ **+$2.8–20.4/mo**、`standard-2` ≈ **+$4.7–34.3/mo**。受益側は bcrypt（実パスワード login のみ・共有パスワード経路は bcrypt-free）と起動 CPU 区間に限定され一部 UNKNOWN。**open decision**: approve std-1 / std-2 / reject / defer |
 
 #### 残存事項・対象外（E7 時点）
@@ -650,7 +650,7 @@ E4 以降にユーザー報告で発覚した追加原因と、採用した改�
 - **EMR-142 / EMR-143（PERF-V-MITIGATION / PERF-V-BUNDLE）**: トリガー付き DEFERRED のまま（E7時点 Backlog → 2026-09-27 照合で Plane Ready）。
 - **EMR-199（PERF-E5-STG-DEPLOY-VERIFY）**: 終端（Plane Done・prior campaign で完了）。
 - **EMR-136（PERF-V-LINEAR）**: cancelled——Linear MCP 未接続（`USER_NOT_LOGGED_IN`）で照会不能のまま。
-- **EMR-202 再抽選**: 推奨 YES のまま未実施。手順は `backend/Dockerfile.production:38` の `LABEL rollout` インクリメント + 再デプロイで、承認済み運用操作に委ねる（deploy event あたり ~2 回上限。APAC 内の再抽選であり `maa`/`bom`/`sin` 再着地の可能性は残る）。
+- **EMR-202 再抽選**: 2026-09-28 決定で**再抽選は実施せず完了**。`scheduling_policy` は `default` 固定（`backend/wrangler.jsonc:141`、`regional` は EMR-213 でアカウント非対応と確認）で config/deployed の乖離は解消済み、`constraints.regions=["APAC"]` 内の抽選が現行ケイパビリティの上限で `maa01`/`bom`/`sin` 着地も許容、再抽選（`backend/Dockerfile.production:38` の `LABEL rollout` bump + 再デプロイ）は発火条件を満たしたときの任意運用（[STG runbook](docs/ops/infra/staging/runbook.md)「Container placement」）。
 - **EMR-204 open decision**: std-1 / std-2 / reject / defer の判断は運用者の承認事項（E7時点）。2026-09-27 照合で Plane **Cancelled** 終了を確認。再検討する場合は別単位として起票する。
 
 ### E8: 2026-09-24 post-recovery warm 再計測（単発観測・revision 1）
