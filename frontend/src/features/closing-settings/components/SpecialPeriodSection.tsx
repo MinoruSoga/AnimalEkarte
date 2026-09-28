@@ -24,6 +24,7 @@ const TIME_RANGE_ROWS = [
 
 interface SpecialPeriodSectionProps {
   periods: ClosingSpecialPeriod[];
+  canCreate: boolean;
   canEdit: boolean;
   /** 標準締め設定の closing_am_start（特別期間は標準設定の am_start を継承する）。省略時は 09:00。 */
   amStart?: string;
@@ -31,6 +32,7 @@ interface SpecialPeriodSectionProps {
 
 export const SpecialPeriodSection = memo(function SpecialPeriodSection({
   periods,
+  canCreate,
   canEdit,
   amStart = DEFAULT_CLOSING_AM_START,
 }: SpecialPeriodSectionProps) {
@@ -100,14 +102,16 @@ export const SpecialPeriodSection = memo(function SpecialPeriodSection({
     <section className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
       <div className="flex items-center justify-between mb-4">
         <h2 className={`text-base font-semibold ${C.text}`}>特別期間</h2>
-        <button
-          type="button"
-          onClick={handleShowForm}
-          className={`flex min-h-11 min-w-11 items-center gap-1.5 text-base ${C.textBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} rounded-xs px-3 transition-colors`}
-        >
-          <Plus className="size-4" />
-          新規登録
-        </button>
+        {canCreate ? (
+          <button
+            type="button"
+            onClick={handleShowForm}
+            className={`flex min-h-11 min-w-11 items-center gap-1.5 text-base ${C.textBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} rounded-xs px-3 transition-colors`}
+          >
+            <Plus className="size-4" />
+            新規登録
+          </button>
+        ) : null}
       </div>
 
       {showForm ? (
