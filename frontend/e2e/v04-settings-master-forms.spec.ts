@@ -2433,3 +2433,53 @@ test.describe("V04 設定マスタ §1 C2 更新永続（admin）（EMR-127f）"
     });
   }
 });
+
+// ─────────────────────────────────────────────────
+// admin account: §1 C1 追加（トリミングコース）（EMR-127f）
+// ─────────────────────────────────────────────────
+
+test.describe("V04 設定マスタ §1 C1 必須バリデーション（admin）（EMR-127f）", () => {
+  const v04 = readV04FixtureFromEnv();
+  test.skip(v04 === null, "E2E_CLINICAL_FIXTURE 未設定（suite=v04 以外）");
+
+  let context: BrowserContext;
+
+  test.beforeAll(async ({ browser }) => {
+    context = await createAuthedContext(browser);
+  });
+
+  test.afterAll(async () => {
+    await context.close();
+  });
+
+  test("トリミングコース: 空名は送信されず・インラインエラー (C1-1)", async () => {
+    test.setTimeout(120000);
+    if (v04 === null) throw new Error("v04 fixture unavailable");
+    const page = await context.newPage();
+    const settings = new SettingsMasterPage(page);
+
+    try {
+      await settings.open("/settings/trimming?tab=course");
+      await expect(settings.heading("トリミングマスタ")).toBeVisible({ timeout: 15000 });
+
+      // C1-1: 名称を空のまま保存 → FE バリデーションで POST は発行されない。
+      await settings.newButton().click();
+      await expect(settings.masterTitleInput()).toBeVisible({ timeout: 10000 });
+      const blockedPostPromise = page.waitForRequest(
+        (request) =>
+          request.url().includes("/masters/trimming-courses") && request.method() === "POST",
+        { timeout: 5000 },
+      );
+      await settings.saveButton().click();
+      await expect(
+        blockedPostPromise,
+        "empty name must not issue POST /masters/trimming-courses",
+      ).rejects.toThrow();
+      await expect(page.getByText("名称を入力してください")).toBeVisible();
+      await settings.cancelButton().click();
+      await expect(settings.masterTitleInput()).not.toBeVisible({ timeout: 10000 });
+    } finally {
+      await page.close();
+    }
+  });
+});
