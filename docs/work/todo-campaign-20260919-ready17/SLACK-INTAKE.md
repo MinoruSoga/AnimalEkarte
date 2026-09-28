@@ -1,6 +1,6 @@
 # SLACK-INTAKE: Slack トピックの分類照合（既存 ID へ、todo-issue.md は編集しない）
 
-状態: **分類照合 READY／外部シート照合 UNKNOWN／製品実装なし**。出典は [todo-issue.md](../../../todo.md#issue-ledger) 見出し `### SLACK-INTAKE`（L166–170、索引 L434）と親 `1789550614.370909`（出典 1000–1063）。保持する現場条件:
+状態: **分類照合 READY／外部シート照合 UNKNOWN／製品実装なし**。2026-09-28 追記: 要望窓口はスプシ Q&A に一本化済み（ユーザー判断）。45キー→Plane 現行 ID の対応は末尾「Plane 対応表（2026-09-28）」節。Slack 側の継続照合はしない。出典は [todo-issue.md](../../../todo.md#issue-ledger) 見出し `### SLACK-INTAKE`（L166–170、索引 L434）と親 `1789550614.370909`（出典 1000–1063）。保持する現場条件:
 
 - 受付/看護の窓口は **Q&A の 1内容1件分類**であり、新しい EMR 受付画面ではない
 - 不具合＝納品前、要望＝納品後、質問＝操作案内。未確定は PO の限定質問。全要望を納品前不具合へ昇格しない
@@ -236,3 +236,62 @@ INTAKE から出す質問は次のみ（未確定の納品前/後）:
 | todo-issue.md を編集しない | 本パスのみ |
 
 次の一手（本 unit 外）: 各既存 ID の担当が個別票で調査する。外部シート更新は別承認。dirty `todo-issue.md` への分類結果の写戻しはコントローラ/ユーザー作業。
+
+## Plane 対応表（2026-09-28）
+
+前提（ユーザー判断 2026-09-28）: 要望の窓口はスプシ Q&A に一本化済みとして本照合を完了する。Slack 側の継続照合はしない。
+
+- 取得方法: Plane MCP `workitem list`（project EMR 全215件、MIG 全23件、archived 0件）と `workitem search`、Duplicate 票は `workitem_comment list` で統合先を確認。読み取りのみで、Plane への書き込みはしていない
+- **state は 2026-09-28 の読取時点の値**。その後の変化は Plane を正とする。Plane の Done は医院受入 PASS を意味しない（各票の受入条件に従う）
+- 旧 ID は markdown 移行時の Plane `external_id`（source `animalekarte-markdown-migration-20260923`）。HAC-IMPORT / EXAM-HISTORY / GENDER / TREATMENTS-IMPORT は EMR ではなく MIG（データ移行）プロジェクトにある
+- 「参考（名称のみ）」列は票名が近いスプシ由来票などで、Plane 上の統合記録は確認していない。Duplicate の統合先だけは Plane コメント「ユーザー判断の反映（2026-09-26）」で確認済み
+
+| Topic key | 旧 ID（external_id） | 現行 Plane | state（2026-09-28） | 統合先（Duplicate のみ） | 参考（名称のみ・統合未確認） |
+| --- | --- | --- | --- | --- | --- |
+| ACCESS | SLACK-ACCESS | EMR-111 | Needs Human | | |
+| UAT-SCHEDULE | SLACK-UAT-SCHEDULE | EMR-112 | UAT | | |
+| HAC-IMPORT | SLACK-HAC-IMPORT | MIG-17 | Needs Human | | MIG-20（HAC-CSV-1）、EMR-194（スプシNo.51） |
+| LAB | SLACK-LAB | EMR-113 | Needs Human | | EMR-14（BRT-94・UAT）、EMR-176（スプシNo.40・Done） |
+| MANUAL-URINE | SLACK-MANUAL-URINE | EMR-86 | Needs Human | | |
+| OCR | SLACK-OCR | EMR-118 | Backlog | | |
+| EXAM-HISTORY | SLACK-EXAM-HISTORY | MIG-18 | Needs Human | | |
+| SMAREGI | SLACK-SMAREGI | EMR-119 | Backlog | | |
+| SHIFT | なし（answered） | **なし** | — | | EMR-12（BRT-103 シフト職種フィルタ・Done）。同一トピックかは未照合 |
+| RESERVATION-REFERENCE | SLACK-RESERVATION-REFERENCE | EMR-114 | Needs Human | | |
+| STAFF-SELECT | SLACK-STAFF-SELECT | EMR-116 | Needs Human | | |
+| CROSS-CLINIC | SLACK-CROSS-CLINIC | EMR-88 | Needs Human | | EMR-56（Done）、EMR-195（スプシNo.52・Done） |
+| OWNER-HEIGHT | SLACK-OWNER-HEIGHT | EMR-187 | Done | | |
+| SEARCH-AND | UAT-Q1-SEARCH-AND | EMR-122 | Done | | |
+| HISTORY | UAT-Q2-HISTORY-NAV | EMR-124 | Done | | |
+| SPECIES | UAT-Q2-VACCINE-SPECIES | EMR-106 | Needs Human | | |
+| GENDER | UAT-Q3-GENDER-MAP | MIG-16 | Needs Human | | |
+| UNPAID | UAT-Q4-UNPAID-TRIAGE | EMR-107 | Needs Human | | |
+| INSURANCE | UAT-Q4-INSURANCE-RATES | EMR-123 | Done | | |
+| MASTER | UAT-R2-MASTER-PATH | EMR-84 | Done | | EMR-175（スプシNo.39）、EMR-196（スプシNo.53）。ともに Done |
+| CONCURRENCY | UAT-R2-EXCLUSIVE-LOCK | EMR-85 | Done | | |
+| LATENCY | SLACK-LATENCY | EMR-104 | Needs Human | | |
+| ENTER | UAT-R2-TREATMENT-COMMIT | EMR-120 | Done | | |
+| MASTER-HEIGHT | UAT-R2-MASTER-LIST-HEIGHT | EMR-121 | Done | | |
+| CHART-FIT | UAT-R2-CHART-FIT | EMR-181 | Done | | |
+| RESERVATION-EDIT | なし（answered） | **なし** | — | | |
+| COMPLAINT | SLACK-COMPLAINT | EMR-87 | Done | | EMR-172（スプシNo.36） |
+| BACKGROUND | SLACK-BACKGROUND | EMR-90 | Duplicate | EMR-172（スプシNo.36）Done | |
+| VITALS | SLACK-VITALS | EMR-190 | Done | | EMR-172（スプシNo.36） |
+| MICROCHIP | SLACK-MICROCHIP | EMR-185 | Done | | EMR-172（スプシNo.36） |
+| DANGER | SLACK-DANGER | EMR-92 | Duplicate | EMR-173（スプシNo.37）Done | |
+| DETAILS | SLACK-DETAILS | EMR-101 | Duplicate | EMR-174（スプシNo.38）Done | |
+| STORY | SLACK-STORY | EMR-94 | Duplicate | EMR-174（スプシNo.38）Done | |
+| VACCINE-PRINT | SLACK-VACCINE-PRINT | EMR-97 | Needs Human | | |
+| VACCINE-MULTI | SLACK-VACCINE-MULTI | EMR-105 | Needs Human | | EMR-57（Done） |
+| DECEASED | SLACK-DECEASED | EMR-99 | UAT | | EMR-177（スプシNo.41・Done） |
+| PLAN-MANUAL | SLACK-PLAN-MANUAL | EMR-103 | Duplicate | EMR-179（スプシNo.43）Done | EMR-178（スプシNo.42・Done） |
+| COPY | SLACK-COPY | EMR-102 | Duplicate | EMR-182（スプシNo.44）Done | |
+| CAMERA | SLACK-CAMERA | EMR-183 | Done | | EMR-184（スプシNo.45・Done） |
+| BILLING-UAT | SLACK-BILLING-UAT | EMR-109 | UAT | | |
+| CLINICAL-UAT | SLACK-CLINICAL-UAT | EMR-110 | UAT | | |
+| INTAKE | SLACK-INTAKE | EMR-117（本票） | Ready | | |
+| BACKLOG61 | SLACK-BACKLOG61 | EMR-115 | Blocked | | |
+| TREATMENTS-IMPORT | UAT-Q2-TREATMENTS-IMPORT | MIG-15 | Ready | | |
+| EXISTING-OTHER | PO-PET-DECEASED-DATA-BACKFILL / TASK-444-ADDENDUM-CODEGEN | EMR-108 / EMR-198 | Blocked / Needs Human | | |
+
+**集計（2026-09-28 読取）:** 45キー中 43キーが Plane 票あり（EXISTING-OTHER は2票なので計44票: EMR 40・MIG 4）。state 内訳 Needs Human 15 / Done 13 / Duplicate 6（統合先はすべて Done） / UAT 4 / Backlog 2 / Ready 2 / Blocked 2。Plane 票なしは **SHIFT・RESERVATION-EDIT の2キー**。どちらも分類 answered（操作案内・謝辞済み、[todo.md](../../../todo.md#slack-answered) L124/L141・出典 560–599 / 907–923）なので、新規起票は不要（対象外）と判断する。起票はしていない。
