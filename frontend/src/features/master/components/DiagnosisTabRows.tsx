@@ -22,16 +22,12 @@ export function DiagnosisTypeRow({ item, canEdit, onEdit }: DiagnosisTypeRowProp
       dragDisabled={!canEdit}
     >
       <TableCell className={`font-medium ${C.text}`}>
-        {canEdit ? (
-          <DataTableRowButton
-            aria-label={`詳細: 診断カテゴリ ${item.name} (ID ${item.id})`}
-            onClick={() => onEdit(item)}
-          >
-            {item.name}
-          </DataTableRowButton>
-        ) : (
-          item.name
-        )}
+        <DataTableRowButton
+          aria-label={`詳細: 診断カテゴリ ${item.name} (ID ${item.id})`}
+          onClick={() => onEdit(item)}
+        >
+          {item.name}
+        </DataTableRowButton>
       </TableCell>
       <TableCell className={`${C.text70} truncate max-w-[240px]`}>
         {item.description || "-"}
@@ -68,16 +64,12 @@ export function DiagnosisNameRow({ item, categoryMap, canEdit, onEdit }: Diagnos
     >
       <TableCell className={C.text70}>{categoryMap.get(item.diagnosisTypeId) ?? "-"}</TableCell>
       <TableCell className={`font-medium ${C.text}`}>
-        {canEdit ? (
-          <DataTableRowButton
-            aria-label={`詳細: 診断病名 ${item.name} (ID ${item.id})`}
-            onClick={() => onEdit(item)}
-          >
-            {item.name}
-          </DataTableRowButton>
-        ) : (
-          item.name
-        )}
+        <DataTableRowButton
+          aria-label={`詳細: 診断病名 ${item.name} (ID ${item.id})`}
+          onClick={() => onEdit(item)}
+        >
+          {item.name}
+        </DataTableRowButton>
       </TableCell>
       <TableCell className="text-center">
         <StatusPill isActive={item.isActive} />
