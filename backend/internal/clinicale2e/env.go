@@ -46,3 +46,8 @@ func RejectReservedClinicID(clinicID uint64) error {
 func LoginEmail(clinicID uint64) string {
 	return fmt.Sprintf("e2e-clinical-%d@example.test", clinicID)
 }
+
+// ViewOnlyLoginEmail は V04 view-only staff の公開メール規約。パスワードは含めない。
+func ViewOnlyLoginEmail(clinicID uint64) string {
+	return fmt.Sprintf("e2e-v04-view-%d@example.test", clinicID)
+}
