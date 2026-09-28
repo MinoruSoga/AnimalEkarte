@@ -1451,3 +1451,161 @@ test.describe("V04 設定マスタ §6 締め時間（admin）", () => {
     }
   });
 });
+
+// ─────────────────────────────────────────────────
+// admin account: §7 シフトパターン #4/#5/#6（EMR-127d）
+// ─────────────────────────────────────────────────
+
+test.describe("V04 設定マスタ §7 シフトテンプレート（admin）", () => {
+  const v04 = readV04FixtureFromEnv();
+  test.skip(v04 === null, "E2E_CLINICAL_FIXTURE 未設定（suite=v04 以外）");
+
+  let context: BrowserContext;
+
+  test.beforeAll(async ({ browser }) => {
+    context = await createAuthedContext(browser);
+  });
+
+  test.afterAll(async () => {
+    await context.close();
+  });
+
+  test("シフトテンプレート: 休憩2件・勤務時間外休憩も保存され再オープンで保持 (#4・#5)", async () => {
+    test.setTimeout(120000);
+    if (v04 === null) throw new Error("v04 fixture unavailable");
+    const page = await context.newPage();
+    const settings = new SettingsMasterPage(page);
+    const name = disposableName("シフト");
+    let templateId: number | null = null;
+
+    try {
+      await settings.open("/settings/shift-templates");
+      await expect(settings.heading("シフトテンプレートマスタ")).toBeVisible({ timeout: 15000 });
+
+      await settings.newButton().click();
+      await expect(page.getByLabel("テンプレート名")).toBeVisible({ timeout: 10000 });
+      await page.getByLabel("テンプレート名").fill(name);
+      await page.getByLabel("開始時刻", { exact: true }).fill("09:00");
+      await page.getByLabel("終了時刻", { exact: true }).fill("18:00");
+
+      // #4: 休憩を 2 件追加。2 件目は勤務時間外（19:00–20:00）— #5 により受理される契約。
+      const breakAddButton = page.getByRole("button", { name: "追加", exact: true });
+      await breakAddButton.click();
+      await expect(page.getByLabel("休憩1 開始時刻")).toBeVisible();
+      await breakAddButton.click();
+      await expect(page.getByLabel("休憩2 開始時刻")).toBeVisible();
+      await page.getByLabel("休憩1 開始時刻").fill("12:00");
+      await page.getByLabel("休憩1 終了時刻").fill("13:00");
+      await page.getByLabel("休憩2 開始時刻").fill("19:00");
+      await page.getByLabel("休憩2 終了時刻").fill("20:00");
+
+      const postPromise = page.waitForResponse(
+        (response) =>
+          response.url().includes("/v1/shift-templates") && response.request().method() === "POST",
+        { timeout: 15000 },
+      );
+      await page.getByRole("button", { name: "保存", exact: true }).click();
+      const postResponse = await postPromise;
+      expect(postResponse.status(), "shift template POST must succeed").toBe(201);
+
+      // #5: レスポンスの breaks に勤務時間外の 19:00–20:00 が保存されている。
+      const createdBody: unknown = await postResponse.json();
+      const createdRow =
+        isRecord(createdBody) && isRecord(createdBody.data) ? createdBody.data : createdBody;
+      templateId = readRowId(createdRow);
+      const createdBreaks =
+        isRecord(createdRow) && Array.isArray(createdRow.breaks) ? createdRow.breaks : [];
+      expect(createdBreaks.length, "two breaks must be persisted").toBe(2);
+      expect(
+        createdBreaks.some(
+          (b) =>
+            isRecord(b) &&
+            String(b.break_start).startsWith("19:00") &&
+            String(b.break_end).startsWith("20:00"),
+        ),
+        "out-of-hours break 19:00–20:00 must be persisted",
+      ).toBe(true);
+
+      await expect(settings.toast()).toContainText("テンプレートを作成しました", {
+        timeout: 10000,
+      });
+      await expect(page.getByLabel("テンプレート名")).not.toBeVisible({ timeout: 10000 });
+      await expect(settings.rowContaining(name)).toBeVisible({ timeout: 10000 });
+
+      // #4: パネル再オープン → 休憩 2 件が初期表示で保持される。
+      await settings.rowActionButton(name).click();
+      await expect(page.getByLabel("テンプレート名")).toHaveValue(name, { timeout: 10000 });
+      await expect(page.getByLabel("休憩1 開始時刻")).toHaveValue(/^12:00/, { timeout: 10000 });
+      await expect(page.getByLabel("休憩1 終了時刻")).toHaveValue(/^13:00/);
+      await expect(page.getByLabel("休憩2 開始時刻")).toHaveValue(/^19:00/);
+      await expect(page.getByLabel("休憩2 終了時刻")).toHaveValue(/^20:00/);
+    } finally {
+      if (templateId === null) {
+        const listResponse = await v04Api(
+          page.request,
+          v04.clinicId,
+          "GET",
+          "/shift-templates",
+        ).catch(() => null);
+        if (listResponse !== null && listResponse.ok()) {
+          templateId = findRowId(listRows(await listResponse.json()), name);
+        }
+      }
+      if (templateId !== null) {
+        await deleteSeededRow(page.request, v04.clinicId, `/shift-templates/${templateId}`);
+      }
+      await page.close();
+    }
+  });
+
+  test("シフトテンプレート: 同名登録は 409 + トーストで拒否 (#6)", async () => {
+    test.setTimeout(120000);
+    if (v04 === null) throw new Error("v04 fixture unavailable");
+    const page = await context.newPage();
+    const settings = new SettingsMasterPage(page);
+    const name = disposableName("シフト同名");
+    let templateId: number | null = null;
+
+    try {
+      // uk_shift_templates_clinic_name の対象行を API でシード。
+      templateId = await seedMasterRow(page.request, v04.clinicId, "/shift-templates", {
+        name,
+        shift_type: "full",
+        start_time: "09:00",
+        end_time: "18:00",
+        is_active: true,
+        breaks: [],
+      });
+
+      await settings.open("/settings/shift-templates");
+      await expect(settings.heading("シフトテンプレートマスタ")).toBeVisible({ timeout: 15000 });
+      await expect(settings.rowContaining(name)).toBeVisible({ timeout: 10000 });
+
+      // 同名で新規作成 → POST 409 + トースト。パネルは開いたまま、行は増えない。
+      await settings.newButton().click();
+      await expect(page.getByLabel("テンプレート名")).toBeVisible({ timeout: 10000 });
+      await page.getByLabel("テンプレート名").fill(name);
+      await page.getByLabel("開始時刻", { exact: true }).fill("10:00");
+      await page.getByLabel("終了時刻", { exact: true }).fill("19:00");
+
+      const dupPostPromise = page.waitForResponse(
+        (response) =>
+          response.url().includes("/v1/shift-templates") && response.request().method() === "POST",
+        { timeout: 15000 },
+      );
+      await page.getByRole("button", { name: "保存", exact: true }).click();
+      expect((await dupPostPromise).status(), "duplicate name POST must be rejected").toBe(409);
+      await expect(settings.toast()).toContainText("既に使用されています", { timeout: 10000 });
+      await expect(page.getByLabel("テンプレート名")).toBeVisible();
+      await expect(
+        settings.rowContaining(name),
+        "duplicate-name create must not add a second row",
+      ).toHaveCount(1);
+    } finally {
+      if (templateId !== null) {
+        await deleteSeededRow(page.request, v04.clinicId, `/shift-templates/${templateId}`);
+      }
+      await page.close();
+    }
+  });
+});
