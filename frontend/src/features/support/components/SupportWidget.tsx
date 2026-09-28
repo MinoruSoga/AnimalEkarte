@@ -10,6 +10,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { LifeBuoy, X } from "lucide-react";
 
 import { C, ICON, STYLE, Z_CLASS } from "@/lib/design-tokens";
+import { SUPPORT_WIDGET_LAYOUT } from "@/constants/support-widget-layout";
 
 import { SupportPanel } from "./SupportPanel";
 
@@ -36,7 +37,7 @@ export function SupportWidget() {
   return (
     <div
       data-html2canvas-ignore
-      className={`no-print fixed bottom-4 right-4 ${Z_CLASS.overlay} flex flex-col-reverse items-end gap-3`}
+      className={`no-print ${SUPPORT_WIDGET_LAYOUT.position} ${Z_CLASS.overlay} flex flex-col-reverse items-end gap-3`}
     >
       <button
         ref={buttonRef}
