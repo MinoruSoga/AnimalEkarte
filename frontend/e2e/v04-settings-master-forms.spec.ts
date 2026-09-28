@@ -510,19 +510,160 @@ async function openViewOnlyPage(
   return page;
 }
 
+/** `id` を単一行レスポンスまたは `{data: {...}}` エンベロープから取り出す。 */
+function readRowId(body: unknown): number | null {
+  const row = isRecord(body) && isRecord(body.data) ? body.data : body;
+  if (!isRecord(row)) return null;
+  const id = row.id;
+  if (typeof id === "number" && Number.isSafeInteger(id)) return id;
+  if (typeof id === "string" && /^\d+$/.test(id)) return Number(id);
+  return null;
+}
+
+/**
+ * view-only 横展開の対象画面。一覧行は admin account で disposable clinic に
+ * シードする（`seedBody` 指定時）か、既存行（グローバル seed・trigger 作成の
+ * システム標準行）を `rowName` / 先頭行で解決する。
+ */
+interface ViewOnlyMasterScreen {
+  /** fixture の viewOnlyResources に含まれるべき resource 名 */
+  resource: string;
+  /** テスト名用の画面ラベル */
+  screen: string;
+  path: string;
+  heading: string;
+  /** 行ボタンの `詳細: <entityLabel> <name> (ID <id>)` に使う名詞 */
+  entityLabel: string;
+  /** 代表 API パス（GET=一覧、POST/PATCH/DELETE=403 確認） */
+  apiPath: string;
+  /** 指定時は admin で `{name, ...seedBody}` を POST して行を用意する */
+  seedBody?: Record<string, unknown>;
+  /** 指定時はシードせず GET 一覧から同名の行を使う */
+  rowName?: string;
+}
+
+const VIEW_ONLY_MASTER_SCREENS: ViewOnlyMasterScreen[] = [
+  {
+    // グローバル seed の行を先頭から使う（clinic_id を持たない共有マスタのためシードしない）。
+    resource: "master-animal-species",
+    screen: "動物種類",
+    path: "/settings/animal-species",
+    heading: "動物種類マスタ",
+    entityLabel: "動物種類",
+    apiPath: "/masters/animal-species",
+  },
+  {
+    resource: "master-medical",
+    screen: "診療項目",
+    path: "/settings/treatment-items",
+    heading: "診療項目マスタ",
+    entityLabel: "治療プラン",
+    apiPath: "/masters/consultations",
+    seedBody: { is_active: true },
+  },
+  {
+    resource: "master-reservation-type",
+    screen: "予約区分",
+    path: "/settings/reservation-type",
+    heading: "予約区分マスタ",
+    entityLabel: "予約区分",
+    apiPath: "/masters/reservation-types",
+    seedBody: { is_active: true },
+  },
+  {
+    resource: "master-hospitalization",
+    screen: "入院・宿泊",
+    path: "/settings/hospitalization",
+    heading: "入院マスタ",
+    entityLabel: "入院プラン",
+    apiPath: "/masters/hospitalization-plans",
+    seedBody: { is_active: true },
+  },
+  {
+    resource: "master-trimming",
+    screen: "トリミング",
+    path: "/settings/trimming?tab=course",
+    heading: "トリミングマスタ",
+    entityLabel: "トリミングコース",
+    apiPath: "/masters/trimming-courses",
+    seedBody: { is_active: true },
+  },
+  {
+    resource: "master-insurance",
+    screen: "保険",
+    path: "/settings/insurance",
+    heading: "保険マスタ",
+    entityLabel: "保険",
+    apiPath: "/masters/insurances",
+    seedBody: { coverage_rate: 50, is_active: true },
+  },
+  {
+    resource: "master-merchandise",
+    screen: "物販・商品",
+    path: "/settings/merchandise-items",
+    heading: "商品マスタ",
+    entityLabel: "品目",
+    apiPath: "/masters/merchandise-items",
+    seedBody: { category: "goods", unit_price: 1000, tax_type: "excluded", is_active: true },
+  },
+  {
+    // clinic 作成トリガーのシステム標準行「現金」を使う。
+    resource: "master-payment-method",
+    screen: "支払方法",
+    path: "/settings/payment-methods",
+    heading: "支払方法マスタ",
+    entityLabel: "支払方法",
+    apiPath: "/payment-methods",
+    rowName: "現金",
+  },
+];
+
+/** disposable clinic admin session で行をシードし、採番された id を返す。 */
+async function seedMasterRow(
+  request: APIRequestContext,
+  clinicId: number,
+  path: string,
+  body: Record<string, unknown>,
+): Promise<number> {
+  const response = await v04Api(request, clinicId, "POST", path, body);
+  const id = await response
+    .json()
+    .then((parsed) => readRowId(parsed))
+    .catch(() => null);
+  expect(id, `admin seed POST ${path} must succeed (status=${response.status()})`).not.toBeNull();
+  return id as number;
+}
+
+/** シード行の後始末。失敗は握りつぶす（best-effort cleanup）。 */
+async function deleteSeededRow(
+  request: APIRequestContext,
+  clinicId: number,
+  path: string,
+): Promise<void> {
+  try {
+    await v04Api(request, clinicId, "DELETE", path);
+  } catch {
+    // Best-effort cleanup only.
+  }
+}
+
 test.describe("V04 権限: view のみ account（disposable clinic fixture）", () => {
   const v04 = readV04FixtureFromEnv();
   test.skip(v04 === null, "E2E_CLINICAL_FIXTURE 未設定（suite=v04 以外）");
 
   let context: BrowserContext | undefined;
+  // シード・後始末用の admin session（view-only account では行を作れない）。
+  let adminContext: BrowserContext | undefined;
 
   test.beforeAll(async ({ browser }) => {
     if (v04 === null) return;
     context = await createViewOnlyContext(browser, v04);
+    adminContext = await createAuthedContext(browser);
   });
 
   test.afterAll(async () => {
     await context?.close();
+    await adminContext?.close();
   });
 
   test("ケージマスタ: 一覧と詳細は閲覧可・登録/保存/削除の導線なし・API write は 403", async () => {
@@ -571,6 +712,8 @@ test.describe("V04 権限: view のみ account（disposable clinic fixture）", 
         name: `${v04.cageName}-denied`,
       });
       expect(patch.status(), "PATCH /masters/cages/:id must be denied").toBe(403);
+      const del = await v04Api(page.request, v04.clinicId, "DELETE", `/masters/cages/${cageId}`);
+      expect(del.status(), "DELETE /masters/cages/:id must be denied").toBe(403);
     } finally {
       await page.close();
     }
@@ -632,6 +775,319 @@ test.describe("V04 権限: view のみ account（disposable clinic fixture）", 
         sort_order: 0,
       });
       expect(patch.status(), "PATCH /lab-devices/:id must be denied").toBe(403);
+      const del = await v04Api(page.request, v04.clinicId, "DELETE", `/lab-devices/${deviceId}`);
+      expect(del.status(), "DELETE /lab-devices/:id must be denied").toBe(403);
+    } finally {
+      await page.close();
+    }
+  });
+
+  for (const master of VIEW_ONLY_MASTER_SCREENS) {
+    test(`${master.screen}: 一覧と詳細は閲覧可・作成/保存/削除の導線なし・API write は 403`, async () => {
+      test.setTimeout(120000);
+      if (v04 === null) throw new Error("v04 fixture unavailable");
+      if (adminContext === undefined) throw new Error("admin context unavailable");
+      expect(v04.viewOnlyResources, `fixture must grant ${master.resource} view`).toContain(
+        master.resource,
+      );
+      const page = await openViewOnlyPage(context, v04);
+      let seededId: number | null = null;
+      try {
+        // 一覧の読取 + 対象行の解決（seedBody 指定時は admin で行を用意する）。
+        const list = await v04Api(page.request, v04.clinicId, "GET", master.apiPath);
+        expect(list.status(), `GET ${master.apiPath} must be allowed for view`).toBe(200);
+        let rowName: string;
+        let rowId: number;
+        if (master.seedBody !== undefined) {
+          rowName = `V04-e2e-${master.entityLabel}-${Date.now()}`;
+          rowId = await seedMasterRow(adminContext.request, v04.clinicId, master.apiPath, {
+            name: rowName,
+            ...master.seedBody,
+          });
+          seededId = rowId;
+        } else {
+          const rows = listRows(await list.json());
+          const found =
+            master.rowName !== undefined ? rows.find((r) => r.name === master.rowName) : rows[0];
+          const foundId = found === undefined ? null : readRowId(found);
+          expect(foundId, `${master.apiPath} must list a readable row`).not.toBeNull();
+          rowId = foundId as number;
+          rowName = String(found?.name);
+        }
+
+        await page.goto(master.path, { waitUntil: "domcontentloaded" });
+        await expect(page.getByRole("heading", { name: master.heading }).first()).toBeVisible({
+          timeout: 45000,
+        });
+
+        const rowButton = page.getByRole("button", {
+          name: `詳細: ${master.entityLabel} ${rowName} (ID ${rowId})`,
+        });
+        await expect(rowButton, "対象行が一覧に表示されること").toBeVisible({ timeout: 30000 });
+        await expect(
+          page.getByRole("button", { name: "新規登録" }),
+          "view-only account must not get a create affordance",
+        ).toHaveCount(0);
+
+        await rowButton.click();
+        const title = page.locator("#master-title");
+        await expect(title).toBeVisible({ timeout: 15000 });
+        await expect(title).toHaveValue(rowName);
+        await expect(
+          page.getByRole("button", { name: "保存" }),
+          "read-only panel must not render a save button",
+        ).toHaveCount(0);
+        await expect(
+          page.getByLabel("削除"),
+          "read-only panel must not render a delete button",
+        ).toHaveCount(0);
+
+        const deniedName = `V04-e2e-denied-${Date.now()}`;
+        const post = await v04Api(page.request, v04.clinicId, "POST", master.apiPath, {
+          name: deniedName,
+          ...(master.seedBody ?? {}),
+        });
+        expect(post.status(), `POST ${master.apiPath} must be denied`).toBe(403);
+        const patch = await v04Api(
+          page.request,
+          v04.clinicId,
+          "PATCH",
+          `${master.apiPath}/${rowId}`,
+          { name: deniedName },
+        );
+        expect(patch.status(), `PATCH ${master.apiPath}/:id must be denied`).toBe(403);
+        const del = await v04Api(
+          page.request,
+          v04.clinicId,
+          "DELETE",
+          `${master.apiPath}/${rowId}`,
+        );
+        expect(del.status(), `DELETE ${master.apiPath}/:id must be denied`).toBe(403);
+      } finally {
+        if (seededId !== null && adminContext !== undefined) {
+          await deleteSeededRow(
+            adminContext.request,
+            v04.clinicId,
+            `${master.apiPath}/${seededId}`,
+          );
+        }
+        await page.close();
+      }
+    });
+  }
+
+  test("締め時間設定: 閲覧可・入力は disabled・保存導線なし・休診日の追加は権限拒否・API write は 403", async () => {
+    test.setTimeout(120000);
+    if (v04 === null) throw new Error("v04 fixture unavailable");
+    expect(v04.viewOnlyResources).toContain("closing-settings");
+    const page = await openViewOnlyPage(context, v04);
+    try {
+      await page.goto("/settings/closing-time", { waitUntil: "domcontentloaded" });
+      await expect(page.getByRole("heading", { name: "締め時間設定" }).first()).toBeVisible({
+        timeout: 45000,
+      });
+
+      // 標準締め時間: fieldset が disabled 化され、保存 submit は描画されない。
+      await expect(page.locator("#closing_weekday_end")).toBeDisabled();
+      await expect(
+        page.getByRole("button", { name: "保存" }),
+        "closing-time must not render a save button for view-only",
+      ).toHaveCount(0);
+
+      // 個別休診日: 新規登録フォームは開けるが、送信は canEdit ガードで権限拒否
+      // トーストになり API は発行されない（HolidaySection の canEditRef ガード）。
+      const holidaySection = page
+        .locator("section")
+        .filter({ has: page.getByRole("heading", { name: "個別休診日" }) });
+      const holidayPostPromise = page.waitForRequest(
+        (request) =>
+          request.url().includes("/closing-settings/holidays") && request.method() === "POST",
+        { timeout: 5000 },
+      );
+      await holidaySection.getByRole("button", { name: "新規登録" }).click();
+      await page.locator("#holiday_date").fill("2099-12-31");
+      await page.locator("#holiday_reason").fill("V04-e2e-view-only");
+      await holidaySection.getByRole("button", { name: "追加" }).click();
+      await expect(
+        page.locator("[data-sonner-toast]"),
+        "denied holiday add must surface the permission toast",
+      ).toContainText("この操作を行う権限がありません", { timeout: 10000 });
+      await expect(
+        holidayPostPromise,
+        "denied submit must not issue POST /holidays",
+      ).rejects.toThrow();
+
+      const settings = await v04Api(page.request, v04.clinicId, "GET", "/closing-settings");
+      expect(settings.status(), "GET /closing-settings must be allowed for view").toBe(200);
+      const patch = await v04Api(page.request, v04.clinicId, "PATCH", "/closing-settings", {
+        am_pm_boundary: "13:00",
+        weekday_end: "19:00",
+        sunday_end: "18:00",
+      });
+      expect(patch.status(), "PATCH /closing-settings must be denied").toBe(403);
+      const postPeriod = await v04Api(
+        page.request,
+        v04.clinicId,
+        "POST",
+        "/closing-settings/special-periods",
+        {
+          start_date: "2099-12-20",
+          end_date: "2099-12-21",
+          am_pm_boundary: "13:00",
+          pm_end: "19:00",
+        },
+      );
+      expect(postPeriod.status(), "POST /closing-settings/special-periods must be denied").toBe(
+        403,
+      );
+      const postHoliday = await v04Api(
+        page.request,
+        v04.clinicId,
+        "POST",
+        "/closing-settings/holidays",
+        { date: "2099-12-31", reason: "V04-e2e-view-only" },
+      );
+      expect(postHoliday.status(), "POST /closing-settings/holidays must be denied").toBe(403);
+      const delPeriod = await v04Api(
+        page.request,
+        v04.clinicId,
+        "DELETE",
+        "/closing-settings/special-periods/0",
+      );
+      expect(
+        delPeriod.status(),
+        "DELETE /closing-settings/special-periods/:id must be denied",
+      ).toBe(403);
+    } finally {
+      await page.close();
+    }
+  });
+
+  test("シフトテンプレート: 一覧と詳細は閲覧可・作成/保存/削除の導線なし・API write は 403", async () => {
+    test.setTimeout(120000);
+    if (v04 === null) throw new Error("v04 fixture unavailable");
+    if (adminContext === undefined) throw new Error("admin context unavailable");
+    expect(v04.viewOnlyResources).toContain("shifts");
+    const templateName = `V04-e2e-シフト-${Date.now()}`;
+    const templateId = await seedMasterRow(adminContext.request, v04.clinicId, "/shift-templates", {
+      name: templateName,
+      shift_type: "full",
+      start_time: "09:00",
+      end_time: "18:00",
+    });
+    const page = await openViewOnlyPage(context, v04);
+    try {
+      await page.goto("/settings/shift-templates", { waitUntil: "domcontentloaded" });
+      await expect(page.getByRole("heading", { name: "シフトテンプレートマスタ" })).toBeVisible({
+        timeout: 45000,
+      });
+
+      const rowButton = page.getByRole("button", {
+        name: `詳細: シフトテンプレート ${templateName} (ID ${templateId})`,
+      });
+      await expect(rowButton, "seeded template row must be listed").toBeVisible({
+        timeout: 30000,
+      });
+      await expect(
+        page.getByRole("button", { name: "新規登録" }),
+        "view-only account must not get a create affordance",
+      ).toHaveCount(0);
+
+      await rowButton.click();
+      const nameInput = page.getByLabel("テンプレート名");
+      await expect(nameInput).toBeVisible({ timeout: 15000 });
+      await expect(nameInput).toHaveValue(templateName);
+      await expect(nameInput).toHaveAttribute("readonly", "");
+      await expect(
+        page.getByRole("button", { name: "保存" }),
+        "read-only panel must not render a save button",
+      ).toHaveCount(0);
+      await expect(
+        page.getByLabel(`削除: シフトテンプレート ${templateName} (ID ${templateId})`),
+        "read-only panel must not render a delete button",
+      ).toHaveCount(0);
+      await expect(page.getByRole("button", { name: "閉じる" })).toBeVisible();
+
+      const list = await v04Api(page.request, v04.clinicId, "GET", "/shift-templates");
+      expect(list.status(), "GET /shift-templates must be allowed for view").toBe(200);
+      const post = await v04Api(page.request, v04.clinicId, "POST", "/shift-templates", {
+        name: `V04-e2e-denied-${Date.now()}`,
+        shift_type: "full",
+        start_time: "09:00",
+        end_time: "18:00",
+      });
+      expect(post.status(), "POST /shift-templates must be denied").toBe(403);
+      const patch = await v04Api(
+        page.request,
+        v04.clinicId,
+        "PATCH",
+        `/shift-templates/${templateId}`,
+        { name: "V04-e2e-denied" },
+      );
+      expect(patch.status(), "PATCH /shift-templates/:id must be denied").toBe(403);
+      const del = await v04Api(
+        page.request,
+        v04.clinicId,
+        "DELETE",
+        `/shift-templates/${templateId}`,
+      );
+      expect(del.status(), "DELETE /shift-templates/:id must be denied").toBe(403);
+    } finally {
+      await deleteSeededRow(adminContext.request, v04.clinicId, `/shift-templates/${templateId}`);
+      await page.close();
+    }
+  });
+
+  test("医院マスタ: 一覧と詳細は閲覧可・作成/保存/削除の導線なし・API write は 403", async () => {
+    test.setTimeout(120000);
+    if (v04 === null) throw new Error("v04 fixture unavailable");
+    expect(v04.viewOnlyResources).toContain("hospital-settings");
+    const page = await openViewOnlyPage(context, v04);
+    try {
+      const list = await v04Api(page.request, v04.clinicId, "GET", "/clinics");
+      expect(list.status(), "GET /clinics must be allowed for view").toBe(200);
+      const rows = listRows(await list.json());
+      const selfRow = rows.find((row) => readRowId(row) === v04.clinicId);
+      expect(selfRow, "GET /clinics must list the fixture clinic").not.toBeUndefined();
+      const clinicName = String(selfRow?.name);
+
+      await page.goto("/settings/clinic", { waitUntil: "domcontentloaded" });
+      await expect(page.getByRole("heading", { name: "医院マスタ" })).toBeVisible({
+        timeout: 45000,
+      });
+
+      // 法人インボイス欄も canEdit で disabled 化される。
+      await expect(page.locator("#invoice_registration_number")).toBeDisabled();
+
+      const rowButton = page.getByRole("button", {
+        name: `詳細: 医院 ${clinicName} (ID ${v04.clinicId})`,
+      });
+      await expect(rowButton, "fixture clinic row must be listed").toBeVisible({
+        timeout: 30000,
+      });
+      await expect(
+        page.getByRole("button", { name: "新規登録" }),
+        "view-only account must not get a create affordance",
+      ).toHaveCount(0);
+
+      await rowButton.click();
+      const nameInput = page.getByLabel("無題");
+      await expect(nameInput).toBeVisible({ timeout: 15000 });
+      await expect(nameInput).toHaveValue(clinicName);
+      await expect(nameInput).toBeDisabled();
+      await expect(
+        page.getByRole("button", { name: "保存" }),
+        "read-only panel must not render a save button",
+      ).toHaveCount(0);
+
+      const post = await v04Api(page.request, v04.clinicId, "POST", "/clinics", {
+        name: `V04-e2e-denied-${Date.now()}`,
+      });
+      expect(post.status(), "POST /clinics must be denied").toBe(403);
+      const patch = await v04Api(page.request, v04.clinicId, "PATCH", `/clinics/${v04.clinicId}`, {
+        name: "V04-e2e-denied",
+      });
+      expect(patch.status(), "PATCH /clinics/:id must be denied").toBe(403);
     } finally {
       await page.close();
     }
