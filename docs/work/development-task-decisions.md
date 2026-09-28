@@ -12,7 +12,7 @@ flowchart LR
     C --> A["採用：最小範囲を固定<br>TASK-444・BE-RC-009・BE-RC-017<br>→ main 統合済み（repo Done）"]
     C --> K["維持制約・不採用<br>BE-RC-005・014・015・019"]
     C --> P["不採用：再判定 ID で管理<br>性能3件 → PERF-V-*"]
-    A -.->|addendum 型移行は codegen 前提| DF["TASK-444-ADDENDUM-CODEGEN<br>別範囲で deferred"]
+    A -.->|addendum 型移行は codegen 前提| DF["TASK-444-ADDENDUM-CODEGEN<br>完了（EMR-198）"]
     K -.->|新たな具体根拠が出た時| Q["最小範囲を再定義し<br>開発キューへ戻す"]
     P -.-> Q
 ```
@@ -27,7 +27,7 @@ READY3 は `origin/main` に統合済み。専用 Linear Issue はプラン上�
 | BE-RC-009 | `944577184` | Done（repo） |
 | BE-RC-017 | `c10a603ba` | Done（repo） |
 
-addendum response 型移行（codegen 前提）は引き続き deferred（`TASK-444-ADDENDUM-CODEGEN`）。
+addendum response 型移行（`TASK-444-ADDENDUM-CODEGEN`）は完了（2026-09-28、EMR-198）。`backend/tygo.yaml` で `MedicalRecordAddendumResponse` を `medicalrecord-responses.ts` の生成対象に加え（`38f41c5b8`・生成 `10aac6c0b`）、FE のカルテ追記 API・表示・テストの型を `models.ts` の `MedicalRecordAddendum` から生成 DTO へ置き換えた。
 
 ## 性能3件
 

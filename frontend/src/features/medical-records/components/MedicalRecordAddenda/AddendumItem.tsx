@@ -1,8 +1,8 @@
 import { C } from "@/lib/design-tokens";
-import type { MedicalRecordAddendum } from "@/types/generated/models";
+import type { MedicalRecordAddendumResponse } from "@/types/generated/medicalrecord-responses";
 
 interface AddendumItemProps {
-  addendum: MedicalRecordAddendum;
+  addendum: MedicalRecordAddendumResponse;
 }
 
 function formatDateTime(iso: string): string {
