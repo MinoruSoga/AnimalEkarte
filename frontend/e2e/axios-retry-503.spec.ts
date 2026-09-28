@@ -46,15 +46,37 @@ async function stubApi(page: Page, targetStatus: number): Promise<{ hits: () => 
   return { hits: () => targetHits };
 }
 
+const APP_AXIOS_GLOBAL = "__emr203AppAxios";
+const LOADER_PATH = "/__emr203/load-app-axios.js";
+
+// The app module is loaded through a same-origin module script served by
+// page.route (not a dynamic import in spec code), so e2e page-consumer analysis
+// stays static and the app CSP (script-src 'self') is respected. The browser
+// resolves AXIOS_MODULE_PATH against the running Vite dev server.
+async function loadAppAxios(page: Page): Promise<void> {
+  await page.route(`**${LOADER_PATH}`, (route: Route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "text/javascript",
+      body: `import { axios } from "${AXIOS_MODULE_PATH}"; window.${APP_AXIOS_GLOBAL} = axios;`,
+    }),
+  );
+  await page.addScriptTag({ type: "module", url: LOADER_PATH });
+  await page.waitForFunction((key) => key in window, APP_AXIOS_GLOBAL);
+}
+
 async function getViaAppAxios(page: Page): Promise<GetOutcome> {
+  await loadAppAxios(page);
   return page.evaluate(
-    async ({ modulePath, path }) => {
-      const mod: unknown = await import(/* @vite-ignore */ modulePath);
+    async ({ globalKey, path }) => {
+      const candidate: unknown = (window as unknown as Record<string, unknown>)[globalKey];
       const client =
-        typeof mod === "object" && mod !== null && "axios" in mod
-          ? (mod as { axios: { get: (url: string) => Promise<{ status: number }> } }).axios
+        (typeof candidate === "function" || typeof candidate === "object") &&
+        candidate !== null &&
+        "get" in candidate
+          ? (candidate as { get: (url: string) => Promise<{ status: number }> })
           : null;
-      if (client === null) throw new Error(`axios export not found in ${modulePath}`);
+      if (client === null) throw new Error(`app axios not exposed on window.${globalKey}`);
       const started = performance.now();
       try {
         const response = await client.get(path);
@@ -74,7 +96,7 @@ async function getViaAppAxios(page: Page): Promise<GetOutcome> {
         return { outcome: "rejected", status, elapsedMs: performance.now() - started };
       }
     },
-    { modulePath: AXIOS_MODULE_PATH, path: TARGET_PATH },
+    { globalKey: APP_AXIOS_GLOBAL, path: TARGET_PATH },
   ) as Promise<GetOutcome>;
 }
 
