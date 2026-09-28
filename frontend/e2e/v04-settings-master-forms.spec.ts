@@ -2483,3 +2483,70 @@ test.describe("V04 設定マスタ §1 C1 必須バリデーション（admin）
     }
   });
 });
+
+// ─────────────────────────────────────────────────
+// admin account: §1 C3-1 追加（割引キャンペーン）（EMR-127f）
+// ─────────────────────────────────────────────────
+
+test.describe("V04 設定マスタ §1 C3-1 選択肢（admin）（EMR-127f）", () => {
+  const v04 = readV04FixtureFromEnv();
+  test.skip(v04 === null, "E2E_CLINICAL_FIXTURE 未設定（suite=v04 以外）");
+
+  let context: BrowserContext;
+
+  test.beforeAll(async ({ browser }) => {
+    context = await createAuthedContext(browser);
+  });
+
+  test.afterAll(async () => {
+    await context.close();
+  });
+
+  test("割引キャンペーン: 対象商品の選択肢は物販マスタ実データ由来 (C3-1)", async () => {
+    test.setTimeout(120000);
+    if (v04 === null) throw new Error("v04 fixture unavailable");
+    const page = await context.newPage();
+    const settings = new SettingsMasterPage(page);
+    const itemName = disposableName("対象商品");
+    let itemId: number | null = null;
+
+    try {
+      // キャンペーンパネルの対象商品選択肢の供給元 = 物販マスタ。admin で 1 件シードする。
+      itemId = await seedMasterRow(page.request, v04.clinicId, "/masters/merchandise-items", {
+        name: itemName,
+        category: "goods",
+        unit_price: 1000,
+        tax_type: "excluded",
+        is_active: true,
+      });
+
+      await settings.open("/settings/campaigns");
+      await expect(settings.heading("割引キャンペーンマスタ")).toBeVisible({ timeout: 15000 });
+
+      await settings.newButton().click();
+      await expect(settings.masterTitleInput()).toBeVisible({ timeout: 10000 });
+
+      // C3-1: シードした商品が対象商品の選択肢に出て、チェックできる。
+      await page.getByPlaceholder("商品名で検索...").fill(itemName);
+      const itemCheckbox = page.getByRole("checkbox", { name: itemName, exact: true });
+      await expect(itemCheckbox).toBeVisible({ timeout: 10000 });
+      await itemCheckbox.click();
+      await expect(itemCheckbox).toBeChecked();
+
+      // 保存せず閉じる（dirty なので破棄確認が出たら 確認 で閉じる）。
+      await page.getByLabel("閉じる").first().click();
+      const confirm = page.getByRole("button", { name: "確認", exact: true });
+      try {
+        await confirm.click({ timeout: 3000 });
+      } catch {
+        // clean close — no discard dialog
+      }
+      await expect(settings.masterTitleInput()).not.toBeVisible({ timeout: 10000 });
+    } finally {
+      if (itemId !== null) {
+        await deleteSeededRow(page.request, v04.clinicId, `/masters/merchandise-items/${itemId}`);
+      }
+      await page.close();
+    }
+  });
+});
