@@ -324,6 +324,14 @@ class VerificationTests(unittest.TestCase):
         self.assertIn(['go', 'vet', './cmd/clinical-e2e-fixture'], commands)
         self.assertIn(['gofmt', '-l', 'cmd/clinical-e2e-fixture/main.go'], commands)
 
+    def test_generated_models_allowlist_runs_boundary_test(self):
+        jobs, blocked = verify.plan(['frontend/generated-models-import-allowlist.json'])
+        self.assertFalse(blocked)
+        self.assertEqual(len(jobs), 1)
+        self.assertEqual(jobs[0]['service'], 'frontend')
+        self.assertIn('src/types/generated-model-response-boundary.test.ts', jobs[0]['command'])
+        self.assertTrue(jobs[0]['require_frontend_tests'])
+
     def test_tygo_config_uses_ci_structure_check(self):
         jobs, blocked = verify.plan(['backend/tygo.yaml'])
         self.assertFalse(blocked)

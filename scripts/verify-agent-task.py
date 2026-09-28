@@ -501,6 +501,16 @@ def plan(paths):
             jobs.append({'service': 'backend', 'command': ['go', 'vet', './cmd/clinical-e2e-fixture']})
             if (ROOT / path).is_file():
                 jobs.append({'service': 'backend', 'command': ['gofmt', '-l', path.removeprefix('backend/')], 'require_empty_stdout': True})
+        elif path == 'frontend/generated-models-import-allowlist.json':
+            # TASK-444-S1 inventory: the boundary test compares this allowlist with real import sites.
+            jobs.append({
+                'service': 'frontend',
+                'command': [
+                    'node', 'node_modules/vitest/vitest.mjs', 'run', '--configLoader', 'native',
+                    '--reporter=json', 'src/types/generated-model-response-boundary.test.ts',
+                ],
+                'require_frontend_tests': True,
+            })
         elif path == 'backend/tygo.yaml':
             # Structural check CI also runs; generated-file sync stays with the CI Codegen Sync job.
             jobs.append({'service': 'host', 'command': ['python3', '-B', 'scripts/ci_tygo_hosp_pass.py', path, '/dev/null']})
