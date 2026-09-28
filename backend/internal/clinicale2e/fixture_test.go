@@ -3,6 +3,8 @@ package clinicale2e
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -21,6 +23,9 @@ func testModels() []any {
 		&model.Account{},
 		&model.Staff{},
 		&model.StaffClinicAssignment{},
+		&model.PermissionGroup{},
+		&model.PermissionGroupRule{},
+		&model.StaffPermissionGroup{},
 		&model.Owner{},
 		&model.AnimalSpecies{},
 		&model.Pet{},
@@ -32,6 +37,9 @@ func testModels() []any {
 		&model.CheckupType{},
 		&model.Checkup{},
 		&model.Hospitalization{},
+		&model.Cage{},
+		&model.LabDevice{},
+		&model.LabDeviceItemMaster{},
 		&model.Estimate{},
 		&model.EstimateItem{},
 		&model.AuditLog{},
@@ -266,4 +274,138 @@ func TestDelete_RejectsReservedAndMismatchedClinic(t *testing.T) {
 	assert.ErrorContains(t, err, "not a clinical e2e fixture")
 	var still model.Clinic
 	require.NoError(t, db.First(&still, foreign.ID).Error)
+}
+
+func TestCreateAndDelete_V04ViewOnlyAccount(t *testing.T) {
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, testModels()...))
+	ensureAuditLogForeignKeys(t, db)
+	ctx := context.Background()
+
+	const hash = "test-hash-not-for-login"
+	got, err := Create(ctx, db, Request{AppEnv: "test", DBHost: "db", PasswordHash: hash})
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	clinicID := got.ClinicID
+
+	assert.Equal(t, ViewOnlyLoginEmail(clinicID), got.V04.ViewOnlyEmail)
+	assert.NotEqual(t, LoginEmail(clinicID), got.V04.ViewOnlyEmail)
+
+	var viewAccount model.Account
+	require.NoError(t, db.Where("email = ?", got.V04.ViewOnlyEmail).First(&viewAccount).Error)
+	assert.False(t, viewAccount.IsSystemAdmin)
+	assert.True(t, viewAccount.IsActive)
+	assert.Equal(t, hash, viewAccount.PasswordHash)
+
+	var viewStaff model.Staff
+	require.NoError(t, db.Where("clinic_id = ? AND account_id = ?", clinicID, viewAccount.ID).First(&viewStaff).Error)
+	assert.Equal(t, model.StaffTypeNurse, viewStaff.StaffType)
+	assert.True(t, viewStaff.IsActive)
+
+	var assignment model.StaffClinicAssignment
+	require.NoError(t, db.Where("staff_id = ? AND clinic_id = ?", viewStaff.ID, clinicID).First(&assignment).Error)
+	assert.True(t, assignment.IsMain)
+
+	var links []model.StaffPermissionGroup
+	require.NoError(t, db.Where("staff_id = ?", viewStaff.ID).Find(&links).Error)
+	require.Len(t, links, 1)
+
+	var group model.PermissionGroup
+	require.NoError(t, db.Where("id = ? AND clinic_id = ?", links[0].GroupID, clinicID).First(&group).Error)
+	assert.Equal(t, v04GroupName, group.Name)
+	assert.True(t, group.IsActive)
+
+	var rules []model.PermissionGroupRule
+	require.NoError(t, db.Where("group_id = ?", group.ID).Order("id ASC").Find(&rules).Error)
+	require.Len(t, rules, len(v04ViewOnlyResources))
+	wantResources := make([]string, 0, len(v04ViewOnlyResources))
+	for _, resource := range v04ViewOnlyResources {
+		wantResources = append(wantResources, string(resource))
+	}
+	assert.Equal(t, wantResources, got.V04.ViewOnlyResources)
+	excluded := map[string]bool{
+		string(model.ResourceAccounting):              true,
+		string(model.ResourceAccountingCancel):        true,
+		string(model.ResourceAccountingPostCloseEdit): true,
+		string(model.ResourceAccountingReports):       true,
+		string(model.ResourceCashRegisterClose):       true,
+		string(model.ResourceLstepCsvImport):          true,
+		string(model.ResourceLstepAnalytics):          true,
+		string(model.ResourceMasterPermission):        true,
+		string(model.ResourceMasterStaff):             true,
+	}
+	ruleResources := make([]string, 0, len(rules))
+	for _, rule := range rules {
+		assert.True(t, rule.CanView, rule.Resource)
+		assert.False(t, rule.CanCreate, rule.Resource)
+		assert.False(t, rule.CanEdit, rule.Resource)
+		assert.False(t, rule.CanDelete, rule.Resource)
+		assert.True(t, model.IsValidResource(rule.Resource), rule.Resource)
+		assert.False(t, excluded[rule.Resource], rule.Resource)
+		ruleResources = append(ruleResources, rule.Resource)
+	}
+	assert.ElementsMatch(t, wantResources, ruleResources)
+
+	assert.Equal(t, fmt.Sprintf("%scage-%d", v04RowPrefix, clinicID), got.V04.CageName)
+	var cage model.Cage
+	require.NoError(t, db.Where("clinic_id = ? AND name = ?", clinicID, got.V04.CageName).First(&cage).Error)
+	assert.True(t, cage.IsActive)
+	assert.Equal(t, model.CageTypeGeneral, cage.CageType)
+	assert.Equal(t, model.CageSizeMedium, cage.CageSize)
+
+	assert.Equal(t, fmt.Sprintf("%sdevice-%d", v04RowPrefix, clinicID), got.V04.LabDeviceName)
+	var device model.LabDevice
+	require.NoError(t, db.Where("clinic_id = ? AND name = ?", clinicID, got.V04.LabDeviceName).First(&device).Error)
+	assert.True(t, device.IsActive)
+	assert.Equal(t, string(model.LabImportSourceTypeFujiNX600), device.SourceType)
+	assert.Nil(t, device.ExamTypeID)
+
+	encoded, err := EncodeResult(got)
+	require.NoError(t, err)
+	assert.NotContains(t, string(encoded), "password")
+	assert.NotContains(t, string(encoded), "hash")
+	assert.Equal(t, 1, strings.Count(string(encoded), `"clinicId"`))
+	var decoded map[string]any
+	require.NoError(t, json.Unmarshal(encoded, &decoded))
+	v04raw, ok := decoded["v04"].(map[string]any)
+	require.True(t, ok, "encoded JSON must carry a v04 object")
+	_, nestedClinicID := v04raw["clinicId"]
+	assert.False(t, nestedClinicID, "v04 object must not contain a clinicId key")
+
+	// teardown は V04 行だけでなく device item master（ensure 相当の孤立行）も回収する。
+	require.NoError(t, db.Create(&model.LabDeviceItemMaster{
+		ClinicID:       clinicID,
+		SourceType:     string(model.LabImportSourceTypeFujiNX600),
+		DeviceItemCode: "V04-ITEM",
+		ValueShape:     model.LabDeviceValueShapeNumeric,
+	}).Error)
+
+	require.NoError(t, Delete(ctx, db, "test", "db", clinicID))
+
+	var count int64
+	require.NoError(t, db.Unscoped().Model(&model.Account{}).
+		Where("email IN ?", []string{LoginEmail(clinicID), ViewOnlyLoginEmail(clinicID)}).
+		Count(&count).Error)
+	assert.Zero(t, count, "accounts")
+	for _, table := range []struct {
+		name  string
+		model any
+	}{
+		{"staffs", &model.Staff{}},
+		{"staff_clinic_assignments", &model.StaffClinicAssignment{}},
+		{"permission_groups", &model.PermissionGroup{}},
+		{"cages", &model.Cage{}},
+		{"lab_devices", &model.LabDevice{}},
+		{"lab_device_item_masters", &model.LabDeviceItemMaster{}},
+	} {
+		var leftover int64
+		require.NoError(t, db.Unscoped().Model(table.model).Where("clinic_id = ?", clinicID).Count(&leftover).Error)
+		assert.Zero(t, leftover, table.name)
+	}
+	var leftoverRules int64
+	require.NoError(t, db.Unscoped().Model(&model.PermissionGroupRule{}).Where("group_id = ?", group.ID).Count(&leftoverRules).Error)
+	assert.Zero(t, leftoverRules, "permission_group_rules")
+	var leftoverLinks int64
+	require.NoError(t, db.Model(&model.StaffPermissionGroup{}).Where("staff_id = ?", viewStaff.ID).Count(&leftoverLinks).Error)
+	assert.Zero(t, leftoverLinks, "staff_permission_groups")
 }

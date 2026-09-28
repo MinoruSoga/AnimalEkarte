@@ -18,7 +18,26 @@ const (
 	medicalRecordCount     = 21
 	ownerSearchToken       = "e2e-owner"
 	outsideFirstPagePrefix = "e2e-zebra-"
+	v04GroupName           = "e2e-v04-view-only"
+	v04RowPrefix           = "V04-e2e-"
 )
+
+// v04ViewOnlyResources は V04 設定/マスタ画面で view のみ許可する resource。
+// accounting/campaign 系と master-permission・master-staff は意図的に除外する。
+var v04ViewOnlyResources = []model.Resource{
+	model.ResourceMasterAnimalSpecies,
+	model.ResourceMasterMedical,
+	model.ResourceMasterReservationType,
+	model.ResourceMasterHospitalization,
+	model.ResourceMasterTrimming,
+	model.ResourceMasterInsurance,
+	model.ResourceMasterMerchandise,
+	model.ResourcePaymentMethod,
+	model.ResourceClosingSettings,
+	model.ResourceShifts,
+	model.ResourceHospitalSettings,
+	model.ResourceLabImport,
+}
 
 // Request は disposable clinic を作る入力。PasswordHash はログに出さない。
 type Request struct {
@@ -27,17 +46,27 @@ type Request struct {
 	PasswordHash string
 }
 
+// V04Result は view-only account と V04 行の参照情報。clinicId は含めない
+// （run-e2e.sh が JSON 全体から clinicId を greedy に抽出するため、重複キーを埋め込まない）。
+type V04Result struct {
+	ViewOnlyEmail     string   `json:"viewOnlyEmail"`
+	ViewOnlyResources []string `json:"viewOnlyResources"`
+	CageName          string   `json:"cageName"`
+	LabDeviceName     string   `json:"labDeviceName"`
+}
+
 // Result は Playwright が参照する合成 ID / 氏名。秘密は含めない。
 type Result struct {
-	ClinicID                uint64 `json:"clinicId"`
-	OwnerName               string `json:"ownerName"`
-	OwnerSearch             string `json:"ownerSearch"`
-	PetID                   uint64 `json:"petId"`
-	PetName                 string `json:"petName"`
-	OutsideFirstPagePetID   uint64 `json:"outsideFirstPagePetId"`
-	OutsideFirstPagePetName string `json:"outsideFirstPagePetName"`
-	EstimateTitle           string `json:"estimateTitle"`
-	MedicalRecordCount      int    `json:"medicalRecordCount"`
+	ClinicID                uint64    `json:"clinicId"`
+	OwnerName               string    `json:"ownerName"`
+	OwnerSearch             string    `json:"ownerSearch"`
+	PetID                   uint64    `json:"petId"`
+	PetName                 string    `json:"petName"`
+	OutsideFirstPagePetID   uint64    `json:"outsideFirstPagePetId"`
+	OutsideFirstPagePetName string    `json:"outsideFirstPagePetName"`
+	EstimateTitle           string    `json:"estimateTitle"`
+	MedicalRecordCount      int       `json:"medicalRecordCount"`
+	V04                     V04Result `json:"v04"`
 }
 
 // Create は新規 clinic / staff / owner / pet / 確定カルテと allowlist 用の行を INSERT する。
@@ -269,6 +298,11 @@ func Create(ctx context.Context, db *gorm.DB, req Request) (*Result, error) {
 			return apperrors.Wrap(err, "create synthetic estimate")
 		}
 
+		v04, err := createV04Fixture(tx, clinicID, req.PasswordHash)
+		if err != nil {
+			return err
+		}
+
 		result = &Result{
 			ClinicID:                clinicID,
 			OwnerName:               owner.Name,
@@ -279,6 +313,7 @@ func Create(ctx context.Context, db *gorm.DB, req Request) (*Result, error) {
 			OutsideFirstPagePetName: outsidePet.Name,
 			EstimateTitle:           estimateTitle,
 			MedicalRecordCount:      medicalRecordCount,
+			V04:                     v04,
 		}
 		return nil
 	})
@@ -286,6 +321,91 @@ func Create(ctx context.Context, db *gorm.DB, req Request) (*Result, error) {
 		return nil, err
 	}
 	return result, nil
+}
+
+// createV04Fixture は V04 settings/master view-only 検証用の account・権限グループ・
+// 一覧表示用の cage / lab device 行を作る。admin と同じ bcrypt hash を再利用する。
+func createV04Fixture(tx *gorm.DB, clinicID uint64, passwordHash string) (V04Result, error) {
+	account := &model.Account{
+		Email:         ViewOnlyLoginEmail(clinicID),
+		PasswordHash:  passwordHash,
+		IsActive:      true,
+		IsSystemAdmin: false,
+	}
+	if err := tx.Create(account).Error; err != nil {
+		return V04Result{}, apperrors.Wrap(err, "create v04 view-only account")
+	}
+	staff := &model.Staff{
+		ClinicID:  clinicID,
+		AccountID: &account.ID,
+		Name:      fmt.Sprintf("e2e-v04-view-%d", clinicID),
+		IsActive:  true,
+		StaffType: model.StaffTypeNurse,
+	}
+	if err := tx.Create(staff).Error; err != nil {
+		return V04Result{}, apperrors.Wrap(err, "create v04 view-only staff")
+	}
+	assignment := &model.StaffClinicAssignment{StaffID: staff.ID, ClinicID: clinicID, IsMain: true}
+	if err := tx.Create(assignment).Error; err != nil {
+		return V04Result{}, apperrors.Wrap(err, "assign v04 view-only staff clinic")
+	}
+
+	group := &model.PermissionGroup{
+		ClinicID: clinicID,
+		Name:     v04GroupName,
+		IsActive: true,
+	}
+	if err := tx.Create(group).Error; err != nil {
+		return V04Result{}, apperrors.Wrap(err, "create v04 view-only permission group")
+	}
+	resources := make([]string, 0, len(v04ViewOnlyResources))
+	for _, resource := range v04ViewOnlyResources {
+		rule := &model.PermissionGroupRule{
+			GroupID:   group.ID,
+			Resource:  string(resource),
+			CanView:   true,
+			CanCreate: false,
+			CanEdit:   false,
+			CanDelete: false,
+		}
+		if err := tx.Create(rule).Error; err != nil {
+			return V04Result{}, apperrors.Wrap(err, "create v04 view-only permission rule")
+		}
+		resources = append(resources, string(resource))
+	}
+	link := &model.StaffPermissionGroup{StaffID: staff.ID, GroupID: group.ID}
+	if err := tx.Create(link).Error; err != nil {
+		return V04Result{}, apperrors.Wrap(err, "link v04 view-only staff to group")
+	}
+
+	cage := &model.Cage{
+		ClinicID: clinicID,
+		Name:     fmt.Sprintf("%scage-%d", v04RowPrefix, clinicID),
+		IsActive: true,
+		CageType: model.CageTypeGeneral,
+		CageSize: model.CageSizeMedium,
+	}
+	if err := tx.Create(cage).Error; err != nil {
+		return V04Result{}, apperrors.Wrap(err, "create v04 cage")
+	}
+	// exam_type_id は意図的に nil — 臨床 fixture の検査種別へリンクすると
+	// examinations flow の挙動が変わりうるため。
+	device := &model.LabDevice{
+		ClinicID:   clinicID,
+		SourceType: string(model.LabImportSourceTypeFujiNX600),
+		Name:       fmt.Sprintf("%sdevice-%d", v04RowPrefix, clinicID),
+		IsActive:   true,
+	}
+	if err := tx.Create(device).Error; err != nil {
+		return V04Result{}, apperrors.Wrap(err, "create v04 lab device")
+	}
+
+	return V04Result{
+		ViewOnlyEmail:     account.Email,
+		ViewOnlyResources: resources,
+		CageName:          cage.Name,
+		LabDeviceName:     device.Name,
+	}, nil
 }
 
 // Delete は合成 clinic とその子孫だけを消す。clinic 1/2 と接頭辞不一致は拒否する。
@@ -331,6 +451,37 @@ func Delete(ctx context.Context, db *gorm.DB, appEnv, dbHost string, clinicID ui
 			estimateIDs = append(estimateIDs, estimate.ID)
 		}
 
+		var groups []model.PermissionGroup
+		if err := tx.Unscoped().Where("clinic_id = ?", clinicID).Find(&groups).Error; err != nil {
+			return apperrors.Wrap(err, "list synthetic permission groups")
+		}
+		groupIDs := make([]uint64, 0, len(groups))
+		for _, group := range groups {
+			groupIDs = append(groupIDs, group.ID)
+		}
+
+		// testdb は AutoMigrate 構築で FK CASCADE を期待できないため、staff/group 削除前に
+		// 中間テーブルと rule を明示削除する。
+		if len(staffIDs) > 0 || len(groupIDs) > 0 {
+			linkTx := tx.Unscoped()
+			switch {
+			case len(staffIDs) > 0 && len(groupIDs) > 0:
+				linkTx = linkTx.Where("staff_id IN ? OR group_id IN ?", staffIDs, groupIDs)
+			case len(staffIDs) > 0:
+				linkTx = linkTx.Where("staff_id IN ?", staffIDs)
+			default:
+				linkTx = linkTx.Where("group_id IN ?", groupIDs)
+			}
+			if err := linkTx.Delete(&model.StaffPermissionGroup{}).Error; err != nil {
+				return apperrors.Wrap(err, "delete synthetic staff permission group links")
+			}
+		}
+		if len(groupIDs) > 0 {
+			if err := tx.Unscoped().Where("group_id IN ?", groupIDs).Delete(&model.PermissionGroupRule{}).Error; err != nil {
+				return apperrors.Wrap(err, "delete synthetic permission group rules")
+			}
+		}
+
 		if len(estimateIDs) > 0 {
 			if err := tx.Unscoped().Where("estimate_id IN ?", estimateIDs).Delete(&model.EstimateItem{}).Error; err != nil {
 				return apperrors.Wrap(err, "delete synthetic estimate items")
@@ -351,8 +502,12 @@ func Delete(ctx context.Context, db *gorm.DB, appEnv, dbHost string, clinicID ui
 			&model.Pet{},
 			&model.Owner{},
 			&model.Vaccine{},
+			&model.LabDeviceItemMaster{},
+			&model.LabDevice{},
 			&model.ExaminationType{},
 			&model.CheckupType{},
+			&model.Cage{},
+			&model.PermissionGroup{},
 			&model.StaffClinicAssignment{},
 			&model.Staff{},
 		}
