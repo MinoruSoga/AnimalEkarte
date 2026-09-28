@@ -306,11 +306,31 @@ class VerificationTests(unittest.TestCase):
                 )
 
     def test_security_scan_workflow_uses_workflow_contracts(self):
-        for path in ('.github/workflows/security-scan.yml', '.github/workflows/e2e.yml'):
+        for path in (
+            '.github/workflows/security-scan.yml',
+            '.github/workflows/e2e.yml',
+            '.github/workflows/backend-deploy.yml',
+        ):
             with self.subTest(path=path):
                 jobs, blocked = verify.plan([path])
                 self.assertFalse(blocked)
                 self.assertEqual(jobs[0]['command'], ['node', '--test', 'scripts/check-workflow-contracts.test.mjs'])
+
+    def test_clinical_e2e_fixture_cli_uses_vet_and_gofmt(self):
+        path = 'backend/cmd/clinical-e2e-fixture/main.go'
+        jobs, blocked = verify.plan([path])
+        self.assertFalse(blocked)
+        commands = [job['command'] for job in jobs]
+        self.assertIn(['go', 'vet', './cmd/clinical-e2e-fixture'], commands)
+        self.assertIn(['gofmt', '-l', 'cmd/clinical-e2e-fixture/main.go'], commands)
+
+    def test_tygo_config_uses_ci_structure_check(self):
+        jobs, blocked = verify.plan(['backend/tygo.yaml'])
+        self.assertFalse(blocked)
+        self.assertEqual(
+            [job['command'] for job in jobs],
+            [['python3', '-B', 'scripts/ci_tygo_hosp_pass.py', 'backend/tygo.yaml', '/dev/null']],
+        )
 
     def test_cli_failure_has_no_pass_or_raw_output(self):
         failed = subprocess.CompletedProcess([], 1, 'sensitive stdout', 'sensitive stderr')

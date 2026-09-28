@@ -5,7 +5,7 @@ import {
   createViewOnlyContext,
   readV04FixtureFromEnv,
   type V04Fixture,
-} from "./helpers/v04-fixture";
+} from "./fixtures/v04-fixture";
 import { SettingsMasterPage } from "./pages/settings-master-page";
 
 /**

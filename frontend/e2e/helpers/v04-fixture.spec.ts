@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { parseV04Fixture, readV04FixtureFromEnv } from "./v04-fixture";
+import { parseV04Fixture, readV04FixtureFromEnv } from "../fixtures/v04-fixture";
 
 const valid = {
   clinicId: 991234,

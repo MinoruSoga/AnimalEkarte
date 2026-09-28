@@ -495,6 +495,15 @@ def plan(paths):
             jobs.append({'service': 'frontend', 'command': [
                 'node', 'node_modules/prettier/bin/prettier.cjs', '--check', 'src/styles/globals.css',
             ]})
+        elif path == 'backend/cmd/clinical-e2e-fixture/main.go':
+            # Thin CLI over internal/clinicale2e (tested there); no package tests, so
+            # compile + vet and gofmt are the scoped contract for this entrypoint.
+            jobs.append({'service': 'backend', 'command': ['go', 'vet', './cmd/clinical-e2e-fixture']})
+            if (ROOT / path).is_file():
+                jobs.append({'service': 'backend', 'command': ['gofmt', '-l', path.removeprefix('backend/')], 'require_empty_stdout': True})
+        elif path == 'backend/tygo.yaml':
+            # Structural check CI also runs; generated-file sync stays with the CI Codegen Sync job.
+            jobs.append({'service': 'host', 'command': ['python3', '-B', 'scripts/ci_tygo_hosp_pass.py', path, '/dev/null']})
         elif (path.startswith('backend/internal/') or path.startswith('backend/cmd/')) and path.endswith('.go'):
             package = pathlib.PurePosixPath(path).parent
             if not list((ROOT / package).glob('*_test.go')):
@@ -603,6 +612,7 @@ def plan(paths):
             '.github/workflows/README-security-scan.md',
             '.github/workflows/ci.yml',
             '.github/workflows/e2e.yml',
+            '.github/workflows/backend-deploy.yml',
             'infra/scripts/cf-run-migrate.sh',
         ):
             jobs.append({'service': 'host', 'command': ['node', '--test', 'scripts/check-workflow-contracts.test.mjs']})
