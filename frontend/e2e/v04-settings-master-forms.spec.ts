@@ -1656,7 +1656,12 @@ test.describe("V04 設定マスタ §2 診療項目（admin）", () => {
       name: string,
     ): Promise<number> {
       await settings.tab(tabLabel).click();
-      await expect(page).toHaveURL(new RegExp(`tab=${tabValue}`), { timeout: 10000 });
+      // 既定タブ（consultation）は URL に tab= が付かないため aria-selected で確認する。
+      if (tabValue === "consultation") {
+        await expect(settings.tab(tabLabel)).toHaveAttribute("aria-selected", "true");
+      } else {
+        await expect(page).toHaveURL(new RegExp(`tab=${tabValue}`), { timeout: 10000 });
+      }
       await settings.newButton().click();
       await expect(settings.masterTitleInput()).toBeVisible({ timeout: 10000 });
       await settings.masterTitleInput().fill(name);
