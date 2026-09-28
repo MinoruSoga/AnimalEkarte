@@ -3,6 +3,7 @@ import {
   resolveEndTimeOnStartChange,
   slotTimeToSelectValue,
   slotVacancyLabel,
+  withCurrentTimeOption,
 } from "./reservation-time-utils";
 
 describe("slotTimeToSelectValue", () => {
@@ -33,6 +34,22 @@ describe("slotVacancyLabel (EMR-170)", () => {
     expect(slotVacancyLabel("available")).toBe("〇 空きあり");
     expect(slotVacancyLabel("low")).toBe("△ 残り1枠");
     expect(slotVacancyLabel("full")).toBe("✕ 満員");
+  });
+});
+
+describe("withCurrentTimeOption (BUG-015/EMR-191)", () => {
+  it("appends an off-grid current value at the end", () => {
+    expect(withCurrentTimeOption(["10:00", "10:15"], "10:20")).toEqual(["10:00", "10:15", "10:20"]);
+  });
+
+  it("does not grow options when the value is already on the 15-minute grid", () => {
+    const options = ["10:00", "10:15"];
+    expect(withCurrentTimeOption(options, "10:15")).toBe(options);
+  });
+
+  it("returns the options unchanged when there is no current value", () => {
+    const options = ["10:00"];
+    expect(withCurrentTimeOption(options, undefined)).toBe(options);
   });
 });
 
