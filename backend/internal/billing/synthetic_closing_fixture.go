@@ -365,6 +365,7 @@ var syntheticClosingDeleteStatements = []string{
 	"DELETE FROM staff_clinic_assignments WHERE clinic_id = ?",
 	"DELETE FROM staff_reservation_capabilities WHERE clinic_id = ?",
 	"DELETE FROM support_bug_reports WHERE clinic_id = ?",
+	"DELETE FROM support_chat_messages WHERE clinic_id = ?",
 	"DELETE FROM treatment_plans WHERE clinic_id = ?",
 	"DELETE FROM treatments WHERE clinic_id = ?",
 	"DELETE FROM trimming_courses WHERE clinic_id = ?",
