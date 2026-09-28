@@ -1093,3 +1093,211 @@ test.describe("V04 権限: view のみ account（disposable clinic fixture）", 
     }
   });
 });
+
+// ─────────────────────────────────────────────────
+// admin account: §5 予約可能枠 #3〜#6（EMR-127d）
+// ─────────────────────────────────────────────────
+
+/** 予約区分と配下の予約可能枠を API で後始末する（子→親の順。失敗は握りつぶす）。 */
+async function deleteReservationTypeWithSlots(
+  request: APIRequestContext,
+  clinicId: number,
+  typeId: number,
+): Promise<void> {
+  try {
+    const slots = await v04Api(
+      request,
+      clinicId,
+      "GET",
+      `/masters/reservation-types/${typeId}/available-slots`,
+    );
+    if (slots.ok()) {
+      for (const row of listRows(await slots.json())) {
+        const slotId = readRowId(row);
+        if (slotId !== null) {
+          await deleteSeededRow(
+            request,
+            clinicId,
+            `/masters/reservation-types/${typeId}/available-slots/${slotId}`,
+          );
+        }
+      }
+    }
+    await deleteSeededRow(request, clinicId, `/masters/reservation-types/${typeId}`);
+  } catch {
+    // Best-effort cleanup only.
+  }
+}
+
+test.describe("V04 設定マスタ §5 予約可能枠（admin）", () => {
+  const v04 = readV04FixtureFromEnv();
+  test.skip(v04 === null, "E2E_CLINICAL_FIXTURE 未設定（suite=v04 以外）");
+
+  let context: BrowserContext;
+
+  test.beforeAll(async ({ browser }) => {
+    context = await createAuthedContext(browser);
+  });
+
+  test.afterAll(async () => {
+    await context.close();
+  });
+
+  test("予約可能枠: 特定日スロット追加・永続・パネル再オープン・削除 (#3・#4・#6)", async () => {
+    test.setTimeout(120000);
+    if (v04 === null) throw new Error("v04 fixture unavailable");
+    const page = await context.newPage();
+    const settings = new SettingsMasterPage(page);
+    const typeName = disposableName("区分特定日");
+    const specificDate = "2099-01-15";
+    let typeId: number | null = null;
+
+    // セクション見出し <p> の 2 つ上の div がセクション本体（追加フォーム+一覧を含む）。
+    const slotsSection = () => page.getByText("予約可能枠", { exact: true }).locator("xpath=../..");
+
+    try {
+      // leaf 区分を作成して保存 → パネルを開き直す（子セクションは既存行のみ描画）。
+      await settings.open("/settings/reservation-type");
+      await expect(settings.heading("予約区分マスタ")).toBeVisible({ timeout: 15000 });
+      await settings.newButton().click();
+      await expect(settings.masterTitleInput()).toBeVisible({ timeout: 10000 });
+      await settings.masterTitleInput().fill(typeName);
+      await settings.saveButton().click();
+      await expect(settings.masterTitleInput()).not.toBeVisible({ timeout: 10000 });
+      await expect(page.getByText(typeName)).toBeVisible({ timeout: 10000 });
+
+      const listResponse = await v04Api(
+        page.request,
+        v04.clinicId,
+        "GET",
+        "/masters/reservation-types",
+      );
+      typeId = findRowId(listRows(await listResponse.json()), typeName);
+      expect(typeId, "created reservation type must be listed").not.toBeNull();
+
+      await settings.rowActionButton(typeName).click();
+      await expect(settings.masterTitleInput()).toHaveValue(typeName, { timeout: 10000 });
+
+      // 毎週枠を 1 件追加（既定値: 毎週月曜日 09:45）。
+      const weeklyPostPromise = page.waitForResponse(
+        (response) =>
+          /\/v1\/masters\/reservation-types\/\d+\/available-slots/.test(response.url()) &&
+          response.request().method() === "POST",
+        { timeout: 15000 },
+      );
+      await slotsSection().getByRole("button", { name: "追加", exact: true }).click();
+      expect((await weeklyPostPromise).status(), "weekly slot POST must succeed").toBe(201);
+      await expect(slotsSection().getByText("毎週月曜日")).toBeVisible({ timeout: 10000 });
+
+      // #3: モードを「特定日」に切替 → 日付を入れて追加 → 永続。
+      await slotsSection().getByRole("combobox").first().click();
+      await page.getByRole("option", { name: "特定日", exact: true }).click();
+      await page.getByLabel("特定日").fill(specificDate);
+      const specificPostPromise = page.waitForResponse(
+        (response) =>
+          /\/v1\/masters\/reservation-types\/\d+\/available-slots/.test(response.url()) &&
+          response.request().method() === "POST",
+        { timeout: 15000 },
+      );
+      await slotsSection().getByRole("button", { name: "追加", exact: true }).click();
+      expect((await specificPostPromise).status(), "specific-date slot POST must succeed").toBe(
+        201,
+      );
+      await expect(slotsSection().getByText(specificDate)).toBeVisible({ timeout: 10000 });
+
+      // #6: パネルを閉じて開き直す → 毎週・特定日の保存済み枠が再表示される。
+      await page.getByLabel("閉じる").first().click();
+      await expect(settings.masterTitleInput()).not.toBeVisible({ timeout: 10000 });
+      await settings.rowActionButton(typeName).click();
+      await expect(settings.masterTitleInput()).toHaveValue(typeName, { timeout: 10000 });
+      await expect(slotsSection().getByText("毎週月曜日")).toBeVisible({ timeout: 10000 });
+      await expect(slotsSection().getByText(specificDate)).toBeVisible();
+
+      // ブラウザ再読込でも永続。
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(settings.heading("予約区分マスタ")).toBeVisible({ timeout: 15000 });
+      await settings.rowActionButton(typeName).click();
+      await expect(settings.masterTitleInput()).toHaveValue(typeName, { timeout: 10000 });
+      await expect(slotsSection().getByText("毎週月曜日")).toBeVisible({ timeout: 10000 });
+      await expect(slotsSection().getByText(specificDate)).toBeVisible();
+
+      // #4: 特定日スロットを削除 → 再読込でも消えている。
+      const slotRow = page.getByText(specificDate).locator("xpath=..");
+      const deleteSlotPromise = page.waitForResponse(
+        (response) =>
+          /\/v1\/masters\/reservation-types\/\d+\/available-slots\/\d+/.test(response.url()) &&
+          response.request().method() === "DELETE",
+        { timeout: 15000 },
+      );
+      await slotRow.getByRole("button", { name: "削除" }).click();
+      expect((await deleteSlotPromise).status(), "slot DELETE must succeed").toBe(204);
+      await expect(slotsSection().getByText(specificDate)).toHaveCount(0, { timeout: 10000 });
+
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(settings.heading("予約区分マスタ")).toBeVisible({ timeout: 15000 });
+      await settings.rowActionButton(typeName).click();
+      await expect(settings.masterTitleInput()).toHaveValue(typeName, { timeout: 10000 });
+      await expect(slotsSection().getByText(specificDate)).toHaveCount(0, { timeout: 10000 });
+      await expect(slotsSection().getByText("毎週月曜日")).toBeVisible();
+    } finally {
+      if (typeId !== null) {
+        await deleteReservationTypeWithSlots(page.request, v04.clinicId, typeId);
+      }
+      await page.close();
+    }
+  });
+
+  test("予約可能枠: 区分セレクタはリーフ区分のみ選択可 (#5)", async () => {
+    test.setTimeout(120000);
+    if (v04 === null) throw new Error("v04 fixture unavailable");
+    const page = await context.newPage();
+    const parentName = disposableName("区分親");
+    const leafName = disposableName("区分子");
+    let parentId: number | null = null;
+    let leafId: number | null = null;
+
+    try {
+      // 親区分 + 配下の leaf 区分を API で用意（ツリー描画の対象）。
+      parentId = await seedMasterRow(page.request, v04.clinicId, "/masters/reservation-types", {
+        name: parentName,
+        is_active: true,
+      });
+      leafId = await seedMasterRow(page.request, v04.clinicId, "/masters/reservation-types", {
+        name: leafName,
+        is_active: true,
+        parent_id: parentId,
+      });
+
+      await page.goto("/line-reservation/slots", { waitUntil: "domcontentloaded" });
+      await expect(page.getByRole("heading", { name: "LINE予約枠" }).first()).toBeVisible({
+        timeout: 45000,
+      });
+
+      // 親区分は展開トグル（"{name} グループ"）だけで、選択肢としては出ない。
+      const parentButton = page.getByRole("button", { name: `${parentName} グループ` });
+      await expect(parentButton).toBeVisible({ timeout: 30000 });
+      await expect(parentButton).toHaveAttribute("aria-expanded", "false");
+      await parentButton.click();
+      await expect(parentButton).toHaveAttribute("aria-expanded", "true");
+      expect(
+        new URL(page.url()).searchParams.get("typeId"),
+        "parent group click must not select the parent type",
+      ).not.toBe(String(parentId));
+
+      // 展開したグループ内の leaf を選択すると typeId が指し、カレンダーが描画される。
+      const leafButton = page.getByRole("button", { name: leafName, exact: true });
+      await expect(leafButton).toBeVisible({ timeout: 10000 });
+      await leafButton.click();
+      await expect(page).toHaveURL(new RegExp(`typeId=${leafId}`), { timeout: 10000 });
+      await expect(page.getByText(`${parentName} / ${leafName}`, { exact: true })).toBeVisible();
+    } finally {
+      if (leafId !== null) {
+        await deleteSeededRow(page.request, v04.clinicId, `/masters/reservation-types/${leafId}`);
+      }
+      if (parentId !== null) {
+        await deleteSeededRow(page.request, v04.clinicId, `/masters/reservation-types/${parentId}`);
+      }
+      await page.close();
+    }
+  });
+});
