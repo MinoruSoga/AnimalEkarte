@@ -2139,59 +2139,25 @@ test.describe("V04 設定マスタ §1 標準マスタ（admin）", () => {
 });
 
 // ─────────────────────────────────────────────────
-// view-only account: §1 追加 6 画面（EMR-127f）
+// view-only account: §1 追加 4 画面（EMR-127f）
 // ─────────────────────────────────────────────────
 
 /**
  * EMR-127f で追加する view-only 画面。`ViewOnlyMasterScreen` と同じ観点に、
- * 行ラベルのフィールド名が `name` ではないケース（問診テンプレートの `title`）と
- * FK が要るケース（診断病名の `diagnosis_type_id`）を載せる拡張。
+ * 行ラベルのフィールド名が `name` ではないケース（問診テンプレートの `title`）を
+ * 載せる拡張。
+ *
+ * 診断カテゴリ・診断病名は対象外: `DiagnosisTabRows` が詳細ボタンを `canEdit` で
+ * ゲートするため、view のみ account では一覧行から詳細を開く導線自体が存在しない
+ * （他マスタは全て「詳細」ボタンを無条件描画し readOnly パネルが開く設計）。
+ * 「詳細は閲覧可」を満たせない製品側の不整合として EMR-127f レポートに記録する。
  */
 interface ViewOnlyMasterScreenExtra extends ViewOnlyMasterScreen {
   /** 行ラベルとして使うフィールド名（既定 `"name"`） */
   seedNameField?: string;
-  /** 代表行のシードを独自に行う（FK 行が要る場合）。戻り値は削除対象パス列 */
-  seedRow?: (
-    request: APIRequestContext,
-    clinicId: number,
-    rowName: string,
-  ) => Promise<{ rowId: number; cleanupPaths: string[] }>;
 }
 
 const VIEW_ONLY_MASTER_SCREENS_EXTRA: ViewOnlyMasterScreenExtra[] = [
-  {
-    resource: "master-medical",
-    screen: "診断カテゴリ",
-    path: "/settings/diagnosis?tab=diagnosis_type",
-    heading: "診断マスタ",
-    entityLabel: "診断カテゴリ",
-    apiPath: "/masters/diagnosis-types",
-    seedBody: { is_active: true },
-  },
-  {
-    resource: "master-medical",
-    screen: "診断病名",
-    path: "/settings/diagnosis?tab=diagnosis_name",
-    heading: "診断マスタ",
-    entityLabel: "診断病名",
-    apiPath: "/masters/diagnosis-names",
-    // 病名は diagnosis_type_id が必須 — 先にカテゴリをシードし、病名→カテゴリの順で削除する。
-    seedRow: async (request, clinicId, rowName) => {
-      const typeId = await seedMasterRow(request, clinicId, "/masters/diagnosis-types", {
-        name: `${rowName}-category`,
-        is_active: true,
-      });
-      const nameId = await seedMasterRow(request, clinicId, "/masters/diagnosis-names", {
-        name: rowName,
-        diagnosis_type_id: typeId,
-        is_active: true,
-      });
-      return {
-        rowId: nameId,
-        cleanupPaths: [`/masters/diagnosis-names/${nameId}`, `/masters/diagnosis-types/${typeId}`],
-      };
-    },
-  },
   {
     resource: "master-medical",
     screen: "主訴種別",
@@ -2262,23 +2228,16 @@ test.describe("V04 権限: view のみ account 追加画面（EMR-127f）", () =
       const page = await openViewOnlyPage(context, v04);
       let cleanupPaths: string[] = [];
       try {
-        // 一覧の読取 + 代表行を admin でシード（FK が要る画面は seedRow に委譲）。
+        // 一覧の読取 + 代表行を admin でシード。
         const list = await v04Api(page.request, v04.clinicId, "GET", master.apiPath);
         expect(list.status(), `GET ${master.apiPath} must be allowed for view`).toBe(200);
 
         const rowName = `V04-e2e-${master.entityLabel}-${Date.now()}`;
-        let rowId: number;
-        if (master.seedRow !== undefined) {
-          const seeded = await master.seedRow(adminContext.request, v04.clinicId, rowName);
-          rowId = seeded.rowId;
-          cleanupPaths = seeded.cleanupPaths;
-        } else {
-          rowId = await seedMasterRow(adminContext.request, v04.clinicId, master.apiPath, {
-            [master.seedNameField ?? "name"]: rowName,
-            ...(master.seedBody ?? {}),
-          });
-          cleanupPaths = [`${master.apiPath}/${rowId}`];
-        }
+        const rowId = await seedMasterRow(adminContext.request, v04.clinicId, master.apiPath, {
+          [master.seedNameField ?? "name"]: rowName,
+          ...(master.seedBody ?? {}),
+        });
+        cleanupPaths = [`${master.apiPath}/${rowId}`];
 
         await page.goto(master.path, { waitUntil: "domcontentloaded" });
         await expect(page.getByRole("heading", { name: master.heading }).first()).toBeVisible({
