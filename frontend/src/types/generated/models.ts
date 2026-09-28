@@ -3521,6 +3521,30 @@ export interface SupportBugReport {
 }
 
 //////////
+// source: support_chat_message.go
+
+/**
+ * SupportChatMessageRole は保存済みチャット履歴の発言者（LLM へ送る system は保存しない）
+ */
+export type SupportChatMessageRole = string;
+export const SupportChatRoleUser: SupportChatMessageRole = "user";
+export const SupportChatRoleAssistant: SupportChatMessageRole = "assistant";
+/**
+ * SupportChatMessage はヘルプチャットの会話履歴1件。
+ * clinic_id × staff_id で「選択clinic内のスタッフ個人」にスコープされる。
+ */
+export interface SupportChatMessage {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  staff_id: number /* uint64 */;
+  role: SupportChatMessageRole;
+  content: string;
+  sources?: unknown;
+  created_at: string;
+  deleted_at?: string | null;
+}
+
+//////////
 // source: token_blacklist.go
 
 /**
