@@ -100,6 +100,8 @@ const SYNTHETIC_CARE_PLAN_ITEM = {
   procedure_id: String(SYNTHETIC_IDS.carePlanItem),
   unit_price: 4_321,
   category: "synthetic",
+  manual: false,
+  other_reason: "",
   sort_order: 1,
   created_at: CREATED_AT,
   updated_at: CREATED_AT,

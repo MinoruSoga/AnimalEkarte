@@ -101,6 +101,18 @@ test.describe("予防接種管理 フロー E2E", () => {
     });
   });
 
+  test("/vaccinations/select-pet — ペット選択画面が表示される", async () => {
+    const page = await context.newPage();
+    const vaccinations = new VaccinationsPage(page);
+    try {
+      await vaccinations.gotoSelectPet();
+      await expect(vaccinations.selectPetHeading()).toBeVisible({ timeout: 15000 });
+      await expect(page).toHaveURL(/\/vaccinations\/select-pet/);
+    } finally {
+      await page.close();
+    }
+  });
+
   test("/vaccinations — 新規登録ボタンでペット選択画面に遷移する", async () => {
     const page = await context.newPage();
     const vaccinations = new VaccinationsPage(page);
