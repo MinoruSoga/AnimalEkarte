@@ -106,8 +106,65 @@ test("Docker, packageManager declarations, and CI use pnpm 10.15.0", () => {
   }
   assert.equal(
     setupCount,
-    7,
+    8,
     "expected every pnpm/action-setup use to be covered",
+  );
+});
+
+test("backend deploy keeps the STG path and adds a Production-gated path", () => {
+  const wf = read(".github/workflows/backend-deploy.yml");
+  const on = yamlBlock(wf, "on", 0);
+  assert.match(on, /^\s+- staging\s*$/m);
+  assert.match(on, /^\s+- production\s*$/m);
+
+  const staging = workflowJob(wf, "deploy");
+  assert.doesNotMatch(staging, /^\s+environment:/m);
+  assert.match(staging, /github\.ref == 'refs\/heads\/staging'/);
+  const stgDeploy = namedStep(staging, "Deploy Worker and Container");
+  assert.match(stgDeploy, /^\s+run: npx wrangler deploy\s*$/m);
+  assert.doesNotMatch(stgDeploy, /wrangler\.production\.jsonc/);
+  assert.doesNotMatch(staging, /PROD_/);
+
+  const prod = workflowJob(wf, "deploy-production");
+  assert.match(prod, /^\s+environment: Production\s*$/m);
+  const firstStep = prod
+    .split("\n")
+    .find((line) => line.startsWith("      - name: "));
+  assert.equal(
+    firstStep,
+    "      - name: Reject production deploy from a non-production ref",
+  );
+  const reject = namedStep(
+    prod,
+    "Reject production deploy from a non-production ref",
+  );
+  assert.match(
+    reject,
+    /if: \$\{\{ github\.ref != 'refs\/heads\/production' \}\}/,
+  );
+  assert.match(reject, /exit 1/);
+  const prodDeploy = namedStep(prod, "Deploy Worker and Container");
+  assert.match(prodDeploy, /npx wrangler deploy -c wrangler\.production\.jsonc/);
+  assert.match(prod, /WORKER_URL: https:\/\/api\.noah-karte\.com/);
+  assert.doesNotMatch(prod, /workers\.dev/);
+  assert.doesNotMatch(prod, /STG_DEMO/);
+  assert.doesNotMatch(prod, /secrets\.CLOUDFLARE_API_TOKEN/);
+  assert.doesNotMatch(prod, /secrets\.MIGRATE_RUN_SECRET/);
+  const verify = namedStep(prod, "Verify production credentials");
+  assert.match(verify, /secrets\.PROD_CLOUDFLARE_API_TOKEN/);
+  assert.match(verify, /secrets\.PROD_MIGRATE_RUN_SECRET/);
+
+  const order = [
+    "Verify production credentials",
+    "Deploy Worker and Container",
+    "Run database migration",
+    "Wait for /health (post-migrate)",
+  ].map((name) => prod.indexOf(`      - name: ${name}`));
+  for (const index of order) assert.notEqual(index, -1);
+  assert.deepEqual(
+    [...order].sort((a, b) => a - b),
+    order,
+    "production step order must be verify -> deploy -> migrate -> health",
   );
 });
 
