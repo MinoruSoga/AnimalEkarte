@@ -1,5 +1,7 @@
 # SLACK-BACKGROUND: 背景分の画面対応図（候補列挙・宛先未決）
 
+> 2026-09-29 注記: 現在のタスク状態の正本は Plane `EMR-90`（Linear は 2026-09-16 閉鎖済み・履歴参照のみ）。本文の「READY」「UNKNOWN」等の状態語は当時の調査・証跡記録であり現在の実行状態を示さない。ID 対応は [migration receipt](../plane-md-migration-20260923-receipt.md)。
+
 状態: **コード照合 READY／対象欄 PO UNKNOWN／内容追加なし**。出典は [todo-issue.md](../../../todo.md#issue-ledger) 見出し `### SLACK-BACKGROUND`（L184–188、索引 L420）。保持する現場条件:
 
 - 出典 929–937、親 timestamp `1789539164.115569`。原文要約は「背景分に皮下点滴を追加」

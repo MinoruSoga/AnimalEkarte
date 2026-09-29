@@ -1,5 +1,7 @@
 # SLACK-CLINICAL-UAT — clinic × role × clinical-flow map (docs-only)
 
+> 2026-09-29 注記: 現在のタスク状態の正本は Plane `EMR-110`。本文の「READY」「未実施」等の状態語は当時の調査・証跡記録であり現在の実行状態を示さない。ID 対応は [migration receipt](../plane-md-migration-20260923-receipt.md)。
+
 Campaign `remaining-ops-20260920` revision 1. Unit `SLACK-CLINICAL-UAT`. Attempt `att-slack-clinical-uat-20260920-001`. Claim `claim/SLACK-CLINICAL-UAT`. Prompt SHA-256 `7f6037513abf8b030c81c746994213088bc6ff42364f9a4d5307a92b56c58113`.
 
 Maps 9 chart tabs and the clinical E2E allowlist onto clinic × 受付/獣医師/看護. Binding sources:

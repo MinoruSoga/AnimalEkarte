@@ -1,5 +1,7 @@
 # UAT-Q3-GENDER-MAP — 統合済み revision ↔ 現行 bundle / 検証 receipt 対応表
 
+> 2026-09-29 注記: 現在のタスク状態の正本は Plane `MIG-16`（2026-09-29 読取: **Needs Human**）。本文の「UNKNOWN」「一致/差異」等の判定語は当時の調査・証跡記録であり現在の実行状態を示さない。ID 対応は [migration receipt](../plane-md-migration-20260923-receipt.md)。
+
 - campaign: `todo-ledger-20260922` rev 1 / unit `PREP-GENDER-MAP` / attempt `att-gender-20260922-001`
 - 作成日: 2026-09-22 / 作成者: receiver `recv-gender-20260922-001`（read-only 照合のみ。STG・DB・old_db・製品コードへの変更なし）
 - 目的: old_db に統合済みの性別コード修正 revision と、現行 4 院 bundle manifest・検証 receipt の対応を一意に特定し、一致 / 差異 / UNKNOWN を明示する。後続の STG 限定訂正票は `UAT-Q3-GENDER-MAP-CORRECTION-DRAFT.md`。

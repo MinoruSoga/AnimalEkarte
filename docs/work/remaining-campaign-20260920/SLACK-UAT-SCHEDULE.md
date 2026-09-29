@@ -1,6 +1,6 @@
 # SLACK-UAT-SCHEDULE: 医院×職種 UAT カバレッジマトリクス
 
-> Current task state: Plane `EMR-200`. The matrices below preserve case/evidence history.
+> Current task state: Plane `EMR-112`. The matrices below preserve case/evidence history.（2026-09-29 訂正: 旧記述 `EMR-200` は別 unit `NOTE2-SWEEP-COVERAGE` の ID で誤り。本票の対応 ID は crosswalk 上 `EMR-112`）
 
 状態: **カバレッジ表 READY／実施枠 UNKNOWN／未実施セルのみ**。出典は [todo-issue.md](../../../todo.md#issue-ledger) 見出し `### SLACK-UAT-SCHEDULE`（L270–274、索引 L394）と [UAT 環境条件](../../ops/testing/UAT-ENV-SETUP.md)、[直近 UAT の残作業](../../../todo.md#直近-uat-の残作業)。保持する現場条件:
 

@@ -29,13 +29,18 @@ import (
 	"github.com/animal-ekarte/backend/internal/staff"
 )
 
-const commandTimeout = 10 * time.Minute
+const (
+	commandTimeout      = 10 * time.Minute
+	allowRemoteEnv      = "STAFF_PROVISION_ALLOW_REMOTE"
+	allowRemoteSentinel = "YES_I_UNDERSTAND"
+)
 
 type options struct {
-	command      string
-	manifestPath string
-	secretsPath  string
-	repoRoot     string
+	command           string
+	manifestPath      string
+	secretsPath       string
+	repoRoot          string
+	confirmTargetHost string
 }
 
 type runDependencies struct {
@@ -106,20 +111,8 @@ func run(
 	if database == "" {
 		return fmt.Errorf("DB_NAME is required")
 	}
-	if opt.command == "apply" && !dbconn.IsLocalHost(conn.Host) {
-		// Hard stop for non-local hosts unless the operator is intentionally on a
-		// local compose network. Staging/production apply remains a separate,
-		// human-reviewed procedure described in the ops doc — this binary still
-		// refuses accidental remote apply from a developer laptop without an
-		// explicit local host.
-		//
-		// Note: authorized operators targeting remote environments must use the
-		// documented remote execution path (container in that environment) where
-		// DB_HOST is the environment-local name, not a public endpoint from a
-		// developer workstation.
-		if os.Getenv("STAFF_PROVISION_ALLOW_REMOTE") != "YES_I_UNDERSTAND" {
-			return fmt.Errorf("apply refuses non-local DB_HOST without STAFF_PROVISION_ALLOW_REMOTE=YES_I_UNDERSTAND")
-		}
+	if err := requireRemoteTarget(opt, conn.Host); err != nil {
+		return err
 	}
 
 	pgxConfig, err := conn.PGXConfig(database)
@@ -172,9 +165,29 @@ func run(
 	}
 }
 
+// requireRemoteTarget fail-closes before any DB connection. Non-local DB_HOST
+// needs both the allow-remote env and a --confirm-target-host that exactly
+// equals DB_HOST (same contract as stg-uat-staff-attach). A supplied but
+// mismatched confirmation is rejected even for local hosts.
+func requireRemoteTarget(opt options, host string) error {
+	if opt.confirmTargetHost != "" && opt.confirmTargetHost != host {
+		return fmt.Errorf("target host confirmation must exactly match DB_HOST")
+	}
+	if dbconn.IsLocalHost(host) {
+		return nil
+	}
+	if os.Getenv(allowRemoteEnv) != allowRemoteSentinel {
+		return fmt.Errorf("%s refuses non-local DB_HOST without %s=%s", opt.command, allowRemoteEnv, allowRemoteSentinel)
+	}
+	if opt.confirmTargetHost == "" {
+		return fmt.Errorf("target host confirmation must exactly match DB_HOST")
+	}
+	return nil
+}
+
 func parseOptions(args []string) (options, error) {
 	if len(args) == 0 {
-		return options{}, fmt.Errorf("usage: staff-provision <preflight|apply> --manifest=/abs/path --secrets=/abs/path")
+		return options{}, fmt.Errorf("usage: staff-provision <preflight|apply> --manifest=/abs/path --secrets=/abs/path [--confirm-target-host=DB_HOST]")
 	}
 	command := args[0]
 	if command != "preflight" && command != "apply" {
@@ -185,6 +198,7 @@ func parseOptions(args []string) (options, error) {
 	manifestPath := fs.String("manifest", "", "absolute path to manifest JSON (mode 0600, outside repo)")
 	secretsPath := fs.String("secrets", "", "absolute path to secrets JSON (mode 0600, outside repo)")
 	repoRoot := fs.String("repo-root", "", "optional absolute repository root to exclude as input location")
+	confirmTargetHost := fs.String("confirm-target-host", "", "must exactly equal DB_HOST; required with STAFF_PROVISION_ALLOW_REMOTE for non-local DB_HOST")
 	if err := fs.Parse(args[1:]); err != nil {
 		return options{}, fmt.Errorf("parse flags: %w", err)
 	}
@@ -192,10 +206,11 @@ func parseOptions(args []string) (options, error) {
 		return options{}, fmt.Errorf("--manifest and --secrets are required")
 	}
 	return options{
-		command:      command,
-		manifestPath: *manifestPath,
-		secretsPath:  *secretsPath,
-		repoRoot:     strings.TrimSpace(*repoRoot),
+		command:           command,
+		manifestPath:      *manifestPath,
+		secretsPath:       *secretsPath,
+		repoRoot:          strings.TrimSpace(*repoRoot),
+		confirmTargetHost: *confirmTargetHost,
 	}, nil
 }
 

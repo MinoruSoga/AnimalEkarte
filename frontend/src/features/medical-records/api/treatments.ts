@@ -24,7 +24,11 @@ function clinicHeaderConfig(clinicId?: string) {
 
 // ── Fetch ─────────────────────────────────────────────────────────────
 
-const getTreatments = async (medicalRecordId: string, clinicId?: string): Promise<Treatment[]> => {
+// EMR-219: useCopyTreatmentDetails が queryClient.fetchQuery 経由で lazy fetch するため export 化。
+export const getTreatments = async (
+  medicalRecordId: string,
+  clinicId?: string,
+): Promise<Treatment[]> => {
   const { data } = await axios.get<Treatment[]>(
     `/v1/medical-records/${medicalRecordId}/treatments`,
     clinicHeaderConfig(clinicId),
@@ -44,18 +48,26 @@ export const useGetTreatments = (medicalRecordId: string, clinicId?: string) => 
 
 // ── Create ────────────────────────────────────────────────────────────
 
+// EMR-219: useCopyTreatmentDetails が QueryClientProvider 配下でも安全に POST できるよう
+// 純粋な fetcher として export する。request shape は useCreateTreatment と同一。
+export const createTreatment = async (
+  medicalRecordId: string,
+  input: CreateTreatmentInput,
+  clinicId?: string,
+): Promise<Treatment> => {
+  const { data } = await axios.post<Treatment>(
+    `/v1/medical-records/${medicalRecordId}/treatments`,
+    input,
+    clinicHeaderConfig(clinicId),
+  );
+  return data;
+};
+
 export const useCreateTreatment = (medicalRecordId: string, clinicId?: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (input: CreateTreatmentInput) =>
-      axios
-        .post<Treatment>(
-          `/v1/medical-records/${medicalRecordId}/treatments`,
-          input,
-          clinicHeaderConfig(clinicId),
-        )
-        .then((r) => r.data),
+    mutationFn: (input: CreateTreatmentInput) => createTreatment(medicalRecordId, input, clinicId),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.medicalRecords.treatments(medicalRecordId),

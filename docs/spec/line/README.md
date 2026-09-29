@@ -58,7 +58,7 @@ flowchart LR
 
 ## 3. 再開条件（#259）
 
-[#259](https://github.com/MinoruSoga/AnimalEkarte/issues/259) は 2026-09-06 取得時 **OPEN**。最新コメントの判定は **BLOCKED_EXTERNAL**（先方 enable、STG 少数 live-send、cron/stop 実測待ち）。納品後対応とする PO 決定は維持されており、仕様書の「実装済み」は外部再開・稼働・受入済みを意味しない。Linear BRT-50 の現在値は今回取得していない。
+[#259](https://github.com/MinoruSoga/AnimalEkarte/issues/259) は 2026-09-06 取得時 **OPEN**。最新コメントの判定は **BLOCKED_EXTERNAL**（先方 enable、STG 少数 live-send、cron/stop 実測待ち）。納品後対応とする PO 決定は維持されており、仕様書の「実装済み」は外部再開・稼働・受入済みを意味しない。Linear BRT-50 の現在値は 2026-09-06 時点で未取得だった。（2026-09-29 訂正: Linear は 2026-09-16 に閉鎖済みで、BRT-50 の現在値は今後も Linear からは取得不可。実行 SoT は Plane workspace `baritechllc` / project `EMR` で、関連する Lステップ実送信 UAT 項目は `EMR-132`（QA-UAT-LSTEP-REAL、plane-md-migration receipt 2026-09-23 時点で Blocked））
 
 - Write API 再開と cron 配線は **同一リリース**で扱う。現行 repo には scheduler と cron 定義があるが、実環境での fire・停止証跡は別途必要。
 - 先方の API 有効化・対象環境・担当者・監視・停止手段を確認し、実送信は [pause runbook](../../ops/deploy/LSTEP_WRITE_API_PAUSE.md) の承認境界に従う。

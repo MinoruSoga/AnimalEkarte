@@ -30,6 +30,7 @@ const COPY_HISTORY_ITEMS: InterviewHistoryItem[] = [
     title: "前回カルテ",
     content: "元気がない",
     copySource: {
+      recordId: "101",
       chiefComplaint: "前回の主訴詳細",
       treatmentPolicy: "前回の治療方針",
       chiefComplaintTypeId: 7,
@@ -149,5 +150,64 @@ describe("MedicalRecordInterview — 前回複写（コピー）", () => {
     expect(props.setChiefComplaint).toHaveBeenCalledWith("部分的な主訴");
     expect(props.setTreatmentPolicy).not.toHaveBeenCalled();
     expect(props.setChiefComplaintTypeId).not.toHaveBeenCalled();
+  });
+
+  it("即時適用パスで onCopyRecordTreatments が copySource.recordId で呼ばれる（EMR-219）", async () => {
+    const user = userEvent.setup();
+    const onCopyRecordTreatments = vi.fn();
+    renderInterview({ onCopyRecordTreatments });
+
+    await user.click(screen.getByRole("button", { name: "コピー" }));
+
+    expect(onCopyRecordTreatments).toHaveBeenCalledTimes(1);
+    expect(onCopyRecordTreatments).toHaveBeenCalledWith("101");
+  });
+
+  it("ConfirmDialog 確定パスでも onCopyRecordTreatments が copySource.recordId で呼ばれる（EMR-219）", async () => {
+    const user = userEvent.setup();
+    const onCopyRecordTreatments = vi.fn();
+    renderInterview({ chiefComplaint: "編集済みの主訴", onCopyRecordTreatments });
+
+    await user.click(screen.getByRole("button", { name: "コピー" }));
+    const dialog = await screen.findByRole("alertdialog");
+    // EMR-219: 治療明細も追加される旨をダイアログ説明文で告知する
+    expect(dialog).toHaveTextContent("前回の治療明細も追加されます");
+    await user.click(within(dialog).getByRole("button", { name: "コピー" }));
+
+    expect(onCopyRecordTreatments).toHaveBeenCalledTimes(1);
+    expect(onCopyRecordTreatments).toHaveBeenCalledWith("101");
+  });
+
+  it("ConfirmDialog キャンセルでは onCopyRecordTreatments は呼ばれない（EMR-219）", async () => {
+    const user = userEvent.setup();
+    const onCopyRecordTreatments = vi.fn();
+    renderInterview({ treatmentPolicy: "独自の治療方針", onCopyRecordTreatments });
+
+    await user.click(screen.getByRole("button", { name: "コピー" }));
+    const dialog = await screen.findByRole("alertdialog");
+    await user.click(within(dialog).getByRole("button", { name: "キャンセル" }));
+
+    expect(onCopyRecordTreatments).not.toHaveBeenCalled();
+  });
+
+  it("copySource.recordId が無い履歴行では onCopyRecordTreatments は呼ばれない（EMR-219）", async () => {
+    const user = userEvent.setup();
+    const onCopyRecordTreatments = vi.fn();
+    const noRecordItems: InterviewHistoryItem[] = [
+      {
+        ...COPY_HISTORY_ITEMS[0],
+        id: "12",
+        copySource: { chiefComplaint: "部分的な主訴" },
+      },
+    ];
+    const props = renderInterview({
+      historyItems: noRecordItems,
+      onCopyRecordTreatments,
+    });
+
+    await user.click(screen.getByRole("button", { name: "コピー" }));
+
+    expect(props.setChiefComplaint).toHaveBeenCalledWith("部分的な主訴");
+    expect(onCopyRecordTreatments).not.toHaveBeenCalled();
   });
 });

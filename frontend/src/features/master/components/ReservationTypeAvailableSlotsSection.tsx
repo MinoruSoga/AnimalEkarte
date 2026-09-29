@@ -96,6 +96,7 @@ export function ReservationTypeAvailableSlotsSection({ clinicId, reservationType
         return (
           <div
             key={item.id}
+            data-testid="available-slot-row"
             className={`flex items-center justify-between gap-2 py-1.5 px-2 rounded-xxs ${C.hoverBgLight} transition-colors group`}
           >
             <Clock className={`${ICON.smXs} ${C.text40} shrink-0`} />
@@ -116,7 +117,7 @@ export function ReservationTypeAvailableSlotsSection({ clinicId, reservationType
   );
 
   return (
-    <div className={`mt-4 pt-4 ${STYLE.sectionDivider}`}>
+    <div data-testid="available-slots-section" className={`mt-4 pt-4 ${STYLE.sectionDivider}`}>
       <div className="flex items-center gap-1.5 mb-3">
         <Clock className={`${ICON.smXs} ${C.text50}`} />
         <p className={`text-xs font-medium ${C.text50}`}>予約可能枠</p>
@@ -151,7 +152,7 @@ export function ReservationTypeAvailableSlotsSection({ clinicId, reservationType
             value={form.availableType}
             onValueChange={(value) => handleFieldChange("availableType", value)}
           >
-            <SelectTrigger className={STYLE.selectCompact}>
+            <SelectTrigger className={STYLE.selectCompact} aria-label="スロット種別">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -165,7 +166,7 @@ export function ReservationTypeAvailableSlotsSection({ clinicId, reservationType
               value={form.dayOfWeek}
               onValueChange={(value) => handleFieldChange("dayOfWeek", value)}
             >
-              <SelectTrigger className={STYLE.selectCompact}>
+              <SelectTrigger className={STYLE.selectCompact} aria-label="曜日">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>{DAY_OF_WEEK_SELECT_ITEMS}</SelectContent>
@@ -186,7 +187,7 @@ export function ReservationTypeAvailableSlotsSection({ clinicId, reservationType
             value={form.startTime}
             onValueChange={(value) => handleFieldChange("startTime", value)}
           >
-            <SelectTrigger className={STYLE.selectCompact}>
+            <SelectTrigger className={STYLE.selectCompact} aria-label="開始時刻">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>{TIME_SELECT_ITEMS}</SelectContent>

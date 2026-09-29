@@ -1,5 +1,7 @@
 # SLACK-VACCINE-PRINT: 一般カルテ印刷 vs ワクチン証明書（renderer 欠落）
 
+> 2026-09-29 注記: 現在のタスク状態の正本は Plane `EMR-97`。本文の「READY」「未実行」等の状態語は当時の調査・証跡記録であり現在の実行状態を示さない。ID 対応は [migration receipt](../plane-md-migration-20260923-receipt.md)。
+
 状態: **経路分離 READY／専用証明書 renderer 未確認／製品実装・PDF 未実行（停止）**。出典は [todo-issue.md](../../../todo.md#issue-ledger) 見出し `### SLACK-VACCINE-PRINT`（L203–206、索引 L426）。保持する現場条件:
 
 - 出典 956–960 の紙のワクチン証明書の質問。専用証明書の対応範囲確認が必要

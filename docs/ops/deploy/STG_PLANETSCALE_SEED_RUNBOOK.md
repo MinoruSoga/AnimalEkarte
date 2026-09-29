@@ -36,6 +36,7 @@ flowchart TB
 
 - target database/branch、data owner、operator、maintenance windowをrun sheetに固定した。
 - 保存対象、verified backup/restore、rollback decisionを確認した。
+- `manual_articles`/`manual_article_versions`（マニュアル編集 override）の保存要否を確認した。残す場合は§6.1 step 1のexportをrebuild前に取得する。
 - target Wranglerの`secrets.required` namesとvarsを値を表示せず確認した。
 - current artifactにtop-level DDLと`002_master/manifest.json`/全listed CSVが揃う。
 - legacy keys がある場合は、現行 master-only translation と対象 DB の master 完全性を照合し、不整合時の reviewed recovery plan がある。
@@ -103,13 +104,15 @@ Approved rebuildでは`DROP SCHEMA`と`CREATE SCHEMA`を対で扱い、`public` 
 
 対象はPlanetScale Postgres `animalekarte-stg` / branch `main`（org `noah-animalekarte`）。advisory lockのため直結する。Hyperdriveと`pscale connect`は使わない。`pscale role reset-default`でapp `postgres`ロールのパスワードを回さない。credentialをlog/file/chatへ残さない。
 
-1. **短命ロールを発行する。** `pscale role create animalekarte-stg main <name> --org noah-animalekarte --inherited-roles postgres --ttl 4h -f json` の出力を権限0600の一時ファイルへリダイレクトする。JSONの`access_host_url` / `username` / `password`を使う。passwordは作成時だけ返る。
-2. **`cmd/migrate`を`DB_RESET=true`で実行する。** ローカルComposeのbackendへ、一時ファイルをsourceした同一シェルから`docker compose exec -T`で`DB_*`と`DB_RESET=true`と`APP_ENV=staging`を渡す。ホストで`go run`しない。composeサービスは`DB_HOST=db`をハードコードしているため、execの`-e`でPlanetScaleへ上書きする。`go run ./cmd/migrate`のmigrations rootは`/app/migrations`（backend volume）。
-3. **reset後のmigrateログを判定する。** `Schema reset completed`、直下SQLの`applied>=1`（freshではskip-allではない）、`Seed bundle loaded bundle=002_master`、ログインseed適用時は`Login seed applied`、`Migration key coverage missing=0`。healthだけを成功にしない。
-4. **所有権をapp `postgres`へ戻す。** migrate成功後に`pscale role delete animalekarte-stg main <role-id> --org noah-animalekarte --successor postgres --force`。削除しないとWorkerの`DB_USER`が新テーブルを読めない。migrate失敗でも、作成したロールがobject ownerのまま残らないようsuccessor付き削除を優先する。
-5. **stale apply reportを退避する。** reset後のDBは空の臨床bandになる。`sensitive-local/csv-import-reports/<clinic>-<run>-stg-uat-apply.json`が`PASS`のままだと[CLINIC_CSV_IMPORT.md](./CLINIC_CSV_IMPORT.md)のwrapperが医院をskipする。再実行前に失敗日時または`STALE-AFTER-RESET-<UTC>`付きへリネームする。
-6. **21表を`cmd/migrate`の外で入れる。** 接続はgitignored `scripts/stg-uat-old-db-handoff.local.env`（0600、PlanetScale。exampleは同名`.example`）。`make stg-uat-handoff-preflight` → `make stg-uat-handoff` → `make stg-uat-handoff-verify`。対象は城東・敷島・箱。八王子はmanifest無しならskip。PHIのCSVセルをログへ出さない。詳細とskip契約は[OLD_DB_HANDOFF_LOCAL.md](./OLD_DB_HANDOFF_LOCAL.md)と[CLINIC_CSV_IMPORT.md](./CLINIC_CSV_IMPORT.md)。
-7. **livenessとhandoffを分ける。** `/health` `200`は生存確認だけ。staff attachと個別provisioningは[STAFF_ACCOUNT_PROVISIONING.md](./STAFF_ACCOUNT_PROVISIONING.md)の別gate。
+1. **マニュアル override を退避する（編集済み記事を残す場合）。** rebuild前に`python3 scripts/manual-sync.py export --env stg --content-dir <repo外の退避dir>`で`manual_articles`のoverrideをMarkdownへ書き出す（API経由・`MANUAL_SYNC_EMAIL`/`MANUAL_SYNC_PASSWORD`・DB credential不要）。repoの`content/`とは別dirに出力し、退避物をcommitしない。overrideが無い場合（`status`で`db-only`/`diverged`が0件）はskipしてよい。
+2. **短命ロールを発行する。** `pscale role create animalekarte-stg main <name> --org noah-animalekarte --inherited-roles postgres --ttl 4h -f json` の出力を権限0600の一時ファイルへリダイレクトする。JSONの`access_host_url` / `username` / `password`を使う。passwordは作成時だけ返る。
+3. **`cmd/migrate`を`DB_RESET=true`で実行する。** ローカルComposeのbackendへ、一時ファイルをsourceした同一シェルから`docker compose exec -T`で`DB_*`と`DB_RESET=true`と`APP_ENV=staging`を渡す。ホストで`go run`しない。composeサービスは`DB_HOST=db`をハードコードしているため、execの`-e`でPlanetScaleへ上書きする。`go run ./cmd/migrate`のmigrations rootは`/app/migrations`（backend volume）。
+4. **reset後のmigrateログを判定する。** `Schema reset completed`、直下SQLの`applied>=1`（freshではskip-allではない）、`Seed bundle loaded bundle=002_master`、ログインseed適用時は`Login seed applied`、`Migration key coverage missing=0`。healthだけを成功にしない。
+5. **所有権をapp `postgres`へ戻す。** migrate成功後に`pscale role delete animalekarte-stg main <role-id> --org noah-animalekarte --successor postgres --force`。削除しないとWorkerの`DB_USER`が新テーブルを読めない。migrate失敗でも、作成したロールがobject ownerのまま残らないようsuccessor付き削除を優先する。
+6. **マニュアル override を復元する（step 1で退避した場合）。** `/health` `200`確認後、`python3 scripts/manual-sync.py push --env stg --content-dir <退避dir> --execute`でAPI経由のPUTとして書き戻す（`ResourceManualEdit`権限のaccountが必要）。退避を取っていなければskip — repoのMD baselineがバンドルからそのまま表示される。
+7. **stale apply reportを退避する。** reset後のDBは空の臨床bandになる。`sensitive-local/csv-import-reports/<clinic>-<run>-stg-uat-apply.json`が`PASS`のままだと[CLINIC_CSV_IMPORT.md](./CLINIC_CSV_IMPORT.md)のwrapperが医院をskipする。再実行前に失敗日時または`STALE-AFTER-RESET-<UTC>`付きへリネームする。
+8. **21表を`cmd/migrate`の外で入れる。** 接続はgitignored `scripts/stg-uat-old-db-handoff.local.env`（0600、PlanetScale。exampleは同名`.example`）。`make stg-uat-handoff-preflight` → `make stg-uat-handoff` → `make stg-uat-handoff-verify`。対象は城東・敷島・箱。八王子はmanifest無しならskip。PHIのCSVセルをログへ出さない。詳細とskip契約は[OLD_DB_HANDOFF_LOCAL.md](./OLD_DB_HANDOFF_LOCAL.md)と[CLINIC_CSV_IMPORT.md](./CLINIC_CSV_IMPORT.md)。
+9. **livenessとhandoffを分ける。** `/health` `200`は生存確認だけ。staff attachと個別provisioningは[STAFF_ACCOUNT_PROVISIONING.md](./STAFF_ACCOUNT_PROVISIONING.md)の別gate。
 
 ### 6.2 再構築後にWorker migrateが赤でもschema失敗としない場合
 

@@ -33,8 +33,10 @@ Hyperdrive は Containers から利用できず、credential を Terraform state
 | Worker | `animalekarte-stg-api` | `animalekarte-prod-api` |
 | API route | `api.stg.noah-karte.com/*` | `api.noah-karte.com/*` planned |
 | R2 | `animalekarte-stg-images` | `animalekarte-prod-images` planned |
-| Container | `basic`, max 3, `sleepAfter = "10m"` | production draft |
-| DB pool | direct connection | max open 10 / idle 5 in production draft |
+| Container | `basic`, max 3, `sleepAfter = "1h"` | production draft |
+| DB pool | direct connection, max open 10 / idle 5 (`DB_MAX_OPEN_CONNS` / `DB_MAX_IDLE_CONNS` vars) | max open 10 / idle 5 in production draft |
+
+（2026-09-29 訂正: Container `sleepAfter` は `"10m"` と記載していたが、現行は `backend/worker/index.ts` の `AnimalEkarteApiContainer.sleepAfter = "1h"`（EMR-213 系・2026-09-22 変更）。`wrangler.jsonc` の keep-alive cron コメントも `sleepAfter=1h` 前提。STG の `vars` にも `DB_MAX_OPEN_CONNS=10` / `DB_MAX_IDLE_CONNS=5` が設定済みのため、pool 行を STG/PROD 両方に展開した）
 
 “STG 稼働中”“PROD 未構築”、DB の存在や内容は runtime observation であり、repo config から断定しない。現行 migrate の seed bundle は全環境で `002_master` のみ。既存 STG データは別途確認する。
 

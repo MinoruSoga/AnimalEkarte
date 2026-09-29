@@ -1,5 +1,7 @@
 # SLACK-LAB — clinic × device correspondence
 
+> 2026-09-29 注記: 現在のタスク状態の正本は Plane `EMR-113`。本文の「UNKNOWN」「未実行」等の状態語は当時の調査・証跡記録であり現在の実行状態を示さない。ID 対応は [migration receipt](../plane-md-migration-20260923-receipt.md)。
+
 Campaign `remaining-ops-20260920` revision 1, unit `SLACK-LAB`, claim `claim/SLACK-LAB`.
 Worktree `/Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte-rem-slack-lab` on `feat/rem-slack-lab-20260920` at HEAD `873685b0b`. Sheet date: 2026-09-20.
 

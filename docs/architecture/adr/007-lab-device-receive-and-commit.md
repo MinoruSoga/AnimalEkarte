@@ -5,7 +5,7 @@
 **Implementation**: **code complete** for BRT-95〜98 paths on main (decoder · masters · board · commit allowlist). **Not** hospital release-ready by itself — real-device UAT, agent ops, and clinic rollout remain human gates (see BRT-94 / LAB_DEVICE_CONNECTIVITY).
 **Date**: 2026-08-19 (status split 2026-08-30)
 **Deciders**: PO（MinoruSoga）
-**Relates to**: ADR-002（clinic_id）、ADR-006（`medicalrecord` write owner）、Linear [BRT-100](https://linear.app/baritechllc/issue/BRT-100) / [BRT-94](https://linear.app/baritechllc/issue/BRT-94)
+**Relates to**: ADR-002（clinic_id）、ADR-006（`medicalrecord` write owner）、Plane `EMR` / case `BRT-4`（2026-09-29 訂正: 旧記載「Linear BRT-100 / BRT-94」→ Linear は 2026-09-16 閉鎖。`BRT-n` は履歴別名として保持し、実行状態は Plane workspace `baritechllc` project `EMR` を参照）
 **接続・機器正本**: [`docs/ops/deploy/LAB_DEVICE_CONNECTIVITY.md`](../../ops/deploy/LAB_DEVICE_CONNECTIVITY.md)
 **Historical external evidence**: `old_db/docs/lab-go/go-impl/device-serial-adapter.md` and `old_db/docs/lab-go/go-impl/REVIEW-FABLE-2026-08-19-AE-LAB-UX.md` belonged to an external archive and are not paths in this repository. Current repository-accessible connectivity authority is `LAB_DEVICE_CONNECTIVITY.md` above.
 
@@ -213,7 +213,7 @@ stateDiagram-v2
 - attach/detach: `lab-import:edit`
 - `pet_id` は request 由来 FK。同 clinic の生存ペット以外は 400
 - 全クエリは `clinic_id` 必須。count も同様
-- 生ペイロード・接続文字列・`specimen_id_raw` をログ/handoff/Linear に出さない
+- 生ペイロード・接続文字列・`specimen_id_raw` をログ/handoff/issue tracker に出さない（旧記載は Linear。2026-09-29 訂正: Linear は 2026-09-16 閉鎖。規則は外部 tracker 全般に適用し、現行 tracker は Plane `EMR`）
 
 ## Consequences
 

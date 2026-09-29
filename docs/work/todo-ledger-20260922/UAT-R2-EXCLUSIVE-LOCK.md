@@ -1,5 +1,7 @@
 # UAT-R2-EXCLUSIVE-LOCK — 実施記録（att-lock-20260922-001）
 
+> 2026-09-29 注記: 現在のタスク状態の正本は Plane `EMR-85`（2026-09-29 読取: **Done**）。本票は 2026-09-22 時点の実施記録であり現在の実行状態を示さない。ID 対応は [migration receipt](../plane-md-migration-20260923-receipt.md)。
+
 - campaign: `todo-ledger-20260922` revision 1
 - unit: `UAT-R2-EXCLUSIVE-LOCK`
 - attempt: `att-lock-20260922-001`

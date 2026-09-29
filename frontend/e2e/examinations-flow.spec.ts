@@ -72,7 +72,11 @@ test.describe("検査管理 フロー E2E", () => {
       await standaloneLink.click();
       await expect(examinations.detailHeading()).toBeVisible({ timeout: 15000 });
       await expect(page).toHaveURL(/\/examinations\/\d+/);
-      await expect(examinations.saveButton()).toBeVisible({ timeout: 10000 });
+      // fixture の standalone 検査は「完了」（backend/internal/clinicale2e/fixture.go）。
+      // 完了済みは結果編集不可の読み取り専用表示が臨床安全上の正しい動作。
+      await expect(examinations.completedLockedNotice()).toBeVisible({ timeout: 10000 });
+      await expect(examinations.testTypeCombobox()).toBeDisabled();
+      await expect(examinations.saveButton()).toHaveCount(0);
     } finally {
       await page.close();
     }
@@ -87,14 +91,24 @@ test.describe("検査管理 フロー E2E", () => {
         timeout: 15000,
       });
       await expect(examinations.firstRow()).toBeVisible({ timeout: 15000 });
-      const firstTestType = (await examinations.firstRowTestTypeCell().textContent())?.trim();
-      expect(firstTestType).toBeTruthy();
+      // フィクスチャは mainPet のリンク行（カルテ検査:）と outsidePet の standalone 行
+      // （検査詳細:）の2行。ペット名で検索すると standalone 行だけが除外され、
+      // フィルタが no-op ではないことを非一致行の消失で検証する。
+      await expect(examinations.standaloneDetailLink(fixture.outsideFirstPagePet.name)).toBeVisible(
+        { timeout: 15000 },
+      );
 
-      await page.getByLabel("検索").click();
+      await examinations.searchToggleButton().click();
       const searchInput = examinations.searchInput();
       await expect(searchInput).toBeVisible();
-      await searchInput.fill(firstTestType ?? "");
-      await expect(examinations.firstRow()).toContainText(firstTestType ?? "", { timeout: 10000 });
+      await searchInput.fill(fixture.petName);
+      await expect(examinations.chartTabDetailLink(fixture.petName)).toBeVisible({
+        timeout: 10000,
+      });
+      await expect(examinations.standaloneDetailLink(fixture.outsideFirstPagePet.name)).toHaveCount(
+        0,
+        { timeout: 10000 },
+      );
     } finally {
       await page.close();
     }

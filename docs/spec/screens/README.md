@@ -4,7 +4,7 @@
 > **読者**: 新規参加エンジニア・PdM。
 > **タイミング**: 画面インデックス参照・全体像把握時。
 
-本ディレクトリ直下の番号付き仕様（`[0-9]*.md`）は **41 ファイル**（フロー文書 `99-medical-record-flow` を含む）。製品ルートの product leaf 数（`route-inventory` の 86）とは数え方が異なる。各ファイルに画面の機能、レイアウト、API 連携の詳細を定義する。
+本ディレクトリ直下の番号付き仕様（`[0-9]*.md`）は **41 ファイル**（フロー文書 `99-medical-record-flow` を含む）。製品ルートの product leaf 数（`route-inventory` の 87）とは数え方が異なる。各ファイルに画面の機能、レイアウト、API 連携の詳細を定義する。（2026-09-29 訂正: product leaf は 86 → 87。`/settings/bug-reports`（`BugReportsPage`、2026-09-26 コミット `48ec94c7` で追加）がルート在庫に加わった。同画面の番号付き仕様書は未作成のため、本索引の 41 ファイル数は変わらない）
 
 画面の実装参照は `frontend/src/app/routes/` と各 feature、API の契約参照は `backend/docs/api.yaml` と各 domain の route 登録。GitHub Issue は本文に加えて後続の仕様訂正・集約先を確認する。Closed だけでは臨床承認・UAT・本番稼働の証明にならない。実行状態と残ゲートは [作業入口](../../work/README.md) を参照する。
 
@@ -100,4 +100,4 @@ flowchart LR
 
 ---
 
-**静的照合**: 2026-09-06、基準コード `7c6592f9f`。本索引と配下仕様をコード・GitHub Issue の本文／コメントへ照合した。稼働環境・実機・UAT の再実行は含まない。release state は Linear hub [BRT-4](https://linear.app/baritechllc/issue/BRT-4)、作業入口は [docs/work/README.md](../../work/README.md) を参照。
+**静的照合**: 2026-09-06、基準コード `7c6592f9f`。本索引と配下仕様をコード・GitHub Issue の本文／コメントへ照合した。稼働環境・実機・UAT の再実行は含まない。release state は Linear hub [BRT-4](https://linear.app/baritechllc/issue/BRT-4)、作業入口は [docs/work/README.md](../../work/README.md) を参照。（2026-09-29 訂正: Linear は 2026-09-16 に閉鎖済み。release / 実行状態の SoT は Plane workspace `baritechllc` の project `EMR`、hub `EMR-1`。BRT-4 URL は履歴参照用エイリアス）

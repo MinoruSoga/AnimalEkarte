@@ -1,8 +1,10 @@
 # PROD operations runbook — Cloudflare
 
-> Timeless post-build contract. **NOT RUNNABLE until [setup.md](setup.md) sections 1–6 are implemented and verified.** The current checked-in workflow cannot deploy production through `backend-deploy.yml` until setup acceptance is implemented and verified. External resource, billing, Environment, backup, notification, DNS, and database state is verification-required.
+> Timeless post-build contract. `backend-deploy.yml` job `deploy-production` is checked in, but **NOT RUNNABLE until [setup.md](setup.md) §1, §6 item 1, and §8 human/provider items are completed and verified.** External resource, billing, Environment, backup, notification, DNS, and database state is verification-required.
 
-Task details and live status belong in Linear. Root [todo.md](../../../../todo.md) is the consolidated entry point, including the `#253` USER gate and [human lane](../../../../todo.md#human-lane); it is not the source of truth for live status.
+Task details and live status belong in Plane. Root [todo.md](../../../../todo.md) is the consolidated entry point, including the `#253` USER gate and [human lane](../../../../todo.md#human-lane); it is not the source of truth for live status.
+
+（2026-09-29 訂正: 実行状態の正本は Linear から Plane へ移行済み（Linear は 2026-09-16 閉鎖・履歴参照のみ）。本書の "Linear" 記述はすべて Plane と読み替える）
 
 ## 1. Release gate and order
 
@@ -14,7 +16,7 @@ Every production invocation is a hard stop until setup acceptance criteria are p
 
 ```mermaid
 flowchart LR
-    PRE["setup.md sections 1-6<br/>implemented and verified"] --> GATE["human release owner verifies<br/>ref / Environment / secrets /<br/>backup / frontend target / rollback"]
+    PRE["setup.md §1–6 and §8<br/>verified"] --> GATE["human release owner verifies<br/>ref / Environment / secrets /<br/>backup / frontend target / rollback"]
     PRE -.->|"not verified"| STOP["hard stop<br/>production invocation not runnable"]
     GATE --> DEP["deploy"] --> MIG["migrate"] --> HEA["/health"] --> SMK["optional smoke"]
     HEA -.->|"process health only"| DBV["DB access verified separately"]
@@ -31,21 +33,24 @@ flowchart LR
 
 ## 3. Rollback with `GOOD_SHA`
 
-Branch mutation, approval, and deployment are human-only. A commit merely existing is insufficient. The deployment ref must resolve to that commit, and the resulting workflow run must report the same `headSha`.
+Branch mutation, approval, and deployment are human-only. A commit merely existing is insufficient. The production job accepts only `refs/heads/production`: that ref must resolve to the reviewed commit, and the resulting workflow run must report the same `headSha`.
 
 ```bash
 GOOD_SHA='<reviewed-last-known-good-commit>'
 git rev-parse --verify "${GOOD_SHA}^{commit}"
 
-# Human creates/selects a reviewed immutable ref that resolves exactly to GOOD_SHA.
-ROLLBACK_REF='<reviewed-ref-for-GOOD_SHA>'
-test "$(git rev-parse "${ROLLBACK_REF}^{commit}")" = "$(git rev-parse "${GOOD_SHA}^{commit}")" || exit 1
-
-# Only after setup is implemented and Environment approval is active:
-gh workflow run backend-deploy.yml --ref "$ROLLBACK_REF"
+# Human-only, under branch protection: perform a reviewed update of the
+# `production` branch so it resolves exactly to GOOD_SHA, then verify:
+test "$(git ls-remote origin refs/heads/production | awk '{print $1}')" = "$(git rev-parse "${GOOD_SHA}^{commit}")" || exit 1
 ```
 
-After dispatch, obtain the run metadata through the approved operator flow. **Stop unless the workflow run `headSha` equals `GOOD_SHA`.** Also stop if Environment approval is absent, config is not `wrangler.production.jsonc`, migration compatibility is not reviewed, or the production Worker/route differs. Never dispatch `--ref production` while claiming it pins an older SHA.
+That push triggers `deploy-production` when backend paths changed; otherwise dispatch through the approved operator flow:
+
+```bash
+gh workflow run backend-deploy.yml --ref production -f target=production
+```
+
+After dispatch, obtain the run metadata through the approved operator flow. **Stop unless the workflow run `headSha` equals `GOOD_SHA`.** Also stop if Environment approval is absent, config is not `wrangler.production.jsonc`, migration compatibility is not reviewed, or the production Worker/route differs. Dispatching `--ref production` deploys whatever `production` currently points to and never pins an older SHA by itself; dispatching from any other ref with `target=production` fails at the reject step; omitting `-f target=production` deploys STG, not production.
 
 Schema rollback is not automatic. If `GOOD_SHA` is incompatible with applied migrations, use a forward-compatible fix or a separately approved restore plan.
 
@@ -83,6 +88,6 @@ The allowlisted host/database and disposable provider ID must come from the appr
 - [ ] workflow `headSha`, Worker/config/route, migrate, and health verified
 - [ ] frontend deployed API target verified
 - [ ] optional synthetic smoke account owner/expiry/cleanup recorded
-- [ ] live issue/date/billing status verified in Linear/provider systems by a human
+- [ ] live issue/date/billing status verified in Plane/provider systems by a human
 
 Unchecked items mean stop. This document does not assert current external state.

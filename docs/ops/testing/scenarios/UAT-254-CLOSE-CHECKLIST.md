@@ -6,7 +6,7 @@
 
 1. local/mock の結果だけで #254 を close しない。
 2. 実 LINE、token、別担当 sign-off は USER 管理 lane で実施する。
-3. 実行時に Linear/GitHub の外部 status と acceptance owner を確認する。checkout 内の ignored report の有無から外部 status を推定しない。
+3. 実行時に Plane/GitHub の外部 status と acceptance owner を確認する（2026-09-29 訂正: Linear/GitHub → Plane/GitHub。Linear は 2026-09-16 に閉鎖済みで実行 SoT は Plane `baritechllc`/`EMR`）。checkout 内の ignored report の有無から外部 status を推定しない。
 4. 証跡は `reports/uat-YYYY-MM-DD/` に保存する。確認済み製品 FAIL は root `todo.md#product-bugs` に記録する。環境・権限・fixture BLOCKED は bug にしない。
 5. scenario Markdown に PASS/FAIL/sign-off を書かない。
 
@@ -24,18 +24,18 @@
 
 補完確認: 入院サイクルは [S05](S05-hospitalization-cycle.md)（cage、registration-time plan、二重退院拒否）、LIFF health/account link は [S12](S12-liff-pet-health.md)（LIFF ID 両分岐、owner isolation）。
 
-[2026-08-20 の owner comment](https://github.com/MinoruSoga/AnimalEkarte/issues/254#issuecomment-5352193910) は、実 LINE・token health・DB/audit・residual disposition・別 sign-off を close 条件として明示している。close 条件の参照先は [BRT-45](https://linear.app/baritechllc/issue/BRT-45)、実施レーンは [BRT-68](https://linear.app/baritechllc/issue/BRT-68)。外部の現在状態は実行時に再確認する。
+[2026-08-20 の owner comment](https://github.com/MinoruSoga/AnimalEkarte/issues/254#issuecomment-5352193910) は、実 LINE・token health・DB/audit・residual disposition・別 sign-off を close 条件として明示している。close 条件の参照先は `BRT-45`（Plane `EMR-43`）、実施レーンは `BRT-68`（Plane `EMR-22`）（2026-09-29 訂正: linear.app URL → Plane 正規 ID。Linear は 2026-09-16 に閉鎖済みで旧 URL は参照不能。EMR 対応は `docs/work/plane-md-migration-20260923-receipt.md` の対応表）。外部の現在状態は実行時に再確認する。
 
 ## Close gate
 
 close 判断時に USER が次を確認する。
 
 - 5 flow の最新 run report が同じ対象 revision/environment contract を参照する。
-- 臨床安全・会計金額・clinic / owner / pet / staff 分離・認証権限・データ消失の製品 FAIL は Go-live 前に解消する。その他の FAIL だけ、Linear に受容条件を記録し USER が明示受容した場合に納品後対応へ延期できる（[`todo.md` の P4 延期例外](../../../../todo.md)）。
+- 臨床安全・会計金額・clinic / owner / pet / staff 分離・認証権限・データ消失の製品 FAIL は Go-live 前に解消する。その他の FAIL だけ、Plane に受容条件を記録し USER が明示受容した場合に納品後対応へ延期できる（[`todo.md` の P4 延期例外](../../../../todo.md)）（2026-09-29 訂正: Linear に受容条件を記録 → Plane に受容条件を記録）。
 - 実 LINE lane と token health の必要証跡がある。mock のみでは代替しない。
 - DB/audit の照合、残件の disposition、実施者とは別の acceptance owner の sign-off が記録されている。
 - fixture と cleanup が完了し、共有/STG の既存データを変更していない。
-- Linear/GitHub の外部状態を実行時に再確認した。
+- Plane/GitHub の外部状態を実行時に再確認した（2026-09-29 訂正: Linear/GitHub → Plane/GitHub）。
 
 **close 判定の流れ:**
 
@@ -46,7 +46,7 @@ flowchart TB
   A["DB / audit 照合・residual disposition・実施者とは別の acceptance owner sign-off"] --> G
   C["fixture cleanup 完了・外部状態の再確認"] --> G
   G -->|"充足"| CL["#254 close"]
-  G -->|"製品 FAIL あり"| FX["臨床安全・会計金額・分離・認証・消失系は Go-live 前に解消。その他は Linear 受容条件 + USER 明示受容で納品後へ延期可"]
+  G -->|"製品 FAIL あり"| FX["臨床安全・会計金額・分離・認証・消失系は Go-live 前に解消。その他は Plane 受容条件 + USER 明示受容で納品後へ延期可"]
 ```
 
 ## 禁止

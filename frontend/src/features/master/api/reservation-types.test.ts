@@ -1,7 +1,17 @@
-import { describe, expect, it, afterEach } from "vitest";
+import { createElement, type ReactNode } from "react";
+import { describe, expect, it, afterEach, vi } from "vitest";
+import { act, renderHook } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
-import { listReservationTypes } from "./reservation-types";
+import { queryKeys } from "@/lib/query-keys";
+import {
+  listReservationTypes,
+  useCreateReservationType,
+  useDeleteReservationType,
+  useReorderReservationTypes,
+  useUpdateReservationType,
+} from "./reservation-types";
 
 afterEach(() => {
   server.resetHandlers();
@@ -142,5 +152,122 @@ describe("listReservationTypes", () => {
     const result = await listReservationTypes();
 
     expect(result.map((t) => t.id)).toEqual(["10", "20", "30", "40"]);
+  });
+});
+
+function createQueryWrapper(queryClient: QueryClient) {
+  return ({ children }: { children: ReactNode }) =>
+    createElement(QueryClientProvider, { client: queryClient }, children);
+}
+
+// EMR-224: CRUD 成功時は category キーと grouped キーの両方を invalidate する。
+// 両者は prefix が異なる ("reservation-types" vs "reservationType") ため片方では届かず、
+// grouped 側を無効化しないと予約フォームのプルダウンがリロードまで古いままになる。
+describe("reservation-types mutations (EMR-224)", () => {
+  it("useCreateReservationType: category と grouped の両キーを invalidate する", async () => {
+    server.use(
+      http.post("/api/v1/masters/reservation-types", () =>
+        HttpResponse.json(makeRaw(7, "新規区分"), { status: 201 }),
+      ),
+    );
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const invalidate = vi.spyOn(queryClient, "invalidateQueries");
+
+    const { result } = renderHook(() => useCreateReservationType(), {
+      wrapper: createQueryWrapper(queryClient),
+    });
+
+    await act(async () => {
+      await result.current.mutateAsync({ name: "新規区分" });
+    });
+
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: queryKeys.masters.category("reservation-types"),
+    });
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: queryKeys.masters.reservationTypesGrouped(),
+    });
+  });
+
+  it("useUpdateReservationType: category と grouped の両キーを invalidate する", async () => {
+    server.use(
+      http.patch("/api/v1/masters/reservation-types/7", () =>
+        HttpResponse.json(makeRaw(7, "更新区分")),
+      ),
+    );
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const invalidate = vi.spyOn(queryClient, "invalidateQueries");
+
+    const { result } = renderHook(() => useUpdateReservationType(), {
+      wrapper: createQueryWrapper(queryClient),
+    });
+
+    await act(async () => {
+      await result.current.mutateAsync({ id: "7", req: { name: "更新区分" } });
+    });
+
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: queryKeys.masters.category("reservation-types"),
+    });
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: queryKeys.masters.reservationTypesGrouped(),
+    });
+  });
+
+  it("useDeleteReservationType: category と grouped の両キーを invalidate する", async () => {
+    server.use(
+      http.delete(
+        "/api/v1/masters/reservation-types/7",
+        () => new HttpResponse(null, { status: 204 }),
+      ),
+    );
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const invalidate = vi.spyOn(queryClient, "invalidateQueries");
+
+    const { result } = renderHook(() => useDeleteReservationType(), {
+      wrapper: createQueryWrapper(queryClient),
+    });
+
+    await act(async () => {
+      await result.current.mutateAsync("7");
+    });
+
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: queryKeys.masters.category("reservation-types"),
+    });
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: queryKeys.masters.reservationTypesGrouped(),
+    });
+  });
+
+  it("useReorderReservationTypes: category と grouped の両キーを invalidate する", async () => {
+    server.use(
+      http.patch("/api/v1/masters/reservation-types/reorder", () => HttpResponse.json({})),
+    );
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const invalidate = vi.spyOn(queryClient, "invalidateQueries");
+
+    const { result } = renderHook(() => useReorderReservationTypes(), {
+      wrapper: createQueryWrapper(queryClient),
+    });
+
+    await act(async () => {
+      await result.current.mutateAsync({ ids: [3, 1, 2] });
+    });
+
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: queryKeys.masters.category("reservation-types"),
+    });
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: queryKeys.masters.reservationTypesGrouped(),
+    });
   });
 });

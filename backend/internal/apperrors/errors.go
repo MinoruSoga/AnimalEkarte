@@ -376,9 +376,13 @@ func FromGORM(err error, resource, id string) error {
 		case "23505": // unique_violation
 			// Preserve the original pg error so service-layer mappers can read
 			// ConstraintName for fail-closed domain conflict elevation.
+			message := fmt.Sprintf("%s already exists", resource)
+			if id != "" {
+				message = fmt.Sprintf("%s '%s' already exists", resource, id)
+			}
 			return &AppError{
 				Code:    "ALREADY_EXISTS",
-				Message: fmt.Sprintf("%s '%s' already exists", resource, ""),
+				Message: message,
 				Err:     fmt.Errorf("%w: %w", ErrAlreadyExists, err),
 			}
 		case "22003": // numeric_value_out_of_range

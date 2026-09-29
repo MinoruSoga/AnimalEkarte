@@ -16,6 +16,8 @@ Cloudflare cronはUTCで解釈される。Workerは次の3式以外をfail-close
 
 `no_show`は予約no-show処理、`delivery`は配信trigger、`dormant`は休眠判定を、Go Containerの内部endpointからdomain use caseとして実行する。1 jobの期限はGo 100秒、Worker fetch 110秒、coordinator lease 150秒である。leaseはWorker側ledgerの二重確定を防ぐが、開始済みのGo side effectを取り消さないため、domain側のidempotency/CASも安全境界に含まれる。
 
+（2026-09-29 訂正・追記: 上記3式は scheduler job の allowlist（`jobsForCron`）であり、Wrangler の cron trigger 総数とは別物。STG の `backend/wrangler.jsonc` は第4の trigger `*/4 0-9 * * *`（UTC）も bind する。これは EMR-213 の API container keep-alive で、`backend/worker/index.ts` の `API_KEEPALIVE_CRON` が scheduled handler 先頭で個別に処理して `/health/db` を暖めるだけであり、scheduler job ではない。`wrangler.production.jsonc` には含まれず production は3式のみ。job 運用・pause/resume・catch-up の対象はあくまで上記3式）
+
 ## Access and secrets
 
 操作endpointは`/_internal/scheduler/*`で、公開APIへproxyしない。次のいずれかで認証する。

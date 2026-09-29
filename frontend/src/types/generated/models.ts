@@ -2476,6 +2476,10 @@ export interface ManualArticle {
   category: ManualCategory;
   slug: string;
   title: string;
+  /**
+   * order_value の既定値フォールバックは service 層で行う（default タグを付けると
+   * GORM がゼロ値を INSERT から省略し、`order: 0` の記事が 9999 で保存される）。
+   */
   order_value: number /* float64 */;
   section: string;
   body_markdown: string;
@@ -3517,6 +3521,30 @@ export interface SupportBugReport {
   status: SupportBugReportStatus;
   created_at: string;
   updated_at: string;
+  deleted_at?: string | null;
+}
+
+//////////
+// source: support_chat_message.go
+
+/**
+ * SupportChatMessageRole は保存済みチャット履歴の発言者（LLM へ送る system は保存しない）
+ */
+export type SupportChatMessageRole = string;
+export const SupportChatRoleUser: SupportChatMessageRole = "user";
+export const SupportChatRoleAssistant: SupportChatMessageRole = "assistant";
+/**
+ * SupportChatMessage はヘルプチャットの会話履歴1件。
+ * clinic_id × staff_id で「選択clinic内のスタッフ個人」にスコープされる。
+ */
+export interface SupportChatMessage {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  staff_id: number /* uint64 */;
+  role: SupportChatMessageRole;
+  content: string;
+  sources?: unknown;
+  created_at: string;
   deleted_at?: string | null;
 }
 

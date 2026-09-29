@@ -36,6 +36,7 @@ interface MockGetPetsOptions {
   limit?: number;
   search?: string;
   species?: string;
+  clinicIds?: string[];
 }
 
 interface MockGetPetsQueryOptions {
@@ -62,6 +63,36 @@ vi.mock("@/hooks/use-pet", () => ({
     receivedQueryOptions = queryOptions;
     return mockUseGetPets(ownerId, options);
   },
+}));
+
+// usePetSelectionPage は useAuth().user.clinics から所属医院IDを解決する。
+// 既定は「現在拠点のみ所属」の単一拠点ユーザー = backend 既定 scope（今日の挙動）。
+interface MockAuthState {
+  user: {
+    clinics: { clinicId: string; clinicName: string; isMain: boolean }[];
+  } | null;
+  currentClinicId: string | null;
+}
+
+const SINGLE_CLINIC_AUTH: MockAuthState = {
+  user: { clinics: [{ clinicId: "1", clinicName: "本院", isMain: true }] },
+  currentClinicId: "1",
+};
+
+const MULTI_CLINIC_AUTH: MockAuthState = {
+  user: {
+    clinics: [
+      { clinicId: "1", clinicName: "本院", isMain: true },
+      { clinicId: "2", clinicName: "分院", isMain: false },
+    ],
+  },
+  currentClinicId: "1",
+};
+
+let authState: MockAuthState = SINGLE_CLINIC_AUTH;
+
+vi.mock("@/hooks/use-auth", () => ({
+  useAuth: () => authState,
 }));
 
 const katakanaOwnerPet = {
@@ -109,6 +140,7 @@ describe("usePetSelectionPage", () => {
     navigate.mockClear();
     mockUseGetPets.mockClear();
     receivedQueryOptions = undefined;
+    authState = SINGLE_CLINIC_AUTH;
     mockUseGetPets.mockReturnValue({ data: [], total: 0, page: 1, limit: 20 });
   });
 
@@ -235,6 +267,31 @@ describe("usePetSelectionPage", () => {
       limit: 20,
       species: "3",
     });
+  });
+
+  // EMR-222: 複数拠点スタッフが分院のペットを検索対象に含められるよう、
+  // 所属医院IDをすべて backend へ送る（MedicalRecords.tsx の clinicIdsForApi 先例）。
+  it("複数拠点に所属するユーザーは所属医院IDをすべてclinicIdsとしてbackendへ渡す", () => {
+    authState = MULTI_CLINIC_AUTH;
+
+    renderHook(() => usePetSelectionPage(CONFIG));
+
+    expect(mockUseGetPets).toHaveBeenLastCalledWith(undefined, {
+      includeDeceased: true,
+      page: 1,
+      limit: 20,
+      clinicIds: ["1", "2"],
+    });
+  });
+
+  it("所属医院が現在拠点のみならclinicIdsを送らず既存の既定scopeを維持する", () => {
+    authState = SINGLE_CLINIC_AUTH;
+
+    renderHook(() => usePetSelectionPage(CONFIG));
+
+    const options = mockUseGetPets.mock.lastCall?.[1];
+    expect(options).toEqual({ includeDeceased: true, page: 1, limit: 20 });
+    expect(options).not.toHaveProperty("clinicIds");
   });
 
   // BUG-451 の核心。backend が返した1ページ分を FE で再度絞り込むと、
@@ -452,6 +509,40 @@ describe("usePetSelectionPage", () => {
     });
 
     expect(navigate).not.toHaveBeenCalled();
+  });
+
+  // EMR-222: 他拠点のペットは新規記録作成へ進めない（medical-records の read-only
+  // ルールと同じ抑制を選択ハンドラ層で行う）。閲覧はカルテ一覧経路へ送る。
+  it("他拠点のペットは作成画面へ進まずカルテ一覧の閲覧経路へ遷移する", () => {
+    authState = MULTI_CLINIC_AUTH;
+    const otherClinicPet = { ...katakanaOwnerPet, clinicId: "2" } as Pet;
+    mockUseGetPets.mockReturnValue({ data: [otherClinicPet] });
+    const { result } = renderHook(() => usePetSelectionPage(CONFIG));
+
+    act(() => {
+      result.current.handleSelect(otherClinicPet);
+    });
+
+    expect(navigate).toHaveBeenCalledWith("/medical-records?pet_id=10", {
+      state: locationState,
+    });
+    expect(navigate.mock.calls.every(([to]) => !String(to).startsWith("/trimming/new"))).toBe(true);
+  });
+
+  it("現在拠点のペットは従来どおり作成画面へ進む", () => {
+    authState = MULTI_CLINIC_AUTH;
+    const sameClinicPet = { ...katakanaOwnerPet, clinicId: "1" } as Pet;
+    mockUseGetPets.mockReturnValue({ data: [sameClinicPet] });
+    const { result } = renderHook(() => usePetSelectionPage(CONFIG));
+
+    act(() => {
+      result.current.handleSelect(sameClinicPet);
+    });
+
+    expect(navigate).toHaveBeenCalledWith(
+      "/trimming/new?appointmentId=88&visitDate=2026-05-29&petId=10",
+      { state: locationState },
+    );
   });
 
   it("クリアで検索条件と現在ページを初期化する", () => {

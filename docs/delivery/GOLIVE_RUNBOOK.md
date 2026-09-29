@@ -2,7 +2,7 @@
 
 > Current task status is tracked in Plane `EMR-40`. This local document remains supporting execution/evidence material; see the [migration receipt](../work/plane-md-migration-20260923-receipt.md) for the crosswalk.
 
-> **仕様照合**: 2026-09-06、repo `7c6592f9f` と [#257 最新コメント](https://github.com/MinoruSoga/AnimalEkarte/issues/257#issuecomment-5353016753)。GitHub は OPEN。外部稼働・Linear の現在値は未取得。
+> **仕様照合**: 2026-09-06、repo `7c6592f9f` と [#257 最新コメント](https://github.com/MinoruSoga/AnimalEkarte/issues/257#issuecomment-5353016753)。GitHub は OPEN。外部稼働・Linear の現在値は未取得（2026-09-29 訂正: 「Linear の現在値は未取得」→ Linear は 2026-09-16 に閉鎖済みで現在値を持たない。実行状態の正本は Plane `EMR-40`）。
 > **対象 Issue**: #257 ／ **状態**: ドラフト — **実行 HOLD**（全 **pre-window prerequisite** green かつ USER が新 window を記入するまで fail-closed。day-of gate は当日タイムライン内で別判定）
 > **次回切替日（新 window）**: （確定待ち — 下記「新 window 記入欄」に USER が一箇所記入する。本 runbook は日付を発明しない）
 > **履歴（historical No-Go）**: 予定 window **2026-08-03** は期限超過・未実施。当該 window は **historical No-Go** であり、**実行可能な current window ではない**。延期履歴: 7/18 → 7/25 → 7/27 → 8/3（当初 PO 裁定 2026-07-15 は 7/18。8/3 は 2026-08-01 の USER 決定）。旧 timeline 表記 `2026-07-18` は失効済みの絶対日であり、当日手順として実行しない。
@@ -44,9 +44,9 @@ flowchart TB
 
 ## 1. Pre-window 前提チェックリスト（切替日前に全項目 ✅ であること）
 
-**研修順序の未解決な正本間差異**: [#256](https://github.com/MinoruSoga/AnimalEkarte/issues/256) は操作説明会を納品後とする一方、現行 [`todo.md`](../../todo.md) は P7（U13 研修）を P8（Go-live）の前提に含める。切替前に USER が Linear 上で採用する順序を確定する。本書の同期では既存ゲートを解除せず、U13 を完了扱いにしない。
+**研修順序の未解決な正本間差異**: [#256](https://github.com/MinoruSoga/AnimalEkarte/issues/256) は操作説明会を納品後とする一方、旧 `todo.md`（2026-09-26 台帳統合前）は P7（U13 研修）を P8（Go-live）の前提に含めていた（2026-09-29 訂正: 「現行 todo.md は P7→P8 を前提に含める・USER が Linear 上で確定」→ 現行 `todo.md` は P 番号構造を持たず、研修は Plane `EMR-151`・Go-live は Plane `EMR-134` で管理。Linear は 2026-09-16 閉鎖）。切替前に USER が Plane 上で採用する順序を確定する。本書の同期では既存ゲートを解除せず、U13 を完了扱いにしない。
 
-**UAT の延期不可条件**: 臨床安全・会計金額・clinic / owner / pet / staff 分離・認証権限・データ消失の FAIL は Go-live 前に解消する。下表の「納品後対応合意」はその他の FAIL に限り、Linear の受容条件と USER の明示受容を必要とする（`todo.md` P4）。
+**UAT の延期不可条件**: 臨床安全・会計金額・clinic / owner / pet / staff 分離・認証権限・データ消失の FAIL は Go-live 前に解消する。下表の「納品後対応合意」はその他の FAIL に限り、受入チケット（Plane `EMR-131`、旧 `P4` / #254 AUTHENTICATED-UAT）の受容条件と USER の明示受容を必要とする（2026-09-29 訂正: 「Linear の受容条件（`todo.md` P4）」→ todo.md は 2026-09-26 統合で P 番号構造を廃止、受容条件の正本は Plane）。
 
 未完了・未確定の項目が 1 つでも残る間は **Go 判定不可（HOLD）**。
 

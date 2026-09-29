@@ -1,5 +1,7 @@
 // Command clinical-e2e-fixture creates or deletes a disposable clinical E2E clinic.
-// It never logs passwords, hashes, cookies, or emails.
+// stdout JSON carries synthetic identifiers (clinic id, synthetic @example.test
+// emails, row names) but never passwords, hashes, or cookies. stderr never logs
+// emails.
 package main
 
 import (

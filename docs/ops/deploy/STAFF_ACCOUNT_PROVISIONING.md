@@ -4,7 +4,7 @@
 > **読者**: 認可済みオペレータ（system admin または scope 全クリニックの `master-staff` create 権限保持者）。  
 > **境界**: 本ドキュメントは **repo 側の準備とコマンド契約** のみ。実スタッフ一覧・初期パスワード・PROD 適用は USER 作業。
 
-更新日: 2026-07-30
+更新日: 2026-09-28
 
 ## 何を解決するか
 
@@ -19,7 +19,7 @@
 1. **実スタッフ data / 初期パスワードを git に置かない。** manifest / secrets は repo 外の absolute realpath、**mode 0600 のみ**。
 2. **log / receipt / 標準出力に name・email・password・file body を出さない。** digests / counts / batch_id のみ。
 3. **role → permission 推論はしない。** `permission_group_ids` は manifest の明示値のみ（main clinic 所属の group）。
-4. **PROD / 共有 STG への apply は USER 承認後。** 開発者 laptop から非 local `DB_HOST` への apply は `STAFF_PROVISION_ALLOW_REMOTE=YES_I_UNDERSTAND` が無いと拒否される。対象環境のコンテナ内実行を正とする。
+4. **PROD / 共有 STG への apply は USER 承認後。** 非 local `DB_HOST` へは preflight/apply とも `STAFF_PROVISION_ALLOW_REMOTE=YES_I_UNDERSTAND` と `DB_HOST` に完全一致する `--confirm-target-host` の両方が無いと DB 接続前に拒否される（手順は下記「STG / Production への remote 実行」）。
 5. **本 repo の synthetic fixture は架空 ID / `@example.test` のみ。** 外部入力を fixture として commit しない。
 6. **最初のシステム管理者** は CSV / LoginForm に載せない。local/STG は migrate の `SEEDLOGIN_OPERATOR_*`（値は repo 外）。STG Worker は `wrangler secret put` で投入し `secrets.required` には入れない。未設定なら upsert をスキップする。本コマンドは既存の認可済み actor が前提なので、ゼロから作る経路ではない。本番初回は [FIRST_SYSTEM_ADMIN.md](./FIRST_SYSTEM_ADMIN.md)。既存スタッフへの画面からの追加は `POST /api/v1/masters/staffs/{id}/account`。
 
@@ -102,9 +102,46 @@ docker compose run --rm --no-deps --entrypoint '' -T \
 |------------|------|
 | `--repo-root` | 入力禁止ルートを追加（absolute） |
 | `STAFF_PROVISION_REPO_ROOT` | 同上 |
-| `STAFF_PROVISION_ALLOW_REMOTE=YES_I_UNDERSTAND` | 非 local `DB_HOST` への apply を明示許可（通常は環境内実行） |
+| `--confirm-target-host` | 非 local `DB_HOST` 時に必須。`DB_HOST` と完全一致（大小文字・末尾も区別）。local でも指定した値が不一致なら拒否 |
+| `STAFF_PROVISION_ALLOW_REMOTE=YES_I_UNDERSTAND` | 非 local `DB_HOST` への preflight / apply を許可する条件の一つ（`--confirm-target-host` と併用必須） |
 
-> **STG/Production blocker:** approved remote execution と read-only secret-file mount の仕組みは未定義です。`STAFF_PROVISION_ALLOW_REMOTE` だけを根拠にローカル Compose から共有環境へ apply しません。仕組み、対象、承認、rollback が定義されるまで remote apply は停止します。
+### STG / Production への remote 実行（EMR-149）
+
+**前提**: STG は Cloudflare Containers + PlanetScale で構成され、「対象環境内の compose」は存在しない。そのため `staff-provision` は既存 STG ツール（`stg-uat-staff-attach` / `stg-uat-skeleton` / `csv-import-stg-uat`）と同じ binary gate で remote 実行する。
+
+- **誰が**: USER（認可済みオペレータ）のみ。対象環境名を明示した USER 承認後に実行する。PROD は #253/#254 gate 通過後。エージェントは実行しない。
+- **どの端末から**: 対象 DB の接続情報を保持するオペレータ自身の端末（既存 STG ツールを実行する端末と同じ）で、repo checkout の one-shot backend container から実行する。DB 接続情報は env で export し、値なし `-e` で渡す（コマンドラインに値を書かない）。入力ファイルは repo 外 0600 を `:ro` mount する。
+- **どの確認で**:
+  1. `DB_HOST` / `DB_NAME` を目視で対象環境と照合する
+  2. `STAFF_PROVISION_ALLOW_REMOTE=YES_I_UNDERSTAND` を設定する
+  3. `--confirm-target-host` に `DB_HOST` と同じ値を手入力する（完全一致でないと拒否される。local でも指定値が不一致なら拒否）
+  4. まず `preflight`（同じ gate が掛かる・write 0）→ PII-free stdout（`batch_id` / `digest` / `staff_count` / `clinic_scope`）を確認 → 承認 → 同じファイルで `apply` → PII-free receipt を記録する
+
+```bash
+# 値は全て placeholder。DB_* は export 済みのものを値なし -e で渡す
+docker compose run --rm --no-deps \
+  -e STAFF_PROVISION_ALLOW_REMOTE="${STAFF_PROVISION_ALLOW_REMOTE}" \
+  -e DB_HOST -e DB_PORT -e DB_SSL_MODE -e DB_NAME -e DB_USER -e DB_PASSWORD -e DB_SSL_ROOT_CERT \
+  -v /secure/staff-batch:/secure/staff-batch:ro \
+  --entrypoint go backend \
+  run ./cmd/staff-provision preflight \
+    --manifest=/secure/staff-batch/manifest.json \
+    --secrets=/secure/staff-batch/secrets.json \
+    --confirm-target-host "${STAFF_PROVISION_CONFIRM_HOST}"
+
+# 承認後、同じ mount / env / 入力ファイルで apply
+docker compose run --rm --no-deps \
+  -e STAFF_PROVISION_ALLOW_REMOTE="${STAFF_PROVISION_ALLOW_REMOTE}" \
+  -e DB_HOST -e DB_PORT -e DB_SSL_MODE -e DB_NAME -e DB_USER -e DB_PASSWORD -e DB_SSL_ROOT_CERT \
+  -v /secure/staff-batch:/secure/staff-batch:ro \
+  --entrypoint go backend \
+  run ./cmd/staff-provision apply \
+    --manifest=/secure/staff-batch/manifest.json \
+    --secrets=/secure/staff-batch/secrets.json \
+    --confirm-target-host "${STAFF_PROVISION_CONFIRM_HOST}"
+```
+
+**rollback**: 自動ロールバック（commit 前）と `status=applied` 後の補償手順は [LINMIG-230 §5](../../work/linmig-campaign-20260919/LINMIG-230.md#5-rollback-design-no-cli-do-not-run) に従う（receipt / audit は削除しない。個別 staff を `is_active=false` 等で補償する）。
 
 成功時 stdout は PII-free JSON（`status` / `batch_id` / `digest` / `staff_count` / `clinic_scope`）。
 
@@ -190,7 +227,7 @@ sequenceDiagram
 | I-ENV | 適用先（local / STG / PROD）と承認 | apply は USER。PROD は #253/#254 gate 後 | USER | **未記入** |
 | I-RECEIPT | 認可済み適用証跡（PII-free `batch_id` / digest / count） | #255 AC（発行・権限・audit） | USER apply 後 | **未記入** |
 
-**やらない:** 架空スタッフの invent、repo への実 roster コミット、本番 apply、PII を Issue / Linear に書く。
+**やらない:** 架空スタッフの invent、repo への実 roster コミット、本番 apply、PII を Issue / Plane へ書く。
 
 ## 検証（開発）
 

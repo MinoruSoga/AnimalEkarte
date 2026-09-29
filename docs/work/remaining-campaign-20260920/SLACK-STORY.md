@@ -1,5 +1,7 @@
 # SLACK-STORY: 名前の由来と出逢い — 既存 `pets.remarks` 再利用 vs 独立フィールド（採否 UNKNOWN）
 
+> 2026-09-29 注記: 現在のタスク状態の正本は Plane `EMR-94`。本文の「READY」「UNKNOWN」「未実行」等の状態語は当時の調査・証跡記録であり現在の実行状態を示さない。ID 対応は [migration receipt](../plane-md-migration-20260923-receipt.md)。
+
 状態: **再利用/新規欄の比較 READY／製品実装・スキーマ追加 未実行（停止）**。出典は [todo-issue.md](../../../todo.md#issue-ledger) 見出し `### SLACK-STORY`（L196–200、索引 L425）。保持する現場条件:
 
 - 「名前の由来と出逢いのストーリー欄」（出典 949–955。現行 `todo-issue.md` は要約のみ。原文行は本票では再掲しない）

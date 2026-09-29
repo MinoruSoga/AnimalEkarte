@@ -12,7 +12,7 @@ import (
 func TestUpsertManualArticleRequest_ToServiceInput(t *testing.T) {
 	req := UpsertManualArticleRequest{
 		Title:        "Title",
-		OrderValue:   1.5,
+		OrderValue:   f64p(1.5),
 		Section:      "section",
 		BodyMarkdown: "# Body",
 	}

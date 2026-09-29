@@ -53,7 +53,7 @@ export function MedicalRecordFloatingActions({
   if (activeTab === "会計(医師確認)") return null;
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex gap-2">
+    <div className="fixed bottom-6 right-20 z-50 flex gap-2">
       {canDelete && !isNewRecord && activeTab === "問診" ? (
         <Button
           type="button"

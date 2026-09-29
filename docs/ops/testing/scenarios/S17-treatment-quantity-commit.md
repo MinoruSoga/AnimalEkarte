@@ -45,10 +45,10 @@ stateDiagram-v2
 ## 確認観点
 
 - 確定ロジックは `TreatmentQuantityCell`（`frontend/src/features/medical-records/components/TreatmentsTab/`）の `reduceQuantityEnterKey` と `onBlur` commit。1回目 Enter = 編集終了、2回目 = 保存はヘルパーテキストどおりの設計。
-- 合成テスト 28 件で Enter/Blur/Escape・repeat・isComposing・keyCode229 の無視は検証済み。本シナリオの目的は**対象 build・物理 IME・実ブラウザ**での受入 receipt で、合成検証の代替にしない。
+- 合成テストで Enter/Blur/Escape・repeat・isComposing・keyCode229 の無視は検証済み（2026-09-29 訂正: 「合成テスト 28 件」→ 数量確定操作の合成テストは 9 件。`TreatmentQuantityCell.test.tsx` の "Enter×2 / Blur / Escape" describe 6 件 + `TreatmentRow.test.tsx` の数量 Enter×2/Blur/Escape 3 件。TreatmentsTab 配下の 5 ファイル総数 44 件には dose-gate 系も含み、確定操作を直接検証するのはこの 9 件）。本シナリオの目的は**対象 build・物理 IME・実ブラウザ**での受入 receipt で、合成検証の代替にしない。
 - 保存回数は Network パネルの要求数または API 呼び出しログで数える。「1回目で未保存」「2回目/Blur で 1 回保存」「Escape で 0 回」を保存回数で証明する。
 - 確定後の値が再読込で残ること（永続化）と、未確定の Escape が残らないことの両方を見る。表示だけの確認で保存とみなさない。
-- 誤爆の兆候（変換確定で保存が走る、長押しで多重保存）が出たら FAIL。`todo.md#product-bugs` で重複確認のうえ Linear 追跡。
+- 誤爆の兆候（変換確定で保存が走る、長押しで多重保存）が出たら FAIL。`todo.md#product-bugs` で重複確認のうえ Plane 追跡（2026-09-29 訂正: Linear 追跡 → Plane 追跡。Linear は 2026-09-16 に閉鎖済み）。
 
 ## 異常系
 
@@ -64,4 +64,5 @@ stateDiagram-v2
 - 変更サマリ:
   - `TreatmentQuantityCell` の `reduceQuantityEnterKey`（2段階確定）、`onBlur` commit、Escape cancel、repeat/isComposing/keyCode229 無視、ヘルパーテキストを現行コードと突合
   - `UAT-R2-TREATMENT-COMMIT` の「Enter 1回/2回、Blur、Escape、長押し、IME 確定を別ケース」を手順 1–7 に対応づけ
-  - 保存回数を Network 観測で証明する手順を追加（合成 28 tests の代替ではなく対象 build 受入）
+  - 保存回数を Network 観測で証明する手順を追加（合成テストの代替ではなく対象 build 受入）
+  - 2026-09-29 訂正: 「合成テスト 28 件」→ 数量確定操作の合成テストは 9 件（上記・確認観点）。「Linear 追跡」→ Plane 追跡

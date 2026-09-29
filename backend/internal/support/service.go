@@ -2,6 +2,7 @@ package support
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -19,11 +20,14 @@ type CreateBugReportInput struct {
 	ScreenshotKey *string
 }
 
-// Service はバグ報告のユースケースインターフェース
+// Service はバグ報告とヘルプチャット履歴のユースケースインターフェース
 type Service interface {
 	Create(ctx context.Context, clinicID, reporterStaffID uint64, input CreateBugReportInput) (*model.SupportBugReport, error)
 	ListByClinic(ctx context.Context, clinicID uint64) ([]BugReportWithReporter, error)
 	UpdateStatus(ctx context.Context, clinicID, id uint64, status model.SupportBugReportStatus) (*model.SupportBugReport, error)
+	ListChatHistory(ctx context.Context, clinicID, staffID uint64) ([]model.SupportChatMessage, error)
+	RecordChatExchange(ctx context.Context, clinicID, staffID uint64, userMessage, assistantReply string, sources []ChatSource) error
+	ClearChatHistory(ctx context.Context, clinicID, staffID uint64) error
 }
 
 type service struct {
@@ -67,4 +71,31 @@ func (s *service) UpdateStatus(ctx context.Context, clinicID, id uint64, status 
 		return nil, err
 	}
 	return s.repo.FindByID(ctx, clinicID, id)
+}
+
+// ListChatHistory は指定スタッフの会話履歴を古い順で返す。
+func (s *service) ListChatHistory(ctx context.Context, clinicID, staffID uint64) ([]model.SupportChatMessage, error) {
+	return s.repo.ListChatHistory(ctx, clinicID, staffID)
+}
+
+// RecordChatExchange は回答が成立した「質問+回答」のペアを1回の INSERT で保存する。
+// LLM 呼び出しが失敗したやり取りは呼び出し側から渡されない前提。
+func (s *service) RecordChatExchange(ctx context.Context, clinicID, staffID uint64, userMessage, assistantReply string, sources []ChatSource) error {
+	var sourcesJSON json.RawMessage
+	if len(sources) > 0 {
+		b, err := json.Marshal(sources)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to encode chat sources")
+		}
+		sourcesJSON = b
+	}
+	return s.repo.CreateChatMessages(ctx, []*model.SupportChatMessage{
+		{ClinicID: clinicID, StaffID: staffID, Role: model.SupportChatRoleUser, Content: userMessage},
+		{ClinicID: clinicID, StaffID: staffID, Role: model.SupportChatRoleAssistant, Content: assistantReply, Sources: sourcesJSON},
+	})
+}
+
+// ClearChatHistory は指定スタッフの会話履歴をすべて soft delete する。
+func (s *service) ClearChatHistory(ctx context.Context, clinicID, staffID uint64) error {
+	return s.repo.ClearChatHistory(ctx, clinicID, staffID)
 }

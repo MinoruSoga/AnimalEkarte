@@ -1,4 +1,5 @@
 import { C, ICON } from "@/lib/design-tokens";
+import { SUPPORT_WIDGET_LAYOUT } from "@/constants/support-widget-layout";
 import { memo, useMemo } from "react";
 // External
 import { useDroppable } from "@dnd-kit/core";
@@ -71,7 +72,9 @@ export const KanbanColumn = memo(function KanbanColumn({
         </span>
       </div>
       <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
-        <div className="flex flex-col gap-2 flex-1 overflow-y-auto min-h-[100px] lg:min-h-[50px]">
+        <div
+          className={`flex flex-col gap-2 flex-1 overflow-y-auto relative min-h-[100px] lg:min-h-[50px] ${SUPPORT_WIDGET_LAYOUT.scrollBottomClearance}`}
+        >
           {appointmentItems}
           {/* Spacer for drop target at end of column */}
           <div className="flex-1 min-h-[2rem]" />

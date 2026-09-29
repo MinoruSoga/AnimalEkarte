@@ -10,6 +10,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { LifeBuoy, X } from "lucide-react";
 
 import { C, ICON, STYLE, Z_CLASS } from "@/lib/design-tokens";
+import { SUPPORT_WIDGET_LAYOUT } from "@/constants/support-widget-layout";
+
+import { HelpChatHistoryProvider } from "./HelpChatHistoryProvider";
 
 import { SupportPanel } from "./SupportPanel";
 
@@ -36,7 +39,7 @@ export function SupportWidget() {
   return (
     <div
       data-html2canvas-ignore
-      className={`no-print fixed bottom-4 right-4 ${Z_CLASS.overlay} flex flex-col-reverse items-end gap-3`}
+      className={`no-print ${SUPPORT_WIDGET_LAYOUT.position} ${Z_CLASS.overlay} flex flex-col-reverse items-end gap-3`}
     >
       <button
         ref={buttonRef}
@@ -45,11 +48,13 @@ export function SupportWidget() {
         aria-expanded={open}
         aria-controls={open ? "support-panel" : undefined}
         aria-label={open ? "サポートを閉じる" : "サポート・ヘルプを開く"}
-        className={`size-12 rounded-full ${C.bgActionPrimary} ${C.textOnActionPrimary} ${C.hoverBgActionPrimary} ${STYLE.primaryGlow} flex items-center justify-center transition-colors`}
+        className={`${SUPPORT_WIDGET_LAYOUT.buttonSizeClass} rounded-full ${C.bgActionPrimary} ${C.textOnActionPrimary} ${C.hoverBgActionPrimary} ${STYLE.primaryGlow} flex items-center justify-center transition-colors`}
       >
         {open ? <X className={ICON.lg} /> : <LifeBuoy className={ICON.lg} />}
       </button>
-      {open ? <SupportPanel onClose={close} /> : null}
+      <HelpChatHistoryProvider>
+        {open ? <SupportPanel onClose={close} /> : null}
+      </HelpChatHistoryProvider>
     </div>
   );
 }

@@ -8,16 +8,21 @@ export {
   type MedicalRecord,
 } from "@/lib/transforms/medical-record";
 
-/** EMR-182: 前回複写ペイロード。複写可能な値が1つも無いときは undefined。 */
-function toCopySource(
-  inquiry: BackendMedicalRecord["inquiry"],
-): InterviewHistoryCopySource | undefined {
-  if (!inquiry) return undefined;
+/**
+ * EMR-182: 前回複写ペイロード。複写可能な値が1つも無いときは undefined。
+ * EMR-219: recordId は明細複写の起点となるため、id を持つレコードでは問診値が無くても保持する
+ * （@/hooks/use-medical-records の同名 transform と同形を維持すること）。
+ */
+function toCopySource(record: BackendMedicalRecord): InterviewHistoryCopySource | undefined {
   const source: InterviewHistoryCopySource = {};
-  if (inquiry.chief_complaint) source.chiefComplaint = inquiry.chief_complaint;
-  if (inquiry.notes) source.treatmentPolicy = inquiry.notes;
-  if (inquiry.chief_complaint_type_id != null) {
-    source.chiefComplaintTypeId = inquiry.chief_complaint_type_id;
+  if (record.id != null) source.recordId = String(record.id);
+  const inquiry = record.inquiry;
+  if (inquiry) {
+    if (inquiry.chief_complaint) source.chiefComplaint = inquiry.chief_complaint;
+    if (inquiry.notes) source.treatmentPolicy = inquiry.notes;
+    if (inquiry.chief_complaint_type_id != null) {
+      source.chiefComplaintTypeId = inquiry.chief_complaint_type_id;
+    }
   }
   return Object.keys(source).length > 0 ? source : undefined;
 }
@@ -34,6 +39,6 @@ export const transformToHistoryItem = (record: BackendMedicalRecord): InterviewH
     type: record.status === "finalized" ? "確定済" : "作成中",
     title: chiefComplaint || record.record_no,
     content,
-    copySource: toCopySource(record.inquiry),
+    copySource: toCopySource(record),
   };
 };

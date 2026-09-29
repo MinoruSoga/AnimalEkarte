@@ -1,5 +1,7 @@
 # EMR-180 / NOTE-STAFF-STARTTIME-RDT — 調査結果
 
+> 2026-09-29 注記: 本票は 2026-09-23 時点の調査記録。チケットの現行状態の正本は Plane `EMR-180`（2026-09-29 読取: **Done**）。
+
 - 日付: 2026-09-23
 - 対象: スタッフマスタ (`/settings/staff`) で報告された `Uncaught TypeError: Cannot read properties of undefined (reading 'startTime')`
 - 結論: **製品コード起因ではない。Chrome DevTools (Live Metrics / soft-navigation heuristics) が注入する web-vitals バンドルの既知クラッシュ。** 製品側の修正対象はなし。

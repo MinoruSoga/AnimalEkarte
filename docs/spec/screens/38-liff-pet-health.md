@@ -88,7 +88,7 @@ health-card API は LINE 顧客が飼い主未紐付けでも 200 を返し、ow
 - **レスポンス形状検証**: zod による実行時検証で、想定外データの誤表示を防ぐ。
 - **テナント分離**: ID Token の client_id 照合をクリニックごとの LINE チャネル ID で行い、トークンにはクリニック一致検証がある。
 - **トークン保護**: 新規 raw token は 32 random bytes の unpadded base64url（43文字）で、DB には SHA-256 digest のみを保存する。24 時間期限・単回使用。64桁 hex raw token は、発行済み legacy 行の期限内検索だけに対応する。紐付け操作は監査ログに記録される。
-- **レートリミット**: `/link` は 10回/分、読み取り系は 30回/分（IP ベース）。
+- **レートリミット**: `/link` は 10回/分、認証済みエンドポイント（`/health-card` を含む）は 60回/分のデフォルト上限（IP ベース）。（2026-09-29 訂正: 読み取り系 30回/分 → 認証済み系 60回/分。30回/分が適用されるのは公開 `/settings` と `/my-reservations` のみ。`backend/internal/reservation/routes.go` `RegisterLiffRoutes`）
 
 ### 5. アクセシビリティ
 - エラーメッセージは role="alert" で通知。装飾絵文字（⚠️ / ✅ / ℹ️）は aria-hidden="true" でスクリーンリーダーから除外。

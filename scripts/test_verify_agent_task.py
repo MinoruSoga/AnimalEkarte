@@ -97,6 +97,12 @@ class VerificationTests(unittest.TestCase):
         # 存在しない fixture は fail-closed
         self.assertTrue(verify.plan(['frontend/e2e/fixtures/missing.ts'])[1])
 
+    def test_manual_content_images_are_docs_only(self):
+        self.assertEqual(
+            verify.plan(['frontend/src/features/manual/content/images/41-lab-device.png']),
+            ([], []),
+        )
+
     def test_repo_root_repro_images_are_docs_only(self):
         for path in (
             'local-reservation-repro-onduty-error.png',
@@ -119,6 +125,14 @@ class VerificationTests(unittest.TestCase):
                 self.assertFalse(blocked)
                 self.assertIn({'service': 'host', 'command': ['bash', 'scripts/local-db-reset-contract.test.sh']}, jobs)
                 self.assertIn({'service': 'host', 'command': ['bash', '-n', path]}, jobs)
+
+    def test_manual_sync_maps_to_self_test(self):
+        jobs, blocked = verify.plan(['scripts/manual-sync.py'])
+        self.assertFalse(blocked)
+        self.assertIn(
+            {'service': 'host', 'command': ['python3', '-B', 'scripts/manual-sync.py', '--self-test']},
+            jobs,
+        )
 
     def test_reject_path_escape(self):
         for path in ('../secret', '/tmp/x', '-option', 'frontend/../../x'):
@@ -306,9 +320,49 @@ class VerificationTests(unittest.TestCase):
                 )
 
     def test_security_scan_workflow_uses_workflow_contracts(self):
-        jobs, blocked = verify.plan(['.github/workflows/security-scan.yml'])
+        for path in (
+            '.github/workflows/security-scan.yml',
+            '.github/workflows/e2e.yml',
+            '.github/workflows/backend-deploy.yml',
+        ):
+            with self.subTest(path=path):
+                jobs, blocked = verify.plan([path])
+                self.assertFalse(blocked)
+                self.assertEqual(jobs[0]['command'], ['node', '--test', 'scripts/check-workflow-contracts.test.mjs'])
+
+    def test_clinical_e2e_fixture_cli_uses_vet_and_gofmt(self):
+        path = 'backend/cmd/clinical-e2e-fixture/main.go'
+        jobs, blocked = verify.plan([path])
         self.assertFalse(blocked)
-        self.assertEqual(jobs[0]['command'], ['node', '--test', 'scripts/check-workflow-contracts.test.mjs'])
+        commands = [job['command'] for job in jobs]
+        self.assertIn(['go', 'vet', './cmd/clinical-e2e-fixture'], commands)
+        self.assertIn(['gofmt', '-l', 'cmd/clinical-e2e-fixture/main.go'], commands)
+
+    def test_claude_hook_scripts_use_syntax_check_and_sibling_test(self):
+        jobs, blocked = verify.plan(['.claude/hooks/pre-write-large-file-block.js'])
+        self.assertFalse(blocked)
+        commands = [job['command'] for job in jobs]
+        self.assertIn(['node', '--check', '.claude/hooks/pre-write-large-file-block.js'], commands)
+        self.assertIn(['node', '--test', '.claude/hooks/pre-write-large-file-block.test.js'], commands)
+        jobs, blocked = verify.plan(['.claude/hooks/post-edit-file-size-warn.js'])
+        self.assertFalse(blocked)
+        self.assertEqual([job['command'] for job in jobs], [['node', '--check', '.claude/hooks/post-edit-file-size-warn.js']])
+
+    def test_generated_models_allowlist_runs_boundary_test(self):
+        jobs, blocked = verify.plan(['frontend/generated-models-import-allowlist.json'])
+        self.assertFalse(blocked)
+        self.assertEqual(len(jobs), 1)
+        self.assertEqual(jobs[0]['service'], 'frontend')
+        self.assertIn('src/types/generated-model-response-boundary.test.ts', jobs[0]['command'])
+        self.assertTrue(jobs[0]['require_frontend_tests'])
+
+    def test_tygo_config_uses_ci_structure_check(self):
+        jobs, blocked = verify.plan(['backend/tygo.yaml'])
+        self.assertFalse(blocked)
+        self.assertEqual(
+            [job['command'] for job in jobs],
+            [['python3', '-B', 'scripts/ci_tygo_hosp_pass.py', 'backend/tygo.yaml', '/dev/null']],
+        )
 
     def test_cli_failure_has_no_pass_or_raw_output(self):
         failed = subprocess.CompletedProcess([], 1, 'sensitive stdout', 'sensitive stderr')
@@ -319,6 +373,43 @@ class VerificationTests(unittest.TestCase):
             self.assertEqual(verify.main(), 1)
             self.assertIn('"status": "FAIL"', output.getvalue())
             self.assertNotIn('sensitive', output.getvalue())
+
+    def test_claude_hook_and_sibling_test_share_one_test_job(self):
+        # A .js hook and its sibling .test.js selected together must not enqueue
+        # the same `node --test` job twice (the `job not in jobs` dedup branch).
+        jobs, blocked = verify.plan([
+            '.claude/hooks/pre-write-large-file-block.js',
+            '.claude/hooks/pre-write-large-file-block.test.js',
+        ])
+        self.assertFalse(blocked)
+        commands = [job['command'] for job in jobs]
+        self.assertEqual(
+            commands.count(['node', '--test', '.claude/hooks/pre-write-large-file-block.test.js']),
+            1,
+        )
+        self.assertEqual(
+            commands.count(['node', '--check', '.claude/hooks/pre-write-large-file-block.test.js']),
+            1,
+        )
+
+    def test_require_empty_stdout_fails_zero_exit_check(self):
+        # gofmt -l exits 0 even when it lists a file; require_empty_stdout must
+        # still mark the check FAIL so drift is not silently green.
+        listed = subprocess.CompletedProcess([], 0, 'cmd/clinical-e2e-fixture/main.go\n', '')
+        with mock.patch.object(verify, 'local_defaults', return_value={}), \
+             mock.patch.object(verify, 'git', return_value='fixture-head'), \
+             mock.patch.object(verify, 'inspect_container', return_value=('cid', {'Id': 'img'})), \
+             mock.patch.object(verify, 'run', return_value=listed), \
+             mock.patch('sys.argv', ['verify', '--paths', 'backend/cmd/clinical-e2e-fixture/main.go']), \
+             mock.patch('sys.stdout', new_callable=io.StringIO) as output:
+            self.assertEqual(verify.main(), 1)
+            evidence = json.loads(output.getvalue())
+        gofmt = next(
+            check for check in evidence['checks']
+            if check['command'][:2] == ['gofmt', '-l']
+        )
+        self.assertEqual(gofmt['exit_code'], 0)
+        self.assertEqual(gofmt['status'], 'FAIL')
 
     def test_frontend_package_manifest_maps_to_pnpm_audit(self):
         for path in ('frontend/package.json', 'frontend/pnpm-lock.yaml'):
@@ -482,6 +573,38 @@ class VerificationTests(unittest.TestCase):
                 (target / 'sentinel').write_text('preserve')
                 verify.prepare_dependency_mountpoint('frontend', 'explicit-deps')
                 self.assertEqual((target / 'sentinel').read_text(), 'preserve')
+
+    def _git_repo(self, root, gitignore):
+        subprocess.run(['git', 'init', '-q'], cwd=root, check=True, capture_output=True)
+        (root / '.gitignore').write_text(gitignore)
+        (root / 'frontend').mkdir()
+        calls = []
+
+        def real_run(command, *args, **kwargs):
+            calls.append(command)
+            return subprocess.run(command, cwd=root, capture_output=True, text=True, check=False)
+
+        return calls, real_run
+
+    def test_empty_mount_scaffold_accepts_dir_only_gitignore_without_dir(self):
+        # frontend/node_modules が存在しない worktree でも .gitignore の
+        # ディレクトリ限定パターン (node_modules/) にマッチすることを確認する。
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            calls, real_run = self._git_repo(root, 'node_modules/\n')
+            with mock.patch.object(verify, 'ROOT', root), mock.patch.object(verify, 'run', side_effect=real_run):
+                verify.prepare_dependency_mountpoint('frontend', 'explicit-deps')
+            self.assertEqual(calls, [['git', 'check-ignore', '-q', 'frontend/node_modules/']])
+            self.assertTrue((root / 'frontend/node_modules').is_dir())
+
+    def test_empty_mount_scaffold_still_rejects_unignored_path(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            _, real_run = self._git_repo(root, 'dist/\n')
+            with mock.patch.object(verify, 'ROOT', root), mock.patch.object(verify, 'run', side_effect=real_run):
+                with self.assertRaisesRegex(ValueError, 'must be ignored'):
+                    verify.prepare_dependency_mountpoint('frontend', 'explicit-deps')
+            self.assertFalse((root / 'frontend/node_modules').exists())
 
     def test_frontend_zero_test_report_is_blocked(self):
         result = subprocess.CompletedProcess([], 0, '{"numPassedTests":0}', '')

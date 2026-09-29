@@ -20,7 +20,7 @@ CLI・ホストアプリ・APIセッションの機能は別々に確認する�
 
 ## タスクを閉じる手順
 
-1. 要求と受入条件、現在のdiff、担当パスを確認する。Linearが利用できなければ現在状態はUNKNOWNとし、必要な更新はローカル下書きにする。投稿には明示承認が必要。
+1. 要求と受入条件、現在のdiff、担当パスを確認する。実行 SoT の Plane（workspace `baritechllc`）が利用できなければ現在状態はUNKNOWNとし、必要な更新はローカル下書きにする。投稿には明示承認が必要。（2026-09-29 訂正: 実行 SoT を Linear としていた → Linear は 2026-09-16 閉鎖、現行は Plane）
 2. ledger/packet ID がある場合は [claim規約](../../AGENTS.md#packet-claim-protocol-mandatory)を守る。並列編集は別worktree。調査・レビューはread-onlyで並列化できる。
 3. 受入条件の失敗ケースを先に確認し、範囲内の実装と関連テストを行う。docs-onlyや低影響の可逆編集に不要な製品テストを増やさない。
 4. 変更した成果物を検証する。独立レビューで見つかった範囲内の不具合を修正し、影響する検証を再実行する。上限・環境障害を成功に変換せず、未完了項目として報告する。
@@ -28,11 +28,11 @@ CLI・ホストアプリ・APIセッションの機能は別々に確認する�
 
 ## 変更範囲の検証
 
-事前計画は `python3 -B scripts/verify-agent-task.py --base <BASE_REF> --plan`。未コミットも含む対象diffを確認し、明示パスなら `--paths <PATH>...` を使う。`--staged` は手動の局所確認用で、Git pre-commit では使わない（pre-commit は secrets + 800行のみ。scoped lint/test は pre-push）。
+事前計画は `python3 -B scripts/verify-agent-task.py --base <BASE_REF> --plan`。未コミットも含む対象diffを確認し、明示パスなら `--paths <PATH>...` を使う。`--staged` は手動の局所確認用で、Git pre-commit では使わない（pre-commit は secrets のブロックと 800行超の警告のみ。800行は目安で commit は止めない。scoped lint/test は pre-push）。
 
 実行時は既にローカルにある固定imageを `--frontend-image <ID>` / `--backend-image <ID>`、依存volumeを `--frontend-dependency-volume <NAME>` / `--backend-dependency-volume <NAME>` で指定する。Git pre-push からも使う場合は、無視対象 `.claude/verification.local.json` に `frontend_image` / `backend_image` / `frontend_dependency_volume` / `backend_dependency_volume` の4キーだけを保存する。優先順位はCLI、`AGENT_VERIFY_*` 環境変数、ローカル設定の順。image/volumeはマシン固有なのでコミットしない。
 
-runnerはimageをimmutable IDへ解決し、networkなし・source/依存volume読み取り専用・capabilityなしの一時コンテナで実行する。image pull・依存インストール・Compose起動・migrationは行わない。Frontendのmountpoint用に空の `frontend/node_modules` ディレクトリだけを必要時に作る。Go実行用一時領域とFrontend native config loaderにより、sourceや依存volumeへの書込みを避ける。既存container指定も可能だが同じ隔離条件と対象worktree mountが必要で、通常のComposeは適合しない。
+runnerはimageをimmutable IDへ解決し、networkなし・source/依存volume読み取り専用・capabilityなしの一時コンテナで実行する。image pull・依存インストール・Compose起動・migrationは行わない。Frontendのmountpoint用に空の `frontend/node_modules` ディレクトリだけを必要時に作る（無視対象かは末尾 `/` 付きの `git check-ignore` でディレクトリとして判定し、未作成でも `node_modules/` のようなディレクトリ限定パターンに正しくマッチする）。Go実行用一時領域とFrontend native config loaderにより、sourceや依存volumeへの書込みを避ける。既存container指定も可能だが同じ隔離条件と対象worktree mountが必要で、通常のComposeは適合しない。
 
 ```mermaid
 flowchart LR

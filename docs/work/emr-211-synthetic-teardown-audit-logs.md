@@ -1,6 +1,8 @@
 # EMR-211 — 合成クリニック teardown での `audit_logs` の扱い（判断材料）
 
 > **この文書は判断材料であり、決裁記録ではない。** 最終決裁は人間（PO）が行う。worker は選択肢の分析と推奨案を示すのみで、本書の推奨は承認済みの実装方針を意味しない。
+>
+> 2026-09-29 注記: 本票は 2026-09-23 時点の判断材料。チケットの現行状態の正本は Plane `EMR-211`（2026-09-29 読取: **Done**）。
 
 - **対象チケット**: Plane EMR-211
 - **関連**: EMR-210（teardown 500 の scoped-delete 不備 BUG）、EMR-72 / BUG-S09-FIXTURE-TEARDOWN（append-only 締め台帳と teardown の相性）、EMR-126（UAT 500 再現レポート `reports/uat-2026-09-23/s09-fixture-teardown.md`）、LINMIG-279（clinicale2e fixture teardown）

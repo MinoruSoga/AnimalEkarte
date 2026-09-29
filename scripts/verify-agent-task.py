@@ -495,6 +495,34 @@ def plan(paths):
             jobs.append({'service': 'frontend', 'command': [
                 'node', 'node_modules/prettier/bin/prettier.cjs', '--check', 'src/styles/globals.css',
             ]})
+        elif path == 'backend/cmd/clinical-e2e-fixture/main.go':
+            # Thin CLI over internal/clinicale2e (tested there); no package tests, so
+            # compile + vet and gofmt are the scoped contract for this entrypoint.
+            jobs.append({'service': 'backend', 'command': ['go', 'vet', './cmd/clinical-e2e-fixture']})
+            if (ROOT / path).is_file():
+                jobs.append({'service': 'backend', 'command': ['gofmt', '-l', path.removeprefix('backend/')], 'require_empty_stdout': True})
+        elif path.startswith('.claude/hooks/') and path.endswith('.js'):
+            # Claude Code hook scripts: syntax check, plus the sibling node:test file when one exists.
+            test_path = path if path.endswith('.test.js') else path.removesuffix('.js') + '.test.js'
+            if (ROOT / path).is_file():
+                jobs.append({'service': 'host', 'command': ['node', '--check', path]})
+            if (ROOT / test_path).is_file():
+                job = {'service': 'host', 'command': ['node', '--test', test_path]}
+                if job not in jobs:
+                    jobs.append(job)
+        elif path == 'frontend/generated-models-import-allowlist.json':
+            # TASK-444-S1 inventory: the boundary test compares this allowlist with real import sites.
+            jobs.append({
+                'service': 'frontend',
+                'command': [
+                    'node', 'node_modules/vitest/vitest.mjs', 'run', '--configLoader', 'native',
+                    '--reporter=json', 'src/types/generated-model-response-boundary.test.ts',
+                ],
+                'require_frontend_tests': True,
+            })
+        elif path == 'backend/tygo.yaml':
+            # Structural check CI also runs; generated-file sync stays with the CI Codegen Sync job.
+            jobs.append({'service': 'host', 'command': ['python3', '-B', 'scripts/ci_tygo_hosp_pass.py', path, '/dev/null']})
         elif (path.startswith('backend/internal/') or path.startswith('backend/cmd/')) and path.endswith('.go'):
             package = pathlib.PurePosixPath(path).parent
             if not list((ROOT / package).glob('*_test.go')):
@@ -567,6 +595,9 @@ def plan(paths):
         ):
             jobs.append({'service': 'host', 'command': ['bash', 'scripts/local-db-reset-contract.test.sh']})
             jobs.append({'service': 'host', 'command': ['bash', '-n', path]})
+        elif path == 'scripts/manual-sync.py':
+            # Ops CLI は stdlib-only。pure 関数の --self-test が scoped 契約。
+            jobs.append({'service': 'host', 'command': ['python3', '-B', 'scripts/manual-sync.py', '--self-test']})
         elif path in (
             'scripts/link-old-db-cross-clinic-staff-accounts.py',
             'scripts/sql/link-old-db-cross-clinic-staff-accounts.sql',
@@ -602,6 +633,8 @@ def plan(paths):
             '.github/workflows/security-scan.yml',
             '.github/workflows/README-security-scan.md',
             '.github/workflows/ci.yml',
+            '.github/workflows/e2e.yml',
+            '.github/workflows/backend-deploy.yml',
             'infra/scripts/cf-run-migrate.sh',
         ):
             jobs.append({'service': 'host', 'command': ['node', '--test', 'scripts/check-workflow-contracts.test.mjs']})
@@ -645,6 +678,9 @@ def plan(paths):
             jobs.append({'service': 'backend', 'command': ['go', 'test', '-json', '-p=2', '-count=1', '-short', './internal/auth', '-run=^TestFirstSystemAdminProcedureMatchesInitSchema$'], 'require_completed_test': True})
         elif path.endswith('.md') and (path.startswith(('docs/', '.claude/', '.codex/', '.agents/', 'frontend/src/features/manual/'))
                                       or '/' not in path or pathlib.PurePosixPath(path).name in ('CLAUDE.md', 'AGENTS.md', 'README.md')):
+            continue
+        elif path.startswith('frontend/src/features/manual/content/images/'):
+            # Manual article screenshots; documentation-only SKIP like the .md files they illustrate.
             continue
         elif (path.startswith('backend/migrations/seeds/')
               and path.endswith('.sql')
@@ -869,7 +905,9 @@ def prepare_dependency_mountpoint(service, volume):
         if not target.is_dir():
             raise ValueError('Dependency mountpoint is not a directory')
         return
-    ignored = run(['git', 'check-ignore', '-q', 'frontend/node_modules'])
+    # Trailing slash: check-ignore evaluates dir-only patterns (e.g. node_modules/)
+    # only for directory paths; without it a not-yet-created mountpoint checks as a file.
+    ignored = run(['git', 'check-ignore', '-q', 'frontend/node_modules/'])
     if ignored.returncode:
         raise ValueError('Dependency mountpoint must be ignored before creating empty directory')
     target.mkdir()  # Empty bind mount scaffold only; no install and no replacement.

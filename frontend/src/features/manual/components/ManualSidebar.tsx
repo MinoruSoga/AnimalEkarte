@@ -46,7 +46,7 @@ const ManualNavigation = memo(function ManualNavigation({
   const location = useLocation();
 
   return (
-    <nav aria-label="マニュアル目次" className="flex-1 overflow-y-auto px-2 py-2">
+    <nav aria-label="マニュアル目次" className="flex-1 overflow-y-auto relative px-2 py-2">
       {isSearching && filteredCount === 0 ? (
         <p className={`px-2 py-3 text-sm ${C.text50}`}>該当する項目が見つかりません</p>
       ) : null}

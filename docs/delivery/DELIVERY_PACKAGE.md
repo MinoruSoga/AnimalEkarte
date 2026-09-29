@@ -53,7 +53,7 @@ flowchart TB
 | IaC | Terraform: [`infra/cloudflare/`](../../infra/cloudflare/README.md)／Workers: `backend/wrangler*.jsonc` | [infra/README](../ops/infra/README.md) |
 
 - **STG デプロイ**: `staging`ブランチpushでbackend workflowの対象pathが変わった場合 → GitHub Actions `backend-deploy.yml`（deploy → migrate → post-migrate `/health` → optional smoke）。手動は `gh workflow run backend-deploy.yml --ref staging`（[staging/runbook.md](../ops/infra/staging/runbook.md)）。
-- **Production デプロイ**: **未整備**（#253・[production/setup.md](../ops/infra/production/setup.md)）。証跡は **USER 入力待ち（U12）**。
+- **Production デプロイ**: `deploy-production` job は checked-in（EMR-148）だが、GitHub `Production` Environment・`PROD_` secrets・provider 設定が未投入で**未実行**（#253・[production/setup.md](../ops/infra/production/setup.md)）。証跡は **USER 入力待ち（U12）**。
 - **シークレット**: GitHub Encrypted Secrets および `wrangler secret` / `worker-secret-sync.yml` で管理。**本ドキュメントには秘密値を記載しない**。
 
 > **復旧上の注意**: AWS ECS/RDS は 2026-07-20 に廃止済みで、切り戻し先やホットスタンバイはない。障害初動は [STG 運用 Runbook](../ops/infra/staging/runbook.md) に従い、Cloudflare 側の修正・再デプロイ、またはスナップショットと現行 IaC からの再建で復旧する。本番稼働後の手順は [production/runbook.md](../ops/infra/production/runbook.md)（プレースホルダ）へ整備予定。
@@ -173,7 +173,7 @@ flowchart TB
 
 ## 3. 運用手順
 
-本番固有の数値・窓口・バックアップ実測は、checked-in production workflow/setup acceptanceが未実装でprovider/runtime状態もUNKNOWNのため未確定。STG の運用正本は [staging/runbook.md](../ops/infra/staging/runbook.md) および [deploy/README.md](../ops/deploy/README.md)。本番構築後は [production/runbook.md](../ops/infra/production/runbook.md) を整備する。
+本番固有の数値・窓口・バックアップ実測は、backend production job は checked-in（EMR-148）だが Environment reviewers・secret・provider は未設定/UNKNOWNで未実行のため未確定。STG の運用正本は [staging/runbook.md](../ops/infra/staging/runbook.md) および [deploy/README.md](../ops/deploy/README.md)。本番構築後は [production/runbook.md](../ops/infra/production/runbook.md) を整備する。
 
 ### 3.1 バックアップ方針
 
@@ -224,7 +224,7 @@ flowchart TB
 
 ## USER 入力待ち（委任外・repo では確定不能）
 
-本表は repo 由来の SSOT だけでは埋められない項目を集約する。2026-09-06 の GitHub 取得でも [#258](https://github.com/MinoruSoga/AnimalEkarte/issues/258#issuecomment-5352951236) は OPEN、最新コメントは U1–U8/10/11 の契約記入と #253 後の U9/U12 を残件とする。Linear の現在値・契約台帳・provider の新しい証跡は今回取得していない。**値・秘密・契約内容・本番証跡は発明しない。** **U1–U12** の供給後に #258 最終承認・本ドキュメント追記を行う。U13（操作説明会）は #256 / OPERATION_MANUAL の残差であり、**#258 close 条件ではない**。
+本表は repo 由来の SSOT だけでは埋められない項目を集約する。2026-09-06 の GitHub 取得でも [#258](https://github.com/MinoruSoga/AnimalEkarte/issues/258#issuecomment-5352951236) は OPEN、最新コメントは U1–U8/10/11 の契約記入と #253 後の U9/U12 を残件とする。Linear の現在値・契約台帳・provider の新しい証跡は今回取得していない（2026-09-29 訂正: 「Linear の現在値」→ Linear は 2026-09-16 に閉鎖済み。実行状態の正本は Plane `EMR-39`・U1–U12 入力待ち `EMR-150`。2026-09-27 時点の repo 内照合でも全行未記入=keep_needs_human）。**値・秘密・契約内容・本番証跡は発明しない。** **U1–U12** の供給後に #258 最終承認・本ドキュメント追記を行う。U13（操作説明会）は #256 / OPERATION_MANUAL の残差であり、**#258 close 条件ではない**。
 
 **記入ルール（2026-08-20 棚卸し）**: 「repo 確定」列はリポジトリ内の非機密事実だけを書く。「契約記入」列に名義・請求先・秘密・本番証跡が無い行は **未記入** のまま残す。推測で埋めない。
 

@@ -1,5 +1,7 @@
 # SLACK-LATENCY: 治療数量の表示 / commit / 通信 / 再取得の採時計画
 
+> 2026-09-29 注記: 現在のタスク状態の正本は Plane `EMR-104`。本文の「READY」「未実行」等の状態語は当時の調査・証跡記録であり現在の実行状態を示さない。ID 対応は [migration receipt](../plane-md-migration-20260923-receipt.md)。
+
 状態: **計測計画 READY／実測 未実行（端末・回線・行数・IME・許容 ms はすべて UNKNOWN）**。出典は [todo-issue.md](../../../todo.md#issue-ledger) 見出し `### SLACK-LATENCY`（L112–116）。保持する現場条件:
 
 - 「数量入力など反映に時間がかかりすぎる」（出典 883–896。現行 `todo-issue.md` は要約のみ。原文行は本票では再掲しない）

@@ -38,7 +38,9 @@ export function SupportPanel({ onClose }: SupportPanelProps) {
           <TabsTrigger value="help">使い方を聞く</TabsTrigger>
           <TabsTrigger value="bug">バグを報告</TabsTrigger>
         </TabsList>
-        <TabsContent value="help" className="min-h-0 overflow-y-auto">
+        {/* flex カラムにして HelpChat（flex-1）が高さ一杯に広がり、入力欄を最下部へ固定する。
+            チャット無効時の ManualSearchView は高さ自動で、この領域がそのままスクロールする */}
+        <TabsContent value="help" className="flex min-h-0 flex-col overflow-y-auto">
           <ManualHelpTab onClose={onClose} />
         </TabsContent>
         <TabsContent value="bug" className="min-h-0 overflow-y-auto">

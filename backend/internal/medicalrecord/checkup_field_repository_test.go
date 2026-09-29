@@ -16,6 +16,7 @@ import (
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 
+	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/testdb"
 )
@@ -249,4 +250,172 @@ func TestCheckupFieldResultRepository_ReplaceForCheckup_RoundTripsRemainingField
 	// text → value_text に自由記述が保持される。
 	assert.Equal(t, model.CheckupFieldTypeText, got[2].FieldType)
 	assert.Equal(t, "下顎臼歯に軽度の歯肉炎あり。次回再評価。", got[2].ValueText)
+}
+
+// ── EMR-225 write 系メソッド（実 SQL 正本） ──
+// 複合スコープ（clinic_id+checkup_type_id+field_id）と soft delete は service 層テストと併せて
+// ここでリポジトリ単体でも固定する（service モックだけでは WHERE 句欠落を検出できないため）。
+
+func TestCheckupTypeFieldRepository_CreateField_PersistsRow(t *testing.T) {
+	db := setupCheckupFieldTestDB(t)
+	repo := NewCheckupTypeFieldRepository(db)
+	ctx := context.Background()
+	const clinicA = uint64(1)
+	ct := makeCheckupTypeMaster(t, db, clinicA, "歯科検診（作成）")
+
+	minV, maxV := 0.0, 4.0
+	field := &model.CheckupTypeField{
+		ClinicID: clinicA, CheckupTypeID: ct.ID, Name: "歯石付着度",
+		FieldType: model.CheckupFieldTypeNumber, Unit: "段階",
+		MinValue: &minV, MaxValue: &maxV,
+		Options:   datatypes.JSON([]byte(`[]`)),
+		SortOrder: 5,
+	}
+	require.NoError(t, repo.CreateField(ctx, field))
+	assert.NotZero(t, field.ID, "DB 採番が返る")
+
+	var row model.CheckupTypeField
+	require.NoError(t, db.First(&row, field.ID).Error)
+	assert.Equal(t, "歯石付着度", row.Name)
+	assert.Equal(t, model.CheckupFieldTypeNumber, row.FieldType)
+	assert.Equal(t, 5, row.SortOrder)
+	assert.Equal(t, clinicA, row.ClinicID)
+}
+
+func TestCheckupTypeFieldRepository_LockFieldByID_ScopedAndLocking(t *testing.T) {
+	db := setupCheckupFieldTestDB(t)
+	repo := NewCheckupTypeFieldRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	ctA := makeCheckupTypeMaster(t, db, clinicA, "医院Aの検診")
+	ctB := makeCheckupTypeMaster(t, db, clinicB, "医院Bの検診")
+	field := makeCheckupTypeField(t, db, &model.CheckupTypeField{
+		ClinicID: clinicA, CheckupTypeID: ctA.ID, Name: "項目", FieldType: model.CheckupFieldTypeText, SortOrder: 1,
+	})
+
+	got, err := repo.LockFieldByID(ctx, clinicA, ctA.ID, field.ID)
+	require.NoError(t, err)
+	assert.Equal(t, field.ID, got.ID)
+
+	// 複合スコープ: 他クリニック / 別パッケージ / 未存在 id は全て NotFound。
+	for _, tc := range []struct {
+		name          string
+		clinicID      uint64
+		checkupTypeID uint64
+		fieldID       uint64
+	}{
+		{"cross clinic", clinicB, ctB.ID, field.ID},
+		{"cross package", clinicA, ctB.ID, field.ID},
+		{"missing id", clinicA, ctA.ID, 99999},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := repo.LockFieldByID(ctx, tc.clinicID, tc.checkupTypeID, tc.fieldID)
+			require.Error(t, err)
+			assert.True(t, apperrors.IsNotFound(err), "expect NotFound, got %v", err)
+		})
+	}
+}
+
+func TestCheckupTypeFieldRepository_UpdateField_PartialUpdateScoped(t *testing.T) {
+	db := setupCheckupFieldTestDB(t)
+	repo := NewCheckupTypeFieldRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	ctA := makeCheckupTypeMaster(t, db, clinicA, "医院Aの検診")
+	ctB := makeCheckupTypeMaster(t, db, clinicB, "医院Bの検診")
+	field := makeCheckupTypeField(t, db, &model.CheckupTypeField{
+		ClinicID: clinicA, CheckupTypeID: ctA.ID, Name: "体重", FieldType: model.CheckupFieldTypeNumber, SortOrder: 1,
+	})
+
+	updated, err := repo.UpdateField(ctx, clinicA, ctA.ID, field.ID, map[string]any{
+		"name":       "体重（改訂）",
+		"field_type": model.CheckupFieldTypeText,
+		"min_value":  nil,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "体重（改訂）", updated.Name)
+	assert.Equal(t, model.CheckupFieldTypeText, updated.FieldType)
+	assert.Nil(t, updated.MinValue)
+
+	// 複合スコープ外の更新は NotFound（他クリニックの同 id 行は触れない）。
+	_, err = repo.UpdateField(ctx, clinicB, ctB.ID, field.ID, map[string]any{"name": "Bの名前"})
+	require.Error(t, err)
+	assert.True(t, apperrors.IsNotFound(err))
+	var row model.CheckupTypeField
+	require.NoError(t, db.First(&row, field.ID).Error)
+	assert.Equal(t, "体重（改訂）", row.Name, "clinic B からの更新は適用されない")
+}
+
+func TestCheckupTypeFieldRepository_DeleteField_SoftDeletesScoped(t *testing.T) {
+	db := setupCheckupFieldTestDB(t)
+	repo := NewCheckupTypeFieldRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	ctA := makeCheckupTypeMaster(t, db, clinicA, "医院Aの検診")
+	ctB := makeCheckupTypeMaster(t, db, clinicB, "医院Bの検診")
+	field := makeCheckupTypeField(t, db, &model.CheckupTypeField{
+		ClinicID: clinicA, CheckupTypeID: ctA.ID, Name: "項目", FieldType: model.CheckupFieldTypeBoolean, SortOrder: 1,
+	})
+
+	require.NoError(t, repo.DeleteField(ctx, clinicA, ctA.ID, field.ID))
+
+	// 生存クエリでは見えず、Unscoped では deleted_at 付きで残る。
+	var count int64
+	require.NoError(t, db.Model(&model.CheckupTypeField{}).Where("id = ?", field.ID).Count(&count).Error)
+	assert.Zero(t, count, "soft delete 後は通常クエリから除外")
+	require.NoError(t, db.Model(&model.CheckupTypeField{}).Unscoped().
+		Where("id = ? AND deleted_at IS NOT NULL", field.ID).Count(&count).Error)
+	assert.EqualValues(t, 1, count, "定義行自体は残る（履歴参照用）")
+
+	// 他クリニックスコープからの削除は NotFound。
+	err := repo.DeleteField(ctx, clinicB, ctB.ID, field.ID)
+	require.Error(t, err)
+	assert.True(t, apperrors.IsNotFound(err))
+}
+
+func TestCheckupTypeFieldRepository_ReorderFields_AtomicScoped(t *testing.T) {
+	db := setupCheckupFieldTestDB(t)
+	repo := NewCheckupTypeFieldRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	ctA := makeCheckupTypeMaster(t, db, clinicA, "医院Aの検診")
+	ctB := makeCheckupTypeMaster(t, db, clinicB, "医院Bの検診")
+	f1 := makeCheckupTypeField(t, db, &model.CheckupTypeField{ClinicID: clinicA, CheckupTypeID: ctA.ID, Name: "A", FieldType: model.CheckupFieldTypeText, SortOrder: 1})
+	f2 := makeCheckupTypeField(t, db, &model.CheckupTypeField{ClinicID: clinicA, CheckupTypeID: ctA.ID, Name: "B", FieldType: model.CheckupFieldTypeText, SortOrder: 2})
+	fB := makeCheckupTypeField(t, db, &model.CheckupTypeField{ClinicID: clinicB, CheckupTypeID: ctB.ID, Name: "B側", FieldType: model.CheckupFieldTypeText, SortOrder: 9})
+
+	require.NoError(t, repo.ReorderFields(ctx, clinicA, ctA.ID, []uint64{f2.ID, f1.ID}))
+	got, err := repo.FindByCheckupTypeID(ctx, clinicA, ctA.ID)
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+	assert.Equal(t, []uint64{f2.ID, f1.ID}, []uint64{got[0].ID, got[1].ID})
+
+	// 他クリニック id 混在は複合スコープで NotFound。
+	err = repo.ReorderFields(ctx, clinicA, ctA.ID, []uint64{f1.ID, fB.ID})
+	require.Error(t, err)
+	assert.True(t, apperrors.IsNotFound(err), "foreign id は NotFound")
+
+	// 生存集合の部分集合（未投稿の生存行が残る）は InvalidInput — 部分採番で
+	// 未投稿行の sort_order と衝突するため拒否する（exact-set 契約）。
+	err = repo.ReorderFields(ctx, clinicA, ctA.ID, []uint64{f2.ID})
+	require.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err), "生存 id 未投稿の部分集合は InvalidInput、got %v", err)
+
+	// ソフトデリート済み行は生存集合から外れる: f2 削除後は {f1} が生存集合全体となり
+	// 採番できる。削除済み id を投稿に混ぜると NotFound（id IN クエリが deleted_at を除く）。
+	require.NoError(t, repo.DeleteField(ctx, clinicA, ctA.ID, f2.ID))
+	require.NoError(t, repo.ReorderFields(ctx, clinicA, ctA.ID, []uint64{f1.ID}))
+	got, err = repo.FindByCheckupTypeID(ctx, clinicA, ctA.ID)
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	assert.Equal(t, f1.ID, got[0].ID)
+	assert.Equal(t, 1, got[0].SortOrder)
+
+	err = repo.ReorderFields(ctx, clinicA, ctA.ID, []uint64{f1.ID, f2.ID})
+	require.Error(t, err)
+	assert.True(t, apperrors.IsNotFound(err), "削除済み id の投稿は NotFound")
 }

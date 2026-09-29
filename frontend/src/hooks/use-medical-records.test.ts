@@ -38,10 +38,20 @@ describe("useGetPetMedicalHistory の transformToHistoryItem（EMR-182 前回複
       },
     });
     expect(result.copySource).toEqual({
+      recordId: "1",
       chiefComplaint: "元気がない",
       treatmentPolicy: "安静と投薬",
       chiefComplaintTypeId: 5,
     });
+  });
+
+  it("copySource.recordId にレコード id の文字列を保持する（EMR-219 明細複写の起点）", () => {
+    const result = transformToHistoryItem({
+      ...minimalResponse,
+      id: 42,
+      inquiry: { id: 1, chief_complaint: "元気がない" },
+    });
+    expect(result.copySource?.recordId).toBe("42");
   });
 
   it("copySource は空文字・未設定の項目を含めない", () => {
@@ -49,18 +59,27 @@ describe("useGetPetMedicalHistory の transformToHistoryItem（EMR-182 前回複
       ...minimalResponse,
       inquiry: { id: 1, chief_complaint: "", notes: "", chief_complaint_type_id: 2 },
     });
-    expect(result.copySource).toEqual({ chiefComplaintTypeId: 2 });
+    expect(result.copySource).toEqual({ recordId: "1", chiefComplaintTypeId: 2 });
   });
 
-  it("inquiry 未設定のとき copySource は undefined", () => {
-    expect(
-      transformToHistoryItem({ ...minimalResponse, inquiry: undefined }).copySource,
-    ).toBeUndefined();
+  it("inquiry 未設定でも copySource は recordId を保持する（EMR-219）", () => {
+    expect(transformToHistoryItem({ ...minimalResponse, inquiry: undefined }).copySource).toEqual({
+      recordId: "1",
+    });
   });
 
-  it("複写可能な値が無いとき copySource は undefined", () => {
+  it("複写可能な問診値が無くても copySource は recordId を保持する（EMR-219: 明細のみの複写を可能に）", () => {
     const result = transformToHistoryItem({
       ...minimalResponse,
+      inquiry: { id: 1, chief_complaint: "", notes: "" },
+    });
+    expect(result.copySource).toEqual({ recordId: "1" });
+  });
+
+  it("id が無く複写可能値も無いとき copySource は undefined", () => {
+    const result = transformToHistoryItem({
+      ...minimalResponse,
+      id: undefined as unknown as number,
       inquiry: { id: 1, chief_complaint: "", notes: "" },
     });
     expect(result.copySource).toBeUndefined();

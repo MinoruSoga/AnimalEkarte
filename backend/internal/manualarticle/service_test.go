@@ -152,6 +152,8 @@ func TestManualArticleService_FindByCategoryAndSlug(t *testing.T) {
 	}
 }
 
+func f64p(v float64) *float64 { return &v }
+
 func TestManualArticleService_Upsert(t *testing.T) {
 	staffID := uint64(7)
 
@@ -170,11 +172,23 @@ func TestManualArticleService_Upsert(t *testing.T) {
 				Category:     model.ManualCategoryScreens,
 				Slug:         "top",
 				Title:        "トップ画面",
-				OrderValue:   1,
+				OrderValue:   f64p(1),
 				Section:      "基本操作",
 				BodyMarkdown: "# トップ",
 			},
 			wantOrderVal: 1,
+		},
+		{
+			name: "stores explicit zero order value (MD frontmatter order: 0)",
+			input: &UpsertManualArticleInput{
+				Category:     model.ManualCategoryScreens,
+				Slug:         "zero-order",
+				Title:        "ゼロ順序",
+				OrderValue:   f64p(0),
+				Section:      "基本操作",
+				BodyMarkdown: "# ゼロ",
+			},
+			wantOrderVal: 0,
 		},
 		{
 			name: "returns error for invalid category",
@@ -217,24 +231,24 @@ func TestManualArticleService_Upsert(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "falls back to existing order value when zero and article exists",
+			name: "falls back to existing order value when omitted and article exists",
 			input: &UpsertManualArticleInput{
 				Category:   model.ManualCategoryScreens,
 				Slug:       "top",
 				Title:      "タイトル",
-				OrderValue: 0,
+				OrderValue: nil,
 				Section:    "セクション",
 			},
 			existing:     &model.ManualArticle{OrderValue: 42},
 			wantOrderVal: 42,
 		},
 		{
-			name: "falls back to default 9999 when zero and article does not exist",
+			name: "falls back to default 9999 when omitted and article does not exist",
 			input: &UpsertManualArticleInput{
 				Category:   model.ManualCategoryScreens,
 				Slug:       "new-slug",
 				Title:      "タイトル",
-				OrderValue: 0,
+				OrderValue: nil,
 				Section:    "セクション",
 			},
 			existingErr:  apperrors.WrapNotFound("manual_article", "new-slug"),
@@ -246,7 +260,7 @@ func TestManualArticleService_Upsert(t *testing.T) {
 				Category:   model.ManualCategoryScreens,
 				Slug:       "top",
 				Title:      "タイトル",
-				OrderValue: 0,
+				OrderValue: nil,
 				Section:    "セクション",
 			},
 			existingErr: errors.New("db error"),
@@ -258,7 +272,7 @@ func TestManualArticleService_Upsert(t *testing.T) {
 				Category:   model.ManualCategoryScreens,
 				Slug:       "top",
 				Title:      "タイトル",
-				OrderValue: 1,
+				OrderValue: f64p(1),
 				Section:    "セクション",
 			},
 			upsertErr: errors.New("db error"),

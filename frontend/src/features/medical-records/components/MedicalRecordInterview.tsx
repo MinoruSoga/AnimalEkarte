@@ -25,6 +25,8 @@ interface MedicalRecordInterviewProps {
   setHistoryItems?: (items: InterviewHistoryItem[]) => void;
   /** BUG-035 residual: 問診臨床欄を content attribute で固定 */
   isFinalized?: boolean;
+  /** EMR-219: 前回複写適用時に元カルテの治療明細行も複写する（複写元カルテ id を引く） */
+  onCopyRecordTreatments?: (sourceRecordId: string) => void;
 }
 
 // rendering-hoist-jsx: テンプレート一覧は静的なのでモジュール定数に巻き上げ
@@ -74,6 +76,7 @@ export const MedicalRecordInterview = memo(function MedicalRecordInterview({
   setTreatmentPolicy,
   historyItems,
   isFinalized = false,
+  onCopyRecordTreatments,
 }: MedicalRecordInterviewProps) {
   const handleInsertTemplate = useCallback(
     (text: string) => {
@@ -92,8 +95,11 @@ export const MedicalRecordInterview = memo(function MedicalRecordInterview({
       if (source.chiefComplaintTypeId !== undefined) {
         setChiefComplaintTypeId(source.chiefComplaintTypeId);
       }
+      // EMR-219: 問診項目に加えて治療明細行も複写する。即時適用・確認ダイアログ適用の
+      // 双方がこの一点を通るため、ここでのみ発火する。recordId が無い履歴行は明細複写なし。
+      if (source.recordId) onCopyRecordTreatments?.(source.recordId);
     },
-    [setChiefComplaint, setChiefComplaintTypeId, setTreatmentPolicy],
+    [setChiefComplaint, setChiefComplaintTypeId, setTreatmentPolicy, onCopyRecordTreatments],
   );
 
   const handleCopyItem = useCallback(
@@ -157,7 +163,7 @@ export const MedicalRecordInterview = memo(function MedicalRecordInterview({
         onClose={handleCloseCopyConfirm}
         onConfirm={handleConfirmCopy}
         title="過去の問診内容をコピーしますか？"
-        description="主訴詳細・治療方針・主訴区分の現在の入力が上書きされます。"
+        description="主訴詳細・治療方針・主訴区分の現在の入力が上書きされ、前回の治療明細も追加されます。"
         confirmLabel="コピー"
       />
     </div>

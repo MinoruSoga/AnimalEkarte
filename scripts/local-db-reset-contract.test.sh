@@ -67,6 +67,7 @@ build_fixture() {
   # default mock state
   printf '%s\n' "volume_present=1" >"$casedir/state/flags"
   printf '%s\n' "dump_mode=ok" >>"$casedir/state/flags"
+  printf '%s\n' "manual_dump_mode=ok" >>"$casedir/state/flags"
   printf '%s\n' "postflight_mode=ok" >>"$casedir/state/flags"
   printf '%s\n' "health_code=200" >>"$casedir/state/flags"
   : >"$casedir/state/docker.log"
@@ -235,6 +236,32 @@ if [[ "${1:-}" == "compose" ]]; then
             exit 1
             ;;
         esac
+      fi
+
+      # manual_articles preserve dump (pg_dump -t manual_articles ...)
+      if [[ "$payload" == *pg_dump* && "$payload" == *manual_articles* ]]; then
+        case "${manual_dump_mode:-ok}" in
+          ok)
+            printf '%s\n' '-- mock manual_articles dump'
+            printf '%s\n' 'COPY public.manual_articles (id, category, slug, title, order_value, section, body_markdown) FROM stdin;'
+            printf '%s\n' '1	screens	00-overview	mock	0	基本	body'
+            printf '%s\n' '\.'
+            exit 0
+            ;;
+          no_rows)
+            printf '%s\n' '-- mock manual_articles dump (no rows)'
+            exit 0
+            ;;
+          fail)
+            echo "pg_dump manual_articles error" >&2
+            exit 1
+            ;;
+        esac
+      fi
+
+      # manual_articles restore (psql -v ON_ERROR_STOP=1 reading the dump via stdin)
+      if [[ "$payload" == *psql* && "$payload" == *ON_ERROR_STOP* ]]; then
+        exit 0
       fi
 
       if [[ "$payload" == *schema_migrations* ]]; then
@@ -660,8 +687,32 @@ write_mock_curl "$TMP_ROOT/good-execute-assert"
     fi
   fi
 
+  # manual_articles preserve/restore ordering:
+  # pg_dump(manual_articles) must run BEFORE volume rm; psql restore AFTER compose up.
+  manual_dump_line="$(grep -n 'pg_dump' "$log" | grep 'manual_articles' | head -1 | cut -d: -f1)"
+  volume_rm_line="$(grep -n 'volume' "$log" | grep 'rm' | grep 'ekarte-postgres-data' | head -1 | cut -d: -f1)"
+  restore_line="$(grep -n 'ON_ERROR_STOP' "$log" | head -1 | cut -d: -f1)"
+  if [[ -z "$manual_dump_line" ]]; then
+    ok=0
+    echo "manual_articles pg_dump not found in docker.log"
+  elif [[ -z "$volume_rm_line" || "$manual_dump_line" -ge "$volume_rm_line" ]]; then
+    ok=0
+    echo "manual_articles dump did not precede volume rm (dump=$manual_dump_line rm=$volume_rm_line)"
+  fi
+  if [[ -z "$restore_line" ]]; then
+    ok=0
+    echo "manual_articles psql restore not found in docker.log"
+  elif [[ -n "$volume_rm_line" && "$restore_line" -le "$volume_rm_line" ]]; then
+    ok=0
+    echo "manual_articles restore ran before volume rm (restore=$restore_line rm=$volume_rm_line)"
+  fi
+  if ! find "$TMP_ROOT/good-execute-assert/backups" -name 'manual_articles.sql' | grep -q .; then
+    ok=0
+    echo "manual_articles.sql missing from snapshot dir"
+  fi
+
   if [[ "$ok" -eq 1 ]]; then
-    echo "PASS  [good-execute-assert] exit=0 snapshot+db-only-rm+caches-kept"
+    echo "PASS  [good-execute-assert] exit=0 snapshot+db-only-rm+caches-kept+manual-preserve"
   else
     echo "FAIL  [good-execute-assert]"
     printf '%s\n' "$out"
@@ -716,6 +767,74 @@ set_flag "$TMP_ROOT/bad-foreign-holder" db_volume_holders "emr999-db-1"
   else
     echo "FAIL  [repo-contract-only] exit=$actual_exit (Makefile/compose must satisfy contract)"
     printf '%s\n' "$out"
+    failures=$((failures + 1))
+  fi
+}
+
+# 19. manual_articles dump fails → non-zero AND no volume rm (fail-closed before delete)
+build_fixture "$TMP_ROOT/bad-manual-dump"
+write_mock_docker "$TMP_ROOT/bad-manual-dump"
+write_mock_curl "$TMP_ROOT/bad-manual-dump"
+set_flag "$TMP_ROOT/bad-manual-dump" manual_dump_mode fail
+{
+  set +e
+  out="$(
+    cd "$TMP_ROOT/bad-manual-dump"
+    env \
+      LOCAL_DB_RESET_ROOT="$TMP_ROOT/bad-manual-dump" \
+      LOCAL_DB_RESET_DOCKER="$TMP_ROOT/bad-manual-dump/bin/docker" \
+      LOCAL_DB_RESET_CURL="$TMP_ROOT/bad-manual-dump/bin/curl" \
+      LOCAL_DB_RESET_BACKUP_ROOT="$TMP_ROOT/bad-manual-dump/backups" \
+      LOCAL_DB_RESET_COMPOSE_FILE="$TMP_ROOT/bad-manual-dump/docker-compose.yml" \
+      LOCAL_DB_RESET_ENV_FILE="$TMP_ROOT/bad-manual-dump/.env.local" \
+      LOCAL_DB_RESET_MAKEFILE="$TMP_ROOT/bad-manual-dump/Makefile" \
+      LOCAL_DB_RESET_MIGRATIONS_DIR="$TMP_ROOT/bad-manual-dump/backend/migrations" \
+      bash "$TMP_ROOT/bad-manual-dump/scripts/local-db-reset-contract.sh" 2>&1
+  )"
+  actual_exit=$?
+  set -e
+  if [[ "$actual_exit" -ne 0 ]] \
+     && printf '%s\n' "$out" | grep -F 'manual_articles dump failed' >/dev/null 2>&1 \
+     && ! grep -E 'DOCKER:.*volume.*rm.*ekarte-postgres-data' "$TMP_ROOT/bad-manual-dump/state/docker.log" >/dev/null 2>&1; then
+    echo "PASS  [bad-manual-dump] exit=$actual_exit, no volume rm"
+  else
+    echo "FAIL  [bad-manual-dump] exit=$actual_exit (want non-zero, no volume rm)"
+    printf '%s\n' "$out"
+    cat "$TMP_ROOT/bad-manual-dump/state/docker.log"
+    failures=$((failures + 1))
+  fi
+}
+
+# 20. manual_articles dump has no rows → reset succeeds, restore skipped
+build_fixture "$TMP_ROOT/good-manual-norows"
+write_mock_docker "$TMP_ROOT/good-manual-norows"
+write_mock_curl "$TMP_ROOT/good-manual-norows"
+set_flag "$TMP_ROOT/good-manual-norows" manual_dump_mode no_rows
+{
+  set +e
+  out="$(
+    cd "$TMP_ROOT/good-manual-norows"
+    env \
+      LOCAL_DB_RESET_ROOT="$TMP_ROOT/good-manual-norows" \
+      LOCAL_DB_RESET_DOCKER="$TMP_ROOT/good-manual-norows/bin/docker" \
+      LOCAL_DB_RESET_CURL="$TMP_ROOT/good-manual-norows/bin/curl" \
+      LOCAL_DB_RESET_BACKUP_ROOT="$TMP_ROOT/good-manual-norows/backups" \
+      LOCAL_DB_RESET_COMPOSE_FILE="$TMP_ROOT/good-manual-norows/docker-compose.yml" \
+      LOCAL_DB_RESET_ENV_FILE="$TMP_ROOT/good-manual-norows/.env.local" \
+      LOCAL_DB_RESET_MAKEFILE="$TMP_ROOT/good-manual-norows/Makefile" \
+      LOCAL_DB_RESET_MIGRATIONS_DIR="$TMP_ROOT/good-manual-norows/backend/migrations" \
+      bash "$TMP_ROOT/good-manual-norows/scripts/local-db-reset-contract.sh" 2>&1
+  )"
+  actual_exit=$?
+  set -e
+  if [[ "$actual_exit" -eq 0 ]] \
+     && printf '%s\n' "$out" | grep -F 'nothing to restore' >/dev/null 2>&1 \
+     && ! grep -F 'ON_ERROR_STOP' "$TMP_ROOT/good-manual-norows/state/docker.log" >/dev/null 2>&1; then
+    echo "PASS  [good-manual-norows] exit=0, restore skipped"
+  else
+    echo "FAIL  [good-manual-norows] exit=$actual_exit (want 0, no restore)"
+    printf '%s\n' "$out"
+    cat "$TMP_ROOT/good-manual-norows/state/docker.log"
     failures=$((failures + 1))
   fi
 }

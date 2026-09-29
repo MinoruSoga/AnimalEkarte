@@ -207,7 +207,7 @@ export const AccountingDetail = memo(function AccountingDetail({
 
   return (
     <>
-      <form ref={formRef} action={formAction}>
+      <form ref={formRef} action={formAction} className="h-full">
         <PageLayout
           className="print:hidden"
           title="会計精算"

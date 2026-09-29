@@ -25,6 +25,9 @@ type mockService struct {
 	createFn       func(ctx context.Context, clinicID, reporterStaffID uint64, input CreateBugReportInput) (*model.SupportBugReport, error)
 	listFn         func(ctx context.Context, clinicID uint64) ([]BugReportWithReporter, error)
 	updateStatusFn func(ctx context.Context, clinicID, id uint64, status model.SupportBugReportStatus) (*model.SupportBugReport, error)
+	listChatFn     func(ctx context.Context, clinicID, staffID uint64) ([]model.SupportChatMessage, error)
+	recordChatFn   func(ctx context.Context, clinicID, staffID uint64, userMessage, assistantReply string, sources []ChatSource) error
+	clearChatFn    func(ctx context.Context, clinicID, staffID uint64) error
 }
 
 func (m *mockService) Create(ctx context.Context, clinicID, reporterStaffID uint64, input CreateBugReportInput) (*model.SupportBugReport, error) {
@@ -35,6 +38,24 @@ func (m *mockService) ListByClinic(ctx context.Context, clinicID uint64) ([]BugR
 }
 func (m *mockService) UpdateStatus(ctx context.Context, clinicID, id uint64, status model.SupportBugReportStatus) (*model.SupportBugReport, error) {
 	return m.updateStatusFn(ctx, clinicID, id, status)
+}
+func (m *mockService) ListChatHistory(ctx context.Context, clinicID, staffID uint64) ([]model.SupportChatMessage, error) {
+	if m.listChatFn == nil {
+		return nil, nil
+	}
+	return m.listChatFn(ctx, clinicID, staffID)
+}
+func (m *mockService) RecordChatExchange(ctx context.Context, clinicID, staffID uint64, userMessage, assistantReply string, sources []ChatSource) error {
+	if m.recordChatFn == nil {
+		return nil
+	}
+	return m.recordChatFn(ctx, clinicID, staffID, userMessage, assistantReply, sources)
+}
+func (m *mockService) ClearChatHistory(ctx context.Context, clinicID, staffID uint64) error {
+	if m.clearChatFn == nil {
+		return nil
+	}
+	return m.clearChatFn(ctx, clinicID, staffID)
 }
 
 // ---- mock fileUploader ----

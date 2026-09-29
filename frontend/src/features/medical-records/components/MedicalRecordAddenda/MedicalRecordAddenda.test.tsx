@@ -12,7 +12,7 @@ import {
   useMedicalRecordAddenda,
   useCreateMedicalRecordAddendum,
 } from "../../hooks/use-medical-record-addenda";
-import type { MedicalRecordAddendum as AddendumType } from "@/types/generated/models";
+import type { MedicalRecordAddendumResponse as AddendumType } from "@/types/generated/medicalrecord-responses";
 
 function makeAddendum(overrides: Partial<AddendumType> = {}): AddendumType {
   return {

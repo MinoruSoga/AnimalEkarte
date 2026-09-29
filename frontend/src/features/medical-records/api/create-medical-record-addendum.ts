@@ -1,5 +1,5 @@
 import { axios } from "@/lib/axios";
-import type { MedicalRecordAddendum } from "@/types/generated/models";
+import type { MedicalRecordAddendumResponse } from "@/types/generated/medicalrecord-responses";
 
 export interface CreateMedicalRecordAddendumInput {
   after_text: string;
@@ -9,8 +9,8 @@ export interface CreateMedicalRecordAddendumInput {
 export const createMedicalRecordAddendum = async (
   medicalRecordId: string,
   input: CreateMedicalRecordAddendumInput,
-): Promise<MedicalRecordAddendum> => {
-  const { data } = await axios.post<MedicalRecordAddendum>(
+): Promise<MedicalRecordAddendumResponse> => {
+  const { data } = await axios.post<MedicalRecordAddendumResponse>(
     `/v1/medical-records/${medicalRecordId}/addenda`,
     input,
   );

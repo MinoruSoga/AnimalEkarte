@@ -34,6 +34,8 @@ Binary: `backend/cmd/staff-provision`. Commands: `preflight` | `apply` only (`ma
 
 ## 3. Designed remote apply method (not executed)
 
+> **2026-09-28 更新（EMR-149）**: 本節の「対象環境内 compose で実行」は STG（Cloudflare Containers + PlanetScale）では成立しないため、§9 の決定で置き換えた。
+
 Stop rule: do not apply from a developer laptop to shared STG/PROD even if `STAFF_PROVISION_ALLOW_REMOTE` is set. The approved path is **inside the target environment**, where `DB_HOST` is that environment's local compose name (`db`).
 
 ### 3.1 Target selection (UNKNOWN until operator fills)
@@ -48,7 +50,7 @@ PROD remains behind #253/#254 gates in the ops checklist ([STAFF_ACCOUNT_PROVISI
 
 ### 3.2 Execution entry (design)
 
-1. Operator confirms target compose project, `DB_HOST` expected to be `db`, and `DB_NAME` **before** any apply. Current `staff-provision` has **no** `--confirm-target-host` flag (unlike `stg-uat-staff-attach`). Until such a flag exists, confirmation is an operator checklist, not a binary gate. **Do not implement the flag in this unit.**
+1. Operator confirms target compose project, `DB_HOST` expected to be `db`, and `DB_NAME` **before** any apply. Current `staff-provision` has **no** `--confirm-target-host` flag (unlike `stg-uat-staff-attach`). Until such a flag exists, confirmation is an operator checklist, not a binary gate. **Do not implement the flag in this unit.**（§9 で置換）
 2. Copy manifest/secrets onto the **target host** as repo-external 0600 regular files (see §4). Do not scp into the git worktree.
 3. Run **preflight** first with write-0:
 
@@ -63,7 +65,7 @@ docker compose run --rm --no-deps --entrypoint '' -T \
 Citation: [STAFF_ACCOUNT_PROVISIONING.md](../../ops/deploy/STAFF_ACCOUNT_PROVISIONING.md) L75–85.
 
 4. Human reviews PII-free stdout (`batch_id`, `digest`, `staff_count`, `clinic_scope`). Compare digest to any prior I-RECEIPT. Do not paste names/emails/passwords into issues or this sheet.
-5. After **explicit USER approval for that named environment**, run **apply** with the same mount and same files. Keep `STAFF_PROVISION_ALLOW_REMOTE` **unset** on this path so a mistaken public `DB_HOST` still fail-closes (`main.go` L102–116).
+5. After **explicit USER approval for that named environment**, run **apply** with the same mount and same files. Keep `STAFF_PROVISION_ALLOW_REMOTE` **unset** on this path so a mistaken public `DB_HOST` still fail-closes (`main.go` L102–116).（§9 で置換）
 6. Record only PII-free receipt fields as I-RECEIPT. Login / clinic / permission / audit checks are USER work after apply ([todo-operations.md](../../../todo.md#operations-ledger) L183).
 
 ### 3.3 What this method is not
@@ -156,3 +158,16 @@ Values, names, emails, passwords, and invented staff rows are not recorded. Unsu
 ## 8. Verification performed for this docs unit
 
 Docs-only. No Docker app tests. Commands: `git diff --check`; `git diff --name-only`; `git diff --cached --name-only`; `git ls-files --others --exclude-standard`; `rg STAFF_PROVISION_ALLOW_REMOTE`, `staff-provision`, `preflight`; `git ls-files --error-unmatch` on this path after add.
+
+## 9. Decision update — EMR-149 (2026-09-28)
+
+§3 designed remote execution "inside the target environment's compose". STG is Cloudflare Containers + PlanetScale and has no such compose, so that method is not executable. EMR-149 replaces it with the same binary gate the existing STG tools (`stg-uat-staff-attach` / `stg-uat-skeleton` / `csv-import-stg-uat`) already enforce:
+
+- `staff-provision` gained a `--confirm-target-host` flag that must exactly equal `DB_HOST` (case and trailing characters included).
+- For a non-local `DB_HOST`, both `STAFF_PROVISION_ALLOW_REMOTE=YES_I_UNDERSTAND` and an exact `--confirm-target-host` are required, checked **before any DB connection**, for `preflight` and `apply` alike.
+- A supplied but mismatched `--confirm-target-host` is rejected even when `DB_HOST` is local.
+- `STAFF_PROVISION_ALLOW_REMOTE` stays a host-typo guard, not authorization; approval remains a USER decision per named environment.
+
+Execution procedure (who, from which terminal, which confirmations): [STAFF_ACCOUNT_PROVISIONING.md — STG / Production への remote 実行（EMR-149）](../../ops/deploy/STAFF_ACCOUNT_PROVISIONING.md#stg--production-への-remote-実行emr-149). Rollback design is unchanged: §5 still applies.
+
+No `staff-provision` apply was executed under this decision. Roster intake and name-list handling stay with EMR-111; the I-ROSTER / missing-input status in §6 is unchanged.

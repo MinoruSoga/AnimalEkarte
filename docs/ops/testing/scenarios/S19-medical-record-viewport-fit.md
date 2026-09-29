@@ -39,7 +39,7 @@
 
 - タブ構成は `MEDICAL_RECORD_TAB_ITEMS`（9 タブ、`medical-record-form-model.ts`）、レイアウトは `MedicalRecordFormReadyPanels` の `UnifiedTabsRoot`（`flex-1 min-h-0`）。高さ制約は直接の `max-height` ではなく flex/min-h-0 による内側スクロールで実現する点に注意し、レンダリング結果で判断する。
 - 1366×625 で「見切れず操作できる」は `UAT-R2-CHART-FIT` の受入条件。全 9 タブ・sidebar 両状態・長文/長一覧/ダイアログの組み合わせを最低カバーする。
-- sidebar の開閉は `use-sidebar` / `SidebarProvider`（`w-[220px]`）。開閉でタブや保存が隠れる場合は FAIL。
+- sidebar の開閉は `Sidebar.tsx` 内のローカル `useState`＋`matchMedia` リスナーで制御され、幅は `design-tokens.ts` の `LAYOUT.sidebar.expanded`（`w-[220px]`）/`collapsed`（`w-[56px]`）（2026-09-29 訂正: 「`use-sidebar` / `SidebarProvider`」→ そのようなフック/Provider は現行コードに存在せず、`Sidebar.tsx` のローカル state が実体）。開閉でタブや保存が隠れる場合は FAIL。
 - 患者ヘッダーの truncate・死亡マークは S25（MC 番号）・S01（死亡ガード）と連携。ここでは viewport 適合の観点で確認する。
 - 見切れ・操作不能が出たら対象端末・ズーム・タブを特定して FAIL 記録。環境側の要因（非対象ブラウザ等）は BLOCKED として分ける。
 
@@ -49,3 +49,4 @@
   - `MEDICAL_RECORD_TAB_ITEMS` の 9 タブと `UnifiedTabsRoot` の `flex-1 min-h-0` レイアウトを現行コードと突合
   - `UAT-R2-CHART-FIT` の「1366×625・全 9 タブ・sidebar 両状態・長文/長一覧/ダイアログで必須情報・保存・フォーカス到達」を手順 1–7 に対応づけ
   - `NavigationBlocker`（未保存保護）と sticky ヘッダーの併存を手順 6–7 に組み込み
+  - 2026-09-29 訂正: sidebar 開閉の実体を「`use-sidebar`/`SidebarProvider`」→ `Sidebar.tsx` ローカル `useState`+`matchMedia`・`LAYOUT.sidebar`（expanded `w-[220px]` / collapsed `w-[56px]`）へ訂正

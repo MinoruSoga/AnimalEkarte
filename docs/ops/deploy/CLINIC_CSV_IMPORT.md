@@ -35,7 +35,7 @@
 | 10 | clinical_plans | clinical_plans.csv | no | id_band_and_parent_fk | formal_cutover_v1 |
 | 11 | vital_records | vital_records.csv | yes | clinic_id_column | formal_cutover_v1 |
 | 12 | billings | billings.csv | yes | clinic_id_column | formal_cutover_v1 |
-| 13 | billing_items | billing_items.csv | no | id_band_and_parent_fk | formal_cutover_v1 |
+| 13 | billing_items | billing_items.csv | yes | clinic_id_column | formal_cutover_v1 |
 | 14 | payments | payments.csv | yes | clinic_id_column | formal_cutover_v1 |
 | 15 | payment_splits | payment_splits.csv | yes | clinic_id_column | formal_cutover_v1 |
 | 16 | estimates | estimates.csv | yes | clinic_id_column | formal_cutover_v1 |
@@ -44,6 +44,8 @@
 | 19 | exam_results | exam_results.csv | no | id_band_and_parent_fk | formal_cutover_v1 |
 | 20 | vaccines | vaccines.csv | yes | clinic_id_column | formal_cutover_v1 |
 | 21 | vaccinations | vaccinations.csv | yes | clinic_id_column | formal_cutover_v1 |
+
+（2026-09-29 訂正: `billing_items` の clinic 列を `no` / isolation `id_band_and_parent_fk` と記載していた → 現行 contract は `billing_items.clinic_id` を持ち placeholder `{{CLINIC_ID}}` で bind するため `yes` / `clinic_id_column`。正本 `CutoverTableSpecs()`・`CutoverPlaceholderColumns()` と一致）
 
 - **dry-run**: `make csv-import-preflight` が source digest / 6 seed binding / 空 band / FK catalog を read-only 検証する。apply は別コマンド。
 - **idempotency**: apply 後の再 preflight/apply は `CUTOVER_REF_BAND_OCCUPIED` で拒否（既存行の置換・削除なし）。
@@ -207,7 +209,7 @@ F8 の失敗側リハーサルは、通常 importer に fault injection を追�
 
 | 前提 | 状態 | 根拠 |
 |---|---|---|
-| formal COMPLETE producer bundle 受領 | **未記入**（受領記録なし） | Linear BRT-42 / #250。KNJO source 未完全のため apply は本文どおり BLOCKED |
+| formal COMPLETE producer bundle 受領 | **未記入**（受領記録なし） | Plane EMR-46（旧 Linear BRT-42）/ GitHub #250。KNJO source 未完全のため apply は本文どおり BLOCKED（2026-09-29 訂正: 追跡先を Linear BRT-42 としていた → Linear は 2026-09-16 閉鎖、BRT-42 は EMR-46 へ移行済み） |
 | `payments.csv` / `payment_splits.csv` が正件数 | 現行 KNJO は header-only（本文） | 正件数になるまで preflight 拒否 |
 | F8 G4 synthetic failure rehearsal | 手順あり（専用 compose。本番 CSV 不可） | [F8_G4_FAILURE_REHEARSAL.md](F8_G4_FAILURE_REHEARSAL.md) |
 | 代表データ手動照合 | **未記入** | USER |

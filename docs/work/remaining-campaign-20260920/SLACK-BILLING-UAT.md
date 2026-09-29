@@ -1,5 +1,7 @@
 # SLACK-BILLING-UAT: 会計確認→確定→PDF/印刷→締め 通し票
 
+> 2026-09-29 注記: 現在のタスク状態の正本は Plane `EMR-109`。本文の「READY」「未実行」等の状態語は当時の調査・証跡記録であり現在の実行状態を示さない。ID 対応は [migration receipt](../plane-md-migration-20260923-receipt.md)。
+
 状態: **通し票 READY／実機・実請求・実締め 未実行**。出典は [todo-issue.md](../../../todo.md#issue-ledger) 見出し `### SLACK-BILLING-UAT`（L252–256、索引 L432）。9月16日最優先は、新カルテ単独の **会計確認 → 確定/支払 → 精算書/領収書PDF → 物理プリンタ → 締め**。八王子は **新規カルテ** で実施する方針。
 
 本票は製品コードから import されない。キャンペーン remaining-ops-20260920 revision 1 unit `SLACK-BILLING-UAT` の owned path。ledger `owned_paths` が本パス単体のため、他シートや dirty `todo-issue.md` への追記では unit 完了にならない。

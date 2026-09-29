@@ -11,6 +11,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // jsonArrayOf は同型要素を n 個並べた JSON 配列文字列を返す
@@ -184,4 +186,138 @@ func TestChat(t *testing.T) {
 			}
 		})
 	}
+}
+
+// ---- chat history persistence ----
+
+func TestChatPersistsExchange(t *testing.T) {
+	var gotClinicID, gotStaffID uint64
+	var gotUser, gotAssistant string
+	var gotSources []ChatSource
+	svc := &mockService{
+		recordChatFn: func(_ context.Context, clinicID, staffID uint64, userMessage, assistantReply string, sources []ChatSource) error {
+			gotClinicID, gotStaffID = clinicID, staffID
+			gotUser, gotAssistant = userMessage, assistantReply
+			gotSources = sources
+			return nil
+		},
+	}
+	h := NewHandler(svc, nil, nil, nil, &mockChat{reply: "回答です"}, nil)
+
+	body := bytes.NewBufferString(`{
+		"message": "会計の締め方は？",
+		"context": [{"title":"画面別 会計","category":"screens","slug":"accounting","text":"会計画面では…"}]
+	}`)
+	c, rec := newRequest(t, http.MethodPost, "/api/v1/support/chat", body, "application/json")
+	h.Chat(c)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	// setAuthContext の clinic_id=1 / user_id=5 がそのまま scope として渡ること
+	assert.Equal(t, uint64(1), gotClinicID)
+	assert.Equal(t, uint64(5), gotStaffID)
+	assert.Equal(t, "会計の締め方は？", gotUser)
+	assert.Equal(t, "回答です", gotAssistant)
+	require.Len(t, gotSources, 1)
+	assert.Equal(t, "accounting", gotSources[0].Slug)
+}
+
+func TestChatSucceedsWhenPersistFails(t *testing.T) {
+	svc := &mockService{
+		recordChatFn: func(_ context.Context, _, _ uint64, _, _ string, _ []ChatSource) error {
+			return errors.New("db down")
+		},
+	}
+	h := NewHandler(svc, nil, nil, nil, &mockChat{reply: "回答です"}, nil)
+
+	body := bytes.NewBufferString(`{"message":"x"}`)
+	c, rec := newRequest(t, http.MethodPost, "/api/v1/support/chat", body, "application/json")
+	h.Chat(c)
+
+	// 保存は best-effort: 失敗しても回答自体は返す
+	assert.Equal(t, http.StatusOK, rec.Code)
+	var resp chatResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	assert.Equal(t, "回答です", resp.Reply)
+}
+
+func TestChatHistory(t *testing.T) {
+	t.Run("returns messages oldest first", func(t *testing.T) {
+		svc := &mockService{
+			listChatFn: func(_ context.Context, clinicID, staffID uint64) ([]model.SupportChatMessage, error) {
+				assert.Equal(t, uint64(1), clinicID)
+				assert.Equal(t, uint64(5), staffID)
+				return []model.SupportChatMessage{
+					{ID: 1, Role: model.SupportChatRoleUser, Content: "締め方は？"},
+					{
+						ID: 2, Role: model.SupportChatRoleAssistant, Content: "締めボタンから",
+						Sources: json.RawMessage(`[{"title":"画面別 会計","category":"screens","slug":"accounting"}]`),
+					},
+				}, nil
+			},
+		}
+		h := NewHandler(svc, nil, nil, nil, nil, nil)
+
+		c, rec := newRequest(t, http.MethodGet, "/api/v1/support/chat/history", nil, "")
+		h.ChatHistory(c)
+
+		assert.Equal(t, http.StatusOK, rec.Code)
+		var resp chatHistoryResponse
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+		require.Len(t, resp.Data, 2)
+		assert.Equal(t, "user", resp.Data[0].Role)
+		assert.Equal(t, "締め方は？", resp.Data[0].Content)
+		assert.Empty(t, resp.Data[0].Sources)
+		assert.Equal(t, "assistant", resp.Data[1].Role)
+		require.Len(t, resp.Data[1].Sources, 1)
+		assert.Equal(t, "画面別 会計", resp.Data[1].Sources[0].Title)
+	})
+
+	t.Run("propagates service error", func(t *testing.T) {
+		svc := &mockService{
+			listChatFn: func(_ context.Context, _, _ uint64) ([]model.SupportChatMessage, error) {
+				return nil, errors.New("db down")
+			},
+		}
+		h := NewHandler(svc, nil, nil, nil, nil, nil)
+
+		c, rec := newRequest(t, http.MethodGet, "/api/v1/support/chat/history", nil, "")
+		h.ChatHistory(c)
+
+		assert.Equal(t, http.StatusInternalServerError, rec.Code)
+	})
+}
+
+func TestClearChatHistory(t *testing.T) {
+	t.Run("deletes scoped history and returns 204", func(t *testing.T) {
+		var gotClinicID, gotStaffID uint64
+		svc := &mockService{
+			clearChatFn: func(_ context.Context, clinicID, staffID uint64) error {
+				gotClinicID, gotStaffID = clinicID, staffID
+				return nil
+			},
+		}
+		h := NewHandler(svc, nil, nil, nil, nil, nil)
+
+		c, rec := newRequest(t, http.MethodDelete, "/api/v1/support/chat/history", nil, "")
+		h.ClearChatHistory(c)
+		c.Writer.WriteHeaderNow() // flush a bare c.Status() (no body) to the recorder
+
+		assert.Equal(t, http.StatusNoContent, rec.Code)
+		assert.Equal(t, uint64(1), gotClinicID)
+		assert.Equal(t, uint64(5), gotStaffID)
+	})
+
+	t.Run("propagates service error", func(t *testing.T) {
+		svc := &mockService{
+			clearChatFn: func(_ context.Context, _, _ uint64) error {
+				return errors.New("db down")
+			},
+		}
+		h := NewHandler(svc, nil, nil, nil, nil, nil)
+
+		c, rec := newRequest(t, http.MethodDelete, "/api/v1/support/chat/history", nil, "")
+		h.ClearChatHistory(c)
+
+		assert.Equal(t, http.StatusInternalServerError, rec.Code)
+	})
 }

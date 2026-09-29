@@ -12,12 +12,16 @@ import { MedicalRecordFormReadyPanels } from "./MedicalRecordFormReadyPanels";
 
 // BUG-MR-DOCTOR-HEADER-STALE: 取得済みカルテの doctor とセッションユーザーを
 // 差し替え可能にし、ヘッダー表示の出所を直接検証する。
-const { mockRecord, mockHandleChangeDoctor } = vi.hoisted(() => ({
-  mockRecord: {
-    current: undefined as { doctor: string; status?: string; clinicId?: string } | undefined,
-  },
-  mockHandleChangeDoctor: vi.fn(),
-}));
+const { mockRecord, mockHandleChangeDoctor, mockCopyTreatments, mockCopyHookArgs } = vi.hoisted(
+  () => ({
+    mockRecord: {
+      current: undefined as { doctor: string; status?: string; clinicId?: string } | undefined,
+    },
+    mockHandleChangeDoctor: vi.fn(),
+    mockCopyTreatments: vi.fn(),
+    mockCopyHookArgs: { current: [] as [string | undefined, string | undefined][] },
+  }),
+);
 
 vi.mock("@/hooks/use-auth", () => ({
   useAuth: () => ({ user: { displayName: "ログイン医師", clinic: undefined } }),
@@ -41,6 +45,16 @@ vi.mock("../api/clinical-plan", () => ({
 
 vi.mock("../api/treatments", () => ({
   useGetTreatments: () => ({ data: [] }),
+}));
+
+// EMR-219: QueryClientProvider 無しで描くこのテストでは hook 実体を差し替え、
+// (recordId, recordClinicId) での初期化と TabsArea への callback 配線のみ検証する。
+// 明細複写の内部挙動（fetch/逐次POST/価格再解決）は use-copy-treatment-details.test.ts が担当。
+vi.mock("../hooks/use-copy-treatment-details", () => ({
+  useCopyTreatmentDetails: (recordId: string | undefined, recordClinicId?: string) => {
+    mockCopyHookArgs.current.push([recordId, recordClinicId]);
+    return { copyTreatmentsFromRecord: mockCopyTreatments, isPending: false };
+  },
 }));
 
 vi.mock("../api/billing-confirmation", () => ({
@@ -132,7 +146,18 @@ vi.mock("../components/MedicalRecordFormModals", () => ({
 // TabsArea のみスタブ化（配下タブの深い依存を切る）。
 vi.mock("../components/MedicalRecordFormPanels", async (importOriginal) => {
   const mod = await importOriginal<typeof import("../components/MedicalRecordFormPanels")>();
-  return { ...mod, MedicalRecordTabsArea: () => <div data-testid="tabs-area" /> };
+  return {
+    ...mod,
+    MedicalRecordTabsArea: (props: ComponentProps<typeof mod.MedicalRecordTabsArea>) => (
+      <div data-testid="tabs-area">
+        <button
+          type="button"
+          data-testid="copy-record-treatments"
+          onClick={() => props.onCopyRecordTreatments?.("999")}
+        />
+      </div>
+    ),
+  };
 });
 
 vi.mock("../api/vitals", () => ({
@@ -224,11 +249,11 @@ function makeForm(): ReadyPanelsProps["form"] {
   } as unknown as ReadyPanelsProps["form"];
 }
 
-function renderPanels() {
+function renderPanelsWithRecordId(recordId: string | undefined) {
   return render(
     <MemoryRouter>
       <MedicalRecordFormReadyPanels
-        recordId="77"
+        recordId={recordId}
         selectedPet={makePet()}
         form={makeForm()}
         canEdit={true}
@@ -241,10 +266,16 @@ function renderPanels() {
   );
 }
 
+function renderPanels() {
+  return renderPanelsWithRecordId("77");
+}
+
 describe("MedicalRecordFormReadyPanels BUG-MR-DOCTOR-HEADER-STALE", () => {
   beforeEach(() => {
     mockRecord.current = undefined;
     mockHandleChangeDoctor.mockClear();
+    mockCopyTreatments.mockClear();
+    mockCopyHookArgs.current = [];
   });
 
   it("取得済みカルテの担当医名をヘッダーに表示し、ログインユーザー名で上書きしない", () => {
@@ -306,5 +337,33 @@ describe("MedicalRecordFormReadyPanels BUG-MR-DOCTOR-HEADER-STALE", () => {
       </MemoryRouter>,
     );
     expect(screen.getByRole("button", { name: "担当医: 田中医師" })).toBeInTheDocument();
+  });
+});
+
+describe("MedicalRecordFormReadyPanels EMR-219 治療明細複写", () => {
+  beforeEach(() => {
+    mockRecord.current = undefined;
+    mockHandleChangeDoctor.mockClear();
+    mockCopyTreatments.mockClear();
+    mockCopyHookArgs.current = [];
+  });
+
+  it("useCopyTreatmentDetails を (recordId, recordClinicId) で初期化し、callback を TabsArea へ配線する", async () => {
+    mockRecord.current = { doctor: "山田医師", status: "draft", clinicId: "3" };
+    const user = userEvent.setup();
+    renderPanelsWithRecordId("77");
+
+    expect(mockCopyHookArgs.current).toContainEqual(["77", "3"]);
+
+    await user.click(screen.getByTestId("copy-record-treatments"));
+    expect(mockCopyTreatments).toHaveBeenCalledWith("999");
+  });
+
+  it("recordId 未定でも hook は undefined で初期化される（明細複写は hook 内でスキップ）", () => {
+    mockRecord.current = undefined;
+    renderPanelsWithRecordId(undefined);
+
+    expect(mockCopyHookArgs.current.length).toBeGreaterThan(0);
+    expect(mockCopyHookArgs.current[0][0]).toBeUndefined();
   });
 });

@@ -1,7 +1,7 @@
 # E2E・システムテスト実行ガイド (End-to-End Testing)
 
 > **目的**: 現在実装済みの Playwright coverage と supported runner を定義する。
-> **最新更新**: 2026-09-06
+> **最新更新**: 2026-09-29
 
 ## 1. 現在の coverage
 
@@ -43,23 +43,23 @@ Current wrapper は headless-only と扱う。DISPLAY/Wayland/X11/VNC を接続�
 
 ## 4. GitHub workflow と artifact の現状
 
-`.github/workflows/e2e.yml` は `workflow_dispatch` の optional manual workflow であり、PR/push gate ではない。
+`.github/workflows/e2e.yml` は `workflow_dispatch` の optional manual workflow であり、PR/push gate ではない（2026-09-29 訂正: 旧記述は「auth smoke のみ実行・clinical/full suite job なし」。2026-09-28・EMR-128 で `inputs.suite` 振り分けが配線された）。
 
-- workflow が実行するのは `auth-flows.spec.ts` のみ。`APP_ENV=test` と合成 `E2E_LOGIN_*` を渡し、migrate の login seed を利用する配線は実装済み。
-- `--auth-smoke` は同 spec の runner alias。`--clinical` は別の 10 spec allowlist と disposable clinic setup/teardown を持つ（[CLINICAL-E2E-DESIGN.md](CLINICAL-E2E-DESIGN.md)）。workflow に clinical/full suite job はない。
-- auth smoke の成功、fresh DB、`--clinical` の実行結果は、このソース照合では確認していない。全 suite には退役 demo fixture の固定氏名/ID に依存する spec が残るため、login seed だけで実行準備完了とはしない。
-- runner は `--reporter=list` の console output を使い、host-mounted HTML report を生成しない。workflow の `frontend/playwright-report/` upload target と runner output の不一致は残る。
+- `inputs.suite`（required、default `auth-smoke`）が `auth-smoke` / `clinical` / `v04` を `run-e2e.sh` の同名モードへ振り分ける。`auth-smoke` は `auth-flows.spec.ts` を実行し、`APP_ENV=test` と合成 `E2E_LOGIN_*` を渡して migrate の login seed を利用する。`clinical` / `v04` は job の使い捨て `APP_ENV=test` compose stack 上で fixture clinic を setup/teardown し、`E2E_RESULTS_DIR` の test-results を常時 artifact 化する。push/PR 自動実行・full suite job はない。
+- `--auth-smoke` は auth spec の runner alias。`--clinical` は別の 10 spec allowlist と disposable clinic setup/teardown を持つ（[CLINICAL-E2E-DESIGN.md](CLINICAL-E2E-DESIGN.md)）。`--v04` は同じ fixture ゲートを共有する。
+- auth smoke の Actions 実行・fresh DB 結果はこの照合では確認していない。`--clinical` のローカル実行は 2026-09-23 に 1 回（33 PASS / 7 FAIL = spec 側 drift、green 未達。証跡は gitignore 対象の `reports/uat-2026-09-23/clinical-e2e-emr128/`）。workflow_dispatch での clinical / v04 実行は未。全 suite には退役 demo fixture の固定氏名/ID に依存する spec が残るため、login seed だけで実行準備完了とはしない。
+- runner は `--reporter=list` の console output を使い、host-mounted HTML report を生成しない。workflow の `frontend/playwright-report/` upload target（failure 時のみ）と runner output の不一致は残る。一方、`E2E_RESULTS_DIR`（runner が `…/test-results` へ mount）の upload は clinical / v04 で `if: always()` 化済み。
 
 workflow の配線、実行成功、artifact の存在を区別する。`--clinical` の環境チェックと通常終了時 teardown は、全 suite の isolation/cleanup を保証しない。
 
 ```mermaid
 flowchart TB
-    W["e2e.yml workflow_dispatch<br>manual・non-gating"] --> A[auth smoke<br>auth-flows.spec]
+    W["e2e.yml workflow_dispatch<br>manual・non-gating<br>inputs.suite"] --> A[auth-smoke<br>auth-flows.spec]
+    W --> CW["clinical / v04<br>disposable APP_ENV=test stack<br>+ fixture setup/teardown"]
     R["local runner<br>make e2e / run-e2e.sh"] --> A
-    R --> C["--clinical<br>別 allowlist + disposable clinic fixture"]
+    R --> C["--clinical / --v04<br>別 allowlist + disposable clinic fixture"]
     R --> F[full suite 全件]
-    C -. e2e.yml job なし・別承認 .-> J[clinical / full suite job]
-    F -. e2e.yml job なし・別承認 .-> J
+    F -. e2e.yml job なし・別承認 .-> J[full suite job]
 ```
 
 ## 5. pass/report contract

@@ -65,10 +65,10 @@ export const queryKeys = {
     diagnosisNames: (typeId?: number | string | null) =>
       ["masters", "diagnosis-names", typeId ?? null] as const,
     /**
-     * 既知の未解決バグ: reservation-types CRUD (SERVICE_TYPES_QUERY_KEY =
-     * masters.category("reservation-types")) を invalidate しても、このキーは
-     * prefix が異なる ("reservationType" camelCase 単数)ため無効化されない。
-     * 本移行はこの既存挙動を変更せず温存する（意図的な仕様変更は別途判断）。
+     * masters.category("reservation-types") とは prefix が異なる
+     * ("reservationType" camelCase 単数)ため、category キーだけの invalidate では
+     * このクエリに届かない。reservation-types CRUD の各 mutation は
+     * category キーと併せてこのキーも明示的に invalidate する（EMR-224）。
      */
     reservationTypesGrouped: () => ["masters", "reservationType", "grouped"] as const,
     /** clinicId は ReservationFormModal 経由の呼び出しで未確定時 null になり得る */
@@ -402,6 +402,7 @@ export const queryKeys = {
   },
   supportChat: {
     status: () => ["support-chat", "status"] as const,
+    history: () => ["support-chat", "history"] as const,
   },
 
   // ── test-only ─────────────────────────────────────────────────────

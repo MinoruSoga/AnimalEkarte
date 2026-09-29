@@ -43,6 +43,7 @@ export function MedicalRecordClinicalTabs({
   onNextVisitDateChange,
   onNextVisitDateValidChange,
   onRecommendationReasonChange,
+  onCopyRecordTreatments,
 }: MedicalRecordTabsAreaProps & { isFinalized: boolean }) {
   return (
     <>
@@ -61,6 +62,7 @@ export function MedicalRecordClinicalTabs({
           setTreatmentPolicy={onTreatmentPolicyChange}
           historyItems={historyItems}
           isFinalized={isFinalized}
+          onCopyRecordTreatments={onCopyRecordTreatments}
         />
       </MedicalRecordMountedTab>
       <MedicalRecordMountedTab

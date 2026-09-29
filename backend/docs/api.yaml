@@ -9385,6 +9385,67 @@ components:
         sort_order:
           type: integer
           format: int32
+    CheckupFieldOption:
+      type: object
+      description: 選択式フィールド（single_select / multi_select / checklist）の選択肢1件
+      required: [value, label]
+      properties:
+        value:
+          type: string
+        label:
+          type: string
+    CreateCheckupTypeFieldRequest:
+      type: object
+      description: 健診フィールド定義の作成（EMR-225）。field_type=number のみ unit/min_value/max_value が意味を持つ。single_select/multi_select/checklist は options が1件以上必須、それ以外の型では options 不可。
+      required: [name, field_type]
+      properties:
+        name:
+          type: string
+        field_type:
+          type: string
+          enum: [number, single_select, multi_select, boolean, checklist, text]
+        unit:
+          type: string
+        min_value:
+          type: number
+          format: double
+        max_value:
+          type: number
+          format: double
+        options:
+          type: array
+          items:
+            $ref: '#/components/schemas/CheckupFieldOption'
+        sort_order:
+          type: integer
+    UpdateCheckupTypeFieldRequest:
+      type: object
+      description: 健診フィールド定義の部分更新。min_value/max_value を NULL に戻すには clear_min_value/clear_max_value を true にする。options は省略=維持、配列指定=上書き（非選択式への変更時は空配列で残存選択肢をクリア）。
+      minProperties: 1
+      properties:
+        name:
+          type: string
+        field_type:
+          type: string
+          enum: [number, single_select, multi_select, boolean, checklist, text]
+        unit:
+          type: string
+        min_value:
+          type: number
+          format: double
+        max_value:
+          type: number
+          format: double
+        options:
+          type: array
+          items:
+            $ref: '#/components/schemas/CheckupFieldOption'
+        sort_order:
+          type: integer
+        clear_min_value:
+          type: boolean
+        clear_max_value:
+          type: boolean
     CheckupGlobal:
       type: object
       description: クリニック横断の健診記録一覧レスポンス（MedicalRecord.Pet.Owner を含む）
@@ -18834,6 +18895,141 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createCheckupTypeField
+      summary: 健診フィールド定義登録（EMR-225）
+      description: ResourceCheckups の create 権限が必要。clinic_id+checkup_type_id 複合スコープで親を検証し、他医院の親には 404 を返す。
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 健診種別ID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCheckupTypeFieldRequest'
+      responses:
+        '201':
+          description: 登録成功
+          headers:
+            Location:
+              description: 作成されたリソースのURL
+              schema:
+                type: string
+                example: /v1/masters/checkup-types/1/fields/31
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckupTypeField'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/checkup-types/{id}/fields/reorder:
+    patch:
+      operationId: reorderCheckupTypeFields
+      summary: 健診フィールド定義一括並び替え（EMR-225）
+      description: 指定した順序で sort_order を一括更新する（ids[0] が sort_order=1）。ids は対象健診種別の生存フィールド定義の全 id と完全一致する必要がある — スコープ外・削除済み id を含む場合は 404、生存 id の未投稿（部分集合）は 400。
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 健診種別ID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MasterReorderRequest'
+      responses:
+        '204':
+          description: 並び替え成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/checkup-types/{id}/fields/{fieldId}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: 健診種別ID
+        schema:
+          type: integer
+          format: int64
+      - name: fieldId
+        in: path
+        required: true
+        description: フィールド定義ID
+        schema:
+          type: integer
+          format: int64
+    patch:
+      operationId: updateCheckupTypeField
+      summary: 健診フィールド定義更新（EMR-225）
+      description: field_type の変更も許可する。checkup_field_results はスナップショット列を持つため過去の結果は不変。
+      tags: [Masters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCheckupTypeFieldRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckupTypeField'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deleteCheckupTypeField
+      summary: 健診フィールド定義削除（EMR-225・ソフトデリート）
+      description: 定義行は deleted_at 付きで残存し、checkup_field_results の履歴スナップショットは不変。
+      tags: [Masters]
+      responses:
+        '204':
+          description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/occupations:
     get:
       operationId: listOccupations
@@ -25806,6 +26002,58 @@ paths:
         '429': { $ref: '#/components/responses/TooManyRequests' }
         '501': { description: LLM が未設定(SUPPORT_LLM_API_KEY なし) }
         '502': { description: LLM 上流エラー(プロバイダ詳細は返さない) }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /support/chat/history:
+    get:
+      operationId: getSupportChatHistory
+      summary: ヘルプチャットの会話履歴(自分のみ・古い順)
+      description: |
+        認証済みスタッフ全員が利用可能（権限ゲートなし）。JWT の clinic_id × user_id で
+        スコープされ、選択clinic内の自分の履歴のみを返す。POST /support/chat では応答成功時に
+        「質問+回答」のペアを support_chat_messages へ保存する（保存は best-effort で、
+        保存失敗時も応答は返る）。ここで参照できるのは保存に成功したペアのみ。
+        最大100件（新しい方から丸める）。
+      tags: [Support]
+      responses:
+        '200':
+          description: 会話履歴(古い順)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer }
+                        role: { type: string, enum: [user, assistant] }
+                        content: { type: string }
+                        sources:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              title: { type: string }
+                              category: { type: string }
+                              slug: { type: string }
+                        created_at: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    delete:
+      operationId: deleteSupportChatHistory
+      summary: ヘルプチャットの会話履歴をすべて削除(自分のみ)
+      description: |
+        認証済みスタッフ全員が利用可能（権限ゲートなし）。JWT の clinic_id × user_id で
+        スコープされた自分の履歴を soft delete する。フロントエンドの「会話をリセット」
+        から呼ばれる。
+      tags: [Support]
+      responses:
+        '204': { description: 削除完了 }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '500': { $ref: '#/components/responses/InternalError' }
   /support/chat/status:
     get:

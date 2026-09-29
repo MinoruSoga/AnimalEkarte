@@ -1,5 +1,7 @@
 # UAT-R2-EXCLUSIVE-LOCK: 同時操作の判断票
 
+> 2026-09-29 注記: 現在のタスク状態の正本は Plane `EMR-85`（2026-09-29 読取: **Done**）。本文の「READY」「残件」等の状態語は当時の調査・証跡記録であり現在の実行状態を示さない。ID 対応は [migration receipt](../plane-md-migration-20260923-receipt.md)。
+
 状態: **競合ケース設計 READY／unit・mock 防御の再照合済み（2026-09-21）／治療・バイタル・処方・接種 Update の現防御・GAP・最小設計・テスト計画を追記（2026-09-22・製品 CAS は未 land）／DB apply 証明と 2 セッション実機は残件**。2026-09-19依頼者回答の「両方」により、目的はカルテの上書きと同じ会計の二重確定の防止に確定した。旧システムの画面占有を複製する要件ではない（[要件・状態の正本](../plane-md-migration-20260923-receipt.md)、[元報告](../stg-uat-clinic-feedback-q1-q4.md#uat-r2-exclusive-lock)）。画面占有ロックは未採用。
 
 ## 既存の防御と限界

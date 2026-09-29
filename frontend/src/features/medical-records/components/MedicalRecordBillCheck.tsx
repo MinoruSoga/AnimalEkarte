@@ -309,7 +309,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
         </div>
 
         <div
-          className={`flex-1 min-h-0 ${C.bgWhite} rounded-lg border ${C.borderLight} overflow-y-auto flex flex-col`}
+          className={`flex-1 min-h-0 ${C.bgWhite} rounded-lg border ${C.borderLight} overflow-y-auto relative flex flex-col pb-20`}
         >
           <div className="flex-1 min-h-0">
             <TreatmentTable
@@ -340,7 +340,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
       </div>
 
       {canEdit ? (
-        <div className="fixed bottom-6 right-6 z-50 flex gap-2">
+        <div className="fixed bottom-6 right-20 z-50 flex gap-2">
           {isConfirmed ? (
             <Button
               variant="outline"

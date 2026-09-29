@@ -17,6 +17,7 @@ import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { C } from "@/lib/design-tokens";
+import { SUPPORT_WIDGET_LAYOUT } from "@/constants/support-widget-layout";
 
 import { useUpsertManualArticle } from "../api/upsert-manual-article";
 import type { ManualArticle } from "@/lib/manual-index";
@@ -245,7 +246,9 @@ export function ManualEditor({ article, onClose, canEdit = false }: ManualEditor
           />
         ) : null}
         {mode === "preview" || mode === "split" ? (
-          <div className="flex-1 overflow-y-auto">
+          <div
+            className={`flex-1 overflow-y-auto relative ${SUPPORT_WIDGET_LAYOUT.scrollBottomClearance}`}
+          >
             <ManualContent article={previewArticle} />
           </div>
         ) : null}

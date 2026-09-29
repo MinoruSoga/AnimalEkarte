@@ -1,6 +1,6 @@
 # QA-FULL-CLINICAL-E2E — clinical / data-dependent E2E 設計
 
-状態: **helper + allowlist 置換済み / `--clinical` 実行済み 33/40（7 fail = spec 側 drift、PASS ではない）/ full suite は別承認**  
+状態: **helper + allowlist 置換済み / `--clinical` 実行済み 33/40（7 fail = spec 側 drift、PASS ではない）/ CI 手動 suite（clinical / v04）配線済み・未実行 / full suite は別承認**  
 最新の実行証跡: `reports/uat-2026-09-23/clinical-e2e-emr128/`（gitignore 対象）  
 範囲の正本: [TEST_ARCHITECTURE.md](./TEST_ARCHITECTURE.md) L3  
 設計・局所 GREEN だけでは E2E を PASS にしない。auth smoke 成功を full suite coverage と扱わない。
@@ -11,12 +11,13 @@ auth smoke と **別 allowlist** にする。
 
 | 区分 | ファイル | 今回の対象 |
 |------|----------|------------|
-| CI / 手動 workflow 既存 | `frontend/e2e/auth-flows.spec.ts` | 対象外。現行 `.github/workflows/e2e.yml` のまま |
+| CI / 手動 workflow 既存 | `frontend/e2e/auth-flows.spec.ts` | 対象外。`.github/workflows/e2e.yml` の `suite=auth-smoke` 既定として実行 |
 | clinical / data-dependent | `clinical-flows.spec.ts`、`clinical-smoke.spec.ts`、`medical-records-*.spec.ts`、`examinations-flow.spec.ts`、`vaccinations-flow.spec.ts`、`checkups-flow.spec.ts`、`hospitalization-flow.spec.ts`、`estimates-flow.spec.ts` | 対象。退役 `003_demo` の固定氏名依存は合成 fixture 参照へ置換済み |
 | 会計・予約・マスタ | `accounting-*.spec.ts`、`reservations-*.spec.ts`、`master-crud.spec.ts` 等 | 同一 fixture 契約が必要なら第 2 allowlist。初回実装には入れない |
 | UI 監査 / LIFF | `ui-design-compliance-readonly.spec.ts`、`line-reservation-flow.spec.ts` | 対象外 |
+| 合成 network check | `axios-retry-503.spec.ts` | いずれの allowlist にも入れない。`page.route` 全 stub・公開 `/login` のみで backend/clinic を触らない自己完結 spec のため、disposable clinic を立てる `--clinical` / `--v04` の対象外。all-specs モードまたは明示パスでのみ実行 |
 
-L4（S01–S13 / V01–V05）の代替ではない。
+L4（S01–S39 / V01–V05）の代替ではない（2026-09-29 訂正: 旧記述は S01–S13。現行 scenario index は S39 まで）。
 
 ## 使い捨て環境・clinic
 
@@ -42,8 +43,8 @@ L4（S01–S13 / V01–V05）の代替ではない。
 
 - `frontend/e2e/helpers/` — disposable clinic の setup/teardown（合成 API または承認済み UAT helper）
 - `frontend/e2e/clinical-*.spec.ts` / `medical-records-*.spec.ts` — デモ氏名ハードコードを fixture 参照へ置換
-- `frontend/scripts/run-e2e.sh` — `--clinical` と `--auth-smoke` を分離
-- `.github/workflows/e2e.yml` — **変更しない**（auth smoke のまま）。full suite job は別承認
+- `frontend/scripts/run-e2e.sh` — `--clinical` / `--v04` / `--auth-smoke` を分離。`--v04` は `--clinical` と同じ fail-closed ゲートと fixture setup/teardown を共有し、`E2E_CLINICAL_FIXTURE` JSON（同一 shape）をそのまま受け取る。role 別 account フィールドは EMR-127 が追加し、v04 spec が読む
+- `.github/workflows/e2e.yml` — workflow_dispatch の `inputs.suite`（auth-smoke 既定 / clinical / v04）で振り分け。clinical / v04 は job の使い捨て APP_ENV=test stack 上で fixture setup/teardown し、`E2E_RESULTS_DIR` の test-results を常に artifact 化。PR/push 自動実行（full job）にはしていない
 - 本ファイルの実装検証節
 
 ## 許可操作 / 禁止操作
@@ -89,7 +90,7 @@ flowchart LR
 ## cleanup / 失敗時回収
 
 - 通常の Playwright 終了時（spec 失敗を含む）は `run-e2e.sh` が fixture CLI の teardown を呼び、teardown 失敗ならその非ゼロ exit を返す。spec の `afterAll` は browser context を閉じる。clinic 削除は runner の責任。
-- runner に EXIT/INT/TERM trap はなく、setup 後の中断・プロセス異常時の自動回収は保証しない。使い捨て DB と人手の回収手順を実行前に用意する。full suite 用 CI job / `down -v` の回収は未配線。
+- runner に EXIT/INT/TERM trap はなく、setup 後の中断・プロセス異常時の自動回収は保証しない。使い捨て DB と人手の回収手順を実行前に用意する。CI の clinical/v04 は job 終了時の `docker compose down -v`（if: always）で DB ごと破棄されるので中断時の回収もそこで担保される。ローカルは従来どおり trap なし。
 - ローカルは clinic sweep。共有 DB の手削除はしない
 - teardown 失敗は UNREPORTED/BLOCKED。部分 PASS を full suite PASS にしない
 
@@ -101,8 +102,8 @@ flowchart LR
 - `backend/cmd/clinical-e2e-fixture` — `setup` / `teardown --clinic-id`。パスワードは `E2E_LOGIN_PASSWORD` からハッシュ。stdout は JSON のみ（秘密なし）
 - `frontend/e2e/helpers/clinical-*.ts` — fail-closed（APP_ENV / base URL / teardown / fixture）
 - allowlist spec の 003_demo 氏名（林 文明 / Iris）を fixture 参照へ置換
-- `frontend/scripts/run-e2e.sh --clinical` / `--auth-smoke`
-- `.github/workflows/e2e.yml` は未変更
+- `frontend/scripts/run-e2e.sh --clinical` / `--v04` / `--auth-smoke`
+- `.github/workflows/e2e.yml` — 2026-09-28（EMR-128）: workflow_dispatch `inputs.suite`（auth-smoke / clinical / v04）を追加し、`run-e2e.sh` の各モードにマッピング。clinical / v04 は `runner.temp` の `E2E_RESULTS_DIR` test-results を常時 artifact 化（push / PR 自動実行なし）
 
 実施済み:
 
@@ -110,8 +111,9 @@ flowchart LR
 
 未実施（このスライスでは PASS にしない）:
 
-- `e2e.yml` への full suite job
-- Linear Done
+- full job（PR / push 自動実行）化は未実施。clinical が CI で green になってから判断する
+- workflow_dispatch での clinical / v04 実行（push が必要なため未実行）
+- Plane Done（2026-09-29 訂正: 旧記述は Linear Done。Linear は 2026-09-16 閉鎖・実行状態の正本は Plane）
 
 局所ユニット:
 
@@ -129,6 +131,7 @@ cd frontend && ./scripts/run-e2e.sh e2e/helpers/clinical-env.spec.ts e2e/helpers
 | 本設計 | source 定義済み。受入 sign-off とは別 |
 | fixture helper と allowlist 置換 | このスライスで完了。E2E PASS ではない |
 | ローカル `--clinical` 1 回 | 別承認 → 2026-09-23 実施済み（33/40、未 green。証跡は reports/） |
-| `e2e.yml` への full suite job 追加 | USER。non-gating のまま |
+| `e2e.yml` の手動 suite 振り分け（clinical / v04） | 2026-09-28 配線済み（未実行） |
+| full job（PR / push 自動実行）化 | USER。clinical が green になってから判断 |
 | workflow_dispatch / push | USER |
-| Linear Done / UAT PASS 転記 | USER。設計・局所 GREEN だけではしない |
+| Plane Done / UAT PASS 転記 | USER。設計・局所 GREEN だけではしない |

@@ -5,6 +5,7 @@ package support
 
 import (
 	"context"
+	"errors"
 
 	"gorm.io/gorm"
 
@@ -15,12 +16,15 @@ import (
 // maxBugReportsPerClinicList caps the admin list endpoint (newest first).
 const maxBugReportsPerClinicList = 200
 
-// Repository は support_bug_reports のデータアクセスインターフェース
+// Repository は support_bug_reports と support_chat_messages のデータアクセスインターフェース
 type Repository interface {
 	Create(ctx context.Context, report *model.SupportBugReport) error
 	FindByClinicID(ctx context.Context, clinicID uint64) ([]BugReportWithReporter, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.SupportBugReport, error)
 	UpdateStatus(ctx context.Context, clinicID, id uint64, status model.SupportBugReportStatus) error
+	CreateChatMessages(ctx context.Context, messages []*model.SupportChatMessage) error
+	ListChatHistory(ctx context.Context, clinicID, staffID uint64) ([]model.SupportChatMessage, error)
+	ClearChatHistory(ctx context.Context, clinicID, staffID uint64) error
 }
 
 // BugReportWithReporter は一覧表示用に報告者氏名を結合した行
@@ -69,6 +73,58 @@ func (r *repository) FindByID(ctx context.Context, clinicID, id uint64) (*model.
 		return nil, apperrors.FromGORM(err, "support_bug_report", uintToString(id))
 	}
 	return &report, nil
+}
+
+// maxChatHistoryPerFetch は履歴取得の上限（新しいものから n 件を取り出して古い順に返す）
+const maxChatHistoryPerFetch = 100
+
+func (r *repository) CreateChatMessages(ctx context.Context, messages []*model.SupportChatMessage) error {
+	// 質問+回答のペアを1回の batch INSERT で原子保存する
+	if err := r.db.WithContext(ctx).Create(&messages).Error; err != nil {
+		return apperrors.FromGORM(err, "support_chat_message", "")
+	}
+	return nil
+}
+
+func (r *repository) ListChatHistory(ctx context.Context, clinicID, staffID uint64) ([]model.SupportChatMessage, error) {
+	messages := make([]model.SupportChatMessage, 0)
+	if err := r.db.WithContext(ctx).
+		Where("clinic_id = ? AND staff_id = ?", clinicID, staffID).
+		Order("created_at DESC, id DESC").
+		Limit(maxChatHistoryPerFetch).
+		Find(&messages).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "support_chat_message", "")
+	}
+	// 新しい順で取得したものを古い順（会話の時系列）に反転する
+	for i, j := 0, len(messages)-1; i < j; i, j = i+1, j-1 {
+		messages[i], messages[j] = messages[j], messages[i]
+	}
+	// 窓の境界で最古が assistant の場合、対になる user 質問が窓外に残る。
+	// 1件だけ繰り上げ取得してペアを維持する。
+	if len(messages) > 0 && messages[0].Role == model.SupportChatRoleAssistant {
+		var preceding model.SupportChatMessage
+		err := r.db.WithContext(ctx).
+			Where("clinic_id = ? AND staff_id = ? AND id < ?", clinicID, staffID, messages[0].ID).
+			Order("id DESC").
+			Take(&preceding).Error
+		switch {
+		case err == nil && preceding.Role == model.SupportChatRoleUser:
+			messages = append([]model.SupportChatMessage{preceding}, messages...)
+		case err != nil && !errors.Is(err, gorm.ErrRecordNotFound):
+			return nil, apperrors.FromGORM(err, "support_chat_message", "")
+		}
+	}
+	return messages, nil
+}
+
+func (r *repository) ClearChatHistory(ctx context.Context, clinicID, staffID uint64) error {
+	// deleted_at を持つモデルの Delete は soft delete になる
+	if err := r.db.WithContext(ctx).
+		Where("clinic_id = ? AND staff_id = ?", clinicID, staffID).
+		Delete(&model.SupportChatMessage{}).Error; err != nil {
+		return apperrors.FromGORM(err, "support_chat_message", "")
+	}
+	return nil
 }
 
 func (r *repository) UpdateStatus(ctx context.Context, clinicID, id uint64, status model.SupportBugReportStatus) error {

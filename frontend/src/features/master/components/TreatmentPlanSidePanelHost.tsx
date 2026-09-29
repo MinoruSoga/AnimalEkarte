@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { TreatmentItem } from "@/lib/transforms/treatment";
 import type { ExaminationTypeMaster } from "../api/exam-types-master";
+import { CheckupTypeFieldsEditor } from "./CheckupTypeFieldsEditor";
 import { ExamTypeFieldsEditor } from "./ExamTypeFieldsEditor";
 import { TreatmentItemSidePanel, type TreatmentFormData } from "./TreatmentItemSidePanel";
 
@@ -77,6 +78,16 @@ function TreatmentPlanSidePanelHostContent({
         examinationType ? (
           <ExamTypeFieldsEditor
             examType={examinationType}
+            canCreate={canCreate}
+            canEdit={canEdit}
+            canDelete={canDelete}
+            onDirtyChange={setFieldDirty}
+          />
+        ) : selectedItem?.masterKind === "checkup" ? (
+          // EMR-225: 定期健診パッケージのフィールド定義エディタ（ResourceCheckups 権限は
+          // 呼び出し側で activeCan* に切替済み — 検査タブの examinationType 経路と同型）。
+          <CheckupTypeFieldsEditor
+            checkupTypeId={selectedItem.id}
             canCreate={canCreate}
             canEdit={canEdit}
             canDelete={canDelete}

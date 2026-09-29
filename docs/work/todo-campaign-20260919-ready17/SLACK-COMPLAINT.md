@@ -1,5 +1,7 @@
 # SLACK-COMPLAINT: 主訴区分の新規未選択 vs 既存クリア
 
+> 2026-09-29 注記: 現在のタスク状態の正本は Plane `EMR-87`。本文の「実装済み」「READY」等の状態語は当時の調査・証跡記録であり現在の実行状態を示さない。ID 対応は [migration receipt](../plane-md-migration-20260923-receipt.md)。
+
 状態: **C0 clearable 実装済み／C3 hydrate 先行修正済み／N・C・reload 回帰 PASS／部分更新欠陥（C5）を最小修正済み／実 API・実 DB で保存・再読込を検証済み**。出典は [todo-issue.md](../../../todo.md#issue-ledger) 見出し `### SLACK-COMPLAINT`（L118–122、索引 L419）。保持する現場条件:
 
 - 「主訴区分は空欄で入力」（出典 929–937。現行 `todo-issue.md` は要約のみ。原文行は本票では再掲しない）

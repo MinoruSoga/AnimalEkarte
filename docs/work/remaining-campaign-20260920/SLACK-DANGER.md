@@ -1,5 +1,7 @@
 # SLACK-DANGER: 既存「高」危険表示 vs 要望の赤/黄（色意味は PO）
 
+> 2026-09-29 注記: 現在のタスク状態の正本は Plane `EMR-92`。本文の「READY」「未実行」等の状態語は当時の調査・証跡記録であり現在の実行状態を示さない。ID 対応は [migration receipt](../plane-md-migration-20260923-receipt.md)。
+
 状態: **既存-versus-要望の調査票 READY／製品実装・色意味裁定 未実行**。出典は [todo-issue.md](../../../todo.md#issue-ledger) 見出し `### SLACK-DANGER`（L190–194、索引 L423）。保持する現場条件:
 
 - 危険度に応じ **赤/黄で分かる表示** を求める（出典 944–948。現行 `todo-issue.md` は要約のみ。原文行は本票では再掲しない）

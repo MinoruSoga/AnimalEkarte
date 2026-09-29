@@ -1,5 +1,7 @@
 # SLACK-RESERVATION-REFERENCE: 予約「参照先が存在しません」の現行参照チェック対応表
 
+> 2026-09-29 注記: 現在のタスク状態の正本は Plane `EMR-114`。本文の「READY」「UNKNOWN」「未実行」等の状態語は当時の調査・証跡記録であり現在の実行状態を示さない。ID 対応は [migration receipt](../plane-md-migration-20260923-receipt.md)。
+
 状態: **コード照合 READY／現行 STG 配信 identity UNKNOWN／再現 未実行**。出典は [todo-issue.md](../../../todo.md#issue-ledger) 見出し `### SLACK-RESERVATION-REFERENCE`（L294–298、索引 L402）。保持する現場条件:
 
 - スタッフ／シフト作成後も予約保存が **「参照先が存在しません」** で失敗した、という報告

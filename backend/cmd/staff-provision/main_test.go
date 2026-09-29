@@ -38,12 +38,14 @@ func TestParseOptions_RequiresCommandAndAbsoluteFlags(t *testing.T) {
 		"--manifest=/tmp/m.json",
 		"--secrets=/tmp/s.json",
 		"--repo-root=/tmp/repo",
+		"--confirm-target-host=db.example.internal",
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "apply", opt.command)
 	assert.Equal(t, "/tmp/m.json", opt.manifestPath)
 	assert.Equal(t, "/tmp/s.json", opt.secretsPath)
 	assert.Equal(t, "/tmp/repo", opt.repoRoot)
+	assert.Equal(t, "db.example.internal", opt.confirmTargetHost)
 }
 
 func TestSanitizeError_RedactsEmailAndPassword(t *testing.T) {
@@ -196,6 +198,78 @@ func TestRun_ApplyRefusesNonLocalWithoutOverride(t *testing.T) {
 	}, logger, deps)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "non-local")
+}
+
+var errGateSentinel = errors.New("gate passed sentinel")
+
+func TestRun_RemoteTargetGate(t *testing.T) {
+	const remoteHost = "db.example.internal"
+	tests := []struct {
+		name    string
+		host    string
+		env     string
+		flag    string
+		wantErr string
+	}{
+		{"local host without overrides", "localhost", "", "", ""},
+		{"local compose host without overrides", "db", "", "", ""},
+		{"local host with matching confirmation", "db", "", "db", ""},
+		{"local host with mismatched confirmation", "db", "", "other-host", "target host confirmation"},
+		{"remote host refused without overrides", remoteHost, "", "", "STAFF_PROVISION_ALLOW_REMOTE=YES_I_UNDERSTAND"},
+		{"remote host refused with env only", remoteHost, allowRemoteSentinel, "", "target host confirmation"},
+		{"remote host refused with flag only", remoteHost, "", remoteHost, "STAFF_PROVISION_ALLOW_REMOTE=YES_I_UNDERSTAND"},
+		{"remote host refused with wrong sentinel", remoteHost, "yes", remoteHost, "STAFF_PROVISION_ALLOW_REMOTE=YES_I_UNDERSTAND"},
+		{"remote host refused with mismatched confirmation", remoteHost, allowRemoteSentinel, remoteHost + ".evil", "target host confirmation"},
+		{"remote host refused on case mismatch", remoteHost, allowRemoteSentinel, "DB.EXAMPLE.INTERNAL", "target host confirmation"},
+		{"remote host allowed with env and exact confirmation", remoteHost, allowRemoteSentinel, remoteHost, ""},
+	}
+	for _, tc := range tests {
+		for _, command := range []string{"preflight", "apply"} {
+			t.Run(tc.name+"/"+command, func(t *testing.T) {
+				t.Setenv("DB_NAME", "animalekarte")
+				t.Setenv("STAFF_PROVISION_ALLOW_REMOTE", tc.env)
+				opened := false
+				deps := runDependencies{
+					configureTimeZone: func() error { return nil },
+					fromEnv: func() (dbconn.ConnParams, error) {
+						return dbconn.ConnParams{
+							Host: tc.host, Port: "5432", User: "gate-user-x", Password: "gate-pw-secret-9", SSLMode: "disable",
+						}, nil
+					},
+					openDB: func(*pgx.ConnConfig) (*gorm.DB, error) {
+						opened = true
+						return nil, errGateSentinel
+					},
+					repoRoots: func(string) ([]string, error) { return nil, nil },
+					newProvisioner: func(*gorm.DB, []string) *staff.StaffProvisioner {
+						t.Fatal("provisioner must not be built in gate test")
+						return nil
+					},
+				}
+				args := []string{command, "--manifest=/tmp/m.json", "--secrets=/tmp/s.json"}
+				if tc.flag != "" {
+					args = append(args, "--confirm-target-host="+tc.flag)
+				}
+				err := run(context.Background(), args, slog.New(slog.NewTextHandler(&ioDiscard{}, nil)), deps)
+				if tc.wantErr == "" {
+					assert.True(t, opened)
+					assert.ErrorIs(t, err, errGateSentinel)
+					return
+				}
+				require.Error(t, err)
+				assert.False(t, opened)
+				assert.Contains(t, err.Error(), tc.wantErr)
+				assert.NotContains(t, err.Error(), "gate-user-x")
+				assert.NotContains(t, err.Error(), "gate-pw-secret-9")
+				if tc.flag != "" {
+					assert.NotContains(t, err.Error(), tc.flag)
+				}
+				if !dbconn.IsLocalHost(tc.host) {
+					assert.NotContains(t, err.Error(), tc.host)
+				}
+			})
+		}
+	}
 }
 
 func TestWriteJSON_EmitsDigestOnlySurface(t *testing.T) {

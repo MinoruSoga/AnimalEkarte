@@ -43,7 +43,7 @@ sequenceDiagram
 - `InterviewHistory`（`frontend/src/features/medical-records/components/`）の各行は `paths.medicalRecords.detail.getHref` で詳細へリンクする。履歴パネルの見出しは「問診抜粋」。
 - 処置未移行の記録でも詳細が開けることは `UAT-Q2-HISTORY-NAV` の必須条件。治療明細の移行完了を意味しない（旧列→canonical 移行は `UAT-Q2-TREATMENTS-IMPORT` の別ゲート）。
 - 戻る操作で未保存変更を捨てさせないことは [13 §2.3](../../../spec/screens/13-examinations-form.md) と同じ `NavigationBlocker` パターン。dirty 状態での離脱は確認ダイアログを経由する。
-- 他人のカルテが履歴に混ざる場合は FAIL（`todo.md#product-bugs` で重複確認のうえ Linear 追跡）。行が空で出ないだけなら fixture 不足の可能性を先に切り分ける。
+- 他人のカルテが履歴に混ざる場合は FAIL（`todo.md#product-bugs` で重複確認のうえ Plane 追跡。2026-09-29 訂正: Linear 追跡 → Plane 追跡。Linear は 2026-09-16 に閉鎖済みで実行 SoT は Plane `baritechllc`/`EMR`）。行が空で出ないだけなら fixture 不足の可能性を先に切り分ける。
 
 ## 実装突合
 
@@ -51,3 +51,4 @@ sequenceDiagram
   - `InterviewHistory` のリンク先 `paths.medicalRecords.detail.getHref` と「問診抜粋」見出しを現行コードと突合
   - `UAT-Q2-HISTORY-NAV` の「同一ペット行→詳細→戻る」「処置未移行でも開ける」を手順 2–4 に対応づけ
   - 未保存保護（`NavigationBlocker`）を手順 3 に組み込み、履歴導線と編集保護の併存を確認する形にした
+  - 2026-09-29 訂正: 確認観点の「Linear 追跡」→ Plane 追跡（Linear 閉鎖済み）

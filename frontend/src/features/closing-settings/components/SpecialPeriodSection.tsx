@@ -24,14 +24,16 @@ const TIME_RANGE_ROWS = [
 
 interface SpecialPeriodSectionProps {
   periods: ClosingSpecialPeriod[];
-  canEdit: boolean;
+  canCreate: boolean;
+  canDelete: boolean;
   /** 標準締め設定の closing_am_start（特別期間は標準設定の am_start を継承する）。省略時は 09:00。 */
   amStart?: string;
 }
 
 export const SpecialPeriodSection = memo(function SpecialPeriodSection({
   periods,
-  canEdit,
+  canCreate,
+  canDelete,
   amStart = DEFAULT_CLOSING_AM_START,
 }: SpecialPeriodSectionProps) {
   const [showForm, setShowForm] = useState(false);
@@ -43,10 +45,13 @@ export const SpecialPeriodSection = memo(function SpecialPeriodSection({
   const createMutation = useCreateSpecialPeriod();
   const deleteMutation = useDeleteSpecialPeriod();
   const { mutateAsync } = deleteMutation;
-  const canEditRef = useRef(canEdit);
+  // backend は POST→create / DELETE→delete を要求するため、各アクションのガードも対応する権限で判定する。
+  const canCreateRef = useRef(canCreate);
+  const canDeleteRef = useRef(canDelete);
   useLayoutEffect(() => {
-    canEditRef.current = canEdit;
-  }, [canEdit]);
+    canCreateRef.current = canCreate;
+    canDeleteRef.current = canDelete;
+  }, [canCreate, canDelete]);
 
   const handleShowForm = useCallback(() => setShowForm(true), []);
   const handleHideForm = useCallback(() => {
@@ -57,7 +62,7 @@ export const SpecialPeriodSection = memo(function SpecialPeriodSection({
   }, []);
 
   const [, formAction] = useActionState(async (_prev: null, formData: FormData) => {
-    if (canEditRef.current !== true) {
+    if (canCreateRef.current !== true) {
       toast.error(PERMISSION_DENIED_MESSAGE);
       return null;
     }
@@ -79,7 +84,7 @@ export const SpecialPeriodSection = memo(function SpecialPeriodSection({
 
   const handleDelete = useCallback(
     async (id: number) => {
-      if (canEditRef.current !== true) {
+      if (canDeleteRef.current !== true) {
         toast.error(PERMISSION_DENIED_MESSAGE);
         return;
       }
@@ -100,14 +105,16 @@ export const SpecialPeriodSection = memo(function SpecialPeriodSection({
     <section className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
       <div className="flex items-center justify-between mb-4">
         <h2 className={`text-base font-semibold ${C.text}`}>特別期間</h2>
-        <button
-          type="button"
-          onClick={handleShowForm}
-          className={`flex min-h-11 min-w-11 items-center gap-1.5 text-base ${C.textBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} rounded-xs px-3 transition-colors`}
-        >
-          <Plus className="size-4" />
-          新規登録
-        </button>
+        {canCreate ? (
+          <button
+            type="button"
+            onClick={handleShowForm}
+            className={`flex min-h-11 min-w-11 items-center gap-1.5 text-base ${C.textBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} rounded-xs px-3 transition-colors`}
+          >
+            <Plus className="size-4" />
+            新規登録
+          </button>
+        ) : null}
       </div>
 
       {showForm ? (

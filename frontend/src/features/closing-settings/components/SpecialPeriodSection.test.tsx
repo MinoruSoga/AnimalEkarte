@@ -70,31 +70,42 @@ describe("SpecialPeriodSection", () => {
   });
 
   it("periods が空のとき空状態メッセージを表示する", () => {
-    renderSection(<SpecialPeriodSection periods={[]} canEdit={true} />);
+    renderSection(<SpecialPeriodSection periods={[]} canCreate={true} canDelete={true} />);
     expect(screen.getByText("特別期間は登録されていません")).toBeInTheDocument();
   });
 
   it("periods を一覧表示する", () => {
-    renderSection(<SpecialPeriodSection periods={[makePeriod()]} canEdit={true} />);
+    renderSection(
+      <SpecialPeriodSection periods={[makePeriod()]} canCreate={true} canDelete={true} />,
+    );
     expect(screen.getByText("2026-12-29 〜 2027-01-03")).toBeInTheDocument();
     expect(screen.getByText(/区切り: 12:00 \/ 終了: 17:00/)).toBeInTheDocument();
   });
 
   it("登録済み期間に AM/PM/EMG の導出時間帯レンジを秒単位で表示する", () => {
-    renderSection(<SpecialPeriodSection periods={[makePeriod()]} canEdit={true} />);
+    renderSection(
+      <SpecialPeriodSection periods={[makePeriod()]} canCreate={true} canDelete={true} />,
+    );
     expect(screen.getByText(/AM 09:00:00～11:59:59/)).toBeInTheDocument();
     expect(screen.getByText(/PM 12:00:00～16:59:59/)).toBeInTheDocument();
     expect(screen.getByText(/EMG 17:00:00～翌08:59:59/)).toBeInTheDocument();
   });
 
   it("amStart prop の値を AM/EMG レンジの起点に使う", () => {
-    renderSection(<SpecialPeriodSection periods={[makePeriod()]} canEdit={true} amStart="10:00" />);
+    renderSection(
+      <SpecialPeriodSection
+        periods={[makePeriod()]}
+        canCreate={true}
+        canDelete={true}
+        amStart="10:00"
+      />,
+    );
     expect(screen.getByText(/AM 10:00:00～11:59:59/)).toBeInTheDocument();
     expect(screen.getByText(/EMG 17:00:00～翌09:59:59/)).toBeInTheDocument();
   });
 
   it("登録フォームで区切り・終了時刻の入力に応じて AM/PM/EMG プレビューを表示する", () => {
-    renderSection(<SpecialPeriodSection periods={[]} canEdit={true} />);
+    renderSection(<SpecialPeriodSection periods={[]} canCreate={true} canDelete={true} />);
     fireEvent.click(screen.getByRole("button", { name: "新規登録" }));
 
     fireEvent.change(screen.getByLabelText("午前・午後 区切り時間"), {
@@ -108,7 +119,9 @@ describe("SpecialPeriodSection", () => {
   });
 
   it("削除ボタンで deleteMutation.mutateAsync が id で呼ばれる", async () => {
-    renderSection(<SpecialPeriodSection periods={[makePeriod({ id: 7 })]} canEdit={true} />);
+    renderSection(
+      <SpecialPeriodSection periods={[makePeriod({ id: 7 })]} canCreate={true} canDelete={true} />,
+    );
     fireEvent.click(
       screen.getByRole("button", {
         name: "2026-12-29から2027-01-03の特別期間を削除",
@@ -119,7 +132,7 @@ describe("SpecialPeriodSection", () => {
   });
 
   it("追加ボタンでフォームを表示し、キャンセルで閉じる", () => {
-    renderSection(<SpecialPeriodSection periods={[]} canEdit={true} />);
+    renderSection(<SpecialPeriodSection periods={[]} canCreate={true} canDelete={true} />);
     fireEvent.click(screen.getByRole("button", { name: "新規登録" }));
     expect(screen.getByLabelText("開始日")).toBeInTheDocument();
 
@@ -127,8 +140,15 @@ describe("SpecialPeriodSection", () => {
     expect(screen.queryByLabelText("開始日")).not.toBeInTheDocument();
   });
 
+  it("canCreate=false のとき新規登録ボタンを表示しない", () => {
+    renderSection(<SpecialPeriodSection periods={[]} canCreate={false} canDelete={false} />);
+    expect(screen.queryByRole("button", { name: "新規登録" })).not.toBeInTheDocument();
+  });
+
   it("追加・キャンセル・削除を44px以上とし、削除対象を名前で識別できる", () => {
-    renderSection(<SpecialPeriodSection periods={[makePeriod()]} canEdit={true} />);
+    renderSection(
+      <SpecialPeriodSection periods={[makePeriod()]} canCreate={true} canDelete={true} />,
+    );
 
     const addButton = screen.getByRole("button", { name: "新規登録" });
     expect(addButton).toHaveClass("min-h-11");
@@ -142,7 +162,7 @@ describe("SpecialPeriodSection", () => {
   });
 
   it("新規登録はサイドパネルで開始日を入力できる", () => {
-    renderSection(<SpecialPeriodSection periods={[]} canEdit={true} />);
+    renderSection(<SpecialPeriodSection periods={[]} canCreate={true} canDelete={true} />);
     fireEvent.click(screen.getByRole("button", { name: "新規登録" }));
 
     expect(screen.getByLabelText("開始日")).toBeInTheDocument();
@@ -150,7 +170,7 @@ describe("SpecialPeriodSection", () => {
   });
 
   it("正常な期間（開始 < 終了、区切り < 終了時刻）で送信すると createMutation が呼ばれる", async () => {
-    renderSection(<SpecialPeriodSection periods={[]} canEdit={true} />);
+    renderSection(<SpecialPeriodSection periods={[]} canCreate={true} canDelete={true} />);
     fireEvent.click(screen.getByRole("button", { name: "新規登録" }));
 
     fillAndSubmit({
@@ -173,7 +193,7 @@ describe("SpecialPeriodSection", () => {
   });
 
   it("登録成功後にフォームを再表示すると区切り・終了時間の制御値がリセットされる", async () => {
-    renderSection(<SpecialPeriodSection periods={[]} canEdit={true} />);
+    renderSection(<SpecialPeriodSection periods={[]} canCreate={true} canDelete={true} />);
     fireEvent.click(screen.getByRole("button", { name: "新規登録" }));
 
     fillAndSubmit({
@@ -196,7 +216,7 @@ describe("SpecialPeriodSection", () => {
   // そのまま createMutation に渡ってしまう。このテストは「現状そのまま送信される」
   // 挙動を固定するものであり、バリデーションを追加する場合はこのテストの更新が必要になる。
   it("[既知のギャップ] start_date > end_date でもクライアント側で弾かれず createMutation が呼ばれる", async () => {
-    renderSection(<SpecialPeriodSection periods={[]} canEdit={true} />);
+    renderSection(<SpecialPeriodSection periods={[]} canCreate={true} canDelete={true} />);
     fireEvent.click(screen.getByRole("button", { name: "新規登録" }));
 
     fillAndSubmit({
@@ -214,7 +234,7 @@ describe("SpecialPeriodSection", () => {
   });
 
   it("[既知のギャップ] am_pm_boundary > pm_end でもクライアント側で弾かれず createMutation が呼ばれる", async () => {
-    renderSection(<SpecialPeriodSection periods={[]} canEdit={true} />);
+    renderSection(<SpecialPeriodSection periods={[]} canCreate={true} canDelete={true} />);
     fireEvent.click(screen.getByRole("button", { name: "新規登録" }));
 
     fillAndSubmit({
@@ -231,14 +251,16 @@ describe("SpecialPeriodSection", () => {
     );
   });
 
-  it("canEdit=false のとき formAction は mutate せず toast.error する", async () => {
-    const { rerender } = renderSection(<SpecialPeriodSection periods={[]} canEdit={true} />);
+  it("canCreate=false のとき formAction は mutate せず toast.error する", async () => {
+    const { rerender } = renderSection(
+      <SpecialPeriodSection periods={[]} canCreate={true} canDelete={true} />,
+    );
     fireEvent.click(screen.getByRole("button", { name: "新規登録" }));
 
     const form = screen.getByLabelText("開始日").closest("form");
     expect(form).not.toBeNull();
 
-    rerender(<SpecialPeriodSection periods={[]} canEdit={false} />);
+    rerender(<SpecialPeriodSection periods={[]} canCreate={false} canDelete={true} />);
 
     fireEvent.change(screen.getByLabelText("開始日"), { target: { value: "2026-12-29" } });
     fireEvent.change(screen.getByLabelText("終了日"), { target: { value: "2027-01-03" } });
@@ -257,8 +279,14 @@ describe("SpecialPeriodSection", () => {
     expect(mockCreateMutateAsync).not.toHaveBeenCalled();
   });
 
-  it("canEdit=false のとき delete は mutate せず toast.error する", async () => {
-    renderSection(<SpecialPeriodSection periods={[makePeriod({ id: 7 })]} canEdit={false} />);
+  it("canDelete=false のとき delete は mutate せず toast.error する", async () => {
+    renderSection(
+      <SpecialPeriodSection
+        periods={[makePeriod({ id: 7 })]}
+        canCreate={false}
+        canDelete={false}
+      />,
+    );
     fireEvent.click(
       screen.getByRole("button", {
         name: "2026-12-29から2027-01-03の特別期間を削除",

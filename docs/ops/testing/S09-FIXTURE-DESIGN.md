@@ -10,7 +10,7 @@
 - `synthetic_closing_env.go` は `APP_ENV=test/development/local/dev`、DB host `db/localhost/127.0.0.1`、HTTP host `backend/localhost/127.0.0.1` を fail-closed で判定する。接続済み DB の hostname 同一性検証は呼び出し側が渡す `DB_HOST` に依存する。
 - HTTP: `POST /api/v1/uat/synthetic-closings` と `DELETE /api/v1/uat/synthetic-closings/:clinic_id`（`X-UAT-Cleanup-Token`）。staging/production と許可外 HTTP host は 404。ログインパスワードは応答に出さず `UAT_SYNTHETIC_CLOSING_PASSWORD` からハッシュする。
 - CLI: `backend/cmd/synthetic-closing-fixture` の `setup` / `teardown`。
-- ブラウザ UAT（S09 #2–#6）と締めプレビュー集計の目視は未。S09 は **BLOCKED を維持**する。
+- ブラウザ UAT（S09 #2–#6）と締めプレビュー集計の目視は未。S09 は **BLOCKED を維持**する。（2026-09-29 追記: `frontend/e2e/s09-closing-time-boundaries.spec.ts` が #2–#6 の帰属プレビューを自動化する spec として追加済み。fixture は `POST/DELETE /api/v1/uat/synthetic-closings` 経由、`UAT_SYNTHETIC_CLOSING_PASSWORD` 必須、`run-e2e.sh` の allowlist には入らず明示 spec path で実行する。spec の存在は実行証跡ではなく、記録済み run がない限り BLOCKED の判定は変わらない）
 
 ## 対象 scenario
 
@@ -50,7 +50,7 @@ helper が **新規** に作るものだけを使う。
 
 - ブラウザでの S09 #2–#6
 - `make codegen`
-- Linear Done
+- Plane Done（2026-09-29 訂正: 旧記述は Linear Done。Linear は 2026-09-16 閉鎖・実行状態の正本は Plane）
 
 
 ## 推奨実装（到達目標）
@@ -149,4 +149,4 @@ docker compose exec frontend npx vitest run <変更spec>
 | HTTP/CLI・回収経路 | 実装済み。`make codegen` は未実行（USER） |
 | S09 #2〜#6 のブラウザ UAT 再実行 | ローカル stack 起動後の別承認。Docker 停止中は実行しない |
 | UAT 集計の PASS 更新 | 再実行証跡後。helper だけでは更新しない |
-| Linear Done | USER |
+| Plane Done | USER |

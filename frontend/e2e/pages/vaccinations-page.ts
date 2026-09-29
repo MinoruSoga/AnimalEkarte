@@ -7,6 +7,10 @@ export class VaccinationsPage extends BasePage {
     return this.open("/vaccinations");
   }
 
+  gotoSelectPet(): ReturnType<Page["goto"]> {
+    return this.open("/vaccinations/select-pet");
+  }
+
   listHeading(): Locator {
     return this.heading("予防接種管理");
   }
@@ -21,6 +25,10 @@ export class VaccinationsPage extends BasePage {
 
   newButton(): Locator {
     return this.page.getByRole("button", { name: "新規登録" });
+  }
+
+  searchToggleButton(): Locator {
+    return this.page.getByRole("button", { name: "検索" });
   }
 
   searchInput(): Locator {

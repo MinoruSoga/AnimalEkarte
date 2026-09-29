@@ -94,6 +94,9 @@ export type VaccineItem = ReturnType<typeof transformVaccine>;
 // ─────────────────────────────────────────────────
 
 export const transformCheckupType = (data: CheckupType) => ({
+  // EMR-225: サイドパネルが「この行は健診区分」と識別するための discriminant
+  // （健診フィールド定義エディタの出し分けに使用。他タブの TreatmentItem には付かない）。
+  masterKind: "checkup" as const,
   id: String(data.id ?? 0),
   name: data.name,
   parentId: data.parent_id !== undefined ? String(data.parent_id) : undefined,
@@ -126,4 +129,6 @@ export type TreatmentItem = {
   isNonInsurance?: boolean;
   /** Procedure only — present when the item is a procedure master row */
   anesthesia?: AnesthesiaType;
+  /** Checkup only — present when the item is a checkup package master row (EMR-225) */
+  masterKind?: "checkup";
 };

@@ -29,7 +29,7 @@ flowchart TB
 
 ### 2.2 accounting
 
-- persisted billing totals を authoritative contract とし、frontend `frontend/src/lib/calculations.ts` と `frontend/src/features/accounting/tax-breakdown.ts` の表示計算を照合する。
+- persisted billing totals を authoritative contract とし、frontend `frontend/src/lib/calculations.ts` と `frontend/src/features/accounting/lib/tax-breakdown.ts` の表示計算を照合する（2026-09-29 訂正: `tax-breakdown.ts` の旧記載パスは `features/accounting/` 直下だったが、現行は `features/accounting/lib/` 配下）。
 - `/accounting/close`: actual register cash **total** を入力し、theoretical cash との差額を確認する。denomination-by-denomination input は存在しない。
 - `/accounting/reports`: monthly sales/payment/daily trend と export を該当 API/spec に照合する。spec がない差異は `要実測` と記録する。
 

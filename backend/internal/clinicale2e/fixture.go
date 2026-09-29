@@ -3,10 +3,13 @@ package clinicale2e
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -18,7 +21,29 @@ const (
 	medicalRecordCount     = 21
 	ownerSearchToken       = "e2e-owner"
 	outsideFirstPagePrefix = "e2e-zebra-"
+	v04GroupName           = "e2e-v04-view-only"
+	v04RowPrefix           = "V04-e2e-"
+	maxTeardownPasses      = 8
+	pgForeignKeyViolation  = "23503"
+	pgRestrictViolation    = "23001"
 )
+
+// v04ViewOnlyResources は V04 設定/マスタ画面で view のみ許可する resource。
+// accounting/campaign 系と master-permission・master-staff は意図的に除外する。
+var v04ViewOnlyResources = []model.Resource{
+	model.ResourceMasterAnimalSpecies,
+	model.ResourceMasterMedical,
+	model.ResourceMasterReservationType,
+	model.ResourceMasterHospitalization,
+	model.ResourceMasterTrimming,
+	model.ResourceMasterInsurance,
+	model.ResourceMasterMerchandise,
+	model.ResourcePaymentMethod,
+	model.ResourceClosingSettings,
+	model.ResourceShifts,
+	model.ResourceHospitalSettings,
+	model.ResourceLabImport,
+}
 
 // Request は disposable clinic を作る入力。PasswordHash はログに出さない。
 type Request struct {
@@ -27,17 +52,27 @@ type Request struct {
 	PasswordHash string
 }
 
+// V04Result は view-only account と V04 行の参照情報。clinicId は含めない
+// （run-e2e.sh が JSON 全体から clinicId を greedy に抽出するため、重複キーを埋め込まない）。
+type V04Result struct {
+	ViewOnlyEmail     string   `json:"viewOnlyEmail"`
+	ViewOnlyResources []string `json:"viewOnlyResources"`
+	CageName          string   `json:"cageName"`
+	LabDeviceName     string   `json:"labDeviceName"`
+}
+
 // Result は Playwright が参照する合成 ID / 氏名。秘密は含めない。
 type Result struct {
-	ClinicID                uint64 `json:"clinicId"`
-	OwnerName               string `json:"ownerName"`
-	OwnerSearch             string `json:"ownerSearch"`
-	PetID                   uint64 `json:"petId"`
-	PetName                 string `json:"petName"`
-	OutsideFirstPagePetID   uint64 `json:"outsideFirstPagePetId"`
-	OutsideFirstPagePetName string `json:"outsideFirstPagePetName"`
-	EstimateTitle           string `json:"estimateTitle"`
-	MedicalRecordCount      int    `json:"medicalRecordCount"`
+	ClinicID                uint64    `json:"clinicId"`
+	OwnerName               string    `json:"ownerName"`
+	OwnerSearch             string    `json:"ownerSearch"`
+	PetID                   uint64    `json:"petId"`
+	PetName                 string    `json:"petName"`
+	OutsideFirstPagePetID   uint64    `json:"outsideFirstPagePetId"`
+	OutsideFirstPagePetName string    `json:"outsideFirstPagePetName"`
+	EstimateTitle           string    `json:"estimateTitle"`
+	MedicalRecordCount      int       `json:"medicalRecordCount"`
+	V04                     V04Result `json:"v04"`
 }
 
 // Create は新規 clinic / staff / owner / pet / 確定カルテと allowlist 用の行を INSERT する。
@@ -269,6 +304,11 @@ func Create(ctx context.Context, db *gorm.DB, req Request) (*Result, error) {
 			return apperrors.Wrap(err, "create synthetic estimate")
 		}
 
+		v04, err := createV04Fixture(tx, clinicID, req.PasswordHash)
+		if err != nil {
+			return err
+		}
+
 		result = &Result{
 			ClinicID:                clinicID,
 			OwnerName:               owner.Name,
@@ -279,6 +319,7 @@ func Create(ctx context.Context, db *gorm.DB, req Request) (*Result, error) {
 			OutsideFirstPagePetName: outsidePet.Name,
 			EstimateTitle:           estimateTitle,
 			MedicalRecordCount:      medicalRecordCount,
+			V04:                     v04,
 		}
 		return nil
 	})
@@ -286,6 +327,91 @@ func Create(ctx context.Context, db *gorm.DB, req Request) (*Result, error) {
 		return nil, err
 	}
 	return result, nil
+}
+
+// createV04Fixture は V04 settings/master view-only 検証用の account・権限グループ・
+// 一覧表示用の cage / lab device 行を作る。admin と同じ bcrypt hash を再利用する。
+func createV04Fixture(tx *gorm.DB, clinicID uint64, passwordHash string) (V04Result, error) {
+	account := &model.Account{
+		Email:         ViewOnlyLoginEmail(clinicID),
+		PasswordHash:  passwordHash,
+		IsActive:      true,
+		IsSystemAdmin: false,
+	}
+	if err := tx.Create(account).Error; err != nil {
+		return V04Result{}, apperrors.Wrap(err, "create v04 view-only account")
+	}
+	staff := &model.Staff{
+		ClinicID:  clinicID,
+		AccountID: &account.ID,
+		Name:      fmt.Sprintf("e2e-v04-view-%d", clinicID),
+		IsActive:  true,
+		StaffType: model.StaffTypeNurse,
+	}
+	if err := tx.Create(staff).Error; err != nil {
+		return V04Result{}, apperrors.Wrap(err, "create v04 view-only staff")
+	}
+	assignment := &model.StaffClinicAssignment{StaffID: staff.ID, ClinicID: clinicID, IsMain: true}
+	if err := tx.Create(assignment).Error; err != nil {
+		return V04Result{}, apperrors.Wrap(err, "assign v04 view-only staff clinic")
+	}
+
+	group := &model.PermissionGroup{
+		ClinicID: clinicID,
+		Name:     v04GroupName,
+		IsActive: true,
+	}
+	if err := tx.Create(group).Error; err != nil {
+		return V04Result{}, apperrors.Wrap(err, "create v04 view-only permission group")
+	}
+	resources := make([]string, 0, len(v04ViewOnlyResources))
+	for _, resource := range v04ViewOnlyResources {
+		rule := &model.PermissionGroupRule{
+			GroupID:   group.ID,
+			Resource:  string(resource),
+			CanView:   true,
+			CanCreate: false,
+			CanEdit:   false,
+			CanDelete: false,
+		}
+		if err := tx.Create(rule).Error; err != nil {
+			return V04Result{}, apperrors.Wrap(err, "create v04 view-only permission rule")
+		}
+		resources = append(resources, string(resource))
+	}
+	link := &model.StaffPermissionGroup{StaffID: staff.ID, GroupID: group.ID}
+	if err := tx.Create(link).Error; err != nil {
+		return V04Result{}, apperrors.Wrap(err, "link v04 view-only staff to group")
+	}
+
+	cage := &model.Cage{
+		ClinicID: clinicID,
+		Name:     fmt.Sprintf("%scage-%d", v04RowPrefix, clinicID),
+		IsActive: true,
+		CageType: model.CageTypeGeneral,
+		CageSize: model.CageSizeMedium,
+	}
+	if err := tx.Create(cage).Error; err != nil {
+		return V04Result{}, apperrors.Wrap(err, "create v04 cage")
+	}
+	// exam_type_id は意図的に nil — 臨床 fixture の検査種別へリンクすると
+	// examinations flow の挙動が変わりうるため。
+	device := &model.LabDevice{
+		ClinicID:   clinicID,
+		SourceType: string(model.LabImportSourceTypeFujiNX600),
+		Name:       fmt.Sprintf("%sdevice-%d", v04RowPrefix, clinicID),
+		IsActive:   true,
+	}
+	if err := tx.Create(device).Error; err != nil {
+		return V04Result{}, apperrors.Wrap(err, "create v04 lab device")
+	}
+
+	return V04Result{
+		ViewOnlyEmail:     account.Email,
+		ViewOnlyResources: resources,
+		CageName:          cage.Name,
+		LabDeviceName:     device.Name,
+	}, nil
 }
 
 // Delete は合成 clinic とその子孫だけを消す。clinic 1/2 と接頭辞不一致は拒否する。
@@ -331,6 +457,37 @@ func Delete(ctx context.Context, db *gorm.DB, appEnv, dbHost string, clinicID ui
 			estimateIDs = append(estimateIDs, estimate.ID)
 		}
 
+		var groups []model.PermissionGroup
+		if err := tx.Unscoped().Where("clinic_id = ?", clinicID).Find(&groups).Error; err != nil {
+			return apperrors.Wrap(err, "list synthetic permission groups")
+		}
+		groupIDs := make([]uint64, 0, len(groups))
+		for _, group := range groups {
+			groupIDs = append(groupIDs, group.ID)
+		}
+
+		// testdb は AutoMigrate 構築で FK CASCADE を期待できないため、staff/group 削除前に
+		// 中間テーブルと rule を明示削除する。
+		if len(staffIDs) > 0 || len(groupIDs) > 0 {
+			linkTx := tx.Unscoped()
+			switch {
+			case len(staffIDs) > 0 && len(groupIDs) > 0:
+				linkTx = linkTx.Where("staff_id IN ? OR group_id IN ?", staffIDs, groupIDs)
+			case len(staffIDs) > 0:
+				linkTx = linkTx.Where("staff_id IN ?", staffIDs)
+			default:
+				linkTx = linkTx.Where("group_id IN ?", groupIDs)
+			}
+			if err := linkTx.Delete(&model.StaffPermissionGroup{}).Error; err != nil {
+				return apperrors.Wrap(err, "delete synthetic staff permission group links")
+			}
+		}
+		if len(groupIDs) > 0 {
+			if err := tx.Unscoped().Where("group_id IN ?", groupIDs).Delete(&model.PermissionGroupRule{}).Error; err != nil {
+				return apperrors.Wrap(err, "delete synthetic permission group rules")
+			}
+		}
+
 		if len(estimateIDs) > 0 {
 			if err := tx.Unscoped().Where("estimate_id IN ?", estimateIDs).Delete(&model.EstimateItem{}).Error; err != nil {
 				return apperrors.Wrap(err, "delete synthetic estimate items")
@@ -341,25 +498,14 @@ func Delete(ctx context.Context, db *gorm.DB, appEnv, dbHost string, clinicID ui
 				return apperrors.Wrap(err, "delete synthetic fixture staff audit logs")
 			}
 		}
-		scoped := []any{
-			&model.Estimate{},
-			&model.Checkup{},
-			&model.Vaccination{},
-			&model.Examination{},
-			&model.Hospitalization{},
-			&model.MedicalRecord{},
-			&model.Pet{},
-			&model.Owner{},
-			&model.Vaccine{},
-			&model.ExaminationType{},
-			&model.CheckupType{},
-			&model.StaffClinicAssignment{},
-			&model.Staff{},
-		}
-		for _, modelPtr := range scoped {
-			if err := tx.Unscoped().Where("clinic_id = ?", clinicID).Delete(modelPtr).Error; err != nil {
-				return apperrors.Wrap(err, "delete synthetic clinic-scoped row")
-			}
+		// clinic_id を持つ全 public テーブルを対象に物理削除する。v04/clinical spec が
+		// UI 経由で作成したマスタ行（職種・予約区分・診療項目・支払方法など）は soft-delete
+		// でも行が残り、clinics への RESTRICT FK で親削除が失敗するため、固定モデル列挙では
+		// 追従できない。子→親の順序は RESTRICT/FK 違反 (23001/23503) を検出してリトライすることで
+		// FK グラフ (DAG) 上で収束させる。clinic_id を持たない子行（estimate_items 等）は
+		// 上の明示削除に残す。
+		if err := deleteClinicScopedRows(tx, clinicID); err != nil {
+			return err
 		}
 		if len(accountIDs) > 0 {
 			if err := tx.Unscoped().Where("id IN ?", accountIDs).Delete(&model.Account{}).Error; err != nil {
@@ -379,6 +525,128 @@ func Delete(ctx context.Context, db *gorm.DB, appEnv, dbHost string, clinicID ui
 		}
 		return nil
 	})
+}
+
+// purgeTarget は teardown で物理削除するテーブルと、その行を特定する単一引数 predicate。
+// scoped テーブルは `clinic_id = ?`、clinic_id を持たない子テーブルは
+// `<fk> IN (SELECT <pk> FROM <parent> WHERE clinic_id = ?)` を使う。
+type purgeTarget struct {
+	table string
+	where string
+}
+
+// deleteClinicScopedRows は対象 clinic に属する行を全て物理削除する。
+//   - clinic_id 列を持つ public テーブル: clinic_id で直接削除
+//   - clinic_id を持たない depth-1 子テーブル（RESTRICT / NO ACTION で clinic スコープの
+//     親を参照するもの。care_plan_items / estimate_items / staff_notes 等）:
+//     親の clinic_id を辿るサブクエリで削除
+//
+// RESTRICT (23001) / FK (23503) 違反は親が後のパスで消える前提でリトライし、
+// FK グラフ (DAG) 上で収束させる。1 パスで進捗ゼロなら残余 blocker テーブル名を
+// 添えて失敗させる。
+func deleteClinicScopedRows(tx *gorm.DB, clinicID uint64) error {
+	var scoped []string
+	if err := tx.Raw(`SELECT table_name
+		FROM information_schema.columns
+		WHERE table_schema = 'public' AND column_name = 'clinic_id'
+		ORDER BY table_name`).Scan(&scoped).Error; err != nil {
+		return apperrors.Wrap(err, "list clinic-scoped tables")
+	}
+	scopedSet := make(map[string]bool, len(scoped))
+	targets := make([]purgeTarget, 0, len(scoped))
+	for _, table := range scoped {
+		scopedSet[table] = true
+		targets = append(targets, purgeTarget{table: table, where: "clinic_id = ?"})
+	}
+
+	// 単一列 FK のみ対象（conkey の array_length=1）。RESTRICT/NO ACTION のみ列挙する
+	// のは CASCADE 子は親削除に追従するため。複数親を持つ子は OR で畳む。
+	type fkLink struct {
+		child, childCol, parent, parentCol string
+	}
+	var links []fkLink
+	if err := tx.Raw(`SELECT
+			child.relname, child_col.attname, parent.relname, parent_col.attname
+		FROM pg_constraint con
+		JOIN pg_class child ON child.oid = con.conrelid
+		JOIN pg_class parent ON parent.oid = con.confrelid
+		JOIN pg_namespace n ON n.oid = con.connamespace
+		JOIN pg_attribute child_col ON child_col.attrelid = con.conrelid AND child_col.attnum = con.conkey[1]
+		JOIN pg_attribute parent_col ON parent_col.attrelid = con.confrelid AND parent_col.attnum = con.confkey[1]
+		WHERE con.contype = 'f' AND n.nspname = 'public'
+			AND con.confdeltype IN ('r', 'n')
+			AND array_length(con.conkey, 1) = 1`).Scan(&links).Error; err != nil {
+		return apperrors.Wrap(err, "list clinic-scoped child links")
+	}
+	childWheres := make(map[string][]string)
+	for _, link := range links {
+		if !scopedSet[link.parent] || scopedSet[link.child] {
+			continue
+		}
+		childWheres[link.child] = append(childWheres[link.child], fmt.Sprintf(
+			`"%s" IN (SELECT "%s" FROM "%s" WHERE clinic_id = ?)`,
+			link.childCol, link.parentCol, link.parent))
+	}
+	for _, table := range sortedKeys(childWheres) {
+		targets = append(targets, purgeTarget{table: table, where: strings.Join(childWheres[table], " OR ")})
+	}
+
+	for pass := 0; len(targets) > 0 && pass < maxTeardownPasses; pass++ {
+		blocked := make([]purgeTarget, 0, len(targets))
+		for _, target := range targets {
+			if err := tx.Exec("SAVEPOINT clinic_scoped_delete").Error; err != nil {
+				return apperrors.Wrap(err, "teardown savepoint")
+			}
+			args := make([]any, strings.Count(target.where, "?"))
+			for i := range args {
+				args[i] = clinicID
+			}
+			err := tx.Exec(`DELETE FROM "`+target.table+`" WHERE `+target.where, args...).Error
+			if err == nil {
+				if relErr := tx.Exec("RELEASE SAVEPOINT clinic_scoped_delete").Error; relErr != nil {
+					return apperrors.Wrap(relErr, "teardown release savepoint")
+				}
+				continue
+			}
+			if rbErr := tx.Exec("ROLLBACK TO SAVEPOINT clinic_scoped_delete").Error; rbErr != nil {
+				return apperrors.Wrap(rbErr, "teardown rollback savepoint")
+			}
+			var pgErr *pgconn.PgError
+			// ON DELETE RESTRICT は 23503 ではなく 23001 (restrict_violation) を返す。
+			// 親が後続パスで消えれば再試行で通るため、両方を blocked 扱いにして収束させる。
+			if errors.As(err, &pgErr) && (pgErr.Code == pgForeignKeyViolation || pgErr.Code == pgRestrictViolation) {
+				blocked = append(blocked, target)
+				continue
+			}
+			return apperrors.Wrap(err, fmt.Sprintf("delete synthetic clinic-scoped rows from %s", target.table))
+		}
+		if len(blocked) == len(targets) {
+			names := make([]string, 0, len(blocked))
+			for _, target := range blocked {
+				names = append(names, target.table)
+			}
+			return fmt.Errorf("clinic-scoped teardown stalled on FK-restricted tables: %s", strings.Join(names, ", "))
+		}
+		targets = blocked
+	}
+	if len(targets) > 0 {
+		names := make([]string, 0, len(targets))
+		for _, target := range targets {
+			names = append(names, target.table)
+		}
+		return fmt.Errorf("clinic-scoped teardown did not converge: %s", strings.Join(names, ", "))
+	}
+	return nil
+}
+
+// sortedKeys は map のキーを決定的順序で返す（テーブル削除順を再現可能にするため）。
+func sortedKeys[V any](m map[string]V) []string {
+	keys := make([]string, 0, len(m))
+	for key := range m {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 // EncodeResult は stdout 用の 1 行 JSON。秘密は載らない。

@@ -1,5 +1,7 @@
 # META-LINEAR-F1-F6 — 読み取り照合と対応案
 
+> 2026-09-29 注記: 本票は 2026-09-11 時点の Linear 照合記録。Linear は 2026-09-16 に閉鎖済み（アーカイブ・履歴参照のみ）で、以降の照会・Issue 作成・状態更新は実行不能。実行 SoT は Plane workspace `baritechllc` / Project `EMR`（hub `EMR-1`、case_id 旧 `BRT-4`）。F1〜F6 の Linear 対応は最終的に未特定（UNKNOWN）のまま終了し、本票を以後の実行指示として使わない。「USER が Linear で行う手順」節以下の Linear 操作指示は履歴として保持する。
+
 更新日: 2026-09-11（Codex Linear MCP を読み取り専用で再照会。外部書き込みなし）
 
 2026-09-11 の Codex Linear MCP 読み取りでは、Team Baritech / Project ノア動物病院電子カルテ、BRT-4、関連語検索、BRT-45、BRT-68、BRT-226 と各 Issue のコメントを照合した。Project と BRT-4 は Backlog、BRT-45 と BRT-68 は Needs Human、BRT-226 は Review だった。F1〜F6 の直接対応 ID は特定できず、対応 ID と状態は **UNKNOWN** とする。

@@ -32,7 +32,7 @@ flowchart LR
 
 #252 の全院締め設定は [GOLIVE_RUNBOOK.md](GOLIVE_RUNBOOK.md) の切替前提。#254 は納品前の開発側デモ確認と納品後の現場 UAT を区別し、実 LINE・監査・別 sign-off を含む [close checklist](../ops/testing/scenarios/UAT-254-CLOSE-CHECKLIST.md) で確認する。#259 の Lステップ write 再開は納品後対応であり、設定完了だけでは再開しない。
 
-Issue の OPEN/CLOSED は受入・本番稼働の証明ではない。未記入の契約・承認欄は各文書で管理し、実行状態は Linear と実行時の証跡で確認する。
+Issue の OPEN/CLOSED は受入・本番稼働の証明ではない。未記入の契約・承認欄は各文書で管理し、実行状態は Plane と実行時の証跡で確認する（2026-09-29 訂正: 「実行状態は Linear」→ Plane。Linear は 2026-09-16 に閉鎖・履歴参照のみ）。
 
 ## USER 入力待ち（U*）要約
 

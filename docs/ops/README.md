@@ -36,6 +36,6 @@ docs/ops/
 
 ## AI エージェント向け注記
 
-- タスク台帳の実行 SoT は **Linear**。hub・issue の現在状態は外部情報のため、操作前に Linear / GitHub で人手確認する。root [`todo.md`](../../todo.md) は repo と強く結び付く未完了作業の入口であり、[`todo.md#human-lane`](../../todo.md#human-lane) は入口ポインタ。運用で発見した課題は Linear に起票する。旧 `q&a.html` / `STATUS.md` / `PO-todo.md` は削除済。
-- **外部 mapping（操作前に GitHub / Linear で検証必須。以下は履歴 pointer）:** #261 / BRT-51 の判定先として GitHub [#261](https://github.com/MinoruSoga/AnimalEkarte/issues/261) 本文（A/B/C）。`q&a.html` は repo に無い。B 薬量は [BRT-39](https://linear.app/baritechllc/issue/BRT-39)。C 健診 seed は [BRT-40](https://linear.app/baritechllc/issue/BRT-40)。検査 / #249 はスコープ外。
+- タスク台帳の実行 SoT は **Plane**（workspace `baritechllc`）。hub・issue の現在状態は外部情報のため、操作前に Plane / GitHub で人手確認する。root [`todo.md`](../../todo.md) は repo と強く結び付く未完了作業の入口であり、[`todo.md#human-lane`](../../todo.md#human-lane) は入口ポインタ。運用で発見した課題は Plane に起票する。旧 `q&a.html` / `STATUS.md` / `PO-todo.md` は削除済。（2026-09-29 訂正: 実行 SoT を Linear としていた → Linear は 2026-09-16 に閉鎖済み。現行 SoT は Plane で、移行記録は [../work/plane-md-migration-20260923-receipt.md](../work/plane-md-migration-20260923-receipt.md)。旧 BRT-* / LINMIG-* ID と linear.app リンクは履歴参照のみ）
+- **外部 mapping（操作前に GitHub / Plane で検証必須。以下は履歴 pointer）:** #261 / BRT-51 の判定先として GitHub [#261](https://github.com/MinoruSoga/AnimalEkarte/issues/261) 本文（A/B/C）。`q&a.html` は repo に無い。B 薬量は BRT-39（旧 Linear ID、履歴参照のみ）。C 健診 seed は BRT-40（旧 Linear ID、履歴参照のみ）。検査 / #249 はスコープ外。
 - migration/seed に触れる作業は `migration-seed-safety` スキル、リリース前チェックは `stg-release-readiness` スキルを先に読むこと。

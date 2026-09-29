@@ -13,6 +13,7 @@ import { Link } from "react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { C } from "@/lib/design-tokens";
+import { SUPPORT_WIDGET_LAYOUT } from "@/constants/support-widget-layout";
 import { paths } from "@/config/paths";
 
 import { screenArticles, workflowArticles, type ManualArticle } from "@/lib/manual-index";
@@ -222,7 +223,7 @@ export const ManualContent = memo(function ManualContent({ article }: ManualCont
 
   return (
     <article
-      className={`flex-1 overflow-y-auto px-4 md:px-8 py-6 max-w-[860px] mx-auto manual-article pt-16 md:pt-6 ${C.bgWhite}`}
+      className={`flex-1 overflow-y-auto relative px-4 md:px-8 py-6 max-w-[860px] mx-auto manual-article pt-16 md:pt-6 ${C.bgWhite} ${SUPPORT_WIDGET_LAYOUT.scrollBottomClearance}`}
     >
       <ReactMarkdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>
         {article.content}

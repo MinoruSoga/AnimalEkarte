@@ -1,5 +1,7 @@
 # 採択済み residual 方針（2026-08-06）
 
+> 2026-09-29 注記: 本書は 2026-08-06 採択時点の記録。下記「実行 SoT: Linear hub BRT-4」は当時の正本であり、Linear は 2026-09-16 に閉鎖済み（履歴参照のみ）。現在の実行 SoT は Plane workspace `baritechllc` / Project `EMR`（hub `EMR-1`、case_id 旧 `BRT-4`）。文中の `BRT-*` リンクは履歴別名として残す。
+
 USER が Fable 推奨 pack を最終決定として採択した。作業結果は本ファイルに追記しない。
 
 - **最終 repo 照合日**: 2026-08-20

@@ -29,11 +29,13 @@ make reset
 |------|------|
 | 1. 環境照合 | 固定 project 名 `animalekarte` と固定 volume 名を compose 実測と照合。`APP_ENV` が production/staging 系なら拒否。 |
 | 2. 回復 snapshot | `umask 077` で追跡外 `.local-db-backups/<UTC>/` に owner-only の gzip 済み `pg_dumpall`、SHA-256、対象 volume + DDL/seed key manifest を作成。空 dump / 空 digest / 書き込み失敗なら **ここで停止**（volume は消さない）。 |
+| 2b. マニュアル override 退避 | `manual_articles` / `manual_article_versions`（ブラウザ編集のオーバーライド）を同じ snapshot dir に `pg_dump --data-only` で `manual_articles.sql` として退避。dump 失敗なら volume 削除へ進まない。 |
 | 3. 削除 | サービス停止（named volume は保持）。**`ekarte-postgres-data` だけ**を `docker volume rm`。cache 3 件（`ekarte-frontend-node-modules` / `ekarte-go-mod-cache` / `ekarte-go-build-cache`）は保持。 |
 | 4. 再起動 + postflight | `db backend frontend` を `--wait` で起動。migration key coverage `missing=0`、直下 DDL 全件、seed `002_master`、`schema_migrations` 契約、backend healthy、`/health` HTTP 200 を確認。不足があれば非 0。 |
-| 5. staged handoff 取込（条件付き） | `backend/migrations/seeds/_old_db_handoff/` に manifest 付き bundle があれば、local に限って自動取込する。対象 clinic の clinical / owner / catalog 行を cleanup transaction で削除・commit した後、別の `csv-import` apply / verify で handoff 内容を投入する。後段が失敗すると cleanup 済みの reset DB を残して非 0 で停止する。取込を行わない場合は `make reset` の前に `_old_db_handoff/` を repo 外へ移動する（または削除する）。 |
+| 5. マニュアル override 復元 | snapshot の `manual_articles.sql` を `psql` で適用（行が無ければ skip）。復元失敗は非 0 で報告（再構築自体は完了済みのため、dump ファイルから手動適用）。 |
+| 6. staged handoff 取込（条件付き） | `backend/migrations/seeds/_old_db_handoff/` に manifest 付き bundle があれば、local に限って自動取込する。対象 clinic の clinical / owner / catalog 行を cleanup transaction で削除・commit した後、別の `csv-import` apply / verify で handoff 内容を投入する。後段が失敗すると cleanup 済みの reset DB を残して非 0 で停止する。取込を行わない場合は `make reset` の前に `_old_db_handoff/` を repo 外へ移動する（または削除する）。 |
 
-段階 5 は postflight の後に動くため、失敗しても段階 1〜4 の DB 再構築は巻き戻りません。staged bundle を残したまま `make reset` を実行することは、その clinic の local 行を handoff 内容へ置換する明示的な選択です。
+段階 6 は postflight の後に動くため、失敗しても段階 1〜5 の DB 再構築・マニュアル復元は巻き戻りません。staged bundle を残したまま `make reset` を実行することは、その clinic の local 行を handoff 内容へ置換する明示的な選択です。
 
 ```mermaid
 flowchart TB
@@ -41,10 +43,12 @@ flowchart TB
   S1 -->|production / staging 系・不一致| X1["拒否（fail-closed）"]
   S1 -->|一致| S2["2. 回復 snapshot<br/>.local-db-backups へ owner-only の pg_dumpall + SHA-256 + manifest"]
   S2 -->|空 dump / 空 digest / 書込み失敗| X2["ここで停止（volume は消さない）"]
-  S2 -->|成功| S3["3. 削除<br/>ekarte-postgres-data のみ docker volume rm<br/>cache volume は保持"]
+  S2 -->|成功| S2b["2b. マニュアル override 退避<br/>manual_articles.sql を snapshot dir へ<br/>失敗時も volume は消さない"]
+  S2b --> S3["3. 削除<br/>ekarte-postgres-data のみ docker volume rm<br/>cache volume は保持"]
   S3 --> S4["4. 再起動 + postflight<br/>migration key coverage / 直下 DDL / seed 002_master /<br/>schema_migrations 契約 / backend healthy / health 200"]
   S4 -->|不足あり| X3["非 0 で停止"]
-  S4 -->|OK| S5{"_old_db_handoff に<br/>manifest 付き bundle あり?"}
+  S4 -->|OK| S4b["5. マニュアル override 復元<br/>manual_articles.sql を psql 適用"]
+  S4b --> S5{"_old_db_handoff に<br/>manifest 付き bundle あり?"}
   S5 -->|なし| Done["完了"]
   S5 -->|あり・local のみ| S6["5. staged handoff 取込<br/>cleanup transaction commit 後に csv-import apply / verify"]
   S6 -->|後段失敗| X4["非 0 で停止<br/>cleanup 済みの reset DB が残る"]
@@ -56,9 +60,10 @@ flowchart TB
 | 失われるもの | 保持されるもの |
 |--------------|----------------|
 | local Postgres cluster 内の **全 DB / global role / schema / data / migration 履歴 / seed 適用結果 / 手入力行** | bind mount の source / docs / `.env*` |
-| （上に伴い）local でしか持っていない未コミット相当の DB 行 | cache 3 volume（frontend `node_modules`、Go module cache、Go build cache） |
+| （上に伴い）local でしか持っていない未コミット相当の DB 行（**`manual_articles` / `manual_article_versions` を除く** — 下記） | cache 3 volume（frontend `node_modules`、Go module cache、Go build cache） |
 | | object storage や repo 外のバックアップ |
 | | `.local-db-backups/` に残る直前 snapshot（今回の実行で作成） |
+| | **マニュアル編集 override**（`manual_articles` / `manual_article_versions`）— snapshot dir の `manual_articles.sql` から自動復元 |
 
 ### 2.2 禁止事項
 
@@ -144,7 +149,7 @@ bash scripts/check-reset-wait-services.test.sh
 
 ## 6. 注意事項
 
-- **データ消失**: local Postgres cluster 内のデータは全て削除されます。直前 snapshot は `.local-db-backups/`（git 非追跡）に残ります。
+- **データ消失**: local Postgres cluster 内のデータは全て削除されます。直前 snapshot は `.local-db-backups/`（git 非追跡）に残ります。例外として `manual_articles` / `manual_article_versions`（マニュアル編集 override）は snapshot dir の `manual_articles.sql` から自動復元されます。
 - **共有環境**: ステージング等の共有環境では、決してこの手順（ボリューム削除）を実行しないでください。現行 workflow は DB を再作成しません。再構築が必要な場合は、破壊的操作の明示承認を得て [STG_PLANETSCALE_SEED_RUNBOOK.md](./STG_PLANETSCALE_SEED_RUNBOOK.md) に従います。
 
 ---

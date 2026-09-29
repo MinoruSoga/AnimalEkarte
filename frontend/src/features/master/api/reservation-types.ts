@@ -134,6 +134,8 @@ export function useCreateReservationType() {
     mutationFn: createReservationType,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("reservation-types") });
+      // grouped キーは prefix が異なる ("reservationType") ため category 側では届かない（EMR-224）
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.reservationTypesGrouped() });
     },
     onError: (error) => handleApiError(error, "作成"),
   });
@@ -146,6 +148,8 @@ export function useUpdateReservationType() {
       updateReservationType(id, req),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("reservation-types") });
+      // grouped キーは prefix が異なる ("reservationType") ため category 側では届かない（EMR-224）
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.reservationTypesGrouped() });
     },
     onError: (error) => handleApiError(error, "更新"),
   });
@@ -157,6 +161,8 @@ export function useDeleteReservationType() {
     mutationFn: deleteReservationType,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("reservation-types") });
+      // grouped キーは prefix が異なる ("reservationType") ため category 側では届かない（EMR-224）
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.reservationTypesGrouped() });
     },
     onError: (error) => handleApiError(error, "削除"),
   });
@@ -168,6 +174,8 @@ export function useReorderReservationTypes() {
     mutationFn: reorderReservationTypes,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("reservation-types") });
+      // grouped キーは prefix が異なる ("reservationType") ため category 側では届かない（EMR-224）
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.reservationTypesGrouped() });
     },
     onError: (error) => handleApiError(error, "並び替え"),
   });
