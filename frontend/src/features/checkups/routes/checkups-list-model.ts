@@ -1,4 +1,4 @@
-import { AlertCircle, Calendar } from "lucide-react";
+import { AlertCircle, Calendar, PawPrint } from "lucide-react";
 import type {
   ActiveFilter,
   FilterProperty,
@@ -10,6 +10,12 @@ import { normalizedIncludes } from "@/lib/normalize-kana";
 import type { CheckupFilters } from "../types";
 import type { CheckupRecord } from "../api/transforms";
 
+/**
+ * EMR-223: 動物種フィルタの「その他」値。
+ * マスタ種「その他」（seed id=6）だけでなく、種名が 犬/猫 以外の行全般を指す。
+ */
+const SPECIES_FILTER_OTHER_VALUE = "その他";
+
 export const FILTER_PROPERTIES: FilterProperty[] = [
   {
     key: "alertStatus",
@@ -19,6 +25,17 @@ export const FILTER_PROPERTIES: FilterProperty[] = [
     options: [
       { value: "overdue", label: "期限切れ" },
       { value: "upcoming30", label: "期限間近 (30日以内)" },
+    ],
+  },
+  {
+    key: "species",
+    label: "動物種",
+    type: "select",
+    icon: PawPrint,
+    options: [
+      { value: "犬", label: "犬" },
+      { value: "猫", label: "猫" },
+      { value: SPECIES_FILTER_OTHER_VALUE, label: SPECIES_FILTER_OTHER_VALUE },
     ],
   },
   {
@@ -78,6 +95,28 @@ export function filterCheckupsBySearch(
       normalizedIncludes(c.checkupTypeName, deferredSearch) ||
       normalizedIncludes(c.result, deferredSearch),
   );
+}
+
+/**
+ * EMR-223: 動物種で現在ページの行をクライアント側に絞り込む。
+ * filterCheckupsBySearch と同じく取得済みページに対する後処理フィルタであり、
+ * GET /v1/checkups のパラメータ（buildCheckupListFilters の返り値）には混入しない。
+ * petId が無い行・種名が未解決の行は、フィルタ適用中は除外する。
+ */
+export function filterCheckupsBySpecies(
+  checkups: CheckupRecord[],
+  speciesValue: string | undefined,
+  speciesNameByPetId: ReadonlyMap<string, string>,
+): CheckupRecord[] {
+  if (!speciesValue) return checkups;
+  return checkups.filter((c) => {
+    const speciesName = c.petId ? speciesNameByPetId.get(c.petId) : undefined;
+    if (!speciesName) return false;
+    if (speciesValue === SPECIES_FILTER_OTHER_VALUE) {
+      return speciesName !== "犬" && speciesName !== "猫";
+    }
+    return speciesName === speciesValue;
+  });
 }
 
 export function nextListSearchParamsWithPage(prev: URLSearchParams, page: number): URLSearchParams {

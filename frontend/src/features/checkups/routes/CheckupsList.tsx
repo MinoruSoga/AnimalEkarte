@@ -15,6 +15,7 @@ import { usePermission } from "@/hooks/use-permission";
 import { useUrlPageSync } from "@/hooks/use-url-page-sync";
 import { paths } from "@/config/paths";
 import { useGetCheckups } from "../api/get-checkups";
+import { useCheckupSpeciesMap } from "../hooks/use-checkup-species-map";
 
 // Types
 import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
@@ -25,6 +26,7 @@ import {
   buildCheckupListFilters,
   checkupChartHref,
   filterCheckupsBySearch,
+  filterCheckupsBySpecies,
   nextListSearchParamsWithPage,
   nextListSearchParamsWithoutPage,
 } from "./checkups-list-model";
@@ -56,9 +58,22 @@ export function CheckupsList() {
   const totalPages = Math.max(1, Math.ceil(total / limit));
   const safePage = Math.min(urlPage, totalPages);
 
+  // EMR-223: 動物種フィルタはクライアント側で現在ページにのみ適用する。
+  // GET /v1/checkups のパラメータ（buildCheckupListFilters 返り値）は汚染しない。
+  const speciesValue = useMemo(() => {
+    const value = activeFilters.find((f) => f.key === "species")?.value;
+    return typeof value === "string" && value !== "" ? value : undefined;
+  }, [activeFilters]);
+  const speciesNameByPetId = useCheckupSpeciesMap(checkups, speciesValue !== undefined);
+
   const filteredRecords = useMemo(
-    () => filterCheckupsBySearch(checkups, deferredSearch),
-    [checkups, deferredSearch],
+    () =>
+      filterCheckupsBySpecies(
+        filterCheckupsBySearch(checkups, deferredSearch),
+        speciesValue,
+        speciesNameByPetId,
+      ),
+    [checkups, deferredSearch, speciesValue, speciesNameByPetId],
   );
 
   const { activeSorts, setActiveSorts, toggleSort, directionFor, sortedData } =
