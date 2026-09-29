@@ -34,7 +34,7 @@ export function Layout() {
 
       <Sidebar />
       <main
-        className={`flex-1 flex flex-col overflow-y-auto relative ${SUPPORT_WIDGET_LAYOUT.shellBottomClearance}`}
+        className={`flex-1 flex flex-col overflow-y-auto relative ${C.bgPage} ${SUPPORT_WIDGET_LAYOUT.shellBottomClearance}`}
       >
         <Outlet />
       </main>

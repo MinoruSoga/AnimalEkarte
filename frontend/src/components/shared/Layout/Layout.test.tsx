@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 
 import { SUPPORT_WIDGET_LAYOUT } from "@/constants/support-widget-layout";
+import { C } from "@/lib/design-tokens";
 
 import { Layout } from "./Layout";
 
@@ -23,6 +24,11 @@ describe("Layout", () => {
   it("main にサポートウィジェット分の下余白を確保する", () => {
     renderLayout();
     expect(screen.getByRole("main")).toHaveClass(SUPPORT_WIDGET_LAYOUT.shellBottomClearance);
+  });
+
+  it("main の下余白はページ背景色で塗り、ページ下端に白帯が透けない", () => {
+    renderLayout();
+    expect(screen.getByRole("main")).toHaveClass(C.bgPage);
   });
 
   it("シェル下余白定数がサポートボタンの占有高さをカバーする", () => {
