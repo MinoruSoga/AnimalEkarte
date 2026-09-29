@@ -2,7 +2,9 @@
 
 > Timeless post-build contract. `backend-deploy.yml` job `deploy-production` is checked in, but **NOT RUNNABLE until [setup.md](setup.md) §1, §6 item 1, and §8 human/provider items are completed and verified.** External resource, billing, Environment, backup, notification, DNS, and database state is verification-required.
 
-Task details and live status belong in Linear. Root [todo.md](../../../../todo.md) is the consolidated entry point, including the `#253` USER gate and [human lane](../../../../todo.md#human-lane); it is not the source of truth for live status.
+Task details and live status belong in Plane. Root [todo.md](../../../../todo.md) is the consolidated entry point, including the `#253` USER gate and [human lane](../../../../todo.md#human-lane); it is not the source of truth for live status.
+
+（2026-09-29 訂正: 実行状態の正本は Linear から Plane へ移行済み（Linear は 2026-09-16 閉鎖・履歴参照のみ）。本書の "Linear" 記述はすべて Plane と読み替える）
 
 ## 1. Release gate and order
 
@@ -86,6 +88,6 @@ The allowlisted host/database and disposable provider ID must come from the appr
 - [ ] workflow `headSha`, Worker/config/route, migrate, and health verified
 - [ ] frontend deployed API target verified
 - [ ] optional synthetic smoke account owner/expiry/cleanup recorded
-- [ ] live issue/date/billing status verified in Linear/provider systems by a human
+- [ ] live issue/date/billing status verified in Plane/provider systems by a human
 
 Unchecked items mean stop. This document does not assert current external state.

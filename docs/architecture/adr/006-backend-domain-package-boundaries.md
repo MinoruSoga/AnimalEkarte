@@ -15,27 +15,27 @@ BE-refactor.md の BE9-2A（本ADRの起票元タスク）は、当時の全761 
 
 ## Implementation outcome（2026-07-24）
 
-本Decisionは実装済み。当初13 target packageは全て現行domain/capability packageへ収束し、2026-07-30に`identitylink`を加えて14 target packageとなった。旧`internal/handler`、`internal/service`、`internal/repository` directoryは**完全削除済み**（2026-07-24 recensus時点では service test-only 14 / repository test-only 50 が残っていたが、その後撤去し test residual も含め directory 自体が存在しない）。3旧layerのproduction implementationとproduction Go import edgeはいずれも0件で、期限付きfacade、巨大`Handler` / `Services` / `Repositories` aggregator、旧transaction facadeは撤去済みである。live mechanical lint gateは`backend/internal/lintscan/`に置く。
+本Decisionは実装済み。当初13 target packageは全て現行domain/capability packageへ収束し、2026-07-30に`identitylink`を加えて14 target packageとなった（2026-09-29 訂正: 現行は `support` を含む **15 target package**。後続の 2026-09-29 amendment を参照）。旧`internal/handler`、`internal/service`、`internal/repository` directoryは**完全削除済み**（2026-07-24 recensus時点では service test-only 14 / repository test-only 50 が残っていたが、その後撤去し test residual も含め directory 自体が存在しない）。3旧layerのproduction implementationとproduction Go import edgeはいずれも0件で、期限付きfacade、巨大`Handler` / `Services` / `Repositories` aggregator、旧transaction facadeは撤去済みである。live mechanical lint gateは`backend/internal/lintscan/`に置く。
 
 `cmd/api`は22 production Go fileへ分割した明示composition rootで、18 fileがtarget domain packageを直接importする。共有能力は実consumerに基づき`audit`、`persistence`、`scheduler`、`sharedkernel`、`textsearch`、`testdb`等へ命名して抽出し、`common`/`util`の無差別bucketは作成していない。移行後の物理file数、manifest 761 rowのprovenance、旧path消滅状況は[boundary map](../be9-2a-boundary-map.md)を正本とする。
 
 2026-07-24のfollow-up hardeningでは、LINE webhookの全setting-secret readを受信前identity解決だけの限定例外とし、一意に署名一致したclinicへowner lookup/updateをscopeした。duplicate secretによる曖昧系はfail closed、owner未登録のtyped NotFoundだけをno-op、真のlookup/update errorはnon-2xx retryへ伝播する。follow/unfollow更新は`clinic_id + owner id + expected line_user_id`とLINE event timestampを使うCASとし、stale・duplicate・out-of-order・再連携前IDは`RowsAffected == 0`の安全なno-op、同時刻はunfollow優先とする。公開LIFF account linkはowner PIIを返さない`204 No Content`とし、LINE ID token検証はredirectを追従しない。billing confirmation/returnは認証済みstaffをactorとし、`Content-Type: application/json`（charset parameter可）以外を415、bodyを8 KiBのexact-key/string strict single-object JSON、trim後non-blankの`return_reason` 500文字、`memo` 1,000文字として境界で強制する。scheduler opsはCloudflare Access JWKSをWorker isolate内で10分cacheし、同時取得を集約、unknown `kid`/upstream failure後のrefreshを60秒cooldownしてfail closedにする。
 
-本ADRのimplemented判定はcode/package境界についての判定であり、release readyを意味しない。fresh DB migration実適用・checksum/rollback確認、remote CI/full coverage artifact、production deploy/configuration、scheduler/observability/alert/recovery rehearsalは Linear hub [BRT-4](https://linear.app/baritechllc/issue/BRT-4) / [`todo.md`](../../../todo.md) の release gate として未実施である（旧 OPS-13〜17 節は死リンク）。
+本ADRのimplemented判定はcode/package境界についての判定であり、release readyを意味しない。fresh DB migration実適用・checksum/rollback確認、remote CI/full coverage artifact、production deploy/configuration、scheduler/observability/alert/recovery rehearsalは Plane workspace `baritechllc` project `EMR`（hub `EMR-1`・case `BRT-4`）/ [`todo.md`](../../../todo.md) の release gate として未実施である（旧 OPS-13〜17 節は死リンク。2026-09-29 訂正: 旧表記「Linear hub BRT-4」→ Linear は 2026-09-16 閉鎖。実行 SoT は Plane、`BRT-4` は case ID の履歴別名）。
 
 ## Decision
 
 ### (a) domain-firstはproject decisionであり、Go/Gin公式の必須構成ではない
 
-Go公式（[Organizing a Go module](https://go.dev/doc/modules/layout)、[Package names](https://go.dev/blog/package-names)）とGin公式（[API design patterns](https://gin-gonic.com/en/docs/routing/api-design/)）は、domain-firstかlayer-firstか、あるいはどちらでもない構成かを規定しない。本ADRが採用するdomain-first境界（下記14 target package）は、AnimalEkarteプロジェクト固有の設計判断であり、[go-gin-backend-guidelines.md](../../../.claude/rules/go-gin-backend-guidelines.md) §2「公式未規定」の範囲内で、ADR-005が示す4基準（凝集性・利用者・依存方向・変更単位）を根拠に確定した。
+Go公式（[Organizing a Go module](https://go.dev/doc/modules/layout)、[Package names](https://go.dev/blog/package-names)）とGin公式（[API design patterns](https://gin-gonic.com/en/docs/routing/api-design/)）は、domain-firstかlayer-firstか、あるいはどちらでもない構成かを規定しない。本ADRが採用するdomain-first境界（下記 target package 群。2026-09-29 訂正: 当初 14 target package → 2026-09-26 の `support` 追加で 15）は、AnimalEkarteプロジェクト固有の設計判断であり、[go-gin-backend-guidelines.md](../../../.claude/rules/go-gin-backend-guidelines.md) §2「公式未規定」の範囲内で、ADR-005が示す4基準（凝集性・利用者・依存方向・変更単位）を根拠に確定した。
 
-**採用するtarget package構成（14 target package + 既存cross-cutting packageの現状維持）**:
+**採用するtarget package構成（15 target package + 既存cross-cutting packageの現状維持）**（2026-09-29 訂正: 「14 target package」→ `support` 追加で 15）:
 
 ```text
 backend/internal/
   owner/ pet/ staff/ auth/ reservation/ trimming/
   medicalrecord/ billing/ inventory/ lstep/
-  clinic/ manualarticle/ httpapi/ identitylink/
+  clinic/ manualarticle/ httpapi/ identitylink/ support/
   # 現状維持（既存の凝集cross-cutting package）:
   config/ dbconn/ middleware/ infra/ model/
   timeutil/ seedbundle/ seedlogin/ logger/ csvimport/
@@ -53,6 +53,8 @@ backend/internal/
 > 2026-09-05 amendment: `seedlogin/` を keep-tier に追加する。migrate フェーズ3の合成デモログイン upsert。runtime の `staffs` write owner は `staff` のまま。14 target domain には含めない。
 
 > 2026-09-07 amendment: `clinicale2e/` を keep-tier に追加する。Playwright clinical E2E 用の disposable clinic fixture（`cmd/clinical-e2e-fixture` のみ）。APP_ENV=`test` + ローカル DB host 以外は拒否し、clinic 1/2 を使わない。14 target domain には含めない。
+
+> 2026-09-29 amendment: `support/` をサポートウィジェット（バグ報告 + LLMヘルプチャット）の vertical slice として target domain に追加（**15 target package**。実装は 2026-09-26 に追加済み。`domainImportAllowlist` の許可 edge は `support → httpapi` のみ。`PermissionMiddleware` / `fileUploader` / `ChatCompleter` は consumer-side interface で composition root が注入し、`apperrors` / `model` 以外の他 domain への production import はない）。
 
 ### Product philosophyに基づく運用境界（project decision）
 
@@ -209,9 +211,11 @@ BE9-2B完了時点では後続phaseの着手前ゲートとして残していた
 
 > **2026-09-07 追補**: 以下の35 top-levelは2026-09-06の照合値。今回の作業ツリー（HEAD `267a17e48` と既存の未コミット差分）では `clinicale2e` を含む **36 top-level package / 14 domain** が `backend/internal/lintscan/package_boundary_gate_test.go` の `accepted_and_bucket_sets_are_disjoint` に固定されている。本ADRの2026-09-07 amendmentと [例外package規律](../exception-package-discipline.md) を現行案内とし、当時の測定値・採択理由は書き換えない。機械ゲートの実行成功やmainへの統合を、この静的照合だけで認定しない。
 
+> **2026-09-29 追補**: 上記 36/14 は当時の pin 値。現行 `package_boundary_gate_test.go`（`requireSetSize`）は `support` を含む **37 top-level package / 15 domain** を pin する（`domainImportAllowlist` は `support → httpapi` のみ許可）。
+
 本文の BE9 measurement・file 数・移行時の tenant 分類は履歴として保持する。現行 contract は以下の source と照合する。
 
-- `internal/lintscan/package_boundary_gate_test.go` は **35 top-level package / 14 domain** を pin する。`seedlogin` は `cmd/migrate` の非本番デモ upsert に加え、`auth/auth_service.go` の catalog 限定非本番認証補助からも使われる。cmd-only とは分類しない（[例外 package 規律](../exception-package-discipline.md)）。
+- `internal/lintscan/package_boundary_gate_test.go` は **37 top-level package / 15 domain** を pin する（2026-09-29 訂正: 「35 top-level package / 14 domain」→ `clinicale2e`・`support` 追加を経て 37/15）。`seedlogin` は `cmd/migrate` の非本番デモ upsert に加え、`auth/auth_service.go` の catalog 限定非本番認証補助からも使われる。cmd-only とは分類しない（[例外 package 規律](../exception-package-discipline.md)）。
 - §(c) の「`Payment` / `BillingItem` / `ExamTypeField` は自前 clinic なし」は採用時の記録である。現行 model では `Payment.ClinicID` / `BillingItem.ClinicID` / `ExamTypeField.ClinicID` が存在し、DDL では `billing_items` / `treatments` / `appointment_trimming_options` の clinic が親から複製される。GORM field の有無と DDL 列の有無は別指標。現行の複合 FK / RLS は [ERD](../erd.md) と `001_init.sql` を参照する。
 - [GitHub #249](https://github.com/MinoruSoga/AnimalEkarte/issues/249) の Phase 2 には `exam_type_fields` の direct clinic scope への移行要求がある。現行の同表、`exam_types` / `exam_reference_ranges` の複合 FK は DDL に実装されている。Issue は取得時点で OPEN であり、臨床 range 承認などの受入まで完了したとは扱わない。
 - nested owner/pet 登録は `owner.PetRegistrar` → `pet.CreateForOwnerRegistration` が同じ ambient transaction に参加する。owner 外の独立した pet insert 経路を作らない（[cross-domain catalog](../cross-domain-orchestration-catalog.md) の `PATH-OWNER-PET-REGISTER`）。

@@ -3,7 +3,7 @@
 > **目的**: 受け入れ結果をシナリオ ID だけでなく業務ドメイン単位で俯瞰する。
 > **正本リンク**: [scenarios/README.md](./scenarios/README.md) · [TEST_ARCHITECTURE.md](./TEST_ARCHITECTURE.md)
 > **更新日**: 2026-09-10
-> **照合**: `QA-UAT-EVIDENCE-SYNC`。2026-09-10 は repo の対象仕様を照合したが、runtime は再実行していない。`reports/` は gitignore。コミット済み正本は本ファイルと [`todo.md#product-bugs`](../../../todo.md#product-bugs)。Linear は未照会（UNKNOWN）。
+> **照合**: `QA-UAT-EVIDENCE-SYNC`。2026-09-10 は repo の対象仕様を照合したが、runtime は再実行していない。`reports/` は gitignore。コミット済み正本は本ファイルと [`todo.md#product-bugs`](../../../todo.md#product-bugs)。Linear は未照会（UNKNOWN）。※2026-09-29 訂正: Linear は 2026-09-16 に閉鎖済みで照会先として存在しない。実行状態の正本は Plane（workspace `baritechllc` / Project `EMR`）であり、本書の "Linear で追跡" 等の記述はすべて Plane と読み替える。Plane 側の最新状態は本更新では未照会（UNKNOWN）。
 
 最終実行スナップショット（2026-09-05 / `uat/20260905` @ `2cbd8d9ad` / local FE :3003 · BE :8080）:
 
@@ -212,7 +212,7 @@ flowchart LR
     R[受け入れ再実行] --> U[実施日・status・ギャップ・bug ID を更新]
     U --> Q{製品 FAIL}
     Q -->|確認済み FAIL のみ| T["todo.md product-bugs で dedupe・記録"]
-    T --> L[Linear で追跡]
+    T --> L[Plane で追跡]
     Q -->|PARTIAL / BLOCKED| N[todo.md へ書かない]
     R -. 証跡 .-> E["reports uat-YYYY-MM-DD<br>scenario 本文は編集しない"]
 ```

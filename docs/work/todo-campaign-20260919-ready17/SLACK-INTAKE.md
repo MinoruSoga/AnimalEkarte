@@ -1,5 +1,7 @@
 # SLACK-INTAKE: Slack トピックの分類照合（既存 ID へ、todo-issue.md は編集しない）
 
+> 2026-09-29 注記: 現在のタスク状態の正本は Plane `EMR-117`。本文の「READY」「UNKNOWN」等の状態語は当時の調査・証跡記録であり現在の実行状態を示さない。ID 対応は [migration receipt](../plane-md-migration-20260923-receipt.md) と末尾「Plane 対応表（2026-09-28）」節。
+
 状態: **分類照合 READY／外部シート照合 UNKNOWN／製品実装なし**。2026-09-28 追記: 要望窓口はスプシ Q&A に一本化済み（ユーザー判断）。45キー→Plane 現行 ID の対応は末尾「Plane 対応表（2026-09-28）」節。Slack 側の継続照合はしない。出典は [todo-issue.md](../../../todo.md#issue-ledger) 見出し `### SLACK-INTAKE`（L166–170、索引 L434）と親 `1789550614.370909`（出典 1000–1063）。保持する現場条件:
 
 - 受付/看護の窓口は **Q&A の 1内容1件分類**であり、新しい EMR 受付画面ではない

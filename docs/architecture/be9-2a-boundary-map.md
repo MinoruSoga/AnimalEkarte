@@ -3,12 +3,12 @@
 > 対象: 旧BE-refactor.md BE9-2A（2026-07-24退役・経緯はgit履歴）。
 > 実行日: 2026-07-19。手法: codegraph(callers/callees/explore) + grep/rg + git log を第一手段とする再実測（旧 BE8/§9 の file-prefix 分類はそのまま正本にせず、再実測との差分を§6に記録）。
 > 分類マニフェスト（全761 production Go source row、未分類0件）: [be9-2a-classification-manifest.csv](be9-2a-classification-manifest.csv)。移行後target packageの物理file数とは別指標。
-> **本docは BE9-2A 分類と boundary inventory の historical source record**。target設計の現行裁定は[ADR-006](adr/006-backend-domain-package-boundaries.md)。BE9移行は2026-07-24にcode complete（release pending）となり、release gate の作業入口は Linear hub [BRT-4](https://linear.app/baritechllc/issue/BRT-4) と [`todo.md`](../../todo.md)（旧 OPS-13〜17 節は死リンク）。
+> **本docは BE9-2A 分類と boundary inventory の historical source record**。target設計の現行裁定は[ADR-006](adr/006-backend-domain-package-boundaries.md)。BE9移行は2026-07-24にcode complete（release pending）となり、release gate の作業入口は Plane workspace `baritechllc` project `EMR` hub `EMR-1`（case `BRT-4`）と [`todo.md`](../../todo.md)（旧 OPS-13〜17 節は死リンク。2026-09-29 訂正: 旧表記「Linear hub BRT-4」→ Linear は 2026-09-16 閉鎖。実行 SoT は Plane、`BRT-4` は case ID の履歴別名）。
 > **2026-07-24 final recensus**: 本文のcall-site、fan-in/out、file pathは明示がない限りBE9-2A開始時snapshotであり、現行作業listではない。13 target packageは全て移行済みで、BE9はcode complete / release pending。
 
 ## 現行コードへの参照（2026-09-06）
 
-下記の歴史的な「ギャップあり」「tx なし」「ClinicID なし」は 2026-07 の分類時点の観測であり、現在の不具合一覧として使わない。現行の隔離・transaction・owner 境界は [ADR-006 の現行補足](adr/006-backend-domain-package-boundaries.md#現行実装への補足2026-09-06)、[ERD](erd.md)、[cross-domain catalog](cross-domain-orchestration-catalog.md) と各 domain の実装・回帰テストを参照する。`acceptedTopLevelPackages` は `seedlogin` と `clinicale2e` を含む 36 package、domain 集合は 14 のまま（`internal/lintscan/package_boundary_gate_test.go`）。分類 CSV の 761 source row は変更しない。
+下記の歴史的な「ギャップあり」「tx なし」「ClinicID なし」は 2026-07 の分類時点の観測であり、現在の不具合一覧として使わない。現行の隔離・transaction・owner 境界は [ADR-006 の現行補足](adr/006-backend-domain-package-boundaries.md#現行実装への補足2026-09-06)、[ERD](erd.md)、[cross-domain catalog](cross-domain-orchestration-catalog.md) と各 domain の実装・回帰テストを参照する。`acceptedTopLevelPackages` は `seedlogin` と `clinicale2e` を含む 37 package、domain 集合は 15（`internal/lintscan/package_boundary_gate_test.go` が 37/15 を pin。2026-09-29 訂正: 「36 package・domain 14 のまま」→ 2026-09-26 の `support` 追加で 37/15）。分類 CSV の 761 source row は変更しない。
 
 ## 0. 結論（Success Criteria 対応）
 
@@ -503,7 +503,7 @@ BE9-2Aでは、`target:lstep` 119 source rowを機能群ごとに比較して次
 
 独立`internal/line`は作らない。liffはreservationへ統合済み。
 
-**最終実装状態（2026-07-24）**: L①`6bae6095d`、L②`2ef112227`、L③a`d333d63ac`、L③b`ba5767e88`+`5fdfa11fa`、L④`62a09f62e`+`860bd5020`、L⑥`849c27524`+`962ce70e3`は完遂。L⑤は`0fd34c7b7`+`f8a4df073`+`4e8fb5b91`でcode landing完遂 / release pending、BE9-2E-0は`de15c7903`で完遂した。現行`internal/lstep`はproduction Go 131 file、manifestの`target:lstep` 119 source rowは旧path実在0件。L⑤のfresh DB migration実適用はrelease gateとして残る。Session A/Bのfrontier計画は全domain移行完了により履歴化し、詳細はgit履歴、release gate の作業入口は Linear hub [BRT-4](https://linear.app/baritechllc/issue/BRT-4) と [`todo.md`](../../todo.md)（旧 OPS-13〜17 節は死リンク）。
+**最終実装状態（2026-07-24）**: L①`6bae6095d`、L②`2ef112227`、L③a`d333d63ac`、L③b`ba5767e88`+`5fdfa11fa`、L④`62a09f62e`+`860bd5020`、L⑥`849c27524`+`962ce70e3`は完遂。L⑤は`0fd34c7b7`+`f8a4df073`+`4e8fb5b91`でcode landing完遂 / release pending、BE9-2E-0は`de15c7903`で完遂した。現行`internal/lstep`はproduction Go 131 file、manifestの`target:lstep` 119 source rowは旧path実在0件。L⑤のfresh DB migration実適用はrelease gateとして残る。Session A/Bのfrontier計画は全domain移行完了により履歴化し、詳細はgit履歴、release gate の作業入口は Plane workspace `baritechllc` project `EMR` hub `EMR-1`（case `BRT-4`）と [`todo.md`](../../todo.md)（旧 OPS-13〜17 節は死リンク。2026-09-29 訂正: 旧表記「Linear hub BRT-4」→ Linear は 2026-09-16 閉鎖。実行 SoT は Plane、`BRT-4` は case ID の履歴別名）。
 
 ## 9. 実測手法の限界（正直な明記）
 

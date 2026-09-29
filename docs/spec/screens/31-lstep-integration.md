@@ -94,19 +94,21 @@ flowchart TB
 | GET | `/api/v1/clinics/:clinic_id/lstep-tag-code-mappings` | タグ名ごとの外部コード紐付け取得 | `hospital-settings` | `view` |
 | PUT | `/api/v1/clinics/:clinic_id/lstep-tag-code-mappings/:tag_name` | タグ別コード紐付け更新 | `hospital-settings` | `edit` |
 | GET | `/api/v1/lstep-tag-config/auto-managed-prefixes` | 自動管理プレフィックス一覧取得 | `hospital-settings` | `view` |
-| POST | `/api/v1/lstep-tag-config/auto-managed-prefixes` | 自動管理プレフィックス追加 | `hospital-settings` | `create` |
-| DELETE | `/api/v1/lstep-tag-config/auto-managed-prefixes/:id` | 自動管理プレフィックス削除 | `hospital-settings` | `delete` |
+| POST | `/api/v1/lstep-tag-config/auto-managed-prefixes` | 自動管理プレフィックス追加 | システム管理者のみ（RBAC 非対象・`requireSystemAdmin()`） | — |
+| DELETE | `/api/v1/lstep-tag-config/auto-managed-prefixes/:id` | 自動管理プレフィックス削除 | システム管理者のみ（同上） | — |
 | GET | `/api/v1/lstep-tag-config/condition-tag-mappings` | 条件別タグマッピング一覧取得 | `hospital-settings` | `view` |
-| POST | `/api/v1/lstep-tag-config/condition-tag-mappings` | 条件別タグマッピング追加。慢性疾患コード重複は `localizeAlreadyExistsMessage` がコード値を含む日本語にする（例: 「慢性疾患コード『ckd』は既に使用されています」） | `hospital-settings` | `create` |
-| DELETE | `/api/v1/lstep-tag-config/condition-tag-mappings/:id` | 条件別タグマッピング削除 | `hospital-settings` | `delete` |
+| POST | `/api/v1/lstep-tag-config/condition-tag-mappings` | 条件別タグマッピング追加。慢性疾患コード重複は `localizeAlreadyExistsMessage` がコード値を含む日本語にする（例: 「慢性疾患コード『ckd』は既に使用されています」） | システム管理者のみ（同上） | — |
+| DELETE | `/api/v1/lstep-tag-config/condition-tag-mappings/:id` | 条件別タグマッピング削除 | システム管理者のみ（同上） | — |
 | GET | `/api/v1/lstep-tag-config/send-purpose-tag-prefixes` | 送信目的別タグプレフィックス一覧取得 | `hospital-settings` | `view` |
-| POST | `/api/v1/lstep-tag-config/send-purpose-tag-prefixes` | 送信目的別タグプレフィックス追加 | `hospital-settings` | `create` |
-| DELETE | `/api/v1/lstep-tag-config/send-purpose-tag-prefixes/:id` | 送信目的別タグプレフィックス削除 | `hospital-settings` | `delete` |
+| POST | `/api/v1/lstep-tag-config/send-purpose-tag-prefixes` | 送信目的別タグプレフィックス追加 | システム管理者のみ（同上） | — |
+| DELETE | `/api/v1/lstep-tag-config/send-purpose-tag-prefixes/:id` | 送信目的別タグプレフィックス削除 | システム管理者のみ（同上） | — |
 | POST | `/api/v1/owners/:id/line/link-token` | 飼主LINE連携用の単回token発行 | `owners` | `edit` |
 | POST | `/api/liff/:clinicId/link` | LIFFでLINE ID tokenを検証し飼主へ原子的に紐付け | 公開token検証 | — |
 | GET | `/api/v1/clinics/:clinic_id/lstep/analytics/delivery-stats` | 月次配信統計の取得 | `lstep-analytics` | `view` |
 | GET | `/api/v1/clinics/:clinic_id/lstep/analytics/visit-conversion` | 来院転換データの集計 | `lstep-analytics` | `view` |
 | GET | `/api/v1/clinics/:clinic_id/lstep/csv-imports` | 友だち属性 CSV インポート履歴の取得 | `lstep-csv-import` | `view` |
 | POST | `/api/v1/clinics/:clinic_id/lstep/csv-imports/friend-attributes` | 友だち属性 CSV のアップロード | `lstep-csv-import` | `edit` |
+
+> 2026-09-29 訂正: `lstep-tag-config` 配下の POST/DELETE は `hospital-settings` の create/delete 権限 → **システム管理者専用**（`requireSystemAdmin()`、`is_system_admin` 判定）。GET は `hospital-settings:view` のまま。全医院共通の自動タグ設定を単一医院権限で変更できないよう SOLO-09 / LSA-04 / DEC-30 で意図的に閉じた（`backend/internal/lstep/routes.go`）。
 
 ---

@@ -1,5 +1,7 @@
 # SLACK-EXAM-HISTORY — legacy exam-history mapping
 
+> 2026-09-29 注記: 現在のタスク状態の正本は Plane `MIG-18`（データ移行 Project）。本文の「UNKNOWN」「未実行」等の状態語は当時の調査・証跡記録であり現在の実行状態を示さない。ID 対応は [migration receipt](../plane-md-migration-20260923-receipt.md)。
+
 Campaign `remaining-ops-20260920` revision 1, unit `SLACK-EXAM-HISTORY`, claim `claim/SLACK-EXAM-HISTORY`.
 Attempt `att-slack-exam-history-20260920-001`. Prompt SHA `892801857a136265bc8d792bafc776dc3972a4754545ac30b9b59f372de8dcfb`.
 Worktree `/Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte-rem-slack-exam-history` on `feat/rem-slack-exam-history-20260920` at HEAD `873685b0b`. Sheet date: 2026-09-21.

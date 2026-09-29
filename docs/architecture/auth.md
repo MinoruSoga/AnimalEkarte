@@ -5,7 +5,7 @@
 > **タイミング**: 認可ロジックの実装時・レビュー時。
 
 > **Animal Ekarte**: マルチクリニック対応の堅牢なセキュリティ基盤
-> **バージョン**: v9.2 | **最新更新**: 2026-09-11
+> **バージョン**: v9.3 | **最新更新**: 2026-09-29
 
 ---
 
@@ -107,8 +107,9 @@ sequenceDiagram
 
 ### 4.2 マルチテナント分離 (X-Clinic-ID)
 - ログイン時に許可された `clinic_ids` のスナップショットをトークンに封入しますが、通常リクエストの最終 authority としては使用しません。
-- 原則としてリクエストごとに account、staff、clinic assignment、対象 clinic の現在状態を `backend/internal/auth/current_access_service.go` で再解決します。production composition は `NewCachedCurrentAccessResolver` を挟みません。スタッフ無効化・所属解除・パスワード変更の **DB commit 後に受け付ける次のリクエスト** から拒否します。commit 前に受け付けた処理の取消しは保証しません。lookup 障害は 503 です。
-- 2026-09-10 に、同じ disposable DB を使う独立 2 プロセス検証を実施した。staff 無効化・clinic 所属解除・password epoch 後の旧 session 拒否、所属解除時の未変更医院アクセス維持、および p95 +2.5% を確認した。この証拠は disposable local 環境に限られ、STG/PROD・本番 login・DB statements/request を証明しない（DB statements/request は UNKNOWN）。`current_access_cache.go` は残置しますが、最終認可の入力には使いません。
+- 原則としてリクエストごとに account、staff、clinic assignment、対象 clinic の現在状態を `backend/internal/auth/current_access_service.go` で再解決します。production composition は `composition_auth.go` の `currentAccessCacheTTL()` で `CURRENT_ACCESS_CACHE_TTL_SEC` を読み、正の整数のときのみ `NewCachedCurrentAccessResolver` を挟みます（未設定・非数値・0 以下は無効。合成データのみの STG で vars 設定により有効化する前提の env gate）。キャッシュ無効時はスタッフ無効化・所属解除・パスワード変更の **DB commit 後に受け付ける次のリクエスト** から拒否します。キャッシュ有効時は反映が最大 TTL 分遅延します。commit 前に受け付けた処理の取消しは保証しません。lookup 障害は 503 です。
+  - （2026-09-29 訂正: 「production composition は `NewCachedCurrentAccessResolver` を挟みません」→ 2026-09-22 d96c4ba27 で env-gated wiring 追加。既定は無効で `CURRENT_ACCESS_CACHE_TTL_SEC`>0 のみ有効。`composition_auth_cache_contract_test.go` が無条件配線を静的に拒否）
+- 2026-09-10 に、同じ disposable DB を使う独立 2 プロセス検証を実施した。staff 無効化・clinic 所属解除・password epoch 後の旧 session 拒否、所属解除時の未変更医院アクセス維持、および p95 +2.5% を確認した。この証拠は disposable local 環境に限られ、STG/PROD・本番 login・DB statements/request を証明しない（DB statements/request は UNKNOWN）。`current_access_cache.go` は既定では最終認可の入力に使われず、上記 env gate が有効な場合のみ TTL キャッシュとして使います（2026-09-29 訂正: 「最終認可の入力には使いません」→ env gate 有効時のみ使用。cache 有効化は STG 合成データ向けの非既定措置）。
 - request-time authority lookup の一時的な取得障害も fail closed とし、middleware は 503 を返します。JWT の clinic snapshot を continuity authority に昇格しません。failure notifier は運用通知専用であり、認可結果を変更しません。
 - 一般スタッフの `X-Clinic-ID` は、現在有効な所属クリニックとの一致を必須とします。
 - システム管理者も任意の正数 clinic ID を選択できるわけではなく、現在存在する `is_active=true` のクリニックだけを選択できます。stale な main clinic は有効な集合から再選択し、有効な clinic がなければ拒否します。
@@ -152,7 +153,7 @@ Cookie認証を使う保護routeとlogin/refresh/logoutには `RequireXRequested
 
 `RequirePermission` / `RequirePermissionAny` の既定は **選択医院の grant のみ** です。GET/HEAD でも所属する他院の grant では通りません。横断一覧・詳細は `RequirePermissionAllowingAssignedClinicGrant`（または Any 版）を composition で明示し、handler が宛先医院ごとに Filter/Authorize します。同じ composition の医院固定 handler は `RequireSelectedClinicGrant` または `extractSelectedClinicGrant` で選択医院を再確認します。
 
-全件の静的対応表は [`get_head_permissions.json`](../../backend/cmd/api/testdata/get_head_permissions.json) です。各行に method/path、handler、resource/action、登録式、認可位置、返却範囲、回帰テスト参照、検証の限界を記録します。[分類テスト](../../backend/cmd/api/get_head_permission_classification_test.go) は登録集合と台帳を双方向照合し、既知 prefix 内の追加も含め、追加・削除・method/handler 変更を拒否します。登録式の変更と参照先の欠落も検出します。local storage は 203 件、S3 設定では uploads の GET/HEAD を除く 201 件です。
+全件の静的対応表は [`get_head_permissions.json`](../../backend/cmd/api/testdata/get_head_permissions.json) です。各行に method/path、handler、resource/action、登録式、認可位置、返却範囲、回帰テスト参照、検証の限界を記録します。[分類テスト](../../backend/cmd/api/get_head_permission_classification_test.go) は登録集合と台帳を双方向照合し、既知 prefix 内の追加も含め、追加・削除・method/handler 変更を拒否します。登録式の変更と参照先の欠落も検出します。local storage は 207 件、S3 設定では uploads の GET/HEAD を除く 205 件です。（2026-09-29 訂正: 203 件 / 201 件 → 207 件 / 205 件。support chat 等の GET/HEAD 追加で台帳行が増加）
 
 | 分類 | 認可 | 代表経路 |
 |:---|:---|:---|

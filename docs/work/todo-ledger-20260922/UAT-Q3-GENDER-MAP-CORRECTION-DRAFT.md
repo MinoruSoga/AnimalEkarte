@@ -1,5 +1,7 @@
 # UAT-Q3-GENDER-MAP — STG 限定訂正票ドラフト
 
+> 2026-09-29 注記: 現在のタスク状態の正本は Plane `MIG-16`（2026-09-29 読取: **Needs Human**）。本票は実行には operator 承認が必要な DRAFT のままであり、STG/DB への変更は行われていない。ID 対応は [migration receipt](../plane-md-migration-20260923-receipt.md)。
+
 - campaign: `todo-ledger-20260922` rev 1 / unit `PREP-GENDER-MAP` / attempt `att-gender-20260922-001`
 - 作成日: 2026-09-22 / 状態: **DRAFT — 実行には別途 operator 承認が必要。本票の作成は STG/DB へのいかなる変更も承認しない**
 - 前提資料: 対応表 `UAT-Q3-GENDER-MAP.md`（同ディレクトリ）、`todo-operations.md` §UAT-Q3-GENDER-MAP（着手プラン L91-93・実行票フォーマット L10-13）、`docs/work/stg-uat-clinic-feedback-q1-q4.md` §UAT-Q3-GENDER-MAP

@@ -1,5 +1,7 @@
 # DEV-V-OWNER-DB — owner 実DBテスト5ケース 分類表・実行案
 
+> 2026-09-29 注記: 現在のタスク状態の正本は Plane `EMR-125`。本文の Verdict・「未実行」等の状態語は当時の調査・証跡記録であり現在の実行状態を示さない。ID 対応は [migration receipt](../plane-md-migration-20260923-receipt.md)。
+
 Campaign `todo-ledger-20260922` revision 1. Unit `PREP-OWNER-DB`. Attempt `att-ownerdb-20260922-001`. Claim `claim/PREP-OWNER-DB`. Prompt SHA-256 `e310635f05cdf6b1f18ec7b01fcb551e39e0ad7249e506252e92f1e38b54229e`. Acceptance SHA-256 `eb29c3e114aa906e8e1eb8592f00131b11412904ef1d601f5ebbbe48431c4d1d`.
 
 Sheet date: 2026-09-22. Worktree HEAD `1a2a4fe4e6ac5a401a637172a365b2d081393c17` (branch `claim/PREP-OWNER-DB`)。本票は**過去 receipt と現行ソースの読取照合のみ**。実DB実行・`TEST_DATABASE_URL` 実値の取得・Docker での `go test` 実行・共有DB接続は本 unit の範囲外であり、本票はそれらの**実行案**を定める。分類は過去 receipt の実在証跡のみに基づき、証跡なしは未実行とする。未実行・SKIP を PASS にしない・パッケージの exit 0 を充足にしない。

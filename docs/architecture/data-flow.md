@@ -5,7 +5,7 @@
 > **タイミング**: リクエスト処理フローを具体的に理解したい時。
 
 > **Animal Ekarte**: リクエストからレスポンス、バックグラウンド処理までの追跡
-> **最新更新**: 2026-09-06（一覧取得と会計確定の実装経路を照合）
+> **最新更新**: 2026-09-29（Linear → Plane 実行 SoT 訂正）
 
 ---
 
@@ -98,7 +98,9 @@ sequenceDiagram
     - Read 系（`GetUserTags` 等）は deploy gate の対象外で稼働し得る。運用詳細は [`LSTEP_WRITE_API_PAUSE.md`](../ops/deploy/LSTEP_WRITE_API_PAUSE.md)。
 5.  **記録**: 処理結果は `slog` とタグキャッシュ（`lstep_tag_cache_repository.go` の UpsertTag/DeleteTag）に反映。API 失敗はエラーカウンターに記録し、閾値到達で `EXCL_カルテ連携エラー` タグを付与。タグ同期経路では `audit_logs` / `lstep_delivery_trigger_log` への記録は行わない（後者は自動配信トリガー専用ログ）。
 
-このコード配線は Lステップの運用再開の証明ではない。[GitHub #259](https://github.com/MinoruSoga/AnimalEkarte/issues/259) は 2026-09-06 取得時点で OPEN。先方 enable、STG 実配信、cron/停止手段の実測は別途必要で、再開条件の正本は同 Issue の後続コメントと運用 runbook を参照する。
+このコード配線は Lステップの運用再開の証明ではない。[GitHub #259](https://github.com/MinoruSoga/AnimalEkarte/issues/259) は 2026-09-06 取得時点で OPEN。先方 enable、STG 実配信、cron/停止手段の実測は別途必要で、実行状態の正本は Plane workspace `baritechllc` project `EMR`、再開条件の運用詳細は運用 runbook を参照する。
+
+（2026-09-29 訂正: 「再開条件の正本は同 Issue の後続コメントと運用 runbook」→ Linear は 2026-09-16 に閉鎖し GitHub Issue は旧仕様・議論の証跡。実行状態は Plane `EMR` を参照。Issue 自体は履歴証跡として保持）
 
 ---
 

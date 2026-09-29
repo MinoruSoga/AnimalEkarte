@@ -1,5 +1,7 @@
 # SLACK-MANUAL-URINE: 手入力尿試験紙の保存・再読込・表示設計
 
+> 2026-09-29 注記: 現在のタスク状態の正本は Plane `EMR-86`。本文の「READY」「PASS」等の状態語は当時の調査・証跡記録であり現在の実行状態を示さない。ID 対応は [migration receipt](../plane-md-migration-20260923-receipt.md)。
+
 状態: **手入力経路の受入設計 READY／合成検証 M1–M8 PASS（M4 local PASS）**。出典は [todo-issue.md](../../../todo.md#issue-ledger) 見出し `### SLACK-MANUAL-URINE`（9月9日返信 212–294）。敷島/猫は尿試験紙を**目視**、城東/八王子は**機器測定**と明示されている。本票は手動結果の UI → request → 永続化 → 再読込 → カルテ/検歴表示を現行コードへ対応づける。機器受信へ統合しない。臨床的な陽性/陰性の意味・院別カットオフは推定しない。ready5 residual unit `SLACK-MANUAL-URINE` / attempt `att-urine-20260922-001` がカルテ検査タブ M4 合成回帰を許可（医院カットオフ発明なし）。
 
 機器受信そのものは todo-issue の `### SLACK-LAB`（同出典ブロック）へ分離する。実装済み受信コードを手入力の完了根拠にしない。

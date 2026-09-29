@@ -1,8 +1,8 @@
 # 統合テスト・品質保証計画書 (Integration Test Plan)
 
 > **目的**: 自動テスト実装と性能試験の現状を定義する。層定義は [TEST_ARCHITECTURE.md](TEST_ARCHITECTURE.md) を正本とする。
-> **ステータス**: strategy document。execution state は CI、Linear、UAT report で追跡する。
-> **最新更新**: 2026-09-06
+> **ステータス**: strategy document。execution state は CI、Plane、UAT report で追跡する（2026-09-29 訂正: 旧記述は Linear。Linear は 2026-09-16 閉鎖・実行状態の正本は Plane workspace `baritechllc` / Project `EMR`）。
+> **最新更新**: 2026-09-29
 
 ## 1. Unit と API integration
 
@@ -22,7 +22,7 @@ docker compose exec backend go test ./internal/<domain>/... -run '<Name>' -count
 
 実装済み specs は route/smoke/search と selected CRUD/flow regression が中心である。reservation-to-accounting や inpatient-to-billing の完全 journey を自動保証しない。詳細は [E2E guide](E2E_TESTING_GUIDE.md)。
 
-Current supported route は local `make e2e` / `frontend/scripts/run-e2e.sh`。`.github/workflows/e2e.yml` は manual・non-gating の `auth-flows.spec.ts` のみで、`APP_ENV=test` と合成 `E2E_LOGIN_*` を配線済み。`--clinical` は別の fixture/allowlist を持つ（[設計と実装境界](CLINICAL-E2E-DESIGN.md)）。auth smoke・clinical・全 suite を別々に評価し、実行証跡がないものを PASS としない。
+Current supported route は local `make e2e` / `frontend/scripts/run-e2e.sh`。`.github/workflows/e2e.yml` は manual・non-gating の workflow_dispatch で、`inputs.suite` が `auth-smoke`（`auth-flows.spec.ts`・`APP_ENV=test`・合成 `E2E_LOGIN_*`）/ `clinical` / `v04` を `run-e2e.sh` の同名モードへ振り分ける（2026-09-29 訂正: 旧記述は「`auth-flows.spec.ts` のみ」。2026-09-28・EMR-128 で suite 振り分け配線済み。Actions 実行証跡は未）。`--clinical` / `--v04` は別の fixture/allowlist と disposable clinic setup/teardown を持つ（[設計と実装境界](CLINICAL-E2E-DESIGN.md)）。auth smoke・clinical・全 suite を別々に評価し、実行証跡がないものを PASS としない。
 
 L4 の宣言 inventory は [scenarios/](scenarios/README.md)。wildcard/`要実測` gap が残るため exhaustive field coverage は未確立。
 
@@ -43,12 +43,12 @@ L4 の宣言 inventory は [scenarios/](scenarios/README.md)。wildcard/`要実�
 1. `make up` は existing named Postgres volume を使うため「clean environment」ではない。
 2. destructive clean DB contract (`make reset`) は user-only。agent は実行しない。
 3. E2E/k6 は disposable local DB または approved isolated UAT tenant のみ。shared STG/production は禁止。
-4. execution result は CI artifact、Linear、または `reports/uat-YYYY-MM-DD/` に記録する。strategy document を PASS evidence にしない。
+4. execution result は CI artifact、Plane、または `reports/uat-YYYY-MM-DD/` に記録する。strategy document を PASS evidence にしない。
 
 ```mermaid
 flowchart TB
     Q{実行対象環境} -->|disposable local DB| OK[実行可]
     Q -->|承認済み isolated UAT tenant| OK
     Q -->|shared STG / production| NG[禁止]
-    OK --> R["記録先<br>CI artifact / Linear / reports uat-YYYY-MM-DD"]
+    OK --> R["記録先<br>CI artifact / Plane / reports uat-YYYY-MM-DD"]
 ```

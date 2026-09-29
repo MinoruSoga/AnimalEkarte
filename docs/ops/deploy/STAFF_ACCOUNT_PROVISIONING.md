@@ -227,7 +227,7 @@ sequenceDiagram
 | I-ENV | 適用先（local / STG / PROD）と承認 | apply は USER。PROD は #253/#254 gate 後 | USER | **未記入** |
 | I-RECEIPT | 認可済み適用証跡（PII-free `batch_id` / digest / count） | #255 AC（発行・権限・audit） | USER apply 後 | **未記入** |
 
-**やらない:** 架空スタッフの invent、repo への実 roster コミット、本番 apply、PII を Issue / Linear に書く。
+**やらない:** 架空スタッフの invent、repo への実 roster コミット、本番 apply、PII を Issue / Plane へ書く。
 
 ## 検証（開発）
 

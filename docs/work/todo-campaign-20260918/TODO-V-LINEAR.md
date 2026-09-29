@@ -1,5 +1,7 @@
 # TODO-V-LINEAR — 既存 Linear Issue の読取照合票
 
+> 2026-09-29 注記: 本票は 2026-09-18 時点の Linear 読取照合記録。現在のタスク状態の正本は Plane `EMR-135`（2026-09-29 読取: **Cancelled** — Linear 閉鎖により meta 照合タスクは終了）。Linear は 2026-09-16 に閉鎖済みで履歴参照のみ。文中の Linear 照会手順・Issue 参照は当時の記録。ID 対応は [migration receipt](../plane-md-migration-20260923-receipt.md)。
+
 照会時刻: 2026-09-18 23:22–23:23 JST。使用操作: Linear MCP `get_issue`、`list_issues`、`list_comments`（読取専用）。Issue 作成・更新・コメント・状態変更は未実施。
 
 ## 判定の境界

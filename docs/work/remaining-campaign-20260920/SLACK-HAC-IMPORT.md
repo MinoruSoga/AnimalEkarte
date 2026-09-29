@@ -1,5 +1,7 @@
 # SLACK-HAC-IMPORT — Hachioji send-report versus formal-bundle gap
 
+> 2026-09-29 注記: 現在のタスク状態の正本は Plane `MIG-17`（データ移行 Project）。本文の「UNKNOWN」「未実施」等の状態語は当時の調査・証跡記録であり現在の実行状態を示さない。ID 対応は [migration receipt](../plane-md-migration-20260923-receipt.md)。
+
 Campaign `remaining-ops-20260920` revision 1. Unit `SLACK-HAC-IMPORT`. Attempt `att-slack-hac-import-20260920-001`. Claim `claim/SLACK-HAC-IMPORT`. Prompt SHA `d8f01b0ab40018702f19cad3b29c5a0079a05a05deaef7bea6b50f8bc2a494b4`. Acceptance-checklist SHA `acb2c08201c840f94fa9823557fd0724486c3d0a22a771c1fbae74298ccbaf7b`.
 
 Worktree `/Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte-rem-slack-hac-import` on `feat/rem-slack-hac-import-20260920` at HEAD `873685b0bea3692c2f8100b19ded660c8357f2b0`. Sheet date: 2026-09-20. Local files only.

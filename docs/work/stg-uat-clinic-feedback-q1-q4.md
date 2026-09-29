@@ -1,5 +1,7 @@
 # STG UAT 医院フィードバック Q1–Q4（回答原文と修正タスク）
 
+> 2026-09-29 注記: 本票の各「状態」列・§4 推奨順・§6 結果は 2026-09-15〜17 時点の記録。現行のタスク状態は Plane を正本とする（2026-09-29 読取: UAT-R2-MASTER-PATH=`EMR-84` Done、UAT-R2-EXCLUSIVE-LOCK=`EMR-85` Done、UAT-R2-TREATMENT-COMMIT=`EMR-120` Done、UAT-R2-MASTER-LIST-HEIGHT=`EMR-121` Done、UAT-Q1-SEARCH-AND=`EMR-122` Done、UAT-Q4-INSURANCE-RATES=`EMR-123` Done、UAT-Q2-HISTORY-NAV=`EMR-124` Done、UAT-R2-CHART-FIT=`EMR-181` Done、UAT-Q3-GENDER-MAP=`MIG-16` Needs Human、UAT-Q2-TREATMENTS-IMPORT=`MIG-15` Ready、UAT-Q2-VACCINE-SPECIES=`EMR-106` Ready、UAT-Q4-UNPAID-TRIAGE=`EMR-107` Backlog、PO-PET-DECEASED-DATA-BACKFILL=`EMR-108`）。対応表の正本は [migration receipt](./plane-md-migration-20260923-receipt.md)。Linear は 2026-09-16 に閉鎖済みで、文中の Linear 参照は当時の記録。
+
 作成: 2026-09-15。やりとり最終更新: 2026-09-15（第1報・第2報を原文+回答の並記に変更）。  
 入口: [docs/work/README.md](./README.md) の補助表。  
 範囲: 医院とのやりとり（各問に原文と回答を並べる）と修正タスク。第1報は §1。第2報は §7。  

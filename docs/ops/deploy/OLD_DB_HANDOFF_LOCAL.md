@@ -118,6 +118,6 @@ make old-db-handoff-check
 
 ## 現行 bundle の状態確認
 
-run ID、producer status、formal eligibility は変動するため、この安定手順には固定しません。実行状態は Linear、未完了作業の入口はリポジトリ直下 `todo.md` を確認します。run ID・digest・eligibility の実値は受領した current manifest と producer report を照合します。
+run ID、producer status、formal eligibility は変動するため、この安定手順には固定しません。実行状態は Plane、未完了作業の入口はリポジトリ直下 `todo.md` を確認します。run ID・digest・eligibility の実値は受領した current manifest と producer report を照合します。（2026-09-29 訂正: 実行状態の正本を Linear としていた → Linear は 2026-09-16 閉鎖、現行 SoT は Plane。移行対応表は `docs/work/plane-md-migration-20260923-receipt.md`）
 
 `_old_db_handoff/<clinic>/` にファイルが存在するだけでは formal eligibility を示しません。`REHEARSAL_ONLY` / `UNVERIFIED` / `PARTIAL` は正式 F6 preflight へ渡しません。共有 STG へ載せる場合は `make stg-uat-handoff`（城東・敷島・箱。八王子は対象外）を使い、formal cutover には current manifest が `TRUSTED_CANDIDATE` / `PASS` であることを改めて確認します。

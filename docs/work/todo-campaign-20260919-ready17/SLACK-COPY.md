@@ -1,5 +1,7 @@
 # SLACK-COPY: 同一医院/ペットの前回記録を選択コピー（preview / 取消、請求済み ID は流用しない）
 
+> 2026-09-29 注記: 現在のタスク状態の正本は Plane `EMR-102`。本文の「READY」「未実行」等の状態語は当時の調査・証跡記録であり現在の実行状態を示さない。ID 対応は [migration receipt](../plane-md-migration-20260923-receipt.md)。
+
 状態: **転記削減の設計 READY／複写の保存意味は PO 未確定／製品実装・実機受入 未実行**。出典は [todo-issue.md](../../../todo.md#issue-ledger) 見出し `### SLACK-COPY`（L154–158、索引 L430）。保持する現場条件:
 
 - 前回治療 / 主訴をコピーしたい（出典 987–994。現行 `todo-issue.md` は要約のみ。原文行は本票では再掲しない。同一出典ブロックは [SLACK-PLAN-MANUAL](./SLACK-PLAN-MANUAL.md) と共有し、プラン手入力と複写を混ぜない）

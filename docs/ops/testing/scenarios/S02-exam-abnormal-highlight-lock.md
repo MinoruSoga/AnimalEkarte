@@ -16,7 +16,7 @@
 | # | 操作 | 期待結果 |
 |:--|:--|:--|
 | 1 | 検査一覧から「新規検査登録」→ ペット選択 → 検査フォームで前提の検査種別を選択 | 選択した種別に基づき測定項目テーブルが動的生成され、項目名・単位・その動物種の基準値が表示される（[13 §1.2](../../../spec/screens/13-examinations-form.md)） |
-| 2 | ある項目に基準値上限を超える測定値を入力して保存し、画面を再読込 | 当該項目が **HIGH** バッジ（赤 / `C.bgDanger`）および行ハイライトになる。判定はバックエンドが導出し保存・再読込後に反映（`status=high`・`is_abnormal` — [13 §1.2/§2.2](../../../spec/screens/13-examinations-form.md)）。UI ラベルは「H」ではなく **HIGH**（`ExamItemsTable`） |
+| 2 | ある項目に基準値上限を超える測定値を入力して保存し、画面を再読込 | 当該項目が **HIGH** バッジ（赤 / `C.bgDanger`）および行ハイライトになる。判定はバックエンドが導出し保存・再読込後に反映（`status=high`・`is_abnormal` — [13 §1.2/§2.2](../../../spec/screens/13-examinations-form.md)）。UI ラベルは「H」ではなく **HIGH**（`ExamItemsTable` が描画する `ExamStatusBadge` — 2026-09-29 訂正: ラベル実体は `ExamStatusBadge.tsx`、テーブルは import して描画） |
 | 3 | 別の項目に基準値下限未満の値を入力して保存・再読込 | **LOW** バッジとして **status-blue**（`C.textStatusBlue` / `C.bgStatusBlueLight`）でハイライト。仕様 13 の teal 表記とは実装トークンが異なる |
 | 4 | 基準値ちょうど（Min または Max と同値）を入力して保存・再読込 | **正常扱い**（`computeExamResultStatus` / `assessExamResult` は inclusive range: `v < min` → low、`v > max` → high） |
 | 5 | 基準値範囲内の値を入力して保存・再読込 | ハイライトなし（normal・通常表示） |
@@ -74,5 +74,6 @@ stateDiagram-v2
 
 - 変更サマリ:
   - 異常値 UI ラベルを H/L → **HIGH/LOW**（`ExamItemsTable`）に合わせて修正
+  - 2026-09-29 訂正: バッジコンポーネントの実体を `ExamItemsTable` → `ExamStatusBadge.tsx`（`ExamItemsTable` 経由で描画）に精密化
   - inclusive range・未判定バッジ・status 5 値の BE enum をソースに合わせて明記
   - 確定解除は専用権限がある旨を手順 7 に注記（本シナリオのロック確認は通常 edit）

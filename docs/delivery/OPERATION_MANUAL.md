@@ -237,7 +237,7 @@ repo と既存コメントから読める事実だけを書く。署名・承認
 
 | セル | 事実 | 根拠 |
 |---|---|---|
-| **U13_status** | **未完** | 本書の実施欄は空。2026-09-06 に取得した [GitHub #256 最新コメント](https://github.com/MinoruSoga/AnimalEkarte/issues/256#issuecomment-5352951087) は U13 の明示と別 USER close 承認を残件とする。Linear BRT-47 の現在値は今回未取得 |
+| **U13_status** | **未完** | 本書の実施欄は空。2026-09-06 に取得した [GitHub #256 最新コメント](https://github.com/MinoruSoga/AnimalEkarte/issues/256#issuecomment-5352951087) は U13 の明示と別 USER close 承認を残件とする。Linear BRT-47 の現在値は今回未取得（2026-09-29 訂正: Linear は 2026-09-16 閉鎖。現在値の正本は Plane `EMR-41`・U13 入力待ち `EMR-151`。2026-09-27 時点の repo 内照合でも未実施=keep_needs_human） |
 | 発効日 | **未記入** | COMPLETED でないため空欄のまま |
 | 実施日程 | **未記入** | 下表が空 |
 | 形式 | **未記入** | 下表が空（目安文は計画メモであり実施記録ではない） |

@@ -47,10 +47,10 @@
 
 ### A8-6 — `labdeviceagent` stays cmd-only local agent
 
-- Independent local serial-port agent for Mac workstations ([ADR-008](adr/008-local-lab-device-agent.md)). Not a 15th domain and not a `medicalrecord` implementation detail.
+- Independent local serial-port agent for Mac workstations ([ADR-008](adr/008-local-lab-device-agent.md)). Not a domain and not a `medicalrecord` implementation detail（2026-09-29 訂正: 「Not a 15th domain」→ `support` が 2026-09-26 に 15 番目の domain になったため「domain でない」と読み替え）。
 - Allowed production consumer is **`cmd/lab-device-agent` only**. Do **not** import `labdeviceagent` from `internal/<domain>` or from `cmd/api`.
 - A8-5 still forbids extracting single-consumer helpers from a domain. This keep-tier exception exists because serial/platform files and tests form a cohesive local agent, not hospital workflow. Need for an in-process API consumer → new ADR, not “import the agent from a domain”.
-- Pinned as keep-tier in `acceptedTopLevelPackages` (count 36). **Not** in `domainPackages` (stay 14) and **not** on `domainImportAllowlist`.
+- Pinned as keep-tier in `acceptedTopLevelPackages` (count 37). **Not** in `domainPackages` (stay 15) and **not** on `domainImportAllowlist`（2026-09-29 訂正: 「count 36 / stay 14」→ `support` 追加で 37/15）。
 
 ### A8-7 — `seedlogin` is an explicit non-production exception
 
@@ -62,7 +62,7 @@
 ### A8-8 — `clinicale2e` is a disposable clinical E2E fixture kernel
 
 - Allowed production consumer is **`cmd/clinical-e2e-fixture` only**. Do **not** import `clinicale2e` from `internal/<domain>` or from `cmd/api`.
-- `APP_ENV=test` and a local DB host are required; clinic IDs 1 and 2 are refused. This is not a 15th domain and not a general write API.
+- `APP_ENV=test` and a local DB host are required; clinic IDs 1 and 2 are refused. This is not a domain and not a general write API（2026-09-29 訂正: 「not a 15th domain」→ `support` が 15 番目の domain として追加済みのため「domain でない」と読み替え）。
 - Runtime `staffs` write owner remains `staff`. Fixture inserts are the same class of non-production kernel as `testdb`.
 
 ## Adding a new top-level `internal/` package

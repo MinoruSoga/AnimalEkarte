@@ -1,5 +1,7 @@
 # BUG-LOCAL-HANDOFF-CSV-CONTRACT — 現行 producer/consumer 契約差分表
 
+> 2026-09-29 注記: 現在のタスク状態の正本は Plane `MIG-19`（データ移行 Project）。本文の状態語は当時の調査・証跡記録であり現在の実行状態を示さない。ID 対応は [migration receipt](../plane-md-migration-20260923-receipt.md)。
+
 Campaign `todo-ledger-20260922` revision 1. Unit `BUG-LOCAL-HANDOFF-CSV-CONTRACT`. Attempt `att-csv-20260922-001`. Claim `claim/BUG-LOCAL-HANDOFF-CSV-CONTRACT`. Prompt SHA-256 `d43f6b9a65565193f04ef02f57ce9027e6ccbff2dbe02b07b1d72cd82c961f21`. Acceptance SHA-256 `4f9ce44a09f798b0a835dbbc64a557676497a614126b9270948f026b8b8e4240`.
 
 Sheet date: 2026-09-22. Consumer worktree HEAD `5a5828a1dc0f11e03134a9d8d890025f11cc60e7`. 本票は**現行ソースの読取照合のみ**。CSV データ本体(個人情報の可能性)は複写せず、header 行・識別子・digest・件数の比較に留める。digest・eligibility・manifest の手修正は行っていない。`make old-db-handoff-check` / DB apply / 再生成依頼の送信は本 unit の範囲外。

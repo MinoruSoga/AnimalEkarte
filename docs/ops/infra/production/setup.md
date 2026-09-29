@@ -1,6 +1,8 @@
 # Production Cloudflare setup contract
 
-> Human-operated checklist for the planned Cloudflare Workers + Containers / PlanetScale production environment. **Do not execute from this document until the currently approved go-live date and Linear delivery item are confirmed.** No external runtime/account/billing state was verified during this update.
+> Human-operated checklist for the planned Cloudflare Workers + Containers / PlanetScale production environment. **Do not execute from this document until the currently approved go-live date and Plane delivery item are confirmed.** No external runtime/account/billing state was verified during this update.
+>
+> （2026-09-29 訂正: 実行状態の正本は Linear から Plane（workspace `baritechllc` / Project `EMR`）へ移行済み。Linear は 2026-09-16 に閉鎖され履歴参照のみ。本書の "Linear" 記述はすべて Plane と読み替える）
 
 Checked-in `backend/wrangler.production.jsonc` and `infra/cloudflare/production/` are drafts. Their presence does not prove that GitHub Environment protection, billing, PlanetScale, Cloudflare, DNS, R2, or Vercel production configuration exists.
 
@@ -14,7 +16,7 @@ A human owner must record dated evidence for all items before deployment:
 - production secrets are environment-scoped and staging values are not reused unless explicitly approved;
 - frontend production settings are verified. `frontend-deploy.yml` binds `Production` and rejects production dispatch from non-production refs. `VERCEL_ENV=production` makes `frontend/vite.config.ts` select the production API; `.env.production` remains STG-valued outside that override. Verify the deployed target and the external Environment reviewers;
 - workflow/config tests and `actionlint` are green on the reviewed change;
-- current Linear delivery state and go-live date are confirmed externally.
+- current Plane delivery state and go-live date are confirmed externally.
 
 Stop if any item is unknown. Do not infer runtime state from this draft.
 
@@ -105,6 +107,6 @@ Store both only as `Production` Environment secrets, never repository-level. The
 - [ ] `TRUSTED_PROXY_CIDR` post-deploy measurement and confirmation;
 - [ ] backup acquisition and isolated restore rehearsal with measured timings ([runbook §4](runbook.md));
 - [ ] PR CI `actionlint` green;
-- [ ] go-live date and delivery state confirmed in Plane/Linear.
+- [ ] go-live date and delivery state confirmed in Plane.
 
 All checkboxes are requirements, not claims of current external state.

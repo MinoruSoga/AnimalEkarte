@@ -75,6 +75,7 @@ flowchart LR
 | `Lstep*` settings/tags/csv/delivery counters | lstep tables | `lstep` | |
 | `OwnerIdentityGroup*`, `PetIdentityGroup*` | identity group tables | `identitylink` | No Go import of owner/pet packages |
 | `ManualArticle`, `ManualArticleVersion` | manual tables | `manualarticle` | |
+| `SupportBugReport`, `SupportChatMessage` | `support_bug_reports`, `support_chat_messages` | `support` | サポートウィジェット（2026-09-26 実装追加の 15 番目 domain）。bug report は `clinic_id`×`reporter_staff_id`、chat history は `clinic_id`×`staff_id` スコープ。管理 list/status 操作は `hospital-settings` 権限を流用 |
 | `AuditLog` | `audit_logs` | `audit` (cross-cutting) | Prefer `LogEntryTx` with ambient tx when integrity requires fail-closed |
 
 ### Explicit non-owners (do not write these tables from other domains)

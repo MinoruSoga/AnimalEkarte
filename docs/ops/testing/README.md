@@ -10,7 +10,7 @@
 |:---|:---|:---|
 | **[TEST_ARCHITECTURE.md](TEST_ARCHITECTURE.md)** | **L0–L5、証跡、環境境界** | **最初** |
 | [UAT-ENV-SETUP.md](UAT-ENV-SETUP.md) | stack と明示的な fixture/account provisioning | scenarios 実行前 |
-| [scenarios/](scenarios/README.md) | S01–S13、V01–V05、項目単位 F | 納品前・大きなリリース前 |
+| [scenarios/](scenarios/README.md) | S01–S39、V01–V05、UAT-254 close、項目単位 F | 納品前・大きなリリース前 |
 | [scenarios/FIELD-LEVEL-PROTOCOL.md](scenarios/FIELD-LEVEL-PROTOCOL.md) | フォーム項目単位 F0–F6 | V シリーズ実施時 |
 | [scenarios/FORM-FIELD-INVENTORY.md](scenarios/FORM-FIELD-INVENTORY.md) | 宣言済みフォーム群・項目。wildcard/実測待ちを含む | カバー範囲確認 |
 | [INTEGRATION_TEST_PLAN.md](INTEGRATION_TEST_PLAN.md) | Unit/API/E2E と負荷試験の現状 | 自動テスト方針 |
@@ -37,7 +37,7 @@ flowchart LR
 ## 重要な現状
 
 - CSV seed bundle は `002_master` のみ。migrate の別 phase `003_login` は non-production の許可環境で合成ログインを upsert する。臨床 fixture と受入用権限は別途準備する（[UAT-ENV-SETUP.md](UAT-ENV-SETUP.md)）。
-- E2E workflow は manual・non-gating の auth smoke に合成ログインを配線済み。`--clinical` helper/allowlist も実装済みだが、実行成功・全 suite coverage は未確認。
+- E2E workflow `e2e.yml` は manual・non-gating の workflow_dispatch のまま。2026-09-28 に `inputs.suite`（auth-smoke / clinical / v04）振り分けが配線済み（EMR-128）。`--clinical` のローカル実行は 2026-09-23 に 1 回（33 PASS / 7 FAIL、spec drift・green 未達）。Actions 実行成功・全 suite coverage は未確認。（2026-09-29 訂正: 旧記述は「auth smoke のみ配線・`--clinical` 未実行」）
 - performance workflow は `APP_ENV=test` と `LOAD_TEST_LOGIN_*` を配線済み。実 Actions/fresh DB/k6 の結果は UNREPORTED/UNKNOWN。
 - unique form総数はinventory再構築完了まで算定保留。exact key未収録や動的定義が残る間は「全fieldを網羅」と言わない。
-- カバレッジ基準は [../coverage-policy.md](../coverage-policy.md)。確認済み UAT FAIL は `todo.md#product-bugs` で重複確認・記録後に Linear で追跡する。その他の新規 defect は通常の Linear intake に従う。
+- カバレッジ基準は [../coverage-policy.md](../coverage-policy.md)。確認済み UAT FAIL は `todo.md#product-bugs` で重複確認・記録後に Plane で追跡する。その他の新規 defect は通常の Plane intake に従う（2026-09-29 訂正: 旧記述は Linear。Linear は 2026-09-16 閉鎖・実行状態の正本は Plane）。

@@ -5,7 +5,7 @@
 
 **Drワンは組み込まない。** `source_type=drwan` は閉じる。`mkan.mdb` を読まない。
 
-**日常経路（2026-08-31）:** ファイルアップロードしない。検査用 Mac のユーザー LaunchAgent `lab-device-agent` が有線シリアルを所有し、`127.0.0.1:17654` の loopback HTTP でフレームを公開する。ブラウザの `/lab-device` は認可済み API から取得する consumer token でその agent に接続し、フレームを API へ送るだけで、シリアルを直接読んだり開いたりしない。UI は1画面（待機 + 未紐付け欄）。実行状態の正本は Linear BRT-94〜100、未完了作業の入口は `todo.md`。城東3種（`fuji_nx600` / `fuji_au10v` / `arkray_pu4010`）は AE-LAB-0〜4 済み。
+**日常経路（2026-08-31）:** ファイルアップロードしない。検査用 Mac のユーザー LaunchAgent `lab-device-agent` が有線シリアルを所有し、`127.0.0.1:17654` の loopback HTTP でフレームを公開する。ブラウザの `/lab-device` は認可済み API から取得する consumer token でその agent に接続し、フレームを API へ送るだけで、シリアルを直接読んだり開いたりしない。UI は1画面（待機 + 未紐付け欄）。実行状態の正本は Plane、未完了作業の入口は `todo.md`。（2026-09-29 訂正: 実行状態の正本を旧 Linear BRT-94〜100 としていた → Linear は 2026-09-16 閉鎖、現行 SoT は Plane。BRT-94〜100 は履歴 ID で、BRT-94 は EMR-14 へ移行済み）城東3種（`fuji_nx600` / `fuji_au10v` / `arkray_pu4010`）は AE-LAB-0〜4 済み。
 
 外部 sibling 資料（存在する場合のみ）— シリアル枠: `../../../../old_db/docs/lab-go/go-impl/device-serial-adapter.md`
 3台マスタ: `../../../../old_db/docs/lab-go/go-impl/device-item-master.md`

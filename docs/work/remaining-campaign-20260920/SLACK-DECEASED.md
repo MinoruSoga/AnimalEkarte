@@ -1,5 +1,7 @@
 # SLACK-DECEASED: 死亡後の連絡記録は臨床 write と分け、死亡ガードは維持する
 
+> 2026-09-29 注記: 現在のタスク状態の正本は Plane `EMR-99`。本文の「READY」「UNKNOWN」等の状態語は当時の調査・証跡記録であり現在の実行状態を示さない。ID 対応は [migration receipt](../plane-md-migration-20260923-receipt.md)。
+
 状態: **連絡メモ vs 臨床 write の比較 READY／PO 範囲 UNKNOWN／製品実装なし**。出典は [todo-issue.md](../../../todo.md#issue-ledger) 見出し `### SLACK-DECEASED`（L208–212、索引 L428）。保持する現場条件:
 
 - 死亡後も飼主との連絡を記録したい（出典 982–986。現行 `todo-issue.md` は要約のみ。原文行は本票では再掲しない）

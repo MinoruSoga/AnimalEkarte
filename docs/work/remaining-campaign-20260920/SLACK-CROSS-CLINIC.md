@@ -1,5 +1,7 @@
 # SLACK-CROSS-CLINIC: 所属・選択医院・検索・記録・操作医院の対応表
 
+> 2026-09-29 注記: 現在のタスク状態の正本は Plane `EMR-88`。本文の「READY」「UNKNOWN」等の状態語は当時の調査・証跡記録であり現在の実行状態を示さない。ID 対応は [migration receipt](../plane-md-migration-20260923-receipt.md)。
+
 状態: **コード照合 READY／PO 対象医院リスト UNKNOWN／境界変更なし**。出典は [todo-issue.md](../../../todo.md#issue-ledger) 見出し `### SLACK-CROSS-CLINIC`（L178–182、索引 L404）。保持する現場条件:
 
 - 山梨の他院患者を検索して受付したい、という要望。**代表アカウントという返信は、単なる同院検索の不具合ではない**（出典 643–697、725–735、832–847）

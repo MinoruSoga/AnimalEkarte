@@ -46,7 +46,7 @@ flowchart LR
 | **仕様系** | [spec/README.md](spec/README.md) | 機能要件・全画面仕様・会計/顧客分析/予約フロー・デザイン規約・LINE 連携 |
 | **運用系** | [ops/README.md](ops/README.md) | デプロイ・ランブック・テスト・CI/カバレッジポリシー・インフラ構成 |
 | **納品系** | [delivery/README.md](delivery/README.md) | 納品パッケージ・Go-live 手順・現場向け操作マニュアル |
-| **作業台帳** | [work/README.md](work/README.md) | 補助メモ・採択済み決裁・今期外索引（実行 SoT は Linear。root 台帳の例外は下記参照） |
+| **作業台帳** | [work/README.md](work/README.md) | 補助メモ・採択済み決裁・今期外索引（実行 SoT は Plane。root 台帳の例外は下記参照） |
 > **フォルダ規律**: docs/ 直下に新カテゴリを追加する場合は本表とローカル必須ゲート（`scripts/check-docs-symbol-drift.sh` の TOP_DIR_ALLOWLIST）を同コミットで更新すること。allowlist 外のフォルダは `make ci` が拒否する。
 
 ## 文書の参照方針
@@ -57,9 +57,9 @@ flowchart LR
 
 - **API contract**: 正本は [`backend/docs/api.yaml`](../backend/docs/api.yaml)（Swagger UI 表示は `make docs-ui`）。
 - **docs ドリフトゲート**: `scripts/check-docs-symbol-drift.sh`（GitHub CI ではなく `make ci` のローカル必須ゲート。分担は [ops/ci-policy.md](ops/ci-policy.md)）が、spec/screens/ 系ドキュメントの言及シンボル実在と宣言数値（テーブル数・リソース数等）の実装一致を機械検査する。
-- **タスク台帳**: 実行 SoT は **Linear**（hub BRT-4）。`todo.md#human-lane` は入口ポインタ。[`todo.md`](../todo.md) は repo に結び付く未完了作業（受入残・USER ゲート・STG 実データ・deferred）の入口、[`todo.md#product-bugs`](../todo.md#product-bugs) は確認済み UAT 製品 FAIL の記録を担う。競合時の状態の正本は Linear。root 例外台帳は同一変更で同期し、終了条件と削除予定を台帳内に明記する。時点レポートは CorpVault `evidence/2026-08-20-*` と git 履歴。`reports/` は gitignore（新規 UAT をコミットしない）。
+- **タスク台帳**: 実行 SoT は **Plane**（workspace `baritechllc` / Project `EMR` / hub `EMR-1`。case_id `BRT-4` は不変）。`todo.md#human-lane` は入口ポインタ。[`todo.md`](../todo.md) は repo に結び付く未完了作業（受入残・USER ゲート・STG 実データ・deferred）の入口、[`todo.md#product-bugs`](../todo.md#product-bugs) は確認済み UAT 製品 FAIL の記録を担う。競合時の状態の正本は Plane（2026-09-29 訂正: 「実行 SoT は Linear（hub BRT-4）・競合時の正本は Linear」→ Plane。旧 Linear は 2026-09-16 に閉鎖・履歴参照のみ。BRT-n / LINMIG-n は履歴別名）。root 例外台帳は同一変更で同期し、終了条件と削除予定を台帳内に明記する。時点レポートは CorpVault `evidence/2026-08-20-*` と git 履歴。`reports/` は gitignore（新規 UAT をコミットしない）。
 - **作業補助**: [`work/README.md`](work/README.md)（採択済み方針の短いポインタ。レポート置き場ではない）。
 
 ---
 
-**最新更新**: 2026-09-06 | **ステータス**: 実行 SoT は Linear（BRT-4）。docs/ は 5 カテゴリ体制で、ファイル単位の説明は各フォルダ README が正本
+**最新更新**: 2026-09-29 | **ステータス**: 実行 SoT は Plane（baritechllc / `EMR` / hub `EMR-1`、case_id `BRT-4`。旧 Linear は 2026-09-16 閉鎖）。docs/ は 5 カテゴリ体制で、ファイル単位の説明は各フォルダ README が正本

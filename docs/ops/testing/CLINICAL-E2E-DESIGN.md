@@ -17,7 +17,7 @@ auth smoke と **別 allowlist** にする。
 | UI 監査 / LIFF | `ui-design-compliance-readonly.spec.ts`、`line-reservation-flow.spec.ts` | 対象外 |
 | 合成 network check | `axios-retry-503.spec.ts` | いずれの allowlist にも入れない。`page.route` 全 stub・公開 `/login` のみで backend/clinic を触らない自己完結 spec のため、disposable clinic を立てる `--clinical` / `--v04` の対象外。all-specs モードまたは明示パスでのみ実行 |
 
-L4（S01–S13 / V01–V05）の代替ではない。
+L4（S01–S39 / V01–V05）の代替ではない（2026-09-29 訂正: 旧記述は S01–S13。現行 scenario index は S39 まで）。
 
 ## 使い捨て環境・clinic
 
@@ -113,7 +113,7 @@ flowchart LR
 
 - full job（PR / push 自動実行）化は未実施。clinical が CI で green になってから判断する
 - workflow_dispatch での clinical / v04 実行（push が必要なため未実行）
-- Linear Done
+- Plane Done（2026-09-29 訂正: 旧記述は Linear Done。Linear は 2026-09-16 閉鎖・実行状態の正本は Plane）
 
 局所ユニット:
 
@@ -134,4 +134,4 @@ cd frontend && ./scripts/run-e2e.sh e2e/helpers/clinical-env.spec.ts e2e/helpers
 | `e2e.yml` の手動 suite 振り分け（clinical / v04） | 2026-09-28 配線済み（未実行） |
 | full job（PR / push 自動実行）化 | USER。clinical が green になってから判断 |
 | workflow_dispatch / push | USER |
-| Linear Done / UAT PASS 転記 | USER。設計・局所 GREEN だけではしない |
+| Plane Done / UAT PASS 転記 | USER。設計・局所 GREEN だけではしない |

@@ -1,5 +1,7 @@
 # UAT-Q2-TREATMENTS-IMPORT: 処置・注射・処方の移行契約差分
 
+> 2026-09-29 注記: 現在のタスク状態の正本は Plane `MIG-15`（2026-09-29 読取: **Ready**）。本文の「READY」「未実施」等の状態語は当時の調査・証跡記録であり現在の実行状態を示さない。ID 対応は [migration receipt](../plane-md-migration-20260923-receipt.md)。
+
 状態: **全種類・全期間の移行契約設計 READY／実装・取込未実施**。2026-09-19に依頼者が「マスタ/患者別処置履歴/対象期間」の問いへ「全部」と回答した。処置名・料金マスタと患者ごとの処置履歴を今期対象とし、任意の年数/種類で減らさない。2026-09-22: 下記「契約ドラフト（未解決フィールド）」「合成 fixture 設計」「理由コード付き保留ルール」を repo 根拠のみで追記（21 表 hash / producer / DB / 実データは未変更）。要件・状態の正本は [TODO](../../../todo.md#uat-q2-treatments-import)、以前の判断経緯は [医院 UAT 記録](../stg-uat-clinic-feedback-q1-q4.md#uat-q2-treatments-import-処置処方の移行今期外候補)。
 
 ## 現行契約と不足分

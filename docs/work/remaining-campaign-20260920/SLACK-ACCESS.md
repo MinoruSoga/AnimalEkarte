@@ -1,5 +1,7 @@
 # SLACK-ACCESS — staff-access input gaps versus P5 and H3-9
 
+> 2026-09-29 注記: 現在のタスク状態の正本は Plane `EMR-111`（Linear は 2026-09-16 閉鎖済み・履歴参照のみ）。本文の「UNKNOWN」「READY」等の状態語は当時の調査・証跡記録であり現在の実行状態を示さない。ID 対応は [migration receipt](../plane-md-migration-20260923-receipt.md)。
+
 Campaign `remaining-ops-20260920` revision 1, unit `SLACK-ACCESS`, claim `claim/SLACK-ACCESS`.
 Worktree `/Users/minoru/Dev/Case/AnimalHospital/AnimalEkarte-rem-slack-access` on `feat/rem-slack-access-20260920` at HEAD `873685b0b`. Sheet date: 2026-09-20.
 

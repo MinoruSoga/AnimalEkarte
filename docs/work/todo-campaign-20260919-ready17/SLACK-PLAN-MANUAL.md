@@ -1,5 +1,7 @@
 # SLACK-PLAN-MANUAL: 診察/治療プラン vs 治療タブと既存手入力
 
+> 2026-09-29 注記: 現在のタスク状態の正本は Plane `EMR-103`。本文の「READY」「未実行」等の状態語は当時の調査・証跡記録であり現在の実行状態を示さない。ID 対応は [migration receipt](../plane-md-migration-20260923-receipt.md)。
+
 状態: **画面/API 対応 READY／製品実装・自動実施・自動請求 未実行**。出典は [todo-issue.md](../../../todo.md#issue-ledger) 見出し `### SLACK-PLAN-MANUAL`（L148–152、索引 L429）。保持する現場条件:
 
 - 「治療プランと治療の違い」と「プランへの手入力」は **別質問**。前者は画面名の対応表、後者は既存手入力の場所

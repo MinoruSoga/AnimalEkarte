@@ -1,7 +1,9 @@
 # テストアーキテクチャ (Test Architecture)
 
 > **目的**: 検証層、正本、実行手段、証跡、環境境界を一か所で定義する。
-> **最新更新**: 2026-09-06
+> **最新更新**: 2026-09-29
+>
+> （2026-09-29 訂正: 実行状態の正本は Linear から Plane へ移行済み（Linear は 2026-09-16 閉鎖・履歴参照のみ）。本書の "Linear" 記述はすべて Plane と読み替える）
 
 ## 1. 原則
 
@@ -18,7 +20,7 @@
 | L0  | 正しい仕様                           | `docs/spec/`、product philosophy、ADR              | review                                                                                                                                                                            |
 | L1  | 関数・component                      | code 隣の `*test.go` / `*.test.ts`                 | scoped test、CI                                                                                                                                                                   |
 | L2  | HTTP、DB、認可、FK、clinic isolation | domain HTTP tests、inventory/guardrail             | path-filtered backend build/test shards + aggregate coverage ratchet。local `make ci` は inventory/guardrail checks                                                               |
-| L3  | 実装済み画面回帰                     | `frontend/e2e/`、[E2E guide](E2E_TESTING_GUIDE.md) | local `make e2e` / `frontend/scripts/run-e2e.sh`。manual GitHub workflow は non-gating の auth smoke のまま。`--clinical` helper は実装済みだが未実行。auth smoke 成功を full suite coverage と扱わない |
+| L3  | 実装済み画面回帰                     | `frontend/e2e/`、[E2E guide](E2E_TESTING_GUIDE.md) | local `make e2e` / `frontend/scripts/run-e2e.sh`（`--auth-smoke` / `--clinical` / `--v04` / spec path）。manual GitHub workflow `e2e.yml` は non-gating のままだが、2026-09-28 に `inputs.suite`（auth-smoke / clinical / v04）振り分けが配線済み（EMR-128。Actions 実行証跡は未）。`--clinical` は 2026-09-23 にローカル 1 回実行済み（33 PASS / 7 FAIL = spec 側 drift。green 未達）。auth smoke 成功を full suite coverage と扱わない |
 | L4  | 業務・フォーム受入                   | [scenarios/](scenarios/README.md)                  | Chrome DevTools、scripted browser、人手                                                                                                                                           |
 | L5  | focused exploratory / post-deploy    | [SECTION_14](SECTION_14_MANUAL_TEST_GUIDE.md)      | AI または人手                                                                                                                                                                     |
 
@@ -36,7 +38,7 @@ flowchart TB
 
 ## 3. L4 の範囲
 
-S01–S13 と V01–V05 が宣言済み受入範囲である。unique form総数はinventory再構築完了まで算定保留である。したがって次を区別する。
+S01–S39 と V01–V05 が宣言済み受入範囲である（2026-09-29 訂正: 旧記述は S01–S13。現行 [scenarios/](scenarios/README.md) は S01–S39 + V01–V05 + UAT-254-CLOSE-CHECKLIST を索引する）。unique form総数はinventory再構築完了まで算定保留である。したがって次を区別する。
 
 - **列挙済み項目**: [FIELD-LEVEL-PROTOCOL.md](scenarios/FIELD-LEVEL-PROTOCOL.md) の適用対象。
 - **wildcard/実測待ち**: source と照合して列挙されるまで coverage gap。
@@ -59,8 +61,8 @@ Mutating run の前に、対象 clinic ID、fixture owner、pre-count、期待 p
 | :---------------- | :--------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------- | :---------------------------------------------------------------------------------------------------- |
 | local UAT         | CSV `002_master` + 許可環境の login seed                        | [local handoff](../deploy/OLD_DB_HANDOFF_LOCAL.md) / approved import と [account provisioning](../deploy/STAFF_ACCOUNT_PROVISIONING.md) を明示実施 | local compose effective config で mock | disposable/local-only                                                                                 |
 | STG UAT           | CSV `002_master` + staging login seed                        | [STG lifecycle](../deploy/STG-DEMO-DATA-LIFECYCLE.md) の承認済み skeleton/import/staff-account lane                                                | mock 禁止。実機は人間レーン            | dedicated UAT tenant only                                                                             |
-| CI E2E auth smoke | `002_master` + `APP_ENV=test` login seed | public synthetic login fixture                                                                                                                     | mock intent                            | manual/non-gating `auth-flows.spec.ts` の配線を実装。Actions 実行・fresh DB 結果は UNREPORTED/UNKNOWN |
-| CI E2E full suite | CSV `002_master` + 許可環境の login seed                        | `--clinical` helper は repo にある。実行と e2e.yml job は未                                                                                          | mock intent                            | BLOCKED。auth smoke の実装を full suite coverage と扱わない                                           |
+| CI E2E auth smoke | `002_master` + `APP_ENV=test` login seed | public synthetic login fixture                                                                                                                     | mock intent                            | `e2e.yml` は manual/non-gating の workflow_dispatch。`inputs.suite=auth-smoke` が `auth-flows.spec.ts` を実行。Actions 実行・fresh DB 結果は UNREPORTED/UNKNOWN |
+| CI E2E clinical/full suite | CSV `002_master` + 許可環境の login seed                        | `inputs.suite` の `clinical` / `v04` が disposable APP_ENV=test stack 上で fixture setup/teardown する配線済み（2026-09-28・EMR-128）。Actions 実行証跡は未。full suite 実行 job なし | mock intent                            | BLOCKED。auth smoke の実装を full suite coverage と扱わない                                           |
 
 CSV `002_master` は account/clinical rows を含まない。一方、migrate の別 phase `003_login` は `development/local/dev/test/staging` で catalog account/staff を upsert する（`backend/internal/seedlogin/env.go`、`backend/cmd/migrate/login_seed.go`）。「CSV に account がない」と「startup が account を作らない」を混同しない。production・空・未知の環境は login seed 対象外。
 
@@ -72,10 +74,10 @@ CSV `002_master` は account/clinical rows を含まない。一方、migrate �
 | :------ | :---------------------------- | :---------------------------------------------------- |
 | PASS    | 期待どおり                    | report                                                |
 | PARTIAL | 一部未確認                    | report。完了と呼ばない                                |
-| BLOCKED | environment/spec/fixture 不足 | report または Linear Needs Human。`todo.md#product-bugs` へ書かない |
-| FAIL    | 確認済み製品欠陥              | `todo.md#product-bugs` で dedupe/記録後、Linear で追跡              |
+| BLOCKED | environment/spec/fixture 不足 | report または Plane の人間ゲート状態。`todo.md#product-bugs` へ書かない |
+| FAIL    | 確認済み製品欠陥              | `todo.md#product-bugs` で dedupe/記録後、Plane で追跡              |
 
-その他の新規製品 defect は通常の Linear intake に従う。証跡に credential、token、cookie、idToken、個人情報を含めない。
+その他の新規製品 defect は通常の Plane intake に従う。証跡に credential、token、cookie、idToken、個人情報を含めない。
 
 ## 7. 関連文書
 

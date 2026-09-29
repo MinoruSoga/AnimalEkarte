@@ -21,7 +21,7 @@ flowchart TB
 ### Backend
 
 - 全 shard が `-coverpkg=./internal/...` を使う。`internal/infra` も現在の母集団に含まれる。
-- `cmd/*`、`lstep-migrate/`、`seed-old-db/`、`migrations/` はこの母集団の外にある。
+- `cmd/*`（`cmd/lstep-migrate`、`cmd/_archive/seed-old-db` を含む）、`migrations/` はこの母集団の外にある。（2026-09-29 訂正: `lstep-migrate/`・`seed-old-db/` を backend 直下の独立ディレクトリとして記載していた → 現行は `backend/cmd/` 配下へ移動済み。母集団外である結論は変わらない）
 - profile の単純連結は禁止する。`scripts/merge_go_coverprofiles.py` が mode/statement 数を検証し、同一 block を統合する。
 
 ### Frontend
