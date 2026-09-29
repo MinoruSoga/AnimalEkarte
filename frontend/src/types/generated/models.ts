@@ -2476,6 +2476,10 @@ export interface ManualArticle {
   category: ManualCategory;
   slug: string;
   title: string;
+  /**
+   * order_value の既定値フォールバックは service 層で行う（default タグを付けると
+   * GORM がゼロ値を INSERT から省略し、`order: 0` の記事が 9999 で保存される）。
+   */
   order_value: number /* float64 */;
   section: string;
   body_markdown: string;
