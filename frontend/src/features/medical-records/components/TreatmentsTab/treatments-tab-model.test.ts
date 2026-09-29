@@ -108,7 +108,10 @@ describe("buildCopiedTreatmentPayload", () => {
       sortOrderOffset: 0,
     });
 
-    expect(payload.consultation_id).toBe("7");
+    // BE は *uint64（JSON number）を期待するため文字列ではなく number で送る（STG UAT で
+    // 文字列送信が 400 になる欠陥を検出 — ts-review-201 と同型の回帰防止）。
+    expect(payload.consultation_id).toBe(7);
+    expect(typeof payload.consultation_id).toBe("number");
     expect(payload.unit_price).toBe(2500);
     expect(payload.item_type).toBe("consultation");
     expect(payload.sort_order).toBe(2);
@@ -127,7 +130,8 @@ describe("buildCopiedTreatmentPayload", () => {
       sortOrderOffset: 0,
     });
 
-    expect(payload.procedure_id).toBe("8");
+    expect(payload.procedure_id).toBe(8);
+    expect(typeof payload.procedure_id).toBe("number");
     expect(payload.unit_price).toBe(4000);
   });
 
@@ -156,7 +160,7 @@ describe("buildCopiedTreatmentPayload", () => {
       sortOrderOffset: 0,
     });
 
-    expect(payload.consultation_id).toBe("999");
+    expect(payload.consultation_id).toBe(999);
     expect(payload.unit_price).toBe(1500);
   });
 

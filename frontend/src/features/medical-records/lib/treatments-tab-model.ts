@@ -69,15 +69,27 @@ function findCopyMaster(
 }
 
 /**
+ * wire 応答の参照系 id（*string）を BE create が期待する *uint64（JSON number）へ変換する。
+ * 数値化できない値は undefined にして送信自体を省略する（buildMasterSelectionPayload と
+ * 同じ ts-review-201 回帰防止。文字列のまま送ると ShouldBindJSON が 400 になる）。
+ */
+function toNumericId(id: string | null | undefined): number | undefined {
+  if (id == null || id === "") return undefined;
+  const n = Number(id);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+/**
  * 複写元 Treatment 行 → 現在カルテへの create ペイロード。
  *
  * - item_type/content/memo/quantity/is_selected/is_insurance/discount_rate/
- *   discount_amount/status/参照系 id はソース行をそのまま引き継ぐ。
+ *   discount_amount/status はソース行をそのまま引き継ぐ。
  * - unit_price は当時価格を持ち込まず、consultation/procedure/medicine は
  *   対応マスタに一致する行があれば master.id + master.price（現行価格）へ再解決する。
  *   マスタ不一致または item_type=other（無型）行はソースの unit_price・参照を維持する。
- * - medicine_id は BE が *uint64（JSON number）を期待するため Number 化する
- *   （buildMasterSelectionPayload と同じ ts-review-201 回帰防止）。
+ * - 参照系 id（consultation/procedure/medicine/inventory）はいずれも BE が *uint64
+ *   （JSON number）を期待するため Number 化する（buildMasterSelectionPayload と同じ
+ *   ts-review-201 回帰防止）。wire 応答は *string で返るため文字列のまま送ると 400。
  * - dose_deviation_reason は wire 上 dose_param_snapshot 内に保持される
  *   （backend/internal/model/treatment.go:56 / treatment_request.go:25）ため、
  *   snapshot から取り出して create ペイロードの同キーへ引き継ぐ。同一用量の複写は
@@ -102,9 +114,9 @@ export function buildCopiedTreatmentPayload(params: {
     discount_amount: source.discount_amount,
     status: source.status,
     unit_price: source.unit_price,
-    consultation_id: source.consultation_id ?? undefined,
-    procedure_id: source.procedure_id ?? undefined,
-    inventory_id: source.inventory_id ?? undefined,
+    consultation_id: toNumericId(source.consultation_id),
+    procedure_id: toNumericId(source.procedure_id),
+    inventory_id: toNumericId(source.inventory_id),
     sort_order: source.sort_order + sortOrderOffset,
     dose_deviation_reason: typeof deviationReason === "string" ? deviationReason : undefined,
   };
@@ -112,13 +124,13 @@ export function buildCopiedTreatmentPayload(params: {
   if (source.item_type === "consultation") {
     const master = findCopyMaster(masters.consultations, source.consultation_id);
     if (master) {
-      payload.consultation_id = master.id;
+      payload.consultation_id = Number(master.id);
       payload.unit_price = master.price;
     }
   } else if (source.item_type === "procedure") {
     const master = findCopyMaster(masters.procedures, source.procedure_id);
     if (master) {
-      payload.procedure_id = master.id;
+      payload.procedure_id = Number(master.id);
       payload.unit_price = master.price;
     }
   } else if (source.item_type === "medicine") {
