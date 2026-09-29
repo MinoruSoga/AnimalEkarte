@@ -64,13 +64,13 @@ export interface Treatment {
 
 export interface CreateTreatmentInput {
   item_type: TreatmentItemType;
-  consultation_id?: string | null;
-  procedure_id?: string | null;
-  // ts-review-201 CRITICAL: BE は *uint64（JSON number）を期待する。他の *_id は今のところ
-  // どの呼び出し元からも書き込まれていない（未使用の潜在バグ）ため型を温存するが、#201 で
-  // 実際に書き込む medicine_id だけは正しい書込型（number）に直す。
+  // ts-review-201 CRITICAL: BE は全ての参照系 *_id を *uint64（JSON number）で受ける
+  // （backend/internal/medicalrecord/treatment_request.go）。wire 応答の *string を
+  // そのまま送ると ShouldBindJSON が 400 になるため書込型は number で統一する。
+  consultation_id?: number | null;
+  procedure_id?: number | null;
   medicine_id?: number | null;
-  inventory_id?: string | null;
+  inventory_id?: number | null;
   unit_price?: number;
   quantity?: number;
   is_selected?: boolean;

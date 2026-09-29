@@ -125,7 +125,7 @@ describe("useCopyTreatmentDetails", () => {
     // 1件目: ソース sort_order=0 の consultation 行 → マスタ現行価格 2500 / sort_order 0+5
     const first = postBodies[0] as Record<string, unknown>;
     expect(first.item_type).toBe("consultation");
-    expect(first.consultation_id).toBe("7");
+    expect(first.consultation_id).toBe(7);
     expect(first.unit_price).toBe(2500);
     expect(first.sort_order).toBe(5);
     expect(first.content).toBe("初診料");
@@ -159,7 +159,7 @@ describe("useCopyTreatmentDetails", () => {
     const body = postBodies[0] as Record<string, unknown>;
     expect(body.sort_order).toBe(2);
     expect(body.unit_price).toBe(1500);
-    expect(body.consultation_id).toBe("999");
+    expect(body.consultation_id).toBe(999);
   });
 
   it("現在の recordId が無いときは fetch/create とも行わず早期 return する", async () => {
