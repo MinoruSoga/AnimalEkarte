@@ -8,11 +8,14 @@
 #   1. Fixed expected project + volume names must match compose reality; refuse wrong env.
 #   2. umask 077; owner-only gzipped pg_dumpall under .local-db-backups/<UTC>/,
 #      plus SHA-256 and target volume + DDL/seed key manifest. Empty dump/digest/disk → stop.
+#      manual_articles/manual_article_versions (マニュアル編集 override) は
+#      テーブル限定の data-only pg_dump を同じ snapshot dir へ退避し、
+#      postflight 後に復元する（編集済みマニュアルをリセットで失わない）。
 #   3. Stop services without deleting volumes; remove ONLY ekarte-postgres-data;
 #      keep cache volumes (frontend node_modules, go module/build cache).
 #   4. Restart long-lived services; postflight: migration key coverage missing=0,
 #      all root DDL keys, seed key 002_master, schema_migrations,
-#      backend healthy + /health HTTP 200.
+#      backend healthy + /health HTTP 200; then restore manual_articles dump.
 #   5. Snapshot failure must not proceed to volume delete.
 #   6. Never wipe all compose volumes; never prune the volume store.
 #
@@ -326,6 +329,7 @@ seed_bundle_keys=${seed_list}
 schema_migrations_seed_keys=seeds/002_master
 dump_file=pg_dumpall.sql.gz
 dump_sha256=${digest}
+manual_articles_dump=manual_articles.sql
 volume_existed_before_reset=${vol_exists}
 EOF
   [[ -s "$manifest_file" ]] || die "manifest empty — refusing volume delete"
@@ -333,6 +337,41 @@ EOF
 
   info "snapshot OK under $dir (sha256=${digest})"
   printf '%s\n' "$dir"
+}
+
+# ── Manual article overrides: preserve before delete / restore after rebuild ──
+# manual_articles / manual_article_versions は医院共通のマニュアル編集 override。
+# volume 削除で失われないよう、snapshot dir にテーブル限定 dump を退避し、
+# postflight 後に復元する。dump 失敗は volume 削除へ進ませない（fail-closed）。
+preserve_manual_articles() {
+  local dir="$1" file
+  [[ -n "$dir" ]] || return 0
+  file="${dir}/manual_articles.sql"
+  info "dumping manual_articles/manual_article_versions → $file"
+  if ! compose exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --data-only --disable-triggers --table=manual_articles --table=manual_article_versions' >"$file"; then
+    rm -f "$file"
+    die "manual_articles dump failed — refusing volume delete"
+  fi
+  chmod 600 "$file" 2>/dev/null || true
+}
+
+restore_manual_articles() {
+  local dir="$1" file
+  [[ -n "$dir" ]] || return 0
+  file="${dir}/manual_articles.sql"
+  if [[ ! -s "$file" ]]; then
+    info "no manual_articles dump in snapshot — skipping restore"
+    return 0
+  fi
+  # テーブル自体が旧 DB に無かった場合など、行を含まない dump は復元不要
+  if ! grep -Eq '^(COPY |INSERT INTO )' "$file"; then
+    info "manual_articles dump contains no rows — nothing to restore"
+    return 0
+  fi
+  info "restoring manual_articles/manual_article_versions from snapshot"
+  if ! compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -q' <"$file"; then
+    die "manual_articles restore failed — rebuilt DB left without overrides; apply $file manually"
+  fi
 }
 
 # ── Destructive phase: stop + DB volume only ────────────────────────────────
@@ -478,10 +517,14 @@ main() {
   fi
   snap_dir="$(printf '%s\n' "$snap_out" | tail -1)"
 
+  # マニュアル override の退避（失敗時は volume 削除へ進まない）
+  preserve_manual_articles "$snap_dir"
+
   stop_services_keep_volumes
   delete_db_volume_only
   restart_and_wait
   postflight_checks
+  restore_manual_articles "$snap_dir"
 
   # Local-only: if hospital CSV bundles are staged under
   # backend/migrations/seeds/_old_db_handoff/<clinic>/, import them now.
