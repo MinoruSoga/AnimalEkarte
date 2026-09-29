@@ -176,7 +176,7 @@ func TestFromGORM_UniquePreservesPgErrorForConstraintMapping(t *testing.T) {
 	// Response-facing Message must not embed constraint/table/SQL detail.
 	var appErr *AppError
 	require.True(t, errors.As(err, &appErr))
-	assert.Equal(t, "permission_group '' already exists", appErr.Message)
+	assert.Equal(t, "permission_group already exists", appErr.Message)
 	assert.NotContains(t, appErr.Message, "uk_permission")
 	assert.NotContains(t, appErr.Message, "permission_groups")
 	assert.NotContains(t, appErr.Message, "Key (")

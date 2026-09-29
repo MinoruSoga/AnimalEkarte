@@ -70,12 +70,12 @@ export class ExaminationsPage extends BasePage {
     return this.page.getByRole("combobox", { name: "検査種別" });
   }
 
-  searchInput(): Locator {
-    return this.page.getByPlaceholder("飼主名、ペット名、検査種別...");
+  /** PropertyFilter の検索トグルボタン（aria-label="検索"）。 */
+  searchToggleButton(): Locator {
+    return this.page.getByRole("button", { name: "検索" });
   }
 
-  /** 4th cell (検査種別) of the first row — positional `td.nth(3)`, kept in one place. */
-  firstRowTestTypeCell(): Locator {
-    return this.firstRow().locator("td").nth(3);
+  searchInput(): Locator {
+    return this.page.getByPlaceholder("飼主名、ペット名、検査種別...");
   }
 }

@@ -27,6 +27,10 @@ export class VaccinationsPage extends BasePage {
     return this.page.getByRole("button", { name: "新規登録" });
   }
 
+  searchToggleButton(): Locator {
+    return this.page.getByRole("button", { name: "検索" });
+  }
+
   searchInput(): Locator {
     return this.page.getByPlaceholder("飼主名、ペット名、予防接種名...");
   }

@@ -34,4 +34,12 @@ describe("Layout", () => {
     );
     expect(SUPPORT_WIDGET_LAYOUT.shellBottomClearance).toBe("pb-20");
   });
+
+  it("footprintPx は position(bottom-N) + buttonSizeClass(size-N) の算術と一致する", () => {
+    const bottomOffsetPx = Number(SUPPORT_WIDGET_LAYOUT.position.match(/bottom-(\d+)/)?.[1]) * 4;
+    const buttonSizePx = Number(SUPPORT_WIDGET_LAYOUT.buttonSizeClass.match(/size-(\d+)/)?.[1]) * 4;
+    expect(bottomOffsetPx).toBeGreaterThan(0);
+    expect(buttonSizePx).toBeGreaterThan(0);
+    expect(SUPPORT_WIDGET_LAYOUT.footprintPx).toBe(bottomOffsetPx + buttonSizePx);
+  });
 });

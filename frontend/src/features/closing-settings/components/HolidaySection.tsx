@@ -13,24 +13,27 @@ const PERMISSION_DENIED_MESSAGE = "この操作を行う権限がありません
 interface HolidaySectionProps {
   holidays: ClosingHoliday[];
   canCreate: boolean;
-  canEdit: boolean;
+  canDelete: boolean;
 }
 
 export const HolidaySection = memo(function HolidaySection({
   holidays,
   canCreate,
-  canEdit,
+  canDelete,
 }: HolidaySectionProps) {
   const [showForm, setShowForm] = useState(false);
   const createMutation = useCreateHoliday();
   const { mutateAsync: deleteHoliday } = useDeleteHoliday();
-  const canEditRef = useRef(canEdit);
+  // backend は POST→create / DELETE→delete を要求するため、各アクションのガードも対応する権限で判定する。
+  const canCreateRef = useRef(canCreate);
+  const canDeleteRef = useRef(canDelete);
   useLayoutEffect(() => {
-    canEditRef.current = canEdit;
-  }, [canEdit]);
+    canCreateRef.current = canCreate;
+    canDeleteRef.current = canDelete;
+  }, [canCreate, canDelete]);
 
   const [, formAction] = useActionState(async (_prev: null, formData: FormData) => {
-    if (canEditRef.current !== true) {
+    if (canCreateRef.current !== true) {
       toast.error(PERMISSION_DENIED_MESSAGE);
       return null;
     }
@@ -49,7 +52,7 @@ export const HolidaySection = memo(function HolidaySection({
 
   const handleDelete = useCallback(
     async (date: string) => {
-      if (canEditRef.current !== true) {
+      if (canDeleteRef.current !== true) {
         toast.error(PERMISSION_DENIED_MESSAGE);
         return;
       }

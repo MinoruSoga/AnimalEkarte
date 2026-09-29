@@ -7,7 +7,6 @@ import type { MedicalRecordSortKey } from "../api/get-medical-records";
 
 interface UseMedicalRecordsUrlStateResult {
   searchParams: URLSearchParams;
-  setSearchParams: ReturnType<typeof useSearchParams>[1];
   currentPage: number;
   sortKey: MedicalRecordSortKey | undefined;
   sortOrder: "asc" | "desc";
@@ -98,9 +97,10 @@ export function useMedicalRecordsUrlState(resetKey: string): UseMedicalRecordsUr
     [updateParams],
   );
 
+  // raw の setSearchParams は latestParamsRef を迂回するため公開しない。
+  // URL 更新は必ず updateParams 経由（handleSortToggle/handlePageChange）に限定する。
   return {
     searchParams,
-    setSearchParams,
     currentPage,
     sortKey,
     sortOrder,

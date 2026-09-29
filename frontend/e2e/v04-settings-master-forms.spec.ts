@@ -2114,6 +2114,7 @@ test.describe("V04 設定マスタ §1 標準マスタ（admin）", () => {
         try {
           await v04Api(page.request, v04.clinicId, "PATCH", `/payment-methods/${methodId}`, {
             name: originalName,
+            is_active: true,
           });
         } catch {
           // Best-effort restore only.

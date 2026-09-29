@@ -360,6 +360,43 @@ class VerificationTests(unittest.TestCase):
             self.assertIn('"status": "FAIL"', output.getvalue())
             self.assertNotIn('sensitive', output.getvalue())
 
+    def test_claude_hook_and_sibling_test_share_one_test_job(self):
+        # A .js hook and its sibling .test.js selected together must not enqueue
+        # the same `node --test` job twice (the `job not in jobs` dedup branch).
+        jobs, blocked = verify.plan([
+            '.claude/hooks/pre-write-large-file-block.js',
+            '.claude/hooks/pre-write-large-file-block.test.js',
+        ])
+        self.assertFalse(blocked)
+        commands = [job['command'] for job in jobs]
+        self.assertEqual(
+            commands.count(['node', '--test', '.claude/hooks/pre-write-large-file-block.test.js']),
+            1,
+        )
+        self.assertEqual(
+            commands.count(['node', '--check', '.claude/hooks/pre-write-large-file-block.test.js']),
+            1,
+        )
+
+    def test_require_empty_stdout_fails_zero_exit_check(self):
+        # gofmt -l exits 0 even when it lists a file; require_empty_stdout must
+        # still mark the check FAIL so drift is not silently green.
+        listed = subprocess.CompletedProcess([], 0, 'cmd/clinical-e2e-fixture/main.go\n', '')
+        with mock.patch.object(verify, 'local_defaults', return_value={}), \
+             mock.patch.object(verify, 'git', return_value='fixture-head'), \
+             mock.patch.object(verify, 'inspect_container', return_value=('cid', {'Id': 'img'})), \
+             mock.patch.object(verify, 'run', return_value=listed), \
+             mock.patch('sys.argv', ['verify', '--paths', 'backend/cmd/clinical-e2e-fixture/main.go']), \
+             mock.patch('sys.stdout', new_callable=io.StringIO) as output:
+            self.assertEqual(verify.main(), 1)
+            evidence = json.loads(output.getvalue())
+        gofmt = next(
+            check for check in evidence['checks']
+            if check['command'][:2] == ['gofmt', '-l']
+        )
+        self.assertEqual(gofmt['exit_code'], 0)
+        self.assertEqual(gofmt['status'], 'FAIL')
+
     def test_frontend_package_manifest_maps_to_pnpm_audit(self):
         for path in ('frontend/package.json', 'frontend/pnpm-lock.yaml'):
             with self.subTest(path=path):

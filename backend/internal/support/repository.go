@@ -5,6 +5,7 @@ package support
 
 import (
 	"context"
+	"errors"
 
 	"gorm.io/gorm"
 
@@ -97,6 +98,21 @@ func (r *repository) ListChatHistory(ctx context.Context, clinicID, staffID uint
 	// 新しい順で取得したものを古い順（会話の時系列）に反転する
 	for i, j := 0, len(messages)-1; i < j; i, j = i+1, j-1 {
 		messages[i], messages[j] = messages[j], messages[i]
+	}
+	// 窓の境界で最古が assistant の場合、対になる user 質問が窓外に残る。
+	// 1件だけ繰り上げ取得してペアを維持する。
+	if len(messages) > 0 && messages[0].Role == model.SupportChatRoleAssistant {
+		var preceding model.SupportChatMessage
+		err := r.db.WithContext(ctx).
+			Where("clinic_id = ? AND staff_id = ? AND id < ?", clinicID, staffID, messages[0].ID).
+			Order("id DESC").
+			Take(&preceding).Error
+		switch {
+		case err == nil && preceding.Role == model.SupportChatRoleUser:
+			messages = append([]model.SupportChatMessage{preceding}, messages...)
+		case err != nil && !errors.Is(err, gorm.ErrRecordNotFound):
+			return nil, apperrors.FromGORM(err, "support_chat_message", "")
+		}
 	}
 	return messages, nil
 }

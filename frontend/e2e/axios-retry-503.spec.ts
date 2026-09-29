@@ -114,7 +114,6 @@ test.describe("EMR-203 axios GET retry — synthetic browser check", () => {
       body: JSON.stringify({ ...result, requestCount: hits }),
       contentType: "application/json",
     });
-    console.log(`[EMR-203] 503 case: ${JSON.stringify({ ...result, requestCount: hits })}`);
 
     expect(result.outcome).toBe("rejected");
     expect(result.status).toBe(503);
@@ -133,7 +132,6 @@ test.describe("EMR-203 axios GET retry — synthetic browser check", () => {
       body: JSON.stringify({ ...result, requestCount: hits }),
       contentType: "application/json",
     });
-    console.log(`[EMR-203] 502 case: ${JSON.stringify({ ...result, requestCount: hits })}`);
 
     expect(result.outcome).toBe("rejected");
     expect(result.status).toBe(502);

@@ -40,6 +40,8 @@ jobs:
       APP_ENV: test
       E2E_LOGIN_EMAIL: stg-staff-10000021@example.test
       E2E_LOGIN_PASSWORD: password
+      # 収集先は step 実行時と upload-artifact の path で共有するため job env に集約。
+      E2E_RESULTS_DIR: ${{ runner.temp }}/e2e-results
 
     steps:
       - name: Checkout
@@ -105,14 +107,12 @@ jobs:
         working-directory: frontend
         env:
           E2E_SUITE: ${{ inputs.suite }}
-          E2E_RESULTS_DIR_CANDIDATE: ${{ runner.temp }}/e2e-results
         run: |
           case "$E2E_SUITE" in
             auth-smoke)
-              ./scripts/run-e2e.sh e2e/auth-flows.spec.ts
+              ./scripts/run-e2e.sh --auth-smoke
               ;;
             clinical|v04)
-              export E2E_RESULTS_DIR="$E2E_RESULTS_DIR_CANDIDATE"
               ./scripts/run-e2e.sh "--$E2E_SUITE"
               ;;
             *)
@@ -144,7 +144,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: playwright-results-${{ inputs.suite }}
-          path: ${{ runner.temp }}/e2e-results/
+          path: ${{ env.E2E_RESULTS_DIR }}/
           retention-days: 7
           if-no-files-found: warn
 

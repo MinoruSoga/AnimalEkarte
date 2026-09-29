@@ -1,6 +1,7 @@
 package support
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
@@ -214,11 +216,25 @@ func (h *Handler) Chat(c *gin.Context) {
 	// 次回セッションの履歴に出ないだけなので、WARN を残し回答は通常どおり返す。
 	// service はテストで nil にできるため nil ガードを挟む。
 	if h.service != nil {
-		if err := h.service.RecordChatExchange(c.Request.Context(), clinicID, staffID, req.Message, reply, sources); err != nil {
-			slog.WarnContext(c.Request.Context(), "failed to persist support chat history", "error", err, "clinic_id", clinicID, "staff_id", staffID)
+		// プロバイダ側の退行で過大な応答が返ってきても text 列へ無制限には書き込まない。
+		if len(reply) > chatHistoryMaxLength {
+			slog.WarnContext(c.Request.Context(), "support chat reply too long; skipping persistence", "reply_length", len(reply), "clinic_id", clinicID, "staff_id", staffID)
+		} else if err := h.service.RecordChatExchange(c.Request.Context(), clinicID, staffID, req.Message, reply, sources); err != nil {
+			logChatPersistFailure(c.Request.Context(), err, clinicID, staffID)
 		}
 	}
 	c.JSON(http.StatusOK, chatResponse{Reply: reply, Sources: sources})
+}
+
+// logChatPersistFailure は履歴保存失敗を WARN で残す。pg エラーの DETAIL/WHERE は
+// 行内容を含み得るため、Message と SQLSTATE のみ記録する。
+func logChatPersistFailure(ctx context.Context, err error, clinicID, staffID uint64) {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		slog.WarnContext(ctx, "failed to persist support chat history", "error", pgErr.Message, "pg_code", pgErr.Code, "clinic_id", clinicID, "staff_id", staffID)
+		return
+	}
+	slog.WarnContext(ctx, "failed to persist support chat history", "error", err, "clinic_id", clinicID, "staff_id", staffID)
 }
 
 // ChatHistory はログイン中スタッフ（選択clinic内）の会話履歴を古い順で返す。
@@ -232,6 +248,11 @@ func (h *Handler) ChatHistory(c *gin.Context) {
 	}
 	staffID, ok := httpapi.ExtractStaffID(c)
 	if !ok {
+		return
+	}
+	// 永続化未配線（テスト等）では履歴は空が正しい値。Chat の 501 とは意味が違う。
+	if h.service == nil {
+		c.JSON(http.StatusOK, chatHistoryResponse{Data: []chatHistoryItem{}})
 		return
 	}
 	messages, err := h.service.ListChatHistory(c.Request.Context(), clinicID, staffID)
@@ -256,6 +277,11 @@ func (h *Handler) ClearChatHistory(c *gin.Context) {
 	}
 	staffID, ok := httpapi.ExtractStaffID(c)
 	if !ok {
+		return
+	}
+	// 永続化未配線なら消すものがないので no-op で成功扱いにする。
+	if h.service == nil {
+		c.Status(http.StatusNoContent)
 		return
 	}
 	if err := h.service.ClearChatHistory(c.Request.Context(), clinicID, staffID); err != nil {

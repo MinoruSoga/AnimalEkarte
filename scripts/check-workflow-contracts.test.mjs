@@ -120,6 +120,13 @@ test("backend deploy keeps the STG path and adds a Production-gated path", () =>
   const staging = workflowJob(wf, "deploy");
   assert.doesNotMatch(staging, /^\s+environment:/m);
   assert.match(staging, /github\.ref == 'refs\/heads\/staging'/);
+  // workflow_dispatch --ref production -f target=staging は STG 側で fail-closed される。
+  const stgGuard = namedStep(
+    staging,
+    "Guard against deploying the production branch to staging",
+  );
+  assert.match(stgGuard, /if: github\.ref == 'refs\/heads\/production'/);
+  assert.match(stgGuard, /exit 1/);
   const stgDeploy = namedStep(staging, "Deploy Worker and Container");
   assert.match(stgDeploy, /^\s+run: npx wrangler deploy\s*$/m);
   assert.doesNotMatch(stgDeploy, /wrangler\.production\.jsonc/);
@@ -266,16 +273,21 @@ test("E2E job stays manual-only, keeps the synthetic login, and routes suites to
 
   const run = namedStep(e2e, "Run Playwright E2E (${{ inputs.suite }})");
   assert.match(run, /^\s+E2E_SUITE: \$\{\{ inputs\.suite \}\}\s*$/m);
+  // auth-smoke は --auth-smoke フラグ経由で呼ぶ（run-e2e.sh のフラグ分岐自体をCIで通す）。
   assert.match(
     run,
-    /auth-smoke\)\s*\n\s+\.\/scripts\/run-e2e\.sh e2e\/auth-flows\.spec\.ts\s*$/m,
+    /auth-smoke\)\s*\n\s+\.\/scripts\/run-e2e\.sh --auth-smoke\s*$/m,
   );
   assert.match(run, /clinical\|v04\)/);
   assert.match(run, /\.\/scripts\/run-e2e\.sh "--\$E2E_SUITE"/);
-  assert.match(run, /export E2E_RESULTS_DIR=/);
+  // 未知 suite は catch-all で fail-closed（exit 1）されることを pin する。
+  assert.match(run, /\*\)\s*\n\s+echo "unknown suite: \$E2E_SUITE" >&2\s*\n\s+exit 1\s*$/m);
   const script = run.split("run: |")[1];
   assert.ok(script, "run step must use a block scalar");
   assert.doesNotMatch(script, /\$\{\{/);
+
+  // 結果収集先は job env に集約し、step env / upload path で同じ参照を共有する。
+  assert.match(e2e, /^\s+E2E_RESULTS_DIR: \$\{\{ runner\.temp \}\}\/e2e-results\s*$/m);
 
   const upload = namedStep(e2e, "Upload Playwright test results (clinical / v04)");
   assert.match(
@@ -284,7 +296,7 @@ test("E2E job stays manual-only, keeps the synthetic login, and routes suites to
   );
   assert.match(
     upload,
-    /^\s+path: \$\{\{ runner\.temp \}\}\/e2e-results\/\s*$/m,
+    /^\s+path: \$\{\{ env\.E2E_RESULTS_DIR \}\}\/\s*$/m,
   );
 });
 

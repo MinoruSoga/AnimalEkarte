@@ -216,7 +216,12 @@ export function AddForm({ onSubmit }: AddFormProps) {
               ))}
             </div>
           </div>
-          <SubmitButton size="sm" disabled={!canSubmit} className="h-8 text-xs gap-1">
+          <SubmitButton
+            size="sm"
+            disabled={!canSubmit}
+            aria-label="ケアプラン項目を追加"
+            className="h-8 text-xs gap-1"
+          >
             <Plus className={ICON.action} />
             追加
           </SubmitButton>

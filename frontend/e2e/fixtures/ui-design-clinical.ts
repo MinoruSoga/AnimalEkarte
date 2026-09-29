@@ -637,7 +637,7 @@ export const SYNTHETIC_CLINICAL_SCENARIOS = {
         selector: "input[placeholder='治療内容を入力...']",
         value: SYNTHETIC_TREATMENT_PLAN.treatment_content,
       },
-      { kind: "disabled", selector: "button:has-text('追加')" },
+      { kind: "disabled", selector: "button[aria-label='ケアプラン項目を追加']" },
       { kind: "disabled", selector: "input[placeholder='治療内容を入力...']" },
       { kind: "disabled", selector: "#hospitalization-global-discount" },
       { kind: "visibleText", value: "会計時に確定します" },

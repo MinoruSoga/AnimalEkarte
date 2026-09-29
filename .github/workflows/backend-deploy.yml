@@ -45,6 +45,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7.0.1
 
+      # workflow_dispatch で任意ブランチを指定できるが、production ブランチからの
+      # STG deploy は prod リリース経路と混線するため fail-closed で拒否する
+      #（deploy-production 側の Environment ガードと対称）。
+      - name: Guard against deploying the production branch to staging
+        if: github.ref == 'refs/heads/production'
+        run: |
+          echo "::error::production branch cannot be deployed to the STG environment. Use the production deploy workflow instead." >&2
+          exit 1
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
         with:

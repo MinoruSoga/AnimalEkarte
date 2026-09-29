@@ -15,6 +15,7 @@ auth smoke と **別 allowlist** にする。
 | clinical / data-dependent | `clinical-flows.spec.ts`、`clinical-smoke.spec.ts`、`medical-records-*.spec.ts`、`examinations-flow.spec.ts`、`vaccinations-flow.spec.ts`、`checkups-flow.spec.ts`、`hospitalization-flow.spec.ts`、`estimates-flow.spec.ts` | 対象。退役 `003_demo` の固定氏名依存は合成 fixture 参照へ置換済み |
 | 会計・予約・マスタ | `accounting-*.spec.ts`、`reservations-*.spec.ts`、`master-crud.spec.ts` 等 | 同一 fixture 契約が必要なら第 2 allowlist。初回実装には入れない |
 | UI 監査 / LIFF | `ui-design-compliance-readonly.spec.ts`、`line-reservation-flow.spec.ts` | 対象外 |
+| 合成 network check | `axios-retry-503.spec.ts` | いずれの allowlist にも入れない。`page.route` 全 stub・公開 `/login` のみで backend/clinic を触らない自己完結 spec のため、disposable clinic を立てる `--clinical` / `--v04` の対象外。all-specs モードまたは明示パスでのみ実行 |
 
 L4（S01–S13 / V01–V05）の代替ではない。
 

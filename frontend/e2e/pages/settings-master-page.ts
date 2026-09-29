@@ -35,7 +35,7 @@ export class SettingsMasterPage extends BasePage {
    * Masters use accessible names like `編集: …` or `…を編集` (not bare "操作").
    */
   rowActionButton(text: string): Locator {
-    return this.rowContaining(text).getByRole("button", { name: /編集|を編集|操作/ });
+    return this.rowContaining(text).getByRole("button", { name: /編集|操作/ });
   }
 
   /**
