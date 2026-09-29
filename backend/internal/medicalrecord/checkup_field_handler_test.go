@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -43,6 +44,35 @@ func (m *mockCheckupFieldResultService) ReplaceForCheckup(ctx context.Context, c
 
 func newHandlerWithCheckupFieldResultSvc(svc CheckupFieldResultService) *CheckupHandler {
 	return NewCheckupHandler(nil, svc)
+}
+
+// ---- mock CheckupTypeFieldService（EMR-225 フィールド定義 write 側） ----
+
+type mockCheckupTypeFieldService struct {
+	createFieldFn   func(ctx context.Context, clinicID, checkupTypeID uint64, input *CreateCheckupTypeFieldInput) (*model.CheckupTypeField, error)
+	updateFieldFn   func(ctx context.Context, clinicID, checkupTypeID, fieldID uint64, input *UpdateCheckupTypeFieldInput) (*model.CheckupTypeField, error)
+	deleteFieldFn   func(ctx context.Context, clinicID, checkupTypeID, fieldID uint64) error
+	reorderFieldsFn func(ctx context.Context, clinicID, checkupTypeID uint64, ids []uint64) error
+}
+
+func (m *mockCheckupTypeFieldService) CreateField(ctx context.Context, clinicID, checkupTypeID uint64, input *CreateCheckupTypeFieldInput) (*model.CheckupTypeField, error) {
+	return m.createFieldFn(ctx, clinicID, checkupTypeID, input)
+}
+
+func (m *mockCheckupTypeFieldService) UpdateField(ctx context.Context, clinicID, checkupTypeID, fieldID uint64, input *UpdateCheckupTypeFieldInput) (*model.CheckupTypeField, error) {
+	return m.updateFieldFn(ctx, clinicID, checkupTypeID, fieldID, input)
+}
+
+func (m *mockCheckupTypeFieldService) DeleteField(ctx context.Context, clinicID, checkupTypeID, fieldID uint64) error {
+	return m.deleteFieldFn(ctx, clinicID, checkupTypeID, fieldID)
+}
+
+func (m *mockCheckupTypeFieldService) ReorderFields(ctx context.Context, clinicID, checkupTypeID uint64, ids []uint64) error {
+	return m.reorderFieldsFn(ctx, clinicID, checkupTypeID, ids)
+}
+
+func newHandlerWithCheckupFieldSvc(svc CheckupTypeFieldService) *CheckupHandler {
+	return NewCheckupHandler(nil, nil, svc)
 }
 
 // ---- ListCheckupTypeFields ----
@@ -473,4 +503,211 @@ func TestCheckupFieldSelectedClinicGrant(t *testing.T) {
 			assert.Equal(t, http.StatusForbidden, w.Code)
 		})
 	}
+}
+
+// ---- フィールド定義 write 側（EMR-225） ----
+// 権限強制はルート側 perm(model.ResourceCheckups, ...) ミドルウェアの責務（exam-type fields と同型）
+// のため、ここではバインド→service 入力変換・ID 経路・fail-closed を固定する。
+
+func newCheckupFieldWriteContext(w *httptest.ResponseRecorder, method, body string, params gin.Params) *gin.Context {
+	c, _ := gin.CreateTestContext(w)
+	var reader *bytes.Reader
+	if body == "" {
+		reader = bytes.NewReader(nil)
+	} else {
+		reader = bytes.NewReader([]byte(body))
+	}
+	c.Request = httptest.NewRequest(method, "/", reader)
+	c.Params = params
+	setClinicID(c)
+	return c
+}
+
+func TestCreateCheckupTypeField(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("201 with Location header and converts request to service input", func(t *testing.T) {
+		svc := &mockCheckupTypeFieldService{
+			createFieldFn: func(_ context.Context, clinicID, checkupTypeID uint64, input *CreateCheckupTypeFieldInput) (*model.CheckupTypeField, error) {
+				assert.Equal(t, uint64(1), clinicID)
+				assert.Equal(t, uint64(7), checkupTypeID)
+				assert.Equal(t, "総合評価", input.Name)
+				assert.Equal(t, "single_select", input.FieldType)
+				require.Len(t, input.Options, 2)
+				assert.Equal(t, CheckupFieldOptionInput{Value: "a", Label: "良好"}, input.Options[0])
+				return &model.CheckupTypeField{ID: 42, CheckupTypeID: 7, Name: input.Name, FieldType: model.CheckupFieldTypeSingleSelect}, nil
+			},
+		}
+		h := newHandlerWithCheckupFieldSvc(svc)
+		w := httptest.NewRecorder()
+		c := newCheckupFieldWriteContext(w, http.MethodPost,
+			`{"name":"総合評価","field_type":"single_select","options":[{"value":"a","label":"良好"},{"value":"b","label":"要注意"}],"sort_order":3}`,
+			gin.Params{{Key: "id", Value: "7"}})
+
+		h.CreateCheckupTypeField(c)
+
+		assert.Equal(t, http.StatusCreated, w.Code)
+		assert.Equal(t, "/v1/masters/checkup-types/7/fields/42", w.Header().Get("Location"))
+		assert.Contains(t, w.Body.String(), `"id":42`)
+	})
+
+	t.Run("400 on malformed body", func(t *testing.T) {
+		h := newHandlerWithCheckupFieldSvc(&mockCheckupTypeFieldService{})
+		w := httptest.NewRecorder()
+		c := newCheckupFieldWriteContext(w, http.MethodPost, `{"field_type":"number"}`,
+			gin.Params{{Key: "id", Value: "7"}})
+		h.CreateCheckupTypeField(c)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("400 on non-numeric parent id", func(t *testing.T) {
+		h := newHandlerWithCheckupFieldSvc(&mockCheckupTypeFieldService{
+			createFieldFn: func(_ context.Context, _, _ uint64, _ *CreateCheckupTypeFieldInput) (*model.CheckupTypeField, error) {
+				t.Fatal("service must not be reached")
+				return nil, nil
+			},
+		})
+		w := httptest.NewRecorder()
+		c := newCheckupFieldWriteContext(w, http.MethodPost, `{"name":"x","field_type":"text"}`,
+			gin.Params{{Key: "id", Value: "abc"}})
+		h.CreateCheckupTypeField(c)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("500 when field service is not wired", func(t *testing.T) {
+		h := NewCheckupHandler(nil, nil) // fieldService 未注入（旧2引数呼出し互換）
+		w := httptest.NewRecorder()
+		c := newCheckupFieldWriteContext(w, http.MethodPost, `{"name":"x","field_type":"text"}`,
+			gin.Params{{Key: "id", Value: "7"}})
+		h.CreateCheckupTypeField(c)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+}
+
+func TestUpdateCheckupTypeField(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("200 and passes partial update through to service", func(t *testing.T) {
+		svc := &mockCheckupTypeFieldService{
+			updateFieldFn: func(_ context.Context, clinicID, checkupTypeID, fieldID uint64, input *UpdateCheckupTypeFieldInput) (*model.CheckupTypeField, error) {
+				assert.Equal(t, uint64(1), clinicID)
+				assert.Equal(t, uint64(7), checkupTypeID)
+				assert.Equal(t, uint64(3), fieldID)
+				require.NotNil(t, input.Name)
+				assert.Equal(t, "体重（朝）", *input.Name)
+				require.NotNil(t, input.FieldType)
+				assert.Equal(t, "text", *input.FieldType, "field_type 変更を許可")
+				assert.True(t, input.ClearMaxValue)
+				return &model.CheckupTypeField{ID: 3, CheckupTypeID: 7, Name: *input.Name, FieldType: model.CheckupFieldTypeText}, nil
+			},
+		}
+		h := newHandlerWithCheckupFieldSvc(svc)
+		w := httptest.NewRecorder()
+		c := newCheckupFieldWriteContext(w, http.MethodPatch,
+			`{"name":"体重（朝）","field_type":"text","clear_max_value":true}`,
+			gin.Params{{Key: "id", Value: "7"}, {Key: "fieldId", Value: "3"}})
+
+		h.UpdateCheckupTypeField(c)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Contains(t, w.Body.String(), `"field_type":"text"`)
+	})
+
+	t.Run("400 on non-numeric field id", func(t *testing.T) {
+		h := newHandlerWithCheckupFieldSvc(&mockCheckupTypeFieldService{
+			updateFieldFn: func(_ context.Context, _, _, _ uint64, _ *UpdateCheckupTypeFieldInput) (*model.CheckupTypeField, error) {
+				t.Fatal("service must not be reached")
+				return nil, nil
+			},
+		})
+		w := httptest.NewRecorder()
+		c := newCheckupFieldWriteContext(w, http.MethodPatch, `{"name":"x"}`,
+			gin.Params{{Key: "id", Value: "7"}, {Key: "fieldId", Value: "zzz"}})
+		h.UpdateCheckupTypeField(c)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+}
+
+func TestDeleteCheckupTypeField(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("204 on success", func(t *testing.T) {
+		svc := &mockCheckupTypeFieldService{
+			deleteFieldFn: func(_ context.Context, clinicID, checkupTypeID, fieldID uint64) error {
+				assert.Equal(t, uint64(1), clinicID)
+				assert.Equal(t, uint64(7), checkupTypeID)
+				assert.Equal(t, uint64(3), fieldID)
+				return nil
+			},
+		}
+		// c.Status(NoContent) のみでボディ書き込みが無いため gin.Engine 経由でヘッダーを
+		// フラッシュする（直接呼び出しだと w.Code が 200 のまま — care_plan_item 先例）。
+		h := newHandlerWithCheckupFieldSvc(svc)
+		r := gin.New()
+		r.DELETE("/masters/checkup-types/:id/fields/:fieldId", func(c *gin.Context) {
+			setClinicID(c)
+		}, h.DeleteCheckupTypeField)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodDelete, "/masters/checkup-types/7/fields/3", http.NoBody)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusNoContent, w.Code)
+	})
+
+	t.Run("404 propagates from service for missing field", func(t *testing.T) {
+		svc := &mockCheckupTypeFieldService{
+			deleteFieldFn: func(_ context.Context, _, _, _ uint64) error {
+				return apperrors.WrapNotFound("checkup_type_field", "3")
+			},
+		}
+		h := newHandlerWithCheckupFieldSvc(svc)
+		w := httptest.NewRecorder()
+		c := newCheckupFieldWriteContext(w, http.MethodDelete, "",
+			gin.Params{{Key: "id", Value: "7"}, {Key: "fieldId", Value: "3"}})
+		h.DeleteCheckupTypeField(c)
+		assert.Equal(t, http.StatusNotFound, w.Code)
+	})
+}
+
+func TestReorderCheckupTypeFields(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("204 and forwards id order", func(t *testing.T) {
+		svc := &mockCheckupTypeFieldService{
+			reorderFieldsFn: func(_ context.Context, clinicID, checkupTypeID uint64, ids []uint64) error {
+				assert.Equal(t, uint64(1), clinicID)
+				assert.Equal(t, uint64(7), checkupTypeID)
+				assert.Equal(t, []uint64{3, 1, 2}, ids)
+				return nil
+			},
+		}
+		// 204 のみのレスポンスは gin.Engine 経由でヘッダーをフラッシュする（上記 Delete 同型）。
+		h := newHandlerWithCheckupFieldSvc(svc)
+		r := gin.New()
+		r.PATCH("/masters/checkup-types/:id/fields/reorder", func(c *gin.Context) {
+			setClinicID(c)
+		}, h.ReorderCheckupTypeFields)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPatch, "/masters/checkup-types/7/fields/reorder",
+			bytes.NewReader([]byte(`{"ids":[3,1,2]}`)))
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusNoContent, w.Code)
+	})
+
+	t.Run("400 on empty ids", func(t *testing.T) {
+		h := newHandlerWithCheckupFieldSvc(&mockCheckupTypeFieldService{
+			reorderFieldsFn: func(_ context.Context, _, _ uint64, _ []uint64) error {
+				t.Fatal("service must not be reached")
+				return nil
+			},
+		})
+		w := httptest.NewRecorder()
+		c := newCheckupFieldWriteContext(w, http.MethodPatch, `{"ids":[]}`,
+			gin.Params{{Key: "id", Value: "7"}})
+		h.ReorderCheckupTypeFields(c)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
 }

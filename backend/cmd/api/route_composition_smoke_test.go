@@ -97,7 +97,15 @@ func TestRouteCompositionSmoke_TargetGraphRegistersEverySurface(t *testing.T) {
 	//   GET    /api/v1/support/chat/history
 	//   DELETE /api/v1/support/chat/history
 	// All seven are documented in backend/docs/api.yaml.
-	require.Len(t, routes, 534)
+	// 538 — EMR-225 checkup_type_fields nested CRUD + reorder (ResourceCheckups-gated;
+	// registered only when CheckupHandler.fieldService is wired — see
+	// internal/medicalrecord/routes_masters.go). All four are documented in
+	// backend/docs/api.yaml:
+	//   POST   /api/v1/masters/checkup-types/:id/fields
+	//   PATCH  /api/v1/masters/checkup-types/:id/fields/reorder
+	//   PATCH  /api/v1/masters/checkup-types/:id/fields/:fieldId
+	//   DELETE /api/v1/masters/checkup-types/:id/fields/:fieldId
+	require.Len(t, routes, 538)
 	for _, expected := range []string{
 		"GET /health",
 		"GET /health/db",
