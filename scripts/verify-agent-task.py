@@ -595,6 +595,9 @@ def plan(paths):
         ):
             jobs.append({'service': 'host', 'command': ['bash', 'scripts/local-db-reset-contract.test.sh']})
             jobs.append({'service': 'host', 'command': ['bash', '-n', path]})
+        elif path == 'scripts/manual-sync.py':
+            # Ops CLI は stdlib-only。pure 関数の --self-test が scoped 契約。
+            jobs.append({'service': 'host', 'command': ['python3', '-B', 'scripts/manual-sync.py', '--self-test']})
         elif path in (
             'scripts/link-old-db-cross-clinic-staff-accounts.py',
             'scripts/sql/link-old-db-cross-clinic-staff-accounts.sql',

@@ -120,6 +120,14 @@ class VerificationTests(unittest.TestCase):
                 self.assertIn({'service': 'host', 'command': ['bash', 'scripts/local-db-reset-contract.test.sh']}, jobs)
                 self.assertIn({'service': 'host', 'command': ['bash', '-n', path]}, jobs)
 
+    def test_manual_sync_maps_to_self_test(self):
+        jobs, blocked = verify.plan(['scripts/manual-sync.py'])
+        self.assertFalse(blocked)
+        self.assertIn(
+            {'service': 'host', 'command': ['python3', '-B', 'scripts/manual-sync.py', '--self-test']},
+            jobs,
+        )
+
     def test_reject_path_escape(self):
         for path in ('../secret', '/tmp/x', '-option', 'frontend/../../x'):
             with self.assertRaises(ValueError):

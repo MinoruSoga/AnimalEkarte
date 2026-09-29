@@ -40,6 +40,7 @@ import json
 import os
 import re
 import sys
+import tempfile
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
@@ -372,7 +373,52 @@ def cmd_prune(client: ApiClient, args: argparse.Namespace) -> int:
     return 1 if failed else 0
 
 
-def main() -> int:
+def _self_test() -> bool:
+    """ネットワーク不要な pure 関数の回帰チェック（scoped verify の契約）。"""
+    # frontmatter `order: 0` は有効値として 0 を保持する（既定値 9999 へ丸めない）。
+    a = parse_md("---\ntitle: 概要\norder: 0\nsection: 基本\n---\n\n# 概要\n本文\n", "00-overview")
+    assert a.order == 0.0 and a.title == "概要" and a.section == "基本", a
+    # frontmatter 欠落時は FE 既定値（title=slug, order=9999, section=その他）。
+    b = parse_md("# body only\n", "raw")
+    assert (b.title, b.order, b.section) == ("raw", 9999.0, "その他"), b
+    # render → parse の往復でフィールドが保存される（order=0 含む）。
+    c = parse_md(render_md(a), a.slug)
+    assert articles_equal(a, c), (a, c)
+    # 本文差分は equal ではない。
+    assert not articles_equal(a, Article(a.category, a.slug, a.title, a.order, a.section, "別文"))
+    # DB 行 → Article（order_value=0 が float 0 になる）。
+    d = article_from_db({
+        "category": "screens", "slug": "s1", "title": "t",
+        "order_value": 0, "section": "sec", "body_markdown": "body",
+    })
+    assert d.order == 0.0 and d.category == "screens", d
+    # classify の4分類。
+    same_k = ("screens", "s1")
+    files = {same_k: d, ("screens", "f-only"): b}
+    db = {same_k: d}
+    db[("workflows", "db-only")] = Article("workflows", "db-only", "t", 1, "s", "y")
+    same, diverged, db_only, file_only = classify(db, files)
+    assert same == [same_k] and diverged == [] and db_only == [("workflows", "db-only")], (same, diverged, db_only)
+    assert file_only == [("screens", "f-only")], file_only
+    div_db = dict(db)
+    div_db[same_k] = Article("screens", "s1", "t", 0, "sec", "changed")
+    _, diverged, _, _ = classify(div_db, files)
+    assert diverged == [same_k]
+    # load_file_articles はカテゴリ dir 配下の *.md のみ拾う。
+    with tempfile.TemporaryDirectory() as tmp:
+        cat_dir = Path(tmp) / "screens"
+        cat_dir.mkdir()
+        (cat_dir / "a1.md").write_text("---\ntitle: A\norder: 1\nsection: S\n---\nx\n", encoding="utf-8")
+        (cat_dir / "note.txt").write_text("skip", encoding="utf-8")
+        loaded = load_file_articles(Path(tmp))
+    assert set(loaded) == {("screens", "a1")} and loaded[("screens", "a1")].order == 1.0, loaded
+    return True
+
+
+def main(argv: list[str] | None = None) -> int:
+    argv = sys.argv[1:] if argv is None else argv
+    if argv == ["--self-test"]:
+        return 0 if _self_test() else 1
     p = argparse.ArgumentParser(
         prog="manual-sync.py",
         description="マニュアル DB override ⇔ リポジトリ MD の同期（正本はリポジトリ）",
@@ -397,7 +443,7 @@ def main() -> int:
             sp.add_argument("--dry-run", action="store_true", help="書き込まず計画だけ表示")
         if name in ("push", "prune"):
             sp.add_argument("--execute", action="store_true", help="実際に変更を適用（既定は dry-run）")
-    args = p.parse_args()
+    args = p.parse_args(argv)
 
     base_url = resolve_base_url(args)
     email, password = resolve_credentials(args)
