@@ -46,7 +46,7 @@ export const TreatmentsTab = memo(function TreatmentsTab({
   }
 
   return (
-    <div className="flex flex-col gap-3 pb-24 flex-1 min-h-0 overflow-y-auto">
+    <div className="flex flex-col gap-3 pb-24 flex-1 min-h-0 overflow-y-auto relative">
       {/* テーブル */}
       <div className={`${STYLE.tableContainer} overflow-x-auto`}>
         <TreatmentsTable

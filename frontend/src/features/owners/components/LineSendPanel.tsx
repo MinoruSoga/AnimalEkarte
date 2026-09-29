@@ -112,7 +112,7 @@ export function LineSendPanel({ ownerId, ownerName, open, onOpenChange }: LineSe
         </SheetHeader>
 
         <div
-          className={`flex-1 overflow-y-auto flex flex-col gap-6 p-4 ${SUPPORT_WIDGET_LAYOUT.scrollBottomClearance}`}
+          className={`flex-1 overflow-y-auto relative flex flex-col gap-6 p-4 ${SUPPORT_WIDGET_LAYOUT.scrollBottomClearance}`}
         >
           {!isLinked ? (
             <div

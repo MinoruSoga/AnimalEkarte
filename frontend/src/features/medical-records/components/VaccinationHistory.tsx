@@ -130,7 +130,7 @@ export const VaccinationHistory = memo(function VaccinationHistory({
         </div>
 
         {/* Scrollable Rows */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto relative pb-20">
           {isLoading ? (
             <div className={`flex items-center justify-center h-24 text-sm ${C.text40}`}>
               読み込み中...

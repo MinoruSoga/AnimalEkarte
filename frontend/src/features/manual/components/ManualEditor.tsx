@@ -246,7 +246,9 @@ export function ManualEditor({ article, onClose, canEdit = false }: ManualEditor
           />
         ) : null}
         {mode === "preview" || mode === "split" ? (
-          <div className={`flex-1 overflow-y-auto ${SUPPORT_WIDGET_LAYOUT.scrollBottomClearance}`}>
+          <div
+            className={`flex-1 overflow-y-auto relative ${SUPPORT_WIDGET_LAYOUT.scrollBottomClearance}`}
+          >
             <ManualContent article={previewArticle} />
           </div>
         ) : null}

@@ -96,7 +96,7 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
       {/* EMR-212: MedicalRecordFormReadyPanels がページ全体を <form action>（カルテ保存）で
           包むため、ここに <form> を置くとネスト form となりブラウザが破棄する。form 要素は
           使わず、VaccinationForm 内の SubmitButton の formAction で送信する（EMR-208 と同型） */}
-      <div className="grid grid-cols-1 gap-4 flex-1 min-h-0 overflow-y-auto pb-20 pr-1 lg:grid-cols-5">
+      <div className="grid grid-cols-1 gap-4 flex-1 min-h-0 overflow-y-auto relative pb-20 pr-1 lg:grid-cols-5">
         {isAdding ? (
           <VaccinationForm
             formAction={formAction}

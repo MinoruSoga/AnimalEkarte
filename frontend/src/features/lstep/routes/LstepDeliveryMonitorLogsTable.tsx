@@ -28,7 +28,7 @@ export function LstepDeliveryMonitorLogsTable({
 }: LstepDeliveryMonitorLogsTableProps) {
   return (
     <div className={`${C.bgWhite} border ${C.borderLight} rounded-xs flex flex-col flex-1 min-h-0`}>
-      <div className={`${STYLE.tableContainer} flex-1 overflow-auto`}>
+      <div className={`${STYLE.tableContainer} flex-1 overflow-auto relative pb-20`}>
         <table className="w-full text-sm border-collapse">
           <thead>
             <tr className={STYLE.tableHeaderRow}>

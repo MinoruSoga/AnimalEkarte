@@ -16,7 +16,7 @@ export const SidePeekPanel = memo(function SidePeekPanel({
 }: SidePeekPanelProps) {
   return (
     <div
-      className={`${STYLE.sidePeekPanel} ${LAYOUT.sidePeek.width} shrink-0 ${SUPPORT_WIDGET_LAYOUT.scrollBottomClearance} ${className ?? ""}`}
+      className={`${STYLE.sidePeekPanel} ${LAYOUT.sidePeek.width} shrink-0 relative ${SUPPORT_WIDGET_LAYOUT.scrollBottomClearance} ${className ?? ""}`}
       onKeyDown={onKeyDown}
     >
       {children}

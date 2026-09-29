@@ -181,7 +181,7 @@ function EstimateFormContent({ id }: { id?: string }) {
   }
 
   return (
-    <form action={formAction}>
+    <form action={formAction} className="h-full">
       <PageLayout
         title={isEdit ? "見積書編集" : "新規見積書作成"}
         resource={ResourceEstimates}

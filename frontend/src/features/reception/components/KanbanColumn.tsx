@@ -73,7 +73,7 @@ export const KanbanColumn = memo(function KanbanColumn({
       </div>
       <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
         <div
-          className={`flex flex-col gap-2 flex-1 overflow-y-auto min-h-[100px] lg:min-h-[50px] ${SUPPORT_WIDGET_LAYOUT.scrollBottomClearance}`}
+          className={`flex flex-col gap-2 flex-1 overflow-y-auto relative min-h-[100px] lg:min-h-[50px] ${SUPPORT_WIDGET_LAYOUT.scrollBottomClearance}`}
         >
           {appointmentItems}
           {/* Spacer for drop target at end of column */}

@@ -53,7 +53,7 @@ export const PageLayout = memo(function PageLayout({
       />
       <div
         ref={scrollContainerRef}
-        className={`flex-1 min-w-0 overflow-y-auto w-full flex flex-col ${SUPPORT_WIDGET_LAYOUT.scrollBottomClearance}`}
+        className={`flex-1 min-w-0 overflow-y-auto relative w-full flex flex-col ${SUPPORT_WIDGET_LAYOUT.scrollBottomClearance}`}
       >
         <div
           className={`${maxWidth} ${align === "center" ? "mx-auto" : ""} min-w-0 w-full px-3 py-6 flex-1 flex flex-col`}

@@ -150,7 +150,9 @@ export function TagOwnerListDrawer({
           ) : null}
 
           {/* オーナーリスト */}
-          <div className={`flex-1 overflow-y-auto ${SUPPORT_WIDGET_LAYOUT.scrollBottomClearance}`}>
+          <div
+            className={`flex-1 overflow-y-auto relative ${SUPPORT_WIDGET_LAYOUT.scrollBottomClearance}`}
+          >
             {isLoading ? (
               <div className={`py-12 text-center ${C.text50} text-sm`}>読み込み中...</div>
             ) : owners.length === 0 ? (

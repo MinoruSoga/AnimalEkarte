@@ -219,7 +219,7 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
   }, []);
 
   return (
-    <div className="flex flex-col gap-3 flex-1 min-h-0 overflow-y-auto pb-24 pr-1">
+    <div className="flex flex-col gap-3 flex-1 min-h-0 overflow-y-auto relative pb-24 pr-1">
       {/* Subject */}
       <EstimateForm subject={subject} onSubjectChange={setSubject} canEdit={canEdit} />
       <FormFieldError message={subjectError} />

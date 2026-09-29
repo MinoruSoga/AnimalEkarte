@@ -223,7 +223,7 @@ export const ManualContent = memo(function ManualContent({ article }: ManualCont
 
   return (
     <article
-      className={`flex-1 overflow-y-auto px-4 md:px-8 py-6 max-w-[860px] mx-auto manual-article pt-16 md:pt-6 ${C.bgWhite} ${SUPPORT_WIDGET_LAYOUT.scrollBottomClearance}`}
+      className={`flex-1 overflow-y-auto relative px-4 md:px-8 py-6 max-w-[860px] mx-auto manual-article pt-16 md:pt-6 ${C.bgWhite} ${SUPPORT_WIDGET_LAYOUT.scrollBottomClearance}`}
     >
       <ReactMarkdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>
         {article.content}

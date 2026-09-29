@@ -177,7 +177,7 @@ export function ReservationTypeAvailableSlotsCalendar({
       {/* 予約管理画面と同じ密度の週グリッド */}
       <div
         data-testid="reservation-slots-calendar-scroll"
-        className={`flex-1 min-h-0 min-w-0 max-w-full overflow-x-auto overflow-y-auto border-l border-t ${C.borderMedium} rounded-lg ${C.bgWhite} ${SUPPORT_WIDGET_LAYOUT.scrollBottomClearance}`}
+        className={`flex-1 min-h-0 min-w-0 max-w-full overflow-x-auto overflow-y-auto relative border-l border-t ${C.borderMedium} rounded-lg ${C.bgWhite} ${SUPPORT_WIDGET_LAYOUT.scrollBottomClearance}`}
       >
         {/* 7日 × 44px。狭幅ではこのcalendar内だけ横scrollし、document overflowを発生させない。 */}
         <div className="flex min-h-full w-full min-w-[308px] flex-col">

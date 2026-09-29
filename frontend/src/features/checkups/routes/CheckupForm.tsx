@@ -75,7 +75,7 @@ export function CheckupForm() {
   if (isPetLoading) return <LoadingFallback />;
 
   return (
-    <form aria-label="定期健診登録フォーム" action={guardedFormAction}>
+    <form aria-label="定期健診登録フォーム" action={guardedFormAction} className="h-full">
       <PageLayout
         title="定期健診登録"
         resource={ResourceMedicalRecords}
