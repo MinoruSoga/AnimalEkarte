@@ -21,6 +21,11 @@
 --     checkup-packages/README.md）が checkup_type_fields 投入を担う正式
 --     経路であり、本スクリプトは checkup_types の項目マスタのみを対象とする
 --     （fields の投入は対象外）。
+--   - 適用順序: manifest import API は同名 checkup_type が既存の医院では
+--     conflict で拒否され、既投入タイプへの項目追加にも非対応のため、
+--     manifest を適用する医院に本スクリプトを先に実行すると import が
+--     恒久的に塞がれる。manifest import 予定の医院では適用しない
+--     （既存名は全行スキップで no-op になるのみ）。
 --   - 歯科検診: manifest 未同梱（旧 003_seed_demo.sql J-12 で投入済みの
 --     既存区分）のため属性はその暫定 seed 値に揃える
 --     （description='歯周病チェック・歯石付着度の確認' / interval='1年' /
