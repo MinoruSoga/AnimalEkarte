@@ -679,6 +679,9 @@ def plan(paths):
         elif path.endswith('.md') and (path.startswith(('docs/', '.claude/', '.codex/', '.agents/', 'frontend/src/features/manual/'))
                                       or '/' not in path or pathlib.PurePosixPath(path).name in ('CLAUDE.md', 'AGENTS.md', 'README.md')):
             continue
+        elif path.startswith('frontend/src/features/manual/content/images/'):
+            # Manual article screenshots; documentation-only SKIP like the .md files they illustrate.
+            continue
         elif (path.startswith('backend/migrations/seeds/')
               and path.endswith('.sql')
               and pathlib.PurePosixPath(path).name.startswith('live_insert_')):

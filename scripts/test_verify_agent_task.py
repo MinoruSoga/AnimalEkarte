@@ -97,6 +97,12 @@ class VerificationTests(unittest.TestCase):
         # 存在しない fixture は fail-closed
         self.assertTrue(verify.plan(['frontend/e2e/fixtures/missing.ts'])[1])
 
+    def test_manual_content_images_are_docs_only(self):
+        self.assertEqual(
+            verify.plan(['frontend/src/features/manual/content/images/41-lab-device.png']),
+            ([], []),
+        )
+
     def test_repo_root_repro_images_are_docs_only(self):
         for path in (
             'local-reservation-repro-onduty-error.png',
