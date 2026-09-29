@@ -20,11 +20,24 @@ import (
 type CheckupHandler struct {
 	service            CheckupService
 	fieldResultService CheckupFieldResultService
+	// fieldService は健診パッケージのフィールド定義 write 側（EMR-225）。フィールド定義の
+	// 書込ルートは本依存が配線されている時のみ登録される（routes_masters.go 参照）。
+	fieldService CheckupTypeFieldService
 }
 
 // NewCheckupHandler initializes a CheckupHandler.
-func NewCheckupHandler(service CheckupService, fieldResultService CheckupFieldResultService) *CheckupHandler {
-	return &CheckupHandler{service: service, fieldResultService: fieldResultService}
+// fieldServices は省略可能なフィールド定義 write サービス（composition は第3引数で渡す）。
+// 既存の2引数呼び出し（結果値のみ扱うテスト等）はそのままコンパイルできる。
+func NewCheckupHandler(
+	service CheckupService,
+	fieldResultService CheckupFieldResultService,
+	fieldServices ...CheckupTypeFieldService,
+) *CheckupHandler {
+	var fieldService CheckupTypeFieldService
+	if len(fieldServices) > 0 {
+		fieldService = fieldServices[0]
+	}
+	return &CheckupHandler{service: service, fieldResultService: fieldResultService, fieldService: fieldService}
 }
 
 // ListCheckups は指定カルテに紐づく健診記録の一覧を返す

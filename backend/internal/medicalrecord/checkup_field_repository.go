@@ -15,6 +15,7 @@ import (
 
 	"github.com/lib/pq"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -22,9 +23,22 @@ import (
 )
 
 // CheckupTypeFieldRepository は健診パッケージのフィールド定義マスタ（checkup_type_fields）アクセス。
+// EMR-225 の write 系メソッドは clinic_id+checkup_type_id 複合スコープを全て経路に要求し、
+// 呼び出し側（checkupTypeFieldService）が張る ambient tx へ DBOrTx で参加する
+// （examTypeRepository のフィールド write 系と同型）。
 type CheckupTypeFieldRepository interface {
 	// FindByCheckupTypeID は指定 checkup_type の生存フィールド定義を sort_order 昇順で返す。
 	FindByCheckupTypeID(ctx context.Context, clinicID, checkupTypeID uint64) ([]model.CheckupTypeField, error)
+	// CreateField はフィールド定義を1件作成する。
+	CreateField(ctx context.Context, field *model.CheckupTypeField) error
+	// LockFieldByID はフィールド定義を FOR UPDATE で取得する（更新/削除前の行ロック）。
+	LockFieldByID(ctx context.Context, clinicID, checkupTypeID, fieldID uint64) (*model.CheckupTypeField, error)
+	// UpdateField はフィールド定義を部分更新し、更新後の行を返す。
+	UpdateField(ctx context.Context, clinicID, checkupTypeID, fieldID uint64, fields map[string]any) (*model.CheckupTypeField, error)
+	// DeleteField はフィールド定義をソフトデリートする（deleted_at 設定。定義行は残る）。
+	DeleteField(ctx context.Context, clinicID, checkupTypeID, fieldID uint64) error
+	// ReorderFields は ids の並び順に sort_order を 1 始まりで振り直す。
+	ReorderFields(ctx context.Context, clinicID, checkupTypeID uint64, ids []uint64) error
 }
 
 // CheckupFieldResultRepository は健診結果値（checkup_field_results）アクセス。
@@ -58,6 +72,109 @@ func (r *checkupTypeFieldRepository) FindByCheckupTypeID(ctx context.Context, cl
 		return nil, apperrors.FromGORM(err, "checkup_type_field", fmt.Sprintf("checkup_type=%d", checkupTypeID))
 	}
 	return fields, nil
+}
+
+// CreateField はフィールド定義を1件作成する（EMR-225）。ambient tx 参加は DBOrTx に委譲。
+func (r *checkupTypeFieldRepository) CreateField(ctx context.Context, field *model.CheckupTypeField) error {
+	err := persistence.DBOrTx(ctx, r.db).Create(field).Error
+	return apperrors.FromGORM(err, "checkup_type_field", "")
+}
+
+// LockFieldByID は更新/削除の前にフィールド行を FOR UPDATE でロックする。
+// clinic_id+checkup_type_id+id の複合スコープにより、他医院・別パッケージの行は NotFound。
+func (r *checkupTypeFieldRepository) LockFieldByID(
+	ctx context.Context,
+	clinicID, checkupTypeID, fieldID uint64,
+) (*model.CheckupTypeField, error) {
+	var field model.CheckupTypeField
+	err := persistence.DBOrTx(ctx, r.db).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("clinic_id = ? AND checkup_type_id = ? AND id = ?", clinicID, checkupTypeID, fieldID).
+		First(&field).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "checkup_type_field", fmt.Sprintf("%d", fieldID))
+	}
+	return &field, nil
+}
+
+// UpdateField はフィールド定義を部分更新し、更新後の行を複合スコープで読み直して返す。
+func (r *checkupTypeFieldRepository) UpdateField(
+	ctx context.Context,
+	clinicID, checkupTypeID, fieldID uint64,
+	fields map[string]any,
+) (*model.CheckupTypeField, error) {
+	result := persistence.DBOrTx(ctx, r.db).Model(&model.CheckupTypeField{}).
+		Where("clinic_id = ? AND checkup_type_id = ? AND id = ?", clinicID, checkupTypeID, fieldID).
+		Updates(fields)
+	if result.Error != nil {
+		return nil, apperrors.FromGORM(result.Error, "checkup_type_field", fmt.Sprintf("%d", fieldID))
+	}
+	if result.RowsAffected != 1 {
+		return nil, apperrors.WrapNotFound("checkup_type_field", fmt.Sprintf("%d", fieldID))
+	}
+	var field model.CheckupTypeField
+	if err := persistence.DBOrTx(ctx, r.db).
+		Where("clinic_id = ? AND checkup_type_id = ? AND id = ?", clinicID, checkupTypeID, fieldID).
+		First(&field).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "checkup_type_field", fmt.Sprintf("%d", fieldID))
+	}
+	return &field, nil
+}
+
+// DeleteField はフィールド定義をソフトデリートする（GORM Delete → deleted_at）。
+// checkup_field_results 側は deleted_at を持たないため FK ON DELETE SET NULL は発火しないが、
+// 結果行のスナップショット列（field_name/field_type/unit/ref_min/ref_max）で履歴は自己完結する。
+func (r *checkupTypeFieldRepository) DeleteField(ctx context.Context, clinicID, checkupTypeID, fieldID uint64) error {
+	result := persistence.DBOrTx(ctx, r.db).
+		Where("clinic_id = ? AND checkup_type_id = ? AND id = ?", clinicID, checkupTypeID, fieldID).
+		Delete(&model.CheckupTypeField{})
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "checkup_type_field", fmt.Sprintf("%d", fieldID))
+	}
+	if result.RowsAffected != 1 {
+		return apperrors.WrapNotFound("checkup_type_field", fmt.Sprintf("%d", fieldID))
+	}
+	return nil
+}
+
+// ReorderFields は ids の並び順に sort_order を 1 始まりで振り直す。
+// 先に対象行を FOR UPDATE でロックしてから順次 UPDATE する（examTypeRepository.ReorderFields と同型）。
+// 投稿 ids は対象スコープの生存（非削除）フィールド id 集合と完全一致しなければならない:
+// スコープ外・削除済み id を含む場合は NotFound、生存行の非投稿（部分集合）は InvalidInput。
+// 部分集合のまま採番すると未投稿行の sort_order と衝突して順序を破壊するため拒否する。
+func (r *checkupTypeFieldRepository) ReorderFields(
+	ctx context.Context,
+	clinicID, checkupTypeID uint64,
+	ids []uint64,
+) error {
+	db := persistence.DBOrTx(ctx, r.db)
+	var fields []model.CheckupTypeField
+	if err := db.Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("clinic_id = ? AND checkup_type_id = ? AND id IN ?", clinicID, checkupTypeID, ids).
+		Find(&fields).Error; err != nil {
+		return apperrors.FromGORM(err, "checkup_type_field", "")
+	}
+	if len(fields) != len(ids) {
+		return apperrors.WrapNotFound("checkup_type_field", "")
+	}
+	var liveCount int64
+	if err := db.Model(&model.CheckupTypeField{}).
+		Where("clinic_id = ? AND checkup_type_id = ?", clinicID, checkupTypeID).
+		Count(&liveCount).Error; err != nil {
+		return apperrors.FromGORM(err, "checkup_type_field", "")
+	}
+	if liveCount != int64(len(ids)) {
+		return apperrors.WrapInvalidInput("ids must cover all live checkup_type_fields in this checkup type")
+	}
+	for position, id := range ids {
+		result := db.Model(&model.CheckupTypeField{}).
+			Where("clinic_id = ? AND checkup_type_id = ? AND id = ?", clinicID, checkupTypeID, id).
+			Update("sort_order", position+1)
+		if result.Error != nil {
+			return apperrors.FromGORM(result.Error, "checkup_type_field", fmt.Sprintf("%d", id))
+		}
+	}
+	return nil
 }
 
 type checkupFieldResultRepository struct {

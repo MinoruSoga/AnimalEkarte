@@ -47,6 +47,10 @@ type medicalRecordComposition struct {
 	DrainCheckups  func()
 	services       medicalRecordServices
 	auditTx        medicalRecordAuditTxBridge
+	// checkupTypeFields は EMR-225 のフィールド定義 write サービス。preventive サービス
+	// struct ではなく composition 直下に保持する（medicalRecordPreventiveServices は
+	// 結果値系サービスの束であり、マスタ write は別責務）。
+	checkupTypeFields medicalrecord.CheckupTypeFieldService
 }
 
 func newMedicalRecordComposition(
@@ -75,6 +79,11 @@ func newMedicalRecordComposition(
 		DrainCheckups:  nilSafeDrain(services.preventive.checkups.Wait),
 		services:       services,
 		auditTx:        auditTx,
+		checkupTypeFields: medicalrecord.NewCheckupTypeFieldService(
+			repositories.checkupTypeFields,
+			repositories.checkupTypes,
+			dependencies.Transactor,
+		),
 	}
 }
 
@@ -86,7 +95,7 @@ func (c medicalRecordComposition) newHandler(
 		medicalrecord.NewDiagnosisHandler(s.reference.diagnosisTypes, s.reference.diagnosisNames),
 		medicalrecord.NewExamTypeHandler(s.reference.examinationTypes),
 		medicalrecord.NewChiefComplaintHandler(s.reference.chiefComplaints),
-		medicalrecord.NewCheckupHandler(s.preventive.checkups, s.preventive.checkupFieldResults),
+		medicalrecord.NewCheckupHandler(s.preventive.checkups, s.preventive.checkupFieldResults, c.checkupTypeFields),
 		medicalrecord.NewCheckupTypeHandler(s.reference.checkupTypes),
 		medicalrecord.NewVaccineHandler(s.reference.vaccines),
 		medicalrecord.NewVaccinationHandler(s.preventive.vaccinations),

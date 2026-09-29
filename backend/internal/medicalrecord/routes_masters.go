@@ -60,6 +60,15 @@ func (h *Handler) registerEarlyMasterRoutes(masters *gin.RouterGroup, perm medic
 	masters.PATCH("/checkup-types/:id", perm(model.ResourceCheckups, "edit"), h.checkupType.UpdateCheckupType)
 	masters.DELETE("/checkup-types/:id", perm(model.ResourceCheckups, "delete"), h.checkupType.DeleteCheckupType)
 	masters.GET("/checkup-types/:id/fields", perm(model.ResourceCheckups, "view"), h.checkup.ListCheckupTypeFields)
+	// フィールド定義の write 側（EMR-225）は fieldService が配線済みの場合のみ登録する。
+	// composition は必ず注入するが、未配線ハンドラ（2引数 NewCheckupHandler を使う
+	// 既存テスト含む）では未定義エンドポイントを公開しない — fail-closed の一形態。
+	if h.checkup != nil && h.checkup.fieldService != nil {
+		masters.POST("/checkup-types/:id/fields", perm(model.ResourceCheckups, "create"), h.checkup.CreateCheckupTypeField)
+		masters.PATCH("/checkup-types/:id/fields/reorder", perm(model.ResourceCheckups, "edit"), h.checkup.ReorderCheckupTypeFields)
+		masters.PATCH("/checkup-types/:id/fields/:fieldId", perm(model.ResourceCheckups, "edit"), h.checkup.UpdateCheckupTypeField)
+		masters.DELETE("/checkup-types/:id/fields/:fieldId", perm(model.ResourceCheckups, "delete"), h.checkup.DeleteCheckupTypeField)
+	}
 
 	masters.GET("/inquiry-templates", perm(model.ResourceMasterMedical, "view"), h.inquiryTemplate.ListInquiryTemplates)
 	masters.POST("/inquiry-templates", perm(model.ResourceMasterMedical, "create"), h.inquiryTemplate.CreateInquiryTemplate)
