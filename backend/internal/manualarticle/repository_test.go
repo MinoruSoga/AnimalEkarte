@@ -116,6 +116,23 @@ func TestRepository_Upsert(t *testing.T) {
 		assert.Equal(t, "初版", versions[0].BodyMarkdown)
 	})
 
+	t.Run("insert path: explicit zero order_value is stored (not defaulted to 9999)", func(t *testing.T) {
+		// frontmatter `order: 0` の記事を正しく往復させる回帰テスト。
+		// model 側に gorm default タグがあると GORM がゼロ値を INSERT から省略し、
+		// カラム DEFAULT 9999 が適用されてしまう。
+		article := &model.ManualArticle{
+			Category:     model.ManualCategoryScreens,
+			Slug:         "zero-order",
+			Title:        "ゼロ順序",
+			OrderValue:   0,
+			Section:      "A",
+			BodyMarkdown: "x",
+		}
+		got, err := repo.Upsert(ctx, article, &editor1)
+		require.NoError(t, err)
+		assert.Equal(t, float64(0), got.OrderValue)
+	})
+
 	t.Run("update path: updates the existing article, preserves CreatedAt, and appends a version", func(t *testing.T) {
 		original := &model.ManualArticle{
 			Category:     model.ManualCategoryScreens,

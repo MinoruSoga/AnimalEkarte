@@ -13,7 +13,7 @@ type UpsertManualArticleInput struct {
 	Category     model.ManualCategory
 	Slug         string
 	Title        string
-	OrderValue   float64
+	OrderValue   *float64
 	Section      string
 	BodyMarkdown string
 }
@@ -72,10 +72,11 @@ func (s *manualArticleService) Upsert(ctx context.Context, input *UpsertManualAr
 		return nil, apperrors.WrapInvalidInput("section is required")
 	}
 
-	// order_value 未指定（0）の場合は既存値 or 既定値（9999）を維持
+	// order_value 未指定（nil）の場合は既存値 or 既定値（9999）を維持。
+	// 明示的な 0（MD frontmatter の `order: 0`）は有効値としてそのまま保存する。
 	// 既存取得失敗時は NotFound（= 新規作成）なら 9999、それ以外のエラーは伝播
-	order := input.OrderValue
-	if order == 0 {
+	var order float64
+	if input.OrderValue == nil {
 		existing, err := s.repo.FindByCategoryAndSlug(ctx, input.Category, input.Slug)
 		switch {
 		case err == nil:
@@ -85,6 +86,8 @@ func (s *manualArticleService) Upsert(ctx context.Context, input *UpsertManualAr
 		default:
 			return nil, apperrors.Wrap(err, "failed to fetch existing manual article")
 		}
+	} else {
+		order = *input.OrderValue
 	}
 
 	article := &model.ManualArticle{

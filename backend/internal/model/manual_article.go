@@ -24,16 +24,18 @@ func IsValidManualCategory(c string) bool {
 //   - 編集時: 該当 slug を DB に upsert
 //   - マニュアルは医院共通の情報のため clinic_id は持たない
 type ManualArticle struct {
-	ID               uint64         `gorm:"primaryKey;autoIncrement"                 json:"id"`
-	Category         ManualCategory `gorm:"type:text;not null"                       json:"category"`
-	Slug             string         `gorm:"not null"                                 json:"slug"`
-	Title            string         `gorm:"not null"                                 json:"title"`
-	OrderValue       float64        `gorm:"column:order_value;not null;default:9999" json:"order_value"`
-	Section          string         `gorm:"not null"                                 json:"section"`
-	BodyMarkdown     string         `gorm:"not null;type:text"                       json:"body_markdown"`
-	UpdatedByStaffID *uint64        `gorm:"column:updated_by_staff_id"               json:"updated_by_staff_id,omitempty"`
-	CreatedAt        time.Time      `gorm:"autoCreateTime"                           json:"created_at"`
-	UpdatedAt        time.Time      `gorm:"autoUpdateTime"                           json:"updated_at"`
+	ID       uint64         `gorm:"primaryKey;autoIncrement"                 json:"id"`
+	Category ManualCategory `gorm:"type:text;not null"                       json:"category"`
+	Slug     string         `gorm:"not null"                                 json:"slug"`
+	Title    string         `gorm:"not null"                                 json:"title"`
+	// order_value の既定値フォールバックは service 層で行う（default タグを付けると
+	// GORM がゼロ値を INSERT から省略し、`order: 0` の記事が 9999 で保存される）。
+	OrderValue       float64   `gorm:"column:order_value;not null"              json:"order_value"`
+	Section          string    `gorm:"not null"                                 json:"section"`
+	BodyMarkdown     string    `gorm:"not null;type:text"                       json:"body_markdown"`
+	UpdatedByStaffID *uint64   `gorm:"column:updated_by_staff_id"               json:"updated_by_staff_id,omitempty"`
+	CreatedAt        time.Time `gorm:"autoCreateTime"                           json:"created_at"`
+	UpdatedAt        time.Time `gorm:"autoUpdateTime"                           json:"updated_at"`
 }
 
 // TableName は ManualArticle のテーブル名
