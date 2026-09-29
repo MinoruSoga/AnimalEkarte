@@ -175,6 +175,8 @@ class ApiClient:
             headers={
                 "Accept": "application/json",
                 "Content-Type": "application/json",
+                # Cloudflare Bot Fight Mode（STG 前面）が UA なしを 1010 で弾くため付与
+                "User-Agent": "manual-sync/1.0 (+https://github.com/MinoruSoga/AnimalEkarte)",
                 # middleware/csrf.go RequireXRequestedWith 契約
                 "X-Requested-With": "XMLHttpRequest",
             },
