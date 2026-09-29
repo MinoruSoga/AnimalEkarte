@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/sheet";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C, STYLE } from "@/lib/design-tokens";
+import { SUPPORT_WIDGET_LAYOUT } from "@/constants/support-widget-layout";
 import { getFormEnum, getFormOptionalString } from "@/lib/form-data";
 import { handleApiError } from "@/lib/handle-api-error";
 import { useGetOwnerLineTags } from "../api/get-owner-line-tags";
@@ -110,7 +111,9 @@ export function LineSendPanel({ ownerId, ownerName, open, onOpenChange }: LineSe
           </SheetDescription>
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto flex flex-col gap-6 p-4">
+        <div
+          className={`flex-1 overflow-y-auto flex flex-col gap-6 p-4 ${SUPPORT_WIDGET_LAYOUT.scrollBottomClearance}`}
+        >
           {!isLinked ? (
             <div
               className={`rounded-md border ${C.borderDanger} ${C.bgDanger8} px-4 py-3 text-sm ${C.danger}`}

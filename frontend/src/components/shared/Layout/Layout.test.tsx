@@ -21,9 +21,9 @@ function renderLayout() {
 }
 
 describe("Layout", () => {
-  it("main にサポートウィジェット分の下余白を確保する", () => {
+  it("main には固定の下余白を持たせない（クリアランスはスクロール領域側が確保する）", () => {
     renderLayout();
-    expect(screen.getByRole("main")).toHaveClass(SUPPORT_WIDGET_LAYOUT.shellBottomClearance);
+    expect(screen.getByRole("main")).not.toHaveClass(SUPPORT_WIDGET_LAYOUT.scrollBottomClearance);
   });
 
   it("main の下余白はページ背景色で塗り、ページ下端に白帯が透けない", () => {
@@ -32,13 +32,13 @@ describe("Layout", () => {
   });
 
   it("シェル下余白定数がサポートボタンの占有高さをカバーする", () => {
-    expect(SUPPORT_WIDGET_LAYOUT.shellBottomClearancePx).toBeGreaterThanOrEqual(
+    expect(SUPPORT_WIDGET_LAYOUT.scrollBottomClearancePx).toBeGreaterThanOrEqual(
       SUPPORT_WIDGET_LAYOUT.footprintPx,
     );
-    expect(SUPPORT_WIDGET_LAYOUT.shellBottomClearance).toBe(
-      `pb-${SUPPORT_WIDGET_LAYOUT.shellBottomClearancePx / 4}`,
+    expect(SUPPORT_WIDGET_LAYOUT.scrollBottomClearance).toBe(
+      `pb-${SUPPORT_WIDGET_LAYOUT.scrollBottomClearancePx / 4}`,
     );
-    expect(SUPPORT_WIDGET_LAYOUT.shellBottomClearance).toBe("pb-20");
+    expect(SUPPORT_WIDGET_LAYOUT.scrollBottomClearance).toBe("pb-20");
   });
 
   it("footprintPx は position(bottom-N) + buttonSizeClass(size-N) の算術と一致する", () => {

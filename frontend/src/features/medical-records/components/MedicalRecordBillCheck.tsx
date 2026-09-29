@@ -340,7 +340,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
       </div>
 
       {canEdit ? (
-        <div className="fixed bottom-6 right-6 z-50 flex gap-2">
+        <div className="fixed bottom-6 right-20 z-50 flex gap-2">
           {isConfirmed ? (
             <Button
               variant="outline"

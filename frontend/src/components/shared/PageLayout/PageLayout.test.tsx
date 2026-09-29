@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { LAYOUT } from "@/lib/design-tokens";
+import { SUPPORT_WIDGET_LAYOUT } from "@/constants/support-widget-layout";
 import { PageLayout } from "./PageLayout";
 
 describe("PageLayout", () => {
@@ -62,5 +63,17 @@ describe("PageLayout", () => {
     expect(contentWrapper).toHaveClass("min-w-0");
     expect(scrollContainer).toHaveClass("min-w-0");
     expect(pageRoot).toHaveClass("min-w-0");
+  });
+
+  it("スクロール領域の末尾にサポートウィジェット分の余白を確保する", () => {
+    render(
+      <PageLayout title="Test">
+        <div data-testid="content">content</div>
+      </PageLayout>,
+    );
+
+    const scrollContainer = screen.getByTestId("content").parentElement?.parentElement;
+    expect(scrollContainer).toHaveClass("overflow-y-auto");
+    expect(scrollContainer).toHaveClass(SUPPORT_WIDGET_LAYOUT.scrollBottomClearance);
   });
 });

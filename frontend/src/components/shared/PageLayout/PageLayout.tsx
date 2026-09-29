@@ -1,6 +1,7 @@
 import { memo, type ReactNode, type RefObject } from "react";
 import { FormHeader } from "@/components/shared/Form/FormHeader";
 import { PermissionBadges } from "@/components/shared/PermissionBadges/PermissionBadges";
+import { SUPPORT_WIDGET_LAYOUT } from "@/constants/support-widget-layout";
 import { LAYOUT, STYLE } from "@/lib/design-tokens";
 import type { Resource } from "@/types/generated/models";
 
@@ -50,7 +51,10 @@ export const PageLayout = memo(function PageLayout({
         icon={icon}
         action={actionContent}
       />
-      <div ref={scrollContainerRef} className="flex-1 min-w-0 overflow-y-auto w-full flex flex-col">
+      <div
+        ref={scrollContainerRef}
+        className={`flex-1 min-w-0 overflow-y-auto w-full flex flex-col ${SUPPORT_WIDGET_LAYOUT.scrollBottomClearance}`}
+      >
         <div
           className={`${maxWidth} ${align === "center" ? "mx-auto" : ""} min-w-0 w-full px-3 py-6 flex-1 flex flex-col`}
         >

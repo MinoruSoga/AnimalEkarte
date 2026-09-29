@@ -1,6 +1,10 @@
 /**
- * 右下常駐のサポート起動ボタン（features/support の SupportWidget）と、
- * 認証済みシェル（components/shared/Layout）の main 下余白を連動させる共有定数。
+ * 右下常駐のサポート起動ボタン（features/support の SupportWidget）が
+ * コンテンツを覆わないよう、画面下端に届くスクロール領域・パネルへ付ける
+ * 下余白を連動させる共有定数。
+ *
+ * 余白はスクロール可能な末尾スペースとして内側に付与する（シェルの main に
+ * 固定 padding を持たせると全ページ下端に恒常的な帯ができるため）。
  */
 export const SUPPORT_WIDGET_LAYOUT = {
   /** 起動ボタンの固定位置（右・下 16px） */
@@ -9,7 +13,7 @@ export const SUPPORT_WIDGET_LAYOUT = {
   buttonSizeClass: "size-12",
   /** 起動ボタンが画面下端から占有する高さ = 16px(bottom-4) + 48px(buttonSizeClass) */
   footprintPx: 64,
-  /** 認証済みシェル main の下余白。footprintPx 以上を確保し、ページ下端や SidePeek フッタの操作をボタンが覆わないようにする */
-  shellBottomClearance: "pb-20",
-  shellBottomClearancePx: 80,
+  /** スクロール末端で footprintPx 以上の余白を確保し、ページ下端や SidePeek フッタの操作をボタンが覆わないようにする */
+  scrollBottomClearance: "pb-20",
+  scrollBottomClearancePx: 80,
 } as const;
