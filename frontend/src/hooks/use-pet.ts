@@ -27,6 +27,11 @@ interface GetPetsOptions {
   search?: string;
   /** animal_species_id の10進文字列。 */
   species?: string;
+  /**
+   * #86 拠点横断一覧。所属医院が現在拠点のみの既定 scope では省略し、
+   * 複数拠点はコンマ直列化して `clinic_ids` として送る（backend が検証済み）。
+   */
+  clinicIds?: string[];
 }
 
 interface GetPetsQueryOptions {
@@ -78,6 +83,8 @@ export function useGetPets(
     limit: options.limit,
     search: options.search,
     species: options.species,
+    // EMR-222: clinic scope でもキャッシュを分離する（search/species と同じ扱い）。
+    clinicIds: options.clinicIds?.length ? options.clinicIds : undefined,
   };
   const hasServerListKey = Object.values(serverListKey).some(
     (value) => value !== undefined && value !== "",
@@ -93,6 +100,7 @@ export function useGetPets(
         ...(options.limit !== undefined ? { limit: options.limit } : {}),
         ...(options.search ? { search: options.search } : {}),
         ...(options.species ? { species: options.species } : {}),
+        ...(options.clinicIds?.length ? { clinic_ids: options.clinicIds.join(",") } : {}),
       };
       const { data } = await axios.get<PetListResponse>("/v1/pets", { params });
       return {

@@ -1,7 +1,9 @@
 import { useState, useMemo, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useGetPets } from "@/hooks/use-pet";
+import { useAuth } from "@/hooks/use-auth";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { paths } from "@/config/paths";
 import type { Pet } from "@/types";
 import type { PetSelectionSearchParams } from "@/components/shared/PetSelection/PetSelectionSearchForm";
 
@@ -40,6 +42,7 @@ const INITIAL_SEARCH_PARAMS: PetSelectionSearchParams = {
 export function usePetSelectionPage(config: PetSelectionPageConfig) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, currentClinicId } = useAuth();
   const [searchParams, setSearchParams] = useState<PetSelectionSearchParams>(INITIAL_SEARCH_PARAMS);
 
   // 入力停止後にだけ問い合わせる。「検索」ボタンは持たない（自動検索）。
@@ -65,6 +68,20 @@ export function usePetSelectionPage(config: PetSelectionPageConfig) {
   //
   // error / isLoading を破棄してはならない。破棄すると API 失敗が
   // 「該当0件」と区別できなくなり、利用者に嘘の検索結果を見せる。
+  //
+  // EMR-222: 所属医院IDは useAuth().user.clinics からのみ取得する（呼び出し側が
+  // 任意の医院IDを注入する経路を作らない）。MedicalRecords.tsx の clinicIdsForApi
+  // 先例に揃え、所属医院が「現在拠点のみ」の既定 scope では param を送らず
+  // backend 既定に委ねる — キャッシュキーと既存挙動を変えないため。
+  const assignedClinicIds = useMemo(
+    () => (user?.clinics ?? []).map((membership) => membership.clinicId),
+    [user?.clinics],
+  );
+  const clinicIdsForApi =
+    assignedClinicIds.length === 0 ||
+    (assignedClinicIds.length === 1 && assignedClinicIds[0] === currentClinicId)
+      ? undefined
+      : assignedClinicIds;
   const {
     data: pets = [],
     total = 0,
@@ -82,6 +99,7 @@ export function usePetSelectionPage(config: PetSelectionPageConfig) {
       limit: PAGE_SIZE,
       ...(debouncedSearchParams.search ? { search: debouncedSearchParams.search } : {}),
       ...(debouncedSearchParams.species ? { species: debouncedSearchParams.species } : {}),
+      ...(clinicIdsForApi ? { clinicIds: clinicIdsForApi } : {}),
     },
     { preservePreviousData: true },
   );
@@ -130,11 +148,22 @@ export function usePetSelectionPage(config: PetSelectionPageConfig) {
       // 「不明」等の既知外 status は引き続き fail-closed で拒否する。
       if (pet.status !== "生存" && pet.status !== "死亡") return;
 
+      // EMR-222: 他拠点のペットは新規記録作成フローへ進めない。
+      // medical-records 一覧の read-only ルールと同じ抑制をハンドラ層で行い、
+      // 閲覧はそのペットのカルテ一覧（/medical-records?pet_id=）へ送る。
+      if (pet.clinicId && pet.clinicId !== currentClinicId) {
+        const viewParams = new URLSearchParams({ pet_id: pet.id });
+        navigate(`${paths.medicalRecords.getHref()}?${viewParams.toString()}`, {
+          state: location.state,
+        });
+        return;
+      }
+
       const nextParams = new URLSearchParams(location.search);
       nextParams.set("petId", pet.id);
       navigate(`${config.selectPath}?${nextParams.toString()}`, { state: location.state });
     },
-    [navigate, config.selectPath, location.search, location.state],
+    [navigate, config.selectPath, location.search, location.state, currentClinicId],
   );
 
   const handleBack = useCallback(() => {

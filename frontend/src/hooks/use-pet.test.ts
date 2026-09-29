@@ -175,4 +175,47 @@ describe("useGetPets", () => {
 
     expect(capturedUrl?.searchParams.get("include_deceased")).toBeNull();
   });
+
+  it("clinicIds指定時はclinic_idsをコンマ直列化してGET /v1/petsへ送る", async () => {
+    let capturedUrl: URL | undefined;
+    server.use(
+      http.get("/api/v1/pets", ({ request }) => {
+        capturedUrl = new URL(request.url);
+        return HttpResponse.json({ data: [] });
+      }),
+    );
+
+    const { result } = renderHook(() => useGetPets(undefined, { clinicIds: ["1", "2"] }), {
+      wrapper: createTestWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(capturedUrl?.searchParams.get("clinic_ids")).toBe("1,2");
+  });
+
+  it("clinicIdsの異なる一覧は別クエリとしてキャッシュを分離する", async () => {
+    const requestedClinicScopes: string[] = [];
+    server.use(
+      http.get("/api/v1/pets", ({ request }) => {
+        requestedClinicScopes.push(new URL(request.url).searchParams.get("clinic_ids") ?? "");
+        return HttpResponse.json({ data: [] });
+      }),
+    );
+
+    // 同一 wrapper は同じ QueryClient を共有する。query key が clinic scope を
+    // 区別しなければ2本目の呼び出しは既存クエリへ join し、2件目のリクエストは発生しない。
+    const wrapper = createTestWrapper();
+    const first = renderHook(() => useGetPets(undefined, { clinicIds: ["1", "2"] }), {
+      wrapper,
+    });
+    const second = renderHook(() => useGetPets(undefined, { clinicIds: ["1", "3"] }), {
+      wrapper,
+    });
+
+    await waitFor(() => expect(first.result.current.isSuccess).toBe(true));
+    await waitFor(() => expect(second.result.current.isSuccess).toBe(true));
+
+    expect(requestedClinicScopes.sort()).toEqual(["1,2", "1,3"]);
+  });
 });
