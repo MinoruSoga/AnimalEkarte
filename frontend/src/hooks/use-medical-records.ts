@@ -94,6 +94,8 @@ export function useGetMedicalRecords(
 
 /** EMR-182: 前回複写ペイロード（feature InterviewHistoryCopySource と同形）。 */
 export interface MedicalRecordInterviewHistoryCopySource {
+  /** EMR-219: 治療明細複写の起点となる元カルテ id。明細行は適用時に lazy fetch する。 */
+  recordId?: string;
   chiefComplaint?: string;
   treatmentPolicy?: string;
   chiefComplaintTypeId?: number;
@@ -111,16 +113,22 @@ export interface MedicalRecordInterviewHistoryItem {
   copySource?: MedicalRecordInterviewHistoryCopySource;
 }
 
-/** EMR-182: 前回複写ペイロード。複写可能な値が1つも無いときは undefined。 */
+/**
+ * EMR-182: 前回複写ペイロード。複写可能な値が1つも無いときは undefined。
+ * EMR-219: recordId は明細複写の起点となるため、id を持つレコードでは問診値が無くても保持する。
+ */
 function toCopySource(
-  inquiry: MedicalRecordResponse["inquiry"],
+  record: MedicalRecordResponse,
 ): MedicalRecordInterviewHistoryCopySource | undefined {
-  if (!inquiry) return undefined;
   const source: MedicalRecordInterviewHistoryCopySource = {};
-  if (inquiry.chief_complaint) source.chiefComplaint = inquiry.chief_complaint;
-  if (inquiry.notes) source.treatmentPolicy = inquiry.notes;
-  if (inquiry.chief_complaint_type_id != null) {
-    source.chiefComplaintTypeId = inquiry.chief_complaint_type_id;
+  if (record.id != null) source.recordId = String(record.id);
+  const inquiry = record.inquiry;
+  if (inquiry) {
+    if (inquiry.chief_complaint) source.chiefComplaint = inquiry.chief_complaint;
+    if (inquiry.notes) source.treatmentPolicy = inquiry.notes;
+    if (inquiry.chief_complaint_type_id != null) {
+      source.chiefComplaintTypeId = inquiry.chief_complaint_type_id;
+    }
   }
   return Object.keys(source).length > 0 ? source : undefined;
 }
@@ -137,7 +145,7 @@ export function transformToHistoryItem(
     type: record.status === "finalized" ? "確定済" : "作成中",
     title: chiefComplaint || record.record_no,
     content,
-    copySource: toCopySource(record.inquiry),
+    copySource: toCopySource(record),
   };
 }
 

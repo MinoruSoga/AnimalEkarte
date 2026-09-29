@@ -42,4 +42,6 @@ export interface MedicalRecordTabsAreaProps {
   onNextVisitDateValidChange: (valid: boolean) => void;
   onRecommendationReasonChange: (value: RecommendationReason | null) => void;
   onRegisterEstimateSave: (fn: () => Promise<void>) => void;
+  /** EMR-219: 問診履歴コピー適用時に元カルテの治療明細も複写する（recordId は複写元カルテ id） */
+  onCopyRecordTreatments?: (sourceRecordId: string) => void;
 }

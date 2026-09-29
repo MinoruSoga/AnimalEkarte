@@ -32,6 +32,7 @@ import { useGetMedicalRecord } from "../api/get-medical-record";
 import { useGetPetMedicalHistory } from "../api/get-medical-records";
 import { useGetClinicalPlan } from "../api/clinical-plan";
 import { useGetTreatments } from "../api/treatments";
+import { useCopyTreatmentDetails } from "../hooks/use-copy-treatment-details";
 import { useGetBillingConfirmation } from "../api/billing-confirmation";
 
 type MedicalRecordFormModel = ReturnType<typeof useMedicalRecordForm>;
@@ -66,6 +67,9 @@ function useMedicalRecordFormReadyState(input: {
   const recordClinicId = currentRecord?.clinicId;
   const { data: clinicalPlan } = useGetClinicalPlan(recordId ?? "", recordClinicId);
   const { data: treatments = [] } = useGetTreatments(recordId ?? "", recordClinicId);
+  // EMR-219: 問診履歴「コピー」適用時に元カルテの治療明細も複写する。
+  // recordId 未確定（自動作成前）でも hook 内で早期 return するため安全に渡せる。
+  const { copyTreatmentsFromRecord } = useCopyTreatmentDetails(recordId, recordClinicId);
   const {
     data: billingConfirmation,
     isLoading: isBillingConfirmationLoading,
@@ -152,6 +156,7 @@ function useMedicalRecordFormReadyState(input: {
     recordClinicId,
     clinicalPlan,
     treatments,
+    copyTreatmentsFromRecord,
     billingConfirmation,
     isBillingConfirmationLoading,
     isBillingConfirmationError,
@@ -301,6 +306,7 @@ export function MedicalRecordFormReadyPanels({
               onNextVisitDateValidChange={form.handleNextVisitDateValidChange}
               onRecommendationReasonChange={form.setRecommendationReason}
               onRegisterEstimateSave={ready.handleRegisterEstimateSave}
+              onCopyRecordTreatments={ready.copyTreatmentsFromRecord}
               recordClinicId={ready.recordClinicId}
             />
           </fieldset>
