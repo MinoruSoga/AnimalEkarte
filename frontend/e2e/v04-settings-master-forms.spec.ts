@@ -59,9 +59,13 @@ async function bestEffortDeleteRow(
 }
 
 test.describe("V04 設定マスタ disposable CRUD/DELETE", () => {
+  const v04 = readV04FixtureFromEnv();
+  test.skip(v04 === null, "E2E_CLINICAL_FIXTURE 未設定（suite=v04 以外）");
+
   let context: BrowserContext;
 
   test.beforeAll(async ({ browser }) => {
+    if (v04 === null) return;
     context = await createAuthedContext(browser);
   });
 

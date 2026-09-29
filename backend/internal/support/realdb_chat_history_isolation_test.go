@@ -68,6 +68,9 @@ func TestRealDB_SupportChatHistoryClinicStaffIsolation(t *testing.T) {
 		require.Equal(t, http.StatusNoContent, w.Code)
 
 		// 消えたのは (B, fx.StaffID) だけ。(A, fx.StaffID) と (B, other) は残る
+		remainingB, err := svc.ListChatHistory(ctx, fx.ClinicB, fx.StaffID)
+		require.NoError(t, err)
+		require.Empty(t, remainingB)
 		remainingA, err := svc.ListChatHistory(ctx, fx.ClinicA, fx.StaffID)
 		require.NoError(t, err)
 		require.Len(t, remainingA, 2)

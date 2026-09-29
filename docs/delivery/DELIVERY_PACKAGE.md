@@ -53,7 +53,7 @@ flowchart TB
 | IaC | Terraform: [`infra/cloudflare/`](../../infra/cloudflare/README.md)／Workers: `backend/wrangler*.jsonc` | [infra/README](../ops/infra/README.md) |
 
 - **STG デプロイ**: `staging`ブランチpushでbackend workflowの対象pathが変わった場合 → GitHub Actions `backend-deploy.yml`（deploy → migrate → post-migrate `/health` → optional smoke）。手動は `gh workflow run backend-deploy.yml --ref staging`（[staging/runbook.md](../ops/infra/staging/runbook.md)）。
-- **Production デプロイ**: **未整備**（#253・[production/setup.md](../ops/infra/production/setup.md)）。証跡は **USER 入力待ち（U12）**。
+- **Production デプロイ**: `deploy-production` job は checked-in（EMR-148）だが、GitHub `Production` Environment・`PROD_` secrets・provider 設定が未投入で**未実行**（#253・[production/setup.md](../ops/infra/production/setup.md)）。証跡は **USER 入力待ち（U12）**。
 - **シークレット**: GitHub Encrypted Secrets および `wrangler secret` / `worker-secret-sync.yml` で管理。**本ドキュメントには秘密値を記載しない**。
 
 > **復旧上の注意**: AWS ECS/RDS は 2026-07-20 に廃止済みで、切り戻し先やホットスタンバイはない。障害初動は [STG 運用 Runbook](../ops/infra/staging/runbook.md) に従い、Cloudflare 側の修正・再デプロイ、またはスナップショットと現行 IaC からの再建で復旧する。本番稼働後の手順は [production/runbook.md](../ops/infra/production/runbook.md)（プレースホルダ）へ整備予定。

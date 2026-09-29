@@ -1,5 +1,5 @@
 #!/bin/sh
-# Lightweight commit gate: secrets + hard size limit only.
+# Lightweight commit gate: secrets + file-size advisory (warn-only).
 # Scoped lint/test lives on pre-push (outgoing HEAD vs remote base).
 set -eu
 ROOT=$(git rev-parse --show-toplevel)

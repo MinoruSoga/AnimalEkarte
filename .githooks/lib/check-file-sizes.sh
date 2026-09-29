@@ -2,7 +2,7 @@
 # Warn about staged source files that exceed the 800-line guideline.
 # 800 lines is a maintainability guideline, not a hard limit: this check never
 # blocks the commit (documented exceptions such as frontend/src/lib/design-tokens.ts
-# exist). Soft guidance remains 500 (see frontend/CLAUDE.md and .claude hooks).
+# exist). Soft guidance remains 500 (warned by .claude/hooks/post-edit-file-size-warn.js).
 # Skips generated, migrations, vendor, and test files.
 
 set -e
