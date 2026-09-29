@@ -3,6 +3,8 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, useLocation } from "react-router";
+import { http, HttpResponse } from "msw";
+import { server } from "@/testing/mocks/node";
 import { AuthContext } from "@/hooks/auth-context";
 import type { AuthContextValue } from "@/types/auth";
 import { ResourceCheckups, ResourceMedicalRecords } from "@/types/generated/models";
@@ -47,6 +49,7 @@ function makeCheckupRecord(
   overrides: Partial<{
     id: string;
     medicalRecordId: string;
+    petId: string | undefined;
     date: string;
     ownerName: string;
     petName: string;
@@ -59,6 +62,7 @@ function makeCheckupRecord(
   return {
     id: "chk-1",
     medicalRecordId: "mr-1",
+    petId: undefined,
     date: "2026-01-01",
     ownerName: "山田 太郎",
     petName: "ポチ",
@@ -428,5 +432,112 @@ describe("CheckupsList — medical record permission boundary", () => {
     expect(screen.getByRole("button", { name: /chk-1/ })).toBeInTheDocument();
     expect(hasPermission).toHaveBeenCalledWith(ResourceMedicalRecords, "view");
     expect(hasPermission).toHaveBeenCalledWith(ResourceMedicalRecords, "edit");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// F: 動物種フィルタ (EMR-223)
+// ─────────────────────────────────────────────────────────────
+
+const PET_ID_DOG = "101";
+const PET_ID_CAT = "102";
+const PET_ID_RABBIT = "103";
+
+function makePetResponse(id: string, speciesName: string, speciesId: number) {
+  return {
+    id: Number(id),
+    version: 1,
+    clinic_id: 1,
+    owner_id: 10,
+    animal_species_id: speciesId,
+    pet_number: id,
+    name: "テストペット",
+    pet_name_kana: "",
+    gender: "unknown",
+    status: "alive",
+    breed: "",
+    color: "",
+    danger_level: "none",
+    food: "",
+    environment: "",
+    phone: "",
+    remarks: "",
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:00Z",
+    animal_species: { id: speciesId, name: speciesName, sort_order: speciesId },
+  };
+}
+
+function stubPetSpeciesApis() {
+  server.use(
+    http.get(`/api/v1/pets/${PET_ID_DOG}`, () =>
+      HttpResponse.json(makePetResponse(PET_ID_DOG, "犬", 1)),
+    ),
+    http.get(`/api/v1/pets/${PET_ID_CAT}`, () =>
+      HttpResponse.json(makePetResponse(PET_ID_CAT, "猫", 2)),
+    ),
+    http.get(`/api/v1/pets/${PET_ID_RABBIT}`, () =>
+      HttpResponse.json(makePetResponse(PET_ID_RABBIT, "うさぎ", 4)),
+    ),
+  );
+}
+
+describe("CheckupsList — F: 動物種フィルタ (EMR-223)", () => {
+  function setupSpeciesRows() {
+    vi.mocked(useGetCheckups).mockReturnValue({
+      data: makeCheckupsResult([
+        makeCheckupRecord({ id: "1", petId: PET_ID_DOG, petName: "ポチ" }),
+        makeCheckupRecord({ id: "2", petId: PET_ID_CAT, petName: "たろう" }),
+        makeCheckupRecord({ id: "3", petId: PET_ID_RABBIT, petName: "モモ" }),
+        makeCheckupRecord({ id: "4", petName: "名無し" }),
+      ]),
+      isLoading: false,
+      error: null,
+    } as ReturnType<typeof useGetCheckups>);
+    stubPetSpeciesApis();
+  }
+
+  async function selectSpeciesFilter(user: ReturnType<typeof userEvent.setup>, label: string) {
+    await user.click(screen.getByRole("button", { name: "フィルタを追加" }));
+    await user.click(await screen.findByText("動物種"));
+    await user.click(await screen.findByText("次と一致"));
+    await user.click(await screen.findByText(label));
+  }
+
+  it("犬 を選ぶと犬のペットの行だけが残り、全期間検索のAPIパラメータは汚染されない", async () => {
+    setupSpeciesRows();
+    const user = userEvent.setup();
+    render(<CheckupsList />, { wrapper: createWrapper() });
+
+    await screen.findByText("ポチ");
+    await selectSpeciesFilter(user, "犬");
+
+    // ペット種の解決後: 犬の行だけ残り、猫・その他・petId なし行は消える
+    await waitFor(() => {
+      expect(screen.getByText("ポチ")).toBeInTheDocument();
+      expect(screen.queryByText("たろう")).not.toBeInTheDocument();
+      expect(screen.queryByText("モモ")).not.toBeInTheDocument();
+      expect(screen.queryByText("名無し")).not.toBeInTheDocument();
+    });
+
+    // species は buildCheckupListFilters の返り値（= GET /v1/checkups パラメータ）に混入しない
+    const lastCall = vi.mocked(useGetCheckups).mock.calls.at(-1)?.[0] as CheckupFilters | undefined;
+    expect(lastCall).not.toHaveProperty("species");
+    expect(lastCall).toEqual({ page: 1, limit: 20 });
+  });
+
+  it("その他 を選ぶと犬・猫以外の種の行だけが残る", async () => {
+    setupSpeciesRows();
+    const user = userEvent.setup();
+    render(<CheckupsList />, { wrapper: createWrapper() });
+
+    await screen.findByText("ポチ");
+    await selectSpeciesFilter(user, "その他");
+
+    await waitFor(() => {
+      expect(screen.getByText("モモ")).toBeInTheDocument();
+      expect(screen.queryByText("ポチ")).not.toBeInTheDocument();
+      expect(screen.queryByText("たろう")).not.toBeInTheDocument();
+    });
   });
 });
