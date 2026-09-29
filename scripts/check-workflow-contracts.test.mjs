@@ -287,7 +287,8 @@ test("E2E job stays manual-only, keeps the synthetic login, and routes suites to
   assert.doesNotMatch(script, /\$\{\{/);
 
   // 結果収集先は job env に集約し、step env / upload path で同じ参照を共有する。
-  assert.match(e2e, /^\s+E2E_RESULTS_DIR: \$\{\{ runner\.temp \}\}\/e2e-results\s*$/m);
+  // job env では runner context が使えないため github.workspace 固定。
+  assert.match(e2e, /^\s+E2E_RESULTS_DIR: \$\{\{ github\.workspace \}\}\/e2e-results\s*$/m);
 
   const upload = namedStep(e2e, "Upload Playwright test results (clinical / v04)");
   assert.match(

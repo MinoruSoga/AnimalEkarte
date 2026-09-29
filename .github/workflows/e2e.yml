@@ -41,7 +41,8 @@ jobs:
       E2E_LOGIN_EMAIL: stg-staff-10000021@example.test
       E2E_LOGIN_PASSWORD: password
       # 収集先は step 実行時と upload-artifact の path で共有するため job env に集約。
-      E2E_RESULTS_DIR: ${{ runner.temp }}/e2e-results
+      # job env では runner context が使えないため github.workspace を使う。
+      E2E_RESULTS_DIR: ${{ github.workspace }}/e2e-results
 
     steps:
       - name: Checkout
