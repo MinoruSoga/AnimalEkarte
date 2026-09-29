@@ -11,6 +11,8 @@ export type { TreatmentItemType, BodyWeightUnit };
 
 /** EMR-182: 前回複写ペイロード。inquiry 由来の複写可能値のみを保持する。 */
 export interface InterviewHistoryCopySource {
+  /** EMR-219: 治療明細複写の起点となる元カルテ id。明細行は適用時に lazy fetch する。 */
+  recordId?: string;
   chiefComplaint?: string;
   treatmentPolicy?: string;
   chiefComplaintTypeId?: number;
