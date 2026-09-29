@@ -262,6 +262,14 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// checkup_field (#211 tx-internal replace)
 	"medicalrecord/checkup_field_repository.go|checkupFieldResultRepository.FindByCheckupID":   {},
 	"medicalrecord/checkup_field_repository.go|checkupFieldResultRepository.ReplaceForCheckup": {},
+	// checkup_type_field (EMR-225 field CRUD): write methods join the caller's ambient tx via
+	// persistence.DBOrTx so a downstream audit-write failure rolls back the field mutation too.
+	// Runtime: checkup_type_field_tx_atomicity_test.go.
+	"medicalrecord/checkup_field_repository.go|checkupTypeFieldRepository.CreateField":   {},
+	"medicalrecord/checkup_field_repository.go|checkupTypeFieldRepository.UpdateField":   {},
+	"medicalrecord/checkup_field_repository.go|checkupTypeFieldRepository.DeleteField":   {},
+	"medicalrecord/checkup_field_repository.go|checkupTypeFieldRepository.LockFieldByID": {},
+	"medicalrecord/checkup_field_repository.go|checkupTypeFieldRepository.ReorderFields": {},
 	// Checkup relation validation, mutation, and readback share the service tx.
 	// Runtime: checkup_repository_tx_atomicity_test.go; clinic/relation coverage:
 	// checkup_repository_test.go and checkup_service_test.go.
