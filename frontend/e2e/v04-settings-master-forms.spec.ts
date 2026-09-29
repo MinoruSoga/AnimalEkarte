@@ -288,8 +288,7 @@ test.describe("V04 設定マスタ disposable CRUD/DELETE", () => {
     const typeName = disposableName("区分枠");
     let needsCleanup = false;
 
-    // セクション見出し <p> の 2 つ上の div がセクション本体（追加フォーム+一覧を含む）。
-    const slotsSection = () => page.getByText("予約可能枠", { exact: true }).locator("xpath=../..");
+    const slotsSection = () => page.getByTestId("available-slots-section");
 
     try {
       await settings.open("/settings/reservation-type");
@@ -328,7 +327,9 @@ test.describe("V04 設定マスタ disposable CRUD/DELETE", () => {
       await expect(settings.heading("予約区分マスタ")).toBeVisible({ timeout: 15000 });
       await settings.rowActionButton(typeName).click();
       await expect(settings.masterTitleInput()).toHaveValue(typeName, { timeout: 10000 });
-      const persistedRow = slotsSection().locator("div", { hasText: "毎週月曜日" }).last();
+      const persistedRow = slotsSection()
+        .getByTestId("available-slot-row")
+        .filter({ hasText: "毎週月曜日" });
       await expect(persistedRow).toBeVisible({ timeout: 10000 });
       await expect(persistedRow).toContainText("09:45");
 
@@ -361,9 +362,7 @@ test.describe("V04 設定マスタ disposable CRUD/DELETE", () => {
     let needsTypeCleanup = false;
     let needsOccupationCleanup = false;
 
-    // <p>紐付け職種…</p> の 2 つ上の div がセクション本体（バッジ群+追加 select を含む）。
-    const occupationsSection = () =>
-      page.getByText("紐付け職種", { exact: false }).locator("xpath=../..");
+    const occupationsSection = () => page.getByTestId("linked-occupations-section");
 
     try {
       // 紐付け対象の職種を disposable clinic に作成（fixture は持たないため UI で作成）。
@@ -1150,8 +1149,7 @@ test.describe("V04 設定マスタ §5 予約可能枠（admin）", () => {
     const specificDate = "2099-01-15";
     let typeId: number | null = null;
 
-    // セクション見出し <p> の 2 つ上の div がセクション本体（追加フォーム+一覧を含む）。
-    const slotsSection = () => page.getByText("予約可能枠", { exact: true }).locator("xpath=../..");
+    const slotsSection = () => page.getByTestId("available-slots-section");
 
     try {
       // leaf 区分を作成して保存 → パネルを開き直す（子セクションは既存行のみ描画）。
@@ -1190,7 +1188,7 @@ test.describe("V04 設定マスタ §5 予約可能枠（admin）", () => {
       // #3: モードを「特定日」に切替 → 日付を入れて追加 → 永続。
       // パネル内の他セクション（予約不可時間など）にも aria-label="特定日" の
       // date input があるため、予約可能枠セクションにスコープして一意にする。
-      await slotsSection().getByRole("combobox").first().click();
+      await slotsSection().getByRole("combobox", { name: "スロット種別" }).click();
       await page.getByRole("option", { name: "特定日", exact: true }).click();
       await slotsSection().getByLabel("特定日").fill(specificDate);
       const specificPostPromise = page.waitForResponse(
@@ -1222,7 +1220,9 @@ test.describe("V04 設定マスタ §5 予約可能枠（admin）", () => {
       await expect(slotsSection().getByText(specificDate)).toBeVisible();
 
       // #4: 特定日スロットを削除 → 再読込でも消えている。
-      const slotRow = page.getByText(specificDate).locator("xpath=..");
+      const slotRow = slotsSection()
+        .getByTestId("available-slot-row")
+        .filter({ hasText: specificDate });
       const deleteSlotPromise = page.waitForResponse(
         (response) =>
           /\/v1\/masters\/reservation-types\/\d+\/available-slots\/\d+/.test(response.url()) &&
@@ -1748,8 +1748,7 @@ test.describe("V04 設定マスタ §2 診療項目（admin）", () => {
           !response.url().includes("/reorder"),
         { timeout: 15000 },
       );
-    const parentCategoryRow = () =>
-      page.getByText("親カテゴリ", { exact: true }).locator("xpath=..");
+    const parentCategorySelect = () => page.getByRole("combobox", { name: "親カテゴリ" });
 
     try {
       await settings.open("/settings/treatment-items?tab=procedure");
@@ -1772,7 +1771,7 @@ test.describe("V04 設定マスタ §2 診療項目（admin）", () => {
       await settings.newButton().click();
       await expect(settings.masterTitleInput()).toBeVisible({ timeout: 10000 });
       await settings.masterTitleInput().fill(childName);
-      await parentCategoryRow().getByRole("combobox").click();
+      await parentCategorySelect().click();
       await page.getByRole("option", { name: parentName }).click();
       postPromise = postProcedure();
       await settings.saveButton().click();
@@ -1795,8 +1794,8 @@ test.describe("V04 設定マスタ §2 診療項目（admin）", () => {
       // #6: 子を持つ親を編集 → 親カテゴリは変更不可表示でセレクタなし。
       await settings.rowActionButton(parentName).click();
       await expect(settings.masterTitleInput()).toHaveValue(parentName, { timeout: 10000 });
-      await expect(parentCategoryRow().getByText("子項目があるため変更できません")).toBeVisible();
-      await expect(parentCategoryRow().getByRole("combobox")).toHaveCount(0);
+      await expect(page.getByText("子項目があるため変更できません")).toBeVisible();
+      await expect(parentCategorySelect()).toHaveCount(0);
       await settings.cancelButton().click();
       await expect(settings.masterTitleInput()).not.toBeVisible({ timeout: 10000 });
     } finally {

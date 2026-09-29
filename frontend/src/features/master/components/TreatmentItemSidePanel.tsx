@@ -216,6 +216,7 @@ export const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
             </span>
           ) : (
             <SearchableSelect
+              ariaLabel="親カテゴリ"
               value={
                 formData.parentId !== undefined
                   ? formData.parentId || "__none__"

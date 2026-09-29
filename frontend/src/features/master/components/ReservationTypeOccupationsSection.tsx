@@ -90,7 +90,7 @@ export function ReservationTypeOccupationsSection({ clinicId, reservationTypeId 
   );
 
   return (
-    <div className={`mt-4 pt-4 ${STYLE.sectionDivider}`}>
+    <div data-testid="linked-occupations-section" className={`mt-4 pt-4 ${STYLE.sectionDivider}`}>
       <div className="flex items-center gap-1.5 mb-3">
         <Briefcase className={ICON.smXs} style={{ color: C.text50 }} />
         <p className={`text-xs font-medium ${C.text50}`}>紐付け職種（出勤なし → 予約不可）</p>
