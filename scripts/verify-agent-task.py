@@ -472,6 +472,25 @@ def plan(paths):
             })
         elif path in ('frontend/vite.config.ts', 'frontend/scripts/vite-native-config.test.mjs'):
             jobs.append({'service': 'frontend', 'command': ['node', '--test', 'scripts/vite-native-config.test.mjs']})
+        elif path in (
+            'frontend/scripts/design-system-audit.mjs',
+            'frontend/scripts/design-system-audit.test.mjs',
+        ):
+            # 監査スクリプトの scoped 契約: 単体テスト + 監査自体の実行（違反 0 が PASS 条件）。
+            jobs.append({'service': 'frontend', 'command': ['node', '--test', 'scripts/design-system-audit.test.mjs']})
+            jobs.append({'service': 'frontend', 'command': ['node', 'scripts/design-system-audit.mjs']})
+        elif path == 'frontend/index.html':
+            jobs.append({'service': 'frontend', 'command': ['node', 'node_modules/prettier/bin/prettier.cjs', '--check', 'index.html']})
+        elif path == 'frontend/tsconfig.json':
+            # tsconfig 変更の契約は全量 typecheck。
+            jobs.append({'service': 'frontend', 'command': ['node', 'node_modules/typescript/bin/tsc', '-p', 'tsconfig.json', '--noEmit', '--pretty', 'false']})
+        elif path.startswith('frontend/.storybook/') and path.endswith('.ts'):
+            if not (ROOT / path).is_file():
+                blocked.append(path)
+                continue
+            rel = path.removeprefix('frontend/')
+            jobs.append({'service': 'frontend', 'command': ['node', 'node_modules/eslint/bin/eslint.js', '--max-warnings', '0', rel]})
+            jobs.append({'service': 'frontend', 'command': ['node', 'node_modules/prettier/bin/prettier.cjs', '--check', rel]})
         elif path in ('frontend/package.json', 'frontend/pnpm-lock.yaml'):
             # Match GitHub Frontend Build audit gate (pnpm audit --audit-level moderate).
             job = {
