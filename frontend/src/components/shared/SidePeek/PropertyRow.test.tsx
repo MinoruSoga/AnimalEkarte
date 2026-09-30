@@ -38,4 +38,31 @@ describe("PropertyRow", () => {
     );
     expect(screen.getByText("備考")).toBeInTheDocument();
   });
+
+  it("description を渡すとヘルプアイコンを表示する", () => {
+    render(
+      <PropertyRow label="カテゴリ" description="分類に使う項目です">
+        <input type="text" defaultValue="" />
+      </PropertyRow>,
+    );
+    expect(screen.getByRole("button", { name: "カテゴリの説明" })).toBeInTheDocument();
+  });
+
+  it("description なしではヘルプアイコンを表示しない", () => {
+    render(
+      <PropertyRow label="カテゴリ">
+        <input type="text" defaultValue="" />
+      </PropertyRow>,
+    );
+    expect(screen.queryByRole("button", { name: "カテゴリの説明" })).not.toBeInTheDocument();
+  });
+
+  it("説明文はフィールドの accessible name に混入しない", () => {
+    render(
+      <PropertyRow label="カテゴリ" description="分類に使う項目です">
+        <input type="text" defaultValue="" />
+      </PropertyRow>,
+    );
+    expect(screen.getByLabelText("カテゴリ")).toHaveAccessibleName("カテゴリ");
+  });
 });

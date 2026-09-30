@@ -106,6 +106,7 @@ export const MedicineSidePanelBody = memo(function MedicineSidePanelBody({
       onDelete={selectedMedicine && canDelete ? onDeleteRequest : undefined}
       icon={<Pill className={LAYOUT.pageIcon.innerIcon} />}
       titlePlaceholder="薬品名"
+      titleDescription="薬品の名称です。処方登録や薬品選択肢に表示されます。カテゴリの場合は分類名です。"
       titleError={nameError}
       titleMaxLength={100}
       readOnly={readOnly}

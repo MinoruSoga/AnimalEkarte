@@ -98,7 +98,10 @@ export const InterviewTemplateSidePanel = memo(function InterviewTemplateSidePan
       readOnly={readOnly}
     >
       <StatusToggleButton isActive={formData.isActive} onToggle={handleToggleActive} />
-      <PropertyRow label="カテゴリ">
+      <PropertyRow
+        label="カテゴリ"
+        description="テンプレートの分類名です。問診テンプレート一覧での絞り込み・整理に使われます。"
+      >
         <input
           type="text"
           aria-label="カテゴリ"
@@ -108,7 +111,10 @@ export const InterviewTemplateSidePanel = memo(function InterviewTemplateSidePan
           placeholder="カテゴリを入力"
         />
       </PropertyRow>
-      <PropertyRow label="テンプレート内容">
+      <PropertyRow
+        label="テンプレート内容"
+        description="問診時に挿入される本文テキストです。問診票の記入時にテンプレートとして呼び出せます。"
+      >
         <textarea
           className={`${MASTER_INPUT_CLASS} min-h-[150px] resize-none`}
           value={formData.content}

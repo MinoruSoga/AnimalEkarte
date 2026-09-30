@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { FIELD_DESCRIPTIONS } from "@/constants/field-descriptions";
 import { LAYOUT, STYLE } from "@/lib/design-tokens";
 
 import type { DiagnosisName, DiagnosisType } from "../api/diagnosis";
@@ -125,10 +126,14 @@ export const DiagnosisNameSidePanel = memo(function DiagnosisNameSidePanel({
       isDirty={isDirty}
       titleError={nameError}
       titleMaxLength={100}
+      titleDescription="カルテの診断名として登録・選択される病名です。"
       readOnly={readOnly}
     >
       <StatusToggleButton isActive={formData.isActive} onToggle={handleToggleActive} />
-      <PropertyRow label="カテゴリ">
+      <PropertyRow
+        label="カテゴリ"
+        description="この病名が属する診断カテゴリです。診断名一覧でのグループ分けに使われます。"
+      >
         <Select value={formData.diagnosisTypeId} onValueChange={handleCategoryChange}>
           <SelectTrigger className={STYLE.selectCompact}>
             <SelectValue placeholder="カテゴリを選択" />
@@ -137,7 +142,7 @@ export const DiagnosisNameSidePanel = memo(function DiagnosisNameSidePanel({
         </Select>
       </PropertyRow>
       <FormFieldError message={categoryError} />
-      <PropertyRow label="備考">
+      <PropertyRow label="備考" description={FIELD_DESCRIPTIONS.note}>
         <PropertyInput
           value={formData.description}
           onChange={handleDescriptionChange}

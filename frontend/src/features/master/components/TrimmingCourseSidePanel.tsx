@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { FIELD_DESCRIPTIONS } from "@/constants/field-descriptions";
 import { C, LAYOUT, STYLE } from "@/lib/design-tokens";
 
 import { TARGET_SIZE_OPTIONS, type TargetSize, type TrimmingCourse } from "../api/trimming";
@@ -132,7 +133,7 @@ export const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
       titleMaxLength={100}
       readOnly={readOnly}
     >
-      <PropertyRow label="ステータス">
+      <PropertyRow label="ステータス" description={FIELD_DESCRIPTIONS.status}>
         <button
           type="button"
           onClick={handleToggleStatus}
@@ -142,7 +143,10 @@ export const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
         </button>
       </PropertyRow>
 
-      <PropertyRow label="コース種別">
+      <PropertyRow
+        label="コース種別"
+        description="このコースが属するコース種別です。トリミングメニューの分類に使われます。"
+      >
         <Select
           value={formData.courseTypeId || COURSE_TYPE_EMPTY_VALUE}
           onValueChange={handleCourseTypeChange}
@@ -161,7 +165,10 @@ export const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
         </Select>
       </PropertyRow>
 
-      <PropertyRow label="対象サイズ">
+      <PropertyRow
+        label="対象サイズ"
+        description="このコースの対象となる犬のサイズです。予約・施術時の案内の目安に使われます。"
+      >
         <Select
           value={formData.targetSize || TARGET_SIZE_EMPTY_VALUE}
           onValueChange={handleTargetSizeChange}
@@ -180,7 +187,10 @@ export const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
         </Select>
       </PropertyRow>
 
-      <PropertyRow label="所要時間(分)">
+      <PropertyRow
+        label="所要時間(分)"
+        description="このコースの施術にかかる目安時間（分）です。予約枠の見通しに使われます。"
+      >
         <PropertyInput
           type="number"
           value={formData.duration}
@@ -189,7 +199,7 @@ export const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
         />
       </PropertyRow>
 
-      <PropertyRow label="単価(税込)">
+      <PropertyRow label="単価(税込)" description={FIELD_DESCRIPTIONS.unitPrice}>
         <div className="flex items-center gap-1">
           <span className={`text-base ${C.text65} select-none`}>¥</span>
           <input
@@ -204,7 +214,7 @@ export const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
         </div>
       </PropertyRow>
 
-      <PropertyRow label="備考">
+      <PropertyRow label="備考" description={FIELD_DESCRIPTIONS.note}>
         <PropertyInput
           value={formData.description}
           onChange={handleDescriptionChange}

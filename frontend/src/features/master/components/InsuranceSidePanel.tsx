@@ -8,6 +8,7 @@ import {
   PropertyRow,
   StatusToggleButton,
 } from "@/components/shared/SidePeek";
+import { FIELD_DESCRIPTIONS } from "@/constants/field-descriptions";
 import { C, LAYOUT } from "@/lib/design-tokens";
 import { handleApiError } from "@/lib/handle-api-error";
 
@@ -119,10 +120,14 @@ export const InsuranceSidePanel = memo(function InsuranceSidePanel({
       isDirty={isDirty}
       titleError={nameError}
       titleMaxLength={100}
+      titleDescription="保険（会社・プラン）の名称です。患者登録時の保険選択肢に表示されます。"
       readOnly={readOnly}
     >
       <StatusToggleButton isActive={formData.isActive} onToggle={handleToggleActive} />
-      <PropertyRow label="補償率(%)">
+      <PropertyRow
+        label="補償率(%)"
+        description="保険でカバーされる費用の割合（%）です。保険適用時の会計計算に使われます。"
+      >
         <input
           type="number"
           min={0}
@@ -140,7 +145,10 @@ export const InsuranceSidePanel = memo(function InsuranceSidePanel({
           </p>
         ) : null}
       </PropertyRow>
-      <PropertyRow label="連絡先">
+      <PropertyRow
+        label="連絡先"
+        description="保険会社の連絡先電話番号です。保険内容の確認・問い合わせ時に参照します。"
+      >
         <input
           type="tel"
           aria-label="連絡先"
@@ -150,7 +158,7 @@ export const InsuranceSidePanel = memo(function InsuranceSidePanel({
           placeholder="電話番号"
         />
       </PropertyRow>
-      <PropertyRow label="備考">
+      <PropertyRow label="備考" description={FIELD_DESCRIPTIONS.note}>
         <PropertyInput
           value={formData.description}
           onChange={handleDescriptionChange}

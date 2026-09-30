@@ -9,6 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PropertyInput, PropertyRow } from "@/components/shared/SidePeek";
+import { FIELD_DESCRIPTIONS } from "@/constants/field-descriptions";
 import { C, STYLE } from "@/lib/design-tokens";
 import type { MedicineDoseParam, MedicineDoseSpecies } from "@/types/generated/models";
 import {
@@ -198,7 +199,10 @@ function SpeciesDoseParamPanel({
         ) : null}
       </div>
 
-      <PropertyRow label="投与基準">
+      <PropertyRow
+        label="投与基準"
+        description="投与量の基準です。「1回あたり」は1回の投与ごと、「1日あたり」は1日の総量に対して mg/kg を適用します。"
+      >
         <Select
           value={formData.doseBasis}
           onValueChange={(value) =>
@@ -215,7 +219,10 @@ function SpeciesDoseParamPanel({
         </Select>
       </PropertyRow>
 
-      <PropertyRow label="投与量(mg/kg)">
+      <PropertyRow
+        label="投与量(mg/kg)"
+        description="体重1kgあたりの標準投与量（mg）です。体重換算の基準値になります。"
+      >
         <input
           type="number"
           min={0}
@@ -228,7 +235,10 @@ function SpeciesDoseParamPanel({
         />
       </PropertyRow>
 
-      <PropertyRow label="下限(mg/kg・任意)">
+      <PropertyRow
+        label="下限(mg/kg・任意)"
+        description="許容される投与量の下限（mg/kg）です。設定すると範囲外の入力を防げます。"
+      >
         <input
           type="number"
           min={0}
@@ -241,7 +251,10 @@ function SpeciesDoseParamPanel({
         />
       </PropertyRow>
 
-      <PropertyRow label="上限(mg/kg・任意)">
+      <PropertyRow
+        label="上限(mg/kg・任意)"
+        description="許容される投与量の上限（mg/kg）です。過量防止のため、mg/kg 上限か mg 絶対上限のいずれかの設定が必須です。"
+      >
         <input
           type="number"
           min={0}
@@ -254,7 +267,10 @@ function SpeciesDoseParamPanel({
         />
       </PropertyRow>
 
-      <PropertyRow label="絶対上限(mg・任意)">
+      <PropertyRow
+        label="絶対上限(mg・任意)"
+        description="体重に関係なく許容される最大投与量（mg）です。大型動物への過量投与を防ぎます。"
+      >
         <input
           type="number"
           min={0}
@@ -269,7 +285,10 @@ function SpeciesDoseParamPanel({
         />
       </PropertyRow>
 
-      <PropertyRow label="丸め幅(任意)">
+      <PropertyRow
+        label="丸め幅(任意)"
+        description="計算された投与量を丸める刻み幅です。例えば 0.5 を指定すると 0.5 単位に丸められます。"
+      >
         <input
           type="number"
           min={0}
@@ -284,7 +303,10 @@ function SpeciesDoseParamPanel({
         />
       </PropertyRow>
 
-      <PropertyRow label="丸め方向(任意)">
+      <PropertyRow
+        label="丸め方向(任意)"
+        description="「丸め幅」で丸める際の方向（切り上げ・切り捨て・最近接）です。"
+      >
         <Select
           value={formData.roundingMode || "__none__"}
           onValueChange={(value) =>
@@ -307,7 +329,7 @@ function SpeciesDoseParamPanel({
         </Select>
       </PropertyRow>
 
-      <PropertyRow label="備考(任意)">
+      <PropertyRow label="備考(任意)" description={FIELD_DESCRIPTIONS.note}>
         <PropertyInput
           value={formData.notes}
           onChange={(value) => setFormData((prev) => ({ ...prev, notes: value }))}

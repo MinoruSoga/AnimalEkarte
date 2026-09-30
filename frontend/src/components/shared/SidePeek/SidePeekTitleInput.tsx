@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { C, LAYOUT } from "@/lib/design-tokens";
 import { FormFieldError } from "@/components/shared/FormFieldError";
+import { FieldHelp } from "@/components/shared/FieldHelp";
 
 interface SidePeekTitleInputProps {
   id?: string;
@@ -17,6 +18,8 @@ interface SidePeekTitleInputProps {
    * BUG-379: デフォルト 255 文字。マスタ名称の DB 上限と整合させる。
    */
   maxLength?: number;
+  /** 項目の説明文。指定するとタイトル右に ⓘ ツールチップを表示する */
+  description?: string;
 }
 
 export const SidePeekTitleInput = memo(function SidePeekTitleInput({
@@ -28,6 +31,7 @@ export const SidePeekTitleInput = memo(function SidePeekTitleInput({
   onSave,
   error,
   maxLength = 255,
+  description,
 }: SidePeekTitleInputProps) {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
@@ -43,25 +47,28 @@ export const SidePeekTitleInput = memo(function SidePeekTitleInput({
 
   return (
     <div className="pb-1 mb-4">
-      <input
-        id={id}
-        type="text"
-        className={`w-full bg-transparent ${C.text} ${C.textPlaceholderFaint} outline-none border-none p-0 rounded-xxs focus-visible:ring-2 ${C.focusRingAccent40}`}
-        style={{
-          fontSize: LAYOUT.pageTitle.fontSize,
-          fontWeight: LAYOUT.pageTitle.fontWeight,
-          lineHeight: LAYOUT.pageTitle.lineHeight,
-          letterSpacing: LAYOUT.pageTitle.letterSpacing,
-        }}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onKeyDown={handleKeyDown}
-        placeholder={placeholder}
-        aria-label={placeholder}
-        autoFocus={autoFocus}
-        maxLength={maxLength}
-        aria-invalid={!!error}
-      />
+      <div className="flex items-center gap-1">
+        <input
+          id={id}
+          type="text"
+          className={`flex-1 min-w-0 bg-transparent ${C.text} ${C.textPlaceholderFaint} outline-none border-none p-0 rounded-xxs focus-visible:ring-2 ${C.focusRingAccent40}`}
+          style={{
+            fontSize: LAYOUT.pageTitle.fontSize,
+            fontWeight: LAYOUT.pageTitle.fontWeight,
+            lineHeight: LAYOUT.pageTitle.lineHeight,
+            letterSpacing: LAYOUT.pageTitle.letterSpacing,
+          }}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          aria-label={placeholder}
+          autoFocus={autoFocus}
+          maxLength={maxLength}
+          aria-invalid={!!error}
+        />
+        {description ? <FieldHelp label={placeholder} content={description} /> : null}
+      </div>
       {error ? <FormFieldError message={error} /> : null}
     </div>
   );

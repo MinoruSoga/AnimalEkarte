@@ -1,4 +1,5 @@
 import { memo, useEffect, type ReactNode } from "react";
+import { FIELD_DESCRIPTIONS } from "@/constants/field-descriptions";
 import { STYLE } from "@/lib/design-tokens";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker/NavigationBlocker";
 import { SidePeekPanel } from "@/components/shared/SidePeek/SidePeekPanel";
@@ -22,6 +23,8 @@ interface MasterSidePanelProps {
   titleError?: string;
   /** Maximum number of characters allowed in the title field */
   titleMaxLength?: number;
+  /** タイトル項目の説明文（ⓘツールチップ）。省略時は名称共通の説明を表示 */
+  titleDescription?: string;
   /** When true, shows a navigation blocker dialog if the user tries to navigate away */
   isDirty?: boolean;
   /** BUG-158: true の場合、保存・削除ボタンを非表示にし、閲覧モードで表示 */
@@ -43,6 +46,7 @@ export const MasterSidePanel = memo(function MasterSidePanel({
   titlePlaceholder,
   titleError,
   titleMaxLength,
+  titleDescription = FIELD_DESCRIPTIONS.title,
   isDirty = false,
   readOnly = false,
   className,
@@ -99,6 +103,7 @@ export const MasterSidePanel = memo(function MasterSidePanel({
           onSave={onSave}
           error={titleError}
           maxLength={titleMaxLength}
+          description={titleDescription}
         />
         <div className={`${STYLE.sectionDivider} mb-1`} />
         <div className="py-1">{children}</div>

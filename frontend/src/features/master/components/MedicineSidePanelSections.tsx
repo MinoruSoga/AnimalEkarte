@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { FIELD_DESCRIPTIONS } from "@/constants/field-descriptions";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import type { Medicine } from "@/types";
 import {
@@ -60,7 +61,10 @@ export function MedicineParentCategorySection({
   setFormDataDirty,
 }: MedicineParentCategorySectionProps) {
   return (
-    <PropertyRow label="親カテゴリ">
+    <PropertyRow
+      label="親カテゴリ"
+      description="この薬品が属する親カテゴリです。薬品マスタを階層構造で整理するために使われます。"
+    >
       {isCategory ? (
         <span className={`text-base ${C.text}`}>なし（ルート）</span>
       ) : (
@@ -97,7 +101,7 @@ export function MedicinePriceTaxSection({
 }: MedicinePriceTaxSectionProps) {
   return (
     <>
-      <PropertyRow label="単価(税込)">
+      <PropertyRow label="単価(税込)" description={FIELD_DESCRIPTIONS.unitPrice}>
         {isCategory ? (
           <span className={`text-base ${C.text35} select-none`}>子項目に金額を設定</span>
         ) : (
@@ -118,7 +122,7 @@ export function MedicinePriceTaxSection({
         )}
       </PropertyRow>
 
-      <PropertyRow label="課税区分">
+      <PropertyRow label="課税区分" description={FIELD_DESCRIPTIONS.taxCategory}>
         <TaxTypeSelector
           value={formData.taxType}
           onChange={(value) => setFormDataDirty((prev) => ({ ...prev, taxType: value }))}
@@ -126,7 +130,7 @@ export function MedicinePriceTaxSection({
         />
       </PropertyRow>
 
-      <PropertyRow label="税率">
+      <PropertyRow label="税率" description={FIELD_DESCRIPTIONS.taxRate}>
         <TaxRateSelector
           value={formData.taxRate}
           onChange={(value) => setFormDataDirty((prev) => ({ ...prev, taxRate: value }))}
@@ -148,7 +152,7 @@ export function MedicineBasicFlagsSection({
 }: MedicineBasicFlagsSectionProps) {
   return (
     <>
-      <PropertyRow label="ステータス">
+      <PropertyRow label="ステータス" description={FIELD_DESCRIPTIONS.status}>
         <button
           type="button"
           onClick={() => setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }))}
@@ -158,7 +162,10 @@ export function MedicineBasicFlagsSection({
         </button>
       </PropertyRow>
 
-      <PropertyRow label="保険対象外">
+      <PropertyRow
+        label="保険対象外"
+        description="この薬品が保険適用の対象外かどうかです。対象外にすると保険計算から除外されます。"
+      >
         <button
           type="button"
           onClick={() =>
@@ -171,7 +178,7 @@ export function MedicineBasicFlagsSection({
         </button>
       </PropertyRow>
 
-      <PropertyRow label="備考">
+      <PropertyRow label="備考" description={FIELD_DESCRIPTIONS.note}>
         <PropertyInput
           value={formData.description}
           onChange={(value) => setFormDataDirty((prev) => ({ ...prev, description: value }))}
@@ -197,7 +204,7 @@ export function MedicineDetailSection({ formData, setFormDataDirty }: MedicineDe
           <span className={`${STYLE.sectionLabel}`}>薬剤詳細</span>
         </div>
 
-        <PropertyRow label="剤形">
+        <PropertyRow label="剤形" description="薬の剤形（錠剤・液剤・注射剤・外用剤・散剤）です。">
           <Select
             value={formData.dosageForm}
             onValueChange={(value) => setFormDataDirty((prev) => ({ ...prev, dosageForm: value }))}
@@ -209,7 +216,10 @@ export function MedicineDetailSection({ formData, setFormDataDirty }: MedicineDe
           </Select>
         </PropertyRow>
 
-        <PropertyRow label="単位">
+        <PropertyRow
+          label="単位"
+          description="投与量を数える基準単位（1錠あたり・1mlあたり等）です。製品含量や投与量計算の基準になります。"
+        >
           <Select
             value={formData.medicineUnit}
             onValueChange={(value) =>
@@ -252,7 +262,10 @@ export function MedicineDoseCalculationSection({
           <span className={`${STYLE.sectionLabel}`}>投与量自動計算</span>
         </div>
 
-        <PropertyRow label="計算方式">
+        <PropertyRow
+          label="計算方式"
+          description="投与量の計算方法です。「体重換算(mg/kg)」を選ぶと体重から投与量を自動計算し、以下のパラメータ欄が表示されます。"
+        >
           <Select
             value={formData.calculationType}
             onValueChange={(value) =>
@@ -274,7 +287,10 @@ export function MedicineDoseCalculationSection({
 
         {isPerWeight ? (
           <>
-            <PropertyRow label="製品含量(mg/単位)">
+            <PropertyRow
+              label="製品含量(mg/単位)"
+              description="この製品1単位（1錠・1ml等）に含まれる有効成分量（mg）です。体重換算の投与量を実際の単位数へ変換する際に使われます。"
+            >
               <input
                 type="number"
                 min={0}
@@ -289,7 +305,10 @@ export function MedicineDoseCalculationSection({
               />
             </PropertyRow>
 
-            <PropertyRow label="1日投与回数(任意)">
+            <PropertyRow
+              label="1日投与回数(任意)"
+              description="1日に投与する回数の既定値です。処方時のデフォルトとして使われます。"
+            >
               <input
                 type="number"
                 min={1}
@@ -304,7 +323,10 @@ export function MedicineDoseCalculationSection({
               />
             </PropertyRow>
 
-            <PropertyRow label="既定投与日数(任意)">
+            <PropertyRow
+              label="既定投与日数(任意)"
+              description="標準的な投与日数の既定値です。処方時のデフォルトとして使われます。"
+            >
               <input
                 type="number"
                 min={1}

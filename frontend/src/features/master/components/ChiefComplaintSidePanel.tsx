@@ -91,7 +91,10 @@ export const ChiefComplaintSidePanel = memo(function ChiefComplaintSidePanel({
       readOnly={readOnly}
     >
       <StatusToggleButton isActive={formData.isActive} onToggle={handleToggleActive} />
-      <PropertyRow label="説明">
+      <PropertyRow
+        label="説明"
+        description="この主訴の説明文です。どのような症状・相談を想定した項目かを記録します。"
+      >
         <textarea
           className={`${MASTER_INPUT_CLASS} min-h-[80px] resize-none`}
           value={formData.description}

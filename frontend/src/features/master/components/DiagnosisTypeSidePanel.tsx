@@ -7,6 +7,7 @@ import {
   PropertyRow,
   StatusToggleButton,
 } from "@/components/shared/SidePeek";
+import { FIELD_DESCRIPTIONS } from "@/constants/field-descriptions";
 import { LAYOUT } from "@/lib/design-tokens";
 
 import type { DiagnosisType } from "../api/diagnosis";
@@ -94,7 +95,7 @@ export const DiagnosisTypeSidePanel = memo(function DiagnosisTypeSidePanel({
       readOnly={readOnly}
     >
       <StatusToggleButton isActive={formData.isActive} onToggle={handleToggleActive} />
-      <PropertyRow label="備考">
+      <PropertyRow label="備考" description={FIELD_DESCRIPTIONS.note}>
         <PropertyInput
           value={formData.description}
           onChange={handleDescriptionChange}

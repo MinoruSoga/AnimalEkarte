@@ -17,3 +17,7 @@ playwright-report/
 # OS
 .DS_Store
 .env.local
+
+# Chromatic
+chromatic-diagnostics.json
+chromatic.log

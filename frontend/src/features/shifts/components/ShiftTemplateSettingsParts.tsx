@@ -6,6 +6,7 @@ import X from "lucide-react/dist/esm/icons/x";
 import { TableCell } from "@/components/ui/table";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
+import { FieldHelp } from "@/components/shared/FieldHelp";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { RowActionButton } from "@/components/shared/RowActionButton";
@@ -197,22 +198,28 @@ export const ShiftTemplateSidePanel = memo(function ShiftTemplateSidePanel({
           </div>
 
           <div className="pb-1 mb-4">
-            <input
-              type="text"
-              aria-label="テンプレート名"
-              className={`w-full bg-transparent ${C.text} ${C.textPlaceholderFaint} outline-none border-none p-0 focus-visible:ring-2 ${C.focusRingAccent40}`}
-              style={{
-                fontSize: LAYOUT.pageTitle.fontSize,
-                fontWeight: LAYOUT.pageTitle.fontWeight,
-                lineHeight: LAYOUT.pageTitle.lineHeight,
-                letterSpacing: LAYOUT.pageTitle.letterSpacing,
-              }}
-              value={formData.name}
-              onChange={(e) => handleField("name", e.target.value)}
-              placeholder="テンプレート名"
-              readOnly={readOnly}
-              autoFocus={!readOnly}
-            />
+            <div className="flex items-center gap-1">
+              <input
+                type="text"
+                aria-label="テンプレート名"
+                className={`flex-1 min-w-0 bg-transparent ${C.text} ${C.textPlaceholderFaint} outline-none border-none p-0 focus-visible:ring-2 ${C.focusRingAccent40}`}
+                style={{
+                  fontSize: LAYOUT.pageTitle.fontSize,
+                  fontWeight: LAYOUT.pageTitle.fontWeight,
+                  lineHeight: LAYOUT.pageTitle.lineHeight,
+                  letterSpacing: LAYOUT.pageTitle.letterSpacing,
+                }}
+                value={formData.name}
+                onChange={(e) => handleField("name", e.target.value)}
+                placeholder="テンプレート名"
+                readOnly={readOnly}
+                autoFocus={!readOnly}
+              />
+              <FieldHelp
+                label="テンプレート名"
+                content="シフトテンプレートの名前です。シフト割り当て時の選択肢に表示されます。"
+              />
+            </div>
           </div>
 
           <div className={`${STYLE.sectionDivider} mb-1`} />

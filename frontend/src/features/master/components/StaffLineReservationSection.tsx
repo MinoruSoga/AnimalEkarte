@@ -39,7 +39,10 @@ export function StaffLineReservationSection({
         <p className={`text-xs font-medium ${C.text50}`}>LINE予約設定</p>
       </div>
 
-      <PropertyRow label="LINE表示名">
+      <PropertyRow
+        label="LINE表示名"
+        description="LINE予約画面で飼主に表示されるスタッフ名です。空欄の場合は氏名が使われます。"
+      >
         <input
           type="text"
           aria-label="LINE表示名"
@@ -52,7 +55,10 @@ export function StaffLineReservationSection({
         />
       </PropertyRow>
 
-      <PropertyRow label="予約ページに表示">
+      <PropertyRow
+        label="予約ページに表示"
+        description="オンにするとLINE予約の担当者選択肢にこのスタッフが表示されます。"
+      >
         <Switch
           checked={formData.reservationVisible}
           onCheckedChange={(value) =>
@@ -61,7 +67,10 @@ export function StaffLineReservationSection({
         />
       </PropertyRow>
 
-      <PropertyRow label="スタッフ種別">
+      <PropertyRow
+        label="スタッフ種別"
+        description="スタッフの種別（医師・看護師・設備）です。予約枠の割り当て区分として使われます。"
+      >
         <Select
           value={formData.staffType}
           onValueChange={(value) => setFormDataDirty((prev) => ({ ...prev, staffType: value }))}
@@ -73,7 +82,10 @@ export function StaffLineReservationSection({
         </Select>
       </PropertyRow>
 
-      <PropertyRow label="LINE説明文">
+      <PropertyRow
+        label="LINE説明文"
+        description="LINE予約画面でこのスタッフに表示される説明文です。"
+      >
         <input
           type="text"
           aria-label="LINE説明文"
@@ -86,7 +98,10 @@ export function StaffLineReservationSection({
         />
       </PropertyRow>
 
-      <PropertyRow label="画像URL">
+      <PropertyRow
+        label="画像URL"
+        description="LINE予約画面でこのスタッフに表示する画像のURLです。"
+      >
         <input
           type="text"
           aria-label="画像URL"

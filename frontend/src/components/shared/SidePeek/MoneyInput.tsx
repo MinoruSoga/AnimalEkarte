@@ -10,6 +10,8 @@ interface MoneyInputProps {
   placeholder?: string;
   /** Field-level validation message (e.g. negative price) */
   error?: string;
+  /** 項目の説明文（ⓘツールチップ） */
+  description?: string;
 }
 
 export function MoneyInput({
@@ -18,9 +20,10 @@ export function MoneyInput({
   onChange,
   placeholder = "0",
   error,
+  description,
 }: MoneyInputProps) {
   return (
-    <PropertyRow label={label}>
+    <PropertyRow label={label} description={description}>
       <div className="flex flex-col gap-0.5">
         <div className="flex items-center gap-1">
           <span className={`text-sm ${C.text65} select-none`}>¥</span>

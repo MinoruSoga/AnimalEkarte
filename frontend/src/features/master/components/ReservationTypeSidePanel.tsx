@@ -14,6 +14,7 @@ import {
   PropertyInput,
   MasterSidePanel,
 } from "@/components/shared/SidePeek";
+import { FIELD_DESCRIPTIONS } from "@/constants/field-descriptions";
 import { C, ICON, LAYOUT, PALETTE, STYLE } from "@/lib/design-tokens";
 import { ReservationTypeAvailableSlotsSection } from "./ReservationTypeAvailableSlotsSection";
 import { ReservationTypeUnavailableTimesSection } from "./ReservationTypeUnavailableTimesSection";
@@ -147,7 +148,10 @@ export const CategorySidePanel = memo(function CategorySidePanel({
       readOnly={readOnly}
     >
       <StatusToggleButton isActive={formData.isActive} onToggle={handleToggleActive} />
-      <PropertyRow label="グループ">
+      <PropertyRow
+        label="グループ"
+        description="この予約区分が属するグループです。予約管理画面での分類・色分けに使われます。"
+      >
         <Select
           value={formData.groupId ?? "none"}
           onValueChange={(v) =>
@@ -173,7 +177,7 @@ export const CategorySidePanel = memo(function CategorySidePanel({
           </SelectContent>
         </Select>
       </PropertyRow>
-      <PropertyRow label="備考">
+      <PropertyRow label="備考" description={FIELD_DESCRIPTIONS.note}>
         <PropertyInput
           value={formData.description}
           onChange={handleDescriptionChange}
@@ -186,14 +190,20 @@ export const CategorySidePanel = memo(function CategorySidePanel({
           <MessageCircle className={ICON.smXs} style={{ color: PALETTE.lineGreen }} />
           <p className={`text-xs font-medium ${C.text50}`}>LINE予約設定</p>
         </div>
-        <PropertyRow label="LINE表示名">
+        <PropertyRow
+          label="LINE表示名"
+          description="LINE予約画面で飼主に表示される名前です。空欄の場合は名称がそのまま使われます。"
+        >
           <PropertyInput
             value={formData.reservationDisplayName}
             onChange={(v) => setFormDataDirty((prev) => ({ ...prev, reservationDisplayName: v }))}
             placeholder={formData.name || "空欄なら名称を使用"}
           />
         </PropertyRow>
-        <PropertyRow label="予約ページに表示">
+        <PropertyRow
+          label="予約ページに表示"
+          description="オンにするとLINE予約の予約区分選択肢に表示されます。オフの区分はLINEから選択できません。"
+        >
           <Switch
             checked={formData.reservationVisible}
             onCheckedChange={(v) =>
@@ -201,13 +211,19 @@ export const CategorySidePanel = memo(function CategorySidePanel({
             }
           />
         </PropertyRow>
-        <PropertyRow label="内部サービス">
+        <PropertyRow
+          label="内部サービス"
+          description="オンにすると院内運用専用の区分として扱われます。飼主向けのLINE予約には公開されません。"
+        >
           <Switch
             checked={formData.isInternal}
             onCheckedChange={(v) => setFormDataDirty((prev) => ({ ...prev, isInternal: v }))}
           />
         </PropertyRow>
-        <PropertyRow label="所要時間（分）">
+        <PropertyRow
+          label="所要時間（分）"
+          description="この区分の予約1件に確保する時間（分）です。予約枠の割り当て計算に使われます。"
+        >
           <input
             type="number"
             min={5}
@@ -223,27 +239,36 @@ export const CategorySidePanel = memo(function CategorySidePanel({
             }
           />
         </PropertyRow>
-        <PropertyRow label="略称">
+        <PropertyRow
+          label="略称"
+          description="表示幅が狭い画面で使われる短い名前です。「略称を使用」がオンのときに適用されます。"
+        >
           <PropertyInput
             value={formData.shortName}
             onChange={(v) => setFormDataDirty((prev) => ({ ...prev, shortName: v }))}
             placeholder="LINE表示用の略称"
           />
         </PropertyRow>
-        <PropertyRow label="略称を使用">
+        <PropertyRow
+          label="略称を使用"
+          description="オンにすると、LINE予約画面やカレンダーで「略称」の表示が優先されます。"
+        >
           <Switch
             checked={formData.showShortName}
             onCheckedChange={(v) => setFormDataDirty((prev) => ({ ...prev, showShortName: v }))}
           />
         </PropertyRow>
-        <PropertyRow label="画像URL">
+        <PropertyRow label="画像URL" description="LINE予約画面でこの区分に表示する画像のURLです。">
           <PropertyInput
             value={formData.reservationImageUrl}
             onChange={(v) => setFormDataDirty((prev) => ({ ...prev, reservationImageUrl: v }))}
             placeholder="https://..."
           />
         </PropertyRow>
-        <PropertyRow label="予約可能曜日">
+        <PropertyRow
+          label="予約可能曜日"
+          description="この区分の予約を受け付ける曜日パターンです。LINE予約の選択可能日に反映されます。"
+        >
           <Select
             value={formData.reservationDayOption}
             onValueChange={(v) =>
@@ -256,7 +281,10 @@ export const CategorySidePanel = memo(function CategorySidePanel({
             <SelectContent>{RESERVATION_DAY_OPTION_ITEMS}</SelectContent>
           </Select>
         </PropertyRow>
-        <PropertyRow label="LINE説明文">
+        <PropertyRow
+          label="LINE説明文"
+          description="LINE予約画面でこの区分の選択肢と一緒に表示される説明文です。"
+        >
           <PropertyInput
             value={formData.reservationComment}
             onChange={(v) => setFormDataDirty((prev) => ({ ...prev, reservationComment: v }))}

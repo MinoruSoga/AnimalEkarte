@@ -91,7 +91,7 @@ export const OccupationSidePanel = memo(function OccupationSidePanel({
       readOnly={readOnly}
     >
       <StatusToggleButton isActive={formData.isActive} onToggle={handleToggleActive} />
-      <PropertyRow label="説明">
+      <PropertyRow label="説明" description="この職種の役割や業務内容の説明です。">
         <PropertyInput
           value={formData.description}
           onChange={handleDescriptionChange}

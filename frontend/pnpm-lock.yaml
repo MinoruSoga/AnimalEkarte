@@ -194,6 +194,9 @@ importers:
       '@vitest/coverage-v8':
         specifier: 4.1.11
         version: 4.1.11(vitest@4.1.11)
+      chromatic:
+        specifier: 18.9.5
+        version: 18.9.5
       chrome-launcher:
         specifier: ^1.2.1
         version: 1.2.1
@@ -3811,6 +3814,22 @@ packages:
   chownr@3.0.0:
     resolution: {integrity: sha512-+IxzY9BZOQd/XuYPRmrvEVjF/nqj5kgT4kEq7VofrDoM1MxoRjEWkrCC3EtLi59TVawxTAn+orJwFQcrqEN1+g==}
     engines: {node: '>=18'}
+
+  chromatic@18.9.5:
+    resolution: {integrity: sha512-PHYJ7f8j7eeautlPPgIy/FBWTaLY3H8UYavkCpRdfLP9w9wya/dJZ3tjL8RqbFb5EazUkXqg2qCuAOzUS/zTMA==}
+    engines: {node: '>=22.0.0'}
+    hasBin: true
+    peerDependencies:
+      '@chromatic-com/cypress': ^0.*.* || ^1.0.0
+      '@chromatic-com/playwright': ^0.*.* || ^1.0.0
+      '@chromatic-com/vitest': ^0.*.* || ^1.0.0
+    peerDependenciesMeta:
+      '@chromatic-com/cypress':
+        optional: true
+      '@chromatic-com/playwright':
+        optional: true
+      '@chromatic-com/vitest':
+        optional: true
 
   chrome-launcher@1.2.1:
     resolution: {integrity: sha512-qmFR5PLMzHyuNJHwOloHPAHhbaNglkfeV/xDtt5b7xiFFyU1I+AZZX0PYseMuhenJSSirgxELYIbswcoc+5H4A==}
@@ -10481,6 +10500,10 @@ snapshots:
       readdirp: 4.1.2
 
   chownr@3.0.0: {}
+
+  chromatic@18.9.5:
+    dependencies:
+      semver: 7.8.5
 
   chrome-launcher@1.2.1:
     dependencies:

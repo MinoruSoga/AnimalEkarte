@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { FIELD_DESCRIPTIONS } from "@/constants/field-descriptions";
 import { LAYOUT, STYLE } from "@/lib/design-tokens";
 
 import type { FrontendMerchandiseItem } from "../api/merchandise-items";
@@ -106,13 +107,17 @@ export const MerchandiseSidePanel = memo(function MerchandiseSidePanel({
       onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
       icon={<ShoppingBag className={LAYOUT.pageIcon.innerIcon} />}
       titlePlaceholder="品目名"
+      titleDescription="販売する品目の名称です。物販登録や会計時の選択肢に表示されます。"
       isDirty={isDirty}
       titleError={nameError}
       titleMaxLength={100}
       readOnly={readOnly}
     >
       <StatusToggleButton isActive={formData.isActive} onToggle={handleToggleActive} />
-      <PropertyRow label="カテゴリ">
+      <PropertyRow
+        label="カテゴリ"
+        description="この品目の分類です。物販一覧の整理や会計時の分類に使われます。"
+      >
         <Select value={formData.category} onValueChange={handleCategoryChange}>
           <SelectTrigger className={STYLE.selectCompact}>
             <SelectValue placeholder="選択" />
@@ -126,14 +131,18 @@ export const MerchandiseSidePanel = memo(function MerchandiseSidePanel({
           </SelectContent>
         </Select>
       </PropertyRow>
-      <MoneyInput value={formData.unitPrice} onChange={handleUnitPriceChange} />
-      <PropertyRow label="課税区分">
+      <MoneyInput
+        value={formData.unitPrice}
+        onChange={handleUnitPriceChange}
+        description={FIELD_DESCRIPTIONS.unitPrice}
+      />
+      <PropertyRow label="課税区分" description={FIELD_DESCRIPTIONS.taxCategory}>
         <TaxTypeSelector
           value={formData.taxType}
           onChange={(value) => setFormDataDirty((prev) => ({ ...prev, taxType: value }))}
         />
       </PropertyRow>
-      <PropertyRow label="税率">
+      <PropertyRow label="税率" description={FIELD_DESCRIPTIONS.taxRate}>
         <TaxRateSelector
           value={formData.taxRate}
           onChange={(value) => setFormDataDirty((prev) => ({ ...prev, taxRate: value }))}
