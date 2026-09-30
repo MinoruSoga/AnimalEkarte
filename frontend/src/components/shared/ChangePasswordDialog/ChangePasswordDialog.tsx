@@ -8,7 +8,7 @@ import EyeOff from "lucide-react/dist/esm/icons/eye-off";
 import { toast } from "sonner";
 
 // Internal
-import { axios } from "@/lib/axios";
+import { useChangeMyPassword } from "@/hooks/use-change-my-password";
 import { getFormString } from "@/lib/form-data";
 import { extractApiErrorMessage, handleApiError } from "@/lib/handle-api-error";
 import { Button } from "@/components/ui/button";
@@ -24,15 +24,6 @@ import {
 } from "@/components/ui/dialog";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
-
-interface ChangePasswordInput {
-  current_password: string;
-  new_password: string;
-}
-
-const changeMyPassword = async (input: ChangePasswordInput): Promise<void> => {
-  await axios.put("/v1/users/me/password", input);
-};
 
 interface ChangePasswordDialogProps {
   open: boolean;
@@ -113,6 +104,7 @@ export const ChangePasswordDialog = memo(function ChangePasswordDialog({
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const changeMyPassword = useChangeMyPassword();
 
   const [state, formAction] = useActionState<FormState, FormData>(async (_prev, formData) => {
     const currentPassword = getFormString(formData, "current_password");
@@ -130,7 +122,10 @@ export const ChangePasswordDialog = memo(function ChangePasswordDialog({
     }
 
     try {
-      await changeMyPassword({ current_password: currentPassword, new_password: newPassword });
+      await changeMyPassword.mutateAsync({
+        current_password: currentPassword,
+        new_password: newPassword,
+      });
       toast.success("パスワードを変更しました。再度ログインしてください。");
       onOpenChange(false);
       onSuccess?.();

@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { AxiosError } from "axios";
 
 import { axios } from "@/lib/axios";
+import { createTestWrapper } from "@/testing/TestUtils";
 import { ChangePasswordDialog } from "./ChangePasswordDialog";
 
 vi.mock("@/lib/axios", () => ({
@@ -22,7 +23,9 @@ vi.mock("@/lib/axios", () => ({
  */
 describe("ChangePasswordDialog — password visibility toggle", () => {
   function renderDialog() {
-    return render(<ChangePasswordDialog open={true} onOpenChange={() => {}} />);
+    return render(<ChangePasswordDialog open={true} onOpenChange={() => {}} />, {
+      wrapper: createTestWrapper(),
+    });
   }
 
   function getInputs() {
