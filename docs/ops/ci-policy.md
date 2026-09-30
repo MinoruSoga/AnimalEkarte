@@ -16,7 +16,7 @@
 
 ```mermaid
 flowchart TB
-    Push["push / PR"] --> Remote["Remote CI"]
+    Push["PR"] --> Remote["Remote CI"]
     Remote --> Scope{"変更 path を domain / feature に分解"}
     Scope -->|"partial"| P["変更 domain / feature のみ build・test<br/>coverage ratchet は SKIP"]
     Scope -->|"full（shared / migration / workflow / 横断）"| F["backend・frontend の shard test<br/>coverage は merge 後に ratchet"]
