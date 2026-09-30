@@ -42,11 +42,11 @@ describe("InterviewHistory — カナ混同検索", () => {
   it("過去カルテ検索inputに明示labelとid/nameを接続する", () => {
     renderHistory(ITEMS);
 
-    expect(screen.getByRole("textbox", { name: "過去のカルテを検索" })).toHaveAttribute(
+    expect(screen.getByRole("textbox", { name: "過去の履歴を検索" })).toHaveAttribute(
       "id",
       "medical-record-history-search",
     );
-    expect(screen.getByRole("textbox", { name: "過去のカルテを検索" })).toHaveAttribute(
+    expect(screen.getByRole("textbox", { name: "過去の履歴を検索" })).toHaveAttribute(
       "name",
       "medicalRecordHistorySearch",
     );
@@ -203,7 +203,7 @@ describe("InterviewHistory — 過去行の詳細遷移", () => {
       "/medical-records/2",
     );
     expect(screen.queryByRole("button", { name: "引用" })).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "問診抜粋" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "治療履歴" })).toBeInTheDocument();
     expect(screen.getByText("全文は詳細で確認できます")).toBeInTheDocument();
   });
 
@@ -255,13 +255,43 @@ describe("InterviewHistory — 過去行の詳細遷移", () => {
     expect(screen.queryByRole("button", { name: "引用" })).not.toBeInTheDocument();
   });
 
-  it("空状態は問診抜粋であり全文は詳細にあると示す", () => {
+  it("空状態は治療履歴であり全文は詳細にあると示す", () => {
     renderHistory([]);
 
-    expect(screen.getByRole("heading", { name: "問診抜粋" })).toBeInTheDocument();
-    expect(screen.getByText(/問診抜粋/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "治療履歴" })).toBeInTheDocument();
     expect(screen.getByText(/全文は詳細/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "引用" })).not.toBeInTheDocument();
+  });
+
+  // NO32: 統合タイムライン — トリミング行は item.href で /trimming/:id へ遷移し、
+  // copySource が無いので コピー ボタンは出さない。
+  it("href を持つトリミング行は /trimming/:id へリンクしコピーは出ない", () => {
+    const trimmingItem: InterviewHistoryItem = {
+      id: "trimming-7",
+      date: "2026-01-03",
+      type: "トリミング（完了）",
+      title: "シャンプーカット",
+      content: "嫌がりなし",
+      author: "鈴木",
+      href: "/trimming/7",
+    };
+
+    render(
+      <MemoryRouter>
+        <InterviewHistory historyItems={[ITEMS[0], trimmingItem]} />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("link", { name: /シャンプーカット/ })).toHaveAttribute(
+      "href",
+      "/trimming/7",
+    );
+    expect(screen.getByText("トリミング（完了）")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /タイトルカタカナ/ })).toHaveAttribute(
+      "href",
+      "/medical-records/1",
+    );
+    expect(screen.queryByRole("button", { name: "コピー" })).not.toBeInTheDocument();
   });
 });
 
@@ -327,7 +357,7 @@ describe("InterviewHistory — 前回複写（コピー）", () => {
 
     expect(onCopyItem).toHaveBeenCalledTimes(1);
     expect(onCopyItem).toHaveBeenCalledWith(COPYABLE_ITEMS[0]);
-    expect(screen.getByRole("heading", { name: "問診抜粋" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "治療履歴" })).toBeInTheDocument();
   });
 
   it("disabled fieldset 内では コピー が押せないが行リンクは有効", () => {
@@ -350,7 +380,7 @@ describe("InterviewHistory — 前回複写（コピー）", () => {
     const user = userEvent.setup();
     renderCopyable(vi.fn(), true);
 
-    const search = screen.getByRole("textbox", { name: "過去のカルテを検索" });
+    const search = screen.getByRole("textbox", { name: "過去の履歴を検索" });
     expect(search).not.toBeDisabled();
     expect(screen.getByRole("button", { name: "コピー" })).toBeDisabled();
     expect(screen.getByRole("link", { name: /コピー元カルテ/ })).toHaveAttribute(

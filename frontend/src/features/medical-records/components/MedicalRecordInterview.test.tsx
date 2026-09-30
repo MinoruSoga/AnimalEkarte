@@ -73,7 +73,7 @@ describe("MedicalRecordInterview — form field semantics", () => {
       "name",
       "treatmentPolicy",
     );
-    expect(screen.getByRole("textbox", { name: "過去のカルテを検索" })).toHaveAttribute(
+    expect(screen.getByRole("textbox", { name: "過去の履歴を検索" })).toHaveAttribute(
       "name",
       "medicalRecordHistorySearch",
     );
@@ -85,7 +85,7 @@ describe("MedicalRecordInterview — 編集ロック（BUG-035）", () => {
     renderInterview({ isLocked: true });
 
     const chiefComplaint = screen.getByRole("textbox", { name: "主訴詳細" });
-    const search = screen.getByRole("textbox", { name: "過去のカルテを検索" });
+    const search = screen.getByRole("textbox", { name: "過去の履歴を検索" });
 
     // 編集列は disabled fieldset の子孫として無効化される
     expect(chiefComplaint).toBeDisabled();

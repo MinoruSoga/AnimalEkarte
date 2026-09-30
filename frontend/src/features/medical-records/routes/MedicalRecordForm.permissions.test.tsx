@@ -107,6 +107,10 @@ vi.mock("../hooks/use-medical-record-form", () => ({
 vi.mock("../api/get-medical-records", () => ({
   useGetPetMedicalHistory: () => ({ historyItems: [] }),
 }));
+// NO32: 統合タイムライン用の trimming query。QueryClientProvider 無しで描くため stub。
+vi.mock("../api/get-pet-trimmings", () => ({
+  useGetTrimmingsByPetId: () => ({ data: [] }),
+}));
 vi.mock("../api/get-medical-record", () => ({
   useGetMedicalRecord: () => ({ data: { clinicId: "clinic-1" } }),
 }));
@@ -224,12 +228,19 @@ beforeEach(() => {
 
 describe("MedicalRecordForm — mutation permission boundary", () => {
   function installStatefulPermissionMock() {
-    mockUsePermission.mockImplementation(() => {
+    mockUsePermission.mockImplementation((resource: string) => {
       const [permissions, setPermissions] = useState({
         canEdit: true,
         canCreate: true,
         canDelete: true,
       });
+      // NO32: ReadyPanels 側で trimming:view が別途呼ばれるようになった。
+      // ref guard（canDeleteRef / selectedPetStatusRef）の検証対象は親の
+      // medical-records 側なので、setter は medical-records 呼び出しだけに公開する。
+      // trimming 側は view=true で fetch を許可するが query 自体はモック済み。
+      if (resource !== "medical-records") {
+        return { canView: true, canEdit: false, canCreate: false, canDelete: false };
+      }
       mockBoundaryState.setPermissions = setPermissions;
       return permissions;
     });

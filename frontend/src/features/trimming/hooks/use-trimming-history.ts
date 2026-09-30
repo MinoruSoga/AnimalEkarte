@@ -4,7 +4,8 @@ import { normalizeKana } from "@/lib/normalize-kana";
 import type { SortOrder } from "@/types";
 import type { TrimmingFormData } from "@/types/trimming";
 
-import { useGetTrimmingsByPetId } from "../api/get-trimming";
+// NO32: useGetTrimmingsByPetId は cross-feature 共有のため @/hooks へ昇格済み
+import { useGetTrimmingsByPetId } from "@/hooks/use-pet-trimmings";
 
 export function useTrimmingHistory(petId: string) {
   const [historySearchTerm, setHistorySearchTerm] = useState("");
