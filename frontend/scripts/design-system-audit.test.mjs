@@ -41,6 +41,7 @@ import {
   checkC14,
   checkC21,
   checkC22,
+  checkC23,
   C8_ALLOWLIST,
   C8_PAGE_ALLOWLIST,
   C8_ROUTE_HELPER_ALLOWLIST,
@@ -1366,4 +1367,31 @@ test("checkC22: PALETTE のクラス文字列メンバを検出し raw 値と al
 test("checkC22: PALETTE ブロックが無い・全て raw 値なら 0 件", () => {
   assert.equal(checkC22("export const PALETTE = { brand: \"#038B94\" } as const;").length, 0);
   assert.equal(checkC22("export const OTHER = {}").length, 0);
+});
+
+test("checkC23: BADGE コンボのコントラスト 4.5:1 未満を検出、適合と参照解決不能は除外", () => {
+  const text = [
+    "export const C = {",
+    '  bgGray: "bg-[#EBECED]",',
+    '  textGrayWeak: "text-[#9B9A97]",',
+    '  textGrayStrong: "text-[#615D59]",',
+    '  bgLight: "bg-[#DDEDEA]",',
+    '  textOk: "text-[#0C6E5F]",',
+    '  borderMuted: "border-[#E6E6E6]",',
+    '  runtimeVar: "bg-[var(--x)]",',
+    "} as const;",
+    "export const BADGE = {",
+    "  weak: `${C.bgGray} ${C.textGrayWeak} ${C.borderMuted}`,",
+    "  ok: `${C.bgLight} ${C.textOk} ${C.borderMuted}`,",
+    "  unresolvable: `${C.runtimeVar} ${C.textOk}`,",
+    "} as const;",
+  ].join("\n");
+  const violations = checkC23(text);
+  assert.equal(violations.length, 1);
+  assert.ok(violations[0].text.includes("BADGE.weak"));
+  assert.ok(violations[0].text.includes("4.5"));
+});
+
+test("checkC23: BADGE/C ブロックが無い場合は 0 件", () => {
+  assert.equal(checkC23("export const OTHER = {}").length, 0);
 });

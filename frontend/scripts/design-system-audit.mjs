@@ -23,9 +23,11 @@
  *   C19 — table row（DataTableRow / SortableDataTableRow / TableRow / tr）の行全体クリックを禁止。
  *   C20 — Tailwind 実行時合成（`hover:${` / `focus:${` / `text-[${`）禁止。完成形静的トークンのみ（FE-RC-013 / FE-RC-106）。
  *   C21 — `src/components/ui/*.tsx` に colocated `*.stories.tsx` を要求（design-token-layers.md §6）。
- *        Storybook カタログ網羅の担保。fixture 設計が要る4件のみ allowlist。
+ *        Storybook カタログ網羅の担保。allowlist は現在空 — 新規 primitive は stories 必須。
  *   C22 — `PALETTE`（L1 raw値バケット）に Tailwind クラス文字列メンバを追加することを禁止
  *        （design-token-layers.md §3）。状態系は STATE、shadow 等は STYLE 側へ。
+ *   C23 — `BADGE.*` コンボの text/bg コントラストが WCAG 4.5:1 以上であること
+ *        （design-states.md §2.3）。`text-[#hex]`/`bg-[#hex]` 形式の C member を解決して計算。
  *
  * C2/C4（PageLayout 使用）は C8 で routes 配下を機械化。新規リーフを allowlist に載せる場合は
  * C8_ALLOWLIST と docs/spec/ui-design-compliance.md §2 を同一コミットで更新する。
@@ -120,6 +122,14 @@ const C22_PALETTE_BLOCK_RE = /export const PALETTE = \{([\s\S]*?)\} as const;/;
 const C22_MEMBER_RE = /^\s*(\w+)\s*:\s*"((?:[^"\\]|\\.)*)"/;
 const C22_VARIANT_PREFIX_RE = /^(?:hover|focus|focus-visible|focus-within|active|disabled|enabled|data-\[|aria-|group-|peer-|dark|sm|md|lg|xl|2xl|before|after|placeholder|selection|marker|file|backdrop|first|last|odd|even|visited|checked|empty):/;
 const C22_UTILITY_PREFIX_RE = /^[a-z][a-z]*-[a-z0-9]/;
+
+/** C23: BADGE コンボの WCAG コントラスト検査用パターン（design-tokens.ts 限定で呼ぶ）。 */
+const C23_C_BLOCK_RE = /export const C = \{([\s\S]*?)\} as const;/;
+const C23_BADGE_BLOCK_RE = /export const BADGE = \{([\s\S]*?)\} as const;/;
+const C23_MEMBER_RE = /^\s*(\w+)\s*:\s*("(?:[^"\\]|\\.)*"|`(?:[^`\\]|\\.)*`)/;
+const C23_HEX_RE = /#([0-9A-Fa-f]{6})/;
+const C23_C_REF_RE = /\$\{C\.(\w+)\}/g;
+const C23_MIN_RATIO = 4.5;
 
 /** C8: 独自 shell を持つ正当な route page（相対パス完全一致）。 */
 export const C8_PAGE_ALLOWLIST = new Set([
@@ -1010,6 +1020,63 @@ export function checkC22(text) {
   return violations;
 }
 
+/** C23: sRGB hex → WCAG 相対輝度。 */
+function c23Luminance(hex) {
+  const n = parseInt(hex, 16);
+  const channel = (v) => {
+    const s = v / 255;
+    return s <= 0.04045 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  };
+  return 0.2126 * channel((n >> 16) & 0xff) + 0.7152 * channel((n >> 8) & 0xff) + 0.0722 * channel(n & 0xff);
+}
+
+/**
+ * checkC23 は design-tokens.ts の `BADGE.*` 各メンバについて、テンプレート内の
+ * `${C.<name>}` 参照から最初の `bg-[#hex]` と `text-[#hex]` を解決し、
+ * WCAG 通常文字コントラスト 4.5:1 未満のコンボを検出する（design-states.md §2）。
+ * hex を持たない参照（rgba 等）はスキップ — 計算不能は違反にしない。
+ */
+export function checkC23(text) {
+  const violations = [];
+  const cBlock = text.match(C23_C_BLOCK_RE);
+  const badgeBlock = text.match(C23_BADGE_BLOCK_RE);
+  if (!cBlock || !badgeBlock) return violations;
+
+  const cHexByName = new Map();
+  cBlock[1].split("\n").forEach((line) => {
+    const m = line.match(C23_MEMBER_RE);
+    if (!m) return;
+    const hexMatch = m[2].match(C23_HEX_RE);
+    if (hexMatch) cHexByName.set(m[1], { hex: hexMatch[1], value: m[2] });
+  });
+
+  const badgeStartLine = text.slice(0, badgeBlock.index).split("\n").length;
+  badgeBlock[1].split("\n").forEach((line, i) => {
+    const m = line.match(C23_MEMBER_RE);
+    if (!m) return;
+    const [, name, rawValue] = m;
+    let bgHex = null;
+    let textHex = null;
+    for (const ref of rawValue.matchAll(C23_C_REF_RE)) {
+      const entry = cHexByName.get(ref[1]);
+      if (!entry) continue;
+      if (entry.value.includes('"bg-') && bgHex === null) bgHex = entry.hex;
+      if (entry.value.includes('"text-') && textHex === null) textHex = entry.hex;
+    }
+    if (bgHex === null || textHex === null) return;
+    const normalized =
+      (Math.max(c23Luminance(bgHex), c23Luminance(textHex)) + 0.05) /
+      (Math.min(c23Luminance(bgHex), c23Luminance(textHex)) + 0.05);
+    if (normalized < C23_MIN_RATIO) {
+      violations.push({
+        lineNumber: badgeStartLine + i,
+        text: `BADGE.${name} コントラスト ${normalized.toFixed(2)}:1 < ${C23_MIN_RATIO}:1（text #${textHex} / bg #${bgHex}）`,
+      });
+    }
+  });
+  return violations;
+}
+
 function isFE11ExcludedPath(relPath) {
   const segments = relPath.split(/[\\/]/);
   const normalizedPath = segments.join("/");
@@ -1043,11 +1110,11 @@ async function walk(dir, exts, excludeNames) {
 
 /**
  * collectViolations は cwd 配下の SCAN_ROOTS（src・liff/src・line-reserve/src）を走査し、
- * C1〜C22 違反を集計する純粋寄りの関数。
- * ファイル I/O のみ副作用を持ち、判定ロジック自体は checkC1〜checkC22 に委譲する。
+ * C1〜C23 違反を集計する純粋寄りの関数。
+ * ファイル I/O のみ副作用を持ち、判定ロジック自体は checkC1〜checkC23 に委譲する。
  */
 export async function collectViolations(cwd) {
-  const result = { c1: [], c3: [], c5: [], c6: [], c7: [], c8: [], c9: [], c10: [], c11: [], c12: [], c13: [], c14: [], c15: [], c16: [], c17: [], c18: [], c19: [], c20: [], c21: [], c22: [] };
+  const result = { c1: [], c3: [], c5: [], c6: [], c7: [], c8: [], c9: [], c10: [], c11: [], c12: [], c13: [], c14: [], c15: [], c16: [], c17: [], c18: [], c19: [], c20: [], c21: [], c22: [], c23: [] };
   const allRelPaths = new Set();
 
   for (const scanRoot of SCAN_ROOTS) {
@@ -1121,6 +1188,9 @@ export async function collectViolations(cwd) {
       if (isDesignTokensFile(relPath)) {
         for (const v of checkC22(text)) {
           result.c22.push({ file: relPath, ...v });
+        }
+        for (const v of checkC23(text)) {
+          result.c23.push({ file: relPath, ...v });
         }
       }
       for (const v of checkC21(relPath, allRelPaths)) {
@@ -1197,12 +1267,13 @@ async function main() {
   printGroup("C20 runtime Tailwind synthesis", result.c20);
   printGroup("C21 ui stories 不在", result.c21);
   printGroup("C22 PALETTE クラス文字列", result.c22);
+  printGroup("C23 BADGE コントラスト", result.c23);
 
   const total = result.c1.length + result.c3.length + result.c5.length + result.c6.length
     + result.c7.length + result.c8.length + result.c9.length + result.c10.length + result.c11.length
     + result.c12.length + result.c13.length + result.c14.length + result.c15.length + result.c16.length
     + result.c17.length + result.c18.length + result.c19.length + result.c20.length
-    + result.c21.length + result.c22.length;
+    + result.c21.length + result.c22.length + result.c23.length;
   if (total > 0) {
     console.log(`design-system-audit: FAIL — ${total} 件の違反`);
     process.exit(1);
