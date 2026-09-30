@@ -27,10 +27,10 @@ const DIVIDER_ROW = `flex items-center justify-between border-b ${C.borderLight}
 const ROW_ICON = `flex items-center gap-2 ${C.text60}`;
 
 const RELATED_BTN_BASE =
-  "flex items-center gap-1.5 text-sm border rounded-md px-3 py-1.5 transition-colors group";
+  "flex min-h-11 items-center gap-1.5 text-sm border rounded-md px-3 transition-colors group";
 const RELATED_BTN_KARTE = `${RELATED_BTN_BASE} ${C.textBrand} ${C.bgBrandLight40} ${C.hoverBgBrandLight} ${C.borderBrandLight}`;
-const RELATED_BTN_ACCOUNTING = `${RELATED_BTN_BASE} ${C.textStatusGreen} ${C.bgStatusGreen40} ${C.hoverBgStatusGreen} ${C.borderStatusGreen}`;
-const RELATED_BTN_HOSPITAL = `${RELATED_BTN_BASE} ${C.textStatusPurple} ${C.bgStatusPurple40} ${C.hoverBgStatusPurple} ${C.borderStatusPurple}`;
+const RELATED_BTN_ACCOUNTING = `${RELATED_BTN_BASE} ${C.text} ${C.bgWhite} ${C.hoverBgPage} ${C.borderMedium}`;
+const RELATED_BTN_HOSPITAL = `${RELATED_BTN_BASE} ${C.text} ${C.bgWhite} ${C.hoverBgPage} ${C.borderMedium}`;
 
 interface ReceptionDialogHeaderProps {
   appointment: Appointment;
@@ -168,7 +168,7 @@ export function ReceptionDialogBody({
             <span className="text-sm">ペット</span>
           </div>
           <div className="text-right">
-            <div className="font-bold text-base flex items-center justify-end gap-1.5">
+            <div className="font-semibold text-base flex items-center justify-end gap-1.5">
               <span>{appointment.petName}</span>
               <DangerBadge
                 variant="pet"

@@ -225,7 +225,7 @@ describe("ExaminationGroup", () => {
       }),
     );
     expect(screen.getByText("HIGH")).toHaveClass(C.bgDanger, C.hoverBgDanger90);
-    expect(screen.getByText("95")).toHaveClass(C.danger, "font-bold");
+    expect(screen.getByText("95")).toHaveClass(C.danger, "font-semibold");
     expect(screen.queryByText("LOW")).not.toBeInTheDocument();
   });
 
@@ -273,7 +273,7 @@ describe("ExaminationGroup", () => {
       C.borderBlue400,
       C.bgStatusBlueLight,
     );
-    expect(screen.getByText("95")).toHaveClass(C.textStatusBlue, "font-bold");
+    expect(screen.getByText("95")).toHaveClass(C.textStatusBlue, "font-semibold");
     expect(screen.queryByText("HIGH")).not.toBeInTheDocument();
   });
 

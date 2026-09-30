@@ -48,10 +48,14 @@ export function DischargeAlertDialog({ open, onOpenChange, onConfirm }: Discharg
         <div className="flex items-center gap-2 py-2">
           <Checkbox
             id="navigate-to-accounting"
+            touchTarget
             checked={navigateToAccounting}
             onCheckedChange={(checked) => setNavigateToAccounting(checked === true)}
           />
-          <Label htmlFor="navigate-to-accounting" className="text-sm cursor-pointer">
+          <Label
+            htmlFor="navigate-to-accounting"
+            className="inline-flex min-h-11 items-center text-sm cursor-pointer"
+          >
             退院後、そのまま会計画面へ進む
           </Label>
         </div>

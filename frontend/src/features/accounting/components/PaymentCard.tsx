@@ -167,7 +167,7 @@ export const PaymentCard = memo(function PaymentCard({
                         type="button"
                         variant={split.method === m ? "default" : "outline"}
                         onClick={() => handleMethodChange(idx, m)}
-                        className="h-10 text-sm"
+                        className="text-sm"
                       >
                         {PAYMENT_METHOD_LABELS[m]}
                       </Button>

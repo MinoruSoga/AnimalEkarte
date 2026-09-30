@@ -262,7 +262,7 @@ export const AppointmentCard = memo(function AppointmentCard({
                 <button
                   type="button"
                   aria-label={`${appointment.petName}の会計`}
-                  className={`flex min-h-11 min-w-11 items-center justify-center gap-1 text-2xs ${C.textStatusGreen} ${C.bgStatusGreen30} border ${C.borderStatusGreen} rounded px-1.5 ${C.hoverBgStatusGreenLight60} transition-colors`}
+                  className={`flex min-h-11 min-w-11 items-center justify-center gap-1 text-2xs ${C.text} ${C.bgWhite} border ${C.borderMedium} rounded px-1.5 ${C.hoverBgPage} transition-colors`}
                   onClick={handleAccountingClick}
                 >
                   <CreditCard className={`${ICON.xs} shrink-0`} />
@@ -273,7 +273,7 @@ export const AppointmentCard = memo(function AppointmentCard({
                 <button
                   type="button"
                   aria-label={`${appointment.petName}の入院登録`}
-                  className={`flex min-h-11 min-w-11 items-center justify-center gap-1 text-2xs ${C.textStatusPurple} ${C.bgStatusPurple30} border ${C.borderStatusPurple} rounded px-1.5 ${C.hoverBgStatusPurpleLight60} transition-colors`}
+                  className={`flex min-h-11 min-w-11 items-center justify-center gap-1 text-2xs ${C.text} ${C.bgWhite} border ${C.borderMedium} rounded px-1.5 ${C.hoverBgPage} transition-colors`}
                   onClick={handleHospitalizationClick}
                 >
                   <BedDouble className={`${ICON.xs} shrink-0`} />

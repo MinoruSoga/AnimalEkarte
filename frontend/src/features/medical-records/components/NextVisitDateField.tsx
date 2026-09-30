@@ -137,7 +137,7 @@ export function NextVisitDateField({
             type="button"
             disabled={disabled}
             onClick={() => handleQuickSelect(opt.getValue)}
-            className={`text-sm px-3 py-1 rounded-xs border ${C.borderMedium} ${C.text60} ${C.hoverBgLight} ${C.hoverText} transition-colors disabled:opacity-40 disabled:cursor-not-allowed`}
+            className={`inline-flex items-center min-h-11 text-sm px-3 py-1 rounded-xs border ${C.borderMedium} ${C.text60} ${C.hoverBgLight} ${C.hoverText} transition-colors disabled:opacity-40 disabled:cursor-not-allowed`}
           >
             {opt.label}
           </button>
@@ -147,7 +147,7 @@ export function NextVisitDateField({
             type="button"
             disabled={disabled}
             onClick={() => handleChange("")}
-            className={`text-sm px-3 py-1 rounded-xs ${C.text40} ${C.hoverText} ${C.hoverBgLight} transition-colors disabled:opacity-40 disabled:cursor-not-allowed`}
+            className={`inline-flex items-center min-h-11 text-sm px-3 py-1 rounded-xs ${C.text40} ${C.hoverText} ${C.hoverBgLight} transition-colors disabled:opacity-40 disabled:cursor-not-allowed`}
           >
             クリア
           </button>

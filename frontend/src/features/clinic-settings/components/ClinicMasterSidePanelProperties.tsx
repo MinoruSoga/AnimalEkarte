@@ -7,9 +7,9 @@ import {
   type DocumentSectionKey,
 } from "@/config/accounting-document-sections";
 
-import { C, LAYOUT, STYLE } from "@/lib/design-tokens";
+import { C, ICON, LAYOUT, STYLE } from "@/lib/design-tokens";
 
-const PROP_INPUT_CLASS = `w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-xxs ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder} focus-visible:ring-2 ${C.focusRingAccent40}`;
+const PROP_INPUT_CLASS = `w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 min-h-11 rounded-xxs ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder} focus-visible:ring-2 ${C.focusRingAccent40}`;
 
 export const PropertyRow = memo(function PropertyRow({
   label,
@@ -99,7 +99,7 @@ export function ClinicBooleanProperty({
       <button
         type="button"
         onClick={() => onChange(!value)}
-        className={`inline-flex items-center rounded-xxs ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
+        className={`inline-flex items-center rounded-xxs ${C.hoverBgLight} transition-colors py-0.5 px-0.5 min-h-11 cursor-pointer`}
       >
         <StatusPill status={value ? "active" : "inactive"} />
       </button>
@@ -172,19 +172,19 @@ export function SectionOrderProperty({
                 type="button"
                 onClick={() => move(i, -1)}
                 disabled={i === 0}
-                className={`p-0.5 rounded ${C.hoverBgLight} disabled:opacity-30 cursor-pointer disabled:cursor-default`}
+                className={`min-h-11 min-w-11 flex items-center justify-center rounded ${C.hoverBgLight} disabled:opacity-30 cursor-pointer disabled:cursor-default`}
                 aria-label="上に移動"
               >
-                <ChevronUp className="size-3" />
+                <ChevronUp className={ICON.smXs} aria-hidden="true" />
               </button>
               <button
                 type="button"
                 onClick={() => move(i, 1)}
                 disabled={i === effectiveOrder.length - 1}
-                className={`p-0.5 rounded ${C.hoverBgLight} disabled:opacity-30 cursor-pointer disabled:cursor-default`}
+                className={`min-h-11 min-w-11 flex items-center justify-center rounded ${C.hoverBgLight} disabled:opacity-30 cursor-pointer disabled:cursor-default`}
                 aria-label="下に移動"
               >
-                <ChevronDown className="size-3" />
+                <ChevronDown className={ICON.smXs} aria-hidden="true" />
               </button>
             </div>
           </div>

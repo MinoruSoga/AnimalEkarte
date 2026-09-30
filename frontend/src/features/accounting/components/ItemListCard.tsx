@@ -208,7 +208,7 @@ export const ItemListCard = memo(function ItemListCard({
         {canEdit ? (
           <Dialog open={newItemOpen} onOpenChange={onNewItemOpenChange}>
             <DialogTrigger asChild>
-              <Button type="button" variant="outline" size="sm" className="h-9">
+              <Button type="button" variant="outline" size="sm">
                 <Plus className={`mr-2 ${ICON.action}`} />
                 物販・その他追加
               </Button>
@@ -224,7 +224,7 @@ export const ItemListCard = memo(function ItemListCard({
                 <button
                   type="button"
                   onClick={() => setAddMode("master")}
-                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                  className={`px-4 py-2 min-h-11 text-sm font-medium border-b-2 transition-colors ${
                     addMode === "master"
                       ? `${C.borderBrand} ${C.textBrand}`
                       : `border-transparent ${C.text50} ${C.hoverText}`
@@ -235,7 +235,7 @@ export const ItemListCard = memo(function ItemListCard({
                 <button
                   type="button"
                   onClick={() => setAddMode("manual")}
-                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                  className={`px-4 py-2 min-h-11 text-sm font-medium border-b-2 transition-colors ${
                     addMode === "manual"
                       ? `${C.borderBrand} ${C.textBrand}`
                       : `border-transparent ${C.text50} ${C.hoverText}`
@@ -265,22 +265,19 @@ export const ItemListCard = memo(function ItemListCard({
                   </div>
                   <div className="flex-1 overflow-auto min-h-[200px] border rounded-md">
                     {filteredMerchandise.length > 0 ? (
-                      <table className="w-full">
-                        <thead>
-                          <tr className={`border-b ${C.bgPage} text-2xs font-semibold`}>
+                      <Table>
+                        <TableHeader>
+                          <TableRow className={`${C.bgPage} text-2xs font-semibold`}>
                             <TableHead>品目名</TableHead>
                             <TableHead className="w-[70px]">区分</TableHead>
                             <TableHead className="w-[90px] text-right">単価</TableHead>
                             <TableHead className="w-[60px] text-right">税率</TableHead>
                             <TableHead className="w-[80px]">操作</TableHead>
-                          </tr>
-                        </thead>
-                        <tbody>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
                           {filteredMerchandise.map((item) => (
-                            <tr
-                              key={item.id}
-                              className={`border-b ${C.hoverBgLight} transition-colors`}
-                            >
+                            <TableRow key={item.id} className={`${C.hoverBgLight}`}>
                               <TableCell className="font-medium">{item.name}</TableCell>
                               <TableCell className={C.text50}>
                                 {CATEGORY_LABELS[item.category as ItemCategory] ?? item.category}
@@ -303,10 +300,10 @@ export const ItemListCard = memo(function ItemListCard({
                                   追加
                                 </DataTableRowButton>
                               </TableCell>
-                            </tr>
+                            </TableRow>
                           ))}
-                        </tbody>
-                      </table>
+                        </TableBody>
+                      </Table>
                     ) : (
                       <div className="flex items-center justify-center h-full">
                         <EmptyState message="該当する品目がありません" />
@@ -326,7 +323,6 @@ export const ItemListCard = memo(function ItemListCard({
                       value={manualName}
                       onChange={(e) => setManualName(e.target.value)}
                       placeholder="例: 診察料（その他）"
-                      className="h-9"
                     />
                   </div>
                   <div className="flex flex-col gap-1.5">
@@ -351,7 +347,6 @@ export const ItemListCard = memo(function ItemListCard({
                         onChange={(e) => setManualOtherReason(e.target.value)}
                         maxLength={MANUAL_OTHER_REASON_MAX_LENGTH}
                         placeholder="例: 締め時に分類を確認"
-                        className="h-9"
                       />
                     </div>
                   ) : null}
@@ -367,7 +362,6 @@ export const ItemListCard = memo(function ItemListCard({
                       value={manualPrice}
                       onChange={(e) => setManualPrice(e.target.value)}
                       placeholder="例: 3000"
-                      className="h-9"
                     />
                     <FormFieldError message={manualPriceError} />
                   </div>
@@ -413,7 +407,7 @@ export const ItemListCard = memo(function ItemListCard({
       <div className={`p-4 ${C.bgPage} border-t flex justify-end gap-6 text-sm`}>
         <span>税抜小計: {formatCurrency(subtotal)}</span>
         <span>消費税: {formatCurrency(taxTotal)}</span>
-        <span className="font-bold text-xl">合計: {formatCurrency(totalAmount)}</span>
+        <span className="font-semibold text-xl">合計: {formatCurrency(totalAmount)}</span>
       </div>
     </Card>
   );

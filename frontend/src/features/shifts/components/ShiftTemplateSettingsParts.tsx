@@ -7,10 +7,11 @@ import { TableCell } from "@/components/ui/table";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
+import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
-import { C, LAYOUT, STYLE } from "@/lib/design-tokens";
+import { C, ICON, LAYOUT, STYLE } from "@/lib/design-tokens";
 import { SHIFT_TYPE_LABELS, type ShiftTemplate } from "../types";
 import {
   DEFAULT_BREAK_START,
@@ -173,7 +174,7 @@ export const ShiftTemplateSidePanel = memo(function ShiftTemplateSidePanel({
               className={`${STYLE.sidePeekToolbarBtn} cursor-pointer ${STYLE.btnDangerGhost}`}
               aria-label={`削除: シフトテンプレート ${item.name} (ID ${item.id})`}
             >
-              <Trash2 className="size-4" aria-hidden="true" />
+              <Trash2 className={ICON.sm} aria-hidden="true" />
             </button>
           ) : null}
           <button
@@ -182,7 +183,7 @@ export const ShiftTemplateSidePanel = memo(function ShiftTemplateSidePanel({
             className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`}
             aria-label="閉じる"
           >
-            <X className="size-4" aria-hidden="true" />
+            <X className={ICON.sm} aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -234,14 +235,13 @@ export const ShiftTemplateSidePanel = memo(function ShiftTemplateSidePanel({
           {readOnly ? "閉じる" : "キャンセル"}
         </button>
         {!readOnly ? (
-          <button
+          <PrimaryButton
             type="button"
             onClick={handleAction}
             disabled={isSaving || !formData.name.trim()}
-            className={`px-4 py-[7px] text-base ${C.textOnBrand} ${C.bgBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} rounded-full transition-colors cursor-pointer ${STYLE.pillShadow}`}
           >
             {isSaving ? "保存中..." : "保存"}
-          </button>
+          </PrimaryButton>
         ) : null}
       </div>
     </div>

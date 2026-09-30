@@ -24,7 +24,7 @@ const ShiftFormDialog = lazy(() =>
 
 // FE-RC-085: ネスト三項の代わりに早期 return 関数で日付ヘッダーの色を決定する
 function dateHeaderColorClass(isHoliday: boolean, isSun: boolean, isSat: boolean): string {
-  if (isHoliday || isSun) return C.danger;
+  if (isHoliday || isSun) return C.textNotionRed;
   if (isSat) return C.textBrand;
   return C.text70;
 }
@@ -259,7 +259,7 @@ export const ShiftCalendar = memo(function ShiftCalendar({
                   <div className="text-2xs opacity-70">{DAY_OF_WEEK_LABELS[dayOfWeek]}</div>
                   {isHoliday ? (
                     <div
-                      className={`absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full ${C.bgStatusRedDot}`}
+                      className={`absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full ${C.bgNotionRed}`}
                       aria-label="定休日"
                     />
                   ) : null}

@@ -58,7 +58,7 @@ function SheetContent({ className, children, side = "right", ref, ...props }: Sh
         ref={ref}
         data-slot="sheet-content"
         className={cn(
-          "bg-background fixed z-50 flex flex-col gap-4 shadow-level2 transition ease-in-out data-[state=closed]:duration-300 data-[state=open]:duration-500 data-[state=open]:animate-in data-[state=closed]:animate-out",
+          "bg-card fixed z-50 flex flex-col gap-4 shadow-level2 transition ease-in-out data-[state=closed]:duration-300 data-[state=open]:duration-500 data-[state=open]:animate-in data-[state=closed]:animate-out",
           sheetSideVariants[side],
           className,
         )}

@@ -45,7 +45,7 @@ export function TreatmentDoseMessages({
           {isDoseLookupFailed ? (
             <button
               type="button"
-              className={`mt-0.5 text-xs underline ${C.textRed700}`}
+              className={`mt-0.5 inline-flex min-h-11 items-center justify-end text-xs underline ${C.textRed700}`}
               onClick={onRetryDoseParamsLookup}
               aria-label="投与量パラメータの取得を再試行する"
             >
@@ -90,7 +90,7 @@ export function TreatmentDoseMessages({
             }}
             placeholder="逸脱理由（必須）"
             maxLength={500}
-            className={`h-8 text-xs px-2 ${C.borderMedium}`}
+            className={`h-9 text-xs px-2 ${C.borderMedium}`}
             aria-label="用量逸脱の理由"
             aria-required={true}
           />

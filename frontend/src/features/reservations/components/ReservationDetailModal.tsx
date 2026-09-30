@@ -159,7 +159,7 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
             <div
               className={`flex items-start gap-2 p-3 rounded-md ${C.bgWarning50} border ${C.borderWarning20} text-sm ${C.textWarning}`}
             >
-              <AlertTriangle className="shrink-0 mt-0.5 w-4 h-4" />
+              <AlertTriangle className={`shrink-0 mt-0.5 ${ICON.sm}`} />
               <span>
                 {lineData.lstep_opt_out
                   ? "この飼い主はLINE配信停止中です。Lステップ同期対象外になります。"
@@ -186,7 +186,7 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
                 )}
               >
                 <SelectTrigger
-                  className={`h-7 w-auto gap-1 border-0 ${C.bgWhite60} ${C.hoverBgWhite80} text-sm px-2 shadow-none focus:ring-0`}
+                  className={`h-9 min-w-11 w-auto gap-1 border-0 ${C.bgWhite60} ${C.hoverBgWhite80} text-sm px-2 shadow-none focus:ring-0`}
                 >
                   <SelectValue placeholder="変更" />
                 </SelectTrigger>
@@ -276,8 +276,8 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
 
           {/* Notes */}
           {reservation.notes ? (
-            <div className={`rounded-lg border ${C.borderNotice50} ${C.bgNotice40} p-3`}>
-              <div className={`flex items-center gap-1.5 text-sm ${C.textNotice} mb-1.5`}>
+            <div className={`rounded-lg border ${C.borderLight} ${C.bgPage} p-3`}>
+              <div className={`flex items-center gap-1.5 text-sm ${C.text60} mb-1.5`}>
                 <FileText className={`${ICON.xs}`} />
                 <span>メモ</span>
               </div>

@@ -26,7 +26,7 @@ import {
 import type { ReservationSlotVacancyStatus } from "@/hooks/use-reservation-types";
 import type { Reservation } from "@/types";
 
-const TRIGGER_CLASS = `h-9 text-sm bg-white ${C.borderMediumLight} ${C.text} ${C.hoverBgSubtle} transition-colors`;
+const TRIGGER_CLASS = `h-11 text-sm bg-white ${C.borderMediumLight} ${C.text} ${C.hoverBgSubtle} transition-colors`;
 
 // EMR-170: 空き状況バッジの色（色だけでなく記号＋テキストも併記する）
 const VACANCY_BADGE_CLASS: Record<ReservationSlotVacancyStatus, string> = {
@@ -47,7 +47,7 @@ export function FieldLabel({ children, required, trailing }: FieldLabelProps) {
       <Label className={`text-xs ${C.text40} font-medium`}>
         {children}
         {required ? (
-          <span style={{ color: C.danger }} className="ml-1" aria-hidden="true">
+          <span className={`ml-1 ${C.textRequired}`} aria-hidden="true">
             *
           </span>
         ) : null}
@@ -103,7 +103,7 @@ export function ReservationDateTimeFields({
             <button
               type="button"
               className={cn(
-                `flex h-9 w-full items-center justify-between rounded border px-3 py-1 text-sm transition-colors ${C.borderMediumLight} ${C.text} bg-white ${C.hoverBgSubtle}`,
+                `flex h-11 w-full items-center justify-between rounded-xs border px-3 py-1 text-sm transition-colors ${C.borderMediumLight} ${C.text} bg-white ${C.hoverBgSubtle}`,
                 !formData.start && C.text40,
               )}
             >
@@ -150,7 +150,7 @@ export function ReservationDateTimeFields({
         <div className={`flex items-center gap-2 text-xs ${C.text40} font-medium`}>
           <Clock className={ICON.action} />
           時間
-          <span style={{ color: C.danger }} className="ml-0.5" aria-hidden="true">
+          <span className={`ml-0.5 ${C.textRequired}`} aria-hidden="true">
             *
           </span>
         </div>

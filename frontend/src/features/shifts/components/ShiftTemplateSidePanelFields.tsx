@@ -53,7 +53,7 @@ export function ShiftTemplateProperties({
             type="button"
             onClick={() => onField("is_active", !formData.is_active)}
             disabled={readOnly}
-            className={`inline-flex items-center rounded-xxs ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer disabled:cursor-default`}
+            className={`inline-flex items-center rounded-xxs ${C.hoverBgLight} transition-colors py-0.5 px-0.5 min-h-11 cursor-pointer disabled:cursor-default`}
           >
             <StatusPill isActive={formData.is_active} />
           </button>
@@ -65,7 +65,7 @@ export function ShiftTemplateProperties({
             onValueChange={(v) => onField("shift_type", v as ShiftType)}
             disabled={readOnly}
           >
-            <SelectTrigger className="h-7 text-sm border-0 shadow-none bg-transparent px-1.5">
+            <SelectTrigger className="h-11 text-sm border-0 shadow-none bg-transparent px-1.5">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>{SHIFT_TYPE_OPTIONS}</SelectContent>
@@ -158,7 +158,7 @@ function BreakEditor({
             aria-label={`休憩${i + 1} 開始時刻`}
             value={b.break_start}
             onChange={(e) => onBreakChange(i, "break_start", e.target.value)}
-            className="flex-1 h-8 text-sm"
+            className="flex-1 h-11 text-sm"
             readOnly={readOnly}
           />
           <span className={`text-xs ${C.text50}`}>〜</span>
@@ -167,7 +167,7 @@ function BreakEditor({
             aria-label={`休憩${i + 1} 終了時刻`}
             value={b.break_end}
             onChange={(e) => onBreakChange(i, "break_end", e.target.value)}
-            className="flex-1 h-8 text-sm"
+            className="flex-1 h-11 text-sm"
             readOnly={readOnly}
           />
           {!readOnly ? (
@@ -223,7 +223,7 @@ function PropInput({
     <input
       type={type}
       aria-label={ariaLabel}
-      className={`w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-xxs ${C.hoverBgLight} transition-colors ${C.textPlaceholder} focus-visible:ring-2 ${C.focusRingAccent40}`}
+      className={`w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 min-h-11 rounded-xxs ${C.hoverBgLight} transition-colors ${C.textPlaceholder} focus-visible:ring-2 ${C.focusRingAccent40}`}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder ?? "空"}

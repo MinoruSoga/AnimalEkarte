@@ -6,8 +6,8 @@ import { SHIFT_TYPE_LABELS } from "../../types";
 // rendering-hoist-jsx: 静的カラーマップはモジュール定数に巻き上げ（ShiftCell 専用）
 const SHIFT_TYPE_COLORS: Record<ShiftType, string> = {
   full: `${C.bgBrandLight} ${C.textBrandDark} ${C.borderBrandLight}`,
-  morning: `${C.bgStatusGreen} ${C.textStatusGreen} ${C.borderStatusGreenAlt}`,
-  afternoon: `${C.bgStatusGreen} ${C.textStatusGreen} ${C.borderStatusGreenAlt}`,
+  morning: `${C.bgAccentLight} ${C.textAccentDark} ${C.borderAccentBadge}`,
+  afternoon: `${C.bgDiscountLight} ${C.textDiscount} ${C.borderOrangeBadge}`,
   off: `${C.bgStatusGray} ${C.textStatusGray} ${C.borderMuted}`,
   paid_leave: `${C.bgStatusPurple} ${C.textStatusPurple} ${C.borderPurpleLight}`,
 };

@@ -1,3 +1,5 @@
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { C } from "@/lib/design-tokens";
 import type { PetSearchItem } from "@/types/generated/identitylink-responses";
 
@@ -43,8 +45,8 @@ export function PetLinkSection({
       <p className={`text-xs ${C.textInkMuted}`}>親となる飼主の連携グループが必要です。</p>
       <label className="block text-sm">
         <span className={C.textInkMuted}>検索</span>
-        <input
-          className={`mt-1 w-full rounded border px-3 py-2 ${C.borderLight} ${C.bgWhite} ${C.textInk}`}
+        <Input
+          className="mt-1"
           value={petQuery}
           onChange={(e) => setPetQuery(e.target.value)}
           placeholder="ペット名・番号"
@@ -55,7 +57,7 @@ export function PetLinkSection({
           <li key={`${p.clinic_id}-${p.pet_id}`}>
             <button
               type="button"
-              className={`w-full text-left px-2 py-1 rounded ${C.bgHover}`}
+              className={`w-full text-left px-2 py-1 min-h-11 flex items-center rounded ${C.bgHover}`}
               onClick={() => togglePet(p)}
             >
               [医院 {p.clinic_id}] {p.name}
@@ -69,38 +71,39 @@ export function PetLinkSection({
       </div>
       {canEdit ? (
         <div className="flex flex-wrap gap-2">
-          <button
+          <Button
             type="button"
-            className={`px-3 py-1.5 rounded text-sm ${C.bgBrand} ${C.textOnBrand}`}
             disabled={pending || !canLinkPets || selectedPets.length < 2}
             onClick={onLinkPets}
           >
             ペットをリンク
-          </button>
+          </Button>
           {selectedPets.map((p) => (
-            <button
+            <Button
               key={`unlink-p-${p.clinic_id}-${p.pet_id}`}
               type="button"
-              className={`px-3 py-1.5 rounded text-sm border ${C.borderLight}`}
+              variant="outline"
+              className="text-sm"
               disabled={pending || resolvePetGroupId(p) == null}
               onClick={() => onUnlinkPet(p)}
             >
               連携解除 {p.clinic_id}/{p.pet_id}
-            </button>
+            </Button>
           ))}
         </div>
       ) : null}
       <div className="flex flex-wrap gap-2">
         {selectedPets.map((p) => (
-          <button
+          <Button
             key={`hist-${p.clinic_id}-${p.pet_id}`}
             type="button"
-            className={`px-3 py-1.5 rounded text-sm border ${C.borderLight}`}
+            variant="outline"
+            className="text-sm"
             disabled={pending}
             onClick={() => onLoadHistory(p)}
           >
             連携履歴 {p.clinic_id}/{p.pet_id}
-          </button>
+          </Button>
         ))}
       </div>
       {historyText ? (

@@ -32,7 +32,7 @@ function groupByTagName(items: TagCodeMappingItem[]): Record<string, TagCodeMapp
 function NotEnteredBadge() {
   return (
     <span
-      className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${C.bgDanger8} ${C.danger}`}
+      className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${C.bgWarning50} ${C.textWarning}`}
     >
       未投入
     </span>

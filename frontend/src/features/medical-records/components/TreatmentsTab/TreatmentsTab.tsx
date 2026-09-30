@@ -96,7 +96,7 @@ export const TreatmentsTab = memo(function TreatmentsTab({
           {t.pendingMasterLookupItem ? (
             <button
               type="button"
-              className={`mt-2 text-sm font-medium underline ${C.danger}`}
+              className={`mt-2 inline-flex min-h-11 min-w-11 items-center text-sm font-medium underline ${C.danger}`}
               onClick={t.handleRetryMasterDoseLookup}
               aria-label="投与量パラメータの取得を再試行する"
             >

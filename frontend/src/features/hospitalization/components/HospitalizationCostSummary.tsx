@@ -39,7 +39,7 @@ export const HospitalizationCostSummary = memo(function HospitalizationCostSumma
         {/* 請求額 */}
         <div className={`flex items-center justify-between py-2 ${C.bgPage} rounded-md px-3 mt-2`}>
           <span className={`font-medium ${H_STYLES.text.base} ${C.text}`}>請求額</span>
-          <span className={`${H_STYLES.text.lg} font-semibold tabular-nums ${C.text}`}>
+          <span className={`text-xl font-semibold tabular-nums ${C.text}`}>
             ￥{totals.total.toLocaleString()}
           </span>
         </div>

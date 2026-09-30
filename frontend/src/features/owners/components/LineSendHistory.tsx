@@ -1,3 +1,4 @@
+import { EmptyState } from "@/components/shared/DataStates";
 import { C, BADGE } from "@/lib/design-tokens";
 import { formatJSTDateTimeLocal } from "@/lib/jst-date";
 import { useGetLineSendHistory } from "../api/get-line-send-history";
@@ -43,7 +44,7 @@ export function LineSendHistory({ ownerId }: LineSendHistoryProps) {
   }
 
   if (recent.length === 0) {
-    return <p className={`text-xs ${C.text40}`}>送信履歴はありません</p>;
+    return <EmptyState message="送信履歴はありません" />;
   }
 
   return (

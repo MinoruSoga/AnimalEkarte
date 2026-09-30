@@ -47,7 +47,7 @@ export function StaffCheckboxSection<T extends StaffCheckboxItem>({
           {items.map((item) => (
             <label
               key={item.id}
-              className={`flex items-center gap-2.5 py-1.5 px-0.5 rounded cursor-pointer ${C.hoverBgLight} transition-colors`}
+              className={`flex items-center gap-2.5 py-1.5 px-0.5 rounded cursor-pointer min-h-11 ${C.hoverBgLight} transition-colors`}
             >
               <Checkbox
                 checked={checkedIdSet.has(item.id)}

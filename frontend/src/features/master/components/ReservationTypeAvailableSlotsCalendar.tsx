@@ -28,7 +28,7 @@ const HEADER_ROW = (
       <div
         key={d}
         className={`py-3 text-sm font-bold text-center ${
-          i === 5 ? C.textBrand : i === 6 ? C.danger : C.text60
+          i === 5 ? C.textBrand : i === 6 ? C.textNotionRed : C.text60
         }`}
       >
         {d}
@@ -269,7 +269,7 @@ export function ReservationTypeAvailableSlotsCalendar({
                       `${paths.settings.reservationType.getHref()}?typeId=${reservationTypeId}`,
                     )
                   }
-                  className={`text-xs ${C.text40} ${C.hoverTextBrand} transition-colors`}
+                  className={`inline-flex items-center min-h-11 text-xs ${C.text40} ${C.hoverTextBrand} transition-colors`}
                 >
                   毎週枠は予約区分マスタで編集 →
                 </button>
@@ -289,7 +289,7 @@ export function ReservationTypeAvailableSlotsCalendar({
                       type="button"
                       onClick={() => handleDelete(slot.id)}
                       aria-label={`${slot.startTime}の枠を削除`}
-                      className={`${C.text40} ${C.hoverTextDanger} transition-colors`}
+                      className={`-m-2.5 p-2.5 ${C.text40} ${C.hoverTextDanger} transition-colors`}
                     >
                       <Trash2 className="size-3" />
                     </button>

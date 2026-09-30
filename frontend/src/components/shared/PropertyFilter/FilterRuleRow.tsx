@@ -119,7 +119,7 @@ export const FilterRuleRow = memo(function FilterRuleRow({
               <button
                 type="button"
                 onClick={() => onLogicChange("and")}
-                className={`w-full text-left px-2 py-1 text-base rounded-xxs transition-colors ${
+                className={`w-full text-left px-2 min-h-11 text-base rounded-xxs transition-colors ${
                   logic === "and" ? `${C.bgBrand5} ${C.textBrand}` : `${C.text} ${C.hoverBgMedium}`
                 }`}
               >
@@ -128,7 +128,7 @@ export const FilterRuleRow = memo(function FilterRuleRow({
               <button
                 type="button"
                 onClick={() => onLogicChange("or")}
-                className={`w-full text-left px-2 py-1 text-base rounded-xxs transition-colors ${
+                className={`w-full text-left px-2 min-h-11 text-base rounded-xxs transition-colors ${
                   logic === "or" ? `${C.bgBrand5} ${C.textBrand}` : `${C.text} ${C.hoverBgMedium}`
                 }`}
               >
@@ -156,7 +156,7 @@ export const FilterRuleRow = memo(function FilterRuleRow({
               key={opt.value}
               type="button"
               onClick={() => handleConditionChange(opt.value)}
-              className={`w-full text-left px-2 py-1 text-base rounded-xxs transition-colors ${
+              className={`w-full text-left px-2 min-h-11 text-base rounded-xxs transition-colors ${
                 filter.condition === opt.value
                   ? `${C.bgBrand5} ${C.textBrand}`
                   : `${C.text} ${C.hoverBgMedium}`
@@ -180,7 +180,7 @@ export const FilterRuleRow = memo(function FilterRuleRow({
               key={opt.value}
               type="button"
               onClick={() => handleValueChange(opt)}
-              className={`w-full text-left px-2 py-1 text-base rounded-xxs transition-colors ${
+              className={`w-full text-left px-2 min-h-11 text-base rounded-xxs transition-colors ${
                 filter.value === opt.value
                   ? `${C.bgBrand5} ${C.textBrand}`
                   : `${C.text} ${C.hoverBgMedium}`
@@ -196,7 +196,7 @@ export const FilterRuleRow = memo(function FilterRuleRow({
       <button
         type="button"
         onClick={onRemove}
-        className={`ml-auto p-0.5 rounded-xxs ${C.text30} ${C.hoverText60} ${C.hoverBgMedium} opacity-0 group-hover:opacity-100 transition-opacity`}
+        className={`ml-auto min-h-11 min-w-11 flex items-center justify-center rounded-xxs ${C.text30} ${C.hoverText60} ${C.hoverBgMedium} opacity-0 group-hover:opacity-100 transition-opacity`}
         aria-label={`${property?.label ?? filter.key} フィルタを削除`}
       >
         <X className={ICON.page} />

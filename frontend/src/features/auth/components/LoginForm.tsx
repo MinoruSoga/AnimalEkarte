@@ -331,7 +331,7 @@ const DemoAccount = memo(function DemoAccount({
             {permissionLabel}
           </span>
           {isSystemAdmin ? (
-            <span className={`text-xs px-1.5 py-px rounded-xxs ${C.danger} ${C.bgDanger8}`}>
+            <span className={`text-xs px-1.5 py-px rounded-xxs ${C.text80} ${C.bgPrimary5}`}>
               システム管理者
             </span>
           ) : null}

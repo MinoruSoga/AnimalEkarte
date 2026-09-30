@@ -2,13 +2,14 @@
  * BugReportsPage — バグ報告の一覧・対応管理ページ（管理者向け）
  *
  * /settings/bug-reports（hospital-settings 権限、settings-routes でゲート）。
- * 行クリックで詳細ダイアログ（スクリーンショット・画面文脈・ステータス切替）。
+ * 件名セルの詳細ボタンで詳細ダイアログ（スクリーンショット・画面文脈・ステータス切替）。
  */
 import { useState } from "react";
 import { Bug } from "lucide-react";
 
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { EmptyState, ErrorFallback, LoadingFallback } from "@/components/shared/DataStates";
+import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -17,7 +18,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { BADGE, C, ICON, STYLE } from "@/lib/design-tokens";
 import { formatJSTDate, formatJSTTime } from "@/lib/jst-date";
 
@@ -37,7 +45,9 @@ const STATUS_BADGE: Record<BugReportStatus, string> = {
 
 function StatusBadge({ status }: { status: BugReportStatus }) {
   return (
-    <span className={`inline-flex items-center rounded-xxs border px-1.5 py-0.5 text-2xs ${STATUS_BADGE[status]}`}>
+    <span
+      className={`inline-flex items-center rounded-xxs border px-1.5 py-0.5 text-2xs ${STATUS_BADGE[status]}`}
+    >
       {STATUS_LABEL[status]}
     </span>
   );
@@ -95,7 +105,7 @@ function BugReportDetailDialog({ report, onClose }: BugReportDetailDialogProps) 
               <img
                 src={report.screenshot_url}
                 alt={`「${report.title}」の添付スクリーンショット`}
-                className="w-full object-contain max-h-[320px] bg-black/5"
+                className={`w-full object-contain max-h-[320px] ${C.bgPrimary5}`}
               />
             </figure>
           ) : (
@@ -156,26 +166,25 @@ export function BugReportsPage() {
             </TableHeader>
             <TableBody>
               {reports.map((report) => (
-                <TableRow
-                  key={report.id}
-                  className={`${C.hoverBgPageHalf} cursor-pointer h-14`}
-                  onClick={() => setSelected(report)}
-                >
+                <TableRow key={report.id} className={`${C.hoverBgPageHalf} h-14`}>
                   <TableCell className={C.text70}>
                     {formatJSTDate(report.created_at)} {formatJSTTime(report.created_at)}
                   </TableCell>
                   <TableCell className={C.text70}>
                     {report.reporter_name || `#${report.reporter_staff_id}`}
                   </TableCell>
-                  <TableCell className={`${C.text} font-medium`}>
-                    <span className="line-clamp-2">{report.title}</span>
+                  <TableCell>
+                    <DataTableRowButton
+                      aria-label={`詳細: ${report.title}`}
+                      onClick={() => setSelected(report)}
+                    >
+                      <span className="line-clamp-2">{report.title}</span>
+                    </DataTableRowButton>
                   </TableCell>
-                  <TableCell className={`${C.text50} text-2xs break-all`}>
+                  <TableCell className={`${C.text50} break-all`}>
                     {report.route_path || "―"}
                   </TableCell>
-                  <TableCell className={C.text50}>
-                    {report.screenshot_url ? "あり" : "―"}
-                  </TableCell>
+                  <TableCell className={C.text50}>{report.screenshot_url ? "あり" : "―"}</TableCell>
                   <TableCell>
                     <StatusBadge status={report.status} />
                   </TableCell>

@@ -10,7 +10,7 @@ import {
 import { formatCurrency } from "@/lib/format/number";
 import { calcLineItemAmount } from "@/lib/line-item-helpers";
 import type { EstimateLineItem } from "../../types";
-import { C } from "@/lib/design-tokens";
+import { C, STYLE } from "@/lib/design-tokens";
 // FE5-26: 会計側の訳語(処方/フード/物販等)へ統一。旧ローカル定義(薬剤/食事/物品)は廃止。
 import { CATEGORY_LABELS } from "@/constants/item-category";
 
@@ -80,11 +80,7 @@ export const EstimateLineItems = memo(function EstimateLineItems({
         <TableBody>
           {items.length === 0 ? (
             <TableRow>
-              <TableCell
-                data-empty-state
-                colSpan={8}
-                className={`text-center text-sm ${C.text40} py-6`}
-              >
+              <TableCell data-empty-state colSpan={8} className={STYLE.tableEmpty}>
                 明細がありません
               </TableCell>
             </TableRow>

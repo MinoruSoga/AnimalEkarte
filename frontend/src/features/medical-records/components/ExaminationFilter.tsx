@@ -40,7 +40,7 @@ export const ExaminationFilter = memo(function ExaminationFilter({
             type="button"
             size="sm"
             onClick={onImport}
-            className={`${C.bgBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} ${C.textOnBrand} gap-2 h-10 text-sm shadow-none rounded-full border-transparent px-4`}
+            className={`${C.bgActionPrimary} ${C.hoverBgActionPrimary} ${C.hoverTextOnActionPrimary} ${C.textOnActionPrimary} gap-2 h-10 text-sm shadow-none rounded-full border-transparent px-4`}
           >
             <FileText className={ICON.action} />
             検査取り込み
@@ -57,7 +57,7 @@ export const ExaminationFilter = memo(function ExaminationFilter({
           <Input
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
-            className={`${C.bgWhite} ${C.borderMedium} h-10 text-sm`}
+            className={`${C.bgWhite} ${C.borderMedium} text-sm`}
             placeholder="WBC, Cre, etc..."
           />
         </div>

@@ -59,12 +59,12 @@ export function TreatmentContentCell({
           onChange={(e) => setLocalContent(e.target.value)}
           onBlur={commitContent}
           onKeyDown={(e) => handleTreatmentEditorKeyDown(e, commitContent, onStopEdit)}
-          className={`h-8 text-sm px-2 ${C.borderMedium}`}
+          className={`h-9 text-sm px-2 ${C.borderMedium}`}
         />
       ) : (
         <button
           type="button"
-          className={`w-full text-left text-sm ${C.text} ${C.hoverBgLight} px-1 py-0.5 rounded-xxs transition-colors`}
+          className={`w-full h-9 min-w-11 flex items-center text-left text-sm ${C.text} ${C.hoverBgLight} px-1 rounded-xxs transition-colors`}
           onClick={onStartEdit}
         >
           {treatment.content || <span className={C.text40}>内容を入力</span>}
@@ -115,14 +115,14 @@ export function TreatmentUnitPriceCell({
             onChange={(e) => setLocalUnitPrice(e.target.value)}
             onBlur={commitUnitPrice}
             onKeyDown={(e) => handleTreatmentEditorKeyDown(e, commitUnitPrice, onStopEdit)}
-            className={`h-8 text-sm text-right px-2 ${C.borderMedium}`}
+            className={`h-9 text-sm text-right px-2 ${C.borderMedium}`}
           />
           <FormFieldError message={unitPriceError} />
         </>
       ) : (
         <button
           type="button"
-          className={`w-full text-right text-sm ${C.text} ${C.hoverBgLight} px-1 py-0.5 rounded-xxs transition-colors font-mono`}
+          className={`w-full h-9 min-w-11 flex items-center justify-end text-right text-sm ${C.text} ${C.hoverBgLight} px-1 rounded-xxs transition-colors font-mono`}
           onClick={onStartEdit}
         >
           {formatCurrency(treatment.unit_price)}
@@ -178,16 +178,16 @@ export function TreatmentDiscountCell({
             onChange={(e) => setLocalDiscountAmount(e.target.value)}
             onBlur={commitDiscountAmount}
             onKeyDown={(e) => handleTreatmentEditorKeyDown(e, commitDiscountAmount, onStopEdit)}
-            className={`h-8 text-sm text-right px-2 ${C.borderMedium}`}
+            className={`h-9 text-sm text-right px-2 ${C.borderMedium}`}
           />
           <FormFieldError message={discountAmountError} />
         </>
       ) : (
         <button
           type="button"
-          className={`w-full text-right text-sm ${
+          className={`w-full h-9 min-w-11 flex items-center justify-end text-right text-sm ${
             treatment.discount_amount > 0 ? C.textDiscount : C.text40
-          } ${canEditDiscount ? C.hoverBgLight : ""} px-1 py-0.5 rounded-xxs transition-colors font-mono ${!canEditDiscount ? "cursor-not-allowed opacity-60" : ""}`}
+          } ${canEditDiscount ? C.hoverBgLight : ""} px-1 rounded-xxs transition-colors font-mono ${!canEditDiscount ? "cursor-not-allowed opacity-60" : ""}`}
           onClick={() => {
             if (canEditDiscount) onStartEdit();
           }}
@@ -233,12 +233,12 @@ export function TreatmentMemoCell({
           onChange={(e) => setLocalMemo(e.target.value)}
           onBlur={commitMemo}
           onKeyDown={(e) => handleTreatmentEditorKeyDown(e, commitMemo, onStopEdit)}
-          className={`h-8 text-sm px-2 ${C.borderMedium}`}
+          className={`h-9 text-sm px-2 ${C.borderMedium}`}
         />
       ) : (
         <button
           type="button"
-          className={`w-full text-left text-sm ${C.text60} ${C.hoverBgLight} px-1 py-0.5 rounded-xxs transition-colors`}
+          className={`w-full h-9 min-w-11 flex items-center text-left text-sm ${C.text60} ${C.hoverBgLight} px-1 rounded-xxs transition-colors`}
           onClick={onStartEdit}
         >
           {treatment.memo || <span className={C.text30}>メモ</span>}

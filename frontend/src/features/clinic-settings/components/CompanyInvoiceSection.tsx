@@ -4,7 +4,7 @@ import { toast } from "sonner";
 
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { handleApiError } from "@/lib/handle-api-error";
-import { C, STYLE } from "@/lib/design-tokens";
+import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { useGetCompany, useUpdateCompany } from "@/hooks/use-company";
 
 interface CompanyInvoiceFormProps {
@@ -72,7 +72,7 @@ export function CompanyInvoiceSection({ canEdit }: CompanyInvoiceSectionProps) {
   return (
     <section className={`bg-white rounded-lg border ${C.borderLight} p-6`}>
       <div className="flex items-center gap-2 mb-4">
-        <FileText className={`size-4 ${C.text}`} />
+        <FileText className={`${ICON.sm} ${C.text}`} />
         <h2 className={`text-base font-semibold ${C.text}`}>法人情報（インボイス）</h2>
       </div>
       {company ? (

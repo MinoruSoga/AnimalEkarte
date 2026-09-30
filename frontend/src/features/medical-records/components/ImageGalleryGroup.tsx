@@ -74,7 +74,7 @@ export const ImageGalleryGroup = memo(function ImageGalleryGroup({
               }}
             >
               <div
-                className={`h-[160px] w-full ${C.bgPage} border ${C.borderMedium} flex items-center justify-center rounded-sm ${C.hoverBorderMedium40} transition-colors overflow-hidden relative`}
+                className={`h-[160px] w-full ${C.bgPage} border ${C.borderMedium} flex items-center justify-center rounded-lg ${C.hoverBorderMedium40} transition-colors overflow-hidden relative`}
               >
                 {isPdf ? (
                   <div className="flex flex-col items-center gap-2">
@@ -94,7 +94,7 @@ export const ImageGalleryGroup = memo(function ImageGalleryGroup({
                     aria-label={`${img.name}を削除`}
                     onClick={(e) => handleDeleteClick(e, img.id)}
                     disabled={isDeleting}
-                    className={`absolute top-1 right-1 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity ${C.bgWhite} border ${C.borderDanger20} ${C.hoverBgDanger5} disabled:opacity-50`}
+                    className={`absolute top-1 right-1 min-h-11 min-w-11 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 transition-opacity ${C.bgWhite} border ${C.borderDanger20} ${C.hoverBgDanger5} disabled:opacity-50`}
                   >
                     <Trash2 className={`${ICON.smXs} ${C.danger}`} />
                   </button>
@@ -109,7 +109,7 @@ export const ImageGalleryGroup = memo(function ImageGalleryGroup({
                 ) : null}
               </div>
               <p
-                className={`text-sm font-medium truncate transition-colors ${C.text} ${C.hoverTextBrand}`}
+                className={`text-sm font-medium truncate transition-colors ${C.textActionPrimary}`}
               >
                 {img.name}
               </p>

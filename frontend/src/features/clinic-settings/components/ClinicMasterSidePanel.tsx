@@ -54,6 +54,7 @@ export function ClinicMasterSidePanel({
             type="button"
             onClick={onClose}
             className={`${STYLE.sidePeekToolbarBtn} cursor-pointer`}
+            aria-label="閉じる"
           >
             <X className={ICON.action} />
           </button>
@@ -95,7 +96,7 @@ export function ClinicMasterSidePanel({
                   <button
                     type="button"
                     onClick={() => setFormData((prev) => ({ ...prev, is_active: !prev.is_active }))}
-                    className={`inline-flex items-center rounded-xxs ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
+                    className={`inline-flex items-center rounded-xxs ${C.hoverBgLight} transition-colors py-0.5 px-0.5 min-h-11 cursor-pointer`}
                   >
                     <StatusPill status={formData.is_active ? "active" : "inactive"} />
                   </button>

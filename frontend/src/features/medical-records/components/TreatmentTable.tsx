@@ -147,7 +147,7 @@ export const TreatmentTable = memo(function TreatmentTable({
                   )}
                 >
                   {item.is_insurance ? (
-                    <Circle className={`${ICON.action} ${C.textRedIcon}`} />
+                    <Circle className={`${ICON.action} ${C.textStatusGreen}`} />
                   ) : (
                     <X className={`${ICON.action} ${C.text25}`} />
                   )}
@@ -232,7 +232,7 @@ export const TreatmentTable = memo(function TreatmentTable({
             type="button"
             variant="ghost"
             size="sm"
-            className={`h-10 text-sm gap-2 ${C.text50} ${C.hoverTextBrand}`}
+            className={`h-10 text-sm gap-2 ${C.text50} ${C.hoverText}`}
             onClick={onOpenSearch || onAddRow}
           >
             <PlusCircle className={ICON.action} />

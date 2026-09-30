@@ -210,11 +210,12 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
       <PropertyRow label="対象カテゴリ">
         <div className="grid w-full grid-cols-1 gap-2">
           {CATEGORY_OPTIONS.map((o) => (
-            <label key={o.value} className="flex items-center gap-2 text-sm">
+            <label key={o.value} className="flex items-center gap-2 text-sm min-h-11">
               <Checkbox
                 checked={formData.targetCategories.includes(o.value)}
                 disabled={readOnly}
                 onCheckedChange={() => toggleCategory(o.value)}
+                touchTarget
               />
               {o.label}
             </label>
@@ -234,11 +235,12 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
               <p className={`text-xs ${C.text50}`}>商品がありません</p>
             ) : (
               filteredMerchandise.map((mItem) => (
-                <label key={mItem.id} className="flex items-center gap-2 text-sm">
+                <label key={mItem.id} className="flex items-center gap-2 text-sm min-h-11">
                   <Checkbox
                     checked={formData.targetItemIds.includes(mItem.id)}
                     disabled={readOnly}
                     onCheckedChange={() => toggleItem(mItem.id)}
+                    touchTarget
                   />
                   {mItem.name}
                 </label>

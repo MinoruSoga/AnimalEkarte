@@ -36,16 +36,16 @@ export function ReceptionFilterPanel({
           <h4 className={`font-bold text-base ${C.text}`}>診察区分</h4>
           <div className="flex gap-4">
             {["初診", "再診"].map((type) => (
-              <div key={type} className="flex items-center space-x-2">
+              <div key={type} className="flex items-center space-x-2 min-h-11">
                 <Checkbox
                   id={`visit-${type}`}
                   checked={selectedVisitTypes.includes(type)}
                   onCheckedChange={() => onToggleVisitType(type)}
-                  className="size-4"
+                  touchTarget
                 />
                 <Label
                   htmlFor={`visit-${type}`}
-                  className={`text-base font-normal cursor-pointer ${C.text}`}
+                  className={`flex min-h-11 items-center text-base font-normal cursor-pointer ${C.text}`}
                 >
                   {type}
                 </Label>
@@ -68,16 +68,16 @@ export function ReceptionFilterPanel({
 
         <div className="space-y-2">
           <h4 className={`font-bold text-base ${C.text}`}>種類</h4>
-          <div className="flex items-center space-x-2 pt-0.5">
+          <div className="flex items-center space-x-2 pt-0.5 min-h-11">
             <Checkbox
               id="trimming-only"
               checked={isTrimmingOnly}
               onCheckedChange={(checked) => onTrimmingOnlyChange(checked === true)}
-              className="size-4"
+              touchTarget
             />
             <Label
               htmlFor="trimming-only"
-              className={`text-base font-normal cursor-pointer ${C.text}`}
+              className={`flex min-h-11 items-center text-base font-normal cursor-pointer ${C.text}`}
             >
               トリミングのみ表示
             </Label>

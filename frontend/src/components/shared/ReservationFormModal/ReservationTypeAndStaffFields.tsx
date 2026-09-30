@@ -68,7 +68,7 @@ export function ReservationTypeAndStaffFields({
             onClick={() => setTypePickerOpen(true)}
             aria-invalid={Boolean(validationErrors?.type)}
             className={cn(
-              "flex h-9 w-full items-center justify-between gap-2 rounded-md border bg-white px-3 text-sm transition-colors",
+              "flex h-11 w-full items-center justify-between gap-2 rounded-xs border bg-white px-3 text-sm transition-colors",
               C.borderMediumLight,
               C.hoverBgSubtle,
               validationErrors?.type && C.borderDanger,
@@ -119,9 +119,9 @@ export function ReservationTypeAndStaffFields({
               <Label
                 htmlFor="first"
                 className={cn(
-                  `block h-9 rounded-full border-2 px-3 py-1.5 text-center text-sm font-medium cursor-pointer transition-colors ${C.text}`,
+                  `flex h-11 items-center justify-center rounded-xs border-2 px-3 text-sm font-medium cursor-pointer transition-colors ${C.text}`,
                   formData.visitType === "first"
-                    ? `${C.borderBrand} ${C.bgBrand8}`
+                    ? `${C.borderActionPrimary} ${C.bgActionPrimary8}`
                     : `${C.borderMediumLight} bg-white ${C.hoverBgSubtle}`,
                 )}
               >
@@ -133,9 +133,9 @@ export function ReservationTypeAndStaffFields({
               <Label
                 htmlFor="revisit"
                 className={cn(
-                  `block h-9 rounded-full border-2 px-3 py-1.5 text-center text-sm font-medium cursor-pointer transition-colors ${C.text}`,
+                  `flex h-11 items-center justify-center rounded-xs border-2 px-3 text-sm font-medium cursor-pointer transition-colors ${C.text}`,
                   formData.visitType === "revisit"
-                    ? `${C.borderBrand} ${C.bgBrand8}`
+                    ? `${C.borderActionPrimary} ${C.bgActionPrimary8}`
                     : `${C.borderMediumLight} bg-white ${C.hoverBgSubtle}`,
                 )}
               >

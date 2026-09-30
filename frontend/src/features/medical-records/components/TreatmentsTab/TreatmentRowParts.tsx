@@ -30,9 +30,11 @@ export function TreatmentSelectionCell({ checked, onChange }: TreatmentSelection
   return (
     <TableCell className="w-10 text-center">
       <Checkbox
+        touchTarget
         checked={checked}
         onCheckedChange={onChange}
-        className={`${C.dataCheckedBgAccent} ${C.dataCheckedBorderAccent}`}
+        aria-label="行を選択"
+        className="-my-3"
       />
     </TableCell>
   );
@@ -66,9 +68,11 @@ export function TreatmentInsuranceCell({ checked, onChange }: TreatmentInsurance
   return (
     <TableCell className="w-16 text-center">
       <Checkbox
+        touchTarget
         checked={checked}
         onCheckedChange={onChange}
-        className={`${C.dataCheckedBgBrand} ${C.dataCheckedBorderBrand}`}
+        aria-label="保険適用"
+        className="-my-3"
       />
       {checked ? <Shield className={`${ICON.xs} mt-0.5 mx-auto ${C.textStatusGreen}`} /> : null}
     </TableCell>

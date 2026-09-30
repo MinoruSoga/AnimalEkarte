@@ -40,11 +40,12 @@ export const TYPE_SELECT_ITEMS = (
 
 export function TypeIcon({ type }: { type: CarePlanItemType }) {
   if (type === "food") return <Utensils className={`${ICON.action} ${C.textDiscount} shrink-0`} />;
-  if (type === "medicine") return <Pill className={`${ICON.action} ${C.textBrand} shrink-0`} />;
+  if (type === "medicine")
+    return <Pill className={`${ICON.action} ${C.textAccentDark} shrink-0`} />;
   if (type === "treatment")
     return <Stethoscope className={`${ICON.action} ${C.textStatusPurple} shrink-0`} />;
   if (type === "instruction")
-    return <ClipboardList className={`${ICON.action} ${C.textStatusGreen} shrink-0`} />;
+    return <ClipboardList className={`${ICON.action} ${C.textNotice} shrink-0`} />;
   return <MoreHorizontal className={`${ICON.action} ${C.text40} shrink-0`} />;
 }
 

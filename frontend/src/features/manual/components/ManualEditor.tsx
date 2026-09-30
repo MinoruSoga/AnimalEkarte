@@ -145,7 +145,7 @@ export function ManualEditor({ article, onClose, canEdit = false }: ManualEditor
             type="button"
             onClick={() => setMode("edit")}
             aria-pressed={mode === "edit"}
-            className={`flex items-center gap-1 px-2.5 py-1.5 text-sm ${C.text} ${mode === "edit" ? "bg-black/5" : ""}`}
+            className={`flex min-h-11 items-center gap-1 px-2.5 py-1.5 text-sm ${C.text} ${mode === "edit" ? "bg-black/5" : ""}`}
           >
             <FileText className="size-4" />
             <span className="hidden sm:inline">編集</span>
@@ -154,7 +154,7 @@ export function ManualEditor({ article, onClose, canEdit = false }: ManualEditor
             type="button"
             onClick={() => setMode("split")}
             aria-pressed={mode === "split"}
-            className={`flex items-center gap-1 px-2.5 py-1.5 text-sm border-l ${C.borderDivider} ${C.text} ${mode === "split" ? "bg-black/5" : ""}`}
+            className={`flex min-h-11 items-center gap-1 px-2.5 py-1.5 text-sm border-l ${C.borderDivider} ${C.text} ${mode === "split" ? "bg-black/5" : ""}`}
           >
             <Columns2 className="size-4" />
             <span className="hidden sm:inline">分割</span>
@@ -163,7 +163,7 @@ export function ManualEditor({ article, onClose, canEdit = false }: ManualEditor
             type="button"
             onClick={() => setMode("preview")}
             aria-pressed={mode === "preview"}
-            className={`flex items-center gap-1 px-2.5 py-1.5 text-sm border-l ${C.borderDivider} ${C.text} ${mode === "preview" ? "bg-black/5" : ""}`}
+            className={`flex min-h-11 items-center gap-1 px-2.5 py-1.5 text-sm border-l ${C.borderDivider} ${C.text} ${mode === "preview" ? "bg-black/5" : ""}`}
           >
             <Eye className="size-4" />
             <span className="hidden sm:inline">プレビュー</span>
@@ -175,7 +175,7 @@ export function ManualEditor({ article, onClose, canEdit = false }: ManualEditor
           type="button"
           onClick={handleSave}
           disabled={!isDirty || upsertMutation.isPending}
-          className={`flex items-center gap-1 px-2.5 py-1.5 text-sm rounded-xxs border ${C.borderDivider} ${
+          className={`flex min-h-11 items-center gap-1 px-2.5 py-1.5 text-sm rounded-xxs border ${C.borderDivider} ${
             !isDirty || upsertMutation.isPending
               ? `opacity-50 cursor-not-allowed ${C.text}`
               : `${C.bgBrand} ${C.textOnBrand} hover:opacity-90`
@@ -195,7 +195,7 @@ export function ManualEditor({ article, onClose, canEdit = false }: ManualEditor
         <button
           type="button"
           onClick={handleCopy}
-          className={`flex items-center gap-1 px-2.5 py-1.5 text-sm rounded-xxs border ${C.borderDivider} ${C.hoverBgLight} ${C.text}`}
+          className={`flex min-h-11 items-center gap-1 px-2.5 py-1.5 text-sm rounded-xxs border ${C.borderDivider} ${C.hoverBgLight} ${C.text}`}
           title="編集内容をクリップボードにコピー"
         >
           <Copy className="size-4" />
@@ -207,7 +207,7 @@ export function ManualEditor({ article, onClose, canEdit = false }: ManualEditor
         <button
           type="button"
           onClick={handleDownload}
-          className={`flex items-center gap-1 px-2.5 py-1.5 text-sm rounded-xxs border ${C.borderDivider} ${C.hoverBgLight} ${C.text}`}
+          className={`flex min-h-11 items-center gap-1 px-2.5 py-1.5 text-sm rounded-xxs border ${C.borderDivider} ${C.hoverBgLight} ${C.text}`}
           title=".md ファイルとしてダウンロード"
         >
           <Download className="size-4" />
@@ -218,7 +218,7 @@ export function ManualEditor({ article, onClose, canEdit = false }: ManualEditor
           type="button"
           onClick={handleCloseRequest}
           aria-label="編集を終了"
-          className={`size-9 flex items-center justify-center rounded-xxs border ${C.borderDivider} ${C.hoverBgLight}`}
+          className={`min-h-11 min-w-11 flex items-center justify-center rounded-xxs border ${C.borderDivider} ${C.hoverBgLight}`}
         >
           <X className="size-4" />
         </button>

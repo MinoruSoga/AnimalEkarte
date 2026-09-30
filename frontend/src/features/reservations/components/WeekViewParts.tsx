@@ -120,7 +120,7 @@ function WeekHeader({ startDate, appointmentsByDay, columnWidth }: WeekHeaderPro
               {format(day, "E", { locale: ja })}
             </div>
             <div className="flex items-center justify-center">
-              <div className={`relative text-xl font-bold ${isToday ? C.textBrand : C.text}`}>
+              <div className={`relative text-xl font-semibold ${isToday ? C.textBrand : C.text}`}>
                 {format(day, "d")}
                 {count > 0 ? (
                   <span

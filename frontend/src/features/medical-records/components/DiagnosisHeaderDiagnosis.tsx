@@ -170,7 +170,7 @@ export const DiagnosisHeaderDiagnosis = memo(function DiagnosisHeaderDiagnosis({
         value={diagnosisDetails}
         onChange={(e) => setDiagnosisDetails(e.target.value)}
         aria-label="診断詳細"
-        className={`h-full min-h-0 resize-none rounded-md border ${C.bgWhite} ${C.borderMedium} text-sm p-3 font-mono ${C.focusVisibleRingActionPrimary}`}
+        className={`h-full min-h-0 resize-none border ${C.bgWhite} ${C.borderMedium} text-sm p-3 font-mono ${C.focusVisibleRingActionPrimary}`}
         disabled={!canEdit}
       />
     </DiagnosisHeaderSection>

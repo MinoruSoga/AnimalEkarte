@@ -56,7 +56,7 @@ export const SortPill = memo(function SortPill({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className={`inline-flex items-center gap-1.5 h-8 px-3 text-base font-medium rounded-xxs ${C.bgDiscountLight} ${C.textDiscount} ${C.bgDiscountHover} transition-colors whitespace-nowrap`}
+          className={`inline-flex items-center gap-1.5 h-11 px-3 text-base font-medium rounded-xxs ${C.bgDiscountLight} ${C.textDiscount} ${C.bgDiscountHover} transition-colors whitespace-nowrap`}
         >
           <DirectionIcon className={`${ICON.page} shrink-0`} />
           <span className="truncate max-w-[140px]">{property?.label ?? sort.key}</span>
@@ -69,7 +69,7 @@ export const SortPill = memo(function SortPill({
           <button
             type="button"
             onClick={handleToggle}
-            className={`w-full flex items-center gap-2 px-3 py-1.5 text-base ${C.text} ${C.hoverBgLight} transition-colors`}
+            className={`w-full flex items-center gap-2 px-3 min-h-11 text-base ${C.text} ${C.hoverBgLight} transition-colors`}
           >
             {sort.direction === "asc" ? (
               <ArrowDown className={ICON.page} />
@@ -108,7 +108,7 @@ export const SortPill = memo(function SortPill({
           <button
             type="button"
             onClick={handleRemove}
-            className={`w-full flex items-center gap-2 px-3 py-1.5 text-base ${C.danger} ${C.hoverBgDanger5} transition-colors`}
+            className={`w-full flex items-center gap-2 px-3 min-h-11 text-base ${C.danger} ${C.hoverBgDanger5} transition-colors`}
           >
             <X className={ICON.page} />
             削除

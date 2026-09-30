@@ -10,7 +10,7 @@ import {
 import type { Reservation } from "@/types";
 import { FieldLabel } from "./ReservationDateTimeFields";
 
-const TRIGGER_CLASS = `h-9 text-sm bg-white ${C.borderMediumLight} ${C.text} ${C.hoverBgSubtle} transition-colors`;
+const TRIGGER_CLASS = `h-11 text-sm bg-white ${C.borderMediumLight} ${C.text} ${C.hoverBgSubtle} transition-colors`;
 
 interface ReservationNotesFieldProps {
   formData: Partial<Reservation>;

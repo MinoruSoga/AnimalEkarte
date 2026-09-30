@@ -1,5 +1,5 @@
 import { useActionState, useCallback, useMemo, useState } from "react";
-import { Trash2, Plus, Clock } from "lucide-react";
+import { Plus, Clock } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -8,6 +8,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
+import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
 import { DAY_OF_WEEK_LABELS } from "@/constants/day-of-week";
 import {
@@ -123,14 +124,10 @@ export function ReservationTypeUnavailableTimesSection({ clinicId, reservationTy
             <span className={`text-sm ${C.text50} tabular-nums`}>
               {item.startTime}〜{item.endTime}
             </span>
-            <button
-              type="button"
+            <DeleteIconButton
               onClick={() => handleDelete(item.id)}
-              className={`opacity-0 group-hover:opacity-100 ${ICON.smXs} ${C.text40} ${C.hoverTextDanger} transition-colors`}
-              aria-label="削除"
-            >
-              <Trash2 className={ICON.smXs} />
-            </button>
+              className="opacity-0 group-hover:opacity-100 transition-opacity"
+            />
           </div>
         );
       }),
@@ -140,7 +137,7 @@ export function ReservationTypeUnavailableTimesSection({ clinicId, reservationTy
   return (
     <div className={`mt-4 pt-4 ${STYLE.sectionDivider}`}>
       <div className="flex items-center gap-1.5 mb-3">
-        <Clock className={ICON.smXs} style={{ color: C.text50 }} />
+        <Clock className={`${ICON.smXs} ${C.text50}`} />
         <p className={`text-xs font-medium ${C.text50}`}>予約不可時間</p>
       </div>
 

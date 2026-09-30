@@ -95,18 +95,18 @@ export const VaccinationHistory = memo(function VaccinationHistory({
             <Input
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className={`flex-1 ${C.bgWhite} ${C.borderMedium} h-10 text-sm`}
+              className={`flex-1 ${C.bgWhite} ${C.borderMedium} text-sm`}
               placeholder="検索..."
             />
             <Button
               variant="outline"
-              className={`h-10 ${C.bgWhite} ${C.text} ${C.borderMedium} ${C.hoverBgPage} text-sm px-3`}
+              className={`${C.bgWhite} ${C.text} ${C.borderMedium} ${C.hoverBgPage} text-sm px-3`}
               onClick={() => setSearchTerm("")}
             >
               クリア
             </Button>
             <Select value={sortOrder} onValueChange={setSortOrder}>
-              <SelectTrigger className={`w-[80px] h-10 ${C.bgWhite} ${C.borderMedium} text-sm`}>
+              <SelectTrigger className={`w-[80px] ${C.bgWhite} ${C.borderMedium} text-sm`}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>{SORT_ORDER_SELECT_ITEMS}</SelectContent>
@@ -161,7 +161,7 @@ export const VaccinationHistory = memo(function VaccinationHistory({
                     {canCreate ? (
                       <Button
                         size="sm"
-                        className={`h-10 w-[50px] text-sm ${C.bgBrand} ${C.textOnBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} rounded-full border-transparent px-0`}
+                        className={`w-[50px] text-sm ${C.bgActionPrimary} ${C.textOnActionPrimary} ${C.hoverBgActionPrimary} ${C.hoverTextOnActionPrimary} rounded-md border-transparent px-0`}
                         onClick={() => onDuplicate?.(item)}
                       >
                         複製

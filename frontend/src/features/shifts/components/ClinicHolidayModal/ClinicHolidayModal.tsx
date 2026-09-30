@@ -109,7 +109,9 @@ export const ClinicHolidayModal = memo(function ClinicHolidayModal({
         <form action={formAction} noValidate>
           <div className="space-y-4 py-2">
             {existing ? (
-              <p className={`text-sm font-medium ${C.danger}`}>この日は定休日に設定されています</p>
+              <p className={`text-sm font-medium ${C.textNotionRed}`}>
+                この日は定休日に設定されています
+              </p>
             ) : null}
 
             <div className="space-y-1.5">

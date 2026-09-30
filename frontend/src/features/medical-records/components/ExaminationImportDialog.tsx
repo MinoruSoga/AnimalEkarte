@@ -130,7 +130,7 @@ export const ExaminationImportDialog = memo(function ExaminationImportDialog({
                   onClick={() => handleToggle(exam.id)}
                   className={`w-full text-left p-3 rounded-lg border transition-colors ${
                     isSelected
-                      ? `${C.borderBlue400} ${C.bgStatusBlueLight}`
+                      ? `${C.borderActionPrimary} ${C.bgActionPrimary5}`
                       : `${C.borderMedium} ${C.bgWhite} ${STYLE.tableRowHover}`
                   }`}
                 >
@@ -147,7 +147,7 @@ export const ExaminationImportDialog = memo(function ExaminationImportDialog({
                     <div
                       className={`w-4 h-4 rounded border-2 flex-shrink-0 ${
                         isSelected
-                          ? `${C.bgStatusBlueDot} ${C.borderBlue500}`
+                          ? `${C.bgActionPrimary} ${C.borderActionPrimary}`
                           : `${C.borderGray300} ${C.bgWhite}`
                       }`}
                     />
@@ -167,7 +167,7 @@ export const ExaminationImportDialog = memo(function ExaminationImportDialog({
             type="button"
             onClick={handleImport}
             disabled={selectedIds.size === 0 || isLinking}
-            className={`${C.bgBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} ${C.textOnBrand} rounded-full border-transparent`}
+            className={`${C.bgActionPrimary} ${C.hoverBgActionPrimary} ${C.hoverTextOnActionPrimary} ${C.textOnActionPrimary} rounded-full border-transparent`}
           >
             {isLinking ? "取り込み中..." : `${selectedIds.size}件取り込む`}
           </Button>

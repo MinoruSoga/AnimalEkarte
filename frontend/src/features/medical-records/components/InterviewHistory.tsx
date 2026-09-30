@@ -50,7 +50,7 @@ export const InterviewHistory = memo(function InterviewHistory({
 
   return (
     <div
-      className={`flex flex-col border ${C.borderMedium} ${C.bgWhite} rounded-md min-h-0 max-h-[600px] ${className ?? ""}`}
+      className={`flex flex-col border ${C.borderMedium} ${C.bgWhite} rounded-lg min-h-0 max-h-[600px] ${className ?? ""}`}
     >
       <div
         className={`p-3 border-b ${C.borderLight} ${C.bgPage} flex items-center justify-between min-h-12 shrink-0 gap-2`}
@@ -93,7 +93,7 @@ export const InterviewHistory = memo(function InterviewHistory({
               >
                 <div className="flex items-start justify-between mb-1">
                   <div className="flex items-center gap-2">
-                    <span className={`font-mono text-sm font-bold ${C.text}`}>{item.date}</span>
+                    <span className={`font-mono text-sm font-semibold ${C.text}`}>{item.date}</span>
                     <Badge variant="secondary" className="text-sm px-2">
                       {item.type}
                     </Badge>
@@ -101,7 +101,7 @@ export const InterviewHistory = memo(function InterviewHistory({
                   <span className={`text-sm ${C.text60}`}>{item.author}</span>
                 </div>
                 <h4 className={`text-sm font-bold ${C.text} mb-1`}>{item.title}</h4>
-                <p className={`text-sm ${C.text}/80 leading-snug whitespace-pre-wrap line-clamp-2`}>
+                <p className={`text-sm ${C.text80} leading-snug whitespace-pre-wrap line-clamp-2`}>
                   {item.content}
                 </p>
               </Link>

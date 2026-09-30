@@ -68,7 +68,7 @@ export const CheckupEditRow = memo(function CheckupEditRow({
           value={form.date ?? ""}
           onChange={(value) => handleChange("date", value)}
           placeholder="日付"
-          className="h-8 w-full"
+          className="h-9 w-full"
         />
       </TableCell>
       <TableCell>
@@ -76,6 +76,7 @@ export const CheckupEditRow = memo(function CheckupEditRow({
           value={form.checkup_type_id ?? ""}
           checkupTypes={checkupTypes}
           onChange={(value) => handleChange("checkup_type_id", value ? Number(value) : null)}
+          className="h-9"
         />
       </TableCell>
       <TableCell>
@@ -83,7 +84,7 @@ export const CheckupEditRow = memo(function CheckupEditRow({
           value={form.next_date ?? ""}
           onChange={(value) => handleChange("next_date", value || null)}
           placeholder="次回日"
-          className="h-8 w-full"
+          className="h-9 w-full"
         />
       </TableCell>
       <TableCell>
@@ -92,6 +93,7 @@ export const CheckupEditRow = memo(function CheckupEditRow({
           staffs={staffs}
           emptyLabel="-"
           onChange={(value) => handleChange("doctor_id", value ? Number(value) : null)}
+          className="h-9"
         />
       </TableCell>
       <TableCell>
@@ -101,7 +103,7 @@ export const CheckupEditRow = memo(function CheckupEditRow({
           onChange={(e) => handleChange("result", e.target.value)}
           placeholder="結果を入力..."
           aria-label={`結果 (${checkup.date})`}
-          className={`h-8 text-sm border ${C.borderMedium} rounded-xxs px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent} w-full`}
+          className={`h-9 text-sm border ${C.borderMedium} rounded-xxs px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent} w-full`}
         />
       </TableCell>
       <TableCell>
@@ -242,6 +244,7 @@ export function CheckupAddRow({
             checkupTypes={checkupTypes}
             emptyLabel="選択"
             onChange={(value) => onChange("checkup_type_id", value)}
+            className="h-11"
           />
           <FormFieldError message={errors.checkup_type_id} />
         </div>
@@ -266,6 +269,7 @@ export function CheckupAddRow({
             staffs={staffs}
             emptyLabel="担当医"
             onChange={(value) => onChange("doctor_id", value)}
+            className="h-11"
           />
         </div>
       </div>
@@ -293,7 +297,7 @@ export function CheckupAddRow({
             if (e.key === "Escape") onCancel();
           }}
           aria-label="結果"
-          className={`h-10 w-full text-sm border ${C.borderMedium} rounded-xxs px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent}`}
+          className={`h-9 w-full text-sm border ${C.borderMedium} rounded-xxs px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent}`}
         />
       </div>
       <div className="flex justify-end gap-2">
@@ -307,7 +311,7 @@ export function CheckupAddRow({
         </Button>
         <Button
           size="sm"
-          className={`${C.bgBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} ${C.textOnBrand} rounded-full border-transparent transition-colors h-10 text-sm px-4`}
+          className={`${C.bgActionPrimary} ${C.hoverBgActionPrimary} ${C.hoverTextOnActionPrimary} ${C.textOnActionPrimary} rounded-full border-transparent transition-colors h-10 text-sm px-4`}
           onClick={onSubmit}
           disabled={isPending || !addForm.date || !addForm.checkup_type_id}
         >
@@ -323,17 +327,19 @@ function CheckupTypeSelect({
   checkupTypes,
   onChange,
   emptyLabel = "選択してください",
+  className,
 }: {
   value: string | number;
   checkupTypes: CheckupTypeItem[];
   onChange: (value: string) => void;
   emptyLabel?: string;
+  className: string;
 }) {
   return (
     <select
       value={value}
       onChange={(e: ChangeEvent<HTMLSelectElement>) => onChange(e.target.value)}
-      className={`h-8 text-sm border ${C.borderMedium} rounded-xxs px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent} w-32`}
+      className={`${className} text-sm border ${C.borderMedium} rounded-xxs px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent} w-32`}
     >
       <option value="">{emptyLabel}</option>
       {checkupTypes.map((type) => (
@@ -350,17 +356,19 @@ function StaffSelect({
   staffs,
   onChange,
   emptyLabel,
+  className,
 }: {
   value: string | number;
   staffs: StaffItem[];
   onChange: (value: string) => void;
   emptyLabel: string;
+  className: string;
 }) {
   return (
     <select
       value={value}
       onChange={(e: ChangeEvent<HTMLSelectElement>) => onChange(e.target.value)}
-      className={`h-8 text-sm border ${C.borderMedium} rounded-xxs px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent} w-32`}
+      className={`${className} text-sm border ${C.borderMedium} rounded-xxs px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent} w-32`}
     >
       <option value="">{emptyLabel}</option>
       {staffs.map((staff) => (

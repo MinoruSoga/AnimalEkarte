@@ -288,7 +288,7 @@ export const VitalsTab = memo(function VitalsTab({
       />
 
       {sortedVitals.length > 0 ? (
-        <div className={`${C.bgWhite} border ${C.borderLight} rounded-xs px-4 py-3`}>
+        <div className={`${C.bgWhite} border ${C.borderLight} rounded-lg px-4 py-3`}>
           <span className={`text-sm ${C.text60}`}>バイタル記録 {sortedVitals.length} 件</span>
         </div>
       ) : null}
@@ -321,7 +321,7 @@ function VitalsViewToggle({ showGraph, onChange }: VitalsViewToggleProps) {
           type="button"
           onClick={() => onChange(false)}
           className={[
-            "flex items-center gap-1.5 px-3 h-8 text-xs font-medium transition-colors",
+            "flex items-center gap-1.5 px-3 min-h-11 text-xs font-medium transition-colors",
             !showGraph
               ? `${C.bgWhite} ${C.text} border-r ${C.borderLight}`
               : `${C.text60} ${C.hoverBgLight} border-r ${C.borderLight}`,
@@ -335,7 +335,7 @@ function VitalsViewToggle({ showGraph, onChange }: VitalsViewToggleProps) {
           type="button"
           onClick={() => onChange(true)}
           className={[
-            "flex items-center gap-1.5 px-3 h-8 text-xs font-medium transition-colors",
+            "flex items-center gap-1.5 px-3 min-h-11 text-xs font-medium transition-colors",
             showGraph ? `${C.bgWhite} ${C.text}` : `${C.text60} ${C.hoverBgLight}`,
           ].join(" ")}
           title="グラフ表示"

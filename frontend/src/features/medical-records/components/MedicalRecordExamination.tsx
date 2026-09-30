@@ -103,7 +103,11 @@ export const MedicalRecordExamination = memo(function MedicalRecordExamination({
               : "検査記録がありません。下の「記録を追加」ボタンから追加してください。"}
           </p>
           {isNewRecord ? null : (
-            <button type="button" className="underline" onClick={handleImportClick}>
+            <button
+              type="button"
+              className="inline-flex min-h-11 items-center underline"
+              onClick={handleImportClick}
+            >
               記録を追加
             </button>
           )}

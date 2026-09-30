@@ -122,7 +122,7 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
         <div className="flex items-center justify-between mb-1.5">
           <Label htmlFor="cage_id" className={`${H_STYLES.text.sm} ${C.text60}`}>
             ケージ・個室
-            <span className="text-destructive ml-0.5" aria-hidden="true">
+            <span className={`${C.textRequired} ml-0.5`} aria-hidden="true">
               *
             </span>
           </Label>
@@ -161,7 +161,7 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
           />
           <Label
             htmlFor="is_insurance"
-            className={`${H_STYLES.text.sm} ${C.text} cursor-pointer flex items-center gap-1`}
+            className={`${H_STYLES.text.sm} ${C.text} cursor-pointer flex min-h-11 items-center gap-1`}
           >
             <ShieldCheck className={`${ICON.action} ${C.text60}`} />
             保険適用
@@ -181,7 +181,7 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
                 value={formData.insuranceCompanyName}
                 onChange={(e) => onChange({ insuranceCompanyName: e.target.value })}
                 placeholder="保険会社名を入力..."
-                className={`h-9 ${H_STYLES.text.base} ${C.bgWhite} ${C.borderMedium}`}
+                className={`${H_STYLES.text.base} ${C.bgWhite} ${C.borderMedium}`}
                 maxLength={100}
               />
             </div>
@@ -197,7 +197,7 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
                 value={formData.insuranceNumber}
                 onChange={(e) => onChange({ insuranceNumber: e.target.value })}
                 placeholder="保険番号を入力..."
-                className={`h-9 ${H_STYLES.text.base} ${C.bgWhite} ${C.borderMedium}`}
+                className={`${H_STYLES.text.base} ${C.bgWhite} ${C.borderMedium}`}
                 maxLength={50}
               />
             </div>

@@ -143,13 +143,13 @@ export function EditRow({ item, onSave, onCancel }: EditRowProps) {
       className={`flex flex-col gap-2 p-3 ${C.bgBrand5} rounded-lg border ${C.borderBrandLight}`}
     >
       {state.error ? (
-        <p role="alert" className={`text-xs ${C.textNotionRed}`}>
+        <p role="alert" className={`text-xs ${C.danger}`}>
           {state.error}
         </p>
       ) : null}
       <div className="flex gap-2 items-center">
         <Select value={type} onValueChange={(v) => handleTypeChange(v as CarePlanItemType)}>
-          <SelectTrigger className="w-28 h-8 text-xs" aria-label="ケアプラン項目種別">
+          <SelectTrigger className="w-28 h-9 text-xs" aria-label="ケアプラン項目種別">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>{TYPE_SELECT_ITEMS}</SelectContent>
@@ -158,12 +158,12 @@ export function EditRow({ item, onSave, onCancel }: EditRowProps) {
           value={name}
           onChange={(e) => setName(e.target.value)}
           aria-label="ケアプラン項目名"
-          className="h-8 text-sm flex-1"
+          className="h-9 text-sm flex-1"
           placeholder="名称"
         />
       </div>
       {type === "item" ? (
-        <label className="flex items-center gap-1 cursor-pointer">
+        <label className="flex min-h-11 min-w-11 items-center gap-1 cursor-pointer">
           <input
             type="checkbox"
             checked={manual}
@@ -182,7 +182,7 @@ export function EditRow({ item, onSave, onCancel }: EditRowProps) {
             min={0}
             step={1}
             aria-label="手入力の単価"
-            className="h-8 text-sm"
+            className="h-9 text-sm"
             placeholder="単価（円）を入力"
           />
           <Input
@@ -190,7 +190,7 @@ export function EditRow({ item, onSave, onCancel }: EditRowProps) {
             onChange={(e) => setOtherReason(e.target.value)}
             maxLength={OTHER_REASON_MAX_LENGTH}
             aria-label="その他理由"
-            className="h-8 text-sm"
+            className="h-9 text-sm"
             placeholder="理由を入力（必須・500文字以内）"
           />
         </>
@@ -207,7 +207,10 @@ export function EditRow({ item, onSave, onCancel }: EditRowProps) {
         <span className={`text-xs ${C.text50} shrink-0`}>タイミング:</span>
         <div className="flex gap-2">
           {TIMING_OPTIONS.map((opt) => (
-            <label key={opt.value} className="flex items-center gap-1 cursor-pointer">
+            <label
+              key={opt.value}
+              className="flex min-h-11 min-w-11 items-center gap-1 cursor-pointer"
+            >
               <input
                 type="checkbox"
                 checked={timing.includes(opt.value)}

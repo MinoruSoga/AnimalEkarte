@@ -1,3 +1,5 @@
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { C } from "@/lib/design-tokens";
 import type { OwnerSearchItem } from "@/types/generated/identitylink-responses";
 
@@ -36,8 +38,8 @@ export function OwnerLinkSection({
       <h2 className={`font-semibold ${C.textInk}`}>飼主リンク</h2>
       <label className="block text-sm">
         <span className={C.textInkMuted}>検索</span>
-        <input
-          className={`mt-1 w-full rounded border px-3 py-2 ${C.borderLight} ${C.bgWhite} ${C.textInk}`}
+        <Input
+          className="mt-1"
           value={ownerQuery}
           onChange={(e) => setOwnerQuery(e.target.value)}
           placeholder="氏名・カナ・電話"
@@ -48,7 +50,7 @@ export function OwnerLinkSection({
           <li key={`${o.clinic_id}-${o.owner_id}`}>
             <button
               type="button"
-              className={`w-full text-left px-2 py-1 rounded ${C.bgHover}`}
+              className={`w-full text-left px-2 py-1 min-h-11 flex items-center rounded ${C.bgHover}`}
               onClick={() => toggleOwner(o)}
             >
               [医院 {o.clinic_id}] {o.name} ({o.phone})
@@ -62,24 +64,24 @@ export function OwnerLinkSection({
       </div>
       {canEdit ? (
         <div className="flex flex-wrap gap-2">
-          <button
+          <Button
             type="button"
-            className={`px-3 py-1.5 rounded text-sm ${C.bgBrand} ${C.textOnBrand}`}
             disabled={pending || selectedOwners.length < 2}
             onClick={onLinkOwners}
           >
             飼主をリンク
-          </button>
+          </Button>
           {selectedOwners.map((o) => (
-            <button
+            <Button
               key={`unlink-o-${o.clinic_id}-${o.owner_id}`}
               type="button"
-              className={`px-3 py-1.5 rounded text-sm border ${C.borderLight}`}
+              variant="outline"
+              className="text-sm"
               disabled={pending || resolveOwnerGroupId(o) == null}
               onClick={() => onUnlinkOwner(o)}
             >
               連携解除 {o.clinic_id}/{o.owner_id}
-            </button>
+            </Button>
           ))}
         </div>
       ) : null}

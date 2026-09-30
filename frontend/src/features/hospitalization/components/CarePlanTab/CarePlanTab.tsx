@@ -6,6 +6,7 @@ import { Loader2 } from "lucide-react";
 
 // Internal
 import { C, ICON } from "@/lib/design-tokens";
+import { EmptyState } from "@/components/shared/DataStates";
 import { usePermission } from "@/hooks/use-permission";
 
 // Relative
@@ -155,7 +156,7 @@ export const CarePlanTab = memo(function CarePlanTab({
   return (
     <div className="flex flex-col">
       {items && items.length === 0 ? (
-        <p className={`text-sm ${C.text40} py-4 text-center`}>ケアプラン項目がありません</p>
+        <EmptyState message="ケアプラン項目がありません" />
       ) : (
         <div className="flex flex-col gap-1">{itemRows}</div>
       )}

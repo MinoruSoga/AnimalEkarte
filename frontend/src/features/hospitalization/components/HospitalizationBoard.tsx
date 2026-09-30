@@ -106,7 +106,7 @@ const CageCard = memo(function CageCard({
                 <GripVertical className={ICON.action} />
               </div>
             ) : null}
-            <span className={`${H_STYLES.text.sm} font-mono ${C.text60} font-bold`}>
+            <span className={`${H_STYLES.text.sm} font-mono ${C.text60} font-semibold`}>
               {cage.name}
             </span>
           </div>

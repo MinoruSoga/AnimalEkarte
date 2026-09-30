@@ -148,7 +148,7 @@ export const PropertyFilter = memo(function PropertyFilter({
             <Button
               variant="ghost"
               size="sm"
-              className={`h-9 w-9 p-0 ${C.hoverBgMedium} ${
+              className={`h-11 w-11 p-0 ${C.hoverBgMedium} ${
                 searchOpen ? C.textBrand : `${C.text50} ${C.hoverText80}`
               }`}
               onClick={handleSearchToggle}

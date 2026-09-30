@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState, useTransition } from "react";
 import { useNavigate } from "react-router";
-import { CalendarDays, Clock, Plus, Trash2 } from "lucide-react";
+import { CalendarDays, Clock, Plus } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -9,6 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
 import { DAY_OF_WEEK_LABELS } from "@/constants/day-of-week";
@@ -102,14 +103,10 @@ export function ReservationTypeAvailableSlotsSection({ clinicId, reservationType
             <Clock className={`${ICON.smXs} ${C.text40} shrink-0`} />
             <span className={`flex-1 text-sm ${C.text}`}>{label}</span>
             <span className={`text-sm ${C.text50} tabular-nums`}>{item.startTime}</span>
-            <button
-              type="button"
+            <DeleteIconButton
               onClick={() => handleDelete(item.id)}
-              className={`opacity-0 group-hover:opacity-100 ${ICON.smXs} ${C.text40} ${C.hoverTextDanger} transition-colors`}
-              aria-label="削除"
-            >
-              <Trash2 className={ICON.smXs} />
-            </button>
+              className="opacity-0 group-hover:opacity-100 transition-opacity"
+            />
           </div>
         );
       }),
@@ -126,7 +123,7 @@ export function ReservationTypeAvailableSlotsSection({ clinicId, reservationType
           onClick={() =>
             navigate(`${paths.lineReservation.slots.getHref()}?typeId=${reservationTypeId}`)
           }
-          className={`ml-auto flex items-center gap-1 text-xs ${C.text50} ${C.hoverTextBrand} transition-colors`}
+          className={`ml-auto flex items-center gap-1 min-h-11 text-xs ${C.text50} ${C.hoverTextBrand} transition-colors`}
         >
           <CalendarDays className={ICON.smXs} />
           カレンダーで編集

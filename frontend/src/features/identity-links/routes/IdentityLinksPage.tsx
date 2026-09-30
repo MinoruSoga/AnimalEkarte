@@ -40,7 +40,7 @@ function IdentityLinksWorkbench({ canEdit }: { canEdit: boolean }) {
 
         {workbench.errorMessage ? (
           <div
-            className={`rounded border p-3 text-sm ${C.borderDanger} ${C.bgDanger10} ${C.textWarning}`}
+            className={`rounded border p-3 text-sm ${C.borderDanger} ${C.bgDanger10} ${C.danger}`}
             role="alert"
           >
             {workbench.errorMessage}

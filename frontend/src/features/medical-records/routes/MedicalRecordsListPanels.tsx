@@ -134,7 +134,7 @@ function MedicalRecordsListRow({
       </TableCell>
       <TableCell className={`${STYLE.tableCell} hidden md:table-cell`}>
         <div className="flex items-center gap-1">
-          <span className={!isValidStaff(record.doctor) ? `${C.danger} font-medium` : ""}>
+          <span className={!isValidStaff(record.doctor) ? `${C.textWarningIcon} font-medium` : ""}>
             {record.doctor}
           </span>
           {!isValidStaff(record.doctor) ? (
@@ -143,7 +143,7 @@ function MedicalRecordsListRow({
               aria-label={`無効な担当医: ${record.doctor}（退職等）`}
               title="担当医が無効（退職等）に設定されています"
             >
-              <AlertTriangle className={`${ICON.xs} ${C.danger}`} aria-hidden="true" />
+              <AlertTriangle className={`${ICON.xs} ${C.textWarningIcon}`} aria-hidden="true" />
             </span>
           ) : null}
         </div>

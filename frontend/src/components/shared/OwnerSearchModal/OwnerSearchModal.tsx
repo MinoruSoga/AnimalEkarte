@@ -174,13 +174,13 @@ export const OwnerSearchModal = memo(function OwnerSearchModal({
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="飼主名 / 飼主No / 電話番号"
-                className={`pl-9 h-10 text-base ${C.bgPage} ${C.borderMedium} ${C.focusBorderAccent} rounded-xs`}
+                className={`pl-9 text-base ${C.bgPage} ${C.borderMedium} ${C.focusBorderAccent} rounded-xs`}
               />
             </div>
             <Button
               onClick={handleSearch}
               disabled={!searchTerm.trim() || isSearching}
-              className="h-10 px-4 text-base"
+              className="px-4 text-base"
             >
               検索
             </Button>

@@ -296,13 +296,13 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
           <h2 className={`text-sm font-bold ${C.text}`}>会計確認 (医師)</h2>
           {isConfirmed ? (
             <div
-              className={`px-2 py-1 rounded ${C.bgStatusGreen} ${C.textStatusGreen} text-xs font-bold flex items-center gap-1`}
+              className={`px-2 py-1 rounded ${C.bgStatusGreen} ${C.textStatusGreen} text-xs font-semibold flex items-center gap-1`}
             >
               <CheckCircle2 className={ICON.xxs} />
               確認済み
             </div>
           ) : (
-            <div className={`px-2 py-1 rounded ${C.bgMuted} ${C.textMuted} text-xs font-bold`}>
+            <div className={`px-2 py-1 rounded ${C.bgMuted} ${C.textMuted} text-xs font-semibold`}>
               未確認
             </div>
           )}
@@ -358,7 +358,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
               size="sm"
               disabled={isConfirmPending}
               onClick={handleConfirm}
-              className={`${C.bgBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} ${C.textOnBrand} rounded-full border-transparent min-w-[120px] h-10 text-sm gap-2 transition-colors`}
+              className={`${C.bgActionPrimary} ${C.hoverBgActionPrimary} ${C.hoverTextOnActionPrimary} ${C.textOnActionPrimary} rounded-full border-transparent min-w-[120px] h-10 text-sm gap-2 transition-colors`}
             >
               <CheckCircle2 className={ICON.action} />
               {isConfirmPending ? "処理中..." : "チェック完了"}

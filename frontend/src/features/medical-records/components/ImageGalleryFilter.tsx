@@ -127,7 +127,7 @@ export const ImageGalleryFilter = memo(function ImageGalleryFilter({
             type="button"
             size="sm"
             variant="outline"
-            className={`gap-2 h-10 text-sm shadow-none rounded-full px-4 ${C.borderMedium} ${C.text}`}
+            className={`gap-2 h-10 text-sm shadow-none rounded-md px-4 ${C.borderMedium} ${C.text}`}
             onClick={handleCaptureClick}
             disabled={isUploading}
           >
@@ -137,7 +137,7 @@ export const ImageGalleryFilter = memo(function ImageGalleryFilter({
           <Button
             type="button"
             size="sm"
-            className={`${C.bgBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} ${C.textOnBrand} gap-2 h-10 text-sm shadow-none rounded-full border-transparent px-4`}
+            className={`${C.bgActionPrimary} ${C.hoverBgActionPrimary} ${C.hoverTextOnActionPrimary} ${C.textOnActionPrimary} gap-2 h-10 text-sm shadow-none rounded-full border-transparent px-4`}
             onClick={handleUploadClick}
             disabled={isUploading}
           >
@@ -159,7 +159,7 @@ export const ImageGalleryFilter = memo(function ImageGalleryFilter({
             id="image-gallery-search"
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
-            className={`${C.bgWhite} ${C.borderMedium} h-10 text-sm`}
+            className={`${C.bgWhite} ${C.borderMedium} text-sm`}
           />
         </div>
 
@@ -192,7 +192,7 @@ export const ImageGalleryFilter = memo(function ImageGalleryFilter({
           </Button>
           <Button
             type="button"
-            className={`h-10 ${C.bgBrand} ${C.textOnBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} border-transparent text-sm shadow-none rounded-full px-3`}
+            className={`h-10 ${C.bgActionPrimary} ${C.textOnActionPrimary} ${C.hoverBgActionPrimary} ${C.hoverTextOnActionPrimary} border-transparent text-sm shadow-none rounded-full px-3`}
           >
             検索
           </Button>

@@ -7,6 +7,7 @@ import { Plus, Trash2 } from "lucide-react";
 // Internal
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/shared/DataStates";
 import { C, ICON } from "@/lib/design-tokens";
 
 // Relative
@@ -126,18 +127,14 @@ export const ExamItemsTable = memo(function ExamItemsTable({
         </div>
       ) : null}
       {items.length === 0 ? (
-        <div className={`p-4 rounded-lg border ${C.borderMedium} ${C.bgWhite}`}>
-          <p className={`text-sm ${C.text45} text-center`}>
-            検査種別を選択すると検査項目が表示されます
-          </p>
-        </div>
+        <EmptyState message="検査種別を選択すると検査項目が表示されます" />
       ) : (
         <div
           className={`border ${C.borderMedium} rounded-lg ${C.bgWhite} overflow-hidden overflow-x-auto`}
         >
           {/* ヘッダー */}
           <div
-            className={`min-w-[700px] grid grid-cols-[2fr_1.5fr_1fr_1.8fr_1.2fr_0.8fr] gap-0 border-b ${C.borderMedium} ${C.bgPage} text-sm font-bold ${C.text80} h-11 items-center`}
+            className={`min-w-[700px] grid grid-cols-[2fr_1.5fr_1fr_1.8fr_1.2fr_0.8fr] gap-0 border-b ${C.borderMedium} ${C.bgPage} text-sm font-semibold ${C.text80} h-11 items-center`}
           >
             <div className={`p-2 border-r ${C.borderMedium} pl-3`}>項目名</div>
             <div className={`p-2 border-r ${C.borderMedium} text-right`}>結果値</div>

@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { FormDialog } from "@/components/shared/FormDialog/FormDialog";
+import { EmptyState } from "@/components/shared/DataStates";
 
 // Types
 import type { ApiCareLog, CreateCareLogRequest } from "../../api/daily-records-types";
@@ -73,11 +74,11 @@ function getCareLogColor(type: string): string {
     case "food":
       return `${C.bgDiscountLight} ${C.borderOrangeBadge} ${C.textDiscount}`;
     case "excretion":
-      return `${C.bgStatusGreen} ${C.borderStatusGreenAlt} ${C.textStatusGreen}`;
+      return `${C.bgNotice} ${C.borderNotice} ${C.textNotice}`;
     case "medicine":
-      return `${C.bgStatusPurple} ${C.borderPurpleLight} ${C.textStatusPurple}`;
+      return `${C.bgAccentLight} ${C.borderAccentBadge} ${C.textAccentDark}`;
     case "treatment":
-      return `${C.bgDanger8} ${C.borderDanger20} ${C.danger}`;
+      return `${C.bgStatusPurple} ${C.borderPurpleLight} ${C.textStatusPurple}`;
     default:
       return `${C.bgPage} ${C.borderLight} ${C.text60}`;
   }
@@ -146,11 +147,7 @@ export const DailyCareLogsSection = memo(function DailyCareLogsSection({
       </div>
 
       {sorted.length === 0 ? (
-        <p
-          className={`text-xs ${C.text40} py-3 text-center ${C.bgPage} rounded border border-dashed ${C.borderMedium}`}
-        >
-          記録なし
-        </p>
+        <EmptyState message="記録なし" />
       ) : (
         <div className="space-y-1.5">
           {sorted.map((log) => {

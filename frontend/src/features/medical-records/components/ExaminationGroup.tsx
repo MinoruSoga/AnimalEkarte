@@ -98,9 +98,9 @@ export const ExaminationGroup = memo(function ExaminationGroup({
             <div
               className={`p-2 border-r ${C.borderMedium} text-right font-mono ${
                 item.status === "high"
-                  ? `${C.danger} font-bold`
+                  ? `${C.danger} font-semibold`
                   : item.status === "low"
-                    ? `${C.textStatusBlue} font-bold`
+                    ? `${C.textStatusBlue} font-semibold`
                     : ""
               }`}
             >

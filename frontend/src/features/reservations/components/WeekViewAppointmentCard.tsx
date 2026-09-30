@@ -148,7 +148,7 @@ export const AppointmentCard = memo(function AppointmentCard({
 
       {isCompact ? (
         <div className="flex items-center gap-1 h-full pointer-events-none relative z-10 pr-2">
-          <span className="font-bold text-xs whitespace-nowrap leading-none">
+          <span className="font-semibold text-xs whitespace-nowrap leading-none">
             {format(appointment.start, DISPLAY_TIME_FORMAT)}
           </span>
           <FirstVisitBadge show={isFirstVisit} compact />
@@ -159,7 +159,7 @@ export const AppointmentCard = memo(function AppointmentCard({
       {isNarrow ? (
         <div className="flex flex-col h-full pointer-events-none relative z-10">
           <div className="flex items-center gap-1 pr-3 leading-none">
-            <span className="font-bold text-xs whitespace-nowrap">
+            <span className="font-semibold text-xs whitespace-nowrap">
               {format(appointment.start, DISPLAY_TIME_FORMAT)}
             </span>
             <FirstVisitBadge show={isFirstVisit} compact />
@@ -175,7 +175,7 @@ export const AppointmentCard = memo(function AppointmentCard({
 
       {!isCompact && !isNarrow ? (
         <div className="flex flex-col h-full pointer-events-none relative z-10">
-          <div className="flex items-center gap-1 font-bold text-sm leading-none mb-1 pr-3">
+          <div className="flex items-center gap-1 font-semibold text-sm leading-none mb-1 pr-3">
             <span className="truncate">{format(appointment.start, DISPLAY_TIME_FORMAT)}</span>
             <FirstVisitBadge show={isFirstVisit} />
           </div>

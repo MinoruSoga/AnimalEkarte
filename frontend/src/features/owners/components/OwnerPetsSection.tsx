@@ -77,9 +77,12 @@ const PetTableRow = memo(function PetTableRow({
     };
   }, [canCreate, canDelete, canEdit, pet.status]);
   const backFrom = ownerId ? paths.owners.detail.getHref(ownerId) : paths.owners.getHref();
+  const isDeceased = pet.status === "死亡";
 
   return (
-    <TableRow className={`transition-colors ${C.borderDivider} ${C.hoverBgPage} h-12`}>
+    <TableRow
+      className={`transition-colors ${C.borderDivider} ${C.hoverBgPage} h-12 ${isDeceased ? "opacity-60 grayscale-[0.5]" : ""}`}
+    >
       <TableCell className={STYLE.tableCell}>{pet.petNumber}</TableCell>
       <TableCell className={STYLE.tableCell}>
         {ownerId && isPersistedPetId(pet.id) && pet.isPending !== true ? (
@@ -228,8 +231,11 @@ const SharedPetTableRow = memo(function SharedPetTableRow({
 }: {
   pet: OwnerSharedPetApiResponse;
 }) {
+  const isDeceased = mapPetStatusLabel(pet.status) === "死亡";
   return (
-    <TableRow className={`transition-colors ${C.borderDivider} ${C.hoverBgPage} h-12`}>
+    <TableRow
+      className={`transition-colors ${C.borderDivider} ${C.hoverBgPage} h-12 ${isDeceased ? "opacity-60 grayscale-[0.5]" : ""}`}
+    >
       <TableCell className={STYLE.tableCell}>{pet.pet_number}</TableCell>
       <TableCell className={STYLE.tableCell}>
         <div className="flex items-center gap-2">
@@ -340,11 +346,7 @@ export function OwnerPetsSection({
           <TableBody>
             {showEmptyState ? (
               <TableRow>
-                <TableCell
-                  data-empty-state
-                  colSpan={11}
-                  className={`text-center py-8 text-sm ${C.text60}`}
-                >
+                <TableCell data-empty-state colSpan={11} className={STYLE.tableEmptySm}>
                   ペット情報がありません。「ペット追加」ボタンから追加してください。
                 </TableCell>
               </TableRow>

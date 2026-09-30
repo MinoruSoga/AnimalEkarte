@@ -197,7 +197,7 @@ export const VitalsEditRow = memo(function VitalsEditRow({
           <button
             type="button"
             onClick={handleWeightUnitToggle}
-            className={`text-2xs px-1 h-6 rounded border ${C.borderMedium} ${C.bgPage} ${C.hoverBgPage} min-w-[24px]`}
+            className={`text-2xs px-1 h-9 rounded border ${C.borderMedium} ${C.bgPage} ${C.hoverBgPage} min-w-11`}
           >
             {form.weight_unit}
           </button>
@@ -322,7 +322,7 @@ export function VitalsAddRow({
         <button
           type="button"
           onClick={() => onChange(toggleWeightValueAndUnit(addForm.weight, addForm.weight_unit))}
-          className={`text-2xs px-1 h-6 rounded border ${C.borderMedium} ${C.bgPage} ${C.hoverBgPage} min-w-[24px]`}
+          className={`text-2xs px-1 h-9 rounded border ${C.borderMedium} ${C.bgPage} ${C.hoverBgPage} min-w-11`}
         >
           {addForm.weight_unit}
         </button>
@@ -342,7 +342,7 @@ export function VitalsAddRow({
         size="sm"
         loadingText="追加中..."
         disabled={isPending || !addForm.recorded_at}
-        className="h-8 text-xs px-3"
+        className="h-9 text-xs px-3"
       >
         追加
       </SubmitButton>
@@ -350,7 +350,7 @@ export function VitalsAddRow({
         type="button"
         size="sm"
         variant="outline"
-        className={`h-8 text-xs px-3 ${C.borderMedium}`}
+        className={`h-9 text-xs px-3 ${C.borderMedium}`}
         onClick={onCancel}
       >
         キャンセル

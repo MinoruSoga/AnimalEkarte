@@ -7,6 +7,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
+import { Input } from "@/components/ui/input";
 import { C, STYLE } from "@/lib/design-tokens";
 import { SUPPORT_WIDGET_LAYOUT } from "@/constants/support-widget-layout";
 import { getFormEnum, getFormOptionalString } from "@/lib/form-data";
@@ -166,12 +167,12 @@ export function LineSendPanel({ ownerId, ownerName, open, onOpenChange }: LineSe
                   <label htmlFor="line_file_pdf" className={STYLE.formLabel}>
                     PDFファイル
                   </label>
-                  <input
+                  <Input
                     id="line_file_pdf"
                     name="file"
                     type="file"
                     accept=".pdf"
-                    className={`text-sm ${C.text} cursor-pointer`}
+                    className={`${C.text} cursor-pointer`}
                   />
                 </div>
               ) : null}
@@ -181,12 +182,12 @@ export function LineSendPanel({ ownerId, ownerName, open, onOpenChange }: LineSe
                   <label htmlFor="line_file_image" className={STYLE.formLabel}>
                     画像ファイル
                   </label>
-                  <input
+                  <Input
                     id="line_file_image"
                     name="file"
                     type="file"
                     accept=".jpg,.jpeg,.png"
-                    className={`text-sm ${C.text} cursor-pointer`}
+                    className={`${C.text} cursor-pointer`}
                   />
                 </div>
               ) : null}

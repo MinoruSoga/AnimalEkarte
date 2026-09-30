@@ -23,7 +23,7 @@ const rowToneClasses: Record<ClinicalHistoryKind, { dot: string; heading: string
   検査: { dot: C.bgStatusPurpleDot, heading: C.bgStatusPurple },
   "薬・処方": { dot: C.bgStatusAmberDot, heading: C.bgStatusAmber },
   予防接種: { dot: C.bgStatusEmeraldDot, heading: C.bgStatusEmerald },
-  処置: { dot: C.bgStatusRedDot, heading: C.bgRedLight },
+  処置: { dot: C.bgStatusSkyDot, heading: C.bgStatusSky },
   ケア: { dot: C.bgStatusBlueDot, heading: C.bgStatusBlueLight },
 };
 

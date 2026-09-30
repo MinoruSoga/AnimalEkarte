@@ -32,7 +32,8 @@ export function TrimmingImageUploadField({
           <button
             type="button"
             onClick={onRemoveImage}
-            className={`absolute top-1 right-1 p-1 ${C.bgWhite} rounded-full shadow-level1 ${C.hoverBgPage}`}
+            aria-label="画像を削除"
+            className={`absolute top-1 right-1 min-h-11 min-w-11 flex items-center justify-center ${C.bgWhite} rounded-full shadow-level1 ${C.hoverBgPage}`}
           >
             <X className={`${ICON.action} ${C.text}`} />
           </button>

@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
+import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/use-auth";
 import { useGetCashRegisterCloses } from "@/hooks/use-cash-register-closes";
 import { usePermission } from "@/hooks/use-permission";
@@ -314,7 +315,7 @@ export const AccountingDetail = memo(function AccountingDetail({
           ) : null}
 
           {isScheduledDateClosed && canSubmit && !canPostCloseEdit ? (
-            <div className={`px-4 pb-4 text-sm font-semibold ${C.danger}`} role="status">
+            <div className={`px-4 pb-4 text-sm font-semibold ${C.textWarning}`} role="status">
               レジ締め済み期間の会計確定には締め後編集権限（accounting-post-close-edit）が必要です。
             </div>
           ) : null}
@@ -325,17 +326,16 @@ export const AccountingDetail = memo(function AccountingDetail({
             <div className="px-4 pb-4">
               <label
                 htmlFor="postCloseReason"
-                className={`block text-sm font-semibold ${C.danger} mb-1`}
+                className={`block text-sm font-semibold ${C.textWarning} mb-1`}
               >
                 {isScheduledDateClosed
                   ? "⚠ レジ締め済み期間の編集 — 修正理由（必須）"
                   : "⚠ 確定済み会計の明細修正 — 修正理由（必須）"}
               </label>
-              <textarea
+              <Textarea
                 id="postCloseReason"
                 value={postCloseReason}
                 onChange={(e) => setPostCloseReason(e.target.value)}
-                className="w-full border rounded p-2 text-sm resize-none"
                 rows={2}
                 placeholder="例: 入力金額の誤りのため修正"
               />
@@ -343,7 +343,7 @@ export const AccountingDetail = memo(function AccountingDetail({
           ) : null}
           {/* 確定済みだが締め後編集権限が無い場合は拒否理由を明示（BUG-009） */}
           {accounting.status === "completed" && canSubmit && !canPostCloseEdit ? (
-            <div className={`px-4 pb-4 text-sm font-semibold ${C.danger}`} role="status">
+            <div className={`px-4 pb-4 text-sm font-semibold ${C.textWarning}`} role="status">
               確定済み会計の明細修正には締め後編集権限（accounting-post-close-edit）が必要です。カード金額の訂正以外はクレジット訂正導線または権限付与を確認してください。
             </div>
           ) : null}

@@ -34,7 +34,6 @@ export function UnpaidTabFilters({
           type="date"
           value={startDate}
           onChange={(e) => onStartDateChange(e.target.value)}
-          className="h-9 text-sm"
         />
       </div>
       <div className="space-y-1.5">
@@ -46,7 +45,6 @@ export function UnpaidTabFilters({
           type="date"
           value={endDate}
           onChange={(e) => onEndDateChange(e.target.value)}
-          className="h-9 text-sm"
         />
       </div>
       <div className="flex gap-2">

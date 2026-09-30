@@ -158,7 +158,7 @@ export function CreditCorrectionDialog({
                     handleMethodChange(v);
                   }
                 }}
-                className="h-9 w-full rounded-md border px-3 text-sm"
+                className="h-11 w-full rounded-md border px-3 text-sm"
               >
                 {correctable.map((c) => (
                   <option key={c.method} value={c.method}>

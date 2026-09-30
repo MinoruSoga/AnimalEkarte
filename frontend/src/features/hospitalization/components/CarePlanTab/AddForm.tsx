@@ -136,7 +136,7 @@ export function AddForm({ onSubmit }: AddFormProps) {
       <p className={`text-xs font-medium ${C.text60} mb-2`}>新しいケアプラン項目を追加</p>
       <div className="flex flex-col gap-2">
         {state.error ? (
-          <p role="alert" className={`text-xs ${C.textNotionRed}`}>
+          <p role="alert" className={`text-xs ${C.danger}`}>
             {state.error}
           </p>
         ) : null}
@@ -156,7 +156,7 @@ export function AddForm({ onSubmit }: AddFormProps) {
           />
         </div>
         {type === "item" ? (
-          <label className="flex items-center gap-1 cursor-pointer">
+          <label className="flex min-h-11 min-w-11 items-center gap-1 cursor-pointer">
             <input
               type="checkbox"
               checked={manual}
