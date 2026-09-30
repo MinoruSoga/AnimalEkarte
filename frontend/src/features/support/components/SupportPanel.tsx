@@ -3,9 +3,10 @@
  *
  * 「使い方を聞く」（マニュアル検索）と「バグを報告」（スクショ付き報告）の2タブ。
  */
+import { useState } from "react";
 import { X } from "lucide-react";
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { UnifiedTabs, UnifiedTabsContent } from "@/components/shared/UnifiedTabs";
 import { C, STYLE } from "@/lib/design-tokens";
 
 import { BugReportTab } from "./BugReportTab";
@@ -15,7 +16,13 @@ interface SupportPanelProps {
   onClose: () => void;
 }
 
+const SUPPORT_TABS = [
+  { value: "help", label: "使い方を聞く" },
+  { value: "bug", label: "バグを報告" },
+] as const;
+
 export function SupportPanel({ onClose }: SupportPanelProps) {
+  const [tab, setTab] = useState<string>("help");
   return (
     <section
       id="support-panel"
@@ -33,20 +40,22 @@ export function SupportPanel({ onClose }: SupportPanelProps) {
           <X className="size-5" />
         </button>
       </div>
-      <Tabs defaultValue="help" className="flex-1 min-h-0 gap-0">
-        <TabsList className="mx-3 mt-2">
-          <TabsTrigger value="help">使い方を聞く</TabsTrigger>
-          <TabsTrigger value="bug">バグを報告</TabsTrigger>
-        </TabsList>
+      <UnifiedTabs
+        items={SUPPORT_TABS}
+        value={tab}
+        onValueChange={setTab}
+        className="flex-1 min-h-0 gap-0 flex flex-col"
+        listClassName="mt-1"
+      >
         {/* flex カラムにして HelpChat（flex-1）が高さ一杯に広がり、入力欄を最下部へ固定する。
             チャット無効時の ManualSearchView は高さ自動で、この領域がそのままスクロールする */}
-        <TabsContent value="help" className="flex min-h-0 flex-col overflow-y-auto">
+        <UnifiedTabsContent value="help" className="flex min-h-0 flex-col overflow-y-auto">
           <ManualHelpTab onClose={onClose} />
-        </TabsContent>
-        <TabsContent value="bug" className="min-h-0 overflow-y-auto">
+        </UnifiedTabsContent>
+        <UnifiedTabsContent value="bug" className="min-h-0 overflow-y-auto">
           <BugReportTab onClose={onClose} />
-        </TabsContent>
-      </Tabs>
+        </UnifiedTabsContent>
+      </UnifiedTabs>
     </section>
   );
 }
