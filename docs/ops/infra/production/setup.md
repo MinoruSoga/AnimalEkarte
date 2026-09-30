@@ -101,7 +101,7 @@ Store both only as `Production` Environment secrets, never repository-level. The
 - [ ] Cloudflare account/zone, DNS `api.noah-karte.com`, and certificate;
 - [ ] PlanetScale production database and role;
 - [ ] R2 bucket, S3 credentials, and `S3_PUBLIC_BASE_URL`;
-- [ ] `production` branch creation and branch protection;
+- [ ] `production` branch creation and branch protection — apply the same protection as `staging` immediately after creation (spec: [docs/ops/ci-policy.md](../../ci-policy.md) 「ブランチ保護」). An unprotected window allows a direct push to trigger production deploy with no CI;
 - [ ] GitHub Environment `Production`: required reviewers, a deployment-branch rule limited to `production`, and the two §6.1 secrets;
 - [ ] Worker secrets from §2 set via `wrangler secret put ... -c wrangler.production.jsonc`;
 - [ ] `TRUSTED_PROXY_CIDR` post-deploy measurement and confirmation;
