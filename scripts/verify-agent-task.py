@@ -698,7 +698,7 @@ def plan(paths):
         elif path in ('backend/internal/auth/testdata/first_system_admin.sql', 'docs/ops/deploy/FIRST_SYSTEM_ADMIN.md'):
             jobs.append({'service': 'backend', 'command': ['go', 'test', '-json', '-p=2', '-count=1', '-short', './internal/auth', '-run=^TestFirstSystemAdminProcedureMatchesInitSchema$'], 'require_completed_test': True})
         elif path.endswith('.md') and (path.startswith(('docs/', '.claude/', '.codex/', '.agents/', 'frontend/src/features/manual/'))
-                                      or '/' not in path or pathlib.PurePosixPath(path).name in ('CLAUDE.md', 'AGENTS.md', 'README.md')):
+                                      or '/' not in path or pathlib.PurePosixPath(path).name in ('CLAUDE.md', 'AGENTS.md', 'README.md', 'PATTERNS.md')):
             continue
         elif path.startswith('frontend/src/features/manual/content/images/'):
             # Manual article screenshots; documentation-only SKIP like the .md files they illustrate.
