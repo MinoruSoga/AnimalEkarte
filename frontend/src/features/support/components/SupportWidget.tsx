@@ -39,7 +39,10 @@ export function SupportWidget() {
   return (
     <div
       data-html2canvas-ignore
-      className={`no-print ${SUPPORT_WIDGET_LAYOUT.position} ${Z_CLASS.overlay} flex flex-col-reverse items-end gap-3`}
+      // pointer-events-auto: モーダル Dialog は body を pointer-events:none にする。
+      // ダイアログ外のウィジェットは見えているのにクリックが背面へ透過してしまうため、
+      // portaled Popover/Select と同じく明示的にイベントを復帰させる。
+      className={`no-print pointer-events-auto ${SUPPORT_WIDGET_LAYOUT.position} ${Z_CLASS.overlay} flex flex-col-reverse items-end gap-3`}
     >
       <button
         ref={buttonRef}
