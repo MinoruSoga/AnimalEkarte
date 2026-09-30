@@ -103,7 +103,7 @@ function PatientSelectionRow({ pet, isBusy, isSelected, onSelect }: PatientSelec
             !isSelectable
               ? `${C.bgPage} ${C.textStatusGray} border-transparent cursor-not-allowed`
               : isSelected
-                ? `${C.bgBrand} ${C.textOnBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand}`
+                ? `${C.bgActionPrimary} ${C.textOnActionPrimary} ${C.hoverBgActionPrimary} ${C.hoverTextOnActionPrimary}`
                 : `bg-white border ${C.borderMediumLight} ${C.text} ${C.hoverText} ${C.hoverBgSubtle}`
           }`}
           onClick={() => {
