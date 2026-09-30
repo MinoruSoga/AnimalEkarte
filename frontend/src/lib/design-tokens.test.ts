@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { C, LAYOUT, PALETTE, STYLE } from "./design-tokens";
+import { C, LAYOUT, PALETTE, STATE, STYLE } from "./design-tokens";
 
 function classesOf(value: string): Set<string> {
   return new Set(value.split(/\s+/));
@@ -47,7 +47,7 @@ describe("brand and primary color tokens", () => {
     expect(C.focusRingActionPrimary).toBe("focus:ring-[#038B94]");
     expect(C.dataCheckedBgActionPrimary).toBe("data-[state=checked]:bg-[#038B94]");
     expect(C.dataActiveBorderB).toBe("data-[state=active]:border-b-[#038B94]");
-    expect(PALETTE.focusRingActionPrimary).toBe("focus:shadow-focus-primary");
+    expect(STATE.focusRingActionPrimary).toBe("focus:shadow-focus-primary");
     expect(C.dataActiveText).toBe(
       "data-[state=active]:text-[#025F66] dark:data-[state=active]:text-[#079BA5]",
     );

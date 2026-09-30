@@ -7,6 +7,9 @@
 
 ### SSOT 優先順位 — **軸ごとに正本が異なる**（FE11 決裁・2026-07-21 曽我）
 
+> **関連正本（FE-DS1・2026-09-30 追加）**: トークンの層構造・参照方向は [design-token-layers.md](design-token-layers.md)、インタラクション状態（hover/focus/disabled/loading/invalid）とコントラスト基準は [design-states.md](design-states.md) が正本。コンポーネント仕様書は [components/](components/) 配下。
+
+
 | 軸 | 正本 | 理由 |
 |---|---|---|
 | **色（colors 全般）** | **本書 (`docs/spec/design-system.md`)** | 本システムの色は**装飾ではなく業務・臨床の意味論**を担う（ステータス識別・危険/死亡・RBAC 非活性）。DESIGN.md の色規定は「イラスト・アイコンタイル・カテゴリドット」という*装飾*用途を前提にしており、問題領域が異なる。よって色は製品判断（本書）を正本とする。 |

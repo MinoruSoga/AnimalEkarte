@@ -100,42 +100,10 @@ const C20_RUNTIME_SYNTHESIS_RE = /hover:\$\{|focus:\$\{|text-\[\$\{/;
 
 /**
  * C21: `src/components/ui/*.tsx` に colocated `*.stories.tsx` を要求する。
- * fixture 設計・シングルトン性など stories が即座に書けない4件のみ許可（相対パス完全一致）。
- * 新規 ui primitive を追加したら同時に stories も書くこと。
+ * 2026-09-30 時点で全 ui primitive が stories を持つため許可リストは空。
+ * 新規 ui primitive を追加したら同時に stories も書くこと。正当例外のみ追記可。
  */
-export const C21_STORIES_ALLOWLIST = new Set([
-  // react-day-picker の props 設計が要るため catalog 保留。
-  path.join("src", "components", "ui", "calendar.tsx"),
-  // cmdk ラッパ — 実消費は searchable-select 側の composition。
-  path.join("src", "components", "ui", "command.tsx"),
-  // 非同期 options + Command 複合 — shared 層の契約として別途 catalog 化する。
-  path.join("src", "components", "ui", "searchable-select.tsx"),
-  // Toaster はアプリルートのシングルトン — 単体 story の価値が薄い。
-  path.join("src", "components", "ui", "sonner.tsx"),
-  // stories は別作業で作成中 — コミット済みツリーを clean に保つため一時許可。
-  // story がコミットされた primitive から順にこの許可リストを削除すること。
-  path.join("src", "components", "ui", "alert-dialog.tsx"),
-  path.join("src", "components", "ui", "badge.tsx"),
-  path.join("src", "components", "ui", "button.tsx"),
-  path.join("src", "components", "ui", "card.tsx"),
-  path.join("src", "components", "ui", "checkbox.tsx"),
-  path.join("src", "components", "ui", "dialog.tsx"),
-  path.join("src", "components", "ui", "dropdown-menu.tsx"),
-  path.join("src", "components", "ui", "input.tsx"),
-  path.join("src", "components", "ui", "label.tsx"),
-  path.join("src", "components", "ui", "popover.tsx"),
-  path.join("src", "components", "ui", "radio-group.tsx"),
-  path.join("src", "components", "ui", "scroll-area.tsx"),
-  path.join("src", "components", "ui", "select.tsx"),
-  path.join("src", "components", "ui", "separator.tsx"),
-  path.join("src", "components", "ui", "sheet.tsx"),
-  path.join("src", "components", "ui", "switch.tsx"),
-  path.join("src", "components", "ui", "table.tsx"),
-  path.join("src", "components", "ui", "tabs.tsx"),
-  path.join("src", "components", "ui", "textarea.tsx"),
-  path.join("src", "components", "ui", "toggle-group.tsx"),
-  path.join("src", "components", "ui", "tooltip.tsx"),
-]);
+export const C21_STORIES_ALLOWLIST = new Set();
 const C21_UI_COMPONENT_RE = /^src[/\\]components[/\\]ui[/\\][a-z][a-z-]*\.tsx$/;
 
 /**
@@ -147,11 +115,6 @@ export const C22_PALETTE_CLASS_MEMBER_ALLOWLIST = new Set([
   "brandGlow",
   "primaryGlow",
   "tableRowHover",
-  // STATE への移行中 — 移行完了時にこの許可リストから削除すること。
-  "hoverBgInput",
-  "focusBorderLegacyAccent",
-  "focusRingActionPrimary",
-  "focusRingBrand",
 ]);
 const C22_PALETTE_BLOCK_RE = /export const PALETTE = \{([\s\S]*?)\} as const;/;
 const C22_MEMBER_RE = /^\s*(\w+)\s*:\s*"((?:[^"\\]|\\.)*)"/;

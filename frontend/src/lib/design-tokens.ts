@@ -94,7 +94,15 @@ export const PALETTE = {
   /** Chart: axis tick text fill */
   chartAxisText: "#9B9B97",
 
-  /* ── UI Primitive (checkbox, input, select, textarea) ── */
+} as const;
+
+/* ================================================================== */
+/*  Interaction-State Class Tokens (L2.5)                              */
+/*     Raw値とレイアウトの中間層 — 状態バリアント付きクラス文字列。        */
+/*     docs/spec/design-token-layers.md / design-states.md 参照。        */
+/* ================================================================== */
+
+export const STATE = {
   /** Input/select/textarea hover bg (warm neutral) */
   hoverBgInput:      "hover:bg-[rgba(242,241,238,0.5)]",
   /**
@@ -500,6 +508,23 @@ export const C = {
   bgCheckupDueSoon:   "bg-[#F0D070]",
   textCheckupDueSoon: "text-[#7A5C00]",
 
+  /* ── Badge text (AA-safe ink on pastel bg — design-states.md §2.3 実装) ──
+   * BADGE.* が参照するテキスト色。パステル背景は据え置き、文字のみ
+   * コントラスト 4.5:1 以上へ暗色化。共有 C.text* の値は変更しない。
+   */
+  /** gray/muted — inkMuted 同値 #615D59（bg #EBECED/#F1F0EE で 5.5:1+） */
+  textBadgeGray:   "text-[#615D59]",
+  /** yellow — textCheckupDueSoon 同値 #7A5C00（bg #FDECC8 で 5.36:1） */
+  textBadgeYellow: "text-[#7A5C00]",
+  /** orange — DESIGN.md accent-orange-deep #793400（bg #FAEBDD で 7.81:1） */
+  textBadgeOrange: "text-[#793400]",
+  /** red — danger 系 #B03A2E（bg #FFE2DD で ~5.0:1） */
+  textBadgeRed:    "text-[#B03A2E]",
+  /** green — #0C6E5F（bg #DDEDEA で 5.09:1） */
+  textBadgeGreen:  "text-[#0C6E5F]",
+  /** muted — inkMuted 同値 #615D59（bg #F1F0EE で 5.77:1） */
+  textBadgeMuted:  "text-[#615D59]",
+
   /* ── Data-state active (Radix Tabs) ── */
   /** Active tab は semantic primary（brand と同じ teal）を使う。 */
   dataActiveBorderB: "data-[state=active]:border-b-[#038B94]",
@@ -516,29 +541,29 @@ export const BADGE = {
   /** Notion Blue — 作成中, 入院中, 受付済, 検査中, 予約(trimming), medicine, スタッフ */
   blue:    `${C.bgAccentLight} ${C.textAccentDark} ${C.borderAccentBadge}`,
   /** Notion Gray — 確定済, 退院済, cancelled, item, inactive */
-  gray:    `${C.bgStatusGray} ${C.textStatusGray} ${C.borderMuted}`,
+  gray:    `${C.bgStatusGray} ${C.textBadgeGray} ${C.borderMuted}`,
   /** Notion Green (teal) — 予約(hosp), 完了(exam/trimming), completed, sufficient, active, 会計済 */
-  green:   `${C.bgStatusGreen} ${C.textStatusGreen} ${C.borderStatusGreenAlt}`,
+  green:   `${C.bgStatusGreen} ${C.textBadgeGreen} ${C.borderStatusGreenAlt}`,
   /** Notion Red — 入院(type), waiting(acct), out_of_stock, 手術 */
-  red:     `${C.bgRedLight} ${C.textNotionRed} ${C.borderRedBadge}`,
+  red:     `${C.bgRedLight} ${C.textBadgeRed} ${C.borderRedBadge}`,
   /** Notion Purple — ホテル(type), treatment, トリマー, 予防接種 */
   purple:  `${C.bgStatusPurple} ${C.textStatusPurple} ${C.borderPurpleLight}`,
   /** Notion Orange — 進行中(trimming), food */
-  orange:  `${C.bgDiscountLight} ${C.textDiscount} ${C.borderOrangeBadge}`,
+  orange:  `${C.bgDiscountLight} ${C.textBadgeOrange} ${C.borderOrangeBadge}`,
   /** Notion Yellow — 依頼中, pending, low stock, excretion, 定期健診 */
-  yellow:  `${C.bgNotice} ${C.textNotice} ${C.borderNotice}`,
+  yellow:  `${C.bgNotice} ${C.textBadgeYellow} ${C.borderNotice}`,
 
   /** Default / fallback */
-  muted:   `${C.bgMutedBadge} ${C.textMuted} ${C.borderMuted}`,
+  muted:   `${C.bgMutedBadge} ${C.textBadgeMuted} ${C.borderMuted}`,
 
   /* ── Care Plan (no border) ── */
   blueNoBorder:   `${C.bgAccentLight} ${C.textAccentDark}`,
-  greenNoBorder:  `${C.bgStatusGreen} ${C.textStatusGreen}`,
-  grayNoBorder:   `${C.bgStatusGray} ${C.textStatusGray}`,
+  greenNoBorder:  `${C.bgStatusGreen} ${C.textBadgeGreen}`,
+  grayNoBorder:   `${C.bgStatusGray} ${C.textBadgeGray}`,
 
   /* ── Pet status (with hover) ── */
-  greenHover: `${C.bgStatusGreen} ${C.textStatusGreen} ${C.borderStatusGreen} ${C.hoverBgStatusGreen}`,
-  grayHover:  `${C.bgStatusGray} ${C.textStatusGray} ${C.borderStatusGray} ${C.hoverBgStatusGray}`,
+  greenHover: `${C.bgStatusGreen} ${C.textBadgeGreen} ${C.borderStatusGreen} ${C.hoverBgStatusGreen}`,
+  grayHover:  `${C.bgStatusGray} ${C.textBadgeGray} ${C.borderStatusGray} ${C.hoverBgStatusGray}`,
 } as const;
 
 /* ================================================================== */
@@ -798,7 +823,7 @@ export const STYLE = {
   sidePeekToolbar:
     "flex items-center justify-between h-[48px] px-3 shrink-0",
   sidePeekToolbarBtn:
-    `size-9 flex items-center justify-center rounded-xxs ${C.text45} ${C.hoverBgMedium} transition-colors`,
+    `size-9 min-h-11 min-w-11 flex items-center justify-center rounded-xxs ${C.text45} ${C.hoverBgMedium} transition-colors`,
 
   /* ── Compact Icon Buttons (size-8=32px / size-7=28px / size-6=24px) ── */
   /** 32px アイコンボタン基底クラス (医療記録タブ・認証フォーム) */
@@ -812,7 +837,7 @@ export const STYLE = {
   sidePeekFooter:
     `flex items-center justify-end gap-2 px-4 py-3 border-t ${C.borderLight} shrink-0`,
   sidePeekCancelBtn:
-    `px-4 py-[7px] text-base ${C.text65} ${C.hoverBgLight} rounded-xxs transition-colors cursor-pointer`,
+    `px-4 py-[7px] min-h-11 text-base ${C.text65} ${C.hoverBgLight} rounded-xxs transition-colors cursor-pointer`,
 
   /* ── Notion Page Icon ── */
   pageIcon:

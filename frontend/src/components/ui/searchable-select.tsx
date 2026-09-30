@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { C, PALETTE, Z_CLASS } from "@/lib/design-tokens";
+import { C, STATE, Z_CLASS } from "@/lib/design-tokens";
 import { normalizedIncludes } from "@/lib/normalize-kana";
 import {
   Command,
@@ -158,7 +158,7 @@ export function SearchableSelect({
         className={cn(
           "flex h-11 min-w-11 w-full items-center justify-between gap-2 rounded-xs border bg-white px-3 py-2 text-sm whitespace-nowrap transition-colors outline-none",
           C.borderMedium,
-          `${PALETTE.hoverBgInput} focus:bg-white ${PALETTE.focusBorderLegacyAccent} ${PALETTE.focusRingActionPrimary}`,
+          `${STATE.hoverBgInput} focus:bg-white ${STATE.focusBorderLegacyAccent} ${STATE.focusRingActionPrimary}`,
           "disabled:cursor-not-allowed disabled:opacity-50",
           ariaInvalid && C.borderDanger,
           className,

@@ -1335,11 +1335,7 @@ test("checkC21: ui/*.tsx に sibling stories が無ければ検出、あれば p
   const storiesPath = path.join("src", "components", "ui", "new-widget.stories.tsx");
   assert.equal(checkC21(componentPath, new Set([componentPath])).length, 1);
   assert.equal(checkC21(componentPath, new Set([componentPath, storiesPath])).length, 0);
-  // allowlist / 非対象ファイルは検出しない
-  assert.equal(
-    checkC21(path.join("src", "components", "ui", "sonner.tsx"), new Set()).length,
-    0,
-  );
+  // 非対象ファイル（test / routes 配下）は検出しない
   assert.equal(
     checkC21(path.join("src", "components", "ui", "button.test.tsx"), new Set()).length,
     0,

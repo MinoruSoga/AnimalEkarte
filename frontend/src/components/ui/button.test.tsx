@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { C } from "@/lib/design-tokens";
@@ -174,5 +174,56 @@ describe("Button :focus-visible indicator", () => {
     for (const className of FOCUS_VISIBLE_CLASSES) {
       expect(link).toHaveClass(className);
     }
+  });
+});
+
+/**
+ * design-states.md §3 (FE-DS1): loading は disabled + aria-busy + スピナーで
+ * 表現し、テキストを維持する。クリック抑止・スクリーンリーダー通知・
+ * 幅確保（ラベル維持）の3点を満たすのが標準仕様。
+ */
+describe("Button loading state", () => {
+  it("disables the button and marks aria-busy while loading", () => {
+    render(<Button loading>保存中</Button>);
+
+    const button = screen.getByRole("button", { name: "保存中" });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute("aria-busy", "true");
+    expect(button).toHaveAttribute("data-loading", "true");
+  });
+
+  it("does not fire onClick while loading", async () => {
+    const user = userEvent.setup();
+    const onClick = vi.fn();
+    render(
+      <Button loading onClick={onClick}>
+        送信
+      </Button>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "送信" }));
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it("renders a hidden spinner next to the preserved label", () => {
+    render(<Button loading>処理中</Button>);
+
+    const button = screen.getByRole("button", { name: "処理中" });
+    const spinner = button.querySelector("svg.animate-spin");
+    expect(spinner).not.toBeNull();
+    expect(spinner).toHaveAttribute("aria-hidden", "true");
+    expect(button).toHaveTextContent("処理中");
+  });
+
+  it("asChild はスピナーを描画しないが aria-busy は付く", () => {
+    render(
+      <Button asChild loading>
+        <a href="/save">保存</a>
+      </Button>,
+    );
+
+    const link = screen.getByRole("link", { name: "保存" });
+    expect(link).toHaveAttribute("aria-busy", "true");
+    expect(link.querySelector("svg")).toBeNull();
   });
 });
