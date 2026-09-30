@@ -248,11 +248,7 @@ export function MedicalRecordFormReadyPanels({
             medicalRecordId={recordId}
             recordClinicId={ready.recordClinicId}
           />
-          <fieldset
-            disabled={ready.recordFinalized || !canSubmit}
-            className="border-0 p-0 m-0 min-w-0"
-            data-testid="medical-record-edit-lock"
-          >
+          <fieldset className="border-0 p-0 m-0 min-w-0" data-testid="medical-record-edit-lock">
             {ready.recordFinalized ? (
               <div
                 className={`mx-4 mt-3 rounded border ${C.borderMedium} ${C.bgPage} px-3 py-2 text-sm ${C.text60}`}
@@ -292,6 +288,7 @@ export function MedicalRecordFormReadyPanels({
               lstepStatus={ready.lstepStatus}
               recordStatus={ready.currentRecord?.status ?? ""}
               diagnosis1NameIdError={formState?.fieldErrors?.diagnosis1_name_id}
+              isLocked={ready.recordFinalized || !canSubmit}
               onChiefComplaintChange={ready.dirtyFields.handleSetChiefComplaint}
               onChiefComplaintTypeIdChange={ready.dirtyFields.handleSetChiefComplaintTypeId}
               onTreatmentPolicyChange={ready.dirtyFields.handleSetTreatmentPolicy}

@@ -19,6 +19,8 @@ import type { InterviewHistoryItem } from "../types";
 interface InterviewHistoryProps {
   className?: string;
   historyItems: InterviewHistoryItem[];
+  /** BUG-035: 確定済み/送信権限なし。検索・閲覧は読み取り操作のため残し、コピーのみ無効化する。 */
+  isLocked?: boolean;
   /** EMR-182: 行の コピー ボタン押下時のコールバック（複写は親が実施）。 */
   onCopyItem?: (item: InterviewHistoryItem) => void;
 }
@@ -26,26 +28,29 @@ interface InterviewHistoryProps {
 export const InterviewHistory = memo(function InterviewHistory({
   className,
   historyItems,
+  isLocked = false,
   onCopyItem,
 }: InterviewHistoryProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const deferredSearch = useDeferredValue(searchTerm);
 
   // js-cache-function-results: API 由来の filter 結果は useMemo でキャッシュ
-  const filteredItems = useMemo(
-    () =>
-      historyItems.filter(
-        (item) =>
-          normalizedIncludes(item.title, deferredSearch) ||
-          normalizedIncludes(item.content, deferredSearch) ||
-          normalizedIncludes(item.type, deferredSearch),
-      ),
-    [historyItems, deferredSearch],
-  );
+  const filteredItems = useMemo(() => {
+    const compactTerm = deferredSearch.replace(/[/\-.]/g, "");
+    return historyItems.filter(
+      (item) =>
+        normalizedIncludes(item.title, deferredSearch) ||
+        normalizedIncludes(item.content, deferredSearch) ||
+        normalizedIncludes(item.type, deferredSearch) ||
+        normalizedIncludes(item.author, deferredSearch) ||
+        normalizedIncludes(item.date, deferredSearch) ||
+        (compactTerm !== "" && item.date.replace(/[/\-.]/g, "").includes(compactTerm)),
+    );
+  }, [historyItems, deferredSearch]);
 
   return (
     <div
-      className={`flex flex-col border ${C.borderMedium} ${C.bgWhite} rounded-md min-h-0 ${className ?? ""}`}
+      className={`flex flex-col border ${C.borderMedium} ${C.bgWhite} rounded-md min-h-0 max-h-[600px] ${className ?? ""}`}
     >
       <div
         className={`p-3 border-b ${C.borderLight} ${C.bgPage} flex items-center justify-between min-h-12 shrink-0 gap-2`}
@@ -70,6 +75,9 @@ export const InterviewHistory = memo(function InterviewHistory({
               className={`${LAYOUT.touch.md} w-full max-w-[12rem] pl-9 text-sm ${C.bgWhite} ${C.borderMedium}`}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") e.preventDefault();
+              }}
             />
           </div>
         </div>
@@ -103,6 +111,7 @@ export const InterviewHistory = memo(function InterviewHistory({
                   variant="outline"
                   size="sm"
                   className="m-3 ml-0 self-center"
+                  disabled={isLocked}
                   onClick={() => onCopyItem?.(item)}
                 >
                   コピー

@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import type { FormEvent } from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router";
@@ -130,6 +131,65 @@ describe("InterviewHistory — カナ混同検索", () => {
   });
 });
 
+describe("InterviewHistory — 検索対象フィールド", () => {
+  it("担当医（author）で検索できる", async () => {
+    const user = userEvent.setup();
+    renderHistory(ITEMS);
+
+    await user.type(screen.getByPlaceholderText("検索..."), "田中");
+
+    await waitFor(() => {
+      expect(screen.getByText("タイトルカタカナ")).toBeInTheDocument();
+      expect(screen.queryByText("別のタイトル")).not.toBeInTheDocument();
+    });
+  });
+
+  it("表示日付で検索できる", async () => {
+    const user = userEvent.setup();
+    renderHistory(ITEMS);
+
+    await user.type(screen.getByPlaceholderText("検索..."), "2026-01-02");
+
+    await waitFor(() => {
+      expect(screen.getByText("別のタイトル")).toBeInTheDocument();
+      expect(screen.queryByText("タイトルカタカナ")).not.toBeInTheDocument();
+    });
+  });
+
+  it("区切りを省略した日付入力でも検索できる", async () => {
+    const user = userEvent.setup();
+    renderHistory(ITEMS);
+
+    await user.type(screen.getByPlaceholderText("検索..."), "0102");
+
+    await waitFor(() => {
+      expect(screen.getByText("別のタイトル")).toBeInTheDocument();
+      expect(screen.queryByText("タイトルカタカナ")).not.toBeInTheDocument();
+    });
+  });
+
+  it("検索ボックスの Enter は親フォームを submit しない", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn((e: FormEvent) => e.preventDefault());
+    render(
+      <MemoryRouter>
+        <form onSubmit={onSubmit}>
+          <InterviewHistory historyItems={ITEMS} />
+        </form>
+      </MemoryRouter>,
+    );
+
+    const input = screen.getByPlaceholderText("検索...");
+    await user.type(input, "田中{Enter}");
+
+    expect(onSubmit).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(screen.getByText("タイトルカタカナ")).toBeInTheDocument();
+      expect(screen.queryByText("別のタイトル")).not.toBeInTheDocument();
+    });
+  });
+});
+
 describe("InterviewHistory — 過去行の詳細遷移", () => {
   it("過去行は /medical-records/:id へリンクし、引用ボタンは無い", () => {
     renderHistory(ITEMS);
@@ -229,10 +289,10 @@ const COPYABLE_ITEMS: InterviewHistoryItem[] = [
   },
 ];
 
-function renderCopyable(onCopyItem?: (item: InterviewHistoryItem) => void) {
+function renderCopyable(onCopyItem?: (item: InterviewHistoryItem) => void, isLocked = false) {
   return render(
     <MemoryRouter>
-      <InterviewHistory historyItems={COPYABLE_ITEMS} onCopyItem={onCopyItem} />
+      <InterviewHistory historyItems={COPYABLE_ITEMS} isLocked={isLocked} onCopyItem={onCopyItem} />
     </MemoryRouter>,
   );
 }
@@ -284,6 +344,25 @@ describe("InterviewHistory — 前回複写（コピー）", () => {
       "href",
       "/medical-records/10",
     );
+  });
+
+  it("isLocked では コピー だけが disabled で、検索・行リンクは有効のまま", async () => {
+    const user = userEvent.setup();
+    renderCopyable(vi.fn(), true);
+
+    const search = screen.getByRole("textbox", { name: "過去のカルテを検索" });
+    expect(search).not.toBeDisabled();
+    expect(screen.getByRole("button", { name: "コピー" })).toBeDisabled();
+    expect(screen.getByRole("link", { name: /コピー元カルテ/ })).toHaveAttribute(
+      "href",
+      "/medical-records/10",
+    );
+
+    await user.type(search, "田中");
+    await waitFor(() => {
+      expect(screen.getByText("コピー元カルテ")).toBeInTheDocument();
+      expect(screen.queryByText("コピー不可カルテ")).not.toBeInTheDocument();
+    });
   });
 
   it("copySource の無い行には コピー を表示しない（既定fixture相当）", () => {

@@ -30,6 +30,7 @@ export function MedicalRecordClinicalTabs({
   diagnosis1NameIdError,
   recordClinicId,
   isFinalized,
+  isLocked,
   onChiefComplaintChange,
   onChiefComplaintTypeIdChange,
   onTreatmentPolicyChange,
@@ -52,6 +53,8 @@ export function MedicalRecordClinicalTabs({
         activeTab={activeTab}
         mountedTabs={mountedTabs}
         contentClassName="min-h-0 flex flex-col"
+        isLocked={isLocked}
+        internalLock
       >
         <MedicalRecordInterview
           chiefComplaint={chiefComplaint}
@@ -62,6 +65,7 @@ export function MedicalRecordClinicalTabs({
           setTreatmentPolicy={onTreatmentPolicyChange}
           historyItems={historyItems}
           isFinalized={isFinalized}
+          isLocked={isLocked}
           onCopyRecordTreatments={onCopyRecordTreatments}
         />
       </MedicalRecordMountedTab>
@@ -69,6 +73,7 @@ export function MedicalRecordClinicalTabs({
         tab="診察/治療プラン"
         activeTab={activeTab}
         mountedTabs={mountedTabs}
+        isLocked={isLocked}
       >
         <MedicalRecordDiagnosisPlan
           isNewRecord={isNewRecord}
@@ -117,7 +122,12 @@ export function MedicalRecordClinicalTabs({
           )}
         </div>
       </MedicalRecordMountedTab>
-      <MedicalRecordMountedTab tab="治療" activeTab={activeTab} mountedTabs={mountedTabs}>
+      <MedicalRecordMountedTab
+        tab="治療"
+        activeTab={activeTab}
+        mountedTabs={mountedTabs}
+        isLocked={isLocked}
+      >
         <MedicalRecordTreatment
           medicalRecordId={recordId ?? ""}
           isNewRecord={isNewRecord}

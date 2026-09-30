@@ -17,6 +17,8 @@ interface MedicalRecordVaccinationProps {
   petId?: string;
   medicalRecordId?: string;
   lstepStatus?: LstepStatus;
+  /** BUG-035: 確定済み/送信権限なし。記録追加・複写のみ無効化し履歴閲覧は残す。 */
+  isLocked?: boolean;
 }
 
 function LstepStatusBadge({ status }: { status: LstepStatus }) {
@@ -52,6 +54,7 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
   petId,
   medicalRecordId,
   lstepStatus,
+  isLocked = false,
 }: MedicalRecordVaccinationProps) {
   // FE-RC-008: 埋め込みフォームの状態と保存アクションは extract hook に集約。
   // 本体は useActionState の formAction を <form action> に渡すだけの薄い belt。
@@ -86,6 +89,9 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
     isLoading,
   } = useMedicalRecordVaccinationForm(petId, medicalRecordId);
 
+  // jsx-no-leaked-render: JSX 属性内の && 連鎖を避けて変数化
+  const canCreateVaccination = !!petId && !isLocked;
+
   return (
     <>
       {lstepStatus !== undefined ? (
@@ -97,68 +103,70 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
           包むため、ここに <form> を置くとネスト form となりブラウザが破棄する。form 要素は
           使わず、VaccinationForm 内の SubmitButton の formAction で送信する（EMR-208 と同型） */}
       <div className="grid grid-cols-1 gap-4 flex-1 min-h-0 overflow-y-auto relative pb-20 pr-1 lg:grid-cols-5">
-        {isAdding ? (
-          <VaccinationForm
-            formAction={formAction}
-            vaccineOptions={vaccineOptions}
-            vaccineName={vaccineName}
-            setVaccineName={setVaccineName}
-            date={date}
-            setDate={setDate}
-            supplemental={supplemental}
-            setSupplemental={setSupplemental}
-            lot1={lot1}
-            setLot1={setLot1}
-            lot2={lot2}
-            setLot2={setLot2}
-            lot3={lot3}
-            setLot3={setLot3}
-            lot4={lot4}
-            setLot4={setLot4}
-            nextScheduleType={nextScheduleType}
-            setNextScheduleType={setNextScheduleType}
-            nextDate={nextDate}
-            setNextDate={setNextDate}
-            remarks={remarks}
-            setRemarks={setRemarks}
-            fieldErrors={fieldErrors}
-          />
-        ) : historyItems.length > 0 ? (
-          <div className="lg:col-span-3 flex flex-col gap-3">
-            <ul
-              className={`divide-y ${C.borderLight} ${C.bgWhite} rounded-lg border ${C.borderMedium}`}
+        <fieldset disabled={isLocked} className="contents">
+          {isAdding ? (
+            <VaccinationForm
+              formAction={formAction}
+              vaccineOptions={vaccineOptions}
+              vaccineName={vaccineName}
+              setVaccineName={setVaccineName}
+              date={date}
+              setDate={setDate}
+              supplemental={supplemental}
+              setSupplemental={setSupplemental}
+              lot1={lot1}
+              setLot1={setLot1}
+              lot2={lot2}
+              setLot2={setLot2}
+              lot3={lot3}
+              setLot3={setLot3}
+              lot4={lot4}
+              setLot4={setLot4}
+              nextScheduleType={nextScheduleType}
+              setNextScheduleType={setNextScheduleType}
+              nextDate={nextDate}
+              setNextDate={setNextDate}
+              remarks={remarks}
+              setRemarks={setRemarks}
+              fieldErrors={fieldErrors}
+            />
+          ) : historyItems.length > 0 ? (
+            <div className="lg:col-span-3 flex flex-col gap-3">
+              <ul
+                className={`divide-y ${C.borderLight} ${C.bgWhite} rounded-lg border ${C.borderMedium}`}
+              >
+                {historyItems.map((item) => (
+                  <li key={item.id} className="px-3 py-2 text-sm">
+                    <div className={`font-medium ${C.text}`}>{item.name}</div>
+                    <div className={C.text60}>接種日 {item.date}</div>
+                  </li>
+                ))}
+              </ul>
+              {petId ? (
+                <Button type="button" variant="outline" size="sm" onClick={() => setIsAdding(true)}>
+                  記録を追加
+                </Button>
+              ) : null}
+            </div>
+          ) : (
+            <EmptyState
+              className="lg:col-span-3"
+              message="接種記録がありません。下の「記録を追加」ボタンから追加してください。"
             >
-              {historyItems.map((item) => (
-                <li key={item.id} className="px-3 py-2 text-sm">
-                  <div className={`font-medium ${C.text}`}>{item.name}</div>
-                  <div className={C.text60}>接種日 {item.date}</div>
-                </li>
-              ))}
-            </ul>
-            {petId ? (
-              <Button type="button" variant="outline" size="sm" onClick={() => setIsAdding(true)}>
-                記録を追加
-              </Button>
-            ) : null}
-          </div>
-        ) : (
-          <EmptyState
-            className="lg:col-span-3"
-            message="接種記録がありません。下の「記録を追加」ボタンから追加してください。"
-          >
-            {petId ? (
-              <Button type="button" variant="outline" size="sm" onClick={() => setIsAdding(true)}>
-                記録を追加
-              </Button>
-            ) : null}
-          </EmptyState>
-        )}
+              {petId ? (
+                <Button type="button" variant="outline" size="sm" onClick={() => setIsAdding(true)}>
+                  記録を追加
+                </Button>
+              ) : null}
+            </EmptyState>
+          )}
+        </fieldset>
 
         <VaccinationHistory
           historyItems={historyItems}
           isLoading={isLoading}
           onDuplicate={handleDuplicate}
-          canCreate={!!petId}
+          canCreate={canCreateVaccination}
         />
       </div>
     </>

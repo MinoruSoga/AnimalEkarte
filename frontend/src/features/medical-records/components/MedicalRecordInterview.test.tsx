@@ -80,6 +80,31 @@ describe("MedicalRecordInterview — form field semantics", () => {
   });
 });
 
+describe("MedicalRecordInterview — 編集ロック（BUG-035）", () => {
+  it("isLocked で編集2列は disabled fieldset に入り、履歴検索・閲覧はロック外で有効のまま", () => {
+    renderInterview({ isLocked: true });
+
+    const chiefComplaint = screen.getByRole("textbox", { name: "主訴詳細" });
+    const search = screen.getByRole("textbox", { name: "過去のカルテを検索" });
+
+    // 編集列は disabled fieldset の子孫として無効化される
+    expect(chiefComplaint).toBeDisabled();
+    expect(chiefComplaint.closest("fieldset")).toBeDisabled();
+    expect(screen.getByRole("textbox", { name: "治療方針" })).toBeDisabled();
+    expect(screen.getByRole("combobox", { name: "主訴区分" })).toBeDisabled();
+
+    // 読み取り専用の履歴検索はロック境界の外なので使える
+    expect(search.closest("fieldset")).toBeNull();
+    expect(search).not.toBeDisabled();
+    expect(screen.getByRole("link", { name: /前回カルテ/ })).toHaveAttribute(
+      "href",
+      "/medical-records/10",
+    );
+    // 履歴→現在カルテへの複写は mutation なのでロックする
+    expect(screen.getByRole("button", { name: "コピー" })).toBeDisabled();
+  });
+});
+
 describe("MedicalRecordInterview — 前回複写（コピー）", () => {
   it("未編集の既定値では コピー が確認なしで3項目へ即時適用される", async () => {
     const user = userEvent.setup();

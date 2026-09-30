@@ -25,6 +25,8 @@ interface MedicalRecordInterviewProps {
   setHistoryItems?: (items: InterviewHistoryItem[]) => void;
   /** BUG-035 residual: 問診臨床欄を content attribute で固定 */
   isFinalized?: boolean;
+  /** BUG-035: 確定済み/送信権限なし。編集2列のみ disabled fieldset に入れ、履歴検索はロック外に残す。 */
+  isLocked?: boolean;
   /** EMR-219: 前回複写適用時に元カルテの治療明細行も複写する（複写元カルテ id を引く） */
   onCopyRecordTreatments?: (sourceRecordId: string) => void;
 }
@@ -76,6 +78,7 @@ export const MedicalRecordInterview = memo(function MedicalRecordInterview({
   setTreatmentPolicy,
   historyItems,
   isFinalized = false,
+  isLocked = false,
   onCopyRecordTreatments,
 }: MedicalRecordInterviewProps) {
   const handleInsertTemplate = useCallback(
@@ -131,30 +134,33 @@ export const MedicalRecordInterview = memo(function MedicalRecordInterview({
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 lg:grid-rows-1 gap-3 flex-1 min-h-0 h-full">
-      {/* Left Column: 主訴情報 (Chief Complaint) */}
-      <InterviewChiefComplaint
-        className="col-span-1 lg:col-span-3 h-full"
-        chiefComplaint={chiefComplaint}
-        setChiefComplaint={setChiefComplaint}
-        chiefComplaintTypeId={chiefComplaintTypeId}
-        setChiefComplaintTypeId={setChiefComplaintTypeId}
-        templates={INTERVIEW_TEMPLATES}
-        onInsertTemplate={handleInsertTemplate}
-        isFinalized={isFinalized}
-      />
+      <fieldset disabled={isLocked} className="contents">
+        {/* Left Column: 主訴情報 (Chief Complaint) */}
+        <InterviewChiefComplaint
+          className="col-span-1 lg:col-span-3 h-full"
+          chiefComplaint={chiefComplaint}
+          setChiefComplaint={setChiefComplaint}
+          chiefComplaintTypeId={chiefComplaintTypeId}
+          setChiefComplaintTypeId={setChiefComplaintTypeId}
+          templates={INTERVIEW_TEMPLATES}
+          onInsertTemplate={handleInsertTemplate}
+          isFinalized={isFinalized}
+        />
 
-      {/* Middle Column: 治療方針 (Treatment Policy) */}
-      <InterviewTreatmentPolicy
-        className="col-span-1 lg:col-span-4 h-full"
-        treatmentPolicy={treatmentPolicy}
-        setTreatmentPolicy={setTreatmentPolicy}
-        isFinalized={isFinalized}
-      />
+        {/* Middle Column: 治療方針 (Treatment Policy) */}
+        <InterviewTreatmentPolicy
+          className="col-span-1 lg:col-span-4 h-full"
+          treatmentPolicy={treatmentPolicy}
+          setTreatmentPolicy={setTreatmentPolicy}
+          isFinalized={isFinalized}
+        />
+      </fieldset>
 
       {/* Right Column: カルテ履歴 (Medical History) */}
       <InterviewHistory
         className="col-span-1 lg:col-span-5 h-full"
         historyItems={resolvedHistoryItems}
+        isLocked={isLocked}
         onCopyItem={handleCopyItem}
       />
 

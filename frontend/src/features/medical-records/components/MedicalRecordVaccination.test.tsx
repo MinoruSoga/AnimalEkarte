@@ -17,8 +17,9 @@ vi.mock("@/hooks/use-create-vaccination", () => ({
   useCreateVaccination: () => ({ mutateAsync: mockCreateVaccination }),
 }));
 
-const { mockHistoryItems } = vi.hoisted(() => ({
+const { mockHistoryItems, mockVaccinationHistoryProps } = vi.hoisted(() => ({
   mockHistoryItems: { current: [] as Array<{ id: number; name: string; date: string }> },
+  mockVaccinationHistoryProps: { canCreate: undefined as boolean | undefined },
 }));
 
 vi.mock("../api/get-pet-vaccinations", () => ({
@@ -74,7 +75,10 @@ vi.mock("@/lib/jst-date", () => ({
 }));
 
 vi.mock("./VaccinationHistory", () => ({
-  VaccinationHistory: () => <div data-testid="vaccination-history" />,
+  VaccinationHistory: (props: { canCreate?: boolean }) => {
+    mockVaccinationHistoryProps.canCreate = props.canCreate;
+    return <div data-testid="vaccination-history" />;
+  },
 }));
 
 vi.mock("sonner", () => ({
@@ -88,15 +92,16 @@ beforeEach(() => {
   mockCreateVaccination.mockReset();
   mockCreateVaccination.mockResolvedValue({});
   mockHistoryItems.current = [];
+  mockVaccinationHistoryProps.canCreate = undefined;
   vi.mocked(toast.success).mockClear();
 });
 
 // EMR-212: 本番では常に外側 <form>（カルテ保存 action）内に描画されるため、
 // テストも同じ構造で包む。formAction ボタンは form 要素の submit 経由で発火する。
-function renderPanel(outerAction: (payload: FormData) => void = () => {}) {
+function renderPanel(outerAction: (payload: FormData) => void = () => {}, isLocked = false) {
   return render(
     <form action={outerAction}>
-      <MedicalRecordVaccination petId="1" medicalRecordId="99" />
+      <MedicalRecordVaccination petId="1" medicalRecordId="99" isLocked={isLocked} />
     </form>,
   );
 }
@@ -125,12 +130,16 @@ describe("MedicalRecordVaccination responsive layout", () => {
     renderPanel();
 
     openAddForm();
-    const layout = screen.getByTestId("vaccination-form").parentElement;
+    // 編集列は display:contents の lock fieldset 内、履歴はその外の兄弟（BUG-035）
+    const lockFieldset = screen.getByTestId("vaccination-form").closest("fieldset");
+    expect(lockFieldset).not.toBeNull();
+    const layout = lockFieldset!.parentElement;
     expect(layout).toHaveClass("grid-cols-1", "lg:grid-cols-5");
     expect(layout).not.toHaveClass("grid-cols-12");
     expect(layout).not.toHaveClass("min-h-[500px]");
     expect(layout).toHaveClass("min-h-0");
     expect(screen.getByTestId("vaccination-history").parentElement).toBe(layout);
+    expect(screen.getByTestId("vaccination-history").closest("fieldset")).toBeNull();
   });
 });
 
@@ -153,6 +162,21 @@ describe("MedicalRecordVaccination vaccination payload", () => {
         }),
       );
     });
+  });
+});
+
+describe("MedicalRecordVaccination 編集ロック（BUG-035）", () => {
+  it("isLocked では記録追加は disabled fieldset 内で無効化され、履歴は fieldset 外で複写不可になる", () => {
+    mockHistoryItems.current = [{ id: 11, name: "混合ワクチン", date: "26/8/1" }];
+    renderPanel(() => {}, true);
+
+    const addButton = screen.getByRole("button", { name: "記録を追加" });
+    expect(addButton).toBeDisabled();
+    expect(addButton.closest("fieldset")).toBeDisabled();
+
+    // 履歴パネル自体はロック外で描画されるが、複写は mutation なので canCreate=false
+    expect(screen.getByTestId("vaccination-history").closest("fieldset")).toBeNull();
+    expect(mockVaccinationHistoryProps.canCreate).toBe(false);
   });
 });
 
