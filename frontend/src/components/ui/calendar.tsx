@@ -24,7 +24,7 @@ function Calendar({
         dropdowns: "flex items-center gap-2",
         dropdown_root: "relative",
         dropdown:
-          "appearance-none rounded-md border border-input bg-background px-2 py-1.5 text-sm font-medium focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer",
+          "appearance-none rounded-md border border-input bg-background px-2 py-1.5 text-sm font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer",
         months_dropdown: "",
         years_dropdown: "",
         button_previous: cn(

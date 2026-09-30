@@ -7,6 +7,7 @@ import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
+import { ErrorFallback, LoadingFallback } from "@/components/shared/DataStates";
 import { C, ICON } from "@/lib/design-tokens";
 import { ResourceMasterTrimming } from "@/types/generated/models";
 import { MASTER_STATUS_FILTER, MASTER_TABLE_COL } from "../constants/styles";
@@ -41,7 +42,7 @@ const COLUMNS = [
 // ─── Page ───
 export function TrimmingCourseTypeSettings() {
   const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterTrimming);
-  const { data } = useGetTrimmingCourseTypes();
+  const { data, isPending, isError } = useGetTrimmingCourseTypes();
   const createMutation = useCreateTrimmingCourseType();
   const updateMutation = useUpdateTrimmingCourseType();
   const deleteMutation = useDeleteTrimmingCourseType();
@@ -120,7 +121,13 @@ export function TrimmingCourseTypeSettings() {
             onDirtyChange={handleDirtyChange}
           />
         )}
-      />
+      >
+        {isError ? (
+          <ErrorFallback message="コース種別の取得に失敗しました" />
+        ) : isPending ? (
+          <LoadingFallback />
+        ) : null}
+      </MasterCRUDPage>
       {dirty.discardDialog}
     </>
   );

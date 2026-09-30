@@ -1,3 +1,4 @@
+import { useId } from "react";
 import {
   Select,
   SelectContent,
@@ -5,6 +6,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { C } from "@/lib/design-tokens";
 import { VISIT_TYPE_OPTIONS } from "../routes/medical-record-form-model";
 
@@ -15,13 +17,16 @@ interface VisitTypeSelectProps {
 }
 
 export function VisitTypeSelect({ value, onChange, disabled = false }: VisitTypeSelectProps) {
+  const triggerId = useId();
   return (
     <div className="flex flex-col gap-0 min-w-[72px] shrink-0">
-      <span className={`text-xs ${C.text50}`}>来院種別</span>
+      <Label htmlFor={triggerId} className={`text-xs ${C.text50}`}>
+        来院種別
+      </Label>
       <Select value={value} onValueChange={onChange} disabled={disabled}>
         <SelectTrigger
-          aria-label="来院種別"
-          className={`h-8 text-sm border-none bg-transparent p-0 focus:ring-0 gap-1 ${C.text} font-medium`}
+          id={triggerId}
+          className={`h-8 text-sm border-none bg-transparent p-0 gap-1 ${C.text} font-medium focus-visible:ring-2 ${C.focusVisibleRingActionPrimary} focus-visible:ring-offset-1`}
         >
           <SelectValue />
         </SelectTrigger>

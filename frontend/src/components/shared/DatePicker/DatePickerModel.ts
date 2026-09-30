@@ -78,15 +78,17 @@ export function parseDateInput(input: string): Date | null {
   return date;
 }
 
+// 選択日/選択レンジは白文字塗りのため C.bgActionPrimarySolid コンボを使う
+// （bgBrand/bgActionPrimary(#038B94) 上の白文字は design-states.md §2.3 で禁止）。
 export const SINGLE_CALENDAR_CLASSES = {
-  selected: `${C.bgBrand} ${C.textOnBrand} ${C.hoverBgBrand} ${C.focusBgBrand} ${C.textOnBrand}`,
+  selected: `${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.activeBgActionPrimarySolid}`,
   today: `${C.bgPage} ${C.text}`,
   nav: "hidden",
   month_caption: "hidden",
 };
 
 export const RANGE_CALENDAR_CLASSES = {
-  selected: `${C.bgBrand} ${C.textOnBrand} ${C.hoverBgBrand} ${C.focusBgBrand} ${C.textOnBrand}`,
+  selected: `${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.activeBgActionPrimarySolid}`,
   today: `${C.bgPage} ${C.text}`,
   nav: "hidden",
 };

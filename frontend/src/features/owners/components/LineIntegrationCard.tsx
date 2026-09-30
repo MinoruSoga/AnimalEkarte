@@ -156,7 +156,7 @@ export function LineIntegrationCard({ ownerId, ownerName, owner }: LineIntegrati
               type="button"
               variant="ghost"
               size="sm"
-              className={`h-8 px-2 text-xs ${C.text40} ${C.hoverText60}`}
+              className={`h-8 px-2 text-xs ${C.text60} ${C.hoverText}`}
               onClick={() => state.setConfirmOptOutOpen(true)}
             >
               配信を停止する

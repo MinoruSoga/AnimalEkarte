@@ -22,7 +22,7 @@ export function SelectedPetContext({ pet }: SelectedPetContextProps) {
         <span className="text-xl font-semibold">{pet.name?.slice(0, 1) || "-"}</span>
       </div>
       <div className="min-w-0">
-        <p className={`text-2xs font-semibold ${C.textBrandDark}`}>選択中のペット</p>
+        <p className={`text-2xs font-semibold ${C.textActionPrimaryDark}`}>選択中のペット</p>
         <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
           <h2 className={`break-words text-xl font-semibold ${C.text}`}>{pet.name || "-"}</h2>
           {isDeceased ? (

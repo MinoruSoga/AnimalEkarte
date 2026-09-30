@@ -39,8 +39,14 @@ vi.mock("../../api/care-plan-items", () => ({
   useDeleteCarePlanItem: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
-function renderTab(petIsDeceased: boolean) {
-  return render(<CarePlanTab hospitalizationId="hosp-1" petIsDeceased={petIsDeceased} />);
+function renderTab(petIsDeceased: boolean, isDischarged = false) {
+  return render(
+    <CarePlanTab
+      hospitalizationId="hosp-1"
+      petIsDeceased={petIsDeceased}
+      isDischarged={isDischarged}
+    />,
+  );
 }
 
 describe("FE-RC-002: CarePlanTab — 死亡ペットの render 側防壁", () => {
@@ -65,5 +71,26 @@ describe("FE-RC-002: CarePlanTab — 死亡ペットの render 側防壁", () =>
     expect(
       screen.getByText("死亡したペットのため、ケアプランの追加・編集・削除はできません"),
     ).toBeInTheDocument();
+  });
+
+  // EMR-227: 退院済み入院への書込みは死亡ペットと同じ二重防壁（render 側 + callback 側）で閉じる。
+  it("isDischarged=true では追加・編集・削除操作を一切表示せず理由を表示する", () => {
+    renderTab(false, true);
+    expect(screen.queryByRole("button", { name: "編集" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "削除" })).not.toBeInTheDocument();
+    expect(screen.queryByText("新しいケアプラン項目を追加")).not.toBeInTheDocument();
+    expect(
+      screen.getByText("退院済みの入院のため、ケアプランの追加・編集・削除はできません"),
+    ).toBeInTheDocument();
+  });
+
+  it("petIsDeceased=true かつ isDischarged=true では死亡センチネルを優先する", () => {
+    renderTab(true, true);
+    expect(
+      screen.getByText("死亡したペットのため、ケアプランの追加・編集・削除はできません"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("退院済みの入院のため、ケアプランの追加・編集・削除はできません"),
+    ).not.toBeInTheDocument();
   });
 });

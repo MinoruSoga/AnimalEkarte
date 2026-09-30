@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C, ICON } from "@/lib/design-tokens";
 import { formatDate } from "@/lib/format/date";
@@ -208,12 +209,11 @@ export function EstimateSuccessorDialog({
             >
               理由（必須）
             </label>
-            <textarea
+            <Textarea
               id="successor-reason"
               value={successorReason}
               onChange={(e) => onReasonChange(e.target.value)}
               rows={4}
-              className={`w-full rounded-md border ${C.borderLight} p-2 text-sm ${C.text}`}
               placeholder="訂正理由を入力"
               disabled={successorBusy}
             />

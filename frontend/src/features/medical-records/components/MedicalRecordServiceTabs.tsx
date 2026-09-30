@@ -50,6 +50,7 @@ export function MedicalRecordServiceTabs({
             medicalRecordId={recordId ?? ""}
             lstepStatus={lstepStatus}
             isFinalized={isFinalized}
+            isPetDeceased={selectedPet.status === "死亡"}
           />
         </MedicalRecordSaveRequired>
       </MedicalRecordMountedTab>
@@ -103,6 +104,7 @@ export function MedicalRecordServiceTabs({
           petId={selectedPet.id}
           ownerDiscountRate={ownerDiscountRate}
           recordClinicId={recordClinicId}
+          isPetDeceased={selectedPet.status === "死亡"}
         />
       </MedicalRecordMountedTab>
     </>

@@ -13,7 +13,7 @@ import { BarChart2, Table2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
-import { ErrorFallback } from "@/components/shared/DataStates";
+import { ErrorFallback, LoadingFallback } from "@/components/shared/DataStates";
 import { usePermission } from "@/hooks/use-permission";
 import { C, ICON } from "@/lib/design-tokens";
 import { jstDateTimeLocalToISOString } from "@/lib/jst-date";
@@ -243,11 +243,7 @@ export const VitalsTab = memo(function VitalsTab({
   }, [deletingId, deleteVital]);
 
   if (isLoading) {
-    return (
-      <div className={`flex items-center justify-center h-48 text-sm ${C.text40}`}>
-        読み込み中...
-      </div>
-    );
+    return <LoadingFallback />;
   }
 
   if (isError) return <ErrorFallback />;
@@ -320,6 +316,7 @@ function VitalsViewToggle({ showGraph, onChange }: VitalsViewToggleProps) {
         <button
           type="button"
           onClick={() => onChange(false)}
+          aria-pressed={!showGraph}
           className={[
             "flex items-center gap-1.5 px-3 min-h-11 text-xs font-medium transition-colors",
             !showGraph
@@ -334,6 +331,7 @@ function VitalsViewToggle({ showGraph, onChange }: VitalsViewToggleProps) {
         <button
           type="button"
           onClick={() => onChange(true)}
+          aria-pressed={showGraph}
           className={[
             "flex items-center gap-1.5 px-3 min-h-11 text-xs font-medium transition-colors",
             showGraph ? `${C.bgWhite} ${C.text}` : `${C.text60} ${C.hoverBgLight}`,

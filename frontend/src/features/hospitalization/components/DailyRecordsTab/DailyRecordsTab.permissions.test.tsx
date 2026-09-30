@@ -132,6 +132,20 @@ vi.mock("@/components/ui/separator", () => ({ Separator: () => null }));
 vi.mock("@/components/shared/DataStates", () => ({
   EmptyState: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
+// @/components/ui/button を本ファイルではモックしているため、実物の ConfirmDialog
+// （alert-dialog 経由で buttonVariants を参照）は描画できない。境界テストの焦点は
+// 「削除 mutation が確認後にのみ発火する」ことなので、確認ボタンだけを再現する。
+vi.mock("@/components/shared/ConfirmDialog/ConfirmDialog", () => ({
+  ConfirmDialog: ({
+    open,
+    onConfirm,
+    confirmLabel,
+  }: {
+    open: boolean;
+    onConfirm: () => void;
+    confirmLabel?: string;
+  }) => (open ? <button onClick={onConfirm}>{confirmLabel ?? "確認"}</button> : null),
+}));
 vi.mock("@/components/ui/button", () => ({
   Button: ({ children, onClick }: { children: ReactNode; onClick?: () => void }) => {
     mocks.dailyRecordCallback = onClick;
@@ -172,12 +186,17 @@ vi.mock("./DailyStaffNotesSection", () => ({
 function renderChildMutationBoundaries() {
   return render(
     <>
-      <CarePlanTab hospitalizationId="hospitalization-1" petIsDeceased={false} />
+      <CarePlanTab
+        hospitalizationId="hospitalization-1"
+        petIsDeceased={false}
+        isDischarged={false}
+      />
       <DailyRecordsTab
         hospitalizationId="hospitalization-1"
         admissionDate="2026-07-01"
         dischargeDate="2026-07-14"
         petIsDeceased={false}
+        isDischarged={false}
       />
     </>,
   );
@@ -224,12 +243,14 @@ function SameCommitRevocationHarness() {
       <CarePlanTab
         hospitalizationId={revoked ? "hospitalization-2" : "hospitalization-1"}
         petIsDeceased={false}
+        isDischarged={false}
       />
       <DailyRecordsTab
         hospitalizationId={revoked ? "hospitalization-2" : "hospitalization-1"}
         admissionDate="2026-07-01"
         dischargeDate="2026-07-14"
         petIsDeceased={false}
+        isDischarged={false}
       />
     </>
   );
@@ -262,12 +283,13 @@ describe("hospitalization child mutation permission boundaries", () => {
     mocks.dailyRecordIsError = true;
     render(
       <>
-        <CarePlanTab hospitalizationId="hospitalization-1" petIsDeceased />
+        <CarePlanTab hospitalizationId="hospitalization-1" petIsDeceased isDischarged={false} />
         <DailyRecordsTab
           hospitalizationId="hospitalization-1"
           admissionDate="2026-07-01"
           dischargeDate="2026-07-14"
           petIsDeceased
+          isDischarged={false}
         />
       </>,
     );
@@ -302,6 +324,47 @@ describe("hospitalization child mutation permission boundaries", () => {
     expect(mocks.createStaffNote).not.toHaveBeenCalled();
   });
 
+  // EMR-227: 退院済み入院への書込みも死亡ペットと同じく callback 側で拒否する。
+  it("退院済み入院の場合はcare-planとdaily-recordの全mutationを拒否する", () => {
+    mocks.dailyRecordIsError = true;
+    render(
+      <>
+        <CarePlanTab hospitalizationId="hospitalization-1" petIsDeceased={false} isDischarged />
+        <DailyRecordsTab
+          hospitalizationId="hospitalization-1"
+          admissionDate="2026-07-01"
+          dischargeDate="2026-07-14"
+          petIsDeceased={false}
+          isDischarged
+        />
+      </>,
+    );
+
+    act(() => {
+      mocks.carePlanCreateCallback?.({
+        type: "instruction",
+        name: "追加",
+        timing: ["morning"],
+      });
+      mocks.carePlanEditCallback?.("item-1");
+      mocks.carePlanDeleteCallback?.("item-1");
+      mocks.vitalCallback?.({ time: "10:00:00", temperature: 38.5 });
+      mocks.careLogCallback?.({ time: "10:01:00", type: "food" });
+      mocks.staffNoteCallback?.({ time: "10:02:00", content: "メモ" });
+      mocks.dailyRecordCallback?.();
+    });
+
+    // render 側で操作要素が出ないため削除・編集 callback 自体が渡されない
+    expect(screen.queryByRole("button", { name: "削除" })).not.toBeInTheDocument();
+    expect(mocks.createCarePlanItem).not.toHaveBeenCalled();
+    expect(mocks.updateCarePlanItem).not.toHaveBeenCalled();
+    expect(mocks.deleteCarePlanItem).not.toHaveBeenCalled();
+    expect(mocks.createDailyRecord).not.toHaveBeenCalled();
+    expect(mocks.createVital).not.toHaveBeenCalled();
+    expect(mocks.createCareLog).not.toHaveBeenCalled();
+    expect(mocks.createStaffNote).not.toHaveBeenCalled();
+  });
+
   it("permission revocation blocks captured care-plan callbacks", () => {
     const view = renderChildMutationBoundaries();
     const createCallback = mocks.carePlanCreateCallback;
@@ -318,12 +381,17 @@ describe("hospitalization child mutation permission boundaries", () => {
     mocks.canDelete = false;
     view.rerender(
       <>
-        <CarePlanTab hospitalizationId="hospitalization-2" petIsDeceased={false} />
+        <CarePlanTab
+          hospitalizationId="hospitalization-2"
+          petIsDeceased={false}
+          isDischarged={false}
+        />
         <DailyRecordsTab
           hospitalizationId="hospitalization-2"
           admissionDate="2026-07-01"
           dischargeDate="2026-07-14"
           petIsDeceased={false}
+          isDischarged={false}
         />
       </>,
     );
@@ -360,6 +428,13 @@ describe("hospitalization child mutation permission boundaries", () => {
     const updateCallback = mocks.carePlanUpdateCallback;
     act(() => {
       updateCallback?.({ type: "instruction", name: "更新", timing: ["morning"] });
+    });
+
+    // EMR-227: 削除は ConfirmDialog 経由。callback 呼び出しは確認ダイアログを開くだけで、
+    // mutation は確認ボタンの onConfirm（再検査済み境界）でのみ発火する。
+    expect(mocks.deleteCarePlanItem).not.toHaveBeenCalled();
+    act(() => {
+      screen.getByRole("button", { name: "削除" }).click();
     });
 
     await waitFor(() => {
@@ -399,6 +474,7 @@ describe("hospitalization child mutation permission boundaries", () => {
         admissionDate="2026-07-01"
         dischargeDate="2026-07-14"
         petIsDeceased={false}
+        isDischarged={false}
       />,
     );
 
@@ -418,6 +494,7 @@ describe("hospitalization child mutation permission boundaries", () => {
         admissionDate="2026-07-01"
         dischargeDate="2026-07-14"
         petIsDeceased={false}
+        isDischarged={false}
       />,
     );
     const dailyRecordCallback = mocks.dailyRecordCallback;
@@ -429,6 +506,7 @@ describe("hospitalization child mutation permission boundaries", () => {
         admissionDate="2026-07-01"
         dischargeDate="2026-07-14"
         petIsDeceased={false}
+        isDischarged={false}
       />,
     );
     act(() => dailyRecordCallback?.());

@@ -3,6 +3,7 @@ import { FileText } from "lucide-react";
 import { toast } from "sonner";
 
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
+import { FieldHelp } from "@/components/shared/FieldHelp";
 import { handleApiError } from "@/lib/handle-api-error";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { useGetCompany, useUpdateCompany } from "@/hooks/use-company";
@@ -43,9 +44,15 @@ const CompanyInvoiceForm = memo(function CompanyInvoiceForm({
   return (
     <form action={formAction} className="flex items-end gap-3">
       <fieldset disabled={!canEdit} className="flex-1 border-0 p-0 m-0 min-w-0">
-        <label htmlFor="invoice_registration_number" className={STYLE.formLabel}>
-          インボイス登録番号
-        </label>
+        <div className="flex items-center gap-1">
+          <label htmlFor="invoice_registration_number" className={STYLE.formLabel}>
+            インボイス登録番号
+          </label>
+          <FieldHelp
+            label="インボイス登録番号"
+            content="適格請求書発行事業者の登録番号（T＋13桁）です。領収書・会計伝票に記載されます。"
+          />
+        </div>
         <input
           id="invoice_registration_number"
           name="invoice_registration_number"

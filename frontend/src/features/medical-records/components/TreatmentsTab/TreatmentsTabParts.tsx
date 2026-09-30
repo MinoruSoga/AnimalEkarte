@@ -146,7 +146,8 @@ export function TreatmentAddControls({
         <select
           value={addItemType}
           onChange={(event) => onItemTypeChange(event.target.value as TreatmentItemType)}
-          className={`h-9 text-sm rounded-xxs border ${C.borderMedium} ${C.bgWhite} px-2 ${C.text}`}
+          aria-label="種別"
+          className={`h-9 text-sm rounded-xxs border ${C.borderMedium} ${C.bgWhite} px-2 ${C.text} outline-none ${C.focusBorderAccent} focus-visible:ring-2 ${C.focusRingAccent40}`}
         >
           {ITEM_TYPE_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
@@ -158,7 +159,8 @@ export function TreatmentAddControls({
           <select
             value={addAdminRoute}
             onChange={(event) => onAdminRouteChange(event.target.value)}
-            className={`h-9 text-sm rounded-xxs border ${C.borderMedium} ${C.bgWhite} px-2 ${C.text}`}
+            aria-label="投与方法"
+            className={`h-9 text-sm rounded-xxs border ${C.borderMedium} ${C.bgWhite} px-2 ${C.text} outline-none ${C.focusBorderAccent} focus-visible:ring-2 ${C.focusRingAccent40}`}
           >
             {ADMIN_ROUTE_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -178,11 +180,11 @@ export function TreatmentAddControls({
             if (event.key === "Escape") onCancel();
           }}
           aria-label="治療内容"
-          className={`flex-1 h-9 text-sm border ${C.borderMedium} rounded-xxs px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent}`}
+          className={`flex-1 h-9 text-sm border ${C.borderMedium} rounded-xxs px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent} focus-visible:ring-2 ${C.focusRingAccent40}`}
         />
         <Button
           size="sm"
-          className={`${C.bgActionPrimary} ${C.hoverBgActionPrimary} ${C.hoverTextOnActionPrimary} ${C.textOnActionPrimary} rounded-full border-transparent transition-colors h-8 text-xs px-3`}
+          className={`${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimarySolid} ${C.activeTextOnActionPrimary} rounded-full border-transparent transition-colors h-8 text-xs px-3`}
           onClick={onSubmit}
           disabled={isPending || !addContent.trim()}
         >

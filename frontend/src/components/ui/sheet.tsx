@@ -65,7 +65,7 @@ function SheetContent({ className, children, side = "right", ref, ...props }: Sh
         {...props}
       >
         {children}
-        <DialogPrimitive.Close className="absolute top-1.5 right-1.5 flex min-h-11 min-w-11 items-center justify-center rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">
+        <DialogPrimitive.Close className="absolute top-1.5 right-1.5 flex min-h-11 min-w-11 items-center justify-center rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:pointer-events-none">
           <XIcon className="size-4" />
           <span className="sr-only">閉じる</span>
         </DialogPrimitive.Close>

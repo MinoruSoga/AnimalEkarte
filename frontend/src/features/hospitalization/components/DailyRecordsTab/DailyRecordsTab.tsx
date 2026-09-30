@@ -25,7 +25,10 @@ import {
   useCreateCareLog,
   useCreateStaffNote,
 } from "../../api/daily-records";
-import { HOSPITALIZATION_DECEASED_BLOCK_MESSAGE } from "../../constants";
+import {
+  HOSPITALIZATION_DECEASED_BLOCK_MESSAGE,
+  HOSPITALIZATION_DISCHARGED_BLOCK_MESSAGE,
+} from "../../constants";
 
 // Types
 import type {
@@ -39,6 +42,7 @@ interface DailyRecordsTabProps {
   admissionDate: string; // YYYY-MM-DD
   dischargeDate: string; // YYYY-MM-DD (today if not discharged)
   petIsDeceased: boolean;
+  isDischarged: boolean;
 }
 
 function getTodayStr(): string {
@@ -56,16 +60,22 @@ export const DailyRecordsTab = memo(function DailyRecordsTab({
   admissionDate,
   dischargeDate,
   petIsDeceased,
+  isDischarged,
 }: DailyRecordsTabProps) {
   const { canCreate } = usePermission("hospitalization");
   const canCreateRef = useRef(canCreate);
   const petIsDeceasedRef = useRef(petIsDeceased);
+  const isDischargedRef = useRef(isDischarged);
   useLayoutEffect(() => {
     canCreateRef.current = canCreate;
     petIsDeceasedRef.current = petIsDeceased;
-  }, [canCreate, petIsDeceased]);
+    isDischargedRef.current = isDischarged;
+  }, [canCreate, petIsDeceased, isDischarged]);
   const isMutationAllowed = useCallback(
-    () => canCreateRef.current === true && petIsDeceasedRef.current !== true,
+    () =>
+      canCreateRef.current === true &&
+      petIsDeceasedRef.current !== true &&
+      isDischargedRef.current !== true,
     [],
   );
   const { user } = useAuth();
@@ -152,9 +162,11 @@ export const DailyRecordsTab = memo(function DailyRecordsTab({
   const vitals = record?.vital_records ?? [];
   const careLogs = record?.care_logs ?? [];
   const staffNotes = record?.staff_notes ?? [];
-  // 臨床安全境界1: 死亡ペットは render 側でも追加操作を出さない（callback 側は isMutationAllowed で維持）。
-  const canCreateNow = canCreate && !petIsDeceased;
+  // 臨床安全境界1: 死亡ペット/退院済み入院は render 側でも追加操作を出さない（callback 側は isMutationAllowed で維持）。
+  const canCreateNow = canCreate && !petIsDeceased && !isDischarged;
   const showDeceasedBlockNotice = canCreate && petIsDeceased;
+  // 死亡と退院済みが両立する場合は死亡センチネルを優先する。
+  const showDischargedBlockNotice = canCreate && !petIsDeceased && isDischarged;
 
   return (
     <div className="flex flex-col gap-4">
@@ -166,7 +178,7 @@ export const DailyRecordsTab = memo(function DailyRecordsTab({
       />
 
       {isLoading ? (
-        <div className={`flex items-center justify-center py-10 ${C.text40}`}>
+        <div className={`flex items-center justify-center py-10 ${C.text60}`}>
           <Loader2 className={`${ICON.page} animate-spin mr-2`} />
           <span className="text-sm">読み込み中...</span>
         </div>
@@ -175,7 +187,6 @@ export const DailyRecordsTab = memo(function DailyRecordsTab({
           {canCreateNow ? (
             <Button
               variant="outline"
-              size="sm"
               onClick={handleCreateDailyRecord}
               disabled={isCreateRecordPending}
               className="gap-1.5"
@@ -191,6 +202,10 @@ export const DailyRecordsTab = memo(function DailyRecordsTab({
             <p role="status" className={`text-xs ${C.text50}`}>
               {HOSPITALIZATION_DECEASED_BLOCK_MESSAGE.DAILY_RECORD}
             </p>
+          ) : showDischargedBlockNotice ? (
+            <p role="status" className={`text-xs ${C.text50}`}>
+              {HOSPITALIZATION_DISCHARGED_BLOCK_MESSAGE.DAILY_RECORD}
+            </p>
           ) : null}
         </EmptyState>
       ) : (
@@ -198,6 +213,10 @@ export const DailyRecordsTab = memo(function DailyRecordsTab({
           {showDeceasedBlockNotice ? (
             <p role="status" className={`text-xs ${C.text50}`}>
               {HOSPITALIZATION_DECEASED_BLOCK_MESSAGE.DAILY_RECORD}
+            </p>
+          ) : showDischargedBlockNotice ? (
+            <p role="status" className={`text-xs ${C.text50}`}>
+              {HOSPITALIZATION_DISCHARGED_BLOCK_MESSAGE.DAILY_RECORD}
             </p>
           ) : null}
 

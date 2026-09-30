@@ -19,7 +19,7 @@ export function PrimaryButton({
   const baseClassName =
     colorVariant === "brand"
       ? `${C.bgBrandIdentity} ${C.textOnBrandIdentity} ${C.hoverBgBrandIdentity} ${C.hoverTextOnBrandIdentity} ${C.activeBgBrandIdentity} ${C.activeTextOnBrandIdentity} h-11 text-xl font-bold shadow-none rounded-full border-transparent`
-      : `${C.bgActionPrimary} ${C.textOnActionPrimary} ${C.hoverBgActionPrimary} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimary} ${C.activeTextOnActionPrimary} h-11 text-base shadow-none rounded-full border-transparent`;
+      : `${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimarySolid} ${C.activeTextOnActionPrimary} h-11 text-base shadow-none rounded-full border-transparent`;
 
   return <Button className={`${baseClassName} ${className || ""}`} {...props} />;
 }

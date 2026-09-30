@@ -197,8 +197,9 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
                                 ? `選択: ${pet.name} (ID ${pet.id})`
                                 : `状態不明・選択不可: ${pet.name} (ID ${pet.id})`
                       }
-                      // docs/spec/design-system.md button-primary: brand と同じ primary teal + pill
-                      className={`h-11 min-w-11 gap-1 ${isSelectable ? `${C.bgActionPrimary} ${C.textOnActionPrimary} ${C.hoverBgActionPrimary} ${C.hoverTextOnActionPrimary} rounded-full` : C.textStatusGray} text-sm px-4`}
+                      // docs/spec/design-system.md button-primary: pill。白文字塗りは
+                      // design-states.md §2.3 の Solid コンボ（#027078 系）を使う。
+                      className={`h-11 min-w-11 gap-1 ${isSelectable ? `${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} rounded-full` : C.textStatusGray} text-sm px-4`}
                       onClick={() => onSelect(pet)}
                     >
                       {isSelectable ? (
@@ -226,9 +227,9 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
                       ペット一覧の取得に失敗しました
                     </span>
                   ) : isLoading ? (
-                    "ペット一覧を読み込み中です"
+                    <span role="status">ペット一覧を読み込み中です</span>
                   ) : (
-                    "該当するペットが見つかりません"
+                    <span role="status">該当するペットが見つかりません</span>
                   )}
                 </TableCell>
               </TableRow>

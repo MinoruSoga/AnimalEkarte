@@ -39,7 +39,7 @@ vi.mock("../../api/daily-records", () => ({
   useCreateStaffNote: () => ({ mutateAsync: vi.fn() }),
 }));
 
-function renderTab(petIsDeceased: boolean) {
+function renderTab(petIsDeceased: boolean, isDischarged = false) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
@@ -48,6 +48,7 @@ function renderTab(petIsDeceased: boolean) {
         admissionDate="2026-07-01"
         dischargeDate="2026-07-14"
         petIsDeceased={petIsDeceased}
+        isDischarged={isDischarged}
       />
     </QueryClientProvider>,
   );
@@ -71,6 +72,15 @@ describe("FE-RC-002: DailyRecordsTab — 死亡ペットの render 側防壁", (
     expect(screen.queryByRole("button", { name: "追加" })).not.toBeInTheDocument();
     expect(
       screen.getByText("死亡したペットのため、デイリーカルテの記録・追加はできません"),
+    ).toBeInTheDocument();
+  });
+
+  // EMR-227: 退院済み入院への書込みは死亡ペットと同じ二重防壁（render 側 + callback 側）で閉じる。
+  it("isDischarged=true では追加ボタンを一切表示せず理由を表示する", () => {
+    renderTab(false, true);
+    expect(screen.queryByRole("button", { name: "追加" })).not.toBeInTheDocument();
+    expect(
+      screen.getByText("退院済みの入院のため、デイリーカルテの記録・追加はできません"),
     ).toBeInTheDocument();
   });
 });

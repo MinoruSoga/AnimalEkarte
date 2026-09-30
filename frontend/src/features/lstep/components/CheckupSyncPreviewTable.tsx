@@ -48,7 +48,7 @@ const CheckupSyncPreviewRow = memo(function CheckupSyncPreviewRow({
             LINE連携済
           </span>
         ) : (
-          <span className={`text-sm ${C.textStatusGray}`}>未連携</span>
+          <span className={`text-sm ${C.textBadgeGray}`}>未連携</span>
         )}
       </td>
       <td className={`${STYLE.tableCell} ${C.danger}`}>{owner.exclusion_reason ?? null}</td>
@@ -131,7 +131,7 @@ export function CheckupSyncPreviewTable({
           合計 <span className={`font-semibold ${C.text}`}>{totalCount}件</span>
         </span>
         <span>
-          送信可能 <span className={`font-semibold ${C.textStatusGreen}`}>{eligibleCount}件</span>
+          送信可能 <span className={`font-semibold ${C.textBadgeGreen}`}>{eligibleCount}件</span>
         </span>
         {lineUnlinkedCount > 0 ? (
           <span className={C.text50}>LINE未連携 {lineUnlinkedCount}件</span>

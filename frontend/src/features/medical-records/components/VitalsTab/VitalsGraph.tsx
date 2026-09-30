@@ -164,6 +164,7 @@ export const VitalsGraph = memo(function VitalsGraph({ vitals }: VitalsGraphProp
               key={m.key}
               type="button"
               onClick={() => toggleMetric(m.key)}
+              aria-pressed={active}
               className={[
                 "flex items-center gap-1.5 px-3 min-h-11 rounded-full text-xs font-medium border transition-colors",
                 active
@@ -185,7 +186,7 @@ export const VitalsGraph = memo(function VitalsGraph({ vitals }: VitalsGraphProp
 
       {/* グラフ本体 */}
       {chartData.length < 2 ? (
-        <div className={`flex items-center justify-center h-40 text-sm ${C.text40}`}>
+        <div className={`flex items-center justify-center h-40 text-sm ${C.text60}`}>
           グラフを表示するには2件以上のバイタル記録が必要です
         </div>
       ) : (

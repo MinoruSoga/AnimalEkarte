@@ -132,7 +132,7 @@ export function PetPhysicalSection({
             }
           }}
         >
-          <SelectTrigger className={INPUT_CLS}>
+          <SelectTrigger id="acquisitionType" className={INPUT_CLS}>
             <SelectValue placeholder="選択してください" />
           </SelectTrigger>
           <SelectContent>{ACQUISITION_SELECT_ITEMS}</SelectContent>

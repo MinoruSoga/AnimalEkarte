@@ -41,7 +41,7 @@ interface BriefingFieldProps {
 
 export function BriefingField({ label, value, alert = false }: BriefingFieldProps) {
   return (
-    <div className={`min-w-0 border-l-2 pl-1.5 ${alert ? C.borderDanger : C.borderBrand}`}>
+    <div className={`min-w-0 border-l-2 pl-1.5 ${alert ? C.borderDanger : C.borderActionPrimary}`}>
       <span className={`block text-2xs leading-snug font-semibold ${C.text50}`}>{label}</span>
       <strong
         className={`mt-0.5 block break-words text-sm leading-snug font-medium ${alert ? C.danger : C.text}`}

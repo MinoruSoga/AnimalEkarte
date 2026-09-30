@@ -35,7 +35,7 @@ export function SupportPanel({ onClose }: SupportPanelProps) {
           type="button"
           onClick={onClose}
           aria-label="サポートを閉じる"
-          className={`${STYLE.iconBtn32} ${C.text45} ${C.hoverBgMedium}`}
+          className={`${STYLE.iconBtn32} ${C.text60} ${C.hoverBgMedium}`}
         >
           <X className="size-5" />
         </button>

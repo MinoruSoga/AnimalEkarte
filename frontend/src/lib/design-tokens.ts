@@ -787,7 +787,7 @@ export const STYLE = {
   tableEmpty:
     `text-center py-12 ${C.text70} text-base`,
   tableEmptySm:
-    `text-center py-12 ${C.text40} text-sm`,
+    `text-center py-12 ${C.text60} text-sm`,
   tableActionBtn:
     `h-11 w-11 ${C.text60} ${C.hoverText}`,
 
@@ -803,7 +803,7 @@ export const STYLE = {
   paginationBtn:
     `h-8 w-8 ${C.text60} ${C.hoverBgPageHalf} rounded-xs`,
   paginationBtnActive:
-    `h-8 w-8 ${C.bgBrand} ${C.textOnBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} text-base rounded-xs`,
+    `h-8 w-8 ${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} text-base rounded-xs`,
   paginationInfo:
     `text-base ${C.text50}`,
 

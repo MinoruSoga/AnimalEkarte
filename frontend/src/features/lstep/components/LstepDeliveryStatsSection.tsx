@@ -59,7 +59,7 @@ export function DeliveryStatsSection({
 
       <div className={`border ${C.borderLight} rounded-xs ${C.bgWhite} p-4`}>
         {isLoading ? (
-          <p className={`text-sm ${C.text40} py-8 text-center`}>読み込み中...</p>
+          <p className={`text-sm ${C.text60} py-8 text-center`}>読み込み中...</p>
         ) : isError ? (
           <p className={`text-sm ${C.danger} py-8 text-center`}>データの取得に失敗しました</p>
         ) : (
@@ -75,7 +75,7 @@ export function DeliveryStatsSection({
 
 function DeliveryStatsTable({ rows }: { rows: CrossRow[] }) {
   if (rows.length === 0) {
-    return <p className={`text-sm ${C.text40} py-8 text-center`}>この月のデータはありません</p>;
+    return <p className={`text-sm ${C.text60} py-8 text-center`}>この月のデータはありません</p>;
   }
 
   return (

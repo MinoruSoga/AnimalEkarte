@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { useSortableList } from "@/hooks/use-sortable-list";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { Building2 } from "lucide-react";
+import { ErrorFallback, LoadingFallback } from "@/components/shared/DataStates";
 import { C, ICON } from "@/lib/design-tokens";
 import { MASTER_STATUS_FILTER } from "../constants/styles";
 import { useMasterCRUD } from "../hooks/use-master-crud";
@@ -25,7 +26,7 @@ import { usePermission } from "@/hooks/use-permission";
 // ─── Page ───
 export function CageSettings() {
   const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterHospitalization);
-  const { data } = useGetAllCages();
+  const { data, isPending, isError } = useGetAllCages();
   const createMutation = useCreateCage();
   const updateMutation = useUpdateCage();
   const deleteMutation = useDeleteCage();
@@ -96,16 +97,22 @@ export function CageSettings() {
           />
         )}
       >
-        <CageSortableTable
-          items={sortedCages}
-          sensors={sensors}
-          activeId={activeId}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-          onDragCancel={handleDragCancel}
-          canEdit={canEdit}
-          onEdit={crud.handleEdit}
-        />
+        {isError ? (
+          <ErrorFallback message="ケージの取得に失敗しました" />
+        ) : isPending ? (
+          <LoadingFallback />
+        ) : (
+          <CageSortableTable
+            items={sortedCages}
+            sensors={sensors}
+            activeId={activeId}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            onDragCancel={handleDragCancel}
+            canEdit={canEdit}
+            onEdit={crud.handleEdit}
+          />
+        )}
       </MasterCRUDPage>
       {dirty.discardDialog}
     </>

@@ -110,7 +110,7 @@ describe("ReservationTypeAvailableSlotsCalendar", () => {
     expect(within(cell).getByText("09:45")).toBeInTheDocument();
   });
 
-  it("日付クリックで編集パネルが開き、特定日枠を削除できる", async () => {
+  it("日付クリックで編集パネルが開き、確認ダイアログ経由で特定日枠を削除できる", async () => {
     let deletedId: string | null = null;
     server.use(
       http.get("/api/v1/masters/reservation-types/5/available-slots", () =>
@@ -133,7 +133,12 @@ describe("ReservationTypeAvailableSlotsCalendar", () => {
 
     expect(await screen.findByText("6月15日（月）")).toBeInTheDocument();
 
+    // 直行削除ではなく ConfirmDialog が開き、確認ボタンで DELETE が発行される
     await user.click(screen.getByRole("button", { name: "14:00の枠を削除" }));
+    expect(deletedId).toBeNull();
+
+    const dialog = await screen.findByRole("alertdialog");
+    await user.click(within(dialog).getByRole("button", { name: "削除" }));
 
     await waitFor(() => {
       expect(deletedId).toBe("2");

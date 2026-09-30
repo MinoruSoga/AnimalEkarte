@@ -12,8 +12,12 @@ import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { DataTableRowLink } from "@/components/shared/DataTable/DataTableRowLink";
 import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
 import { RowActionButton } from "@/components/shared/RowActionButton";
-import { getHospitalizationStatusColor, getHospitalizationTypeColor } from "@/lib/status-helpers";
-import { C, STYLE } from "@/lib/design-tokens";
+import {
+  getHospitalizationStatusColor,
+  getHospitalizationTypeColor,
+  getPetStatusColor,
+} from "@/lib/status-helpers";
+import { STYLE } from "@/lib/design-tokens";
 import { formatDate } from "@/lib/format/date";
 import { paths } from "@/config/paths";
 
@@ -53,7 +57,8 @@ export const HospitalizationListView = memo(function HospitalizationListView({
       data={hospitalizations}
       emptyMessage="入院データがありません"
       renderRow={(h) => (
-        <DataTableRow key={h.id} className={h.petIsDeceased ? "opacity-40 cursor-default" : ""}>
+        // EMR-227: 死亡ペット行は opacity で薄めず、死亡センチネルバッジのみで識別する（行の可読性維持）
+        <DataTableRow key={h.id}>
           <TableCell className={`${STYLE.tableCellMono}`}>
             {h.petIsDeceased ? (
               h.hospitalizationNo
@@ -94,7 +99,8 @@ export const HospitalizationListView = memo(function HospitalizationListView({
           </TableCell>
           <TableCell className="text-right">
             {h.petIsDeceased ? (
-              <span className={`text-xs ${C.text40} font-medium`}>死亡</span>
+              // EMR-227: 死亡センチネルは低コントラスト text40 ではなく StatusBadge で明示する
+              <StatusBadge colorClass={getPetStatusColor("死亡")}>死亡</StatusBadge>
             ) : canEdit ? (
               <RowActionButton
                 onClick={() => onNavigate(h.id)}

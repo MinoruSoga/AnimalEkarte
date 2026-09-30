@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { EmptyState } from "@/components/shared/DataStates";
+import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { TableCell, TableHead } from "@/components/ui/table";
 import { C, STYLE } from "@/lib/design-tokens";
 import { formatCurrency } from "@/lib/format/number";
@@ -8,8 +9,8 @@ import type { DailyReportDetail } from "../api/get-monthly-report";
 interface DailyBreakdownTableProps {
   details: DailyReportDetail[];
   /**
-   * 締めのある日次行をクリック/Enter で締め履歴へドリルダウンさせるコールバック。
-   * 省略時（締め閲覧権限なし等）は行を非インタラクティブにする。
+   * 締めのある日次行の日付ボタンから締め履歴へドリルダウンさせるコールバック。
+   * 省略時（締め閲覧権限なし等）は日付を非インタラクティブにする。
    */
   onDrillDown?: (date: string) => void;
 }
@@ -42,32 +43,24 @@ export const DailyBreakdownTable = memo(function DailyBreakdownTable({
         <tbody>
           {details.map((detail) => {
             const isDrillable = !!onDrillDown && (detail.amClosed || detail.pmClosed);
-            const interactiveProps = isDrillable
-              ? {
-                  role: "button" as const,
-                  tabIndex: 0,
-                  "aria-label": `${detail.date} の締め詳細を表示`,
-                  onClick: () => onDrillDown?.(detail.date),
-                  onKeyDown: (event: React.KeyboardEvent<HTMLTableRowElement>) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      onDrillDown?.(detail.date);
-                    }
-                  },
-                }
-              : {};
 
             return (
               <tr
                 key={detail.date}
-                {...interactiveProps}
-                className={`border-b ${C.borderLight} ${detail.isHoliday ? C.bgNotice40 : STYLE.tableRow} ${
-                  isDrillable
-                    ? `cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-inset ${C.focusRingAccent40}`
-                    : ""
-                }`}
+                className={`border-b ${C.borderLight} ${detail.isHoliday ? C.bgNotice40 : STYLE.tableRow}`}
               >
-                <TableCell className={C.text}>{detail.date}</TableCell>
+                <TableCell className={C.text}>
+                  {isDrillable ? (
+                    <DataTableRowButton
+                      aria-label={`${detail.date} の締め詳細を表示`}
+                      onClick={() => onDrillDown?.(detail.date)}
+                    >
+                      {detail.date}
+                    </DataTableRowButton>
+                  ) : (
+                    detail.date
+                  )}
+                </TableCell>
                 <TableCell className={C.text}>{detail.weekday}</TableCell>
                 <TableCell className={`text-right ${C.text60}`}>{detail.amCount}件</TableCell>
                 <TableCell className={`text-right ${C.text}`}>

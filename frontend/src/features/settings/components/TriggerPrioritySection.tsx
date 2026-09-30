@@ -122,7 +122,7 @@ export function TriggerPrioritySection() {
                 value={item.priority}
                 onChange={(e) => handlePriorityChange(item.trigger_type, e.target.value)}
                 aria-label={`${TriggerTypeLabels[item.trigger_type] ?? item.trigger_type} 優先順位`}
-                className={`${STYLE.formInput} rounded-xs border px-2 w-20 text-right outline-none focus:ring-2 ${C.focusRingAccent30}`}
+                className={`${STYLE.formInput} rounded-xs border px-2 w-20 text-right outline-none focus-visible:ring-2 ${C.focusRingAccent30}`}
               />
             </div>
           ))}

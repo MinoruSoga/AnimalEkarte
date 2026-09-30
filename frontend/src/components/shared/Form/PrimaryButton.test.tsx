@@ -7,7 +7,7 @@ describe("PrimaryButton", () => {
   it("既定（colorVariant 未指定）は brand と同じ primary teal + pill を使う", () => {
     render(<PrimaryButton>新規登録</PrimaryButton>);
     const button = screen.getByRole("button", { name: "新規登録" });
-    expect(button.className).toContain(C.bgActionPrimary);
+    expect(button.className).toContain(C.bgActionPrimarySolid);
     expect(button.className).toContain(C.textOnActionPrimary);
     expect(button.className).toContain(C.hoverTextOnActionPrimary);
     expect(button.className).toContain(C.activeTextOnActionPrimary);
@@ -29,6 +29,6 @@ describe("PrimaryButton", () => {
   it('colorVariant="default" は semantic primary の互換 alias', () => {
     render(<PrimaryButton colorVariant="default">新規登録</PrimaryButton>);
     const button = screen.getByRole("button", { name: "新規登録" });
-    expect(button.className).toContain(C.bgActionPrimary);
+    expect(button.className).toContain(C.bgActionPrimarySolid);
   });
 });

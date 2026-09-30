@@ -7,6 +7,7 @@ import { Loader2 } from "lucide-react";
 // Internal
 import { C, ICON } from "@/lib/design-tokens";
 import { EmptyState } from "@/components/shared/DataStates";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { usePermission } from "@/hooks/use-permission";
 
 // Relative
@@ -16,7 +17,10 @@ import {
   useUpdateCarePlanItem,
   useDeleteCarePlanItem,
 } from "../../api/care-plan-items";
-import { HOSPITALIZATION_DECEASED_BLOCK_MESSAGE } from "../../constants";
+import {
+  HOSPITALIZATION_DECEASED_BLOCK_MESSAGE,
+  HOSPITALIZATION_DISCHARGED_BLOCK_MESSAGE,
+} from "../../constants";
 import { EditRow } from "./EditRow";
 import { ItemRow } from "./ItemRow";
 import { AddForm } from "./AddForm";
@@ -27,6 +31,7 @@ import type { CreateCarePlanItemInput, UpdateCarePlanItemInput } from "../../api
 interface CarePlanTabProps {
   hospitalizationId: string;
   petIsDeceased: boolean;
+  isDischarged: boolean;
 }
 
 type CarePlanMutation = "create" | "edit" | "delete";
@@ -40,18 +45,22 @@ const PERMISSION_BY_MUTATION = {
 export const CarePlanTab = memo(function CarePlanTab({
   hospitalizationId,
   petIsDeceased,
+  isDischarged,
 }: CarePlanTabProps) {
   const { canCreate, canEdit, canDelete } = usePermission("hospitalization");
   const permissionsRef = useRef({ canCreate, canEdit, canDelete });
   const petIsDeceasedRef = useRef(petIsDeceased);
+  const isDischargedRef = useRef(isDischarged);
   useLayoutEffect(() => {
     permissionsRef.current = { canCreate, canEdit, canDelete };
     petIsDeceasedRef.current = petIsDeceased;
-  }, [canCreate, canDelete, canEdit, petIsDeceased]);
+    isDischargedRef.current = isDischarged;
+  }, [canCreate, canDelete, canEdit, petIsDeceased, isDischarged]);
   const isMutationAllowed = useCallback(
     (action: CarePlanMutation) =>
       permissionsRef.current[PERMISSION_BY_MUTATION[action]] === true &&
-      petIsDeceasedRef.current !== true,
+      petIsDeceasedRef.current !== true &&
+      isDischargedRef.current !== true,
     [],
   );
   const { data: items, isLoading } = useGetCarePlanItems(hospitalizationId);
@@ -62,6 +71,7 @@ export const CarePlanTab = memo(function CarePlanTab({
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   const handleEdit = useCallback((id: string) => {
     setEditingId(id);
@@ -85,18 +95,31 @@ export const CarePlanTab = memo(function CarePlanTab({
     [isMutationAllowed, updateItemAsync],
   );
 
+  // 破壊操作は ConfirmDialog 経由: ここでは確認ダイアログを開くだけで mutation は実行しない。
   const handleDelete = useCallback(
     (itemId: string) => {
       if (!isMutationAllowed("delete")) return;
-      setDeletingId(itemId);
-      deleteItemMutate(itemId, {
-        onSettled: () => {
-          setDeletingId(null);
-        },
-      });
+      setPendingDeleteId(itemId);
     },
-    [deleteItemMutate, isMutationAllowed],
+    [isMutationAllowed],
   );
+
+  // 臨床安全境界1&2: 確認直前に permission / petIsDeceased / isDischarged を再検査する。
+  const handleConfirmDelete = useCallback(() => {
+    if (!pendingDeleteId) return;
+    if (!isMutationAllowed("delete")) {
+      setPendingDeleteId(null);
+      return;
+    }
+    const itemId = pendingDeleteId;
+    setPendingDeleteId(null);
+    setDeletingId(itemId);
+    deleteItemMutate(itemId, {
+      onSettled: () => {
+        setDeletingId(null);
+      },
+    });
+  }, [pendingDeleteId, deleteItemMutate, isMutationAllowed]);
 
   const handleAdd = useCallback(
     async (input: CreateCarePlanItemInput) => {
@@ -106,11 +129,14 @@ export const CarePlanTab = memo(function CarePlanTab({
     [createItemAsync, isMutationAllowed],
   );
 
-  // 臨床安全境界1: 死亡ペットは render 側でも操作要素を出さない（callback 側は isMutationAllowed で維持）。
-  const canCreateNow = canCreate && !petIsDeceased;
-  const canEditNow = canEdit && !petIsDeceased;
-  const canDeleteNow = canDelete && !petIsDeceased;
+  // 臨床安全境界1: 死亡ペット/退院済み入院は render 側でも操作要素を出さない（callback 側は isMutationAllowed で維持）。
+  const canCreateNow = canCreate && !petIsDeceased && !isDischarged;
+  const canEditNow = canEdit && !petIsDeceased && !isDischarged;
+  const canDeleteNow = canDelete && !petIsDeceased && !isDischarged;
   const showDeceasedNotice = petIsDeceased && (canCreate || canEdit || canDelete);
+  // 死亡と退院済みが両立する場合は死亡センチネルを優先する。
+  const showDischargedNotice =
+    !petIsDeceased && isDischarged && (canCreate || canEdit || canDelete);
 
   const itemRows = useMemo(() => {
     if (!items) return null;
@@ -146,7 +172,7 @@ export const CarePlanTab = memo(function CarePlanTab({
 
   if (isLoading) {
     return (
-      <div className={`flex items-center justify-center py-10 ${C.text40}`}>
+      <div className={`flex items-center justify-center py-10 ${C.text60}`}>
         <Loader2 className={`${ICON.page} animate-spin mr-2`} />
         <span className="text-sm">読み込み中...</span>
       </div>
@@ -166,7 +192,21 @@ export const CarePlanTab = memo(function CarePlanTab({
         <p role="status" className={`text-xs ${C.text50} pt-3 mt-2 border-t ${C.borderLight}`}>
           {HOSPITALIZATION_DECEASED_BLOCK_MESSAGE.CARE_PLAN}
         </p>
+      ) : showDischargedNotice ? (
+        <p role="status" className={`text-xs ${C.text50} pt-3 mt-2 border-t ${C.borderLight}`}>
+          {HOSPITALIZATION_DISCHARGED_BLOCK_MESSAGE.CARE_PLAN}
+        </p>
       ) : null}
+      <ConfirmDialog
+        open={pendingDeleteId !== null}
+        onClose={() => setPendingDeleteId(null)}
+        title="ケアプラン項目の削除"
+        description="このケアプラン項目を削除しますか？この操作は取り消せません。"
+        confirmLabel="削除"
+        cancelLabel="キャンセル"
+        variant="destructive"
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   );
 });

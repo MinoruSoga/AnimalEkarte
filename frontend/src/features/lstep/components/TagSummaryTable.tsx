@@ -21,7 +21,7 @@ import {
   DESIGN_TABLE_HEADER_ROW,
   DESIGN_TABLE_HEADER_CELL,
 } from "@/components/shared/DataTable/DataTable";
-import { C, STYLE, ICON } from "@/lib/design-tokens";
+import { BADGE, C, STYLE, ICON } from "@/lib/design-tokens";
 import { normalizedIncludes } from "@/lib/normalize-kana";
 import { isAutoManagedTag } from "@/constants/lstep-auto-tag-prefixes";
 import type { LstepTagSummaryItem } from "../api/get-lstep-tag-summary";
@@ -140,7 +140,7 @@ export function TagSummaryTable({ tags, isLoading, onViewOwners }: TagSummaryTab
                     <TableCell className={`${STYLE.tableCell} px-4`}>
                       {isAuto ? (
                         <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${C.bgStatusGray} ${C.textStatusGray} ${C.borderMuted}`}
+                          className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${BADGE.gray}`}
                         >
                           自動
                         </span>

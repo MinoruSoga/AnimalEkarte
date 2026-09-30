@@ -14,7 +14,12 @@ import { useGetManualArticleOverrides } from "@/hooks/use-manual-article-overrid
 import { useManualSearch } from "@/hooks/use-manual-search";
 import { usePermission } from "@/hooks/use-permission";
 import { C, STYLE } from "@/lib/design-tokens";
-import { applyOverrides, screenArticles, workflowArticles, type ManualArticle } from "@/lib/manual-index";
+import {
+  applyOverrides,
+  screenArticles,
+  workflowArticles,
+  type ManualArticle,
+} from "@/lib/manual-index";
 
 import { useGetSupportChatStatus } from "../api/get-support-chat-status";
 
@@ -55,7 +60,13 @@ export function ManualHelpTab({ onClose }: ManualHelpTabProps) {
   return <ManualSearchView articles={articles} onClose={onClose} />;
 }
 
-function ManualSearchView({ articles, onClose }: { articles: ManualArticle[]; onClose: () => void }) {
+function ManualSearchView({
+  articles,
+  onClose,
+}: {
+  articles: ManualArticle[];
+  onClose: () => void;
+}) {
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query);
   const results = useManualSearch(deferredQuery, articles);
@@ -89,7 +100,9 @@ function ManualSearchView({ articles, onClose }: { articles: ManualArticle[]; on
                   onClick={onClose}
                   className={`flex items-center gap-2 rounded-xxs px-2 py-2 ${C.hoverBgLight} transition-colors`}
                 >
-                  <span className={`shrink-0 rounded-xxs px-1.5 py-0.5 text-2xs ${C.bgMuted} ${C.textMuted}`}>
+                  <span
+                    className={`shrink-0 rounded-xxs px-1.5 py-0.5 text-2xs ${C.bgMuted} ${C.textMuted}`}
+                  >
                     {CATEGORY_LABEL[article.category]}
                   </span>
                   <span className={`flex-1 min-w-0 truncate text-sm ${C.text}`}>
@@ -114,7 +127,7 @@ function ManualSearchView({ articles, onClose }: { articles: ManualArticle[]; on
           </p>
         )
       ) : (
-        <p className={`px-1 text-2xs ${C.text40}`}>
+        <p className={`px-1 text-2xs ${C.text60}`}>
           ヒント: 「レジ締め」「予防接種」「在庫」などのキーワードで検索できます。
         </p>
       )}

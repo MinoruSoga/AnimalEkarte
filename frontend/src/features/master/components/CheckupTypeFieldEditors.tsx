@@ -1,6 +1,9 @@
+import { useState } from "react";
 import Plus from "lucide-react/dist/esm/icons/plus";
 import Trash2 from "lucide-react/dist/esm/icons/trash-2";
 
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
+import { FieldHelp } from "@/components/shared/FieldHelp";
 import { C, ICON } from "@/lib/design-tokens";
 import type { CheckupFieldType } from "@/types/checkup";
 
@@ -19,8 +22,14 @@ interface CheckupFieldTypeSelectProps {
 
 export function CheckupFieldTypeSelect({ value, onChange }: CheckupFieldTypeSelectProps) {
   return (
-    <label className={`block text-sm ${C.text65}`}>
-      種別
+    <div className={`block text-sm ${C.text65}`}>
+      <div className="flex items-center gap-1">
+        <span>種別</span>
+        <FieldHelp
+          label="健診項目の種別"
+          content="この健診項目の入力形式です。数値・選択式・チェックリストなどから選びます。"
+        />
+      </div>
       <select
         aria-label="健診項目の種別"
         value={value}
@@ -33,7 +42,7 @@ export function CheckupFieldTypeSelect({ value, onChange }: CheckupFieldTypeSele
           </option>
         ))}
       </select>
-    </label>
+    </div>
   );
 }
 
@@ -41,20 +50,26 @@ interface NumberBoundInputProps {
   label: string;
   value: string;
   onChange: (value: string) => void;
+  /** 項目の説明文。指定するとラベル横に ⓘ ツールチップを表示する */
+  description?: string;
 }
 
-export function NumberBoundInput({ label, value, onChange }: NumberBoundInputProps) {
+export function NumberBoundInput({ label, value, onChange, description }: NumberBoundInputProps) {
   return (
-    <label className={`block text-sm ${C.text65}`}>
-      {label}
+    <div className={`block text-sm ${C.text65}`}>
+      <div className="flex items-center gap-1">
+        <span>{label}</span>
+        {description ? <FieldHelp label={label} content={description} /> : null}
+      </div>
       <input
         type="number"
         step="any"
+        aria-label={label}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         className={`mt-1 min-h-11 w-full rounded-xs border px-2 ${C.borderMedium} ${C.bgWhite} ${C.text}`}
       />
-    </label>
+    </div>
   );
 }
 
@@ -73,44 +88,74 @@ export function CheckupFieldOptionsEditor({
   onChange,
   onRemove,
 }: CheckupFieldOptionsEditorProps) {
+  const [pendingRemoveIndex, setPendingRemoveIndex] = useState<number | null>(null);
+  const pendingOption = pendingRemoveIndex === null ? null : options[pendingRemoveIndex];
+  const pendingOptionLabel =
+    pendingOption === null
+      ? ""
+      : pendingOption.label || pendingOption.value || `選択肢${(pendingRemoveIndex ?? 0) + 1}`;
+
   return (
-    <fieldset className={`space-y-2 rounded-xs border p-2 ${C.borderLight}`}>
-      <legend className={`px-1 text-xs ${C.text50}`}>選択肢</legend>
-      {options.map((option, index) => (
-        <div key={index} className="flex items-center gap-2">
-          <input
-            value={option.value}
-            onChange={(event) => onChange(index, { value: event.target.value })}
-            placeholder="値"
-            aria-label={`選択肢${index + 1}の値`}
-            className={`min-h-11 w-full rounded-xs border px-2 text-sm ${C.borderMedium} ${C.bgWhite} ${C.text}`}
-          />
-          <input
-            value={option.label}
-            onChange={(event) => onChange(index, { label: event.target.value })}
-            placeholder="表示名"
-            aria-label={`選択肢${index + 1}の表示名`}
-            className={`min-h-11 w-full rounded-xs border px-2 text-sm ${C.borderMedium} ${C.bgWhite} ${C.text}`}
-          />
-          <button
-            type="button"
-            onClick={() => onRemove(index)}
-            aria-label={`選択肢${index + 1}を削除`}
-            className={`inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xxs ${C.text50} ${C.hoverTextDanger} ${C.hoverBgLight}`}
-          >
-            <Trash2 className={ICON.smXs} aria-hidden="true" />
-          </button>
-        </div>
-      ))}
-      <button
-        type="button"
-        onClick={onAdd}
-        aria-label="選択肢を追加"
-        className={`inline-flex min-h-11 items-center gap-1 rounded-xxs px-2 text-sm ${C.textBrand} ${C.hoverBgLight}`}
-      >
-        <Plus className={ICON.smXs} aria-hidden="true" />
-        選択肢を追加
-      </button>
-    </fieldset>
+    <>
+      <fieldset className={`space-y-2 rounded-xs border p-2 ${C.borderLight}`}>
+        <legend className={`px-1 text-xs ${C.text50}`}>
+          <span className="inline-flex items-center gap-1">
+            選択肢
+            <FieldHelp
+              label="選択肢"
+              content="選択肢の一覧です。「値」は保存される内部値、「表示名」は画面に表示される名前です。"
+            />
+          </span>
+        </legend>
+        {options.map((option, index) => (
+          <div key={index} className="flex items-center gap-2">
+            <input
+              value={option.value}
+              onChange={(event) => onChange(index, { value: event.target.value })}
+              placeholder="値"
+              aria-label={`選択肢${index + 1}の値`}
+              className={`min-h-11 w-full rounded-xs border px-2 text-sm ${C.borderMedium} ${C.bgWhite} ${C.text}`}
+            />
+            <input
+              value={option.label}
+              onChange={(event) => onChange(index, { label: event.target.value })}
+              placeholder="表示名"
+              aria-label={`選択肢${index + 1}の表示名`}
+              className={`min-h-11 w-full rounded-xs border px-2 text-sm ${C.borderMedium} ${C.bgWhite} ${C.text}`}
+            />
+            <button
+              type="button"
+              onClick={() => setPendingRemoveIndex(index)}
+              aria-label={`選択肢${index + 1}を削除`}
+              className={`inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xxs ${C.text50} ${C.hoverTextDanger} ${C.hoverBgLight}`}
+            >
+              <Trash2 className={ICON.smXs} aria-hidden="true" />
+            </button>
+          </div>
+        ))}
+        <button
+          type="button"
+          onClick={onAdd}
+          aria-label="選択肢を追加"
+          className={`inline-flex min-h-11 items-center gap-1 rounded-xxs px-2 text-sm ${C.textBrand} ${C.hoverBgLight}`}
+        >
+          <Plus className={ICON.smXs} aria-hidden="true" />
+          選択肢を追加
+        </button>
+      </fieldset>
+      <ConfirmDialog
+        open={pendingRemoveIndex !== null}
+        onClose={() => setPendingRemoveIndex(null)}
+        onConfirm={() => {
+          if (pendingRemoveIndex === null) return;
+          onRemove(pendingRemoveIndex);
+          setPendingRemoveIndex(null);
+        }}
+        title="選択肢を削除しますか？"
+        description={`「${pendingOptionLabel}」を削除します。この操作は取り消せません。`}
+        confirmLabel="削除"
+        variant="destructive"
+      />
+    </>
   );
 }

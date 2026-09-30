@@ -123,7 +123,7 @@ export const ReservationTypePickerDialog = memo(function ReservationTypePickerDi
             filteredGroups.map((group) => (
               <Fragment key={group.label}>
                 {activeCategory === null ? (
-                  <div className={cn("px-2 py-1.5 text-2xs font-semibold uppercase", C.text40)}>
+                  <div className={cn("px-2 py-1.5 text-2xs font-semibold uppercase", C.text60)}>
                     {group.label}
                   </div>
                 ) : null}

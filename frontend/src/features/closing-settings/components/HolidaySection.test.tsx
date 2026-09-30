@@ -61,7 +61,7 @@ describe("HolidaySection", () => {
     expect(screen.getByText("2026-09-01")).toBeInTheDocument();
   });
 
-  it("削除ボタンで deleteMutation.mutateAsync が date で呼ばれる", async () => {
+  it("削除ボタンで確認ダイアログを開き、確定で deleteMutation.mutateAsync が date で呼ばれる", async () => {
     render(
       <HolidaySection
         holidays={[makeHoliday({ date: "2026-08-15" })]}
@@ -71,7 +71,29 @@ describe("HolidaySection", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "2026-08-15の休診日を削除" }));
 
+    expect(screen.getByText("休診日を削除しますか？")).toBeInTheDocument();
+    expect(mockDeleteMutateAsync).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "削除" }));
+
     await waitFor(() => expect(mockDeleteMutateAsync).toHaveBeenCalledWith("2026-08-15"));
+  });
+
+  it("削除確認ダイアログのキャンセルでは mutate しない", async () => {
+    render(
+      <HolidaySection
+        holidays={[makeHoliday({ date: "2026-08-15" })]}
+        canCreate={true}
+        canDelete={true}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "2026-08-15の休診日を削除" }));
+    fireEvent.click(screen.getByRole("button", { name: "キャンセル" }));
+
+    await waitFor(() =>
+      expect(screen.queryByText("休診日を削除しますか？")).not.toBeInTheDocument(),
+    );
+    expect(mockDeleteMutateAsync).not.toHaveBeenCalled();
   });
 
   it("行追加コントロールはマスター共通の「新規登録」ラベルを表示する", () => {
@@ -183,6 +205,7 @@ describe("HolidaySection", () => {
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: "2026-08-15の休診日を削除" }));
+    fireEvent.click(screen.getByRole("button", { name: "削除" }));
 
     await waitFor(() => {
       expect(mockToastError).toHaveBeenCalledWith(PERMISSION_DENIED_MESSAGE);

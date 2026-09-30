@@ -19,6 +19,8 @@ import { BookOpen, Loader2, RotateCcw, Send } from "lucide-react";
 
 import { paths } from "@/config/paths";
 import { C, STYLE } from "@/lib/design-tokens";
+import { Textarea } from "@/components/ui/textarea";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { createManualSearcher, type ManualArticle } from "@/lib/manual-index";
 import { getSafeMarkdownHref } from "@/lib/safe-markdown-href";
 
@@ -122,6 +124,8 @@ export function HelpChat({ articles, onClose }: HelpChatProps) {
   const send = useSendSupportChat();
   const historyQuery = useGetSupportChatHistory();
   const clearHistory = useClearSupportChatHistory();
+  // EMR-227: リセットはサーバー履歴も削除する破壊操作のため ConfirmDialog で確認する。
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
 
   // 保存済み履歴を初回だけローカルへ反映する。ロード中に送信されたターンが
@@ -273,7 +277,7 @@ export function HelpChat({ articles, onClose }: HelpChatProps) {
                 role={turn.isError === true ? "alert" : undefined}
                 className={
                   turn.role === "user"
-                    ? `self-end max-w-[85%] rounded-lg rounded-br-xxs ${C.bgActionPrimary} ${C.textOnActionPrimary} px-3 py-2 text-sm whitespace-pre-wrap break-words`
+                    ? `self-end max-w-[85%] rounded-lg rounded-br-xxs ${C.bgActionPrimarySolid} ${C.textOnActionPrimary} px-3 py-2 text-sm whitespace-pre-wrap break-words`
                     : `self-start max-w-[85%] rounded-lg rounded-bl-xxs px-3 py-2 text-sm break-words ${
                         turn.isError === true
                           ? `border ${C.borderDanger} ${C.danger}`
@@ -338,7 +342,7 @@ export function HelpChat({ articles, onClose }: HelpChatProps) {
           handleSend();
         }}
       >
-        <textarea
+        <Textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
@@ -353,13 +357,13 @@ export function HelpChat({ articles, onClose }: HelpChatProps) {
           placeholder="例: レジ締めの手順は？"
           aria-label="使い方を質問"
           maxLength={2000}
-          className={`field-sizing-content max-h-32 flex-1 resize-none rounded-xxs border ${C.borderMedium} px-3 py-2 text-sm ${C.text} focus:outline-none ${C.focusBorderAccent}`}
+          className="max-h-32 flex-1"
         />
         <button
           type="submit"
           disabled={input.trim().length === 0 || send.isPending || !hydrated}
           aria-label="送信"
-          className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-md ${C.bgActionPrimary} ${C.textOnActionPrimary} ${C.hoverBgActionPrimary} p-2 transition-colors disabled:opacity-40`}
+          className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-md ${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimarySolid} p-2 transition-colors disabled:opacity-40`}
         >
           <Send className="size-4" aria-hidden="true" />
         </button>
@@ -368,7 +372,7 @@ export function HelpChat({ articles, onClose }: HelpChatProps) {
         {turns.length > 0 ? (
           <button
             type="button"
-            onClick={handleReset}
+            onClick={() => setResetConfirmOpen(true)}
             disabled={clearHistory.isPending}
             className={`inline-flex min-h-11 shrink-0 items-center text-2xs ${C.textMuted} ${C.hoverText} underline underline-offset-2 transition-colors disabled:opacity-40`}
           >
@@ -381,6 +385,19 @@ export function HelpChat({ articles, onClose }: HelpChatProps) {
           {RESET_ERROR_MESSAGE}
         </p>
       ) : null}
+      <ConfirmDialog
+        open={resetConfirmOpen}
+        onClose={() => setResetConfirmOpen(false)}
+        onConfirm={() => {
+          setResetConfirmOpen(false);
+          handleReset();
+        }}
+        title="会話履歴をリセットしますか？"
+        description="サーバーに保存された会話履歴も削除されます。この操作は取り消せません。"
+        confirmLabel="リセットする"
+        variant="destructive"
+        isPending={clearHistory.isPending}
+      />
     </div>
   );
 }

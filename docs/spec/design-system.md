@@ -311,8 +311,8 @@ DESIGN.md `rounded:` フロントマターに準拠。**コンポーネント種
 
 | コンポーネント | 仕様 | AE 実装 |
 |---|---|---|
-| `button-primary` | bg `{colors.primary}`（`#038B94`）、text `{colors.on-primary}`、`{typography.button}`、`{rounded.full}` pill | `SubmitButton` / `PrimaryButton` — `colorVariant="primary"`（既定） |
-| `button-primary-pressed` | bg `{colors.primary-active}`（`#027078`）、text `{colors.on-primary-active}`（`#FFFFFF`） | `PALETTE.actionPrimaryActive` / `C.activeTextOnActionPrimary` ✅ |
+| `button-primary` | bg `action-primary-solid`（**`#027078`**、white-on 5.85:1 ✅）、text `{colors.on-primary}`、`{typography.button}`、`{rounded.full}` pill | `C.bgActionPrimarySolid` — `SubmitButton` / `PrimaryButton` — `colorVariant="primary"`（既定）。§2 決裁により塗りは Solid 系に統一（`#038B94` は 4.10:1 で AA 非達のため装飾専用） |
+| `button-primary-pressed` | bg `action-primary-solid-active`（`#025F66`）、text `{colors.on-primary-active}`（`#FFFFFF`） | `C.activeBgActionPrimarySolid` / `C.activeTextOnActionPrimary` ✅ |
 | `button-brand` | bg `{colors.brand}`（`#038B94`）、hover/pressed `{colors.brand-active}`（`#027078`） | 認証などで `colorVariant="brand"` を明示 |
 | `button-secondary` | white surface、`{colors.ink}`、pill、Level-1 shadow | 二次 CTA |
 | `button-utility` | white surface、`{rounded.md}`、4px 14px padding、hairline border | ナビ / ユーティリティ操作 |

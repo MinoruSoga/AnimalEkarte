@@ -148,7 +148,7 @@ const TimeSidebar = memo(function TimeSidebar() {
       {HOURS.map((hour) => (
         <div
           key={hour}
-          className={`relative flex-shrink-0 text-xs ${C.text40} text-right pr-2 pt-0.5 leading-none`}
+          className={`relative flex-shrink-0 text-xs ${C.text60} text-right pr-2 pt-0.5 leading-none`}
           style={{ height: `${HOUR_HEIGHT}px` }}
         >
           {hour}:00

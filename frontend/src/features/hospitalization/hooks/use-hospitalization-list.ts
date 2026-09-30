@@ -57,7 +57,13 @@ export const useHospitalizationList = (canEdit = false) => {
 
       const sourceHosp = hospitalizations.find((h) => h.id === hospitalizationId);
       if (!sourceHosp) return;
-      if (canEditRef.current !== true || sourceHosp.petIsDeceased) return;
+      // EMR-227: 死亡ペット/退院済み入院への書込みは callback 側でも拒否する（render 側は canDrag で維持）。
+      if (
+        canEditRef.current !== true ||
+        sourceHosp.petIsDeceased ||
+        sourceHosp.status === HOSPITALIZATION_STATUS.DISCHARGED
+      )
+        return;
 
       // 移動先にアクティブな入院がある場合はスワップ
       const targetHosp = hospitalizations.find(

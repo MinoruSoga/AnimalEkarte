@@ -101,7 +101,7 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
             placeholder="開始日"
             className="flex-1"
           />
-          <span className={`text-center text-sm ${C.text40}`} aria-hidden="true">
+          <span className={`text-center text-sm ${C.text60}`} aria-hidden="true">
             〜
           </span>
           <Label htmlFor="end_date" className="sr-only">

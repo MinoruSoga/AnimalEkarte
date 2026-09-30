@@ -7,6 +7,11 @@ import { usePermission } from "@/hooks/use-permission";
 import { toTreatmentPlanTabValue } from "./treatment-plan-master-model";
 import type { TreatmentItem } from "@/lib/transforms/treatment";
 import { ResourceCheckups, ResourceMasterMedical } from "@/types/generated/models";
+import { useGetAllCheckupTypes } from "../api/checkup-types";
+import { useGetAllConsultations } from "../api/consultations";
+import { useGetAllExaminationTypes } from "../api/exam-types-master";
+import { useGetAllProcedures } from "../api/procedures";
+import { useGetAllVaccinesMaster } from "../api/vaccines-master";
 import { useTreatmentPlanMasterResources } from "../hooks/use-treatment-plan-master-resources";
 import { useTreatmentPlanMasterSaves } from "../hooks/use-treatment-plan-master-saves";
 import { TreatmentPlanMasterView } from "./TreatmentPlanMasterView";
@@ -63,6 +68,18 @@ export function TreatmentPlanMaster() {
     activeTab,
     editTarget,
   });
+
+  // 一覧クエリの状態を DataStates に接続する（useTreatmentPlanMasterResources 内と
+  // 同一 queryKey でキャッシュ共有されるため追加 fetch は発生しない）。
+  const listQueries = [
+    useGetAllConsultations(),
+    useGetAllExaminationTypes(),
+    useGetAllProcedures(),
+    useGetAllVaccinesMaster(),
+    useGetAllCheckupTypes(),
+  ];
+  const isDataPending = listQueries.some((q) => q.isPending);
+  const isDataError = listQueries.some((q) => q.isError);
 
   const startSaveTransition = useCallback((cb: () => void) => {
     cb();
@@ -129,6 +146,8 @@ export function TreatmentPlanMaster() {
       editTarget={editTarget}
       pendingDelete={pendingDelete}
       resources={resources}
+      isDataPending={isDataPending}
+      isDataError={isDataError}
       discardDialog={dirty.discardDialog}
       onNew={handleNew}
       onClose={handleClose}

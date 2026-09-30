@@ -27,7 +27,7 @@ const DIVIDER_ROW = `flex items-center justify-between border-b ${C.borderLight}
 const ROW_ICON = `flex items-center gap-2 ${C.text60}`;
 
 const RELATED_BTN_BASE =
-  "flex min-h-11 items-center gap-1.5 text-sm border rounded-md px-3 transition-colors group";
+  "flex min-h-11 min-w-11 items-center gap-1.5 text-sm border rounded-md px-3 transition-colors group";
 const RELATED_BTN_KARTE = `${RELATED_BTN_BASE} ${C.textBrand} ${C.bgBrandLight40} ${C.hoverBgBrandLight} ${C.borderBrandLight}`;
 const RELATED_BTN_ACCOUNTING = `${RELATED_BTN_BASE} ${C.text} ${C.bgWhite} ${C.hoverBgPage} ${C.borderMedium}`;
 const RELATED_BTN_HOSPITAL = `${RELATED_BTN_BASE} ${C.text} ${C.bgWhite} ${C.hoverBgPage} ${C.borderMedium}`;
@@ -109,7 +109,7 @@ const RelatedPages = memo(function RelatedPages({
             {isTrimming ? <Scissors className={ICON.xs} /> : <FileText className={ICON.xs} />}
             <span>{isTrimming ? "施術" : "カルテ"}</span>
             <ExternalLink
-              className={`${ICON.xs} opacity-0 group-hover:opacity-100 transition-opacity`}
+              className={`${ICON.xs} opacity-0 group-hover:opacity-100 focus-visible:opacity-100 group-focus-within:opacity-100 transition-opacity`}
             />
           </button>
         ) : null}
@@ -119,7 +119,7 @@ const RelatedPages = memo(function RelatedPages({
             <CreditCard className={ICON.xs} />
             <span>会計</span>
             <ExternalLink
-              className={`${ICON.xs} opacity-0 group-hover:opacity-100 transition-opacity`}
+              className={`${ICON.xs} opacity-0 group-hover:opacity-100 focus-visible:opacity-100 group-focus-within:opacity-100 transition-opacity`}
             />
           </button>
         ) : null}
@@ -129,7 +129,7 @@ const RelatedPages = memo(function RelatedPages({
             <BedDouble className={ICON.xs} />
             <span>入院</span>
             <ExternalLink
-              className={`${ICON.xs} opacity-0 group-hover:opacity-100 transition-opacity`}
+              className={`${ICON.xs} opacity-0 group-hover:opacity-100 focus-visible:opacity-100 group-focus-within:opacity-100 transition-opacity`}
             />
           </button>
         ) : null}

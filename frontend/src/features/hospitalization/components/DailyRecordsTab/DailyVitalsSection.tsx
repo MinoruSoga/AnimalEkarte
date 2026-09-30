@@ -111,7 +111,7 @@ export const DailyVitalsSection = memo(function DailyVitalsSection({
           バイタル
         </h4>
         {canCreate ? (
-          <Button variant="outline" size="sm" onClick={handleOpen} className="h-7 gap-1 text-xs">
+          <Button variant="outline" onClick={handleOpen} className="gap-1 text-xs">
             <Plus className={ICON.action} />
             追加
           </Button>
@@ -261,12 +261,10 @@ export const DailyVitalsSection = memo(function DailyVitalsSection({
               </div>
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={handleClose} size="sm">
+              <Button type="button" variant="outline" onClick={handleClose}>
                 キャンセル
               </Button>
-              <SubmitButton size="sm" disabled={!form.time}>
-                保存
-              </SubmitButton>
+              <SubmitButton disabled={!form.time}>保存</SubmitButton>
             </DialogFooter>
           </form>
         </DialogContent>

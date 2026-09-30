@@ -3,6 +3,7 @@ import { useSortableList } from "@/hooks/use-sortable-list";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { Lock } from "lucide-react";
 import { usePermission } from "@/hooks/use-permission";
+import { ErrorFallback, LoadingFallback } from "@/components/shared/DataStates";
 import { C, ICON } from "@/lib/design-tokens";
 import { normalizeKana } from "@/lib/normalize-kana";
 import { MASTER_STATUS_FILTER } from "../constants/styles";
@@ -52,7 +53,7 @@ export function PermissionGroupSettings() {
     };
   }, [canCreate, canEdit]);
 
-  const { data } = useGetPermissionGroups();
+  const { data, isPending, isError } = useGetPermissionGroups();
   const createMutation = useCreatePermissionGroup();
   const updateMutation = useUpdatePermissionGroup();
   const deleteMutation = useDeletePermissionGroup();
@@ -145,13 +146,19 @@ export function PermissionGroupSettings() {
           />
         )}
       >
-        <PermissionGroupSortableTable
-          items={orderedItems}
-          sensors={sensors}
-          onDragEnd={handleDragEnd}
-          canEdit={canEdit}
-          onEdit={crud.handleEdit}
-        />
+        {isError ? (
+          <ErrorFallback message="権限グループの取得に失敗しました" />
+        ) : isPending ? (
+          <LoadingFallback />
+        ) : (
+          <PermissionGroupSortableTable
+            items={orderedItems}
+            sensors={sensors}
+            onDragEnd={handleDragEnd}
+            canEdit={canEdit}
+            onEdit={crud.handleEdit}
+          />
+        )}
       </MasterCRUDPage>
       {dirty.discardDialog}
     </>

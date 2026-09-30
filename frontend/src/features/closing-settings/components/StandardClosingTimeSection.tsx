@@ -2,6 +2,7 @@ import { memo, useActionState, useLayoutEffect, useRef, useState } from "react";
 import { Check } from "lucide-react";
 import { toast } from "sonner";
 import { C, STYLE } from "@/lib/design-tokens";
+import { FieldHelp } from "@/components/shared/FieldHelp";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { TableCell, TableHead } from "@/components/ui/table";
 import { handleApiError } from "@/lib/handle-api-error";
@@ -88,9 +89,15 @@ export const StandardClosingTimeSection = memo(function StandardClosingTimeSecti
         <fieldset disabled={!canEdit} className="space-y-4 border-0 p-0 m-0 min-w-0">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
-              <label htmlFor="closing_am_pm_boundary" className={STYLE.formLabel}>
-                午前・午後 区切り時間
-              </label>
+              <div className="flex items-center gap-1">
+                <label htmlFor="closing_am_pm_boundary" className={STYLE.formLabel}>
+                  午前・午後 区切り時間
+                </label>
+                <FieldHelp
+                  label="午前・午後 区切り時間"
+                  content="午前（AM）と午後（PM）の区切りとなる時刻です。"
+                />
+              </div>
               <input
                 id="closing_am_pm_boundary"
                 name="closing_am_pm_boundary"
@@ -102,9 +109,15 @@ export const StandardClosingTimeSection = memo(function StandardClosingTimeSecti
               />
             </div>
             <div>
-              <label htmlFor="closing_weekday_end" className={STYLE.formLabel}>
-                平日 終了時間
-              </label>
+              <div className="flex items-center gap-1">
+                <label htmlFor="closing_weekday_end" className={STYLE.formLabel}>
+                  平日 終了時間
+                </label>
+                <FieldHelp
+                  label="平日 終了時間"
+                  content="平日の午後（PM）終了時刻です。これ以降はEMG（緊急）として扱われます。"
+                />
+              </div>
               <input
                 id="closing_weekday_end"
                 name="closing_weekday_end"
@@ -116,9 +129,15 @@ export const StandardClosingTimeSection = memo(function StandardClosingTimeSecti
               />
             </div>
             <div>
-              <label htmlFor="closing_sunday_end" className={STYLE.formLabel}>
-                日曜 終了時間
-              </label>
+              <div className="flex items-center gap-1">
+                <label htmlFor="closing_sunday_end" className={STYLE.formLabel}>
+                  日曜 終了時間
+                </label>
+                <FieldHelp
+                  label="日曜 終了時間"
+                  content="日曜の午後（PM）終了時刻です。これ以降はEMG（緊急）として扱われます。"
+                />
+              </div>
               <input
                 id="closing_sunday_end"
                 name="closing_sunday_end"
@@ -170,7 +189,13 @@ export const StandardClosingTimeSection = memo(function StandardClosingTimeSecti
           </div>
 
           <div>
-            <p className={`${STYLE.formLabel} mb-2`}>休診曜日</p>
+            <p className={`${STYLE.formLabel} mb-2 flex items-center gap-1`}>
+              休診曜日
+              <FieldHelp
+                label="休診曜日"
+                content="週単位で休診とする曜日です。チェックした曜日は締め時間の対象外になります。"
+              />
+            </p>
             <div className="flex flex-wrap gap-3">
               {[0, 1, 2, 3, 4, 5, 6].map((day) => (
                 <label

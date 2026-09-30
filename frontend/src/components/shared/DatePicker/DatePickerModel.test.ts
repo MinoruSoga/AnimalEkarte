@@ -67,10 +67,12 @@ describe("DatePickerModel calendar selected tokens (FE-RC-106)", () => {
     ["SINGLE_CALENDAR_CLASSES", SINGLE_CALENDAR_CLASSES.selected],
     ["RANGE_CALENDAR_CLASSES", RANGE_CALENDAR_CLASSES.selected],
   ] as const)(
-    "%s.selected は完成形 hover/focus brand トークンを使い runtime 合成しない",
+    "%s.selected は白文字塗りの Solid コンボ（完成形静的トークン）を使い runtime 合成しない",
     (_name, selected) => {
-      expect(selected).toContain("hover:bg-[#027078]");
-      expect(selected).toContain("focus:bg-[#027078]");
+      // design-states.md §2.3: 白文字塗りは bg #027078 / hover・active #025F66 の Solid コンボ
+      expect(selected).toContain("bg-[#027078]");
+      expect(selected).toContain("hover:bg-[#025F66]");
+      expect(selected).toContain("active:bg-[#025F66]");
       expect(selected).not.toContain(RUNTIME_HOVER_SYNTHESIS);
     },
   );

@@ -53,14 +53,9 @@ export const MedicineCategoryHeaderRow = memo(function MedicineCategoryHeaderRow
     <TableRow
       className={`${STYLE.tableRow} border-b ${C.borderLight} ${C.bgPage30} group/header ${C.hoverBgPage60}`}
     >
-      <TableCell className="w-11 px-0">
-        <span
-          aria-hidden="true"
-          className={`${STYLE.iconBtn32} ${C.text20} ${C.hoverBgMedium} ${C.hoverText60} cursor-grab`}
-        >
-          <GripVertical className={ICON.action} />
-        </span>
-      </TableCell>
+      {/* カテゴリ行は並べ替え対象外のため grip アイコンは出さない（dead affordance 防止）。
+          w-11 セル自体は sortable 行のドラグ列と揃えるために残す。 */}
+      <TableCell className="w-11 px-0" />
 
       <TableCell className="pl-0 pr-2">
         <div className="flex items-center">
@@ -76,9 +71,10 @@ export const MedicineCategoryHeaderRow = memo(function MedicineCategoryHeaderRow
               className={`${ICON.xs} ${C.text50} transition-transform duration-150 ${
                 isCollapsed ? "" : "rotate-90"
               }`}
+              aria-hidden="true"
             />
             <span className={`text-base font-medium ${C.text65}`}>{header.name}</span>
-            <span className={`text-base ${C.text40} ml-0.5`}>{itemCount}</span>
+            <span className={`text-base ${C.text60} ml-0.5`}>{itemCount}</span>
           </button>
           <div className="flex-1" />
           {canCreate ? (
@@ -88,9 +84,9 @@ export const MedicineCategoryHeaderRow = memo(function MedicineCategoryHeaderRow
               onClick={() => {
                 onCreate(parentId);
               }}
-              className={`${STYLE.iconBtn32} ${C.text40} ${C.hoverBgMedium} ${C.hoverText} opacity-0 group-hover/header:opacity-100`}
+              className={`${STYLE.iconBtn32} ${C.text60} ${C.hoverBgMedium} ${C.hoverText} opacity-0 group-hover/header:opacity-100 group-focus-within/header:opacity-100 focus-visible:opacity-100`}
             >
-              <Plus className={ICON.xs} />
+              <Plus className={ICON.xs} aria-hidden="true" />
             </button>
           ) : null}
         </div>
@@ -106,7 +102,7 @@ export const MedicineCategoryHeaderRow = memo(function MedicineCategoryHeaderRow
           <RowActionButton
             aria-label={`詳細: 薬剤カテゴリ ${header.name} (ID ${header.id})`}
             onClick={() => onEdit(header)}
-            className="opacity-0 group-hover/header:opacity-100 focus-visible:opacity-100"
+            className="opacity-0 group-hover/header:opacity-100 group-focus-within/header:opacity-100 focus-visible:opacity-100"
           />
         ) : null}
       </TableCell>
@@ -173,7 +169,7 @@ export function MedicineRowOverlay({ medicine, grouped }: MedicineRowOverlayProp
       style={{ width: "100%" }}
     >
       <div className={`w-11 shrink-0 flex items-center justify-center ${C.text50}`}>
-        <GripVertical className={ICON.action} />
+        <GripVertical className={ICON.action} aria-hidden="true" />
       </div>
       <div
         className={`flex-1 min-w-0 text-base font-medium ${C.text} ${grouped ? "pl-10" : "pl-0"}`}

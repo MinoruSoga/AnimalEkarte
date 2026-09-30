@@ -114,7 +114,7 @@ export function TreatmentRowActions({
         <Button
           variant="ghost"
           size="icon"
-          className={`${STYLE.iconBtn28} ${C.text40} ${C.hoverText} disabled:opacity-20`}
+          className={`${STYLE.iconBtn28} ${C.text60} ${C.hoverText} disabled:opacity-20`}
           onClick={onMoveUp}
           disabled={isFirst}
           title="上に移動"
@@ -124,7 +124,7 @@ export function TreatmentRowActions({
         <Button
           variant="ghost"
           size="icon"
-          className={`${STYLE.iconBtn28} ${C.text40} ${C.hoverText} disabled:opacity-20`}
+          className={`${STYLE.iconBtn28} ${C.text60} ${C.hoverText} disabled:opacity-20`}
           onClick={onMoveDown}
           disabled={isLast}
           title="下に移動"

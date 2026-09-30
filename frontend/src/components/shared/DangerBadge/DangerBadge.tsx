@@ -1,5 +1,5 @@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { C } from "@/lib/design-tokens";
+import { BADGE, C } from "@/lib/design-tokens";
 
 /**
  * ペット危険度バッジの段階。
@@ -20,8 +20,8 @@ const PET_BADGE_STYLE: Record<
   medium: {
     label: "⚠ 注意",
     reasonLabel: "注意理由",
-    badgeClass: `${C.bgNotice} ${C.textNotice} ${C.borderNotice}`,
-    headingClass: C.textNotice,
+    badgeClass: BADGE.yellow,
+    headingClass: C.textBadgeYellow,
   },
 };
 

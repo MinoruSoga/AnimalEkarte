@@ -2,7 +2,7 @@
 import { memo } from "react";
 
 // Internal
-import { C, PALETTE } from "@/lib/design-tokens";
+import { BADGE, C, PALETTE } from "@/lib/design-tokens";
 
 // Relative
 import { EmptyState } from "@/components/shared/DataStates";
@@ -35,7 +35,7 @@ function LstepStatusBadge({ status }: { status: LstepStatus }) {
   if (status === "not-linked") {
     return (
       <span
-        className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full border ${C.textNotice} ${C.borderNotice} ${C.bgNotice40}`}
+        className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full border ${BADGE.yellow}`}
       >
         LINE未連携
       </span>

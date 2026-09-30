@@ -104,6 +104,9 @@ export const AccountingDetail = memo(function AccountingDetail({
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
   const [isCancelling, startCancelTransition] = useTransition();
 
+  // EMR-227: 明細削除は破壊的操作のため ConfirmDialog で確認してから実行する
+  const [deleteItemId, setDeleteItemId] = useState<string | null>(null);
+
   // clinic 情報（AccountingDocument に props 注入）
   const { user } = useAuth();
   const { canEdit, canCreate, canDelete } = usePermission("accounting");
@@ -198,6 +201,17 @@ export const AccountingDetail = memo(function AccountingDetail({
   if (id && isLoading) return <LoadingFallback />;
   if (!accounting || !calculation) return <ErrorFallback message="データが見つかりません" />;
 
+  const deleteItemName = deleteItemId
+    ? displayItems.find((item) => item.id === deleteItemId)?.name
+    : undefined;
+
+  const handleConfirmDeleteItem = () => {
+    if (deleteItemId != null) {
+      handleDeleteItem(deleteItemId);
+    }
+    setDeleteItemId(null);
+  };
+
   const readOnlyMessage = deceasedPetBlockMessage
     ? deceasedPetBlockMessage
     : !hasAccountingMutationPermission
@@ -290,7 +304,7 @@ export const AccountingDetail = memo(function AccountingDetail({
               canDelete={Boolean(canDelete && canViewCashRegisterClose)}
               onNewItemOpenChange={setNewItemOpen}
               onAddItem={handleAddItem}
-              onDeleteItem={handleDeleteItem}
+              onDeleteItem={setDeleteItemId}
               onUpdateItemTax={handleUpdateItemTax}
               onUpdateItemDiscount={handleUpdateItemDiscount}
               onUseInsuranceChange={setHasInsurance}
@@ -363,6 +377,21 @@ export const AccountingDetail = memo(function AccountingDetail({
             confirmLabel="修正する"
             cancelLabel="キャンセル"
             onConfirm={confirmCompletedEdit}
+          />
+
+          <ConfirmDialog
+            open={deleteItemId != null}
+            onClose={() => setDeleteItemId(null)}
+            title="明細を削除しますか？"
+            description={
+              deleteItemName
+                ? `「${deleteItemName}」を会計明細から削除します。この操作は取り消せません。`
+                : "選択した明細項目を削除します。この操作は取り消せません。"
+            }
+            confirmLabel="削除"
+            cancelLabel="キャンセル"
+            variant="destructive"
+            onConfirm={handleConfirmDeleteItem}
           />
 
           <ConfirmDialog

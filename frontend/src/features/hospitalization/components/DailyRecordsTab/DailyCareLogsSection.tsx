@@ -5,7 +5,7 @@ import { memo, useState, useCallback } from "react";
 import { UtensilsCrossed, Droplets, Pill, Stethoscope, MoreHorizontal, Plus } from "lucide-react";
 
 // Internal
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, BADGE } from "@/lib/design-tokens";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -72,15 +72,15 @@ function getCareLogIcon(type: string) {
 function getCareLogColor(type: string): string {
   switch (type) {
     case "food":
-      return `${C.bgDiscountLight} ${C.borderOrangeBadge} ${C.textDiscount}`;
+      return BADGE.orange;
     case "excretion":
-      return `${C.bgNotice} ${C.borderNotice} ${C.textNotice}`;
+      return BADGE.yellow;
     case "medicine":
-      return `${C.bgAccentLight} ${C.borderAccentBadge} ${C.textAccentDark}`;
+      return BADGE.blue;
     case "treatment":
-      return `${C.bgStatusPurple} ${C.borderPurpleLight} ${C.textStatusPurple}`;
+      return BADGE.purple;
     default:
-      return `${C.bgPage} ${C.borderLight} ${C.text60}`;
+      return BADGE.muted;
   }
 }
 
@@ -135,11 +135,11 @@ export const DailyCareLogsSection = memo(function DailyCareLogsSection({
     <div>
       <div className="flex items-center justify-between mb-2">
         <h4 className={`flex items-center gap-1.5 text-sm font-bold ${C.text}`}>
-          <UtensilsCrossed className={`${ICON.action} ${C.textDiscount}`} />
+          <UtensilsCrossed className={`${ICON.action} ${C.textBadgeOrange}`} />
           ケアログ
         </h4>
         {canCreate ? (
-          <Button variant="outline" size="sm" onClick={handleOpen} className="h-7 gap-1 text-xs">
+          <Button variant="outline" onClick={handleOpen} className="gap-1 text-xs">
             <Plus className={ICON.action} />
             追加
           </Button>

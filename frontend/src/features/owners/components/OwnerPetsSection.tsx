@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { DataTableRowLink } from "@/components/shared/DataTable/DataTableRowLink";
+import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,6 +36,7 @@ import {
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
 import { isPersistedPetId } from "@/lib/pet-id";
+import { getPetStatusColor } from "@/lib/status-helpers";
 import { mapPetStatusLabel, PET_GENDER_MAP } from "@/lib/transforms/pet";
 import {
   useGetOwnerSharedPets,
@@ -90,7 +92,7 @@ const PetTableRow = memo(function PetTableRow({
           // pending (temp-*) はサーバに存在しないため従来どおりローカル編集ボタン。
           <DataTableRowLink
             to={paths.owners.detail.pet.getHref(ownerId, pet.id)}
-            aria-label={`ペット詳細を開く: ${pet.petName} (ID ${pet.id})`}
+            aria-label={`${isDeceased ? "死亡・" : ""}ペット詳細を開く: ${pet.petName} (ID ${pet.id})`}
           >
             {pet.petName}
           </DataTableRowLink>
@@ -108,7 +110,11 @@ const PetTableRow = memo(function PetTableRow({
           pet.petName
         )}
       </TableCell>
-      <TableCell className={STYLE.tableCell}>{pet.status}</TableCell>
+      <TableCell className={STYLE.tableCell}>
+        {pet.status ? (
+          <StatusBadge colorClass={getPetStatusColor(pet.status)}>{pet.status}</StatusBadge>
+        ) : null}
+      </TableCell>
       <TableCell className={STYLE.tableCell}>{pet.species}</TableCell>
       <TableCell className={STYLE.tableCell}>{pet.gender}</TableCell>
       <TableCell className={STYLE.tableCell}>
@@ -231,7 +237,8 @@ const SharedPetTableRow = memo(function SharedPetTableRow({
 }: {
   pet: OwnerSharedPetApiResponse;
 }) {
-  const isDeceased = mapPetStatusLabel(pet.status) === "死亡";
+  const statusLabel = mapPetStatusLabel(pet.status);
+  const isDeceased = statusLabel === "死亡";
   return (
     <TableRow
       className={`transition-colors ${C.borderDivider} ${C.hoverBgPage} h-12 ${isDeceased ? "opacity-60 grayscale-[0.5]" : ""}`}
@@ -244,7 +251,9 @@ const SharedPetTableRow = memo(function SharedPetTableRow({
           {pet.relationship !== "" ? <span>{pet.relationship}</span> : null}
         </div>
       </TableCell>
-      <TableCell className={STYLE.tableCell}>{mapPetStatusLabel(pet.status)}</TableCell>
+      <TableCell className={STYLE.tableCell}>
+        <StatusBadge colorClass={getPetStatusColor(statusLabel)}>{statusLabel}</StatusBadge>
+      </TableCell>
       <TableCell className={STYLE.tableCell}>{pet.animal_species.name}</TableCell>
       <TableCell className={STYLE.tableCell}>{PET_GENDER_MAP[pet.gender] ?? pet.gender}</TableCell>
       <TableCell className={STYLE.tableCell}>
@@ -325,8 +334,8 @@ export function OwnerPetsSection({
             type="button"
             size="sm"
             onClick={onAddPet}
-            // docs/spec/design-system.md button-primary: brand と同じ primary teal + pill
-            className={`${C.bgActionPrimary} ${C.textOnActionPrimary} ${C.hoverBgActionPrimary} ${C.hoverTextOnActionPrimary} gap-1.5 text-sm px-4 rounded-full transition-colors shadow-none border-transparent`}
+            // design-tokens: 白文字 CTA は AA 適合の Solid 系フルセット（bgActionPrimary は非テキスト用途のみ）。
+            className={`${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimarySolid} ${C.activeTextOnActionPrimary} gap-1.5 text-sm px-4 rounded-full transition-colors shadow-none border-transparent`}
           >
             <Plus className={ICON.action} />
             ペット追加

@@ -118,7 +118,7 @@ describe("SpecialPeriodSection", () => {
     expect(screen.getByText(/EMG 17:00:00～翌08:59:59/)).toBeInTheDocument();
   });
 
-  it("削除ボタンで deleteMutation.mutateAsync が id で呼ばれる", async () => {
+  it("削除ボタンで確認ダイアログを開き、確定で deleteMutation.mutateAsync が id で呼ばれる", async () => {
     renderSection(
       <SpecialPeriodSection periods={[makePeriod({ id: 7 })]} canCreate={true} canDelete={true} />,
     );
@@ -127,6 +127,11 @@ describe("SpecialPeriodSection", () => {
         name: "2026-12-29から2027-01-03の特別期間を削除",
       }),
     );
+
+    expect(screen.getByText("特別期間を削除しますか？")).toBeInTheDocument();
+    expect(mockDeleteMutateAsync).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "削除" }));
 
     await waitFor(() => expect(mockDeleteMutateAsync).toHaveBeenCalledWith(7));
   });
@@ -292,6 +297,7 @@ describe("SpecialPeriodSection", () => {
         name: "2026-12-29から2027-01-03の特別期間を削除",
       }),
     );
+    fireEvent.click(screen.getByRole("button", { name: "削除" }));
 
     await waitFor(() => {
       expect(mockToastError).toHaveBeenCalledWith(PERMISSION_DENIED_MESSAGE);

@@ -180,7 +180,7 @@ export function CashRegisterClosePage() {
               <AlertDialogAction
                 onClick={handleConfirmClose}
                 disabled={isPending}
-                className={`${C.bgBrand} ${C.textOnBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} rounded-full`}
+                className={`${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimarySolid} ${C.activeTextOnActionPrimary} rounded-full`}
               >
                 {isPending ? "処理中..." : "締める"}
               </AlertDialogAction>

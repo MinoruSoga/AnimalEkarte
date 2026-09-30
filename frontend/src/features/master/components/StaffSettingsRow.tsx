@@ -33,7 +33,7 @@ export function StaffSettingsRow({ item, groups, onEdit, canEdit }: StaffSetting
       <TableCell>
         <div className="flex flex-wrap items-center gap-1">
           {visibleGroups.length === 0 ? (
-            <span className={`text-sm ${C.text40}`}>—</span>
+            <span className={`text-sm ${C.text60}`}>—</span>
           ) : (
             <>
               {visibleGroups.map((g) => (
@@ -52,7 +52,7 @@ export function StaffSettingsRow({ item, groups, onEdit, canEdit }: StaffSetting
                   {g.name}
                 </span>
               ))}
-              {extraCount > 0 ? <span className={`text-xs ${C.text40}`}>+{extraCount}</span> : null}
+              {extraCount > 0 ? <span className={`text-xs ${C.text60}`}>+{extraCount}</span> : null}
             </>
           )}
         </div>

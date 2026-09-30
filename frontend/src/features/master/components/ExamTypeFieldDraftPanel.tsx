@@ -1,5 +1,7 @@
 import type { AnimalSpecies } from "../api/animal-species";
 import { C } from "@/lib/design-tokens";
+import { Checkbox } from "@/components/ui/checkbox";
+import { FieldHelp } from "@/components/shared/FieldHelp";
 
 import { QUALITATIVE_VALUES, type ReferenceRangeDraft } from "../lib/exam-type-fields-editor-model";
 import { FieldInput, ReferenceRangeInputs } from "./ExamTypeFieldEditors";
@@ -39,21 +41,25 @@ function ExamTypeFieldDraftForm({
         label="検査項目名"
         value={fieldDraft.name}
         onChange={(value) => onFieldChange({ name: value })}
+        description="検査項目の名前です。カルテの検査結果入力欄に表示されます。"
       />
       <FieldInput
         label="単位"
         value={fieldDraft.unit}
         onChange={(value) => onFieldChange({ unit: value })}
+        description="検査値の単位です（例: mg/dL、%）。"
       />
       <FieldInput
         label="検査値"
         value={fieldDraft.inspectionValue}
         onChange={(value) => onFieldChange({ inspectionValue: value })}
+        description="この検査項目で記録する値の種類・名称です。"
       />
       <FieldInput
         label="正常値"
         value={fieldDraft.normalValue}
         onChange={(value) => onFieldChange({ normalValue: value })}
+        description="正常とみなす基準値です。数値範囲や定性値で指定します。"
       />
       {error ? (
         <p role="alert" className={`text-sm ${C.danger}`}>
@@ -71,7 +77,7 @@ function ExamTypeFieldDraftForm({
         <button
           type="button"
           onClick={onSaveField}
-          className={`min-h-11 rounded-full px-4 text-sm ${C.bgBrand} ${C.textOnBrand}`}
+          className={`min-h-11 rounded-full px-4 text-sm ${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimarySolid} ${C.activeTextOnActionPrimary}`}
         >
           検査項目情報を保存
         </button>
@@ -104,7 +110,13 @@ function ExamTypeFieldReferenceRanges({
 }: ExamTypeFieldReferenceRangesProps) {
   return (
     <div className={`space-y-3 border-t pt-4 ${C.borderLight}`}>
-      <h4 className={`text-sm font-medium ${C.text}`}>動物種別の基準範囲</h4>
+      <h4 className={`flex items-center gap-1 text-sm font-medium ${C.text}`}>
+        動物種別の基準範囲
+        <FieldHelp
+          label="動物種別の基準範囲"
+          content="動物種ごとの基準範囲です。チェックした動物種について基準値の下限・上限を設定できます。"
+        />
+      </h4>
       {isError ? (
         <p role="alert" aria-atomic="true" className={`text-sm ${C.danger}`}>
           動物種の取得に失敗したため、基準範囲を設定できません。
@@ -127,10 +139,9 @@ function ExamTypeFieldReferenceRanges({
                 className={`rounded-xs border p-2 ${C.borderLight} ${C.bgWhite}`}
               >
                 <label className={`flex min-h-11 items-center gap-2 text-sm ${C.text}`}>
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={draft !== undefined}
-                    onChange={() => onToggleSpecies(species.id)}
+                    onCheckedChange={() => onToggleSpecies(species.id)}
                   />
                   {species.name}の基準範囲を使用
                 </label>
@@ -153,7 +164,7 @@ function ExamTypeFieldReferenceRanges({
             <button
               type="button"
               onClick={onSaveRanges}
-              className={`min-h-11 rounded-full px-4 text-sm ${C.bgBrand} ${C.textOnBrand}`}
+              className={`min-h-11 rounded-full px-4 text-sm ${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimarySolid} ${C.activeTextOnActionPrimary}`}
             >
               基準範囲を保存
             </button>

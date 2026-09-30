@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/sheet";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { Input } from "@/components/ui/input";
-import { C, STYLE } from "@/lib/design-tokens";
+import { BADGE, C, STYLE } from "@/lib/design-tokens";
 import { SUPPORT_WIDGET_LAYOUT } from "@/constants/support-widget-layout";
 import { getFormEnum, getFormOptionalString } from "@/lib/form-data";
 import { handleApiError } from "@/lib/handle-api-error";
@@ -193,9 +193,7 @@ export function LineSendPanel({ ownerId, ownerName, open, onOpenChange }: LineSe
               ) : null}
 
               {/* FE-003: 月間配信数消費の注意 */}
-              <div
-                className={`rounded-md border ${C.borderNotice} ${C.bgNotice} px-3 py-2 text-xs ${C.textNotice}`}
-              >
+              <div className={`rounded-md border ${BADGE.yellow} px-3 py-2 text-xs`}>
                 この送信はLINE Messaging APIを使用します。月間配信数を1件消費します。
               </div>
 
@@ -203,7 +201,7 @@ export function LineSendPanel({ ownerId, ownerName, open, onOpenChange }: LineSe
               <div className="flex flex-col gap-1.5">
                 <label htmlFor="line_purpose" className={STYLE.formLabel}>
                   送信目的
-                  <span className={`ml-1 text-xs ${C.text40}`}>（任意）</span>
+                  <span className={`ml-1 text-xs ${C.text60}`}>（任意）</span>
                 </label>
                 <input
                   id="line_purpose"

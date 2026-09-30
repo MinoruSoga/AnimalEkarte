@@ -166,7 +166,7 @@ export function UnlinkedLineIdForm({
 export function UnlinkedStatusRow() {
   return (
     <div className="flex items-center gap-2">
-      <Circle className={`${ICON.smXs} ${C.text40} shrink-0`} />
+      <Circle className={`${ICON.smXs} ${C.text60} shrink-0`} />
       <span className={`text-sm ${C.text50}`}>未連携</span>
     </div>
   );

@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/table";
 import { EmptyState } from "@/components/shared/DataStates";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
-import { C, ICON } from "@/lib/design-tokens";
+import { BADGE, C, ICON } from "@/lib/design-tokens";
 import { PAYMENT_METHOD_LABELS } from "@/constants/payment-method";
 import { formatJSTDate } from "@/lib/jst-date";
 import { formatCurrency } from "@/lib/format/number";
@@ -114,9 +114,7 @@ export const RefundSection = memo(function RefundSection({
                 : `残額 ${formatCurrency(refundableAmount)}`}
             </span>
             {totalRefunded > 0 ? (
-              <span
-                className={`text-xs font-normal ${C.textDiscount} ${C.bgDiscountLight} px-2 py-0.5 rounded`}
-              >
+              <span className={`text-xs font-normal ${BADGE.orange} px-2 py-0.5 rounded`}>
                 合計 {formatCurrency(totalRefunded)} 返金済
               </span>
             ) : null}

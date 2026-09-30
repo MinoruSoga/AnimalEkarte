@@ -4,7 +4,9 @@ import { useActionState, useState, useCallback } from "react";
 // Internal
 import { C } from "@/lib/design-tokens";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 
@@ -149,7 +151,7 @@ export function EditRow({ item, onSave, onCancel }: EditRowProps) {
       ) : null}
       <div className="flex gap-2 items-center">
         <Select value={type} onValueChange={(v) => handleTypeChange(v as CarePlanItemType)}>
-          <SelectTrigger className="w-28 h-9 text-xs" aria-label="ケアプラン項目種別">
+          <SelectTrigger className="w-28 h-11 text-xs" aria-label="ケアプラン項目種別">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>{TYPE_SELECT_ITEMS}</SelectContent>
@@ -158,20 +160,26 @@ export function EditRow({ item, onSave, onCancel }: EditRowProps) {
           value={name}
           onChange={(e) => setName(e.target.value)}
           aria-label="ケアプラン項目名"
-          className="h-9 text-sm flex-1"
+          className="h-11 text-sm flex-1"
           placeholder="名称"
         />
       </div>
       {type === "item" ? (
-        <label className="flex min-h-11 min-w-11 items-center gap-1 cursor-pointer">
-          <input
-            type="checkbox"
+        <div className="flex items-center gap-1">
+          <Checkbox
+            id={`careplan-edit-${item.id}-manual`}
+            touchTarget
+            aria-label="手入力（その他）"
             checked={manual}
-            onChange={(e) => handleManualToggle(e.target.checked)}
-            className="rounded"
+            onCheckedChange={(checked) => handleManualToggle(checked === true)}
           />
-          <span className="text-xs">手入力（その他）</span>
-        </label>
+          <Label
+            htmlFor={`careplan-edit-${item.id}-manual`}
+            className="inline-flex min-h-11 items-center text-xs cursor-pointer"
+          >
+            手入力（その他）
+          </Label>
+        </div>
       ) : null}
       {isManualItem ? (
         <>
@@ -182,7 +190,7 @@ export function EditRow({ item, onSave, onCancel }: EditRowProps) {
             min={0}
             step={1}
             aria-label="手入力の単価"
-            className="h-9 text-sm"
+            className="h-11 text-sm"
             placeholder="単価（円）を入力"
           />
           <Input
@@ -190,7 +198,7 @@ export function EditRow({ item, onSave, onCancel }: EditRowProps) {
             onChange={(e) => setOtherReason(e.target.value)}
             maxLength={OTHER_REASON_MAX_LENGTH}
             aria-label="その他理由"
-            className="h-9 text-sm"
+            className="h-11 text-sm"
             placeholder="理由を入力（必須・500文字以内）"
           />
         </>
@@ -207,18 +215,21 @@ export function EditRow({ item, onSave, onCancel }: EditRowProps) {
         <span className={`text-xs ${C.text50} shrink-0`}>タイミング:</span>
         <div className="flex gap-2">
           {TIMING_OPTIONS.map((opt) => (
-            <label
-              key={opt.value}
-              className="flex min-h-11 min-w-11 items-center gap-1 cursor-pointer"
-            >
-              <input
-                type="checkbox"
+            <div key={opt.value} className="flex items-center gap-1">
+              <Checkbox
+                id={`careplan-edit-${item.id}-timing-${opt.value}`}
+                touchTarget
+                aria-label={opt.label}
                 checked={timing.includes(opt.value)}
-                onChange={() => handleTimingToggle(opt.value)}
-                className="rounded"
+                onCheckedChange={() => handleTimingToggle(opt.value)}
               />
-              <span className="text-xs">{opt.label}</span>
-            </label>
+              <Label
+                htmlFor={`careplan-edit-${item.id}-timing-${opt.value}`}
+                className="inline-flex min-h-11 items-center text-xs cursor-pointer"
+              >
+                {opt.label}
+              </Label>
+            </div>
           ))}
         </div>
       </div>
@@ -226,14 +237,13 @@ export function EditRow({ item, onSave, onCancel }: EditRowProps) {
         <Button
           type="button"
           variant="ghost"
-          size="sm"
           onClick={onCancel}
           disabled={isSaving}
-          className="h-7 text-xs"
+          className="text-xs"
         >
           キャンセル
         </Button>
-        <SubmitButton size="sm" disabled={!canSave} className="h-7 text-xs">
+        <SubmitButton disabled={!canSave} className="text-xs">
           保存
         </SubmitButton>
       </div>

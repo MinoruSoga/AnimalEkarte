@@ -92,7 +92,7 @@ export function PetCareSection({
           onValueChange={onInsuranceChange}
           disabled={isLoadingInsurances}
         >
-          <SelectTrigger className={INPUT_CLS}>
+          <SelectTrigger id="insuranceId" className={INPUT_CLS}>
             <SelectValue placeholder={isLoadingInsurances ? "読み込み中..." : "保険を選択"} />
           </SelectTrigger>
           <SelectContent>

@@ -6,7 +6,9 @@ import { Plus } from "lucide-react";
 
 // Internal
 import { C, ICON } from "@/lib/design-tokens";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 
@@ -156,15 +158,21 @@ export function AddForm({ onSubmit }: AddFormProps) {
           />
         </div>
         {type === "item" ? (
-          <label className="flex min-h-11 min-w-11 items-center gap-1 cursor-pointer">
-            <input
-              type="checkbox"
+          <div className="flex items-center gap-1">
+            <Checkbox
+              id="careplan-add-manual"
+              touchTarget
+              aria-label="手入力（その他）"
               checked={manual}
-              onChange={(e) => handleManualToggle(e.target.checked)}
-              className="rounded"
+              onCheckedChange={(checked) => handleManualToggle(checked === true)}
             />
-            <span className="text-xs">手入力（その他）</span>
-          </label>
+            <Label
+              htmlFor="careplan-add-manual"
+              className="inline-flex min-h-11 items-center text-xs cursor-pointer"
+            >
+              手入力（その他）
+            </Label>
+          </div>
         ) : null}
         {isManualItem ? (
           <>
@@ -201,26 +209,28 @@ export function AddForm({ onSubmit }: AddFormProps) {
             <span className={`text-xs ${C.text50} shrink-0`}>タイミング:</span>
             <div className="flex gap-2">
               {TIMING_OPTIONS.map((opt) => (
-                <label
-                  key={opt.value}
-                  className="flex min-h-11 min-w-11 items-center gap-1 cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
+                <div key={opt.value} className="flex items-center gap-1">
+                  <Checkbox
+                    id={`careplan-add-timing-${opt.value}`}
+                    touchTarget
+                    aria-label={opt.label}
                     checked={timing.includes(opt.value)}
-                    onChange={() => handleTimingToggle(opt.value)}
-                    className="rounded"
+                    onCheckedChange={() => handleTimingToggle(opt.value)}
                   />
-                  <span className="text-xs">{opt.label}</span>
-                </label>
+                  <Label
+                    htmlFor={`careplan-add-timing-${opt.value}`}
+                    className="inline-flex min-h-11 items-center text-xs cursor-pointer"
+                  >
+                    {opt.label}
+                  </Label>
+                </div>
               ))}
             </div>
           </div>
           <SubmitButton
-            size="sm"
             disabled={!canSubmit}
             aria-label="ケアプラン項目を追加"
-            className="h-8 text-xs gap-1"
+            className="text-xs gap-1"
           >
             <Plus className={ICON.action} />
             追加

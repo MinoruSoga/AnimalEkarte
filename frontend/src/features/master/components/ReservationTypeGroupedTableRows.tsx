@@ -36,7 +36,7 @@ export function ReservationTypeGroupHeader({
             onClick={onToggle}
             aria-label={`${group.name}グループを${isCollapsed ? "展開" : "折りたたむ"}`}
             aria-expanded={!isCollapsed}
-            className={`flex min-h-11 min-w-11 items-center justify-center rounded-xxs ${C.text35} ${C.hoverBgMedium} shrink-0`}
+            className={`flex min-h-11 min-w-11 items-center justify-center rounded-xxs ${C.text60} ${C.hoverBgMedium} shrink-0`}
           >
             <ChevronDown
               className={`${ICON.smXs} transition-transform duration-150`}
@@ -54,13 +54,13 @@ export function ReservationTypeGroupHeader({
           >
             {group.name}
           </button>
-          <span className={`text-xs ${C.text35} tabular-nums`}>{count}</span>
+          <span className={`text-xs ${C.text60} tabular-nums`}>{count}</span>
           {canEdit ? (
             <div className="ml-auto flex items-center gap-1">
               <button
                 type="button"
                 onClick={onGroupEdit}
-                className={`flex min-h-11 min-w-11 items-center gap-1 text-xs ${C.text45}
+                className={`flex min-h-11 min-w-11 items-center gap-1 text-xs ${C.text60}
                   ${LAYOUT.inputCompact} ${C.hoverBgMedium} transition-colors`}
               >
                 <Pencil className={ICON.action} />
@@ -69,7 +69,7 @@ export function ReservationTypeGroupHeader({
               <button
                 type="button"
                 onClick={onCategoryAdd}
-                className={`flex min-h-11 min-w-11 items-center gap-1 text-xs ${C.text45}
+                className={`flex min-h-11 min-w-11 items-center gap-1 text-xs ${C.text60}
                   ${LAYOUT.inputCompact} ${C.hoverBgMedium} transition-colors`}
               >
                 <Plus className={ICON.action} />
@@ -107,7 +107,7 @@ export function ReservationTypeUncategorizedHeader({
             onClick={onToggle}
             aria-label={`未分類を${isCollapsed ? "展開" : "折りたたむ"}`}
             aria-expanded={!isCollapsed}
-            className={`flex min-h-11 min-w-11 items-center justify-center rounded-xxs ${C.text35} ${C.hoverBgMedium} shrink-0`}
+            className={`flex min-h-11 min-w-11 items-center justify-center rounded-xxs ${C.text60} ${C.hoverBgMedium} shrink-0`}
           >
             <ChevronDown
               className={`${ICON.smXs} transition-transform duration-150`}
@@ -119,12 +119,12 @@ export function ReservationTypeUncategorizedHeader({
             style={{ backgroundColor: PALETTE.grayMedium }}
           />
           <span className={`text-sm font-medium ${C.text55}`}>未分類</span>
-          <span className={`text-xs ${C.text35} tabular-nums`}>{count}</span>
+          <span className={`text-xs ${C.text60} tabular-nums`}>{count}</span>
           {canEdit ? (
             <button
               type="button"
               onClick={onCategoryAdd}
-              className={`ml-auto flex min-h-11 min-w-11 items-center gap-1 text-xs ${C.text45}
+              className={`ml-auto flex min-h-11 min-w-11 items-center gap-1 text-xs ${C.text60}
                 ${LAYOUT.inputCompact} ${C.hoverBgMedium} transition-colors`}
             >
               <Plus className={ICON.action} />
@@ -140,7 +140,7 @@ export function ReservationTypeUncategorizedHeader({
 export function ReservationTypeEmptyGroupRow() {
   return (
     <tr className={`border-b ${C.borderLight}`}>
-      <td colSpan={5} className={`pl-10 py-2 text-sm ${C.text35} italic`}>
+      <td colSpan={5} className={`pl-10 py-2 text-sm ${C.text60} italic`}>
         予約区分がありません
       </td>
     </tr>

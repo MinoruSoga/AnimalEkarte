@@ -109,7 +109,7 @@ export const ActionButtons = memo(function ActionButtons({
               <FileText className={ICON.action} />
               カルテ作成
             </Button>
-            <span className={`text-2xs ${C.text40}`}>
+            <span className={`text-2xs ${C.text60}`}>
               ※カルテ作成と同時に「診療中」へ移動します
             </span>
           </div>

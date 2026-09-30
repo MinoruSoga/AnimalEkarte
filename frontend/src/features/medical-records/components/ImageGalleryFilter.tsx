@@ -1,5 +1,5 @@
 // React/Framework
-import { useRef, memo } from "react";
+import { useId, useRef, memo } from "react";
 
 // External
 import { Camera, Upload } from "lucide-react";
@@ -64,6 +64,16 @@ export const ImageGalleryFilter = memo(function ImageGalleryFilter({
 }: ImageGalleryFilterProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const captureInputRef = useRef<HTMLInputElement>(null);
+  const dateRangeId = useId();
+  const startDateId = `${dateRangeId}-start-date`;
+  const endDateId = `${dateRangeId}-end-date`;
+
+  const handleClearFilters = () => {
+    onSearchChange("");
+    onDateStartChange("");
+    onDateEndChange("");
+    onSortOrderChange("desc");
+  };
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
@@ -127,7 +137,7 @@ export const ImageGalleryFilter = memo(function ImageGalleryFilter({
             type="button"
             size="sm"
             variant="outline"
-            className={`gap-2 h-10 text-sm shadow-none rounded-md px-4 ${C.borderMedium} ${C.text}`}
+            className={`gap-2 h-11 text-sm shadow-none rounded-md px-4 ${C.borderMedium} ${C.text}`}
             onClick={handleCaptureClick}
             disabled={isUploading}
           >
@@ -137,7 +147,7 @@ export const ImageGalleryFilter = memo(function ImageGalleryFilter({
           <Button
             type="button"
             size="sm"
-            className={`${C.bgActionPrimary} ${C.hoverBgActionPrimary} ${C.hoverTextOnActionPrimary} ${C.textOnActionPrimary} gap-2 h-10 text-sm shadow-none rounded-full border-transparent px-4`}
+            className={`${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimarySolid} ${C.activeTextOnActionPrimary} gap-2 h-11 text-sm shadow-none rounded-full border-transparent px-4`}
             onClick={handleUploadClick}
             disabled={isUploading}
           >
@@ -164,16 +174,25 @@ export const ImageGalleryFilter = memo(function ImageGalleryFilter({
         </div>
 
         <div className="flex flex-col gap-1.5 w-[400px]">
-          <Label className={`text-sm font-medium ${C.text60}`}>期間</Label>
+          {/* 期間は2入力のグループ名のため span + 各ピッカーへ sr-only Label */}
+          <span className={`text-sm font-medium ${C.text60}`}>期間</span>
           <div className="flex items-center gap-2">
+            <Label htmlFor={startDateId} className="sr-only">
+              開始日
+            </Label>
             <DatePicker
+              id={startDateId}
               value={dateStart}
               onChange={onDateStartChange}
               placeholder="開始日"
               className="flex-1"
             />
             <span className={`${C.text} font-medium text-sm`}>〜</span>
+            <Label htmlFor={endDateId} className="sr-only">
+              終了日
+            </Label>
             <DatePicker
+              id={endDateId}
               value={dateEnd}
               onChange={onDateEndChange}
               placeholder="終了日"
@@ -186,18 +205,16 @@ export const ImageGalleryFilter = memo(function ImageGalleryFilter({
           <Button
             type="button"
             variant="outline"
-            className={`h-10 ${C.bgWhite} ${C.text} ${C.borderMedium} ${C.hoverBgPage} text-sm px-3`}
+            onClick={handleClearFilters}
+            className={`h-11 ${C.bgWhite} ${C.text} ${C.borderMedium} ${C.hoverBgPage} text-sm px-3`}
           >
             クリア
           </Button>
-          <Button
-            type="button"
-            className={`h-10 ${C.bgActionPrimary} ${C.textOnActionPrimary} ${C.hoverBgActionPrimary} ${C.hoverTextOnActionPrimary} border-transparent text-sm shadow-none rounded-full px-3`}
-          >
-            検索
-          </Button>
           <Select value={sortOrder} onValueChange={onSortOrderChange}>
-            <SelectTrigger className={`w-[80px] h-10 ${C.bgWhite} ${C.borderMedium} text-sm`}>
+            <SelectTrigger
+              aria-label="並び順"
+              className={`w-[80px] h-11 ${C.bgWhite} ${C.borderMedium} text-sm focus-visible:ring-2 ${C.focusVisibleRingActionPrimary} focus-visible:ring-offset-1`}
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>{SORT_ORDER_SELECT_ITEMS}</SelectContent>

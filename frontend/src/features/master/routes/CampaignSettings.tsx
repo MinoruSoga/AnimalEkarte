@@ -7,6 +7,7 @@ import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
+import { ErrorFallback, LoadingFallback } from "@/components/shared/DataStates";
 import { C, ICON } from "@/lib/design-tokens";
 import { formatCurrency } from "@/lib/format/number";
 import { MASTER_STATUS_FILTER, MASTER_TABLE_COL } from "../constants/styles";
@@ -37,7 +38,7 @@ const COLUMNS = [
 // ─── Page ───
 export function CampaignSettings() {
   const { canCreate, canEdit, canDelete } = usePermission(ResourceAccounting);
-  const { data } = useGetCampaigns();
+  const { data, isPending, isError } = useGetCampaigns();
   const createMutation = useCreateCampaign();
   const updateMutation = useUpdateCampaign();
   const deleteMutation = useDeleteCampaign();
@@ -121,7 +122,13 @@ export function CampaignSettings() {
             onDirtyChange={handleDirtyChange}
           />
         )}
-      />
+      >
+        {isError ? (
+          <ErrorFallback message="キャンペーンの取得に失敗しました" />
+        ) : isPending ? (
+          <LoadingFallback />
+        ) : null}
+      </MasterCRUDPage>
       {dirty.discardDialog}
     </>
   );

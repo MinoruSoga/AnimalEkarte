@@ -98,7 +98,7 @@ export const MonthView = memo(function MonthView({
             <div className="flex justify-between items-start mb-2">
               <button
                 type="button"
-                className={`text-base font-semibold min-h-11 min-w-11 flex items-center justify-center rounded-full transition-colors ${isSameDay(day, today) ? `${C.bgBrand} ${C.textOnBrand}` : `${C.hoverBgBrandLight} ${C.hoverTextBrand}`}`}
+                className={`text-base font-semibold min-h-11 min-w-11 flex items-center justify-center rounded-full transition-colors ${isSameDay(day, today) ? `${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimarySolid} ${C.activeTextOnActionPrimary}` : `${C.hoverBgBrandLight} ${C.hoverTextBrand}`}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   onDateClick?.(cloneDay);

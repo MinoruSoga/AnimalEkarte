@@ -7,6 +7,7 @@ import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
+import { ErrorFallback, LoadingFallback } from "@/components/shared/DataStates";
 import { C, ICON } from "@/lib/design-tokens";
 import { MASTER_STATUS_FILTER, MASTER_TABLE_COL } from "../constants/styles";
 import { useMasterCRUD } from "../hooks/use-master-crud";
@@ -40,7 +41,7 @@ const COLUMNS = [
 
 export function ChiefComplaintSettings() {
   const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterMedical);
-  const { data } = useGetChiefComplaintTypes();
+  const { data, isPending, isError } = useGetChiefComplaintTypes();
   const createMutation = useCreateChiefComplaintType();
   const updateMutation = useUpdateChiefComplaintType();
   const deleteMutation = useDeleteChiefComplaintType();
@@ -118,7 +119,13 @@ export function ChiefComplaintSettings() {
             onDirtyChange={handleDirtyChange}
           />
         )}
-      />
+      >
+        {isError ? (
+          <ErrorFallback message="主訴マスタの取得に失敗しました" />
+        ) : isPending ? (
+          <LoadingFallback />
+        ) : null}
+      </MasterCRUDPage>
       {dirty.discardDialog}
     </>
   );

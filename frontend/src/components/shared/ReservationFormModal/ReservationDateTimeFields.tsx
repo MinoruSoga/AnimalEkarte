@@ -44,7 +44,7 @@ export interface FieldLabelProps {
 export function FieldLabel({ children, required, trailing }: FieldLabelProps) {
   return (
     <div className="flex items-center justify-between gap-2">
-      <Label className={`text-xs ${C.text40} font-medium`}>
+      <Label className={`text-xs ${C.text60} font-medium`}>
         {children}
         {required ? (
           <span className={`ml-1 ${C.textRequired}`} aria-hidden="true">
@@ -104,7 +104,7 @@ export function ReservationDateTimeFields({
               type="button"
               className={cn(
                 `flex h-11 w-full items-center justify-between rounded-xs border px-3 py-1 text-sm transition-colors ${C.borderMediumLight} ${C.text} bg-white ${C.hoverBgSubtle}`,
-                !formData.start && C.text40,
+                !formData.start && C.textMuted,
               )}
             >
               <span className="flex items-center">
@@ -147,7 +147,7 @@ export function ReservationDateTimeFields({
       </div>
 
       <div className="space-y-1.5">
-        <div className={`flex items-center gap-2 text-xs ${C.text40} font-medium`}>
+        <div className={`flex items-center gap-2 text-xs ${C.text60} font-medium`}>
           <Clock className={ICON.action} />
           時間
           <span className={`ml-0.5 ${C.textRequired}`} aria-hidden="true">
@@ -224,7 +224,7 @@ export function ReservationDateTimeFields({
           </Select>
         </div>
         {settingsUnsetGuidance ? (
-          <p data-testid="res-available-times-unset-guidance" className={`text-xs ${C.text40}`}>
+          <p data-testid="res-available-times-unset-guidance" className={`text-xs ${C.text60}`}>
             {settingsUnsetGuidance}
           </p>
         ) : null}

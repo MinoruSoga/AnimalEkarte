@@ -2,6 +2,8 @@ import { memo, useActionState, useCallback, useLayoutEffect, useRef, useState } 
 import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { C, STYLE } from "@/lib/design-tokens";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
+import { FieldHelp } from "@/components/shared/FieldHelp";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { EmptyState } from "@/components/shared/DataStates";
 import { getFormString } from "@/lib/form-data";
@@ -22,6 +24,7 @@ export const HolidaySection = memo(function HolidaySection({
   canDelete,
 }: HolidaySectionProps) {
   const [showForm, setShowForm] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const createMutation = useCreateHoliday();
   const { mutateAsync: deleteHoliday } = useDeleteHoliday();
   // backend は POST→create / DELETE→delete を要求するため、各アクションのガードも対応する権限で判定する。
@@ -66,6 +69,14 @@ export const HolidaySection = memo(function HolidaySection({
     [deleteHoliday],
   );
 
+  const handleConfirmDelete = useCallback(() => {
+    if (deleteTarget != null) {
+      void handleDelete(deleteTarget);
+    }
+    setDeleteTarget(null);
+  }, [deleteTarget, handleDelete]);
+  const handleCloseDeleteDialog = useCallback(() => setDeleteTarget(null), []);
+
   const handleShowForm = useCallback(() => setShowForm(true), []);
   const handleHideForm = useCallback(() => setShowForm(false), []);
 
@@ -77,7 +88,7 @@ export const HolidaySection = memo(function HolidaySection({
           <button
             type="button"
             onClick={handleShowForm}
-            className={`flex min-h-11 min-w-11 items-center gap-1.5 text-base ${C.textBrand} ${C.hoverBgBrand} ${C.hoverTextOnBrand} rounded-xs px-3 transition-colors`}
+            className={`flex min-h-11 min-w-11 items-center gap-1.5 text-base ${C.textActionPrimary} ${C.hoverBgActionPrimary} ${C.hoverTextOnActionPrimary} rounded-xs px-3 transition-colors`}
           >
             <Plus className="size-4" />
             新規登録
@@ -93,9 +104,12 @@ export const HolidaySection = memo(function HolidaySection({
           <p className={`text-base font-medium ${C.text}`}>新しい休診日</p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <label htmlFor="holiday_date" className={STYLE.formLabel}>
-                日付
-              </label>
+              <div className="flex items-center gap-1">
+                <label htmlFor="holiday_date" className={STYLE.formLabel}>
+                  日付
+                </label>
+                <FieldHelp label="日付" content="休診とする日付です。" />
+              </div>
               <input
                 id="holiday_date"
                 name="date"
@@ -105,9 +119,15 @@ export const HolidaySection = memo(function HolidaySection({
               />
             </div>
             <div>
-              <label htmlFor="holiday_reason" className={STYLE.formLabel}>
-                理由・メモ
-              </label>
+              <div className="flex items-center gap-1">
+                <label htmlFor="holiday_reason" className={STYLE.formLabel}>
+                  理由・メモ
+                </label>
+                <FieldHelp
+                  label="理由・メモ"
+                  content="休診の理由やメモです（任意）。院内研修・祝日などを記録できます。"
+                />
+              </div>
               <input
                 id="holiday_reason"
                 name="reason"
@@ -145,7 +165,7 @@ export const HolidaySection = memo(function HolidaySection({
               </div>
               <button
                 type="button"
-                onClick={() => handleDelete(holiday.date)}
+                onClick={() => setDeleteTarget(holiday.date)}
                 aria-label={`${holiday.date}の休診日を削除`}
                 className={`flex size-11 min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xxs ${C.text50} ${C.hoverTextDanger} ${C.hoverBgDanger5} transition-colors`}
               >
@@ -157,6 +177,20 @@ export const HolidaySection = memo(function HolidaySection({
       ) : (
         <EmptyState message="個別休診日は登録されていません" />
       )}
+
+      <ConfirmDialog
+        open={deleteTarget != null}
+        onClose={handleCloseDeleteDialog}
+        onConfirm={handleConfirmDelete}
+        title="休診日を削除しますか？"
+        description={
+          deleteTarget != null
+            ? `${deleteTarget} の休診日設定を削除します。この操作は取り消せません。`
+            : undefined
+        }
+        confirmLabel="削除"
+        variant="destructive"
+      />
     </section>
   );
 });

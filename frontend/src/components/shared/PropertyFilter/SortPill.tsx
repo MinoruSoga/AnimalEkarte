@@ -1,4 +1,4 @@
-import { C, ICON } from "@/lib/design-tokens";
+import { BADGE, C, ICON } from "@/lib/design-tokens";
 import { memo, useState, useCallback } from "react";
 import { ArrowUp, ArrowDown, ChevronDown, X } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -56,7 +56,7 @@ export const SortPill = memo(function SortPill({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className={`inline-flex items-center gap-1.5 h-11 px-3 text-base font-medium rounded-xxs ${C.bgDiscountLight} ${C.textDiscount} ${C.bgDiscountHover} transition-colors whitespace-nowrap`}
+          className={`inline-flex items-center gap-1.5 h-11 px-3 text-base font-medium rounded-xxs ${BADGE.orange} ${C.bgDiscountHover} transition-colors whitespace-nowrap`}
         >
           <DirectionIcon className={`${ICON.page} shrink-0`} />
           <span className="truncate max-w-[140px]">{property?.label ?? sort.key}</span>

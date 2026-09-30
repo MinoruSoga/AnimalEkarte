@@ -337,8 +337,8 @@ const DemoAccount = memo(function DemoAccount({
           ) : null}
         </div>
         <div className="flex items-center gap-1.5">
-          <span className={`text-xs ${C.text35} truncate`}>{email}</span>
-          <span className={`text-xs ${C.text35}`}>·</span>
+          <span className={`text-xs ${C.text60} truncate`}>{email}</span>
+          <span className={`text-xs ${C.text60}`}>·</span>
           <span className={`text-xs ${C.text50}`}>{clinicLabel}</span>
         </div>
       </div>
@@ -427,10 +427,10 @@ export const LoginForm = memo(function LoginForm() {
         <div data-testid="demo-accounts" className="w-full max-w-[760px] mt-8">
           <div className="flex items-center gap-2 mb-2">
             <div className={`h-px flex-1 ${C.bgLight}`} />
-            <span className={`text-sm ${C.text35}`}>デモアカウント</span>
+            <span className={`text-sm ${C.text60}`}>デモアカウント</span>
             <div className={`h-px flex-1 ${C.bgLight}`} />
           </div>
-          <p className={`text-sm text-center mb-2 ${C.text40}`}>
+          <p className={`text-sm text-center mb-2 ${C.text60}`}>
             {readDemoLoginPassword() !== ""
               ? "パスワードは自動入力されます（全デモ共通）"
               : "デモ用パスワード未設定"}

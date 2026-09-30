@@ -34,7 +34,7 @@ describe("ReceptionDialogActionButtons — DESIGN.md brand CTA", () => {
   ])("%s の primary CTA は brand pill（accent 不使用）", (status, label) => {
     renderActionButtons(status);
     const btn = screen.getByRole("button", { name: new RegExp(label) });
-    expect(btn.className).toContain(C.bgBrand);
+    expect(btn.className).toContain(C.bgActionPrimarySolid);
     expect(btn.className).toContain("rounded-full");
   });
 

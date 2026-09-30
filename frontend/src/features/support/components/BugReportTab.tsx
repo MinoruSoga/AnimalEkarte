@@ -12,6 +12,7 @@ import { Camera, CheckCircle2, ImagePlus, Loader2, RefreshCw, Send, Trash2 } fro
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { C, STYLE } from "@/lib/design-tokens";
 
@@ -142,7 +143,10 @@ export function BugReportTab({ onClose }: BugReportTabProps) {
     <form onSubmit={handleSubmit} className="flex flex-col gap-3 p-3">
       <div className="flex flex-col gap-1">
         <label htmlFor="bug-report-title" className={STYLE.formLabel}>
-          件名 <span className={C.textRequired} aria-hidden="true">*</span>
+          件名{" "}
+          <span className={C.textRequired} aria-hidden="true">
+            *
+          </span>
         </label>
         <input
           id="bug-report-title"
@@ -160,14 +164,15 @@ export function BugReportTab({ onClose }: BugReportTabProps) {
         <label htmlFor="bug-report-detail" className={STYLE.formLabel}>
           詳細・再現手順
         </label>
-        <textarea
+        <Textarea
           id="bug-report-detail"
           rows={4}
           maxLength={4000}
           value={detail}
           onChange={(e) => setDetail(e.target.value)}
-          placeholder={"いつ・どの画面で・何をしたときに起きたか\n例: 会計確定ボタンを押すと真っ白になる"}
-          className={STYLE.textarea}
+          placeholder={
+            "いつ・どの画面で・何をしたときに起きたか\n例: 会計確定ボタンを押すと真っ白になる"
+          }
         />
       </div>
 
@@ -188,14 +193,20 @@ export function BugReportTab({ onClose }: BugReportTabProps) {
               className="max-h-[180px] w-full object-contain"
             />
           ) : (
-            <span className={`flex items-center gap-2 py-8 text-sm ${C.text40}`}>
+            <span className={`flex items-center gap-2 py-8 text-sm ${C.text60}`}>
               <Camera className="size-4" aria-hidden="true" />
               スクリーンショットなし
             </span>
           )}
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="outline" size="sm" onClick={() => void capture()} disabled={capturing}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => void capture()}
+            disabled={capturing}
+          >
             <RefreshCw className="size-3.5" aria-hidden="true" />
             撮り直す
           </Button>
@@ -228,7 +239,7 @@ export function BugReportTab({ onClose }: BugReportTabProps) {
           onChange={handleFileChange}
           aria-label="スクリーンショット画像を選択"
         />
-        <p className={`text-2xs leading-relaxed ${C.text45}`}>
+        <p className={`text-2xs leading-relaxed ${C.text60}`}>
           スクリーンショットには患者・飼主の個人情報が写り込む場合があります。
           内容を確認してから送信してください。
         </p>

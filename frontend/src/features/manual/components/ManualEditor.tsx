@@ -133,7 +133,7 @@ export function ManualEditor({ article, onClose, canEdit = false }: ManualEditor
         <span className={`text-sm font-semibold ${C.text}`}>編集中</span>
         <span className={`text-xs ${C.text50} truncate`}>{article.title}</span>
         {isDirty ? (
-          <span className={`text-2xs px-1.5 py-0.5 rounded-xxs ${C.bgWarning50} ${C.textWarning}`}>
+          <span className={`text-2xs px-1.5 py-0.5 rounded-xxs ${C.bgNotice} ${C.textBadgeYellow}`}>
             未保存
           </span>
         ) : null}
@@ -178,7 +178,7 @@ export function ManualEditor({ article, onClose, canEdit = false }: ManualEditor
           className={`flex min-h-11 items-center gap-1 px-2.5 py-1.5 text-sm rounded-xxs border ${C.borderDivider} ${
             !isDirty || upsertMutation.isPending
               ? `opacity-50 cursor-not-allowed ${C.text}`
-              : `${C.bgBrand} ${C.textOnBrand} hover:opacity-90`
+              : `${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimarySolid}`
           }`}
           title="DB に保存（管理者権限が必要）"
         >
@@ -226,7 +226,7 @@ export function ManualEditor({ article, onClose, canEdit = false }: ManualEditor
 
       {/* 注意バナー */}
       <div
-        className={`px-4 py-2 text-xs border-b ${C.borderDivider} ${C.bgWarning50} ${C.textWarning}`}
+        className={`px-4 py-2 text-xs border-b ${C.borderDivider} ${C.bgWarning50} ${C.textBadgeYellow}`}
       >
         💡 「<strong>保存</strong>」ボタン: 変更を <strong>DB に保存</strong>
         （管理者権限が必要、全スタッフに即時反映）／ 「<strong>コピー</strong>」「

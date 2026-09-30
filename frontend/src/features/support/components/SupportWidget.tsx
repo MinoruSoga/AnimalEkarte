@@ -83,7 +83,7 @@ export function SupportWidget() {
         aria-expanded={open}
         aria-controls={open ? "support-panel" : undefined}
         aria-label={open ? "サポートを閉じる" : "サポート・ヘルプを開く"}
-        className={`${SUPPORT_WIDGET_LAYOUT.buttonSizeClass} rounded-full ${C.bgActionPrimary} ${C.textOnActionPrimary} ${C.hoverBgActionPrimary} ${STYLE.primaryGlow} flex items-center justify-center transition-colors`}
+        className={`${SUPPORT_WIDGET_LAYOUT.buttonSizeClass} rounded-full ${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimarySolid} ${STYLE.primaryGlow} flex items-center justify-center transition-colors`}
       >
         {open ? <X className={ICON.lg} /> : <LifeBuoy className={ICON.lg} />}
       </button>

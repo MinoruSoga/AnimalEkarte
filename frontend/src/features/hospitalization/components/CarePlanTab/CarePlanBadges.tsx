@@ -39,14 +39,15 @@ export const TYPE_SELECT_ITEMS = (
 // ---- Helper functions ----
 
 export function TypeIcon({ type }: { type: CarePlanItemType }) {
-  if (type === "food") return <Utensils className={`${ICON.action} ${C.textDiscount} shrink-0`} />;
+  if (type === "food")
+    return <Utensils className={`${ICON.action} ${C.textBadgeOrange} shrink-0`} />;
   if (type === "medicine")
     return <Pill className={`${ICON.action} ${C.textAccentDark} shrink-0`} />;
   if (type === "treatment")
     return <Stethoscope className={`${ICON.action} ${C.textStatusPurple} shrink-0`} />;
   if (type === "instruction")
-    return <ClipboardList className={`${ICON.action} ${C.textNotice} shrink-0`} />;
-  return <MoreHorizontal className={`${ICON.action} ${C.text40} shrink-0`} />;
+    return <ClipboardList className={`${ICON.action} ${C.textBadgeYellow} shrink-0`} />;
+  return <MoreHorizontal className={`${ICON.action} ${C.text60} shrink-0`} />;
 }
 
 export function StatusBadge({ status }: { status: CarePlanItem["status"] }) {
@@ -95,7 +96,7 @@ export function TimingBadges({ timing }: { timing: CarePlanTiming[] }) {
         <span
           key={opt.value}
           className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${
-            timing.includes(opt.value) ? BADGE.blueNoBorder : `${C.bgPage} ${C.text30}`
+            timing.includes(opt.value) ? BADGE.blueNoBorder : BADGE.grayNoBorder
           }`}
         >
           {opt.label}

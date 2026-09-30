@@ -97,14 +97,14 @@ export function TreatmentDoseMessages({
         </div>
       ) : null}
       {dosePreview?.eligible ? (
-        <div className={`text-xs ${C.text40} text-right mt-0.5`}>
+        <div className={`text-xs ${C.text60} text-right mt-0.5`}>
           推奨{dosePreview.quantity}（{dosePreview.rawMg.toFixed(1)}→
           {dosePreview.effectiveDoseMg.toFixed(1)}mg）
         </div>
       ) : null}
       {treatment.dose_amount_mg != null ? (
         <div
-          className={`text-xs ${C.text40} text-right mt-0.5`}
+          className={`text-xs ${C.text60} text-right mt-0.5`}
           title={
             treatment.dose_weight_source ? `体重出典: ${treatment.dose_weight_source}` : undefined
           }

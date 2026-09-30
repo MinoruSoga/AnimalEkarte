@@ -5,6 +5,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { STYLE } from "@/lib/design-tokens";
 import {
   RESERVATION_ROUTE_LABELS,
@@ -36,14 +37,17 @@ export function ReservationRouteSelect({
 
   return (
     <div className="flex flex-col gap-2">
-      <label className={STYLE.formLabel}>予約経路</label>
+      <Label htmlFor="reservation-route-trigger" className={STYLE.formLabel}>
+        予約経路
+      </Label>
       <Select
         value={value ?? ""}
         onValueChange={handleValueChange}
         disabled={disabled || isPending}
       >
         <SelectTrigger
-          className="w-[160px] h-9 text-sm"
+          id="reservation-route-trigger"
+          className="w-[160px] h-11 text-sm"
           aria-label="予約経路を選択"
           data-testid="reservation-route-trigger"
         >

@@ -6,6 +6,7 @@ import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { C, ICON } from "@/lib/design-tokens";
 import { ResourceMasterTrimming } from "@/types/generated/models";
 import { UnifiedTabs, UnifiedTabsContent } from "@/components/shared/UnifiedTabs";
+import { ErrorFallback, LoadingFallback } from "@/components/shared/DataStates";
 import { TrimmingDeleteDialogs } from "../components/TrimmingDeleteDialogs";
 import { TrimmingSettingsSidePanels } from "../components/TrimmingSettingsSidePanels";
 import { TrimmingCourseTab, TrimmingOptionTab } from "../components/TrimmingTabs";
@@ -16,6 +17,8 @@ import {
   useCreateTrimmingOption,
   useDeleteTrimmingCourse,
   useDeleteTrimmingOption,
+  useGetTrimmingCourses,
+  useGetTrimmingOptions,
   useUpdateTrimmingCourse,
   useUpdateTrimmingOption,
   type TrimmingCourse,
@@ -36,6 +39,13 @@ export function TrimmingSettings() {
   const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterTrimming);
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = toTrimmingTabValue(searchParams.get("tab"));
+
+  // 一覧クエリの状態を DataStates に接続する（TrimmingTabs 内と同一 queryKey で
+  // キャッシュ共有されるため追加 fetch は発生しない）。
+  const coursesQuery = useGetTrimmingCourses();
+  const optionsQuery = useGetTrimmingOptions();
+  const isDataPending = coursesQuery.isPending || optionsQuery.isPending;
+  const isDataError = coursesQuery.isError || optionsQuery.isError;
 
   const createCourseMutation = useCreateTrimmingCourse();
   const updateCourseMutation = useUpdateTrimmingCourse();
@@ -173,19 +183,25 @@ export function TrimmingSettings() {
           />
         }
       >
-        <UnifiedTabs
-          items={TRIMMING_TABS}
-          value={activeTab}
-          onValueChange={handleTabChange}
-          className="flex flex-col gap-4"
-        >
-          <UnifiedTabsContent value="course" className="mt-4">
-            <TrimmingCourseTab onEditTargetChange={courseCrud.setEditTarget} canEdit={canEdit} />
-          </UnifiedTabsContent>
-          <UnifiedTabsContent value="option" className="mt-4">
-            <TrimmingOptionTab onEditTargetChange={optionCrud.setEditTarget} canEdit={canEdit} />
-          </UnifiedTabsContent>
-        </UnifiedTabs>
+        {isDataError ? (
+          <ErrorFallback message="トリミングマスタの取得に失敗しました" />
+        ) : isDataPending ? (
+          <LoadingFallback />
+        ) : (
+          <UnifiedTabs
+            items={TRIMMING_TABS}
+            value={activeTab}
+            onValueChange={handleTabChange}
+            className="flex flex-col gap-4"
+          >
+            <UnifiedTabsContent value="course" className="mt-4">
+              <TrimmingCourseTab onEditTargetChange={courseCrud.setEditTarget} canEdit={canEdit} />
+            </UnifiedTabsContent>
+            <UnifiedTabsContent value="option" className="mt-4">
+              <TrimmingOptionTab onEditTargetChange={optionCrud.setEditTarget} canEdit={canEdit} />
+            </UnifiedTabsContent>
+          </UnifiedTabs>
+        )}
       </MasterTabPage>
       {dirty.discardDialog}
     </>

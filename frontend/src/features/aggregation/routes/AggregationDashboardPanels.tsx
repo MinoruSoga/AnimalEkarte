@@ -122,7 +122,9 @@ export function AggregationDashboardView({
         <div className="flex flex-wrap items-center gap-2">
           {data ? <span className={STYLE.searchCount}>{data.total} 件</span> : null}
           {selectedCount > 0 ? (
-            <span className={`text-base font-medium ${C.textBrand}`}>{selectedCount}件選択中</span>
+            <span className={`text-base font-medium ${C.textActionPrimaryDark}`}>
+              {selectedCount}件選択中
+            </span>
           ) : null}
         </div>
 

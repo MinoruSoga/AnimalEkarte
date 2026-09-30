@@ -7,6 +7,7 @@ import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
+import { ErrorFallback, LoadingFallback } from "@/components/shared/DataStates";
 import { C, ICON } from "@/lib/design-tokens";
 import { MASTER_STATUS_FILTER, MASTER_TABLE_COL } from "../constants/styles";
 import { useMasterCRUD } from "../hooks/use-master-crud";
@@ -42,7 +43,7 @@ const COLUMNS = [
 // ─── Page ───
 export function PaymentMethodSettings() {
   const { canCreate, canEdit, canDelete } = usePermission(ResourcePaymentMethod);
-  const { data } = useGetPaymentMethods();
+  const { data, isPending, isError } = useGetPaymentMethods();
   const createMutation = useCreatePaymentMethod();
   const updateMutation = useUpdatePaymentMethod();
   const deleteMutation = useDeletePaymentMethod();
@@ -128,7 +129,13 @@ export function PaymentMethodSettings() {
             onDirtyChange={handleDirtyChange}
           />
         )}
-      />
+      >
+        {isError ? (
+          <ErrorFallback message="支払方法の取得に失敗しました" />
+        ) : isPending ? (
+          <LoadingFallback />
+        ) : null}
+      </MasterCRUDPage>
       {dirty.discardDialog}
     </>
   );

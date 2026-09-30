@@ -59,7 +59,7 @@ export const MonthlySummaryCards = memo(function MonthlySummaryCards({
         <div className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-4`}>
           <p className={`text-base font-medium ${C.text70} mb-2`}>支払方法別合計</p>
           {Object.keys(summary.byPaymentMethod).length === 0 ? (
-            <p className={`text-sm ${C.text40}`}>データなし</p>
+            <p className={`text-sm ${C.text60}`}>データなし</p>
           ) : (
             <ul className="space-y-1">
               {Object.entries(summary.byPaymentMethod).map(([method, amount]) => (
@@ -76,7 +76,7 @@ export const MonthlySummaryCards = memo(function MonthlySummaryCards({
         <div className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-4`}>
           <p className={`text-base font-medium ${C.text70} mb-2`}>部門別合計</p>
           {Object.keys(summary.byCategory).length === 0 ? (
-            <p className={`text-sm ${C.text40}`}>データなし</p>
+            <p className={`text-sm ${C.text60}`}>データなし</p>
           ) : (
             <ul className="space-y-1">
               {Object.entries(summary.byCategory).map(([cat, amount]) => (
@@ -97,7 +97,7 @@ export const MonthlySummaryCards = memo(function MonthlySummaryCards({
           </div>
           <ul className="space-y-2">
             <li>
-              <p className={`text-xs ${C.text40} mb-0.5`}>
+              <p className={`text-xs ${C.text60} mb-0.5`}>
                 標準税率（{formatTaxRatePercent(standardTaxRate)}）
               </p>
               <div className="flex justify-between text-sm">
@@ -110,7 +110,7 @@ export const MonthlySummaryCards = memo(function MonthlySummaryCards({
               </div>
             </li>
             <li>
-              <p className={`text-xs ${C.text40} mb-0.5`}>
+              <p className={`text-xs ${C.text60} mb-0.5`}>
                 軽減税率（{formatTaxRatePercent(reducedTaxRate)}）
               </p>
               <div className="flex justify-between text-sm">

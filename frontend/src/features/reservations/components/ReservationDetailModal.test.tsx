@@ -8,6 +8,12 @@ vi.mock("@/hooks/use-owner-line-tags", () => ({
   useGetOwnerLineTags: () => ({ data: undefined }),
 }));
 
+// EMR-227: detail modal は petId から pet.status を引いて死亡区分を表示層へ渡す。
+// このテストは QueryClientProvider なしで描画するためフックを固定する。
+vi.mock("@/hooks/use-pet", () => ({
+  useGetPet: () => ({ data: undefined }),
+}));
+
 const getColorMock = vi.fn(() => ({
   style: { backgroundColor: "rgb(0, 0, 0)" },
   dotStyle: { backgroundColor: "rgb(0, 0, 0)" },

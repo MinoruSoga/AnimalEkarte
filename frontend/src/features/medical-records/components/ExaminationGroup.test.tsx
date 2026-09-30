@@ -55,12 +55,11 @@ describe("ExaminationGroup", () => {
     expect(screen.getByText("判定")).toBeInTheDocument();
   });
 
-  it("ヘッダ行が DESIGN.md ex-data-table-cell（sectionLabel）で表示される", () => {
+  it("ヘッダセルが tableHeaderCell トークンで表示される", () => {
     renderGroup();
-    const headerRow = screen.getByText("項目名").parentElement;
-    expect(headerRow).not.toBeNull();
-    for (const cls of STYLE.sectionLabel.split(" ")) {
-      expect(headerRow?.className).toContain(cls);
+    const headerCell = screen.getByRole("columnheader", { name: "項目名" });
+    for (const cls of STYLE.tableHeaderCell.split(" ")) {
+      expect(headerCell.className).toContain(cls);
     }
   });
 

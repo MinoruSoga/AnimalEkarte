@@ -257,6 +257,9 @@ describe("HelpChat", () => {
 
     await user.click(screen.getByRole("button", { name: "会話をリセット" }));
 
+    // EMR-227: 破壊操作は確認ダイアログを挟む
+    await user.click(await screen.findByRole("button", { name: "リセットする" }));
+
     // DELETE を呼び、成功後にローカルも消える
     expect(clearMutateMock).toHaveBeenCalledTimes(1);
     await act(async () => {
@@ -275,6 +278,7 @@ describe("HelpChat", () => {
     await user.click(screen.getByRole("button", { name: "送信" }));
 
     await user.click(screen.getByRole("button", { name: "会話をリセット" }));
+    await user.click(await screen.findByRole("button", { name: "リセットする" }));
     await act(async () => {
       clearCallOptions().onError?.(new Error("delete failed"));
     });

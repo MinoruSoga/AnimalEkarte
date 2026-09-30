@@ -99,6 +99,9 @@ export function NextVisitDateField({
     onChange(newValue);
   };
 
+  const isInputInvalid = !isValid && value !== "";
+  const showError = errorMessage !== null && value !== "";
+
   return (
     <div className="flex flex-col gap-2">
       {/* Label row */}
@@ -124,8 +127,10 @@ export function NextVisitDateField({
         min={today()}
         onChange={(e) => handleChange(e.target.value)}
         disabled={disabled}
-        className={`${STYLE.formInput} rounded-xs border px-3 w-full max-w-[220px] outline-none focus:ring-2 ${C.focusRingAccent30} ${
-          !isValid && value !== "" ? STYLE.formInputError : ""
+        aria-invalid={isInputInvalid}
+        aria-describedby={showError ? `${inputId}-error` : undefined}
+        className={`${STYLE.formInput} rounded-xs border px-3 w-full max-w-[220px] focus-visible:ring-offset-1 ${
+          isInputInvalid ? STYLE.formInputError : ""
         }`}
       />
 
@@ -147,7 +152,7 @@ export function NextVisitDateField({
             type="button"
             disabled={disabled}
             onClick={() => handleChange("")}
-            className={`inline-flex items-center min-h-11 text-sm px-3 py-1 rounded-xs ${C.text40} ${C.hoverText} ${C.hoverBgLight} transition-colors disabled:opacity-40 disabled:cursor-not-allowed`}
+            className={`inline-flex items-center min-h-11 text-sm px-3 py-1 rounded-xs ${C.text60} ${C.hoverText} ${C.hoverBgLight} transition-colors disabled:opacity-40 disabled:cursor-not-allowed`}
           >
             クリア
           </button>
@@ -155,8 +160,8 @@ export function NextVisitDateField({
       </div>
 
       {/* Validation error */}
-      {errorMessage !== null && value !== "" ? (
-        <p className={`text-sm ${C.danger}`} role="alert">
+      {showError ? (
+        <p id={`${inputId}-error`} className={`text-sm ${C.danger}`} role="alert">
           {errorMessage}
         </p>
       ) : null}

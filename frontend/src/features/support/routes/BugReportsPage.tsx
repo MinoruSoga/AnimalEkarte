@@ -97,7 +97,7 @@ function BugReportDetailDialog({ report, onClose }: BugReportDetailDialogProps) 
             <dt className={C.text50}>表示領域</dt>
             <dd className={C.text70}>{report.viewport || "―"}</dd>
             <dt className={C.text50}>UA</dt>
-            <dd className={`break-all text-2xs ${C.text45}`}>{report.user_agent || "―"}</dd>
+            <dd className={`break-all text-2xs ${C.text60}`}>{report.user_agent || "―"}</dd>
           </dl>
 
           {report.screenshot_url ? (
@@ -109,7 +109,7 @@ function BugReportDetailDialog({ report, onClose }: BugReportDetailDialogProps) 
               />
             </figure>
           ) : (
-            <p className={`text-sm ${C.text40}`}>スクリーンショットは添付されていません</p>
+            <p className={`text-sm ${C.text60}`}>スクリーンショットは添付されていません</p>
           )}
 
           <div className="flex justify-end gap-2 pt-1">

@@ -1,6 +1,7 @@
 import { lazy, memo, Suspense, useState, useMemo, useCallback, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { TreatmentTable, TreatmentItem } from "./TreatmentTable";
 import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
 import {
@@ -19,7 +20,7 @@ import { resolveItemTypeFromCategory } from "../lib/treatments-tab-model";
 import { usePermission } from "@/hooks/use-permission";
 import { useClinicTaxRates } from "@/hooks/use-clinic-tax-rates";
 import { CheckCircle2, RotateCcw } from "lucide-react";
-import { C, ICON } from "@/lib/design-tokens";
+import { BADGE, C, ICON } from "@/lib/design-tokens";
 import type { TreatmentMasterItem } from "@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog";
 import { calculateBillingTotals } from "@/lib/calculations";
 import { formatCurrency } from "@/lib/format/number";
@@ -38,6 +39,8 @@ const TreatmentSearchDialog = lazy(() =>
   })),
 );
 
+const DECEASED_BILLING_MESSAGE = "死亡したペットの会計確認は変更できません";
+
 interface BillCheckProps {
   isNewRecord?: boolean;
   medicalRecordId?: string;
@@ -45,6 +48,8 @@ interface BillCheckProps {
   ownerDiscountRate?: number;
   /** P2-15: 拠点横断で開いたカルテの子リソース操作用。レコード自身の clinicId */
   recordClinicId?: string;
+  /** 死亡ペットのカルテは閲覧専用（VitalsTab と同じ二重ガード方針） */
+  isPetDeceased?: boolean;
 }
 
 function ExtraLinesList({ title, lines }: { title: string; lines: BillCheckExtraLine[] }) {
@@ -76,10 +81,13 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
   petId,
   ownerDiscountRate = 0,
   recordClinicId,
+  isPetDeceased = false,
 }: BillCheckProps) {
   const { canEdit, canDelete } = usePermission("medical-records");
   const [globalDiscountAmount, setGlobalDiscountAmount] = useState(0);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [returnDialogOpen, setReturnDialogOpen] = useState(false);
 
   const { data: treatments = [] } = useGetTreatments(medicalRecordId, recordClinicId);
   const { data: billingConfirmation } = useGetBillingConfirmation(medicalRecordId);
@@ -131,6 +139,10 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
 
   const { mutateAsync: confirmBillingAsync } = confirmMutation;
   const handleConfirm = useCallback(() => {
+    if (isPetDeceased) {
+      toast.error(DECEASED_BILLING_MESSAGE);
+      return;
+    }
     if (!canEdit) return;
     if (extraLines.some((line) => isUnbillableMasterPrice(line.unitPrice))) {
       toast.error(
@@ -153,10 +165,14 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
         // でトースト表示済み。ここで再度呼ぶと二重トーストになるため何もしない。
       }
     });
-  }, [canEdit, confirmBillingAsync, extraLines, treatments.length]);
+  }, [canEdit, confirmBillingAsync, extraLines, isPetDeceased, treatments.length]);
 
   const { mutate: returnBillingFn } = returnMutation;
   const handleReturn = useCallback(() => {
+    if (isPetDeceased) {
+      toast.error(DECEASED_BILLING_MESSAGE);
+      return;
+    }
     if (!canEdit) return;
     returnBillingFn(
       {
@@ -170,7 +186,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
         // トースト表示済み。ここで onError を渡すと二重トーストになるため渡さない。
       },
     );
-  }, [canEdit, returnBillingFn]);
+  }, [canEdit, isPetDeceased, returnBillingFn]);
 
   const items: TreatmentItem[] = useMemo(() => {
     return treatments.map((t) => ({
@@ -189,6 +205,10 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
 
   const handleUpdateItem = useCallback(
     (id: number, field: keyof TreatmentItem, value: string | number | boolean) => {
+      if (isPetDeceased) {
+        toast.error(DECEASED_BILLING_MESSAGE);
+        return;
+      }
       if (!canEdit) return;
       const target = treatments.find((t) => Number(t.id) === id);
       // UAT-R2-EXCLUSIVE-LOCK: version 未確定のまま送ると BE は CAS 照合をスキップするため
@@ -210,17 +230,21 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
 
       updateTreatment({ treatmentId: String(id), input });
     },
-    [canEdit, treatments, updateTreatment],
+    [canEdit, isPetDeceased, treatments, updateTreatment],
   );
 
   const { mutate: deleteTreatmentFn } = useDeleteTreatment(medicalRecordId, recordClinicId);
 
   const handleRemoveItem = useCallback(
     (id: number) => {
+      if (isPetDeceased) {
+        toast.error(DECEASED_BILLING_MESSAGE);
+        return;
+      }
       if (!canDelete) return;
       deleteTreatmentFn(String(id));
     },
-    [canDelete, deleteTreatmentFn],
+    [canDelete, deleteTreatmentFn, isPetDeceased],
   );
 
   // rerender-memo: TreatmentTable は memo。onOpenSearch を inline arrow で
@@ -237,6 +261,10 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
 
   const handleSelectTreatment = useCallback(
     (item: TreatmentMasterItem) => {
+      if (isPetDeceased) {
+        toast.error(DECEASED_BILLING_MESSAGE);
+        return;
+      }
       if (!canEdit) return;
       const input: CreateTreatmentInput = {
         item_type: resolveItemTypeFromCategory(item.category),
@@ -252,7 +280,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
       createTreatment(input);
       setIsSearchOpen(false);
     },
-    [canEdit, nextOrder, createTreatment],
+    [canEdit, isPetDeceased, nextOrder, createTreatment],
   );
 
   // FE-RC-048: 消費税率はハードコード 0.1 ではなく病院マスタ設定（useClinicTaxRates）を正本にする。
@@ -280,7 +308,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
   if (isNewRecord) {
     return (
       <div
-        className={`flex flex-col items-center justify-center p-12 ${C.bgWhite} rounded-lg border border-dashed ${C.text40}`}
+        className={`flex flex-col items-center justify-center p-12 ${C.bgWhite} rounded-lg border border-dashed ${C.text60}`}
       >
         カルテを保存してから会計確認を行えます
       </div>
@@ -296,13 +324,13 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
           <h2 className={`text-sm font-bold ${C.text}`}>会計確認 (医師)</h2>
           {isConfirmed ? (
             <div
-              className={`px-2 py-1 rounded ${C.bgStatusGreen} ${C.textStatusGreen} text-xs font-semibold flex items-center gap-1`}
+              className={`px-2 py-1 rounded ${BADGE.greenNoBorder} text-xs font-semibold flex items-center gap-1`}
             >
               <CheckCircle2 className={ICON.xxs} />
               確認済み
             </div>
           ) : (
-            <div className={`px-2 py-1 rounded ${C.bgMuted} ${C.textMuted} text-xs font-semibold`}>
+            <div className={`px-2 py-1 rounded ${BADGE.grayNoBorder} text-xs font-semibold`}>
               未確認
             </div>
           )}
@@ -316,8 +344,10 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
               items={items}
               onUpdate={handleUpdateItem}
               onRemove={handleRemoveItem}
-              onOpenSearch={canEdit && !isConfirmed ? handleOpenSearch : undefined}
-              disabled={isConfirmed || (!canEdit && !canDelete)}
+              onOpenSearch={
+                canEdit && !isConfirmed && !isPetDeceased ? handleOpenSearch : undefined
+              }
+              disabled={isConfirmed || isPetDeceased || (!canEdit && !canDelete)}
             />
           </div>
         </div>
@@ -339,13 +369,13 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
         </div>
       </div>
 
-      {canEdit ? (
+      {canEdit && !isPetDeceased ? (
         <div className="fixed bottom-6 right-20 z-50 flex gap-2">
           {isConfirmed ? (
             <Button
               variant="outline"
               type="button"
-              onClick={handleReturn}
+              onClick={() => setReturnDialogOpen(true)}
               disabled={returnMutation.isPending}
               className={`h-10 text-sm gap-2 border ${C.borderMedium} ${C.hoverBgLight}`}
             >
@@ -357,8 +387,8 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
               type="button"
               size="sm"
               disabled={isConfirmPending}
-              onClick={handleConfirm}
-              className={`${C.bgActionPrimary} ${C.hoverBgActionPrimary} ${C.hoverTextOnActionPrimary} ${C.textOnActionPrimary} rounded-full border-transparent min-w-[120px] h-10 text-sm gap-2 transition-colors`}
+              onClick={() => setConfirmDialogOpen(true)}
+              className={`${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimarySolid} ${C.activeTextOnActionPrimary} rounded-full border-transparent min-w-[120px] h-10 text-sm gap-2 transition-colors`}
             >
               <CheckCircle2 className={ICON.action} />
               {isConfirmPending ? "処理中..." : "チェック完了"}
@@ -366,6 +396,35 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
           )}
         </div>
       ) : null}
+
+      <ConfirmDialog
+        open={confirmDialogOpen}
+        onClose={() => setConfirmDialogOpen(false)}
+        onConfirm={() => {
+          setConfirmDialogOpen(false);
+          handleConfirm();
+        }}
+        title="会計確認を完了しますか？"
+        description="チェック完了すると明細が確認済みになり、以降の編集はできなくなります。"
+        confirmLabel={isConfirmPending ? "処理中..." : "チェック完了"}
+        cancelLabel="キャンセル"
+        isPending={isConfirmPending}
+      />
+
+      <ConfirmDialog
+        open={returnDialogOpen}
+        onClose={() => setReturnDialogOpen(false)}
+        onConfirm={() => {
+          setReturnDialogOpen(false);
+          handleReturn();
+        }}
+        title="会計確認を差し戻しますか？"
+        description="確認済みの会計を未確認に戻します。"
+        confirmLabel={returnMutation.isPending ? "処理中..." : "差し戻す"}
+        cancelLabel="キャンセル"
+        variant="destructive"
+        isPending={returnMutation.isPending}
+      />
 
       <Suspense fallback={null}>
         <TreatmentSearchDialog

@@ -43,7 +43,7 @@ const MONTH_LABELS = [
   "12月",
 ];
 
-const NAV_BTN = `inline-flex min-h-11 min-w-11 items-center justify-center rounded p-1 ${C.text50} ${C.hoverBgPrimary10} ${C.hoverText} transition-colors`;
+const NAV_BTN = `inline-flex min-h-11 min-w-11 items-center justify-center rounded p-1 ${C.text50} ${C.hoverBgPrimary10} ${C.hoverText} focus-visible:ring-2 focus-visible:ring-offset-1 ${C.focusRingAccent40} transition-colors`;
 
 export function CalendarNav({
   displayMonth,
@@ -67,7 +67,7 @@ export function CalendarNav({
       <button
         type="button"
         onClick={onTitleClick}
-        className={`min-h-11 min-w-11 rounded px-2 py-1 text-sm font-medium ${C.text} ${C.hoverBgPage} transition-colors`}
+        className={`min-h-11 min-w-11 rounded px-2 py-1 text-sm font-medium ${C.text} ${C.hoverBgPage} focus-visible:ring-2 focus-visible:ring-offset-1 ${C.focusRingAccent40} transition-colors`}
       >
         {year}年 {month}月
       </button>
@@ -114,10 +114,12 @@ export function MonthGrid({
           key={label}
           type="button"
           onClick={() => onSelect(i)}
+          aria-pressed={i === currentMonth}
           className={cn(
             "min-h-11 min-w-11 rounded px-2 py-2 text-sm transition-colors",
+            `focus-visible:ring-2 focus-visible:ring-offset-1 ${C.focusRingAccent40}`,
             i === currentMonth
-              ? `${C.bgBrand} ${C.textOnBrand} font-medium`
+              ? `${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} font-medium`
               : `${C.text} ${C.hoverBgPage}`,
           )}
         >
@@ -137,7 +139,7 @@ export function ClearButton({
     <button
       type="button"
       onClick={onClick}
-      className={`ml-1 -my-px min-h-11 min-w-11 shrink-0 rounded p-0.5 ${C.text40} ${C.hoverBgPrimary10} ${C.hoverText}/70 cursor-pointer`}
+      className={`ml-1 -my-px min-h-11 min-w-11 shrink-0 rounded p-0.5 ${C.text40} ${C.hoverBgPrimary10} ${C.hoverText60} focus-visible:ring-2 focus-visible:ring-offset-1 ${C.focusRingAccent40} cursor-pointer`}
       aria-label="日付をクリア"
     >
       <X className={ICON.action} />

@@ -96,6 +96,7 @@ export function MedicalRecordClinicalTabs({
           ownerDiscountRate={ownerDiscountRate}
           diagnosis1NameIdError={diagnosis1NameIdError}
           recordClinicId={recordClinicId}
+          isPetDeceased={selectedPet.status === "死亡"}
         />
         <div className="px-4 pb-4 mt-4 flex flex-col gap-6">
           <NextVisitDateField
@@ -133,6 +134,7 @@ export function MedicalRecordClinicalTabs({
           isNewRecord={isNewRecord}
           petSpecies={selectedPet.species}
           recordClinicId={recordClinicId}
+          isPetDeceased={selectedPet.status === "死亡"}
         />
       </MedicalRecordMountedTab>
     </>

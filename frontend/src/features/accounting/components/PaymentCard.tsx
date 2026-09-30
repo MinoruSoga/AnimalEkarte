@@ -167,6 +167,7 @@ export const PaymentCard = memo(function PaymentCard({
                         type="button"
                         variant={split.method === m ? "default" : "outline"}
                         onClick={() => handleMethodChange(idx, m)}
+                        aria-pressed={split.method === m}
                         className="text-sm"
                       >
                         {PAYMENT_METHOD_LABELS[m]}
@@ -258,7 +259,7 @@ export const PaymentCard = memo(function PaymentCard({
                         {split.changeOverride ? (
                           <>
                             <NumberInput
-                              className="h-10 text-xl font-bold"
+                              className="h-11 text-xl font-bold"
                               value={split.changeAmount ?? ""}
                               onChange={(v) => handleChangeAmountChange(idx, v)}
                               suffix="円"
@@ -271,7 +272,7 @@ export const PaymentCard = memo(function PaymentCard({
                                 お釣りは0以上の金額を入力してください
                               </p>
                             ) : (
-                              <p className={`text-xs text-right ${C.text40}`}>
+                              <p className={`text-xs text-right ${C.text60}`}>
                                 レジ実機の実際のお釣りに合わせて手動修正中
                               </p>
                             )}

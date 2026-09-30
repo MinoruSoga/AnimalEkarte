@@ -293,7 +293,7 @@ export function AccountingDetailColumns({
             <CardContent className="p-4 flex items-center justify-between">
               <div className="flex flex-col gap-0.5">
                 <span className={`text-sm font-medium ${C.text60}`}>この会計の未収残高</span>
-                <span className={`text-xs ${C.text40}`}>
+                <span className={`text-xs ${C.text60}`}>
                   支払額と請求額の差額（クレジット訂正などを含む）
                 </span>
               </div>

@@ -20,7 +20,7 @@ export function HospitalizationFormHeaderExtra({
         <Button
           variant="outline"
           type="button"
-          className={`gap-2 h-10 text-sm px-4 ${C.text}`}
+          className={`gap-2 h-11 text-sm px-4 ${C.text}`}
           onClick={onOpenDetail}
         >
           <FileText className={ICON.action} />
@@ -31,7 +31,7 @@ export function HospitalizationFormHeaderExtra({
         <Button
           variant="ghost"
           type="button"
-          className={`${STYLE.btnDangerGhost} h-10 text-sm px-4`}
+          className={`${STYLE.btnDangerGhost} h-11 text-sm px-4`}
           onClick={onOpenDeleteConfirm}
         >
           <Trash2 className={`mr-1.5 ${ICON.action}`} />

@@ -186,7 +186,7 @@ export function TreatmentDiscountCell({
         <button
           type="button"
           className={`w-full h-9 min-w-11 flex items-center justify-end text-right text-sm ${
-            treatment.discount_amount > 0 ? C.textDiscount : C.text40
+            treatment.discount_amount > 0 ? C.textDiscount : C.text60
           } ${canEditDiscount ? C.hoverBgLight : ""} px-1 rounded-xxs transition-colors font-mono ${!canEditDiscount ? "cursor-not-allowed opacity-60" : ""}`}
           onClick={() => {
             if (canEditDiscount) onStartEdit();
@@ -241,7 +241,7 @@ export function TreatmentMemoCell({
           className={`w-full h-9 min-w-11 flex items-center text-left text-sm ${C.text60} ${C.hoverBgLight} px-1 rounded-xxs transition-colors`}
           onClick={onStartEdit}
         >
-          {treatment.memo || <span className={C.text30}>メモ</span>}
+          {treatment.memo || <span className={C.text40}>メモ</span>}
         </button>
       )}
     </TableCell>

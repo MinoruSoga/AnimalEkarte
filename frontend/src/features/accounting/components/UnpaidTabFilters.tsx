@@ -53,6 +53,7 @@ export function UnpaidTabFilters({
           variant={groupBy === "owner" ? "default" : "outline"}
           size="sm"
           onClick={() => onGroupByChange("owner")}
+          aria-pressed={groupBy === "owner"}
         >
           飼主単位
         </Button>
@@ -61,6 +62,7 @@ export function UnpaidTabFilters({
           variant={groupBy === "billing" ? "default" : "outline"}
           size="sm"
           onClick={() => onGroupByChange("billing")}
+          aria-pressed={groupBy === "billing"}
         >
           会計単位
         </Button>
@@ -69,6 +71,7 @@ export function UnpaidTabFilters({
           variant={groupBy === "period" ? "default" : "outline"}
           size="sm"
           onClick={() => onGroupByChange("period")}
+          aria-pressed={groupBy === "period"}
         >
           月末未納者一覧
         </Button>

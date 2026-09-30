@@ -40,7 +40,7 @@ export const EstimateLineItems = memo(function EstimateLineItems({
           const { total: lineTotal } = calcLineItemAmount(item);
           return (
             <TableRow key={item.id} className={`text-sm ${C.text}`}>
-              <TableCell className={C.text40}>{idx + 1}</TableCell>
+              <TableCell className={C.text60}>{idx + 1}</TableCell>
               <TableCell>{item.name}</TableCell>
               <TableCell className={C.text60}>
                 {CATEGORY_LABELS[item.category] ?? item.category}
