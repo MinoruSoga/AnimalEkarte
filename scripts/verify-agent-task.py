@@ -577,7 +577,7 @@ def plan(paths):
                 job['service'] == 'host' and job['command'][-1].endswith('ci_scope_plan_test.py') for job in jobs
             ):
                 jobs.append({'service': 'host', 'command': ['python3', '-B', 'scripts/ci_scope_plan_test.py']})
-        elif path in ('scripts/test_agent_scope_contracts.py', '.gitignore', '.mcp.json', '.claude/settings.json', '.claude/codex-agent-manifest.json', 'backend/wrangler.jsonc'):
+        elif path in ('scripts/test_agent_scope_contracts.py', '.gitignore', 'frontend/.gitignore', '.mcp.json', '.claude/settings.json', '.claude/codex-agent-manifest.json', 'backend/wrangler.jsonc'):
             jobs.append({'service': 'host', 'command': ['python3', '-B', 'scripts/test_agent_scope_contracts.py']})
         elif path == 'backend/Dockerfile.production':
             jobs.append({'service': 'host', 'command': ['docker', 'build', '--check', '-f', path, 'backend/']})
@@ -654,6 +654,7 @@ def plan(paths):
             '.github/workflows/ci.yml',
             '.github/workflows/e2e.yml',
             '.github/workflows/backend-deploy.yml',
+            '.github/workflows/storybook.yml',
             'infra/scripts/cf-run-migrate.sh',
         ):
             jobs.append({'service': 'host', 'command': ['node', '--test', 'scripts/check-workflow-contracts.test.mjs']})
