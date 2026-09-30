@@ -11,7 +11,7 @@
 
 | prop | 型 | 既定 | 説明 |
 |---|---|---|---|
-| `variant` | `default \| destructive \| outline \| secondary \| ghost \| link \| primary \| ghost-danger` | `default` | `default`/`primary` = pill + `#038B94` 塗り（button-primary 仕様） |
+| `variant` | `default \| destructive \| outline \| secondary \| ghost \| link \| primary \| ghost-danger` | `default` | `default`/`primary` = pill + `#027078` 塗り（`bgActionPrimarySolid`、AA 適合） |
 | `size` | `default \| sm \| lg \| icon` | `default` | 全サイズ `min-h-11 min-w-11`（44px ターゲット保証） |
 | `loading` | `boolean` | `false` | design-states.md §3 — spinner + aria-busy + 操作抑止 |
 | `asChild` | `boolean` | `false` | Radix Slot |
@@ -20,8 +20,8 @@
 
 | 状態 | 実装 | 備考 |
 |---|---|---|
-| hover | ○ | `C.hoverBgActionPrimary`（`#027078`）等 variant 毎 |
-| active | ○ | `C.activeBgActionPrimary` |
+| hover | ○ | `C.hoverBgActionPrimarySolid`（`#025F66`）等 variant 毎 |
+| active | ○ | `C.activeBgActionPrimarySolid`（`#025F66`） |
 | focus-visible | ○ | ring-2 `#038B94` + offset-1（EMR-207 回帰テスト済み） |
 | disabled | ○ | `opacity-50` + `pointer-events-none` |
 | loading | ○ | FE-DS1 で追加。`aria-busy` |
@@ -35,4 +35,4 @@
 
 ## 既知のギャップ
 
-- white on `#038B94` は 4.10:1 で AA 通常文字未達（design-states.md §2.3 — 要デザイン決裁）
+- 旧塗り `#038B94` は 4.10:1 で AA 未達だったため、決裁により `#027078`（5.85:1）へ移行済み（design-states.md §2.3）

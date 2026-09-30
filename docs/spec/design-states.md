@@ -47,7 +47,7 @@ WCAG 2.2 AA: 通常文字 4.5:1 / 大文字（18pt+ または 14pt bold+）3:1 /
 | `BADGE.yellow` | `#C29243` / `#FDECC8` | 2.41:1 | ❌ | 依頼中・在庫僅少 |
 | `BADGE.gray` | `#9B9A97` / `#EBECED` | **2.38:1** | ❌ | **死亡・確定済・無効 — 臨床 sentinel を含む最重要箇所** |
 
-> §2.1 は是正前（2026-09-30 実測）のベースライン。text 値は §2.3 で `textBadge*` へ差替え済み — 背景色は据え置き。primary CTA の white-on-teal のみ未適用（製品判断事項）。
+> §2.1 は是正前（2026-09-30 実測）のベースライン。text 値は §2.3 で `textBadge*` へ差替え済み — 背景色は据え置き。primary CTA も決裁により `C.bgActionPrimarySolid`（#027078）へ移行済み。
 
 ### 2.2 その他の実測
 
@@ -56,7 +56,7 @@ WCAG 2.2 AA: 通常文字 4.5:1 / 大文字（18pt+ または 14pt bold+）3:1 /
 | `C.danger` `#C0392B` on white | 5.44:1 | ✅（design-system.md の 7.1:1 記述は既知のドリフト — 実測 5.44） |
 | ink-muted `#615D59` on canvas `#F6F5F4` | 5.99:1 | ✅ |
 | ink-faint `#A39E98` on canvas | 2.44:1 | ❌ placeholder 以外（キャプション・メタ実情報）への使用は非適合 |
-| **white on primary `#038B94`**（主要 CTA） | **4.10:1** | ❌ 通常文字未達（4.5 未満）。white on `#027078` は 5.85:1 で適合 |
+| **white on primary `#038B94`**（主要 CTA・是正前） | **4.10:1** | ❌ 通常文字未達 → 決裁済み。CTA 塗りは `C.bgActionPrimarySolid`（`#027078`、5.85:1）へ移行済み |
 | brandDark `#025F66` on brandLight `#E1F3F4` | 6.47:1 | ✅ |
 
 ### 2.3 是正案 → 実装済み（2026-09-30）
@@ -71,7 +71,7 @@ WCAG 2.2 AA: 通常文字 4.5:1 / 大文字（18pt+ または 14pt bold+）3:1 /
 | red | `#B03A2E`（`textBadgeRed`） | ~5.0:1 | 4.45 は境界値のため #B03A2E を採用 |
 | green | `#0C6E5F`（`textBadgeGreen`） | 5.09:1 | |
 | muted | `#615D59`（`textBadgeMuted`） | 5.77:1 | |
-| primary CTA | 塗りを `#027078` に変更、hover を一層暗く | 5.85:1 | **依然として製品判断事項 — 未適用**。ブランド主要色の変更となるため決裁要 |
+| primary CTA | 塗り `#027078`（`bgActionPrimarySolid`）、hover/active `#025F66`（`*Solid` 系）| 5.85:1 | **適用済み**（製品決裁）。button-variants の default/primary + `STYLE.confirmPrimary` が移行。`bgActionPrimary`（#038B94）は装飾・focus ring 等の非テキスト用途に残留 |
 
 ## 3. Loading 状態（新規標準 — FE-DS1）
 

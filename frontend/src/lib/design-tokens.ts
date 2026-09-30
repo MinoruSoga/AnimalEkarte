@@ -241,6 +241,14 @@ export const C = {
   activeBgActionPrimary: "active:bg-[#027078]",
   activeTextOnActionPrimary: "active:text-white",
   textOnActionPrimary: "text-white",
+
+  /* ── Solid CTA fill（design-states.md §2.3 決裁: white-on-AA 適合の濃い teal） ──
+   * bg #027078 = 5.85:1、hover/active #025F66（brandDark）= 7+:1。
+   * bgActionPrimary(#038B94) は装飾・チャート等の非テキスト用途に残る。
+   */
+  bgActionPrimarySolid:       "bg-[#027078]",
+  hoverBgActionPrimarySolid:  "hover:bg-[#025F66]",
+  activeBgActionPrimarySolid: "active:bg-[#025F66]",
   borderActionPrimary: "border-[#038B94]",
   borderLActionPrimary: "border-l-[#038B94]",
   focusRingActionPrimary: "focus:ring-[#038B94]",
@@ -858,7 +866,7 @@ export const STYLE = {
 
   /* ── Confirm dialog primary ── */
   confirmPrimary:
-    `${C.bgActionPrimary} ${C.textOnActionPrimary} ${C.hoverBgActionPrimary} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimary} ${C.activeTextOnActionPrimary} h-11 px-4 text-base rounded-full transition-colors shadow-none border-transparent`,
+    `${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimarySolid} ${C.activeTextOnActionPrimary} h-11 px-4 text-base rounded-full transition-colors shadow-none border-transparent`,
 
   /* ── Master settings index row ── */
   settingsRow:

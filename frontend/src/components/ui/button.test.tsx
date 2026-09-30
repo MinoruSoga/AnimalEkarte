@@ -35,14 +35,15 @@ describe("Button", () => {
   });
 
   it.each(["default", "primary"] as const)(
-    "%s variant は brand と同じ primary teal と pressed 色を使う",
+    "%s variant は AA 適合の solid primary teal と pressed 色を使う",
     (variant) => {
       render(<Button variant={variant}>保存</Button>);
 
       const button = screen.getByRole("button", { name: "保存" });
       expect(button).toHaveClass(
-        C.bgActionPrimary,
-        C.hoverBgActionPrimary,
+        C.bgActionPrimarySolid,
+        C.hoverBgActionPrimarySolid,
+        C.activeBgActionPrimarySolid,
         C.textOnActionPrimary,
         C.hoverTextOnActionPrimary,
         C.activeTextOnActionPrimary,

@@ -3,6 +3,7 @@
 
 # Build outputs
 dist/
+storybook-static/
 
 # Testing
 coverage/

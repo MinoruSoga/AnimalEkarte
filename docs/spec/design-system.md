@@ -66,7 +66,7 @@ flowchart TB
 | `{colors.brand-active}` | **`#027078`** | brand surface の hover / 押下状態。 |
 | `{colors.on-brand}` | `#FFFFFF` | brand CTA 上の大きな太字テキスト、またはアイコン。通常サイズ本文には使わない。 |
 | `{colors.on-brand-active}` | `#FFFFFF` | brand-active 背景上のテキスト。 |
-| `{colors.primary}` | **`#038B94`** | semantic primary。汎用 Primary CTA、インラインリンク、active-tab / selection / focus ring。brand と同値。 |
+| `{colors.primary}` | **`#038B94`** | semantic primary。active-tab / selection / focus ring 等の装飾用途。brand と同値。Primary CTA の塗りは AA 適合のため `C.bgActionPrimarySolid`（`#027078`、white-on 5.85:1）を使う（design-states.md §2.3 決裁）。 |
 | `{colors.primary-active}` | **`#027078`** | primary の hover / 押下状態。brand-active と同値。 |
 | `{colors.secondary}` | `#213183` | 深 indigo hero-band（AE では限定的） |
 | `{colors.on-primary}` | `#FFFFFF` | primary CTA 上のテキストとアイコン。 |

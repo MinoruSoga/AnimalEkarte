@@ -24,6 +24,7 @@
  *   C20 — Tailwind 実行時合成（`hover:${` / `focus:${` / `text-[${`）禁止。完成形静的トークンのみ（FE-RC-013 / FE-RC-106）。
  *   C21 — `src/components/ui/*.tsx` に colocated `*.stories.tsx` を要求（design-token-layers.md §6）。
  *        Storybook カタログ網羅の担保。allowlist は現在空 — 新規 primitive は stories 必須。
+ *   C24 — `src/components/shared/` 層にも stories を要求（ラチェット: 既存未カバー分は allowlist で棚卸し、削減方向のみ）。
  *   C22 — `PALETTE`（L1 raw値バケット）に Tailwind クラス文字列メンバを追加することを禁止
  *        （design-token-layers.md §3）。状態系は STATE、shadow 等は STYLE 側へ。
  *   C23 — `BADGE.*` コンボの text/bg コントラストが WCAG 4.5:1 以上であること
@@ -107,6 +108,65 @@ const C20_RUNTIME_SYNTHESIS_RE = /hover:\$\{|focus:\$\{|text-\[\$\{/;
  */
 export const C21_STORIES_ALLOWLIST = new Set();
 const C21_UI_COMPONENT_RE = /^src[/\\]components[/\\]ui[/\\][a-z][a-z-]*\.tsx$/;
+
+/**
+ * C24: `src/components/shared/` 層の stories カバレッジ・ラチェット。
+ * - `<Dir>/` 直下に `*.stories.tsx` が1件もないディレクトリ、または
+ *   shared/ 直下のトップレベル `<name>.tsx` で sibling stories がないものを検出。
+ * - 既存未カバー分はベースライン allowlist で棚卸し済み — 新規 shared 部品は
+ *   stories 必須。allowlist は stories 追加時に該当エントリを削ること（増やさない）。
+ */
+export const C24_SHARED_STORIES_ALLOWLIST = new Set([
+  "src/components/shared/auth",
+  "src/components/shared/CalendarNavToolbar",
+  "src/components/shared/CategoryChipsFilter",
+  "src/components/shared/ChangePasswordDialog",
+  "src/components/shared/CharCountTextarea",
+  "src/components/shared/CheckupAlertBadge",
+  "src/components/shared/ClearableSearchInput",
+  "src/components/shared/ClinicScopeFilter",
+  "src/components/shared/DangerBadge",
+  "src/components/shared/DataTable",
+  "src/components/shared/DatePicker",
+  "src/components/shared/DateRangeInputs",
+  "src/components/shared/DeleteIconButton",
+  "src/components/shared/DynamicCheckupFields",
+  "src/components/shared/Feedback",
+  "src/components/shared/FilteringIndicator",
+  "src/components/shared/Form",
+  "src/components/shared/FormDialog",
+  "src/components/shared/FormFieldError",
+  "src/components/shared/HistoryFilterPanel",
+  "src/components/shared/LabDeviceUnlinkedBanner",
+  "src/components/shared/Layout",
+  "src/components/shared/MasterSelectModal",
+  "src/components/shared/NavigationBlocker",
+  "src/components/shared/NextScheduleField",
+  "src/components/shared/NumberInput",
+  "src/components/shared/OwnerSearchModal",
+  "src/components/shared/Pagination",
+  "src/components/shared/PartnerRecordLink",
+  "src/components/shared/PastRecordHistoryPanel",
+  "src/components/shared/PatientContextHeader",
+  "src/components/shared/PatientInfoCard",
+  "src/components/shared/PermissionBadges",
+  "src/components/shared/PetDeceasedRecordButton",
+  "src/components/shared/PetSelection",
+  "src/components/shared/PropertyFilter",
+  "src/components/shared/ReservationFormModal",
+  "src/components/shared/ReservationRouteSelect",
+  "src/components/shared/RowActionDropdown",
+  "src/components/shared/SidePeek",
+  "src/components/shared/SortableHeader",
+  "src/components/shared/StatusBadge",
+  "src/components/shared/TaxRateSelector",
+  "src/components/shared/TaxTypeSelector",
+  "src/components/shared/TreatmentSearchDialog",
+  "src/components/shared/MasterLink.tsx",
+  "src/components/shared/PrintPortal.tsx",
+  "src/components/shared/RequirePermission.tsx",
+  "src/components/shared/UnifiedTabs.tsx",
+]);
 
 /**
  * C22: PALETTE に残る Tailwind クラス文字列メンバ（STATE/STYLE への移行対象）。
@@ -995,6 +1055,41 @@ export function checkC21(relPath, allRelPaths) {
 }
 
 /**
+ * checkC24 は `src/components/shared/` 配下のコンポーネントに stories があるか
+ * 判定する。ディレクトリ単位（Dir/ 直下に *.stories.tsx が1件以上）と
+ * shared/ 直下ファイル単位（sibling stories）の2形態を扱う。
+ * seenDirs は collectViolations 側で使い回し、ディレクトリの重複報告を防ぐ。
+ */
+export function checkC24(relPath, allRelPaths, seenDirs) {
+  const violations = [];
+  const parts = relPath.split(path.sep);
+  if (parts[0] !== "src" || parts[1] !== "components" || parts[2] !== "shared") return violations;
+  const file = parts.at(-1);
+  if (!file.endsWith(".tsx")) return violations;
+  if (file.endsWith(".test.tsx") || file.endsWith(".stories.tsx") || file === "index.tsx") return violations;
+
+  if (parts.length === 4) {
+    if (C24_SHARED_STORIES_ALLOWLIST.has(relPath)) return violations;
+    if (!allRelPaths.has(relPath.replace(/\.tsx$/, ".stories.tsx"))) {
+      violations.push({ lineNumber: 1, text: "sibling *.stories.tsx なし（C24 allowlist 削減または stories 追加）" });
+    }
+    return violations;
+  }
+
+  const dir = parts.slice(0, 4).join(path.sep);
+  if (seenDirs.has(dir) || C24_SHARED_STORIES_ALLOWLIST.has(dir)) return violations;
+  seenDirs.add(dir);
+  const prefix = dir + path.sep;
+  const hasStories = [...allRelPaths].some(
+    (p) => p.startsWith(prefix) && p.endsWith(".stories.tsx"),
+  );
+  if (!hasStories) {
+    violations.push({ lineNumber: 1, text: "dir 内に *.stories.tsx なし（C24 allowlist 削減または stories 追加）" });
+  }
+  return violations;
+}
+
+/**
  * checkC22 は design-tokens.ts の PALETTE ブロック内で Tailwind クラス文字列を
  * 値に持つ新規メンバを検出する（design-token-layers.md §3 L1 純粋性ガード）。
  */
@@ -1110,12 +1205,13 @@ async function walk(dir, exts, excludeNames) {
 
 /**
  * collectViolations は cwd 配下の SCAN_ROOTS（src・liff/src・line-reserve/src）を走査し、
- * C1〜C23 違反を集計する純粋寄りの関数。
- * ファイル I/O のみ副作用を持ち、判定ロジック自体は checkC1〜checkC23 に委譲する。
+ * C1〜C24 違反を集計する純粋寄りの関数。
+ * ファイル I/O のみ副作用を持ち、判定ロジック自体は checkC1〜checkC24 に委譲する。
  */
 export async function collectViolations(cwd) {
-  const result = { c1: [], c3: [], c5: [], c6: [], c7: [], c8: [], c9: [], c10: [], c11: [], c12: [], c13: [], c14: [], c15: [], c16: [], c17: [], c18: [], c19: [], c20: [], c21: [], c22: [], c23: [] };
+  const result = { c1: [], c3: [], c5: [], c6: [], c7: [], c8: [], c9: [], c10: [], c11: [], c12: [], c13: [], c14: [], c15: [], c16: [], c17: [], c18: [], c19: [], c20: [], c21: [], c22: [], c23: [], c24: [] };
   const allRelPaths = new Set();
+  const c24SeenDirs = new Set();
 
   for (const scanRoot of SCAN_ROOTS) {
     const root = path.join(cwd, scanRoot);
@@ -1196,6 +1292,9 @@ export async function collectViolations(cwd) {
       for (const v of checkC21(relPath, allRelPaths)) {
         result.c21.push({ file: relPath, ...v });
       }
+      for (const v of checkC24(relPath, allRelPaths, c24SeenDirs)) {
+        result.c24.push({ file: relPath, ...v });
+      }
 
       // C8: src/features/<feat>/routes/<file>.tsx のみ（ネスト無し・.test 除外）
       const parts = relPath.split(path.sep);
@@ -1268,12 +1367,13 @@ async function main() {
   printGroup("C21 ui stories 不在", result.c21);
   printGroup("C22 PALETTE クラス文字列", result.c22);
   printGroup("C23 BADGE コントラスト", result.c23);
+  printGroup("C24 shared stories 不在", result.c24);
 
   const total = result.c1.length + result.c3.length + result.c5.length + result.c6.length
     + result.c7.length + result.c8.length + result.c9.length + result.c10.length + result.c11.length
     + result.c12.length + result.c13.length + result.c14.length + result.c15.length + result.c16.length
     + result.c17.length + result.c18.length + result.c19.length + result.c20.length
-    + result.c21.length + result.c22.length + result.c23.length;
+    + result.c21.length + result.c22.length + result.c23.length + result.c24.length;
   if (total > 0) {
     console.log(`design-system-audit: FAIL — ${total} 件の違反`);
     process.exit(1);
