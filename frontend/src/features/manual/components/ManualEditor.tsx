@@ -145,7 +145,7 @@ export function ManualEditor({ article, onClose, canEdit = false }: ManualEditor
             type="button"
             onClick={() => setMode("edit")}
             aria-pressed={mode === "edit"}
-            className={`flex min-h-11 items-center gap-1 px-2.5 py-1.5 text-sm ${C.text} ${mode === "edit" ? "bg-black/5" : ""}`}
+            className={`flex min-h-11 items-center gap-1 px-2.5 py-1.5 text-sm ${C.text} ${mode === "edit" ? C.bgPrimary5 : ""}`}
           >
             <FileText className="size-4" />
             <span className="hidden sm:inline">編集</span>
@@ -154,7 +154,7 @@ export function ManualEditor({ article, onClose, canEdit = false }: ManualEditor
             type="button"
             onClick={() => setMode("split")}
             aria-pressed={mode === "split"}
-            className={`flex min-h-11 items-center gap-1 px-2.5 py-1.5 text-sm border-l ${C.borderDivider} ${C.text} ${mode === "split" ? "bg-black/5" : ""}`}
+            className={`flex min-h-11 items-center gap-1 px-2.5 py-1.5 text-sm border-l ${C.borderDivider} ${C.text} ${mode === "split" ? C.bgPrimary5 : ""}`}
           >
             <Columns2 className="size-4" />
             <span className="hidden sm:inline">分割</span>
@@ -163,7 +163,7 @@ export function ManualEditor({ article, onClose, canEdit = false }: ManualEditor
             type="button"
             onClick={() => setMode("preview")}
             aria-pressed={mode === "preview"}
-            className={`flex min-h-11 items-center gap-1 px-2.5 py-1.5 text-sm border-l ${C.borderDivider} ${C.text} ${mode === "preview" ? "bg-black/5" : ""}`}
+            className={`flex min-h-11 items-center gap-1 px-2.5 py-1.5 text-sm border-l ${C.borderDivider} ${C.text} ${mode === "preview" ? C.bgPrimary5 : ""}`}
           >
             <Eye className="size-4" />
             <span className="hidden sm:inline">プレビュー</span>

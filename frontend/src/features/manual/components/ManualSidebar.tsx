@@ -143,7 +143,7 @@ export function ManualSidebar({
         <div
           role="tablist"
           aria-label="マニュアル表示モード"
-          className="grid grid-cols-2 gap-1 p-0.5 rounded-xxs bg-black/5"
+          className={`grid grid-cols-2 gap-1 p-0.5 rounded-xxs ${C.bgPrimary5}`}
         >
           {VIEW_MODES.map((item, index) => (
             <button
